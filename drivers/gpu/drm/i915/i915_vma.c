@@ -78,6 +78,9 @@ vma_create(struct drm_i915_gem_object *obj,
 	struct rb_node *rb, **p;
 	int i;
 
+	/* The aliasing_ppgtt should never be used directly! */
+	GEM_BUG_ON(vm == &vm->i915->mm.aliasing_ppgtt->base);
+
 	vma = kmem_cache_zalloc(vm->i915->vmas, GFP_KERNEL);
 	if (vma == NULL)
 		return ERR_PTR(-ENOMEM);
