@@ -935,6 +935,7 @@ static bool construct(
 	pool->base.pipe_count = res_cap.num_timing_generator;
 	dc->public.caps.max_downscale_ratio = 200;
 	dc->public.caps.i2c_speed_in_khz = 40;
+	dc->public.caps.max_cursor_size = 128;
 
 	/*************************************************
 	 *  Create resources                             *
