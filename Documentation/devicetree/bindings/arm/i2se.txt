@@ -1,0 +1,22 @@
+I2SE Device Tree Bindings
+-------------------------
+
+Duckbill Board
+Required root node properties:
+    - compatible = "i2se,duckbill", "fsl,imx28";
+
+Duckbill 2 Board
+Required root node properties:
+    - compatible = "i2se,duckbill-2", "fsl,imx28";
+
+Duckbill 2 485 Board
+Required root node properties:
+    - compatible = "i2se,duckbill-2-485", "i2se,duckbill-2", "fsl,imx28";
+
+Duckbill 2 EnOcean Board
+Required root node properties:
+    - compatible = "i2se,duckbill-2-enocean", "i2se,duckbill-2", "fsl,imx28";
+
+Duckbill 2 SPI Board
+Required root node properties:
+    - compatible = "i2se,duckbill-2-spi", "i2se,duckbill-2", "fsl,imx28";
