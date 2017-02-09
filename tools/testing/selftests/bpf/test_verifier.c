@@ -24,6 +24,8 @@
 #include <linux/bpf_perf_event.h>
 #include <linux/bpf.h>
 
+#include <bpf/bpf.h>
+
 #include "../../../include/linux/filter.h"
 
 #include "bpf_sys.h"
@@ -4535,9 +4537,9 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 
 	do_test_fixup(test, prog, &fd_f1, &fd_f2, &fd_f3);
 
-	fd_prog = bpf_prog_load(prog_type ? : BPF_PROG_TYPE_SOCKET_FILTER,
-				prog, prog_len * sizeof(struct bpf_insn),
-				"GPL", bpf_vlog, sizeof(bpf_vlog));
+	fd_prog = bpf_load_program(prog_type ? : BPF_PROG_TYPE_SOCKET_FILTER,
+				   prog, prog_len, "GPL", 0, bpf_vlog,
+				   sizeof(bpf_vlog));
 
 	expected_ret = unpriv && test->result_unpriv != UNDEF ?
 		       test->result_unpriv : test->result;

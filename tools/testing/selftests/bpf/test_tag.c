@@ -16,6 +16,8 @@
 #include <linux/bpf.h>
 #include <linux/if_alg.h>
 
+#include <bpf/bpf.h>
+
 #include "../../../include/linux/filter.h"
 
 #include "bpf_sys.h"
@@ -55,8 +57,8 @@ static int bpf_try_load_prog(int insns, int fd_map,
 	int fd_prog;
 
 	bpf_filler(insns, fd_map);
-	fd_prog = bpf_prog_load(BPF_PROG_TYPE_SCHED_CLS, prog, insns *
-				sizeof(struct bpf_insn), "", NULL, 0);
+	fd_prog = bpf_load_program(BPF_PROG_TYPE_SCHED_CLS, prog, insns, "", 0,
+				   NULL, 0);
 	assert(fd_prog > 0);
 	if (fd_map > 0)
 		bpf_filler(insns, 0);

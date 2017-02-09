@@ -42,7 +42,7 @@
 # endif
 #endif
 
-static __u64 ptr_to_u64(void *ptr)
+static __u64 ptr_to_u64(const void *ptr)
 {
 	return (__u64) (unsigned long) ptr;
 }
@@ -69,8 +69,8 @@ int bpf_create_map(enum bpf_map_type map_type, int key_size,
 	return sys_bpf(BPF_MAP_CREATE, &attr, sizeof(attr));
 }
 
-int bpf_load_program(enum bpf_prog_type type, struct bpf_insn *insns,
-		     size_t insns_cnt, char *license,
+int bpf_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
+		     size_t insns_cnt, const char *license,
 		     __u32 kern_version, char *log_buf, size_t log_buf_sz)
 {
 	int fd;

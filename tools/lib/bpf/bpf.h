@@ -28,8 +28,8 @@ int bpf_create_map(enum bpf_map_type map_type, int key_size, int value_size,
 
 /* Recommend log buffer size */
 #define BPF_LOG_BUF_SIZE 65536
-int bpf_load_program(enum bpf_prog_type type, struct bpf_insn *insns,
-		     size_t insns_cnt, char *license,
+int bpf_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
+		     size_t insns_cnt, const char *license,
 		     __u32 kern_version, char *log_buf,
 		     size_t log_buf_sz);
 
