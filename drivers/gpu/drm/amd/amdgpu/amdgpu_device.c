@@ -1607,7 +1607,7 @@ int amdgpu_suspend(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int amdgpu_sriov_resume_early(struct amdgpu_device *adev)
+static int amdgpu_sriov_reinit_early(struct amdgpu_device *adev)
 {
 	int i, r;
 
@@ -1618,7 +1618,7 @@ static int amdgpu_sriov_resume_early(struct amdgpu_device *adev)
 		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_COMMON ||
 				adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GMC ||
 				adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_IH)
-			r = adev->ip_blocks[i].version->funcs->resume(adev);
+			r = adev->ip_blocks[i].version->funcs->hw_init(adev);
 
 		if (r) {
 			DRM_ERROR("resume of IP block <%s> failed %d\n",
@@ -1630,7 +1630,7 @@ static int amdgpu_sriov_resume_early(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int amdgpu_sriov_resume_late(struct amdgpu_device *adev)
+static int amdgpu_sriov_reinit_late(struct amdgpu_device *adev)
 {
 	int i, r;
 
@@ -1643,7 +1643,7 @@ static int amdgpu_sriov_resume_late(struct amdgpu_device *adev)
 				adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_IH )
 			continue;
 
-		r = adev->ip_blocks[i].version->funcs->resume(adev);
+		r = adev->ip_blocks[i].version->funcs->hw_init(adev);
 		if (r) {
 			DRM_ERROR("resume of IP block <%s> failed %d\n",
 				  adev->ip_blocks[i].version->funcs->name, r);
@@ -2375,13 +2375,13 @@ int amdgpu_sriov_gpu_reset(struct amdgpu_device *adev, bool voluntary)
 
 
 	/* Resume IP prior to SMC */
-	amdgpu_sriov_resume_early(adev);
+	amdgpu_sriov_reinit_early(adev);
 
 	/* we need recover gart prior to run SMC/CP/SDMA resume */
 	amdgpu_ttm_recover_gart(adev);
 
 	/* now we are okay to resume SMC/CP/SDMA */
-	amdgpu_sriov_resume_late(adev);
+	amdgpu_sriov_reinit_late(adev);
 
 	amdgpu_irq_gpu_reset_resume_helper(adev);
 
