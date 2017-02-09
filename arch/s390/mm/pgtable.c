@@ -202,7 +202,7 @@ static inline pgste_t ptep_xchg_start(struct mm_struct *mm,
 	return pgste;
 }
 
-static inline void ptep_xchg_commit(struct mm_struct *mm,
+static inline pte_t ptep_xchg_commit(struct mm_struct *mm,
 				    unsigned long addr, pte_t *ptep,
 				    pgste_t pgste, pte_t old, pte_t new)
 {
@@ -220,6 +220,7 @@ static inline void ptep_xchg_commit(struct mm_struct *mm,
 	} else {
 		*ptep = new;
 	}
+	return old;
 }
 
 pte_t ptep_xchg_direct(struct mm_struct *mm, unsigned long addr,
@@ -231,7 +232,7 @@ pte_t ptep_xchg_direct(struct mm_struct *mm, unsigned long addr,
 	preempt_disable();
 	pgste = ptep_xchg_start(mm, addr, ptep);
 	old = ptep_flush_direct(mm, addr, ptep);
-	ptep_xchg_commit(mm, addr, ptep, pgste, old, new);
+	old = ptep_xchg_commit(mm, addr, ptep, pgste, old, new);
 	preempt_enable();
 	return old;
 }
@@ -246,7 +247,7 @@ pte_t ptep_xchg_lazy(struct mm_struct *mm, unsigned long addr,
 	preempt_disable();
 	pgste = ptep_xchg_start(mm, addr, ptep);
 	old = ptep_flush_lazy(mm, addr, ptep);
-	ptep_xchg_commit(mm, addr, ptep, pgste, old, new);
+	old = ptep_xchg_commit(mm, addr, ptep, pgste, old, new);
 	preempt_enable();
 	return old;
 }

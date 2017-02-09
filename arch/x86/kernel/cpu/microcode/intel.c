@@ -41,7 +41,7 @@
 
 static const char ucode_path[] = "kernel/x86/microcode/GenuineIntel.bin";
 
-/* Current microcode patch used in early patching */
+/* Current microcode patch used in early patching on the APs. */
 struct microcode_intel *intel_ucode_patch;
 
 static inline bool cpu_signatures_match(unsigned int s1, unsigned int p1,
@@ -607,12 +607,6 @@ int __init save_microcode_in_initrd_intel(void)
 	struct ucode_cpu_info uci;
 	struct cpio_data cp;
 
-	/*
-	 * AP loading didn't find any microcode patch, no need to save anything.
-	 */
-	if (!intel_ucode_patch || IS_ERR(intel_ucode_patch))
-		return 0;
-
 	if (!load_builtin_intel_microcode(&cp))
 		cp = find_microcode_in_initrd(ucode_path, false);
 
@@ -627,7 +621,6 @@ int __init save_microcode_in_initrd_intel(void)
 
 	return 0;
 }
-
 
 /*
  * @res_patch, output: a pointer to the patch we found.
