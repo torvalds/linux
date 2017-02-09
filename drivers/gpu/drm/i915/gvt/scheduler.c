@@ -456,7 +456,7 @@ static int workload_thread(void *priv)
 		}
 
 complete:
-		gvt_dbg_sched("will complete workload %p\n, status: %d\n",
+		gvt_dbg_sched("will complete workload %p, status: %d\n",
 				workload, workload->status);
 
 		if (workload->req)
