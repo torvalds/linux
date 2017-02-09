@@ -122,8 +122,7 @@ static int iwch_poll_cq_one(struct iwch_dev *rhp, struct iwch_cq *chp,
 			wc->opcode = IB_WC_REG_MR;
 			break;
 		default:
-			printk(KERN_ERR MOD "Unexpected opcode %d "
-			       "in the CQE received for QPID=0x%0x\n",
+			pr_err("Unexpected opcode %d in the CQE received for QPID=0x%0x\n",
 			       CQE_OPCODE(cqe), CQE_QPID(cqe));
 			ret = -EINVAL;
 			goto out;
@@ -177,8 +176,8 @@ static int iwch_poll_cq_one(struct iwch_dev *rhp, struct iwch_cq *chp,
 			wc->status = IB_WC_WR_FLUSH_ERR;
 			break;
 		default:
-			printk(KERN_ERR MOD "Unexpected cqe_status 0x%x for "
-			       "QPID=0x%0x\n", CQE_STATUS(cqe), CQE_QPID(cqe));
+			pr_err("Unexpected cqe_status 0x%x for QPID=0x%0x\n",
+			       CQE_STATUS(cqe), CQE_QPID(cqe));
 			ret = -EINVAL;
 		}
 	}

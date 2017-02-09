@@ -367,7 +367,7 @@ static void arp_failure_discard(struct t3cdev *dev, struct sk_buff *skb)
  */
 static void act_open_req_arp_failure(struct t3cdev *dev, struct sk_buff *skb)
 {
-	printk(KERN_ERR MOD "ARP failure during connect\n");
+	pr_err("ARP failure during connect\n");
 	kfree_skb(skb);
 }
 
@@ -392,7 +392,7 @@ static int send_halfclose(struct iwch_ep *ep, gfp_t gfp)
 	PDBG("%s ep %p\n", __func__, ep);
 	skb = get_skb(NULL, sizeof(*req), gfp);
 	if (!skb) {
-		printk(KERN_ERR MOD "%s - failed to alloc skb\n", __func__);
+		pr_err("%s - failed to alloc skb\n", __func__);
 		return -ENOMEM;
 	}
 	skb->priority = CPL_PRIORITY_DATA;
@@ -411,8 +411,7 @@ static int send_abort(struct iwch_ep *ep, struct sk_buff *skb, gfp_t gfp)
 	PDBG("%s ep %p\n", __func__, ep);
 	skb = get_skb(skb, sizeof(*req), gfp);
 	if (!skb) {
-		printk(KERN_ERR MOD "%s - failed to alloc skb.\n",
-		       __func__);
+		pr_err("%s - failed to alloc skb\n", __func__);
 		return -ENOMEM;
 	}
 	skb->priority = CPL_PRIORITY_DATA;
@@ -438,8 +437,7 @@ static int send_connect(struct iwch_ep *ep)
 
 	skb = get_skb(NULL, sizeof(*req), GFP_KERNEL);
 	if (!skb) {
-		printk(KERN_ERR MOD "%s - failed to alloc skb.\n",
-		       __func__);
+		pr_err("%s - failed to alloc skb\n", __func__);
 		return -ENOMEM;
 	}
 	mtu_idx = find_best_mtu(T3C_DATA(ep->com.tdev), dst_mtu(ep->dst));
@@ -544,7 +542,7 @@ static int send_mpa_reject(struct iwch_ep *ep, const void *pdata, u8 plen)
 
 	skb = get_skb(NULL, mpalen + sizeof(*req), GFP_KERNEL);
 	if (!skb) {
-		printk(KERN_ERR MOD "%s - cannot alloc skb!\n", __func__);
+		pr_err("%s - cannot alloc skb!\n", __func__);
 		return -ENOMEM;
 	}
 	skb_reserve(skb, sizeof(*req));
@@ -593,7 +591,7 @@ static int send_mpa_reply(struct iwch_ep *ep, const void *pdata, u8 plen)
 
 	skb = get_skb(NULL, mpalen + sizeof(*req), GFP_KERNEL);
 	if (!skb) {
-		printk(KERN_ERR MOD "%s - cannot alloc skb!\n", __func__);
+		pr_err("%s - cannot alloc skb!\n", __func__);
 		return -ENOMEM;
 	}
 	skb->priority = CPL_PRIORITY_DATA;
@@ -798,7 +796,7 @@ static int update_rx_credits(struct iwch_ep *ep, u32 credits)
 	PDBG("%s ep %p credits %u\n", __func__, ep, credits);
 	skb = get_skb(NULL, sizeof(*req), GFP_KERNEL);
 	if (!skb) {
-		printk(KERN_ERR MOD "update_rx_credits - cannot alloc skb!\n");
+		pr_err("update_rx_credits - cannot alloc skb!\n");
 		return 0;
 	}
 
@@ -1065,8 +1063,7 @@ static int rx_data(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	case MPA_REP_SENT:
 		break;
 	default:
-		printk(KERN_ERR MOD "%s Unexpected streaming data."
-		       " ep %p state %d tid %d\n",
+		pr_err("%s Unexpected streaming data. ep %p state %d tid %d\n",
 		       __func__, ep, state_read(&ep->com), ep->hwtid);
 
 		/*
@@ -1159,8 +1156,7 @@ static int abort_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		release = 1;
 		break;
 	default:
-		printk(KERN_ERR "%s ep %p state %d\n",
-		     __func__, ep, ep->com.state);
+		pr_err("%s ep %p state %d\n", __func__, ep, ep->com.state);
 		break;
 	}
 	spin_unlock_irqrestore(&ep->com.lock, flags);
@@ -1205,7 +1201,7 @@ static int listen_start(struct iwch_listen_ep *ep)
 	PDBG("%s ep %p\n", __func__, ep);
 	skb = get_skb(NULL, sizeof(*req), GFP_KERNEL);
 	if (!skb) {
-		printk(KERN_ERR MOD "t3c_listen_start failed to alloc skb!\n");
+		pr_err("t3c_listen_start failed to alloc skb!\n");
 		return -ENOMEM;
 	}
 
@@ -1247,7 +1243,7 @@ static int listen_stop(struct iwch_listen_ep *ep)
 	PDBG("%s ep %p\n", __func__, ep);
 	skb = get_skb(NULL, sizeof(*req), GFP_KERNEL);
 	if (!skb) {
-		printk(KERN_ERR MOD "%s - failed to alloc skb\n", __func__);
+		pr_err("%s - failed to alloc skb\n", __func__);
 		return -ENOMEM;
 	}
 	req = (struct cpl_close_listserv_req *) skb_put(skb, sizeof(*req));
@@ -1350,8 +1346,7 @@ static int pass_accept_req(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	PDBG("%s parent ep %p tid %u\n", __func__, parent_ep, hwtid);
 
 	if (state_read(&parent_ep->com) != LISTEN) {
-		printk(KERN_ERR "%s - listening ep not in LISTEN\n",
-		       __func__);
+		pr_err("%s - listening ep not in LISTEN\n", __func__);
 		goto reject;
 	}
 
@@ -1361,8 +1356,7 @@ static int pass_accept_req(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	tim.mac_addr = req->dst_mac;
 	tim.vlan_tag = ntohs(req->vlan_tag);
 	if (tdev->ctl(tdev, GET_IFF_FROM_MAC, &tim) < 0 || !tim.dev) {
-		printk(KERN_ERR "%s bad dst mac %pM\n",
-			__func__, req->dst_mac);
+		pr_err("%s bad dst mac %pM\n", __func__, req->dst_mac);
 		goto reject;
 	}
 
@@ -1373,22 +1367,19 @@ static int pass_accept_req(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 			req->local_port,
 			req->peer_port, G_PASS_OPEN_TOS(ntohl(req->tos_tid)));
 	if (!rt) {
-		printk(KERN_ERR MOD "%s - failed to find dst entry!\n",
-		       __func__);
+		pr_err("%s - failed to find dst entry!\n", __func__);
 		goto reject;
 	}
 	dst = &rt->dst;
 	l2t = t3_l2t_get(tdev, dst, NULL, &req->peer_ip);
 	if (!l2t) {
-		printk(KERN_ERR MOD "%s - failed to allocate l2t entry!\n",
-		       __func__);
+		pr_err("%s - failed to allocate l2t entry!\n", __func__);
 		dst_release(dst);
 		goto reject;
 	}
 	child_ep = alloc_ep(sizeof(*child_ep), GFP_KERNEL);
 	if (!child_ep) {
-		printk(KERN_ERR MOD "%s - failed to allocate ep entry!\n",
-		       __func__);
+		pr_err("%s - failed to allocate ep entry!\n", __func__);
 		l2t_release(tdev, l2t);
 		dst_release(dst);
 		goto reject;
@@ -1595,9 +1586,7 @@ static int peer_abort(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 				     ep->com.qp, IWCH_QP_ATTR_NEXT_STATE,
 				     &attrs, 1);
 			if (ret)
-				printk(KERN_ERR MOD
-				       "%s - qp <- error failed!\n",
-				       __func__);
+				pr_err("%s - qp <- error failed!\n", __func__);
 		}
 		peer_abort_upcall(ep);
 		break;
@@ -1620,8 +1609,7 @@ static int peer_abort(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 
 	rpl_skb = get_skb(skb, sizeof(*rpl), GFP_KERNEL);
 	if (!rpl_skb) {
-		printk(KERN_ERR MOD "%s - cannot allocate skb!\n",
-		       __func__);
+		pr_err("%s - cannot allocate skb!\n", __func__);
 		release = 1;
 		goto out;
 	}
@@ -1719,7 +1707,7 @@ static int ec_status(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	if (rep->status) {
 		struct iwch_qp_attributes attrs;
 
-		printk(KERN_ERR MOD "%s BAD CLOSE - Aborting tid %u\n",
+		pr_err("%s BAD CLOSE - Aborting tid %u\n",
 		       __func__, ep->hwtid);
 		stop_ep_timer(ep);
 		attrs.next_state = IWCH_QP_STATE_ERROR;
@@ -1907,7 +1895,7 @@ int iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	ep = alloc_ep(sizeof(*ep), GFP_KERNEL);
 	if (!ep) {
-		printk(KERN_ERR MOD "%s - cannot alloc ep.\n", __func__);
+		pr_err("%s - cannot alloc ep\n", __func__);
 		err = -ENOMEM;
 		goto out;
 	}
@@ -1936,7 +1924,7 @@ int iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	 */
 	ep->atid = cxgb3_alloc_atid(h->rdev.t3cdev_p, &t3c_client, ep);
 	if (ep->atid == -1) {
-		printk(KERN_ERR MOD "%s - cannot alloc atid.\n", __func__);
+		pr_err("%s - cannot alloc atid\n", __func__);
 		err = -ENOMEM;
 		goto fail2;
 	}
@@ -1946,7 +1934,7 @@ int iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 			raddr->sin_addr.s_addr, laddr->sin_port,
 			raddr->sin_port, IPTOS_LOWDELAY);
 	if (!rt) {
-		printk(KERN_ERR MOD "%s - cannot find route.\n", __func__);
+		pr_err("%s - cannot find route\n", __func__);
 		err = -EHOSTUNREACH;
 		goto fail3;
 	}
@@ -1954,7 +1942,7 @@ int iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	ep->l2t = t3_l2t_get(ep->com.tdev, ep->dst, NULL,
 			     &raddr->sin_addr.s_addr);
 	if (!ep->l2t) {
-		printk(KERN_ERR MOD "%s - cannot alloc l2e.\n", __func__);
+		pr_err("%s - cannot alloc l2e\n", __func__);
 		err = -ENOMEM;
 		goto fail4;
 	}
@@ -1999,7 +1987,7 @@ int iwch_create_listen(struct iw_cm_id *cm_id, int backlog)
 
 	ep = alloc_ep(sizeof(*ep), GFP_KERNEL);
 	if (!ep) {
-		printk(KERN_ERR MOD "%s - cannot alloc ep.\n", __func__);
+		pr_err("%s - cannot alloc ep\n", __func__);
 		err = -ENOMEM;
 		goto fail1;
 	}
@@ -2016,7 +2004,7 @@ int iwch_create_listen(struct iw_cm_id *cm_id, int backlog)
 	 */
 	ep->stid = cxgb3_alloc_stid(h->rdev.t3cdev_p, &t3c_client, ep);
 	if (ep->stid == -1) {
-		printk(KERN_ERR MOD "%s - cannot alloc atid.\n", __func__);
+		pr_err("%s - cannot alloc atid\n", __func__);
 		err = -ENOMEM;
 		goto fail2;
 	}
@@ -2225,8 +2213,8 @@ static int set_tcb_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	struct cpl_set_tcb_rpl *rpl = cplhdr(skb);
 
 	if (rpl->status != CPL_ERR_NONE) {
-		printk(KERN_ERR MOD "Unexpected SET_TCB_RPL status %u "
-		       "for tid %u\n", rpl->status, GET_TID(rpl));
+		pr_err("Unexpected SET_TCB_RPL status %u for tid %u\n",
+		       rpl->status, GET_TID(rpl));
 	}
 	return CPL_RET_BUF_DONE;
 }

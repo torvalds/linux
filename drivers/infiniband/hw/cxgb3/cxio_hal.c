@@ -110,8 +110,7 @@ int cxio_hal_cq_op(struct cxio_rdev *rdev_p, struct t3_cq *cq,
 		while (!CQ_VLD_ENTRY(rptr, cq->size_log2, cqe)) {
 			udelay(1);
 			if (i++ > 1000000) {
-				printk(KERN_ERR "%s: stalled rnic\n",
-				       rdev_p->dev_name);
+				pr_err("%s: stalled rnic\n", rdev_p->dev_name);
 				return -EIO;
 			}
 		}
@@ -949,13 +948,12 @@ int cxio_rdev_open(struct cxio_rdev *rdev_p)
 	err = rdev_p->t3cdev_p->ctl(rdev_p->t3cdev_p, GET_EMBEDDED_INFO,
 					 &(rdev_p->fw_info));
 	if (err) {
-		printk(KERN_ERR "%s t3cdev_p(%p)->ctl returned error %d.\n",
-		     __func__, rdev_p->t3cdev_p, err);
+		pr_err("%s t3cdev_p(%p)->ctl returned error %d\n",
+		       __func__, rdev_p->t3cdev_p, err);
 		goto err1;
 	}
 	if (G_FW_VERSION_MAJOR(rdev_p->fw_info.fw_vers) != CXIO_FW_MAJ) {
-		printk(KERN_ERR MOD "fatal firmware version mismatch: "
-		       "need version %u but adapter has version %u\n",
+		pr_err("fatal firmware version mismatch: need version %u but adapter has version %u\n",
 		       CXIO_FW_MAJ,
 		       G_FW_VERSION_MAJOR(rdev_p->fw_info.fw_vers));
 		err = -EINVAL;
@@ -965,15 +963,15 @@ int cxio_rdev_open(struct cxio_rdev *rdev_p)
 	err = rdev_p->t3cdev_p->ctl(rdev_p->t3cdev_p, RDMA_GET_PARAMS,
 					 &(rdev_p->rnic_info));
 	if (err) {
-		printk(KERN_ERR "%s t3cdev_p(%p)->ctl returned error %d.\n",
-		     __func__, rdev_p->t3cdev_p, err);
+		pr_err("%s t3cdev_p(%p)->ctl returned error %d\n",
+		       __func__, rdev_p->t3cdev_p, err);
 		goto err1;
 	}
 	err = rdev_p->t3cdev_p->ctl(rdev_p->t3cdev_p, GET_PORTS,
 				    &(rdev_p->port_info));
 	if (err) {
-		printk(KERN_ERR "%s t3cdev_p(%p)->ctl returned error %d.\n",
-		     __func__, rdev_p->t3cdev_p, err);
+		pr_err("%s t3cdev_p(%p)->ctl returned error %d\n",
+		       __func__, rdev_p->t3cdev_p, err);
 		goto err1;
 	}
 
@@ -1003,27 +1001,26 @@ int cxio_rdev_open(struct cxio_rdev *rdev_p)
 
 	err = cxio_hal_init_ctrl_qp(rdev_p);
 	if (err) {
-		printk(KERN_ERR "%s error %d initializing ctrl_qp.\n",
-		       __func__, err);
+		pr_err("%s error %d initializing ctrl_qp\n", __func__, err);
 		goto err1;
 	}
 	err = cxio_hal_init_resource(rdev_p, cxio_num_stags(rdev_p), 0,
 				     0, T3_MAX_NUM_QP, T3_MAX_NUM_CQ,
 				     T3_MAX_NUM_PD);
 	if (err) {
-		printk(KERN_ERR "%s error %d initializing hal resources.\n",
+		pr_err("%s error %d initializing hal resources\n",
 		       __func__, err);
 		goto err2;
 	}
 	err = cxio_hal_pblpool_create(rdev_p);
 	if (err) {
-		printk(KERN_ERR "%s error %d initializing pbl mem pool.\n",
+		pr_err("%s error %d initializing pbl mem pool\n",
 		       __func__, err);
 		goto err3;
 	}
 	err = cxio_hal_rqtpool_create(rdev_p);
 	if (err) {
-		printk(KERN_ERR "%s error %d initializing rqt mem pool.\n",
+		pr_err("%s error %d initializing rqt mem pool\n",
 		       __func__, err);
 		goto err4;
 	}

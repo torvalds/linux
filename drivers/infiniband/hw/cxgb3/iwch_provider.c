@@ -227,8 +227,7 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev,
 		mm->addr = virt_to_phys(chp->cq.queue);
 		if (udata->outlen < sizeof uresp) {
 			if (!warned++)
-				printk(KERN_WARNING MOD "Warning - "
-				       "downlevel libcxgb3 (non-fatal).\n");
+				pr_warn("Warning - downlevel libcxgb3 (non-fatal)\n");
 			mm->len = PAGE_ALIGN((1UL << uresp.size_log2) *
 					     sizeof(struct t3_cqe));
 			resplen = sizeof(struct iwch_create_cq_resp_v0);
@@ -306,8 +305,7 @@ static int iwch_resize_cq(struct ib_cq *cq, int cqe, struct ib_udata *udata)
 	oldcq.cqid = newcq.cqid;
 	ret = cxio_destroy_cq(&chp->rhp->rdev, &oldcq);
 	if (ret) {
-		printk(KERN_ERR MOD "%s - cxio_destroy_cq failed %d\n",
-			__func__, ret);
+		pr_err("%s - cxio_destroy_cq failed %d\n", __func__, ret);
 	}
 
 	/* add user hooks here */
@@ -346,8 +344,7 @@ static int iwch_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 	err = cxio_hal_cq_op(&rhp->rdev, &chp->cq, cq_op, 0);
 	spin_unlock_irqrestore(&chp->lock, flag);
 	if (err < 0)
-		printk(KERN_ERR MOD "Error %d rearming CQID 0x%x\n", err,
-		       chp->cq.cqid);
+		pr_err("Error %d rearming CQID 0x%x\n", err, chp->cq.cqid);
 	if (err > 0 && !(flags & IB_CQ_REPORT_MISSED_EVENTS))
 		err = 0;
 	return err;
@@ -493,7 +490,7 @@ static struct ib_mr *iwch_get_dma_mr(struct ib_pd *pd, int acc)
 	 * T3 only supports 32 bits of size.
 	 */
 	if (sizeof(phys_addr_t) > 4) {
-		pr_warn_once(MOD "Cannot support dma_mrs on this platform.\n");
+		pr_warn_once("Cannot support dma_mrs on this platform\n");
 		return ERR_PTR(-ENOTSUPP);
 	}
 

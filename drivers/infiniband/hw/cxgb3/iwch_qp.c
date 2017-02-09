@@ -667,7 +667,7 @@ int iwch_post_zb_read(struct iwch_ep *ep)
 	PDBG("%s enter\n", __func__);
 	skb = alloc_skb(40, GFP_KERNEL);
 	if (!skb) {
-		printk(KERN_ERR "%s cannot send zb_read!!\n", __func__);
+		pr_err("%s cannot send zb_read!!\n", __func__);
 		return -ENOMEM;
 	}
 	wqe = (union t3_wr *)skb_put(skb, sizeof(struct t3_rdma_read_wr));
@@ -699,7 +699,7 @@ int iwch_post_terminate(struct iwch_qp *qhp, struct respQ_msg_t *rsp_msg)
 	PDBG("%s %d\n", __func__, __LINE__);
 	skb = alloc_skb(40, GFP_ATOMIC);
 	if (!skb) {
-		printk(KERN_ERR "%s cannot send TERMINATE!\n", __func__);
+		pr_err("%s cannot send TERMINATE!\n", __func__);
 		return -ENOMEM;
 	}
 	wqe = (union t3_wr *)skb_put(skb, 40);
@@ -1034,8 +1034,7 @@ int iwch_modify_qp(struct iwch_dev *rhp, struct iwch_qp *qhp,
 		goto err;
 		break;
 	default:
-		printk(KERN_ERR "%s in a bad state %d\n",
-		       __func__, qhp->attr.state);
+		pr_err("%s in a bad state %d\n", __func__, qhp->attr.state);
 		ret = -EINVAL;
 		goto err;
 		break;

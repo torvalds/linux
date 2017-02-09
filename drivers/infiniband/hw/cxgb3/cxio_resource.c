@@ -285,8 +285,9 @@ int cxio_hal_pblpool_create(struct cxio_rdev *rdev_p)
 			PDBG("%s failed to add PBL chunk (%x/%x)\n",
 			     __func__, pbl_start, pbl_chunk);
 			if (pbl_chunk <= 1024 << MIN_PBL_SHIFT) {
-				printk(KERN_WARNING MOD "%s: Failed to add all PBL chunks (%x/%x)\n",
-				       __func__, pbl_start, rdev_p->rnic_info.pbl_top - pbl_start);
+				pr_warn("%s: Failed to add all PBL chunks (%x/%x)\n",
+					__func__, pbl_start,
+					rdev_p->rnic_info.pbl_top - pbl_start);
 				return 0;
 			}
 			pbl_chunk >>= 1;
