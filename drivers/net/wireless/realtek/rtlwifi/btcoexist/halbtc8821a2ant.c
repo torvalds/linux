@@ -2877,7 +2877,7 @@ static void halbtc8821a2ant_action_pan_edr_a2dp(struct btc_coexist *btcoexist)
 					      false, false);
 			btc8821a2ant_sw_mech2(btcoexist, false, false,
 					      false, 0x18);
-		};
+		}
 	} else {
 		/* fw mechanism */
 		if ((bt_rssi_state == BTC_RSSI_STATE_HIGH) ||
