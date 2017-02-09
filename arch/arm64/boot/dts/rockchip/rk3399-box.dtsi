@@ -692,6 +692,7 @@
 			<0xa5	KEY_VOLUMEDOWN>,
 			<0xab	183>,
 			<0xb7	388>,
+			<0xe8	388>,
 			<0xf8	184>,
 			<0xaf	185>,
 			<0xed	KEY_VOLUMEDOWN>,
