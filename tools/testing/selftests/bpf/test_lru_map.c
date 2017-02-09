@@ -324,7 +324,7 @@ static void test_lru_sanity2(int map_type, int map_flags, unsigned int tgt_free)
 	if (map_type == BPF_MAP_TYPE_LRU_PERCPU_HASH) {
 		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
 					    BPF_NOEXIST));
-		assert(!bpf_map_delete(lru_map_fd, &key));
+		assert(!bpf_map_delete_elem(lru_map_fd, &key));
 	} else {
 		assert(bpf_map_update_elem(lru_map_fd, &key, value,
 					   BPF_EXIST));
@@ -483,8 +483,8 @@ static void test_lru_sanity4(int map_type, int map_flags, unsigned int tgt_free)
 	}
 
 	for (; key <= 2 * tgt_free; key++) {
-		assert(!bpf_map_delete(lru_map_fd, &key));
-		assert(bpf_map_delete(lru_map_fd, &key));
+		assert(!bpf_map_delete_elem(lru_map_fd, &key));
+		assert(bpf_map_delete_elem(lru_map_fd, &key));
 	}
 
 	end_key = key + 2 * tgt_free;

@@ -24,16 +24,6 @@ static inline int bpf(int cmd, union bpf_attr *attr, unsigned int size)
 #endif
 }
 
-static inline int bpf_map_delete(int fd, const void *key)
-{
-	union bpf_attr attr = {};
-
-	attr.map_fd = fd;
-	attr.key = bpf_ptr_to_u64(key);
-
-	return bpf(BPF_MAP_DELETE_ELEM, &attr, sizeof(attr));
-}
-
 static inline int bpf_map_next_key(int fd, const void *key, void *next_key)
 {
 	union bpf_attr attr = {};
