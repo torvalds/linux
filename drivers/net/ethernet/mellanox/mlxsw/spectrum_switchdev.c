@@ -274,6 +274,30 @@ err_port_flood_set:
 	return err;
 }
 
+static int mlxsw_sp_port_mc_disabled_set(struct mlxsw_sp_port *mlxsw_sp_port,
+					 struct switchdev_trans *trans,
+					 bool mc_disabled)
+{
+	int set;
+	int err = 0;
+
+	if (switchdev_trans_ph_prepare(trans))
+		return 0;
+
+	if (mlxsw_sp_port->mc_router != mlxsw_sp_port->mc_flood) {
+		set = mc_disabled ?
+			mlxsw_sp_port->mc_flood : mlxsw_sp_port->mc_router;
+		err = mlxsw_sp_port_flood_table_set(mlxsw_sp_port,
+						    MLXSW_SP_FLOOD_TABLE_MC,
+						    set);
+	}
+
+	if (!err)
+		mlxsw_sp_port->mc_disabled = mc_disabled;
+
+	return err;
+}
+
 int mlxsw_sp_vport_flood_set(struct mlxsw_sp_port *mlxsw_sp_vport, u16 fid,
 			     bool set)
 {
@@ -460,6 +484,10 @@ static int mlxsw_sp_port_attr_set(struct net_device *dev,
 	case SWITCHDEV_ATTR_ID_PORT_MROUTER:
 		err = mlxsw_sp_port_attr_mc_router_set(mlxsw_sp_port, trans,
 						       attr->u.mrouter);
+		break;
+	case SWITCHDEV_ATTR_ID_BRIDGE_MC_DISABLED:
+		err = mlxsw_sp_port_mc_disabled_set(mlxsw_sp_port, trans,
+						    attr->u.mc_disabled);
 		break;
 	default:
 		err = -EOPNOTSUPP;
