@@ -48,4 +48,14 @@ struct nfp_nffw_info *nfp_nffw_info_open(struct nfp_cpp *cpp);
 void nfp_nffw_info_close(struct nfp_nffw_info *state);
 int nfp_nffw_info_mip_first(struct nfp_nffw_info *state, u32 *cpp_id, u64 *off);
 
+/* Implemented in nfp_mip.c */
+
+struct nfp_mip;
+
+const struct nfp_mip *nfp_mip_open(struct nfp_cpp *cpp);
+void nfp_mip_close(const struct nfp_mip *mip);
+
+void nfp_mip_symtab(const struct nfp_mip *mip, u32 *addr, u32 *size);
+void nfp_mip_strtab(const struct nfp_mip *mip, u32 *addr, u32 *size);
+
 #endif /* NFP_NFFW_H */
