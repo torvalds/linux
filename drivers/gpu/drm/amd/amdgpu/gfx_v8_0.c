@@ -6803,27 +6803,26 @@ static void gfx_v8_0_set_compute_eop_interrupt_state(struct amdgpu_device *adev,
 						     int me, int pipe,
 						     enum amdgpu_interrupt_state state)
 {
-	/*
-	 * amdgpu controls only pipe 0 of MEC1. That's why this function only
-	 * handles the setting of interrupts for this specific pipe. All other
-	 * pipes' interrupts are set by amdkfd.
-	 */
-
-	if (me == 1) {
-		switch (pipe) {
-		case 0:
-			break;
-		default:
-			DRM_DEBUG("invalid pipe %d\n", pipe);
-			return;
-		}
-	} else {
-		DRM_DEBUG("invalid me %d\n", me);
+	/* Me 0 is reserved for graphics */
+	if (me < 1 || me > adev->gfx.mec.num_mec) {
+		DRM_ERROR("Ignoring request to enable interrupts for invalid me:%d\n", me);
 		return;
 	}
 
-	WREG32_FIELD(CP_ME1_PIPE0_INT_CNTL, TIME_STAMP_INT_ENABLE,
-		     state == AMDGPU_IRQ_STATE_DISABLE ? 0 : 1);
+	if (pipe >= adev->gfx.mec.num_pipe_per_mec) {
+		DRM_ERROR("Ignoring request to enable interrupts for invalid "
+				"me:%d pipe:%d\n", pipe, me);
+		return;
+	}
+
+	mutex_lock(&adev->srbm_mutex);
+	vi_srbm_select(adev, me, pipe, 0, 0);
+
+	WREG32_FIELD(CPC_INT_CNTL, TIME_STAMP_INT_ENABLE,
+			state == AMDGPU_IRQ_STATE_DISABLE ? 0 : 1);
+
+	vi_srbm_select(adev, 0, 0, 0, 0);
+	mutex_unlock(&adev->srbm_mutex);
 }
 
 static int gfx_v8_0_set_priv_reg_fault_state(struct amdgpu_device *adev,
