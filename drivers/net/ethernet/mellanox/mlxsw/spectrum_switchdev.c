@@ -71,7 +71,20 @@ mlxsw_sp_port_orig_get(struct net_device *dev,
 		       struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	struct mlxsw_sp_port *mlxsw_sp_vport;
+	struct mlxsw_sp_fid *fid;
 	u16 vid;
+
+	if (netif_is_bridge_master(dev)) {
+		fid = mlxsw_sp_vfid_find(mlxsw_sp_port->mlxsw_sp,
+					 dev);
+		if (fid) {
+			mlxsw_sp_vport =
+				mlxsw_sp_port_vport_find_by_fid(mlxsw_sp_port,
+								fid->fid);
+			WARN_ON(!mlxsw_sp_vport);
+			return mlxsw_sp_vport;
+		}
+	}
 
 	if (!is_vlan_dev(dev))
 		return mlxsw_sp_port;
