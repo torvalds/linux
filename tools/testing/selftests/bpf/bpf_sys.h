@@ -24,17 +24,6 @@ static inline int bpf(int cmd, union bpf_attr *attr, unsigned int size)
 #endif
 }
 
-static inline int bpf_map_next_key(int fd, const void *key, void *next_key)
-{
-	union bpf_attr attr = {};
-
-	attr.map_fd = fd;
-	attr.key = bpf_ptr_to_u64(key);
-	attr.next_key = bpf_ptr_to_u64(next_key);
-
-	return bpf(BPF_MAP_GET_NEXT_KEY, &attr, sizeof(attr));
-}
-
 static inline int bpf_map_create(enum bpf_map_type type, uint32_t size_key,
 				 uint32_t size_value, uint32_t max_elem,
 				 uint32_t flags)

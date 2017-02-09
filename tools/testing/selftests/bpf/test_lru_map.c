@@ -46,7 +46,7 @@ static int map_subset(int map0, int map1)
 	unsigned long long value0[nr_cpus], value1[nr_cpus];
 	int ret;
 
-	while (!bpf_map_next_key(map1, &next_key, &next_key)) {
+	while (!bpf_map_get_next_key(map1, &next_key, &next_key)) {
 		assert(!bpf_map_lookup_elem(map1, &next_key, value1));
 		ret = bpf_map_lookup_elem(map0, &next_key, value0);
 		if (ret) {
