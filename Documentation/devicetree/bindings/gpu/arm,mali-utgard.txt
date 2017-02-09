@@ -35,6 +35,10 @@ Optional properties:
   - interrupt-names and interrupts:
     * pmu: Power Management Unit interrupt, if implemented in hardware
 
+  - memory-region:
+    Memory region to allocate from, as defined in
+    Documentation/devicetree/bindi/reserved-memory/reserved-memory.txt
+
 Vendor-specific bindings
 ------------------------
 
