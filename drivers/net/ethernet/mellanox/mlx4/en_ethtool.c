@@ -1099,7 +1099,7 @@ static int mlx4_en_set_ringparam(struct net_device *dev,
 	memcpy(&new_prof, priv->prof, sizeof(struct mlx4_en_port_profile));
 	new_prof.tx_ring_size = tx_size;
 	new_prof.rx_ring_size = rx_size;
-	err = mlx4_en_try_alloc_resources(priv, tmp, &new_prof);
+	err = mlx4_en_try_alloc_resources(priv, tmp, &new_prof, true);
 	if (err)
 		goto out;
 
@@ -1774,7 +1774,7 @@ static int mlx4_en_set_channels(struct net_device *dev,
 	new_prof.tx_ring_num[TX_XDP] = xdp_count;
 	new_prof.rx_ring_num = channel->rx_count;
 
-	err = mlx4_en_try_alloc_resources(priv, tmp, &new_prof);
+	err = mlx4_en_try_alloc_resources(priv, tmp, &new_prof, true);
 	if (err)
 		goto out;
 
