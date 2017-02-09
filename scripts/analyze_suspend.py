@@ -3846,6 +3846,7 @@ def addScriptCode(hf, testruns):
 	'	function zoomTimeline() {\n'\
 	'		var dmesg = document.getElementById("dmesg");\n'\
 	'		var zoombox = document.getElementById("dmesgzoombox");\n'\
+	'		var left = zoombox.scrollLeft;\n'\
 	'		var val = parseFloat(dmesg.style.width);\n'\
 	'		var newval = 100;\n'\
 	'		var sh = window.outerWidth / 2;\n'\
@@ -3853,12 +3854,12 @@ def addScriptCode(hf, testruns):
 	'			newval = val * 1.2;\n'\
 	'			if(newval > 910034) newval = 910034;\n'\
 	'			dmesg.style.width = newval+"%";\n'\
-	'			zoombox.scrollLeft = ((zoombox.scrollLeft + sh) * newval / val) - sh;\n'\
+	'			zoombox.scrollLeft = ((left + sh) * newval / val) - sh;\n'\
 	'		} else if (this.id == "zoomout") {\n'\
 	'			newval = val / 1.2;\n'\
 	'			if(newval < 100) newval = 100;\n'\
 	'			dmesg.style.width = newval+"%";\n'\
-	'			zoombox.scrollLeft = ((zoombox.scrollLeft + sh) * newval / val) - sh;\n'\
+	'			zoombox.scrollLeft = ((left + sh) * newval / val) - sh;\n'\
 	'		} else {\n'\
 	'			zoombox.scrollLeft = 0;\n'\
 	'			dmesg.style.width = "100%";\n'\
@@ -4068,7 +4069,7 @@ def addScriptCode(hf, testruns):
 	'	window.addEventListener("load", function () {\n'\
 	'		var dmesg = document.getElementById("dmesg");\n'\
 	'		dmesg.style.width = "100%"\n'\
-	'		document.onmousedown = onMouseDown;\n'\
+	'		dmesg.onmousedown = onMouseDown;\n'\
 	'		document.onmouseup = onMouseUp;\n'\
 	'		document.onkeypress = onKeyPress;\n'\
 	'		document.getElementById("zoomin").onclick = zoomTimeline;\n'\
