@@ -424,9 +424,9 @@ struct mlx4_en_dev {
 	u32                     priv_pdn;
 	spinlock_t              uar_lock;
 	u8			mac_removed[MLX4_MAX_PORTS + 1];
-	rwlock_t		clock_lock;
 	u32			nominal_c_mult;
 	struct cyclecounter	cycles;
+	seqlock_t		clock_lock;
 	struct timecounter	clock;
 	unsigned long		last_overflow_check;
 	unsigned long		overflow_period;
