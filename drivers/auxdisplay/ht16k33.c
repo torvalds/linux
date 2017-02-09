@@ -378,7 +378,7 @@ static int ht16k33_probe(struct i2c_client *client,
 	fbdev->buffer = (unsigned char *) get_zeroed_page(GFP_KERNEL);
 	if (!fbdev->buffer) {
 		err = -ENOMEM;
-		goto err_free_fbdev;
+		goto err_destroy_wq;
 	}
 
 	fbdev->cache = devm_kmalloc(&client->dev, HT16K33_FB_SIZE, GFP_KERNEL);
@@ -510,8 +510,6 @@ err_fbdev_info:
 	framebuffer_release(fbdev->info);
 err_fbdev_buffer:
 	free_page((unsigned long) fbdev->buffer);
-err_free_fbdev:
-	kfree(fbdev);
 err_destroy_wq:
 	destroy_workqueue(priv->workqueue);
 
