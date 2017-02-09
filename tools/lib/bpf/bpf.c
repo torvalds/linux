@@ -50,7 +50,13 @@ static __u64 ptr_to_u64(const void *ptr)
 static int sys_bpf(enum bpf_cmd cmd, union bpf_attr *attr,
 		   unsigned int size)
 {
+#ifdef __NR_bpf
 	return syscall(__NR_bpf, cmd, attr, size);
+#else
+	fprintf(stderr, "No bpf syscall, kernel headers too old?\n");
+	errno = ENOSYS;
+	return -1;
+#endif
 }
 
 int bpf_create_map(enum bpf_map_type map_type, int key_size,

@@ -23,7 +23,6 @@
 #include <sys/resource.h>
 
 #include <bpf/bpf.h>
-#include "bpf_sys.h"
 #include "bpf_util.h"
 
 struct tlpm_node {

@@ -22,7 +22,6 @@
 #include <linux/bpf.h>
 
 #include <bpf/bpf.h>
-#include "bpf_sys.h"
 #include "bpf_util.h"
 
 static int map_flags;

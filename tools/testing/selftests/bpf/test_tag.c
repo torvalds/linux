@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -19,8 +20,6 @@
 #include <bpf/bpf.h>
 
 #include "../../../include/linux/filter.h"
-
-#include "bpf_sys.h"
 
 static struct bpf_insn prog[BPF_MAXINSNS];
 
