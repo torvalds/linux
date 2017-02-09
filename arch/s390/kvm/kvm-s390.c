@@ -2719,6 +2719,9 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 
 static void sync_regs(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
+	struct runtime_instr_cb *riccb;
+
+	riccb = (struct runtime_instr_cb *) &kvm_run->s.regs.riccb;
 	vcpu->arch.sie_block->gpsw.mask = kvm_run->psw_mask;
 	vcpu->arch.sie_block->gpsw.addr = kvm_run->psw_addr;
 	if (kvm_run->kvm_dirty_regs & KVM_SYNC_PREFIX)
@@ -2747,12 +2750,11 @@ static void sync_regs(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	 * we should enable RI here instead of doing the lazy enablement.
 	 */
 	if ((kvm_run->kvm_dirty_regs & KVM_SYNC_RICCB) &&
-	    test_kvm_facility(vcpu->kvm, 64)) {
-		struct runtime_instr_cb *riccb =
-			(struct runtime_instr_cb *) &kvm_run->s.regs.riccb;
-
-		if (riccb->valid)
-			vcpu->arch.sie_block->ecb3 |= 0x01;
+	    test_kvm_facility(vcpu->kvm, 64) &&
+	    riccb->valid &&
+	    !(vcpu->arch.sie_block->ecb3 & 0x01)) {
+		VCPU_EVENT(vcpu, 3, "%s", "ENABLE: RI (sync_regs)");
+		vcpu->arch.sie_block->ecb3 |= 0x01;
 	}
 	save_access_regs(vcpu->arch.host_acrs);
 	restore_access_regs(vcpu->run->s.regs.acrs);
