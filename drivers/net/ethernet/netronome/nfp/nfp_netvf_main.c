@@ -45,6 +45,24 @@
 
 #include "nfp_net_ctrl.h"
 #include "nfp_net.h"
+#include "nfp_main.h"
+
+/**
+ * struct nfp_net_vf - NFP VF-specific device structure
+ * @nn:		NFP Net structure for this device
+ * @irq_entries: Pre-allocated array of MSI-X entries
+ * @q_bar:	Pointer to mapped QC memory (NULL if TX/RX mapped directly)
+ * @ddir:	Per-device debugfs directory
+ */
+struct nfp_net_vf {
+	struct nfp_net *nn;
+
+	struct msix_entry irq_entries[NFP_NET_NON_Q_VECTORS +
+				      NFP_NET_MAX_TX_RINGS];
+	u8 __iomem *q_bar;
+
+	struct dentry *ddir;
+};
 
 static const char nfp_net_driver_name[] = "nfp_netvf";
 
@@ -82,16 +100,22 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	u32 tx_bar_off, rx_bar_off;
 	u32 tx_bar_sz, rx_bar_sz;
 	int tx_bar_no, rx_bar_no;
+	struct nfp_net_vf *vf;
+	unsigned int num_irqs;
 	u8 __iomem *ctrl_bar;
-	struct dentry *ddir;
 	struct nfp_net *nn;
 	u32 startq;
 	int stride;
 	int err;
 
+	vf = kzalloc(sizeof(*vf), GFP_KERNEL);
+	if (!vf)
+		return -ENOMEM;
+	pci_set_drvdata(pdev, vf);
+
 	err = pci_enable_device_mem(pdev);
 	if (err)
-		return err;
+		goto err_free_vf;
 
 	err = pci_request_regions(pdev, nfp_net_driver_name);
 	if (err) {
@@ -183,6 +207,7 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 		err = PTR_ERR(nn);
 		goto err_ctrl_unmap;
 	}
+	vf->nn = nn;
 
 	nn->fw_ver = fw_ver;
 	nn->ctrl_bar = ctrl_bar;
@@ -206,17 +231,17 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 			bar_sz = (rx_bar_off + rx_bar_sz) - bar_off;
 
 		map_addr = pci_resource_start(pdev, tx_bar_no) + bar_off;
-		nn->q_bar = ioremap_nocache(map_addr, bar_sz);
-		if (!nn->q_bar) {
+		vf->q_bar = ioremap_nocache(map_addr, bar_sz);
+		if (!vf->q_bar) {
 			nn_err(nn, "Failed to map resource %d\n", tx_bar_no);
 			err = -EIO;
 			goto err_netdev_free;
 		}
 
 		/* TX queues */
-		nn->tx_bar = nn->q_bar + (tx_bar_off - bar_off);
+		nn->tx_bar = vf->q_bar + (tx_bar_off - bar_off);
 		/* RX queues */
-		nn->rx_bar = nn->q_bar + (rx_bar_off - bar_off);
+		nn->rx_bar = vf->q_bar + (rx_bar_off - bar_off);
 	} else {
 		resource_size_t map_addr;
 
@@ -241,12 +266,15 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 
 	nfp_netvf_get_mac_addr(nn);
 
-	err = nfp_net_irqs_alloc(nn);
-	if (!err) {
+	num_irqs = nfp_net_irqs_alloc(pdev, vf->irq_entries,
+				      NFP_NET_MIN_PORT_IRQS,
+				      NFP_NET_NON_Q_VECTORS + nn->num_r_vecs);
+	if (!num_irqs) {
 		nn_warn(nn, "Unable to allocate MSI-X Vectors. Exiting\n");
 		err = -EIO;
 		goto err_unmap_rx;
 	}
+	nfp_net_irqs_assign(nn, vf->irq_entries, num_irqs);
 
 	/* Get ME clock frequency from ctrl BAR
 	 * XXX for now frequency is hardcoded until we figure out how
@@ -258,27 +286,23 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_irqs_disable;
 
-	pci_set_drvdata(pdev, nn);
-
 	nfp_net_info(nn);
-	ddir = nfp_net_debugfs_device_add(pdev);
-	nfp_net_debugfs_port_add(nn, ddir, 0);
-	nn->debugfs_dir = ddir;
+	vf->ddir = nfp_net_debugfs_device_add(pdev);
+	nfp_net_debugfs_port_add(nn, vf->ddir, 0);
 
 	return 0;
 
 err_irqs_disable:
-	nfp_net_irqs_disable(nn);
+	nfp_net_irqs_disable(pdev);
 err_unmap_rx:
-	if (!nn->q_bar)
+	if (!vf->q_bar)
 		iounmap(nn->rx_bar);
 err_unmap_tx:
-	if (!nn->q_bar)
+	if (!vf->q_bar)
 		iounmap(nn->tx_bar);
 	else
-		iounmap(nn->q_bar);
+		iounmap(vf->q_bar);
 err_netdev_free:
-	pci_set_drvdata(pdev, NULL);
 	nfp_net_netdev_free(nn);
 err_ctrl_unmap:
 	iounmap(ctrl_bar);
@@ -286,36 +310,42 @@ err_pci_regions:
 	pci_release_regions(pdev);
 err_pci_disable:
 	pci_disable_device(pdev);
+err_free_vf:
+	pci_set_drvdata(pdev, NULL);
+	kfree(vf);
 	return err;
 }
 
 static void nfp_netvf_pci_remove(struct pci_dev *pdev)
 {
-	struct nfp_net *nn = pci_get_drvdata(pdev);
+	struct nfp_net_vf *vf = pci_get_drvdata(pdev);
+	struct nfp_net *nn = vf->nn;
 
 	/* Note, the order is slightly different from above as we need
 	 * to keep the nn pointer around till we have freed everything.
 	 */
 	nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
+	nfp_net_debugfs_dir_clean(&vf->ddir);
 
 	nfp_net_netdev_clean(nn->netdev);
 
-	nfp_net_irqs_disable(nn);
+	nfp_net_irqs_disable(pdev);
 
-	if (!nn->q_bar) {
+	if (!vf->q_bar) {
 		iounmap(nn->rx_bar);
 		iounmap(nn->tx_bar);
 	} else {
-		iounmap(nn->q_bar);
+		iounmap(vf->q_bar);
 	}
 	iounmap(nn->ctrl_bar);
-
-	pci_set_drvdata(pdev, NULL);
 
 	nfp_net_netdev_free(nn);
 
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
+
+	pci_set_drvdata(pdev, NULL);
+	kfree(vf);
 }
 
 struct pci_driver nfp_netvf_pci_driver = {

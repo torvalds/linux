@@ -83,6 +83,7 @@
 #define NFP_NET_NON_Q_VECTORS		2
 #define NFP_NET_IRQ_LSC_IDX		0
 #define NFP_NET_IRQ_EXN_IDX		1
+#define NFP_NET_MIN_PORT_IRQS		(NFP_NET_NON_Q_VECTORS + 1)
 
 /* Queue/Ring definitions */
 #define NFP_NET_MAX_TX_RINGS	64	/* Max. # of Tx rings per device */
@@ -345,7 +346,7 @@ struct nfp_net_rx_ring {
  * @tx_ring:        Pointer to TX ring
  * @rx_ring:        Pointer to RX ring
  * @xdp_ring:	    Pointer to an extra TX ring for XDP
- * @irq_idx:        Index into MSI-X table
+ * @irq_entry:      MSI-X table entry (use for talking to the device)
  * @rx_sync:	    Seqlock for atomic updates of RX stats
  * @rx_pkts:        Number of received packets
  * @rx_bytes:	    Number of received bytes
@@ -362,6 +363,7 @@ struct nfp_net_rx_ring {
  * @tx_lso:	    Counter of LSO packets sent
  * @tx_errors:	    How many TX errors were encountered
  * @tx_busy:        How often was TX busy (no space)?
+ * @irq_vector:     Interrupt vector number (use for talking to the OS)
  * @handler:        Interrupt handler for this ring vector
  * @name:           Name of the interrupt vector
  * @affinity_mask:  SMP affinity mask for this vector
@@ -378,7 +380,7 @@ struct nfp_net_r_vector {
 	struct nfp_net_tx_ring *tx_ring;
 	struct nfp_net_rx_ring *rx_ring;
 
-	int irq_idx;
+	u16 irq_entry;
 
 	struct u64_stats_sync rx_sync;
 	u64 rx_pkts;
@@ -400,6 +402,7 @@ struct nfp_net_r_vector {
 	u64 tx_errors;
 	u64 tx_busy;
 
+	u32 irq_vector;
 	irq_handler_t handler;
 	char name[IFNAMSIZ + 8];
 	cpumask_t affinity_mask;
@@ -788,8 +791,14 @@ int nfp_net_reconfig(struct nfp_net *nn, u32 update);
 void nfp_net_rss_write_itbl(struct nfp_net *nn);
 void nfp_net_rss_write_key(struct nfp_net *nn);
 void nfp_net_coalesce_write_cfg(struct nfp_net *nn);
-int nfp_net_irqs_alloc(struct nfp_net *nn);
-void nfp_net_irqs_disable(struct nfp_net *nn);
+
+unsigned int
+nfp_net_irqs_alloc(struct pci_dev *pdev, struct msix_entry *irq_entries,
+		   unsigned int min_irqs, unsigned int want_irqs);
+void nfp_net_irqs_disable(struct pci_dev *pdev);
+void
+nfp_net_irqs_assign(struct nfp_net *nn, struct msix_entry *irq_entries,
+		    unsigned int n);
 int
 nfp_net_ring_reconfig(struct nfp_net *nn, struct bpf_prog **xdp_prog,
 		      struct nfp_net_ring_set *rx, struct nfp_net_ring_set *tx);
