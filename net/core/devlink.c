@@ -1410,12 +1410,14 @@ static int devlink_nl_eswitch_fill(struct sk_buff *msg, struct devlink *devlink,
 	if (err)
 		goto nla_put_failure;
 
-	err = ops->eswitch_mode_get(devlink, &mode);
-	if (err)
-		goto nla_put_failure;
-	err = nla_put_u16(msg, DEVLINK_ATTR_ESWITCH_MODE, mode);
-	if (err)
-		goto nla_put_failure;
+	if (ops->eswitch_mode_get) {
+		err = ops->eswitch_mode_get(devlink, &mode);
+		if (err)
+			goto nla_put_failure;
+		err = nla_put_u16(msg, DEVLINK_ATTR_ESWITCH_MODE, mode);
+		if (err)
+			goto nla_put_failure;
+	}
 
 	if (ops->eswitch_inline_mode_get) {
 		err = ops->eswitch_inline_mode_get(devlink, &inline_mode);
@@ -1443,7 +1445,7 @@ static int devlink_nl_cmd_eswitch_get_doit(struct sk_buff *skb,
 	struct sk_buff *msg;
 	int err;
 
-	if (!ops || !ops->eswitch_mode_get)
+	if (!ops)
 		return -EOPNOTSUPP;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
