@@ -65,6 +65,7 @@ struct ovs_conntrack_info {
 	struct nf_conn *ct;
 	u8 commit : 1;
 	u8 nat : 3;                 /* enum ovs_ct_nat */
+	u8 force : 1;
 	u16 family;
 	struct md_mark mark;
 	struct md_labels labels;
@@ -613,10 +614,13 @@ static bool skb_nfct_cached(struct net *net,
 	 */
 	if (!ct && key->ct.state & OVS_CS_F_TRACKED &&
 	    !(key->ct.state & OVS_CS_F_INVALID) &&
-	    key->ct.zone == info->zone.id)
+	    key->ct.zone == info->zone.id) {
 		ct = ovs_ct_find_existing(net, &info->zone, info->family, skb,
 					  !!(key->ct.state
 					     & OVS_CS_F_NAT_MASK));
+		if (ct)
+			nf_ct_get(skb, &ctinfo);
+	}
 	if (!ct)
 		return false;
 	if (!net_eq(net, read_pnet(&ct->ct_net)))
@@ -629,6 +633,18 @@ static bool skb_nfct_cached(struct net *net,
 		help = nf_ct_ext_find(ct, NF_CT_EXT_HELPER);
 		if (help && rcu_access_pointer(help->helper) != info->helper)
 			return false;
+	}
+	/* Force conntrack entry direction to the current packet? */
+	if (info->force && CTINFO2DIR(ctinfo) != IP_CT_DIR_ORIGINAL) {
+		/* Delete the conntrack entry if confirmed, else just release
+		 * the reference.
+		 */
+		if (nf_ct_is_confirmed(ct))
+			nf_ct_delete(ct, 0, 0);
+		else
+			nf_conntrack_put(&ct->ct_general);
+		nf_ct_set(skb, NULL, 0);
+		return false;
 	}
 
 	return true;
@@ -1207,6 +1223,7 @@ static int parse_nat(const struct nlattr *attr,
 
 static const struct ovs_ct_len_tbl ovs_ct_attr_lens[OVS_CT_ATTR_MAX + 1] = {
 	[OVS_CT_ATTR_COMMIT]	= { .minlen = 0, .maxlen = 0 },
+	[OVS_CT_ATTR_FORCE_COMMIT]	= { .minlen = 0, .maxlen = 0 },
 	[OVS_CT_ATTR_ZONE]	= { .minlen = sizeof(u16),
 				    .maxlen = sizeof(u16) },
 	[OVS_CT_ATTR_MARK]	= { .minlen = sizeof(struct md_mark),
@@ -1246,6 +1263,9 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 		}
 
 		switch (type) {
+		case OVS_CT_ATTR_FORCE_COMMIT:
+			info->force = true;
+			/* fall through. */
 		case OVS_CT_ATTR_COMMIT:
 			info->commit = true;
 			break;
@@ -1472,7 +1492,9 @@ int ovs_ct_action_to_attr(const struct ovs_conntrack_info *ct_info,
 	if (!start)
 		return -EMSGSIZE;
 
-	if (ct_info->commit && nla_put_flag(skb, OVS_CT_ATTR_COMMIT))
+	if (ct_info->commit && nla_put_flag(skb, ct_info->force
+					    ? OVS_CT_ATTR_FORCE_COMMIT
+					    : OVS_CT_ATTR_COMMIT))
 		return -EMSGSIZE;
 	if (IS_ENABLED(CONFIG_NF_CONNTRACK_ZONES) &&
 	    nla_put_u16(skb, OVS_CT_ATTR_ZONE, ct_info->zone.id))
