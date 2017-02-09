@@ -525,6 +525,12 @@ i915_vm_to_ggtt(struct i915_address_space *vm)
 	return container_of(vm, struct i915_ggtt, base);
 }
 
+static inline bool
+i915_vm_is_48bit(const struct i915_address_space *vm)
+{
+	return (vm->total - 1) >> 32;
+}
+
 int i915_ggtt_probe_hw(struct drm_i915_private *dev_priv);
 int i915_ggtt_init_hw(struct drm_i915_private *dev_priv);
 int i915_ggtt_enable_hw(struct drm_i915_private *dev_priv);

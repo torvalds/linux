@@ -332,7 +332,7 @@ static u64 execlists_update_context(struct drm_i915_gem_request *rq)
 	 * PML4 is allocated during ppgtt init, so this is not needed
 	 * in 48-bit mode.
 	 */
-	if (ppgtt && !USES_FULL_48BIT_PPGTT(ppgtt->base.dev))
+	if (ppgtt && !i915_vm_is_48bit(&ppgtt->base))
 		execlists_update_context_pdps(ppgtt, reg_state);
 
 	return ce->lrc_desc;
@@ -1447,7 +1447,7 @@ static int gen8_emit_bb_start(struct drm_i915_gem_request *req,
 	 * not needed in 48-bit.*/
 	if (req->ctx->ppgtt &&
 	    (intel_engine_flag(req->engine) & req->ctx->ppgtt->pd_dirty_rings)) {
-		if (!USES_FULL_48BIT_PPGTT(req->i915) &&
+		if (!i915_vm_is_48bit(&req->ctx->ppgtt->base) &&
 		    !intel_vgpu_active(req->i915)) {
 			ret = intel_logical_ring_emit_pdps(req);
 			if (ret)
@@ -2045,7 +2045,7 @@ static void execlists_init_reg_state(u32 *reg_state,
 	ASSIGN_CTX_REG(reg_state, CTX_PDP0_LDW, GEN8_RING_PDP_LDW(engine, 0),
 		       0);
 
-	if (ppgtt && USES_FULL_48BIT_PPGTT(ppgtt->base.dev)) {
+	if (ppgtt && i915_vm_is_48bit(&ppgtt->base)) {
 		/* 64b PPGTT (48bit canonical)
 		 * PDP0_DESCRIPTOR contains the base address to PML4 and
 		 * other PDP Descriptors are ignored.

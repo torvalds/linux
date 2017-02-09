@@ -236,16 +236,20 @@ static int assign_hw_id(struct drm_i915_private *dev_priv, unsigned *out)
 	return 0;
 }
 
-static u32 default_desc_template(const struct drm_i915_private *dev_priv)
+static u32 default_desc_template(const struct drm_i915_private *i915,
+				 const struct i915_hw_ppgtt *ppgtt)
 {
+	u32 address_mode;
 	u32 desc;
 
-	desc = GEN8_CTX_VALID |
-		GEN8_CTX_PRIVILEGE |
-		GEN8_CTX_ADDRESSING_MODE(dev_priv) <<
-		GEN8_CTX_ADDRESSING_MODE_SHIFT;
+	desc = GEN8_CTX_VALID | GEN8_CTX_PRIVILEGE;
 
-	if (IS_GEN8(dev_priv))
+	address_mode = INTEL_LEGACY_32B_CONTEXT;
+	if (ppgtt && i915_vm_is_48bit(&ppgtt->base))
+		address_mode = INTEL_LEGACY_64B_CONTEXT;
+	desc |= address_mode << GEN8_CTX_ADDRESSING_MODE_SHIFT;
+
+	if (IS_GEN8(i915))
 		desc |= GEN8_CTX_L3LLC_COHERENT;
 
 	/* TODO: WaDisableLiteRestore when we start using semaphore
@@ -329,7 +333,8 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 
 	i915_gem_context_set_bannable(ctx);
 	ctx->ring_size = 4 * PAGE_SIZE;
-	ctx->desc_template = default_desc_template(dev_priv);
+	ctx->desc_template =
+		default_desc_template(dev_priv, dev_priv->mm.aliasing_ppgtt);
 	ATOMIC_INIT_NOTIFIER_HEAD(&ctx->status_notifier);
 
 	/* GuC requires the ring to be placed above GUC_WOPCM_TOP. If GuC is not
@@ -387,6 +392,7 @@ i915_gem_create_context(struct drm_i915_private *dev_priv,
 		}
 
 		ctx->ppgtt = ppgtt;
+		ctx->desc_template = default_desc_template(dev_priv, ppgtt);
 	}
 
 	trace_i915_context_create(ctx);
