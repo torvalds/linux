@@ -1963,7 +1963,8 @@ int fib_table_flush(struct net *net, struct fib_table *tb)
 		hlist_for_each_entry_safe(fa, tmp, &n->leaf, fa_list) {
 			struct fib_info *fi = fa->fa_info;
 
-			if (!fi || !(fi->fib_flags & RTNH_F_DEAD)) {
+			if (!fi || !(fi->fib_flags & RTNH_F_DEAD) ||
+			    tb->tb_id != fa->tb_id) {
 				slen = fa->fa_slen;
 				continue;
 			}
