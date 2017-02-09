@@ -1907,7 +1907,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	r = amdgpu_debugfs_firmware_init(adev);
 	if (r) {
 		DRM_ERROR("registering firmware debugfs failed (%d).\n", r);
-		return r;
 	}
 
 	if ((amdgpu_testing & 1)) {
