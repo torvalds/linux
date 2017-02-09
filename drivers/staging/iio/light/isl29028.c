@@ -121,7 +121,7 @@ static int isl29028_enable_proximity(struct isl29028_chip *chip)
 		return ret;
 
 	/* Wait for conversion to be complete for first sample */
-	mdelay(DIV_ROUND_UP(1000, chip->prox_sampling));
+	msleep(DIV_ROUND_UP(1000, chip->prox_sampling));
 
 	return 0;
 }
@@ -192,7 +192,7 @@ static int isl29028_set_als_ir_mode(struct isl29028_chip *chip,
 		return ret;
 
 	/* Need to wait for conversion time if ALS/IR mode enabled */
-	mdelay(ISL29028_CONV_TIME_MS);
+	msleep(ISL29028_CONV_TIME_MS);
 
 	chip->als_ir_mode = mode;
 
