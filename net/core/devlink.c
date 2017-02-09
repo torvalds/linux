@@ -1408,29 +1408,29 @@ static int devlink_nl_eswitch_fill(struct sk_buff *msg, struct devlink *devlink,
 
 	err = devlink_nl_put_handle(msg, devlink);
 	if (err)
-		goto out;
+		goto nla_put_failure;
 
 	err = ops->eswitch_mode_get(devlink, &mode);
 	if (err)
-		goto out;
+		goto nla_put_failure;
 	err = nla_put_u16(msg, DEVLINK_ATTR_ESWITCH_MODE, mode);
 	if (err)
-		goto out;
+		goto nla_put_failure;
 
 	if (ops->eswitch_inline_mode_get) {
 		err = ops->eswitch_inline_mode_get(devlink, &inline_mode);
 		if (err)
-			goto out;
+			goto nla_put_failure;
 		err = nla_put_u8(msg, DEVLINK_ATTR_ESWITCH_INLINE_MODE,
 				 inline_mode);
 		if (err)
-			goto out;
+			goto nla_put_failure;
 	}
 
 	genlmsg_end(msg, hdr);
 	return 0;
 
-out:
+nla_put_failure:
 	genlmsg_cancel(msg, hdr);
 	return err;
 }
