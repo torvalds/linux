@@ -202,8 +202,6 @@ int iwch_cxgb3_ofld_send(struct t3cdev *tdev, struct sk_buff *skb);
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#define PDBG(fmt, args...) pr_debug(fmt, ## args)
-
 #ifdef DEBUG
 void cxio_dump_tpt(struct cxio_rdev *rev, u32 stag);
 void cxio_dump_pbl(struct cxio_rdev *rev, u32 pbl_addr, uint len, u8 shift);
