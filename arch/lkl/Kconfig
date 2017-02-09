@@ -24,6 +24,7 @@ config LKL
        select IP_PNP
        select IP_PNP_DHCP
        select TCP_CONG_BBR
+       select HIGH_RES_TIMERS
 
 config OUTPUTFORMAT
        string

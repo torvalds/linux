@@ -52,15 +52,19 @@ static struct irq_info {
 
 static bool irqs_enabled;
 
+static struct pt_regs dummy;
+
 static void run_irq(int irq)
 {
 	unsigned long flags;
+	struct pt_regs *old_regs = set_irq_regs((struct pt_regs *)&dummy);
 
 	/* interrupt handlers need to run with interrupts disabled */
 	local_irq_save(flags);
 	irq_enter();
 	generic_handle_irq(irq);
 	irq_exit();
+	set_irq_regs(old_regs);
 	local_irq_restore(flags);
 }
 
