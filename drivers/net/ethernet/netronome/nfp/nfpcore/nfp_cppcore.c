@@ -99,6 +99,7 @@ struct nfp_cpp {
 
 	/* Cached information */
 	void *hwinfo;
+	void *rtsym;
 };
 
 /* Element of the area_cache_list */
@@ -241,6 +242,7 @@ void nfp_cpp_free(struct nfp_cpp *cpp)
 		cpp->op->free(cpp);
 
 	kfree(cpp->hwinfo);
+	kfree(cpp->rtsym);
 
 	device_unregister(&cpp->dev);
 
@@ -290,6 +292,16 @@ void *nfp_hwinfo_cache(struct nfp_cpp *cpp)
 void nfp_hwinfo_cache_set(struct nfp_cpp *cpp, void *val)
 {
 	cpp->hwinfo = val;
+}
+
+void *nfp_rtsym_cache(struct nfp_cpp *cpp)
+{
+	return cpp->rtsym;
+}
+
+void nfp_rtsym_cache_set(struct nfp_cpp *cpp, void *val)
+{
+	cpp->rtsym = val;
 }
 
 /**

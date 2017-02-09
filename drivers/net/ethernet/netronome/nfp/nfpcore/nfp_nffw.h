@@ -58,4 +58,38 @@ void nfp_mip_close(const struct nfp_mip *mip);
 void nfp_mip_symtab(const struct nfp_mip *mip, u32 *addr, u32 *size);
 void nfp_mip_strtab(const struct nfp_mip *mip, u32 *addr, u32 *size);
 
+/* Implemented in nfp_rtsym.c */
+
+#define NFP_RTSYM_TYPE_NONE		0
+#define NFP_RTSYM_TYPE_OBJECT		1
+#define NFP_RTSYM_TYPE_FUNCTION		2
+#define NFP_RTSYM_TYPE_ABS		3
+
+#define NFP_RTSYM_TARGET_NONE		0
+#define NFP_RTSYM_TARGET_LMEM		-1
+#define NFP_RTSYM_TARGET_EMU_CACHE	-7
+
+/**
+ * struct nfp_rtsym - RTSYM descriptor
+ * @name:	Symbol name
+ * @addr:	Address in the domain/target's address space
+ * @size:	Size (in bytes) of the symbol
+ * @type:	NFP_RTSYM_TYPE_* of the symbol
+ * @target:	CPP Target identifier, or NFP_RTSYM_TARGET_*
+ * @domain:	CPP Target Domain (island)
+ */
+struct nfp_rtsym {
+	const char *name;
+	u64 addr;
+	u64 size;
+	int type;
+	int target;
+	int domain;
+};
+
+int nfp_rtsym_count(struct nfp_cpp *cpp);
+const struct nfp_rtsym *nfp_rtsym_get(struct nfp_cpp *cpp, int idx);
+const struct nfp_rtsym *nfp_rtsym_lookup(struct nfp_cpp *cpp, const char *name);
+u64 nfp_rtsym_read_le(struct nfp_cpp *cpp, const char *name, int *error);
+
 #endif /* NFP_NFFW_H */

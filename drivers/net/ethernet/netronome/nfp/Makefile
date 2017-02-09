@@ -8,6 +8,7 @@ nfp-objs := \
 	    nfpcore/nfp_mip.o \
 	    nfpcore/nfp_nffw.o \
 	    nfpcore/nfp_resource.o \
+	    nfpcore/nfp_rtsym.o \
 	    nfpcore/nfp_target.o \
 	    nfp_main.o \
 	    nfp_net_common.o \
