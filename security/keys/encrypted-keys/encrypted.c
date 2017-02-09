@@ -985,7 +985,7 @@ static void encrypted_destroy(struct key *key)
 	if (!epayload)
 		return;
 
-	memset(epayload->decrypted_data, 0, epayload->decrypted_datalen);
+	memzero_explicit(epayload->decrypted_data, epayload->decrypted_datalen);
 	kfree(key->payload.data[0]);
 }
 
