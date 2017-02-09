@@ -1316,8 +1316,6 @@ static int netcp_ndo_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	if (ret)
 		goto drop;
 
-	netif_trans_update(ndev);
-
 	/* Check Tx pool count & stop subqueue if needed */
 	desc_count = knav_pool_count(netcp->tx_pool);
 	if (desc_count < netcp->tx_pause_threshold) {
