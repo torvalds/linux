@@ -127,6 +127,27 @@ static inline u32 tcf_auto_prio(struct tcf_proto *tp)
 	return first;
 }
 
+static bool tcf_proto_destroy(struct tcf_proto *tp, bool force)
+{
+	if (tp->ops->destroy(tp, force)) {
+		module_put(tp->ops->owner);
+		kfree_rcu(tp, rcu);
+		return true;
+	}
+	return false;
+}
+
+void tcf_destroy_chain(struct tcf_proto __rcu **fl)
+{
+	struct tcf_proto *tp;
+
+	while ((tp = rtnl_dereference(*fl)) != NULL) {
+		RCU_INIT_POINTER(*fl, tp->next);
+		tcf_proto_destroy(tp, true);
+	}
+}
+EXPORT_SYMBOL(tcf_destroy_chain);
+
 /* Add/change/delete/get a filter node */
 
 static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n)
