@@ -80,14 +80,18 @@ static void ena_tx_timeout(struct net_device *dev)
 {
 	struct ena_adapter *adapter = netdev_priv(dev);
 
+	/* Change the state of the device to trigger reset
+	 * Check that we are not in the middle or a trigger already
+	 */
+
+	if (test_and_set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))
+		return;
+
 	u64_stats_update_begin(&adapter->syncp);
 	adapter->dev_stats.tx_timeout++;
 	u64_stats_update_end(&adapter->syncp);
 
 	netif_err(adapter, tx_err, dev, "Transmit time out\n");
-
-	/* Change the state of the device to trigger reset */
-	set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
 }
 
 static void update_rx_ring_mtu(struct ena_adapter *adapter, int mtu)
@@ -1109,7 +1113,8 @@ static int ena_io_poll(struct napi_struct *napi, int budget)
 
 	tx_budget = tx_ring->ring_size / ENA_TX_POLL_BUDGET_DIVIDER;
 
-	if (!test_bit(ENA_FLAG_DEV_UP, &tx_ring->adapter->flags)) {
+	if (!test_bit(ENA_FLAG_DEV_UP, &tx_ring->adapter->flags) ||
+	    test_bit(ENA_FLAG_TRIGGER_RESET, &tx_ring->adapter->flags)) {
 		napi_complete_done(napi, 0);
 		return 0;
 	}
@@ -1698,12 +1703,22 @@ static void ena_down(struct ena_adapter *adapter)
 	adapter->dev_stats.interface_down++;
 	u64_stats_update_end(&adapter->syncp);
 
-	/* After this point the napi handler won't enable the tx queue */
-	ena_napi_disable_all(adapter);
 	netif_carrier_off(adapter->netdev);
 	netif_tx_disable(adapter->netdev);
 
+	/* After this point the napi handler won't enable the tx queue */
+	ena_napi_disable_all(adapter);
+
 	/* After destroy the queue there won't be any new interrupts */
+
+	if (test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags)) {
+		int rc;
+
+		rc = ena_com_dev_reset(adapter->ena_dev);
+		if (rc)
+			dev_err(&adapter->pdev->dev, "Device reset failed\n");
+	}
+
 	ena_destroy_all_io_queues(adapter);
 
 	ena_disable_io_intr_sync(adapter);
@@ -2064,6 +2079,14 @@ static void ena_netpoll(struct net_device *netdev)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 	int i;
+
+	/* Dont schedule NAPI if the driver is in the middle of reset
+	 * or netdev is down.
+	 */
+
+	if (!test_bit(ENA_FLAG_DEV_UP, &adapter->flags) ||
+	    test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))
+		return;
 
 	for (i = 0; i < adapter->num_queues; i++)
 		napi_schedule(&adapter->ena_napi[i].napi);
@@ -2449,6 +2472,14 @@ static void ena_fw_reset_device(struct work_struct *work)
 	bool dev_up, wd_state;
 	int rc;
 
+	if (unlikely(!test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))) {
+		dev_err(&pdev->dev,
+			"device reset schedule while reset bit is off\n");
+		return;
+	}
+
+	netif_carrier_off(netdev);
+
 	del_timer_sync(&adapter->timer_service);
 
 	rtnl_lock();
@@ -2462,12 +2493,6 @@ static void ena_fw_reset_device(struct work_struct *work)
 	 */
 	ena_close(netdev);
 
-	rc = ena_com_dev_reset(ena_dev);
-	if (rc) {
-		dev_err(&pdev->dev, "Device reset failed\n");
-		goto err;
-	}
-
 	ena_free_mgmnt_irq(adapter);
 
 	ena_disable_msix(adapter);
@@ -2479,6 +2504,8 @@ static void ena_fw_reset_device(struct work_struct *work)
 	ena_com_admin_destroy(ena_dev);
 
 	ena_com_mmio_reg_read_request_destroy(ena_dev);
+
+	clear_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
 
 	/* Finish with the destroy part. Start the init part */
 
@@ -2543,6 +2570,9 @@ static void check_for_missing_tx_completions(struct ena_adapter *adapter)
 	smp_rmb();
 
 	if (!test_bit(ENA_FLAG_DEV_UP, &adapter->flags))
+		return;
+
+	if (test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))
 		return;
 
 	budget = ENA_MONITORED_TX_QUEUES;
@@ -2644,7 +2674,7 @@ static void ena_timer_service(unsigned long data)
 	if (host_info)
 		ena_update_host_info(host_info, adapter->netdev);
 
-	if (unlikely(test_and_clear_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))) {
+	if (unlikely(test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))) {
 		netif_err(adapter, drv, adapter->netdev,
 			  "Trigger reset is on\n");
 		ena_dump_stats_to_dmesg(adapter);
