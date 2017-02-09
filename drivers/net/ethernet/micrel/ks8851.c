@@ -1086,16 +1086,18 @@ static void ks8851_set_msglevel(struct net_device *dev, u32 to)
 	ks->msg_enable = to;
 }
 
-static int ks8851_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int ks8851_get_link_ksettings(struct net_device *dev,
+				     struct ethtool_link_ksettings *cmd)
 {
 	struct ks8851_net *ks = netdev_priv(dev);
-	return mii_ethtool_gset(&ks->mii, cmd);
+	return mii_ethtool_get_link_ksettings(&ks->mii, cmd);
 }
 
-static int ks8851_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int ks8851_set_link_ksettings(struct net_device *dev,
+				     const struct ethtool_link_ksettings *cmd)
 {
 	struct ks8851_net *ks = netdev_priv(dev);
-	return mii_ethtool_sset(&ks->mii, cmd);
+	return mii_ethtool_set_link_ksettings(&ks->mii, cmd);
 }
 
 static u32 ks8851_get_link(struct net_device *dev)
@@ -1251,13 +1253,13 @@ static const struct ethtool_ops ks8851_ethtool_ops = {
 	.get_drvinfo	= ks8851_get_drvinfo,
 	.get_msglevel	= ks8851_get_msglevel,
 	.set_msglevel	= ks8851_set_msglevel,
-	.get_settings	= ks8851_get_settings,
-	.set_settings	= ks8851_set_settings,
 	.get_link	= ks8851_get_link,
 	.nway_reset	= ks8851_nway_reset,
 	.get_eeprom_len	= ks8851_get_eeprom_len,
 	.get_eeprom	= ks8851_get_eeprom,
 	.set_eeprom	= ks8851_set_eeprom,
+	.get_link_ksettings = ks8851_get_link_ksettings,
+	.set_link_ksettings = ks8851_set_link_ksettings,
 };
 
 /* MII interface controls */
