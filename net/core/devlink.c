@@ -1435,8 +1435,8 @@ out:
 	return err;
 }
 
-static int devlink_nl_cmd_eswitch_mode_get_doit(struct sk_buff *skb,
-						struct genl_info *info)
+static int devlink_nl_cmd_eswitch_get_doit(struct sk_buff *skb,
+					   struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	const struct devlink_ops *ops = devlink->ops;
@@ -1450,7 +1450,7 @@ static int devlink_nl_cmd_eswitch_mode_get_doit(struct sk_buff *skb,
 	if (!msg)
 		return -ENOMEM;
 
-	err = devlink_eswitch_fill(msg, devlink, DEVLINK_CMD_ESWITCH_MODE_GET,
+	err = devlink_eswitch_fill(msg, devlink, DEVLINK_CMD_ESWITCH_GET,
 				   info->snd_portid, info->snd_seq, 0);
 
 	if (err) {
@@ -1461,8 +1461,8 @@ static int devlink_nl_cmd_eswitch_mode_get_doit(struct sk_buff *skb,
 	return genlmsg_reply(msg, info);
 }
 
-static int devlink_nl_cmd_eswitch_mode_set_doit(struct sk_buff *skb,
-						struct genl_info *info)
+static int devlink_nl_cmd_eswitch_set_doit(struct sk_buff *skb,
+					   struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	const struct devlink_ops *ops = devlink->ops;
@@ -1629,15 +1629,15 @@ static const struct genl_ops devlink_nl_ops[] = {
 				  DEVLINK_NL_FLAG_LOCK_PORTS,
 	},
 	{
-		.cmd = DEVLINK_CMD_ESWITCH_MODE_GET,
-		.doit = devlink_nl_cmd_eswitch_mode_get_doit,
+		.cmd = DEVLINK_CMD_ESWITCH_GET,
+		.doit = devlink_nl_cmd_eswitch_get_doit,
 		.policy = devlink_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
 	},
 	{
-		.cmd = DEVLINK_CMD_ESWITCH_MODE_SET,
-		.doit = devlink_nl_cmd_eswitch_mode_set_doit,
+		.cmd = DEVLINK_CMD_ESWITCH_SET,
+		.doit = devlink_nl_cmd_eswitch_set_doit,
 		.policy = devlink_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
