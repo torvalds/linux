@@ -250,7 +250,7 @@ fastsleep_workaround_at_entry:
 	/* Fast sleep workaround */
 	li	r3,1
 	li	r4,1
-	bl	opal_rm_config_cpu_idle_state
+	bl	opal_config_cpu_idle_state
 
 	/* Clear Lock bit */
 	li	r0,0
@@ -544,7 +544,7 @@ timebase_resync:
 	 */
 	ble	cr3,clear_lock
 	/* Time base re-sync */
-	bl	opal_rm_resync_timebase;
+	bl	opal_resync_timebase;
 	/*
 	 * If waking up from sleep, per core state is not lost, skip to
 	 * clear_lock.
@@ -633,7 +633,7 @@ hypervisor_state_restored:
 fastsleep_workaround_at_exit:
 	li	r3,1
 	li	r4,0
-	bl	opal_rm_config_cpu_idle_state
+	bl	opal_config_cpu_idle_state
 	b	timebase_resync
 
 /*
