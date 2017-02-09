@@ -12,6 +12,7 @@
 
 #include <linux/component.h>
 #include <linux/of_graph.h>
+#include <linux/of_reserved_mem.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
@@ -101,10 +102,16 @@ static int sun4i_drv_bind(struct device *dev)
 	}
 	drm->dev_private = drv;
 
+	ret = of_reserved_mem_device_init(dev);
+	if (ret && ret != -ENODEV) {
+		dev_err(drm->dev, "Couldn't claim our memory region\n");
+		goto free_drm;
+	}
+
 	/* drm_vblank_init calls kcalloc, which can fail */
 	ret = drm_vblank_init(drm, 1);
 	if (ret)
-		goto free_drm;
+		goto free_mem_region;
 
 	drm_mode_config_init(drm);
 
@@ -142,6 +149,8 @@ finish_poll:
 cleanup_mode_config:
 	drm_mode_config_cleanup(drm);
 	drm_vblank_cleanup(drm);
+free_mem_region:
+	of_reserved_mem_device_release(dev);
 free_drm:
 	drm_dev_unref(drm);
 	return ret;
@@ -156,6 +165,7 @@ static void sun4i_drv_unbind(struct device *dev)
 	sun4i_framebuffer_free(drm);
 	drm_mode_config_cleanup(drm);
 	drm_vblank_cleanup(drm);
+	of_reserved_mem_device_release(dev);
 	drm_dev_unref(drm);
 }
 
