@@ -873,6 +873,14 @@ struct ena_admin_aenq_link_change_desc {
 	u32 flags;
 };
 
+struct ena_admin_aenq_keep_alive_desc {
+	struct ena_admin_aenq_common_desc aenq_common_desc;
+
+	u32 rx_drops_low;
+
+	u32 rx_drops_high;
+};
+
 struct ena_admin_ena_mmio_req_read_less_resp {
 	u16 req_id;
 

@@ -2169,28 +2169,46 @@ static void ena_get_stats64(struct net_device *netdev,
 			    struct rtnl_link_stats64 *stats)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
-	struct ena_admin_basic_stats ena_stats;
-	int rc;
+	struct ena_ring *rx_ring, *tx_ring;
+	unsigned int start;
+	u64 rx_drops;
+	int i;
 
 	if (!test_bit(ENA_FLAG_DEV_UP, &adapter->flags))
 		return;
 
-	rc = ena_com_get_dev_basic_stats(adapter->ena_dev, &ena_stats);
-	if (rc)
-		return;
+	for (i = 0; i < adapter->num_queues; i++) {
+		u64 bytes, packets;
 
-	stats->tx_bytes = ((u64)ena_stats.tx_bytes_high << 32) |
-		ena_stats.tx_bytes_low;
-	stats->rx_bytes = ((u64)ena_stats.rx_bytes_high << 32) |
-		ena_stats.rx_bytes_low;
+		tx_ring = &adapter->tx_ring[i];
 
-	stats->rx_packets = ((u64)ena_stats.rx_pkts_high << 32) |
-		ena_stats.rx_pkts_low;
-	stats->tx_packets = ((u64)ena_stats.tx_pkts_high << 32) |
-		ena_stats.tx_pkts_low;
+		do {
+			start = u64_stats_fetch_begin_irq(&tx_ring->syncp);
+			packets = tx_ring->tx_stats.cnt;
+			bytes = tx_ring->tx_stats.bytes;
+		} while (u64_stats_fetch_retry_irq(&tx_ring->syncp, start));
 
-	stats->rx_dropped = ((u64)ena_stats.rx_drops_high << 32) |
-		ena_stats.rx_drops_low;
+		stats->tx_packets += packets;
+		stats->tx_bytes += bytes;
+
+		rx_ring = &adapter->rx_ring[i];
+
+		do {
+			start = u64_stats_fetch_begin_irq(&rx_ring->syncp);
+			packets = rx_ring->rx_stats.cnt;
+			bytes = rx_ring->rx_stats.bytes;
+		} while (u64_stats_fetch_retry_irq(&rx_ring->syncp, start));
+
+		stats->rx_packets += packets;
+		stats->rx_bytes += bytes;
+	}
+
+	do {
+		start = u64_stats_fetch_begin_irq(&adapter->syncp);
+		rx_drops = adapter->dev_stats.rx_drops;
+	} while (u64_stats_fetch_retry_irq(&adapter->syncp, start));
+
+	stats->rx_dropped = rx_drops;
 
 	stats->multicast = 0;
 	stats->collisions = 0;
