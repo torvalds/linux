@@ -30,6 +30,9 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder_slave.h>
 #include <drm/bridge/dw_hdmi.h>
+#ifdef CONFIG_SWITCH
+#include <linux/switch.h>
+#endif
 
 #include "dw-hdmi.h"
 #include "dw-hdmi-audio.h"
@@ -212,6 +215,10 @@ struct dw_hdmi {
 	unsigned int audio_cts;
 	unsigned int audio_n;
 	bool audio_enable;
+
+#ifdef CONFIG_SWITCH
+	struct switch_dev switchdev;
+#endif
 
 	void (*write)(struct dw_hdmi *hdmi, u8 val, int offset);
 	u8 (*read)(struct dw_hdmi *hdmi, int offset);
@@ -1942,6 +1949,12 @@ static irqreturn_t dw_hdmi_irq(int irq, void *dev_id)
 		dev_dbg(hdmi->dev, "EVENT=%s\n",
 			phy_int_pol & HDMI_PHY_HPD ? "plugin" : "plugout");
 		drm_helper_hpd_irq_event(hdmi->bridge->dev);
+#ifdef CONFIG_SWITCH
+		if (phy_int_pol & HDMI_PHY_HPD)
+			switch_set_state(&hdmi->switchdev, 1);
+		else
+			switch_set_state(&hdmi->switchdev, 0);
+#endif
 	}
 
 	hdmi_writeb(hdmi, intr_stat, HDMI_IH_PHY_STAT0);
@@ -2132,6 +2145,11 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 	if (ret)
 		goto err_iahb;
 
+#ifdef CONFIG_SWITCH
+	hdmi->switchdev.name = "hdmi";
+	switch_dev_register(&hdmi->switchdev);
+#endif
+
 	hdmi_writeb(hdmi, ~(HDMI_IH_PHY_STAT0_HPD | HDMI_IH_PHY_STAT0_RX_SENSE),
 		    HDMI_IH_MUTE_PHY_STAT0);
 
@@ -2200,6 +2218,9 @@ void dw_hdmi_unbind(struct device *dev, struct device *master, void *data)
 	/* Disable all interrupts */
 	hdmi_writeb(hdmi, ~0, HDMI_IH_MUTE_PHY_STAT0);
 
+#ifdef CONFIG_SWITCH
+	switch_dev_unregister(&hdmi->switchdev);
+#endif
 	hdmi->connector.funcs->destroy(&hdmi->connector);
 	hdmi->encoder->funcs->destroy(hdmi->encoder);
 
