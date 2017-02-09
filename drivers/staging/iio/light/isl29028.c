@@ -3,6 +3,7 @@
  * ISL29028 is Concurrent Ambient Light and Proximity Sensor
  *
  * Copyright (c) 2012, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2016-2017 Brian Masney <masneyb@onstation.org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
