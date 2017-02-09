@@ -1164,9 +1164,10 @@ static void iwl_mvm_realloc_queues_after_restart(struct iwl_mvm *mvm,
 		.frame_limit = IWL_FRAME_LIMIT,
 	};
 
-	/* Make sure reserved queue is still marked as such (or allocated) */
-	mvm->queue_info[mvm_sta->reserved_queue].status =
-		IWL_MVM_QUEUE_RESERVED;
+	/* Make sure reserved queue is still marked as such (if allocated) */
+	if (mvm_sta->reserved_queue != IEEE80211_INVAL_HW_QUEUE)
+		mvm->queue_info[mvm_sta->reserved_queue].status =
+			IWL_MVM_QUEUE_RESERVED;
 
 	for (i = 0; i <= IWL_MAX_TID_COUNT; i++) {
 		struct iwl_mvm_tid_data *tid_data = &mvm_sta->tid_data[i];
