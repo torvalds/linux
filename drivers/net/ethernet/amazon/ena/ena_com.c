@@ -2451,11 +2451,9 @@ int ena_com_set_host_attributes(struct ena_com_dev *ena_dev)
 
 	int ret;
 
-	if (!ena_com_check_supported_feature_id(ena_dev,
-						ENA_ADMIN_HOST_ATTR_CONFIG)) {
-		pr_warn("Set host attribute isn't supported\n");
-		return -EPERM;
-	}
+	/* Host attribute config is called before ena_com_get_dev_attr_feat
+	 * so ena_com can't check if the feature is supported.
+	 */
 
 	memset(&cmd, 0x0, sizeof(cmd));
 	admin_queue = &ena_dev->admin_queue;

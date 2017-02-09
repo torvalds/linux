@@ -2414,6 +2414,8 @@ static int ena_device_init(struct ena_com_dev *ena_dev, struct pci_dev *pdev,
 	 */
 	ena_com_set_admin_polling_mode(ena_dev, true);
 
+	ena_config_host_info(ena_dev);
+
 	/* Get Device Attributes*/
 	rc = ena_com_get_dev_attr_feat(ena_dev, get_feat_ctx);
 	if (rc) {
@@ -2438,11 +2440,10 @@ static int ena_device_init(struct ena_com_dev *ena_dev, struct pci_dev *pdev,
 
 	*wd_state = !!(aenq_groups & BIT(ENA_ADMIN_KEEP_ALIVE));
 
-	ena_config_host_info(ena_dev);
-
 	return 0;
 
 err_admin_init:
+	ena_com_delete_host_info(ena_dev);
 	ena_com_admin_destroy(ena_dev);
 err_mmio_read_less:
 	ena_com_mmio_reg_read_request_destroy(ena_dev);
