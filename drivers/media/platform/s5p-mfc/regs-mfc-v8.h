@@ -116,7 +116,7 @@
 #define S5P_FIMV_D_ALIGN_PLANE_SIZE_V8	64
 
 /* MFCv8 variant defines */
-#define MAX_FW_SIZE_V8			(SZ_1M)		/* 1MB */
+#define MAX_FW_SIZE_V8			(SZ_512K)	/* 512KB */
 #define MAX_CPB_SIZE_V8			(3 * SZ_1M)	/* 3MB */
 #define MFC_VERSION_V8			0x80
 #define MFC_NUM_PORTS_V8		1

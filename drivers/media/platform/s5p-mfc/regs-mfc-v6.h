@@ -403,7 +403,7 @@
 #define MFC_OTHER_ENC_CTX_BUF_SIZE_V6	(12 * SZ_1K)	/*  12KB */
 
 /* MFCv6 variant defines */
-#define MAX_FW_SIZE_V6			(SZ_1M)		/* 1MB */
+#define MAX_FW_SIZE_V6			(SZ_512K)	/* 512KB */
 #define MAX_CPB_SIZE_V6			(3 * SZ_1M)	/* 3MB */
 #define MFC_VERSION_V6			0x61
 #define MFC_NUM_PORTS_V6		1
