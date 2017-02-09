@@ -258,26 +258,23 @@ out_fail:
 }
 
 static void watch_fired(struct xenbus_watch *watch,
-			const char **vec,
-			unsigned int len)
+			const char *path,
+			const char *token)
 {
 	struct watch_adapter *adap;
 	struct xsd_sockmsg hdr;
-	const char *path, *token;
-	int path_len, tok_len, body_len, data_len = 0;
+	const char *token_caller;
+	int path_len, tok_len, body_len;
 	int ret;
 	LIST_HEAD(staging_q);
 
 	adap = container_of(watch, struct watch_adapter, watch);
 
-	path = vec[XS_WATCH_PATH];
-	token = adap->token;
+	token_caller = adap->token;
 
 	path_len = strlen(path) + 1;
-	tok_len = strlen(token) + 1;
-	if (len > 2)
-		data_len = vec[len] - vec[2] + 1;
-	body_len = path_len + tok_len + data_len;
+	tok_len = strlen(token_caller) + 1;
+	body_len = path_len + tok_len;
 
 	hdr.type = XS_WATCH_EVENT;
 	hdr.len = body_len;
@@ -288,9 +285,7 @@ static void watch_fired(struct xenbus_watch *watch,
 	if (!ret)
 		ret = queue_reply(&staging_q, path, path_len);
 	if (!ret)
-		ret = queue_reply(&staging_q, token, tok_len);
-	if (!ret && len > 2)
-		ret = queue_reply(&staging_q, vec[2], data_len);
+		ret = queue_reply(&staging_q, token_caller, tok_len);
 
 	if (!ret) {
 		/* success: pass reply list onto watcher */

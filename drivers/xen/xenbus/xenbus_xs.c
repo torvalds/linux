@@ -64,8 +64,8 @@ struct xs_stored_msg {
 		/* Queued watch events. */
 		struct {
 			struct xenbus_watch *handle;
-			char **vec;
-			unsigned int vec_size;
+			const char *path;
+			const char *token;
 		} watch;
 	} u;
 };
@@ -765,7 +765,7 @@ void unregister_xenbus_watch(struct xenbus_watch *watch)
 		if (msg->u.watch.handle != watch)
 			continue;
 		list_del(&msg->list);
-		kfree(msg->u.watch.vec);
+		kfree(msg->u.watch.path);
 		kfree(msg);
 	}
 	spin_unlock(&watch_events_lock);
@@ -833,11 +833,10 @@ static int xenwatch_thread(void *unused)
 
 		if (ent != &watch_events) {
 			msg = list_entry(ent, struct xs_stored_msg, list);
-			msg->u.watch.handle->callback(
-				msg->u.watch.handle,
-				(const char **)msg->u.watch.vec,
-				msg->u.watch.vec_size);
-			kfree(msg->u.watch.vec);
+			msg->u.watch.handle->callback(msg->u.watch.handle,
+						      msg->u.watch.path,
+						      msg->u.watch.token);
+			kfree(msg->u.watch.path);
 			kfree(msg);
 		}
 
@@ -903,24 +902,24 @@ static int process_msg(void)
 	body[msg->hdr.len] = '\0';
 
 	if (msg->hdr.type == XS_WATCH_EVENT) {
-		msg->u.watch.vec = split(body, msg->hdr.len,
-					 &msg->u.watch.vec_size);
-		if (IS_ERR(msg->u.watch.vec)) {
-			err = PTR_ERR(msg->u.watch.vec);
+		if (count_strings(body, msg->hdr.len) != 2) {
+			err = -EINVAL;
 			kfree(msg);
+			kfree(body);
 			goto out;
 		}
+		msg->u.watch.path = (const char *)body;
+		msg->u.watch.token = (const char *)strchr(body, '\0') + 1;
 
 		spin_lock(&watches_lock);
-		msg->u.watch.handle = find_watch(
-			msg->u.watch.vec[XS_WATCH_TOKEN]);
+		msg->u.watch.handle = find_watch(msg->u.watch.token);
 		if (msg->u.watch.handle != NULL) {
 			spin_lock(&watch_events_lock);
 			list_add_tail(&msg->list, &watch_events);
 			wake_up(&watch_events_waitq);
 			spin_unlock(&watch_events_lock);
 		} else {
-			kfree(msg->u.watch.vec);
+			kfree(body);
 			kfree(msg);
 		}
 		spin_unlock(&watches_lock);

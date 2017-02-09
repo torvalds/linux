@@ -115,7 +115,7 @@ EXPORT_SYMBOL_GPL(xenbus_strstate);
 int xenbus_watch_path(struct xenbus_device *dev, const char *path,
 		      struct xenbus_watch *watch,
 		      void (*callback)(struct xenbus_watch *,
-				       const char **, unsigned int))
+				       const char *, const char *))
 {
 	int err;
 
@@ -153,7 +153,7 @@ EXPORT_SYMBOL_GPL(xenbus_watch_path);
 int xenbus_watch_pathfmt(struct xenbus_device *dev,
 			 struct xenbus_watch *watch,
 			 void (*callback)(struct xenbus_watch *,
-					const char **, unsigned int),
+					  const char *, const char *),
 			 const char *pathfmt, ...)
 {
 	int err;

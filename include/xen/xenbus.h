@@ -61,7 +61,7 @@ struct xenbus_watch
 
 	/* Callback (executed in a process context with no locks held). */
 	void (*callback)(struct xenbus_watch *,
-			 const char **vec, unsigned int len);
+			 const char *path, const char *token);
 };
 
 
@@ -193,11 +193,11 @@ void xenbus_probe(struct work_struct *);
 int xenbus_watch_path(struct xenbus_device *dev, const char *path,
 		      struct xenbus_watch *watch,
 		      void (*callback)(struct xenbus_watch *,
-				       const char **, unsigned int));
+				       const char *, const char *));
 __printf(4, 5)
 int xenbus_watch_pathfmt(struct xenbus_device *dev, struct xenbus_watch *watch,
 			 void (*callback)(struct xenbus_watch *,
-					  const char **, unsigned int),
+					  const char *, const char *),
 			 const char *pathfmt, ...);
 
 int xenbus_switch_state(struct xenbus_device *dev, enum xenbus_state new_state);
