@@ -1270,6 +1270,11 @@ iomap_dax_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 		struct blk_dax_ctl dax = { 0 };
 		ssize_t map_len;
 
+		if (fatal_signal_pending(current)) {
+			ret = -EINTR;
+			break;
+		}
+
 		dax.sector = iomap->blkno +
 			(((pos & PAGE_MASK) - iomap->offset) >> 9);
 		dax.size = (length + offset + PAGE_SIZE - 1) & PAGE_MASK;
