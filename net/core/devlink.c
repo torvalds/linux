@@ -1392,9 +1392,9 @@ static int devlink_nl_cmd_sb_occ_max_clear_doit(struct sk_buff *skb,
 	return -EOPNOTSUPP;
 }
 
-static int devlink_eswitch_fill(struct sk_buff *msg, struct devlink *devlink,
-				enum devlink_command cmd, u32 portid,
-				u32 seq, int flags)
+static int devlink_nl_eswitch_fill(struct sk_buff *msg, struct devlink *devlink,
+				   enum devlink_command cmd, u32 portid,
+				   u32 seq, int flags)
 {
 	const struct devlink_ops *ops = devlink->ops;
 	void *hdr;
@@ -1450,8 +1450,8 @@ static int devlink_nl_cmd_eswitch_get_doit(struct sk_buff *skb,
 	if (!msg)
 		return -ENOMEM;
 
-	err = devlink_eswitch_fill(msg, devlink, DEVLINK_CMD_ESWITCH_GET,
-				   info->snd_portid, info->snd_seq, 0);
+	err = devlink_nl_eswitch_fill(msg, devlink, DEVLINK_CMD_ESWITCH_GET,
+				      info->snd_portid, info->snd_seq, 0);
 
 	if (err) {
 		nlmsg_free(msg);
