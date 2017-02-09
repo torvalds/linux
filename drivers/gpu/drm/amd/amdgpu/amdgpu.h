@@ -1709,6 +1709,7 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data);
 int amdgpu_cs_get_ring(struct amdgpu_device *adev, u32 ip_type,
 		       u32 ip_instance, u32 ring,
 		       struct amdgpu_ring **out_ring);
+void amdgpu_cs_report_moved_bytes(struct amdgpu_device *adev, u64 num_bytes);
 void amdgpu_ttm_placement_from_domain(struct amdgpu_bo *abo, u32 domain);
 bool amdgpu_ttm_bo_is_amdgpu_bo(struct ttm_buffer_object *bo);
 int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages);
