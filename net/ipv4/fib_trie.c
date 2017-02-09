@@ -1295,6 +1295,13 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 			new_fa->tb_id = tb->tb_id;
 			new_fa->fa_default = -1;
 
+			call_fib_entry_notifiers(net, FIB_EVENT_ENTRY_ADD,
+						 key, plen, fi,
+						 new_fa->fa_tos, cfg->fc_type,
+						 tb->tb_id, nlflags);
+			rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen,
+				  tb->tb_id, &cfg->fc_nlinfo, nlflags);
+
 			hlist_replace_rcu(&fa->fa_list, &new_fa->fa_list);
 
 			alias_free_mem_rcu(fa);
@@ -1302,13 +1309,6 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 			fib_release_info(fi_drop);
 			if (state & FA_S_ACCESSED)
 				rt_cache_flush(cfg->fc_nlinfo.nl_net);
-
-			call_fib_entry_notifiers(net, FIB_EVENT_ENTRY_ADD,
-						 key, plen, fi,
-						 new_fa->fa_tos, cfg->fc_type,
-						 tb->tb_id, cfg->fc_nlflags);
-			rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen,
-				tb->tb_id, &cfg->fc_nlinfo, nlflags);
 
 			goto succeeded;
 		}
