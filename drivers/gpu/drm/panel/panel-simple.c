@@ -572,15 +572,15 @@ static const struct panel_desc auo_b116xw03 = {
 };
 
 static const struct drm_display_mode auo_b125han03_mode = {
-	.clock = 141000,
+	.clock = 146900,
 	.hdisplay = 1920,
-	.hsync_start = 1920 + 88,
-	.hsync_end = 1920 + 88 + 60,
-	.htotal = 1920 + 88 + 60 + 36,
+	.hsync_start = 1920 + 48,
+	.hsync_end = 1920 + 48 + 32,
+	.htotal = 1920 + 48 + 32 + 140,
 	.vdisplay = 1080,
-	.vsync_start = 1080 + 12,
-	.vsync_end = 1080 + 12 + 4,
-	.vtotal = 1080 + 12 + 4 + 20,
+	.vsync_start = 1080 + 2,
+	.vsync_end = 1080 + 2 + 5,
+	.vtotal = 1080 + 2 + 5 + 57,
 	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 };
