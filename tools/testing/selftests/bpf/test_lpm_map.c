@@ -211,7 +211,7 @@ static void test_lpm_map(int keysize)
 
 		key->prefixlen = 8 * keysize;
 		memcpy(key->data, data, keysize);
-		r = bpf_map_lookup(map, key, value);
+		r = bpf_map_lookup_elem(map, key, value);
 		assert(!r || errno == ENOENT);
 		assert(!t == !!r);
 
@@ -300,32 +300,32 @@ static void test_lpm_ipaddr(void)
 
 	/* Test some lookups that should come back with a value */
 	inet_pton(AF_INET, "192.168.128.23", key_ipv4->data);
-	assert(bpf_map_lookup(map_fd_ipv4, key_ipv4, &value) == 0);
+	assert(bpf_map_lookup_elem(map_fd_ipv4, key_ipv4, &value) == 0);
 	assert(value == 3);
 
 	inet_pton(AF_INET, "192.168.0.1", key_ipv4->data);
-	assert(bpf_map_lookup(map_fd_ipv4, key_ipv4, &value) == 0);
+	assert(bpf_map_lookup_elem(map_fd_ipv4, key_ipv4, &value) == 0);
 	assert(value == 2);
 
 	inet_pton(AF_INET6, "2a00:1450:4001:814::", key_ipv6->data);
-	assert(bpf_map_lookup(map_fd_ipv6, key_ipv6, &value) == 0);
+	assert(bpf_map_lookup_elem(map_fd_ipv6, key_ipv6, &value) == 0);
 	assert(value == 0xdeadbeef);
 
 	inet_pton(AF_INET6, "2a00:1450:4001:814::1", key_ipv6->data);
-	assert(bpf_map_lookup(map_fd_ipv6, key_ipv6, &value) == 0);
+	assert(bpf_map_lookup_elem(map_fd_ipv6, key_ipv6, &value) == 0);
 	assert(value == 0xdeadbeef);
 
 	/* Test some lookups that should not match any entry */
 	inet_pton(AF_INET, "10.0.0.1", key_ipv4->data);
-	assert(bpf_map_lookup(map_fd_ipv4, key_ipv4, &value) == -1 &&
+	assert(bpf_map_lookup_elem(map_fd_ipv4, key_ipv4, &value) == -1 &&
 	       errno == ENOENT);
 
 	inet_pton(AF_INET, "11.11.11.11", key_ipv4->data);
-	assert(bpf_map_lookup(map_fd_ipv4, key_ipv4, &value) == -1 &&
+	assert(bpf_map_lookup_elem(map_fd_ipv4, key_ipv4, &value) == -1 &&
 	       errno == ENOENT);
 
 	inet_pton(AF_INET6, "2a00:ffff::", key_ipv6->data);
-	assert(bpf_map_lookup(map_fd_ipv6, key_ipv6, &value) == -1 &&
+	assert(bpf_map_lookup_elem(map_fd_ipv6, key_ipv6, &value) == -1 &&
 	       errno == ENOENT);
 
 	close(map_fd_ipv4);

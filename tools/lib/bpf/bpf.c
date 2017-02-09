@@ -112,7 +112,7 @@ int bpf_map_update_elem(int fd, const void *key, const void *value,
 	return sys_bpf(BPF_MAP_UPDATE_ELEM, &attr, sizeof(attr));
 }
 
-int bpf_map_lookup_elem(int fd, void *key, void *value)
+int bpf_map_lookup_elem(int fd, const void *key, void *value)
 {
 	union bpf_attr attr;
 
