@@ -16,6 +16,7 @@
 #include <stdbool.h>
 #include <sched.h>
 
+#include <sys/capability.h>
 #include <sys/resource.h>
 
 #include <linux/unistd.h>
@@ -4574,6 +4575,55 @@ fail_log:
 	goto close_fds;
 }
 
+static bool is_admin(void)
+{
+	cap_t caps;
+	cap_flag_value_t sysadmin = CAP_CLEAR;
+	const cap_value_t cap_val = CAP_SYS_ADMIN;
+
+	if (!CAP_IS_SUPPORTED(CAP_SETFCAP)) {
+		perror("cap_get_flag");
+		return false;
+	}
+	caps = cap_get_proc();
+	if (!caps) {
+		perror("cap_get_proc");
+		return false;
+	}
+	if (cap_get_flag(caps, cap_val, CAP_EFFECTIVE, &sysadmin))
+		perror("cap_get_flag");
+	if (cap_free(caps))
+		perror("cap_free");
+	return (sysadmin == CAP_SET);
+}
+
+static int set_admin(bool admin)
+{
+	cap_t caps;
+	const cap_value_t cap_val = CAP_SYS_ADMIN;
+	int ret = -1;
+
+	caps = cap_get_proc();
+	if (!caps) {
+		perror("cap_get_proc");
+		return -1;
+	}
+	if (cap_set_flag(caps, CAP_EFFECTIVE, 1, &cap_val,
+				admin ? CAP_SET : CAP_CLEAR)) {
+		perror("cap_set_flag");
+		goto out;
+	}
+	if (cap_set_proc(caps)) {
+		perror("cap_set_proc");
+		goto out;
+	}
+	ret = 0;
+out:
+	if (cap_free(caps))
+		perror("cap_free");
+	return ret;
+}
+
 static int do_test(bool unpriv, unsigned int from, unsigned int to)
 {
 	int i, passes = 0, errors = 0;
@@ -4584,11 +4634,19 @@ static int do_test(bool unpriv, unsigned int from, unsigned int to)
 		/* Program types that are not supported by non-root we
 		 * skip right away.
 		 */
-		if (unpriv && test->prog_type)
-			continue;
+		if (!test->prog_type) {
+			if (!unpriv)
+				set_admin(false);
+			printf("#%d/u %s ", i, test->descr);
+			do_test_single(test, true, &passes, &errors);
+			if (!unpriv)
+				set_admin(true);
+		}
 
-		printf("#%d %s ", i, test->descr);
-		do_test_single(test, unpriv, &passes, &errors);
+		if (!unpriv) {
+			printf("#%d/p %s ", i, test->descr);
+			do_test_single(test, false, &passes, &errors);
+		}
 	}
 
 	printf("Summary: %d PASSED, %d FAILED\n", passes, errors);
@@ -4600,7 +4658,7 @@ int main(int argc, char **argv)
 	struct rlimit rinf = { RLIM_INFINITY, RLIM_INFINITY };
 	struct rlimit rlim = { 1 << 20, 1 << 20 };
 	unsigned int from = 0, to = ARRAY_SIZE(tests);
-	bool unpriv = geteuid() != 0;
+	bool unpriv = !is_admin();
 
 	if (argc == 3) {
 		unsigned int l = atoi(argv[argc - 2]);
