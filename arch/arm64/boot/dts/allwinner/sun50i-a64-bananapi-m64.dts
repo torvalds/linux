@@ -47,11 +47,12 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "Pine64";
-	compatible = "pine64,pine64", "allwinner,sun50i-a64";
+	model = "BananaPi-M64";
+	compatible = "sinovoip,bananapi-m64", "allwinner,sun50i-a64";
 
 	aliases {
 		serial0 = &uart0;
+		serial1 = &uart1;
 	};
 
 	chosen {
@@ -64,10 +65,6 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
-};
-
-&ehci1 {
-	status = "okay";
 };
 
 &i2c1 {
@@ -91,7 +88,22 @@
 	status = "okay";
 };
 
-&ohci1 {
+&mmc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins>;
+	vmmc-supply = <&reg_vcc3v3>;
+	bus-width = <4>;
+	non-removable;
+	status = "okay";
+};
+
+&mmc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc2_pins>;
+	vmmc-supply = <&reg_vcc3v3>;
+	bus-width = <8>;
+	non-removable;
+	cap-mmc-hw-reset;
 	status = "okay";
 };
 
@@ -101,11 +113,8 @@
 	status = "okay";
 };
 
-&usb_otg {
-	dr_mode = "host";
-	status = "okay";
-};
-
-&usbphy {
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins>, <&uart1_rts_cts_pins>;
 	status = "okay";
 };
