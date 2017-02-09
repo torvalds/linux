@@ -102,14 +102,16 @@ static void dump_config(struct device *dev, u32 instance_id, u8 linktype,
 }
 
 static bool skl_check_ep_match(struct device *dev, struct nhlt_endpoint *epnt,
-				u32 instance_id, u8 link_type, u8 dirn)
+		u32 instance_id, u8 link_type, u8 dirn, u8 dev_type)
 {
-	dev_dbg(dev, "vbus_id=%d link_type=%d dir=%d\n",
-		epnt->virtual_bus_id, epnt->linktype, epnt->direction);
+	dev_dbg(dev, "vbus_id=%d link_type=%d dir=%d dev_type = %d\n",
+			epnt->virtual_bus_id, epnt->linktype,
+			epnt->direction, epnt->device_type);
 
 	if ((epnt->virtual_bus_id == instance_id) &&
 			(epnt->linktype == link_type) &&
-			(epnt->direction == dirn))
+			(epnt->direction == dirn) &&
+			(epnt->device_type == dev_type))
 		return true;
 	else
 		return false;
@@ -117,7 +119,8 @@ static bool skl_check_ep_match(struct device *dev, struct nhlt_endpoint *epnt,
 
 struct nhlt_specific_cfg
 *skl_get_ep_blob(struct skl *skl, u32 instance, u8 link_type,
-			u8 s_fmt, u8 num_ch, u32 s_rate, u8 dirn)
+			u8 s_fmt, u8 num_ch, u32 s_rate,
+			u8 dirn, u8 dev_type)
 {
 	struct nhlt_fmt *fmt;
 	struct nhlt_endpoint *epnt;
@@ -135,7 +138,8 @@ struct nhlt_specific_cfg
 	dev_dbg(dev, "endpoint count =%d\n", nhlt->endpoint_count);
 
 	for (j = 0; j < nhlt->endpoint_count; j++) {
-		if (skl_check_ep_match(dev, epnt, instance, link_type, dirn)) {
+		if (skl_check_ep_match(dev, epnt, instance, link_type,
+						dirn, dev_type)) {
 			fmt = (struct nhlt_fmt *)(epnt->config.caps +
 						 epnt->config.size);
 			sp_config = skl_get_specific_cfg(dev, fmt, num_ch,

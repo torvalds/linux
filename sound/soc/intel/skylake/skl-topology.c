@@ -330,6 +330,31 @@ static void skl_tplg_update_buffer_size(struct skl_sst *ctx,
 			multiplier;
 }
 
+static u8 skl_tplg_be_dev_type(int dev_type)
+{
+	int ret;
+
+	switch (dev_type) {
+	case SKL_DEVICE_BT:
+		ret = NHLT_DEVICE_BT;
+		break;
+
+	case SKL_DEVICE_DMIC:
+		ret = NHLT_DEVICE_DMIC;
+		break;
+
+	case SKL_DEVICE_I2S:
+		ret = NHLT_DEVICE_I2S;
+		break;
+
+	default:
+		ret = NHLT_DEVICE_INVALID;
+		break;
+	}
+
+	return ret;
+}
+
 static int skl_tplg_update_be_blob(struct snd_soc_dapm_widget *w,
 						struct skl_sst *ctx)
 {
@@ -338,6 +363,7 @@ static int skl_tplg_update_be_blob(struct snd_soc_dapm_widget *w,
 	u32 ch, s_freq, s_fmt;
 	struct nhlt_specific_cfg *cfg;
 	struct skl *skl = get_skl_ctx(ctx->dev);
+	u8 dev_type = skl_tplg_be_dev_type(m_cfg->dev_type);
 
 	/* check if we already have blob */
 	if (m_cfg->formats_config.caps_size > 0)
@@ -374,7 +400,7 @@ static int skl_tplg_update_be_blob(struct snd_soc_dapm_widget *w,
 
 	/* update the blob based on virtual bus_id and default params */
 	cfg = skl_get_ep_blob(skl, m_cfg->vbus_id, link_type,
-					s_fmt, ch, s_freq, dir);
+					s_fmt, ch, s_freq, dir, dev_type);
 	if (cfg) {
 		m_cfg->formats_config.caps_size = cfg->size;
 		m_cfg->formats_config.caps = (u32 *) &cfg->caps;
@@ -1448,6 +1474,7 @@ static int skl_tplg_be_fill_pipe_params(struct snd_soc_dai *dai,
 	struct nhlt_specific_cfg *cfg;
 	struct skl *skl = get_skl_ctx(dai->dev);
 	int link_type = skl_tplg_be_link_type(mconfig->dev_type);
+	u8 dev_type = skl_tplg_be_dev_type(mconfig->dev_type);
 
 	skl_tplg_fill_dma_id(mconfig, params);
 
@@ -1457,7 +1484,8 @@ static int skl_tplg_be_fill_pipe_params(struct snd_soc_dai *dai,
 	/* update the blob based on virtual bus_id*/
 	cfg = skl_get_ep_blob(skl, mconfig->vbus_id, link_type,
 					params->s_fmt, params->ch,
-					params->s_freq, params->stream);
+					params->s_freq, params->stream,
+					dev_type);
 	if (cfg) {
 		mconfig->formats_config.caps_size = cfg->size;
 		mconfig->formats_config.caps = (u32 *) &cfg->caps;
