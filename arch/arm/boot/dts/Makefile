@@ -491,6 +491,7 @@ dtb-$(CONFIG_ARCH_MXS) += \
 	imx28-duckbill-2-485.dtb \
 	imx28-duckbill-2.dtb \
 	imx28-duckbill-2-enocean.dtb \
+	imx28-duckbill-2-spi.dtb \
 	imx28-duckbill.dtb \
 	imx28-eukrea-mbmx283lc.dtb \
 	imx28-eukrea-mbmx287lc.dtb \
