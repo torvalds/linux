@@ -905,7 +905,10 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev,
 	else
 		qp->bf.bfreg = &dev->bfreg;
 
-	qp->bf.buf_size = 1 << MLX5_CAP_GEN(dev->mdev, log_bf_reg_size);
+	/* We need to divide by two since each register is comprised of
+	 * two buffers of identical size, namely odd and even
+	 */
+	qp->bf.buf_size = (1 << MLX5_CAP_GEN(dev->mdev, log_bf_reg_size)) / 2;
 	uar_index = qp->bf.bfreg->index;
 
 	err = calc_sq_size(dev, init_attr, qp);
