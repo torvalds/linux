@@ -195,3 +195,31 @@ int mlx5_cmd_teardown_hca(struct mlx5_core_dev *dev)
 	MLX5_SET(teardown_hca_in, in, opcode, MLX5_CMD_OP_TEARDOWN_HCA);
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
+
+int mlx5_cmd_force_teardown_hca(struct mlx5_core_dev *dev)
+{
+	u32 out[MLX5_ST_SZ_DW(teardown_hca_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(teardown_hca_in)] = {0};
+	int force_state;
+	int ret;
+
+	if (!MLX5_CAP_GEN(dev, force_teardown)) {
+		mlx5_core_dbg(dev, "force teardown is not supported in the firmware\n");
+		return -EOPNOTSUPP;
+	}
+
+	MLX5_SET(teardown_hca_in, in, opcode, MLX5_CMD_OP_TEARDOWN_HCA);
+	MLX5_SET(teardown_hca_in, in, profile, MLX5_TEARDOWN_HCA_IN_PROFILE_FORCE_CLOSE);
+
+	ret = mlx5_cmd_exec_polling(dev, in, sizeof(in), out, sizeof(out));
+	if (ret)
+		return ret;
+
+	force_state = MLX5_GET(teardown_hca_out, out, force_state);
+	if (force_state == MLX5_TEARDOWN_HCA_OUT_FORCE_STATE_FAIL) {
+		mlx5_core_err(dev, "teardown with force mode failed\n");
+		return -EIO;
+	}
+
+	return 0;
+}

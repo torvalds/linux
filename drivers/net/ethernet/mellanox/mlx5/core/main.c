@@ -1418,7 +1418,7 @@ static pci_ers_result_t mlx5_pci_err_detected(struct pci_dev *pdev,
 
 	dev_info(&pdev->dev, "%s was called\n", __func__);
 
-	mlx5_enter_error_state(dev);
+	mlx5_enter_error_state(dev, false);
 	mlx5_unload_one(dev, priv, false);
 	/* In case of kernel call drain the health wq */
 	if (state) {
@@ -1505,15 +1505,43 @@ static const struct pci_error_handlers mlx5_err_handler = {
 	.resume		= mlx5_pci_resume
 };
 
+static int mlx5_try_fast_unload(struct mlx5_core_dev *dev)
+{
+	int ret;
+
+	if (!MLX5_CAP_GEN(dev, force_teardown)) {
+		mlx5_core_dbg(dev, "force teardown is not supported in the firmware\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
+		mlx5_core_dbg(dev, "Device in internal error state, giving up\n");
+		return -EAGAIN;
+	}
+
+	ret = mlx5_cmd_force_teardown_hca(dev);
+	if (ret) {
+		mlx5_core_dbg(dev, "Firmware couldn't do fast unload error: %d\n", ret);
+		return ret;
+	}
+
+	mlx5_enter_error_state(dev, true);
+
+	return 0;
+}
+
 static void shutdown(struct pci_dev *pdev)
 {
 	struct mlx5_core_dev *dev  = pci_get_drvdata(pdev);
 	struct mlx5_priv *priv = &dev->priv;
+	int err;
 
 	dev_info(&pdev->dev, "Shutdown was called\n");
 	/* Notify mlx5 clients that the kernel is being shut down */
 	set_bit(MLX5_INTERFACE_STATE_SHUTDOWN, &dev->intf_state);
-	mlx5_unload_one(dev, priv, false);
+	err = mlx5_try_fast_unload(dev);
+	if (err)
+		mlx5_unload_one(dev, priv, false);
 	mlx5_pci_disable_device(dev);
 }
 
