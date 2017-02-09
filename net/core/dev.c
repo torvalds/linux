@@ -353,10 +353,11 @@ static inline void netdev_set_addr_lockdep_class(struct net_device *dev)
 #endif
 
 /*******************************************************************************
+ *
+ *		Protocol management and registration routines
+ *
+ *******************************************************************************/
 
-		Protocol management and registration routines
-
-*******************************************************************************/
 
 /*
  *	Add a protocol ID to the list. Now that the input handler is
@@ -539,10 +540,10 @@ void dev_remove_offload(struct packet_offload *po)
 EXPORT_SYMBOL(dev_remove_offload);
 
 /******************************************************************************
-
-		      Device Boot-time Settings Routines
-
-*******************************************************************************/
+ *
+ *		      Device Boot-time Settings Routines
+ *
+ ******************************************************************************/
 
 /* Boot time configuration table */
 static struct netdev_boot_setup dev_boot_setup[NETDEV_BOOT_SETUP_MAX];
@@ -664,10 +665,10 @@ int __init netdev_boot_setup(char *str)
 __setup("netdev=", netdev_boot_setup);
 
 /*******************************************************************************
-
-			    Device Interface Subroutines
-
-*******************************************************************************/
+ *
+ *			    Device Interface Subroutines
+ *
+ *******************************************************************************/
 
 /**
  *	dev_get_iflink	- get 'iflink' value of a interface
@@ -3326,16 +3327,16 @@ static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
 	}
 
 	/* The device has no queue. Common case for software devices:
-	   loopback, all the sorts of tunnels...
+	 * loopback, all the sorts of tunnels...
 
-	   Really, it is unlikely that netif_tx_lock protection is necessary
-	   here.  (f.e. loopback and IP tunnels are clean ignoring statistics
-	   counters.)
-	   However, it is possible, that they rely on protection
-	   made by us here.
+	 * Really, it is unlikely that netif_tx_lock protection is necessary
+	 * here.  (f.e. loopback and IP tunnels are clean ignoring statistics
+	 * counters.)
+	 * However, it is possible, that they rely on protection
+	 * made by us here.
 
-	   Check this and shot the lock. It is not prone from deadlocks.
-	   Either shot noqueue qdisc, it is even simpler 8)
+	 * Check this and shot the lock. It is not prone from deadlocks.
+	 *Either shot noqueue qdisc, it is even simpler 8)
 	 */
 	if (dev->flags & IFF_UP) {
 		int cpu = smp_processor_id(); /* ok because BHs are off */
@@ -3397,9 +3398,9 @@ int dev_queue_xmit_accel(struct sk_buff *skb, void *accel_priv)
 EXPORT_SYMBOL(dev_queue_xmit_accel);
 
 
-/*=======================================================================
-			Receiver routines
-  =======================================================================*/
+/*************************************************************************
+ *			Receiver routines
+ *************************************************************************/
 
 int netdev_max_backlog __read_mostly = 1000;
 EXPORT_SYMBOL(netdev_max_backlog);
@@ -6359,8 +6360,8 @@ int __dev_change_flags(struct net_device *dev, unsigned int flags)
 	}
 
 	/* NOTE: order of synchronization of IFF_PROMISC and IFF_ALLMULTI
-	   is important. Some (broken) drivers set IFF_PROMISC, when
-	   IFF_ALLMULTI is requested not asking us and not reporting.
+	 * is important. Some (broken) drivers set IFF_PROMISC, when
+	 * IFF_ALLMULTI is requested not asking us and not reporting.
 	 */
 	if ((flags ^ dev->gflags) & IFF_ALLMULTI) {
 		int inc = (flags & IFF_ALLMULTI) ? 1 : -1;
@@ -6724,8 +6725,8 @@ static void rollback_registered_many(struct list_head *head)
 
 
 		/* Notify protocols, that we are about to destroy
-		   this device. They should clean all the things.
-		*/
+		 * this device. They should clean all the things.
+		 */
 		call_netdevice_notifiers(NETDEV_UNREGISTER, dev);
 
 		if (!dev->rtnl_link_ops ||
@@ -7855,12 +7856,12 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 	dev_shutdown(dev);
 
 	/* Notify protocols, that we are about to destroy
-	   this device. They should clean all the things.
-
-	   Note that dev->reg_state stays at NETREG_REGISTERED.
-	   This is wanted because this way 8021q and macvlan know
-	   the device is just moving and can keep their slaves up.
-	*/
+	 * this device. They should clean all the things.
+	 *
+	 * Note that dev->reg_state stays at NETREG_REGISTERED.
+	 * This is wanted because this way 8021q and macvlan know
+	 * the device is just moving and can keep their slaves up.
+	 */
 	call_netdevice_notifiers(NETDEV_UNREGISTER, dev);
 	rcu_barrier();
 	call_netdevice_notifiers(NETDEV_UNREGISTER_FINAL, dev);
