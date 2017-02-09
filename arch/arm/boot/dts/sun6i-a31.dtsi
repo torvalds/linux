@@ -234,6 +234,7 @@
 	de: display-engine {
 		compatible = "allwinner,sun6i-a31-display-engine";
 		allwinner,pipelines = <&fe0>;
+		status = "disabled";
 	};
 
 	soc@01c00000 {

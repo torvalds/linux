@@ -1,8 +1,8 @@
 VERSION = 4
 PATCHLEVEL = 10
 SUBLEVEL = 0
-EXTRAVERSION = -rc4
-NAME = Roaring Lionus
+EXTRAVERSION = -rc5
+NAME = Anniversary Edition
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"

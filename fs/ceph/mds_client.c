@@ -288,12 +288,13 @@ static int parse_reply_info_extra(void **p, void *end,
 				  struct ceph_mds_reply_info_parsed *info,
 				  u64 features)
 {
-	if (info->head->op == CEPH_MDS_OP_GETFILELOCK)
+	u32 op = le32_to_cpu(info->head->op);
+
+	if (op == CEPH_MDS_OP_GETFILELOCK)
 		return parse_reply_info_filelock(p, end, info, features);
-	else if (info->head->op == CEPH_MDS_OP_READDIR ||
-		 info->head->op == CEPH_MDS_OP_LSSNAP)
+	else if (op == CEPH_MDS_OP_READDIR || op == CEPH_MDS_OP_LSSNAP)
 		return parse_reply_info_dir(p, end, info, features);
-	else if (info->head->op == CEPH_MDS_OP_CREATE)
+	else if (op == CEPH_MDS_OP_CREATE)
 		return parse_reply_info_create(p, end, info, features);
 	else
 		return -EIO;

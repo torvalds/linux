@@ -21,12 +21,12 @@ static inline pte_t *hugepd_page(hugepd_t hpd)
 	 * We have only four bits to encode, MMU page size
 	 */
 	BUILD_BUG_ON((MMU_PAGE_COUNT - 1) > 0xf);
-	return __va(hpd.pd & HUGEPD_ADDR_MASK);
+	return __va(hpd_val(hpd) & HUGEPD_ADDR_MASK);
 }
 
 static inline unsigned int hugepd_mmu_psize(hugepd_t hpd)
 {
-	return (hpd.pd & HUGEPD_SHIFT_MASK) >> 2;
+	return (hpd_val(hpd) & HUGEPD_SHIFT_MASK) >> 2;
 }
 
 static inline unsigned int hugepd_shift(hugepd_t hpd)
@@ -52,18 +52,20 @@ static inline pte_t *hugepd_page(hugepd_t hpd)
 {
 	BUG_ON(!hugepd_ok(hpd));
 #ifdef CONFIG_PPC_8xx
-	return (pte_t *)__va(hpd.pd & ~(_PMD_PAGE_MASK | _PMD_PRESENT_MASK));
+	return (pte_t *)__va(hpd_val(hpd) &
+			     ~(_PMD_PAGE_MASK | _PMD_PRESENT_MASK));
 #else
-	return (pte_t *)((hpd.pd & ~HUGEPD_SHIFT_MASK) | PD_HUGE);
+	return (pte_t *)((hpd_val(hpd) &
+			  ~HUGEPD_SHIFT_MASK) | PD_HUGE);
 #endif
 }
 
 static inline unsigned int hugepd_shift(hugepd_t hpd)
 {
 #ifdef CONFIG_PPC_8xx
-	return ((hpd.pd & _PMD_PAGE_MASK) >> 1) + 17;
+	return ((hpd_val(hpd) & _PMD_PAGE_MASK) >> 1) + 17;
 #else
-	return hpd.pd & HUGEPD_SHIFT_MASK;
+	return hpd_val(hpd) & HUGEPD_SHIFT_MASK;
 #endif
 }
 

@@ -5,7 +5,7 @@ Required properties:
 - compatible: "sigma,smp8758-nand"
 - reg: address/size of nfc_reg, nfc_mem, and pbus_reg
 - dmas: reference to the DMA channel used by the controller
-- dma-names: "nfc_sbox"
+- dma-names: "rxtx"
 - clocks: reference to the system clock
 - #address-cells: <1>
 - #size-cells: <0>
@@ -17,9 +17,9 @@ Example:
 
 	nandc: nand-controller@2c000 {
 		compatible = "sigma,smp8758-nand";
-		reg = <0x2c000 0x30 0x2d000 0x800 0x20000 0x1000>;
+		reg = <0x2c000 0x30>, <0x2d000 0x800>, <0x20000 0x1000>;
 		dmas = <&dma0 3>;
-		dma-names = "nfc_sbox";
+		dma-names = "rxtx";
 		clocks = <&clkgen SYS_CLK>;
 		#address-cells = <1>;
 		#size-cells = <0>;

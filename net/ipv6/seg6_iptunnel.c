@@ -265,7 +265,9 @@ int seg6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 	slwt = seg6_lwt_lwtunnel(orig_dst->lwtstate);
 
 #ifdef CONFIG_DST_CACHE
+	preempt_disable();
 	dst = dst_cache_get(&slwt->cache);
+	preempt_enable();
 #endif
 
 	if (unlikely(!dst)) {
@@ -286,7 +288,9 @@ int seg6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 		}
 
 #ifdef CONFIG_DST_CACHE
+		preempt_disable();
 		dst_cache_set_ip6(&slwt->cache, dst, &fl6.saddr);
+		preempt_enable();
 #endif
 	}
 
