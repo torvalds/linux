@@ -3073,10 +3073,17 @@ static int __mlxsw_sp_flood_init(struct mlxsw_core *mlxsw_core,
 	else
 		table_type = MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFEST;
 
-	if (type == MLXSW_REG_SFGC_TYPE_UNKNOWN_UNICAST)
+	switch (type) {
+	case MLXSW_REG_SFGC_TYPE_UNKNOWN_UNICAST:
 		flood_table = MLXSW_SP_FLOOD_TABLE_UC;
-	else
-		flood_table = MLXSW_SP_FLOOD_TABLE_BM;
+		break;
+	case MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_IPV4:
+	case MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_IPV6:
+		flood_table = MLXSW_SP_FLOOD_TABLE_MC;
+		break;
+	default:
+		flood_table = MLXSW_SP_FLOOD_TABLE_BC;
+	}
 
 	mlxsw_reg_sfgc_pack(sfgc_pl, type, bridge_type, table_type,
 			    flood_table);
@@ -3270,9 +3277,9 @@ static struct mlxsw_config_profile mlxsw_sp_config_profile = {
 	.used_flood_tables		= 1,
 	.used_flood_mode		= 1,
 	.flood_mode			= 3,
-	.max_fid_offset_flood_tables	= 2,
+	.max_fid_offset_flood_tables	= 3,
 	.fid_offset_flood_table_size	= VLAN_N_VID - 1,
-	.max_fid_flood_tables		= 2,
+	.max_fid_flood_tables		= 3,
 	.fid_flood_table_size		= MLXSW_SP_VFID_MAX,
 	.used_max_ib_mc			= 1,
 	.max_ib_mc			= 0,
@@ -3689,7 +3696,7 @@ static int mlxsw_sp_router_port_flood_set(struct mlxsw_sp *mlxsw_sp, u16 fid,
 
 	table_type = mlxsw_sp_flood_table_type_get(fid);
 	index = mlxsw_sp_flood_table_index_get(fid);
-	mlxsw_reg_sftr_pack(sftr_pl, MLXSW_SP_FLOOD_TABLE_BM, index, table_type,
+	mlxsw_reg_sftr_pack(sftr_pl, MLXSW_SP_FLOOD_TABLE_BC, index, table_type,
 			    1, MLXSW_PORT_ROUTER_PORT, set);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sftr), sftr_pl);
 
@@ -4065,6 +4072,7 @@ static int mlxsw_sp_port_bridge_join(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_sp_port->learning = 1;
 	mlxsw_sp_port->learning_sync = 1;
 	mlxsw_sp_port->uc_flood = 1;
+	mlxsw_sp_port->mc_flood = 1;
 	mlxsw_sp_port->bridged = 1;
 
 	return 0;
@@ -4081,6 +4089,7 @@ static void mlxsw_sp_port_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_port)
 	mlxsw_sp_port->learning = 0;
 	mlxsw_sp_port->learning_sync = 0;
 	mlxsw_sp_port->uc_flood = 0;
+	mlxsw_sp_port->mc_flood = 0;
 	mlxsw_sp_port->bridged = 0;
 
 	/* Add implicit VLAN interface in the device, so that untagged
@@ -4743,6 +4752,7 @@ static int mlxsw_sp_vport_bridge_join(struct mlxsw_sp_port *mlxsw_sp_vport,
 	mlxsw_sp_vport->learning = 1;
 	mlxsw_sp_vport->learning_sync = 1;
 	mlxsw_sp_vport->uc_flood = 1;
+	mlxsw_sp_vport->mc_flood = 1;
 	mlxsw_sp_vport->bridged = 1;
 
 	return 0;
@@ -4763,6 +4773,7 @@ static void mlxsw_sp_vport_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_vport)
 	mlxsw_sp_vport->learning = 0;
 	mlxsw_sp_vport->learning_sync = 0;
 	mlxsw_sp_vport->uc_flood = 0;
+	mlxsw_sp_vport->mc_flood = 0;
 	mlxsw_sp_vport->bridged = 0;
 }
 

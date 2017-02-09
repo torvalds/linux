@@ -197,7 +197,7 @@ static int __mlxsw_sp_port_flood_table_set(struct mlxsw_sp_port *mlxsw_sp_port,
 
 static int __mlxsw_sp_port_flood_set(struct mlxsw_sp_port *mlxsw_sp_port,
 				     u16 idx_begin, u16 idx_end, bool uc_set,
-				     bool bm_set)
+				     bool bc_set, bool mc_set)
 {
 	int err;
 
@@ -207,12 +207,19 @@ static int __mlxsw_sp_port_flood_set(struct mlxsw_sp_port *mlxsw_sp_port,
 		return err;
 
 	err = __mlxsw_sp_port_flood_table_set(mlxsw_sp_port, idx_begin, idx_end,
-					      MLXSW_SP_FLOOD_TABLE_BM, bm_set);
+					      MLXSW_SP_FLOOD_TABLE_BC, bc_set);
 	if (err)
 		goto err_flood_bm_set;
 
+	err = __mlxsw_sp_port_flood_table_set(mlxsw_sp_port, idx_begin, idx_end,
+					      MLXSW_SP_FLOOD_TABLE_MC, mc_set);
+	if (err)
+		goto err_flood_mc_set;
 	return 0;
 
+err_flood_mc_set:
+	__mlxsw_sp_port_flood_table_set(mlxsw_sp_port, idx_begin, idx_end,
+					MLXSW_SP_FLOOD_TABLE_BC, !bc_set);
 err_flood_bm_set:
 	__mlxsw_sp_port_flood_table_set(mlxsw_sp_port, idx_begin, idx_end,
 					MLXSW_SP_FLOOD_TABLE_UC, !uc_set);
@@ -263,7 +270,8 @@ int mlxsw_sp_vport_flood_set(struct mlxsw_sp_port *mlxsw_sp_vport, u16 fid,
 	 * the start of the vFIDs range.
 	 */
 	vfid = mlxsw_sp_fid_to_vfid(fid);
-	return __mlxsw_sp_port_flood_set(mlxsw_sp_vport, vfid, vfid, set, set);
+	return __mlxsw_sp_port_flood_set(mlxsw_sp_vport, vfid, vfid, set, set,
+					 set);
 }
 
 static int mlxsw_sp_port_learning_set(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -568,7 +576,8 @@ static int mlxsw_sp_port_fid_join(struct mlxsw_sp_port *mlxsw_sp_port,
 	}
 
 	err = __mlxsw_sp_port_flood_set(mlxsw_sp_port, fid_begin, fid_end,
-					mlxsw_sp_port->uc_flood, true);
+					mlxsw_sp_port->uc_flood, true,
+					mlxsw_sp_port->mc_flood);
 	if (err)
 		goto err_port_flood_set;
 
@@ -584,7 +593,7 @@ err_port_fid_map:
 	for (fid--; fid >= fid_begin; fid--)
 		mlxsw_sp_port_fid_map(mlxsw_sp_port, fid, false);
 	__mlxsw_sp_port_flood_set(mlxsw_sp_port, fid_begin, fid_end, false,
-				  false);
+				  false, false);
 err_port_flood_set:
 	fid = fid_end;
 err_port_fid_join:
@@ -602,7 +611,7 @@ static void mlxsw_sp_port_fid_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 		mlxsw_sp_port_fid_map(mlxsw_sp_port, fid, false);
 
 	__mlxsw_sp_port_flood_set(mlxsw_sp_port, fid_begin, fid_end, false,
-				  false);
+				  false, false);
 
 	for (fid = fid_begin; fid <= fid_end; fid++)
 		__mlxsw_sp_port_fid_leave(mlxsw_sp_port, fid);
