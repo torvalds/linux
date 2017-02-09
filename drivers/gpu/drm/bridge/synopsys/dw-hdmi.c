@@ -30,6 +30,9 @@
 #include <drm/drm_encoder_slave.h>
 #include <drm/drm_scdc_helper.h>
 #include <drm/bridge/dw_hdmi.h>
+#ifdef CONFIG_SWITCH
+#include <linux/switch.h>
+#endif
 
 #include <uapi/linux/media-bus-format.h>
 #include <uapi/linux/videodev2.h>
@@ -239,6 +242,10 @@ struct dw_hdmi {
 	unsigned int audio_cts;
 	unsigned int audio_n;
 	bool audio_enable;
+
+#ifdef CONFIG_SWITCH
+	struct switch_dev switchdev;
+#endif
 
 	unsigned int reg_shift;
 	struct regmap *regm;
@@ -2511,6 +2518,12 @@ static irqreturn_t dw_hdmi_irq(int irq, void *dev_id)
 			phy_int_pol & HDMI_PHY_HPD ? "plugin" : "plugout");
 		if (hdmi->bridge.dev)
 			drm_helper_hpd_irq_event(hdmi->bridge.dev);
+#ifdef CONFIG_SWITCH
+		if (phy_int_pol & HDMI_PHY_HPD)
+			switch_set_state(&hdmi->switchdev, 1);
+		else
+			switch_set_state(&hdmi->switchdev, 0);
+#endif
 	}
 
 	hdmi_writeb(hdmi, intr_stat, HDMI_IH_PHY_STAT0);
@@ -3046,6 +3059,11 @@ __dw_hdmi_probe(struct platform_device *pdev,
 		hdmi->cec = platform_device_register_full(&pdevinfo);
 	}
 
+#ifdef CONFIG_SWITCH
+	hdmi->switchdev.name = "hdmi";
+	switch_dev_register(&hdmi->switchdev);
+#endif
+
 	/* Reset HDMI DDC I2C master controller and mute I2CM interrupts */
 	if (hdmi->i2c)
 		dw_hdmi_i2c_init(hdmi);
@@ -3083,6 +3101,10 @@ static void __dw_hdmi_remove(struct dw_hdmi *hdmi)
 
 	/* Disable all interrupts */
 	hdmi_writeb(hdmi, ~0, HDMI_IH_MUTE_PHY_STAT0);
+
+#ifdef CONFIG_SWITCH
+	switch_dev_unregister(&hdmi->switchdev);
+#endif
 
 	dw_hdmi_destroy_properties(hdmi);
 
