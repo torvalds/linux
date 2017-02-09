@@ -39,6 +39,10 @@ Optional properties:
     Memory region to allocate from, as defined in
     Documentation/devicetree/bindi/reserved-memory/reserved-memory.txt
 
+  - operating-points-v2:
+    Operating Points for the GPU, as defined in
+    Documentation/devicetree/bindings/opp/opp.txt
+
 Vendor-specific bindings
 ------------------------
 
