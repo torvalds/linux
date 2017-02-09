@@ -2632,7 +2632,7 @@ static int qed_roce_ll2_start(struct qed_dev *cdev,
 {
 	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
 	struct qed_roce_ll2_info *roce_ll2;
-	struct qed_ll2_info ll2_params;
+	struct qed_ll2_conn ll2_params;
 	int rc;
 
 	if (!params) {

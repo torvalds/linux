@@ -201,6 +201,8 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
 	intel_gvt_hypervisor_host_exit(&dev_priv->drm.pdev->dev, gvt);
 	intel_gvt_clean_vgpu_types(gvt);
 
+	idr_destroy(&gvt->vgpu_idr);
+
 	kfree(dev_priv->gvt);
 	dev_priv->gvt = NULL;
 }
@@ -237,6 +239,8 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 
 	gvt_dbg_core("init gvt device\n");
 
+	idr_init(&gvt->vgpu_idr);
+
 	mutex_init(&gvt->lock);
 	gvt->dev_priv = dev_priv;
 
@@ -244,7 +248,7 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 
 	ret = intel_gvt_setup_mmio_info(gvt);
 	if (ret)
-		return ret;
+		goto out_clean_idr;
 
 	ret = intel_gvt_load_firmware(gvt);
 	if (ret)
@@ -313,6 +317,8 @@ out_free_firmware:
 	intel_gvt_free_firmware(gvt);
 out_clean_mmio_info:
 	intel_gvt_clean_mmio_info(gvt);
+out_clean_idr:
+	idr_destroy(&gvt->vgpu_idr);
 	kfree(gvt);
 	return ret;
 }

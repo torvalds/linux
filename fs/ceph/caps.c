@@ -2591,8 +2591,13 @@ int ceph_get_caps(struct ceph_inode_info *ci, int need, int want,
 			add_wait_queue(&ci->i_cap_wq, &wait);
 
 			while (!try_get_cap_refs(ci, need, want, endoff,
-						 true, &_got, &err))
+						 true, &_got, &err)) {
+				if (signal_pending(current)) {
+					ret = -ERESTARTSYS;
+					break;
+				}
 				wait_woken(&wait, TASK_INTERRUPTIBLE, MAX_SCHEDULE_TIMEOUT);
+			}
 
 			remove_wait_queue(&ci->i_cap_wq, &wait);
 

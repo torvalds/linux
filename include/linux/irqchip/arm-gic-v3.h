@@ -73,7 +73,6 @@
 
 #define GICD_TYPER_ID_BITS(typer)	((((typer) >> 19) & 0x1f) + 1)
 #define GICD_TYPER_IRQS(typer)		((((typer) & 0x1f) + 1) * 32)
-#define GICD_TYPER_LPIS			(1U << 17)
 
 #define GICD_IROUTER_SPI_MODE_ONE	(0U << 31)
 #define GICD_IROUTER_SPI_MODE_ANY	(1U << 31)
@@ -306,7 +305,7 @@
 #define GITS_BASER_TYPE_NONE		0
 #define GITS_BASER_TYPE_DEVICE		1
 #define GITS_BASER_TYPE_VCPU		2
-#define GITS_BASER_TYPE_CPU		3
+#define GITS_BASER_TYPE_RESERVED3	3
 #define GITS_BASER_TYPE_COLLECTION	4
 #define GITS_BASER_TYPE_RESERVED5	5
 #define GITS_BASER_TYPE_RESERVED6	6
@@ -320,8 +319,6 @@
 #define GITS_CMD_MAPD			0x08
 #define GITS_CMD_MAPC			0x09
 #define GITS_CMD_MAPTI			0x0a
-/* older GIC documentation used MAPVI for this command */
-#define GITS_CMD_MAPVI			GITS_CMD_MAPTI
 #define GITS_CMD_MAPI			0x0b
 #define GITS_CMD_MOVI			0x01
 #define GITS_CMD_DISCARD		0x0f

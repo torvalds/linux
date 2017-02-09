@@ -179,7 +179,6 @@ mdp5_plane_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\tzpos=%u\n", pstate->zpos);
 	drm_printf(p, "\talpha=%u\n", pstate->alpha);
 	drm_printf(p, "\tstage=%s\n", stage2name(pstate->stage));
-	drm_printf(p, "\tpending=%u\n", pstate->pending);
 }
 
 static void mdp5_plane_reset(struct drm_plane *plane)
@@ -219,8 +218,6 @@ mdp5_plane_duplicate_state(struct drm_plane *plane)
 
 	if (mdp5_state && mdp5_state->base.fb)
 		drm_framebuffer_reference(mdp5_state->base.fb);
-
-	mdp5_state->pending = false;
 
 	return &mdp5_state->base;
 }
@@ -287,13 +284,6 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 
 	DBG("%s: check (%d -> %d)", plane->name,
 			plane_enabled(old_state), plane_enabled(state));
-
-	/* We don't allow faster-than-vblank updates.. if we did add this
-	 * some day, we would need to disallow in cases where hwpipe
-	 * changes
-	 */
-	if (WARN_ON(to_mdp5_plane_state(old_state)->pending))
-		return -EBUSY;
 
 	max_width = config->hw->lm.max_width << 16;
 	max_height = config->hw->lm.max_height << 16;
@@ -370,11 +360,8 @@ static void mdp5_plane_atomic_update(struct drm_plane *plane,
 				     struct drm_plane_state *old_state)
 {
 	struct drm_plane_state *state = plane->state;
-	struct mdp5_plane_state *mdp5_state = to_mdp5_plane_state(state);
 
 	DBG("%s: update", plane->name);
-
-	mdp5_state->pending = true;
 
 	if (plane_enabled(state)) {
 		int ret;
@@ -849,15 +836,6 @@ uint32_t mdp5_plane_get_flush(struct drm_plane *plane)
 		return 0;
 
 	return pstate->hwpipe->flush_mask;
-}
-
-/* called after vsync in thread context */
-void mdp5_plane_complete_commit(struct drm_plane *plane,
-	struct drm_plane_state *state)
-{
-	struct mdp5_plane_state *pstate = to_mdp5_plane_state(plane->state);
-
-	pstate->pending = false;
 }
 
 /* initialize plane */
