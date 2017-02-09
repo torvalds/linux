@@ -854,7 +854,6 @@ static int netvsc_set_channels(struct net_device *net,
 		}
 		goto recover;
 	}
-	netif_set_gso_max_size(net, NETVSC_GSO_MAX_SIZE);
 
  out:
 	netvsc_open(net);
@@ -1142,6 +1141,7 @@ static int netvsc_probe(struct hv_device *dev,
 	nvdev = hv_get_drvdata(dev);
 	netif_set_real_num_tx_queues(net, nvdev->num_chn);
 	netif_set_real_num_rx_queues(net, nvdev->num_chn);
+	netif_set_gso_max_size(net, NETVSC_GSO_MAX_SIZE);
 
 	ret = register_netdev(net);
 	if (ret != 0) {
