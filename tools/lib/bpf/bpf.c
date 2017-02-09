@@ -98,7 +98,7 @@ int bpf_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
 	return sys_bpf(BPF_PROG_LOAD, &attr, sizeof(attr));
 }
 
-int bpf_map_update_elem(int fd, void *key, void *value,
+int bpf_map_update_elem(int fd, const void *key, const void *value,
 			__u64 flags)
 {
 	union bpf_attr attr;

@@ -21,6 +21,7 @@
 
 #include <linux/bpf.h>
 
+#include <bpf/bpf.h>
 #include "bpf_sys.h"
 #include "bpf_util.h"
 
@@ -41,16 +42,17 @@ static void test_hashmap(int task, void *data)
 	key = 1;
 	value = 1234;
 	/* Insert key=1 element. */
-	assert(bpf_map_update(fd, &key, &value, BPF_ANY) == 0);
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_ANY) == 0);
 
 	value = 0;
 	/* BPF_NOEXIST means add new element if it doesn't exist. */
-	assert(bpf_map_update(fd, &key, &value, BPF_NOEXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == -1 &&
 	       /* key=1 already exists. */
 	       errno == EEXIST);
 
 	/* -1 is an invalid flag. */
-	assert(bpf_map_update(fd, &key, &value, -1) == -1 && errno == EINVAL);
+	assert(bpf_map_update_elem(fd, &key, &value, -1) == -1 &&
+	       errno == EINVAL);
 
 	/* Check that key=1 can be found. */
 	assert(bpf_map_lookup(fd, &key, &value) == 0 && value == 1234);
@@ -60,27 +62,27 @@ static void test_hashmap(int task, void *data)
 	assert(bpf_map_lookup(fd, &key, &value) == -1 && errno == ENOENT);
 
 	/* BPF_EXIST means update existing element. */
-	assert(bpf_map_update(fd, &key, &value, BPF_EXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_EXIST) == -1 &&
 	       /* key=2 is not there. */
 	       errno == ENOENT);
 
 	/* Insert key=2 element. */
-	assert(bpf_map_update(fd, &key, &value, BPF_NOEXIST) == 0);
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == 0);
 
 	/* key=1 and key=2 were inserted, check that key=0 cannot be
 	 * inserted due to max_entries limit.
 	 */
 	key = 0;
-	assert(bpf_map_update(fd, &key, &value, BPF_NOEXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == -1 &&
 	       errno == E2BIG);
 
 	/* Update existing element, though the map is full. */
 	key = 1;
-	assert(bpf_map_update(fd, &key, &value, BPF_EXIST) == 0);
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_EXIST) == 0);
 	key = 2;
-	assert(bpf_map_update(fd, &key, &value, BPF_ANY) == 0);
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_ANY) == 0);
 	key = 1;
-	assert(bpf_map_update(fd, &key, &value, BPF_ANY) == 0);
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_ANY) == 0);
 
 	/* Check that key = 0 doesn't exist. */
 	key = 0;
@@ -130,16 +132,17 @@ static void test_hashmap_percpu(int task, void *data)
 	key = 1;
 	/* Insert key=1 element. */
 	assert(!(expected_key_mask & key));
-	assert(bpf_map_update(fd, &key, value, BPF_ANY) == 0);
+	assert(bpf_map_update_elem(fd, &key, value, BPF_ANY) == 0);
 	expected_key_mask |= key;
 
 	/* BPF_NOEXIST means add new element if it doesn't exist. */
-	assert(bpf_map_update(fd, &key, value, BPF_NOEXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, value, BPF_NOEXIST) == -1 &&
 	       /* key=1 already exists. */
 	       errno == EEXIST);
 
 	/* -1 is an invalid flag. */
-	assert(bpf_map_update(fd, &key, value, -1) == -1 && errno == EINVAL);
+	assert(bpf_map_update_elem(fd, &key, value, -1) == -1 &&
+	       errno == EINVAL);
 
 	/* Check that key=1 can be found. Value could be 0 if the lookup
 	 * was run from a different CPU.
@@ -152,20 +155,20 @@ static void test_hashmap_percpu(int task, void *data)
 	assert(bpf_map_lookup(fd, &key, value) == -1 && errno == ENOENT);
 
 	/* BPF_EXIST means update existing element. */
-	assert(bpf_map_update(fd, &key, value, BPF_EXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, value, BPF_EXIST) == -1 &&
 	       /* key=2 is not there. */
 	       errno == ENOENT);
 
 	/* Insert key=2 element. */
 	assert(!(expected_key_mask & key));
-	assert(bpf_map_update(fd, &key, value, BPF_NOEXIST) == 0);
+	assert(bpf_map_update_elem(fd, &key, value, BPF_NOEXIST) == 0);
 	expected_key_mask |= key;
 
 	/* key=1 and key=2 were inserted, check that key=0 cannot be
 	 * inserted due to max_entries limit.
 	 */
 	key = 0;
-	assert(bpf_map_update(fd, &key, value, BPF_NOEXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, value, BPF_NOEXIST) == -1 &&
 	       errno == E2BIG);
 
 	/* Check that key = 0 doesn't exist. */
@@ -187,7 +190,7 @@ static void test_hashmap_percpu(int task, void *data)
 
 	/* Update with BPF_EXIST. */
 	key = 1;
-	assert(bpf_map_update(fd, &key, value, BPF_EXIST) == 0);
+	assert(bpf_map_update_elem(fd, &key, value, BPF_EXIST) == 0);
 
 	/* Delete both elements. */
 	key = 1;
@@ -219,10 +222,10 @@ static void test_arraymap(int task, void *data)
 	key = 1;
 	value = 1234;
 	/* Insert key=1 element. */
-	assert(bpf_map_update(fd, &key, &value, BPF_ANY) == 0);
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_ANY) == 0);
 
 	value = 0;
-	assert(bpf_map_update(fd, &key, &value, BPF_NOEXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == -1 &&
 	       errno == EEXIST);
 
 	/* Check that key=1 can be found. */
@@ -236,7 +239,7 @@ static void test_arraymap(int task, void *data)
 	 * due to max_entries limit.
 	 */
 	key = 2;
-	assert(bpf_map_update(fd, &key, &value, BPF_EXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_EXIST) == -1 &&
 	       errno == E2BIG);
 
 	/* Check that key = 2 doesn't exist. */
@@ -275,10 +278,10 @@ static void test_arraymap_percpu(int task, void *data)
 
 	key = 1;
 	/* Insert key=1 element. */
-	assert(bpf_map_update(fd, &key, values, BPF_ANY) == 0);
+	assert(bpf_map_update_elem(fd, &key, values, BPF_ANY) == 0);
 
 	values[0] = 0;
-	assert(bpf_map_update(fd, &key, values, BPF_NOEXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, values, BPF_NOEXIST) == -1 &&
 	       errno == EEXIST);
 
 	/* Check that key=1 can be found. */
@@ -291,7 +294,7 @@ static void test_arraymap_percpu(int task, void *data)
 
 	/* Check that key=2 cannot be inserted due to max_entries limit. */
 	key = 2;
-	assert(bpf_map_update(fd, &key, values, BPF_EXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, values, BPF_EXIST) == -1 &&
 	       errno == E2BIG);
 
 	/* Check that key = 2 doesn't exist. */
@@ -331,7 +334,7 @@ static void test_arraymap_percpu_many_keys(void)
 		values[i] = i + 10;
 
 	for (key = 0; key < nr_keys; key++)
-		assert(bpf_map_update(fd, &key, values, BPF_ANY) == 0);
+		assert(bpf_map_update_elem(fd, &key, values, BPF_ANY) == 0);
 
 	for (key = 0; key < nr_keys; key++) {
 		for (i = 0; i < nr_cpus; i++)
@@ -368,11 +371,11 @@ static void test_map_large(void)
 		key = (struct bigkey) { .c = i };
 		value = i;
 
-		assert(bpf_map_update(fd, &key, &value, BPF_NOEXIST) == 0);
+		assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == 0);
 	}
 
 	key.c = -1;
-	assert(bpf_map_update(fd, &key, &value, BPF_NOEXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == -1 &&
 	       errno == E2BIG);
 
 	/* Iterate through all elements. */
@@ -437,8 +440,10 @@ static void do_work(int fn, void *data)
 		key = value = i;
 
 		if (do_update) {
-			assert(bpf_map_update(fd, &key, &value, BPF_NOEXIST) == 0);
-			assert(bpf_map_update(fd, &key, &value, BPF_EXIST) == 0);
+			assert(bpf_map_update_elem(fd, &key, &value,
+						   BPF_NOEXIST) == 0);
+			assert(bpf_map_update_elem(fd, &key, &value,
+						   BPF_EXIST) == 0);
 		} else {
 			assert(bpf_map_delete(fd, &key) == 0);
 		}
@@ -468,7 +473,7 @@ static void test_map_parallel(void)
 	run_parallel(TASKS, do_work, data);
 
 	/* Check that key=0 is already there. */
-	assert(bpf_map_update(fd, &key, &value, BPF_NOEXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == -1 &&
 	       errno == EEXIST);
 
 	/* Check that all elements were inserted. */

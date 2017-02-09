@@ -22,6 +22,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
+#include <bpf/bpf.h>
 #include "bpf_sys.h"
 #include "bpf_util.h"
 
@@ -198,7 +199,7 @@ static void test_lpm_map(int keysize)
 
 		key->prefixlen = value[keysize];
 		memcpy(key->data, value, keysize);
-		r = bpf_map_update(map, key, value, 0);
+		r = bpf_map_update_elem(map, key, value, 0);
 		assert(!r);
 	}
 
@@ -266,32 +267,32 @@ static void test_lpm_ipaddr(void)
 	value = 1;
 	key_ipv4->prefixlen = 16;
 	inet_pton(AF_INET, "192.168.0.0", key_ipv4->data);
-	assert(bpf_map_update(map_fd_ipv4, key_ipv4, &value, 0) == 0);
+	assert(bpf_map_update_elem(map_fd_ipv4, key_ipv4, &value, 0) == 0);
 
 	value = 2;
 	key_ipv4->prefixlen = 24;
 	inet_pton(AF_INET, "192.168.0.0", key_ipv4->data);
-	assert(bpf_map_update(map_fd_ipv4, key_ipv4, &value, 0) == 0);
+	assert(bpf_map_update_elem(map_fd_ipv4, key_ipv4, &value, 0) == 0);
 
 	value = 3;
 	key_ipv4->prefixlen = 24;
 	inet_pton(AF_INET, "192.168.128.0", key_ipv4->data);
-	assert(bpf_map_update(map_fd_ipv4, key_ipv4, &value, 0) == 0);
+	assert(bpf_map_update_elem(map_fd_ipv4, key_ipv4, &value, 0) == 0);
 
 	value = 5;
 	key_ipv4->prefixlen = 24;
 	inet_pton(AF_INET, "192.168.1.0", key_ipv4->data);
-	assert(bpf_map_update(map_fd_ipv4, key_ipv4, &value, 0) == 0);
+	assert(bpf_map_update_elem(map_fd_ipv4, key_ipv4, &value, 0) == 0);
 
 	value = 4;
 	key_ipv4->prefixlen = 23;
 	inet_pton(AF_INET, "192.168.0.0", key_ipv4->data);
-	assert(bpf_map_update(map_fd_ipv4, key_ipv4, &value, 0) == 0);
+	assert(bpf_map_update_elem(map_fd_ipv4, key_ipv4, &value, 0) == 0);
 
 	value = 0xdeadbeef;
 	key_ipv6->prefixlen = 64;
 	inet_pton(AF_INET6, "2a00:1450:4001:814::200e", key_ipv6->data);
-	assert(bpf_map_update(map_fd_ipv6, key_ipv6, &value, 0) == 0);
+	assert(bpf_map_update_elem(map_fd_ipv6, key_ipv6, &value, 0) == 0);
 
 	/* Set tprefixlen to maximum for lookups */
 	key_ipv4->prefixlen = 32;

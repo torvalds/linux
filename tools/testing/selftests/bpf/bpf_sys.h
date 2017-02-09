@@ -35,19 +35,6 @@ static inline int bpf_map_lookup(int fd, const void *key, void *value)
 	return bpf(BPF_MAP_LOOKUP_ELEM, &attr, sizeof(attr));
 }
 
-static inline int bpf_map_update(int fd, const void *key, const void *value,
-				 uint64_t flags)
-{
-	union bpf_attr attr = {};
-
-	attr.map_fd = fd;
-	attr.key = bpf_ptr_to_u64(key);
-	attr.value = bpf_ptr_to_u64(value);
-	attr.flags = flags;
-
-	return bpf(BPF_MAP_UPDATE_ELEM, &attr, sizeof(attr));
-}
-
 static inline int bpf_map_delete(int fd, const void *key)
 {
 	union bpf_attr attr = {};

@@ -33,7 +33,7 @@ int bpf_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
 		     __u32 kern_version, char *log_buf,
 		     size_t log_buf_sz);
 
-int bpf_map_update_elem(int fd, void *key, void *value,
+int bpf_map_update_elem(int fd, const void *key, const void *value,
 			__u64 flags);
 
 int bpf_map_lookup_elem(int fd, void *key, void *value);
