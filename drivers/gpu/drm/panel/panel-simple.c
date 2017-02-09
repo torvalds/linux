@@ -324,37 +324,32 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 	struct device_node *backlight, *ddc;
 	struct panel_simple *panel;
 	struct panel_desc *of_desc;
+	u32 val;
 	int err;
 
 	panel = devm_kzalloc(dev, sizeof(*panel), GFP_KERNEL);
 	if (!panel)
 		return -ENOMEM;
 
-	if (!desc) {
-		u32 val;
-
+	if (!desc)
 		of_desc = devm_kzalloc(dev, sizeof(*of_desc), GFP_KERNEL);
-		if (!of_desc)
-			return -ENOMEM;
-		of_desc->num_modes = 0;
-		if (!of_property_read_u32(dev->of_node, "bus-format", &val))
-			of_desc->bus_format = val;
-		else
-			of_desc->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
-		if (!of_property_read_u32(dev->of_node, "delay,prepare", &val))
-			of_desc->delay.prepare = val;
-		if (!of_property_read_u32(dev->of_node, "delay,enable", &val))
-			of_desc->delay.enable = val;
-		if (!of_property_read_u32(dev->of_node, "delay,disable", &val))
-			of_desc->delay.disable = val;
-		if (!of_property_read_u32(dev->of_node,
-					  "delay,unprepare", &val))
-			of_desc->delay.unprepare = val;
-	}
+	else
+		of_desc = devm_kmemdup(dev, desc, sizeof(*of_desc), GFP_KERNEL);
+
+	if (!of_property_read_u32(dev->of_node, "bus-format", &val))
+		of_desc->bus_format = val;
+	if (!of_property_read_u32(dev->of_node, "delay,prepare", &val))
+		of_desc->delay.prepare = val;
+	if (!of_property_read_u32(dev->of_node, "delay,enable", &val))
+		of_desc->delay.enable = val;
+	if (!of_property_read_u32(dev->of_node, "delay,disable", &val))
+		of_desc->delay.disable = val;
+	if (!of_property_read_u32(dev->of_node, "delay,unprepare", &val))
+		of_desc->delay.unprepare = val;
 
 	panel->enabled = false;
 	panel->prepared = false;
-	panel->desc = desc ? desc : of_desc;
+	panel->desc = of_desc;
 	panel->dev = dev;
 
 	panel->supply = devm_regulator_get(dev, "power");
