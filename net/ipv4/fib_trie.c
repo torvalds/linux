@@ -1653,8 +1653,8 @@ int fib_table_delete(struct net *net, struct fib_table *tb,
 		return -ESRCH;
 
 	call_fib_entry_notifiers(net, FIB_EVENT_ENTRY_DEL, key, plen,
-				 fa_to_delete->fa_info, tos, cfg->fc_type,
-				 tb->tb_id, 0);
+				 fa_to_delete->fa_info, tos,
+				 fa_to_delete->fa_type, tb->tb_id, 0);
 	rtmsg_fib(RTM_DELROUTE, htonl(key), fa_to_delete, plen, tb->tb_id,
 		  &cfg->fc_nlinfo, 0);
 
