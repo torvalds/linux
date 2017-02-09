@@ -245,7 +245,8 @@ static int ovs_ct_set_mark(struct sk_buff *skb, struct sw_flow_key *key,
 	new_mark = ct_mark | (ct->mark & ~(mask));
 	if (ct->mark != new_mark) {
 		ct->mark = new_mark;
-		nf_conntrack_event_cache(IPCT_MARK, ct);
+		if (nf_ct_is_confirmed(ct))
+			nf_conntrack_event_cache(IPCT_MARK, ct);
 		key->ct.mark = new_mark;
 	}
 
@@ -262,7 +263,6 @@ static int ovs_ct_set_labels(struct sk_buff *skb, struct sw_flow_key *key,
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn_labels *cl;
 	struct nf_conn *ct;
-	int err;
 
 	/* The connection could be invalid, in which case set_label is no-op.*/
 	ct = nf_ct_get(skb, &ctinfo);
@@ -277,10 +277,26 @@ static int ovs_ct_set_labels(struct sk_buff *skb, struct sw_flow_key *key,
 	if (!cl || sizeof(cl->bits) < OVS_CT_LABELS_LEN)
 		return -ENOSPC;
 
-	err = nf_connlabels_replace(ct, (u32 *)labels, (u32 *)mask,
-				    OVS_CT_LABELS_LEN / sizeof(u32));
-	if (err)
-		return err;
+	if (nf_ct_is_confirmed(ct)) {
+		/* Triggers a change event, which makes sense only for
+		 * confirmed connections.
+		 */
+		int err = nf_connlabels_replace(ct, (u32 *)labels, (u32 *)mask,
+						OVS_CT_LABELS_LEN / sizeof(u32));
+		if (err)
+			return err;
+	} else {
+		u32 *dst = (u32 *)cl->bits;
+		const u32 *msk = (const u32 *)mask->ct_labels;
+		const u32 *lbl = (const u32 *)labels->ct_labels;
+		int i;
+
+		/* No-one else has access to the non-confirmed entry, copy
+		 * labels over, keeping any bits we are not explicitly setting.
+		 */
+		for (i = 0; i < OVS_CT_LABELS_LEN / sizeof(u32); i++)
+			dst[i] = (dst[i] & ~msk[i]) | (lbl[i] & msk[i]);
+	}
 
 	ovs_ct_get_labels(ct, &key->ct.labels);
 	return 0;
