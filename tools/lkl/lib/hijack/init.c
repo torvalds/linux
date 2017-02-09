@@ -202,6 +202,7 @@ hijack_init(void)
 	char *mount = getenv("LKL_HIJACK_MOUNT");
 	struct lkl_netdev_args nd_args;
 	char *neigh_entries = getenv("LKL_HIJACK_NET_NEIGHBOR");
+	char *qdisc_entries = getenv("LKL_HIJACK_NET_QDISC");
 	/* single_cpu mode:
 	 * 0: Don't pin to single CPU (default).
 	 * 1: Pin only LKL kernel threads to single CPU.
@@ -429,8 +430,12 @@ hijack_init(void)
 	if (mount)
 		mount_cmds_exec(mount, lkl_mount_fs);
 
-	if (nd_ifindex >=0 && neigh_entries)
+	if (nd_ifindex >= 0 && neigh_entries)
 		add_neighbor(nd_ifindex, neigh_entries);
+
+	if (nd_ifindex >= 0 && qdisc_entries)
+		lkl_qdisc_parse_add(nd_ifindex, qdisc_entries);
+
 }
 
 void __attribute__((destructor))

@@ -25,6 +25,8 @@ config LKL
        select IP_PNP_DHCP
        select TCP_CONG_BBR
        select HIGH_RES_TIMERS
+       select NET_SCHED
+       select NET_SCH_FQ
 
 config OUTPUTFORMAT
        string

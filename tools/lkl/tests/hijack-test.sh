@@ -129,6 +129,12 @@ LKL_HIJACK_OFFLOAD=0x8803 sh ${script_dir}/run_netperf.sh 192.168.13.1 1 0 TCP_M
 sh ${script_dir}/run_netperf.sh 192.168.13.1 1 0 TCP_RR
 sh ${script_dir}/run_netperf.sh fc03::1 1 0 TCP_STREAM
 
+# QDISC test
+qdisc=$(LKL_HIJACK_NET_QDISC="root|fq" ${hijack_script} tc -s -d qdisc show)
+echo "$qdisc"
+echo "$qdisc" | grep "qdisc fq" > /dev/null
+echo "$qdisc" | grep throttled > /dev/null
+
 if [ -z "`printenv CONFIG_AUTO_LKL_VIRTIO_NET_VDE`" ]; then
     exit 0
 fi

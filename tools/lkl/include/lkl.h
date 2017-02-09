@@ -461,6 +461,24 @@ int lkl_if_wait_ipv6_dad(int ifindex, void *addr);
  */
 int lkl_set_fd_limit(unsigned int fd_limit);
 
+/**
+ * lkl_qdisc_add - set qdisc rule onto an interface
+ *
+ * @ifindex - the ifindex of the interface
+ * @root - the name of root class (e.g., "root");
+ * @type - the type of qdisc (e.g., "fq")
+ */
+int lkl_qdisc_add(int ifindex, char *root, char *type);
+
+/**
+ * lkl_qdisc_parse_add - Add a qdisc entry for an interface with strings
+ *
+ * @ifindex - the ifindex of the interface
+ * @entries - strings of qdisc configurations in the form of
+ *            "root|type;root|type;..."
+ */
+void lkl_qdisc_parse_add(int ifindex, char *entries);
+
 #ifdef __cplusplus
 }
 #endif
