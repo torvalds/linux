@@ -57,11 +57,11 @@
 #include <linux/miscdevice.h>
 #include <linux/init.h>
 
-#include "xenbus_comms.h"
-
 #include <xen/xenbus.h>
 #include <xen/xen.h>
 #include <asm/xen/hypervisor.h>
+
+#include "xenbus.h"
 
 /*
  * An element of a list of outstanding transactions, for which we're

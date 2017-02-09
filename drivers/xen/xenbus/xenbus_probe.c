@@ -62,8 +62,7 @@
 
 #include <xen/hvm.h>
 
-#include "xenbus_comms.h"
-#include "xenbus_probe.h"
+#include "xenbus.h"
 
 
 int xen_store_evtchn;

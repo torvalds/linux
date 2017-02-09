@@ -27,8 +27,7 @@
 
 #include <xen/platform_pci.h>
 
-#include "xenbus_comms.h"
-#include "xenbus_probe.h"
+#include "xenbus.h"
 
 
 

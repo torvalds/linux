@@ -40,7 +40,7 @@
 #include <asm/xen/hypervisor.h>
 #include <xen/events.h>
 #include <xen/page.h>
-#include "xenbus_comms.h"
+#include "xenbus.h"
 
 static int xenbus_irq;
 

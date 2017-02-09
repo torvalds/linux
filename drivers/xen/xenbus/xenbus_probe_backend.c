@@ -53,8 +53,7 @@
 #include <xen/xenbus.h>
 #include <xen/features.h>
 
-#include "xenbus_comms.h"
-#include "xenbus_probe.h"
+#include "xenbus.h"
 
 /* backend/<type>/<fe-uuid>/<id> => <type>-<fe-domid>-<id> */
 static int backend_bus_id(char bus_id[XEN_BUS_ID_SIZE], const char *nodename)

@@ -1,7 +1,5 @@
-/******************************************************************************
- * xenbus_probe.h
- *
- * Talks to Xen Store to figure out what devices we have.
+/*
+ * Private include for xenbus communications.
  *
  * Copyright (C) 2005 Rusty Russell, IBM Corporation
  * Copyright (C) 2005 XenSource Ltd.
@@ -31,8 +29,8 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef _XENBUS_PROBE_H
-#define _XENBUS_PROBE_H
+#ifndef _XENBUS_XENBUS_H
+#define _XENBUS_XENBUS_H
 
 #define XEN_BUS_ID_SIZE			20
 
@@ -54,35 +52,46 @@ enum xenstore_init {
 	XS_LOCAL,
 };
 
+extern enum xenstore_init xen_store_domain_type;
 extern const struct attribute_group *xenbus_dev_groups[];
 
-extern int xenbus_match(struct device *_dev, struct device_driver *_drv);
-extern int xenbus_dev_probe(struct device *_dev);
-extern int xenbus_dev_remove(struct device *_dev);
-extern int xenbus_register_driver_common(struct xenbus_driver *drv,
-					 struct xen_bus_type *bus,
-					 struct module *owner,
-					 const char *mod_name);
-extern int xenbus_probe_node(struct xen_bus_type *bus,
-			     const char *type,
-			     const char *nodename);
-extern int xenbus_probe_devices(struct xen_bus_type *bus);
+int xs_init(void);
+int xb_init_comms(void);
+void xb_deinit_comms(void);
+int xb_write(const void *data, unsigned int len);
+int xb_read(void *data, unsigned int len);
+int xb_data_to_read(void);
+int xb_wait_for_data_to_read(void);
 
-extern void xenbus_dev_changed(const char *node, struct xen_bus_type *bus);
+int xenbus_match(struct device *_dev, struct device_driver *_drv);
+int xenbus_dev_probe(struct device *_dev);
+int xenbus_dev_remove(struct device *_dev);
+int xenbus_register_driver_common(struct xenbus_driver *drv,
+				  struct xen_bus_type *bus,
+				  struct module *owner,
+				  const char *mod_name);
+int xenbus_probe_node(struct xen_bus_type *bus,
+		      const char *type,
+		      const char *nodename);
+int xenbus_probe_devices(struct xen_bus_type *bus);
 
-extern void xenbus_dev_shutdown(struct device *_dev);
+void xenbus_dev_changed(const char *node, struct xen_bus_type *bus);
 
-extern int xenbus_dev_suspend(struct device *dev);
-extern int xenbus_dev_resume(struct device *dev);
-extern int xenbus_dev_cancel(struct device *dev);
+void xenbus_dev_shutdown(struct device *_dev);
 
-extern void xenbus_otherend_changed(struct xenbus_watch *watch,
-				    const char **vec, unsigned int len,
-				    int ignore_on_shutdown);
+int xenbus_dev_suspend(struct device *dev);
+int xenbus_dev_resume(struct device *dev);
+int xenbus_dev_cancel(struct device *dev);
 
-extern int xenbus_read_otherend_details(struct xenbus_device *xendev,
-					char *id_node, char *path_node);
+void xenbus_otherend_changed(struct xenbus_watch *watch,
+			     const char **vec, unsigned int len,
+			     int ignore_on_shutdown);
+
+int xenbus_read_otherend_details(struct xenbus_device *xendev,
+				 char *id_node, char *path_node);
 
 void xenbus_ring_ops_init(void);
+
+void *xenbus_dev_request_and_reply(struct xsd_sockmsg *msg);
 
 #endif

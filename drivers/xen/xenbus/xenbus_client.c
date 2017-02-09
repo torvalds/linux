@@ -47,7 +47,7 @@
 #include <xen/xen.h>
 #include <xen/features.h>
 
-#include "xenbus_probe.h"
+#include "xenbus.h"
 
 #define XENBUS_PAGES(_grants)	(DIV_ROUND_UP(_grants, XEN_PFN_PER_PAGE))
 
