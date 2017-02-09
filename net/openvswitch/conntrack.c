@@ -281,20 +281,21 @@ static int ovs_ct_set_labels(struct sk_buff *skb, struct sw_flow_key *key,
 		/* Triggers a change event, which makes sense only for
 		 * confirmed connections.
 		 */
-		int err = nf_connlabels_replace(ct, (u32 *)labels, (u32 *)mask,
-						OVS_CT_LABELS_LEN / sizeof(u32));
+		int err = nf_connlabels_replace(ct, labels->ct_labels_32,
+						mask->ct_labels_32,
+						OVS_CT_LABELS_LEN_32);
 		if (err)
 			return err;
 	} else {
 		u32 *dst = (u32 *)cl->bits;
-		const u32 *msk = (const u32 *)mask->ct_labels;
-		const u32 *lbl = (const u32 *)labels->ct_labels;
+		const u32 *msk = mask->ct_labels_32;
+		const u32 *lbl = labels->ct_labels_32;
 		int i;
 
 		/* No-one else has access to the non-confirmed entry, copy
 		 * labels over, keeping any bits we are not explicitly setting.
 		 */
-		for (i = 0; i < OVS_CT_LABELS_LEN / sizeof(u32); i++)
+		for (i = 0; i < OVS_CT_LABELS_LEN_32; i++)
 			dst[i] = (dst[i] & ~msk[i]) | (lbl[i] & msk[i]);
 	}
 
@@ -866,8 +867,8 @@ static bool labels_nonzero(const struct ovs_key_ct_labels *labels)
 {
 	size_t i;
 
-	for (i = 0; i < sizeof(*labels); i++)
-		if (labels->ct_labels[i])
+	for (i = 0; i < OVS_CT_LABELS_LEN_32; i++)
+		if (labels->ct_labels_32[i])
 			return true;
 
 	return false;

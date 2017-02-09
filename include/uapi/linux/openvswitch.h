@@ -446,9 +446,13 @@ struct ovs_key_nd {
 	__u8	nd_tll[ETH_ALEN];
 };
 
-#define OVS_CT_LABELS_LEN	16
+#define OVS_CT_LABELS_LEN_32	4
+#define OVS_CT_LABELS_LEN	(OVS_CT_LABELS_LEN_32 * sizeof(__u32))
 struct ovs_key_ct_labels {
-	__u8	ct_labels[OVS_CT_LABELS_LEN];
+	union {
+		__u8	ct_labels[OVS_CT_LABELS_LEN];
+		__u32	ct_labels_32[OVS_CT_LABELS_LEN_32];
+	};
 };
 
 /* OVS_KEY_ATTR_CT_STATE flags */
