@@ -224,6 +224,8 @@ void nfp_hwinfo_cache_set(struct nfp_cpp *cpp, void *val);
 void *nfp_rtsym_cache(struct nfp_cpp *cpp);
 void nfp_rtsym_cache_set(struct nfp_cpp *cpp, void *val);
 
+void nfp_nffw_cache_flush(struct nfp_cpp *cpp);
+
 struct nfp_cpp_area *nfp_cpp_area_alloc_with_name(struct nfp_cpp *cpp,
 						  u32 cpp_id,
 						  const char *name,

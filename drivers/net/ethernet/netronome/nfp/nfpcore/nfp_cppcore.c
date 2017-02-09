@@ -305,6 +305,19 @@ void nfp_rtsym_cache_set(struct nfp_cpp *cpp, void *val)
 }
 
 /**
+ * nfp_nffw_cache_flush() - Flush cached firmware information
+ * @cpp:	NFP CPP handle
+ *
+ * Flush cached firmware information.  This function should be called
+ * every time firmware is loaded on unloaded.
+ */
+void nfp_nffw_cache_flush(struct nfp_cpp *cpp)
+{
+	kfree(nfp_rtsym_cache(cpp));
+	nfp_rtsym_cache_set(cpp, NULL);
+}
+
+/**
  * nfp_cpp_area_alloc_with_name() - allocate a new CPP area
  * @cpp:	CPP device handle
  * @dest:	NFP CPP ID
