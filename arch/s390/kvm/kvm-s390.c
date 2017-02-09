@@ -23,6 +23,7 @@
 #include <linux/kvm_host.h>
 #include <linux/mman.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/random.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
