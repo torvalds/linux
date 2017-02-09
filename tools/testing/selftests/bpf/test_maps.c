@@ -32,7 +32,7 @@ static void test_hashmap(int task, void *data)
 	long long key, next_key, value;
 	int fd;
 
-	fd = bpf_map_create(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
+	fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
 			    2, map_flags);
 	if (fd < 0) {
 		printf("Failed to create hashmap '%s'!\n", strerror(errno));
@@ -119,7 +119,7 @@ static void test_hashmap_percpu(int task, void *data)
 	int expected_key_mask = 0;
 	int fd, i;
 
-	fd = bpf_map_create(BPF_MAP_TYPE_PERCPU_HASH, sizeof(key),
+	fd = bpf_create_map(BPF_MAP_TYPE_PERCPU_HASH, sizeof(key),
 			    sizeof(value[0]), 2, map_flags);
 	if (fd < 0) {
 		printf("Failed to create hashmap '%s'!\n", strerror(errno));
@@ -212,7 +212,7 @@ static void test_arraymap(int task, void *data)
 	int key, next_key, fd;
 	long long value;
 
-	fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, sizeof(key), sizeof(value),
+	fd = bpf_create_map(BPF_MAP_TYPE_ARRAY, sizeof(key), sizeof(value),
 			    2, 0);
 	if (fd < 0) {
 		printf("Failed to create arraymap '%s'!\n", strerror(errno));
@@ -266,7 +266,7 @@ static void test_arraymap_percpu(int task, void *data)
 	int key, next_key, fd, i;
 	long values[nr_cpus];
 
-	fd = bpf_map_create(BPF_MAP_TYPE_PERCPU_ARRAY, sizeof(key),
+	fd = bpf_create_map(BPF_MAP_TYPE_PERCPU_ARRAY, sizeof(key),
 			    sizeof(values[0]), 2, 0);
 	if (fd < 0) {
 		printf("Failed to create arraymap '%s'!\n", strerror(errno));
@@ -322,7 +322,7 @@ static void test_arraymap_percpu_many_keys(void)
 	long values[nr_cpus];
 	int key, fd, i;
 
-	fd = bpf_map_create(BPF_MAP_TYPE_PERCPU_ARRAY, sizeof(key),
+	fd = bpf_create_map(BPF_MAP_TYPE_PERCPU_ARRAY, sizeof(key),
 			    sizeof(values[0]), nr_keys, 0);
 	if (fd < 0) {
 		printf("Failed to create per-cpu arraymap '%s'!\n",
@@ -360,7 +360,7 @@ static void test_map_large(void)
 	} key;
 	int fd, i, value;
 
-	fd = bpf_map_create(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
+	fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
 			    MAP_SIZE, map_flags);
 	if (fd < 0) {
 		printf("Failed to create large map '%s'!\n", strerror(errno));
@@ -455,7 +455,7 @@ static void test_map_parallel(void)
 	int i, fd, key = 0, value = 0;
 	int data[2];
 
-	fd = bpf_map_create(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
+	fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
 			    MAP_SIZE, map_flags);
 	if (fd < 0) {
 		printf("Failed to create map for parallel test '%s'!\n",

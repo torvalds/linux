@@ -183,7 +183,7 @@ static void test_lpm_map(int keysize)
 	key = alloca(sizeof(*key) + keysize);
 	memset(key, 0, sizeof(*key) + keysize);
 
-	map = bpf_map_create(BPF_MAP_TYPE_LPM_TRIE,
+	map = bpf_create_map(BPF_MAP_TYPE_LPM_TRIE,
 			     sizeof(*key) + keysize,
 			     keysize + 1,
 			     4096,
@@ -253,12 +253,12 @@ static void test_lpm_ipaddr(void)
 	key_ipv4 = alloca(key_size_ipv4);
 	key_ipv6 = alloca(key_size_ipv6);
 
-	map_fd_ipv4 = bpf_map_create(BPF_MAP_TYPE_LPM_TRIE,
+	map_fd_ipv4 = bpf_create_map(BPF_MAP_TYPE_LPM_TRIE,
 				     key_size_ipv4, sizeof(value),
 				     100, BPF_F_NO_PREALLOC);
 	assert(map_fd_ipv4 >= 0);
 
-	map_fd_ipv6 = bpf_map_create(BPF_MAP_TYPE_LPM_TRIE,
+	map_fd_ipv6 = bpf_create_map(BPF_MAP_TYPE_LPM_TRIE,
 				     key_size_ipv6, sizeof(value),
 				     100, BPF_F_NO_PREALLOC);
 	assert(map_fd_ipv6 >= 0);

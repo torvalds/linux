@@ -189,7 +189,7 @@ int main(void)
 	int i, fd_map;
 
 	setrlimit(RLIMIT_MEMLOCK, &rinf);
-	fd_map = bpf_map_create(BPF_MAP_TYPE_HASH, sizeof(int),
+	fd_map = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(int),
 				sizeof(int), 1, BPF_F_NO_PREALLOC);
 	assert(fd_map > 0);
 

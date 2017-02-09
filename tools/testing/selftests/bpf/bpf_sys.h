@@ -24,19 +24,4 @@ static inline int bpf(int cmd, union bpf_attr *attr, unsigned int size)
 #endif
 }
 
-static inline int bpf_map_create(enum bpf_map_type type, uint32_t size_key,
-				 uint32_t size_value, uint32_t max_elem,
-				 uint32_t flags)
-{
-	union bpf_attr attr = {};
-
-	attr.map_type = type;
-	attr.key_size = size_key;
-	attr.value_size = size_value;
-	attr.max_entries = max_elem;
-	attr.map_flags = flags;
-
-	return bpf(BPF_MAP_CREATE, &attr, sizeof(attr));
-}
-
 #endif /* __BPF_SYS__ */

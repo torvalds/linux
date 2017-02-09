@@ -31,11 +31,11 @@ static int create_map(int map_type, int map_flags, unsigned int size)
 {
 	int map_fd;
 
-	map_fd = bpf_map_create(map_type, sizeof(unsigned long long),
+	map_fd = bpf_create_map(map_type, sizeof(unsigned long long),
 				sizeof(unsigned long long), size, map_flags);
 
 	if (map_fd == -1)
-		perror("bpf_map_create");
+		perror("bpf_create_map");
 
 	return map_fd;
 }

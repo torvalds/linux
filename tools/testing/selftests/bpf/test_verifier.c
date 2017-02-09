@@ -4467,7 +4467,7 @@ static int create_map(uint32_t size_value, uint32_t max_elem)
 {
 	int fd;
 
-	fd = bpf_map_create(BPF_MAP_TYPE_HASH, sizeof(long long),
+	fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(long long),
 			    size_value, max_elem, BPF_F_NO_PREALLOC);
 	if (fd < 0)
 		printf("Failed to create hash map '%s'!\n", strerror(errno));
@@ -4479,7 +4479,7 @@ static int create_prog_array(void)
 {
 	int fd;
 
-	fd = bpf_map_create(BPF_MAP_TYPE_PROG_ARRAY, sizeof(int),
+	fd = bpf_create_map(BPF_MAP_TYPE_PROG_ARRAY, sizeof(int),
 			    sizeof(int), 4, 0);
 	if (fd < 0)
 		printf("Failed to create prog array '%s'!\n", strerror(errno));
