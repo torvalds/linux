@@ -6,7 +6,7 @@
 #include <linux/bootmem.h>
 #include <linux/pfn.h>
 #include <linux/mm.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/list.h>
 #include <linux/hugetlb.h>
 #include <linux/slab.h>

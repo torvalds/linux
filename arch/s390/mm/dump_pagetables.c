@@ -1,6 +1,5 @@
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
-#include <linux/module.h>
 #include <linux/mm.h>
 #include <asm/sections.h>
 #include <asm/pgtable.h>
