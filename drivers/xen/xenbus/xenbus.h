@@ -32,6 +32,10 @@
 #ifndef _XENBUS_XENBUS_H
 #define _XENBUS_XENBUS_H
 
+#include <linux/mutex.h>
+#include <linux/uio.h>
+#include <xen/xenbus.h>
+
 #define XEN_BUS_ID_SIZE			20
 
 struct xen_bus_type {
@@ -52,16 +56,49 @@ enum xenstore_init {
 	XS_LOCAL,
 };
 
+struct xs_watch_event {
+	struct list_head list;
+	unsigned int len;
+	struct xenbus_watch *handle;
+	const char *path;
+	const char *token;
+	char body[];
+};
+
+enum xb_req_state {
+	xb_req_state_queued,
+	xb_req_state_wait_reply,
+	xb_req_state_got_reply,
+	xb_req_state_aborted
+};
+
+struct xb_req_data {
+	struct list_head list;
+	wait_queue_head_t wq;
+	struct xsd_sockmsg msg;
+	enum xsd_sockmsg_type type;
+	char *body;
+	const struct kvec *vec;
+	int num_vecs;
+	int err;
+	enum xb_req_state state;
+	void (*cb)(struct xb_req_data *);
+	void *par;
+};
+
 extern enum xenstore_init xen_store_domain_type;
 extern const struct attribute_group *xenbus_dev_groups[];
+extern struct mutex xs_response_mutex;
+extern struct list_head xs_reply_list;
+extern struct list_head xb_write_list;
+extern wait_queue_head_t xb_waitq;
+extern struct mutex xb_write_mutex;
 
 int xs_init(void);
 int xb_init_comms(void);
 void xb_deinit_comms(void);
-int xb_write(const void *data, unsigned int len);
-int xb_read(void *data, unsigned int len);
-int xb_data_to_read(void);
-int xb_wait_for_data_to_read(void);
+int xs_watch_msg(struct xs_watch_event *event);
+void xs_request_exit(struct xb_req_data *req);
 
 int xenbus_match(struct device *_dev, struct device_driver *_drv);
 int xenbus_dev_probe(struct device *_dev);
@@ -92,6 +129,7 @@ int xenbus_read_otherend_details(struct xenbus_device *xendev,
 
 void xenbus_ring_ops_init(void);
 
-void *xenbus_dev_request_and_reply(struct xsd_sockmsg *msg);
+int xenbus_dev_request_and_reply(struct xsd_sockmsg *msg, void *par);
+void xenbus_dev_queue_reply(struct xb_req_data *req);
 
 #endif
