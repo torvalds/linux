@@ -371,6 +371,23 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 	return __pte(old);
 }
 
+#define __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
+static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
+					    unsigned long addr,
+					    pte_t *ptep, int full)
+{
+	if (full && radix_enabled()) {
+		/*
+		 * Let's skip the DD1 style pte update here. We know that
+		 * this is a full mm pte clear and hence can be sure there is
+		 * no parallel set_pte.
+		 */
+		return radix__ptep_get_and_clear_full(mm, addr, ptep, full);
+	}
+	return ptep_get_and_clear(mm, addr, ptep);
+}
+
+
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
 			     pte_t * ptep)
 {
