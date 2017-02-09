@@ -96,6 +96,9 @@ struct nfp_cpp {
 	/* Cached areas for cpp/xpb readl/writel speedups */
 	struct mutex area_cache_mutex;  /* Lock for the area cache */
 	struct list_head area_cache_list;
+
+	/* Cached information */
+	void *hwinfo;
 };
 
 /* Element of the area_cache_list */
@@ -237,6 +240,8 @@ void nfp_cpp_free(struct nfp_cpp *cpp)
 	if (cpp->op->free)
 		cpp->op->free(cpp);
 
+	kfree(cpp->hwinfo);
+
 	device_unregister(&cpp->dev);
 
 	kfree(cpp);
@@ -275,6 +280,16 @@ int nfp_cpp_serial(struct nfp_cpp *cpp, const u8 **serial)
 {
 	*serial = &cpp->serial[0];
 	return sizeof(cpp->serial);
+}
+
+void *nfp_hwinfo_cache(struct nfp_cpp *cpp)
+{
+	return cpp->hwinfo;
+}
+
+void nfp_hwinfo_cache_set(struct nfp_cpp *cpp, void *val)
+{
+	cpp->hwinfo = val;
 }
 
 /**

@@ -43,6 +43,10 @@
 
 #include "nfp_cpp.h"
 
+/* Implemented in nfp_hwinfo.c */
+
+const char *nfp_hwinfo_lookup(struct nfp_cpp *cpp, const char *lookup);
+
 /* Implemented in nfp_resource.c */
 
 #define NFP_RESOURCE_TBL_TARGET		NFP_CPP_TARGET_MU
