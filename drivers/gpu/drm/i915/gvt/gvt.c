@@ -75,13 +75,6 @@ int intel_gvt_init_host(void)
 	if (xen_domain() && !xen_initial_domain())
 		return -ENODEV;
 
-#ifdef CONFIG_INTEL_IOMMU
-	if (intel_iommu_gfx_mapped) {
-		gvt_err("Hardware IOMMU compatibility not yet supported, try to boot with intel_iommu=igfx_off\n");
-		return -ENODEV;
-	}
-#endif
-
 	/* Try to load MPT modules for hypervisors */
 	if (xen_initial_domain()) {
 		/* In Xen dom0 */
