@@ -715,7 +715,7 @@ struct intel_crtc {
 	bool active;
 	bool lowfreq_avail;
 	u8 plane_ids_mask;
-	unsigned long enabled_power_domains;
+	unsigned long long enabled_power_domains;
 	struct intel_overlay *overlay;
 	struct intel_flip_work *flip_work;
 

@@ -5666,15 +5666,15 @@ intel_display_port_aux_power_domain(struct intel_encoder *intel_encoder)
 	}
 }
 
-static unsigned long get_crtc_power_domains(struct drm_crtc *crtc,
-					    struct intel_crtc_state *crtc_state)
+static u64 get_crtc_power_domains(struct drm_crtc *crtc,
+				  struct intel_crtc_state *crtc_state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_encoder *encoder;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum pipe pipe = intel_crtc->pipe;
-	unsigned long mask;
+	u64 mask;
 	enum transcoder transcoder = crtc_state->cpu_transcoder;
 
 	if (!crtc_state->base.active)
@@ -5684,19 +5684,19 @@ static unsigned long get_crtc_power_domains(struct drm_crtc *crtc,
 	mask |= BIT(POWER_DOMAIN_TRANSCODER(transcoder));
 	if (crtc_state->pch_pfit.enabled ||
 	    crtc_state->pch_pfit.force_thru)
-		mask |= BIT(POWER_DOMAIN_PIPE_PANEL_FITTER(pipe));
+		mask |= BIT_ULL(POWER_DOMAIN_PIPE_PANEL_FITTER(pipe));
 
 	drm_for_each_encoder_mask(encoder, dev, crtc_state->base.encoder_mask) {
 		struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
 
-		mask |= BIT(intel_display_port_power_domain(intel_encoder));
+		mask |= BIT_ULL(intel_display_port_power_domain(intel_encoder));
 	}
 
 	if (HAS_DDI(dev_priv) && crtc_state->has_audio)
 		mask |= BIT(POWER_DOMAIN_AUDIO);
 
 	if (crtc_state->shared_dpll)
-		mask |= BIT(POWER_DOMAIN_PLLS);
+		mask |= BIT_ULL(POWER_DOMAIN_PLLS);
 
 	return mask;
 }
@@ -5708,7 +5708,7 @@ modeset_get_crtc_power_domains(struct drm_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum intel_display_power_domain domain;
-	unsigned long domains, new_domains, old_domains;
+	u64 domains, new_domains, old_domains;
 
 	old_domains = intel_crtc->enabled_power_domains;
 	intel_crtc->enabled_power_domains = new_domains =
@@ -5723,7 +5723,7 @@ modeset_get_crtc_power_domains(struct drm_crtc *crtc,
 }
 
 static void modeset_put_power_domains(struct drm_i915_private *dev_priv,
-				      unsigned long domains)
+				      u64 domains)
 {
 	enum intel_display_power_domain domain;
 
@@ -8992,7 +8992,7 @@ static void haswell_get_ddi_pll(struct drm_i915_private *dev_priv,
 
 static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 				     struct intel_crtc_state *pipe_config,
-				     unsigned long *power_domain_mask)
+				     u64 *power_domain_mask)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -9034,7 +9034,7 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 	power_domain = POWER_DOMAIN_TRANSCODER(pipe_config->cpu_transcoder);
 	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
-	*power_domain_mask |= BIT(power_domain);
+	*power_domain_mask |= BIT_ULL(power_domain);
 
 	tmp = I915_READ(PIPECONF(pipe_config->cpu_transcoder));
 
@@ -9043,7 +9043,7 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 
 static bool bxt_get_dsi_transcoder_state(struct intel_crtc *crtc,
 					 struct intel_crtc_state *pipe_config,
-					 unsigned long *power_domain_mask)
+					 u64 *power_domain_mask)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -9061,7 +9061,7 @@ static bool bxt_get_dsi_transcoder_state(struct intel_crtc *crtc,
 		power_domain = POWER_DOMAIN_TRANSCODER(cpu_transcoder);
 		if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 			continue;
-		*power_domain_mask |= BIT(power_domain);
+		*power_domain_mask |= BIT_ULL(power_domain);
 
 		/*
 		 * The PLL needs to be enabled with a valid divider
@@ -9136,13 +9136,13 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum intel_display_power_domain power_domain;
-	unsigned long power_domain_mask;
+	u64 power_domain_mask;
 	bool active;
 
 	power_domain = POWER_DOMAIN_PIPE(crtc->pipe);
 	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
-	power_domain_mask = BIT(power_domain);
+	power_domain_mask = BIT_ULL(power_domain);
 
 	pipe_config->shared_dpll = NULL;
 
@@ -9176,7 +9176,7 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 
 	power_domain = POWER_DOMAIN_PIPE_PANEL_FITTER(crtc->pipe);
 	if (intel_display_power_get_if_enabled(dev_priv, power_domain)) {
-		power_domain_mask |= BIT(power_domain);
+		power_domain_mask |= BIT_ULL(power_domain);
 		if (INTEL_GEN(dev_priv) >= 9)
 			skylake_get_pfit_config(crtc, pipe_config);
 		else
@@ -12841,7 +12841,7 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 	struct drm_crtc *crtc;
 	struct intel_crtc_state *intel_cstate;
 	bool hw_check = intel_state->modeset;
-	unsigned long put_domains[I915_MAX_PIPES] = {};
+	u64 put_domains[I915_MAX_PIPES] = {};
 	unsigned crtc_vblank_mask = 0;
 	int i;
 
@@ -15565,7 +15565,7 @@ intel_modeset_setup_hw_state(struct drm_device *dev)
 		ilk_wm_get_hw_state(dev);
 
 	for_each_intel_crtc(dev, crtc) {
-		unsigned long put_domains;
+		u64 put_domains;
 
 		put_domains = modeset_get_crtc_power_domains(&crtc->base, crtc->config);
 		if (WARN_ON(put_domains))
