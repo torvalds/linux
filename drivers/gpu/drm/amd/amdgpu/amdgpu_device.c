@@ -1895,19 +1895,16 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	amdgpu_fbdev_init(adev);
 
 	r = amdgpu_gem_debugfs_init(adev);
-	if (r) {
+	if (r)
 		DRM_ERROR("registering gem debugfs failed (%d).\n", r);
-	}
 
 	r = amdgpu_debugfs_regs_init(adev);
-	if (r) {
+	if (r)
 		DRM_ERROR("registering register debugfs failed (%d).\n", r);
-	}
 
 	r = amdgpu_debugfs_firmware_init(adev);
-	if (r) {
+	if (r)
 		DRM_ERROR("registering firmware debugfs failed (%d).\n", r);
-	}
 
 	if ((amdgpu_testing & 1)) {
 		if (adev->accel_working)
