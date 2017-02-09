@@ -16,6 +16,17 @@
 #ifndef __DRIVERS_CLK_TI_CLOCK__
 #define __DRIVERS_CLK_TI_CLOCK__
 
+struct clk_omap_mux {
+	struct clk_hw		hw;
+	void __iomem		*reg;
+	u32			*table;
+	u32			mask;
+	u8			shift;
+	u8			flags;
+};
+
+#define to_clk_omap_mux(_hw) container_of(_hw, struct clk_omap_mux, hw)
+
 enum {
 	TI_CLK_FIXED,
 	TI_CLK_MUX,

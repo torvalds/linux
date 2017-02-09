@@ -28,7 +28,7 @@
 
 static u8 ti_clk_mux_get_parent(struct clk_hw *hw)
 {
-	struct clk_mux *mux = to_clk_mux(hw);
+	struct clk_omap_mux *mux = to_clk_omap_mux(hw);
 	int num_parents = clk_hw_get_num_parents(hw);
 	u32 val;
 
@@ -65,7 +65,7 @@ static u8 ti_clk_mux_get_parent(struct clk_hw *hw)
 
 static int ti_clk_mux_set_parent(struct clk_hw *hw, u8 index)
 {
-	struct clk_mux *mux = to_clk_mux(hw);
+	struct clk_omap_mux *mux = to_clk_omap_mux(hw);
 	u32 val;
 
 	if (mux->table) {
@@ -102,7 +102,7 @@ static struct clk *_register_mux(struct device *dev, const char *name,
 				 void __iomem *reg, u8 shift, u32 mask,
 				 u8 clk_mux_flags, u32 *table)
 {
-	struct clk_mux *mux;
+	struct clk_omap_mux *mux;
 	struct clk *clk;
 	struct clk_init_data init;
 
@@ -229,7 +229,7 @@ CLK_OF_DECLARE(mux_clk, "ti,mux-clock", of_mux_clk_setup);
 
 struct clk_hw *ti_clk_build_component_mux(struct ti_clk_mux *setup)
 {
-	struct clk_mux *mux;
+	struct clk_omap_mux *mux;
 	struct clk_omap_reg *reg;
 	int num_parents;
 
@@ -260,7 +260,7 @@ struct clk_hw *ti_clk_build_component_mux(struct ti_clk_mux *setup)
 
 static void __init of_ti_composite_mux_clk_setup(struct device_node *node)
 {
-	struct clk_mux *mux;
+	struct clk_omap_mux *mux;
 	unsigned int num_parents;
 	u32 val;
 
