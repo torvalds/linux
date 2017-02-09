@@ -62,7 +62,7 @@ static const struct clk_ops omap_gate_clk_hsdiv_restore_ops = {
  */
 static int omap36xx_gate_clk_enable_with_hsdiv_restore(struct clk_hw *hw)
 {
-	struct clk_divider *parent;
+	struct clk_omap_divider *parent;
 	struct clk_hw *parent_hw;
 	u32 dummy_v, orig_v;
 	int ret;
@@ -72,7 +72,7 @@ static int omap36xx_gate_clk_enable_with_hsdiv_restore(struct clk_hw *hw)
 
 	/* Parent is the x2 node, get parent of parent for the m2 div */
 	parent_hw = clk_hw_get_parent(clk_hw_get_parent(hw));
-	parent = to_clk_divider(parent_hw);
+	parent = to_clk_omap_divider(parent_hw);
 
 	/* Restore the dividers */
 	if (!ret) {

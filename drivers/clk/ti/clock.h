@@ -16,6 +16,17 @@
 #ifndef __DRIVERS_CLK_TI_CLOCK__
 #define __DRIVERS_CLK_TI_CLOCK__
 
+struct clk_omap_divider {
+	struct clk_hw		hw;
+	void __iomem		*reg;
+	u8			shift;
+	u8			width;
+	u8			flags;
+	const struct clk_div_table	*table;
+};
+
+#define to_clk_omap_divider(_hw) container_of(_hw, struct clk_omap_divider, hw)
+
 struct clk_omap_mux {
 	struct clk_hw		hw;
 	void __iomem		*reg;
