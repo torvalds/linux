@@ -678,7 +678,8 @@ static int gb_svc_version_request(struct gb_operation *op)
 static ssize_t pwr_debugfs_voltage_read(struct file *file, char __user *buf,
 					size_t len, loff_t *offset)
 {
-	struct svc_debugfs_pwrmon_rail *pwrmon_rails = file_inode(file)->i_private;
+	struct svc_debugfs_pwrmon_rail *pwrmon_rails =
+		file_inode(file)->i_private;
 	struct gb_svc *svc = pwrmon_rails->svc;
 	int ret, desc;
 	u32 value;
@@ -701,7 +702,8 @@ static ssize_t pwr_debugfs_voltage_read(struct file *file, char __user *buf,
 static ssize_t pwr_debugfs_current_read(struct file *file, char __user *buf,
 					size_t len, loff_t *offset)
 {
-	struct svc_debugfs_pwrmon_rail *pwrmon_rails = file_inode(file)->i_private;
+	struct svc_debugfs_pwrmon_rail *pwrmon_rails =
+		file_inode(file)->i_private;
 	struct gb_svc *svc = pwrmon_rails->svc;
 	int ret, desc;
 	u32 value;
@@ -724,7 +726,8 @@ static ssize_t pwr_debugfs_current_read(struct file *file, char __user *buf,
 static ssize_t pwr_debugfs_power_read(struct file *file, char __user *buf,
 				      size_t len, loff_t *offset)
 {
-	struct svc_debugfs_pwrmon_rail *pwrmon_rails = file_inode(file)->i_private;
+	struct svc_debugfs_pwrmon_rail *pwrmon_rails =
+		file_inode(file)->i_private;
 	struct gb_svc *svc = pwrmon_rails->svc;
 	int ret, desc;
 	u32 value;
@@ -924,14 +927,15 @@ static void gb_svc_process_hello_deferred(struct gb_operation *operation)
 	 * Power Mode Changes is resolved.
 	 */
 	ret = gb_svc_intf_set_power_mode(svc, svc->ap_intf_id,
-					GB_SVC_UNIPRO_HS_SERIES_A,
-					GB_SVC_UNIPRO_SLOW_AUTO_MODE,
-					2, 1,
-					GB_SVC_SMALL_AMPLITUDE, GB_SVC_NO_DE_EMPHASIS,
-					GB_SVC_UNIPRO_SLOW_AUTO_MODE,
-					2, 1,
-					0, 0,
-					NULL, NULL);
+					 GB_SVC_UNIPRO_HS_SERIES_A,
+					 GB_SVC_UNIPRO_SLOW_AUTO_MODE,
+					 2, 1,
+					 GB_SVC_SMALL_AMPLITUDE,
+					 GB_SVC_NO_DE_EMPHASIS,
+					 GB_SVC_UNIPRO_SLOW_AUTO_MODE,
+					 2, 1,
+					 0, 0,
+					 NULL, NULL);
 
 	if (ret)
 		dev_warn(&svc->dev,

@@ -557,7 +557,8 @@ static void gb_gpio_irqchip_remove(struct gb_gpio_controller *ggc)
 	/* Remove all IRQ mappings and delete the domain */
 	if (ggc->irqdomain) {
 		for (offset = 0; offset < (ggc->line_max + 1); offset++)
-			irq_dispose_mapping(irq_find_mapping(ggc->irqdomain, offset));
+			irq_dispose_mapping(irq_find_mapping(ggc->irqdomain,
+							     offset));
 		irq_domain_remove(ggc->irqdomain);
 	}
 

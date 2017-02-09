@@ -168,7 +168,10 @@ static int standby_boot_seq(struct platform_device *pdev)
 	if (apb->init_disabled)
 		return 0;
 
-	/* Even if it is in OFF state, then we do not want to change the state */
+	/*
+	 * Even if it is in OFF state,
+	 * then we do not want to change the state
+	 */
 	if (apb->state == ARCHE_PLATFORM_STATE_STANDBY ||
 			apb->state == ARCHE_PLATFORM_STATE_OFF)
 		return 0;

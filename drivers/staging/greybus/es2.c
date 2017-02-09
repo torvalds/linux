@@ -1085,7 +1085,8 @@ static void apb_log_get(struct es2_ap_dev *es2, char *buf)
 		retval = usb_control_msg(es2->usb_dev,
 					usb_rcvctrlpipe(es2->usb_dev, 0),
 					GB_APB_REQUEST_LOG,
-					USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+					USB_DIR_IN | USB_TYPE_VENDOR |
+					USB_RECIP_INTERFACE,
 					0x00, 0x00,
 					buf,
 					APB1_LOG_MSG_SIZE,

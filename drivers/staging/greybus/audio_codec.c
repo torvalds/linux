@@ -838,7 +838,10 @@ int gbaudio_register_module(struct gbaudio_module_info *module)
 		snd_soc_dapm_link_component_dai_widgets(codec->card,
 							&codec->dapm);
 #ifdef CONFIG_SND_JACK
-		/* register jack devices for this module from codec->jack_list */
+		/*
+		 * register jack devices for this module
+		 * from codec->jack_list
+		 */
 		list_for_each_entry(jack, &codec->jack_list, list) {
 			if ((jack == &module->headset_jack)
 			    || (jack == &module->button_jack))
