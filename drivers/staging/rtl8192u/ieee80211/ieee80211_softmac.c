@@ -146,6 +146,7 @@ static void ieee80211_TURBO_Info(struct ieee80211_device *ieee, u8 **tag_p)
 static void enqueue_mgmt(struct ieee80211_device *ieee, struct sk_buff *skb)
 {
 	int nh;
+
 	nh = (ieee->mgmt_queue_head +1) % MGMT_QUEUE_NUM;
 
 /*
@@ -226,6 +227,7 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee
 		(struct rtl_80211_hdr_3addr  *) skb->data;
 
 	cb_desc *tcb_desc = (cb_desc *)(skb->cb + 8);
+
 	spin_lock_irqsave(&ieee->lock, flags);
 
 	/* called with 2nd param 0, no mgmt lock required */
@@ -364,6 +366,7 @@ struct sk_buff *ieee80211_get_beacon_(struct ieee80211_device *ieee);
 static void ieee80211_send_beacon(struct ieee80211_device *ieee)
 {
 	struct sk_buff *skb;
+
 	if(!ieee->ieee_up)
 		return;
 	//unsigned long flags;
@@ -427,6 +430,7 @@ void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 {
 	short ch = 0;
 	u8 channel_map[MAX_CHANNEL_NUMBER+1];
+
 	memcpy(channel_map, GET_DOT11D_INFO(ieee)->channel_map, MAX_CHANNEL_NUMBER+1);
 	mutex_lock(&ieee->scan_mutex);
 
@@ -493,6 +497,7 @@ static void ieee80211_softmac_scan_wq(struct work_struct *work)
 	struct ieee80211_device *ieee = container_of(dwork, struct ieee80211_device, softmac_scan_wq);
 	static short watchdog;
 	u8 channel_map[MAX_CHANNEL_NUMBER+1];
+
 	memcpy(channel_map, GET_DOT11D_INFO(ieee)->channel_map, MAX_CHANNEL_NUMBER+1);
 	if(!ieee->ieee_up)
 		return;
@@ -2623,6 +2628,7 @@ void ieee80211_start_protocol(struct ieee80211_device *ieee)
 {
 	short ch = 0;
 	int i = 0;
+
 	if (ieee->proto_started)
 		return;
 
@@ -3127,6 +3133,7 @@ SendDisassociation(
 {
 		struct ieee80211_network *beacon = &ieee->current_network;
 		struct sk_buff *skb;
+
 		skb = ieee80211_disassociate_skb(beacon, ieee, asRsn);
 		if (skb) {
 				softmac_mgmt_xmit(skb, ieee);
@@ -3194,6 +3201,7 @@ EXPORT_SYMBOL(ieee80211_wpa_supplicant_ioctl);
 void notify_wx_assoc_event(struct ieee80211_device *ieee)
 {
 	union iwreq_data wrqu;
+
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 	if (ieee->state == IEEE80211_LINKED)
 		memcpy(wrqu.ap_addr.sa_data, ieee->current_network.bssid, ETH_ALEN);
