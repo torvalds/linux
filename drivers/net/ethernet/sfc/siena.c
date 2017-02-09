@@ -326,6 +326,7 @@ fail5:
 	efx_nic_free_buffer(efx, &efx->irq_status);
 fail4:
 fail3:
+	efx_mcdi_detach(efx);
 	efx_mcdi_fini(efx);
 fail1:
 	kfree(efx->nic_data);
@@ -450,6 +451,7 @@ static void siena_remove_nic(struct efx_nic *efx)
 
 	efx_mcdi_reset(efx, RESET_TYPE_ALL);
 
+	efx_mcdi_detach(efx);
 	efx_mcdi_fini(efx);
 
 	/* Tear down the private nic state */

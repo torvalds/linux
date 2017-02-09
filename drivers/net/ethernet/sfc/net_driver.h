@@ -307,6 +307,7 @@ struct efx_rx_buffer {
 #define EFX_RX_PKT_DISCARD	0x0004
 #define EFX_RX_PKT_TCP		0x0040
 #define EFX_RX_PKT_PREFIX_LEN	0x0080	/* length is in prefix only */
+#define EFX_RX_PKT_CSUM_LEVEL	0x0200
 
 /**
  * struct efx_rx_page_state - Page-based rx buffer state
@@ -469,13 +470,18 @@ struct efx_channel {
 	u32 *rps_flow_id;
 #endif
 
-	unsigned n_rx_tobe_disc;
-	unsigned n_rx_ip_hdr_chksum_err;
-	unsigned n_rx_tcp_udp_chksum_err;
-	unsigned n_rx_mcast_mismatch;
-	unsigned n_rx_frm_trunc;
-	unsigned n_rx_overlength;
-	unsigned n_skbuff_leaks;
+	unsigned int n_rx_tobe_disc;
+	unsigned int n_rx_ip_hdr_chksum_err;
+	unsigned int n_rx_tcp_udp_chksum_err;
+	unsigned int n_rx_outer_ip_hdr_chksum_err;
+	unsigned int n_rx_outer_tcp_udp_chksum_err;
+	unsigned int n_rx_inner_ip_hdr_chksum_err;
+	unsigned int n_rx_inner_tcp_udp_chksum_err;
+	unsigned int n_rx_eth_crc_err;
+	unsigned int n_rx_mcast_mismatch;
+	unsigned int n_rx_frm_trunc;
+	unsigned int n_rx_overlength;
+	unsigned int n_skbuff_leaks;
 	unsigned int n_rx_nodesc_trunc;
 	unsigned int n_rx_merge_events;
 	unsigned int n_rx_merge_packets;
@@ -547,6 +553,8 @@ extern const char *const efx_reset_type_names[];
 extern const unsigned int efx_reset_type_max;
 #define RESET_TYPE(type) \
 	STRING_TABLE_LOOKUP(type, efx_reset_type)
+
+void efx_get_udp_tunnel_type_name(u16 type, char *buf, size_t buflen);
 
 enum efx_int_mode {
 	/* Be careful if altering to correct macro below */
@@ -987,6 +995,15 @@ struct efx_mtd_partition {
 	char name[IFNAMSIZ + 20];
 };
 
+struct efx_udp_tunnel {
+	u16 type; /* TUNNEL_ENCAP_UDP_PORT_ENTRY_foo, see mcdi_pcol.h */
+	__be16 port;
+	/* Count of repeated adds of the same port.  Used only inside the list,
+	 * not in request arguments.
+	 */
+	u16 count;
+};
+
 /**
  * struct efx_nic_type - Efx device type definition
  * @mem_bar: Get the memory BAR
@@ -1107,6 +1124,10 @@ struct efx_mtd_partition {
  * @set_mac_address: Set the MAC address of the device
  * @tso_versions: Returns mask of firmware-assisted TSO versions supported.
  *	If %NULL, then device does not support any TSO version.
+ * @udp_tnl_push_ports: Push the list of UDP tunnel ports to the NIC if required.
+ * @udp_tnl_add_port: Add a UDP tunnel port
+ * @udp_tnl_has_port: Check if a port has been added as UDP tunnel
+ * @udp_tnl_del_port: Remove a UDP tunnel port
  * @revision: Hardware architecture revision
  * @txd_ptr_tbl_base: TX descriptor ring base address
  * @rxd_ptr_tbl_base: RX descriptor ring base address
@@ -1266,6 +1287,10 @@ struct efx_nic_type {
 	int (*get_mac_address)(struct efx_nic *efx, unsigned char *perm_addr);
 	int (*set_mac_address)(struct efx_nic *efx);
 	u32 (*tso_versions)(struct efx_nic *efx);
+	int (*udp_tnl_push_ports)(struct efx_nic *efx);
+	int (*udp_tnl_add_port)(struct efx_nic *efx, struct efx_udp_tunnel tnl);
+	bool (*udp_tnl_has_port)(struct efx_nic *efx, __be16 port);
+	int (*udp_tnl_del_port)(struct efx_nic *efx, struct efx_udp_tunnel tnl);
 
 	int revision;
 	unsigned int txd_ptr_tbl_base;
