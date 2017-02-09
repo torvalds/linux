@@ -54,9 +54,9 @@ $(OUTPUT)/%:%.c
 	$(LINK.c) $^ $(LDLIBS) -o $@
 
 $(OUTPUT)/%.o:%.S
-	$(CC) $(ASFLAGS) -c $< -o $@
+	$(COMPILE.S) $^ -o $@
 
 $(OUTPUT)/%:%.S
-	$(CC) $(ASFLAGS) $< -o $@
+	$(LINK.S) $^ $(LDLIBS) -o $@
 
 .PHONY: run_tests all clean install emit_tests
