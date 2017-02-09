@@ -2507,6 +2507,8 @@ err_device_destroy:
 err:
 	rtnl_unlock();
 
+	clear_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags);
+
 	dev_err(&pdev->dev,
 		"Reset attempt failed. Can not reset the device\n");
 }
@@ -3115,7 +3117,9 @@ static void ena_remove(struct pci_dev *pdev)
 
 	cancel_work_sync(&adapter->resume_io_task);
 
-	ena_com_dev_reset(ena_dev);
+	/* Reset the device only if the device is running. */
+	if (test_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags))
+		ena_com_dev_reset(ena_dev);
 
 	ena_free_mgmnt_irq(adapter);
 
