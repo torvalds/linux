@@ -351,6 +351,13 @@ err_out:
 	return ERR_PTR(ret);
 }
 
+static void __destroy_hw_context(struct i915_gem_context *ctx,
+				 struct drm_i915_file_private *file_priv)
+{
+	idr_remove(&file_priv->context_idr, ctx->user_handle);
+	context_close(ctx);
+}
+
 /**
  * The default context needs to exist per ring that uses contexts. It stores the
  * context state of the GPU for applications that don't utilize HW contexts, as
@@ -375,8 +382,7 @@ i915_gem_create_context(struct drm_i915_private *dev_priv,
 		if (IS_ERR(ppgtt)) {
 			DRM_DEBUG_DRIVER("PPGTT setup failed (%ld)\n",
 					 PTR_ERR(ppgtt));
-			idr_remove(&file_priv->context_idr, ctx->user_handle);
-			context_close(ctx);
+			__destroy_hw_context(ctx, file_priv);
 			return ERR_CAST(ppgtt);
 		}
 
@@ -1038,8 +1044,7 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 		return PTR_ERR(ctx);
 	}
 
-	idr_remove(&file_priv->context_idr, ctx->user_handle);
-	context_close(ctx);
+	__destroy_hw_context(ctx, file_priv);
 	mutex_unlock(&dev->struct_mutex);
 
 	DRM_DEBUG("HW context %d destroyed\n", args->ctx_id);
