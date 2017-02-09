@@ -23,7 +23,7 @@
 #include <linux/compat.h>
 #include <linux/kprobes.h>
 #include <linux/random.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/init_task.h>
 #include <asm/io.h>
 #include <asm/processor.h>

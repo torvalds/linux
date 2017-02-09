@@ -20,7 +20,7 @@
 #include <linux/string.h>
 #include <linux/sysctl.h>
 #include <linux/uaccess.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/debugfs.h>

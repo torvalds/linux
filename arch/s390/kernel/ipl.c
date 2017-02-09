@@ -8,7 +8,8 @@
  */
 
 #include <linux/types.h>
-#include <linux/module.h>
+#include <linux/export.h>
+#include <linux/init.h>
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/reboot.h>
