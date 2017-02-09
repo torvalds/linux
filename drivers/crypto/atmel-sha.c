@@ -668,7 +668,7 @@ static int atmel_sha_xmit_dma(struct atmel_sha_dev *dd, dma_addr_t dma_addr1,
 			DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	}
 	if (!in_desc)
-		atmel_sha_complete(dd, -EINVAL);
+		return atmel_sha_complete(dd, -EINVAL);
 
 	in_desc->callback = atmel_sha_dma_callback;
 	in_desc->callback_param = dd;
@@ -725,7 +725,7 @@ static int atmel_sha_xmit_dma_map(struct atmel_sha_dev *dd,
 	if (dma_mapping_error(dd->dev, ctx->dma_addr)) {
 		dev_err(dd->dev, "dma %zu bytes error\n", ctx->buflen +
 				ctx->block_size);
-		atmel_sha_complete(dd, -EINVAL);
+		return atmel_sha_complete(dd, -EINVAL);
 	}
 
 	ctx->flags &= ~SHA_FLAGS_SG;
@@ -816,7 +816,7 @@ static int atmel_sha_update_dma_start(struct atmel_sha_dev *dd)
 		if (dma_mapping_error(dd->dev, ctx->dma_addr)) {
 			dev_err(dd->dev, "dma %zu bytes error\n",
 				ctx->buflen + ctx->block_size);
-			atmel_sha_complete(dd, -EINVAL);
+			return atmel_sha_complete(dd, -EINVAL);
 		}
 
 		if (length == 0) {
@@ -830,7 +830,7 @@ static int atmel_sha_update_dma_start(struct atmel_sha_dev *dd)
 			if (!dma_map_sg(dd->dev, ctx->sg, 1,
 				DMA_TO_DEVICE)) {
 					dev_err(dd->dev, "dma_map_sg  error\n");
-					atmel_sha_complete(dd, -EINVAL);
+					return atmel_sha_complete(dd, -EINVAL);
 			}
 
 			ctx->flags |= SHA_FLAGS_SG;
@@ -844,7 +844,7 @@ static int atmel_sha_update_dma_start(struct atmel_sha_dev *dd)
 
 	if (!dma_map_sg(dd->dev, ctx->sg, 1, DMA_TO_DEVICE)) {
 		dev_err(dd->dev, "dma_map_sg  error\n");
-		atmel_sha_complete(dd, -EINVAL);
+		return atmel_sha_complete(dd, -EINVAL);
 	}
 
 	ctx->flags |= SHA_FLAGS_SG;
