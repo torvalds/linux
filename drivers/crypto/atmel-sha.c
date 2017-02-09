@@ -1106,22 +1106,39 @@ static int atmel_sha_start(struct atmel_sha_dev *dd)
 						ctx->op, req->nbytes);
 
 	err = atmel_sha_hw_init(dd);
-
 	if (err)
-		goto err1;
+		return atmel_sha_complete(dd, err);
+
+	/*
+	 * atmel_sha_update_req() and atmel_sha_final_req() can return either:
+	 *  -EINPROGRESS: the hardware is busy and the SHA driver will resume
+	 *                its job later in the done_task.
+	 *                This is the main path.
+	 *
+	 * 0: the SHA driver can continue its job then release the hardware
+	 *    later, if needed, with atmel_sha_finish_req().
+	 *    This is the alternate path.
+	 *
+	 * < 0: an error has occurred so atmel_sha_complete(dd, err) has already
+	 *      been called, hence the hardware has been released.
+	 *      The SHA driver must stop its job without calling
+	 *      atmel_sha_finish_req(), otherwise atmel_sha_complete() would be
+	 *      called a second time.
+	 *
+	 * Please note that currently, atmel_sha_final_req() never returns 0.
+	 */
 
 	dd->resume = atmel_sha_done;
 	if (ctx->op == SHA_OP_UPDATE) {
 		err = atmel_sha_update_req(dd);
-		if (err != -EINPROGRESS && (ctx->flags & SHA_FLAGS_FINUP))
+		if (!err && (ctx->flags & SHA_FLAGS_FINUP))
 			/* no final() after finup() */
 			err = atmel_sha_final_req(dd);
 	} else if (ctx->op == SHA_OP_FINAL) {
 		err = atmel_sha_final_req(dd);
 	}
 
-err1:
-	if (err != -EINPROGRESS)
+	if (!err)
 		/* done_task will not finish it, so do it here */
 		atmel_sha_finish_req(req, err);
 
