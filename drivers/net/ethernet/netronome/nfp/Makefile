@@ -5,6 +5,7 @@ nfp-objs := \
 	    nfpcore/nfp_cppcore.o \
 	    nfpcore/nfp_cpplib.o \
 	    nfpcore/nfp_hwinfo.o \
+	    nfpcore/nfp_nffw.o \
 	    nfpcore/nfp_resource.o \
 	    nfpcore/nfp_target.o \
 	    nfp_main.o \
