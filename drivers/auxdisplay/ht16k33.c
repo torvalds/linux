@@ -80,7 +80,6 @@ struct ht16k33_priv {
 	struct i2c_client *client;
 	struct ht16k33_keypad keypad;
 	struct ht16k33_fbdev fbdev;
-	struct workqueue_struct *workqueue;
 };
 
 static struct fb_fix_screeninfo ht16k33_fb_fix = {
@@ -126,8 +125,8 @@ static void ht16k33_fb_queue(struct ht16k33_priv *priv)
 {
 	struct ht16k33_fbdev *fbdev = &priv->fbdev;
 
-	queue_delayed_work(priv->workqueue, &fbdev->work,
-		msecs_to_jiffies(HZ / fbdev->refresh_rate));
+	schedule_delayed_work(&fbdev->work,
+			      msecs_to_jiffies(HZ / fbdev->refresh_rate));
 }
 
 /*
@@ -414,21 +413,15 @@ static int ht16k33_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, priv);
 	fbdev = &priv->fbdev;
 
-	priv->workqueue = create_singlethread_workqueue(DRIVER_NAME "-wq");
-	if (priv->workqueue == NULL)
-		return -ENOMEM;
-
 	err = ht16k33_initialize(priv);
 	if (err)
-		goto err_destroy_wq;
+		return err;
 
 	/* Framebuffer (2 bytes per column) */
 	BUILD_BUG_ON(PAGE_SIZE < HT16K33_FB_SIZE);
 	fbdev->buffer = (unsigned char *) get_zeroed_page(GFP_KERNEL);
-	if (!fbdev->buffer) {
-		err = -ENOMEM;
-		goto err_destroy_wq;
-	}
+	if (!fbdev->buffer)
+		return -ENOMEM;
 
 	fbdev->cache = devm_kmalloc(&client->dev, HT16K33_FB_SIZE, GFP_KERNEL);
 	if (!fbdev->cache) {
@@ -505,8 +498,6 @@ err_fbdev_info:
 	framebuffer_release(fbdev->info);
 err_fbdev_buffer:
 	free_page((unsigned long) fbdev->buffer);
-err_destroy_wq:
-	destroy_workqueue(priv->workqueue);
 
 	return err;
 }
@@ -521,7 +512,6 @@ static int ht16k33_remove(struct i2c_client *client)
 	framebuffer_release(fbdev->info);
 	free_page((unsigned long) fbdev->buffer);
 
-	destroy_workqueue(priv->workqueue);
 	return 0;
 }
 
