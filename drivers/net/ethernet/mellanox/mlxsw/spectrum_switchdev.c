@@ -264,14 +264,20 @@ err_port_flood_set:
 int mlxsw_sp_vport_flood_set(struct mlxsw_sp_port *mlxsw_sp_vport, u16 fid,
 			     bool set)
 {
+	bool mc_set = set;
 	u16 vfid;
 
 	/* In case of vFIDs, index into the flooding table is relative to
 	 * the start of the vFIDs range.
 	 */
 	vfid = mlxsw_sp_fid_to_vfid(fid);
+
+	if (set)
+		mc_set = mlxsw_sp_vport->mc_disabled ?
+			 mlxsw_sp_vport->mc_flood : mlxsw_sp_vport->mc_router;
+
 	return __mlxsw_sp_port_flood_set(mlxsw_sp_vport, vfid, vfid, set, set,
-					 set);
+					 mc_set);
 }
 
 static int mlxsw_sp_port_learning_set(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -393,6 +399,22 @@ static int mlxsw_sp_port_attr_br_vlan_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	return 0;
 }
 
+static int mlxsw_sp_port_attr_mc_router_set(struct mlxsw_sp_port *mlxsw_sp_port,
+					    struct switchdev_trans *trans,
+					    bool is_port_mc_router)
+{
+	if (switchdev_trans_ph_prepare(trans))
+		return 0;
+
+	mlxsw_sp_port->mc_router = is_port_mc_router;
+	if (!mlxsw_sp_port->mc_disabled)
+		return mlxsw_sp_port_flood_table_set(mlxsw_sp_port,
+						     MLXSW_SP_FLOOD_TABLE_MC,
+						     is_port_mc_router);
+
+	return 0;
+}
+
 static int mlxsw_sp_port_attr_set(struct net_device *dev,
 				  const struct switchdev_attr *attr,
 				  struct switchdev_trans *trans)
@@ -421,6 +443,10 @@ static int mlxsw_sp_port_attr_set(struct net_device *dev,
 		err = mlxsw_sp_port_attr_br_vlan_set(mlxsw_sp_port, trans,
 						     attr->orig_dev,
 						     attr->u.vlan_filtering);
+		break;
+	case SWITCHDEV_ATTR_ID_PORT_MROUTER:
+		err = mlxsw_sp_port_attr_mc_router_set(mlxsw_sp_port, trans,
+						       attr->u.mrouter);
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -567,6 +593,7 @@ static int mlxsw_sp_port_fid_map(struct mlxsw_sp_port *mlxsw_sp_port, u16 fid,
 static int mlxsw_sp_port_fid_join(struct mlxsw_sp_port *mlxsw_sp_port,
 				  u16 fid_begin, u16 fid_end)
 {
+	bool mc_flood;
 	int fid, err;
 
 	for (fid = fid_begin; fid <= fid_end; fid++) {
@@ -575,9 +602,12 @@ static int mlxsw_sp_port_fid_join(struct mlxsw_sp_port *mlxsw_sp_port,
 			goto err_port_fid_join;
 	}
 
+	mc_flood = mlxsw_sp_port->mc_disabled ?
+			mlxsw_sp_port->mc_flood : mlxsw_sp_port->mc_router;
+
 	err = __mlxsw_sp_port_flood_set(mlxsw_sp_port, fid_begin, fid_end,
 					mlxsw_sp_port->uc_flood, true,
-					mlxsw_sp_port->mc_flood);
+					mc_flood);
 	if (err)
 		goto err_port_flood_set;
 

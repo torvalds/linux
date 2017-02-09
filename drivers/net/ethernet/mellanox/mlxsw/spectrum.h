@@ -339,10 +339,12 @@ struct mlxsw_sp_port {
 	struct mlxsw_sp *mlxsw_sp;
 	u8 local_port;
 	u8 stp_state;
-	u8 learning:1,
+	u16 learning:1,
 	   learning_sync:1,
 	   uc_flood:1,
 	   mc_flood:1,
+	   mc_router:1,
+	   mc_disabled:1,
 	   bridged:1,
 	   lagged:1,
 	   split:1;
