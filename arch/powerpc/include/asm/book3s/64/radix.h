@@ -144,13 +144,11 @@ static inline unsigned long radix__pte_update(struct mm_struct *mm,
 		 * new value of pte
 		 */
 		new_pte = (old_pte | set) & ~clr;
-		asm volatile("ptesync" : : : "memory");
 		radix__flush_tlb_pte_p9_dd1(old_pte, mm, addr);
 		if (new_pte)
 			__radix_pte_update(ptep, 0, new_pte);
 	} else
 		old_pte = __radix_pte_update(ptep, clr, set);
-	asm volatile("ptesync" : : : "memory");
 	if (!huge)
 		assert_pte_locked(mm, addr);
 
@@ -195,7 +193,6 @@ static inline void radix__ptep_set_access_flags(struct mm_struct *mm,
 		unsigned long old_pte, new_pte;
 
 		old_pte = __radix_pte_update(ptep, ~0, 0);
-		asm volatile("ptesync" : : : "memory");
 		/*
 		 * new value of pte
 		 */
