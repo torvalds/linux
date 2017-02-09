@@ -432,6 +432,7 @@ static struct mtd_part *allocate_partition(struct mtd_info *master,
 	slave->mtd.dev.parent = IS_ENABLED(CONFIG_MTD_PARTITIONED_MASTER) ?
 				&master->dev :
 				master->dev.parent;
+	slave->mtd.dev.of_node = part->of_node;
 
 	slave->mtd._read = part_read;
 	slave->mtd._write = part_write;
