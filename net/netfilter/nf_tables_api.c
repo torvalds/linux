@@ -4972,6 +4972,11 @@ static int nf_tables_abort(struct net *net, struct sk_buff *skb)
 	return 0;
 }
 
+static bool nf_tables_valid_genid(struct net *net, u32 genid)
+{
+	return net->nft.base_seq == genid;
+}
+
 static const struct nfnetlink_subsystem nf_tables_subsys = {
 	.name		= "nf_tables",
 	.subsys_id	= NFNL_SUBSYS_NFTABLES,
@@ -4979,6 +4984,7 @@ static const struct nfnetlink_subsystem nf_tables_subsys = {
 	.cb		= nf_tables_cb,
 	.commit		= nf_tables_commit,
 	.abort		= nf_tables_abort,
+	.valid_genid	= nf_tables_valid_genid,
 };
 
 int nft_chain_validate_dependency(const struct nft_chain *chain,
