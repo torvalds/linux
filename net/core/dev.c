@@ -5008,9 +5008,6 @@ count:
 					LINUX_MIB_BUSYPOLLRXPACKETS, rc);
 		local_bh_enable();
 
-		if (rc == LL_FLUSH_FAILED)
-			break; /* permanent failure */
-
 		if (nonblock || !skb_queue_empty(&sk->sk_receive_queue) ||
 		    busy_loop_timeout(end_time))
 			break;
