@@ -1756,28 +1756,31 @@ void megasas_update_sdev_properties(struct scsi_device *sdev)
 	fusion = instance->ctrl_context;
 	mr_device_priv_data = sdev->hostdata;
 
-	if (!fusion)
+	if (!fusion || !mr_device_priv_data)
 		return;
 
-	if (!MEGASAS_IS_LOGICAL(sdev) &&
-		instance->use_seqnum_jbod_fp) {
-		pd_index = (sdev->channel * MEGASAS_MAX_DEV_PER_CHANNEL) +
-			sdev->id;
-		pd_sync = (void *)fusion->pd_seq_sync
-				[(instance->pd_seq_map_id - 1) & 1];
-		mr_device_priv_data->is_tm_capable =
-			pd_sync->seq[pd_index].capability.tmCapable;
-	} else {
+	if (MEGASAS_IS_LOGICAL(sdev)) {
 		device_id = ((sdev->channel % 2) * MEGASAS_MAX_DEV_PER_CHANNEL)
 					+ sdev->id;
 		local_map_ptr = fusion->ld_drv_map[(instance->map_id & 1)];
 		ld = MR_TargetIdToLdGet(device_id, local_map_ptr);
+		if (ld >= instance->fw_supported_vd_count)
+			return;
 		raid = MR_LdRaidGet(ld, local_map_ptr);
 
 		if (raid->capability.ldPiMode == MR_PROT_INFO_TYPE_CONTROLLER)
-		blk_queue_update_dma_alignment(sdev->request_queue, 0x7);
+			blk_queue_update_dma_alignment(sdev->request_queue,
+						       0x7);
+
 		mr_device_priv_data->is_tm_capable =
 			raid->capability.tmCapable;
+	} else if (instance->use_seqnum_jbod_fp) {
+		pd_index = (sdev->channel * MEGASAS_MAX_DEV_PER_CHANNEL) +
+				sdev->id;
+		pd_sync = (void *)fusion->pd_seq_sync
+				[(instance->pd_seq_map_id - 1) & 1];
+		mr_device_priv_data->is_tm_capable =
+				pd_sync->seq[pd_index].capability.tmCapable;
 	}
 }
 
