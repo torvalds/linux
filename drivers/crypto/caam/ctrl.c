@@ -308,10 +308,8 @@ static int caam_remove(struct platform_device *pdev)
 	ctrl = (struct caam_ctrl __iomem *)ctrlpriv->ctrl;
 
 	/* Remove platform devices for JobRs */
-	for (ring = 0; ring < ctrlpriv->total_jobrs; ring++) {
-		if (ctrlpriv->jrpdev[ring])
-			of_device_unregister(ctrlpriv->jrpdev[ring]);
-	}
+	for (ring = 0; ring < ctrlpriv->total_jobrs; ring++)
+		of_device_unregister(ctrlpriv->jrpdev[ring]);
 
 	/* De-initialize RNG state handles initialized by this driver. */
 	if (ctrlpriv->rng4_sh_init)
@@ -423,7 +421,7 @@ DEFINE_SIMPLE_ATTRIBUTE(caam_fops_u64_ro, caam_debugfs_u64_get, NULL, "%llu\n");
 /* Probe routine for CAAM top (controller) level */
 static int caam_probe(struct platform_device *pdev)
 {
-	int ret, ring, rspec, gen_sk, ent_delay = RTSDCTL_ENT_DLY_MIN;
+	int ret, ring, ridx, rspec, gen_sk, ent_delay = RTSDCTL_ENT_DLY_MIN;
 	u64 caam_id;
 	struct device *dev;
 	struct device_node *nprop, *np;
@@ -618,6 +616,7 @@ static int caam_probe(struct platform_device *pdev)
 	}
 
 	ring = 0;
+	ridx = 0;
 	ctrlpriv->total_jobrs = 0;
 	for_each_available_child_of_node(nprop, np)
 		if (of_device_is_compatible(np, "fsl,sec-v4.0-job-ring") ||
@@ -625,17 +624,19 @@ static int caam_probe(struct platform_device *pdev)
 			ctrlpriv->jrpdev[ring] =
 				of_platform_device_create(np, NULL, dev);
 			if (!ctrlpriv->jrpdev[ring]) {
-				pr_warn("JR%d Platform device creation error\n",
-					ring);
+				pr_warn("JR physical index %d: Platform device creation error\n",
+					ridx);
+				ridx++;
 				continue;
 			}
 			ctrlpriv->jr[ring] = (struct caam_job_ring __iomem __force *)
 					     ((__force uint8_t *)ctrl +
-					     (ring + JR_BLOCK_NUMBER) *
+					     (ridx + JR_BLOCK_NUMBER) *
 					      BLOCK_OFFSET
 					     );
 			ctrlpriv->total_jobrs++;
 			ring++;
+			ridx++;
 	}
 
 	/* Check to see if QI present. If so, enable */
