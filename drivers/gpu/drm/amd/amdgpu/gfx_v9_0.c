@@ -43,6 +43,13 @@
 #define RLC_SAVE_RESTORE_ADDR_STARTING_OFFSET 0x00000000L
 #define GFX9_RLC_FORMAT_DIRECT_REG_LIST_LENGTH 34
 
+#define mmPWR_MISC_CNTL_STATUS					0x0183
+#define mmPWR_MISC_CNTL_STATUS_BASE_IDX				0
+#define PWR_MISC_CNTL_STATUS__PWR_GFX_RLC_CGPG_EN__SHIFT	0x0
+#define PWR_MISC_CNTL_STATUS__PWR_GFXOFF_STATUS__SHIFT		0x1
+#define PWR_MISC_CNTL_STATUS__PWR_GFX_RLC_CGPG_EN_MASK		0x00000001L
+#define PWR_MISC_CNTL_STATUS__PWR_GFXOFF_STATUS_MASK		0x00000006L
+
 MODULE_FIRMWARE("amdgpu/vega10_ce.bin");
 MODULE_FIRMWARE("amdgpu/vega10_pfp.bin");
 MODULE_FIRMWARE("amdgpu/vega10_me.bin");
@@ -1828,6 +1835,74 @@ static void gfx_v9_0_enable_save_restore_machine(struct amdgpu_device *adev)
 	WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_SRM_CNTL), tmp);
 }
 
+static void pwr_10_0_gfxip_control_over_cgpg(struct amdgpu_device *adev,
+					     bool enable)
+{
+	uint32_t data = 0;
+	uint32_t default_data = 0;
+
+	default_data = data = RREG32(SOC15_REG_OFFSET(PWR, 0, mmPWR_MISC_CNTL_STATUS));
+	if (enable == true) {
+		/* enable GFXIP control over CGPG */
+		data |= PWR_MISC_CNTL_STATUS__PWR_GFX_RLC_CGPG_EN_MASK;
+		if(default_data != data)
+			WREG32(SOC15_REG_OFFSET(PWR, 0, mmPWR_MISC_CNTL_STATUS), data);
+
+		/* update status */
+		data &= ~PWR_MISC_CNTL_STATUS__PWR_GFXOFF_STATUS_MASK;
+		data |= (2 << PWR_MISC_CNTL_STATUS__PWR_GFXOFF_STATUS__SHIFT);
+		if(default_data != data)
+			WREG32(SOC15_REG_OFFSET(PWR, 0, mmPWR_MISC_CNTL_STATUS), data);
+	} else {
+		/* restore GFXIP control over GCPG */
+		data &= ~PWR_MISC_CNTL_STATUS__PWR_GFX_RLC_CGPG_EN_MASK;
+		if(default_data != data)
+			WREG32(SOC15_REG_OFFSET(PWR, 0, mmPWR_MISC_CNTL_STATUS), data);
+	}
+}
+
+static void gfx_v9_0_init_gfx_power_gating(struct amdgpu_device *adev)
+{
+	uint32_t data = 0;
+
+	if (adev->pg_flags & (AMD_PG_SUPPORT_GFX_PG |
+			      AMD_PG_SUPPORT_GFX_SMG |
+			      AMD_PG_SUPPORT_GFX_DMG)) {
+		/* init IDLE_POLL_COUNT = 60 */
+		data = RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_RB_WPTR_POLL_CNTL));
+		data &= ~CP_RB_WPTR_POLL_CNTL__IDLE_POLL_COUNT_MASK;
+		data |= (0x60 << CP_RB_WPTR_POLL_CNTL__IDLE_POLL_COUNT__SHIFT);
+		WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_RB_WPTR_POLL_CNTL), data);
+
+		/* init RLC PG Delay */
+		data = 0;
+		data |= (0x10 << RLC_PG_DELAY__POWER_UP_DELAY__SHIFT);
+		data |= (0x10 << RLC_PG_DELAY__POWER_DOWN_DELAY__SHIFT);
+		data |= (0x10 << RLC_PG_DELAY__CMD_PROPAGATE_DELAY__SHIFT);
+		data |= (0x40 << RLC_PG_DELAY__MEM_SLEEP_DELAY__SHIFT);
+		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_PG_DELAY), data);
+
+		data = RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_PG_DELAY_2));
+		data &= ~RLC_PG_DELAY_2__SERDES_CMD_DELAY_MASK;
+		data |= (0x4 << RLC_PG_DELAY_2__SERDES_CMD_DELAY__SHIFT);
+		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_PG_DELAY_2), data);
+
+		data = RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_PG_DELAY_3));
+		data &= ~RLC_PG_DELAY_3__CGCG_ACTIVE_BEFORE_CGPG_MASK;
+		data |= (0xff << RLC_PG_DELAY_3__CGCG_ACTIVE_BEFORE_CGPG__SHIFT);
+		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_PG_DELAY_3), data);
+
+		data = RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_AUTO_PG_CTRL));
+		data &= ~RLC_AUTO_PG_CTRL__GRBM_REG_SAVE_GFX_IDLE_THRESHOLD_MASK;
+
+		/* program GRBM_REG_SAVE_GFX_IDLE_THRESHOLD to 0x55f0 */
+		data |= (0x55f0 << RLC_AUTO_PG_CTRL__GRBM_REG_SAVE_GFX_IDLE_THRESHOLD__SHIFT);
+		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_AUTO_PG_CTRL), data);
+
+		pwr_10_0_gfxip_control_over_cgpg(adev, true);
+	}
+}
+
 static void gfx_v9_0_init_pg(struct amdgpu_device *adev)
 {
 	if (adev->pg_flags & (AMD_PG_SUPPORT_GFX_PG |
@@ -1839,6 +1914,12 @@ static void gfx_v9_0_init_pg(struct amdgpu_device *adev)
 		gfx_v9_0_init_csb(adev);
 		gfx_v9_0_init_rlc_save_restore_list(adev);
 		gfx_v9_0_enable_save_restore_machine(adev);
+
+		if (adev->asic_type == CHIP_RAVEN) {
+			WREG32(mmRLC_JUMP_TABLE_RESTORE,
+				adev->gfx.rlc.cp_table_gpu_addr >> 8);
+			gfx_v9_0_init_gfx_power_gating(adev);
+		}
 	}
 }
 
