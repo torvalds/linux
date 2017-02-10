@@ -510,9 +510,10 @@ void i40e_client_subtask(struct i40e_pf *pf)
 			continue;
 
 		if (!existing) {
-			dev_info(&pf->pdev->dev, "Added instance of Client %s to PF%d bus=0x%02x func=0x%02x\n",
+			dev_info(&pf->pdev->dev, "Added instance of Client %s to PF%d bus=0x%02x dev=0x%02x func=0x%02x\n",
 				 client->name, pf->hw.pf_id,
-				 pf->hw.bus.device, pf->hw.bus.func);
+				 pf->hw.bus.bus_id, pf->hw.bus.device,
+				 pf->hw.bus.func);
 		}
 
 		mutex_lock(&i40e_client_instance_mutex);
@@ -561,8 +562,9 @@ int i40e_lan_add_device(struct i40e_pf *pf)
 	ldev->pf = pf;
 	INIT_LIST_HEAD(&ldev->list);
 	list_add(&ldev->list, &i40e_devices);
-	dev_info(&pf->pdev->dev, "Added LAN device PF%d bus=0x%02x func=0x%02x\n",
-		 pf->hw.pf_id, pf->hw.bus.device, pf->hw.bus.func);
+	dev_info(&pf->pdev->dev, "Added LAN device PF%d bus=0x%02x dev=0x%02x func=0x%02x\n",
+		 pf->hw.pf_id, pf->hw.bus.bus_id,
+		 pf->hw.bus.device, pf->hw.bus.func);
 
 	/* Since in some cases register may have happened before a device gets
 	 * added, we can schedule a subtask to go initiate the clients if
@@ -590,9 +592,9 @@ int i40e_lan_del_device(struct i40e_pf *pf)
 	mutex_lock(&i40e_device_mutex);
 	list_for_each_entry_safe(ldev, tmp, &i40e_devices, list) {
 		if (ldev->pf == pf) {
-			dev_info(&pf->pdev->dev, "Deleted LAN device PF%d bus=0x%02x func=0x%02x\n",
-				 pf->hw.pf_id, pf->hw.bus.device,
-				 pf->hw.bus.func);
+			dev_info(&pf->pdev->dev, "Deleted LAN device PF%d bus=0x%02x dev=0x%02x func=0x%02x\n",
+				 pf->hw.pf_id, pf->hw.bus.bus_id,
+				 pf->hw.bus.device, pf->hw.bus.func);
 			list_del(&ldev->list);
 			kfree(ldev);
 			ret = 0;
