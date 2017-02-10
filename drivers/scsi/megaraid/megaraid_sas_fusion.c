@@ -259,7 +259,7 @@ megasas_fusion_update_can_queue(struct megasas_instance *instance, int fw_boot_c
 
 	if (fw_boot_context == OCR_CONTEXT) {
 		cur_max_fw_cmds = cur_max_fw_cmds - 1;
-		if (cur_max_fw_cmds <= instance->max_fw_cmds) {
+		if (cur_max_fw_cmds < instance->max_fw_cmds) {
 			instance->cur_can_queue =
 				cur_max_fw_cmds - (MEGASAS_FUSION_INTERNAL_CMDS +
 						MEGASAS_FUSION_IOCTL_CMDS);
