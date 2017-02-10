@@ -26,6 +26,11 @@ else
 fi
 
 if [ -z "$lkl" ]; then
+    git remote add lkl-upstream git@$LKL || true
+    lkl=`git remote -v | grep $LKL | cut -f1 | head -n1`
+fi
+
+if [ -z "$lkl" ]; then
     echo "can't find lkl remote, quiting"
     exit 1
 fi
@@ -44,6 +49,7 @@ for c in $commits; do
 done
 
 if [ -z "$c" ]; then
+    echo "there are not commits/patches to check, quiting."
     rmdir $tmp
     exit 0
 fi
