@@ -577,17 +577,18 @@ int lkl_qdisc_add(int ifindex, char *root, char *type)
  */
 void lkl_qdisc_parse_add(int ifindex, char *entries)
 {
-	char *token = NULL;
+	char *saveptr = NULL, *token = NULL;
 	char *root = NULL, *type = NULL;
 	int ret = 0;
 
-	for (token = strtok(entries, ";"); token; token = strtok(NULL, ";")) {
+	for (token = strtok_r(entries, ";", &saveptr); token;
+	     token = strtok_r(NULL, ";", &saveptr)) {
 		root = strtok(token, "|");
 		type = strtok(NULL, "|");
 		ret = lkl_qdisc_add(ifindex, root, type);
 		if (ret) {
-			fprintf(stderr, "Failed to add qdisc entry: %s\n",
-				lkl_strerror(ret));
+			lkl_printf("Failed to add qdisc entry: %s\n",
+				   lkl_strerror(ret));
 			return;
 		}
 	}
