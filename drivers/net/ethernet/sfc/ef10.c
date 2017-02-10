@@ -3356,8 +3356,9 @@ static int efx_ef10_handle_rx_event(struct efx_channel *channel,
 	EFX_AND_QWORD(errors, *event, errors);
 	if (unlikely(!EFX_QWORD_IS_ZERO(errors))) {
 		flags |= efx_ef10_handle_rx_event_errors(channel, n_packets,
+							 rx_encap_hdr,
 							 rx_l3_class, rx_l4_class,
-							 rx_encap_hdr, event);
+							 event);
 	} else {
 		bool tcpudp = rx_l4_class == ESE_DZ_L4_CLASS_TCP ||
 			      rx_l4_class == ESE_DZ_L4_CLASS_UDP;
