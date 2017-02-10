@@ -4954,27 +4954,26 @@ static DEFINE_SPINLOCK(resource_alignment_lock);
 /**
  * pci_specified_resource_alignment - get resource alignment specified by user.
  * @dev: the PCI device to get
- * @resize: whether or not to change resources' size when reassigning alignment
  *
  * RETURNS: Resource alignment if it is specified.
  *          Zero if it is not specified.
  */
-static resource_size_t pci_specified_resource_alignment(struct pci_dev *dev,
-		bool *resize)
+static resource_size_t pci_specified_resource_alignment(struct pci_dev *dev)
 {
 	int seg, bus, slot, func, align_order, count;
 	unsigned short vendor, device, subsystem_vendor, subsystem_device;
 	resource_size_t align = 0;
 	char *p;
 
-#ifdef PCIBIOS_DEFAULT_ALIGNMENT
-	align = PCIBIOS_DEFAULT_ALIGNMENT;
-	*resize = false;
-#endif
 	spin_lock(&resource_alignment_lock);
 	p = resource_alignment_param;
 	if (!*p)
 		goto out;
+	if (pci_has_flag(PCI_PROBE_ONLY)) {
+		pr_info_once("PCI: Ignoring requested alignments (PCI_PROBE_ONLY)\n");
+		goto out;
+	}
+
 	while (*p) {
 		count = 0;
 		if (sscanf(p, "%d%n", &align_order, &count) == 1 &&
@@ -5033,23 +5032,6 @@ static resource_size_t pci_specified_resource_alignment(struct pci_dev *dev,
 				break;
 			}
 		}
-		p += count;
-		if (!strncmp(p, ":noresize", 9)) {
-			*resize = false;
-			p += 9;
-		} else
-			*resize = true;
-		if (seg == pci_domain_nr(dev->bus) &&
-			bus == dev->bus->number &&
-			slot == PCI_SLOT(dev->devfn) &&
-			func == PCI_FUNC(dev->devfn)) {
-			if (align_order == -1)
-				align = PAGE_SIZE;
-			else
-				align = 1 << align_order;
-			/* Found */
-			break;
-		}
 		if (*p != ';' && *p != ',') {
 			/* End of param or invalid format */
 			break;
@@ -5072,7 +5054,6 @@ void pci_reassigndev_resource_alignment(struct pci_dev *dev)
 {
 	int i;
 	struct resource *r;
-	bool resize = true;
 	resource_size_t align, size;
 	u16 command;
 
@@ -5086,7 +5067,7 @@ void pci_reassigndev_resource_alignment(struct pci_dev *dev)
 		return;
 
 	/* check if specified PCI is target device to reassign */
-	align = pci_specified_resource_alignment(dev, &resize);
+	align = pci_specified_resource_alignment(dev);
 	if (!align)
 		return;
 
@@ -5107,23 +5088,22 @@ void pci_reassigndev_resource_alignment(struct pci_dev *dev)
 		r = &dev->resource[i];
 		if (!(r->flags & IORESOURCE_MEM))
 			continue;
-		size = resource_size(r);
-		if (resize) {
-			if (size < align) {
-				size = align;
-				dev_info(&dev->dev,
-					"Rounding up size of resource #%d to %#llx.\n",
-					i, (unsigned long long)size);
-			}
-			r->flags |= IORESOURCE_UNSET;
-			r->end = size - 1;
-			r->start = 0;
-		} else {
-			r->flags &= ~IORESOURCE_SIZEALIGN;
-			r->flags |= IORESOURCE_STARTALIGN | IORESOURCE_UNSET;
-			r->start = max(align, size);
-			r->end = r->start + size - 1;
+		if (r->flags & IORESOURCE_PCI_FIXED) {
+			dev_info(&dev->dev, "Ignoring requested alignment for BAR%d: %pR\n",
+				i, r);
+			continue;
 		}
+
+		size = resource_size(r);
+		if (size < align) {
+			size = align;
+			dev_info(&dev->dev,
+				"Rounding up size of resource #%d to %#llx.\n",
+				i, (unsigned long long)size);
+		}
+		r->flags |= IORESOURCE_UNSET;
+		r->end = size - 1;
+		r->start = 0;
 	}
 	/* Need to disable bridge's resource window,
 	 * to enable the kernel to reassign new resource

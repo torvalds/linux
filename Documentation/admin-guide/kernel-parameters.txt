@@ -2924,8 +2924,7 @@
 				window. The default value is 64 megabytes.
 		resource_alignment=
 				Format:
-				[<order of align>@][<domain>:]<bus>:<slot>.<func>
-				[:noresize][; ...]
+				[<order of align>@][<domain>:]<bus>:<slot>.<func>[; ...]
 				[<order of align>@]pci:<vendor>:<device>\
 						[:<subvendor>:<subdevice>][; ...]
 				Specifies alignment and device to reassign
@@ -2934,8 +2933,6 @@
 				PAGE_SIZE is used as alignment.
 				PCI-PCI bridge can be specified, if resource
 				windows need to be expanded.
-				noresize: Don't change the resources' sizes when
-				reassigning alignment.
 				To specify the alignment for several
 				instances of a device, the PCI vendor,
 				device, subvendor, and subdevice may be
