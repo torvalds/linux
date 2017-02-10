@@ -150,6 +150,8 @@ static const struct key_entry eeepc_keymap[] = {
 	{ KE_KEY, 0x32, { KEY_SWITCHVIDEOMODE } },
 	{ KE_KEY, 0x37, { KEY_F13 } }, /* Disable Touchpad */
 	{ KE_KEY, 0x38, { KEY_F14 } },
+	{ KE_IGNORE, 0x50, { KEY_RESERVED } }, /* AC plugged */
+	{ KE_IGNORE, 0x51, { KEY_RESERVED } }, /* AC unplugged */
 	{ KE_END, 0 },
 };
 
