@@ -4015,6 +4015,12 @@ static void addrconf_dad_completed(struct inet6_ifaddr *ifp, bool bump_id)
 
 	if (bump_id)
 		rt_genid_bump_ipv6(dev_net(dev));
+
+	/* Make sure that a new temporary address will be created
+	 * before this temporary address becomes deprecated.
+	 */
+	if (ifp->flags & IFA_F_TEMPORARY)
+		addrconf_verify_rtnl();
 }
 
 static void addrconf_dad_run(struct inet6_dev *idev)
