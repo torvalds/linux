@@ -312,8 +312,12 @@ void dev_pm_arm_wake_irq(struct wake_irq *wirq)
 	if (!wirq)
 		return;
 
-	if (device_may_wakeup(wirq->dev))
+	if (device_may_wakeup(wirq->dev)) {
+		if (wirq->status & WAKE_IRQ_DEDICATED_ALLOCATED)
+			enable_irq(wirq->irq);
+
 		enable_irq_wake(wirq->irq);
+	}
 }
 
 /**
@@ -328,6 +332,10 @@ void dev_pm_disarm_wake_irq(struct wake_irq *wirq)
 	if (!wirq)
 		return;
 
-	if (device_may_wakeup(wirq->dev))
+	if (device_may_wakeup(wirq->dev)) {
 		disable_irq_wake(wirq->irq);
+
+		if (wirq->status & WAKE_IRQ_DEDICATED_ALLOCATED)
+			disable_irq_nosync(wirq->irq);
+	}
 }
