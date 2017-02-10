@@ -39,7 +39,9 @@
 
 #define GFX9_NUM_GFX_RINGS     1
 #define GFX9_NUM_COMPUTE_RINGS 8
-#define RLCG_UCODE_LOADING_START_ADDRESS 0x2000
+#define RLCG_UCODE_LOADING_START_ADDRESS 0x00002000L
+#define RLC_SAVE_RESTORE_ADDR_STARTING_OFFSET 0x00000000L
+#define GFX9_RLC_FORMAT_DIRECT_REG_LIST_LENGTH 34
 
 MODULE_FIRMWARE("amdgpu/vega10_ce.bin");
 MODULE_FIRMWARE("amdgpu/vega10_pfp.bin");
@@ -1677,6 +1679,169 @@ static void gfx_v9_0_enable_gui_idle_interrupt(struct amdgpu_device *adev,
 	WREG32_SOC15(GC, 0, mmCP_INT_CNTL_RING0, tmp);
 }
 
+static void gfx_v9_0_init_csb(struct amdgpu_device *adev)
+{
+	/* csib */
+	WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_CSIB_ADDR_HI),
+			adev->gfx.rlc.clear_state_gpu_addr >> 32);
+	WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_CSIB_ADDR_LO),
+			adev->gfx.rlc.clear_state_gpu_addr & 0xfffffffc);
+	WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_CSIB_LENGTH),
+			adev->gfx.rlc.clear_state_size);
+}
+
+static void gfx_v9_0_parse_ind_reg_list(int *register_list_format,
+				int indirect_offset,
+				int list_size,
+				int *unique_indirect_regs,
+				int *unique_indirect_reg_count,
+				int max_indirect_reg_count,
+				int *indirect_start_offsets,
+				int *indirect_start_offsets_count,
+				int max_indirect_start_offsets_count)
+{
+	int idx;
+	bool new_entry = true;
+
+	for (; indirect_offset < list_size; indirect_offset++) {
+
+		if (new_entry) {
+			new_entry = false;
+			indirect_start_offsets[*indirect_start_offsets_count] = indirect_offset;
+			*indirect_start_offsets_count = *indirect_start_offsets_count + 1;
+			BUG_ON(*indirect_start_offsets_count >= max_indirect_start_offsets_count);
+		}
+
+		if (register_list_format[indirect_offset] == 0xFFFFFFFF) {
+			new_entry = true;
+			continue;
+		}
+
+		indirect_offset += 2;
+
+		/* look for the matching indice */
+		for (idx = 0; idx < *unique_indirect_reg_count; idx++) {
+			if (unique_indirect_regs[idx] ==
+				register_list_format[indirect_offset])
+				break;
+		}
+
+		if (idx >= *unique_indirect_reg_count) {
+			unique_indirect_regs[*unique_indirect_reg_count] =
+				register_list_format[indirect_offset];
+			idx = *unique_indirect_reg_count;
+			*unique_indirect_reg_count = *unique_indirect_reg_count + 1;
+			BUG_ON(*unique_indirect_reg_count >= max_indirect_reg_count);
+		}
+
+		register_list_format[indirect_offset] = idx;
+	}
+}
+
+static int gfx_v9_0_init_rlc_save_restore_list(struct amdgpu_device *adev)
+{
+	int unique_indirect_regs[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+	int unique_indirect_reg_count = 0;
+
+	int indirect_start_offsets[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+	int indirect_start_offsets_count = 0;
+
+	int list_size = 0;
+	int i = 0;
+	u32 tmp = 0;
+
+	u32 *register_list_format =
+		kmalloc(adev->gfx.rlc.reg_list_format_size_bytes, GFP_KERNEL);
+	if (!register_list_format)
+		return -ENOMEM;
+	memcpy(register_list_format, adev->gfx.rlc.register_list_format,
+		adev->gfx.rlc.reg_list_format_size_bytes);
+
+	/* setup unique_indirect_regs array and indirect_start_offsets array */
+	gfx_v9_0_parse_ind_reg_list(register_list_format,
+				GFX9_RLC_FORMAT_DIRECT_REG_LIST_LENGTH,
+				adev->gfx.rlc.reg_list_format_size_bytes >> 2,
+				unique_indirect_regs,
+				&unique_indirect_reg_count,
+				sizeof(unique_indirect_regs)/sizeof(int),
+				indirect_start_offsets,
+				&indirect_start_offsets_count,
+				sizeof(indirect_start_offsets)/sizeof(int));
+
+	/* enable auto inc in case it is disabled */
+	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_SRM_CNTL));
+	tmp |= RLC_SRM_CNTL__AUTO_INCR_ADDR_MASK;
+	WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_SRM_CNTL), tmp);
+
+	/* write register_restore table to offset 0x0 using RLC_SRM_ARAM_ADDR/DATA */
+	WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_SRM_ARAM_ADDR),
+		RLC_SAVE_RESTORE_ADDR_STARTING_OFFSET);
+	for (i = 0; i < adev->gfx.rlc.reg_list_size_bytes >> 2; i++)
+		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_SRM_ARAM_DATA),
+			adev->gfx.rlc.register_restore[i]);
+
+	/* load direct register */
+	WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_SRM_ARAM_ADDR), 0);
+	for (i = 0; i < adev->gfx.rlc.reg_list_size_bytes >> 2; i++)
+		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_SRM_ARAM_DATA),
+			adev->gfx.rlc.register_restore[i]);
+
+	/* load indirect register */
+	WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_GPM_SCRATCH_ADDR),
+		adev->gfx.rlc.reg_list_format_start);
+	for (i = 0; i < adev->gfx.rlc.reg_list_format_size_bytes >> 2; i++)
+		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_GPM_SCRATCH_DATA),
+			register_list_format[i]);
+
+	/* set save/restore list size */
+	list_size = adev->gfx.rlc.reg_list_size_bytes >> 2;
+	list_size = list_size >> 1;
+	WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_GPM_SCRATCH_ADDR),
+		adev->gfx.rlc.reg_restore_list_size);
+	WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_GPM_SCRATCH_DATA), list_size);
+
+	/* write the starting offsets to RLC scratch ram */
+	WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_GPM_SCRATCH_ADDR),
+		adev->gfx.rlc.starting_offsets_start);
+	for (i = 0; i < sizeof(indirect_start_offsets)/sizeof(int); i++)
+		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_GPM_SCRATCH_DATA),
+			indirect_start_offsets[i]);
+
+	/* load unique indirect regs*/
+	for (i = 0; i < sizeof(unique_indirect_regs)/sizeof(int); i++) {
+		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_SRM_INDEX_CNTL_ADDR_0) + i,
+			unique_indirect_regs[i] & 0x3FFFF);
+		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_SRM_INDEX_CNTL_DATA_0) + i,
+			unique_indirect_regs[i] >> 20);
+	}
+
+	kfree(register_list_format);
+	return 0;
+}
+
+static void gfx_v9_0_enable_save_restore_machine(struct amdgpu_device *adev)
+{
+	u32 tmp = 0;
+
+	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_SRM_CNTL));
+	tmp |= RLC_SRM_CNTL__SRM_ENABLE_MASK;
+	WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_SRM_CNTL), tmp);
+}
+
+static void gfx_v9_0_init_pg(struct amdgpu_device *adev)
+{
+	if (adev->pg_flags & (AMD_PG_SUPPORT_GFX_PG |
+			      AMD_PG_SUPPORT_GFX_SMG |
+			      AMD_PG_SUPPORT_GFX_DMG |
+			      AMD_PG_SUPPORT_CP |
+			      AMD_PG_SUPPORT_GDS |
+			      AMD_PG_SUPPORT_RLC_SMU_HS)) {
+		gfx_v9_0_init_csb(adev);
+		gfx_v9_0_init_rlc_save_restore_list(adev);
+		gfx_v9_0_enable_save_restore_machine(adev);
+	}
+}
+
 void gfx_v9_0_rlc_stop(struct amdgpu_device *adev)
 {
 	u32 tmp = RREG32_SOC15(GC, 0, mmRLC_CNTL);
@@ -1769,6 +1934,8 @@ static int gfx_v9_0_rlc_resume(struct amdgpu_device *adev)
 	WREG32_SOC15(GC, 0, mmRLC_PG_CNTL, 0);
 
 	gfx_v9_0_rlc_reset(adev);
+
+	gfx_v9_0_init_pg(adev);
 
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
 		/* legacy rlc firmware loading */
