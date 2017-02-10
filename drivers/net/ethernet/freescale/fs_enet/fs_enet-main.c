@@ -1045,10 +1045,10 @@ out_cleanup_data:
 out_free_dev:
 	free_netdev(ndev);
 out_put:
-	of_node_put(fpi->phy_node);
 	if (fpi->clk_per)
 		clk_disable_unprepare(fpi->clk_per);
 out_deregister_fixed_link:
+	of_node_put(fpi->phy_node);
 	if (of_phy_is_fixed_link(ofdev->dev.of_node))
 		of_phy_deregister_fixed_link(ofdev->dev.of_node);
 out_free_fpi:
