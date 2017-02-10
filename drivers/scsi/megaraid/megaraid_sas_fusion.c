@@ -2438,18 +2438,12 @@ megasas_build_io_fusion(struct megasas_instance *instance,
 	return 0;
 }
 
-union MEGASAS_REQUEST_DESCRIPTOR_UNION *
+static union MEGASAS_REQUEST_DESCRIPTOR_UNION *
 megasas_get_request_descriptor(struct megasas_instance *instance, u16 index)
 {
 	u8 *p;
 	struct fusion_context *fusion;
 
-	if (index >= instance->max_mpt_cmds) {
-		dev_err(&instance->pdev->dev, "Invalid SMID (0x%x)request for "
-		       "descriptor for scsi%d\n", index,
-			instance->host->host_no);
-		return NULL;
-	}
 	fusion = instance->ctrl_context;
 	p = fusion->req_frames_desc +
 		sizeof(union MEGASAS_REQUEST_DESCRIPTOR_UNION) * index;
@@ -2960,7 +2954,7 @@ build_mpt_mfi_pass_thru(struct megasas_instance *instance,
 union MEGASAS_REQUEST_DESCRIPTOR_UNION *
 build_mpt_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd)
 {
-	union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc;
+	union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc = NULL;
 	u16 index;
 
 	if (build_mpt_mfi_pass_thru(instance, cmd)) {
@@ -2971,9 +2965,6 @@ build_mpt_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd)
 	index = cmd->context.smid;
 
 	req_desc = megasas_get_request_descriptor(instance, index - 1);
-
-	if (!req_desc)
-		return NULL;
 
 	req_desc->Words = 0;
 	req_desc->SCSIIO.RequestFlags = (MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO <<
@@ -2997,11 +2988,6 @@ megasas_issue_dcmd_fusion(struct megasas_instance *instance,
 	union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc;
 
 	req_desc = build_mpt_cmd(instance, cmd);
-	if (!req_desc) {
-		dev_info(&instance->pdev->dev, "Failed from %s %d\n",
-					__func__, __LINE__);
-		return DCMD_NOT_FIRED;
-	}
 
 	megasas_fire_cmd_fusion(instance, req_desc);
 	return DCMD_SUCCESS;
@@ -3438,12 +3424,6 @@ megasas_issue_tm(struct megasas_instance *instance, u16 device_handle,
 
 	req_desc = megasas_get_request_descriptor(instance,
 			(cmd_fusion->index - 1));
-	if (!req_desc) {
-		dev_err(&instance->pdev->dev, "Failed from %s %d\n",
-			__func__, __LINE__);
-		megasas_return_cmd(instance, cmd_mfi);
-		return -ENOMEM;
-	}
 
 	cmd_fusion->request_desc = req_desc;
 	req_desc->Words = 0;
