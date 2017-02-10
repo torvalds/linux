@@ -1220,8 +1220,6 @@ int btrfs_wait_cache_io(struct btrfs_trans_handle *trans,
  * @ctl - the free space cache we are going to write out
  * @block_group - the block_group for this cache if it belongs to a block_group
  * @trans - the trans handle
- * @path - the path to use
- * @offset - the offset for the key we'll insert
  *
  * This function writes out a free space cache struct to disk for quick recovery
  * on mount.  This will return 0 if it was successful in writing the cache out,
@@ -1231,8 +1229,7 @@ static int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 				   struct btrfs_free_space_ctl *ctl,
 				   struct btrfs_block_group_cache *block_group,
 				   struct btrfs_io_ctl *io_ctl,
-				   struct btrfs_trans_handle *trans,
-				   struct btrfs_path *path, u64 offset)
+				   struct btrfs_trans_handle *trans)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct extent_state *cached_state = NULL;
@@ -1390,8 +1387,7 @@ int btrfs_write_out_cache(struct btrfs_fs_info *fs_info,
 		return 0;
 
 	ret = __btrfs_write_out_cache(root, inode, ctl, block_group,
-				      &block_group->io_ctl, trans,
-				      path, block_group->key.objectid);
+				      &block_group->io_ctl, trans);
 	if (ret) {
 #ifdef DEBUG
 		btrfs_err(fs_info,
@@ -3538,8 +3534,7 @@ int btrfs_write_out_ino_cache(struct btrfs_root *root,
 		return 0;
 
 	memset(&io_ctl, 0, sizeof(io_ctl));
-	ret = __btrfs_write_out_cache(root, inode, ctl, NULL, &io_ctl,
-				      trans, path, 0);
+	ret = __btrfs_write_out_cache(root, inode, ctl, NULL, &io_ctl, trans);
 	if (!ret) {
 		/*
 		 * At this point writepages() didn't error out, so our metadata
