@@ -2004,7 +2004,7 @@ intel_ring_free(struct intel_ring *ring)
 	kfree(ring);
 }
 
-static int context_pin(struct i915_gem_context *ctx, unsigned int flags)
+static int context_pin(struct i915_gem_context *ctx)
 {
 	struct i915_vma *vma = ctx->engine[RCS].state;
 	int ret;
@@ -2019,7 +2019,7 @@ static int context_pin(struct i915_gem_context *ctx, unsigned int flags)
 			return ret;
 	}
 
-	return i915_vma_pin(vma, 0, ctx->ggtt_alignment, PIN_GLOBAL | flags);
+	return i915_vma_pin(vma, 0, ctx->ggtt_alignment, PIN_GLOBAL | PIN_HIGH);
 }
 
 static int intel_ring_context_pin(struct intel_engine_cs *engine,
@@ -2034,13 +2034,7 @@ static int intel_ring_context_pin(struct intel_engine_cs *engine,
 		return 0;
 
 	if (ce->state) {
-		unsigned int flags;
-
-		flags = 0;
-		if (i915_gem_context_is_kernel(ctx))
-			flags = PIN_HIGH;
-
-		ret = context_pin(ctx, flags);
+		ret = context_pin(ctx);
 		if (ret)
 			goto error;
 	}
