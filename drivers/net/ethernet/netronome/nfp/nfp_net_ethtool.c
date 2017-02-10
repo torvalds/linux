@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Netronome Systems, Inc.
+ * Copyright (C) 2015-2017 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -132,9 +132,9 @@ static void nfp_net_get_drvinfo(struct net_device *netdev,
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 
-	strlcpy(drvinfo->driver, nfp_net_driver_name, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, nfp_net_driver_version,
-		sizeof(drvinfo->version));
+	strlcpy(drvinfo->driver, nn->pdev->driver->name,
+		sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, nfp_driver_version, sizeof(drvinfo->version));
 
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		 "%d.%d.%d.%d",
