@@ -188,40 +188,35 @@ inline void megasas_return_cmd_fusion(struct megasas_instance *instance,
 
 /**
  * megasas_fire_cmd_fusion -	Sends command to the FW
+ * @instance:			Adapter soft state
+ * @req_desc:			32bit or 64bit Request descriptor
+ *
+ * Perform PCI Write. Ventura supports 32 bit Descriptor.
+ * Prior to Ventura (12G) MR controller supports 64 bit Descriptor.
  */
+
 static void
 megasas_fire_cmd_fusion(struct megasas_instance *instance,
-	union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc, bool is_32bit)
+		union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc)
 {
-	struct megasas_register_set __iomem *regs = instance->reg_set;
-	unsigned long flags;
-
-	if (is_32bit)
+	if (instance->is_ventura)
 		writel(le32_to_cpu(req_desc->u.low),
-			&(regs)->inbound_single_queue_port);
-	else if (instance->is_ventura) {
+			&instance->reg_set->inbound_single_queue_port);
+	else {
+#if defined(writeq) && defined(CONFIG_64BIT)
+		u64 req_data = (((u64)le32_to_cpu(req_desc->u.high) << 32) |
+				le32_to_cpu(req_desc->u.low));
+
+		writeq(req_data, &instance->reg_set->inbound_low_queue_port);
+#else
+		unsigned long flags;
 		spin_lock_irqsave(&instance->hba_lock, flags);
 		writel(le32_to_cpu(req_desc->u.low),
-			&(regs)->inbound_low_queue_port);
+			&instance->reg_set->inbound_low_queue_port);
 		writel(le32_to_cpu(req_desc->u.high),
-			&(regs)->inbound_high_queue_port);
+			&instance->reg_set->inbound_high_queue_port);
 		mmiowb();
 		spin_unlock_irqrestore(&instance->hba_lock, flags);
-	} else {
-#if defined(writeq) && defined(CONFIG_64BIT)
-	u64 req_data = (((u64)le32_to_cpu(req_desc->u.high) << 32) |
-			le32_to_cpu(req_desc->u.low));
-
-	writeq(req_data, &instance->reg_set->inbound_low_queue_port);
-#else
-
-	spin_lock_irqsave(&instance->hba_lock, flags);
-	writel(le32_to_cpu(req_desc->u.low),
-		&instance->reg_set->inbound_low_queue_port);
-	writel(le32_to_cpu(req_desc->u.high),
-		&instance->reg_set->inbound_high_queue_port);
-	mmiowb();
-	spin_unlock_irqrestore(&instance->hba_lock, flags);
 #endif
 	}
 }
@@ -771,6 +766,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	const char *sys_info;
 	MFI_CAPABILITIES *drv_ops;
 	u32 scratch_pad_2;
+	unsigned long flags;
 
 	fusion = instance->ctrl_context;
 
@@ -897,7 +893,14 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 			break;
 	}
 
-	megasas_fire_cmd_fusion(instance, &req_desc, false);
+	/* For Ventura also IOC INIT required 64 bit Descriptor write. */
+	spin_lock_irqsave(&instance->hba_lock, flags);
+	writel(le32_to_cpu(req_desc.u.low),
+	       &instance->reg_set->inbound_low_queue_port);
+	writel(le32_to_cpu(req_desc.u.high),
+	       &instance->reg_set->inbound_high_queue_port);
+	mmiowb();
+	spin_unlock_irqrestore(&instance->hba_lock, flags);
 
 	wait_and_poll(instance, cmd, MFI_POLL_TIMEOUT_SECS);
 
@@ -2577,11 +2580,10 @@ megasas_build_and_issue_cmd_fusion(struct megasas_instance *instance,
 	 * Issue the command to the FW
 	 */
 
-	megasas_fire_cmd_fusion(instance, req_desc, instance->is_ventura);
+	megasas_fire_cmd_fusion(instance, req_desc);
 
 	if (r1_cmd)
-		megasas_fire_cmd_fusion(instance, r1_cmd->request_desc,
-				instance->is_ventura);
+		megasas_fire_cmd_fusion(instance, r1_cmd->request_desc);
 
 
 	return 0;
@@ -3001,7 +3003,7 @@ megasas_issue_dcmd_fusion(struct megasas_instance *instance,
 		return DCMD_NOT_FIRED;
 	}
 
-	megasas_fire_cmd_fusion(instance, req_desc, instance->is_ventura);
+	megasas_fire_cmd_fusion(instance, req_desc);
 	return DCMD_SUCCESS;
 }
 
@@ -3294,8 +3296,7 @@ void megasas_refire_mgmt_cmd(struct megasas_instance *instance)
 				cpu_to_le32(MR_DCMD_SYSTEM_PD_MAP_GET_INFO)))
 				&& !(cmd_mfi->flags & DRV_DCMD_SKIP_REFIRE);
 		if (refire_cmd)
-			megasas_fire_cmd_fusion(instance, req_desc,
-				instance->is_ventura);
+			megasas_fire_cmd_fusion(instance, req_desc);
 		else
 			megasas_return_cmd(instance, cmd_mfi);
 	}
@@ -3474,7 +3475,7 @@ megasas_issue_tm(struct megasas_instance *instance, u16 device_handle,
 		mr_request->tmReqFlags.isTMForLD = 1;
 
 	init_completion(&cmd_fusion->done);
-	megasas_fire_cmd_fusion(instance, req_desc, instance->is_ventura);
+	megasas_fire_cmd_fusion(instance, req_desc);
 
 	timeleft = wait_for_completion_timeout(&cmd_fusion->done, 50 * HZ);
 
