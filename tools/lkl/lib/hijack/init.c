@@ -220,6 +220,7 @@ hijack_init(void)
 	char *offload1 = getenv("LKL_HIJACK_OFFLOAD");
 	int offload = 0;
 	char boot_cmdline[256] = "\0";
+	char *sysctls = getenv("LKL_HIJACK_SYSCTL");
 
 	memset(&nd_args, 0, sizeof(struct lkl_netdev_args));
 	if (!debug) {
@@ -436,6 +437,8 @@ hijack_init(void)
 	if (nd_ifindex >= 0 && qdisc_entries)
 		lkl_qdisc_parse_add(nd_ifindex, qdisc_entries);
 
+	if (sysctls)
+		lkl_sysctl_parse_write(sysctls);
 }
 
 void __attribute__((destructor))
