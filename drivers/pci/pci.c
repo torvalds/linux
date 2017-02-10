@@ -5082,15 +5082,6 @@ void pci_reassigndev_resource_alignment(struct pci_dev *dev)
 	u16 command;
 
 	/*
-	 * VF BARs are RO zero according to SR-IOV spec 3.4.1.11. Their
-	 * resources would be allocated when we enable them and not be
-	 * re-allocated any more. So we should never try to reassign
-	 * VF's alignment here.
-	 */
-	if (dev->is_virtfn)
-		return;
-
-	/*
 	 * VF BARs are read-only zero according to SR-IOV spec r1.1, sec
 	 * 3.4.1.11.  Their resources are allocated from the space
 	 * described by the VF BARx register in the PF's SR-IOV capability.
