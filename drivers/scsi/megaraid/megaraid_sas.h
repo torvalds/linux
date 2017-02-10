@@ -1376,7 +1376,7 @@ struct megasas_ctrl_info {
 		u16 reserved:8;
 	#endif
 		} adapter_operations4;
-	u8 pad[0x800-0x7FE]; /* 0x7FE pad to 2K for expansion */
+	u8 pad[0x800 - 0x7FE]; /* 0x7FE pad to 2K for expansion */
 } __packed;
 
 /*

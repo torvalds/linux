@@ -446,8 +446,6 @@ megasas_alloc_cmdlist_fusion(struct megasas_instance *instance)
 		return -ENOMEM;
 	}
 
-
-
 	for (i = 0; i < max_mpt_cmd; i++) {
 		fusion->cmd_list[i] = kzalloc(sizeof(struct megasas_cmd_fusion),
 					      GFP_KERNEL);
@@ -1433,8 +1431,8 @@ fail_alloc_mfi_cmds:
 
 void
 map_cmd_status(struct fusion_context *fusion,
-	struct scsi_cmnd *scmd, u8 status, u8 ext_status,
-			u32 data_length, u8 *sense)
+		struct scsi_cmnd *scmd, u8 status, u8 ext_status,
+		u32 data_length, u8 *sense)
 {
 	u8 cmd_type;
 	int resid;
@@ -2033,8 +2031,8 @@ megasas_set_pd_lba(struct MPI2_RAID_SCSI_IO_REQUEST *io_request, u8 cdb_len,
 
 /** stream detection on read and and write IOs */
 static void megasas_stream_detect(struct megasas_instance *instance,
-				struct megasas_cmd_fusion *cmd,
-				struct IO_REQUEST_INFO *io_info)
+				  struct megasas_cmd_fusion *cmd,
+				  struct IO_REQUEST_INFO *io_info)
 {
 	struct fusion_context *fusion = instance->ctrl_context;
 	u32 device_id = io_info->ldTgtId;
@@ -2048,63 +2046,59 @@ static void megasas_stream_detect(struct megasas_instance *instance,
 	struct STREAM_DETECT *current_sd;
 	/* find possible stream */
 	for (i = 0; i < MAX_STREAMS_TRACKED; ++i) {
-		stream_num =
-		(*track_stream >> (i * BITS_PER_INDEX_STREAM)) &
+		stream_num = (*track_stream >>
+			(i * BITS_PER_INDEX_STREAM)) &
 			STREAM_MASK;
 		current_sd = &current_ld_sd->stream_track[stream_num];
-	/* if we found a stream, update the raid
-	 *  context and also update the mruBitMap
-	 */
-	/*	boundary condition */
-	if ((current_sd->next_seq_lba) &&
-		(io_info->ldStartBlock >= current_sd->next_seq_lba) &&
-		(io_info->ldStartBlock <= (current_sd->next_seq_lba+32)) &&
-		(current_sd->is_read == io_info->isRead)) {
-
-		if ((io_info->ldStartBlock != current_sd->next_seq_lba)
-			&& ((!io_info->isRead) || (!is_read_ahead)))
-			/*
-			 * Once the API availible we need to change this.
-			 * At this point we are not allowing any gap
-			 */
-			continue;
-
-		SET_STREAM_DETECTED(cmd->io_request->RaidContext.raid_context_g35);
-		current_sd->next_seq_lba =
-		io_info->ldStartBlock + io_info->numBlocks;
-		/*
-		 *	update the mruBitMap LRU
+		/* if we found a stream, update the raid
+		 *  context and also update the mruBitMap
 		 */
-		shifted_values_mask =
-			(1 <<  i * BITS_PER_INDEX_STREAM) - 1;
-		shifted_values = ((*track_stream & shifted_values_mask)
-					<< BITS_PER_INDEX_STREAM);
-		index_value_mask =
-			STREAM_MASK << i * BITS_PER_INDEX_STREAM;
-		unshifted_values =
-			*track_stream & ~(shifted_values_mask |
-			index_value_mask);
-		*track_stream =
-			unshifted_values | shifted_values | stream_num;
-		return;
+		/*	boundary condition */
+		if ((current_sd->next_seq_lba) &&
+		    (io_info->ldStartBlock >= current_sd->next_seq_lba) &&
+		    (io_info->ldStartBlock <= (current_sd->next_seq_lba + 32)) &&
+		    (current_sd->is_read == io_info->isRead)) {
 
+			if ((io_info->ldStartBlock != current_sd->next_seq_lba)	&&
+			    ((!io_info->isRead) || (!is_read_ahead)))
+				/*
+				 * Once the API availible we need to change this.
+				 * At this point we are not allowing any gap
+				 */
+				continue;
+
+			SET_STREAM_DETECTED(cmd->io_request->RaidContext.raid_context_g35);
+			current_sd->next_seq_lba =
+			io_info->ldStartBlock + io_info->numBlocks;
+			/*
+			 *	update the mruBitMap LRU
+			 */
+			shifted_values_mask =
+				(1 <<  i * BITS_PER_INDEX_STREAM) - 1;
+			shifted_values = ((*track_stream & shifted_values_mask)
+						<< BITS_PER_INDEX_STREAM);
+			index_value_mask =
+				STREAM_MASK << i * BITS_PER_INDEX_STREAM;
+			unshifted_values =
+				*track_stream & ~(shifted_values_mask |
+				index_value_mask);
+			*track_stream =
+				unshifted_values | shifted_values | stream_num;
+			return;
 		}
-
 	}
 	/*
 	 * if we did not find any stream, create a new one
 	 * from the least recently used
 	 */
-	stream_num =
-	(*track_stream >> ((MAX_STREAMS_TRACKED - 1) * BITS_PER_INDEX_STREAM)) &
-			STREAM_MASK;
+	stream_num = (*track_stream >>
+		((MAX_STREAMS_TRACKED - 1) * BITS_PER_INDEX_STREAM)) &
+		STREAM_MASK;
 	current_sd = &current_ld_sd->stream_track[stream_num];
 	current_sd->is_read = io_info->isRead;
 	current_sd->next_seq_lba = io_info->ldStartBlock + io_info->numBlocks;
-	*track_stream =
-	(((*track_stream & ZERO_LAST_STREAM) << 4) | stream_num);
+	*track_stream = (((*track_stream & ZERO_LAST_STREAM) << 4) | stream_num);
 	return;
-
 }
 
 /**

@@ -904,7 +904,7 @@ struct MR_LD_RAID {
 	  */
 	struct MR_IO_AFFINITY cpuAffinity;
      /* Bit definiations are specified by MR_IO_AFFINITY */
-	u8 reserved3[0x80-0x40];    /* 0x40 - 0x7f */
+	u8 reserved3[0x80 - 0x40];    /* 0x40 - 0x7f */
 };
 
 struct MR_LD_SPAN_MAP {

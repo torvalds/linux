@@ -5343,14 +5343,14 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	memset(instance->ld_ids, 0xff, MEGASAS_MAX_LD_IDS);
 
 	/* stream detection initialization */
-	if (instance->is_ventura) {
+	if (instance->is_ventura && fusion) {
 		fusion->stream_detect_by_ld =
-		kzalloc(sizeof(struct LD_STREAM_DETECT *)
-		* MAX_LOGICAL_DRIVES_EXT,
-		GFP_KERNEL);
+			kzalloc(sizeof(struct LD_STREAM_DETECT *)
+			* MAX_LOGICAL_DRIVES_EXT,
+			GFP_KERNEL);
 		if (!fusion->stream_detect_by_ld) {
 			dev_err(&instance->pdev->dev,
-					"unable to allocate stream detection for pool of LDs\n");
+				"unable to allocate stream detection for pool of LDs\n");
 			goto fail_get_ld_pd_list;
 		}
 		for (i = 0; i < MAX_LOGICAL_DRIVES_EXT; ++i) {

@@ -197,7 +197,7 @@ void MR_PopulateDrvRaidMap(struct megasas_instance *instance)
 
 	memset(drv_map, 0, fusion->drv_map_sz);
 	memset(pDrvRaidMap->ldTgtIdToLd,
-		0xff, (sizeof(u16) * MAX_LOGICAL_DRIVES_DYN));
+	       0xff, (sizeof(u16) * MAX_LOGICAL_DRIVES_DYN));
 
 	if (instance->max_raid_mapsize) {
 		fw_map_dyn = fusion->ld_map[(instance->map_id & 1)];
@@ -224,34 +224,37 @@ void MR_PopulateDrvRaidMap(struct megasas_instance *instance)
 				fw_map_dyn->dev_hndl_info =
 				(struct MR_DEV_HANDLE_INFO *)(raid_map_data + le32_to_cpu(desc_table->raid_map_desc_offset));
 				memcpy(pDrvRaidMap->devHndlInfo,
-				fw_map_dyn->dev_hndl_info,
-				sizeof(struct MR_DEV_HANDLE_INFO) *
-				le32_to_cpu(desc_table->raid_map_desc_elements));
+					fw_map_dyn->dev_hndl_info,
+					sizeof(struct MR_DEV_HANDLE_INFO) *
+					le32_to_cpu(desc_table->raid_map_desc_elements));
 			break;
 			case RAID_MAP_DESC_TYPE_TGTID_INFO:
 				fw_map_dyn->ld_tgt_id_to_ld =
-				(u16 *) (raid_map_data +
-				le32_to_cpu(desc_table->raid_map_desc_offset));
-			for (j = 0; j < le32_to_cpu(desc_table->raid_map_desc_elements); j++) {
-				pDrvRaidMap->ldTgtIdToLd[j] =
-					le16_to_cpu(fw_map_dyn->ld_tgt_id_to_ld[j]);
-			}
+					(u16 *)(raid_map_data +
+					le32_to_cpu(desc_table->raid_map_desc_offset));
+				for (j = 0; j < le32_to_cpu(desc_table->raid_map_desc_elements); j++) {
+					pDrvRaidMap->ldTgtIdToLd[j] =
+						le16_to_cpu(fw_map_dyn->ld_tgt_id_to_ld[j]);
+				}
 			break;
 			case RAID_MAP_DESC_TYPE_ARRAY_INFO:
 				fw_map_dyn->ar_map_info =
-				(struct MR_ARRAY_INFO *)
-				(raid_map_data + le32_to_cpu(desc_table->raid_map_desc_offset));
+					(struct MR_ARRAY_INFO *)
+					(raid_map_data + le32_to_cpu(desc_table->raid_map_desc_offset));
 				memcpy(pDrvRaidMap->arMapInfo,
-				fw_map_dyn->ar_map_info,
-				sizeof(struct MR_ARRAY_INFO) * le32_to_cpu(desc_table->raid_map_desc_elements));
+				       fw_map_dyn->ar_map_info,
+				       sizeof(struct MR_ARRAY_INFO) *
+				       le32_to_cpu(desc_table->raid_map_desc_elements));
 			break;
 			case RAID_MAP_DESC_TYPE_SPAN_INFO:
 				fw_map_dyn->ld_span_map =
-				(struct MR_LD_SPAN_MAP *)
-				(raid_map_data + le32_to_cpu(desc_table->raid_map_desc_offset));
+					(struct MR_LD_SPAN_MAP *)
+					(raid_map_data +
+					le32_to_cpu(desc_table->raid_map_desc_offset));
 				memcpy(pDrvRaidMap->ldSpanMap,
-				fw_map_dyn->ld_span_map,
-				sizeof(struct MR_LD_SPAN_MAP) * le32_to_cpu(desc_table->raid_map_desc_elements));
+				       fw_map_dyn->ld_span_map,
+				       sizeof(struct MR_LD_SPAN_MAP) *
+				       le32_to_cpu(desc_table->raid_map_desc_elements));
 			break;
 			default:
 				dev_dbg(&instance->pdev->dev, "wrong number of desctableElements %d\n",
@@ -262,7 +265,7 @@ void MR_PopulateDrvRaidMap(struct megasas_instance *instance)
 
 	} else if (instance->supportmax256vd) {
 		fw_map_ext =
-		(struct MR_FW_RAID_MAP_EXT *) fusion->ld_map[(instance->map_id & 1)];
+			(struct MR_FW_RAID_MAP_EXT *)fusion->ld_map[(instance->map_id & 1)];
 		ld_count = (u16)le16_to_cpu(fw_map_ext->ldCount);
 		if (ld_count > MAX_LOGICAL_DRIVES_EXT) {
 			dev_dbg(&instance->pdev->dev, "megaraid_sas: LD count exposed in RAID map in not valid\n");
@@ -275,12 +278,12 @@ void MR_PopulateDrvRaidMap(struct megasas_instance *instance)
 			pDrvRaidMap->ldTgtIdToLd[i] =
 				(u16)fw_map_ext->ldTgtIdToLd[i];
 		memcpy(pDrvRaidMap->ldSpanMap, fw_map_ext->ldSpanMap,
-				sizeof(struct MR_LD_SPAN_MAP) * ld_count);
+		       sizeof(struct MR_LD_SPAN_MAP) * ld_count);
 		memcpy(pDrvRaidMap->arMapInfo, fw_map_ext->arMapInfo,
-			sizeof(struct MR_ARRAY_INFO) * MAX_API_ARRAYS_EXT);
+		       sizeof(struct MR_ARRAY_INFO) * MAX_API_ARRAYS_EXT);
 		memcpy(pDrvRaidMap->devHndlInfo, fw_map_ext->devHndlInfo,
-			sizeof(struct MR_DEV_HANDLE_INFO) *
-					MAX_RAIDMAP_PHYSICAL_DEVICES);
+		       sizeof(struct MR_DEV_HANDLE_INFO) *
+		       MAX_RAIDMAP_PHYSICAL_DEVICES);
 
 		/* New Raid map will not set totalSize, so keep expected value
 		 * for legacy code in ValidateMapInfo
@@ -347,7 +350,7 @@ u8 MR_ValidateMapInfo(struct megasas_instance *instance)
 		dev_dbg(&instance->pdev->dev, "megasas: map info structure size 0x%x",
 			le32_to_cpu(pDrvRaidMap->totalSize));
 		dev_dbg(&instance->pdev->dev, "is not matching expected size 0x%x\n",
-			(unsigned int) expected_size);
+			(unsigned int)expected_size);
 		dev_err(&instance->pdev->dev, "megasas: span map %x, pDrvRaidMap->totalSize : %x\n",
 			(unsigned int)sizeof(struct MR_LD_SPAN_MAP),
 			le32_to_cpu(pDrvRaidMap->totalSize));
@@ -770,7 +773,7 @@ static u8 mr_spanset_get_phy_params(struct megasas_instance *instance, u32 ld,
 
 	*pdBlock += stripRef + le64_to_cpu(MR_LdSpanPtrGet(ld, span, map)->startBlk);
 	if (instance->is_ventura) {
-		((struct RAID_CONTEXT_G35 *) pRAID_Context)->span_arm =
+		((struct RAID_CONTEXT_G35 *)pRAID_Context)->span_arm =
 			(span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
 		io_info->span_arm =
 			(span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
@@ -888,7 +891,7 @@ u8 MR_GetPhyParams(struct megasas_instance *instance, u32 ld, u64 stripRow,
 
 	*pdBlock += stripRef + le64_to_cpu(MR_LdSpanPtrGet(ld, span, map)->startBlk);
 	if (instance->is_ventura) {
-		((struct RAID_CONTEXT_G35 *) pRAID_Context)->span_arm =
+		((struct RAID_CONTEXT_G35 *)pRAID_Context)->span_arm =
 				(span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
 		io_info->span_arm =
 				(span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
@@ -1329,7 +1332,7 @@ u8 megasas_get_best_arm_pd(struct megasas_instance *instance,
 		 *  keep driver in sync with Firmware
 		 */
 		if ((bestArm == arm && pend0 > pend1 + lb_pending_cmds)  ||
-			(bestArm != arm && pend1 > pend0 + lb_pending_cmds))
+		    (bestArm != arm && pend1 > pend0 + lb_pending_cmds))
 			bestArm ^= 1;
 
 		/* Update the last accessed block on the correct pd */
