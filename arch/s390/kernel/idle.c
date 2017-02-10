@@ -57,8 +57,8 @@ static ssize_t show_idle_count(struct device *dev,
 
 	do {
 		seq = read_seqcount_begin(&idle->seqcount);
-		idle_count = ACCESS_ONCE(idle->idle_count);
-		if (ACCESS_ONCE(idle->clock_idle_enter))
+		idle_count = READ_ONCE(idle->idle_count);
+		if (READ_ONCE(idle->clock_idle_enter))
 			idle_count++;
 	} while (read_seqcount_retry(&idle->seqcount, seq));
 	return sprintf(buf, "%llu\n", idle_count);
@@ -75,9 +75,9 @@ static ssize_t show_idle_time(struct device *dev,
 	do {
 		now = get_tod_clock();
 		seq = read_seqcount_begin(&idle->seqcount);
-		idle_time = ACCESS_ONCE(idle->idle_time);
-		idle_enter = ACCESS_ONCE(idle->clock_idle_enter);
-		idle_exit = ACCESS_ONCE(idle->clock_idle_exit);
+		idle_time = READ_ONCE(idle->idle_time);
+		idle_enter = READ_ONCE(idle->clock_idle_enter);
+		idle_exit = READ_ONCE(idle->clock_idle_exit);
 	} while (read_seqcount_retry(&idle->seqcount, seq));
 	idle_time += idle_enter ? ((idle_exit ? : now) - idle_enter) : 0;
 	return sprintf(buf, "%llu\n", idle_time >> 12);
@@ -93,8 +93,8 @@ cputime64_t arch_cpu_idle_time(int cpu)
 	do {
 		now = get_tod_clock();
 		seq = read_seqcount_begin(&idle->seqcount);
-		idle_enter = ACCESS_ONCE(idle->clock_idle_enter);
-		idle_exit = ACCESS_ONCE(idle->clock_idle_exit);
+		idle_enter = READ_ONCE(idle->clock_idle_enter);
+		idle_exit = READ_ONCE(idle->clock_idle_exit);
 	} while (read_seqcount_retry(&idle->seqcount, seq));
 	return idle_enter ? ((idle_exit ?: now) - idle_enter) : 0;
 }
