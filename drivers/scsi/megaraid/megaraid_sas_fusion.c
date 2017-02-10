@@ -1482,21 +1482,261 @@ map_cmd_status(struct fusion_context *fusion,
 }
 
 /**
+ * megasas_is_prp_possible -
+ * Checks if native NVMe PRPs can be built for the IO
+ *
+ * @instance:		Adapter soft state
+ * @scmd:		SCSI command from the mid-layer
+ * @sge_count:		scatter gather element count.
+ *
+ * Returns:		true: PRPs can be built
+ *			false: IEEE SGLs needs to be built
+ */
+static bool
+megasas_is_prp_possible(struct megasas_instance *instance,
+			struct scsi_cmnd *scmd, int sge_count)
+{
+	struct fusion_context *fusion;
+	int i;
+	u32 data_length = 0;
+	struct scatterlist *sg_scmd;
+	bool build_prp = false;
+	u32 mr_nvme_pg_size;
+
+	mr_nvme_pg_size = max_t(u32, instance->nvme_page_size,
+				MR_DEFAULT_NVME_PAGE_SIZE);
+	fusion = instance->ctrl_context;
+	data_length = scsi_bufflen(scmd);
+	sg_scmd = scsi_sglist(scmd);
+
+	/*
+	 * NVMe uses one PRP for each page (or part of a page)
+	 * look at the data length - if 4 pages or less then IEEE is OK
+	 * if  > 5 pages then we need to build a native SGL
+	 * if > 4 and <= 5 pages, then check physical address of 1st SG entry
+	 * if this first size in the page is >= the residual beyond 4 pages
+	 * then use IEEE, otherwise use native SGL
+	 */
+
+	if (data_length > (mr_nvme_pg_size * 5)) {
+		build_prp = true;
+	} else if ((data_length > (mr_nvme_pg_size * 4)) &&
+			(data_length <= (mr_nvme_pg_size * 5)))  {
+		/* check if 1st SG entry size is < residual beyond 4 pages */
+		if (sg_dma_len(sg_scmd) < (data_length - (mr_nvme_pg_size * 4)))
+			build_prp = true;
+	}
+
+/*
+ * Below code detects gaps/holes in IO data buffers.
+ * What does holes/gaps mean?
+ * Any SGE except first one in a SGL starts at non NVME page size
+ * aligned address OR Any SGE except last one in a SGL ends at
+ * non NVME page size boundary.
+ *
+ * Driver has already informed block layer by setting boundary rules for
+ * bio merging done at NVME page size boundary calling kernel API
+ * blk_queue_virt_boundary inside slave_config.
+ * Still there is possibility of IO coming with holes to driver because of
+ * IO merging done by IO scheduler.
+ *
+ * With SCSI BLK MQ enabled, there will be no IO with holes as there is no
+ * IO scheduling so no IO merging.
+ *
+ * With SCSI BLK MQ disabled, IO scheduler may attempt to merge IOs and
+ * then sending IOs with holes.
+ *
+ * Though driver can request block layer to disable IO merging by calling-
+ * queue_flag_set_unlocked(QUEUE_FLAG_NOMERGES, sdev->request_queue) but
+ * user may tune sysfs parameter- nomerges again to 0 or 1.
+ *
+ * If in future IO scheduling is enabled with SCSI BLK MQ,
+ * this algorithm to detect holes will be required in driver
+ * for SCSI BLK MQ enabled case as well.
+ *
+ *
+ */
+	scsi_for_each_sg(scmd, sg_scmd, sge_count, i) {
+		if ((i != 0) && (i != (sge_count - 1))) {
+			if (mega_mod64(sg_dma_len(sg_scmd), mr_nvme_pg_size) ||
+			    mega_mod64(sg_dma_address(sg_scmd),
+				       mr_nvme_pg_size)) {
+				build_prp = false;
+				atomic_inc(&instance->sge_holes_type1);
+				break;
+			}
+		}
+
+		if ((sge_count > 1) && (i == 0)) {
+			if ((mega_mod64((sg_dma_address(sg_scmd) +
+					sg_dma_len(sg_scmd)),
+					mr_nvme_pg_size))) {
+				build_prp = false;
+				atomic_inc(&instance->sge_holes_type2);
+				break;
+			}
+		}
+
+		if ((sge_count > 1) && (i == (sge_count - 1))) {
+			if (mega_mod64(sg_dma_address(sg_scmd),
+				       mr_nvme_pg_size)) {
+				build_prp = false;
+				atomic_inc(&instance->sge_holes_type3);
+				break;
+			}
+		}
+	}
+
+	return build_prp;
+}
+
+/**
+ * megasas_make_prp_nvme -
+ * Prepare PRPs(Physical Region Page)- SGLs specific to NVMe drives only
+ *
+ * @instance:		Adapter soft state
+ * @scmd:		SCSI command from the mid-layer
+ * @sgl_ptr:		SGL to be filled in
+ * @cmd:		Fusion command frame
+ * @sge_count:		scatter gather element count.
+ *
+ * Returns:		true: PRPs are built
+ *			false: IEEE SGLs needs to be built
+ */
+static bool
+megasas_make_prp_nvme(struct megasas_instance *instance, struct scsi_cmnd *scmd,
+		      struct MPI25_IEEE_SGE_CHAIN64 *sgl_ptr,
+		      struct megasas_cmd_fusion *cmd, int sge_count)
+{
+	int sge_len, offset, num_prp_in_chain = 0;
+	struct MPI25_IEEE_SGE_CHAIN64 *main_chain_element, *ptr_first_sgl;
+	u64 *ptr_sgl, *ptr_sgl_phys;
+	u64 sge_addr;
+	u32 page_mask, page_mask_result;
+	struct scatterlist *sg_scmd;
+	u32 first_prp_len;
+	bool build_prp = false;
+	int data_len = scsi_bufflen(scmd);
+	struct fusion_context *fusion;
+	u32 mr_nvme_pg_size = max_t(u32, instance->nvme_page_size,
+					MR_DEFAULT_NVME_PAGE_SIZE);
+
+	fusion = instance->ctrl_context;
+
+	build_prp = megasas_is_prp_possible(instance, scmd, sge_count);
+
+	if (!build_prp)
+		return false;
+
+	/*
+	 * Nvme has a very convoluted prp format.  One prp is required
+	 * for each page or partial page. Driver need to split up OS sg_list
+	 * entries if it is longer than one page or cross a page
+	 * boundary.  Driver also have to insert a PRP list pointer entry as
+	 * the last entry in each physical page of the PRP list.
+	 *
+	 * NOTE: The first PRP "entry" is actually placed in the first
+	 * SGL entry in the main message as IEEE 64 format.  The 2nd
+	 * entry in the main message is the chain element, and the rest
+	 * of the PRP entries are built in the contiguous pcie buffer.
+	 */
+	page_mask = mr_nvme_pg_size - 1;
+	ptr_sgl = (u64 *)cmd->sg_frame;
+	ptr_sgl_phys = (u64 *)cmd->sg_frame_phys_addr;
+	memset(ptr_sgl, 0, instance->max_chain_frame_sz);
+
+	/* Build chain frame element which holds all prps except first*/
+	main_chain_element = (struct MPI25_IEEE_SGE_CHAIN64 *)
+	    ((u8 *)sgl_ptr + sizeof(struct MPI25_IEEE_SGE_CHAIN64));
+
+	main_chain_element->Address = cpu_to_le64((uintptr_t)ptr_sgl_phys);
+	main_chain_element->NextChainOffset = 0;
+	main_chain_element->Flags = IEEE_SGE_FLAGS_CHAIN_ELEMENT |
+					IEEE_SGE_FLAGS_SYSTEM_ADDR |
+					MPI26_IEEE_SGE_FLAGS_NSF_NVME_PRP;
+
+	/* Build first prp, sge need not to be page aligned*/
+	ptr_first_sgl = sgl_ptr;
+	sg_scmd = scsi_sglist(scmd);
+	sge_addr = sg_dma_address(sg_scmd);
+	sge_len = sg_dma_len(sg_scmd);
+
+	offset = (u32)(sge_addr & page_mask);
+	first_prp_len = mr_nvme_pg_size - offset;
+
+	ptr_first_sgl->Address = cpu_to_le64(sge_addr);
+	ptr_first_sgl->Length = cpu_to_le32(first_prp_len);
+
+	data_len -= first_prp_len;
+
+	if (sge_len > first_prp_len) {
+		sge_addr += first_prp_len;
+		sge_len -= first_prp_len;
+	} else if (sge_len == first_prp_len) {
+		sg_scmd = sg_next(sg_scmd);
+		sge_addr = sg_dma_address(sg_scmd);
+		sge_len = sg_dma_len(sg_scmd);
+	}
+
+	for (;;) {
+		offset = (u32)(sge_addr & page_mask);
+
+		/* Put PRP pointer due to page boundary*/
+		page_mask_result = (uintptr_t)(ptr_sgl + 1) & page_mask;
+		if (unlikely(!page_mask_result)) {
+			scmd_printk(KERN_NOTICE,
+				    scmd, "page boundary ptr_sgl: 0x%p\n",
+				    ptr_sgl);
+			ptr_sgl_phys++;
+			*ptr_sgl =
+				cpu_to_le64((uintptr_t)ptr_sgl_phys);
+			ptr_sgl++;
+			num_prp_in_chain++;
+		}
+
+		*ptr_sgl = cpu_to_le64(sge_addr);
+		ptr_sgl++;
+		ptr_sgl_phys++;
+		num_prp_in_chain++;
+
+		sge_addr += mr_nvme_pg_size;
+		sge_len -= mr_nvme_pg_size;
+		data_len -= mr_nvme_pg_size;
+
+		if (data_len <= 0)
+			break;
+
+		if (sge_len > 0)
+			continue;
+
+		sg_scmd = sg_next(sg_scmd);
+		sge_addr = sg_dma_address(sg_scmd);
+		sge_len = sg_dma_len(sg_scmd);
+	}
+
+	main_chain_element->Length =
+			cpu_to_le32(num_prp_in_chain * sizeof(u64));
+
+	atomic_inc(&instance->prp_sgl);
+	return build_prp;
+}
+
+/**
  * megasas_make_sgl_fusion -	Prepares 32-bit SGL
  * @instance:		Adapter soft state
  * @scp:		SCSI command from the mid-layer
  * @sgl_ptr:		SGL to be filled in
  * @cmd:		cmd we are working on
+ * @sge_count		sge count
  *
- * If successful, this function returns the number of SG elements.
  */
-static int
+static void
 megasas_make_sgl_fusion(struct megasas_instance *instance,
 			struct scsi_cmnd *scp,
 			struct MPI25_IEEE_SGE_CHAIN64 *sgl_ptr,
-			struct megasas_cmd_fusion *cmd)
+			struct megasas_cmd_fusion *cmd, int sge_count)
 {
-	int i, sg_processed, sge_count;
+	int i, sg_processed;
 	struct scatterlist *os_sgl;
 	struct fusion_context *fusion;
 
@@ -1508,13 +1748,6 @@ megasas_make_sgl_fusion(struct megasas_instance *instance,
 		sgl_ptr_end->Flags = 0;
 	}
 
-	sge_count = scsi_dma_map(scp);
-
-	BUG_ON(sge_count < 0);
-
-	if (sge_count > instance->max_num_sge || !sge_count)
-		return sge_count;
-
 	scsi_for_each_sg(scp, os_sgl, sge_count, i) {
 		sgl_ptr->Length = cpu_to_le32(sg_dma_len(os_sgl));
 		sgl_ptr->Address = cpu_to_le64(sg_dma_address(os_sgl));
@@ -1523,7 +1756,6 @@ megasas_make_sgl_fusion(struct megasas_instance *instance,
 			if (i == sge_count - 1)
 				sgl_ptr->Flags = IEEE_SGE_FLAGS_END_OF_LIST;
 		sgl_ptr++;
-
 		sg_processed = i + 1;
 
 		if ((sg_processed ==  (fusion->max_sge_in_main_msg - 1)) &&
@@ -1560,6 +1792,45 @@ megasas_make_sgl_fusion(struct megasas_instance *instance,
 			memset(sgl_ptr, 0, instance->max_chain_frame_sz);
 		}
 	}
+	atomic_inc(&instance->ieee_sgl);
+}
+
+/**
+ * megasas_make_sgl -	Build Scatter Gather List(SGLs)
+ * @scp:		SCSI command pointer
+ * @instance:		Soft instance of controller
+ * @cmd:		Fusion command pointer
+ *
+ * This function will build sgls based on device type.
+ * For nvme drives, there is different way of building sgls in nvme native
+ * format- PRPs(Physical Region Page).
+ *
+ * Returns the number of sg lists actually used, zero if the sg lists
+ * is NULL, or -ENOMEM if the mapping failed
+ */
+static
+int megasas_make_sgl(struct megasas_instance *instance, struct scsi_cmnd *scp,
+		     struct megasas_cmd_fusion *cmd)
+{
+	int sge_count;
+	bool build_prp = false;
+	struct MPI25_IEEE_SGE_CHAIN64 *sgl_chain64;
+
+	sge_count = scsi_dma_map(scp);
+
+	if ((sge_count > instance->max_num_sge) || (sge_count <= 0))
+		return sge_count;
+
+	sgl_chain64 = (struct MPI25_IEEE_SGE_CHAIN64 *)&cmd->io_request->SGL;
+	if ((le16_to_cpu(cmd->io_request->IoFlags) &
+	    MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH) &&
+	    (cmd->pd_interface == NVME_PD))
+		build_prp = megasas_make_prp_nvme(instance, scp, sgl_chain64,
+						  cmd, sge_count);
+
+	if (!build_prp)
+		megasas_make_sgl_fusion(instance, scp, sgl_chain64,
+					cmd, sge_count);
 
 	return sge_count;
 }
@@ -2084,7 +2355,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 			io_info.devHandle =
 				get_updated_dev_handle(instance,
 					&fusion->load_balance_info[device_id],
-					&io_info);
+					&io_info, local_map_ptr);
 			scp->SCp.Status |= MEGASAS_LOAD_BALANCE_FLAG;
 			cmd->pd_r1_lb = io_info.pd_after_lb;
 			if (instance->is_ventura)
@@ -2111,6 +2382,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 
 		cmd->request_desc->SCSIIO.DevHandle = io_info.devHandle;
 		io_request->DevHandle = io_info.devHandle;
+		cmd->pd_interface = io_info.pd_interface;
 		/* populate the LUN field */
 		memcpy(io_request->LUN, raidLUN, 8);
 	} else {
@@ -2253,12 +2525,15 @@ megasas_build_syspd_fusion(struct megasas_instance *instance,
 	struct MR_DRV_RAID_MAP_ALL *local_map_ptr;
 	struct RAID_CONTEXT	*pRAID_Context;
 	struct MR_PD_CFG_SEQ_NUM_SYNC *pd_sync;
+	struct MR_PRIV_DEVICE *mr_device_priv_data;
 	struct fusion_context *fusion = instance->ctrl_context;
 	pd_sync = (void *)fusion->pd_seq_sync[(instance->pd_seq_map_id - 1) & 1];
 
 	device_id = MEGASAS_DEV_INDEX(scmd);
 	pd_index = MEGASAS_PD_INDEX(scmd);
 	os_timeout_value = scmd->request->timeout / HZ;
+	mr_device_priv_data = scmd->device->hostdata;
+	cmd->pd_interface = mr_device_priv_data->interface_type;
 
 	io_request = cmd->io_request;
 	/* get RAID_Context pointer */
@@ -2352,7 +2627,7 @@ megasas_build_io_fusion(struct megasas_instance *instance,
 			struct scsi_cmnd *scp,
 			struct megasas_cmd_fusion *cmd)
 {
-	u16 sge_count;
+	int sge_count;
 	u8  cmd_type;
 	struct MPI2_RAID_SCSI_IO_REQUEST *io_request = cmd->io_request;
 
@@ -2398,15 +2673,12 @@ megasas_build_io_fusion(struct megasas_instance *instance,
 	 * Construct SGL
 	 */
 
-	sge_count =
-		megasas_make_sgl_fusion(instance, scp,
-					(struct MPI25_IEEE_SGE_CHAIN64 *)
-					&io_request->SGL, cmd);
+	sge_count = megasas_make_sgl(instance, scp, cmd);
 
-	if (sge_count > instance->max_num_sge) {
-		dev_err(&instance->pdev->dev, "Error. sge_count (0x%x) exceeds "
-		       "max (0x%x) allowed\n", sge_count,
-		       instance->max_num_sge);
+	if (sge_count > instance->max_num_sge || (sge_count < 0)) {
+		dev_err(&instance->pdev->dev,
+			"%s %d sge_count (%d) is out of range. Range is:  0-%d\n",
+			__func__, __LINE__, sge_count, instance->max_num_sge);
 		return 1;
 	}
 

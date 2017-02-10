@@ -702,7 +702,7 @@ struct MPI2_IOC_INIT_REQUEST {
 struct MR_DEV_HANDLE_INFO {
 	__le16	curDevHdl;
 	u8      validHandles;
-	u8      reserved;
+	u8      interfaceType;
 	__le16	devHandle[2];
 };
 
@@ -914,6 +914,7 @@ struct IO_REQUEST_INFO {
 	u16 ldTgtId;
 	u8 isRead;
 	__le16 devHandle;
+	u8 pd_interface;
 	u64 pdBlock;
 	u8 fpOkForIo;
 	u8 IoforUnevenSpan;
@@ -1025,6 +1026,16 @@ struct MR_FW_RAID_MAP_DYNAMIC {
 #define IEEE_SGE_FLAGS_CHAIN_ELEMENT        (0x80)
 #define IEEE_SGE_FLAGS_END_OF_LIST          (0x40)
 
+#define MPI2_SGE_FLAGS_SHIFT                (0x02)
+#define IEEE_SGE_FLAGS_FORMAT_MASK          (0xC0)
+#define IEEE_SGE_FLAGS_FORMAT_IEEE          (0x00)
+#define IEEE_SGE_FLAGS_FORMAT_NVME          (0x02)
+
+#define MPI26_IEEE_SGE_FLAGS_NSF_MASK           (0x1C)
+#define MPI26_IEEE_SGE_FLAGS_NSF_MPI_IEEE       (0x00)
+#define MPI26_IEEE_SGE_FLAGS_NSF_NVME_PRP       (0x08)
+#define MPI26_IEEE_SGE_FLAGS_NSF_NVME_SGL       (0x10)
+
 struct megasas_register_set;
 struct megasas_instance;
 
@@ -1061,6 +1072,7 @@ struct megasas_cmd_fusion {
 	u32 index;
 	u8 pd_r1_lb;
 	struct completion done;
+	u8 pd_interface;
 	u16 r1_alt_dev_handle; /* raid 1/10 only*/
 	bool cmd_completed;  /* raid 1/10 fp writes status holder */
 

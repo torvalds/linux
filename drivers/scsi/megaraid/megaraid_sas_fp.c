@@ -155,6 +155,11 @@ __le16 MR_PdDevHandleGet(u32 pd, struct MR_DRV_RAID_MAP_ALL *map)
 	return map->raidMap.devHndlInfo[pd].curDevHdl;
 }
 
+static u8 MR_PdInterfaceTypeGet(u32 pd, struct MR_DRV_RAID_MAP_ALL *map)
+{
+	return map->raidMap.devHndlInfo[pd].interfaceType;
+}
+
 u16 MR_GetLDTgtId(u32 ld, struct MR_DRV_RAID_MAP_ALL *map)
 {
 	return le16_to_cpu(map->raidMap.ldSpanMap[ld].ldRaid.targetId);
@@ -929,6 +934,7 @@ static u8 mr_spanset_get_phy_params(struct megasas_instance *instance, u32 ld,
 	u8	retval = TRUE;
 	u64	*pdBlock = &io_info->pdBlock;
 	__le16	*pDevHandle = &io_info->devHandle;
+	u8	*pPdInterface = &io_info->pd_interface;
 	u32	logArm, rowMod, armQ, arm;
 	struct fusion_context *fusion;
 
@@ -960,15 +966,18 @@ static u8 mr_spanset_get_phy_params(struct megasas_instance *instance, u32 ld,
 
 	if (pd != MR_PD_INVALID) {
 		*pDevHandle = MR_PdDevHandleGet(pd, map);
+		*pPdInterface = MR_PdInterfaceTypeGet(pd, map);
 		/* get second pd also for raid 1/10 fast path writes*/
-		if (raid->level == 1) {
+		if (instance->is_ventura &&
+		    (raid->level == 1) &&
+		    !io_info->isRead) {
 			r1_alt_pd = MR_ArPdGet(arRef, physArm + 1, map);
 			if (r1_alt_pd != MR_PD_INVALID)
 				io_info->r1_alt_dev_handle =
 				MR_PdDevHandleGet(r1_alt_pd, map);
 		}
 	} else {
-		*pDevHandle = cpu_to_le16(MR_PD_INVALID);
+		*pDevHandle = cpu_to_le16(MR_DEVHANDLE_INVALID);
 		if ((raid->level >= 5) &&
 			((fusion->adapter_type == THUNDERBOLT_SERIES)  ||
 			((fusion->adapter_type == INVADER_SERIES) &&
@@ -977,8 +986,10 @@ static u8 mr_spanset_get_phy_params(struct megasas_instance *instance, u32 ld,
 		else if (raid->level == 1) {
 			physArm = physArm + 1;
 			pd = MR_ArPdGet(arRef, physArm, map);
-			if (pd != MR_PD_INVALID)
+			if (pd != MR_PD_INVALID) {
 				*pDevHandle = MR_PdDevHandleGet(pd, map);
+				*pPdInterface = MR_PdInterfaceTypeGet(pd, map);
+			}
 		}
 	}
 
@@ -1025,6 +1036,7 @@ u8 MR_GetPhyParams(struct megasas_instance *instance, u32 ld, u64 stripRow,
 	u8	    retval = TRUE;
 	u64	    *pdBlock = &io_info->pdBlock;
 	__le16	    *pDevHandle = &io_info->devHandle;
+	u8	    *pPdInterface = &io_info->pd_interface;
 	struct fusion_context *fusion;
 
 	fusion = instance->ctrl_context;
@@ -1070,16 +1082,19 @@ u8 MR_GetPhyParams(struct megasas_instance *instance, u32 ld, u64 stripRow,
 	if (pd != MR_PD_INVALID) {
 		/* Get dev handle from Pd. */
 		*pDevHandle = MR_PdDevHandleGet(pd, map);
+		*pPdInterface = MR_PdInterfaceTypeGet(pd, map);
 		/* get second pd also for raid 1/10 fast path writes*/
-		if (raid->level == 1) {
+		if (instance->is_ventura &&
+		    (raid->level == 1) &&
+		    !io_info->isRead) {
 			r1_alt_pd = MR_ArPdGet(arRef, physArm + 1, map);
 			if (r1_alt_pd != MR_PD_INVALID)
 				io_info->r1_alt_dev_handle =
-				MR_PdDevHandleGet(r1_alt_pd, map);
+					MR_PdDevHandleGet(r1_alt_pd, map);
 		}
 	} else {
 		/* set dev handle as invalid. */
-		*pDevHandle = cpu_to_le16(MR_PD_INVALID);
+		*pDevHandle = cpu_to_le16(MR_DEVHANDLE_INVALID);
 		if ((raid->level >= 5) &&
 			((fusion->adapter_type == THUNDERBOLT_SERIES)  ||
 			((fusion->adapter_type == INVADER_SERIES) &&
@@ -1089,9 +1104,11 @@ u8 MR_GetPhyParams(struct megasas_instance *instance, u32 ld, u64 stripRow,
 			/* Get alternate Pd. */
 			physArm = physArm + 1;
 			pd = MR_ArPdGet(arRef, physArm, map);
-			if (pd != MR_PD_INVALID)
+			if (pd != MR_PD_INVALID) {
 				/* Get dev handle from Pd */
 				*pDevHandle = MR_PdDevHandleGet(pd, map);
+				*pPdInterface = MR_PdInterfaceTypeGet(pd, map);
+			}
 		}
 	}
 
@@ -1509,11 +1526,11 @@ void mr_update_load_balance_params(struct MR_DRV_RAID_MAP_ALL *drv_map,
 }
 
 u8 megasas_get_best_arm_pd(struct megasas_instance *instance,
-	struct LD_LOAD_BALANCE_INFO *lbInfo, struct IO_REQUEST_INFO *io_info)
+			   struct LD_LOAD_BALANCE_INFO *lbInfo,
+			   struct IO_REQUEST_INFO *io_info,
+			   struct MR_DRV_RAID_MAP_ALL *drv_map)
 {
-	struct fusion_context *fusion;
 	struct MR_LD_RAID  *raid;
-	struct MR_DRV_RAID_MAP_ALL *drv_map;
 	u16	pd1_dev_handle;
 	u16     pend0, pend1, ld;
 	u64     diff0, diff1;
@@ -1527,9 +1544,6 @@ u8 megasas_get_best_arm_pd(struct megasas_instance *instance,
 			>> RAID_CTX_SPANARM_SPAN_SHIFT);
 	arm = (io_info->span_arm & RAID_CTX_SPANARM_ARM_MASK);
 
-
-	fusion = instance->ctrl_context;
-	drv_map = fusion->ld_drv_map[(instance->map_id & 1)];
 	ld = MR_TargetIdToLdGet(io_info->ldTgtId, drv_map);
 	raid = MR_LdRaidGet(ld, drv_map);
 	span_row_size = instance->UnevenSpanSupport ?
@@ -1544,7 +1558,7 @@ u8 megasas_get_best_arm_pd(struct megasas_instance *instance,
 
 	pd1_dev_handle = MR_PdDevHandleGet(pd1, drv_map);
 
-	if (pd1_dev_handle == MR_PD_INVALID) {
+	if (pd1_dev_handle == MR_DEVHANDLE_INVALID) {
 		bestArm = arm;
 	} else {
 		/* get the pending cmds for the data and mirror arms */
@@ -1581,19 +1595,18 @@ u8 megasas_get_best_arm_pd(struct megasas_instance *instance,
 }
 
 __le16 get_updated_dev_handle(struct megasas_instance *instance,
-	struct LD_LOAD_BALANCE_INFO *lbInfo, struct IO_REQUEST_INFO *io_info)
+			      struct LD_LOAD_BALANCE_INFO *lbInfo,
+			      struct IO_REQUEST_INFO *io_info,
+			      struct MR_DRV_RAID_MAP_ALL *drv_map)
 {
 	u8 arm_pd;
 	__le16 devHandle;
-	struct fusion_context *fusion;
-	struct MR_DRV_RAID_MAP_ALL *drv_map;
-
-	fusion = instance->ctrl_context;
-	drv_map = fusion->ld_drv_map[(instance->map_id & 1)];
 
 	/* get best new arm (PD ID) */
-	arm_pd  = megasas_get_best_arm_pd(instance, lbInfo, io_info);
+	arm_pd  = megasas_get_best_arm_pd(instance, lbInfo, io_info, drv_map);
 	devHandle = MR_PdDevHandleGet(arm_pd, drv_map);
+	io_info->pd_interface = MR_PdInterfaceTypeGet(arm_pd, drv_map);
 	atomic_inc(&lbInfo->scsi_pending_cmds[arm_pd]);
+
 	return devHandle;
 }
