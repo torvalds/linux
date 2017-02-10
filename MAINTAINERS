@@ -2808,6 +2808,17 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm64/boot/dts/broadcom/vulcan*
 
+BROADCOM NETXTREME-E ROCE DRIVER
+M:	Selvin Xavier <selvin.xavier@broadcom.com>
+M:	Devesh Sharma <devesh.sharma@broadcom.com>
+M:	Somnath Kotur <somnath.kotur@broadcom.com>
+M:	Sriharsha Basavapatna <sriharsha.basavapatna@broadcom.com>
+L:	linux-rdma@vger.kernel.org
+W:	http://www.broadcom.com
+S:	Supported
+F:	drivers/infiniband/hw/bnxt_re/
+F:	include/uapi/rdma/bnxt_re-abi.h
+
 BROCADE BFA FC SCSI DRIVER
 M:	Anil Gurumurthy <anil.gurumurthy@qlogic.com>
 M:	Sudarsana Kalluru <sudarsana.kalluru@qlogic.com>
