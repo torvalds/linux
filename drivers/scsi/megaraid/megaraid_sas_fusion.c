@@ -47,6 +47,7 @@
 #include <linux/blkdev.h>
 #include <linux/mutex.h>
 #include <linux/poll.h>
+#include <linux/vmalloc.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -2397,8 +2398,9 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 			io_request->IoFlags |=
 			cpu_to_le16(MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH);
 		}
-		if ((fusion->load_balance_info[device_id].loadBalanceFlag) &&
-		    (io_info.isRead)) {
+		if (fusion->load_balance_info &&
+			(fusion->load_balance_info[device_id].loadBalanceFlag) &&
+			(io_info.isRead)) {
 			io_info.devHandle =
 				get_updated_dev_handle(instance,
 					&fusion->load_balance_info[device_id],
@@ -4270,9 +4272,10 @@ transition_to_ready:
 				retval = FAILED;
 			}
 			/* Reset load balance info */
-			memset(fusion->load_balance_info, 0,
-			       sizeof(struct LD_LOAD_BALANCE_INFO)
-			       *MAX_LOGICAL_DRIVES_EXT);
+			if (fusion->load_balance_info)
+				memset(fusion->load_balance_info, 0,
+				       (sizeof(struct LD_LOAD_BALANCE_INFO) *
+				       MAX_LOGICAL_DRIVES_EXT));
 
 			if (!megasas_get_map_info(instance))
 				megasas_sync_map_info(instance);
@@ -4424,6 +4427,64 @@ void megasas_fusion_ocr_wq(struct work_struct *work)
 		container_of(work, struct megasas_instance, work_init);
 
 	megasas_reset_fusion(instance->host, 0);
+}
+
+/* Allocate fusion context */
+int
+megasas_alloc_fusion_context(struct megasas_instance *instance)
+{
+	struct fusion_context *fusion;
+
+	instance->ctrl_context_pages = get_order(sizeof(struct fusion_context));
+	instance->ctrl_context = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+		instance->ctrl_context_pages);
+	if (!instance->ctrl_context) {
+		/* fall back to using vmalloc for fusion_context */
+		instance->ctrl_context = vzalloc(sizeof(struct fusion_context));
+		if (!instance->ctrl_context) {
+			dev_err(&instance->pdev->dev, "Failed from %s %d\n", __func__, __LINE__);
+			return -ENOMEM;
+		}
+	}
+
+	fusion = instance->ctrl_context;
+
+	fusion->load_balance_info_pages = get_order(MAX_LOGICAL_DRIVES_EXT *
+		sizeof(struct LD_LOAD_BALANCE_INFO));
+	fusion->load_balance_info =
+		(struct LD_LOAD_BALANCE_INFO *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+		fusion->load_balance_info_pages);
+	if (!fusion->load_balance_info) {
+		fusion->load_balance_info = vzalloc(MAX_LOGICAL_DRIVES_EXT *
+			sizeof(struct LD_LOAD_BALANCE_INFO));
+		if (!fusion->load_balance_info)
+			dev_err(&instance->pdev->dev, "Failed to allocate load_balance_info, "
+				"continuing without Load Balance support\n");
+	}
+
+	return 0;
+}
+
+void
+megasas_free_fusion_context(struct megasas_instance *instance)
+{
+	struct fusion_context *fusion = instance->ctrl_context;
+
+	if (fusion) {
+		if (fusion->load_balance_info) {
+			if (is_vmalloc_addr(fusion->load_balance_info))
+				vfree(fusion->load_balance_info);
+			else
+				free_pages((ulong)fusion->load_balance_info,
+					fusion->load_balance_info_pages);
+		}
+
+		if (is_vmalloc_addr(fusion))
+			vfree(fusion);
+		else
+			free_pages((ulong)fusion,
+				instance->ctrl_context_pages);
+	}
 }
 
 struct megasas_instance_template megasas_instance_template_fusion = {

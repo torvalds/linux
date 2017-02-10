@@ -1287,7 +1287,8 @@ struct fusion_context {
 	struct MR_PD_CFG_SEQ_NUM_SYNC	*pd_seq_sync[JBOD_MAPS_COUNT];
 	dma_addr_t pd_seq_phys[JBOD_MAPS_COUNT];
 	u8 fast_path_io;
-	struct LD_LOAD_BALANCE_INFO load_balance_info[MAX_LOGICAL_DRIVES_EXT];
+	struct LD_LOAD_BALANCE_INFO *load_balance_info;
+	u32 load_balance_info_pages;
 	LD_SPAN_INFO log_to_span[MAX_LOGICAL_DRIVES_EXT];
 	u8 adapter_type;
 	struct LD_STREAM_DETECT **stream_detect_by_ld;

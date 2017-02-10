@@ -489,7 +489,8 @@ u8 MR_ValidateMapInfo(struct megasas_instance *instance)
 	if (instance->UnevenSpanSupport)
 		mr_update_span_set(drv_map, ldSpanInfo);
 
-	mr_update_load_balance_params(drv_map, lbInfo);
+	if (lbInfo)
+		mr_update_load_balance_params(drv_map, lbInfo);
 
 	num_lds = le16_to_cpu(drv_map->raidMap.ldCount);
 

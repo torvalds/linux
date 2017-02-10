@@ -2488,4 +2488,6 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason);
 int megasas_task_abort_fusion(struct scsi_cmnd *scmd);
 int megasas_reset_target_fusion(struct scsi_cmnd *scmd);
 u32 mega_mod64(u64 dividend, u32 divisor);
+int megasas_alloc_fusion_context(struct megasas_instance *instance);
+void megasas_free_fusion_context(struct megasas_instance *instance);
 #endif				/*LSI_MEGARAID_SAS_H */

@@ -6029,18 +6029,12 @@ static int megasas_probe_one(struct pci_dev *pdev,
 	case PCI_DEVICE_ID_LSI_CUTLASS_52:
 	case PCI_DEVICE_ID_LSI_CUTLASS_53:
 	{
-		instance->ctrl_context_pages =
-			get_order(sizeof(struct fusion_context));
-		instance->ctrl_context = (void *)__get_free_pages(GFP_KERNEL,
-				instance->ctrl_context_pages);
-		if (!instance->ctrl_context) {
-			dev_printk(KERN_DEBUG, &pdev->dev, "Failed to allocate "
-			       "memory for Fusion context info\n");
+		if (megasas_alloc_fusion_context(instance)) {
+			megasas_free_fusion_context(instance);
 			goto fail_alloc_dma_buf;
 		}
 		fusion = instance->ctrl_context;
-		memset(fusion, 0,
-			((1 << PAGE_SHIFT) << instance->ctrl_context_pages));
+
 		if ((instance->pdev->device == PCI_DEVICE_ID_LSI_FUSION) ||
 			(instance->pdev->device == PCI_DEVICE_ID_LSI_PLASMA))
 			fusion->adapter_type = THUNDERBOLT_SERIES;
@@ -6683,8 +6677,7 @@ skip_firing_dcmds:
 					fusion->pd_seq_sync[i],
 					fusion->pd_seq_phys[i]);
 		}
-		free_pages((ulong)instance->ctrl_context,
-			instance->ctrl_context_pages);
+		megasas_free_fusion_context(instance);
 	} else {
 		megasas_release_mfi(instance);
 		pci_free_consistent(pdev, sizeof(u32),
