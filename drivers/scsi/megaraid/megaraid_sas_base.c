@@ -6900,6 +6900,13 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 					       MFI_FRAME_SGL64 |
 					       MFI_FRAME_SENSE64));
 
+	if (cmd->frame->dcmd.opcode == MR_DCMD_CTRL_SHUTDOWN) {
+		if (megasas_get_ctrl_info(instance) != DCMD_SUCCESS) {
+			megasas_return_cmd(instance, cmd);
+			return -1;
+		}
+	}
+
 	if (cmd->frame->dcmd.opcode == MR_DRIVER_SET_APP_CRASHDUMP_MODE) {
 		error = megasas_set_crash_dump_params_ioctl(cmd);
 		megasas_return_cmd(instance, cmd);
