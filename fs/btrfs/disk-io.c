@@ -3410,7 +3410,7 @@ struct buffer_head *btrfs_read_dev_super(struct block_device *bdev)
  */
 static int write_dev_supers(struct btrfs_device *device,
 			    struct btrfs_super_block *sb,
-			    int do_barriers, int wait, int max_mirrors)
+			    int wait, int max_mirrors)
 {
 	struct buffer_head *bh;
 	int i;
@@ -3752,7 +3752,7 @@ static int write_all_supers(struct btrfs_fs_info *fs_info, int max_mirrors)
 		flags = btrfs_super_flags(sb);
 		btrfs_set_super_flags(sb, flags | BTRFS_HEADER_FLAG_WRITTEN);
 
-		ret = write_dev_supers(dev, sb, do_barriers, 0, max_mirrors);
+		ret = write_dev_supers(dev, sb, 0, max_mirrors);
 		if (ret)
 			total_errors++;
 	}
@@ -3775,7 +3775,7 @@ static int write_all_supers(struct btrfs_fs_info *fs_info, int max_mirrors)
 		if (!dev->in_fs_metadata || !dev->writeable)
 			continue;
 
-		ret = write_dev_supers(dev, sb, do_barriers, 1, max_mirrors);
+		ret = write_dev_supers(dev, sb, 1, max_mirrors);
 		if (ret)
 			total_errors++;
 	}
