@@ -5019,6 +5019,8 @@ void gen6_rps_busy(struct drm_i915_private *dev_priv)
 {
 	mutex_lock(&dev_priv->rps.hw_lock);
 	if (dev_priv->rps.enabled) {
+		u8 freq;
+
 		if (dev_priv->pm_rps_events & (GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_UP_EI_EXPIRED))
 			gen6_rps_reset_ei(dev_priv);
 		I915_WRITE(GEN6_PMINTRMSK,
@@ -5026,9 +5028,14 @@ void gen6_rps_busy(struct drm_i915_private *dev_priv)
 
 		gen6_enable_rps_interrupts(dev_priv);
 
-		/* Ensure we start at the user's desired frequency */
+		/* Use the user's desired frequency as a guide, but for better
+		 * performance, jump directly to RPe as our starting frequency.
+		 */
+		freq = max(dev_priv->rps.cur_freq,
+			   dev_priv->rps.efficient_freq);
+
 		if (intel_set_rps(dev_priv,
-				  clamp(dev_priv->rps.cur_freq,
+				  clamp(freq,
 					dev_priv->rps.min_freq_softlimit,
 					dev_priv->rps.max_freq_softlimit)))
 			DRM_DEBUG_DRIVER("Failed to set idle frequency\n");

@@ -1173,14 +1173,6 @@ static void gen6_pm_rps_work(struct work_struct *work)
 
 		if (new_delay >= dev_priv->rps.max_freq_softlimit)
 			adj = 0;
-		/*
-		 * For better performance, jump directly
-		 * to RPe if we're below it.
-		 */
-		if (new_delay < dev_priv->rps.efficient_freq - adj) {
-			new_delay = dev_priv->rps.efficient_freq;
-			adj = 0;
-		}
 	} else if (client_boost || any_waiters(dev_priv)) {
 		adj = 0;
 	} else if (pm_iir & GEN6_PM_RP_DOWN_TIMEOUT) {
