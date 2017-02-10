@@ -563,7 +563,9 @@ int bcm2835_audio_set_ctls(struct bcm2835_chip *chip)
 			} else if (bcm2835_audio_set_ctls_chan(chip->alsa_stream[i], chip) != 0) {
 				LOG_ERR("Couldn't set the controls for stream %d\n", i);
 				ret = -1;
-			} else LOG_DBG(" Controls set for stream %d\n", i);
+			} else {
+				LOG_DBG(" Controls set for stream %d\n", i);
+			}
 		}
 	}
 	LOG_DBG(" .. OUT ret=%d\n", ret);
