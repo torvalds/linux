@@ -3383,8 +3383,7 @@ static void clone_update_extent_map(struct inode *inode,
  * data into the destination inode's inline extent if the later is greater then
  * the former.
  */
-static int clone_copy_inline_extent(struct inode *src,
-				    struct inode *dst,
+static int clone_copy_inline_extent(struct inode *dst,
 				    struct btrfs_trans_handle *trans,
 				    struct btrfs_path *path,
 				    struct btrfs_key *new_key,
@@ -3763,7 +3762,7 @@ process_slot:
 				size -= skip + trim;
 				datal -= skip + trim;
 
-				ret = clone_copy_inline_extent(src, inode,
+				ret = clone_copy_inline_extent(inode,
 							       trans, path,
 							       &new_key,
 							       drop_start,
