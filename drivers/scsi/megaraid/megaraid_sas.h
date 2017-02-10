@@ -2238,6 +2238,7 @@ struct megasas_instance {
 	u8 is_rdpq;
 	bool dev_handle;
 	bool fw_sync_cache_support;
+	u32 mfi_frame_size;
 	bool is_ventura;
 	bool msix_combined;
 	u16 max_raid_mapsize;

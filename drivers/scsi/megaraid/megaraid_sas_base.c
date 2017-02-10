@@ -268,6 +268,8 @@ megasas_return_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd)
 	cmd->scmd = NULL;
 	cmd->frame_count = 0;
 	cmd->flags = 0;
+	memset(cmd->frame, 0, instance->mfi_frame_size);
+	cmd->frame->io.context = cpu_to_le32(cmd->index);
 	if (!fusion && reset_devices)
 		cmd->frame->hdr.cmd = MFI_CMD_INVALID;
 	list_add(&cmd->list, (&instance->cmd_pool)->next);
@@ -3889,7 +3891,6 @@ static int megasas_create_frame_pool(struct megasas_instance *instance)
 	int i;
 	u16 max_cmd;
 	u32 sge_sz;
-	u32 total_sz;
 	u32 frame_count;
 	struct megasas_cmd *cmd;
 
@@ -3917,12 +3918,13 @@ static int megasas_create_frame_pool(struct megasas_instance *instance)
 	 * Total 192 byte (3 MFI frame of 64 byte)
 	 */
 	frame_count = instance->ctrl_context ? (3 + 1) : (15 + 1);
-	total_sz = MEGAMFI_FRAME_SIZE * frame_count;
+	instance->mfi_frame_size = MEGAMFI_FRAME_SIZE * frame_count;
 	/*
 	 * Use DMA pool facility provided by PCI layer
 	 */
 	instance->frame_dma_pool = pci_pool_create("megasas frame pool",
-					instance->pdev, total_sz, 256, 0);
+					instance->pdev, instance->mfi_frame_size,
+					256, 0);
 
 	if (!instance->frame_dma_pool) {
 		dev_printk(KERN_DEBUG, &instance->pdev->dev, "failed to setup frame pool\n");
@@ -3966,7 +3968,7 @@ static int megasas_create_frame_pool(struct megasas_instance *instance)
 			return -ENOMEM;
 		}
 
-		memset(cmd->frame, 0, total_sz);
+		memset(cmd->frame, 0, instance->mfi_frame_size);
 		cmd->frame->io.context = cpu_to_le32(cmd->index);
 		cmd->frame->io.pad_0 = 0;
 		if (!instance->ctrl_context && reset_devices)
