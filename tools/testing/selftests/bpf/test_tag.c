@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -16,9 +17,9 @@
 #include <linux/bpf.h>
 #include <linux/if_alg.h>
 
-#include "../../../include/linux/filter.h"
+#include <bpf/bpf.h>
 
-#include "bpf_sys.h"
+#include "../../../include/linux/filter.h"
 
 static struct bpf_insn prog[BPF_MAXINSNS];
 
@@ -55,8 +56,8 @@ static int bpf_try_load_prog(int insns, int fd_map,
 	int fd_prog;
 
 	bpf_filler(insns, fd_map);
-	fd_prog = bpf_prog_load(BPF_PROG_TYPE_SCHED_CLS, prog, insns *
-				sizeof(struct bpf_insn), "", NULL, 0);
+	fd_prog = bpf_load_program(BPF_PROG_TYPE_SCHED_CLS, prog, insns, "", 0,
+				   NULL, 0);
 	assert(fd_prog > 0);
 	if (fd_map > 0)
 		bpf_filler(insns, 0);
@@ -187,7 +188,7 @@ int main(void)
 	int i, fd_map;
 
 	setrlimit(RLIMIT_MEMLOCK, &rinf);
-	fd_map = bpf_map_create(BPF_MAP_TYPE_HASH, sizeof(int),
+	fd_map = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(int),
 				sizeof(int), 1, BPF_F_NO_PREALLOC);
 	assert(fd_map > 0);
 

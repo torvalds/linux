@@ -42,7 +42,7 @@
 # endif
 #endif
 
-static __u64 ptr_to_u64(void *ptr)
+static __u64 ptr_to_u64(const void *ptr)
 {
 	return (__u64) (unsigned long) ptr;
 }
@@ -50,7 +50,13 @@ static __u64 ptr_to_u64(void *ptr)
 static int sys_bpf(enum bpf_cmd cmd, union bpf_attr *attr,
 		   unsigned int size)
 {
+#ifdef __NR_bpf
 	return syscall(__NR_bpf, cmd, attr, size);
+#else
+	fprintf(stderr, "No bpf syscall, kernel headers too old?\n");
+	errno = ENOSYS;
+	return -1;
+#endif
 }
 
 int bpf_create_map(enum bpf_map_type map_type, int key_size,
@@ -69,8 +75,8 @@ int bpf_create_map(enum bpf_map_type map_type, int key_size,
 	return sys_bpf(BPF_MAP_CREATE, &attr, sizeof(attr));
 }
 
-int bpf_load_program(enum bpf_prog_type type, struct bpf_insn *insns,
-		     size_t insns_cnt, char *license,
+int bpf_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
+		     size_t insns_cnt, const char *license,
 		     __u32 kern_version, char *log_buf, size_t log_buf_sz)
 {
 	int fd;
@@ -98,7 +104,7 @@ int bpf_load_program(enum bpf_prog_type type, struct bpf_insn *insns,
 	return sys_bpf(BPF_PROG_LOAD, &attr, sizeof(attr));
 }
 
-int bpf_map_update_elem(int fd, void *key, void *value,
+int bpf_map_update_elem(int fd, const void *key, const void *value,
 			__u64 flags)
 {
 	union bpf_attr attr;
@@ -112,7 +118,7 @@ int bpf_map_update_elem(int fd, void *key, void *value,
 	return sys_bpf(BPF_MAP_UPDATE_ELEM, &attr, sizeof(attr));
 }
 
-int bpf_map_lookup_elem(int fd, void *key, void *value)
+int bpf_map_lookup_elem(int fd, const void *key, void *value)
 {
 	union bpf_attr attr;
 
@@ -124,7 +130,7 @@ int bpf_map_lookup_elem(int fd, void *key, void *value)
 	return sys_bpf(BPF_MAP_LOOKUP_ELEM, &attr, sizeof(attr));
 }
 
-int bpf_map_delete_elem(int fd, void *key)
+int bpf_map_delete_elem(int fd, const void *key)
 {
 	union bpf_attr attr;
 
@@ -135,7 +141,7 @@ int bpf_map_delete_elem(int fd, void *key)
 	return sys_bpf(BPF_MAP_DELETE_ELEM, &attr, sizeof(attr));
 }
 
-int bpf_map_get_next_key(int fd, void *key, void *next_key)
+int bpf_map_get_next_key(int fd, const void *key, void *next_key)
 {
 	union bpf_attr attr;
 
