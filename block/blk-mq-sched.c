@@ -68,7 +68,9 @@ error:
 EXPORT_SYMBOL_GPL(blk_mq_sched_init_hctx_data);
 
 static void __blk_mq_sched_assign_ioc(struct request_queue *q,
-				      struct request *rq, struct io_context *ioc)
+				      struct request *rq,
+				      struct bio *bio,
+				      struct io_context *ioc)
 {
 	struct io_cq *icq;
 
@@ -83,7 +85,7 @@ static void __blk_mq_sched_assign_ioc(struct request_queue *q,
 	}
 
 	rq->elv.icq = icq;
-	if (!blk_mq_sched_get_rq_priv(q, rq)) {
+	if (!blk_mq_sched_get_rq_priv(q, rq, bio)) {
 		rq->rq_flags |= RQF_ELVPRIV;
 		get_io_context(icq->ioc);
 		return;
@@ -99,7 +101,7 @@ static void blk_mq_sched_assign_ioc(struct request_queue *q,
 
 	ioc = rq_ioc(bio);
 	if (ioc)
-		__blk_mq_sched_assign_ioc(q, rq, ioc);
+		__blk_mq_sched_assign_ioc(q, rq, bio, ioc);
 }
 
 struct request *blk_mq_sched_get_request(struct request_queue *q,

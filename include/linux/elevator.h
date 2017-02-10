@@ -109,7 +109,7 @@ struct elevator_mq_ops {
 	void (*requeue_request)(struct request *);
 	struct request *(*former_request)(struct request_queue *, struct request *);
 	struct request *(*next_request)(struct request_queue *, struct request *);
-	int (*get_rq_priv)(struct request_queue *, struct request *);
+	int (*get_rq_priv)(struct request_queue *, struct request *, struct bio *);
 	void (*put_rq_priv)(struct request_queue *, struct request *);
 	void (*init_icq)(struct io_cq *);
 	void (*exit_icq)(struct io_cq *);
