@@ -3229,7 +3229,7 @@ irqreturn_t megasas_isr_fusion(int irq, void *devp)
  * mfi_cmd:			megasas_cmd pointer
  *
  */
-u8
+void
 build_mpt_mfi_pass_thru(struct megasas_instance *instance,
 			struct megasas_cmd *mfi_cmd)
 {
@@ -3279,8 +3279,6 @@ build_mpt_mfi_pass_thru(struct megasas_instance *instance,
 		MPI2_IEEE_SGE_FLAGS_IOCPLBNTA_ADDR;
 
 	mpi25_ieee_chain->Length = cpu_to_le32(instance->max_chain_frame_sz);
-
-	return 0;
 }
 
 /**
@@ -3295,11 +3293,7 @@ build_mpt_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd)
 	union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc = NULL;
 	u16 index;
 
-	if (build_mpt_mfi_pass_thru(instance, cmd)) {
-		dev_err(&instance->pdev->dev, "Couldn't build MFI pass thru cmd\n");
-		return NULL;
-	}
-
+	build_mpt_mfi_pass_thru(instance, cmd);
 	index = cmd->context.smid;
 
 	req_desc = megasas_get_request_descriptor(instance, index - 1);
