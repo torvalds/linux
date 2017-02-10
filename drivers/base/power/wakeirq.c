@@ -183,6 +183,9 @@ int dev_pm_set_dedicated_wake_irq(struct device *dev, int irq)
 	wirq->irq = irq;
 	irq_set_status_flags(irq, IRQ_NOAUTOEN);
 
+	/* Prevent deferred spurious wakeirqs with disable_irq_nosync() */
+	irq_set_status_flags(irq, IRQ_DISABLE_UNLAZY);
+
 	/*
 	 * Consumer device may need to power up and restore state
 	 * so we use a threaded irq.
