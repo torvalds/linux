@@ -55,7 +55,7 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 	if (align > PAGE_SIZE)
 		return -EINVAL;
 
-	info = kzalloc(sizeof(struct ion_cma_buffer_info), GFP_KERNEL);
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
@@ -67,7 +67,7 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 		goto err;
 	}
 
-	info->table = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
+	info->table = kmalloc(sizeof(*info->table), GFP_KERNEL);
 	if (!info->table)
 		goto free_mem;
 
@@ -140,7 +140,7 @@ struct ion_heap *ion_cma_heap_create(struct ion_platform_heap *data)
 {
 	struct ion_cma_heap *cma_heap;
 
-	cma_heap = kzalloc(sizeof(struct ion_cma_heap), GFP_KERNEL);
+	cma_heap = kzalloc(sizeof(*cma_heap), GFP_KERNEL);
 
 	if (!cma_heap)
 		return ERR_PTR(-ENOMEM);
