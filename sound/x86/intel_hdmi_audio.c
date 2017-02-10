@@ -132,11 +132,12 @@ static const struct channel_map_table map_tables[] = {
 /* hardware capability structure */
 static const struct snd_pcm_hardware had_pcm_hardware = {
 	.info =	(SNDRV_PCM_INFO_INTERLEAVED |
-		SNDRV_PCM_INFO_DOUBLE |
-		SNDRV_PCM_INFO_MMAP|
+		SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_MMAP_VALID |
-		SNDRV_PCM_INFO_BATCH),
-	.formats = SNDRV_PCM_FMTBIT_S24,
+		SNDRV_PCM_INFO_NO_PERIOD_WAKEUP),
+	.formats = (SNDRV_PCM_FMTBIT_S16_LE |
+		    SNDRV_PCM_FMTBIT_S24_LE |
+		    SNDRV_PCM_FMTBIT_S32_LE),
 	.rates = SNDRV_PCM_RATE_32000 |
 		SNDRV_PCM_RATE_44100 |
 		SNDRV_PCM_RATE_48000 |
@@ -250,7 +251,6 @@ static int had_prog_status_reg(struct snd_pcm_substream *substream,
 	union aud_cfg cfg_val = {.regval = 0};
 	union aud_ch_status_0 ch_stat0 = {.regval = 0};
 	union aud_ch_status_1 ch_stat1 = {.regval = 0};
-	int format;
 
 	ch_stat0.regx.lpcm_id = (intelhaddata->aes_bits &
 					  IEC958_AES0_NONAUDIO) >> 1;
@@ -290,17 +290,18 @@ static int had_prog_status_reg(struct snd_pcm_substream *substream,
 	had_write_register(intelhaddata,
 			   AUD_CH_STATUS_0, ch_stat0.regval);
 
-	format = substream->runtime->format;
-
-	if (format == SNDRV_PCM_FORMAT_S16_LE) {
+	switch (substream->runtime->format) {
+	case SNDRV_PCM_FORMAT_S16_LE:
 		ch_stat1.regx.max_wrd_len = MAX_SMPL_WIDTH_20;
 		ch_stat1.regx.wrd_len = SMPL_WIDTH_16BITS;
-	} else if (format == SNDRV_PCM_FORMAT_S24_LE) {
+		break;
+	case SNDRV_PCM_FORMAT_S24_LE:
+	case SNDRV_PCM_FORMAT_S32_LE:
 		ch_stat1.regx.max_wrd_len = MAX_SMPL_WIDTH_24;
 		ch_stat1.regx.wrd_len = SMPL_WIDTH_24BITS;
-	} else {
-		ch_stat1.regx.max_wrd_len = 0;
-		ch_stat1.regx.wrd_len = 0;
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	had_write_register(intelhaddata,
@@ -333,6 +334,12 @@ static int had_init_audio_ctrl(struct snd_pcm_substream *substream,
 		cfg_val.regx.layout = LAYOUT0;
 	else
 		cfg_val.regx.layout = LAYOUT1;
+
+	if (substream->runtime->format == SNDRV_PCM_FORMAT_S16_LE)
+		cfg_val.regx.packet_mode = 1;
+
+	if (substream->runtime->format == SNDRV_PCM_FORMAT_S32_LE)
+		cfg_val.regx.left_align = 1;
 
 	cfg_val.regx.val_bit = 1;
 
@@ -824,6 +831,11 @@ static int had_prog_n(u32 aud_samp_freq, u32 *n_param,
  *
  * For nperiods < 4, the remaining BDs out of 4 are marked as invalid, so that
  * the hardware skips those BDs in the loop.
+ *
+ * An exceptional setup is the case with nperiods=1.  Since we have to update
+ * BDs after finishing one BD processing, we'd need at least two BDs, where
+ * both BDs point to the same content, the same address, the same size of the
+ * whole PCM buffer.
  */
 
 #define AUD_BUF_ADDR(x)		(AUD_BUF_A_ADDR + (x) * HAD_REG_WIDTH)
@@ -837,7 +849,9 @@ static void had_prog_bd(struct snd_pcm_substream *substream,
 	int ofs = intelhaddata->pcmbuf_filled * intelhaddata->period_bytes;
 	u32 addr = substream->runtime->dma_addr + ofs;
 
-	addr |= AUD_BUF_VALID | AUD_BUF_INTR_EN;
+	addr |= AUD_BUF_VALID;
+	if (!substream->runtime->no_period_wakeup)
+		addr |= AUD_BUF_INTR_EN;
 	had_write_register(intelhaddata, AUD_BUF_ADDR(idx), addr);
 	had_write_register(intelhaddata, AUD_BUF_LEN(idx),
 			   intelhaddata->period_bytes);
@@ -866,6 +880,8 @@ static void had_init_ringbuf(struct snd_pcm_substream *substream,
 
 	num_periods = runtime->periods;
 	intelhaddata->num_bds = min(num_periods, HAD_NUM_OF_RING_BUFS);
+	/* set the minimum 2 BDs for num_periods=1 */
+	intelhaddata->num_bds = max(intelhaddata->num_bds, 2U);
 	intelhaddata->period_bytes =
 		frames_to_bytes(runtime, runtime->period_size);
 	WARN_ON(intelhaddata->period_bytes & 0x3f);
@@ -875,7 +891,7 @@ static void had_init_ringbuf(struct snd_pcm_substream *substream,
 	intelhaddata->pcmbuf_filled = 0;
 
 	for (i = 0; i < HAD_NUM_OF_RING_BUFS; i++) {
-		if (i < num_periods)
+		if (i < intelhaddata->num_bds)
 			had_prog_bd(substream, intelhaddata);
 		else /* invalidate the rest */
 			had_invalidate_bd(intelhaddata, i);
@@ -1047,6 +1063,10 @@ static int had_pcm_open(struct snd_pcm_substream *substream)
 	 */
 	retval = snd_pcm_hw_constraint_step(substream->runtime, 0,
 			SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 64);
+	if (retval < 0)
+		goto error;
+
+	retval = snd_pcm_hw_constraint_msbits(runtime, 0, 32, 24);
 	if (retval < 0)
 		goto error;
 
@@ -1264,7 +1284,10 @@ static snd_pcm_uframes_t had_pcm_pointer(struct snd_pcm_substream *substream)
 
 	if (had_process_ringbuf(substream, intelhaddata, &len) < 0)
 		return SNDRV_PCM_POS_XRUN;
-	return bytes_to_frames(substream->runtime, len);
+	len = bytes_to_frames(substream->runtime, len);
+	/* wrapping may happen when periods=1 */
+	len %= substream->runtime->buffer_size;
+	return len;
 }
 
 /*
