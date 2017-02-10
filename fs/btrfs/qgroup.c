@@ -1589,8 +1589,7 @@ int btrfs_qgroup_trace_leaf_items(struct btrfs_trans_handle *trans,
  * If we increment the root nodes slot counter past the number of
  * elements, 1 is returned to signal completion of the search.
  */
-static int adjust_slots_upwards(struct btrfs_root *root,
-				struct btrfs_path *path, int root_level)
+static int adjust_slots_upwards(struct btrfs_path *path, int root_level)
 {
 	int level = 0;
 	int nr, slot;
@@ -1731,7 +1730,7 @@ walk_down:
 				goto out;
 
 			/* Nonzero return here means we completed our search */
-			ret = adjust_slots_upwards(root, path, root_level);
+			ret = adjust_slots_upwards(path, root_level);
 			if (ret)
 				break;
 
