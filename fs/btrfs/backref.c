@@ -956,8 +956,7 @@ static int __add_delayed_refs(struct btrfs_delayed_ref_head *head, u64 seq,
 /*
  * add all inline backrefs for bytenr to the list
  */
-static int __add_inline_refs(struct btrfs_fs_info *fs_info,
-			     struct btrfs_path *path, u64 bytenr,
+static int __add_inline_refs(struct btrfs_path *path, u64 bytenr,
 			     int *info_level, struct list_head *prefs,
 			     struct ref_root *ref_tree,
 			     u64 *total_refs, u64 inum)
@@ -1354,7 +1353,7 @@ again:
 		if (key.objectid == bytenr &&
 		    (key.type == BTRFS_EXTENT_ITEM_KEY ||
 		     key.type == BTRFS_METADATA_ITEM_KEY)) {
-			ret = __add_inline_refs(fs_info, path, bytenr,
+			ret = __add_inline_refs(path, bytenr,
 						&info_level, &prefs,
 						ref_tree, &total_refs,
 						inum);
