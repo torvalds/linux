@@ -155,21 +155,14 @@ struct msm_gpu *adreno_load_gpu(struct drm_device *dev)
 
 	if (gpu) {
 		int ret;
-		mutex_lock(&dev->struct_mutex);
-		gpu->funcs->pm_resume(gpu);
-		mutex_unlock(&dev->struct_mutex);
 
-		disable_irq(gpu->irq);
-
-		ret = gpu->funcs->hw_init(gpu);
+		pm_runtime_get_sync(&pdev->dev);
+		ret = msm_gpu_hw_init(gpu);
+		pm_runtime_put_sync(&pdev->dev);
 		if (ret) {
 			dev_err(dev->dev, "gpu hw init failed: %d\n", ret);
 			gpu->funcs->destroy(gpu);
 			gpu = NULL;
-		} else {
-			enable_irq(gpu->irq);
-			/* give inactive pm a chance to kick in: */
-			msm_gpu_retire(gpu);
 		}
 	}
 
@@ -296,12 +289,35 @@ static const struct of_device_id dt_match[] = {
 	{}
 };
 
+#ifdef CONFIG_PM
+static int adreno_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct msm_gpu *gpu = platform_get_drvdata(pdev);
+
+	return gpu->funcs->pm_resume(gpu);
+}
+
+static int adreno_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct msm_gpu *gpu = platform_get_drvdata(pdev);
+
+	return gpu->funcs->pm_suspend(gpu);
+}
+#endif
+
+static const struct dev_pm_ops adreno_pm_ops = {
+	SET_RUNTIME_PM_OPS(adreno_suspend, adreno_resume, NULL)
+};
+
 static struct platform_driver adreno_driver = {
 	.probe = adreno_probe,
 	.remove = adreno_remove,
 	.driver = {
 		.name = "adreno",
 		.of_match_table = dt_match,
+		.pm = &adreno_pm_ops,
 	},
 };
 

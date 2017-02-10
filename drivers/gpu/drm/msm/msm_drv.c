@@ -265,6 +265,8 @@ static int msm_drm_uninit(struct device *dev)
 
 	if (gpu) {
 		mutex_lock(&ddev->struct_mutex);
+		// XXX what do we do here?
+		//pm_runtime_enable(&pdev->dev);
 		gpu->funcs->pm_suspend(gpu);
 		mutex_unlock(&ddev->struct_mutex);
 		gpu->funcs->destroy(gpu);

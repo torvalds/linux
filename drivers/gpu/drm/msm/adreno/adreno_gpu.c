@@ -115,6 +115,9 @@ void adreno_recover(struct msm_gpu *gpu)
 	struct drm_device *dev = gpu->dev;
 	int ret;
 
+	// XXX pm-runtime??  we *need* the device to be off after this
+	// so maybe continuing to call ->pm_suspend/resume() is better?
+
 	gpu->funcs->pm_suspend(gpu);
 
 	/* reset ringbuffer: */
@@ -127,13 +130,11 @@ void adreno_recover(struct msm_gpu *gpu)
 
 	gpu->funcs->pm_resume(gpu);
 
-	disable_irq(gpu->irq);
-	ret = gpu->funcs->hw_init(gpu);
+	ret = msm_gpu_hw_init(gpu);
 	if (ret) {
 		dev_err(dev->dev, "gpu hw init failed: %d\n", ret);
 		/* hmm, oh well? */
 	}
-	enable_irq(gpu->irq);
 }
 
 void adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
@@ -364,6 +365,10 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 			RB_SIZE);
 	if (ret)
 		return ret;
+
+	pm_runtime_set_autosuspend_delay(&pdev->dev, DRM_MSM_INACTIVE_PERIOD);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
 
 	ret = request_firmware(&adreno_gpu->pm4, adreno_gpu->info->pm4fw, drm->dev);
 	if (ret) {
