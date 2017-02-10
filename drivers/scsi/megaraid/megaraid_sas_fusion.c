@@ -367,7 +367,7 @@ megasas_free_cmds_fusion(struct megasas_instance *instance)
 static int megasas_create_sg_sense_fusion(struct megasas_instance *instance)
 {
 	int i;
-	u32 max_cmd;
+	u16 max_cmd;
 	struct fusion_context *fusion;
 	struct megasas_cmd_fusion *cmd;
 
@@ -1274,7 +1274,8 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 {
 	struct megasas_register_set __iomem *reg_set;
 	struct fusion_context *fusion;
-	u32 max_cmd, scratch_pad_2;
+	u16 max_cmd;
+	u32 scratch_pad_2;
 	int i = 0, count;
 
 	fusion = instance->ctrl_context;

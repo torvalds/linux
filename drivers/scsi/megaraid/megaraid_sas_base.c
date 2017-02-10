@@ -1549,7 +1549,7 @@ megasas_dump_pending_frames(struct megasas_instance *instance)
 	struct megasas_io_frame *ldio;
 	struct megasas_pthru_frame *pthru;
 	u32 sgcount;
-	u32 max_cmd = instance->max_fw_cmds;
+	u16 max_cmd = instance->max_fw_cmds;
 
 	dev_err(&instance->pdev->dev, "[%d]: Dumping Frame Phys Address of all pending cmds in FW\n",instance->host->host_no);
 	dev_err(&instance->pdev->dev, "[%d]: Total OS Pending cmds : %d\n",instance->host->host_no,atomic_read(&instance->fw_outstanding));
@@ -3467,7 +3467,7 @@ megasas_internal_reset_defer_cmds(struct megasas_instance *instance)
 {
 	struct megasas_cmd *cmd;
 	int i;
-	u32 max_cmd = instance->max_fw_cmds;
+	u16 max_cmd = instance->max_fw_cmds;
 	u32 defer_index;
 	unsigned long flags;
 
@@ -3843,7 +3843,7 @@ megasas_transition_to_ready(struct megasas_instance *instance, int ocr)
 static void megasas_teardown_frame_pool(struct megasas_instance *instance)
 {
 	int i;
-	u32 max_cmd = instance->max_mfi_cmds;
+	u16 max_cmd = instance->max_mfi_cmds;
 	struct megasas_cmd *cmd;
 
 	if (!instance->frame_dma_pool)
@@ -3887,7 +3887,7 @@ static void megasas_teardown_frame_pool(struct megasas_instance *instance)
 static int megasas_create_frame_pool(struct megasas_instance *instance)
 {
 	int i;
-	u32 max_cmd;
+	u16 max_cmd;
 	u32 sge_sz;
 	u32 total_sz;
 	u32 frame_count;
@@ -4021,7 +4021,7 @@ int megasas_alloc_cmds(struct megasas_instance *instance)
 {
 	int i;
 	int j;
-	u32 max_cmd;
+	u16 max_cmd;
 	struct megasas_cmd *cmd;
 	struct fusion_context *fusion;
 
