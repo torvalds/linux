@@ -230,6 +230,7 @@ enum pci_6534_firmware_registers {	/* 16 bit */
 	Firmware_Mask_Register = 0x10c,
 	Firmware_Debug_Register = 0x110,
 };
+
 /* main fpga registers (32 bit)*/
 enum pci_6534_fpga_registers {
 	FPGA_Control1_Register = 0x200,
@@ -246,6 +247,7 @@ enum pci_6534_fpga_registers {
 	FPGA_ELC_Read_Register = 0x2b8,
 	FPGA_ELC_Write_Register = 0x2bc,
 };
+
 enum FPGA_Control_Bits {
 	FPGA_Enable_Bit = 0x8000,
 };
