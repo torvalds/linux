@@ -1403,8 +1403,6 @@ struct megasas_ctrl_info {
 
 #define MEGASAS_FW_BUSY				1
 
-#define VD_EXT_DEBUG 0
-
 /* Driver's internal Logging levels*/
 #define OCR_LOGS    (1 << 0)
 

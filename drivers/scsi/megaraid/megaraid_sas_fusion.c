@@ -1062,11 +1062,6 @@ megasas_get_ld_map_info(struct megasas_instance *instance)
 
 	memset(ci, 0, fusion->max_map_sz);
 	memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
-#if VD_EXT_DEBUG
-	dev_dbg(&instance->pdev->dev,
-		"%s sending MR_DCMD_LD_MAP_GET_INFO with size %d\n",
-		__func__, cpu_to_le32(size_map_info));
-#endif
 	dcmd->cmd = MFI_CMD_DCMD;
 	dcmd->cmd_status = 0xFF;
 	dcmd->sge_count = 1;

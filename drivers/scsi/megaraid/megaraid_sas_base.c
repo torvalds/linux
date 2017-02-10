@@ -4601,17 +4601,6 @@ static void megasas_update_ext_vd_details(struct megasas_instance *instance)
 	}
 	/* irrespective of FW raid maps, driver raid map is constant */
 	fusion->drv_map_sz = sizeof(struct MR_DRV_RAID_MAP_ALL);
-
-#if VD_EXT_DEBUG
-	dev_info(&instance->pdev->dev, "instance->max_raid_mapsize 0x%x\n ",
-		instance->max_raid_mapsize);
-	dev_info(&instance->pdev->dev, "new_map_sz = 0x%x, old_map_sz = 0x%x\n",
-		fusion->new_map_sz, fusion->old_map_sz);
-	dev_info(&instance->pdev->dev, "ventura_map_sz = 0x%x, current_map_sz = 0x%x\n",
-		ventura_map_sz, fusion->current_map_sz);
-	dev_info(&instance->pdev->dev, "fusion->drv_map_sz =0x%x, size of driver raid map 0x%lx\n",
-		fusion->drv_map_sz, sizeof(struct MR_DRV_RAID_MAP_ALL));
-#endif
 }
 
 /**
@@ -5215,10 +5204,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	if (instance->is_ventura) {
 		scratch_pad_3 =
 			readl(&instance->reg_set->outbound_scratch_pad_3);
-#if VD_EXT_DEBUG
-		dev_info(&instance->pdev->dev, "scratch_pad3 0x%x\n",
-			scratch_pad_3);
-#endif
 		instance->max_raid_mapsize = ((scratch_pad_3 >>
 			MR_MAX_RAID_MAP_SIZE_OFFSET_SHIFT) &
 			MR_MAX_RAID_MAP_SIZE_MASK);
