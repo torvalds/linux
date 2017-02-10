@@ -31,7 +31,7 @@ static char *rootcell;
 module_param(rootcell, charp, 0);
 MODULE_PARM_DESC(rootcell, "root AFS cell name and VL server IP addr list");
 
-struct afs_uuid afs_uuid;
+struct uuid_v1 afs_uuid;
 struct workqueue_struct *afs_wq;
 
 /*
@@ -41,7 +41,7 @@ static int __init afs_get_client_UUID(void)
 {
 	struct timespec ts;
 	u64 uuidtime;
-	u16 clockseq;
+	u16 clockseq, hi_v;
 	int ret;
 
 	/* read the MAC address of one of the external interfaces and construct
@@ -53,22 +53,23 @@ static int __init afs_get_client_UUID(void)
 	getnstimeofday(&ts);
 	uuidtime = (u64) ts.tv_sec * 1000 * 1000 * 10;
 	uuidtime += ts.tv_nsec / 100;
-	uuidtime += AFS_UUID_TO_UNIX_TIME;
-	afs_uuid.time_low = uuidtime;
-	afs_uuid.time_mid = uuidtime >> 32;
-	afs_uuid.time_hi_and_version = (uuidtime >> 48) & AFS_UUID_TIMEHI_MASK;
-	afs_uuid.time_hi_and_version |= AFS_UUID_VERSION_TIME;
+	uuidtime += UUID_TO_UNIX_TIME;
+	afs_uuid.time_low = htonl(uuidtime);
+	afs_uuid.time_mid = htons(uuidtime >> 32);
+	hi_v = (uuidtime >> 48) & UUID_TIMEHI_MASK;
+	hi_v |= UUID_VERSION_TIME;
+	afs_uuid.time_hi_and_version = htons(hi_v);
 
 	get_random_bytes(&clockseq, 2);
 	afs_uuid.clock_seq_low = clockseq;
 	afs_uuid.clock_seq_hi_and_reserved =
-		(clockseq >> 8) & AFS_UUID_CLOCKHI_MASK;
-	afs_uuid.clock_seq_hi_and_reserved |= AFS_UUID_VARIANT_STD;
+		(clockseq >> 8) & UUID_CLOCKHI_MASK;
+	afs_uuid.clock_seq_hi_and_reserved |= UUID_VARIANT_STD;
 
 	_debug("AFS UUID: %08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-	       afs_uuid.time_low,
-	       afs_uuid.time_mid,
-	       afs_uuid.time_hi_and_version,
+	       ntohl(afs_uuid.time_low),
+	       ntohs(afs_uuid.time_mid),
+	       ntohs(afs_uuid.time_hi_and_version),
 	       afs_uuid.clock_seq_hi_and_reserved,
 	       afs_uuid.clock_seq_low,
 	       afs_uuid.node[0], afs_uuid.node[1], afs_uuid.node[2],
