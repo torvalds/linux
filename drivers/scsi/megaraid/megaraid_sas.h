@@ -1409,6 +1409,8 @@ struct megasas_ctrl_info {
 #define SCAN_VD_CHANNEL	0x2
 
 #define MEGASAS_KDUMP_QUEUE_DEPTH               100
+#define MR_LARGE_IO_MIN_SIZE			(32 * 1024)
+#define MR_R1_LDIO_PIGGYBACK_DEFAULT		4
 
 enum MR_SCSI_CMD_TYPE {
 	READ_WRITE_LDIO = 0,
@@ -1875,6 +1877,7 @@ union megasas_frame {
 struct MR_PRIV_DEVICE {
 	bool is_tm_capable;
 	bool tm_busy;
+	atomic_t r1_ldio_hint;
 	u8   interface_type;
 };
 struct megasas_cmd;
@@ -2235,6 +2238,8 @@ struct megasas_instance {
 	bool is_ventura;
 	bool msix_combined;
 	u16 max_raid_mapsize;
+	/* preffered count to send as LDIO irrspective of FP capable.*/
+	u8  r1_ldio_hint_default;
 	u32 nvme_page_size;
 };
 struct MR_LD_VF_MAP {

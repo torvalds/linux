@@ -1383,6 +1383,7 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 	}
 
 	instance->flag_ieee = 1;
+	instance->r1_ldio_hint_default =  MR_R1_LDIO_PIGGYBACK_DEFAULT;
 	fusion->fast_path_io = 0;
 
 	fusion->drv_map_pages = get_order(fusion->drv_map_sz);
@@ -2110,7 +2111,7 @@ static void megasas_stream_detect(struct megasas_instance *instance,
 static void
 megasas_set_raidflag_cpu_affinity(union RAID_CONTEXT_UNION *praid_context,
 				  struct MR_LD_RAID *raid, bool fp_possible,
-				  u8 is_read)
+				  u8 is_read, u32 scsi_buff_len)
 {
 	u8 cpu_sel = MR_RAID_CTX_CPUSEL_0;
 	struct RAID_CONTEXT_G35 *rctx_g35;
@@ -2161,6 +2162,17 @@ megasas_set_raidflag_cpu_affinity(union RAID_CONTEXT_UNION *praid_context,
 	}
 
 	rctx_g35->routing_flags.bits.cpu_sel = cpu_sel;
+
+	/* Always give priority to MR_RAID_FLAGS_IO_SUB_TYPE_LDIO_BW_LIMIT
+	 * vs MR_RAID_FLAGS_IO_SUB_TYPE_CACHE_BYPASS.
+	 * IO Subtype is not bitmap.
+	 */
+	if ((raid->level == 1) && (!is_read)) {
+		if (scsi_buff_len > MR_LARGE_IO_MIN_SIZE)
+			praid_context->raid_context_g35.raid_flags =
+				(MR_RAID_FLAGS_IO_SUB_TYPE_LDIO_BW_LIMIT
+				<< MR_RAID_CTX_RAID_FLAGS_IO_SUB_TYPE_SHIFT);
+	}
 }
 
 /**
@@ -2303,6 +2315,14 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 		    io_info.isRead && io_info.ra_capable)
 			fp_possible = false;
 
+		/* FP for Optimal raid level 1.
+		 * All large RAID-1 writes (> 32 KiB, both WT and WB modes)
+		 * are built by the driver as LD I/Os.
+		 * All small RAID-1 WT writes (<= 32 KiB) are built as FP I/Os
+		 * (there is never a reason to process these as buffered writes)
+		 * All small RAID-1 WB writes (<= 32 KiB) are built as FP I/Os
+		 * with the SLD bit asserted.
+		 */
 		if (io_info.r1_alt_dev_handle != MR_DEVHANDLE_INVALID) {
 			mrdev_priv = scp->device->hostdata;
 
@@ -2310,13 +2330,21 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 				(instance->host->can_queue)) {
 				fp_possible = false;
 				atomic_dec(&instance->fw_outstanding);
+			} else if ((scsi_buff_len > MR_LARGE_IO_MIN_SIZE) ||
+				   atomic_dec_if_positive(&mrdev_priv->r1_ldio_hint)) {
+				fp_possible = false;
+				atomic_dec(&instance->fw_outstanding);
+				if (scsi_buff_len > MR_LARGE_IO_MIN_SIZE)
+					atomic_set(&mrdev_priv->r1_ldio_hint,
+						   instance->r1_ldio_hint_default);
 			}
 		}
 
 		/* If raid is NULL, set CPU affinity to default CPU0 */
 		if (raid)
 			megasas_set_raidflag_cpu_affinity(praid_context,
-				raid, fp_possible, io_info.isRead);
+				raid, fp_possible, io_info.isRead,
+				scsi_buff_len);
 		else
 			praid_context->raid_context_g35.routing_flags.bits.cpu_sel =
 				MR_RAID_CTX_CPUSEL_0;
