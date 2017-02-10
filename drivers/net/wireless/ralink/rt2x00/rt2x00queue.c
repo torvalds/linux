@@ -83,7 +83,6 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry, gfp_t gfp)
 	 */
 	skbdesc = get_skb_frame_desc(skb);
 	memset(skbdesc, 0, sizeof(*skbdesc));
-	skbdesc->entry = entry;
 
 	if (rt2x00_has_cap_flag(rt2x00dev, REQUIRE_DMA)) {
 		dma_addr_t skb_dma;
@@ -544,7 +543,7 @@ static void rt2x00queue_write_tx_descriptor(struct queue_entry *entry,
 	 * All processing on the frame has been completed, this means
 	 * it is now ready to be dumped to userspace through debugfs.
 	 */
-	rt2x00debug_dump_frame(queue->rt2x00dev, DUMP_FRAME_TX, entry->skb);
+	rt2x00debug_dump_frame(queue->rt2x00dev, DUMP_FRAME_TX, entry);
 }
 
 static void rt2x00queue_kick_tx_queue(struct data_queue *queue,
@@ -689,7 +688,6 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 		goto out;
 	}
 
-	skbdesc->entry = entry;
 	entry->skb = skb;
 
 	/*
@@ -774,7 +772,6 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	 */
 	skbdesc = get_skb_frame_desc(intf->beacon->skb);
 	memset(skbdesc, 0, sizeof(*skbdesc));
-	skbdesc->entry = intf->beacon;
 
 	/*
 	 * Send beacon to hardware.

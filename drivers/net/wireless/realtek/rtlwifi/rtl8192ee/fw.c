@@ -764,8 +764,8 @@ static void _rtl92ee_c2h_ra_report_handler(struct ieee80211_hw *hw,
 	rtl92ee_dm_dynamic_arfb_select(hw, rate, collision_state);
 }
 
-static void _rtl92ee_c2h_content_parsing(struct ieee80211_hw *hw, u8 c2h_cmd_id,
-					 u8 c2h_cmd_len, u8 *tmp_buf)
+void rtl92ee_c2h_content_parsing(struct ieee80211_hw *hw, u8 c2h_cmd_id,
+				 u8 c2h_cmd_len, u8 *tmp_buf)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
@@ -820,5 +820,14 @@ void rtl92ee_c2h_packet_handler(struct ieee80211_hw *hw, u8 *buffer, u8 len)
 	RT_PRINT_DATA(rtlpriv, COMP_FW, DBG_TRACE,
 		      "[C2H packet], Content Hex:\n", tmp_buf, c2h_cmd_len);
 
-	_rtl92ee_c2h_content_parsing(hw, c2h_cmd_id, c2h_cmd_len, tmp_buf);
+	switch (c2h_cmd_id) {
+	case C2H_8192E_BT_INFO:
+	case C2H_8192E_BT_MP:
+		rtl_c2hcmd_enqueue(hw, c2h_cmd_id, c2h_cmd_len, tmp_buf);
+		break;
+	default:
+		rtl92ee_c2h_content_parsing(hw, c2h_cmd_id, c2h_cmd_len,
+					    tmp_buf);
+		break;
+	}
 }

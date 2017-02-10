@@ -585,9 +585,9 @@ void rtl8723be_set_p2p_ps_offload_cmd(struct ieee80211_hw *hw,
 			       (u8 *)p2p_ps_offload);
 }
 
-static void _rtl8723be_c2h_content_parsing(struct ieee80211_hw *hw,
-					   u8 c2h_cmd_id,
-					   u8 c2h_cmd_len, u8 *tmp_buf)
+void rtl8723be_c2h_content_parsing(struct ieee80211_hw *hw,
+				   u8 c2h_cmd_id,
+				   u8 c2h_cmd_len, u8 *tmp_buf)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
@@ -635,5 +635,15 @@ void rtl8723be_c2h_packet_handler(struct ieee80211_hw *hw, u8 *buffer, u8 len)
 	RT_PRINT_DATA(rtlpriv, COMP_FW, DBG_TRACE,
 		      "[C2H packet], Content Hex:\n", tmp_buf, c2h_cmd_len);
 
-	_rtl8723be_c2h_content_parsing(hw, c2h_cmd_id, c2h_cmd_len, tmp_buf);
+	switch (c2h_cmd_id) {
+	case C2H_8723B_BT_INFO:
+	case C2H_8723B_BT_MP:
+		rtl_c2hcmd_enqueue(hw, c2h_cmd_id, c2h_cmd_len, tmp_buf);
+		break;
+
+	default:
+		rtl8723be_c2h_content_parsing(hw, c2h_cmd_id, c2h_cmd_len,
+					      tmp_buf);
+		break;
+	}
 }

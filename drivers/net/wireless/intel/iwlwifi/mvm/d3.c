@@ -91,7 +91,7 @@ void iwl_mvm_set_rekey_data(struct ieee80211_hw *hw,
 	memcpy(mvmvif->rekey_data.kek, data->kek, NL80211_KEK_LEN);
 	memcpy(mvmvif->rekey_data.kck, data->kck, NL80211_KCK_LEN);
 	mvmvif->rekey_data.replay_ctr =
-		cpu_to_le64(be64_to_cpup((__be64 *)&data->replay_ctr));
+		cpu_to_le64(be64_to_cpup((__be64 *)data->replay_ctr));
 	mvmvif->rekey_data.valid = true;
 
 	mutex_unlock(&mvm->mutex);
@@ -1741,7 +1741,7 @@ out:
 static struct iwl_wowlan_status *
 iwl_mvm_get_wakeup_status(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
-	u32 base = mvm->error_event_table;
+	u32 base = mvm->error_event_table[0];
 	struct error_table_start {
 		/* cf. struct iwl_error_event_table */
 		u32 valid;
