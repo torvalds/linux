@@ -2095,7 +2095,6 @@ static int ks_wlan_set_pmksa(struct net_device *dev,
 
 static struct iw_statistics *ks_get_wireless_stats(struct net_device *dev)
 {
-
 	struct ks_wlan_private *priv =
 	    (struct ks_wlan_private *)netdev_priv(dev);
 	struct iw_statistics *wstats = &priv->wstats;
@@ -2264,7 +2263,6 @@ static int ks_wlan_set_preamble(struct net_device *dev,
 
 	priv->need_commit |= SME_MODE_SET;
 	return -EINPROGRESS;	/* Call commit handler */
-
 }
 
 /*------------------------------------------------------------------*/
@@ -2933,7 +2931,6 @@ static int ks_wlan_get_eeprom_cksum(struct net_device *dev,
 
 static void print_hif_event(struct net_device *dev, int event)
 {
-
 	switch (event) {
 	case HIF_DATA_REQ:
 		netdev_info(dev, "HIF_DATA_REQ\n");
@@ -3353,7 +3350,6 @@ void send_packet_complete(void *arg1, void *arg2)
 		dev_kfree_skb(packet);
 		packet = NULL;
 	}
-
 }
 
 /* Set or clear the multicast filter for this adaptor.
@@ -3388,7 +3384,6 @@ int ks_wlan_open(struct net_device *dev)
 static
 int ks_wlan_close(struct net_device *dev)
 {
-
 	netif_stop_queue(dev);
 
 	DPRINTK(4, "%s: Shutting down ethercard, status was 0x%4.4x.\n",
