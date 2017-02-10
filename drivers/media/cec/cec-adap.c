@@ -367,7 +367,6 @@ int cec_thread_func(void *_adap)
 			 */
 			err = wait_event_interruptible_timeout(adap->kthread_waitq,
 				kthread_should_stop() ||
-				(!adap->is_configured && !adap->is_configuring) ||
 				(!adap->transmitting &&
 				 !list_empty(&adap->transmit_queue)),
 				msecs_to_jiffies(CEC_XFER_TIMEOUT_MS));
@@ -382,8 +381,7 @@ int cec_thread_func(void *_adap)
 
 		mutex_lock(&adap->lock);
 
-		if ((!adap->is_configured && !adap->is_configuring) ||
-		    kthread_should_stop()) {
+		if (kthread_should_stop()) {
 			cec_flush(adap);
 			goto unlock;
 		}
@@ -414,6 +412,7 @@ int cec_thread_func(void *_adap)
 					struct cec_data, list);
 		list_del_init(&data->list);
 		adap->transmit_queue_sz--;
+
 		/* Make this the current transmitting message */
 		adap->transmitting = data;
 
@@ -647,7 +646,8 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 			cec_msg_initiator(msg));
 		return -EINVAL;
 	}
-	if (!adap->is_configured && !adap->is_configuring)
+	if (!adap->is_configured && !adap->is_configuring &&
+	    (msg->msg[0] != 0xf0 || msg->reply))
 		return -ENONET;
 
 	if (adap->transmit_queue_sz >= CEC_MAX_MSG_TX_QUEUE_SZ)
@@ -696,6 +696,7 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 
 	if (fh)
 		list_add_tail(&data->xfer_list, &fh->xfer_list);
+
 	list_add_tail(&data->list, &adap->transmit_queue);
 	adap->transmit_queue_sz++;
 	if (!adap->transmitting)
@@ -1121,6 +1122,7 @@ static void cec_adap_unconfigure(struct cec_adapter *adap)
 	adap->is_configuring = false;
 	adap->is_configured = false;
 	memset(adap->phys_addrs, 0xff, sizeof(adap->phys_addrs));
+	cec_flush(adap);
 	wake_up_interruptible(&adap->kthread_waitq);
 	cec_post_state_event(adap);
 }
@@ -1352,19 +1354,30 @@ void __cec_s_phys_addr(struct cec_adapter *adap, u16 phys_addr, bool block)
 		/* Disabling monitor all mode should always succeed */
 		if (adap->monitor_all_cnt)
 			WARN_ON(call_op(adap, adap_monitor_all_enable, false));
-		WARN_ON(adap->ops->adap_enable(adap, false));
+		mutex_lock(&adap->devnode.lock);
+		if (list_empty(&adap->devnode.fhs))
+			WARN_ON(adap->ops->adap_enable(adap, false));
+		mutex_unlock(&adap->devnode.lock);
 		if (phys_addr == CEC_PHYS_ADDR_INVALID)
 			return;
 	}
 
-	if (adap->ops->adap_enable(adap, true))
+	mutex_lock(&adap->devnode.lock);
+	if (list_empty(&adap->devnode.fhs) &&
+	    adap->ops->adap_enable(adap, true)) {
+		mutex_unlock(&adap->devnode.lock);
 		return;
+	}
 
 	if (adap->monitor_all_cnt &&
 	    call_op(adap, adap_monitor_all_enable, true)) {
-		WARN_ON(adap->ops->adap_enable(adap, false));
+		if (list_empty(&adap->devnode.fhs))
+			WARN_ON(adap->ops->adap_enable(adap, false));
+		mutex_unlock(&adap->devnode.lock);
 		return;
 	}
+	mutex_unlock(&adap->devnode.lock);
+
 	adap->phys_addr = phys_addr;
 	cec_post_state_event(adap);
 	if (adap->log_addrs.num_log_addrs)
