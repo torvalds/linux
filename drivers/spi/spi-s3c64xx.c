@@ -1003,7 +1003,7 @@ static struct s3c64xx_spi_info *s3c64xx_spi_parse_dt(struct device *dev)
 		sci->num_cs = temp;
 	}
 
-	sci->no_cs = of_property_read_bool(dev->of_node, "broken-cs");
+	sci->no_cs = of_property_read_bool(dev->of_node, "no-cs-readback");
 
 	return sci;
 }
