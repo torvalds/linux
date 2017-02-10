@@ -4971,8 +4971,7 @@ static int valleyview_set_rps(struct drm_i915_private *dev_priv, u8 val)
 		if (err)
 			return err;
 
-		if (!IS_CHERRYVIEW(dev_priv))
-			gen6_set_rps_thresholds(dev_priv, val);
+		gen6_set_rps_thresholds(dev_priv, val);
 	}
 
 	dev_priv->rps.cur_freq = val;
