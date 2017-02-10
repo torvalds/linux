@@ -3581,13 +3581,13 @@ static u16 megasas_get_tm_devhandle(struct scsi_device *sdev)
 	instance = (struct megasas_instance *)sdev->host->hostdata;
 	fusion = instance->ctrl_context;
 
-	if (sdev->channel < MEGASAS_MAX_PD_CHANNELS) {
+	if (!MEGASAS_IS_LOGICAL(sdev)) {
 		if (instance->use_seqnum_jbod_fp) {
-				pd_index = (sdev->channel * MEGASAS_MAX_DEV_PER_CHANNEL) +
-						sdev->id;
-				pd_sync = (void *)fusion->pd_seq_sync
-						[(instance->pd_seq_map_id - 1) & 1];
-				devhandle = pd_sync->seq[pd_index].devHandle;
+			pd_index = (sdev->channel * MEGASAS_MAX_DEV_PER_CHANNEL)
+				    + sdev->id;
+			pd_sync = (void *)fusion->pd_seq_sync
+					[(instance->pd_seq_map_id - 1) & 1];
+			devhandle = pd_sync->seq[pd_index].devHandle;
 		} else
 			sdev_printk(KERN_ERR, sdev, "Firmware expose tmCapable"
 				" without JBOD MAP support from %s %d\n", __func__, __LINE__);

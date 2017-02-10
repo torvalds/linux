@@ -2301,8 +2301,8 @@ struct megasas_instance_template {
 			    struct megasas_cmd *cmd);
 };
 
-#define MEGASAS_IS_LOGICAL(scp)						\
-	((scp->device->channel < MEGASAS_MAX_PD_CHANNELS) ? 0 : 1)
+#define MEGASAS_IS_LOGICAL(sdev)					\
+	((sdev->channel < MEGASAS_MAX_PD_CHANNELS) ? 0 : 1)
 
 #define MEGASAS_DEV_INDEX(scp)						\
 	(((scp->device->channel % 2) * MEGASAS_MAX_DEV_PER_CHANNEL) +	\

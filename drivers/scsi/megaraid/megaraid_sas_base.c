@@ -1279,7 +1279,7 @@ megasas_build_dcdb(struct megasas_instance *instance, struct scsi_cmnd *scp,
 	u16 flags = 0;
 	struct megasas_pthru_frame *pthru;
 
-	is_logical = MEGASAS_IS_LOGICAL(scp);
+	is_logical = MEGASAS_IS_LOGICAL(scp->device);
 	device_id = MEGASAS_DEV_INDEX(scp);
 	pthru = (struct megasas_pthru_frame *)cmd->frame;
 
@@ -1519,11 +1519,11 @@ inline int megasas_cmd_type(struct scsi_cmnd *cmd)
 	case WRITE_6:
 	case READ_16:
 	case WRITE_16:
-		ret = (MEGASAS_IS_LOGICAL(cmd)) ?
+		ret = (MEGASAS_IS_LOGICAL(cmd->device)) ?
 			READ_WRITE_LDIO : READ_WRITE_SYSPDIO;
 		break;
 	default:
-		ret = (MEGASAS_IS_LOGICAL(cmd)) ?
+		ret = (MEGASAS_IS_LOGICAL(cmd->device)) ?
 			NON_READ_WRITE_LDIO : NON_READ_WRITE_SYSPDIO;
 	}
 	return ret;
@@ -1699,15 +1699,16 @@ megasas_queue_command(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 
 	scmd->result = 0;
 
-	if (MEGASAS_IS_LOGICAL(scmd) &&
+	if (MEGASAS_IS_LOGICAL(scmd->device) &&
 	    (scmd->device->id >= instance->fw_supported_vd_count ||
 		scmd->device->lun)) {
 		scmd->result = DID_BAD_TARGET << 16;
 		goto out_done;
 	}
 
-	if ((scmd->cmnd[0] == SYNCHRONIZE_CACHE) && MEGASAS_IS_LOGICAL(scmd) &&
-		(!instance->fw_sync_cache_support)) {
+	if ((scmd->cmnd[0] == SYNCHRONIZE_CACHE) &&
+	    MEGASAS_IS_LOGICAL(scmd->device) &&
+	    (!instance->fw_sync_cache_support)) {
 		scmd->result = DID_OK << 16;
 		goto out_done;
 	}
@@ -1758,7 +1759,7 @@ void megasas_update_sdev_properties(struct scsi_device *sdev)
 	if (!fusion)
 		return;
 
-	if (sdev->channel < MEGASAS_MAX_PD_CHANNELS &&
+	if (!MEGASAS_IS_LOGICAL(sdev) &&
 		instance->use_seqnum_jbod_fp) {
 		pd_index = (sdev->channel * MEGASAS_MAX_DEV_PER_CHANNEL) +
 			sdev->id;
@@ -1826,8 +1827,7 @@ static int megasas_slave_configure(struct scsi_device *sdev)
 
 	instance = megasas_lookup_instance(sdev->host->host_no);
 	if (instance->pd_list_not_supported) {
-		if (sdev->channel < MEGASAS_MAX_PD_CHANNELS &&
-			sdev->type == TYPE_DISK) {
+		if (!MEGASAS_IS_LOGICAL(sdev) && sdev->type == TYPE_DISK) {
 			pd_index = (sdev->channel * MEGASAS_MAX_DEV_PER_CHANNEL) +
 				sdev->id;
 			if (instance->pd_list[pd_index].driveState !=
@@ -1854,7 +1854,7 @@ static int megasas_slave_alloc(struct scsi_device *sdev)
 	struct MR_PRIV_DEVICE *mr_device_priv_data;
 
 	instance = megasas_lookup_instance(sdev->host->host_no);
-	if (sdev->channel < MEGASAS_MAX_PD_CHANNELS) {
+	if (!MEGASAS_IS_LOGICAL(sdev)) {
 		/*
 		 * Open the OS scan to the SYSTEM PD
 		 */
