@@ -240,6 +240,10 @@ static struct nft_trans *nft_trans_rule_add(struct nft_ctx *ctx, int msg_type,
 	if (trans == NULL)
 		return NULL;
 
+	if (msg_type == NFT_MSG_NEWRULE && ctx->nla[NFTA_RULE_ID] != NULL) {
+		nft_trans_rule_id(trans) =
+			ntohl(nla_get_be32(ctx->nla[NFTA_RULE_ID]));
+	}
 	nft_trans_rule(trans) = rule;
 	list_add_tail(&trans->list, &ctx->net->nft.commit_list);
 
@@ -2293,6 +2297,22 @@ err1:
 	return err;
 }
 
+static struct nft_rule *nft_rule_lookup_byid(const struct net *net,
+					     const struct nlattr *nla)
+{
+	u32 id = ntohl(nla_get_be32(nla));
+	struct nft_trans *trans;
+
+	list_for_each_entry(trans, &net->nft.commit_list, list) {
+		struct nft_rule *rule = nft_trans_rule(trans);
+
+		if (trans->msg_type == NFT_MSG_NEWRULE &&
+		    id == nft_trans_rule_id(trans))
+			return rule;
+	}
+	return ERR_PTR(-ENOENT);
+}
+
 static int nf_tables_delrule(struct net *net, struct sock *nlsk,
 			     struct sk_buff *skb, const struct nlmsghdr *nlh,
 			     const struct nlattr * const nla[])
@@ -2327,6 +2347,12 @@ static int nf_tables_delrule(struct net *net, struct sock *nlsk,
 		if (nla[NFTA_RULE_HANDLE]) {
 			rule = nf_tables_rule_lookup(chain,
 						     nla[NFTA_RULE_HANDLE]);
+			if (IS_ERR(rule))
+				return PTR_ERR(rule);
+
+			err = nft_delrule(&ctx, rule);
+		} else if (nla[NFTA_RULE_ID]) {
+			rule = nft_rule_lookup_byid(net, nla[NFTA_RULE_ID]);
 			if (IS_ERR(rule))
 				return PTR_ERR(rule);
 
