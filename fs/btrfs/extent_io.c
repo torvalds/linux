@@ -3201,7 +3201,7 @@ int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
 	return ret;
 }
 
-static void update_nr_written(struct page *page, struct writeback_control *wbc,
+static void update_nr_written(struct writeback_control *wbc,
 			      unsigned long nr_written)
 {
 	wbc->nr_to_write -= nr_written;
@@ -3339,7 +3339,7 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 			else
 				redirty_page_for_writepage(wbc, page);
 
-			update_nr_written(page, wbc, nr_written);
+			update_nr_written(wbc, nr_written);
 			unlock_page(page);
 			return 1;
 		}
@@ -3349,7 +3349,7 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 	 * we don't want to touch the inode after unlocking the page,
 	 * so we update the mapping writeback index now
 	 */
-	update_nr_written(page, wbc, nr_written + 1);
+	update_nr_written(wbc, nr_written + 1);
 
 	end = page_end;
 	if (i_size <= start) {
@@ -3759,7 +3759,7 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 			break;
 		}
 		offset += PAGE_SIZE;
-		update_nr_written(p, wbc, 1);
+		update_nr_written(wbc, 1);
 		unlock_page(p);
 	}
 
