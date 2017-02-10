@@ -65,7 +65,7 @@ struct bcm2835_audio_instance {
 	short peer_version;
 };
 
-bool force_bulk = false;
+static bool force_bulk;
 
 /* ---- Private Variables ---------------------------------------------------- */
 
