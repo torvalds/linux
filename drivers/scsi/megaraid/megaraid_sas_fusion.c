@@ -1445,8 +1445,10 @@ map_cmd_status(struct fusion_context *fusion,
 	struct scsi_cmnd *scmd, u8 status, u8 ext_status,
 			u32 data_length, u8 *sense)
 {
+	u8 cmd_type;
 	int resid;
 
+	cmd_type = megasas_cmd_type(scmd);
 	switch (status) {
 
 	case MFI_STAT_OK:
@@ -1477,6 +1479,13 @@ map_cmd_status(struct fusion_context *fusion,
 		 */
 		resid = (scsi_bufflen(scmd) - data_length);
 		scsi_set_resid(scmd, resid);
+
+		if (resid &&
+			((cmd_type == READ_WRITE_LDIO) ||
+			(cmd_type == READ_WRITE_SYSPDIO)))
+			scmd_printk(KERN_INFO, scmd, "BRCM Debug mfi stat 0x%x, data len"
+				" requested/completed 0x%x/0x%x\n",
+				status, scsi_bufflen(scmd), data_length);
 		break;
 
 	case MFI_STAT_LD_OFFLINE:
@@ -3477,6 +3486,14 @@ int megasas_wait_for_outstanding_fusion(struct megasas_instance *instance,
 			       " will reset adapter scsi%d.\n",
 				instance->host->host_no);
 			megasas_complete_cmd_dpc_fusion((unsigned long)instance);
+			if (instance->requestorId && reason) {
+				dev_warn(&instance->pdev->dev, "SR-IOV Found FW in FAULT"
+				" state while polling during"
+				" I/O timeout handling for %d\n",
+				instance->host->host_no);
+				*convert = 1;
+			}
+
 			retval = 1;
 			goto out;
 		}
@@ -3496,7 +3513,7 @@ int megasas_wait_for_outstanding_fusion(struct megasas_instance *instance,
 		}
 
 		/* If SR-IOV VF mode & I/O timeout, check for HB timeout */
-		if (instance->requestorId && reason) {
+		if (instance->requestorId && (reason == SCSIIO_TIMEOUT_OCR)) {
 			if (instance->hb_host_mem->HB.fwCounter !=
 			    instance->hb_host_mem->HB.driverCounter) {
 				instance->hb_host_mem->HB.driverCounter =
@@ -3912,6 +3929,9 @@ int megasas_task_abort_fusion(struct scsi_cmnd *scmd)
 	instance = (struct megasas_instance *)scmd->device->host->hostdata;
 	fusion = instance->ctrl_context;
 
+	scmd_printk(KERN_INFO, scmd, "task abort called for scmd(%p)\n", scmd);
+	scsi_print_command(scmd);
+
 	if (atomic_read(&instance->adprecovery) != MEGASAS_HBA_OPERATIONAL) {
 		dev_err(&instance->pdev->dev, "Controller is not OPERATIONAL,"
 		"SCSI host:%d\n", instance->host->host_no);
@@ -3991,6 +4011,9 @@ int megasas_reset_target_fusion(struct scsi_cmnd *scmd)
 
 	instance = (struct megasas_instance *)scmd->device->host->hostdata;
 	fusion = instance->ctrl_context;
+
+	sdev_printk(KERN_INFO, scmd->device,
+		    "target reset called for scmd(%p)\n", scmd);
 
 	if (atomic_read(&instance->adprecovery) != MEGASAS_HBA_OPERATIONAL) {
 		dev_err(&instance->pdev->dev, "Controller is not OPERATIONAL,"
@@ -4151,6 +4174,9 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 		if (convert)
 			reason = 0;
 
+		if (megasas_dbg_lvl & OCR_LOGS)
+			dev_info(&instance->pdev->dev, "\nPending SCSI commands:\n");
+
 		/* Now return commands back to the OS */
 		for (i = 0 ; i < instance->max_scsi_cmds; i++) {
 			cmd_fusion = fusion->cmd_list[i];
@@ -4161,6 +4187,13 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 			}
 			scmd_local = cmd_fusion->scmd;
 			if (cmd_fusion->scmd) {
+				if (megasas_dbg_lvl & OCR_LOGS) {
+					sdev_printk(KERN_INFO,
+						cmd_fusion->scmd->device, "SMID: 0x%x\n",
+						cmd_fusion->index);
+					scsi_print_command(cmd_fusion->scmd);
+				}
+
 				scmd_local->result =
 					megasas_check_mpio_paths(instance,
 							scmd_local);

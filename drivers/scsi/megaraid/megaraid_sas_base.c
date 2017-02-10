@@ -2742,6 +2742,24 @@ blk_eh_timer_return megasas_reset_timer(struct scsi_cmnd *scmd)
 }
 
 /**
+ * megasas_dump_frame -	This function will dump MPT/MFI frame
+ */
+static inline void
+megasas_dump_frame(void *mpi_request, int sz)
+{
+	int i;
+	__le32 *mfp = (__le32 *)mpi_request;
+
+	printk(KERN_INFO "IO request frame:\n\t");
+	for (i = 0; i < sz; i++) {
+		if (i && ((i % 8) == 0))
+			printk("\n\t");
+		printk("%08x ", le32_to_cpu(mfp[i]));
+	}
+	printk("\n");
+}
+
+/**
  * megasas_reset_bus_host -	Bus & host reset handler entry point
  */
 static int megasas_reset_bus_host(struct scsi_cmnd *scmd)
@@ -2751,12 +2769,26 @@ static int megasas_reset_bus_host(struct scsi_cmnd *scmd)
 
 	instance = (struct megasas_instance *)scmd->device->host->hostdata;
 
+	scmd_printk(KERN_INFO, scmd,
+		"Controller reset is requested due to IO timeout\n"
+		"SCSI command pointer: (%p)\t SCSI host state: %d\t"
+		" SCSI host busy: %d\t FW outstanding: %d\n",
+		scmd, scmd->device->host->shost_state,
+		atomic_read((atomic_t *)&scmd->device->host->host_busy),
+		atomic_read(&instance->fw_outstanding));
+
 	/*
 	 * First wait for all commands to complete
 	 */
-	if (instance->ctrl_context)
-		ret = megasas_reset_fusion(scmd->device->host, 1);
-	else
+	if (instance->ctrl_context) {
+		struct megasas_cmd_fusion *cmd;
+		cmd = (struct megasas_cmd_fusion *)scmd->SCp.ptr;
+		if (cmd)
+			megasas_dump_frame(cmd->io_request,
+				sizeof(struct MPI2_RAID_SCSI_IO_REQUEST));
+		ret = megasas_reset_fusion(scmd->device->host,
+				SCSIIO_TIMEOUT_OCR);
+	} else
 		ret = megasas_generic_reset(scmd);
 
 	return ret;
