@@ -2257,7 +2257,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 		goto scrub_continue;
 	}
 
-	ret = write_ctree_super(trans, fs_info, 0);
+	ret = write_all_supers(fs_info, 0);
 	if (ret) {
 		mutex_unlock(&fs_info->tree_log_mutex);
 		goto scrub_continue;
