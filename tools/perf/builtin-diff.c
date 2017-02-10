@@ -17,6 +17,7 @@
 #include "util/symbol.h"
 #include "util/util.h"
 #include "util/data.h"
+#include "util/config.h"
 
 #include <stdlib.h>
 #include <math.h>
@@ -1291,12 +1292,25 @@ static int data_init(int argc, const char **argv)
 	return 0;
 }
 
+static int diff__config(const char *var, const char *value,
+			void *cb __maybe_unused)
+{
+	if (!strcmp(var, "diff.order")) {
+		sort_compute = perf_config_int(var, value);
+		return 0;
+	}
+
+	return 0;
+}
+
 int cmd_diff(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	int ret = hists__init();
 
 	if (ret < 0)
 		return ret;
+
+	perf_config(diff__config, NULL);
 
 	argc = parse_options(argc, argv, options, diff_usage, 0);
 

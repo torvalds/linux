@@ -99,7 +99,11 @@ OPTIONS
 
 -o::
 --order::
-       Specify compute sorting column number.
+       Specify compute sorting column number.  0 means sorting by baseline
+       overhead (default) and 1 means sorting by computed value of column 1
+       (data from the first file other base baseline).  Values more than 1
+       can be used only if enough data files are provided.
+       The default value can be set using the diff.order config option.
 
 --percentage::
 	Determine how to display the overhead percentage of filtered entries.
