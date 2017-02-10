@@ -1903,6 +1903,44 @@ static void gfx_v9_0_init_gfx_power_gating(struct amdgpu_device *adev)
 	}
 }
 
+static void gfx_v9_0_enable_sck_slow_down_on_power_up(struct amdgpu_device *adev,
+						bool enable)
+{
+	uint32_t data = 0;
+	uint32_t default_data = 0;
+
+	default_data = data = RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_PG_CNTL));
+
+	if (enable == true) {
+		data |= RLC_PG_CNTL__SMU_CLK_SLOWDOWN_ON_PU_ENABLE_MASK;
+		if (default_data != data)
+			WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_PG_CNTL), data);
+	} else {
+		data &= ~RLC_PG_CNTL__SMU_CLK_SLOWDOWN_ON_PU_ENABLE_MASK;
+		if(default_data != data)
+			WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_PG_CNTL), data);
+	}
+}
+
+static void gfx_v9_0_enable_sck_slow_down_on_power_down(struct amdgpu_device *adev,
+						bool enable)
+{
+	uint32_t data = 0;
+	uint32_t default_data = 0;
+
+	default_data = data = RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_PG_CNTL));
+
+	if (enable == true) {
+		data |= RLC_PG_CNTL__SMU_CLK_SLOWDOWN_ON_PD_ENABLE_MASK;
+		if(default_data != data)
+			WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_PG_CNTL), data);
+	} else {
+		data &= ~RLC_PG_CNTL__SMU_CLK_SLOWDOWN_ON_PD_ENABLE_MASK;
+		if(default_data != data)
+			WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_PG_CNTL), data);
+	}
+}
+
 static void gfx_v9_0_init_pg(struct amdgpu_device *adev)
 {
 	if (adev->pg_flags & (AMD_PG_SUPPORT_GFX_PG |
@@ -1919,6 +1957,13 @@ static void gfx_v9_0_init_pg(struct amdgpu_device *adev)
 			WREG32(mmRLC_JUMP_TABLE_RESTORE,
 				adev->gfx.rlc.cp_table_gpu_addr >> 8);
 			gfx_v9_0_init_gfx_power_gating(adev);
+			if (adev->pg_flags & AMD_PG_SUPPORT_RLC_SMU_HS) {
+				gfx_v9_0_enable_sck_slow_down_on_power_up(adev, true);
+				gfx_v9_0_enable_sck_slow_down_on_power_down(adev, true);
+			} else {
+				gfx_v9_0_enable_sck_slow_down_on_power_up(adev, false);
+				gfx_v9_0_enable_sck_slow_down_on_power_down(adev, false);
+			}
 		}
 	}
 }
