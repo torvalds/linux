@@ -673,6 +673,7 @@ struct MPI2_IOC_INIT_REQUEST {
 
 /* mrpriv defines */
 #define MR_PD_INVALID 0xFFFF
+#define MR_DEVHANDLE_INVALID 0xFFFF
 #define MAX_SPAN_DEPTH 8
 #define MAX_QUAD_DEPTH	MAX_SPAN_DEPTH
 #define MAX_RAIDMAP_SPAN_DEPTH (MAX_SPAN_DEPTH)
@@ -921,7 +922,6 @@ struct IO_REQUEST_INFO {
 	u8  span_arm;	/* span[7:5], arm[4:0] */
 	u8  pd_after_lb;
 	u16 r1_alt_dev_handle; /* raid 1/10 only */
-	bool is_raid_1_fp_write;
 	bool ra_capable;
 };
 
@@ -1060,7 +1060,6 @@ struct megasas_cmd_fusion {
 	u32 index;
 	u8 pd_r1_lb;
 	struct completion done;
-	bool is_raid_1_fp_write;
 	u16 r1_alt_dev_handle; /* raid 1/10 only*/
 	bool cmd_completed;  /* raid 1/10 fp writes status holder */
 

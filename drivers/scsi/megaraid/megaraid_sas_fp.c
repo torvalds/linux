@@ -1338,20 +1338,8 @@ MR_BuildRaidContext(struct megasas_instance *instance,
 					ref_in_start_stripe, io_info,
 					pRAID_Context, map);
 		/* If IO on an invalid Pd, then FP is not possible.*/
-		if (io_info->devHandle == cpu_to_le16(MR_PD_INVALID))
+		if (io_info->devHandle == MR_DEVHANDLE_INVALID)
 			io_info->fpOkForIo = FALSE;
-		/* if FP possible, set the SLUD bit in
-		 *  regLockFlags for ventura
-		 */
-		else if ((instance->is_ventura) && (!isRead) &&
-			(raid->writeMode == MR_RL_WRITE_BACK_MODE) &&
-			(raid->capability.fp_cache_bypass_capable))
-			((struct RAID_CONTEXT_G35 *) pRAID_Context)->routing_flags.bits.sld = 1;
-		/* set raid 1/10 fast path write capable bit in io_info */
-		if (io_info->fpOkForIo &&
-		    (io_info->r1_alt_dev_handle != MR_PD_INVALID) &&
-		    (raid->level == 1) && !isRead)
-			io_info->is_raid_1_fp_write = 1;
 		return retval;
 	} else if (isRead) {
 		uint stripIdx;
