@@ -2080,7 +2080,7 @@ static void megasas_stream_detect(struct megasas_instance *instance,
 			 */
 			continue;
 
-		cmd->io_request->RaidContext.raid_context_g35.stream_detected = true;
+		SET_STREAM_DETECTED(cmd->io_request->RaidContext.raid_context_g35);
 		current_sd->next_seq_lba =
 		io_info->ldStartBlock + io_info->numBlocks;
 		/*
@@ -2154,7 +2154,8 @@ megasas_set_raidflag_cpu_affinity(union RAID_CONTEXT_UNION *praid_context,
 			/* Fast path cache by pass capable R0/R1 VD */
 			if ((raid->level <= 1) &&
 			    (raid->capability.fp_cache_bypass_capable)) {
-				rctx_g35->routing_flags.bits.sld = 1;
+				rctx_g35->routing_flags |=
+					(1 << MR_RAID_CTX_ROUTINGFLAGS_SLD_SHIFT);
 				rctx_g35->raid_flags =
 					(MR_RAID_FLAGS_IO_SUB_TYPE_CACHE_BYPASS
 					<< MR_RAID_CTX_RAID_FLAGS_IO_SUB_TYPE_SHIFT);
@@ -2174,7 +2175,7 @@ megasas_set_raidflag_cpu_affinity(union RAID_CONTEXT_UNION *praid_context,
 			else if (raid->cpuAffinity.ldWrite.cpu1)
 				cpu_sel = MR_RAID_CTX_CPUSEL_1;
 
-			if (rctx_g35->stream_detected &&
+			if (is_stream_detected(rctx_g35) &&
 			    (raid->level == 5) &&
 			    (raid->writeMode == MR_RL_WRITE_THROUGH_MODE) &&
 			    (cpu_sel == MR_RAID_CTX_CPUSEL_FCFS))
@@ -2182,7 +2183,8 @@ megasas_set_raidflag_cpu_affinity(union RAID_CONTEXT_UNION *praid_context,
 		}
 	}
 
-	rctx_g35->routing_flags.bits.cpu_sel = cpu_sel;
+	rctx_g35->routing_flags |=
+		(cpu_sel << MR_RAID_CTX_ROUTINGFLAGS_CPUSEL_SHIFT);
 
 	/* Always give priority to MR_RAID_FLAGS_IO_SUB_TYPE_LDIO_BW_LIMIT
 	 * vs MR_RAID_FLAGS_IO_SUB_TYPE_CACHE_BYPASS.
@@ -2333,7 +2335,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 		/* In ventura if stream detected for a read and it is read ahead
 		 *  capable make this IO as LDIO
 		 */
-		if (praid_context->raid_context_g35.stream_detected &&
+		if (is_stream_detected(&io_request->RaidContext.raid_context_g35) &&
 		    io_info.isRead && io_info.ra_capable)
 			fp_possible = false;
 
@@ -2368,8 +2370,8 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 				raid, fp_possible, io_info.isRead,
 				scsi_buff_len);
 		else
-			praid_context->raid_context_g35.routing_flags.bits.cpu_sel =
-				MR_RAID_CTX_CPUSEL_0;
+			praid_context->raid_context_g35.routing_flags |=
+				(MR_RAID_CTX_CPUSEL_0 << MR_RAID_CTX_ROUTINGFLAGS_CPUSEL_SHIFT);
 	}
 
 	if (fp_possible) {
@@ -2393,12 +2395,14 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 			  (MR_RL_FLAGS_GRANT_DESTINATION_CUDA |
 			   MR_RL_FLAGS_SEQ_NUM_ENABLE);
 		} else if (instance->is_ventura) {
-			io_request->RaidContext.raid_context_g35.type
-				= MPI2_TYPE_CUDA;
-			io_request->RaidContext.raid_context_g35.nseg = 0x1;
-			io_request->RaidContext.raid_context_g35.routing_flags.bits.sqn = 1;
+			io_request->RaidContext.raid_context_g35.nseg_type |=
+						(1 << RAID_CONTEXT_NSEG_SHIFT);
+			io_request->RaidContext.raid_context_g35.nseg_type |=
+						(MPI2_TYPE_CUDA << RAID_CONTEXT_TYPE_SHIFT);
+			io_request->RaidContext.raid_context_g35.routing_flags |=
+						(1 << MR_RAID_CTX_ROUTINGFLAGS_SQN_SHIFT);
 			io_request->IoFlags |=
-			cpu_to_le16(MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH);
+				cpu_to_le16(MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH);
 		}
 		if (fusion->load_balance_info &&
 			(fusion->load_balance_info[device_id].loadBalanceFlag) &&
@@ -2456,10 +2460,12 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 				 MR_RL_FLAGS_SEQ_NUM_ENABLE);
 			io_request->RaidContext.raid_context.nseg = 0x1;
 		} else if (instance->is_ventura) {
-			io_request->RaidContext.raid_context_g35.type
-				= MPI2_TYPE_CUDA;
-			io_request->RaidContext.raid_context_g35.routing_flags.bits.sqn = 1;
-			io_request->RaidContext.raid_context_g35.nseg = 0x1;
+			io_request->RaidContext.raid_context_g35.routing_flags |=
+					(1 << MR_RAID_CTX_ROUTINGFLAGS_SQN_SHIFT);
+			io_request->RaidContext.raid_context_g35.nseg_type |=
+					(1 << RAID_CONTEXT_NSEG_SHIFT);
+			io_request->RaidContext.raid_context_g35.nseg_type |=
+					(MPI2_TYPE_CUDA << RAID_CONTEXT_TYPE_SHIFT);
 		}
 		io_request->Function = MEGASAS_MPI2_FUNCTION_LD_IO_REQUEST;
 		io_request->DevHandle = cpu_to_le16(device_id);
@@ -2609,17 +2615,23 @@ megasas_build_syspd_fusion(struct megasas_instance *instance,
 			pRAID_Context->virtual_disk_tgt_id =
 				pd_sync->seq[pd_index].pd_target_id;
 		else
-		pRAID_Context->virtual_disk_tgt_id =
-			cpu_to_le16(device_id + (MAX_PHYSICAL_DEVICES - 1));
+			pRAID_Context->virtual_disk_tgt_id =
+				cpu_to_le16(device_id + (MAX_PHYSICAL_DEVICES - 1));
 		pRAID_Context->config_seq_num = pd_sync->seq[pd_index].seqNum;
 		io_request->DevHandle = pd_sync->seq[pd_index].devHandle;
-		if (instance->is_ventura)
-			io_request->RaidContext.raid_context_g35.routing_flags.bits.sqn = 1;
-		else
-		pRAID_Context->reg_lock_flags |=
-			(MR_RL_FLAGS_SEQ_NUM_ENABLE|MR_RL_FLAGS_GRANT_DESTINATION_CUDA);
-		pRAID_Context->type = MPI2_TYPE_CUDA;
-		pRAID_Context->nseg = 0x1;
+		if (instance->is_ventura) {
+			io_request->RaidContext.raid_context_g35.routing_flags |=
+				(1 << MR_RAID_CTX_ROUTINGFLAGS_SQN_SHIFT);
+			io_request->RaidContext.raid_context_g35.nseg_type |=
+							(1 << RAID_CONTEXT_NSEG_SHIFT);
+			io_request->RaidContext.raid_context_g35.nseg_type |=
+							(MPI2_TYPE_CUDA << RAID_CONTEXT_TYPE_SHIFT);
+		} else {
+			pRAID_Context->type = MPI2_TYPE_CUDA;
+			pRAID_Context->nseg = 0x1;
+			pRAID_Context->reg_lock_flags |=
+				(MR_RL_FLAGS_SEQ_NUM_ENABLE|MR_RL_FLAGS_GRANT_DESTINATION_CUDA);
+		}
 	} else if (fusion->fast_path_io) {
 		pRAID_Context->virtual_disk_tgt_id = cpu_to_le16(device_id);
 		pRAID_Context->config_seq_num = 0;
@@ -2734,9 +2746,11 @@ megasas_build_io_fusion(struct megasas_instance *instance,
 		return 1;
 	}
 
-	if (instance->is_ventura)
-		io_request->RaidContext.raid_context_g35.num_sge = sge_count;
-	else {
+	if (instance->is_ventura) {
+		set_num_sge(&io_request->RaidContext.raid_context_g35, sge_count);
+		cpu_to_le16s(&io_request->RaidContext.raid_context_g35.routing_flags);
+		cpu_to_le16s(&io_request->RaidContext.raid_context_g35.nseg_type);
+	} else {
 		/* numSGE store lower 8 bit of sge_count.
 		 * numSGEExt store higher 8 bit of sge_count
 		 */

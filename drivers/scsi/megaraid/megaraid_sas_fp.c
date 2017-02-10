@@ -210,7 +210,7 @@ void MR_PopulateDrvRaidMap(struct megasas_instance *instance)
 			le32_to_cpu(fw_map_dyn->desc_table_size),
 			le32_to_cpu(fw_map_dyn->desc_table_num_elements));
 		dev_dbg(&instance->pdev->dev, "drv map %p ldCount %d\n",
-			drv_map, fw_map_dyn->ld_count);
+			drv_map, le16_to_cpu(fw_map_dyn->ld_count));
 #endif
 		desc_table =
 		(struct MR_RAID_MAP_DESC_TABLE *)((void *)fw_map_dyn + le32_to_cpu(fw_map_dyn->desc_table_offset));
@@ -222,7 +222,8 @@ void MR_PopulateDrvRaidMap(struct megasas_instance *instance)
 		pDrvRaidMap->ldCount = (__le16)cpu_to_le16(ld_count);
 		pDrvRaidMap->fpPdIoTimeoutSec =
 			fw_map_dyn->fp_pd_io_timeout_sec;
-		pDrvRaidMap->totalSize = sizeof(struct MR_DRV_RAID_MAP_ALL);
+		pDrvRaidMap->totalSize =
+			cpu_to_le32(sizeof(struct MR_DRV_RAID_MAP_ALL));
 		/* point to actual data starting point*/
 		raid_map_data = (void *)fw_map_dyn +
 			le32_to_cpu(fw_map_dyn->desc_table_offset) +
@@ -234,11 +235,11 @@ void MR_PopulateDrvRaidMap(struct megasas_instance *instance)
 			dev_dbg(&instance->pdev->dev, "desc table %p\n",
 				desc_table);
 			dev_dbg(&instance->pdev->dev, "raidmap type %d, raidmapOffset 0x%x\n",
-				desc_table->raid_map_desc_type,
-				desc_table->raid_map_desc_offset);
+				le32_to_cpu(desc_table->raid_map_desc_type),
+				le32_to_cpu(desc_table->raid_map_desc_offset));
 			dev_dbg(&instance->pdev->dev, "raid map number of elements 0%x, raidmapsize 0x%x\n",
-				desc_table->raid_map_desc_elements,
-				desc_table->raid_map_desc_buffer_size);
+				le32_to_cpu(desc_table->raid_map_desc_elements),
+				le32_to_cpu(desc_table->raid_map_desc_buffer_size));
 #endif
 			switch (le32_to_cpu(desc_table->raid_map_desc_type)) {
 			case RAID_MAP_DESC_TYPE_DEVHDL_INFO:
@@ -263,7 +264,7 @@ void MR_PopulateDrvRaidMap(struct megasas_instance *instance)
 #endif
 			for (j = 0; j < le32_to_cpu(desc_table->raid_map_desc_elements); j++) {
 				pDrvRaidMap->ldTgtIdToLd[j] =
-				fw_map_dyn->ld_tgt_id_to_ld[j];
+					le16_to_cpu(fw_map_dyn->ld_tgt_id_to_ld[j]);
 #if VD_EXT_DEBUG
 				dev_dbg(&instance->pdev->dev, " %d drv ldTgtIdToLd %d\n",
 					j, pDrvRaidMap->ldTgtIdToLd[j]);
