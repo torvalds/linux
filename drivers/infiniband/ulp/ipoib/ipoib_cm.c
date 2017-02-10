@@ -363,7 +363,7 @@ static int ipoib_cm_nonsrq_init_rx(struct net_device *dev, struct ib_cm_id *cm_i
 	t = kmalloc(sizeof *t, GFP_KERNEL);
 	if (!t) {
 		ret = -ENOMEM;
-		goto err_free;
+		goto err_free_1;
 	}
 
 	ipoib_cm_init_rx_wr(dev, &t->wr, t->sge);
@@ -410,6 +410,8 @@ err_count:
 
 err_free:
 	kfree(t);
+
+err_free_1:
 	ipoib_cm_free_rx_ring(dev, rx->rx_ring);
 
 	return ret;
