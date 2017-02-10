@@ -4659,7 +4659,9 @@ err_out:
 
 void i915_gem_load_cleanup(struct drm_i915_private *dev_priv)
 {
+	i915_gem_drain_freed_objects(dev_priv);
 	WARN_ON(!llist_empty(&dev_priv->mm.free_list));
+	WARN_ON(dev_priv->mm.object_count);
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	i915_gem_timeline_fini(&dev_priv->gt.global_timeline);
