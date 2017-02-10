@@ -3974,7 +3974,7 @@ early_initcall(rcu_spawn_gp_kthread);
  * task is booting the system, and such primitives are no-ops).  After this
  * function is called, any synchronous grace-period primitives are run as
  * expedited, with the requesting task driving the grace period forward.
- * A later core_initcall() rcu_exp_runtime_mode() will switch to full
+ * A later core_initcall() rcu_set_runtime_mode() will switch to full
  * runtime RCU functionality.
  */
 void rcu_scheduler_starting(void)

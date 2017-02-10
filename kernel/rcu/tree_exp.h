@@ -737,15 +737,3 @@ void synchronize_rcu_expedited(void)
 EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
 
 #endif /* #else #ifdef CONFIG_PREEMPT_RCU */
-
-/*
- * Switch to run-time mode once Tree RCU has fully initialized.
- */
-static int __init rcu_exp_runtime_mode(void)
-{
-	rcu_test_sync_prims();
-	rcu_scheduler_active = RCU_SCHEDULER_RUNNING;
-	rcu_test_sync_prims();
-	return 0;
-}
-core_initcall(rcu_exp_runtime_mode);

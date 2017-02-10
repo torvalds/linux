@@ -217,14 +217,14 @@ static inline void exit_rcu(void)
 {
 }
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_SRCU)
 extern int rcu_scheduler_active __read_mostly;
 void rcu_scheduler_starting(void);
-#else /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
+#else /* #if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_SRCU) */
 static inline void rcu_scheduler_starting(void)
 {
 }
-#endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
+#endif /* #else #if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_SRCU) */
 
 #if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE)
 
