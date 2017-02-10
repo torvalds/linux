@@ -167,6 +167,7 @@ struct core_data {
 	unsigned long long c3;
 	unsigned long long c6;
 	unsigned long long c7;
+	unsigned long long mc6_us;	/* duplicate as per-core for now, even though per module */
 	unsigned int core_temp_c;
 	unsigned int core_id;
 	unsigned long long counter[MAX_ADDED_COUNTERS];
@@ -375,6 +376,7 @@ struct msr_counter bic[] = {
 	{ 0x0, "RAM_J" },
 	{ 0x0, "Core" },
 	{ 0x0, "CPU" },
+	{ 0x0, "Mod%c6" },
 };
 
 #define MAX_BIC (sizeof(bic) / sizeof(struct msr_counter))
@@ -412,6 +414,7 @@ struct msr_counter bic[] = {
 #define	BIC_RAM_J	(1ULL << 31)
 #define	BIC_Core	(1ULL << 32)
 #define	BIC_CPU		(1ULL << 33)
+#define	BIC_Mod_c6	(1ULL << 34)
 
 unsigned long long bic_enabled = 0xFFFFFFFFFFFFFFFFULL;
 unsigned long long bic_present;
@@ -504,6 +507,8 @@ void print_header(void)
 	if (DO_BIC(BIC_CPU_c7))
 		outp += sprintf(outp, "\tCPU%%c7");
 
+	if (DO_BIC(BIC_Mod_c6))
+		outp += sprintf(outp, "\tMod%%c6");
 
 	if (DO_BIC(BIC_CoreTmp))
 		outp += sprintf(outp, "\tCoreTmp");
@@ -629,6 +634,7 @@ int dump_counters(struct thread_data *t, struct core_data *c,
 			outp += sprintf(outp, "cADDED [%d] msr0x%x: %08llX\n",
 				i, mp->msr_num, c->counter[i]);
 		}
+		outp += sprintf(outp, "mc6_us: %016llX\n", c->mc6_us);
 	}
 
 	if (p) {
@@ -773,6 +779,10 @@ int format_counters(struct thread_data *t, struct core_data *c,
 		outp += sprintf(outp, "\t%.2f", 100.0 * c->c6/t->tsc);
 	if (DO_BIC(BIC_CPU_c7))
 		outp += sprintf(outp, "\t%.2f", 100.0 * c->c7/t->tsc);
+
+	/* Mod%c6 */
+	if (DO_BIC(BIC_Mod_c6))
+		outp += sprintf(outp, "\t%.2f", 100.0 * c->mc6_us / t->tsc);
 
 	if (DO_BIC(BIC_CoreTmp))
 		outp += sprintf(outp, "\t%d", c->core_temp_c);
@@ -988,6 +998,7 @@ delta_core(struct core_data *new, struct core_data *old)
 	old->c6 = new->c6 - old->c6;
 	old->c7 = new->c7 - old->c7;
 	old->core_temp_c = new->core_temp_c;
+	old->mc6_us = new->mc6_us - old->mc6_us;
 
 	for (i = 0, mp = sys.cp; mp; i++, mp = mp->next) {
 		if (mp->format == FORMAT_RAW)
@@ -1109,6 +1120,7 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	c->c3 = 0;
 	c->c6 = 0;
 	c->c7 = 0;
+	c->mc6_us = 0;
 	c->core_temp_c = 0;
 
 	p->pkg_wtd_core_c0 = 0;
@@ -1173,6 +1185,7 @@ int sum_counters(struct thread_data *t, struct core_data *c,
 	average.cores.c3 += c->c3;
 	average.cores.c6 += c->c6;
 	average.cores.c7 += c->c7;
+	average.cores.mc6_us += c->mc6_us;
 
 	average.cores.core_temp_c = MAX(average.cores.core_temp_c, c->core_temp_c);
 
@@ -1246,6 +1259,7 @@ void compute_average(struct thread_data *t, struct core_data *c,
 	average.cores.c3 /= topo.num_cores;
 	average.cores.c6 /= topo.num_cores;
 	average.cores.c7 /= topo.num_cores;
+	average.cores.mc6_us /= topo.num_cores;
 
 	if (do_skl_residency) {
 		average.packages.pkg_wtd_core_c0 /= topo.num_packages;
@@ -1376,8 +1390,7 @@ retry:
 			return -5;
 		t->smi_count = msr & 0xFFFFFFFF;
 	}
-
-	if (use_c1_residency_msr) {
+	if (DO_BIC(BIC_CPU_c1) && use_c1_residency_msr) {
 		if (get_msr(cpu, MSR_CORE_C1_RES, &t->c1))
 			return -6;
 	}
@@ -1409,6 +1422,10 @@ retry:
 		if (get_msr(cpu, MSR_CORE_C7_RESIDENCY, &c->c7))
 			return -8;
 
+	if (DO_BIC(BIC_Mod_c6))
+		if (get_msr(cpu, MSR_MODULE_C6_RES_MS, &c->mc6_us))
+			return -8;
+
 	if (DO_BIC(BIC_CoreTmp)) {
 		if (get_msr(cpu, MSR_IA32_THERM_STATUS, &msr))
 			return -9;
@@ -1437,9 +1454,16 @@ retry:
 	if (do_pc3)
 		if (get_msr(cpu, MSR_PKG_C3_RESIDENCY, &p->pc3))
 			return -9;
-	if (do_pc6)
-		if (get_msr(cpu, MSR_PKG_C6_RESIDENCY, &p->pc6))
-			return -10;
+	if (do_pc6) {
+		if (do_slm_cstates) {
+			if (get_msr(cpu, MSR_ATOM_PKG_C6_RESIDENCY, &p->pc6))
+				return -10;
+		} else {
+			if (get_msr(cpu, MSR_PKG_C6_RESIDENCY, &p->pc6))
+				return -10;
+		}
+	}
+
 	if (do_pc2)
 		if (get_msr(cpu, MSR_PKG_C2_RESIDENCY, &p->pc2))
 			return -11;
@@ -1533,7 +1557,7 @@ char *pkg_cstate_limit_strings[] = { "reserved", "unknown", "pc0", "pc1", "pc2",
 int nhm_pkg_cstate_limits[16] = {PCL__0, PCL__1, PCL__3, PCL__6, PCL__7, PCLRSV, PCLRSV, PCLUNL, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
 int snb_pkg_cstate_limits[16] = {PCL__0, PCL__2, PCL_6N, PCL_6R, PCL__7, PCL_7S, PCLRSV, PCLUNL, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
 int hsw_pkg_cstate_limits[16] = {PCL__0, PCL__2, PCL__3, PCL__6, PCL__7, PCL_7S, PCL__8, PCL__9, PCLUNL, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
-int slv_pkg_cstate_limits[16] = {PCL__0, PCL__1, PCLRSV, PCLRSV, PCL__4, PCLRSV, PCL__6, PCL__7, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
+int slv_pkg_cstate_limits[16] = {PCL__0, PCL__1, PCLRSV, PCLRSV, PCL__4, PCLRSV, PCL__6, PCL__7, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCL__6, PCL__7};
 int amt_pkg_cstate_limits[16] = {PCLUNL, PCL__1, PCL__2, PCLRSV, PCLRSV, PCLRSV, PCL__6, PCL__7, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
 int phi_pkg_cstate_limits[16] = {PCL__0, PCL__2, PCL_6N, PCL_6R, PCLRSV, PCLRSV, PCLRSV, PCLUNL, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
 int bxt_pkg_cstate_limits[16] = {PCL__0, PCL__2, PCLUNL, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
@@ -3336,8 +3360,6 @@ int has_skl_msrs(unsigned int family, unsigned int model)
 	return 0;
 }
 
-
-
 int is_slm(unsigned int family, unsigned int model)
 {
 	if (!genuine_intel)
@@ -3731,6 +3753,12 @@ void process_cpuid()
 	do_pc3 = (pkg_cstate_limit >= PCL__3);
 	do_pc6 = (pkg_cstate_limit >= PCL__6);
 	do_pc7 = do_snb_cstates && (pkg_cstate_limit >= PCL__7);
+	if (has_slv_msrs(family, model)) {
+		do_pc2 = do_pc3 = do_pc7 = 0;
+		do_pc6 = 1;
+		BIC_PRESENT(BIC_Mod_c6);
+		use_c1_residency_msr = 1;
+	}
 	do_c8_c9_c10 = has_hsw_msrs(family, model);
 	do_irtl_hsw = has_hsw_msrs(family, model);
 	do_skl_residency = has_skl_msrs(family, model);
@@ -4112,7 +4140,7 @@ int get_and_dump_counters(void)
 }
 
 void print_version() {
-	fprintf(outf, "turbostat version 4.17 1 Jan 2017"
+	fprintf(outf, "turbostat version 4.17 10 Jan 2017"
 		" - Len Brown <lenb@kernel.org>\n");
 }
 
