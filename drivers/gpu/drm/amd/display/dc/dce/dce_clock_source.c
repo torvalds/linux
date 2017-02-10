@@ -854,16 +854,16 @@ static bool dce110_program_pix_clk(
 		if (clock_source->id != CLOCK_SOURCE_ID_EXTERNAL
 			&& pix_clk_params->flags.ENABLE_SS && !dc_is_dp_signal(
 							pix_clk_params->signal_type)) {
-
 			if (!enable_spread_spectrum(clk_src,
 							pix_clk_params->signal_type,
 							pll_settings))
 				return false;
-			/* Resync deep color DTO */
-			dce110_program_pixel_clk_resync(clk_src,
-						pix_clk_params->signal_type,
-						pix_clk_params->color_depth);
 		}
+		/* Resync deep color DTO */
+		dce110_program_pixel_clk_resync(clk_src,
+					pix_clk_params->signal_type,
+					pix_clk_params->color_depth);
+
 		break;
 	case DCE_VERSION_11_2:
 		if (clock_source->id != CLOCK_SOURCE_ID_DP_DTO) {
