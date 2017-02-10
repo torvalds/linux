@@ -2624,6 +2624,7 @@ static int smu7_force_dpm_level(struct pp_hwmgr *hwmgr,
 		smu7_force_clock_level(hwmgr, PP_SCLK, 1<<sclk_mask);
 		smu7_force_clock_level(hwmgr, PP_MCLK, 1<<mclk_mask);
 		smu7_force_clock_level(hwmgr, PP_PCIE, 1<<pcie_mask);
+
 		break;
 	case AMD_DPM_FORCED_LEVEL_MANUAL:
 		hwmgr->dpm_level = level;
@@ -2633,9 +2634,9 @@ static int smu7_force_dpm_level(struct pp_hwmgr *hwmgr,
 		break;
 	}
 
-	if (level & (AMD_DPM_FORCED_LEVEL_PROFILE_PEAK | AMD_DPM_FORCED_LEVEL_HIGH))
+	if (level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK && hwmgr->saved_dpm_level != AMD_DPM_FORCED_LEVEL_PROFILE_PEAK)
 		smu7_fan_ctrl_set_fan_speed_percent(hwmgr, 100);
-	else
+	else if (level != AMD_DPM_FORCED_LEVEL_PROFILE_PEAK && hwmgr->saved_dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK)
 		smu7_fan_ctrl_reset_fan_speed_to_default(hwmgr);
 
 	return 0;
@@ -4397,16 +4398,14 @@ static int smu7_get_sclks(struct pp_hwmgr *hwmgr, struct amd_pp_clocks *clocks)
 		if (table_info == NULL || table_info->vdd_dep_on_sclk == NULL)
 			return -EINVAL;
 		dep_sclk_table = table_info->vdd_dep_on_sclk;
-		for (i = 0; i < dep_sclk_table->count; i++) {
+		for (i = 0; i < dep_sclk_table->count; i++)
 			clocks->clock[i] = dep_sclk_table->entries[i].clk;
-			clocks->count++;
-		}
+		clocks->count = dep_sclk_table->count;
 	} else if (hwmgr->pp_table_version == PP_TABLE_V0) {
 		sclk_table = hwmgr->dyn_state.vddc_dependency_on_sclk;
-		for (i = 0; i < sclk_table->count; i++) {
+		for (i = 0; i < sclk_table->count; i++)
 			clocks->clock[i] = sclk_table->entries[i].clk;
-			clocks->count++;
-		}
+		clocks->count = sclk_table->count;
 	}
 
 	return 0;
@@ -4440,14 +4439,13 @@ static int smu7_get_mclks(struct pp_hwmgr *hwmgr, struct amd_pp_clocks *clocks)
 			clocks->clock[i] = dep_mclk_table->entries[i].clk;
 			clocks->latency[i] = smu7_get_mem_latency(hwmgr,
 						dep_mclk_table->entries[i].clk);
-			clocks->count++;
 		}
+		clocks->count = dep_mclk_table->count;
 	} else if (hwmgr->pp_table_version == PP_TABLE_V0) {
 		mclk_table = hwmgr->dyn_state.vddc_dependency_on_mclk;
-		for (i = 0; i < mclk_table->count; i++) {
+		for (i = 0; i < mclk_table->count; i++)
 			clocks->clock[i] = mclk_table->entries[i].clk;
-			clocks->count++;
-		}
+		clocks->count = mclk_table->count;
 	}
 	return 0;
 }

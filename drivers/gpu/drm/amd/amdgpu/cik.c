@@ -1722,8 +1722,8 @@ static int cik_common_early_init(void *handle)
 			  AMD_PG_SUPPORT_GFX_SMG |
 			  AMD_PG_SUPPORT_GFX_DMG |*/
 			AMD_PG_SUPPORT_UVD |
-			/*AMD_PG_SUPPORT_VCE |
-			  AMD_PG_SUPPORT_CP |
+			AMD_PG_SUPPORT_VCE |
+			/*  AMD_PG_SUPPORT_CP |
 			  AMD_PG_SUPPORT_GDS |
 			  AMD_PG_SUPPORT_RLC_SMU_HS |
 			  AMD_PG_SUPPORT_ACP |
