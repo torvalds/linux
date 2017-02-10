@@ -300,6 +300,40 @@ static void cec_data_cancel(struct cec_data *data)
 }
 
 /*
+ * Flush all pending transmits and cancel any pending timeout work.
+ *
+ * This function is called with adap->lock held.
+ */
+static void cec_flush(struct cec_adapter *adap)
+{
+	struct cec_data *data, *n;
+
+	/*
+	 * If the adapter is disabled, or we're asked to stop,
+	 * then cancel any pending transmits.
+	 */
+	while (!list_empty(&adap->transmit_queue)) {
+		data = list_first_entry(&adap->transmit_queue,
+					struct cec_data, list);
+		cec_data_cancel(data);
+	}
+	if (adap->transmitting)
+		cec_data_cancel(adap->transmitting);
+
+	/* Cancel the pending timeout work. */
+	list_for_each_entry_safe(data, n, &adap->wait_queue, list) {
+		if (cancel_delayed_work(&data->work))
+			cec_data_cancel(data);
+		/*
+		 * If cancel_delayed_work returned false, then
+		 * the cec_wait_timeout function is running,
+		 * which will call cec_data_completed. So no
+		 * need to do anything special in that case.
+		 */
+	}
+}
+
+/*
  * Main CEC state machine
  *
  * Wait until the thread should be stopped, or we are not transmitting and
@@ -350,37 +384,7 @@ int cec_thread_func(void *_adap)
 
 		if ((!adap->is_configured && !adap->is_configuring) ||
 		    kthread_should_stop()) {
-			/*
-			 * If the adapter is disabled, or we're asked to stop,
-			 * then cancel any pending transmits.
-			 */
-			while (!list_empty(&adap->transmit_queue)) {
-				data = list_first_entry(&adap->transmit_queue,
-							struct cec_data, list);
-				cec_data_cancel(data);
-			}
-			if (adap->transmitting)
-				cec_data_cancel(adap->transmitting);
-
-			/*
-			 * Cancel the pending timeout work. We have to unlock
-			 * the mutex when flushing the work since
-			 * cec_wait_timeout() will take it. This is OK since
-			 * no new entries can be added to wait_queue as long
-			 * as adap->transmitting is NULL, which it is due to
-			 * the cec_data_cancel() above.
-			 */
-			while (!list_empty(&adap->wait_queue)) {
-				data = list_first_entry(&adap->wait_queue,
-							struct cec_data, list);
-
-				if (!cancel_delayed_work(&data->work)) {
-					mutex_unlock(&adap->lock);
-					flush_scheduled_work();
-					mutex_lock(&adap->lock);
-				}
-				cec_data_cancel(data);
-			}
+			cec_flush(adap);
 			goto unlock;
 		}
 
