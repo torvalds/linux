@@ -24,17 +24,27 @@
 
 #define SEMAPHORE_TIMEOUT	100
 #define PUNIT_SEMAPHORE		0x7
+#define PUNIT_SEMAPHORE_CHT	0x10e
 #define PUNIT_SEMAPHORE_BIT	BIT(0)
 #define PUNIT_SEMAPHORE_ACQUIRE	BIT(1)
 
 static unsigned long acquired;
 
+static u32 get_sem_addr(struct dw_i2c_dev *dev)
+{
+	if (dev->flags & MODEL_CHERRYTRAIL)
+		return PUNIT_SEMAPHORE_CHT;
+	else
+		return PUNIT_SEMAPHORE;
+}
+
 static int get_sem(struct dw_i2c_dev *dev, u32 *sem)
 {
+	u32 addr = get_sem_addr(dev);
 	u32 data;
 	int ret;
 
-	ret = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, PUNIT_SEMAPHORE, &data);
+	ret = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, addr, &data);
 	if (ret) {
 		dev_err(dev->dev, "iosf failed to read punit semaphore\n");
 		return ret;
@@ -47,7 +57,7 @@ static int get_sem(struct dw_i2c_dev *dev, u32 *sem)
 
 static void reset_semaphore(struct dw_i2c_dev *dev)
 {
-	if (iosf_mbi_modify(BT_MBI_UNIT_PMC, MBI_REG_READ, PUNIT_SEMAPHORE,
+	if (iosf_mbi_modify(BT_MBI_UNIT_PMC, MBI_REG_READ, get_sem_addr(dev),
 			    0, PUNIT_SEMAPHORE_BIT))
 		dev_err(dev->dev, "iosf failed to reset punit semaphore during write\n");
 
@@ -56,6 +66,7 @@ static void reset_semaphore(struct dw_i2c_dev *dev)
 
 static int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
 {
+	u32 addr = get_sem_addr(dev);
 	u32 sem = PUNIT_SEMAPHORE_ACQUIRE;
 	int ret;
 	unsigned long start, end;
@@ -76,7 +87,7 @@ static int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
 	pm_qos_update_request(&dev->pm_qos, 0);
 
 	/* host driver writes to side band semaphore register */
-	ret = iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE, PUNIT_SEMAPHORE, sem);
+	ret = iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE, addr, sem);
 	if (ret) {
 		dev_err(dev->dev, "iosf punit semaphore request failed\n");
 		goto out;
@@ -101,7 +112,7 @@ static int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
 out:
 	reset_semaphore(dev);
 
-	ret = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, PUNIT_SEMAPHORE, &sem);
+	ret = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, addr, &sem);
 	if (ret)
 		dev_err(dev->dev, "iosf failed to read punit semaphore\n");
 	else
