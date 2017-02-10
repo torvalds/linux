@@ -2566,7 +2566,8 @@ static void megasas_build_ld_nonrw_fusion(struct megasas_instance *instance,
  */
 static void
 megasas_build_syspd_fusion(struct megasas_instance *instance,
-	struct scsi_cmnd *scmd, struct megasas_cmd_fusion *cmd, u8 fp_possible)
+	struct scsi_cmnd *scmd, struct megasas_cmd_fusion *cmd,
+	bool fp_possible)
 {
 	u32 device_id;
 	struct MPI2_RAID_SCSI_IO_REQUEST *io_request;
@@ -2687,6 +2688,8 @@ megasas_build_io_fusion(struct megasas_instance *instance,
 	int sge_count;
 	u8  cmd_type;
 	struct MPI2_RAID_SCSI_IO_REQUEST *io_request = cmd->io_request;
+	struct MR_PRIV_DEVICE *mr_device_priv_data;
+	mr_device_priv_data = scp->device->hostdata;
 
 	/* Zero out some fields so they don't get reused */
 	memset(io_request->LUN, 0x0, 8);
@@ -2715,12 +2718,14 @@ megasas_build_io_fusion(struct megasas_instance *instance,
 		megasas_build_ld_nonrw_fusion(instance, scp, cmd);
 		break;
 	case READ_WRITE_SYSPDIO:
+		megasas_build_syspd_fusion(instance, scp, cmd, true);
+		break;
 	case NON_READ_WRITE_SYSPDIO:
-		if (instance->secure_jbod_support &&
-			(cmd_type == NON_READ_WRITE_SYSPDIO))
-			megasas_build_syspd_fusion(instance, scp, cmd, 0);
+		if (instance->secure_jbod_support ||
+		    mr_device_priv_data->is_tm_capable)
+			megasas_build_syspd_fusion(instance, scp, cmd, false);
 		else
-			megasas_build_syspd_fusion(instance, scp, cmd, 1);
+			megasas_build_syspd_fusion(instance, scp, cmd, true);
 		break;
 	default:
 		break;
