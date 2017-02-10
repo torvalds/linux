@@ -75,6 +75,7 @@ enum rockchip_pinctrl_type {
 #define IOMUX_WIDTH_4BIT	BIT(1)
 #define IOMUX_SOURCE_PMU	BIT(2)
 #define IOMUX_UNROUTED		BIT(3)
+#define IOMUX_WIDTH_3BIT	BIT(4)
 
 /**
  * @type: iomux variant using IOMUX_* constants
@@ -538,14 +539,20 @@ static int rockchip_get_mux(struct rockchip_pin_bank *bank, int pin)
 				? info->regmap_pmu : info->regmap_base;
 
 	/* get basic quadrupel of mux registers and the correct reg inside */
-	mask = (bank->iomux[iomux_num].type & IOMUX_WIDTH_4BIT) ? 0xf : 0x3;
 	reg = bank->iomux[iomux_num].offset;
 	if (bank->iomux[iomux_num].type & IOMUX_WIDTH_4BIT) {
 		if ((pin % 8) >= 4)
 			reg += 0x4;
 		bit = (pin % 4) * 4;
+		mask = 0xf;
+	} else if (bank->iomux[iomux_num].type & IOMUX_WIDTH_3BIT) {
+		if ((pin % 8) >= 5)
+			reg += 0x4;
+		bit = (pin % 8 % 5) * 3;
+		mask = 0x7;
 	} else {
 		bit = (pin % 8) * 2;
+		mask = 0x3;
 	}
 
 	ret = regmap_read(regmap, reg, &val);
@@ -603,14 +610,20 @@ static int rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 				? info->regmap_pmu : info->regmap_base;
 
 	/* get basic quadrupel of mux registers and the correct reg inside */
-	mask = (bank->iomux[iomux_num].type & IOMUX_WIDTH_4BIT) ? 0xf : 0x3;
 	reg = bank->iomux[iomux_num].offset;
 	if (bank->iomux[iomux_num].type & IOMUX_WIDTH_4BIT) {
 		if ((pin % 8) >= 4)
 			reg += 0x4;
 		bit = (pin % 4) * 4;
+		mask = 0xf;
+	} else if (bank->iomux[iomux_num].type & IOMUX_WIDTH_3BIT) {
+		if ((pin % 8) >= 5)
+			reg += 0x4;
+		bit = (pin % 8 % 5) * 3;
+		mask = 0x7;
 	} else {
 		bit = (pin % 8) * 2;
+		mask = 0x3;
 	}
 
 	spin_lock_irqsave(&bank->slock, flags);
@@ -2359,7 +2372,8 @@ static struct rockchip_pin_ctrl *rockchip_pinctrl_get_soc_data(
 			 * Increase offset according to iomux width.
 			 * 4bit iomux'es are spread over two registers.
 			 */
-			inc = (iom->type & IOMUX_WIDTH_4BIT) ? 8 : 4;
+			inc = (iom->type & (IOMUX_WIDTH_4BIT |
+					    IOMUX_WIDTH_3BIT)) ? 8 : 4;
 			if (iom->type & IOMUX_SOURCE_PMU)
 				pmu_offs += inc;
 			else
