@@ -388,8 +388,8 @@ config DISABLE_MPROFILE_KERNEL
 	  be disabled also.
 
 	  If you have a toolchain which supports mprofile-kernel, then you can
-	  enable this. Otherwise leave it disabled. If you're not sure, say
-	  "N".
+	  disable this. Otherwise leave it enabled. If you're not sure, say
+	  "Y".
 
 config MPROFILE_KERNEL
 	depends on PPC64 && CPU_LITTLE_ENDIAN
