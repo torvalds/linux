@@ -250,8 +250,8 @@ intel_uncore_fw_release_timer(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-void intel_uncore_forcewake_reset(struct drm_i915_private *dev_priv,
-				  bool restore)
+static void intel_uncore_forcewake_reset(struct drm_i915_private *dev_priv,
+					 bool restore)
 {
 	unsigned long irqflags;
 	struct intel_uncore_forcewake_domain *domain;
@@ -427,10 +427,14 @@ static void __intel_uncore_early_sanitize(struct drm_i915_private *dev_priv,
 	intel_uncore_forcewake_reset(dev_priv, restore_forcewake);
 }
 
-void intel_uncore_early_sanitize(struct drm_i915_private *dev_priv,
-				 bool restore_forcewake)
+void intel_uncore_suspend(struct drm_i915_private *dev_priv)
 {
-	__intel_uncore_early_sanitize(dev_priv, restore_forcewake);
+	intel_uncore_forcewake_reset(dev_priv, false);
+}
+
+void intel_uncore_resume_early(struct drm_i915_private *dev_priv)
+{
+	__intel_uncore_early_sanitize(dev_priv, true);
 	i915_check_and_clear_faults(dev_priv);
 }
 
