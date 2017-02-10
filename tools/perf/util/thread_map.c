@@ -93,7 +93,7 @@ struct thread_map *thread_map__new_by_uid(uid_t uid)
 {
 	DIR *proc;
 	int max_threads = 32, items, i;
-	char path[256];
+	char path[NAME_MAX + 1 + 6];
 	struct dirent *dirent, **namelist = NULL;
 	struct thread_map *threads = thread_map__alloc(max_threads);
 
