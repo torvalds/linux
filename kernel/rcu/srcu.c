@@ -417,6 +417,8 @@ static void __synchronize_srcu(struct srcu_struct *sp, int trycount)
 			 lock_is_held(&rcu_sched_lock_map),
 			 "Illegal synchronize_srcu() in same-type SRCU (or in RCU) read-side critical section");
 
+	if (rcu_scheduler_active == RCU_SCHEDULER_INACTIVE)
+		return;
 	might_sleep();
 	init_completion(&rcu.completion);
 
