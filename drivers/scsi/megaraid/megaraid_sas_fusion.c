@@ -376,7 +376,8 @@ static int megasas_create_sg_sense_fusion(struct megasas_instance *instance)
 
 	fusion->sg_dma_pool =
 			pci_pool_create("mr_sg", instance->pdev,
-				instance->max_chain_frame_sz, 4, 0);
+				instance->max_chain_frame_sz,
+				MR_DEFAULT_NVME_PAGE_SIZE, 0);
 	/* SCSI_SENSE_BUFFERSIZE  = 96 bytes */
 	fusion->sense_dma_pool =
 			pci_pool_create("mr_sense", instance->pdev,
@@ -823,6 +824,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 			MPI2_IOCINIT_MSGFLAG_RDPQ_ARRAY_MODE : 0;
 	IOCInitMessage->SystemRequestFrameBaseAddress = cpu_to_le64(fusion->io_request_frames_phys);
 	IOCInitMessage->HostMSIxVectors = instance->msix_vectors;
+	IOCInitMessage->HostPageSize = MR_DEFAULT_NVME_PAGE_SHIFT;
 	init_frame = (struct megasas_init_frame *)cmd->frame;
 	memset(init_frame, 0, MEGAMFI_FRAME_SIZE);
 
@@ -3935,7 +3937,7 @@ transition_to_ready:
 			megasas_setup_jbod_map(instance);
 
 			shost_for_each_device(sdev, shost)
-				megasas_update_sdev_properties(sdev);
+				megasas_set_dynamic_target_properties(sdev);
 
 			/* reset stream detection array */
 			if (instance->is_ventura) {

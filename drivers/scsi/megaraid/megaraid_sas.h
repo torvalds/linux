@@ -733,7 +733,6 @@ struct megasas_pd_list {
 	u16             tid;
 	u8             driveType;
 	u8             driveState;
-	u8             interface;
 } __packed;
 
  /*
@@ -1530,8 +1529,8 @@ struct megasas_register_set {
 	u32 	outbound_scratch_pad ;		/*00B0h*/
 	u32	outbound_scratch_pad_2;         /*00B4h*/
 	u32	outbound_scratch_pad_3;         /*00B8h*/
+	u32	outbound_scratch_pad_4;         /*00BCh*/
 
-	u32	reserved_4;			/*00BCh*/
 
 	u32 	inbound_low_queue_port ;	/*00C0h*/
 
@@ -1864,6 +1863,7 @@ union megasas_frame {
 struct MR_PRIV_DEVICE {
 	bool is_tm_capable;
 	bool tm_busy;
+	u8   interface_type;
 };
 struct megasas_cmd;
 
@@ -2055,17 +2055,24 @@ struct MR_DRV_SYSTEM_INFO {
 };
 
 enum MR_PD_TYPE {
-		 UNKNOWN_DRIVE = 0,
-		 PARALLEL_SCSI = 1,
-		 SAS_PD = 2,
-		 SATA_PD = 3,
-		 FC_PD = 4,
+	UNKNOWN_DRIVE = 0,
+	PARALLEL_SCSI = 1,
+	SAS_PD = 2,
+	SATA_PD = 3,
+	FC_PD = 4,
+	NVME_PD = 5,
 };
 
 /* JBOD Queue depth definitions */
 #define MEGASAS_SATA_QD	32
 #define MEGASAS_SAS_QD	64
 #define MEGASAS_DEFAULT_PD_QD	64
+#define MEGASAS_NVME_QD		32
+
+#define MR_DEFAULT_NVME_PAGE_SIZE	4096
+#define MR_DEFAULT_NVME_PAGE_SHIFT	12
+#define MR_DEFAULT_NVME_MDTS_KB		128
+#define MR_NVME_PAGE_SIZE_MASK		0x000000FF
 
 struct megasas_instance {
 
@@ -2209,6 +2216,7 @@ struct megasas_instance {
 	bool is_ventura;
 	bool msix_combined;
 	u16 max_raid_mapsize;
+	u32 nvme_page_size;
 };
 struct MR_LD_VF_MAP {
 	u32 size;
@@ -2428,6 +2436,7 @@ int megasas_get_ctrl_info(struct megasas_instance *instance);
 /* PD sequence */
 int
 megasas_sync_pd_seq_num(struct megasas_instance *instance, bool pend);
+void megasas_set_dynamic_target_properties(struct scsi_device *sdev);
 int megasas_set_crash_dump_params(struct megasas_instance *instance,
 	u8 crash_buf_state);
 void megasas_free_host_crash_buffer(struct megasas_instance *instance);

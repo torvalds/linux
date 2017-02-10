@@ -657,7 +657,7 @@ struct MPI2_IOC_INIT_REQUEST {
 	__le16			HeaderVersion;                  /* 0x0E */
 	u32                     Reserved5;                      /* 0x10 */
 	__le16			Reserved6;                      /* 0x14 */
-	u8                      Reserved7;                      /* 0x16 */
+	u8                      HostPageSize;                   /* 0x16 */
 	u8                      HostMSIxVectors;                /* 0x17 */
 	__le16			Reserved8;                      /* 0x18 */
 	__le16			SystemRequestFrameSize;         /* 0x1A */
