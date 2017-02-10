@@ -195,13 +195,13 @@ int bcm2835_audio_write(struct bcm2835_alsa_stream *alsa_stream,
 	return ret;
 }
 
-void my_workqueue_init(struct bcm2835_alsa_stream *alsa_stream)
+static void my_workqueue_init(struct bcm2835_alsa_stream *alsa_stream)
 {
 	alsa_stream->my_wq = alloc_workqueue("my_queue", WQ_HIGHPRI, 1);
 	return;
 }
 
-void my_workqueue_quit(struct bcm2835_alsa_stream *alsa_stream)
+static void my_workqueue_quit(struct bcm2835_alsa_stream *alsa_stream)
 {
 	if (alsa_stream->my_wq) {
 		flush_workqueue(alsa_stream->my_wq);
@@ -782,8 +782,8 @@ unlock:
 	return ret;
 }
 
-int bcm2835_audio_write_worker(struct bcm2835_alsa_stream *alsa_stream,
-			       unsigned int count, void *src)
+static int bcm2835_audio_write_worker(struct bcm2835_alsa_stream *alsa_stream,
+				      unsigned int count, void *src)
 {
 	struct vc_audio_msg m;
 	struct bcm2835_audio_instance *instance = alsa_stream->instance;
