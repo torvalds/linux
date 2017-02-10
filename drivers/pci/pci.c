@@ -4975,11 +4975,6 @@ static resource_size_t pci_specified_resource_alignment(struct pci_dev *dev,
 	p = resource_alignment_param;
 	if (!*p)
 		goto out;
-	if (pci_has_flag(PCI_PROBE_ONLY)) {
-		pr_info_once("PCI: Ignoring requested alignments (PCI_PROBE_ONLY)\n");
-		goto out;
-	}
-
 	while (*p) {
 		count = 0;
 		if (sscanf(p, "%d%n", &align_order, &count) == 1 &&
@@ -5112,12 +5107,6 @@ void pci_reassigndev_resource_alignment(struct pci_dev *dev)
 		r = &dev->resource[i];
 		if (!(r->flags & IORESOURCE_MEM))
 			continue;
-		if (r->flags & IORESOURCE_PCI_FIXED) {
-			dev_info(&dev->dev, "Ignoring requested alignment for BAR%d: %pR\n",
-				i, r);
-			continue;
-		}
-
 		size = resource_size(r);
 		if (resize) {
 			if (size < align) {
