@@ -5352,7 +5352,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		(MEGASAS_MAX_PD * sizeof(struct megasas_pd_list)));
 	if (megasas_get_pd_list(instance) < 0) {
 		dev_err(&instance->pdev->dev, "failed to get PD list\n");
-		goto fail_get_pd_list;
+		goto fail_get_ld_pd_list;
 	}
 
 	memset(instance->ld_ids, 0xff, MEGASAS_MAX_LD_IDS);
@@ -5388,7 +5388,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 
 	if (megasas_ld_list_query(instance,
 				  MR_LD_QUERY_TYPE_EXPOSED_TO_HOST))
-		megasas_get_ld_list(instance);
+		goto fail_get_ld_pd_list;
 
 	/*
 	 * Compute the max allowed sectors per IO: The controller info has two
@@ -5507,8 +5507,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 
 fail_get_ld_pd_list:
 	instance->instancet->disable_intr(instance);
-fail_get_pd_list:
-	instance->instancet->disable_intr(instance);
 fail_init_adapter:
 	megasas_destroy_irqs(instance);
 fail_setup_irqs:
@@ -5520,9 +5518,11 @@ fail_ready_state:
 	instance->ctrl_info = NULL;
 	iounmap(instance->reg_set);
 
-      fail_ioremap:
+fail_ioremap:
 	pci_release_selected_regions(instance->pdev, 1<<instance->bar);
 
+	dev_err(&instance->pdev->dev, "Failed from %s %d\n",
+		__func__, __LINE__);
 	return -EINVAL;
 }
 
