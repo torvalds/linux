@@ -875,10 +875,22 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 			   I915_READ(VLV_IIR_RW));
 		seq_printf(m, "Display IMR:\t%08x\n",
 			   I915_READ(VLV_IMR));
-		for_each_pipe(dev_priv, pipe)
+		for_each_pipe(dev_priv, pipe) {
+			enum intel_display_power_domain power_domain;
+
+			power_domain = POWER_DOMAIN_PIPE(pipe);
+			if (!intel_display_power_get_if_enabled(dev_priv,
+								power_domain)) {
+				seq_printf(m, "Pipe %c power disabled\n",
+					   pipe_name(pipe));
+				continue;
+			}
+
 			seq_printf(m, "Pipe %c stat:\t%08x\n",
 				   pipe_name(pipe),
 				   I915_READ(PIPESTAT(pipe)));
+			intel_display_power_put(dev_priv, power_domain);
+		}
 
 		seq_printf(m, "Master IER:\t%08x\n",
 			   I915_READ(VLV_MASTER_IER));
