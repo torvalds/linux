@@ -404,7 +404,7 @@ static struct nft_set_ops nft_hash_ops __read_mostly = {
 	.lookup		= nft_hash_lookup,
 	.update		= nft_hash_update,
 	.walk		= nft_hash_walk,
-	.features	= NFT_SET_MAP | NFT_SET_TIMEOUT,
+	.features	= NFT_SET_MAP | NFT_SET_OBJECT | NFT_SET_TIMEOUT,
 	.owner		= THIS_MODULE,
 };
 

@@ -310,7 +310,7 @@ static struct nft_set_ops nft_rbtree_ops __read_mostly = {
 	.activate	= nft_rbtree_activate,
 	.lookup		= nft_rbtree_lookup,
 	.walk		= nft_rbtree_walk,
-	.features	= NFT_SET_INTERVAL | NFT_SET_MAP,
+	.features	= NFT_SET_INTERVAL | NFT_SET_MAP | NFT_SET_OBJECT,
 	.owner		= THIS_MODULE,
 };
 
