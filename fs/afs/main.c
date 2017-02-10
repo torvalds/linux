@@ -35,50 +35,6 @@ struct uuid_v1 afs_uuid;
 struct workqueue_struct *afs_wq;
 
 /*
- * get a client UUID
- */
-static int __init afs_get_client_UUID(void)
-{
-	struct timespec ts;
-	u64 uuidtime;
-	u16 clockseq, hi_v;
-	int ret;
-
-	/* read the MAC address of one of the external interfaces and construct
-	 * a UUID from it */
-	ret = afs_get_MAC_address(afs_uuid.node, sizeof(afs_uuid.node));
-	if (ret < 0)
-		return ret;
-
-	getnstimeofday(&ts);
-	uuidtime = (u64) ts.tv_sec * 1000 * 1000 * 10;
-	uuidtime += ts.tv_nsec / 100;
-	uuidtime += UUID_TO_UNIX_TIME;
-	afs_uuid.time_low = htonl(uuidtime);
-	afs_uuid.time_mid = htons(uuidtime >> 32);
-	hi_v = (uuidtime >> 48) & UUID_TIMEHI_MASK;
-	hi_v |= UUID_VERSION_TIME;
-	afs_uuid.time_hi_and_version = htons(hi_v);
-
-	get_random_bytes(&clockseq, 2);
-	afs_uuid.clock_seq_low = clockseq;
-	afs_uuid.clock_seq_hi_and_reserved =
-		(clockseq >> 8) & UUID_CLOCKHI_MASK;
-	afs_uuid.clock_seq_hi_and_reserved |= UUID_VARIANT_STD;
-
-	_debug("AFS UUID: %08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-	       ntohl(afs_uuid.time_low),
-	       ntohs(afs_uuid.time_mid),
-	       ntohs(afs_uuid.time_hi_and_version),
-	       afs_uuid.clock_seq_hi_and_reserved,
-	       afs_uuid.clock_seq_low,
-	       afs_uuid.node[0], afs_uuid.node[1], afs_uuid.node[2],
-	       afs_uuid.node[3], afs_uuid.node[4], afs_uuid.node[5]);
-
-	return 0;
-}
-
-/*
  * initialise the AFS client FS module
  */
 static int __init afs_init(void)
@@ -87,9 +43,7 @@ static int __init afs_init(void)
 
 	printk(KERN_INFO "kAFS: Red Hat AFS client v0.1 registering.\n");
 
-	ret = afs_get_client_UUID();
-	if (ret < 0)
-		return ret;
+	generate_random_uuid((unsigned char *)&afs_uuid);
 
 	/* create workqueue */
 	ret = -ENOMEM;

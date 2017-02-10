@@ -561,6 +561,11 @@ extern int afs_mntpt_check_symlink(struct afs_vnode *, struct key *);
 extern void afs_mntpt_kill_timer(void);
 
 /*
+ * netdevices.c
+ */
+extern int afs_get_ipv4_interfaces(struct afs_interface *, size_t, bool);
+
+/*
  * proc.c
  */
 extern int afs_proc_init(void);
@@ -622,12 +627,6 @@ extern void __exit afs_purge_servers(void);
  */
 extern int afs_fs_init(void);
 extern void afs_fs_exit(void);
-
-/*
- * use-rtnetlink.c
- */
-extern int afs_get_ipv4_interfaces(struct afs_interface *, size_t, bool);
-extern int afs_get_MAC_address(u8 *, size_t);
 
 /*
  * vlclient.c
