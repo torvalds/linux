@@ -28,7 +28,9 @@ static int msm_gpu_show(struct drm_device *dev, struct seq_file *m)
 
 	if (gpu) {
 		seq_printf(m, "%s Status:\n", gpu->name);
+		gpu->funcs->pm_resume(gpu);
 		gpu->funcs->show(gpu, m);
+		gpu->funcs->pm_suspend(gpu);
 	}
 
 	return 0;
