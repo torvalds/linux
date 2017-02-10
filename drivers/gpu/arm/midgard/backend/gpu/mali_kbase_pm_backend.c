@@ -177,6 +177,11 @@ static void kbase_pm_gpu_poweroff_wait_wq(struct work_struct *data)
 	struct kbasep_js_device_data *js_devdata = &kbdev->js_data;
 	unsigned long flags;
 
+/* rk_ext: adaption in DDK r14 for solution_1_for_glitch. */
+#define NOT_TO_WAIT_CORES_POWER_TRANSITIONS_BEFORE_POWER_OFF_GPU
+
+#ifdef NOT_TO_WAIT_CORES_POWER_TRANSITIONS_BEFORE_POWER_OFF_GPU
+#else
 	/* Wait for power transitions to complete. We do this with no locks held
 	 * so that we don't deadlock with any pending workqueues */
 	KBASE_TIMELINE_PM_CHECKTRANS(kbdev,
@@ -184,6 +189,7 @@ static void kbase_pm_gpu_poweroff_wait_wq(struct work_struct *data)
 	kbase_pm_check_transitions_sync(kbdev);
 	KBASE_TIMELINE_PM_CHECKTRANS(kbdev,
 				SW_FLOW_PM_CHECKTRANS_PM_DO_POWEROFF_END);
+#endif
 
 	mutex_lock(&js_devdata->runpool_mutex);
 	mutex_lock(&kbdev->pm.lock);
