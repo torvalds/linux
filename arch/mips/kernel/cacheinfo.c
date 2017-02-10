@@ -17,6 +17,7 @@
 
 /* Populates leaf and increments to next leaf */
 #define populate_cache(cache, leaf, c_level, c_type)		\
+do {								\
 	leaf->type = c_type;					\
 	leaf->level = c_level;					\
 	leaf->coherency_line_size = c->cache.linesz;		\
@@ -24,7 +25,8 @@
 	leaf->ways_of_associativity = c->cache.ways;		\
 	leaf->size = c->cache.linesz * c->cache.sets *		\
 		c->cache.ways;					\
-	leaf++;
+	leaf++;							\
+} while (0)
 
 static int __init_cache_level(unsigned int cpu)
 {
