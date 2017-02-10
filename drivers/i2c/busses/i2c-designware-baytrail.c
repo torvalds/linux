@@ -63,6 +63,8 @@ static void reset_semaphore(struct dw_i2c_dev *dev)
 
 	pm_qos_update_request(&dev->pm_qos, PM_QOS_DEFAULT_VALUE);
 
+	iosf_mbi_call_pmic_bus_access_notifier_chain(MBI_PMIC_BUS_ACCESS_END,
+						     NULL);
 	iosf_mbi_punit_release();
 }
 
@@ -82,6 +84,8 @@ static int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
 		return 0;
 
 	iosf_mbi_punit_acquire();
+	iosf_mbi_call_pmic_bus_access_notifier_chain(MBI_PMIC_BUS_ACCESS_BEGIN,
+						     NULL);
 
 	/*
 	 * Disallow the CPU to enter C6 or C7 state, entering these states
