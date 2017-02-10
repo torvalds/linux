@@ -756,6 +756,19 @@
 	};
 };
 
+&hsi2c_5 {
+	status = "okay";
+
+	stmfts: touchscreen@49 {
+		compatible = "st,stmfts";
+		reg = <0x49>;
+		interrupt-parent = <&gpa1>;
+		interrupts = <1 IRQ_TYPE_LEVEL_LOW>;
+		avdd-supply = <&ldo30_reg>;
+		vdd-supply = <&ldo31_reg>;
+	};
+};
+
 &hsi2c_7 {
 	status = "okay";
 
@@ -901,7 +914,7 @@
 		PIN(INPUT, gpa0-7, NONE, FAST_SR1);
 
 		PIN(INPUT, gpa1-0, UP, FAST_SR1);
-		PIN(INPUT, gpa1-1, NONE, FAST_SR1);
+		PIN(INPUT, gpa1-1, UP, FAST_SR1);
 		PIN(INPUT, gpa1-2, NONE, FAST_SR1);
 		PIN(INPUT, gpa1-3, DOWN, FAST_SR1);
 		PIN(INPUT, gpa1-4, DOWN, FAST_SR1);

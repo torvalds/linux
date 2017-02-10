@@ -76,3 +76,8 @@
 	regulator-min-microvolt = <3000000>;
 	regulator-max-microvolt = <3000000>;
 };
+
+&stmfts {
+	touchscreen-size-x = <1439>;
+	touchscreen-size-y = <2559>;
+};
