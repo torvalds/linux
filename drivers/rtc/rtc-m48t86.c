@@ -38,6 +38,8 @@
 #define M48T86_C		0x0c
 #define M48T86_D		0x0d
 #define M48T86_D_VRT		BIT(7)
+#define M48T86_NVRAM(x)		(0x0e + (x))
+#define M48T86_NVRAM_LEN	114
 
 struct m48t86_rtc_info {
 	void __iomem *index_reg;
@@ -170,6 +172,35 @@ static const struct rtc_class_ops m48t86_rtc_ops = {
 	.proc		= m48t86_rtc_proc,
 };
 
+static ssize_t m48t86_nvram_read(struct file *filp, struct kobject *kobj,
+				 struct bin_attribute *attr,
+				 char *buf, loff_t off, size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	unsigned int i;
+
+	for (i = 0; i < count; i++)
+		buf[i] = m48t86_readb(dev, M48T86_NVRAM(off + i));
+
+	return count;
+}
+
+static ssize_t m48t86_nvram_write(struct file *filp, struct kobject *kobj,
+				  struct bin_attribute *attr,
+				  char *buf, loff_t off, size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	unsigned int i;
+
+	for (i = 0; i < count; i++)
+		m48t86_writeb(dev, buf[i], M48T86_NVRAM(off + i));
+
+	return count;
+}
+
+static BIN_ATTR(nvram, 0644, m48t86_nvram_read, m48t86_nvram_write,
+		M48T86_NVRAM_LEN);
+
 static int m48t86_rtc_probe(struct platform_device *pdev)
 {
 	struct m48t86_rtc_info *info;
@@ -210,6 +241,15 @@ static int m48t86_rtc_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "battery %s\n",
 		 (reg & M48T86_D_VRT) ? "ok" : "exhausted");
 
+	if (device_create_bin_file(&pdev->dev, &bin_attr_nvram))
+		dev_err(&pdev->dev, "failed to create nvram sysfs entry\n");
+
+	return 0;
+}
+
+static int m48t86_rtc_remove(struct platform_device *pdev)
+{
+	device_remove_bin_file(&pdev->dev, &bin_attr_nvram);
 	return 0;
 }
 
@@ -218,6 +258,7 @@ static struct platform_driver m48t86_rtc_platform_driver = {
 		.name	= "rtc-m48t86",
 	},
 	.probe		= m48t86_rtc_probe,
+	.remove		= m48t86_rtc_remove,
 };
 
 module_platform_driver(m48t86_rtc_platform_driver);
