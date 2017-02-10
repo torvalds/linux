@@ -112,7 +112,7 @@ static int dw_i2c_acpi_configure(struct platform_device *pdev)
 
 	id = acpi_match_device(pdev->dev.driver->acpi_match_table, &pdev->dev);
 	if (id && id->driver_data)
-		dev->accessor_flags |= (u32)id->driver_data;
+		dev->flags |= (u32)id->driver_data;
 
 	return 0;
 }
