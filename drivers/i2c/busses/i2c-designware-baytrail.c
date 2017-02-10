@@ -16,6 +16,7 @@
 #include <linux/acpi.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
+#include <linux/pm_qos.h>
 
 #include <asm/iosf_mbi.h>
 
@@ -56,6 +57,8 @@ static void reset_semaphore(struct dw_i2c_dev *dev)
 	data &= ~PUNIT_SEMAPHORE_BIT;
 	if (iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE, PUNIT_SEMAPHORE, data))
 		dev_err(dev->dev, "iosf failed to reset punit semaphore during write\n");
+
+	pm_qos_update_request(&dev->pm_qos, PM_QOS_DEFAULT_VALUE);
 }
 
 static int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
@@ -72,11 +75,18 @@ static int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
 	if (!dev->release_lock)
 		return 0;
 
+	/*
+	 * Disallow the CPU to enter C6 or C7 state, entering these states
+	 * requires the punit to talk to the pmic and if this happens while
+	 * we're holding the semaphore, the SoC hangs.
+	 */
+	pm_qos_update_request(&dev->pm_qos, 0);
+
 	/* host driver writes to side band semaphore register */
 	ret = iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE, PUNIT_SEMAPHORE, sem);
 	if (ret) {
 		dev_err(dev->dev, "iosf punit semaphore request failed\n");
-		return ret;
+		goto out;
 	}
 
 	/* host driver waits for bit 0 to be set in semaphore register */
@@ -95,6 +105,7 @@ static int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
 	} while (time_before(jiffies, end));
 
 	dev_err(dev->dev, "punit semaphore timed out, resetting\n");
+out:
 	reset_semaphore(dev);
 
 	ret = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, PUNIT_SEMAPHORE, &sem);
@@ -121,7 +132,7 @@ static void baytrail_i2c_release(struct dw_i2c_dev *dev)
 		jiffies_to_msecs(jiffies - acquired));
 }
 
-int i2c_dw_eval_lock_support(struct dw_i2c_dev *dev)
+int i2c_dw_probe_lock_support(struct dw_i2c_dev *dev)
 {
 	acpi_status status;
 	unsigned long long shared_host = 0;
@@ -149,5 +160,14 @@ int i2c_dw_eval_lock_support(struct dw_i2c_dev *dev)
 	dev->release_lock = baytrail_i2c_release;
 	dev->pm_runtime_disabled = true;
 
+	pm_qos_add_request(&dev->pm_qos, PM_QOS_CPU_DMA_LATENCY,
+			   PM_QOS_DEFAULT_VALUE);
+
 	return 0;
+}
+
+void i2c_dw_remove_lock_support(struct dw_i2c_dev *dev)
+{
+	if (dev->acquire_lock)
+		pm_qos_remove_request(&dev->pm_qos);
 }
