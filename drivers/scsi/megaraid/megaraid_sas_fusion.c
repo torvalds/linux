@@ -293,7 +293,7 @@ megasas_fusion_update_can_queue(struct megasas_instance *instance, int fw_boot_c
 
 	if (instance->is_ventura)
 		instance->max_mpt_cmds =
-		instance->max_fw_cmds * RAID_1_10_RMW_CMDS;
+		instance->max_fw_cmds * RAID_1_PEER_CMDS;
 	else
 		instance->max_mpt_cmds = instance->max_fw_cmds;
 }
