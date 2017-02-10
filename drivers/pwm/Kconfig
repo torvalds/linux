@@ -76,7 +76,9 @@ config PWM_ATMEL_TCB
 
 config PWM_BCM_IPROC
 	tristate "iProc PWM support"
-	depends on ARCH_BCM_IPROC
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	depends on COMMON_CLK
+	default ARCH_BCM_IPROC
 	help
 	  Generic PWM framework driver for Broadcom iProc PWM block. This
 	  block is used in Broadcom iProc SoC's.
