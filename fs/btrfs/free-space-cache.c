@@ -1124,8 +1124,7 @@ cleanup_bitmap_list(struct list_head *bitmap_list)
 static void noinline_for_stack
 cleanup_write_cache_enospc(struct inode *inode,
 			   struct btrfs_io_ctl *io_ctl,
-			   struct extent_state **cached_state,
-			   struct list_head *bitmap_list)
+			   struct extent_state **cached_state)
 {
 	io_ctl_drop_pages(io_ctl);
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, 0,
@@ -1361,7 +1360,7 @@ out_nospc_locked:
 	mutex_unlock(&ctl->cache_writeout_mutex);
 
 out_nospc:
-	cleanup_write_cache_enospc(inode, io_ctl, &cached_state, &bitmap_list);
+	cleanup_write_cache_enospc(inode, io_ctl, &cached_state);
 
 	if (block_group && (block_group->flags & BTRFS_BLOCK_GROUP_DATA))
 		up_write(&block_group->data_rwsem);
