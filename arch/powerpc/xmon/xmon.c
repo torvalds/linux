@@ -29,10 +29,7 @@
 #include <linux/nmi.h>
 #include <linux/ctype.h>
 
-#ifdef CONFIG_DEBUG_FS
-#include <linux/debugfs.h>
-#endif
-
+#include <asm/debugfs.h>
 #include <asm/ptrace.h>
 #include <asm/string.h>
 #include <asm/prom.h>

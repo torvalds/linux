@@ -35,9 +35,8 @@
 #include <linux/memblock.h>
 #include <linux/context_tracking.h>
 #include <linux/libfdt.h>
-#include <linux/debugfs.h>
 
-#include <asm/debug.h>
+#include <asm/debugfs.h>
 #include <asm/processor.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
