@@ -1074,6 +1074,8 @@ static int execute_masked_set_action(struct sk_buff *skb,
 	case OVS_KEY_ATTR_CT_ZONE:
 	case OVS_KEY_ATTR_CT_MARK:
 	case OVS_KEY_ATTR_CT_LABELS:
+	case OVS_KEY_ATTR_CT_ORIG_TUPLE_IPV4:
+	case OVS_KEY_ATTR_CT_ORIG_TUPLE_IPV6:
 		err = -EINVAL;
 		break;
 	}
