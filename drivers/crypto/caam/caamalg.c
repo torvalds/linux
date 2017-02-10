@@ -1798,7 +1798,7 @@ static struct ablkcipher_edesc *ablkcipher_giv_edesc_alloc(
 	gfp_t flags = (req->base.flags & (CRYPTO_TFM_REQ_MAY_BACKLOG |
 					  CRYPTO_TFM_REQ_MAY_SLEEP)) ?
 		       GFP_KERNEL : GFP_ATOMIC;
-	int src_nents, dst_nents = 0, sec4_sg_bytes;
+	int src_nents, dst_nents, sec4_sg_bytes;
 	struct ablkcipher_edesc *edesc;
 	dma_addr_t iv_dma = 0;
 	bool iv_contig = false;
@@ -1808,9 +1808,6 @@ static struct ablkcipher_edesc *ablkcipher_giv_edesc_alloc(
 
 	src_nents = sg_count(req->src, req->nbytes);
 
-	if (unlikely(req->dst != req->src))
-		dst_nents = sg_count(req->dst, req->nbytes);
-
 	if (likely(req->src == req->dst)) {
 		sgc = dma_map_sg(jrdev, req->src, src_nents ? : 1,
 				 DMA_BIDIRECTIONAL);
@@ -1818,6 +1815,8 @@ static struct ablkcipher_edesc *ablkcipher_giv_edesc_alloc(
 			dev_err(jrdev, "unable to map source\n");
 			return ERR_PTR(-ENOMEM);
 		}
+
+		dst_nents = src_nents;
 	} else {
 		sgc = dma_map_sg(jrdev, req->src, src_nents ? : 1,
 				 DMA_TO_DEVICE);
@@ -1826,6 +1825,7 @@ static struct ablkcipher_edesc *ablkcipher_giv_edesc_alloc(
 			return ERR_PTR(-ENOMEM);
 		}
 
+		dst_nents = sg_count(req->dst, req->nbytes);
 		sgc = dma_map_sg(jrdev, req->dst, dst_nents ? : 1,
 				 DMA_FROM_DEVICE);
 		if (unlikely(!sgc)) {
