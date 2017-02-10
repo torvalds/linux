@@ -1140,7 +1140,7 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
 			DRM_DEBUG("Assuming a KVM switch modified the CEA block but left the original checksum\n");
 		} else {
 			if (print_bad_edid)
-				DRM_ERROR("EDID checksum is invalid, remainder is %d\n", csum);
+				DRM_NOTE("EDID checksum is invalid, remainder is %d\n", csum);
 
 			goto bad;
 		}
@@ -1150,7 +1150,7 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
 	switch (raw_edid[0]) {
 	case 0: /* base */
 		if (edid->version != 1) {
-			DRM_ERROR("EDID has major version %d, instead of 1\n", edid->version);
+			DRM_NOTE("EDID has major version %d, instead of 1\n", edid->version);
 			goto bad;
 		}
 
@@ -1167,11 +1167,12 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
 bad:
 	if (print_bad_edid) {
 		if (drm_edid_is_zero(raw_edid, EDID_LENGTH)) {
-			printk(KERN_ERR "EDID block is all zeroes\n");
+			printk(KERN_NOTICE "EDID block is all zeroes\n");
 		} else {
-			printk(KERN_ERR "Raw EDID:\n");
-			print_hex_dump(KERN_ERR, " \t", DUMP_PREFIX_NONE, 16, 1,
-			       raw_edid, EDID_LENGTH, false);
+			printk(KERN_NOTICE "Raw EDID:\n");
+			print_hex_dump(KERN_NOTICE,
+				       " \t", DUMP_PREFIX_NONE, 16, 1,
+				       raw_edid, EDID_LENGTH, false);
 		}
 	}
 	return false;
@@ -4002,7 +4003,7 @@ static int validate_displayid(u8 *displayid, int length, int idx)
 		csum += displayid[i];
 	}
 	if (csum) {
-		DRM_ERROR("DisplayID checksum invalid, remainder is %d\n", csum);
+		DRM_NOTE("DisplayID checksum invalid, remainder is %d\n", csum);
 		return -EINVAL;
 	}
 	return 0;
