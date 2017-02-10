@@ -2818,6 +2818,15 @@ err:
 void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv)
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
+	struct i915_vma *vma, *vn;
+
+	ggtt->base.closed = true;
+
+	mutex_lock(&dev_priv->drm.struct_mutex);
+	WARN_ON(!list_empty(&ggtt->base.active_list));
+	list_for_each_entry_safe(vma, vn, &ggtt->base.inactive_list, vm_link)
+		WARN_ON(i915_vma_unbind(vma));
+	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	if (dev_priv->mm.aliasing_ppgtt) {
 		struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
