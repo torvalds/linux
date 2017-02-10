@@ -1,0 +1,3 @@
+In the early days of Intel and AMD based 32-bit personal computers and servers, machines typically often had less than 16MB of memory. Nowadays the high-end servers used in high-performance computing and big data application may have multiple terabytes of memory. While the total amount of memory available increased up to a million times, current operating systems still manage memory with the same 4KB granularity used in those early days. This makes memory management become a significant overhead for many workloads, since all this memory needs to be mapped through very large page tables.
+
+This project aims to evaluate the potential bennefits of using a larger page size supported by the x86-64 architecture (ideally 2MB) the default allocation unit for managing memory.
