@@ -37,7 +37,6 @@
 #define IB_USER_VERBS_H
 
 #include <linux/types.h>
-#include <rdma/ib_verbs.h>
 
 /*
  * Increment this value if any changes that break userspace ABI
@@ -548,11 +547,17 @@ enum {
 };
 
 enum {
-	IB_USER_LEGACY_LAST_QP_ATTR_MASK = IB_QP_DEST_QPN
+	/*
+	 * This value is equal to IB_QP_DEST_QPN.
+	 */
+	IB_USER_LEGACY_LAST_QP_ATTR_MASK = 1ULL << 20,
 };
 
 enum {
-	IB_USER_LAST_QP_ATTR_MASK = IB_QP_RATE_LIMIT
+	/*
+	 * This value is equal to IB_QP_RATE_LIMIT.
+	 */
+	IB_USER_LAST_QP_ATTR_MASK = 1ULL << 25,
 };
 
 struct ib_uverbs_ex_create_qp {
