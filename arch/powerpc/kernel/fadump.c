@@ -40,7 +40,6 @@
 #include <asm/prom.h>
 #include <asm/rtas.h>
 #include <asm/fadump.h>
-#include <asm/debug.h>
 #include <asm/setup.h>
 
 static struct fw_dump fw_dump;

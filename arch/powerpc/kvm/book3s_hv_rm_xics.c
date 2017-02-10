@@ -16,7 +16,6 @@
 #include <asm/kvm_ppc.h>
 #include <asm/hvcall.h>
 #include <asm/xics.h>
-#include <asm/debug.h>
 #include <asm/synch.h>
 #include <asm/cputhreads.h>
 #include <asm/pgtable.h>
