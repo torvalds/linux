@@ -2440,7 +2440,7 @@ noinline void btrfs_unlock_up_safe(struct btrfs_path *path, int level)
 static int
 read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 		      struct extent_buffer **eb_ret, int level, int slot,
-		      const struct btrfs_key *key, u64 time_seq)
+		      const struct btrfs_key *key)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	u64 blocknr;
@@ -2871,7 +2871,7 @@ cow_done:
 			}
 
 			err = read_block_for_search(root, p, &b, level,
-						    slot, key, 0);
+						    slot, key);
 			if (err == -EAGAIN)
 				goto again;
 			if (err) {
@@ -3015,7 +3015,7 @@ again:
 			}
 
 			err = read_block_for_search(root, p, &b, level,
-						    slot, key, time_seq);
+						    slot, key);
 			if (err == -EAGAIN)
 				goto again;
 			if (err) {
@@ -5786,7 +5786,7 @@ again:
 		next = c;
 		next_rw_lock = path->locks[level];
 		ret = read_block_for_search(root, path, &next, level,
-					    slot, &key, 0);
+					    slot, &key);
 		if (ret == -EAGAIN)
 			goto again;
 
@@ -5836,7 +5836,7 @@ again:
 			break;
 
 		ret = read_block_for_search(root, path, &next, level,
-					    0, &key, 0);
+					    0, &key);
 		if (ret == -EAGAIN)
 			goto again;
 
