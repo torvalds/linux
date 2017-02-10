@@ -102,6 +102,12 @@ config DRM_KMS_CMA_HELPER
 	help
 	  Choose this if you need the KMS CMA helper functions
 
+config DRM_SCDC_HELPER
+	bool "DRM SCDC HELPER"
+	depends on DRM_KMS_HELPER
+	help
+	  Choose this if you need the SCDC helper functions
+
 config DRM_DMA_SYNC
 	bool "DRM DMA Sync"
 	depends on DRM && DMA_SHARED_BUFFER
