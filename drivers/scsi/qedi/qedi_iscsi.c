@@ -454,13 +454,9 @@ static int qedi_iscsi_update_conn(struct qedi_ctx *qedi,
 	if (rval) {
 		rval = -ENXIO;
 		QEDI_ERR(&qedi->dbg_ctx, "Could not update connection\n");
-		goto update_conn_err;
 	}
 
 	kfree(conn_info);
-	rval = 0;
-
-update_conn_err:
 	return rval;
 }
 
