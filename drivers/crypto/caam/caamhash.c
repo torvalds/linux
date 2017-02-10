@@ -276,12 +276,8 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 	/* ahash_update shared descriptor */
 	desc = ctx->sh_desc_update;
 	ahash_gen_sh_desc(desc, OP_ALG_AS_UPDATE, ctx->ctx_len, ctx, true);
-	ctx->sh_desc_update_dma = dma_map_single(jrdev, desc, desc_bytes(desc),
-						 DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->sh_desc_update_dma)) {
-		dev_err(jrdev, "unable to map shared descriptor\n");
-		return -ENOMEM;
-	}
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_update_dma,
+				   desc_bytes(desc), DMA_TO_DEVICE);
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR,
 		       "ahash update shdesc@"__stringify(__LINE__)": ",
@@ -291,13 +287,8 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 	/* ahash_update_first shared descriptor */
 	desc = ctx->sh_desc_update_first;
 	ahash_gen_sh_desc(desc, OP_ALG_AS_INIT, ctx->ctx_len, ctx, false);
-	ctx->sh_desc_update_first_dma = dma_map_single(jrdev, desc,
-						       desc_bytes(desc),
-						       DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->sh_desc_update_first_dma)) {
-		dev_err(jrdev, "unable to map shared descriptor\n");
-		return -ENOMEM;
-	}
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_update_first_dma,
+				   desc_bytes(desc), DMA_TO_DEVICE);
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR,
 		       "ahash update first shdesc@"__stringify(__LINE__)": ",
@@ -307,12 +298,8 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 	/* ahash_final shared descriptor */
 	desc = ctx->sh_desc_fin;
 	ahash_gen_sh_desc(desc, OP_ALG_AS_FINALIZE, digestsize, ctx, true);
-	ctx->sh_desc_fin_dma = dma_map_single(jrdev, desc, desc_bytes(desc),
-					      DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->sh_desc_fin_dma)) {
-		dev_err(jrdev, "unable to map shared descriptor\n");
-		return -ENOMEM;
-	}
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_fin_dma,
+				   desc_bytes(desc), DMA_TO_DEVICE);
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "ahash final shdesc@"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc,
@@ -322,13 +309,8 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 	/* ahash_digest shared descriptor */
 	desc = ctx->sh_desc_digest;
 	ahash_gen_sh_desc(desc, OP_ALG_AS_INITFINAL, digestsize, ctx, false);
-	ctx->sh_desc_digest_dma = dma_map_single(jrdev, desc,
-						 desc_bytes(desc),
-						 DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->sh_desc_digest_dma)) {
-		dev_err(jrdev, "unable to map shared descriptor\n");
-		return -ENOMEM;
-	}
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_digest_dma,
+				   desc_bytes(desc), DMA_TO_DEVICE);
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR,
 		       "ahash digest shdesc@"__stringify(__LINE__)": ",
@@ -1716,6 +1698,7 @@ static int caam_hash_cra_init(struct crypto_tfm *tfm)
 					 HASH_MSG_LEN + SHA256_DIGEST_SIZE,
 					 HASH_MSG_LEN + 64,
 					 HASH_MSG_LEN + SHA512_DIGEST_SIZE };
+	dma_addr_t dma_addr;
 
 	/*
 	 * Get a Job ring from Job Ring driver to ensure in-order
@@ -1726,6 +1709,26 @@ static int caam_hash_cra_init(struct crypto_tfm *tfm)
 		pr_err("Job Ring Device allocation for transform failed\n");
 		return PTR_ERR(ctx->jrdev);
 	}
+
+	dma_addr = dma_map_single_attrs(ctx->jrdev, ctx->sh_desc_update,
+					offsetof(struct caam_hash_ctx,
+						 sh_desc_update_dma),
+					DMA_TO_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+	if (dma_mapping_error(ctx->jrdev, dma_addr)) {
+		dev_err(ctx->jrdev, "unable to map shared descriptors\n");
+		caam_jr_free(ctx->jrdev);
+		return -ENOMEM;
+	}
+
+	ctx->sh_desc_update_dma = dma_addr;
+	ctx->sh_desc_update_first_dma = dma_addr +
+					offsetof(struct caam_hash_ctx,
+						 sh_desc_update_first);
+	ctx->sh_desc_fin_dma = dma_addr + offsetof(struct caam_hash_ctx,
+						   sh_desc_fin);
+	ctx->sh_desc_digest_dma = dma_addr + offsetof(struct caam_hash_ctx,
+						      sh_desc_digest);
+
 	/* copy descriptor header template value */
 	ctx->adata.algtype = OP_TYPE_CLASS2_ALG | caam_hash->alg_type;
 
@@ -1742,26 +1745,10 @@ static void caam_hash_cra_exit(struct crypto_tfm *tfm)
 {
 	struct caam_hash_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	if (ctx->sh_desc_update_dma &&
-	    !dma_mapping_error(ctx->jrdev, ctx->sh_desc_update_dma))
-		dma_unmap_single(ctx->jrdev, ctx->sh_desc_update_dma,
-				 desc_bytes(ctx->sh_desc_update),
-				 DMA_TO_DEVICE);
-	if (ctx->sh_desc_update_first_dma &&
-	    !dma_mapping_error(ctx->jrdev, ctx->sh_desc_update_first_dma))
-		dma_unmap_single(ctx->jrdev, ctx->sh_desc_update_first_dma,
-				 desc_bytes(ctx->sh_desc_update_first),
-				 DMA_TO_DEVICE);
-	if (ctx->sh_desc_fin_dma &&
-	    !dma_mapping_error(ctx->jrdev, ctx->sh_desc_fin_dma))
-		dma_unmap_single(ctx->jrdev, ctx->sh_desc_fin_dma,
-				 desc_bytes(ctx->sh_desc_fin), DMA_TO_DEVICE);
-	if (ctx->sh_desc_digest_dma &&
-	    !dma_mapping_error(ctx->jrdev, ctx->sh_desc_digest_dma))
-		dma_unmap_single(ctx->jrdev, ctx->sh_desc_digest_dma,
-				 desc_bytes(ctx->sh_desc_digest),
-				 DMA_TO_DEVICE);
-
+	dma_unmap_single_attrs(ctx->jrdev, ctx->sh_desc_update_dma,
+			       offsetof(struct caam_hash_ctx,
+					sh_desc_update_dma),
+			       DMA_TO_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
 	caam_jr_free(ctx->jrdev);
 }
 
