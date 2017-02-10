@@ -2759,7 +2759,6 @@ static int submit_extent_page(int op, int op_flags, struct extent_io_tree *tree,
 			      size_t size, unsigned long offset,
 			      struct block_device *bdev,
 			      struct bio **bio_ret,
-			      unsigned long max_pages,
 			      bio_end_io_t end_io_func,
 			      int mirror_num,
 			      unsigned long prev_bio_flags,
@@ -3063,7 +3062,7 @@ static int __do_readpage(struct extent_io_tree *tree,
 		pnr -= page->index;
 		ret = submit_extent_page(REQ_OP_READ, read_flags, tree, NULL,
 					 page, sector, disk_io_size, pg_offset,
-					 bdev, bio, pnr,
+					 bdev, bio,
 					 end_bio_extent_readpage, mirror_num,
 					 *bio_flags,
 					 this_bio_flag,
@@ -3434,7 +3433,7 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 
 		ret = submit_extent_page(REQ_OP_WRITE, write_flags, tree, wbc,
 					 page, sector, iosize, pg_offset,
-					 bdev, &epd->bio, max_nr,
+					 bdev, &epd->bio,
 					 end_bio_extent_writepage,
 					 0, 0, 0, false);
 		if (ret) {
@@ -3751,7 +3750,7 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 		set_page_writeback(p);
 		ret = submit_extent_page(REQ_OP_WRITE, write_flags, tree, wbc,
 					 p, offset >> 9, PAGE_SIZE, 0, bdev,
-					 &epd->bio, -1,
+					 &epd->bio,
 					 end_bio_extent_buffer_writepage,
 					 0, epd->bio_flags, bio_flags, false);
 		epd->bio_flags = bio_flags;
