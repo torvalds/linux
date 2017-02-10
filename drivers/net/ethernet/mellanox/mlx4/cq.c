@@ -81,8 +81,9 @@ void mlx4_cq_tasklet_cb(unsigned long data)
 
 static void mlx4_add_cq_to_tasklet(struct mlx4_cq *cq)
 {
-	unsigned long flags;
 	struct mlx4_eq_tasklet *tasklet_ctx = cq->tasklet_ctx.priv;
+	unsigned long flags;
+	bool kick;
 
 	spin_lock_irqsave(&tasklet_ctx->lock, flags);
 	/* When migrating CQs between EQs will be implemented, please note
@@ -92,7 +93,10 @@ static void mlx4_add_cq_to_tasklet(struct mlx4_cq *cq)
 	 */
 	if (list_empty_careful(&cq->tasklet_ctx.list)) {
 		atomic_inc(&cq->refcount);
+		kick = list_empty(&tasklet_ctx->list);
 		list_add_tail(&cq->tasklet_ctx.list, &tasklet_ctx->list);
+		if (kick)
+			tasklet_schedule(&tasklet_ctx->task);
 	}
 	spin_unlock_irqrestore(&tasklet_ctx->lock, flags);
 }
