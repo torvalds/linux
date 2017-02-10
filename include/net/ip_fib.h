@@ -211,7 +211,6 @@ struct fib_entry_notifier_info {
 	u8 tos;
 	u8 type;
 	u32 tb_id;
-	u32 nlflags;
 };
 
 struct fib_nh_notifier_info {
@@ -220,6 +219,8 @@ struct fib_nh_notifier_info {
 };
 
 enum fib_event_type {
+	FIB_EVENT_ENTRY_REPLACE,
+	FIB_EVENT_ENTRY_APPEND,
 	FIB_EVENT_ENTRY_ADD,
 	FIB_EVENT_ENTRY_DEL,
 	FIB_EVENT_RULE_ADD,
