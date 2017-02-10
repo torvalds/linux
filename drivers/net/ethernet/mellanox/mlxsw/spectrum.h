@@ -55,7 +55,7 @@
 #include "core_acl_flex_actions.h"
 
 #define MLXSW_SP_VFID_BASE VLAN_N_VID
-#define MLXSW_SP_VFID_MAX 6656	/* Bridged VLAN interfaces */
+#define MLXSW_SP_VFID_MAX 1024	/* Bridged VLAN interfaces */
 
 #define MLXSW_SP_RFID_BASE 15360
 #define MLXSW_SP_INVALID_RIF 0xffff
@@ -339,9 +339,12 @@ struct mlxsw_sp_port {
 	struct mlxsw_sp *mlxsw_sp;
 	u8 local_port;
 	u8 stp_state;
-	u8 learning:1,
+	u16 learning:1,
 	   learning_sync:1,
 	   uc_flood:1,
+	   mc_flood:1,
+	   mc_router:1,
+	   mc_disabled:1,
 	   bridged:1,
 	   lagged:1,
 	   split:1;
@@ -509,7 +512,8 @@ mlxsw_sp_rif_find_by_dev(const struct mlxsw_sp *mlxsw_sp,
 
 enum mlxsw_sp_flood_table {
 	MLXSW_SP_FLOOD_TABLE_UC,
-	MLXSW_SP_FLOOD_TABLE_BM,
+	MLXSW_SP_FLOOD_TABLE_BC,
+	MLXSW_SP_FLOOD_TABLE_MC,
 };
 
 int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp);
