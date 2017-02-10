@@ -613,10 +613,7 @@ static int nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	spin_lock_irq(&nvmeq->q_lock);
 	if (unlikely(nvmeq->cq_vector < 0)) {
-		if (ns && !test_bit(NVME_NS_DEAD, &ns->flags))
-			ret = BLK_MQ_RQ_QUEUE_BUSY;
-		else
-			ret = BLK_MQ_RQ_QUEUE_ERROR;
+		ret = BLK_MQ_RQ_QUEUE_ERROR;
 		spin_unlock_irq(&nvmeq->q_lock);
 		goto out_cleanup_iod;
 	}
