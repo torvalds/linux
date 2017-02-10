@@ -66,7 +66,7 @@ static bool force;
 static bool show_period;
 static bool show_formula;
 static bool show_baseline_only;
-static unsigned int sort_compute;
+static unsigned int sort_compute = 1;
 
 static s64 compute_wdiff_w1;
 static s64 compute_wdiff_w2;
@@ -86,7 +86,7 @@ const char *compute_names[COMPUTE_MAX] = {
 	[COMPUTE_WEIGHTED_DIFF] = "wdiff",
 };
 
-static int compute = COMPUTE_DELTA;
+static int compute = COMPUTE_DELTA_ABS;
 
 static int compute_2_hpp[COMPUTE_MAX] = {
 	[COMPUTE_DELTA]		= PERF_HPP_DIFF__DELTA,
@@ -810,7 +810,7 @@ static const struct option options[] = {
 	OPT_BOOLEAN('b', "baseline-only", &show_baseline_only,
 		    "Show only items with match in baseline"),
 	OPT_CALLBACK('c', "compute", &compute,
-		     "delta,delta-abs,ratio,wdiff:w1,w2 (default delta)",
+		     "delta,delta-abs,ratio,wdiff:w1,w2 (default delta-abs)",
 		     "Entries differential computation selection",
 		     setup_compute),
 	OPT_BOOLEAN('p', "period", &show_period,
