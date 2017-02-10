@@ -1335,13 +1335,31 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 
 	if (unlikely(req->dst != req->src)) {
 		src_nents = sg_count(req->src, req->assoclen + req->cryptlen);
+		if (unlikely(src_nents < 0)) {
+			dev_err(jrdev, "Insufficient bytes (%d) in src S/G\n",
+				req->assoclen + req->cryptlen);
+			return ERR_PTR(src_nents);
+		}
+
 		dst_nents = sg_count(req->dst,
 				     req->assoclen + req->cryptlen +
 					(encrypt ? authsize : (-authsize)));
+		if (unlikely(dst_nents < 0)) {
+			dev_err(jrdev, "Insufficient bytes (%d) in dst S/G\n",
+				req->assoclen + req->cryptlen +
+				(encrypt ? authsize : (-authsize)));
+			return ERR_PTR(dst_nents);
+		}
 	} else {
 		src_nents = sg_count(req->src,
 				     req->assoclen + req->cryptlen +
 					(encrypt ? authsize : 0));
+		if (unlikely(src_nents < 0)) {
+			dev_err(jrdev, "Insufficient bytes (%d) in src S/G\n",
+				req->assoclen + req->cryptlen +
+				(encrypt ? authsize : 0));
+			return ERR_PTR(src_nents);
+		}
 	}
 
 	/* Check if data are contiguous. */
@@ -1609,9 +1627,20 @@ static struct ablkcipher_edesc *ablkcipher_edesc_alloc(struct ablkcipher_request
 	int sec4_sg_index;
 
 	src_nents = sg_count(req->src, req->nbytes);
+	if (unlikely(src_nents < 0)) {
+		dev_err(jrdev, "Insufficient bytes (%d) in src S/G\n",
+			req->nbytes);
+		return ERR_PTR(src_nents);
+	}
 
-	if (req->dst != req->src)
+	if (req->dst != req->src) {
 		dst_nents = sg_count(req->dst, req->nbytes);
+		if (unlikely(dst_nents < 0)) {
+			dev_err(jrdev, "Insufficient bytes (%d) in dst S/G\n",
+				req->nbytes);
+			return ERR_PTR(dst_nents);
+		}
+	}
 
 	if (likely(req->src == req->dst)) {
 		sgc = dma_map_sg(jrdev, req->src, src_nents ? : 1,
@@ -1807,6 +1836,11 @@ static struct ablkcipher_edesc *ablkcipher_giv_edesc_alloc(
 	int sec4_sg_index;
 
 	src_nents = sg_count(req->src, req->nbytes);
+	if (unlikely(src_nents < 0)) {
+		dev_err(jrdev, "Insufficient bytes (%d) in src S/G\n",
+			req->nbytes);
+		return ERR_PTR(src_nents);
+	}
 
 	if (likely(req->src == req->dst)) {
 		sgc = dma_map_sg(jrdev, req->src, src_nents ? : 1,
@@ -1826,6 +1860,12 @@ static struct ablkcipher_edesc *ablkcipher_giv_edesc_alloc(
 		}
 
 		dst_nents = sg_count(req->dst, req->nbytes);
+		if (unlikely(dst_nents < 0)) {
+			dev_err(jrdev, "Insufficient bytes (%d) in dst S/G\n",
+				req->nbytes);
+			return ERR_PTR(dst_nents);
+		}
+
 		sgc = dma_map_sg(jrdev, req->dst, dst_nents ? : 1,
 				 DMA_FROM_DEVICE);
 		if (unlikely(!sgc)) {
@@ -1914,7 +1954,7 @@ static int ablkcipher_givencrypt(struct skcipher_givcrypt_request *creq)
 	struct crypto_ablkcipher *ablkcipher = crypto_ablkcipher_reqtfm(req);
 	struct caam_ctx *ctx = crypto_ablkcipher_ctx(ablkcipher);
 	struct device *jrdev = ctx->jrdev;
-	bool iv_contig;
+	bool iv_contig = false;
 	u32 *desc;
 	int ret = 0;
 
