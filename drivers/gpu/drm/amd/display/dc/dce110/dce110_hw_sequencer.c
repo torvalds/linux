@@ -1054,6 +1054,8 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	if (!pipe_ctx_old->stream) {
 		core_link_enable_stream(pipe_ctx);
 
+	resource_build_info_frame(pipe_ctx);
+	dce110_update_info_frame(pipe_ctx);
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
 			dce110_unblank_stream(pipe_ctx,
 				&stream->sink->link->public.cur_link_settings);
