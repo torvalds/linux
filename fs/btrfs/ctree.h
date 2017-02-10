@@ -2703,8 +2703,7 @@ int btrfs_subvolume_reserve_metadata(struct btrfs_root *root,
 				     int nitems,
 				     u64 *qgroup_reserved, bool use_global_rsv);
 void btrfs_subvolume_release_metadata(struct btrfs_fs_info *fs_info,
-				      struct btrfs_block_rsv *rsv,
-				      u64 qgroup_reserved);
+				      struct btrfs_block_rsv *rsv);
 int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes);
 void btrfs_delalloc_release_metadata(struct inode *inode, u64 num_bytes);
 int btrfs_delalloc_reserve_space(struct inode *inode, u64 start, u64 len);
