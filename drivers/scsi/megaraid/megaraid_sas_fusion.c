@@ -1445,6 +1445,7 @@ map_cmd_status(struct fusion_context *fusion,
 	struct scsi_cmnd *scmd, u8 status, u8 ext_status,
 			u32 data_length, u8 *sense)
 {
+	int resid;
 
 	switch (status) {
 
@@ -1467,6 +1468,15 @@ map_cmd_status(struct fusion_context *fusion,
 			       SCSI_SENSE_BUFFERSIZE);
 			scmd->result |= DRIVER_SENSE << 24;
 		}
+
+		/*
+		 * If the  IO request is partially completed, then MR FW will
+		 * update "io_request->DataLength" field with actual number of
+		 * bytes transferred.Driver will set residual bytes count in
+		 * SCSI command structure.
+		 */
+		resid = (scsi_bufflen(scmd) - data_length);
+		scsi_set_resid(scmd, resid);
 		break;
 
 	case MFI_STAT_LD_OFFLINE:
