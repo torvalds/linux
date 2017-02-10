@@ -948,6 +948,7 @@ static u8 mr_spanset_get_phy_params(struct megasas_instance *instance, u32 ld,
 	struct fusion_context *fusion;
 
 	fusion = instance->ctrl_context;
+	*pDevHandle = cpu_to_le16(MR_DEVHANDLE_INVALID);
 
 	/*Get row and span from io_info for Uneven Span IO.*/
 	row	    = io_info->start_row;
@@ -986,7 +987,6 @@ static u8 mr_spanset_get_phy_params(struct megasas_instance *instance, u32 ld,
 				MR_PdDevHandleGet(r1_alt_pd, map);
 		}
 	} else {
-		*pDevHandle = cpu_to_le16(MR_DEVHANDLE_INVALID);
 		if ((raid->level >= 5) &&
 			((fusion->adapter_type == THUNDERBOLT_SERIES)  ||
 			((fusion->adapter_type == INVADER_SERIES) &&
@@ -1013,6 +1013,7 @@ static u8 mr_spanset_get_phy_params(struct megasas_instance *instance, u32 ld,
 			(span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
 		io_info->span_arm = pRAID_Context->span_arm;
 	}
+	io_info->pd_after_lb = pd;
 	return retval;
 }
 
@@ -1049,7 +1050,7 @@ u8 MR_GetPhyParams(struct megasas_instance *instance, u32 ld, u64 stripRow,
 	struct fusion_context *fusion;
 
 	fusion = instance->ctrl_context;
-
+	*pDevHandle = cpu_to_le16(MR_DEVHANDLE_INVALID);
 
 	row =  mega_div64_32(stripRow, raid->rowDataSize);
 
@@ -1102,8 +1103,6 @@ u8 MR_GetPhyParams(struct megasas_instance *instance, u32 ld, u64 stripRow,
 					MR_PdDevHandleGet(r1_alt_pd, map);
 		}
 	} else {
-		/* set dev handle as invalid. */
-		*pDevHandle = cpu_to_le16(MR_DEVHANDLE_INVALID);
 		if ((raid->level >= 5) &&
 			((fusion->adapter_type == THUNDERBOLT_SERIES)  ||
 			((fusion->adapter_type == INVADER_SERIES) &&
@@ -1132,6 +1131,7 @@ u8 MR_GetPhyParams(struct megasas_instance *instance, u32 ld, u64 stripRow,
 			(span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
 		io_info->span_arm = pRAID_Context->span_arm;
 	}
+	io_info->pd_after_lb = pd;
 	return retval;
 }
 
