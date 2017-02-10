@@ -586,13 +586,18 @@ static int caam_probe(struct platform_device *pdev)
 			      JRSTART_JR1_START | JRSTART_JR2_START |
 			      JRSTART_JR3_START);
 
-	if (sizeof(dma_addr_t) == sizeof(u64))
+	if (sizeof(dma_addr_t) == sizeof(u64)) {
 		if (of_device_is_compatible(nprop, "fsl,sec-v5.0"))
-			dma_set_mask_and_coherent(dev, DMA_BIT_MASK(40));
+			ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(40));
 		else
-			dma_set_mask_and_coherent(dev, DMA_BIT_MASK(36));
-	else
-		dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
+			ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(36));
+	} else {
+		ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
+	}
+	if (ret) {
+		dev_err(dev, "dma_set_mask_and_coherent failed (%d)\n", ret);
+		goto iounmap_ctrl;
+	}
 
 	/*
 	 * Detect and enable JobRs
