@@ -62,6 +62,8 @@ static void reset_semaphore(struct dw_i2c_dev *dev)
 		dev_err(dev->dev, "iosf failed to reset punit semaphore during write\n");
 
 	pm_qos_update_request(&dev->pm_qos, PM_QOS_DEFAULT_VALUE);
+
+	iosf_mbi_punit_release();
 }
 
 static int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
@@ -78,6 +80,8 @@ static int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
 
 	if (!dev->release_lock)
 		return 0;
+
+	iosf_mbi_punit_acquire();
 
 	/*
 	 * Disallow the CPU to enter C6 or C7 state, entering these states
