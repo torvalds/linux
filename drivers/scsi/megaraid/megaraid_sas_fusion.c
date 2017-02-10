@@ -1115,7 +1115,7 @@ megasas_get_map_info(struct megasas_instance *instance)
 int
 megasas_sync_map_info(struct megasas_instance *instance)
 {
-	int ret = 0, i;
+	int i;
 	struct megasas_cmd *cmd;
 	struct megasas_dcmd_frame *dcmd;
 	u32 size_sync_info, num_lds;
@@ -1184,7 +1184,7 @@ megasas_sync_map_info(struct megasas_instance *instance)
 
 	instance->instancet->issue_dcmd(instance, cmd);
 
-	return ret;
+	return 0;
 }
 
 /*
@@ -2981,7 +2981,7 @@ build_mpt_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd)
  * @cmd:			mfi cmd pointer
  *
  */
-int
+void
 megasas_issue_dcmd_fusion(struct megasas_instance *instance,
 			  struct megasas_cmd *cmd)
 {
@@ -2990,7 +2990,7 @@ megasas_issue_dcmd_fusion(struct megasas_instance *instance,
 	req_desc = build_mpt_cmd(instance, cmd);
 
 	megasas_fire_cmd_fusion(instance, req_desc);
-	return DCMD_SUCCESS;
+	return;
 }
 
 /**

@@ -2297,7 +2297,7 @@ struct megasas_instance_template {
 	u32 (*init_adapter)(struct megasas_instance *);
 	u32 (*build_and_issue_cmd) (struct megasas_instance *,
 				    struct scsi_cmnd *);
-	int (*issue_dcmd)(struct megasas_instance *instance,
+	void (*issue_dcmd)(struct megasas_instance *instance,
 			    struct megasas_cmd *cmd);
 };
 

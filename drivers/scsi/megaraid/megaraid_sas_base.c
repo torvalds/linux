@@ -202,12 +202,12 @@ void megasas_fusion_ocr_wq(struct work_struct *work);
 static int megasas_get_ld_vf_affiliation(struct megasas_instance *instance,
 					 int initial);
 
-int
+void
 megasas_issue_dcmd(struct megasas_instance *instance, struct megasas_cmd *cmd)
 {
 	instance->instancet->fire_cmd(instance,
 		cmd->frame_phys_addr, 0, instance->reg_set);
-	return 0;
+	return;
 }
 
 /**
@@ -995,12 +995,13 @@ megasas_issue_polled(struct megasas_instance *instance, struct megasas_cmd *cmd)
 	frame_hdr->cmd_status = MFI_STAT_INVALID_STATUS;
 	frame_hdr->flags |= cpu_to_le16(MFI_FRAME_DONT_POST_IN_REPLY_QUEUE);
 
-	if ((atomic_read(&instance->adprecovery) == MEGASAS_HW_CRITICAL_ERROR) ||
-		(instance->instancet->issue_dcmd(instance, cmd))) {
+	if (atomic_read(&instance->adprecovery) == MEGASAS_HW_CRITICAL_ERROR) {
 		dev_err(&instance->pdev->dev, "Failed from %s %d\n",
 			__func__, __LINE__);
 		return DCMD_NOT_FIRED;
 	}
+
+	instance->instancet->issue_dcmd(instance, cmd);
 
 	return wait_and_poll(instance, cmd, instance->requestorId ?
 			MEGASAS_ROUTINE_WAIT_TIME_VF : MFI_IO_TIMEOUT_SECS);
@@ -1023,12 +1024,13 @@ megasas_issue_blocked_cmd(struct megasas_instance *instance,
 	int ret = 0;
 	cmd->cmd_status_drv = MFI_STAT_INVALID_STATUS;
 
-	if ((atomic_read(&instance->adprecovery) == MEGASAS_HW_CRITICAL_ERROR) ||
-		(instance->instancet->issue_dcmd(instance, cmd))) {
+	if (atomic_read(&instance->adprecovery) == MEGASAS_HW_CRITICAL_ERROR) {
 		dev_err(&instance->pdev->dev, "Failed from %s %d\n",
 			__func__, __LINE__);
 		return DCMD_NOT_FIRED;
 	}
+
+	instance->instancet->issue_dcmd(instance, cmd);
 
 	if (timeout) {
 		ret = wait_event_timeout(instance->int_cmd_wait_q,
@@ -1087,12 +1089,13 @@ megasas_issue_blocked_abort_cmd(struct megasas_instance *instance,
 	cmd->sync_cmd = 1;
 	cmd->cmd_status_drv = MFI_STAT_INVALID_STATUS;
 
-	if ((atomic_read(&instance->adprecovery) == MEGASAS_HW_CRITICAL_ERROR) ||
-		(instance->instancet->issue_dcmd(instance, cmd))) {
+	if (atomic_read(&instance->adprecovery) == MEGASAS_HW_CRITICAL_ERROR) {
 		dev_err(&instance->pdev->dev, "Failed from %s %d\n",
 			__func__, __LINE__);
 		return DCMD_NOT_FIRED;
 	}
+
+	instance->instancet->issue_dcmd(instance, cmd);
 
 	if (timeout) {
 		ret = wait_event_timeout(instance->abort_cmd_wait_q,
