@@ -272,6 +272,13 @@ struct cfg80211_iface_destroy {
 	u32 nlportid;
 };
 
+struct cfg80211_cqm_config {
+	u32 rssi_hyst;
+	s32 last_rssi_event_value;
+	int n_rssi_thresholds;
+	s32 rssi_thresholds[0];
+};
+
 void cfg80211_destroy_ifaces(struct cfg80211_registered_device *rdev);
 
 /* free object */
@@ -511,5 +518,7 @@ void cfg80211_stop_nan(struct cfg80211_registered_device *rdev,
  */
 #define CFG80211_DEV_WARN_ON(cond)	({bool __r = (cond); __r; })
 #endif
+
+void cfg80211_cqm_config_free(struct wireless_dev *wdev);
 
 #endif /* __NET_WIRELESS_CORE_H */
