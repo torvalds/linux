@@ -219,8 +219,8 @@ hijack_init(void)
 	cpu_set_t ori_cpu;
 	char *offload1 = getenv("LKL_HIJACK_OFFLOAD");
 	int offload = 0;
-	char boot_cmdline[256] = "\0";
 	char *sysctls = getenv("LKL_HIJACK_SYSCTL");
+	char *boot_cmdline = getenv("LKL_HIJACK_BOOT_CMDLINE") ? : "";
 
 	memset(&nd_args, 0, sizeof(struct lkl_netdev_args));
 	if (!debug) {
@@ -326,11 +326,7 @@ hijack_init(void)
 	if (single_cpu_mode == 1)
 		PinToFirstCpu(&ori_cpu);
 
-	/* set cmdline if dhcp case */
-	if ((ip && !strcmp(ip, "dhcp")) && (nd_id != -1))
-		snprintf(boot_cmdline, sizeof(boot_cmdline), "ip=dhcp");
-
-	ret = lkl_start_kernel(&lkl_host_ops, 64 * 1024 * 1024UL, boot_cmdline);
+	ret = lkl_start_kernel(&lkl_host_ops, boot_cmdline);
 	if (ret) {
 		fprintf(stderr, "can't start kernel: %s\n", lkl_strerror(ret));
 		return;

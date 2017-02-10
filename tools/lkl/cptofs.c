@@ -561,7 +561,7 @@ int main(int argc, char **argv)
 	}
 	disk_id = ret;
 
-	lkl_start_kernel(&lkl_host_ops, 100 * 1024 * 1024, "");
+	lkl_start_kernel(&lkl_host_ops, "mem=100M");
 
 	ret = lkl_mount_dev(disk_id, cla.part, cla.fsimg_type,
 			    cptofs ? 0 : LKL_MS_RDONLY,
