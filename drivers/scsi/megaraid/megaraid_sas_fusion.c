@@ -1350,7 +1350,7 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 		fusion->last_reply_idx[i] = 0;
 
 	/*
-	 * For fusion adapters, 3 commands for IOCTL and 5 commands
+	 * For fusion adapters, 3 commands for IOCTL and 8 commands
 	 * for driver's internal DCMDs.
 	 */
 	instance->max_scsi_cmds = instance->max_fw_cmds -
