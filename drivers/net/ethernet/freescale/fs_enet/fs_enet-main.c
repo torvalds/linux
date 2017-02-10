@@ -964,11 +964,10 @@ static int fs_enet_probe(struct platform_device *ofdev)
 	 */
 	clk = devm_clk_get(&ofdev->dev, "per");
 	if (!IS_ERR(clk)) {
-		err = clk_prepare_enable(clk);
-		if (err) {
-			ret = err;
+		ret = clk_prepare_enable(clk);
+		if (ret)
 			goto out_deregister_fixed_link;
-		}
+
 		fpi->clk_per = clk;
 	}
 
