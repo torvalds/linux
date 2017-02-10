@@ -88,6 +88,33 @@ int iosf_mbi_write(u8 port, u8 opcode, u32 offset, u32 mdr);
  */
 int iosf_mbi_modify(u8 port, u8 opcode, u32 offset, u32 mdr, u32 mask);
 
+/**
+ * iosf_mbi_punit_acquire() - Acquire access to the P-Unit
+ *
+ * One some systems the P-Unit accesses the PMIC to change various voltages
+ * through the same bus as other kernel drivers use for e.g. battery monitoring.
+ *
+ * If a driver sends requests to the P-Unit which require the P-Unit to access
+ * the PMIC bus while another driver is also accessing the PMIC bus various bad
+ * things happen.
+ *
+ * To avoid these problems this function must be called before accessing the
+ * P-Unit or the PMIC, be it through iosf_mbi* functions or through other means.
+ *
+ * Note on these systems the i2c-bus driver will request a sempahore from the
+ * P-Unit for exclusive access to the PMIC bus when i2c drivers are accessing
+ * it, but this does not appear to be sufficient, we still need to avoid making
+ * certain P-Unit requests during the access window to avoid problems.
+ *
+ * This function locks a mutex, as such it may sleep.
+ */
+void iosf_mbi_punit_acquire(void);
+
+/**
+ * iosf_mbi_punit_release() - Release access to the P-Unit
+ */
+void iosf_mbi_punit_release(void);
+
 #else /* CONFIG_IOSF_MBI is not enabled */
 static inline
 bool iosf_mbi_available(void)
@@ -115,6 +142,10 @@ int iosf_mbi_modify(u8 port, u8 opcode, u32 offset, u32 mdr, u32 mask)
 	WARN(1, "IOSF_MBI driver not available");
 	return -EPERM;
 }
+
+static inline void iosf_mbi_punit_acquire(void) {}
+static inline void iosf_mbi_punit_release(void) {}
+
 #endif /* CONFIG_IOSF_MBI */
 
 #endif /* IOSF_MBI_SYMS_H */
