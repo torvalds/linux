@@ -95,7 +95,7 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 		 */
 		if (*p & IEEE80211_QOS_CTL_EOSP)
 			*p &= ~IEEE80211_QOS_CTL_EOSP;
-		ac = ieee802_1d_to_ac[tid & 7];
+		ac = ieee80211_ac_from_tid(tid);
 	} else {
 		ac = IEEE80211_AC_BE;
 	}

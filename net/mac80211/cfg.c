@@ -208,8 +208,8 @@ static int ieee80211_nan_change_conf(struct wiphy *wiphy,
 	if (changes & CFG80211_NAN_CONF_CHANGED_PREF)
 		new_conf.master_pref = conf->master_pref;
 
-	if (changes & CFG80211_NAN_CONF_CHANGED_DUAL)
-		new_conf.dual = conf->dual;
+	if (changes & CFG80211_NAN_CONF_CHANGED_BANDS)
+		new_conf.bands = conf->bands;
 
 	ret = drv_nan_change_conf(sdata->local, sdata, &new_conf, changes);
 	if (!ret)
