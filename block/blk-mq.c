@@ -2629,10 +2629,14 @@ void blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set, int nr_hw_queues)
 	list_for_each_entry(q, &set->tag_list, tag_set_list) {
 		blk_mq_realloc_hw_ctxs(set, q);
 
+		/*
+		 * Manually set the make_request_fn as blk_queue_make_request
+		 * resets a lot of the queue settings.
+		 */
 		if (q->nr_hw_queues > 1)
-			blk_queue_make_request(q, blk_mq_make_request);
+			q->make_request_fn = blk_mq_make_request;
 		else
-			blk_queue_make_request(q, blk_sq_make_request);
+			q->make_request_fn = blk_sq_make_request;
 
 		blk_mq_queue_reinit(q, cpu_online_mask);
 	}
