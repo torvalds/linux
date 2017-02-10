@@ -13,7 +13,6 @@
 #include "intern.h"
 #include "jr.h"
 #include "desc_constr.h"
-#include "error.h"
 #include "ctrl.h"
 
 bool caam_little_end;
