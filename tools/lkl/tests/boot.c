@@ -921,7 +921,7 @@ int main(int argc, char **argv)
 	if (cla.tap_ifname)
 		TEST(netdev_add);
 #endif /* __MINGW32__ */
-	lkl_start_kernel(&lkl_host_ops, 16 * 1024 * 1024, "loglevel=8");
+	lkl_start_kernel(&lkl_host_ops, "mem=16M loglevel=8");
 
 	TEST(getpid);
 	TEST(syscall_latency);

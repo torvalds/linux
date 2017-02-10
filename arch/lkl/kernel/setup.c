@@ -18,7 +18,7 @@ static char cmd_line[COMMAND_LINE_SIZE];
 static void *init_sem;
 static int is_running;
 void (*pm_power_off)(void) = NULL;
-static unsigned long mem_size;
+static unsigned long mem_size = 64 * 1024 * 1024;
 
 long lkl_panic_blink(int state)
 {
@@ -26,10 +26,18 @@ long lkl_panic_blink(int state)
 	return 0;
 }
 
+static int __init setup_mem_size(char *str)
+{
+	mem_size = memparse(str, NULL);
+	return 0;
+}
+early_param("mem", setup_mem_size);
+
 void __init setup_arch(char **cl)
 {
 	*cl = cmd_line;
 	panic_blink = lkl_panic_blink;
+	parse_early_param();
 	bootmem_init(mem_size);
 }
 
@@ -41,14 +49,12 @@ static void __init lkl_run_kernel(void *arg)
 }
 
 int __init lkl_start_kernel(struct lkl_host_operations *ops,
-			unsigned long _mem_size,
 			const char *fmt, ...)
 {
 	va_list ap;
 	int ret;
 
 	lkl_ops = ops;
-	mem_size = _mem_size;
 
 	va_start(ap, fmt);
 	ret = vsnprintf(boot_command_line, COMMAND_LINE_SIZE, fmt, ap);

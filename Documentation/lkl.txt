@@ -166,9 +166,11 @@ are the list of those variable for your environment.
     $ LKL_HIJACK_NET_IP=198.51.100.5 lkl-hijack.sh ip address show
 ```
 
-  Additionally, DHCP is experimentally available with the following syntax.
+  If you want to use DHCP for the IP address assignment, use
+  LKL_HIJACK_BOOT_CMDLINE with "ip=dhcp" option.
 ```
-    $ LKL_HIJACK_NET_IP=dhcp LKL_HIJACK_NET_IFTYPE=tap LKL_HIJACK_NET_IFPARAMS=tap0 lkl-hijack.sh ip address show
+     $ LKL_HIJACK_BOOT_CMDLINE="ip=dhcp"  LKL_HIJACK_NET_IFTYPE=tap \
+     LKL_HIJACK_NET_IFPARAMS=tap0 lkl-hijack.sh ip address
 ```
 
 * LKL_HIJACK_NET_NETMASK_LEN
@@ -245,6 +247,14 @@ are the list of those variable for your environment.
 ```
      $ LKL_HIJACK_SYSCTL="net.ipv4.tcp_wmem=4096 87380 2147483647"
      ./bin/lkl-hijack.sh ip address show
+```
+* LKL_HIJACK_BOOT_CMDLINE
+
+  Specify the command line to the kernel boot so that change the configuration
+  on a kernel instance.  For instance, you can change the memory size with
+  below.
+```
+     $ LKL_HIJACK_BOOT_CMDLINE="mem=1G" LKL_HIJACK_DEBUG=1 lkl-hijack.sh ip add
 ```
 
 FAQ

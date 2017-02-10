@@ -57,6 +57,12 @@ echo "$ans" | grep "0x0"        # lo's dev_id
 # it here.
 ! echo "$ans" | grep "WARN: failed to free"
 
+# boot_cmdline test
+echo "== boot command line tests =="
+ans=$(LKL_HIJACK_DEBUG=1\
+  LKL_HIJACK_BOOT_CMDLINE="mem=100M" ${hijack_script} ip ad)
+echo "$ans" | grep "100752k"
+
 echo "== TAP tests =="
 if [ ! -c /dev/net/tun ]; then
     echo "WARNING: missing /dev/net/tun, skipping TAP and VDE tests."

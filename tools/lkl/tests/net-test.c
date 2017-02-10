@@ -163,7 +163,7 @@ static int test_net_init(int argc, char **argv)
 	if ((ip && !strcmp(ip, "dhcp")) && (nd_id != -1))
 		snprintf(boot_cmdline, sizeof(boot_cmdline), "ip=dhcp");
 
-	ret = lkl_start_kernel(&lkl_host_ops, 64 * 1024 * 1024, boot_cmdline);
+	ret = lkl_start_kernel(&lkl_host_ops, boot_cmdline);
 	if (ret) {
 		fprintf(stderr, "can't start kernel: %s\n", lkl_strerror(ret));
 		return -1;

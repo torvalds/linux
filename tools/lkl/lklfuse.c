@@ -507,9 +507,10 @@ const struct fuse_operations lklfuse_ops = {
 static int start_lkl(void)
 {
 	long ret;
-	char mpoint[32];
+	char mpoint[32], cmdline[16];
 
-	ret = lkl_start_kernel(&lkl_host_ops, lklfuse.mb * 1024 * 1024, "");
+	snprintf(cmdline, sizeof(cmdline), "mem=%dM", lklfuse.mb);
+	ret = lkl_start_kernel(&lkl_host_ops, cmdline);
 	if (ret) {
 		fprintf(stderr, "can't start kernel: %s\n", lkl_strerror(ret));
 		goto out;
