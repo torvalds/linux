@@ -1563,29 +1563,15 @@ static noinline void __unlock_for_delalloc(struct inode *inode,
 					   struct page *locked_page,
 					   u64 start, u64 end)
 {
-	int ret;
-	struct page *pages[16];
 	unsigned long index = start >> PAGE_SHIFT;
 	unsigned long end_index = end >> PAGE_SHIFT;
-	unsigned long nr_pages = end_index - index + 1;
-	int i;
 
+	ASSERT(locked_page);
 	if (index == locked_page->index && end_index == index)
 		return;
 
-	while (nr_pages > 0) {
-		ret = find_get_pages_contig(inode->i_mapping, index,
-				     min_t(unsigned long, nr_pages,
-				     ARRAY_SIZE(pages)), pages);
-		for (i = 0; i < ret; i++) {
-			if (pages[i] != locked_page)
-				unlock_page(pages[i]);
-			put_page(pages[i]);
-		}
-		nr_pages -= ret;
-		index += ret;
-		cond_resched();
-	}
+	__process_pages_contig(inode->i_mapping, locked_page, index, end_index,
+			       PAGE_UNLOCK, NULL);
 }
 
 static noinline int lock_delalloc_pages(struct inode *inode,
@@ -1594,59 +1580,19 @@ static noinline int lock_delalloc_pages(struct inode *inode,
 					u64 delalloc_end)
 {
 	unsigned long index = delalloc_start >> PAGE_SHIFT;
-	unsigned long start_index = index;
+	unsigned long index_ret = index;
 	unsigned long end_index = delalloc_end >> PAGE_SHIFT;
-	unsigned long pages_locked = 0;
-	struct page *pages[16];
-	unsigned long nrpages;
 	int ret;
-	int i;
 
-	/* the caller is responsible for locking the start index */
+	ASSERT(locked_page);
 	if (index == locked_page->index && index == end_index)
 		return 0;
 
-	/* skip the page at the start index */
-	nrpages = end_index - index + 1;
-	while (nrpages > 0) {
-		ret = find_get_pages_contig(inode->i_mapping, index,
-				     min_t(unsigned long,
-				     nrpages, ARRAY_SIZE(pages)), pages);
-		if (ret == 0) {
-			ret = -EAGAIN;
-			goto done;
-		}
-		/* now we have an array of pages, lock them all */
-		for (i = 0; i < ret; i++) {
-			/*
-			 * the caller is taking responsibility for
-			 * locked_page
-			 */
-			if (pages[i] != locked_page) {
-				lock_page(pages[i]);
-				if (!PageDirty(pages[i]) ||
-				    pages[i]->mapping != inode->i_mapping) {
-					ret = -EAGAIN;
-					unlock_page(pages[i]);
-					put_page(pages[i]);
-					goto done;
-				}
-			}
-			put_page(pages[i]);
-			pages_locked++;
-		}
-		nrpages -= ret;
-		index += ret;
-		cond_resched();
-	}
-	ret = 0;
-done:
-	if (ret && pages_locked) {
-		__unlock_for_delalloc(inode, locked_page,
-			      delalloc_start,
-			      ((u64)(start_index + pages_locked - 1)) <<
-			      PAGE_SHIFT);
-	}
+	ret = __process_pages_contig(inode->i_mapping, locked_page, index,
+				     end_index, PAGE_LOCK, &index_ret);
+	if (ret == -EAGAIN)
+		__unlock_for_delalloc(inode, locked_page, delalloc_start,
+				      (u64)index_ret << PAGE_SHIFT);
 	return ret;
 }
 
