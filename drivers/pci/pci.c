@@ -5079,6 +5079,7 @@ void pci_reassigndev_resource_alignment(struct pci_dev *dev)
 	struct resource *r;
 	bool resize = true;
 	resource_size_t align, size;
+	u16 command;
 
 	/*
 	 * VF BARs are RO zero according to SR-IOV spec 3.4.1.11. Their
@@ -5110,7 +5111,12 @@ void pci_reassigndev_resource_alignment(struct pci_dev *dev)
 		return;
 	}
 
-	dev_info(&dev->dev, "Releasing memory resources.\n");
+	dev_info(&dev->dev,
+		"Disabling memory decoding and releasing memory resources.\n");
+	pci_read_config_word(dev, PCI_COMMAND, &command);
+	command &= ~PCI_COMMAND_MEMORY;
+	pci_write_config_word(dev, PCI_COMMAND, command);
+
 	for (i = 0; i < PCI_BRIDGE_RESOURCES; i++) {
 		r = &dev->resource[i];
 		if (!(r->flags & IORESOURCE_MEM))
