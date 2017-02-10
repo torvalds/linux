@@ -3911,8 +3911,7 @@ retry:
  * WB_SYNC_ALL then we were called for data integrity and we must wait for
  * existing IO to complete.
  */
-static int extent_write_cache_pages(struct extent_io_tree *tree,
-			     struct address_space *mapping,
+static int extent_write_cache_pages(struct address_space *mapping,
 			     struct writeback_control *wbc,
 			     writepage_t writepage, void *data,
 			     void (*flush_fn)(void *))
@@ -4153,8 +4152,7 @@ int extent_writepages(struct extent_io_tree *tree,
 		.bio_flags = 0,
 	};
 
-	ret = extent_write_cache_pages(tree, mapping, wbc,
-				       __extent_writepage, &epd,
+	ret = extent_write_cache_pages(mapping, wbc, __extent_writepage, &epd,
 				       flush_write_bio);
 	flush_epd_write_bio(&epd);
 	return ret;
