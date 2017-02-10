@@ -501,14 +501,15 @@ void i40evf_clean_rx_ring(struct i40e_ring *rx_ring)
 	if (!rx_ring->rx_bi)
 		return;
 
+	if (rx_ring->skb) {
+		dev_kfree_skb(rx_ring->skb);
+		rx_ring->skb = NULL;
+	}
+
 	/* Free all the Rx ring sk_buffs */
 	for (i = 0; i < rx_ring->count; i++) {
 		struct i40e_rx_buffer *rx_bi = &rx_ring->rx_bi[i];
 
-		if (rx_bi->skb) {
-			dev_kfree_skb(rx_bi->skb);
-			rx_bi->skb = NULL;
-		}
 		if (!rx_bi->page)
 			continue;
 
@@ -1086,7 +1087,8 @@ static bool i40e_add_rx_frag(struct i40e_ring *rx_ring,
  */
 static inline
 struct sk_buff *i40evf_fetch_rx_buffer(struct i40e_ring *rx_ring,
-				       union i40e_rx_desc *rx_desc)
+				       union i40e_rx_desc *rx_desc,
+				       struct sk_buff *skb)
 {
 	u64 local_status_error_len =
 		le64_to_cpu(rx_desc->wb.qword1.status_error_len);
@@ -1094,14 +1096,11 @@ struct sk_buff *i40evf_fetch_rx_buffer(struct i40e_ring *rx_ring,
 		(local_status_error_len & I40E_RXD_QW1_LENGTH_PBUF_MASK) >>
 		I40E_RXD_QW1_LENGTH_PBUF_SHIFT;
 	struct i40e_rx_buffer *rx_buffer;
-	struct sk_buff *skb;
 	struct page *page;
 
 	rx_buffer = &rx_ring->rx_bi[rx_ring->next_to_clean];
 	page = rx_buffer->page;
 	prefetchw(page);
-
-	skb = rx_buffer->skb;
 
 	if (likely(!skb)) {
 		void *page_addr = page_address(page) + rx_buffer->page_offset;
@@ -1126,8 +1125,6 @@ struct sk_buff *i40evf_fetch_rx_buffer(struct i40e_ring *rx_ring,
 		 * it now to avoid a possible cache miss
 		 */
 		prefetchw(skb->data);
-	} else {
-		rx_buffer->skb = NULL;
 	}
 
 	/* we are reusing so sync this buffer for CPU use */
@@ -1182,8 +1179,6 @@ static bool i40e_is_non_eop(struct i40e_ring *rx_ring,
 	if (likely(i40e_test_staterr(rx_desc, I40E_RXD_EOF)))
 		return false;
 
-	/* place skb in next buffer to be received */
-	rx_ring->rx_bi[ntc].skb = skb;
 	rx_ring->rx_stats.non_eop_descs++;
 
 	return true;
@@ -1204,12 +1199,12 @@ static bool i40e_is_non_eop(struct i40e_ring *rx_ring,
 static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 {
 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
+	struct sk_buff *skb = rx_ring->skb;
 	u16 cleaned_count = I40E_DESC_UNUSED(rx_ring);
 	bool failure = false;
 
 	while (likely(total_rx_packets < budget)) {
 		union i40e_rx_desc *rx_desc;
-		struct sk_buff *skb;
 		u16 vlan_tag;
 		u8 rx_ptype;
 		u64 qword;
@@ -1238,7 +1233,7 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 		 */
 		dma_rmb();
 
-		skb = i40evf_fetch_rx_buffer(rx_ring, rx_desc);
+		skb = i40evf_fetch_rx_buffer(rx_ring, rx_desc, skb);
 		if (!skb)
 			break;
 
@@ -1257,8 +1252,10 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 			continue;
 		}
 
-		if (i40e_cleanup_headers(rx_ring, skb))
+		if (i40e_cleanup_headers(rx_ring, skb)) {
+			skb = NULL;
 			continue;
+		}
 
 		/* probably a little skewed due to removing CRC */
 		total_rx_bytes += skb->len;
@@ -1275,10 +1272,13 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 			   le16_to_cpu(rx_desc->wb.qword0.lo_dword.l2tag1) : 0;
 
 		i40e_receive_skb(rx_ring, skb, vlan_tag);
+		skb = NULL;
 
 		/* update budget accounting */
 		total_rx_packets++;
 	}
+
+	rx_ring->skb = skb;
 
 	u64_stats_update_begin(&rx_ring->syncp);
 	rx_ring->stats.packets += total_rx_packets;
