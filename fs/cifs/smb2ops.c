@@ -592,7 +592,7 @@ req_res_key_exit:
 	return rc;
 }
 
-static int
+static ssize_t
 smb2_copychunk_range(const unsigned int xid,
 			struct cifsFileInfo *srcfile,
 			struct cifsFileInfo *trgtfile, u64 src_off,
@@ -605,6 +605,7 @@ smb2_copychunk_range(const unsigned int xid,
 	struct cifs_tcon *tcon;
 	int chunks_copied = 0;
 	bool chunk_sizes_updated = false;
+	ssize_t bytes_written, total_bytes_written = 0;
 
 	pcchunk = kmalloc(sizeof(struct copychunk_ioctl), GFP_KERNEL);
 
@@ -669,14 +670,16 @@ smb2_copychunk_range(const unsigned int xid,
 			}
 			chunks_copied++;
 
-			src_off += le32_to_cpu(retbuf->TotalBytesWritten);
-			dest_off += le32_to_cpu(retbuf->TotalBytesWritten);
-			len -= le32_to_cpu(retbuf->TotalBytesWritten);
+			bytes_written = le32_to_cpu(retbuf->TotalBytesWritten);
+			src_off += bytes_written;
+			dest_off += bytes_written;
+			len -= bytes_written;
+			total_bytes_written += bytes_written;
 
-			cifs_dbg(FYI, "Chunks %d PartialChunk %d Total %d\n",
+			cifs_dbg(FYI, "Chunks %d PartialChunk %d Total %zu\n",
 				le32_to_cpu(retbuf->ChunksWritten),
 				le32_to_cpu(retbuf->ChunkBytesWritten),
-				le32_to_cpu(retbuf->TotalBytesWritten));
+				bytes_written);
 		} else if (rc == -EINVAL) {
 			if (ret_data_len != sizeof(struct copychunk_ioctl_rsp))
 				goto cchunk_out;
@@ -713,7 +716,10 @@ smb2_copychunk_range(const unsigned int xid,
 cchunk_out:
 	kfree(pcchunk);
 	kfree(retbuf);
-	return rc;
+	if (rc)
+		return rc;
+	else
+		return total_bytes_written;
 }
 
 static int
