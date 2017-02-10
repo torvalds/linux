@@ -171,6 +171,7 @@ struct cgs_firmware_info {
 	uint32_t		ucode_start_address;
 
 	void			*kptr;
+	bool			is_kicker;
 };
 
 struct cgs_mode_info {
