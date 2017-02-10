@@ -452,7 +452,7 @@ u8 MR_ValidateMapInfo(struct megasas_instance *instance)
 	struct LD_LOAD_BALANCE_INFO *lbInfo;
 	PLD_SPAN_INFO ldSpanInfo;
 	struct MR_LD_RAID         *raid;
-	u16 ldCount, num_lds;
+	u16 num_lds, i;
 	u16 ld;
 	u32 expected_size;
 
@@ -495,10 +495,17 @@ u8 MR_ValidateMapInfo(struct megasas_instance *instance)
 	num_lds = le16_to_cpu(drv_map->raidMap.ldCount);
 
 	/*Convert Raid capability values to CPU arch */
-	for (ldCount = 0; ldCount < num_lds; ldCount++) {
-		ld = MR_TargetIdToLdGet(ldCount, drv_map);
+	for (i = 0; (num_lds > 0) && (i < MAX_LOGICAL_DRIVES_EXT); i++) {
+		ld = MR_TargetIdToLdGet(i, drv_map);
+
+		/* For non existing VDs, iterate to next VD*/
+		if (ld >= (MAX_LOGICAL_DRIVES_EXT - 1))
+			continue;
+
 		raid = MR_LdRaidGet(ld, drv_map);
 		le32_to_cpus((u32 *)&raid->capability);
+
+		num_lds--;
 	}
 
 	return 1;
