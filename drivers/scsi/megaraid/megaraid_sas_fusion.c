@@ -1285,13 +1285,6 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 	megasas_fusion_update_can_queue(instance, PROBE_CONTEXT);
 
 	/*
-	 * Reduce the max supported cmds by 1. This is to ensure that the
-	 * reply_q_sz (1 more than the max cmd that driver may send)
-	 * does not exceed max cmds that the FW can support
-	 */
-	instance->max_fw_cmds = instance->max_fw_cmds-1;
-
-	/*
 	 * Only Driver's internal DCMDs and IOCTL DCMDs needs to have MFI frames
 	 */
 	instance->max_mfi_cmds =
