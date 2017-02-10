@@ -1126,7 +1126,7 @@ static int ath10k_core_create_board_name(struct ath10k *ar, char *name,
 					 size_t name_len)
 {
 	/* strlen(',variant=') + strlen(ar->id.bdf_ext) */
-	char variant[9 + ATH10K_SMBIOS_BDF_EXT_STR_LENGTH];
+	char variant[9 + ATH10K_SMBIOS_BDF_EXT_STR_LENGTH] = { 0 };
 
 	if (ar->id.bmi_ids_valid) {
 		scnprintf(name, name_len,
