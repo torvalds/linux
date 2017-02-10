@@ -680,7 +680,7 @@ int dump_counters(struct thread_data *t, struct core_data *c,
 int format_counters(struct thread_data *t, struct core_data *c,
 	struct pkg_data *p)
 {
-	double interval_float;
+	double interval_float, tsc;
 	char *fmt8;
 	int i;
 	struct msr_counter *mp;
@@ -694,6 +694,8 @@ int format_counters(struct thread_data *t, struct core_data *c,
 		return 0;
 
 	interval_float = tv_delta.tv_sec + tv_delta.tv_usec/1000000.0;
+
+	tsc = t->tsc * tsc_tweak;
 
 	/* topo columns, print blanks on 1st (average) line */
 	if (t == &average.threads) {
@@ -725,14 +727,14 @@ int format_counters(struct thread_data *t, struct core_data *c,
 			1.0 / units * t->aperf / interval_float);
 
 	if (DO_BIC(BIC_Busy))
-		outp += sprintf(outp, "\t%.2f", 100.0 * t->mperf/t->tsc/tsc_tweak);
+		outp += sprintf(outp, "\t%.2f", 100.0 * t->mperf/tsc);
 
 	if (DO_BIC(BIC_Bzy_MHz)) {
 		if (has_base_hz)
 			outp += sprintf(outp, "\t%.0f", base_hz / units * t->aperf / t->mperf);
 		else
 			outp += sprintf(outp, "\t%.0f",
-				1.0 * t->tsc / units * t->aperf / t->mperf / interval_float);
+				tsc / units * t->aperf / t->mperf / interval_float);
 	}
 
 	if (DO_BIC(BIC_TSC_MHz))
@@ -748,7 +750,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 
 	/* C1 */
 	if (DO_BIC(BIC_CPU_c1))
-		outp += sprintf(outp, "\t%.2f", 100.0 * t->c1/t->tsc);
+		outp += sprintf(outp, "\t%.2f", 100.0 * t->c1/tsc);
 
 	/* Added counters */
 	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
@@ -760,7 +762,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 		} else if (mp->format == FORMAT_DELTA) {
 			outp += sprintf(outp, "\t%lld", t->counter[i]);
 		} else if (mp->format == FORMAT_PERCENT) {
-			outp += sprintf(outp, "\t%.2f", 100.0 * t->counter[i]/t->tsc);
+			outp += sprintf(outp, "\t%.2f", 100.0 * t->counter[i]/tsc);
 		}
 	}
 
@@ -769,15 +771,15 @@ int format_counters(struct thread_data *t, struct core_data *c,
 		goto done;
 
 	if (DO_BIC(BIC_CPU_c3) && !do_slm_cstates && !do_knl_cstates)
-		outp += sprintf(outp, "\t%.2f", 100.0 * c->c3/t->tsc);
+		outp += sprintf(outp, "\t%.2f", 100.0 * c->c3/tsc);
 	if (DO_BIC(BIC_CPU_c6))
-		outp += sprintf(outp, "\t%.2f", 100.0 * c->c6/t->tsc);
+		outp += sprintf(outp, "\t%.2f", 100.0 * c->c6/tsc);
 	if (DO_BIC(BIC_CPU_c7))
-		outp += sprintf(outp, "\t%.2f", 100.0 * c->c7/t->tsc);
+		outp += sprintf(outp, "\t%.2f", 100.0 * c->c7/tsc);
 
 	/* Mod%c6 */
 	if (DO_BIC(BIC_Mod_c6))
-		outp += sprintf(outp, "\t%.2f", 100.0 * c->mc6_us / t->tsc);
+		outp += sprintf(outp, "\t%.2f", 100.0 * c->mc6_us / tsc);
 
 	if (DO_BIC(BIC_CoreTmp))
 		outp += sprintf(outp, "\t%d", c->core_temp_c);
@@ -791,7 +793,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 		} else if (mp->format == FORMAT_DELTA) {
 			outp += sprintf(outp, "\t%lld", c->counter[i]);
 		} else if (mp->format == FORMAT_PERCENT) {
-			outp += sprintf(outp, "\t%.2f", 100.0 * c->counter[i]/t->tsc);
+			outp += sprintf(outp, "\t%.2f", 100.0 * c->counter[i]/tsc);
 		}
 	}
 
@@ -819,24 +821,24 @@ int format_counters(struct thread_data *t, struct core_data *c,
 
 	/* Totl%C0, Any%C0 GFX%C0 CPUGFX% */
 	if (do_skl_residency) {
-		outp += sprintf(outp, "\t%.2f", 100.0 * p->pkg_wtd_core_c0/t->tsc);
-		outp += sprintf(outp, "\t%.2f", 100.0 * p->pkg_any_core_c0/t->tsc);
-		outp += sprintf(outp, "\t%.2f", 100.0 * p->pkg_any_gfxe_c0/t->tsc);
-		outp += sprintf(outp, "\t%.2f", 100.0 * p->pkg_both_core_gfxe_c0/t->tsc);
+		outp += sprintf(outp, "\t%.2f", 100.0 * p->pkg_wtd_core_c0/tsc);
+		outp += sprintf(outp, "\t%.2f", 100.0 * p->pkg_any_core_c0/tsc);
+		outp += sprintf(outp, "\t%.2f", 100.0 * p->pkg_any_gfxe_c0/tsc);
+		outp += sprintf(outp, "\t%.2f", 100.0 * p->pkg_both_core_gfxe_c0/tsc);
 	}
 
 	if (do_pc2)
-		outp += sprintf(outp, "\t%.2f", 100.0 * p->pc2/t->tsc);
+		outp += sprintf(outp, "\t%.2f", 100.0 * p->pc2/tsc);
 	if (do_pc3)
-		outp += sprintf(outp, "\t%.2f", 100.0 * p->pc3/t->tsc);
+		outp += sprintf(outp, "\t%.2f", 100.0 * p->pc3/tsc);
 	if (do_pc6)
-		outp += sprintf(outp, "\t%.2f", 100.0 * p->pc6/t->tsc);
+		outp += sprintf(outp, "\t%.2f", 100.0 * p->pc6/tsc);
 	if (do_pc7)
-		outp += sprintf(outp, "\t%.2f", 100.0 * p->pc7/t->tsc);
+		outp += sprintf(outp, "\t%.2f", 100.0 * p->pc7/tsc);
 	if (do_c8_c9_c10) {
-		outp += sprintf(outp, "\t%.2f", 100.0 * p->pc8/t->tsc);
-		outp += sprintf(outp, "\t%.2f", 100.0 * p->pc9/t->tsc);
-		outp += sprintf(outp, "\t%.2f", 100.0 * p->pc10/t->tsc);
+		outp += sprintf(outp, "\t%.2f", 100.0 * p->pc8/tsc);
+		outp += sprintf(outp, "\t%.2f", 100.0 * p->pc9/tsc);
+		outp += sprintf(outp, "\t%.2f", 100.0 * p->pc10/tsc);
 	}
 
 	/*
@@ -878,7 +880,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 		} else if (mp->format == FORMAT_DELTA) {
 			outp += sprintf(outp, "\t%lld", p->counter[i]);
 		} else if (mp->format == FORMAT_PERCENT) {
-			outp += sprintf(outp, "\t%.2f", 100.0 * p->counter[i]/t->tsc);
+			outp += sprintf(outp, "\t%.2f", 100.0 * p->counter[i]/tsc);
 		}
 	}
 
@@ -1048,7 +1050,7 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 			old->c1 = 0;
 		else {
 			/* normal case, derive c1 */
-			old->c1 = old->tsc - old->mperf - core_delta->c3
+			old->c1 = (old->tsc * tsc_tweak) - old->mperf - core_delta->c3
 				- core_delta->c6 - core_delta->c7;
 		}
 	}
