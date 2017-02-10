@@ -858,7 +858,7 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 		}
 	}
 	plane = &vc4_plane->base;
-	ret = drm_universal_plane_init(dev, plane, 0xff,
+	ret = drm_universal_plane_init(dev, plane, 0,
 				       &vc4_plane_funcs,
 				       formats, num_formats,
 				       type, NULL);
