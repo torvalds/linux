@@ -165,7 +165,7 @@ u16 MR_GetLDTgtId(u32 ld, struct MR_DRV_RAID_MAP_ALL *map)
 	return le16_to_cpu(map->raidMap.ldSpanMap[ld].ldRaid.targetId);
 }
 
-u8 MR_TargetIdToLdGet(u32 ldTgtId, struct MR_DRV_RAID_MAP_ALL *map)
+u16 MR_TargetIdToLdGet(u32 ldTgtId, struct MR_DRV_RAID_MAP_ALL *map)
 {
 	return map->raidMap.ldTgtIdToLd[ldTgtId];
 }
@@ -1151,7 +1151,7 @@ MR_BuildRaidContext(struct megasas_instance *instance,
 {
 	struct fusion_context *fusion;
 	struct MR_LD_RAID  *raid;
-	u32         ld, stripSize, stripe_mask;
+	u32         stripSize, stripe_mask;
 	u64         endLba, endStrip, endRow, start_row, start_strip;
 	u64         regStart;
 	u32         regSize;
@@ -1163,6 +1163,7 @@ MR_BuildRaidContext(struct megasas_instance *instance,
 	u8	    retval = 0;
 	u8	    startlba_span = SPAN_INVALID;
 	u64 *pdBlock = &io_info->pdBlock;
+	u16	    ld;
 
 	ldStartBlock = io_info->ldStartBlock;
 	numBlocks = io_info->numBlocks;

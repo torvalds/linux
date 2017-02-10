@@ -1121,7 +1121,8 @@ megasas_sync_map_info(struct megasas_instance *instance)
 	int i;
 	struct megasas_cmd *cmd;
 	struct megasas_dcmd_frame *dcmd;
-	u32 size_sync_info, num_lds;
+	u16 num_lds;
+	u32 size_sync_info;
 	struct fusion_context *fusion;
 	struct MR_LD_TARGET_SYNC *ci = NULL;
 	struct MR_DRV_RAID_MAP_ALL *map;
@@ -1870,7 +1871,7 @@ megasas_set_pd_lba(struct MPI2_RAID_SCSI_IO_REQUEST *io_request, u8 cdb_len,
 		   struct MR_DRV_RAID_MAP_ALL *local_map_ptr, u32 ref_tag)
 {
 	struct MR_LD_RAID *raid;
-	u32 ld;
+	u16 ld;
 	u64 start_blk = io_info->pdBlock;
 	u8 *cdb = io_request->CDB.CDB32;
 	u32 num_blocks = io_info->numBlocks;
@@ -2303,10 +2304,11 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 
 	local_map_ptr = fusion->ld_drv_map[(instance->map_id & 1)];
 	ld = MR_TargetIdToLdGet(device_id, local_map_ptr);
-	raid = MR_LdRaidGet(ld, local_map_ptr);
 
-	if ((MR_TargetIdToLdGet(device_id, local_map_ptr) >=
-		instance->fw_supported_vd_count) || (!fusion->fast_path_io)) {
+	if (ld < instance->fw_supported_vd_count)
+		raid = MR_LdRaidGet(ld, local_map_ptr);
+
+	if (!raid || (!fusion->fast_path_io)) {
 		io_request->RaidContext.raid_context.reg_lock_flags  = 0;
 		fp_possible = false;
 	} else {
@@ -2478,12 +2480,12 @@ static void megasas_build_ld_nonrw_fusion(struct megasas_instance *instance,
 {
 	u32 device_id;
 	struct MPI2_RAID_SCSI_IO_REQUEST *io_request;
-	u16 pd_index = 0;
+	u16 pd_index = 0, ld;
 	struct MR_DRV_RAID_MAP_ALL *local_map_ptr;
 	struct fusion_context *fusion = instance->ctrl_context;
 	u8                          span, physArm;
 	__le16                      devHandle;
-	u32                         ld, arRef, pd;
+	u32                         arRef, pd;
 	struct MR_LD_RAID                  *raid;
 	struct RAID_CONTEXT                *pRAID_Context;
 	u8 fp_possible = 1;
@@ -2506,10 +2508,11 @@ static void megasas_build_ld_nonrw_fusion(struct megasas_instance *instance,
 		ld = MR_TargetIdToLdGet(device_id, local_map_ptr);
 		if (ld >= instance->fw_supported_vd_count)
 			fp_possible = 0;
-
-		raid = MR_LdRaidGet(ld, local_map_ptr);
-		if (!(raid->capability.fpNonRWCapable))
-			fp_possible = 0;
+		else {
+			raid = MR_LdRaidGet(ld, local_map_ptr);
+			if (!(raid->capability.fpNonRWCapable))
+				fp_possible = 0;
+		}
 	} else
 		fp_possible = 0;
 
