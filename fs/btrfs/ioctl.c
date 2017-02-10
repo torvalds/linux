@@ -656,7 +656,7 @@ static void btrfs_wait_for_no_snapshoting_writes(struct btrfs_root *root)
 }
 
 static int create_snapshot(struct btrfs_root *root, struct inode *dir,
-			   struct dentry *dentry, char *name, int namelen,
+			   struct dentry *dentry,
 			   u64 *async_transid, bool readonly,
 			   struct btrfs_qgroup_inherit *inherit)
 {
@@ -871,7 +871,7 @@ static noinline int btrfs_mksubvol(const struct path *parent,
 		goto out_up_read;
 
 	if (snap_src) {
-		error = create_snapshot(snap_src, dir, dentry, name, namelen,
+		error = create_snapshot(snap_src, dir, dentry,
 					async_transid, readonly, inherit);
 	} else {
 		error = create_subvol(dir, dentry, name, namelen,
