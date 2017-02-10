@@ -1668,7 +1668,7 @@ megasas_queue_command(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 	/* Check for an mpio path and adjust behavior */
 	if (atomic_read(&instance->adprecovery) == MEGASAS_ADPRESET_SM_INFAULT) {
 		if (megasas_check_mpio_paths(instance, scmd) ==
-		    (DID_RESET << 16)) {
+		    (DID_REQUEUE << 16)) {
 			return SCSI_MLQUEUE_HOST_BUSY;
 		} else {
 			scmd->result = DID_NO_CONNECT << 16;
@@ -2492,7 +2492,7 @@ static int megasas_wait_for_outstanding(struct megasas_instance *instance)
 						struct megasas_cmd, list);
 			list_del_init(&reset_cmd->list);
 			if (reset_cmd->scmd) {
-				reset_cmd->scmd->result = DID_RESET << 16;
+				reset_cmd->scmd->result = DID_REQUEUE << 16;
 				dev_notice(&instance->pdev->dev, "%d:%p reset [%02x]\n",
 					reset_index, reset_cmd,
 					reset_cmd->scmd->cmnd[0]);

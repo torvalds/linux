@@ -3770,7 +3770,7 @@ int megasas_check_mpio_paths(struct megasas_instance *instance,
 	struct scsi_cmnd *scmd)
 {
 	struct megasas_instance *peer_instance = NULL;
-	int retval = (DID_RESET << 16);
+	int retval = (DID_REQUEUE << 16);
 
 	if (instance->peerIsPresent) {
 		peer_instance = megasas_get_peer_instance(instance);
