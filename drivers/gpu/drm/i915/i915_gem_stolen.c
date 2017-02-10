@@ -55,9 +55,9 @@ int i915_gem_stolen_insert_node_in_range(struct drm_i915_private *dev_priv,
 		return -ENODEV;
 
 	mutex_lock(&dev_priv->mm.stolen_lock);
-	ret = drm_mm_insert_node_in_range(&dev_priv->mm.stolen, node, size,
-					  alignment, start, end,
-					  DRM_MM_SEARCH_DEFAULT);
+	ret = drm_mm_insert_node_in_range(&dev_priv->mm.stolen, node,
+					  size, alignment, 0,
+					  start, end, DRM_MM_INSERT_BEST);
 	mutex_unlock(&dev_priv->mm.stolen_lock);
 
 	return ret;

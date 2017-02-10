@@ -2754,12 +2754,10 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 		return ret;
 
 	/* Reserve a mappable slot for our lockless error capture */
-	ret = drm_mm_insert_node_in_range_generic(&ggtt->base.mm,
-						  &ggtt->error_capture,
-						  PAGE_SIZE, 0,
-						  I915_COLOR_UNEVICTABLE,
-						  0, ggtt->mappable_end,
-						  0, 0);
+	ret = drm_mm_insert_node_in_range(&ggtt->base.mm, &ggtt->error_capture,
+					  PAGE_SIZE, 0, I915_COLOR_UNEVICTABLE,
+					  0, ggtt->mappable_end,
+					  DRM_MM_INSERT_LOW);
 	if (ret)
 		return ret;
 
@@ -3669,7 +3667,7 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 			u64 size, u64 alignment, unsigned long color,
 			u64 start, u64 end, unsigned int flags)
 {
-	u32 search_flag, alloc_flag;
+	enum drm_mm_insert_mode mode;
 	u64 offset;
 	int err;
 
@@ -3690,13 +3688,11 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 	if (unlikely(round_up(start, alignment) > round_down(end - size, alignment)))
 		return -ENOSPC;
 
-	if (flags & PIN_HIGH) {
-		search_flag = DRM_MM_SEARCH_BELOW;
-		alloc_flag = DRM_MM_CREATE_TOP;
-	} else {
-		search_flag = DRM_MM_SEARCH_DEFAULT;
-		alloc_flag = DRM_MM_CREATE_DEFAULT;
-	}
+	mode = DRM_MM_INSERT_BEST;
+	if (flags & PIN_HIGH)
+		mode = DRM_MM_INSERT_HIGH;
+	if (flags & PIN_MAPPABLE)
+		mode = DRM_MM_INSERT_LOW;
 
 	/* We only allocate in PAGE_SIZE/GTT_PAGE_SIZE (4096) chunks,
 	 * so we know that we always have a minimum alignment of 4096.
@@ -3708,10 +3704,9 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 	if (alignment <= I915_GTT_MIN_ALIGNMENT)
 		alignment = 0;
 
-	err = drm_mm_insert_node_in_range_generic(&vm->mm, node,
-						  size, alignment, color,
-						  start, end,
-						  search_flag, alloc_flag);
+	err = drm_mm_insert_node_in_range(&vm->mm, node,
+					  size, alignment, color,
+					  start, end, mode);
 	if (err != -ENOSPC)
 		return err;
 
@@ -3749,9 +3744,7 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 	if (err)
 		return err;
 
-	search_flag = DRM_MM_SEARCH_DEFAULT;
-	return drm_mm_insert_node_in_range_generic(&vm->mm, node,
-						   size, alignment, color,
-						   start, end,
-						   search_flag, alloc_flag);
+	return drm_mm_insert_node_in_range(&vm->mm, node,
+					   size, alignment, color,
+					   start, end, DRM_MM_INSERT_EVICT);
 }

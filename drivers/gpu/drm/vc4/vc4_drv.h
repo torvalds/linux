@@ -18,6 +18,7 @@ struct vc4_dev {
 	struct vc4_hvs *hvs;
 	struct vc4_v3d *v3d;
 	struct vc4_dpi *dpi;
+	struct vc4_dsi *dsi1;
 	struct vc4_vec *vec;
 
 	struct drm_fbdev_cma *fbdev;
@@ -464,6 +465,10 @@ void __iomem *vc4_ioremap_regs(struct platform_device *dev, int index);
 /* vc4_dpi.c */
 extern struct platform_driver vc4_dpi_driver;
 int vc4_dpi_debugfs_regs(struct seq_file *m, void *unused);
+
+/* vc4_dsi.c */
+extern struct platform_driver vc4_dsi_driver;
+int vc4_dsi_debugfs_regs(struct seq_file *m, void *unused);
 
 /* vc4_gem.c */
 void vc4_gem_init(struct drm_device *dev);

@@ -437,12 +437,11 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 					       PIN_MAPPABLE | PIN_NONBLOCK);
 		if (IS_ERR(vma)) {
 			memset(&cache->node, 0, sizeof(cache->node));
-			ret = drm_mm_insert_node_in_range_generic
+			ret = drm_mm_insert_node_in_range
 				(&ggtt->base.mm, &cache->node,
 				 PAGE_SIZE, 0, I915_COLOR_UNEVICTABLE,
 				 0, ggtt->mappable_end,
-				 DRM_MM_SEARCH_DEFAULT,
-				 DRM_MM_CREATE_DEFAULT);
+				 DRM_MM_INSERT_LOW);
 			if (ret) /* no inactive aperture space, use cpu reloc */
 				return NULL;
 		} else {

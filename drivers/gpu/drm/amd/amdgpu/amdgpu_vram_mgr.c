@@ -97,8 +97,7 @@ static int amdgpu_vram_mgr_new(struct ttm_mem_type_manager *man,
 	struct amdgpu_vram_mgr *mgr = man->priv;
 	struct drm_mm *mm = &mgr->mm;
 	struct drm_mm_node *nodes;
-	enum drm_mm_search_flags sflags = DRM_MM_SEARCH_DEFAULT;
-	enum drm_mm_allocator_flags aflags = DRM_MM_CREATE_DEFAULT;
+	enum drm_mm_insert_mode mode;
 	unsigned long lpfn, num_nodes, pages_per_node, pages_left;
 	unsigned i;
 	int r;
@@ -121,10 +120,9 @@ static int amdgpu_vram_mgr_new(struct ttm_mem_type_manager *man,
 	if (!nodes)
 		return -ENOMEM;
 
-	if (place->flags & TTM_PL_FLAG_TOPDOWN) {
-		sflags = DRM_MM_SEARCH_BELOW;
-		aflags = DRM_MM_CREATE_TOP;
-	}
+	mode = DRM_MM_INSERT_BEST;
+	if (place->flags & TTM_PL_FLAG_TOPDOWN)
+		mode = DRM_MM_INSERT_HIGH;
 
 	pages_left = mem->num_pages;
 
@@ -135,13 +133,11 @@ static int amdgpu_vram_mgr_new(struct ttm_mem_type_manager *man,
 
 		if (pages == pages_per_node)
 			alignment = pages_per_node;
-		else
-			sflags |= DRM_MM_SEARCH_BEST;
 
-		r = drm_mm_insert_node_in_range_generic(mm, &nodes[i], pages,
-							alignment, 0,
-							place->fpfn, lpfn,
-							sflags, aflags);
+		r = drm_mm_insert_node_in_range(mm, &nodes[i],
+						pages, alignment, 0,
+						place->fpfn, lpfn,
+						mode);
 		if (unlikely(r))
 			goto error;
 

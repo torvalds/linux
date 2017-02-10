@@ -230,10 +230,6 @@ static int vce_v3_0_start(struct amdgpu_device *adev)
 	struct amdgpu_ring *ring;
 	int idx, r;
 
-	vce_v3_0_override_vce_clock_gating(adev, true);
-	if (!(adev->flags & AMD_IS_APU))
-		amdgpu_asic_set_vce_clocks(adev, 10000, 10000);
-
 	ring = &adev->vce.ring[0];
 	WREG32(mmVCE_RB_RPTR, ring->wptr);
 	WREG32(mmVCE_RB_WPTR, ring->wptr);
@@ -436,9 +432,9 @@ static int vce_v3_0_hw_init(void *handle)
 	int r, i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = vce_v3_0_start(adev);
-	if (r)
-		return r;
+	vce_v3_0_override_vce_clock_gating(adev, true);
+	if (!(adev->flags & AMD_IS_APU))
+		amdgpu_asic_set_vce_clocks(adev, 10000, 10000);
 
 	for (i = 0; i < adev->vce.num_rings; i++)
 		adev->vce.ring[i].ready = false;
@@ -766,12 +762,11 @@ static int vce_v3_0_set_powergating_state(void *handle,
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int ret = 0;
 
-	if (!(adev->pg_flags & AMD_PG_SUPPORT_VCE))
-		return 0;
-
 	if (state == AMD_PG_STATE_GATE) {
+		ret = vce_v3_0_stop(adev);
+		if (ret)
+			goto out;
 		adev->vce.is_powergated = true;
-		/* XXX do we need a vce_v3_0_stop()? */
 	} else {
 		ret = vce_v3_0_start(adev);
 		if (ret)

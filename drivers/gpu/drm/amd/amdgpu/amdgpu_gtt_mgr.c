@@ -97,8 +97,7 @@ int amdgpu_gtt_mgr_alloc(struct ttm_mem_type_manager *man,
 {
 	struct amdgpu_gtt_mgr *mgr = man->priv;
 	struct drm_mm_node *node = mem->mm_node;
-	enum drm_mm_search_flags sflags = DRM_MM_SEARCH_BEST;
-	enum drm_mm_allocator_flags aflags = DRM_MM_CREATE_DEFAULT;
+	enum drm_mm_insert_mode mode;
 	unsigned long fpfn, lpfn;
 	int r;
 
@@ -115,15 +114,14 @@ int amdgpu_gtt_mgr_alloc(struct ttm_mem_type_manager *man,
 	else
 		lpfn = man->size;
 
-	if (place && place->flags & TTM_PL_FLAG_TOPDOWN) {
-		sflags = DRM_MM_SEARCH_BELOW;
-		aflags = DRM_MM_CREATE_TOP;
-	}
+	mode = DRM_MM_INSERT_BEST;
+	if (place && place->flags & TTM_PL_FLAG_TOPDOWN)
+		mode = DRM_MM_INSERT_HIGH;
 
 	spin_lock(&mgr->lock);
-	r = drm_mm_insert_node_in_range_generic(&mgr->mm, node, mem->num_pages,
-						mem->page_alignment, 0,
-						fpfn, lpfn, sflags, aflags);
+	r = drm_mm_insert_node_in_range(&mgr->mm, node,
+					mem->num_pages, mem->page_alignment, 0,
+					fpfn, lpfn, mode);
 	spin_unlock(&mgr->lock);
 
 	if (!r) {
