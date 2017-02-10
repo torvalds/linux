@@ -301,20 +301,8 @@ int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 	if ((sector | nr_sects) & bs_mask)
 		return -EINVAL;
 
-	if (discard) {
-		ret = __blkdev_issue_discard(bdev, sector, nr_sects, gfp_mask,
-				BLKDEV_DISCARD_ZERO, biop);
-		if (ret == 0 || (ret && ret != -EOPNOTSUPP))
-			goto out;
-	}
-
 	ret = __blkdev_issue_write_zeroes(bdev, sector, nr_sects, gfp_mask,
 			biop);
-	if (ret == 0 || (ret && ret != -EOPNOTSUPP))
-		goto out;
-
-	ret = __blkdev_issue_write_same(bdev, sector, nr_sects, gfp_mask,
-			ZERO_PAGE(0), biop);
 	if (ret == 0 || (ret && ret != -EOPNOTSUPP))
 		goto out;
 
@@ -369,6 +357,16 @@ int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 	int ret;
 	struct bio *bio = NULL;
 	struct blk_plug plug;
+
+	if (discard) {
+		if (!blkdev_issue_discard(bdev, sector, nr_sects, gfp_mask,
+				BLKDEV_DISCARD_ZERO))
+			return 0;
+	}
+
+	if (!blkdev_issue_write_same(bdev, sector, nr_sects, gfp_mask,
+			ZERO_PAGE(0)))
+		return 0;
 
 	blk_start_plug(&plug);
 	ret = __blkdev_issue_zeroout(bdev, sector, nr_sects, gfp_mask,

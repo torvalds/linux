@@ -496,10 +496,11 @@ static inline int check_valid_pointer(struct kmem_cache *s,
 	return 1;
 }
 
-static void print_section(char *text, u8 *addr, unsigned int length)
+static void print_section(char *level, char *text, u8 *addr,
+			  unsigned int length)
 {
 	metadata_access_enable();
-	print_hex_dump(KERN_ERR, text, DUMP_PREFIX_ADDRESS, 16, 1, addr,
+	print_hex_dump(level, text, DUMP_PREFIX_ADDRESS, 16, 1, addr,
 			length, 1);
 	metadata_access_disable();
 }
@@ -636,14 +637,15 @@ static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
 	       p, p - addr, get_freepointer(s, p));
 
 	if (s->flags & SLAB_RED_ZONE)
-		print_section("Redzone ", p - s->red_left_pad, s->red_left_pad);
+		print_section(KERN_ERR, "Redzone ", p - s->red_left_pad,
+			      s->red_left_pad);
 	else if (p > addr + 16)
-		print_section("Bytes b4 ", p - 16, 16);
+		print_section(KERN_ERR, "Bytes b4 ", p - 16, 16);
 
-	print_section("Object ", p, min_t(unsigned long, s->object_size,
-				PAGE_SIZE));
+	print_section(KERN_ERR, "Object ", p,
+		      min_t(unsigned long, s->object_size, PAGE_SIZE));
 	if (s->flags & SLAB_RED_ZONE)
-		print_section("Redzone ", p + s->object_size,
+		print_section(KERN_ERR, "Redzone ", p + s->object_size,
 			s->inuse - s->object_size);
 
 	if (s->offset)
@@ -658,7 +660,8 @@ static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
 
 	if (off != size_from_object(s))
 		/* Beginning of the filler is the free pointer */
-		print_section("Padding ", p + off, size_from_object(s) - off);
+		print_section(KERN_ERR, "Padding ", p + off,
+			      size_from_object(s) - off);
 
 	dump_stack();
 }
@@ -820,7 +823,7 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
 		end--;
 
 	slab_err(s, page, "Padding overwritten. 0x%p-0x%p", fault, end - 1);
-	print_section("Padding ", end - remainder, remainder);
+	print_section(KERN_ERR, "Padding ", end - remainder, remainder);
 
 	restore_bytes(s, "slab padding", POISON_INUSE, end - remainder, end);
 	return 0;
@@ -973,7 +976,7 @@ static void trace(struct kmem_cache *s, struct page *page, void *object,
 			page->freelist);
 
 		if (!alloc)
-			print_section("Object ", (void *)object,
+			print_section(KERN_INFO, "Object ", (void *)object,
 					s->object_size);
 
 		dump_stack();
@@ -1418,6 +1421,10 @@ static int init_cache_random_seq(struct kmem_cache *s)
 {
 	int err;
 	unsigned long i, count = oo_objects(s->oo);
+
+	/* Bailout if already initialised */
+	if (s->random_seq)
+		return 0;
 
 	err = cache_random_seq_create(s, count, GFP_KERNEL);
 	if (err) {

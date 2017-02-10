@@ -390,14 +390,12 @@ static int ll_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 		result = VM_FAULT_LOCKED;
 		break;
 	case -ENODATA:
+	case -EAGAIN:
 	case -EFAULT:
 		result = VM_FAULT_NOPAGE;
 		break;
 	case -ENOMEM:
 		result = VM_FAULT_OOM;
-		break;
-	case -EAGAIN:
-		result = VM_FAULT_RETRY;
 		break;
 	default:
 		result = VM_FAULT_SIGBUS;

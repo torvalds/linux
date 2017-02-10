@@ -60,6 +60,8 @@ MODULE_FIRMWARE("amdgpu/polaris10_sdma.bin");
 MODULE_FIRMWARE("amdgpu/polaris10_sdma1.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_sdma.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_sdma1.bin");
+MODULE_FIRMWARE("amdgpu/polaris12_sdma.bin");
+MODULE_FIRMWARE("amdgpu/polaris12_sdma1.bin");
 
 
 static const u32 sdma_offsets[SDMA_MAX_INSTANCE] =
@@ -206,6 +208,7 @@ static void sdma_v3_0_init_golden_registers(struct amdgpu_device *adev)
 						 (const u32)ARRAY_SIZE(golden_settings_tonga_a11));
 		break;
 	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
 		amdgpu_program_register_sequence(adev,
 						 golden_settings_polaris11_a11,
 						 (const u32)ARRAY_SIZE(golden_settings_polaris11_a11));
@@ -277,6 +280,9 @@ static int sdma_v3_0_init_microcode(struct amdgpu_device *adev)
 		break;
 	case CHIP_POLARIS10:
 		chip_name = "polaris10";
+		break;
+	case CHIP_POLARIS12:
+		chip_name = "polaris12";
 		break;
 	case CHIP_CARRIZO:
 		chip_name = "carrizo";

@@ -280,7 +280,7 @@ static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 					   1, id, type, PSTORE_TYPE_PMSG, 0);
 
 	/* ftrace is last since it may want to dynamically allocate memory. */
-	if (!prz_ok(prz)) {
+	if (!prz_ok(prz) && cxt->fprzs) {
 		if (!(cxt->flags & RAMOOPS_FLAG_FTRACE_PER_CPU)) {
 			prz = ramoops_get_next_prz(cxt->fprzs,
 					&cxt->ftrace_read_cnt, 1, id, type,

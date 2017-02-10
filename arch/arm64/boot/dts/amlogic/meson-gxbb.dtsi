@@ -55,7 +55,7 @@
 		mboxes = <&mailbox 1 &mailbox 2>;
 		shmem = <&cpu_scp_lpri &cpu_scp_hpri>;
 
-		clocks {
+		scpi_clocks: clocks {
 			compatible = "arm,scpi-clocks";
 
 			scpi_dvfs: scpi_clocks@0 {

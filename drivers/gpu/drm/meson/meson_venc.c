@@ -38,6 +38,11 @@
  * - TV Panel encoding via ENCT
  */
 
+/* HHI Registers */
+#define HHI_VDAC_CNTL0		0x2F4 /* 0xbd offset in data sheet */
+#define HHI_VDAC_CNTL1		0x2F8 /* 0xbe offset in data sheet */
+#define HHI_HDMI_PHY_CNTL0	0x3a0 /* 0xe8 offset in data sheet */
+
 struct meson_cvbs_enci_mode meson_cvbs_enci_pal = {
 	.mode_tag = MESON_VENC_MODE_CVBS_PAL,
 	.hso_begin = 3,
@@ -242,6 +247,20 @@ void meson_venc_disable_vsync(struct meson_drm *priv)
 
 void meson_venc_init(struct meson_drm *priv)
 {
+	/* Disable CVBS VDAC */
+	regmap_write(priv->hhi, HHI_VDAC_CNTL0, 0);
+	regmap_write(priv->hhi, HHI_VDAC_CNTL1, 8);
+
+	/* Power Down Dacs */
+	writel_relaxed(0xff, priv->io_base + _REG(VENC_VDAC_SETTING));
+
+	/* Disable HDMI PHY */
+	regmap_write(priv->hhi, HHI_HDMI_PHY_CNTL0, 0);
+
+	/* Disable HDMI */
+	writel_bits_relaxed(0x3, 0,
+			    priv->io_base + _REG(VPU_HDMI_SETTING));
+
 	/* Disable all encoders */
 	writel_relaxed(0, priv->io_base + _REG(ENCI_VIDEO_EN));
 	writel_relaxed(0, priv->io_base + _REG(ENCP_VIDEO_EN));
