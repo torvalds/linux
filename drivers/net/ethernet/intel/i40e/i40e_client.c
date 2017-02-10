@@ -653,13 +653,11 @@ static int i40e_client_release(struct i40e_client *client)
  * i40e_client_prepare - prepare client specific resources
  * @client: pointer to the registered client
  *
- * Return 0 on success or < 0 on error
  **/
-static int i40e_client_prepare(struct i40e_client *client)
+static void i40e_client_prepare(struct i40e_client *client)
 {
 	struct i40e_device *ldev;
 	struct i40e_pf *pf;
-	int ret = 0;
 
 	mutex_lock(&i40e_device_mutex);
 	list_for_each_entry(ldev, &i40e_devices, list) {
@@ -669,7 +667,6 @@ static int i40e_client_prepare(struct i40e_client *client)
 		i40e_service_event_schedule(pf);
 	}
 	mutex_unlock(&i40e_device_mutex);
-	return ret;
 }
 
 /**
@@ -926,13 +923,9 @@ int i40e_register_client(struct i40e_client *client)
 	set_bit(__I40E_CLIENT_REGISTERED, &client->state);
 	mutex_unlock(&i40e_client_mutex);
 
-	if (i40e_client_prepare(client)) {
-		ret = -EIO;
-		goto out;
-	}
+	i40e_client_prepare(client);
 
-	pr_info("i40e: Registered client %s with return code %d\n",
-		client->name, ret);
+	pr_info("i40e: Registered client %s\n", client->name);
 out:
 	return ret;
 }
