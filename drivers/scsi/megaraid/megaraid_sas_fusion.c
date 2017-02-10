@@ -580,7 +580,7 @@ megasas_alloc_rdpq_fusion(struct megasas_instance *instance)
 		}
 
 		fusion->rdpq_virt[i].RDPQBaseAddress =
-			fusion->reply_frames_desc_phys[i];
+			cpu_to_le64(fusion->reply_frames_desc_phys[i]);
 
 		reply_desc = fusion->reply_frames_desc[i];
 		for (j = 0; j < fusion->reply_q_depth; j++, reply_desc++)
