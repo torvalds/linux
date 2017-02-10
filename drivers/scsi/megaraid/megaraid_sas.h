@@ -695,6 +695,18 @@ struct  MR_PD_INFO {
 	u8 reserved1[512-428];
 } __packed;
 
+/*
+ * Definition of structure used to expose attributes of VD or JBOD
+ * (this structure is to be filled by firmware when MR_DCMD_DRV_GET_TARGET_PROP
+ * is fired by driver)
+ */
+struct MR_TARGET_PROPERTIES {
+	u32    max_io_size_kb;
+	u32    device_qdepth;
+	u32    sector_size;
+	u8     reserved[500];
+} __packed;
+
  /*
  * defines the physical drive address structure
  */
@@ -2090,6 +2102,8 @@ struct megasas_instance {
 	dma_addr_t hb_host_mem_h;
 	struct MR_PD_INFO *pd_info;
 	dma_addr_t pd_info_h;
+	struct MR_TARGET_PROPERTIES *tgt_prop;
+	dma_addr_t tgt_prop_h;
 
 	__le32 *reply_queue;
 	dma_addr_t reply_queue_h;
