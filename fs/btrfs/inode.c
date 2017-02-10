@@ -1905,8 +1905,7 @@ out:
  * at IO completion time based on sums calculated at bio submission time.
  */
 static noinline int add_pending_csums(struct btrfs_trans_handle *trans,
-			     struct inode *inode, u64 file_offset,
-			     struct list_head *list)
+			     struct inode *inode, struct list_head *list)
 {
 	struct btrfs_ordered_sum *sum;
 
@@ -2900,8 +2899,7 @@ static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
 		goto out_unlock;
 	}
 
-	add_pending_csums(trans, inode, ordered_extent->file_offset,
-			  &ordered_extent->list);
+	add_pending_csums(trans, inode, &ordered_extent->list);
 
 	btrfs_ordered_update_i_size(inode, 0, ordered_extent);
 	ret = btrfs_update_inode_fallback(trans, root, inode);
