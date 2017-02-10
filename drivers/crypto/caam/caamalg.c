@@ -887,8 +887,8 @@ static int xts_ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 
 /*
  * aead_edesc - s/w-extended aead descriptor
- * @src_nents: number of segments in input scatterlist
- * @dst_nents: number of segments in output scatterlist
+ * @src_nents: number of segments in input s/w scatterlist
+ * @dst_nents: number of segments in output s/w scatterlist
  * @sec4_sg_bytes: length of dma mapped sec4_sg space
  * @sec4_sg_dma: bus physical mapped address of h/w link table
  * @sec4_sg: pointer to h/w link table
@@ -905,8 +905,8 @@ struct aead_edesc {
 
 /*
  * ablkcipher_edesc - s/w-extended ablkcipher descriptor
- * @src_nents: number of segments in input scatterlist
- * @dst_nents: number of segments in output scatterlist
+ * @src_nents: number of segments in input s/w scatterlist
+ * @dst_nents: number of segments in output s/w scatterlist
  * @iv_dma: dma address of iv for checking continuity and link table
  * @sec4_sg_bytes: length of dma mapped sec4_sg space
  * @sec4_sg_dma: bus physical mapped address of h/w link table
@@ -930,10 +930,11 @@ static void caam_unmap(struct device *dev, struct scatterlist *src,
 		       int sec4_sg_bytes)
 {
 	if (dst != src) {
-		dma_unmap_sg(dev, src, src_nents ? : 1, DMA_TO_DEVICE);
-		dma_unmap_sg(dev, dst, dst_nents ? : 1, DMA_FROM_DEVICE);
+		if (src_nents)
+			dma_unmap_sg(dev, src, src_nents, DMA_TO_DEVICE);
+		dma_unmap_sg(dev, dst, dst_nents, DMA_FROM_DEVICE);
 	} else {
-		dma_unmap_sg(dev, src, src_nents ? : 1, DMA_BIDIRECTIONAL);
+		dma_unmap_sg(dev, src, src_nents, DMA_BIDIRECTIONAL);
 	}
 
 	if (iv_dma)
@@ -1102,7 +1103,7 @@ static void init_aead_job(struct aead_request *req,
 	init_job_desc_shared(desc, ptr, len, HDR_SHARE_DEFER | HDR_REVERSE);
 
 	if (all_contig) {
-		src_dma = sg_dma_address(req->src);
+		src_dma = edesc->src_nents ? sg_dma_address(req->src) : 0;
 		in_options = 0;
 	} else {
 		src_dma = edesc->sec4_sg_dma;
@@ -1117,7 +1118,7 @@ static void init_aead_job(struct aead_request *req,
 	out_options = in_options;
 
 	if (unlikely(req->src != req->dst)) {
-		if (!edesc->dst_nents) {
+		if (edesc->dst_nents == 1) {
 			dst_dma = sg_dma_address(req->dst);
 		} else {
 			dst_dma = edesc->sec4_sg_dma +
@@ -1227,10 +1228,11 @@ static void init_ablkcipher_job(u32 *sh_desc, dma_addr_t ptr,
 	print_hex_dump(KERN_ERR, "presciv@"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, req->info,
 		       ivsize, 1);
-	printk(KERN_ERR "asked=%d, nbytes%d\n", (int)edesc->src_nents ? 100 : req->nbytes, req->nbytes);
+	pr_err("asked=%d, nbytes%d\n",
+	       (int)edesc->src_nents > 1 ? 100 : req->nbytes, req->nbytes);
 	dbg_dump_sg(KERN_ERR, "src    @"__stringify(__LINE__)": ",
 		    DUMP_PREFIX_ADDRESS, 16, 4, req->src,
-		    edesc->src_nents ? 100 : req->nbytes, 1);
+		    edesc->src_nents > 1 ? 100 : req->nbytes, 1);
 #endif
 
 	len = desc_len(sh_desc);
@@ -1247,7 +1249,7 @@ static void init_ablkcipher_job(u32 *sh_desc, dma_addr_t ptr,
 	append_seq_in_ptr(desc, src_dma, req->nbytes + ivsize, in_options);
 
 	if (likely(req->src == req->dst)) {
-		if (!edesc->src_nents && iv_contig) {
+		if (edesc->src_nents == 1 && iv_contig) {
 			dst_dma = sg_dma_address(req->src);
 		} else {
 			dst_dma = edesc->sec4_sg_dma +
@@ -1255,7 +1257,7 @@ static void init_ablkcipher_job(u32 *sh_desc, dma_addr_t ptr,
 			out_options = LDST_SGF;
 		}
 	} else {
-		if (!edesc->dst_nents) {
+		if (edesc->dst_nents == 1) {
 			dst_dma = sg_dma_address(req->dst);
 		} else {
 			dst_dma = edesc->sec4_sg_dma +
@@ -1287,13 +1289,13 @@ static void init_ablkcipher_giv_job(u32 *sh_desc, dma_addr_t ptr,
 		       ivsize, 1);
 	dbg_dump_sg(KERN_ERR, "src    @" __stringify(__LINE__) ": ",
 		    DUMP_PREFIX_ADDRESS, 16, 4, req->src,
-		    edesc->src_nents ? 100 : req->nbytes, 1);
+		    edesc->src_nents > 1 ? 100 : req->nbytes, 1);
 #endif
 
 	len = desc_len(sh_desc);
 	init_job_desc_shared(desc, ptr, len, HDR_SHARE_DEFER | HDR_REVERSE);
 
-	if (!edesc->src_nents) {
+	if (edesc->src_nents == 1) {
 		src_dma = sg_dma_address(req->src);
 		in_options = 0;
 	} else {
@@ -1329,21 +1331,22 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	int src_nents, dst_nents = 0;
 	struct aead_edesc *edesc;
 	int sgc;
-	bool all_contig = true;
-	int sec4_sg_index, sec4_sg_len = 0, sec4_sg_bytes;
+	int sec4_sg_index, sec4_sg_len, sec4_sg_bytes;
 	unsigned int authsize = ctx->authsize;
 
 	if (unlikely(req->dst != req->src)) {
-		src_nents = sg_count(req->src, req->assoclen + req->cryptlen);
+		src_nents = sg_nents_for_len(req->src, req->assoclen +
+					     req->cryptlen);
 		if (unlikely(src_nents < 0)) {
 			dev_err(jrdev, "Insufficient bytes (%d) in src S/G\n",
 				req->assoclen + req->cryptlen);
 			return ERR_PTR(src_nents);
 		}
 
-		dst_nents = sg_count(req->dst,
-				     req->assoclen + req->cryptlen +
-					(encrypt ? authsize : (-authsize)));
+		dst_nents = sg_nents_for_len(req->dst, req->assoclen +
+					     req->cryptlen +
+						(encrypt ? authsize :
+							   (-authsize)));
 		if (unlikely(dst_nents < 0)) {
 			dev_err(jrdev, "Insufficient bytes (%d) in dst S/G\n",
 				req->assoclen + req->cryptlen +
@@ -1351,9 +1354,9 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 			return ERR_PTR(dst_nents);
 		}
 	} else {
-		src_nents = sg_count(req->src,
-				     req->assoclen + req->cryptlen +
-					(encrypt ? authsize : 0));
+		src_nents = sg_nents_for_len(req->src, req->assoclen +
+					     req->cryptlen +
+					     (encrypt ? authsize : 0));
 		if (unlikely(src_nents < 0)) {
 			dev_err(jrdev, "Insufficient bytes (%d) in src S/G\n",
 				req->assoclen + req->cryptlen +
@@ -1362,13 +1365,8 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 		}
 	}
 
-	/* Check if data are contiguous. */
-	all_contig = !src_nents;
-	if (!all_contig)
-		sec4_sg_len = src_nents;
-
-	sec4_sg_len += dst_nents;
-
+	sec4_sg_len = src_nents > 1 ? src_nents : 0;
+	sec4_sg_len += dst_nents > 1 ? dst_nents : 0;
 	sec4_sg_bytes = sec4_sg_len * sizeof(struct sec4_sg_entry);
 
 	/* allocate space for base edesc and hw desc commands, link tables */
@@ -1380,28 +1378,28 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	}
 
 	if (likely(req->src == req->dst)) {
-		sgc = dma_map_sg(jrdev, req->src, src_nents ? : 1,
-				 DMA_BIDIRECTIONAL);
+		sgc = dma_map_sg(jrdev, req->src, src_nents, DMA_BIDIRECTIONAL);
 		if (unlikely(!sgc)) {
 			dev_err(jrdev, "unable to map source\n");
 			kfree(edesc);
 			return ERR_PTR(-ENOMEM);
 		}
 	} else {
-		sgc = dma_map_sg(jrdev, req->src, src_nents ? : 1,
-				 DMA_TO_DEVICE);
-		if (unlikely(!sgc)) {
-			dev_err(jrdev, "unable to map source\n");
-			kfree(edesc);
-			return ERR_PTR(-ENOMEM);
+		/* Cover also the case of null (zero length) input data */
+		if (src_nents) {
+			sgc = dma_map_sg(jrdev, req->src, src_nents,
+					 DMA_TO_DEVICE);
+			if (unlikely(!sgc)) {
+				dev_err(jrdev, "unable to map source\n");
+				kfree(edesc);
+				return ERR_PTR(-ENOMEM);
+			}
 		}
 
-		sgc = dma_map_sg(jrdev, req->dst, dst_nents ? : 1,
-				 DMA_FROM_DEVICE);
+		sgc = dma_map_sg(jrdev, req->dst, dst_nents, DMA_FROM_DEVICE);
 		if (unlikely(!sgc)) {
 			dev_err(jrdev, "unable to map destination\n");
-			dma_unmap_sg(jrdev, req->src, src_nents ? : 1,
-				     DMA_TO_DEVICE);
+			dma_unmap_sg(jrdev, req->src, src_nents, DMA_TO_DEVICE);
 			kfree(edesc);
 			return ERR_PTR(-ENOMEM);
 		}
@@ -1411,15 +1409,15 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	edesc->dst_nents = dst_nents;
 	edesc->sec4_sg = (void *)edesc + sizeof(struct aead_edesc) +
 			 desc_bytes;
-	*all_contig_ptr = all_contig;
+	*all_contig_ptr = !(src_nents > 1);
 
 	sec4_sg_index = 0;
-	if (!all_contig) {
+	if (src_nents > 1) {
 		sg_to_sec4_sg_last(req->src, src_nents,
 			      edesc->sec4_sg + sec4_sg_index, 0);
 		sec4_sg_index += src_nents;
 	}
-	if (dst_nents) {
+	if (dst_nents > 1) {
 		sg_to_sec4_sg_last(req->dst, dst_nents,
 				   edesc->sec4_sg + sec4_sg_index, 0);
 	}
@@ -1621,12 +1619,12 @@ static struct ablkcipher_edesc *ablkcipher_edesc_alloc(struct ablkcipher_request
 	int src_nents, dst_nents = 0, sec4_sg_bytes;
 	struct ablkcipher_edesc *edesc;
 	dma_addr_t iv_dma = 0;
-	bool iv_contig = false;
+	bool in_contig;
 	int sgc;
 	int ivsize = crypto_ablkcipher_ivsize(ablkcipher);
-	int sec4_sg_index;
+	int dst_sg_idx, sec4_sg_ents;
 
-	src_nents = sg_count(req->src, req->nbytes);
+	src_nents = sg_nents_for_len(req->src, req->nbytes);
 	if (unlikely(src_nents < 0)) {
 		dev_err(jrdev, "Insufficient bytes (%d) in src S/G\n",
 			req->nbytes);
@@ -1634,7 +1632,7 @@ static struct ablkcipher_edesc *ablkcipher_edesc_alloc(struct ablkcipher_request
 	}
 
 	if (req->dst != req->src) {
-		dst_nents = sg_count(req->dst, req->nbytes);
+		dst_nents = sg_nents_for_len(req->dst, req->nbytes);
 		if (unlikely(dst_nents < 0)) {
 			dev_err(jrdev, "Insufficient bytes (%d) in dst S/G\n",
 				req->nbytes);
@@ -1643,26 +1641,22 @@ static struct ablkcipher_edesc *ablkcipher_edesc_alloc(struct ablkcipher_request
 	}
 
 	if (likely(req->src == req->dst)) {
-		sgc = dma_map_sg(jrdev, req->src, src_nents ? : 1,
-				 DMA_BIDIRECTIONAL);
+		sgc = dma_map_sg(jrdev, req->src, src_nents, DMA_BIDIRECTIONAL);
 		if (unlikely(!sgc)) {
 			dev_err(jrdev, "unable to map source\n");
 			return ERR_PTR(-ENOMEM);
 		}
 	} else {
-		sgc = dma_map_sg(jrdev, req->src, src_nents ? : 1,
-				 DMA_TO_DEVICE);
+		sgc = dma_map_sg(jrdev, req->src, src_nents, DMA_TO_DEVICE);
 		if (unlikely(!sgc)) {
 			dev_err(jrdev, "unable to map source\n");
 			return ERR_PTR(-ENOMEM);
 		}
 
-		sgc = dma_map_sg(jrdev, req->dst, dst_nents ? : 1,
-				 DMA_FROM_DEVICE);
+		sgc = dma_map_sg(jrdev, req->dst, dst_nents, DMA_FROM_DEVICE);
 		if (unlikely(!sgc)) {
 			dev_err(jrdev, "unable to map destination\n");
-			dma_unmap_sg(jrdev, req->src, src_nents ? : 1,
-				     DMA_TO_DEVICE);
+			dma_unmap_sg(jrdev, req->src, src_nents, DMA_TO_DEVICE);
 			return ERR_PTR(-ENOMEM);
 		}
 	}
@@ -1675,16 +1669,16 @@ static struct ablkcipher_edesc *ablkcipher_edesc_alloc(struct ablkcipher_request
 		return ERR_PTR(-ENOMEM);
 	}
 
-	/*
-	 * Check if iv can be contiguous with source and destination.
-	 * If so, include it. If not, create scatterlist.
-	 */
-	if (!src_nents && iv_dma + ivsize == sg_dma_address(req->src))
-		iv_contig = true;
-	else
-		src_nents = src_nents ? : 1;
-	sec4_sg_bytes = ((iv_contig ? 0 : 1) + src_nents + dst_nents) *
-			sizeof(struct sec4_sg_entry);
+	if (src_nents == 1 && iv_dma + ivsize == sg_dma_address(req->src)) {
+		in_contig = true;
+		sec4_sg_ents = 0;
+	} else {
+		in_contig = false;
+		sec4_sg_ents = 1 + src_nents;
+	}
+	dst_sg_idx = sec4_sg_ents;
+	sec4_sg_ents += dst_nents > 1 ? dst_nents : 0;
+	sec4_sg_bytes = sec4_sg_ents * sizeof(struct sec4_sg_entry);
 
 	/* allocate space for base edesc and hw desc commands, link tables */
 	edesc = kzalloc(sizeof(*edesc) + desc_bytes + sec4_sg_bytes,
@@ -1702,17 +1696,15 @@ static struct ablkcipher_edesc *ablkcipher_edesc_alloc(struct ablkcipher_request
 	edesc->sec4_sg = (void *)edesc + sizeof(struct ablkcipher_edesc) +
 			 desc_bytes;
 
-	sec4_sg_index = 0;
-	if (!iv_contig) {
+	if (!in_contig) {
 		dma_to_sec4_sg_one(edesc->sec4_sg, iv_dma, ivsize, 0);
 		sg_to_sec4_sg_last(req->src, src_nents,
 				   edesc->sec4_sg + 1, 0);
-		sec4_sg_index += 1 + src_nents;
 	}
 
-	if (dst_nents) {
+	if (dst_nents > 1) {
 		sg_to_sec4_sg_last(req->dst, dst_nents,
-			edesc->sec4_sg + sec4_sg_index, 0);
+			edesc->sec4_sg + dst_sg_idx, 0);
 	}
 
 	edesc->sec4_sg_dma = dma_map_single(jrdev, edesc->sec4_sg,
@@ -1733,7 +1725,7 @@ static struct ablkcipher_edesc *ablkcipher_edesc_alloc(struct ablkcipher_request
 		       sec4_sg_bytes, 1);
 #endif
 
-	*iv_contig_out = iv_contig;
+	*iv_contig_out = in_contig;
 	return edesc;
 }
 
@@ -1830,12 +1822,12 @@ static struct ablkcipher_edesc *ablkcipher_giv_edesc_alloc(
 	int src_nents, dst_nents, sec4_sg_bytes;
 	struct ablkcipher_edesc *edesc;
 	dma_addr_t iv_dma = 0;
-	bool iv_contig = false;
+	bool out_contig;
 	int sgc;
 	int ivsize = crypto_ablkcipher_ivsize(ablkcipher);
-	int sec4_sg_index;
+	int dst_sg_idx, sec4_sg_ents;
 
-	src_nents = sg_count(req->src, req->nbytes);
+	src_nents = sg_nents_for_len(req->src, req->nbytes);
 	if (unlikely(src_nents < 0)) {
 		dev_err(jrdev, "Insufficient bytes (%d) in src S/G\n",
 			req->nbytes);
@@ -1843,8 +1835,7 @@ static struct ablkcipher_edesc *ablkcipher_giv_edesc_alloc(
 	}
 
 	if (likely(req->src == req->dst)) {
-		sgc = dma_map_sg(jrdev, req->src, src_nents ? : 1,
-				 DMA_BIDIRECTIONAL);
+		sgc = dma_map_sg(jrdev, req->src, src_nents, DMA_BIDIRECTIONAL);
 		if (unlikely(!sgc)) {
 			dev_err(jrdev, "unable to map source\n");
 			return ERR_PTR(-ENOMEM);
@@ -1852,26 +1843,23 @@ static struct ablkcipher_edesc *ablkcipher_giv_edesc_alloc(
 
 		dst_nents = src_nents;
 	} else {
-		sgc = dma_map_sg(jrdev, req->src, src_nents ? : 1,
-				 DMA_TO_DEVICE);
+		sgc = dma_map_sg(jrdev, req->src, src_nents, DMA_TO_DEVICE);
 		if (unlikely(!sgc)) {
 			dev_err(jrdev, "unable to map source\n");
 			return ERR_PTR(-ENOMEM);
 		}
 
-		dst_nents = sg_count(req->dst, req->nbytes);
+		dst_nents = sg_nents_for_len(req->dst, req->nbytes);
 		if (unlikely(dst_nents < 0)) {
 			dev_err(jrdev, "Insufficient bytes (%d) in dst S/G\n",
 				req->nbytes);
 			return ERR_PTR(dst_nents);
 		}
 
-		sgc = dma_map_sg(jrdev, req->dst, dst_nents ? : 1,
-				 DMA_FROM_DEVICE);
+		sgc = dma_map_sg(jrdev, req->dst, dst_nents, DMA_FROM_DEVICE);
 		if (unlikely(!sgc)) {
 			dev_err(jrdev, "unable to map destination\n");
-			dma_unmap_sg(jrdev, req->src, src_nents ? : 1,
-				     DMA_TO_DEVICE);
+			dma_unmap_sg(jrdev, req->src, src_nents, DMA_TO_DEVICE);
 			return ERR_PTR(-ENOMEM);
 		}
 	}
@@ -1888,14 +1876,17 @@ static struct ablkcipher_edesc *ablkcipher_giv_edesc_alloc(
 		return ERR_PTR(-ENOMEM);
 	}
 
-	if (!dst_nents && iv_dma + ivsize == sg_dma_address(req->dst))
-		iv_contig = true;
-	else
-		dst_nents = dst_nents ? : 1;
-	sec4_sg_bytes = ((iv_contig ? 0 : 1) + src_nents + dst_nents) *
-			sizeof(struct sec4_sg_entry);
+	sec4_sg_ents = src_nents > 1 ? src_nents : 0;
+	dst_sg_idx = sec4_sg_ents;
+	if (dst_nents == 1 && iv_dma + ivsize == sg_dma_address(req->dst)) {
+		out_contig = true;
+	} else {
+		out_contig = false;
+		sec4_sg_ents += 1 + dst_nents;
+	}
 
 	/* allocate space for base edesc and hw desc commands, link tables */
+	sec4_sg_bytes = sec4_sg_ents * sizeof(struct sec4_sg_entry);
 	edesc = kzalloc(sizeof(*edesc) + desc_bytes + sec4_sg_bytes,
 			GFP_DMA | flags);
 	if (!edesc) {
@@ -1911,18 +1902,14 @@ static struct ablkcipher_edesc *ablkcipher_giv_edesc_alloc(
 	edesc->sec4_sg = (void *)edesc + sizeof(struct ablkcipher_edesc) +
 			 desc_bytes;
 
-	sec4_sg_index = 0;
-	if (src_nents) {
+	if (src_nents > 1)
 		sg_to_sec4_sg_last(req->src, src_nents, edesc->sec4_sg, 0);
-		sec4_sg_index += src_nents;
-	}
 
-	if (!iv_contig) {
-		dma_to_sec4_sg_one(edesc->sec4_sg + sec4_sg_index,
+	if (!out_contig) {
+		dma_to_sec4_sg_one(edesc->sec4_sg + dst_sg_idx,
 				   iv_dma, ivsize, 0);
-		sec4_sg_index += 1;
 		sg_to_sec4_sg_last(req->dst, dst_nents,
-				   edesc->sec4_sg + sec4_sg_index, 0);
+				   edesc->sec4_sg + dst_sg_idx + 1, 0);
 	}
 
 	edesc->sec4_sg_dma = dma_map_single(jrdev, edesc->sec4_sg,
@@ -1943,7 +1930,7 @@ static struct ablkcipher_edesc *ablkcipher_giv_edesc_alloc(
 		       sec4_sg_bytes, 1);
 #endif
 
-	*iv_contig_out = iv_contig;
+	*iv_contig_out = out_contig;
 	return edesc;
 }
 
