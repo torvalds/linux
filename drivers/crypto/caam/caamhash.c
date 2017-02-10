@@ -109,7 +109,6 @@ struct caam_hash_ctx {
 	dma_addr_t sh_desc_digest_dma;
 	struct device *jrdev;
 	u8 key[CAAM_MAX_HASH_KEY_SIZE];
-	dma_addr_t key_dma;
 	int ctx_len;
 	struct alginfo adata;
 };
@@ -420,7 +419,6 @@ static int ahash_setkey(struct crypto_ahash *ahash,
 			const u8 *key, unsigned int keylen)
 {
 	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
-	struct device *jrdev = ctx->jrdev;
 	int blocksize = crypto_tfm_alg_blocksize(&ahash->base);
 	int digestsize = crypto_ahash_digestsize(ahash);
 	int ret;
@@ -448,28 +446,14 @@ static int ahash_setkey(struct crypto_ahash *ahash,
 	if (ret)
 		goto bad_free_key;
 
-	ctx->key_dma = dma_map_single(jrdev, ctx->key, ctx->adata.keylen_pad,
-				      DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->key_dma)) {
-		dev_err(jrdev, "unable to map key i/o memory\n");
-		ret = -ENOMEM;
-		goto error_free_key;
-	}
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "ctx.key@"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, ctx->key,
 		       ctx->adata.keylen_pad, 1);
 #endif
 
-	ret = ahash_set_sh_desc(ahash);
-	if (ret) {
-		dma_unmap_single(jrdev, ctx->key_dma, ctx->adata.keylen_pad,
-				 DMA_TO_DEVICE);
-	}
-
- error_free_key:
 	kfree(hashed_key);
-	return ret;
+	return ahash_set_sh_desc(ahash);
  bad_free_key:
 	kfree(hashed_key);
 	crypto_ahash_set_flags(ahash, CRYPTO_TFM_RES_BAD_KEY_LEN);
