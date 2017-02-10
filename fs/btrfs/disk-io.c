@@ -1005,7 +1005,7 @@ static int __btree_submit_bio_done(struct inode *inode, struct bio *bio,
 	return ret;
 }
 
-static int check_async_write(struct inode *inode, unsigned long bio_flags)
+static int check_async_write(unsigned long bio_flags)
 {
 	if (bio_flags & EXTENT_BIO_TREE_LOG)
 		return 0;
@@ -1021,7 +1021,7 @@ static int btree_submit_bio_hook(struct inode *inode, struct bio *bio,
 				 u64 bio_offset)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	int async = check_async_write(inode, bio_flags);
+	int async = check_async_write(bio_flags);
 	int ret;
 
 	if (bio_op(bio) != REQ_OP_WRITE) {
