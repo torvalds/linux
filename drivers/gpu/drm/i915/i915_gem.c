@@ -2652,6 +2652,9 @@ int i915_gem_reset_prepare(struct drm_i915_private *dev_priv)
 		tasklet_disable(&engine->irq_tasklet);
 		tasklet_kill(&engine->irq_tasklet);
 
+		if (engine->irq_seqno_barrier)
+			engine->irq_seqno_barrier(engine);
+
 		if (engine_stalled(engine)) {
 			request = i915_gem_find_active_request(engine);
 			if (request && request->fence.error == -EIO)
@@ -2747,9 +2750,6 @@ static bool i915_gem_reset_request(struct drm_i915_gem_request *request)
 static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *request;
-
-	if (engine->irq_seqno_barrier)
-		engine->irq_seqno_barrier(engine);
 
 	request = i915_gem_find_active_request(engine);
 	if (request && i915_gem_reset_request(request)) {
