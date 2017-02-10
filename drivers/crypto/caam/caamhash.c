@@ -137,6 +137,31 @@ struct caam_export_state {
 	int (*finup)(struct ahash_request *req);
 };
 
+static inline void switch_buf(struct caam_hash_state *state)
+{
+	state->current_buf ^= 1;
+}
+
+static inline u8 *current_buf(struct caam_hash_state *state)
+{
+	return state->current_buf ? state->buf_1 : state->buf_0;
+}
+
+static inline u8 *alt_buf(struct caam_hash_state *state)
+{
+	return state->current_buf ? state->buf_0 : state->buf_1;
+}
+
+static inline int *current_buflen(struct caam_hash_state *state)
+{
+	return state->current_buf ? &state->buflen_1 : &state->buflen_0;
+}
+
+static inline int *alt_buflen(struct caam_hash_state *state)
+{
+	return state->current_buf ? &state->buflen_0 : &state->buflen_1;
+}
+
 /* Common job descriptor seq in/out ptr routines */
 
 /* Map state->caam_ctx, and append seq_out_ptr command that points to it */
@@ -695,11 +720,10 @@ static int ahash_update_ctx(struct ahash_request *req)
 	struct device *jrdev = ctx->jrdev;
 	gfp_t flags = (req->base.flags & (CRYPTO_TFM_REQ_MAY_BACKLOG |
 		       CRYPTO_TFM_REQ_MAY_SLEEP)) ? GFP_KERNEL : GFP_ATOMIC;
-	u8 *buf = state->current_buf ? state->buf_1 : state->buf_0;
-	int *buflen = state->current_buf ? &state->buflen_1 : &state->buflen_0;
-	u8 *next_buf = state->current_buf ? state->buf_0 : state->buf_1;
-	int *next_buflen = state->current_buf ? &state->buflen_0 :
-			   &state->buflen_1, last_buflen;
+	u8 *buf = current_buf(state);
+	int *buflen = current_buflen(state);
+	u8 *next_buf = alt_buf(state);
+	int *next_buflen = alt_buflen(state), last_buflen;
 	int in_len = *buflen + req->nbytes, to_hash;
 	u32 *desc;
 	int src_nents, mapped_nents, sec4_sg_bytes, sec4_sg_src_index;
@@ -771,7 +795,7 @@ static int ahash_update_ctx(struct ahash_request *req)
 				cpu_to_caam32(SEC4_SG_LEN_FIN);
 		}
 
-		state->current_buf = !state->current_buf;
+		switch_buf(state);
 
 		desc = edesc->hw_desc;
 
@@ -829,10 +853,9 @@ static int ahash_final_ctx(struct ahash_request *req)
 	struct device *jrdev = ctx->jrdev;
 	gfp_t flags = (req->base.flags & (CRYPTO_TFM_REQ_MAY_BACKLOG |
 		       CRYPTO_TFM_REQ_MAY_SLEEP)) ? GFP_KERNEL : GFP_ATOMIC;
-	u8 *buf = state->current_buf ? state->buf_1 : state->buf_0;
-	int buflen = state->current_buf ? state->buflen_1 : state->buflen_0;
-	int last_buflen = state->current_buf ? state->buflen_0 :
-			  state->buflen_1;
+	u8 *buf = current_buf(state);
+	int buflen = *current_buflen(state);
+	int last_buflen = *alt_buflen(state);
 	u32 *desc;
 	int sec4_sg_bytes, sec4_sg_src_index;
 	int digestsize = crypto_ahash_digestsize(ahash);
@@ -908,10 +931,9 @@ static int ahash_finup_ctx(struct ahash_request *req)
 	struct device *jrdev = ctx->jrdev;
 	gfp_t flags = (req->base.flags & (CRYPTO_TFM_REQ_MAY_BACKLOG |
 		       CRYPTO_TFM_REQ_MAY_SLEEP)) ? GFP_KERNEL : GFP_ATOMIC;
-	u8 *buf = state->current_buf ? state->buf_1 : state->buf_0;
-	int buflen = state->current_buf ? state->buflen_1 : state->buflen_0;
-	int last_buflen = state->current_buf ? state->buflen_0 :
-			  state->buflen_1;
+	u8 *buf = current_buf(state);
+	int buflen = *current_buflen(state);
+	int last_buflen = *alt_buflen(state);
 	u32 *desc;
 	int sec4_sg_src_index;
 	int src_nents, mapped_nents;
@@ -1075,8 +1097,8 @@ static int ahash_final_no_ctx(struct ahash_request *req)
 	struct device *jrdev = ctx->jrdev;
 	gfp_t flags = (req->base.flags & (CRYPTO_TFM_REQ_MAY_BACKLOG |
 		       CRYPTO_TFM_REQ_MAY_SLEEP)) ? GFP_KERNEL : GFP_ATOMIC;
-	u8 *buf = state->current_buf ? state->buf_1 : state->buf_0;
-	int buflen = state->current_buf ? state->buflen_1 : state->buflen_0;
+	u8 *buf = current_buf(state);
+	int buflen = *current_buflen(state);
 	u32 *desc;
 	int digestsize = crypto_ahash_digestsize(ahash);
 	struct ahash_edesc *edesc;
@@ -1136,11 +1158,10 @@ static int ahash_update_no_ctx(struct ahash_request *req)
 	struct device *jrdev = ctx->jrdev;
 	gfp_t flags = (req->base.flags & (CRYPTO_TFM_REQ_MAY_BACKLOG |
 		       CRYPTO_TFM_REQ_MAY_SLEEP)) ? GFP_KERNEL : GFP_ATOMIC;
-	u8 *buf = state->current_buf ? state->buf_1 : state->buf_0;
-	int *buflen = state->current_buf ? &state->buflen_1 : &state->buflen_0;
-	u8 *next_buf = state->current_buf ? state->buf_0 : state->buf_1;
-	int *next_buflen = state->current_buf ? &state->buflen_0 :
-			   &state->buflen_1;
+	u8 *buf = current_buf(state);
+	int *buflen = current_buflen(state);
+	u8 *next_buf = alt_buf(state);
+	int *next_buflen = alt_buflen(state);
 	int in_len = *buflen + req->nbytes, to_hash;
 	int sec4_sg_bytes, src_nents, mapped_nents;
 	struct ahash_edesc *edesc;
@@ -1200,7 +1221,7 @@ static int ahash_update_no_ctx(struct ahash_request *req)
 						 *next_buflen, 0);
 		}
 
-		state->current_buf = !state->current_buf;
+		switch_buf(state);
 
 		desc = edesc->hw_desc;
 
@@ -1263,10 +1284,9 @@ static int ahash_finup_no_ctx(struct ahash_request *req)
 	struct device *jrdev = ctx->jrdev;
 	gfp_t flags = (req->base.flags & (CRYPTO_TFM_REQ_MAY_BACKLOG |
 		       CRYPTO_TFM_REQ_MAY_SLEEP)) ? GFP_KERNEL : GFP_ATOMIC;
-	u8 *buf = state->current_buf ? state->buf_1 : state->buf_0;
-	int buflen = state->current_buf ? state->buflen_1 : state->buflen_0;
-	int last_buflen = state->current_buf ? state->buflen_0 :
-			  state->buflen_1;
+	u8 *buf = current_buf(state);
+	int buflen = *current_buflen(state);
+	int last_buflen = *alt_buflen(state);
 	u32 *desc;
 	int sec4_sg_bytes, sec4_sg_src_index, src_nents, mapped_nents;
 	int digestsize = crypto_ahash_digestsize(ahash);
@@ -1356,9 +1376,8 @@ static int ahash_update_first(struct ahash_request *req)
 	struct device *jrdev = ctx->jrdev;
 	gfp_t flags = (req->base.flags & (CRYPTO_TFM_REQ_MAY_BACKLOG |
 		       CRYPTO_TFM_REQ_MAY_SLEEP)) ? GFP_KERNEL : GFP_ATOMIC;
-	u8 *next_buf = state->current_buf ? state->buf_1 : state->buf_0;
-	int *next_buflen = state->current_buf ?
-		&state->buflen_1 : &state->buflen_0;
+	u8 *next_buf = current_buf(state);
+	int *next_buflen = current_buflen(state);
 	int to_hash;
 	u32 *desc;
 	int src_nents, mapped_nents;
