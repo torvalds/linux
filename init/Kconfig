@@ -1176,6 +1176,10 @@ config CGROUP_DEBUG
 
 	  Say N.
 
+config SOCK_CGROUP_DATA
+	bool
+	default n
+
 endif # CGROUPS
 
 config CHECKPOINT_RESTORE
@@ -1982,6 +1986,10 @@ config MODVERSIONS
 	  to the modules to (hopefully) spot any changes which would
 	  make them incompatible with the kernel you are running.  If
 	  unsure, say N.
+
+config MODULE_REL_CRCS
+	bool
+	depends on MODVERSIONS
 
 config MODULE_SRCVERSION_ALL
 	bool "Source checksum for all modules"

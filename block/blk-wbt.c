@@ -544,6 +544,8 @@ static inline bool may_queue(struct rq_wb *rwb, struct rq_wait *rqw,
  * the timer to kick off queuing again.
  */
 static void __wbt_wait(struct rq_wb *rwb, unsigned long rw, spinlock_t *lock)
+	__releases(lock)
+	__acquires(lock)
 {
 	struct rq_wait *rqw = get_rq_wait(rwb, current_is_kswapd());
 	DEFINE_WAIT(wait);
@@ -558,13 +560,12 @@ static void __wbt_wait(struct rq_wb *rwb, unsigned long rw, spinlock_t *lock)
 		if (may_queue(rwb, rqw, &wait, rw))
 			break;
 
-		if (lock)
+		if (lock) {
 			spin_unlock_irq(lock);
-
-		io_schedule();
-
-		if (lock)
+			io_schedule();
 			spin_lock_irq(lock);
+		} else
+			io_schedule();
 	} while (1);
 
 	finish_wait(&rqw->wait, &wait);
@@ -595,7 +596,7 @@ static inline bool wbt_should_throttle(struct rq_wb *rwb, struct bio *bio)
  * in an irq held spinlock, if it holds one when calling this function.
  * If we do sleep, we'll release and re-grab it.
  */
-unsigned int wbt_wait(struct rq_wb *rwb, struct bio *bio, spinlock_t *lock)
+enum wbt_flags wbt_wait(struct rq_wb *rwb, struct bio *bio, spinlock_t *lock)
 {
 	unsigned int ret = 0;
 

@@ -153,7 +153,8 @@
 					switch0phy1: switch1phy0@1 {
 						reg = <1>;
 						interrupt-parent = <&switch0>;
-						interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;					};
+						interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;
+					};
 					switch0phy2: switch1phy0@2 {
 						reg = <2>;
 						interrupt-parent = <&switch0>;

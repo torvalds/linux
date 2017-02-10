@@ -46,6 +46,7 @@ static int gmc_v8_0_wait_for_idle(void *handle);
 MODULE_FIRMWARE("amdgpu/tonga_mc.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_mc.bin");
 MODULE_FIRMWARE("amdgpu/polaris10_mc.bin");
+MODULE_FIRMWARE("amdgpu/polaris12_mc.bin");
 
 static const u32 golden_settings_tonga_a11[] =
 {
@@ -130,6 +131,7 @@ static void gmc_v8_0_init_golden_registers(struct amdgpu_device *adev)
 						 (const u32)ARRAY_SIZE(golden_settings_tonga_a11));
 		break;
 	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
 		amdgpu_program_register_sequence(adev,
 						 golden_settings_polaris11_a11,
 						 (const u32)ARRAY_SIZE(golden_settings_polaris11_a11));
@@ -224,6 +226,9 @@ static int gmc_v8_0_init_microcode(struct amdgpu_device *adev)
 		break;
 	case CHIP_POLARIS10:
 		chip_name = "polaris10";
+		break;
+	case CHIP_POLARIS12:
+		chip_name = "polaris12";
 		break;
 	case CHIP_FIJI:
 	case CHIP_CARRIZO:

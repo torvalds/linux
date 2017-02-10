@@ -216,6 +216,7 @@ struct musb_platform_ops {
 	void	(*pre_root_reset_end)(struct musb *musb);
 	void	(*post_root_reset_end)(struct musb *musb);
 	int	(*phy_callback)(enum musb_vbus_id_status status);
+	void	(*clear_ep_rxintr)(struct musb *musb, int epnum);
 };
 
 /*
@@ -409,7 +410,6 @@ struct musb {
 
 	/* is_suspended means USB B_PERIPHERAL suspend */
 	unsigned		is_suspended:1;
-	unsigned		need_finish_resume :1;
 
 	/* may_wakeup means remote wakeup is enabled */
 	unsigned		may_wakeup:1;
@@ -624,6 +624,12 @@ static inline void musb_platform_post_root_reset_end(struct musb *musb)
 {
 	if (musb->ops->post_root_reset_end)
 		musb->ops->post_root_reset_end(musb);
+}
+
+static inline void musb_platform_clear_ep_rxintr(struct musb *musb, int epnum)
+{
+	if (musb->ops->clear_ep_rxintr)
+		musb->ops->clear_ep_rxintr(musb, epnum);
 }
 
 /*

@@ -247,8 +247,6 @@ MODULE_DEVICE_TABLE(of, dwc2_of_match_table);
 static void dwc2_get_device_property(struct dwc2_hsotg *hsotg,
 				     char *property, u8 size, u64 *value)
 {
-	u8 val8;
-	u16 val16;
 	u32 val32;
 
 	switch (size) {
@@ -256,17 +254,7 @@ static void dwc2_get_device_property(struct dwc2_hsotg *hsotg,
 		*value = device_property_read_bool(hsotg->dev, property);
 		break;
 	case 1:
-		if (device_property_read_u8(hsotg->dev, property, &val8))
-			return;
-
-		*value = val8;
-		break;
 	case 2:
-		if (device_property_read_u16(hsotg->dev, property, &val16))
-			return;
-
-		*value = val16;
-		break;
 	case 4:
 		if (device_property_read_u32(hsotg->dev, property, &val32))
 			return;
@@ -397,16 +385,16 @@ static void dwc2_set_param(struct dwc2_hsotg *hsotg, void *param,
 }
 
 /**
- * dwc2_set_param_u16() - Set a u16 parameter
+ * dwc2_set_param_u32() - Set a u32 parameter
  *
  * See dwc2_set_param().
  */
-static void dwc2_set_param_u16(struct dwc2_hsotg *hsotg, u16 *param,
+static void dwc2_set_param_u32(struct dwc2_hsotg *hsotg, u32 *param,
 			       bool lookup, char *property, u16 legacy,
 			       u16 def, u16 min, u16 max)
 {
 	dwc2_set_param(hsotg, param, lookup, property,
-		       legacy, def, min, max, 2);
+		       legacy, def, min, max, 4);
 }
 
 /**
@@ -1100,13 +1088,13 @@ static void dwc2_set_gadget_dma(struct dwc2_hsotg *hsotg)
 	/* Buffer DMA */
 	dwc2_set_param_bool(hsotg, &p->g_dma,
 			    false, "gadget-dma",
-			    true, false,
+			    dma_capable, false,
 			    dma_capable);
 
 	/* DMA Descriptor */
 	dwc2_set_param_bool(hsotg, &p->g_dma_desc, false,
 			    "gadget-dma-desc",
-			    p->g_dma, false,
+			    !!hw->dma_desc_enable, false,
 			    !!hw->dma_desc_enable);
 }
 
@@ -1130,8 +1118,14 @@ static void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 
 		dwc2_set_param_bool(hsotg, &p->host_dma,
 				    false, "host-dma",
-				    true, false,
+				    dma_capable, false,
 				    dma_capable);
+		dwc2_set_param_host_rx_fifo_size(hsotg,
+				params->host_rx_fifo_size);
+		dwc2_set_param_host_nperio_tx_fifo_size(hsotg,
+				params->host_nperio_tx_fifo_size);
+		dwc2_set_param_host_perio_tx_fifo_size(hsotg,
+				params->host_perio_tx_fifo_size);
 	}
 	dwc2_set_param_dma_desc_enable(hsotg, params->dma_desc_enable);
 	dwc2_set_param_dma_desc_fs_enable(hsotg, params->dma_desc_fs_enable);
@@ -1140,12 +1134,6 @@ static void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 			params->host_support_fs_ls_low_power);
 	dwc2_set_param_enable_dynamic_fifo(hsotg,
 			params->enable_dynamic_fifo);
-	dwc2_set_param_host_rx_fifo_size(hsotg,
-			params->host_rx_fifo_size);
-	dwc2_set_param_host_nperio_tx_fifo_size(hsotg,
-			params->host_nperio_tx_fifo_size);
-	dwc2_set_param_host_perio_tx_fifo_size(hsotg,
-			params->host_perio_tx_fifo_size);
 	dwc2_set_param_max_transfer_size(hsotg,
 			params->max_transfer_size);
 	dwc2_set_param_max_packet_count(hsotg,
@@ -1190,12 +1178,12 @@ static void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 		 * auto-detect if the hardware does not support the
 		 * default.
 		 */
-		dwc2_set_param_u16(hsotg, &p->g_rx_fifo_size,
+		dwc2_set_param_u32(hsotg, &p->g_rx_fifo_size,
 				   true, "g-rx-fifo-size", 2048,
 				   hw->rx_fifo_size,
 				   16, hw->rx_fifo_size);
 
-		dwc2_set_param_u16(hsotg, &p->g_np_tx_fifo_size,
+		dwc2_set_param_u32(hsotg, &p->g_np_tx_fifo_size,
 				   true, "g-np-tx-fifo-size", 1024,
 				   hw->dev_nperio_tx_fifo_size,
 				   16, hw->dev_nperio_tx_fifo_size);

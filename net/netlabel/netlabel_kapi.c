@@ -1502,10 +1502,7 @@ static int __init netlbl_init(void)
 	printk(KERN_INFO "NetLabel: Initializing\n");
 	printk(KERN_INFO "NetLabel:  domain hash size = %u\n",
 	       (1 << NETLBL_DOMHSH_BITSIZE));
-	printk(KERN_INFO "NetLabel:  protocols ="
-	       " UNLABELED"
-	       " CIPSOv4"
-	       "\n");
+	printk(KERN_INFO "NetLabel:  protocols = UNLABELED CIPSOv4 CALIPSO\n");
 
 	ret_val = netlbl_domhsh_init(NETLBL_DOMHSH_BITSIZE);
 	if (ret_val != 0)

@@ -871,11 +871,11 @@ static int sd_setup_write_same_cmnd(struct scsi_cmnd *cmd)
 	cmd->allowed = SD_MAX_RETRIES;
 
 	/*
-	 * For WRITE_SAME the data transferred in the DATA IN buffer is
+	 * For WRITE SAME the data transferred via the DATA OUT buffer is
 	 * different from the amount of data actually written to the target.
 	 *
-	 * We set up __data_len to the amount of data transferred from the
-	 * DATA IN buffer so that blk_rq_map_sg set up the proper S/G list
+	 * We set up __data_len to the amount of data transferred via the
+	 * DATA OUT buffer so that blk_rq_map_sg sets up the proper S/G list
 	 * to transfer a single sector of data first, but then reset it to
 	 * the amount of data to be written right after so that the I/O path
 	 * knows how much to actually write.
@@ -2600,7 +2600,8 @@ sd_read_cache_type(struct scsi_disk *sdkp, unsigned char *buffer)
 		if (sdp->broken_fua) {
 			sd_first_printk(KERN_NOTICE, sdkp, "Disabling FUA\n");
 			sdkp->DPOFUA = 0;
-		} else if (sdkp->DPOFUA && !sdkp->device->use_10_for_rw) {
+		} else if (sdkp->DPOFUA && !sdkp->device->use_10_for_rw &&
+			   !sdkp->device->use_16_for_rw) {
 			sd_first_printk(KERN_NOTICE, sdkp,
 				  "Uses READ/WRITE(6), disabling FUA\n");
 			sdkp->DPOFUA = 0;
@@ -2783,13 +2784,21 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp)
 		queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, q);
 	}
 
-	sdkp->zoned = (buffer[8] >> 4) & 3;
-	if (sdkp->zoned == 1)
-		q->limits.zoned = BLK_ZONED_HA;
-	else if (sdkp->device->type == TYPE_ZBC)
+	if (sdkp->device->type == TYPE_ZBC) {
+		/* Host-managed */
 		q->limits.zoned = BLK_ZONED_HM;
-	else
-		q->limits.zoned = BLK_ZONED_NONE;
+	} else {
+		sdkp->zoned = (buffer[8] >> 4) & 3;
+		if (sdkp->zoned == 1)
+			/* Host-aware */
+			q->limits.zoned = BLK_ZONED_HA;
+		else
+			/*
+			 * Treat drive-managed devices as
+			 * regular block devices.
+			 */
+			q->limits.zoned = BLK_ZONED_NONE;
+	}
 	if (blk_queue_is_zoned(q) && sdkp->first_scan)
 		sd_printk(KERN_NOTICE, sdkp, "Host-%s zoned block device\n",
 		      q->limits.zoned == BLK_ZONED_HM ? "managed" : "aware");

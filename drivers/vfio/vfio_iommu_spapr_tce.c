@@ -1123,12 +1123,11 @@ static long tce_iommu_ioctl(void *iommu_data,
 		mutex_lock(&container->lock);
 
 		ret = tce_iommu_create_default_window(container);
-		if (ret)
-			return ret;
-
-		ret = tce_iommu_create_window(container, create.page_shift,
-				create.window_size, create.levels,
-				&create.start_addr);
+		if (!ret)
+			ret = tce_iommu_create_window(container,
+					create.page_shift,
+					create.window_size, create.levels,
+					&create.start_addr);
 
 		mutex_unlock(&container->lock);
 
@@ -1270,6 +1269,10 @@ static int tce_iommu_attach_group(void *iommu_data,
 	/* pr_debug("tce_vfio: Attaching group #%u to iommu %p\n",
 			iommu_group_id(iommu_group), iommu_group); */
 	table_group = iommu_group_get_iommudata(iommu_group);
+	if (!table_group) {
+		ret = -ENODEV;
+		goto unlock_exit;
+	}
 
 	if (tce_groups_attached(container) && (!table_group->ops ||
 			!table_group->ops->take_ownership ||

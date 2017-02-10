@@ -3176,13 +3176,16 @@ static void intel_pmu_cpu_starting(int cpu)
 
 	if (x86_pmu.flags & PMU_FL_EXCL_CNTRS) {
 		for_each_cpu(i, topology_sibling_cpumask(cpu)) {
+			struct cpu_hw_events *sibling;
 			struct intel_excl_cntrs *c;
 
-			c = per_cpu(cpu_hw_events, i).excl_cntrs;
+			sibling = &per_cpu(cpu_hw_events, i);
+			c = sibling->excl_cntrs;
 			if (c && c->core_id == core_id) {
 				cpuc->kfree_on_online[1] = cpuc->excl_cntrs;
 				cpuc->excl_cntrs = c;
-				cpuc->excl_thread_id = 1;
+				if (!sibling->excl_thread_id)
+					cpuc->excl_thread_id = 1;
 				break;
 			}
 		}
@@ -3987,7 +3990,7 @@ __init int intel_pmu_init(void)
 		     x86_pmu.num_counters, INTEL_PMC_MAX_GENERIC);
 		x86_pmu.num_counters = INTEL_PMC_MAX_GENERIC;
 	}
-	x86_pmu.intel_ctrl = (1 << x86_pmu.num_counters) - 1;
+	x86_pmu.intel_ctrl = (1ULL << x86_pmu.num_counters) - 1;
 
 	if (x86_pmu.num_counters_fixed > INTEL_PMC_MAX_FIXED) {
 		WARN(1, KERN_ERR "hw perf events fixed %d > max(%d), clipping!",

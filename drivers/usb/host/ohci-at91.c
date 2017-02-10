@@ -43,7 +43,6 @@ struct at91_usbh_data {
 	struct gpio_desc *overcurrent_pin[AT91_MAX_USBH_PORTS];
 	u8 ports;				/* number of ports on root hub */
 	u8 overcurrent_supported;
-	u8 vbus_pin_active_low[AT91_MAX_USBH_PORTS];
 	u8 overcurrent_status[AT91_MAX_USBH_PORTS];
 	u8 overcurrent_changed[AT91_MAX_USBH_PORTS];
 };
@@ -266,8 +265,7 @@ static void ohci_at91_usb_set_power(struct at91_usbh_data *pdata, int port, int 
 	if (!valid_port(port))
 		return;
 
-	gpiod_set_value(pdata->vbus_pin[port],
-			pdata->vbus_pin_active_low[port] ^ enable);
+	gpiod_set_value(pdata->vbus_pin[port], enable);
 }
 
 static int ohci_at91_usb_get_power(struct at91_usbh_data *pdata, int port)
@@ -275,8 +273,7 @@ static int ohci_at91_usb_get_power(struct at91_usbh_data *pdata, int port)
 	if (!valid_port(port))
 		return -EINVAL;
 
-	return gpiod_get_value(pdata->vbus_pin[port]) ^
-	       pdata->vbus_pin_active_low[port];
+	return gpiod_get_value(pdata->vbus_pin[port]);
 }
 
 /*
@@ -533,18 +530,17 @@ static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 		pdata->ports = ports;
 
 	at91_for_each_port(i) {
-		pdata->vbus_pin[i] = devm_gpiod_get_optional(&pdev->dev,
-							     "atmel,vbus-gpio",
-							     GPIOD_IN);
+		if (i >= pdata->ports)
+			break;
+
+		pdata->vbus_pin[i] =
+			devm_gpiod_get_index_optional(&pdev->dev, "atmel,vbus",
+						      i, GPIOD_OUT_HIGH);
 		if (IS_ERR(pdata->vbus_pin[i])) {
 			err = PTR_ERR(pdata->vbus_pin[i]);
 			dev_err(&pdev->dev, "unable to claim gpio \"vbus\": %d\n", err);
 			continue;
 		}
-
-		pdata->vbus_pin_active_low[i] = gpiod_get_value(pdata->vbus_pin[i]);
-
-		ohci_at91_usb_set_power(pdata, i, 1);
 	}
 
 	at91_for_each_port(i) {
@@ -552,8 +548,8 @@ static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 			break;
 
 		pdata->overcurrent_pin[i] =
-			devm_gpiod_get_optional(&pdev->dev,
-						"atmel,oc-gpio", GPIOD_IN);
+			devm_gpiod_get_index_optional(&pdev->dev, "atmel,oc",
+						      i, GPIOD_IN);
 		if (IS_ERR(pdata->overcurrent_pin[i])) {
 			err = PTR_ERR(pdata->overcurrent_pin[i]);
 			dev_err(&pdev->dev, "unable to claim gpio \"overcurrent\": %d\n", err);
