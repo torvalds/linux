@@ -527,10 +527,10 @@ int tsc200x_probe(struct device *dev, int irq, const struct input_id *tsc_id,
 		return error;
 	}
 
-	ts->vio = devm_regulator_get_optional(dev, "vio");
+	ts->vio = devm_regulator_get(dev, "vio");
 	if (IS_ERR(ts->vio)) {
 		error = PTR_ERR(ts->vio);
-		dev_err(dev, "vio regulator missing (%d)", error);
+		dev_err(dev, "error acquiring vio regulator: %d", error);
 		return error;
 	}
 
@@ -587,12 +587,9 @@ int tsc200x_probe(struct device *dev, int irq, const struct input_id *tsc_id,
 		return error;
 	}
 
-	/* enable regulator for DT */
-	if (ts->vio) {
-		error = regulator_enable(ts->vio);
-		if (error)
-			return error;
-	}
+	error = regulator_enable(ts->vio);
+	if (error)
+		return error;
 
 	dev_set_drvdata(dev, ts);
 	error = sysfs_create_group(&dev->kobj, &tsc200x_attr_group);
@@ -615,8 +612,7 @@ int tsc200x_probe(struct device *dev, int irq, const struct input_id *tsc_id,
 err_remove_sysfs:
 	sysfs_remove_group(&dev->kobj, &tsc200x_attr_group);
 disable_regulator:
-	if (ts->vio)
-		regulator_disable(ts->vio);
+	regulator_disable(ts->vio);
 	return error;
 }
 EXPORT_SYMBOL_GPL(tsc200x_probe);
@@ -627,8 +623,7 @@ int tsc200x_remove(struct device *dev)
 
 	sysfs_remove_group(&dev->kobj, &tsc200x_attr_group);
 
-	if (ts->vio)
-		regulator_disable(ts->vio);
+	regulator_disable(ts->vio);
 
 	return 0;
 }
