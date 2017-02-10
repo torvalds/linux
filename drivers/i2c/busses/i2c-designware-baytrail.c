@@ -47,15 +47,8 @@ static int get_sem(struct dw_i2c_dev *dev, u32 *sem)
 
 static void reset_semaphore(struct dw_i2c_dev *dev)
 {
-	u32 data;
-
-	if (iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, PUNIT_SEMAPHORE, &data)) {
-		dev_err(dev->dev, "iosf failed to reset punit semaphore during read\n");
-		return;
-	}
-
-	data &= ~PUNIT_SEMAPHORE_BIT;
-	if (iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE, PUNIT_SEMAPHORE, data))
+	if (iosf_mbi_modify(BT_MBI_UNIT_PMC, MBI_REG_READ, PUNIT_SEMAPHORE,
+			    0, PUNIT_SEMAPHORE_BIT))
 		dev_err(dev->dev, "iosf failed to reset punit semaphore during write\n");
 
 	pm_qos_update_request(&dev->pm_qos, PM_QOS_DEFAULT_VALUE);
