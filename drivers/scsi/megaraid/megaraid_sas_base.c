@@ -1940,9 +1940,6 @@ void megaraid_sas_kill_hba(struct megasas_instance *instance)
 	}
 	/* Complete outstanding ioctls when adapter is killed */
 	megasas_complete_outstanding_ioctls(instance);
-	if (instance->is_ventura)
-		del_timer_sync(&instance->r1_fp_hold_timer);
-
 }
 
  /**
@@ -2439,24 +2436,6 @@ void megasas_sriov_heartbeat_handler(unsigned long instance_addr)
 		       "completed for scsi%d\n", instance->host->host_no);
 		schedule_work(&instance->work_init);
 	}
-}
-
-/*Handler for disabling/enabling raid 1 fast paths*/
-void megasas_change_r1_fp_status(unsigned long instance_addr)
-{
-	struct megasas_instance *instance =
-			(struct megasas_instance *)instance_addr;
-	if (atomic64_read(&instance->bytes_wrote) >=
-					instance->pci_threshold_bandwidth) {
-
-		atomic64_set(&instance->bytes_wrote, 0);
-		atomic_set(&instance->r1_write_fp_capable, 0);
-	} else {
-		atomic64_set(&instance->bytes_wrote, 0);
-		atomic_set(&instance->r1_write_fp_capable, 1);
-	}
-	mod_timer(&instance->r1_fp_hold_timer,
-	 jiffies + MEGASAS_RAID1_FAST_PATH_STATUS_CHECK_INTERVAL);
 }
 
 /**
@@ -5386,17 +5365,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 			instance->skip_heartbeat_timer_del = 1;
 	}
 
-	if (instance->is_ventura) {
-		atomic64_set(&instance->bytes_wrote, 0);
-		atomic_set(&instance->r1_write_fp_capable, 1);
-		megasas_start_timer(instance,
-			    &instance->r1_fp_hold_timer,
-			    megasas_change_r1_fp_status,
-			    MEGASAS_RAID1_FAST_PATH_STATUS_CHECK_INTERVAL);
-				dev_info(&instance->pdev->dev, "starting the raid 1 fp timer with interval %d\n",
-				MEGASAS_RAID1_FAST_PATH_STATUS_CHECK_INTERVAL);
-	}
-
 	return 0;
 
 fail_get_ld_pd_list:
@@ -6187,9 +6155,6 @@ megasas_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (instance->requestorId && !instance->skip_heartbeat_timer_del)
 		del_timer_sync(&instance->sriov_heartbeat_timer);
 
-	if (instance->is_ventura)
-		del_timer_sync(&instance->r1_fp_hold_timer);
-
 	megasas_flush_cache(instance);
 	megasas_shutdown_controller(instance, MR_DCMD_HIBERNATE_SHUTDOWN);
 
@@ -6316,16 +6281,6 @@ megasas_resume(struct pci_dev *pdev)
 	megasas_setup_jbod_map(instance);
 	instance->unload = 0;
 
-	if (instance->is_ventura) {
-		atomic64_set(&instance->bytes_wrote, 0);
-		atomic_set(&instance->r1_write_fp_capable, 1);
-		megasas_start_timer(instance,
-			    &instance->r1_fp_hold_timer,
-			    megasas_change_r1_fp_status,
-			    MEGASAS_RAID1_FAST_PATH_STATUS_CHECK_INTERVAL);
-	}
-
-
 	/*
 	 * Initiate AEN (Asynchronous Event Notification)
 	 */
@@ -6413,9 +6368,6 @@ static void megasas_detach_one(struct pci_dev *pdev)
 	/* Shutdown SR-IOV heartbeat timer */
 	if (instance->requestorId && !instance->skip_heartbeat_timer_del)
 		del_timer_sync(&instance->sriov_heartbeat_timer);
-
-	if (instance->is_ventura)
-		del_timer_sync(&instance->r1_fp_hold_timer);
 
 	if (instance->fw_crash_state != UNAVAILABLE)
 		megasas_free_host_crash_buffer(instance);
