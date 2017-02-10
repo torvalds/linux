@@ -3145,6 +3145,22 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex)
 }
 
 /**
+ * megasas_sync_irqs -	Synchronizes all IRQs owned by adapter
+ * @instance:			Adapter soft state
+ */
+void megasas_sync_irqs(unsigned long instance_addr)
+{
+	u32 count, i;
+	struct megasas_instance *instance =
+		(struct megasas_instance *)instance_addr;
+
+	count = instance->msix_vectors > 0 ? instance->msix_vectors : 1;
+
+	for (i = 0; i < count; i++)
+		synchronize_irq(pci_irq_vector(instance->pdev, i));
+}
+
+/**
  * megasas_complete_cmd_dpc_fusion -	Completes command
  * @instance:			Adapter soft state
  *
@@ -3820,7 +3836,7 @@ megasas_issue_tm(struct megasas_instance *instance, u16 device_handle,
 			break;
 		else {
 			instance->instancet->disable_intr(instance);
-			msleep(1000);
+			megasas_sync_irqs((unsigned long)instance);
 			megasas_complete_cmd_dpc_fusion
 					((unsigned long)instance);
 			instance->instancet->enable_intr(instance);
@@ -4174,7 +4190,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 	set_bit(MEGASAS_FUSION_IN_RESET, &instance->reset_flags);
 	atomic_set(&instance->adprecovery, MEGASAS_ADPRESET_SM_POLLING);
 	instance->instancet->disable_intr(instance);
-	msleep(1000);
+	megasas_sync_irqs((unsigned long)instance);
 
 	/* First try waiting for commands to complete */
 	if (megasas_wait_for_outstanding_fusion(instance, reason,
