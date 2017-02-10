@@ -505,6 +505,11 @@ diff.*::
 		Setting it to 1 will sort the result by delta (or other
 		compute method selected).
 
+	diff.compute::
+		This options sets the method for computing the diff result.
+		Possible values are 'delta', 'delta-abs', 'ratio' and
+		'wdiff'.  Default is 'delta'.
+
 SEE ALSO
 --------
 linkperf:perf[1]

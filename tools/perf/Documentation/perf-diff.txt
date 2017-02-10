@@ -86,8 +86,9 @@ OPTIONS
 
 -c::
 --compute::
-        Differential computation selection - delta,ratio,wdiff,delta-abs (default is delta).
-        See COMPARISON METHODS section for more info.
+        Differential computation selection - delta, ratio, wdiff, delta-abs
+        (default is delta).  Default can be changed using diff.compute
+        config option.  See COMPARISON METHODS section for more info.
 
 -p::
 --period::
