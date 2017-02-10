@@ -3898,6 +3898,14 @@ static void gfx_v8_0_gpu_init(struct amdgpu_device *adev)
 			PA_SC_FIFO_SIZE__SC_HIZ_TILE_FIFO_SIZE__SHIFT) |
 		   (adev->gfx.config.sc_earlyz_tile_fifo_size <<
 			PA_SC_FIFO_SIZE__SC_EARLYZ_TILE_FIFO_SIZE__SHIFT));
+
+	tmp = RREG32(mmSPI_ARB_PRIORITY);
+	tmp = REG_SET_FIELD(tmp, SPI_ARB_PRIORITY, PIPE_ORDER_TS0, 2);
+	tmp = REG_SET_FIELD(tmp, SPI_ARB_PRIORITY, PIPE_ORDER_TS1, 2);
+	tmp = REG_SET_FIELD(tmp, SPI_ARB_PRIORITY, PIPE_ORDER_TS2, 2);
+	tmp = REG_SET_FIELD(tmp, SPI_ARB_PRIORITY, PIPE_ORDER_TS3, 2);
+	WREG32(mmSPI_ARB_PRIORITY, tmp);
+
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 }
