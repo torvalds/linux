@@ -154,6 +154,7 @@ char *progname;
 
 cpu_set_t *cpu_present_set, *cpu_affinity_set;
 size_t cpu_present_setsize, cpu_affinity_setsize;
+#define MAX_ADDED_COUNTERS 16
 
 struct thread_data {
 	unsigned long long tsc;
@@ -166,7 +167,7 @@ struct thread_data {
 	unsigned int flags;
 #define CPU_IS_FIRST_THREAD_IN_CORE	0x2
 #define CPU_IS_FIRST_CORE_IN_PACKAGE	0x4
-	unsigned long long counter[1];
+	unsigned long long counter[MAX_ADDED_COUNTERS];
 } *thread_even, *thread_odd;
 
 struct core_data {
@@ -175,7 +176,7 @@ struct core_data {
 	unsigned long long c7;
 	unsigned int core_temp_c;
 	unsigned int core_id;
-	unsigned long long counter[1];
+	unsigned long long counter[MAX_ADDED_COUNTERS];
 } *core_even, *core_odd;
 
 struct pkg_data {
@@ -200,7 +201,7 @@ struct pkg_data {
 	unsigned int rapl_pkg_perf_status;	/* MSR_PKG_PERF_STATUS */
 	unsigned int rapl_dram_perf_status;	/* MSR_DRAM_PERF_STATUS */
 	unsigned int pkg_temp_c;
-	unsigned long long counter[1];
+	unsigned long long counter[MAX_ADDED_COUNTERS];
 } *package_even, *package_odd;
 
 #define ODD_COUNTERS thread_odd, core_odd, package_odd
@@ -228,9 +229,9 @@ struct msr_counter {
 };
 
 struct sys_counters {
-	unsigned int thread_counter_bytes;
-	unsigned int core_counter_bytes;
-	unsigned int package_counter_bytes;
+	unsigned int added_thread_counters;
+	unsigned int added_core_counters;
+	unsigned int added_package_counters;
 	struct msr_counter *tp;
 	struct msr_counter *cp;
 	struct msr_counter *pp;
@@ -374,12 +375,6 @@ void print_header(void)
 
 	if (do_nhm_cstates)
 		outp += sprintf(outp, "\tCPU%%c1");
-	if (do_nhm_cstates && !do_slm_cstates && !do_knl_cstates)
-		outp += sprintf(outp, "\tCPU%%c3");
-	if (do_nhm_cstates)
-		outp += sprintf(outp, "\tCPU%%c6");
-	if (do_snb_cstates)
-		outp += sprintf(outp, "\tCPU%%c7");
 
 	for (mp = sys.tp; mp; mp = mp->next) {
 		if (mp->format == FORMAT_RAW) {
@@ -391,6 +386,14 @@ void print_header(void)
 			outp += sprintf(outp, "\t%-7.7s", mp->name);
 		}
 	}
+
+	if (do_nhm_cstates && !do_slm_cstates && !do_knl_cstates)
+		outp += sprintf(outp, "\tCPU%%c3");
+	if (do_nhm_cstates)
+		outp += sprintf(outp, "\tCPU%%c6");
+	if (do_snb_cstates)
+		outp += sprintf(outp, "\tCPU%%c7");
+
 
 	if (do_dts)
 		outp += sprintf(outp, "\tCoreTmp");
@@ -635,8 +638,23 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	if (do_smi)
 		outp += sprintf(outp, "\t%d", t->smi_count);
 
+	/* C1 */
 	if (do_nhm_cstates)
 		outp += sprintf(outp, "\t%.2f", 100.0 * t->c1/t->tsc);
+
+	/* Added counters */
+	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
+		if (mp->format == FORMAT_RAW) {
+			if (mp->width == 32)
+				outp += sprintf(outp, "\t0x%08lx", (unsigned long) t->counter[i]);
+			else
+				outp += sprintf(outp, "\t0x%016llx", t->counter[i]);
+		} else if (mp->format == FORMAT_DELTA) {
+			outp += sprintf(outp, "\t%lld", t->counter[i]);
+		} else if (mp->format == FORMAT_PERCENT) {
+			outp += sprintf(outp, "\t%.2f", 100.0 * t->counter[i]/t->tsc);
+		}
+	}
 
 	/* print per-core data only for 1st thread in core */
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
@@ -649,19 +667,6 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	if (do_snb_cstates)
 		outp += sprintf(outp, "\t%.2f", 100.0 * c->c7/t->tsc);
 
-	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
-		if (mp->format == FORMAT_RAW) {
-			if (mp->width == 32)
-				outp += sprintf(outp, "\t0x%08lx", (unsigned long) t->counter[i]);
-			else
-				outp += sprintf(outp, "\t0x%016llx", t->counter[i]);
-		} else if (mp->format == FORMAT_DELTA) {
-			outp += sprintf(outp, "\t%8lld", t->counter[i]);
-		} else if (mp->format == FORMAT_PERCENT) {
-			outp += sprintf(outp, "\t%.2f", 100.0 * t->counter[i]/t->tsc);
-		}
-	}
-
 
 	if (do_dts)
 		outp += sprintf(outp, "\t%d", c->core_temp_c);
@@ -673,7 +678,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 			else
 				outp += sprintf(outp, "\t0x%016llx", c->counter[i]);
 		} else if (mp->format == FORMAT_DELTA) {
-			outp += sprintf(outp, "\t%8lld", c->counter[i]);
+			outp += sprintf(outp, "\t%lld", c->counter[i]);
 		} else if (mp->format == FORMAT_PERCENT) {
 			outp += sprintf(outp, "\t%.2f", 100.0 * c->counter[i]/t->tsc);
 		}
@@ -770,7 +775,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 			else
 				outp += sprintf(outp, "\t0x%016llx", p->counter[i]);
 		} else if (mp->format == FORMAT_DELTA) {
-			outp += sprintf(outp, "\t%8lld", p->counter[i]);
+			outp += sprintf(outp, "\t%lld", p->counter[i]);
 		} else if (mp->format == FORMAT_PERCENT) {
 			outp += sprintf(outp, "\t%.2f", 100.0 * p->counter[i]/t->tsc);
 		}
@@ -1036,7 +1041,6 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 
 	p->gfx_rc6_ms = 0;
 	p->gfx_mhz = 0;
-
 	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next)
 		t->counter[i] = 0;
 
@@ -3662,7 +3666,7 @@ allocate_counters(struct thread_data **t, struct core_data **c, struct pkg_data 
 	int i;
 
 	*t = calloc(topo.num_threads_per_core * topo.num_cores_per_pkg *
-		topo.num_packages, sizeof(struct thread_data) + sys.thread_counter_bytes);
+		topo.num_packages, sizeof(struct thread_data));
 	if (*t == NULL)
 		goto error;
 
@@ -3671,14 +3675,14 @@ allocate_counters(struct thread_data **t, struct core_data **c, struct pkg_data 
 		(*t)[i].cpu_id = -1;
 
 	*c = calloc(topo.num_cores_per_pkg * topo.num_packages,
-		sizeof(struct core_data) + sys.core_counter_bytes);
+		sizeof(struct core_data));
 	if (*c == NULL)
 		goto error;
 
 	for (i = 0; i < topo.num_cores_per_pkg * topo.num_packages; i++)
 		(*c)[i].core_id = -1;
 
-	*p = calloc(topo.num_packages, sizeof(struct pkg_data) + sys.package_counter_bytes);
+	*p = calloc(topo.num_packages, sizeof(struct pkg_data));
 	if (*p == NULL)
 		goto error;
 
@@ -3901,24 +3905,36 @@ int add_counter(unsigned int msr_num, char *name, unsigned int width,
 	switch (scope) {
 
 	case SCOPE_CPU:
-		sys.thread_counter_bytes += 64;
 		msrp->next = sys.tp;
 		sys.tp = msrp;
-		sys.thread_counter_bytes += sizeof(unsigned long long);
+		sys.added_thread_counters++;
+		if (sys.added_thread_counters > MAX_ADDED_COUNTERS) {
+			fprintf(stderr, "exceeded max %d added thread counters\n",
+				MAX_ADDED_COUNTERS);
+			exit(-1);
+		}
 		break;
 
 	case SCOPE_CORE:
-		sys.core_counter_bytes += 64;
 		msrp->next = sys.cp;
 		sys.cp = msrp;
-		sys.core_counter_bytes += sizeof(unsigned long long);
+		sys.added_core_counters++;
+		if (sys.added_core_counters > MAX_ADDED_COUNTERS) {
+			fprintf(stderr, "exceeded max %d added core counters\n",
+				MAX_ADDED_COUNTERS);
+			exit(-1);
+		}
 		break;
 
 	case SCOPE_PACKAGE:
-		sys.package_counter_bytes += 64;
 		msrp->next = sys.pp;
 		sys.pp = msrp;
-		sys.package_counter_bytes += sizeof(unsigned long long);
+		sys.added_package_counters++;
+		if (sys.added_package_counters > MAX_ADDED_COUNTERS) {
+			fprintf(stderr, "exceeded max %d added package counters\n",
+				MAX_ADDED_COUNTERS);
+			exit(-1);
+		}
 		break;
 	}
 
