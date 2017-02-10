@@ -138,15 +138,16 @@ int i2c_dw_eval_lock_support(struct dw_i2c_dev *dev)
 	if (ACPI_FAILURE(status))
 		return 0;
 
-	if (shared_host) {
-		dev_info(dev->dev, "I2C bus managed by PUNIT\n");
-		dev->acquire_lock = baytrail_i2c_acquire;
-		dev->release_lock = baytrail_i2c_release;
-		dev->pm_runtime_disabled = true;
-	}
+	if (!shared_host)
+		return 0;
 
 	if (!iosf_mbi_available())
 		return -EPROBE_DEFER;
+
+	dev_info(dev->dev, "I2C bus managed by PUNIT\n");
+	dev->acquire_lock = baytrail_i2c_acquire;
+	dev->release_lock = baytrail_i2c_release;
+	dev->pm_runtime_disabled = true;
 
 	return 0;
 }
