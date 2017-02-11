@@ -98,9 +98,13 @@ endif # HAVE_SPHINX
 
 # no-ops for the Sphinx toolchain
 sgmldocs:
+	@:
 psdocs:
+	@:
 mandocs:
+	@:
 installmandocs:
+	@:
 
 cleandocs:
 	$(Q)rm -rf $(BUILDDIR)
