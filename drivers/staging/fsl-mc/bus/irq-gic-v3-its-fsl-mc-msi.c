@@ -51,7 +51,7 @@ static int its_fsl_mc_msi_prepare(struct irq_domain *msi_domain,
 	return msi_info->ops->msi_prepare(msi_domain->parent, dev, nvec, info);
 }
 
-static struct msi_domain_ops its_fsl_mc_msi_ops = {
+static struct msi_domain_ops its_fsl_mc_msi_ops __ro_after_init = {
 	.msi_prepare = its_fsl_mc_msi_prepare,
 };
 
