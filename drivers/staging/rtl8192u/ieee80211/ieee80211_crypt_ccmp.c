@@ -131,7 +131,7 @@ static void ccmp_init_blocks(struct crypto_tfm *tfm,
 	if (a4_included)
 		aad_len += 6;
 	if (qc_included) {
-		pos = (u8 *) &hdr->addr4;
+		pos = (u8 *)&hdr->addr4;
 		if (a4_included)
 			pos += 6;
 		qc = *pos & 0x0f;
@@ -157,13 +157,13 @@ static void ccmp_init_blocks(struct crypto_tfm *tfm,
 	 * A4 (if present)
 	 * QC (if present)
 	 */
-	pos = (u8 *) hdr;
+	pos = (u8 *)hdr;
 	aad[0] = 0; /* aad_len >> 8 */
 	aad[1] = aad_len & 0xff;
 	aad[2] = pos[0] & 0x8f;
 	aad[3] = pos[1] & 0xc7;
 	memcpy(aad + 4, hdr->addr1, 3 * ETH_ALEN);
-	pos = (u8 *) &hdr->seq_ctl;
+	pos = (u8 *)&hdr->seq_ctl;
 	aad[22] = pos[0] & 0x0f;
 	aad[23] = 0; /* all bits masked */
 	memset(aad + 24, 0, 8);
@@ -221,7 +221,7 @@ static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	*pos++ = key->tx_pn[1];
 	*pos++ = key->tx_pn[0];
 
-	hdr = (struct rtl_80211_hdr_4addr *) skb->data;
+	hdr = (struct rtl_80211_hdr_4addr *)skb->data;
 	if (!tcb_desc->bHwSec) {
 		int blocks, last, len;
 		u8 *mic;
@@ -270,7 +270,7 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		return -1;
 	}
 
-	hdr = (struct rtl_80211_hdr_4addr *) skb->data;
+	hdr = (struct rtl_80211_hdr_4addr *)skb->data;
 	pos = skb->data + hdr_len;
 	keyidx = pos[3];
 	if (!(keyidx & (1 << 5))) {
