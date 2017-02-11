@@ -258,7 +258,6 @@ static void ieee80211_send_ADDBAReq(struct ieee80211_device *ieee,
 	else {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "alloc skb error in function %s()\n", __func__);
 	}
-	return;
 }
 
 /********************************************************************************************************************
@@ -308,7 +307,6 @@ static void ieee80211_send_DELBA(struct ieee80211_device *ieee, u8 *dst,
 	else {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "alloc skb error in function %s()\n", __func__);
 	}
-	return ;
 }
 
 /********************************************************************************************************************
@@ -708,5 +706,4 @@ void RxBaInactTimeout(unsigned long data)
 		&pRxTs->RxAdmittedBARecord,
 		RX_DIR,
 		DELBA_REASON_TIMEOUT);
-	return ;
 }
