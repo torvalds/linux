@@ -158,7 +158,7 @@ static int debug;
 MODULE_AUTHOR(MOD_AUTHOR);
 MODULE_DESCRIPTION(MOD_DESC);
 MODULE_LICENSE("GPL");
-module_param(debug, int, S_IRUGO | S_IWUSR);
+module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug messages: 0=no, 1=yes (default: no)");
 
 static void delete_context(struct sasem_context *context)
