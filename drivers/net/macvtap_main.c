@@ -24,6 +24,11 @@
 #include <linux/virtio_net.h>
 #include <linux/skb_array.h>
 
+struct macvtap_dev {
+	struct macvlan_dev vlan;
+	struct tap_dev    tap;
+};
+
 /*
  * Variables for dealing with macvtaps device numbers.
  */
@@ -46,22 +51,55 @@ static struct cdev macvtap_cdev;
 #define TUN_OFFLOADS (NETIF_F_HW_CSUM | NETIF_F_TSO_ECN | NETIF_F_TSO | \
 		      NETIF_F_TSO6 | NETIF_F_UFO)
 
+static void macvtap_count_tx_dropped(struct tap_dev *tap)
+{
+	struct macvtap_dev *vlantap = container_of(tap, struct macvtap_dev, tap);
+	struct macvlan_dev *vlan = &vlantap->vlan;
+
+	this_cpu_inc(vlan->pcpu_stats->tx_dropped);
+}
+
+static void macvtap_count_rx_dropped(struct tap_dev *tap)
+{
+	struct macvtap_dev *vlantap = container_of(tap, struct macvtap_dev, tap);
+	struct macvlan_dev *vlan = &vlantap->vlan;
+
+	macvlan_count_rx(vlan, 0, 0, 0);
+}
+
+static void macvtap_update_features(struct tap_dev *tap,
+				    netdev_features_t features)
+{
+	struct macvtap_dev *vlantap = container_of(tap, struct macvtap_dev, tap);
+	struct macvlan_dev *vlan = &vlantap->vlan;
+
+	vlan->set_features = features;
+	netdev_update_features(vlan->dev);
+}
+
 static int macvtap_newlink(struct net *src_net,
 			   struct net_device *dev,
 			   struct nlattr *tb[],
 			   struct nlattr *data[])
 {
-	struct macvlan_dev *vlan = netdev_priv(dev);
+	struct macvtap_dev *vlantap = netdev_priv(dev);
 	int err;
 
-	INIT_LIST_HEAD(&vlan->queue_list);
+	INIT_LIST_HEAD(&vlantap->tap.queue_list);
 
 	/* Since macvlan supports all offloads by default, make
 	 * tap support all offloads also.
 	 */
-	vlan->tap_features = TUN_OFFLOADS;
+	vlantap->tap.tap_features = TUN_OFFLOADS;
 
-	err = netdev_rx_handler_register(dev, tap_handle_frame, vlan);
+	/* Register callbacks for rx/tx drops accounting and updating
+	 * net_device features
+	 */
+	vlantap->tap.count_tx_dropped = macvtap_count_tx_dropped;
+	vlantap->tap.count_rx_dropped = macvtap_count_rx_dropped;
+	vlantap->tap.update_features  = macvtap_update_features;
+
+	err = netdev_rx_handler_register(dev, tap_handle_frame, &vlantap->tap);
 	if (err)
 		return err;
 
@@ -74,14 +112,18 @@ static int macvtap_newlink(struct net *src_net,
 		return err;
 	}
 
+	vlantap->tap.dev = vlantap->vlan.dev;
+
 	return 0;
 }
 
 static void macvtap_dellink(struct net_device *dev,
 			    struct list_head *head)
 {
+	struct macvtap_dev *vlantap = netdev_priv(dev);
+
 	netdev_rx_handler_unregister(dev);
-	tap_del_queues(dev);
+	tap_del_queues(&vlantap->tap);
 	macvlan_dellink(dev, head);
 }
 
@@ -96,13 +138,14 @@ static struct rtnl_link_ops macvtap_link_ops __read_mostly = {
 	.setup		= macvtap_setup,
 	.newlink	= macvtap_newlink,
 	.dellink	= macvtap_dellink,
+	.priv_size      = sizeof(struct macvtap_dev),
 };
 
 static int macvtap_device_event(struct notifier_block *unused,
 				unsigned long event, void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-	struct macvlan_dev *vlan;
+	struct macvtap_dev *vlantap;
 	struct device *classdev;
 	dev_t devt;
 	int err;
@@ -112,7 +155,7 @@ static int macvtap_device_event(struct notifier_block *unused,
 		return NOTIFY_DONE;
 
 	snprintf(tap_name, IFNAMSIZ, "tap%d", dev->ifindex);
-	vlan = netdev_priv(dev);
+	vlantap = netdev_priv(dev);
 
 	switch (event) {
 	case NETDEV_REGISTER:
@@ -120,15 +163,15 @@ static int macvtap_device_event(struct notifier_block *unused,
 		 * been registered but before register_netdevice has
 		 * finished running.
 		 */
-		err = tap_get_minor(vlan);
+		err = tap_get_minor(&vlantap->tap);
 		if (err)
 			return notifier_from_errno(err);
 
-		devt = MKDEV(MAJOR(macvtap_major), vlan->minor);
+		devt = MKDEV(MAJOR(macvtap_major), vlantap->tap.minor);
 		classdev = device_create(&macvtap_class, &dev->dev, devt,
 					 dev, tap_name);
 		if (IS_ERR(classdev)) {
-			tap_free_minor(vlan);
+			tap_free_minor(&vlantap->tap);
 			return notifier_from_errno(PTR_ERR(classdev));
 		}
 		err = sysfs_create_link(&dev->dev.kobj, &classdev->kobj,
@@ -138,15 +181,15 @@ static int macvtap_device_event(struct notifier_block *unused,
 		break;
 	case NETDEV_UNREGISTER:
 		/* vlan->minor == 0 if NETDEV_REGISTER above failed */
-		if (vlan->minor == 0)
+		if (vlantap->tap.minor == 0)
 			break;
 		sysfs_remove_link(&dev->dev.kobj, tap_name);
-		devt = MKDEV(MAJOR(macvtap_major), vlan->minor);
+		devt = MKDEV(MAJOR(macvtap_major), vlantap->tap.minor);
 		device_destroy(&macvtap_class, devt);
-		tap_free_minor(vlan);
+		tap_free_minor(&vlantap->tap);
 		break;
 	case NETDEV_CHANGE_TX_QUEUE_LEN:
-		if (tap_queue_resize(vlan))
+		if (tap_queue_resize(&vlantap->tap))
 			return NOTIFY_BAD;
 		break;
 	}
