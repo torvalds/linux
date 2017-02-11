@@ -28,7 +28,6 @@
  * Variables for dealing with macvtaps device numbers.
  */
 static dev_t macvtap_major;
-#define MACVTAP_NUM_DEVS (1U << MINORBITS)
 
 static const void *macvtap_net_namespace(struct device *d)
 {
@@ -159,57 +158,46 @@ static struct notifier_block macvtap_notifier_block __read_mostly = {
 	.notifier_call	= macvtap_device_event,
 };
 
-extern struct file_operations tap_fops;
 static int macvtap_init(void)
 {
 	int err;
 
-	err = alloc_chrdev_region(&macvtap_major, 0,
-				MACVTAP_NUM_DEVS, "macvtap");
+	err = tap_create_cdev(&macvtap_cdev, &macvtap_major, "macvtap");
+
 	if (err)
 		goto out1;
 
-	cdev_init(&macvtap_cdev, &tap_fops);
-	err = cdev_add(&macvtap_cdev, macvtap_major, MACVTAP_NUM_DEVS);
+	err = class_register(&macvtap_class);
 	if (err)
 		goto out2;
 
-	err = class_register(&macvtap_class);
+	err = register_netdevice_notifier(&macvtap_notifier_block);
 	if (err)
 		goto out3;
 
-	err = register_netdevice_notifier(&macvtap_notifier_block);
+	err = macvlan_link_register(&macvtap_link_ops);
 	if (err)
 		goto out4;
 
-	err = macvlan_link_register(&macvtap_link_ops);
-	if (err)
-		goto out5;
-
 	return 0;
 
-out5:
-	unregister_netdevice_notifier(&macvtap_notifier_block);
 out4:
-	class_unregister(&macvtap_class);
+	unregister_netdevice_notifier(&macvtap_notifier_block);
 out3:
-	cdev_del(&macvtap_cdev);
+	class_unregister(&macvtap_class);
 out2:
-	unregister_chrdev_region(macvtap_major, MACVTAP_NUM_DEVS);
+	tap_destroy_cdev(macvtap_major, &macvtap_cdev);
 out1:
 	return err;
 }
 module_init(macvtap_init);
 
-extern struct idr minor_idr;
 static void macvtap_exit(void)
 {
 	rtnl_link_unregister(&macvtap_link_ops);
 	unregister_netdevice_notifier(&macvtap_notifier_block);
 	class_unregister(&macvtap_class);
-	cdev_del(&macvtap_cdev);
-	unregister_chrdev_region(macvtap_major, MACVTAP_NUM_DEVS);
-	idr_destroy(&minor_idr);
+	tap_destroy_cdev(macvtap_major, &macvtap_cdev);
 }
 module_exit(macvtap_exit);
 

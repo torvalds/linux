@@ -123,8 +123,12 @@ static struct proto tap_proto = {
 };
 
 #define TAP_NUM_DEVS (1U << MINORBITS)
-static DEFINE_MUTEX(minor_lock);
-DEFINE_IDR(minor_idr);
+struct major_info {
+	dev_t major;
+	struct idr minor_idr;
+	struct mutex minor_lock;
+	const char *device_name;
+} macvtap_major;
 
 #define GOODCOPY_LEN 128
 
@@ -413,26 +417,26 @@ int tap_get_minor(struct macvlan_dev *vlan)
 {
 	int retval = -ENOMEM;
 
-	mutex_lock(&minor_lock);
-	retval = idr_alloc(&minor_idr, vlan, 1, TAP_NUM_DEVS, GFP_KERNEL);
+	mutex_lock(&macvtap_major.minor_lock);
+	retval = idr_alloc(&macvtap_major.minor_idr, vlan, 1, TAP_NUM_DEVS, GFP_KERNEL);
 	if (retval >= 0) {
 		vlan->minor = retval;
 	} else if (retval == -ENOSPC) {
 		netdev_err(vlan->dev, "Too many tap devices\n");
 		retval = -EINVAL;
 	}
-	mutex_unlock(&minor_lock);
+	mutex_unlock(&macvtap_major.minor_lock);
 	return retval < 0 ? retval : 0;
 }
 
 void tap_free_minor(struct macvlan_dev *vlan)
 {
-	mutex_lock(&minor_lock);
+	mutex_lock(&macvtap_major.minor_lock);
 	if (vlan->minor) {
-		idr_remove(&minor_idr, vlan->minor);
+		idr_remove(&macvtap_major.minor_idr, vlan->minor);
 		vlan->minor = 0;
 	}
-	mutex_unlock(&minor_lock);
+	mutex_unlock(&macvtap_major.minor_lock);
 }
 
 static struct net_device *dev_get_by_tap_minor(int minor)
@@ -440,13 +444,13 @@ static struct net_device *dev_get_by_tap_minor(int minor)
 	struct net_device *dev = NULL;
 	struct macvlan_dev *vlan;
 
-	mutex_lock(&minor_lock);
-	vlan = idr_find(&minor_idr, minor);
+	mutex_lock(&macvtap_major.minor_lock);
+	vlan = idr_find(&macvtap_major.minor_idr, minor);
 	if (vlan) {
 		dev = vlan->dev;
 		dev_hold(dev);
 	}
-	mutex_unlock(&minor_lock);
+	mutex_unlock(&macvtap_major.minor_lock);
 	return dev;
 }
 
@@ -1183,4 +1187,40 @@ int tap_queue_resize(struct macvlan_dev *vlan)
 
 	kfree(arrays);
 	return ret;
+}
+
+int tap_create_cdev(struct cdev *tap_cdev,
+		    dev_t *tap_major, const char *device_name)
+{
+	int err;
+
+	err = alloc_chrdev_region(tap_major, 0, TAP_NUM_DEVS, device_name);
+	if (err)
+		goto out1;
+
+	cdev_init(tap_cdev, &tap_fops);
+	err = cdev_add(tap_cdev, *tap_major, TAP_NUM_DEVS);
+	if (err)
+		goto out2;
+
+	macvtap_major.major = MAJOR(*tap_major);
+
+	idr_init(&macvtap_major.minor_idr);
+	mutex_init(&macvtap_major.minor_lock);
+
+	macvtap_major.device_name = device_name;
+
+	return 0;
+
+out2:
+	unregister_chrdev_region(*tap_major, TAP_NUM_DEVS);
+out1:
+	return err;
+}
+
+void tap_destroy_cdev(dev_t major, struct cdev *tap_cdev)
+{
+	cdev_del(tap_cdev);
+	unregister_chrdev_region(major, TAP_NUM_DEVS);
+	idr_destroy(&macvtap_major.minor_idr);
 }
