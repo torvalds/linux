@@ -94,7 +94,7 @@ struct apci3501_private {
 	unsigned char timer_mode;
 };
 
-static struct comedi_lrange apci3501_ao_range = {
+static const struct comedi_lrange apci3501_ao_range = {
 	2, {
 		BIP_RANGE(10),
 		UNI_RANGE(10)
