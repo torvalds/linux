@@ -4630,7 +4630,7 @@ static const struct attribute_group *rbd_attr_groups[] = {
 
 static void rbd_dev_release(struct device *dev);
 
-static struct device_type rbd_device_type = {
+static const struct device_type rbd_device_type = {
 	.name		= "rbd",
 	.groups		= rbd_attr_groups,
 	.release	= rbd_dev_release,
