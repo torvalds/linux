@@ -496,8 +496,8 @@ err:
 	return ret;
 }
 
-static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
-			   struct nlattr *tb[], struct nlattr *data[])
+int ipvlan_link_new(struct net *src_net, struct net_device *dev,
+		    struct nlattr *tb[], struct nlattr *data[])
 {
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
 	struct ipvl_port *port;
@@ -594,8 +594,9 @@ destroy_ipvlan_port:
 		ipvlan_port_destroy(phy_dev);
 	return err;
 }
+EXPORT_SYMBOL_GPL(ipvlan_link_new);
 
-static void ipvlan_link_delete(struct net_device *dev, struct list_head *head)
+void ipvlan_link_delete(struct net_device *dev, struct list_head *head)
 {
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
 	struct ipvl_addr *addr, *next;
@@ -611,8 +612,9 @@ static void ipvlan_link_delete(struct net_device *dev, struct list_head *head)
 	unregister_netdevice_queue(dev, head);
 	netdev_upper_dev_unlink(ipvlan->phy_dev, dev);
 }
+EXPORT_SYMBOL_GPL(ipvlan_link_delete);
 
-static void ipvlan_link_setup(struct net_device *dev)
+void ipvlan_link_setup(struct net_device *dev)
 {
 	ether_setup(dev);
 
@@ -623,6 +625,7 @@ static void ipvlan_link_setup(struct net_device *dev)
 	dev->header_ops = &ipvlan_header_ops;
 	dev->ethtool_ops = &ipvlan_ethtool_ops;
 }
+EXPORT_SYMBOL_GPL(ipvlan_link_setup);
 
 static const struct nla_policy ipvlan_nl_policy[IFLA_IPVLAN_MAX + 1] =
 {
@@ -633,22 +636,22 @@ static struct rtnl_link_ops ipvlan_link_ops = {
 	.kind		= "ipvlan",
 	.priv_size	= sizeof(struct ipvl_dev),
 
-	.get_size	= ipvlan_nl_getsize,
-	.policy		= ipvlan_nl_policy,
-	.validate	= ipvlan_nl_validate,
-	.fill_info	= ipvlan_nl_fillinfo,
-	.changelink	= ipvlan_nl_changelink,
-	.maxtype	= IFLA_IPVLAN_MAX,
-
 	.setup		= ipvlan_link_setup,
 	.newlink	= ipvlan_link_new,
 	.dellink	= ipvlan_link_delete,
 };
 
-static int ipvlan_link_register(struct rtnl_link_ops *ops)
+int ipvlan_link_register(struct rtnl_link_ops *ops)
 {
+	ops->get_size	= ipvlan_nl_getsize;
+	ops->policy	= ipvlan_nl_policy;
+	ops->validate	= ipvlan_nl_validate;
+	ops->fill_info	= ipvlan_nl_fillinfo;
+	ops->changelink = ipvlan_nl_changelink;
+	ops->maxtype	= IFLA_IPVLAN_MAX;
 	return rtnl_link_register(ops);
 }
+EXPORT_SYMBOL_GPL(ipvlan_link_register);
 
 static int ipvlan_device_event(struct notifier_block *unused,
 			       unsigned long event, void *ptr)
