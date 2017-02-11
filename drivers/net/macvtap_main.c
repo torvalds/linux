@@ -163,7 +163,7 @@ static int macvtap_device_event(struct notifier_block *unused,
 		 * been registered but before register_netdevice has
 		 * finished running.
 		 */
-		err = tap_get_minor(&vlantap->tap);
+		err = tap_get_minor(macvtap_major, &vlantap->tap);
 		if (err)
 			return notifier_from_errno(err);
 
@@ -171,7 +171,7 @@ static int macvtap_device_event(struct notifier_block *unused,
 		classdev = device_create(&macvtap_class, &dev->dev, devt,
 					 dev, tap_name);
 		if (IS_ERR(classdev)) {
-			tap_free_minor(&vlantap->tap);
+			tap_free_minor(macvtap_major, &vlantap->tap);
 			return notifier_from_errno(PTR_ERR(classdev));
 		}
 		err = sysfs_create_link(&dev->dev.kobj, &classdev->kobj,
@@ -186,7 +186,7 @@ static int macvtap_device_event(struct notifier_block *unused,
 		sysfs_remove_link(&dev->dev.kobj, tap_name);
 		devt = MKDEV(MAJOR(macvtap_major), vlantap->tap.minor);
 		device_destroy(&macvtap_class, devt);
-		tap_free_minor(&vlantap->tap);
+		tap_free_minor(macvtap_major, &vlantap->tap);
 		break;
 	case NETDEV_CHANGE_TX_QUEUE_LEN:
 		if (tap_queue_resize(&vlantap->tap))

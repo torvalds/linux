@@ -65,8 +65,8 @@ struct tap_queue {
 
 rx_handler_result_t tap_handle_frame(struct sk_buff **pskb);
 void tap_del_queues(struct tap_dev *tap);
-int tap_get_minor(struct tap_dev *tap);
-void tap_free_minor(struct tap_dev *tap);
+int tap_get_minor(dev_t major, struct tap_dev *tap);
+void tap_free_minor(dev_t major, struct tap_dev *tap);
 int tap_queue_resize(struct tap_dev *tap);
 int tap_create_cdev(struct cdev *tap_cdev,
 		    dev_t *tap_major, const char *device_name);
