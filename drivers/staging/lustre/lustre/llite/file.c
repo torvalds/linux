@@ -2664,15 +2664,12 @@ again:
 	op_data->op_cli_flags = CLI_MIGRATE;
 	rc = md_rename(ll_i2sbi(parent)->ll_md_exp, op_data, name,
 		       namelen, name, namelen, &request);
-	if (!rc)
+	if (!rc) {
+		LASSERT(request);
 		ll_update_times(request, parent);
 
-	if (request) {
 		body = req_capsule_server_get(&request->rq_pill, &RMF_MDT_BODY);
-		if (!body) {
-			rc = -EPROTO;
-			goto out_close;
-		}
+		LASSERT(body);
 
 		/*
 		 * If the server does release layout lock, then we cleanup
@@ -2686,14 +2683,17 @@ again:
 			kfree(och);
 			och = NULL;
 		}
+	}
 
+	if (request) {
 		ptlrpc_req_finished(request);
-	}
-	/* Try again if the file layout has changed. */
-	if (rc == -EAGAIN && S_ISREG(child_inode->i_mode)) {
 		request = NULL;
-		goto again;
 	}
+
+	/* Try again if the file layout has changed. */
+	if (rc == -EAGAIN && S_ISREG(child_inode->i_mode))
+		goto again;
+
 out_close:
 	if (och) /* close the file */
 		ll_lease_close(och, child_inode, NULL);
