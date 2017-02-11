@@ -225,7 +225,7 @@ static int ip_finish_output2(struct net *net, struct sock *sk, struct sk_buff *s
 		int res;
 
 		sock_confirm_neigh(skb, neigh);
-		res = dst_neigh_output(dst, neigh, skb);
+		res = neigh_output(neigh, skb);
 
 		rcu_read_unlock_bh();
 		return res;
