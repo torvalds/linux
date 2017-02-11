@@ -2667,28 +2667,33 @@ again:
 	if (!rc)
 		ll_update_times(request, parent);
 
-	body = req_capsule_server_get(&request->rq_pill, &RMF_MDT_BODY);
-	if (!body) {
-		rc = -EPROTO;
-		goto out_free;
-	}
+	if (request) {
+		body = req_capsule_server_get(&request->rq_pill, &RMF_MDT_BODY);
+		if (!body) {
+			rc = -EPROTO;
+			goto out_free;
+		}
 
-	/*
-	 * If the server does release layout lock, then we cleanup
-	 * the client och here, otherwise release it in out_free:
-	 */
-	if (och && body->mbo_valid & OBD_MD_CLOSE_INTENT_EXECED) {
-		obd_mod_put(och->och_mod);
-		md_clear_open_replay_data(ll_i2sbi(parent)->ll_md_exp, och);
-		och->och_fh.cookie = DEAD_HANDLE_MAGIC;
-		kfree(och);
-		och = NULL;
-	}
+		/*
+		 * If the server does release layout lock, then we cleanup
+		 * the client och here, otherwise release it in out_free:
+		 */
+		if (och && body->mbo_valid & OBD_MD_CLOSE_INTENT_EXECED) {
+			obd_mod_put(och->och_mod);
+			md_clear_open_replay_data(ll_i2sbi(parent)->ll_md_exp,
+						  och);
+			och->och_fh.cookie = DEAD_HANDLE_MAGIC;
+			kfree(och);
+			och = NULL;
+		}
 
-	ptlrpc_req_finished(request);
+		ptlrpc_req_finished(request);
+	}
 	/* Try again if the file layout has changed. */
-	if (rc == -EAGAIN && S_ISREG(child_inode->i_mode))
+	if (rc == -EAGAIN && S_ISREG(child_inode->i_mode)) {
+		request = NULL;
 		goto again;
+	}
 out_free:
 	if (child_inode) {
 		if (och) /* close the file */
