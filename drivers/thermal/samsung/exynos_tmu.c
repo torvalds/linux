@@ -1168,7 +1168,6 @@ static int exynos_of_sensor_conf(struct device_node *np,
 	pdata->default_temp_offset = (u8)value;
 
 	of_property_read_u32(np, "samsung,tmu_cal_type", &pdata->cal_type);
-	of_property_read_u32(np, "samsung,tmu_cal_mode", &pdata->cal_mode);
 
 	of_node_put(np);
 	return 0;
