@@ -29,6 +29,8 @@ obj-$(CONFIG_GTP) += gtp.o
 obj-$(CONFIG_NLMON) += nlmon.o
 obj-$(CONFIG_NET_VRF) += vrf.o
 
+macvtap-objs := macvtap_main.o tap.o
+
 #
 # Networking Drivers
 #
