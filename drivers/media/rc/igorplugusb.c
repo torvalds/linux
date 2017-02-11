@@ -205,7 +205,7 @@ static int igorplugusb_probe(struct usb_interface *intf,
 	rc->allowed_protocols = RC_BIT_ALL_IR_DECODER & ~(RC_BIT_NEC |
 			RC_BIT_NECX | RC_BIT_NEC32 | RC_BIT_RC6_6A_20 |
 			RC_BIT_RC6_6A_24 | RC_BIT_RC6_6A_32 | RC_BIT_RC6_MCE |
-			RC_BIT_SONY20 | RC_BIT_MCE_KBD | RC_BIT_SANYO);
+			RC_BIT_SONY20 | RC_BIT_SANYO);
 
 	rc->priv = ir;
 	rc->driver_name = DRIVER_NAME;
