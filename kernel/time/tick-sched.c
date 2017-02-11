@@ -725,6 +725,11 @@ static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
 		 */
 		if (delta == 0) {
 			tick_nohz_restart(ts, now);
+			/*
+			 * Make sure next tick stop doesn't get fooled by past
+			 * clock deadline
+			 */
+			ts->next_tick = 0;
 			goto out;
 		}
 	}
