@@ -181,7 +181,8 @@ static void ccmp_init_blocks(struct crypto_tfm *tfm,
 	xor_block(auth, &aad[AES_BLOCK_LEN], AES_BLOCK_LEN);
 	ieee80211_ccmp_aes_encrypt(tfm, auth, auth);
 	b0[0] &= 0x07;
-	b0[14] = b0[15] = 0;
+	b0[14] = 0;
+	b0[15] = 0;
 	ieee80211_ccmp_aes_encrypt(tfm, b0, s0);
 }
 
