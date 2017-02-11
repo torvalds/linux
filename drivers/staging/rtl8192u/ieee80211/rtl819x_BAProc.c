@@ -496,7 +496,7 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 	// Check if related BA is waiting for setup.
 	// If not, reject by sending DELBA frame.
 	//
-	if((pAdmittedBA->bValid==true))
+	if (pAdmittedBA->bValid)
 	{
 		// Since BA is already setup, we ignore all other ADDBA Response.
 		IEEE80211_DEBUG(IEEE80211_DL_BA, "OnADDBARsp(): Recv ADDBA Rsp. Drop because already admit it! \n");
@@ -650,7 +650,7 @@ TsInitAddBA(
 {
 	PBA_RECORD			pBA = &pTS->TxPendingBARecord;
 
-	if(pBA->bValid==true && bOverwritePending==false)
+	if (pBA->bValid && !bOverwritePending)
 		return;
 
 	// Set parameters to "Pending" variable set
