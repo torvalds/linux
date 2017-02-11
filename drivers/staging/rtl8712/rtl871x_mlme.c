@@ -1650,10 +1650,9 @@ void r8712_update_registrypriv_dev_network(struct _adapter *adapter)
 		/* TODO */
 		break;
 	}
-	pdev_network->Configuration.DSConfig = cpu_to_le32(
-					       pregistrypriv->channel);
+	pdev_network->Configuration.DSConfig = pregistrypriv->channel;
 	if (cur_network->network.InfrastructureMode == Ndis802_11IBSS)
-		pdev_network->Configuration.ATIMWindow = cpu_to_le32(3);
+		pdev_network->Configuration.ATIMWindow = 3;
 	pdev_network->InfrastructureMode = cur_network->network.InfrastructureMode;
 	/* 1. Supported rates
 	 * 2. IE
@@ -1709,12 +1708,12 @@ unsigned int r8712_restructure_ht_ie(struct _adapter *padapter, u8 *in_ie,
 		}
 		out_len = *pout_len;
 		memset(&ht_capie, 0, sizeof(struct ieee80211_ht_cap));
-		ht_capie.cap_info = IEEE80211_HT_CAP_SUP_WIDTH |
+		ht_capie.cap_info = cpu_to_le16(IEEE80211_HT_CAP_SUP_WIDTH |
 				    IEEE80211_HT_CAP_SGI_20 |
 				    IEEE80211_HT_CAP_SGI_40 |
 				    IEEE80211_HT_CAP_TX_STBC |
 				    IEEE80211_HT_CAP_MAX_AMSDU |
-				    IEEE80211_HT_CAP_DSSSCCK40;
+				    IEEE80211_HT_CAP_DSSSCCK40);
 		ht_capie.ampdu_params_info = (IEEE80211_HT_CAP_AMPDU_FACTOR &
 				0x03) | (IEEE80211_HT_CAP_AMPDU_DENSITY & 0x00);
 		r8712_set_ie(out_ie + out_len, _HT_CAPABILITY_IE_,
