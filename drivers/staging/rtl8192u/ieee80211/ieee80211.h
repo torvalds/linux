@@ -2256,7 +2256,6 @@ void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee);
 
 /* ieee80211_crypt_ccmp&tkip&wep.c */
 void ieee80211_tkip_null(void);
-void ieee80211_ccmp_null(void);
 
 int ieee80211_crypto_init(void);
 void ieee80211_crypto_deinit(void);
