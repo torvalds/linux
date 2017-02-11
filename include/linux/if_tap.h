@@ -1,7 +1,7 @@
 #ifndef _LINUX_IF_TAP_H_
 #define _LINUX_IF_TAP_H_
 
-#if IS_ENABLED(CONFIG_MACVTAP)
+#if IS_ENABLED(CONFIG_TAP)
 struct socket *tap_get_socket(struct file *);
 #else
 #include <linux/err.h>
@@ -12,7 +12,7 @@ static inline struct socket *tap_get_socket(struct file *f)
 {
 	return ERR_PTR(-EINVAL);
 }
-#endif /* CONFIG_MACVTAP */
+#endif /* CONFIG_TAP */
 
 #include <net/sock.h>
 #include <linux/skb_array.h>

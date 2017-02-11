@@ -312,6 +312,7 @@ void tap_del_queues(struct tap_dev *tap)
 	/* guarantee that any future tap_set_queue will fail */
 	tap->numvtaps = MAX_TAP_QUEUES;
 }
+EXPORT_SYMBOL_GPL(tap_del_queues);
 
 rx_handler_result_t tap_handle_frame(struct sk_buff **pskb)
 {
@@ -389,6 +390,7 @@ drop:
 	kfree_skb(skb);
 	return RX_HANDLER_CONSUMED;
 }
+EXPORT_SYMBOL_GPL(tap_handle_frame);
 
 static struct major_info *tap_get_major(int major)
 {
@@ -428,6 +430,7 @@ unlock:
 	rcu_read_unlock();
 	return retval < 0 ? retval : 0;
 }
+EXPORT_SYMBOL_GPL(tap_get_minor);
 
 void tap_free_minor(dev_t major, struct tap_dev *tap)
 {
@@ -449,6 +452,7 @@ void tap_free_minor(dev_t major, struct tap_dev *tap)
 unlock:
 	rcu_read_unlock();
 }
+EXPORT_SYMBOL_GPL(tap_free_minor);
 
 static struct tap_dev *dev_get_by_tap_file(int major, int minor)
 {
@@ -1210,6 +1214,7 @@ int tap_queue_resize(struct tap_dev *tap)
 	kfree(arrays);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(tap_queue_resize);
 
 static int tap_list_add(dev_t major, const char *device_name)
 {
@@ -1257,6 +1262,7 @@ out2:
 out1:
 	return err;
 }
+EXPORT_SYMBOL_GPL(tap_create_cdev);
 
 void tap_destroy_cdev(dev_t major, struct cdev *tap_cdev)
 {
@@ -1272,3 +1278,8 @@ void tap_destroy_cdev(dev_t major, struct cdev *tap_cdev)
 		}
 	}
 }
+EXPORT_SYMBOL_GPL(tap_destroy_cdev);
+
+MODULE_AUTHOR("Arnd Bergmann <arnd@arndb.de>");
+MODULE_AUTHOR("Sainath Grandhi <sainath.grandhi@intel.com>");
+MODULE_LICENSE("GPL");
