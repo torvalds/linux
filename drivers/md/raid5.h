@@ -663,6 +663,8 @@ struct r5conf {
 	struct list_head	r5c_full_stripe_list;
 	atomic_t		r5c_cached_partial_stripes;
 	struct list_head	r5c_partial_stripe_list;
+	atomic_t		r5c_flushing_full_stripes;
+	atomic_t		r5c_flushing_partial_stripes;
 
 	atomic_t		empty_inactive_list_nr;
 	struct llist_head	released_stripes;

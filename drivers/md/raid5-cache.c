@@ -1327,6 +1327,10 @@ static void r5c_flush_stripe(struct r5conf *conf, struct stripe_head *sh)
 	atomic_inc(&conf->active_stripes);
 	r5c_make_stripe_write_out(sh);
 
+	if (test_bit(STRIPE_R5C_PARTIAL_STRIPE, &sh->state))
+		atomic_inc(&conf->r5c_flushing_partial_stripes);
+	else
+		atomic_inc(&conf->r5c_flushing_full_stripes);
 	raid5_release_stripe(sh);
 }
 
@@ -1369,12 +1373,16 @@ static void r5c_do_reclaim(struct r5conf *conf)
 	unsigned long flags;
 	int total_cached;
 	int stripes_to_flush;
+	int flushing_partial, flushing_full;
 
 	if (!r5c_is_writeback(log))
 		return;
 
+	flushing_partial = atomic_read(&conf->r5c_flushing_partial_stripes);
+	flushing_full = atomic_read(&conf->r5c_flushing_full_stripes);
 	total_cached = atomic_read(&conf->r5c_cached_partial_stripes) +
-		atomic_read(&conf->r5c_cached_full_stripes);
+		atomic_read(&conf->r5c_cached_full_stripes) -
+		flushing_full - flushing_partial;
 
 	if (total_cached > conf->min_nr_stripes * 3 / 4 ||
 	    atomic_read(&conf->empty_inactive_list_nr) > 0)
@@ -1384,7 +1392,7 @@ static void r5c_do_reclaim(struct r5conf *conf)
 		 */
 		stripes_to_flush = R5C_RECLAIM_STRIPE_GROUP;
 	else if (total_cached > conf->min_nr_stripes * 1 / 2 ||
-		 atomic_read(&conf->r5c_cached_full_stripes) >
+		 atomic_read(&conf->r5c_cached_full_stripes) - flushing_full >
 		 R5C_FULL_STRIPE_FLUSH_BATCH)
 		/*
 		 * if stripe cache pressure moderate, or if there is many full
@@ -2601,11 +2609,13 @@ void r5c_finish_stripe_write_out(struct r5conf *conf,
 
 	if (test_and_clear_bit(STRIPE_R5C_PARTIAL_STRIPE, &sh->state)) {
 		BUG_ON(atomic_read(&conf->r5c_cached_partial_stripes) == 0);
+		atomic_dec(&conf->r5c_flushing_partial_stripes);
 		atomic_dec(&conf->r5c_cached_partial_stripes);
 	}
 
 	if (test_and_clear_bit(STRIPE_R5C_FULL_STRIPE, &sh->state)) {
 		BUG_ON(atomic_read(&conf->r5c_cached_full_stripes) == 0);
+		atomic_dec(&conf->r5c_flushing_full_stripes);
 		atomic_dec(&conf->r5c_cached_full_stripes);
 	}
 }

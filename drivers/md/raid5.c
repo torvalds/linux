@@ -6838,6 +6838,8 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 	INIT_LIST_HEAD(&conf->r5c_full_stripe_list);
 	atomic_set(&conf->r5c_cached_partial_stripes, 0);
 	INIT_LIST_HEAD(&conf->r5c_partial_stripe_list);
+	atomic_set(&conf->r5c_flushing_full_stripes, 0);
+	atomic_set(&conf->r5c_flushing_partial_stripes, 0);
 
 	conf->level = mddev->new_level;
 	conf->chunk_sectors = mddev->new_chunk_sectors;
