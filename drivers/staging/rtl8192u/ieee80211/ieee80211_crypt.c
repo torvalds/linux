@@ -80,7 +80,7 @@ void ieee80211_crypt_delayed_deinit(struct ieee80211_device *ieee,
 	struct ieee80211_crypt_data *tmp;
 	unsigned long flags;
 
-	if (*crypt == NULL)
+	if (!(*crypt))
 		return;
 
 	tmp = *crypt;
@@ -105,11 +105,11 @@ int ieee80211_register_crypto_ops(struct ieee80211_crypto_ops *ops)
 	unsigned long flags;
 	struct ieee80211_crypto_alg *alg;
 
-	if (hcrypt == NULL)
+	if (!hcrypt)
 		return -1;
 
 	alg = kzalloc(sizeof(*alg), GFP_KERNEL);
-	if (alg == NULL)
+	if (!alg)
 		return -ENOMEM;
 
 	alg->ops = ops;
@@ -130,7 +130,7 @@ int ieee80211_unregister_crypto_ops(struct ieee80211_crypto_ops *ops)
 	struct list_head *ptr;
 	struct ieee80211_crypto_alg *del_alg = NULL;
 
-	if (hcrypt == NULL)
+	if (!hcrypt)
 		return -1;
 
 	spin_lock_irqsave(&hcrypt->lock, flags);
@@ -161,7 +161,7 @@ struct ieee80211_crypto_ops *ieee80211_get_crypto_ops(const char *name)
 	struct list_head *ptr;
 	struct ieee80211_crypto_alg *found_alg = NULL;
 
-	if (hcrypt == NULL)
+	if (!hcrypt)
 		return NULL;
 
 	spin_lock_irqsave(&hcrypt->lock, flags);
@@ -223,7 +223,7 @@ void __exit ieee80211_crypto_deinit(void)
 {
 	struct list_head *ptr, *n;
 
-	if (hcrypt == NULL)
+	if (!hcrypt)
 		return;
 
 	for (ptr = hcrypt->algs.next, n = ptr->next; ptr != &hcrypt->algs;
