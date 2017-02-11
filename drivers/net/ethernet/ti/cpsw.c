@@ -1604,7 +1604,7 @@ static netdev_tx_t cpsw_ndo_start_xmit(struct sk_buff *skb,
 	if (skb_padto(skb, CPSW_MIN_PACKET_SIZE)) {
 		cpsw_err(priv, tx_err, "packet pad failed\n");
 		ndev->stats.tx_dropped++;
-		return NETDEV_TX_OK;
+		return NET_XMIT_DROP;
 	}
 
 	if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP &&
