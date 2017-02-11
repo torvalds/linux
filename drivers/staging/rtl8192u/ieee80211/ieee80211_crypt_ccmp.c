@@ -380,10 +380,11 @@ static int ieee80211_ccmp_set_key(void *key, int len, u8 *seq, void *priv)
 			data->rx_pn[5] = seq[0];
 		}
 		crypto_cipher_setkey((void *)data->tfm, data->key, CCMP_TK_LEN);
-	} else if (len == 0)
+	} else if (len == 0) {
 		data->key_set = 0;
-	else
+	} else {
 		return -1;
+	}
 
 	return 0;
 }
