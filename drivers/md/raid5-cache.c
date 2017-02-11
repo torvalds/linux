@@ -1418,9 +1418,9 @@ static void r5c_do_reclaim(struct r5conf *conf)
 			    !test_bit(STRIPE_HANDLE, &sh->state) &&
 			    atomic_read(&sh->count) == 0) {
 				r5c_flush_stripe(conf, sh);
+				if (count++ >= R5C_RECLAIM_STRIPE_GROUP)
+					break;
 			}
-			if (count++ >= R5C_RECLAIM_STRIPE_GROUP)
-				break;
 		}
 		spin_unlock(&conf->device_lock);
 		spin_unlock_irqrestore(&log->stripe_in_journal_lock, flags);
