@@ -52,6 +52,7 @@ void cgroup_bpf_inherit(struct cgroup *cgrp, struct cgroup *parent)
 		e = rcu_dereference_protected(parent->bpf.effective[type],
 					      lockdep_is_held(&cgroup_mutex));
 		rcu_assign_pointer(cgrp->bpf.effective[type], e);
+		cgrp->bpf.disallow_override[type] = parent->bpf.disallow_override[type];
 	}
 }
 
@@ -82,30 +83,63 @@ void cgroup_bpf_inherit(struct cgroup *cgrp, struct cgroup *parent)
  *
  * Must be called with cgroup_mutex held.
  */
-void __cgroup_bpf_update(struct cgroup *cgrp,
-			 struct cgroup *parent,
-			 struct bpf_prog *prog,
-			 enum bpf_attach_type type)
+int __cgroup_bpf_update(struct cgroup *cgrp, struct cgroup *parent,
+			struct bpf_prog *prog, enum bpf_attach_type type,
+			bool new_overridable)
 {
-	struct bpf_prog *old_prog, *effective;
+	struct bpf_prog *old_prog, *effective = NULL;
 	struct cgroup_subsys_state *pos;
+	bool overridable = true;
 
-	old_prog = xchg(cgrp->bpf.prog + type, prog);
+	if (parent) {
+		overridable = !parent->bpf.disallow_override[type];
+		effective = rcu_dereference_protected(parent->bpf.effective[type],
+						      lockdep_is_held(&cgroup_mutex));
+	}
 
-	effective = (!prog && parent) ?
-		rcu_dereference_protected(parent->bpf.effective[type],
-					  lockdep_is_held(&cgroup_mutex)) :
-		prog;
+	if (prog && effective && !overridable)
+		/* if parent has non-overridable prog attached, disallow
+		 * attaching new programs to descendent cgroup
+		 */
+		return -EPERM;
+
+	if (prog && effective && overridable != new_overridable)
+		/* if parent has overridable prog attached, only
+		 * allow overridable programs in descendent cgroup
+		 */
+		return -EPERM;
+
+	old_prog = cgrp->bpf.prog[type];
+
+	if (prog) {
+		overridable = new_overridable;
+		effective = prog;
+		if (old_prog &&
+		    cgrp->bpf.disallow_override[type] == new_overridable)
+			/* disallow attaching non-overridable on top
+			 * of existing overridable in this cgroup
+			 * and vice versa
+			 */
+			return -EPERM;
+	}
+
+	if (!prog && !old_prog)
+		/* report error when trying to detach and nothing is attached */
+		return -ENOENT;
+
+	cgrp->bpf.prog[type] = prog;
 
 	css_for_each_descendant_pre(pos, &cgrp->self) {
 		struct cgroup *desc = container_of(pos, struct cgroup, self);
 
 		/* skip the subtree if the descendant has its own program */
-		if (desc->bpf.prog[type] && desc != cgrp)
+		if (desc->bpf.prog[type] && desc != cgrp) {
 			pos = css_rightmost_descendant(pos);
-		else
+		} else {
 			rcu_assign_pointer(desc->bpf.effective[type],
 					   effective);
+			desc->bpf.disallow_override[type] = !overridable;
+		}
 	}
 
 	if (prog)
@@ -115,6 +149,7 @@ void __cgroup_bpf_update(struct cgroup *cgrp,
 		bpf_prog_put(old_prog);
 		static_branch_dec(&cgroup_bpf_enabled_key);
 	}
+	return 0;
 }
 
 /**
