@@ -136,7 +136,7 @@ int ieee80211_unregister_crypto_ops(struct ieee80211_crypto_ops *ops)
 	spin_lock_irqsave(&hcrypt->lock, flags);
 	for (ptr = hcrypt->algs.next; ptr != &hcrypt->algs; ptr = ptr->next) {
 		struct ieee80211_crypto_alg *alg =
-			(struct ieee80211_crypto_alg *) ptr;
+			(struct ieee80211_crypto_alg *)ptr;
 		if (alg->ops == ops) {
 			list_del(&alg->list);
 			del_alg = alg;
@@ -167,7 +167,7 @@ struct ieee80211_crypto_ops *ieee80211_get_crypto_ops(const char *name)
 	spin_lock_irqsave(&hcrypt->lock, flags);
 	for (ptr = hcrypt->algs.next; ptr != &hcrypt->algs; ptr = ptr->next) {
 		struct ieee80211_crypto_alg *alg =
-			(struct ieee80211_crypto_alg *) ptr;
+			(struct ieee80211_crypto_alg *)ptr;
 		if (strcmp(alg->ops->name, name) == 0) {
 			found_alg = alg;
 			break;
@@ -229,7 +229,7 @@ void __exit ieee80211_crypto_deinit(void)
 	for (ptr = hcrypt->algs.next, n = ptr->next; ptr != &hcrypt->algs;
 	     ptr = n, n = ptr->next) {
 		struct ieee80211_crypto_alg *alg =
-			(struct ieee80211_crypto_alg *) ptr;
+			(struct ieee80211_crypto_alg *)ptr;
 		list_del(ptr);
 		pr_debug("ieee80211_crypt: unregistered algorithm '%s' (deinit)\n",
 				alg->ops->name);
