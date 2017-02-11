@@ -109,7 +109,8 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	/* Fluhrer, Mantin, and Shamir have reported weaknesses in the key
 	 * scheduling algorithm of RC4. At least IVs (KeyByte + 3, 0xff, N)
-	 * can be used to speedup attacks, so avoid using them. */
+	 * can be used to speedup attacks, so avoid using them.
+	 */
 	if ((wep->iv & 0xff00) == 0xff00) {
 		u8 B = (wep->iv >> 16) & 0xff;
 
