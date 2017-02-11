@@ -143,8 +143,9 @@ unsigned int has_misc_feature_control;
 int backwards_count;
 char *progname;
 
-cpu_set_t *cpu_present_set, *cpu_affinity_set;
-size_t cpu_present_setsize, cpu_affinity_setsize;
+#define CPU_SUBSET_MAXCPUS	1024	/* need to use before probe... */
+cpu_set_t *cpu_present_set, *cpu_affinity_set, *cpu_subset;
+size_t cpu_present_setsize, cpu_affinity_setsize, cpu_subset_size;
 #define MAX_ADDED_COUNTERS 16
 
 struct thread_data {
@@ -698,6 +699,11 @@ int format_counters(struct thread_data *t, struct core_data *c,
 
 	 /* if showing only 1st thread in pkg and this isn't one, bail out */
 	if (show_pkg_only && !(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
+		return 0;
+
+	/*if not summary line and --cpu is used */
+	if ((t != &average.threads) &&
+		(cpu_subset && !CPU_ISSET_S(t->cpu_id, cpu_subset_size, cpu_subset)))
 		return 0;
 
 	interval_float = tv_delta.tv_sec + tv_delta.tv_usec/1000000.0;
@@ -4096,6 +4102,7 @@ void help()
 	"to print statistics, until interrupted.\n"
 	"--add		add a counter\n"
 	"		eg. --add msr0x10,u64,cpu,delta,MY_TSC\n"
+	"--cpu	cpu-set	limit output to summary plus cpu-set cpu-set\n"
 	"--quiet	skip decoding system configuration header\n"
 	"--interval sec	Override default 5-second measurement interval\n"
 	"--help		print this help message\n"
@@ -4157,6 +4164,15 @@ void topology_probe()
 	cpu_present_setsize = CPU_ALLOC_SIZE((topo.max_cpu_num + 1));
 	CPU_ZERO_S(cpu_present_setsize, cpu_present_set);
 	for_all_proc_cpus(mark_cpu_present);
+
+	/*
+	 * Validate that all cpus in cpu_subset are also in cpu_present_set
+	 */
+	for (i = 0; i < CPU_SUBSET_MAXCPUS; ++i) {
+		if (CPU_ISSET_S(i, cpu_subset_size, cpu_subset))
+			if (!CPU_ISSET_S(i, cpu_present_setsize, cpu_present_set))
+				err(1, "cpu%d not present", i);
+	}
 
 	/*
 	 * Allocate and initialize cpu_affinity_set
@@ -4675,6 +4691,77 @@ void probe_sysfs(void)
 
 }
 
+
+/*
+ * parse cpuset with following syntax
+ * 1,2,4..6,8-10 and set bits in cpu_subset
+ */
+void parse_cpu_command(char *optarg)
+{
+	unsigned int start, end;
+	char *next;
+
+	cpu_subset = CPU_ALLOC(CPU_SUBSET_MAXCPUS);
+	if (cpu_subset == NULL)
+		err(3, "CPU_ALLOC");
+	cpu_subset_size = CPU_ALLOC_SIZE(CPU_SUBSET_MAXCPUS);
+
+	CPU_ZERO_S(cpu_subset_size, cpu_subset);
+
+	next = optarg;
+
+	while (next && *next) {
+
+		if (*next == '-')	/* no negative cpu numbers */
+			goto error;
+
+		start = strtoul(next, &next, 10);
+
+		if (start >= CPU_SUBSET_MAXCPUS)
+			goto error;
+		CPU_SET_S(start, cpu_subset_size, cpu_subset);
+
+		if (*next == '\0')
+			break;
+
+		if (*next == ',') {
+			next += 1;
+			continue;
+		}
+
+		if (*next == '-') {
+			next += 1;	/* start range */
+		} else if (*next == '.') {
+			next += 1;
+			if (*next == '.')
+				next += 1;	/* start range */
+			else
+				goto error;
+		}
+
+		end = strtoul(next, &next, 10);
+		if (end <= start)
+			goto error;
+
+		while (++start <= end) {
+			if (start >= CPU_SUBSET_MAXCPUS)
+				goto error;
+			CPU_SET_S(start, cpu_subset_size, cpu_subset);
+		}
+
+		if (*next == ',')
+			next += 1;
+		else if (*next != '\0')
+			goto error;
+	}
+
+	return;
+
+error:
+	fprintf(stderr, "'--cpu %s' malformed\n", optarg);
+	exit(-1);
+}
+
 /*
  * HIDE_LIST - hide this list of counters, show the rest [default]
  * SHOW_LIST - show this list of counters, hide the rest
@@ -4716,6 +4803,7 @@ void cmdline(int argc, char **argv)
 	int option_index = 0;
 	static struct option long_options[] = {
 		{"add",		required_argument,	0, 'a'},
+		{"cpu",		required_argument,	0, 'c'},
 		{"Dump",	no_argument,		0, 'D'},
 		{"debug",	no_argument,		0, 'd'},	/* internal, not documented */
 		{"interval",	required_argument,	0, 'i'},
@@ -4740,6 +4828,9 @@ void cmdline(int argc, char **argv)
 		switch (opt) {
 		case 'a':
 			parse_add_command(optarg);
+			break;
+		case 'c':
+			parse_cpu_command(optarg);
 			break;
 		case 'D':
 			dump_only++;
