@@ -29,6 +29,7 @@
 #include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
 #include <linux/dma-mapping.h>
+#include <linux/delay.h>
 #include <asm/cacheflush.h>
 #include <sound/core.h>
 #include <sound/asoundef.h>
@@ -976,8 +977,6 @@ static void had_process_buffer_done(struct snd_intelhad *intelhaddata)
 	had_substream_put(intelhaddata);
 }
 
-#define MAX_CNT			0xFF
-
 /*
  * The interrupt status 'sticky' bits might not be cleared by
  * setting '1' to that bit once...
@@ -987,14 +986,31 @@ static void wait_clear_underrun_bit(struct snd_intelhad *intelhaddata)
 	int i;
 	u32 val;
 
-	for (i = 0; i < MAX_CNT; i++) {
+	for (i = 0; i < 100; i++) {
 		/* clear bit30, 31 AUD_HDMI_STATUS */
 		had_read_register(intelhaddata, AUD_HDMI_STATUS, &val);
 		if (!(val & AUD_HDMI_STATUS_MASK_UNDERRUN))
 			return;
+		udelay(100);
+		cond_resched();
 		had_write_register(intelhaddata, AUD_HDMI_STATUS, val);
 	}
 	dev_err(intelhaddata->dev, "Unable to clear UNDERRUN bits\n");
+}
+
+/* Perform some reset procedure but only when need_reset is set;
+ * this is called from prepare or hw_free callbacks once after trigger STOP
+ * or underrun has been processed in order to settle down the h/w state.
+ */
+static void had_do_reset(struct snd_intelhad *intelhaddata)
+{
+	if (!intelhaddata->need_reset)
+		return;
+
+	/* Reset buffer pointers */
+	had_reset_audio(intelhaddata);
+	wait_clear_underrun_bit(intelhaddata);
+	intelhaddata->need_reset = false;
 }
 
 /* called from irq handler */
@@ -1002,23 +1018,13 @@ static void had_process_buffer_underrun(struct snd_intelhad *intelhaddata)
 {
 	struct snd_pcm_substream *substream;
 
-	/* Handle Underrun interrupt within Audio Unit */
-	had_write_register(intelhaddata, AUD_CONFIG, 0);
-	intelhaddata->aud_config.regval = 0;
-	/* Reset buffer pointers */
-	had_reset_audio(intelhaddata);
-
-	wait_clear_underrun_bit(intelhaddata);
-
-	if (!intelhaddata->connected)
-		return; /* disconnected? - bail out */
-
 	/* Report UNDERRUN error to above layers */
 	substream = had_substream_get(intelhaddata);
 	if (substream) {
 		snd_pcm_stop_xrun(substream);
 		had_substream_put(intelhaddata);
 	}
+	intelhaddata->need_reset = true;
 }
 
 /*
@@ -1134,8 +1140,12 @@ static int had_pcm_hw_params(struct snd_pcm_substream *substream,
  */
 static int had_pcm_hw_free(struct snd_pcm_substream *substream)
 {
+	struct snd_intelhad *intelhaddata;
 	unsigned long addr;
 	u32 pages;
+
+	intelhaddata = snd_pcm_substream_chip(substream);
+	had_do_reset(intelhaddata);
 
 	/* mark back the pages as cached/writeback region before the free */
 	if (substream->runtime->dma_area != NULL) {
@@ -1188,8 +1198,7 @@ static int had_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		spin_unlock(&intelhaddata->had_spinlock);
 		/* Disable Audio */
 		had_enable_audio(intelhaddata, false);
-		/* Reset buffer pointers */
-		had_reset_audio(intelhaddata);
+		intelhaddata->need_reset = true;
 		break;
 
 	default:
@@ -1226,6 +1235,8 @@ static int had_pcm_prepare(struct snd_pcm_substream *substream)
 		(int)snd_pcm_lib_buffer_bytes(substream));
 	dev_dbg(intelhaddata->dev, "rate=%d\n", runtime->rate);
 	dev_dbg(intelhaddata->dev, "channels=%d\n", runtime->channels);
+
+	had_do_reset(intelhaddata);
 
 	/* Get N value in KHz */
 	disp_samp_freq = intelhaddata->tmds_clock_speed;
