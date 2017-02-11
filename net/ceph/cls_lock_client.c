@@ -69,8 +69,8 @@ int ceph_cls_lock(struct ceph_osd_client *osdc,
 	dout("%s lock_name %s type %d cookie %s tag %s desc %s flags 0x%x\n",
 	     __func__, lock_name, type, cookie, tag, desc, flags);
 	ret = ceph_osdc_call(osdc, oid, oloc, "lock", "lock",
-			     CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK,
-			     lock_op_page, lock_op_buf_size, NULL, NULL);
+			     CEPH_OSD_FLAG_WRITE, lock_op_page,
+			     lock_op_buf_size, NULL, NULL);
 
 	dout("%s: status %d\n", __func__, ret);
 	__free_page(lock_op_page);
@@ -117,8 +117,8 @@ int ceph_cls_unlock(struct ceph_osd_client *osdc,
 
 	dout("%s lock_name %s cookie %s\n", __func__, lock_name, cookie);
 	ret = ceph_osdc_call(osdc, oid, oloc, "lock", "unlock",
-			     CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK,
-			     unlock_op_page, unlock_op_buf_size, NULL, NULL);
+			     CEPH_OSD_FLAG_WRITE, unlock_op_page,
+			     unlock_op_buf_size, NULL, NULL);
 
 	dout("%s: status %d\n", __func__, ret);
 	__free_page(unlock_op_page);
@@ -170,8 +170,8 @@ int ceph_cls_break_lock(struct ceph_osd_client *osdc,
 	dout("%s lock_name %s cookie %s locker %s%llu\n", __func__, lock_name,
 	     cookie, ENTITY_NAME(*locker));
 	ret = ceph_osdc_call(osdc, oid, oloc, "lock", "break_lock",
-			     CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK,
-			     break_op_page, break_op_buf_size, NULL, NULL);
+			     CEPH_OSD_FLAG_WRITE, break_op_page,
+			     break_op_buf_size, NULL, NULL);
 
 	dout("%s: status %d\n", __func__, ret);
 	__free_page(break_op_page);

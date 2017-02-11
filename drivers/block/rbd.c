@@ -1981,8 +1981,7 @@ static struct ceph_osd_request *rbd_osd_req_create(
 
 	return __rbd_osd_req_create(rbd_dev, snapc, num_ops,
 	    (op_type == OBJ_OP_WRITE || op_type == OBJ_OP_DISCARD) ?
-	    CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK : CEPH_OSD_FLAG_READ,
-	    obj_request);
+	    CEPH_OSD_FLAG_WRITE : CEPH_OSD_FLAG_READ, obj_request);
 }
 
 /*
@@ -2008,8 +2007,7 @@ rbd_osd_req_create_copyup(struct rbd_obj_request *obj_request)
 
 	return __rbd_osd_req_create(img_request->rbd_dev,
 				    img_request->snapc, num_osd_ops,
-				    CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK,
-				    obj_request);
+				    CEPH_OSD_FLAG_WRITE, obj_request);
 }
 
 static void rbd_osd_req_destroy(struct ceph_osd_request *osd_req)
