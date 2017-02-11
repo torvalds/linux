@@ -410,6 +410,7 @@ static int max30102_probe(struct i2c_client *client,
 	indio_dev->available_scan_masks = max30102_scan_masks;
 	indio_dev->modes = (INDIO_BUFFER_SOFTWARE | INDIO_DIRECT_MODE);
 	indio_dev->setup_ops = &max30102_buffer_setup_ops;
+	indio_dev->dev.parent = &client->dev;
 
 	data = iio_priv(indio_dev);
 	data->indio_dev = indio_dev;
