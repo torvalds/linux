@@ -1333,9 +1333,6 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 
 	vni = vxlan_vni(vxlan_hdr(skb)->vx_vni);
 
-	if ((vs->flags & VXLAN_F_COLLECT_METADATA) && !vni)
-		goto drop;
-
 	vxlan = vxlan_vs_find_vni(vs, vni);
 	if (!vxlan)
 		goto drop;
