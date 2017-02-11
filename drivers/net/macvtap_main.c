@@ -1,6 +1,6 @@
 #include <linux/etherdevice.h>
 #include <linux/if_macvlan.h>
-#include <linux/if_macvtap.h>
+#include <linux/if_tap.h>
 #include <linux/if_vlan.h>
 #include <linux/interrupt.h>
 #include <linux/nsproxy.h>
@@ -62,7 +62,7 @@ static int macvtap_newlink(struct net *src_net,
 	 */
 	vlan->tap_features = TUN_OFFLOADS;
 
-	err = netdev_rx_handler_register(dev, macvtap_handle_frame, vlan);
+	err = netdev_rx_handler_register(dev, tap_handle_frame, vlan);
 	if (err)
 		return err;
 
@@ -82,7 +82,7 @@ static void macvtap_dellink(struct net_device *dev,
 			    struct list_head *head)
 {
 	netdev_rx_handler_unregister(dev);
-	macvtap_del_queues(dev);
+	tap_del_queues(dev);
 	macvlan_dellink(dev, head);
 }
 
@@ -121,7 +121,7 @@ static int macvtap_device_event(struct notifier_block *unused,
 		 * been registered but before register_netdevice has
 		 * finished running.
 		 */
-		err = macvtap_get_minor(vlan);
+		err = tap_get_minor(vlan);
 		if (err)
 			return notifier_from_errno(err);
 
@@ -129,7 +129,7 @@ static int macvtap_device_event(struct notifier_block *unused,
 		classdev = device_create(&macvtap_class, &dev->dev, devt,
 					 dev, tap_name);
 		if (IS_ERR(classdev)) {
-			macvtap_free_minor(vlan);
+			tap_free_minor(vlan);
 			return notifier_from_errno(PTR_ERR(classdev));
 		}
 		err = sysfs_create_link(&dev->dev.kobj, &classdev->kobj,
@@ -144,10 +144,10 @@ static int macvtap_device_event(struct notifier_block *unused,
 		sysfs_remove_link(&dev->dev.kobj, tap_name);
 		devt = MKDEV(MAJOR(macvtap_major), vlan->minor);
 		device_destroy(&macvtap_class, devt);
-		macvtap_free_minor(vlan);
+		tap_free_minor(vlan);
 		break;
 	case NETDEV_CHANGE_TX_QUEUE_LEN:
-		if (macvtap_queue_resize(vlan))
+		if (tap_queue_resize(vlan))
 			return NOTIFY_BAD;
 		break;
 	}
@@ -159,7 +159,7 @@ static struct notifier_block macvtap_notifier_block __read_mostly = {
 	.notifier_call	= macvtap_device_event,
 };
 
-extern struct file_operations macvtap_fops;
+extern struct file_operations tap_fops;
 static int macvtap_init(void)
 {
 	int err;
@@ -169,7 +169,7 @@ static int macvtap_init(void)
 	if (err)
 		goto out1;
 
-	cdev_init(&macvtap_cdev, &macvtap_fops);
+	cdev_init(&macvtap_cdev, &tap_fops);
 	err = cdev_add(&macvtap_cdev, macvtap_major, MACVTAP_NUM_DEVS);
 	if (err)
 		goto out2;
