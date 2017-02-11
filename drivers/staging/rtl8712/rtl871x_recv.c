@@ -654,8 +654,9 @@ sint r8712_wlanhdr_to_ethhdr(union recv_frame *precvframe)
 	memcpy(ptr, pattrib->dst, ETH_ALEN);
 	memcpy(ptr + ETH_ALEN, pattrib->src, ETH_ALEN);
 	if (!bsnaphdr) {
-		len = htons(len);
-		memcpy(ptr + 12, &len, 2);
+		__be16 be_tmp = htons(len);
+
+		memcpy(ptr + 12, &be_tmp, 2);
 	}
 	return _SUCCESS;
 }
