@@ -226,7 +226,7 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee
 	struct rtl_80211_hdr_3addr  *header=
 		(struct rtl_80211_hdr_3addr  *) skb->data;
 
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + 8);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + 8);
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
@@ -2147,7 +2147,7 @@ void ieee80211_softmac_xmit(struct ieee80211_txb *txb, struct ieee80211_device *
 	unsigned int queue_index = txb->queue_index;
 	unsigned long flags;
 	int  i;
-	cb_desc *tcb_desc = NULL;
+	struct cb_desc *tcb_desc = NULL;
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
@@ -2157,7 +2157,7 @@ void ieee80211_softmac_xmit(struct ieee80211_txb *txb, struct ieee80211_device *
 	/* update the tx status */
 	ieee->stats.tx_bytes += le16_to_cpu(txb->payload_size);
 	ieee->stats.tx_packets++;
-	tcb_desc = (cb_desc *)(txb->fragments[0]->cb + MAX_DEV_ADDR_SIZE);
+	tcb_desc = (struct cb_desc *)(txb->fragments[0]->cb + MAX_DEV_ADDR_SIZE);
 	if (tcb_desc->bMulticast) {
 		ieee->stats.multicast++;
 	}

@@ -192,7 +192,7 @@ static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	int data_len, i;
 	u8 *pos;
 	struct rtl_80211_hdr_4addr *hdr;
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 
 	if (skb_headroom(skb) < CCMP_HDR_LEN ||
 	    skb_tailroom(skb) < CCMP_MIC_LEN ||
@@ -263,7 +263,7 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	struct ieee80211_ccmp_data *key = priv;
 	u8 keyidx, *pos;
 	struct rtl_80211_hdr_4addr *hdr;
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	u8 pn[6];
 
 	if (skb->len < hdr_len + CCMP_HDR_LEN + CCMP_MIC_LEN) {

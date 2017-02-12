@@ -30,7 +30,7 @@ rt_status SendTxCommandPacket(struct net_device *dev, void *pData, u32 DataLen)
 {
 	struct r8192_priv   *priv = ieee80211_priv(dev);
 	struct sk_buff	    *skb;
-	cb_desc		    *tcb_desc;
+	struct cb_desc	    *tcb_desc;
 	unsigned char	    *ptr_buf;
 
 	/* Get TCB and local buffer from common pool.
@@ -39,7 +39,7 @@ rt_status SendTxCommandPacket(struct net_device *dev, void *pData, u32 DataLen)
 	if (!skb)
 		return RT_STATUS_FAILURE;
 	memcpy((unsigned char *)(skb->cb), &dev, sizeof(dev));
-	tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	tcb_desc->queue_index = TXCMD_QUEUE;
 	tcb_desc->bCmdOrInit = DESC_PACKET_TYPE_NORMAL;
 	tcb_desc->bLastIniPkt = 0;

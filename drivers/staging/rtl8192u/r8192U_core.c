@@ -1009,7 +1009,7 @@ static void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	int ret;
 	unsigned long flags;
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	u8 queue_index = tcb_desc->queue_index;
 
 	/* shall not be referred by command packet */
@@ -1035,7 +1035,7 @@ static int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	int ret;
 	unsigned long flags;
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	u8 queue_index = tcb_desc->queue_index;
 
 
@@ -1061,14 +1061,14 @@ static void rtl8192_tx_isr(struct urb *tx_urb)
 	struct sk_buff *skb = (struct sk_buff *)tx_urb->context;
 	struct net_device *dev;
 	struct r8192_priv *priv = NULL;
-	cb_desc *tcb_desc;
+	struct cb_desc *tcb_desc;
 	u8  queue_index;
 
 	if (!skb)
 		return;
 
 	dev = *(struct net_device **)(skb->cb);
-	tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	queue_index = tcb_desc->queue_index;
 
 	priv = ieee80211_priv(dev);
@@ -1285,7 +1285,7 @@ short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb)
 	struct urb		*tx_urb;
 	unsigned int		idx_pipe;
 	tx_desc_cmd_819x_usb *pdesc = (tx_desc_cmd_819x_usb *)skb->data;
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	u8 queue_index = tcb_desc->queue_index;
 
 	atomic_inc(&priv->tx_pending[queue_index]);
@@ -1477,7 +1477,7 @@ static u8 MRateToHwRate8190Pci(u8 rate)
 }
 
 
-static u8 QueryIsShort(u8 TxHT, u8 TxRate, cb_desc *tcb_desc)
+static u8 QueryIsShort(u8 TxHT, u8 TxRate, struct cb_desc *tcb_desc)
 {
 	u8   tmp_Short;
 
@@ -1503,7 +1503,7 @@ static void tx_zero_isr(struct urb *tx_urb)
 short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	tx_desc_819x_usb *tx_desc = (tx_desc_819x_usb *)skb->data;
 	tx_fwinfo_819x_usb *tx_fwinfo =
 		(tx_fwinfo_819x_usb *)(skb->data + USB_HWDESC_HEADER_LEN);

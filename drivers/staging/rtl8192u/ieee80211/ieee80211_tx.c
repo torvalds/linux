@@ -304,7 +304,7 @@ ieee80211_classify(struct sk_buff *skb, struct ieee80211_network *network)
 
 #define SN_LESS(a, b)		(((a-b)&0x800)!=0)
 static void ieee80211_tx_query_agg_cap(struct ieee80211_device *ieee,
-				       struct sk_buff *skb, cb_desc *tcb_desc)
+				       struct sk_buff *skb, struct cb_desc *tcb_desc)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 	PTX_TS_RECORD			pTxTs = NULL;
@@ -379,7 +379,7 @@ FORCED_AGG_SETTING:
 }
 
 static void ieee80211_qurey_ShortPreambleMode(struct ieee80211_device *ieee,
-					      cb_desc *tcb_desc)
+					      struct cb_desc *tcb_desc)
 {
 	tcb_desc->bUseShortPreamble = false;
 	if (tcb_desc->data_rate == 2)
@@ -393,7 +393,7 @@ static void ieee80211_qurey_ShortPreambleMode(struct ieee80211_device *ieee,
 	return;
 }
 static void
-ieee80211_query_HTCapShortGI(struct ieee80211_device *ieee, cb_desc *tcb_desc)
+ieee80211_query_HTCapShortGI(struct ieee80211_device *ieee, struct cb_desc *tcb_desc)
 {
 	PRT_HIGH_THROUGHPUT		pHTInfo = ieee->pHTInfo;
 
@@ -415,7 +415,7 @@ ieee80211_query_HTCapShortGI(struct ieee80211_device *ieee, cb_desc *tcb_desc)
 }
 
 static void ieee80211_query_BandwidthMode(struct ieee80211_device *ieee,
-					  cb_desc *tcb_desc)
+					  struct cb_desc *tcb_desc)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 
@@ -436,7 +436,7 @@ static void ieee80211_query_BandwidthMode(struct ieee80211_device *ieee,
 }
 
 static void ieee80211_query_protectionmode(struct ieee80211_device *ieee,
-					   cb_desc *tcb_desc,
+					   struct cb_desc *tcb_desc,
 					   struct sk_buff *skb)
 {
 	// Common Settings
@@ -548,7 +548,7 @@ NO_PROTECTION:
 
 
 static void ieee80211_txrate_selectmode(struct ieee80211_device *ieee,
-					cb_desc *tcb_desc)
+					struct cb_desc *tcb_desc)
 {
 #ifdef TO_DO_LIST
 	if(!IsDataFrame(pFrame))
@@ -615,7 +615,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	struct ieee80211_crypt_data *crypt;
 
-	cb_desc *tcb_desc;
+	struct cb_desc *tcb_desc;
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
@@ -766,7 +766,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		for (i = 0; i < nr_frags; i++) {
 			skb_frag = txb->fragments[i];
-			tcb_desc = (cb_desc *)(skb_frag->cb + MAX_DEV_ADDR_SIZE);
+			tcb_desc = (struct cb_desc *)(skb_frag->cb + MAX_DEV_ADDR_SIZE);
 			if(qos_actived){
 				skb_frag->priority = skb->priority;//UP2AC(skb->priority);
 				tcb_desc->queue_index =  UP2AC(skb->priority);
@@ -867,7 +867,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 //WB add to fill data tcb_desc here. only first fragment is considered, need to change, and you may remove to other place.
 	if (txb)
 	{
-		cb_desc *tcb_desc = (cb_desc *)(txb->fragments[0]->cb + MAX_DEV_ADDR_SIZE);
+		struct cb_desc *tcb_desc = (struct cb_desc *)(txb->fragments[0]->cb + MAX_DEV_ADDR_SIZE);
 		tcb_desc->bTxEnableFwCalcDur = 1;
 		if (is_multicast_ether_addr(header.addr1))
 			tcb_desc->bMulticast = 1;

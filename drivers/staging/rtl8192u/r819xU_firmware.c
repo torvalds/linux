@@ -42,7 +42,7 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 	rt_firmware	    *pfirmware = priv->pFirmware;
 	struct sk_buff	    *skb;
 	unsigned char	    *seg_ptr;
-	cb_desc		    *tcb_desc;
+	struct cb_desc		    *tcb_desc;
 	u8                  bLastIniPkt;
 	u8		    index;
 
@@ -67,7 +67,7 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 		if (!skb)
 			return false;
 		memcpy((unsigned char *)(skb->cb), &dev, sizeof(dev));
-		tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+		tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 		tcb_desc->queue_index = TXCMD_QUEUE;
 		tcb_desc->bCmdOrInit = DESC_PACKET_TYPE_INIT;
 		tcb_desc->bLastIniPkt = bLastIniPkt;
