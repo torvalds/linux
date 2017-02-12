@@ -72,7 +72,8 @@ static void rpf_configure(struct vsp1_entity *entity,
 	}
 
 	if (params == VSP1_ENTITY_PARAMS_PARTITION) {
-		unsigned int offsets[2];
+		struct vsp1_device *vsp1 = rpf->entity.vsp1;
+		struct vsp1_rwpf_memory mem = rpf->mem;
 		struct v4l2_rect crop;
 
 		/*
@@ -120,22 +121,30 @@ static void rpf_configure(struct vsp1_entity *entity,
 			       (crop.width << VI6_RPF_SRC_ESIZE_EHSIZE_SHIFT) |
 			       (crop.height << VI6_RPF_SRC_ESIZE_EVSIZE_SHIFT));
 
-		offsets[0] = crop.top * format->plane_fmt[0].bytesperline
-			   + crop.left * fmtinfo->bpp[0] / 8;
+		mem.addr[0] += crop.top * format->plane_fmt[0].bytesperline
+			     + crop.left * fmtinfo->bpp[0] / 8;
 
-		if (format->num_planes > 1)
-			offsets[1] = crop.top * format->plane_fmt[1].bytesperline
-				   + crop.left / fmtinfo->hsub
-				   * fmtinfo->bpp[1] / 8;
-		else
-			offsets[1] = 0;
+		if (format->num_planes > 1) {
+			unsigned int offset;
 
-		vsp1_rpf_write(rpf, dl, VI6_RPF_SRCM_ADDR_Y,
-			       rpf->mem.addr[0] + offsets[0]);
-		vsp1_rpf_write(rpf, dl, VI6_RPF_SRCM_ADDR_C0,
-			       rpf->mem.addr[1] + offsets[1]);
-		vsp1_rpf_write(rpf, dl, VI6_RPF_SRCM_ADDR_C1,
-			       rpf->mem.addr[2] + offsets[1]);
+			offset = crop.top * format->plane_fmt[1].bytesperline
+			       + crop.left / fmtinfo->hsub
+			       * fmtinfo->bpp[1] / 8;
+			mem.addr[1] += offset;
+			mem.addr[2] += offset;
+		}
+
+		/*
+		 * On Gen3 hardware the SPUVS bit has no effect on 3-planar
+		 * formats. Swap the U and V planes manually in that case.
+		 */
+		if (vsp1->info->gen == 3 && format->num_planes == 3 &&
+		    fmtinfo->swap_uv)
+			swap(mem.addr[1], mem.addr[2]);
+
+		vsp1_rpf_write(rpf, dl, VI6_RPF_SRCM_ADDR_Y, mem.addr[0]);
+		vsp1_rpf_write(rpf, dl, VI6_RPF_SRCM_ADDR_C0, mem.addr[1]);
+		vsp1_rpf_write(rpf, dl, VI6_RPF_SRCM_ADDR_C1, mem.addr[2]);
 		return;
 	}
 
