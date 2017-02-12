@@ -1709,6 +1709,8 @@ static void account_request(struct ceph_osd_request *req)
 
 	req->r_flags |= CEPH_OSD_FLAG_ONDISK;
 	atomic_inc(&req->r_osdc->num_requests);
+
+	req->r_start_stamp = jiffies;
 }
 
 static void submit_request(struct ceph_osd_request *req, bool wrlocked)
@@ -1787,6 +1789,14 @@ static void cancel_request(struct ceph_osd_request *req)
 	finish_request(req);
 	complete_all(&req->r_completion);
 	ceph_osdc_put_request(req);
+}
+
+static void abort_request(struct ceph_osd_request *req, int err)
+{
+	dout("%s req %p tid %llu err %d\n", __func__, req, req->r_tid, err);
+
+	cancel_map_check(req);
+	complete_request(req, err);
 }
 
 static void check_pool_dne(struct ceph_osd_request *req)
@@ -2487,6 +2497,7 @@ static void handle_timeout(struct work_struct *work)
 		container_of(work, struct ceph_osd_client, timeout_work.work);
 	struct ceph_options *opts = osdc->client->options;
 	unsigned long cutoff = jiffies - opts->osd_keepalive_timeout;
+	unsigned long expiry_cutoff = jiffies - opts->osd_request_timeout;
 	LIST_HEAD(slow_osds);
 	struct rb_node *n, *p;
 
@@ -2502,14 +2513,22 @@ static void handle_timeout(struct work_struct *work)
 		struct ceph_osd *osd = rb_entry(n, struct ceph_osd, o_node);
 		bool found = false;
 
-		for (p = rb_first(&osd->o_requests); p; p = rb_next(p)) {
+		for (p = rb_first(&osd->o_requests); p; ) {
 			struct ceph_osd_request *req =
 			    rb_entry(p, struct ceph_osd_request, r_node);
+
+			p = rb_next(p); /* abort_request() */
 
 			if (time_before(req->r_stamp, cutoff)) {
 				dout(" req %p tid %llu on osd%d is laggy\n",
 				     req, req->r_tid, osd->o_osd);
 				found = true;
+			}
+			if (opts->osd_request_timeout &&
+			    time_before(req->r_start_stamp, expiry_cutoff)) {
+				pr_err_ratelimited("tid %llu on osd%d timeout\n",
+				       req->r_tid, osd->o_osd);
+				abort_request(req, -ETIMEDOUT);
 			}
 		}
 		for (p = rb_first(&osd->o_linger_requests); p; p = rb_next(p)) {
@@ -2528,6 +2547,21 @@ static void handle_timeout(struct work_struct *work)
 
 		if (found)
 			list_move_tail(&osd->o_keepalive_item, &slow_osds);
+	}
+
+	if (opts->osd_request_timeout) {
+		for (p = rb_first(&osdc->homeless_osd.o_requests); p; ) {
+			struct ceph_osd_request *req =
+			    rb_entry(p, struct ceph_osd_request, r_node);
+
+			p = rb_next(p); /* abort_request() */
+
+			if (time_before(req->r_start_stamp, expiry_cutoff)) {
+				pr_err_ratelimited("tid %llu on osd%d timeout\n",
+				       req->r_tid, osdc->homeless_osd.o_osd);
+				abort_request(req, -ETIMEDOUT);
+			}
+		}
 	}
 
 	if (atomic_read(&osdc->num_homeless) || !list_empty(&slow_osds))
