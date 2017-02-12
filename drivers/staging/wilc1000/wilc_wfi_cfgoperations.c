@@ -2292,8 +2292,11 @@ struct wireless_dev *wilc_create_wiphy(struct net_device *net, struct device *de
 	wdev->wiphy->mgmt_stypes = wilc_wfi_cfg80211_mgmt_types;
 
 	wdev->wiphy->max_remain_on_channel_duration = 500;
-	wdev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_AP) | BIT(NL80211_IFTYPE_MONITOR) | BIT(NL80211_IFTYPE_P2P_GO) |
-		BIT(NL80211_IFTYPE_P2P_CLIENT);
+	wdev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
+					BIT(NL80211_IFTYPE_AP) |
+					BIT(NL80211_IFTYPE_MONITOR) |
+					BIT(NL80211_IFTYPE_P2P_GO) |
+					BIT(NL80211_IFTYPE_P2P_CLIENT);
 	wdev->wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 	wdev->iftype = NL80211_IFTYPE_STATION;
 
