@@ -393,9 +393,11 @@ void lpfc_host_attrib_init(struct Scsi_Host *);
 extern void lpfc_debugfs_initialize(struct lpfc_vport *);
 extern void lpfc_debugfs_terminate(struct lpfc_vport *);
 extern void lpfc_debugfs_disc_trc(struct lpfc_vport *, int, char *, uint32_t,
-	uint32_t, uint32_t);
+				  uint32_t, uint32_t);
 extern void lpfc_debugfs_slow_ring_trc(struct lpfc_hba *, char *, uint32_t,
-	uint32_t, uint32_t);
+				       uint32_t, uint32_t);
+extern void lpfc_debugfs_nvme_trc(struct lpfc_hba *phba, char *fmt,
+				uint16_t data1, uint16_t data2, uint32_t data3);
 extern struct lpfc_hbq_init *lpfc_hbq_defs[];
 
 /* SLI4 if_type 2 externs. */

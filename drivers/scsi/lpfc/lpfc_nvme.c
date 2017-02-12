@@ -50,6 +50,7 @@
 #include "lpfc_logmsg.h"
 #include "lpfc_crtn.h"
 #include "lpfc_vport.h"
+#include "lpfc_debugfs.h"
 
 /* NVME initiator-based functions */
 
@@ -222,6 +223,9 @@ lpfc_nvme_cmpl_gen_req(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 			 cmdwqe->sli4_xritag, status,
 			 cmdwqe, pnvme_lsreq, cmdwqe->context3, ndlp);
 
+	lpfc_nvmeio_data(phba, "NVME LS  CMPL: xri x%x stat x%x parm x%x\n",
+			 cmdwqe->sli4_xritag, status, wcqe->parameter);
+
 	if (cmdwqe->context3) {
 		buf_ptr = (struct lpfc_dmabuf *)cmdwqe->context3;
 		lpfc_mbuf_free(phba, buf_ptr->virt, buf_ptr->phys);
@@ -354,6 +358,9 @@ lpfc_nvme_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 	genwqe->drvrTimeout = tmo + LPFC_DRVR_TIMEOUT;
 	genwqe->vport = vport;
 	genwqe->retry = retry;
+
+	lpfc_nvmeio_data(phba, "NVME LS  XMIT: xri x%x iotag x%x to x%06x\n",
+			 genwqe->sli4_xritag, genwqe->iotag, ndlp->nlp_DID);
 
 	rc = lpfc_sli4_issue_wqe(phba, LPFC_ELS_RING, genwqe);
 	if (rc == WQE_ERROR) {
@@ -637,6 +644,79 @@ lpfc_nvme_adj_fcp_sgls(struct lpfc_vport *vport,
 	*wptr   = *dptr;	/* Word 23 */
 }
 
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+static void
+lpfc_nvme_ktime(struct lpfc_hba *phba,
+		struct lpfc_nvme_buf *lpfc_ncmd)
+{
+	uint64_t seg1, seg2, seg3, seg4;
+
+	if (!phba->ktime_on)
+		return;
+	if (!lpfc_ncmd->ts_last_cmd ||
+	    !lpfc_ncmd->ts_cmd_start ||
+	    !lpfc_ncmd->ts_cmd_wqput ||
+	    !lpfc_ncmd->ts_isr_cmpl ||
+	    !lpfc_ncmd->ts_data_nvme)
+		return;
+	if (lpfc_ncmd->ts_cmd_start < lpfc_ncmd->ts_last_cmd)
+		return;
+	if (lpfc_ncmd->ts_cmd_wqput < lpfc_ncmd->ts_cmd_start)
+		return;
+	if (lpfc_ncmd->ts_isr_cmpl < lpfc_ncmd->ts_cmd_wqput)
+		return;
+	if (lpfc_ncmd->ts_data_nvme < lpfc_ncmd->ts_isr_cmpl)
+		return;
+	/*
+	 * Segment 1 - Time from Last FCP command cmpl is handed
+	 * off to NVME Layer to start of next command.
+	 * Segment 2 - Time from Driver receives a IO cmd start
+	 * from NVME Layer to WQ put is done on IO cmd.
+	 * Segment 3 - Time from Driver WQ put is done on IO cmd
+	 * to MSI-X ISR for IO cmpl.
+	 * Segment 4 - Time from MSI-X ISR for IO cmpl to when
+	 * cmpl is handled off to the NVME Layer.
+	 */
+	seg1 = lpfc_ncmd->ts_cmd_start - lpfc_ncmd->ts_last_cmd;
+	if (seg1 > 5000000)  /* 5 ms - for sequential IOs */
+		return;
+
+	/* Calculate times relative to start of IO */
+	seg2 = (lpfc_ncmd->ts_cmd_wqput - lpfc_ncmd->ts_cmd_start);
+	seg3 = (lpfc_ncmd->ts_isr_cmpl -
+		lpfc_ncmd->ts_cmd_start) - seg2;
+	seg4 = (lpfc_ncmd->ts_data_nvme -
+		lpfc_ncmd->ts_cmd_start) - seg2 - seg3;
+	phba->ktime_data_samples++;
+	phba->ktime_seg1_total += seg1;
+	if (seg1 < phba->ktime_seg1_min)
+		phba->ktime_seg1_min = seg1;
+	else if (seg1 > phba->ktime_seg1_max)
+		phba->ktime_seg1_max = seg1;
+	phba->ktime_seg2_total += seg2;
+	if (seg2 < phba->ktime_seg2_min)
+		phba->ktime_seg2_min = seg2;
+	else if (seg2 > phba->ktime_seg2_max)
+		phba->ktime_seg2_max = seg2;
+	phba->ktime_seg3_total += seg3;
+	if (seg3 < phba->ktime_seg3_min)
+		phba->ktime_seg3_min = seg3;
+	else if (seg3 > phba->ktime_seg3_max)
+		phba->ktime_seg3_max = seg3;
+	phba->ktime_seg4_total += seg4;
+	if (seg4 < phba->ktime_seg4_min)
+		phba->ktime_seg4_min = seg4;
+	else if (seg4 > phba->ktime_seg4_max)
+		phba->ktime_seg4_max = seg4;
+
+	lpfc_ncmd->ts_last_cmd = 0;
+	lpfc_ncmd->ts_cmd_start = 0;
+	lpfc_ncmd->ts_cmd_wqput  = 0;
+	lpfc_ncmd->ts_isr_cmpl = 0;
+	lpfc_ncmd->ts_data_nvme = 0;
+}
+#endif
+
 /**
  * lpfc_nvme_io_cmd_wqe_cmpl - Complete an NVME-over-FCP IO
  * @lpfc_pnvme: Pointer to the driver's nvme instance data
@@ -680,6 +760,9 @@ lpfc_nvme_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 	nCmd = lpfc_ncmd->nvmeCmd;
 	rport = lpfc_ncmd->nrport;
 
+	lpfc_nvmeio_data(phba, "NVME FCP CMPL: xri x%x stat x%x parm x%x\n",
+			 lpfc_ncmd->cur_iocbq.sli4_xritag,
+			 bf_get(lpfc_wcqe_c_status, wcqe), wcqe->parameter);
 	/*
 	 * Catch race where our node has transitioned, but the
 	 * transport is still transitioning.
@@ -798,6 +881,23 @@ out_err:
 	 * no need for dma unprep because the nvme_transport
 	 * owns the dma address.
 	 */
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	if (phba->ktime_on) {
+		lpfc_ncmd->ts_isr_cmpl = pwqeIn->isr_timestamp;
+		lpfc_ncmd->ts_data_nvme = ktime_get_ns();
+		phba->ktime_last_cmd = lpfc_ncmd->ts_data_nvme;
+		lpfc_nvme_ktime(phba, lpfc_ncmd);
+	}
+	if (phba->cpucheck_on & LPFC_CHECK_NVME_IO) {
+		if (lpfc_ncmd->cpu != smp_processor_id())
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_IOERR,
+					 "6701 CPU Check cmpl: "
+					 "cpu %d expect %d\n",
+					 smp_processor_id(), lpfc_ncmd->cpu);
+		if (lpfc_ncmd->cpu < LPFC_CHECK_CPU_CNT)
+			phba->cpucheck_cmpl_io[lpfc_ncmd->cpu]++;
+	}
+#endif
 	nCmd->done(nCmd);
 
 	spin_lock_irqsave(&phba->hbalock, flags);
@@ -1103,11 +1203,18 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	struct lpfc_nvme_buf *lpfc_ncmd;
 	struct lpfc_nvme_rport *rport;
 	struct lpfc_nvme_qhandle *lpfc_queue_info;
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	uint64_t start = 0;
+#endif
 
 	lport = (struct lpfc_nvme_lport *)pnvme_lport->private;
 	vport = lport->vport;
 	phba = vport->phba;
 
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	if (phba->ktime_on)
+		start = ktime_get_ns();
+#endif
 	rport = (struct lpfc_nvme_rport *)pnvme_rport->private;
 	lpfc_queue_info = (struct lpfc_nvme_qhandle *)hw_queue_handle;
 
@@ -1161,6 +1268,12 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 		ret = -ENOMEM;
 		goto out_fail;
 	}
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	if (phba->ktime_on) {
+		lpfc_ncmd->ts_cmd_start = start;
+		lpfc_ncmd->ts_last_cmd = phba->ktime_last_cmd;
+	}
+#endif
 
 	/*
 	 * Store the data needed by the driver to issue, abort, and complete
@@ -1192,6 +1305,10 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	 */
 	lpfc_ncmd->cur_iocbq.hba_wqidx = lpfc_queue_info->index;
 
+	lpfc_nvmeio_data(phba, "NVME FCP XMIT: xri x%x idx %d to %06x\n",
+			 lpfc_ncmd->cur_iocbq.sli4_xritag,
+			 lpfc_queue_info->index, ndlp->nlp_DID);
+
 	ret = lpfc_sli4_issue_wqe(phba, LPFC_FCP_RING, &lpfc_ncmd->cur_iocbq);
 	if (ret) {
 		atomic_dec(&ndlp->cmd_pending);
@@ -1204,6 +1321,28 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 		goto out_free_nvme_buf;
 	}
 
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	if (phba->ktime_on)
+		lpfc_ncmd->ts_cmd_wqput = ktime_get_ns();
+
+	if (phba->cpucheck_on & LPFC_CHECK_NVME_IO) {
+		lpfc_ncmd->cpu = smp_processor_id();
+		if (lpfc_ncmd->cpu != lpfc_queue_info->index) {
+			/* Check for admin queue */
+			if (lpfc_queue_info->qidx) {
+				lpfc_printf_vlog(vport,
+						 KERN_ERR, LOG_NVME_IOERR,
+						"6702 CPU Check cmd: "
+						"cpu %d wq %d\n",
+						lpfc_ncmd->cpu,
+						lpfc_queue_info->index);
+			}
+			lpfc_ncmd->cpu = lpfc_queue_info->index;
+		}
+		if (lpfc_ncmd->cpu < LPFC_CHECK_CPU_CNT)
+			phba->cpucheck_xmt_io[lpfc_ncmd->cpu]++;
+	}
+#endif
 	return 0;
 
  out_free_nvme_buf:
@@ -1376,6 +1515,10 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 				 pnvme_fcreq);
 		return;
 	}
+
+	lpfc_nvmeio_data(phba, "NVME FCP ABORT: xri x%x idx %d to %06x\n",
+			 nvmereq_wqe->sli4_xritag,
+			 nvmereq_wqe->hba_wqidx, ndlp->nlp_DID);
 
 	/* Outstanding abort is in progress */
 	if (nvmereq_wqe->iocb_flag & LPFC_DRIVER_ABORTED) {

@@ -91,4 +91,11 @@ struct lpfc_nvme_buf {
 
 	wait_queue_head_t *waitq;
 	unsigned long start_time;
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	uint64_t ts_cmd_start;
+	uint64_t ts_last_cmd;
+	uint64_t ts_cmd_wqput;
+	uint64_t ts_isr_cmpl;
+	uint64_t ts_data_nvme;
+#endif
 };

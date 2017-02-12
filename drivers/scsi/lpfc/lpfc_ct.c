@@ -465,6 +465,10 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 		ndlp = lpfc_setup_disc_node(vport, Did);
 
 		if (ndlp && NLP_CHK_NODE_ACT(ndlp)) {
+			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+				"Parse GID_FTrsp: did:x%x flg:x%x x%x",
+				Did, ndlp->nlp_flag, vport->fc_flag);
+
 			/* By default, the driver expects to support FCP FC4 */
 			if (fc4_type == FC_TYPE_FCP)
 				ndlp->nlp_fc4_type |= NLP_FC4_FCP;
@@ -478,16 +482,24 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 					 ndlp->nlp_flag, ndlp->nlp_fc4_type,
 					 vport->fc_flag,
 					 vport->fc_rscn_id_cnt);
-		} else
+		} else {
+			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+				"Skip1 GID_FTrsp: did:x%x flg:x%x cnt:%d",
+				Did, vport->fc_flag, vport->fc_rscn_id_cnt);
+
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 					 "0239 Skip x%06x NameServer Rsp "
 					 "Data: x%x x%x\n", Did,
 					 vport->fc_flag,
 					 vport->fc_rscn_id_cnt);
-
+		}
 	} else {
 		if (!(vport->fc_flag & FC_RSCN_MODE) ||
 		    lpfc_rscn_payload_check(vport, Did)) {
+			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+				"Query GID_FTrsp: did:x%x flg:x%x cnt:%d",
+				Did, vport->fc_flag, vport->fc_rscn_id_cnt);
+
 			/*
 			 * This NPortID was previously a FCP target,
 			 * Don't even bother to send GFF_ID.
@@ -509,12 +521,17 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 				else
 					lpfc_setup_disc_node(vport, Did);
 			}
-		} else
+		} else {
+			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+				"Skip2 GID_FTrsp: did:x%x flg:x%x cnt:%d",
+				Did, vport->fc_flag, vport->fc_rscn_id_cnt);
+
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 					 "0245 Skip x%06x NameServer Rsp "
 					 "Data: x%x x%x\n", Did,
 					 vport->fc_flag,
 					 vport->fc_rscn_id_cnt);
+		}
 	}
 }
 
@@ -891,6 +908,10 @@ lpfc_cmpl_ct_cmd_gft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	did = ((struct lpfc_sli_ct_request *)inp->virt)->un.gft.PortId;
 	did = be32_to_cpu(did);
+
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+			      "GFT_ID cmpl: status:x%x/x%x did:x%x",
+			      irsp->ulpStatus, irsp->un.ulpWord[4], did);
 
 	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
 		/* Good status, continue checking */

@@ -50,6 +50,14 @@ enum {
 	DUMP_NVMELS,
 };
 
+/* nvmestat output buffer size */
+#define LPFC_NVMESTAT_SIZE 8192
+#define LPFC_NVMEKTIME_SIZE 8192
+#define LPFC_CPUCHECK_SIZE 8192
+#define LPFC_NVMEIO_TRC_SIZE 8192
+
+#define LPFC_DEBUG_OUT_LINE_SZ	80
+
 /*
  * For SLI4 iDiag debugfs diagnostics tool
  */
@@ -196,6 +204,12 @@ enum {
 #define SIZE_U16 sizeof(uint16_t)
 #define SIZE_U32 sizeof(uint32_t)
 
+#define lpfc_nvmeio_data(phba, fmt, arg...) \
+	{ \
+	if (phba->nvmeio_trc_on) \
+		lpfc_debugfs_nvme_trc(phba, fmt, ##arg); \
+	}
+
 struct lpfc_debug {
 	char *i_private;
 	char op;
@@ -212,6 +226,13 @@ struct lpfc_debugfs_trc {
 	uint32_t data3;
 	uint32_t seq_cnt;
 	unsigned long jif;
+};
+
+struct lpfc_debugfs_nvmeio_trc {
+	char *fmt;
+	uint16_t data1;
+	uint16_t data2;
+	uint32_t data3;
 };
 
 struct lpfc_idiag_offset {

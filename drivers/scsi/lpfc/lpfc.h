@@ -458,6 +458,9 @@ struct lpfc_vport {
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	struct dentry *debug_disc_trc;
 	struct dentry *debug_nodelist;
+	struct dentry *debug_nvmestat;
+	struct dentry *debug_nvmektime;
+	struct dentry *debug_cpucheck;
 	struct dentry *vport_debugfs_root;
 	struct lpfc_debugfs_trc *disc_trc;
 	atomic_t disc_trc_cnt;
@@ -984,6 +987,12 @@ struct lpfc_hba {
 	struct dentry *debug_readApp;    /* inject read app_tag errors */
 	struct dentry *debug_readRef;    /* inject read ref_tag errors */
 
+	struct dentry *debug_nvmeio_trc;
+	struct lpfc_debugfs_nvmeio_trc *nvmeio_trc;
+	atomic_t nvmeio_trc_cnt;
+	uint32_t nvmeio_trc_size;
+	uint32_t nvmeio_trc_output_idx;
+
 	/* T10 DIF error injection */
 	uint32_t lpfc_injerr_wgrd_cnt;
 	uint32_t lpfc_injerr_wapp_cnt;
@@ -1011,6 +1020,7 @@ struct lpfc_hba {
 	struct dentry *idiag_ext_acc;
 	uint8_t lpfc_idiag_last_eq;
 #endif
+	uint16_t nvmeio_trc_on;
 
 	/* Used for deferred freeing of ELS data buffers */
 	struct list_head elsbuf;
@@ -1083,6 +1093,51 @@ struct lpfc_hba {
 #define LPFC_TRANSGRESSION_LOW_RXPOWER		0x4000
 	uint16_t sfp_alarm;
 	uint16_t sfp_warning;
+
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#define LPFC_CHECK_CPU_CNT    32
+	uint32_t cpucheck_rcv_io[LPFC_CHECK_CPU_CNT];
+	uint32_t cpucheck_xmt_io[LPFC_CHECK_CPU_CNT];
+	uint32_t cpucheck_cmpl_io[LPFC_CHECK_CPU_CNT];
+	uint32_t cpucheck_ccmpl_io[LPFC_CHECK_CPU_CNT];
+	uint16_t cpucheck_on;
+#define LPFC_CHECK_OFF		0
+#define LPFC_CHECK_NVME_IO	1
+	uint16_t ktime_on;
+	uint64_t ktime_data_samples;
+	uint64_t ktime_status_samples;
+	uint64_t ktime_last_cmd;
+	uint64_t ktime_seg1_total;
+	uint64_t ktime_seg1_min;
+	uint64_t ktime_seg1_max;
+	uint64_t ktime_seg2_total;
+	uint64_t ktime_seg2_min;
+	uint64_t ktime_seg2_max;
+	uint64_t ktime_seg3_total;
+	uint64_t ktime_seg3_min;
+	uint64_t ktime_seg3_max;
+	uint64_t ktime_seg4_total;
+	uint64_t ktime_seg4_min;
+	uint64_t ktime_seg4_max;
+	uint64_t ktime_seg5_total;
+	uint64_t ktime_seg5_min;
+	uint64_t ktime_seg5_max;
+	uint64_t ktime_seg6_total;
+	uint64_t ktime_seg6_min;
+	uint64_t ktime_seg6_max;
+	uint64_t ktime_seg7_total;
+	uint64_t ktime_seg7_min;
+	uint64_t ktime_seg7_max;
+	uint64_t ktime_seg8_total;
+	uint64_t ktime_seg8_min;
+	uint64_t ktime_seg8_max;
+	uint64_t ktime_seg9_total;
+	uint64_t ktime_seg9_min;
+	uint64_t ktime_seg9_max;
+	uint64_t ktime_seg10_total;
+	uint64_t ktime_seg10_min;
+	uint64_t ktime_seg10_max;
+#endif
 };
 
 static inline struct Scsi_Host *
