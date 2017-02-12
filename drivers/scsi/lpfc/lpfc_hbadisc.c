@@ -911,9 +911,10 @@ lpfc_linkdown(struct lpfc_hba *phba)
 
 			if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
 			    (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) {
-				if (!phba->nvmet_support)
+				if (phba->nvmet_support)
+					lpfc_nvmet_update_targetport(phba);
+				else
 					lpfc_nvme_update_localport(vports[i]);
-				/* todo: tgt: update targetport attributes */
 			}
 		}
 	}
@@ -3587,9 +3588,10 @@ lpfc_mbx_cmpl_reg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 		if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
 		    (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) {
-			if (!phba->nvmet_support)
+			if (phba->nvmet_support)
+				lpfc_nvmet_update_targetport(phba);
+			else
 				lpfc_nvme_update_localport(vport);
-			/* todo: update targetport attributes */
 		}
 		goto out;
 	}

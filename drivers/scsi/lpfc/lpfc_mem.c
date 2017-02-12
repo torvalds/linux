@@ -763,3 +763,48 @@ lpfc_in_buf_free(struct lpfc_hba *phba, struct lpfc_dmabuf *mp)
 	}
 	return;
 }
+
+/**
+ * lpfc_rq_buf_free - Free a RQ DMA buffer
+ * @phba: HBA buffer is associated with
+ * @mp: Buffer to free
+ *
+ * Description: Frees the given DMA buffer in the appropriate way given by
+ * reposting it to its associated RQ so it can be reused.
+ *
+ * Notes: Takes phba->hbalock.  Can be called with or without other locks held.
+ *
+ * Returns: None
+ **/
+void
+lpfc_rq_buf_free(struct lpfc_hba *phba, struct lpfc_dmabuf *mp)
+{
+	struct lpfc_rqb *rqbp;
+	struct lpfc_rqe hrqe;
+	struct lpfc_rqe drqe;
+	struct rqb_dmabuf *rqb_entry;
+	unsigned long flags;
+	int rc;
+
+	if (!mp)
+		return;
+
+	rqb_entry = container_of(mp, struct rqb_dmabuf, hbuf);
+	rqbp = rqb_entry->hrq->rqbp;
+
+	spin_lock_irqsave(&phba->hbalock, flags);
+	list_del(&rqb_entry->hbuf.list);
+	hrqe.address_lo = putPaddrLow(rqb_entry->hbuf.phys);
+	hrqe.address_hi = putPaddrHigh(rqb_entry->hbuf.phys);
+	drqe.address_lo = putPaddrLow(rqb_entry->dbuf.phys);
+	drqe.address_hi = putPaddrHigh(rqb_entry->dbuf.phys);
+	rc = lpfc_sli4_rq_put(rqb_entry->hrq, rqb_entry->drq, &hrqe, &drqe);
+	if (rc < 0) {
+		(rqbp->rqb_free_buffer)(phba, rqb_entry);
+	} else {
+		list_add_tail(&rqb_entry->hbuf.list, &rqbp->rqb_buffer_list);
+		rqbp->buffer_count++;
+	}
+
+	spin_unlock_irqrestore(&phba->hbalock, flags);
+}

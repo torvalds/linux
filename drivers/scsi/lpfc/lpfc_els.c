@@ -2636,9 +2636,10 @@ out:
 
 		if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
 		    (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) {
-			if (!phba->nvmet_support)
+			if (phba->nvmet_support)
+				lpfc_nvmet_update_targetport(phba);
+			else
 				lpfc_nvme_update_localport(phba->pport);
-			/* todo: tgt: update targetport attributes */
 		}
 
 		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);

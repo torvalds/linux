@@ -1436,7 +1436,7 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 			if ((vport == phba->pport) && phba->nvmet_support) {
 				CtReq->un.rff.fbits = (FC4_FEATURE_TARGET |
 					FC4_FEATURE_NVME_DISC);
-				/* todo: update targetport attributes */
+				lpfc_nvmet_update_targetport(phba);
 			} else {
 				lpfc_nvme_update_localport(vport);
 			}

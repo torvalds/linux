@@ -2518,7 +2518,7 @@ lpfc_complete_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 	switch (fch_type) {
 	case FC_TYPE_NVME:
-		/* todo: tgt: forward NVME LS to transport */
+		lpfc_nvmet_unsol_ls_event(phba, pring, saveq);
 		return 1;
 	default:
 		break;
@@ -6867,7 +6867,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 			goto out_destroy_queue;
 		}
 		phba->sli4_hba.nvmet_xri_cnt = rc;
-		/* todo: tgt: create targetport */
+		lpfc_nvmet_create_targetport(phba);
 	} else {
 		/* update host scsi xri-sgl sizes and mappings */
 		rc = lpfc_sli4_scsi_sgl_update(phba);
@@ -13137,7 +13137,9 @@ lpfc_sli4_nvmet_handle_rcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 
 		if (fc_hdr->fh_type == FC_TYPE_FCP) {
 			dma_buf->bytes_recv = bf_get(lpfc_rcqe_length,  rcqe);
-			/* todo: tgt: forward cmd iu to transport */
+			lpfc_nvmet_unsol_fcp_event(
+				phba, phba->sli4_hba.els_wq->pring, dma_buf,
+				cq->assoc_qp->isr_timestamp);
 			return false;
 		}
 drop:
