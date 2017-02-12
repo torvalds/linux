@@ -80,7 +80,7 @@ extern u16 __read_mostly tlb_lld_1g[NR_INFO];
 
 /*
  *  CPU type and hardware bug flags. Kept separately for each CPU.
- *  Members of this structure are referenced in head.S, so think twice
+ *  Members of this structure are referenced in head_32.S, so think twice
  *  before touching them. [mj]
  */
 
@@ -91,11 +91,6 @@ struct cpuinfo_x86 {
 	__u8			x86_mask;
 #ifdef CONFIG_X86_32
 	char			wp_works_ok;	/* It doesn't on 386's */
-
-	/* Problems on some 486Dx4's and old 386's: */
-	char			rfu;
-	char			pad0;
-	char			pad1;
 #else
 	/* Number of 4K pages in DTLB/ITLB combined(in pages): */
 	int			x86_tlbsize;
