@@ -141,8 +141,8 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 	spin_lock_init(&ieee->bw_spinlock);
 	spin_lock_init(&ieee->reorder_spinlock);
 	/* added by WB */
-	atomic_set(&(ieee->atm_chnlop), 0);
-	atomic_set(&(ieee->atm_swbw), 0);
+	atomic_set(&ieee->atm_chnlop, 0);
+	atomic_set(&ieee->atm_swbw, 0);
 
 	ieee->wpax_type_set = 0;
 	ieee->wpa_enabled = 0;
