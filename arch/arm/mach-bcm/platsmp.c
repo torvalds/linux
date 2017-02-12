@@ -116,7 +116,7 @@ static int nsp_write_lut(unsigned int cpu)
 		return -ENOMEM;
 	}
 
-	secondary_startup_phy = virt_to_phys(secondary_startup);
+	secondary_startup_phy = __pa_symbol(secondary_startup);
 	BUG_ON(secondary_startup_phy > (phys_addr_t)U32_MAX);
 
 	writel_relaxed(secondary_startup_phy, sku_rom_lut);
@@ -189,7 +189,7 @@ static int kona_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * Secondary cores will start in secondary_startup(),
 	 * defined in "arch/arm/kernel/head.S"
 	 */
-	boot_func = virt_to_phys(secondary_startup);
+	boot_func = __pa_symbol(secondary_startup);
 	BUG_ON(boot_func & BOOT_ADDR_CPUID_MASK);
 	BUG_ON(boot_func > (phys_addr_t)U32_MAX);
 

@@ -1501,8 +1501,8 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 
 		/* This will evaluate to 1, 3, 5 or 7. */
 		for (ac = IEEE80211_AC_VO; ac < IEEE80211_NUM_ACS; ac++)
-			if (ignored_acs & BIT(ac))
-				continue;
+			if (!(ignored_acs & ieee80211_ac_to_qos_mask[ac]))
+				break;
 		tid = 7 - 2 * ac;
 
 		ieee80211_send_null_response(sta, tid, reason, true, false);

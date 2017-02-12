@@ -273,7 +273,8 @@ struct mv_cesa_op_ctx {
 #define CESA_TDMA_SRC_IN_SRAM			BIT(30)
 #define CESA_TDMA_END_OF_REQ			BIT(29)
 #define CESA_TDMA_BREAK_CHAIN			BIT(28)
-#define CESA_TDMA_TYPE_MSK			GENMASK(27, 0)
+#define CESA_TDMA_SET_STATE			BIT(27)
+#define CESA_TDMA_TYPE_MSK			GENMASK(26, 0)
 #define CESA_TDMA_DUMMY				0
 #define CESA_TDMA_DATA				1
 #define CESA_TDMA_OP				2

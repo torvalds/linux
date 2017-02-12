@@ -169,7 +169,7 @@ void tipc_disc_rcv(struct net *net, struct sk_buff *skb,
 
 	/* Send response, if necessary */
 	if (respond && (mtyp == DSC_REQ_MSG)) {
-		rskb = tipc_buf_acquire(MAX_H_SIZE);
+		rskb = tipc_buf_acquire(MAX_H_SIZE, GFP_ATOMIC);
 		if (!rskb)
 			return;
 		tipc_disc_init_msg(net, rskb, DSC_RESP_MSG, bearer);
@@ -278,7 +278,7 @@ int tipc_disc_create(struct net *net, struct tipc_bearer *b,
 	req = kmalloc(sizeof(*req), GFP_ATOMIC);
 	if (!req)
 		return -ENOMEM;
-	req->buf = tipc_buf_acquire(MAX_H_SIZE);
+	req->buf = tipc_buf_acquire(MAX_H_SIZE, GFP_ATOMIC);
 	if (!req->buf) {
 		kfree(req);
 		return -ENOMEM;

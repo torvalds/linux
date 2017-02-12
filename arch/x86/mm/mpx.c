@@ -293,7 +293,7 @@ siginfo_t *mpx_generate_siginfo(struct pt_regs *regs)
 	 * We were not able to extract an address from the instruction,
 	 * probably because there was something invalid in it.
 	 */
-	if (info->si_addr == (void *)-1) {
+	if (info->si_addr == (void __user *)-1) {
 		err = -EINVAL;
 		goto err_out;
 	}

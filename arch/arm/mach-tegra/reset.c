@@ -94,14 +94,14 @@ void __init tegra_cpu_reset_handler_init(void)
 	__tegra_cpu_reset_handler_data[TEGRA_RESET_MASK_PRESENT] =
 		*((u32 *)cpu_possible_mask);
 	__tegra_cpu_reset_handler_data[TEGRA_RESET_STARTUP_SECONDARY] =
-		virt_to_phys((void *)secondary_startup);
+		__pa_symbol((void *)secondary_startup);
 #endif
 
 #ifdef CONFIG_PM_SLEEP
 	__tegra_cpu_reset_handler_data[TEGRA_RESET_STARTUP_LP1] =
 		TEGRA_IRAM_LPx_RESUME_AREA;
 	__tegra_cpu_reset_handler_data[TEGRA_RESET_STARTUP_LP2] =
-		virt_to_phys((void *)tegra_resume);
+		__pa_symbol((void *)tegra_resume);
 #endif
 
 	tegra_cpu_reset_handler_enable();

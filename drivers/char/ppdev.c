@@ -290,6 +290,7 @@ static int register_device(int minor, struct pp_struct *pp)
 	struct pardevice *pdev = NULL;
 	char *name;
 	struct pardev_cb ppdev_cb;
+	int rc = 0;
 
 	name = kasprintf(GFP_KERNEL, CHRDEV "%x", minor);
 	if (name == NULL)
@@ -298,8 +299,8 @@ static int register_device(int minor, struct pp_struct *pp)
 	port = parport_find_number(minor);
 	if (!port) {
 		pr_warn("%s: no associated port!\n", name);
-		kfree(name);
-		return -ENXIO;
+		rc = -ENXIO;
+		goto err;
 	}
 
 	memset(&ppdev_cb, 0, sizeof(ppdev_cb));
@@ -308,16 +309,18 @@ static int register_device(int minor, struct pp_struct *pp)
 	ppdev_cb.private = pp;
 	pdev = parport_register_dev_model(port, name, &ppdev_cb, minor);
 	parport_put_port(port);
-	kfree(name);
 
 	if (!pdev) {
 		pr_warn("%s: failed to register device!\n", name);
-		return -ENXIO;
+		rc = -ENXIO;
+		goto err;
 	}
 
 	pp->pdev = pdev;
 	dev_dbg(&pdev->dev, "registered pardevice\n");
-	return 0;
+err:
+	kfree(name);
+	return rc;
 }
 
 static enum ieee1284_phase init_phase(int mode)

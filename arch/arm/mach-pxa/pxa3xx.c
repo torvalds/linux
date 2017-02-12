@@ -123,7 +123,7 @@ static void pxa3xx_cpu_pm_suspend(void)
 	PSPR = 0x5c014000;
 
 	/* overwrite with the resume address */
-	*p = virt_to_phys(cpu_resume);
+	*p = __pa_symbol(cpu_resume);
 
 	cpu_suspend(0, pxa3xx_finish_suspend);
 

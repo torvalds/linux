@@ -132,12 +132,6 @@ module_param_named(preemption_timer, enable_preemption_timer, bool, S_IRUGO);
 
 #define VMX_MISC_EMULATED_PREEMPTION_TIMER_RATE 5
 
-#define VMX_VPID_EXTENT_SUPPORTED_MASK		\
-	(VMX_VPID_EXTENT_INDIVIDUAL_ADDR_BIT |	\
-	VMX_VPID_EXTENT_SINGLE_CONTEXT_BIT |	\
-	VMX_VPID_EXTENT_GLOBAL_CONTEXT_BIT |	\
-	VMX_VPID_EXTENT_SINGLE_NON_GLOBAL_BIT)
-
 /*
  * Hyper-V requires all of these, so mark them as supported even though
  * they are just treated the same as all-context.
@@ -10473,12 +10467,12 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	    !nested_guest_cr4_valid(vcpu, vmcs12->guest_cr4)) {
 		nested_vmx_entry_failure(vcpu, vmcs12,
 			EXIT_REASON_INVALID_STATE, ENTRY_FAIL_DEFAULT);
-		goto out;
+		return 1;
 	}
 	if (vmcs12->vmcs_link_pointer != -1ull) {
 		nested_vmx_entry_failure(vcpu, vmcs12,
 			EXIT_REASON_INVALID_STATE, ENTRY_FAIL_VMCS_LINK_PTR);
-		goto out;
+		return 1;
 	}
 
 	/*
@@ -10498,7 +10492,7 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 		     ia32e != !!(vmcs12->guest_ia32_efer & EFER_LME))) {
 			nested_vmx_entry_failure(vcpu, vmcs12,
 				EXIT_REASON_INVALID_STATE, ENTRY_FAIL_DEFAULT);
-			goto out;
+			return 1;
 		}
 	}
 
@@ -10516,7 +10510,7 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 		    ia32e != !!(vmcs12->host_ia32_efer & EFER_LME)) {
 			nested_vmx_entry_failure(vcpu, vmcs12,
 				EXIT_REASON_INVALID_STATE, ENTRY_FAIL_DEFAULT);
-			goto out;
+			return 1;
 		}
 	}
 
