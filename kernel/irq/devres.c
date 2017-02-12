@@ -34,7 +34,7 @@ static int devm_irq_match(struct device *dev, void *res, void *data)
  *	@thread_fn: function to be called in a threaded interrupt context. NULL
  *		    for devices which handle everything in @handler
  *	@irqflags: Interrupt type flags
- *	@devname: An ascii name for the claiming device
+ *	@devname: An ascii name for the claiming device, dev_name(dev) if NULL
  *	@dev_id: A cookie passed back to the handler function
  *
  *	Except for the extra @dev argument, this function takes the
@@ -57,6 +57,9 @@ int devm_request_threaded_irq(struct device *dev, unsigned int irq,
 			  GFP_KERNEL);
 	if (!dr)
 		return -ENOMEM;
+
+	if (!devname)
+		devname = dev_name(dev);
 
 	rc = request_threaded_irq(irq, handler, thread_fn, irqflags, devname,
 				  dev_id);
@@ -81,7 +84,7 @@ EXPORT_SYMBOL(devm_request_threaded_irq);
  *	@thread_fn: function to be called in a threaded interrupt context. NULL
  *		    for devices which handle everything in @handler
  *	@irqflags: Interrupt type flags
- *	@devname: An ascii name for the claiming device
+ *	@devname: An ascii name for the claiming device, dev_name(dev) if NULL
  *	@dev_id: A cookie passed back to the handler function
  *
  *	Except for the extra @dev argument, this function takes the
@@ -103,6 +106,9 @@ int devm_request_any_context_irq(struct device *dev, unsigned int irq,
 			  GFP_KERNEL);
 	if (!dr)
 		return -ENOMEM;
+
+	if (!devname)
+		devname = dev_name(dev);
 
 	rc = request_any_context_irq(irq, handler, irqflags, devname, dev_id);
 	if (rc < 0) {
