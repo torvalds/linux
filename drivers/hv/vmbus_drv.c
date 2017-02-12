@@ -887,6 +887,18 @@ msg_handled:
 
 
 /*
+ * Direct callback for channels using other deferred processing
+ */
+static void vmbus_channel_isr(struct vmbus_channel *channel)
+{
+	void (*callback_fn)(void *);
+
+	callback_fn = READ_ONCE(channel->onchannel_callback);
+	if (likely(callback_fn != NULL))
+		(*callback_fn)(channel->channel_callback_context);
+}
+
+/*
  * Schedule all channels with events pending
  */
 static void vmbus_chan_sched(struct hv_per_cpu_context *hv_cpu)
@@ -927,9 +939,19 @@ static void vmbus_chan_sched(struct hv_per_cpu_context *hv_cpu)
 
 		/* Find channel based on relid */
 		list_for_each_entry(channel, &hv_cpu->chan_list, percpu_list) {
-			if (channel->offermsg.child_relid == relid) {
-				tasklet_schedule(&channel->callback_event);
+			if (channel->offermsg.child_relid != relid)
+				continue;
+
+			switch (channel->callback_mode) {
+			case HV_CALL_ISR:
+				vmbus_channel_isr(channel);
 				break;
+
+			case HV_CALL_BATCHED:
+				hv_begin_read(&channel->inbound);
+				/* fallthrough */
+			case HV_CALL_DIRECT:
+				tasklet_schedule(&channel->callback_event);
 			}
 		}
 	}

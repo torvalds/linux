@@ -820,13 +820,6 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 	}
 
 	/*
-	 * By default we setup state to enable batched
-	 * reading. A specific service can choose to
-	 * disable this prior to opening the channel.
-	 */
-	newchannel->batched_reading = true;
-
-	/*
 	 * Setup state for signalling the host.
 	 */
 	newchannel->sig_event = (struct hv_input_signal_event *)

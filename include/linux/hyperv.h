@@ -748,19 +748,21 @@ struct vmbus_channel {
 	void *channel_callback_context;
 
 	/*
-	 * A channel can be marked for efficient (batched)
-	 * reading:
-	 * If batched_reading is set to "true", we read until the
-	 * channel is empty and hold off interrupts from the host
-	 * during the entire read process.
-	 * If batched_reading is set to "false", the client is not
-	 * going to perform batched reading.
-	 *
-	 * By default we will enable batched reading; specific
-	 * drivers that don't want this behavior can turn it off.
+	 * A channel can be marked for one of three modes of reading:
+	 *   BATCHED - callback called from taslket and should read
+	 *            channel until empty. Interrupts from the host
+	 *            are masked while read is in process (default).
+	 *   DIRECT - callback called from tasklet (softirq).
+	 *   ISR - callback called in interrupt context and must
+	 *         invoke its own deferred processing.
+	 *         Host interrupts are disabled and must be re-enabled
+	 *         when ring is empty.
 	 */
-
-	bool batched_reading;
+	enum hv_callback_mode {
+		HV_CALL_BATCHED,
+		HV_CALL_DIRECT,
+		HV_CALL_ISR
+	} callback_mode;
 
 	bool is_dedicated_interrupt;
 	struct hv_input_signal_event_buffer sig_buf;
@@ -910,9 +912,10 @@ static inline void set_channel_affinity_state(struct vmbus_channel *c,
 	c->affinity_policy = policy;
 }
 
-static inline void set_channel_read_state(struct vmbus_channel *c, bool state)
+static inline void set_channel_read_mode(struct vmbus_channel *c,
+					enum hv_callback_mode mode)
 {
-	c->batched_reading = state;
+	c->callback_mode = mode;
 }
 
 static inline void set_per_channel_state(struct vmbus_channel *c, void *s)
