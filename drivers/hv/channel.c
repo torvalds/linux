@@ -530,7 +530,7 @@ static int vmbus_close_internal(struct vmbus_channel *channel)
 	int ret;
 
 	/*
-	 * process_chn_event(), running in the tasklet, can race
+	 * vmbus_on_event(), running in the tasklet, can race
 	 * with vmbus_close_internal() in the case of SMP guest, e.g., when
 	 * the former is accessing channel->inbound.ring_buffer, the latter
 	 * could be freeing the ring_buffer pages.

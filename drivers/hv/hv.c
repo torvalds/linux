@@ -156,8 +156,6 @@ int hv_synic_alloc(void)
 			= per_cpu_ptr(hv_context.cpu_context, cpu);
 
 		memset(hv_cpu, 0, sizeof(*hv_cpu));
-		tasklet_init(&hv_cpu->event_dpc,
-			     vmbus_on_event, (unsigned long) hv_cpu);
 		tasklet_init(&hv_cpu->msg_dpc,
 			     vmbus_on_msg_dpc, (unsigned long) hv_cpu);
 
