@@ -835,9 +835,10 @@ static void vmbus_onmessage_work(struct work_struct *work)
 	kfree(ctx);
 }
 
-static void hv_process_timer_expiration(struct hv_message *msg, int cpu)
+static void hv_process_timer_expiration(struct hv_message *msg,
+					struct hv_per_cpu_context *hv_cpu)
 {
-	struct clock_event_device *dev = hv_context.clk_evt[cpu];
+	struct clock_event_device *dev = hv_cpu->clk_evt;
 
 	if (dev->event_handler)
 		dev->event_handler(dev);
@@ -847,8 +848,8 @@ static void hv_process_timer_expiration(struct hv_message *msg, int cpu)
 
 void vmbus_on_msg_dpc(unsigned long data)
 {
-	int cpu = smp_processor_id();
-	void *page_addr = hv_context.synic_message_page[cpu];
+	struct hv_per_cpu_context *hv_cpu = (void *)data;
+	void *page_addr = hv_cpu->synic_message_page;
 	struct hv_message *msg = (struct hv_message *)page_addr +
 				  VMBUS_MESSAGE_SINT;
 	struct vmbus_channel_message_header *hdr;
@@ -886,14 +887,14 @@ msg_handled:
 
 static void vmbus_isr(void)
 {
-	int cpu = smp_processor_id();
-	void *page_addr;
+	struct hv_per_cpu_context *hv_cpu
+		= this_cpu_ptr(hv_context.cpu_context);
+	void *page_addr = hv_cpu->synic_event_page;
 	struct hv_message *msg;
 	union hv_synic_event_flags *event;
 	bool handled = false;
 
-	page_addr = hv_context.synic_event_page[cpu];
-	if (page_addr == NULL)
+	if (unlikely(page_addr == NULL))
 		return;
 
 	event = (union hv_synic_event_flags *)page_addr +
@@ -921,18 +922,18 @@ static void vmbus_isr(void)
 	}
 
 	if (handled)
-		tasklet_schedule(hv_context.event_dpc[cpu]);
+		tasklet_schedule(&hv_cpu->event_dpc);
 
 
-	page_addr = hv_context.synic_message_page[cpu];
+	page_addr = hv_cpu->synic_message_page;
 	msg = (struct hv_message *)page_addr + VMBUS_MESSAGE_SINT;
 
 	/* Check if there are actual msgs to be processed */
 	if (msg->header.message_type != HVMSG_NONE) {
 		if (msg->header.message_type == HVMSG_TIMER_EXPIRED)
-			hv_process_timer_expiration(msg, cpu);
+			hv_process_timer_expiration(msg, hv_cpu);
 		else
-			tasklet_schedule(hv_context.msg_dpc[cpu]);
+			tasklet_schedule(&hv_cpu->msg_dpc);
 	}
 
 	add_interrupt_randomness(HYPERVISOR_CALLBACK_VECTOR, 0);
@@ -1521,9 +1522,14 @@ static void __exit vmbus_exit(void)
 	hv_synic_clockevents_cleanup();
 	vmbus_disconnect();
 	hv_remove_vmbus_irq();
-	for_each_online_cpu(cpu)
-		tasklet_kill(hv_context.msg_dpc[cpu]);
+	for_each_online_cpu(cpu) {
+		struct hv_per_cpu_context *hv_cpu
+			= per_cpu_ptr(hv_context.cpu_context, cpu);
+
+		tasklet_kill(&hv_cpu->msg_dpc);
+	}
 	vmbus_free_channels();
+
 	if (ms_hyperv.misc_features & HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE) {
 		unregister_die_notifier(&hyperv_die_block);
 		atomic_notifier_chain_unregister(&panic_notifier_list,
@@ -1531,7 +1537,10 @@ static void __exit vmbus_exit(void)
 	}
 	bus_unregister(&hv_bus);
 	for_each_online_cpu(cpu) {
-		tasklet_kill(hv_context.event_dpc[cpu]);
+		struct hv_per_cpu_context *hv_cpu
+			= per_cpu_ptr(hv_context.cpu_context, cpu);
+
+		tasklet_kill(&hv_cpu->event_dpc);
 	}
 	cpuhp_remove_state(hyperv_cpuhp_online);
 	hv_synic_free();

@@ -29,6 +29,7 @@
 #include <asm/sync_bitops.h>
 #include <linux/atomic.h>
 #include <linux/hyperv.h>
+#include <linux/interrupt.h>
 
 /*
  * Timeout for services such as KVP and fcopy.
@@ -189,6 +190,33 @@ enum {
 	VMBUS_MESSAGE_SINT		= 2,
 };
 
+/*
+ * Per cpu state for channel handling
+ */
+struct hv_per_cpu_context {
+	void *synic_message_page;
+	void *synic_event_page;
+	/*
+	 * buffer to post messages to the host.
+	 */
+	void *post_msg_page;
+
+	/*
+	 * Starting with win8, we can take channel interrupts on any CPU;
+	 * we will manage the tasklet that handles events messages on a per CPU
+	 * basis.
+	 */
+	struct tasklet_struct event_dpc;
+	struct tasklet_struct msg_dpc;
+
+	/*
+	 * To optimize the mapping of relid to channel, maintain
+	 * per-cpu list of the channels based on their CPU affinity.
+	 */
+	struct list_head chan_list;
+	struct clock_event_device *clk_evt;
+};
+
 struct hv_context {
 	/* We only support running on top of Hyper-V
 	* So at this point this really can only contain the Hyper-V ID
@@ -199,8 +227,8 @@ struct hv_context {
 
 	bool synic_initialized;
 
-	void *synic_message_page[NR_CPUS];
-	void *synic_event_page[NR_CPUS];
+	struct hv_per_cpu_context __percpu *cpu_context;
+
 	/*
 	 * Hypervisor's notion of virtual processor ID is different from
 	 * Linux' notion of CPU ID. This information can only be retrieved
@@ -211,26 +239,7 @@ struct hv_context {
 	 * Linux cpuid 'a'.
 	 */
 	u32 vp_index[NR_CPUS];
-	/*
-	 * Starting with win8, we can take channel interrupts on any CPU;
-	 * we will manage the tasklet that handles events messages on a per CPU
-	 * basis.
-	 */
-	struct tasklet_struct *event_dpc[NR_CPUS];
-	struct tasklet_struct *msg_dpc[NR_CPUS];
-	/*
-	 * To optimize the mapping of relid to channel, maintain
-	 * per-cpu list of the channels based on their CPU affinity.
-	 */
-	struct list_head percpu_list[NR_CPUS];
-	/*
-	 * buffer to post messages to the host.
-	 */
-	void *post_msg_page[NR_CPUS];
-	/*
-	 * Support PV clockevent device.
-	 */
-	struct clock_event_device *clk_evt[NR_CPUS];
+
 	/*
 	 * To manage allocations in a NUMA node.
 	 * Array indexed by numa node ID.

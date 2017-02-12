@@ -93,12 +93,10 @@ static int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo,
 	 * all the CPUs. This is needed for kexec to work correctly where
 	 * the CPU attempting to connect may not be CPU 0.
 	 */
-	if (version >= VERSION_WIN8_1) {
-		msg->target_vcpu = hv_context.vp_index[get_cpu()];
-		put_cpu();
-	} else {
+	if (version >= VERSION_WIN8_1)
+		msg->target_vcpu = hv_context.vp_index[smp_processor_id()];
+	else
 		msg->target_vcpu = 0;
-	}
 
 	/*
 	 * Add to list before we send the request since we may
@@ -269,12 +267,12 @@ void vmbus_disconnect(void)
  */
 static struct vmbus_channel *pcpu_relid2channel(u32 relid)
 {
+	struct hv_per_cpu_context *hv_cpu
+		= this_cpu_ptr(hv_context.cpu_context);
+	struct vmbus_channel *found_channel = NULL;
 	struct vmbus_channel *channel;
-	struct vmbus_channel *found_channel  = NULL;
-	int cpu = smp_processor_id();
-	struct list_head *pcpu_head = &hv_context.percpu_list[cpu];
 
-	list_for_each_entry(channel, pcpu_head, percpu_list) {
+	list_for_each_entry(channel, &hv_cpu->chan_list, percpu_list) {
 		if (channel->offermsg.child_relid == relid) {
 			found_channel = channel;
 			break;
@@ -379,6 +377,7 @@ static void process_chn_event(u32 relid)
  */
 void vmbus_on_event(unsigned long data)
 {
+	struct hv_per_cpu_context *hv_cpu = (void *)data;
 	unsigned long *recv_int_page;
 	u32 maxbits, relid;
 
@@ -391,8 +390,7 @@ void vmbus_on_event(unsigned long data)
 		 * can be directly checked to get the id of the channel
 		 * that has the interrupt pending.
 		 */
-		int cpu = smp_processor_id();
-		void *page_addr = hv_context.synic_event_page[cpu];
+		void *page_addr = hv_cpu->synic_event_page;
 		union hv_synic_event_flags *event
 			= (union hv_synic_event_flags *)page_addr +
 						 VMBUS_MESSAGE_SINT;
