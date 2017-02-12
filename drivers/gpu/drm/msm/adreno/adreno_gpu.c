@@ -68,6 +68,14 @@ int adreno_hw_init(struct msm_gpu *gpu)
 		return ret;
 	}
 
+	/* reset ringbuffer: */
+	gpu->rb->cur = gpu->rb->start;
+
+	/* reset completed fence seqno: */
+	adreno_gpu->memptrs->fence = gpu->fctx->completed_fence;
+	adreno_gpu->memptrs->rptr  = 0;
+	adreno_gpu->memptrs->wptr  = 0;
+
 	/* Setup REG_CP_RB_CNTL: */
 	adreno_gpu_write(adreno_gpu, REG_ADRENO_CP_RB_CNTL,
 			/* size is log2(quad-words): */
@@ -111,7 +119,6 @@ uint32_t adreno_last_fence(struct msm_gpu *gpu)
 
 void adreno_recover(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct drm_device *dev = gpu->dev;
 	int ret;
 
@@ -119,15 +126,6 @@ void adreno_recover(struct msm_gpu *gpu)
 	// so maybe continuing to call ->pm_suspend/resume() is better?
 
 	gpu->funcs->pm_suspend(gpu);
-
-	/* reset ringbuffer: */
-	gpu->rb->cur = gpu->rb->start;
-
-	/* reset completed fence seqno: */
-	adreno_gpu->memptrs->fence = gpu->fctx->completed_fence;
-	adreno_gpu->memptrs->rptr  = 0;
-	adreno_gpu->memptrs->wptr  = 0;
-
 	gpu->funcs->pm_resume(gpu);
 
 	ret = msm_gpu_hw_init(gpu);
