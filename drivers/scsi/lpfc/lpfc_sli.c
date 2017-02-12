@@ -6795,6 +6795,22 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		}
 	}
 
+	if ((phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) &&
+	    (phba->nvmet_support == 0)) {
+
+		/* register the allocated nvme sgl pool to the port */
+		rc = lpfc_repost_nvme_sgl_list(phba);
+		if (unlikely(rc)) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+					"6116 Error %d during nvme sgl post "
+					"operation\n", rc);
+			/* Some NVME buffers were moved to abort nvme list */
+			/* A pci function reset will repost them */
+			rc = -ENODEV;
+			goto out_destroy_queue;
+		}
+	}
+
 	/* Post the rpi header region to the device. */
 	rc = lpfc_sli4_post_all_rpi_hdrs(phba);
 	if (unlikely(rc)) {
@@ -10492,10 +10508,7 @@ lpfc_sli4_abort_nvme_io(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	/* ABTS WQE must go to the same WQ as the WQE to be aborted */
 	abtsiocbp->iocb_flag |= LPFC_IO_NVME;
 	abtsiocbp->vport = vport;
-	/* todo: assign wqe_cmpl to lpfc_nvme_abort_fcreq_cmpl
-	 * subsequent patch will add routine. For now, just skip assignment
-	 * as won't ever be called.
-	 */
+	abtsiocbp->wqe_cmpl = lpfc_nvme_abort_fcreq_cmpl;
 	retval = lpfc_sli4_issue_wqe(phba, LPFC_FCP_RING, abtsiocbp);
 	if (retval == IOCB_ERROR) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME,

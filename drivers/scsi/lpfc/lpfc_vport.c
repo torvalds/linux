@@ -403,7 +403,21 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 		vport->fdmi_port_mask = phba->pport->fdmi_port_mask;
 	}
 
-	/* todo: init: register port with nvme */
+	if ((phba->nvmet_support == 0) &&
+	    ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+	     (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME))) {
+		/* Create NVME binding with nvme_fc_transport. This
+		 * ensures the vport is initialized.
+		 */
+		rc = lpfc_nvme_create_localport(vport);
+		if (rc) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"6003 %s status x%x\n",
+					"NVME registration failed, ",
+					rc);
+			goto error_out;
+		}
+	}
 
 	/*
 	 * In SLI4, the vpi must be activated before it can be used

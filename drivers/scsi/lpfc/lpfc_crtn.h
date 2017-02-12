@@ -518,4 +518,14 @@ int lpfc_sli4_dump_page_a0(struct lpfc_hba *phba, struct lpfcMboxq *mbox);
 void lpfc_mbx_cmpl_rdp_page_a0(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb);
 
 /* NVME interfaces. */
+void lpfc_nvme_unregister_port(struct lpfc_vport *vport,
+			struct lpfc_nodelist *ndlp);
+int lpfc_nvme_register_port(struct lpfc_vport *vport,
+			struct lpfc_nodelist *ndlp);
+int lpfc_nvme_create_localport(struct lpfc_vport *vport);
+void lpfc_nvme_destroy_localport(struct lpfc_vport *vport);
+void lpfc_nvme_update_localport(struct lpfc_vport *vport);
 void lpfc_nvme_mod_param_dep(struct lpfc_hba *phba);
+void lpfc_nvme_abort_fcreq_cmpl(struct lpfc_hba *phba,
+				struct lpfc_iocbq *cmdiocb,
+				struct lpfc_wcqe_complete *abts_cmpl);

@@ -1412,7 +1412,7 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		if (((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
 		     (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) &&
 		    (context == FC_TYPE_NVME)) {
-			/* todo: init: revise localport nvme attributes */
+			lpfc_nvme_update_localport(vport);
 			CtReq->un.rff.type_code = context;
 
 		} else if (((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||

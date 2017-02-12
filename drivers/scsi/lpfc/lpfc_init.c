@@ -3128,7 +3128,6 @@ static void
 lpfc_scsi_free(struct lpfc_hba *phba)
 {
 	struct lpfc_scsi_buf *sb, *sb_next;
-	struct lpfc_iocbq *io, *io_next;
 
 	if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP))
 		return;
@@ -3158,14 +3157,6 @@ lpfc_scsi_free(struct lpfc_hba *phba)
 		phba->total_scsi_bufs--;
 	}
 	spin_unlock(&phba->scsi_buf_list_get_lock);
-
-	/* Release all the lpfc_iocbq entries maintained by this host. */
-	list_for_each_entry_safe(io, io_next, &phba->lpfc_iocb_list, list) {
-		list_del(&io->list);
-		kfree(io);
-		phba->total_iocbq_bufs--;
-	}
-
 	spin_unlock_irq(&phba->hbalock);
 }
 /**
@@ -3180,7 +3171,6 @@ static void
 lpfc_nvme_free(struct lpfc_hba *phba)
 {
 	struct lpfc_nvme_buf *lpfc_ncmd, *lpfc_ncmd_next;
-	struct lpfc_iocbq *io, *io_next;
 
 	if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME))
 		return;
@@ -3209,14 +3199,6 @@ lpfc_nvme_free(struct lpfc_hba *phba)
 		phba->total_nvme_bufs--;
 	}
 	spin_unlock(&phba->nvme_buf_list_get_lock);
-
-	/* Release all the lpfc_iocbq entries maintained by this host. */
-	list_for_each_entry_safe(io, io_next, &phba->lpfc_iocb_list, list) {
-		list_del(&io->list);
-		kfree(io);
-		phba->total_iocbq_bufs--;
-	}
-
 	spin_unlock_irq(&phba->hbalock);
 }
 /**
@@ -10685,7 +10667,23 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	/* Perform post initialization setup */
 	lpfc_post_init_setup(phba);
 
-	/* todo: init: register port with nvme */
+	/* NVME support in FW earlier in the driver load corrects the
+	 * FC4 type making a check for nvme_support unnecessary.
+	 */
+	if ((phba->nvmet_support == 0) &&
+	    (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)) {
+		/* Create NVME binding with nvme_fc_transport. This
+		 * ensures the vport is initialized.
+		 */
+		error = lpfc_nvme_create_localport(vport);
+		if (error) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"6004 NVME registration failed, "
+					"error x%x\n",
+					error);
+			goto out_disable_intr;
+		}
+	}
 
 	/* check for firmware upgrade or downgrade */
 	if (phba->cfg_request_firmware_upgrade)
@@ -10761,8 +10759,8 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 	/* Perform ndlp cleanup on the physical port.  The nvme localport
 	 * is destroyed after to ensure all rports are io-disabled.
 	 */
+	lpfc_nvme_destroy_localport(vport);
 	lpfc_cleanup(vport);
-	/* todo: init: unregister port with nvme */
 
 	/*
 	 * Bring down the SLI Layer. This step disables all interrupts,
@@ -10781,6 +10779,7 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 	 */
 	lpfc_scsi_free(phba);
 	lpfc_nvme_free(phba);
+	lpfc_free_iocb_list(phba);
 
 	lpfc_sli4_driver_resource_unset(phba);
 

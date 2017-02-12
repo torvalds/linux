@@ -909,7 +909,9 @@ lpfc_linkdown(struct lpfc_hba *phba)
 
 			vports[i]->fc_myDID = 0;
 
-			/* todo: init: revise localport nvme attributes */
+			if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+			    (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME))
+				lpfc_nvme_update_localport(vports[i]);
 		}
 	}
 	lpfc_destroy_vport_work_array(phba, vports);
@@ -3580,7 +3582,9 @@ lpfc_mbx_cmpl_reg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		spin_unlock_irq(shost->host_lock);
 		vport->fc_myDID = 0;
 
-		/* todo: init: revise localport nvme attributes */
+		if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+		    (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME))
+			lpfc_nvme_update_localport(vport);
 		goto out;
 	}
 
@@ -3950,7 +3954,8 @@ out:
 
 		if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
 		    (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME))
-			lpfc_ns_cmd(vport, SLI_CTNS_RFF_ID, 0, FC_TYPE_NVME);
+			lpfc_ns_cmd(vport, SLI_CTNS_RFF_ID, 0,
+				    FC_TYPE_NVME);
 
 		/* Issue SCR just before NameServer GID_FT Query */
 		lpfc_issue_els_scr(vport, SCR_DID, 0);
@@ -4144,7 +4149,7 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		    ((ndlp->nlp_fc4_type & NLP_FC4_NVME) ||
 		    (ndlp->nlp_DID == Fabric_DID))) {
 			vport->phba->nport_event_cnt++;
-			/* todo: init: unregister rport from nvme */
+			lpfc_nvme_unregister_port(vport, ndlp);
 		}
 	}
 
@@ -4169,7 +4174,7 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 				 * the register.
 				 */
 				vport->phba->nport_event_cnt++;
-				/* todo: init: register rport with nvme */
+				lpfc_nvme_register_port(vport, ndlp);
 			}
 		}
 	}

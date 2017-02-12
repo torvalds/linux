@@ -123,6 +123,11 @@ struct perf_prof {
 	uint16_t wqidx[40];
 };
 
+/*
+ * Provide for FC4 TYPE x28 - NVME.  The
+ * bit mask for FCP and NVME is 0x8 identically
+ * because they are 32 bit positions distance.
+ */
 #define LPFC_FC4_TYPE_BITMASK	0x00000100
 
 /* Provide DMA memory definitions the driver uses per port instance. */

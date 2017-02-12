@@ -2618,7 +2618,9 @@ out:
 		!(vport->fc_flag & FC_PT2PT_PLOGI)) {
 		phba->pport->fc_myDID = 0;
 
-		/* todo: init: revise localport nvme attributes */
+		if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+		    (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME))
+			lpfc_nvme_update_localport(phba->pport);
 
 		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 		if (mbox) {

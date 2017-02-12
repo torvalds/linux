@@ -753,6 +753,7 @@ int lpfc_sli4_queue_setup(struct lpfc_hba *);
 void lpfc_sli4_queue_unset(struct lpfc_hba *);
 int lpfc_sli4_post_sgl(struct lpfc_hba *, dma_addr_t, dma_addr_t, uint16_t);
 int lpfc_sli4_repost_scsi_sgl_list(struct lpfc_hba *);
+int lpfc_repost_nvme_sgl_list(struct lpfc_hba *phba);
 uint16_t lpfc_sli4_next_xritag(struct lpfc_hba *);
 void lpfc_sli4_free_xri(struct lpfc_hba *, int);
 int lpfc_sli4_post_async_mbox(struct lpfc_hba *);

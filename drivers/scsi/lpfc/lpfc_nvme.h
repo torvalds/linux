@@ -29,6 +29,12 @@
 
 #define LPFC_NVME_ERSP_LEN		0x20
 
+struct lpfc_nvme_qhandle {
+	uint32_t index;		/* WQ index to use */
+	uint32_t qidx;		/* queue index passed to create */
+	uint32_t cpu_id;	/* current cpu id at time of create */
+};
+
 /* Declare nvme-based local and remote port definitions. */
 struct lpfc_nvme_lport {
 	struct lpfc_vport *vport;
