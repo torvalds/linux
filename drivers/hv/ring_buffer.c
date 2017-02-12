@@ -32,26 +32,6 @@
 
 #include "hyperv_vmbus.h"
 
-void hv_begin_read(struct hv_ring_buffer_info *rbi)
-{
-	rbi->ring_buffer->interrupt_mask = 1;
-	virt_mb();
-}
-
-u32 hv_end_read(struct hv_ring_buffer_info *rbi)
-{
-
-	rbi->ring_buffer->interrupt_mask = 0;
-	virt_mb();
-
-	/*
-	 * Now check to see if the ring buffer is still empty.
-	 * If it is not, we raced and we need to process new
-	 * incoming messages.
-	 */
-	return hv_get_bytes_to_read(rbi);
-}
-
 /*
  * When we write to the ring buffer, check if the host needs to
  * be signaled. Here is the details of this protocol:

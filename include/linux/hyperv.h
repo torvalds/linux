@@ -1513,6 +1513,36 @@ init_cached_read_index(struct vmbus_channel *channel)
 }
 
 /*
+ * Mask off host interrupt callback notifications
+ */
+static inline void hv_begin_read(struct hv_ring_buffer_info *rbi)
+{
+	rbi->ring_buffer->interrupt_mask = 1;
+
+	/* make sure mask update is not reordered */
+	virt_mb();
+}
+
+/*
+ * Re-enable host callback and return number of outstanding bytes
+ */
+static inline u32 hv_end_read(struct hv_ring_buffer_info *rbi)
+{
+
+	rbi->ring_buffer->interrupt_mask = 0;
+
+	/* make sure mask update is not reordered */
+	virt_mb();
+
+	/*
+	 * Now check to see if the ring buffer is still empty.
+	 * If it is not, we raced and we need to process new
+	 * incoming messages.
+	 */
+	return hv_get_bytes_to_read(rbi);
+}
+
+/*
  * An API to support in-place processing of incoming VMBUS packets.
  */
 #define VMBUS_PKT_TRAILER	8
