@@ -1,6 +1,6 @@
 /*
  * originally written by: Kirk Reiser <kirk@braille.uwo.ca>
-* this version considerably modified by David Borowski, david575@rogers.com
+ * this version considerably modified by David Borowski, david575@rogers.com
  *
  * Copyright (C) 1998-99  Kirk Reiser.
  * Copyright (C) 2003 David Borowski.
