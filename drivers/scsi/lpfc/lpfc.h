@@ -948,6 +948,7 @@ struct lpfc_hba {
 	struct dentry *idiag_ctl_acc;
 	struct dentry *idiag_mbx_acc;
 	struct dentry *idiag_ext_acc;
+	uint8_t lpfc_idiag_last_eq;
 #endif
 
 	/* Used for deferred freeing of ELS data buffers */
