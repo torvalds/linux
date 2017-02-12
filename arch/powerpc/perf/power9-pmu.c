@@ -106,6 +106,21 @@ enum {
 /* PowerISA v2.07 format attribute structure*/
 extern struct attribute_group isa207_pmu_format_group;
 
+/* Table of alternatives, sorted by column 0 */
+static const unsigned int power9_event_alternatives[][MAX_ALT] = {
+	{ PM_INST_DISP,			PM_INST_DISP_ALT },
+};
+
+static int power9_get_alternatives(u64 event, unsigned int flags, u64 alt[])
+{
+	int num_alt = 0;
+
+	num_alt = isa207_get_alternatives(event, alt, power9_event_alternatives,
+				(int)ARRAY_SIZE(power9_event_alternatives));
+
+	return num_alt;
+}
+
 GENERIC_EVENT_ATTR(cpu-cycles,			PM_CYC);
 GENERIC_EVENT_ATTR(stalled-cycles-frontend,	PM_ICT_NOSLOT_CYC);
 GENERIC_EVENT_ATTR(stalled-cycles-backend,	PM_CMPLU_STALL);
@@ -383,6 +398,7 @@ static struct power_pmu power9_isa207_pmu = {
 	.config_bhrb		= power9_config_bhrb,
 	.bhrb_filter_map	= power9_bhrb_filter_map,
 	.get_constraint		= isa207_get_constraint,
+	.get_alternatives	= power9_get_alternatives,
 	.disable_pmc		= isa207_disable_pmc,
 	.flags			= PPMU_NO_SIAR | PPMU_ARCH_207S,
 	.n_generic		= ARRAY_SIZE(power9_generic_events),
@@ -401,6 +417,7 @@ static struct power_pmu power9_pmu = {
 	.config_bhrb		= power9_config_bhrb,
 	.bhrb_filter_map	= power9_bhrb_filter_map,
 	.get_constraint		= isa207_get_constraint,
+	.get_alternatives	= power9_get_alternatives,
 	.disable_pmc		= isa207_disable_pmc,
 	.flags			= PPMU_HAS_SIER | PPMU_ARCH_207S,
 	.n_generic		= ARRAY_SIZE(power9_generic_events),
