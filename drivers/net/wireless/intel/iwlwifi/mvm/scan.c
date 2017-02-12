@@ -294,34 +294,15 @@ int iwl_mvm_max_scan_ie_len(struct iwl_mvm *mvm)
 	return max_ie_len;
 }
 
-static u8 *iwl_mvm_dump_channel_list(struct iwl_scan_results_notif *res,
-				     int num_res, u8 *buf, size_t buf_size)
-{
-	int i;
-	u8 *pos = buf, *end = buf + buf_size;
-
-	for (i = 0; pos < end && i < num_res; i++)
-		pos += snprintf(pos, end - pos, " %u", res[i].channel);
-
-	/* terminate the string in case the buffer was too short */
-	*(buf + buf_size - 1) = '\0';
-
-	return buf;
-}
-
 void iwl_mvm_rx_lmac_scan_iter_complete_notif(struct iwl_mvm *mvm,
 					      struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_lmac_scan_complete_notif *notif = (void *)pkt->data;
-	u8 buf[256];
 
 	IWL_DEBUG_SCAN(mvm,
-		       "Scan offload iteration complete: status=0x%x scanned channels=%d channels list: %s\n",
-		       notif->status, notif->scanned_channels,
-		       iwl_mvm_dump_channel_list(notif->results,
-						 notif->scanned_channels, buf,
-						 sizeof(buf)));
+		       "Scan offload iteration complete: status=0x%x scanned channels=%d\n",
+		       notif->status, notif->scanned_channels);
 
 	if (mvm->sched_scan_pass_all == SCHED_SCAN_PASS_ALL_FOUND) {
 		IWL_DEBUG_SCAN(mvm, "Pass all scheduled scan results found\n");
@@ -1612,16 +1593,12 @@ void iwl_mvm_rx_umac_scan_iter_complete_notif(struct iwl_mvm *mvm,
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_umac_scan_iter_complete_notif *notif = (void *)pkt->data;
-	u8 buf[256];
 
 	mvm->scan_start = le64_to_cpu(notif->start_tsf);
 
 	IWL_DEBUG_SCAN(mvm,
-		       "UMAC Scan iteration complete: status=0x%x scanned_channels=%d channels list: %s\n",
-		       notif->status, notif->scanned_channels,
-		       iwl_mvm_dump_channel_list(notif->results,
-						 notif->scanned_channels, buf,
-						 sizeof(buf)));
+		       "UMAC Scan iteration complete: status=0x%x scanned_channels=%d\n",
+		       notif->status, notif->scanned_channels);
 
 	if (mvm->sched_scan_pass_all == SCHED_SCAN_PASS_ALL_FOUND) {
 		IWL_DEBUG_SCAN(mvm, "Pass all scheduled scan results found\n");
