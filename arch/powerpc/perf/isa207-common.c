@@ -338,3 +338,39 @@ void isa207_disable_pmc(unsigned int pmc, unsigned long mmcr[])
 	if (pmc <= 3)
 		mmcr[1] &= ~(0xffUL << MMCR1_PMCSEL_SHIFT(pmc + 1));
 }
+
+static int find_alternative(u64 event, const unsigned int ev_alt[][MAX_ALT], int size)
+{
+	int i, j;
+
+	for (i = 0; i < size; ++i) {
+		if (event < ev_alt[i][0])
+			break;
+
+		for (j = 0; j < MAX_ALT && ev_alt[i][j]; ++j)
+			if (event == ev_alt[i][j])
+				return i;
+	}
+
+	return -1;
+}
+
+int isa207_get_alternatives(u64 event, u64 alt[],
+				const unsigned int ev_alt[][MAX_ALT], int size)
+{
+	int i, j, num_alt = 0;
+	u64 alt_event;
+
+	alt[num_alt++] = event;
+	i = find_alternative(event, ev_alt, size);
+	if (i >= 0) {
+		/* Filter out the original event, it's already in alt[0] */
+		for (j = 0; j < MAX_ALT; ++j) {
+			alt_event = ev_alt[i][j];
+			if (alt_event && alt_event != event)
+				alt[num_alt++] = alt_event;
+		}
+	}
+
+	return num_alt;
+}
