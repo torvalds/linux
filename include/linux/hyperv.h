@@ -138,8 +138,8 @@ struct hv_ring_buffer_info {
  * for the specified ring buffer
  */
 static inline void
-hv_get_ringbuffer_availbytes(struct hv_ring_buffer_info *rbi,
-			  u32 *read, u32 *write)
+hv_get_ringbuffer_availbytes(const struct hv_ring_buffer_info *rbi,
+			     u32 *read, u32 *write)
 {
 	u32 read_loc, write_loc, dsize;
 
@@ -153,7 +153,7 @@ hv_get_ringbuffer_availbytes(struct hv_ring_buffer_info *rbi,
 	*read = dsize - *write;
 }
 
-static inline u32 hv_get_bytes_to_read(struct hv_ring_buffer_info *rbi)
+static inline u32 hv_get_bytes_to_read(const struct hv_ring_buffer_info *rbi)
 {
 	u32 read_loc, write_loc, dsize, read;
 
@@ -167,7 +167,7 @@ static inline u32 hv_get_bytes_to_read(struct hv_ring_buffer_info *rbi)
 	return read;
 }
 
-static inline u32 hv_get_bytes_to_write(struct hv_ring_buffer_info *rbi)
+static inline u32 hv_get_bytes_to_write(const struct hv_ring_buffer_info *rbi)
 {
 	u32 read_loc, write_loc, dsize, write;
 
@@ -1448,9 +1448,9 @@ void vmbus_set_event(struct vmbus_channel *channel);
 
 /* Get the start of the ring buffer. */
 static inline void *
-hv_get_ring_buffer(struct hv_ring_buffer_info *ring_info)
+hv_get_ring_buffer(const struct hv_ring_buffer_info *ring_info)
 {
-	return (void *)ring_info->ring_buffer->buffer;
+	return ring_info->ring_buffer->buffer;
 }
 
 /*

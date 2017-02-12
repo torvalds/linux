@@ -283,14 +283,14 @@ int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
 void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info);
 
 int hv_ringbuffer_write(struct vmbus_channel *channel,
-			struct kvec *kv_list, u32 kv_count);
+			const struct kvec *kv_list, u32 kv_count);
 
 int hv_ringbuffer_read(struct vmbus_channel *channel,
 		       void *buffer, u32 buflen, u32 *buffer_actual_len,
 		       u64 *requestid, bool raw);
 
-void hv_ringbuffer_get_debuginfo(struct hv_ring_buffer_info *ring_info,
-			    struct hv_ring_buffer_debug_info *debug_info);
+void hv_ringbuffer_get_debuginfo(const struct hv_ring_buffer_info *ring_info,
+				 struct hv_ring_buffer_debug_info *debug_info);
 
 /*
  * Maximum channels is determined by the size of the interrupt page
