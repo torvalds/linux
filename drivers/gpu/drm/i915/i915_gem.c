@@ -35,6 +35,7 @@
 #include "intel_frontbuffer.h"
 #include "intel_mocs.h"
 #include <linux/dma-fence-array.h>
+#include <linux/kthread.h>
 #include <linux/reservation.h>
 #include <linux/shmem_fs.h>
 #include <linux/slab.h>
@@ -2643,6 +2644,17 @@ int i915_gem_reset_prepare(struct drm_i915_private *dev_priv)
 	for_each_engine(engine, dev_priv, id) {
 		struct drm_i915_gem_request *request;
 
+		/* Prevent the signaler thread from updating the request
+		 * state (by calling dma_fence_signal) as we are processing
+		 * the reset. The write from the GPU of the seqno is
+		 * asynchronous and the signaler thread may see a different
+		 * value to us and declare the request complete, even though
+		 * the reset routine have picked that request as the active
+		 * (incomplete) request. This conflict is not handled
+		 * gracefully!
+		 */
+		kthread_park(engine->breadcrumbs.signaler);
+
 		/* Prevent request submission to the hardware until we have
 		 * completed the reset in i915_gem_reset_finish(). If a request
 		 * is completed by one engine, it may then queue a request
@@ -2796,8 +2808,10 @@ void i915_gem_reset_finish(struct drm_i915_private *dev_priv)
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
-	for_each_engine(engine, dev_priv, id)
+	for_each_engine(engine, dev_priv, id) {
 		tasklet_enable(&engine->irq_tasklet);
+		kthread_unpark(engine->breadcrumbs.signaler);
+	}
 }
 
 static void nop_submit_request(struct drm_i915_gem_request *request)

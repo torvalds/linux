@@ -490,6 +490,9 @@ static int intel_breadcrumbs_signaler(void *arg)
 				break;
 
 			schedule();
+
+			if (kthread_should_park())
+				kthread_parkme();
 		}
 	} while (1);
 	__set_current_state(TASK_RUNNING);
