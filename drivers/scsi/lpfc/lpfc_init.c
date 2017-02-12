@@ -1,9 +1,11 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
+ * Copyright (C) 2017 Broadcom. All Rights Reserved. The term      *
+ * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
- * www.emulex.com                                                  *
+ * www.broadcom.com                                                *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
@@ -12117,5 +12119,5 @@ module_init(lpfc_init);
 module_exit(lpfc_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION(LPFC_MODULE_DESC);
-MODULE_AUTHOR("Emulex Corporation - tech.support@emulex.com");
+MODULE_AUTHOR("Broadcom");
 MODULE_VERSION("0:" LPFC_DRIVER_VERSION);
