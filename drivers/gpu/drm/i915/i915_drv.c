@@ -1873,10 +1873,10 @@ void i915_reset(struct drm_i915_private *dev_priv)
 		goto error;
 	}
 
-	i915_gem_reset_finish(dev_priv);
 	i915_queue_hangcheck(dev_priv);
 
 wakeup:
+	i915_gem_reset_finish(dev_priv);
 	enable_irq(dev_priv->drm.irq);
 	wake_up_bit(&error->flags, I915_RESET_IN_PROGRESS);
 	return;
