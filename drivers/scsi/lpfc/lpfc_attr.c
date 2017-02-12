@@ -58,6 +58,10 @@
 #define LPFC_MIN_DEVLOSS_TMO	1
 #define LPFC_MAX_DEVLOSS_TMO	255
 
+#define LPFC_DEF_MRQ_POST	256
+#define LPFC_MIN_MRQ_POST	32
+#define LPFC_MAX_MRQ_POST	512
+
 /*
  * Write key size should be multiple of 4. If write key is changed
  * make sure that library write key is also changed.
@@ -3282,6 +3286,24 @@ LPFC_ATTR_R(suppress_rsp, 1, 0, 1,
 	    "Enable suppress rsp feature is firmware supports it");
 
 /*
+ * lpfc_nvmet_mrq: Specify number of RQ pairs for processing NVMET cmds
+ * lpfc_nvmet_mrq = 1  use a single RQ pair
+ * lpfc_nvmet_mrq >= 2  use specified RQ pairs for MRQ
+ *
+ */
+LPFC_ATTR_R(nvmet_mrq,
+	    1, 1, 16,
+	    "Specify number of RQ pairs for processing NVMET cmds");
+
+/*
+ * lpfc_nvmet_mrq_post: Specify number buffers to post on every MRQ
+ *
+ */
+LPFC_ATTR_R(nvmet_mrq_post, LPFC_DEF_MRQ_POST,
+	    LPFC_MIN_MRQ_POST, LPFC_MAX_MRQ_POST,
+	    "Specify number of buffers to post on every MRQ");
+
+/*
  * lpfc_enable_fc4_type: Defines what FC4 types are supported.
  * Supported Values:  1 - register just FCP
  *                    3 - register both FCP and NVME
@@ -4657,13 +4679,28 @@ LPFC_VPORT_ATTR_RW(first_burst_size, 0, 0, 65536,
 		   "First burst size for Targets that support first burst");
 
 /*
-* lpfc_nvme_enable_fb: Enable NVME first burst on I and T functions.
-* For the Initiator (I), enabling this parameter means that an NVME
-* PRLI response with FBA enabled and an FB_SIZE set to a nonzero value
-* will be processed by the initiator for subsequent NVME FCP IO.
+* lpfc_nvmet_fb_size: NVME Target mode supported first burst size.
+* When the driver is configured as an NVME target, this value is
+* communicated to the NVME initiator in the PRLI response.  It is
+* used only when the lpfc_nvme_enable_fb and lpfc_nvmet_support
+* parameters are set and the target is sending the PRLI RSP.
 * Parameter supported on physical port only - no NPIV support.
-* Value range is [0,1]. Default value is 0 (disabled).
+* Value range is [0,65536]. Default value is 0.
 */
+LPFC_ATTR_RW(nvmet_fb_size, 0, 0, 65536,
+	     "NVME Target mode first burst size in 512B increments.");
+
+/*
+ * lpfc_nvme_enable_fb: Enable NVME first burst on I and T functions.
+ * For the Initiator (I), enabling this parameter means that an NVMET
+ * PRLI response with FBA enabled and an FB_SIZE set to a nonzero value will be
+ * processed by the initiator for subsequent NVME FCP IO. For the target
+ * function (T), enabling this parameter qualifies the lpfc_nvmet_fb_size
+ * driver parameter as the target function's first burst size returned to the
+ * initiator in the target's NVME PRLI response. Parameter supported on physical
+ * port only - no NPIV support.
+ * Value range is [0,1]. Default value is 0 (disabled).
+ */
 LPFC_ATTR_RW(nvme_enable_fb, 0, 0, 1,
 	     "Enable First Burst feature on I and T functions.");
 
@@ -5099,7 +5136,10 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_fcp_io_channel,
 	&dev_attr_lpfc_suppress_rsp,
 	&dev_attr_lpfc_nvme_io_channel,
+	&dev_attr_lpfc_nvmet_mrq,
+	&dev_attr_lpfc_nvmet_mrq_post,
 	&dev_attr_lpfc_nvme_enable_fb,
+	&dev_attr_lpfc_nvmet_fb_size,
 	&dev_attr_lpfc_enable_bg,
 	&dev_attr_lpfc_soft_wwnn,
 	&dev_attr_lpfc_soft_wwpn,
@@ -6136,9 +6176,12 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_suppress_rsp_init(phba, lpfc_suppress_rsp);
 
 	lpfc_enable_fc4_type_init(phba, lpfc_enable_fc4_type);
+	lpfc_nvmet_mrq_init(phba, lpfc_nvmet_mrq);
+	lpfc_nvmet_mrq_post_init(phba, lpfc_nvmet_mrq_post);
 
 	/* Initialize first burst. Target vs Initiator are different. */
 	lpfc_nvme_enable_fb_init(phba, lpfc_nvme_enable_fb);
+	lpfc_nvmet_fb_size_init(phba, lpfc_nvmet_fb_size);
 	lpfc_fcp_io_channel_init(phba, lpfc_fcp_io_channel);
 	lpfc_nvme_io_channel_init(phba, lpfc_nvme_io_channel);
 
@@ -6205,9 +6248,35 @@ lpfc_nvme_mod_param_dep(struct lpfc_hba *phba)
 	    phba->nvmet_support) {
 		phba->cfg_enable_fc4_type &= ~LPFC_ENABLE_FCP;
 		phba->cfg_fcp_io_channel = 0;
-	} else
+
+		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_DISC,
+				"6013 %s x%x fb_size x%x, fb_max x%x\n",
+				"NVME Target PRLI ACC enable_fb ",
+				phba->cfg_nvme_enable_fb,
+				phba->cfg_nvmet_fb_size,
+				LPFC_NVMET_FB_SZ_MAX);
+
+		if (phba->cfg_nvme_enable_fb == 0)
+			phba->cfg_nvmet_fb_size = 0;
+		else {
+			if (phba->cfg_nvmet_fb_size > LPFC_NVMET_FB_SZ_MAX)
+				phba->cfg_nvmet_fb_size = LPFC_NVMET_FB_SZ_MAX;
+		}
+
+		/* Adjust lpfc_nvmet_mrq to avoid running out of WQE slots */
+		if (phba->cfg_nvmet_mrq > phba->cfg_nvme_io_channel) {
+			phba->cfg_nvmet_mrq = phba->cfg_nvme_io_channel;
+			lpfc_printf_log(phba, KERN_ERR, LOG_NVME_DISC,
+					"6018 Adjust lpfc_nvmet_mrq to %d\n",
+					phba->cfg_nvmet_mrq);
+		}
+	} else {
 		/* Not NVME Target mode.  Turn off Target parameters. */
 		phba->nvmet_support = 0;
+		phba->cfg_nvmet_mrq = 0;
+		phba->cfg_nvmet_mrq_post = 0;
+		phba->cfg_nvmet_fb_size = 0;
+	}
 
 	if (phba->cfg_fcp_io_channel > phba->cfg_nvme_io_channel)
 		phba->io_channel_irqs = phba->cfg_fcp_io_channel;

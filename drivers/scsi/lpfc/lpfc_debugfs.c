@@ -2837,7 +2837,7 @@ __lpfc_idiag_print_rqpair(struct lpfc_queue *qp, struct lpfc_queue *datqp,
 
 static int
 lpfc_idiag_cqs_for_eq(struct lpfc_hba *phba, char *pbuffer,
-		int *len, int max_cnt, int eq_id)
+		int *len, int max_cnt, int eqidx, int eq_id)
 {
 	struct lpfc_queue *qp;
 	int qidx, rc;
@@ -2877,6 +2877,27 @@ lpfc_idiag_cqs_for_eq(struct lpfc_hba *phba, char *pbuffer,
 		rc = lpfc_idiag_wqs_for_cq(phba, "NVME", pbuffer, len,
 				max_cnt, qp->queue_id);
 		if (rc)
+			return 1;
+	}
+
+	if (phba->cfg_nvmet_mrq > eqidx) {
+		/* NVMET CQset */
+		qp = phba->sli4_hba.nvmet_cqset[eqidx];
+		*len = __lpfc_idiag_print_cq(qp, "NVMET CQset", pbuffer, *len);
+
+		/* Reset max counter */
+		qp->CQ_max_cqe = 0;
+
+		if (*len >= max_cnt)
+			return 1;
+
+		/* RQ header */
+		qp = phba->sli4_hba.nvmet_mrq_hdr[eqidx];
+		*len = __lpfc_idiag_print_rqpair(qp,
+				phba->sli4_hba.nvmet_mrq_data[eqidx],
+				"NVMET MRQ", pbuffer, *len);
+
+		if (*len >= max_cnt)
 			return 1;
 	}
 
@@ -2977,7 +2998,7 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 
 		/* will dump both fcp and nvme cqs/wqs for the eq */
 		rc = lpfc_idiag_cqs_for_eq(phba, pbuffer, &len,
-			max_cnt, qp->queue_id);
+			max_cnt, x, qp->queue_id);
 		if (rc)
 			goto too_big;
 

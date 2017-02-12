@@ -2028,6 +2028,29 @@ lpfc_sli_hbqbuf_get(struct list_head *rb_list)
 }
 
 /**
+ * lpfc_sli_rqbuf_get - Remove the first dma buffer off of an RQ list
+ * @phba: Pointer to HBA context object.
+ * @hbqno: HBQ number.
+ *
+ * This function removes the first RQ buffer on an RQ buffer list and returns a
+ * pointer to that buffer. If it finds no buffers on the list it returns NULL.
+ **/
+static struct rqb_dmabuf *
+lpfc_sli_rqbuf_get(struct lpfc_hba *phba, struct lpfc_queue *hrq)
+{
+	struct lpfc_dmabuf *h_buf;
+	struct lpfc_rqb *rqbp;
+
+	rqbp = hrq->rqbp;
+	list_remove_head(&rqbp->rqb_buffer_list, h_buf,
+			 struct lpfc_dmabuf, list);
+	if (!h_buf)
+		return NULL;
+	rqbp->buffer_count--;
+	return container_of(h_buf, struct rqb_dmabuf, hbuf);
+}
+
+/**
  * lpfc_sli_hbqbuf_find - Find the hbq buffer associated with a tag
  * @phba: Pointer to HBA context object.
  * @tag: Tag of the hbq buffer.
@@ -5271,6 +5294,14 @@ lpfc_sli4_arm_cqeq_intr(struct lpfc_hba *phba)
 			lpfc_sli4_eq_release(phba->sli4_hba.hba_eq[qidx],
 						LPFC_QUEUE_REARM);
 
+	if (phba->nvmet_support) {
+		for (qidx = 0; qidx < phba->cfg_nvmet_mrq; qidx++) {
+			lpfc_sli4_cq_release(
+				phba->sli4_hba.nvmet_cqset[qidx],
+				LPFC_QUEUE_REARM);
+		}
+	}
+
 	if (phba->cfg_fof)
 		lpfc_sli4_eq_release(phba->sli4_hba.fof_eq, LPFC_QUEUE_REARM);
 }
@@ -6485,7 +6516,7 @@ lpfc_set_host_data(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 int
 lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 {
-	int rc;
+	int rc, i;
 	LPFC_MBOXQ_t *mboxq;
 	struct lpfc_mqe *mqe;
 	uint8_t *vpd;
@@ -6494,6 +6525,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	struct Scsi_Host *shost = lpfc_shost_from_vport(phba->pport);
 	struct lpfc_vport *vport = phba->pport;
 	struct lpfc_dmabuf *mp;
+	struct lpfc_rqb *rqbp;
 
 	/* Perform a PCI function reset to start from clean */
 	rc = lpfc_pci_function_reset(phba);
@@ -6856,6 +6888,29 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		}
 	}
 
+	if (phba->nvmet_support && phba->cfg_nvmet_mrq) {
+
+		/* Post initial buffers to all RQs created */
+		for (i = 0; i < phba->cfg_nvmet_mrq; i++) {
+			rqbp = phba->sli4_hba.nvmet_mrq_hdr[i]->rqbp;
+			INIT_LIST_HEAD(&rqbp->rqb_buffer_list);
+			rqbp->rqb_alloc_buffer = lpfc_sli4_nvmet_alloc;
+			rqbp->rqb_free_buffer = lpfc_sli4_nvmet_free;
+			rqbp->entry_count = 256;
+			rqbp->buffer_count = 0;
+
+			/* Divide by 4 and round down to multiple of 16 */
+			rc = (phba->cfg_nvmet_mrq_post >> 2) & 0xfff8;
+			phba->sli4_hba.nvmet_mrq_hdr[i]->entry_repost = rc;
+			phba->sli4_hba.nvmet_mrq_data[i]->entry_repost = rc;
+
+			lpfc_post_rq_buffer(
+				phba, phba->sli4_hba.nvmet_mrq_hdr[i],
+				phba->sli4_hba.nvmet_mrq_data[i],
+				phba->cfg_nvmet_mrq_post);
+		}
+	}
+
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP) {
 		/* register the allocated scsi sgl pool to the port */
 		rc = lpfc_sli4_repost_scsi_sgl_list(phba);
@@ -6898,7 +6953,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	lpfc_sli4_node_prep(phba);
 
 	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
-		if (phba->nvmet_support == 0) {
+		if ((phba->nvmet_support == 0) || (phba->cfg_nvmet_mrq == 1)) {
 			/*
 			 * The FC Port needs to register FCFI (index 0)
 			 */
@@ -6910,6 +6965,26 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 			rc = 0;
 			phba->fcf.fcfi = bf_get(lpfc_reg_fcfi_fcfi,
 						&mboxq->u.mqe.un.reg_fcfi);
+		} else {
+			/* We are a NVME Target mode with MRQ > 1 */
+
+			/* First register the FCFI */
+			lpfc_reg_fcfi_mrq(phba, mboxq, 0);
+			mboxq->vport = phba->pport;
+			rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+			if (rc != MBX_SUCCESS)
+				goto out_unset_queue;
+			rc = 0;
+			phba->fcf.fcfi = bf_get(lpfc_reg_fcfi_mrq_fcfi,
+						&mboxq->u.mqe.un.reg_fcfi_mrq);
+
+			/* Next register the MRQs */
+			lpfc_reg_fcfi_mrq(phba, mboxq, 1);
+			mboxq->vport = phba->pport;
+			rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+			if (rc != MBX_SUCCESS)
+				goto out_unset_queue;
+			rc = 0;
 		}
 		/* Check if the port is configured to be disabled */
 		lpfc_sli_read_link_ste(phba);
@@ -12988,6 +13063,101 @@ lpfc_sli4_fp_handle_rel_wcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 }
 
 /**
+ * lpfc_sli4_nvmet_handle_rcqe - Process a receive-queue completion queue entry
+ * @phba: Pointer to HBA context object.
+ * @rcqe: Pointer to receive-queue completion queue entry.
+ *
+ * This routine process a receive-queue completion queue entry.
+ *
+ * Return: true if work posted to worker thread, otherwise false.
+ **/
+static bool
+lpfc_sli4_nvmet_handle_rcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
+			    struct lpfc_rcqe *rcqe)
+{
+	bool workposted = false;
+	struct lpfc_queue *hrq;
+	struct lpfc_queue *drq;
+	struct rqb_dmabuf *dma_buf;
+	struct fc_frame_header *fc_hdr;
+	uint32_t status, rq_id;
+	unsigned long iflags;
+	uint32_t fctl, idx;
+
+	if ((phba->nvmet_support == 0) ||
+	    (phba->sli4_hba.nvmet_cqset == NULL))
+		return workposted;
+
+	idx = cq->queue_id - phba->sli4_hba.nvmet_cqset[0]->queue_id;
+	hrq = phba->sli4_hba.nvmet_mrq_hdr[idx];
+	drq = phba->sli4_hba.nvmet_mrq_data[idx];
+
+	/* sanity check on queue memory */
+	if (unlikely(!hrq) || unlikely(!drq))
+		return workposted;
+
+	if (bf_get(lpfc_cqe_code, rcqe) == CQE_CODE_RECEIVE_V1)
+		rq_id = bf_get(lpfc_rcqe_rq_id_v1, rcqe);
+	else
+		rq_id = bf_get(lpfc_rcqe_rq_id, rcqe);
+
+	if ((phba->nvmet_support == 0) ||
+	    (rq_id != hrq->queue_id))
+		return workposted;
+
+	status = bf_get(lpfc_rcqe_status, rcqe);
+	switch (status) {
+	case FC_STATUS_RQ_BUF_LEN_EXCEEDED:
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"6126 Receive Frame Truncated!!\n");
+		hrq->RQ_buf_trunc++;
+		break;
+	case FC_STATUS_RQ_SUCCESS:
+		lpfc_sli4_rq_release(hrq, drq);
+		spin_lock_irqsave(&phba->hbalock, iflags);
+		dma_buf = lpfc_sli_rqbuf_get(phba, hrq);
+		if (!dma_buf) {
+			hrq->RQ_no_buf_found++;
+			spin_unlock_irqrestore(&phba->hbalock, iflags);
+			goto out;
+		}
+		spin_unlock_irqrestore(&phba->hbalock, iflags);
+		hrq->RQ_rcv_buf++;
+		fc_hdr = (struct fc_frame_header *)dma_buf->hbuf.virt;
+
+		/* Just some basic sanity checks on FCP Command frame */
+		fctl = (fc_hdr->fh_f_ctl[0] << 16 |
+		fc_hdr->fh_f_ctl[1] << 8 |
+		fc_hdr->fh_f_ctl[2]);
+		if (((fctl &
+		    (FC_FC_FIRST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT)) !=
+		    (FC_FC_FIRST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT)) ||
+		    (fc_hdr->fh_seq_cnt != 0)) /* 0 byte swapped is still 0 */
+			goto drop;
+
+		if (fc_hdr->fh_type == FC_TYPE_FCP) {
+			dma_buf->bytes_recv = bf_get(lpfc_rcqe_length,  rcqe);
+			/* todo: tgt: forward cmd iu to transport */
+			return false;
+		}
+drop:
+		lpfc_in_buf_free(phba, &dma_buf->dbuf);
+		break;
+	case FC_STATUS_INSUFF_BUF_NEED_BUF:
+	case FC_STATUS_INSUFF_BUF_FRM_DISC:
+		hrq->RQ_no_posted_buf++;
+		/* Post more buffers if possible */
+		spin_lock_irqsave(&phba->hbalock, iflags);
+		phba->hba_flag |= HBA_POST_RECEIVE_BUFFER;
+		spin_unlock_irqrestore(&phba->hbalock, iflags);
+		workposted = true;
+		break;
+	}
+out:
+	return workposted;
+}
+
+/**
  * lpfc_sli4_fp_handle_cqe - Process fast-path work queue completion entry
  * @cq: Pointer to the completion queue.
  * @eqe: Pointer to fast-path completion queue entry.
@@ -13035,6 +13205,10 @@ lpfc_sli4_fp_handle_cqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	case CQE_CODE_RECEIVE_V1:
 	case CQE_CODE_RECEIVE:
 		phba->last_completion_time = jiffies;
+		if (cq->subtype == LPFC_NVMET) {
+			workposted = lpfc_sli4_nvmet_handle_rcqe(
+				phba, cq, (struct lpfc_rcqe *)&wcqe);
+		}
 		break;
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
@@ -13064,7 +13238,7 @@ lpfc_sli4_hba_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 	struct lpfc_queue *cq = NULL;
 	struct lpfc_cqe *cqe;
 	bool workposted = false;
-	uint16_t cqid;
+	uint16_t cqid, id;
 	int ecount = 0;
 
 	if (unlikely(bf_get_le32(lpfc_eqe_major_code, eqe) != 0)) {
@@ -13078,6 +13252,15 @@ lpfc_sli4_hba_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 
 	/* Get the reference to the corresponding CQ */
 	cqid = bf_get_le32(lpfc_eqe_resource_id, eqe);
+
+	if (phba->cfg_nvmet_mrq && phba->sli4_hba.nvmet_cqset) {
+		id = phba->sli4_hba.nvmet_cqset[0]->queue_id;
+		if ((cqid >= id) && (cqid < (id + phba->cfg_nvmet_mrq))) {
+			/* Process NVMET unsol rcv */
+			cq = phba->sli4_hba.nvmet_cqset[cqid - id];
+			goto  process_cq;
+		}
+	}
 
 	if (phba->sli4_hba.nvme_cq_map &&
 	    (cqid == phba->sli4_hba.nvme_cq_map[qidx])) {
@@ -13963,6 +14146,234 @@ out:
 }
 
 /**
+ * lpfc_cq_create_set - Create a set of Completion Queues on the HBA for MRQ
+ * @phba: HBA structure that indicates port to create a queue on.
+ * @cqp: The queue structure array to use to create the completion queues.
+ * @eqp: The event queue array to bind these completion queues to.
+ *
+ * This function creates a set of  completion queue, s to support MRQ
+ * as detailed in @cqp, on a port,
+ * described by @phba by sending a CREATE_CQ_SET mailbox command to the HBA.
+ *
+ * The @phba struct is used to send mailbox command to HBA. The @cq struct
+ * is used to get the entry count and entry size that are necessary to
+ * determine the number of pages to allocate and use for this queue. The @eq
+ * is used to indicate which event queue to bind this completion queue to. This
+ * function will send the CREATE_CQ_SET mailbox command to the HBA to setup the
+ * completion queue. This function is asynchronous and will wait for the mailbox
+ * command to finish before continuing.
+ *
+ * On success this function will return a zero. If unable to allocate enough
+ * memory this function will return -ENOMEM. If the queue create mailbox command
+ * fails this function will return -ENXIO.
+ **/
+int
+lpfc_cq_create_set(struct lpfc_hba *phba, struct lpfc_queue **cqp,
+		   struct lpfc_queue **eqp, uint32_t type, uint32_t subtype)
+{
+	struct lpfc_queue *cq;
+	struct lpfc_queue *eq;
+	struct lpfc_mbx_cq_create_set *cq_set;
+	struct lpfc_dmabuf *dmabuf;
+	LPFC_MBOXQ_t *mbox;
+	int rc, length, alloclen, status = 0;
+	int cnt, idx, numcq, page_idx = 0;
+	uint32_t shdr_status, shdr_add_status;
+	union lpfc_sli4_cfg_shdr *shdr;
+	uint32_t hw_page_size = phba->sli4_hba.pc_sli4_params.if_page_sz;
+
+	/* sanity check on queue memory */
+	numcq = phba->cfg_nvmet_mrq;
+	if (!cqp || !eqp || !numcq)
+		return -ENODEV;
+	if (!phba->sli4_hba.pc_sli4_params.supported)
+		hw_page_size = SLI4_PAGE_SIZE;
+
+	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mbox)
+		return -ENOMEM;
+
+	length = sizeof(struct lpfc_mbx_cq_create_set);
+	length += ((numcq * cqp[0]->page_count) *
+		   sizeof(struct dma_address));
+	alloclen = lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_FCOE,
+			LPFC_MBOX_OPCODE_FCOE_CQ_CREATE_SET, length,
+			LPFC_SLI4_MBX_NEMBED);
+	if (alloclen < length) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"3098 Allocated DMA memory size (%d) is "
+				"less than the requested DMA memory size "
+				"(%d)\n", alloclen, length);
+		status = -ENOMEM;
+		goto out;
+	}
+	cq_set = mbox->sge_array->addr[0];
+	shdr = (union lpfc_sli4_cfg_shdr *)&cq_set->cfg_shdr;
+	bf_set(lpfc_mbox_hdr_version, &shdr->request, 0);
+
+	for (idx = 0; idx < numcq; idx++) {
+		cq = cqp[idx];
+		eq = eqp[idx];
+		if (!cq || !eq) {
+			status = -ENOMEM;
+			goto out;
+		}
+
+		switch (idx) {
+		case 0:
+			bf_set(lpfc_mbx_cq_create_set_page_size,
+			       &cq_set->u.request,
+			       (hw_page_size / SLI4_PAGE_SIZE));
+			bf_set(lpfc_mbx_cq_create_set_num_pages,
+			       &cq_set->u.request, cq->page_count);
+			bf_set(lpfc_mbx_cq_create_set_evt,
+			       &cq_set->u.request, 1);
+			bf_set(lpfc_mbx_cq_create_set_valid,
+			       &cq_set->u.request, 1);
+			bf_set(lpfc_mbx_cq_create_set_cqe_size,
+			       &cq_set->u.request, 0);
+			bf_set(lpfc_mbx_cq_create_set_num_cq,
+			       &cq_set->u.request, numcq);
+			switch (cq->entry_count) {
+			default:
+				lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+						"3118 Bad CQ count. (%d)\n",
+						cq->entry_count);
+				if (cq->entry_count < 256) {
+					status = -EINVAL;
+					goto out;
+				}
+				/* otherwise default to smallest (drop thru) */
+			case 256:
+				bf_set(lpfc_mbx_cq_create_set_cqe_cnt,
+				       &cq_set->u.request, LPFC_CQ_CNT_256);
+				break;
+			case 512:
+				bf_set(lpfc_mbx_cq_create_set_cqe_cnt,
+				       &cq_set->u.request, LPFC_CQ_CNT_512);
+				break;
+			case 1024:
+				bf_set(lpfc_mbx_cq_create_set_cqe_cnt,
+				       &cq_set->u.request, LPFC_CQ_CNT_1024);
+				break;
+			}
+			bf_set(lpfc_mbx_cq_create_set_eq_id0,
+			       &cq_set->u.request, eq->queue_id);
+			break;
+		case 1:
+			bf_set(lpfc_mbx_cq_create_set_eq_id1,
+			       &cq_set->u.request, eq->queue_id);
+			break;
+		case 2:
+			bf_set(lpfc_mbx_cq_create_set_eq_id2,
+			       &cq_set->u.request, eq->queue_id);
+			break;
+		case 3:
+			bf_set(lpfc_mbx_cq_create_set_eq_id3,
+			       &cq_set->u.request, eq->queue_id);
+			break;
+		case 4:
+			bf_set(lpfc_mbx_cq_create_set_eq_id4,
+			       &cq_set->u.request, eq->queue_id);
+			break;
+		case 5:
+			bf_set(lpfc_mbx_cq_create_set_eq_id5,
+			       &cq_set->u.request, eq->queue_id);
+			break;
+		case 6:
+			bf_set(lpfc_mbx_cq_create_set_eq_id6,
+			       &cq_set->u.request, eq->queue_id);
+			break;
+		case 7:
+			bf_set(lpfc_mbx_cq_create_set_eq_id7,
+			       &cq_set->u.request, eq->queue_id);
+			break;
+		case 8:
+			bf_set(lpfc_mbx_cq_create_set_eq_id8,
+			       &cq_set->u.request, eq->queue_id);
+			break;
+		case 9:
+			bf_set(lpfc_mbx_cq_create_set_eq_id9,
+			       &cq_set->u.request, eq->queue_id);
+			break;
+		case 10:
+			bf_set(lpfc_mbx_cq_create_set_eq_id10,
+			       &cq_set->u.request, eq->queue_id);
+			break;
+		case 11:
+			bf_set(lpfc_mbx_cq_create_set_eq_id11,
+			       &cq_set->u.request, eq->queue_id);
+			break;
+		case 12:
+			bf_set(lpfc_mbx_cq_create_set_eq_id12,
+			       &cq_set->u.request, eq->queue_id);
+			break;
+		case 13:
+			bf_set(lpfc_mbx_cq_create_set_eq_id13,
+			       &cq_set->u.request, eq->queue_id);
+			break;
+		case 14:
+			bf_set(lpfc_mbx_cq_create_set_eq_id14,
+			       &cq_set->u.request, eq->queue_id);
+			break;
+		case 15:
+			bf_set(lpfc_mbx_cq_create_set_eq_id15,
+			       &cq_set->u.request, eq->queue_id);
+			break;
+		}
+
+		/* link the cq onto the parent eq child list */
+		list_add_tail(&cq->list, &eq->child_list);
+		/* Set up completion queue's type and subtype */
+		cq->type = type;
+		cq->subtype = subtype;
+		cq->assoc_qid = eq->queue_id;
+		cq->host_index = 0;
+		cq->hba_index = 0;
+
+		rc = 0;
+		list_for_each_entry(dmabuf, &cq->page_list, list) {
+			memset(dmabuf->virt, 0, hw_page_size);
+			cnt = page_idx + dmabuf->buffer_tag;
+			cq_set->u.request.page[cnt].addr_lo =
+					putPaddrLow(dmabuf->phys);
+			cq_set->u.request.page[cnt].addr_hi =
+					putPaddrHigh(dmabuf->phys);
+			rc++;
+		}
+		page_idx += rc;
+	}
+
+	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
+
+	/* The IOCTL status is embedded in the mailbox subheader. */
+	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
+	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
+	if (shdr_status || shdr_add_status || rc) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3119 CQ_CREATE_SET mailbox failed with "
+				"status x%x add_status x%x, mbx status x%x\n",
+				shdr_status, shdr_add_status, rc);
+		status = -ENXIO;
+		goto out;
+	}
+	rc = bf_get(lpfc_mbx_cq_create_set_base_id, &cq_set->u.response);
+	if (rc == 0xFFFF) {
+		status = -ENXIO;
+		goto out;
+	}
+
+	for (idx = 0; idx < numcq; idx++) {
+		cq = cqp[idx];
+		cq->queue_id = rc + idx;
+	}
+
+out:
+	lpfc_sli4_mbox_cmd_free(phba, mbox);
+	return status;
+}
+
+/**
  * lpfc_mq_create_fb_init - Send MCC_CREATE without async events registration
  * @phba: HBA structure that indicates port to create a queue on.
  * @mq: The queue structure to use to create the mailbox queue.
@@ -14689,6 +15100,197 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 
 out:
 	mempool_free(mbox, phba->mbox_mem_pool);
+	return status;
+}
+
+/**
+ * lpfc_mrq_create - Create MRQ Receive Queues on the HBA
+ * @phba: HBA structure that indicates port to create a queue on.
+ * @hrqp: The queue structure array to use to create the header receive queues.
+ * @drqp: The queue structure array to use to create the data receive queues.
+ * @cqp: The completion queue array to bind these receive queues to.
+ *
+ * This function creates a receive buffer queue pair , as detailed in @hrq and
+ * @drq, on a port, described by @phba by sending a RQ_CREATE mailbox command
+ * to the HBA.
+ *
+ * The @phba struct is used to send mailbox command to HBA. The @drq and @hrq
+ * struct is used to get the entry count that is necessary to determine the
+ * number of pages to use for this queue. The @cq is used to indicate which
+ * completion queue to bind received buffers that are posted to these queues to.
+ * This function will send the RQ_CREATE mailbox command to the HBA to setup the
+ * receive queue pair. This function is asynchronous and will wait for the
+ * mailbox command to finish before continuing.
+ *
+ * On success this function will return a zero. If unable to allocate enough
+ * memory this function will return -ENOMEM. If the queue create mailbox command
+ * fails this function will return -ENXIO.
+ **/
+int
+lpfc_mrq_create(struct lpfc_hba *phba, struct lpfc_queue **hrqp,
+		struct lpfc_queue **drqp, struct lpfc_queue **cqp,
+		uint32_t subtype)
+{
+	struct lpfc_queue *hrq, *drq, *cq;
+	struct lpfc_mbx_rq_create_v2 *rq_create;
+	struct lpfc_dmabuf *dmabuf;
+	LPFC_MBOXQ_t *mbox;
+	int rc, length, alloclen, status = 0;
+	int cnt, idx, numrq, page_idx = 0;
+	uint32_t shdr_status, shdr_add_status;
+	union lpfc_sli4_cfg_shdr *shdr;
+	uint32_t hw_page_size = phba->sli4_hba.pc_sli4_params.if_page_sz;
+
+	numrq = phba->cfg_nvmet_mrq;
+	/* sanity check on array memory */
+	if (!hrqp || !drqp || !cqp || !numrq)
+		return -ENODEV;
+	if (!phba->sli4_hba.pc_sli4_params.supported)
+		hw_page_size = SLI4_PAGE_SIZE;
+
+	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mbox)
+		return -ENOMEM;
+
+	length = sizeof(struct lpfc_mbx_rq_create_v2);
+	length += ((2 * numrq * hrqp[0]->page_count) *
+		   sizeof(struct dma_address));
+
+	alloclen = lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_FCOE,
+				    LPFC_MBOX_OPCODE_FCOE_RQ_CREATE, length,
+				    LPFC_SLI4_MBX_NEMBED);
+	if (alloclen < length) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"3099 Allocated DMA memory size (%d) is "
+				"less than the requested DMA memory size "
+				"(%d)\n", alloclen, length);
+		status = -ENOMEM;
+		goto out;
+	}
+
+
+
+	rq_create = mbox->sge_array->addr[0];
+	shdr = (union lpfc_sli4_cfg_shdr *)&rq_create->cfg_shdr;
+
+	bf_set(lpfc_mbox_hdr_version, &shdr->request, LPFC_Q_CREATE_VERSION_2);
+	cnt = 0;
+
+	for (idx = 0; idx < numrq; idx++) {
+		hrq = hrqp[idx];
+		drq = drqp[idx];
+		cq  = cqp[idx];
+
+		if (hrq->entry_count != drq->entry_count) {
+			status = -EINVAL;
+			goto out;
+		}
+
+		/* sanity check on queue memory */
+		if (!hrq || !drq || !cq) {
+			status = -ENODEV;
+			goto out;
+		}
+
+		if (idx == 0) {
+			bf_set(lpfc_mbx_rq_create_num_pages,
+			       &rq_create->u.request,
+			       hrq->page_count);
+			bf_set(lpfc_mbx_rq_create_rq_cnt,
+			       &rq_create->u.request, (numrq * 2));
+			bf_set(lpfc_mbx_rq_create_dnb, &rq_create->u.request,
+			       1);
+			bf_set(lpfc_rq_context_base_cq,
+			       &rq_create->u.request.context,
+			       cq->queue_id);
+			bf_set(lpfc_rq_context_data_size,
+			       &rq_create->u.request.context,
+			       LPFC_DATA_BUF_SIZE);
+			bf_set(lpfc_rq_context_hdr_size,
+			       &rq_create->u.request.context,
+			       LPFC_HDR_BUF_SIZE);
+			bf_set(lpfc_rq_context_rqe_count_1,
+			       &rq_create->u.request.context,
+			       hrq->entry_count);
+			bf_set(lpfc_rq_context_rqe_size,
+			       &rq_create->u.request.context,
+			       LPFC_RQE_SIZE_8);
+			bf_set(lpfc_rq_context_page_size,
+			       &rq_create->u.request.context,
+			       (PAGE_SIZE/SLI4_PAGE_SIZE));
+		}
+		rc = 0;
+		list_for_each_entry(dmabuf, &hrq->page_list, list) {
+			memset(dmabuf->virt, 0, hw_page_size);
+			cnt = page_idx + dmabuf->buffer_tag;
+			rq_create->u.request.page[cnt].addr_lo =
+					putPaddrLow(dmabuf->phys);
+			rq_create->u.request.page[cnt].addr_hi =
+					putPaddrHigh(dmabuf->phys);
+			rc++;
+		}
+		page_idx += rc;
+
+		rc = 0;
+		list_for_each_entry(dmabuf, &drq->page_list, list) {
+			memset(dmabuf->virt, 0, hw_page_size);
+			cnt = page_idx + dmabuf->buffer_tag;
+			rq_create->u.request.page[cnt].addr_lo =
+					putPaddrLow(dmabuf->phys);
+			rq_create->u.request.page[cnt].addr_hi =
+					putPaddrHigh(dmabuf->phys);
+			rc++;
+		}
+		page_idx += rc;
+
+		hrq->db_format = LPFC_DB_RING_FORMAT;
+		hrq->db_regaddr = phba->sli4_hba.RQDBregaddr;
+		hrq->type = LPFC_HRQ;
+		hrq->assoc_qid = cq->queue_id;
+		hrq->subtype = subtype;
+		hrq->host_index = 0;
+		hrq->hba_index = 0;
+
+		drq->db_format = LPFC_DB_RING_FORMAT;
+		drq->db_regaddr = phba->sli4_hba.RQDBregaddr;
+		drq->type = LPFC_DRQ;
+		drq->assoc_qid = cq->queue_id;
+		drq->subtype = subtype;
+		drq->host_index = 0;
+		drq->hba_index = 0;
+
+		list_add_tail(&hrq->list, &cq->child_list);
+		list_add_tail(&drq->list, &cq->child_list);
+	}
+
+	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
+	/* The IOCTL status is embedded in the mailbox subheader. */
+	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
+	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
+	if (shdr_status || shdr_add_status || rc) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3120 RQ_CREATE mailbox failed with "
+				"status x%x add_status x%x, mbx status x%x\n",
+				shdr_status, shdr_add_status, rc);
+		status = -ENXIO;
+		goto out;
+	}
+	rc = bf_get(lpfc_mbx_rq_create_q_id, &rq_create->u.response);
+	if (rc == 0xFFFF) {
+		status = -ENXIO;
+		goto out;
+	}
+
+	/* Initialize all RQs with associated queue id */
+	for (idx = 0; idx < numrq; idx++) {
+		hrq = hrqp[idx];
+		hrq->queue_id = rc + (2 * idx);
+		drq = drqp[idx];
+		drq->queue_id = rc + (2 * idx) + 1;
+	}
+
+out:
+	lpfc_sli4_mbox_cmd_free(phba, mbox);
 	return status;
 }
 

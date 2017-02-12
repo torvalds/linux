@@ -770,8 +770,11 @@ struct lpfc_hba {
 	uint32_t cfg_suppress_rsp;
 	uint32_t cfg_nvme_oas;
 	uint32_t cfg_nvme_io_channel;
+	uint32_t cfg_nvmet_mrq;
+	uint32_t cfg_nvmet_mrq_post;
 	uint32_t cfg_enable_nvmet;
 	uint32_t cfg_nvme_enable_fb;
+	uint32_t cfg_nvmet_fb_size;
 	uint32_t cfg_total_seg_cnt;
 	uint32_t cfg_sg_seg_cnt;
 	uint32_t cfg_sg_dma_buf_size;

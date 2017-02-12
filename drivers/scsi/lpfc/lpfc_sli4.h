@@ -550,6 +550,9 @@ struct lpfc_sli4_hba {
 	struct lpfc_queue **hba_eq;  /* Event queues for HBA */
 	struct lpfc_queue **fcp_cq;  /* Fast-path FCP compl queue */
 	struct lpfc_queue **nvme_cq; /* Fast-path NVME compl queue */
+	struct lpfc_queue **nvmet_cqset; /* Fast-path NVMET CQ Set queues */
+	struct lpfc_queue **nvmet_mrq_hdr; /* Fast-path NVMET hdr MRQs */
+	struct lpfc_queue **nvmet_mrq_data; /* Fast-path NVMET data MRQs */
 	struct lpfc_queue **fcp_wq;  /* Fast-path FCP work queue */
 	struct lpfc_queue **nvme_wq; /* Fast-path NVME work queue */
 	uint16_t *fcp_cq_map;
@@ -655,6 +658,8 @@ struct lpfc_sli4_hba {
 	uint16_t num_online_cpu;
 	uint16_t num_present_cpu;
 	uint16_t curr_disp_cpu;
+
+	uint16_t nvmet_mrq_post_idx;
 };
 
 enum lpfc_sge_type {
@@ -742,12 +747,18 @@ int lpfc_eq_create(struct lpfc_hba *, struct lpfc_queue *, uint32_t);
 int lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq);
 int lpfc_cq_create(struct lpfc_hba *, struct lpfc_queue *,
 			struct lpfc_queue *, uint32_t, uint32_t);
+int lpfc_cq_create_set(struct lpfc_hba *phba, struct lpfc_queue **cqp,
+			struct lpfc_queue **eqp, uint32_t type,
+			uint32_t subtype);
 int32_t lpfc_mq_create(struct lpfc_hba *, struct lpfc_queue *,
 		       struct lpfc_queue *, uint32_t);
 int lpfc_wq_create(struct lpfc_hba *, struct lpfc_queue *,
 			struct lpfc_queue *, uint32_t);
 int lpfc_rq_create(struct lpfc_hba *, struct lpfc_queue *,
 			struct lpfc_queue *, struct lpfc_queue *, uint32_t);
+int lpfc_mrq_create(struct lpfc_hba *phba, struct lpfc_queue **hrqp,
+			struct lpfc_queue **drqp, struct lpfc_queue **cqp,
+			uint32_t subtype);
 void lpfc_rq_adjust_repost(struct lpfc_hba *, struct lpfc_queue *, int);
 int lpfc_eq_destroy(struct lpfc_hba *, struct lpfc_queue *);
 int lpfc_cq_destroy(struct lpfc_hba *, struct lpfc_queue *);

@@ -962,6 +962,7 @@ struct mbox_header {
 #define LPFC_MBOX_OPCODE_FCOE_DELETE_FCF		0x0A
 #define LPFC_MBOX_OPCODE_FCOE_POST_HDR_TEMPLATE		0x0B
 #define LPFC_MBOX_OPCODE_FCOE_REDISCOVER_FCF		0x10
+#define LPFC_MBOX_OPCODE_FCOE_CQ_CREATE_SET		0x1D
 #define LPFC_MBOX_OPCODE_FCOE_SET_FCLINK_SETTINGS	0x21
 #define LPFC_MBOX_OPCODE_FCOE_LINK_DIAG_STATE		0x22
 #define LPFC_MBOX_OPCODE_FCOE_LINK_DIAG_LOOPBACK	0x23
@@ -1143,6 +1144,116 @@ struct lpfc_mbx_cq_create {
 	} u;
 };
 
+struct lpfc_mbx_cq_create_set {
+	union  lpfc_sli4_cfg_shdr cfg_shdr;
+	union {
+		struct {
+			uint32_t word0;
+#define lpfc_mbx_cq_create_set_page_size_SHIFT	16	/* Version 2 Only */
+#define lpfc_mbx_cq_create_set_page_size_MASK	0x000000FF
+#define lpfc_mbx_cq_create_set_page_size_WORD	word0
+#define lpfc_mbx_cq_create_set_num_pages_SHIFT	0
+#define lpfc_mbx_cq_create_set_num_pages_MASK	0x0000FFFF
+#define lpfc_mbx_cq_create_set_num_pages_WORD	word0
+			uint32_t word1;
+#define lpfc_mbx_cq_create_set_evt_SHIFT	31
+#define lpfc_mbx_cq_create_set_evt_MASK		0x00000001
+#define lpfc_mbx_cq_create_set_evt_WORD		word1
+#define lpfc_mbx_cq_create_set_valid_SHIFT	29
+#define lpfc_mbx_cq_create_set_valid_MASK	0x00000001
+#define lpfc_mbx_cq_create_set_valid_WORD	word1
+#define lpfc_mbx_cq_create_set_cqe_cnt_SHIFT	27
+#define lpfc_mbx_cq_create_set_cqe_cnt_MASK	0x00000003
+#define lpfc_mbx_cq_create_set_cqe_cnt_WORD	word1
+#define lpfc_mbx_cq_create_set_cqe_size_SHIFT	25
+#define lpfc_mbx_cq_create_set_cqe_size_MASK	0x00000003
+#define lpfc_mbx_cq_create_set_cqe_size_WORD	word1
+#define lpfc_mbx_cq_create_set_auto_SHIFT	15
+#define lpfc_mbx_cq_create_set_auto_MASK	0x0000001
+#define lpfc_mbx_cq_create_set_auto_WORD	word1
+#define lpfc_mbx_cq_create_set_nodelay_SHIFT	14
+#define lpfc_mbx_cq_create_set_nodelay_MASK	0x00000001
+#define lpfc_mbx_cq_create_set_nodelay_WORD	word1
+#define lpfc_mbx_cq_create_set_clswm_SHIFT	12
+#define lpfc_mbx_cq_create_set_clswm_MASK	0x00000003
+#define lpfc_mbx_cq_create_set_clswm_WORD	word1
+			uint32_t word2;
+#define lpfc_mbx_cq_create_set_arm_SHIFT	31
+#define lpfc_mbx_cq_create_set_arm_MASK		0x00000001
+#define lpfc_mbx_cq_create_set_arm_WORD		word2
+#define lpfc_mbx_cq_create_set_num_cq_SHIFT	0
+#define lpfc_mbx_cq_create_set_num_cq_MASK	0x0000FFFF
+#define lpfc_mbx_cq_create_set_num_cq_WORD	word2
+			uint32_t word3;
+#define lpfc_mbx_cq_create_set_eq_id1_SHIFT	16
+#define lpfc_mbx_cq_create_set_eq_id1_MASK	0x0000FFFF
+#define lpfc_mbx_cq_create_set_eq_id1_WORD	word3
+#define lpfc_mbx_cq_create_set_eq_id0_SHIFT	0
+#define lpfc_mbx_cq_create_set_eq_id0_MASK	0x0000FFFF
+#define lpfc_mbx_cq_create_set_eq_id0_WORD	word3
+			uint32_t word4;
+#define lpfc_mbx_cq_create_set_eq_id3_SHIFT	16
+#define lpfc_mbx_cq_create_set_eq_id3_MASK	0x0000FFFF
+#define lpfc_mbx_cq_create_set_eq_id3_WORD	word4
+#define lpfc_mbx_cq_create_set_eq_id2_SHIFT	0
+#define lpfc_mbx_cq_create_set_eq_id2_MASK	0x0000FFFF
+#define lpfc_mbx_cq_create_set_eq_id2_WORD	word4
+			uint32_t word5;
+#define lpfc_mbx_cq_create_set_eq_id5_SHIFT	16
+#define lpfc_mbx_cq_create_set_eq_id5_MASK	0x0000FFFF
+#define lpfc_mbx_cq_create_set_eq_id5_WORD	word5
+#define lpfc_mbx_cq_create_set_eq_id4_SHIFT	0
+#define lpfc_mbx_cq_create_set_eq_id4_MASK	0x0000FFFF
+#define lpfc_mbx_cq_create_set_eq_id4_WORD	word5
+			uint32_t word6;
+#define lpfc_mbx_cq_create_set_eq_id7_SHIFT	16
+#define lpfc_mbx_cq_create_set_eq_id7_MASK	0x0000FFFF
+#define lpfc_mbx_cq_create_set_eq_id7_WORD	word6
+#define lpfc_mbx_cq_create_set_eq_id6_SHIFT	0
+#define lpfc_mbx_cq_create_set_eq_id6_MASK	0x0000FFFF
+#define lpfc_mbx_cq_create_set_eq_id6_WORD	word6
+			uint32_t word7;
+#define lpfc_mbx_cq_create_set_eq_id9_SHIFT	16
+#define lpfc_mbx_cq_create_set_eq_id9_MASK	0x0000FFFF
+#define lpfc_mbx_cq_create_set_eq_id9_WORD	word7
+#define lpfc_mbx_cq_create_set_eq_id8_SHIFT	0
+#define lpfc_mbx_cq_create_set_eq_id8_MASK	0x0000FFFF
+#define lpfc_mbx_cq_create_set_eq_id8_WORD	word7
+			uint32_t word8;
+#define lpfc_mbx_cq_create_set_eq_id11_SHIFT	16
+#define lpfc_mbx_cq_create_set_eq_id11_MASK	0x0000FFFF
+#define lpfc_mbx_cq_create_set_eq_id11_WORD	word8
+#define lpfc_mbx_cq_create_set_eq_id10_SHIFT	0
+#define lpfc_mbx_cq_create_set_eq_id10_MASK	0x0000FFFF
+#define lpfc_mbx_cq_create_set_eq_id10_WORD	word8
+			uint32_t word9;
+#define lpfc_mbx_cq_create_set_eq_id13_SHIFT	16
+#define lpfc_mbx_cq_create_set_eq_id13_MASK	0x0000FFFF
+#define lpfc_mbx_cq_create_set_eq_id13_WORD	word9
+#define lpfc_mbx_cq_create_set_eq_id12_SHIFT	0
+#define lpfc_mbx_cq_create_set_eq_id12_MASK	0x0000FFFF
+#define lpfc_mbx_cq_create_set_eq_id12_WORD	word9
+			uint32_t word10;
+#define lpfc_mbx_cq_create_set_eq_id15_SHIFT	16
+#define lpfc_mbx_cq_create_set_eq_id15_MASK	0x0000FFFF
+#define lpfc_mbx_cq_create_set_eq_id15_WORD	word10
+#define lpfc_mbx_cq_create_set_eq_id14_SHIFT	0
+#define lpfc_mbx_cq_create_set_eq_id14_MASK	0x0000FFFF
+#define lpfc_mbx_cq_create_set_eq_id14_WORD	word10
+			struct dma_address page[1];
+		} request;
+		struct {
+			uint32_t word0;
+#define lpfc_mbx_cq_create_set_num_alloc_SHIFT	16
+#define lpfc_mbx_cq_create_set_num_alloc_MASK	0x0000FFFF
+#define lpfc_mbx_cq_create_set_num_alloc_WORD	word0
+#define lpfc_mbx_cq_create_set_base_id_SHIFT	0
+#define lpfc_mbx_cq_create_set_base_id_MASK	0x0000FFFF
+#define lpfc_mbx_cq_create_set_base_id_WORD	word0
+		} response;
+	} u;
+};
+
 struct lpfc_mbx_cq_destroy {
 	struct mbox_header header;
 	union {
@@ -1252,10 +1363,10 @@ struct rq_context {
 #define LPFC_RQ_RING_SIZE_1024		10	/* 1024 entries */
 #define LPFC_RQ_RING_SIZE_2048		11	/* 2048 entries */
 #define LPFC_RQ_RING_SIZE_4096		12	/* 4096 entries */
-#define lpfc_rq_context_rqe_count_1_SHIFT	16	/* Version 1 Only */
+#define lpfc_rq_context_rqe_count_1_SHIFT	16	/* Version 1-2 Only */
 #define lpfc_rq_context_rqe_count_1_MASK	0x0000FFFF
 #define lpfc_rq_context_rqe_count_1_WORD	word0
-#define lpfc_rq_context_rqe_size_SHIFT	8		/* Version 1 Only */
+#define lpfc_rq_context_rqe_size_SHIFT	8		/* Version 1-2 Only */
 #define lpfc_rq_context_rqe_size_MASK	0x0000000F
 #define lpfc_rq_context_rqe_size_WORD	word0
 #define LPFC_RQE_SIZE_8		2
@@ -1267,7 +1378,13 @@ struct rq_context {
 #define lpfc_rq_context_page_size_MASK	0x000000FF
 #define lpfc_rq_context_page_size_WORD	word0
 #define	LPFC_RQ_PAGE_SIZE_4096	0x1
-	uint32_t reserved1;
+	uint32_t word1;
+#define lpfc_rq_context_data_size_SHIFT	16		/* Version 2 Only */
+#define lpfc_rq_context_data_size_MASK	0x0000FFFF
+#define lpfc_rq_context_data_size_WORD	word1
+#define lpfc_rq_context_hdr_size_SHIFT	0		/* Version 2 Only */
+#define lpfc_rq_context_hdr_size_MASK	0x0000FFFF
+#define lpfc_rq_context_hdr_size_WORD	word1
 	uint32_t word2;
 #define lpfc_rq_context_cq_id_SHIFT	16
 #define lpfc_rq_context_cq_id_MASK	0x000003FF
@@ -1275,6 +1392,9 @@ struct rq_context {
 #define lpfc_rq_context_buf_size_SHIFT	0
 #define lpfc_rq_context_buf_size_MASK	0x0000FFFF
 #define lpfc_rq_context_buf_size_WORD	word2
+#define lpfc_rq_context_base_cq_SHIFT	0		/* Version 2 Only */
+#define lpfc_rq_context_base_cq_MASK	0x0000FFFF
+#define lpfc_rq_context_base_cq_WORD	word2
 	uint32_t buffer_size;				/* Version 1 Only */
 };
 
@@ -1296,10 +1416,65 @@ struct lpfc_mbx_rq_create {
 #define lpfc_mbx_rq_create_ulp_num_MASK		0x000000FF
 #define lpfc_mbx_rq_create_ulp_num_WORD		word0
 			struct rq_context context;
-			struct dma_address page[LPFC_MAX_WQ_PAGE];
+			struct dma_address page[LPFC_MAX_RQ_PAGE];
 		} request;
 		struct {
 			uint32_t word0;
+#define lpfc_mbx_rq_create_q_cnt_v2_SHIFT	16
+#define lpfc_mbx_rq_create_q_cnt_v2_MASK	0x0000FFFF
+#define lpfc_mbx_rq_create_q_cnt_v2_WORD	word0
+#define lpfc_mbx_rq_create_q_id_SHIFT		0
+#define lpfc_mbx_rq_create_q_id_MASK		0x0000FFFF
+#define lpfc_mbx_rq_create_q_id_WORD		word0
+			uint32_t doorbell_offset;
+			uint32_t word2;
+#define lpfc_mbx_rq_create_bar_set_SHIFT	0
+#define lpfc_mbx_rq_create_bar_set_MASK		0x0000FFFF
+#define lpfc_mbx_rq_create_bar_set_WORD		word2
+#define lpfc_mbx_rq_create_db_format_SHIFT	16
+#define lpfc_mbx_rq_create_db_format_MASK	0x0000FFFF
+#define lpfc_mbx_rq_create_db_format_WORD	word2
+		} response;
+	} u;
+};
+
+struct lpfc_mbx_rq_create_v2 {
+	union  lpfc_sli4_cfg_shdr cfg_shdr;
+	union {
+		struct {
+			uint32_t word0;
+#define lpfc_mbx_rq_create_num_pages_SHIFT	0
+#define lpfc_mbx_rq_create_num_pages_MASK	0x0000FFFF
+#define lpfc_mbx_rq_create_num_pages_WORD	word0
+#define lpfc_mbx_rq_create_rq_cnt_SHIFT		16
+#define lpfc_mbx_rq_create_rq_cnt_MASK		0x000000FF
+#define lpfc_mbx_rq_create_rq_cnt_WORD		word0
+#define lpfc_mbx_rq_create_dua_SHIFT		16
+#define lpfc_mbx_rq_create_dua_MASK		0x00000001
+#define lpfc_mbx_rq_create_dua_WORD		word0
+#define lpfc_mbx_rq_create_bqu_SHIFT		17
+#define lpfc_mbx_rq_create_bqu_MASK		0x00000001
+#define lpfc_mbx_rq_create_bqu_WORD		word0
+#define lpfc_mbx_rq_create_ulp_num_SHIFT	24
+#define lpfc_mbx_rq_create_ulp_num_MASK		0x000000FF
+#define lpfc_mbx_rq_create_ulp_num_WORD		word0
+#define lpfc_mbx_rq_create_dim_SHIFT		29
+#define lpfc_mbx_rq_create_dim_MASK		0x00000001
+#define lpfc_mbx_rq_create_dim_WORD		word0
+#define lpfc_mbx_rq_create_dfd_SHIFT		30
+#define lpfc_mbx_rq_create_dfd_MASK		0x00000001
+#define lpfc_mbx_rq_create_dfd_WORD		word0
+#define lpfc_mbx_rq_create_dnb_SHIFT		31
+#define lpfc_mbx_rq_create_dnb_MASK		0x00000001
+#define lpfc_mbx_rq_create_dnb_WORD		word0
+			struct rq_context context;
+			struct dma_address page[1];
+		} request;
+		struct {
+			uint32_t word0;
+#define lpfc_mbx_rq_create_q_cnt_v2_SHIFT	16
+#define lpfc_mbx_rq_create_q_cnt_v2_MASK	0x0000FFFF
+#define lpfc_mbx_rq_create_q_cnt_v2_WORD	word0
 #define lpfc_mbx_rq_create_q_id_SHIFT		0
 #define lpfc_mbx_rq_create_q_id_MASK		0x0000FFFF
 #define lpfc_mbx_rq_create_q_id_WORD		word0
@@ -2213,6 +2388,160 @@ struct lpfc_mbx_reg_fcfi {
 #define lpfc_reg_fcfi_vlan_tag_WORD	word8
 };
 
+struct lpfc_mbx_reg_fcfi_mrq {
+	uint32_t word1;
+#define lpfc_reg_fcfi_mrq_info_index_SHIFT	0
+#define lpfc_reg_fcfi_mrq_info_index_MASK	0x0000FFFF
+#define lpfc_reg_fcfi_mrq_info_index_WORD	word1
+#define lpfc_reg_fcfi_mrq_fcfi_SHIFT		16
+#define lpfc_reg_fcfi_mrq_fcfi_MASK		0x0000FFFF
+#define lpfc_reg_fcfi_mrq_fcfi_WORD		word1
+	uint32_t word2;
+#define lpfc_reg_fcfi_mrq_rq_id1_SHIFT		0
+#define lpfc_reg_fcfi_mrq_rq_id1_MASK		0x0000FFFF
+#define lpfc_reg_fcfi_mrq_rq_id1_WORD		word2
+#define lpfc_reg_fcfi_mrq_rq_id0_SHIFT		16
+#define lpfc_reg_fcfi_mrq_rq_id0_MASK		0x0000FFFF
+#define lpfc_reg_fcfi_mrq_rq_id0_WORD		word2
+	uint32_t word3;
+#define lpfc_reg_fcfi_mrq_rq_id3_SHIFT		0
+#define lpfc_reg_fcfi_mrq_rq_id3_MASK		0x0000FFFF
+#define lpfc_reg_fcfi_mrq_rq_id3_WORD		word3
+#define lpfc_reg_fcfi_mrq_rq_id2_SHIFT		16
+#define lpfc_reg_fcfi_mrq_rq_id2_MASK		0x0000FFFF
+#define lpfc_reg_fcfi_mrq_rq_id2_WORD		word3
+	uint32_t word4;
+#define lpfc_reg_fcfi_mrq_type_match0_SHIFT	24
+#define lpfc_reg_fcfi_mrq_type_match0_MASK	0x000000FF
+#define lpfc_reg_fcfi_mrq_type_match0_WORD	word4
+#define lpfc_reg_fcfi_mrq_type_mask0_SHIFT	16
+#define lpfc_reg_fcfi_mrq_type_mask0_MASK	0x000000FF
+#define lpfc_reg_fcfi_mrq_type_mask0_WORD	word4
+#define lpfc_reg_fcfi_mrq_rctl_match0_SHIFT	8
+#define lpfc_reg_fcfi_mrq_rctl_match0_MASK	0x000000FF
+#define lpfc_reg_fcfi_mrq_rctl_match0_WORD	word4
+#define lpfc_reg_fcfi_mrq_rctl_mask0_SHIFT	0
+#define lpfc_reg_fcfi_mrq_rctl_mask0_MASK	0x000000FF
+#define lpfc_reg_fcfi_mrq_rctl_mask0_WORD	word4
+	uint32_t word5;
+#define lpfc_reg_fcfi_mrq_type_match1_SHIFT	24
+#define lpfc_reg_fcfi_mrq_type_match1_MASK	0x000000FF
+#define lpfc_reg_fcfi_mrq_type_match1_WORD	word5
+#define lpfc_reg_fcfi_mrq_type_mask1_SHIFT	16
+#define lpfc_reg_fcfi_mrq_type_mask1_MASK	0x000000FF
+#define lpfc_reg_fcfi_mrq_type_mask1_WORD	word5
+#define lpfc_reg_fcfi_mrq_rctl_match1_SHIFT	8
+#define lpfc_reg_fcfi_mrq_rctl_match1_MASK	0x000000FF
+#define lpfc_reg_fcfi_mrq_rctl_match1_WORD	word5
+#define lpfc_reg_fcfi_mrq_rctl_mask1_SHIFT	0
+#define lpfc_reg_fcfi_mrq_rctl_mask1_MASK	0x000000FF
+#define lpfc_reg_fcfi_mrq_rctl_mask1_WORD	word5
+	uint32_t word6;
+#define lpfc_reg_fcfi_mrq_type_match2_SHIFT	24
+#define lpfc_reg_fcfi_mrq_type_match2_MASK	0x000000FF
+#define lpfc_reg_fcfi_mrq_type_match2_WORD	word6
+#define lpfc_reg_fcfi_mrq_type_mask2_SHIFT	16
+#define lpfc_reg_fcfi_mrq_type_mask2_MASK	0x000000FF
+#define lpfc_reg_fcfi_mrq_type_mask2_WORD	word6
+#define lpfc_reg_fcfi_mrq_rctl_match2_SHIFT	8
+#define lpfc_reg_fcfi_mrq_rctl_match2_MASK	0x000000FF
+#define lpfc_reg_fcfi_mrq_rctl_match2_WORD	word6
+#define lpfc_reg_fcfi_mrq_rctl_mask2_SHIFT	0
+#define lpfc_reg_fcfi_mrq_rctl_mask2_MASK	0x000000FF
+#define lpfc_reg_fcfi_mrq_rctl_mask2_WORD	word6
+	uint32_t word7;
+#define lpfc_reg_fcfi_mrq_type_match3_SHIFT	24
+#define lpfc_reg_fcfi_mrq_type_match3_MASK	0x000000FF
+#define lpfc_reg_fcfi_mrq_type_match3_WORD	word7
+#define lpfc_reg_fcfi_mrq_type_mask3_SHIFT	16
+#define lpfc_reg_fcfi_mrq_type_mask3_MASK	0x000000FF
+#define lpfc_reg_fcfi_mrq_type_mask3_WORD	word7
+#define lpfc_reg_fcfi_mrq_rctl_match3_SHIFT	8
+#define lpfc_reg_fcfi_mrq_rctl_match3_MASK	0x000000FF
+#define lpfc_reg_fcfi_mrq_rctl_match3_WORD	word7
+#define lpfc_reg_fcfi_mrq_rctl_mask3_SHIFT	0
+#define lpfc_reg_fcfi_mrq_rctl_mask3_MASK	0x000000FF
+#define lpfc_reg_fcfi_mrq_rctl_mask3_WORD	word7
+	uint32_t word8;
+#define lpfc_reg_fcfi_mrq_ptc7_SHIFT		31
+#define lpfc_reg_fcfi_mrq_ptc7_MASK		0x00000001
+#define lpfc_reg_fcfi_mrq_ptc7_WORD		word8
+#define lpfc_reg_fcfi_mrq_ptc6_SHIFT		30
+#define lpfc_reg_fcfi_mrq_ptc6_MASK		0x00000001
+#define lpfc_reg_fcfi_mrq_ptc6_WORD		word8
+#define lpfc_reg_fcfi_mrq_ptc5_SHIFT		29
+#define lpfc_reg_fcfi_mrq_ptc5_MASK		0x00000001
+#define lpfc_reg_fcfi_mrq_ptc5_WORD		word8
+#define lpfc_reg_fcfi_mrq_ptc4_SHIFT		28
+#define lpfc_reg_fcfi_mrq_ptc4_MASK		0x00000001
+#define lpfc_reg_fcfi_mrq_ptc4_WORD		word8
+#define lpfc_reg_fcfi_mrq_ptc3_SHIFT		27
+#define lpfc_reg_fcfi_mrq_ptc3_MASK		0x00000001
+#define lpfc_reg_fcfi_mrq_ptc3_WORD		word8
+#define lpfc_reg_fcfi_mrq_ptc2_SHIFT		26
+#define lpfc_reg_fcfi_mrq_ptc2_MASK		0x00000001
+#define lpfc_reg_fcfi_mrq_ptc2_WORD		word8
+#define lpfc_reg_fcfi_mrq_ptc1_SHIFT		25
+#define lpfc_reg_fcfi_mrq_ptc1_MASK		0x00000001
+#define lpfc_reg_fcfi_mrq_ptc1_WORD		word8
+#define lpfc_reg_fcfi_mrq_ptc0_SHIFT		24
+#define lpfc_reg_fcfi_mrq_ptc0_MASK		0x00000001
+#define lpfc_reg_fcfi_mrq_ptc0_WORD		word8
+#define lpfc_reg_fcfi_mrq_pt7_SHIFT		23
+#define lpfc_reg_fcfi_mrq_pt7_MASK		0x00000001
+#define lpfc_reg_fcfi_mrq_pt7_WORD		word8
+#define lpfc_reg_fcfi_mrq_pt6_SHIFT		22
+#define lpfc_reg_fcfi_mrq_pt6_MASK		0x00000001
+#define lpfc_reg_fcfi_mrq_pt6_WORD		word8
+#define lpfc_reg_fcfi_mrq_pt5_SHIFT		21
+#define lpfc_reg_fcfi_mrq_pt5_MASK		0x00000001
+#define lpfc_reg_fcfi_mrq_pt5_WORD		word8
+#define lpfc_reg_fcfi_mrq_pt4_SHIFT		20
+#define lpfc_reg_fcfi_mrq_pt4_MASK		0x00000001
+#define lpfc_reg_fcfi_mrq_pt4_WORD		word8
+#define lpfc_reg_fcfi_mrq_pt3_SHIFT		19
+#define lpfc_reg_fcfi_mrq_pt3_MASK		0x00000001
+#define lpfc_reg_fcfi_mrq_pt3_WORD		word8
+#define lpfc_reg_fcfi_mrq_pt2_SHIFT		18
+#define lpfc_reg_fcfi_mrq_pt2_MASK		0x00000001
+#define lpfc_reg_fcfi_mrq_pt2_WORD		word8
+#define lpfc_reg_fcfi_mrq_pt1_SHIFT		17
+#define lpfc_reg_fcfi_mrq_pt1_MASK		0x00000001
+#define lpfc_reg_fcfi_mrq_pt1_WORD		word8
+#define lpfc_reg_fcfi_mrq_pt0_SHIFT		16
+#define lpfc_reg_fcfi_mrq_pt0_MASK		0x00000001
+#define lpfc_reg_fcfi_mrq_pt0_WORD		word8
+#define lpfc_reg_fcfi_mrq_xmv_SHIFT		15
+#define lpfc_reg_fcfi_mrq_xmv_MASK		0x00000001
+#define lpfc_reg_fcfi_mrq_xmv_WORD		word8
+#define lpfc_reg_fcfi_mrq_mode_SHIFT		13
+#define lpfc_reg_fcfi_mrq_mode_MASK		0x00000001
+#define lpfc_reg_fcfi_mrq_mode_WORD		word8
+#define lpfc_reg_fcfi_mrq_vv_SHIFT		12
+#define lpfc_reg_fcfi_mrq_vv_MASK		0x00000001
+#define lpfc_reg_fcfi_mrq_vv_WORD		word8
+#define lpfc_reg_fcfi_mrq_vlan_tag_SHIFT	0
+#define lpfc_reg_fcfi_mrq_vlan_tag_MASK		0x00000FFF
+#define lpfc_reg_fcfi_mrq_vlan_tag_WORD		word8
+	uint32_t word9;
+#define lpfc_reg_fcfi_mrq_policy_SHIFT		12
+#define lpfc_reg_fcfi_mrq_policy_MASK		0x0000000F
+#define lpfc_reg_fcfi_mrq_policy_WORD		word9
+#define lpfc_reg_fcfi_mrq_filter_SHIFT		8
+#define lpfc_reg_fcfi_mrq_filter_MASK		0x0000000F
+#define lpfc_reg_fcfi_mrq_filter_WORD		word9
+#define lpfc_reg_fcfi_mrq_npairs_SHIFT		0
+#define lpfc_reg_fcfi_mrq_npairs_MASK		0x000000FF
+#define lpfc_reg_fcfi_mrq_npairs_WORD		word9
+	uint32_t word10;
+	uint32_t word11;
+	uint32_t word12;
+	uint32_t word13;
+	uint32_t word14;
+	uint32_t word15;
+	uint32_t word16;
+};
+
 struct lpfc_mbx_unreg_fcfi {
 	uint32_t word1_rsv;
 	uint32_t word2;
@@ -2392,6 +2721,9 @@ struct lpfc_mbx_request_features {
 #define lpfc_mbx_rq_ftr_rq_perfh_SHIFT		11
 #define lpfc_mbx_rq_ftr_rq_perfh_MASK		0x00000001
 #define lpfc_mbx_rq_ftr_rq_perfh_WORD		word2
+#define lpfc_mbx_rq_ftr_rq_mrqp_SHIFT		16
+#define lpfc_mbx_rq_ftr_rq_mrqp_MASK		0x00000001
+#define lpfc_mbx_rq_ftr_rq_mrqp_WORD		word2
 	uint32_t word3;
 #define lpfc_mbx_rq_ftr_rsp_iaab_SHIFT		0
 #define lpfc_mbx_rq_ftr_rsp_iaab_MASK		0x00000001
@@ -2420,6 +2752,9 @@ struct lpfc_mbx_request_features {
 #define lpfc_mbx_rq_ftr_rsp_perfh_SHIFT		11
 #define lpfc_mbx_rq_ftr_rsp_perfh_MASK		0x00000001
 #define lpfc_mbx_rq_ftr_rsp_perfh_WORD		word3
+#define lpfc_mbx_rq_ftr_rsp_mrqp_SHIFT		16
+#define lpfc_mbx_rq_ftr_rsp_mrqp_MASK		0x00000001
+#define lpfc_mbx_rq_ftr_rsp_mrqp_WORD		word3
 };
 
 struct lpfc_mbx_supp_pages {
@@ -3312,14 +3647,17 @@ struct lpfc_mqe {
 		struct lpfc_mbx_del_fcf_tbl_entry del_fcf_entry;
 		struct lpfc_mbx_redisc_fcf_tbl redisc_fcf_tbl;
 		struct lpfc_mbx_reg_fcfi reg_fcfi;
+		struct lpfc_mbx_reg_fcfi_mrq reg_fcfi_mrq;
 		struct lpfc_mbx_unreg_fcfi unreg_fcfi;
 		struct lpfc_mbx_mq_create mq_create;
 		struct lpfc_mbx_mq_create_ext mq_create_ext;
 		struct lpfc_mbx_eq_create eq_create;
 		struct lpfc_mbx_modify_eq_delay eq_delay;
 		struct lpfc_mbx_cq_create cq_create;
+		struct lpfc_mbx_cq_create_set cq_create_set;
 		struct lpfc_mbx_wq_create wq_create;
 		struct lpfc_mbx_rq_create rq_create;
+		struct lpfc_mbx_rq_create_v2 rq_create_v2;
 		struct lpfc_mbx_mq_destroy mq_destroy;
 		struct lpfc_mbx_eq_destroy eq_destroy;
 		struct lpfc_mbx_cq_destroy cq_destroy;
@@ -3972,6 +4310,7 @@ struct lpfc_nvme_prli {
 #define prli_fb_sz_SHIFT                0
 #define prli_fb_sz_MASK                 0x0000ffff
 #define prli_fb_sz_WORD                 word5
+#define LPFC_NVMET_FB_SZ_MAX  65536   /* Driver target mode only. */
 };
 
 struct create_xri_wqe {
