@@ -867,8 +867,14 @@ int mlx5e_close_locked(struct net_device *netdev);
 int mlx5e_open_channels(struct mlx5e_priv *priv,
 			struct mlx5e_channels *chs);
 void mlx5e_close_channels(struct mlx5e_channels *chs);
+
+/* Function pointer to be used to modify WH settings while
+ * switching channels
+ */
+typedef int (*mlx5e_fp_hw_modify)(struct mlx5e_priv *priv);
 void mlx5e_switch_priv_channels(struct mlx5e_priv *priv,
-				struct mlx5e_channels *new_chs);
+				struct mlx5e_channels *new_chs,
+				mlx5e_fp_hw_modify hw_modify);
 
 void mlx5e_build_default_indir_rqt(struct mlx5_core_dev *mdev,
 				   u32 *indirection_rqt, int len,

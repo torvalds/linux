@@ -540,7 +540,7 @@ static int mlx5e_set_ringparam(struct net_device *dev,
 	if (err)
 		goto unlock;
 
-	mlx5e_switch_priv_channels(priv, &new_channels);
+	mlx5e_switch_priv_channels(priv, &new_channels, NULL);
 
 unlock:
 	mutex_unlock(&priv->state_lock);
@@ -597,7 +597,7 @@ static int mlx5e_set_channels(struct net_device *dev,
 		mlx5e_arfs_disable(priv);
 
 	/* Switch to new channels, set new parameters and close old ones */
-	mlx5e_switch_priv_channels(priv, &new_channels);
+	mlx5e_switch_priv_channels(priv, &new_channels, NULL);
 
 	if (arfs_enabled) {
 		err = mlx5e_arfs_enable(priv);
@@ -691,7 +691,7 @@ static int mlx5e_set_coalesce(struct net_device *netdev,
 	if (err)
 		goto out;
 
-	mlx5e_switch_priv_channels(priv, &new_channels);
+	mlx5e_switch_priv_channels(priv, &new_channels, NULL);
 
 out:
 	mutex_unlock(&priv->state_lock);
@@ -1166,7 +1166,7 @@ static int mlx5e_set_tunable(struct net_device *dev,
 		err = mlx5e_open_channels(priv, &new_channels);
 		if (err)
 			break;
-		mlx5e_switch_priv_channels(priv, &new_channels);
+		mlx5e_switch_priv_channels(priv, &new_channels, NULL);
 
 		break;
 	default:
@@ -1503,7 +1503,7 @@ static int set_pflag_rx_cqe_based_moder(struct net_device *netdev, bool enable)
 	if (err)
 		return err;
 
-	mlx5e_switch_priv_channels(priv, &new_channels);
+	mlx5e_switch_priv_channels(priv, &new_channels, NULL);
 	return 0;
 }
 
@@ -1534,7 +1534,7 @@ int mlx5e_modify_rx_cqe_compression_locked(struct mlx5e_priv *priv, bool new_val
 	if (err)
 		return err;
 
-	mlx5e_switch_priv_channels(priv, &new_channels);
+	mlx5e_switch_priv_channels(priv, &new_channels, NULL);
 	return 0;
 }
 

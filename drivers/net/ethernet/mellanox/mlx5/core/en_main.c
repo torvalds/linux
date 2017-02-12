@@ -2437,9 +2437,9 @@ static void mlx5e_query_mtu(struct mlx5e_priv *priv, u16 *mtu)
 	*mtu = MLX5E_HW2SW_MTU(hw_mtu);
 }
 
-static int mlx5e_set_dev_port_mtu(struct net_device *netdev)
+static int mlx5e_set_dev_port_mtu(struct mlx5e_priv *priv)
 {
-	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct net_device *netdev = priv->netdev;
 	u16 mtu;
 	int err;
 
@@ -2534,7 +2534,8 @@ static void mlx5e_deactivate_priv_channels(struct mlx5e_priv *priv)
 }
 
 void mlx5e_switch_priv_channels(struct mlx5e_priv *priv,
-				struct mlx5e_channels *new_chs)
+				struct mlx5e_channels *new_chs,
+				mlx5e_fp_hw_modify hw_modify)
 {
 	struct net_device *netdev = priv->netdev;
 	int new_num_txqs;
@@ -2550,6 +2551,10 @@ void mlx5e_switch_priv_channels(struct mlx5e_priv *priv,
 	mlx5e_close_channels(&priv->channels);
 
 	priv->channels = *new_chs;
+
+	/* New channels are ready to roll, modify HW settings if needed */
+	if (hw_modify)
+		hw_modify(priv);
 
 	mlx5e_refresh_tirs(priv, false);
 	mlx5e_activate_priv_channels(priv);
@@ -2930,7 +2935,7 @@ static int mlx5e_setup_tc(struct net_device *netdev, u8 tc)
 	if (err)
 		goto out;
 
-	mlx5e_switch_priv_channels(priv, &new_channels);
+	mlx5e_switch_priv_channels(priv, &new_channels, NULL);
 out:
 	mutex_unlock(&priv->state_lock);
 	return err;
@@ -3049,26 +3054,31 @@ typedef int (*mlx5e_feature_handler)(struct net_device *netdev, bool enable);
 static int set_feature_lro(struct net_device *netdev, bool enable)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
-	bool was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
-	int err;
+	struct mlx5e_channels new_channels = {};
+	int err = 0;
+	bool reset;
 
 	mutex_lock(&priv->state_lock);
 
-	if (was_opened && (priv->channels.params.rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST))
-		mlx5e_close_locked(priv->netdev);
+	reset = (priv->channels.params.rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST);
+	reset = reset && test_bit(MLX5E_STATE_OPENED, &priv->state);
 
-	priv->channels.params.lro_en = enable;
-	err = mlx5e_modify_tirs_lro(priv);
-	if (err) {
-		netdev_err(netdev, "lro modify failed, %d\n", err);
-		priv->channels.params.lro_en = !enable;
+	new_channels.params = priv->channels.params;
+	new_channels.params.lro_en = enable;
+
+	if (!reset) {
+		priv->channels.params = new_channels.params;
+		err = mlx5e_modify_tirs_lro(priv);
+		goto out;
 	}
 
-	if (was_opened && (priv->channels.params.rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST))
-		mlx5e_open_locked(priv->netdev);
+	err = mlx5e_open_channels(priv, &new_channels);
+	if (err)
+		goto out;
 
+	mlx5e_switch_priv_channels(priv, &new_channels, mlx5e_modify_tirs_lro);
+out:
 	mutex_unlock(&priv->state_lock);
-
 	return err;
 }
 
@@ -3191,7 +3201,8 @@ static int mlx5e_set_features(struct net_device *netdev,
 static int mlx5e_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
-	bool was_opened;
+	struct mlx5e_channels new_channels = {};
+	int curr_mtu;
 	int err = 0;
 	bool reset;
 
@@ -3201,18 +3212,27 @@ static int mlx5e_change_mtu(struct net_device *netdev, int new_mtu)
 		(priv->channels.params.rq_wq_type !=
 		 MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ);
 
-	was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
-	if (was_opened && reset)
-		mlx5e_close_locked(netdev);
+	reset = reset && test_bit(MLX5E_STATE_OPENED, &priv->state);
 
+	curr_mtu    = netdev->mtu;
 	netdev->mtu = new_mtu;
-	mlx5e_set_dev_port_mtu(netdev);
 
-	if (was_opened && reset)
-		err = mlx5e_open_locked(netdev);
+	if (!reset) {
+		mlx5e_set_dev_port_mtu(priv);
+		goto out;
+	}
 
+	new_channels.params = priv->channels.params;
+	err = mlx5e_open_channels(priv, &new_channels);
+	if (err) {
+		netdev->mtu = curr_mtu;
+		goto out;
+	}
+
+	mlx5e_switch_priv_channels(priv, &new_channels, mlx5e_set_dev_port_mtu);
+
+out:
 	mutex_unlock(&priv->state_lock);
-
 	return err;
 }
 
@@ -4169,7 +4189,7 @@ int mlx5e_attach_netdev(struct mlx5_core_dev *mdev, struct net_device *netdev)
 	mlx5_query_port_max_mtu(priv->mdev, &max_mtu, 1);
 	netdev->max_mtu = MLX5E_HW2SW_MTU(max_mtu);
 
-	mlx5e_set_dev_port_mtu(netdev);
+	mlx5e_set_dev_port_mtu(priv);
 
 	if (profile->enable)
 		profile->enable(priv);
