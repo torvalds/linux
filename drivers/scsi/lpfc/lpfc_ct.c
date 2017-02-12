@@ -1433,7 +1433,13 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		if (((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
 		     (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) &&
 		    (context == FC_TYPE_NVME)) {
-			lpfc_nvme_update_localport(vport);
+			if ((vport == phba->pport) && phba->nvmet_support) {
+				CtReq->un.rff.fbits = (FC4_FEATURE_TARGET |
+					FC4_FEATURE_NVME_DISC);
+				/* todo: update targetport attributes */
+			} else {
+				lpfc_nvme_update_localport(vport);
+			}
 			CtReq->un.rff.type_code = context;
 
 		} else if (((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||

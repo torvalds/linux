@@ -515,7 +515,15 @@ struct serv_parm {	/* Structure is in Big Endian format */
 	struct class_parms cls2;
 	struct class_parms cls3;
 	struct class_parms cls4;
-	uint8_t vendorVersion[16];
+	union {
+		uint8_t vendorVersion[16];
+		struct {
+			uint32_t vid;
+#define LPFC_VV_EMLX_ID	0x454d4c58	/* EMLX */
+			uint32_t flags;
+#define LPFC_VV_SUPPRESS_RSP	1
+		} vv;
+	} un;
 };
 
 /*

@@ -288,6 +288,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	uint32_t ed_tov;
 	LPFC_MBOXQ_t *mbox;
 	struct ls_rjt stat;
+	uint32_t vid, flag;
 	int rc;
 
 	memset(&stat, 0, sizeof (struct ls_rjt));
@@ -421,6 +422,15 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		}
 
 		lpfc_can_disctmo(vport);
+	}
+
+	ndlp->nlp_flag &= ~NLP_SUPPRESS_RSP;
+	if ((phba->sli.sli_flag & LPFC_SLI_SUPPRESS_RSP) &&
+	    sp->cmn.valid_vendor_ver_level) {
+		vid = be32_to_cpu(sp->un.vv.vid);
+		flag = be32_to_cpu(sp->un.vv.flags);
+		if ((vid == LPFC_VV_EMLX_ID) && (flag & LPFC_VV_SUPPRESS_RSP))
+			ndlp->nlp_flag |= NLP_SUPPRESS_RSP;
 	}
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -744,6 +754,14 @@ lpfc_rcv_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		}
 		if (npr->Retry)
 			ndlp->nlp_fcp_info |= NLP_FCP_2_DEVICE;
+
+		/* If this driver is in nvme target mode, set the ndlp's fc4
+		 * type to NVME provided the PRLI response claims NVME FC4
+		 * type.  Target mode does not issue gft_id so doesn't get
+		 * the fc4 type set until now.
+		 */
+		if ((phba->nvmet_support) && (npr->prliType == PRLI_NVME_TYPE))
+			ndlp->nlp_fc4_type |= NLP_FC4_NVME;
 	}
 	if (rport) {
 		/* We need to update the rport role values */
@@ -1041,6 +1059,7 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 	struct lpfc_iocbq  *cmdiocb, *rspiocb;
 	struct lpfc_dmabuf *pcmd, *prsp, *mp;
 	uint32_t *lp;
+	uint32_t vid, flag;
 	IOCB_t *irsp;
 	struct serv_parm *sp;
 	uint32_t ed_tov;
@@ -1107,6 +1126,16 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 		if (sp->cmn.edtovResolution) {
 			/* E_D_TOV ticks are in nanoseconds */
 			ed_tov = (phba->fc_edtov + 999999) / 1000000;
+		}
+
+		ndlp->nlp_flag &= ~NLP_SUPPRESS_RSP;
+		if ((phba->sli.sli_flag & LPFC_SLI_SUPPRESS_RSP) &&
+		    sp->cmn.valid_vendor_ver_level) {
+			vid = be32_to_cpu(sp->un.vv.vid);
+			flag = be32_to_cpu(sp->un.vv.flags);
+			if ((vid == LPFC_VV_EMLX_ID) &&
+			    (flag & LPFC_VV_SUPPRESS_RSP))
+				ndlp->nlp_flag |= NLP_SUPPRESS_RSP;
 		}
 
 		/*
@@ -1504,9 +1533,37 @@ lpfc_rcv_prli_reglogin_issue(struct lpfc_vport *vport,
 			     uint32_t evt)
 {
 	struct lpfc_iocbq *cmdiocb = (struct lpfc_iocbq *) arg;
+	struct ls_rjt     stat;
 
-	/* Initiator mode. */
-	lpfc_els_rsp_prli_acc(vport, cmdiocb, ndlp);
+	if (vport->phba->nvmet_support) {
+		/* NVME Target mode.  Handle and respond to the PRLI and
+		 * transition to UNMAPPED provided the RPI has completed
+		 * registration.
+		 */
+		if (ndlp->nlp_flag & NLP_RPI_REGISTERED) {
+			lpfc_rcv_prli(vport, ndlp, cmdiocb);
+			lpfc_els_rsp_prli_acc(vport, cmdiocb, ndlp);
+			lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
+		} else {
+			/* RPI registration has not completed. Reject the PRLI
+			 * to prevent an illegal state transition when the
+			 * rpi registration does complete.
+			 */
+			lpfc_printf_vlog(vport, KERN_WARNING, LOG_NVME_DISC,
+					 "6115 NVMET ndlp rpi %d state "
+					 "unknown, state x%x flags x%08x\n",
+					 ndlp->nlp_rpi, ndlp->nlp_state,
+					 ndlp->nlp_flag);
+			memset(&stat, 0, sizeof(struct ls_rjt));
+			stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
+			stat.un.b.lsRjtRsnCodeExp = LSEXP_CMD_IN_PROGRESS;
+			lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb,
+					    ndlp, NULL);
+		}
+	} else {
+		/* Initiator mode. */
+		lpfc_els_rsp_prli_acc(vport, cmdiocb, ndlp);
+	}
 
 	return ndlp->nlp_state;
 }
@@ -1668,7 +1725,12 @@ lpfc_cmpl_reglogin_reglogin_issue(struct lpfc_vport *vport,
 		lpfc_nlp_set_state(vport, ndlp, NLP_STE_PRLI_ISSUE);
 		lpfc_issue_els_prli(vport, ndlp, 0);
 	} else {
-		/* Only Fabric ports should transition */
+		if ((vport->fc_flag & FC_PT2PT) && phba->nvmet_support)
+			phba->targetport->port_id = vport->fc_myDID;
+
+		/* Only Fabric ports should transition. NVME target
+		 * must complete PRLI.
+		 */
 		if (ndlp->nlp_type & NLP_FABRIC) {
 			ndlp->nlp_prev_state = NLP_STE_REG_LOGIN_ISSUE;
 			lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
@@ -1713,6 +1775,13 @@ lpfc_device_recov_reglogin_issue(struct lpfc_vport *vport,
 	ndlp->nlp_prev_state = NLP_STE_REG_LOGIN_ISSUE;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 	spin_lock_irq(shost->host_lock);
+
+	/* If we are a target we won't immediately transition into PRLI,
+	 * so if REG_LOGIN already completed we don't need to ignore it.
+	 */
+	if (!(ndlp->nlp_flag & NLP_RPI_REGISTERED) ||
+	    !vport->phba->nvmet_support)
+		ndlp->nlp_flag |= NLP_IGNR_REG_CMPL;
 
 	ndlp->nlp_flag &= ~(NLP_NODEV_REMOVE | NLP_NPR_2B_DISC);
 	spin_unlock_irq(shost->host_lock);
