@@ -90,6 +90,7 @@ int mlx5e_hwstamp_set(struct net_device *dev, struct ifreq *ifr)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct hwtstamp_config config;
+	int err;
 
 	if (!MLX5_CAP_GEN(priv->mdev, device_frequency_khz))
 		return -EOPNOTSUPP;
@@ -129,7 +130,12 @@ int mlx5e_hwstamp_set(struct net_device *dev, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
 		/* Disable CQE compression */
 		netdev_warn(dev, "Disabling cqe compression");
-		mlx5e_modify_rx_cqe_compression_locked(priv, false);
+		err = mlx5e_modify_rx_cqe_compression_locked(priv, false);
+		if (err) {
+			netdev_err(dev, "Failed disabling cqe compression err=%d\n", err);
+			mutex_unlock(&priv->state_lock);
+			return err;
+		}
 		config.rx_filter = HWTSTAMP_FILTER_ALL;
 		break;
 	default:

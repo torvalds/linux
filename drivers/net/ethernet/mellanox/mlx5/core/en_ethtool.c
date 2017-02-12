@@ -1474,10 +1474,10 @@ static int set_pflag_rx_cqe_based_moder(struct net_device *netdev, bool enable)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5e_channels new_channels = {};
 	bool rx_mode_changed;
 	u8 rx_cq_period_mode;
 	int err = 0;
-	bool reset;
 
 	rx_cq_period_mode = enable ?
 		MLX5_CQ_PERIOD_MODE_START_FROM_CQE :
@@ -1491,16 +1491,51 @@ static int set_pflag_rx_cqe_based_moder(struct net_device *netdev, bool enable)
 	if (!rx_mode_changed)
 		return 0;
 
-	reset = test_bit(MLX5E_STATE_OPENED, &priv->state);
-	if (reset)
-		mlx5e_close_locked(netdev);
+	new_channels.params = priv->channels.params;
+	mlx5e_set_rx_cq_mode_params(&new_channels.params, rx_cq_period_mode);
 
-	mlx5e_set_rx_cq_mode_params(&priv->channels.params, rx_cq_period_mode);
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
+		priv->channels.params = new_channels.params;
+		return 0;
+	}
 
-	if (reset)
-		err = mlx5e_open_locked(netdev);
+	err = mlx5e_open_channels(priv, &new_channels);
+	if (err)
+		return err;
 
-	return err;
+	mlx5e_switch_priv_channels(priv, &new_channels);
+	return 0;
+}
+
+int mlx5e_modify_rx_cqe_compression_locked(struct mlx5e_priv *priv, bool new_val)
+{
+	bool curr_val = MLX5E_GET_PFLAG(&priv->channels.params, MLX5E_PFLAG_RX_CQE_COMPRESS);
+	struct mlx5e_channels new_channels = {};
+	int err = 0;
+
+	if (!MLX5_CAP_GEN(priv->mdev, cqe_compression))
+		return new_val ? -EOPNOTSUPP : 0;
+
+	if (curr_val == new_val)
+		return 0;
+
+	new_channels.params = priv->channels.params;
+	MLX5E_SET_PFLAG(&new_channels.params, MLX5E_PFLAG_RX_CQE_COMPRESS, new_val);
+
+	mlx5e_set_rq_type_params(priv->mdev, &new_channels.params,
+				 new_channels.params.rq_wq_type);
+
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
+		priv->channels.params = new_channels.params;
+		return 0;
+	}
+
+	err = mlx5e_open_channels(priv, &new_channels);
+	if (err)
+		return err;
+
+	mlx5e_switch_priv_channels(priv, &new_channels);
+	return 0;
 }
 
 static int set_pflag_rx_cqe_compress(struct net_device *netdev,
@@ -1519,8 +1554,6 @@ static int set_pflag_rx_cqe_compress(struct net_device *netdev,
 
 	mlx5e_modify_rx_cqe_compression_locked(priv, enable);
 	priv->channels.params.rx_cqe_compress_def = enable;
-	mlx5e_set_rq_type_params(priv->mdev, &priv->channels.params,
-				 priv->channels.params.rq_wq_type);
 
 	return 0;
 }
