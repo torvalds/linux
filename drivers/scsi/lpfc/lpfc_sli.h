@@ -97,11 +97,11 @@ struct lpfc_iocbq {
 		struct lpfc_node_rrq *rrq;
 	} context_un;
 
-	void (*fabric_iocb_cmpl) (struct lpfc_hba *, struct lpfc_iocbq *,
+	void (*fabric_iocb_cmpl)(struct lpfc_hba *, struct lpfc_iocbq *,
 			   struct lpfc_iocbq *);
-	void (*wait_iocb_cmpl) (struct lpfc_hba *, struct lpfc_iocbq *,
+	void (*wait_iocb_cmpl)(struct lpfc_hba *, struct lpfc_iocbq *,
 			   struct lpfc_iocbq *);
-	void (*iocb_cmpl) (struct lpfc_hba *, struct lpfc_iocbq *,
+	void (*iocb_cmpl)(struct lpfc_hba *, struct lpfc_iocbq *,
 			   struct lpfc_iocbq *);
 };
 

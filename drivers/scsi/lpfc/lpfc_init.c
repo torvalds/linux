@@ -4272,13 +4272,13 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 			sprintf(message, "Unqualified optics - Replace with "
 				"Avago optics for Warranty and Technical "
 				"Support - Link is%s operational",
-				(operational) ? "" : " not");
+				(operational) ? " not" : "");
 			break;
 		case LPFC_SLI_EVENT_STATUS_UNCERTIFIED:
 			sprintf(message, "Uncertified optics - Replace with "
 				"Avago-certified optics to enable link "
 				"operation - Link is%s operational",
-				(operational) ? "" : " not");
+				(operational) ? " not" : "");
 			break;
 		default:
 			/* firmware is reporting a status we don't know about */
@@ -6207,6 +6207,7 @@ lpfc_create_shost(struct lpfc_hba *phba)
 
 	shost = lpfc_shost_from_vport(vport);
 	phba->pport = vport;
+
 	lpfc_debugfs_initialize(vport);
 	/* Put reference to SCSI host to driver's device private data */
 	pci_set_drvdata(phba->pcidev, shost);
@@ -6993,7 +6994,7 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 				"VPI(B:%d M:%d) "
 				"VFI(B:%d M:%d) "
 				"RPI(B:%d M:%d) "
-				"FCFI(Count:%d)\n",
+				"FCFI:%d EQ:%d CQ:%d WQ:%d RQ:%d\n",
 				phba->sli4_hba.extents_in_use,
 				phba->sli4_hba.max_cfg_param.xri_base,
 				phba->sli4_hba.max_cfg_param.max_xri,
@@ -7003,7 +7004,12 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 				phba->sli4_hba.max_cfg_param.max_vfi,
 				phba->sli4_hba.max_cfg_param.rpi_base,
 				phba->sli4_hba.max_cfg_param.max_rpi,
-				phba->sli4_hba.max_cfg_param.max_fcfi);
+				phba->sli4_hba.max_cfg_param.max_fcfi,
+				phba->sli4_hba.max_cfg_param.max_eq,
+				phba->sli4_hba.max_cfg_param.max_cq,
+				phba->sli4_hba.max_cfg_param.max_wq,
+				phba->sli4_hba.max_cfg_param.max_rq);
+
 	}
 
 	if (rc)
@@ -11344,7 +11350,6 @@ static struct miscdevice lpfc_mgmt_dev = {
 static int __init
 lpfc_init(void)
 {
-	int cpu;
 	int error = 0;
 
 	printk(LPFC_MODULE_DESC "\n");
@@ -11370,9 +11375,7 @@ lpfc_init(void)
 
 	/* Initialize in case vector mapping is needed */
 	lpfc_used_cpu = NULL;
-	lpfc_present_cpu = 0;
-	for_each_present_cpu(cpu)
-		lpfc_present_cpu++;
+	lpfc_present_cpu = num_present_cpus();
 
 	error = pci_register_driver(&lpfc_driver);
 	if (error) {

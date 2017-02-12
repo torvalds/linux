@@ -531,7 +531,7 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 	int cnt;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_nodelist *ndlp;
-	unsigned char *statep, *name;
+	unsigned char *statep;
 
 	cnt = (LPFC_NODELIST_SIZE / LPFC_NODELIST_ENTRY_SIZE);
 
@@ -574,36 +574,32 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 		default:
 			statep = "UNKNOWN";
 		}
-		len +=  snprintf(buf+len, size-len, "%s DID:x%06x ",
-			statep, ndlp->nlp_DID);
-		name = (unsigned char *)&ndlp->nlp_portname;
-		len +=  snprintf(buf+len, size-len,
-			"WWPN %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x ",
-			*name, *(name+1), *(name+2), *(name+3),
-			*(name+4), *(name+5), *(name+6), *(name+7));
-		name = (unsigned char *)&ndlp->nlp_nodename;
-		len +=  snprintf(buf+len, size-len,
-			"WWNN %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x ",
-			*name, *(name+1), *(name+2), *(name+3),
-			*(name+4), *(name+5), *(name+6), *(name+7));
+		len += snprintf(buf+len, size-len, "%s DID:x%06x ",
+				statep, ndlp->nlp_DID);
+		len += snprintf(buf+len, size-len,
+				"WWPN x%llx ",
+				wwn_to_u64(ndlp->nlp_portname.u.wwn));
+		len += snprintf(buf+len, size-len,
+				"WWNN x%llx ",
+				wwn_to_u64(ndlp->nlp_nodename.u.wwn));
 		if (ndlp->nlp_flag & NLP_RPI_REGISTERED)
-			len +=  snprintf(buf+len, size-len, "RPI:%03d ",
-				ndlp->nlp_rpi);
+			len += snprintf(buf+len, size-len, "RPI:%03d ",
+					ndlp->nlp_rpi);
 		else
-			len +=  snprintf(buf+len, size-len, "RPI:none ");
+			len += snprintf(buf+len, size-len, "RPI:none ");
 		len +=  snprintf(buf+len, size-len, "flag:x%08x ",
 			ndlp->nlp_flag);
 		if (!ndlp->nlp_type)
-			len +=  snprintf(buf+len, size-len, "UNKNOWN_TYPE ");
+			len += snprintf(buf+len, size-len, "UNKNOWN_TYPE ");
 		if (ndlp->nlp_type & NLP_FC_NODE)
-			len +=  snprintf(buf+len, size-len, "FC_NODE ");
+			len += snprintf(buf+len, size-len, "FC_NODE ");
 		if (ndlp->nlp_type & NLP_FABRIC)
-			len +=  snprintf(buf+len, size-len, "FABRIC ");
+			len += snprintf(buf+len, size-len, "FABRIC ");
 		if (ndlp->nlp_type & NLP_FCP_TARGET)
-			len +=  snprintf(buf+len, size-len, "FCP_TGT sid:%d ",
+			len += snprintf(buf+len, size-len, "FCP_TGT sid:%d ",
 				ndlp->nlp_sid);
 		if (ndlp->nlp_type & NLP_FCP_INITIATOR)
-			len +=  snprintf(buf+len, size-len, "FCP_INITIATOR ");
+			len += snprintf(buf+len, size-len, "FCP_INITIATOR ");
 		len += snprintf(buf+len, size-len, "usgmap:%x ",
 			ndlp->nlp_usg_map);
 		len += snprintf(buf+len, size-len, "refcnt:%x",
@@ -611,8 +607,10 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 		len +=  snprintf(buf+len, size-len, "\n");
 	}
 	spin_unlock_irq(shost->host_lock);
+
 	return len;
 }
+
 #endif
 
 /**
@@ -938,7 +936,7 @@ lpfc_debugfs_dumpData_open(struct inode *inode, struct file *file)
 		goto out;
 
 	/* Round to page boundary */
-	printk(KERN_ERR "9059 BLKGRD:  %s: _dump_buf_data=0x%p\n",
+	pr_err("9059 BLKGRD:  %s: _dump_buf_data=0x%p\n",
 			__func__, _dump_buf_data);
 	debug->buffer = _dump_buf_data;
 	if (!debug->buffer) {
@@ -968,8 +966,8 @@ lpfc_debugfs_dumpDif_open(struct inode *inode, struct file *file)
 		goto out;
 
 	/* Round to page boundary */
-	printk(KERN_ERR	"9060 BLKGRD: %s: _dump_buf_dif=0x%p file=%pD\n",
-		__func__, _dump_buf_dif, file);
+	pr_err("9060 BLKGRD: %s: _dump_buf_dif=0x%p file=%pD\n",
+			__func__, _dump_buf_dif, file);
 	debug->buffer = _dump_buf_dif;
 	if (!debug->buffer) {
 		kfree(debug);
@@ -3853,7 +3851,7 @@ lpfc_idiag_mbxacc_dump_bsg_mbox(struct lpfc_hba *phba, enum nemb_type nemb_tp,
 	if ((mbox_tp == mbox_rd) && (dma_tp == dma_mbox)) {
 		if (*mbx_dump_map & LPFC_BSG_DMP_MBX_RD_MBX) {
 			do_dump |= LPFC_BSG_DMP_MBX_RD_MBX;
-			printk(KERN_ERR "\nRead mbox command (x%x), "
+			pr_err("\nRead mbox command (x%x), "
 			       "nemb:0x%x, extbuf_cnt:%d:\n",
 			       sta_tp, nemb_tp, ext_buf);
 		}
@@ -3861,7 +3859,7 @@ lpfc_idiag_mbxacc_dump_bsg_mbox(struct lpfc_hba *phba, enum nemb_type nemb_tp,
 	if ((mbox_tp == mbox_rd) && (dma_tp == dma_ebuf)) {
 		if (*mbx_dump_map & LPFC_BSG_DMP_MBX_RD_BUF) {
 			do_dump |= LPFC_BSG_DMP_MBX_RD_BUF;
-			printk(KERN_ERR "\nRead mbox buffer (x%x), "
+			pr_err("\nRead mbox buffer (x%x), "
 			       "nemb:0x%x, extbuf_seq:%d:\n",
 			       sta_tp, nemb_tp, ext_buf);
 		}
@@ -3869,7 +3867,7 @@ lpfc_idiag_mbxacc_dump_bsg_mbox(struct lpfc_hba *phba, enum nemb_type nemb_tp,
 	if ((mbox_tp == mbox_wr) && (dma_tp == dma_mbox)) {
 		if (*mbx_dump_map & LPFC_BSG_DMP_MBX_WR_MBX) {
 			do_dump |= LPFC_BSG_DMP_MBX_WR_MBX;
-			printk(KERN_ERR "\nWrite mbox command (x%x), "
+			pr_err("\nWrite mbox command (x%x), "
 			       "nemb:0x%x, extbuf_cnt:%d:\n",
 			       sta_tp, nemb_tp, ext_buf);
 		}
@@ -3877,7 +3875,7 @@ lpfc_idiag_mbxacc_dump_bsg_mbox(struct lpfc_hba *phba, enum nemb_type nemb_tp,
 	if ((mbox_tp == mbox_wr) && (dma_tp == dma_ebuf)) {
 		if (*mbx_dump_map & LPFC_BSG_DMP_MBX_WR_BUF) {
 			do_dump |= LPFC_BSG_DMP_MBX_WR_BUF;
-			printk(KERN_ERR "\nWrite mbox buffer (x%x), "
+			pr_err("\nWrite mbox buffer (x%x), "
 			       "nemb:0x%x, extbuf_seq:%d:\n",
 			       sta_tp, nemb_tp, ext_buf);
 		}
@@ -3889,7 +3887,7 @@ lpfc_idiag_mbxacc_dump_bsg_mbox(struct lpfc_hba *phba, enum nemb_type nemb_tp,
 		for (i = 0; i < *mbx_word_cnt; i++) {
 			if (!(i % 8)) {
 				if (i != 0)
-					printk(KERN_ERR "%s\n", line_buf);
+					pr_err("%s\n", line_buf);
 				len = 0;
 				len += snprintf(line_buf+len,
 						LPFC_MBX_ACC_LBUF_SZ-len,
@@ -3900,7 +3898,7 @@ lpfc_idiag_mbxacc_dump_bsg_mbox(struct lpfc_hba *phba, enum nemb_type nemb_tp,
 			pword++;
 		}
 		if ((i - 1) % 8)
-			printk(KERN_ERR "%s\n", line_buf);
+			pr_err("%s\n", line_buf);
 		(*mbx_dump_cnt)--;
 	}
 
@@ -3949,13 +3947,13 @@ lpfc_idiag_mbxacc_dump_issue_mbox(struct lpfc_hba *phba, MAILBOX_t *pmbox)
 
 	/* dump buffer content */
 	if (*mbx_dump_map & LPFC_MBX_DMP_MBX_WORD) {
-		printk(KERN_ERR "Mailbox command:0x%x dump by word:\n",
+		pr_err("Mailbox command:0x%x dump by word:\n",
 		       pmbox->mbxCommand);
 		pword = (uint32_t *)pmbox;
 		for (i = 0; i < *mbx_word_cnt; i++) {
 			if (!(i % 8)) {
 				if (i != 0)
-					printk(KERN_ERR "%s\n", line_buf);
+					pr_err("%s\n", line_buf);
 				len = 0;
 				memset(line_buf, 0, LPFC_MBX_ACC_LBUF_SZ);
 				len += snprintf(line_buf+len,
@@ -3968,17 +3966,17 @@ lpfc_idiag_mbxacc_dump_issue_mbox(struct lpfc_hba *phba, MAILBOX_t *pmbox)
 			pword++;
 		}
 		if ((i - 1) % 8)
-			printk(KERN_ERR "%s\n", line_buf);
-		printk(KERN_ERR "\n");
+			pr_err("%s\n", line_buf);
+		pr_err("\n");
 	}
 	if (*mbx_dump_map & LPFC_MBX_DMP_MBX_BYTE) {
-		printk(KERN_ERR "Mailbox command:0x%x dump by byte:\n",
+		pr_err("Mailbox command:0x%x dump by byte:\n",
 		       pmbox->mbxCommand);
 		pbyte = (uint8_t *)pmbox;
 		for (i = 0; i < *mbx_word_cnt; i++) {
 			if (!(i % 8)) {
 				if (i != 0)
-					printk(KERN_ERR "%s\n", line_buf);
+					pr_err("%s\n", line_buf);
 				len = 0;
 				memset(line_buf, 0, LPFC_MBX_ACC_LBUF_SZ);
 				len += snprintf(line_buf+len,
@@ -3996,8 +3994,8 @@ lpfc_idiag_mbxacc_dump_issue_mbox(struct lpfc_hba *phba, MAILBOX_t *pmbox)
 					LPFC_MBX_ACC_LBUF_SZ-len, " ");
 		}
 		if ((i - 1) % 8)
-			printk(KERN_ERR "%s\n", line_buf);
-		printk(KERN_ERR "\n");
+			pr_err("%s\n", line_buf);
+		pr_err("\n");
 	}
 	(*mbx_dump_cnt)--;
 
@@ -4240,8 +4238,7 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 					i++;
 				}
 				lpfc_debugfs_max_slow_ring_trc = (1 << i);
-				printk(KERN_ERR
-				       "lpfc_debugfs_max_disc_trc changed to "
+				pr_err("lpfc_debugfs_max_disc_trc changed to "
 				       "%d\n", lpfc_debugfs_max_disc_trc);
 			}
 		}
@@ -4273,6 +4270,7 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 				(sizeof(struct lpfc_debugfs_trc) *
 				lpfc_debugfs_max_slow_ring_trc));
 		}
+
 	}
 
 	snprintf(name, sizeof(name), "vport%d", vport->vpi);
@@ -4298,8 +4296,7 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 				i++;
 			}
 			lpfc_debugfs_max_disc_trc = (1 << i);
-			printk(KERN_ERR
-			       "lpfc_debugfs_max_disc_trc changed to %d\n",
+			pr_err("lpfc_debugfs_max_disc_trc changed to %d\n",
 			       lpfc_debugfs_max_disc_trc);
 		}
 	}

@@ -271,10 +271,11 @@ lpfc_sli4_eq_get(struct lpfc_queue *q)
 	/*
 	 * insert barrier for instruction interlock : data from the hardware
 	 * must have the valid bit checked before it can be copied and acted
-	 * upon. Given what was seen in lpfc_sli4_cq_get() of speculative
-	 * instructions allowing action on content before valid bit checked,
-	 * add barrier here as well. May not be needed as "content" is a
-	 * single 32-bit entity here (vs multi word structure for cq's).
+	 * upon. Speculative instructions were allowing a bcopy at the start
+	 * of lpfc_sli4_fp_handle_wcqe(), which is called immediately
+	 * after our return, to copy data before the valid bit check above
+	 * was done. As such, some of the copied data was stale. The barrier
+	 * ensures the check is before any data is copied.
 	 */
 	mb();
 	return eqe;
@@ -386,11 +387,10 @@ lpfc_sli4_cq_get(struct lpfc_queue *q)
 	/*
 	 * insert barrier for instruction interlock : data from the hardware
 	 * must have the valid bit checked before it can be copied and acted
-	 * upon. Speculative instructions were allowing a bcopy at the start
-	 * of lpfc_sli4_fp_handle_wcqe(), which is called immediately
-	 * after our return, to copy data before the valid bit check above
-	 * was done. As such, some of the copied data was stale. The barrier
-	 * ensures the check is before any data is copied.
+	 * upon. Given what was seen in lpfc_sli4_cq_get() of speculative
+	 * instructions allowing action on content before valid bit checked,
+	 * add barrier here as well. May not be needed as "content" is a
+	 * single 32-bit entity here (vs multi word structure for cq's).
 	 */
 	mb();
 	return cqe;
@@ -7368,7 +7368,8 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 
 		if (psli->sli_flag & LPFC_SLI_ACTIVE) {
 			/* copy results back to user */
-			lpfc_sli_pcimem_bcopy(phba->mbox, mbx, MAILBOX_CMD_SIZE);
+			lpfc_sli_pcimem_bcopy(phba->mbox, mbx,
+						MAILBOX_CMD_SIZE);
 			/* Copy the mailbox extension data */
 			if (pmbox->out_ext_byte_len && pmbox->context2) {
 				lpfc_sli_pcimem_bcopy(phba->mbox_ext,
@@ -7378,7 +7379,7 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 		} else {
 			/* First copy command data */
 			lpfc_memcpy_from_slim(mbx, phba->MBslimaddr,
-							MAILBOX_CMD_SIZE);
+						MAILBOX_CMD_SIZE);
 			/* Copy the mailbox extension data */
 			if (pmbox->out_ext_byte_len && pmbox->context2) {
 				lpfc_memcpy_from_slim(pmbox->context2,
@@ -8906,10 +8907,10 @@ __lpfc_sli_issue_iocb_s4(struct lpfc_hba *phba, uint32_t ring_number,
 				}
 			}
 		}
-	} else if (piocb->iocb_flag &  LPFC_IO_FCP) {
+	} else if (piocb->iocb_flag &  LPFC_IO_FCP)
 		/* These IO's already have an XRI and a mapped sgl. */
 		sglq = NULL;
-	} else {
+	else {
 		/*
 		 * This is a continuation of a commandi,(CX) so this
 		 * sglq is on the active list
@@ -13359,8 +13360,10 @@ lpfc_cq_create(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	switch (cq->entry_count) {
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"0361 Unsupported CQ count. (%d)\n",
-				cq->entry_count);
+				"0361 Unsupported CQ count: "
+				"entry cnt %d sz %d pg cnt %d repost %d\n",
+				cq->entry_count, cq->entry_size,
+				cq->page_count, cq->entry_repost);
 		if (cq->entry_count < 256) {
 			status = -EINVAL;
 			goto out;
@@ -14824,6 +14827,9 @@ lpfc_sli4_post_scsi_sgl_block(struct lpfc_hba *phba,
 	return rc;
 }
 
+static char *lpfc_rctl_names[] = FC_RCTL_NAMES_INIT;
+static char *lpfc_type_names[] = FC_TYPE_NAMES_INIT;
+
 /**
  * lpfc_fc_frame_check - Check that this frame is a valid frame to handle
  * @phba: pointer to lpfc_hba struct that the frame was received on
@@ -14838,8 +14844,6 @@ static int
 lpfc_fc_frame_check(struct lpfc_hba *phba, struct fc_frame_header *fc_hdr)
 {
 	/*  make rctl_names static to save stack space */
-	static char *rctl_names[] = FC_RCTL_NAMES_INIT;
-	char *type_names[] = FC_TYPE_NAMES_INIT;
 	struct fc_vft_header *fc_vft_hdr;
 	uint32_t *header = (uint32_t *) fc_hdr;
 
@@ -14894,8 +14898,8 @@ lpfc_fc_frame_check(struct lpfc_hba *phba, struct fc_frame_header *fc_hdr)
 	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
 			"2538 Received frame rctl:%s (x%x), type:%s (x%x), "
 			"frame Data:%08x %08x %08x %08x %08x %08x %08x\n",
-			rctl_names[fc_hdr->fh_r_ctl], fc_hdr->fh_r_ctl,
-			type_names[fc_hdr->fh_type], fc_hdr->fh_type,
+			lpfc_rctl_names[fc_hdr->fh_r_ctl], fc_hdr->fh_r_ctl,
+			lpfc_type_names[fc_hdr->fh_type], fc_hdr->fh_type,
 			be32_to_cpu(header[0]), be32_to_cpu(header[1]),
 			be32_to_cpu(header[2]), be32_to_cpu(header[3]),
 			be32_to_cpu(header[4]), be32_to_cpu(header[5]),
@@ -14904,8 +14908,8 @@ lpfc_fc_frame_check(struct lpfc_hba *phba, struct fc_frame_header *fc_hdr)
 drop:
 	lpfc_printf_log(phba, KERN_WARNING, LOG_ELS,
 			"2539 Dropped frame rctl:%s type:%s\n",
-			rctl_names[fc_hdr->fh_r_ctl],
-			type_names[fc_hdr->fh_type]);
+			lpfc_rctl_names[fc_hdr->fh_r_ctl],
+			lpfc_type_names[fc_hdr->fh_type]);
 	return 1;
 }
 
@@ -15726,11 +15730,13 @@ lpfc_sli4_handle_received_buffer(struct lpfc_hba *phba,
 
 	/* Process each received buffer */
 	fc_hdr = (struct fc_frame_header *)dmabuf->hbuf.virt;
+
 	/* check to see if this a valid type of frame */
 	if (lpfc_fc_frame_check(phba, fc_hdr)) {
 		lpfc_in_buf_free(phba, &dmabuf->dbuf);
 		return;
 	}
+
 	if ((bf_get(lpfc_cqe_code,
 		    &dmabuf->cq_event.cqe.rcqe_cmpl) == CQE_CODE_RECEIVE_V1))
 		fcfi = bf_get(lpfc_rcqe_fcf_id_v1,
