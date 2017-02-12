@@ -47,6 +47,7 @@
 #include "lpfc.h"
 #include "lpfc_scsi.h"
 #include "lpfc_nvme.h"
+#include "lpfc_nvmet.h"
 #include "lpfc_logmsg.h"
 #include "lpfc_crtn.h"
 #include "lpfc_vport.h"
@@ -543,11 +544,13 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 	int len = 0;
 	int cnt;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+	struct lpfc_hba  *phba = vport->phba;
 	struct lpfc_nodelist *ndlp;
 	unsigned char *statep;
 	struct nvme_fc_local_port *localport;
 	struct lpfc_nvme_lport *lport;
 	struct lpfc_nvme_rport *rport;
+	struct lpfc_nvmet_tgtport *tgtp;
 	struct nvme_fc_remote_port *nrport;
 
 	cnt = (LPFC_NODELIST_SIZE / LPFC_NODELIST_ENTRY_SIZE);
@@ -625,6 +628,27 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 		len +=  snprintf(buf+len, size-len, "\n");
 	}
 	spin_unlock_irq(shost->host_lock);
+
+	if (phba->nvmet_support && phba->targetport && (vport == phba->pport)) {
+		tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
+		len += snprintf(buf + len, size - len,
+				"\nNVME Targetport Entry ...\n");
+
+		/* Port state is only one of two values for now. */
+		if (phba->targetport->port_id)
+			statep = "REGISTERED";
+		else
+			statep = "INIT";
+		len += snprintf(buf + len, size - len,
+				"TGT WWNN x%llx WWPN x%llx State %s\n",
+				wwn_to_u64(vport->fc_nodename.u.wwn),
+				wwn_to_u64(vport->fc_portname.u.wwn),
+				statep);
+		len += snprintf(buf + len, size - len,
+				"    Targetport DID x%06x\n",
+				phba->targetport->port_id);
+		goto out_exit;
+	}
 
 	len += snprintf(buf + len, size - len,
 				"\nNVME Lport/Rport Entries ...\n");
@@ -718,9 +742,75 @@ static int
 lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 {
 	struct lpfc_hba   *phba = vport->phba;
+	struct lpfc_nvmet_tgtport *tgtp;
 	int len = 0;
 
-	if (phba->nvmet_support == 0) {
+	if (phba->nvmet_support) {
+		if (!phba->targetport)
+			return len;
+		tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
+		len += snprintf(buf+len, size-len,
+				"\nNVME Targetport Statistics\n");
+
+		len += snprintf(buf+len, size-len,
+				"LS: Rcv %08x Drop %08x Abort %08x\n",
+				atomic_read(&tgtp->rcv_ls_req_in),
+				atomic_read(&tgtp->rcv_ls_req_drop),
+				atomic_read(&tgtp->xmt_ls_abort));
+		if (atomic_read(&tgtp->rcv_ls_req_in) !=
+		    atomic_read(&tgtp->rcv_ls_req_out)) {
+			len += snprintf(buf+len, size-len,
+					"Rcv LS: in %08x != out %08x\n",
+					atomic_read(&tgtp->rcv_ls_req_in),
+					atomic_read(&tgtp->rcv_ls_req_out));
+		}
+
+		len += snprintf(buf+len, size-len,
+				"LS: Xmt %08x Drop %08x Cmpl %08x Err %08x\n",
+				atomic_read(&tgtp->xmt_ls_rsp),
+				atomic_read(&tgtp->xmt_ls_drop),
+				atomic_read(&tgtp->xmt_ls_rsp_cmpl),
+				atomic_read(&tgtp->xmt_ls_rsp_error));
+
+		len += snprintf(buf+len, size-len,
+				"FCP: Rcv %08x Drop %08x\n",
+				atomic_read(&tgtp->rcv_fcp_cmd_in),
+				atomic_read(&tgtp->rcv_fcp_cmd_drop));
+
+		if (atomic_read(&tgtp->rcv_fcp_cmd_in) !=
+		    atomic_read(&tgtp->rcv_fcp_cmd_out)) {
+			len += snprintf(buf+len, size-len,
+					"Rcv FCP: in %08x != out %08x\n",
+					atomic_read(&tgtp->rcv_fcp_cmd_in),
+					atomic_read(&tgtp->rcv_fcp_cmd_out));
+		}
+
+		len += snprintf(buf+len, size-len,
+				"FCP Rsp: read %08x readrsp %08x write %08x rsp %08x\n",
+				atomic_read(&tgtp->xmt_fcp_read),
+				atomic_read(&tgtp->xmt_fcp_read_rsp),
+				atomic_read(&tgtp->xmt_fcp_write),
+				atomic_read(&tgtp->xmt_fcp_rsp));
+
+		len += snprintf(buf+len, size-len,
+				"FCP Rsp: abort %08x drop %08x\n",
+				atomic_read(&tgtp->xmt_fcp_abort),
+				atomic_read(&tgtp->xmt_fcp_drop));
+
+		len += snprintf(buf+len, size-len,
+				"FCP Rsp Cmpl: %08x err %08x drop %08x\n",
+				atomic_read(&tgtp->xmt_fcp_rsp_cmpl),
+				atomic_read(&tgtp->xmt_fcp_rsp_error),
+				atomic_read(&tgtp->xmt_fcp_rsp_drop));
+
+		len += snprintf(buf+len, size-len,
+				"ABORT: Xmt %08x Err %08x Cmpl %08x",
+				atomic_read(&tgtp->xmt_abort_rsp),
+				atomic_read(&tgtp->xmt_abort_rsp_error),
+				atomic_read(&tgtp->xmt_abort_cmpl));
+
+		len +=  snprintf(buf+len, size-len, "\n");
+	} else {
 		if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME))
 			return len;
 
@@ -828,6 +918,121 @@ lpfc_debugfs_nvmektime_data(struct lpfc_vport *vport, char *buf, int size)
 			phba->ktime_data_samples));
 		return len;
 	}
+
+	/* NVME Target */
+	len += snprintf(buf + len, PAGE_SIZE-len,
+			"ktime %s: Total Samples: %lld %lld\n",
+			(phba->ktime_on ? "Enabled" : "Disabled"),
+			phba->ktime_data_samples,
+			phba->ktime_status_samples);
+	if (phba->ktime_data_samples == 0)
+		return len;
+
+	len += snprintf(buf + len, PAGE_SIZE-len,
+			"Segment 1: MSI-X ISR Rcv cmd -to- "
+			"cmd pass to NVME Layer\n");
+	len += snprintf(buf + len, PAGE_SIZE-len,
+			"avg:%08lld min:%08lld max %08lld\n",
+			phba->ktime_seg1_total /
+			phba->ktime_data_samples,
+			phba->ktime_seg1_min,
+			phba->ktime_seg1_max);
+	len += snprintf(buf + len, PAGE_SIZE-len,
+			"Segment 2: cmd pass to NVME Layer- "
+			"-to- Driver rcv cmd OP (action)\n");
+	len += snprintf(buf + len, PAGE_SIZE-len,
+			"avg:%08lld min:%08lld max %08lld\n",
+			phba->ktime_seg2_total /
+			phba->ktime_data_samples,
+			phba->ktime_seg2_min,
+			phba->ktime_seg2_max);
+	len += snprintf(buf + len, PAGE_SIZE-len,
+			"Segment 3: Driver rcv cmd OP -to- "
+			"Firmware WQ doorbell: cmd\n");
+	len += snprintf(buf + len, PAGE_SIZE-len,
+			"avg:%08lld min:%08lld max %08lld\n",
+			phba->ktime_seg3_total /
+			phba->ktime_data_samples,
+			phba->ktime_seg3_min,
+			phba->ktime_seg3_max);
+	len += snprintf(buf + len, PAGE_SIZE-len,
+			"Segment 4: Firmware WQ doorbell: cmd "
+			"-to- MSI-X ISR for cmd cmpl\n");
+	len += snprintf(buf + len, PAGE_SIZE-len,
+			"avg:%08lld min:%08lld max %08lld\n",
+			phba->ktime_seg4_total /
+			phba->ktime_data_samples,
+			phba->ktime_seg4_min,
+			phba->ktime_seg4_max);
+	len += snprintf(buf + len, PAGE_SIZE-len,
+			"Segment 5: MSI-X ISR for cmd cmpl "
+			"-to- NVME layer passed cmd done\n");
+	len += snprintf(buf + len, PAGE_SIZE-len,
+			"avg:%08lld min:%08lld max %08lld\n",
+			phba->ktime_seg5_total /
+			phba->ktime_data_samples,
+			phba->ktime_seg5_min,
+			phba->ktime_seg5_max);
+
+	if (phba->ktime_status_samples == 0) {
+		len += snprintf(buf + len, PAGE_SIZE-len,
+				"Total: cmd received by MSI-X ISR "
+				"-to- cmd completed on wire\n");
+		len += snprintf(buf + len, PAGE_SIZE-len,
+				"avg:%08lld min:%08lld "
+				"max %08lld\n",
+				phba->ktime_seg10_total /
+				phba->ktime_data_samples,
+				phba->ktime_seg10_min,
+				phba->ktime_seg10_max);
+		return len;
+	}
+
+	len += snprintf(buf + len, PAGE_SIZE-len,
+			"Segment 6: NVME layer passed cmd done "
+			"-to- Driver rcv rsp status OP\n");
+	len += snprintf(buf + len, PAGE_SIZE-len,
+			"avg:%08lld min:%08lld max %08lld\n",
+			phba->ktime_seg6_total /
+			phba->ktime_status_samples,
+			phba->ktime_seg6_min,
+			phba->ktime_seg6_max);
+	len += snprintf(buf + len, PAGE_SIZE-len,
+			"Segment 7: Driver rcv rsp status OP "
+			"-to- Firmware WQ doorbell: status\n");
+	len += snprintf(buf + len, PAGE_SIZE-len,
+			"avg:%08lld min:%08lld max %08lld\n",
+			phba->ktime_seg7_total /
+			phba->ktime_status_samples,
+			phba->ktime_seg7_min,
+			phba->ktime_seg7_max);
+	len += snprintf(buf + len, PAGE_SIZE-len,
+			"Segment 8: Firmware WQ doorbell: status"
+			" -to- MSI-X ISR for status cmpl\n");
+	len += snprintf(buf + len, PAGE_SIZE-len,
+			"avg:%08lld min:%08lld max %08lld\n",
+			phba->ktime_seg8_total /
+			phba->ktime_status_samples,
+			phba->ktime_seg8_min,
+			phba->ktime_seg8_max);
+	len += snprintf(buf + len, PAGE_SIZE-len,
+			"Segment 9: MSI-X ISR for status cmpl  "
+			"-to- NVME layer passed status done\n");
+	len += snprintf(buf + len, PAGE_SIZE-len,
+			"avg:%08lld min:%08lld max %08lld\n",
+			phba->ktime_seg9_total /
+			phba->ktime_status_samples,
+			phba->ktime_seg9_min,
+			phba->ktime_seg9_max);
+	len += snprintf(buf + len, PAGE_SIZE-len,
+			"Total: cmd received by MSI-X ISR -to- "
+			"cmd completed on wire\n");
+	len += snprintf(buf + len, PAGE_SIZE-len,
+			"avg:%08lld min:%08lld max %08lld\n",
+			phba->ktime_seg10_total /
+			phba->ktime_status_samples,
+			phba->ktime_seg10_min,
+			phba->ktime_seg10_max);
 	return len;
 }
 
@@ -953,7 +1158,9 @@ lpfc_debugfs_cpucheck_data(struct lpfc_vport *vport, char *buf, int size)
 	int i;
 	int len = 0;
 	uint32_t tot_xmt = 0;
+	uint32_t tot_rcv = 0;
 	uint32_t tot_cmpl = 0;
+	uint32_t tot_ccmpl = 0;
 
 	if (phba->nvmet_support == 0) {
 		/* NVME Initiator */
@@ -977,6 +1184,33 @@ lpfc_debugfs_cpucheck_data(struct lpfc_vport *vport, char *buf, int size)
 		return len;
 	}
 
+	/* NVME Target */
+	len += snprintf(buf + len, PAGE_SIZE - len,
+			"CPUcheck %s ",
+			(phba->cpucheck_on & LPFC_CHECK_NVMET_IO ?
+				"IO Enabled - " : "IO Disabled - "));
+	len += snprintf(buf + len, PAGE_SIZE - len,
+			"%s\n",
+			(phba->cpucheck_on & LPFC_CHECK_NVMET_RCV ?
+				"Rcv Enabled\n" : "Rcv Disabled\n"));
+	for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
+		if (i >= LPFC_CHECK_CPU_CNT)
+			break;
+		len += snprintf(buf + len, PAGE_SIZE - len,
+				"%02d: xmit x%08x ccmpl x%08x "
+				"cmpl x%08x rcv x%08x\n",
+				i, phba->cpucheck_xmt_io[i],
+				phba->cpucheck_ccmpl_io[i],
+				phba->cpucheck_cmpl_io[i],
+				phba->cpucheck_rcv_io[i]);
+		tot_xmt += phba->cpucheck_xmt_io[i];
+		tot_rcv += phba->cpucheck_rcv_io[i];
+		tot_cmpl += phba->cpucheck_cmpl_io[i];
+		tot_ccmpl += phba->cpucheck_ccmpl_io[i];
+	}
+	len += snprintf(buf + len, PAGE_SIZE - len,
+			"tot:xmit x%08x ccmpl x%08x cmpl x%08x rcv x%08x\n",
+			tot_xmt, tot_ccmpl, tot_cmpl, tot_rcv);
 	return len;
 }
 
@@ -1660,6 +1894,65 @@ out:
 	return rc;
 }
 
+static ssize_t
+lpfc_debugfs_nvmestat_write(struct file *file, const char __user *buf,
+			    size_t nbytes, loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_vport *vport = (struct lpfc_vport *)debug->i_private;
+	struct lpfc_hba   *phba = vport->phba;
+	struct lpfc_nvmet_tgtport *tgtp;
+	char mybuf[64];
+	char *pbuf;
+
+	if (!phba->targetport)
+		return -ENXIO;
+
+	if (nbytes > 64)
+		nbytes = 64;
+
+	/* Protect copy from user */
+	if (!access_ok(VERIFY_READ, buf, nbytes))
+		return -EFAULT;
+
+	memset(mybuf, 0, sizeof(mybuf));
+
+	if (copy_from_user(mybuf, buf, nbytes))
+		return -EFAULT;
+	pbuf = &mybuf[0];
+
+	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
+	if ((strncmp(pbuf, "reset", strlen("reset")) == 0) ||
+	    (strncmp(pbuf, "zero", strlen("zero")) == 0)) {
+		atomic_set(&tgtp->rcv_ls_req_in, 0);
+		atomic_set(&tgtp->rcv_ls_req_out, 0);
+		atomic_set(&tgtp->rcv_ls_req_drop, 0);
+		atomic_set(&tgtp->xmt_ls_abort, 0);
+		atomic_set(&tgtp->xmt_ls_rsp, 0);
+		atomic_set(&tgtp->xmt_ls_drop, 0);
+		atomic_set(&tgtp->xmt_ls_rsp_error, 0);
+		atomic_set(&tgtp->xmt_ls_rsp_cmpl, 0);
+
+		atomic_set(&tgtp->rcv_fcp_cmd_in, 0);
+		atomic_set(&tgtp->rcv_fcp_cmd_out, 0);
+		atomic_set(&tgtp->rcv_fcp_cmd_drop, 0);
+		atomic_set(&tgtp->xmt_fcp_abort, 0);
+		atomic_set(&tgtp->xmt_fcp_drop, 0);
+		atomic_set(&tgtp->xmt_fcp_read_rsp, 0);
+		atomic_set(&tgtp->xmt_fcp_read, 0);
+		atomic_set(&tgtp->xmt_fcp_write, 0);
+		atomic_set(&tgtp->xmt_fcp_rsp, 0);
+		atomic_set(&tgtp->xmt_fcp_rsp_cmpl, 0);
+		atomic_set(&tgtp->xmt_fcp_rsp_error, 0);
+		atomic_set(&tgtp->xmt_fcp_rsp_drop, 0);
+
+		atomic_set(&tgtp->xmt_abort_rsp, 0);
+		atomic_set(&tgtp->xmt_abort_rsp_error, 0);
+		atomic_set(&tgtp->xmt_abort_cmpl, 0);
+	}
+	return nbytes;
+}
+
 static int
 lpfc_debugfs_nvmektime_open(struct inode *inode, struct file *file)
 {
@@ -1956,7 +2249,10 @@ lpfc_debugfs_cpucheck_write(struct file *file, const char __user *buf,
 	pbuf = &mybuf[0];
 
 	if ((strncmp(pbuf, "on", sizeof("on") - 1) == 0)) {
-		phba->cpucheck_on |= LPFC_CHECK_NVME_IO;
+		if (phba->nvmet_support)
+			phba->cpucheck_on |= LPFC_CHECK_NVMET_IO;
+		else
+			phba->cpucheck_on |= LPFC_CHECK_NVME_IO;
 		return strlen(pbuf);
 	} else if ((strncmp(pbuf, "rcv",
 		   sizeof("rcv") - 1) == 0)) {
@@ -2880,7 +3176,7 @@ lpfc_idiag_cqs_for_eq(struct lpfc_hba *phba, char *pbuffer,
 			return 1;
 	}
 
-	if (phba->cfg_nvmet_mrq > eqidx) {
+	if (eqidx < phba->cfg_nvmet_mrq) {
 		/* NVMET CQset */
 		qp = phba->sli4_hba.nvmet_cqset[eqidx];
 		*len = __lpfc_idiag_print_cq(qp, "NVMET CQset", pbuffer, *len);
@@ -4493,6 +4789,7 @@ static const struct file_operations lpfc_debugfs_op_nvmestat = {
 	.open =         lpfc_debugfs_nvmestat_open,
 	.llseek =       lpfc_debugfs_lseek,
 	.read =         lpfc_debugfs_read,
+	.write =	lpfc_debugfs_nvmestat_write,
 	.release =      lpfc_debugfs_release,
 };
 

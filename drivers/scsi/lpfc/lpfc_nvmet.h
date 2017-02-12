@@ -98,4 +98,17 @@ struct lpfc_nvmet_rcv_ctx {
 #define LPFC_NVMET_IO_INP		1
 #define LPFC_NVMET_ABORT_OP		2
 	struct rqb_dmabuf *rqb_buffer;
+
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	uint64_t ts_isr_cmd;
+	uint64_t ts_cmd_nvme;
+	uint64_t ts_nvme_data;
+	uint64_t ts_data_wqput;
+	uint64_t ts_isr_data;
+	uint64_t ts_data_nvme;
+	uint64_t ts_nvme_status;
+	uint64_t ts_status_wqput;
+	uint64_t ts_isr_status;
+	uint64_t ts_status_nvme;
+#endif
 };

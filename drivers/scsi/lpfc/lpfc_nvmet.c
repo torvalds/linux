@@ -51,6 +51,7 @@
 #include "lpfc_logmsg.h"
 #include "lpfc_crtn.h"
 #include "lpfc_vport.h"
+#include "lpfc_debugfs.h"
 
 static struct lpfc_iocbq *lpfc_nvmet_prep_ls_wqe(struct lpfc_hba *,
 						 struct lpfc_nvmet_rcv_ctx *,
@@ -103,6 +104,9 @@ out:
 	ctxp = cmdwqe->context2;
 	rsp = &ctxp->ctx.ls_req;
 
+	lpfc_nvmeio_data(phba, "NVMET LS  CMPL: xri x%x stat x%x result x%x\n",
+			 ctxp->oxid, status, result);
+
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_DISC,
 			"6038 %s: Entrypoint: ctx %p status %x/%x\n", __func__,
 			ctxp, status, result);
@@ -144,6 +148,170 @@ lpfc_nvmet_rq_post(struct lpfc_hba *phba, struct lpfc_nvmet_rcv_ctx *ctxp,
 	lpfc_rq_buf_free(phba, mp);
 }
 
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+static void
+lpfc_nvmet_ktime(struct lpfc_hba *phba,
+		 struct lpfc_nvmet_rcv_ctx *ctxp)
+{
+	uint64_t seg1, seg2, seg3, seg4, seg5;
+	uint64_t seg6, seg7, seg8, seg9, seg10;
+
+	if (!phba->ktime_on)
+		return;
+
+	if (!ctxp->ts_isr_cmd || !ctxp->ts_cmd_nvme ||
+	    !ctxp->ts_nvme_data || !ctxp->ts_data_wqput ||
+	    !ctxp->ts_isr_data || !ctxp->ts_data_nvme ||
+	    !ctxp->ts_nvme_status || !ctxp->ts_status_wqput ||
+	    !ctxp->ts_isr_status || !ctxp->ts_status_nvme)
+		return;
+
+	if (ctxp->ts_isr_cmd  > ctxp->ts_cmd_nvme)
+		return;
+	if (ctxp->ts_cmd_nvme > ctxp->ts_nvme_data)
+		return;
+	if (ctxp->ts_nvme_data > ctxp->ts_data_wqput)
+		return;
+	if (ctxp->ts_data_wqput > ctxp->ts_isr_data)
+		return;
+	if (ctxp->ts_isr_data > ctxp->ts_data_nvme)
+		return;
+	if (ctxp->ts_data_nvme > ctxp->ts_nvme_status)
+		return;
+	if (ctxp->ts_nvme_status > ctxp->ts_status_wqput)
+		return;
+	if (ctxp->ts_status_wqput > ctxp->ts_isr_status)
+		return;
+	if (ctxp->ts_isr_status > ctxp->ts_status_nvme)
+		return;
+	/*
+	 * Segment 1 - Time from FCP command received by MSI-X ISR
+	 * to FCP command is passed to NVME Layer.
+	 * Segment 2 - Time from FCP command payload handed
+	 * off to NVME Layer to Driver receives a Command op
+	 * from NVME Layer.
+	 * Segment 3 - Time from Driver receives a Command op
+	 * from NVME Layer to Command is put on WQ.
+	 * Segment 4 - Time from Driver WQ put is done
+	 * to MSI-X ISR for Command cmpl.
+	 * Segment 5 - Time from MSI-X ISR for Command cmpl to
+	 * Command cmpl is passed to NVME Layer.
+	 * Segment 6 - Time from Command cmpl is passed to NVME
+	 * Layer to Driver receives a RSP op from NVME Layer.
+	 * Segment 7 - Time from Driver receives a RSP op from
+	 * NVME Layer to WQ put is done on TRSP FCP Status.
+	 * Segment 8 - Time from Driver WQ put is done on TRSP
+	 * FCP Status to MSI-X ISR for TRSP cmpl.
+	 * Segment 9 - Time from MSI-X ISR for TRSP cmpl to
+	 * TRSP cmpl is passed to NVME Layer.
+	 * Segment 10 - Time from FCP command received by
+	 * MSI-X ISR to command is completed on wire.
+	 * (Segments 1 thru 8) for READDATA / WRITEDATA
+	 * (Segments 1 thru 4) for READDATA_RSP
+	 */
+	seg1 = ctxp->ts_cmd_nvme - ctxp->ts_isr_cmd;
+	seg2 = (ctxp->ts_nvme_data - ctxp->ts_isr_cmd) - seg1;
+	seg3 = (ctxp->ts_data_wqput - ctxp->ts_isr_cmd) -
+		seg1 - seg2;
+	seg4 = (ctxp->ts_isr_data - ctxp->ts_isr_cmd) -
+		seg1 - seg2 - seg3;
+	seg5 = (ctxp->ts_data_nvme - ctxp->ts_isr_cmd) -
+		seg1 - seg2 - seg3 - seg4;
+
+	/* For auto rsp commands seg6 thru seg10 will be 0 */
+	if (ctxp->ts_nvme_status > ctxp->ts_data_nvme) {
+		seg6 = (ctxp->ts_nvme_status -
+			ctxp->ts_isr_cmd) -
+			seg1 - seg2 - seg3 - seg4 - seg5;
+		seg7 = (ctxp->ts_status_wqput -
+			ctxp->ts_isr_cmd) -
+			seg1 - seg2 - seg3 -
+			seg4 - seg5 - seg6;
+		seg8 = (ctxp->ts_isr_status -
+			ctxp->ts_isr_cmd) -
+			seg1 - seg2 - seg3 - seg4 -
+			seg5 - seg6 - seg7;
+		seg9 = (ctxp->ts_status_nvme -
+			ctxp->ts_isr_cmd) -
+			seg1 - seg2 - seg3 - seg4 -
+			seg5 - seg6 - seg7 - seg8;
+		seg10 = (ctxp->ts_isr_status -
+			ctxp->ts_isr_cmd);
+	} else {
+		seg6 =  0;
+		seg7 =  0;
+		seg8 =  0;
+		seg9 =  0;
+		seg10 = (ctxp->ts_isr_data - ctxp->ts_isr_cmd);
+	}
+
+	phba->ktime_seg1_total += seg1;
+	if (seg1 < phba->ktime_seg1_min)
+		phba->ktime_seg1_min = seg1;
+	else if (seg1 > phba->ktime_seg1_max)
+		phba->ktime_seg1_max = seg1;
+
+	phba->ktime_seg2_total += seg2;
+	if (seg2 < phba->ktime_seg2_min)
+		phba->ktime_seg2_min = seg2;
+	else if (seg2 > phba->ktime_seg2_max)
+		phba->ktime_seg2_max = seg2;
+
+	phba->ktime_seg3_total += seg3;
+	if (seg3 < phba->ktime_seg3_min)
+		phba->ktime_seg3_min = seg3;
+	else if (seg3 > phba->ktime_seg3_max)
+		phba->ktime_seg3_max = seg3;
+
+	phba->ktime_seg4_total += seg4;
+	if (seg4 < phba->ktime_seg4_min)
+		phba->ktime_seg4_min = seg4;
+	else if (seg4 > phba->ktime_seg4_max)
+		phba->ktime_seg4_max = seg4;
+
+	phba->ktime_seg5_total += seg5;
+	if (seg5 < phba->ktime_seg5_min)
+		phba->ktime_seg5_min = seg5;
+	else if (seg5 > phba->ktime_seg5_max)
+		phba->ktime_seg5_max = seg5;
+
+	phba->ktime_data_samples++;
+	if (!seg6)
+		goto out;
+
+	phba->ktime_seg6_total += seg6;
+	if (seg6 < phba->ktime_seg6_min)
+		phba->ktime_seg6_min = seg6;
+	else if (seg6 > phba->ktime_seg6_max)
+		phba->ktime_seg6_max = seg6;
+
+	phba->ktime_seg7_total += seg7;
+	if (seg7 < phba->ktime_seg7_min)
+		phba->ktime_seg7_min = seg7;
+	else if (seg7 > phba->ktime_seg7_max)
+		phba->ktime_seg7_max = seg7;
+
+	phba->ktime_seg8_total += seg8;
+	if (seg8 < phba->ktime_seg8_min)
+		phba->ktime_seg8_min = seg8;
+	else if (seg8 > phba->ktime_seg8_max)
+		phba->ktime_seg8_max = seg8;
+
+	phba->ktime_seg9_total += seg9;
+	if (seg9 < phba->ktime_seg9_min)
+		phba->ktime_seg9_min = seg9;
+	else if (seg9 > phba->ktime_seg9_max)
+		phba->ktime_seg9_max = seg9;
+out:
+	phba->ktime_seg10_total += seg10;
+	if (seg10 < phba->ktime_seg10_min)
+		phba->ktime_seg10_min = seg10;
+	else if (seg10 > phba->ktime_seg10_max)
+		phba->ktime_seg10_max = seg10;
+	phba->ktime_status_samples++;
+}
+#endif
+
 /**
  * lpfc_nvmet_xmt_fcp_op_cmp - Completion handler for FCP Response
  * @phba: Pointer to HBA context object.
@@ -162,6 +330,9 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	struct nvmefc_tgt_fcp_req *rsp;
 	struct lpfc_nvmet_rcv_ctx *ctxp;
 	uint32_t status, result, op, start_clean;
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	uint32_t id;
+#endif
 
 	ctxp = cmdwqe->context2;
 	rsp = &ctxp->ctx.fcp_req;
@@ -173,6 +344,9 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 
 	if (!phba->targetport)
 		goto out;
+
+	lpfc_nvmeio_data(phba, "NVMET FCP CMPL: xri x%x op x%x status x%x\n",
+			 ctxp->oxid, op, status);
 
 	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
 	if (status) {
@@ -194,7 +368,44 @@ out:
 		/* Sanity check */
 		ctxp->state = LPFC_NVMET_STE_DONE;
 		ctxp->entry_cnt++;
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+		if (phba->ktime_on) {
+			if (rsp->op == NVMET_FCOP_READDATA_RSP) {
+				ctxp->ts_isr_data =
+					cmdwqe->isr_timestamp;
+				ctxp->ts_data_nvme =
+					ktime_get_ns();
+				ctxp->ts_nvme_status =
+					ctxp->ts_data_nvme;
+				ctxp->ts_status_wqput =
+					ctxp->ts_data_nvme;
+				ctxp->ts_isr_status =
+					ctxp->ts_data_nvme;
+				ctxp->ts_status_nvme =
+					ctxp->ts_data_nvme;
+			} else {
+				ctxp->ts_isr_status =
+					cmdwqe->isr_timestamp;
+				ctxp->ts_status_nvme =
+					ktime_get_ns();
+			}
+		}
+		if (phba->cpucheck_on & LPFC_CHECK_NVMET_IO) {
+			id = smp_processor_id();
+			if (ctxp->cpu != id)
+				lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
+						"6703 CPU Check cmpl: "
+						"cpu %d expect %d\n",
+						id, ctxp->cpu);
+			if (ctxp->cpu < LPFC_CHECK_CPU_CNT)
+				phba->cpucheck_cmpl_io[id]++;
+		}
+#endif
 		rsp->done(rsp);
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+		if (phba->ktime_on)
+			lpfc_nvmet_ktime(phba, ctxp);
+#endif
 		/* Let Abort cmpl repost the context */
 		if (!(ctxp->flag & LPFC_NVMET_ABORT_OP))
 			lpfc_nvmet_rq_post(phba, ctxp, &ctxp->rqb_buffer->hbuf);
@@ -203,6 +414,22 @@ out:
 		start_clean = offsetof(struct lpfc_iocbq, wqe);
 		memset(((char *)cmdwqe) + start_clean, 0,
 		       (sizeof(struct lpfc_iocbq) - start_clean));
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+		if (phba->ktime_on) {
+			ctxp->ts_isr_data = cmdwqe->isr_timestamp;
+			ctxp->ts_data_nvme = ktime_get_ns();
+		}
+		if (phba->cpucheck_on & LPFC_CHECK_NVMET_IO) {
+			id = smp_processor_id();
+			if (ctxp->cpu != id)
+				lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
+						"6704 CPU Check cmdcmpl: "
+						"cpu %d expect %d\n",
+						id, ctxp->cpu);
+			if (ctxp->cpu < LPFC_CHECK_CPU_CNT)
+				phba->cpucheck_ccmpl_io[id]++;
+		}
+#endif
 		rsp->done(rsp);
 	}
 }
@@ -254,6 +481,9 @@ lpfc_nvmet_xmt_ls_rsp(struct nvmet_fc_target_port *tgtport,
 	nvmewqeq->iocb_cmpl = NULL;
 	nvmewqeq->context2 = ctxp;
 
+	lpfc_nvmeio_data(phba, "NVMET LS  RESP: xri x%x wqidx x%x len x%x\n",
+			 ctxp->oxid, nvmewqeq->hba_wqidx, rsp->rsplen);
+
 	rc = lpfc_sli4_issue_wqe(phba, LPFC_ELS_RING, nvmewqeq);
 	if (rc == WQE_SUCCESS) {
 		/*
@@ -288,12 +518,39 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 	struct lpfc_hba *phba = ctxp->phba;
 	struct lpfc_iocbq *nvmewqeq;
 	unsigned long iflags;
-	int rc;
+	int rc, id;
+
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	if (phba->ktime_on) {
+		if (rsp->op == NVMET_FCOP_RSP)
+			ctxp->ts_nvme_status = ktime_get_ns();
+		else
+			ctxp->ts_nvme_data = ktime_get_ns();
+	}
+	if (phba->cpucheck_on & LPFC_CHECK_NVMET_IO) {
+		id = smp_processor_id();
+		ctxp->cpu = id;
+		if (id < LPFC_CHECK_CPU_CNT)
+			phba->cpucheck_xmt_io[id]++;
+		if (rsp->hwqid != id) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
+					"6705 CPU Check OP: "
+					"cpu %d expect %d\n",
+					id, rsp->hwqid);
+			ctxp->cpu = rsp->hwqid;
+		}
+	}
+#endif
 
 	if (rsp->op == NVMET_FCOP_ABORT) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
 				"6103 Abort op: oxri x%x %d cnt %d\n",
 				ctxp->oxid, ctxp->state, ctxp->entry_cnt);
+
+		lpfc_nvmeio_data(phba, "NVMET FCP ABRT: "
+				 "xri x%x state x%x cnt x%x\n",
+				 ctxp->oxid, ctxp->state, ctxp->entry_cnt);
+
 		atomic_inc(&lpfc_nvmep->xmt_fcp_abort);
 		ctxp->entry_cnt++;
 		ctxp->flag |= LPFC_NVMET_ABORT_OP;
@@ -330,12 +587,23 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 	nvmewqeq->iocb_flag |=  LPFC_IO_NVMET;
 	ctxp->wqeq->hba_wqidx = rsp->hwqid;
 
+	lpfc_nvmeio_data(phba, "NVMET FCP CMND: xri x%x op x%x len x%x\n",
+			 ctxp->oxid, rsp->op, rsp->rsplen);
+
 	/* For now we take hbalock */
 	spin_lock_irqsave(&phba->hbalock, iflags);
 	rc = lpfc_sli4_issue_wqe(phba, LPFC_FCP_RING, nvmewqeq);
 	spin_unlock_irqrestore(&phba->hbalock, iflags);
 	if (rc == WQE_SUCCESS) {
 		ctxp->flag |= LPFC_NVMET_IO_INP;
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+		if (!phba->ktime_on)
+			return 0;
+		if (rsp->op == NVMET_FCOP_RSP)
+			ctxp->ts_status_wqput = ktime_get_ns();
+		else
+			ctxp->ts_data_wqput = ktime_get_ns();
+#endif
 		return 0;
 	}
 
@@ -503,6 +771,9 @@ lpfc_nvmet_unsol_ls_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	if (!nvmebuf || !phba->targetport) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
 				"6154 LS Drop IO\n");
+		oxid = 0;
+		size = 0;
+		sid = 0;
 		goto dropit;
 	}
 
@@ -520,6 +791,9 @@ lpfc_nvmet_unsol_ls_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 				"6155 LS Drop IO x%x: Alloc\n",
 				oxid);
 dropit:
+		lpfc_nvmeio_data(phba, "NVMET LS  DROP: "
+				 "xri x%x sz %d from %06x\n",
+				 oxid, size, sid);
 		if (nvmebuf)
 			lpfc_in_buf_free(phba, &nvmebuf->dbuf);
 		return;
@@ -531,6 +805,9 @@ dropit:
 	ctxp->wqeq = NULL;
 	ctxp->state = LPFC_NVMET_STE_RCV;
 	ctxp->rqb_buffer = (void *)nvmebuf;
+
+	lpfc_nvmeio_data(phba, "NVMET LS   RCV: xri x%x sz %d from %06x\n",
+			 oxid, size, sid);
 	/*
 	 * The calling sequence should be:
 	 * nvmet_fc_rcv_ls_req -> lpfc_nvmet_xmt_ls_rsp/cmp ->_req->done
@@ -545,10 +822,15 @@ dropit:
 			"%08x %08x %08x\n", __func__, ctxp, size, rc,
 			*payload, *(payload+1), *(payload+2),
 			*(payload+3), *(payload+4), *(payload+5));
+
 	if (rc == 0) {
 		atomic_inc(&tgtp->rcv_ls_req_out);
 		return;
 	}
+
+	lpfc_nvmeio_data(phba, "NVMET LS  DROP: xri x%x sz %d from %06x\n",
+			 oxid, size, sid);
+
 	atomic_inc(&tgtp->rcv_ls_req_drop);
 	lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
 			"6156 LS Drop IO x%x: nvmet_fc_rcv_ls_req %d\n",
@@ -586,11 +868,16 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 	struct fc_frame_header *fc_hdr;
 	uint32_t *payload;
 	uint32_t size, oxid, sid, rc;
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	uint32_t id;
+#endif
 
-	oxid = 0;
 	if (!nvmebuf || !phba->targetport) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
 				"6157 FCP Drop IO\n");
+		oxid = 0;
+		size = 0;
+		sid = 0;
 		goto dropit;
 	}
 
@@ -625,6 +912,30 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 	ctxp->entry_cnt = 1;
 	ctxp->flag = 0;
 
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	if (phba->ktime_on) {
+		ctxp->ts_isr_cmd = isr_timestamp;
+		ctxp->ts_cmd_nvme = ktime_get_ns();
+		ctxp->ts_nvme_data = 0;
+		ctxp->ts_data_wqput = 0;
+		ctxp->ts_isr_data = 0;
+		ctxp->ts_data_nvme = 0;
+		ctxp->ts_nvme_status = 0;
+		ctxp->ts_status_wqput = 0;
+		ctxp->ts_isr_status = 0;
+		ctxp->ts_status_nvme = 0;
+	}
+
+	if (phba->cpucheck_on & LPFC_CHECK_NVMET_RCV) {
+		id = smp_processor_id();
+		if (id < LPFC_CHECK_CPU_CNT)
+			phba->cpucheck_rcv_io[id]++;
+	}
+#endif
+
+	lpfc_nvmeio_data(phba, "NVMET FCP  RCV: xri x%x sz %d from %06x\n",
+			 oxid, size, sid);
+
 	atomic_inc(&tgtp->rcv_fcp_cmd_in);
 	/*
 	 * The calling sequence should be:
@@ -645,6 +956,8 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 			"6159 FCP Drop IO x%x: nvmet_fc_rcv_fcp_req x%x\n",
 			ctxp->oxid, rc);
 dropit:
+	lpfc_nvmeio_data(phba, "NVMET FCP DROP: xri x%x sz %d from %06x\n",
+			 oxid, size, sid);
 	if (oxid) {
 		lpfc_nvmet_unsol_fcp_issue_abort(phba, ctxp, sid, oxid);
 		return;
