@@ -135,4 +135,11 @@ struct sk_buff *ipvlan_l3_rcv(struct net_device *dev, struct sk_buff *skb,
 			      u16 proto);
 unsigned int ipvlan_nf_input(void *priv, struct sk_buff *skb,
 			     const struct nf_hook_state *state);
+void ipvlan_count_rx(const struct ipvl_dev *ipvlan,
+		     unsigned int len, bool success, bool mcast);
+int ipvlan_link_new(struct net *src_net, struct net_device *dev,
+		    struct nlattr *tb[], struct nlattr *data[]);
+void ipvlan_link_delete(struct net_device *dev, struct list_head *head);
+void ipvlan_link_setup(struct net_device *dev);
+int ipvlan_link_register(struct rtnl_link_ops *ops);
 #endif /* __IPVLAN_H */

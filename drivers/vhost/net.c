@@ -24,6 +24,7 @@
 #include <linux/if_arp.h>
 #include <linux/if_tun.h>
 #include <linux/if_macvlan.h>
+#include <linux/if_tap.h>
 #include <linux/if_vlan.h>
 
 #include <net/sock.h>
@@ -960,7 +961,7 @@ static struct socket *get_tap_socket(int fd)
 	sock = tun_get_socket(file);
 	if (!IS_ERR(sock))
 		return sock;
-	sock = macvtap_get_socket(file);
+	sock = tap_get_socket(file);
 	if (IS_ERR(sock))
 		fput(file);
 	return sock;
