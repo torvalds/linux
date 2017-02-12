@@ -1229,7 +1229,7 @@ static void __exit lynxfb_exit(void)
 }
 module_exit(lynxfb_exit);
 
-module_param(g_option, charp, S_IRUGO);
+module_param(g_option, charp, 0444);
 
 MODULE_PARM_DESC(g_option,
 		 "\n\t\tCommon options:\n"
