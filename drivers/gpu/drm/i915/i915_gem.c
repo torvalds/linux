@@ -440,7 +440,7 @@ i915_gem_object_wait_reservation(struct reservation_object *resv,
 			timeout = i915_gem_object_wait_fence(shared[i],
 							     flags, timeout,
 							     rps);
-			if (timeout <= 0)
+			if (timeout < 0)
 				break;
 
 			dma_fence_put(shared[i]);
@@ -453,7 +453,7 @@ i915_gem_object_wait_reservation(struct reservation_object *resv,
 		excl = reservation_object_get_excl_rcu(resv);
 	}
 
-	if (excl && timeout > 0)
+	if (excl && timeout >= 0)
 		timeout = i915_gem_object_wait_fence(excl, flags, timeout, rps);
 
 	dma_fence_put(excl);
