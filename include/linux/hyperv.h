@@ -32,7 +32,6 @@
 #include <linux/scatterlist.h>
 #include <linux/list.h>
 #include <linux/timer.h>
-#include <linux/workqueue.h>
 #include <linux/completion.h>
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
@@ -743,9 +742,7 @@ struct vmbus_channel {
 
 	struct vmbus_close_msg close_msg;
 
-	/* Channel callback are invoked in this workqueue context */
-	/* HANDLE dataWorkQueue; */
-
+	/* Channel callback's invoked in softirq context */
 	void (*onchannel_callback)(void *context);
 	void *channel_callback_context;
 
