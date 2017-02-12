@@ -2788,8 +2788,14 @@ void i915_gem_reset(struct drm_i915_private *dev_priv)
 
 	i915_gem_retire_requests(dev_priv);
 
-	for_each_engine(engine, dev_priv, id)
+	for_each_engine(engine, dev_priv, id) {
+		struct i915_gem_context *ctx;
+
 		i915_gem_reset_engine(engine);
+		ctx = fetch_and_zero(&engine->last_retired_context);
+		if (ctx)
+			engine->context_unpin(engine, ctx);
+	}
 
 	i915_gem_restore_fences(dev_priv);
 
