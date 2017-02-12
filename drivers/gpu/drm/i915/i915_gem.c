@@ -2651,8 +2651,8 @@ int i915_gem_reset_prepare(struct drm_i915_private *dev_priv)
 		 * Turning off the engine->irq_tasklet until the reset is over
 		 * prevents the race.
 		 */
-		tasklet_disable(&engine->irq_tasklet);
 		tasklet_kill(&engine->irq_tasklet);
+		tasklet_disable(&engine->irq_tasklet);
 
 		if (engine->irq_seqno_barrier)
 			engine->irq_seqno_barrier(engine);
