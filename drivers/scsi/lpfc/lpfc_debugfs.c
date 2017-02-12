@@ -484,20 +484,23 @@ lpfc_debugfs_dumpHostSlim_data(struct lpfc_hba *phba, char *buf, int size)
 		off += (8 * sizeof(uint32_t));
 	}
 
-	for (i = 0; i < 4; i++) {
-		pgpp = &phba->port_gp[i];
-		pring = &psli->ring[i];
-		len +=  snprintf(buf+len, size-len,
-				 "Ring %d: CMD GetInx:%d (Max:%d Next:%d "
-				 "Local:%d flg:x%x)  RSP PutInx:%d Max:%d\n",
-				 i, pgpp->cmdGetInx, pring->sli.sli3.numCiocb,
-				 pring->sli.sli3.next_cmdidx,
-				 pring->sli.sli3.local_getidx,
-				 pring->flag, pgpp->rspPutInx,
-				 pring->sli.sli3.numRiocb);
-	}
-
 	if (phba->sli_rev <= LPFC_SLI_REV3) {
+		for (i = 0; i < 4; i++) {
+			pgpp = &phba->port_gp[i];
+			pring = &psli->sli3_ring[i];
+			len +=  snprintf(buf+len, size-len,
+					 "Ring %d: CMD GetInx:%d "
+					 "(Max:%d Next:%d "
+					 "Local:%d flg:x%x)  "
+					 "RSP PutInx:%d Max:%d\n",
+					 i, pgpp->cmdGetInx,
+					 pring->sli.sli3.numCiocb,
+					 pring->sli.sli3.next_cmdidx,
+					 pring->sli.sli3.local_getidx,
+					 pring->flag, pgpp->rspPutInx,
+					 pring->sli.sli3.numRiocb);
+		}
+
 		word0 = readl(phba->HAregaddr);
 		word1 = readl(phba->CAregaddr);
 		word2 = readl(phba->HSregaddr);
@@ -535,6 +538,7 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 
 	cnt = (LPFC_NODELIST_SIZE / LPFC_NODELIST_ENTRY_SIZE);
 
+	len += snprintf(buf+len, size-len, "\nFCP Nodelist Entries ...\n");
 	spin_lock_irq(shost->host_lock);
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
 		if (!cnt) {
@@ -2011,6 +2015,14 @@ lpfc_idiag_wqs_for_cq(struct lpfc_hba *phba, char *wqtype, char *pbuffer,
 		if (*len >= max_cnt)
 			return 1;
 	}
+	for (qidx = 0; qidx < phba->cfg_nvme_io_channel; qidx++) {
+		qp = phba->sli4_hba.nvme_wq[qidx];
+		if (qp->assoc_qid != cq_id)
+			continue;
+		*len = __lpfc_idiag_print_wq(qp, wqtype, pbuffer, *len);
+		if (*len >= max_cnt)
+			return 1;
+	}
 	return 0;
 }
 
@@ -2096,6 +2108,25 @@ lpfc_idiag_cqs_for_eq(struct lpfc_hba *phba, char *pbuffer,
 			return 1;
 	}
 
+	for (qidx = 0; qidx < phba->cfg_nvme_io_channel; qidx++) {
+		qp = phba->sli4_hba.nvme_cq[qidx];
+		if (qp->assoc_qid != eq_id)
+			continue;
+
+		*len = __lpfc_idiag_print_cq(qp, "NVME", pbuffer, *len);
+
+		/* Reset max counter */
+		qp->CQ_max_cqe = 0;
+
+		if (*len >= max_cnt)
+			return 1;
+
+		rc = lpfc_idiag_wqs_for_cq(phba, "NVME", pbuffer, len,
+				max_cnt, qp->queue_id);
+		if (rc)
+			return 1;
+	}
+
 	return 0;
 }
 
@@ -2162,21 +2193,21 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 	spin_lock_irq(&phba->hbalock);
 
 	/* Fast-path event queue */
-	if (phba->sli4_hba.hba_eq && phba->cfg_fcp_io_channel) {
+	if (phba->sli4_hba.hba_eq && phba->io_channel_irqs) {
 
 		x = phba->lpfc_idiag_last_eq;
-		if (phba->cfg_fof && (x >= phba->cfg_fcp_io_channel)) {
+		if (phba->cfg_fof && (x >= phba->io_channel_irqs)) {
 			phba->lpfc_idiag_last_eq = 0;
 			goto fof;
 		}
 		phba->lpfc_idiag_last_eq++;
-		if (phba->lpfc_idiag_last_eq >= phba->cfg_fcp_io_channel)
+		if (phba->lpfc_idiag_last_eq >= phba->io_channel_irqs)
 			if (phba->cfg_fof == 0)
 				phba->lpfc_idiag_last_eq = 0;
 
 		len += snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
 					"EQ %d out of %d HBA EQs\n",
-					x, phba->cfg_fcp_io_channel);
+					x, phba->io_channel_irqs);
 
 		/* Fast-path EQ */
 		qp = phba->sli4_hba.hba_eq[x];
@@ -2191,6 +2222,7 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 		if (len >= max_cnt)
 			goto too_big;
 
+		/* will dump both fcp and nvme cqs/wqs for the eq */
 		rc = lpfc_idiag_cqs_for_eq(phba, pbuffer, &len,
 			max_cnt, qp->queue_id);
 		if (rc)
@@ -2224,6 +2256,23 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 		/* Slow-path ELS WQ */
 		qp = phba->sli4_hba.els_wq;
 		len = __lpfc_idiag_print_wq(qp, "ELS", pbuffer, len);
+		if (len >= max_cnt)
+			goto too_big;
+
+		/* Slow-path NVME LS response CQ */
+		qp = phba->sli4_hba.nvmels_cq;
+		len = __lpfc_idiag_print_cq(qp, "NVME LS",
+						pbuffer, len);
+		/* Reset max counter */
+		if (qp)
+			qp->CQ_max_cqe = 0;
+		if (len >= max_cnt)
+			goto too_big;
+
+		/* Slow-path NVME LS WQ */
+		qp = phba->sli4_hba.nvmels_wq;
+		len = __lpfc_idiag_print_wq(qp, "NVME LS",
+						pbuffer, len);
 		if (len >= max_cnt)
 			goto too_big;
 
@@ -2447,7 +2496,7 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
 	uint32_t qidx, quetp, queid, index, count, offset, value;
 	uint32_t *pentry;
-	struct lpfc_queue *pque;
+	struct lpfc_queue *pque, *qp;
 	int rc;
 
 	/* This is a user write operation */
@@ -2483,19 +2532,15 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 	case LPFC_IDIAG_EQ:
 		/* HBA event queue */
 		if (phba->sli4_hba.hba_eq) {
-			for (qidx = 0; qidx < phba->cfg_fcp_io_channel;
-				qidx++) {
-				if (phba->sli4_hba.hba_eq[qidx] &&
-				    phba->sli4_hba.hba_eq[qidx]->queue_id ==
-				    queid) {
+			for (qidx = 0; qidx < phba->io_channel_irqs; qidx++) {
+				qp = phba->sli4_hba.hba_eq[qidx];
+				if (qp && qp->queue_id == queid) {
 					/* Sanity check */
-					rc = lpfc_idiag_que_param_check(
-						phba->sli4_hba.hba_eq[qidx],
+					rc = lpfc_idiag_que_param_check(qp,
 						index, count);
 					if (rc)
 						goto error_out;
-					idiag.ptr_private =
-						phba->sli4_hba.hba_eq[qidx];
+					idiag.ptr_private = qp;
 					goto pass_check;
 				}
 			}
@@ -2525,24 +2570,32 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 			idiag.ptr_private = phba->sli4_hba.els_cq;
 			goto pass_check;
 		}
+		/* NVME LS complete queue */
+		if (phba->sli4_hba.nvmels_cq &&
+		    phba->sli4_hba.nvmels_cq->queue_id == queid) {
+			/* Sanity check */
+			rc = lpfc_idiag_que_param_check(
+					phba->sli4_hba.nvmels_cq, index, count);
+			if (rc)
+				goto error_out;
+			idiag.ptr_private = phba->sli4_hba.nvmels_cq;
+			goto pass_check;
+		}
 		/* FCP complete queue */
 		if (phba->sli4_hba.fcp_cq) {
-			qidx = 0;
-			do {
-				if (phba->sli4_hba.fcp_cq[qidx] &&
-				    phba->sli4_hba.fcp_cq[qidx]->queue_id ==
-				    queid) {
+			for (qidx = 0; qidx < phba->cfg_fcp_io_channel;
+								qidx++) {
+				qp = phba->sli4_hba.fcp_cq[qidx];
+				if (qp && qp->queue_id == queid) {
 					/* Sanity check */
 					rc = lpfc_idiag_que_param_check(
-						phba->sli4_hba.fcp_cq[qidx],
-						index, count);
+						qp, index, count);
 					if (rc)
 						goto error_out;
-					idiag.ptr_private =
-						phba->sli4_hba.fcp_cq[qidx];
+					idiag.ptr_private = qp;
 					goto pass_check;
 				}
-			} while (++qidx < phba->cfg_fcp_io_channel);
+			}
 		}
 		goto error_out;
 		break;
@@ -2572,22 +2625,45 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 			idiag.ptr_private = phba->sli4_hba.els_wq;
 			goto pass_check;
 		}
+		/* NVME LS work queue */
+		if (phba->sli4_hba.nvmels_wq &&
+		    phba->sli4_hba.nvmels_wq->queue_id == queid) {
+			/* Sanity check */
+			rc = lpfc_idiag_que_param_check(
+					phba->sli4_hba.nvmels_wq, index, count);
+			if (rc)
+				goto error_out;
+			idiag.ptr_private = phba->sli4_hba.nvmels_wq;
+			goto pass_check;
+		}
 		/* FCP work queue */
 		if (phba->sli4_hba.fcp_wq) {
 			for (qidx = 0; qidx < phba->cfg_fcp_io_channel;
-				qidx++) {
-				if (!phba->sli4_hba.fcp_wq[qidx])
-					continue;
-				if (phba->sli4_hba.fcp_wq[qidx]->queue_id ==
-				    queid) {
+								qidx++) {
+				qp = phba->sli4_hba.fcp_wq[qidx];
+				if (qp && qp->queue_id == queid) {
 					/* Sanity check */
 					rc = lpfc_idiag_que_param_check(
-						phba->sli4_hba.fcp_wq[qidx],
-						index, count);
+						qp, index, count);
 					if (rc)
 						goto error_out;
-					idiag.ptr_private =
-						phba->sli4_hba.fcp_wq[qidx];
+					idiag.ptr_private = qp;
+					goto pass_check;
+				}
+			}
+		}
+		/* NVME work queue */
+		if (phba->sli4_hba.nvme_wq) {
+			for (qidx = 0; qidx < phba->cfg_nvme_io_channel;
+								qidx++) {
+				qp = phba->sli4_hba.nvme_wq[qidx];
+				if (qp && qp->queue_id == queid) {
+					/* Sanity check */
+					rc = lpfc_idiag_que_param_check(
+						qp, index, count);
+					if (rc)
+						goto error_out;
+					idiag.ptr_private = qp;
 					goto pass_check;
 				}
 			}
@@ -4562,9 +4638,13 @@ lpfc_debug_dump_all_queues(struct lpfc_hba *phba)
 	 */
 	lpfc_debug_dump_wq(phba, DUMP_MBX, 0);
 	lpfc_debug_dump_wq(phba, DUMP_ELS, 0);
+	lpfc_debug_dump_wq(phba, DUMP_NVMELS, 0);
 
 	for (idx = 0; idx < phba->cfg_fcp_io_channel; idx++)
 		lpfc_debug_dump_wq(phba, DUMP_FCP, idx);
+
+	for (idx = 0; idx < phba->cfg_nvme_io_channel; idx++)
+		lpfc_debug_dump_wq(phba, DUMP_NVME, idx);
 
 	lpfc_debug_dump_hdr_rq(phba);
 	lpfc_debug_dump_dat_rq(phba);
@@ -4573,13 +4653,17 @@ lpfc_debug_dump_all_queues(struct lpfc_hba *phba)
 	 */
 	lpfc_debug_dump_cq(phba, DUMP_MBX, 0);
 	lpfc_debug_dump_cq(phba, DUMP_ELS, 0);
+	lpfc_debug_dump_cq(phba, DUMP_NVMELS, 0);
 
 	for (idx = 0; idx < phba->cfg_fcp_io_channel; idx++)
 		lpfc_debug_dump_cq(phba, DUMP_FCP, idx);
 
+	for (idx = 0; idx < phba->cfg_nvme_io_channel; idx++)
+		lpfc_debug_dump_cq(phba, DUMP_NVME, idx);
+
 	/*
 	 * Dump Event Queues (EQs)
 	 */
-	for (idx = 0; idx < phba->cfg_fcp_io_channel; idx++)
+	for (idx = 0; idx < phba->io_channel_irqs; idx++)
 		lpfc_debug_dump_hba_eq(phba, idx);
 }

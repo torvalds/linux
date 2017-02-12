@@ -54,9 +54,16 @@ struct lpfc_iocbq {
 	uint16_t iotag;         /* pre-assigned IO tag */
 	uint16_t sli4_lxritag;  /* logical pre-assigned XRI. */
 	uint16_t sli4_xritag;   /* pre-assigned XRI, (OXID) tag. */
+	uint16_t hba_wqidx;     /* index to HBA work queue */
 	struct lpfc_cq_event cq_event;
+	struct lpfc_wcqe_complete wcqe_cmpl;	/* WQE cmpl */
+	uint64_t isr_timestamp;
 
-	IOCB_t iocb;		/* IOCB cmd */
+	/* Be careful here */
+	union lpfc_wqe wqe;	/* WQE cmd */
+	IOCB_t iocb;		/* For IOCB cmd or if we want 128 byte WQE */
+
+	uint8_t rsvd2;
 	uint8_t priority;	/* OAS priority */
 	uint8_t retry;		/* retry counter for IOCB cmd - if needed */
 	uint32_t iocb_flag;
@@ -82,9 +89,12 @@ struct lpfc_iocbq {
 #define LPFC_IO_OAS		0x10000 /* OAS FCP IO */
 #define LPFC_IO_FOF		0x20000 /* FOF FCP IO */
 #define LPFC_IO_LOOPBACK	0x40000 /* Loopback IO */
+#define LPFC_PRLI_NVME_REQ	0x80000 /* This is an NVME PRLI. */
+#define LPFC_PRLI_FCP_REQ	0x100000 /* This is an NVME PRLI. */
+#define LPFC_IO_NVME	        0x200000 /* NVME FCP command */
+#define LPFC_IO_NVME_LS		0x400000 /* NVME LS command */
 
 	uint32_t drvrTimeout;	/* driver timeout in seconds */
-	uint32_t fcp_wqidx;	/* index to FCP work queue */
 	struct lpfc_vport *vport;/* virtual port pointer */
 	void *context1;		/* caller context information */
 	void *context2;		/* caller context information */
@@ -103,6 +113,8 @@ struct lpfc_iocbq {
 			   struct lpfc_iocbq *);
 	void (*iocb_cmpl)(struct lpfc_hba *, struct lpfc_iocbq *,
 			   struct lpfc_iocbq *);
+	void (*wqe_cmpl)(struct lpfc_hba *, struct lpfc_iocbq *,
+			  struct lpfc_wcqe_complete *);
 };
 
 #define SLI_IOCB_RET_IOCB      1	/* Return IOCB if cmd ring full */
@@ -111,6 +123,14 @@ struct lpfc_iocbq {
 #define IOCB_BUSY           1
 #define IOCB_ERROR          2
 #define IOCB_TIMEDOUT       3
+
+#define SLI_WQE_RET_WQE    1    /* Return WQE if cmd ring full */
+
+#define WQE_SUCCESS        0
+#define WQE_BUSY           1
+#define WQE_ERROR          2
+#define WQE_TIMEDOUT       3
+#define WQE_ABORTED        4
 
 #define LPFC_MBX_WAKE		1
 #define LPFC_MBX_IMED_UNREG	2
@@ -298,11 +318,7 @@ struct lpfc_sli {
 #define LPFC_MENLO_MAINT          0x1000 /* need for menl fw download */
 #define LPFC_SLI_ASYNC_MBX_BLK    0x2000 /* Async mailbox is blocked */
 
-	struct lpfc_sli_ring *ring;
-	int fcp_ring;		/* ring used for FCP initiator commands */
-	int next_ring;
-
-	int extra_ring;		/* extra ring used for other protocols */
+	struct lpfc_sli_ring *sli3_ring;
 
 	struct lpfc_sli_stat slistat;	/* SLI statistical info */
 	struct list_head mboxq;

@@ -20,6 +20,7 @@
  *******************************************************************/
 
 #include <scsi/scsi_host.h>
+#include <linux/ktime.h>
 
 #if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_SCSI_LPFC_DEBUG_FS)
 #define CONFIG_SCSI_LPFC_DEBUG_FS
@@ -53,6 +54,7 @@ struct lpfc_sli2_slim;
 #define LPFC_MAX_SG_SEG_CNT	4096	/* sg element count per scsi cmnd */
 #define LPFC_MAX_SGL_SEG_CNT	512	/* SGL element count per scsi cmnd */
 #define LPFC_MAX_BPL_SEG_CNT	4096	/* BPL element count per scsi cmnd */
+#define LPFC_MIN_NVME_SEG_CNT	254
 
 #define LPFC_MAX_SGE_SIZE       0x80000000 /* Maximum data allowed in a SGE */
 #define LPFC_IOCB_LIST_CNT	2250	/* list of IOCBs for fast-path usage. */
@@ -114,6 +116,13 @@ enum lpfc_polling_flags {
 	DISABLE_FCP_RING_INT    = 0x2
 };
 
+struct perf_prof {
+	uint16_t cmd_cpu[40];
+	uint16_t rsp_cpu[40];
+	uint16_t qh_cpu[40];
+	uint16_t wqidx[40];
+};
+
 /* Provide DMA memory definitions the driver uses per port instance. */
 struct lpfc_dmabuf {
 	struct list_head list;
@@ -131,10 +140,24 @@ struct lpfc_dma_pool {
 struct hbq_dmabuf {
 	struct lpfc_dmabuf hbuf;
 	struct lpfc_dmabuf dbuf;
-	uint32_t size;
+	uint16_t total_size;
+	uint16_t bytes_recv;
 	uint32_t tag;
 	struct lpfc_cq_event cq_event;
 	unsigned long time_stamp;
+	void *context;
+};
+
+struct rqb_dmabuf {
+	struct lpfc_dmabuf hbuf;
+	struct lpfc_dmabuf dbuf;
+	uint16_t total_size;
+	uint16_t bytes_recv;
+	void *context;
+	struct lpfc_iocbq *iocbq;
+	struct lpfc_sglq *sglq;
+	struct lpfc_queue *hrq;	  /* ptr to associated Header RQ */
+	struct lpfc_queue *drq;	  /* ptr to associated Data RQ */
 };
 
 /* Priority bit.  Set value to exceed low water mark in lpfc_mem. */
@@ -442,6 +465,11 @@ struct lpfc_vport {
 	uint16_t fdmi_num_disc;
 	uint32_t fdmi_hba_mask;
 	uint32_t fdmi_port_mask;
+
+	/* There is a single nvme instance per vport. */
+	struct nvme_fc_local_port *localport;
+	uint8_t  nvmei_support; /* driver supports NVME Initiator */
+	uint32_t last_fcp_wqidx;
 };
 
 struct hbq_s {
@@ -459,10 +487,9 @@ struct hbq_s {
 					       struct hbq_dmabuf *);
 };
 
-#define LPFC_MAX_HBQS  4
 /* this matches the position in the lpfc_hbq_defs array */
 #define LPFC_ELS_HBQ	0
-#define LPFC_EXTRA_HBQ	1
+#define LPFC_MAX_HBQS	1
 
 enum hba_temp_state {
 	HBA_NORMAL_TEMP,
@@ -652,6 +679,8 @@ struct lpfc_hba {
 					 * Firmware supports Forced Link Speed
 					 * capability
 					 */
+#define HBA_NVME_IOQ_FLUSH      0x80000 /* NVME IO queues flushed. */
+
 	uint32_t fcp_ring_in_use; /* When polling test if intr-hndlr active*/
 	struct lpfc_dmabuf slim2p;
 
@@ -700,6 +729,8 @@ struct lpfc_hba {
 	uint8_t  wwpn[8];
 	uint32_t RandomData[7];
 	uint8_t  fcp_embed_io;
+	uint8_t  nvme_support;	/* Firmware supports NVME */
+	uint8_t  nvmet_support;	/* driver supports NVMET */
 	uint8_t  mds_diags_support;
 
 	/* HBA Config Parameters */
@@ -725,6 +756,9 @@ struct lpfc_hba {
 	uint32_t cfg_fcp_imax;
 	uint32_t cfg_fcp_cpu_map;
 	uint32_t cfg_fcp_io_channel;
+	uint32_t cfg_nvme_oas;
+	uint32_t cfg_nvme_io_channel;
+	uint32_t cfg_nvme_enable_fb;
 	uint32_t cfg_total_seg_cnt;
 	uint32_t cfg_sg_seg_cnt;
 	uint32_t cfg_sg_dma_buf_size;
@@ -770,6 +804,12 @@ struct lpfc_hba {
 #define LPFC_FDMI_SUPPORT	1	/* FDMI supported? */
 	uint32_t cfg_enable_SmartSAN;
 	uint32_t cfg_enable_mds_diags;
+	uint32_t cfg_enable_fc4_type;
+	uint32_t cfg_xri_split;
+#define LPFC_ENABLE_FCP  1
+#define LPFC_ENABLE_NVME 2
+#define LPFC_ENABLE_BOTH 3
+	uint32_t io_channel_irqs;	/* number of irqs for io channels */
 	lpfc_vpd_t vpd;		/* vital product data */
 
 	struct pci_dev *pcidev;
@@ -784,11 +824,11 @@ struct lpfc_hba {
 	unsigned long data_flags;
 
 	uint32_t hbq_in_use;		/* HBQs in use flag */
-	struct list_head rb_pend_list;  /* Received buffers to be processed */
 	uint32_t hbq_count;	        /* Count of configured HBQs */
 	struct hbq_s hbqs[LPFC_MAX_HBQS]; /* local copy of hbq indicies  */
 
-	atomic_t fcp_qidx;		/* next work queue to post work to */
+	atomic_t fcp_qidx;         /* next FCP WQ (RR Policy) */
+	atomic_t nvme_qidx;        /* next NVME WQ (RR Policy) */
 
 	phys_addr_t pci_bar0_map;     /* Physical address for PCI BAR0 */
 	phys_addr_t pci_bar1_map;     /* Physical address for PCI BAR1 */
@@ -843,9 +883,17 @@ struct lpfc_hba {
 	/*
 	 * stat  counters
 	 */
-	uint64_t fc4InputRequests;
-	uint64_t fc4OutputRequests;
-	uint64_t fc4ControlRequests;
+	uint64_t fc4ScsiInputRequests;
+	uint64_t fc4ScsiOutputRequests;
+	uint64_t fc4ScsiControlRequests;
+	uint64_t fc4ScsiIoCmpls;
+	uint64_t fc4NvmeInputRequests;
+	uint64_t fc4NvmeOutputRequests;
+	uint64_t fc4NvmeControlRequests;
+	uint64_t fc4NvmeIoCmpls;
+	uint64_t fc4NvmeLsRequests;
+	uint64_t fc4NvmeLsCmpls;
+
 	uint64_t bg_guard_err_cnt;
 	uint64_t bg_apptag_err_cnt;
 	uint64_t bg_reftag_err_cnt;
@@ -856,17 +904,23 @@ struct lpfc_hba {
 	struct list_head lpfc_scsi_buf_list_get;
 	struct list_head lpfc_scsi_buf_list_put;
 	uint32_t total_scsi_bufs;
+	spinlock_t nvme_buf_list_get_lock;  /* NVME buf alloc list lock */
+	spinlock_t nvme_buf_list_put_lock;  /* NVME buf free list lock */
+	struct list_head lpfc_nvme_buf_list_get;
+	struct list_head lpfc_nvme_buf_list_put;
+	uint32_t total_nvme_bufs;
 	struct list_head lpfc_iocb_list;
 	uint32_t total_iocbq_bufs;
 	struct list_head active_rrq_list;
 	spinlock_t hbalock;
 
 	/* pci_mem_pools */
-	struct pci_pool *lpfc_scsi_dma_buf_pool;
+	struct pci_pool *lpfc_sg_dma_buf_pool;
 	struct pci_pool *lpfc_mbuf_pool;
 	struct pci_pool *lpfc_hrb_pool;	/* header receive buffer pool */
 	struct pci_pool *lpfc_drb_pool; /* data receive buffer pool */
 	struct pci_pool *lpfc_hbq_pool;	/* SLI3 hbq buffer pool */
+	struct pci_pool *txrdy_payload_pool;
 	struct lpfc_dma_pool lpfc_mbuf_safety_pool;
 
 	mempool_t *mbox_mem_pool;
@@ -1091,4 +1145,12 @@ lpfc_sli_read_hs(struct lpfc_hba *phba)
 	phba->pport->stopped = 1;
 
 	return 0;
+}
+
+static inline struct lpfc_sli_ring *
+lpfc_phba_elsring(struct lpfc_hba *phba)
+{
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		return phba->sli4_hba.els_wq->pring;
+	return &phba->sli.sli3_ring[LPFC_ELS_RING];
 }

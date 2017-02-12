@@ -403,6 +403,8 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 		vport->fdmi_port_mask = phba->pport->fdmi_port_mask;
 	}
 
+	/* todo: init: register port with nvme */
+
 	/*
 	 * In SLI4, the vpi must be activated before it can be used
 	 * by the port.

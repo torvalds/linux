@@ -38,6 +38,10 @@
 #define LOG_FIP		0x00020000	/* FIP events */
 #define LOG_FCP_UNDER	0x00040000	/* FCP underruns errors */
 #define LOG_SCSI_CMD	0x00080000	/* ALL SCSI commands */
+#define LOG_NVME	0x00100000	/* NVME general events. */
+#define LOG_NVME_DISC   0x00200000      /* NVME Discovery/Connect events. */
+#define LOG_NVME_ABTS   0x00400000      /* NVME ABTS events. */
+#define LOG_NVME_IOERR  0x00800000      /* NVME IO Error events. */
 #define LOG_ALL_MSG	0xffffffff	/* LOG all messages */
 
 #define lpfc_printf_vlog(vport, level, mask, fmt, arg...) \
