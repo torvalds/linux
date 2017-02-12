@@ -83,7 +83,6 @@ struct channel_map_table {
 struct pcm_stream_info {
 	struct snd_pcm_substream *substream;
 	int substream_refcount;
-	bool running;
 };
 
 /*

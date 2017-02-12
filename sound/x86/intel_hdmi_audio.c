@@ -1168,6 +1168,7 @@ static int had_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 
 	intelhaddata = snd_pcm_substream_chip(substream);
 
+	spin_lock(&intelhaddata->had_spinlock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
@@ -1180,8 +1181,6 @@ static int had_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 			break;
 		}
 
-		intelhaddata->stream_info.running = true;
-
 		/* Enable Audio */
 		had_ack_irqs(intelhaddata); /* FIXME: do we need this? */
 		had_enable_audio(intelhaddata, true);
@@ -1189,13 +1188,6 @@ static int had_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-	case SNDRV_PCM_TRIGGER_SUSPEND:
-		spin_lock(&intelhaddata->had_spinlock);
-
-		/* Stop reporting BUFFER_DONE/UNDERRUN to above layers */
-
-		intelhaddata->stream_info.running = false;
-		spin_unlock(&intelhaddata->had_spinlock);
 		/* Disable Audio */
 		had_enable_audio(intelhaddata, false);
 		intelhaddata->need_reset = true;
@@ -1204,6 +1196,7 @@ static int had_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	default:
 		retval = -EINVAL;
 	}
+	spin_unlock(&intelhaddata->had_spinlock);
 	return retval;
 }
 
