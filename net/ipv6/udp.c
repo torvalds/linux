@@ -1033,6 +1033,10 @@ int udpv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 			if (addr_len < SIN6_LEN_RFC2133)
 				return -EINVAL;
 			daddr = &sin6->sin6_addr;
+			if (ipv6_addr_any(daddr) &&
+			    ipv6_addr_v4mapped(&np->saddr))
+				ipv6_addr_set_v4mapped(htonl(INADDR_LOOPBACK),
+						       daddr);
 			break;
 		case AF_INET:
 			goto do_udp_sendmsg;
