@@ -501,16 +501,16 @@ static void rcar_du_crtc_disable(struct drm_crtc *crtc)
 static void rcar_du_crtc_atomic_begin(struct drm_crtc *crtc,
 				      struct drm_crtc_state *old_crtc_state)
 {
-	struct drm_pending_vblank_event *event = crtc->state->event;
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 	struct drm_device *dev = rcrtc->crtc.dev;
 	unsigned long flags;
 
-	if (event) {
+	if (crtc->state->event) {
 		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
 
 		spin_lock_irqsave(&dev->event_lock, flags);
-		rcrtc->event = event;
+		rcrtc->event = crtc->state->event;
+		crtc->state->event = NULL;
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 
