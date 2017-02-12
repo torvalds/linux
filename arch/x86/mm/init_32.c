@@ -716,15 +716,17 @@ void __init paging_init(void)
  */
 static void __init test_wp_bit(void)
 {
+	int wp_works_ok;
+
 	printk(KERN_INFO
   "Checking if this processor honours the WP bit even in supervisor mode...");
 
 	/* Any page-aligned address will do, the test is non-destructive */
 	__set_fixmap(FIX_WP_TEST, __pa(&swapper_pg_dir), PAGE_KERNEL_RO);
-	boot_cpu_data.wp_works_ok = do_test_wp_bit();
+	wp_works_ok = do_test_wp_bit();
 	clear_fixmap(FIX_WP_TEST);
 
-	if (!boot_cpu_data.wp_works_ok) {
+	if (!wp_works_ok) {
 		printk(KERN_CONT "No.\n");
 		panic("Linux doesn't support CPUs with broken WP.");
 	} else {
@@ -811,8 +813,7 @@ void __init mem_init(void)
 	BUG_ON(VMALLOC_START				>= VMALLOC_END);
 	BUG_ON((unsigned long)high_memory		> VMALLOC_START);
 
-	if (boot_cpu_data.wp_works_ok < 0)
-		test_wp_bit();
+	test_wp_bit();
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG

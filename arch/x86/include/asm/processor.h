@@ -89,9 +89,7 @@ struct cpuinfo_x86 {
 	__u8			x86_vendor;	/* CPU vendor */
 	__u8			x86_model;
 	__u8			x86_mask;
-#ifdef CONFIG_X86_32
-	char			wp_works_ok;	/* It doesn't on 386's */
-#else
+#ifdef CONFIG_X86_64
 	/* Number of 4K pages in DTLB/ITLB combined(in pages): */
 	int			x86_tlbsize;
 #endif
