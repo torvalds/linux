@@ -812,7 +812,11 @@ static int bdw_init_workarounds(struct intel_engine_cs *engine)
 	/* WaDisableThreadStallDopClockGating:bdw (pre-production) */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN, STALL_DOP_GATING_DISABLE);
 
-	/* WaDisableDopClockGating:bdw */
+	/* WaDisableDopClockGating:bdw
+	 *
+	 * Also see the related UCGTCL1 write in broadwell_init_clock_gating()
+	 * to disable EUTC clock gating.
+	 */
 	WA_SET_BIT_MASKED(GEN7_ROW_CHICKEN2,
 			  DOP_CLOCK_GATING_DISABLE);
 

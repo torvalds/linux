@@ -7229,6 +7229,14 @@ static void broadwell_init_clock_gating(struct drm_i915_private *dev_priv)
 		   | KVM_CONFIG_CHANGE_NOTIFICATION_SELECT);
 
 	lpt_init_clock_gating(dev_priv);
+
+	/* WaDisableDopClockGating:bdw
+	 *
+	 * Also see the CHICKEN2 write in bdw_init_workarounds() to disable DOP
+	 * clock gating.
+	 */
+	I915_WRITE(GEN6_UCGCTL1,
+		   I915_READ(GEN6_UCGCTL1) | GEN6_EU_TCUNIT_CLOCK_GATE_DISABLE);
 }
 
 static void haswell_init_clock_gating(struct drm_i915_private *dev_priv)
