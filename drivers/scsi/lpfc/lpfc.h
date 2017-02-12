@@ -741,6 +741,7 @@ struct lpfc_hba {
 	uint8_t  fcp_embed_io;
 	uint8_t  nvme_support;	/* Firmware supports NVME */
 	uint8_t  nvmet_support;	/* driver supports NVMET */
+#define LPFC_NVMET_MAX_PORTS	32
 	uint8_t  mds_diags_support;
 
 	/* HBA Config Parameters */
@@ -766,8 +767,10 @@ struct lpfc_hba {
 	uint32_t cfg_fcp_imax;
 	uint32_t cfg_fcp_cpu_map;
 	uint32_t cfg_fcp_io_channel;
+	uint32_t cfg_suppress_rsp;
 	uint32_t cfg_nvme_oas;
 	uint32_t cfg_nvme_io_channel;
+	uint32_t cfg_enable_nvmet;
 	uint32_t cfg_nvme_enable_fb;
 	uint32_t cfg_total_seg_cnt;
 	uint32_t cfg_sg_seg_cnt;
@@ -820,6 +823,7 @@ struct lpfc_hba {
 #define LPFC_ENABLE_NVME 2
 #define LPFC_ENABLE_BOTH 3
 	uint32_t io_channel_irqs;	/* number of irqs for io channels */
+	struct nvmet_fc_target_port *targetport;
 	lpfc_vpd_t vpd;		/* vital product data */
 
 	struct pci_dev *pcidev;
@@ -1103,6 +1107,8 @@ struct lpfc_hba {
 	uint16_t cpucheck_on;
 #define LPFC_CHECK_OFF		0
 #define LPFC_CHECK_NVME_IO	1
+#define LPFC_CHECK_NVMET_RCV	2
+#define LPFC_CHECK_NVMET_IO	4
 	uint16_t ktime_on;
 	uint64_t ktime_data_samples;
 	uint64_t ktime_status_samples;

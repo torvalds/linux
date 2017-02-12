@@ -40,6 +40,7 @@
 #include "lpfc.h"
 #include "lpfc_scsi.h"
 #include "lpfc_nvme.h"
+#include "lpfc_nvmet.h"
 #include "lpfc_crtn.h"
 #include "lpfc_logmsg.h"
 
@@ -442,6 +443,44 @@ lpfc_mbuf_free(struct lpfc_hba * phba, void *virt, dma_addr_t dma)
 }
 
 /**
+ * lpfc_nvmet_buf_alloc - Allocate an nvmet_buf from the
+ * lpfc_sg_dma_buf_pool PCI pool
+ * @phba: HBA which owns the pool to allocate from
+ * @mem_flags: indicates if this is a priority (MEM_PRI) allocation
+ * @handle: used to return the DMA-mapped address of the nvmet_buf
+ *
+ * Description: Allocates a DMA-mapped buffer from the lpfc_sg_dma_buf_pool
+ * PCI pool.  Allocates from generic pci_pool_alloc function.
+ *
+ * Returns:
+ *   pointer to the allocated nvmet_buf on success
+ *   NULL on failure
+ **/
+void *
+lpfc_nvmet_buf_alloc(struct lpfc_hba *phba, int mem_flags, dma_addr_t *handle)
+{
+	void *ret;
+
+	ret = pci_pool_alloc(phba->lpfc_sg_dma_buf_pool, GFP_KERNEL, handle);
+	return ret;
+}
+
+/**
+ * lpfc_nvmet_buf_free - Free an nvmet_buf from the lpfc_sg_dma_buf_pool
+ * PCI pool
+ * @phba: HBA which owns the pool to return to
+ * @virt: nvmet_buf to free
+ * @dma: the DMA-mapped address of the lpfc_sg_dma_buf_pool to be freed
+ *
+ * Returns: None
+ **/
+void
+lpfc_nvmet_buf_free(struct lpfc_hba *phba, void *virt, dma_addr_t dma)
+{
+	pci_pool_free(phba->lpfc_sg_dma_buf_pool, virt, dma);
+}
+
+/**
  * lpfc_els_hbq_alloc - Allocate an HBQ buffer
  * @phba: HBA to allocate HBQ buffer for
  *
@@ -548,6 +587,134 @@ lpfc_sli4_rb_alloc(struct lpfc_hba *phba)
 void
 lpfc_sli4_rb_free(struct lpfc_hba *phba, struct hbq_dmabuf *dmab)
 {
+	pci_pool_free(phba->lpfc_hrb_pool, dmab->hbuf.virt, dmab->hbuf.phys);
+	pci_pool_free(phba->lpfc_drb_pool, dmab->dbuf.virt, dmab->dbuf.phys);
+	kfree(dmab);
+}
+
+/**
+ * lpfc_sli4_nvmet_alloc - Allocate an SLI4 Receive buffer
+ * @phba: HBA to allocate a receive buffer for
+ *
+ * Description: Allocates a DMA-mapped receive buffer from the lpfc_hrb_pool PCI
+ * pool along a non-DMA-mapped container for it.
+ *
+ * Notes: Not interrupt-safe.  Must be called with no locks held.
+ *
+ * Returns:
+ *   pointer to HBQ on success
+ *   NULL on failure
+ **/
+struct rqb_dmabuf *
+lpfc_sli4_nvmet_alloc(struct lpfc_hba *phba)
+{
+	struct rqb_dmabuf *dma_buf;
+	struct lpfc_iocbq *nvmewqe;
+	union lpfc_wqe128 *wqe;
+
+	dma_buf = kzalloc(sizeof(struct rqb_dmabuf), GFP_KERNEL);
+	if (!dma_buf)
+		return NULL;
+
+	dma_buf->hbuf.virt = pci_pool_alloc(phba->lpfc_hrb_pool, GFP_KERNEL,
+					    &dma_buf->hbuf.phys);
+	if (!dma_buf->hbuf.virt) {
+		kfree(dma_buf);
+		return NULL;
+	}
+	dma_buf->dbuf.virt = pci_pool_alloc(phba->lpfc_drb_pool, GFP_KERNEL,
+					    &dma_buf->dbuf.phys);
+	if (!dma_buf->dbuf.virt) {
+		pci_pool_free(phba->lpfc_hrb_pool, dma_buf->hbuf.virt,
+			      dma_buf->hbuf.phys);
+		kfree(dma_buf);
+		return NULL;
+	}
+	dma_buf->total_size = LPFC_DATA_BUF_SIZE;
+
+	dma_buf->context = kzalloc(sizeof(struct lpfc_nvmet_rcv_ctx),
+				   GFP_KERNEL);
+	if (!dma_buf->context) {
+		pci_pool_free(phba->lpfc_drb_pool, dma_buf->dbuf.virt,
+			      dma_buf->dbuf.phys);
+		pci_pool_free(phba->lpfc_hrb_pool, dma_buf->hbuf.virt,
+			      dma_buf->hbuf.phys);
+		kfree(dma_buf);
+		return NULL;
+	}
+
+	dma_buf->iocbq = lpfc_sli_get_iocbq(phba);
+	dma_buf->iocbq->iocb_flag = LPFC_IO_NVMET;
+	if (!dma_buf->iocbq) {
+		kfree(dma_buf->context);
+		pci_pool_free(phba->lpfc_drb_pool, dma_buf->dbuf.virt,
+			      dma_buf->dbuf.phys);
+		pci_pool_free(phba->lpfc_hrb_pool, dma_buf->hbuf.virt,
+			      dma_buf->hbuf.phys);
+		kfree(dma_buf);
+		lpfc_printf_log(phba, KERN_ERR, LOG_NVME,
+				"2621 Ran out of nvmet iocb/WQEs\n");
+		return NULL;
+	}
+	nvmewqe = dma_buf->iocbq;
+	wqe = (union lpfc_wqe128 *)&nvmewqe->wqe;
+	/* Initialize WQE */
+	memset(wqe, 0, sizeof(union lpfc_wqe));
+	/* Word 7 */
+	bf_set(wqe_ct, &wqe->generic.wqe_com, SLI4_CT_RPI);
+	bf_set(wqe_class, &wqe->generic.wqe_com, CLASS3);
+	bf_set(wqe_pu, &wqe->generic.wqe_com, 1);
+	/* Word 10 */
+	bf_set(wqe_nvme, &wqe->fcp_tsend.wqe_com, 1);
+	bf_set(wqe_ebde_cnt, &wqe->generic.wqe_com, 0);
+	bf_set(wqe_qosd, &wqe->generic.wqe_com, 0);
+
+	dma_buf->iocbq->context1 = NULL;
+	spin_lock(&phba->sli4_hba.sgl_list_lock);
+	dma_buf->sglq = __lpfc_sli_get_nvmet_sglq(phba, dma_buf->iocbq);
+	spin_unlock(&phba->sli4_hba.sgl_list_lock);
+	if (!dma_buf->sglq) {
+		lpfc_sli_release_iocbq(phba, dma_buf->iocbq);
+		kfree(dma_buf->context);
+		pci_pool_free(phba->lpfc_drb_pool, dma_buf->dbuf.virt,
+			      dma_buf->dbuf.phys);
+		pci_pool_free(phba->lpfc_hrb_pool, dma_buf->hbuf.virt,
+			      dma_buf->hbuf.phys);
+		kfree(dma_buf);
+		lpfc_printf_log(phba, KERN_ERR, LOG_NVME,
+				"6132 Ran out of nvmet XRIs\n");
+		return NULL;
+	}
+	return dma_buf;
+}
+
+/**
+ * lpfc_sli4_nvmet_free - Frees a receive buffer
+ * @phba: HBA buffer was allocated for
+ * @dmab: DMA Buffer container returned by lpfc_sli4_rbq_alloc
+ *
+ * Description: Frees both the container and the DMA-mapped buffers returned by
+ * lpfc_sli4_nvmet_alloc.
+ *
+ * Notes: Can be called with or without locks held.
+ *
+ * Returns: None
+ **/
+void
+lpfc_sli4_nvmet_free(struct lpfc_hba *phba, struct rqb_dmabuf *dmab)
+{
+	unsigned long flags;
+
+	__lpfc_clear_active_sglq(phba, dmab->sglq->sli4_lxritag);
+	dmab->sglq->state = SGL_FREED;
+	dmab->sglq->ndlp = NULL;
+
+	spin_lock_irqsave(&phba->sli4_hba.sgl_list_lock, flags);
+	list_add_tail(&dmab->sglq->list, &phba->sli4_hba.lpfc_nvmet_sgl_list);
+	spin_unlock_irqrestore(&phba->sli4_hba.sgl_list_lock, flags);
+
+	lpfc_sli_release_iocbq(phba, dmab->iocbq);
+	kfree(dmab->context);
 	pci_pool_free(phba->lpfc_hrb_pool, dmab->hbuf.virt, dmab->hbuf.phys);
 	pci_pool_free(phba->lpfc_drb_pool, dmab->dbuf.virt, dmab->dbuf.phys);
 	kfree(dmab);

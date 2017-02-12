@@ -828,7 +828,6 @@ lpfc_debugfs_nvmektime_data(struct lpfc_vport *vport, char *buf, int size)
 			phba->ktime_data_samples));
 		return len;
 	}
-
 	return len;
 }
 
@@ -1961,7 +1960,11 @@ lpfc_debugfs_cpucheck_write(struct file *file, const char __user *buf,
 		return strlen(pbuf);
 	} else if ((strncmp(pbuf, "rcv",
 		   sizeof("rcv") - 1) == 0)) {
-		return -EINVAL;
+		if (phba->nvmet_support)
+			phba->cpucheck_on |= LPFC_CHECK_NVMET_RCV;
+		else
+			return -EINVAL;
+		return strlen(pbuf);
 	} else if ((strncmp(pbuf, "off",
 		   sizeof("off") - 1) == 0)) {
 		phba->cpucheck_on = LPFC_CHECK_OFF;

@@ -240,6 +240,8 @@ struct hbq_dmabuf *lpfc_els_hbq_alloc(struct lpfc_hba *);
 void lpfc_els_hbq_free(struct lpfc_hba *, struct hbq_dmabuf *);
 struct hbq_dmabuf *lpfc_sli4_rb_alloc(struct lpfc_hba *);
 void lpfc_sli4_rb_free(struct lpfc_hba *, struct hbq_dmabuf *);
+struct rqb_dmabuf *lpfc_sli4_nvmet_alloc(struct lpfc_hba *phba);
+void lpfc_sli4_nvmet_free(struct lpfc_hba *phba, struct rqb_dmabuf *dmab);
 void lpfc_sli4_build_dflt_fcf_record(struct lpfc_hba *, struct fcf_record *,
 			uint16_t);
 int lpfc_sli4_rq_put(struct lpfc_queue *hq, struct lpfc_queue *dq,
@@ -304,6 +306,8 @@ int lpfc_sli_issue_iocb(struct lpfc_hba *, uint32_t,
 int lpfc_sli4_issue_wqe(struct lpfc_hba *phba, uint32_t rnum,
 			struct lpfc_iocbq *iocbq);
 struct lpfc_sglq *__lpfc_clear_active_sglq(struct lpfc_hba *phba, uint16_t xri);
+struct lpfc_sglq *__lpfc_sli_get_nvmet_sglq(struct lpfc_hba *phba,
+					    struct lpfc_iocbq *piocbq);
 void lpfc_sli_pcimem_bcopy(void *, void *, uint32_t);
 void lpfc_sli_bemem_bcopy(void *, void *, uint32_t);
 void lpfc_sli_abort_iocb_ring(struct lpfc_hba *, struct lpfc_sli_ring *);
@@ -353,6 +357,9 @@ void lpfc_sli_free_hbq(struct lpfc_hba *, struct hbq_dmabuf *);
 void *lpfc_mbuf_alloc(struct lpfc_hba *, int, dma_addr_t *);
 void __lpfc_mbuf_free(struct lpfc_hba *, void *, dma_addr_t);
 void lpfc_mbuf_free(struct lpfc_hba *, void *, dma_addr_t);
+void *lpfc_nvmet_buf_alloc(struct lpfc_hba *phba, int flags,
+			dma_addr_t *handle);
+void lpfc_nvmet_buf_free(struct lpfc_hba *phba, void *virtp, dma_addr_t dma);
 
 void lpfc_in_buf_free(struct lpfc_hba *, struct lpfc_dmabuf *);
 /* Function prototypes. */
@@ -492,6 +499,7 @@ int lpfc_selective_reset(struct lpfc_hba *);
 int lpfc_sli4_read_config(struct lpfc_hba *);
 void lpfc_sli4_node_prep(struct lpfc_hba *);
 int lpfc_sli4_els_sgl_update(struct lpfc_hba *phba);
+int lpfc_sli4_nvmet_sgl_update(struct lpfc_hba *phba);
 int lpfc_sli4_scsi_sgl_update(struct lpfc_hba *phba);
 int lpfc_sli4_nvme_sgl_update(struct lpfc_hba *phba);
 void lpfc_free_sgl_list(struct lpfc_hba *, struct list_head *);
@@ -531,3 +539,5 @@ void lpfc_nvme_mod_param_dep(struct lpfc_hba *phba);
 void lpfc_nvme_abort_fcreq_cmpl(struct lpfc_hba *phba,
 				struct lpfc_iocbq *cmdiocb,
 				struct lpfc_wcqe_complete *abts_cmpl);
+extern int lpfc_enable_nvmet_cnt;
+extern unsigned long long lpfc_enable_nvmet[];

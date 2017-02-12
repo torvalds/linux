@@ -93,6 +93,7 @@ struct lpfc_iocbq {
 #define LPFC_PRLI_FCP_REQ	0x100000 /* This is an NVME PRLI. */
 #define LPFC_IO_NVME	        0x200000 /* NVME FCP command */
 #define LPFC_IO_NVME_LS		0x400000 /* NVME LS command */
+#define LPFC_IO_NVMET		0x800000 /* NVMET command */
 
 	uint32_t drvrTimeout;	/* driver timeout in seconds */
 	struct lpfc_vport *vport;/* virtual port pointer */
@@ -317,6 +318,7 @@ struct lpfc_sli {
 #define LPFC_BLOCK_MGMT_IO        0x800	/* Don't allow mgmt mbx or iocb cmds */
 #define LPFC_MENLO_MAINT          0x1000 /* need for menl fw download */
 #define LPFC_SLI_ASYNC_MBX_BLK    0x2000 /* Async mailbox is blocked */
+#define LPFC_SLI_SUPPRESS_RSP     0x4000 /* Suppress RSP feature is supported */
 
 	struct lpfc_sli_ring *sli3_ring;
 

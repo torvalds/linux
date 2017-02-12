@@ -109,6 +109,7 @@ enum lpfc_sli4_queue_subtype {
 	LPFC_FCP,
 	LPFC_ELS,
 	LPFC_NVME,
+	LPFC_NVMET,
 	LPFC_NVME_LS,
 	LPFC_USOL
 };
@@ -610,8 +611,11 @@ struct lpfc_sli4_hba {
 	uint16_t scsi_xri_cnt;
 	uint16_t scsi_xri_start;
 	uint16_t els_xri_cnt;
+	uint16_t nvmet_xri_cnt;
 	struct list_head lpfc_els_sgl_list;
 	struct list_head lpfc_abts_els_sgl_list;
+	struct list_head lpfc_nvmet_sgl_list;
+	struct list_head lpfc_abts_nvmet_sgl_list;
 	struct list_head lpfc_abts_scsi_buf_list;
 	struct list_head lpfc_abts_nvme_buf_list;
 	struct lpfc_sglq **lpfc_sglq_active_list;
@@ -643,6 +647,7 @@ struct lpfc_sli4_hba {
 	spinlock_t abts_nvme_buf_list_lock; /* list of aborted SCSI IOs */
 	spinlock_t abts_scsi_buf_list_lock; /* list of aborted SCSI IOs */
 	spinlock_t sgl_list_lock; /* list of aborted els IOs */
+	spinlock_t nvmet_io_lock;
 	uint32_t physical_port;
 
 	/* CPU to vector mapping information */
@@ -655,6 +660,7 @@ struct lpfc_sli4_hba {
 enum lpfc_sge_type {
 	GEN_BUFF_TYPE,
 	SCSI_BUFF_TYPE,
+	NVMET_BUFF_TYPE
 };
 
 enum lpfc_sgl_state {
