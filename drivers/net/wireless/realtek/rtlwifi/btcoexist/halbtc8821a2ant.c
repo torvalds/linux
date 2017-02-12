@@ -2388,14 +2388,8 @@ static void halbtc8821a2ant_action_sco(struct btc_coexist *btcoexist)
 		 * halbtc8821a2ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 5);
 		 */
 
-		if ((bt_rssi_state == BTC_RSSI_STATE_HIGH) ||
-		    (bt_rssi_state == BTC_RSSI_STATE_STAY_HIGH)) {
-			halbtc8821a2ant_ps_tdma(btcoexist, NORMAL_EXEC,
-						false, 0); /*for voice quality*/
-		} else {
-			halbtc8821a2ant_ps_tdma(btcoexist, NORMAL_EXEC,
-						false, 0); /*for voice quality*/
-		}
+		halbtc8821a2ant_ps_tdma(btcoexist, NORMAL_EXEC,
+					false, 0); /*for voice quality*/
 
 		/* sw mechanism */
 		if ((wifi_rssi_state == BTC_RSSI_STATE_HIGH) ||
@@ -2785,14 +2779,7 @@ static void halbtc8821a2ant_action_pan_hs(struct btc_coexist *btcoexist)
 						   NORMAL_EXEC, false);
 		}
 
-		if ((bt_rssi_state == BTC_RSSI_STATE_HIGH) ||
-		    (bt_rssi_state == BTC_RSSI_STATE_STAY_HIGH)) {
-			halbtc8821a2ant_ps_tdma(btcoexist, NORMAL_EXEC,
-						false, 1);
-		} else {
-			halbtc8821a2ant_ps_tdma(btcoexist, NORMAL_EXEC,
-						false, 1);
-		}
+		halbtc8821a2ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 1);
 
 		/* sw mechanism */
 		if ((wifi_rssi_state == BTC_RSSI_STATE_HIGH) ||
@@ -2830,40 +2817,18 @@ static void halbtc8821a2ant_action_pan_edr_a2dp(struct btc_coexist *btcoexist)
 
 	btcoexist->btc_get(btcoexist, BTC_GET_U4_WIFI_BW, &wifi_bw);
 
-	if (BTC_WIFI_BW_LEGACY == wifi_bw) {
-		/* for HID at 11b/g mode */
-		halbtc8821a2ant_coex_table(btcoexist, NORMAL_EXEC, 0x55ff55ff,
-					   0x5afa5afa, 0xffff, 0x3);
-	} else {
-		/* for HID quality & wifi performance balance at 11n mode */
-		halbtc8821a2ant_coex_table(btcoexist, NORMAL_EXEC, 0x55ff55ff,
-					   0x5afa5afa, 0xffff, 0x3);
-	}
+	halbtc8821a2ant_coex_table(btcoexist, NORMAL_EXEC, 0x55ff55ff,
+				   0x5afa5afa, 0xffff, 0x3);
 
 	if (BTC_WIFI_BW_HT40 == wifi_bw) {
 		/* fw mechanism */
 		if ((bt_rssi_state == BTC_RSSI_STATE_HIGH) ||
-		    (bt_rssi_state == BTC_RSSI_STATE_STAY_HIGH)) {
-			if (bt_info_ext&BIT0) {
-				/* a2dp basic rate */
-				btc8821a2ant_tdma_dur_adj(btcoexist, false,
-							  false, 3);
-			} else {
-				/* a2dp edr rate */
-				btc8821a2ant_tdma_dur_adj(btcoexist, false,
-							  false, 3);
-			}
-		} else {
-			if (bt_info_ext&BIT0) {
-				/* a2dp basic rate */
-				btc8821a2ant_tdma_dur_adj(btcoexist, false,
-							  true, 3);
-			} else {
-				/* a2dp edr rate */
-				btc8821a2ant_tdma_dur_adj(btcoexist, false,
-							  true, 3);
-			}
-		}
+		    (bt_rssi_state == BTC_RSSI_STATE_STAY_HIGH))
+			btc8821a2ant_tdma_dur_adj(btcoexist, false,
+						  false, 3);
+		else
+			btc8821a2ant_tdma_dur_adj(btcoexist, false,
+						  true, 3);
 
 		/* sw mechanism */
 		if ((wifi_rssi_state == BTC_RSSI_STATE_HIGH) ||
@@ -2881,27 +2846,10 @@ static void halbtc8821a2ant_action_pan_edr_a2dp(struct btc_coexist *btcoexist)
 	} else {
 		/* fw mechanism */
 		if ((bt_rssi_state == BTC_RSSI_STATE_HIGH) ||
-		    (bt_rssi_state == BTC_RSSI_STATE_STAY_HIGH)) {
-			if (bt_info_ext&BIT0) {
-				/* a2dp basic rate */
-				btc8821a2ant_tdma_dur_adj(btcoexist, false,
-							  false, 3);
-			} else {
-				/* a2dp edr rate */
-				btc8821a2ant_tdma_dur_adj(btcoexist, false,
-							  false, 3);
-			}
-		} else {
-			if (bt_info_ext&BIT0) {
-				/* a2dp basic rate */
-				btc8821a2ant_tdma_dur_adj(btcoexist, false,
-							  true, 3);
-			} else {
-				/* a2dp edr rate */
-				btc8821a2ant_tdma_dur_adj(btcoexist, false,
-							  true, 3);
-			}
-		}
+		    (bt_rssi_state == BTC_RSSI_STATE_STAY_HIGH))
+			btc8821a2ant_tdma_dur_adj(btcoexist, false, false, 3);
+		else
+			btc8821a2ant_tdma_dur_adj(btcoexist, false, true, 3);
 
 		/* sw mechanism */
 		if ((wifi_rssi_state == BTC_RSSI_STATE_HIGH) ||
@@ -2937,15 +2885,8 @@ static void halbtc8821a2ant_action_pan_edr_hid(struct btc_coexist *btcoexist)
 
 	btcoexist->btc_get(btcoexist, BTC_GET_U4_WIFI_BW, &wifi_bw);
 
-	if (BTC_WIFI_BW_LEGACY == wifi_bw) {
-		/* for HID at 11b/g mode */
-		halbtc8821a2ant_coex_table(btcoexist, NORMAL_EXEC, 0x55ff55ff,
-					   0x5a5f5a5f, 0xffff, 0x3);
-	} else {
-		/* for HID quality & wifi performance balance at 11n mode */
-		halbtc8821a2ant_coex_table(btcoexist, NORMAL_EXEC, 0x55ff55ff,
-					   0x5a5f5a5f, 0xffff, 0x3);
-	}
+	halbtc8821a2ant_coex_table(btcoexist, NORMAL_EXEC, 0x55ff55ff,
+				   0x5a5f5a5f, 0xffff, 0x3);
 
 	if (BTC_WIFI_BW_HT40 == wifi_bw) {
 		halbtc8821a2ant_fw_dac_swing_lvl(btcoexist, NORMAL_EXEC, 3);
@@ -3020,40 +2961,12 @@ static void btc8821a2ant_act_hid_a2dp_pan_edr(struct btc_coexist *btcoexist)
 
 	btcoexist->btc_get(btcoexist, BTC_GET_U4_WIFI_BW, &wifi_bw);
 
-	if (BTC_WIFI_BW_LEGACY == wifi_bw) {
-		/* for HID at 11b/g mode */
-		halbtc8821a2ant_coex_table(btcoexist, NORMAL_EXEC, 0x55ff55ff,
-					   0x5a5a5a5a, 0xffff, 0x3);
-	} else {
-		/* for HID quality & wifi performance balance at 11n mode */
-		halbtc8821a2ant_coex_table(btcoexist, NORMAL_EXEC, 0x55ff55ff,
-					   0x5a5a5a5a, 0xffff, 0x3);
-	}
+	halbtc8821a2ant_coex_table(btcoexist, NORMAL_EXEC, 0x55ff55ff,
+				   0x5a5a5a5a, 0xffff, 0x3);
 
 	if (BTC_WIFI_BW_HT40 == wifi_bw) {
 		/* fw mechanism */
-		if ((bt_rssi_state == BTC_RSSI_STATE_HIGH) ||
-		    (bt_rssi_state == BTC_RSSI_STATE_STAY_HIGH)) {
-			if (bt_info_ext&BIT0) {
-				/* a2dp basic rate */
-				btc8821a2ant_tdma_dur_adj(btcoexist, true,
-							  true, 3);
-			} else {
-				/* a2dp edr rate */
-				btc8821a2ant_tdma_dur_adj(btcoexist, true,
-							  true, 3);
-			}
-		} else {
-			if (bt_info_ext&BIT0) {
-				/* a2dp basic rate */
-				btc8821a2ant_tdma_dur_adj(btcoexist, true,
-							  true, 3);
-			} else {
-				/* a2dp edr rate */
-				btc8821a2ant_tdma_dur_adj(btcoexist, true,
-							  true, 3);
-			}
-		}
+		btc8821a2ant_tdma_dur_adj(btcoexist, true, true, 3);
 
 		/* sw mechanism */
 		if ((wifi_rssi_state == BTC_RSSI_STATE_HIGH) ||
@@ -3126,40 +3039,12 @@ static void halbtc8821a2ant_action_hid_a2dp(struct btc_coexist *btcoexist)
 
 	btcoexist->btc_get(btcoexist, BTC_GET_U4_WIFI_BW, &wifi_bw);
 
-	if (BTC_WIFI_BW_LEGACY == wifi_bw) {
-		/* for HID at 11b/g mode */
-		halbtc8821a2ant_coex_table(btcoexist, NORMAL_EXEC, 0x55ff55ff,
-					   0x5f5b5f5b, 0xffffff, 0x3);
-	} else {
-		/*for HID quality & wifi performance balance at 11n mode*/
-		halbtc8821a2ant_coex_table(btcoexist, NORMAL_EXEC, 0x55ff55ff,
-					   0x5f5b5f5b, 0xffffff, 0x3);
-	}
+	halbtc8821a2ant_coex_table(btcoexist, NORMAL_EXEC, 0x55ff55ff,
+				   0x5f5b5f5b, 0xffffff, 0x3);
 
 	if (BTC_WIFI_BW_HT40 == wifi_bw) {
 		/* fw mechanism */
-		if ((bt_rssi_state == BTC_RSSI_STATE_HIGH) ||
-		    (bt_rssi_state == BTC_RSSI_STATE_STAY_HIGH)) {
-			if (bt_info_ext&BIT0) {
-				/* a2dp basic rate */
-				btc8821a2ant_tdma_dur_adj(btcoexist,
-							  true, true, 2);
-			} else {
-				/* a2dp edr rate */
-				btc8821a2ant_tdma_dur_adj(btcoexist,
-							  true, true, 2);
-			}
-		} else {
-			if (bt_info_ext&BIT0) {
-				/* a2dp basic rate */
-				btc8821a2ant_tdma_dur_adj(btcoexist,
-							  true, true, 2);
-			} else {
-				/* a2dp edr rate */
-				btc8821a2ant_tdma_dur_adj(btcoexist,
-							  true, true, 2);
-			}
-		}
+		btc8821a2ant_tdma_dur_adj(btcoexist, true, true, 2);
 
 		/* sw mechanism */
 		if ((wifi_rssi_state == BTC_RSSI_STATE_HIGH) ||
@@ -3176,29 +3061,7 @@ static void halbtc8821a2ant_action_hid_a2dp(struct btc_coexist *btcoexist)
 		}
 	} else {
 		/* fw mechanism */
-		if ((bt_rssi_state == BTC_RSSI_STATE_HIGH) ||
-		    (bt_rssi_state == BTC_RSSI_STATE_STAY_HIGH)) {
-			if (bt_info_ext&BIT0) {
-				/* a2dp basic rate */
-				btc8821a2ant_tdma_dur_adj(btcoexist,
-							  true, true, 2);
-
-			} else {
-				/* a2dp edr rate */
-				btc8821a2ant_tdma_dur_adj(btcoexist,
-							  true, true, 2);
-			}
-		} else {
-			if (bt_info_ext&BIT0) {
-				/*a2dp basic rate*/
-				btc8821a2ant_tdma_dur_adj(btcoexist,
-							  true, true, 2);
-			} else {
-				/*a2dp edr rate*/
-				btc8821a2ant_tdma_dur_adj(btcoexist,
-							  true, true, 2);
-			}
-		}
+		btc8821a2ant_tdma_dur_adj(btcoexist, true, true, 2);
 
 		/* sw mechanism */
 		if ((wifi_rssi_state == BTC_RSSI_STATE_HIGH) ||
