@@ -345,12 +345,12 @@ static ssize_t ad5933_store_frequency(struct device *dev,
 	return ret ? ret : len;
 }
 
-static IIO_DEVICE_ATTR(out_voltage0_freq_start, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(out_voltage0_freq_start, 0644,
 			ad5933_show_frequency,
 			ad5933_store_frequency,
 			AD5933_REG_FREQ_START);
 
-static IIO_DEVICE_ATTR(out_voltage0_freq_increment, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(out_voltage0_freq_increment, 0644,
 			ad5933_show_frequency,
 			ad5933_store_frequency,
 			AD5933_REG_FREQ_INC);
@@ -469,32 +469,32 @@ static ssize_t ad5933_store(struct device *dev,
 	return ret ? ret : len;
 }
 
-static IIO_DEVICE_ATTR(out_voltage0_scale, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(out_voltage0_scale, 0644,
 			ad5933_show,
 			ad5933_store,
 			AD5933_OUT_RANGE);
 
-static IIO_DEVICE_ATTR(out_voltage0_scale_available, S_IRUGO,
+static IIO_DEVICE_ATTR(out_voltage0_scale_available, 0444,
 			ad5933_show,
 			NULL,
 			AD5933_OUT_RANGE_AVAIL);
 
-static IIO_DEVICE_ATTR(in_voltage0_scale, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(in_voltage0_scale, 0644,
 			ad5933_show,
 			ad5933_store,
 			AD5933_IN_PGA_GAIN);
 
-static IIO_DEVICE_ATTR(in_voltage0_scale_available, S_IRUGO,
+static IIO_DEVICE_ATTR(in_voltage0_scale_available, 0444,
 			ad5933_show,
 			NULL,
 			AD5933_IN_PGA_GAIN_AVAIL);
 
-static IIO_DEVICE_ATTR(out_voltage0_freq_points, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(out_voltage0_freq_points, 0644,
 			ad5933_show,
 			ad5933_store,
 			AD5933_FREQ_POINTS);
 
-static IIO_DEVICE_ATTR(out_voltage0_settling_cycles, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(out_voltage0_settling_cycles, 0644,
 			ad5933_show,
 			ad5933_store,
 			AD5933_OUT_SETTLING_CYCLES);
