@@ -86,6 +86,17 @@ struct lpfc_nodelist {
 #define NLP_FABRIC         0x4			/* entry rep a Fabric entity */
 #define NLP_FCP_TARGET     0x8			/* entry is an FCP target */
 #define NLP_FCP_INITIATOR  0x10			/* entry is an FCP Initiator */
+#define NLP_NVME_TARGET    0x20			/* entry is a NVME Target */
+#define NLP_NVME_INITIATOR 0x40			/* entry is a NVME Initiator */
+
+	uint16_t	nlp_fc4_type;		/* FC types node supports. */
+						/* Assigned from GID_FF, only
+						 * FCP (0x8) and NVME (0x28)
+						 * supported.
+						 */
+#define NLP_FC4_NONE	0x0
+#define NLP_FC4_FCP	0x1			/* FC4 Type FCP (value x8)) */
+#define NLP_FC4_NVME	0x2			/* FC4 TYPE NVME (value x28) */
 
 	uint16_t        nlp_rpi;
 	uint16_t        nlp_state;		/* state transition indicator */
@@ -107,8 +118,8 @@ struct lpfc_nodelist {
 
 	struct timer_list   nlp_delayfunc;	/* Used for delayed ELS cmds */
 	struct lpfc_hba *phba;
-	struct fc_rport *rport;			/* Corresponding FC transport
-						   port structure */
+	struct fc_rport *rport;		/* scsi_transport_fc port structure */
+	struct lpfc_nvme_rport *nrport;	/* nvme transport rport struct. */
 	struct lpfc_vport *vport;
 	struct lpfc_work_evt els_retry_evt;
 	struct lpfc_work_evt dev_loss_evt;
@@ -118,6 +129,10 @@ struct lpfc_nodelist {
 	unsigned long last_change_time;
 	unsigned long *active_rrqs_xri_bitmap;
 	struct lpfc_scsicmd_bkt *lat_data;	/* Latency data */
+	uint32_t fc4_prli_sent;
+	uint32_t upcall_flags;
+	uint32_t nvme_fb_size; /* NVME target's supported byte cnt */
+#define NVME_FB_BIT_SHIFT 9    /* PRLI Rsp first burst in 512B units. */
 };
 struct lpfc_node_rrq {
 	struct list_head list;

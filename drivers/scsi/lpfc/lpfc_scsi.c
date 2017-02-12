@@ -5333,7 +5333,8 @@ lpfc_bus_reset_handler(struct scsi_cmnd *cmnd)
 				continue;
 			if (ndlp->nlp_state == NLP_STE_MAPPED_NODE &&
 			    ndlp->nlp_sid == i &&
-			    ndlp->rport) {
+			    ndlp->rport &&
+			    ndlp->nlp_type & NLP_FCP_TARGET) {
 				match = 1;
 				break;
 			}

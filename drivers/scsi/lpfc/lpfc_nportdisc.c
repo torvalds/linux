@@ -28,6 +28,9 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport_fc.h>
+#include <scsi/fc/fc_fs.h>
+
+#include <linux/nvme-fc-driver.h>
 
 #include "lpfc_hw4.h"
 #include "lpfc_hw.h"
@@ -35,8 +38,9 @@
 #include "lpfc_sli4.h"
 #include "lpfc_nl.h"
 #include "lpfc_disc.h"
-#include "lpfc_scsi.h"
 #include "lpfc.h"
+#include "lpfc_scsi.h"
+#include "lpfc_nvme.h"
 #include "lpfc_logmsg.h"
 #include "lpfc_crtn.h"
 #include "lpfc_vport.h"
@@ -708,6 +712,7 @@ static void
 lpfc_rcv_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	      struct lpfc_iocbq *cmdiocb)
 {
+	struct lpfc_hba  *phba = vport->phba;
 	struct lpfc_dmabuf *pcmd;
 	uint32_t *lp;
 	PRLI *npr;
@@ -721,11 +726,19 @@ lpfc_rcv_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	ndlp->nlp_type &= ~(NLP_FCP_TARGET | NLP_FCP_INITIATOR);
 	ndlp->nlp_fcp_info &= ~NLP_FCP_2_DEVICE;
 	ndlp->nlp_flag &= ~NLP_FIRSTBURST;
-	if (npr->prliType == PRLI_FCP_TYPE) {
-		if (npr->initiatorFunc)
-			ndlp->nlp_type |= NLP_FCP_INITIATOR;
+	if ((npr->prliType == PRLI_FCP_TYPE) ||
+	    (npr->prliType == PRLI_NVME_TYPE)) {
+		if (npr->initiatorFunc) {
+			if (npr->prliType == PRLI_FCP_TYPE)
+				ndlp->nlp_type |= NLP_FCP_INITIATOR;
+			if (npr->prliType == PRLI_NVME_TYPE)
+				ndlp->nlp_type |= NLP_NVME_INITIATOR;
+		}
 		if (npr->targetFunc) {
-			ndlp->nlp_type |= NLP_FCP_TARGET;
+			if (npr->prliType == PRLI_FCP_TYPE)
+				ndlp->nlp_type |= NLP_FCP_TARGET;
+			if (npr->prliType == PRLI_NVME_TYPE)
+				ndlp->nlp_type |= NLP_NVME_TARGET;
 			if (npr->writeXferRdyDis)
 				ndlp->nlp_flag |= NLP_FIRSTBURST;
 		}
@@ -744,7 +757,8 @@ lpfc_rcv_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			"rport rolechg:   role:x%x did:x%x flg:x%x",
 			roles, ndlp->nlp_DID, ndlp->nlp_flag);
 
-		fc_remote_port_rolechg(rport, roles);
+		if (phba->cfg_enable_fc4_type != LPFC_ENABLE_NVME)
+			fc_remote_port_rolechg(rport, roles);
 	}
 }
 
@@ -1491,7 +1505,9 @@ lpfc_rcv_prli_reglogin_issue(struct lpfc_vport *vport,
 {
 	struct lpfc_iocbq *cmdiocb = (struct lpfc_iocbq *) arg;
 
+	/* Initiator mode. */
 	lpfc_els_rsp_prli_acc(vport, cmdiocb, ndlp);
+
 	return ndlp->nlp_state;
 }
 
@@ -1574,9 +1590,11 @@ lpfc_cmpl_reglogin_reglogin_issue(struct lpfc_vport *vport,
 				  uint32_t evt)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+	struct lpfc_hba *phba = vport->phba;
 	LPFC_MBOXQ_t *pmb = (LPFC_MBOXQ_t *) arg;
 	MAILBOX_t *mb = &pmb->u.mb;
 	uint32_t did  = mb->un.varWords[1];
+	int rc = 0;
 
 	if (mb->mbxStatus) {
 		/* RegLogin failed */
@@ -1611,19 +1629,52 @@ lpfc_cmpl_reglogin_reglogin_issue(struct lpfc_vport *vport,
 	}
 
 	/* SLI4 ports have preallocated logical rpis. */
-	if (vport->phba->sli_rev < LPFC_SLI_REV4)
+	if (phba->sli_rev < LPFC_SLI_REV4)
 		ndlp->nlp_rpi = mb->un.varWords[0];
 
 	ndlp->nlp_flag |= NLP_RPI_REGISTERED;
 
 	/* Only if we are not a fabric nport do we issue PRLI */
-	if (!(ndlp->nlp_type & NLP_FABRIC)) {
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+			 "3066 RegLogin Complete on x%x x%x x%x\n",
+			 did, ndlp->nlp_type, ndlp->nlp_fc4_type);
+	if (!(ndlp->nlp_type & NLP_FABRIC) &&
+	    (phba->nvmet_support == 0)) {
+		/* The driver supports FCP and NVME concurrently.  If the
+		 * ndlp's nlp_fc4_type is still zero, the driver doesn't
+		 * know what PRLI to send yet.  Figure that out now and
+		 * call PRLI depending on the outcome.
+		 */
+		if (vport->fc_flag & FC_PT2PT) {
+			/* If we are pt2pt, there is no Fabric to determine
+			 * the FC4 type of the remote nport. So if NVME
+			 * is configured try it.
+			 */
+			ndlp->nlp_fc4_type |= NLP_FC4_FCP;
+			if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+			     (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) {
+				ndlp->nlp_fc4_type |= NLP_FC4_NVME;
+				/* We need to update the localport also */
+				/* todo: init: revise localport nvme
+				 * attributes
+				 */
+			}
+
+		} else if (ndlp->nlp_fc4_type == 0) {
+			rc = lpfc_ns_cmd(vport, SLI_CTNS_GFT_ID,
+					 0, ndlp->nlp_DID);
+			return ndlp->nlp_state;
+		}
+
 		ndlp->nlp_prev_state = NLP_STE_REG_LOGIN_ISSUE;
 		lpfc_nlp_set_state(vport, ndlp, NLP_STE_PRLI_ISSUE);
 		lpfc_issue_els_prli(vport, ndlp, 0);
 	} else {
-		ndlp->nlp_prev_state = NLP_STE_REG_LOGIN_ISSUE;
-		lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
+		/* Only Fabric ports should transition */
+		if (ndlp->nlp_type & NLP_FABRIC) {
+			ndlp->nlp_prev_state = NLP_STE_REG_LOGIN_ISSUE;
+			lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
+		}
 	}
 	return ndlp->nlp_state;
 }
@@ -1664,7 +1715,7 @@ lpfc_device_recov_reglogin_issue(struct lpfc_vport *vport,
 	ndlp->nlp_prev_state = NLP_STE_REG_LOGIN_ISSUE;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 	spin_lock_irq(shost->host_lock);
-	ndlp->nlp_flag |= NLP_IGNR_REG_CMPL;
+
 	ndlp->nlp_flag &= ~(NLP_NODEV_REMOVE | NLP_NPR_2B_DISC);
 	spin_unlock_irq(shost->host_lock);
 	lpfc_disc_set_adisc(vport, ndlp);
@@ -1740,10 +1791,23 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	struct lpfc_hba   *phba = vport->phba;
 	IOCB_t *irsp;
 	PRLI *npr;
+	struct lpfc_nvme_prli *nvpr;
+	void *temp_ptr;
 
 	cmdiocb = (struct lpfc_iocbq *) arg;
 	rspiocb = cmdiocb->context_un.rsp_iocb;
-	npr = (PRLI *)lpfc_check_elscmpl_iocb(phba, cmdiocb, rspiocb);
+
+	/* A solicited PRLI is either FCP or NVME.  The PRLI cmd/rsp
+	 * format is different so NULL the two PRLI types so that the
+	 * driver correctly gets the correct context.
+	 */
+	npr = NULL;
+	nvpr = NULL;
+	temp_ptr = lpfc_check_elscmpl_iocb(phba, cmdiocb, rspiocb);
+	if (cmdiocb->iocb_flag & LPFC_PRLI_FCP_REQ)
+		npr = (PRLI *) temp_ptr;
+	else if (cmdiocb->iocb_flag & LPFC_PRLI_NVME_REQ)
+		nvpr = (struct lpfc_nvme_prli *) temp_ptr;
 
 	irsp = &rspiocb->iocb;
 	if (irsp->ulpStatus) {
@@ -1751,7 +1815,21 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		    vport->cfg_restrict_login) {
 			goto out;
 		}
+
+		/* The LS Req had some error.  Don't let this be a
+		 * target.
+		 */
+		if ((ndlp->fc4_prli_sent == 1) &&
+		    (ndlp->nlp_state == NLP_STE_PRLI_ISSUE) &&
+		    (ndlp->nlp_type & (NLP_FCP_TARGET | NLP_FCP_INITIATOR)))
+			/* The FCP PRLI completed successfully but
+			 * the NVME PRLI failed.  Since they are sent in
+			 * succession, allow the FCP to complete.
+			 */
+			goto out_err;
+
 		ndlp->nlp_prev_state = NLP_STE_PRLI_ISSUE;
+		ndlp->nlp_type |= NLP_FCP_INITIATOR;
 		lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
 		return ndlp->nlp_state;
 	}
@@ -1759,9 +1837,16 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	/* Check out PRLI rsp */
 	ndlp->nlp_type &= ~(NLP_FCP_TARGET | NLP_FCP_INITIATOR);
 	ndlp->nlp_fcp_info &= ~NLP_FCP_2_DEVICE;
+
+	/* NVME or FCP first burst must be negotiated for each PRLI. */
 	ndlp->nlp_flag &= ~NLP_FIRSTBURST;
-	if ((npr->acceptRspCode == PRLI_REQ_EXECUTED) &&
+	ndlp->nvme_fb_size = 0;
+	if (npr && (npr->acceptRspCode == PRLI_REQ_EXECUTED) &&
 	    (npr->prliType == PRLI_FCP_TYPE)) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
+				 "6028 FCP NPR PRLI Cmpl Init %d Target %d\n",
+				 npr->initiatorFunc,
+				 npr->targetFunc);
 		if (npr->initiatorFunc)
 			ndlp->nlp_type |= NLP_FCP_INITIATOR;
 		if (npr->targetFunc) {
@@ -1771,6 +1856,49 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		}
 		if (npr->Retry)
 			ndlp->nlp_fcp_info |= NLP_FCP_2_DEVICE;
+
+		/* PRLI completed.  Decrement count. */
+		ndlp->fc4_prli_sent--;
+	} else if (nvpr &&
+		   (bf_get_be32(prli_acc_rsp_code, nvpr) ==
+		    PRLI_REQ_EXECUTED) &&
+		   (bf_get_be32(prli_type_code, nvpr) ==
+		    PRLI_NVME_TYPE)) {
+
+		/* Complete setting up the remote ndlp personality. */
+		if (bf_get_be32(prli_init, nvpr))
+			ndlp->nlp_type |= NLP_NVME_INITIATOR;
+
+		/* Target driver cannot solicit NVME FB. */
+		if (bf_get_be32(prli_tgt, nvpr)) {
+			ndlp->nlp_type |= NLP_NVME_TARGET;
+			if ((bf_get_be32(prli_fba, nvpr) == 1) &&
+			    (bf_get_be32(prli_fb_sz, nvpr) > 0) &&
+			    (phba->cfg_nvme_enable_fb) &&
+			    (!phba->nvmet_support)) {
+				/* Both sides support FB. The target's first
+				 * burst size is a 512 byte encoded value.
+				 */
+				ndlp->nlp_flag |= NLP_FIRSTBURST;
+				ndlp->nvme_fb_size = bf_get_be32(prli_fb_sz,
+								 nvpr);
+			}
+		}
+
+		if (bf_get_be32(prli_recov, nvpr))
+			ndlp->nlp_fcp_info |= NLP_FCP_2_DEVICE;
+
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
+				 "6029 NVME PRLI Cmpl w1 x%08x "
+				 "w4 x%08x w5 x%08x flag x%x, "
+				 "fcp_info x%x nlp_type x%x\n",
+				 be32_to_cpu(nvpr->word1),
+				 be32_to_cpu(nvpr->word4),
+				 be32_to_cpu(nvpr->word5),
+				 ndlp->nlp_flag, ndlp->nlp_fcp_info,
+				 ndlp->nlp_type);
+		/* PRLI completed.  Decrement count. */
+		ndlp->fc4_prli_sent--;
 	}
 	if (!(ndlp->nlp_type & NLP_FCP_TARGET) &&
 	    (vport->port_type == LPFC_NPIV_PORT) &&
@@ -1786,11 +1914,24 @@ out:
 		return ndlp->nlp_state;
 	}
 
-	ndlp->nlp_prev_state = NLP_STE_PRLI_ISSUE;
-	if (ndlp->nlp_type & NLP_FCP_TARGET)
-		lpfc_nlp_set_state(vport, ndlp, NLP_STE_MAPPED_NODE);
-	else
-		lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
+out_err:
+	/* The ndlp state cannot move to MAPPED or UNMAPPED before all PRLIs
+	 * are complete.
+	 */
+	if (ndlp->fc4_prli_sent == 0) {
+		ndlp->nlp_prev_state = NLP_STE_PRLI_ISSUE;
+		if (ndlp->nlp_type & (NLP_FCP_TARGET | NLP_NVME_TARGET))
+			lpfc_nlp_set_state(vport, ndlp, NLP_STE_MAPPED_NODE);
+		else
+			lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
+	} else
+		lpfc_printf_vlog(vport,
+				 KERN_INFO, LOG_ELS,
+				 "3067 PRLI's still outstanding "
+				 "on x%06x - count %d, Pend Node Mode "
+				 "transition...\n",
+				 ndlp->nlp_DID, ndlp->fc4_prli_sent);
+
 	return ndlp->nlp_state;
 }
 

@@ -3922,6 +3922,49 @@ struct gen_req64_wqe {
 	uint32_t max_response_payload_len;
 };
 
+/* Define NVME PRLI request to fabric. NVME is a
+ * fabric-only protocol.
+ * Updated to red-lined v1.08 on Sept 16, 2016
+ */
+struct lpfc_nvme_prli {
+	uint32_t word1;
+	/* The Response Code is defined in the FCP PRLI lpfc_hw.h */
+#define prli_acc_rsp_code_SHIFT         8
+#define prli_acc_rsp_code_MASK          0x0000000f
+#define prli_acc_rsp_code_WORD          word1
+#define prli_estabImagePair_SHIFT       13
+#define prli_estabImagePair_MASK        0x00000001
+#define prli_estabImagePair_WORD        word1
+#define prli_type_code_ext_SHIFT        16
+#define prli_type_code_ext_MASK         0x000000ff
+#define prli_type_code_ext_WORD         word1
+#define prli_type_code_SHIFT            24
+#define prli_type_code_MASK             0x000000ff
+#define prli_type_code_WORD             word1
+	uint32_t word_rsvd2;
+	uint32_t word_rsvd3;
+	uint32_t word4;
+#define prli_fba_SHIFT                  0
+#define prli_fba_MASK                   0x00000001
+#define prli_fba_WORD                   word4
+#define prli_disc_SHIFT                 3
+#define prli_disc_MASK                  0x00000001
+#define prli_disc_WORD                  word4
+#define prli_tgt_SHIFT                  4
+#define prli_tgt_MASK                   0x00000001
+#define prli_tgt_WORD                   word4
+#define prli_init_SHIFT                 5
+#define prli_init_MASK                  0x00000001
+#define prli_init_WORD                  word4
+#define prli_recov_SHIFT                8
+#define prli_recov_MASK                 0x00000001
+#define prli_recov_WORD                 word4
+	uint32_t word5;
+#define prli_fb_sz_SHIFT                0
+#define prli_fb_sz_MASK                 0x0000ffff
+#define prli_fb_sz_WORD                 word5
+};
+
 struct create_xri_wqe {
 	uint32_t rsrvd[5];           /* words 0-4 */
 	struct wqe_did	wqe_dest;  /* word 5 */

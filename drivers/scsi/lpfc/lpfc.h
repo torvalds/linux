@@ -123,6 +123,8 @@ struct perf_prof {
 	uint16_t wqidx[40];
 };
 
+#define LPFC_FC4_TYPE_BITMASK	0x00000100
+
 /* Provide DMA memory definitions the driver uses per port instance. */
 struct lpfc_dmabuf {
 	struct list_head list;
@@ -390,7 +392,8 @@ struct lpfc_vport {
 	int32_t stopped;   /* HBA has not been restarted since last ERATT */
 	uint8_t fc_linkspeed;	/* Link speed after last READ_LA */
 
-	uint32_t num_disc_nodes;	/*in addition to hba_state */
+	uint32_t num_disc_nodes;	/* in addition to hba_state */
+	uint32_t gidft_inp;		/* cnt of outstanding GID_FTs */
 
 	uint32_t fc_nlp_cnt;	/* outstanding NODELIST requests */
 	uint32_t fc_rscn_id_cnt;	/* count of RSCNs payloads in list */
@@ -443,7 +446,6 @@ struct lpfc_vport {
 	uint32_t cfg_max_scsicmpl_time;
 	uint32_t cfg_tgt_queue_depth;
 	uint32_t cfg_first_burst_size;
-
 	uint32_t dev_loss_tmo_changed;
 
 	struct fc_vport *fc_vport;

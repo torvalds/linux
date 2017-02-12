@@ -2667,6 +2667,13 @@ lpfc_cleanup(struct lpfc_vport *vport)
 			lpfc_disc_state_machine(vport, ndlp, NULL,
 					NLP_EVT_DEVICE_RECOVERY);
 
+		if (ndlp->nlp_fc4_type & NLP_FC4_NVME) {
+			/* Remove the NVME transport reference now and
+			 * continue to remove the node.
+			 */
+			lpfc_nlp_put(ndlp);
+		}
+
 		lpfc_disc_state_machine(vport, ndlp, NULL,
 					     NLP_EVT_DEVICE_RM);
 	}
