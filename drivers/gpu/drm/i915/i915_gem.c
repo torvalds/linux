@@ -2611,6 +2611,8 @@ i915_gem_find_active_request(struct intel_engine_cs *engine)
 			continue;
 
 		GEM_BUG_ON(request->engine != engine);
+		GEM_BUG_ON(test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
+				    &request->fence.flags));
 		return request;
 	}
 
