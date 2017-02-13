@@ -1578,17 +1578,37 @@ static int bnxt_flash_package_from_file(struct net_device *dev,
 	bnxt_hwrm_cmd_hdr_init(bp, &install, HWRM_NVM_INSTALL_UPDATE, -1, -1);
 	install.install_type = cpu_to_le32(install_type);
 
-	rc = hwrm_send_message(bp, &install, sizeof(install),
-			       INSTALL_PACKAGE_TIMEOUT);
-	if (rc)
-		return -EOPNOTSUPP;
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &install, sizeof(install),
+				INSTALL_PACKAGE_TIMEOUT);
+	if (rc) {
+		rc = -EOPNOTSUPP;
+		goto flash_pkg_exit;
+	}
+
+	if (resp->error_code) {
+		u8 error_code = ((struct hwrm_err_output *)resp)->cmd_err;
+
+		if (error_code == NVM_INSTALL_UPDATE_CMD_ERR_CODE_FRAG_ERR) {
+			install.flags |= cpu_to_le16(
+			       NVM_INSTALL_UPDATE_REQ_FLAGS_ALLOWED_TO_DEFRAG);
+			rc = _hwrm_send_message(bp, &install, sizeof(install),
+						INSTALL_PACKAGE_TIMEOUT);
+			if (rc) {
+				rc = -EOPNOTSUPP;
+				goto flash_pkg_exit;
+			}
+		}
+	}
 
 	if (resp->result) {
 		netdev_err(dev, "PKG install error = %d, problem_item = %d\n",
 			   (s8)resp->result, (int)resp->problem_item);
-		return -ENOPKG;
+		rc = -ENOPKG;
 	}
-	return 0;
+flash_pkg_exit:
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
 }
 
 static int bnxt_flash_device(struct net_device *dev,
