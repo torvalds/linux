@@ -408,6 +408,7 @@ static void ipc_pci_remove(struct pci_dev *pdev)
 static const struct pci_device_id ipc_pci_ids[] = {
 	{PCI_VDEVICE(INTEL, 0x0a94), 0},
 	{PCI_VDEVICE(INTEL, 0x1a94), 0},
+	{PCI_VDEVICE(INTEL, 0x5a94), 0},
 	{ 0,}
 };
 MODULE_DEVICE_TABLE(pci, ipc_pci_ids);
