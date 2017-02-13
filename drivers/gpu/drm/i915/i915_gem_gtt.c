@@ -3760,4 +3760,5 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 #include "selftests/mock_gtt.c"
+#include "selftests/i915_gem_gtt.c"
 #endif
