@@ -582,6 +582,82 @@ err:
 	return 0;
 }
 
+static int pot_hole(struct drm_i915_private *i915,
+		    struct i915_address_space *vm,
+		    u64 hole_start, u64 hole_end,
+		    unsigned long end_time)
+{
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+	unsigned long flags;
+	unsigned int pot;
+	int err;
+
+	flags = PIN_OFFSET_FIXED | PIN_USER;
+	if (i915_is_ggtt(vm))
+		flags |= PIN_GLOBAL;
+
+	obj = i915_gem_object_create_internal(i915, 2 * I915_GTT_PAGE_SIZE);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	vma = i915_vma_instance(obj, vm, NULL);
+	if (IS_ERR(vma)) {
+		err = PTR_ERR(vma);
+		goto err_obj;
+	}
+
+	/* Insert a pair of pages across every pot boundary within the hole */
+	for (pot = fls64(hole_end - 1) - 1;
+	     pot > ilog2(2 * I915_GTT_PAGE_SIZE);
+	     pot--) {
+		u64 step = BIT_ULL(pot);
+		u64 addr;
+
+		for (addr = round_up(hole_start + I915_GTT_PAGE_SIZE, step) - I915_GTT_PAGE_SIZE;
+		     addr + vma->size <= hole_end;
+		     addr += step) {
+			err = i915_vma_pin(vma, 0, 0, addr | flags);
+			if (err) {
+				pr_err("%s failed to pin object at %llx in hole [%llx - %llx], with err=%d\n",
+				       __func__,
+				       addr,
+				       hole_start, hole_end,
+				       err);
+				goto err;
+			}
+
+			if (!drm_mm_node_allocated(&vma->node) ||
+			    i915_vma_misplaced(vma, 0, 0, addr | flags)) {
+				pr_err("%s incorrect at %llx + %llx\n",
+				       __func__, addr, vma->size);
+				i915_vma_unpin(vma);
+				err = i915_vma_unbind(vma);
+				err = -EINVAL;
+				goto err;
+			}
+
+			i915_vma_unpin(vma);
+			err = i915_vma_unbind(vma);
+			GEM_BUG_ON(err);
+		}
+
+		if (igt_timeout(end_time,
+				"%s timed out after %d/%d\n",
+				__func__, pot, fls64(hole_end - 1) - 1)) {
+			err = -EINTR;
+			goto err;
+		}
+	}
+
+err:
+	if (!i915_vma_is_ggtt(vma))
+		i915_vma_close(vma);
+err_obj:
+	i915_gem_object_put(obj);
+	return err;
+}
+
 static int drunk_hole(struct drm_i915_private *i915,
 		      struct i915_address_space *vm,
 		      u64 hole_start, u64 hole_end,
@@ -819,6 +895,11 @@ static int igt_ppgtt_walk(void *arg)
 	return exercise_ppgtt(arg, walk_hole);
 }
 
+static int igt_ppgtt_pot(void *arg)
+{
+	return exercise_ppgtt(arg, pot_hole);
+}
+
 static int igt_ppgtt_drunk(void *arg)
 {
 	return exercise_ppgtt(arg, drunk_hole);
@@ -891,6 +972,11 @@ static int igt_ggtt_fill(void *arg)
 static int igt_ggtt_walk(void *arg)
 {
 	return exercise_ggtt(arg, walk_hole);
+}
+
+static int igt_ggtt_pot(void *arg)
+{
+	return exercise_ggtt(arg, pot_hole);
 }
 
 static int igt_ggtt_drunk(void *arg)
@@ -1036,6 +1122,11 @@ static int igt_mock_fill(void *arg)
 static int igt_mock_walk(void *arg)
 {
 	return exercise_mock(arg, walk_hole);
+}
+
+static int igt_mock_pot(void *arg)
+{
+	return exercise_mock(arg, pot_hole);
 }
 
 static int igt_mock_drunk(void *arg)
@@ -1418,6 +1509,7 @@ int i915_gem_gtt_mock_selftests(void)
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_mock_drunk),
 		SUBTEST(igt_mock_walk),
+		SUBTEST(igt_mock_pot),
 		SUBTEST(igt_mock_fill),
 		SUBTEST(igt_gtt_reserve),
 		SUBTEST(igt_gtt_insert),
@@ -1444,11 +1536,13 @@ int i915_gem_gtt_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_ppgtt_lowlevel),
 		SUBTEST(igt_ppgtt_drunk),
 		SUBTEST(igt_ppgtt_walk),
+		SUBTEST(igt_ppgtt_pot),
 		SUBTEST(igt_ppgtt_fill),
 		SUBTEST(igt_ppgtt_shrink),
 		SUBTEST(igt_ggtt_lowlevel),
 		SUBTEST(igt_ggtt_drunk),
 		SUBTEST(igt_ggtt_walk),
+		SUBTEST(igt_ggtt_pot),
 		SUBTEST(igt_ggtt_fill),
 		SUBTEST(igt_ggtt_page),
 	};
