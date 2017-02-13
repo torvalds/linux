@@ -5025,4 +5025,5 @@ i915_gem_object_get_dma_address(struct drm_i915_gem_object *obj,
 #include "selftests/scatterlist.c"
 #include "selftests/mock_gem_device.c"
 #include "selftests/huge_gem_object.c"
+#include "selftests/i915_gem_object.c"
 #endif
