@@ -1,5 +1,6 @@
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
+#include <linux/sched.h>
 #include <linux/mm.h>
 #include <asm/sections.h>
 #include <asm/pgtable.h>
@@ -187,6 +188,7 @@ static void walk_pgd_level(struct seq_file *m)
 		else
 			note_page(m, &st, _PAGE_INVALID, 1);
 		addr += PGDIR_SIZE;
+		cond_resched();
 	}
 	/* Flush out the last page */
 	st.current_address = max_addr;
