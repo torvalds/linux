@@ -867,6 +867,10 @@ struct bnxt_link_info {
 	u16			force_link_speed;
 	u32			preemphasis;
 	u8			module_status;
+	u16			fec_cfg;
+#define BNXT_FEC_AUTONEG	PORT_PHY_QCFG_RESP_FEC_CFG_FEC_AUTONEG_ENABLED
+#define BNXT_FEC_ENC_BASE_R	PORT_PHY_QCFG_RESP_FEC_CFG_FEC_CLAUSE74_ENABLED
+#define BNXT_FEC_ENC_RS		PORT_PHY_QCFG_RESP_FEC_CFG_FEC_CLAUSE91_ENABLED
 
 	/* copy of requested setting from ethtool cmd */
 	u8			autoneg;

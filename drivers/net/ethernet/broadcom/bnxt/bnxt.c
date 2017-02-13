@@ -5437,7 +5437,7 @@ static void bnxt_report_link(struct bnxt *bp)
 	if (bp->link_info.link_up) {
 		const char *duplex;
 		const char *flow_ctrl;
-		u16 speed;
+		u16 speed, fec;
 
 		netif_carrier_on(bp->dev);
 		if (bp->link_info.duplex == BNXT_LINK_DUPLEX_FULL)
@@ -5459,6 +5459,12 @@ static void bnxt_report_link(struct bnxt *bp)
 			netdev_info(bp->dev, "EEE is %s\n",
 				    bp->eee.eee_active ? "active" :
 							 "not active");
+		fec = bp->link_info.fec_cfg;
+		if (!(fec & PORT_PHY_QCFG_RESP_FEC_CFG_FEC_NONE_SUPPORTED))
+			netdev_info(bp->dev, "FEC autoneg %s encodings: %s\n",
+				    (fec & BNXT_FEC_AUTONEG) ? "on" : "off",
+				    (fec & BNXT_FEC_ENC_BASE_R) ? "BaseR" :
+				     (fec & BNXT_FEC_ENC_RS) ? "RS" : "None");
 	} else {
 		netif_carrier_off(bp->dev);
 		netdev_err(bp->dev, "NIC Link is Down\n");
@@ -5583,6 +5589,11 @@ static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 			}
 		}
 	}
+
+	link_info->fec_cfg = PORT_PHY_QCFG_RESP_FEC_CFG_FEC_NONE_SUPPORTED;
+	if (bp->hwrm_spec_code >= 0x10504)
+		link_info->fec_cfg = le16_to_cpu(resp->fec_cfg);
+
 	/* TODO: need to add more logic to report VF link */
 	if (chng_link_state) {
 		if (link_info->phy_link_status == BNXT_LINK_LINK)
