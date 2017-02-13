@@ -612,8 +612,7 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 	}
 	memset(msg->msg + msg->len, 0, sizeof(msg->msg) - msg->len);
 	if (msg->len == 1) {
-		if (cec_msg_initiator(msg) != 0xf ||
-		    cec_msg_destination(msg) == 0xf) {
+		if (cec_msg_destination(msg) == 0xf) {
 			dprintk(1, "cec_transmit_msg: invalid poll message\n");
 			return -EINVAL;
 		}
@@ -638,7 +637,7 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 		dprintk(1, "cec_transmit_msg: destination is the adapter itself\n");
 		return -EINVAL;
 	}
-	if (cec_msg_initiator(msg) != 0xf &&
+	if (msg->len > 1 && adap->is_configured &&
 	    !cec_has_log_addr(adap, cec_msg_initiator(msg))) {
 		dprintk(1, "cec_transmit_msg: initiator has unknown logical address %d\n",
 			cec_msg_initiator(msg));
@@ -1072,7 +1071,7 @@ static int cec_config_log_addr(struct cec_adapter *adap,
 
 	/* Send poll message */
 	msg.len = 1;
-	msg.msg[0] = 0xf0 | log_addr;
+	msg.msg[0] = (log_addr << 4) | log_addr;
 	err = cec_transmit_msg_fh(adap, &msg, NULL, true);
 
 	/*
@@ -1206,7 +1205,7 @@ static int cec_config_thread_func(void *arg)
 		las->log_addr[i] = CEC_LOG_ADDR_INVALID;
 		if (last_la == CEC_LOG_ADDR_INVALID ||
 		    last_la == CEC_LOG_ADDR_UNREGISTERED ||
-		    !(last_la & type2mask[type]))
+		    !((1 << last_la) & type2mask[type]))
 			last_la = la_list[0];
 
 		err = cec_config_log_addr(adap, i, last_la);
