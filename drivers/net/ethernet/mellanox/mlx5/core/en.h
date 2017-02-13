@@ -527,20 +527,24 @@ struct mlx5e_rq {
 		struct {
 			struct mlx5e_wqe_frag_info *frag_info;
 			u32 frag_sz;	/* max possible skb frag_sz */
-			bool page_reuse;
-			bool xdp_xmit;
+			union {
+				bool page_reuse;
+				bool xdp_xmit;
+			};
 		} wqe;
 		struct {
 			struct mlx5e_mpw_info *info;
 			void                  *mtt_no_align;
+			u16                    stride_sz;
+			u16                    num_strides;
 		} mpwqe;
 	};
 	struct {
-		u8             page_order;
 		u32            wqe_sz;    /* wqe data buffer size */
+		u16            headroom;
+		u8             page_order;
 		u8             map_dir;   /* dma map direction */
 	} buff;
-	__be32                 mkey_be;
 
 	struct device         *pdev;
 	struct net_device     *netdev;
@@ -555,7 +559,6 @@ struct mlx5e_rq {
 
 	unsigned long          state;
 	int                    ix;
-	u16                    rx_headroom;
 
 	struct mlx5e_rx_am     am; /* Adaptive Moderation */
 
@@ -565,9 +568,8 @@ struct mlx5e_rq {
 
 	/* control */
 	struct mlx5_wq_ctrl    wq_ctrl;
+	__be32                 mkey_be;
 	u8                     wq_type;
-	u32                    mpwqe_stride_sz;
-	u32                    mpwqe_num_strides;
 	u32                    rqn;
 	struct mlx5e_channel  *channel;
 	struct mlx5_core_dev  *mdev;

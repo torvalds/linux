@@ -263,8 +263,7 @@ int mlx5e_alloc_rx_wqe(struct mlx5e_rq *rq, struct mlx5e_rx_wqe *wqe, u16 ix)
 		wi->offset = 0;
 	}
 
-	wqe->data.addr = cpu_to_be64(wi->di.addr + wi->offset +
-				     rq->rx_headroom);
+	wqe->data.addr = cpu_to_be64(wi->di.addr + wi->offset + rq->buff.headroom);
 	return 0;
 }
 
@@ -296,7 +295,7 @@ void mlx5e_dealloc_rx_wqe(struct mlx5e_rq *rq, u16 ix)
 
 static inline int mlx5e_mpwqe_strides_per_page(struct mlx5e_rq *rq)
 {
-	return rq->mpwqe_num_strides >> MLX5_MPWRQ_WQE_PAGE_ORDER;
+	return rq->mpwqe.num_strides >> MLX5_MPWRQ_WQE_PAGE_ORDER;
 }
 
 static inline void mlx5e_add_skb_frag_mpwqe(struct mlx5e_rq *rq,
@@ -305,7 +304,7 @@ static inline void mlx5e_add_skb_frag_mpwqe(struct mlx5e_rq *rq,
 					    u32 page_idx, u32 frag_offset,
 					    u32 len)
 {
-	unsigned int truesize =	ALIGN(len, rq->mpwqe_stride_sz);
+	unsigned int truesize = ALIGN(len, rq->mpwqe.stride_sz);
 
 	dma_sync_single_for_cpu(rq->pdev,
 				wi->umr.dma_info[page_idx].addr + frag_offset,
@@ -776,9 +775,9 @@ struct sk_buff *skb_from_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 			     struct mlx5e_wqe_frag_info *wi, u32 cqe_bcnt)
 {
 	struct mlx5e_dma_info *di = &wi->di;
+	u16 rx_headroom = rq->buff.headroom;
 	struct sk_buff *skb;
 	void *va, *data;
-	u16 rx_headroom = rq->rx_headroom;
 	bool consumed;
 	u32 frag_size;
 
@@ -911,7 +910,7 @@ static inline void mlx5e_mpwqe_fill_rx_skb(struct mlx5e_rq *rq,
 					   struct sk_buff *skb)
 {
 	u16 stride_ix      = mpwrq_get_cqe_stride_index(cqe);
-	u32 wqe_offset     = stride_ix * rq->mpwqe_stride_sz;
+	u32 wqe_offset     = stride_ix * rq->mpwqe.stride_sz;
 	u32 head_offset    = wqe_offset & (PAGE_SIZE - 1);
 	u32 page_idx       = wqe_offset >> PAGE_SHIFT;
 	u32 head_page_idx  = page_idx;
@@ -979,7 +978,7 @@ void mlx5e_handle_rx_cqe_mpwrq(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 	napi_gro_receive(rq->cq.napi, skb);
 
 mpwrq_cqe_out:
-	if (likely(wi->consumed_strides < rq->mpwqe_num_strides))
+	if (likely(wi->consumed_strides < rq->mpwqe.num_strides))
 		return;
 
 	mlx5e_free_rx_mpwqe(rq, wi);

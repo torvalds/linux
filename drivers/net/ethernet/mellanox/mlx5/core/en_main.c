@@ -593,7 +593,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 	}
 
 	rq->buff.map_dir = rq->xdp_prog ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE;
-	rq->rx_headroom = params->rq_headroom;
+	rq->buff.headroom = params->rq_headroom;
 
 	switch (rq->wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
@@ -615,10 +615,10 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 			goto err_rq_wq_destroy;
 		}
 
-		rq->mpwqe_stride_sz = BIT(params->mpwqe_log_stride_sz);
-		rq->mpwqe_num_strides = BIT(params->mpwqe_log_num_strides);
+		rq->mpwqe.stride_sz = BIT(params->mpwqe_log_stride_sz);
+		rq->mpwqe.num_strides = BIT(params->mpwqe_log_num_strides);
 
-		rq->buff.wqe_sz = rq->mpwqe_stride_sz * rq->mpwqe_num_strides;
+		rq->buff.wqe_sz = rq->mpwqe.stride_sz * rq->mpwqe.num_strides;
 		byte_count = rq->buff.wqe_sz;
 
 		err = mlx5e_create_rq_umr_mkey(mdev, rq);
@@ -665,7 +665,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 		byte_count = rq->buff.wqe_sz;
 
 		/* calc the required page order */
-		rq->wqe.frag_sz = MLX5_SKB_FRAG_SZ(rq->rx_headroom + byte_count);
+		rq->wqe.frag_sz = MLX5_SKB_FRAG_SZ(rq->buff.headroom + byte_count);
 		npages = DIV_ROUND_UP(rq->wqe.frag_sz, PAGE_SIZE);
 		rq->buff.page_order = order_base_2(npages);
 
