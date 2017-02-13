@@ -71,9 +71,9 @@ slb_miss_kernel_load_linear:
 
 
 BEGIN_FTR_SECTION
-	b	slb_finish_load
+	b	.Lslb_finish_load
 END_MMU_FTR_SECTION_IFCLR(MMU_FTR_1T_SEGMENT)
-	b	slb_finish_load_1T
+	b	.Lslb_finish_load_1T
 
 1:
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
@@ -109,9 +109,9 @@ slb_miss_kernel_load_io:
 	addi	r9,r9,(MAX_USER_CONTEXT - 0xc + 1)@l
 
 BEGIN_FTR_SECTION
-	b	slb_finish_load
+	b	.Lslb_finish_load
 END_MMU_FTR_SECTION_IFCLR(MMU_FTR_1T_SEGMENT)
-	b	slb_finish_load_1T
+	b	.Lslb_finish_load_1T
 
 0:	/*
 	 * For userspace addresses, make sure this is region 0.
@@ -174,9 +174,9 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_1T_SEGMENT)
 	ld	r9,PACACONTEXTID(r13)
 BEGIN_FTR_SECTION
 	cmpldi	r10,0x1000
-	bge	slb_finish_load_1T
+	bge	.Lslb_finish_load_1T
 END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
-	b	slb_finish_load
+	b	.Lslb_finish_load
 
 8:	/* invalid EA - return an error indication */
 	crset	4*cr0+eq		/* indicate failure */
@@ -187,7 +187,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
  *
  * r3 = EA, r9 = context, r10 = ESID, r11 = flags, clobbers r9, cr7 = <> PAGE_OFFSET
  */
-slb_finish_load:
+.Lslb_finish_load:
 	rldimi  r10,r9,ESID_BITS,0
 	ASM_VSID_SCRAMBLE(r10,r9,256M)
 	/*
@@ -256,7 +256,7 @@ slb_compare_rr_to_size:
  *
  * r3 = EA, r9 = context, r10 = ESID(256MB), r11 = flags, clobbers r9
  */
-slb_finish_load_1T:
+.Lslb_finish_load_1T:
 	srdi	r10,r10,(SID_SHIFT_1T - SID_SHIFT)	/* get 1T ESID */
 	rldimi  r10,r9,ESID_BITS_1T,0
 	ASM_VSID_SCRAMBLE(r10,r9,1T)
