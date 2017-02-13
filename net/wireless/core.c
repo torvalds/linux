@@ -1216,12 +1216,12 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		 */
 		if ((wdev->iftype == NL80211_IFTYPE_STATION ||
 		     wdev->iftype == NL80211_IFTYPE_P2P_CLIENT) &&
-		    rdev->ops->set_power_mgmt)
-			if (rdev_set_power_mgmt(rdev, dev, wdev->ps,
-						wdev->ps_timeout)) {
-				/* assume this means it's off */
-				wdev->ps = false;
-			}
+		    rdev->ops->set_power_mgmt &&
+		    rdev_set_power_mgmt(rdev, dev, wdev->ps,
+					wdev->ps_timeout)) {
+			/* assume this means it's off */
+			wdev->ps = false;
+		}
 		break;
 	case NETDEV_UNREGISTER:
 		/*
