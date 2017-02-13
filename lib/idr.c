@@ -28,7 +28,7 @@ static DEFINE_SPINLOCK(simple_ida_lock);
  */
 int idr_alloc(struct idr *idr, void *ptr, int start, int end, gfp_t gfp)
 {
-	void **slot;
+	void __rcu **slot;
 	struct radix_tree_iter iter;
 
 	if (WARN_ON_ONCE(start < 0))
@@ -98,7 +98,7 @@ int idr_for_each(const struct idr *idr,
 		int (*fn)(int id, void *p, void *data), void *data)
 {
 	struct radix_tree_iter iter;
-	void **slot;
+	void __rcu **slot;
 
 	radix_tree_for_each_slot(slot, &idr->idr_rt, &iter, 0) {
 		int ret = fn(iter.index, rcu_dereference_raw(*slot), data);
@@ -123,7 +123,7 @@ EXPORT_SYMBOL(idr_for_each);
 void *idr_get_next(struct idr *idr, int *nextid)
 {
 	struct radix_tree_iter iter;
-	void **slot;
+	void __rcu **slot;
 
 	slot = radix_tree_iter_find(&idr->idr_rt, &iter, *nextid);
 	if (!slot)
@@ -151,7 +151,7 @@ EXPORT_SYMBOL(idr_get_next);
 void *idr_replace(struct idr *idr, void *ptr, int id)
 {
 	struct radix_tree_node *node;
-	void **slot = NULL;
+	void __rcu **slot = NULL;
 	void *entry;
 
 	if (WARN_ON_ONCE(id < 0))
@@ -250,7 +250,7 @@ EXPORT_SYMBOL(idr_replace);
 int ida_get_new_above(struct ida *ida, int start, int *id)
 {
 	struct radix_tree_root *root = &ida->ida_rt;
-	void **slot;
+	void __rcu **slot;
 	struct radix_tree_iter iter;
 	struct ida_bitmap *bitmap;
 	unsigned long index;
@@ -350,7 +350,7 @@ void ida_remove(struct ida *ida, int id)
 	struct ida_bitmap *bitmap;
 	unsigned long *btmp;
 	struct radix_tree_iter iter;
-	void **slot;
+	void __rcu **slot;
 
 	slot = radix_tree_iter_lookup(&ida->ida_rt, &iter, index);
 	if (!slot)
@@ -396,7 +396,7 @@ EXPORT_SYMBOL(ida_remove);
 void ida_destroy(struct ida *ida)
 {
 	struct radix_tree_iter iter;
-	void **slot;
+	void __rcu **slot;
 
 	radix_tree_for_each_slot(slot, &ida->ida_rt, &iter, 0) {
 		struct ida_bitmap *bitmap = rcu_dereference_raw(*slot);
