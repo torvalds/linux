@@ -49,10 +49,81 @@ out_unlock:
 	return err;
 }
 
+static int igt_wait_request(void *arg)
+{
+	const long T = HZ / 4;
+	struct drm_i915_private *i915 = arg;
+	struct drm_i915_gem_request *request;
+	int err = -EINVAL;
+
+	/* Submit a request, then wait upon it */
+
+	mutex_lock(&i915->drm.struct_mutex);
+	request = mock_request(i915->engine[RCS], i915->kernel_context, T);
+	if (!request) {
+		err = -ENOMEM;
+		goto out_unlock;
+	}
+
+	if (i915_wait_request(request, I915_WAIT_LOCKED, 0) != -ETIME) {
+		pr_err("request wait (busy query) succeeded (expected timeout before submit!)\n");
+		goto out_unlock;
+	}
+
+	if (i915_wait_request(request, I915_WAIT_LOCKED, T) != -ETIME) {
+		pr_err("request wait succeeded (expected timeout before submit!)\n");
+		goto out_unlock;
+	}
+
+	if (i915_gem_request_completed(request)) {
+		pr_err("request completed before submit!!\n");
+		goto out_unlock;
+	}
+
+	i915_add_request(request);
+
+	if (i915_wait_request(request, I915_WAIT_LOCKED, 0) != -ETIME) {
+		pr_err("request wait (busy query) succeeded (expected timeout after submit!)\n");
+		goto out_unlock;
+	}
+
+	if (i915_gem_request_completed(request)) {
+		pr_err("request completed immediately!\n");
+		goto out_unlock;
+	}
+
+	if (i915_wait_request(request, I915_WAIT_LOCKED, T / 2) != -ETIME) {
+		pr_err("request wait succeeded (expected timeout!)\n");
+		goto out_unlock;
+	}
+
+	if (i915_wait_request(request, I915_WAIT_LOCKED, T) == -ETIME) {
+		pr_err("request wait timed out!\n");
+		goto out_unlock;
+	}
+
+	if (!i915_gem_request_completed(request)) {
+		pr_err("request not complete after waiting!\n");
+		goto out_unlock;
+	}
+
+	if (i915_wait_request(request, I915_WAIT_LOCKED, T) == -ETIME) {
+		pr_err("request wait timed out when already complete!\n");
+		goto out_unlock;
+	}
+
+	err = 0;
+out_unlock:
+	mock_device_flush(i915);
+	mutex_unlock(&i915->drm.struct_mutex);
+	return err;
+}
+
 int i915_gem_request_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_add_request),
+		SUBTEST(igt_wait_request),
 	};
 	struct drm_i915_private *i915;
 	int err;
