@@ -499,7 +499,6 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	ci->i_rdcache_gen = 0;
 	ci->i_rdcache_revoking = 0;
 
-	INIT_LIST_HEAD(&ci->i_unsafe_writes);
 	INIT_LIST_HEAD(&ci->i_unsafe_dirops);
 	INIT_LIST_HEAD(&ci->i_unsafe_iops);
 	spin_lock_init(&ci->i_unsafe_lock);
@@ -581,14 +580,6 @@ int ceph_drop_inode(struct inode *inode)
 	 * dropping all its aliases.
 	 */
 	return 1;
-}
-
-void ceph_evict_inode(struct inode *inode)
-{
-	/* wait unsafe sync writes */
-	ceph_sync_write_wait(inode);
-	truncate_inode_pages_final(&inode->i_data);
-	clear_inode(inode);
 }
 
 static inline blkcnt_t calc_inode_blocks(u64 size)
