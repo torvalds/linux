@@ -1779,7 +1779,7 @@ unlock:
 static void ath10k_wmi_tx_beacons_iter(void *data, u8 *mac,
 				       struct ieee80211_vif *vif)
 {
-	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
+	struct ath10k_vif *arvif = (void *)vif->drv_priv;
 
 	ath10k_wmi_tx_beacon_nowait(arvif);
 }
