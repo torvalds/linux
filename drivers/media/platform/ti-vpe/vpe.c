@@ -1597,6 +1597,7 @@ static int __vpe_try_fmt(struct vpe_ctx *ctx, struct v4l2_format *f,
 	struct v4l2_plane_pix_format *plane_fmt;
 	unsigned int w_align;
 	int i, depth, depth_bytes, height;
+	unsigned int stride = 0;
 
 	if (!fmt || !(fmt->types & type)) {
 		vpe_err(ctx->dev, "Fourcc format (0x%08x) invalid.\n",
@@ -1683,16 +1684,27 @@ static int __vpe_try_fmt(struct vpe_ctx *ctx, struct v4l2_format *f,
 		plane_fmt = &pix->plane_fmt[i];
 		depth = fmt->vpdma_fmt[i]->depth;
 
-		if (i == VPE_LUMA)
-			plane_fmt->bytesperline = (pix->width * depth) >> 3;
-		else
-			plane_fmt->bytesperline = pix->width;
+		stride = (pix->width * fmt->vpdma_fmt[VPE_LUMA]->depth) >> 3;
+		if (stride > plane_fmt->bytesperline)
+			plane_fmt->bytesperline = stride;
 
-		if (pix->num_planes == 1 && fmt->coplanar)
-			depth += fmt->vpdma_fmt[VPE_CHROMA]->depth;
-		plane_fmt->sizeimage =
-				(pix->height * pix->width * depth) >> 3;
+		plane_fmt->bytesperline = ALIGN(plane_fmt->bytesperline,
+						VPDMA_STRIDE_ALIGN);
 
+		if (i == VPE_LUMA) {
+			plane_fmt->sizeimage = pix->height *
+					       plane_fmt->bytesperline;
+
+			if (pix->num_planes == 1 && fmt->coplanar)
+				plane_fmt->sizeimage += pix->height *
+					plane_fmt->bytesperline *
+					fmt->vpdma_fmt[VPE_CHROMA]->depth >> 3;
+
+		} else { /* i == VIP_CHROMA */
+			plane_fmt->sizeimage = (pix->height *
+					       plane_fmt->bytesperline *
+					       depth) >> 3;
+		}
 		memset(plane_fmt->reserved, 0, sizeof(plane_fmt->reserved));
 	}
 
