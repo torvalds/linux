@@ -202,10 +202,161 @@ out:
 	return err;
 }
 
+struct pin_mode {
+	u64 size;
+	u64 flags;
+	bool (*assert)(const struct i915_vma *,
+		       const struct pin_mode *mode,
+		       int result);
+	const char *string;
+};
+
+static bool assert_pin_valid(const struct i915_vma *vma,
+			     const struct pin_mode *mode,
+			     int result)
+{
+	if (result)
+		return false;
+
+	if (i915_vma_misplaced(vma, mode->size, 0, mode->flags))
+		return false;
+
+	return true;
+}
+
+__maybe_unused
+static bool assert_pin_e2big(const struct i915_vma *vma,
+			     const struct pin_mode *mode,
+			     int result)
+{
+	return result == -E2BIG;
+}
+
+__maybe_unused
+static bool assert_pin_enospc(const struct i915_vma *vma,
+			      const struct pin_mode *mode,
+			      int result)
+{
+	return result == -ENOSPC;
+}
+
+__maybe_unused
+static bool assert_pin_einval(const struct i915_vma *vma,
+			      const struct pin_mode *mode,
+			      int result)
+{
+	return result == -EINVAL;
+}
+
+static int igt_vma_pin1(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	const struct pin_mode modes[] = {
+#define VALID(sz, fl) { .size = (sz), .flags = (fl), .assert = assert_pin_valid, .string = #sz ", " #fl ", (valid) " }
+#define __INVALID(sz, fl, check, eval) { .size = (sz), .flags = (fl), .assert = (check), .string = #sz ", " #fl ", (invalid " #eval ")" }
+#define INVALID(sz, fl) __INVALID(sz, fl, assert_pin_einval, EINVAL)
+#define TOOBIG(sz, fl) __INVALID(sz, fl, assert_pin_e2big, E2BIG)
+#define NOSPACE(sz, fl) __INVALID(sz, fl, assert_pin_enospc, ENOSPC)
+		VALID(0, PIN_GLOBAL),
+		VALID(0, PIN_GLOBAL | PIN_MAPPABLE),
+
+		VALID(0, PIN_GLOBAL | PIN_OFFSET_BIAS | 4096),
+		VALID(0, PIN_GLOBAL | PIN_OFFSET_BIAS | 8192),
+		VALID(0, PIN_GLOBAL | PIN_OFFSET_BIAS | (i915->ggtt.mappable_end - 4096)),
+		VALID(0, PIN_GLOBAL | PIN_MAPPABLE | PIN_OFFSET_BIAS | (i915->ggtt.mappable_end - 4096)),
+		VALID(0, PIN_GLOBAL | PIN_OFFSET_BIAS | (i915->ggtt.base.total - 4096)),
+
+		VALID(0, PIN_GLOBAL | PIN_MAPPABLE | PIN_OFFSET_FIXED | (i915->ggtt.mappable_end - 4096)),
+		INVALID(0, PIN_GLOBAL | PIN_MAPPABLE | PIN_OFFSET_FIXED | i915->ggtt.mappable_end),
+		VALID(0, PIN_GLOBAL | PIN_OFFSET_FIXED | (i915->ggtt.base.total - 4096)),
+		INVALID(0, PIN_GLOBAL | PIN_OFFSET_FIXED | i915->ggtt.base.total),
+		INVALID(0, PIN_GLOBAL | PIN_OFFSET_FIXED | round_down(U64_MAX, PAGE_SIZE)),
+
+		VALID(4096, PIN_GLOBAL),
+		VALID(8192, PIN_GLOBAL),
+		VALID(i915->ggtt.mappable_end - 4096, PIN_GLOBAL | PIN_MAPPABLE),
+		VALID(i915->ggtt.mappable_end, PIN_GLOBAL | PIN_MAPPABLE),
+		TOOBIG(i915->ggtt.mappable_end + 4096, PIN_GLOBAL | PIN_MAPPABLE),
+		VALID(i915->ggtt.base.total - 4096, PIN_GLOBAL),
+		VALID(i915->ggtt.base.total, PIN_GLOBAL),
+		TOOBIG(i915->ggtt.base.total + 4096, PIN_GLOBAL),
+		TOOBIG(round_down(U64_MAX, PAGE_SIZE), PIN_GLOBAL),
+		INVALID(8192, PIN_GLOBAL | PIN_MAPPABLE | PIN_OFFSET_FIXED | (i915->ggtt.mappable_end - 4096)),
+		INVALID(8192, PIN_GLOBAL | PIN_OFFSET_FIXED | (i915->ggtt.base.total - 4096)),
+		INVALID(8192, PIN_GLOBAL | PIN_OFFSET_FIXED | (round_down(U64_MAX, PAGE_SIZE) - 4096)),
+
+		VALID(8192, PIN_GLOBAL | PIN_OFFSET_BIAS | (i915->ggtt.mappable_end - 4096)),
+
+#if !IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
+		/* Misusing BIAS is a programming error (it is not controllable
+		 * from userspace) so when debugging is enabled, it explodes.
+		 * However, the tests are still quite interesting for checking
+		 * variable start, end and size.
+		 */
+		NOSPACE(0, PIN_GLOBAL | PIN_MAPPABLE | PIN_OFFSET_BIAS | i915->ggtt.mappable_end),
+		NOSPACE(0, PIN_GLOBAL | PIN_OFFSET_BIAS | i915->ggtt.base.total),
+		NOSPACE(8192, PIN_GLOBAL | PIN_MAPPABLE | PIN_OFFSET_BIAS | (i915->ggtt.mappable_end - 4096)),
+		NOSPACE(8192, PIN_GLOBAL | PIN_OFFSET_BIAS | (i915->ggtt.base.total - 4096)),
+#endif
+		{ },
+#undef NOSPACE
+#undef TOOBIG
+#undef INVALID
+#undef __INVALID
+#undef VALID
+	}, *m;
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+	int err = -EINVAL;
+
+	/* Exercise all the weird and wonderful i915_vma_pin requests,
+	 * focusing on error handling of boundary conditions.
+	 */
+
+	GEM_BUG_ON(!drm_mm_clean(&i915->ggtt.base.mm));
+
+	obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	vma = checked_vma_instance(obj, &i915->ggtt.base, NULL);
+	if (IS_ERR(vma))
+		goto out;
+
+	for (m = modes; m->assert; m++) {
+		err = i915_vma_pin(vma, m->size, 0, m->flags);
+		if (!m->assert(vma, m, err)) {
+			pr_err("%s to pin single page into GGTT with mode[%d:%s]: size=%llx flags=%llx, err=%d\n",
+			       m->assert == assert_pin_valid ? "Failed" : "Unexpectedly succeeded",
+			       (int)(m - modes), m->string, m->size, m->flags,
+			       err);
+			if (!err)
+				i915_vma_unpin(vma);
+			err = -EINVAL;
+			goto out;
+		}
+
+		if (!err) {
+			i915_vma_unpin(vma);
+			err = i915_vma_unbind(vma);
+			if (err) {
+				pr_err("Failed to unbind single page from GGTT, err=%d\n", err);
+				goto out;
+			}
+		}
+	}
+
+	err = 0;
+out:
+	i915_gem_object_put(obj);
+	return err;
+}
+
 int i915_vma_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_vma_create),
+		SUBTEST(igt_vma_pin1),
 	};
 	struct drm_i915_private *i915;
 	int err;

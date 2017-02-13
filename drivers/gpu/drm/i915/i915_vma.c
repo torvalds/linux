@@ -327,8 +327,8 @@ void i915_vma_unpin_and_release(struct i915_vma **p_vma)
 	__i915_gem_object_release_unless_active(obj);
 }
 
-bool
-i915_vma_misplaced(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
+bool i915_vma_misplaced(const struct i915_vma *vma,
+			u64 size, u64 alignment, u64 flags)
 {
 	if (!drm_mm_node_allocated(&vma->node))
 		return false;
