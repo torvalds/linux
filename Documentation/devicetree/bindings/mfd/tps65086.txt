@@ -23,7 +23,7 @@ Required properties:
                             defined below.
 
 Optional regulator properties:
- - ti,regulator-step-size-25mv	: This is applicable for buck[1,2,6], set this
+ - ti,regulator-step-size-25mv	: This is applicable for buck[1-6], set this
 				    if the regulator is factory set with a 25mv
 				    step voltage mapping.
  - ti,regulator-decay		: This is applicable for buck[1-6], set this if
