@@ -1085,7 +1085,8 @@ static void add_out_dtd(struct vpe_ctx *ctx, int port)
 	vpdma_set_max_size(ctx->dev->vpdma, VPDMA_MAX_SIZE1,
 			   MAX_W, MAX_H);
 
-	vpdma_add_out_dtd(&ctx->desc_list, q_data->width, &q_data->c_rect,
+	vpdma_add_out_dtd(&ctx->desc_list, q_data->width,
+			  q_data->bytesperline[VPE_LUMA], &q_data->c_rect,
 			  vpdma_fmt, dma_addr, MAX_OUT_WIDTH_REG1,
 			  MAX_OUT_HEIGHT_REG1, p_data->channel, flags);
 }
@@ -1169,7 +1170,8 @@ static void add_in_dtd(struct vpe_ctx *ctx, int port)
 	if (p_data->vb_part && fmt->fourcc == V4L2_PIX_FMT_NV12)
 		frame_height /= 2;
 
-	vpdma_add_in_dtd(&ctx->desc_list, q_data->width, &q_data->c_rect,
+	vpdma_add_in_dtd(&ctx->desc_list, q_data->width,
+			 q_data->bytesperline[VPE_LUMA], &q_data->c_rect,
 		vpdma_fmt, dma_addr, p_data->channel, field, flags, frame_width,
 		frame_height, 0, 0);
 }
