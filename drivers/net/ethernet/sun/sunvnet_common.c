@@ -37,6 +37,11 @@
  */
 #define	VNET_MAX_RETRIES	10
 
+MODULE_AUTHOR("David S. Miller (davem@davemloft.net)");
+MODULE_DESCRIPTION("Sun LDOM virtual network support library");
+MODULE_LICENSE("GPL");
+MODULE_VERSION("1.1");
+
 static int __vnet_tx_trigger(struct vnet_port *port, u32 start);
 static void vnet_port_reset(struct vnet_port *port);
 
