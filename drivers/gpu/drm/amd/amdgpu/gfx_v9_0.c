@@ -577,6 +577,74 @@ static int gfx_v9_0_mec_init(struct amdgpu_device *adev)
 	return 0;
 }
 
+static void gfx_v9_0_kiq_fini(struct amdgpu_device *adev)
+{
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
+
+	amdgpu_bo_free_kernel(&kiq->eop_obj, &kiq->eop_gpu_addr, NULL);
+}
+
+static int gfx_v9_0_kiq_init(struct amdgpu_device *adev)
+{
+	int r;
+	u32 *hpd;
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
+
+	r = amdgpu_bo_create_kernel(adev, MEC_HPD_SIZE, PAGE_SIZE,
+				    AMDGPU_GEM_DOMAIN_GTT, &kiq->eop_obj,
+				    &kiq->eop_gpu_addr, (void **)&hpd);
+	if (r) {
+		dev_warn(adev->dev, "failed to create KIQ bo (%d).\n", r);
+		return r;
+	}
+
+	memset(hpd, 0, MEC_HPD_SIZE);
+
+	amdgpu_bo_kunmap(kiq->eop_obj);
+
+	return 0;
+}
+
+static int gfx_v9_0_kiq_init_ring(struct amdgpu_device *adev,
+				  struct amdgpu_ring *ring,
+				  struct amdgpu_irq_src *irq)
+{
+	int r = 0;
+
+	r = amdgpu_wb_get(adev, &adev->virt.reg_val_offs);
+	if (r)
+		return r;
+
+	ring->adev = NULL;
+	ring->ring_obj = NULL;
+	ring->use_doorbell = true;
+	ring->doorbell_index = AMDGPU_DOORBELL_KIQ;
+	if (adev->gfx.mec2_fw) {
+		ring->me = 2;
+		ring->pipe = 0;
+	} else {
+		ring->me = 1;
+		ring->pipe = 1;
+	}
+
+	irq->data = ring;
+	ring->queue = 0;
+	sprintf(ring->name, "kiq %d.%d.%d", ring->me, ring->pipe, ring->queue);
+	r = amdgpu_ring_init(adev, ring, 1024,
+			     irq, AMDGPU_CP_KIQ_IRQ_DRIVER0);
+	if (r)
+		dev_warn(adev->dev, "(%d) failed to init kiq ring\n", r);
+
+	return r;
+}
+static void gfx_v9_0_kiq_free_ring(struct amdgpu_ring *ring,
+				   struct amdgpu_irq_src *irq)
+{
+	amdgpu_wb_free(ring->adev, ring->adev->virt.reg_val_offs);
+	amdgpu_ring_fini(ring);
+	irq->data = NULL;
+}
+
 static uint32_t wave_read_ind(struct amdgpu_device *adev, uint32_t simd, uint32_t wave, uint32_t address)
 {
 	WREG32(SOC15_REG_OFFSET(GC, 0, mmSQ_IND_INDEX),
@@ -899,6 +967,7 @@ static int gfx_v9_0_sw_init(void *handle)
 {
 	int i, r;
 	struct amdgpu_ring *ring;
+	struct amdgpu_kiq *kiq;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* EOP Event */
@@ -972,6 +1041,19 @@ static int gfx_v9_0_sw_init(void *handle)
 			return r;
 	}
 
+	if (amdgpu_sriov_vf(adev)) {
+		r = gfx_v9_0_kiq_init(adev);
+		if (r) {
+			DRM_ERROR("Failed to init KIQ BOs!\n");
+			return r;
+		}
+
+		kiq = &adev->gfx.kiq;
+		r = gfx_v9_0_kiq_init_ring(adev, &kiq->ring, &kiq->irq);
+		if (r)
+			return r;
+	}
+
 	/* reserve GDS, GWS and OA resource for gfx */
 	r = amdgpu_bo_create_kernel(adev, adev->gds.mem.gfx_partition_size,
 				    PAGE_SIZE, AMDGPU_GEM_DOMAIN_GDS,
@@ -1016,6 +1098,11 @@ static int gfx_v9_0_sw_fini(void *handle)
 		amdgpu_ring_fini(&adev->gfx.gfx_ring[i]);
 	for (i = 0; i < adev->gfx.num_compute_rings; i++)
 		amdgpu_ring_fini(&adev->gfx.compute_ring[i]);
+
+	if (amdgpu_sriov_vf(adev)) {
+		gfx_v9_0_kiq_free_ring(&adev->gfx.kiq.ring, &adev->gfx.kiq.irq);
+		gfx_v9_0_kiq_fini(adev);
+	}
 
 	gfx_v9_0_mec_fini(adev);
 	gfx_v9_0_ngg_fini(adev);
@@ -1578,6 +1665,7 @@ static void gfx_v9_0_cp_compute_enable(struct amdgpu_device *adev, bool enable)
 			(CP_MEC_CNTL__MEC_ME1_HALT_MASK | CP_MEC_CNTL__MEC_ME2_HALT_MASK));
 		for (i = 0; i < adev->gfx.num_compute_rings; i++)
 			adev->gfx.compute_ring[i].ready = false;
+		adev->gfx.kiq.ring.ready = false;
 	}
 	udelay(50);
 }
