@@ -525,7 +525,7 @@ pinctrl_find_gpio_range_from_pin(struct pinctrl_dev *pctldev,
 EXPORT_SYMBOL_GPL(pinctrl_find_gpio_range_from_pin);
 
 /**
- * pinctrl_remove_gpio_range() - remove a range of GPIOs fro a pin controller
+ * pinctrl_remove_gpio_range() - remove a range of GPIOs from a pin controller
  * @pctldev: pin controller device to remove the range from
  * @range: the GPIO range to remove
  */
