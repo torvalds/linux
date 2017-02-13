@@ -5853,6 +5853,9 @@ static int bnxt_update_phy_setting(struct bnxt *bp)
 			   rc);
 		return rc;
 	}
+	if (!BNXT_SINGLE_PF(bp))
+		return 0;
+
 	if ((link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL) &&
 	    (link_info->auto_pause_setting & BNXT_LINK_PAUSE_BOTH) !=
 	    link_info->req_flow_ctrl)
