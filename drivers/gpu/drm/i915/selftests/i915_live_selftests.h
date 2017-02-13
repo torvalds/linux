@@ -10,3 +10,4 @@
  */
 selftest(sanitycheck, i915_live_sanitycheck) /* keep first (igt selfcheck) */
 selftest(requests, i915_gem_request_live_selftests)
+selftest(objects, i915_gem_object_live_selftests)

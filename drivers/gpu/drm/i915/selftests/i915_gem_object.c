@@ -100,6 +100,46 @@ out:
 	return err;
 }
 
+static int igt_gem_huge(void *arg)
+{
+	const unsigned int nreal = 509; /* just to be awkward */
+	struct drm_i915_private *i915 = arg;
+	struct drm_i915_gem_object *obj;
+	unsigned int n;
+	int err;
+
+	/* Basic sanitycheck of our huge fake object allocation */
+
+	obj = huge_gem_object(i915,
+			      nreal * PAGE_SIZE,
+			      i915->ggtt.base.total + PAGE_SIZE);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	err = i915_gem_object_pin_pages(obj);
+	if (err) {
+		pr_err("Failed to allocate %u pages (%lu total), err=%d\n",
+		       nreal, obj->base.size / PAGE_SIZE, err);
+		goto out;
+	}
+
+	for (n = 0; n < obj->base.size / PAGE_SIZE; n++) {
+		if (i915_gem_object_get_page(obj, n) !=
+		    i915_gem_object_get_page(obj, n % nreal)) {
+			pr_err("Page lookup mismatch at index %u [%u]\n",
+			       n, n % nreal);
+			err = -EINVAL;
+			goto out_unpin;
+		}
+	}
+
+out_unpin:
+	i915_gem_object_unpin_pages(obj);
+out:
+	i915_gem_object_put(obj);
+	return err;
+}
+
 int i915_gem_object_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
@@ -117,4 +157,13 @@ int i915_gem_object_mock_selftests(void)
 
 	drm_dev_unref(&i915->drm);
 	return err;
+}
+
+int i915_gem_object_live_selftests(struct drm_i915_private *i915)
+{
+	static const struct i915_subtest tests[] = {
+		SUBTEST(igt_gem_huge),
+	};
+
+	return i915_subtests(tests, i915);
 }
