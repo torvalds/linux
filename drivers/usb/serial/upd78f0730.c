@@ -32,8 +32,8 @@
 #define DRIVER_AUTHOR "Maksim Salau <maksim.salau@gmail.com>"
 
 static const struct usb_device_id id_table[] = {
-	{ USB_DEVICE(0x045B, 0x0212) }, /* YRPBRL78G13, YRPBRL78G14 */
 	{ USB_DEVICE(0x0409, 0x0063) }, /* V850ESJX3-STICK */
+	{ USB_DEVICE(0x045B, 0x0212) }, /* YRPBRL78G13, YRPBRL78G14 */
 	{ USB_DEVICE(0x064B, 0x7825) }, /* Analog Devices EVAL-ADXL362Z-DB */
 	{}
 };
