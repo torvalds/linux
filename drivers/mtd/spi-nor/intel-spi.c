@@ -728,7 +728,7 @@ struct intel_spi *intel_spi_probe(struct device *dev,
 
 	ispi->base = devm_ioremap_resource(dev, mem);
 	if (IS_ERR(ispi->base))
-		return ispi->base;
+		return ERR_CAST(ispi->base);
 
 	ispi->dev = dev;
 	ispi->info = info;
