@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -91,7 +91,6 @@ struct acpi_exception_info {
 #define ACPI_SUCCESS(a)                 (!(a))
 #define ACPI_FAILURE(a)                 (a)
 
-#define ACPI_SKIP(a)                    (a == AE_CTRL_SKIP)
 #define AE_OK                           (acpi_status) 0x0000
 
 /*
@@ -211,11 +210,10 @@ struct acpi_exception_info {
 #define AE_CTRL_TRANSFER                EXCEP_CTL (0x0008)
 #define AE_CTRL_BREAK                   EXCEP_CTL (0x0009)
 #define AE_CTRL_CONTINUE                EXCEP_CTL (0x000A)
-#define AE_CTRL_SKIP                    EXCEP_CTL (0x000B)
-#define AE_CTRL_PARSE_CONTINUE          EXCEP_CTL (0x000C)
-#define AE_CTRL_PARSE_PENDING           EXCEP_CTL (0x000D)
+#define AE_CTRL_PARSE_CONTINUE          EXCEP_CTL (0x000B)
+#define AE_CTRL_PARSE_PENDING           EXCEP_CTL (0x000C)
 
-#define AE_CODE_CTRL_MAX                0x000D
+#define AE_CODE_CTRL_MAX                0x000C
 
 /* Exception strings for acpi_format_exception */
 
@@ -378,7 +376,6 @@ static const struct acpi_exception_info acpi_gbl_exception_names_ctrl[] = {
 	EXCEP_TXT("AE_CTRL_TRANSFER", "Transfer control to called method"),
 	EXCEP_TXT("AE_CTRL_BREAK", "A Break has been executed"),
 	EXCEP_TXT("AE_CTRL_CONTINUE", "A Continue has been executed"),
-	EXCEP_TXT("AE_CTRL_SKIP", "Not currently used"),
 	EXCEP_TXT("AE_CTRL_PARSE_CONTINUE", "Used to skip over bad opcodes"),
 	EXCEP_TXT("AE_CTRL_PARSE_PENDING", "Used to implement AML While loops")
 };
