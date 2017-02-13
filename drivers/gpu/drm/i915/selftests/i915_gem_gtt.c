@@ -181,6 +181,92 @@ err_ppgtt:
 	return err;
 }
 
+static int lowlevel_hole(struct drm_i915_private *i915,
+			 struct i915_address_space *vm,
+			 u64 hole_start, u64 hole_end,
+			 unsigned long end_time)
+{
+	I915_RND_STATE(seed_prng);
+	unsigned int size;
+
+	/* Keep creating larger objects until one cannot fit into the hole */
+	for (size = 12; (hole_end - hole_start) >> size; size++) {
+		I915_RND_SUBSTATE(prng, seed_prng);
+		struct drm_i915_gem_object *obj;
+		unsigned int *order, count, n;
+		u64 hole_size;
+
+		hole_size = (hole_end - hole_start) >> size;
+		if (hole_size > KMALLOC_MAX_SIZE / sizeof(u32))
+			hole_size = KMALLOC_MAX_SIZE / sizeof(u32);
+		count = hole_size;
+		do {
+			count >>= 1;
+			order = i915_random_order(count, &prng);
+		} while (!order && count);
+		if (!order)
+			break;
+
+		GEM_BUG_ON(count * BIT_ULL(size) > vm->total);
+		GEM_BUG_ON(hole_start + count * BIT_ULL(size) > hole_end);
+
+		/* Ignore allocation failures (i.e. don't report them as
+		 * a test failure) as we are purposefully allocating very
+		 * large objects without checking that we have sufficient
+		 * memory. We expect to hit -ENOMEM.
+		 */
+
+		obj = fake_dma_object(i915, BIT_ULL(size));
+		if (IS_ERR(obj)) {
+			kfree(order);
+			break;
+		}
+
+		GEM_BUG_ON(obj->base.size != BIT_ULL(size));
+
+		if (i915_gem_object_pin_pages(obj)) {
+			i915_gem_object_put(obj);
+			kfree(order);
+			break;
+		}
+
+		for (n = 0; n < count; n++) {
+			u64 addr = hole_start + order[n] * BIT_ULL(size);
+
+			GEM_BUG_ON(addr + BIT_ULL(size) > vm->total);
+
+			if (vm->allocate_va_range &&
+			    vm->allocate_va_range(vm, addr, BIT_ULL(size)))
+				break;
+
+			vm->insert_entries(vm, obj->mm.pages, addr,
+					   I915_CACHE_NONE, 0);
+			if (igt_timeout(end_time,
+					"%s timed out after %d/%d\n",
+					__func__, n, count)) {
+				hole_end = hole_start; /* quit */
+				break;
+			}
+		}
+		count = n;
+
+		i915_random_reorder(order, count, &prng);
+		for (n = 0; n < count; n++) {
+			u64 addr = hole_start + order[n] * BIT_ULL(size);
+
+			GEM_BUG_ON(addr + BIT_ULL(size) > vm->total);
+			vm->clear_range(vm, addr, BIT_ULL(size));
+		}
+
+		i915_gem_object_unpin_pages(obj);
+		i915_gem_object_put(obj);
+
+		kfree(order);
+	}
+
+	return 0;
+}
+
 static void close_object_list(struct list_head *objects,
 			      struct i915_address_space *vm)
 {
@@ -644,6 +730,11 @@ static int igt_ppgtt_drunk(void *arg)
 	return exercise_ppgtt(arg, drunk_hole);
 }
 
+static int igt_ppgtt_lowlevel(void *arg)
+{
+	return exercise_ppgtt(arg, lowlevel_hole);
+}
+
 static int sort_holes(void *priv, struct list_head *A, struct list_head *B)
 {
 	struct drm_mm_node *a = list_entry(A, typeof(*a), hole_stack);
@@ -708,13 +799,20 @@ static int igt_ggtt_drunk(void *arg)
 	return exercise_ggtt(arg, drunk_hole);
 }
 
+static int igt_ggtt_lowlevel(void *arg)
+{
+	return exercise_ggtt(arg, lowlevel_hole);
+}
+
 int i915_gem_gtt_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_ppgtt_alloc),
+		SUBTEST(igt_ppgtt_lowlevel),
 		SUBTEST(igt_ppgtt_drunk),
 		SUBTEST(igt_ppgtt_walk),
 		SUBTEST(igt_ppgtt_fill),
+		SUBTEST(igt_ggtt_lowlevel),
 		SUBTEST(igt_ggtt_drunk),
 		SUBTEST(igt_ggtt_walk),
 		SUBTEST(igt_ggtt_fill),
