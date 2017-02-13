@@ -5,6 +5,7 @@
 #include "i915_gem_batch_pool.h"
 #include "i915_gem_request.h"
 #include "i915_gem_timeline.h"
+#include "i915_selftest.h"
 
 #define I915_CMD_HASH_ORDER 9
 
@@ -249,6 +250,7 @@ struct intel_engine_cs {
 
 		bool irq_enabled : 1;
 		bool rpm_wakelock : 1;
+		I915_SELFTEST_DECLARE(bool mock : 1);
 	} breadcrumbs;
 
 	/*

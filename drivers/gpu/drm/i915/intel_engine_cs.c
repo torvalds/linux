@@ -524,3 +524,7 @@ void intel_engine_get_instdone(struct intel_engine_cs *engine,
 		break;
 	}
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftests/mock_engine.c"
+#endif
