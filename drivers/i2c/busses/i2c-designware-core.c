@@ -475,29 +475,27 @@ static int i2c_dw_wait_bus_not_busy(struct dw_i2c_dev *dev)
 static void i2c_dw_xfer_init(struct dw_i2c_dev *dev)
 {
 	struct i2c_msg *msgs = dev->msgs;
-	u32 ic_tar = 0;
+	u32 ic_con, ic_tar = 0;
 
 	/* Disable the adapter */
 	__i2c_dw_enable_and_wait(dev, false);
 
 	/* if the slave address is ten bit address, enable 10BITADDR */
-	if (dev->dynamic_tar_update_enabled) {
+	ic_con = dw_readl(dev, DW_IC_CON);
+	if (msgs[dev->msg_write_idx].flags & I2C_M_TEN) {
+		ic_con |= DW_IC_CON_10BITADDR_MASTER;
 		/*
 		 * If I2C_DYNAMIC_TAR_UPDATE is set, the 10-bit addressing
-		 * mode has to be enabled via bit 12 of IC_TAR register,
-		 * otherwise bit 4 of IC_CON is used.
+		 * mode has to be enabled via bit 12 of IC_TAR register.
+		 * We set it always as I2C_DYNAMIC_TAR_UPDATE can't be
+		 * detected from registers.
 		 */
-		if (msgs[dev->msg_write_idx].flags & I2C_M_TEN)
-			ic_tar = DW_IC_TAR_10BITADDR_MASTER;
+		ic_tar = DW_IC_TAR_10BITADDR_MASTER;
 	} else {
-		u32 ic_con = dw_readl(dev, DW_IC_CON);
-
-		if (msgs[dev->msg_write_idx].flags & I2C_M_TEN)
-			ic_con |= DW_IC_CON_10BITADDR_MASTER;
-		else
-			ic_con &= ~DW_IC_CON_10BITADDR_MASTER;
-		dw_writel(dev, ic_con, DW_IC_CON);
+		ic_con &= ~DW_IC_CON_10BITADDR_MASTER;
 	}
+
+	dw_writel(dev, ic_con, DW_IC_CON);
 
 	/*
 	 * Set the slave (target) address and enable 10-bit addressing mode
@@ -923,33 +921,12 @@ int i2c_dw_probe(struct dw_i2c_dev *dev)
 {
 	struct i2c_adapter *adap = &dev->adapter;
 	int r;
-	u32 reg;
 
 	init_completion(&dev->cmd_complete);
 
 	r = i2c_dw_init(dev);
 	if (r)
 		return r;
-
-	r = i2c_dw_acquire_lock(dev);
-	if (r)
-		return r;
-
-	/*
-	 * Test if dynamic TAR update is enabled in this controller by writing
-	 * to IC_10BITADDR_MASTER field in IC_CON: when it is enabled this
-	 * field is read-only so it should not succeed
-	 */
-	reg = dw_readl(dev, DW_IC_CON);
-	dw_writel(dev, reg ^ DW_IC_CON_10BITADDR_MASTER, DW_IC_CON);
-
-	if ((dw_readl(dev, DW_IC_CON) & DW_IC_CON_10BITADDR_MASTER) ==
-	    (reg & DW_IC_CON_10BITADDR_MASTER)) {
-		dev->dynamic_tar_update_enabled = true;
-		dev_dbg(dev->dev, "Dynamic TAR update enabled");
-	}
-
-	i2c_dw_release_lock(dev);
 
 	snprintf(adap->name, sizeof(adap->name),
 		 "Synopsys DesignWare I2C adapter");
