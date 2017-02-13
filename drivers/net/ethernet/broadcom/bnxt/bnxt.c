@@ -6291,7 +6291,7 @@ static bool bnxt_rfs_capable(struct bnxt *bp)
 #ifdef CONFIG_RFS_ACCEL
 	int vnics, max_vnics, max_rss_ctxs;
 
-	if (BNXT_VF(bp) || !(bp->flags & BNXT_FLAG_MSIX_CAP))
+	if (!(bp->flags & BNXT_FLAG_MSIX_CAP))
 		return false;
 
 	vnics = 1 + bp->rx_nr_rings;
