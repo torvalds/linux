@@ -1,6 +1,7 @@
 /* Broadcom NetXtreme-C/E network driver.
  *
  * Copyright (c) 2014-2016 Broadcom Corporation
+ * Copyright (c) 2016-2017 Broadcom Limited
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -98,6 +99,8 @@ enum board_idx {
 	BCM57407_NPAR,
 	BCM57414_NPAR,
 	BCM57416_NPAR,
+	BCM57452,
+	BCM57454,
 	NETXTREME_E_VF,
 	NETXTREME_C_VF,
 };
@@ -132,6 +135,8 @@ static const struct {
 	{ "Broadcom BCM57407 NetXtreme-E Ethernet Partition" },
 	{ "Broadcom BCM57414 NetXtreme-E Ethernet Partition" },
 	{ "Broadcom BCM57416 NetXtreme-E Ethernet Partition" },
+	{ "Broadcom BCM57452 NetXtreme-E 10Gb/25Gb/40Gb/50Gb Ethernet" },
+	{ "Broadcom BCM57454 NetXtreme-E 10Gb/25Gb/40Gb/50Gb/100Gb Ethernet" },
 	{ "Broadcom NetXtreme-E Ethernet Virtual Function" },
 	{ "Broadcom NetXtreme-C Ethernet Virtual Function" },
 };
@@ -167,6 +172,8 @@ static const struct pci_device_id bnxt_pci_tbl[] = {
 	{ PCI_VDEVICE(BROADCOM, 0x16ed), .driver_data = BCM57414_NPAR },
 	{ PCI_VDEVICE(BROADCOM, 0x16ee), .driver_data = BCM57416_NPAR },
 	{ PCI_VDEVICE(BROADCOM, 0x16ef), .driver_data = BCM57416_NPAR },
+	{ PCI_VDEVICE(BROADCOM, 0x16f1), .driver_data = BCM57452 },
+	{ PCI_VDEVICE(BROADCOM, 0x1614), .driver_data = BCM57454 },
 #ifdef CONFIG_BNXT_SRIOV
 	{ PCI_VDEVICE(BROADCOM, 0x16c1), .driver_data = NETXTREME_E_VF },
 	{ PCI_VDEVICE(BROADCOM, 0x16cb), .driver_data = NETXTREME_C_VF },
@@ -3455,6 +3462,9 @@ static int bnxt_hwrm_cfa_ntuple_filter_free(struct bnxt *bp,
 	 CFA_NTUPLE_FILTER_ALLOC_REQ_ENABLES_DST_PORT_MASK |	\
 	 CFA_NTUPLE_FILTER_ALLOC_REQ_ENABLES_DST_ID)
 
+#define BNXT_NTP_TUNNEL_FLTR_FLAG				\
+		CFA_NTUPLE_FILTER_ALLOC_REQ_ENABLES_TUNNEL_TYPE
+
 static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 					     struct bnxt_ntuple_filter *fltr)
 {
@@ -3494,6 +3504,11 @@ static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 		req.src_ipaddr_mask[0] = cpu_to_be32(0xffffffff);
 		req.dst_ipaddr[0] = keys->addrs.v4addrs.dst;
 		req.dst_ipaddr_mask[0] = cpu_to_be32(0xffffffff);
+	}
+	if (keys->control.flags & FLOW_DIS_ENCAPSULATION) {
+		req.enables |= cpu_to_le32(BNXT_NTP_TUNNEL_FLTR_FLAG);
+		req.tunnel_type =
+			CFA_NTUPLE_FILTER_ALLOC_REQ_TUNNEL_TYPE_ANYTUNNEL;
 	}
 
 	req.src_port = keys->ports.src;
@@ -3974,7 +3989,7 @@ static int hwrm_ring_alloc_send_msg(struct bnxt *bp,
 		req.length = cpu_to_le32(bp->rx_agg_ring_mask + 1);
 		break;
 	case HWRM_RING_ALLOC_CMPL:
-		req.ring_type = RING_ALLOC_REQ_RING_TYPE_CMPL;
+		req.ring_type = RING_ALLOC_REQ_RING_TYPE_L2_CMPL;
 		req.length = cpu_to_le32(bp->cp_ring_mask + 1);
 		if (bp->flags & BNXT_FLAG_USING_MSIX)
 			req.int_mode = RING_ALLOC_REQ_INT_MODE_MSIX;
@@ -3993,7 +4008,7 @@ static int hwrm_ring_alloc_send_msg(struct bnxt *bp,
 
 	if (rc || err) {
 		switch (ring_type) {
-		case RING_FREE_REQ_RING_TYPE_CMPL:
+		case RING_FREE_REQ_RING_TYPE_L2_CMPL:
 			netdev_err(bp->dev, "hwrm_ring_alloc cp failed. rc:%x err:%x\n",
 				   rc, err);
 			return -1;
@@ -4137,7 +4152,7 @@ static int hwrm_ring_free_send_msg(struct bnxt *bp,
 
 	if (rc || error_code) {
 		switch (ring_type) {
-		case RING_FREE_REQ_RING_TYPE_CMPL:
+		case RING_FREE_REQ_RING_TYPE_L2_CMPL:
 			netdev_err(bp->dev, "hwrm_ring_free cp failed. rc:%d\n",
 				   rc);
 			return rc;
@@ -4226,7 +4241,7 @@ static void bnxt_hwrm_ring_free(struct bnxt *bp, bool close_path)
 
 		if (ring->fw_ring_id != INVALID_HW_RING_ID) {
 			hwrm_ring_free_send_msg(bp, ring,
-						RING_FREE_REQ_RING_TYPE_CMPL,
+						RING_FREE_REQ_RING_TYPE_L2_CMPL,
 						INVALID_HW_RING_ID);
 			ring->fw_ring_id = INVALID_HW_RING_ID;
 			bp->grp_info[i].cp_fw_ring_id = INVALID_HW_RING_ID;
@@ -5428,7 +5443,7 @@ static void bnxt_report_link(struct bnxt *bp)
 	if (bp->link_info.link_up) {
 		const char *duplex;
 		const char *flow_ctrl;
-		u16 speed;
+		u16 speed, fec;
 
 		netif_carrier_on(bp->dev);
 		if (bp->link_info.duplex == BNXT_LINK_DUPLEX_FULL)
@@ -5450,6 +5465,12 @@ static void bnxt_report_link(struct bnxt *bp)
 			netdev_info(bp->dev, "EEE is %s\n",
 				    bp->eee.eee_active ? "active" :
 							 "not active");
+		fec = bp->link_info.fec_cfg;
+		if (!(fec & PORT_PHY_QCFG_RESP_FEC_CFG_FEC_NONE_SUPPORTED))
+			netdev_info(bp->dev, "FEC autoneg %s encodings: %s\n",
+				    (fec & BNXT_FEC_AUTONEG) ? "on" : "off",
+				    (fec & BNXT_FEC_ENC_BASE_R) ? "BaseR" :
+				     (fec & BNXT_FEC_ENC_RS) ? "RS" : "None");
 	} else {
 		netif_carrier_off(bp->dev);
 		netdev_err(bp->dev, "NIC Link is Down\n");
@@ -5574,6 +5595,11 @@ static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 			}
 		}
 	}
+
+	link_info->fec_cfg = PORT_PHY_QCFG_RESP_FEC_CFG_FEC_NONE_SUPPORTED;
+	if (bp->hwrm_spec_code >= 0x10504)
+		link_info->fec_cfg = le16_to_cpu(resp->fec_cfg);
+
 	/* TODO: need to add more logic to report VF link */
 	if (chng_link_state) {
 		if (link_info->phy_link_status == BNXT_LINK_LINK)
@@ -5844,6 +5870,9 @@ static int bnxt_update_phy_setting(struct bnxt *bp)
 			   rc);
 		return rc;
 	}
+	if (!BNXT_SINGLE_PF(bp))
+		return 0;
+
 	if ((link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL) &&
 	    (link_info->auto_pause_setting & BNXT_LINK_PAUSE_BOTH) !=
 	    link_info->req_flow_ctrl)
@@ -6290,7 +6319,7 @@ static bool bnxt_rfs_capable(struct bnxt *bp)
 #ifdef CONFIG_RFS_ACCEL
 	int vnics, max_vnics, max_rss_ctxs;
 
-	if (BNXT_VF(bp) || !(bp->flags & BNXT_FLAG_MSIX_CAP))
+	if (!(bp->flags & BNXT_FLAG_MSIX_CAP))
 		return false;
 
 	vnics = 1 + bp->rx_nr_rings;
@@ -6810,7 +6839,7 @@ int bnxt_setup_mq_tc(struct net_device *dev, u8 tc)
 	int rc;
 
 	if (tc > bp->max_tc) {
-		netdev_err(dev, "too many traffic classes requested: %d Max supported is %d\n",
+		netdev_err(dev, "Too many traffic classes requested: %d. Max supported is %d.\n",
 			   tc, bp->max_tc);
 		return -EINVAL;
 	}
@@ -6868,6 +6897,7 @@ static bool bnxt_fltr_match(struct bnxt_ntuple_filter *f1,
 	    keys1->ports.ports == keys2->ports.ports &&
 	    keys1->basic.ip_proto == keys2->basic.ip_proto &&
 	    keys1->basic.n_proto == keys2->basic.n_proto &&
+	    keys1->control.flags == keys2->control.flags &&
 	    ether_addr_equal(f1->src_mac_addr, f2->src_mac_addr) &&
 	    ether_addr_equal(f1->dst_mac_addr, f2->dst_mac_addr))
 		return true;
@@ -6884,9 +6914,6 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	struct ethhdr *eth = (struct ethhdr *)skb_mac_header(skb);
 	int rc = 0, idx, bit_id, l2_idx = 0;
 	struct hlist_head *head;
-
-	if (skb->encapsulation)
-		return -EPROTONOSUPPORT;
 
 	if (!ether_addr_equal(dev->dev_addr, eth->h_dest)) {
 		struct bnxt_vnic_info *vnic = &bp->vnic_info[0];
@@ -6922,6 +6949,11 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 		goto err_free;
 	}
 	if (fkeys->basic.n_proto == htons(ETH_P_IPV6) &&
+	    bp->hwrm_spec_code < 0x10601) {
+		rc = -EPROTONOSUPPORT;
+		goto err_free;
+	}
+	if ((fkeys->control.flags & FLOW_DIS_ENCAPSULATION) &&
 	    bp->hwrm_spec_code < 0x10601) {
 		rc = -EPROTONOSUPPORT;
 		goto err_free;
