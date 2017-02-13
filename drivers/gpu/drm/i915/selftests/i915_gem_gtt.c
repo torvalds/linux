@@ -1076,10 +1076,218 @@ out:
 	return err;
 }
 
+static int igt_gtt_insert(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct drm_i915_gem_object *obj, *on;
+	struct drm_mm_node tmp = {};
+	const struct invalid_insert {
+		u64 size;
+		u64 alignment;
+		u64 start, end;
+	} invalid_insert[] = {
+		{
+			i915->ggtt.base.total + I915_GTT_PAGE_SIZE, 0,
+			0, i915->ggtt.base.total,
+		},
+		{
+			2*I915_GTT_PAGE_SIZE, 0,
+			0, I915_GTT_PAGE_SIZE,
+		},
+		{
+			-(u64)I915_GTT_PAGE_SIZE, 0,
+			0, 4*I915_GTT_PAGE_SIZE,
+		},
+		{
+			-(u64)2*I915_GTT_PAGE_SIZE, 2*I915_GTT_PAGE_SIZE,
+			0, 4*I915_GTT_PAGE_SIZE,
+		},
+		{
+			I915_GTT_PAGE_SIZE, I915_GTT_MIN_ALIGNMENT << 1,
+			I915_GTT_MIN_ALIGNMENT, I915_GTT_MIN_ALIGNMENT << 1,
+		},
+		{}
+	}, *ii;
+	LIST_HEAD(objects);
+	u64 total;
+	int err;
+
+	/* i915_gem_gtt_insert() tries to allocate some free space in the GTT
+	 * to the node, evicting if required.
+	 */
+
+	/* Check a couple of obviously invalid requests */
+	for (ii = invalid_insert; ii->size; ii++) {
+		err = i915_gem_gtt_insert(&i915->ggtt.base, &tmp,
+					  ii->size, ii->alignment,
+					  I915_COLOR_UNEVICTABLE,
+					  ii->start, ii->end,
+					  0);
+		if (err != -ENOSPC) {
+			pr_err("Invalid i915_gem_gtt_insert(.size=%llx, .alignment=%llx, .start=%llx, .end=%llx) succeeded (err=%d)\n",
+			       ii->size, ii->alignment, ii->start, ii->end,
+			       err);
+			return -EINVAL;
+		}
+	}
+
+	/* Start by filling the GGTT */
+	for (total = 0;
+	     total + I915_GTT_PAGE_SIZE <= i915->ggtt.base.total;
+	     total += I915_GTT_PAGE_SIZE) {
+		struct i915_vma *vma;
+
+		obj = i915_gem_object_create_internal(i915, I915_GTT_PAGE_SIZE);
+		if (IS_ERR(obj)) {
+			err = PTR_ERR(obj);
+			goto out;
+		}
+
+		err = i915_gem_object_pin_pages(obj);
+		if (err) {
+			i915_gem_object_put(obj);
+			goto out;
+		}
+
+		list_add(&obj->st_link, &objects);
+
+		vma = i915_vma_instance(obj, &i915->ggtt.base, NULL);
+		if (IS_ERR(vma)) {
+			err = PTR_ERR(vma);
+			goto out;
+		}
+
+		err = i915_gem_gtt_insert(&i915->ggtt.base, &vma->node,
+					  obj->base.size, 0, obj->cache_level,
+					  0, i915->ggtt.base.total,
+					  0);
+		if (err == -ENOSPC) {
+			/* maxed out the GGTT space */
+			i915_gem_object_put(obj);
+			break;
+		}
+		if (err) {
+			pr_err("i915_gem_gtt_insert (pass 1) failed at %llu/%llu with err=%d\n",
+			       total, i915->ggtt.base.total, err);
+			goto out;
+		}
+		track_vma_bind(vma);
+		__i915_vma_pin(vma);
+
+		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+	}
+
+	list_for_each_entry(obj, &objects, st_link) {
+		struct i915_vma *vma;
+
+		vma = i915_vma_instance(obj, &i915->ggtt.base, NULL);
+		if (IS_ERR(vma)) {
+			err = PTR_ERR(vma);
+			goto out;
+		}
+
+		if (!drm_mm_node_allocated(&vma->node)) {
+			pr_err("VMA was unexpectedly evicted!\n");
+			err = -EINVAL;
+			goto out;
+		}
+
+		__i915_vma_unpin(vma);
+	}
+
+	/* If we then reinsert, we should find the same hole */
+	list_for_each_entry_safe(obj, on, &objects, st_link) {
+		struct i915_vma *vma;
+		u64 offset;
+
+		vma = i915_vma_instance(obj, &i915->ggtt.base, NULL);
+		if (IS_ERR(vma)) {
+			err = PTR_ERR(vma);
+			goto out;
+		}
+
+		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+		offset = vma->node.start;
+
+		err = i915_vma_unbind(vma);
+		if (err) {
+			pr_err("i915_vma_unbind failed with err=%d!\n", err);
+			goto out;
+		}
+
+		err = i915_gem_gtt_insert(&i915->ggtt.base, &vma->node,
+					  obj->base.size, 0, obj->cache_level,
+					  0, i915->ggtt.base.total,
+					  0);
+		if (err) {
+			pr_err("i915_gem_gtt_insert (pass 2) failed at %llu/%llu with err=%d\n",
+			       total, i915->ggtt.base.total, err);
+			goto out;
+		}
+		track_vma_bind(vma);
+
+		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+		if (vma->node.start != offset) {
+			pr_err("i915_gem_gtt_insert did not return node to its previous location (the only hole), expected address %llx, found %llx\n",
+			       offset, vma->node.start);
+			err = -EINVAL;
+			goto out;
+		}
+	}
+
+	/* And then force evictions */
+	for (total = 0;
+	     total + 2*I915_GTT_PAGE_SIZE <= i915->ggtt.base.total;
+	     total += 2*I915_GTT_PAGE_SIZE) {
+		struct i915_vma *vma;
+
+		obj = i915_gem_object_create_internal(i915, 2*I915_GTT_PAGE_SIZE);
+		if (IS_ERR(obj)) {
+			err = PTR_ERR(obj);
+			goto out;
+		}
+
+		err = i915_gem_object_pin_pages(obj);
+		if (err) {
+			i915_gem_object_put(obj);
+			goto out;
+		}
+
+		list_add(&obj->st_link, &objects);
+
+		vma = i915_vma_instance(obj, &i915->ggtt.base, NULL);
+		if (IS_ERR(vma)) {
+			err = PTR_ERR(vma);
+			goto out;
+		}
+
+		err = i915_gem_gtt_insert(&i915->ggtt.base, &vma->node,
+					  obj->base.size, 0, obj->cache_level,
+					  0, i915->ggtt.base.total,
+					  0);
+		if (err) {
+			pr_err("i915_gem_gtt_insert (pass 3) failed at %llu/%llu with err=%d\n",
+			       total, i915->ggtt.base.total, err);
+			goto out;
+		}
+		track_vma_bind(vma);
+
+		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+	}
+
+out:
+	list_for_each_entry_safe(obj, on, &objects, st_link) {
+		i915_gem_object_unpin_pages(obj);
+		i915_gem_object_put(obj);
+	}
+	return err;
+}
+
 int i915_gem_gtt_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_gtt_reserve),
+		SUBTEST(igt_gtt_insert),
 	};
 	struct drm_i915_private *i915;
 	int err;
