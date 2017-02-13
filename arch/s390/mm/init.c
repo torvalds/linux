@@ -151,6 +151,15 @@ void __init free_initrd_mem(unsigned long start, unsigned long end)
 }
 #endif
 
+unsigned long memory_block_size_bytes(void)
+{
+	/*
+	 * Make sure the memory block size is always greater
+	 * or equal than the memory increment size.
+	 */
+	return max_t(unsigned long, MIN_MEMORY_BLOCK_SIZE, sclp.rzm);
+}
+
 #ifdef CONFIG_MEMORY_HOTPLUG
 int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
 {
@@ -192,15 +201,6 @@ int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
 	if (rc)
 		vmem_remove_mapping(start, size);
 	return rc;
-}
-
-unsigned long memory_block_size_bytes(void)
-{
-	/*
-	 * Make sure the memory block size is always greater
-	 * or equal than the memory increment size.
-	 */
-	return max_t(unsigned long, MIN_MEMORY_BLOCK_SIZE, sclp.rzm);
 }
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
