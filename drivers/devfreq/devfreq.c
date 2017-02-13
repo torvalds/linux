@@ -111,18 +111,16 @@ static void devfreq_set_freq_table(struct devfreq *devfreq)
 		return;
 	}
 
-	rcu_read_lock();
 	for (i = 0, freq = 0; i < profile->max_state; i++, freq++) {
 		opp = dev_pm_opp_find_freq_ceil(devfreq->dev.parent, &freq);
 		if (IS_ERR(opp)) {
 			devm_kfree(devfreq->dev.parent, profile->freq_table);
 			profile->max_state = 0;
-			rcu_read_unlock();
 			return;
 		}
+		dev_pm_opp_put(opp);
 		profile->freq_table[i] = freq;
 	}
-	rcu_read_unlock();
 }
 
 /**
@@ -1112,17 +1110,16 @@ static ssize_t available_frequencies_show(struct device *d,
 	ssize_t count = 0;
 	unsigned long freq = 0;
 
-	rcu_read_lock();
 	do {
 		opp = dev_pm_opp_find_freq_ceil(dev, &freq);
 		if (IS_ERR(opp))
 			break;
 
+		dev_pm_opp_put(opp);
 		count += scnprintf(&buf[count], (PAGE_SIZE - count - 2),
 				   "%lu ", freq);
 		freq++;
 	} while (1);
-	rcu_read_unlock();
 
 	/* Truncate the trailing space */
 	if (count)
@@ -1224,11 +1221,8 @@ subsys_initcall(devfreq_init);
  * @freq:	The frequency given to target function
  * @flags:	Flags handed from devfreq framework.
  *
- * Locking: This function must be called under rcu_read_lock(). opp is a rcu
- * protected pointer. The reason for the same is that the opp pointer which is
- * returned will remain valid for use with opp_get_{voltage, freq} only while
- * under the locked area. The pointer returned must be used prior to unlocking
- * with rcu_read_unlock() to maintain the integrity of the pointer.
+ * The callers are required to call dev_pm_opp_put() for the returned OPP after
+ * use.
  */
 struct dev_pm_opp *devfreq_recommended_opp(struct device *dev,
 					   unsigned long *freq,
@@ -1265,18 +1259,7 @@ EXPORT_SYMBOL(devfreq_recommended_opp);
  */
 int devfreq_register_opp_notifier(struct device *dev, struct devfreq *devfreq)
 {
-	struct srcu_notifier_head *nh;
-	int ret = 0;
-
-	rcu_read_lock();
-	nh = dev_pm_opp_get_notifier(dev);
-	if (IS_ERR(nh))
-		ret = PTR_ERR(nh);
-	rcu_read_unlock();
-	if (!ret)
-		ret = srcu_notifier_chain_register(nh, &devfreq->nb);
-
-	return ret;
+	return dev_pm_opp_register_notifier(dev, &devfreq->nb);
 }
 EXPORT_SYMBOL(devfreq_register_opp_notifier);
 
@@ -1292,18 +1275,7 @@ EXPORT_SYMBOL(devfreq_register_opp_notifier);
  */
 int devfreq_unregister_opp_notifier(struct device *dev, struct devfreq *devfreq)
 {
-	struct srcu_notifier_head *nh;
-	int ret = 0;
-
-	rcu_read_lock();
-	nh = dev_pm_opp_get_notifier(dev);
-	if (IS_ERR(nh))
-		ret = PTR_ERR(nh);
-	rcu_read_unlock();
-	if (!ret)
-		ret = srcu_notifier_chain_unregister(nh, &devfreq->nb);
-
-	return ret;
+	return dev_pm_opp_unregister_notifier(dev, &devfreq->nb);
 }
 EXPORT_SYMBOL(devfreq_unregister_opp_notifier);
 

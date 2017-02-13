@@ -59,13 +59,13 @@ static int devfreq_passive_get_target_freq(struct devfreq *devfreq,
 	 * list of parent device. Because in this case, *freq is temporary
 	 * value which is decided by ondemand governor.
 	 */
-	rcu_read_lock();
 	opp = devfreq_recommended_opp(parent_devfreq->dev.parent, freq, 0);
-	rcu_read_unlock();
 	if (IS_ERR(opp)) {
 		ret = PTR_ERR(opp);
 		goto out;
 	}
+
+	dev_pm_opp_put(opp);
 
 	/*
 	 * Get the OPP table's index of decided freqeuncy by governor

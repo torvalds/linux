@@ -113,14 +113,14 @@ static int partition_enable_opps(struct devfreq_cooling_device *dfc,
 		unsigned int freq = dfc->freq_table[i];
 		bool want_enable = i >= cdev_state ? true : false;
 
-		rcu_read_lock();
 		opp = dev_pm_opp_find_freq_exact(dev, freq, !want_enable);
-		rcu_read_unlock();
 
 		if (PTR_ERR(opp) == -ERANGE)
 			continue;
 		else if (IS_ERR(opp))
 			return PTR_ERR(opp);
+
+		dev_pm_opp_put(opp);
 
 		if (want_enable)
 			ret = dev_pm_opp_enable(dev, freq);
@@ -221,15 +221,12 @@ get_static_power(struct devfreq_cooling_device *dfc, unsigned long freq)
 	if (!dfc->power_ops->get_static_power)
 		return 0;
 
-	rcu_read_lock();
-
 	opp = dev_pm_opp_find_freq_exact(dev, freq, true);
 	if (IS_ERR(opp) && (PTR_ERR(opp) == -ERANGE))
 		opp = dev_pm_opp_find_freq_exact(dev, freq, false);
 
 	voltage = dev_pm_opp_get_voltage(opp) / 1000; /* mV */
-
-	rcu_read_unlock();
+	dev_pm_opp_put(opp);
 
 	if (voltage == 0) {
 		dev_warn_ratelimited(dev,
@@ -412,18 +409,14 @@ static int devfreq_cooling_gen_tables(struct devfreq_cooling_device *dfc)
 		unsigned long power_dyn, voltage;
 		struct dev_pm_opp *opp;
 
-		rcu_read_lock();
-
 		opp = dev_pm_opp_find_freq_floor(dev, &freq);
 		if (IS_ERR(opp)) {
-			rcu_read_unlock();
 			ret = PTR_ERR(opp);
 			goto free_tables;
 		}
 
 		voltage = dev_pm_opp_get_voltage(opp) / 1000; /* mV */
-
-		rcu_read_unlock();
+		dev_pm_opp_put(opp);
 
 		if (dfc->power_ops) {
 			power_dyn = get_dynamic_power(dfc, freq, voltage);
