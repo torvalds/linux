@@ -1168,7 +1168,8 @@ static int ath10k_core_fetch_board_file(struct ath10k *ar)
 	ar->bd_api = 1;
 	ret = ath10k_core_fetch_board_data_api_1(ar);
 	if (ret) {
-		ath10k_err(ar, "failed to fetch board data\n");
+		ath10k_err(ar, "failed to fetch board-2.bin or board.bin from %s\n",
+			   ar->hw_params.fw.dir);
 		return ret;
 	}
 
