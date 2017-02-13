@@ -9,3 +9,4 @@
  * Tests are executed in order by igt/drv_selftest
  */
 selftest(sanitycheck, i915_live_sanitycheck) /* keep first (igt selfcheck) */
+selftest(requests, i915_gem_request_live_selftests)
