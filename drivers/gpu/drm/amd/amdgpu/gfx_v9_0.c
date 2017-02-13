@@ -2697,6 +2697,31 @@ static void gfx_v9_0_ring_set_wptr_compute(struct amdgpu_ring *ring)
 	}
 }
 
+static void gfx_v9_0_ring_emit_fence_kiq(struct amdgpu_ring *ring, u64 addr,
+					 u64 seq, unsigned int flags)
+{
+	/* we only allocate 32bit for each seq wb address */
+	BUG_ON(flags & AMDGPU_FENCE_FLAG_64BIT);
+
+	/* write fence seq to the "addr" */
+	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
+	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
+				 WRITE_DATA_DST_SEL(5) | WR_CONFIRM));
+	amdgpu_ring_write(ring, lower_32_bits(addr));
+	amdgpu_ring_write(ring, upper_32_bits(addr));
+	amdgpu_ring_write(ring, lower_32_bits(seq));
+
+	if (flags & AMDGPU_FENCE_FLAG_INT) {
+		/* set register to trigger INT */
+		amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
+		amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
+					 WRITE_DATA_DST_SEL(0) | WR_CONFIRM));
+		amdgpu_ring_write(ring, SOC15_REG_OFFSET(GC, 0, mmCPC_INT_STATUS));
+		amdgpu_ring_write(ring, 0);
+		amdgpu_ring_write(ring, 0x20000000); /* src_id is 178 */
+	}
+}
+
 static void gfx_v9_ring_emit_sb(struct amdgpu_ring *ring)
 {
 	amdgpu_ring_write(ring, PACKET3(PACKET3_SWITCH_BUFFER, 0));
@@ -2730,6 +2755,32 @@ static void gfx_v9_ring_emit_cntxcntl(struct amdgpu_ring *ring, uint32_t flags)
 	amdgpu_ring_write(ring, PACKET3(PACKET3_CONTEXT_CONTROL, 1));
 	amdgpu_ring_write(ring, dw2);
 	amdgpu_ring_write(ring, 0);
+}
+
+static void gfx_v9_0_ring_emit_rreg(struct amdgpu_ring *ring, uint32_t reg)
+{
+	struct amdgpu_device *adev = ring->adev;
+
+	amdgpu_ring_write(ring, PACKET3(PACKET3_COPY_DATA, 4));
+	amdgpu_ring_write(ring, 0 |	/* src: register*/
+				(5 << 8) |	/* dst: memory */
+				(1 << 20));	/* write confirm */
+	amdgpu_ring_write(ring, reg);
+	amdgpu_ring_write(ring, 0);
+	amdgpu_ring_write(ring, lower_32_bits(adev->wb.gpu_addr +
+				adev->virt.reg_val_offs * 4));
+	amdgpu_ring_write(ring, upper_32_bits(adev->wb.gpu_addr +
+				adev->virt.reg_val_offs * 4));
+}
+
+static void gfx_v9_0_ring_emit_wreg(struct amdgpu_ring *ring, uint32_t reg,
+				  uint32_t val)
+{
+	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
+	amdgpu_ring_write(ring, (1 << 16)); /* no inc addr */
+	amdgpu_ring_write(ring, reg);
+	amdgpu_ring_write(ring, 0);
+	amdgpu_ring_write(ring, val);
 }
 
 static void gfx_v9_0_set_gfx_eop_interrupt_state(struct amdgpu_device *adev,
@@ -3022,10 +3073,39 @@ static const struct amdgpu_ring_funcs gfx_v9_0_ring_funcs_compute = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 };
 
+static const struct amdgpu_ring_funcs gfx_v9_0_ring_funcs_kiq = {
+	.type = AMDGPU_RING_TYPE_KIQ,
+	.align_mask = 0xff,
+	.nop = PACKET3(PACKET3_NOP, 0x3FFF),
+	.support_64bit_ptrs = true,
+	.get_rptr = gfx_v9_0_ring_get_rptr_compute,
+	.get_wptr = gfx_v9_0_ring_get_wptr_compute,
+	.set_wptr = gfx_v9_0_ring_set_wptr_compute,
+	.emit_frame_size =
+		20 + /* gfx_v9_0_ring_emit_gds_switch */
+		7 + /* gfx_v9_0_ring_emit_hdp_flush */
+		5 + /* gfx_v9_0_ring_emit_hdp_invalidate */
+		7 + /* gfx_v9_0_ring_emit_pipeline_sync */
+		64 + /* gfx_v9_0_ring_emit_vm_flush */
+		8 + 8 + 8, /* gfx_v9_0_ring_emit_fence_kiq x3 for user fence, vm fence */
+	.emit_ib_size =	4, /* gfx_v9_0_ring_emit_ib_compute */
+	.emit_ib = gfx_v9_0_ring_emit_ib_compute,
+	.emit_fence = gfx_v9_0_ring_emit_fence_kiq,
+	.emit_hdp_flush = gfx_v9_0_ring_emit_hdp_flush,
+	.emit_hdp_invalidate = gfx_v9_0_ring_emit_hdp_invalidate,
+	.test_ring = gfx_v9_0_ring_test_ring,
+	.test_ib = gfx_v9_0_ring_test_ib,
+	.insert_nop = amdgpu_ring_insert_nop,
+	.pad_ib = amdgpu_ring_generic_pad_ib,
+	.emit_rreg = gfx_v9_0_ring_emit_rreg,
+	.emit_wreg = gfx_v9_0_ring_emit_wreg,
+};
 
 static void gfx_v9_0_set_ring_funcs(struct amdgpu_device *adev)
 {
 	int i;
+
+	adev->gfx.kiq.ring.funcs = &gfx_v9_0_ring_funcs_kiq;
 
 	for (i = 0; i < adev->gfx.num_gfx_rings; i++)
 		adev->gfx.gfx_ring[i].funcs = &gfx_v9_0_ring_funcs_gfx;
