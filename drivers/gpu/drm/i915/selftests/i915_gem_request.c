@@ -119,11 +119,72 @@ out_unlock:
 	return err;
 }
 
+static int igt_fence_wait(void *arg)
+{
+	const long T = HZ / 4;
+	struct drm_i915_private *i915 = arg;
+	struct drm_i915_gem_request *request;
+	int err = -EINVAL;
+
+	/* Submit a request, treat it as a fence and wait upon it */
+
+	mutex_lock(&i915->drm.struct_mutex);
+	request = mock_request(i915->engine[RCS], i915->kernel_context, T);
+	if (!request) {
+		err = -ENOMEM;
+		goto out_locked;
+	}
+	mutex_unlock(&i915->drm.struct_mutex); /* safe as we are single user */
+
+	if (dma_fence_wait_timeout(&request->fence, false, T) != -ETIME) {
+		pr_err("fence wait success before submit (expected timeout)!\n");
+		goto out_device;
+	}
+
+	mutex_lock(&i915->drm.struct_mutex);
+	i915_add_request(request);
+	mutex_unlock(&i915->drm.struct_mutex);
+
+	if (dma_fence_is_signaled(&request->fence)) {
+		pr_err("fence signaled immediately!\n");
+		goto out_device;
+	}
+
+	if (dma_fence_wait_timeout(&request->fence, false, T / 2) != -ETIME) {
+		pr_err("fence wait success after submit (expected timeout)!\n");
+		goto out_device;
+	}
+
+	if (dma_fence_wait_timeout(&request->fence, false, T) <= 0) {
+		pr_err("fence wait timed out (expected success)!\n");
+		goto out_device;
+	}
+
+	if (!dma_fence_is_signaled(&request->fence)) {
+		pr_err("fence unsignaled after waiting!\n");
+		goto out_device;
+	}
+
+	if (dma_fence_wait_timeout(&request->fence, false, T) <= 0) {
+		pr_err("fence wait timed out when complete (expected success)!\n");
+		goto out_device;
+	}
+
+	err = 0;
+out_device:
+	mutex_lock(&i915->drm.struct_mutex);
+out_locked:
+	mock_device_flush(i915);
+	mutex_unlock(&i915->drm.struct_mutex);
+	return err;
+}
+
 int i915_gem_request_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_add_request),
 		SUBTEST(igt_wait_request),
+		SUBTEST(igt_fence_wait),
 	};
 	struct drm_i915_private *i915;
 	int err;
