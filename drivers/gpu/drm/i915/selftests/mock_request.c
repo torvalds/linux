@@ -22,33 +22,23 @@
  *
  */
 
-#ifndef __MOCK_ENGINE_H__
-#define __MOCK_ENGINE_H__
+#include "mock_request.h"
 
-#include <linux/list.h>
-#include <linux/spinlock.h>
-#include <linux/timer.h>
-
-#include "../intel_ringbuffer.h"
-
-struct mock_engine {
-	struct intel_engine_cs base;
-
-	spinlock_t hw_lock;
-	struct list_head hw_queue;
-	struct timer_list hw_delay;
-};
-
-struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
-				    const char *name);
-void mock_engine_flush(struct intel_engine_cs *engine);
-void mock_engine_reset(struct intel_engine_cs *engine);
-void mock_engine_free(struct intel_engine_cs *engine);
-
-static inline void mock_seqno_advance(struct intel_engine_cs *engine, u32 seqno)
+struct drm_i915_gem_request *
+mock_request(struct intel_engine_cs *engine,
+	     struct i915_gem_context *context,
+	     unsigned long delay)
 {
-	intel_write_status_page(engine, I915_GEM_HWS_INDEX, seqno);
-	intel_engine_wakeup(engine);
-}
+	struct drm_i915_gem_request *request;
+	struct mock_request *mock;
 
-#endif /* !__MOCK_ENGINE_H__ */
+	/* NB the i915->requests slab cache is enlarged to fit mock_request */
+	request = i915_gem_request_alloc(engine, context);
+	if (!request)
+		return NULL;
+
+	mock = container_of(request, typeof(*mock), base);
+	mock->delay = delay;
+
+	return &mock->base;
+}

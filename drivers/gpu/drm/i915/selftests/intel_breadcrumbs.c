@@ -25,6 +25,7 @@
 #include "../i915_selftest.h"
 #include "i915_random.h"
 
+#include "mock_gem_device.h"
 #include "mock_engine.h"
 
 static int check_rbtree(struct intel_engine_cs *engine,
@@ -466,15 +467,15 @@ int intel_breadcrumbs_mock_selftests(void)
 		SUBTEST(igt_insert_complete),
 		SUBTEST(igt_wakeup),
 	};
-	struct intel_engine_cs *engine;
+	struct drm_i915_private *i915;
 	int err;
 
-	engine = mock_engine("mock");
-	if (!engine)
+	i915 = mock_gem_device();
+	if (!i915)
 		return -ENOMEM;
 
-	err = i915_subtests(tests, engine);
-	kfree(engine);
+	err = i915_subtests(tests, i915->engine[RCS]);
+	drm_dev_unref(&i915->drm);
 
 	return err;
 }

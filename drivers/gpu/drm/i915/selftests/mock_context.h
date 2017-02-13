@@ -22,33 +22,13 @@
  *
  */
 
-#ifndef __MOCK_ENGINE_H__
-#define __MOCK_ENGINE_H__
+#ifndef __MOCK_CONTEXT_H
+#define __MOCK_CONTEXT_H
 
-#include <linux/list.h>
-#include <linux/spinlock.h>
-#include <linux/timer.h>
+struct i915_gem_context *
+mock_context(struct drm_i915_private *i915,
+	     const char *name);
 
-#include "../intel_ringbuffer.h"
+void mock_context_close(struct i915_gem_context *ctx);
 
-struct mock_engine {
-	struct intel_engine_cs base;
-
-	spinlock_t hw_lock;
-	struct list_head hw_queue;
-	struct timer_list hw_delay;
-};
-
-struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
-				    const char *name);
-void mock_engine_flush(struct intel_engine_cs *engine);
-void mock_engine_reset(struct intel_engine_cs *engine);
-void mock_engine_free(struct intel_engine_cs *engine);
-
-static inline void mock_seqno_advance(struct intel_engine_cs *engine, u32 seqno)
-{
-	intel_write_status_page(engine, I915_GEM_HWS_INDEX, seqno);
-	intel_engine_wakeup(engine);
-}
-
-#endif /* !__MOCK_ENGINE_H__ */
+#endif /* !__MOCK_CONTEXT_H */

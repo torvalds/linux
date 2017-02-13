@@ -22,33 +22,57 @@
  *
  */
 
-#ifndef __MOCK_ENGINE_H__
-#define __MOCK_ENGINE_H__
+#include "mock_context.h"
+#include "mock_gtt.h"
 
-#include <linux/list.h>
-#include <linux/spinlock.h>
-#include <linux/timer.h>
-
-#include "../intel_ringbuffer.h"
-
-struct mock_engine {
-	struct intel_engine_cs base;
-
-	spinlock_t hw_lock;
-	struct list_head hw_queue;
-	struct timer_list hw_delay;
-};
-
-struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
-				    const char *name);
-void mock_engine_flush(struct intel_engine_cs *engine);
-void mock_engine_reset(struct intel_engine_cs *engine);
-void mock_engine_free(struct intel_engine_cs *engine);
-
-static inline void mock_seqno_advance(struct intel_engine_cs *engine, u32 seqno)
+struct i915_gem_context *
+mock_context(struct drm_i915_private *i915,
+	     const char *name)
 {
-	intel_write_status_page(engine, I915_GEM_HWS_INDEX, seqno);
-	intel_engine_wakeup(engine);
+	struct i915_gem_context *ctx;
+	int ret;
+
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return NULL;
+
+	kref_init(&ctx->ref);
+	INIT_LIST_HEAD(&ctx->link);
+	ctx->i915 = i915;
+
+	ret = ida_simple_get(&i915->context_hw_ida,
+			     0, MAX_CONTEXT_HW_ID, GFP_KERNEL);
+	if (ret < 0)
+		goto err_free;
+	ctx->hw_id = ret;
+
+	if (name) {
+		ctx->name = kstrdup(name, GFP_KERNEL);
+		if (!ctx->name)
+			goto err_put;
+
+		ctx->ppgtt = mock_ppgtt(i915, name);
+		if (!ctx->ppgtt)
+			goto err_put;
+	}
+
+	return ctx;
+
+err_free:
+	kfree(ctx);
+	return NULL;
+
+err_put:
+	i915_gem_context_set_closed(ctx);
+	i915_gem_context_put(ctx);
+	return NULL;
 }
 
-#endif /* !__MOCK_ENGINE_H__ */
+void mock_context_close(struct i915_gem_context *ctx)
+{
+	i915_gem_context_set_closed(ctx);
+
+	i915_ppgtt_close(&ctx->ppgtt->base);
+
+	i915_gem_context_put(ctx);
+}
