@@ -930,35 +930,10 @@ out:
 	return err;
 }
 
-static int fdb_delete_by_addr(struct net_bridge *br, const u8 *addr,
-			      u16 vid)
-{
-	struct net_bridge_fdb_entry *fdb;
-
-	fdb = br_fdb_find(br, addr, vid);
-	if (!fdb)
-		return -ENOENT;
-
-	fdb_delete(br, fdb);
-	return 0;
-}
-
-static int __br_fdb_delete_by_addr(struct net_bridge *br,
-				   const unsigned char *addr, u16 vid)
-{
-	int err;
-
-	spin_lock_bh(&br->hash_lock);
-	err = fdb_delete_by_addr(br, addr, vid);
-	spin_unlock_bh(&br->hash_lock);
-
-	return err;
-}
-
-static int fdb_delete_by_addr_and_port(struct net_bridge_port *p,
+static int fdb_delete_by_addr_and_port(struct net_bridge *br,
+				       const struct net_bridge_port *p,
 				       const u8 *addr, u16 vlan)
 {
-	struct net_bridge *br = p->br;
 	struct net_bridge_fdb_entry *fdb;
 
 	fdb = br_fdb_find(br, addr, vlan);
@@ -966,17 +941,19 @@ static int fdb_delete_by_addr_and_port(struct net_bridge_port *p,
 		return -ENOENT;
 
 	fdb_delete(br, fdb);
+
 	return 0;
 }
 
-static int __br_fdb_delete(struct net_bridge_port *p,
+static int __br_fdb_delete(struct net_bridge *br,
+			   const struct net_bridge_port *p,
 			   const unsigned char *addr, u16 vid)
 {
 	int err;
 
-	spin_lock_bh(&p->br->hash_lock);
-	err = fdb_delete_by_addr_and_port(p, addr, vid);
-	spin_unlock_bh(&p->br->hash_lock);
+	spin_lock_bh(&br->hash_lock);
+	err = fdb_delete_by_addr_and_port(br, p, addr, vid);
+	spin_unlock_bh(&br->hash_lock);
 
 	return err;
 }
@@ -989,7 +966,7 @@ int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 	struct net_bridge_vlan_group *vg;
 	struct net_bridge_port *p = NULL;
 	struct net_bridge_vlan *v;
-	struct net_bridge *br = NULL;
+	struct net_bridge *br;
 	int err;
 
 	if (dev->priv_flags & IFF_EBRIDGE) {
@@ -1003,6 +980,7 @@ int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 			return -EINVAL;
 		}
 		vg = nbp_vlan_group(p);
+		br = p->br;
 	}
 
 	if (vid) {
@@ -1012,30 +990,20 @@ int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 			return -EINVAL;
 		}
 
-		if (dev->priv_flags & IFF_EBRIDGE)
-			err = __br_fdb_delete_by_addr(br, addr, vid);
-		else
-			err = __br_fdb_delete(p, addr, vid);
+		err = __br_fdb_delete(br, p, addr, vid);
 	} else {
 		err = -ENOENT;
-		if (dev->priv_flags & IFF_EBRIDGE)
-			err = __br_fdb_delete_by_addr(br, addr, 0);
-		else
-			err &= __br_fdb_delete(p, addr, 0);
-
+		err &= __br_fdb_delete(br, p, addr, 0);
 		if (!vg || !vg->num_vlans)
-			goto out;
+			return err;
 
 		list_for_each_entry(v, &vg->vlan_list, vlist) {
 			if (!br_vlan_should_use(v))
 				continue;
-			if (dev->priv_flags & IFF_EBRIDGE)
-				err = __br_fdb_delete_by_addr(br, addr, v->vid);
-			else
-				err &= __br_fdb_delete(p, addr, v->vid);
+			err &= __br_fdb_delete(br, p, addr, v->vid);
 		}
 	}
-out:
+
 	return err;
 }
 
