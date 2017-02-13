@@ -58,7 +58,9 @@ static int __init test_user_copy_init(void)
 	usermem = (char __user *)user_addr;
 	bad_usermem = (char *)user_addr;
 
-	/* Legitimate usage: none of these should fail. */
+	/*
+	 * Legitimate usage: none of these copies should fail.
+	 */
 	ret |= test(copy_from_user(kmem, usermem, PAGE_SIZE),
 		    "legitimate copy_from_user failed");
 	ret |= test(copy_to_user(usermem, kmem, PAGE_SIZE),
@@ -68,31 +70,45 @@ static int __init test_user_copy_init(void)
 	ret |= test(put_user(value, (unsigned long __user *)usermem),
 		    "legitimate put_user failed");
 
-	/* Invalid usage: none of these should succeed. */
+	/*
+	 * Invalid usage: none of these copies should succeed.
+	 */
+
+	/* Prepare kernel memory with check values. */
 	memset(kmem, 0x5a, PAGE_SIZE);
 	memset(kmem + PAGE_SIZE, 0, PAGE_SIZE);
+
+	/* Reject kernel-to-kernel copies through copy_from_user(). */
 	ret |= test(!copy_from_user(kmem, (char __user *)(kmem + PAGE_SIZE),
 				    PAGE_SIZE),
 		    "illegal all-kernel copy_from_user passed");
+
+	/* Destination half of buffer should have been zeroed. */
 	ret |= test(memcmp(kmem + PAGE_SIZE, kmem, PAGE_SIZE),
 		    "zeroing failure for illegal all-kernel copy_from_user");
-	memset(bad_usermem, 0x5A, PAGE_SIZE);
+
+#if 0
+	/*
+	 * When running with SMAP/PAN/etc, this will Oops the kernel
+	 * due to the zeroing of userspace memory on failure. This needs
+	 * to be tested in LKDTM instead, since this test module does not
+	 * expect to explode.
+	 */
 	ret |= test(!copy_from_user(bad_usermem, (char __user *)kmem,
 				    PAGE_SIZE),
 		    "illegal reversed copy_from_user passed");
-	ret |= test(memcmp(kmem + PAGE_SIZE, bad_usermem, PAGE_SIZE),
-		    "zeroing failure for illegal reversed copy_from_user");
+#endif
 	ret |= test(!copy_to_user((char __user *)kmem, kmem + PAGE_SIZE,
 				  PAGE_SIZE),
 		    "illegal all-kernel copy_to_user passed");
 	ret |= test(!copy_to_user((char __user *)kmem, bad_usermem,
 				  PAGE_SIZE),
 		    "illegal reversed copy_to_user passed");
-	memset(kmem, 0x5a, PAGE_SIZE);
+
+	value = 0x5a;
 	ret |= test(!get_user(value, (unsigned long __user *)kmem),
 		    "illegal get_user passed");
-	ret |= test(memcmp(kmem + PAGE_SIZE, kmem, sizeof(value)),
-		    "zeroing failure for illegal get_user");
+	ret |= test(value != 0, "zeroing failure for illegal get_user");
 	ret |= test(!put_user(value, (unsigned long __user *)kmem),
 		    "illegal put_user passed");
 
