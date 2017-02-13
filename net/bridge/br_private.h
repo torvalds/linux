@@ -531,6 +531,15 @@ int br_fdb_external_learn_add(struct net_bridge *br, struct net_bridge_port *p,
 int br_fdb_external_learn_del(struct net_bridge *br, struct net_bridge_port *p,
 			      const unsigned char *addr, u16 vid);
 
+static inline bool br_hash_lock_held(struct net_bridge *br)
+{
+#ifdef CONFIG_LOCKDEP
+	return lockdep_is_held(&br->hash_lock);
+#else
+	return true;
+#endif
+}
+
 /* br_forward.c */
 enum br_pkt_type {
 	BR_PKT_UNICAST,

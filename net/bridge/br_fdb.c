@@ -89,6 +89,8 @@ static struct net_bridge_fdb_entry *fdb_find_rcu(struct hlist_head *head,
 {
 	struct net_bridge_fdb_entry *f;
 
+	WARN_ON_ONCE(!rcu_read_lock_held());
+
 	hlist_for_each_entry_rcu(f, head, hlist)
 		if (ether_addr_equal(f->addr.addr, addr) && f->vlan_id == vid)
 			break;
@@ -103,6 +105,8 @@ static struct net_bridge_fdb_entry *br_fdb_find(struct net_bridge *br,
 {
 	struct hlist_head *head = &br->hash[br_mac_hash(addr, vid)];
 	struct net_bridge_fdb_entry *fdb;
+
+	WARN_ON_ONCE(!br_hash_lock_held(br));
 
 	rcu_read_lock();
 	fdb = fdb_find_rcu(head, addr, vid);
