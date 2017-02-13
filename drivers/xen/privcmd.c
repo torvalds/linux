@@ -551,7 +551,7 @@ out_unlock:
 static long privcmd_ioctl(struct file *file,
 			  unsigned int cmd, unsigned long data)
 {
-	int ret = -ENOSYS;
+	int ret = -ENOTTY;
 	void __user *udata = (void __user *) data;
 
 	switch (cmd) {
@@ -572,7 +572,6 @@ static long privcmd_ioctl(struct file *file,
 		break;
 
 	default:
-		ret = -EINVAL;
 		break;
 	}
 
