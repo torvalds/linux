@@ -2976,6 +2976,8 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 	component->remove = component->driver->remove;
 	component->suspend = component->driver->suspend;
 	component->resume = component->driver->resume;
+	component->pcm_new = component->driver->pcm_new;
+	component->pcm_free= component->driver->pcm_free;
 
 	dapm = &component->dapm;
 	dapm->dev = dev;
@@ -3158,6 +3160,21 @@ static void snd_soc_platform_drv_remove(struct snd_soc_component *component)
 	platform->driver->remove(platform);
 }
 
+static int snd_soc_platform_drv_pcm_new(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_platform *platform = rtd->platform;
+
+	return platform->driver->pcm_new(rtd);
+}
+
+static void snd_soc_platform_drv_pcm_free(struct snd_pcm *pcm)
+{
+	struct snd_soc_pcm_runtime *rtd = pcm->private_data;
+	struct snd_soc_platform *platform = rtd->platform;
+
+	platform->driver->pcm_free(pcm);
+}
+
 /**
  * snd_soc_add_platform - Add a platform to the ASoC core
  * @dev: The parent device for the platform
@@ -3181,6 +3198,10 @@ int snd_soc_add_platform(struct device *dev, struct snd_soc_platform *platform,
 		platform->component.probe = snd_soc_platform_drv_probe;
 	if (platform_drv->remove)
 		platform->component.remove = snd_soc_platform_drv_remove;
+	if (platform_drv->pcm_new)
+		platform->component.pcm_new = snd_soc_platform_drv_pcm_new;
+	if (platform_drv->pcm_free)
+		platform->component.pcm_free = snd_soc_platform_drv_pcm_free;
 
 #ifdef CONFIG_DEBUG_FS
 	platform->component.debugfs_prefix = "platform";
