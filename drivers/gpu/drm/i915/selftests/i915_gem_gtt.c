@@ -28,6 +28,7 @@
 #include "../i915_selftest.h"
 #include "i915_random.h"
 
+#include "mock_context.h"
 #include "mock_drm.h"
 #include "mock_gem_device.h"
 
@@ -913,6 +914,45 @@ static void track_vma_bind(struct i915_vma *vma)
 	list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
 }
 
+static int exercise_mock(struct drm_i915_private *i915,
+			 int (*func)(struct drm_i915_private *i915,
+				     struct i915_address_space *vm,
+				     u64 hole_start, u64 hole_end,
+				     unsigned long end_time))
+{
+	struct i915_gem_context *ctx;
+	struct i915_hw_ppgtt *ppgtt;
+	IGT_TIMEOUT(end_time);
+	int err;
+
+	ctx = mock_context(i915, "mock");
+	if (!ctx)
+		return -ENOMEM;
+
+	ppgtt = ctx->ppgtt;
+	GEM_BUG_ON(!ppgtt);
+
+	err = func(i915, &ppgtt->base, 0, ppgtt->base.total, end_time);
+
+	mock_context_close(ctx);
+	return err;
+}
+
+static int igt_mock_fill(void *arg)
+{
+	return exercise_mock(arg, fill_hole);
+}
+
+static int igt_mock_walk(void *arg)
+{
+	return exercise_mock(arg, walk_hole);
+}
+
+static int igt_mock_drunk(void *arg)
+{
+	return exercise_mock(arg, drunk_hole);
+}
+
 static int igt_gtt_reserve(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
@@ -1286,6 +1326,9 @@ out:
 int i915_gem_gtt_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
+		SUBTEST(igt_mock_drunk),
+		SUBTEST(igt_mock_walk),
+		SUBTEST(igt_mock_fill),
 		SUBTEST(igt_gtt_reserve),
 		SUBTEST(igt_gtt_insert),
 	};
