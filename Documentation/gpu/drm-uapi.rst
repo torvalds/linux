@@ -216,3 +216,9 @@ interfaces. Especially since all hardware-acceleration interfaces to
 userspace are driver specific for efficiency and other reasons these
 interfaces can be rather substantial. Hence every driver has its own
 chapter.
+
+Testing and validation
+======================
+
+.. kernel-doc:: drivers/gpu/drm/drm_debugfs_crc.c
+   :doc: CRC ABI

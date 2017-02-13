@@ -652,6 +652,11 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 			*location = value - (unsigned long)location;
 			break;
 
+		case R_PPC64_REL32:
+			/* 32 bits relative (used by relative exception tables) */
+			*(u32 *)location = value - (unsigned long)location;
+			break;
+
 		case R_PPC64_TOCSAVE:
 			/*
 			 * Marker reloc indicates we don't have to save r2.

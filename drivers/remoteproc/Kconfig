@@ -1,20 +1,21 @@
 menu "Remoteproc drivers"
 
-# REMOTEPROC gets selected by whoever wants it
 config REMOTEPROC
-	tristate
+	tristate "Support for Remote Processor subsystem"
 	depends on HAS_DMA
 	select CRC32
 	select FW_LOADER
 	select VIRTIO
 	select VIRTUALIZATION
 
+if REMOTEPROC
+
 config OMAP_REMOTEPROC
 	tristate "OMAP remoteproc support"
 	depends on HAS_DMA
 	depends on ARCH_OMAP4 || SOC_OMAP5
 	depends on OMAP_IOMMU
-	select REMOTEPROC
+	depends on REMOTEPROC
 	select MAILBOX
 	select OMAP2PLUS_MBOX
 	select RPMSG_VIRTIO
@@ -31,20 +32,10 @@ config OMAP_REMOTEPROC
 	  It's safe to say n here if you're not interested in multimedia
 	  offloading or just want a bare minimum kernel.
 
-config STE_MODEM_RPROC
-	tristate "STE-Modem remoteproc support"
-	depends on HAS_DMA
-	select REMOTEPROC
-	default n
-	help
-	  Say y or m here to support STE-Modem shared memory driver.
-	  This can be either built-in or a loadable module.
-	  If unsure say N.
-
 config WKUP_M3_RPROC
 	tristate "AMx3xx Wakeup M3 remoteproc support"
 	depends on SOC_AM33XX || SOC_AM43XX
-	select REMOTEPROC
+	depends on REMOTEPROC
 	help
 	  Say y here to support Wakeup M3 remote processor on TI AM33xx
 	  and AM43xx family of SoCs.
@@ -57,8 +48,8 @@ config WKUP_M3_RPROC
 config DA8XX_REMOTEPROC
 	tristate "DA8xx/OMAP-L13x remoteproc support"
 	depends on ARCH_DAVINCI_DA8XX
+	depends on REMOTEPROC
 	select CMA if MMU
-	select REMOTEPROC
 	select RPMSG_VIRTIO
 	help
 	  Say y here to support DA8xx/OMAP-L13x remote processors via the
@@ -77,6 +68,18 @@ config DA8XX_REMOTEPROC
 	  It's safe to say n here if you're not interested in multimedia
 	  offloading.
 
+config QCOM_ADSP_PIL
+	tristate "Qualcomm ADSP Peripheral Image Loader"
+	depends on OF && ARCH_QCOM
+	depends on REMOTEPROC
+	depends on QCOM_SMEM
+	select MFD_SYSCON
+	select QCOM_MDT_LOADER
+	select QCOM_SCM
+	help
+	  Say y here to support the TrustZone based Peripherial Image Loader
+	  for the Qualcomm ADSP remote processors.
+
 config QCOM_MDT_LOADER
 	tristate
 
@@ -84,25 +87,22 @@ config QCOM_Q6V5_PIL
 	tristate "Qualcomm Hexagon V5 Peripherial Image Loader"
 	depends on OF && ARCH_QCOM
 	depends on QCOM_SMEM
+	depends on REMOTEPROC
 	select MFD_SYSCON
 	select QCOM_MDT_LOADER
-	select REMOTEPROC
+	select QCOM_SCM
 	help
 	  Say y here to support the Qualcomm Peripherial Image Loader for the
 	  Hexagon V5 based remote processors.
 
-config QCOM_WCNSS_IRIS
-	tristate
-	depends on OF && ARCH_QCOM
-
 config QCOM_WCNSS_PIL
 	tristate "Qualcomm WCNSS Peripheral Image Loader"
 	depends on OF && ARCH_QCOM
+	depends on QCOM_SMD || (COMPILE_TEST && QCOM_SMD=n)
 	depends on QCOM_SMEM
+	depends on REMOTEPROC
 	select QCOM_MDT_LOADER
 	select QCOM_SCM
-	select QCOM_WCNSS_IRIS
-	select REMOTEPROC
 	help
 	  Say y here to support the Peripheral Image Loader for the Qualcomm
 	  Wireless Connectivity Subsystem.
@@ -110,10 +110,16 @@ config QCOM_WCNSS_PIL
 config ST_REMOTEPROC
 	tristate "ST remoteproc support"
 	depends on ARCH_STI
-	select REMOTEPROC
+	depends on REMOTEPROC
 	help
 	  Say y here to support ST's adjunct processors via the remote
 	  processor framework.
 	  This can be either built-in or a loadable module.
+
+config ST_SLIM_REMOTEPROC
+	tristate
+	depends on REMOTEPROC
+
+endif # REMOTEPROC
 
 endmenu

@@ -19,7 +19,7 @@
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/sysctl.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/fs.h>

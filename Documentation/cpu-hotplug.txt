@@ -84,9 +84,9 @@ are added or removed anytime.  Trimming it accurately for your system needs
 upfront can save some boot time memory. See below for how we use heuristics
 in x86_64 case to keep this under check.
 
-cpu_online_mask: Bitmap of all CPUs currently online. Its set in __cpu_up()
-after a cpu is available for kernel scheduling and ready to receive
-interrupts from devices. Its cleared when a cpu is brought down using
+cpu_online_mask: Bitmap of all CPUs currently online. It's set in __cpu_up()
+after a CPU is available for kernel scheduling and ready to receive
+interrupts from devices. It's cleared when a CPU is brought down using
 __cpu_disable(), before which all OS services including interrupts are
 migrated to another target CPU.
 
@@ -181,7 +181,7 @@ To support physical addition/removal, one would need some BIOS hooks and
 the platform should have something like an attention button in PCI hotplug.
 CONFIG_ACPI_HOTPLUG_CPU enables ACPI support for physical add/remove of CPUs.
 
-Q: How do i logically offline a CPU?
+Q: How do I logically offline a CPU?
 A: Do the following.
 
 	#echo 0 > /sys/devices/system/cpu/cpuX/online
@@ -191,15 +191,15 @@ Once the logical offline is successful, check
 	#cat /proc/interrupts
 
 You should now not see the CPU that you removed. Also online file will report
-the state as 0 when a cpu if offline and 1 when its online.
+the state as 0 when a CPU is offline and 1 when it's online.
 
 	#To display the current cpu state.
 	#cat /sys/devices/system/cpu/cpuX/online
 
-Q: Why can't i remove CPU0 on some systems?
+Q: Why can't I remove CPU0 on some systems?
 A: Some architectures may have some special dependency on a certain CPU.
 
-For e.g in IA64 platforms we have ability to sent platform interrupts to the
+For e.g in IA64 platforms we have ability to send platform interrupts to the
 OS. a.k.a Corrected Platform Error Interrupts (CPEI). In current ACPI
 specifications, we didn't have a way to change the target CPU. Hence if the
 current ACPI version doesn't support such re-direction, we disable that CPU
@@ -231,7 +231,7 @@ either by CONFIG_BOOTPARAM_HOTPLUG_CPU0 or by kernel parameter cpu0_hotplug.
 
 --Fenghua Yu <fenghua.yu@intel.com>
 
-Q: How do i find out if a particular CPU is not removable?
+Q: How do I find out if a particular CPU is not removable?
 A: Depending on the implementation, some architectures may show this by the
 absence of the "online" file. This is done if it can be determined ahead of
 time that this CPU cannot be removed.
@@ -250,7 +250,7 @@ A: The following happen, listed in no particular order :-)
 - All processes are migrated away from this outgoing CPU to new CPUs.
   The new CPU is chosen from each process' current cpuset, which may be
   a subset of all online CPUs.
-- All interrupts targeted to this CPU is migrated to a new CPU
+- All interrupts targeted to this CPU are migrated to a new CPU
 - timers/bottom half/task lets are also migrated to a new CPU
 - Once all services are migrated, kernel calls an arch specific routine
   __cpu_disable() to perform arch specific cleanup.
@@ -259,10 +259,10 @@ A: The following happen, listed in no particular order :-)
   CPU is being offlined).
 
   "It is expected that each service cleans up when the CPU_DOWN_PREPARE
-  notifier is called, when CPU_DEAD is called its expected there is nothing
+  notifier is called, when CPU_DEAD is called it's expected there is nothing
   running on behalf of this CPU that was offlined"
 
-Q: If i have some kernel code that needs to be aware of CPU arrival and
+Q: If I have some kernel code that needs to be aware of CPU arrival and
    departure, how to i arrange for proper notification?
 A: This is what you would need in your kernel code to receive notifications.
 
@@ -311,7 +311,7 @@ things will happen if a notifier in path sent a BAD notify code.
 
 Q: I don't see my action being called for all CPUs already up and running?
 A: Yes, CPU notifiers are called only when new CPUs are on-lined or offlined.
-   If you need to perform some action for each cpu already in the system, then
+   If you need to perform some action for each CPU already in the system, then
    do this:
 
 	for_each_online_cpu(i) {
@@ -363,8 +363,8 @@ A: Yes, CPU notifiers are called only when new CPUs are on-lined or offlined.
     callbacks as well as initialize the already online CPUs.
 
 
-Q: If i would like to develop cpu hotplug support for a new architecture,
-   what do i need at a minimum?
+Q: If I would like to develop CPU hotplug support for a new architecture,
+   what do I need at a minimum?
 A: The following are what is required for CPU hotplug infrastructure to work
    correctly.
 
@@ -382,8 +382,8 @@ A: The following are what is required for CPU hotplug infrastructure to work
                           per_cpu state to be set, to ensure the processor
                           dead routine is called to be sure positively.
 
-Q: I need to ensure that a particular cpu is not removed when there is some
-   work specific to this cpu is in progress.
+Q: I need to ensure that a particular CPU is not removed when there is some
+   work specific to this CPU in progress.
 A: There are two ways.  If your code can be run in interrupt context, use
    smp_call_function_single(), otherwise use work_on_cpu().  Note that
    work_on_cpu() is slow, and can fail due to out of memory:

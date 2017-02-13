@@ -394,7 +394,7 @@ static int cz_ih_set_powergating_state(void *handle,
 	return 0;
 }
 
-const struct amd_ip_funcs cz_ih_ip_funcs = {
+static const struct amd_ip_funcs cz_ih_ip_funcs = {
 	.name = "cz_ih",
 	.early_init = cz_ih_early_init,
 	.late_init = NULL,
@@ -423,3 +423,11 @@ static void cz_ih_set_interrupt_funcs(struct amdgpu_device *adev)
 		adev->irq.ih_funcs = &cz_ih_funcs;
 }
 
+const struct amdgpu_ip_block_version cz_ih_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_IH,
+	.major = 3,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &cz_ih_ip_funcs,
+};

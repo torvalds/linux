@@ -12,7 +12,7 @@
 #include <linux/mm.h>
 #include <asm/ptrace.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/smp.h>
 #include <linux/perf_event.h>
 

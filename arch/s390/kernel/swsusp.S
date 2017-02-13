@@ -194,7 +194,7 @@ pgm_check_entry:
 
 	/* Suspend CPU not available -> panic */
 	larl	%r15,init_thread_union
-	ahi	%r15,1<<(PAGE_SHIFT+THREAD_ORDER)
+	ahi	%r15,1<<(PAGE_SHIFT+THREAD_SIZE_ORDER)
 	larl	%r2,.Lpanic_string
 	larl	%r3,_sclp_print_early
 	lghi	%r1,0

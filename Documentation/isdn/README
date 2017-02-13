@@ -332,7 +332,7 @@ README for the ISDN-subsystem
 4. Device-inodes
 
    The major and minor numbers and their names are described in
-   Documentation/devices.txt. The major numbers are:
+   Documentation/admin-guide/devices.rst. The major numbers are:
 
      43 for the ISDN-tty's.
      44 for the ISDN-callout-tty's.

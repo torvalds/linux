@@ -52,7 +52,7 @@ typedef struct xlog_recover {
 	struct list_head	r_itemq;	/* q for items */
 } xlog_recover_t;
 
-#define ITEM_TYPE(i)	(*(ushort *)(i)->ri_buf[0].i_addr)
+#define ITEM_TYPE(i)	(*(unsigned short *)(i)->ri_buf[0].i_addr)
 
 /*
  * This is the number of entries in the l_buf_cancel_table used during

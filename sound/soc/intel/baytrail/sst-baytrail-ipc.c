@@ -23,7 +23,6 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
-#include <linux/kthread.h>
 #include <linux/firmware.h>
 #include <linux/io.h>
 #include <asm/div64.h>
@@ -338,7 +337,7 @@ static irqreturn_t sst_byt_irq_thread(int irq, void *context)
 	spin_unlock_irqrestore(&sst->spinlock, flags);
 
 	/* continue to send any remaining messages... */
-	kthread_queue_work(&ipc->kworker, &ipc->kwork);
+	schedule_work(&ipc->kwork);
 
 	return IRQ_HANDLED;
 }

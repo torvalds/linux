@@ -191,8 +191,8 @@ int qede_roce_register_driver(struct qedr_driver *drv)
 	}
 	mutex_unlock(&qedr_dev_list_lock);
 
-	DP_INFO(edev, "qedr: discovered and registered %d RoCE funcs\n",
-		qedr_counter);
+	pr_notice("qedr: discovered and registered %d RoCE funcs\n",
+		  qedr_counter);
 
 	return 0;
 }

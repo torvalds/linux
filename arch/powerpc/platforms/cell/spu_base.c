@@ -676,7 +676,7 @@ static ssize_t spu_stat_show(struct device *dev,
 
 static DEVICE_ATTR(stat, 0444, spu_stat_show, NULL);
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 
 struct crash_spu_info {
 	struct spu *spu;

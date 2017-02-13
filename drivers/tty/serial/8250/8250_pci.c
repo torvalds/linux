@@ -52,6 +52,7 @@ struct serial_private {
 	struct pci_dev		*dev;
 	unsigned int		nr;
 	struct pci_serial_quirk	*quirk;
+	const struct pciserial_board *board;
 	int			line[0];
 };
 
@@ -1329,6 +1330,30 @@ static int pci_default_setup(struct serial_private *priv,
 	return setup_port(priv, port, bar, offset, board->reg_shift);
 }
 
+static int pci_pericom_setup(struct serial_private *priv,
+		  const struct pciserial_board *board,
+		  struct uart_8250_port *port, int idx)
+{
+	unsigned int bar, offset = board->first_offset, maxnr;
+
+	bar = FL_GET_BASE(board->flags);
+	if (board->flags & FL_BASE_BARS)
+		bar += idx;
+	else
+		offset += idx * board->uart_offset;
+
+	if (idx==3)
+		offset = 0x38;
+
+	maxnr = (pci_resource_len(priv->dev, bar) - board->first_offset) >>
+		(board->reg_shift + 3);
+
+	if (board->flags & FL_REGION_SZ_CAP && idx >= maxnr)
+		return 1;
+
+	return setup_port(priv, port, bar, offset, board->reg_shift);
+}
+
 static int
 ce4100_serial_setup(struct serial_private *priv,
 		  const struct pciserial_board *board,
@@ -2094,6 +2119,16 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.init		= pci_plx9050_init,
 		.setup		= pci_default_setup,
 		.exit		= pci_plx9050_exit,
+	},
+	/*
+	 * Pericom (Only 7954 - It have a offset jump for port 4)
+	 */
+	{
+		.vendor		= PCI_VENDOR_ID_PERICOM,
+		.device		= PCI_DEVICE_ID_PERICOM_PI7C9X7954,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.setup		= pci_pericom_setup,
 	},
 	/*
 	 * PLX
@@ -3862,6 +3897,7 @@ pciserial_init_ports(struct pci_dev *dev, const struct pciserial_board *board)
 		}
 	}
 	priv->nr = i;
+	priv->board = board;
 	return priv;
 
 err_deinit:
@@ -3872,7 +3908,7 @@ err_out:
 }
 EXPORT_SYMBOL_GPL(pciserial_init_ports);
 
-void pciserial_remove_ports(struct serial_private *priv)
+void pciserial_detach_ports(struct serial_private *priv)
 {
 	struct pci_serial_quirk *quirk;
 	int i;
@@ -3886,7 +3922,11 @@ void pciserial_remove_ports(struct serial_private *priv)
 	quirk = find_quirk(priv->dev);
 	if (quirk->exit)
 		quirk->exit(priv->dev);
+}
 
+void pciserial_remove_ports(struct serial_private *priv)
+{
+	pciserial_detach_ports(priv);
 	kfree(priv);
 }
 EXPORT_SYMBOL_GPL(pciserial_remove_ports);
@@ -5577,7 +5617,7 @@ static pci_ers_result_t serial8250_io_error_detected(struct pci_dev *dev,
 		return PCI_ERS_RESULT_DISCONNECT;
 
 	if (priv)
-		pciserial_suspend_ports(priv);
+		pciserial_detach_ports(priv);
 
 	pci_disable_device(dev);
 
@@ -5602,9 +5642,18 @@ static pci_ers_result_t serial8250_io_slot_reset(struct pci_dev *dev)
 static void serial8250_io_resume(struct pci_dev *dev)
 {
 	struct serial_private *priv = pci_get_drvdata(dev);
+	const struct pciserial_board *board;
 
-	if (priv)
-		pciserial_resume_ports(priv);
+	if (!priv)
+		return;
+
+	board = priv->board;
+	kfree(priv);
+	priv = pciserial_init_ports(dev, board);
+
+	if (!IS_ERR(priv)) {
+		pci_set_drvdata(dev, priv);
+	}
 }
 
 static const struct pci_error_handlers serial8250_err_handler = {

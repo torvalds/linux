@@ -88,7 +88,7 @@ def parse_options():
     if args.commit and args.diff:
         sys.exit("Please specify only one option at once.")
 
-    if args.diff and not re.match(r"^[\w\-\.]+\.\.[\w\-\.]+$", args.diff):
+    if args.diff and not re.match(r"^[\w\-\.\^]+\.\.[\w\-\.\^]+$", args.diff):
         sys.exit("Please specify valid input in the following format: "
                  "\'commit1..commit2\'")
 

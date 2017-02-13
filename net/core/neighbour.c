@@ -100,6 +100,7 @@ static void neigh_cleanup_and_release(struct neighbour *neigh)
 		neigh->parms->neigh_cleanup(neigh);
 
 	__neigh_notify(neigh, RTM_DELNEIGH, 0);
+	call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, neigh);
 	neigh_release(neigh);
 }
 
@@ -2291,13 +2292,10 @@ static int neigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 		for (n = rcu_dereference_bh(nht->hash_buckets[h]), idx = 0;
 		     n != NULL;
 		     n = rcu_dereference_bh(n->next)) {
-			if (!net_eq(dev_net(n->dev), net))
-				continue;
-			if (neigh_ifindex_filtered(n->dev, filter_idx))
-				continue;
-			if (neigh_master_filtered(n->dev, filter_master_idx))
-				continue;
-			if (idx < s_idx)
+			if (idx < s_idx || !net_eq(dev_net(n->dev), net))
+				goto next;
+			if (neigh_ifindex_filtered(n->dev, filter_idx) ||
+			    neigh_master_filtered(n->dev, filter_master_idx))
 				goto next;
 			if (neigh_fill_info(skb, n, NETLINK_CB(cb->skb).portid,
 					    cb->nlh->nlmsg_seq,
@@ -2332,9 +2330,7 @@ static int pneigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 		if (h > s_h)
 			s_idx = 0;
 		for (n = tbl->phash_buckets[h], idx = 0; n; n = n->next) {
-			if (pneigh_net(n) != net)
-				continue;
-			if (idx < s_idx)
+			if (idx < s_idx || pneigh_net(n) != net)
 				goto next;
 			if (pneigh_fill_info(skb, n, NETLINK_CB(cb->skb).portid,
 					    cb->nlh->nlmsg_seq,

@@ -34,6 +34,7 @@
 #define _HNS_ROCE_CMD_H
 
 #define HNS_ROCE_MAILBOX_SIZE		4096
+#define HNS_ROCE_CMD_TIMEOUT_MSECS	10000
 
 enum {
 	/* TPT commands */
@@ -55,17 +56,6 @@ enum {
 	HNS_ROCE_CMD_SQD2RTS_QP		= 0x20,
 	HNS_ROCE_CMD_2RST_QP		= 0x21,
 	HNS_ROCE_CMD_QUERY_QP		= 0x22,
-};
-
-enum {
-	HNS_ROCE_CMD_TIME_CLASS_A	= 10000,
-	HNS_ROCE_CMD_TIME_CLASS_B	= 10000,
-	HNS_ROCE_CMD_TIME_CLASS_C	= 10000,
-};
-
-struct hns_roce_cmd_mailbox {
-	void		       *buf;
-	dma_addr_t		dma;
 };
 
 int hns_roce_cmd_mbox(struct hns_roce_dev *hr_dev, u64 in_param, u64 out_param,

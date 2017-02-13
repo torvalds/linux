@@ -42,16 +42,20 @@ struct led_classdev {
 #define LED_UNREGISTERING	(1 << 1)
 	/* Upper 16 bits reflect control information */
 #define LED_CORE_SUSPENDRESUME	(1 << 16)
-#define LED_BLINK_SW		(1 << 17)
-#define LED_BLINK_ONESHOT	(1 << 18)
-#define LED_BLINK_ONESHOT_STOP	(1 << 19)
-#define LED_BLINK_INVERT	(1 << 20)
-#define LED_BLINK_BRIGHTNESS_CHANGE (1 << 21)
-#define LED_BLINK_DISABLE	(1 << 22)
-#define LED_SYSFS_DISABLE	(1 << 23)
-#define LED_DEV_CAP_FLASH	(1 << 24)
-#define LED_HW_PLUGGABLE	(1 << 25)
-#define LED_PANIC_INDICATOR	(1 << 26)
+#define LED_SYSFS_DISABLE	(1 << 17)
+#define LED_DEV_CAP_FLASH	(1 << 18)
+#define LED_HW_PLUGGABLE	(1 << 19)
+#define LED_PANIC_INDICATOR	(1 << 20)
+
+	/* set_brightness_work / blink_timer flags, atomic, private. */
+	unsigned long		work_flags;
+
+#define LED_BLINK_SW			0
+#define LED_BLINK_ONESHOT		1
+#define LED_BLINK_ONESHOT_STOP		2
+#define LED_BLINK_INVERT		3
+#define LED_BLINK_BRIGHTNESS_CHANGE 	4
+#define LED_BLINK_DISABLE		5
 
 	/* Set LED brightness level
 	 * Must not sleep. Use brightness_set_blocking for drivers
@@ -89,6 +93,7 @@ struct led_classdev {
 	unsigned long		 blink_delay_on, blink_delay_off;
 	struct timer_list	 blink_timer;
 	int			 blink_brightness;
+	int			 new_blink_brightness;
 	void			(*flash_resume)(struct led_classdev *led_cdev);
 
 	struct work_struct	set_brightness_work;

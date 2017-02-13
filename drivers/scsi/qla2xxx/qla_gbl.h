@@ -91,11 +91,16 @@ extern int
 qla2x00_alloc_outstanding_cmds(struct qla_hw_data *, struct req_que *);
 extern int qla2x00_init_rings(scsi_qla_host_t *);
 extern uint8_t qla27xx_find_valid_image(struct scsi_qla_host *);
+extern struct qla_qpair *qla2xxx_create_qpair(struct scsi_qla_host *,
+	int, int);
+extern int qla2xxx_delete_qpair(struct scsi_qla_host *, struct qla_qpair *);
 
 /*
  * Global Data in qla_os.c source file.
  */
 extern char qla2x00_version_str[];
+
+extern struct kmem_cache *srb_cachep;
 
 extern int ql2xlogintimeout;
 extern int qlport_down_retry;
@@ -105,8 +110,7 @@ extern int ql2xfdmienable;
 extern int ql2xallocfwdump;
 extern int ql2xextended_error_logging;
 extern int ql2xiidmaenable;
-extern int ql2xmaxqueues;
-extern int ql2xmultique_tag;
+extern int ql2xmqsupport;
 extern int ql2xfwloadbin;
 extern int ql2xetsenable;
 extern int ql2xshiftctondsd;
@@ -172,6 +176,9 @@ extern int qla2x00_post_uevent_work(struct scsi_qla_host *, u32);
 
 extern int qla2x00_post_uevent_work(struct scsi_qla_host *, u32);
 extern void qla2x00_disable_board_on_pci_error(struct work_struct *);
+extern void qla2x00_sp_compl(void *, void *, int);
+extern void qla2xxx_qpair_sp_free_dma(void *, void *);
+extern void qla2xxx_qpair_sp_compl(void *, void *, int);
 
 /*
  * Global Functions in qla_mid.c source file.
@@ -220,6 +227,8 @@ extern uint16_t qla2x00_calc_iocbs_32(uint16_t);
 extern uint16_t qla2x00_calc_iocbs_64(uint16_t);
 extern void qla2x00_build_scsi_iocbs_32(srb_t *, cmd_entry_t *, uint16_t);
 extern void qla2x00_build_scsi_iocbs_64(srb_t *, cmd_entry_t *, uint16_t);
+extern void qla24xx_build_scsi_iocbs(srb_t *, struct cmd_type_7 *,
+	uint16_t, struct req_que *);
 extern int qla2x00_start_scsi(srb_t *sp);
 extern int qla24xx_start_scsi(srb_t *sp);
 int qla2x00_marker(struct scsi_qla_host *, struct req_que *, struct rsp_que *,
@@ -227,6 +236,7 @@ int qla2x00_marker(struct scsi_qla_host *, struct req_que *, struct rsp_que *,
 extern int qla2x00_start_sp(srb_t *);
 extern int qla24xx_dif_start_scsi(srb_t *);
 extern int qla2x00_start_bidir(srb_t *, struct scsi_qla_host *, uint32_t);
+extern int qla2xxx_dif_start_scsi_mq(srb_t *);
 extern unsigned long qla2x00_get_async_timeout(struct scsi_qla_host *);
 
 extern void *qla2x00_alloc_iocbs(scsi_qla_host_t *, srb_t *);
@@ -237,7 +247,10 @@ extern int qla24xx_walk_and_build_sglist(struct qla_hw_data *, srb_t *,
 	uint32_t *, uint16_t, struct qla_tgt_cmd *);
 extern int qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *, srb_t *,
 	uint32_t *, uint16_t, struct qla_tgt_cmd *);
-
+extern int qla24xx_get_one_block_sg(uint32_t, struct qla2_sgx *, uint32_t *);
+extern int qla24xx_configure_prot_mode(srb_t *, uint16_t *);
+extern int qla24xx_build_scsi_crc_2_iocbs(srb_t *,
+	struct cmd_type_crc_2 *, uint16_t, uint16_t, uint16_t);
 
 /*
  * Global Function Prototypes in qla_mbx.c source file.
@@ -468,6 +481,8 @@ qla2x00_get_sp_from_handle(scsi_qla_host_t *, const char *, struct req_que *,
 extern void
 qla2x00_process_completed_request(struct scsi_qla_host *, struct req_que *,
 	uint32_t);
+extern irqreturn_t
+qla2xxx_msix_rsp_q(int irq, void *dev_id);
 
 /*
  * Global Function Prototypes in qla_sup.c source file.
@@ -603,15 +618,18 @@ extern int qla2x00_dfs_setup(scsi_qla_host_t *);
 extern int qla2x00_dfs_remove(scsi_qla_host_t *);
 
 /* Globa function prototypes for multi-q */
-extern int qla25xx_request_irq(struct rsp_que *);
+extern int qla25xx_request_irq(struct qla_hw_data *, struct qla_qpair *,
+	struct qla_msix_entry *, int);
 extern int qla25xx_init_req_que(struct scsi_qla_host *, struct req_que *);
 extern int qla25xx_init_rsp_que(struct scsi_qla_host *, struct rsp_que *);
 extern int qla25xx_create_req_que(struct qla_hw_data *, uint16_t, uint8_t,
 	uint16_t, int, uint8_t);
 extern int qla25xx_create_rsp_que(struct qla_hw_data *, uint16_t, uint8_t,
-	uint16_t, int);
+	uint16_t, struct qla_qpair *);
+
 extern void qla2x00_init_response_q_entries(struct rsp_que *);
 extern int qla25xx_delete_req_que(struct scsi_qla_host *, struct req_que *);
+extern int qla25xx_delete_rsp_que(struct scsi_qla_host *, struct rsp_que *);
 extern int qla25xx_delete_queues(struct scsi_qla_host *);
 extern uint16_t qla24xx_rd_req_reg(struct qla_hw_data *, uint16_t);
 extern uint16_t qla25xx_rd_req_reg(struct qla_hw_data *, uint16_t);
@@ -733,8 +751,8 @@ extern int qla82xx_read_temperature(scsi_qla_host_t *);
 extern int qla8044_read_temperature(scsi_qla_host_t *);
 
 /* BSG related functions */
-extern int qla24xx_bsg_request(struct fc_bsg_job *);
-extern int qla24xx_bsg_timeout(struct fc_bsg_job *);
+extern int qla24xx_bsg_request(struct bsg_job *);
+extern int qla24xx_bsg_timeout(struct bsg_job *);
 extern int qla84xx_reset_chip(scsi_qla_host_t *, uint16_t);
 extern int qla2x00_issue_iocb_timeout(scsi_qla_host_t *, void *,
 	dma_addr_t, size_t, uint32_t);

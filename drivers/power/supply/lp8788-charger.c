@@ -384,9 +384,6 @@ static int lp8788_update_charger_params(struct platform_device *pdev,
 	for (i = 0; i < pdata->num_chg_params; i++) {
 		param = pdata->chg_params + i;
 
-		if (!param)
-			continue;
-
 		if (lp8788_is_valid_charger_register(param->addr)) {
 			ret = lp8788_write_byte(lp, param->addr, param->val);
 			if (ret)

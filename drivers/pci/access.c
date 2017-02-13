@@ -142,10 +142,22 @@ int pci_generic_config_write32(struct pci_bus *bus, unsigned int devfn,
 	if (size == 4) {
 		writel(val, addr);
 		return PCIBIOS_SUCCESSFUL;
-	} else {
-		mask = ~(((1 << (size * 8)) - 1) << ((where & 0x3) * 8));
 	}
 
+	/*
+	 * In general, hardware that supports only 32-bit writes on PCI is
+	 * not spec-compliant.  For example, software may perform a 16-bit
+	 * write.  If the hardware only supports 32-bit accesses, we must
+	 * do a 32-bit read, merge in the 16 bits we intend to write,
+	 * followed by a 32-bit write.  If the 16 bits we *don't* intend to
+	 * write happen to have any RW1C (write-one-to-clear) bits set, we
+	 * just inadvertently cleared something we shouldn't have.
+	 */
+	dev_warn_ratelimited(&bus->dev, "%d-byte config write to %04x:%02x:%02x.%d offset %#x may corrupt adjacent RW1C bits\n",
+			     size, pci_domain_nr(bus), bus->number,
+			     PCI_SLOT(devfn), PCI_FUNC(devfn), where);
+
+	mask = ~(((1 << (size * 8)) - 1) << ((where & 0x3) * 8));
 	tmp = readl(addr) & mask;
 	tmp |= val << ((where & 0x3) * 8);
 	writel(tmp, addr);

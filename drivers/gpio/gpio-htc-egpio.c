@@ -17,7 +17,7 @@
 #include <linux/platform_data/gpio-htc-egpio.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/module.h>
+#include <linux/init.h>
 
 struct egpio_chip {
 	int              reg_start;
@@ -160,10 +160,14 @@ static int egpio_get(struct gpio_chip *chip, unsigned offset)
 	bit   = egpio_bit(ei, offset);
 	reg   = egpio->reg_start + egpio_pos(ei, offset);
 
-	value = egpio_readw(ei, reg);
-	pr_debug("readw(%p + %x) = %x\n",
-			ei->base_addr, reg << ei->bus_shift, value);
-	return !!(value & bit);
+	if (test_bit(offset, &egpio->is_out)) {
+		return !!(egpio->cached_values & (1 << offset));
+	} else {
+		value = egpio_readw(ei, reg);
+		pr_debug("readw(%p + %x) = %x\n",
+			 ei->base_addr, reg << ei->bus_shift, value);
+		return !!(value & bit);
+	}
 }
 
 static int egpio_direction_input(struct gpio_chip *chip, unsigned offset)
@@ -223,6 +227,15 @@ static int egpio_direction_output(struct gpio_chip *chip,
 	} else {
 		return -EINVAL;
 	}
+}
+
+static int egpio_get_direction(struct gpio_chip *chip, unsigned offset)
+{
+	struct egpio_chip *egpio;
+
+	egpio = gpiochip_get_data(chip);
+
+	return !test_bit(offset, &egpio->is_out);
 }
 
 static void egpio_write_cache(struct egpio_info *ei)
@@ -327,6 +340,7 @@ static int __init egpio_probe(struct platform_device *pdev)
 		chip->set             = egpio_set;
 		chip->direction_input = egpio_direction_input;
 		chip->direction_output = egpio_direction_output;
+		chip->get_direction   = egpio_get_direction;
 		chip->base            = pdata->chip[i].gpio_base;
 		chip->ngpio           = pdata->chip[i].num_gpios;
 
@@ -367,24 +381,6 @@ fail:
 	return ret;
 }
 
-static int __exit egpio_remove(struct platform_device *pdev)
-{
-	struct egpio_info *ei = platform_get_drvdata(pdev);
-	unsigned int      irq, irq_end;
-
-	if (ei->chained_irq) {
-		irq_end = ei->irq_start + ei->nirqs;
-		for (irq = ei->irq_start; irq < irq_end; irq++) {
-			irq_set_chip_and_handler(irq, NULL, NULL);
-			irq_set_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
-		}
-		irq_set_chained_handler(ei->chained_irq, NULL);
-		device_init_wakeup(&pdev->dev, 0);
-	}
-
-	return 0;
-}
-
 #ifdef CONFIG_PM
 static int egpio_suspend(struct platform_device *pdev, pm_message_t state)
 {
@@ -416,8 +412,8 @@ static int egpio_resume(struct platform_device *pdev)
 static struct platform_driver egpio_driver = {
 	.driver = {
 		.name = "htc-egpio",
+		.suppress_bind_attrs = true,
 	},
-	.remove       = __exit_p(egpio_remove),
 	.suspend      = egpio_suspend,
 	.resume       = egpio_resume,
 };
@@ -426,15 +422,5 @@ static int __init egpio_init(void)
 {
 	return platform_driver_probe(&egpio_driver, egpio_probe);
 }
-
-static void __exit egpio_exit(void)
-{
-	platform_driver_unregister(&egpio_driver);
-}
-
 /* start early for dependencies */
 subsys_initcall(egpio_init);
-module_exit(egpio_exit)
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Kevin O'Connor <kevin@koconnor.net>");

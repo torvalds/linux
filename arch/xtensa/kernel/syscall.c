@@ -15,7 +15,7 @@
  * Kevin Chea
  *
  */
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/syscall.h>
 #include <asm/unistd.h>
 #include <linux/linkage.h>

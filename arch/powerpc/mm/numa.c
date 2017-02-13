@@ -944,7 +944,7 @@ void __init initmem_init(void)
 	 * _nocalls() + manual invocation is used because cpuhp is not yet
 	 * initialized for the boot CPU.
 	 */
-	cpuhp_setup_state_nocalls(CPUHP_POWER_NUMA_PREPARE, "POWER_NUMA_PREPARE",
+	cpuhp_setup_state_nocalls(CPUHP_POWER_NUMA_PREPARE, "powerpc/numa:prepare",
 				  ppc_numa_cpu_prepare, ppc_numa_cpu_dead);
 	for_each_present_cpu(cpu)
 		numa_setup_cpu(cpu);
@@ -1085,7 +1085,7 @@ static int hot_add_node_scn_to_nid(unsigned long scn_addr)
 int hot_add_scn_to_nid(unsigned long scn_addr)
 {
 	struct device_node *memory = NULL;
-	int nid, found = 0;
+	int nid;
 
 	if (!numa_enabled || (min_common_depth < 0))
 		return first_online_node;
@@ -1101,17 +1101,6 @@ int hot_add_scn_to_nid(unsigned long scn_addr)
 	if (nid < 0 || !node_online(nid))
 		nid = first_online_node;
 
-	if (NODE_DATA(nid)->node_spanned_pages)
-		return nid;
-
-	for_each_online_node(nid) {
-		if (NODE_DATA(nid)->node_spanned_pages) {
-			found = 1;
-			break;
-		}
-	}
-
-	BUG_ON(!found);
 	return nid;
 }
 

@@ -12,7 +12,7 @@
 #define _XTENSA_CHECKSUM_H
 
 #include <linux/in6.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <variant/core.h>
 
 /*

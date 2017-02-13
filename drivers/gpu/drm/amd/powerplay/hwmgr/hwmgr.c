@@ -80,20 +80,17 @@ int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 		switch (hwmgr->chip_id) {
 		case CHIP_TOPAZ:
 			topaz_set_asic_special_caps(hwmgr);
-			hwmgr->feature_mask &= ~(PP_SMC_VOLTAGE_CONTROL_MASK |
-						PP_VBI_TIME_SUPPORT_MASK |
+			hwmgr->feature_mask &= ~ (PP_VBI_TIME_SUPPORT_MASK |
 						PP_ENABLE_GFX_CG_THRU_SMU);
 			hwmgr->pp_table_version = PP_TABLE_V0;
 			break;
 		case CHIP_TONGA:
 			tonga_set_asic_special_caps(hwmgr);
-			hwmgr->feature_mask &= ~(PP_SMC_VOLTAGE_CONTROL_MASK |
-						PP_VBI_TIME_SUPPORT_MASK);
+			hwmgr->feature_mask &= ~PP_VBI_TIME_SUPPORT_MASK;
 			break;
 		case CHIP_FIJI:
 			fiji_set_asic_special_caps(hwmgr);
-			hwmgr->feature_mask &= ~(PP_SMC_VOLTAGE_CONTROL_MASK |
-						PP_VBI_TIME_SUPPORT_MASK |
+			hwmgr->feature_mask &= ~ (PP_VBI_TIME_SUPPORT_MASK |
 						PP_ENABLE_GFX_CG_THRU_SMU);
 			break;
 		case CHIP_POLARIS11:
@@ -685,20 +682,24 @@ void hwmgr_init_default_caps(struct pp_hwmgr *hwmgr)
 
 int hwmgr_set_user_specify_caps(struct pp_hwmgr *hwmgr)
 {
-	if (amdgpu_sclk_deep_sleep_en)
+	if (amdgpu_pp_feature_mask & PP_SCLK_DEEP_SLEEP_MASK)
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SclkDeepSleep);
 	else
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SclkDeepSleep);
 
-	if (amdgpu_powercontainment)
+	if (amdgpu_pp_feature_mask & PP_POWER_CONTAINMENT_MASK) {
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			    PHM_PlatformCaps_PowerContainment);
-	else
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_CAC);
+	} else {
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 			    PHM_PlatformCaps_PowerContainment);
-
+		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_CAC);
+	}
 	hwmgr->feature_mask = amdgpu_pp_feature_mask;
 
 	return 0;
@@ -736,9 +737,6 @@ int polaris_set_asic_special_caps(struct pp_hwmgr *hwmgr)
 						PHM_PlatformCaps_TCPRamping);
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-							PHM_PlatformCaps_CAC);
-
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_RegulatorHot);
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
@@ -767,8 +765,6 @@ int fiji_set_asic_special_caps(struct pp_hwmgr *hwmgr)
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_TablelessHardwareInterface);
 
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_CAC);
 	return 0;
 }
 
@@ -791,9 +787,6 @@ int tonga_set_asic_special_caps(struct pp_hwmgr *hwmgr)
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			 PHM_PlatformCaps_TablelessHardwareInterface);
 
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_CAC);
-
 	return 0;
 }
 
@@ -809,8 +802,6 @@ int topaz_set_asic_special_caps(struct pp_hwmgr *hwmgr)
 			PHM_PlatformCaps_TCPRamping);
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			 PHM_PlatformCaps_TablelessHardwareInterface);
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_CAC);
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 		    PHM_PlatformCaps_EVV);
 	return 0;

@@ -25,7 +25,7 @@
 
 #define GACT_TAB_MASK	15
 
-static int gact_net_id;
+static unsigned int gact_net_id;
 static struct tc_action_ops act_gact_ops;
 
 #ifdef CONFIG_GACT_PROB

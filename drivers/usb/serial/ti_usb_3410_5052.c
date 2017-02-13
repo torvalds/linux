@@ -579,6 +579,13 @@ static int ti_startup(struct usb_serial *serial)
 		goto free_tdev;
 	}
 
+	if (serial->num_bulk_in < serial->num_ports ||
+			serial->num_bulk_out < serial->num_ports) {
+		dev_err(&serial->interface->dev, "missing endpoints\n");
+		status = -ENODEV;
+		goto free_tdev;
+	}
+
 	return 0;
 
 free_tdev:
@@ -1425,9 +1432,6 @@ static int ti_get_serial_info(struct ti_port *tport,
 	struct usb_serial_port *port = tport->tp_port;
 	struct serial_struct ret_serial;
 	unsigned cwait;
-
-	if (!ret_arg)
-		return -EFAULT;
 
 	cwait = port->port.closing_wait;
 	if (cwait != ASYNC_CLOSING_WAIT_NONE)

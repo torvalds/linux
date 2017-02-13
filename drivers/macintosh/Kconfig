@@ -102,7 +102,6 @@ config ADB_PMU_LED_DISK
 	bool "Use front LED as DISK LED by default"
 	depends on ADB_PMU_LED
 	depends on LEDS_CLASS
-	depends on IDE_GD_ATA
 	select LEDS_TRIGGERS
 	select LEDS_TRIGGER_DISK
 	help

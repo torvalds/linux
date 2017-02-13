@@ -67,6 +67,13 @@ config SPI_ATH79
 	  This enables support for the SPI controller present on the
 	  Atheros AR71XX/AR724X/AR913X SoCs.
 
+config SPI_ARMADA_3700
+	tristate "Marvell Armada 3700 SPI Controller"
+	depends on (ARCH_MVEBU && OF) || COMPILE_TEST
+	help
+	  This enables support for the SPI controller present on the
+	  Marvell Armada 3700 SoCs.
+
 config SPI_ATMEL
 	tristate "Atmel SPI Controller"
 	depends on HAS_DMA
@@ -264,6 +271,12 @@ config SPI_FALCON
 	  has only been tested with m25p80 type chips. The hardware has no
 	  support for other types of SPI peripherals.
 
+config SPI_FSL_LPSPI
+	tristate "Freescale i.MX LPSPI controller"
+	depends on ARCH_MXC || COMPILE_TEST
+	help
+	  This enables Freescale i.MX LPSPI controllers in master mode.
+
 config SPI_GPIO
 	tristate "GPIO-based bitbanging SPI Master"
 	depends on GPIOLIB || COMPILE_TEST
@@ -373,7 +386,6 @@ config SPI_FSL_DSPI
 config SPI_FSL_ESPI
 	tristate "Freescale eSPI controller"
 	depends on FSL_SOC
-	select SPI_FSL_LIB
 	help
 	  This enables using the Freescale eSPI controllers in master mode.
 	  From MPC8536, 85xx platform uses the controller, and all P10xx,
@@ -451,7 +463,8 @@ config SPI_ORION
 	tristate "Orion SPI master"
 	depends on PLAT_ORION || ARCH_MVEBU || COMPILE_TEST
 	help
-	  This enables using the SPI master controller on the Orion chips.
+	  This enables using the SPI master controller on the Orion
+	  and MVEBU chips.
 
 config SPI_PIC32
 	tristate "Microchip PIC32 series SPI"
@@ -553,7 +566,7 @@ config SPI_S3C24XX_FIQ
 
 config SPI_S3C64XX
 	tristate "Samsung S3C64XX series type SPI"
-	depends on (PLAT_SAMSUNG || ARCH_EXYNOS)
+	depends on (PLAT_SAMSUNG || ARCH_EXYNOS || COMPILE_TEST)
 	help
 	  SPI driver for Samsung S3C64XX and newer SoCs.
 

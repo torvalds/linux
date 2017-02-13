@@ -4,7 +4,7 @@ be listed here unless the driver has its own driver-specific information
 file.
 
 
-See Documentation/kernel-parameters.txt for information on
+See Documentation/admin-guide/kernel-parameters.rst for information on
 providing kernel parameters for builtin drivers versus loadable
 modules.
 

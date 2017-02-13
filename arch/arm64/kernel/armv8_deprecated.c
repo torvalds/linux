@@ -14,14 +14,12 @@
 #include <linux/slab.h>
 #include <linux/sysctl.h>
 
-#include <asm/alternative.h>
 #include <asm/cpufeature.h>
 #include <asm/insn.h>
-#include <asm/opcodes.h>
 #include <asm/sysreg.h>
 #include <asm/system_misc.h>
 #include <asm/traps.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cpufeature.h>
 
 #define CREATE_TRACE_POINTS
@@ -285,10 +283,10 @@ static void __init register_insn_emulation_sysctl(struct ctl_table *table)
 #define __SWP_LL_SC_LOOPS	4
 
 #define __user_swpX_asm(data, addr, res, temp, temp2, B)	\
+do {								\
+	uaccess_enable();					\
 	__asm__ __volatile__(					\
 	"	mov		%w3, %w7\n"			\
-	ALTERNATIVE("nop", SET_PSTATE_PAN(0), ARM64_HAS_PAN,	\
-		    CONFIG_ARM64_PAN)				\
 	"0:	ldxr"B"		%w2, [%4]\n"			\
 	"1:	stxr"B"		%w0, %w1, [%4]\n"		\
 	"	cbz		%w0, 2f\n"			\
@@ -306,12 +304,12 @@ static void __init register_insn_emulation_sysctl(struct ctl_table *table)
 	"	.popsection"					\
 	_ASM_EXTABLE(0b, 4b)					\
 	_ASM_EXTABLE(1b, 4b)					\
-	ALTERNATIVE("nop", SET_PSTATE_PAN(1), ARM64_HAS_PAN,	\
-		CONFIG_ARM64_PAN)				\
 	: "=&r" (res), "+r" (data), "=&r" (temp), "=&r" (temp2)	\
 	: "r" (addr), "i" (-EAGAIN), "i" (-EFAULT),		\
 	  "i" (__SWP_LL_SC_LOOPS)				\
-	: "memory")
+	: "memory");						\
+	uaccess_disable();					\
+} while (0)
 
 #define __user_swp_asm(data, addr, res, temp, temp2) \
 	__user_swpX_asm(data, addr, res, temp, temp2, "")
@@ -351,6 +349,10 @@ static int emulate_swpX(unsigned int address, unsigned int *data,
 
 	return res;
 }
+
+#define ARM_OPCODE_CONDTEST_FAIL   0
+#define ARM_OPCODE_CONDTEST_PASS   1
+#define ARM_OPCODE_CONDTEST_UNCOND 2
 
 #define	ARM_OPCODE_CONDITION_UNCOND	0xf
 
@@ -638,7 +640,7 @@ static int __init armv8_deprecated_init(void)
 	}
 
 	cpuhp_setup_state_nocalls(CPUHP_AP_ARM64_ISNDEP_STARTING,
-				  "AP_ARM64_ISNDEP_STARTING",
+				  "arm64/isndep:starting",
 				  run_all_insn_set_hw_mode, NULL);
 	register_insn_emulation_sysctl(ctl_abi);
 

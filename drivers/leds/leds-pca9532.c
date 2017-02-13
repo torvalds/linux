@@ -369,7 +369,7 @@ static int pca9532_configure(struct i2c_client *client,
 			led->state = pled->state;
 			led->name = pled->name;
 			led->ldev.name = led->name;
-			led->ldev.default_trigger = led->default_trigger;
+			led->ldev.default_trigger = pled->default_trigger;
 			led->ldev.brightness = LED_OFF;
 			led->ldev.brightness_set_blocking =
 						pca9532_set_brightness;

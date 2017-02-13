@@ -30,6 +30,9 @@ enum {
 #define	POWER8_MMCRA_IFM2		0x0000000080000000UL
 #define	POWER8_MMCRA_IFM3		0x00000000C0000000UL
 
+/* PowerISA v2.07 format attribute structure*/
+extern struct attribute_group isa207_pmu_format_group;
+
 /* Table of alternatives, sorted by column 0 */
 static const unsigned int event_alternatives[][MAX_ALT] = {
 	{ PM_MRK_ST_CMPL,		PM_MRK_ST_CMPL_ALT },
@@ -175,42 +178,8 @@ static struct attribute_group power8_pmu_events_group = {
 	.attrs = power8_events_attr,
 };
 
-PMU_FORMAT_ATTR(event,		"config:0-49");
-PMU_FORMAT_ATTR(pmcxsel,	"config:0-7");
-PMU_FORMAT_ATTR(mark,		"config:8");
-PMU_FORMAT_ATTR(combine,	"config:11");
-PMU_FORMAT_ATTR(unit,		"config:12-15");
-PMU_FORMAT_ATTR(pmc,		"config:16-19");
-PMU_FORMAT_ATTR(cache_sel,	"config:20-23");
-PMU_FORMAT_ATTR(sample_mode,	"config:24-28");
-PMU_FORMAT_ATTR(thresh_sel,	"config:29-31");
-PMU_FORMAT_ATTR(thresh_stop,	"config:32-35");
-PMU_FORMAT_ATTR(thresh_start,	"config:36-39");
-PMU_FORMAT_ATTR(thresh_cmp,	"config:40-49");
-
-static struct attribute *power8_pmu_format_attr[] = {
-	&format_attr_event.attr,
-	&format_attr_pmcxsel.attr,
-	&format_attr_mark.attr,
-	&format_attr_combine.attr,
-	&format_attr_unit.attr,
-	&format_attr_pmc.attr,
-	&format_attr_cache_sel.attr,
-	&format_attr_sample_mode.attr,
-	&format_attr_thresh_sel.attr,
-	&format_attr_thresh_stop.attr,
-	&format_attr_thresh_start.attr,
-	&format_attr_thresh_cmp.attr,
-	NULL,
-};
-
-static struct attribute_group power8_pmu_format_group = {
-	.name = "format",
-	.attrs = power8_pmu_format_attr,
-};
-
 static const struct attribute_group *power8_pmu_attr_groups[] = {
-	&power8_pmu_format_group,
+	&isa207_pmu_format_group,
 	&power8_pmu_events_group,
 	NULL,
 };

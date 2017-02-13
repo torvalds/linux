@@ -290,6 +290,7 @@ enum rk818_reg {
 #define SWITCH2_EN	BIT(6)
 #define SWITCH1_EN	BIT(5)
 #define DEV_OFF_RST	BIT(3)
+#define DEV_OFF		BIT(0)
 
 #define VB_LO_ACT		BIT(4)
 #define VB_LO_SEL_3500MV	(7 << 0)

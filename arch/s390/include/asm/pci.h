@@ -133,6 +133,7 @@ struct zpci_dev {
 	/* Function measurement block */
 	struct zpci_fmb *fmb;
 	u16		fmb_update;	/* update interval */
+	u16		fmb_length;
 	/* software counters */
 	atomic64_t allocated_pages;
 	atomic64_t mapped_pages;

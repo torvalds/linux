@@ -57,7 +57,6 @@
 
 #include <linux/kallsyms.h>
 
-char lnet_upcall[1024] = "/usr/lib/lustre/lnet_upcall";
 char lnet_debug_log_upcall[1024] = "/usr/lib/lustre/lnet_debug_log_upcall";
 
 /**
@@ -68,11 +67,12 @@ char lnet_debug_log_upcall[1024] = "/usr/lib/lustre/lnet_debug_log_upcall";
 void libcfs_run_debug_log_upcall(char *file)
 {
 	char *argv[3];
-	int   rc;
-	char *envp[] = {
+	int rc;
+	static const char * const envp[] = {
 		"HOME=/",
 		"PATH=/sbin:/bin:/usr/sbin:/usr/bin",
-		NULL};
+		NULL
+	};
 
 	argv[0] = lnet_debug_log_upcall;
 
@@ -81,7 +81,7 @@ void libcfs_run_debug_log_upcall(char *file)
 
 	argv[2] = NULL;
 
-	rc = call_usermodehelper(argv[0], argv, envp, 1);
+	rc = call_usermodehelper(argv[0], argv, (char **)envp, 1);
 	if (rc < 0 && rc != -ENOENT) {
 		CERROR("Error %d invoking LNET debug log upcall %s %s; check /sys/kernel/debug/lnet/debug_log_upcall\n",
 		       rc, argv[0], argv[1]);
@@ -90,57 +90,6 @@ void libcfs_run_debug_log_upcall(char *file)
 		       argv[0], argv[1]);
 	}
 }
-
-void libcfs_run_upcall(char **argv)
-{
-	int   rc;
-	int   argc;
-	char *envp[] = {
-		"HOME=/",
-		"PATH=/sbin:/bin:/usr/sbin:/usr/bin",
-		NULL};
-
-	argv[0] = lnet_upcall;
-	argc = 1;
-	while (argv[argc])
-		argc++;
-
-	LASSERT(argc >= 2);
-
-	rc = call_usermodehelper(argv[0], argv, envp, 1);
-	if (rc < 0 && rc != -ENOENT) {
-		CERROR("Error %d invoking LNET upcall %s %s%s%s%s%s%s%s%s; check /sys/kernel/debug/lnet/upcall\n",
-		       rc, argv[0], argv[1],
-		       argc < 3 ? "" : ",", argc < 3 ? "" : argv[2],
-		       argc < 4 ? "" : ",", argc < 4 ? "" : argv[3],
-		       argc < 5 ? "" : ",", argc < 5 ? "" : argv[4],
-		       argc < 6 ? "" : ",...");
-	} else {
-		CDEBUG(D_HA, "Invoked LNET upcall %s %s%s%s%s%s%s%s%s\n",
-		       argv[0], argv[1],
-		       argc < 3 ? "" : ",", argc < 3 ? "" : argv[2],
-		       argc < 4 ? "" : ",", argc < 4 ? "" : argv[3],
-		       argc < 5 ? "" : ",", argc < 5 ? "" : argv[4],
-		       argc < 6 ? "" : ",...");
-	}
-}
-
-void libcfs_run_lbug_upcall(struct libcfs_debug_msg_data *msgdata)
-{
-	char *argv[6];
-	char buf[32];
-
-	snprintf(buf, sizeof(buf), "%d", msgdata->msg_line);
-
-	argv[1] = "LBUG";
-	argv[2] = (char *)msgdata->msg_file;
-	argv[3] = (char *)msgdata->msg_fn;
-	argv[4] = buf;
-	argv[5] = NULL;
-
-	libcfs_run_upcall(argv);
-}
-EXPORT_SYMBOL(libcfs_run_lbug_upcall);
 
 /* coverity[+kill] */
 void __noreturn lbug_with_loc(struct libcfs_debug_msg_data *msgdata)
@@ -156,7 +105,6 @@ void __noreturn lbug_with_loc(struct libcfs_debug_msg_data *msgdata)
 	dump_stack();
 	if (!libcfs_panic_on_lbug)
 		libcfs_debug_dumplog();
-	libcfs_run_lbug_upcall(msgdata);
 	if (libcfs_panic_on_lbug)
 		panic("LBUG");
 	set_task_state(current, TASK_UNINTERRUPTIBLE);

@@ -429,7 +429,7 @@ static void can_can_gw_rcv(struct sk_buff *skb, void *data)
 
 	/* clear the skb timestamp if not configured the other way */
 	if (!(gwj->flags & CGW_FLAGS_CAN_SRC_TSTAMP))
-		nskb->tstamp.tv64 = 0;
+		nskb->tstamp = 0;
 
 	/* send to netdevice */
 	if (can_send(nskb, gwj->flags & CGW_FLAGS_CAN_ECHO))

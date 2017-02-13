@@ -15,7 +15,7 @@
 #include <linux/syscalls.h>
 #include <linux/pagemap.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unistd.h>
 
 void generic_fillattr(struct inode *inode, struct kstat *stat)
@@ -329,12 +329,14 @@ retry:
 		struct inode *inode = d_backing_inode(path.dentry);
 
 		error = empty ? -ENOENT : -EINVAL;
-		if (inode->i_op->readlink) {
+		/*
+		 * AFS mountpoints allow readlink(2) but are not symlinks
+		 */
+		if (d_is_symlink(path.dentry) || inode->i_op->readlink) {
 			error = security_inode_readlink(path.dentry);
 			if (!error) {
 				touch_atime(&path);
-				error = inode->i_op->readlink(path.dentry,
-							      buf, bufsiz);
+				error = vfs_readlink(path.dentry, buf, bufsiz);
 			}
 		}
 		path_put(&path);

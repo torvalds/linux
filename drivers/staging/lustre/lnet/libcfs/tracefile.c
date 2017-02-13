@@ -59,13 +59,13 @@ struct page_collection {
 	 * ->tcd_daemon_pages and ->tcd_pages to the ->pc_pages. Otherwise,
 	 * only ->tcd_pages are spilled.
 	 */
-	int		pc_want_daemon_pages;
+	int			pc_want_daemon_pages;
 };
 
 struct tracefiled_ctl {
 	struct completion	tctl_start;
 	struct completion	tctl_stop;
-	wait_queue_head_t		tctl_waitq;
+	wait_queue_head_t	tctl_waitq;
 	pid_t			tctl_pid;
 	atomic_t		tctl_shutdown;
 };
@@ -77,24 +77,24 @@ struct cfs_trace_page {
 	/*
 	 * page itself
 	 */
-	struct page	  *page;
+	struct page		*page;
 	/*
 	 * linkage into one of the lists in trace_data_union or
 	 * page_collection
 	 */
-	struct list_head	   linkage;
+	struct list_head	linkage;
 	/*
 	 * number of bytes used within this page
 	 */
-	unsigned int	 used;
+	unsigned int		used;
 	/*
 	 * cpu that owns this page
 	 */
-	unsigned short       cpu;
+	unsigned short		cpu;
 	/*
 	 * type(context) of this page
 	 */
-	unsigned short       type;
+	unsigned short		type;
 };
 
 static void put_pages_on_tcd_daemon_list(struct page_collection *pc,
@@ -108,7 +108,7 @@ cfs_tage_from_list(struct list_head *list)
 
 static struct cfs_trace_page *cfs_tage_alloc(gfp_t gfp)
 {
-	struct page	    *page;
+	struct page *page;
 	struct cfs_trace_page *tage;
 
 	/* My caller is trying to free memory */
@@ -236,7 +236,7 @@ static void cfs_tcd_shrink(struct cfs_trace_cpu_data *tcd)
 	INIT_LIST_HEAD(&pc.pc_pages);
 
 	list_for_each_entry_safe(tage, tmp, &tcd->tcd_pages, linkage) {
-		if (pgcount-- == 0)
+		if (!pgcount--)
 			break;
 
 		list_move_tail(&tage->linkage, &pc.pc_pages);
@@ -278,7 +278,7 @@ int libcfs_debug_msg(struct libcfs_debug_msg_data *msgdata,
 		     const char *format, ...)
 {
 	va_list args;
-	int     rc;
+	int rc;
 
 	va_start(args, format);
 	rc = libcfs_debug_vmsg2(msgdata, format, args, NULL);
@@ -293,21 +293,21 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 		       const char *format2, ...)
 {
 	struct cfs_trace_cpu_data *tcd = NULL;
-	struct ptldebug_header     header = {0};
-	struct cfs_trace_page     *tage;
+	struct ptldebug_header header = { 0 };
+	struct cfs_trace_page *tage;
 	/* string_buf is used only if tcd != NULL, and is always set then */
-	char		      *string_buf = NULL;
-	char		      *debug_buf;
-	int			known_size;
-	int			needed = 85; /* average message length */
-	int			max_nob;
-	va_list		    ap;
-	int			depth;
-	int			i;
-	int			remain;
-	int			mask = msgdata->msg_mask;
-	const char		*file = kbasename(msgdata->msg_file);
-	struct cfs_debug_limit_state   *cdls = msgdata->msg_cdls;
+	char *string_buf = NULL;
+	char *debug_buf;
+	int known_size;
+	int needed = 85; /* average message length */
+	int max_nob;
+	va_list ap;
+	int depth;
+	int i;
+	int remain;
+	int mask = msgdata->msg_mask;
+	const char *file = kbasename(msgdata->msg_file);
+	struct cfs_debug_limit_state *cdls = msgdata->msg_cdls;
 
 	tcd = cfs_trace_get_tcd();
 
@@ -320,7 +320,7 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 	if (!tcd)		/* arch may not log in IRQ context */
 		goto console;
 
-	if (tcd->tcd_cur_pages == 0)
+	if (!tcd->tcd_cur_pages)
 		header.ph_flags |= PH_FLAG_FIRST_RECORD;
 
 	if (tcd->tcd_shutting_down) {
@@ -423,7 +423,7 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 	__LASSERT(tage->used <= PAGE_SIZE);
 
 console:
-	if ((mask & libcfs_printk) == 0) {
+	if (!(mask & libcfs_printk)) {
 		/* no console output requested */
 		if (tcd)
 			cfs_trace_put_tcd(tcd);
@@ -432,7 +432,7 @@ console:
 
 	if (cdls) {
 		if (libcfs_console_ratelimit &&
-		    cdls->cdls_next != 0 &&     /* not first time ever */
+		    cdls->cdls_next &&		/* not first time ever */
 		    !cfs_time_after(cfs_time_current(), cdls->cdls_next)) {
 			/* skipping a console message */
 			cdls->cdls_count++;
@@ -489,7 +489,7 @@ console:
 		put_cpu();
 	}
 
-	if (cdls && cdls->cdls_count != 0) {
+	if (cdls && cdls->cdls_count) {
 		string_buf = cfs_trace_get_console_buffer();
 
 		needed = snprintf(string_buf, CFS_TRACE_CONSOLE_BUFFER_SIZE,
@@ -535,9 +535,9 @@ panic_collect_pages(struct page_collection *pc)
 	 * CPUs have been stopped during a panic.  If this isn't true for some
 	 * arch, this will have to be implemented separately in each arch.
 	 */
-	int			i;
-	int			j;
 	struct cfs_trace_cpu_data *tcd;
+	int i;
+	int j;
 
 	INIT_LIST_HEAD(&pc->pc_pages);
 
@@ -698,11 +698,11 @@ void cfs_trace_debug_print(void)
 
 int cfs_tracefile_dump_all_pages(char *filename)
 {
-	struct page_collection	pc;
-	struct file		*filp;
-	struct cfs_trace_page	*tage;
-	struct cfs_trace_page	*tmp;
-	char			*buf;
+	struct page_collection pc;
+	struct file *filp;
+	struct cfs_trace_page *tage;
+	struct cfs_trace_page *tmp;
+	char *buf;
 	mm_segment_t __oldfs;
 	int rc;
 
@@ -778,7 +778,7 @@ void cfs_trace_flush_pages(void)
 int cfs_trace_copyin_string(char *knl_buffer, int knl_buffer_nob,
 			    const char __user *usr_buffer, int usr_buffer_nob)
 {
-	int    nob;
+	int nob;
 
 	if (usr_buffer_nob > knl_buffer_nob)
 		return -EOVERFLOW;
@@ -810,7 +810,7 @@ int cfs_trace_copyout_string(char __user *usr_buffer, int usr_buffer_nob,
 	 * NB if 'append' != NULL, it's a single character to append to the
 	 * copied out string - usually "\n" or "" (i.e. a terminating zero byte)
 	 */
-	int   nob = strlen(knl_buffer);
+	int nob = strlen(knl_buffer);
 
 	if (nob > usr_buffer_nob)
 		nob = usr_buffer_nob;
@@ -843,16 +843,16 @@ int cfs_trace_allocate_string_buffer(char **str, int nob)
 
 int cfs_trace_dump_debug_buffer_usrstr(void __user *usr_str, int usr_str_nob)
 {
-	char	 *str;
-	int	   rc;
+	char *str;
+	int rc;
 
 	rc = cfs_trace_allocate_string_buffer(&str, usr_str_nob + 1);
-	if (rc != 0)
+	if (rc)
 		return rc;
 
 	rc = cfs_trace_copyin_string(str, usr_str_nob + 1,
 				     usr_str, usr_str_nob);
-	if (rc != 0)
+	if (rc)
 		goto out;
 
 	if (str[0] != '/') {
@@ -867,17 +867,17 @@ out:
 
 int cfs_trace_daemon_command(char *str)
 {
-	int       rc = 0;
+	int rc = 0;
 
 	cfs_tracefile_write_lock();
 
-	if (strcmp(str, "stop") == 0) {
+	if (!strcmp(str, "stop")) {
 		cfs_tracefile_write_unlock();
 		cfs_trace_stop_thread();
 		cfs_tracefile_write_lock();
 		memset(cfs_tracefile, 0, sizeof(cfs_tracefile));
 
-	} else if (strncmp(str, "size=", 5) == 0) {
+	} else if (!strncmp(str, "size=", 5)) {
 		unsigned long tmp;
 
 		rc = kstrtoul(str + 5, 10, &tmp);
@@ -909,15 +909,15 @@ int cfs_trace_daemon_command(char *str)
 int cfs_trace_daemon_command_usrstr(void __user *usr_str, int usr_str_nob)
 {
 	char *str;
-	int   rc;
+	int rc;
 
 	rc = cfs_trace_allocate_string_buffer(&str, usr_str_nob + 1);
-	if (rc != 0)
+	if (rc)
 		return rc;
 
 	rc = cfs_trace_copyin_string(str, usr_str_nob + 1,
 				     usr_str, usr_str_nob);
-	if (rc == 0)
+	if (!rc)
 		rc = cfs_trace_daemon_command(str);
 
 	kfree(str);
@@ -1003,7 +1003,7 @@ static int tracefiled(void *arg)
 
 		filp = NULL;
 		cfs_tracefile_read_lock();
-		if (cfs_tracefile[0] != 0) {
+		if (cfs_tracefile[0]) {
 			filp = filp_open(cfs_tracefile,
 					 O_CREAT | O_RDWR | O_LARGEFILE,
 					 0600);
@@ -1072,7 +1072,7 @@ static int tracefiled(void *arg)
 		__LASSERT(list_empty(&pc.pc_pages));
 end_loop:
 		if (atomic_read(&tctl->tctl_shutdown)) {
-			if (last_loop == 0) {
+			if (!last_loop) {
 				last_loop = 1;
 				continue;
 			} else {
@@ -1135,13 +1135,13 @@ void cfs_trace_stop_thread(void)
 int cfs_tracefile_init(int max_pages)
 {
 	struct cfs_trace_cpu_data *tcd;
-	int		    i;
-	int		    j;
-	int		    rc;
-	int		    factor;
+	int i;
+	int j;
+	int rc;
+	int factor;
 
 	rc = cfs_tracefile_init_arch();
-	if (rc != 0)
+	if (rc)
 		return rc;
 
 	cfs_tcd_for_each(tcd, i, j) {

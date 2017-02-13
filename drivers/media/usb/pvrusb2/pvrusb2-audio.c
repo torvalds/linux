@@ -74,9 +74,7 @@ void pvr2_msp3400_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 			input = sp->def[hdw->input_val];
 		} else {
 			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-				   "*** WARNING *** subdev msp3400 set_input:"
-				   " Invalid routing scheme (%u)"
-				   " and/or input (%d)",
+				   "*** WARNING *** subdev msp3400 set_input: Invalid routing scheme (%u) and/or input (%d)",
 				   sid, hdw->input_val);
 			return;
 		}

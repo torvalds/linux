@@ -1077,12 +1077,14 @@ static int cqspi_setup_flash(struct cqspi_st *cqspi, struct device_node *np)
 
 	/* Get flash device data */
 	for_each_available_child_of_node(dev->of_node, np) {
-		if (of_property_read_u32(np, "reg", &cs)) {
+		ret = of_property_read_u32(np, "reg", &cs);
+		if (ret) {
 			dev_err(dev, "Couldn't determine chip select.\n");
 			goto err;
 		}
 
-		if (cs > CQSPI_MAX_CHIPSELECT) {
+		if (cs >= CQSPI_MAX_CHIPSELECT) {
+			ret = -EINVAL;
 			dev_err(dev, "Chip select %d out of range.\n", cs);
 			goto err;
 		}

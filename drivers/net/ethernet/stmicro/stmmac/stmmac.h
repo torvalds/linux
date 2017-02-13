@@ -64,7 +64,6 @@ struct stmmac_priv {
 	dma_addr_t dma_tx_phy;
 	int tx_coalesce;
 	int hwts_tx_en;
-	spinlock_t tx_lock;
 	bool tx_path_in_lpi_mode;
 	struct timer_list txtimer;
 	bool tso;
@@ -90,7 +89,6 @@ struct stmmac_priv {
 	struct mac_device_info *hw;
 	spinlock_t lock;
 
-	struct phy_device *phydev ____cacheline_aligned_in_smp;
 	int oldlink;
 	int speed;
 	int oldduplex;

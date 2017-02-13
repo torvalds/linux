@@ -10,7 +10,7 @@
 
 #include <keys/user-type.h>
 #include <linux/scatterlist.h>
-#include <linux/fscrypto.h>
+#include "fscrypt_private.h"
 
 static void derive_crypt_complete(struct crypto_async_request *req, int rc)
 {
@@ -178,7 +178,7 @@ static void put_crypt_info(struct fscrypt_info *ci)
 	kmem_cache_free(fscrypt_info_cachep, ci);
 }
 
-int get_crypt_info(struct inode *inode)
+int fscrypt_get_crypt_info(struct inode *inode)
 {
 	struct fscrypt_info *crypt_info;
 	struct fscrypt_context ctx;
@@ -188,7 +188,7 @@ int get_crypt_info(struct inode *inode)
 	u8 *raw_key = NULL;
 	int res;
 
-	res = fscrypt_initialize();
+	res = fscrypt_initialize(inode->i_sb->s_cop->flags);
 	if (res)
 		return res;
 
@@ -248,7 +248,8 @@ retry:
 		goto out;
 
 	if (fscrypt_dummy_context_enabled(inode)) {
-		memset(raw_key, 0x42, FS_AES_256_XTS_KEY_SIZE);
+		memset(raw_key, 0x42, keysize/2);
+		memset(raw_key+keysize/2, 0x24, keysize - (keysize/2));
 		goto got_key;
 	}
 
@@ -327,7 +328,7 @@ int fscrypt_get_encryption_info(struct inode *inode)
 		 (ci->ci_keyring_key->flags & ((1 << KEY_FLAG_INVALIDATED) |
 					       (1 << KEY_FLAG_REVOKED) |
 					       (1 << KEY_FLAG_DEAD)))))
-		return get_crypt_info(inode);
+		return fscrypt_get_crypt_info(inode);
 	return 0;
 }
 EXPORT_SYMBOL(fscrypt_get_encryption_info);

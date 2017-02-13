@@ -32,6 +32,7 @@
 #include <asm/probes.h>
 #include <asm/code-patching.h>
 
+#ifdef CONFIG_KPROBES
 #define  __ARCH_WANT_KPROBES_INSN_SLOT
 
 struct pt_regs;
@@ -127,5 +128,11 @@ struct kprobe_ctlblk {
 extern int kprobe_exceptions_notify(struct notifier_block *self,
 					unsigned long val, void *data);
 extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
+extern int kprobe_handler(struct pt_regs *regs);
+extern int kprobe_post_handler(struct pt_regs *regs);
+#else
+static inline int kprobe_handler(struct pt_regs *regs) { return 0; }
+static inline int kprobe_post_handler(struct pt_regs *regs) { return 0; }
+#endif /* CONFIG_KPROBES */
 #endif /* __KERNEL__ */
 #endif	/* _ASM_POWERPC_KPROBES_H */

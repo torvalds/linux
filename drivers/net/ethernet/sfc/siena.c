@@ -20,7 +20,6 @@
 #include "nic.h"
 #include "farch_regs.h"
 #include "io.h"
-#include "phy.h"
 #include "workarounds.h"
 #include "mcdi.h"
 #include "mcdi_pcol.h"
@@ -404,6 +403,7 @@ static int siena_init_nic(struct efx_nic *efx)
 	efx_writeo(efx, &temp, FR_AZ_RX_CFG);
 
 	siena_rx_push_rss_config(efx, false, efx->rx_indir_table);
+	efx->rss_active = true;
 
 	/* Enable event logging */
 	rc = efx_mcdi_log_ctrl(efx, true, false, 0);
@@ -718,7 +718,7 @@ static void siena_mcdi_request(struct efx_nic *efx,
 	unsigned int i;
 	unsigned int inlen_dw = DIV_ROUND_UP(sdu_len, 4);
 
-	EFX_BUG_ON_PARANOID(hdr_len != 4);
+	EFX_WARN_ON_PARANOID(hdr_len != 4);
 
 	efx_writed(efx, hdr, pdu);
 
@@ -977,6 +977,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.tx_init = efx_farch_tx_init,
 	.tx_remove = efx_farch_tx_remove,
 	.tx_write = efx_farch_tx_write,
+	.tx_limit_len = efx_farch_tx_limit_len,
 	.rx_push_rss_config = siena_rx_push_rss_config,
 	.rx_probe = efx_farch_rx_probe,
 	.rx_init = efx_farch_rx_init,

@@ -31,8 +31,16 @@ static inline const struct iommu_ops *of_iommu_configure(struct device *dev,
 
 #endif	/* CONFIG_OF_IOMMU */
 
-void of_iommu_set_ops(struct device_node *np, const struct iommu_ops *ops);
-const struct iommu_ops *of_iommu_get_ops(struct device_node *np);
+static inline void of_iommu_set_ops(struct device_node *np,
+				    const struct iommu_ops *ops)
+{
+	iommu_register_instance(&np->fwnode, ops);
+}
+
+static inline const struct iommu_ops *of_iommu_get_ops(struct device_node *np)
+{
+	return iommu_get_instance(&np->fwnode);
+}
 
 extern struct of_device_id __iommu_of_table;
 

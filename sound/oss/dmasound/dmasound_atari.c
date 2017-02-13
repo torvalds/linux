@@ -22,7 +22,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/atariints.h>
 #include <asm/atari_stram.h>
 

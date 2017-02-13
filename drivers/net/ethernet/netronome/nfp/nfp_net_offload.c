@@ -111,6 +111,9 @@ nfp_net_bpf_get_act(struct nfp_net *nn, struct tc_cls_bpf_offload *cls_bpf)
 	const struct tc_action *a;
 	LIST_HEAD(actions);
 
+	if (!cls_bpf->exts)
+		return NN_ACT_XDP;
+
 	/* TC direct action */
 	if (cls_bpf->exts_integrated) {
 		if (tc_no_actions(cls_bpf->exts))
@@ -128,7 +131,7 @@ nfp_net_bpf_get_act(struct nfp_net *nn, struct tc_cls_bpf_offload *cls_bpf)
 		if (is_tcf_gact_shot(a))
 			return NN_ACT_TC_DROP;
 
-		if (is_tcf_mirred_redirect(a) &&
+		if (is_tcf_mirred_egress_redirect(a) &&
 		    tcf_mirred_ifindex(a) == nn->netdev->ifindex)
 			return NN_ACT_TC_REDIR;
 	}
@@ -233,9 +236,7 @@ static int nfp_net_bpf_stop(struct nfp_net *nn)
 	return nfp_net_reconfig(nn, NFP_NET_CFG_UPDATE_GEN);
 }
 
-int
-nfp_net_bpf_offload(struct nfp_net *nn, u32 handle, __be16 proto,
-		    struct tc_cls_bpf_offload *cls_bpf)
+int nfp_net_bpf_offload(struct nfp_net *nn, struct tc_cls_bpf_offload *cls_bpf)
 {
 	struct nfp_bpf_result res;
 	dma_addr_t dma_addr;

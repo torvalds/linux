@@ -1093,19 +1093,18 @@ static int elan_probe(struct i2c_client *client,
 	if (error)
 		return error;
 
+	dev_info(&client->dev,
+		 "Elan Touchpad: Module ID: 0x%04x, Firmware: 0x%04x, Sample: 0x%04x, IAP: 0x%04x\n",
+		 data->product_id,
+		 data->fw_version,
+		 data->sm_version,
+		 data->iap_version);
+
 	dev_dbg(&client->dev,
-		"Elan Touchpad Information:\n"
-		"    Module product ID:  0x%04x\n"
-		"    Firmware Version:  0x%04x\n"
-		"    Sample Version:  0x%04x\n"
-		"    IAP Version:  0x%04x\n"
+		"Elan Touchpad Extra Information:\n"
 		"    Max ABS X,Y:   %d,%d\n"
 		"    Width X,Y:   %d,%d\n"
 		"    Resolution X,Y:   %d,%d (dots/mm)\n",
-		data->product_id,
-		data->fw_version,
-		data->sm_version,
-		data->iap_version,
 		data->max_x, data->max_y,
 		data->width_x, data->width_y,
 		data->x_res, data->y_res);

@@ -108,7 +108,7 @@ static ssize_t align_show(struct device *dev,
 {
 	struct nd_pfn *nd_pfn = to_nd_pfn_safe(dev);
 
-	return sprintf(buf, "%lx\n", nd_pfn->align);
+	return sprintf(buf, "%ld\n", nd_pfn->align);
 }
 
 static ssize_t __align_store(struct nd_pfn *nd_pfn, const char *buf)

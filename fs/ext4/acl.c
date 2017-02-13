@@ -196,7 +196,7 @@ __ext4_set_acl(handle_t *handle, struct inode *inode, int type,
 			error = posix_acl_update_mode(inode, &inode->i_mode, &acl);
 			if (error)
 				return error;
-			inode->i_ctime = ext4_current_time(inode);
+			inode->i_ctime = current_time(inode);
 			ext4_mark_inode_dirty(handle, inode);
 		}
 		break;

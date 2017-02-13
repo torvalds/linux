@@ -777,6 +777,11 @@ cifs_reopen_persistent_handles(struct cifs_tcon *tcon)
 	struct list_head *tmp1;
 	struct list_head tmp_list;
 
+	if (!tcon->use_persistent || !tcon->need_reopen_files)
+		return;
+
+	tcon->need_reopen_files = false;
+
 	cifs_dbg(FYI, "Reopen persistent handles");
 	INIT_LIST_HEAD(&tmp_list);
 
@@ -793,7 +798,8 @@ cifs_reopen_persistent_handles(struct cifs_tcon *tcon)
 
 	list_for_each_safe(tmp, tmp1, &tmp_list) {
 		open_file = list_entry(tmp, struct cifsFileInfo, rlist);
-		cifs_reopen_file(open_file, false /* do not flush */);
+		if (cifs_reopen_file(open_file, false /* do not flush */))
+			tcon->need_reopen_files = true;
 		list_del_init(&open_file->rlist);
 		cifsFileInfo_put(open_file);
 	}
