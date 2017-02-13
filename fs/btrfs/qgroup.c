@@ -1945,13 +1945,14 @@ btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans,
 	u64 nr_old_roots = 0;
 	int ret = 0;
 
+	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags))
+		return 0;
+
 	if (new_roots)
 		nr_new_roots = new_roots->nnodes;
 	if (old_roots)
 		nr_old_roots = old_roots->nnodes;
 
-	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags))
-		goto out_free;
 	BUG_ON(!fs_info->quota_root);
 
 	trace_btrfs_qgroup_account_extent(fs_info, bytenr, num_bytes,
