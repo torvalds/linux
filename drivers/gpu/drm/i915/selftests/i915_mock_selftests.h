@@ -11,3 +11,4 @@
 selftest(sanitycheck, i915_mock_sanitycheck) /* keep first (igt selfcheck) */
 selftest(scatterlist, scatterlist_mock_selftests)
 selftest(breadcrumbs, intel_breadcrumbs_mock_selftests)
+selftest(requests, i915_gem_request_mock_selftests)
