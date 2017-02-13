@@ -2738,6 +2738,59 @@ static void i915_gtt_color_adjust(const struct drm_mm_node *node,
 		*end -= I915_GTT_PAGE_SIZE;
 }
 
+int i915_gem_init_aliasing_ppgtt(struct drm_i915_private *i915)
+{
+	struct i915_ggtt *ggtt = &i915->ggtt;
+	struct i915_hw_ppgtt *ppgtt;
+	int err;
+
+	ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
+	if (!ppgtt)
+		return -ENOMEM;
+
+	err = __hw_ppgtt_init(ppgtt, i915);
+	if (err)
+		goto err_ppgtt;
+
+	if (ppgtt->base.allocate_va_range) {
+		err = ppgtt->base.allocate_va_range(&ppgtt->base,
+						    0, ppgtt->base.total);
+		if (err)
+			goto err_ppgtt_cleanup;
+	}
+
+	ppgtt->base.clear_range(&ppgtt->base,
+				ppgtt->base.start,
+				ppgtt->base.total);
+
+	i915->mm.aliasing_ppgtt = ppgtt;
+	WARN_ON(ggtt->base.bind_vma != ggtt_bind_vma);
+	ggtt->base.bind_vma = aliasing_gtt_bind_vma;
+
+	return 0;
+
+err_ppgtt_cleanup:
+	ppgtt->base.cleanup(&ppgtt->base);
+err_ppgtt:
+	kfree(ppgtt);
+	return err;
+}
+
+void i915_gem_fini_aliasing_ppgtt(struct drm_i915_private *i915)
+{
+	struct i915_ggtt *ggtt = &i915->ggtt;
+	struct i915_hw_ppgtt *ppgtt;
+
+	ppgtt = fetch_and_zero(&i915->mm.aliasing_ppgtt);
+	if (!ppgtt)
+		return;
+
+	ppgtt->base.cleanup(&ppgtt->base);
+	kfree(ppgtt);
+
+	ggtt->base.bind_vma = ggtt_bind_vma;
+}
+
 int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 {
 	/* Let GEM Manage all of the aperture.
@@ -2751,7 +2804,6 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 	 */
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	unsigned long hole_start, hole_end;
-	struct i915_hw_ppgtt *ppgtt;
 	struct drm_mm_node *entry;
 	int ret;
 
@@ -2780,38 +2832,13 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 			       ggtt->base.total - PAGE_SIZE, PAGE_SIZE);
 
 	if (USES_PPGTT(dev_priv) && !USES_FULL_PPGTT(dev_priv)) {
-		ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
-		if (!ppgtt) {
-			ret = -ENOMEM;
-			goto err;
-		}
-
-		ret = __hw_ppgtt_init(ppgtt, dev_priv);
+		ret = i915_gem_init_aliasing_ppgtt(dev_priv);
 		if (ret)
-			goto err_ppgtt;
-
-		if (ppgtt->base.allocate_va_range) {
-			ret = ppgtt->base.allocate_va_range(&ppgtt->base, 0,
-							    ppgtt->base.total);
-			if (ret)
-				goto err_ppgtt_cleanup;
-		}
-
-		ppgtt->base.clear_range(&ppgtt->base,
-					ppgtt->base.start,
-					ppgtt->base.total);
-
-		dev_priv->mm.aliasing_ppgtt = ppgtt;
-		WARN_ON(ggtt->base.bind_vma != ggtt_bind_vma);
-		ggtt->base.bind_vma = aliasing_gtt_bind_vma;
+			goto err;
 	}
 
 	return 0;
 
-err_ppgtt_cleanup:
-	ppgtt->base.cleanup(&ppgtt->base);
-err_ppgtt:
-	kfree(ppgtt);
 err:
 	drm_mm_remove_node(&ggtt->error_capture);
 	return ret;
@@ -2834,12 +2861,7 @@ void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv)
 		WARN_ON(i915_vma_unbind(vma));
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
-	if (dev_priv->mm.aliasing_ppgtt) {
-		struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
-		ppgtt->base.cleanup(&ppgtt->base);
-		kfree(ppgtt);
-	}
-
+	i915_gem_fini_aliasing_ppgtt(dev_priv);
 	i915_gem_cleanup_stolen(&dev_priv->drm);
 
 	if (drm_mm_node_allocated(&ggtt->error_capture))

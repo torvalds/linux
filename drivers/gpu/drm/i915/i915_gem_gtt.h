@@ -531,6 +531,9 @@ i915_vm_is_48bit(const struct i915_address_space *vm)
 	return (vm->total - 1) >> 32;
 }
 
+int i915_gem_init_aliasing_ppgtt(struct drm_i915_private *i915);
+void i915_gem_fini_aliasing_ppgtt(struct drm_i915_private *i915);
+
 int i915_ggtt_probe_hw(struct drm_i915_private *dev_priv);
 int i915_ggtt_init_hw(struct drm_i915_private *dev_priv);
 int i915_ggtt_enable_hw(struct drm_i915_private *dev_priv);
