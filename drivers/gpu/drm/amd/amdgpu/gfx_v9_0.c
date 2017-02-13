@@ -1960,6 +1960,38 @@ static void gfx_v9_0_enable_cp_power_gating(struct amdgpu_device *adev,
 	}
 }
 
+static void gfx_v9_0_enable_gfx_cg_power_gating(struct amdgpu_device *adev,
+						bool enable)
+{
+	uint32_t data, default_data;
+
+	default_data = data = RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_PG_CNTL));
+	if (enable == true)
+		data |= RLC_PG_CNTL__GFX_POWER_GATING_ENABLE_MASK;
+	else
+		data &= ~RLC_PG_CNTL__GFX_POWER_GATING_ENABLE_MASK;
+	if(default_data != data)
+		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_PG_CNTL), data);
+}
+
+static void gfx_v9_0_enable_gfx_pipeline_powergating(struct amdgpu_device *adev,
+						bool enable)
+{
+	uint32_t data, default_data;
+
+	default_data = data = RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_PG_CNTL));
+	if (enable == true)
+		data |= RLC_PG_CNTL__GFX_PIPELINE_PG_ENABLE_MASK;
+	else
+		data &= ~RLC_PG_CNTL__GFX_PIPELINE_PG_ENABLE_MASK;
+	if(default_data != data)
+		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_PG_CNTL), data);
+
+	if (!enable)
+		/* read any GFX register to wake up GFX */
+		data = RREG32(SOC15_REG_OFFSET(GC, 0, mmDB_RENDER_CONTROL));
+}
+
 static void gfx_v9_0_init_pg(struct amdgpu_device *adev)
 {
 	if (adev->pg_flags & (AMD_PG_SUPPORT_GFX_PG |
@@ -3209,6 +3241,24 @@ static void gfx_v9_0_exit_rlc_safe_mode(struct amdgpu_device *adev)
 	}
 }
 
+static void gfx_v9_0_update_gfx_cg_power_gating(struct amdgpu_device *adev,
+						bool enable)
+{
+	/* TODO: double check if we need to perform under safe mdoe */
+	/* gfx_v9_0_enter_rlc_safe_mode(adev); */
+
+	if ((adev->pg_flags & AMD_PG_SUPPORT_GFX_PG) && enable) {
+		gfx_v9_0_enable_gfx_cg_power_gating(adev, true);
+		if (adev->pg_flags & AMD_PG_SUPPORT_GFX_PIPELINE)
+			gfx_v9_0_enable_gfx_pipeline_powergating(adev, true);
+	} else {
+		gfx_v9_0_enable_gfx_cg_power_gating(adev, false);
+		gfx_v9_0_enable_gfx_pipeline_powergating(adev, false);
+	}
+
+	/* gfx_v9_0_exit_rlc_safe_mode(adev); */
+}
+
 static void gfx_v9_0_update_medium_grain_clock_gating(struct amdgpu_device *adev,
 						      bool enable)
 {
@@ -3400,6 +3450,7 @@ static int gfx_v9_0_set_powergating_state(void *handle,
 					  enum amd_powergating_state state)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	bool enable = (state == AMD_PG_STATE_GATE) ? true : false;
 
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
@@ -3415,6 +3466,9 @@ static int gfx_v9_0_set_powergating_state(void *handle,
 			gfx_v9_0_enable_cp_power_gating(adev, true);
 		else
 			gfx_v9_0_enable_cp_power_gating(adev, false);
+
+		/* update gfx cgpg state */
+		gfx_v9_0_update_gfx_cg_power_gating(adev, enable);
 		break;
 	default:
 		break;
