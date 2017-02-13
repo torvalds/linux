@@ -144,7 +144,7 @@ static void add_extent_changeset(struct extent_state *state, unsigned bits,
 	if (!set && (state->state & bits) == 0)
 		return;
 	changeset->bytes_changed += state->end - state->start + 1;
-	ret = ulist_add(changeset->range_changed, state->start, state->end,
+	ret = ulist_add(&changeset->range_changed, state->start, state->end,
 			GFP_ATOMIC);
 	/* ENOMEM */
 	BUG_ON(ret < 0);

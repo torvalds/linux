@@ -2828,7 +2828,7 @@ int btrfs_qgroup_reserve_data(struct inode *inode, u64 start, u64 len)
 		return 0;
 
 	changeset.bytes_changed = 0;
-	changeset.range_changed = ulist_alloc(GFP_NOFS);
+	ulist_init(&changeset.range_changed);
 	ret = set_record_extent_bits(&BTRFS_I(inode)->io_tree, start,
 			start + len -1, EXTENT_QGROUP_RESERVED, &changeset);
 	trace_btrfs_qgroup_reserve_data(inode, start, len,
@@ -2840,17 +2840,17 @@ int btrfs_qgroup_reserve_data(struct inode *inode, u64 start, u64 len)
 	if (ret < 0)
 		goto cleanup;
 
-	ulist_free(changeset.range_changed);
+	ulist_fini(&changeset.range_changed);
 	return ret;
 
 cleanup:
 	/* cleanup already reserved ranges */
 	ULIST_ITER_INIT(&uiter);
-	while ((unode = ulist_next(changeset.range_changed, &uiter)))
+	while ((unode = ulist_next(&changeset.range_changed, &uiter)))
 		clear_extent_bit(&BTRFS_I(inode)->io_tree, unode->val,
 				 unode->aux, EXTENT_QGROUP_RESERVED, 0, 0, NULL,
 				 GFP_NOFS);
-	ulist_free(changeset.range_changed);
+	ulist_fini(&changeset.range_changed);
 	return ret;
 }
 
@@ -2862,10 +2862,7 @@ static int __btrfs_qgroup_release_data(struct inode *inode, u64 start, u64 len,
 	int ret;
 
 	changeset.bytes_changed = 0;
-	changeset.range_changed = ulist_alloc(GFP_NOFS);
-	if (!changeset.range_changed)
-		return -ENOMEM;
-
+	ulist_init(&changeset.range_changed);
 	ret = clear_record_extent_bits(&BTRFS_I(inode)->io_tree, start, 
 			start + len -1, EXTENT_QGROUP_RESERVED, &changeset);
 	if (ret < 0)
@@ -2878,7 +2875,7 @@ static int __btrfs_qgroup_release_data(struct inode *inode, u64 start, u64 len,
 	trace_btrfs_qgroup_release_data(inode, start, len,
 					changeset.bytes_changed, trace_op);
 out:
-	ulist_free(changeset.range_changed);
+	ulist_fini(&changeset.range_changed);
 	return ret;
 }
 
@@ -2976,22 +2973,19 @@ void btrfs_qgroup_check_reserved_leak(struct inode *inode)
 	int ret;
 
 	changeset.bytes_changed = 0;
-	changeset.range_changed = ulist_alloc(GFP_NOFS);
-	if (WARN_ON(!changeset.range_changed))
-		return;
-
+	ulist_init(&changeset.range_changed);
 	ret = clear_record_extent_bits(&BTRFS_I(inode)->io_tree, 0, (u64)-1,
 			EXTENT_QGROUP_RESERVED, &changeset);
 
 	WARN_ON(ret < 0);
 	if (WARN_ON(changeset.bytes_changed)) {
 		ULIST_ITER_INIT(&iter);
-		while ((unode = ulist_next(changeset.range_changed, &iter))) {
+		while ((unode = ulist_next(&changeset.range_changed, &iter))) {
 			btrfs_warn(BTRFS_I(inode)->root->fs_info,
 				"leaking qgroup reserved space, ino: %lu, start: %llu, end: %llu",
 				inode->i_ino, unode->val, unode->aux);
 		}
 		qgroup_free(BTRFS_I(inode)->root, changeset.bytes_changed);
 	}
-	ulist_free(changeset.range_changed);
+	ulist_fini(&changeset.range_changed);
 }
