@@ -1179,18 +1179,6 @@ static int s5p_mfc_configure_common_memory(struct s5p_mfc_dev *mfc_dev)
 	struct device *dev = &mfc_dev->plat_dev->dev;
 	unsigned long mem_size = SZ_8M;
 	unsigned int bitmap_size;
-	/*
-	 * When IOMMU is available, we cannot use the default configuration,
-	 * because of MFC firmware requirements: address space limited to
-	 * 256M and non-zero default start address.
-	 * This is still simplified, not optimal configuration, but for now
-	 * IOMMU core doesn't allow to configure device's IOMMUs channel
-	 * separately.
-	 */
-	int ret = exynos_configure_iommu(dev, S5P_MFC_IOMMU_DMA_BASE,
-					 S5P_MFC_IOMMU_DMA_SIZE);
-	if (ret)
-		return ret;
 
 	if (mfc_mem_size)
 		mem_size = memparse(mfc_mem_size, NULL);
@@ -1198,10 +1186,8 @@ static int s5p_mfc_configure_common_memory(struct s5p_mfc_dev *mfc_dev)
 	bitmap_size = BITS_TO_LONGS(mem_size >> PAGE_SHIFT) * sizeof(long);
 
 	mfc_dev->mem_bitmap = kzalloc(bitmap_size, GFP_KERNEL);
-	if (!mfc_dev->mem_bitmap) {
-		exynos_unconfigure_iommu(dev);
+	if (!mfc_dev->mem_bitmap)
 		return -ENOMEM;
-	}
 
 	mfc_dev->mem_virt = dma_alloc_coherent(dev, mem_size,
 					       &mfc_dev->mem_base, GFP_KERNEL);
@@ -1209,12 +1195,23 @@ static int s5p_mfc_configure_common_memory(struct s5p_mfc_dev *mfc_dev)
 		kfree(mfc_dev->mem_bitmap);
 		dev_err(dev, "failed to preallocate %ld MiB for the firmware and context buffers\n",
 			(mem_size / SZ_1M));
-		exynos_unconfigure_iommu(dev);
 		return -ENOMEM;
 	}
 	mfc_dev->mem_size = mem_size;
 	mfc_dev->dma_base[BANK1_CTX] = mfc_dev->mem_base;
 	mfc_dev->dma_base[BANK2_CTX] = mfc_dev->mem_base;
+
+	/*
+	 * MFC hardware cannot handle 0 as a base address, so mark first 128K
+	 * as used (to keep required base alignment) and adjust base address
+	 */
+	if (mfc_dev->mem_base == (dma_addr_t)0) {
+		unsigned int offset = 1 << MFC_BASE_ALIGN_ORDER;
+
+		bitmap_set(mfc_dev->mem_bitmap, 0, offset >> PAGE_SHIFT);
+		mfc_dev->dma_base[BANK1_CTX] += offset;
+		mfc_dev->dma_base[BANK2_CTX] += offset;
+	}
 
 	/* Firmware allocation cannot fail in this case */
 	s5p_mfc_alloc_firmware(mfc_dev);
@@ -1232,7 +1229,6 @@ static void s5p_mfc_unconfigure_common_memory(struct s5p_mfc_dev *mfc_dev)
 {
 	struct device *dev = &mfc_dev->plat_dev->dev;
 
-	exynos_unconfigure_iommu(dev);
 	dma_free_coherent(dev, mfc_dev->mem_size, mfc_dev->mem_virt,
 			  mfc_dev->mem_base);
 	kfree(mfc_dev->mem_bitmap);
