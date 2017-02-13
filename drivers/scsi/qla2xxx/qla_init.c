@@ -3909,7 +3909,7 @@ qla2x00_alloc_fcport(scsi_qla_host_t *vha, gfp_t flags)
 
 	fcport->ct_desc.ct_sns = dma_alloc_coherent(&vha->hw->pdev->dev,
 		sizeof(struct ct_sns_pkt), &fcport->ct_desc.ct_sns_dma,
-			GFP_ATOMIC);
+		flags);
 	fcport->disc_state = DSC_DELETED;
 	fcport->fw_login_state = DSC_LS_PORT_UNAVAIL;
 	fcport->deleted = QLA_SESS_DELETED;
