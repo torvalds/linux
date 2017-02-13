@@ -322,10 +322,11 @@ update_connector_routing(struct drm_atomic_state *state,
 	}
 
 	if (!drm_encoder_crtc_ok(new_encoder, connector_state->crtc)) {
-		DRM_DEBUG_ATOMIC("[ENCODER:%d:%s] incompatible with [CRTC:%d]\n",
+		DRM_DEBUG_ATOMIC("[ENCODER:%d:%s] incompatible with [CRTC:%d:%s]\n",
 				 new_encoder->base.id,
 				 new_encoder->name,
-				 connector_state->crtc->base.id);
+				 connector_state->crtc->base.id,
+				 connector_state->crtc->name);
 		return -EINVAL;
 	}
 
@@ -1119,7 +1120,8 @@ drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
 					drm_crtc_vblank_count(crtc),
 				msecs_to_jiffies(50));
 
-		WARN(!ret, "[CRTC:%d] vblank wait timed out\n", crtc->base.id);
+		WARN(!ret, "[CRTC:%d:%s] vblank wait timed out\n",
+		     crtc->base.id, crtc->name);
 
 		drm_crtc_vblank_put(crtc);
 	}
@@ -2792,8 +2794,8 @@ static int page_flip_common(
 	/* Make sure we don't accidentally do a full modeset. */
 	state->allow_modeset = false;
 	if (!crtc_state->active) {
-		DRM_DEBUG_ATOMIC("[CRTC:%d] disabled, rejecting legacy flip\n",
-				 crtc->base.id);
+		DRM_DEBUG_ATOMIC("[CRTC:%d:%s] disabled, rejecting legacy flip\n",
+				 crtc->base.id, crtc->name);
 		return -EINVAL;
 	}
 

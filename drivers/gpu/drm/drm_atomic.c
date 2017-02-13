@@ -623,8 +623,8 @@ static int drm_atomic_crtc_check(struct drm_crtc *crtc,
 	 * pipe.
 	 */
 	if (state->event && !state->active && !crtc->state->active) {
-		DRM_DEBUG_ATOMIC("[CRTC:%d] requesting event but off\n",
-				 crtc->base.id);
+		DRM_DEBUG_ATOMIC("[CRTC:%d:%s] requesting event but off\n",
+				 crtc->base.id, crtc->name);
 		return -EINVAL;
 	}
 
@@ -1037,8 +1037,9 @@ drm_atomic_get_connector_state(struct drm_atomic_state *state,
 	state->connectors[index].ptr = connector;
 	connector_state->state = state;
 
-	DRM_DEBUG_ATOMIC("Added [CONNECTOR:%d] %p state to %p\n",
-			 connector->base.id, connector_state, state);
+	DRM_DEBUG_ATOMIC("Added [CONNECTOR:%d:%s] %p state to %p\n",
+			 connector->base.id, connector->name,
+			 connector_state, state);
 
 	if (connector_state->crtc) {
 		struct drm_crtc_state *crtc_state;
