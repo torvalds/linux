@@ -6,11 +6,11 @@ CORE_OFILES := radix-tree.o idr.o linux.o test.o find_bit.o
 OFILES = main.o $(CORE_OFILES) regression1.o regression2.o regression3.o \
 	 tag_check.o multiorder.o idr-test.o iteration_check.o benchmark.o
 
-ifdef BENCHMARK
-	CFLAGS += -DBENCHMARK=1
+ifndef SHIFT
+	SHIFT=3
 endif
 
-targets: $(TARGETS)
+targets: mapshift $(TARGETS)
 
 main:	$(OFILES)
 	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o main
@@ -22,11 +22,11 @@ multiorder: multiorder.o $(CORE_OFILES)
 	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o multiorder
 
 clean:
-	$(RM) $(TARGETS) *.o radix-tree.c idr.c
+	$(RM) $(TARGETS) *.o radix-tree.c idr.c generated/map-shift.h
 
 vpath %.c ../../lib
 
-$(OFILES): *.h */*.h \
+$(OFILES): *.h */*.h generated/map-shift.h \
 	../../include/linux/*.h \
 	../../include/asm/*.h \
 	../../../include/linux/radix-tree.h \
@@ -37,3 +37,11 @@ radix-tree.c: ../../../lib/radix-tree.c
 
 idr.c: ../../../lib/idr.c
 	sed -e 's/^static //' -e 's/__always_inline //' -e 's/inline //' < $< > $@
+
+.PHONY: mapshift
+
+mapshift:
+	@if ! grep -qw $(SHIFT) generated/map-shift.h; then		\
+		echo "#define RADIX_TREE_MAP_SHIFT $(SHIFT)" >		\
+				generated/map-shift.h;			\
+	fi
