@@ -1246,6 +1246,7 @@ bool dc_commit_surfaces_to_stream(
 		plane_info[i].stereo_format = new_surfaces[i]->stereo_format;
 		plane_info[i].tiling_info = new_surfaces[i]->tiling_info;
 		plane_info[i].visible = new_surfaces[i]->visible;
+		plane_info[i].dcc = new_surfaces[i]->dcc;
 		scaling_info[i].scaling_quality = new_surfaces[i]->scaling_quality;
 		scaling_info[i].src_rect = new_surfaces[i]->src_rect;
 		scaling_info[i].dst_rect = new_surfaces[i]->dst_rect;
