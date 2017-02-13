@@ -467,10 +467,10 @@ config NF_TABLES_NETDEV
 	  This option enables support for the "netdev" table.
 
 config NFT_EXTHDR
-	tristate "Netfilter nf_tables IPv6 exthdr module"
+	tristate "Netfilter nf_tables exthdr module"
 	help
 	  This option adds the "exthdr" expression that you can use to match
-	  IPv6 extension headers.
+	  IPv6 extension headers and tcp options.
 
 config NFT_META
 	tristate "Netfilter nf_tables meta module"
@@ -508,6 +508,12 @@ config NFT_SET_HASH
 	help
 	  This option adds the "hash" set type that is used to build one-way
 	  mappings between matchings and actions.
+
+config NFT_SET_BITMAP
+	tristate "Netfilter nf_tables bitmap set module"
+	help
+	  This option adds the "bitmap" set type that is used to build sets
+	  whose keys are smaller or equal to 16 bits.
 
 config NFT_COUNTER
 	tristate "Netfilter nf_tables counter module"

@@ -3,7 +3,7 @@
  *
  * (C) 2001 by Jay Schulist <jschlst@samba.org>,
  * (C) 2002-2005 by Harald Welte <laforge@gnumonks.org>
- * (C) 2005,2007 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2005-2017 by Pablo Neira Ayuso <pablo@netfilter.org>
  *
  * Initial netfilter messages via netlink development funded and
  * generally made possible by Network Robots, Inc. (www.networkrobots.com)
@@ -100,9 +100,9 @@ int nfnetlink_subsys_unregister(const struct nfnetlink_subsystem *n)
 }
 EXPORT_SYMBOL_GPL(nfnetlink_subsys_unregister);
 
-static inline const struct nfnetlink_subsystem *nfnetlink_get_subsys(u_int16_t type)
+static inline const struct nfnetlink_subsystem *nfnetlink_get_subsys(u16 type)
 {
-	u_int8_t subsys_id = NFNL_SUBSYS_ID(type);
+	u8 subsys_id = NFNL_SUBSYS_ID(type);
 
 	if (subsys_id >= NFNL_SUBSYS_COUNT)
 		return NULL;
@@ -111,9 +111,9 @@ static inline const struct nfnetlink_subsystem *nfnetlink_get_subsys(u_int16_t t
 }
 
 static inline const struct nfnl_callback *
-nfnetlink_find_client(u_int16_t type, const struct nfnetlink_subsystem *ss)
+nfnetlink_find_client(u16 type, const struct nfnetlink_subsystem *ss)
 {
-	u_int8_t cb_id = NFNL_MSG_TYPE(type);
+	u8 cb_id = NFNL_MSG_TYPE(type);
 
 	if (cb_id >= ss->cb_count)
 		return NULL;
@@ -185,7 +185,7 @@ replay:
 
 	{
 		int min_len = nlmsg_total_size(sizeof(struct nfgenmsg));
-		u_int8_t cb_id = NFNL_MSG_TYPE(nlh->nlmsg_type);
+		u8 cb_id = NFNL_MSG_TYPE(nlh->nlmsg_type);
 		struct nlattr *cda[ss->cb[cb_id].attr_count + 1];
 		struct nlattr *attr = (void *)nlh + min_len;
 		int attrlen = nlh->nlmsg_len - min_len;
@@ -273,7 +273,7 @@ enum {
 };
 
 static void nfnetlink_rcv_batch(struct sk_buff *skb, struct nlmsghdr *nlh,
-				u_int16_t subsys_id)
+				u16 subsys_id, u32 genid)
 {
 	struct sk_buff *oskb = skb;
 	struct net *net = sock_net(skb->sk);
@@ -312,6 +312,12 @@ replay:
 	if (!ss->commit || !ss->abort) {
 		nfnl_unlock(subsys_id);
 		netlink_ack(oskb, nlh, -EOPNOTSUPP);
+		return kfree_skb(skb);
+	}
+
+	if (genid && ss->valid_genid && !ss->valid_genid(net, genid)) {
+		nfnl_unlock(subsys_id);
+		netlink_ack(oskb, nlh, -ERESTART);
 		return kfree_skb(skb);
 	}
 
@@ -365,7 +371,7 @@ replay:
 
 		{
 			int min_len = nlmsg_total_size(sizeof(struct nfgenmsg));
-			u_int8_t cb_id = NFNL_MSG_TYPE(nlh->nlmsg_type);
+			u8 cb_id = NFNL_MSG_TYPE(nlh->nlmsg_type);
 			struct nlattr *cda[ss->cb[cb_id].attr_count + 1];
 			struct nlattr *attr = (void *)nlh + min_len;
 			int attrlen = nlh->nlmsg_len - min_len;
@@ -436,11 +442,51 @@ done:
 	kfree_skb(skb);
 }
 
+static const struct nla_policy nfnl_batch_policy[NFNL_BATCH_MAX + 1] = {
+	[NFNL_BATCH_GENID]	= { .type = NLA_U32 },
+};
+
+static void nfnetlink_rcv_skb_batch(struct sk_buff *skb, struct nlmsghdr *nlh)
+{
+	int min_len = nlmsg_total_size(sizeof(struct nfgenmsg));
+	struct nlattr *attr = (void *)nlh + min_len;
+	struct nlattr *cda[NFNL_BATCH_MAX + 1];
+	int attrlen = nlh->nlmsg_len - min_len;
+	struct nfgenmsg *nfgenmsg;
+	int msglen, err;
+	u32 gen_id = 0;
+	u16 res_id;
+
+	msglen = NLMSG_ALIGN(nlh->nlmsg_len);
+	if (msglen > skb->len)
+		msglen = skb->len;
+
+	if (nlh->nlmsg_len < NLMSG_HDRLEN ||
+	    skb->len < NLMSG_HDRLEN + sizeof(struct nfgenmsg))
+		return;
+
+	err = nla_parse(cda, NFNL_BATCH_MAX, attr, attrlen, nfnl_batch_policy);
+	if (err < 0) {
+		netlink_ack(skb, nlh, err);
+		return;
+	}
+	if (cda[NFNL_BATCH_GENID])
+		gen_id = ntohl(nla_get_be32(cda[NFNL_BATCH_GENID]));
+
+	nfgenmsg = nlmsg_data(nlh);
+	skb_pull(skb, msglen);
+	/* Work around old nft using host byte order */
+	if (nfgenmsg->res_id == NFNL_SUBSYS_NFTABLES)
+		res_id = NFNL_SUBSYS_NFTABLES;
+	else
+		res_id = ntohs(nfgenmsg->res_id);
+
+	nfnetlink_rcv_batch(skb, nlh, res_id, gen_id);
+}
+
 static void nfnetlink_rcv(struct sk_buff *skb)
 {
 	struct nlmsghdr *nlh = nlmsg_hdr(skb);
-	u_int16_t res_id;
-	int msglen;
 
 	if (nlh->nlmsg_len < NLMSG_HDRLEN ||
 	    skb->len < nlh->nlmsg_len)
@@ -451,28 +497,10 @@ static void nfnetlink_rcv(struct sk_buff *skb)
 		return;
 	}
 
-	if (nlh->nlmsg_type == NFNL_MSG_BATCH_BEGIN) {
-		struct nfgenmsg *nfgenmsg;
-
-		msglen = NLMSG_ALIGN(nlh->nlmsg_len);
-		if (msglen > skb->len)
-			msglen = skb->len;
-
-		if (nlh->nlmsg_len < NLMSG_HDRLEN ||
-		    skb->len < NLMSG_HDRLEN + sizeof(struct nfgenmsg))
-			return;
-
-		nfgenmsg = nlmsg_data(nlh);
-		skb_pull(skb, msglen);
-		/* Work around old nft using host byte order */
-		if (nfgenmsg->res_id == NFNL_SUBSYS_NFTABLES)
-			res_id = NFNL_SUBSYS_NFTABLES;
-		else
-			res_id = ntohs(nfgenmsg->res_id);
-		nfnetlink_rcv_batch(skb, nlh, res_id);
-	} else {
+	if (nlh->nlmsg_type == NFNL_MSG_BATCH_BEGIN)
+		nfnetlink_rcv_skb_batch(skb, nlh);
+	else
 		netlink_rcv_skb(skb, &nfnetlink_rcv_msg);
-	}
 }
 
 #ifdef CONFIG_MODULES
