@@ -114,7 +114,7 @@ static void br_do_proxy_arp(struct sk_buff *skb, struct net_bridge *br,
 			return;
 		}
 
-		f = __br_fdb_get(br, n->ha, vid);
+		f = br_fdb_find_rcu(br, n->ha, vid);
 		if (f && ((p->flags & BR_PROXYARP) ||
 			  (f->dst && (f->dst->flags & BR_PROXYARP_WIFI)))) {
 			arp_send(ARPOP_REPLY, ETH_P_ARP, sip, skb->dev, tip,
@@ -189,7 +189,7 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 		}
 		break;
 	case BR_PKT_UNICAST:
-		dst = __br_fdb_get(br, dest, vid);
+		dst = br_fdb_find_rcu(br, dest, vid);
 	default:
 		break;
 	}
