@@ -193,7 +193,7 @@ struct extent_changeset {
 	u64 bytes_changed;
 
 	/* Changed ranges */
-	struct ulist *range_changed;
+	struct ulist range_changed;
 };
 
 static inline void extent_set_compress_type(unsigned long *bio_flags,
