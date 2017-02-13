@@ -2224,17 +2224,17 @@ unlock:
 	mutex_unlock(&obj->mm.lock);
 }
 
-static void i915_sg_trim(struct sg_table *orig_st)
+static bool i915_sg_trim(struct sg_table *orig_st)
 {
 	struct sg_table new_st;
 	struct scatterlist *sg, *new_sg;
 	unsigned int i;
 
 	if (orig_st->nents == orig_st->orig_nents)
-		return;
+		return false;
 
 	if (sg_alloc_table(&new_st, orig_st->nents, GFP_KERNEL | __GFP_NOWARN))
-		return;
+		return false;
 
 	new_sg = new_st.sgl;
 	for_each_sg(orig_st->sgl, sg, orig_st->nents, i) {
@@ -2247,6 +2247,7 @@ static void i915_sg_trim(struct sg_table *orig_st)
 	sg_free_table(orig_st);
 
 	*orig_st = new_st;
+	return true;
 }
 
 static struct sg_table *
@@ -5019,3 +5020,7 @@ i915_gem_object_get_dma_address(struct drm_i915_gem_object *obj,
 	sg = i915_gem_object_get_sg(obj, n, &offset);
 	return sg_dma_address(sg) + (offset << PAGE_SHIFT);
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftests/scatterlist.c"
+#endif

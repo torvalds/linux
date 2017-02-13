@@ -9,3 +9,4 @@
  * Tests are executed in order by igt/drv_selftest
  */
 selftest(sanitycheck, i915_mock_sanitycheck) /* keep first (igt selfcheck) */
+selftest(scatterlist, scatterlist_mock_selftests)
