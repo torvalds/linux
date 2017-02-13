@@ -1,6 +1,7 @@
 /* Broadcom NetXtreme-C/E network driver.
  *
  * Copyright (c) 2014-2016 Broadcom Corporation
+ * Copyright (c) 2016-2017 Broadcom Limited
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -3974,7 +3975,7 @@ static int hwrm_ring_alloc_send_msg(struct bnxt *bp,
 		req.length = cpu_to_le32(bp->rx_agg_ring_mask + 1);
 		break;
 	case HWRM_RING_ALLOC_CMPL:
-		req.ring_type = RING_ALLOC_REQ_RING_TYPE_CMPL;
+		req.ring_type = RING_ALLOC_REQ_RING_TYPE_L2_CMPL;
 		req.length = cpu_to_le32(bp->cp_ring_mask + 1);
 		if (bp->flags & BNXT_FLAG_USING_MSIX)
 			req.int_mode = RING_ALLOC_REQ_INT_MODE_MSIX;
@@ -3993,7 +3994,7 @@ static int hwrm_ring_alloc_send_msg(struct bnxt *bp,
 
 	if (rc || err) {
 		switch (ring_type) {
-		case RING_FREE_REQ_RING_TYPE_CMPL:
+		case RING_FREE_REQ_RING_TYPE_L2_CMPL:
 			netdev_err(bp->dev, "hwrm_ring_alloc cp failed. rc:%x err:%x\n",
 				   rc, err);
 			return -1;
@@ -4137,7 +4138,7 @@ static int hwrm_ring_free_send_msg(struct bnxt *bp,
 
 	if (rc || error_code) {
 		switch (ring_type) {
-		case RING_FREE_REQ_RING_TYPE_CMPL:
+		case RING_FREE_REQ_RING_TYPE_L2_CMPL:
 			netdev_err(bp->dev, "hwrm_ring_free cp failed. rc:%d\n",
 				   rc);
 			return rc;
@@ -4226,7 +4227,7 @@ static void bnxt_hwrm_ring_free(struct bnxt *bp, bool close_path)
 
 		if (ring->fw_ring_id != INVALID_HW_RING_ID) {
 			hwrm_ring_free_send_msg(bp, ring,
-						RING_FREE_REQ_RING_TYPE_CMPL,
+						RING_FREE_REQ_RING_TYPE_L2_CMPL,
 						INVALID_HW_RING_ID);
 			ring->fw_ring_id = INVALID_HW_RING_ID;
 			bp->grp_info[i].cp_fw_ring_id = INVALID_HW_RING_ID;

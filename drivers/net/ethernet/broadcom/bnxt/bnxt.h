@@ -1,6 +1,7 @@
 /* Broadcom NetXtreme-C/E network driver.
  *
  * Copyright (c) 2014-2016 Broadcom Corporation
+ * Copyright (c) 2016-2017 Broadcom Limited
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -11,10 +12,10 @@
 #define BNXT_H
 
 #define DRV_MODULE_NAME		"bnxt_en"
-#define DRV_MODULE_VERSION	"1.6.0"
+#define DRV_MODULE_VERSION	"1.7.0"
 
 #define DRV_VER_MAJ	1
-#define DRV_VER_MIN	6
+#define DRV_VER_MIN	7
 #define DRV_VER_UPD	0
 
 struct tx_bd {
