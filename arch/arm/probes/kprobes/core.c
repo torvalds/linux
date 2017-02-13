@@ -266,7 +266,15 @@ void __kprobes kprobe_handler(struct pt_regs *regs)
 #endif
 
 	if (p) {
-		if (cur) {
+		if (!p->ainsn.insn_check_cc(regs->ARM_cpsr)) {
+			/*
+			 * Probe hit but conditional execution check failed,
+			 * so just skip the instruction and continue as if
+			 * nothing had happened.
+			 * In this case, we can skip recursing check too.
+			 */
+			singlestep_skip(p, regs);
+		} else if (cur) {
 			/* Kprobe is pending, so we're recursing. */
 			switch (kcb->kprobe_status) {
 			case KPROBE_HIT_ACTIVE:
@@ -289,7 +297,7 @@ void __kprobes kprobe_handler(struct pt_regs *regs)
 				/* impossible cases */
 				BUG();
 			}
-		} else if (p->ainsn.insn_check_cc(regs->ARM_cpsr)) {
+		} else {
 			/* Probe hit and conditional execution check ok. */
 			set_current_kprobe(p);
 			kcb->kprobe_status = KPROBE_HIT_ACTIVE;
@@ -310,13 +318,6 @@ void __kprobes kprobe_handler(struct pt_regs *regs)
 				}
 				reset_current_kprobe();
 			}
-		} else {
-			/*
-			 * Probe hit but conditional execution check failed,
-			 * so just skip the instruction and continue as if
-			 * nothing had happened.
-			 */
-			singlestep_skip(p, regs);
 		}
 	} else if (cur) {
 		/* We probably hit a jprobe.  Call its break handler. */
