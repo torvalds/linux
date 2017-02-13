@@ -33,6 +33,8 @@
 
 #include <drm/i915_drm.h>
 
+#include "i915_selftest.h"
+
 struct drm_i915_gem_object_ops {
 	unsigned int flags;
 #define I915_GEM_OBJECT_HAS_STRUCT_PAGE 0x1
@@ -84,6 +86,7 @@ struct drm_i915_gem_object {
 	struct list_head obj_exec_link;
 
 	struct list_head batch_pool_link;
+	I915_SELFTEST_DECLARE(struct list_head st_link);
 
 	unsigned long flags;
 
