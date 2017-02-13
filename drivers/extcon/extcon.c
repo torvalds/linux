@@ -453,7 +453,7 @@ int extcon_sync(struct extcon_dev *edev, unsigned int id)
 		dev_err(&edev->dev, "out of memory in extcon_set_state\n");
 		kobject_uevent(&edev->dev.kobj, KOBJ_CHANGE);
 
-		return 0;
+		return -ENOMEM;
 	}
 
 	length = name_show(&edev->dev, NULL, prop_buf);

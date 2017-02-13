@@ -3342,6 +3342,8 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 
 	switch (cap->cap) {
 	case KVM_CAP_HYPERV_SYNIC:
+		if (!irqchip_in_kernel(vcpu->kvm))
+			return -EINVAL;
 		return kvm_hv_activate_synic(vcpu);
 	default:
 		return -EINVAL;
@@ -6045,6 +6047,7 @@ out:
 
 void kvm_arch_exit(void)
 {
+	kvm_lapic_exit();
 	perf_unregister_guest_info_callbacks(&kvm_guest_cbs);
 
 	if (!boot_cpu_has(X86_FEATURE_CONSTANT_TSC))
@@ -6168,7 +6171,8 @@ static int emulator_fix_hypercall(struct x86_emulate_ctxt *ctxt)
 
 	kvm_x86_ops->patch_hypercall(vcpu, instruction);
 
-	return emulator_write_emulated(ctxt, rip, instruction, 3, NULL);
+	return emulator_write_emulated(ctxt, rip, instruction, 3,
+		&ctxt->exception);
 }
 
 static int dm_request_for_irq_injection(struct kvm_vcpu *vcpu)

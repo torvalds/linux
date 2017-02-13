@@ -1464,7 +1464,7 @@ static struct rt6_info *__ip6_route_redirect(struct net *net,
 	struct fib6_node *fn;
 
 	/* Get the "current" route for this destination and
-	 * check if the redirect has come from approriate router.
+	 * check if the redirect has come from appropriate router.
 	 *
 	 * RFC 4861 specifies that redirects should only be
 	 * accepted if they come from the nexthop to the target.
@@ -2768,7 +2768,7 @@ static int rt6_mtu_change_route(struct rt6_info *rt, void *p_arg)
 	   old MTU is the lowest MTU in the path, update the route PMTU
 	   to reflect the increase. In this case if the other nodes' MTU
 	   also have the lowest MTU, TOO BIG MESSAGE will be lead to
-	   PMTU discouvery.
+	   PMTU discovery.
 	 */
 	if (rt->dst.dev == arg->dev &&
 	    dst_metric_raw(&rt->dst, RTAX_MTU) &&
@@ -2896,6 +2896,11 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (tb[RTA_MULTIPATH]) {
 		cfg->fc_mp = nla_data(tb[RTA_MULTIPATH]);
 		cfg->fc_mp_len = nla_len(tb[RTA_MULTIPATH]);
+
+		err = lwtunnel_valid_encap_type_attr(cfg->fc_mp,
+						     cfg->fc_mp_len);
+		if (err < 0)
+			goto errout;
 	}
 
 	if (tb[RTA_PREF]) {
@@ -2909,8 +2914,13 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (tb[RTA_ENCAP])
 		cfg->fc_encap = tb[RTA_ENCAP];
 
-	if (tb[RTA_ENCAP_TYPE])
+	if (tb[RTA_ENCAP_TYPE]) {
 		cfg->fc_encap_type = nla_get_u16(tb[RTA_ENCAP_TYPE]);
+
+		err = lwtunnel_valid_encap_type(cfg->fc_encap_type);
+		if (err < 0)
+			goto errout;
+	}
 
 	if (tb[RTA_EXPIRES]) {
 		unsigned long timeout = addrconf_timeout_fixup(nla_get_u32(tb[RTA_EXPIRES]), HZ);
@@ -3317,7 +3327,8 @@ static int rt6_fill_node(struct net *net,
 	if (nla_put_u8(skb, RTA_PREF, IPV6_EXTRACT_PREF(rt->rt6i_flags)))
 		goto nla_put_failure;
 
-	lwtunnel_fill_encap(skb, rt->dst.lwtstate);
+	if (lwtunnel_fill_encap(skb, rt->dst.lwtstate) < 0)
+		goto nla_put_failure;
 
 	nlmsg_end(skb, nlh);
 	return 0;

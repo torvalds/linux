@@ -543,7 +543,6 @@ static int mlx5e_set_channels(struct net_device *dev,
 			      struct ethtool_channels *ch)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	int ncv = mlx5e_get_max_num_channels(priv->mdev);
 	unsigned int count = ch->combined_count;
 	bool arfs_enabled;
 	bool was_opened;
@@ -552,16 +551,6 @@ static int mlx5e_set_channels(struct net_device *dev,
 	if (!count) {
 		netdev_info(dev, "%s: combined_count=0 not supported\n",
 			    __func__);
-		return -EINVAL;
-	}
-	if (ch->rx_count || ch->tx_count) {
-		netdev_info(dev, "%s: separate rx/tx count not supported\n",
-			    __func__);
-		return -EINVAL;
-	}
-	if (count > ncv) {
-		netdev_info(dev, "%s: count (%d) > max (%d)\n",
-			    __func__, count, ncv);
 		return -EINVAL;
 	}
 

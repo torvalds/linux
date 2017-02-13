@@ -606,7 +606,6 @@ bool tcp_peer_is_proven(struct request_sock *req, struct dst_entry *dst,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(tcp_peer_is_proven);
 
 void tcp_fetch_timewait_stamp(struct sock *sk, struct dst_entry *dst)
 {

@@ -37,7 +37,6 @@ config EXT4_FS
 	select CRC16
 	select CRYPTO
 	select CRYPTO_CRC32C
-	select FS_IOMAP if FS_DAX
 	help
 	  This is the next generation of the ext3 filesystem.
 

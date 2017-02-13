@@ -2187,6 +2187,16 @@ void wacom_wac_report(struct hid_device *hdev, struct hid_report *report)
 
 	wacom_report_events(hdev, report);
 
+	/*
+	 * Non-input reports may be sent prior to the device being
+	 * completely initialized. Since only their events need
+	 * to be processed, exit after 'wacom_report_events' has
+	 * been called to prevent potential crashes in the report-
+	 * processing functions.
+	 */
+	if (report->type != HID_INPUT_REPORT)
+		return;
+
 	if (WACOM_PAD_FIELD(field)) {
 		wacom_wac_pad_battery_report(hdev, report);
 		if (wacom->wacom_wac.pad_input)

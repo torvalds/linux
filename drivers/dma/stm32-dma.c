@@ -880,7 +880,7 @@ static enum dma_status stm32_dma_tx_status(struct dma_chan *c,
 	struct virt_dma_desc *vdesc;
 	enum dma_status status;
 	unsigned long flags;
-	u32 residue;
+	u32 residue = 0;
 
 	status = dma_cookie_status(c, cookie, state);
 	if ((status == DMA_COMPLETE) || (!state))
@@ -888,16 +888,12 @@ static enum dma_status stm32_dma_tx_status(struct dma_chan *c,
 
 	spin_lock_irqsave(&chan->vchan.lock, flags);
 	vdesc = vchan_find_desc(&chan->vchan, cookie);
-	if (cookie == chan->desc->vdesc.tx.cookie) {
+	if (chan->desc && cookie == chan->desc->vdesc.tx.cookie)
 		residue = stm32_dma_desc_residue(chan, chan->desc,
 						 chan->next_sg);
-	} else if (vdesc) {
+	else if (vdesc)
 		residue = stm32_dma_desc_residue(chan,
 						 to_stm32_dma_desc(vdesc), 0);
-	} else {
-		residue = 0;
-	}
-
 	dma_set_residue(state, residue);
 
 	spin_unlock_irqrestore(&chan->vchan.lock, flags);
@@ -972,20 +968,17 @@ static struct dma_chan *stm32_dma_of_xlate(struct of_phandle_args *dma_spec,
 	struct stm32_dma_chan *chan;
 	struct dma_chan *c;
 
-	if (dma_spec->args_count < 3)
+	if (dma_spec->args_count < 4)
 		return NULL;
 
 	cfg.channel_id = dma_spec->args[0];
 	cfg.request_line = dma_spec->args[1];
 	cfg.stream_config = dma_spec->args[2];
-	cfg.threshold = 0;
+	cfg.threshold = dma_spec->args[3];
 
 	if ((cfg.channel_id >= STM32_DMA_MAX_CHANNELS) || (cfg.request_line >=
 				STM32_DMA_MAX_REQUEST_ID))
 		return NULL;
-
-	if (dma_spec->args_count > 3)
-		cfg.threshold = dma_spec->args[3];
 
 	chan = &dmadev->chan[cfg.channel_id];
 

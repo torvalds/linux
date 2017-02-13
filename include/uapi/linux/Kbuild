@@ -414,6 +414,7 @@ header-y += telephony.h
 header-y += termios.h
 header-y += thermal.h
 header-y += time.h
+header-y += timerfd.h
 header-y += times.h
 header-y += timex.h
 header-y += tiocl.h

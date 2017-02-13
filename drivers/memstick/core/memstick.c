@@ -330,7 +330,7 @@ static int h_memstick_read_dev_id(struct memstick_dev *card,
 	struct ms_id_register id_reg;
 
 	if (!(*mrq)) {
-		memstick_init_req(&card->current_mrq, MS_TPC_READ_REG, NULL,
+		memstick_init_req(&card->current_mrq, MS_TPC_READ_REG, &id_reg,
 				  sizeof(struct ms_id_register));
 		*mrq = &card->current_mrq;
 		return 0;
