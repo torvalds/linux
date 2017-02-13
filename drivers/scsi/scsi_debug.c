@@ -4085,7 +4085,7 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 			jiffies_to_timespec(delta_jiff, &ts);
 			kt = ktime_set(ts.tv_sec, ts.tv_nsec);
 		} else
-			kt = ktime_set(0, sdebug_ndelay);
+			kt = sdebug_ndelay;
 		if (NULL == sd_dp) {
 			sd_dp = kzalloc(sizeof(*sd_dp), GFP_ATOMIC);
 			if (NULL == sd_dp)

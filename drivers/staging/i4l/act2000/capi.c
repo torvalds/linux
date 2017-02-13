@@ -99,7 +99,7 @@ actcapi_chkhdr(act2000_card *card, actcapi_msghdr *hdr)
 	for (i = 0; i < num_valid_imsg; i++)
 		if ((hdr->cmd.cmd == valid_msg[i].cmd.cmd) &&
 		    (hdr->cmd.subcmd == valid_msg[i].cmd.subcmd)) {
-			return (i ? 1 : 2);
+			return i ? 1 : 2;
 		}
 	return 0;
 }
@@ -506,6 +506,7 @@ static int
 new_plci(act2000_card *card, __u16 plci)
 {
 	int i;
+
 	for (i = 0; i < ACT2000_BCH; i++)
 		if (card->bch[i].plci == 0x8000) {
 			card->bch[i].plci = plci;
@@ -518,6 +519,7 @@ static int
 find_plci(act2000_card *card, __u16 plci)
 {
 	int i;
+
 	for (i = 0; i < ACT2000_BCH; i++)
 		if (card->bch[i].plci == plci)
 			return i;
@@ -528,6 +530,7 @@ static int
 find_ncci(act2000_card *card, __u16 ncci)
 {
 	int i;
+
 	for (i = 0; i < ACT2000_BCH; i++)
 		if (card->bch[i].ncci == ncci)
 			return i;
@@ -538,6 +541,7 @@ static int
 find_dialing(act2000_card *card, __u16 callref)
 {
 	int i;
+
 	for (i = 0; i < ACT2000_BCH; i++)
 		if ((card->bch[i].callref == callref) &&
 		    (card->bch[i].fsm_state == ACT2000_STATE_OCALL))
@@ -1088,6 +1092,7 @@ actcapi_debug_msg(struct sk_buff *skb, int direction)
 			int l = msg->hdr.len - 12;
 			int j;
 			char *p = tmp;
+
 			for (j = 0; j < l; j++)
 				p += sprintf(p, "%02x ", msg->msg.info_ind.el.display[j]);
 			printk(KERN_DEBUG " D = '%s'\n", tmp);

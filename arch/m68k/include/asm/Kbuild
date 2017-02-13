@@ -20,7 +20,6 @@ generic-y += local64.h
 generic-y += mcs_spinlock.h
 generic-y += mm-arch-hooks.h
 generic-y += mman.h
-generic-y += mutex.h
 generic-y += percpu.h
 generic-y += preempt.h
 generic-y += resource.h

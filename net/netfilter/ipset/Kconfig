@@ -99,6 +99,15 @@ config IP_SET_HASH_IPPORTNET
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config IP_SET_HASH_IPMAC
+	tristate "hash:ip,mac set support"
+	depends on IP_SET
+	help
+	  This option adds the hash:ip,mac set type support, by which
+	  one can store IPv4/IPv6 address and MAC (ethernet address) pairs in a set.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config IP_SET_HASH_MAC
 	tristate "hash:mac set support"
 	depends on IP_SET

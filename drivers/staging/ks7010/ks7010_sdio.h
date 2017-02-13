@@ -1,5 +1,5 @@
 /*
- *   Driver for KeyStream, KS7010 based SDIO cards. 
+ *   Driver for KeyStream, KS7010 based SDIO cards.
  *
  *   Copyright (C) 2006-2008 KeyStream Corp.
  *   Copyright (C) 2009 Renesas Technology Corp.
@@ -41,7 +41,7 @@
 /* Write Index Register */
 #define WRITE_INDEX		0x000010
 
-/* Write Status/Read Data Size Register 
+/* Write Status/Read Data Size Register
  * for network packet (less than 2048 bytes data)
  */
 #define WSTATUS_RSIZE		0x000014
@@ -53,14 +53,14 @@
 /* ARM to SD interrupt Pending */
 #define INT_PENDING		0x000024
 
-#define INT_GCR_B		(1<<7)
-#define INT_GCR_A		(1<<6)
-#define INT_WRITE_STATUS	(1<<5)
-#define INT_WRITE_INDEX		(1<<4)
-#define INT_WRITE_SIZE		(1<<3)
-#define INT_READ_STATUS		(1<<2)
-#define INT_READ_INDEX		(1<<1)
-#define INT_READ_SIZE		(1<<0)
+#define INT_GCR_B              BIT(7)
+#define INT_GCR_A              BIT(6)
+#define INT_WRITE_STATUS       BIT(5)
+#define INT_WRITE_INDEX        BIT(4)
+#define INT_WRITE_SIZE         BIT(3)
+#define INT_READ_STATUS        BIT(2)
+#define INT_READ_INDEX         BIT(1)
+#define INT_READ_SIZE          BIT(0)
 
 /* General Communication Register A */
 #define GCR_A			0x000028
@@ -100,7 +100,7 @@ struct hw_info_t {
 struct ks_sdio_packet {
 	struct ks_sdio_packet *next;
 	u16 nb;
-	u8 buffer[0] __attribute__ ((aligned(4)));
+	u8 buffer[0] __aligned(4);
 };
 
 struct ks_sdio_card {

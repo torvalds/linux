@@ -115,6 +115,7 @@ static inline struct ip_tunnel_info *skb_tunnel_info_unclone(struct sk_buff *skb
 static inline struct metadata_dst *__ip_tun_set_dst(__be32 saddr,
 						    __be32 daddr,
 						    __u8 tos, __u8 ttl,
+						    __be16 tp_dst,
 						    __be16 flags,
 						    __be64 tunnel_id,
 						    int md_size)
@@ -127,7 +128,7 @@ static inline struct metadata_dst *__ip_tun_set_dst(__be32 saddr,
 
 	ip_tunnel_key_init(&tun_dst->u.tun_info.key,
 			   saddr, daddr, tos, ttl,
-			   0, 0, 0, tunnel_id, flags);
+			   0, 0, tp_dst, tunnel_id, flags);
 	return tun_dst;
 }
 
@@ -139,12 +140,13 @@ static inline struct metadata_dst *ip_tun_rx_dst(struct sk_buff *skb,
 	const struct iphdr *iph = ip_hdr(skb);
 
 	return __ip_tun_set_dst(iph->saddr, iph->daddr, iph->tos, iph->ttl,
-				flags, tunnel_id, md_size);
+				0, flags, tunnel_id, md_size);
 }
 
 static inline struct metadata_dst *__ipv6_tun_set_dst(const struct in6_addr *saddr,
 						      const struct in6_addr *daddr,
 						      __u8 tos, __u8 ttl,
+						      __be16 tp_dst,
 						      __be32 label,
 						      __be16 flags,
 						      __be64 tunnel_id,
@@ -162,7 +164,7 @@ static inline struct metadata_dst *__ipv6_tun_set_dst(const struct in6_addr *sad
 	info->key.tun_flags = flags;
 	info->key.tun_id = tunnel_id;
 	info->key.tp_src = 0;
-	info->key.tp_dst = 0;
+	info->key.tp_dst = tp_dst;
 
 	info->key.u.ipv6.src = *saddr;
 	info->key.u.ipv6.dst = *daddr;
@@ -183,7 +185,7 @@ static inline struct metadata_dst *ipv6_tun_rx_dst(struct sk_buff *skb,
 
 	return __ipv6_tun_set_dst(&ip6h->saddr, &ip6h->daddr,
 				  ipv6_get_dsfield(ip6h), ip6h->hop_limit,
-				  ip6_flowlabel(ip6h), flags, tunnel_id,
+				  0, ip6_flowlabel(ip6h), flags, tunnel_id,
 				  md_size);
 }
 #endif /* __NET_DST_METADATA_H */

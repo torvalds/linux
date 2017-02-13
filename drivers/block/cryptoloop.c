@@ -26,7 +26,7 @@
 #include <linux/string.h>
 #include <linux/blkdev.h>
 #include <linux/scatterlist.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "loop.h"
 
 MODULE_LICENSE("GPL");

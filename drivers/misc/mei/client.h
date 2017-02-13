@@ -219,7 +219,7 @@ int mei_cl_irq_connect(struct mei_cl *cl, struct mei_cl_cb *cb,
 int mei_cl_read_start(struct mei_cl *cl, size_t length, const struct file *fp);
 int mei_cl_irq_read_msg(struct mei_cl *cl, struct mei_msg_hdr *hdr,
 			struct mei_cl_cb *cmpl_list);
-int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking);
+int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb);
 int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 		     struct mei_cl_cb *cmpl_list);
 

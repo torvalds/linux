@@ -23,7 +23,10 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/io.h>
+#include <linux/kexec.h>
 #include <linux/platform_device.h>
+#include <linux/random.h>
+#include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
 #include <linux/ucs2_string.h>
@@ -48,6 +51,7 @@ struct efi __read_mostly efi = {
 	.esrt			= EFI_INVALID_TABLE_ADDR,
 	.properties_table	= EFI_INVALID_TABLE_ADDR,
 	.mem_attr_table		= EFI_INVALID_TABLE_ADDR,
+	.rng_seed		= EFI_INVALID_TABLE_ADDR,
 };
 EXPORT_SYMBOL(efi);
 
@@ -259,8 +263,10 @@ static __init int efivar_ssdt_load(void)
 		}
 
 		data = kmalloc(size, GFP_KERNEL);
-		if (!data)
+		if (!data) {
+			ret = -ENOMEM;
 			goto free_entry;
+		}
 
 		ret = efivar_entry_get(entry, NULL, &size, data);
 		if (ret) {
@@ -438,6 +444,7 @@ static __initdata efi_config_table_type_t common_tables[] = {
 	{EFI_SYSTEM_RESOURCE_TABLE_GUID, "ESRT", &efi.esrt},
 	{EFI_PROPERTIES_TABLE_GUID, "PROP", &efi.properties_table},
 	{EFI_MEMORY_ATTRIBUTES_TABLE_GUID, "MEMATTR", &efi.mem_attr_table},
+	{LINUX_EFI_RANDOM_SEED_TABLE_GUID, "RNG", &efi.rng_seed},
 	{NULL_GUID, NULL, NULL},
 };
 
@@ -498,6 +505,29 @@ int __init efi_config_parse_tables(void *config_tables, int count, int sz,
 	}
 	pr_cont("\n");
 	set_bit(EFI_CONFIG_TABLES, &efi.flags);
+
+	if (efi.rng_seed != EFI_INVALID_TABLE_ADDR) {
+		struct linux_efi_random_seed *seed;
+		u32 size = 0;
+
+		seed = early_memremap(efi.rng_seed, sizeof(*seed));
+		if (seed != NULL) {
+			size = seed->size;
+			early_memunmap(seed, sizeof(*seed));
+		} else {
+			pr_err("Could not map UEFI random seed!\n");
+		}
+		if (size > 0) {
+			seed = early_memremap(efi.rng_seed,
+					      sizeof(*seed) + size);
+			if (seed != NULL) {
+				add_device_randomness(seed->bits, seed->size);
+				early_memunmap(seed, sizeof(*seed) + size);
+			} else {
+				pr_err("Could not map UEFI random seed!\n");
+			}
+		}
+	}
 
 	/* Parse the EFI Properties table if it exists */
 	if (efi.properties_table != EFI_INVALID_TABLE_ADDR) {
@@ -822,3 +852,47 @@ int efi_status_to_err(efi_status_t status)
 
 	return err;
 }
+
+#ifdef CONFIG_KEXEC
+static int update_efi_random_seed(struct notifier_block *nb,
+				  unsigned long code, void *unused)
+{
+	struct linux_efi_random_seed *seed;
+	u32 size = 0;
+
+	if (!kexec_in_progress)
+		return NOTIFY_DONE;
+
+	seed = memremap(efi.rng_seed, sizeof(*seed), MEMREMAP_WB);
+	if (seed != NULL) {
+		size = min(seed->size, 32U);
+		memunmap(seed);
+	} else {
+		pr_err("Could not map UEFI random seed!\n");
+	}
+	if (size > 0) {
+		seed = memremap(efi.rng_seed, sizeof(*seed) + size,
+				MEMREMAP_WB);
+		if (seed != NULL) {
+			seed->size = size;
+			get_random_bytes(seed->bits, seed->size);
+			memunmap(seed);
+		} else {
+			pr_err("Could not map UEFI random seed!\n");
+		}
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block efi_random_seed_nb = {
+	.notifier_call = update_efi_random_seed,
+};
+
+static int register_update_efi_random_seed(void)
+{
+	if (efi.rng_seed == EFI_INVALID_TABLE_ADDR)
+		return 0;
+	return register_reboot_notifier(&efi_random_seed_nb);
+}
+late_initcall(register_update_efi_random_seed);
+#endif

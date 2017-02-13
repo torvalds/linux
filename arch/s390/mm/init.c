@@ -29,7 +29,7 @@
 #include <linux/gfp.h>
 #include <linux/memblock.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/dma.h>

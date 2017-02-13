@@ -35,7 +35,7 @@
 #include <linux/kobject.h>
 #include <linux/moduleparam.h>
 #include <linux/pci.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "acpiphp.h"
 #include "../pci.h"

@@ -1554,9 +1554,6 @@ static int get_serial_info(struct edgeport_port *edge_port,
 {
 	struct serial_struct tmp;
 
-	if (!retinfo)
-		return -EFAULT;
-
 	memset(&tmp, 0, sizeof(tmp));
 
 	tmp.type		= PORT_16550A;

@@ -123,8 +123,9 @@ static inline void __tlbiel(unsigned long vpn, int psize, int apsize, int ssize)
 		va |= ssize << 8;
 		sllp = get_sllp_encoding(apsize);
 		va |= sllp << 5;
-		asm volatile(".long 0x7c000224 | (%0 << 11) | (0 << 21)"
-			     : : "r"(va) : "memory");
+		asm volatile(ASM_FTR_IFSET("tlbiel %0", "tlbiel %0,0", %1)
+			     : : "r" (va), "i" (CPU_FTR_ARCH_206)
+			     : "memory");
 		break;
 	default:
 		/* We need 14 to 14 + i bits of va */
@@ -141,8 +142,9 @@ static inline void __tlbiel(unsigned long vpn, int psize, int apsize, int ssize)
 		 */
 		va |= (vpn & 0xfe);
 		va |= 1; /* L */
-		asm volatile(".long 0x7c000224 | (%0 << 11) | (1 << 21)"
-			     : : "r"(va) : "memory");
+		asm volatile(ASM_FTR_IFSET("tlbiel %0", "tlbiel %0,1", %1)
+			     : : "r" (va), "i" (CPU_FTR_ARCH_206)
+			     : "memory");
 		break;
 	}
 
@@ -221,11 +223,16 @@ static long native_hpte_insert(unsigned long hpte_group, unsigned long vpn,
 		return -1;
 
 	hpte_v = hpte_encode_v(vpn, psize, apsize, ssize) | vflags | HPTE_V_VALID;
-	hpte_r = hpte_encode_r(pa, psize, apsize, ssize) | rflags;
+	hpte_r = hpte_encode_r(pa, psize, apsize) | rflags;
 
 	if (!(vflags & HPTE_V_BOLTED)) {
 		DBG_LOW(" i=%x hpte_v=%016lx, hpte_r=%016lx\n",
 			i, hpte_v, hpte_r);
+	}
+
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		hpte_r = hpte_old_to_new_r(hpte_v, hpte_r);
+		hpte_v = hpte_old_to_new_v(hpte_v);
 	}
 
 	hptep->r = cpu_to_be64(hpte_r);
@@ -295,6 +302,8 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 		vpn, want_v & HPTE_V_AVPN, slot, newpp);
 
 	hpte_v = be64_to_cpu(hptep->v);
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		hpte_v = hpte_new_to_old_v(hpte_v, be64_to_cpu(hptep->r));
 	/*
 	 * We need to invalidate the TLB always because hpte_remove doesn't do
 	 * a tlb invalidate. If a hash bucket gets full, we "evict" a more/less
@@ -309,6 +318,8 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 		native_lock_hpte(hptep);
 		/* recheck with locks held */
 		hpte_v = be64_to_cpu(hptep->v);
+		if (cpu_has_feature(CPU_FTR_ARCH_300))
+			hpte_v = hpte_new_to_old_v(hpte_v, be64_to_cpu(hptep->r));
 		if (unlikely(!HPTE_V_COMPARE(hpte_v, want_v) ||
 			     !(hpte_v & HPTE_V_VALID))) {
 			ret = -1;
@@ -350,6 +361,8 @@ static long native_hpte_find(unsigned long vpn, int psize, int ssize)
 	for (i = 0; i < HPTES_PER_GROUP; i++) {
 		hptep = htab_address + slot;
 		hpte_v = be64_to_cpu(hptep->v);
+		if (cpu_has_feature(CPU_FTR_ARCH_300))
+			hpte_v = hpte_new_to_old_v(hpte_v, be64_to_cpu(hptep->r));
 
 		if (HPTE_V_COMPARE(hpte_v, want_v) && (hpte_v & HPTE_V_VALID))
 			/* HPTE matches */
@@ -409,6 +422,8 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long vpn,
 	want_v = hpte_encode_avpn(vpn, bpsize, ssize);
 	native_lock_hpte(hptep);
 	hpte_v = be64_to_cpu(hptep->v);
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		hpte_v = hpte_new_to_old_v(hpte_v, be64_to_cpu(hptep->r));
 
 	/*
 	 * We need to invalidate the TLB always because hpte_remove doesn't do
@@ -467,6 +482,8 @@ static void native_hugepage_invalidate(unsigned long vsid,
 		want_v = hpte_encode_avpn(vpn, psize, ssize);
 		native_lock_hpte(hptep);
 		hpte_v = be64_to_cpu(hptep->v);
+		if (cpu_has_feature(CPU_FTR_ARCH_300))
+			hpte_v = hpte_new_to_old_v(hpte_v, be64_to_cpu(hptep->r));
 
 		/* Even if we miss, we need to invalidate the TLB */
 		if (!HPTE_V_COMPARE(hpte_v, want_v) || !(hpte_v & HPTE_V_VALID))
@@ -504,6 +521,10 @@ static void hpte_decode(struct hash_pte *hpte, unsigned long slot,
 	/* Look at the 8 bit LP value */
 	unsigned int lp = (hpte_r >> LP_SHIFT) & ((1 << LP_BITS) - 1);
 
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		hpte_v = hpte_new_to_old_v(hpte_v, hpte_r);
+		hpte_r = hpte_new_to_old_r(hpte_r);
+	}
 	if (!(hpte_v & HPTE_V_LARGE)) {
 		size   = MMU_PAGE_4K;
 		a_size = MMU_PAGE_4K;
@@ -512,11 +533,7 @@ static void hpte_decode(struct hash_pte *hpte, unsigned long slot,
 		a_size = hpte_page_sizes[lp] >> 4;
 	}
 	/* This works for all page sizes, and for 256M and 1T segments */
-	if (cpu_has_feature(CPU_FTR_ARCH_300))
-		*ssize = hpte_r >> HPTE_R_3_0_SSIZE_SHIFT;
-	else
-		*ssize = hpte_v >> HPTE_V_SSIZE_SHIFT;
-
+	*ssize = hpte_v >> HPTE_V_SSIZE_SHIFT;
 	shift = mmu_psize_defs[size].shift;
 
 	avpn = (HPTE_V_AVPN_VAL(hpte_v) & ~mmu_psize_defs[size].avpnm);
@@ -639,6 +656,9 @@ static void native_flush_hash_range(unsigned long number, int local)
 			want_v = hpte_encode_avpn(vpn, psize, ssize);
 			native_lock_hpte(hptep);
 			hpte_v = be64_to_cpu(hptep->v);
+			if (cpu_has_feature(CPU_FTR_ARCH_300))
+				hpte_v = hpte_new_to_old_v(hpte_v,
+						be64_to_cpu(hptep->r));
 			if (!HPTE_V_COMPARE(hpte_v, want_v) ||
 			    !(hpte_v & HPTE_V_VALID))
 				native_unlock_hpte(hptep);

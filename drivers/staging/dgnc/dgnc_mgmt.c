@@ -13,13 +13,11 @@
  * PURPOSE.  See the GNU General Public License for more details.
  */
 
-/************************************************************************
- *
+/*
  * This file implements the mgmt functionality for the
  * Neo and ClassicBoard based product lines.
- *
- ************************************************************************
  */
+
 #include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <linux/sched.h>	/* For jiffies, task states */

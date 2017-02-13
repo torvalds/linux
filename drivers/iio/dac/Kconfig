@@ -200,6 +200,16 @@ config AD8801
 	  To compile this driver as a module choose M here: the module will be called
 	  ad8801.
 
+config DPOT_DAC
+	tristate "DAC emulation using a DPOT"
+	depends on OF
+	help
+	  Say yes here to build support for DAC emulation using a digital
+	  potentiometer.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called dpot-dac.
+
 config LPC18XX_DAC
 	tristate "NXP LPC18xx DAC driver"
 	depends on ARCH_LPC18XX || COMPILE_TEST

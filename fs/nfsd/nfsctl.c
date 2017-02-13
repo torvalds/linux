@@ -217,7 +217,7 @@ static const struct file_operations pool_stats_operations = {
 	.release	= nfsd_pool_stats_release,
 };
 
-static struct file_operations reply_cache_stats_operations = {
+static const struct file_operations reply_cache_stats_operations = {
 	.open		= nfsd_reply_cache_stats_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -1201,7 +1201,7 @@ static int create_proc_exports_entry(void)
 }
 #endif
 
-int nfsd_net_id;
+unsigned int nfsd_net_id;
 
 static __net_init int nfsd_init_net(struct net *net)
 {

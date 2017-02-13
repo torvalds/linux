@@ -36,6 +36,44 @@
 #define SKL_IN_DIR_BIT_MASK		BIT(0)
 #define SKL_PIN_COUNT_MASK		GENMASK(7, 4)
 
+void skl_tplg_d0i3_get(struct skl *skl, enum d0i3_capability caps)
+{
+	struct skl_d0i3_data *d0i3 =  &skl->skl_sst->d0i3;
+
+	switch (caps) {
+	case SKL_D0I3_NONE:
+		d0i3->non_d0i3++;
+		break;
+
+	case SKL_D0I3_STREAMING:
+		d0i3->streaming++;
+		break;
+
+	case SKL_D0I3_NON_STREAMING:
+		d0i3->non_streaming++;
+		break;
+	}
+}
+
+void skl_tplg_d0i3_put(struct skl *skl, enum d0i3_capability caps)
+{
+	struct skl_d0i3_data *d0i3 =  &skl->skl_sst->d0i3;
+
+	switch (caps) {
+	case SKL_D0I3_NONE:
+		d0i3->non_d0i3--;
+		break;
+
+	case SKL_D0I3_STREAMING:
+		d0i3->streaming--;
+		break;
+
+	case SKL_D0I3_NON_STREAMING:
+		d0i3->non_streaming--;
+		break;
+	}
+}
+
 /*
  * SKL DSP driver modelling uses only few DAPM widgets so for rest we will
  * ignore. This helpers checks if the SKL driver handles this widget type
@@ -1519,6 +1557,10 @@ static int skl_tplg_fill_pipe_tkn(struct device *dev,
 		pipe->memory_pages = tkn_val;
 		break;
 
+	case SKL_TKN_U32_PMODE:
+		pipe->lp_mode = tkn_val;
+		break;
+
 	default:
 		dev_err(dev, "Token not handled %d\n", tkn);
 		return -EINVAL;
@@ -1826,6 +1868,10 @@ static int skl_tplg_get_token(struct device *dev,
 		mconfig->converter = tkn_elem->value;
 		break;
 
+	case SKL_TKL_U32_D0I3_CAPS:
+		mconfig->d0i3_caps = tkn_elem->value;
+		break;
+
 	case SKL_TKN_U32_PIPE_ID:
 		ret = skl_tplg_add_pipe(dev,
 				mconfig, skl, tkn_elem);
@@ -1841,6 +1887,7 @@ static int skl_tplg_get_token(struct device *dev,
 	case SKL_TKN_U32_PIPE_CONN_TYPE:
 	case SKL_TKN_U32_PIPE_PRIORITY:
 	case SKL_TKN_U32_PIPE_MEM_PGS:
+	case SKL_TKN_U32_PMODE:
 		if (is_pipe_exists) {
 			ret = skl_tplg_fill_pipe_tkn(dev, mconfig->pipe,
 					tkn_elem->token, tkn_elem->value);

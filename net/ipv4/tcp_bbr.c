@@ -14,6 +14,36 @@
  * observed, or adjust the sending rate if it estimates there is a
  * traffic policer, in order to keep the drop rate reasonable.
  *
+ * Here is a state transition diagram for BBR:
+ *
+ *             |
+ *             V
+ *    +---> STARTUP  ----+
+ *    |        |         |
+ *    |        V         |
+ *    |      DRAIN   ----+
+ *    |        |         |
+ *    |        V         |
+ *    +---> PROBE_BW ----+
+ *    |      ^    |      |
+ *    |      |    |      |
+ *    |      +----+      |
+ *    |                  |
+ *    +---- PROBE_RTT <--+
+ *
+ * A BBR flow starts in STARTUP, and ramps up its sending rate quickly.
+ * When it estimates the pipe is full, it enters DRAIN to drain the queue.
+ * In steady state a BBR flow only uses PROBE_BW and PROBE_RTT.
+ * A long-lived BBR flow spends the vast majority of its time remaining
+ * (repeatedly) in PROBE_BW, fully probing and utilizing the pipe's bandwidth
+ * in a fair manner, with a small, bounded queue. *If* a flow has been
+ * continuously sending for the entire min_rtt window, and hasn't seen an RTT
+ * sample that matches or decreases its min_rtt estimate for 10 seconds, then
+ * it briefly enters PROBE_RTT to cut inflight to a minimum value to re-probe
+ * the path's two-way propagation delay (min_rtt). When exiting PROBE_RTT, if
+ * we estimated that we reached the full bw of the pipe then we enter PROBE_BW;
+ * otherwise we enter STARTUP to try to fill the pipe.
+ *
  * BBR is described in detail in:
  *   "BBR: Congestion-Based Congestion Control",
  *   Neal Cardwell, Yuchung Cheng, C. Stephen Gunn, Soheil Hassas Yeganeh,
@@ -51,7 +81,7 @@ enum bbr_mode {
 	BBR_STARTUP,	/* ramp up sending rate rapidly to fill pipe */
 	BBR_DRAIN,	/* drain any queue created during startup */
 	BBR_PROBE_BW,	/* discover, share bw: pace around estimated bw */
-	BBR_PROBE_RTT,	/* cut cwnd to min to probe min_rtt */
+	BBR_PROBE_RTT,	/* cut inflight to min to probe min_rtt */
 };
 
 /* BBR congestion control block */

@@ -35,29 +35,29 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 
-static void amdgpu_flip_callback(struct fence *f, struct fence_cb *cb)
+static void amdgpu_flip_callback(struct dma_fence *f, struct dma_fence_cb *cb)
 {
 	struct amdgpu_flip_work *work =
 		container_of(cb, struct amdgpu_flip_work, cb);
 
-	fence_put(f);
+	dma_fence_put(f);
 	schedule_work(&work->flip_work.work);
 }
 
 static bool amdgpu_flip_handle_fence(struct amdgpu_flip_work *work,
-				     struct fence **f)
+				     struct dma_fence **f)
 {
-	struct fence *fence= *f;
+	struct dma_fence *fence= *f;
 
 	if (fence == NULL)
 		return false;
 
 	*f = NULL;
 
-	if (!fence_add_callback(fence, &work->cb, amdgpu_flip_callback))
+	if (!dma_fence_add_callback(fence, &work->cb, amdgpu_flip_callback))
 		return true;
 
-	fence_put(fence);
+	dma_fence_put(fence);
 	return false;
 }
 
@@ -68,9 +68,9 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 	struct amdgpu_flip_work *work =
 		container_of(delayed_work, struct amdgpu_flip_work, flip_work);
 	struct amdgpu_device *adev = work->adev;
-	struct amdgpu_crtc *amdgpuCrtc = adev->mode_info.crtcs[work->crtc_id];
+	struct amdgpu_crtc *amdgpu_crtc = adev->mode_info.crtcs[work->crtc_id];
 
-	struct drm_crtc *crtc = &amdgpuCrtc->base;
+	struct drm_crtc *crtc = &amdgpu_crtc->base;
 	unsigned long flags;
 	unsigned i;
 	int vpos, hpos;
@@ -85,14 +85,14 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 	/* Wait until we're out of the vertical blank period before the one
 	 * targeted by the flip
 	 */
-	if (amdgpuCrtc->enabled &&
+	if (amdgpu_crtc->enabled &&
 	    (amdgpu_get_crtc_scanoutpos(adev->ddev, work->crtc_id, 0,
 					&vpos, &hpos, NULL, NULL,
 					&crtc->hwmode)
 	     & (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK)) ==
 	    (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK) &&
 	    (int)(work->target_vblank -
-		  amdgpu_get_vblank_counter_kms(adev->ddev, amdgpuCrtc->crtc_id)) > 0) {
+		  amdgpu_get_vblank_counter_kms(adev->ddev, amdgpu_crtc->crtc_id)) > 0) {
 		schedule_delayed_work(&work->flip_work, usecs_to_jiffies(1000));
 		return;
 	}
@@ -104,12 +104,12 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 	adev->mode_info.funcs->page_flip(adev, work->crtc_id, work->base, work->async);
 
 	/* Set the flip status */
-	amdgpuCrtc->pflip_status = AMDGPU_FLIP_SUBMITTED;
+	amdgpu_crtc->pflip_status = AMDGPU_FLIP_SUBMITTED;
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 
 
 	DRM_DEBUG_DRIVER("crtc:%d[%p], pflip_stat:AMDGPU_FLIP_SUBMITTED, work: %p,\n",
-					 amdgpuCrtc->crtc_id, amdgpuCrtc, work);
+					 amdgpu_crtc->crtc_id, amdgpu_crtc, work);
 
 }
 
@@ -187,7 +187,7 @@ int amdgpu_crtc_page_flip_target(struct drm_crtc *crtc,
 		goto cleanup;
 	}
 
-	r = amdgpu_bo_pin_restricted(new_abo, AMDGPU_GEM_DOMAIN_VRAM, 0, 0, &base);
+	r = amdgpu_bo_pin(new_abo, AMDGPU_GEM_DOMAIN_VRAM, &base);
 	if (unlikely(r != 0)) {
 		r = -EINVAL;
 		DRM_ERROR("failed to pin new abo buffer before flip\n");
@@ -244,9 +244,9 @@ unreserve:
 
 cleanup:
 	amdgpu_bo_unref(&work->old_abo);
-	fence_put(work->excl);
+	dma_fence_put(work->excl);
 	for (i = 0; i < work->shared_count; ++i)
-		fence_put(work->shared[i]);
+		dma_fence_put(work->shared[i]);
 	kfree(work->shared);
 	kfree(work);
 

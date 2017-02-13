@@ -504,7 +504,7 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 #endif
 
 	smt_swap_para(sm,(int) mb->sm_len,1) ;
-	DB_SMT("SMT : received packet [%s] at 0x%x\n",
+	DB_SMT("SMT : received packet [%s] at 0x%p\n",
 		smt_type_name[m_fc(mb) & 0xf],sm) ;
 	DB_SMT("SMT : version %d, class %s\n",sm->smt_version,
 		smt_class_name[(sm->smt_class>LAST_CLASS)?0 : sm->smt_class]) ;

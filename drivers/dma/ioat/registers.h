@@ -106,8 +106,6 @@
 #define IOAT_DMA_COMP_V1			0x0001	/* Compatibility with DMA version 1 */
 #define IOAT_DMA_COMP_V2			0x0002	/* Compatibility with DMA version 2 */
 
-/* IOAT1 define left for i7300_idle driver to not fail compiling */
-#define IOAT1_CHANSTS_OFFSET		0x04
 #define IOAT_CHANSTS_OFFSET		0x08	/* 64-bit Channel Status Register */
 #define IOAT_CHANSTS_COMPLETED_DESCRIPTOR_ADDR	(~0x3fULL)
 #define IOAT_CHANSTS_SOFT_ERR			0x10ULL

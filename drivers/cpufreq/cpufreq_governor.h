@@ -85,7 +85,7 @@ struct policy_dbs_info {
 	 * Per policy mutex that serializes load evaluation from limit-change
 	 * and work-handler.
 	 */
-	struct mutex timer_mutex;
+	struct mutex update_mutex;
 
 	u64 last_sample_time;
 	s64 sample_delay_ns;
@@ -97,6 +97,7 @@ struct policy_dbs_info {
 	struct list_head list;
 	/* Multiplier for increasing sample delay temporarily. */
 	unsigned int rate_mult;
+	unsigned int idle_periods;	/* For conservative */
 	/* Status indicators */
 	bool is_shared;		/* This object is used by multiple CPUs */
 	bool work_in_progress;	/* Work is being queued up or in progress */
@@ -135,7 +136,7 @@ struct dbs_governor {
 	 */
 	struct dbs_data *gdbs_data;
 
-	unsigned int (*gov_dbs_timer)(struct cpufreq_policy *policy);
+	unsigned int (*gov_dbs_update)(struct cpufreq_policy *policy);
 	struct policy_dbs_info *(*alloc)(void);
 	void (*free)(struct policy_dbs_info *policy_dbs);
 	int (*init)(struct dbs_data *dbs_data);

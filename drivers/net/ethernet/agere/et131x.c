@@ -176,6 +176,8 @@ MODULE_DESCRIPTION("10/100/1000 Base-T Ethernet Driver for the ET1310 by Agere S
 #define NUM_FBRS		2
 
 #define MAX_PACKETS_HANDLED	256
+#define ET131X_MIN_MTU		64
+#define ET131X_MAX_MTU		9216
 
 #define ALCATEL_MULTICAST_PKT	0x01000000
 #define ALCATEL_BROADCAST_PKT	0x02000000
@@ -3869,9 +3871,6 @@ static int et131x_change_mtu(struct net_device *netdev, int new_mtu)
 	int result = 0;
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 
-	if (new_mtu < 64 || new_mtu > 9216)
-		return -EINVAL;
-
 	et131x_disable_txrx(netdev);
 
 	netdev->mtu = new_mtu;
@@ -3958,6 +3957,8 @@ static int et131x_pci_setup(struct pci_dev *pdev,
 
 	netdev->watchdog_timeo = ET131X_TX_TIMEOUT;
 	netdev->netdev_ops     = &et131x_netdev_ops;
+	netdev->min_mtu        = ET131X_MIN_MTU;
+	netdev->max_mtu        = ET131X_MAX_MTU;
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 	netdev->ethtool_ops = &et131x_ethtool_ops;

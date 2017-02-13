@@ -44,8 +44,8 @@ static int nfp_net_debugfs_rx_q_read(struct seq_file *file, void *data)
 	struct nfp_net_r_vector *r_vec = file->private;
 	struct nfp_net_rx_ring *rx_ring;
 	struct nfp_net_rx_desc *rxd;
-	struct sk_buff *skb;
 	struct nfp_net *nn;
+	void *frag;
 	int i;
 
 	rtnl_lock();
@@ -73,10 +73,9 @@ static int nfp_net_debugfs_rx_q_read(struct seq_file *file, void *data)
 		seq_printf(file, "%04d: 0x%08x 0x%08x", i,
 			   rxd->vals[0], rxd->vals[1]);
 
-		skb = READ_ONCE(rx_ring->rxbufs[i].skb);
-		if (skb)
-			seq_printf(file, " skb->head=%p skb->data=%p",
-				   skb->head, skb->data);
+		frag = READ_ONCE(rx_ring->rxbufs[i].frag);
+		if (frag)
+			seq_printf(file, " frag=%p", frag);
 
 		if (rx_ring->rxbufs[i].dma_addr)
 			seq_printf(file, " dma_addr=%pad",
@@ -115,6 +114,16 @@ static const struct file_operations nfp_rx_q_fops = {
 	.llseek = seq_lseek
 };
 
+static int nfp_net_debugfs_tx_q_open(struct inode *inode, struct file *f);
+
+static const struct file_operations nfp_tx_q_fops = {
+	.owner = THIS_MODULE,
+	.open = nfp_net_debugfs_tx_q_open,
+	.release = single_release,
+	.read = seq_read,
+	.llseek = seq_lseek
+};
+
 static int nfp_net_debugfs_tx_q_read(struct seq_file *file, void *data)
 {
 	struct nfp_net_r_vector *r_vec = file->private;
@@ -127,10 +136,13 @@ static int nfp_net_debugfs_tx_q_read(struct seq_file *file, void *data)
 
 	rtnl_lock();
 
-	if (!r_vec->nfp_net || !r_vec->tx_ring)
+	if (debugfs_real_fops(file->file) == &nfp_tx_q_fops)
+		tx_ring = r_vec->tx_ring;
+	else
+		tx_ring = r_vec->xdp_ring;
+	if (!r_vec->nfp_net || !tx_ring)
 		goto out;
 	nn = r_vec->nfp_net;
-	tx_ring = r_vec->tx_ring;
 	if (!netif_running(nn->netdev))
 		goto out;
 
@@ -149,9 +161,14 @@ static int nfp_net_debugfs_tx_q_read(struct seq_file *file, void *data)
 			   txd->vals[2], txd->vals[3]);
 
 		skb = READ_ONCE(tx_ring->txbufs[i].skb);
-		if (skb)
-			seq_printf(file, " skb->head=%p skb->data=%p",
-				   skb->head, skb->data);
+		if (skb) {
+			if (tx_ring == r_vec->tx_ring)
+				seq_printf(file, " skb->head=%p skb->data=%p",
+					   skb->head, skb->data);
+			else
+				seq_printf(file, " frag=%p", skb);
+		}
+
 		if (tx_ring->txbufs[i].dma_addr)
 			seq_printf(file, " dma_addr=%pad",
 				   &tx_ring->txbufs[i].dma_addr);
@@ -177,7 +194,7 @@ static int nfp_net_debugfs_tx_q_open(struct inode *inode, struct file *f)
 	return single_open(f, nfp_net_debugfs_tx_q_read, inode->i_private);
 }
 
-static const struct file_operations nfp_tx_q_fops = {
+static const struct file_operations nfp_xdp_q_fops = {
 	.owner = THIS_MODULE,
 	.open = nfp_net_debugfs_tx_q_open,
 	.release = single_release,
@@ -187,7 +204,7 @@ static const struct file_operations nfp_tx_q_fops = {
 
 void nfp_net_debugfs_adapter_add(struct nfp_net *nn)
 {
-	struct dentry *queues, *tx, *rx;
+	struct dentry *queues, *tx, *rx, *xdp;
 	char int_name[16];
 	int i;
 
@@ -205,16 +222,19 @@ void nfp_net_debugfs_adapter_add(struct nfp_net *nn)
 
 	rx = debugfs_create_dir("rx", queues);
 	tx = debugfs_create_dir("tx", queues);
-	if (IS_ERR_OR_NULL(rx) || IS_ERR_OR_NULL(tx))
+	xdp = debugfs_create_dir("xdp", queues);
+	if (IS_ERR_OR_NULL(rx) || IS_ERR_OR_NULL(tx) || IS_ERR_OR_NULL(xdp))
 		return;
 
-	for (i = 0; i < nn->num_rx_rings; i++) {
+	for (i = 0; i < min(nn->max_rx_rings, nn->max_r_vecs); i++) {
 		sprintf(int_name, "%d", i);
 		debugfs_create_file(int_name, S_IRUSR, rx,
 				    &nn->r_vecs[i], &nfp_rx_q_fops);
+		debugfs_create_file(int_name, S_IRUSR, xdp,
+				    &nn->r_vecs[i], &nfp_xdp_q_fops);
 	}
 
-	for (i = 0; i < nn->num_tx_rings; i++) {
+	for (i = 0; i < min(nn->max_tx_rings, nn->max_r_vecs); i++) {
 		sprintf(int_name, "%d", i);
 		debugfs_create_file(int_name, S_IRUSR, tx,
 				    &nn->r_vecs[i], &nfp_tx_q_fops);

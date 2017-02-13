@@ -296,8 +296,4 @@ static struct platform_driver spear13xx_pcie_driver = {
 	},
 };
 
-static int __init spear13xx_pcie_init(void)
-{
-	return platform_driver_register(&spear13xx_pcie_driver);
-}
-device_initcall(spear13xx_pcie_init);
+builtin_platform_driver(spear13xx_pcie_driver);

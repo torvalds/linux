@@ -248,9 +248,9 @@ void __init setup_hpet_timer(void)
 	pr_info("hpet clock event device register\n");
 }
 
-static cycle_t hpet_read_counter(struct clocksource *cs)
+static u64 hpet_read_counter(struct clocksource *cs)
 {
-	return (cycle_t)hpet_read(HPET_COUNTER);
+	return (u64)hpet_read(HPET_COUNTER);
 }
 
 static void hpet_suspend(struct clocksource *cs)

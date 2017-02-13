@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/bL_switcher.h>
 
 static ssize_t bL_switcher_write(struct file *file, const char __user *buf,

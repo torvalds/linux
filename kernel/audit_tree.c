@@ -458,8 +458,7 @@ static void audit_tree_log_remove_rule(struct audit_krule *rule)
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE);
 	if (unlikely(!ab))
 		return;
-	audit_log_format(ab, "op=");
-	audit_log_string(ab, "remove_rule");
+	audit_log_format(ab, "op=remove_rule");
 	audit_log_format(ab, " dir=");
 	audit_log_untrustedstring(ab, rule->tree->pathname);
 	audit_log_key(ab, rule->filterkey);
@@ -948,7 +947,7 @@ static int audit_tree_handle_event(struct fsnotify_group *group,
 				   struct inode *to_tell,
 				   struct fsnotify_mark *inode_mark,
 				   struct fsnotify_mark *vfsmount_mark,
-				   u32 mask, void *data, int data_type,
+				   u32 mask, const void *data, int data_type,
 				   const unsigned char *file_name, u32 cookie)
 {
 	return 0;

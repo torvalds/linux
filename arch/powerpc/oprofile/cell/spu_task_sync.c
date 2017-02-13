@@ -295,7 +295,7 @@ out:
  * dcookie user still being registered (namely, the reader
  * of the event buffer).
  */
-static inline unsigned long fast_get_dcookie(struct path *path)
+static inline unsigned long fast_get_dcookie(const struct path *path)
 {
 	unsigned long cookie;
 

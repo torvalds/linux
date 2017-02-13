@@ -463,6 +463,7 @@ struct bgmac {
 		struct {
 			void *base;
 			void *idm_base;
+			void *nicpm_base;
 		} plat;
 		struct {
 			struct bcma_device *core;
@@ -513,10 +514,13 @@ struct bgmac {
 	u32 (*get_bus_clock)(struct bgmac *bgmac);
 	void (*cmn_maskset32)(struct bgmac *bgmac, u16 offset, u32 mask,
 			      u32 set);
+	int (*phy_connect)(struct bgmac *bgmac);
 };
 
 int bgmac_enet_probe(struct bgmac *info);
 void bgmac_enet_remove(struct bgmac *bgmac);
+void bgmac_adjust_link(struct net_device *net_dev);
+int bgmac_phy_connect_direct(struct bgmac *bgmac);
 
 struct mii_bus *bcma_mdio_mii_register(struct bcma_device *core, u8 phyaddr);
 void bcma_mdio_mii_unregister(struct mii_bus *mii_bus);
@@ -582,5 +586,10 @@ static inline void bgmac_mask(struct bgmac *bgmac, u16 offset, u32 mask)
 static inline void bgmac_set(struct bgmac *bgmac, u16 offset, u32 set)
 {
 	bgmac_maskset(bgmac, offset, ~0, set);
+}
+
+static inline int bgmac_phy_connect(struct bgmac *bgmac)
+{
+	return bgmac->phy_connect(bgmac);
 }
 #endif /* _BGMAC_H */

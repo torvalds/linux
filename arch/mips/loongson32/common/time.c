@@ -63,7 +63,7 @@ void __init ls1x_pwmtimer_init(void)
 	ls1x_pwmtimer_restart();
 }
 
-static cycle_t ls1x_clocksource_read(struct clocksource *cs)
+static u64 ls1x_clocksource_read(struct clocksource *cs)
 {
 	unsigned long flags;
 	int count;
@@ -107,7 +107,7 @@ static cycle_t ls1x_clocksource_read(struct clocksource *cs)
 
 	raw_spin_unlock_irqrestore(&ls1x_timer_lock, flags);
 
-	return (cycle_t) (jifs * ls1x_jiffies_per_tick) + count;
+	return (u64) (jifs * ls1x_jiffies_per_tick) + count;
 }
 
 static struct clocksource ls1x_clocksource = {

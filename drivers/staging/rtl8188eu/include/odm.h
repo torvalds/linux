@@ -80,11 +80,6 @@
 #define DM_DIG_FA_TH2_LPS		30 /*  30 lps */
 #define RSSI_OFFSET_DIG			0x05;
 
-/* ANT Test */
-#define ANTTESTALL		0x00	/* Ant A or B will be Testing */
-#define ANTTESTA		0x01	/* Ant A will be Testing */
-#define ANTTESTB		0x02	/* Ant B will be testing */
-
 struct rtw_dig {
 	u8		Dig_Enable_Flag;
 	u8		Dig_Ext_Port_Stage;
@@ -590,7 +585,6 @@ struct odm_rf_cal {
 	s32	RegEBC;
 
 	u8	TXPowercount;
-	bool	bTXPowerTrackingInit;
 	bool	bTXPowerTracking;
 	u8	TxPowerTrackControl; /* for mp mode, turn off txpwrtracking
 				      * as default */

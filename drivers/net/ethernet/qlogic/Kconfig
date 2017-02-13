@@ -110,4 +110,7 @@ config QEDE
 config QED_RDMA
 	bool
 
+config QED_ISCSI
+	bool
+
 endif # NET_VENDOR_QLOGIC

@@ -1,4 +1,5 @@
-/* Copyright 2013-2015 Freescale Semiconductor Inc.
+/*
+ * Copyright 2013-2016 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -34,7 +35,8 @@
 
 #include "mc-cmd.h"
 
-/* Data Path Resource Container API
+/*
+ * Data Path Resource Container API
  * Contains DPRC API for managing and querying DPAA resources
  */
 
@@ -70,12 +72,14 @@ int dprc_close(struct fsl_mc_io *mc_io,
  * and can be retrieved using dprc_get_attributes()
  */
 
-/* Spawn Policy Option allowed - Indicates that the new container is allowed
+/*
+ * Spawn Policy Option allowed - Indicates that the new container is allowed
  * to spawn and have its own child containers.
  */
 #define DPRC_CFG_OPT_SPAWN_ALLOWED		0x00000001
 
-/* General Container allocation policy - Indicates that the new container is
+/*
+ * General Container allocation policy - Indicates that the new container is
  * allowed to allocate requested resources from its parent container; if not
  * set, the container is only allowed to use resources in its own pools; Note
  * that this is a container's global policy, but the parent container may
@@ -83,12 +87,14 @@ int dprc_close(struct fsl_mc_io *mc_io,
  */
 #define DPRC_CFG_OPT_ALLOC_ALLOWED		0x00000002
 
-/* Object initialization allowed - software context associated with this
+/*
+ * Object initialization allowed - software context associated with this
  * container is allowed to invoke object initialization operations.
  */
 #define DPRC_CFG_OPT_OBJ_CREATE_ALLOWED	0x00000004
 
-/* Topology change allowed - software context associated with this
+/*
+ * Topology change allowed - software context associated with this
  * container is allowed to invoke topology operations, such as attach/detach
  * of network objects.
  */
@@ -116,17 +122,17 @@ struct dprc_cfg {
 	char label[16];
 };
 
-int dprc_create_container(struct fsl_mc_io	*mc_io,
-			  u32		cmd_flags,
-			  u16		token,
-			  struct dprc_cfg	*cfg,
-			  int			*child_container_id,
-			  u64		*child_portal_offset);
+int dprc_create_container(struct fsl_mc_io *mc_io,
+			  u32 cmd_flags,
+			  u16 token,
+			  struct dprc_cfg *cfg,
+			  int *child_container_id,
+			  u64 *child_portal_offset);
 
-int dprc_destroy_container(struct fsl_mc_io	*mc_io,
-			   u32		cmd_flags,
-			   u16		token,
-			   int			child_container_id);
+int dprc_destroy_container(struct fsl_mc_io *mc_io,
+			   u32 cmd_flags,
+			   u16 token,
+			   int child_container_id);
 
 int dprc_reset_container(struct fsl_mc_io *mc_io,
 			 u32 cmd_flags,
@@ -139,7 +145,7 @@ int dprc_reset_container(struct fsl_mc_io *mc_io,
 #define DPRC_IRQ_INDEX          0
 
 /* Number of dprc's IRQs */
-#define DPRC_NUM_OF_IRQS		1
+#define DPRC_NUM_OF_IRQS	1
 
 /* DPRC IRQ events */
 
@@ -151,12 +157,14 @@ int dprc_reset_container(struct fsl_mc_io *mc_io,
 #define DPRC_IRQ_EVENT_RES_ADDED		0x00000004
 /* IRQ event - Indicates that resources removed from the container */
 #define DPRC_IRQ_EVENT_RES_REMOVED		0x00000008
-/* IRQ event - Indicates that one of the descendant containers that opened by
+/*
+ * IRQ event - Indicates that one of the descendant containers that opened by
  * this container is destroyed
  */
 #define DPRC_IRQ_EVENT_CONTAINER_DESTROYED	0x00000010
 
-/* IRQ event - Indicates that on one of the container's opened object is
+/*
+ * IRQ event - Indicates that on one of the container's opened object is
  * destroyed
  */
 #define DPRC_IRQ_EVENT_OBJ_DESTROYED		0x00000020
@@ -171,59 +179,59 @@ int dprc_reset_container(struct fsl_mc_io *mc_io,
  * @irq_num:	A user defined number associated with this IRQ
  */
 struct dprc_irq_cfg {
-	     phys_addr_t	paddr;
-	     u32		val;
-	     int		irq_num;
+	     phys_addr_t paddr;
+	     u32 val;
+	     int irq_num;
 };
 
-int dprc_set_irq(struct fsl_mc_io	*mc_io,
-		 u32		cmd_flags,
-		 u16		token,
-		 u8		irq_index,
-		 struct dprc_irq_cfg	*irq_cfg);
+int dprc_set_irq(struct fsl_mc_io *mc_io,
+		 u32 cmd_flags,
+		 u16 token,
+		 u8 irq_index,
+		 struct dprc_irq_cfg *irq_cfg);
 
-int dprc_get_irq(struct fsl_mc_io	*mc_io,
-		 u32		cmd_flags,
-		 u16		token,
-		 u8		irq_index,
-		 int			*type,
-		 struct dprc_irq_cfg	*irq_cfg);
+int dprc_get_irq(struct fsl_mc_io *mc_io,
+		 u32 cmd_flags,
+		 u16 token,
+		 u8 irq_index,
+		 int *type,
+		 struct dprc_irq_cfg *irq_cfg);
 
-int dprc_set_irq_enable(struct fsl_mc_io	*mc_io,
-			u32		cmd_flags,
-			u16		token,
-			u8			irq_index,
-			u8			en);
+int dprc_set_irq_enable(struct fsl_mc_io *mc_io,
+			u32 cmd_flags,
+			u16 token,
+			u8 irq_index,
+			u8 en);
 
-int dprc_get_irq_enable(struct fsl_mc_io	*mc_io,
-			u32		cmd_flags,
-			u16		token,
-			u8			irq_index,
-			u8			*en);
+int dprc_get_irq_enable(struct fsl_mc_io *mc_io,
+			u32 cmd_flags,
+			u16 token,
+			u8 irq_index,
+			u8 *en);
 
-int dprc_set_irq_mask(struct fsl_mc_io	*mc_io,
-		      u32		cmd_flags,
-		      u16		token,
-		      u8		irq_index,
-		      u32		mask);
+int dprc_set_irq_mask(struct fsl_mc_io *mc_io,
+		      u32 cmd_flags,
+		      u16 token,
+		      u8 irq_index,
+		      u32 mask);
 
-int dprc_get_irq_mask(struct fsl_mc_io	*mc_io,
-		      u32		cmd_flags,
-		      u16		token,
-		      u8		irq_index,
-		      u32		*mask);
+int dprc_get_irq_mask(struct fsl_mc_io *mc_io,
+		      u32 cmd_flags,
+		      u16 token,
+		      u8 irq_index,
+		      u32 *mask);
 
-int dprc_get_irq_status(struct fsl_mc_io	*mc_io,
-			u32		cmd_flags,
-			u16		token,
-			u8			irq_index,
-			u32		*status);
+int dprc_get_irq_status(struct fsl_mc_io *mc_io,
+			u32 cmd_flags,
+			u16 token,
+			u8 irq_index,
+			u32 *status);
 
-int dprc_clear_irq_status(struct fsl_mc_io	*mc_io,
-			  u32		cmd_flags,
-			  u16		token,
-			  u8		irq_index,
-			  u32		status);
+int dprc_clear_irq_status(struct fsl_mc_io *mc_io,
+			  u32 cmd_flags,
+			  u16 token,
+			  u8 irq_index,
+			  u32 status);
 
 /**
  * struct dprc_attributes - Container attributes
@@ -231,63 +239,56 @@ int dprc_clear_irq_status(struct fsl_mc_io	*mc_io,
  * @icid: Container's ICID
  * @portal_id: Container's portal ID
  * @options: Container's options as set at container's creation
- * @version: DPRC version
  */
 struct dprc_attributes {
 	int container_id;
 	u16 icid;
 	int portal_id;
 	u64 options;
-	/**
-	 * struct version - DPRC version
-	 * @major: DPRC major version
-	 * @minor: DPRC minor version
-	 */
-	struct {
-		u16 major;
-		u16 minor;
-	} version;
 };
 
-int dprc_get_attributes(struct fsl_mc_io	*mc_io,
-			u32		cmd_flags,
-			u16		token,
-			struct dprc_attributes	*attributes);
+int dprc_get_attributes(struct fsl_mc_io *mc_io,
+			u32 cmd_flags,
+			u16 token,
+			struct dprc_attributes *attributes);
 
 int dprc_set_res_quota(struct fsl_mc_io	*mc_io,
-		       u32		cmd_flags,
-		       u16		token,
-		       int		child_container_id,
-		       char		*type,
-		       u16		quota);
+		       u32 cmd_flags,
+		       u16 token,
+		       int child_container_id,
+		       char *type,
+		       u16 quota);
 
 int dprc_get_res_quota(struct fsl_mc_io	*mc_io,
-		       u32		cmd_flags,
-		       u16		token,
-		       int		child_container_id,
-		       char		*type,
-		       u16		*quota);
+		       u32 cmd_flags,
+		       u16 token,
+		       int child_container_id,
+		       char *type,
+		       u16 *quota);
 
 /* Resource request options */
 
-/* Explicit resource ID request - The requested objects/resources
+/*
+ * Explicit resource ID request - The requested objects/resources
  * are explicit and sequential (in case of resources).
  * The base ID is given at res_req at base_align field
  */
-#define DPRC_RES_REQ_OPT_EXPLICIT		0x00000001
+#define DPRC_RES_REQ_OPT_EXPLICIT	0x00000001
 
-/* Aligned resources request - Relevant only for resources
+/*
+ * Aligned resources request - Relevant only for resources
  * request (and not objects). Indicates that resources base ID should be
  * sequential and aligned to the value given at dprc_res_req base_align field
  */
-#define DPRC_RES_REQ_OPT_ALIGNED		0x00000002
+#define DPRC_RES_REQ_OPT_ALIGNED	0x00000002
 
-/* Plugged Flag - Relevant only for object assignment request.
+/*
+ * Plugged Flag - Relevant only for object assignment request.
  * Indicates that after all objects assigned. An interrupt will be invoked at
  * the relevant GPP. The assigned object will be marked as plugged.
  * plugged objects can't be assigned from their container
  */
-#define DPRC_RES_REQ_OPT_PLUGGED		0x00000004
+#define DPRC_RES_REQ_OPT_PLUGGED	0x00000004
 
 /**
  * struct dprc_res_req - Resource request descriptor, to be used in assignment
@@ -312,33 +313,33 @@ struct dprc_res_req {
 	int id_base_align;
 };
 
-int dprc_assign(struct fsl_mc_io	*mc_io,
-		u32		cmd_flags,
-		u16		token,
-		int			container_id,
-		struct dprc_res_req	*res_req);
+int dprc_assign(struct fsl_mc_io *mc_io,
+		u32 cmd_flags,
+		u16 token,
+		int container_id,
+		struct dprc_res_req *res_req);
 
-int dprc_unassign(struct fsl_mc_io	*mc_io,
-		  u32		cmd_flags,
-		  u16		token,
-		  int			child_container_id,
-		  struct dprc_res_req	*res_req);
+int dprc_unassign(struct fsl_mc_io *mc_io,
+		  u32 cmd_flags,
+		  u16 token,
+		  int child_container_id,
+		  struct dprc_res_req *res_req);
 
-int dprc_get_pool_count(struct fsl_mc_io	*mc_io,
-			u32		cmd_flags,
-			u16		token,
-			int			*pool_count);
+int dprc_get_pool_count(struct fsl_mc_io *mc_io,
+			u32 cmd_flags,
+			u16 token,
+			int *pool_count);
 
-int dprc_get_pool(struct fsl_mc_io	*mc_io,
-		  u32		cmd_flags,
-		  u16		token,
-		  int			pool_index,
-		  char			*type);
+int dprc_get_pool(struct fsl_mc_io *mc_io,
+		  u32 cmd_flags,
+		  u16 token,
+		  int pool_index,
+		  char *type);
 
 int dprc_get_obj_count(struct fsl_mc_io *mc_io,
-		       u32		cmd_flags,
-		       u16		token,
-		       int		*obj_count);
+		       u32 cmd_flags,
+		       u16 token,
+		       int *obj_count);
 
 /* Objects Attributes Flags */
 
@@ -353,7 +354,7 @@ int dprc_get_obj_count(struct fsl_mc_io *mc_io,
  * masters;
  * user is responsible for proper memory handling through IOMMU configuration.
  */
-#define DPRC_OBJ_FLAG_NO_MEM_SHAREABILITY		0x0001
+#define DPRC_OBJ_FLAG_NO_MEM_SHAREABILITY	0x0001
 
 /**
  * struct dprc_obj_desc - Object descriptor, returned from dprc_get_obj()
@@ -381,41 +382,41 @@ struct dprc_obj_desc {
 	u16 flags;
 };
 
-int dprc_get_obj(struct fsl_mc_io	*mc_io,
-		 u32		cmd_flags,
-		 u16		token,
-		 int			obj_index,
-		 struct dprc_obj_desc	*obj_desc);
+int dprc_get_obj(struct fsl_mc_io *mc_io,
+		 u32 cmd_flags,
+		 u16 token,
+		 int obj_index,
+		 struct dprc_obj_desc *obj_desc);
 
-int dprc_get_obj_desc(struct fsl_mc_io		*mc_io,
-		      u32		cmd_flags,
-			u16		token,
-			char			*obj_type,
-			int			obj_id,
-			struct dprc_obj_desc	*obj_desc);
+int dprc_get_obj_desc(struct fsl_mc_io *mc_io,
+		      u32 cmd_flags,
+		      u16 token,
+		      char *obj_type,
+		      int obj_id,
+		      struct dprc_obj_desc *obj_desc);
 
-int dprc_set_obj_irq(struct fsl_mc_io		*mc_io,
-		     u32			cmd_flags,
-		     u16			token,
-		     char			*obj_type,
-		     int			obj_id,
-		     u8			irq_index,
-		     struct dprc_irq_cfg	*irq_cfg);
+int dprc_set_obj_irq(struct fsl_mc_io *mc_io,
+		     u32 cmd_flags,
+		     u16 token,
+		     char *obj_type,
+		     int obj_id,
+		     u8 irq_index,
+		     struct dprc_irq_cfg *irq_cfg);
 
-int dprc_get_obj_irq(struct fsl_mc_io		*mc_io,
-		     u32			cmd_flags,
-		     u16			token,
-		     char			*obj_type,
-		     int			obj_id,
-		     u8			irq_index,
-		     int			*type,
-		     struct dprc_irq_cfg	*irq_cfg);
+int dprc_get_obj_irq(struct fsl_mc_io *mc_io,
+		     u32 cmd_flags,
+		     u16 token,
+		     char *obj_type,
+		     int obj_id,
+		     u8 irq_index,
+		     int *type,
+		     struct dprc_irq_cfg *irq_cfg);
 
-int dprc_get_res_count(struct fsl_mc_io	*mc_io,
-		       u32		cmd_flags,
-		       u16		token,
-		       char		*type,
-		       int		*res_count);
+int dprc_get_res_count(struct fsl_mc_io *mc_io,
+		       u32 cmd_flags,
+		       u16 token,
+		       char *type,
+		       int *res_count);
 
 /**
  * enum dprc_iter_status - Iteration status
@@ -444,11 +445,11 @@ struct dprc_res_ids_range_desc {
 	enum dprc_iter_status iter_status;
 };
 
-int dprc_get_res_ids(struct fsl_mc_io			*mc_io,
-		     u32				cmd_flags,
-		     u16				token,
-		     char				*type,
-		     struct dprc_res_ids_range_desc	*range_desc);
+int dprc_get_res_ids(struct fsl_mc_io *mc_io,
+		     u32 cmd_flags,
+		     u16 token,
+		     char *type,
+		     struct dprc_res_ids_range_desc *range_desc);
 
 /* Region flags */
 /* Cacheable - Indicates that region should be mapped as cacheable */
@@ -481,20 +482,20 @@ struct dprc_region_desc {
 	enum dprc_region_type type;
 };
 
-int dprc_get_obj_region(struct fsl_mc_io	*mc_io,
-			u32		cmd_flags,
-			u16		token,
-			char			*obj_type,
-			int			obj_id,
-			u8			region_index,
-			struct dprc_region_desc	*region_desc);
+int dprc_get_obj_region(struct fsl_mc_io *mc_io,
+			u32 cmd_flags,
+			u16 token,
+			char *obj_type,
+			int obj_id,
+			u8 region_index,
+			struct dprc_region_desc *region_desc);
 
-int dprc_set_obj_label(struct fsl_mc_io	*mc_io,
-		       u32		cmd_flags,
-		       u16		token,
-		       char		*obj_type,
-		       int		obj_id,
-		       char		*label);
+int dprc_set_obj_label(struct fsl_mc_io *mc_io,
+		       u32 cmd_flags,
+		       u16 token,
+		       char *obj_type,
+		       int obj_id,
+		       char *label);
 
 /**
  * struct dprc_endpoint - Endpoint description for link connect/disconnect
@@ -521,24 +522,33 @@ struct dprc_connection_cfg {
 	u32 max_rate;
 };
 
-int dprc_connect(struct fsl_mc_io		*mc_io,
-		 u32			cmd_flags,
-		 u16			token,
-		 const struct dprc_endpoint	*endpoint1,
-		 const struct dprc_endpoint	*endpoint2,
+int dprc_connect(struct fsl_mc_io *mc_io,
+		 u32 cmd_flags,
+		 u16 token,
+		 const struct dprc_endpoint *endpoint1,
+		 const struct dprc_endpoint *endpoint2,
 		 const struct dprc_connection_cfg *cfg);
 
-int dprc_disconnect(struct fsl_mc_io		*mc_io,
-		    u32			cmd_flags,
-		    u16			token,
-		    const struct dprc_endpoint	*endpoint);
+int dprc_disconnect(struct fsl_mc_io *mc_io,
+		    u32 cmd_flags,
+		    u16 token,
+		    const struct dprc_endpoint *endpoint);
 
-int dprc_get_connection(struct fsl_mc_io		*mc_io,
-			u32			cmd_flags,
-			u16			token,
-			const struct dprc_endpoint	*endpoint1,
-			struct dprc_endpoint		*endpoint2,
-			int				*state);
+int dprc_get_connection(struct fsl_mc_io *mc_io,
+			u32 cmd_flags,
+			u16 token,
+			const struct dprc_endpoint *endpoint1,
+			struct dprc_endpoint *endpoint2,
+			int *state);
+
+int dprc_get_api_version(struct fsl_mc_io *mc_io,
+			 u32 cmd_flags,
+			 u16 *major_ver,
+			 u16 *minor_ver);
+
+int dprc_get_container_id(struct fsl_mc_io *mc_io,
+			  u32 cmd_flags,
+			  int *container_id);
 
 #endif /* _FSL_DPRC_H */
 

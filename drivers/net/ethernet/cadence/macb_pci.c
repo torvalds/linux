@@ -1,0 +1,153 @@
+/**
+ * macb_pci.c - Cadence GEM PCI wrapper.
+ *
+ * Copyright (C) 2016 Cadence Design Systems - http://www.cadence.com
+ *
+ * Authors: Rafal Ozieblo <rafalo@cadence.com>
+ *	    Bartosz Folta <bfolta@cadence.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2  of
+ * the License as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
+#include <linux/etherdevice.h>
+#include <linux/module.h>
+#include <linux/pci.h>
+#include <linux/platform_data/macb.h>
+#include <linux/platform_device.h>
+#include "macb.h"
+
+#define PCI_DRIVER_NAME "macb_pci"
+#define PLAT_DRIVER_NAME "macb"
+
+#define CDNS_VENDOR_ID 0x17cd
+#define CDNS_DEVICE_ID 0xe007
+
+#define GEM_PCLK_RATE 50000000
+#define GEM_HCLK_RATE 50000000
+
+static int macb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+{
+	int err;
+	struct platform_device *plat_dev;
+	struct platform_device_info plat_info;
+	struct macb_platform_data plat_data;
+	struct resource res[2];
+
+	/* sanity check */
+	if (!id)
+		return -EINVAL;
+
+	/* enable pci device */
+	err = pci_enable_device(pdev);
+	if (err < 0) {
+		dev_err(&pdev->dev, "Enabling PCI device has failed: 0x%04X",
+			err);
+		return -EACCES;
+	}
+
+	pci_set_master(pdev);
+
+	/* set up resources */
+	memset(res, 0x00, sizeof(struct resource) * ARRAY_SIZE(res));
+	res[0].start = pdev->resource[0].start;
+	res[0].end = pdev->resource[0].end;
+	res[0].name = PCI_DRIVER_NAME;
+	res[0].flags = IORESOURCE_MEM;
+	res[1].start = pdev->irq;
+	res[1].name = PCI_DRIVER_NAME;
+	res[1].flags = IORESOURCE_IRQ;
+
+	dev_info(&pdev->dev, "EMAC physical base addr = 0x%p\n",
+		 (void *)(uintptr_t)pci_resource_start(pdev, 0));
+
+	/* set up macb platform data */
+	memset(&plat_data, 0, sizeof(plat_data));
+
+	/* initialize clocks */
+	plat_data.pclk = clk_register_fixed_rate(&pdev->dev, "pclk", NULL, 0,
+						 GEM_PCLK_RATE);
+	if (IS_ERR(plat_data.pclk)) {
+		err = PTR_ERR(plat_data.pclk);
+		goto err_pclk_register;
+	}
+
+	plat_data.hclk = clk_register_fixed_rate(&pdev->dev, "hclk", NULL, 0,
+						 GEM_HCLK_RATE);
+	if (IS_ERR(plat_data.hclk)) {
+		err = PTR_ERR(plat_data.hclk);
+		goto err_hclk_register;
+	}
+
+	/* set up platform device info */
+	memset(&plat_info, 0, sizeof(plat_info));
+	plat_info.parent = &pdev->dev;
+	plat_info.fwnode = pdev->dev.fwnode;
+	plat_info.name = PLAT_DRIVER_NAME;
+	plat_info.id = pdev->devfn;
+	plat_info.res = res;
+	plat_info.num_res = ARRAY_SIZE(res);
+	plat_info.data = &plat_data;
+	plat_info.size_data = sizeof(plat_data);
+	plat_info.dma_mask = DMA_BIT_MASK(32);
+
+	/* register platform device */
+	plat_dev = platform_device_register_full(&plat_info);
+	if (IS_ERR(plat_dev)) {
+		err = PTR_ERR(plat_dev);
+		goto err_plat_dev_register;
+	}
+
+	pci_set_drvdata(pdev, plat_dev);
+
+	return 0;
+
+err_plat_dev_register:
+	clk_unregister(plat_data.hclk);
+
+err_hclk_register:
+	clk_unregister(plat_data.pclk);
+
+err_pclk_register:
+	pci_disable_device(pdev);
+	return err;
+}
+
+static void macb_remove(struct pci_dev *pdev)
+{
+	struct platform_device *plat_dev = pci_get_drvdata(pdev);
+	struct macb_platform_data *plat_data = dev_get_platdata(&plat_dev->dev);
+
+	platform_device_unregister(plat_dev);
+	pci_disable_device(pdev);
+	clk_unregister(plat_data->pclk);
+	clk_unregister(plat_data->hclk);
+}
+
+static struct pci_device_id dev_id_table[] = {
+	{ PCI_DEVICE(CDNS_VENDOR_ID, CDNS_DEVICE_ID), },
+	{ 0, }
+};
+
+static struct pci_driver macb_pci_driver = {
+	.name     = PCI_DRIVER_NAME,
+	.id_table = dev_id_table,
+	.probe    = macb_probe,
+	.remove	  = macb_remove,
+};
+
+module_pci_driver(macb_pci_driver);
+MODULE_DEVICE_TABLE(pci, dev_id_table);
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Cadence NIC PCI wrapper");

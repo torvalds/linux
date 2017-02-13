@@ -43,6 +43,23 @@ struct inet_diag_req_v2 {
 	struct inet_diag_sockid id;
 };
 
+/*
+ * SOCK_RAW sockets require the underlied protocol to be
+ * additionally specified so we can use @pad member for
+ * this, but we can't rename it because userspace programs
+ * still may depend on this name. Instead lets use another
+ * structure definition as an alias for struct
+ * @inet_diag_req_v2.
+ */
+struct inet_diag_req_raw {
+	__u8	sdiag_family;
+	__u8	sdiag_protocol;
+	__u8	idiag_ext;
+	__u8	sdiag_raw_protocol;
+	__u32	idiag_states;
+	struct inet_diag_sockid id;
+};
+
 enum {
 	INET_DIAG_REQ_NONE,
 	INET_DIAG_REQ_BYTECODE,

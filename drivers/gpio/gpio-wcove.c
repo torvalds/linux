@@ -426,8 +426,8 @@ static int wcove_gpio_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = gpiochip_irqchip_add(&wg->chip, &wcove_irqchip, 0,
-			     handle_simple_irq, IRQ_TYPE_NONE);
+	ret = gpiochip_irqchip_add_nested(&wg->chip, &wcove_irqchip, 0,
+					  handle_simple_irq, IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(dev, "Failed to add irqchip: %d\n", ret);
 		return ret;
@@ -445,6 +445,8 @@ static int wcove_gpio_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to request irq %d\n", virq);
 		return ret;
 	}
+
+	gpiochip_set_nested_irqchip(&wg->chip, &wcove_irqchip, virq);
 
 	return 0;
 }

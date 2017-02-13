@@ -88,8 +88,8 @@ static void virtio_gpu_primary_plane_update(struct drm_plane *plane,
 				(vgdev, handle, 0,
 				 cpu_to_le32(plane->state->src_w >> 16),
 				 cpu_to_le32(plane->state->src_h >> 16),
-				 plane->state->src_x >> 16,
-				 plane->state->src_y >> 16, NULL);
+				 cpu_to_le32(plane->state->src_x >> 16),
+				 cpu_to_le32(plane->state->src_y >> 16), NULL);
 		}
 	} else {
 		handle = 0;
@@ -152,7 +152,7 @@ static void virtio_gpu_cursor_plane_update(struct drm_plane *plane,
 		if (!ret) {
 			reservation_object_add_excl_fence(bo->tbo.resv,
 							  &fence->f);
-			fence_put(&fence->f);
+			dma_fence_put(&fence->f);
 			fence = NULL;
 			virtio_gpu_object_unreserve(bo);
 			virtio_gpu_object_wait(bo, false);

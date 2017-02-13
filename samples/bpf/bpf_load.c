@@ -12,31 +12,44 @@
 #include <linux/bpf.h>
 #include <linux/filter.h>
 #include <linux/perf_event.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 #include <sys/syscall.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <poll.h>
 #include <ctype.h>
 #include "libbpf.h"
-#include "bpf_helpers.h"
 #include "bpf_load.h"
+#include "perf-sys.h"
 
 #define DEBUGFS "/sys/kernel/debug/tracing/"
 
 static char license[128];
 static int kern_version;
 static bool processed_sec[128];
+char bpf_log_buf[BPF_LOG_BUF_SIZE];
 int map_fd[MAX_MAPS];
 int prog_fd[MAX_PROGS];
 int event_fd[MAX_PROGS];
 int prog_cnt;
 int prog_array_fd = -1;
 
+struct bpf_map_def {
+	unsigned int type;
+	unsigned int key_size;
+	unsigned int value_size;
+	unsigned int max_entries;
+	unsigned int map_flags;
+};
+
 static int populate_prog_array(const char *event, int prog_fd)
 {
 	int ind = atoi(event), err;
 
-	err = bpf_update_elem(prog_array_fd, &ind, &prog_fd, BPF_ANY);
+	err = bpf_map_update_elem(prog_array_fd, &ind, &prog_fd, BPF_ANY);
 	if (err < 0) {
 		printf("failed to store prog_fd in prog_array\n");
 		return -1;
@@ -52,6 +65,9 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	bool is_tracepoint = strncmp(event, "tracepoint/", 11) == 0;
 	bool is_xdp = strncmp(event, "xdp", 3) == 0;
 	bool is_perf_event = strncmp(event, "perf_event", 10) == 0;
+	bool is_cgroup_skb = strncmp(event, "cgroup/skb", 10) == 0;
+	bool is_cgroup_sk = strncmp(event, "cgroup/sock", 11) == 0;
+	size_t insns_cnt = size / sizeof(struct bpf_insn);
 	enum bpf_prog_type prog_type;
 	char buf[256];
 	int fd, efd, err, id;
@@ -72,20 +88,25 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 		prog_type = BPF_PROG_TYPE_XDP;
 	} else if (is_perf_event) {
 		prog_type = BPF_PROG_TYPE_PERF_EVENT;
+	} else if (is_cgroup_skb) {
+		prog_type = BPF_PROG_TYPE_CGROUP_SKB;
+	} else if (is_cgroup_sk) {
+		prog_type = BPF_PROG_TYPE_CGROUP_SOCK;
 	} else {
 		printf("Unknown event '%s'\n", event);
 		return -1;
 	}
 
-	fd = bpf_prog_load(prog_type, prog, size, license, kern_version);
+	fd = bpf_load_program(prog_type, prog, insns_cnt, license, kern_version,
+			      bpf_log_buf, BPF_LOG_BUF_SIZE);
 	if (fd < 0) {
-		printf("bpf_prog_load() err=%d\n%s", errno, bpf_log_buf);
+		printf("bpf_load_program() err=%d\n%s", errno, bpf_log_buf);
 		return -1;
 	}
 
 	prog_fd[prog_cnt++] = fd;
 
-	if (is_xdp || is_perf_event)
+	if (is_xdp || is_perf_event || is_cgroup_skb || is_cgroup_sk)
 		return 0;
 
 	if (is_socket) {
@@ -159,7 +180,7 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	id = atoi(buf);
 	attr.config = id;
 
-	efd = perf_event_open(&attr, -1/*pid*/, 0/*cpu*/, -1/*group_fd*/, 0);
+	efd = sys_perf_event_open(&attr, -1/*pid*/, 0/*cpu*/, -1/*group_fd*/, 0);
 	if (efd < 0) {
 		printf("event %d fd %d err %s\n", id, efd, strerror(errno));
 		return -1;
@@ -317,6 +338,10 @@ int load_bpf_file(char *path)
 				    &shdr_prog, &data_prog))
 				continue;
 
+			if (shdr_prog.sh_type != SHT_PROGBITS ||
+			    !(shdr_prog.sh_flags & SHF_EXECINSTR))
+				continue;
+
 			insns = (struct bpf_insn *) data_prog->d_buf;
 
 			processed_sec[shdr.sh_info] = true;
@@ -330,7 +355,8 @@ int load_bpf_file(char *path)
 			    memcmp(shname_prog, "tracepoint/", 11) == 0 ||
 			    memcmp(shname_prog, "xdp", 3) == 0 ||
 			    memcmp(shname_prog, "perf_event", 10) == 0 ||
-			    memcmp(shname_prog, "socket", 6) == 0)
+			    memcmp(shname_prog, "socket", 6) == 0 ||
+			    memcmp(shname_prog, "cgroup/", 7) == 0)
 				load_and_attach(shname_prog, insns, data_prog->d_size);
 		}
 	}
@@ -349,7 +375,8 @@ int load_bpf_file(char *path)
 		    memcmp(shname, "tracepoint/", 11) == 0 ||
 		    memcmp(shname, "xdp", 3) == 0 ||
 		    memcmp(shname, "perf_event", 10) == 0 ||
-		    memcmp(shname, "socket", 6) == 0)
+		    memcmp(shname, "socket", 6) == 0 ||
+		    memcmp(shname, "cgroup/", 7) == 0)
 			load_and_attach(shname, data->d_buf, data->d_size);
 	}
 
@@ -437,4 +464,94 @@ struct ksym *ksym_search(long key)
 
 	/* out of range. return _stext */
 	return &syms[0];
+}
+
+int set_link_xdp_fd(int ifindex, int fd)
+{
+	struct sockaddr_nl sa;
+	int sock, seq = 0, len, ret = -1;
+	char buf[4096];
+	struct nlattr *nla, *nla_xdp;
+	struct {
+		struct nlmsghdr  nh;
+		struct ifinfomsg ifinfo;
+		char             attrbuf[64];
+	} req;
+	struct nlmsghdr *nh;
+	struct nlmsgerr *err;
+
+	memset(&sa, 0, sizeof(sa));
+	sa.nl_family = AF_NETLINK;
+
+	sock = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
+	if (sock < 0) {
+		printf("open netlink socket: %s\n", strerror(errno));
+		return -1;
+	}
+
+	if (bind(sock, (struct sockaddr *)&sa, sizeof(sa)) < 0) {
+		printf("bind to netlink: %s\n", strerror(errno));
+		goto cleanup;
+	}
+
+	memset(&req, 0, sizeof(req));
+	req.nh.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifinfomsg));
+	req.nh.nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
+	req.nh.nlmsg_type = RTM_SETLINK;
+	req.nh.nlmsg_pid = 0;
+	req.nh.nlmsg_seq = ++seq;
+	req.ifinfo.ifi_family = AF_UNSPEC;
+	req.ifinfo.ifi_index = ifindex;
+	nla = (struct nlattr *)(((char *)&req)
+				+ NLMSG_ALIGN(req.nh.nlmsg_len));
+	nla->nla_type = NLA_F_NESTED | 43/*IFLA_XDP*/;
+
+	nla_xdp = (struct nlattr *)((char *)nla + NLA_HDRLEN);
+	nla_xdp->nla_type = 1/*IFLA_XDP_FD*/;
+	nla_xdp->nla_len = NLA_HDRLEN + sizeof(int);
+	memcpy((char *)nla_xdp + NLA_HDRLEN, &fd, sizeof(fd));
+	nla->nla_len = NLA_HDRLEN + nla_xdp->nla_len;
+
+	req.nh.nlmsg_len += NLA_ALIGN(nla->nla_len);
+
+	if (send(sock, &req, req.nh.nlmsg_len, 0) < 0) {
+		printf("send to netlink: %s\n", strerror(errno));
+		goto cleanup;
+	}
+
+	len = recv(sock, buf, sizeof(buf), 0);
+	if (len < 0) {
+		printf("recv from netlink: %s\n", strerror(errno));
+		goto cleanup;
+	}
+
+	for (nh = (struct nlmsghdr *)buf; NLMSG_OK(nh, len);
+	     nh = NLMSG_NEXT(nh, len)) {
+		if (nh->nlmsg_pid != getpid()) {
+			printf("Wrong pid %d, expected %d\n",
+			       nh->nlmsg_pid, getpid());
+			goto cleanup;
+		}
+		if (nh->nlmsg_seq != seq) {
+			printf("Wrong seq %d, expected %d\n",
+			       nh->nlmsg_seq, seq);
+			goto cleanup;
+		}
+		switch (nh->nlmsg_type) {
+		case NLMSG_ERROR:
+			err = (struct nlmsgerr *)NLMSG_DATA(nh);
+			if (!err->error)
+				continue;
+			printf("nlmsg error %s\n", strerror(-err->error));
+			goto cleanup;
+		case NLMSG_DONE:
+			break;
+		}
+	}
+
+	ret = 0;
+
+cleanup:
+	close(sock);
+	return ret;
 }

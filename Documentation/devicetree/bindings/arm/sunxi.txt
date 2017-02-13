@@ -14,4 +14,5 @@ using one of the following compatible strings:
   allwinner,sun8i-a83t
   allwinner,sun8i-h3
   allwinner,sun9i-a80
+  allwinner,sun50i-a64
   nextthing,gr8

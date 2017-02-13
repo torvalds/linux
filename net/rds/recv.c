@@ -120,6 +120,36 @@ static void rds_recv_rcvbuf_delta(struct rds_sock *rs, struct sock *sk,
 	/* do nothing if no change in cong state */
 }
 
+static void rds_conn_peer_gen_update(struct rds_connection *conn,
+				     u32 peer_gen_num)
+{
+	int i;
+	struct rds_message *rm, *tmp;
+	unsigned long flags;
+
+	WARN_ON(conn->c_trans->t_type != RDS_TRANS_TCP);
+	if (peer_gen_num != 0) {
+		if (conn->c_peer_gen_num != 0 &&
+		    peer_gen_num != conn->c_peer_gen_num) {
+			for (i = 0; i < RDS_MPATH_WORKERS; i++) {
+				struct rds_conn_path *cp;
+
+				cp = &conn->c_path[i];
+				spin_lock_irqsave(&cp->cp_lock, flags);
+				cp->cp_next_tx_seq = 1;
+				cp->cp_next_rx_seq = 0;
+				list_for_each_entry_safe(rm, tmp,
+							 &cp->cp_retrans,
+							 m_conn_item) {
+					set_bit(RDS_MSG_FLUSH, &rm->m_flags);
+				}
+				spin_unlock_irqrestore(&cp->cp_lock, flags);
+			}
+		}
+		conn->c_peer_gen_num = peer_gen_num;
+	}
+}
+
 /*
  * Process all extension headers that come with this message.
  */
@@ -163,7 +193,9 @@ static void rds_recv_hs_exthdrs(struct rds_header *hdr,
 	union {
 		struct rds_ext_header_version version;
 		u16 rds_npaths;
+		u32 rds_gen_num;
 	} buffer;
+	u32 new_peer_gen_num = 0;
 
 	while (1) {
 		len = sizeof(buffer);
@@ -176,6 +208,9 @@ static void rds_recv_hs_exthdrs(struct rds_header *hdr,
 			conn->c_npaths = min_t(int, RDS_MPATH_WORKERS,
 					       buffer.rds_npaths);
 			break;
+		case RDS_EXTHDR_GEN_NUM:
+			new_peer_gen_num = buffer.rds_gen_num;
+			break;
 		default:
 			pr_warn_ratelimited("ignoring unknown exthdr type "
 					     "0x%x\n", type);
@@ -183,6 +218,7 @@ static void rds_recv_hs_exthdrs(struct rds_header *hdr,
 	}
 	/* if RDS_EXTHDR_NPATHS was not found, default to a single-path */
 	conn->c_npaths = max_t(int, conn->c_npaths, 1);
+	rds_conn_peer_gen_update(conn, new_peer_gen_num);
 }
 
 /* rds_start_mprds() will synchronously start multiple paths when appropriate.

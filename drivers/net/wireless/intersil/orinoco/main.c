@@ -322,9 +322,6 @@ int orinoco_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
 
-	if ((new_mtu < ORINOCO_MIN_MTU) || (new_mtu > ORINOCO_MAX_MTU))
-		return -EINVAL;
-
 	/* MTU + encapsulation + header length */
 	if ((new_mtu + ENCAPS_OVERHEAD + sizeof(struct ieee80211_hdr)) >
 	     (priv->nicbuf_size - ETH_HLEN))
@@ -2287,6 +2284,9 @@ int orinoco_if_add(struct orinoco_private *priv,
 
 	dev->base_addr = base_addr;
 	dev->irq = irq;
+
+	dev->min_mtu = ORINOCO_MIN_MTU;
+	dev->max_mtu = ORINOCO_MAX_MTU;
 
 	SET_NETDEV_DEV(dev, priv->dev);
 	ret = register_netdev(dev);

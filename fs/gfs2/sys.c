@@ -15,7 +15,7 @@
 #include <linux/buffer_head.h>
 #include <linux/module.h>
 #include <linux/kobject.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/genhd.h>
 
