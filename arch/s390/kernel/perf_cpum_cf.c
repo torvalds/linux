@@ -370,7 +370,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 	if (ev == -1)
 		return -ENOENT;
 
-	if (ev >= PERF_CPUM_CF_MAX_CTR)
+	if (ev > PERF_CPUM_CF_MAX_CTR)
 		return -EINVAL;
 
 	/* Use the hardware perf event structure to store the counter number
