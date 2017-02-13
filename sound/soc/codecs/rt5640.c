@@ -995,7 +995,7 @@ static int rt5640_hp_event(struct snd_soc_dapm_widget *w,
 
 	case SND_SOC_DAPM_PRE_PMD:
 		rt5640->hp_mute = 1;
-		usleep_range(70000, 75000);
+		msleep(70);
 		break;
 
 	default:
@@ -1059,7 +1059,7 @@ static int rt5640_hp_post_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		if (!rt5640->hp_mute)
-			usleep_range(80000, 85000);
+			msleep(80);
 
 		break;
 
@@ -1227,6 +1227,10 @@ static const struct snd_soc_dapm_widget rt5640_dapm_widgets[] = {
 		RT5640_PWR_DAC_L1_BIT, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("DAC R1 Power", RT5640_PWR_DIG1,
 		RT5640_PWR_DAC_R1_BIT, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("DAC L2 Power", RT5640_PWR_DIG1,
+		RT5640_PWR_DAC_L2_BIT, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("DAC R2 Power", RT5640_PWR_DIG1,
+		RT5640_PWR_DAC_R2_BIT, 0, NULL, 0),
 	/* SPK/OUT Mixer */
 	SND_SOC_DAPM_MIXER("SPK MIXL", RT5640_PWR_MIXER, RT5640_PWR_SM_L_BIT,
 		0, rt5640_spk_l_mix, ARRAY_SIZE(rt5640_spk_l_mix)),
@@ -1322,10 +1326,6 @@ static const struct snd_soc_dapm_widget rt5640_specific_dapm_widgets[] = {
 		rt5640_mono_mix, ARRAY_SIZE(rt5640_mono_mix)),
 	SND_SOC_DAPM_SUPPLY("Improve MONO Amp Drv", RT5640_PWR_ANLG1,
 		RT5640_PWR_MA_BIT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("DAC L2 Power", RT5640_PWR_DIG1,
-		RT5640_PWR_DAC_L2_BIT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("DAC R2 Power", RT5640_PWR_DIG1,
-		RT5640_PWR_DAC_R2_BIT, 0, NULL, 0),
 
 	SND_SOC_DAPM_OUTPUT("MONOP"),
 	SND_SOC_DAPM_OUTPUT("MONON"),
