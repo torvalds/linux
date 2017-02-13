@@ -1,7 +1,7 @@
 /*
  * Performance event support for s390x - CPU-measurement Counter Facility
  *
- *  Copyright IBM Corp. 2012
+ *  Copyright IBM Corp. 2012, 2017
  *  Author(s): Hendrik Brueckner <brueckner@linux.vnet.ibm.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -100,26 +100,6 @@ static int get_counter_set(u64 event)
 		set = CPUMF_CTR_SET_EXT;
 
 	return set;
-}
-
-static int validate_event(const struct hw_perf_event *hwc)
-{
-	switch (hwc->config_base) {
-	case CPUMF_CTR_SET_BASIC:
-	case CPUMF_CTR_SET_USER:
-	case CPUMF_CTR_SET_CRYPTO:
-	case CPUMF_CTR_SET_EXT:
-		/* check for reserved counters */
-		if ((hwc->config >=  6 && hwc->config <=  31) ||
-		    (hwc->config >= 38 && hwc->config <=  63) ||
-		    (hwc->config >= 80 && hwc->config <= 127))
-			return -EOPNOTSUPP;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
 }
 
 static int validate_ctr_version(const struct hw_perf_event *hwc)
@@ -380,15 +360,6 @@ static int __hw_perf_event_init(struct perf_event *event)
 	 */
 	hwc->config = ev;
 	hwc->config_base = get_counter_set(ev);
-
-	/* Validate the counter that is assigned to this event.
-	 * Because the counter facility can use numerous counters at the
-	 * same time without constraints, it is not necessary to explicitly
-	 * validate event groups (event->group_leader != event).
-	 */
-	err = validate_event(hwc);
-	if (err)
-		return err;
 
 	/* Initialize for using the CPU-measurement counter facility */
 	if (!atomic_inc_not_zero(&num_events)) {
