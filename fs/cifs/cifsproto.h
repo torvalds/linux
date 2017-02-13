@@ -284,6 +284,11 @@ extern int get_dfs_path(const unsigned int xid, struct cifs_ses *ses,
 			const struct nls_table *nls_codepage,
 			unsigned int *num_referrals,
 			struct dfs_info3_param **referrals, int remap);
+extern int parse_dfs_referrals(struct get_dfs_referral_rsp *rsp, u32 rsp_size,
+			       unsigned int *num_of_nodes,
+			       struct dfs_info3_param **target_nodes,
+			       const struct nls_table *nls_codepage, int remap,
+			       const char *searchName, bool is_unicode);
 extern void reset_cifs_unix_caps(unsigned int xid, struct cifs_tcon *tcon,
 				 struct cifs_sb_info *cifs_sb,
 				 struct smb_vol *vol);
