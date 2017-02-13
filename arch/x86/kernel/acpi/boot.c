@@ -723,11 +723,12 @@ int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
 	return 0;
 }
 
-int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, int *pcpu)
+int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, u32 acpi_id,
+		 int *pcpu)
 {
 	int cpu;
 
-	cpu = acpi_register_lapic(physid, U32_MAX, ACPI_MADT_ENABLED);
+	cpu = acpi_register_lapic(physid, acpi_id, ACPI_MADT_ENABLED);
 	if (cpu < 0) {
 		pr_info(PREFIX "Unable to map lapic to logical cpu number\n");
 		return cpu;
