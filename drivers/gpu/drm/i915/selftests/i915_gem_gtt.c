@@ -29,6 +29,7 @@
 #include "i915_random.h"
 
 #include "mock_drm.h"
+#include "mock_gem_device.h"
 
 static void fake_free_pages(struct drm_i915_gem_object *obj,
 			    struct sg_table *pages)
@@ -899,6 +900,200 @@ static int igt_ggtt_drunk(void *arg)
 static int igt_ggtt_lowlevel(void *arg)
 {
 	return exercise_ggtt(arg, lowlevel_hole);
+}
+
+static void track_vma_bind(struct i915_vma *vma)
+{
+	struct drm_i915_gem_object *obj = vma->obj;
+
+	obj->bind_count++; /* track for eviction later */
+	__i915_gem_object_pin_pages(obj);
+
+	vma->pages = obj->mm.pages;
+	list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
+}
+
+static int igt_gtt_reserve(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct drm_i915_gem_object *obj, *on;
+	LIST_HEAD(objects);
+	u64 total;
+	int err;
+
+	/* i915_gem_gtt_reserve() tries to reserve the precise range
+	 * for the node, and evicts if it has to. So our test checks that
+	 * it can give us the requsted space and prevent overlaps.
+	 */
+
+	/* Start by filling the GGTT */
+	for (total = 0;
+	     total + 2*I915_GTT_PAGE_SIZE <= i915->ggtt.base.total;
+	     total += 2*I915_GTT_PAGE_SIZE) {
+		struct i915_vma *vma;
+
+		obj = i915_gem_object_create_internal(i915, 2*PAGE_SIZE);
+		if (IS_ERR(obj)) {
+			err = PTR_ERR(obj);
+			goto out;
+		}
+
+		err = i915_gem_object_pin_pages(obj);
+		if (err) {
+			i915_gem_object_put(obj);
+			goto out;
+		}
+
+		list_add(&obj->st_link, &objects);
+
+		vma = i915_vma_instance(obj, &i915->ggtt.base, NULL);
+		if (IS_ERR(vma)) {
+			err = PTR_ERR(vma);
+			goto out;
+		}
+
+		err = i915_gem_gtt_reserve(&i915->ggtt.base, &vma->node,
+					   obj->base.size,
+					   total,
+					   obj->cache_level,
+					   0);
+		if (err) {
+			pr_err("i915_gem_gtt_reserve (pass 1) failed at %llu/%llu with err=%d\n",
+			       total, i915->ggtt.base.total, err);
+			goto out;
+		}
+		track_vma_bind(vma);
+
+		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+		if (vma->node.start != total ||
+		    vma->node.size != 2*I915_GTT_PAGE_SIZE) {
+			pr_err("i915_gem_gtt_reserve (pass 1) placement failed, found (%llx + %llx), expected (%llx + %lx)\n",
+			       vma->node.start, vma->node.size,
+			       total, 2*I915_GTT_PAGE_SIZE);
+			err = -EINVAL;
+			goto out;
+		}
+	}
+
+	/* Now we start forcing evictions */
+	for (total = I915_GTT_PAGE_SIZE;
+	     total + 2*I915_GTT_PAGE_SIZE <= i915->ggtt.base.total;
+	     total += 2*I915_GTT_PAGE_SIZE) {
+		struct i915_vma *vma;
+
+		obj = i915_gem_object_create_internal(i915, 2*PAGE_SIZE);
+		if (IS_ERR(obj)) {
+			err = PTR_ERR(obj);
+			goto out;
+		}
+
+		err = i915_gem_object_pin_pages(obj);
+		if (err) {
+			i915_gem_object_put(obj);
+			goto out;
+		}
+
+		list_add(&obj->st_link, &objects);
+
+		vma = i915_vma_instance(obj, &i915->ggtt.base, NULL);
+		if (IS_ERR(vma)) {
+			err = PTR_ERR(vma);
+			goto out;
+		}
+
+		err = i915_gem_gtt_reserve(&i915->ggtt.base, &vma->node,
+					   obj->base.size,
+					   total,
+					   obj->cache_level,
+					   0);
+		if (err) {
+			pr_err("i915_gem_gtt_reserve (pass 2) failed at %llu/%llu with err=%d\n",
+			       total, i915->ggtt.base.total, err);
+			goto out;
+		}
+		track_vma_bind(vma);
+
+		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+		if (vma->node.start != total ||
+		    vma->node.size != 2*I915_GTT_PAGE_SIZE) {
+			pr_err("i915_gem_gtt_reserve (pass 2) placement failed, found (%llx + %llx), expected (%llx + %lx)\n",
+			       vma->node.start, vma->node.size,
+			       total, 2*I915_GTT_PAGE_SIZE);
+			err = -EINVAL;
+			goto out;
+		}
+	}
+
+	/* And then try at random */
+	list_for_each_entry_safe(obj, on, &objects, st_link) {
+		struct i915_vma *vma;
+		u64 offset;
+
+		vma = i915_vma_instance(obj, &i915->ggtt.base, NULL);
+		if (IS_ERR(vma)) {
+			err = PTR_ERR(vma);
+			goto out;
+		}
+
+		err = i915_vma_unbind(vma);
+		if (err) {
+			pr_err("i915_vma_unbind failed with err=%d!\n", err);
+			goto out;
+		}
+
+		offset = random_offset(0, i915->ggtt.base.total,
+				       2*I915_GTT_PAGE_SIZE,
+				       I915_GTT_MIN_ALIGNMENT);
+
+		err = i915_gem_gtt_reserve(&i915->ggtt.base, &vma->node,
+					   obj->base.size,
+					   offset,
+					   obj->cache_level,
+					   0);
+		if (err) {
+			pr_err("i915_gem_gtt_reserve (pass 3) failed at %llu/%llu with err=%d\n",
+			       total, i915->ggtt.base.total, err);
+			goto out;
+		}
+		track_vma_bind(vma);
+
+		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+		if (vma->node.start != offset ||
+		    vma->node.size != 2*I915_GTT_PAGE_SIZE) {
+			pr_err("i915_gem_gtt_reserve (pass 3) placement failed, found (%llx + %llx), expected (%llx + %lx)\n",
+			       vma->node.start, vma->node.size,
+			       offset, 2*I915_GTT_PAGE_SIZE);
+			err = -EINVAL;
+			goto out;
+		}
+	}
+
+out:
+	list_for_each_entry_safe(obj, on, &objects, st_link) {
+		i915_gem_object_unpin_pages(obj);
+		i915_gem_object_put(obj);
+	}
+	return err;
+}
+
+int i915_gem_gtt_mock_selftests(void)
+{
+	static const struct i915_subtest tests[] = {
+		SUBTEST(igt_gtt_reserve),
+	};
+	struct drm_i915_private *i915;
+	int err;
+
+	i915 = mock_gem_device();
+	if (!i915)
+		return -ENOMEM;
+
+	mutex_lock(&i915->drm.struct_mutex);
+	err = i915_subtests(tests, i915);
+	mutex_unlock(&i915->drm.struct_mutex);
+
+	drm_dev_unref(&i915->drm);
+	return err;
 }
 
 int i915_gem_gtt_live_selftests(struct drm_i915_private *i915)
