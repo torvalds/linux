@@ -338,10 +338,194 @@ out_unlock:
 	return err;
 }
 
+static struct i915_vma *recursive_batch(struct drm_i915_private *i915)
+{
+	struct i915_gem_context *ctx = i915->kernel_context;
+	struct i915_address_space *vm = ctx->ppgtt ? &ctx->ppgtt->base : &i915->ggtt.base;
+	struct drm_i915_gem_object *obj;
+	const int gen = INTEL_GEN(i915);
+	struct i915_vma *vma;
+	u32 *cmd;
+	int err;
+
+	obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
+	if (IS_ERR(obj))
+		return ERR_CAST(obj);
+
+	vma = i915_vma_instance(obj, vm, NULL);
+	if (IS_ERR(vma)) {
+		err = PTR_ERR(vma);
+		goto err;
+	}
+
+	err = i915_vma_pin(vma, 0, 0, PIN_USER);
+	if (err)
+		goto err;
+
+	err = i915_gem_object_set_to_gtt_domain(obj, true);
+	if (err)
+		goto err;
+
+	cmd = i915_gem_object_pin_map(obj, I915_MAP_WC);
+	if (IS_ERR(cmd)) {
+		err = PTR_ERR(cmd);
+		goto err;
+	}
+
+	if (gen >= 8) {
+		*cmd++ = MI_BATCH_BUFFER_START | 1 << 8 | 1;
+		*cmd++ = lower_32_bits(vma->node.start);
+		*cmd++ = upper_32_bits(vma->node.start);
+	} else if (gen >= 6) {
+		*cmd++ = MI_BATCH_BUFFER_START | 1 << 8;
+		*cmd++ = lower_32_bits(vma->node.start);
+	} else if (gen >= 4) {
+		*cmd++ = MI_BATCH_BUFFER_START | MI_BATCH_GTT;
+		*cmd++ = lower_32_bits(vma->node.start);
+	} else {
+		*cmd++ = MI_BATCH_BUFFER_START | MI_BATCH_GTT | 1;
+		*cmd++ = lower_32_bits(vma->node.start);
+	}
+	*cmd++ = MI_BATCH_BUFFER_END; /* terminate early in case of error */
+
+	wmb();
+	i915_gem_object_unpin_map(obj);
+
+	return vma;
+
+err:
+	i915_gem_object_put(obj);
+	return ERR_PTR(err);
+}
+
+static int recursive_batch_resolve(struct i915_vma *batch)
+{
+	u32 *cmd;
+
+	cmd = i915_gem_object_pin_map(batch->obj, I915_MAP_WC);
+	if (IS_ERR(cmd))
+		return PTR_ERR(cmd);
+
+	*cmd = MI_BATCH_BUFFER_END;
+	wmb();
+
+	i915_gem_object_unpin_map(batch->obj);
+
+	return 0;
+}
+
+static int live_all_engines(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct intel_engine_cs *engine;
+	struct drm_i915_gem_request *request[I915_NUM_ENGINES];
+	struct i915_vma *batch;
+	struct live_test t;
+	unsigned int id;
+	int err;
+
+	/* Check we can submit requests to all engines simultaneously. We
+	 * send a recursive batch to each engine - checking that we don't
+	 * block doing so, and that they don't complete too soon.
+	 */
+
+	mutex_lock(&i915->drm.struct_mutex);
+
+	err = begin_live_test(&t, i915, __func__, "");
+	if (err)
+		goto out_unlock;
+
+	batch = recursive_batch(i915);
+	if (IS_ERR(batch)) {
+		err = PTR_ERR(batch);
+		pr_err("%s: Unable to create batch, err=%d\n", __func__, err);
+		goto out_unlock;
+	}
+
+	for_each_engine(engine, i915, id) {
+		request[id] = i915_gem_request_alloc(engine,
+						     i915->kernel_context);
+		if (IS_ERR(request[id])) {
+			err = PTR_ERR(request[id]);
+			pr_err("%s: Request allocation failed with err=%d\n",
+			       __func__, err);
+			goto out_request;
+		}
+
+		err = engine->emit_flush(request[id], EMIT_INVALIDATE);
+		GEM_BUG_ON(err);
+
+		err = i915_switch_context(request[id]);
+		GEM_BUG_ON(err);
+
+		err = engine->emit_bb_start(request[id],
+					    batch->node.start,
+					    batch->node.size,
+					    0);
+		GEM_BUG_ON(err);
+		request[id]->batch = batch;
+
+		if (!i915_gem_object_has_active_reference(batch->obj)) {
+			i915_gem_object_get(batch->obj);
+			i915_gem_object_set_active_reference(batch->obj);
+		}
+
+		i915_vma_move_to_active(batch, request[id], 0);
+		i915_gem_request_get(request[id]);
+		i915_add_request(request[id]);
+	}
+
+	for_each_engine(engine, i915, id) {
+		if (i915_gem_request_completed(request[id])) {
+			pr_err("%s(%s): request completed too early!\n",
+			       __func__, engine->name);
+			err = -EINVAL;
+			goto out_request;
+		}
+	}
+
+	err = recursive_batch_resolve(batch);
+	if (err) {
+		pr_err("%s: failed to resolve batch, err=%d\n", __func__, err);
+		goto out_request;
+	}
+
+	for_each_engine(engine, i915, id) {
+		long timeout;
+
+		timeout = i915_wait_request(request[id],
+					    I915_WAIT_LOCKED,
+					    MAX_SCHEDULE_TIMEOUT);
+		if (timeout < 0) {
+			err = timeout;
+			pr_err("%s: error waiting for request on %s, err=%d\n",
+			       __func__, engine->name, err);
+			goto out_request;
+		}
+
+		GEM_BUG_ON(!i915_gem_request_completed(request[id]));
+		i915_gem_request_put(request[id]);
+		request[id] = NULL;
+	}
+
+	err = end_live_test(&t);
+
+out_request:
+	for_each_engine(engine, i915, id)
+		if (request[id])
+			i915_gem_request_put(request[id]);
+	i915_vma_unpin(batch);
+	i915_vma_put(batch);
+out_unlock:
+	mutex_unlock(&i915->drm.struct_mutex);
+	return err;
+}
+
 int i915_gem_request_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(live_nop_request),
+		SUBTEST(live_all_engines),
 	};
 	return i915_subtests(tests, i915);
 }
