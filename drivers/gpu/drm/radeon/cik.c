@@ -35,6 +35,9 @@
 #include "clearstate_ci.h"
 #include "radeon_kfd.h"
 
+#define SH_MEM_CONFIG_GFX_DEFAULT \
+	ALIGNMENT_MODE(SH_MEM_ALIGNMENT_MODE_UNALIGNED)
+
 MODULE_FIRMWARE("radeon/BONAIRE_pfp.bin");
 MODULE_FIRMWARE("radeon/BONAIRE_me.bin");
 MODULE_FIRMWARE("radeon/BONAIRE_ce.bin");
@@ -5587,7 +5590,7 @@ static int cik_pcie_gart_enable(struct radeon_device *rdev)
 	for (i = 0; i < 16; i++) {
 		cik_srbm_select(rdev, 0, 0, 0, i);
 		/* CP and shaders */
-		WREG32(SH_MEM_CONFIG, 0);
+		WREG32(SH_MEM_CONFIG, SH_MEM_CONFIG_GFX_DEFAULT);
 		WREG32(SH_MEM_APE1_BASE, 1);
 		WREG32(SH_MEM_APE1_LIMIT, 0);
 		WREG32(SH_MEM_BASES, 0);
@@ -5794,7 +5797,7 @@ void cik_vm_flush(struct radeon_device *rdev, struct radeon_ring *ring,
 	radeon_ring_write(ring, 0);
 
 	radeon_ring_write(ring, 0); /* SH_MEM_BASES */
-	radeon_ring_write(ring, 0); /* SH_MEM_CONFIG */
+	radeon_ring_write(ring, SH_MEM_CONFIG_GFX_DEFAULT); /* SH_MEM_CONFIG */
 	radeon_ring_write(ring, 1); /* SH_MEM_APE1_BASE */
 	radeon_ring_write(ring, 0); /* SH_MEM_APE1_LIMIT */
 
