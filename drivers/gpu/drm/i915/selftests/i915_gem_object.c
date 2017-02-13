@@ -140,6 +140,298 @@ out:
 	return err;
 }
 
+struct tile {
+	unsigned int width;
+	unsigned int height;
+	unsigned int stride;
+	unsigned int size;
+	unsigned int tiling;
+	unsigned int swizzle;
+};
+
+static u64 swizzle_bit(unsigned int bit, u64 offset)
+{
+	return (offset & BIT_ULL(bit)) >> (bit - 6);
+}
+
+static u64 tiled_offset(const struct tile *tile, u64 v)
+{
+	u64 x, y;
+
+	if (tile->tiling == I915_TILING_NONE)
+		return v;
+
+	y = div64_u64_rem(v, tile->stride, &x);
+	v = div64_u64_rem(y, tile->height, &y) * tile->stride * tile->height;
+
+	if (tile->tiling == I915_TILING_X) {
+		v += y * tile->width;
+		v += div64_u64_rem(x, tile->width, &x) << tile->size;
+		v += x;
+	} else {
+		const unsigned int ytile_span = 16;
+		const unsigned int ytile_height = 32 * ytile_span;
+
+		v += y * ytile_span;
+		v += div64_u64_rem(x, ytile_span, &x) * ytile_height;
+		v += x;
+	}
+
+	switch (tile->swizzle) {
+	case I915_BIT_6_SWIZZLE_9:
+		v ^= swizzle_bit(9, v);
+		break;
+	case I915_BIT_6_SWIZZLE_9_10:
+		v ^= swizzle_bit(9, v) ^ swizzle_bit(10, v);
+		break;
+	case I915_BIT_6_SWIZZLE_9_11:
+		v ^= swizzle_bit(9, v) ^ swizzle_bit(11, v);
+		break;
+	case I915_BIT_6_SWIZZLE_9_10_11:
+		v ^= swizzle_bit(9, v) ^ swizzle_bit(10, v) ^ swizzle_bit(11, v);
+		break;
+	}
+
+	return v;
+}
+
+static int check_partial_mapping(struct drm_i915_gem_object *obj,
+				 const struct tile *tile,
+				 unsigned long end_time)
+{
+	const unsigned int nreal = obj->scratch / PAGE_SIZE;
+	const unsigned long npages = obj->base.size / PAGE_SIZE;
+	struct i915_vma *vma;
+	unsigned long page;
+	int err;
+
+	if (igt_timeout(end_time,
+			"%s: timed out before tiling=%d stride=%d\n",
+			__func__, tile->tiling, tile->stride))
+		return -EINTR;
+
+	err = i915_gem_object_set_tiling(obj, tile->tiling, tile->stride);
+	if (err)
+		return err;
+
+	GEM_BUG_ON(i915_gem_object_get_tiling(obj) != tile->tiling);
+	GEM_BUG_ON(i915_gem_object_get_stride(obj) != tile->stride);
+
+	for_each_prime_number_from(page, 1, npages) {
+		struct i915_ggtt_view view =
+			compute_partial_view(obj, page, MIN_CHUNK_PAGES);
+		u32 __iomem *io;
+		struct page *p;
+		unsigned int n;
+		u64 offset;
+		u32 *cpu;
+
+		GEM_BUG_ON(view.partial.size > nreal);
+
+		err = i915_gem_object_set_to_gtt_domain(obj, true);
+		if (err)
+			return err;
+
+		vma = i915_gem_object_ggtt_pin(obj, &view, 0, 0, PIN_MAPPABLE);
+		if (IS_ERR(vma)) {
+			pr_err("Failed to pin partial view: offset=%lu\n",
+			       page);
+			return PTR_ERR(vma);
+		}
+
+		n = page - view.partial.offset;
+		GEM_BUG_ON(n >= view.partial.size);
+
+		io = i915_vma_pin_iomap(vma);
+		i915_vma_unpin(vma);
+		if (IS_ERR(io)) {
+			pr_err("Failed to iomap partial view: offset=%lu\n",
+			       page);
+			return PTR_ERR(io);
+		}
+
+		err = i915_vma_get_fence(vma);
+		if (err) {
+			pr_err("Failed to get fence for partial view: offset=%lu\n",
+			       page);
+			i915_vma_unpin_iomap(vma);
+			return err;
+		}
+
+		iowrite32(page, io + n * PAGE_SIZE/sizeof(*io));
+		i915_vma_unpin_iomap(vma);
+
+		offset = tiled_offset(tile, page << PAGE_SHIFT);
+		if (offset >= obj->base.size)
+			continue;
+
+		i915_gem_object_flush_gtt_write_domain(obj);
+
+		p = i915_gem_object_get_page(obj, offset >> PAGE_SHIFT);
+		cpu = kmap(p) + offset_in_page(offset);
+		drm_clflush_virt_range(cpu, sizeof(*cpu));
+		if (*cpu != (u32)page) {
+			pr_err("Partial view for %lu [%u] (offset=%llu, size=%u [%llu, row size %u], fence=%d, tiling=%d, stride=%d) misalignment, expected write to page (%llu + %u [0x%llx]) of 0x%x, found 0x%x\n",
+			       page, n,
+			       view.partial.offset,
+			       view.partial.size,
+			       vma->size >> PAGE_SHIFT,
+			       tile_row_pages(obj),
+			       vma->fence ? vma->fence->id : -1, tile->tiling, tile->stride,
+			       offset >> PAGE_SHIFT,
+			       (unsigned int)offset_in_page(offset),
+			       offset,
+			       (u32)page, *cpu);
+			err = -EINVAL;
+		}
+		*cpu = 0;
+		drm_clflush_virt_range(cpu, sizeof(*cpu));
+		kunmap(p);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int igt_partial_tiling(void *arg)
+{
+	const unsigned int nreal = 1 << 12; /* largest tile row x2 */
+	struct drm_i915_private *i915 = arg;
+	struct drm_i915_gem_object *obj;
+	int tiling;
+	int err;
+
+	/* We want to check the page mapping and fencing of a large object
+	 * mmapped through the GTT. The object we create is larger than can
+	 * possibly be mmaped as a whole, and so we must use partial GGTT vma.
+	 * We then check that a write through each partial GGTT vma ends up
+	 * in the right set of pages within the object, and with the expected
+	 * tiling, which we verify by manual swizzling.
+	 */
+
+	obj = huge_gem_object(i915,
+			      nreal << PAGE_SHIFT,
+			      (1 + next_prime_number(i915->ggtt.base.total >> PAGE_SHIFT)) << PAGE_SHIFT);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	err = i915_gem_object_pin_pages(obj);
+	if (err) {
+		pr_err("Failed to allocate %u pages (%lu total), err=%d\n",
+		       nreal, obj->base.size / PAGE_SIZE, err);
+		goto out;
+	}
+
+	mutex_lock(&i915->drm.struct_mutex);
+
+	if (1) {
+		IGT_TIMEOUT(end);
+		struct tile tile;
+
+		tile.height = 1;
+		tile.width = 1;
+		tile.size = 0;
+		tile.stride = 0;
+		tile.swizzle = I915_BIT_6_SWIZZLE_NONE;
+		tile.tiling = I915_TILING_NONE;
+
+		err = check_partial_mapping(obj, &tile, end);
+		if (err && err != -EINTR)
+			goto out_unlock;
+	}
+
+	for (tiling = I915_TILING_X; tiling <= I915_TILING_Y; tiling++) {
+		IGT_TIMEOUT(end);
+		unsigned int max_pitch;
+		unsigned int pitch;
+		struct tile tile;
+
+		tile.tiling = tiling;
+		switch (tiling) {
+		case I915_TILING_X:
+			tile.swizzle = i915->mm.bit_6_swizzle_x;
+			break;
+		case I915_TILING_Y:
+			tile.swizzle = i915->mm.bit_6_swizzle_y;
+			break;
+		}
+
+		if (tile.swizzle == I915_BIT_6_SWIZZLE_UNKNOWN ||
+		    tile.swizzle == I915_BIT_6_SWIZZLE_9_10_17)
+			continue;
+
+		if (INTEL_GEN(i915) <= 2) {
+			tile.height = 16;
+			tile.width = 128;
+			tile.size = 11;
+		} else if (tile.tiling == I915_TILING_Y &&
+			   HAS_128_BYTE_Y_TILING(i915)) {
+			tile.height = 32;
+			tile.width = 128;
+			tile.size = 12;
+		} else {
+			tile.height = 8;
+			tile.width = 512;
+			tile.size = 12;
+		}
+
+		if (INTEL_GEN(i915) < 4)
+			max_pitch = 8192 / tile.width;
+		else if (INTEL_GEN(i915) < 7)
+			max_pitch = 128 * I965_FENCE_MAX_PITCH_VAL / tile.width;
+		else
+			max_pitch = 128 * GEN7_FENCE_MAX_PITCH_VAL / tile.width;
+
+		for (pitch = max_pitch; pitch; pitch >>= 1) {
+			tile.stride = tile.width * pitch;
+			err = check_partial_mapping(obj, &tile, end);
+			if (err == -EINTR)
+				goto next_tiling;
+			if (err)
+				goto out_unlock;
+
+			if (pitch > 2 && INTEL_GEN(i915) >= 4) {
+				tile.stride = tile.width * (pitch - 1);
+				err = check_partial_mapping(obj, &tile, end);
+				if (err == -EINTR)
+					goto next_tiling;
+				if (err)
+					goto out_unlock;
+			}
+
+			if (pitch < max_pitch && INTEL_GEN(i915) >= 4) {
+				tile.stride = tile.width * (pitch + 1);
+				err = check_partial_mapping(obj, &tile, end);
+				if (err == -EINTR)
+					goto next_tiling;
+				if (err)
+					goto out_unlock;
+			}
+		}
+
+		if (INTEL_GEN(i915) >= 4) {
+			for_each_prime_number(pitch, max_pitch) {
+				tile.stride = tile.width * pitch;
+				err = check_partial_mapping(obj, &tile, end);
+				if (err == -EINTR)
+					goto next_tiling;
+				if (err)
+					goto out_unlock;
+			}
+		}
+
+next_tiling: ;
+	}
+
+out_unlock:
+	mutex_unlock(&i915->drm.struct_mutex);
+	i915_gem_object_unpin_pages(obj);
+out:
+	i915_gem_object_put(obj);
+	return err;
+}
+
 int i915_gem_object_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
@@ -163,6 +455,7 @@ int i915_gem_object_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_gem_huge),
+		SUBTEST(igt_partial_tiling),
 	};
 
 	return i915_subtests(tests, i915);
