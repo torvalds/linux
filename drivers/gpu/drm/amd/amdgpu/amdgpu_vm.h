@@ -53,19 +53,19 @@ struct amdgpu_bo_list_entry;
 /* LOG2 number of continuous pages for the fragment field */
 #define AMDGPU_LOG2_PAGES_PER_FRAG 4
 
-#define AMDGPU_PTE_VALID	(1 << 0)
-#define AMDGPU_PTE_SYSTEM	(1 << 1)
-#define AMDGPU_PTE_SNOOPED	(1 << 2)
+#define AMDGPU_PTE_VALID	(1ULL << 0)
+#define AMDGPU_PTE_SYSTEM	(1ULL << 1)
+#define AMDGPU_PTE_SNOOPED	(1ULL << 2)
 
 /* VI only */
-#define AMDGPU_PTE_EXECUTABLE	(1 << 4)
+#define AMDGPU_PTE_EXECUTABLE	(1ULL << 4)
 
-#define AMDGPU_PTE_READABLE	(1 << 5)
-#define AMDGPU_PTE_WRITEABLE	(1 << 6)
+#define AMDGPU_PTE_READABLE	(1ULL << 5)
+#define AMDGPU_PTE_WRITEABLE	(1ULL << 6)
 
 #define AMDGPU_PTE_FRAG(x)	((x & 0x1f) << 7)
 
-#define AMDGPU_PTE_PRT		(1UL << 63)
+#define AMDGPU_PTE_PRT		(1ULL << 63)
 
 /* How to programm VM fault handling */
 #define AMDGPU_VM_FAULT_STOP_NEVER	0
