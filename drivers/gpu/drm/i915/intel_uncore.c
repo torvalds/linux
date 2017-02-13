@@ -642,33 +642,6 @@ find_fw_domain(struct drm_i915_private *dev_priv, u32 offset)
 	return entry->domains;
 }
 
-static void
-intel_fw_table_check(struct drm_i915_private *dev_priv)
-{
-	const struct intel_forcewake_range *ranges;
-	unsigned int num_ranges;
-	s32 prev;
-	unsigned int i;
-
-	if (!IS_ENABLED(CONFIG_DRM_I915_DEBUG))
-		return;
-
-	ranges = dev_priv->uncore.fw_domains_table;
-	if (!ranges)
-		return;
-
-	num_ranges = dev_priv->uncore.fw_domains_table_entries;
-
-	for (i = 0, prev = -1; i < num_ranges; i++, ranges++) {
-		WARN_ON_ONCE(IS_GEN9(dev_priv) &&
-			     (prev + 1) != (s32)ranges->start);
-		WARN_ON_ONCE(prev >= (s32)ranges->start);
-		prev = ranges->start;
-		WARN_ON_ONCE(prev >= (s32)ranges->end);
-		prev = ranges->end;
-	}
-}
-
 #define GEN_FW_RANGE(s, e, d) \
 	{ .start = (s), .end = (e), .domains = (d) }
 
@@ -706,23 +679,6 @@ static const i915_reg_t gen8_shadowed_regs[] = {
 	RING_TAIL(BLT_RING_BASE),	/* 0x22000 (base) */
 	/* TODO: Other registers are not yet used */
 };
-
-static void intel_shadow_table_check(void)
-{
-	const i915_reg_t *reg = gen8_shadowed_regs;
-	s32 prev;
-	u32 offset;
-	unsigned int i;
-
-	if (!IS_ENABLED(CONFIG_DRM_I915_DEBUG))
-		return;
-
-	for (i = 0, prev = -1; i < ARRAY_SIZE(gen8_shadowed_regs); i++, reg++) {
-		offset = i915_mmio_reg_offset(*reg);
-		WARN_ON_ONCE(prev >= (s32)offset);
-		prev = offset;
-	}
-}
 
 static int mmio_reg_cmp(u32 key, const i915_reg_t *reg)
 {
@@ -1384,10 +1340,6 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 		break;
 	}
 
-	intel_fw_table_check(dev_priv);
-	if (INTEL_GEN(dev_priv) >= 8)
-		intel_shadow_table_check();
-
 	i915_check_and_clear_faults(dev_priv);
 }
 #undef ASSIGN_WRITE_MMIO_VFUNCS
@@ -1905,3 +1857,7 @@ intel_uncore_forcewake_for_reg(struct drm_i915_private *dev_priv,
 
 	return fw_domains;
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftests/intel_uncore.c"
+#endif

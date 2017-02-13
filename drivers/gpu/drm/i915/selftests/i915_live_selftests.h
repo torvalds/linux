@@ -9,6 +9,7 @@
  * Tests are executed in order by igt/drv_selftest
  */
 selftest(sanitycheck, i915_live_sanitycheck) /* keep first (igt selfcheck) */
+selftest(uncore, intel_uncore_live_selftests)
 selftest(requests, i915_gem_request_live_selftests)
 selftest(objects, i915_gem_object_live_selftests)
 selftest(coherency, i915_gem_coherency_live_selftests)
