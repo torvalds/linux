@@ -7,6 +7,9 @@ config REMOTEPROC
 	select FW_LOADER
 	select VIRTIO
 	select VIRTUALIZATION
+	help
+	  Support for remote processors (such as DSP coprocessors). These
+	  are mainly used on embedded systems.
 
 if REMOTEPROC
 
@@ -25,11 +28,11 @@ config OMAP_REMOTEPROC
 
 	  Currently only supported on OMAP4.
 
-	  Usually you want to say y here, in order to enable multimedia
+	  Usually you want to say Y here, in order to enable multimedia
 	  use-cases to run on your platform (multimedia codecs are
 	  offloaded to remote DSP processors using this framework).
 
-	  It's safe to say n here if you're not interested in multimedia
+	  It's safe to say N here if you're not interested in multimedia
 	  offloading or just want a bare minimum kernel.
 
 config WKUP_M3_RPROC
@@ -73,14 +76,16 @@ config QCOM_ADSP_PIL
 	depends on OF && ARCH_QCOM
 	depends on REMOTEPROC
 	depends on QCOM_SMEM
+	depends on QCOM_SMD || (COMPILE_TEST && QCOM_SMD=n)
 	select MFD_SYSCON
 	select QCOM_MDT_LOADER
+	select QCOM_RPROC_COMMON
 	select QCOM_SCM
 	help
 	  Say y here to support the TrustZone based Peripherial Image Loader
 	  for the Qualcomm ADSP remote processors.
 
-config QCOM_MDT_LOADER
+config QCOM_RPROC_COMMON
 	tristate
 
 config QCOM_Q6V5_PIL
@@ -88,8 +93,9 @@ config QCOM_Q6V5_PIL
 	depends on OF && ARCH_QCOM
 	depends on QCOM_SMEM
 	depends on REMOTEPROC
+	depends on QCOM_SMD || (COMPILE_TEST && QCOM_SMD=n)
 	select MFD_SYSCON
-	select QCOM_MDT_LOADER
+	select QCOM_RPROC_COMMON
 	select QCOM_SCM
 	help
 	  Say y here to support the Qualcomm Peripherial Image Loader for the
@@ -102,6 +108,7 @@ config QCOM_WCNSS_PIL
 	depends on QCOM_SMEM
 	depends on REMOTEPROC
 	select QCOM_MDT_LOADER
+	select QCOM_RPROC_COMMON
 	select QCOM_SCM
 	help
 	  Say y here to support the Peripheral Image Loader for the Qualcomm
@@ -111,6 +118,9 @@ config ST_REMOTEPROC
 	tristate "ST remoteproc support"
 	depends on ARCH_STI
 	depends on REMOTEPROC
+	select MAILBOX
+	select STI_MBOX
+	select RPMSG_VIRTIO
 	help
 	  Say y here to support ST's adjunct processors via the remote
 	  processor framework.
