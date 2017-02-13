@@ -24,20 +24,16 @@
 
 #include "../i915_selftest.h"
 
-static int intel_fw_table_check(struct drm_i915_private *i915)
+static int intel_fw_table_check(const struct intel_forcewake_range *ranges,
+				unsigned int num_ranges,
+				bool is_watertight)
 {
-	const struct intel_forcewake_range *ranges;
-	unsigned int num_ranges, i;
+	unsigned int i;
 	s32 prev;
 
-	ranges = i915->uncore.fw_domains_table;
-	if (!ranges)
-		return 0;
-
-	num_ranges = i915->uncore.fw_domains_table_entries;
 	for (i = 0, prev = -1; i < num_ranges; i++, ranges++) {
 		/* Check that the table is watertight */
-		if (IS_GEN9(i915) && (prev + 1) != (s32)ranges->start) {
+		if (is_watertight && (prev + 1) != (s32)ranges->start) {
 			pr_err("%s: entry[%d]:(%x, %x) is not watertight to previous (%x)\n",
 			       __func__, i, ranges->start, ranges->end, prev);
 			return -EINVAL;
@@ -84,15 +80,42 @@ static int intel_shadow_table_check(void)
 	return 0;
 }
 
+int intel_uncore_mock_selftests(void)
+{
+	struct {
+		const struct intel_forcewake_range *ranges;
+		unsigned int num_ranges;
+		bool is_watertight;
+	} fw[] = {
+		{ __vlv_fw_ranges, ARRAY_SIZE(__vlv_fw_ranges), false },
+		{ __chv_fw_ranges, ARRAY_SIZE(__chv_fw_ranges), false },
+		{ __gen9_fw_ranges, ARRAY_SIZE(__gen9_fw_ranges), true },
+	};
+	int err, i;
+
+	for (i = 0; i < ARRAY_SIZE(fw); i++) {
+		err = intel_fw_table_check(fw[i].ranges,
+					   fw[i].num_ranges,
+					   fw[i].is_watertight);
+		if (err)
+			return err;
+	}
+
+	err = intel_shadow_table_check();
+	if (err)
+		return err;
+
+	return 0;
+}
+
 int intel_uncore_live_selftests(struct drm_i915_private *i915)
 {
 	int err;
 
-	err = intel_fw_table_check(i915);
-	if (err)
-		return err;
-
-	err = intel_shadow_table_check();
+	/* Confirm the table we load is still valid */
+	err = intel_fw_table_check(i915->uncore.fw_domains_table,
+				   i915->uncore.fw_domains_table_entries,
+				   INTEL_GEN(i915) >= 9);
 	if (err)
 		return err;
 
