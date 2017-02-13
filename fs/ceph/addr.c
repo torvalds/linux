@@ -502,9 +502,9 @@ static struct ceph_snap_context *get_oldest_context(struct inode *inode,
 		dout(" head snapc %p has %d dirty pages\n",
 		     snapc, ci->i_wrbuffer_ref_head);
 		if (truncate_size)
-			*truncate_size = capsnap->truncate_size;
+			*truncate_size = ci->i_truncate_size;
 		if (truncate_seq)
-			*truncate_seq = capsnap->truncate_seq;
+			*truncate_seq = ci->i_truncate_seq;
 	}
 	spin_unlock(&ci->i_ceph_lock);
 	return snapc;

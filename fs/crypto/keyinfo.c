@@ -248,7 +248,8 @@ retry:
 		goto out;
 
 	if (fscrypt_dummy_context_enabled(inode)) {
-		memset(raw_key, 0x42, FS_AES_256_XTS_KEY_SIZE);
+		memset(raw_key, 0x42, keysize/2);
+		memset(raw_key+keysize/2, 0x24, keysize - (keysize/2));
 		goto got_key;
 	}
 

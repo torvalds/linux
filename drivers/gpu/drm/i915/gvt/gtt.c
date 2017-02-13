@@ -240,15 +240,8 @@ static inline int get_pse_type(int type)
 static u64 read_pte64(struct drm_i915_private *dev_priv, unsigned long index)
 {
 	void __iomem *addr = (gen8_pte_t __iomem *)dev_priv->ggtt.gsm + index;
-	u64 pte;
 
-#ifdef readq
-	pte = readq(addr);
-#else
-	pte = ioread32(addr);
-	pte |= (u64)ioread32(addr + 4) << 32;
-#endif
-	return pte;
+	return readq(addr);
 }
 
 static void write_pte64(struct drm_i915_private *dev_priv,
@@ -256,12 +249,8 @@ static void write_pte64(struct drm_i915_private *dev_priv,
 {
 	void __iomem *addr = (gen8_pte_t __iomem *)dev_priv->ggtt.gsm + index;
 
-#ifdef writeq
 	writeq(pte, addr);
-#else
-	iowrite32((u32)pte, addr);
-	iowrite32(pte >> 32, addr + 4);
-#endif
+
 	I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
 	POSTING_READ(GFX_FLSH_CNTL_GEN6);
 }
@@ -1380,8 +1369,7 @@ static int gen8_mm_alloc_page_table(struct intel_vgpu_mm *mm)
 			info->gtt_entry_size;
 		mem = kzalloc(mm->has_shadow_page_table ?
 			mm->page_table_entry_size * 2
-				: mm->page_table_entry_size,
-			GFP_ATOMIC);
+				: mm->page_table_entry_size, GFP_KERNEL);
 		if (!mem)
 			return -ENOMEM;
 		mm->virtual_page_table = mem;
@@ -1532,7 +1520,7 @@ struct intel_vgpu_mm *intel_vgpu_create_mm(struct intel_vgpu *vgpu,
 	struct intel_vgpu_mm *mm;
 	int ret;
 
-	mm = kzalloc(sizeof(*mm), GFP_ATOMIC);
+	mm = kzalloc(sizeof(*mm), GFP_KERNEL);
 	if (!mm) {
 		ret = -ENOMEM;
 		goto fail;
@@ -1886,30 +1874,27 @@ static int alloc_scratch_pages(struct intel_vgpu *vgpu,
 	struct intel_gvt_gtt_pte_ops *ops = vgpu->gvt->gtt.pte_ops;
 	int page_entry_num = GTT_PAGE_SIZE >>
 				vgpu->gvt->device_info.gtt_entry_size_shift;
-	struct page *scratch_pt;
+	void *scratch_pt;
 	unsigned long mfn;
 	int i;
-	void *p;
 
 	if (WARN_ON(type < GTT_TYPE_PPGTT_PTE_PT || type >= GTT_TYPE_MAX))
 		return -EINVAL;
 
-	scratch_pt = alloc_page(GFP_KERNEL | GFP_ATOMIC | __GFP_ZERO);
+	scratch_pt = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!scratch_pt) {
 		gvt_err("fail to allocate scratch page\n");
 		return -ENOMEM;
 	}
 
-	p = kmap_atomic(scratch_pt);
-	mfn = intel_gvt_hypervisor_virt_to_mfn(p);
+	mfn = intel_gvt_hypervisor_virt_to_mfn(scratch_pt);
 	if (mfn == INTEL_GVT_INVALID_ADDR) {
-		gvt_err("fail to translate vaddr:0x%llx\n", (u64)p);
-		kunmap_atomic(p);
-		__free_page(scratch_pt);
+		gvt_err("fail to translate vaddr:0x%lx\n", (unsigned long)scratch_pt);
+		free_page((unsigned long)scratch_pt);
 		return -EFAULT;
 	}
 	gtt->scratch_pt[type].page_mfn = mfn;
-	gtt->scratch_pt[type].page = scratch_pt;
+	gtt->scratch_pt[type].page = virt_to_page(scratch_pt);
 	gvt_dbg_mm("vgpu%d create scratch_pt: type %d mfn=0x%lx\n",
 			vgpu->id, type, mfn);
 
@@ -1918,7 +1903,7 @@ static int alloc_scratch_pages(struct intel_vgpu *vgpu,
 	 * scratch_pt[type] indicate the scratch pt/scratch page used by the
 	 * 'type' pt.
 	 * e.g. scratch_pt[GTT_TYPE_PPGTT_PDE_PT] is used by
-	 * GTT_TYPE_PPGTT_PDE_PT level pt, that means this scatch_pt it self
+	 * GTT_TYPE_PPGTT_PDE_PT level pt, that means this scratch_pt it self
 	 * is GTT_TYPE_PPGTT_PTE_PT, and full filled by scratch page mfn.
 	 */
 	if (type > GTT_TYPE_PPGTT_PTE_PT && type < GTT_TYPE_MAX) {
@@ -1936,10 +1921,8 @@ static int alloc_scratch_pages(struct intel_vgpu *vgpu,
 			se.val64 |= PPAT_CACHED_INDEX;
 
 		for (i = 0; i < page_entry_num; i++)
-			ops->set_entry(p, &se, i, false, 0, vgpu);
+			ops->set_entry(scratch_pt, &se, i, false, 0, vgpu);
 	}
-
-	kunmap_atomic(p);
 
 	return 0;
 }
@@ -1997,6 +1980,8 @@ int intel_vgpu_init_gtt(struct intel_vgpu *vgpu)
 	INIT_LIST_HEAD(&gtt->mm_list_head);
 	INIT_LIST_HEAD(&gtt->oos_page_list_head);
 	INIT_LIST_HEAD(&gtt->post_shadow_list_head);
+
+	intel_vgpu_reset_ggtt(vgpu);
 
 	ggtt_mm = intel_vgpu_create_mm(vgpu, INTEL_GVT_MM_GGTT,
 			NULL, 1, 0);
@@ -2206,6 +2191,7 @@ int intel_vgpu_g2v_destroy_ppgtt_mm(struct intel_vgpu *vgpu,
 int intel_gvt_init_gtt(struct intel_gvt *gvt)
 {
 	int ret;
+	void *page;
 
 	gvt_dbg_core("init gtt\n");
 
@@ -2216,6 +2202,20 @@ int intel_gvt_init_gtt(struct intel_gvt *gvt)
 		gvt->gtt.mm_free_page_table = gen8_mm_free_page_table;
 	} else {
 		return -ENODEV;
+	}
+
+	page = (void *)get_zeroed_page(GFP_KERNEL);
+	if (!page) {
+		gvt_err("fail to allocate scratch ggtt page\n");
+		return -ENOMEM;
+	}
+	gvt->gtt.scratch_ggtt_page = virt_to_page(page);
+
+	gvt->gtt.scratch_ggtt_mfn = intel_gvt_hypervisor_virt_to_mfn(page);
+	if (gvt->gtt.scratch_ggtt_mfn == INTEL_GVT_INVALID_ADDR) {
+		gvt_err("fail to translate scratch ggtt page\n");
+		__free_page(gvt->gtt.scratch_ggtt_page);
+		return -EFAULT;
 	}
 
 	if (enable_out_of_sync) {
@@ -2239,6 +2239,68 @@ int intel_gvt_init_gtt(struct intel_gvt *gvt)
  */
 void intel_gvt_clean_gtt(struct intel_gvt *gvt)
 {
+	__free_page(gvt->gtt.scratch_ggtt_page);
+
 	if (enable_out_of_sync)
 		clean_spt_oos(gvt);
+}
+
+/**
+ * intel_vgpu_reset_ggtt - reset the GGTT entry
+ * @vgpu: a vGPU
+ *
+ * This function is called at the vGPU create stage
+ * to reset all the GGTT entries.
+ *
+ */
+void intel_vgpu_reset_ggtt(struct intel_vgpu *vgpu)
+{
+	struct intel_gvt *gvt = vgpu->gvt;
+	struct intel_gvt_gtt_pte_ops *ops = vgpu->gvt->gtt.pte_ops;
+	u32 index;
+	u32 offset;
+	u32 num_entries;
+	struct intel_gvt_gtt_entry e;
+
+	memset(&e, 0, sizeof(struct intel_gvt_gtt_entry));
+	e.type = GTT_TYPE_GGTT_PTE;
+	ops->set_pfn(&e, gvt->gtt.scratch_ggtt_mfn);
+	e.val64 |= _PAGE_PRESENT;
+
+	index = vgpu_aperture_gmadr_base(vgpu) >> PAGE_SHIFT;
+	num_entries = vgpu_aperture_sz(vgpu) >> PAGE_SHIFT;
+	for (offset = 0; offset < num_entries; offset++)
+		ops->set_entry(NULL, &e, index + offset, false, 0, vgpu);
+
+	index = vgpu_hidden_gmadr_base(vgpu) >> PAGE_SHIFT;
+	num_entries = vgpu_hidden_sz(vgpu) >> PAGE_SHIFT;
+	for (offset = 0; offset < num_entries; offset++)
+		ops->set_entry(NULL, &e, index + offset, false, 0, vgpu);
+}
+
+/**
+ * intel_vgpu_reset_gtt - reset the all GTT related status
+ * @vgpu: a vGPU
+ * @dmlr: true for vGPU Device Model Level Reset, false for GT Reset
+ *
+ * This function is called from vfio core to reset reset all
+ * GTT related status, including GGTT, PPGTT, scratch page.
+ *
+ */
+void intel_vgpu_reset_gtt(struct intel_vgpu *vgpu, bool dmlr)
+{
+	int i;
+
+	ppgtt_free_all_shadow_page(vgpu);
+	if (!dmlr)
+		return;
+
+	intel_vgpu_reset_ggtt(vgpu);
+
+	/* clear scratch page for security */
+	for (i = GTT_TYPE_PPGTT_PTE_PT; i < GTT_TYPE_MAX; i++) {
+		if (vgpu->gtt.scratch_pt[i].page != NULL)
+			memset(page_address(vgpu->gtt.scratch_pt[i].page),
+				0, PAGE_SIZE);
+	}
 }

@@ -450,7 +450,7 @@ bool mei_cldev_enabled(struct mei_cl_device *cldev)
 EXPORT_SYMBOL_GPL(mei_cldev_enabled);
 
 /**
- * mei_cldev_enable_device - enable me client device
+ * mei_cldev_enable - enable me client device
  *     create connection with me client
  *
  * @cldev: me client device
