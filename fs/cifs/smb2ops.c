@@ -1104,6 +1104,103 @@ smb2_new_lease_key(struct cifs_fid *fid)
 	generate_random_uuid(fid->lease_key);
 }
 
+static int
+smb2_get_dfs_refer(const unsigned int xid, struct cifs_ses *ses,
+		   const char *search_name,
+		   struct dfs_info3_param **target_nodes,
+		   unsigned int *num_of_nodes,
+		   const struct nls_table *nls_codepage, int remap)
+{
+	int rc;
+	__le16 *utf16_path = NULL;
+	int utf16_path_len = 0;
+	struct cifs_tcon *tcon;
+	struct fsctl_get_dfs_referral_req *dfs_req = NULL;
+	struct get_dfs_referral_rsp *dfs_rsp = NULL;
+	u32 dfs_req_size = 0, dfs_rsp_size = 0;
+
+	cifs_dbg(FYI, "smb2_get_dfs_refer path <%s>\n", search_name);
+
+	/*
+	 * Use any tcon from the current session. Here, the first one.
+	 */
+	spin_lock(&cifs_tcp_ses_lock);
+	tcon = list_first_entry_or_null(&ses->tcon_list, struct cifs_tcon,
+					tcon_list);
+	if (tcon)
+		tcon->tc_count++;
+	spin_unlock(&cifs_tcp_ses_lock);
+
+	if (!tcon) {
+		cifs_dbg(VFS, "session %p has no tcon available for a dfs referral request\n",
+			 ses);
+		rc = -ENOTCONN;
+		goto out;
+	}
+
+	utf16_path = cifs_strndup_to_utf16(search_name, PATH_MAX,
+					   &utf16_path_len,
+					   nls_codepage, remap);
+	if (!utf16_path) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	dfs_req_size = sizeof(*dfs_req) + utf16_path_len;
+	dfs_req = kzalloc(dfs_req_size, GFP_KERNEL);
+	if (!dfs_req) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	/* Highest DFS referral version understood */
+	dfs_req->MaxReferralLevel = DFS_VERSION;
+
+	/* Path to resolve in an UTF-16 null-terminated string */
+	memcpy(dfs_req->RequestFileName, utf16_path, utf16_path_len);
+
+	do {
+		/* try first with IPC */
+		rc = SMB2_ioctl(xid, tcon, NO_FILE_ID, NO_FILE_ID,
+				FSCTL_DFS_GET_REFERRALS,
+				true /* is_fsctl */, true /* use_ipc */,
+				(char *)dfs_req, dfs_req_size,
+				(char **)&dfs_rsp, &dfs_rsp_size);
+		if (rc == -ENOTCONN) {
+			/* try with normal tcon */
+			rc = SMB2_ioctl(xid, tcon, NO_FILE_ID, NO_FILE_ID,
+					FSCTL_DFS_GET_REFERRALS,
+					true /* is_fsctl */, false /*use_ipc*/,
+					(char *)dfs_req, dfs_req_size,
+					(char **)&dfs_rsp, &dfs_rsp_size);
+		}
+	} while (rc == -EAGAIN);
+
+	if (rc) {
+		cifs_dbg(VFS, "ioctl error in smb2_get_dfs_refer rc=%d\n", rc);
+		goto out;
+	}
+
+	rc = parse_dfs_referrals(dfs_rsp, dfs_rsp_size,
+				 num_of_nodes, target_nodes,
+				 nls_codepage, remap, search_name,
+				 true /* is_unicode */);
+	if (rc) {
+		cifs_dbg(VFS, "parse error in smb2_get_dfs_refer rc=%d\n", rc);
+		goto out;
+	}
+
+ out:
+	if (tcon) {
+		spin_lock(&cifs_tcp_ses_lock);
+		tcon->tc_count--;
+		spin_unlock(&cifs_tcp_ses_lock);
+	}
+	kfree(utf16_path);
+	kfree(dfs_req);
+	kfree(dfs_rsp);
+	return rc;
+}
 #define SMB2_SYMLINK_STRUCT_SIZE \
 	(sizeof(struct smb2_err_rsp) - 1 + sizeof(struct smb2_symlink_err_rsp))
 
@@ -2283,6 +2380,7 @@ struct smb_version_operations smb20_operations = {
 	.clone_range = smb2_clone_range,
 	.wp_retry_size = smb2_wp_retry_size,
 	.dir_needs_close = smb2_dir_needs_close,
+	.get_dfs_refer = smb2_get_dfs_refer,
 };
 
 struct smb_version_operations smb21_operations = {
@@ -2364,6 +2462,7 @@ struct smb_version_operations smb21_operations = {
 	.wp_retry_size = smb2_wp_retry_size,
 	.dir_needs_close = smb2_dir_needs_close,
 	.enum_snapshots = smb3_enum_snapshots,
+	.get_dfs_refer = smb2_get_dfs_refer,
 };
 
 struct smb_version_operations smb30_operations = {
@@ -2455,6 +2554,7 @@ struct smb_version_operations smb30_operations = {
 	.free_transform_rq = smb3_free_transform_rq,
 	.is_transform_hdr = smb3_is_transform_hdr,
 	.receive_transform = smb3_receive_transform,
+	.get_dfs_refer = smb2_get_dfs_refer,
 };
 
 #ifdef CONFIG_CIFS_SMB311
@@ -2547,6 +2647,7 @@ struct smb_version_operations smb311_operations = {
 	.free_transform_rq = smb3_free_transform_rq,
 	.is_transform_hdr = smb3_is_transform_hdr,
 	.receive_transform = smb3_receive_transform,
+	.get_dfs_refer = smb2_get_dfs_refer,
 };
 #endif /* CIFS_SMB311 */
 
