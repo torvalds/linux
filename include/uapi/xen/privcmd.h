@@ -111,5 +111,7 @@ struct privcmd_dm_op {
 	_IOC(_IOC_NONE, 'P', 4, sizeof(struct privcmd_mmapbatch_v2))
 #define IOCTL_PRIVCMD_DM_OP					\
 	_IOC(_IOC_NONE, 'P', 5, sizeof(struct privcmd_dm_op))
+#define IOCTL_PRIVCMD_RESTRICT					\
+	_IOC(_IOC_NONE, 'P', 6, sizeof(domid_t))
 
 #endif /* __LINUX_PUBLIC_PRIVCMD_H__ */
