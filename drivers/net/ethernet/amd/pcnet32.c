@@ -1108,6 +1108,13 @@ static int pcnet32_suspend(struct net_device *dev, unsigned long *flags,
 	return 1;
 }
 
+static void pcnet32_clr_suspend(struct pcnet32_private *lp, ulong ioaddr)
+{
+	int csr5 = lp->a->read_csr(ioaddr, CSR5);
+	/* clear SUSPEND (SPND) - CSR5 bit 0 */
+	lp->a->write_csr(ioaddr, CSR5, csr5 & ~CSR5_SUSPEND);
+}
+
 /*
  * process one receive descriptor entry
  */
@@ -1425,13 +1432,8 @@ static void pcnet32_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 		}
 	}
 
-	if (!(csr0 & CSR0_STOP)) {	/* If not stopped */
-		int csr5;
-
-		/* clear SUSPEND (SPND) - CSR5 bit 0 */
-		csr5 = a->read_csr(ioaddr, CSR5);
-		a->write_csr(ioaddr, CSR5, csr5 & (~CSR5_SUSPEND));
-	}
+	if (!(csr0 & CSR0_STOP))	/* If not stopped */
+		pcnet32_clr_suspend(lp, ioaddr);
 
 	spin_unlock_irqrestore(&lp->lock, flags);
 }
@@ -2675,10 +2677,7 @@ static void pcnet32_set_multicast_list(struct net_device *dev)
 	}
 
 	if (suspended) {
-		int csr5;
-		/* clear SUSPEND (SPND) - CSR5 bit 0 */
-		csr5 = lp->a->read_csr(ioaddr, CSR5);
-		lp->a->write_csr(ioaddr, CSR5, csr5 & (~CSR5_SUSPEND));
+		pcnet32_clr_suspend(lp, ioaddr);
 	} else {
 		lp->a->write_csr(ioaddr, CSR0, CSR0_STOP);
 		pcnet32_restart(dev, CSR0_NORMAL);
