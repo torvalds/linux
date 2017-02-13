@@ -701,6 +701,7 @@ static bool may_access_direct_pkt_data(struct bpf_verifier_env *env,
 		/* dst_input() and dst_output() can't write for now */
 		if (t == BPF_WRITE)
 			return false;
+		/* fallthrough */
 	case BPF_PROG_TYPE_SCHED_CLS:
 	case BPF_PROG_TYPE_SCHED_ACT:
 	case BPF_PROG_TYPE_XDP:
@@ -2007,6 +2008,7 @@ static void reg_set_min_max(struct bpf_reg_state *true_reg,
 	case BPF_JGT:
 		/* Unsigned comparison, the minimum value is 0. */
 		false_reg->min_value = 0;
+		/* fallthrough */
 	case BPF_JSGT:
 		/* If this is false then we know the maximum val is val,
 		 * otherwise we know the min val is val+1.
@@ -2017,6 +2019,7 @@ static void reg_set_min_max(struct bpf_reg_state *true_reg,
 	case BPF_JGE:
 		/* Unsigned comparison, the minimum value is 0. */
 		false_reg->min_value = 0;
+		/* fallthrough */
 	case BPF_JSGE:
 		/* If this is false then we know the maximum value is val - 1,
 		 * otherwise we know the mimimum value is val.
@@ -2055,6 +2058,7 @@ static void reg_set_min_max_inv(struct bpf_reg_state *true_reg,
 	case BPF_JGT:
 		/* Unsigned comparison, the minimum value is 0. */
 		true_reg->min_value = 0;
+		/* fallthrough */
 	case BPF_JSGT:
 		/*
 		 * If this is false, then the val is <= the register, if it is
@@ -2066,6 +2070,7 @@ static void reg_set_min_max_inv(struct bpf_reg_state *true_reg,
 	case BPF_JGE:
 		/* Unsigned comparison, the minimum value is 0. */
 		true_reg->min_value = 0;
+		/* fallthrough */
 	case BPF_JSGE:
 		/* If this is false then constant < register, if it is true then
 		 * the register < constant.
