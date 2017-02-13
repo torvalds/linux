@@ -1420,9 +1420,12 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 					   xentries, 1, n_channels);
 		if (rc < 0) {
 			/* Fall back to single channel MSI */
-			efx->interrupt_mode = EFX_INT_MODE_MSI;
 			netif_err(efx, drv, efx->net_dev,
 				  "could not enable MSI-X\n");
+			if (efx->type->min_interrupt_mode >= EFX_INT_MODE_MSI)
+				efx->interrupt_mode = EFX_INT_MODE_MSI;
+			else
+				return rc;
 		} else if (rc < n_channels) {
 			netif_err(efx, drv, efx->net_dev,
 				  "WARNING: Insufficient MSI-X vectors"
@@ -1465,7 +1468,10 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 		} else {
 			netif_err(efx, drv, efx->net_dev,
 				  "could not enable MSI\n");
-			efx->interrupt_mode = EFX_INT_MODE_LEGACY;
+			if (efx->type->min_interrupt_mode >= EFX_INT_MODE_LEGACY)
+				efx->interrupt_mode = EFX_INT_MODE_LEGACY;
+			else
+				return rc;
 		}
 	}
 
