@@ -2189,9 +2189,7 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 			goto out;
 		}
 
-		rcu_read_lock();
 		level_size = fs_info->nodesize;
-		rcu_read_unlock();
 	}
 
 	/*
