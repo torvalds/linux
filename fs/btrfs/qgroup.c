@@ -2465,11 +2465,6 @@ out:
 	spin_unlock(&fs_info->qgroup_lock);
 }
 
-static inline void qgroup_free(struct btrfs_root *root, u64 num_bytes)
-{
-	return btrfs_qgroup_free_refroot(root->fs_info, root->objectid,
-					 num_bytes);
-}
 void assert_qgroups_uptodate(struct btrfs_trans_handle *trans)
 {
 	if (list_empty(&trans->qgroup_ref_list) && !trans->delayed_ref_elem.seq)
@@ -2870,7 +2865,9 @@ static int __btrfs_qgroup_release_data(struct inode *inode, u64 start, u64 len,
 		goto out;
 
 	if (free) {
-		qgroup_free(BTRFS_I(inode)->root, changeset.bytes_changed);
+		btrfs_qgroup_free_refroot(BTRFS_I(inode)->root->fs_info,
+				BTRFS_I(inode)->root->objectid,
+				changeset.bytes_changed);
 		trace_op = QGROUP_FREE;
 	}
 	trace_btrfs_qgroup_release_data(inode, start, len,
@@ -2945,7 +2942,7 @@ void btrfs_qgroup_free_meta_all(struct btrfs_root *root)
 	reserved = atomic_xchg(&root->qgroup_meta_rsv, 0);
 	if (reserved == 0)
 		return;
-	qgroup_free(root, reserved);
+	btrfs_qgroup_free_refroot(fs_info, root->objectid, reserved);
 }
 
 void btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes)
@@ -2959,7 +2956,7 @@ void btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes)
 	BUG_ON(num_bytes != round_down(num_bytes, fs_info->nodesize));
 	WARN_ON(atomic_read(&root->qgroup_meta_rsv) < num_bytes);
 	atomic_sub(num_bytes, &root->qgroup_meta_rsv);
-	qgroup_free(root, num_bytes);
+	btrfs_qgroup_free_refroot(fs_info, root->objectid, num_bytes);
 }
 
 /*
@@ -2986,7 +2983,10 @@ void btrfs_qgroup_check_reserved_leak(struct inode *inode)
 				"leaking qgroup reserved space, ino: %lu, start: %llu, end: %llu",
 				inode->i_ino, unode->val, unode->aux);
 		}
-		qgroup_free(BTRFS_I(inode)->root, changeset.bytes_changed);
+		btrfs_qgroup_free_refroot(BTRFS_I(inode)->root->fs_info,
+				BTRFS_I(inode)->root->objectid,
+				changeset.bytes_changed);
+
 	}
 	ulist_fini(&changeset.range_changed);
 }
