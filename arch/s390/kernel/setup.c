@@ -749,7 +749,7 @@ static int __init setup_hwcaps(void)
 	/*
 	 * Huge page support HWCAP_S390_HPAGE is bit 7.
 	 */
-	if (MACHINE_HAS_HPAGE)
+	if (MACHINE_HAS_EDAT1)
 		elf_hwcap |= HWCAP_S390_HPAGE;
 
 	/*
