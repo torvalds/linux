@@ -36,6 +36,8 @@ struct i915_selftest {
 };
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include <linux/fault-inject.h>
+
 extern struct i915_selftest i915_selftest;
 
 int i915_mock_selftests(void);

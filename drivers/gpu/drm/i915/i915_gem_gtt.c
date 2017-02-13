@@ -23,6 +23,9 @@
  *
  */
 
+#include <linux/slab.h> /* fault-inject.h is not standalone! */
+
+#include <linux/fault-inject.h>
 #include <linux/log2.h>
 #include <linux/random.h>
 #include <linux/seq_file.h>
@@ -344,6 +347,9 @@ static int __setup_page_dma(struct drm_i915_private *dev_priv,
 			    struct i915_page_dma *p, gfp_t flags)
 {
 	struct device *kdev = &dev_priv->drm.pdev->dev;
+
+	if (I915_SELFTEST_ONLY(should_fail(&dev_priv->vm_fault, 1)))
+		i915_gem_shrink_all(dev_priv);
 
 	p->page = alloc_page(flags);
 	if (!p->page)

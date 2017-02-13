@@ -65,6 +65,7 @@ config DRM_I915_SELFTEST
 	bool "Enable selftests upon driver load"
 	depends on DRM_I915
 	default n
+	select FAULT_INJECTION
 	select PRIME_NUMBERS
 	help
 	  Choose this option to allow the driver to perform selftests upon

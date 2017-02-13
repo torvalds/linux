@@ -271,11 +271,14 @@ static void close_object_list(struct list_head *objects,
 			      struct i915_address_space *vm)
 {
 	struct drm_i915_gem_object *obj, *on;
+	int ignored;
 
 	list_for_each_entry_safe(obj, on, objects, st_link) {
 		struct i915_vma *vma;
 
 		vma = i915_vma_instance(obj, vm, NULL);
+		if (!IS_ERR(vma))
+			ignored = i915_vma_unbind(vma);
 		/* Only ppgtt vma may be closed before the object is freed */
 		if (!IS_ERR(vma) && !i915_vma_is_ggtt(vma))
 			i915_vma_close(vma);
@@ -677,6 +680,95 @@ err_obj:
 	return 0;
 }
 
+static int __shrink_hole(struct drm_i915_private *i915,
+			 struct i915_address_space *vm,
+			 u64 hole_start, u64 hole_end,
+			 unsigned long end_time)
+{
+	struct drm_i915_gem_object *obj;
+	unsigned long flags = PIN_OFFSET_FIXED | PIN_USER;
+	unsigned int order = 12;
+	LIST_HEAD(objects);
+	int err = 0;
+	u64 addr;
+
+	/* Keep creating larger objects until one cannot fit into the hole */
+	for (addr = hole_start; addr < hole_end; ) {
+		struct i915_vma *vma;
+		u64 size = BIT_ULL(order++);
+
+		size = min(size, hole_end - addr);
+		obj = fake_dma_object(i915, size);
+		if (IS_ERR(obj)) {
+			err = PTR_ERR(obj);
+			break;
+		}
+
+		list_add(&obj->st_link, &objects);
+
+		vma = i915_vma_instance(obj, vm, NULL);
+		if (IS_ERR(vma)) {
+			err = PTR_ERR(vma);
+			break;
+		}
+
+		GEM_BUG_ON(vma->size != size);
+
+		err = i915_vma_pin(vma, 0, 0, addr | flags);
+		if (err) {
+			pr_err("%s failed to pin object at %llx + %llx in hole [%llx - %llx], with err=%d\n",
+			       __func__, addr, size, hole_start, hole_end, err);
+			break;
+		}
+
+		if (!drm_mm_node_allocated(&vma->node) ||
+		    i915_vma_misplaced(vma, 0, 0, addr | flags)) {
+			pr_err("%s incorrect at %llx + %llx\n",
+			       __func__, addr, size);
+			i915_vma_unpin(vma);
+			err = i915_vma_unbind(vma);
+			err = -EINVAL;
+			break;
+		}
+
+		i915_vma_unpin(vma);
+		addr += size;
+
+		if (igt_timeout(end_time,
+				"%s timed out at ofset %llx [%llx - %llx]\n",
+				__func__, addr, hole_start, hole_end)) {
+			err = -EINTR;
+			break;
+		}
+	}
+
+	close_object_list(&objects, vm);
+	return err;
+}
+
+static int shrink_hole(struct drm_i915_private *i915,
+		       struct i915_address_space *vm,
+		       u64 hole_start, u64 hole_end,
+		       unsigned long end_time)
+{
+	unsigned long prime;
+	int err;
+
+	i915->vm_fault.probability = 999;
+	atomic_set(&i915->vm_fault.times, -1);
+
+	for_each_prime_number_from(prime, 0, ULONG_MAX - 1) {
+		i915->vm_fault.interval = prime;
+		err = __shrink_hole(i915, vm, hole_start, hole_end, end_time);
+		if (err)
+			break;
+	}
+
+	memset(&i915->vm_fault, 0, sizeof(i915->vm_fault));
+
+	return err;
+}
+
 static int exercise_ppgtt(struct drm_i915_private *dev_priv,
 			  int (*func)(struct drm_i915_private *i915,
 				      struct i915_address_space *vm,
@@ -733,6 +825,11 @@ static int igt_ppgtt_drunk(void *arg)
 static int igt_ppgtt_lowlevel(void *arg)
 {
 	return exercise_ppgtt(arg, lowlevel_hole);
+}
+
+static int igt_ppgtt_shrink(void *arg)
+{
+	return exercise_ppgtt(arg, shrink_hole);
 }
 
 static int sort_holes(void *priv, struct list_head *A, struct list_head *B)
@@ -812,6 +909,7 @@ int i915_gem_gtt_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_ppgtt_drunk),
 		SUBTEST(igt_ppgtt_walk),
 		SUBTEST(igt_ppgtt_fill),
+		SUBTEST(igt_ppgtt_shrink),
 		SUBTEST(igt_ggtt_lowlevel),
 		SUBTEST(igt_ggtt_drunk),
 		SUBTEST(igt_ggtt_walk),
