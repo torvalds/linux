@@ -338,6 +338,160 @@ out_unlock:
 	return err;
 }
 
+static struct i915_vma *empty_batch(struct drm_i915_private *i915)
+{
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+	u32 *cmd;
+	int err;
+
+	obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
+	if (IS_ERR(obj))
+		return ERR_CAST(obj);
+
+	cmd = i915_gem_object_pin_map(obj, I915_MAP_WB);
+	if (IS_ERR(cmd)) {
+		err = PTR_ERR(cmd);
+		goto err;
+	}
+	*cmd = MI_BATCH_BUFFER_END;
+	i915_gem_object_unpin_map(obj);
+
+	err = i915_gem_object_set_to_gtt_domain(obj, false);
+	if (err)
+		goto err;
+
+	vma = i915_vma_instance(obj, &i915->ggtt.base, NULL);
+	if (IS_ERR(vma)) {
+		err = PTR_ERR(vma);
+		goto err;
+	}
+
+	err = i915_vma_pin(vma, 0, 0, PIN_USER | PIN_GLOBAL);
+	if (err)
+		goto err;
+
+	return vma;
+
+err:
+	i915_gem_object_put(obj);
+	return ERR_PTR(err);
+}
+
+static struct drm_i915_gem_request *
+empty_request(struct intel_engine_cs *engine,
+	      struct i915_vma *batch)
+{
+	struct drm_i915_gem_request *request;
+	int err;
+
+	request = i915_gem_request_alloc(engine,
+					 engine->i915->kernel_context);
+	if (IS_ERR(request))
+		return request;
+
+	err = engine->emit_flush(request, EMIT_INVALIDATE);
+	if (err)
+		goto out_request;
+
+	err = i915_switch_context(request);
+	if (err)
+		goto out_request;
+
+	err = engine->emit_bb_start(request,
+				    batch->node.start,
+				    batch->node.size,
+				    I915_DISPATCH_SECURE);
+	if (err)
+		goto out_request;
+
+out_request:
+	__i915_add_request(request, err == 0);
+	return err ? ERR_PTR(err) : request;
+}
+
+static int live_empty_request(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct intel_engine_cs *engine;
+	struct live_test t;
+	struct i915_vma *batch;
+	unsigned int id;
+	int err = 0;
+
+	/* Submit various sized batches of empty requests, to each engine
+	 * (individually), and wait for the batch to complete. We can check
+	 * the overhead of submitting requests to the hardware.
+	 */
+
+	mutex_lock(&i915->drm.struct_mutex);
+
+	batch = empty_batch(i915);
+	if (IS_ERR(batch)) {
+		err = PTR_ERR(batch);
+		goto out_unlock;
+	}
+
+	for_each_engine(engine, i915, id) {
+		IGT_TIMEOUT(end_time);
+		struct drm_i915_gem_request *request;
+		unsigned long n, prime;
+		ktime_t times[2] = {};
+
+		err = begin_live_test(&t, i915, __func__, engine->name);
+		if (err)
+			goto out_batch;
+
+		/* Warmup / preload */
+		request = empty_request(engine, batch);
+		if (IS_ERR(request)) {
+			err = PTR_ERR(request);
+			goto out_batch;
+		}
+		i915_wait_request(request,
+				  I915_WAIT_LOCKED,
+				  MAX_SCHEDULE_TIMEOUT);
+
+		for_each_prime_number_from(prime, 1, 8192) {
+			times[1] = ktime_get_raw();
+
+			for (n = 0; n < prime; n++) {
+				request = empty_request(engine, batch);
+				if (IS_ERR(request)) {
+					err = PTR_ERR(request);
+					goto out_batch;
+				}
+			}
+			i915_wait_request(request,
+					  I915_WAIT_LOCKED,
+					  MAX_SCHEDULE_TIMEOUT);
+
+			times[1] = ktime_sub(ktime_get_raw(), times[1]);
+			if (prime == 1)
+				times[0] = times[1];
+
+			if (__igt_timeout(end_time, NULL))
+				break;
+		}
+
+		err = end_live_test(&t);
+		if (err)
+			goto out_batch;
+
+		pr_info("Batch latencies on %s: 1 = %lluns, %lu = %lluns\n",
+			engine->name,
+			ktime_to_ns(times[0]),
+			prime, div64_u64(ktime_to_ns(times[1]), prime));
+	}
+
+out_batch:
+	i915_vma_unpin(batch);
+	i915_vma_put(batch);
+out_unlock:
+	mutex_unlock(&i915->drm.struct_mutex);
+	return err;
+}
+
 static struct i915_vma *recursive_batch(struct drm_i915_private *i915)
 {
 	struct i915_gem_context *ctx = i915->kernel_context;
@@ -658,6 +812,7 @@ int i915_gem_request_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_nop_request),
 		SUBTEST(live_all_engines),
 		SUBTEST(live_sequential_engines),
+		SUBTEST(live_empty_request),
 	};
 	return i915_subtests(tests, i915);
 }
