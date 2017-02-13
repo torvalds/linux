@@ -12,6 +12,7 @@
  * in an attempt to provide to the rest of the driver code a unified view
  */
 
+#include <linux/clk.h>
 #include <linux/types.h>
 #include <linux/io.h>
 #include <drm/drmP.h>
@@ -334,6 +335,39 @@ static int malidp500_se_set_scaling_coeffs(struct malidp_hw_device *hwdev,
 	return 0;
 }
 
+static long malidp500_se_calc_mclk(struct malidp_hw_device *hwdev,
+				   struct malidp_se_config *se_config,
+				   struct videomode *vm)
+{
+	unsigned long mclk;
+	unsigned long pxlclk = vm->pixelclock; /* Hz */
+	unsigned long htotal = vm->hactive + vm->hfront_porch +
+			       vm->hback_porch + vm->hsync_len;
+	unsigned long input_size = se_config->input_w * se_config->input_h;
+	unsigned long a = 10;
+	long ret;
+
+	/*
+	 * mclk = max(a, 1.5) * pxlclk
+	 *
+	 * To avoid float calculaiton, using 15 instead of 1.5 and div by
+	 * 10 to get mclk.
+	 */
+	if (se_config->scale_enable) {
+		a = 15 * input_size / (htotal * se_config->output_h);
+		if (a < 15)
+			a = 15;
+	}
+	mclk = a * pxlclk / 10;
+	ret = clk_get_rate(hwdev->mclk);
+	if (ret < mclk) {
+		DRM_DEBUG_DRIVER("mclk requirement of %lu kHz can't be met.\n",
+				 mclk / 1000);
+		return -EINVAL;
+	}
+	return ret;
+}
+
 static int malidp550_query_hw(struct malidp_hw_device *hwdev)
 {
 	u32 conf = malidp_hw_read(hwdev, MALIDP550_CONFIG_ID);
@@ -521,6 +555,39 @@ static int malidp550_se_set_scaling_coeffs(struct malidp_hw_device *hwdev,
 	return 0;
 }
 
+static long malidp550_se_calc_mclk(struct malidp_hw_device *hwdev,
+				   struct malidp_se_config *se_config,
+				   struct videomode *vm)
+{
+	unsigned long mclk;
+	unsigned long pxlclk = vm->pixelclock;
+	unsigned long htotal = vm->hactive + vm->hfront_porch +
+			       vm->hback_porch + vm->hsync_len;
+	unsigned long numerator = 1, denominator = 1;
+	long ret;
+
+	if (se_config->scale_enable) {
+		numerator = max(se_config->input_w, se_config->output_w) *
+			    se_config->input_h;
+		numerator += se_config->output_w *
+			     (se_config->output_h -
+			      min(se_config->input_h, se_config->output_h));
+		denominator = (htotal - 2) * se_config->output_h;
+	}
+
+	/* mclk can't be slower than pxlclk. */
+	if (numerator < denominator)
+		numerator = denominator = 1;
+	mclk = (pxlclk * numerator) / denominator;
+	ret = clk_get_rate(hwdev->mclk);
+	if (ret < mclk) {
+		DRM_DEBUG_DRIVER("mclk requirement of %lu kHz can't be met.\n",
+				 mclk / 1000);
+		return -EINVAL;
+	}
+	return ret;
+}
+
 static int malidp650_query_hw(struct malidp_hw_device *hwdev)
 {
 	u32 conf = malidp_hw_read(hwdev, MALIDP550_CONFIG_ID);
@@ -586,6 +653,7 @@ const struct malidp_hw_device malidp_device[MALIDP_MAX_DEVICES] = {
 		.modeset = malidp500_modeset,
 		.rotmem_required = malidp500_rotmem_required,
 		.se_set_scaling_coeffs = malidp500_se_set_scaling_coeffs,
+		.se_calc_mclk = malidp500_se_calc_mclk,
 		.features = MALIDP_DEVICE_LV_HAS_3_STRIDES,
 	},
 	[MALIDP_550] = {
@@ -622,6 +690,7 @@ const struct malidp_hw_device malidp_device[MALIDP_MAX_DEVICES] = {
 		.modeset = malidp550_modeset,
 		.rotmem_required = malidp550_rotmem_required,
 		.se_set_scaling_coeffs = malidp550_se_set_scaling_coeffs,
+		.se_calc_mclk = malidp550_se_calc_mclk,
 		.features = 0,
 	},
 	[MALIDP_650] = {
@@ -659,6 +728,7 @@ const struct malidp_hw_device malidp_device[MALIDP_MAX_DEVICES] = {
 		.modeset = malidp550_modeset,
 		.rotmem_required = malidp550_rotmem_required,
 		.se_set_scaling_coeffs = malidp550_se_set_scaling_coeffs,
+		.se_calc_mclk = malidp550_se_calc_mclk,
 		.features = 0,
 	},
 };

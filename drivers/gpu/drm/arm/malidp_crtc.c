@@ -36,13 +36,6 @@ static bool malidp_crtc_mode_fixup(struct drm_crtc *crtc,
 	long rate, req_rate = mode->crtc_clock * 1000;
 
 	if (req_rate) {
-		rate = clk_round_rate(hwdev->mclk, req_rate);
-		if (rate < req_rate) {
-			DRM_DEBUG_DRIVER("mclk clock unable to reach %d kHz\n",
-					 mode->crtc_clock);
-			return false;
-		}
-
 		rate = clk_round_rate(hwdev->pxlclk, req_rate);
 		if (rate != req_rate) {
 			DRM_DEBUG_DRIVER("pxlclk doesn't support %ld Hz\n",
@@ -250,17 +243,21 @@ static int malidp_crtc_atomic_check_ctm(struct drm_crtc *crtc,
 static int malidp_crtc_atomic_check_scaling(struct drm_crtc *crtc,
 					    struct drm_crtc_state *state)
 {
+	struct malidp_drm *malidp = crtc_to_malidp_device(crtc);
+	struct malidp_hw_device *hwdev = malidp->dev;
 	struct malidp_crtc_state *cs = to_malidp_crtc_state(state);
 	struct malidp_se_config *s = &cs->scaler_config;
 	struct drm_plane *plane;
+	struct videomode vm;
 	const struct drm_plane_state *pstate;
 	u32 h_upscale_factor = 0; /* U16.16 */
 	u32 v_upscale_factor = 0; /* U16.16 */
 	u8 scaling = cs->scaled_planes_mask;
+	int ret;
 
 	if (!scaling) {
 		s->scale_enable = false;
-		return 0;
+		goto mclk_calc;
 	}
 
 	/* The scaling engine can only handle one plane at a time. */
@@ -283,10 +280,6 @@ static int malidp_crtc_atomic_check_scaling(struct drm_crtc *crtc,
 		crtc_h = (u64)pstate->crtc_h << 32;
 		h_upscale_factor = (u32)(crtc_w / pstate->src_w);
 		v_upscale_factor = (u32)(crtc_h / pstate->src_h);
-
-		/* Downscaling won't work when mclk == pxlclk. */
-		if (!(h_upscale_factor >> 16) || !(v_upscale_factor >> 16))
-			return -EINVAL;
 
 		s->enhancer_enable = ((h_upscale_factor >> 16) >= 2 ||
 				      (v_upscale_factor >> 16) >= 2);
@@ -323,6 +316,12 @@ static int malidp_crtc_atomic_check_scaling(struct drm_crtc *crtc,
 	s->scale_enable = true;
 	s->hcoeff = malidp_se_select_coeffs(h_upscale_factor);
 	s->vcoeff = malidp_se_select_coeffs(v_upscale_factor);
+
+mclk_calc:
+	drm_display_mode_to_videomode(&state->adjusted_mode, &vm);
+	ret = hwdev->se_calc_mclk(hwdev, s, &vm);
+	if (ret < 0)
+		return -EINVAL;
 	return 0;
 }
 

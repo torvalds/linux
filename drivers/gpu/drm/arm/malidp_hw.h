@@ -177,6 +177,10 @@ struct malidp_hw_device {
 				     struct malidp_se_config *se_config,
 				     struct malidp_se_config *old_config);
 
+	long (*se_calc_mclk)(struct malidp_hw_device *hwdev,
+			     struct malidp_se_config *se_config,
+			     struct videomode *vm);
+
 	u8 features;
 
 	u8 min_line_size;
