@@ -529,6 +529,209 @@ out:
 	return err;
 }
 
+static u32 gfx_v9_0_get_csb_size(struct amdgpu_device *adev)
+{
+	u32 count = 0;
+	const struct cs_section_def *sect = NULL;
+	const struct cs_extent_def *ext = NULL;
+
+	/* begin clear state */
+	count += 2;
+	/* context control state */
+	count += 3;
+
+	for (sect = gfx9_cs_data; sect->section != NULL; ++sect) {
+		for (ext = sect->section; ext->extent != NULL; ++ext) {
+			if (sect->id == SECT_CONTEXT)
+				count += 2 + ext->reg_count;
+			else
+				return 0;
+		}
+	}
+
+	/* end clear state */
+	count += 2;
+	/* clear state */
+	count += 2;
+
+	return count;
+}
+
+static void gfx_v9_0_get_csb_buffer(struct amdgpu_device *adev,
+				    volatile u32 *buffer)
+{
+	u32 count = 0, i;
+	const struct cs_section_def *sect = NULL;
+	const struct cs_extent_def *ext = NULL;
+
+	if (adev->gfx.rlc.cs_data == NULL)
+		return;
+	if (buffer == NULL)
+		return;
+
+	buffer[count++] = cpu_to_le32(PACKET3(PACKET3_PREAMBLE_CNTL, 0));
+	buffer[count++] = cpu_to_le32(PACKET3_PREAMBLE_BEGIN_CLEAR_STATE);
+
+	buffer[count++] = cpu_to_le32(PACKET3(PACKET3_CONTEXT_CONTROL, 1));
+	buffer[count++] = cpu_to_le32(0x80000000);
+	buffer[count++] = cpu_to_le32(0x80000000);
+
+	for (sect = adev->gfx.rlc.cs_data; sect->section != NULL; ++sect) {
+		for (ext = sect->section; ext->extent != NULL; ++ext) {
+			if (sect->id == SECT_CONTEXT) {
+				buffer[count++] =
+					cpu_to_le32(PACKET3(PACKET3_SET_CONTEXT_REG, ext->reg_count));
+				buffer[count++] = cpu_to_le32(ext->reg_index -
+						PACKET3_SET_CONTEXT_REG_START);
+				for (i = 0; i < ext->reg_count; i++)
+					buffer[count++] = cpu_to_le32(ext->extent[i]);
+			} else {
+				return;
+			}
+		}
+	}
+
+	buffer[count++] = cpu_to_le32(PACKET3(PACKET3_PREAMBLE_CNTL, 0));
+	buffer[count++] = cpu_to_le32(PACKET3_PREAMBLE_END_CLEAR_STATE);
+
+	buffer[count++] = cpu_to_le32(PACKET3(PACKET3_CLEAR_STATE, 0));
+	buffer[count++] = cpu_to_le32(0);
+}
+
+static void rv_init_cp_jump_table(struct amdgpu_device *adev)
+{
+	const __le32 *fw_data;
+	volatile u32 *dst_ptr;
+	int me, i, max_me = 5;
+	u32 bo_offset = 0;
+	u32 table_offset, table_size;
+
+	/* write the cp table buffer */
+	dst_ptr = adev->gfx.rlc.cp_table_ptr;
+	for (me = 0; me < max_me; me++) {
+		if (me == 0) {
+			const struct gfx_firmware_header_v1_0 *hdr =
+				(const struct gfx_firmware_header_v1_0 *)adev->gfx.ce_fw->data;
+			fw_data = (const __le32 *)
+				(adev->gfx.ce_fw->data +
+				 le32_to_cpu(hdr->header.ucode_array_offset_bytes));
+			table_offset = le32_to_cpu(hdr->jt_offset);
+			table_size = le32_to_cpu(hdr->jt_size);
+		} else if (me == 1) {
+			const struct gfx_firmware_header_v1_0 *hdr =
+				(const struct gfx_firmware_header_v1_0 *)adev->gfx.pfp_fw->data;
+			fw_data = (const __le32 *)
+				(adev->gfx.pfp_fw->data +
+				 le32_to_cpu(hdr->header.ucode_array_offset_bytes));
+			table_offset = le32_to_cpu(hdr->jt_offset);
+			table_size = le32_to_cpu(hdr->jt_size);
+		} else if (me == 2) {
+			const struct gfx_firmware_header_v1_0 *hdr =
+				(const struct gfx_firmware_header_v1_0 *)adev->gfx.me_fw->data;
+			fw_data = (const __le32 *)
+				(adev->gfx.me_fw->data +
+				 le32_to_cpu(hdr->header.ucode_array_offset_bytes));
+			table_offset = le32_to_cpu(hdr->jt_offset);
+			table_size = le32_to_cpu(hdr->jt_size);
+		} else if (me == 3) {
+			const struct gfx_firmware_header_v1_0 *hdr =
+				(const struct gfx_firmware_header_v1_0 *)adev->gfx.mec_fw->data;
+			fw_data = (const __le32 *)
+				(adev->gfx.mec_fw->data +
+				 le32_to_cpu(hdr->header.ucode_array_offset_bytes));
+			table_offset = le32_to_cpu(hdr->jt_offset);
+			table_size = le32_to_cpu(hdr->jt_size);
+		} else  if (me == 4) {
+			const struct gfx_firmware_header_v1_0 *hdr =
+				(const struct gfx_firmware_header_v1_0 *)adev->gfx.mec2_fw->data;
+			fw_data = (const __le32 *)
+				(adev->gfx.mec2_fw->data +
+				 le32_to_cpu(hdr->header.ucode_array_offset_bytes));
+			table_offset = le32_to_cpu(hdr->jt_offset);
+			table_size = le32_to_cpu(hdr->jt_size);
+		}
+
+		for (i = 0; i < table_size; i ++) {
+			dst_ptr[bo_offset + i] =
+				cpu_to_le32(le32_to_cpu(fw_data[table_offset + i]));
+		}
+
+		bo_offset += table_size;
+	}
+}
+
+static void gfx_v9_0_rlc_fini(struct amdgpu_device *adev)
+{
+	/* clear state block */
+	amdgpu_bo_free_kernel(&adev->gfx.rlc.clear_state_obj,
+			&adev->gfx.rlc.clear_state_gpu_addr,
+			(void **)&adev->gfx.rlc.cs_ptr);
+
+	/* jump table block */
+	amdgpu_bo_free_kernel(&adev->gfx.rlc.cp_table_obj,
+			&adev->gfx.rlc.cp_table_gpu_addr,
+			(void **)&adev->gfx.rlc.cp_table_ptr);
+}
+
+static int gfx_v9_0_rlc_init(struct amdgpu_device *adev)
+{
+	volatile u32 *dst_ptr;
+	u32 dws;
+	const struct cs_section_def *cs_data;
+	int r;
+
+	adev->gfx.rlc.cs_data = gfx9_cs_data;
+
+	cs_data = adev->gfx.rlc.cs_data;
+
+	if (cs_data) {
+		/* clear state block */
+		adev->gfx.rlc.clear_state_size = dws = gfx_v9_0_get_csb_size(adev);
+		if (adev->gfx.rlc.clear_state_obj == NULL) {
+			r = amdgpu_bo_create_kernel(adev, dws * 4, PAGE_SIZE,
+						AMDGPU_GEM_DOMAIN_VRAM,
+						&adev->gfx.rlc.clear_state_obj,
+						&adev->gfx.rlc.clear_state_gpu_addr,
+						(void **)&adev->gfx.rlc.cs_ptr);
+			if (r) {
+				dev_err(adev->dev,
+					"(%d) failed to create rlc csb bo\n", r);
+				gfx_v9_0_rlc_fini(adev);
+				return r;
+			}
+		}
+		/* set up the cs buffer */
+		dst_ptr = adev->gfx.rlc.cs_ptr;
+		gfx_v9_0_get_csb_buffer(adev, dst_ptr);
+		amdgpu_bo_kunmap(adev->gfx.rlc.clear_state_obj);
+		amdgpu_bo_unreserve(adev->gfx.rlc.clear_state_obj);
+	}
+
+	if (adev->asic_type == CHIP_RAVEN) {
+		/* TODO: double check the cp_table_size for RV */
+		adev->gfx.rlc.cp_table_size = ALIGN(96 * 5 * 4, 2048) + (64 * 1024); /* JT + GDS */
+		if (adev->gfx.rlc.cp_table_obj == NULL) {
+			r = amdgpu_bo_create_kernel(adev, adev->gfx.rlc.cp_table_size,
+						PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
+						&adev->gfx.rlc.cp_table_obj,
+						&adev->gfx.rlc.cp_table_gpu_addr,
+						(void **)&adev->gfx.rlc.cp_table_ptr);
+			if (r) {
+				dev_err(adev->dev,
+					"(%d) failed to create cp table bo\n", r);
+				gfx_v9_0_rlc_fini(adev);
+				return r;
+			}
+		}
+
+		rv_init_cp_jump_table(adev);
+		amdgpu_bo_kunmap(adev->gfx.rlc.cp_table_obj);
+		amdgpu_bo_unreserve(adev->gfx.rlc.cp_table_obj);
+	}
+
+	return 0;
+}
+
 static void gfx_v9_0_mec_fini(struct amdgpu_device *adev)
 {
 	int r;
@@ -1152,6 +1355,12 @@ static int gfx_v9_0_sw_init(void *handle)
 		return r;
 	}
 
+	r = gfx_v9_0_rlc_init(adev);
+	if (r) {
+		DRM_ERROR("Failed to init rlc BOs!\n");
+		return r;
+	}
+
 	r = gfx_v9_0_mec_init(adev);
 	if (r) {
 		DRM_ERROR("Failed to init MEC BOs!\n");
@@ -1644,33 +1853,6 @@ static int gfx_v9_0_cp_gfx_load_microcode(struct amdgpu_device *adev)
 	WREG32_SOC15(GC, 0, mmCP_ME_RAM_WADDR, adev->gfx.me_fw_version);
 
 	return 0;
-}
-
-static u32 gfx_v9_0_get_csb_size(struct amdgpu_device *adev)
-{
-	u32 count = 0;
-	const struct cs_section_def *sect = NULL;
-	const struct cs_extent_def *ext = NULL;
-
-	/* begin clear state */
-	count += 2;
-	/* context control state */
-	count += 3;
-
-	for (sect = gfx9_cs_data; sect->section != NULL; ++sect) {
-		for (ext = sect->section; ext->extent != NULL; ++ext) {
-			if (sect->id == SECT_CONTEXT)
-				count += 2 + ext->reg_count;
-			else
-				return 0;
-		}
-	}
-	/* end clear state */
-	count += 2;
-	/* clear state */
-	count += 2;
-
-	return count;
 }
 
 static int gfx_v9_0_cp_gfx_start(struct amdgpu_device *adev)
