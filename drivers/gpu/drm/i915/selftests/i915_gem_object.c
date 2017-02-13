@@ -25,6 +25,7 @@
 #include "../i915_selftest.h"
 
 #include "mock_gem_device.h"
+#include "huge_gem_object.h"
 
 static int igt_gem_object(void *arg)
 {
@@ -432,6 +433,142 @@ out:
 	return err;
 }
 
+static int make_obj_busy(struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+	struct drm_i915_gem_request *rq;
+	struct i915_vma *vma;
+	int err;
+
+	vma = i915_vma_instance(obj, &i915->ggtt.base, NULL);
+	if (IS_ERR(vma))
+		return PTR_ERR(vma);
+
+	err = i915_vma_pin(vma, 0, 0, PIN_USER);
+	if (err)
+		return err;
+
+	rq = i915_gem_request_alloc(i915->engine[RCS], i915->kernel_context);
+	if (IS_ERR(rq)) {
+		i915_vma_unpin(vma);
+		return PTR_ERR(rq);
+	}
+
+	i915_vma_move_to_active(vma, rq, 0);
+	i915_add_request(rq);
+
+	i915_gem_object_set_active_reference(obj);
+	i915_vma_unpin(vma);
+	return 0;
+}
+
+static bool assert_mmap_offset(struct drm_i915_private *i915,
+			       unsigned long size,
+			       int expected)
+{
+	struct drm_i915_gem_object *obj;
+	int err;
+
+	obj = i915_gem_object_create_internal(i915, size);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	err = i915_gem_object_create_mmap_offset(obj);
+	i915_gem_object_put(obj);
+
+	return err == expected;
+}
+
+static int igt_mmap_offset_exhaustion(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct drm_mm *mm = &i915->drm.vma_offset_manager->vm_addr_space_mm;
+	struct drm_i915_gem_object *obj;
+	struct drm_mm_node resv, *hole;
+	u64 hole_start, hole_end;
+	int loop, err;
+
+	/* Trim the device mmap space to only a page */
+	memset(&resv, 0, sizeof(resv));
+	drm_mm_for_each_hole(hole, mm, hole_start, hole_end) {
+		resv.start = hole_start;
+		resv.size = hole_end - hole_start - 1; /* PAGE_SIZE units */
+		err = drm_mm_reserve_node(mm, &resv);
+		if (err) {
+			pr_err("Failed to trim VMA manager, err=%d\n", err);
+			return err;
+		}
+		break;
+	}
+
+	/* Just fits! */
+	if (!assert_mmap_offset(i915, PAGE_SIZE, 0)) {
+		pr_err("Unable to insert object into single page hole\n");
+		err = -EINVAL;
+		goto out;
+	}
+
+	/* Too large */
+	if (!assert_mmap_offset(i915, 2*PAGE_SIZE, -ENOSPC)) {
+		pr_err("Unexpectedly succeeded in inserting too large object into single page hole\n");
+		err = -EINVAL;
+		goto out;
+	}
+
+	/* Fill the hole, further allocation attempts should then fail */
+	obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
+	if (IS_ERR(obj)) {
+		err = PTR_ERR(obj);
+		goto out;
+	}
+
+	err = i915_gem_object_create_mmap_offset(obj);
+	if (err) {
+		pr_err("Unable to insert object into reclaimed hole\n");
+		goto err_obj;
+	}
+
+	if (!assert_mmap_offset(i915, PAGE_SIZE, -ENOSPC)) {
+		pr_err("Unexpectedly succeeded in inserting object into no holes!\n");
+		err = -EINVAL;
+		goto err_obj;
+	}
+
+	i915_gem_object_put(obj);
+
+	/* Now fill with busy dead objects that we expect to reap */
+	for (loop = 0; loop < 3; loop++) {
+		obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
+		if (IS_ERR(obj)) {
+			err = PTR_ERR(obj);
+			goto out;
+		}
+
+		mutex_lock(&i915->drm.struct_mutex);
+		err = make_obj_busy(obj);
+		mutex_unlock(&i915->drm.struct_mutex);
+		if (err) {
+			pr_err("[loop %d] Failed to busy the object\n", loop);
+			goto err_obj;
+		}
+
+		GEM_BUG_ON(!i915_gem_object_is_active(obj));
+		err = i915_gem_object_create_mmap_offset(obj);
+		if (err) {
+			pr_err("[loop %d] i915_gem_object_create_mmap_offset failed with err=%d\n",
+			       loop, err);
+			goto out;
+		}
+	}
+
+out:
+	drm_mm_remove_node(&resv);
+	return err;
+err_obj:
+	i915_gem_object_put(obj);
+	goto out;
+}
+
 int i915_gem_object_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
@@ -456,6 +593,7 @@ int i915_gem_object_live_selftests(struct drm_i915_private *i915)
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_gem_huge),
 		SUBTEST(igt_partial_tiling),
+		SUBTEST(igt_mmap_offset_exhaustion),
 	};
 
 	return i915_subtests(tests, i915);
