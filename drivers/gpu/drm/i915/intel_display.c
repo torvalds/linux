@@ -5701,7 +5701,7 @@ static u64 get_crtc_power_domains(struct drm_crtc *crtc,
 	return mask;
 }
 
-static unsigned long
+static u64
 modeset_get_crtc_power_domains(struct drm_crtc *crtc,
 			       struct intel_crtc_state *crtc_state)
 {
@@ -5903,7 +5903,7 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	enum intel_display_power_domain domain;
-	unsigned long domains;
+	u64 domains;
 	struct drm_atomic_state *state;
 	struct intel_crtc_state *crtc_state;
 	int ret;
