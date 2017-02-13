@@ -30,8 +30,6 @@
 #include <asm/mach-types.h>
 #include <mach/audio.h>
 
-#include "pxa2xx-ac97.h"
-
 static struct snd_soc_dai_link em_x270_dai[] = {
 	{
 		.name = "AC97",
