@@ -21,6 +21,7 @@
 #include <linux/of_gpio.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
+#include <linux/phy/phy.h>
 #include <linux/resource.h>
 #include <linux/signal.h>
 #include <linux/types.h>
@@ -110,6 +111,10 @@ struct exynos_pcie {
 	struct exynos_pcie_clk_res	*clk_res;
 	const struct exynos_pcie_ops	*ops;
 	int				reset_gpio;
+
+	/* For Generic PHY Framework */
+	bool				using_phy;
+	struct phy			*phy;
 };
 
 struct exynos_pcie_ops {
@@ -125,6 +130,10 @@ static int exynos5440_pcie_get_mem_resources(struct platform_device *pdev,
 {
 	struct resource *res;
 	struct device *dev = ep->pp.dev;
+
+	/* If using the PHY framework, doesn't need to get other resource */
+	if (ep->using_phy)
+		return 0;
 
 	ep->mem_res = devm_kzalloc(dev, sizeof(*ep->mem_res), GFP_KERNEL);
 	if (!ep->mem_res)
@@ -396,10 +405,28 @@ static int exynos_pcie_establish_link(struct exynos_pcie *ep)
 	}
 
 	exynos_pcie_assert_core_reset(ep);
-	exynos_pcie_assert_phy_reset(ep);
-	exynos_pcie_deassert_phy_reset(ep);
-	exynos_pcie_power_on_phy(ep);
-	exynos_pcie_init_phy(ep);
+
+	if (ep->using_phy) {
+		phy_reset(ep->phy);
+
+		exynos_pcie_writel(ep->mem_res->elbi_base, 1,
+				PCIE_PWR_RESET);
+
+		phy_power_on(ep->phy);
+		phy_init(ep->phy);
+	} else {
+		exynos_pcie_assert_phy_reset(ep);
+		exynos_pcie_deassert_phy_reset(ep);
+		exynos_pcie_power_on_phy(ep);
+		exynos_pcie_init_phy(ep);
+
+		/* pulse for common reset */
+		exynos_pcie_writel(ep->mem_res->block_base, 1,
+					PCIE_PHY_COMMON_RESET);
+		udelay(500);
+		exynos_pcie_writel(ep->mem_res->block_base, 0,
+					PCIE_PHY_COMMON_RESET);
+	}
 
 	/* pulse for common reset */
 	exynos_pcie_writel(ep->mem_res->block_base, 1, PCIE_PHY_COMMON_RESET);
@@ -417,6 +444,11 @@ static int exynos_pcie_establish_link(struct exynos_pcie *ep)
 	/* check if the link is up or not */
 	if (!dw_pcie_wait_for_link(pp))
 		return 0;
+
+	if (ep->using_phy) {
+		phy_power_off(ep->phy);
+		return -ETIMEDOUT;
+	}
 
 	while (exynos_pcie_readl(ep->mem_res->phy_base,
 				PCIE_PHY_PLL_LOCKED) == 0) {
@@ -624,6 +656,17 @@ static int __init exynos_pcie_probe(struct platform_device *pdev)
 
 	ep->reset_gpio = of_get_named_gpio(np, "reset-gpio", 0);
 
+	/* Assume that controller doesn't use the PHY framework */
+	ep->using_phy = false;
+
+	ep->phy = devm_of_phy_get(dev, np, NULL);
+	if (IS_ERR(ep->phy)) {
+		if (PTR_ERR(ep->phy) == -EPROBE_DEFER)
+			return PTR_ERR(ep->phy);
+		dev_warn(dev, "Use the 'phy' property. Current DT of pci-exynos was deprecated!!\n");
+	} else
+		ep->using_phy = true;
+
 	if (ep->ops && ep->ops->get_mem_resources) {
 		ret = ep->ops->get_mem_resources(pdev, ep);
 		if (ret)
@@ -647,6 +690,9 @@ static int __init exynos_pcie_probe(struct platform_device *pdev)
 	return 0;
 
 fail_probe:
+	if (ep->using_phy)
+		phy_exit(ep->phy);
+
 	if (ep->ops && ep->ops->deinit_clk_resources)
 		ep->ops->deinit_clk_resources(ep);
 	return ret;
