@@ -820,9 +820,17 @@ static int stmmac_init_phy(struct net_device *dev)
 	char bus_id[MII_BUS_ID_SIZE];
 	int interface = priv->plat->interface;
 	int max_speed = priv->plat->max_speed;
+	int ret;
+
 	priv->oldlink = 0;
 	priv->speed = SPEED_UNKNOWN;
 	priv->oldduplex = DUPLEX_UNKNOWN;
+
+	if (priv->hw->mac->init_phy) {
+		ret = priv->hw->mac->init_phy(dev);
+		if (ret)
+			return ret;
+	}
 
 	if (priv->plat->phy_node) {
 		phydev = of_phy_connect(dev, priv->plat->phy_node,
@@ -1891,6 +1899,9 @@ static int stmmac_release(struct net_device *dev)
 		phy_stop(dev->phydev);
 		phy_disconnect(dev->phydev);
 	}
+
+	if (priv->hw->mac->uninit_phy)
+		priv->hw->mac->uninit_phy(dev);
 
 	netif_stop_queue(dev);
 

@@ -483,6 +483,9 @@ struct stmmac_ops {
 			     bool loopback);
 	void (*pcs_rane)(void __iomem *ioaddr, bool restart);
 	void (*pcs_get_adv_lp)(void __iomem *ioaddr, struct rgmii_adv *adv);
+	/* optional function for powering/init PHY */
+	int (*init_phy)(struct net_device *ndev);
+	void (*uninit_phy)(struct net_device *ndev);
 };
 
 /* PTP and HW Timer helpers */
