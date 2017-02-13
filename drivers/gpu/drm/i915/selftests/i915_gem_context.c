@@ -325,6 +325,7 @@ static int igt_ctx_exec(void *arg)
 	IGT_TIMEOUT(end_time);
 	LIST_HEAD(objects);
 	unsigned long ncontexts, ndwords, dw;
+	bool first_shared_gtt = true;
 	int err;
 
 	/* Create a few different contexts (with different mm) and write
@@ -342,7 +343,12 @@ static int igt_ctx_exec(void *arg)
 		struct i915_gem_context *ctx;
 		unsigned int id;
 
-		ctx = i915_gem_create_context(i915, file->driver_priv);
+		if (first_shared_gtt) {
+			ctx = __create_hw_context(i915, file->driver_priv);
+			first_shared_gtt = false;
+		} else {
+			ctx = i915_gem_create_context(i915, file->driver_priv);
+		}
 		if (IS_ERR(ctx)) {
 			err = PTR_ERR(ctx);
 			goto out_unlock;
@@ -394,11 +400,60 @@ out_unlock:
 	return err;
 }
 
-int i915_gem_context_live_selftests(struct drm_i915_private *i915)
+static int fake_aliasing_ppgtt_enable(struct drm_i915_private *i915)
+{
+	struct drm_i915_gem_object *obj;
+	int err;
+
+	err = i915_gem_init_aliasing_ppgtt(i915);
+	if (err)
+		return err;
+
+	list_for_each_entry(obj, &i915->mm.bound_list, global_link) {
+		struct i915_vma *vma;
+
+		vma = i915_vma_instance(obj, &i915->ggtt.base, NULL);
+		if (IS_ERR(vma))
+			continue;
+
+		vma->flags &= ~I915_VMA_LOCAL_BIND;
+	}
+
+	return 0;
+}
+
+static void fake_aliasing_ppgtt_disable(struct drm_i915_private *i915)
+{
+	i915_gem_fini_aliasing_ppgtt(i915);
+}
+
+int i915_gem_context_live_selftests(struct drm_i915_private *dev_priv)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_ctx_exec),
 	};
+	bool fake_alias = false;
+	int err;
 
-	return i915_subtests(tests, i915);
+	/* Install a fake aliasing gtt for exercise */
+	if (USES_PPGTT(dev_priv) && !dev_priv->mm.aliasing_ppgtt) {
+		mutex_lock(&dev_priv->drm.struct_mutex);
+		err = fake_aliasing_ppgtt_enable(dev_priv);
+		mutex_unlock(&dev_priv->drm.struct_mutex);
+		if (err)
+			return err;
+
+		GEM_BUG_ON(!dev_priv->mm.aliasing_ppgtt);
+		fake_alias = true;
+	}
+
+	err = i915_subtests(tests, dev_priv);
+
+	if (fake_alias) {
+		mutex_lock(&dev_priv->drm.struct_mutex);
+		fake_aliasing_ppgtt_disable(dev_priv);
+		mutex_unlock(&dev_priv->drm.struct_mutex);
+	}
+
+	return err;
 }
