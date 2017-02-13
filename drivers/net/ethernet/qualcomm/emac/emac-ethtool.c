@@ -227,7 +227,7 @@ static void emac_get_regs(struct net_device *netdev,
 
 static int emac_get_regs_len(struct net_device *netdev)
 {
-	return EMAC_MAX_REG_SIZE * sizeof(32);
+	return EMAC_MAX_REG_SIZE * sizeof(u32);
 }
 
 static const struct ethtool_ops emac_ethtool_ops = {
