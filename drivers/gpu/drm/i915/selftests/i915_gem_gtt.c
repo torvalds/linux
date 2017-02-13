@@ -22,6 +22,7 @@
  *
  */
 
+#include <linux/list_sort.h>
 #include <linux/prime_numbers.h>
 
 #include "../i915_selftest.h"
@@ -188,7 +189,8 @@ static void close_object_list(struct list_head *objects,
 		struct i915_vma *vma;
 
 		vma = i915_vma_instance(obj, vm, NULL);
-		if (!IS_ERR(vma))
+		/* Only ppgtt vma may be closed before the object is freed */
+		if (!IS_ERR(vma) && !i915_vma_is_ggtt(vma))
 			i915_vma_close(vma);
 
 		list_del(&obj->st_link);
@@ -450,12 +452,69 @@ static int igt_ppgtt_fill(void *arg)
 	return exercise_ppgtt(arg, fill_hole);
 }
 
+static int sort_holes(void *priv, struct list_head *A, struct list_head *B)
+{
+	struct drm_mm_node *a = list_entry(A, typeof(*a), hole_stack);
+	struct drm_mm_node *b = list_entry(B, typeof(*b), hole_stack);
+
+	if (a->start < b->start)
+		return -1;
+	else
+		return 1;
+}
+
+static int exercise_ggtt(struct drm_i915_private *i915,
+			 int (*func)(struct drm_i915_private *i915,
+				     struct i915_address_space *vm,
+				     u64 hole_start, u64 hole_end,
+				     unsigned long end_time))
+{
+	struct i915_ggtt *ggtt = &i915->ggtt;
+	u64 hole_start, hole_end, last = 0;
+	struct drm_mm_node *node;
+	IGT_TIMEOUT(end_time);
+	int err;
+
+	mutex_lock(&i915->drm.struct_mutex);
+restart:
+	list_sort(NULL, &ggtt->base.mm.hole_stack, sort_holes);
+	drm_mm_for_each_hole(node, &ggtt->base.mm, hole_start, hole_end) {
+		if (hole_start < last)
+			continue;
+
+		if (ggtt->base.mm.color_adjust)
+			ggtt->base.mm.color_adjust(node, 0,
+						   &hole_start, &hole_end);
+		if (hole_start >= hole_end)
+			continue;
+
+		err = func(i915, &ggtt->base, hole_start, hole_end, end_time);
+		if (err)
+			break;
+
+		/* As we have manipulated the drm_mm, the list may be corrupt */
+		last = hole_end;
+		goto restart;
+	}
+	mutex_unlock(&i915->drm.struct_mutex);
+
+	return err;
+}
+
+static int igt_ggtt_fill(void *arg)
+{
+	return exercise_ggtt(arg, fill_hole);
+}
+
 int i915_gem_gtt_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_ppgtt_alloc),
 		SUBTEST(igt_ppgtt_fill),
+		SUBTEST(igt_ggtt_fill),
 	};
+
+	GEM_BUG_ON(offset_in_page(i915->ggtt.base.total));
 
 	return i915_subtests(tests, i915);
 }
