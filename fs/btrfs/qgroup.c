@@ -1174,7 +1174,7 @@ int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans,
 	if (btrfs_qgroup_level(src) >= btrfs_qgroup_level(dst))
 		return -EINVAL;
 
-	tmp = ulist_alloc(GFP_NOFS);
+	tmp = ulist_alloc(GFP_KERNEL);
 	if (!tmp)
 		return -ENOMEM;
 
@@ -1234,7 +1234,7 @@ int __del_qgroup_relation(struct btrfs_trans_handle *trans,
 	int ret = 0;
 	int err;
 
-	tmp = ulist_alloc(GFP_NOFS);
+	tmp = ulist_alloc(GFP_KERNEL);
 	if (!tmp)
 		return -ENOMEM;
 
