@@ -247,6 +247,82 @@ static int malidp_crtc_atomic_check_ctm(struct drm_crtc *crtc,
 	return 0;
 }
 
+static int malidp_crtc_atomic_check_scaling(struct drm_crtc *crtc,
+					    struct drm_crtc_state *state)
+{
+	struct malidp_crtc_state *cs = to_malidp_crtc_state(state);
+	struct malidp_se_config *s = &cs->scaler_config;
+	struct drm_plane *plane;
+	const struct drm_plane_state *pstate;
+	u32 h_upscale_factor = 0; /* U16.16 */
+	u32 v_upscale_factor = 0; /* U16.16 */
+	u8 scaling = cs->scaled_planes_mask;
+
+	if (!scaling) {
+		s->scale_enable = false;
+		return 0;
+	}
+
+	/* The scaling engine can only handle one plane at a time. */
+	if (scaling & (scaling - 1))
+		return -EINVAL;
+
+	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, state) {
+		struct malidp_plane *mp = to_malidp_plane(plane);
+		u64 crtc_w, crtc_h;
+		u32 phase;
+
+		if (!(mp->layer->id & scaling))
+			continue;
+
+		/*
+		 * Convert crtc_[w|h] to U32.32, then divide by U16.16 src_[w|h]
+		 * to get the U16.16 result.
+		 */
+		crtc_w = (u64)pstate->crtc_w << 32;
+		crtc_h = (u64)pstate->crtc_h << 32;
+		h_upscale_factor = (u32)(crtc_w / pstate->src_w);
+		v_upscale_factor = (u32)(crtc_h / pstate->src_h);
+
+		/* Downscaling won't work when mclk == pxlclk. */
+		if (!(h_upscale_factor >> 16) || !(v_upscale_factor >> 16))
+			return -EINVAL;
+
+		s->input_w = pstate->src_w >> 16;
+		s->input_h = pstate->src_h >> 16;
+		s->output_w = pstate->crtc_w;
+		s->output_h = pstate->crtc_h;
+
+#define SE_N_PHASE 4
+#define SE_SHIFT_N_PHASE 12
+		/* Calculate initial_phase and delta_phase for horizontal. */
+		phase = s->input_w;
+		s->h_init_phase =
+				((phase << SE_N_PHASE) / s->output_w + 1) / 2;
+
+		phase = s->input_w;
+		phase <<= (SE_SHIFT_N_PHASE + SE_N_PHASE);
+		s->h_delta_phase = phase / s->output_w;
+
+		/* Same for vertical. */
+		phase = s->input_h;
+		s->v_init_phase =
+				((phase << SE_N_PHASE) / s->output_h + 1) / 2;
+
+		phase = s->input_h;
+		phase <<= (SE_SHIFT_N_PHASE + SE_N_PHASE);
+		s->v_delta_phase = phase / s->output_h;
+#undef SE_N_PHASE
+#undef SE_SHIFT_N_PHASE
+		s->plane_src_id = mp->layer->id;
+	}
+
+	s->scale_enable = true;
+	s->hcoeff = malidp_se_select_coeffs(h_upscale_factor);
+	s->vcoeff = malidp_se_select_coeffs(v_upscale_factor);
+	return 0;
+}
+
 static int malidp_crtc_atomic_check(struct drm_crtc *crtc,
 				    struct drm_crtc_state *state)
 {
@@ -325,6 +401,7 @@ static int malidp_crtc_atomic_check(struct drm_crtc *crtc,
 
 	ret = malidp_crtc_atomic_check_gamma(crtc, state);
 	ret = ret ? ret : malidp_crtc_atomic_check_ctm(crtc, state);
+	ret = ret ? ret : malidp_crtc_atomic_check_scaling(crtc, state);
 
 	return ret;
 }
@@ -353,6 +430,9 @@ static struct drm_crtc_state *malidp_crtc_duplicate_state(struct drm_crtc *crtc)
 	       sizeof(state->gamma_coeffs));
 	memcpy(state->coloradj_coeffs, old_state->coloradj_coeffs,
 	       sizeof(state->coloradj_coeffs));
+	memcpy(&state->scaler_config, &old_state->scaler_config,
+	       sizeof(state->scaler_config));
+	state->scaled_planes_mask = 0;
 
 	return &state->base;
 }

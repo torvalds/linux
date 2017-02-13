@@ -110,6 +110,52 @@ void malidp_atomic_commit_update_coloradj(struct drm_crtc *crtc,
 	}
 }
 
+static void malidp_atomic_commit_se_config(struct drm_crtc *crtc,
+					   struct drm_crtc_state *old_state)
+{
+	struct malidp_crtc_state *cs = to_malidp_crtc_state(crtc->state);
+	struct malidp_crtc_state *old_cs = to_malidp_crtc_state(old_state);
+	struct malidp_drm *malidp = crtc_to_malidp_device(crtc);
+	struct malidp_hw_device *hwdev = malidp->dev;
+	struct malidp_se_config *s = &cs->scaler_config;
+	struct malidp_se_config *old_s = &old_cs->scaler_config;
+	u32 se_control = hwdev->map.se_base +
+			 ((hwdev->map.features & MALIDP_REGMAP_HAS_CLEARIRQ) ?
+			 0x10 : 0xC);
+	u32 layer_control = se_control + MALIDP_SE_LAYER_CONTROL;
+	u32 scr = se_control + MALIDP_SE_SCALING_CONTROL;
+	u32 val;
+
+	/* Set SE_CONTROL */
+	if (!s->scale_enable) {
+		val = malidp_hw_read(hwdev, se_control);
+		val &= ~MALIDP_SE_SCALING_EN;
+		malidp_hw_write(hwdev, val, se_control);
+		return;
+	}
+
+	hwdev->se_set_scaling_coeffs(hwdev, s, old_s);
+	val = malidp_hw_read(hwdev, se_control);
+	val |= MALIDP_SE_SCALING_EN | MALIDP_SE_ALPHA_EN;
+
+	val |= MALIDP_SE_RGBO_IF_EN;
+	malidp_hw_write(hwdev, val, se_control);
+
+	/* Set IN_SIZE & OUT_SIZE. */
+	val = MALIDP_SE_SET_V_SIZE(s->input_h) |
+	      MALIDP_SE_SET_H_SIZE(s->input_w);
+	malidp_hw_write(hwdev, val, layer_control + MALIDP_SE_L0_IN_SIZE);
+	val = MALIDP_SE_SET_V_SIZE(s->output_h) |
+	      MALIDP_SE_SET_H_SIZE(s->output_w);
+	malidp_hw_write(hwdev, val, layer_control + MALIDP_SE_L0_OUT_SIZE);
+
+	/* Set phase regs. */
+	malidp_hw_write(hwdev, s->h_init_phase, scr + MALIDP_SE_H_INIT_PH);
+	malidp_hw_write(hwdev, s->h_delta_phase, scr + MALIDP_SE_H_DELTA_PH);
+	malidp_hw_write(hwdev, s->v_init_phase, scr + MALIDP_SE_V_INIT_PH);
+	malidp_hw_write(hwdev, s->v_delta_phase, scr + MALIDP_SE_V_DELTA_PH);
+}
+
 /*
  * set the "config valid" bit and wait until the hardware acts on it
  */
@@ -179,6 +225,7 @@ static void malidp_atomic_commit_tail(struct drm_atomic_state *state)
 	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
 		malidp_atomic_commit_update_gamma(crtc, old_crtc_state);
 		malidp_atomic_commit_update_coloradj(crtc, old_crtc_state);
+		malidp_atomic_commit_se_config(crtc, old_crtc_state);
 	}
 
 	drm_atomic_helper_commit_planes(drm, state, 0);

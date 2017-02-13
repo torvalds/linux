@@ -61,6 +61,25 @@ struct malidp_layer {
 	u16 stride_offset;	/* Offset to the first stride register. */
 };
 
+enum malidp_scaling_coeff_set {
+	MALIDP_UPSCALING_COEFFS = 1,
+	MALIDP_DOWNSCALING_1_5_COEFFS = 2,
+	MALIDP_DOWNSCALING_2_COEFFS = 3,
+	MALIDP_DOWNSCALING_2_75_COEFFS = 4,
+	MALIDP_DOWNSCALING_4_COEFFS = 5,
+};
+
+struct malidp_se_config {
+	u8 scale_enable : 1;
+	u8 hcoeff : 3;
+	u8 vcoeff : 3;
+	u8 plane_src_id;
+	u16 input_w, input_h;
+	u16 output_w, output_h;
+	u32 h_init_phase, h_delta_phase;
+	u32 v_init_phase, v_delta_phase;
+};
+
 /* regmap features */
 #define MALIDP_REGMAP_HAS_CLEARIRQ	(1 << 0)
 
@@ -152,6 +171,10 @@ struct malidp_hw_device {
 	 * and the buffer format.
 	 */
 	int (*rotmem_required)(struct malidp_hw_device *hwdev, u16 w, u16 h, u32 fmt);
+
+	int (*se_set_scaling_coeffs)(struct malidp_hw_device *hwdev,
+				     struct malidp_se_config *se_config,
+				     struct malidp_se_config *old_config);
 
 	u8 features;
 
@@ -250,6 +273,28 @@ static inline bool malidp_hw_pitch_valid(struct malidp_hw_device *hwdev,
 	return !(pitch & (hwdev->map.bus_align_bytes - 1));
 }
 
+/* U16.16 */
+#define FP_1_00000	0x00010000	/* 1.0 */
+#define FP_0_66667	0x0000AAAA	/* 0.6667 = 1/1.5 */
+#define FP_0_50000	0x00008000	/* 0.5 = 1/2 */
+#define FP_0_36363	0x00005D17	/* 0.36363 = 1/2.75 */
+#define FP_0_25000	0x00004000	/* 0.25 = 1/4 */
+
+static inline enum malidp_scaling_coeff_set
+malidp_se_select_coeffs(u32 upscale_factor)
+{
+	return (upscale_factor >= FP_1_00000) ? MALIDP_UPSCALING_COEFFS :
+	       (upscale_factor >= FP_0_66667) ? MALIDP_DOWNSCALING_1_5_COEFFS :
+	       (upscale_factor >= FP_0_50000) ? MALIDP_DOWNSCALING_2_COEFFS :
+	       (upscale_factor >= FP_0_36363) ? MALIDP_DOWNSCALING_2_75_COEFFS :
+	       MALIDP_DOWNSCALING_4_COEFFS;
+}
+
+#undef FP_0_25000
+#undef FP_0_36363
+#undef FP_0_50000
+#undef FP_0_66667
+#undef FP_1_00000
 /*
  * background color components are defined as 12bits values,
  * they will be shifted right when stored on hardware that
