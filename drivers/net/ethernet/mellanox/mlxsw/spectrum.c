@@ -3078,7 +3078,6 @@ static int __mlxsw_sp_flood_init(struct mlxsw_core *mlxsw_core,
 		flood_table = MLXSW_SP_FLOOD_TABLE_UC;
 		break;
 	case MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_IPV4:
-	case MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_IPV6:
 		flood_table = MLXSW_SP_FLOOD_TABLE_MC;
 		break;
 	default:
