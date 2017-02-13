@@ -322,10 +322,7 @@ static void move_to_next_cpu(void)
  * need to ensure nothing else might be running (and thus preempting).
  * Obviously this should never be used in production environments.
  *
- * Currently this runs on which ever CPU it was scheduled on, but most
- * real-world hardware latency situations occur across several CPUs,
- * but we might later generalize this if we find there are any actualy
- * systems with alternate SMI delivery or other hardware latencies.
+ * Executes one loop interaction on each CPU in tracing_cpumask sysfs file.
  */
 static int kthread_fn(void *data)
 {
