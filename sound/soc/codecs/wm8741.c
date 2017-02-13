@@ -37,8 +37,6 @@ static const char *wm8741_supply_names[WM8741_NUM_SUPPLIES] = {
 	"DVDD",
 };
 
-#define WM8741_NUM_RATES 6
-
 /* codec private data */
 struct wm8741_priv {
 	struct wm8741_platform_data pdata;
