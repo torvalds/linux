@@ -72,7 +72,7 @@ struct rpmsg_endpoint *rpmsg_create_ept(struct rpmsg_device *rpdev,
 					struct rpmsg_channel_info chinfo)
 {
 	if (WARN_ON(!rpdev))
-		return ERR_PTR(-EINVAL);
+		return NULL;
 
 	return rpdev->ops->create_ept(rpdev, cb, priv, chinfo);
 }
