@@ -292,3 +292,12 @@ int i915_gem_dmabuf_mock_selftests(void)
 	drm_dev_unref(&i915->drm);
 	return err;
 }
+
+int i915_gem_dmabuf_live_selftests(struct drm_i915_private *i915)
+{
+	static const struct i915_subtest tests[] = {
+		SUBTEST(igt_dmabuf_export),
+	};
+
+	return i915_subtests(tests, i915);
+}
