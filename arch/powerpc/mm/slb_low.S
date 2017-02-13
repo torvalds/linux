@@ -272,3 +272,11 @@ slb_compare_rr_to_size:
 	clrrdi	r3,r3,SID_SHIFT_1T	/* clear out non-ESID bits */
 	b	7b
 
+
+_ASM_NOKPROBE_SYMBOL(slb_allocate_realmode)
+_ASM_NOKPROBE_SYMBOL(slb_miss_kernel_load_linear)
+_ASM_NOKPROBE_SYMBOL(slb_miss_kernel_load_io)
+_ASM_NOKPROBE_SYMBOL(slb_compare_rr_to_size)
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+_ASM_NOKPROBE_SYMBOL(slb_miss_kernel_load_vmemmap)
+#endif
