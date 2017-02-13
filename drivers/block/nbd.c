@@ -124,7 +124,7 @@ static const char *nbdcmd_to_ascii(int cmd)
 
 static int nbd_size_clear(struct nbd_device *nbd, struct block_device *bdev)
 {
-	bdev->bd_inode->i_size = 0;
+	bd_set_size(bdev, 0);
 	set_capacity(nbd->disk, 0);
 	kobject_uevent(&nbd_to_dev(nbd)->kobj, KOBJ_CHANGE);
 
@@ -133,29 +133,20 @@ static int nbd_size_clear(struct nbd_device *nbd, struct block_device *bdev)
 
 static void nbd_size_update(struct nbd_device *nbd, struct block_device *bdev)
 {
-	if (!nbd_is_connected(nbd))
-		return;
-
-	bdev->bd_inode->i_size = nbd->bytesize;
+	blk_queue_logical_block_size(nbd->disk->queue, nbd->blksize);
+	blk_queue_physical_block_size(nbd->disk->queue, nbd->blksize);
+	bd_set_size(bdev, nbd->bytesize);
 	set_capacity(nbd->disk, nbd->bytesize >> 9);
 	kobject_uevent(&nbd_to_dev(nbd)->kobj, KOBJ_CHANGE);
 }
 
-static int nbd_size_set(struct nbd_device *nbd, struct block_device *bdev,
+static void nbd_size_set(struct nbd_device *nbd, struct block_device *bdev,
 			loff_t blocksize, loff_t nr_blocks)
 {
-	int ret;
-
-	ret = set_blocksize(bdev, blocksize);
-	if (ret)
-		return ret;
-
 	nbd->blksize = blocksize;
 	nbd->bytesize = blocksize * nr_blocks;
-
-	nbd_size_update(nbd, bdev);
-
-	return 0;
+	if (nbd_is_connected(nbd))
+		nbd_size_update(nbd, bdev);
 }
 
 static void nbd_end_request(struct nbd_cmd *cmd)
@@ -791,15 +782,16 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 	case NBD_SET_SOCK:
 		return nbd_add_socket(nbd, bdev, arg);
 	case NBD_SET_BLKSIZE:
-		return nbd_size_set(nbd, bdev, arg,
-				    div_s64(nbd->bytesize, arg));
+		nbd_size_set(nbd, bdev, arg,
+			     div_s64(nbd->bytesize, arg));
+		return 0;
 	case NBD_SET_SIZE:
-		return nbd_size_set(nbd, bdev, nbd->blksize,
-					div_s64(arg, nbd->blksize));
-
+		nbd_size_set(nbd, bdev, nbd->blksize,
+			     div_s64(arg, nbd->blksize));
+		return 0;
 	case NBD_SET_SIZE_BLOCKS:
-		return nbd_size_set(nbd, bdev, nbd->blksize, arg);
-
+		nbd_size_set(nbd, bdev, nbd->blksize, arg);
+		return 0;
 	case NBD_SET_TIMEOUT:
 		nbd->tag_set.timeout = arg * HZ;
 		return 0;
