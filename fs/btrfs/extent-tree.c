@@ -7714,18 +7714,20 @@ unclustered_alloc:
 			last_ptr->fragmented = 1;
 			spin_unlock(&last_ptr->lock);
 		}
-		spin_lock(&block_group->free_space_ctl->tree_lock);
-		if (cached &&
-		    block_group->free_space_ctl->free_space <
-		    num_bytes + empty_cluster + empty_size) {
-			if (block_group->free_space_ctl->free_space >
-			    max_extent_size)
-				max_extent_size =
-					block_group->free_space_ctl->free_space;
-			spin_unlock(&block_group->free_space_ctl->tree_lock);
-			goto loop;
+		if (cached) {
+			struct btrfs_free_space_ctl *ctl =
+				block_group->free_space_ctl;
+
+			spin_lock(&ctl->tree_lock);
+			if (ctl->free_space <
+			    num_bytes + empty_cluster + empty_size) {
+				if (ctl->free_space > max_extent_size)
+					max_extent_size = ctl->free_space;
+				spin_unlock(&ctl->tree_lock);
+				goto loop;
+			}
+			spin_unlock(&ctl->tree_lock);
 		}
-		spin_unlock(&block_group->free_space_ctl->tree_lock);
 
 		offset = btrfs_find_space_for_alloc(block_group, search_start,
 						    num_bytes, empty_size,
