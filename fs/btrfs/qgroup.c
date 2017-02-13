@@ -1223,7 +1223,7 @@ out:
 	return ret;
 }
 
-int __del_qgroup_relation(struct btrfs_trans_handle *trans,
+static int __del_qgroup_relation(struct btrfs_trans_handle *trans,
 			      struct btrfs_fs_info *fs_info, u64 src, u64 dst)
 {
 	struct btrfs_root *quota_root;
