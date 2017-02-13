@@ -352,11 +352,190 @@ out:
 	return err;
 }
 
+static unsigned long rotated_index(const struct intel_rotation_info *r,
+				   unsigned int n,
+				   unsigned int x,
+				   unsigned int y)
+{
+	return (r->plane[n].stride * (r->plane[n].height - y - 1) +
+		r->plane[n].offset + x);
+}
+
+static struct scatterlist *
+assert_rotated(struct drm_i915_gem_object *obj,
+	       const struct intel_rotation_info *r, unsigned int n,
+	       struct scatterlist *sg)
+{
+	unsigned int x, y;
+
+	for (x = 0; x < r->plane[n].width; x++) {
+		for (y = 0; y < r->plane[n].height; y++) {
+			unsigned long src_idx;
+			dma_addr_t src;
+
+			if (!sg) {
+				pr_err("Invalid sg table: too short at plane %d, (%d, %d)!\n",
+				       n, x, y);
+				return ERR_PTR(-EINVAL);
+			}
+
+			src_idx = rotated_index(r, n, x, y);
+			src = i915_gem_object_get_dma_address(obj, src_idx);
+
+			if (sg_dma_len(sg) != PAGE_SIZE) {
+				pr_err("Invalid sg.length, found %d, expected %lu for rotated page (%d, %d) [src index %lu]\n",
+				       sg_dma_len(sg), PAGE_SIZE,
+				       x, y, src_idx);
+				return ERR_PTR(-EINVAL);
+			}
+
+			if (sg_dma_address(sg) != src) {
+				pr_err("Invalid address for rotated page (%d, %d) [src index %lu]\n",
+				       x, y, src_idx);
+				return ERR_PTR(-EINVAL);
+			}
+
+			sg = sg_next(sg);
+		}
+	}
+
+	return sg;
+}
+
+static unsigned int rotated_size(const struct intel_rotation_plane_info *a,
+				 const struct intel_rotation_plane_info *b)
+{
+	return a->width * a->height + b->width * b->height;
+}
+
+static int igt_vma_rotate(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct i915_address_space *vm = &i915->ggtt.base;
+	struct drm_i915_gem_object *obj;
+	const struct intel_rotation_plane_info planes[] = {
+		{ .width = 1, .height = 1, .stride = 1 },
+		{ .width = 2, .height = 2, .stride = 2 },
+		{ .width = 4, .height = 4, .stride = 4 },
+		{ .width = 8, .height = 8, .stride = 8 },
+
+		{ .width = 3, .height = 5, .stride = 3 },
+		{ .width = 3, .height = 5, .stride = 4 },
+		{ .width = 3, .height = 5, .stride = 5 },
+
+		{ .width = 5, .height = 3, .stride = 5 },
+		{ .width = 5, .height = 3, .stride = 7 },
+		{ .width = 5, .height = 3, .stride = 9 },
+
+		{ .width = 4, .height = 6, .stride = 6 },
+		{ .width = 6, .height = 4, .stride = 6 },
+		{ }
+	}, *a, *b;
+	const unsigned int max_pages = 64;
+	int err = -ENOMEM;
+
+	/* Create VMA for many different combinations of planes and check
+	 * that the page layout within the rotated VMA match our expectations.
+	 */
+
+	obj = i915_gem_object_create_internal(i915, max_pages * PAGE_SIZE);
+	if (IS_ERR(obj))
+		goto out;
+
+	for (a = planes; a->width; a++) {
+		for (b = planes + ARRAY_SIZE(planes); b-- != planes; ) {
+			struct i915_ggtt_view view;
+			unsigned int n, max_offset;
+
+			max_offset = max(a->stride * a->height,
+					 b->stride * b->height);
+			GEM_BUG_ON(max_offset > max_pages);
+			max_offset = max_pages - max_offset;
+
+			view.type = I915_GGTT_VIEW_ROTATED;
+			view.rotated.plane[0] = *a;
+			view.rotated.plane[1] = *b;
+
+			for_each_prime_number_from(view.rotated.plane[0].offset, 0, max_offset) {
+				for_each_prime_number_from(view.rotated.plane[1].offset, 0, max_offset) {
+					struct scatterlist *sg;
+					struct i915_vma *vma;
+
+					vma = checked_vma_instance(obj, vm, &view);
+					if (IS_ERR(vma)) {
+						err = PTR_ERR(vma);
+						goto out_object;
+					}
+
+					err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL);
+					if (err) {
+						pr_err("Failed to pin VMA, err=%d\n", err);
+						goto out_object;
+					}
+
+					if (vma->size != rotated_size(a, b) * PAGE_SIZE) {
+						pr_err("VMA is wrong size, expected %lu, found %llu\n",
+						       PAGE_SIZE * rotated_size(a, b), vma->size);
+						err = -EINVAL;
+						goto out_object;
+					}
+
+					if (vma->pages->nents != rotated_size(a, b)) {
+						pr_err("sg table is wrong sizeo, expected %u, found %u nents\n",
+						       rotated_size(a, b), vma->pages->nents);
+						err = -EINVAL;
+						goto out_object;
+					}
+
+					if (vma->node.size < vma->size) {
+						pr_err("VMA binding too small, expected %llu, found %llu\n",
+						       vma->size, vma->node.size);
+						err = -EINVAL;
+						goto out_object;
+					}
+
+					if (vma->pages == obj->mm.pages) {
+						pr_err("VMA using unrotated object pages!\n");
+						err = -EINVAL;
+						goto out_object;
+					}
+
+					sg = vma->pages->sgl;
+					for (n = 0; n < ARRAY_SIZE(view.rotated.plane); n++) {
+						sg = assert_rotated(obj, &view.rotated, n, sg);
+						if (IS_ERR(sg)) {
+							pr_err("Inconsistent VMA pages for plane %d: [(%d, %d, %d, %d), (%d, %d, %d, %d)]\n", n,
+							       view.rotated.plane[0].width,
+							       view.rotated.plane[0].height,
+							       view.rotated.plane[0].stride,
+							       view.rotated.plane[0].offset,
+							       view.rotated.plane[1].width,
+							       view.rotated.plane[1].height,
+							       view.rotated.plane[1].stride,
+							       view.rotated.plane[1].offset);
+							err = -EINVAL;
+							goto out_object;
+						}
+					}
+
+					i915_vma_unpin(vma);
+				}
+			}
+		}
+	}
+
+out_object:
+	i915_gem_object_put(obj);
+out:
+	return err;
+}
+
 int i915_vma_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_vma_create),
 		SUBTEST(igt_vma_pin1),
+		SUBTEST(igt_vma_rotate),
 	};
 	struct drm_i915_private *i915;
 	int err;
