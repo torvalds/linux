@@ -1244,7 +1244,7 @@ ssize_t analogix_dp_transfer(struct analogix_dp_device *dp,
 		 (msg->request & ~DP_AUX_I2C_MOT) == DP_AUX_NATIVE_READ)
 		msg->reply = DP_AUX_NATIVE_REPLY_ACK;
 
-	return num_transferred > 0 ? num_transferred : -EBUSY;
+	return (num_transferred == msg->size) ? num_transferred : -EBUSY;
 
 aux_error:
 	/* if aux err happen, reset aux */
