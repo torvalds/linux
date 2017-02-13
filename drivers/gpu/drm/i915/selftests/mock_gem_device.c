@@ -26,6 +26,7 @@
 
 #include "mock_gem_device.h"
 #include "mock_gem_object.h"
+#include "mock_gtt.h"
 
 static void mock_device_release(struct drm_device *dev)
 {
@@ -33,6 +34,12 @@ static void mock_device_release(struct drm_device *dev)
 
 	i915_gem_drain_freed_objects(i915);
 
+	mutex_lock(&i915->drm.struct_mutex);
+	mock_fini_ggtt(i915);
+	i915_gem_timeline_fini(&i915->gt.global_timeline);
+	mutex_unlock(&i915->drm.struct_mutex);
+
+	kmem_cache_destroy(i915->vmas);
 	kmem_cache_destroy(i915->objects);
 
 	drm_dev_fini(&i915->drm);
@@ -84,19 +91,43 @@ struct drm_i915_private *mock_gem_device(void)
 	i915->drm.pdev = pdev;
 	i915->drm.dev_private = i915;
 
+	/* Using the global GTT may ask questions about KMS users, so prepare */
+	drm_mode_config_init(&i915->drm);
+
 	mkwrite_device_info(i915)->gen = -1;
 
 	spin_lock_init(&i915->mm.object_stat_lock);
 
 	INIT_WORK(&i915->mm.free_work, __i915_gem_free_work);
 	init_llist_head(&i915->mm.free_list);
+	INIT_LIST_HEAD(&i915->mm.unbound_list);
+	INIT_LIST_HEAD(&i915->mm.bound_list);
 
 	i915->objects = KMEM_CACHE(mock_object, SLAB_HWCACHE_ALIGN);
 	if (!i915->objects)
 		goto put_device;
 
+	i915->vmas = KMEM_CACHE(i915_vma, SLAB_HWCACHE_ALIGN);
+	if (!i915->vmas)
+		goto err_objects;
+
+	mutex_lock(&i915->drm.struct_mutex);
+	INIT_LIST_HEAD(&i915->gt.timelines);
+	err = i915_gem_timeline_init__global(i915);
+	if (err) {
+		mutex_unlock(&i915->drm.struct_mutex);
+		goto err_vmas;
+	}
+
+	mock_init_ggtt(i915);
+	mutex_unlock(&i915->drm.struct_mutex);
+
 	return i915;
 
+err_vmas:
+	kmem_cache_destroy(i915->vmas);
+err_objects:
+	kmem_cache_destroy(i915->objects);
 put_device:
 	put_device(&pdev->dev);
 err:
