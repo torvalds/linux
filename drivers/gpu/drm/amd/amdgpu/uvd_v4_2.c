@@ -401,7 +401,8 @@ static void uvd_v4_2_stop(struct amdgpu_device *adev)
 				break;
 			mdelay(1);
 		}
-		break;
+		if (status & 2)
+			break;
 	}
 
 	for (i = 0; i < 10; ++i) {
@@ -411,7 +412,8 @@ static void uvd_v4_2_stop(struct amdgpu_device *adev)
 				break;
 			mdelay(1);
 		}
-		break;
+		if (status & 0xf)
+			break;
 	}
 
 	/* Stall UMC and register bus before resetting VCPU */
@@ -424,7 +426,8 @@ static void uvd_v4_2_stop(struct amdgpu_device *adev)
 				break;
 			mdelay(1);
 		}
-		break;
+		if (status & 0x240)
+			break;
 	}
 
 	WREG32_P(0x3D49, 0, ~(1 << 2));
