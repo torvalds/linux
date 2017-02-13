@@ -2935,7 +2935,7 @@ static const struct efx_phy_operations efx_dummy_phy_operations = {
 static int efx_init_struct(struct efx_nic *efx,
 			   struct pci_dev *pci_dev, struct net_device *net_dev)
 {
-	int i;
+	int rc = -ENOMEM, i;
 
 	/* Initialise common structures */
 	INIT_LIST_HEAD(&efx->node);
@@ -2976,7 +2976,14 @@ static int efx_init_struct(struct efx_nic *efx,
 	}
 
 	/* Higher numbered interrupt modes are less capable! */
+	if (WARN_ON_ONCE(efx->type->max_interrupt_mode >
+			 efx->type->min_interrupt_mode)) {
+		rc = -EIO;
+		goto fail;
+	}
 	efx->interrupt_mode = max(efx->type->max_interrupt_mode,
+				  interrupt_mode);
+	efx->interrupt_mode = min(efx->type->min_interrupt_mode,
 				  interrupt_mode);
 
 	/* Would be good to use the net_dev name, but we're too early */
@@ -2990,7 +2997,7 @@ static int efx_init_struct(struct efx_nic *efx,
 
 fail:
 	efx_fini_struct(efx);
-	return -ENOMEM;
+	return rc;
 }
 
 static void efx_fini_struct(struct efx_nic *efx)
