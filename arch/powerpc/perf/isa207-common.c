@@ -97,6 +97,28 @@ static unsigned long combine_shift(unsigned long pmc)
 	return MMCR1_COMBINE_SHIFT(pmc);
 }
 
+static inline bool event_is_threshold(u64 event)
+{
+	return (event >> EVENT_THR_SEL_SHIFT) & EVENT_THR_SEL_MASK;
+}
+
+static bool is_thresh_cmp_valid(u64 event)
+{
+	unsigned int cmp, exp;
+
+	/*
+	 * Check the mantissa upper two bits are not zero, unless the
+	 * exponent is also zero. See the THRESH_CMP_MANTISSA doc.
+	 */
+	cmp = (event >> EVENT_THR_CMP_SHIFT) & EVENT_THR_CMP_MASK;
+	exp = cmp >> 7;
+
+	if (exp && (cmp & 0x60) == 0)
+		return false;
+
+	return true;
+}
+
 int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp)
 {
 	unsigned int unit, pmc, cache, ebb;
@@ -163,28 +185,26 @@ int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp)
 		value |= CNST_SAMPLE_VAL(event >> EVENT_SAMPLE_SHIFT);
 	}
 
-	/*
-	 * Special case for PM_MRK_FAB_RSP_MATCH and PM_MRK_FAB_RSP_MATCH_CYC,
-	 * the threshold control bits are used for the match value.
-	 */
-	if (event_is_fab_match(event)) {
-		mask  |= CNST_FAB_MATCH_MASK;
-		value |= CNST_FAB_MATCH_VAL(event >> EVENT_THR_CTL_SHIFT);
+	if (cpu_has_feature(CPU_FTR_ARCH_300))  {
+		if (event_is_threshold(event) && is_thresh_cmp_valid(event)) {
+			mask  |= CNST_THRESH_MASK;
+			value |= CNST_THRESH_VAL(event >> EVENT_THRESH_SHIFT);
+		}
 	} else {
 		/*
-		 * Check the mantissa upper two bits are not zero, unless the
-		 * exponent is also zero. See the THRESH_CMP_MANTISSA doc.
+		 * Special case for PM_MRK_FAB_RSP_MATCH and PM_MRK_FAB_RSP_MATCH_CYC,
+		 * the threshold control bits are used for the match value.
 		 */
-		unsigned int cmp, exp;
+		if (event_is_fab_match(event)) {
+			mask  |= CNST_FAB_MATCH_MASK;
+			value |= CNST_FAB_MATCH_VAL(event >> EVENT_THR_CTL_SHIFT);
+		} else {
+			if (!is_thresh_cmp_valid(event))
+				return -1;
 
-		cmp = (event >> EVENT_THR_CMP_SHIFT) & EVENT_THR_CMP_MASK;
-		exp = cmp >> 7;
-
-		if (exp && (cmp & 0x60) == 0)
-			return -1;
-
-		mask  |= CNST_THRESH_MASK;
-		value |= CNST_THRESH_VAL(event >> EVENT_THRESH_SHIFT);
+			mask  |= CNST_THRESH_MASK;
+			value |= CNST_THRESH_VAL(event >> EVENT_THRESH_SHIFT);
+		}
 	}
 
 	if (!pmc && ebb)
@@ -279,7 +299,7 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 		 * PM_MRK_FAB_RSP_MATCH and PM_MRK_FAB_RSP_MATCH_CYC,
 		 * the threshold bits are used for the match value.
 		 */
-		if (event_is_fab_match(event[i])) {
+		if (!cpu_has_feature(CPU_FTR_ARCH_300) && event_is_fab_match(event[i])) {
 			mmcr1 |= ((event[i] >> EVENT_THR_CTL_SHIFT) &
 				  EVENT_THR_CTL_MASK) << MMCR1_FAB_SHIFT;
 		} else {

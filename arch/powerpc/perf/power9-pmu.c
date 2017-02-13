@@ -22,7 +22,7 @@
  * | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - |
  *   | | [ ]                       [ ] [      thresh_cmp     ]   [  thresh_ctl   ]
  *   | |  |                         |                                     |
- *   | |  *- IFM (Linux)            |    thresh start/stop OR FAB match -*
+ *   | |  *- IFM (Linux)            |	               thresh start/stop -*
  *   | *- BHRB (Linux)              *sm
  *   *- EBB (Linux)
  *
@@ -50,11 +50,9 @@
  * MMCR1[31]   = pmc4combine[1]
  *
  * if pmc == 3 and unit == 0 and pmcxsel[0:6] == 0b0101011
- *	# PM_MRK_FAB_RSP_MATCH
- *	MMCR1[20:27] = thresh_ctl   (FAB_CRESP_MATCH / FAB_TYPE_MATCH)
+ *	MMCR1[20:27] = thresh_ctl
  * else if pmc == 4 and unit == 0xf and pmcxsel[0:6] == 0b0101001
- *	# PM_MRK_FAB_RSP_MATCH_CYC
- *	MMCR1[20:27] = thresh_ctl   (FAB_CRESP_MATCH / FAB_TYPE_MATCH)
+ *	MMCR1[20:27] = thresh_ctl
  * else
  *	MMCRA[48:55] = thresh_ctl   (THRESH START/END)
  *
