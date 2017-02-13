@@ -26,6 +26,7 @@
 #include <linux/prime_numbers.h>
 
 #include "../i915_selftest.h"
+#include "i915_random.h"
 
 #include "mock_drm.h"
 
@@ -490,6 +491,106 @@ err:
 	return 0;
 }
 
+static int drunk_hole(struct drm_i915_private *i915,
+		      struct i915_address_space *vm,
+		      u64 hole_start, u64 hole_end,
+		      unsigned long end_time)
+{
+	I915_RND_STATE(prng);
+	unsigned int size;
+	unsigned long flags;
+
+	flags = PIN_OFFSET_FIXED | PIN_USER;
+	if (i915_is_ggtt(vm))
+		flags |= PIN_GLOBAL;
+
+	/* Keep creating larger objects until one cannot fit into the hole */
+	for (size = 12; (hole_end - hole_start) >> size; size++) {
+		struct drm_i915_gem_object *obj;
+		unsigned int *order, count, n;
+		struct i915_vma *vma;
+		u64 hole_size;
+		int err;
+
+		hole_size = (hole_end - hole_start) >> size;
+		if (hole_size > KMALLOC_MAX_SIZE / sizeof(u32))
+			hole_size = KMALLOC_MAX_SIZE / sizeof(u32);
+		count = hole_size;
+		do {
+			count >>= 1;
+			order = i915_random_order(count, &prng);
+		} while (!order && count);
+		if (!order)
+			break;
+
+		/* Ignore allocation failures (i.e. don't report them as
+		 * a test failure) as we are purposefully allocating very
+		 * large objects without checking that we have sufficient
+		 * memory. We expect to hit -ENOMEM.
+		 */
+
+		obj = fake_dma_object(i915, BIT_ULL(size));
+		if (IS_ERR(obj)) {
+			kfree(order);
+			break;
+		}
+
+		vma = i915_vma_instance(obj, vm, NULL);
+		if (IS_ERR(vma)) {
+			err = PTR_ERR(vma);
+			goto err_obj;
+		}
+
+		GEM_BUG_ON(vma->size != BIT_ULL(size));
+
+		for (n = 0; n < count; n++) {
+			u64 addr = hole_start + order[n] * BIT_ULL(size);
+
+			err = i915_vma_pin(vma, 0, 0, addr | flags);
+			if (err) {
+				pr_err("%s failed to pin object at %llx + %llx in hole [%llx - %llx], with err=%d\n",
+				       __func__,
+				       addr, BIT_ULL(size),
+				       hole_start, hole_end,
+				       err);
+				goto err;
+			}
+
+			if (!drm_mm_node_allocated(&vma->node) ||
+			    i915_vma_misplaced(vma, 0, 0, addr | flags)) {
+				pr_err("%s incorrect at %llx + %llx\n",
+				       __func__, addr, BIT_ULL(size));
+				i915_vma_unpin(vma);
+				err = i915_vma_unbind(vma);
+				err = -EINVAL;
+				goto err;
+			}
+
+			i915_vma_unpin(vma);
+			err = i915_vma_unbind(vma);
+			GEM_BUG_ON(err);
+
+			if (igt_timeout(end_time,
+					"%s timed out after %d/%d\n",
+					__func__, n, count)) {
+				err = -EINTR;
+				goto err;
+			}
+		}
+
+err:
+		if (!i915_vma_is_ggtt(vma))
+			i915_vma_close(vma);
+err_obj:
+		i915_gem_object_put(obj);
+		kfree(order);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int exercise_ppgtt(struct drm_i915_private *dev_priv,
 			  int (*func)(struct drm_i915_private *i915,
 				      struct i915_address_space *vm,
@@ -536,6 +637,11 @@ static int igt_ppgtt_fill(void *arg)
 static int igt_ppgtt_walk(void *arg)
 {
 	return exercise_ppgtt(arg, walk_hole);
+}
+
+static int igt_ppgtt_drunk(void *arg)
+{
+	return exercise_ppgtt(arg, drunk_hole);
 }
 
 static int sort_holes(void *priv, struct list_head *A, struct list_head *B)
@@ -597,12 +703,19 @@ static int igt_ggtt_walk(void *arg)
 	return exercise_ggtt(arg, walk_hole);
 }
 
+static int igt_ggtt_drunk(void *arg)
+{
+	return exercise_ggtt(arg, drunk_hole);
+}
+
 int i915_gem_gtt_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_ppgtt_alloc),
+		SUBTEST(igt_ppgtt_drunk),
 		SUBTEST(igt_ppgtt_walk),
 		SUBTEST(igt_ppgtt_fill),
+		SUBTEST(igt_ggtt_drunk),
 		SUBTEST(igt_ggtt_walk),
 		SUBTEST(igt_ggtt_fill),
 	};
