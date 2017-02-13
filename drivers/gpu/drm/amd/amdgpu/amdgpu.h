@@ -1308,6 +1308,7 @@ struct amdgpu_device {
 	bool				have_disp_power_ref;
 
 	/* BIOS */
+	bool				is_atom_fw;
 	uint8_t				*bios;
 	uint32_t			bios_size;
 	struct amdgpu_bo		*stollen_vga_memory;
