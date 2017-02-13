@@ -351,7 +351,7 @@ void ath10k_core_get_fw_features_str(struct ath10k *ar,
 				     char *buf,
 				     size_t buf_len)
 {
-	unsigned int len = 0;
+	size_t len = 0;
 	int i;
 
 	for (i = 0; i < ATH10K_FW_FEATURE_COUNT; i++) {
