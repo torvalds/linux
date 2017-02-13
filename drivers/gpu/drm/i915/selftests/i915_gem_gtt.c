@@ -409,6 +409,87 @@ err:
 	return err;
 }
 
+static int walk_hole(struct drm_i915_private *i915,
+		     struct i915_address_space *vm,
+		     u64 hole_start, u64 hole_end,
+		     unsigned long end_time)
+{
+	const u64 hole_size = hole_end - hole_start;
+	const unsigned long max_pages =
+		min_t(u64, ULONG_MAX - 1, hole_size >> PAGE_SHIFT);
+	unsigned long flags;
+	u64 size;
+
+	/* Try binding a single VMA in different positions within the hole */
+
+	flags = PIN_OFFSET_FIXED | PIN_USER;
+	if (i915_is_ggtt(vm))
+		flags |= PIN_GLOBAL;
+
+	for_each_prime_number_from(size, 1, max_pages) {
+		struct drm_i915_gem_object *obj;
+		struct i915_vma *vma;
+		u64 addr;
+		int err = 0;
+
+		obj = fake_dma_object(i915, size << PAGE_SHIFT);
+		if (IS_ERR(obj))
+			break;
+
+		vma = i915_vma_instance(obj, vm, NULL);
+		if (IS_ERR(vma)) {
+			err = PTR_ERR(vma);
+			goto err;
+		}
+
+		for (addr = hole_start;
+		     addr + obj->base.size < hole_end;
+		     addr += obj->base.size) {
+			err = i915_vma_pin(vma, 0, 0, addr | flags);
+			if (err) {
+				pr_err("%s bind failed at %llx + %llx [hole %llx- %llx] with err=%d\n",
+				       __func__, addr, vma->size,
+				       hole_start, hole_end, err);
+				goto err;
+			}
+			i915_vma_unpin(vma);
+
+			if (!drm_mm_node_allocated(&vma->node) ||
+			    i915_vma_misplaced(vma, 0, 0, addr | flags)) {
+				pr_err("%s incorrect at %llx + %llx\n",
+				       __func__, addr, vma->size);
+				err = -EINVAL;
+				goto err;
+			}
+
+			err = i915_vma_unbind(vma);
+			if (err) {
+				pr_err("%s unbind failed at %llx + %llx  with err=%d\n",
+				       __func__, addr, vma->size, err);
+				goto err;
+			}
+
+			GEM_BUG_ON(drm_mm_node_allocated(&vma->node));
+
+			if (igt_timeout(end_time,
+					"%s timed out at %llx\n",
+					__func__, addr)) {
+				err = -EINTR;
+				goto err;
+			}
+		}
+
+err:
+		if (!i915_vma_is_ggtt(vma))
+			i915_vma_close(vma);
+		i915_gem_object_put(obj);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int exercise_ppgtt(struct drm_i915_private *dev_priv,
 			  int (*func)(struct drm_i915_private *i915,
 				      struct i915_address_space *vm,
@@ -450,6 +531,11 @@ out_unlock:
 static int igt_ppgtt_fill(void *arg)
 {
 	return exercise_ppgtt(arg, fill_hole);
+}
+
+static int igt_ppgtt_walk(void *arg)
+{
+	return exercise_ppgtt(arg, walk_hole);
 }
 
 static int sort_holes(void *priv, struct list_head *A, struct list_head *B)
@@ -506,11 +592,18 @@ static int igt_ggtt_fill(void *arg)
 	return exercise_ggtt(arg, fill_hole);
 }
 
+static int igt_ggtt_walk(void *arg)
+{
+	return exercise_ggtt(arg, walk_hole);
+}
+
 int i915_gem_gtt_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_ppgtt_alloc),
+		SUBTEST(igt_ppgtt_walk),
 		SUBTEST(igt_ppgtt_fill),
+		SUBTEST(igt_ggtt_walk),
 		SUBTEST(igt_ggtt_fill),
 	};
 
