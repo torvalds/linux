@@ -51,6 +51,7 @@ struct malidp_plane_state {
 struct malidp_crtc_state {
 	struct drm_crtc_state base;
 	u32 gamma_coeffs[MALIDP_COEFFTAB_NUM_COEFFS];
+	u32 coloradj_coeffs[MALIDP_COLORADJ_NUM_COEFFS];
 };
 
 #define to_malidp_crtc_state(x) container_of(x, struct malidp_crtc_state, base)

@@ -259,6 +259,7 @@ static inline bool malidp_hw_pitch_valid(struct malidp_hw_device *hwdev,
 #define MALIDP_BGND_COLOR_G		0x000
 #define MALIDP_BGND_COLOR_B		0x000
 
+#define MALIDP_COLORADJ_NUM_COEFFS	12
 #define MALIDP_COEFFTAB_NUM_COEFFS	64
 
 #define MALIDP_GAMMA_LUT_SIZE		4096

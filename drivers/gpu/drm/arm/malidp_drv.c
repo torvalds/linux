@@ -79,6 +79,37 @@ static void malidp_atomic_commit_update_gamma(struct drm_crtc *crtc,
 	}
 }
 
+static
+void malidp_atomic_commit_update_coloradj(struct drm_crtc *crtc,
+					  struct drm_crtc_state *old_state)
+{
+	struct malidp_drm *malidp = crtc_to_malidp_device(crtc);
+	struct malidp_hw_device *hwdev = malidp->dev;
+	int i;
+
+	if (!crtc->state->color_mgmt_changed)
+		return;
+
+	if (!crtc->state->ctm) {
+		malidp_hw_clearbits(hwdev, MALIDP_DISP_FUNC_CADJ,
+				    MALIDP_DE_DISPLAY_FUNC);
+	} else {
+		struct malidp_crtc_state *mc =
+			to_malidp_crtc_state(crtc->state);
+
+		if (!old_state->ctm || (crtc->state->ctm->base.id !=
+					old_state->ctm->base.id))
+			for (i = 0; i < MALIDP_COLORADJ_NUM_COEFFS; ++i)
+				malidp_hw_write(hwdev,
+						mc->coloradj_coeffs[i],
+						hwdev->map.coeffs_base +
+						MALIDP_COLOR_ADJ_COEF + 4 * i);
+
+		malidp_hw_setbits(hwdev, MALIDP_DISP_FUNC_CADJ,
+				  MALIDP_DE_DISPLAY_FUNC);
+	}
+}
+
 /*
  * set the "config valid" bit and wait until the hardware acts on it
  */
@@ -145,8 +176,10 @@ static void malidp_atomic_commit_tail(struct drm_atomic_state *state)
 
 	drm_atomic_helper_commit_modeset_disables(drm, state);
 
-	for_each_crtc_in_state(state, crtc, old_crtc_state, i)
+	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
 		malidp_atomic_commit_update_gamma(crtc, old_crtc_state);
+		malidp_atomic_commit_update_coloradj(crtc, old_crtc_state);
+	}
 
 	drm_atomic_helper_commit_planes(drm, state, 0);
 

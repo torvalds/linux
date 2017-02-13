@@ -195,6 +195,58 @@ static int malidp_crtc_atomic_check_gamma(struct drm_crtc *crtc,
 	return 0;
 }
 
+/*
+ * Check if there is a new CTM and if it contains valid input. Valid here means
+ * that the number is inside the representable range for a Q3.12 number,
+ * excluding truncating the fractional part of the input data.
+ *
+ * The COLORADJ registers can be changed atomically.
+ */
+static int malidp_crtc_atomic_check_ctm(struct drm_crtc *crtc,
+					struct drm_crtc_state *state)
+{
+	struct malidp_crtc_state *mc = to_malidp_crtc_state(state);
+	struct drm_color_ctm *ctm;
+	int i;
+
+	if (!state->color_mgmt_changed)
+		return 0;
+
+	if (!state->ctm)
+		return 0;
+
+	if (crtc->state->ctm && (crtc->state->ctm->base.id ==
+				 state->ctm->base.id))
+		return 0;
+
+	/*
+	 * The size of the ctm is checked in
+	 * drm_atomic_replace_property_blob_from_id.
+	 */
+	ctm = (struct drm_color_ctm *)state->ctm->data;
+	for (i = 0; i < ARRAY_SIZE(ctm->matrix); ++i) {
+		/* Convert from S31.32 to Q3.12. */
+		s64 val = ctm->matrix[i];
+		u32 mag = ((((u64)val) & ~BIT_ULL(63)) >> 20) &
+			  GENMASK_ULL(14, 0);
+
+		/*
+		 * Convert to 2s complement and check the destination's top bit
+		 * for overflow. NB: Can't check before converting or it'd
+		 * incorrectly reject the case:
+		 * sign == 1
+		 * mag == 0x2000
+		 */
+		if (val & BIT_ULL(63))
+			mag = ~mag + 1;
+		if (!!(val & BIT_ULL(63)) != !!(mag & BIT(14)))
+			return -EINVAL;
+		mc->coloradj_coeffs[i] = mag;
+	}
+
+	return 0;
+}
+
 static int malidp_crtc_atomic_check(struct drm_crtc *crtc,
 				    struct drm_crtc_state *state)
 {
@@ -204,6 +256,7 @@ static int malidp_crtc_atomic_check(struct drm_crtc *crtc,
 	const struct drm_plane_state *pstate;
 	u32 rot_mem_free, rot_mem_usable;
 	int rotated_planes = 0;
+	int ret;
 
 	/*
 	 * check if there is enough rotation memory available for planes
@@ -270,7 +323,10 @@ static int malidp_crtc_atomic_check(struct drm_crtc *crtc,
 		}
 	}
 
-	return malidp_crtc_atomic_check_gamma(crtc, state);
+	ret = malidp_crtc_atomic_check_gamma(crtc, state);
+	ret = ret ? ret : malidp_crtc_atomic_check_ctm(crtc, state);
+
+	return ret;
 }
 
 static const struct drm_crtc_helper_funcs malidp_crtc_helper_funcs = {
@@ -295,6 +351,8 @@ static struct drm_crtc_state *malidp_crtc_duplicate_state(struct drm_crtc *crtc)
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &state->base);
 	memcpy(state->gamma_coeffs, old_state->gamma_coeffs,
 	       sizeof(state->gamma_coeffs));
+	memcpy(state->coloradj_coeffs, old_state->coloradj_coeffs,
+	       sizeof(state->coloradj_coeffs));
 
 	return &state->base;
 }
@@ -392,8 +450,8 @@ int malidp_crtc_init(struct drm_device *drm)
 
 	drm_crtc_helper_add(&malidp->crtc, &malidp_crtc_helper_funcs);
 	drm_mode_crtc_set_gamma_size(&malidp->crtc, MALIDP_GAMMA_LUT_SIZE);
-	/* No inverse-gamma and color adjustments yet. */
-	drm_crtc_enable_color_mgmt(&malidp->crtc, 0, false, MALIDP_GAMMA_LUT_SIZE);
+	/* No inverse-gamma: it is per-plane */
+	drm_crtc_enable_color_mgmt(&malidp->crtc, 0, true, MALIDP_GAMMA_LUT_SIZE);
 
 	return 0;
 

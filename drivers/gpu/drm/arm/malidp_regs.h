@@ -64,6 +64,7 @@
 /* bit masks that are common between products */
 #define   MALIDP_CFG_VALID		(1 << 0)
 #define   MALIDP_DISP_FUNC_GAMMA	(1 << 0)
+#define   MALIDP_DISP_FUNC_CADJ		(1 << 4)
 #define   MALIDP_DISP_FUNC_ILACED	(1 << 8)
 
 /* register offsets for IRQ management */
