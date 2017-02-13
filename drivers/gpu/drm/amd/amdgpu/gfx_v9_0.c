@@ -3399,6 +3399,27 @@ static const struct amdgpu_rlc_funcs gfx_v9_0_rlc_funcs = {
 static int gfx_v9_0_set_powergating_state(void *handle,
 					  enum amd_powergating_state state)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	switch (adev->asic_type) {
+	case CHIP_RAVEN:
+		if (adev->pg_flags & AMD_PG_SUPPORT_RLC_SMU_HS) {
+			gfx_v9_0_enable_sck_slow_down_on_power_up(adev, true);
+			gfx_v9_0_enable_sck_slow_down_on_power_down(adev, true);
+		} else {
+			gfx_v9_0_enable_sck_slow_down_on_power_up(adev, false);
+			gfx_v9_0_enable_sck_slow_down_on_power_down(adev, false);
+		}
+
+		if (adev->pg_flags & AMD_PG_SUPPORT_CP)
+			gfx_v9_0_enable_cp_power_gating(adev, true);
+		else
+			gfx_v9_0_enable_cp_power_gating(adev, false);
+		break;
+	default:
+		break;
+	}
+
 	return 0;
 }
 
