@@ -3456,6 +3456,9 @@ static int bnxt_hwrm_cfa_ntuple_filter_free(struct bnxt *bp,
 	 CFA_NTUPLE_FILTER_ALLOC_REQ_ENABLES_DST_PORT_MASK |	\
 	 CFA_NTUPLE_FILTER_ALLOC_REQ_ENABLES_DST_ID)
 
+#define BNXT_NTP_TUNNEL_FLTR_FLAG				\
+		CFA_NTUPLE_FILTER_ALLOC_REQ_ENABLES_TUNNEL_TYPE
+
 static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 					     struct bnxt_ntuple_filter *fltr)
 {
@@ -3495,6 +3498,11 @@ static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 		req.src_ipaddr_mask[0] = cpu_to_be32(0xffffffff);
 		req.dst_ipaddr[0] = keys->addrs.v4addrs.dst;
 		req.dst_ipaddr_mask[0] = cpu_to_be32(0xffffffff);
+	}
+	if (keys->control.flags & FLOW_DIS_ENCAPSULATION) {
+		req.enables |= cpu_to_le32(BNXT_NTP_TUNNEL_FLTR_FLAG);
+		req.tunnel_type =
+			CFA_NTUPLE_FILTER_ALLOC_REQ_TUNNEL_TYPE_ANYTUNNEL;
 	}
 
 	req.src_port = keys->ports.src;
@@ -6869,6 +6877,7 @@ static bool bnxt_fltr_match(struct bnxt_ntuple_filter *f1,
 	    keys1->ports.ports == keys2->ports.ports &&
 	    keys1->basic.ip_proto == keys2->basic.ip_proto &&
 	    keys1->basic.n_proto == keys2->basic.n_proto &&
+	    keys1->control.flags == keys2->control.flags &&
 	    ether_addr_equal(f1->src_mac_addr, f2->src_mac_addr) &&
 	    ether_addr_equal(f1->dst_mac_addr, f2->dst_mac_addr))
 		return true;
@@ -6885,9 +6894,6 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	struct ethhdr *eth = (struct ethhdr *)skb_mac_header(skb);
 	int rc = 0, idx, bit_id, l2_idx = 0;
 	struct hlist_head *head;
-
-	if (skb->encapsulation)
-		return -EPROTONOSUPPORT;
 
 	if (!ether_addr_equal(dev->dev_addr, eth->h_dest)) {
 		struct bnxt_vnic_info *vnic = &bp->vnic_info[0];
@@ -6923,6 +6929,11 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 		goto err_free;
 	}
 	if (fkeys->basic.n_proto == htons(ETH_P_IPV6) &&
+	    bp->hwrm_spec_code < 0x10601) {
+		rc = -EPROTONOSUPPORT;
+		goto err_free;
+	}
+	if ((fkeys->control.flags & FLOW_DIS_ENCAPSULATION) &&
 	    bp->hwrm_spec_code < 0x10601) {
 		rc = -EPROTONOSUPPORT;
 		goto err_free;
