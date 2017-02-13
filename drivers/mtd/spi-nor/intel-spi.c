@@ -287,7 +287,7 @@ static int intel_spi_wait_hw_busy(struct intel_spi *ispi)
 	u32 val;
 
 	return readl_poll_timeout(ispi->base + HSFSTS_CTL, val,
-				  !(val & HSFSTS_CTL_SCIP), 0,
+				  !(val & HSFSTS_CTL_SCIP), 40,
 				  INTEL_SPI_TIMEOUT * 1000);
 }
 
@@ -296,7 +296,7 @@ static int intel_spi_wait_sw_busy(struct intel_spi *ispi)
 	u32 val;
 
 	return readl_poll_timeout(ispi->sregs + SSFSTS_CTL, val,
-				  !(val & SSFSTS_CTL_SCIP), 0,
+				  !(val & SSFSTS_CTL_SCIP), 40,
 				  INTEL_SPI_TIMEOUT * 1000);
 }
 
