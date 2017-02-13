@@ -1565,7 +1565,7 @@ int machine__process_event(struct machine *machine, union perf_event *event,
 
 static bool symbol__match_regex(struct symbol *sym, regex_t *regex)
 {
-	if (sym->name && !regexec(regex, sym->name, 0, NULL, 0))
+	if (!regexec(regex, sym->name, 0, NULL, 0))
 		return 1;
 	return 0;
 }

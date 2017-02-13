@@ -2067,7 +2067,7 @@ static void save_task_callchain(struct perf_sched *sched,
 			break;
 
 		sym = node->sym;
-		if (sym && sym->name) {
+		if (sym) {
 			if (!strcmp(sym->name, "schedule") ||
 			    !strcmp(sym->name, "__schedule") ||
 			    !strcmp(sym->name, "preempt_schedule"))
