@@ -1168,8 +1168,8 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 
 		/* since no tcon, smb2_init can not do this, so do here */
 		req->hdr.sync_hdr.SessionId = ses->Suid;
-		/* if (ses->server->sec_mode & SECMODE_SIGN_REQUIRED)
-			req->hdr.Flags |= SMB2_FLAGS_SIGNED; */
+		if (ses->server->sign)
+			req->hdr.sync_hdr.Flags |= SMB2_FLAGS_SIGNED;
 	} else if (encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
 
