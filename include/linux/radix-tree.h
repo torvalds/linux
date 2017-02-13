@@ -561,7 +561,7 @@ radix_tree_next_slot(void **slot, struct radix_tree_iter *iter, unsigned flags)
 	return NULL;
 
  found:
-	if (unlikely(radix_tree_is_internal_node(*slot)))
+	if (unlikely(radix_tree_is_internal_node(rcu_dereference_raw(*slot))))
 		return __radix_tree_next_slot(slot, iter, flags);
 	return slot;
 }

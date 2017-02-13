@@ -627,7 +627,7 @@ static int radix_tree_extend(struct radix_tree_root *root, gfp_t gfp,
 	while (index > shift_maxindex(maxshift))
 		maxshift += RADIX_TREE_MAP_SHIFT;
 
-	slot = root->rnode;
+	slot = rcu_dereference_raw(root->rnode);
 	if (!slot && (!is_idr(root) || root_tag_get(root, IDR_FREE)))
 		goto out;
 
@@ -678,7 +678,7 @@ static inline bool radix_tree_shrink(struct radix_tree_root *root,
 	bool shrunk = false;
 
 	for (;;) {
-		struct radix_tree_node *node = root->rnode;
+		struct radix_tree_node *node = rcu_dereference_raw(root->rnode);
 		struct radix_tree_node *child;
 
 		if (!radix_tree_is_internal_node(node))
@@ -692,7 +692,7 @@ static inline bool radix_tree_shrink(struct radix_tree_root *root,
 		 */
 		if (node->count != 1)
 			break;
-		child = node->slots[0];
+		child = rcu_dereference_raw(node->slots[0]);
 		if (!child)
 			break;
 		if (!radix_tree_is_internal_node(child) && node->shift)
@@ -755,7 +755,8 @@ static bool delete_node(struct radix_tree_root *root,
 		struct radix_tree_node *parent;
 
 		if (node->count) {
-			if (node == entry_to_node(root->rnode))
+			if (node_to_entry(node) ==
+					rcu_dereference_raw(root->rnode))
 				deleted |= radix_tree_shrink(root, update_node,
 								private);
 			return deleted;
@@ -823,7 +824,7 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
 		if (error < 0)
 			return error;
 		shift = error;
-		child = root->rnode;
+		child = rcu_dereference_raw(root->rnode);
 	}
 
 	while (shift > order) {
@@ -868,7 +869,7 @@ static void radix_tree_free_nodes(struct radix_tree_node *node)
 	struct radix_tree_node *child = entry_to_node(node);
 
 	for (;;) {
-		void *entry = child->slots[offset];
+		void *entry = rcu_dereference_raw(child->slots[offset]);
 		if (radix_tree_is_internal_node(entry) &&
 					!is_sibling_entry(child, entry)) {
 			child = entry_to_node(entry);
@@ -925,7 +926,7 @@ static inline int insert_entries(struct radix_tree_node *node, void **slot,
 	}
 
 	for (i = 0; i < n; i++) {
-		struct radix_tree_node *old = slot[i];
+		struct radix_tree_node *old = rcu_dereference_raw(slot[i]);
 		if (i) {
 			rcu_assign_pointer(slot[i], child);
 			for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
@@ -1102,7 +1103,7 @@ static inline void replace_sibling_entries(struct radix_tree_node *node,
 	unsigned offset = get_slot_offset(node, slot) + 1;
 
 	while (offset < RADIX_TREE_MAP_SIZE) {
-		if (node->slots[offset] != ptr)
+		if (rcu_dereference_raw(node->slots[offset]) != ptr)
 			break;
 		if (count < 0) {
 			node->slots[offset] = NULL;
@@ -1308,7 +1309,8 @@ int radix_tree_split(struct radix_tree_root *root, unsigned long index,
 			tags |= 1 << tag;
 
 	for (end = offset + 1; end < RADIX_TREE_MAP_SIZE; end++) {
-		if (!is_sibling_entry(parent, parent->slots[end]))
+		if (!is_sibling_entry(parent,
+				rcu_dereference_raw(parent->slots[end])))
 			break;
 		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
 			if (tags & (1 << tag))
@@ -1339,7 +1341,8 @@ int radix_tree_split(struct radix_tree_root *root, unsigned long index,
 				goto nomem;
 			if (node != parent) {
 				node->count++;
-				node->slots[offset] = node_to_entry(child);
+				rcu_assign_pointer(node->slots[offset],
+							node_to_entry(child));
 				for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
 					if (tags & (1 << tag))
 						tag_set(node, tag, offset);
@@ -1755,7 +1758,8 @@ void **radix_tree_next_chunk(const struct radix_tree_root *root,
 						offset + 1);
 			else
 				while (++offset	< RADIX_TREE_MAP_SIZE) {
-					void *slot = node->slots[offset];
+					void *slot = rcu_dereference_raw(
+							node->slots[offset]);
 					if (is_sibling_entry(node, slot))
 						continue;
 					if (slot)
