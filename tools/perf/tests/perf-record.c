@@ -66,7 +66,7 @@ int test__PERF_RECORD(int subtest __maybe_unused)
 	if (evlist == NULL) /* Fallback for kernels lacking PERF_COUNT_SW_DUMMY */
 		evlist = perf_evlist__new_default();
 
-	if (evlist == NULL || argv == NULL) {
+	if (evlist == NULL) {
 		pr_debug("Not enough memory to create evlist\n");
 		goto out;
 	}
