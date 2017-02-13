@@ -530,12 +530,204 @@ out:
 	return err;
 }
 
+static bool assert_partial(struct drm_i915_gem_object *obj,
+			   struct i915_vma *vma,
+			   unsigned long offset,
+			   unsigned long size)
+{
+	struct sgt_iter sgt;
+	dma_addr_t dma;
+
+	for_each_sgt_dma(dma, sgt, vma->pages) {
+		dma_addr_t src;
+
+		if (!size) {
+			pr_err("Partial scattergather list too long\n");
+			return false;
+		}
+
+		src = i915_gem_object_get_dma_address(obj, offset);
+		if (src != dma) {
+			pr_err("DMA mismatch for partial page offset %lu\n",
+			       offset);
+			return false;
+		}
+
+		offset++;
+		size--;
+	}
+
+	return true;
+}
+
+static bool assert_pin(struct i915_vma *vma,
+		       struct i915_ggtt_view *view,
+		       u64 size,
+		       const char *name)
+{
+	bool ok = true;
+
+	if (vma->size != size) {
+		pr_err("(%s) VMA is wrong size, expected %llu, found %llu\n",
+		       name, size, vma->size);
+		ok = false;
+	}
+
+	if (vma->node.size < vma->size) {
+		pr_err("(%s) VMA binding too small, expected %llu, found %llu\n",
+		       name, vma->size, vma->node.size);
+		ok = false;
+	}
+
+	if (view && view->type != I915_GGTT_VIEW_NORMAL) {
+		if (memcmp(&vma->ggtt_view, view, sizeof(*view))) {
+			pr_err("(%s) VMA mismatch upon creation!\n",
+			       name);
+			ok = false;
+		}
+
+		if (vma->pages == vma->obj->mm.pages) {
+			pr_err("(%s) VMA using original object pages!\n",
+			       name);
+			ok = false;
+		}
+	} else {
+		if (vma->ggtt_view.type != I915_GGTT_VIEW_NORMAL) {
+			pr_err("Not the normal ggtt view! Found %d\n",
+			       vma->ggtt_view.type);
+			ok = false;
+		}
+
+		if (vma->pages != vma->obj->mm.pages) {
+			pr_err("VMA not using object pages!\n");
+			ok = false;
+		}
+	}
+
+	return ok;
+}
+
+static int igt_vma_partial(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct i915_address_space *vm = &i915->ggtt.base;
+	const unsigned int npages = 1021; /* prime! */
+	struct drm_i915_gem_object *obj;
+	const struct phase {
+		const char *name;
+	} phases[] = {
+		{ "create" },
+		{ "lookup" },
+		{ },
+	}, *p;
+	unsigned int sz, offset;
+	struct i915_vma *vma;
+	int err = -ENOMEM;
+
+	/* Create lots of different VMA for the object and check that
+	 * we are returned the same VMA when we later request the same range.
+	 */
+
+	obj = i915_gem_object_create_internal(i915, npages*PAGE_SIZE);
+	if (IS_ERR(obj))
+		goto out;
+
+	for (p = phases; p->name; p++) { /* exercise both create/lookup */
+		unsigned int count, nvma;
+
+		nvma = 0;
+		for_each_prime_number_from(sz, 1, npages) {
+			for_each_prime_number_from(offset, 0, npages - sz) {
+				struct i915_ggtt_view view;
+
+				view.type = I915_GGTT_VIEW_PARTIAL;
+				view.partial.offset = offset;
+				view.partial.size = sz;
+
+				if (sz == npages)
+					view.type = I915_GGTT_VIEW_NORMAL;
+
+				vma = checked_vma_instance(obj, vm, &view);
+				if (IS_ERR(vma)) {
+					err = PTR_ERR(vma);
+					goto out_object;
+				}
+
+				err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL);
+				if (err)
+					goto out_object;
+
+				if (!assert_pin(vma, &view, sz*PAGE_SIZE, p->name)) {
+					pr_err("(%s) Inconsistent partial pinning for (offset=%d, size=%d)\n",
+					       p->name, offset, sz);
+					err = -EINVAL;
+					goto out_object;
+				}
+
+				if (!assert_partial(obj, vma, offset, sz)) {
+					pr_err("(%s) Inconsistent partial pages for (offset=%d, size=%d)\n",
+					       p->name, offset, sz);
+					err = -EINVAL;
+					goto out_object;
+				}
+
+				i915_vma_unpin(vma);
+				nvma++;
+			}
+		}
+
+		count = 0;
+		list_for_each_entry(vma, &obj->vma_list, obj_link)
+			count++;
+		if (count != nvma) {
+			pr_err("(%s) All partial vma were not recorded on the obj->vma_list: found %u, expected %u\n",
+			       p->name, count, nvma);
+			err = -EINVAL;
+			goto out_object;
+		}
+
+		/* Check that we did create the whole object mapping */
+		vma = checked_vma_instance(obj, vm, NULL);
+		if (IS_ERR(vma)) {
+			err = PTR_ERR(vma);
+			goto out_object;
+		}
+
+		err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL);
+		if (err)
+			goto out_object;
+
+		if (!assert_pin(vma, NULL, obj->base.size, p->name)) {
+			pr_err("(%s) inconsistent full pin\n", p->name);
+			err = -EINVAL;
+			goto out_object;
+		}
+
+		i915_vma_unpin(vma);
+
+		count = 0;
+		list_for_each_entry(vma, &obj->vma_list, obj_link)
+			count++;
+		if (count != nvma) {
+			pr_err("(%s) allocated an extra full vma!\n", p->name);
+			err = -EINVAL;
+			goto out_object;
+		}
+	}
+
+out_object:
+	i915_gem_object_put(obj);
+out:
+	return err;
+}
+
 int i915_vma_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_vma_create),
 		SUBTEST(igt_vma_pin1),
 		SUBTEST(igt_vma_rotate),
+		SUBTEST(igt_vma_partial),
 	};
 	struct drm_i915_private *i915;
 	int err;
