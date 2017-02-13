@@ -5024,4 +5024,5 @@ i915_gem_object_get_dma_address(struct drm_i915_gem_object *obj,
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 #include "selftests/scatterlist.c"
 #include "selftests/mock_gem_device.c"
+#include "selftests/huge_gem_object.c"
 #endif

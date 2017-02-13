@@ -167,14 +167,18 @@ struct drm_i915_gem_object {
 	/** Record of address bit 17 of each page at last unbind. */
 	unsigned long *bit_17;
 
-	struct i915_gem_userptr {
-		uintptr_t ptr;
-		unsigned read_only :1;
+	union {
+		struct i915_gem_userptr {
+			uintptr_t ptr;
+			unsigned read_only :1;
 
-		struct i915_mm_struct *mm;
-		struct i915_mmu_object *mmu_object;
-		struct work_struct *work;
-	} userptr;
+			struct i915_mm_struct *mm;
+			struct i915_mmu_object *mmu_object;
+			struct work_struct *work;
+		} userptr;
+
+		unsigned long scratch;
+	};
 
 	/** for phys allocated objects */
 	struct drm_dma_handle *phys_handle;
