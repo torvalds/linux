@@ -918,8 +918,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 		if (iwl_mvm_is_nonagg_dup(sta, queue, rx_status, hdr, desc)) {
 			kfree_skb(skb);
-			rcu_read_unlock();
-			return;
+			goto out;
 		}
 
 		/*
@@ -985,9 +984,17 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		if (rate_n_flags & RATE_MCS_BF_MSK)
 			rx_status->vht_flag |= RX_VHT_FLAG_BF;
 	} else {
-		rx_status->rate_idx =
-			iwl_mvm_legacy_rate_to_mac80211_idx(rate_n_flags,
-							    rx_status->band);
+		int rate = iwl_mvm_legacy_rate_to_mac80211_idx(rate_n_flags,
+							       rx_status->band);
+
+		if (WARN(rate < 0 || rate > 0xFF,
+			 "Invalid rate flags 0x%x, band %d,\n",
+			 rate_n_flags, rx_status->band)) {
+			kfree_skb(skb);
+			goto out;
+		}
+		rx_status->rate_idx = rate;
+
 	}
 
 	/* management stuff on default queue */
@@ -1006,6 +1013,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	iwl_mvm_create_skb(skb, hdr, len, crypt_len, rxb);
 	if (!iwl_mvm_reorder(mvm, napi, queue, sta, skb, desc))
 		iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, queue, sta);
+out:
 	rcu_read_unlock();
 }
 

@@ -460,9 +460,16 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 		if (rate_n_flags & RATE_MCS_BF_MSK)
 			rx_status->vht_flag |= RX_VHT_FLAG_BF;
 	} else {
-		rx_status->rate_idx =
-			iwl_mvm_legacy_rate_to_mac80211_idx(rate_n_flags,
-							    rx_status->band);
+		int rate = iwl_mvm_legacy_rate_to_mac80211_idx(rate_n_flags,
+							       rx_status->band);
+
+		if (WARN(rate < 0 || rate > 0xFF,
+			 "Invalid rate flags 0x%x, band %d,\n",
+			 rate_n_flags, rx_status->band)) {
+			kfree_skb(skb);
+			return;
+		}
+		rx_status->rate_idx = rate;
 	}
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
