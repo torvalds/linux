@@ -339,6 +339,7 @@
 #define GLOBAL_STATS_COUNTER_01	0x1f
 
 #define GLOBAL2_INT_SOURCE	0x00
+#define GLOBAL2_INT_SOURCE_WATCHDOG	15
 #define GLOBAL2_INT_MASK	0x01
 #define GLOBAL2_MGMT_EN_2X	0x02
 #define GLOBAL2_MGMT_EN_0X	0x03
@@ -415,6 +416,25 @@
 #define GLOBAL2_SCRATCH_REGISTER_SHIFT	8
 #define GLOBAL2_SCRATCH_VALUE_MASK	0xff
 #define GLOBAL2_WDOG_CONTROL	0x1b
+#define GLOBAL2_WDOG_CONTROL_EGRESS_EVENT	BIT(7)
+#define GLOBAL2_WDOG_CONTROL_RMU_TIMEOUT	BIT(6)
+#define GLOBAL2_WDOG_CONTROL_QC_ENABLE		BIT(5)
+#define GLOBAL2_WDOG_CONTROL_EGRESS_HISTORY	BIT(4)
+#define GLOBAL2_WDOG_CONTROL_EGRESS_ENABLE	BIT(3)
+#define GLOBAL2_WDOG_CONTROL_FORCE_IRQ		BIT(2)
+#define GLOBAL2_WDOG_CONTROL_HISTORY		BIT(1)
+#define GLOBAL2_WDOG_CONTROL_SWRESET		BIT(0)
+#define GLOBAL2_WDOG_UPDATE			BIT(15)
+#define GLOBAL2_WDOG_INT_SOURCE			(0x00 << 8)
+#define GLOBAL2_WDOG_INT_STATUS			(0x10 << 8)
+#define GLOBAL2_WDOG_INT_ENABLE			(0x11 << 8)
+#define GLOBAL2_WDOG_EVENT			(0x12 << 8)
+#define GLOBAL2_WDOG_HISTORY			(0x13 << 8)
+#define GLOBAL2_WDOG_DATA_MASK			0xff
+#define GLOBAL2_WDOG_CUT_THROUGH		BIT(3)
+#define GLOBAL2_WDOG_QUEUE_CONTROLLER		BIT(2)
+#define GLOBAL2_WDOG_EGRESS			BIT(1)
+#define GLOBAL2_WDOG_FORCE_IRQ			BIT(0)
 #define GLOBAL2_QOS_WEIGHT	0x1c
 #define GLOBAL2_MISC		0x1d
 
@@ -666,6 +686,7 @@ enum mv88e6xxx_cap {
 #define MV88E6XXX_FLAGS_FAMILY_6390	\
 	(MV88E6XXX_FLAG_EEE |		\
 	 MV88E6XXX_FLAG_GLOBAL2 |	\
+	 MV88E6XXX_FLAG_G2_INT |        \
 	 MV88E6XXX_FLAG_STU |		\
 	 MV88E6XXX_FLAG_VTU |		\
 	 MV88E6XXX_FLAGS_IRL |		\
@@ -706,6 +727,7 @@ struct mv88e6xxx_vtu_entry {
 };
 
 struct mv88e6xxx_bus_ops;
+struct mv88e6xxx_irq_ops;
 
 struct mv88e6xxx_irq {
 	u16 masked;
@@ -766,6 +788,7 @@ struct mv88e6xxx_chip {
 	struct mv88e6xxx_irq g2_irq;
 	int irq;
 	int device_irq;
+	int watchdog_irq;
 };
 
 struct mv88e6xxx_bus_ops {
@@ -879,9 +902,19 @@ struct mv88e6xxx_ops {
 				uint64_t *data);
 	int (*g1_set_cpu_port)(struct mv88e6xxx_chip *chip, int port);
 	int (*g1_set_egress_port)(struct mv88e6xxx_chip *chip, int port);
+	const struct mv88e6xxx_irq_ops *watchdog_ops;
 
 	/* Can be either in g1 or g2, so don't use a prefix */
 	int (*mgmt_rsvd2cpu)(struct mv88e6xxx_chip *chip);
+};
+
+struct mv88e6xxx_irq_ops {
+	/* Action to be performed when the interrupt happens */
+	int (*irq_action)(struct mv88e6xxx_chip *chip, int irq);
+	/* Setup the hardware to generate the interrupt */
+	int (*irq_setup)(struct mv88e6xxx_chip *chip);
+	/* Reset the hardware to stop generating the interrupt */
+	void (*irq_free)(struct mv88e6xxx_chip *chip);
 };
 
 #define STATS_TYPE_PORT		BIT(0)
