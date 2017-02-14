@@ -73,7 +73,7 @@ fail:
 
 static int zlib_compress_pages(struct list_head *ws,
 			       struct address_space *mapping,
-			       u64 start, unsigned long len,
+			       u64 start,
 			       struct page **pages,
 			       unsigned long nr_dest_pages,
 			       unsigned long *out_pages,
@@ -89,6 +89,7 @@ static int zlib_compress_pages(struct list_head *ws,
 	struct page *in_page = NULL;
 	struct page *out_page = NULL;
 	unsigned long bytes_left;
+	unsigned long len = *total_out;
 
 	*out_pages = 0;
 	*total_out = 0;

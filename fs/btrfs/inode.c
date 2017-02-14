@@ -517,7 +517,7 @@ again:
 		redirty = 1;
 		ret = btrfs_compress_pages(compress_type,
 					   inode->i_mapping, start,
-					   total_compressed, pages,
+					   pages,
 					   nr_pages, &nr_pages_ret,
 					   &total_in,
 					   &total_compressed,

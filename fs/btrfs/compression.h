@@ -23,8 +23,7 @@ void btrfs_init_compress(void);
 void btrfs_exit_compress(void);
 
 int btrfs_compress_pages(int type, struct address_space *mapping,
-			 u64 start, unsigned long len,
-			 struct page **pages,
+			 u64 start, struct page **pages,
 			 unsigned long nr_dest_pages,
 			 unsigned long *out_pages,
 			 unsigned long *total_in,
@@ -59,7 +58,7 @@ struct btrfs_compress_op {
 
 	int (*compress_pages)(struct list_head *workspace,
 			      struct address_space *mapping,
-			      u64 start, unsigned long len,
+			      u64 start,
 			      struct page **pages,
 			      unsigned long nr_dest_pages,
 			      unsigned long *out_pages,

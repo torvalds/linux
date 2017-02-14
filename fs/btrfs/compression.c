@@ -911,27 +911,25 @@ static void free_workspaces(void)
 }
 
 /*
- * given an address space and start/len, compress the bytes.
+ * Given an address space and start and length, compress the bytes into @pages
+ * that are allocated on demand.
  *
- * pages are allocated to hold the compressed result and stored
- * in 'pages'
+ * @out_pages is used to return the number of pages allocated.  There
+ * may be pages allocated even if we return an error.
  *
- * out_pages is used to return the number of pages allocated.  There
- * may be pages allocated even if we return an error
- *
- * total_in is used to return the number of bytes actually read.  It
- * may be smaller then len if we had to exit early because we
+ * @total_in is used to return the number of bytes actually read.  It
+ * may be smaller than the input length if we had to exit early because we
  * ran out of room in the pages array or because we cross the
  * max_out threshold.
  *
- * total_out is used to return the total number of compressed bytes
+ * @total_out is an in/out parameter, must be set to the input length and will
+ * be also used to return the total number of compressed bytes
  *
- * max_out tells us the max number of bytes that we're allowed to
+ * @max_out tells us the max number of bytes that we're allowed to
  * stuff into pages
  */
 int btrfs_compress_pages(int type, struct address_space *mapping,
-			 u64 start, unsigned long len,
-			 struct page **pages,
+			 u64 start, struct page **pages,
 			 unsigned long nr_dest_pages,
 			 unsigned long *out_pages,
 			 unsigned long *total_in,
@@ -944,7 +942,7 @@ int btrfs_compress_pages(int type, struct address_space *mapping,
 	workspace = find_workspace(type);
 
 	ret = btrfs_compress_op[type-1]->compress_pages(workspace, mapping,
-						      start, len, pages,
+						      start, pages,
 						      nr_dest_pages, out_pages,
 						      total_in, total_out,
 						      max_out);
