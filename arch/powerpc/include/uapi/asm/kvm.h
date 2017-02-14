@@ -413,6 +413,26 @@ struct kvm_get_htab_header {
 	__u16	n_invalid;
 };
 
+/* For KVM_PPC_CONFIGURE_V3_MMU */
+struct kvm_ppc_mmuv3_cfg {
+	__u64	flags;
+	__u64	process_table;	/* second doubleword of partition table entry */
+};
+
+/* Flag values for KVM_PPC_CONFIGURE_V3_MMU */
+#define KVM_PPC_MMUV3_RADIX	1	/* 1 = radix mode, 0 = HPT */
+#define KVM_PPC_MMUV3_GTSE	2	/* global translation shootdown enb. */
+
+/* For KVM_PPC_GET_RMMU_INFO */
+struct kvm_ppc_rmmu_info {
+	struct kvm_ppc_radix_geom {
+		__u8	page_shift;
+		__u8	level_bits[4];
+		__u8	pad[3];
+	}	geometries[8];
+	__u32	ap_encodings[8];
+};
+
 /* Per-vcpu XICS interrupt controller state */
 #define KVM_REG_PPC_ICP_STATE	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x8c)
 

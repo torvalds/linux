@@ -3201,6 +3201,71 @@ struct kvm_reinject_control {
 pit_reinject = 0 (!reinject mode) is recommended, unless running an old
 operating system that uses the PIT for timing (e.g. Linux 2.4.x).
 
+4.99 KVM_PPC_CONFIGURE_V3_MMU
+
+Capability: KVM_CAP_PPC_RADIX_MMU or KVM_CAP_PPC_HASH_MMU_V3
+Architectures: ppc
+Type: vm ioctl
+Parameters: struct kvm_ppc_mmuv3_cfg (in)
+Returns: 0 on success,
+         -EFAULT if struct kvm_ppc_mmuv3_cfg cannot be read,
+         -EINVAL if the configuration is invalid
+
+This ioctl controls whether the guest will use radix or HPT (hashed
+page table) translation, and sets the pointer to the process table for
+the guest.
+
+struct kvm_ppc_mmuv3_cfg {
+	__u64	flags;
+	__u64	process_table;
+};
+
+There are two bits that can be set in flags; KVM_PPC_MMUV3_RADIX and
+KVM_PPC_MMUV3_GTSE.  KVM_PPC_MMUV3_RADIX, if set, configures the guest
+to use radix tree translation, and if clear, to use HPT translation.
+KVM_PPC_MMUV3_GTSE, if set and if KVM permits it, configures the guest
+to be able to use the global TLB and SLB invalidation instructions;
+if clear, the guest may not use these instructions.
+
+The process_table field specifies the address and size of the guest
+process table, which is in the guest's space.  This field is formatted
+as the second doubleword of the partition table entry, as defined in
+the Power ISA V3.00, Book III section 5.7.6.1.
+
+4.100 KVM_PPC_GET_RMMU_INFO
+
+Capability: KVM_CAP_PPC_RADIX_MMU
+Architectures: ppc
+Type: vm ioctl
+Parameters: struct kvm_ppc_rmmu_info (out)
+Returns: 0 on success,
+	 -EFAULT if struct kvm_ppc_rmmu_info cannot be written,
+	 -EINVAL if no useful information can be returned
+
+This ioctl returns a structure containing two things: (a) a list
+containing supported radix tree geometries, and (b) a list that maps
+page sizes to put in the "AP" (actual page size) field for the tlbie
+(TLB invalidate entry) instruction.
+
+struct kvm_ppc_rmmu_info {
+	struct kvm_ppc_radix_geom {
+		__u8	page_shift;
+		__u8	level_bits[4];
+		__u8	pad[3];
+	}	geometries[8];
+	__u32	ap_encodings[8];
+};
+
+The geometries[] field gives up to 8 supported geometries for the
+radix page table, in terms of the log base 2 of the smallest page
+size, and the number of bits indexed at each level of the tree, from
+the PTE level up to the PGD level in that order.  Any unused entries
+will have 0 in the page_shift field.
+
+The ap_encodings gives the supported page sizes and their AP field
+encodings, encoded with the AP value in the top 3 bits and the log
+base 2 of the page size in the bottom 6 bits.
+
 5. The kvm_run structure
 ------------------------
 
@@ -3942,3 +4007,21 @@ In order to use SynIC, it has to be activated by setting this
 capability via KVM_ENABLE_CAP ioctl on the vcpu fd. Note that this
 will disable the use of APIC hardware virtualization even if supported
 by the CPU, as it's incompatible with SynIC auto-EOI behavior.
+
+8.3 KVM_CAP_PPC_RADIX_MMU
+
+Architectures: ppc
+
+This capability, if KVM_CHECK_EXTENSION indicates that it is
+available, means that that the kernel can support guests using the
+radix MMU defined in Power ISA V3.00 (as implemented in the POWER9
+processor).
+
+8.4 KVM_CAP_PPC_HASH_MMU_V3
+
+Architectures: ppc
+
+This capability, if KVM_CHECK_EXTENSION indicates that it is
+available, means that that the kernel can support guests using the
+hashed page table MMU defined in Power ISA V3.00 (as implemented in
+the POWER9 processor), including in-memory segment tables.

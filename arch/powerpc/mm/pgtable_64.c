@@ -458,13 +458,23 @@ void __init mmu_partition_table_init(void)
 void mmu_partition_table_set_entry(unsigned int lpid, unsigned long dw0,
 				   unsigned long dw1)
 {
+	unsigned long old = be64_to_cpu(partition_tb[lpid].patb0);
+
 	partition_tb[lpid].patb0 = cpu_to_be64(dw0);
 	partition_tb[lpid].patb1 = cpu_to_be64(dw1);
 
-	/* Global flush of TLBs and partition table caches for this lpid */
+	/*
+	 * Global flush of TLBs and partition table caches for this lpid.
+	 * The type of flush (hash or radix) depends on what the previous
+	 * use of this partition ID was, not the new use.
+	 */
 	asm volatile("ptesync" : : : "memory");
-	asm volatile(PPC_TLBIE_5(%0,%1,2,0,0) : :
-		     "r" (TLBIEL_INVAL_SET_LPID), "r" (lpid));
+	if (old & PATB_HR)
+		asm volatile(PPC_TLBIE_5(%0,%1,2,0,1) : :
+			     "r" (TLBIEL_INVAL_SET_LPID), "r" (lpid));
+	else
+		asm volatile(PPC_TLBIE_5(%0,%1,2,0,0) : :
+			     "r" (TLBIEL_INVAL_SET_LPID), "r" (lpid));
 	asm volatile("eieio; tlbsync; ptesync" : : : "memory");
 }
 EXPORT_SYMBOL_GPL(mmu_partition_table_set_entry);
