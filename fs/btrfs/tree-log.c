@@ -673,6 +673,10 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 		unsigned long dest_offset;
 		struct btrfs_key ins;
 
+		if (btrfs_file_extent_disk_bytenr(eb, item) == 0 &&
+		    btrfs_fs_incompat(fs_info, NO_HOLES))
+			goto update_inode;
+
 		ret = btrfs_insert_empty_item(trans, root, path, key,
 					      sizeof(*item));
 		if (ret)
@@ -825,6 +829,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 	}
 
 	inode_add_bytes(inode, nbytes);
+update_inode:
 	ret = btrfs_update_inode(trans, root, inode);
 out:
 	if (inode)

@@ -1681,6 +1681,9 @@ static int is_inode_existent(struct send_ctx *sctx, u64 ino, u64 gen)
 {
 	int ret;
 
+	if (ino == BTRFS_FIRST_FREE_OBJECTID)
+		return 1;
+
 	ret = get_cur_inode_state(sctx, ino, gen);
 	if (ret < 0)
 		goto out;
@@ -1866,7 +1869,7 @@ static int will_overwrite_ref(struct send_ctx *sctx, u64 dir, u64 dir_gen,
 	 * not deleted and then re-created, if it was then we have no overwrite
 	 * and we can just unlink this entry.
 	 */
-	if (sctx->parent_root) {
+	if (sctx->parent_root && dir != BTRFS_FIRST_FREE_OBJECTID) {
 		ret = get_inode_info(sctx->parent_root, dir, NULL, &gen, NULL,
 				     NULL, NULL, NULL);
 		if (ret < 0 && ret != -ENOENT)
@@ -1933,6 +1936,19 @@ static int did_overwrite_ref(struct send_ctx *sctx,
 	ret = is_inode_existent(sctx, dir, dir_gen);
 	if (ret <= 0)
 		goto out;
+
+	if (dir != BTRFS_FIRST_FREE_OBJECTID) {
+		ret = get_inode_info(sctx->send_root, dir, NULL, &gen, NULL,
+				     NULL, NULL, NULL);
+		if (ret < 0 && ret != -ENOENT)
+			goto out;
+		if (ret) {
+			ret = 0;
+			goto out;
+		}
+		if (gen != dir_gen)
+			goto out;
+	}
 
 	/* check if the ref was overwritten by another ref */
 	ret = lookup_dir_item_inode(sctx->send_root, dir, name, name_len,
@@ -3556,6 +3572,7 @@ static int wait_for_parent_move(struct send_ctx *sctx,
 {
 	int ret = 0;
 	u64 ino = parent_ref->dir;
+	u64 ino_gen = parent_ref->dir_gen;
 	u64 parent_ino_before, parent_ino_after;
 	struct fs_path *path_before = NULL;
 	struct fs_path *path_after = NULL;
@@ -3576,6 +3593,8 @@ static int wait_for_parent_move(struct send_ctx *sctx,
 	 * at get_cur_path()).
 	 */
 	while (ino > BTRFS_FIRST_FREE_OBJECTID) {
+		u64 parent_ino_after_gen;
+
 		if (is_waiting_for_move(sctx, ino)) {
 			/*
 			 * If the current inode is an ancestor of ino in the
@@ -3598,7 +3617,7 @@ static int wait_for_parent_move(struct send_ctx *sctx,
 		fs_path_reset(path_after);
 
 		ret = get_first_ref(sctx->send_root, ino, &parent_ino_after,
-				    NULL, path_after);
+				    &parent_ino_after_gen, path_after);
 		if (ret < 0)
 			goto out;
 		ret = get_first_ref(sctx->parent_root, ino, &parent_ino_before,
@@ -3615,10 +3634,20 @@ static int wait_for_parent_move(struct send_ctx *sctx,
 		if (ino > sctx->cur_ino &&
 		    (parent_ino_before != parent_ino_after || len1 != len2 ||
 		     memcmp(path_before->start, path_after->start, len1))) {
-			ret = 1;
-			break;
+			u64 parent_ino_gen;
+
+			ret = get_inode_info(sctx->parent_root, ino, NULL,
+					     &parent_ino_gen, NULL, NULL, NULL,
+					     NULL);
+			if (ret < 0)
+				goto out;
+			if (ino_gen == parent_ino_gen) {
+				ret = 1;
+				break;
+			}
 		}
 		ino = parent_ino_after;
+		ino_gen = parent_ino_after_gen;
 	}
 
 out:
