@@ -2061,7 +2061,7 @@ static int find_perf_probe_point_from_map(struct probe_trace_point *tp,
 					  bool is_kprobe)
 {
 	struct symbol *sym = NULL;
-	struct map *map;
+	struct map *map = NULL;
 	u64 addr = tp->address;
 	int ret = -ENOENT;
 
