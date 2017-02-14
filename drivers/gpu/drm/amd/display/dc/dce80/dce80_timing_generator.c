@@ -141,12 +141,14 @@ static const struct timing_generator_funcs dce80_tg_funcs = {
 		.disable_reset_trigger = dce110_timing_generator_disable_reset_trigger,
 		.tear_down_global_swap_lock =
 				dce110_timing_generator_tear_down_global_swap_lock,
+		.set_drr = dce110_timing_generator_set_drr,
+		.set_static_screen_control =
+			dce110_timing_generator_set_static_screen_control,
+		.set_test_pattern = dce110_timing_generator_set_test_pattern,
 
 		/* DCE8.0 overrides */
 		.enable_advanced_request =
 				dce80_timing_generator_enable_advanced_request,
-		.set_drr =
-				dce110_timing_generator_set_drr,
 };
 
 bool dce80_timing_generator_construct(
