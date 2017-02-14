@@ -529,7 +529,7 @@ errout:
 	return err;
 }
 
-int nla_memdup_cookie(struct tc_action *a, struct nlattr **tb)
+static int nla_memdup_cookie(struct tc_action *a, struct nlattr **tb)
 {
 	a->act_cookie = kzalloc(sizeof(*a->act_cookie), GFP_KERNEL);
 	if (!a->act_cookie)
