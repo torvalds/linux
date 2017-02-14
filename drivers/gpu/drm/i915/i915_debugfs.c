@@ -988,6 +988,61 @@ static int i915_gem_fence_regs_info(struct seq_file *m, void *data)
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
+static ssize_t gpu_state_read(struct file *file, char __user *ubuf,
+			      size_t count, loff_t *pos)
+{
+	struct i915_gpu_state *error = file->private_data;
+	struct drm_i915_error_state_buf str;
+	ssize_t ret;
+	loff_t tmp;
+
+	if (!error)
+		return 0;
+
+	ret = i915_error_state_buf_init(&str, error->i915, count, *pos);
+	if (ret)
+		return ret;
+
+	ret = i915_error_state_to_str(&str, error);
+	if (ret)
+		goto out;
+
+	tmp = 0;
+	ret = simple_read_from_buffer(ubuf, count, &tmp, str.buf, str.bytes);
+	if (ret < 0)
+		goto out;
+
+	*pos = str.start + ret;
+out:
+	i915_error_state_buf_release(&str);
+	return ret;
+}
+
+static int gpu_state_release(struct inode *inode, struct file *file)
+{
+	i915_gpu_state_put(file->private_data);
+	return 0;
+}
+
+static int i915_gpu_info_open(struct inode *inode, struct file *file)
+{
+	struct i915_gpu_state *gpu;
+
+	gpu = i915_capture_gpu_state(inode->i_private);
+	if (!gpu)
+		return -ENOMEM;
+
+	file->private_data = gpu;
+	return 0;
+}
+
+static const struct file_operations i915_gpu_info_fops = {
+	.owner = THIS_MODULE,
+	.open = i915_gpu_info_open,
+	.read = gpu_state_read,
+	.llseek = default_llseek,
+	.release = gpu_state_release,
+};
 
 static ssize_t
 i915_error_state_write(struct file *filp,
@@ -995,82 +1050,31 @@ i915_error_state_write(struct file *filp,
 		       size_t cnt,
 		       loff_t *ppos)
 {
-	struct i915_error_state_file_priv *error_priv = filp->private_data;
+	struct i915_gpu_state *error = filp->private_data;
+
+	if (!error)
+		return 0;
 
 	DRM_DEBUG_DRIVER("Resetting error state\n");
-	i915_destroy_error_state(error_priv->i915);
+	i915_reset_error_state(error->i915);
 
 	return cnt;
 }
 
 static int i915_error_state_open(struct inode *inode, struct file *file)
 {
-	struct drm_i915_private *dev_priv = inode->i_private;
-	struct i915_error_state_file_priv *error_priv;
-
-	error_priv = kzalloc(sizeof(*error_priv), GFP_KERNEL);
-	if (!error_priv)
-		return -ENOMEM;
-
-	error_priv->i915 = dev_priv;
-
-	i915_error_state_get(&dev_priv->drm, error_priv);
-
-	file->private_data = error_priv;
-
+	file->private_data = i915_first_error_state(inode->i_private);
 	return 0;
-}
-
-static int i915_error_state_release(struct inode *inode, struct file *file)
-{
-	struct i915_error_state_file_priv *error_priv = file->private_data;
-
-	i915_error_state_put(error_priv);
-	kfree(error_priv);
-
-	return 0;
-}
-
-static ssize_t i915_error_state_read(struct file *file, char __user *userbuf,
-				     size_t count, loff_t *pos)
-{
-	struct i915_error_state_file_priv *error_priv = file->private_data;
-	struct drm_i915_error_state_buf error_str;
-	loff_t tmp_pos = 0;
-	ssize_t ret_count = 0;
-	int ret;
-
-	ret = i915_error_state_buf_init(&error_str, error_priv->i915,
-					count, *pos);
-	if (ret)
-		return ret;
-
-	ret = i915_error_state_to_str(&error_str, error_priv);
-	if (ret)
-		goto out;
-
-	ret_count = simple_read_from_buffer(userbuf, count, &tmp_pos,
-					    error_str.buf,
-					    error_str.bytes);
-
-	if (ret_count < 0)
-		ret = ret_count;
-	else
-		*pos = error_str.start + ret_count;
-out:
-	i915_error_state_buf_release(&error_str);
-	return ret ?: ret_count;
 }
 
 static const struct file_operations i915_error_state_fops = {
 	.owner = THIS_MODULE,
 	.open = i915_error_state_open,
-	.read = i915_error_state_read,
+	.read = gpu_state_read,
 	.write = i915_error_state_write,
 	.llseek = default_llseek,
-	.release = i915_error_state_release,
+	.release = gpu_state_release,
 };
-
 #endif
 
 static int
@@ -4811,6 +4815,7 @@ static const struct i915_debugfs_files {
 	{"i915_gem_drop_caches", &i915_drop_caches_fops},
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 	{"i915_error_state", &i915_error_state_fops},
+	{"i915_gpu_info", &i915_gpu_info_fops},
 #endif
 	{"i915_next_seqno", &i915_next_seqno_fops},
 	{"i915_display_crc_ctl", &i915_display_crc_ctl_fops},

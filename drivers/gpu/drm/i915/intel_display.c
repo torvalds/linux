@@ -15838,9 +15838,9 @@ intel_display_capture_error_state(struct drm_i915_private *dev_priv)
 
 void
 intel_display_print_error_state(struct drm_i915_error_state_buf *m,
-				struct drm_i915_private *dev_priv,
 				struct intel_display_error_state *error)
 {
+	struct drm_i915_private *dev_priv = m->i915;
 	int i;
 
 	if (!error)
