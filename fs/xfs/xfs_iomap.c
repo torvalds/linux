@@ -1079,6 +1079,8 @@ xfs_file_iomap_end_delalloc(
 	int			error = 0;
 
 	start_fsb = XFS_B_TO_FSB(mp, offset + written);
+	if (unlikely(!written))
+		start_fsb = XFS_B_TO_FSBT(mp, offset);
 	end_fsb = XFS_B_TO_FSB(mp, offset + length);
 
 	/*
@@ -1090,6 +1092,9 @@ xfs_file_iomap_end_delalloc(
 	 * blocks in the range, they are ours.
 	 */
 	if (start_fsb < end_fsb) {
+		truncate_pagecache_range(VFS_I(ip), XFS_FSB_TO_B(mp, start_fsb),
+					 XFS_FSB_TO_B(mp, end_fsb) - 1);
+
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		error = xfs_bmap_punch_delalloc_range(ip, start_fsb,
 					       end_fsb - start_fsb);
