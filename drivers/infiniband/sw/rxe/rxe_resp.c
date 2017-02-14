@@ -479,7 +479,7 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 				goto err2;
 			}
 
-			resid = mtu;
+			qp->resp.resid = mtu;
 		} else {
 			if (pktlen != resid) {
 				state = RESPST_ERR_LENGTH;
