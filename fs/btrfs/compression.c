@@ -1015,7 +1015,7 @@ void btrfs_exit_compress(void)
  *
  * total_out is the last byte of the buffer
  */
-int btrfs_decompress_buf2page(char *buf, unsigned long buf_start,
+int btrfs_decompress_buf2page(const char *buf, unsigned long buf_start,
 			      unsigned long total_out, u64 disk_start,
 			      struct bio *bio)
 {
