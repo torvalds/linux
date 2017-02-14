@@ -267,6 +267,11 @@
 	status = "okay";
 };
 
+&saradc {
+	status = "okay";
+	vref-supply = <&vcc1v8>;
+};
+
 /* SD */
 &sd_emmc_b {
 	status = "okay";
