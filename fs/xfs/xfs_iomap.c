@@ -1078,6 +1078,10 @@ xfs_file_iomap_end_delalloc(
 	xfs_fileoff_t		end_fsb;
 	int			error = 0;
 
+	/* behave as if the write failed if drop writes is enabled */
+	if (xfs_mp_drop_writes(mp))
+		written = 0;
+
 	start_fsb = XFS_B_TO_FSB(mp, offset + written);
 	if (unlikely(!written))
 		start_fsb = XFS_B_TO_FSBT(mp, offset);
