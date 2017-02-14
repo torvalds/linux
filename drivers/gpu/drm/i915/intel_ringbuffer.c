@@ -644,7 +644,7 @@ static void reset_ring_common(struct intel_engine_cs *engine,
 	}
 }
 
-static int intel_ring_workarounds_emit(struct drm_i915_gem_request *req)
+int intel_ring_workarounds_emit(struct drm_i915_gem_request *req)
 {
 	struct i915_workarounds *w = &req->i915->workarounds;
 	u32 *cs;

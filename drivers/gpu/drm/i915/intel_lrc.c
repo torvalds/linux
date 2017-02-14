@@ -890,39 +890,6 @@ err:
 	return ret;
 }
 
-static int intel_logical_ring_workarounds_emit(struct drm_i915_gem_request *req)
-{
-	struct i915_workarounds *w = &req->i915->workarounds;
-	u32 *cs;
-	int ret, i;
-
-	if (w->count == 0)
-		return 0;
-
-	ret = req->engine->emit_flush(req, EMIT_BARRIER);
-	if (ret)
-		return ret;
-
-	cs = intel_ring_begin(req, w->count * 2 + 2);
-	if (IS_ERR(cs))
-		return PTR_ERR(cs);
-
-	*cs++ = MI_LOAD_REGISTER_IMM(w->count);
-	for (i = 0; i < w->count; i++) {
-		*cs++ = i915_mmio_reg_offset(w->reg[i].addr);
-		*cs++ = w->reg[i].value;
-	}
-	*cs++ = MI_NOOP;
-
-	intel_ring_advance(req, cs);
-
-	ret = req->engine->emit_flush(req, EMIT_BARRIER);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 #define wa_ctx_emit(batch, index, cmd)					\
 	do {								\
 		int __index = (index)++;				\
@@ -1672,7 +1639,7 @@ static int gen8_init_rcs_context(struct drm_i915_gem_request *req)
 {
 	int ret;
 
-	ret = intel_logical_ring_workarounds_emit(req);
+	ret = intel_ring_workarounds_emit(req);
 	if (ret)
 		return ret;
 
