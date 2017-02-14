@@ -148,21 +148,6 @@ static struct amdgpu_connector *get_connector_for_sink(
 	return NULL;
 }
 
-static struct amdgpu_connector *get_connector_for_link(
-	struct drm_device *dev,
-	const struct dc_link *link)
-{
-	struct drm_connector *connector;
-
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		struct amdgpu_connector *aconnector = to_amdgpu_connector(connector);
-		if (aconnector->dc_link == link)
-			return aconnector;
-	}
-
-	return NULL;
-}
-
 static void get_payload_table(
 		struct amdgpu_connector *aconnector,
 		struct dp_mst_stream_allocation_table *proposed_table)
@@ -363,9 +348,7 @@ bool dm_helpers_dp_mst_start_top_mgr(
 		const struct dc_link *link,
 		bool boot)
 {
-	struct amdgpu_device *adev = ctx->driver_context;
-	struct drm_device *dev = adev->ddev;
-	struct amdgpu_connector *aconnector = get_connector_for_link(dev, link);
+	struct amdgpu_connector *aconnector = link->priv;
 
 	if (!aconnector) {
 			DRM_ERROR("Failed to found connector for link!");
@@ -388,9 +371,7 @@ void dm_helpers_dp_mst_stop_top_mgr(
 		struct dc_context *ctx,
 		const struct dc_link *link)
 {
-	struct amdgpu_device *adev = ctx->driver_context;
-	struct drm_device *dev = adev->ddev;
-	struct amdgpu_connector *aconnector = get_connector_for_link(dev, link);
+	struct amdgpu_connector *aconnector = link->priv;
 
 	if (!aconnector) {
 			DRM_ERROR("Failed to found connector for link!");
@@ -412,9 +393,7 @@ bool dm_helpers_dp_read_dpcd(
 		uint32_t size)
 {
 
-	struct amdgpu_device *adev = ctx->driver_context;
-	struct drm_device *dev = adev->ddev;
-	struct amdgpu_connector *aconnector = get_connector_for_link(dev, link);
+	struct amdgpu_connector *aconnector = link->priv;
 
 	if (!aconnector) {
 		DRM_ERROR("Failed to found connector for link!");
@@ -432,10 +411,7 @@ bool dm_helpers_dp_write_dpcd(
 		const uint8_t *data,
 		uint32_t size)
 {
-
-	struct amdgpu_device *adev = ctx->driver_context;
-	struct drm_device *dev = adev->ddev;
-	struct amdgpu_connector *aconnector = get_connector_for_link(dev, link);
+	struct amdgpu_connector *aconnector = link->priv;
 
 	if (!aconnector) {
 		DRM_ERROR("Failed to found connector for link!");
@@ -451,9 +427,7 @@ bool dm_helpers_submit_i2c(
 		const struct dc_link *link,
 		struct i2c_command *cmd)
 {
-	struct amdgpu_device *adev = ctx->driver_context;
-	struct drm_device *dev = adev->ddev;
-	struct amdgpu_connector *aconnector = get_connector_for_link(dev, link);
+	struct amdgpu_connector *aconnector = link->priv;
 	struct i2c_msg *msgs;
 	int i = 0;
 	int num = cmd->number_of_payloads;

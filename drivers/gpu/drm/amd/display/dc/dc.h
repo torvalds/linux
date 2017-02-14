@@ -592,6 +592,8 @@ struct dc_link {
 	struct psr_caps psr_caps;
 	bool test_pattern_enabled;
 	union compliance_test_state compliance_test_state;
+
+	void *priv;
 };
 
 struct dpcd_caps {

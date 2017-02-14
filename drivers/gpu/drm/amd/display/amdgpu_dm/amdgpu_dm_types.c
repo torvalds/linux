@@ -2002,6 +2002,7 @@ int amdgpu_dm_connector_init(
 	struct dc *dc = dm->dc;
 	const struct dc_link *link = dc_get_link_at_index(dc, link_index);
 	struct amdgpu_i2c_adapter *i2c;
+	((struct dc_link *)link)->priv = aconnector;
 
 	DRM_DEBUG_KMS("%s()\n", __func__);
 
