@@ -1212,7 +1212,7 @@ static int fill_soc_specific_params(struct fman_state_struct *state)
 		state->max_num_of_open_dmas	= 32;
 		state->fm_port_num_of_cg	= 256;
 		state->num_of_rx_ports	= 6;
-		state->total_fifo_size	= 122 * 1024;
+		state->total_fifo_size	= 136 * 1024;
 		break;
 
 	case 2:
