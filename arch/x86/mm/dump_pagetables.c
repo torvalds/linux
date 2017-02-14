@@ -18,6 +18,7 @@
 #include <linux/sched.h>
 #include <linux/seq_file.h>
 
+#include <asm/kasan.h>
 #include <asm/pgtable.h>
 
 /*
@@ -51,6 +52,10 @@ enum address_markers_idx {
 	LOW_KERNEL_NR,
 	VMALLOC_START_NR,
 	VMEMMAP_START_NR,
+#ifdef CONFIG_KASAN
+	KASAN_SHADOW_START_NR,
+	KASAN_SHADOW_END_NR,
+#endif
 # ifdef CONFIG_X86_ESPFIX64
 	ESPFIX_START_NR,
 # endif
@@ -76,6 +81,10 @@ static struct addr_marker address_markers[] = {
 	{ 0/* PAGE_OFFSET */,   "Low Kernel Mapping" },
 	{ 0/* VMALLOC_START */, "vmalloc() Area" },
 	{ 0/* VMEMMAP_START */, "Vmemmap" },
+#ifdef CONFIG_KASAN
+	{ KASAN_SHADOW_START,	"KASAN shadow" },
+	{ KASAN_SHADOW_END,	"KASAN shadow end" },
+#endif
 # ifdef CONFIG_X86_ESPFIX64
 	{ ESPFIX_BASE_ADDR,	"ESPfix Area", 16 },
 # endif
