@@ -40,6 +40,7 @@
 #include <linux/parser.h>
 #include <linux/random.h>
 #include <linux/jiffies.h>
+#include <linux/lockdep.h>
 #include <rdma/ib_cache.h>
 
 #include <linux/atomic.h>
@@ -1799,6 +1800,8 @@ static struct srp_iu *__srp_get_tx_iu(struct srp_rdma_ch *ch,
 	s32 rsv = (iu_type == SRP_IU_TSK_MGMT) ? 0 : SRP_TSK_MGMT_SQ_SIZE;
 	struct srp_iu *iu;
 
+	lockdep_assert_held(&ch->lock);
+
 	ib_process_cq_direct(ch->send_cq, -1);
 
 	if (list_empty(&ch->free_tx))
@@ -1828,6 +1831,8 @@ static void srp_send_done(struct ib_cq *cq, struct ib_wc *wc)
 		srp_handle_qp_err(cq, wc, "SEND");
 		return;
 	}
+
+	lockdep_assert_held(&ch->lock);
 
 	list_add(&iu->list, &ch->free_tx);
 }
