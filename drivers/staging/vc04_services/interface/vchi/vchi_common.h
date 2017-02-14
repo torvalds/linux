@@ -121,8 +121,8 @@ typedef enum {
 
 //Callback used by all services / bulk transfers
 typedef void (*VCHI_CALLBACK_T)( void *callback_param, //my service local param
-                                 VCHI_CALLBACK_REASON_T reason,
-                                 void *handle ); //for transmitting msg's only
+				 VCHI_CALLBACK_REASON_T reason,
+				 void *handle ); //for transmitting msg's only
 
 
 
