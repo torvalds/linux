@@ -432,8 +432,6 @@ static noinline void compress_file_range(struct inode *inode,
 	unsigned long nr_pages;
 	unsigned long total_compressed = 0;
 	unsigned long total_in = 0;
-	unsigned long max_compressed = SZ_128K;
-	unsigned long max_uncompressed = SZ_128K;
 	int i;
 	int will_compress;
 	int compress_type = fs_info->compress_type;
@@ -446,7 +444,9 @@ static noinline void compress_file_range(struct inode *inode,
 again:
 	will_compress = 0;
 	nr_pages = (end >> PAGE_SHIFT) - (start >> PAGE_SHIFT) + 1;
-	nr_pages = min_t(unsigned long, nr_pages, SZ_128K / PAGE_SIZE);
+	BUILD_BUG_ON((BTRFS_MAX_COMPRESSED % PAGE_SIZE) != 0);
+	nr_pages = min_t(unsigned long, nr_pages,
+			BTRFS_MAX_COMPRESSED / PAGE_SIZE);
 
 	/*
 	 * we don't want to send crud past the end of i_size through
@@ -471,7 +471,8 @@ again:
 	   (start > 0 || end + 1 < BTRFS_I(inode)->disk_i_size))
 		goto cleanup_and_bail_uncompressed;
 
-	total_compressed = min(total_compressed, max_uncompressed);
+	total_compressed = min_t(unsigned long, total_compressed,
+			BTRFS_MAX_UNCOMPRESSED);
 	num_bytes = ALIGN(end - start + 1, blocksize);
 	num_bytes = max(blocksize,  num_bytes);
 	total_in = 0;
@@ -510,7 +511,7 @@ again:
 					   &nr_pages,
 					   &total_in,
 					   &total_compressed,
-					   max_compressed);
+					   BTRFS_MAX_COMPRESSED);
 
 		if (!ret) {
 			unsigned long offset = total_compressed &
