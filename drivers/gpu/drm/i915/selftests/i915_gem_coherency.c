@@ -186,6 +186,7 @@ static int gpu_set(struct drm_i915_gem_object *obj,
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct drm_i915_gem_request *rq;
 	struct i915_vma *vma;
+	u32 *cs;
 	int err;
 
 	err = i915_gem_object_set_to_gtt_domain(obj, true);
@@ -202,30 +203,30 @@ static int gpu_set(struct drm_i915_gem_object *obj,
 		return PTR_ERR(rq);
 	}
 
-	err = intel_ring_begin(rq, 4);
-	if (err) {
+	cs = intel_ring_begin(rq, 4);
+	if (IS_ERR(cs)) {
 		__i915_add_request(rq, false);
 		i915_vma_unpin(vma);
-		return err;
+		return PTR_ERR(cs);
 	}
 
 	if (INTEL_GEN(i915) >= 8) {
-		intel_ring_emit(rq->ring, MI_STORE_DWORD_IMM_GEN4 | 1 << 22);
-		intel_ring_emit(rq->ring, lower_32_bits(i915_ggtt_offset(vma) + offset));
-		intel_ring_emit(rq->ring, upper_32_bits(i915_ggtt_offset(vma) + offset));
-		intel_ring_emit(rq->ring, v);
+		*cs++ = MI_STORE_DWORD_IMM_GEN4 | 1 << 22;
+		*cs++ = lower_32_bits(i915_ggtt_offset(vma) + offset);
+		*cs++ = upper_32_bits(i915_ggtt_offset(vma) + offset);
+		*cs++ = v;
 	} else if (INTEL_GEN(i915) >= 4) {
-		intel_ring_emit(rq->ring, MI_STORE_DWORD_IMM_GEN4 | 1 << 22);
-		intel_ring_emit(rq->ring, 0);
-		intel_ring_emit(rq->ring, i915_ggtt_offset(vma) + offset);
-		intel_ring_emit(rq->ring, v);
+		*cs++ = MI_STORE_DWORD_IMM_GEN4 | 1 << 22;
+		*cs++ = 0;
+		*cs++ = i915_ggtt_offset(vma) + offset;
+		*cs++ = v;
 	} else {
-		intel_ring_emit(rq->ring, MI_STORE_DWORD_IMM | 1 << 22);
-		intel_ring_emit(rq->ring, i915_ggtt_offset(vma) + offset);
-		intel_ring_emit(rq->ring, v);
-		intel_ring_emit(rq->ring, MI_NOOP);
+		*cs++ = MI_STORE_DWORD_IMM | 1 << 22;
+		*cs++ = i915_ggtt_offset(vma) + offset;
+		*cs++ = v;
+		*cs++ = MI_NOOP;
 	}
-	intel_ring_advance(rq->ring);
+	intel_ring_advance(rq, cs);
 
 	i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
 	i915_vma_unpin(vma);

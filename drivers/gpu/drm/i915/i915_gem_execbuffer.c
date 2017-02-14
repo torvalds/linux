@@ -1336,25 +1336,25 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 static int
 i915_reset_gen7_sol_offsets(struct drm_i915_gem_request *req)
 {
-	struct intel_ring *ring = req->ring;
-	int ret, i;
+	u32 *cs;
+	int i;
 
 	if (!IS_GEN7(req->i915) || req->engine->id != RCS) {
 		DRM_DEBUG("sol reset is gen7/rcs only\n");
 		return -EINVAL;
 	}
 
-	ret = intel_ring_begin(req, 4 * 3);
-	if (ret)
-		return ret;
+	cs = intel_ring_begin(req, 4 * 3);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
 
 	for (i = 0; i < 4; i++) {
-		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-		intel_ring_emit_reg(ring, GEN7_SO_WRITE_OFFSET(i));
-		intel_ring_emit(ring, 0);
+		*cs++ = MI_LOAD_REGISTER_IMM(1);
+		*cs++ = i915_mmio_reg_offset(GEN7_SO_WRITE_OFFSET(i));
+		*cs++ = 0;
 	}
 
-	intel_ring_advance(ring);
+	intel_ring_advance(req, cs);
 
 	return 0;
 }
@@ -1415,7 +1415,7 @@ execbuf_submit(struct i915_execbuffer_params *params,
 	struct drm_i915_private *dev_priv = params->request->i915;
 	u64 exec_start, exec_len;
 	int instp_mode;
-	u32 instp_mask;
+	u32 instp_mask, *cs;
 	int ret;
 
 	ret = i915_gem_execbuffer_move_to_gpu(params->request, vmas);
@@ -1461,17 +1461,15 @@ execbuf_submit(struct i915_execbuffer_params *params,
 
 	if (params->engine->id == RCS &&
 	    instp_mode != dev_priv->relative_constants_mode) {
-		struct intel_ring *ring = params->request->ring;
+		cs = intel_ring_begin(params->request, 4);
+		if (IS_ERR(cs))
+			return PTR_ERR(cs);
 
-		ret = intel_ring_begin(params->request, 4);
-		if (ret)
-			return ret;
-
-		intel_ring_emit(ring, MI_NOOP);
-		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-		intel_ring_emit_reg(ring, INSTPM);
-		intel_ring_emit(ring, instp_mask << 16 | instp_mode);
-		intel_ring_advance(ring);
+		*cs++ = MI_NOOP;
+		*cs++ = MI_LOAD_REGISTER_IMM(1);
+		*cs++ = i915_mmio_reg_offset(INSTPM);
+		*cs++ = instp_mask << 16 | instp_mode;
+		intel_ring_advance(params->request, cs);
 
 		dev_priv->relative_constants_mode = instp_mode;
 	}
