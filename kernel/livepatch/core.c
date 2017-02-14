@@ -31,21 +31,21 @@
 #include <linux/moduleloader.h>
 #include <asm/cacheflush.h>
 #include "patch.h"
+#include "transition.h"
 
 /*
- * The klp_mutex protects the global lists and state transitions of any
- * structure reachable from them.  References to any structure must be obtained
- * under mutex protection (except in klp_ftrace_handler(), which uses RCU to
- * ensure it gets consistent data).
+ * klp_mutex is a coarse lock which serializes access to klp data.  All
+ * accesses to klp-related variables and structures must have mutex protection,
+ * except within the following functions which carefully avoid the need for it:
+ *
+ * - klp_ftrace_handler()
+ * - klp_update_patch_state()
  */
-static DEFINE_MUTEX(klp_mutex);
+DEFINE_MUTEX(klp_mutex);
 
 static LIST_HEAD(klp_patches);
 
 static struct kobject *klp_root_kobj;
-
-/* TODO: temporary stub */
-void klp_update_patch_state(struct task_struct *task) {}
 
 static bool klp_is_module(struct klp_object *obj)
 {
@@ -85,7 +85,6 @@ static void klp_find_object_module(struct klp_object *obj)
 	mutex_unlock(&module_mutex);
 }
 
-/* klp_mutex must be held by caller */
 static bool klp_is_patch_registered(struct klp_patch *patch)
 {
 	struct klp_patch *mypatch;
@@ -281,20 +280,27 @@ static int klp_write_object_relocations(struct module *pmod,
 
 static int __klp_disable_patch(struct klp_patch *patch)
 {
-	struct klp_object *obj;
+	if (klp_transition_patch)
+		return -EBUSY;
 
 	/* enforce stacking: only the last enabled patch can be disabled */
 	if (!list_is_last(&patch->list, &klp_patches) &&
 	    list_next_entry(patch, list)->enabled)
 		return -EBUSY;
 
-	pr_notice("disabling patch '%s'\n", patch->mod->name);
+	klp_init_transition(patch, KLP_UNPATCHED);
 
-	klp_for_each_object(patch, obj) {
-		if (obj->patched)
-			klp_unpatch_object(obj);
-	}
+	/*
+	 * Enforce the order of the func->transition writes in
+	 * klp_init_transition() and the TIF_PATCH_PENDING writes in
+	 * klp_start_transition().  In the rare case where klp_ftrace_handler()
+	 * is called shortly after klp_update_patch_state() switches the task,
+	 * this ensures the handler sees that func->transition is set.
+	 */
+	smp_wmb();
 
+	klp_start_transition();
+	klp_try_complete_transition();
 	patch->enabled = false;
 
 	return 0;
@@ -337,6 +343,9 @@ static int __klp_enable_patch(struct klp_patch *patch)
 	struct klp_object *obj;
 	int ret;
 
+	if (klp_transition_patch)
+		return -EBUSY;
+
 	if (WARN_ON(patch->enabled))
 		return -EINVAL;
 
@@ -347,22 +356,36 @@ static int __klp_enable_patch(struct klp_patch *patch)
 
 	pr_notice("enabling patch '%s'\n", patch->mod->name);
 
+	klp_init_transition(patch, KLP_PATCHED);
+
+	/*
+	 * Enforce the order of the func->transition writes in
+	 * klp_init_transition() and the ops->func_stack writes in
+	 * klp_patch_object(), so that klp_ftrace_handler() will see the
+	 * func->transition updates before the handler is registered and the
+	 * new funcs become visible to the handler.
+	 */
+	smp_wmb();
+
 	klp_for_each_object(patch, obj) {
 		if (!klp_is_object_loaded(obj))
 			continue;
 
 		ret = klp_patch_object(obj);
-		if (ret)
-			goto unregister;
+		if (ret) {
+			pr_warn("failed to enable patch '%s'\n",
+				patch->mod->name);
+
+			klp_cancel_transition();
+			return ret;
+		}
 	}
 
+	klp_start_transition();
+	klp_try_complete_transition();
 	patch->enabled = true;
 
 	return 0;
-
-unregister:
-	WARN_ON(__klp_disable_patch(patch));
-	return ret;
 }
 
 /**
@@ -399,6 +422,7 @@ EXPORT_SYMBOL_GPL(klp_enable_patch);
  * /sys/kernel/livepatch
  * /sys/kernel/livepatch/<patch>
  * /sys/kernel/livepatch/<patch>/enabled
+ * /sys/kernel/livepatch/<patch>/transition
  * /sys/kernel/livepatch/<patch>/<object>
  * /sys/kernel/livepatch/<patch>/<object>/<function,sympos>
  */
@@ -424,7 +448,9 @@ static ssize_t enabled_store(struct kobject *kobj, struct kobj_attribute *attr,
 		goto err;
 	}
 
-	if (enabled) {
+	if (patch == klp_transition_patch) {
+		klp_reverse_transition();
+	} else if (enabled) {
 		ret = __klp_enable_patch(patch);
 		if (ret)
 			goto err;
@@ -452,9 +478,21 @@ static ssize_t enabled_show(struct kobject *kobj,
 	return snprintf(buf, PAGE_SIZE-1, "%d\n", patch->enabled);
 }
 
+static ssize_t transition_show(struct kobject *kobj,
+			       struct kobj_attribute *attr, char *buf)
+{
+	struct klp_patch *patch;
+
+	patch = container_of(kobj, struct klp_patch, kobj);
+	return snprintf(buf, PAGE_SIZE-1, "%d\n",
+			patch == klp_transition_patch);
+}
+
 static struct kobj_attribute enabled_kobj_attr = __ATTR_RW(enabled);
+static struct kobj_attribute transition_kobj_attr = __ATTR_RO(transition);
 static struct attribute *klp_patch_attrs[] = {
 	&enabled_kobj_attr.attr,
+	&transition_kobj_attr.attr,
 	NULL
 };
 
@@ -544,6 +582,7 @@ static int klp_init_func(struct klp_object *obj, struct klp_func *func)
 
 	INIT_LIST_HEAD(&func->stack_node);
 	func->patched = false;
+	func->transition = false;
 
 	/* The format for the sysfs directory is <function,sympos> where sympos
 	 * is the nth occurrence of this symbol in kallsyms for the patched
@@ -740,6 +779,16 @@ int klp_register_patch(struct klp_patch *patch)
 		return -ENODEV;
 
 	/*
+	 * Architectures without reliable stack traces have to set
+	 * patch->immediate because there's currently no way to patch kthreads
+	 * with the consistency model.
+	 */
+	if (!klp_have_reliable_stack() && !patch->immediate) {
+		pr_err("This architecture doesn't have support for the livepatch consistency model.\n");
+		return -ENOSYS;
+	}
+
+	/*
 	 * A reference is taken on the patch module to prevent it from being
 	 * unloaded.  Right now, we don't allow patch modules to unload since
 	 * there is currently no method to determine if a thread is still
@@ -788,7 +837,11 @@ int klp_module_coming(struct module *mod)
 				goto err;
 			}
 
-			if (!patch->enabled)
+			/*
+			 * Only patch the module if the patch is enabled or is
+			 * in transition.
+			 */
+			if (!patch->enabled && patch != klp_transition_patch)
 				break;
 
 			pr_notice("applying patch '%s' to loading module '%s'\n",
@@ -845,7 +898,11 @@ void klp_module_going(struct module *mod)
 			if (!klp_is_module(obj) || strcmp(obj->name, mod->name))
 				continue;
 
-			if (patch->enabled) {
+			/*
+			 * Only unpatch the module if the patch is enabled or
+			 * is in transition.
+			 */
+			if (patch->enabled || patch == klp_transition_patch) {
 				pr_notice("reverting patch '%s' on unloading module '%s'\n",
 					  patch->mod->name, obj->mod->name);
 				klp_unpatch_object(obj);

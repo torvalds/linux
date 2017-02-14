@@ -29,6 +29,7 @@
 #include <linux/bug.h>
 #include <linux/printk.h>
 #include "patch.h"
+#include "transition.h"
 
 static LIST_HEAD(klp_ops);
 
@@ -54,14 +55,63 @@ static void notrace klp_ftrace_handler(unsigned long ip,
 {
 	struct klp_ops *ops;
 	struct klp_func *func;
+	int patch_state;
 
 	ops = container_of(fops, struct klp_ops, fops);
 
 	rcu_read_lock();
+
 	func = list_first_or_null_rcu(&ops->func_stack, struct klp_func,
 				      stack_node);
+
+	/*
+	 * func should never be NULL because preemption should be disabled here
+	 * and unregister_ftrace_function() does the equivalent of a
+	 * synchronize_sched() before the func_stack removal.
+	 */
 	if (WARN_ON_ONCE(!func))
 		goto unlock;
+
+	/*
+	 * In the enable path, enforce the order of the ops->func_stack and
+	 * func->transition reads.  The corresponding write barrier is in
+	 * __klp_enable_patch().
+	 *
+	 * (Note that this barrier technically isn't needed in the disable
+	 * path.  In the rare case where klp_update_patch_state() runs before
+	 * this handler, its TIF_PATCH_PENDING read and this func->transition
+	 * read need to be ordered.  But klp_update_patch_state() already
+	 * enforces that.)
+	 */
+	smp_rmb();
+
+	if (unlikely(func->transition)) {
+
+		/*
+		 * Enforce the order of the func->transition and
+		 * current->patch_state reads.  Otherwise we could read an
+		 * out-of-date task state and pick the wrong function.  The
+		 * corresponding write barrier is in klp_init_transition().
+		 */
+		smp_rmb();
+
+		patch_state = current->patch_state;
+
+		WARN_ON_ONCE(patch_state == KLP_UNDEFINED);
+
+		if (patch_state == KLP_UNPATCHED) {
+			/*
+			 * Use the previously patched version of the function.
+			 * If no previous patches exist, continue with the
+			 * original function.
+			 */
+			func = list_entry_rcu(func->stack_node.next,
+					      struct klp_func, stack_node);
+
+			if (&func->stack_node == &ops->func_stack)
+				goto unlock;
+		}
+	}
 
 	klp_arch_set_pc(regs, (unsigned long)func->new_func);
 unlock:
@@ -210,4 +260,13 @@ int klp_patch_object(struct klp_object *obj)
 	obj->patched = true;
 
 	return 0;
+}
+
+void klp_unpatch_objects(struct klp_patch *patch)
+{
+	struct klp_object *obj;
+
+	klp_for_each_object(patch, obj)
+		if (obj->patched)
+			klp_unpatch_object(obj);
 }
