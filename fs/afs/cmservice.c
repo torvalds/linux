@@ -351,7 +351,7 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call)
 {
 	struct sockaddr_rxrpc srx;
 	struct afs_server *server;
-	struct afs_uuid *r;
+	struct uuid_v1 *r;
 	unsigned loop;
 	__be32 *b;
 	int ret;
@@ -381,15 +381,15 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call)
 		}
 
 		_debug("unmarshall UUID");
-		call->request = kmalloc(sizeof(struct afs_uuid), GFP_KERNEL);
+		call->request = kmalloc(sizeof(struct uuid_v1), GFP_KERNEL);
 		if (!call->request)
 			return -ENOMEM;
 
 		b = call->buffer;
 		r = call->request;
-		r->time_low			= ntohl(b[0]);
-		r->time_mid			= ntohl(b[1]);
-		r->time_hi_and_version		= ntohl(b[2]);
+		r->time_low			= b[0];
+		r->time_mid			= htons(ntohl(b[1]));
+		r->time_hi_and_version		= htons(ntohl(b[2]));
 		r->clock_seq_hi_and_reserved 	= ntohl(b[3]);
 		r->clock_seq_low		= ntohl(b[4]);
 
@@ -454,7 +454,7 @@ static int afs_deliver_cb_probe(struct afs_call *call)
 static void SRXAFSCB_ProbeUuid(struct work_struct *work)
 {
 	struct afs_call *call = container_of(work, struct afs_call, work);
-	struct afs_uuid *r = call->request;
+	struct uuid_v1 *r = call->request;
 
 	struct {
 		__be32	match;
@@ -477,7 +477,7 @@ static void SRXAFSCB_ProbeUuid(struct work_struct *work)
  */
 static int afs_deliver_cb_probe_uuid(struct afs_call *call)
 {
-	struct afs_uuid *r;
+	struct uuid_v1 *r;
 	unsigned loop;
 	__be32 *b;
 	int ret;
@@ -503,15 +503,15 @@ static int afs_deliver_cb_probe_uuid(struct afs_call *call)
 		}
 
 		_debug("unmarshall UUID");
-		call->request = kmalloc(sizeof(struct afs_uuid), GFP_KERNEL);
+		call->request = kmalloc(sizeof(struct uuid_v1), GFP_KERNEL);
 		if (!call->request)
 			return -ENOMEM;
 
 		b = call->buffer;
 		r = call->request;
-		r->time_low			= ntohl(b[0]);
-		r->time_mid			= ntohl(b[1]);
-		r->time_hi_and_version		= ntohl(b[2]);
+		r->time_low			= b[0];
+		r->time_mid			= htons(ntohl(b[1]));
+		r->time_hi_and_version		= htons(ntohl(b[2]));
 		r->clock_seq_hi_and_reserved 	= ntohl(b[3]);
 		r->clock_seq_low		= ntohl(b[4]);
 
@@ -569,9 +569,9 @@ static void SRXAFSCB_TellMeAboutYourself(struct work_struct *work)
 	memset(&reply, 0, sizeof(reply));
 	reply.ia.nifs = htonl(nifs);
 
-	reply.ia.uuid[0] = htonl(afs_uuid.time_low);
-	reply.ia.uuid[1] = htonl(afs_uuid.time_mid);
-	reply.ia.uuid[2] = htonl(afs_uuid.time_hi_and_version);
+	reply.ia.uuid[0] = afs_uuid.time_low;
+	reply.ia.uuid[1] = htonl(ntohs(afs_uuid.time_mid));
+	reply.ia.uuid[2] = htonl(ntohs(afs_uuid.time_hi_and_version));
 	reply.ia.uuid[3] = htonl((s8) afs_uuid.clock_seq_hi_and_reserved);
 	reply.ia.uuid[4] = htonl((s8) afs_uuid.clock_seq_low);
 	for (loop = 0; loop < 6; loop++)

@@ -19,6 +19,7 @@
 #include <linux/sched.h>
 #include <linux/fscache.h>
 #include <linux/backing-dev.h>
+#include <linux/uuid.h>
 #include <net/af_rxrpc.h>
 
 #include "afs.h"
@@ -407,30 +408,6 @@ struct afs_interface {
 	unsigned	mtu;		/* MTU of interface */
 };
 
-/*
- * UUID definition [internet draft]
- * - the timestamp is a 60-bit value, split 32/16/12, and goes in 100ns
- *   increments since midnight 15th October 1582
- *   - add AFS_UUID_TO_UNIX_TIME to convert unix time in 100ns units to UUID
- *     time
- * - the clock sequence is a 14-bit counter to avoid duplicate times
- */
-struct afs_uuid {
-	u32		time_low;			/* low part of timestamp */
-	u16		time_mid;			/* mid part of timestamp */
-	u16		time_hi_and_version;		/* high part of timestamp and version  */
-#define AFS_UUID_TO_UNIX_TIME	0x01b21dd213814000ULL
-#define AFS_UUID_TIMEHI_MASK	0x0fff
-#define AFS_UUID_VERSION_TIME	0x1000	/* time-based UUID */
-#define AFS_UUID_VERSION_NAME	0x3000	/* name-based UUID */
-#define AFS_UUID_VERSION_RANDOM	0x4000	/* (pseudo-)random generated UUID */
-	u8		clock_seq_hi_and_reserved;	/* clock seq hi and variant */
-#define AFS_UUID_CLOCKHI_MASK	0x3f
-#define AFS_UUID_VARIANT_STD	0x80
-	u8		clock_seq_low;			/* clock seq low */
-	u8		node[6];			/* spatially unique node ID (MAC addr) */
-};
-
 /*****************************************************************************/
 /*
  * cache.c
@@ -565,7 +542,7 @@ extern int afs_drop_inode(struct inode *);
  * main.c
  */
 extern struct workqueue_struct *afs_wq;
-extern struct afs_uuid afs_uuid;
+extern struct uuid_v1 afs_uuid;
 
 /*
  * misc.c
@@ -582,6 +559,11 @@ extern const struct file_operations afs_mntpt_file_operations;
 extern struct vfsmount *afs_d_automount(struct path *);
 extern int afs_mntpt_check_symlink(struct afs_vnode *, struct key *);
 extern void afs_mntpt_kill_timer(void);
+
+/*
+ * netdevices.c
+ */
+extern int afs_get_ipv4_interfaces(struct afs_interface *, size_t, bool);
 
 /*
  * proc.c
@@ -645,12 +627,6 @@ extern void __exit afs_purge_servers(void);
  */
 extern int afs_fs_init(void);
 extern void afs_fs_exit(void);
-
-/*
- * use-rtnetlink.c
- */
-extern int afs_get_ipv4_interfaces(struct afs_interface *, size_t, bool);
-extern int afs_get_MAC_address(u8 *, size_t);
 
 /*
  * vlclient.c
