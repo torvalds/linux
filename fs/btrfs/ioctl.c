@@ -434,7 +434,7 @@ int btrfs_is_empty_uuid(u8 *uuid)
 
 static noinline int create_subvol(struct inode *dir,
 				  struct dentry *dentry,
-				  char *name, int namelen,
+				  const char *name, int namelen,
 				  u64 *async_transid,
 				  struct btrfs_qgroup_inherit *inherit)
 {
@@ -832,7 +832,7 @@ static inline int btrfs_may_create(struct inode *dir, struct dentry *child)
  * inside this filesystem so it's quite a bit simpler.
  */
 static noinline int btrfs_mksubvol(const struct path *parent,
-				   char *name, int namelen,
+				   const char *name, int namelen,
 				   struct btrfs_root *snap_src,
 				   u64 *async_transid, bool readonly,
 				   struct btrfs_qgroup_inherit *inherit)
@@ -1625,7 +1625,7 @@ out:
 }
 
 static noinline int btrfs_ioctl_snap_create_transid(struct file *file,
-				char *name, unsigned long fd, int subvol,
+				const char *name, unsigned long fd, int subvol,
 				u64 *transid, bool readonly,
 				struct btrfs_qgroup_inherit *inherit)
 {
