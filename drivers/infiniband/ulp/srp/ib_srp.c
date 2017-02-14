@@ -1892,9 +1892,11 @@ static void srp_process_rsp(struct srp_rdma_ch *ch, struct srp_rsp *rsp)
 		complete(&ch->tsk_mgmt_done);
 	} else {
 		scmnd = scsi_host_find_tag(target->scsi_host, rsp->tag);
-		if (scmnd) {
+		if (scmnd && scmnd->host_scribble) {
 			req = (void *)scmnd->host_scribble;
 			scmnd = srp_claim_req(ch, req, NULL, scmnd);
+		} else {
+			scmnd = NULL;
 		}
 		if (!scmnd) {
 			shost_printk(KERN_ERR, target->scsi_host,
