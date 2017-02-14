@@ -265,7 +265,7 @@ out:
 	return em;
 }
 
-u32 btrfs_csum_data(char *data, u32 seed, size_t len)
+u32 btrfs_csum_data(const char *data, u32 seed, size_t len)
 {
 	return btrfs_crc32c(seed, data, len);
 }
@@ -3448,7 +3448,7 @@ static int write_dev_supers(struct btrfs_device *device,
 			btrfs_set_super_bytenr(sb, bytenr);
 
 			crc = ~(u32)0;
-			crc = btrfs_csum_data((char *)sb +
+			crc = btrfs_csum_data((const char *)sb +
 					      BTRFS_CSUM_SIZE, crc,
 					      BTRFS_SUPER_INFO_SIZE -
 					      BTRFS_CSUM_SIZE);
