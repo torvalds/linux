@@ -451,6 +451,21 @@ static int gmc_v7_0_gart_set_pte_pde(struct amdgpu_device *adev,
 	return 0;
 }
 
+static uint64_t gmc_v7_0_get_vm_pte_flags(struct amdgpu_device *adev,
+					  uint32_t flags)
+{
+	uint64_t pte_flag = 0;
+
+	if (flags & AMDGPU_VM_PAGE_READABLE)
+		pte_flag |= AMDGPU_PTE_READABLE;
+	if (flags & AMDGPU_VM_PAGE_WRITEABLE)
+		pte_flag |= AMDGPU_PTE_WRITEABLE;
+	if (flags & AMDGPU_VM_PAGE_PRT)
+		pte_flag |= AMDGPU_PTE_PRT;
+
+	return pte_flag;
+}
+
 /**
  * gmc_v8_0_set_fault_enable_default - update VM fault handling
  *
@@ -1323,6 +1338,7 @@ static const struct amdgpu_gart_funcs gmc_v7_0_gart_funcs = {
 	.flush_gpu_tlb = gmc_v7_0_gart_flush_gpu_tlb,
 	.set_pte_pde = gmc_v7_0_gart_set_pte_pde,
 	.set_prt = gmc_v7_0_set_prt,
+	.get_vm_pte_flags = gmc_v7_0_get_vm_pte_flags
 };
 
 static const struct amdgpu_irq_src_funcs gmc_v7_0_irq_funcs = {
