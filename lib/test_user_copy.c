@@ -40,8 +40,11 @@ static int __init test_user_copy_init(void)
 	char __user *usermem;
 	char *bad_usermem;
 	unsigned long user_addr;
-	unsigned long value = 0x5A;
 	char *zerokmem;
+	u8 val_u8;
+	u16 val_u16;
+	u32 val_u32;
+	u64 val_u64;
 
 	kmem = kmalloc(PAGE_SIZE * 2, GFP_KERNEL);
 	if (!kmem)
@@ -72,10 +75,20 @@ static int __init test_user_copy_init(void)
 		    "legitimate copy_from_user failed");
 	ret |= test(copy_to_user(usermem, kmem, PAGE_SIZE),
 		    "legitimate copy_to_user failed");
-	ret |= test(get_user(value, (unsigned long __user *)usermem),
-		    "legitimate get_user failed");
-	ret |= test(put_user(value, (unsigned long __user *)usermem),
-		    "legitimate put_user failed");
+
+#define test_legit(size)						  \
+	do {								  \
+		ret |= test(get_user(val_##size, (size __user *)usermem), \
+		    "legitimate get_user (" #size ") failed");		  \
+		ret |= test(put_user(val_##size, (size __user *)usermem), \
+		    "legitimate put_user (" #size ") failed");		  \
+	} while (0)
+
+	test_legit(u8);
+	test_legit(u16);
+	test_legit(u32);
+	test_legit(u64);
+#undef test_legit
 
 	/*
 	 * Invalid usage: none of these copies should succeed.
@@ -112,12 +125,22 @@ static int __init test_user_copy_init(void)
 				  PAGE_SIZE),
 		    "illegal reversed copy_to_user passed");
 
-	value = 0x5A;
-	ret |= test(!get_user(value, (unsigned long __user *)kmem),
-		    "illegal get_user passed");
-	ret |= test(value != 0, "zeroing failure for illegal get_user");
-	ret |= test(!put_user(value, (unsigned long __user *)kmem),
-		    "illegal put_user passed");
+#define test_illegal(size, check)					    \
+	do {								    \
+		val_##size = (check);					    \
+		ret |= test(!get_user(val_##size, (size __user *)kmem),	    \
+		    "illegal get_user (" #size ") passed");		    \
+		ret |= test(val_##size != (size)0,			    \
+		    "zeroing failure for illegal get_user (" #size ")");    \
+		ret |= test(!put_user(val_##size, (size __user *)kmem),	    \
+		    "illegal put_user (" #size ") passed");		    \
+	} while (0)
+
+	test_illegal(u8,  0x5a);
+	test_illegal(u16, 0x5a5b);
+	test_illegal(u32, 0x5a5b5c5d);
+	test_illegal(u64, 0x5a5b5c5d6a6b6c6d);
+#undef test_illegal
 
 	vm_munmap(user_addr, PAGE_SIZE * 2);
 out_zerokmem:
