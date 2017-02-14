@@ -1038,6 +1038,15 @@ static void qgroup_dirty(struct btrfs_fs_info *fs_info,
 		list_add(&qgroup->dirty, &fs_info->dirty_qgroups);
 }
 
+static void report_reserved_underflow(struct btrfs_fs_info *fs_info,
+				      struct btrfs_qgroup *qgroup,
+				      u64 num_bytes)
+{
+	btrfs_warn(fs_info,
+		"qgroup %llu reserved space underflow, have: %llu, to free: %llu",
+		qgroup->qgroupid, qgroup->reserved, num_bytes);
+	qgroup->reserved = 0;
+}
 /*
  * The easy accounting, if we are adding/removing the only ref for an extent
  * then this qgroup and all of the parent qgroups get their reference and
@@ -1065,8 +1074,12 @@ static int __qgroup_excl_accounting(struct btrfs_fs_info *fs_info,
 	WARN_ON(sign < 0 && qgroup->excl < num_bytes);
 	qgroup->excl += sign * num_bytes;
 	qgroup->excl_cmpr += sign * num_bytes;
-	if (sign > 0)
-		qgroup->reserved -= num_bytes;
+	if (sign > 0) {
+		if (WARN_ON(qgroup->reserved < num_bytes))
+			report_reserved_underflow(fs_info, qgroup, num_bytes);
+		else
+			qgroup->reserved -= num_bytes;
+	}
 
 	qgroup_dirty(fs_info, qgroup);
 
@@ -1086,8 +1099,13 @@ static int __qgroup_excl_accounting(struct btrfs_fs_info *fs_info,
 		qgroup->rfer_cmpr += sign * num_bytes;
 		WARN_ON(sign < 0 && qgroup->excl < num_bytes);
 		qgroup->excl += sign * num_bytes;
-		if (sign > 0)
-			qgroup->reserved -= num_bytes;
+		if (sign > 0) {
+			if (WARN_ON(qgroup->reserved < num_bytes))
+				report_reserved_underflow(fs_info, qgroup,
+							  num_bytes);
+			else
+				qgroup->reserved -= num_bytes;
+		}
 		qgroup->excl_cmpr += sign * num_bytes;
 		qgroup_dirty(fs_info, qgroup);
 
@@ -2306,7 +2324,20 @@ out:
 	return ret;
 }
 
-static int qgroup_reserve(struct btrfs_root *root, u64 num_bytes)
+static bool qgroup_check_limits(const struct btrfs_qgroup *qg, u64 num_bytes)
+{
+	if ((qg->lim_flags & BTRFS_QGROUP_LIMIT_MAX_RFER) &&
+	    qg->reserved + (s64)qg->rfer + num_bytes > qg->max_rfer)
+		return false;
+
+	if ((qg->lim_flags & BTRFS_QGROUP_LIMIT_MAX_EXCL) &&
+	    qg->reserved + (s64)qg->excl + num_bytes > qg->max_excl)
+		return false;
+
+	return true;
+}
+
+static int qgroup_reserve(struct btrfs_root *root, u64 num_bytes, bool enforce)
 {
 	struct btrfs_root *quota_root;
 	struct btrfs_qgroup *qgroup;
@@ -2347,16 +2378,7 @@ static int qgroup_reserve(struct btrfs_root *root, u64 num_bytes)
 
 		qg = unode_aux_to_qgroup(unode);
 
-		if ((qg->lim_flags & BTRFS_QGROUP_LIMIT_MAX_RFER) &&
-		    qg->reserved + (s64)qg->rfer + num_bytes >
-		    qg->max_rfer) {
-			ret = -EDQUOT;
-			goto out;
-		}
-
-		if ((qg->lim_flags & BTRFS_QGROUP_LIMIT_MAX_EXCL) &&
-		    qg->reserved + (s64)qg->excl + num_bytes >
-		    qg->max_excl) {
+		if (enforce && !qgroup_check_limits(qg, num_bytes)) {
 			ret = -EDQUOT;
 			goto out;
 		}
@@ -2424,7 +2446,10 @@ void btrfs_qgroup_free_refroot(struct btrfs_fs_info *fs_info,
 
 		qg = unode_aux_to_qgroup(unode);
 
-		qg->reserved -= num_bytes;
+		if (WARN_ON(qg->reserved < num_bytes))
+			report_reserved_underflow(fs_info, qg, num_bytes);
+		else
+			qg->reserved -= num_bytes;
 
 		list_for_each_entry(glist, &qg->groups, next_group) {
 			ret = ulist_add(fs_info->qgroup_ulist,
@@ -2811,7 +2836,7 @@ int btrfs_qgroup_reserve_data(struct inode *inode, u64 start, u64 len)
 					QGROUP_RESERVE);
 	if (ret < 0)
 		goto cleanup;
-	ret = qgroup_reserve(root, changeset.bytes_changed);
+	ret = qgroup_reserve(root, changeset.bytes_changed, true);
 	if (ret < 0)
 		goto cleanup;
 
@@ -2892,7 +2917,8 @@ int btrfs_qgroup_release_data(struct inode *inode, u64 start, u64 len)
 	return __btrfs_qgroup_release_data(inode, start, len, 0);
 }
 
-int btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes)
+int btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
+			      bool enforce)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	int ret;
@@ -2902,7 +2928,7 @@ int btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes)
 		return 0;
 
 	BUG_ON(num_bytes != round_down(num_bytes, fs_info->nodesize));
-	ret = qgroup_reserve(root, num_bytes);
+	ret = qgroup_reserve(root, num_bytes, enforce);
 	if (ret < 0)
 		return ret;
 	atomic_add(num_bytes, &root->qgroup_meta_rsv);
