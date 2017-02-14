@@ -1364,12 +1364,8 @@ static int qgroup_account_snapshot(struct btrfs_trans_handle *trans,
 	 * enabled. If this check races with the ioctl, rescan will
 	 * kick in anyway.
 	 */
-	mutex_lock(&fs_info->qgroup_ioctl_lock);
-	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags)) {
-		mutex_unlock(&fs_info->qgroup_ioctl_lock);
+	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags))
 		return 0;
-	}
-	mutex_unlock(&fs_info->qgroup_ioctl_lock);
 
 	/*
 	 * We are going to commit transaction, see btrfs_commit_transaction()
@@ -2211,7 +2207,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 		goto scrub_continue;
 	}
 
-	btrfs_prepare_extent_commit(trans, fs_info);
+	btrfs_prepare_extent_commit(fs_info);
 
 	cur_trans = fs_info->running_transaction;
 
@@ -2261,7 +2257,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 		goto scrub_continue;
 	}
 
-	ret = write_ctree_super(trans, fs_info, 0);
+	ret = write_all_supers(fs_info, 0);
 	if (ret) {
 		mutex_unlock(&fs_info->tree_log_mutex);
 		goto scrub_continue;

@@ -144,7 +144,7 @@ static void add_extent_changeset(struct extent_state *state, unsigned bits,
 	if (!set && (state->state & bits) == 0)
 		return;
 	changeset->bytes_changed += state->end - state->start + 1;
-	ret = ulist_add(changeset->range_changed, state->start, state->end,
+	ret = ulist_add(&changeset->range_changed, state->start, state->end,
 			GFP_ATOMIC);
 	/* ENOMEM */
 	BUG_ON(ret < 0);
@@ -2759,7 +2759,6 @@ static int submit_extent_page(int op, int op_flags, struct extent_io_tree *tree,
 			      size_t size, unsigned long offset,
 			      struct block_device *bdev,
 			      struct bio **bio_ret,
-			      unsigned long max_pages,
 			      bio_end_io_t end_io_func,
 			      int mirror_num,
 			      unsigned long prev_bio_flags,
@@ -3063,7 +3062,7 @@ static int __do_readpage(struct extent_io_tree *tree,
 		pnr -= page->index;
 		ret = submit_extent_page(REQ_OP_READ, read_flags, tree, NULL,
 					 page, sector, disk_io_size, pg_offset,
-					 bdev, bio, pnr,
+					 bdev, bio,
 					 end_bio_extent_readpage, mirror_num,
 					 *bio_flags,
 					 this_bio_flag,
@@ -3204,7 +3203,7 @@ int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
 	return ret;
 }
 
-static void update_nr_written(struct page *page, struct writeback_control *wbc,
+static void update_nr_written(struct writeback_control *wbc,
 			      unsigned long nr_written)
 {
 	wbc->nr_to_write -= nr_written;
@@ -3342,7 +3341,7 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 			else
 				redirty_page_for_writepage(wbc, page);
 
-			update_nr_written(page, wbc, nr_written);
+			update_nr_written(wbc, nr_written);
 			unlock_page(page);
 			return 1;
 		}
@@ -3352,7 +3351,7 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 	 * we don't want to touch the inode after unlocking the page,
 	 * so we update the mapping writeback index now
 	 */
-	update_nr_written(page, wbc, nr_written + 1);
+	update_nr_written(wbc, nr_written + 1);
 
 	end = page_end;
 	if (i_size <= start) {
@@ -3434,7 +3433,7 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 
 		ret = submit_extent_page(REQ_OP_WRITE, write_flags, tree, wbc,
 					 page, sector, iosize, pg_offset,
-					 bdev, &epd->bio, max_nr,
+					 bdev, &epd->bio,
 					 end_bio_extent_writepage,
 					 0, 0, 0, false);
 		if (ret) {
@@ -3751,7 +3750,7 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 		set_page_writeback(p);
 		ret = submit_extent_page(REQ_OP_WRITE, write_flags, tree, wbc,
 					 p, offset >> 9, PAGE_SIZE, 0, bdev,
-					 &epd->bio, -1,
+					 &epd->bio,
 					 end_bio_extent_buffer_writepage,
 					 0, epd->bio_flags, bio_flags, false);
 		epd->bio_flags = bio_flags;
@@ -3765,7 +3764,7 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 			break;
 		}
 		offset += PAGE_SIZE;
-		update_nr_written(p, wbc, 1);
+		update_nr_written(wbc, 1);
 		unlock_page(p);
 	}
 
@@ -3917,8 +3916,7 @@ retry:
  * WB_SYNC_ALL then we were called for data integrity and we must wait for
  * existing IO to complete.
  */
-static int extent_write_cache_pages(struct extent_io_tree *tree,
-			     struct address_space *mapping,
+static int extent_write_cache_pages(struct address_space *mapping,
 			     struct writeback_control *wbc,
 			     writepage_t writepage, void *data,
 			     void (*flush_fn)(void *))
@@ -4159,8 +4157,7 @@ int extent_writepages(struct extent_io_tree *tree,
 		.bio_flags = 0,
 	};
 
-	ret = extent_write_cache_pages(tree, mapping, wbc,
-				       __extent_writepage, &epd,
+	ret = extent_write_cache_pages(mapping, wbc, __extent_writepage, &epd,
 				       flush_write_bio);
 	flush_epd_write_bio(&epd);
 	return ret;

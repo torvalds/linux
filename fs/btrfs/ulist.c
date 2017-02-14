@@ -58,7 +58,7 @@ void ulist_init(struct ulist *ulist)
  * This is useful in cases where the base 'struct ulist' has been statically
  * allocated.
  */
-static void ulist_fini(struct ulist *ulist)
+void ulist_fini(struct ulist *ulist)
 {
 	struct ulist_node *node;
 	struct ulist_node *next;

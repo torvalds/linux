@@ -319,7 +319,7 @@ int btrfs_read_qgroup_config(struct btrfs_fs_info *fs_info)
 	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags))
 		return 0;
 
-	fs_info->qgroup_ulist = ulist_alloc(GFP_NOFS);
+	fs_info->qgroup_ulist = ulist_alloc(GFP_KERNEL);
 	if (!fs_info->qgroup_ulist) {
 		ret = -ENOMEM;
 		goto out;
@@ -876,7 +876,7 @@ int btrfs_quota_enable(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
-	fs_info->qgroup_ulist = ulist_alloc(GFP_NOFS);
+	fs_info->qgroup_ulist = ulist_alloc(GFP_KERNEL);
 	if (!fs_info->qgroup_ulist) {
 		ret = -ENOMEM;
 		goto out;
@@ -1019,7 +1019,7 @@ int btrfs_quota_disable(struct btrfs_trans_handle *trans,
 	list_del(&quota_root->dirty_list);
 
 	btrfs_tree_lock(quota_root->node);
-	clean_tree_block(trans, fs_info, quota_root->node);
+	clean_tree_block(fs_info, quota_root->node);
 	btrfs_tree_unlock(quota_root->node);
 	btrfs_free_tree_block(trans, quota_root, quota_root->node, 0, 1);
 
@@ -1174,7 +1174,7 @@ int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans,
 	if (btrfs_qgroup_level(src) >= btrfs_qgroup_level(dst))
 		return -EINVAL;
 
-	tmp = ulist_alloc(GFP_NOFS);
+	tmp = ulist_alloc(GFP_KERNEL);
 	if (!tmp)
 		return -ENOMEM;
 
@@ -1223,7 +1223,7 @@ out:
 	return ret;
 }
 
-int __del_qgroup_relation(struct btrfs_trans_handle *trans,
+static int __del_qgroup_relation(struct btrfs_trans_handle *trans,
 			      struct btrfs_fs_info *fs_info, u64 src, u64 dst)
 {
 	struct btrfs_root *quota_root;
@@ -1234,7 +1234,7 @@ int __del_qgroup_relation(struct btrfs_trans_handle *trans,
 	int ret = 0;
 	int err;
 
-	tmp = ulist_alloc(GFP_NOFS);
+	tmp = ulist_alloc(GFP_KERNEL);
 	if (!tmp)
 		return -ENOMEM;
 
@@ -1589,8 +1589,7 @@ int btrfs_qgroup_trace_leaf_items(struct btrfs_trans_handle *trans,
  * If we increment the root nodes slot counter past the number of
  * elements, 1 is returned to signal completion of the search.
  */
-static int adjust_slots_upwards(struct btrfs_root *root,
-				struct btrfs_path *path, int root_level)
+static int adjust_slots_upwards(struct btrfs_path *path, int root_level)
 {
 	int level = 0;
 	int nr, slot;
@@ -1731,7 +1730,7 @@ walk_down:
 				goto out;
 
 			/* Nonzero return here means we completed our search */
-			ret = adjust_slots_upwards(root, path, root_level);
+			ret = adjust_slots_upwards(path, root_level);
 			if (ret)
 				break;
 
@@ -1945,13 +1944,14 @@ btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans,
 	u64 nr_old_roots = 0;
 	int ret = 0;
 
+	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags))
+		return 0;
+
 	if (new_roots)
 		nr_new_roots = new_roots->nnodes;
 	if (old_roots)
 		nr_old_roots = old_roots->nnodes;
 
-	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags))
-		goto out_free;
 	BUG_ON(!fs_info->quota_root);
 
 	trace_btrfs_qgroup_account_extent(fs_info, bytenr, num_bytes,
@@ -2188,9 +2188,7 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 			goto out;
 		}
 
-		rcu_read_lock();
 		level_size = fs_info->nodesize;
-		rcu_read_unlock();
 	}
 
 	/*
@@ -2464,11 +2462,6 @@ out:
 	spin_unlock(&fs_info->qgroup_lock);
 }
 
-static inline void qgroup_free(struct btrfs_root *root, u64 num_bytes)
-{
-	return btrfs_qgroup_free_refroot(root->fs_info, root->objectid,
-					 num_bytes);
-}
 void assert_qgroups_uptodate(struct btrfs_trans_handle *trans)
 {
 	if (list_empty(&trans->qgroup_ref_list) && !trans->delayed_ref_elem.seq)
@@ -2828,7 +2821,7 @@ int btrfs_qgroup_reserve_data(struct inode *inode, u64 start, u64 len)
 		return 0;
 
 	changeset.bytes_changed = 0;
-	changeset.range_changed = ulist_alloc(GFP_NOFS);
+	ulist_init(&changeset.range_changed);
 	ret = set_record_extent_bits(&BTRFS_I(inode)->io_tree, start,
 			start + len -1, EXTENT_QGROUP_RESERVED, &changeset);
 	trace_btrfs_qgroup_reserve_data(inode, start, len,
@@ -2840,17 +2833,17 @@ int btrfs_qgroup_reserve_data(struct inode *inode, u64 start, u64 len)
 	if (ret < 0)
 		goto cleanup;
 
-	ulist_free(changeset.range_changed);
+	ulist_fini(&changeset.range_changed);
 	return ret;
 
 cleanup:
 	/* cleanup already reserved ranges */
 	ULIST_ITER_INIT(&uiter);
-	while ((unode = ulist_next(changeset.range_changed, &uiter)))
+	while ((unode = ulist_next(&changeset.range_changed, &uiter)))
 		clear_extent_bit(&BTRFS_I(inode)->io_tree, unode->val,
 				 unode->aux, EXTENT_QGROUP_RESERVED, 0, 0, NULL,
 				 GFP_NOFS);
-	ulist_free(changeset.range_changed);
+	ulist_fini(&changeset.range_changed);
 	return ret;
 }
 
@@ -2862,23 +2855,22 @@ static int __btrfs_qgroup_release_data(struct inode *inode, u64 start, u64 len,
 	int ret;
 
 	changeset.bytes_changed = 0;
-	changeset.range_changed = ulist_alloc(GFP_NOFS);
-	if (!changeset.range_changed)
-		return -ENOMEM;
-
+	ulist_init(&changeset.range_changed);
 	ret = clear_record_extent_bits(&BTRFS_I(inode)->io_tree, start, 
 			start + len -1, EXTENT_QGROUP_RESERVED, &changeset);
 	if (ret < 0)
 		goto out;
 
 	if (free) {
-		qgroup_free(BTRFS_I(inode)->root, changeset.bytes_changed);
+		btrfs_qgroup_free_refroot(BTRFS_I(inode)->root->fs_info,
+				BTRFS_I(inode)->root->objectid,
+				changeset.bytes_changed);
 		trace_op = QGROUP_FREE;
 	}
 	trace_btrfs_qgroup_release_data(inode, start, len,
 					changeset.bytes_changed, trace_op);
 out:
-	ulist_free(changeset.range_changed);
+	ulist_fini(&changeset.range_changed);
 	return ret;
 }
 
@@ -2947,7 +2939,7 @@ void btrfs_qgroup_free_meta_all(struct btrfs_root *root)
 	reserved = atomic_xchg(&root->qgroup_meta_rsv, 0);
 	if (reserved == 0)
 		return;
-	qgroup_free(root, reserved);
+	btrfs_qgroup_free_refroot(fs_info, root->objectid, reserved);
 }
 
 void btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes)
@@ -2961,7 +2953,7 @@ void btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes)
 	BUG_ON(num_bytes != round_down(num_bytes, fs_info->nodesize));
 	WARN_ON(atomic_read(&root->qgroup_meta_rsv) < num_bytes);
 	atomic_sub(num_bytes, &root->qgroup_meta_rsv);
-	qgroup_free(root, num_bytes);
+	btrfs_qgroup_free_refroot(fs_info, root->objectid, num_bytes);
 }
 
 /*
@@ -2976,22 +2968,22 @@ void btrfs_qgroup_check_reserved_leak(struct inode *inode)
 	int ret;
 
 	changeset.bytes_changed = 0;
-	changeset.range_changed = ulist_alloc(GFP_NOFS);
-	if (WARN_ON(!changeset.range_changed))
-		return;
-
+	ulist_init(&changeset.range_changed);
 	ret = clear_record_extent_bits(&BTRFS_I(inode)->io_tree, 0, (u64)-1,
 			EXTENT_QGROUP_RESERVED, &changeset);
 
 	WARN_ON(ret < 0);
 	if (WARN_ON(changeset.bytes_changed)) {
 		ULIST_ITER_INIT(&iter);
-		while ((unode = ulist_next(changeset.range_changed, &iter))) {
+		while ((unode = ulist_next(&changeset.range_changed, &iter))) {
 			btrfs_warn(BTRFS_I(inode)->root->fs_info,
 				"leaking qgroup reserved space, ino: %lu, start: %llu, end: %llu",
 				inode->i_ino, unode->val, unode->aux);
 		}
-		qgroup_free(BTRFS_I(inode)->root, changeset.bytes_changed);
+		btrfs_qgroup_free_refroot(BTRFS_I(inode)->root->fs_info,
+				BTRFS_I(inode)->root->objectid,
+				changeset.bytes_changed);
+
 	}
-	ulist_free(changeset.range_changed);
+	ulist_fini(&changeset.range_changed);
 }

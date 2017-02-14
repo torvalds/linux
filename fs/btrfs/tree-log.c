@@ -999,7 +999,6 @@ static inline int __add_inode_ref(struct btrfs_trans_handle *trans,
 				  struct btrfs_root *log_root,
 				  struct btrfs_inode *dir,
 				  struct btrfs_inode *inode,
-				  struct extent_buffer *eb,
 				  u64 inode_objectid, u64 parent_objectid,
 				  u64 ref_index, char *name, int namelen,
 				  int *search_done)
@@ -1315,7 +1314,7 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 			if (!search_done) {
 				ret = __add_inode_ref(trans, root, path, log,
 						      BTRFS_I(dir),
-						      BTRFS_I(inode), eb,
+						      BTRFS_I(inode),
 						      inode_objectid,
 						      parent_objectid,
 						      ref_index, name, namelen,
@@ -2477,7 +2476,7 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 				if (trans) {
 					btrfs_tree_lock(next);
 					btrfs_set_lock_blocking(next);
-					clean_tree_block(trans, fs_info, next);
+					clean_tree_block(fs_info, next);
 					btrfs_wait_tree_block_writeback(next);
 					btrfs_tree_unlock(next);
 				}
@@ -2557,7 +2556,7 @@ static noinline int walk_up_log_tree(struct btrfs_trans_handle *trans,
 				if (trans) {
 					btrfs_tree_lock(next);
 					btrfs_set_lock_blocking(next);
-					clean_tree_block(trans, fs_info, next);
+					clean_tree_block(fs_info, next);
 					btrfs_wait_tree_block_writeback(next);
 					btrfs_tree_unlock(next);
 				}
@@ -2635,7 +2634,7 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 			if (trans) {
 				btrfs_tree_lock(next);
 				btrfs_set_lock_blocking(next);
-				clean_tree_block(trans, fs_info, next);
+				clean_tree_block(fs_info, next);
 				btrfs_wait_tree_block_writeback(next);
 				btrfs_tree_unlock(next);
 			}
@@ -2966,7 +2965,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	 * the running transaction open, so a full commit can't hop
 	 * in and cause problems either.
 	 */
-	ret = write_ctree_super(trans, fs_info, 1);
+	ret = write_all_supers(fs_info, 1);
 	if (ret) {
 		btrfs_set_log_full_commit(fs_info, trans);
 		btrfs_abort_transaction(trans, ret);
