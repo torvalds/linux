@@ -2520,27 +2520,19 @@ EXPORT_SYMBOL(scsi_mode_sense);
  *	@sdev:	scsi device to change the state of.
  *	@timeout: command timeout
  *	@retries: number of retries before failing
- *	@sshdr_external: Optional pointer to struct scsi_sense_hdr for
- *		returning sense. Make sure that this is cleared before passing
- *		in.
+ *	@sshdr: outpout pointer for decoded sense information.
  *
  *	Returns zero if unsuccessful or an error if TUR failed.  For
  *	removable media, UNIT_ATTENTION sets ->changed flag.
  **/
 int
 scsi_test_unit_ready(struct scsi_device *sdev, int timeout, int retries,
-		     struct scsi_sense_hdr *sshdr_external)
+		     struct scsi_sense_hdr *sshdr)
 {
 	char cmd[] = {
 		TEST_UNIT_READY, 0, 0, 0, 0, 0,
 	};
-	struct scsi_sense_hdr *sshdr;
 	int result;
-
-	if (!sshdr_external)
-		sshdr = kzalloc(sizeof(*sshdr), GFP_KERNEL);
-	else
-		sshdr = sshdr_external;
 
 	/* try to eat the UNIT_ATTENTION if there are enough retries */
 	do {
@@ -2552,8 +2544,6 @@ scsi_test_unit_ready(struct scsi_device *sdev, int timeout, int retries,
 	} while (scsi_sense_valid(sshdr) &&
 		 sshdr->sense_key == UNIT_ATTENTION && --retries);
 
-	if (!sshdr_external)
-		kfree(sshdr);
 	return result;
 }
 EXPORT_SYMBOL(scsi_test_unit_ready);
