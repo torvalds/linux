@@ -5306,6 +5306,81 @@ out:
 	return ret;
 }
 
+static int range_is_hole_in_parent(struct send_ctx *sctx,
+				   const u64 start,
+				   const u64 end)
+{
+	struct btrfs_path *path;
+	struct btrfs_key key;
+	struct btrfs_root *root = sctx->parent_root;
+	u64 search_start = start;
+	int ret;
+
+	path = alloc_path_for_send();
+	if (!path)
+		return -ENOMEM;
+
+	key.objectid = sctx->cur_ino;
+	key.type = BTRFS_EXTENT_DATA_KEY;
+	key.offset = search_start;
+	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	if (ret < 0)
+		goto out;
+	if (ret > 0 && path->slots[0] > 0)
+		path->slots[0]--;
+
+	while (search_start < end) {
+		struct extent_buffer *leaf = path->nodes[0];
+		int slot = path->slots[0];
+		struct btrfs_file_extent_item *fi;
+		u64 extent_end;
+
+		if (slot >= btrfs_header_nritems(leaf)) {
+			ret = btrfs_next_leaf(root, path);
+			if (ret < 0)
+				goto out;
+			else if (ret > 0)
+				break;
+			continue;
+		}
+
+		btrfs_item_key_to_cpu(leaf, &key, slot);
+		if (key.objectid < sctx->cur_ino ||
+		    key.type < BTRFS_EXTENT_DATA_KEY)
+			goto next;
+		if (key.objectid > sctx->cur_ino ||
+		    key.type > BTRFS_EXTENT_DATA_KEY ||
+		    key.offset >= end)
+			break;
+
+		fi = btrfs_item_ptr(leaf, slot, struct btrfs_file_extent_item);
+		if (btrfs_file_extent_type(leaf, fi) ==
+		    BTRFS_FILE_EXTENT_INLINE) {
+			u64 size = btrfs_file_extent_inline_len(leaf, slot, fi);
+
+			extent_end = ALIGN(key.offset + size,
+					   root->fs_info->sectorsize);
+		} else {
+			extent_end = key.offset +
+				btrfs_file_extent_num_bytes(leaf, fi);
+		}
+		if (extent_end <= start)
+			goto next;
+		if (btrfs_file_extent_disk_bytenr(leaf, fi) == 0) {
+			search_start = extent_end;
+			goto next;
+		}
+		ret = 0;
+		goto out;
+next:
+		path->slots[0]++;
+	}
+	ret = 1;
+out:
+	btrfs_free_path(path);
+	return ret;
+}
+
 static int maybe_send_hole(struct send_ctx *sctx, struct btrfs_path *path,
 			   struct btrfs_key *key)
 {
@@ -5350,8 +5425,17 @@ static int maybe_send_hole(struct send_ctx *sctx, struct btrfs_path *path,
 			return ret;
 	}
 
-	if (sctx->cur_inode_last_extent < key->offset)
-		ret = send_hole(sctx, key->offset);
+	if (sctx->cur_inode_last_extent < key->offset) {
+		ret = range_is_hole_in_parent(sctx,
+					      sctx->cur_inode_last_extent,
+					      key->offset);
+		if (ret < 0)
+			return ret;
+		else if (ret == 0)
+			ret = send_hole(sctx, key->offset);
+		else
+			ret = 0;
+	}
 	sctx->cur_inode_last_extent = extent_end;
 	return ret;
 }
