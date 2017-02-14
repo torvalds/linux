@@ -231,7 +231,8 @@ static void cros_ec_lpc_acpi_notify(acpi_handle device, u32 value, void *data)
 {
 	struct cros_ec_device *ec_dev = data;
 
-	if (ec_dev->mkbp_event_supported && cros_ec_get_next_event(ec_dev) > 0)
+	if (ec_dev->mkbp_event_supported &&
+	    cros_ec_get_next_event(ec_dev, NULL) > 0)
 		blocking_notifier_call_chain(&ec_dev->event_notifier, 0,
 					     ec_dev);
 }

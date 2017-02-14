@@ -149,6 +149,7 @@ struct cros_ec_device {
 
 	struct ec_response_get_next_event event_data;
 	int event_size;
+	u32 host_event_wake_mask;
 };
 
 /**
@@ -299,10 +300,12 @@ int cros_ec_query_all(struct cros_ec_device *ec_dev);
  * cros_ec_get_next_event -  Fetch next event from the ChromeOS EC
  *
  * @ec_dev: Device to fetch event from
+ * @wake_event: Pointer to a bool set to true upon return if the event might be
+ *              treated as a wake event. Ignored if null.
  *
  * Returns: 0 on success, Linux error number on failure
  */
-int cros_ec_get_next_event(struct cros_ec_device *ec_dev);
+int cros_ec_get_next_event(struct cros_ec_device *ec_dev, bool *wake_event);
 
 /**
  * cros_ec_get_host_event - Return a mask of event set by the EC.
