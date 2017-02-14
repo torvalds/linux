@@ -1345,13 +1345,12 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 
 	first_clone = 1;
 	for (i = 0; i < disks; i++) {
-		struct bio *mbio;
+		struct bio *mbio = NULL;
+		sector_t offset;
 		if (!r1_bio->bios[i])
 			continue;
 
-		mbio = bio_clone_mddev(bio, GFP_NOIO, mddev);
-		bio_trim(mbio, r1_bio->sector - bio->bi_iter.bi_sector,
-			 max_sectors);
+		offset = r1_bio->sector - bio->bi_iter.bi_sector;
 
 		if (first_clone) {
 			/* do behind I/O ?
@@ -1361,8 +1360,13 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 			if (bitmap &&
 			    (atomic_read(&bitmap->behind_writes)
 			     < mddev->bitmap_info.max_write_behind) &&
-			    !waitqueue_active(&bitmap->behind_wait))
+			    !waitqueue_active(&bitmap->behind_wait)) {
+				mbio = bio_clone_bioset_partial(bio, GFP_NOIO,
+								mddev->bio_set,
+								offset,
+								max_sectors);
 				alloc_behind_pages(mbio, r1_bio);
+			}
 
 			bitmap_startwrite(bitmap, r1_bio->sector,
 					  r1_bio->sectors,
@@ -1370,6 +1374,12 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 						   &r1_bio->state));
 			first_clone = 0;
 		}
+
+		if (!mbio) {
+			mbio = bio_clone_mddev(bio, GFP_NOIO, mddev);
+			bio_trim(mbio, offset, max_sectors);
+		}
+
 		if (r1_bio->behind_bvecs) {
 			struct bio_vec *bvec;
 			int j;
