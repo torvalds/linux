@@ -276,17 +276,26 @@ static int parse_cmdline_partitions(sector_t n,
 
 static void rkpart_bootmode_fixup(void)
 {
-	const char mode[] = " androidboot.mode=emmc";
+	const char mode_emmc[] = " androidboot.mode=emmc";
+	const char mode_nvme[] = " androidboot.mode=nvme";
 	const char charger[] = " androidboot.charger.emmc=1";
 	char *new_command_line;
 	size_t saved_command_line_len = strlen(saved_command_line);
 
 	if (strstr(saved_command_line, "androidboot.mode=charger")) {
-		new_command_line = kzalloc(saved_command_line_len + strlen(charger) + 1, GFP_KERNEL);
-		sprintf(new_command_line, "%s%s", saved_command_line, charger);
+		new_command_line = kzalloc(saved_command_line_len +
+				strlen(charger) + 1, GFP_KERNEL);
+		sprintf(new_command_line, "%s%s",
+			saved_command_line, charger);
 	} else {
-		new_command_line = kzalloc(saved_command_line_len + strlen(mode) + 1, GFP_KERNEL);
-		sprintf(new_command_line, "%s%s", saved_command_line, mode);
+		new_command_line = kzalloc(saved_command_line_len +
+				strlen(mode_emmc) + 1, GFP_KERNEL);
+		if (strstr(saved_command_line, "storagemedia=nvme"))
+			sprintf(new_command_line, "%s%s",
+				saved_command_line, mode_nvme);
+		else
+			sprintf(new_command_line, "%s%s",
+				saved_command_line, mode_emmc);
 	}
 	saved_command_line = new_command_line;
 }
