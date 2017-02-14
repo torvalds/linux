@@ -365,6 +365,18 @@ struct drm_amdgpu_gem_op {
 #define AMDGPU_VM_PAGE_EXECUTABLE	(1 << 3)
 /* partially resident texture */
 #define AMDGPU_VM_PAGE_PRT		(1 << 4)
+/* MTYPE flags use bit 5 to 8 */
+#define AMDGPU_VM_MTYPE_MASK		(0xf << 5)
+/* Default MTYPE. Pre-AI must use this.  Recommended for newer ASICs. */
+#define AMDGPU_VM_MTYPE_DEFAULT		(0 << 5)
+/* Use NC MTYPE instead of default MTYPE */
+#define AMDGPU_VM_MTYPE_NC		(1 << 5)
+/* Use WC MTYPE instead of default MTYPE */
+#define AMDGPU_VM_MTYPE_WC		(2 << 5)
+/* Use CC MTYPE instead of default MTYPE */
+#define AMDGPU_VM_MTYPE_CC		(3 << 5)
+/* Use UC MTYPE instead of default MTYPE */
+#define AMDGPU_VM_MTYPE_UC		(4 << 5)
 
 struct drm_amdgpu_gem_va {
 	/** GEM object handle */
