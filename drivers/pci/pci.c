@@ -4958,7 +4958,8 @@ static DEFINE_SPINLOCK(resource_alignment_lock);
  * RETURNS: Resource alignment if it is specified.
  *          Zero if it is not specified.
  */
-static resource_size_t pci_specified_resource_alignment(struct pci_dev *dev)
+static resource_size_t pci_specified_resource_alignment(struct pci_dev *dev,
+							bool *resize)
 {
 	int seg, bus, slot, func, align_order, count;
 	unsigned short vendor, device, subsystem_vendor, subsystem_device;
@@ -5002,6 +5003,7 @@ static resource_size_t pci_specified_resource_alignment(struct pci_dev *dev)
 				(!device || (device == dev->device)) &&
 				(!subsystem_vendor || (subsystem_vendor == dev->subsystem_vendor)) &&
 				(!subsystem_device || (subsystem_device == dev->subsystem_device))) {
+				*resize = true;
 				if (align_order == -1)
 					align = PAGE_SIZE;
 				else
@@ -5027,6 +5029,7 @@ static resource_size_t pci_specified_resource_alignment(struct pci_dev *dev)
 				bus == dev->bus->number &&
 				slot == PCI_SLOT(dev->devfn) &&
 				func == PCI_FUNC(dev->devfn)) {
+				*resize = true;
 				if (align_order == -1)
 					align = PAGE_SIZE;
 				else
@@ -5059,6 +5062,7 @@ void pci_reassigndev_resource_alignment(struct pci_dev *dev)
 	struct resource *r;
 	resource_size_t align, size;
 	u16 command;
+	bool resize = false;
 
 	/*
 	 * VF BARs are read-only zero according to SR-IOV spec r1.1, sec
@@ -5070,7 +5074,7 @@ void pci_reassigndev_resource_alignment(struct pci_dev *dev)
 		return;
 
 	/* check if specified PCI is target device to reassign */
-	align = pci_specified_resource_alignment(dev);
+	align = pci_specified_resource_alignment(dev, &resize);
 	if (!align)
 		return;
 
@@ -5098,15 +5102,25 @@ void pci_reassigndev_resource_alignment(struct pci_dev *dev)
 		}
 
 		size = resource_size(r);
-		if (size < align) {
-			size = align;
-			dev_info(&dev->dev,
-				"Rounding up size of resource #%d to %#llx.\n",
-				i, (unsigned long long)size);
+		if (resize) {
+			if (size < align) {
+				size = align;
+				dev_info(&dev->dev,
+					"Rounding up size of resource #%d to %#llx.\n",
+					i, (unsigned long long)size);
+			}
+			r->flags |= IORESOURCE_UNSET;
+			r->end = size - 1;
+			r->start = 0;
+		} else {
+			if (size < align) {
+				r->flags &= ~IORESOURCE_SIZEALIGN;
+				r->flags |= IORESOURCE_STARTALIGN |
+							IORESOURCE_UNSET;
+				r->start = align;
+				r->end = r->start + size - 1;
+			}
 		}
-		r->flags |= IORESOURCE_UNSET;
-		r->end = size - 1;
-		r->start = 0;
 	}
 	/* Need to disable bridge's resource window,
 	 * to enable the kernel to reassign new resource
