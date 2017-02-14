@@ -1166,7 +1166,7 @@ void ide_cdrom_update_speed(ide_drive_t *drive, u8 *buf)
 	 CDC_CD_RW | CDC_DVD | CDC_DVD_R | CDC_DVD_RAM | CDC_GENERIC_PACKET | \
 	 CDC_MO_DRIVE | CDC_MRW | CDC_MRW_W | CDC_RAM)
 
-static struct cdrom_device_ops ide_cdrom_dops = {
+static const struct cdrom_device_ops ide_cdrom_dops = {
 	.open			= ide_cdrom_open_real,
 	.release		= ide_cdrom_release_real,
 	.drive_status		= ide_cdrom_drive_status,
