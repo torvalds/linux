@@ -352,7 +352,15 @@ int core_enable_device_list_for_node(
 			kfree(new);
 			return -EINVAL;
 		}
-		BUG_ON(orig->se_lun_acl != NULL);
+		if (orig->se_lun_acl != NULL) {
+			pr_warn_ratelimited("Detected existing explicit"
+				" se_lun_acl->se_lun_group reference for %s"
+				" mapped_lun: %llu, failing\n",
+				 nacl->initiatorname, mapped_lun);
+			mutex_unlock(&nacl->lun_entry_mutex);
+			kfree(new);
+			return -EINVAL;
+		}
 
 		rcu_assign_pointer(new->se_lun, lun);
 		rcu_assign_pointer(new->se_lun_acl, lun_acl);

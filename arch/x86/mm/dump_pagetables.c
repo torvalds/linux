@@ -15,6 +15,7 @@
 #include <linux/debugfs.h>
 #include <linux/mm.h>
 #include <linux/init.h>
+#include <linux/sched.h>
 #include <linux/seq_file.h>
 
 #include <asm/pgtable.h>
@@ -406,6 +407,7 @@ static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
 		} else
 			note_page(m, &st, __pgprot(0), 1);
 
+		cond_resched();
 		start++;
 	}
 

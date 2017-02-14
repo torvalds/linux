@@ -273,6 +273,7 @@ static int dsa_user_port_apply(struct device_node *port, u32 index,
 	if (err) {
 		dev_warn(ds->dev, "Failed to create slave %d: %d\n",
 			 index, err);
+		ds->ports[index].netdev = NULL;
 		return err;
 	}
 
