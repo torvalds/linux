@@ -178,10 +178,10 @@ static int gdm_lte_emulate_arp(struct sk_buff *skb_in, u32 nic_type)
 	return 0;
 }
 
-static int icmp6_checksum(struct ipv6hdr *ipv6, u16 *ptr, int len)
+static __sum16 icmp6_checksum(struct ipv6hdr *ipv6, u16 *ptr, int len)
 {
 	unsigned short *w = ptr;
-	int sum = 0;
+	__wsum sum = 0;
 	int i;
 
 	union {
@@ -203,19 +203,16 @@ static int icmp6_checksum(struct ipv6hdr *ipv6, u16 *ptr, int len)
 
 	w = (u16 *)&pseudo_header;
 	for (i = 0; i < ARRAY_SIZE(pseudo_header.pa); i++)
-		sum += pseudo_header.pa[i];
+		sum = csum_add(sum, csum_unfold(
+					(__force __sum16)pseudo_header.pa[i]));
 
 	w = ptr;
 	while (len > 1) {
-		sum += *w++;
+		sum = csum_add(sum, csum_unfold((__force __sum16)*w++));
 		len -= 2;
 	}
 
-	sum = (sum >> 16) + (sum & 0xFFFF);
-	sum += (sum >> 16);
-	sum = ~sum & 0xffff;
-
-	return sum;
+	return csum_fold(sum);
 }
 
 static int gdm_lte_emulate_ndp(struct sk_buff *skb_in, u32 nic_type)
