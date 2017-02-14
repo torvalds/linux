@@ -62,6 +62,9 @@ int cma_get_default_gid_type(struct cma_device *cma_dev,
 int cma_set_default_gid_type(struct cma_device *cma_dev,
 			     unsigned int port,
 			     enum ib_gid_type default_gid_type);
+int cma_get_default_roce_tos(struct cma_device *cma_dev, unsigned int port);
+int cma_set_default_roce_tos(struct cma_device *a_dev, unsigned int port,
+			     u8 default_roce_tos);
 struct ib_device *cma_get_ib_dev(struct cma_device *cma_dev);
 
 int  ib_device_register_sysfs(struct ib_device *device,
