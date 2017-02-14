@@ -3435,9 +3435,10 @@ static ssize_t srp_create_target(struct device *dev,
 			ret = srp_connect_ch(ch, multich);
 			if (ret) {
 				shost_printk(KERN_ERR, target->scsi_host,
-					     PFX "Connection %d/%d failed\n",
+					     PFX "Connection %d/%d to %pI6 failed\n",
 					     ch_start + cpu_idx,
-					     target->ch_count);
+					     target->ch_count,
+					     ch->target->orig_dgid.raw);
 				if (node_idx == 0 && cpu_idx == 0) {
 					goto err_disconnect;
 				} else {
