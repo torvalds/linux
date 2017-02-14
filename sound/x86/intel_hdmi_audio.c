@@ -37,6 +37,7 @@
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
 #include <sound/control.h>
+#include <sound/jack.h>
 #include <drm/drm_edid.h>
 #include <drm/intel_lpe_audio.h>
 #include "intel_hdmi_audio.h"
@@ -1382,6 +1383,8 @@ static void had_process_hot_plug(struct snd_intelhad *intelhaddata)
 	}
 
 	had_build_channel_allocation_map(intelhaddata);
+
+	snd_jack_report(intelhaddata->jack, SND_JACK_AVOUT);
 }
 
 /* process hot unplug, called from wq with mutex locked */
@@ -1414,6 +1417,7 @@ static void had_process_hot_unplug(struct snd_intelhad *intelhaddata)
 		snd_pcm_stop(substream, SNDRV_PCM_STATE_SETUP);
 
  out:
+	snd_jack_report(intelhaddata->jack, 0);
 	if (substream)
 		had_substream_put(intelhaddata);
 	kfree(intelhaddata->chmap->chmap);
@@ -1609,6 +1613,21 @@ static void had_audio_wq(struct work_struct *work)
 }
 
 /*
+ * Jack interface
+ */
+static int had_create_jack(struct snd_intelhad *ctx)
+{
+	int err;
+
+	err = snd_jack_new(ctx->card, "HDMI/DP", SND_JACK_AVOUT, &ctx->jack,
+			   true, false);
+	if (err < 0)
+		return err;
+	ctx->jack->private_data = ctx;
+	return 0;
+}
+
+/*
  * PM callbacks
  */
 
@@ -1777,6 +1796,10 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 
 	/* Register channel map controls */
 	ret = had_register_chmap_ctls(ctx, pcm);
+	if (ret < 0)
+		goto err;
+
+	ret = had_create_jack(ctx);
 	if (ret < 0)
 		goto err;
 
