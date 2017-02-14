@@ -40,6 +40,9 @@ elif ping -c1 -w1 8.8.8.8 &>/dev/null; then
     DST=8.8.8.8
 fi
 
+if [ -z $LKL_TEST_DHCP ] ; then
+    echo "\$LKL_TEST_DHCP is not configured. skipped dhcp client test"
+else
 if ! [ -z $DST ]; then
     echo "== RAW socket (LKL net) tests =="
     sudo ip link set dev ${IFNAME} promisc on
@@ -53,6 +56,7 @@ if ! [ -z $DST ]; then
 	sudo chown ${USER} `ls /dev/tap*`
 	./net-test macvtap `ls /dev/tap*` $DST dhcp
     fi
+fi
 fi
 
 # we disabled this DPDK test because it's unlikely possible to describe
