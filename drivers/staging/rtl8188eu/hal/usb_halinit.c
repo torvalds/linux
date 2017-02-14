@@ -1745,9 +1745,6 @@ void rtw_hal_get_hwreg(struct adapter *Adapter, u8 variable, u8 *val)
 		/* BCN_VALID, BIT16 of REG_TDECTRL = BIT0 of REG_TDECTRL+2 */
 		val[0] = (BIT(0) & usb_read8(Adapter, REG_TDECTRL+2)) ? true : false;
 		break;
-	case HW_VAR_RF_TYPE:
-		val[0] = RF_1T1R;
-		break;
 	case HW_VAR_FWLPS_RF_ON:
 		{
 			/* When we halt NIC, we should check if FW LPS is leave. */
