@@ -925,7 +925,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		 * Our hardware de-aggregates AMSDUs but copies the mac header
 		 * as it to the de-aggregated MPDUs. We need to turn off the
 		 * AMSDU bit in the QoS control ourselves.
-		 * In addition, HW reverses addr3 - reverse it back.
+		 * In addition, HW reverses addr3 and addr4 - reverse it back.
 		 */
 		if ((desc->mac_flags2 & IWL_RX_MPDU_MFLG2_AMSDU) &&
 		    !WARN_ON(!ieee80211_is_data_qos(hdr->frame_control))) {
@@ -938,6 +938,13 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 			for (i = 0; i < ETH_ALEN; i++)
 				mac_addr[i] = hdr->addr3[ETH_ALEN - i - 1];
 			ether_addr_copy(hdr->addr3, mac_addr);
+
+			if (ieee80211_has_a4(hdr->frame_control)) {
+				for (i = 0; i < ETH_ALEN; i++)
+					mac_addr[i] =
+						hdr->addr4[ETH_ALEN - i - 1];
+				ether_addr_copy(hdr->addr4, mac_addr);
+			}
 		}
 		if (baid != IWL_RX_REORDER_DATA_INVALID_BAID) {
 			u32 reorder_data = le32_to_cpu(desc->reorder_data);
