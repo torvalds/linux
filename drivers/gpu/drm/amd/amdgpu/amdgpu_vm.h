@@ -164,7 +164,7 @@ struct amdgpu_vm_manager {
 
 	/* partial resident texture handling */
 	spinlock_t				prt_lock;
-	atomic_t				num_prt_mappings;
+	atomic_t				num_prt_users;
 };
 
 void amdgpu_vm_manager_init(struct amdgpu_device *adev);
