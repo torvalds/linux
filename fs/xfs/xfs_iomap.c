@@ -1078,6 +1078,10 @@ xfs_file_iomap_end_delalloc(
 	xfs_fileoff_t		end_fsb;
 	int			error = 0;
 
+	/* behave as if the write failed if drop writes is enabled */
+	if (xfs_mp_drop_writes(mp))
+		written = 0;
+
 	/*
 	 * start_fsb refers to the first unused block after a short write. If
 	 * nothing was written, round offset down to point at the first block in
