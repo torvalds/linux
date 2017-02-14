@@ -14,6 +14,8 @@
 #include <linux/module.h>
 #include <linux/zorro.h>
 
+#include "zorro.h"
+
 
     /**
      *  zorro_match_device - Tell if a Zorro device structure has a matching
@@ -161,12 +163,13 @@ static int zorro_uevent(struct device *dev, struct kobj_uevent_env *env)
 }
 
 struct bus_type zorro_bus_type = {
-	.name     = "zorro",
-	.dev_name = "zorro",
-	.match    = zorro_bus_match,
-	.uevent   = zorro_uevent,
-	.probe    = zorro_device_probe,
-	.remove   = zorro_device_remove,
+	.name		= "zorro",
+	.dev_name	= "zorro",
+	.dev_groups	= zorro_device_attribute_groups,
+	.match		= zorro_bus_match,
+	.uevent		= zorro_uevent,
+	.probe		= zorro_device_probe,
+	.remove		= zorro_device_remove,
 };
 EXPORT_SYMBOL(zorro_bus_type);
 
