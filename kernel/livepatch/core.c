@@ -584,6 +584,22 @@ static int klp_init_object_loaded(struct klp_patch *patch,
 					     &func->old_addr);
 		if (ret)
 			return ret;
+
+		ret = kallsyms_lookup_size_offset(func->old_addr,
+						  &func->old_size, NULL);
+		if (!ret) {
+			pr_err("kallsyms size lookup failed for '%s'\n",
+			       func->old_name);
+			return -ENOENT;
+		}
+
+		ret = kallsyms_lookup_size_offset((unsigned long)func->new_func,
+						  &func->new_size, NULL);
+		if (!ret) {
+			pr_err("kallsyms size lookup failed for '%s' replacement\n",
+			       func->old_name);
+			return -ENOENT;
+		}
 	}
 
 	return 0;

@@ -37,6 +37,8 @@
  * @old_addr:	the address of the function being patched
  * @kobj:	kobject for sysfs resources
  * @stack_node:	list node for klp_ops func_stack list
+ * @old_size:	size of the old function
+ * @new_size:	size of the new function
  * @patched:	the func has been added to the klp_ops list
  */
 struct klp_func {
@@ -56,6 +58,7 @@ struct klp_func {
 	unsigned long old_addr;
 	struct kobject kobj;
 	struct list_head stack_node;
+	unsigned long old_size, new_size;
 	bool patched;
 };
 
