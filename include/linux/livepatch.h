@@ -28,11 +28,6 @@
 
 #include <asm/livepatch.h>
 
-enum klp_state {
-	KLP_DISABLED,
-	KLP_ENABLED
-};
-
 /**
  * struct klp_func - function structure for live patching
  * @old_name:	name of the function to be patched
@@ -41,8 +36,8 @@ enum klp_state {
  *		can be found (optional)
  * @old_addr:	the address of the function being patched
  * @kobj:	kobject for sysfs resources
- * @state:	tracks function-level patch application state
  * @stack_node:	list node for klp_ops func_stack list
+ * @patched:	the func has been added to the klp_ops list
  */
 struct klp_func {
 	/* external */
@@ -60,8 +55,8 @@ struct klp_func {
 	/* internal */
 	unsigned long old_addr;
 	struct kobject kobj;
-	enum klp_state state;
 	struct list_head stack_node;
+	bool patched;
 };
 
 /**
@@ -71,7 +66,7 @@ struct klp_func {
  * @kobj:	kobject for sysfs resources
  * @mod:	kernel module associated with the patched object
  * 		(NULL for vmlinux)
- * @state:	tracks object-level patch application state
+ * @patched:	the object's funcs have been added to the klp_ops list
  */
 struct klp_object {
 	/* external */
@@ -81,7 +76,7 @@ struct klp_object {
 	/* internal */
 	struct kobject kobj;
 	struct module *mod;
-	enum klp_state state;
+	bool patched;
 };
 
 /**
@@ -90,7 +85,7 @@ struct klp_object {
  * @objs:	object entries for kernel objects to be patched
  * @list:	list node for global list of registered patches
  * @kobj:	kobject for sysfs resources
- * @state:	tracks patch-level application state
+ * @enabled:	the patch is enabled (but operation may be incomplete)
  */
 struct klp_patch {
 	/* external */
@@ -100,7 +95,7 @@ struct klp_patch {
 	/* internal */
 	struct list_head list;
 	struct kobject kobj;
-	enum klp_state state;
+	bool enabled;
 };
 
 #define klp_for_each_object(patch, obj) \
