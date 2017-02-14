@@ -524,6 +524,10 @@ struct amdgpu_gart {
 	struct page			**pages;
 #endif
 	bool				ready;
+
+	/* Asic default pte flags */
+	uint64_t			gart_pte_flags;
+
 	const struct amdgpu_gart_funcs *gart_funcs;
 };
 
