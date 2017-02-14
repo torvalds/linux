@@ -353,17 +353,15 @@ static void release_inactive_stripe_list(struct r5conf *conf,
 static int release_stripe_list(struct r5conf *conf,
 			       struct list_head *temp_inactive_list)
 {
-	struct stripe_head *sh;
+	struct stripe_head *sh, *t;
 	int count = 0;
 	struct llist_node *head;
 
 	head = llist_del_all(&conf->released_stripes);
 	head = llist_reverse_order(head);
-	while (head) {
+	llist_for_each_entry_safe(sh, t, head, release_list) {
 		int hash;
 
-		sh = llist_entry(head, struct stripe_head, release_list);
-		head = llist_next(head);
 		/* sh could be readded after STRIPE_ON_RELEASE_LIST is cleard */
 		smp_mb();
 		clear_bit(STRIPE_ON_RELEASE_LIST, &sh->state);
