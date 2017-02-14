@@ -677,11 +677,9 @@ static noinline int lock_stripe_add(struct btrfs_raid_bio *rbio)
 	struct btrfs_raid_bio *freeit = NULL;
 	struct btrfs_raid_bio *cache_drop = NULL;
 	int ret = 0;
-	int walk = 0;
 
 	spin_lock_irqsave(&h->lock, flags);
 	list_for_each_entry(cur, &h->hash_list, hash_list) {
-		walk++;
 		if (cur->bbio->raid_map[0] == rbio->bbio->raid_map[0]) {
 			spin_lock(&cur->bio_list_lock);
 

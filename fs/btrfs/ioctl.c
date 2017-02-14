@@ -395,7 +395,7 @@ static noinline int btrfs_ioctl_fitrim(struct file *file, void __user *arg)
 		q = bdev_get_queue(device->bdev);
 		if (blk_queue_discard(q)) {
 			num_devices++;
-			minlen = min((u64)q->limits.discard_granularity,
+			minlen = min_t(u64, q->limits.discard_granularity,
 				     minlen);
 		}
 	}
@@ -601,7 +601,7 @@ static noinline int create_subvol(struct inode *dir,
 
 	ret = btrfs_add_root_ref(trans, fs_info,
 				 objectid, root->root_key.objectid,
-				 btrfs_ino(dir), index, name, namelen);
+				 btrfs_ino(BTRFS_I(dir)), index, name, namelen);
 	BUG_ON(ret);
 
 	ret = btrfs_uuid_tree_add(trans, fs_info, root_item->uuid,
@@ -941,7 +941,7 @@ static int find_new_extents(struct btrfs_root *root,
 	struct btrfs_file_extent_item *extent;
 	int type;
 	int ret;
-	u64 ino = btrfs_ino(inode);
+	u64 ino = btrfs_ino(BTRFS_I(inode));
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -1780,7 +1780,7 @@ static noinline int btrfs_ioctl_subvol_getflags(struct file *file,
 	int ret = 0;
 	u64 flags = 0;
 
-	if (btrfs_ino(inode) != BTRFS_FIRST_FREE_OBJECTID)
+	if (btrfs_ino(BTRFS_I(inode)) != BTRFS_FIRST_FREE_OBJECTID)
 		return -EINVAL;
 
 	down_read(&fs_info->subvol_sem);
@@ -1812,7 +1812,7 @@ static noinline int btrfs_ioctl_subvol_setflags(struct file *file,
 	if (ret)
 		goto out;
 
-	if (btrfs_ino(inode) != BTRFS_FIRST_FREE_OBJECTID) {
+	if (btrfs_ino(BTRFS_I(inode)) != BTRFS_FIRST_FREE_OBJECTID) {
 		ret = -EINVAL;
 		goto out_drop_write;
 	}
@@ -2446,7 +2446,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 	if (err)
 		goto out_dput;
 
-	if (btrfs_ino(inode) != BTRFS_FIRST_FREE_OBJECTID) {
+	if (btrfs_ino(BTRFS_I(inode)) != BTRFS_FIRST_FREE_OBJECTID) {
 		err = -EINVAL;
 		goto out_dput;
 	}
@@ -2497,7 +2497,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 	trans->block_rsv = &block_rsv;
 	trans->bytes_reserved = block_rsv.size;
 
-	btrfs_record_snapshot_destroy(trans, dir);
+	btrfs_record_snapshot_destroy(trans, BTRFS_I(dir));
 
 	ret = btrfs_unlink_subvol(trans, root, dir,
 				dest->root_key.objectid,
@@ -2613,9 +2613,6 @@ static int btrfs_ioctl_defrag(struct file *file, void __user *argp)
 			goto out;
 		}
 		ret = btrfs_defrag_root(root);
-		if (ret)
-			goto out;
-		ret = btrfs_defrag_root(root->fs_info->extent_root);
 		break;
 	case S_IFREG:
 		if (!(file->f_mode & FMODE_WRITE)) {
@@ -3128,26 +3125,27 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 	int ret;
 	u64 len = olen;
 	struct cmp_pages cmp;
-	int same_inode = 0;
+	bool same_inode = (src == dst);
 	u64 same_lock_start = 0;
 	u64 same_lock_len = 0;
-
-	if (src == dst)
-		same_inode = 1;
 
 	if (len == 0)
 		return 0;
 
-	if (same_inode) {
+	if (same_inode)
 		inode_lock(src);
+	else
+		btrfs_double_inode_lock(src, dst);
 
-		ret = extent_same_check_offsets(src, loff, &len, olen);
-		if (ret)
-			goto out_unlock;
-		ret = extent_same_check_offsets(src, dst_loff, &len, olen);
-		if (ret)
-			goto out_unlock;
+	ret = extent_same_check_offsets(src, loff, &len, olen);
+	if (ret)
+		goto out_unlock;
 
+	ret = extent_same_check_offsets(dst, dst_loff, &len, olen);
+	if (ret)
+		goto out_unlock;
+
+	if (same_inode) {
 		/*
 		 * Single inode case wants the same checks, except we
 		 * don't want our length pushed out past i_size as
@@ -3175,16 +3173,6 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 
 		same_lock_start = min_t(u64, loff, dst_loff);
 		same_lock_len = max_t(u64, loff, dst_loff) + len - same_lock_start;
-	} else {
-		btrfs_double_inode_lock(src, dst);
-
-		ret = extent_same_check_offsets(src, loff, &len, olen);
-		if (ret)
-			goto out_unlock;
-
-		ret = extent_same_check_offsets(dst, dst_loff, &len, olen);
-		if (ret)
-			goto out_unlock;
 	}
 
 	/* don't make the dst file partly checksummed */
@@ -3420,7 +3408,7 @@ static int clone_copy_inline_extent(struct inode *src,
 	if (new_key->offset > 0)
 		return -EOPNOTSUPP;
 
-	key.objectid = btrfs_ino(dst);
+	key.objectid = btrfs_ino(BTRFS_I(dst));
 	key.type = BTRFS_EXTENT_DATA_KEY;
 	key.offset = 0;
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
@@ -3435,7 +3423,7 @@ static int clone_copy_inline_extent(struct inode *src,
 				goto copy_inline_extent;
 		}
 		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
-		if (key.objectid == btrfs_ino(dst) &&
+		if (key.objectid == btrfs_ino(BTRFS_I(dst)) &&
 		    key.type == BTRFS_EXTENT_DATA_KEY) {
 			ASSERT(key.offset > 0);
 			return -EOPNOTSUPP;
@@ -3469,7 +3457,7 @@ static int clone_copy_inline_extent(struct inode *src,
 		} else if (ret == 0) {
 			btrfs_item_key_to_cpu(path->nodes[0], &key,
 					      path->slots[0]);
-			if (key.objectid == btrfs_ino(dst) &&
+			if (key.objectid == btrfs_ino(BTRFS_I(dst)) &&
 			    key.type == BTRFS_EXTENT_DATA_KEY)
 				return -EOPNOTSUPP;
 		}
@@ -3563,7 +3551,7 @@ static int btrfs_clone(struct inode *src, struct inode *inode,
 
 	path->reada = READA_FORWARD;
 	/* clone data */
-	key.objectid = btrfs_ino(src);
+	key.objectid = btrfs_ino(BTRFS_I(src));
 	key.type = BTRFS_EXTENT_DATA_KEY;
 	key.offset = off;
 
@@ -3606,7 +3594,7 @@ process_slot:
 
 		btrfs_item_key_to_cpu(leaf, &key, slot);
 		if (key.type > BTRFS_EXTENT_DATA_KEY ||
-		    key.objectid != btrfs_ino(src))
+		    key.objectid != btrfs_ino(BTRFS_I(src)))
 			break;
 
 		if (key.type == BTRFS_EXTENT_DATA_KEY) {
@@ -3659,7 +3647,7 @@ process_slot:
 			path->leave_spinning = 0;
 
 			memcpy(&new_key, &key, sizeof(new_key));
-			new_key.objectid = btrfs_ino(inode);
+			new_key.objectid = btrfs_ino(BTRFS_I(inode));
 			if (off <= key.offset)
 				new_key.offset = key.offset + destoff - off;
 			else
@@ -3749,7 +3737,7 @@ process_slot:
 							fs_info,
 							disko, diskl, 0,
 							root->root_key.objectid,
-							btrfs_ino(inode),
+							btrfs_ino(BTRFS_I(inode)),
 							new_key.offset - datao);
 					if (ret) {
 						btrfs_abort_transaction(trans,
@@ -5129,7 +5117,7 @@ static long _btrfs_ioctl_set_received_subvol(struct file *file,
 
 	down_write(&fs_info->subvol_sem);
 
-	if (btrfs_ino(inode) != BTRFS_FIRST_FREE_OBJECTID) {
+	if (btrfs_ino(BTRFS_I(inode)) != BTRFS_FIRST_FREE_OBJECTID) {
 		ret = -EINVAL;
 		goto out;
 	}
