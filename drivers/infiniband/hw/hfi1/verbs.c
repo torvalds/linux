@@ -1536,7 +1536,7 @@ static int cntr_names_initialized;
  * external strings.
  */
 static int init_cntr_names(const char *names_in,
-			   const int names_len,
+			   const size_t names_len,
 			   int num_extra_names,
 			   int *num_cntrs,
 			   const char ***cntr_names)
