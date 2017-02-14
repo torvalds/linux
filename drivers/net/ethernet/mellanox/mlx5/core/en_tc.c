@@ -59,6 +59,7 @@ struct mlx5_nic_flow_attr {
 enum {
 	MLX5E_TC_FLOW_ESWITCH	= BIT(0),
 	MLX5E_TC_FLOW_NIC	= BIT(1),
+	MLX5E_TC_FLOW_OFFLOADED	= BIT(2),
 };
 
 struct mlx5e_tc_flow {
@@ -245,7 +246,8 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
 
-	mlx5_eswitch_del_offloaded_rule(esw, flow->rule, flow->esw_attr);
+	if (flow->flags & MLX5E_TC_FLOW_OFFLOADED)
+		mlx5_eswitch_del_offloaded_rule(esw, flow->rule, flow->esw_attr);
 
 	mlx5_eswitch_del_vlan_action(esw, flow->esw_attr);
 
@@ -1591,6 +1593,7 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv, __be16 protocol,
 		goto err_free;
 	}
 
+	flow->flags |= MLX5E_TC_FLOW_OFFLOADED;
 	err = rhashtable_insert_fast(&tc->ht, &flow->node,
 				     tc->ht_params);
 	if (err)
@@ -1645,6 +1648,9 @@ int mlx5e_stats_flower(struct mlx5e_priv *priv,
 				      tc->ht_params);
 	if (!flow)
 		return -EINVAL;
+
+	if (!(flow->flags & MLX5E_TC_FLOW_OFFLOADED))
+		return 0;
 
 	counter = mlx5_flow_rule_counter(flow->rule);
 	if (!counter)
