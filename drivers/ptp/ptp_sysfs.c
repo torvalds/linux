@@ -268,24 +268,13 @@ static ssize_t ptp_pin_store(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-int ptp_cleanup_sysfs(struct ptp_clock *ptp)
+int ptp_populate_pin_groups(struct ptp_clock *ptp)
 {
-	struct device *dev = ptp->dev;
-	struct ptp_clock_info *info = ptp->info;
-
-	if (info->n_pins) {
-		sysfs_remove_group(&dev->kobj, &ptp->pin_attr_group);
-		kfree(ptp->pin_attr);
-		kfree(ptp->pin_dev_attr);
-	}
-	return 0;
-}
-
-static int ptp_populate_pins(struct ptp_clock *ptp)
-{
-	struct device *dev = ptp->dev;
 	struct ptp_clock_info *info = ptp->info;
 	int err = -ENOMEM, i, n_pins = info->n_pins;
+
+	if (!n_pins)
+		return 0;
 
 	ptp->pin_dev_attr = kcalloc(n_pins, sizeof(*ptp->pin_dev_attr),
 				    GFP_KERNEL);
@@ -309,28 +298,18 @@ static int ptp_populate_pins(struct ptp_clock *ptp)
 	ptp->pin_attr_group.name = "pins";
 	ptp->pin_attr_group.attrs = ptp->pin_attr;
 
-	err = sysfs_create_group(&dev->kobj, &ptp->pin_attr_group);
-	if (err)
-		goto no_group;
+	ptp->pin_attr_groups[0] = &ptp->pin_attr_group;
+
 	return 0;
 
-no_group:
-	kfree(ptp->pin_attr);
 no_pin_attr:
 	kfree(ptp->pin_dev_attr);
 no_dev_attr:
 	return err;
 }
 
-int ptp_populate_sysfs(struct ptp_clock *ptp)
+void ptp_cleanup_pin_groups(struct ptp_clock *ptp)
 {
-	struct ptp_clock_info *info = ptp->info;
-	int err;
-
-	if (info->n_pins) {
-		err = ptp_populate_pins(ptp);
-		if (err)
-			return err;
-	}
-	return 0;
+	kfree(ptp->pin_attr);
+	kfree(ptp->pin_dev_attr);
 }
