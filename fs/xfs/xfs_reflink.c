@@ -362,7 +362,7 @@ xfs_reflink_convert_cow(
 	xfs_fileoff_t		end_fsb = XFS_B_TO_FSB(mp, offset + count);
 	xfs_extnum_t		idx;
 	bool			found;
-	int			error;
+	int			error = 0;
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 
