@@ -591,7 +591,7 @@ static int pot_hole(struct drm_i915_private *i915,
 	struct i915_vma *vma;
 	unsigned long flags;
 	unsigned int pot;
-	int err;
+	int err = 0;
 
 	flags = PIN_OFFSET_FIXED | PIN_USER;
 	if (i915_is_ggtt(vm))
