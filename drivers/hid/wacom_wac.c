@@ -1213,29 +1213,34 @@ static void wacom_intuos_pro2_bt_pen(struct wacom_wac *wacom)
 
 	for (i = 0; i < pen_frames; i++) {
 		unsigned char *frame = &data[i*pen_frame_len + 1];
+		bool valid = frame[0] & 0x80;
+		bool prox = frame[0] & 0x40;
+		bool range = frame[0] & 0x20;
 
-		if (!(frame[0] & 0x80))
+		if (!valid)
 			continue;
 
-		input_report_abs(pen_input, ABS_X, get_unaligned_le16(&frame[1]));
-		input_report_abs(pen_input, ABS_Y, get_unaligned_le16(&frame[3]));
+		if (range) {
+			input_report_abs(pen_input, ABS_X, get_unaligned_le16(&frame[1]));
+			input_report_abs(pen_input, ABS_Y, get_unaligned_le16(&frame[3]));
+			input_report_abs(pen_input, ABS_TILT_X, frame[7]);
+			input_report_abs(pen_input, ABS_TILT_Y, frame[8]);
+			input_report_abs(pen_input, ABS_Z, get_unaligned_le16(&frame[9]));
+			input_report_abs(pen_input, ABS_WHEEL, get_unaligned_le16(&frame[11]));
+		}
 		input_report_abs(pen_input, ABS_PRESSURE, get_unaligned_le16(&frame[5]));
-		input_report_abs(pen_input, ABS_TILT_X, frame[7]);
-		input_report_abs(pen_input, ABS_TILT_Y, frame[8]);
-		input_report_abs(pen_input, ABS_Z, get_unaligned_le16(&frame[9]));
-		input_report_abs(pen_input, ABS_WHEEL, get_unaligned_le16(&frame[11]));
-		input_report_abs(pen_input, ABS_DISTANCE, frame[13]);
+		input_report_abs(pen_input, ABS_DISTANCE, range ? frame[13] : wacom->features.distance_max);
 
 		input_report_key(pen_input, BTN_TOUCH, frame[0] & 0x01);
 		input_report_key(pen_input, BTN_STYLUS, frame[0] & 0x02);
 		input_report_key(pen_input, BTN_STYLUS2, frame[0] & 0x04);
 
-		input_report_key(pen_input, wacom->tool[0], 1);
+		input_report_key(pen_input, wacom->tool[0], prox);
 		input_event(pen_input, EV_MSC, MSC_SERIAL, wacom->serial[0]);
 		input_report_abs(pen_input, ABS_MISC,
 				 wacom_intuos_id_mangle(wacom->id[0])); /* report tool id */
 
-		wacom->shared->stylus_in_proximity = frame[0] & 0x40;
+		wacom->shared->stylus_in_proximity = prox;
 
 		input_sync(pen_input);
 	}
