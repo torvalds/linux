@@ -25,7 +25,6 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/ioport.h>
 
 #include <net/irda/irda.h>
 #include <net/irda/irmod.h>
