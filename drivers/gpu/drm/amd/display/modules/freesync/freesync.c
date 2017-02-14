@@ -210,6 +210,8 @@ bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
 	struct core_freesync *core_freesync = NULL;
 	int persistent_freesync_enable = 0;
 	struct persistent_data_flag flag;
+	unsigned int nom_refresh_rate_micro_hz;
+	unsigned long long temp;
 
 	if (mod_freesync == NULL)
 		return false;
@@ -262,11 +264,16 @@ bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
 					enable_for_video = false;
 		}
 
-		unsigned int nom_refresh_rate_micro_hz = (unsigned int)
-				(((unsigned long long) core_stream->public.timing.pix_clk_khz) * 1000ULL * 1000ULL * 1000ULL
-				/ core_stream->public.timing.h_total / core_stream->public.timing.v_total);
+		temp = core_stream->public.timing.pix_clk_khz;
+		temp *= 1000ULL * 1000ULL * 1000ULL;
+		temp = div_u64(temp, core_stream->public.timing.h_total);
+		temp = div_u64(temp, core_stream->public.timing.v_total);
 
-		if (caps->supported && nom_refresh_rate_micro_hz >= caps->min_refresh_in_micro_hz && nom_refresh_rate_micro_hz <= caps->max_refresh_in_micro_hz)
+		nom_refresh_rate_micro_hz = (unsigned int) temp;
+
+		if (caps->supported &&
+		    nom_refresh_rate_micro_hz >= caps->min_refresh_in_micro_hz &&
+		    nom_refresh_rate_micro_hz <= caps->max_refresh_in_micro_hz)
 			core_stream->public.ignore_msa_timing_param = 1;
 
 		core_freesync->num_entities++;
