@@ -59,7 +59,7 @@ static void cpt_cfg_vq_priority(struct cpt_device *cpt, int vf, u32 pri)
 	cpt_write_csr64(cpt->reg_base, CPTX_PF_QX_CTL(0, vf), pf_qx_ctl.u);
 }
 
-static u8 cpt_bind_vq_to_grp(struct cpt_device *cpt, u8 q, u8 grp)
+static int cpt_bind_vq_to_grp(struct cpt_device *cpt, u8 q, u8 grp)
 {
 	struct microcode *mcode = cpt->mcode;
 	union cptx_pf_qx_ctl pf_qx_ctl;
@@ -90,7 +90,7 @@ static void cpt_handle_mbox_intr(struct cpt_device *cpt, int vf)
 {
 	struct cpt_vf_info *vfx = &cpt->vfinfo[vf];
 	struct cpt_mbox mbx = {};
-	u8 vftype;
+	int vftype;
 	struct device *dev = &cpt->pdev->dev;
 	/*
 	 * MBOX[0] contains msg
