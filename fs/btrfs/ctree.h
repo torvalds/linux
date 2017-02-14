@@ -2630,8 +2630,7 @@ int btrfs_free_reserved_extent(struct btrfs_fs_info *fs_info,
 			       u64 start, u64 len, int delalloc);
 int btrfs_free_and_pin_reserved_extent(struct btrfs_fs_info *fs_info,
 				       u64 start, u64 len);
-void btrfs_prepare_extent_commit(struct btrfs_trans_handle *trans,
-				 struct btrfs_fs_info *fs_info);
+void btrfs_prepare_extent_commit(struct btrfs_fs_info *fs_info);
 int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
 			       struct btrfs_fs_info *fs_info);
 int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
@@ -2703,8 +2702,7 @@ int btrfs_subvolume_reserve_metadata(struct btrfs_root *root,
 				     int nitems,
 				     u64 *qgroup_reserved, bool use_global_rsv);
 void btrfs_subvolume_release_metadata(struct btrfs_fs_info *fs_info,
-				      struct btrfs_block_rsv *rsv,
-				      u64 qgroup_reserved);
+				      struct btrfs_block_rsv *rsv);
 int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes);
 void btrfs_delalloc_release_metadata(struct inode *inode, u64 num_bytes);
 int btrfs_delalloc_reserve_space(struct inode *inode, u64 start, u64 len);

@@ -5826,8 +5826,7 @@ int btrfs_subvolume_reserve_metadata(struct btrfs_root *root,
 }
 
 void btrfs_subvolume_release_metadata(struct btrfs_fs_info *fs_info,
-				      struct btrfs_block_rsv *rsv,
-				      u64 qgroup_reserved)
+				      struct btrfs_block_rsv *rsv)
 {
 	btrfs_block_rsv_release(fs_info, rsv, (u64)-1);
 }
@@ -6559,8 +6558,7 @@ static int btrfs_free_reserved_bytes(struct btrfs_block_group_cache *cache,
 	spin_unlock(&space_info->lock);
 	return ret;
 }
-void btrfs_prepare_extent_commit(struct btrfs_trans_handle *trans,
-				struct btrfs_fs_info *fs_info)
+void btrfs_prepare_extent_commit(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_caching_control *next;
 	struct btrfs_caching_control *caching_ctl;
@@ -8253,7 +8251,7 @@ btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	btrfs_set_header_generation(buf, trans->transid);
 	btrfs_set_buffer_lockdep_class(root->root_key.objectid, buf, level);
 	btrfs_tree_lock(buf);
-	clean_tree_block(trans, fs_info, buf);
+	clean_tree_block(fs_info, buf);
 	clear_bit(EXTENT_BUFFER_STALE, &buf->bflags);
 
 	btrfs_set_lock_blocking(buf);
@@ -8874,7 +8872,7 @@ static noinline int walk_up_proc(struct btrfs_trans_handle *trans,
 			btrfs_set_lock_blocking(eb);
 			path->locks[level] = BTRFS_WRITE_LOCK_BLOCKING;
 		}
-		clean_tree_block(trans, fs_info, eb);
+		clean_tree_block(fs_info, eb);
 	}
 
 	if (eb == root->node) {
