@@ -133,21 +133,6 @@ enum dc_edid_status dm_helpers_parse_edid_caps(
 	return result;
 }
 
-static struct amdgpu_connector *get_connector_for_sink(
-	struct drm_device *dev,
-	const struct dc_sink *sink)
-{
-	struct drm_connector *connector;
-
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		struct amdgpu_connector *aconnector = to_amdgpu_connector(connector);
-		if (aconnector->dc_sink == sink)
-			return aconnector;
-	}
-
-	return NULL;
-}
-
 static void get_payload_table(
 		struct amdgpu_connector *aconnector,
 		struct dp_mst_stream_allocation_table *proposed_table)
@@ -194,8 +179,6 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 		struct dp_mst_stream_allocation_table *proposed_table,
 		bool enable)
 {
-	struct amdgpu_device *adev = ctx->driver_context;
-	struct drm_device *dev = adev->ddev;
 	struct amdgpu_connector *aconnector;
 	struct drm_dp_mst_topology_mgr *mst_mgr;
 	struct drm_dp_mst_port *mst_port;
@@ -205,7 +188,7 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 	int bpp = 0;
 	int pbn = 0;
 
-	aconnector = get_connector_for_sink(dev, stream->sink);
+	aconnector = stream->sink->priv;
 
 	if (!aconnector || !aconnector->mst_port)
 		return false;
@@ -284,13 +267,11 @@ bool dm_helpers_dp_mst_poll_for_allocation_change_trigger(
 		struct dc_context *ctx,
 		const struct dc_stream *stream)
 {
-	struct amdgpu_device *adev = ctx->driver_context;
-	struct drm_device *dev = adev->ddev;
 	struct amdgpu_connector *aconnector;
 	struct drm_dp_mst_topology_mgr *mst_mgr;
 	int ret;
 
-	aconnector = get_connector_for_sink(dev, stream->sink);
+	aconnector = stream->sink->priv;
 
 	if (!aconnector || !aconnector->mst_port)
 		return false;
@@ -313,14 +294,12 @@ bool dm_helpers_dp_mst_send_payload_allocation(
 		const struct dc_stream *stream,
 		bool enable)
 {
-	struct amdgpu_device *adev = ctx->driver_context;
-	struct drm_device *dev = adev->ddev;
 	struct amdgpu_connector *aconnector;
 	struct drm_dp_mst_topology_mgr *mst_mgr;
 	struct drm_dp_mst_port *mst_port;
 	int ret;
 
-	aconnector = get_connector_for_sink(dev, stream->sink);
+	aconnector = stream->sink->priv;
 
 	if (!aconnector || !aconnector->mst_port)
 		return false;

@@ -719,6 +719,7 @@ struct dc_sink {
 	struct dc_container_id *dc_container_id;
 	uint32_t dongle_max_pix_clk;
 	bool converter_disable_audio;
+	void *priv;
 };
 
 void dc_sink_retain(const struct dc_sink *sink);

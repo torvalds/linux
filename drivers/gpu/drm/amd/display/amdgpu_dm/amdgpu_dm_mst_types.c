@@ -325,6 +325,7 @@ static void dm_dp_mst_hotplug(struct drm_dp_mst_topology_mgr *mgr)
 	struct drm_connector *connector;
 	struct amdgpu_connector *aconnector;
 	struct edid *edid;
+	struct dc_sink *dc_sink;
 
 	drm_modeset_lock_all(dev);
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
@@ -352,11 +353,15 @@ static void dm_dp_mst_hotplug(struct drm_dp_mst_topology_mgr *mgr)
 
 				aconnector->edid = edid;
 
-				aconnector->dc_sink = dc_link_add_remote_sink(
+				dc_sink = dc_link_add_remote_sink(
 					aconnector->dc_link,
 					(uint8_t *)edid,
 					(edid->extensions + 1) * EDID_LENGTH,
 					&init_params);
+
+				dc_sink->priv = aconnector;
+				aconnector->dc_sink = dc_sink;
+
 				if (aconnector->dc_sink)
 					amdgpu_dm_add_sink_to_freesync_module(
 							connector,
