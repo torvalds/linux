@@ -72,18 +72,19 @@ nvkm_falcon_v1_load_dmem(struct nvkm_falcon *falcon, void *data, u32 start,
 
 	size -= rem;
 
-	nvkm_falcon_wr32(falcon, 0x1c0 + (port * 16), start | (0x1 << 24));
+	nvkm_falcon_wr32(falcon, 0x1c0 + (port * 8), start | (0x1 << 24));
 	for (i = 0; i < size / 4; i++)
-		nvkm_falcon_wr32(falcon, 0x1c4, ((u32 *)data)[i]);
+		nvkm_falcon_wr32(falcon, 0x1c4 + (port * 8), ((u32 *)data)[i]);
 
 	/*
-	 * If size is not a multiple of 4, mask the last work to ensure garbage
-	 * does not get read
+	 * If size is not a multiple of 4, mask the last word to ensure garbage
+	 * does not get written
 	 */
 	if (rem) {
 		u32 extra = ((u32 *)data)[i];
 
-		nvkm_falcon_wr32(falcon, 0x1c4, extra & (BIT(rem * 8) - 1));
+		nvkm_falcon_wr32(falcon, 0x1c4 + (port * 8),
+				 extra & (BIT(rem * 8) - 1));
 	}
 }
 
@@ -96,16 +97,16 @@ nvkm_falcon_v1_read_dmem(struct nvkm_falcon *falcon, u32 start, u32 size,
 
 	size -= rem;
 
-	nvkm_falcon_wr32(falcon, 0x1c0 + (port * 16), start | (0x1 << 25));
+	nvkm_falcon_wr32(falcon, 0x1c0 + (port * 8), start | (0x1 << 25));
 	for (i = 0; i < size / 4; i++)
-		((u32 *)data)[i] = nvkm_falcon_rd32(falcon, 0x1c4);
+		((u32 *)data)[i] = nvkm_falcon_rd32(falcon, 0x1c4 + (port * 8));
 
 	/*
-	 * If size is not a multiple of 4, mask the last work to ensure garbage
+	 * If size is not a multiple of 4, mask the last word to ensure garbage
 	 * does not get read
 	 */
 	if (rem) {
-		u32 extra = nvkm_falcon_rd32(falcon, 0x1c4);
+		u32 extra = nvkm_falcon_rd32(falcon, 0x1c4 + (port * 8));
 
 		for (i = size; i < size + rem; i++) {
 			((u8 *)data)[i] = (u8)(extra & 0xff);
