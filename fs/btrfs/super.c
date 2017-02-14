@@ -265,7 +265,7 @@ void __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
 		           function, line, errstr);
 		return;
 	}
-	ACCESS_ONCE(trans->transaction->aborted) = errno;
+	WRITE_ONCE(trans->transaction->aborted, errno);
 	/* Wake up anybody who may be waiting on this transaction */
 	wake_up(&fs_info->transaction_wait);
 	wake_up(&fs_info->transaction_blocked_wait);

@@ -181,7 +181,8 @@ int btrfs_qgroup_reserve_data(struct inode *inode, u64 start, u64 len);
 int btrfs_qgroup_release_data(struct inode *inode, u64 start, u64 len);
 int btrfs_qgroup_free_data(struct inode *inode, u64 start, u64 len);
 
-int btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes);
+int btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
+			      bool enforce);
 void btrfs_qgroup_free_meta_all(struct btrfs_root *root);
 void btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes);
 void btrfs_qgroup_check_reserved_leak(struct inode *inode);
