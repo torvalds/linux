@@ -2,6 +2,8 @@
 
 set -ex
 
+export LKL_TEST_DHCP=1
+
 make mrproper
 cd tools/lkl
 make -j4

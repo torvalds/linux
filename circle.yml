@@ -8,6 +8,7 @@ machine:
     CROSS_COMPILE: $(case $CIRCLE_NODE_INDEX in 0) host='' ;; 1) host='i686-w64-mingw32-' ;; 2) host='arm-linux-androideabi-' ;; esac; echo $host)
     MKARG: $(case $CIRCLE_NODE_INDEX in 0) mkarg='dpdk=yes' ;; 1) host='i686-w64-mingw32-' ;; 2) host='arm-linux-androideabi-' ;; esac; echo $mkarg)
     PATH: /home/ubuntu/android-toolchain/bin:${PATH}
+    LKL_TEST_DHCP: 1
 
 ## Customize dependencies
 dependencies:
