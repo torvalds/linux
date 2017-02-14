@@ -408,26 +408,23 @@ static ssize_t enabled_store(struct kobject *kobj, struct kobj_attribute *attr,
 {
 	struct klp_patch *patch;
 	int ret;
-	unsigned long val;
+	bool enabled;
 
-	ret = kstrtoul(buf, 10, &val);
+	ret = kstrtobool(buf, &enabled);
 	if (ret)
-		return -EINVAL;
-
-	if (val > 1)
-		return -EINVAL;
+		return ret;
 
 	patch = container_of(kobj, struct klp_patch, kobj);
 
 	mutex_lock(&klp_mutex);
 
-	if (patch->enabled == val) {
+	if (patch->enabled == enabled) {
 		/* already in requested state */
 		ret = -EINVAL;
 		goto err;
 	}
 
-	if (val) {
+	if (enabled) {
 		ret = __klp_enable_patch(patch);
 		if (ret)
 			goto err;
