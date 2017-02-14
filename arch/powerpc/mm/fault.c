@@ -152,13 +152,6 @@ static int mm_fault_error(struct pt_regs *regs, unsigned long addr, int fault)
 	 * continue the pagefault.
 	 */
 	if (fatal_signal_pending(current)) {
-		/*
-		 * If we have retry set, the mmap semaphore will have
-		 * alrady been released in __lock_page_or_retry(). Else
-		 * we release it now.
-		 */
-		if (!(fault & VM_FAULT_RETRY))
-			up_read(&current->mm->mmap_sem);
 		/* Coming from kernel, we need to deal with uaccess fixups */
 		if (user_mode(regs))
 			return MM_FAULT_RETURN;
@@ -171,8 +164,6 @@ static int mm_fault_error(struct pt_regs *regs, unsigned long addr, int fault)
 
 	/* Out of memory */
 	if (fault & VM_FAULT_OOM) {
-		up_read(&current->mm->mmap_sem);
-
 		/*
 		 * We ran out of memory, or some other thing happened to us that
 		 * made us unable to handle the page fault gracefully.
@@ -183,10 +174,8 @@ static int mm_fault_error(struct pt_regs *regs, unsigned long addr, int fault)
 		return MM_FAULT_RETURN;
 	}
 
-	if (fault & (VM_FAULT_SIGBUS|VM_FAULT_HWPOISON|VM_FAULT_HWPOISON_LARGE)) {
-		up_read(&current->mm->mmap_sem);
+	if (fault & (VM_FAULT_SIGBUS|VM_FAULT_HWPOISON|VM_FAULT_HWPOISON_LARGE))
 		return do_sigbus(regs, addr, fault);
-	}
 
 	/* We don't understand the fault code, this is fatal */
 	BUG();
@@ -476,11 +465,12 @@ good_area:
 				goto retry;
 		}
 		/* We will enter mm_fault_error() below */
-	}
+	} else
+		up_read(&current->mm->mmap_sem);
 
 	if (unlikely(fault & (VM_FAULT_RETRY|VM_FAULT_ERROR))) {
 		if (fault & VM_FAULT_SIGSEGV)
-			goto bad_area;
+			goto bad_area_nosemaphore;
 		rc = mm_fault_error(regs, address, fault);
 		if (rc >= MM_FAULT_RETURN)
 			goto bail;
@@ -512,7 +502,6 @@ good_area:
 			      regs, address);
 	}
 
-	up_read(&mm->mmap_sem);
 	goto bail;
 
 bad_area:
