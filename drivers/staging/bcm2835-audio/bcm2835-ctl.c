@@ -209,7 +209,7 @@ static int snd_bcm2835_spdif_default_get(struct snd_kcontrol *kcontrol,
 
 	for (i = 0; i < 4; i++)
 		ucontrol->value.iec958.status[i] =
-		(chip->spdif_status >> (i * 8)) && 0xff;
+			(chip->spdif_status >> (i * 8)) & 0xff;
 
 	mutex_unlock(&chip->audio_mutex);
 	return 0;
