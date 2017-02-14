@@ -481,7 +481,7 @@ static int gdrom_audio_ioctl(struct cdrom_device_info *cdi, unsigned int cmd,
 	return -EINVAL;
 }
 
-static struct cdrom_device_ops gdrom_ops = {
+static const struct cdrom_device_ops gdrom_ops = {
 	.open			= gdrom_open,
 	.release		= gdrom_release,
 	.drive_status		= gdrom_drivestatus,
@@ -489,9 +489,9 @@ static struct cdrom_device_ops gdrom_ops = {
 	.get_last_session	= gdrom_get_last_session,
 	.reset			= gdrom_hardreset,
 	.audio_ioctl		= gdrom_audio_ioctl,
+	.generic_packet		= cdrom_dummy_generic_packet,
 	.capability		= CDC_MULTI_SESSION | CDC_MEDIA_CHANGED |
 				  CDC_RESET | CDC_DRIVE_STATUS | CDC_CD_R,
-	.n_minors		= 1,
 };
 
 static int gdrom_bdops_open(struct block_device *bdev, fmode_t mode)
