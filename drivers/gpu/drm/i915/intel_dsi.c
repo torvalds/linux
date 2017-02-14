@@ -456,12 +456,21 @@ static void intel_dsi_port_enable(struct intel_encoder *encoder)
 
 	if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK) {
 		u32 temp;
-
-		temp = I915_READ(VLV_CHICKEN_3);
-		temp &= ~PIXEL_OVERLAP_CNT_MASK |
+		if (IS_GEN9_LP(dev_priv)) {
+			for_each_dsi_port(port, intel_dsi->ports) {
+				temp = I915_READ(MIPI_CTRL(port));
+				temp &= ~BXT_PIXEL_OVERLAP_CNT_MASK |
+					intel_dsi->pixel_overlap <<
+					BXT_PIXEL_OVERLAP_CNT_SHIFT;
+				I915_WRITE(MIPI_CTRL(port), temp);
+			}
+		} else {
+			temp = I915_READ(VLV_CHICKEN_3);
+			temp &= ~PIXEL_OVERLAP_CNT_MASK |
 					intel_dsi->pixel_overlap <<
 					PIXEL_OVERLAP_CNT_SHIFT;
-		I915_WRITE(VLV_CHICKEN_3, temp);
+			I915_WRITE(VLV_CHICKEN_3, temp);
+		}
 	}
 
 	for_each_dsi_port(port, intel_dsi->ports) {
