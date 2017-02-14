@@ -1052,7 +1052,8 @@ static int dpaa_fq_init(struct dpaa_fq *dpaa_fq, bool td_enable)
 		/* Initialization common to all ingress queues */
 		if (dpaa_fq->flags & QMAN_FQ_FLAG_NO_ENQUEUE) {
 			initfq.we_mask |= cpu_to_be16(QM_INITFQ_WE_CONTEXTA);
-			initfq.fqd.fq_ctrl |= cpu_to_be16(QM_FQCTRL_HOLDACTIVE);
+			initfq.fqd.fq_ctrl |= cpu_to_be16(QM_FQCTRL_HOLDACTIVE |
+						QM_FQCTRL_CTXASTASHING);
 			initfq.fqd.context_a.stashing.exclusive =
 				QM_STASHING_EXCL_DATA | QM_STASHING_EXCL_CTX |
 				QM_STASHING_EXCL_ANNOTATION;
