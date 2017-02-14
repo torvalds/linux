@@ -1402,8 +1402,11 @@ static unsigned long kvmgt_gfn_to_pfn(unsigned long handle, unsigned long gfn)
 	}
 	/* transfer to host iova for GFX to use DMA */
 	rc = gvt_dma_map_iova(info->vgpu, pfn, &iova);
-	if (rc)
+	if (rc) {
 		gvt_err("gvt_dma_map_iova failed for gfn: 0x%lx\n", gfn);
+		vfio_unpin_pages(dev, &gfn, 1);
+		return INTEL_GVT_INVALID_ADDR;
+	}
 
 	gvt_cache_add(info->vgpu, gfn, iova);
 	return iova;
