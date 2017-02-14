@@ -467,9 +467,6 @@ static int klp_patch_object(struct klp_object *obj)
 	if (WARN_ON(obj->patched))
 		return -EINVAL;
 
-	if (WARN_ON(!klp_is_object_loaded(obj)))
-		return -EINVAL;
-
 	klp_for_each_func(obj, func) {
 		ret = klp_patch_func(func);
 		if (ret) {
