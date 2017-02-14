@@ -25,6 +25,7 @@ struct nvkm_falcon {
 	u8 version;
 	u8 secret;
 	bool debug;
+	bool has_emem;
 
 	struct nvkm_memory *core;
 	bool external;

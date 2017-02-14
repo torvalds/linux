@@ -65,11 +65,43 @@ nvkm_falcon_v1_load_imem(struct nvkm_falcon *falcon, void *data, u32 start,
 }
 
 static void
+nvkm_falcon_v1_load_emem(struct nvkm_falcon *falcon, void *data, u32 start,
+			 u32 size, u8 port)
+{
+	u8 rem = size % 4;
+	int i;
+
+	size -= rem;
+
+	nvkm_falcon_wr32(falcon, 0xac0 + (port * 8), start | (0x1 << 24));
+	for (i = 0; i < size / 4; i++)
+		nvkm_falcon_wr32(falcon, 0xac4 + (port * 8), ((u32 *)data)[i]);
+
+	/*
+	 * If size is not a multiple of 4, mask the last word to ensure garbage
+	 * does not get written
+	 */
+	if (rem) {
+		u32 extra = ((u32 *)data)[i];
+
+		nvkm_falcon_wr32(falcon, 0xac4 + (port * 8),
+				 extra & (BIT(rem * 8) - 1));
+	}
+}
+
+static const u32 EMEM_START_ADDR = 0x1000000;
+
+static void
 nvkm_falcon_v1_load_dmem(struct nvkm_falcon *falcon, void *data, u32 start,
 		      u32 size, u8 port)
 {
 	u8 rem = size % 4;
 	int i;
+
+	if (start >= EMEM_START_ADDR && falcon->has_emem)
+		return nvkm_falcon_v1_load_emem(falcon, data,
+						start - EMEM_START_ADDR, size,
+						port);
 
 	size -= rem;
 
@@ -90,11 +122,42 @@ nvkm_falcon_v1_load_dmem(struct nvkm_falcon *falcon, void *data, u32 start,
 }
 
 static void
+nvkm_falcon_v1_read_emem(struct nvkm_falcon *falcon, u32 start, u32 size,
+			 u8 port, void *data)
+{
+	u8 rem = size % 4;
+	int i;
+
+	size -= rem;
+
+	nvkm_falcon_wr32(falcon, 0xac0 + (port * 8), start | (0x1 << 25));
+	for (i = 0; i < size / 4; i++)
+		((u32 *)data)[i] = nvkm_falcon_rd32(falcon, 0xac4 + (port * 8));
+
+	/*
+	 * If size is not a multiple of 4, mask the last word to ensure garbage
+	 * does not get read
+	 */
+	if (rem) {
+		u32 extra = nvkm_falcon_rd32(falcon, 0xac4 + (port * 8));
+
+		for (i = size; i < size + rem; i++) {
+			((u8 *)data)[i] = (u8)(extra & 0xff);
+			extra >>= 8;
+		}
+	}
+}
+
+static void
 nvkm_falcon_v1_read_dmem(struct nvkm_falcon *falcon, u32 start, u32 size,
 			 u8 port, void *data)
 {
 	u8 rem = size % 4;
 	int i;
+
+	if (start >= EMEM_START_ADDR && falcon->has_emem)
+		return nvkm_falcon_v1_read_emem(falcon, start - EMEM_START_ADDR,
+						size, port, data);
 
 	size -= rem;
 
