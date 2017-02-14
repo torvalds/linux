@@ -7,7 +7,8 @@ config CRYPTO_DEV_CPT
 
 config CAVIUM_CPT
 	tristate "Cavium Cryptographic Accelerator driver"
-	depends on ARCH_THUNDER
+	depends on ARCH_THUNDER || COMPILE_TEST
+	depends on PCI_MSI && 64BIT
 	select CRYPTO_DEV_CPT
 	help
 	  Support for Cavium CPT block found in octeon-tx series of
