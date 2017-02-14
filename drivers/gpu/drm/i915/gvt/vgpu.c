@@ -385,6 +385,7 @@ void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
 		intel_vgpu_reset_resource(vgpu);
 		intel_vgpu_reset_mmio(vgpu);
 		populate_pvinfo_page(vgpu);
+		intel_vgpu_reset_display(vgpu);
 
 		if (dmlr)
 			intel_vgpu_reset_cfg_space(vgpu);

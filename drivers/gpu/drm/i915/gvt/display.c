@@ -333,3 +333,15 @@ int intel_vgpu_init_display(struct intel_vgpu *vgpu)
 	else
 		return setup_virtual_dp_monitor(vgpu, PORT_B, GVT_DP_B);
 }
+
+/**
+ * intel_vgpu_reset_display- reset vGPU virtual display emulation
+ * @vgpu: a vGPU
+ *
+ * This function is used to reset vGPU virtual display emulation stuffs
+ *
+ */
+void intel_vgpu_reset_display(struct intel_vgpu *vgpu)
+{
+	emulate_monitor_status_change(vgpu);
+}
