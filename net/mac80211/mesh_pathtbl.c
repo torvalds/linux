@@ -829,6 +829,9 @@ void mesh_path_fix_nexthop(struct mesh_path *mpath, struct sta_info *next_hop)
 	mpath->flags = MESH_PATH_FIXED | MESH_PATH_SN_VALID;
 	mesh_path_activate(mpath);
 	spin_unlock_bh(&mpath->state_lock);
+	ewma_mesh_fail_avg_init(&next_hop->mesh->fail_avg);
+	/* init it at a low value - 0 start is tricky */
+	ewma_mesh_fail_avg_add(&next_hop->mesh->fail_avg, 1);
 	mesh_path_tx_pending(mpath);
 }
 

@@ -324,6 +324,9 @@ struct ieee80211_fast_rx {
 	struct rcu_head rcu_head;
 };
 
+/* we use only values in the range 0-100, so pick a large precision */
+DECLARE_EWMA(mesh_fail_avg, 20, 8)
+
 /**
  * struct mesh_sta - mesh STA information
  * @plink_lock: serialize access to plink fields
@@ -369,7 +372,7 @@ struct mesh_sta {
 	enum nl80211_mesh_power_mode nonpeer_pm;
 
 	/* moving percentage of failed MSDUs */
-	unsigned int fail_avg;
+	struct ewma_mesh_fail_avg fail_avg;
 };
 
 DECLARE_EWMA(signal, 10, 8)
