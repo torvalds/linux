@@ -112,7 +112,7 @@ static int zpci_set_irq_affinity(struct irq_data *data, const struct cpumask *de
 }
 
 static struct irq_chip zpci_irq_chip = {
-	.name = "zPCI",
+	.name = "PCI-MSI",
 	.irq_unmask = pci_msi_unmask_irq,
 	.irq_mask = pci_msi_mask_irq,
 	.irq_set_affinity = zpci_set_irq_affinity,
