@@ -1619,7 +1619,8 @@ megasas_make_prp_nvme(struct megasas_instance *instance, struct scsi_cmnd *scmd,
 {
 	int sge_len, offset, num_prp_in_chain = 0;
 	struct MPI25_IEEE_SGE_CHAIN64 *main_chain_element, *ptr_first_sgl;
-	u64 *ptr_sgl, *ptr_sgl_phys;
+	u64 *ptr_sgl;
+	dma_addr_t ptr_sgl_phys;
 	u64 sge_addr;
 	u32 page_mask, page_mask_result;
 	struct scatterlist *sg_scmd;
@@ -1651,14 +1652,14 @@ megasas_make_prp_nvme(struct megasas_instance *instance, struct scsi_cmnd *scmd,
 	 */
 	page_mask = mr_nvme_pg_size - 1;
 	ptr_sgl = (u64 *)cmd->sg_frame;
-	ptr_sgl_phys = (u64 *)cmd->sg_frame_phys_addr;
+	ptr_sgl_phys = cmd->sg_frame_phys_addr;
 	memset(ptr_sgl, 0, instance->max_chain_frame_sz);
 
 	/* Build chain frame element which holds all prps except first*/
 	main_chain_element = (struct MPI25_IEEE_SGE_CHAIN64 *)
 	    ((u8 *)sgl_ptr + sizeof(struct MPI25_IEEE_SGE_CHAIN64));
 
-	main_chain_element->Address = cpu_to_le64((uintptr_t)ptr_sgl_phys);
+	main_chain_element->Address = cpu_to_le64(ptr_sgl_phys);
 	main_chain_element->NextChainOffset = 0;
 	main_chain_element->Flags = IEEE_SGE_FLAGS_CHAIN_ELEMENT |
 					IEEE_SGE_FLAGS_SYSTEM_ADDR |
@@ -1696,16 +1697,15 @@ megasas_make_prp_nvme(struct megasas_instance *instance, struct scsi_cmnd *scmd,
 			scmd_printk(KERN_NOTICE,
 				    scmd, "page boundary ptr_sgl: 0x%p\n",
 				    ptr_sgl);
-			ptr_sgl_phys++;
-			*ptr_sgl =
-				cpu_to_le64((uintptr_t)ptr_sgl_phys);
+			ptr_sgl_phys += 8;
+			*ptr_sgl = cpu_to_le64(ptr_sgl_phys);
 			ptr_sgl++;
 			num_prp_in_chain++;
 		}
 
 		*ptr_sgl = cpu_to_le64(sge_addr);
 		ptr_sgl++;
-		ptr_sgl_phys++;
+		ptr_sgl_phys += 8;
 		num_prp_in_chain++;
 
 		sge_addr += mr_nvme_pg_size;
