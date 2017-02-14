@@ -44,6 +44,7 @@ Table of Contents
   3.8   /proc/<pid>/fdinfo/<fd> - Information about opened file
   3.9   /proc/<pid>/map_files - Information about memory mapped files
   3.10  /proc/<pid>/timerslack_ns - Task timerslack value
+  3.11	/proc/<pid>/patch_state - Livepatch patch operation state
 
   4	Configuring procfs
   4.1	Mount options
@@ -1886,6 +1887,23 @@ Valid values are from 0 - ULLONG_MAX
 
 An application setting the value must have PTRACE_MODE_ATTACH_FSCREDS level
 permissions on the task specified to change its timerslack_ns value.
+
+3.11	/proc/<pid>/patch_state - Livepatch patch operation state
+-----------------------------------------------------------------
+When CONFIG_LIVEPATCH is enabled, this file displays the value of the
+patch state for the task.
+
+A value of '-1' indicates that no patch is in transition.
+
+A value of '0' indicates that a patch is in transition and the task is
+unpatched.  If the patch is being enabled, then the task hasn't been
+patched yet.  If the patch is being disabled, then the task has already
+been unpatched.
+
+A value of '1' indicates that a patch is in transition and the task is
+patched.  If the patch is being enabled, then the task has already been
+patched.  If the patch is being disabled, then the task hasn't been
+unpatched yet.
 
 
 ------------------------------------------------------------------------------
