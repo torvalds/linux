@@ -1069,6 +1069,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.rx_buffer_padding = 0,
 	.can_rx_scatter = true,
 	.option_descriptors = false,
+	.min_interrupt_mode = EFX_INT_MODE_LEGACY,
 	.max_interrupt_mode = EFX_INT_MODE_MSIX,
 	.timer_period_max = 1 << FRF_CZ_TC_TIMER_VAL_WIDTH,
 	.offload_features = (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
