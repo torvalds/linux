@@ -215,8 +215,9 @@ void scsi_queue_insert(struct scsi_cmnd *cmd, int reason)
 
 static int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 		 int data_direction, void *buffer, unsigned bufflen,
-		 unsigned char *sense, int timeout, int retries, u64 flags,
-		 req_flags_t rq_flags, int *resid)
+		 unsigned char *sense, struct scsi_sense_hdr *sshdr,
+		 int timeout, int retries, u64 flags, req_flags_t rq_flags,
+		 int *resid)
 {
 	struct request *req;
 	struct scsi_request *rq;
@@ -259,6 +260,8 @@ static int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 		*resid = rq->resid_len;
 	if (sense && rq->sense_len)
 		memcpy(sense, rq->sense, SCSI_SENSE_BUFFERSIZE);
+	if (sshdr)
+		scsi_normalize_sense(rq->sense, rq->sense_len, sshdr);
 	ret = req->errors;
  out:
 	blk_put_request(req);
@@ -288,7 +291,7 @@ int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 		 int *resid)
 {
 	return __scsi_execute(sdev, cmd, data_direction, buffer, bufflen, sense,
-			timeout, retries, flags, 0, resid);
+			NULL, timeout, retries, flags, 0, resid);
 }
 EXPORT_SYMBOL(scsi_execute);
 
@@ -297,21 +300,9 @@ int scsi_execute_req_flags(struct scsi_device *sdev, const unsigned char *cmd,
 		     struct scsi_sense_hdr *sshdr, int timeout, int retries,
 		     int *resid, u64 flags, req_flags_t rq_flags)
 {
-	char *sense = NULL;
-	int result;
-	
-	if (sshdr) {
-		sense = kzalloc(SCSI_SENSE_BUFFERSIZE, GFP_NOIO);
-		if (!sense)
-			return DRIVER_ERROR << 24;
-	}
-	result = __scsi_execute(sdev, cmd, data_direction, buffer, bufflen,
-			      sense, timeout, retries, flags, rq_flags, resid);
-	if (sshdr)
-		scsi_normalize_sense(sense, SCSI_SENSE_BUFFERSIZE, sshdr);
-
-	kfree(sense);
-	return result;
+	return __scsi_execute(sdev, cmd, data_direction, buffer, bufflen,
+			      NULL, sshdr, timeout, retries, flags, rq_flags,
+			      resid);
 }
 EXPORT_SYMBOL(scsi_execute_req_flags);
 
