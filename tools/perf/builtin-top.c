@@ -859,7 +859,7 @@ static void perf_top__mmap_read(struct perf_top *top)
 
 static int perf_top__start_counters(struct perf_top *top)
 {
-	char msg[512];
+	char msg[BUFSIZ];
 	struct perf_evsel *counter;
 	struct perf_evlist *evlist = top->evlist;
 	struct record_opts *opts = &top->record_opts;

@@ -418,7 +418,7 @@ static int record__mmap(struct record *rec)
 
 static int record__open(struct record *rec)
 {
-	char msg[512];
+	char msg[BUFSIZ];
 	struct perf_evsel *pos;
 	struct perf_evlist *evlist = rec->evlist;
 	struct perf_session *session = rec->session;

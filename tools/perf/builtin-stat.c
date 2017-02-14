@@ -533,7 +533,7 @@ static int store_counter_ids(struct perf_evsel *counter)
 static int __run_perf_stat(int argc, const char **argv)
 {
 	int interval = stat_config.interval;
-	char msg[512];
+	char msg[BUFSIZ];
 	unsigned long long t0, t1;
 	struct perf_evsel *counter;
 	struct timespec ts;

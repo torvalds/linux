@@ -2469,7 +2469,9 @@ int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 		 "  -1: Allow use of (almost) all events by all users\n"
 		 ">= 0: Disallow raw tracepoint access by users without CAP_IOC_LOCK\n"
 		 ">= 1: Disallow CPU event access by users without CAP_SYS_ADMIN\n"
-		 ">= 2: Disallow kernel profiling by users without CAP_SYS_ADMIN",
+		 ">= 2: Disallow kernel profiling by users without CAP_SYS_ADMIN\n\n"
+		 "To make this setting permanent, edit /etc/sysctl.conf too, e.g.:\n\n"
+		 "	kernel.perf_event_paranoid = -1\n" ,
 				 target->system_wide ? "system-wide " : "",
 				 perf_event_paranoid());
 	case ENOENT:
