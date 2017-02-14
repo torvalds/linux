@@ -448,10 +448,8 @@ void	expire_timeout_chk(struct adapter *padapter)
 void add_RATid(struct adapter *padapter, struct sta_info *psta, u8 rssi_level)
 {
 	int i;
-	u8 rf_type;
 	u32 init_rate = 0;
 	unsigned char sta_band = 0, raid, shortGIrate = false;
-	unsigned char limit;
 	unsigned int tx_ra_bitmap = 0;
 	struct ht_priv	*psta_ht = NULL;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -472,16 +470,9 @@ void add_RATid(struct adapter *padapter, struct sta_info *psta, u8 rssi_level)
 	}
 	/* n mode ra_bitmap */
 	if (psta_ht->ht_option) {
-		rtw_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
-		if (rf_type == RF_2T2R)
-			limit = 16;/*  2R */
-		else
-			limit = 8;/*   1R */
-
-		for (i = 0; i < limit; i++) {
-			if (psta_ht->ht_cap.mcs.rx_mask[i / 8] & BIT(i % 8))
+		for (i = 0; i < 8; i++)
+			if (psta_ht->ht_cap.mcs.rx_mask[0] & BIT(i))
 				tx_ra_bitmap |= BIT(i + 12);
-		}
 
 		/* max short GI rate */
 		shortGIrate = psta_ht->sgi;
