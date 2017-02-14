@@ -466,9 +466,13 @@ static struct srp_fr_pool *srp_alloc_fr_pool(struct srp_target_port *target)
  * completion handler can access the queue pair while it is
  * being destroyed.
  */
-static void srp_destroy_qp(struct ib_qp *qp)
+static void srp_destroy_qp(struct srp_rdma_ch *ch, struct ib_qp *qp)
 {
-	ib_drain_rq(qp);
+	spin_lock_irq(&ch->lock);
+	ib_process_cq_direct(ch->send_cq, -1);
+	spin_unlock_irq(&ch->lock);
+
+	ib_drain_qp(qp);
 	ib_destroy_qp(qp);
 }
 
@@ -542,7 +546,7 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 	}
 
 	if (ch->qp)
-		srp_destroy_qp(ch->qp);
+		srp_destroy_qp(ch, ch->qp);
 	if (ch->recv_cq)
 		ib_free_cq(ch->recv_cq);
 	if (ch->send_cq)
@@ -566,7 +570,7 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 	return 0;
 
 err_qp:
-	srp_destroy_qp(qp);
+	srp_destroy_qp(ch, qp);
 
 err_send_cq:
 	ib_free_cq(send_cq);
@@ -609,7 +613,7 @@ static void srp_free_ch_ib(struct srp_target_port *target,
 			ib_destroy_fmr_pool(ch->fmr_pool);
 	}
 
-	srp_destroy_qp(ch->qp);
+	srp_destroy_qp(ch, ch->qp);
 	ib_free_cq(ch->send_cq);
 	ib_free_cq(ch->recv_cq);
 
@@ -1822,6 +1826,11 @@ static struct srp_iu *__srp_get_tx_iu(struct srp_rdma_ch *ch,
 	return iu;
 }
 
+/*
+ * Note: if this function is called from inside ib_drain_sq() then it will
+ * be called without ch->lock being held. If ib_drain_sq() dequeues a WQE
+ * with status IB_WC_SUCCESS then that's a bug.
+ */
 static void srp_send_done(struct ib_cq *cq, struct ib_wc *wc)
 {
 	struct srp_iu *iu = container_of(wc->wr_cqe, struct srp_iu, cqe);
