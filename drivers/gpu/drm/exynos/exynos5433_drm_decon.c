@@ -678,7 +678,7 @@ static int exynos5433_decon_probe(struct platform_device *pdev)
 		ctx->out_type |= IFTYPE_I80;
 	}
 
-	if (ctx->out_type | I80_HW_TRG) {
+	if (ctx->out_type & I80_HW_TRG) {
 		ctx->sysreg = syscon_regmap_lookup_by_phandle(dev->of_node,
 							"samsung,disp-sysreg");
 		if (IS_ERR(ctx->sysreg)) {
