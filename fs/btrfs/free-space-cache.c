@@ -286,14 +286,14 @@ fail:
 	return ret;
 }
 
-static int readahead_cache(struct inode *inode)
+static void readahead_cache(struct inode *inode)
 {
 	struct file_ra_state *ra;
 	unsigned long last_index;
 
 	ra = kzalloc(sizeof(*ra), GFP_NOFS);
 	if (!ra)
-		return -ENOMEM;
+		return;
 
 	file_ra_state_init(ra, inode->i_mapping);
 	last_index = (i_size_read(inode) - 1) >> PAGE_SHIFT;
@@ -301,8 +301,6 @@ static int readahead_cache(struct inode *inode)
 	page_cache_sync_readahead(inode->i_mapping, ra, NULL, 0, last_index);
 
 	kfree(ra);
-
-	return 0;
 }
 
 static int io_ctl_init(struct btrfs_io_ctl *io_ctl, struct inode *inode,
@@ -730,9 +728,7 @@ static int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 	if (ret)
 		return ret;
 
-	ret = readahead_cache(inode);
-	if (ret)
-		goto out;
+	readahead_cache(inode);
 
 	ret = io_ctl_prepare_pages(&io_ctl, inode, 1);
 	if (ret)
