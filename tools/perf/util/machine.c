@@ -782,7 +782,7 @@ static u64 machine__get_running_kernel_start(struct machine *machine,
 
 int __machine__create_kernel_maps(struct machine *machine, struct dso *kernel)
 {
-	enum map_type type;
+	int type;
 	u64 start = machine__get_running_kernel_start(machine, NULL);
 
 	/* In case of renewal the kernel map, destroy previous one */
@@ -813,7 +813,7 @@ int __machine__create_kernel_maps(struct machine *machine, struct dso *kernel)
 
 void machine__destroy_kernel_maps(struct machine *machine)
 {
-	enum map_type type;
+	int type;
 
 	for (type = 0; type < MAP__NR_TYPES; ++type) {
 		struct kmap *kmap;

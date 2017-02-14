@@ -1901,7 +1901,7 @@ int maps__set_kallsyms_ref_reloc_sym(struct map **maps,
 				     const char *symbol_name, u64 addr)
 {
 	char *bracket;
-	enum map_type i;
+	int i;
 	struct ref_reloc_sym *ref;
 
 	ref = zalloc(sizeof(struct ref_reloc_sym));
