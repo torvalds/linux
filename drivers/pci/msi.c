@@ -1206,6 +1206,16 @@ int pci_alloc_irq_vectors_affinity(struct pci_dev *dev, unsigned int min_vecs,
 	if (flags & PCI_IRQ_AFFINITY) {
 		if (!affd)
 			affd = &msi_default_affd;
+
+		if (affd->pre_vectors + affd->post_vectors > min_vecs)
+			return -EINVAL;
+
+		/*
+		 * If there aren't any vectors left after applying the pre/post
+		 * vectors don't bother with assigning affinity.
+		 */
+		if (affd->pre_vectors + affd->post_vectors == min_vecs)
+			affd = NULL;
 	} else {
 		if (WARN_ON(affd))
 			affd = NULL;

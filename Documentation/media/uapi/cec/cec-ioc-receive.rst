@@ -34,11 +34,6 @@ Arguments
 Description
 ===========
 
-.. note::
-
-   This documents the proposed CEC API. This API is not yet finalized
-   and is currently only available as a staging kernel module.
-
 To receive a CEC message the application has to fill in the
 ``timeout`` field of struct :c:type:`cec_msg` and pass it to
 :ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>`.
