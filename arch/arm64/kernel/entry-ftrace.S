@@ -10,6 +10,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/assembler.h>
 #include <asm/ftrace.h>
 #include <asm/insn.h>
 
