@@ -2805,7 +2805,8 @@ xfs_bmap_add_extent_hole_delay(
 		oldlen = startblockval(left.br_startblock) +
 			startblockval(new->br_startblock) +
 			startblockval(right.br_startblock);
-		newlen = xfs_bmap_worst_indlen(ip, temp);
+		newlen = XFS_FILBLKS_MIN(xfs_bmap_worst_indlen(ip, temp),
+					 oldlen);
 		xfs_bmbt_set_startblock(xfs_iext_get_ext(ifp, *idx),
 			nullstartblock((int)newlen));
 		trace_xfs_bmap_post_update(ip, *idx, state, _THIS_IP_);
@@ -2826,7 +2827,8 @@ xfs_bmap_add_extent_hole_delay(
 		xfs_bmbt_set_blockcount(xfs_iext_get_ext(ifp, *idx), temp);
 		oldlen = startblockval(left.br_startblock) +
 			startblockval(new->br_startblock);
-		newlen = xfs_bmap_worst_indlen(ip, temp);
+		newlen = XFS_FILBLKS_MIN(xfs_bmap_worst_indlen(ip, temp),
+					 oldlen);
 		xfs_bmbt_set_startblock(xfs_iext_get_ext(ifp, *idx),
 			nullstartblock((int)newlen));
 		trace_xfs_bmap_post_update(ip, *idx, state, _THIS_IP_);
@@ -2842,7 +2844,8 @@ xfs_bmap_add_extent_hole_delay(
 		temp = new->br_blockcount + right.br_blockcount;
 		oldlen = startblockval(new->br_startblock) +
 			startblockval(right.br_startblock);
-		newlen = xfs_bmap_worst_indlen(ip, temp);
+		newlen = XFS_FILBLKS_MIN(xfs_bmap_worst_indlen(ip, temp),
+					 oldlen);
 		xfs_bmbt_set_allf(xfs_iext_get_ext(ifp, *idx),
 			new->br_startoff,
 			nullstartblock((int)newlen), temp, right.br_state);
