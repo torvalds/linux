@@ -655,22 +655,23 @@ record__finish_output(struct record *rec)
 
 static int record__synthesize_workload(struct record *rec, bool tail)
 {
-	struct {
-		struct thread_map map;
-		struct thread_map_data map_data;
-	} thread_map;
+	int err;
+	struct thread_map *thread_map;
 
 	if (rec->opts.tail_synthesize != tail)
 		return 0;
 
-	thread_map.map.nr = 1;
-	thread_map.map.map[0].pid = rec->evlist->workload.pid;
-	thread_map.map.map[0].comm = NULL;
-	return perf_event__synthesize_thread_map(&rec->tool, &thread_map.map,
+	thread_map = thread_map__new_by_tid(rec->evlist->workload.pid);
+	if (thread_map == NULL)
+		return -1;
+
+	err = perf_event__synthesize_thread_map(&rec->tool, thread_map,
 						 process_synthesized_event,
 						 &rec->session->machines.host,
 						 rec->opts.sample_address,
 						 rec->opts.proc_map_timeout);
+	thread_map__put(thread_map);
+	return err;
 }
 
 static int record__synthesize(struct record *rec, bool tail);
