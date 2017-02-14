@@ -207,11 +207,12 @@ int elevator_init(struct request_queue *q, char *name)
 	}
 
 	/*
-	 * Use the default elevator specified by config boot param or
-	 * config option.  Don't try to load modules as we could be running
-	 * off async and request_module() isn't allowed from async.
+	 * Use the default elevator specified by config boot param for
+	 * non-mq devices, or by config option. Don't try to load modules
+	 * as we could be running off async and request_module() isn't
+	 * allowed from async.
 	 */
-	if (!e && *chosen_elevator) {
+	if (!e && !q->mq_ops && *chosen_elevator) {
 		e = elevator_get(chosen_elevator, false);
 		if (!e)
 			printk(KERN_ERR "I/O scheduler %s not found\n",
