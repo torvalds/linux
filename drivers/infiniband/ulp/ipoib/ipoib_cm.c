@@ -1157,13 +1157,13 @@ static int ipoib_cm_tx_init(struct ipoib_cm_tx *p, u32 qpn,
 	ret = ipoib_cm_modify_tx_init(p->dev, p->id,  p->qp);
 	if (ret) {
 		ipoib_warn(priv, "failed to modify tx qp to rtr: %d\n", ret);
-		goto err_modify;
+		goto err_modify_send;
 	}
 
 	ret = ipoib_cm_send_req(p->dev, p->id, p->qp, qpn, pathrec);
 	if (ret) {
 		ipoib_warn(priv, "failed to send cm req: %d\n", ret);
-		goto err_send_cm;
+		goto err_modify_send;
 	}
 
 	ipoib_dbg(priv, "Request connection 0x%x for gid %pI6 qpn 0x%x\n",
@@ -1171,8 +1171,7 @@ static int ipoib_cm_tx_init(struct ipoib_cm_tx *p, u32 qpn,
 
 	return 0;
 
-err_send_cm:
-err_modify:
+err_modify_send:
 	ib_destroy_cm_id(p->id);
 err_id:
 	p->id = NULL;
