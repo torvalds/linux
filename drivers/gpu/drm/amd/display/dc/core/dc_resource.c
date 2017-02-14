@@ -135,7 +135,7 @@ static void update_num_audio(
 		break;
 	default:
 		DC_ERR("DC: unexpected audio fuse!\n");
-	};
+	}
 }
 
 bool resource_construct(
