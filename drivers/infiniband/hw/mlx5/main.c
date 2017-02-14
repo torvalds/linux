@@ -995,6 +995,31 @@ static int mlx5_ib_modify_device(struct ib_device *ibdev, int mask,
 	return err;
 }
 
+static int set_port_caps_atomic(struct mlx5_ib_dev *dev, u8 port_num, u32 mask,
+				u32 value)
+{
+	struct mlx5_hca_vport_context ctx = {};
+	int err;
+
+	err = mlx5_query_hca_vport_context(dev->mdev, 0,
+					   port_num, 0, &ctx);
+	if (err)
+		return err;
+
+	if (~ctx.cap_mask1_perm & mask) {
+		mlx5_ib_warn(dev, "trying to change bitmask 0x%X but change supported 0x%X\n",
+			     mask, ctx.cap_mask1_perm);
+		return -EINVAL;
+	}
+
+	ctx.cap_mask1 = value;
+	ctx.cap_mask1_perm = mask;
+	err = mlx5_core_modify_hca_vport_context(dev->mdev, 0,
+						 port_num, 0, &ctx);
+
+	return err;
+}
+
 static int mlx5_ib_modify_port(struct ib_device *ibdev, u8 port, int mask,
 			       struct ib_port_modify *props)
 {
@@ -1002,6 +1027,16 @@ static int mlx5_ib_modify_port(struct ib_device *ibdev, u8 port, int mask,
 	struct ib_port_attr attr;
 	u32 tmp;
 	int err;
+	u32 change_mask;
+	u32 value;
+	bool is_ib = (mlx5_ib_port_link_layer(ibdev, port) ==
+		      IB_LINK_LAYER_INFINIBAND);
+
+	if (MLX5_CAP_GEN(dev->mdev, ib_virt) && is_ib) {
+		change_mask = props->clr_port_cap_mask | props->set_port_cap_mask;
+		value = ~props->clr_port_cap_mask | props->set_port_cap_mask;
+		return set_port_caps_atomic(dev, port, change_mask, value);
+	}
 
 	mutex_lock(&dev->cap_mask_mutex);
 
