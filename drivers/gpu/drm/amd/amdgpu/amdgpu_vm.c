@@ -1200,7 +1200,8 @@ static void amdgpu_vm_prt_cb(struct dma_fence *fence, struct dma_fence_cb *_cb)
 {
 	struct amdgpu_prt_cb *cb = container_of(_cb, struct amdgpu_prt_cb, cb);
 
-	amdgpu_vm_update_prt_state(cb->adev);
+	if (atomic_dec_return(&cb->adev->vm_manager.num_prt_mappings) == 0)
+		amdgpu_vm_update_prt_state(cb->adev);
 	kfree(cb);
 }
 
@@ -1219,17 +1220,14 @@ static void amdgpu_vm_free_mapping(struct amdgpu_device *adev,
 				   struct amdgpu_bo_va_mapping *mapping,
 				   struct dma_fence *fence)
 {
-	if ((mapping->flags & AMDGPU_PTE_PRT) &&
-	    atomic_dec_return(&adev->vm_manager.num_prt_mappings) == 0) {
+	if (mapping->flags & AMDGPU_PTE_PRT) {
 		struct amdgpu_prt_cb *cb = kmalloc(sizeof(struct amdgpu_prt_cb),
 						   GFP_KERNEL);
 
 		cb->adev = adev;
 		if (!fence || dma_fence_add_callback(fence, &cb->cb,
-						     amdgpu_vm_prt_cb)) {
-			amdgpu_vm_update_prt_state(adev);
-			kfree(cb);
-		}
+						     amdgpu_vm_prt_cb))
+			amdgpu_vm_prt_cb(fence, &cb->cb);
 	}
 	kfree(mapping);
 }
