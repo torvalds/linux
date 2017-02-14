@@ -430,7 +430,6 @@ static noinline void compress_file_range(struct inode *inode,
 	int ret = 0;
 	struct page **pages = NULL;
 	unsigned long nr_pages;
-	unsigned long nr_pages_ret = 0;
 	unsigned long total_compressed = 0;
 	unsigned long total_in = 0;
 	unsigned long max_compressed = SZ_128K;
@@ -518,7 +517,7 @@ again:
 		ret = btrfs_compress_pages(compress_type,
 					   inode->i_mapping, start,
 					   pages,
-					   nr_pages, &nr_pages_ret,
+					   &nr_pages,
 					   &total_in,
 					   &total_compressed,
 					   max_compressed);
@@ -526,7 +525,7 @@ again:
 		if (!ret) {
 			unsigned long offset = total_compressed &
 				(PAGE_SIZE - 1);
-			struct page *page = pages[nr_pages_ret - 1];
+			struct page *page = pages[nr_pages - 1];
 			char *kaddr;
 
 			/* zero the tail end of the last page, we might be
@@ -607,7 +606,7 @@ cont:
 			 * will submit them to the elevator.
 			 */
 			add_async_extent(async_cow, start, num_bytes,
-					total_compressed, pages, nr_pages_ret,
+					total_compressed, pages, nr_pages,
 					compress_type);
 
 			if (start + num_bytes < end) {
@@ -624,14 +623,14 @@ cont:
 		 * the compression code ran but failed to make things smaller,
 		 * free any pages it allocated and our page pointer array
 		 */
-		for (i = 0; i < nr_pages_ret; i++) {
+		for (i = 0; i < nr_pages; i++) {
 			WARN_ON(pages[i]->mapping);
 			put_page(pages[i]);
 		}
 		kfree(pages);
 		pages = NULL;
 		total_compressed = 0;
-		nr_pages_ret = 0;
+		nr_pages = 0;
 
 		/* flag the file so we don't compress in the future */
 		if (!btrfs_test_opt(fs_info, FORCE_COMPRESS) &&
@@ -660,7 +659,7 @@ cleanup_and_bail_uncompressed:
 	return;
 
 free_pages_out:
-	for (i = 0; i < nr_pages_ret; i++) {
+	for (i = 0; i < nr_pages; i++) {
 		WARN_ON(pages[i]->mapping);
 		put_page(pages[i]);
 	}

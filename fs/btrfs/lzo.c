@@ -88,7 +88,6 @@ static int lzo_compress_pages(struct list_head *ws,
 			      struct address_space *mapping,
 			      u64 start,
 			      struct page **pages,
-			      unsigned long nr_dest_pages,
 			      unsigned long *out_pages,
 			      unsigned long *total_in,
 			      unsigned long *total_out,
@@ -103,6 +102,7 @@ static int lzo_compress_pages(struct list_head *ws,
 	struct page *out_page = NULL;
 	unsigned long bytes_left;
 	unsigned long len = *total_out;
+	unsigned long nr_dest_pages = *out_pages;
 	size_t in_len;
 	size_t out_len;
 	char *buf;

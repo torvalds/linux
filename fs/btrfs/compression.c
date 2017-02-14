@@ -914,8 +914,8 @@ static void free_workspaces(void)
  * Given an address space and start and length, compress the bytes into @pages
  * that are allocated on demand.
  *
- * @out_pages is used to return the number of pages allocated.  There
- * may be pages allocated even if we return an error.
+ * @out_pages is an in/out parameter, holds maximum number of pages to allocate
+ * and returns number of actually allocated pages
  *
  * @total_in is used to return the number of bytes actually read.  It
  * may be smaller than the input length if we had to exit early because we
@@ -930,7 +930,6 @@ static void free_workspaces(void)
  */
 int btrfs_compress_pages(int type, struct address_space *mapping,
 			 u64 start, struct page **pages,
-			 unsigned long nr_dest_pages,
 			 unsigned long *out_pages,
 			 unsigned long *total_in,
 			 unsigned long *total_out,
@@ -943,7 +942,7 @@ int btrfs_compress_pages(int type, struct address_space *mapping,
 
 	ret = btrfs_compress_op[type-1]->compress_pages(workspace, mapping,
 						      start, pages,
-						      nr_dest_pages, out_pages,
+						      out_pages,
 						      total_in, total_out,
 						      max_out);
 	free_workspace(type, workspace);
