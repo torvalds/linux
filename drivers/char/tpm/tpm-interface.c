@@ -343,6 +343,7 @@ EXPORT_SYMBOL_GPL(tpm_calc_ordinal_duration);
 ssize_t tpm_transmit(struct tpm_chip *chip, const u8 *buf, size_t bufsiz,
 		     unsigned int flags)
 {
+	const struct tpm_output_header *header = (void *)buf;
 	ssize_t rc;
 	u32 count, ordinal;
 	unsigned long stop;
@@ -406,9 +407,18 @@ ssize_t tpm_transmit(struct tpm_chip *chip, const u8 *buf, size_t bufsiz,
 
 out_recv:
 	rc = chip->ops->recv(chip, (u8 *) buf, bufsiz);
-	if (rc < 0)
+	if (rc < 0) {
 		dev_err(&chip->dev,
 			"tpm_transmit: tpm_recv: error %zd\n", rc);
+		goto out;
+	} else if (rc < TPM_HEADER_SIZE) {
+		rc = -EFAULT;
+		goto out;
+	}
+
+	if (rc != be32_to_cpu(header->length))
+		goto out;
+
 out:
 	if (chip->dev.parent)
 		pm_runtime_put_sync(chip->dev.parent);
@@ -438,19 +448,13 @@ ssize_t tpm_transmit_cmd(struct tpm_chip *chip, const void *buf,
 			 size_t bufsiz, size_t min_rsp_body_length,
 			 unsigned int flags, const char *desc)
 {
-	const struct tpm_output_header *header;
+	const struct tpm_output_header *header = buf;
 	int err;
 	ssize_t len;
 
 	len = tpm_transmit(chip, (const u8 *)buf, bufsiz, flags);
 	if (len <  0)
 		return len;
-	else if (len < TPM_HEADER_SIZE)
-		return -EFAULT;
-
-	header = buf;
-	if (len != be32_to_cpu(header->length))
-		return -EFAULT;
 
 	err = be32_to_cpu(header->return_code);
 	if (err != 0 && desc)
