@@ -463,7 +463,11 @@ size_t ttm_bo_dma_acc_size(struct ttm_bo_device *bdev,
  * As this object may be part of a larger structure, this function,
  * together with the @destroy function,
  * enables driver-specific objects derived from a ttm_buffer_object.
- * On successful return, the object kref and list_kref are set to 1.
+ *
+ * On successful return, the caller owns an object kref to @bo. The kref and
+ * list_kref are usually set to 1, but note that in some situations, other
+ * tasks may already be holding references to @bo as well.
+ *
  * If a failure occurs, the function will call the @destroy function, or
  * kfree() if @destroy is NULL. Thus, after a failure, dereferencing @bo is
  * illegal and will likely cause memory corruption.
