@@ -1194,14 +1194,22 @@ static void amdgpu_vm_update_prt_state(struct amdgpu_device *adev)
 }
 
 /**
+ * amdgpu_vm_prt_put - drop a PRT user
+ */
+static void amdgpu_vm_prt_put(struct amdgpu_device *adev)
+{
+	if (atomic_dec_return(&adev->vm_manager.num_prt_mappings) == 0)
+		amdgpu_vm_update_prt_state(adev);
+}
+
+/**
  * amdgpu_vm_prt - callback for updating the PRT status
  */
 static void amdgpu_vm_prt_cb(struct dma_fence *fence, struct dma_fence_cb *_cb)
 {
 	struct amdgpu_prt_cb *cb = container_of(_cb, struct amdgpu_prt_cb, cb);
 
-	if (atomic_dec_return(&cb->adev->vm_manager.num_prt_mappings) == 0)
-		amdgpu_vm_update_prt_state(cb->adev);
+	amdgpu_vm_prt_put(cb->adev);
 	kfree(cb);
 }
 
@@ -1224,10 +1232,18 @@ static void amdgpu_vm_free_mapping(struct amdgpu_device *adev,
 		struct amdgpu_prt_cb *cb = kmalloc(sizeof(struct amdgpu_prt_cb),
 						   GFP_KERNEL);
 
-		cb->adev = adev;
-		if (!fence || dma_fence_add_callback(fence, &cb->cb,
-						     amdgpu_vm_prt_cb))
-			amdgpu_vm_prt_cb(fence, &cb->cb);
+		if (!cb) {
+			/* Last resort when we are OOM */
+			if (fence)
+				dma_fence_wait(fence, false);
+
+			amdgpu_vm_prt_put(cb->adev);
+		} else {
+			cb->adev = adev;
+			if (!fence || dma_fence_add_callback(fence, &cb->cb,
+							     amdgpu_vm_prt_cb))
+				amdgpu_vm_prt_cb(fence, &cb->cb);
+		}
 	}
 	kfree(mapping);
 }
