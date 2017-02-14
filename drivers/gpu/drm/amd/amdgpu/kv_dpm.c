@@ -3260,6 +3260,39 @@ static int kv_check_state_equal(struct amdgpu_device *adev,
 	return 0;
 }
 
+static int kv_dpm_read_sensor(struct amdgpu_device *adev, int idx,
+			      void *value, int *size)
+{
+	struct kv_power_info *pi = kv_get_pi(adev);
+	uint32_t sclk;
+	u32 pl_index =
+		(RREG32_SMC(ixTARGET_AND_CURRENT_PROFILE_INDEX) &
+		TARGET_AND_CURRENT_PROFILE_INDEX__CURR_SCLK_INDEX_MASK) >>
+		TARGET_AND_CURRENT_PROFILE_INDEX__CURR_SCLK_INDEX__SHIFT;
+
+	/* size must be at least 4 bytes for all sensors */
+	if (*size < 4)
+		return -EINVAL;
+
+	switch (idx) {
+	case AMDGPU_PP_SENSOR_GFX_SCLK:
+		if (pl_index < SMU__NUM_SCLK_DPM_STATE) {
+			sclk = be32_to_cpu(
+				pi->graphics_level[pl_index].SclkFrequency);
+			*((uint32_t *)value) = sclk;
+			*size = 4;
+			return 0;
+		}
+		return -EINVAL;
+	case AMDGPU_PP_SENSOR_GPU_TEMP:
+		*((uint32_t *)value) = kv_dpm_get_temp(adev);
+		*size = 4;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 const struct amd_ip_funcs kv_dpm_ip_funcs = {
 	.name = "kv_dpm",
 	.early_init = kv_dpm_early_init,
@@ -3292,6 +3325,7 @@ static const struct amdgpu_dpm_funcs kv_dpm_funcs = {
 	.enable_bapm = &kv_dpm_enable_bapm,
 	.get_vce_clock_state = amdgpu_get_vce_clock_state,
 	.check_state_equal = kv_check_state_equal,
+	.read_sensor = &kv_dpm_read_sensor,
 };
 
 static void kv_dpm_set_dpm_funcs(struct amdgpu_device *adev)

@@ -6936,6 +6936,48 @@ static int ci_dpm_switch_power_profile(struct amdgpu_device *adev,
 	return 0;
 }
 
+static int ci_dpm_read_sensor(struct amdgpu_device *adev, int idx,
+			      void *value, int *size)
+{
+	u32 activity_percent = 50;
+	int ret;
+
+	/* size must be at least 4 bytes for all sensors */
+	if (*size < 4)
+		return -EINVAL;
+
+	switch (idx) {
+	case AMDGPU_PP_SENSOR_GFX_SCLK:
+		*((uint32_t *)value) = ci_get_average_sclk_freq(adev);
+		*size = 4;
+		return 0;
+	case AMDGPU_PP_SENSOR_GFX_MCLK:
+		*((uint32_t *)value) = ci_get_average_mclk_freq(adev);
+		*size = 4;
+		return 0;
+	case AMDGPU_PP_SENSOR_GPU_TEMP:
+		*((uint32_t *)value) = ci_dpm_get_temp(adev);
+		*size = 4;
+		return 0;
+	case AMDGPU_PP_SENSOR_GPU_LOAD:
+		ret = ci_read_smc_soft_register(adev,
+						offsetof(SMU7_SoftRegisters,
+							 AverageGraphicsA),
+						&activity_percent);
+		if (ret == 0) {
+			activity_percent += 0x80;
+			activity_percent >>= 8;
+			activity_percent =
+				activity_percent > 100 ? 100 : activity_percent;
+		}
+		*((uint32_t *)value) = activity_percent;
+		*size = 4;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 const struct amd_ip_funcs ci_dpm_ip_funcs = {
 	.name = "ci_dpm",
 	.early_init = ci_dpm_early_init,
@@ -6982,6 +7024,7 @@ static const struct amdgpu_dpm_funcs ci_dpm_funcs = {
 	.set_power_profile_state = ci_dpm_set_power_profile_state,
 	.reset_power_profile_state = ci_dpm_reset_power_profile_state,
 	.switch_power_profile = ci_dpm_switch_power_profile,
+	.read_sensor = ci_dpm_read_sensor,
 };
 
 static void ci_dpm_set_dpm_funcs(struct amdgpu_device *adev)

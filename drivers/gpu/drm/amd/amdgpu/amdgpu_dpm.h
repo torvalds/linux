@@ -270,6 +270,8 @@ struct amdgpu_dpm_funcs {
 				struct amdgpu_ps *cps,
 				struct amdgpu_ps *rps,
 				bool *equal);
+	int (*read_sensor)(struct amdgpu_device *adev, int idx, void *value,
+			   int *size);
 
 	struct amd_vce_state* (*get_vce_clock_state)(struct amdgpu_device *adev, unsigned idx);
 	int (*reset_power_profile_state)(struct amdgpu_device *adev,
@@ -293,7 +295,7 @@ struct amdgpu_dpm_funcs {
 #define amdgpu_dpm_read_sensor(adev, idx, value, size) \
 	((adev)->pp_enabled ? \
 		(adev)->powerplay.pp_funcs->read_sensor(adev->powerplay.pp_handle, (idx), (value), (size)) : \
-		-EINVAL)
+		(adev)->pm.funcs->read_sensor((adev), (idx), (value), (size)))
 
 #define amdgpu_dpm_get_temperature(adev) \
 	((adev)->pp_enabled ?						\
