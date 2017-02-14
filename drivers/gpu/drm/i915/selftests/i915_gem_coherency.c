@@ -272,7 +272,7 @@ static int igt_gem_coherency(void *arg)
 	struct drm_i915_gem_object *obj;
 	unsigned long count, n;
 	u32 *offsets, *values;
-	int err;
+	int err = 0;
 
 	/* We repeatedly write, overwrite and read from a sequence of
 	 * cachelines in order to try and detect incoherency (unflushed writes
