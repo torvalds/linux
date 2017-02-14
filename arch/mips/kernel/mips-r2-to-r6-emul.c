@@ -600,7 +600,7 @@ static int ddivu_func(struct pt_regs *regs, u32 ir)
 }
 
 /* R6 removed instructions for the SPECIAL opcode */
-static struct r2_decoder_table spec_op_table[] = {
+static const struct r2_decoder_table spec_op_table[] = {
 	{ 0xfc1ff83f, 0x00000008, jr_func },
 	{ 0xfc00ffff, 0x00000018, mult_func },
 	{ 0xfc00ffff, 0x00000019, multu_func },
@@ -867,7 +867,7 @@ static int dclo_func(struct pt_regs *regs, u32 ir)
 }
 
 /* R6 removed instructions for the SPECIAL2 opcode */
-static struct r2_decoder_table spec2_op_table[] = {
+static const struct r2_decoder_table spec2_op_table[] = {
 	{ 0xfc00ffff, 0x70000000, madd_func },
 	{ 0xfc00ffff, 0x70000001, maddu_func },
 	{ 0xfc0007ff, 0x70000002, mul_func },
@@ -881,9 +881,9 @@ static struct r2_decoder_table spec2_op_table[] = {
 };
 
 static inline int mipsr2_find_op_func(struct pt_regs *regs, u32 inst,
-				      struct r2_decoder_table *table)
+				      const struct r2_decoder_table *table)
 {
-	struct r2_decoder_table *p;
+	const struct r2_decoder_table *p;
 	int err;
 
 	for (p = table; p->func; p++) {
