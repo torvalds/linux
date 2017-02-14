@@ -17,7 +17,7 @@
 #include <linux/cpu.h>
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/pm_opp.h>
@@ -265,8 +265,4 @@ fail_put_node:
 
 	return ret;
 }
-module_init(ti_cpufreq_init);
-
-MODULE_DESCRIPTION("TI CPUFreq/OPP hw-supported driver");
-MODULE_AUTHOR("Dave Gerlach <d-gerlach@ti.com>");
-MODULE_LICENSE("GPL v2");
+device_initcall(ti_cpufreq_init);
