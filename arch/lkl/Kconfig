@@ -4,11 +4,7 @@ config LKL
        select ARCH_THREAD_STACK_ALLOCATOR
        select RWSEM_GENERIC_SPINLOCK
        select GENERIC_ATOMIC64
-       select SEMAPHORE_SLEEPERS
-       select GENERIC_TIME
-       select GENERIC_FIND_NEXT_BIT
        select GENERIC_HWEIGHT
-       select GENERIC_HARDIRQS
        select FLATMEM
        select FLAT_NODE_MEM_MAP
        select GENERIC_CLOCKEVENTS
