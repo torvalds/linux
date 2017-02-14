@@ -164,7 +164,6 @@ config PPC
 	select ARCH_HAS_SCALED_CPUTIME if VIRT_CPU_ACCOUNTING_NATIVE
 	select HAVE_ARCH_HARDENED_USERCOPY
 	select HAVE_KERNEL_GZIP
-	select HAVE_CC_STACKPROTECTOR
 
 config GENERIC_CSUM
 	def_bool CPU_LITTLE_ENDIAN
@@ -484,6 +483,7 @@ config RELOCATABLE
 	bool "Build a relocatable kernel"
 	depends on (PPC64 && !COMPILE_TEST) || (FLATMEM && (44x || FSL_BOOKE))
 	select NONSTATIC_KERNEL
+	select MODULE_REL_CRCS if MODVERSIONS
 	help
 	  This builds a kernel image that is capable of running at the
 	  location the kernel is loaded at. For ppc32, there is no any

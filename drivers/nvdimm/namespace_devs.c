@@ -52,17 +52,17 @@ static void namespace_blk_release(struct device *dev)
 	kfree(nsblk);
 }
 
-static struct device_type namespace_io_device_type = {
+static const struct device_type namespace_io_device_type = {
 	.name = "nd_namespace_io",
 	.release = namespace_io_release,
 };
 
-static struct device_type namespace_pmem_device_type = {
+static const struct device_type namespace_pmem_device_type = {
 	.name = "nd_namespace_pmem",
 	.release = namespace_pmem_release,
 };
 
-static struct device_type namespace_blk_device_type = {
+static const struct device_type namespace_blk_device_type = {
 	.name = "nd_namespace_blk",
 	.release = namespace_blk_release,
 };
@@ -962,8 +962,8 @@ static ssize_t __size_store(struct device *dev, unsigned long long val)
 	struct nvdimm_drvdata *ndd;
 	struct nd_label_id label_id;
 	u32 flags = 0, remainder;
+	int rc, i, id = -1;
 	u8 *uuid = NULL;
-	int rc, i;
 
 	if (dev->driver || ndns->claim)
 		return -EBUSY;
@@ -972,11 +972,13 @@ static ssize_t __size_store(struct device *dev, unsigned long long val)
 		struct nd_namespace_pmem *nspm = to_nd_namespace_pmem(dev);
 
 		uuid = nspm->uuid;
+		id = nspm->id;
 	} else if (is_namespace_blk(dev)) {
 		struct nd_namespace_blk *nsblk = to_nd_namespace_blk(dev);
 
 		uuid = nsblk->uuid;
 		flags = NSLABEL_FLAG_LOCAL;
+		id = nsblk->id;
 	}
 
 	/*
@@ -1039,10 +1041,11 @@ static ssize_t __size_store(struct device *dev, unsigned long long val)
 
 	/*
 	 * Try to delete the namespace if we deleted all of its
-	 * allocation, this is not the seed device for the region, and
-	 * it is not actively claimed by a btt instance.
+	 * allocation, this is not the seed or 0th device for the
+	 * region, and it is not actively claimed by a btt, pfn, or dax
+	 * instance.
 	 */
-	if (val == 0 && nd_region->ns_seed != dev && !ndns->claim)
+	if (val == 0 && id != 0 && nd_region->ns_seed != dev && !ndns->claim)
 		nd_device_unregister(dev, ND_ASYNC);
 
 	return rc;
