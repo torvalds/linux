@@ -44,7 +44,7 @@
  ---------------------------------------------------------------------------
  Issue 31/01/2006
 
- This file provides fast multiplication in GF(128) as required by several
+ This file provides fast multiplication in GF(2^128) as required by several
  cryptographic authentication modes
 */
 
@@ -116,9 +116,10 @@
 static const u16 gf128mul_table_lle[256] = gf128mul_dat(xda_lle);
 static const u16 gf128mul_table_bbe[256] = gf128mul_dat(xda_bbe);
 
-/* These functions multiply a field element by x, by x^4 and by x^8
- * in the polynomial field representation. It uses 32-bit word operations
- * to gain speed but compensates for machine endianess and hence works
+/*
+ * The following functions multiply a field element by x or by x^8 in
+ * the polynomial field representation.  They use 64-bit word operations
+ * to gain speed but compensate for machine endianness and hence work
  * correctly on both styles of machine.
  */
 
@@ -251,7 +252,7 @@ EXPORT_SYMBOL(gf128mul_bbe);
 
 /*      This version uses 64k bytes of table space.
     A 16 byte buffer has to be multiplied by a 16 byte key
-    value in GF(128).  If we consider a GF(128) value in
+    value in GF(2^128).  If we consider a GF(2^128) value in
     the buffer's lowest byte, we can construct a table of
     the 256 16 byte values that result from the 256 values
     of this byte.  This requires 4096 bytes. But we also
@@ -330,7 +331,7 @@ EXPORT_SYMBOL(gf128mul_64k_bbe);
 
 /*      This version uses 4k bytes of table space.
     A 16 byte buffer has to be multiplied by a 16 byte key
-    value in GF(128).  If we consider a GF(128) value in a
+    value in GF(2^128).  If we consider a GF(2^128) value in a
     single byte, we can construct a table of the 256 16 byte
     values that result from the 256 values of this byte.
     This requires 4096 bytes. If we take the highest byte in

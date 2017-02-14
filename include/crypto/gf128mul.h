@@ -43,7 +43,7 @@
  ---------------------------------------------------------------------------
  Issue Date: 31/01/2006
 
- An implementation of field multiplication in Galois Field GF(128)
+ An implementation of field multiplication in Galois Field GF(2^128)
 */
 
 #ifndef _CRYPTO_GF128MUL_H
@@ -65,7 +65,7 @@
  * are left and the lsb's are right. char b[16] is an array and b[0] is
  * the first octet.
  *
- * 80000000 00000000 00000000 00000000 .... 00000000 00000000 00000000
+ * 10000000 00000000 00000000 00000000 .... 00000000 00000000 00000000
  *   b[0]     b[1]     b[2]     b[3]          b[13]    b[14]    b[15]
  *
  * Every bit is a coefficient of some power of X. We can store the bits
@@ -85,15 +85,17 @@
  * Both of the above formats are easy to implement on big-endian
  * machines.
  *
- * EME (which is patent encumbered) uses the ble format (bits are stored
- * in big endian order and the bytes in little endian). The above buffer
- * represents X^7 in this case and the primitive polynomial is b[0] = 0x87.
+ * XTS and EME (the latter of which is patent encumbered) use the ble
+ * format (bits are stored in big endian order and the bytes in little
+ * endian). The above buffer represents X^7 in this case and the
+ * primitive polynomial is b[0] = 0x87.
  *
  * The common machine word-size is smaller than 128 bits, so to make
  * an efficient implementation we must split into machine word sizes.
- * This file uses one 32bit for the moment. Machine endianness comes into
- * play. The lle format in relation to machine endianness is discussed
- * below by the original author of gf128mul Dr Brian Gladman.
+ * This implementation uses 64-bit words for the moment. Machine
+ * endianness comes into play. The lle format in relation to machine
+ * endianness is discussed below by the original author of gf128mul Dr
+ * Brian Gladman.
  *
  * Let's look at the bbe and ble format on a little endian machine.
  *
@@ -127,10 +129,10 @@
  * machines this will automatically aligned to wordsize and on a 64-bit
  * machine also.
  */
-/*	Multiply a GF128 field element by x. Field elements are held in arrays
-    of bytes in which field bits 8n..8n + 7 are held in byte[n], with lower
-    indexed bits placed in the more numerically significant bit positions
-    within bytes.
+/*	Multiply a GF(2^128) field element by x. Field elements are
+    held in arrays of bytes in which field bits 8n..8n + 7 are held in
+    byte[n], with lower indexed bits placed in the more numerically
+    significant bit positions within bytes.
 
     On little endian machines the bit indexes translate into the bit
     positions within four 32-bit words in the following way
