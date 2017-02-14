@@ -69,17 +69,22 @@ void dce_pipe_control_lock(struct dce_hwseq *hws,
 	if (control_mask & PIPE_LOCK_CONTROL_MODE)
 		update_lock_mode = lock_val;
 
-	REG_SET_4(BLND_V_UPDATE_LOCK[blnd_inst], val,
-			BLND_DCP_GRPH_V_UPDATE_LOCK, dcp_grph,
-			BLND_SCL_V_UPDATE_LOCK, scl,
-			BLND_BLND_V_UPDATE_LOCK, blnd,
-			BLND_V_UPDATE_LOCK_MODE, update_lock_mode);
 
-	if (hws->wa.blnd_crtc_trigger)
+	REG_SET_2(BLND_V_UPDATE_LOCK[blnd_inst], val,
+			BLND_DCP_GRPH_V_UPDATE_LOCK, dcp_grph,
+			BLND_SCL_V_UPDATE_LOCK, scl);
+
+	if (hws->masks->BLND_BLND_V_UPDATE_LOCK != 0)
+		REG_SET_2(BLND_V_UPDATE_LOCK[blnd_inst], val,
+				BLND_BLND_V_UPDATE_LOCK, blnd,
+				BLND_V_UPDATE_LOCK_MODE, update_lock_mode);
+
+	if (hws->wa.blnd_crtc_trigger) {
 		if (!lock && (control_mask & PIPE_LOCK_CONTROL_BLENDER)) {
 			uint32_t value = REG_READ(CRTC_H_BLANK_START_END[blnd_inst]);
 			REG_WRITE(CRTC_H_BLANK_START_END[blnd_inst], value);
 		}
+	}
 }
 
 void dce_set_blender_mode(struct dce_hwseq *hws,
@@ -111,11 +116,15 @@ void dce_set_blender_mode(struct dce_hwseq *hws,
 		break;
 	}
 
-	REG_UPDATE_4(BLND_CONTROL[blnd_inst],
-		BLND_FEEDTHROUGH_EN, feedthrough,
-		BLND_ALPHA_MODE, alpha_mode,
-		BLND_MODE, blnd_mode,
-		BLND_MULTIPLIED_MODE, multiplied_mode);
+	REG_UPDATE(BLND_CONTROL[blnd_inst],
+		BLND_MODE, blnd_mode);
+
+	if (hws->masks->BLND_ALPHA_MODE != 0) {
+		REG_UPDATE_3(BLND_CONTROL[blnd_inst],
+			BLND_FEEDTHROUGH_EN, feedthrough,
+			BLND_ALPHA_MODE, alpha_mode,
+			BLND_MULTIPLIED_MODE, multiplied_mode);
+	}
 }
 
 

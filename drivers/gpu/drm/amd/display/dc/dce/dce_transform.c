@@ -87,7 +87,10 @@ static bool setup_scaling_configuration(
 
 	if (data->taps.h_taps + data->taps.v_taps <= 2) {
 		/* Set bypass */
-		REG_UPDATE_2(SCL_MODE, SCL_MODE, 0, SCL_PSCL_EN, 0);
+		if (xfm_dce->xfm_mask->SCL_PSCL_EN != 0)
+			REG_UPDATE_2(SCL_MODE, SCL_MODE, 0, SCL_PSCL_EN, 0);
+		else
+			REG_UPDATE(SCL_MODE, SCL_MODE, 0);
 		return false;
 	}
 
@@ -96,9 +99,12 @@ static bool setup_scaling_configuration(
 			SCL_V_NUM_OF_TAPS, data->taps.v_taps - 1);
 
 	if (data->format <= PIXEL_FORMAT_GRPH_END)
-		REG_UPDATE_2(SCL_MODE, SCL_MODE, 1, SCL_PSCL_EN, 1);
+		REG_UPDATE(SCL_MODE, SCL_MODE, 1);
 	else
-		REG_UPDATE_2(SCL_MODE, SCL_MODE, 2, SCL_PSCL_EN, 1);
+		REG_UPDATE(SCL_MODE, SCL_MODE, 2);
+
+	if (xfm_dce->xfm_mask->SCL_PSCL_EN != 0)
+		REG_UPDATE(SCL_MODE, SCL_PSCL_EN, 1);
 
 	/* 1 - Replace out of bound pixels with edge */
 	REG_SET(SCL_CONTROL, 0, SCL_BOUNDARY_MODE, 1);
