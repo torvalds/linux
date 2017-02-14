@@ -2020,17 +2020,14 @@ static bool is_event_supported(u8 type, unsigned config)
 		.config = config,
 		.disabled = 1,
 	};
-	struct {
-		struct thread_map map;
-		int threads[1];
-	} tmap = {
-		.map.nr	 = 1,
-		.threads = { 0 },
-	};
+	struct thread_map *tmap = thread_map__new_by_tid(0);
+
+	if (tmap == NULL)
+		return false;
 
 	evsel = perf_evsel__new(&attr);
 	if (evsel) {
-		open_return = perf_evsel__open(evsel, NULL, &tmap.map);
+		open_return = perf_evsel__open(evsel, NULL, tmap);
 		ret = open_return >= 0;
 
 		if (open_return == -EACCES) {
@@ -2042,7 +2039,7 @@ static bool is_event_supported(u8 type, unsigned config)
 			 *
 			 */
 			evsel->attr.exclude_kernel = 1;
-			ret = perf_evsel__open(evsel, NULL, &tmap.map) >= 0;
+			ret = perf_evsel__open(evsel, NULL, tmap) >= 0;
 		}
 		perf_evsel__delete(evsel);
 	}
