@@ -235,6 +235,22 @@ static int cros_ec_host_command_proto_query_v2(struct cros_ec_device *ec_dev)
 	return ret;
 }
 
+/*
+ * cros_ec_get_host_command_version_mask
+ *
+ * Get the version mask of a given command.
+ *
+ * @ec_dev: EC device to call
+ * @msg: message structure to use
+ * @cmd: command to get the version of.
+ * @mask: result when function returns 0.
+ *
+ * @return 0 on success, error code otherwise
+ *
+ * LOCKING:
+ * the caller has ec_dev->lock mutex or the caller knows there is
+ * no other command in progress.
+ */
 static int cros_ec_get_host_command_version_mask(struct cros_ec_device *ec_dev,
 	u16 cmd, u32 *mask)
 {
@@ -256,7 +272,7 @@ static int cros_ec_get_host_command_version_mask(struct cros_ec_device *ec_dev,
 	pver = (struct ec_params_get_cmd_versions *)msg->data;
 	pver->cmd = cmd;
 
-	ret = cros_ec_cmd_xfer(ec_dev, msg);
+	ret = send_command(ec_dev, msg);
 	if (ret > 0) {
 		rver = (struct ec_response_get_cmd_versions *)msg->data;
 		*mask = rver->version_mask;
