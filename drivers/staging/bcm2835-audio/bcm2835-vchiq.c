@@ -135,8 +135,9 @@ int bcm2835_audio_start(struct bcm2835_alsa_stream *alsa_stream)
 
 	LOG_DBG(" .. IN\n");
 	if (alsa_stream->my_wq) {
-		struct bcm2835_audio_work *work =
-			kmalloc(sizeof(struct bcm2835_audio_work *), GFP_ATOMIC);
+		struct bcm2835_audio_work *work;
+
+		work = kmalloc(sizeof(*work), GFP_ATOMIC);
 		/*--- Queue some work (item 1) ---*/
 		if (work) {
 			INIT_WORK(&work->my_work, my_wq_function);
@@ -157,8 +158,9 @@ int bcm2835_audio_stop(struct bcm2835_alsa_stream *alsa_stream)
 
 	LOG_DBG(" .. IN\n");
 	if (alsa_stream->my_wq) {
-		struct bcm2835_audio_work *work =
-			kmalloc(sizeof(struct bcm2835_audio_work *), GFP_ATOMIC);
+		struct bcm2835_audio_work *work;
+
+		work = kmalloc(sizeof(*work), GFP_ATOMIC);
 		/*--- Queue some work (item 1) ---*/
 		if (work) {
 			INIT_WORK(&work->my_work, my_wq_function);
@@ -180,8 +182,9 @@ int bcm2835_audio_write(struct bcm2835_alsa_stream *alsa_stream,
 
 	LOG_DBG(" .. IN\n");
 	if (alsa_stream->my_wq) {
-		struct bcm2835_audio_work *work =
-			kmalloc(sizeof(struct bcm2835_audio_work *), GFP_ATOMIC);
+		struct bcm2835_audio_work *work;
+
+		work = kmalloc(sizeof(*work), GFP_ATOMIC);
 		/*--- Queue some work (item 1) ---*/
 		if (work) {
 			INIT_WORK(&work->my_work, my_wq_function);
