@@ -21,9 +21,6 @@
 /* FourCC code used for VCHI connection */
 #define VC_AUDIO_SERVER_NAME  MAKE_FOURCC("AUDS")
 
-/* Maximum message length */
-#define VC_AUDIO_MAX_MSG_LEN  (sizeof(VC_AUDIO_MSG_T))
-
 /*
  *  List of screens that are currently supported
  *  All message types supported for HOST->VC direction
