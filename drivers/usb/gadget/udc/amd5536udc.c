@@ -608,9 +608,8 @@ udc_alloc_request(struct usb_ep *usbep, gfp_t gfp)
 }
 
 /* frees pci pool descriptors of a DMA chain */
-static int udc_free_dma_chain(struct udc *dev, struct udc_request *req)
+static void udc_free_dma_chain(struct udc *dev, struct udc_request *req)
 {
-	int ret_val = 0;
 	struct udc_data_dma *td = req->td_data;
 	unsigned int i;
 
@@ -626,8 +625,6 @@ static int udc_free_dma_chain(struct udc *dev, struct udc_request *req)
 		pci_pool_free(dev->data_requests, td, addr);
 		addr = addr_next;
 	}
-
-	return ret_val;
 }
 
 /* Frees request packet, called by gadget driver */
