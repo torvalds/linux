@@ -90,8 +90,7 @@ static int lzo_compress_pages(struct list_head *ws,
 			      struct page **pages,
 			      unsigned long *out_pages,
 			      unsigned long *total_in,
-			      unsigned long *total_out,
-			      unsigned long max_out)
+			      unsigned long *total_out)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	int ret = 0;
@@ -103,6 +102,7 @@ static int lzo_compress_pages(struct list_head *ws,
 	unsigned long bytes_left;
 	unsigned long len = *total_out;
 	unsigned long nr_dest_pages = *out_pages;
+	const unsigned long max_out = nr_dest_pages * PAGE_SIZE;
 	size_t in_len;
 	size_t out_len;
 	char *buf;

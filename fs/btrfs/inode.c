@@ -510,8 +510,7 @@ again:
 					   pages,
 					   &nr_pages,
 					   &total_in,
-					   &total_compressed,
-					   BTRFS_MAX_COMPRESSED);
+					   &total_compressed);
 
 		if (!ret) {
 			unsigned long offset = total_compressed &

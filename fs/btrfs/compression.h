@@ -41,8 +41,7 @@ int btrfs_compress_pages(int type, struct address_space *mapping,
 			 u64 start, struct page **pages,
 			 unsigned long *out_pages,
 			 unsigned long *total_in,
-			 unsigned long *total_out,
-			 unsigned long max_out);
+			 unsigned long *total_out);
 int btrfs_decompress(int type, unsigned char *data_in, struct page *dest_page,
 		     unsigned long start_byte, size_t srclen, size_t destlen);
 int btrfs_decompress_buf2page(const char *buf, unsigned long buf_start,
@@ -76,8 +75,7 @@ struct btrfs_compress_op {
 			      struct page **pages,
 			      unsigned long *out_pages,
 			      unsigned long *total_in,
-			      unsigned long *total_out,
-			      unsigned long max_out);
+			      unsigned long *total_out);
 
 	int (*decompress_bio)(struct list_head *workspace,
 				 struct page **pages_in,

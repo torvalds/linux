@@ -932,8 +932,7 @@ int btrfs_compress_pages(int type, struct address_space *mapping,
 			 u64 start, struct page **pages,
 			 unsigned long *out_pages,
 			 unsigned long *total_in,
-			 unsigned long *total_out,
-			 unsigned long max_out)
+			 unsigned long *total_out)
 {
 	struct list_head *workspace;
 	int ret;
@@ -943,8 +942,7 @@ int btrfs_compress_pages(int type, struct address_space *mapping,
 	ret = btrfs_compress_op[type-1]->compress_pages(workspace, mapping,
 						      start, pages,
 						      out_pages,
-						      total_in, total_out,
-						      max_out);
+						      total_in, total_out);
 	free_workspace(type, workspace);
 	return ret;
 }
