@@ -371,6 +371,8 @@ int cros_ec_query_all(struct cros_ec_device *ec_dev)
 	else
 		ec_dev->mkbp_event_supported = 1;
 
+	ret = 0;
+
 exit:
 	kfree(proto_msg);
 	return ret;
