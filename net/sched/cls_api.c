@@ -389,6 +389,7 @@ replay:
 				       RTM_DELTFILTER, false);
 			if (tcf_proto_destroy(tp, false))
 				RCU_INIT_POINTER(*back, next);
+			goto errout;
 		case RTM_GETTFILTER:
 			err = tfilter_notify(net, skb, n, tp, fh,
 					     RTM_NEWTFILTER, true);
