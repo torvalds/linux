@@ -227,8 +227,6 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 	if (IS_ERR(ptp->dev))
 		goto no_device;
 
-	dev_set_drvdata(ptp->dev, ptp);
-
 	err = ptp_populate_sysfs(ptp);
 	if (err)
 		goto no_sysfs;
