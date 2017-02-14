@@ -2331,7 +2331,6 @@ static int ahash_finup(struct ahash_request *req)
 		/* Call synchronous update */
 		ret = crypto_shash_finup(ctx->shash, tmpbuf, req->nbytes,
 					 req->result);
-		kfree(tmpbuf);
 	} else {
 		/* Otherwise call the internal function which uses SPU hw */
 		return __ahash_finup(req);
