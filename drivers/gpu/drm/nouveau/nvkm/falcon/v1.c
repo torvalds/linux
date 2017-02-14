@@ -40,8 +40,8 @@ nvkm_falcon_v1_load_imem(struct nvkm_falcon *falcon, void *data, u32 start,
 	for (i = 0; i < size / 4; i++) {
 		/* write new tag every 256B */
 		if ((i & 0x3f) == 0)
-			nvkm_falcon_wr32(falcon, 0x188, tag++);
-		nvkm_falcon_wr32(falcon, 0x184, ((u32 *)data)[i]);
+			nvkm_falcon_wr32(falcon, 0x188 + (port * 16), tag++);
+		nvkm_falcon_wr32(falcon, 0x184 + (port * 16), ((u32 *)data)[i]);
 	}
 
 	/*
@@ -53,14 +53,15 @@ nvkm_falcon_v1_load_imem(struct nvkm_falcon *falcon, void *data, u32 start,
 
 		/* write new tag every 256B */
 		if ((i & 0x3f) == 0)
-			nvkm_falcon_wr32(falcon, 0x188, tag++);
-		nvkm_falcon_wr32(falcon, 0x184, extra & (BIT(rem * 8) - 1));
+			nvkm_falcon_wr32(falcon, 0x188 + (port * 16), tag++);
+		nvkm_falcon_wr32(falcon, 0x184 + (port * 16),
+				 extra & (BIT(rem * 8) - 1));
 		++i;
 	}
 
 	/* code must be padded to 0x40 words */
 	for (; i & 0x3f; i++)
-		nvkm_falcon_wr32(falcon, 0x184, 0);
+		nvkm_falcon_wr32(falcon, 0x184 + (port * 16), 0);
 }
 
 static void
