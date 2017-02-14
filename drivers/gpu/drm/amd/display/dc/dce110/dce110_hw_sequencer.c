@@ -2070,7 +2070,7 @@ static void init_hw(struct core_dc *dc)
 			true);
 	}
 
-	dce_clock_gating_power_up(dc->hwseq, false);;
+	dce_clock_gating_power_up(dc->hwseq, false);
 	/***************************************/
 
 	for (i = 0; i < dc->link_count; i++) {
