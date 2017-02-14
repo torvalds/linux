@@ -120,8 +120,6 @@ static int do_sigbus(struct pt_regs *regs, unsigned long address,
 	siginfo_t info;
 	unsigned int lsb = 0;
 
-	up_read(&current->mm->mmap_sem);
-
 	if (!user_mode(regs))
 		return MM_FAULT_ERR(SIGBUS);
 
@@ -185,8 +183,10 @@ static int mm_fault_error(struct pt_regs *regs, unsigned long addr, int fault)
 		return MM_FAULT_RETURN;
 	}
 
-	if (fault & (VM_FAULT_SIGBUS|VM_FAULT_HWPOISON|VM_FAULT_HWPOISON_LARGE))
+	if (fault & (VM_FAULT_SIGBUS|VM_FAULT_HWPOISON|VM_FAULT_HWPOISON_LARGE)) {
+		up_read(&current->mm->mmap_sem);
 		return do_sigbus(regs, addr, fault);
+	}
 
 	/* We don't understand the fault code, this is fatal */
 	BUG();
