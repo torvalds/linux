@@ -37,6 +37,11 @@
  */
 #define	VNET_MAX_RETRIES	10
 
+MODULE_AUTHOR("David S. Miller (davem@davemloft.net)");
+MODULE_DESCRIPTION("Sun LDOM virtual network support library");
+MODULE_LICENSE("GPL");
+MODULE_VERSION("1.1");
+
 static int __vnet_tx_trigger(struct vnet_port *port, u32 start);
 static void vnet_port_reset(struct vnet_port *port);
 
@@ -181,6 +186,7 @@ static int handle_attr_info(struct vio_driver_state *vio,
 	} else {
 		pkt->cflags &= ~VNET_LSO_IPV4_CAPAB;
 		pkt->ipv4_lso_maxlen = 0;
+		port->tsolen = 0;
 	}
 
 	/* for version >= 1.6, ACK packet mode we support */
@@ -714,12 +720,8 @@ static void maybe_tx_wakeup(struct vnet_port *port)
 	txq = netdev_get_tx_queue(VNET_PORT_TO_NET_DEVICE(port),
 				  port->q_index);
 	__netif_tx_lock(txq, smp_processor_id());
-	if (likely(netif_tx_queue_stopped(txq))) {
-		struct vio_dring_state *dr;
-
-		dr = &port->vio.drings[VIO_DRIVER_TX_RING];
+	if (likely(netif_tx_queue_stopped(txq)))
 		netif_tx_wake_queue(txq);
-	}
 	__netif_tx_unlock(txq);
 }
 
@@ -737,41 +739,37 @@ static int vnet_event_napi(struct vnet_port *port, int budget)
 	struct vio_driver_state *vio = &port->vio;
 	int tx_wakeup, err;
 	int npkts = 0;
-	int event = (port->rx_event & LDC_EVENT_RESET);
 
-ldc_ctrl:
-	if (unlikely(event == LDC_EVENT_RESET ||
-		     event == LDC_EVENT_UP)) {
-		vio_link_state_change(vio, event);
+	/* we don't expect any other bits */
+	BUG_ON(port->rx_event & ~(LDC_EVENT_DATA_READY |
+				  LDC_EVENT_RESET |
+				  LDC_EVENT_UP));
 
-		if (event == LDC_EVENT_RESET) {
-			vnet_port_reset(port);
-			vio_port_up(vio);
+	/* RESET takes precedent over any other event */
+	if (port->rx_event & LDC_EVENT_RESET) {
+		vio_link_state_change(vio, LDC_EVENT_RESET);
+		vnet_port_reset(port);
+		vio_port_up(vio);
 
-			/* If the device is running but its tx queue was
-			 * stopped (due to flow control), restart it.
-			 * This is necessary since vnet_port_reset()
-			 * clears the tx drings and thus we may never get
-			 * back a VIO_TYPE_DATA ACK packet - which is
-			 * the normal mechanism to restart the tx queue.
-			 */
-			if (netif_running(dev))
-				maybe_tx_wakeup(port);
-		}
+		/* If the device is running but its tx queue was
+		 * stopped (due to flow control), restart it.
+		 * This is necessary since vnet_port_reset()
+		 * clears the tx drings and thus we may never get
+		 * back a VIO_TYPE_DATA ACK packet - which is
+		 * the normal mechanism to restart the tx queue.
+		 */
+		if (netif_running(dev))
+			maybe_tx_wakeup(port);
+
 		port->rx_event = 0;
 		return 0;
 	}
-	/* We may have multiple LDC events in rx_event. Unroll send_events() */
-	event = (port->rx_event & LDC_EVENT_UP);
-	port->rx_event &= ~(LDC_EVENT_RESET | LDC_EVENT_UP);
-	if (event == LDC_EVENT_UP)
-		goto ldc_ctrl;
-	event = port->rx_event;
-	if (!(event & LDC_EVENT_DATA_READY))
-		return 0;
 
-	/* we dont expect any other bits than RESET, UP, DATA_READY */
-	BUG_ON(event != LDC_EVENT_DATA_READY);
+	if (port->rx_event & LDC_EVENT_UP) {
+		vio_link_state_change(vio, LDC_EVENT_UP);
+		port->rx_event = 0;
+		return 0;
+	}
 
 	err = 0;
 	tx_wakeup = 0;
@@ -794,25 +792,25 @@ ldc_ctrl:
 			pkt->start_idx = vio_dring_next(dr,
 							port->napi_stop_idx);
 			pkt->end_idx = -1;
-			goto napi_resume;
+		} else {
+			err = ldc_read(vio->lp, &msgbuf, sizeof(msgbuf));
+			if (unlikely(err < 0)) {
+				if (err == -ECONNRESET)
+					vio_conn_reset(vio);
+				break;
+			}
+			if (err == 0)
+				break;
+			viodbg(DATA, "TAG [%02x:%02x:%04x:%08x]\n",
+			       msgbuf.tag.type,
+			       msgbuf.tag.stype,
+			       msgbuf.tag.stype_env,
+			       msgbuf.tag.sid);
+			err = vio_validate_sid(vio, &msgbuf.tag);
+			if (err < 0)
+				break;
 		}
-		err = ldc_read(vio->lp, &msgbuf, sizeof(msgbuf));
-		if (unlikely(err < 0)) {
-			if (err == -ECONNRESET)
-				vio_conn_reset(vio);
-			break;
-		}
-		if (err == 0)
-			break;
-		viodbg(DATA, "TAG [%02x:%02x:%04x:%08x]\n",
-		       msgbuf.tag.type,
-		       msgbuf.tag.stype,
-		       msgbuf.tag.stype_env,
-		       msgbuf.tag.sid);
-		err = vio_validate_sid(vio, &msgbuf.tag);
-		if (err < 0)
-			break;
-napi_resume:
+
 		if (likely(msgbuf.tag.type == VIO_TYPE_DATA)) {
 			if (msgbuf.tag.stype == VIO_SUBTYPE_INFO) {
 				if (!sunvnet_port_is_up_common(port)) {
@@ -1256,10 +1254,8 @@ int sunvnet_start_xmit_common(struct sk_buff *skb, struct net_device *dev,
 
 	rcu_read_lock();
 	port = vnet_tx_port(skb, dev);
-	if (unlikely(!port)) {
-		rcu_read_unlock();
+	if (unlikely(!port))
 		goto out_dropped;
-	}
 
 	if (skb_is_gso(skb) && skb->len > port->tsolen) {
 		err = vnet_handle_offloads(port, skb, vnet_tx_port);
@@ -1284,7 +1280,6 @@ int sunvnet_start_xmit_common(struct sk_buff *skb, struct net_device *dev,
 			fl4.saddr = ip_hdr(skb)->saddr;
 
 			rt = ip_route_output_key(dev_net(dev), &fl4);
-			rcu_read_unlock();
 			if (!IS_ERR(rt)) {
 				skb_dst_set(skb, &rt->dst);
 				icmp_send(skb, ICMP_DEST_UNREACH,
@@ -1426,6 +1421,7 @@ ldc_start_done:
 	dr->prod = (dr->prod + 1) & (VNET_TX_RING_SIZE - 1);
 	if (unlikely(vnet_tx_dring_avail(dr) < 1)) {
 		netif_tx_stop_queue(txq);
+		smp_rmb();
 		if (vnet_tx_dring_avail(dr) > VNET_TX_WAKEUP_THRESH(dr))
 			netif_tx_wake_queue(txq);
 	}
@@ -1443,8 +1439,7 @@ out_dropped:
 				jiffies + VNET_CLEAN_TIMEOUT);
 	else if (port)
 		del_timer(&port->clean_timer);
-	if (port)
-		rcu_read_unlock();
+	rcu_read_unlock();
 	if (skb)
 		dev_kfree_skb(skb);
 	vnet_free_skbs(freeskbs);
@@ -1641,7 +1636,7 @@ static void vnet_port_reset(struct vnet_port *port)
 	del_timer(&port->clean_timer);
 	sunvnet_port_free_tx_bufs_common(port);
 	port->rmtu = 0;
-	port->tso = true;
+	port->tso = (port->vsw == 0);  /* no tso in vsw, misbehaves in bridge */
 	port->tsolen = 0;
 }
 
