@@ -1031,7 +1031,18 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 			opregion->vbt_size = vbt_size;
 		} else {
 			vbt = base + OPREGION_VBT_OFFSET;
-			vbt_size = OPREGION_ASLE_EXT_OFFSET - OPREGION_VBT_OFFSET;
+			/*
+			 * The VBT specification says that if the ASLE ext
+			 * mailbox is not used its area is reserved, but
+			 * on some CHT boards the VBT extends into the
+			 * ASLE ext area. Allow this even though it is
+			 * against the spec, so we do not end up rejecting
+			 * the VBT on those boards (and end up not finding the
+			 * LCD panel because of this).
+			 */
+			vbt_size = (mboxes & MBOX_ASLE_EXT) ?
+				OPREGION_ASLE_EXT_OFFSET : OPREGION_SIZE;
+			vbt_size -= OPREGION_VBT_OFFSET;
 			if (intel_bios_is_valid_vbt(vbt, vbt_size)) {
 				DRM_DEBUG_KMS("Found valid VBT in ACPI OpRegion (Mailbox #4)\n");
 				opregion->vbt = vbt;
