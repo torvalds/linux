@@ -329,7 +329,7 @@ void gf128mul_free_64k(struct gf128mul_64k *t)
 }
 EXPORT_SYMBOL(gf128mul_free_64k);
 
-void gf128mul_64k_bbe(be128 *a, struct gf128mul_64k *t)
+void gf128mul_64k_bbe(be128 *a, const struct gf128mul_64k *t)
 {
 	u8 *ap = (u8 *)a;
 	be128 r[1];
@@ -402,7 +402,7 @@ out:
 }
 EXPORT_SYMBOL(gf128mul_init_4k_bbe);
 
-void gf128mul_4k_lle(be128 *a, struct gf128mul_4k *t)
+void gf128mul_4k_lle(be128 *a, const struct gf128mul_4k *t)
 {
 	u8 *ap = (u8 *)a;
 	be128 r[1];
@@ -417,7 +417,7 @@ void gf128mul_4k_lle(be128 *a, struct gf128mul_4k *t)
 }
 EXPORT_SYMBOL(gf128mul_4k_lle);
 
-void gf128mul_4k_bbe(be128 *a, struct gf128mul_4k *t)
+void gf128mul_4k_bbe(be128 *a, const struct gf128mul_4k *t)
 {
 	u8 *ap = (u8 *)a;
 	be128 r[1];
