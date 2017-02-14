@@ -1497,7 +1497,7 @@ static void init_sub_crqs(struct ibmvnic_adapter *adapter, int retry)
 		adapter->req_rx_queues = adapter->opt_rx_comp_queues;
 		adapter->req_rx_add_queues = adapter->max_rx_add_queues;
 
-		adapter->req_mtu = adapter->max_mtu;
+		adapter->req_mtu = adapter->netdev->mtu + ETH_HLEN;
 	}
 
 	total_queues = adapter->req_tx_queues + adapter->req_rx_queues;
@@ -2627,12 +2627,12 @@ static void handle_query_cap_rsp(union ibmvnic_crq *crq,
 		break;
 	case MIN_MTU:
 		adapter->min_mtu = be64_to_cpu(crq->query_capability.number);
-		netdev->min_mtu = adapter->min_mtu;
+		netdev->min_mtu = adapter->min_mtu - ETH_HLEN;
 		netdev_dbg(netdev, "min_mtu = %lld\n", adapter->min_mtu);
 		break;
 	case MAX_MTU:
 		adapter->max_mtu = be64_to_cpu(crq->query_capability.number);
-		netdev->max_mtu = adapter->max_mtu;
+		netdev->max_mtu = adapter->max_mtu - ETH_HLEN;
 		netdev_dbg(netdev, "max_mtu = %lld\n", adapter->max_mtu);
 		break;
 	case MAX_MULTICAST_FILTERS:
@@ -3657,9 +3657,7 @@ static void handle_crq_init_rsp(struct work_struct *work)
 		goto task_failed;
 
 	netdev->real_num_tx_queues = adapter->req_tx_queues;
-	netdev->mtu = adapter->req_mtu;
-	netdev->min_mtu = adapter->min_mtu;
-	netdev->max_mtu = adapter->max_mtu;
+	netdev->mtu = adapter->req_mtu - ETH_HLEN;
 
 	if (adapter->failover) {
 		adapter->failover = false;
@@ -3799,7 +3797,7 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	}
 
 	netdev->real_num_tx_queues = adapter->req_tx_queues;
-	netdev->mtu = adapter->req_mtu;
+	netdev->mtu = adapter->req_mtu - ETH_HLEN;
 
 	rc = register_netdev(netdev);
 	if (rc) {
