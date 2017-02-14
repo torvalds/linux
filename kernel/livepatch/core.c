@@ -64,6 +64,9 @@ static LIST_HEAD(klp_ops);
 
 static struct kobject *klp_root_kobj;
 
+/* TODO: temporary stub */
+void klp_update_patch_state(struct task_struct *task) {}
+
 static struct klp_ops *klp_find_ops(unsigned long old_addr)
 {
 	struct klp_ops *ops;

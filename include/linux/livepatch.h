@@ -123,10 +123,13 @@ void arch_klp_init_object_loaded(struct klp_patch *patch,
 int klp_module_coming(struct module *mod);
 void klp_module_going(struct module *mod);
 
+void klp_update_patch_state(struct task_struct *task);
+
 #else /* !CONFIG_LIVEPATCH */
 
 static inline int klp_module_coming(struct module *mod) { return 0; }
-static inline void klp_module_going(struct module *mod) { }
+static inline void klp_module_going(struct module *mod) {}
+static inline void klp_update_patch_state(struct task_struct *task) {}
 
 #endif /* CONFIG_LIVEPATCH */
 
