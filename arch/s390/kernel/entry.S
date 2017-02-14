@@ -47,7 +47,7 @@ STACK_SIZE  = 1 << STACK_SHIFT
 STACK_INIT = STACK_SIZE - STACK_FRAME_OVERHEAD - __PT_SIZE
 
 _TIF_WORK	= (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
-		   _TIF_UPROBE)
+		   _TIF_UPROBE | _TIF_PATCH_PENDING)
 _TIF_TRACE	= (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SECCOMP | \
 		   _TIF_SYSCALL_TRACEPOINT)
 _CIF_WORK	= (_CIF_MCCK_PENDING | _CIF_ASCE_PRIMARY | \
@@ -334,6 +334,11 @@ ENTRY(system_call)
 #endif
 	TSTMSK	__PT_FLAGS(%r11),_PIF_PER_TRAP
 	jo	.Lsysc_singlestep
+#ifdef CONFIG_LIVEPATCH
+	TSTMSK	__TI_flags(%r12),_TIF_PATCH_PENDING
+	jo	.Lsysc_patch_pending	# handle live patching just before
+					# signals and possible syscall restart
+#endif
 	TSTMSK	__TI_flags(%r12),_TIF_SIGPENDING
 	jo	.Lsysc_sigpending
 	TSTMSK	__TI_flags(%r12),_TIF_NOTIFY_RESUME
@@ -406,6 +411,16 @@ ENTRY(system_call)
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	larl	%r14,.Lsysc_return
 	jg	uprobe_notify_resume
+#endif
+
+#
+# _TIF_PATCH_PENDING is set, call klp_update_patch_state
+#
+#ifdef CONFIG_LIVEPATCH
+.Lsysc_patch_pending:
+	lg	%r2,__LC_CURRENT	# pass pointer to task struct
+	larl	%r14,.Lsysc_return
+	jg	klp_update_patch_state
 #endif
 
 #
@@ -659,6 +674,10 @@ ENTRY(io_int_handler)
 	jo	.Lio_mcck_pending
 	TSTMSK	__TI_flags(%r12),_TIF_NEED_RESCHED
 	jo	.Lio_reschedule
+#ifdef CONFIG_LIVEPATCH
+	TSTMSK	__TI_flags(%r12),_TIF_PATCH_PENDING
+	jo	.Lio_patch_pending
+#endif
 	TSTMSK	__TI_flags(%r12),_TIF_SIGPENDING
 	jo	.Lio_sigpending
 	TSTMSK	__TI_flags(%r12),_TIF_NOTIFY_RESUME
@@ -706,6 +725,16 @@ ENTRY(io_int_handler)
 	ssm	__LC_PGM_NEW_PSW	# disable I/O and ext. interrupts
 	TRACE_IRQS_OFF
 	j	.Lio_return
+
+#
+# _TIF_PATCH_PENDING is set, call klp_update_patch_state
+#
+#ifdef CONFIG_LIVEPATCH
+.Lio_patch_pending:
+	lg	%r2,__LC_CURRENT	# pass pointer to task struct
+	larl	%r14,.Lio_return
+	jg	klp_update_patch_state
+#endif
 
 #
 # _TIF_SIGPENDING or is set, call do_signal
