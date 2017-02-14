@@ -411,11 +411,8 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 	amdgpu_cs_report_moved_bytes(adev,
 		atomic64_read(&adev->num_bytes_moved) - initial_bytes_moved);
 
-	if (unlikely(r != 0)) {
-		if (!resv)
-			ww_mutex_unlock(&bo->tbo.resv->lock);
+	if (unlikely(r != 0))
 		return r;
-	}
 
 	bo->tbo.priority = ilog2(bo->tbo.num_pages);
 	if (kernel)
