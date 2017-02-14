@@ -611,21 +611,20 @@ udc_alloc_request(struct usb_ep *usbep, gfp_t gfp)
 static int udc_free_dma_chain(struct udc *dev, struct udc_request *req)
 {
 	int ret_val = 0;
-	struct udc_data_dma	*td;
-	struct udc_data_dma	*td_last = NULL;
+	struct udc_data_dma *td = req->td_data;
 	unsigned int i;
+
+	dma_addr_t addr_next = 0x00;
+	dma_addr_t addr = (dma_addr_t)td->next;
 
 	DBG(dev, "free chain req = %p\n", req);
 
 	/* do not free first desc., will be done by free for request */
-	td_last = req->td_data;
-	td = phys_to_virt(td_last->next);
-
 	for (i = 1; i < req->chain_len; i++) {
-		pci_pool_free(dev->data_requests, td,
-			      (dma_addr_t)td_last->next);
-		td_last = td;
-		td = phys_to_virt(td_last->next);
+		td = phys_to_virt(addr);
+		addr_next = (dma_addr_t)td->next;
+		pci_pool_free(dev->data_requests, td, addr);
+		addr = addr_next;
 	}
 
 	return ret_val;
