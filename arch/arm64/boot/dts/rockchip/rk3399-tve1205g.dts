@@ -1048,7 +1048,7 @@
 
 	hallsensor {
 		mh248_irq_gpio: mh248-irq-gpio {
-			rockchip,pins = <0 GPIO_A2 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 GPIO_A1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
