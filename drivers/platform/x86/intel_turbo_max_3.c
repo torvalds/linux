@@ -3,6 +3,8 @@
  * Copyright (c) 2017, Intel Corporation.
  * All rights reserved.
  *
+ * Author: Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
  * version 2, as published by the Free Software Foundation.
@@ -16,7 +18,9 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/topology.h>
+#include <linux/workqueue.h>
 #include <linux/cpuhotplug.h>
 #include <linux/cpufeature.h>
 #include <asm/cpu_device_id.h>
@@ -123,7 +127,6 @@ static const struct x86_cpu_id itmt_legacy_cpu_ids[] = {
 	ICPU(INTEL_FAM6_BROADWELL_X),
 	{}
 };
-MODULE_DEVICE_TABLE(x86cpu, itmt_legacy_cpu_ids);
 
 static int __init itmt_legacy_init(void)
 {
@@ -146,7 +149,3 @@ static int __init itmt_legacy_init(void)
 	return 0;
 }
 late_initcall(itmt_legacy_init)
-
-MODULE_DESCRIPTION("Intel Turbo Boost Max 3.0 enumeration driver");
-MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>");
-MODULE_LICENSE("GPL v2");
