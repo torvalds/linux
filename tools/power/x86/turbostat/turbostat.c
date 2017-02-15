@@ -619,9 +619,9 @@ int dump_counters(struct thread_data *t, struct core_data *c,
 		outp += sprintf(outp, "c1: %016llX\n", t->c1);
 
 		if (DO_BIC(BIC_IRQ))
-			outp += sprintf(outp, "IRQ: %08X\n", t->irq_count);
+			outp += sprintf(outp, "IRQ: %d\n", t->irq_count);
 		if (DO_BIC(BIC_SMI))
-			outp += sprintf(outp, "SMI: %08X\n", t->smi_count);
+			outp += sprintf(outp, "SMI: %d\n", t->smi_count);
 
 		for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
 			outp += sprintf(outp, "tADDED [%d] msr0x%x: %08llX\n",
@@ -2410,8 +2410,9 @@ int snapshot_gfx_mhz(void)
  */
 int snapshot_proc_sysfs_files(void)
 {
-	if (snapshot_proc_interrupts())
-		return 1;
+	if (DO_BIC(BIC_IRQ))
+		if (snapshot_proc_interrupts())
+			return 1;
 
 	if (DO_BIC(BIC_GFX_rc6))
 		snapshot_gfx_rc6_ms();
@@ -4391,6 +4392,7 @@ int fork_it(char **argv)
 	pid_t child_pid;
 	int status;
 
+	snapshot_proc_sysfs_files();
 	status = for_all_cpus(get_counters, EVEN_COUNTERS);
 	if (status)
 		exit(status);
@@ -4417,6 +4419,7 @@ int fork_it(char **argv)
 	 * n.b. fork_it() does not check for errors from for_all_cpus()
 	 * because re-starting is problematic when forking
 	 */
+	snapshot_proc_sysfs_files();
 	for_all_cpus(get_counters, ODD_COUNTERS);
 	gettimeofday(&tv_odd, (struct timezone *)NULL);
 	timersub(&tv_odd, &tv_even, &tv_delta);
@@ -4438,6 +4441,7 @@ int get_and_dump_counters(void)
 {
 	int status;
 
+	snapshot_proc_sysfs_files();
 	status = for_all_cpus(get_counters, ODD_COUNTERS);
 	if (status)
 		return status;
