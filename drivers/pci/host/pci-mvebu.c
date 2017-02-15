@@ -133,6 +133,12 @@ struct mvebu_pcie {
 	int nports;
 };
 
+struct mvebu_pcie_window {
+	phys_addr_t base;
+	phys_addr_t remap;
+	size_t size;
+};
+
 /* Structure representing one PCIe interface */
 struct mvebu_pcie_port {
 	char *name;
@@ -150,10 +156,8 @@ struct mvebu_pcie_port {
 	struct mvebu_sw_pci_bridge bridge;
 	struct device_node *dn;
 	struct mvebu_pcie *pcie;
-	phys_addr_t memwin_base;
-	size_t memwin_size;
-	phys_addr_t iowin_base;
-	size_t iowin_size;
+	struct mvebu_pcie_window memwin;
+	struct mvebu_pcie_window iowin;
 	u32 saved_pcie_stat;
 };
 
@@ -379,23 +383,45 @@ static void mvebu_pcie_add_windows(struct mvebu_pcie_port *port,
 	}
 }
 
+static void mvebu_pcie_set_window(struct mvebu_pcie_port *port,
+				  unsigned int target, unsigned int attribute,
+				  const struct mvebu_pcie_window *desired,
+				  struct mvebu_pcie_window *cur)
+{
+	if (desired->base == cur->base && desired->remap == cur->remap &&
+	    desired->size == cur->size)
+		return;
+
+	if (cur->size != 0) {
+		mvebu_pcie_del_windows(port, cur->base, cur->size);
+		cur->size = 0;
+		cur->base = 0;
+
+		/*
+		 * If something tries to change the window while it is enabled
+		 * the change will not be done atomically. That would be
+		 * difficult to do in the general case.
+		 */
+	}
+
+	if (desired->size == 0)
+		return;
+
+	mvebu_pcie_add_windows(port, target, attribute, desired->base,
+			       desired->size, desired->remap);
+	*cur = *desired;
+}
+
 static void mvebu_pcie_handle_iobase_change(struct mvebu_pcie_port *port)
 {
-	phys_addr_t iobase;
+	struct mvebu_pcie_window desired = {};
 
 	/* Are the new iobase/iolimit values invalid? */
 	if (port->bridge.iolimit < port->bridge.iobase ||
 	    port->bridge.iolimitupper < port->bridge.iobaseupper ||
 	    !(port->bridge.command & PCI_COMMAND_IO)) {
-
-		/* If a window was configured, remove it */
-		if (port->iowin_base) {
-			mvebu_pcie_del_windows(port, port->iowin_base,
-					       port->iowin_size);
-			port->iowin_base = 0;
-			port->iowin_size = 0;
-		}
-
+		mvebu_pcie_set_window(port, port->io_target, port->io_attr,
+				      &desired, &port->iowin);
 		return;
 	}
 
@@ -412,32 +438,27 @@ static void mvebu_pcie_handle_iobase_change(struct mvebu_pcie_port *port)
 	 * specifications. iobase is the bus address, port->iowin_base
 	 * is the CPU address.
 	 */
-	iobase = ((port->bridge.iobase & 0xF0) << 8) |
-		(port->bridge.iobaseupper << 16);
-	port->iowin_base = port->pcie->io.start + iobase;
-	port->iowin_size = ((0xFFF | ((port->bridge.iolimit & 0xF0) << 8) |
-			    (port->bridge.iolimitupper << 16)) -
-			    iobase) + 1;
+	desired.remap = ((port->bridge.iobase & 0xF0) << 8) |
+			(port->bridge.iobaseupper << 16);
+	desired.base = port->pcie->io.start + desired.remap;
+	desired.size = ((0xFFF | ((port->bridge.iolimit & 0xF0) << 8) |
+			 (port->bridge.iolimitupper << 16)) -
+			desired.remap) +
+		       1;
 
-	mvebu_pcie_add_windows(port, port->io_target, port->io_attr,
-			       port->iowin_base, port->iowin_size,
-			       iobase);
+	mvebu_pcie_set_window(port, port->io_target, port->io_attr, &desired,
+			      &port->iowin);
 }
 
 static void mvebu_pcie_handle_membase_change(struct mvebu_pcie_port *port)
 {
+	struct mvebu_pcie_window desired = {.remap = MVEBU_MBUS_NO_REMAP};
+
 	/* Are the new membase/memlimit values invalid? */
 	if (port->bridge.memlimit < port->bridge.membase ||
 	    !(port->bridge.command & PCI_COMMAND_MEMORY)) {
-
-		/* If a window was configured, remove it */
-		if (port->memwin_base) {
-			mvebu_pcie_del_windows(port, port->memwin_base,
-					       port->memwin_size);
-			port->memwin_base = 0;
-			port->memwin_size = 0;
-		}
-
+		mvebu_pcie_set_window(port, port->mem_target, port->mem_attr,
+				      &desired, &port->memwin);
 		return;
 	}
 
@@ -447,14 +468,12 @@ static void mvebu_pcie_handle_membase_change(struct mvebu_pcie_port *port)
 	 * window to setup, according to the PCI-to-PCI bridge
 	 * specifications.
 	 */
-	port->memwin_base  = ((port->bridge.membase & 0xFFF0) << 16);
-	port->memwin_size  =
-		(((port->bridge.memlimit & 0xFFF0) << 16) | 0xFFFFF) -
-		port->memwin_base + 1;
+	desired.base = ((port->bridge.membase & 0xFFF0) << 16);
+	desired.size = (((port->bridge.memlimit & 0xFFF0) << 16) | 0xFFFFF) -
+		       desired.base + 1;
 
-	mvebu_pcie_add_windows(port, port->mem_target, port->mem_attr,
-			       port->memwin_base, port->memwin_size,
-			       MVEBU_MBUS_NO_REMAP);
+	mvebu_pcie_set_window(port, port->mem_target, port->mem_attr, &desired,
+			      &port->memwin);
 }
 
 /*
@@ -1162,7 +1181,7 @@ static int mvebu_pcie_powerup(struct mvebu_pcie_port *port)
 		return ret;
 
 	if (port->reset_gpio) {
-		u32 reset_udelay = 20000;
+		u32 reset_udelay = PCI_PM_D3COLD_WAIT * 1000;
 
 		of_property_read_u32(port->dn, "reset-delay-us",
 				     &reset_udelay);
