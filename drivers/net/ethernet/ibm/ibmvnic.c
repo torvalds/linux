@@ -3420,6 +3420,18 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 static irqreturn_t ibmvnic_interrupt(int irq, void *instance)
 {
 	struct ibmvnic_adapter *adapter = instance;
+	unsigned long flags;
+
+	spin_lock_irqsave(&adapter->crq.lock, flags);
+	vio_disable_interrupts(adapter->vdev);
+	tasklet_schedule(&adapter->tasklet);
+	spin_unlock_irqrestore(&adapter->crq.lock, flags);
+	return IRQ_HANDLED;
+}
+
+static void ibmvnic_tasklet(void *data)
+{
+	struct ibmvnic_adapter *adapter = data;
 	struct ibmvnic_crq_queue *queue = &adapter->crq;
 	struct vio_dev *vdev = adapter->vdev;
 	union ibmvnic_crq *crq;
@@ -3445,7 +3457,6 @@ static irqreturn_t ibmvnic_interrupt(int irq, void *instance)
 		}
 	}
 	spin_unlock_irqrestore(&queue->lock, flags);
-	return IRQ_HANDLED;
 }
 
 static int ibmvnic_reenable_crq_queue(struct ibmvnic_adapter *adapter)
@@ -3500,6 +3511,7 @@ static void ibmvnic_release_crq_queue(struct ibmvnic_adapter *adapter)
 
 	netdev_dbg(adapter->netdev, "Releasing CRQ\n");
 	free_irq(vdev->irq, adapter);
+	tasklet_kill(&adapter->tasklet);
 	do {
 		rc = plpar_hcall_norets(H_FREE_CRQ, vdev->unit_address);
 	} while (rc == H_BUSY || H_IS_LONG_BUSY(rc));
@@ -3545,6 +3557,9 @@ static int ibmvnic_init_crq_queue(struct ibmvnic_adapter *adapter)
 
 	retrc = 0;
 
+	tasklet_init(&adapter->tasklet, (void *)ibmvnic_tasklet,
+		     (unsigned long)adapter);
+
 	netdev_dbg(adapter->netdev, "registering irq 0x%x\n", vdev->irq);
 	rc = request_irq(vdev->irq, ibmvnic_interrupt, 0, IBMVNIC_NAME,
 			 adapter);
@@ -3566,6 +3581,7 @@ static int ibmvnic_init_crq_queue(struct ibmvnic_adapter *adapter)
 	return retrc;
 
 req_irq_failed:
+	tasklet_kill(&adapter->tasklet);
 	do {
 		rc = plpar_hcall_norets(H_FREE_CRQ, vdev->unit_address);
 	} while (rc == H_BUSY || H_IS_LONG_BUSY(rc));
