@@ -411,21 +411,7 @@ static void cleanup_page_dma(struct i915_address_space *vm,
 	vm_free_page(vm, p->page);
 }
 
-static void *kmap_page_dma(struct i915_page_dma *p)
-{
-	return kmap_atomic(p->page);
-}
-
-/* We use the flushing unmap only with ppgtt structures:
- * page directories, page tables and scratch pages.
- */
-static void kunmap_page_dma(void *vaddr)
-{
-	kunmap_atomic(vaddr);
-}
-
-#define kmap_px(px) kmap_page_dma(px_base(px))
-#define kunmap_px(vaddr) kunmap_page_dma((vaddr))
+#define kmap_atomic_px(px) kmap_atomic(px_base(px)->page)
 
 #define setup_px(vm, px) setup_page_dma((vm), px_base(px))
 #define cleanup_px(vm, px) cleanup_page_dma((vm), px_base(px))
@@ -436,13 +422,13 @@ static void fill_page_dma(struct i915_address_space *vm,
 			  struct i915_page_dma *p,
 			  const u64 val)
 {
-	u64 * const vaddr = kmap_page_dma(p);
+	u64 * const vaddr = kmap_atomic(p->page);
 	int i;
 
 	for (i = 0; i < 512; i++)
 		vaddr[i] = val;
 
-	kunmap_page_dma(vaddr);
+	kunmap_atomic(vaddr);
 }
 
 static void fill_page_dma_32(struct i915_address_space *vm,
@@ -675,9 +661,9 @@ gen8_setup_pdpe(struct i915_hw_ppgtt *ppgtt,
 	if (!USES_FULL_48BIT_PPGTT(to_i915(ppgtt->base.dev)))
 		return;
 
-	page_directorypo = kmap_px(pdp);
+	page_directorypo = kmap_atomic_px(pdp);
 	page_directorypo[index] = gen8_pdpe_encode(px_dma(pd), I915_CACHE_LLC);
-	kunmap_px(page_directorypo);
+	kunmap_atomic(page_directorypo);
 }
 
 static void
@@ -685,10 +671,10 @@ gen8_setup_pml4e(struct i915_pml4 *pml4,
 		 struct i915_page_directory_pointer *pdp,
 		 int index)
 {
-	gen8_ppgtt_pml4e_t *pagemap = kmap_px(pml4);
+	gen8_ppgtt_pml4e_t *pagemap = kmap_atomic_px(pml4);
 
 	pagemap[index] = gen8_pml4e_encode(px_dma(pdp), I915_CACHE_LLC);
-	kunmap_px(pagemap);
+	kunmap_atomic(pagemap);
 }
 
 /* Broadwell Page Directory Pointer Descriptors */
@@ -774,10 +760,10 @@ static bool gen8_ppgtt_clear_pt(struct i915_address_space *vm,
 			return true;
 	}
 
-	vaddr = kmap_px(pt);
+	vaddr = kmap_atomic_px(pt);
 	while (pte < pte_end)
 		vaddr[pte++] = scratch_pte;
-	kunmap_px(vaddr);
+	kunmap_atomic(vaddr);
 
 	return false;
 }
@@ -802,9 +788,9 @@ static bool gen8_ppgtt_clear_pd(struct i915_address_space *vm,
 
 		if (gen8_ppgtt_clear_pt(vm, pt, start, length)) {
 			__clear_bit(pde, pd->used_pdes);
-			pde_vaddr = kmap_px(pd);
+			pde_vaddr = kmap_atomic_px(pd);
 			pde_vaddr[pde] = scratch_pde;
-			kunmap_px(pde_vaddr);
+			kunmap_atomic(pde_vaddr);
 			free_pt(vm, pt);
 		}
 	}
@@ -904,7 +890,7 @@ gen8_ppgtt_insert_pte_entries(struct i915_hw_ppgtt *ppgtt,
 	bool ret;
 
 	pd = pdp->page_directory[pdpe];
-	vaddr = kmap_px(pd->page_table[pde]);
+	vaddr = kmap_atomic_px(pd->page_table[pde]);
 	do {
 		vaddr[pte] = pte_encode | iter->dma;
 		iter->dma += PAGE_SIZE;
@@ -932,12 +918,12 @@ gen8_ppgtt_insert_pte_entries(struct i915_hw_ppgtt *ppgtt,
 				pde = 0;
 			}
 
-			kunmap_px(vaddr);
-			vaddr = kmap_px(pd->page_table[pde]);
+			kunmap_atomic(vaddr);
+			vaddr = kmap_atomic_px(pd->page_table[pde]);
 			pte = 0;
 		}
 	} while (1);
-	kunmap_px(vaddr);
+	kunmap_atomic(vaddr);
 
 	return ret;
 }
@@ -1370,7 +1356,7 @@ static int gen8_alloc_va_range_3lvl(struct i915_address_space *vm,
 	/* Allocations have completed successfully, so set the bitmaps, and do
 	 * the mappings. */
 	gen8_for_each_pdpe(pd, pdp, start, length, pdpe) {
-		gen8_pde_t *const page_directory = kmap_px(pd);
+		gen8_pde_t *const page_directory = kmap_atomic_px(pd);
 		struct i915_page_table *pt;
 		uint64_t pd_len = length;
 		uint64_t pd_start = start;
@@ -1405,7 +1391,7 @@ static int gen8_alloc_va_range_3lvl(struct i915_address_space *vm,
 			 * point we're still relying on insert_entries() */
 		}
 
-		kunmap_px(page_directory);
+		kunmap_atomic(page_directory);
 		__set_bit(pdpe, pdp->used_pdpes);
 		gen8_setup_pdpe(ppgtt, pdp, pd, pdpe);
 	}
@@ -1512,7 +1498,7 @@ static void gen8_dump_pdp(struct i915_hw_ppgtt *ppgtt,
 			if (!test_bit(pde, pd->used_pdes))
 				continue;
 
-			pt_vaddr = kmap_px(pt);
+			pt_vaddr = kmap_atomic_px(pt);
 			for (pte = 0; pte < GEN8_PTES; pte += 4) {
 				uint64_t va =
 					(pdpe << GEN8_PDPE_SHIFT) |
@@ -1536,9 +1522,6 @@ static void gen8_dump_pdp(struct i915_hw_ppgtt *ppgtt,
 				}
 				seq_puts(m, "\n");
 			}
-			/* don't use kunmap_px, it could trigger
-			 * an unnecessary flush.
-			 */
 			kunmap_atomic(pt_vaddr);
 		}
 	}
@@ -1693,7 +1676,7 @@ static void gen6_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
 				   expected);
 		seq_printf(m, "\tPDE: %x\n", pd_entry);
 
-		pt_vaddr = kmap_px(ppgtt->pd.page_table[pde]);
+		pt_vaddr = kmap_atomic_px(ppgtt->pd.page_table[pde]);
 
 		for (pte = 0; pte < GEN6_PTES; pte+=4) {
 			unsigned long va =
@@ -1716,7 +1699,7 @@ static void gen6_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
 			}
 			seq_puts(m, "\n");
 		}
-		kunmap_px(pt_vaddr);
+		kunmap_atomic(pt_vaddr);
 	}
 }
 
@@ -1908,12 +1891,12 @@ static void gen6_ppgtt_clear_range(struct i915_address_space *vm,
 		if (last_pte > GEN6_PTES)
 			last_pte = GEN6_PTES;
 
-		pt_vaddr = kmap_px(ppgtt->pd.page_table[act_pt]);
+		pt_vaddr = kmap_atomic_px(ppgtt->pd.page_table[act_pt]);
 
 		for (i = first_pte; i < last_pte; i++)
 			pt_vaddr[i] = scratch_pte;
 
-		kunmap_px(pt_vaddr);
+		kunmap_atomic(pt_vaddr);
 
 		num_entries -= last_pte - first_pte;
 		first_pte = 0;
@@ -1934,7 +1917,7 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 	struct sgt_dma iter;
 	gen6_pte_t *vaddr;
 
-	vaddr = kmap_px(ppgtt->pd.page_table[act_pt]);
+	vaddr = kmap_atomic_px(ppgtt->pd.page_table[act_pt]);
 	iter.sg = pages->sgl;
 	iter.dma = sg_dma_address(iter.sg);
 	iter.max = iter.dma + iter.sg->length;
@@ -1952,12 +1935,12 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 		}
 
 		if (++act_pte == GEN6_PTES) {
-			kunmap_px(vaddr);
-			vaddr = kmap_px(ppgtt->pd.page_table[++act_pt]);
+			kunmap_atomic(vaddr);
+			vaddr = kmap_atomic_px(ppgtt->pd.page_table[++act_pt]);
 			act_pte = 0;
 		}
 	} while (1);
-	kunmap_px(vaddr);
+	kunmap_atomic(vaddr);
 }
 
 static int gen6_alloc_va_range(struct i915_address_space *vm,
