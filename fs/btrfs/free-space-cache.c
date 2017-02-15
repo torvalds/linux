@@ -232,15 +232,15 @@ int btrfs_truncate_free_space_cache(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret = 0;
-	struct btrfs_path *path = btrfs_alloc_path();
 	bool locked = false;
 
-	if (!path) {
-		ret = -ENOMEM;
-		goto fail;
-	}
-
 	if (block_group) {
+		struct btrfs_path *path = btrfs_alloc_path();
+
+		if (!path) {
+			ret = -ENOMEM;
+			goto fail;
+		}
 		locked = true;
 		mutex_lock(&trans->transaction->cache_write_mutex);
 		if (!list_empty(&block_group->io_list)) {
@@ -257,8 +257,8 @@ int btrfs_truncate_free_space_cache(struct btrfs_trans_handle *trans,
 		spin_lock(&block_group->lock);
 		block_group->disk_cache_state = BTRFS_DC_CLEAR;
 		spin_unlock(&block_group->lock);
+		btrfs_free_path(path);
 	}
-	btrfs_free_path(path);
 
 	btrfs_i_size_write(inode, 0);
 	truncate_pagecache(inode, 0);
