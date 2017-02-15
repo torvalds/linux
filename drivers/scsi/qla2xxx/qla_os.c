@@ -1916,11 +1916,12 @@ qla83xx_iospace_config(struct qla_hw_data *ha)
 		if (ql2xmqsupport) {
 			/* MB interrupt uses 1 vector */
 			ha->max_req_queues = ha->msix_count - 1;
-			ha->max_rsp_queues = ha->max_req_queues;
 
 			/* ATIOQ needs 1 vector. That's 1 less QPair */
 			if (QLA_TGT_MODE_ENABLED())
 				ha->max_req_queues--;
+
+			ha->max_rsp_queues = ha->max_req_queues;
 
 			/* Queue pairs is the max value minus
 			 * the base queue pair */
