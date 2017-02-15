@@ -2621,14 +2621,16 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 {
 	struct drm_i915_private *i915 = vma->vm->i915;
 	struct drm_i915_gem_object *obj = vma->obj;
-	u32 pte_flags = 0;
-	int ret;
+	u32 pte_flags;
 
-	ret = i915_get_ggtt_vma_pages(vma);
-	if (ret)
-		return ret;
+	if (unlikely(!vma->pages)) {
+		int ret = i915_get_ggtt_vma_pages(vma);
+		if (ret)
+			return ret;
+	}
 
 	/* Currently applicable only to VLV */
+	pte_flags = 0;
 	if (obj->gt_ro)
 		pte_flags |= PTE_READ_ONLY;
 
@@ -2653,17 +2655,17 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 {
 	struct drm_i915_private *i915 = vma->vm->i915;
 	u32 pte_flags;
-	int ret;
 
-	ret = i915_get_ggtt_vma_pages(vma);
-	if (ret)
-		return ret;
+	if (unlikely(!vma->pages)) {
+		int ret = i915_get_ggtt_vma_pages(vma);
+		if (ret)
+			return ret;
+	}
 
 	/* Currently applicable only to VLV */
 	pte_flags = 0;
 	if (vma->obj->gt_ro)
 		pte_flags |= PTE_READ_ONLY;
-
 
 	if (flags & I915_VMA_GLOBAL_BIND) {
 		intel_runtime_pm_get(i915);
@@ -3430,9 +3432,9 @@ rotate_pages(const dma_addr_t *in, unsigned int offset,
 	return sg;
 }
 
-static struct sg_table *
-intel_rotate_fb_obj_pages(const struct intel_rotation_info *rot_info,
-			  struct drm_i915_gem_object *obj)
+static noinline struct sg_table *
+intel_rotate_pages(struct intel_rotation_info *rot_info,
+		   struct drm_i915_gem_object *obj)
 {
 	const size_t n_pages = obj->base.size / PAGE_SIZE;
 	unsigned int size = intel_rotation_info_size(rot_info);
@@ -3493,7 +3495,7 @@ err_st_alloc:
 	return ERR_PTR(ret);
 }
 
-static struct sg_table *
+static noinline struct sg_table *
 intel_partial_pages(const struct i915_ggtt_view *view,
 		    struct drm_i915_gem_object *obj)
 {
@@ -3547,7 +3549,7 @@ err_st_alloc:
 static int
 i915_get_ggtt_vma_pages(struct i915_vma *vma)
 {
-	int ret = 0;
+	int ret;
 
 	/* The vma->pages are only valid within the lifespan of the borrowed
 	 * obj->mm.pages. When the obj->mm.pages sg_table is regenerated, so
@@ -3556,32 +3558,33 @@ i915_get_ggtt_vma_pages(struct i915_vma *vma)
 	 */
 	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(vma->obj));
 
-	if (vma->pages)
+	switch (vma->ggtt_view.type) {
+	case I915_GGTT_VIEW_NORMAL:
+		vma->pages = vma->obj->mm.pages;
 		return 0;
 
-	if (vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL)
-		vma->pages = vma->obj->mm.pages;
-	else if (vma->ggtt_view.type == I915_GGTT_VIEW_ROTATED)
+	case I915_GGTT_VIEW_ROTATED:
 		vma->pages =
-			intel_rotate_fb_obj_pages(&vma->ggtt_view.rotated,
-						  vma->obj);
-	else if (vma->ggtt_view.type == I915_GGTT_VIEW_PARTIAL)
+			intel_rotate_pages(&vma->ggtt_view.rotated, vma->obj);
+		break;
+
+	case I915_GGTT_VIEW_PARTIAL:
 		vma->pages = intel_partial_pages(&vma->ggtt_view, vma->obj);
-	else
+		break;
+
+	default:
 		WARN_ONCE(1, "GGTT view %u not implemented!\n",
 			  vma->ggtt_view.type);
+		return -EINVAL;
+	}
 
-	if (!vma->pages) {
-		DRM_ERROR("Failed to get pages for GGTT view type %u!\n",
-			  vma->ggtt_view.type);
-		ret = -EINVAL;
-	} else if (IS_ERR(vma->pages)) {
+	ret = 0;
+	if (unlikely(IS_ERR(vma->pages))) {
 		ret = PTR_ERR(vma->pages);
 		vma->pages = NULL;
 		DRM_ERROR("Failed to get pages for VMA view type %u (%d)!\n",
 			  vma->ggtt_view.type, ret);
 	}
-
 	return ret;
 }
 
