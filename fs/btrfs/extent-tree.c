@@ -4797,11 +4797,10 @@ skip_async:
  * get us somewhere and then commit the transaction if it does.  Otherwise it
  * will return -ENOSPC.
  */
-static int may_commit_transaction(struct btrfs_root *root,
+static int may_commit_transaction(struct btrfs_fs_info *fs_info,
 				  struct btrfs_space_info *space_info,
 				  u64 bytes, int force)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_block_rsv *delayed_rsv = &fs_info->delayed_block_rsv;
 	struct btrfs_trans_handle *trans;
 
@@ -4833,7 +4832,7 @@ static int may_commit_transaction(struct btrfs_root *root,
 	spin_unlock(&delayed_rsv->lock);
 
 commit:
-	trans = btrfs_join_transaction(root);
+	trans = btrfs_join_transaction(fs_info->fs_root);
 	if (IS_ERR(trans))
 		return -ENOSPC;
 
@@ -4847,11 +4846,11 @@ struct reserve_ticket {
 	wait_queue_head_t wait;
 };
 
-static int flush_space(struct btrfs_root *root,
+static int flush_space(struct btrfs_fs_info *fs_info,
 		       struct btrfs_space_info *space_info, u64 num_bytes,
 		       u64 orig_bytes, int state)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_root *root = fs_info->fs_root;
 	struct btrfs_trans_handle *trans;
 	int nr;
 	int ret = 0;
@@ -4891,7 +4890,8 @@ static int flush_space(struct btrfs_root *root,
 			ret = 0;
 		break;
 	case COMMIT_TRANS:
-		ret = may_commit_transaction(root, space_info, orig_bytes, 0);
+		ret = may_commit_transaction(fs_info, space_info,
+					     orig_bytes, 0);
 		break;
 	default:
 		ret = -ENOSPC;
@@ -5003,8 +5003,8 @@ static void btrfs_async_reclaim_metadata_space(struct work_struct *work)
 		struct reserve_ticket *ticket;
 		int ret;
 
-		ret = flush_space(fs_info->fs_root, space_info, to_reclaim,
-			    to_reclaim, flush_state);
+		ret = flush_space(fs_info, space_info, to_reclaim, to_reclaim,
+				  flush_state);
 		spin_lock(&space_info->lock);
 		if (list_empty(&space_info->tickets)) {
 			space_info->flush = 0;
@@ -5059,8 +5059,8 @@ static void priority_reclaim_metadata_space(struct btrfs_fs_info *fs_info,
 	spin_unlock(&space_info->lock);
 
 	do {
-		flush_space(fs_info->fs_root, space_info, to_reclaim,
-			    to_reclaim, flush_state);
+		flush_space(fs_info, space_info, to_reclaim, to_reclaim,
+			    flush_state);
 		flush_state++;
 		spin_lock(&space_info->lock);
 		if (ticket->bytes == 0) {
