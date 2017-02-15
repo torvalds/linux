@@ -682,6 +682,7 @@ struct xfrm_spi_skb_cb {
 
 	unsigned int daddroff;
 	unsigned int family;
+	__be32 seq;
 };
 
 #define XFRM_SPI_SKB_CB(__skb) ((struct xfrm_spi_skb_cb *)&((__skb)->cb[0]))
