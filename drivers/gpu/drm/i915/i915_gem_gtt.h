@@ -232,9 +232,8 @@ struct i915_page_directory {
 
 struct i915_page_directory_pointer {
 	struct i915_page_dma base;
-
-	unsigned long *used_pdpes;
 	struct i915_page_directory **page_directory;
+	unsigned int used_pdpes;
 };
 
 struct i915_pml4 {
