@@ -290,13 +290,15 @@ static int scpi_clocks_probe(struct platform_device *pdev)
 			of_node_put(child);
 			return ret;
 		}
-	}
-	/* Add the virtual cpufreq device */
-	cpufreq_dev = platform_device_register_simple("scpi-cpufreq",
-						      -1, NULL, 0);
-	if (IS_ERR(cpufreq_dev))
-		pr_warn("unable to register cpufreq device");
 
+		if (match->data != &scpi_dvfs_ops)
+			continue;
+		/* Add the virtual cpufreq device if it's DVFS clock provider */
+		cpufreq_dev = platform_device_register_simple("scpi-cpufreq",
+							      -1, NULL, 0);
+		if (IS_ERR(cpufreq_dev))
+			pr_warn("unable to register cpufreq device");
+	}
 	return 0;
 }
 

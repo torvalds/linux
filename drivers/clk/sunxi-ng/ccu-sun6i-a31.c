@@ -468,8 +468,8 @@ static SUNXI_CCU_MUX_WITH_GATE(daudio0_clk, "daudio0", daudio_parents,
 static SUNXI_CCU_MUX_WITH_GATE(daudio1_clk, "daudio1", daudio_parents,
 			       0x0b4, 16, 2, BIT(31), CLK_SET_RATE_PARENT);
 
-static SUNXI_CCU_M_WITH_GATE(spdif_clk, "spdif", "pll-audio",
-			     0x0c0, 0, 4, BIT(31), CLK_SET_RATE_PARENT);
+static SUNXI_CCU_MUX_WITH_GATE(spdif_clk, "spdif", daudio_parents,
+			       0x0c0, 16, 2, BIT(31), CLK_SET_RATE_PARENT);
 
 static SUNXI_CCU_GATE(usb_phy0_clk,	"usb-phy0",	"osc24M",
 		      0x0cc, BIT(8), 0);

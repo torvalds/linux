@@ -52,6 +52,12 @@ static u32 __init axp_get_tclk_freq(void __iomem *sar)
 	return 250000000;
 }
 
+/* MV98DX3236 TCLK frequency is fixed to 200MHz */
+static u32 __init mv98dx3236_get_tclk_freq(void __iomem *sar)
+{
+	return 200000000;
+}
+
 static const u32 axp_cpu_freqs[] __initconst = {
 	1000000000,
 	1066000000,
@@ -87,6 +93,12 @@ static u32 __init axp_get_cpu_freq(void __iomem *sar)
 		cpu_freq = axp_cpu_freqs[cpu_freq_select];
 
 	return cpu_freq;
+}
+
+/* MV98DX3236 CLK frequency is fixed to 800MHz */
+static u32 __init mv98dx3236_get_cpu_freq(void __iomem *sar)
+{
+	return 800000000;
 }
 
 static const int axp_nbclk_ratios[32][2] __initconst = {
@@ -158,6 +170,11 @@ static const struct coreclk_soc_desc axp_coreclks = {
 	.num_ratios = ARRAY_SIZE(axp_coreclk_ratios),
 };
 
+static const struct coreclk_soc_desc mv98dx3236_coreclks = {
+	.get_tclk_freq = mv98dx3236_get_tclk_freq,
+	.get_cpu_freq = mv98dx3236_get_cpu_freq,
+};
+
 /*
  * Clock Gating Control
  */
@@ -192,6 +209,15 @@ static const struct clk_gating_soc_desc axp_gating_desc[] __initconst = {
 	{ "xor1", NULL, 28, 0 },
 	{ "sata1lnk", NULL, 29, 0 },
 	{ "sata1", "sata1lnk", 30, 0 },
+	{ }
+};
+
+static const struct clk_gating_soc_desc mv98dx3236_gating_desc[] __initconst = {
+	{ "ge1", NULL, 3, 0 },
+	{ "ge0", NULL, 4, 0 },
+	{ "pex00", NULL, 5, 0 },
+	{ "sdio", NULL, 17, 0 },
+	{ "xor0", NULL, 22, 0 },
 	{ }
 };
 
