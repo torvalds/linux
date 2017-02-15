@@ -3454,7 +3454,8 @@ do {								\
 			"BTRFS: Transaction aborted (error %d)\n",	\
 			(errno));					\
 		} else {						\
-			pr_debug("BTRFS: Transaction aborted (error %d)\n", \
+			btrfs_debug((trans)->fs_info,			\
+				    "Transaction aborted (error %d)", \
 				  (errno));			\
 		}						\
 	}							\
