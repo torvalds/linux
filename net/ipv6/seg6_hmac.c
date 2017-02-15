@@ -45,7 +45,7 @@
 #include <net/seg6_hmac.h>
 #include <linux/random.h>
 
-static char * __percpu *hmac_ring;
+static DEFINE_PER_CPU(char [SEG6_HMAC_RING_SIZE], hmac_ring);
 
 static int seg6_hmac_cmpfn(struct rhashtable_compare_arg *arg, const void *obj)
 {
@@ -192,7 +192,7 @@ int seg6_hmac_compute(struct seg6_hmac_info *hinfo, struct ipv6_sr_hdr *hdr,
 	 */
 
 	local_bh_disable();
-	ring = *this_cpu_ptr(hmac_ring);
+	ring = this_cpu_ptr(hmac_ring);
 	off = ring;
 
 	/* source address */
@@ -353,27 +353,6 @@ out:
 }
 EXPORT_SYMBOL(seg6_push_hmac);
 
-static int seg6_hmac_init_ring(void)
-{
-	int i;
-
-	hmac_ring = alloc_percpu(char *);
-
-	if (!hmac_ring)
-		return -ENOMEM;
-
-	for_each_possible_cpu(i) {
-		char *ring = kzalloc(SEG6_HMAC_RING_SIZE, GFP_KERNEL);
-
-		if (!ring)
-			return -ENOMEM;
-
-		*per_cpu_ptr(hmac_ring, i) = ring;
-	}
-
-	return 0;
-}
-
 static int seg6_hmac_init_algo(void)
 {
 	struct seg6_hmac_algo *algo;
@@ -410,7 +389,8 @@ static int seg6_hmac_init_algo(void)
 			return -ENOMEM;
 
 		for_each_possible_cpu(cpu) {
-			shash = kzalloc(shsize, GFP_KERNEL);
+			shash = kzalloc_node(shsize, GFP_KERNEL,
+					     cpu_to_node(cpu));
 			if (!shash)
 				return -ENOMEM;
 			*per_cpu_ptr(algo->shashs, cpu) = shash;
@@ -422,16 +402,7 @@ static int seg6_hmac_init_algo(void)
 
 int __init seg6_hmac_init(void)
 {
-	int ret;
-
-	ret = seg6_hmac_init_ring();
-	if (ret < 0)
-		goto out;
-
-	ret = seg6_hmac_init_algo();
-
-out:
-	return ret;
+	return seg6_hmac_init_algo();
 }
 EXPORT_SYMBOL(seg6_hmac_init);
 
@@ -449,13 +420,6 @@ void seg6_hmac_exit(void)
 {
 	struct seg6_hmac_algo *algo = NULL;
 	int i, alg_count, cpu;
-
-	for_each_possible_cpu(i) {
-		char *ring = *per_cpu_ptr(hmac_ring, i);
-
-		kfree(ring);
-	}
-	free_percpu(hmac_ring);
 
 	alg_count = sizeof(hmac_algos) / sizeof(struct seg6_hmac_algo);
 	for (i = 0; i < alg_count; i++) {

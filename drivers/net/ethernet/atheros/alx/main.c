@@ -311,7 +311,7 @@ static int alx_poll(struct napi_struct *napi, int budget)
 	if (!tx_complete || work == budget)
 		return budget;
 
-	napi_complete(&np->napi);
+	napi_complete_done(&np->napi, work);
 
 	/* enable interrupt */
 	if (alx->flags & ALX_FLAG_USING_MSIX) {
@@ -1648,8 +1648,8 @@ static void alx_poll_controller(struct net_device *netdev)
 }
 #endif
 
-static struct rtnl_link_stats64 *alx_get_stats64(struct net_device *dev,
-					struct rtnl_link_stats64 *net_stats)
+static void alx_get_stats64(struct net_device *dev,
+			    struct rtnl_link_stats64 *net_stats)
 {
 	struct alx_priv *alx = netdev_priv(dev);
 	struct alx_hw_stats *hw_stats = &alx->hw.stats;
@@ -1693,8 +1693,6 @@ static struct rtnl_link_stats64 *alx_get_stats64(struct net_device *dev,
 	net_stats->rx_packets = hw_stats->rx_ok + net_stats->rx_errors;
 
 	spin_unlock(&alx->stats_lock);
-
-	return net_stats;
 }
 
 static const struct net_device_ops alx_netdev_ops = {
@@ -1823,6 +1821,7 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	netdev->hw_features = NETIF_F_SG |
 			      NETIF_F_HW_CSUM |
+			      NETIF_F_RXCSUM |
 			      NETIF_F_TSO |
 			      NETIF_F_TSO6;
 

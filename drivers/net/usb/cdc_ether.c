@@ -466,7 +466,7 @@ static int usbnet_cdc_zte_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
  * connected. This causes the link state to be incorrect. Work around this by
  * always setting the state to off, then on.
  */
-void usbnet_cdc_zte_status(struct usbnet *dev, struct urb *urb)
+static void usbnet_cdc_zte_status(struct usbnet *dev, struct urb *urb)
 {
 	struct usb_cdc_notification *event;
 

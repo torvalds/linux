@@ -71,6 +71,16 @@ void mlx5_add_device(struct mlx5_interface *intf, struct mlx5_priv *priv)
 	if (dev_ctx->context) {
 		spin_lock_irq(&priv->ctx_lock);
 		list_add_tail(&dev_ctx->list, &priv->ctx_list);
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+		if (dev_ctx->intf->pfault) {
+			if (priv->pfault) {
+				mlx5_core_err(dev, "multiple page fault handlers not supported");
+			} else {
+				priv->pfault_ctx = dev_ctx->context;
+				priv->pfault = dev_ctx->intf->pfault;
+			}
+		}
+#endif
 		spin_unlock_irq(&priv->ctx_lock);
 	} else {
 		kfree(dev_ctx);
@@ -96,6 +106,15 @@ void mlx5_remove_device(struct mlx5_interface *intf, struct mlx5_priv *priv)
 	dev_ctx = mlx5_get_device(intf, priv);
 	if (!dev_ctx)
 		return;
+
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+	spin_lock_irq(&priv->ctx_lock);
+	if (priv->pfault == dev_ctx->intf->pfault)
+		priv->pfault = NULL;
+	spin_unlock_irq(&priv->ctx_lock);
+
+	synchronize_srcu(&priv->pfault_srcu);
+#endif
 
 	spin_lock_irq(&priv->ctx_lock);
 	list_del(&dev_ctx->list);
@@ -328,6 +347,20 @@ void mlx5_core_event(struct mlx5_core_dev *dev, enum mlx5_dev_event event,
 
 	spin_unlock_irqrestore(&priv->ctx_lock, flags);
 }
+
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+void mlx5_core_page_fault(struct mlx5_core_dev *dev,
+			  struct mlx5_pagefault *pfault)
+{
+	struct mlx5_priv *priv = &dev->priv;
+	int srcu_idx;
+
+	srcu_idx = srcu_read_lock(&priv->pfault_srcu);
+	if (priv->pfault)
+		priv->pfault(dev, priv->pfault_ctx, pfault);
+	srcu_read_unlock(&priv->pfault_srcu, srcu_idx);
+}
+#endif
 
 void mlx5_dev_list_lock(void)
 {

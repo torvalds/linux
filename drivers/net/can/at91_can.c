@@ -813,7 +813,7 @@ static int at91_poll(struct napi_struct *napi, int quota)
 		u32 reg_ier = AT91_IRQ_ERR_FRAME;
 		reg_ier |= get_irq_mb_rx(priv) & ~AT91_MB_MASK(priv->rx_next);
 
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		at91_write(priv, AT91_IER, reg_ier);
 	}
 

@@ -153,8 +153,6 @@ void br_stp_timer_init(struct net_bridge *br)
 	setup_timer(&br->topology_change_timer,
 		      br_topology_change_timer_expired,
 		      (unsigned long) br);
-
-	setup_timer(&br->gc_timer, br_fdb_cleanup, (unsigned long) br);
 }
 
 void br_stp_port_timer_init(struct net_bridge_port *p)

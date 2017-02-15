@@ -33,8 +33,8 @@ static struct sk_buff *dsa_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * Construct tagged FROM_CPU DSA tag from 802.1q tag.
 		 */
 		dsa_header = skb->data + 2 * ETH_ALEN;
-		dsa_header[0] = 0x60 | p->parent->index;
-		dsa_header[1] = p->port << 3;
+		dsa_header[0] = 0x60 | p->dp->ds->index;
+		dsa_header[1] = p->dp->index << 3;
 
 		/*
 		 * Move CFI field from byte 2 to byte 1.
@@ -54,8 +54,8 @@ static struct sk_buff *dsa_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * Construct untagged FROM_CPU DSA tag.
 		 */
 		dsa_header = skb->data + 2 * ETH_ALEN;
-		dsa_header[0] = 0x40 | p->parent->index;
-		dsa_header[1] = p->port << 3;
+		dsa_header[0] = 0x40 | p->dp->ds->index;
+		dsa_header[1] = p->dp->index << 3;
 		dsa_header[2] = 0x00;
 		dsa_header[3] = 0x00;
 	}
@@ -114,7 +114,7 @@ static int dsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (!ds)
 		goto out_drop;
 
-	if (source_port >= DSA_MAX_PORTS || !ds->ports[source_port].netdev)
+	if (source_port >= ds->num_ports || !ds->ports[source_port].netdev)
 		goto out_drop;
 
 	/*

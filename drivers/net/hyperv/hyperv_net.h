@@ -34,6 +34,7 @@
 
 #define NDIS_OBJECT_TYPE_RSS_CAPABILITIES 0x88
 #define NDIS_OBJECT_TYPE_RSS_PARAMETERS 0x89
+#define NDIS_OBJECT_TYPE_OFFLOAD	0xa7
 
 #define NDIS_RECEIVE_SCALE_CAPABILITIES_REVISION_2 2
 #define NDIS_RECEIVE_SCALE_PARAMETERS_REVISION_2 2
@@ -118,6 +119,7 @@ struct ndis_recv_scale_param { /* NDIS_RECEIVE_SCALE_PARAMETERS */
 
 /* Fwd declaration */
 struct ndis_tcp_ip_checksum_info;
+struct ndis_pkt_8021q_info;
 
 /*
  * Represent netvsc packet which contains 1 RNDIS and 1 ethernet frame
@@ -135,8 +137,10 @@ struct hv_netvsc_packet {
 	u8 page_buf_cnt;
 
 	u16 q_idx;
-	u32 send_buf_index;
+	u16 total_packets;
 
+	u32 total_bytes;
+	u32 send_buf_index;
 	u32 total_data_buflen;
 };
 
@@ -155,6 +159,8 @@ enum rndis_device_state {
 	RNDIS_DEV_DATAINITIALIZED,
 };
 
+#define NETVSC_HASH_KEYLEN 40
+
 struct rndis_device {
 	struct net_device *ndev;
 
@@ -165,14 +171,17 @@ struct rndis_device {
 	spinlock_t request_lock;
 	struct list_head req_list;
 
-	unsigned char hw_mac_adr[ETH_ALEN];
+	u8 hw_mac_adr[ETH_ALEN];
+	u8 rss_key[NETVSC_HASH_KEYLEN];
+	u16 ind_table[ITAB_NUM];
 };
 
 
 /* Interface */
 struct rndis_message;
 struct netvsc_device;
-int netvsc_device_add(struct hv_device *device, void *additional_info);
+int netvsc_device_add(struct hv_device *device,
+		      const struct netvsc_device_info *info);
 void netvsc_device_remove(struct hv_device *device);
 int netvsc_send(struct hv_device *device,
 		struct hv_netvsc_packet *packet,
@@ -181,22 +190,25 @@ int netvsc_send(struct hv_device *device,
 		struct sk_buff *skb);
 void netvsc_linkstatus_callback(struct hv_device *device_obj,
 				struct rndis_message *resp);
-int netvsc_recv_callback(struct hv_device *device_obj,
-			struct hv_netvsc_packet *packet,
-			void **data,
-			struct ndis_tcp_ip_checksum_info *csum_info,
-			struct vmbus_channel *channel,
-			u16 vlan_tci);
+int netvsc_recv_callback(struct net_device *net,
+			 struct vmbus_channel *channel,
+			 void  *data, u32 len,
+			 const struct ndis_tcp_ip_checksum_info *csum_info,
+			 const struct ndis_pkt_8021q_info *vlan);
 void netvsc_channel_cb(void *context);
 int rndis_filter_open(struct netvsc_device *nvdev);
 int rndis_filter_close(struct netvsc_device *nvdev);
 int rndis_filter_device_add(struct hv_device *dev,
-			void *additional_info);
-void rndis_filter_device_remove(struct hv_device *dev);
-int rndis_filter_receive(struct hv_device *dev,
-			struct hv_netvsc_packet *pkt,
-			void **data,
-			struct vmbus_channel *channel);
+			    struct netvsc_device_info *info);
+void rndis_filter_device_remove(struct hv_device *dev,
+				struct netvsc_device *nvdev);
+int rndis_filter_set_rss_param(struct rndis_device *rdev,
+			       const u8 *key, int num_queue);
+int rndis_filter_receive(struct net_device *ndev,
+			 struct netvsc_device *net_dev,
+			 struct hv_device *dev,
+			 struct vmbus_channel *channel,
+			 void *data, u32 buflen);
 
 int rndis_filter_set_packet_filter(struct rndis_device *dev, u32 new_filter);
 int rndis_filter_set_device_mac(struct net_device *ndev, char *mac);
@@ -622,6 +634,7 @@ struct nvsp_message {
 
 #define VRSS_SEND_TAB_SIZE 16
 #define VRSS_CHANNEL_MAX 64
+#define VRSS_CHANNEL_DEFAULT 8
 
 #define RNDIS_MAX_PKT_DEFAULT 8
 #define RNDIS_PKT_ALIGN_DEFAULT 8
@@ -685,8 +698,7 @@ struct net_device_context {
 	struct work_struct work;
 	u32 msg_enable; /* debug level */
 
-	struct netvsc_stats __percpu *tx_stats;
-	struct netvsc_stats __percpu *rx_stats;
+	u32 tx_checksum_mask;
 
 	/* Ethtool settings */
 	u8 duplex;
@@ -705,11 +717,21 @@ struct net_device_context {
 	u32 vf_serial;
 };
 
+/* Per channel data */
+struct netvsc_channel {
+	struct vmbus_channel *channel;
+	struct multi_send_data msd;
+	struct multi_recv_comp mrc;
+	atomic_t queue_sends;
+
+	struct netvsc_stats tx_stats;
+	struct netvsc_stats rx_stats;
+};
+
 /* Per netvsc device */
 struct netvsc_device {
 	u32 nvsp_version;
 
-	atomic_t num_outstanding_sends;
 	wait_queue_head_t wait_drain;
 	bool destroy;
 
@@ -735,32 +757,25 @@ struct netvsc_device {
 
 	struct nvsp_message revoke_packet;
 
-	struct vmbus_channel *chn_table[VRSS_CHANNEL_MAX];
 	u32 send_table[VRSS_SEND_TAB_SIZE];
 	u32 max_chn;
 	u32 num_chn;
 	spinlock_t sc_lock; /* Protects num_sc_offered variable */
 	u32 num_sc_offered;
-	atomic_t queue_sends[VRSS_CHANNEL_MAX];
 
 	/* Holds rndis device info */
 	void *extension;
 
 	int ring_size;
 
-	/* The primary channel callback buffer */
-	unsigned char *cb_buffer;
-	/* The sub channel callback buffer */
-	unsigned char *sub_cb_buf;
-
-	struct multi_send_data msd[VRSS_CHANNEL_MAX];
 	u32 max_pkt; /* max number of pkt in one send, e.g. 8 */
 	u32 pkt_align; /* alignment bytes, e.g. 8 */
 
-	struct multi_recv_comp mrc[VRSS_CHANNEL_MAX];
 	atomic_t num_outstanding_recvs;
 
 	atomic_t open_cnt;
+
+	struct netvsc_channel chan_table[VRSS_CHANNEL_MAX];
 };
 
 static inline struct netvsc_device *
@@ -939,7 +954,7 @@ struct ndis_pkt_8021q_info {
 	};
 };
 
-struct ndis_oject_header {
+struct ndis_object_header {
 	u8 type;
 	u8 revision;
 	u16 size;
@@ -947,6 +962,9 @@ struct ndis_oject_header {
 
 #define NDIS_OBJECT_TYPE_DEFAULT	0x80
 #define NDIS_OFFLOAD_PARAMETERS_REVISION_3 3
+#define NDIS_OFFLOAD_PARAMETERS_REVISION_2 2
+#define NDIS_OFFLOAD_PARAMETERS_REVISION_1 1
+
 #define NDIS_OFFLOAD_PARAMETERS_NO_CHANGE 0
 #define NDIS_OFFLOAD_PARAMETERS_LSOV2_DISABLED 1
 #define NDIS_OFFLOAD_PARAMETERS_LSOV2_ENABLED  2
@@ -973,8 +991,135 @@ struct ndis_oject_header {
 #define OID_TCP_CONNECTION_OFFLOAD_HARDWARE_CAPABILITIES 0xFC01020F /* query */
 #define OID_OFFLOAD_ENCAPSULATION 0x0101010A /* set/query */
 
+/*
+ * OID_TCP_OFFLOAD_HARDWARE_CAPABILITIES
+ * ndis_type: NDIS_OBJTYPE_OFFLOAD
+ */
+
+#define	NDIS_OFFLOAD_ENCAP_NONE		0x0000
+#define	NDIS_OFFLOAD_ENCAP_NULL		0x0001
+#define	NDIS_OFFLOAD_ENCAP_8023		0x0002
+#define	NDIS_OFFLOAD_ENCAP_8023PQ	0x0004
+#define	NDIS_OFFLOAD_ENCAP_8023PQ_OOB	0x0008
+#define	NDIS_OFFLOAD_ENCAP_RFC1483	0x0010
+
+struct ndis_csum_offload {
+	u32	ip4_txenc;
+	u32	ip4_txcsum;
+#define	NDIS_TXCSUM_CAP_IP4OPT		0x001
+#define	NDIS_TXCSUM_CAP_TCP4OPT		0x004
+#define	NDIS_TXCSUM_CAP_TCP4		0x010
+#define	NDIS_TXCSUM_CAP_UDP4		0x040
+#define	NDIS_TXCSUM_CAP_IP4		0x100
+
+#define NDIS_TXCSUM_ALL_TCP4	(NDIS_TXCSUM_CAP_TCP4 | NDIS_TXCSUM_CAP_TCP4OPT)
+
+	u32	ip4_rxenc;
+	u32	ip4_rxcsum;
+#define	NDIS_RXCSUM_CAP_IP4OPT		0x001
+#define	NDIS_RXCSUM_CAP_TCP4OPT		0x004
+#define	NDIS_RXCSUM_CAP_TCP4		0x010
+#define	NDIS_RXCSUM_CAP_UDP4		0x040
+#define	NDIS_RXCSUM_CAP_IP4		0x100
+	u32	ip6_txenc;
+	u32	ip6_txcsum;
+#define	NDIS_TXCSUM_CAP_IP6EXT		0x001
+#define	NDIS_TXCSUM_CAP_TCP6OPT		0x004
+#define	NDIS_TXCSUM_CAP_TCP6		0x010
+#define	NDIS_TXCSUM_CAP_UDP6		0x040
+	u32	ip6_rxenc;
+	u32	ip6_rxcsum;
+#define	NDIS_RXCSUM_CAP_IP6EXT		0x001
+#define	NDIS_RXCSUM_CAP_TCP6OPT		0x004
+#define	NDIS_RXCSUM_CAP_TCP6		0x010
+#define	NDIS_RXCSUM_CAP_UDP6		0x040
+
+#define NDIS_TXCSUM_ALL_TCP6	(NDIS_TXCSUM_CAP_TCP6 |		\
+				 NDIS_TXCSUM_CAP_TCP6OPT |	\
+				 NDIS_TXCSUM_CAP_IP6EXT)
+};
+
+struct ndis_lsov1_offload {
+	u32	encap;
+	u32	maxsize;
+	u32	minsegs;
+	u32	opts;
+};
+
+struct ndis_ipsecv1_offload {
+	u32	encap;
+	u32	ah_esp;
+	u32	xport_tun;
+	u32	ip4_opts;
+	u32	flags;
+	u32	ip4_ah;
+	u32	ip4_esp;
+};
+
+struct ndis_lsov2_offload {
+	u32	ip4_encap;
+	u32	ip4_maxsz;
+	u32	ip4_minsg;
+	u32	ip6_encap;
+	u32	ip6_maxsz;
+	u32	ip6_minsg;
+	u32	ip6_opts;
+#define	NDIS_LSOV2_CAP_IP6EXT		0x001
+#define	NDIS_LSOV2_CAP_TCP6OPT		0x004
+
+#define NDIS_LSOV2_CAP_IP6		(NDIS_LSOV2_CAP_IP6EXT | \
+					 NDIS_LSOV2_CAP_TCP6OPT)
+};
+
+struct ndis_ipsecv2_offload {
+	u32	encap;
+	u16	ip6;
+	u16	ip4opt;
+	u16	ip6ext;
+	u16	ah;
+	u16	esp;
+	u16	ah_esp;
+	u16	xport;
+	u16	tun;
+	u16	xport_tun;
+	u16	lso;
+	u16	extseq;
+	u32	udp_esp;
+	u32	auth;
+	u32	crypto;
+	u32	sa_caps;
+};
+
+struct ndis_rsc_offload {
+	u16	ip4;
+	u16	ip6;
+};
+
+struct ndis_encap_offload {
+	u32	flags;
+	u32	maxhdr;
+};
+
+struct ndis_offload {
+	struct ndis_object_header	header;
+	struct ndis_csum_offload	csum;
+	struct ndis_lsov1_offload	lsov1;
+	struct ndis_ipsecv1_offload	ipsecv1;
+	struct ndis_lsov2_offload	lsov2;
+	u32				flags;
+	/* NDIS >= 6.1 */
+	struct ndis_ipsecv2_offload	ipsecv2;
+	/* NDIS >= 6.30 */
+	struct ndis_rsc_offload		rsc;
+	struct ndis_encap_offload	encap_gre;
+};
+
+#define	NDIS_OFFLOAD_SIZE		sizeof(struct ndis_offload)
+#define	NDIS_OFFLOAD_SIZE_6_0		offsetof(struct ndis_offload, ipsecv2)
+#define	NDIS_OFFLOAD_SIZE_6_1		offsetof(struct ndis_offload, rsc)
+
 struct ndis_offload_params {
-	struct ndis_oject_header header;
+	struct ndis_object_header header;
 	u8 ip_v4_csum;
 	u8 tcp_ip_v4_csum;
 	u8 udp_ip_v4_csum;
@@ -1301,15 +1446,10 @@ struct rndis_message {
 #define NDIS_PACKET_TYPE_FUNCTIONAL	0x00000400
 #define NDIS_PACKET_TYPE_MAC_FRAME	0x00000800
 
-#define INFO_IPV4       2
-#define INFO_IPV6       4
-#define INFO_TCP        2
-#define INFO_UDP        4
-
 #define TRANSPORT_INFO_NOT_IP   0
-#define TRANSPORT_INFO_IPV4_TCP ((INFO_IPV4 << 16) | INFO_TCP)
-#define TRANSPORT_INFO_IPV4_UDP ((INFO_IPV4 << 16) | INFO_UDP)
-#define TRANSPORT_INFO_IPV6_TCP ((INFO_IPV6 << 16) | INFO_TCP)
-#define TRANSPORT_INFO_IPV6_UDP ((INFO_IPV6 << 16) | INFO_UDP)
+#define TRANSPORT_INFO_IPV4_TCP 0x01
+#define TRANSPORT_INFO_IPV4_UDP 0x02
+#define TRANSPORT_INFO_IPV6_TCP 0x10
+#define TRANSPORT_INFO_IPV6_UDP 0x20
 
 #endif /* _HYPERV_NET_H */

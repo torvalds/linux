@@ -38,11 +38,11 @@
 #define VNET_TX_TIMEOUT			(5 * HZ)
 
 #define DRV_MODULE_NAME		"sunvnet"
-#define DRV_MODULE_VERSION	"1.0"
-#define DRV_MODULE_RELDATE	"June 25, 2007"
+#define DRV_MODULE_VERSION	"2.0"
+#define DRV_MODULE_RELDATE	"February 3, 2017"
 
 static char version[] =
-	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
+	DRV_MODULE_NAME " " DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")";
 MODULE_AUTHOR("David S. Miller (davem@davemloft.net)");
 MODULE_DESCRIPTION("Sun LDOM virtual network driver");
 MODULE_LICENSE("GPL");
@@ -303,11 +303,6 @@ static struct vio_driver_ops vnet_vio_ops = {
 	.handshake_complete	= sunvnet_handshake_complete_common,
 };
 
-static void print_version(void)
-{
-	printk_once(KERN_INFO "%s", version);
-}
-
 const char *remote_macaddr_prop = "remote-mac-address";
 
 static int vnet_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
@@ -318,8 +313,6 @@ static int vnet_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	struct vnet *vp;
 	const u64 *rmac;
 	int len, i, err, switch_port;
-
-	print_version();
 
 	hp = mdesc_grab();
 
@@ -446,6 +439,7 @@ static struct vio_driver vnet_port_driver = {
 
 static int __init vnet_init(void)
 {
+	pr_info("%s\n", version);
 	return vio_register_driver(&vnet_port_driver);
 }
 

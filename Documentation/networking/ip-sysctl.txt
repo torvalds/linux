@@ -246,21 +246,12 @@ tcp_dsack - BOOLEAN
 	Allows TCP to send "duplicate" SACKs.
 
 tcp_early_retrans - INTEGER
-	Enable Early Retransmit (ER), per RFC 5827. ER lowers the threshold
-	for triggering fast retransmit when the amount of outstanding data is
-	small and when no previously unsent data can be transmitted (such
-	that limited transmit could be used). Also controls the use of
-	Tail loss probe (TLP) that converts RTOs occurring due to tail
-	losses into fast recovery (draft-dukkipati-tcpm-tcp-loss-probe-01).
+	Tail loss probe (TLP) converts RTOs occurring due to tail
+	losses into fast recovery (draft-ietf-tcpm-rack). Note that
+	TLP requires RACK to function properly (see tcp_recovery below)
 	Possible values:
-		0 disables ER
-		1 enables ER
-		2 enables ER but delays fast recovery and fast retransmit
-		  by a fourth of RTT. This mitigates connection falsely
-		  recovers when network has a small degree of reordering
-		  (less than 3 packets).
-		3 enables delayed ER and TLP.
-		4 enables TLP only.
+		0 disables TLP
+		3 or 4 enables TLP
 	Default: 3
 
 tcp_ecn - INTEGER
@@ -712,18 +703,6 @@ tcp_thin_linear_timeouts - BOOLEAN
 	Documentation/networking/tcp-thin.txt
 	Default: 0
 
-tcp_thin_dupack - BOOLEAN
-	Enable dynamic triggering of retransmissions after one dupACK
-	for thin streams. If set, a check is performed upon reception
-	of a dupACK to determine if the stream is thin (less than 4
-	packets in flight). As long as the stream is found to be thin,
-	data is retransmitted on the first received dupACK. This
-	improves retransmission latency for non-aggressive thin
-	streams, often found to be time-dependent.
-	For more information on thin streams, see
-	Documentation/networking/tcp-thin.txt
-	Default: 0
-
 tcp_limit_output_bytes - INTEGER
 	Controls TCP Small Queue limit per tcp socket.
 	TCP bulk sender tends to increase packets in flight until it
@@ -741,6 +720,13 @@ tcp_challenge_ack_limit - INTEGER
 	Default: 100
 
 UDP variables:
+
+udp_l3mdev_accept - BOOLEAN
+	Enabling this option allows a "global" bound socket to work
+	across L3 master domains (e.g., VRFs) with packets capable of
+	being received regardless of the L3 domain in which they
+	originated. Only valid when the kernel was compiled with
+	CONFIG_NET_L3_MASTER_DEV.
 
 udp_mem - vector of 3 INTEGERs: min, pressure, max
 	Number of pages allowed for queueing by all UDP sockets.
@@ -842,6 +828,15 @@ ip_local_reserved_ports - list of comma separated ranges
 	include the reserved ports.
 
 	Default: Empty
+
+ip_unprivileged_port_start - INTEGER
+	This is a per-namespace sysctl.  It defines the first
+	unprivileged port in the network namespace.  Privileged ports
+	require root or CAP_NET_BIND_SERVICE in order to bind to them.
+	To disable all privileged ports, set this to 0.  It may not
+	overlap with the ip_local_reserved_ports range.
+
+	Default: 1024
 
 ip_nonlocal_bind - BOOLEAN
 	If set, allows processes to bind() to non-local IP addresses,

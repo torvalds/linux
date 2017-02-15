@@ -19,6 +19,7 @@
 #include <linux/sched.h>
 #include <linux/fscache.h>
 #include <linux/backing-dev.h>
+#include <linux/uuid.h>
 #include <net/af_rxrpc.h>
 
 #include "afs.h"
@@ -51,31 +52,22 @@ struct afs_mount_params {
 	struct key		*key;		/* key to use for secure mounting */
 };
 
-/*
- * definition of how to wait for the completion of an operation
- */
-struct afs_wait_mode {
-	/* RxRPC received message notification */
-	rxrpc_notify_rx_t notify_rx;
-
-	/* synchronous call waiter and call dispatched notification */
-	int (*wait)(struct afs_call *call);
-
-	/* asynchronous call completion */
-	void (*async_complete)(void *reply, int error);
+enum afs_call_state {
+	AFS_CALL_REQUESTING,	/* request is being sent for outgoing call */
+	AFS_CALL_AWAIT_REPLY,	/* awaiting reply to outgoing call */
+	AFS_CALL_AWAIT_OP_ID,	/* awaiting op ID on incoming call */
+	AFS_CALL_AWAIT_REQUEST,	/* awaiting request data on incoming call */
+	AFS_CALL_REPLYING,	/* replying to incoming call */
+	AFS_CALL_AWAIT_ACK,	/* awaiting final ACK of incoming call */
+	AFS_CALL_COMPLETE,	/* Completed or failed */
 };
-
-extern const struct afs_wait_mode afs_sync_call;
-extern const struct afs_wait_mode afs_async_call;
-
 /*
  * a record of an in-progress RxRPC call
  */
 struct afs_call {
 	const struct afs_call_type *type;	/* type of call */
-	const struct afs_wait_mode *wait_mode;	/* completion wait mode */
 	wait_queue_head_t	waitq;		/* processes awaiting completion */
-	struct work_struct	async_work;	/* asynchronous work processor */
+	struct work_struct	async_work;	/* async I/O processor */
 	struct work_struct	work;		/* actual work processor */
 	struct rxrpc_call	*rxcall;	/* RxRPC call handle */
 	struct key		*key;		/* security for this call */
@@ -91,15 +83,8 @@ struct afs_call {
 	pgoff_t			first;		/* first page in mapping to deal with */
 	pgoff_t			last;		/* last page in mapping to deal with */
 	size_t			offset;		/* offset into received data store */
-	enum {					/* call state */
-		AFS_CALL_REQUESTING,	/* request is being sent for outgoing call */
-		AFS_CALL_AWAIT_REPLY,	/* awaiting reply to outgoing call */
-		AFS_CALL_AWAIT_OP_ID,	/* awaiting op ID on incoming call */
-		AFS_CALL_AWAIT_REQUEST,	/* awaiting request data on incoming call */
-		AFS_CALL_REPLYING,	/* replying to incoming call */
-		AFS_CALL_AWAIT_ACK,	/* awaiting final ACK of incoming call */
-		AFS_CALL_COMPLETE,	/* Completed or failed */
-	}			state;
+	atomic_t		usage;
+	enum afs_call_state	state;
 	int			error;		/* error code */
 	u32			abort_code;	/* Remote abort ID or 0 */
 	unsigned		request_size;	/* size of request data */
@@ -110,6 +95,7 @@ struct afs_call {
 	bool			incoming;	/* T if incoming call */
 	bool			send_pages;	/* T if data from mapping should be sent */
 	bool			need_attention;	/* T if RxRPC poked us */
+	bool			async;		/* T if asynchronous */
 	u16			service_id;	/* RxRPC service ID to call */
 	__be16			port;		/* target UDP port */
 	u32			operation_ID;	/* operation ID for an incoming call */
@@ -131,6 +117,25 @@ struct afs_call_type {
 
 	/* clean up a call */
 	void (*destructor)(struct afs_call *call);
+
+	/* Work function */
+	void (*work)(struct work_struct *work);
+};
+
+/*
+ * Record of an outstanding read operation on a vnode.
+ */
+struct afs_read {
+	loff_t			pos;		/* Where to start reading */
+	loff_t			len;		/* How much to read */
+	loff_t			actual_len;	/* How much we're actually getting */
+	atomic_t		usage;
+	unsigned int		remain;		/* Amount remaining */
+	unsigned int		index;		/* Which page we're reading into */
+	unsigned int		pg_offset;	/* Offset in page we're at */
+	unsigned int		nr_pages;
+	void (*page_done)(struct afs_call *, struct afs_read *);
+	struct page		*pages[];
 };
 
 /*
@@ -403,30 +408,6 @@ struct afs_interface {
 	unsigned	mtu;		/* MTU of interface */
 };
 
-/*
- * UUID definition [internet draft]
- * - the timestamp is a 60-bit value, split 32/16/12, and goes in 100ns
- *   increments since midnight 15th October 1582
- *   - add AFS_UUID_TO_UNIX_TIME to convert unix time in 100ns units to UUID
- *     time
- * - the clock sequence is a 14-bit counter to avoid duplicate times
- */
-struct afs_uuid {
-	u32		time_low;			/* low part of timestamp */
-	u16		time_mid;			/* mid part of timestamp */
-	u16		time_hi_and_version;		/* high part of timestamp and version  */
-#define AFS_UUID_TO_UNIX_TIME	0x01b21dd213814000ULL
-#define AFS_UUID_TIMEHI_MASK	0x0fff
-#define AFS_UUID_VERSION_TIME	0x1000	/* time-based UUID */
-#define AFS_UUID_VERSION_NAME	0x3000	/* name-based UUID */
-#define AFS_UUID_VERSION_RANDOM	0x4000	/* (pseudo-)random generated UUID */
-	u8		clock_seq_hi_and_reserved;	/* clock seq hi and variant */
-#define AFS_UUID_CLOCKHI_MASK	0x3f
-#define AFS_UUID_VARIANT_STD	0x80
-	u8		clock_seq_low;			/* clock seq low */
-	u8		node[6];			/* spatially unique node ID (MAC addr) */
-};
-
 /*****************************************************************************/
 /*
  * cache.c
@@ -494,6 +475,7 @@ extern const struct file_operations afs_file_operations;
 extern int afs_open(struct inode *, struct file *);
 extern int afs_release(struct inode *, struct file *);
 extern int afs_page_filler(void *, struct page *);
+extern void afs_put_read(struct afs_read *);
 
 /*
  * flock.c
@@ -509,50 +491,37 @@ extern int afs_flock(struct file *, int, struct file_lock *);
  */
 extern int afs_fs_fetch_file_status(struct afs_server *, struct key *,
 				    struct afs_vnode *, struct afs_volsync *,
-				    const struct afs_wait_mode *);
-extern int afs_fs_give_up_callbacks(struct afs_server *,
-				    const struct afs_wait_mode *);
+				    bool);
+extern int afs_fs_give_up_callbacks(struct afs_server *, bool);
 extern int afs_fs_fetch_data(struct afs_server *, struct key *,
-			     struct afs_vnode *, off_t, size_t, struct page *,
-			     const struct afs_wait_mode *);
+			     struct afs_vnode *, struct afs_read *, bool);
 extern int afs_fs_create(struct afs_server *, struct key *,
 			 struct afs_vnode *, const char *, umode_t,
 			 struct afs_fid *, struct afs_file_status *,
-			 struct afs_callback *,
-			 const struct afs_wait_mode *);
+			 struct afs_callback *, bool);
 extern int afs_fs_remove(struct afs_server *, struct key *,
-			 struct afs_vnode *, const char *, bool,
-			 const struct afs_wait_mode *);
+			 struct afs_vnode *, const char *, bool, bool);
 extern int afs_fs_link(struct afs_server *, struct key *, struct afs_vnode *,
-		       struct afs_vnode *, const char *,
-		       const struct afs_wait_mode *);
+		       struct afs_vnode *, const char *, bool);
 extern int afs_fs_symlink(struct afs_server *, struct key *,
 			  struct afs_vnode *, const char *, const char *,
-			  struct afs_fid *, struct afs_file_status *,
-			  const struct afs_wait_mode *);
+			  struct afs_fid *, struct afs_file_status *, bool);
 extern int afs_fs_rename(struct afs_server *, struct key *,
 			 struct afs_vnode *, const char *,
-			 struct afs_vnode *, const char *,
-			 const struct afs_wait_mode *);
+			 struct afs_vnode *, const char *, bool);
 extern int afs_fs_store_data(struct afs_server *, struct afs_writeback *,
-			     pgoff_t, pgoff_t, unsigned, unsigned,
-			     const struct afs_wait_mode *);
+			     pgoff_t, pgoff_t, unsigned, unsigned, bool);
 extern int afs_fs_setattr(struct afs_server *, struct key *,
-			  struct afs_vnode *, struct iattr *,
-			  const struct afs_wait_mode *);
+			  struct afs_vnode *, struct iattr *, bool);
 extern int afs_fs_get_volume_status(struct afs_server *, struct key *,
 				    struct afs_vnode *,
-				    struct afs_volume_status *,
-				    const struct afs_wait_mode *);
+				    struct afs_volume_status *, bool);
 extern int afs_fs_set_lock(struct afs_server *, struct key *,
-			   struct afs_vnode *, afs_lock_type_t,
-			   const struct afs_wait_mode *);
+			   struct afs_vnode *, afs_lock_type_t, bool);
 extern int afs_fs_extend_lock(struct afs_server *, struct key *,
-			      struct afs_vnode *,
-			      const struct afs_wait_mode *);
+			      struct afs_vnode *, bool);
 extern int afs_fs_release_lock(struct afs_server *, struct key *,
-			       struct afs_vnode *,
-			       const struct afs_wait_mode *);
+			       struct afs_vnode *, bool);
 
 /*
  * inode.c
@@ -573,7 +542,7 @@ extern int afs_drop_inode(struct inode *);
  * main.c
  */
 extern struct workqueue_struct *afs_wq;
-extern struct afs_uuid afs_uuid;
+extern struct uuid_v1 afs_uuid;
 
 /*
  * misc.c
@@ -592,6 +561,11 @@ extern int afs_mntpt_check_symlink(struct afs_vnode *, struct key *);
 extern void afs_mntpt_kill_timer(void);
 
 /*
+ * netdevices.c
+ */
+extern int afs_get_ipv4_interfaces(struct afs_interface *, size_t, bool);
+
+/*
  * proc.c
  */
 extern int afs_proc_init(void);
@@ -603,11 +577,13 @@ extern void afs_proc_cell_remove(struct afs_cell *);
  * rxrpc.c
  */
 extern struct socket *afs_socket;
+extern atomic_t afs_outstanding_calls;
 
 extern int afs_open_socket(void);
 extern void afs_close_socket(void);
-extern int afs_make_call(struct in_addr *, struct afs_call *, gfp_t,
-			 const struct afs_wait_mode *);
+extern void afs_put_call(struct afs_call *);
+extern int afs_queue_call_work(struct afs_call *);
+extern int afs_make_call(struct in_addr *, struct afs_call *, gfp_t, bool);
 extern struct afs_call *afs_alloc_flat_call(const struct afs_call_type *,
 					    size_t, size_t);
 extern void afs_flat_call_destructor(struct afs_call *);
@@ -653,21 +629,14 @@ extern int afs_fs_init(void);
 extern void afs_fs_exit(void);
 
 /*
- * use-rtnetlink.c
- */
-extern int afs_get_ipv4_interfaces(struct afs_interface *, size_t, bool);
-extern int afs_get_MAC_address(u8 *, size_t);
-
-/*
  * vlclient.c
  */
 extern int afs_vl_get_entry_by_name(struct in_addr *, struct key *,
 				    const char *, struct afs_cache_vlocation *,
-				    const struct afs_wait_mode *);
+				    bool);
 extern int afs_vl_get_entry_by_id(struct in_addr *, struct key *,
 				  afs_volid_t, afs_voltype_t,
-				  struct afs_cache_vlocation *,
-				  const struct afs_wait_mode *);
+				  struct afs_cache_vlocation *, bool);
 
 /*
  * vlocation.c
@@ -699,7 +668,7 @@ extern void afs_vnode_finalise_status_update(struct afs_vnode *,
 extern int afs_vnode_fetch_status(struct afs_vnode *, struct afs_vnode *,
 				  struct key *);
 extern int afs_vnode_fetch_data(struct afs_vnode *, struct key *,
-				off_t, size_t, struct page *);
+				struct afs_read *);
 extern int afs_vnode_create(struct afs_vnode *, struct key *, const char *,
 			    umode_t, struct afs_fid *, struct afs_file_status *,
 			    struct afs_callback *, struct afs_server **);
@@ -756,6 +725,8 @@ extern int afs_fsync(struct file *, loff_t, loff_t, int);
 /*
  * debug tracing
  */
+#include <trace/events/afs.h>
+
 extern unsigned afs_debug;
 
 #define dbgprintk(FMT,...) \

@@ -36,6 +36,7 @@
 #include <linux/if_ether.h>
 #include <linux/if_link.h>
 #include <net/devlink.h>
+#include <net/ip_tunnels.h>
 #include <linux/mlx5/device.h>
 
 #define MLX5_MAX_UC_PER_VPORT(dev) \
@@ -48,6 +49,11 @@
 #define MLX5_L2_ADDR_HASH(addr) (addr[5])
 
 #define FDB_UPLINK_VPORT 0xffff
+
+#define MLX5_MIN_BW_SHARE 1
+
+#define MLX5_RATE_TO_BW_SHARE(rate, divider, limit) \
+	min_t(u32, max_t(u32, (rate) / (divider), MLX5_MIN_BW_SHARE), limit)
 
 /* L2 -mac address based- hash helpers */
 struct l2addr_node {
@@ -115,6 +121,7 @@ struct mlx5_vport_info {
 	u8                      qos;
 	u64                     node_guid;
 	int                     link_state;
+	u32                     min_rate;
 	u32                     max_rate;
 	bool                    spoofchk;
 	bool                    trusted;
@@ -137,6 +144,7 @@ struct mlx5_vport {
 	struct {
 		bool            enabled;
 		u32             esw_tsar_ix;
+		u32             bw_share;
 	} qos;
 
 	bool                    enabled;
@@ -248,8 +256,8 @@ int mlx5_eswitch_set_vport_spoofchk(struct mlx5_eswitch *esw,
 				    int vport, bool spoofchk);
 int mlx5_eswitch_set_vport_trust(struct mlx5_eswitch *esw,
 				 int vport_num, bool setting);
-int mlx5_eswitch_set_vport_rate(struct mlx5_eswitch *esw,
-				int vport, u32 max_rate);
+int mlx5_eswitch_set_vport_rate(struct mlx5_eswitch *esw, int vport,
+				u32 max_rate, u32 min_rate);
 int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
 				  int vport, struct ifla_vf_info *ivi);
 int mlx5_eswitch_get_vport_stats(struct mlx5_eswitch *esw,
@@ -274,18 +282,12 @@ enum {
 #define MLX5_FLOW_CONTEXT_ACTION_VLAN_POP  0x40
 #define MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH 0x80
 
-struct mlx5_encap_info {
-	__be32 daddr;
-	__be32 tun_id;
-	__be16 tp_dst;
-};
-
 struct mlx5_encap_entry {
 	struct hlist_node encap_hlist;
 	struct list_head flows;
 	u32 encap_id;
 	struct neighbour *n;
-	struct mlx5_encap_info tun_info;
+	struct ip_tunnel_info tun_info;
 	unsigned char h_dest[ETH_ALEN];	/* destination eth addr	*/
 
 	struct net_device *out_dev;

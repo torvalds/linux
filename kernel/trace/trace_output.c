@@ -162,15 +162,27 @@ trace_print_bitmask_seq(struct trace_seq *p, void *bitmask_ptr,
 }
 EXPORT_SYMBOL_GPL(trace_print_bitmask_seq);
 
+/**
+ * trace_print_hex_seq - print buffer as hex sequence
+ * @p: trace seq struct to write to
+ * @buf: The buffer to print
+ * @buf_len: Length of @buf in bytes
+ * @concatenate: Print @buf as single hex string or with spacing
+ *
+ * Prints the passed buffer as a hex sequence either as a whole,
+ * single hex string if @concatenate is true or with spacing after
+ * each byte in case @concatenate is false.
+ */
 const char *
-trace_print_hex_seq(struct trace_seq *p, const unsigned char *buf, int buf_len)
+trace_print_hex_seq(struct trace_seq *p, const unsigned char *buf, int buf_len,
+		    bool concatenate)
 {
 	int i;
 	const char *ret = trace_seq_buffer_ptr(p);
 
 	for (i = 0; i < buf_len; i++)
-		trace_seq_printf(p, "%s%2.2x", i == 0 ? "" : " ", buf[i]);
-
+		trace_seq_printf(p, "%s%2.2x", concatenate || i == 0 ? "" : " ",
+				 buf[i]);
 	trace_seq_putc(p, 0);
 
 	return ret;

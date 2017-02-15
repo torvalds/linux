@@ -73,6 +73,8 @@ config MLXSW_SWITCHX2
 config MLXSW_SPECTRUM
 	tristate "Mellanox Technologies Spectrum support"
 	depends on MLXSW_CORE && MLXSW_PCI && NET_SWITCHDEV && VLAN_8021Q
+	depends on PSAMPLE || PSAMPLE=n
+	select PARMAN
 	default m
 	---help---
 	  This driver supports Mellanox Technologies Spectrum Ethernet

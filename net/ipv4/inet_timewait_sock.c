@@ -257,8 +257,7 @@ void __inet_twsk_schedule(struct inet_timewait_sock *tw, int timeo, bool rearm)
 }
 EXPORT_SYMBOL_GPL(__inet_twsk_schedule);
 
-void inet_twsk_purge(struct inet_hashinfo *hashinfo,
-		     struct inet_timewait_death_row *twdr, int family)
+void inet_twsk_purge(struct inet_hashinfo *hashinfo, int family)
 {
 	struct inet_timewait_sock *tw;
 	struct sock *sk;

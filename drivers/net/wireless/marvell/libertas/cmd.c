@@ -305,7 +305,7 @@ int lbs_cmd_802_11_sleep_params(struct lbs_private *priv, uint16_t cmd_action,
 	}
 
 	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
-	return 0;
+	return ret;
 }
 
 static int lbs_wait_for_ds_awake(struct lbs_private *priv)

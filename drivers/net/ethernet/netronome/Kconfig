@@ -15,21 +15,21 @@ config NET_VENDOR_NETRONOME
 
 if NET_VENDOR_NETRONOME
 
-config NFP_NETVF
-	tristate "Netronome(R) NFP4000/NFP6000 VF NIC driver"
+config NFP
+	tristate "Netronome(R) NFP4000/NFP6000 NIC driver"
 	depends on PCI && PCI_MSI
 	depends on VXLAN || VXLAN=n
 	---help---
-	  This driver supports SR-IOV virtual functions of
-	  the Netronome(R) NFP4000/NFP6000 cards working as
-	  a advanced Ethernet NIC.
+	  This driver supports the Netronome(R) NFP4000/NFP6000 based
+	  cards working as a advanced Ethernet NIC.  It works with both
+	  SR-IOV physical and virtual functions.
 
-config NFP_NET_DEBUG
-	bool "Debug support for Netronome(R) NFP3200/NFP6000 NIC drivers"
-	depends on NFP_NET || NFP_NETVF
+config NFP_DEBUG
+	bool "Debug support for Netronome(R) NFP4000/NFP6000 NIC drivers"
+	depends on NFP
 	---help---
 	  Enable extra sanity checks and debugfs support in
-	  Netronome(R) NFP3200/NFP6000 NIC PF and VF drivers.
+	  Netronome(R) NFP4000/NFP6000 NIC drivers.
 	  Note: selecting this option may adversely impact
 		performance.
 

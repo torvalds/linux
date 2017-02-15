@@ -113,6 +113,7 @@ struct smc_private {
     struct mii_if_info		mii_if;
     int				duplex;
     int				rx_ovrn;
+    unsigned long		last_rx;
 };
 
 /* Special definitions for Megahertz multifunction cards */
@@ -1491,6 +1492,7 @@ static void smc_rx(struct net_device *dev)
     if (!(rx_status & RS_ERRORS)) {
 	/* do stuff to make a new packet */
 	struct sk_buff *skb;
+	struct smc_private *smc = netdev_priv(dev);
 	
 	/* Note: packet_length adds 5 or 6 extra bytes here! */
 	skb = netdev_alloc_skb(dev, packet_length+2);
@@ -1509,7 +1511,7 @@ static void smc_rx(struct net_device *dev)
 	skb->protocol = eth_type_trans(skb, dev);
 	
 	netif_rx(skb);
-	dev->last_rx = jiffies;
+	smc->last_rx = jiffies;
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += packet_length;
 	if (rx_status & RS_MULTICAST)
@@ -1790,7 +1792,7 @@ static void media_check(u_long arg)
     }
 
     /* Ignore collisions unless we've had no rx's recently */
-    if (time_after(jiffies, dev->last_rx + HZ)) {
+    if (time_after(jiffies, smc->last_rx + HZ)) {
 	if (smc->tx_err || (smc->media_status & EPH_16COL))
 	    media |= EPH_16COL;
     }

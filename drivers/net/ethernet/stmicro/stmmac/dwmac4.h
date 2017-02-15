@@ -22,6 +22,7 @@
 #define GMAC_HASH_TAB_32_63		0x00000014
 #define GMAC_RX_FLOW_CTRL		0x00000090
 #define GMAC_QX_TX_FLOW_CTRL(x)		(0x70 + x * 4)
+#define GMAC_RXQ_CTRL0			0x000000a0
 #define GMAC_INT_STATUS			0x000000b0
 #define GMAC_INT_EN			0x000000b4
 #define GMAC_PCS_BASE			0x000000e0
@@ -43,6 +44,11 @@
 #define GMAC_PACKET_FILTER_PM		BIT(4)
 
 #define GMAC_MAX_PERFECT_ADDRESSES	128
+
+/* MAC RX Queue Enable */
+#define GMAC_RX_QUEUE_CLEAR(queue)	~(GENMASK(1, 0) << ((queue) * 2))
+#define GMAC_RX_AV_QUEUE_ENABLE(queue)	BIT((queue) * 2)
+#define GMAC_RX_DCB_QUEUE_ENABLE(queue)	BIT(((queue) * 2) + 1)
 
 /* MAC Flow Control RX */
 #define GMAC_RX_FLOW_CTRL_RFE		BIT(0)
@@ -83,6 +89,19 @@ enum power_event {
 	magic_pkt_en = 0x00000002,
 	power_down = 0x00000001,
 };
+
+/* Energy Efficient Ethernet (EEE) for GMAC4
+ *
+ * LPI status, timer and control register offset
+ */
+#define GMAC4_LPI_CTRL_STATUS	0xd0
+#define GMAC4_LPI_TIMER_CTRL	0xd4
+
+/* LPI control and status defines */
+#define GMAC4_LPI_CTRL_STATUS_LPITCSE	BIT(21)	/* LPI Tx Clock Stop Enable */
+#define GMAC4_LPI_CTRL_STATUS_LPITXA	BIT(19)	/* Enable LPI TX Automate */
+#define GMAC4_LPI_CTRL_STATUS_PLS	BIT(17) /* PHY Link Status */
+#define GMAC4_LPI_CTRL_STATUS_LPIEN	BIT(16)	/* LPI Enable */
 
 /* MAC Debug bitmap */
 #define GMAC_DEBUG_TFCSTS_MASK		GENMASK(18, 17)
@@ -133,6 +152,8 @@ enum power_event {
 /* MAC HW features2 bitmap */
 #define GMAC_HW_FEAT_TXCHCNT		GENMASK(21, 18)
 #define GMAC_HW_FEAT_RXCHCNT		GENMASK(15, 12)
+#define GMAC_HW_FEAT_TXQCNT		GENMASK(9, 6)
+#define GMAC_HW_FEAT_RXQCNT		GENMASK(3, 0)
 
 /* MAC HW ADDR regs */
 #define GMAC_HI_DCS			GENMASK(18, 16)

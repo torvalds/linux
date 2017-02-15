@@ -59,6 +59,17 @@ static void dwmac4_core_init(struct mac_device_info *hw, int mtu)
 	writel(value, ioaddr + GMAC_INT_EN);
 }
 
+static void dwmac4_rx_queue_enable(struct mac_device_info *hw, u32 queue)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 value = readl(ioaddr + GMAC_RXQ_CTRL0);
+
+	value &= GMAC_RX_QUEUE_CLEAR(queue);
+	value |= GMAC_RX_AV_QUEUE_ENABLE(queue);
+
+	writel(value, ioaddr + GMAC_RXQ_CTRL0);
+}
+
 static void dwmac4_dump_regs(struct mac_device_info *hw)
 {
 	void __iomem *ioaddr = hw->pcsr;
@@ -124,6 +135,65 @@ static void dwmac4_get_umac_addr(struct mac_device_info *hw,
 
 	stmmac_dwmac4_get_mac_addr(ioaddr, addr, GMAC_ADDR_HIGH(reg_n),
 				   GMAC_ADDR_LOW(reg_n));
+}
+
+static void dwmac4_set_eee_mode(struct mac_device_info *hw,
+				bool en_tx_lpi_clockgating)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 value;
+
+	/* Enable the link status receive on RGMII, SGMII ore SMII
+	 * receive path and instruct the transmit to enter in LPI
+	 * state.
+	 */
+	value = readl(ioaddr + GMAC4_LPI_CTRL_STATUS);
+	value |= GMAC4_LPI_CTRL_STATUS_LPIEN | GMAC4_LPI_CTRL_STATUS_LPITXA;
+
+	if (en_tx_lpi_clockgating)
+		value |= GMAC4_LPI_CTRL_STATUS_LPITCSE;
+
+	writel(value, ioaddr + GMAC4_LPI_CTRL_STATUS);
+}
+
+static void dwmac4_reset_eee_mode(struct mac_device_info *hw)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 value;
+
+	value = readl(ioaddr + GMAC4_LPI_CTRL_STATUS);
+	value &= ~(GMAC4_LPI_CTRL_STATUS_LPIEN | GMAC4_LPI_CTRL_STATUS_LPITXA);
+	writel(value, ioaddr + GMAC4_LPI_CTRL_STATUS);
+}
+
+static void dwmac4_set_eee_pls(struct mac_device_info *hw, int link)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 value;
+
+	value = readl(ioaddr + GMAC4_LPI_CTRL_STATUS);
+
+	if (link)
+		value |= GMAC4_LPI_CTRL_STATUS_PLS;
+	else
+		value &= ~GMAC4_LPI_CTRL_STATUS_PLS;
+
+	writel(value, ioaddr + GMAC4_LPI_CTRL_STATUS);
+}
+
+static void dwmac4_set_eee_timer(struct mac_device_info *hw, int ls, int tw)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	int value = ((tw & 0xffff)) | ((ls & 0x3ff) << 16);
+
+	/* Program the timers in the LPI timer control register:
+	 * LS: minimum time (ms) for which the link
+	 *  status from PHY should be ok before transmitting
+	 *  the LPI pattern.
+	 * TW: minimum time (us) for which the core waits
+	 *  after it has stopped transmitting the LPI pattern.
+	 */
+	writel(value, ioaddr + GMAC4_LPI_TIMER_CTRL);
 }
 
 static void dwmac4_set_filter(struct mac_device_info *hw,
@@ -392,12 +462,17 @@ static void dwmac4_debug(void __iomem *ioaddr, struct stmmac_extra_stats *x)
 static const struct stmmac_ops dwmac4_ops = {
 	.core_init = dwmac4_core_init,
 	.rx_ipc = dwmac4_rx_ipc_enable,
+	.rx_queue_enable = dwmac4_rx_queue_enable,
 	.dump_regs = dwmac4_dump_regs,
 	.host_irq_status = dwmac4_irq_status,
 	.flow_ctrl = dwmac4_flow_ctrl,
 	.pmt = dwmac4_pmt,
 	.set_umac_addr = dwmac4_set_umac_addr,
 	.get_umac_addr = dwmac4_get_umac_addr,
+	.set_eee_mode = dwmac4_set_eee_mode,
+	.reset_eee_mode = dwmac4_reset_eee_mode,
+	.set_eee_timer = dwmac4_set_eee_timer,
+	.set_eee_pls = dwmac4_set_eee_pls,
 	.pcs_ctrl_ane = dwmac4_ctrl_ane,
 	.pcs_rane = dwmac4_rane,
 	.pcs_get_adv_lp = dwmac4_get_adv_lp,

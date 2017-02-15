@@ -31,8 +31,8 @@
 #define OCTEON_PFVFSIG			0x1122334455667788
 #define OCTEON_PFVFERR			0xDEADDEADDEADDEAD
 
-#define LIO_MBOX_WRITE_WAIT_CNT          1000
-#define LIO_MBOX_WRITE_WAIT_TIME           10
+#define LIO_MBOX_WRITE_WAIT_CNT         1000
+#define LIO_MBOX_WRITE_WAIT_TIME        msecs_to_jiffies(1)
 
 enum octeon_mbox_cmd_status {
 	OCTEON_MBOX_STATUS_SUCCESS = 0,

@@ -43,10 +43,9 @@
 #ifdef CONFIG_RFS_ACCEL
 #include <linux/cpu_rmap.h>
 #endif
-#ifdef CONFIG_NET_RX_BUSY_POLL
-#include <net/busy_poll.h>
-#endif
 #include <linux/crash_dump.h>
+#include <net/busy_poll.h>
+#include <net/vxlan.h>
 
 #include "cq_enet_desc.h"
 #include "vnic_dev.h"
@@ -176,6 +175,134 @@ static void enic_unset_affinity_hint(struct enic *enic)
 
 	for (i = 0; i < enic->intr_count; i++)
 		irq_set_affinity_hint(enic->msix_entry[i].vector, NULL);
+}
+
+static void enic_udp_tunnel_add(struct net_device *netdev,
+				struct udp_tunnel_info *ti)
+{
+	struct enic *enic = netdev_priv(netdev);
+	__be16 port = ti->port;
+	int err;
+
+	spin_lock_bh(&enic->devcmd_lock);
+
+	if (ti->type != UDP_TUNNEL_TYPE_VXLAN) {
+		netdev_info(netdev, "udp_tnl: only vxlan tunnel offload supported");
+		goto error;
+	}
+
+	if (ti->sa_family != AF_INET) {
+		netdev_info(netdev, "vxlan: only IPv4 offload supported");
+		goto error;
+	}
+
+	if (enic->vxlan.vxlan_udp_port_number) {
+		if (ntohs(port) == enic->vxlan.vxlan_udp_port_number)
+			netdev_warn(netdev, "vxlan: udp port already offloaded");
+		else
+			netdev_info(netdev, "vxlan: offload supported for only one UDP port");
+
+		goto error;
+	}
+
+	err = vnic_dev_overlay_offload_cfg(enic->vdev,
+					   OVERLAY_CFG_VXLAN_PORT_UPDATE,
+					   ntohs(port));
+	if (err)
+		goto error;
+
+	err = vnic_dev_overlay_offload_ctrl(enic->vdev, OVERLAY_FEATURE_VXLAN,
+					    enic->vxlan.patch_level);
+	if (err)
+		goto error;
+
+	enic->vxlan.vxlan_udp_port_number = ntohs(port);
+
+	netdev_info(netdev, "vxlan fw-vers-%d: offload enabled for udp port: %d, sa_family: %d ",
+		    (int)enic->vxlan.patch_level, ntohs(port), ti->sa_family);
+
+	goto unlock;
+
+error:
+	netdev_info(netdev, "failed to offload udp port: %d, sa_family: %d, type: %d",
+		    ntohs(port), ti->sa_family, ti->type);
+unlock:
+	spin_unlock_bh(&enic->devcmd_lock);
+}
+
+static void enic_udp_tunnel_del(struct net_device *netdev,
+				struct udp_tunnel_info *ti)
+{
+	struct enic *enic = netdev_priv(netdev);
+	int err;
+
+	spin_lock_bh(&enic->devcmd_lock);
+
+	if ((ti->sa_family != AF_INET) ||
+	    ((ntohs(ti->port) != enic->vxlan.vxlan_udp_port_number)) ||
+	    (ti->type != UDP_TUNNEL_TYPE_VXLAN)) {
+		netdev_info(netdev, "udp_tnl: port:%d, sa_family: %d, type: %d not offloaded",
+			    ntohs(ti->port), ti->sa_family, ti->type);
+		goto unlock;
+	}
+
+	err = vnic_dev_overlay_offload_ctrl(enic->vdev, OVERLAY_FEATURE_VXLAN,
+					    OVERLAY_OFFLOAD_DISABLE);
+	if (err) {
+		netdev_err(netdev, "vxlan: del offload udp port: %d failed",
+			   ntohs(ti->port));
+		goto unlock;
+	}
+
+	enic->vxlan.vxlan_udp_port_number = 0;
+
+	netdev_info(netdev, "vxlan: del offload udp port %d, family %d\n",
+		    ntohs(ti->port), ti->sa_family);
+
+unlock:
+	spin_unlock_bh(&enic->devcmd_lock);
+}
+
+static netdev_features_t enic_features_check(struct sk_buff *skb,
+					     struct net_device *dev,
+					     netdev_features_t features)
+{
+	const struct ethhdr *eth = (struct ethhdr *)skb_inner_mac_header(skb);
+	struct enic *enic = netdev_priv(dev);
+	struct udphdr *udph;
+	u16 port = 0;
+	u16 proto;
+
+	if (!skb->encapsulation)
+		return features;
+
+	features = vxlan_features_check(skb, features);
+
+	/* hardware only supports IPv4 vxlan tunnel */
+	if (vlan_get_protocol(skb) != htons(ETH_P_IP))
+		goto out;
+
+	/* hardware does not support offload of ipv6 inner pkt */
+	if (eth->h_proto != ntohs(ETH_P_IP))
+		goto out;
+
+	proto = ip_hdr(skb)->protocol;
+
+	if (proto == IPPROTO_UDP) {
+		udph = udp_hdr(skb);
+		port = be16_to_cpu(udph->dest);
+	}
+
+	/* HW supports offload of only one UDP port. Remove CSUM and GSO MASK
+	 * for other UDP port tunnels
+	 */
+	if (port  != enic->vxlan.vxlan_udp_port_number)
+		goto out;
+
+	return features;
+
+out:
+	return features & ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
 }
 
 int enic_is_dynamic(struct enic *enic)
@@ -506,20 +633,19 @@ static int enic_queue_wq_skb_csum_l4(struct enic *enic, struct vnic_wq *wq,
 	return err;
 }
 
-static int enic_queue_wq_skb_tso(struct enic *enic, struct vnic_wq *wq,
-				 struct sk_buff *skb, unsigned int mss,
-				 int vlan_tag_insert, unsigned int vlan_tag,
-				 int loopback)
+static void enic_preload_tcp_csum_encap(struct sk_buff *skb)
 {
-	unsigned int frag_len_left = skb_headlen(skb);
-	unsigned int len_left = skb->len - frag_len_left;
-	unsigned int hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
-	int eop = (len_left == 0);
-	unsigned int len;
-	dma_addr_t dma_addr;
-	unsigned int offset = 0;
-	skb_frag_t *frag;
+	if (skb->protocol == cpu_to_be16(ETH_P_IP)) {
+		inner_ip_hdr(skb)->check = 0;
+		inner_tcp_hdr(skb)->check =
+			~csum_tcpudp_magic(inner_ip_hdr(skb)->saddr,
+					   inner_ip_hdr(skb)->daddr, 0,
+					   IPPROTO_TCP, 0);
+	}
+}
 
+static void enic_preload_tcp_csum(struct sk_buff *skb)
+{
 	/* Preload TCP csum field with IP pseudo hdr calculated
 	 * with IP length set to zero.  HW will later add in length
 	 * to each TCP segment resulting from the TSO.
@@ -532,6 +658,30 @@ static int enic_queue_wq_skb_tso(struct enic *enic, struct vnic_wq *wq,
 	} else if (skb->protocol == cpu_to_be16(ETH_P_IPV6)) {
 		tcp_hdr(skb)->check = ~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
 			&ipv6_hdr(skb)->daddr, 0, IPPROTO_TCP, 0);
+	}
+}
+
+static int enic_queue_wq_skb_tso(struct enic *enic, struct vnic_wq *wq,
+				 struct sk_buff *skb, unsigned int mss,
+				 int vlan_tag_insert, unsigned int vlan_tag,
+				 int loopback)
+{
+	unsigned int frag_len_left = skb_headlen(skb);
+	unsigned int len_left = skb->len - frag_len_left;
+	int eop = (len_left == 0);
+	unsigned int offset = 0;
+	unsigned int hdr_len;
+	dma_addr_t dma_addr;
+	unsigned int len;
+	skb_frag_t *frag;
+
+	if (skb->encapsulation) {
+		hdr_len = skb_inner_transport_header(skb) - skb->data;
+		hdr_len += inner_tcp_hdrlen(skb);
+		enic_preload_tcp_csum_encap(skb);
+	} else {
+		hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+		enic_preload_tcp_csum(skb);
 	}
 
 	/* Queue WQ_ENET_MAX_DESC_LEN length descriptors
@@ -581,6 +731,38 @@ static int enic_queue_wq_skb_tso(struct enic *enic, struct vnic_wq *wq,
 	return 0;
 }
 
+static inline int enic_queue_wq_skb_encap(struct enic *enic, struct vnic_wq *wq,
+					  struct sk_buff *skb,
+					  int vlan_tag_insert,
+					  unsigned int vlan_tag, int loopback)
+{
+	unsigned int head_len = skb_headlen(skb);
+	unsigned int len_left = skb->len - head_len;
+	/* Hardware will overwrite the checksum fields, calculating from
+	 * scratch and ignoring the value placed by software.
+	 * Offload mode = 00
+	 * mss[2], mss[1], mss[0] bits are set
+	 */
+	unsigned int mss_or_csum = 7;
+	int eop = (len_left == 0);
+	dma_addr_t dma_addr;
+	int err = 0;
+
+	dma_addr = pci_map_single(enic->pdev, skb->data, head_len,
+				  PCI_DMA_TODEVICE);
+	if (unlikely(enic_dma_map_check(enic, dma_addr)))
+		return -ENOMEM;
+
+	enic_queue_wq_desc_ex(wq, skb, dma_addr, head_len, mss_or_csum, 0,
+			      vlan_tag_insert, vlan_tag,
+			      WQ_ENET_OFFLOAD_MODE_CSUM, eop, 1 /* SOP */, eop,
+			      loopback);
+	if (!eop)
+		err = enic_queue_wq_skb_cont(enic, wq, skb, len_left, loopback);
+
+	return err;
+}
+
 static inline void enic_queue_wq_skb(struct enic *enic,
 	struct vnic_wq *wq, struct sk_buff *skb)
 {
@@ -603,6 +785,9 @@ static inline void enic_queue_wq_skb(struct enic *enic,
 		err = enic_queue_wq_skb_tso(enic, wq, skb, mss,
 					    vlan_tag_insert, vlan_tag,
 					    loopback);
+	else if (skb->encapsulation)
+		err = enic_queue_wq_skb_encap(enic, wq, skb, vlan_tag_insert,
+					      vlan_tag, loopback);
 	else if	(skb->ip_summed == CHECKSUM_PARTIAL)
 		err = enic_queue_wq_skb_csum_l4(enic, wq, skb, vlan_tag_insert,
 						vlan_tag, loopback);
@@ -680,8 +865,8 @@ static netdev_tx_t enic_hard_start_xmit(struct sk_buff *skb,
 }
 
 /* dev_base_lock rwlock held, nominally process context */
-static struct rtnl_link_stats64 *enic_get_stats(struct net_device *netdev,
-						struct rtnl_link_stats64 *net_stats)
+static void enic_get_stats(struct net_device *netdev,
+			   struct rtnl_link_stats64 *net_stats)
 {
 	struct enic *enic = netdev_priv(netdev);
 	struct vnic_stats *stats;
@@ -693,7 +878,7 @@ static struct rtnl_link_stats64 *enic_get_stats(struct net_device *netdev,
 	 * recorded stats.
 	 */
 	if (err == -ENOMEM)
-		return net_stats;
+		return;
 
 	net_stats->tx_packets = stats->tx.tx_frames_ok;
 	net_stats->tx_bytes = stats->tx.tx_bytes_ok;
@@ -707,8 +892,6 @@ static struct rtnl_link_stats64 *enic_get_stats(struct net_device *netdev,
 	net_stats->rx_over_errors = enic->rq_truncated_pkts;
 	net_stats->rx_crc_errors = enic->rq_bad_fcs;
 	net_stats->rx_dropped = stats->rx.rx_no_bufs + stats->rx.rx_drop;
-
-	return net_stats;
 }
 
 static int enic_mc_sync(struct net_device *netdev, const u8 *mc_addr)
@@ -1117,6 +1300,7 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 	u8 packet_error;
 	u16 q_number, completed_index, bytes_written, vlan_tci, checksum;
 	u32 rss_hash;
+	bool outer_csum_ok = true, encap = false;
 
 	if (skipped)
 		return;
@@ -1165,7 +1349,8 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 		skb_put(skb, bytes_written);
 		skb->protocol = eth_type_trans(skb, netdev);
 		skb_record_rx_queue(skb, q_number);
-		if (netdev->features & NETIF_F_RXHASH) {
+		if ((netdev->features & NETIF_F_RXHASH) && rss_hash &&
+		    (type == 3)) {
 			switch (rss_type) {
 			case CQ_ENET_RQ_DESC_RSS_TYPE_TCP_IPv4:
 			case CQ_ENET_RQ_DESC_RSS_TYPE_TCP_IPv6:
@@ -1179,22 +1364,45 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 				break;
 			}
 		}
+		if (enic->vxlan.vxlan_udp_port_number) {
+			switch (enic->vxlan.patch_level) {
+			case 0:
+				if (fcoe) {
+					encap = true;
+					outer_csum_ok = fcoe_fc_crc_ok;
+				}
+				break;
+			case 2:
+				if ((type == 7) &&
+				    (rss_hash & BIT(0))) {
+					encap = true;
+					outer_csum_ok = (rss_hash & BIT(1)) &&
+							(rss_hash & BIT(2));
+				}
+				break;
+			}
+		}
 
 		/* Hardware does not provide whole packet checksum. It only
 		 * provides pseudo checksum. Since hw validates the packet
 		 * checksum but not provide us the checksum value. use
 		 * CHECSUM_UNNECESSARY.
+		 *
+		 * In case of encap pkt tcp_udp_csum_ok/tcp_udp_csum_ok is
+		 * inner csum_ok. outer_csum_ok is set by hw when outer udp
+		 * csum is correct or is zero.
 		 */
-		if ((netdev->features & NETIF_F_RXCSUM) && tcp_udp_csum_ok &&
-		    ipv4_csum_ok)
+		if ((netdev->features & NETIF_F_RXCSUM) && !csum_not_calc &&
+		    tcp_udp_csum_ok && ipv4_csum_ok && outer_csum_ok) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
+			skb->csum_level = encap;
+		}
 
 		if (vlan_stripped)
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tci);
 
 		skb_mark_napi_id(skb, &enic->napi[rq->index]);
-		if (enic_poll_busy_polling(rq) ||
-		    !(netdev->features & NETIF_F_GRO))
+		if (!(netdev->features & NETIF_F_GRO))
 			netif_receive_skb(skb);
 		else
 			napi_gro_receive(&enic->napi[q_number], skb);
@@ -1298,15 +1506,6 @@ static int enic_poll(struct napi_struct *napi, int budget)
 	wq_work_done = vnic_cq_service(&enic->cq[cq_wq], wq_work_to_do,
 				       enic_wq_service, NULL);
 
-	if (!enic_poll_lock_napi(&enic->rq[cq_rq])) {
-		if (wq_work_done > 0)
-			vnic_intr_return_credits(&enic->intr[intr],
-						 wq_work_done,
-						 0 /* dont unmask intr */,
-						 0 /* dont reset intr timer */);
-		return budget;
-	}
-
 	if (budget > 0)
 		rq_work_done = vnic_cq_service(&enic->cq[cq_rq],
 			rq_work_to_do, enic_rq_service, NULL);
@@ -1325,7 +1524,6 @@ static int enic_poll(struct napi_struct *napi, int budget)
 			0 /* don't reset intr timer */);
 
 	err = vnic_rq_fill(&enic->rq[0], enic_rq_alloc_buf);
-	enic_poll_unlock_napi(&enic->rq[cq_rq], napi);
 
 	/* Buffer allocation failed. Stay in polling
 	 * mode so we can try to fill the ring again.
@@ -1345,7 +1543,7 @@ static int enic_poll(struct napi_struct *napi, int budget)
 		 * exit polling
 		 */
 
-		napi_complete(napi);
+		napi_complete_done(napi, rq_work_done);
 		if (enic->rx_coalesce_setting.use_adaptive_rx_coalesce)
 			enic_set_int_moderation(enic, &enic->rq[0]);
 		vnic_intr_unmask(&enic->intr[intr]);
@@ -1392,34 +1590,6 @@ static void enic_set_rx_cpu_rmap(struct enic *enic)
 
 #endif /* CONFIG_RFS_ACCEL */
 
-#ifdef CONFIG_NET_RX_BUSY_POLL
-static int enic_busy_poll(struct napi_struct *napi)
-{
-	struct net_device *netdev = napi->dev;
-	struct enic *enic = netdev_priv(netdev);
-	unsigned int rq = (napi - &enic->napi[0]);
-	unsigned int cq = enic_cq_rq(enic, rq);
-	unsigned int intr = enic_msix_rq_intr(enic, rq);
-	unsigned int work_to_do = -1; /* clean all pkts possible */
-	unsigned int work_done;
-
-	if (!enic_poll_lock_poll(&enic->rq[rq]))
-		return LL_FLUSH_BUSY;
-	work_done = vnic_cq_service(&enic->cq[cq], work_to_do,
-				    enic_rq_service, NULL);
-
-	if (work_done > 0)
-		vnic_intr_return_credits(&enic->intr[intr],
-					 work_done, 0, 0);
-	vnic_rq_fill(&enic->rq[rq], enic_rq_alloc_buf);
-	if (enic->rx_coalesce_setting.use_adaptive_rx_coalesce)
-		enic_calc_int_moderation(enic, &enic->rq[rq]);
-	enic_poll_unlock_poll(&enic->rq[rq]);
-
-	return work_done;
-}
-#endif /* CONFIG_NET_RX_BUSY_POLL */
-
 static int enic_poll_msix_wq(struct napi_struct *napi, int budget)
 {
 	struct net_device *netdev = napi->dev;
@@ -1461,8 +1631,6 @@ static int enic_poll_msix_rq(struct napi_struct *napi, int budget)
 	unsigned int work_done = 0;
 	int err;
 
-	if (!enic_poll_lock_napi(&enic->rq[rq]))
-		return budget;
 	/* Service RQ
 	 */
 
@@ -1495,14 +1663,13 @@ static int enic_poll_msix_rq(struct napi_struct *napi, int budget)
 		 */
 		enic_calc_int_moderation(enic, &enic->rq[rq]);
 
-	enic_poll_unlock_napi(&enic->rq[rq], napi);
 	if (work_done < work_to_do) {
 
 		/* Some work done, but not enough to stay in polling,
 		 * exit polling
 		 */
 
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		if (enic->rx_coalesce_setting.use_adaptive_rx_coalesce)
 			enic_set_int_moderation(enic, &enic->rq[rq]);
 		vnic_intr_unmask(&enic->intr[intr]);
@@ -1753,10 +1920,9 @@ static int enic_open(struct net_device *netdev)
 
 	netif_tx_wake_all_queues(netdev);
 
-	for (i = 0; i < enic->rq_count; i++) {
-		enic_busy_poll_init_lock(&enic->rq[i]);
+	for (i = 0; i < enic->rq_count; i++)
 		napi_enable(&enic->napi[i]);
-	}
+
 	if (vnic_dev_get_intr_mode(enic->vdev) == VNIC_DEV_INTR_MODE_MSIX)
 		for (i = 0; i < enic->wq_count; i++)
 			napi_enable(&enic->napi[enic_cq_wq(enic, i)]);
@@ -1800,13 +1966,8 @@ static int enic_stop(struct net_device *netdev)
 
 	enic_dev_disable(enic);
 
-	for (i = 0; i < enic->rq_count; i++) {
+	for (i = 0; i < enic->rq_count; i++)
 		napi_disable(&enic->napi[i]);
-		local_bh_disable();
-		while (!enic_poll_lock_napi(&enic->rq[i]))
-			mdelay(1);
-		local_bh_enable();
-	}
 
 	netif_carrier_off(netdev);
 	netif_tx_disable(netdev);
@@ -2337,9 +2498,9 @@ static const struct net_device_ops enic_netdev_dynamic_ops = {
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= enic_rx_flow_steer,
 #endif
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	.ndo_busy_poll		= enic_busy_poll,
-#endif
+	.ndo_udp_tunnel_add	= enic_udp_tunnel_add,
+	.ndo_udp_tunnel_del	= enic_udp_tunnel_del,
+	.ndo_features_check	= enic_features_check,
 };
 
 static const struct net_device_ops enic_netdev_ops = {
@@ -2363,9 +2524,9 @@ static const struct net_device_ops enic_netdev_ops = {
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= enic_rx_flow_steer,
 #endif
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	.ndo_busy_poll		= enic_busy_poll,
-#endif
+	.ndo_udp_tunnel_add	= enic_udp_tunnel_add,
+	.ndo_udp_tunnel_del	= enic_udp_tunnel_del,
+	.ndo_features_check	= enic_features_check,
 };
 
 static void enic_dev_deinit(struct enic *enic)
@@ -2741,6 +2902,39 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->hw_features |= NETIF_F_RXHASH;
 	if (ENIC_SETTING(enic, RXCSUM))
 		netdev->hw_features |= NETIF_F_RXCSUM;
+	if (ENIC_SETTING(enic, VXLAN)) {
+		u64 patch_level;
+
+		netdev->hw_enc_features |= NETIF_F_RXCSUM		|
+					   NETIF_F_TSO			|
+					   NETIF_F_TSO_ECN		|
+					   NETIF_F_GSO_UDP_TUNNEL	|
+					   NETIF_F_HW_CSUM		|
+					   NETIF_F_GSO_UDP_TUNNEL_CSUM;
+		netdev->hw_features |= netdev->hw_enc_features;
+		/* get bit mask from hw about supported offload bit level
+		 * BIT(0) = fw supports patch_level 0
+		 *	    fcoe bit = encap
+		 *	    fcoe_fc_crc_ok = outer csum ok
+		 * BIT(1) = always set by fw
+		 * BIT(2) = fw supports patch_level 2
+		 *	    BIT(0) in rss_hash = encap
+		 *	    BIT(1,2) in rss_hash = outer_ip_csum_ok/
+		 *				   outer_tcp_csum_ok
+		 * used in enic_rq_indicate_buf
+		 */
+		err = vnic_dev_get_supported_feature_ver(enic->vdev,
+							 VIC_FEATURE_VXLAN,
+							 &patch_level);
+		if (err)
+			patch_level = 0;
+		/* mask bits that are supported by driver
+		 */
+		patch_level &= BIT_ULL(0) | BIT_ULL(2);
+		patch_level = fls(patch_level);
+		patch_level = patch_level ? patch_level - 1 : 0;
+		enic->vxlan.patch_level = patch_level;
+	}
 
 	netdev->features |= netdev->hw_features;
 	netdev->vlan_features |= netdev->features;

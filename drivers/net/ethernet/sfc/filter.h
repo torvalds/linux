@@ -27,6 +27,7 @@
  * @EFX_FILTER_MATCH_OUTER_VID: Match by outer VLAN ID
  * @EFX_FILTER_MATCH_IP_PROTO: Match by IP transport protocol
  * @EFX_FILTER_MATCH_LOC_MAC_IG: Match by local MAC address I/G bit.
+ * @EFX_FILTER_MATCH_ENCAP_TYPE: Match by encapsulation type.
  *	Used for RX default unicast and multicast/broadcast filters.
  *
  * Only some combinations are supported, depending on NIC type:
@@ -54,6 +55,7 @@ enum efx_filter_match_flags {
 	EFX_FILTER_MATCH_OUTER_VID =	0x0100,
 	EFX_FILTER_MATCH_IP_PROTO =	0x0200,
 	EFX_FILTER_MATCH_LOC_MAC_IG =	0x0400,
+	EFX_FILTER_MATCH_ENCAP_TYPE =	0x0800,
 };
 
 /**
@@ -98,6 +100,26 @@ enum efx_filter_flags {
 	EFX_FILTER_FLAG_TX = 0x10,
 };
 
+/** enum efx_encap_type - types of encapsulation
+ * @EFX_ENCAP_TYPE_NONE: no encapsulation
+ * @EFX_ENCAP_TYPE_VXLAN: VXLAN encapsulation
+ * @EFX_ENCAP_TYPE_NVGRE: NVGRE encapsulation
+ * @EFX_ENCAP_TYPE_GENEVE: GENEVE encapsulation
+ * @EFX_ENCAP_FLAG_IPV6: indicates IPv6 outer frame
+ *
+ * Contains both enumerated types and flags.
+ * To get just the type, OR with @EFX_ENCAP_TYPES_MASK.
+ */
+enum efx_encap_type {
+	EFX_ENCAP_TYPE_NONE = 0,
+	EFX_ENCAP_TYPE_VXLAN = 1,
+	EFX_ENCAP_TYPE_NVGRE = 2,
+	EFX_ENCAP_TYPE_GENEVE = 3,
+
+	EFX_ENCAP_TYPES_MASK = 7,
+	EFX_ENCAP_FLAG_IPV6 = 8,
+};
+
 /**
  * struct efx_filter_spec - specification for a hardware filter
  * @match_flags: Match type flags, from &enum efx_filter_match_flags
@@ -118,6 +140,8 @@ enum efx_filter_flags {
  * @rem_host: Remote IP host to match, if %EFX_FILTER_MATCH_REM_HOST is set
  * @loc_port: Local TCP/UDP port to match, if %EFX_FILTER_MATCH_LOC_PORT is set
  * @rem_port: Remote TCP/UDP port to match, if %EFX_FILTER_MATCH_REM_PORT is set
+ * @encap_type: Encapsulation type to match (from &enum efx_encap_type), if
+ *	%EFX_FILTER_MATCH_ENCAP_TYPE is set
  *
  * The efx_filter_init_rx() or efx_filter_init_tx() function *must* be
  * used to initialise the structure.  The efx_filter_set_*() functions
@@ -144,7 +168,8 @@ struct efx_filter_spec {
 	__be32	rem_host[4];
 	__be16	loc_port;
 	__be16	rem_port;
-	/* total 64 bytes */
+	u32     encap_type:4;
+	/* total 65 bytes */
 };
 
 enum {
@@ -269,4 +294,18 @@ static inline int efx_filter_set_mc_def(struct efx_filter_spec *spec)
 	return 0;
 }
 
+static inline void efx_filter_set_encap_type(struct efx_filter_spec *spec,
+					     enum efx_encap_type encap_type)
+{
+	spec->match_flags |= EFX_FILTER_MATCH_ENCAP_TYPE;
+	spec->encap_type = encap_type;
+}
+
+static inline enum efx_encap_type efx_filter_get_encap_type(
+		const struct efx_filter_spec *spec)
+{
+	if (spec->match_flags & EFX_FILTER_MATCH_ENCAP_TYPE)
+		return spec->encap_type;
+	return EFX_ENCAP_TYPE_NONE;
+}
 #endif /* EFX_FILTER_H */

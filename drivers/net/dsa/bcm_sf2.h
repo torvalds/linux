@@ -52,6 +52,13 @@ struct bcm_sf2_port_status {
 	struct ethtool_eee eee;
 };
 
+struct bcm_sf2_cfp_priv {
+	/* Mutex protecting concurrent accesses to the CFP registers */
+	struct mutex lock;
+	DECLARE_BITMAP(used, CFP_NUM_RULES);
+	unsigned int rules_cnt;
+};
+
 struct bcm_sf2_priv {
 	/* Base registers, keep those in order with BCM_SF2_REGS_NAME */
 	void __iomem			*core;
@@ -60,6 +67,11 @@ struct bcm_sf2_priv {
 	void __iomem			*intrl2_1;
 	void __iomem			*fcb;
 	void __iomem			*acb;
+
+	/* Register offsets indirection tables */
+	u32 				type;
+	const u16			*reg_offsets;
+	unsigned int			core_reg_align;
 
 	/* spinlock protecting access to the indirect registers */
 	spinlock_t			indir_lock;
@@ -95,6 +107,12 @@ struct bcm_sf2_priv {
 	struct device_node		*master_mii_dn;
 	struct mii_bus			*slave_mii_bus;
 	struct mii_bus			*master_mii_bus;
+
+	/* Bitmask of ports needing BRCM tags */
+	unsigned int			brcm_tag_mask;
+
+	/* CFP rules context */
+	struct bcm_sf2_cfp_priv		cfp;
 };
 
 static inline struct bcm_sf2_priv *bcm_sf2_to_priv(struct dsa_switch *ds)
@@ -102,6 +120,11 @@ static inline struct bcm_sf2_priv *bcm_sf2_to_priv(struct dsa_switch *ds)
 	struct b53_device *dev = ds->priv;
 
 	return dev->priv;
+}
+
+static inline u32 bcm_sf2_mangle_addr(struct bcm_sf2_priv *priv, u32 off)
+{
+	return off << priv->core_reg_align;
 }
 
 #define SF2_IO_MACRO(name) \
@@ -125,7 +148,7 @@ static inline u64 name##_readq(struct bcm_sf2_priv *priv, u32 off)	\
 {									\
 	u32 indir, dir;							\
 	spin_lock(&priv->indir_lock);					\
-	dir = __raw_readl(priv->name + off);				\
+	dir = name##_readl(priv, off);					\
 	indir = reg_readl(priv, REG_DIR_DATA_READ);			\
 	spin_unlock(&priv->indir_lock);					\
 	return (u64)indir << 32 | dir;					\
@@ -135,7 +158,7 @@ static inline void name##_writeq(struct bcm_sf2_priv *priv, u64 val,	\
 {									\
 	spin_lock(&priv->indir_lock);					\
 	reg_writel(priv, upper_32_bits(val), REG_DIR_DATA_WRITE);	\
-	__raw_writel(lower_32_bits(val), priv->name + off);		\
+	name##_writel(priv, lower_32_bits(val), off);			\
 	spin_unlock(&priv->indir_lock);					\
 }
 
@@ -153,8 +176,28 @@ static inline void intrl2_##which##_mask_set(struct bcm_sf2_priv *priv, \
 	priv->irq##which##_mask |= (mask);				\
 }									\
 
-SF2_IO_MACRO(core);
-SF2_IO_MACRO(reg);
+static inline u32 core_readl(struct bcm_sf2_priv *priv, u32 off)
+{
+	u32 tmp = bcm_sf2_mangle_addr(priv, off);
+	return __raw_readl(priv->core + tmp);
+}
+
+static inline void core_writel(struct bcm_sf2_priv *priv, u32 val, u32 off)
+{
+	u32 tmp = bcm_sf2_mangle_addr(priv, off);
+	__raw_writel(val, priv->core + tmp);
+}
+
+static inline u32 reg_readl(struct bcm_sf2_priv *priv, u16 off)
+{
+	return __raw_readl(priv->reg + priv->reg_offsets[off]);
+}
+
+static inline void reg_writel(struct bcm_sf2_priv *priv, u32 val, u16 off)
+{
+	__raw_writel(val, priv->reg + priv->reg_offsets[off]);
+}
+
 SF2_IO64_MACRO(core);
 SF2_IO_MACRO(intrl2_0);
 SF2_IO_MACRO(intrl2_1);
@@ -163,5 +206,12 @@ SF2_IO_MACRO(acb);
 
 SWITCH_INTR_L2(0);
 SWITCH_INTR_L2(1);
+
+/* RXNFC */
+int bcm_sf2_get_rxnfc(struct dsa_switch *ds, int port,
+		      struct ethtool_rxnfc *nfc, u32 *rule_locs);
+int bcm_sf2_set_rxnfc(struct dsa_switch *ds, int port,
+		      struct ethtool_rxnfc *nfc);
+int bcm_sf2_cfp_rst(struct bcm_sf2_priv *priv);
 
 #endif /* __BCM_SF2_H */

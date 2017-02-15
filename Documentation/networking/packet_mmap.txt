@@ -565,7 +565,7 @@ TPACKET_V1 --> TPACKET_V2:
 		   (void *)hdr + TPACKET_ALIGN(sizeof(struct tpacket_hdr))
 
 TPACKET_V2 --> TPACKET_V3:
-	- Flexible buffer implementation:
+	- Flexible buffer implementation for RX_RING:
 		1. Blocks can be configured with non-static frame-size
 		2. Read/poll is at a block-level (as opposed to packet-level)
 		3. Added poll timeout to avoid indefinite user-space wait
@@ -574,7 +574,12 @@ TPACKET_V2 --> TPACKET_V3:
 			4.1 block::timeout
 			4.2 tpkt_hdr::sk_rxhash
 	- RX Hash data available in user space
-	- Currently only RX_RING available
+	- TX_RING semantics are conceptually similar to TPACKET_V2;
+	  use tpacket3_hdr instead of tpacket2_hdr, and TPACKET3_HDRLEN
+	  instead of TPACKET2_HDRLEN. In the current implementation,
+	  the tp_next_offset field in the tpacket3_hdr MUST be set to
+	  zero, indicating that the ring does not hold variable sized frames.
+	  Packets with non-zero values of tp_next_offset will be dropped.
 
 -------------------------------------------------------------------------------
 + AF_PACKET fanout mode

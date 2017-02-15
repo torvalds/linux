@@ -319,8 +319,8 @@ int tulip_poll(struct napi_struct *napi, int budget)
 
          /* Remove us from polling list and enable RX intr. */
 
-         napi_complete(napi);
-         iowrite32(tulip_tbl[tp->chip_id].valid_intrs, tp->base_addr+CSR7);
+	napi_complete_done(napi, work_done);
+	iowrite32(tulip_tbl[tp->chip_id].valid_intrs, tp->base_addr+CSR7);
 
          /* The last op happens after poll completion. Which means the following:
           * 1. it can race with disabling irqs in irq handler
@@ -355,7 +355,7 @@ int tulip_poll(struct napi_struct *napi, int budget)
           * before we did napi_complete(). See? We would lose it. */
 
          /* remove ourselves from the polling list */
-         napi_complete(napi);
+         napi_complete_done(napi, work_done);
 
          return work_done;
 }

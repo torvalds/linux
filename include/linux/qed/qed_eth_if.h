@@ -1,9 +1,33 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #ifndef _QED_ETH_IF_H
@@ -53,7 +77,7 @@ struct qed_dev_eth_info {
 };
 
 struct qed_update_vport_rss_params {
-	u16	rss_ind_table[128];
+	void	*rss_ind_table[128];
 	u32	rss_key[10];
 	u8	rss_caps;
 };
@@ -72,6 +96,7 @@ struct qed_update_vport_params {
 
 struct qed_start_vport_params {
 	bool remove_inner_vlan;
+	bool handle_ptp_pkts;
 	bool gro_enable;
 	bool drop_ttl0;
 	u8 vport_id;
@@ -135,6 +160,15 @@ struct qed_eth_cb_ops {
 	void (*force_mac) (void *dev, u8 *mac, bool forced);
 };
 
+#define QED_MAX_PHC_DRIFT_PPB   291666666
+
+enum qed_ptp_filter_type {
+	QED_PTP_FILTER_L2,
+	QED_PTP_FILTER_IPV4,
+	QED_PTP_FILTER_IPV4_IPV6,
+	QED_PTP_FILTER_L2_IPV4_IPV6
+};
+
 #ifdef CONFIG_DCB
 /* Prototype declaration of qed_eth_dcbnl_ops should match with the declaration
  * of dcbnl_rtnl_ops structure.
@@ -194,6 +228,17 @@ struct qed_eth_dcbnl_ops {
 };
 #endif
 
+struct qed_eth_ptp_ops {
+	int (*hwtstamp_tx_on)(struct qed_dev *);
+	int (*cfg_rx_filters)(struct qed_dev *, enum qed_ptp_filter_type);
+	int (*read_rx_ts)(struct qed_dev *, u64 *);
+	int (*read_tx_ts)(struct qed_dev *, u64 *);
+	int (*read_cc)(struct qed_dev *, u64 *);
+	int (*disable)(struct qed_dev *);
+	int (*adjfreq)(struct qed_dev *, s32);
+	int (*enable)(struct qed_dev *);
+};
+
 struct qed_eth_ops {
 	const struct qed_common_ops *common;
 #ifdef CONFIG_QED_SRIOV
@@ -202,6 +247,7 @@ struct qed_eth_ops {
 #ifdef CONFIG_DCB
 	const struct qed_eth_dcbnl_ops *dcb;
 #endif
+	const struct qed_eth_ptp_ops *ptp;
 
 	int (*fill_dev_info)(struct qed_dev *cdev,
 			     struct qed_dev_eth_info *info);

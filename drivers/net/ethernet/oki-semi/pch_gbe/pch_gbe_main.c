@@ -2149,17 +2149,6 @@ static int pch_gbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 }
 
 /**
- * pch_gbe_get_stats - Get System Network Statistics
- * @netdev:  Network interface device structure
- * Returns:  The current stats
- */
-static struct net_device_stats *pch_gbe_get_stats(struct net_device *netdev)
-{
-	/* only return the current stats */
-	return &netdev->stats;
-}
-
-/**
  * pch_gbe_set_multi - Multicast and Promiscuous mode set
  * @netdev:   Network interface device structure
  */
@@ -2385,7 +2374,7 @@ static int pch_gbe_napi_poll(struct napi_struct *napi, int budget)
 		poll_end_flag = true;
 
 	if (poll_end_flag) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		pch_gbe_irq_enable(adapter);
 	}
 
@@ -2420,7 +2409,6 @@ static const struct net_device_ops pch_gbe_netdev_ops = {
 	.ndo_open = pch_gbe_open,
 	.ndo_stop = pch_gbe_stop,
 	.ndo_start_xmit = pch_gbe_xmit_frame,
-	.ndo_get_stats = pch_gbe_get_stats,
 	.ndo_set_mac_address = pch_gbe_set_mac,
 	.ndo_tx_timeout = pch_gbe_tx_timeout,
 	.ndo_change_mtu = pch_gbe_change_mtu,

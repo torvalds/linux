@@ -8,6 +8,7 @@
 #include <linux/ipv6.h>
 #include <linux/mpls.h>
 #include <linux/vmalloc.h>
+#include <linux/percpu.h>
 #include <net/ip.h>
 #include <net/dst.h>
 #include <net/sock.h>
@@ -17,8 +18,8 @@
 #include <net/netns/generic.h>
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ipv6.h>
-#include <net/addrconf.h>
 #endif
+#include <net/addrconf.h>
 #include <net/nexthop.h>
 #include "internal.h"
 
@@ -46,11 +47,6 @@ static struct mpls_route *mpls_route_input_rcu(struct net *net, unsigned index)
 		rt = rcu_dereference(platform_label[index]);
 	}
 	return rt;
-}
-
-static inline struct mpls_dev *mpls_dev_get(const struct net_device *dev)
-{
-	return rcu_dereference_rtnl(dev->mpls_ptr);
 }
 
 bool mpls_output_possible(const struct net_device *dev)
@@ -97,6 +93,31 @@ bool mpls_pkt_too_big(const struct sk_buff *skb, unsigned int mtu)
 	return true;
 }
 EXPORT_SYMBOL_GPL(mpls_pkt_too_big);
+
+void mpls_stats_inc_outucastpkts(struct net_device *dev,
+				 const struct sk_buff *skb)
+{
+	struct mpls_dev *mdev;
+
+	if (skb->protocol == htons(ETH_P_MPLS_UC)) {
+		mdev = mpls_dev_get(dev);
+		if (mdev)
+			MPLS_INC_STATS_LEN(mdev, skb->len,
+					   tx_packets,
+					   tx_bytes);
+	} else if (skb->protocol == htons(ETH_P_IP)) {
+		IP_UPD_PO_STATS(dev_net(dev), IPSTATS_MIB_OUT, skb->len);
+#if IS_ENABLED(CONFIG_IPV6)
+	} else if (skb->protocol == htons(ETH_P_IPV6)) {
+		struct inet6_dev *in6dev = __in6_dev_get(dev);
+
+		if (in6dev)
+			IP6_UPD_PO_STATS(dev_net(dev), in6dev,
+					 IPSTATS_MIB_OUT, skb->len);
+#endif
+	}
+}
+EXPORT_SYMBOL_GPL(mpls_stats_inc_outucastpkts);
 
 static u32 mpls_multipath_hash(struct mpls_route *rt, struct sk_buff *skb)
 {
@@ -255,6 +276,7 @@ static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
 	struct mpls_nh *nh;
 	struct mpls_entry_decoded dec;
 	struct net_device *out_dev;
+	struct mpls_dev *out_mdev;
 	struct mpls_dev *mdev;
 	unsigned int hh_len;
 	unsigned int new_header_size;
@@ -264,34 +286,39 @@ static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
 	/* Careful this entire function runs inside of an rcu critical section */
 
 	mdev = mpls_dev_get(dev);
-	if (!mdev || !mdev->input_enabled)
+	if (!mdev)
 		goto drop;
+
+	MPLS_INC_STATS_LEN(mdev, skb->len, rx_packets,
+			   rx_bytes);
+
+	if (!mdev->input_enabled) {
+		MPLS_INC_STATS(mdev, rx_dropped);
+		goto drop;
+	}
 
 	if (skb->pkt_type != PACKET_HOST)
-		goto drop;
+		goto err;
 
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
-		goto drop;
+		goto err;
 
 	if (!pskb_may_pull(skb, sizeof(*hdr)))
-		goto drop;
+		goto err;
 
 	/* Read and decode the label */
 	hdr = mpls_hdr(skb);
 	dec = mpls_entry_decode(hdr);
 
 	rt = mpls_route_input_rcu(net, dec.label);
-	if (!rt)
+	if (!rt) {
+		MPLS_INC_STATS(mdev, rx_noroute);
 		goto drop;
+	}
 
 	nh = mpls_select_multipath(rt, skb);
 	if (!nh)
-		goto drop;
-
-	/* Find the output device */
-	out_dev = rcu_dereference(nh->nh_dev);
-	if (!mpls_output_possible(out_dev))
-		goto drop;
+		goto err;
 
 	/* Pop the label */
 	skb_pull(skb, sizeof(*hdr));
@@ -300,20 +327,25 @@ static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
 	skb_orphan(skb);
 
 	if (skb_warn_if_lro(skb))
-		goto drop;
+		goto err;
 
 	skb_forward_csum(skb);
 
 	/* Verify ttl is valid */
 	if (dec.ttl <= 1)
-		goto drop;
+		goto err;
 	dec.ttl -= 1;
+
+	/* Find the output device */
+	out_dev = rcu_dereference(nh->nh_dev);
+	if (!mpls_output_possible(out_dev))
+		goto tx_err;
 
 	/* Verify the destination can hold the packet */
 	new_header_size = mpls_nh_header_size(nh);
 	mtu = mpls_dev_mtu(out_dev);
 	if (mpls_pkt_too_big(skb, mtu - new_header_size))
-		goto drop;
+		goto tx_err;
 
 	hh_len = LL_RESERVED_SPACE(out_dev);
 	if (!out_dev->header_ops)
@@ -321,7 +353,7 @@ static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
 
 	/* Ensure there is enough space for the headers in the skb */
 	if (skb_cow(skb, hh_len + new_header_size))
-		goto drop;
+		goto tx_err;
 
 	skb->dev = out_dev;
 	skb->protocol = htons(ETH_P_MPLS_UC);
@@ -329,7 +361,7 @@ static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
 	if (unlikely(!new_header_size && dec.bos)) {
 		/* Penultimate hop popping */
 		if (!mpls_egress(rt, skb, dec))
-			goto drop;
+			goto err;
 	} else {
 		bool bos;
 		int i;
@@ -345,6 +377,8 @@ static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
 		}
 	}
 
+	mpls_stats_inc_outucastpkts(out_dev, skb);
+
 	/* If via wasn't specified then send out using device address */
 	if (nh->nh_via_table == MPLS_NEIGH_TABLE_UNSPEC)
 		err = neigh_xmit(NEIGH_LINK_TABLE, out_dev,
@@ -357,6 +391,13 @@ static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
 				    __func__, err);
 	return 0;
 
+tx_err:
+	out_mdev = out_dev ? mpls_dev_get(out_dev) : NULL;
+	if (out_mdev)
+		MPLS_INC_STATS(out_mdev, tx_errors);
+	goto drop;
+err:
+	MPLS_INC_STATS(mdev, rx_errors);
 drop:
 	kfree_skb(skb);
 	return NET_RX_DROP;
@@ -855,6 +896,70 @@ errout:
 	return err;
 }
 
+static void mpls_get_stats(struct mpls_dev *mdev,
+			   struct mpls_link_stats *stats)
+{
+	struct mpls_pcpu_stats *p;
+	int i;
+
+	memset(stats, 0, sizeof(*stats));
+
+	for_each_possible_cpu(i) {
+		struct mpls_link_stats local;
+		unsigned int start;
+
+		p = per_cpu_ptr(mdev->stats, i);
+		do {
+			start = u64_stats_fetch_begin(&p->syncp);
+			local = p->stats;
+		} while (u64_stats_fetch_retry(&p->syncp, start));
+
+		stats->rx_packets	+= local.rx_packets;
+		stats->rx_bytes		+= local.rx_bytes;
+		stats->tx_packets	+= local.tx_packets;
+		stats->tx_bytes		+= local.tx_bytes;
+		stats->rx_errors	+= local.rx_errors;
+		stats->tx_errors	+= local.tx_errors;
+		stats->rx_dropped	+= local.rx_dropped;
+		stats->tx_dropped	+= local.tx_dropped;
+		stats->rx_noroute	+= local.rx_noroute;
+	}
+}
+
+static int mpls_fill_stats_af(struct sk_buff *skb,
+			      const struct net_device *dev)
+{
+	struct mpls_link_stats *stats;
+	struct mpls_dev *mdev;
+	struct nlattr *nla;
+
+	mdev = mpls_dev_get(dev);
+	if (!mdev)
+		return -ENODATA;
+
+	nla = nla_reserve_64bit(skb, MPLS_STATS_LINK,
+				sizeof(struct mpls_link_stats),
+				MPLS_STATS_UNSPEC);
+	if (!nla)
+		return -EMSGSIZE;
+
+	stats = nla_data(nla);
+	mpls_get_stats(mdev, stats);
+
+	return 0;
+}
+
+static size_t mpls_get_stats_af_size(const struct net_device *dev)
+{
+	struct mpls_dev *mdev;
+
+	mdev = mpls_dev_get(dev);
+	if (!mdev)
+		return 0;
+
+	return nla_total_size_64bit(sizeof(struct mpls_link_stats));
+}
+
 #define MPLS_PERDEV_SYSCTL_OFFSET(field)	\
 	(&((struct mpls_dev *)0)->field)
 
@@ -913,12 +1018,24 @@ static struct mpls_dev *mpls_add_dev(struct net_device *dev)
 {
 	struct mpls_dev *mdev;
 	int err = -ENOMEM;
+	int i;
 
 	ASSERT_RTNL();
 
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
 		return ERR_PTR(err);
+
+	mdev->stats = alloc_percpu(struct mpls_pcpu_stats);
+	if (!mdev->stats)
+		goto free;
+
+	for_each_possible_cpu(i) {
+		struct mpls_pcpu_stats *mpls_stats;
+
+		mpls_stats = per_cpu_ptr(mdev->stats, i);
+		u64_stats_init(&mpls_stats->syncp);
+	}
 
 	err = mpls_dev_sysctl_register(dev, mdev);
 	if (err)
@@ -929,8 +1046,17 @@ static struct mpls_dev *mpls_add_dev(struct net_device *dev)
 	return mdev;
 
 free:
+	free_percpu(mdev->stats);
 	kfree(mdev);
 	return ERR_PTR(err);
+}
+
+static void mpls_dev_destroy_rcu(struct rcu_head *head)
+{
+	struct mpls_dev *mdev = container_of(head, struct mpls_dev, rcu);
+
+	free_percpu(mdev->stats);
+	kfree(mdev);
 }
 
 static void mpls_ifdown(struct net_device *dev, int event)
@@ -1047,7 +1173,7 @@ static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
 		if (mdev) {
 			mpls_dev_sysctl_unregister(mdev);
 			RCU_INIT_POINTER(dev->mpls_ptr, NULL);
-			kfree_rcu(mdev, rcu);
+			call_rcu(&mdev->rcu, mpls_dev_destroy_rcu);
 		}
 		break;
 	case NETDEV_CHANGENAME:
@@ -1708,6 +1834,12 @@ static struct pernet_operations mpls_net_ops = {
 	.exit = mpls_net_exit,
 };
 
+static struct rtnl_af_ops mpls_af_ops __read_mostly = {
+	.family		   = AF_MPLS,
+	.fill_stats_af	   = mpls_fill_stats_af,
+	.get_stats_af_size = mpls_get_stats_af_size,
+};
+
 static int __init mpls_init(void)
 {
 	int err;
@@ -1723,6 +1855,8 @@ static int __init mpls_init(void)
 		goto out_unregister_pernet;
 
 	dev_add_pack(&mpls_packet_type);
+
+	rtnl_af_register(&mpls_af_ops);
 
 	rtnl_register(PF_MPLS, RTM_NEWROUTE, mpls_rtm_newroute, NULL, NULL);
 	rtnl_register(PF_MPLS, RTM_DELROUTE, mpls_rtm_delroute, NULL, NULL);
@@ -1740,6 +1874,7 @@ module_init(mpls_init);
 static void __exit mpls_exit(void)
 {
 	rtnl_unregister_all(PF_MPLS);
+	rtnl_af_unregister(&mpls_af_ops);
 	dev_remove_pack(&mpls_packet_type);
 	unregister_netdevice_notifier(&mpls_dev_notifier);
 	unregister_pernet_subsys(&mpls_net_ops);

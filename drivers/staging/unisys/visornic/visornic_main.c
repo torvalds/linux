@@ -1657,7 +1657,7 @@ static int visornic_poll(struct napi_struct *napi, int budget)
 
 	/* If there aren't any more packets to receive stop the poll */
 	if (rx_count < budget)
-		napi_complete(napi);
+		napi_complete_done(napi, rx_count);
 
 	return rx_count;
 }

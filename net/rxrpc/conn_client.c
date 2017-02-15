@@ -105,14 +105,6 @@ static void rxrpc_discard_expired_client_conns(struct work_struct *);
 static DECLARE_DELAYED_WORK(rxrpc_client_conn_reap,
 			    rxrpc_discard_expired_client_conns);
 
-const char rxrpc_conn_cache_states[RXRPC_CONN__NR_CACHE_STATES][5] = {
-	[RXRPC_CONN_CLIENT_INACTIVE]	= "Inac",
-	[RXRPC_CONN_CLIENT_WAITING]	= "Wait",
-	[RXRPC_CONN_CLIENT_ACTIVE]	= "Actv",
-	[RXRPC_CONN_CLIENT_CULLED]	= "Cull",
-	[RXRPC_CONN_CLIENT_IDLE]	= "Idle",
-};
-
 /*
  * Get a connection ID and epoch for a client connection from the global pool.
  * The connection struct pointer is then recorded in the idr radix tree.  The

@@ -21,6 +21,9 @@ static struct kmem_cache *secpath_cachep __read_mostly;
 static DEFINE_SPINLOCK(xfrm_input_afinfo_lock);
 static struct xfrm_input_afinfo __rcu *xfrm_input_afinfo[NPROTO];
 
+static struct gro_cells gro_cells;
+static struct net_device xfrm_napi_dev;
+
 int xfrm_input_register_afinfo(struct xfrm_input_afinfo *afinfo)
 {
 	int err = 0;
@@ -371,7 +374,7 @@ resume:
 
 	if (decaps) {
 		skb_dst_drop(skb);
-		netif_rx(skb);
+		gro_cells_receive(&gro_cells, skb);
 		return 0;
 	} else {
 		return x->inner_mode->afinfo->transport_finish(skb, async);
@@ -394,6 +397,13 @@ EXPORT_SYMBOL(xfrm_input_resume);
 
 void __init xfrm_input_init(void)
 {
+	int err;
+
+	init_dummy_netdev(&xfrm_napi_dev);
+	err = gro_cells_init(&gro_cells, &xfrm_napi_dev);
+	if (err)
+		gro_cells.cells = NULL;
+
 	secpath_cachep = kmem_cache_create("secpath_cache",
 					   sizeof(struct sec_path),
 					   0, SLAB_HWCACHE_ALIGN|SLAB_PANIC,

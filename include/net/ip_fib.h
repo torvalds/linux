@@ -211,14 +211,22 @@ struct fib_entry_notifier_info {
 	u8 tos;
 	u8 type;
 	u32 tb_id;
-	u32 nlflags;
+};
+
+struct fib_nh_notifier_info {
+	struct fib_notifier_info info; /* must be first */
+	struct fib_nh *fib_nh;
 };
 
 enum fib_event_type {
+	FIB_EVENT_ENTRY_REPLACE,
+	FIB_EVENT_ENTRY_APPEND,
 	FIB_EVENT_ENTRY_ADD,
 	FIB_EVENT_ENTRY_DEL,
 	FIB_EVENT_RULE_ADD,
 	FIB_EVENT_RULE_DEL,
+	FIB_EVENT_NH_ADD,
+	FIB_EVENT_NH_DEL,
 };
 
 int register_fib_notifier(struct notifier_block *nb,
@@ -344,7 +352,6 @@ __be32 fib_compute_spec_dst(struct sk_buff *skb);
 int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 			u8 tos, int oif, struct net_device *dev,
 			struct in_device *idev, u32 *itag);
-void fib_select_default(const struct flowi4 *flp, struct fib_result *res);
 #ifdef CONFIG_IP_ROUTE_CLASSID
 static inline int fib_num_tclassid_users(struct net *net)
 {

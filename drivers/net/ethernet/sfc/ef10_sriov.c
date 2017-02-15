@@ -6,6 +6,7 @@
  * under the terms of the GNU General Public License version 2 as published
  * by the Free Software Foundation, incorporated herein by reference.
  */
+#include <linux/etherdevice.h>
 #include <linux/pci.h>
 #include <linux/module.h>
 #include "net_driver.h"
@@ -554,7 +555,7 @@ int efx_ef10_sriov_set_vf_mac(struct efx_nic *efx, int vf_i, u8 *mac)
 	return 0;
 
 fail:
-	memset(vf->mac, 0, ETH_ALEN);
+	eth_zero_addr(vf->mac);
 	return rc;
 }
 
@@ -757,20 +758,6 @@ int efx_ef10_sriov_get_vf_config(struct efx_nic *efx, int vf_i,
 	if (outlen < MC_CMD_LINK_STATE_MODE_OUT_LEN)
 		return -EIO;
 	ivf->linkstate = MCDI_DWORD(outbuf, LINK_STATE_MODE_OUT_OLD_MODE);
-
-	return 0;
-}
-
-int efx_ef10_sriov_get_phys_port_id(struct efx_nic *efx,
-				    struct netdev_phys_item_id *ppid)
-{
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
-
-	if (!is_valid_ether_addr(nic_data->port_id))
-		return -EOPNOTSUPP;
-
-	ppid->id_len = ETH_ALEN;
-	memcpy(ppid->id, nic_data->port_id, ppid->id_len);
 
 	return 0;
 }

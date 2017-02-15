@@ -681,7 +681,7 @@ static int tile_net_poll(struct napi_struct *napi, int budget)
 	}
 
 	/* There are no packets left. */
-	napi_complete(&info_mpipe->napi);
+	napi_complete_done(&info_mpipe->napi, work);
 
 	md = &mpipe_data[instance];
 	/* Re-enable hypervisor interrupts. */

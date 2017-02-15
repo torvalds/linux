@@ -148,7 +148,7 @@ enum {
 static const char fm10k_prv_flags[FM10K_PRV_FLAG_LEN][ETH_GSTRING_LEN] = {
 };
 
-static void fm10k_add_stat_strings(char **p, const char *prefix,
+static void fm10k_add_stat_strings(u8 **p, const char *prefix,
 				   const struct fm10k_stats stats[],
 				   const unsigned int size)
 {
@@ -164,32 +164,31 @@ static void fm10k_add_stat_strings(char **p, const char *prefix,
 static void fm10k_get_stat_strings(struct net_device *dev, u8 *data)
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
-	char *p = (char *)data;
 	unsigned int i;
 
-	fm10k_add_stat_strings(&p, "", fm10k_gstrings_net_stats,
+	fm10k_add_stat_strings(&data, "", fm10k_gstrings_net_stats,
 			       FM10K_NETDEV_STATS_LEN);
 
-	fm10k_add_stat_strings(&p, "", fm10k_gstrings_global_stats,
+	fm10k_add_stat_strings(&data, "", fm10k_gstrings_global_stats,
 			       FM10K_GLOBAL_STATS_LEN);
 
-	fm10k_add_stat_strings(&p, "", fm10k_gstrings_mbx_stats,
+	fm10k_add_stat_strings(&data, "", fm10k_gstrings_mbx_stats,
 			       FM10K_MBX_STATS_LEN);
 
 	if (interface->hw.mac.type != fm10k_mac_vf)
-		fm10k_add_stat_strings(&p, "", fm10k_gstrings_pf_stats,
+		fm10k_add_stat_strings(&data, "", fm10k_gstrings_pf_stats,
 				       FM10K_PF_STATS_LEN);
 
 	for (i = 0; i < interface->hw.mac.max_queues; i++) {
 		char prefix[ETH_GSTRING_LEN];
 
 		snprintf(prefix, ETH_GSTRING_LEN, "tx_queue_%u_", i);
-		fm10k_add_stat_strings(&p, prefix,
+		fm10k_add_stat_strings(&data, prefix,
 				       fm10k_gstrings_queue_stats,
 				       FM10K_QUEUE_STATS_LEN);
 
 		snprintf(prefix, ETH_GSTRING_LEN, "rx_queue_%u_", i);
-		fm10k_add_stat_strings(&p, prefix,
+		fm10k_add_stat_strings(&data, prefix,
 				       fm10k_gstrings_queue_stats,
 				       FM10K_QUEUE_STATS_LEN);
 	}
@@ -198,18 +197,16 @@ static void fm10k_get_stat_strings(struct net_device *dev, u8 *data)
 static void fm10k_get_strings(struct net_device *dev,
 			      u32 stringset, u8 *data)
 {
-	char *p = (char *)data;
-
 	switch (stringset) {
 	case ETH_SS_TEST:
-		memcpy(data, *fm10k_gstrings_test,
+		memcpy(data, fm10k_gstrings_test,
 		       FM10K_TEST_LEN * ETH_GSTRING_LEN);
 		break;
 	case ETH_SS_STATS:
 		fm10k_get_stat_strings(dev, data);
 		break;
 	case ETH_SS_PRIV_FLAGS:
-		memcpy(p, fm10k_prv_flags,
+		memcpy(data, fm10k_prv_flags,
 		       FM10K_PRV_FLAG_LEN * ETH_GSTRING_LEN);
 		break;
 	}

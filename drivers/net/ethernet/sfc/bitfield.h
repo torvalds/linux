@@ -433,6 +433,9 @@ typedef union efx_oword {
 		(oword).u64[1] = (from).u64[1] & (mask).u64[1];	\
 	} while (0)
 
+#define EFX_AND_QWORD(qword, from, mask)			\
+		(qword).u64[0] = (from).u64[0] & (mask).u64[0]
+
 #define EFX_OR_OWORD(oword, from, mask)				\
 	do {							\
 		(oword).u64[0] = (from).u64[0] | (mask).u64[0];	\

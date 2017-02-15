@@ -155,7 +155,6 @@ static void xlr_net_fmn_handler(int bkt, int src_stnid, int size, int code,
 		skb_reserve(skb, BYTE_OFFSET);
 		skb_put(skb, length);
 		skb->protocol = eth_type_trans(skb, skb->dev);
-		skb->dev->last_rx = jiffies;
 		netif_rx(skb);
 		/* Fill rx ring */
 		skb_data = xlr_alloc_skb();
@@ -397,14 +396,6 @@ static void xlr_stats(struct net_device *ndev, struct rtnl_link_stats64 *stats)
 			TX_DROP_FRAME_COUNTER);
 }
 
-static struct rtnl_link_stats64 *xlr_get_stats64(struct net_device *ndev,
-						 struct rtnl_link_stats64 *stats
-						 )
-{
-	xlr_stats(ndev, stats);
-	return stats;
-}
-
 static const struct net_device_ops xlr_netdev_ops = {
 	.ndo_open = xlr_net_open,
 	.ndo_stop = xlr_net_stop,
@@ -412,7 +403,7 @@ static const struct net_device_ops xlr_netdev_ops = {
 	.ndo_select_queue = xlr_net_select_queue,
 	.ndo_set_mac_address = xlr_net_set_mac_addr,
 	.ndo_set_rx_mode = xlr_set_rx_mode,
-	.ndo_get_stats64 = xlr_get_stats64,
+	.ndo_get_stats64 = xlr_stats,
 };
 
 /*

@@ -98,10 +98,11 @@ VRF device:
 
 or to specify the output device using cmsg and IP_PKTINFO.
 
-TCP services running in the default VRF context (ie., not bound to any VRF
-device) can work across all VRF domains by enabling the tcp_l3mdev_accept
-sysctl option:
+TCP & UDP services running in the default VRF context (ie., not bound
+to any VRF device) can work across all VRF domains by enabling the
+tcp_l3mdev_accept and udp_l3mdev_accept sysctl options:
     sysctl -w net.ipv4.tcp_l3mdev_accept=1
+    sysctl -w net.ipv4.udp_l3mdev_accept=1
 
 netfilter rules on the VRF device can be used to limit access to services
 running in the default VRF context as well.

@@ -966,7 +966,7 @@ static int brcmf_revinfo_read(struct seq_file *s, void *data)
 	return 0;
 }
 
-int brcmf_bus_start(struct device *dev)
+int brcmf_bus_started(struct device *dev)
 {
 	int ret = -1;
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
@@ -1075,16 +1075,6 @@ void brcmf_bus_add_txhdrlen(struct device *dev, uint len)
 	}
 }
 
-static void brcmf_bus_detach(struct brcmf_pub *drvr)
-{
-	brcmf_dbg(TRACE, "Enter\n");
-
-	if (drvr) {
-		/* Stop the bus module */
-		brcmf_bus_stop(drvr->bus_if);
-	}
-}
-
 void brcmf_dev_reset(struct device *dev)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
@@ -1131,7 +1121,7 @@ void brcmf_detach(struct device *dev)
 
 	brcmf_fws_deinit(drvr);
 
-	brcmf_bus_detach(drvr);
+	brcmf_bus_stop(drvr->bus_if);
 
 	brcmf_proto_detach(drvr);
 

@@ -131,8 +131,6 @@ int rtl88e_init_sw_vars(struct ieee80211_hw *hw)
 	rtlpci->irq_mask[1] = (u32) (IMR_RXFOVW | 0);
 	rtlpci->sys_irq_mask = (u32) (HSIMR_PDN_INT_EN | HSIMR_RON_INT_EN);
 
-	/* for debug level */
-	rtlpriv->dbg.global_debuglevel = rtlpriv->cfg->mod_params->debug;
 	/* for LPS & IPS */
 	rtlpriv->psc.inactiveps = rtlpriv->cfg->mod_params->inactiveps;
 	rtlpriv->psc.swctrl_lps = rtlpriv->cfg->mod_params->swctrl_lps;
@@ -165,8 +163,7 @@ int rtl88e_init_sw_vars(struct ieee80211_hw *hw)
 	/* for firmware buf */
 	rtlpriv->rtlhal.pfirmware = vzalloc(0x8000);
 	if (!rtlpriv->rtlhal.pfirmware) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Can't alloc buffer for fw.\n");
+		pr_info("Can't alloc buffer for fw.\n");
 		return 1;
 	}
 
@@ -177,8 +174,7 @@ int rtl88e_init_sw_vars(struct ieee80211_hw *hw)
 				      rtlpriv->io.dev, GFP_KERNEL, hw,
 				      rtl_fw_cb);
 	if (err) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Failed to request firmware!\n");
+		pr_info("Failed to request firmware!\n");
 		return 1;
 	}
 
@@ -278,7 +274,8 @@ static struct rtl_mod_params rtl88ee_mod_params = {
 	.swctrl_lps = false,
 	.fwctrl_lps = false,
 	.msi_support = true,
-	.debug = DBG_EMERG,
+	.debug_level = 0,
+	.debug_mask = 0,
 };
 
 static const struct rtl_hal_cfg rtl88ee_hal_cfg = {
@@ -394,7 +391,8 @@ MODULE_DESCRIPTION("Realtek 8188E 802.11n PCI wireless");
 MODULE_FIRMWARE("rtlwifi/rtl8188efw.bin");
 
 module_param_named(swenc, rtl88ee_mod_params.sw_crypto, bool, 0444);
-module_param_named(debug, rtl88ee_mod_params.debug, int, 0444);
+module_param_named(debug_level, rtl88ee_mod_params.debug_level, int, 0644);
+module_param_named(debug_mask, rtl88ee_mod_params.debug_mask, ullong, 0644);
 module_param_named(ips, rtl88ee_mod_params.inactiveps, bool, 0444);
 module_param_named(swlps, rtl88ee_mod_params.swctrl_lps, bool, 0444);
 module_param_named(fwlps, rtl88ee_mod_params.fwctrl_lps, bool, 0444);
@@ -406,7 +404,8 @@ MODULE_PARM_DESC(ips, "Set to 0 to not use link power save (default 1)\n");
 MODULE_PARM_DESC(swlps, "Set to 1 to use SW control power save (default 0)\n");
 MODULE_PARM_DESC(fwlps, "Set to 1 to use FW control power save (default 1)\n");
 MODULE_PARM_DESC(msi, "Set to 1 to use MSI interrupts mode (default 1)\n");
-MODULE_PARM_DESC(debug, "Set debug level (0-5) (default 0)");
+MODULE_PARM_DESC(debug_level, "Set debug level (0-5) (default 0)");
+MODULE_PARM_DESC(debug_mask, "Set debug mask (default 0)");
 MODULE_PARM_DESC(disable_watchdog, "Set to 1 to disable the watchdog (default 0)\n");
 
 static SIMPLE_DEV_PM_OPS(rtlwifi_pm_ops, rtl_pci_suspend, rtl_pci_resume);

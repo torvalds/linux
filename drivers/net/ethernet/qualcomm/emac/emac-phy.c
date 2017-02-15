@@ -22,8 +22,6 @@
 #include <linux/acpi.h>
 #include "emac.h"
 #include "emac-mac.h"
-#include "emac-phy.h"
-#include "emac-sgmii.h"
 
 /* EMAC base register offsets */
 #define EMAC_MDIO_CTRL                                        0x001414
@@ -227,9 +225,6 @@ int emac_phy_config(struct platform_device *pdev, struct emac_adapter *adpt)
 		mdiobus_unregister(mii_bus);
 		return -ENODEV;
 	}
-
-	if (adpt->phydev->drv)
-		phy_attached_print(adpt->phydev, NULL);
 
 	return 0;
 }

@@ -413,6 +413,13 @@ static void adm8211_interrupt_rci(struct ieee80211_hw *dev)
 						       skb_tail_pointer(newskb),
 						       RX_PKT_SIZE,
 						       PCI_DMA_FROMDEVICE);
+				if (pci_dma_mapping_error(priv->pdev,
+					   priv->rx_buffers[entry].mapping)) {
+					priv->rx_buffers[entry].skb = NULL;
+					dev_kfree_skb(newskb);
+					skb = NULL;
+					/* TODO: update rx dropped stats */
+				}
 			} else {
 				skb = NULL;
 				/* TODO: update rx dropped stats */
@@ -1450,6 +1457,12 @@ static int adm8211_init_rings(struct ieee80211_hw *dev)
 						  skb_tail_pointer(rx_info->skb),
 						  RX_PKT_SIZE,
 						  PCI_DMA_FROMDEVICE);
+		if (pci_dma_mapping_error(priv->pdev, rx_info->mapping)) {
+			dev_kfree_skb(rx_info->skb);
+			rx_info->skb = NULL;
+			break;
+		}
+
 		desc->buffer1 = cpu_to_le32(rx_info->mapping);
 		desc->status = cpu_to_le32(RDES0_STATUS_OWN | RDES0_STATUS_SQL);
 	}
@@ -1613,7 +1626,7 @@ static void adm8211_calc_durations(int *dur, int *plcp, size_t payload_len, int 
 }
 
 /* Transmit skb w/adm8211_tx_hdr (802.11 header created by hardware) */
-static void adm8211_tx_raw(struct ieee80211_hw *dev, struct sk_buff *skb,
+static int adm8211_tx_raw(struct ieee80211_hw *dev, struct sk_buff *skb,
 			   u16 plcp_signal,
 			   size_t hdrlen)
 {
@@ -1625,6 +1638,8 @@ static void adm8211_tx_raw(struct ieee80211_hw *dev, struct sk_buff *skb,
 
 	mapping = pci_map_single(priv->pdev, skb->data, skb->len,
 				 PCI_DMA_TODEVICE);
+	if (pci_dma_mapping_error(priv->pdev, mapping))
+		return -ENOMEM;
 
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -1657,6 +1672,8 @@ static void adm8211_tx_raw(struct ieee80211_hw *dev, struct sk_buff *skb,
 
 	/* Trigger transmit poll */
 	ADM8211_CSR_WRITE(TDR, 0);
+
+	return 0;
 }
 
 /* Put adm8211_tx_hdr on skb and transmit */
@@ -1710,7 +1727,10 @@ static void adm8211_tx(struct ieee80211_hw *dev,
 
 	txhdr->retry_limit = info->control.rates[0].count;
 
-	adm8211_tx_raw(dev, skb, plcp_signal, hdrlen);
+	if (adm8211_tx_raw(dev, skb, plcp_signal, hdrlen)) {
+		/* Drop packet */
+		ieee80211_free_txskb(dev, skb);
+	}
 }
 
 static int adm8211_alloc_rings(struct ieee80211_hw *dev)
@@ -1843,7 +1863,8 @@ static int adm8211_probe(struct pci_dev *pdev,
 	priv->rx_ring_size = rx_ring_size;
 	priv->tx_ring_size = tx_ring_size;
 
-	if (adm8211_alloc_rings(dev)) {
+	err = adm8211_alloc_rings(dev);
+	if (err) {
 		printk(KERN_ERR "%s (adm8211): Cannot allocate TX/RX ring\n",
 		       pci_name(pdev));
 		goto err_iounmap;

@@ -15,6 +15,7 @@
 #include <linux/if_vlan.h>
 #include <linux/irq.h>
 #include <linux/gpio/consumer.h>
+#include <linux/phy.h>
 
 #ifndef UINT64_MAX
 #define UINT64_MAX		(u64)(~((u64)0))
@@ -58,6 +59,9 @@
 #define PORT_STATUS_CMODE_100BASE_X	0x8
 #define PORT_STATUS_CMODE_1000BASE_X	0x9
 #define PORT_STATUS_CMODE_SGMII		0xa
+#define PORT_STATUS_CMODE_2500BASEX	0xb
+#define PORT_STATUS_CMODE_XAUI		0xc
+#define PORT_STATUS_CMODE_RXAUI		0xd
 #define PORT_PCS_CTRL		0x01
 #define PORT_PCS_CTRL_RGMII_DELAY_RXCLK	BIT(15)
 #define PORT_PCS_CTRL_RGMII_DELAY_TXCLK	BIT(14)
@@ -87,6 +91,7 @@
 #define PORT_SWITCH_ID_PROD_NUM_6131	0x106
 #define PORT_SWITCH_ID_PROD_NUM_6320	0x115
 #define PORT_SWITCH_ID_PROD_NUM_6123	0x121
+#define PORT_SWITCH_ID_PROD_NUM_6141	0x340
 #define PORT_SWITCH_ID_PROD_NUM_6161	0x161
 #define PORT_SWITCH_ID_PROD_NUM_6165	0x165
 #define PORT_SWITCH_ID_PROD_NUM_6171	0x171
@@ -100,6 +105,7 @@
 #define PORT_SWITCH_ID_PROD_NUM_6240	0x240
 #define PORT_SWITCH_ID_PROD_NUM_6290	0x290
 #define PORT_SWITCH_ID_PROD_NUM_6321	0x310
+#define PORT_SWITCH_ID_PROD_NUM_6341	0x341
 #define PORT_SWITCH_ID_PROD_NUM_6352	0x352
 #define PORT_SWITCH_ID_PROD_NUM_6350	0x371
 #define PORT_SWITCH_ID_PROD_NUM_6351	0x375
@@ -163,6 +169,7 @@
 #define PORT_CONTROL_2_FORWARD_UNKNOWN	BIT(6)
 #define PORT_CONTROL_2_EGRESS_MONITOR	BIT(5)
 #define PORT_CONTROL_2_INGRESS_MONITOR	BIT(4)
+#define PORT_CONTROL_2_UPSTREAM_MASK	0x0f
 #define PORT_RATE_CONTROL	0x09
 #define PORT_RATE_CONTROL_2	0x0a
 #define PORT_ASSOC_VECTOR	0x0b
@@ -332,6 +339,7 @@
 #define GLOBAL_STATS_COUNTER_01	0x1f
 
 #define GLOBAL2_INT_SOURCE	0x00
+#define GLOBAL2_INT_SOURCE_WATCHDOG	15
 #define GLOBAL2_INT_MASK	0x01
 #define GLOBAL2_MGMT_EN_2X	0x02
 #define GLOBAL2_MGMT_EN_0X	0x03
@@ -382,10 +390,12 @@
 #define GLOBAL2_EEPROM_CMD_WRITE_EN	BIT(10)
 #define GLOBAL2_EEPROM_CMD_ADDR_MASK	0xff
 #define GLOBAL2_EEPROM_DATA	0x15
+#define GLOBAL2_EEPROM_ADDR	0x15 /* 6390, 6341 */
 #define GLOBAL2_PTP_AVB_OP	0x16
 #define GLOBAL2_PTP_AVB_DATA	0x17
 #define GLOBAL2_SMI_PHY_CMD			0x18
 #define GLOBAL2_SMI_PHY_CMD_BUSY		BIT(15)
+#define GLOBAL2_SMI_PHY_CMD_EXTERNAL		BIT(13)
 #define GLOBAL2_SMI_PHY_CMD_MODE_22		BIT(12)
 #define GLOBAL2_SMI_PHY_CMD_OP_22_WRITE_DATA	((0x1 << 10) | \
 						 GLOBAL2_SMI_PHY_CMD_MODE_22 | \
@@ -393,12 +403,38 @@
 #define GLOBAL2_SMI_PHY_CMD_OP_22_READ_DATA	((0x2 << 10) | \
 						 GLOBAL2_SMI_PHY_CMD_MODE_22 | \
 						 GLOBAL2_SMI_PHY_CMD_BUSY)
+#define GLOBAL2_SMI_PHY_CMD_OP_45_WRITE_ADDR	((0x0 << 10) | \
+						 GLOBAL2_SMI_PHY_CMD_BUSY)
+#define GLOBAL2_SMI_PHY_CMD_OP_45_WRITE_DATA	((0x1 << 10) | \
+						 GLOBAL2_SMI_PHY_CMD_BUSY)
+#define GLOBAL2_SMI_PHY_CMD_OP_45_READ_DATA	((0x3 << 10) | \
+						 GLOBAL2_SMI_PHY_CMD_BUSY)
+
 #define GLOBAL2_SMI_PHY_DATA			0x19
 #define GLOBAL2_SCRATCH_MISC	0x1a
 #define GLOBAL2_SCRATCH_BUSY		BIT(15)
 #define GLOBAL2_SCRATCH_REGISTER_SHIFT	8
 #define GLOBAL2_SCRATCH_VALUE_MASK	0xff
 #define GLOBAL2_WDOG_CONTROL	0x1b
+#define GLOBAL2_WDOG_CONTROL_EGRESS_EVENT	BIT(7)
+#define GLOBAL2_WDOG_CONTROL_RMU_TIMEOUT	BIT(6)
+#define GLOBAL2_WDOG_CONTROL_QC_ENABLE		BIT(5)
+#define GLOBAL2_WDOG_CONTROL_EGRESS_HISTORY	BIT(4)
+#define GLOBAL2_WDOG_CONTROL_EGRESS_ENABLE	BIT(3)
+#define GLOBAL2_WDOG_CONTROL_FORCE_IRQ		BIT(2)
+#define GLOBAL2_WDOG_CONTROL_HISTORY		BIT(1)
+#define GLOBAL2_WDOG_CONTROL_SWRESET		BIT(0)
+#define GLOBAL2_WDOG_UPDATE			BIT(15)
+#define GLOBAL2_WDOG_INT_SOURCE			(0x00 << 8)
+#define GLOBAL2_WDOG_INT_STATUS			(0x10 << 8)
+#define GLOBAL2_WDOG_INT_ENABLE			(0x11 << 8)
+#define GLOBAL2_WDOG_EVENT			(0x12 << 8)
+#define GLOBAL2_WDOG_HISTORY			(0x13 << 8)
+#define GLOBAL2_WDOG_DATA_MASK			0xff
+#define GLOBAL2_WDOG_CUT_THROUGH		BIT(3)
+#define GLOBAL2_WDOG_QUEUE_CONTROLLER		BIT(2)
+#define GLOBAL2_WDOG_EGRESS			BIT(1)
+#define GLOBAL2_WDOG_FORCE_IRQ			BIT(0)
 #define GLOBAL2_QOS_WEIGHT	0x1c
 #define GLOBAL2_MISC		0x1d
 
@@ -418,6 +454,7 @@ enum mv88e6xxx_model {
 	MV88E6097,
 	MV88E6123,
 	MV88E6131,
+	MV88E6141,
 	MV88E6161,
 	MV88E6165,
 	MV88E6171,
@@ -432,6 +469,7 @@ enum mv88e6xxx_model {
 	MV88E6290,
 	MV88E6320,
 	MV88E6321,
+	MV88E6341,
 	MV88E6350,
 	MV88E6351,
 	MV88E6352,
@@ -447,6 +485,7 @@ enum mv88e6xxx_family {
 	MV88E6XXX_FAMILY_6165,	/* 6123 6161 6165 */
 	MV88E6XXX_FAMILY_6185,	/* 6108 6121 6122 6131 6152 6155 6182 6185 */
 	MV88E6XXX_FAMILY_6320,	/* 6320 6321 */
+	MV88E6XXX_FAMILY_6341,	/* 6141 6341 */
 	MV88E6XXX_FAMILY_6351,	/* 6171 6175 6350 6351 */
 	MV88E6XXX_FAMILY_6352,	/* 6172 6176 6240 6352 */
 	MV88E6XXX_FAMILY_6390,  /* 6190 6190X 6191 6290 6390 6390X */
@@ -496,12 +535,6 @@ enum mv88e6xxx_cap {
 	 */
 	MV88E6XXX_CAP_STU,
 
-	/* Internal temperature sensor.
-	 * Available from any enabled port's PHY register 26, page 6.
-	 */
-	MV88E6XXX_CAP_TEMP,
-	MV88E6XXX_CAP_TEMP_LIMIT,
-
 	/* VLAN Table Unit.
 	 * The VTU is used to program 802.1Q VLANs. See GLOBAL_VTU_OP.
 	 */
@@ -532,8 +565,6 @@ enum mv88e6xxx_cap {
 #define MV88E6XXX_FLAG_G2_POT		BIT_ULL(MV88E6XXX_CAP_G2_POT)
 
 #define MV88E6XXX_FLAG_STU		BIT_ULL(MV88E6XXX_CAP_STU)
-#define MV88E6XXX_FLAG_TEMP		BIT_ULL(MV88E6XXX_CAP_TEMP)
-#define MV88E6XXX_FLAG_TEMP_LIMIT	BIT_ULL(MV88E6XXX_CAP_TEMP_LIMIT)
 #define MV88E6XXX_FLAG_VTU		BIT_ULL(MV88E6XXX_CAP_VTU)
 
 /* Ingress Rate Limit unit */
@@ -566,6 +597,7 @@ enum mv88e6xxx_cap {
 	(MV88E6XXX_FLAG_G1_ATU_FID |	\
 	 MV88E6XXX_FLAG_G1_VTU_FID |	\
 	 MV88E6XXX_FLAG_GLOBAL2 |	\
+	 MV88E6XXX_FLAG_G2_INT |        \
 	 MV88E6XXX_FLAG_G2_MGMT_EN_2X |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
 	 MV88E6XXX_FLAG_G2_POT |	\
@@ -584,7 +616,6 @@ enum mv88e6xxx_cap {
 	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
 	 MV88E6XXX_FLAG_G2_POT |	\
 	 MV88E6XXX_FLAG_STU |		\
-	 MV88E6XXX_FLAG_TEMP |		\
 	 MV88E6XXX_FLAG_VTU |		\
 	 MV88E6XXX_FLAGS_IRL |		\
 	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
@@ -603,12 +634,24 @@ enum mv88e6xxx_cap {
 	 MV88E6XXX_FLAG_G2_MGMT_EN_2X |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
 	 MV88E6XXX_FLAG_G2_POT |	\
-	 MV88E6XXX_FLAG_TEMP |		\
-	 MV88E6XXX_FLAG_TEMP_LIMIT |	\
 	 MV88E6XXX_FLAG_VTU |		\
 	 MV88E6XXX_FLAGS_IRL |		\
 	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
 	 MV88E6XXX_FLAGS_PVT)
+
+#define MV88E6XXX_FLAGS_FAMILY_6341	\
+	(MV88E6XXX_FLAG_EEE |		\
+	 MV88E6XXX_FLAG_G1_ATU_FID |	\
+	 MV88E6XXX_FLAG_G1_VTU_FID |	\
+	 MV88E6XXX_FLAG_GLOBAL2 |	\
+	 MV88E6XXX_FLAG_G2_INT |	\
+	 MV88E6XXX_FLAG_G2_POT |	\
+	 MV88E6XXX_FLAG_STU |		\
+	 MV88E6XXX_FLAG_VTU |		\
+	 MV88E6XXX_FLAGS_IRL |		\
+	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
+	 MV88E6XXX_FLAGS_PVT |		\
+	 MV88E6XXX_FLAGS_SERDES)
 
 #define MV88E6XXX_FLAGS_FAMILY_6351	\
 	(MV88E6XXX_FLAG_G1_ATU_FID |	\
@@ -619,7 +662,6 @@ enum mv88e6xxx_cap {
 	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
 	 MV88E6XXX_FLAG_G2_POT |	\
 	 MV88E6XXX_FLAG_STU |		\
-	 MV88E6XXX_FLAG_TEMP |		\
 	 MV88E6XXX_FLAG_VTU |		\
 	 MV88E6XXX_FLAGS_IRL |		\
 	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
@@ -635,26 +677,23 @@ enum mv88e6xxx_cap {
 	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
 	 MV88E6XXX_FLAG_G2_POT |	\
 	 MV88E6XXX_FLAG_STU |		\
-	 MV88E6XXX_FLAG_TEMP |		\
-	 MV88E6XXX_FLAG_TEMP_LIMIT |	\
 	 MV88E6XXX_FLAG_VTU |		\
 	 MV88E6XXX_FLAGS_IRL |		\
 	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
 	 MV88E6XXX_FLAGS_PVT |		\
 	 MV88E6XXX_FLAGS_SERDES)
 
-struct mv88e6xxx_ops;
-
 #define MV88E6XXX_FLAGS_FAMILY_6390	\
 	(MV88E6XXX_FLAG_EEE |		\
 	 MV88E6XXX_FLAG_GLOBAL2 |	\
+	 MV88E6XXX_FLAG_G2_INT |        \
 	 MV88E6XXX_FLAG_STU |		\
-	 MV88E6XXX_FLAG_TEMP |		\
-	 MV88E6XXX_FLAG_TEMP_LIMIT |	\
 	 MV88E6XXX_FLAG_VTU |		\
 	 MV88E6XXX_FLAGS_IRL |		\
 	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
 	 MV88E6XXX_FLAGS_PVT)
+
+struct mv88e6xxx_ops;
 
 struct mv88e6xxx_info {
 	enum mv88e6xxx_family family;
@@ -688,10 +727,7 @@ struct mv88e6xxx_vtu_entry {
 };
 
 struct mv88e6xxx_bus_ops;
-
-struct mv88e6xxx_priv_port {
-	struct net_device *bridge_dev;
-};
+struct mv88e6xxx_irq_ops;
 
 struct mv88e6xxx_irq {
 	u16 masked;
@@ -733,8 +769,6 @@ struct mv88e6xxx_chip {
 	 */
 	struct mutex	stats_mutex;
 
-	struct mv88e6xxx_priv_port	ports[DSA_MAX_PORTS];
-
 	/* A switch may have a GPIO line tied to its reset pin. Parse
 	 * this from the device tree, and use it before performing
 	 * switch soft reset.
@@ -744,11 +778,8 @@ struct mv88e6xxx_chip {
 	/* set to size of eeprom if supported by the switch */
 	int		eeprom_len;
 
-	/* Device node for the MDIO bus */
-	struct device_node *mdio_np;
-
-	/* And the MDIO bus itself */
-	struct mii_bus *mdio_bus;
+	/* List of mdio busses */
+	struct list_head mdios;
 
 	/* There can be two interrupt controllers, which are chained
 	 * off a GPIO as interrupt source
@@ -757,11 +788,19 @@ struct mv88e6xxx_chip {
 	struct mv88e6xxx_irq g2_irq;
 	int irq;
 	int device_irq;
+	int watchdog_irq;
 };
 
 struct mv88e6xxx_bus_ops {
 	int (*read)(struct mv88e6xxx_chip *chip, int addr, int reg, u16 *val);
 	int (*write)(struct mv88e6xxx_chip *chip, int addr, int reg, u16 val);
+};
+
+struct mv88e6xxx_mdio_bus {
+	struct mii_bus *bus;
+	struct mv88e6xxx_chip *chip;
+	struct list_head list;
+	bool external;
 };
 
 struct mv88e6xxx_ops {
@@ -772,10 +811,12 @@ struct mv88e6xxx_ops {
 
 	int (*set_switch_mac)(struct mv88e6xxx_chip *chip, u8 *addr);
 
-	int (*phy_read)(struct mv88e6xxx_chip *chip, int addr, int reg,
-			u16 *val);
-	int (*phy_write)(struct mv88e6xxx_chip *chip, int addr, int reg,
-			 u16 val);
+	int (*phy_read)(struct mv88e6xxx_chip *chip,
+			struct mii_bus *bus,
+			int addr, int reg, u16 *val);
+	int (*phy_write)(struct mv88e6xxx_chip *chip,
+			 struct mii_bus *bus,
+			 int addr, int reg, u16 val);
 
 	/* PHY Polling Unit (PPU) operations */
 	int (*ppu_enable)(struct mv88e6xxx_chip *chip);
@@ -832,6 +873,18 @@ struct mv88e6xxx_ops {
 	int (*port_egress_rate_limiting)(struct mv88e6xxx_chip *chip, int port);
 	int (*port_pause_config)(struct mv88e6xxx_chip *chip, int port);
 
+	/* CMODE control what PHY mode the MAC will use, eg. SGMII, RGMII, etc.
+	 * Some chips allow this to be configured on specific ports.
+	 */
+	int (*port_set_cmode)(struct mv88e6xxx_chip *chip, int port,
+			      phy_interface_t mode);
+
+	/* Some devices have a per port register indicating what is
+	 * the upstream port this port should forward to.
+	 */
+	int (*port_set_upstream_port)(struct mv88e6xxx_chip *chip, int port,
+				      int upstream_port);
+
 	/* Snapshot the statistics for a port. The statistics can then
 	 * be read back a leisure but still with a consistent view.
 	 */
@@ -849,9 +902,19 @@ struct mv88e6xxx_ops {
 				uint64_t *data);
 	int (*g1_set_cpu_port)(struct mv88e6xxx_chip *chip, int port);
 	int (*g1_set_egress_port)(struct mv88e6xxx_chip *chip, int port);
+	const struct mv88e6xxx_irq_ops *watchdog_ops;
 
 	/* Can be either in g1 or g2, so don't use a prefix */
 	int (*mgmt_rsvd2cpu)(struct mv88e6xxx_chip *chip);
+};
+
+struct mv88e6xxx_irq_ops {
+	/* Action to be performed when the interrupt happens */
+	int (*irq_action)(struct mv88e6xxx_chip *chip, int irq);
+	/* Setup the hardware to generate the interrupt */
+	int (*irq_setup)(struct mv88e6xxx_chip *chip);
+	/* Reset the hardware to stop generating the interrupt */
+	void (*irq_free)(struct mv88e6xxx_chip *chip);
 };
 
 #define STATS_TYPE_PORT		BIT(0)
