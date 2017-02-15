@@ -239,15 +239,10 @@ static int __init ls_add_pcie_port(struct ls_pcie *pcie)
 static int __init ls_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *match;
 	struct ls_pcie *pcie;
 	struct pcie_port *pp;
 	struct resource *dbi_base;
 	int ret;
-
-	match = of_match_device(ls_pcie_of_match, dev);
-	if (!match)
-		return -ENODEV;
 
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
@@ -255,7 +250,7 @@ static int __init ls_pcie_probe(struct platform_device *pdev)
 
 	pp = &pcie->pp;
 	pp->dev = dev;
-	pcie->drvdata = match->data;
+	pcie->drvdata = of_device_get_match_data(dev);
 	pp->ops = pcie->drvdata->ops;
 
 	dbi_base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
