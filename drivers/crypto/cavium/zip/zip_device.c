@@ -44,6 +44,7 @@
  ***********************license end**************************************/
 
 #include "common.h"
+#include "zip_deflate.h"
 
 /**
  * zip_cmd_queue_consumed - Calculates the space consumed in the command queue.

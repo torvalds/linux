@@ -43,37 +43,20 @@
  * WITH YOU.
  ***********************license end**************************************/
 
-#ifndef __ZIP_CRYPTO_H__
-#define __ZIP_CRYPTO_H__
+#ifndef __ZIP_DEFLATE_H__
+#define __ZIP_DEFLATE_H__
 
-#include <linux/crypto.h>
-#include <crypto/internal/scompress.h>
-#include "common.h"
-#include "zip_deflate.h"
-#include "zip_inflate.h"
-
-struct zip_kernel_ctx {
-	struct zip_operation zip_comp;
-	struct zip_operation zip_decomp;
-};
-
-int  zip_alloc_comp_ctx_deflate(struct crypto_tfm *tfm);
-int  zip_alloc_comp_ctx_lzs(struct crypto_tfm *tfm);
-void zip_free_comp_ctx(struct crypto_tfm *tfm);
-int  zip_comp_compress(struct crypto_tfm *tfm,
-		       const u8 *src, unsigned int slen,
-		       u8 *dst, unsigned int *dlen);
-int  zip_comp_decompress(struct crypto_tfm *tfm,
-			 const u8 *src, unsigned int slen,
-			 u8 *dst, unsigned int *dlen);
-
-void *zip_alloc_scomp_ctx_deflate(struct crypto_scomp *tfm);
-void *zip_alloc_scomp_ctx_lzs(struct crypto_scomp *tfm);
-void  zip_free_scomp_ctx(struct crypto_scomp *tfm, void *zip_ctx);
-int   zip_scomp_compress(struct crypto_scomp *tfm,
-			 const u8 *src, unsigned int slen,
-			 u8 *dst, unsigned int *dlen, void *ctx);
-int   zip_scomp_decompress(struct crypto_scomp *tfm,
-			   const u8 *src, unsigned int slen,
-			   u8 *dst, unsigned int *dlen, void *ctx);
+/**
+ * zip_deflate - API to offload deflate operation to hardware
+ * @zip_ops: Pointer to zip operation structure
+ * @s:       Pointer to the structure representing zip state
+ * @zip_dev: Pointer to the structure representing zip device
+ *
+ * This function prepares the zip deflate command and submits it to the zip
+ * engine by ringing the doorbell.
+ *
+ * Return: 0 if successful or error code
+ */
+int zip_deflate(struct zip_operation *zip_ops, struct zip_state *s,
+		struct zip_device *zip_dev);
 #endif

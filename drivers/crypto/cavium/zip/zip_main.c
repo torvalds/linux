@@ -339,63 +339,6 @@ static void zip_remove(struct pci_dev *pdev)
 	zip_dev[zip->index] = NULL;
 }
 
-/* Dummy Functions */
-int  zip_alloc_comp_ctx_deflate(struct crypto_tfm *tfm)
-{
-	return 0;
-}
-
-int  zip_alloc_comp_ctx_lzs(struct crypto_tfm *tfm)
-{
-	return 0;
-}
-
-void zip_free_comp_ctx(struct crypto_tfm *tfm)
-{
-}
-
-int  zip_comp_compress(struct crypto_tfm *tfm,
-		       const u8 *src, unsigned int slen,
-		       u8 *dst, unsigned int *dlen)
-{
-	return 0;
-}
-
-int  zip_comp_decompress(struct crypto_tfm *tfm,
-			 const u8 *src, unsigned int slen,
-			 u8 *dst, unsigned int *dlen)
-{
-	return 0;
-}
-
-void *zip_alloc_scomp_ctx_deflate(struct crypto_scomp *tfm)
-{
-	return NULL;
-}
-
-void *zip_alloc_scomp_ctx_lzs(struct crypto_scomp *tfm)
-{
-	return NULL;
-}
-
-void  zip_free_scomp_ctx(struct crypto_scomp *tfm, void *zip_ctx)
-{
-}
-
-int   zip_scomp_compress(struct crypto_scomp *tfm,
-			 const u8 *src, unsigned int slen,
-			 u8 *dst, unsigned int *dlen, void *ctx)
-{
-	return 0;
-}
-
-int   zip_scomp_decompress(struct crypto_scomp *tfm,
-			   const u8 *src, unsigned int slen,
-			   u8 *dst, unsigned int *dlen, void *ctx)
-{
-	return 0;
-}
-
 /* PCI Sub-System Interface */
 static struct pci_driver zip_driver = {
 	.name	    =  DRV_NAME,
