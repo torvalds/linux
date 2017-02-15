@@ -603,6 +603,54 @@ static void rk818_device_shutdown(void)
 		dev_err(&rk808_i2c_client->dev, "power off error!\n");
 }
 
+static ssize_t rk8xx_dbg_store(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	int ret;
+	char cmd;
+	u32 input[2], addr, data;
+	struct rk808 *rk808 = i2c_get_clientdata(rk808_i2c_client);
+
+	ret = sscanf(buf, "%c ", &cmd);
+	switch (cmd) {
+	case 'w':
+		ret = sscanf(buf, "%c %x %x ", &cmd, &input[0], &input[1]);
+		if (ret != 3) {
+			pr_err("erro! cmd format: echo w [addr] [value]\n");
+			goto out;
+		};
+		addr = input[0] & 0xff;
+		data = input[1] & 0xff;
+		pr_info("cmd : %c %x %x\n\n", cmd, input[0], input[1]);
+		regmap_write(rk808->regmap, addr, data);
+		regmap_read(rk808->regmap, addr, &data);
+		pr_info("new: %x %x\n", addr, data);
+		break;
+	case 'r':
+		ret = sscanf(buf, "%c %x ", &cmd, &input[0]);
+		if (ret != 2) {
+			pr_err("erro! cmd format: echo r [addr]\n");
+			goto out;
+		};
+		pr_info("cmd : %c %x\n\n", cmd, input[0]);
+		addr = input[0] & 0xff;
+		regmap_read(rk808->regmap, addr, &data);
+		pr_info("%x %x\n", input[0], data);
+		break;
+	default:
+		pr_err("Unknown command\n");
+		break;
+	}
+
+out:
+	return count;
+}
+
+static struct kobject *rk8xx_kobj;
+static struct device_attribute rk8xx_attrs =
+		__ATTR(rk8xx_dbg, 0200, NULL, rk8xx_dbg_store);
+
 static const struct of_device_id rk808_of_match[] = {
 	{ .compatible = "rockchip,rk805" },
 	{ .compatible = "rockchip,rk808" },
@@ -739,6 +787,13 @@ static int rk808_probe(struct i2c_client *client,
 	if (pm_off && !pm_power_off) {
 		rk808_i2c_client = client;
 		pm_power_off = pm_pwroff_fn;
+	}
+
+	rk8xx_kobj = kobject_create_and_add("rk8xx", NULL);
+	if (rk8xx_kobj) {
+		ret = sysfs_create_file(rk8xx_kobj, &rk8xx_attrs.attr);
+		if (ret)
+			dev_err(&client->dev, "create rk8xx sysfs error\n");
 	}
 
 	return 0;
