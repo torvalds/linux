@@ -888,7 +888,7 @@ static void gen8_ppgtt_insert_3lvl(struct i915_address_space *vm,
 
 static void gen8_ppgtt_insert_4lvl(struct i915_address_space *vm,
 				   struct sg_table *pages,
-				   uint64_t start,
+				   u64 start,
 				   enum i915_cache_level cache_level,
 				   u32 unused)
 {
@@ -1162,25 +1162,25 @@ unwind:
 
 static void gen8_dump_pdp(struct i915_hw_ppgtt *ppgtt,
 			  struct i915_page_directory_pointer *pdp,
-			  uint64_t start, uint64_t length,
+			  u64 start, u64 length,
 			  gen8_pte_t scratch_pte,
 			  struct seq_file *m)
 {
 	struct i915_page_directory *pd;
-	uint32_t pdpe;
+	u32 pdpe;
 
 	gen8_for_each_pdpe(pd, pdp, start, length, pdpe) {
 		struct i915_page_table *pt;
-		uint64_t pd_len = length;
-		uint64_t pd_start = start;
-		uint32_t pde;
+		u64 pd_len = length;
+		u64 pd_start = start;
+		u32 pde;
 
 		if (pdp->page_directory[pdpe] == ppgtt->base.scratch_pd)
 			continue;
 
 		seq_printf(m, "\tPDPE #%d\n", pdpe);
 		gen8_for_each_pde(pt, pd, pd_start, pd_len, pde) {
-			uint32_t  pte;
+			u32 pte;
 			gen8_pte_t *pt_vaddr;
 
 			if (pd->page_table[pde] == ppgtt->base.scratch_pt)
@@ -1188,10 +1188,9 @@ static void gen8_dump_pdp(struct i915_hw_ppgtt *ppgtt,
 
 			pt_vaddr = kmap_atomic_px(pt);
 			for (pte = 0; pte < GEN8_PTES; pte += 4) {
-				uint64_t va =
-					(pdpe << GEN8_PDPE_SHIFT) |
-					(pde << GEN8_PDE_SHIFT) |
-					(pte << GEN8_PTE_SHIFT);
+				u64 va = (pdpe << GEN8_PDPE_SHIFT |
+					  pde << GEN8_PDE_SHIFT |
+					  pte << GEN8_PTE_SHIFT);
 				int i;
 				bool found = false;
 
@@ -1225,7 +1224,7 @@ static void gen8_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
 	if (!USES_FULL_48BIT_PPGTT(vm->i915)) {
 		gen8_dump_pdp(ppgtt, &ppgtt->pdp, start, length, scratch_pte, m);
 	} else {
-		uint64_t pml4e;
+		u64 pml4e;
 		struct i915_pml4 *pml4 = &ppgtt->pml4;
 		struct i915_page_directory_pointer *pdp;
 
@@ -1407,7 +1406,7 @@ static inline void gen6_write_pde(const struct i915_hw_ppgtt *ppgtt,
 /* Write all the page tables found in the ppgtt structure to incrementing page
  * directories. */
 static void gen6_write_page_range(struct i915_hw_ppgtt *ppgtt,
-				  uint32_t start, uint32_t length)
+				  u32 start, u32 length)
 {
 	struct i915_page_table *pt;
 	unsigned int pde;
@@ -1419,7 +1418,7 @@ static void gen6_write_page_range(struct i915_hw_ppgtt *ppgtt,
 	wmb();
 }
 
-static inline uint32_t get_pd_offset(struct i915_hw_ppgtt *ppgtt)
+static inline u32 get_pd_offset(struct i915_hw_ppgtt *ppgtt)
 {
 	GEM_BUG_ON(ppgtt->pd.base.ggtt_offset & 0x3f);
 	return ppgtt->pd.base.ggtt_offset << 10;
@@ -1513,7 +1512,7 @@ static void gen8_ppgtt_enable(struct drm_i915_private *dev_priv)
 static void gen7_ppgtt_enable(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
-	uint32_t ecochk, ecobits;
+	u32 ecochk, ecobits;
 	enum intel_engine_id id;
 
 	ecobits = I915_READ(GAC_ECO_BITS);
@@ -1537,7 +1536,7 @@ static void gen7_ppgtt_enable(struct drm_i915_private *dev_priv)
 
 static void gen6_ppgtt_enable(struct drm_i915_private *dev_priv)
 {
-	uint32_t ecochk, gab_ctl, ecobits;
+	u32 ecochk, gab_ctl, ecobits;
 
 	ecobits = I915_READ(GAC_ECO_BITS);
 	I915_WRITE(GAC_ECO_BITS, ecobits | ECOBITS_SNB_BIT |
@@ -1589,8 +1588,9 @@ static void gen6_ppgtt_clear_range(struct i915_address_space *vm,
 
 static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 				      struct sg_table *pages,
-				      uint64_t start,
-				      enum i915_cache_level cache_level, u32 flags)
+				      u64 start,
+				      enum i915_cache_level cache_level,
+				      u32 flags)
 {
 	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 	unsigned first_entry = start >> PAGE_SHIFT;
@@ -1690,7 +1690,7 @@ static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 	struct i915_page_directory *pd = &ppgtt->pd;
 	struct i915_page_table *pt;
-	uint32_t pde;
+	u32 pde;
 
 	drm_mm_remove_node(&ppgtt->node);
 
@@ -1748,10 +1748,10 @@ static int gen6_ppgtt_alloc(struct i915_hw_ppgtt *ppgtt)
 }
 
 static void gen6_scratch_va_range(struct i915_hw_ppgtt *ppgtt,
-				  uint64_t start, uint64_t length)
+				  u64 start, u64 length)
 {
 	struct i915_page_table *unused;
-	uint32_t pde;
+	u32 pde;
 
 	gen6_for_each_pde(unused, &ppgtt->pd, start, length, pde)
 		ppgtt->pd.page_table[pde] = ppgtt->base.scratch_pt;
@@ -2045,7 +2045,7 @@ static void gen8_set_pte(void __iomem *addr, gen8_pte_t pte)
 
 static void gen8_ggtt_insert_page(struct i915_address_space *vm,
 				  dma_addr_t addr,
-				  uint64_t offset,
+				  u64 offset,
 				  enum i915_cache_level level,
 				  u32 unused)
 {
@@ -2060,8 +2060,9 @@ static void gen8_ggtt_insert_page(struct i915_address_space *vm,
 
 static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 				     struct sg_table *st,
-				     uint64_t start,
-				     enum i915_cache_level level, u32 unused)
+				     u64 start,
+				     enum i915_cache_level level,
+				     u32 unused)
 {
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
 	struct sgt_iter sgt_iter;
@@ -2086,7 +2087,7 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 struct insert_entries {
 	struct i915_address_space *vm;
 	struct sg_table *st;
-	uint64_t start;
+	u64 start;
 	enum i915_cache_level level;
 	u32 flags;
 };
@@ -2101,7 +2102,7 @@ static int gen8_ggtt_insert_entries__cb(void *_arg)
 
 static void gen8_ggtt_insert_entries__BKL(struct i915_address_space *vm,
 					  struct sg_table *st,
-					  uint64_t start,
+					  u64 start,
 					  enum i915_cache_level level,
 					  u32 flags)
 {
@@ -2111,7 +2112,7 @@ static void gen8_ggtt_insert_entries__BKL(struct i915_address_space *vm,
 
 static void gen6_ggtt_insert_page(struct i915_address_space *vm,
 				  dma_addr_t addr,
-				  uint64_t offset,
+				  u64 offset,
 				  enum i915_cache_level level,
 				  u32 flags)
 {
@@ -2132,8 +2133,9 @@ static void gen6_ggtt_insert_page(struct i915_address_space *vm,
  */
 static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 				     struct sg_table *st,
-				     uint64_t start,
-				     enum i915_cache_level level, u32 flags)
+				     u64 start,
+				     enum i915_cache_level level,
+				     u32 flags)
 {
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
 	gen6_pte_t __iomem *entries = (gen6_pte_t __iomem *)ggtt->gsm;
@@ -2152,12 +2154,12 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 }
 
 static void nop_clear_range(struct i915_address_space *vm,
-			    uint64_t start, uint64_t length)
+			    u64 start, u64 length)
 {
 }
 
 static void gen8_ggtt_clear_range(struct i915_address_space *vm,
-				  uint64_t start, uint64_t length)
+				  u64 start, u64 length)
 {
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
 	unsigned first_entry = start >> PAGE_SHIFT;
@@ -2179,8 +2181,7 @@ static void gen8_ggtt_clear_range(struct i915_address_space *vm,
 }
 
 static void gen6_ggtt_clear_range(struct i915_address_space *vm,
-				  uint64_t start,
-				  uint64_t length)
+				  u64 start, u64 length)
 {
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
 	unsigned first_entry = start >> PAGE_SHIFT;
@@ -2204,7 +2205,7 @@ static void gen6_ggtt_clear_range(struct i915_address_space *vm,
 
 static void i915_ggtt_insert_page(struct i915_address_space *vm,
 				  dma_addr_t addr,
-				  uint64_t offset,
+				  u64 offset,
 				  enum i915_cache_level cache_level,
 				  u32 unused)
 {
@@ -2216,8 +2217,9 @@ static void i915_ggtt_insert_page(struct i915_address_space *vm,
 
 static void i915_ggtt_insert_entries(struct i915_address_space *vm,
 				     struct sg_table *pages,
-				     uint64_t start,
-				     enum i915_cache_level cache_level, u32 unused)
+				     u64 start,
+				     enum i915_cache_level cache_level,
+				     u32 unused)
 {
 	unsigned int flags = (cache_level == I915_CACHE_NONE) ?
 		AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
@@ -2226,8 +2228,7 @@ static void i915_ggtt_insert_entries(struct i915_address_space *vm,
 }
 
 static void i915_ggtt_clear_range(struct i915_address_space *vm,
-				  uint64_t start,
-				  uint64_t length)
+				  u64 start, u64 length)
 {
 	intel_gtt_clear_range(start >> PAGE_SHIFT, length >> PAGE_SHIFT);
 }
@@ -2641,7 +2642,7 @@ static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
  * writing this data shouldn't be harmful even in those cases. */
 static void bdw_setup_private_ppat(struct drm_i915_private *dev_priv)
 {
-	uint64_t pat;
+	u64 pat;
 
 	pat = GEN8_PPAT(0, GEN8_PPAT_WB | GEN8_PPAT_LLC)     | /* for normal objects, no eLLC */
 	      GEN8_PPAT(1, GEN8_PPAT_WC | GEN8_PPAT_LLCELLC) | /* for something pointing to ptes? */
@@ -2676,7 +2677,7 @@ static void bdw_setup_private_ppat(struct drm_i915_private *dev_priv)
 
 static void chv_setup_private_ppat(struct drm_i915_private *dev_priv)
 {
-	uint64_t pat;
+	u64 pat;
 
 	/*
 	 * Map WB on BDW to snooped on CHV.
@@ -3073,7 +3074,7 @@ static noinline struct sg_table *
 intel_rotate_pages(struct intel_rotation_info *rot_info,
 		   struct drm_i915_gem_object *obj)
 {
-	const size_t n_pages = obj->base.size / PAGE_SIZE;
+	const unsigned long n_pages = obj->base.size / PAGE_SIZE;
 	unsigned int size = intel_rotation_info_size(rot_info);
 	struct sgt_iter sgt_iter;
 	dma_addr_t dma_addr;

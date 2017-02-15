@@ -53,11 +53,11 @@
 struct drm_i915_file_private;
 struct drm_i915_fence_reg;
 
-typedef uint32_t gen6_pte_t;
-typedef uint64_t gen8_pte_t;
-typedef uint64_t gen8_pde_t;
-typedef uint64_t gen8_ppgtt_pdpe_t;
-typedef uint64_t gen8_ppgtt_pml4e_t;
+typedef u32 gen6_pte_t;
+typedef u64 gen8_pte_t;
+typedef u64 gen8_pde_t;
+typedef u64 gen8_ppgtt_pdpe_t;
+typedef u64 gen8_ppgtt_pml4e_t;
 
 #define ggtt_total_entries(ggtt) ((ggtt)->base.total >> PAGE_SHIFT)
 
@@ -143,7 +143,7 @@ typedef uint64_t gen8_ppgtt_pml4e_t;
 #define GEN8_PPAT_WC			(1<<0)
 #define GEN8_PPAT_UC			(0<<0)
 #define GEN8_PPAT_ELLC_OVERRIDE		(0<<2)
-#define GEN8_PPAT(i, x)			((uint64_t) (x) << ((i) * 8))
+#define GEN8_PPAT(i, x)			((u64)(x) << ((i) * 8))
 
 struct sg_table;
 
@@ -210,7 +210,7 @@ struct i915_page_dma {
 		/* For gen6/gen7 only. This is the offset in the GGTT
 		 * where the page directory entries for PPGTT begin
 		 */
-		uint32_t ggtt_offset;
+		u32 ggtt_offset;
 	};
 };
 
@@ -305,20 +305,19 @@ struct i915_address_space {
 	/* flags for pte_encode */
 #define PTE_READ_ONLY	(1<<0)
 	int (*allocate_va_range)(struct i915_address_space *vm,
-				 uint64_t start,
-				 uint64_t length);
+				 u64 start, u64 length);
 	void (*clear_range)(struct i915_address_space *vm,
-			    uint64_t start,
-			    uint64_t length);
+			    u64 start, u64 length);
 	void (*insert_page)(struct i915_address_space *vm,
 			    dma_addr_t addr,
-			    uint64_t offset,
+			    u64 offset,
 			    enum i915_cache_level cache_level,
 			    u32 flags);
 	void (*insert_entries)(struct i915_address_space *vm,
 			       struct sg_table *st,
-			       uint64_t start,
-			       enum i915_cache_level cache_level, u32 flags);
+			       u64 start,
+			       enum i915_cache_level cache_level,
+			       u32 flags);
 	void (*cleanup)(struct i915_address_space *vm);
 	/** Unmap an object from an address space. This usually consists of
 	 * setting the valid PTE entries to a reserved scratch page. */
@@ -411,9 +410,9 @@ struct i915_hw_ppgtt {
 		(pt = (pd)->page_table[iter], true);			\
 	     ++iter)
 
-static inline uint32_t i915_pte_index(uint64_t address, uint32_t pde_shift)
+static inline u32 i915_pte_index(u64 address, unsigned int pde_shift)
 {
-	const uint32_t mask = NUM_PTE(pde_shift) - 1;
+	const u32 mask = NUM_PTE(pde_shift) - 1;
 
 	return (address >> PAGE_SHIFT) & mask;
 }
@@ -422,11 +421,10 @@ static inline uint32_t i915_pte_index(uint64_t address, uint32_t pde_shift)
  * does not cross a page table boundary, so the max value would be
  * GEN6_PTES for GEN6, and GEN8_PTES for GEN8.
 */
-static inline uint32_t i915_pte_count(uint64_t addr, size_t length,
-				      uint32_t pde_shift)
+static inline u32 i915_pte_count(u64 addr, u64 length, unsigned int pde_shift)
 {
-	const uint64_t mask = ~((1ULL << pde_shift) - 1);
-	uint64_t end;
+	const u64 mask = ~((1ULL << pde_shift) - 1);
+	u64 end;
 
 	WARN_ON(length == 0);
 	WARN_ON(offset_in_page(addr|length));
@@ -439,22 +437,22 @@ static inline uint32_t i915_pte_count(uint64_t addr, size_t length,
 	return i915_pte_index(end, pde_shift) - i915_pte_index(addr, pde_shift);
 }
 
-static inline uint32_t i915_pde_index(uint64_t addr, uint32_t shift)
+static inline u32 i915_pde_index(u64 addr, u32 shift)
 {
 	return (addr >> shift) & I915_PDE_MASK;
 }
 
-static inline uint32_t gen6_pte_index(uint32_t addr)
+static inline u32 gen6_pte_index(u32 addr)
 {
 	return i915_pte_index(addr, GEN6_PDE_SHIFT);
 }
 
-static inline size_t gen6_pte_count(uint32_t addr, uint32_t length)
+static inline u32 gen6_pte_count(u32 addr, u32 length)
 {
 	return i915_pte_count(addr, length, GEN6_PDE_SHIFT);
 }
 
-static inline uint32_t gen6_pde_index(uint32_t addr)
+static inline u32 gen6_pde_index(u32 addr)
 {
 	return i915_pde_index(addr, GEN6_PDE_SHIFT);
 }
@@ -487,27 +485,27 @@ static inline uint32_t gen6_pde_index(uint32_t addr)
 		    temp = min(temp - start, length);			\
 		    start += temp, length -= temp; }), ++iter)
 
-static inline uint32_t gen8_pte_index(uint64_t address)
+static inline u32 gen8_pte_index(u64 address)
 {
 	return i915_pte_index(address, GEN8_PDE_SHIFT);
 }
 
-static inline uint32_t gen8_pde_index(uint64_t address)
+static inline u32 gen8_pde_index(u64 address)
 {
 	return i915_pde_index(address, GEN8_PDE_SHIFT);
 }
 
-static inline uint32_t gen8_pdpe_index(uint64_t address)
+static inline u32 gen8_pdpe_index(u64 address)
 {
 	return (address >> GEN8_PDPE_SHIFT) & GEN8_PDPE_MASK;
 }
 
-static inline uint32_t gen8_pml4e_index(uint64_t address)
+static inline u32 gen8_pml4e_index(u64 address)
 {
 	return (address >> GEN8_PML4E_SHIFT) & GEN8_PML4E_MASK;
 }
 
-static inline size_t gen8_pte_count(uint64_t address, uint64_t length)
+static inline u64 gen8_pte_count(u64 address, u64 length)
 {
 	return i915_pte_count(address, length, GEN8_PDE_SHIFT);
 }
