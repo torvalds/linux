@@ -2400,7 +2400,7 @@ static void cxgb_get_stats(struct net_device *dev,
 	ns->rx_over_errors   = 0;
 	ns->rx_crc_errors    = stats.rx_fcs_err;
 	ns->rx_frame_errors  = stats.rx_symbol_err;
-	ns->rx_fifo_errors   = stats.rx_ovflow0 + stats.rx_ovflow1 +
+	ns->rx_dropped	     = stats.rx_ovflow0 + stats.rx_ovflow1 +
 			       stats.rx_ovflow2 + stats.rx_ovflow3 +
 			       stats.rx_trunc0 + stats.rx_trunc1 +
 			       stats.rx_trunc2 + stats.rx_trunc3;
