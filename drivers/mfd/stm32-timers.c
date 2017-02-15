@@ -15,7 +15,7 @@ static const struct regmap_config stm32_timers_regmap_cfg = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = sizeof(u32),
-	.max_register = 0x400,
+	.max_register = 0x3fc,
 };
 
 static void stm32_timers_get_arr_size(struct stm32_timers *ddata)
