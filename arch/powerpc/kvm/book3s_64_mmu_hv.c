@@ -1407,6 +1407,9 @@ static void resize_hpt_release(struct kvm *kvm, struct kvm_resize_hpt *resize)
 {
 	BUG_ON(kvm->arch.resize_hpt != resize);
 
+	if (!resize)
+		return;
+
 	if (resize->hpt.virt)
 		kvmppc_free_hpt(&resize->hpt);
 
