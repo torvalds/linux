@@ -11079,7 +11079,7 @@ SECURE ENCRYPTING DEVICE (SED) OPAL DRIVER
 M:	Scott Bauer <scott.bauer@intel.com>
 M:	Jonathan Derrick <jonathan.derrick@intel.com>
 M:	Rafael Antognolli <rafael.antognolli@intel.com>
-L:	linux-nvme@lists.infradead.org
+L:	linux-block@vger.kernel.org
 S:	Supported
 F:	block/sed*
 F:	block/opal_proto.h
