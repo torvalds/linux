@@ -75,7 +75,7 @@ struct wmi_cmd_hdr {
 
 /*
  * There is no signed version of __le32, so for a temporary solution come
- * up with our own version. The idea is from fs/ntfs/types.h.
+ * up with our own version. The idea is from fs/ntfs/endian.h.
  *
  * Use a_ prefix so that it doesn't conflict if we get proper support to
  * linux/types.h.

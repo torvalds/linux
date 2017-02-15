@@ -699,51 +699,31 @@ static bool bf_is_ampdu_not_probing(struct ath_buf *bf)
     return bf_isampdu(bf) && !(info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE);
 }
 
-static void ath_tx_count_airtime(struct ath_softc *sc, struct ath_txq *txq,
-				 struct ath_buf *bf, struct ath_tx_status *ts)
+static void ath_tx_count_airtime(struct ath_softc *sc, struct ath_node *an,
+				 struct ath_atx_tid *tid, struct ath_buf *bf,
+				 struct ath_tx_status *ts)
 {
-	struct ath_node *an;
-	struct ath_acq *acq = &sc->cur_chan->acq[txq->mac80211_qnum];
-	struct sk_buff *skb;
-	struct ieee80211_hdr *hdr;
-	struct ieee80211_hw *hw = sc->hw;
-	struct ieee80211_tx_rate rates[4];
-	struct ieee80211_sta *sta;
-	int i;
+	struct ath_txq *txq = tid->txq;
 	u32 airtime = 0;
-
-	skb = bf->bf_mpdu;
-	if(!skb)
-		return;
-
-	hdr = (struct ieee80211_hdr *)skb->data;
-	memcpy(rates, bf->rates, sizeof(rates));
-
-	rcu_read_lock();
-
-	sta = ieee80211_find_sta_by_ifaddr(hw, hdr->addr1, hdr->addr2);
-	if(!sta)
-		goto exit;
-
-
-	an = (struct ath_node *) sta->drv_priv;
+	int i;
 
 	airtime += ts->duration * (ts->ts_longretry + 1);
+	for(i = 0; i < ts->ts_rateindex; i++) {
+		int rate_dur = ath9k_hw_get_duration(sc->sc_ah, bf->bf_desc, i);
+		airtime += rate_dur * bf->rates[i].count;
+	}
 
-	for(i=0; i < ts->ts_rateindex; i++)
-		airtime += ath9k_hw_get_duration(sc->sc_ah, bf->bf_desc, i) * rates[i].count;
+	if (sc->airtime_flags & AIRTIME_USE_TX) {
+		int q = txq->mac80211_qnum;
+		struct ath_acq *acq = &sc->cur_chan->acq[q];
 
-	if (!!(sc->airtime_flags & AIRTIME_USE_TX)) {
 		spin_lock_bh(&acq->lock);
-		an->airtime_deficit[txq->mac80211_qnum] -= airtime;
-		if (an->airtime_deficit[txq->mac80211_qnum] <= 0)
-			__ath_tx_queue_tid(sc, ath_get_skb_tid(sc, an, skb));
+		an->airtime_deficit[q] -= airtime;
+		if (an->airtime_deficit[q] <= 0)
+			__ath_tx_queue_tid(sc, tid);
 		spin_unlock_bh(&acq->lock);
 	}
 	ath_debug_airtime(sc, an, 0, airtime);
-
-exit:
-	rcu_read_unlock();
 }
 
 static void ath_tx_process_buffer(struct ath_softc *sc, struct ath_txq *txq,
@@ -767,13 +747,13 @@ static void ath_tx_process_buffer(struct ath_softc *sc, struct ath_txq *txq,
 
 	ts->duration = ath9k_hw_get_duration(sc->sc_ah, bf->bf_desc,
 					     ts->ts_rateindex);
-	ath_tx_count_airtime(sc, txq, bf, ts);
 
 	hdr = (struct ieee80211_hdr *) bf->bf_mpdu->data;
 	sta = ieee80211_find_sta_by_ifaddr(hw, hdr->addr1, hdr->addr2);
 	if (sta) {
 		struct ath_node *an = (struct ath_node *)sta->drv_priv;
 		tid = ath_get_skb_tid(sc, an, bf->bf_mpdu);
+		ath_tx_count_airtime(sc, an, tid, bf, ts);
 		if (ts->ts_status & (ATH9K_TXERR_FILT | ATH9K_TXERR_XRETRY))
 			tid->clear_ps_filter = true;
 	}
