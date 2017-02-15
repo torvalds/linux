@@ -461,7 +461,7 @@ config SND_SOC_DW_HDMI_AUDIO
 	depends on RK_HDMI
 
 config SND_SOC_BT_SCO
-	tristate
+	tristate "bt sco audio"
 
 config SND_SOC_DMIC
 	tristate
