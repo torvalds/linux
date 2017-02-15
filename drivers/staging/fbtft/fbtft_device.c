@@ -1489,7 +1489,7 @@ static int __init fbtft_device_init(void)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(displays); i++) {
-		if (strncmp(name, displays[i].name, 32) == 0) {
+		if (strncmp(name, displays[i].name, SPI_NAME_SIZE) == 0) {
 			if (displays[i].spi) {
 				spi = displays[i].spi;
 				spi->chip_select = cs;
