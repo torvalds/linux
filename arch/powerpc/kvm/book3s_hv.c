@@ -1825,6 +1825,16 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 	vcpu->arch.busy_preempt = TB_NIL;
 	vcpu->arch.intr_msr = MSR_SF | MSR_ME;
 
+	/*
+	 * Set the default HFSCR for the guest from the host value.
+	 * This value is only used on POWER9.
+	 * On POWER9 DD1, TM doesn't work, so we make sure to
+	 * prevent the guest from using it.
+	 */
+	vcpu->arch.hfscr = mfspr(SPRN_HFSCR);
+	if (!cpu_has_feature(CPU_FTR_TM))
+		vcpu->arch.hfscr &= ~HFSCR_TM;
+
 	kvmppc_mmu_book3s_hv_init(vcpu);
 
 	vcpu->arch.state = KVMPPC_VCPU_NOTREADY;
