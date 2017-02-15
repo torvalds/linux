@@ -615,7 +615,14 @@ int generic_cpu_disable(void)
 	/* Update affinity of all IRQs previously aimed at this CPU */
 	irq_migrate_all_off_this_cpu();
 
-	/* Give the CPU time to drain in-flight ones */
+	/*
+	 * Depending on the details of the interrupt controller, it's possible
+	 * that one of the interrupts we just migrated away from this CPU is
+	 * actually already pending on this CPU. If we leave it in that state
+	 * the interrupt will never be EOI'ed, and will never fire again. So
+	 * temporarily enable interrupts here, to allow any pending interrupt to
+	 * be received (and EOI'ed), before we take this CPU offline.
+	 */
 	local_irq_enable();
 	mdelay(1);
 	local_irq_disable();
