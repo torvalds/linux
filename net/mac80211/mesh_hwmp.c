@@ -16,6 +16,7 @@
 #define TEST_FRAME_LEN	8192
 #define MAX_METRIC	0xffffffff
 #define ARITH_SHIFT	8
+#define LINK_FAIL_THRESH 95
 
 #define MAX_PREQ_QUEUE_LEN	64
 
@@ -311,7 +312,8 @@ void ieee80211s_update_metric(struct ieee80211_local *local,
 	 * feed failure as 100 and success as 0
 	 */
 	ewma_mesh_fail_avg_add(&sta->mesh->fail_avg, failed * 100);
-	if (ewma_mesh_fail_avg_read(&sta->mesh->fail_avg) > 95)
+	if (ewma_mesh_fail_avg_read(&sta->mesh->fail_avg) >
+			LINK_FAIL_THRESH)
 		mesh_plink_broken(sta);
 }
 
@@ -339,7 +341,7 @@ static u32 airtime_link_metric_get(struct ieee80211_local *local,
 	if (rate) {
 		err = 0;
 	} else {
-		if (fail_avg >= 100)
+		if (fail_avg > LINK_FAIL_THRESH)
 			return MAX_METRIC;
 
 		sta_set_rate_info_tx(sta, &sta->tx_stats.last_rate, &rinfo);
