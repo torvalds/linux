@@ -109,50 +109,23 @@ static struct platform_device ts78xx_ts_rtc_device = {
 	.num_resources	= 0,
 };
 
-/*
- * TS uses some of the user storage space on the RTC chip so see if it is
- * present; as it's an optional feature at purchase time and not all boards
- * will have it present
- *
- * I've used the method TS use in their rtc7800.c example for the detection
- *
- * TODO: track down a guinea pig without an RTC to see if we can work out a
- *		better RTC detection routine
- */
 static int ts78xx_ts_rtc_load(void)
 {
 	int rc;
-	unsigned char tmp_rtc0, tmp_rtc1;
 
-	tmp_rtc0 = ts78xx_ts_rtc_readbyte(126);
-	tmp_rtc1 = ts78xx_ts_rtc_readbyte(127);
-
-	ts78xx_ts_rtc_writebyte(0x00, 126);
-	ts78xx_ts_rtc_writebyte(0x55, 127);
-	if (ts78xx_ts_rtc_readbyte(127) == 0x55) {
-		ts78xx_ts_rtc_writebyte(0xaa, 127);
-		if (ts78xx_ts_rtc_readbyte(127) == 0xaa
-				&& ts78xx_ts_rtc_readbyte(126) == 0x00) {
-			ts78xx_ts_rtc_writebyte(tmp_rtc0, 126);
-			ts78xx_ts_rtc_writebyte(tmp_rtc1, 127);
-
-			if (ts78xx_fpga.supports.ts_rtc.init == 0) {
-				rc = platform_device_register(&ts78xx_ts_rtc_device);
-				if (!rc)
-					ts78xx_fpga.supports.ts_rtc.init = 1;
-			} else
-				rc = platform_device_add(&ts78xx_ts_rtc_device);
-
-			if (rc)
-				pr_info("RTC could not be registered: %d\n",
-					rc);
-			return rc;
-		}
+	if (ts78xx_fpga.supports.ts_rtc.init == 0) {
+		rc = platform_device_register(&ts78xx_ts_rtc_device);
+		if (!rc)
+			ts78xx_fpga.supports.ts_rtc.init = 1;
+	} else {
+		rc = platform_device_add(&ts78xx_ts_rtc_device);
 	}
 
-	pr_info("RTC not found\n");
-	return -ENODEV;
-};
+	if (rc)
+		pr_info("RTC could not be registered: %d\n", rc);
+
+	return rc;
+}
 
 static void ts78xx_ts_rtc_unload(void)
 {
