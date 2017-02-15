@@ -103,6 +103,7 @@ html: all
 epub: all
 xml: all
 latex: $(IMGPDF) all
+linkcheck:
 
 clean:
 	-rm -f $(DOTTGT) $(IMGTGT) ${TARGETS} 2>/dev/null
