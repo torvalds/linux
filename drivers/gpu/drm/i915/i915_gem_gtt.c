@@ -1085,7 +1085,6 @@ static int gen8_ppgtt_alloc_pdp(struct i915_address_space *vm,
 				struct i915_page_directory_pointer *pdp,
 				u64 start, u64 length)
 {
-	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 	struct i915_page_directory *pd;
 	u64 from = start;
 	unsigned int pdpe;
@@ -1100,6 +1099,8 @@ static int gen8_ppgtt_alloc_pdp(struct i915_address_space *vm,
 			gen8_initialize_pd(vm, pd);
 			gen8_ppgtt_set_pdpe(vm, pdp, pd, pdpe);
 			pdp->used_pdpes++;
+
+			mark_tlbs_dirty(i915_vm_to_ppgtt(vm));
 		}
 
 		ret = gen8_ppgtt_alloc_pd(vm, pd, start, length);
@@ -1111,7 +1112,6 @@ static int gen8_ppgtt_alloc_pdp(struct i915_address_space *vm,
 		}
 	}
 
-	mark_tlbs_dirty(ppgtt);
 	return 0;
 
 unwind:
