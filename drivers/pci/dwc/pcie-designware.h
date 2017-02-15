@@ -161,10 +161,6 @@ struct dw_pcie {
 
 int dw_pcie_read(void __iomem *addr, int size, u32 *val);
 int dw_pcie_write(void __iomem *addr, int size, u32 val);
-irqreturn_t dw_handle_msi_irq(struct pcie_port *pp);
-void dw_pcie_msi_init(struct pcie_port *pp);
-void dw_pcie_setup_rc(struct pcie_port *pp);
-int dw_pcie_host_init(struct pcie_port *pp);
 
 u32 dw_pcie_readl_dbi(struct dw_pcie *pci, u32 reg);
 void dw_pcie_writel_dbi(struct dw_pcie *pci, u32 reg, u32 val);
@@ -174,4 +170,29 @@ void dw_pcie_prog_outbound_atu(struct dw_pcie *pci, int index,
 			       int type, u64 cpu_addr, u64 pci_addr,
 			       u32 size);
 void dw_pcie_setup(struct dw_pcie *pci);
+
+#ifdef CONFIG_PCIE_DW_HOST
+irqreturn_t dw_handle_msi_irq(struct pcie_port *pp);
+void dw_pcie_msi_init(struct pcie_port *pp);
+void dw_pcie_setup_rc(struct pcie_port *pp);
+int dw_pcie_host_init(struct pcie_port *pp);
+#else
+static inline irqreturn_t dw_handle_msi_irq(struct pcie_port *pp)
+{
+	return IRQ_NONE;
+}
+
+static inline void dw_pcie_msi_init(struct pcie_port *pp)
+{
+}
+
+static inline void dw_pcie_setup_rc(struct pcie_port *pp)
+{
+}
+
+static inline int dw_pcie_host_init(struct pcie_port *pp)
+{
+	return 0;
+}
+#endif
 #endif /* _PCIE_DESIGNWARE_H */
