@@ -739,7 +739,7 @@ try_again:
 		card = oldcard;
 	}
 	card->ocr = ocr_card;
-	mmc_fixup_device(card, NULL);
+	mmc_fixup_device(card, sdio_fixup_methods);
 
 	if (card->type == MMC_TYPE_SD_COMBO) {
 		err = mmc_sd_setup_card(host, card, oldcard != NULL);
