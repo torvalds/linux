@@ -1,0 +1,85 @@
+ROCKCHIP USB 3.0 PHY WITH INNO IP BLOCK
+
+Required properties (phy (parent) node):
+ - compatible:	should be one of the listed compatibles:
+   * "rockchip,rk3328-u3phy"
+   * "rockchip,rk322xh-u3phy"
+ - reg : the base address of USB 3.0 PHY.
+ - rockchip,u3phygrf : phandle to the syscon managing the
+		       "USB 3.0 PHY general register files".
+ - interrupts : specify an interrupt for each entry in interrupt-names.
+ - interrupt-names : a list which shall be the following entries:
+   * "linestate" : for the host/otg linestate interrupt
+ - clocks : phandle + clock specifier for the phy clocks.
+ - clock-names :
+   * "u3phy-otg" for USB 3.0 PHY utmi
+   * "u3phy-pipe" for USB 3.0 PHY pipe
+ - resets : a list of phandle + reset specifier pairs
+ - reset-names :
+   * "u3phy-u2-por" for the USB 2.0 logic of USB 3.0 PHY
+   * "u3phy-u3-por" for the USB 3.0 logic of USB 3.0 PHY
+   * "u3phy-pipe-mac" for the USB 3.0 PHY pipe MAC
+   * "u3phy-utmi-mac" for the USB 3.0 PHY utmi MAC
+   * "u3phy-utmi-apb" for the USB 3.0 PHY utmi apb
+   * "u3phy-pipe-apb" for the USB 3.0 PHY pipe apb
+
+Optional properties:
+ - vbus-drv-gpios : gpio phandle for vbus supply.
+
+Required nodes : a sub-node is required for USB 3.0 or USB 2.0 the phy provides.
+		 The sub-node name is used to identify phy type, and shall be
+		 the following entries:
+	* "u3phy_utmi" : USB 2.0 utmi phy.
+	* "u3phy_pipe" : USB 3.0 pipe phy.
+
+Required properties (port (child) node):
+ - reg : address and length of the register set for the port.
+ - #phy-cells : must be 0. See ./phy-bindings.txt for details.
+
+Optional properties for utmi node:
+ - rockchip,odt-val-tuning : specify 45ohm ODT tuning value.
+
+Optional properties for pipe node:
+ - rockchip,refclk-25m-quirk : phy reference clock changed to 25m quirk.
+
+Example:
+
+usb3phy_grf: syscon@ff460000 {
+	compatible = "rockchip,usb3phy-grf", "syscon";
+	reg = <0x0 0xff460000 0x0 0x1000>;
+};
+
+...
+
+u3phy: usb3-phy@ff470000 {
+	compatible = "rockchip,rk3328-u3phy";
+	reg = <0x0 0xff470000 0x0 0x0>;
+	rockchip,u3phygrf = <&usb3phy_grf>;
+	interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+	interrupt-names = "linestate";
+	clocks = <&cru PCLK_USB3PHY_OTG>, <&cru PCLK_USB3PHY_PIPE>;
+	clock-names = "u3phy-otg", "u3phy-pipe";
+	resets = <&cru SRST_USB3PHY_U2>,
+		 <&cru SRST_USB3PHY_U3>,
+		 <&cru SRST_USB3PHY_PIPE>,
+		 <&cru SRST_USB3OTG_UTMI>,
+		 <&cru SRST_USB3PHY_OTG_P>,
+		 <&cru SRST_USB3PHY_PIPE_P>;
+	reset-names = "u3phy-u2-por", "u3phy-u3-por",
+		      "u3phy-pipe-mac", "u3phy-utmi-mac",
+		      "u3phy-utmi-apb", "u3phy-pipe-apb";
+	vbus-drv-gpios = <&gpio0 0 GPIO_ACTIVE_HIGH>;
+	#address-cells = <2>;
+	#size-cells = <2>;
+	ranges;
+
+	u3phy_utmi: utmi@ff470000 {
+		reg = <0x0 0xff470000 0x0 0x8000>;
+		#phy-cells = <0>;
+	};
+
+	u3phy_pipe: pipe@ff478000 {
+		reg = <0x0 0xff478000 0x0 0x8000>;
+		#phy-cells = <0>;
+	};
+};
