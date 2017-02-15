@@ -852,6 +852,39 @@ void rt2800_process_rxwi(struct queue_entry *entry,
 }
 EXPORT_SYMBOL_GPL(rt2800_process_rxwi);
 
+static void rt2800_rate_from_status(struct skb_frame_desc *skbdesc,
+				    u32 status, enum nl80211_band band)
+{
+	u8 flags = 0;
+	u8 idx = rt2x00_get_field32(status, TX_STA_FIFO_MCS);
+
+	switch (rt2x00_get_field32(status, TX_STA_FIFO_PHYMODE)) {
+	case RATE_MODE_HT_GREENFIELD:
+		flags |= IEEE80211_TX_RC_GREEN_FIELD;
+		/* fall through */
+	case RATE_MODE_HT_MIX:
+		flags |= IEEE80211_TX_RC_MCS;
+		break;
+	case RATE_MODE_OFDM:
+		if (band == NL80211_BAND_2GHZ)
+			idx += 4;
+		break;
+	case RATE_MODE_CCK:
+		if (idx >= 8)
+			idx -= 8;
+		break;
+	}
+
+	if (rt2x00_get_field32(status, TX_STA_FIFO_BW))
+		flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
+
+	if (rt2x00_get_field32(status, TX_STA_FIFO_SGI))
+		flags |= IEEE80211_TX_RC_SHORT_GI;
+
+	skbdesc->tx_rate_idx = idx;
+	skbdesc->tx_rate_flags = flags;
+}
+
 void rt2800_txdone_entry(struct queue_entry *entry, u32 status, __le32 *txwi,
 			 bool match)
 {
@@ -898,7 +931,7 @@ void rt2800_txdone_entry(struct queue_entry *entry, u32 status, __le32 *txwi,
 	 * and provide retry count.
  	 */
 	if (unlikely((aggr == 1 && ampdu == 0 && real_mcs != mcs)) || !match) {
-		skbdesc->tx_rate_idx = real_mcs;
+		rt2800_rate_from_status(skbdesc, status, rt2x00dev->curr_band);
 		mcs = real_mcs;
 	}
 
