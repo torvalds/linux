@@ -820,7 +820,7 @@ static u32 at91_twi_func(struct i2c_adapter *adapter)
 		| I2C_FUNC_SMBUS_READ_BLOCK_DATA;
 }
 
-static struct i2c_algorithm at91_twi_algorithm = {
+static const struct i2c_algorithm at91_twi_algorithm = {
 	.master_xfer	= at91_twi_xfer,
 	.functionality	= at91_twi_func,
 };
