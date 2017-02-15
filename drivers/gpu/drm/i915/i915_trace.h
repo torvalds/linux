@@ -245,15 +245,14 @@ DEFINE_EVENT_PRINT(i915_px_entry, i915_page_directory_pointer_entry_alloc,
 
 DECLARE_EVENT_CLASS(i915_page_table_entry_update,
 	TP_PROTO(struct i915_address_space *vm, u32 pde,
-		 struct i915_page_table *pt, u32 first, u32 count, u32 bits),
-	TP_ARGS(vm, pde, pt, first, count, bits),
+		 struct i915_page_table *pt, u32 first, u32 count),
+	TP_ARGS(vm, pde, pt, first, count),
 
 	TP_STRUCT__entry(
 		__field(struct i915_address_space *, vm)
 		__field(u32, pde)
 		__field(u32, first)
 		__field(u32, last)
-		__dynamic_array(char, cur_ptes, TRACE_PT_SIZE(bits))
 	),
 
 	TP_fast_assign(
@@ -261,22 +260,16 @@ DECLARE_EVENT_CLASS(i915_page_table_entry_update,
 		__entry->pde = pde;
 		__entry->first = first;
 		__entry->last = first + count - 1;
-		scnprintf(__get_str(cur_ptes),
-			  TRACE_PT_SIZE(bits),
-			  "%*pb",
-			  bits,
-			  pt->used_ptes);
 	),
 
-	TP_printk("vm=%p, pde=%d, updating %u:%u\t%s",
-		  __entry->vm, __entry->pde, __entry->last, __entry->first,
-		  __get_str(cur_ptes))
+	TP_printk("vm=%p, pde=%d, updating %u:%u",
+		  __entry->vm, __entry->pde, __entry->last, __entry->first)
 );
 
 DEFINE_EVENT(i915_page_table_entry_update, i915_page_table_entry_map,
 	TP_PROTO(struct i915_address_space *vm, u32 pde,
-		 struct i915_page_table *pt, u32 first, u32 count, u32 bits),
-	TP_ARGS(vm, pde, pt, first, count, bits)
+		 struct i915_page_table *pt, u32 first, u32 count),
+	TP_ARGS(vm, pde, pt, first, count)
 );
 
 TRACE_EVENT(i915_gem_object_change_domain,
