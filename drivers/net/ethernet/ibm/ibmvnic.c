@@ -2389,10 +2389,10 @@ static void handle_request_cap_rsp(union ibmvnic_crq *crq,
 	case PARTIALSUCCESS:
 		dev_info(dev, "req=%lld, rsp=%ld in %s queue, retrying.\n",
 			 *req_value,
-			 (long int)be32_to_cpu(crq->request_capability_rsp.
+			 (long int)be64_to_cpu(crq->request_capability_rsp.
 					       number), name);
 		release_sub_crqs_no_irqs(adapter);
-		*req_value = be32_to_cpu(crq->request_capability_rsp.number);
+		*req_value = be64_to_cpu(crq->request_capability_rsp.number);
 		init_sub_crqs(adapter, 1);
 		return;
 	default:
