@@ -1,21 +1,17 @@
 /*
- * Device Tree file for Marvell Armada 3720 development board
- * (DB-88F3720-DDR3)
- * Copyright (C) 2016 Marvell
- *
- * Gregory CLEMENT <gregory.clement@free-electrons.com>
+ * Copyright (C) 2016 Marvell Technology Group Ltd.
  *
  * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
+ * of the GPLv2 or the X11 license, at your option. Note that this dual
  * licensing only applies to this file, and not this project as a
  * whole.
  *
- *  a) This file is free software; you can redistribute it and/or
+ *  a) This library is free software; you can redistribute it and/or
  *     modify it under the terms of the GNU General Public License as
  *     published by the Free Software Foundation; either version 2 of the
  *     License, or (at your option) any later version.
  *
- *     This file is distributed in the hope that it will be useful,
+ *     This library is distributed in the hope that it will be useful,
  *     but WITHOUT ANY WARRANTY; without even the implied warranty of
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
@@ -44,97 +40,99 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/dts-v1/;
+/*
+ * Device Tree file for MACCHIATOBin Armada 8040 community board platform
+ */
 
-#include "armada-372x.dtsi"
+#include "armada-8040.dtsi"
 
 / {
-	model = "Marvell Armada 3720 Development Board DB-88F3720-DDR3";
-	compatible = "marvell,armada-3720-db", "marvell,armada3720", "marvell,armada3710";
+	model = "Marvell 8040 MACHIATOBin";
+	compatible = "marvell,armada8040-mcbin", "marvell,armada8040",
+			"marvell,armada-ap806-quad", "marvell,armada-ap806";
 
-	chosen {
-		stdout-path = "serial0:115200n8";
-	};
-
-	memory@0 {
+	memory@00000000 {
 		device_type = "memory";
-		reg = <0x00000000 0x00000000 0x00000000 0x20000000>;
+		reg = <0x0 0x0 0x0 0x80000000>;
+	};
+
+	/* Regulator labels correspond with schematics */
+	v_3_3: regulator-3-3v {
+		compatible = "regulator-fixed";
+		regulator-name = "v_3_3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		status = "okay";
+	};
+
+	v_vddo_h: regulator-1-8v {
+		compatible = "regulator-fixed";
+		regulator-name = "v_vddo_h";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+		status = "okay";
+	};
+
+	v_5v0_usb3_hst_vbus: regulator-usb3-vbus0 {
+		compatible = "regulator-fixed";
+		regulator-name = "v_5v0_usb3_hst_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		/* actually GPIO controlled, but 8k has no GPIO support yet */
+		regulator-always-on;
+		status = "okay";
+	};
+
+	usb3h0_phy: usb3_phy0 {
+		compatible = "usb-nop-xceiv";
+		vcc-supply = <&v_5v0_usb3_hst_vbus>;
 	};
 };
 
-&i2c0 {
-	status = "okay";
-};
-
-/* CON3 */
-&sata {
-	status = "okay";
-};
-
-&spi0 {
-	status = "okay";
-
-	m25p80@0 {
-		compatible = "jedec,spi-nor";
-		reg = <0>;
-		spi-max-frequency = <108000000>;
-		spi-rx-bus-width = <4>;
-		spi-tx-bus-width = <4>;
-
-		partitions {
-			compatible = "fixed-partitions";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			partition@0 {
-				label = "bootloader";
-				reg = <0x0 0x200000>;
-			};
-			partition@200000 {
-				label = "U-boot Env";
-				reg = <0x200000 0x10000>;
-			};
-			partition@210000 {
-				label = "Linux";
-				reg = <0x210000 0xDF0000>;
-			};
-		};
-	};
-};
-
-/* Exported on the micro USB connector CON32 through an FTDI */
 &uart0 {
 	status = "okay";
 };
 
-/* CON31 */
-&usb3 {
+&cpm_i2c0 {
+	clock-frequency = <100000>;
 	status = "okay";
 };
 
-/* CON17 (PCIe) / CON12 (mini-PCIe) */
-&pcie0 {
+&cpm_sata0 {
+	/* CPM Lane 0 - U29 */
 	status = "okay";
 };
 
-&mdio {
+&cpm_usb3_0 {
+	/* J38? - USB2.0 only */
 	status = "okay";
-	phy0: ethernet-phy@0 {
+};
+
+&cpm_usb3_1 {
+	/* J38? - USB2.0 only */
+	status = "okay";
+};
+
+&cps_sata0 {
+	/* CPS Lane 1 - U32 */
+	/* CPS Lane 3 - U31 */
+	status = "okay";
+};
+
+&cps_spi1 {
+	status = "okay";
+
+	spi-flash@0 {
+		compatible = "st,w25q32";
+		spi-max-frequency = <50000000>;
 		reg = <0>;
 	};
-
-	phy1: ethernet-phy@1 {
-		reg = <1>;
-	};
 };
 
-&eth0 {
-	phy-mode = "rgmii-id";
-	phy = <&phy0>;
-	status = "okay";
-};
-
-&eth1 {
-	phy-mode = "sgmii";
-	phy = <&phy1>;
+&cps_usb3_0 {
+	/* CPS Lane 2 - CON7 */
+	usb-phy = <&usb3h0_phy>;
 	status = "okay";
 };
