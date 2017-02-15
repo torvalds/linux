@@ -57,7 +57,6 @@ struct qed_dcbx_app_data {
 	u8 tc;			/* Traffic Class */
 };
 
-#ifdef CONFIG_DCB
 #define QED_DCBX_VERSION_DISABLED       0
 #define QED_DCBX_VERSION_IEEE           1
 #define QED_DCBX_VERSION_CEE            2
@@ -73,7 +72,6 @@ struct qed_dcbx_set {
 	struct qed_dcbx_admin_params config;
 	u32 ver_num;
 };
-#endif
 
 struct qed_dcbx_results {
 	bool dcbx_enabled;
@@ -97,9 +95,8 @@ struct qed_dcbx_info {
 	struct qed_dcbx_results results;
 	struct dcbx_mib operational;
 	struct dcbx_mib remote;
-#ifdef CONFIG_DCB
 	struct qed_dcbx_set set;
-#endif
+	struct qed_dcbx_get get;
 	u8 dcbx_cap;
 };
 

@@ -386,6 +386,9 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 	case QED_PCI_ETH:
 		p_ramrod->personality = PERSONALITY_ETH;
 		break;
+	case QED_PCI_FCOE:
+		p_ramrod->personality = PERSONALITY_FCOE;
+		break;
 	case QED_PCI_ISCSI:
 		p_ramrod->personality = PERSONALITY_ISCSI;
 		break;

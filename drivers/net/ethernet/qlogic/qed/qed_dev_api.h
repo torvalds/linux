@@ -353,6 +353,48 @@ int qed_llh_add_mac_filter(struct qed_hwfn *p_hwfn,
 void qed_llh_remove_mac_filter(struct qed_hwfn *p_hwfn,
 			       struct qed_ptt *p_ptt, u8 *p_filter);
 
+enum qed_llh_port_filter_type_t {
+	QED_LLH_FILTER_ETHERTYPE,
+	QED_LLH_FILTER_TCP_SRC_PORT,
+	QED_LLH_FILTER_TCP_DEST_PORT,
+	QED_LLH_FILTER_TCP_SRC_AND_DEST_PORT,
+	QED_LLH_FILTER_UDP_SRC_PORT,
+	QED_LLH_FILTER_UDP_DEST_PORT,
+	QED_LLH_FILTER_UDP_SRC_AND_DEST_PORT
+};
+
+/**
+ * @brief qed_llh_add_protocol_filter - configures a protocol filter in llh
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param source_port_or_eth_type - source port or ethertype to add
+ * @param dest_port - destination port to add
+ * @param type - type of filters and comparing
+ */
+int
+qed_llh_add_protocol_filter(struct qed_hwfn *p_hwfn,
+			    struct qed_ptt *p_ptt,
+			    u16 source_port_or_eth_type,
+			    u16 dest_port,
+			    enum qed_llh_port_filter_type_t type);
+
+/**
+ * @brief qed_llh_remove_protocol_filter - remove a protocol filter in llh
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param source_port_or_eth_type - source port or ethertype to add
+ * @param dest_port - destination port to add
+ * @param type - type of filters and comparing
+ */
+void
+qed_llh_remove_protocol_filter(struct qed_hwfn *p_hwfn,
+			       struct qed_ptt *p_ptt,
+			       u16 source_port_or_eth_type,
+			       u16 dest_port,
+			       enum qed_llh_port_filter_type_t type);
+
 /**
  * *@brief Cleanup of previous driver remains prior to load
  *

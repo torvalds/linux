@@ -60,6 +60,7 @@ extern const struct qed_common_ops qed_common_ops_pass;
 #define QED_WFQ_UNIT	100
 
 #define ISCSI_BDQ_ID(_port_id) (_port_id)
+#define FCOE_BDQ_ID(_port_id) ((_port_id) + 2)
 #define QED_WID_SIZE            (1024)
 #define QED_PF_DEMS_SIZE        (4)
 
@@ -167,6 +168,7 @@ struct qed_tunn_update_params {
  */
 enum qed_pci_personality {
 	QED_PCI_ETH,
+	QED_PCI_FCOE,
 	QED_PCI_ISCSI,
 	QED_PCI_ETH_ROCE,
 	QED_PCI_DEFAULT /* default in shmem */
@@ -204,6 +206,7 @@ enum QED_FEATURE {
 	QED_VF,
 	QED_RDMA_CNQ,
 	QED_VF_L2_QUE,
+	QED_FCOE_CQ,
 	QED_MAX_FEATURES,
 };
 
@@ -221,6 +224,7 @@ enum QED_PORT_MODE {
 
 enum qed_dev_cap {
 	QED_DEV_CAP_ETH,
+	QED_DEV_CAP_FCOE,
 	QED_DEV_CAP_ISCSI,
 	QED_DEV_CAP_ROCE,
 };
@@ -255,6 +259,10 @@ struct qed_hw_info {
 	u32				part_num[4];
 
 	unsigned char			hw_mac_addr[ETH_ALEN];
+	u64				node_wwn;
+	u64				port_wwn;
+
+	u16				num_fcoe_conns;
 
 	struct qed_igu_info		*p_igu_info;
 
@@ -410,6 +418,7 @@ struct qed_hwfn {
 	struct qed_ooo_info		*p_ooo_info;
 	struct qed_rdma_info		*p_rdma_info;
 	struct qed_iscsi_info		*p_iscsi_info;
+	struct qed_fcoe_info		*p_fcoe_info;
 	struct qed_pf_params		pf_params;
 
 	bool b_rdma_enabled_in_prs;
@@ -620,11 +629,13 @@ struct qed_dev {
 
 	u8				protocol;
 #define IS_QED_ETH_IF(cdev)     ((cdev)->protocol == QED_PROTOCOL_ETH)
+#define IS_QED_FCOE_IF(cdev)    ((cdev)->protocol == QED_PROTOCOL_FCOE)
 
 	/* Callbacks to protocol driver */
 	union {
 		struct qed_common_cb_ops	*common;
 		struct qed_eth_cb_ops		*eth;
+		struct qed_fcoe_cb_ops		*fcoe;
 		struct qed_iscsi_cb_ops		*iscsi;
 	} protocol_ops;
 	void				*ops_cookie;

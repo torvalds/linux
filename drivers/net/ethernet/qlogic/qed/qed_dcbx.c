@@ -432,7 +432,6 @@ qed_dcbx_copy_mib(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-#ifdef CONFIG_DCB
 static void
 qed_dcbx_get_priority_info(struct qed_hwfn *p_hwfn,
 			   struct qed_dcbx_app_prio *p_prio,
@@ -749,7 +748,6 @@ qed_dcbx_get_params(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 
 	return 0;
 }
-#endif
 
 static int
 qed_dcbx_read_local_lldp_mib(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
@@ -864,6 +862,15 @@ static int qed_dcbx_read_mib(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
+void qed_dcbx_aen(struct qed_hwfn *hwfn, u32 mib_type)
+{
+	struct qed_common_cb_ops *op = hwfn->cdev->protocol_ops.common;
+	void *cookie = hwfn->cdev->ops_cookie;
+
+	if (cookie && op->dcbx_aen)
+		op->dcbx_aen(cookie, &hwfn->p_dcbx_info->get, mib_type);
+}
+
 /* Read updated MIB.
  * Reconfigure QM and invoke PF update ramrod command if operational MIB
  * change is detected.
@@ -890,6 +897,8 @@ qed_dcbx_mib_update_event(struct qed_hwfn *p_hwfn,
 			qed_sp_pf_update(p_hwfn);
 		}
 	}
+	qed_dcbx_get_params(p_hwfn, p_ptt, &p_hwfn->p_dcbx_info->get, type);
+	qed_dcbx_aen(p_hwfn, type);
 
 	return rc;
 }

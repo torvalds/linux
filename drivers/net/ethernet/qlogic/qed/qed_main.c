@@ -53,9 +53,11 @@
 #include "qed_sp.h"
 #include "qed_dev_api.h"
 #include "qed_ll2.h"
+#include "qed_fcoe.h"
 #include "qed_mcp.h"
 #include "qed_hw.h"
 #include "qed_selftest.h"
+#include "qed_debug.h"
 
 #define QED_ROCE_QPS			(8192)
 #define QED_ROCE_DPIS			(8)
@@ -1603,6 +1605,8 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.sb_release = &qed_sb_release,
 	.simd_handler_config = &qed_simd_handler_config,
 	.simd_handler_clean = &qed_simd_handler_clean,
+	.dbg_grc = &qed_dbg_grc,
+	.dbg_grc_size = &qed_dbg_grc_size,
 	.can_link_change = &qed_can_link_change,
 	.set_link = &qed_set_link,
 	.get_link = &qed_get_current_link,
@@ -1635,6 +1639,9 @@ void qed_get_protocol_stats(struct qed_dev *cdev,
 		stats->lan_stats.ucast_rx_pkts = eth_stats.rx_ucast_pkts;
 		stats->lan_stats.ucast_tx_pkts = eth_stats.tx_ucast_pkts;
 		stats->lan_stats.fcs_err = -1;
+		break;
+	case QED_MCP_FCOE_STATS:
+		qed_get_protocol_stats_fcoe(cdev, &stats->fcoe_stats);
 		break;
 	default:
 		DP_ERR(cdev, "Invalid protocol type = %d\n", type);

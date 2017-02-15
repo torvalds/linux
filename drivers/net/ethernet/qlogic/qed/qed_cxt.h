@@ -91,6 +91,7 @@ int qed_cxt_get_tid_mem_info(struct qed_hwfn *p_hwfn,
 
 #define QED_CXT_ISCSI_TID_SEG	PROTOCOLID_ISCSI
 #define QED_CXT_ROCE_TID_SEG	PROTOCOLID_ROCE
+#define QED_CXT_FCOE_TID_SEG	PROTOCOLID_FCOE
 enum qed_cxt_elem_type {
 	QED_ELEM_CXT,
 	QED_ELEM_SRQ,
@@ -204,4 +205,6 @@ int qed_cxt_free_proto_ilt(struct qed_hwfn *p_hwfn, enum protocol_type proto);
 
 #define QED_CTX_WORKING_MEM 0
 #define QED_CTX_FL_MEM 1
+int qed_cxt_get_task_ctx(struct qed_hwfn *p_hwfn,
+			 u32 tid, u8 ctx_type, void **task_ctx);
 #endif

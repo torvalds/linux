@@ -1130,6 +1130,9 @@ qed_mcp_get_shmem_proto(struct qed_hwfn *p_hwfn,
 	case FUNC_MF_CFG_PROTOCOL_ISCSI:
 		*p_proto = QED_PCI_ISCSI;
 		break;
+	case FUNC_MF_CFG_PROTOCOL_FCOE:
+		*p_proto = QED_PCI_FCOE;
+		break;
 	case FUNC_MF_CFG_PROTOCOL_ROCE:
 		DP_NOTICE(p_hwfn, "RoCE personality is not a valid value!\n");
 	/* Fallthrough */

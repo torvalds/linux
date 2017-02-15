@@ -7,3 +7,4 @@ qed-$(CONFIG_QED_SRIOV) += qed_sriov.o qed_vf.o
 qed-$(CONFIG_QED_LL2) += qed_ll2.o
 qed-$(CONFIG_QED_RDMA) += qed_roce.o
 qed-$(CONFIG_QED_ISCSI) += qed_iscsi.o qed_ooo.o
+qed-$(CONFIG_QED_FCOE) += qed_fcoe.o

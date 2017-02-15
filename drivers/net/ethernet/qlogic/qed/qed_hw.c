@@ -841,6 +841,9 @@ u16 qed_get_qm_pq(struct qed_hwfn *p_hwfn,
 		if (pq_id > p_hwfn->qm_info.num_pf_rls)
 			pq_id = p_hwfn->qm_info.offload_pq;
 		break;
+	case PROTOCOLID_FCOE:
+		pq_id = p_hwfn->qm_info.offload_pq;
+		break;
 	default:
 		pq_id = 0;
 	}

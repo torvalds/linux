@@ -109,6 +109,10 @@ union ramrod_data {
 	struct rdma_srq_destroy_ramrod_data rdma_destroy_srq;
 	struct rdma_srq_modify_ramrod_data rdma_modify_srq;
 	struct roce_init_func_ramrod_data roce_init_func;
+	struct fcoe_init_ramrod_params fcoe_init;
+	struct fcoe_conn_offload_ramrod_params fcoe_conn_ofld;
+	struct fcoe_conn_terminate_ramrod_params fcoe_conn_terminate;
+	struct fcoe_stat_ramrod_params fcoe_stat;
 
 	struct iscsi_slow_path_hdr iscsi_empty;
 	struct iscsi_init_ramrod_params iscsi_init;

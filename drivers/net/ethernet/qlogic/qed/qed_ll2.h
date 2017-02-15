@@ -54,7 +54,7 @@ enum qed_ll2_roce_flavor_type {
 };
 
 enum qed_ll2_conn_type {
-	QED_LL2_TYPE_RESERVED,
+	QED_LL2_TYPE_FCOE,
 	QED_LL2_TYPE_ISCSI,
 	QED_LL2_TYPE_TEST,
 	QED_LL2_TYPE_ISCSI_OOO,
