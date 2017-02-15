@@ -25,7 +25,7 @@
 #include "pcie-designware.h"
 
 struct dw_plat_pcie {
-	struct pcie_port	pp;	/* pp.dbi_base is DT 0th resource */
+	struct dw_pcie		*pci;
 };
 
 static irqreturn_t dw_plat_pcie_msi_irq_handler(int irq, void *arg)
@@ -37,21 +37,23 @@ static irqreturn_t dw_plat_pcie_msi_irq_handler(int irq, void *arg)
 
 static void dw_plat_pcie_host_init(struct pcie_port *pp)
 {
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+
 	dw_pcie_setup_rc(pp);
-	dw_pcie_wait_for_link(pp);
+	dw_pcie_wait_for_link(pci);
 
 	if (IS_ENABLED(CONFIG_PCI_MSI))
 		dw_pcie_msi_init(pp);
 }
 
-static struct pcie_host_ops dw_plat_pcie_host_ops = {
+static struct dw_pcie_host_ops dw_plat_pcie_host_ops = {
 	.host_init = dw_plat_pcie_host_init,
 };
 
 static int dw_plat_add_pcie_port(struct pcie_port *pp,
 				 struct platform_device *pdev)
 {
-	struct device *dev = pp->dev;
+	struct device *dev = &pdev->dev;
 	int ret;
 
 	pp->irq = platform_get_irq(pdev, 1);
@@ -88,7 +90,7 @@ static int dw_plat_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct dw_plat_pcie *dw_plat_pcie;
-	struct pcie_port *pp;
+	struct dw_pcie *pci;
 	struct resource *res;  /* Resource from DT */
 	int ret;
 
@@ -96,17 +98,20 @@ static int dw_plat_pcie_probe(struct platform_device *pdev)
 	if (!dw_plat_pcie)
 		return -ENOMEM;
 
-	pp = &dw_plat_pcie->pp;
-	pp->dev = dev;
+	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
+	if (!pci)
+		return -ENOMEM;
+
+	pci->dev = dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pp->dbi_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(pp->dbi_base))
-		return PTR_ERR(pp->dbi_base);
+	pci->dbi_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(pci->dbi_base))
+		return PTR_ERR(pci->dbi_base);
 
 	platform_set_drvdata(pdev, dw_plat_pcie);
 
-	ret = dw_plat_add_pcie_port(pp, pdev);
+	ret = dw_plat_add_pcie_port(&pci->pp, pdev);
 	if (ret < 0)
 		return ret;
 

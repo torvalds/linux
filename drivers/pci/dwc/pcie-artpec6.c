@@ -24,10 +24,10 @@
 
 #include "pcie-designware.h"
 
-#define to_artpec6_pcie(x)	container_of(x, struct artpec6_pcie, pp)
+#define to_artpec6_pcie(x)	dev_get_drvdata((x)->dev)
 
 struct artpec6_pcie {
-	struct pcie_port	pp;		/* pp.dbi_base is DT dbi */
+	struct dw_pcie		*pci;
 	struct regmap		*regmap;	/* DT axis,syscon-pcie */
 	void __iomem		*phy_base;	/* DT phy */
 };
@@ -80,7 +80,8 @@ static void artpec6_pcie_writel(struct artpec6_pcie *artpec6_pcie, u32 offset, u
 
 static int artpec6_pcie_establish_link(struct artpec6_pcie *artpec6_pcie)
 {
-	struct pcie_port *pp = &artpec6_pcie->pp;
+	struct dw_pcie *pci = artpec6_pcie->pci;
+	struct pcie_port *pp = &pci->pp;
 	u32 val;
 	unsigned int retries;
 
@@ -139,7 +140,7 @@ static int artpec6_pcie_establish_link(struct artpec6_pcie *artpec6_pcie)
 	 * Enable writing to config regs. This is required as the Synopsys
 	 * driver changes the class code. That register needs DBI write enable.
 	 */
-	dw_pcie_writel_rc(pp, MISC_CONTROL_1_OFF, DBI_RO_WR_EN);
+	dw_pcie_writel_dbi(pci, MISC_CONTROL_1_OFF, DBI_RO_WR_EN);
 
 	pp->io_base &= ARTPEC6_CPU_TO_BUS_ADDR;
 	pp->mem_base &= ARTPEC6_CPU_TO_BUS_ADDR;
@@ -155,19 +156,20 @@ static int artpec6_pcie_establish_link(struct artpec6_pcie *artpec6_pcie)
 	artpec6_pcie_writel(artpec6_pcie, PCIECFG, val);
 
 	/* check if the link is up or not */
-	if (!dw_pcie_wait_for_link(pp))
+	if (!dw_pcie_wait_for_link(pci))
 		return 0;
 
-	dev_dbg(pp->dev, "DEBUG_R0: 0x%08x, DEBUG_R1: 0x%08x\n",
-		dw_pcie_readl_rc(pp, PCIE_PHY_DEBUG_R0),
-		dw_pcie_readl_rc(pp, PCIE_PHY_DEBUG_R1));
+	dev_dbg(pci->dev, "DEBUG_R0: 0x%08x, DEBUG_R1: 0x%08x\n",
+		dw_pcie_readl_dbi(pci, PCIE_PHY_DEBUG_R0),
+		dw_pcie_readl_dbi(pci, PCIE_PHY_DEBUG_R1));
 
 	return -ETIMEDOUT;
 }
 
 static void artpec6_pcie_enable_interrupts(struct artpec6_pcie *artpec6_pcie)
 {
-	struct pcie_port *pp = &artpec6_pcie->pp;
+	struct dw_pcie *pci = artpec6_pcie->pci;
+	struct pcie_port *pp = &pci->pp;
 
 	if (IS_ENABLED(CONFIG_PCI_MSI))
 		dw_pcie_msi_init(pp);
@@ -175,20 +177,22 @@ static void artpec6_pcie_enable_interrupts(struct artpec6_pcie *artpec6_pcie)
 
 static void artpec6_pcie_host_init(struct pcie_port *pp)
 {
-	struct artpec6_pcie *artpec6_pcie = to_artpec6_pcie(pp);
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct artpec6_pcie *artpec6_pcie = to_artpec6_pcie(pci);
 
 	artpec6_pcie_establish_link(artpec6_pcie);
 	artpec6_pcie_enable_interrupts(artpec6_pcie);
 }
 
-static struct pcie_host_ops artpec6_pcie_host_ops = {
+static struct dw_pcie_host_ops artpec6_pcie_host_ops = {
 	.host_init = artpec6_pcie_host_init,
 };
 
 static irqreturn_t artpec6_pcie_msi_handler(int irq, void *arg)
 {
 	struct artpec6_pcie *artpec6_pcie = arg;
-	struct pcie_port *pp = &artpec6_pcie->pp;
+	struct dw_pcie *pci = artpec6_pcie->pci;
+	struct pcie_port *pp = &pci->pp;
 
 	return dw_handle_msi_irq(pp);
 }
@@ -196,8 +200,9 @@ static irqreturn_t artpec6_pcie_msi_handler(int irq, void *arg)
 static int artpec6_add_pcie_port(struct artpec6_pcie *artpec6_pcie,
 				 struct platform_device *pdev)
 {
-	struct pcie_port *pp = &artpec6_pcie->pp;
-	struct device *dev = pp->dev;
+	struct dw_pcie *pci = artpec6_pcie->pci;
+	struct pcie_port *pp = &pci->pp;
+	struct device *dev = pci->dev;
 	int ret;
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
@@ -232,8 +237,8 @@ static int artpec6_add_pcie_port(struct artpec6_pcie *artpec6_pcie,
 static int artpec6_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct dw_pcie *pci;
 	struct artpec6_pcie *artpec6_pcie;
-	struct pcie_port *pp;
 	struct resource *dbi_base;
 	struct resource *phy_base;
 	int ret;
@@ -242,13 +247,16 @@ static int artpec6_pcie_probe(struct platform_device *pdev)
 	if (!artpec6_pcie)
 		return -ENOMEM;
 
-	pp = &artpec6_pcie->pp;
-	pp->dev = dev;
+	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
+	if (!pci)
+		return -ENOMEM;
+
+	pci->dev = dev;
 
 	dbi_base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
-	pp->dbi_base = devm_ioremap_resource(dev, dbi_base);
-	if (IS_ERR(pp->dbi_base))
-		return PTR_ERR(pp->dbi_base);
+	pci->dbi_base = devm_ioremap_resource(dev, dbi_base);
+	if (IS_ERR(pci->dbi_base))
+		return PTR_ERR(pci->dbi_base);
 
 	phy_base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy");
 	artpec6_pcie->phy_base = devm_ioremap_resource(dev, phy_base);

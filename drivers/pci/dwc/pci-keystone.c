@@ -44,7 +44,7 @@
 #define PCIE_RC_K2E		0xb009
 #define PCIE_RC_K2L		0xb00a
 
-#define to_keystone_pcie(x)	container_of(x, struct keystone_pcie, pp)
+#define to_keystone_pcie(x)	dev_get_drvdata((x)->dev)
 
 static void quirk_limit_mrrs(struct pci_dev *dev)
 {
@@ -88,13 +88,14 @@ DECLARE_PCI_FIXUP_ENABLE(PCI_ANY_ID, PCI_ANY_ID, quirk_limit_mrrs);
 
 static int ks_pcie_establish_link(struct keystone_pcie *ks_pcie)
 {
-	struct pcie_port *pp = &ks_pcie->pp;
-	struct device *dev = pp->dev;
+	struct dw_pcie *pci = ks_pcie->pci;
+	struct pcie_port *pp = &pci->pp;
+	struct device *dev = pci->dev;
 	unsigned int retries;
 
 	dw_pcie_setup_rc(pp);
 
-	if (dw_pcie_link_up(pp)) {
+	if (dw_pcie_link_up(pci)) {
 		dev_err(dev, "Link already up\n");
 		return 0;
 	}
@@ -102,7 +103,7 @@ static int ks_pcie_establish_link(struct keystone_pcie *ks_pcie)
 	/* check if the link is up or not */
 	for (retries = 0; retries < 5; retries++) {
 		ks_dw_pcie_initiate_link_train(ks_pcie);
-		if (!dw_pcie_wait_for_link(pp))
+		if (!dw_pcie_wait_for_link(pci))
 			return 0;
 	}
 
@@ -115,8 +116,8 @@ static void ks_pcie_msi_irq_handler(struct irq_desc *desc)
 	unsigned int irq = irq_desc_get_irq(desc);
 	struct keystone_pcie *ks_pcie = irq_desc_get_handler_data(desc);
 	u32 offset = irq - ks_pcie->msi_host_irqs[0];
-	struct pcie_port *pp = &ks_pcie->pp;
-	struct device *dev = pp->dev;
+	struct dw_pcie *pci = ks_pcie->pci;
+	struct device *dev = pci->dev;
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 
 	dev_dbg(dev, "%s, irq %d\n", __func__, irq);
@@ -143,8 +144,8 @@ static void ks_pcie_legacy_irq_handler(struct irq_desc *desc)
 {
 	unsigned int irq = irq_desc_get_irq(desc);
 	struct keystone_pcie *ks_pcie = irq_desc_get_handler_data(desc);
-	struct pcie_port *pp = &ks_pcie->pp;
-	struct device *dev = pp->dev;
+	struct dw_pcie *pci = ks_pcie->pci;
+	struct device *dev = pci->dev;
 	u32 irq_offset = irq - ks_pcie->legacy_host_irqs[0];
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 
@@ -164,7 +165,7 @@ static int ks_pcie_get_irq_controller_info(struct keystone_pcie *ks_pcie,
 					   char *controller, int *num_irqs)
 {
 	int temp, max_host_irqs, legacy = 1, *host_irqs;
-	struct device *dev = ks_pcie->pp.dev;
+	struct device *dev = ks_pcie->pci->dev;
 	struct device_node *np_pcie = dev->of_node, **np_temp;
 
 	if (!strcmp(controller, "msi-interrupt-controller"))
@@ -262,24 +263,25 @@ static int keystone_pcie_fault(unsigned long addr, unsigned int fsr,
 
 static void __init ks_pcie_host_init(struct pcie_port *pp)
 {
-	struct keystone_pcie *ks_pcie = to_keystone_pcie(pp);
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct keystone_pcie *ks_pcie = to_keystone_pcie(pci);
 	u32 val;
 
 	ks_pcie_establish_link(ks_pcie);
 	ks_dw_pcie_setup_rc_app_regs(ks_pcie);
 	ks_pcie_setup_interrupts(ks_pcie);
 	writew(PCI_IO_RANGE_TYPE_32 | (PCI_IO_RANGE_TYPE_32 << 8),
-			pp->dbi_base + PCI_IO_BASE);
+			pci->dbi_base + PCI_IO_BASE);
 
 	/* update the Vendor ID */
-	writew(ks_pcie->device_id, pp->dbi_base + PCI_DEVICE_ID);
+	writew(ks_pcie->device_id, pci->dbi_base + PCI_DEVICE_ID);
 
 	/* update the DEV_STAT_CTRL to publish right mrrs */
-	val = readl(pp->dbi_base + PCIE_CAP_BASE + PCI_EXP_DEVCTL);
+	val = readl(pci->dbi_base + PCIE_CAP_BASE + PCI_EXP_DEVCTL);
 	val &= ~PCI_EXP_DEVCTL_READRQ;
 	/* set the mrrs to 256 bytes */
 	val |= BIT(12);
-	writel(val, pp->dbi_base + PCIE_CAP_BASE + PCI_EXP_DEVCTL);
+	writel(val, pci->dbi_base + PCIE_CAP_BASE + PCI_EXP_DEVCTL);
 
 	/*
 	 * PCIe access errors that result into OCP errors are caught by ARM as
@@ -289,10 +291,9 @@ static void __init ks_pcie_host_init(struct pcie_port *pp)
 			"Asynchronous external abort");
 }
 
-static struct pcie_host_ops keystone_pcie_host_ops = {
+static struct dw_pcie_host_ops keystone_pcie_host_ops = {
 	.rd_other_conf = ks_dw_pcie_rd_other_conf,
 	.wr_other_conf = ks_dw_pcie_wr_other_conf,
-	.link_up = ks_dw_pcie_link_up,
 	.host_init = ks_pcie_host_init,
 	.msi_set_irq = ks_dw_pcie_msi_set_irq,
 	.msi_clear_irq = ks_dw_pcie_msi_clear_irq,
@@ -311,8 +312,9 @@ static irqreturn_t pcie_err_irq_handler(int irq, void *priv)
 static int __init ks_add_pcie_port(struct keystone_pcie *ks_pcie,
 			 struct platform_device *pdev)
 {
-	struct pcie_port *pp = &ks_pcie->pp;
-	struct device *dev = pp->dev;
+	struct dw_pcie *pci = ks_pcie->pci;
+	struct pcie_port *pp = &pci->pp;
+	struct device *dev = &pdev->dev;
 	int ret;
 
 	ret = ks_pcie_get_irq_controller_info(ks_pcie,
@@ -365,6 +367,10 @@ static const struct of_device_id ks_pcie_of_match[] = {
 	{ },
 };
 
+static const struct dw_pcie_ops dw_pcie_ops = {
+	.link_up = ks_dw_pcie_link_up,
+};
+
 static int __exit ks_pcie_remove(struct platform_device *pdev)
 {
 	struct keystone_pcie *ks_pcie = platform_get_drvdata(pdev);
@@ -377,8 +383,8 @@ static int __exit ks_pcie_remove(struct platform_device *pdev)
 static int __init ks_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct dw_pcie *pci;
 	struct keystone_pcie *ks_pcie;
-	struct pcie_port *pp;
 	struct resource *res;
 	void __iomem *reg_p;
 	struct phy *phy;
@@ -388,8 +394,12 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 	if (!ks_pcie)
 		return -ENOMEM;
 
-	pp = &ks_pcie->pp;
-	pp->dev = dev;
+	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
+	if (!pci)
+		return -ENOMEM;
+
+	pci->dev = dev;
+	pci->ops = &dw_pcie_ops;
 
 	/* initialize SerDes Phy if present */
 	phy = devm_phy_get(dev, "pcie-phy");

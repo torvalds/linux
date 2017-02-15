@@ -93,10 +93,27 @@
 #define MAX_MSI_IRQS			32
 #define MAX_MSI_CTRLS			(MAX_MSI_IRQS / 32)
 
+struct pcie_port;
+struct dw_pcie;
+
+struct dw_pcie_host_ops {
+	int (*rd_own_conf)(struct pcie_port *pp, int where, int size, u32 *val);
+	int (*wr_own_conf)(struct pcie_port *pp, int where, int size, u32 val);
+	int (*rd_other_conf)(struct pcie_port *pp, struct pci_bus *bus,
+			     unsigned int devfn, int where, int size, u32 *val);
+	int (*wr_other_conf)(struct pcie_port *pp, struct pci_bus *bus,
+			     unsigned int devfn, int where, int size, u32 val);
+	void (*host_init)(struct pcie_port *pp);
+	void (*msi_set_irq)(struct pcie_port *pp, int irq);
+	void (*msi_clear_irq)(struct pcie_port *pp, int irq);
+	phys_addr_t (*get_msi_addr)(struct pcie_port *pp);
+	u32 (*get_msi_data)(struct pcie_port *pp, int pos);
+	void (*scan_bus)(struct pcie_port *pp);
+	int (*msi_host_init)(struct pcie_port *pp, struct msi_controller *chip);
+};
+
 struct pcie_port {
-	struct device		*dev;
 	u8			root_bus_nr;
-	void __iomem		*dbi_base;
 	u64			cfg0_base;
 	void __iomem		*va_cfg0_base;
 	u32			cfg0_size;
@@ -114,44 +131,40 @@ struct pcie_port {
 	struct resource		*mem;
 	struct resource		*busn;
 	int			irq;
-	u32			lanes;
-	u32			num_viewport;
-	struct pcie_host_ops	*ops;
+	struct dw_pcie_host_ops	*ops;
 	int			msi_irq;
 	struct irq_domain	*irq_domain;
 	unsigned long		msi_data;
-	u8			iatu_unroll_enabled;
 	DECLARE_BITMAP(msi_irq_in_use, MAX_MSI_IRQS);
 };
 
-struct pcie_host_ops {
-	u32 (*readl_rc)(struct pcie_port *pp, u32 reg);
-	void (*writel_rc)(struct pcie_port *pp, u32 reg, u32 val);
-	int (*rd_own_conf)(struct pcie_port *pp, int where, int size, u32 *val);
-	int (*wr_own_conf)(struct pcie_port *pp, int where, int size, u32 val);
-	int (*rd_other_conf)(struct pcie_port *pp, struct pci_bus *bus,
-			unsigned int devfn, int where, int size, u32 *val);
-	int (*wr_other_conf)(struct pcie_port *pp, struct pci_bus *bus,
-			unsigned int devfn, int where, int size, u32 val);
-	int (*link_up)(struct pcie_port *pp);
-	void (*host_init)(struct pcie_port *pp);
-	void (*msi_set_irq)(struct pcie_port *pp, int irq);
-	void (*msi_clear_irq)(struct pcie_port *pp, int irq);
-	phys_addr_t (*get_msi_addr)(struct pcie_port *pp);
-	u32 (*get_msi_data)(struct pcie_port *pp, int pos);
-	void (*scan_bus)(struct pcie_port *pp);
-	int (*msi_host_init)(struct pcie_port *pp, struct msi_controller *chip);
+struct dw_pcie_ops {
+	u32	(*readl_dbi)(struct dw_pcie *pcie, u32 reg);
+	void	(*writel_dbi)(struct dw_pcie *pcie, u32 reg, u32 val);
+	int	(*link_up)(struct dw_pcie *pcie);
 };
 
-u32 dw_pcie_readl_rc(struct pcie_port *pp, u32 reg);
-void dw_pcie_writel_rc(struct pcie_port *pp, u32 reg, u32 val);
+struct dw_pcie {
+	struct device		*dev;
+	void __iomem		*dbi_base;
+	u32			lanes;
+	u32			num_viewport;
+	u8			iatu_unroll_enabled;
+	struct pcie_port	pp;
+	const struct dw_pcie_ops *ops;
+};
+
+#define to_dw_pcie_from_pp(port) container_of((port), struct dw_pcie, pp)
+
 int dw_pcie_read(void __iomem *addr, int size, u32 *val);
 int dw_pcie_write(void __iomem *addr, int size, u32 val);
 irqreturn_t dw_handle_msi_irq(struct pcie_port *pp);
 void dw_pcie_msi_init(struct pcie_port *pp);
-int dw_pcie_wait_for_link(struct pcie_port *pp);
-int dw_pcie_link_up(struct pcie_port *pp);
 void dw_pcie_setup_rc(struct pcie_port *pp);
 int dw_pcie_host_init(struct pcie_port *pp);
 
+u32 dw_pcie_readl_dbi(struct dw_pcie *pci, u32 reg);
+void dw_pcie_writel_dbi(struct dw_pcie *pci, u32 reg, u32 val);
+int dw_pcie_link_up(struct dw_pcie *pci);
+int dw_pcie_wait_for_link(struct dw_pcie *pci);
 #endif /* _PCIE_DESIGNWARE_H */

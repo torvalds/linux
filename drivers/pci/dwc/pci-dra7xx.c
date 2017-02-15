@@ -67,7 +67,7 @@
 #define EXP_CAP_ID_OFFSET				0x70
 
 struct dra7xx_pcie {
-	struct pcie_port	pp;
+	struct dw_pcie		*pci;
 	void __iomem		*base;		/* DT ti_conf */
 	int			phy_count;	/* DT phy-names count */
 	struct phy		**phy;
@@ -75,7 +75,7 @@ struct dra7xx_pcie {
 	struct irq_domain	*irq_domain;
 };
 
-#define to_dra7xx_pcie(x)	container_of((x), struct dra7xx_pcie, pp)
+#define to_dra7xx_pcie(x)	dev_get_drvdata((x)->dev)
 
 static inline u32 dra7xx_pcie_readl(struct dra7xx_pcie *pcie, u32 offset)
 {
@@ -88,9 +88,9 @@ static inline void dra7xx_pcie_writel(struct dra7xx_pcie *pcie, u32 offset,
 	writel(value, pcie->base + offset);
 }
 
-static int dra7xx_pcie_link_up(struct pcie_port *pp)
+static int dra7xx_pcie_link_up(struct dw_pcie *pci)
 {
-	struct dra7xx_pcie *dra7xx = to_dra7xx_pcie(pp);
+	struct dra7xx_pcie *dra7xx = to_dra7xx_pcie(pci);
 	u32 reg = dra7xx_pcie_readl(dra7xx, PCIECTRL_DRA7XX_CONF_PHY_CS);
 
 	return !!(reg & LINK_UP);
@@ -98,32 +98,32 @@ static int dra7xx_pcie_link_up(struct pcie_port *pp)
 
 static int dra7xx_pcie_establish_link(struct dra7xx_pcie *dra7xx)
 {
-	struct pcie_port *pp = &dra7xx->pp;
-	struct device *dev = pp->dev;
+	struct dw_pcie *pci = dra7xx->pci;
+	struct device *dev = pci->dev;
 	u32 reg;
 	u32 exp_cap_off = EXP_CAP_ID_OFFSET;
 
-	if (dw_pcie_link_up(pp)) {
+	if (dw_pcie_link_up(pci)) {
 		dev_err(dev, "link is already up\n");
 		return 0;
 	}
 
 	if (dra7xx->link_gen == 1) {
-		dw_pcie_read(pp->dbi_base + exp_cap_off + PCI_EXP_LNKCAP,
+		dw_pcie_read(pci->dbi_base + exp_cap_off + PCI_EXP_LNKCAP,
 			     4, &reg);
 		if ((reg & PCI_EXP_LNKCAP_SLS) != PCI_EXP_LNKCAP_SLS_2_5GB) {
 			reg &= ~((u32)PCI_EXP_LNKCAP_SLS);
 			reg |= PCI_EXP_LNKCAP_SLS_2_5GB;
-			dw_pcie_write(pp->dbi_base + exp_cap_off +
+			dw_pcie_write(pci->dbi_base + exp_cap_off +
 				      PCI_EXP_LNKCAP, 4, reg);
 		}
 
-		dw_pcie_read(pp->dbi_base + exp_cap_off + PCI_EXP_LNKCTL2,
+		dw_pcie_read(pci->dbi_base + exp_cap_off + PCI_EXP_LNKCTL2,
 			     2, &reg);
 		if ((reg & PCI_EXP_LNKCAP_SLS) != PCI_EXP_LNKCAP_SLS_2_5GB) {
 			reg &= ~((u32)PCI_EXP_LNKCAP_SLS);
 			reg |= PCI_EXP_LNKCAP_SLS_2_5GB;
-			dw_pcie_write(pp->dbi_base + exp_cap_off +
+			dw_pcie_write(pci->dbi_base + exp_cap_off +
 				      PCI_EXP_LNKCTL2, 2, reg);
 		}
 	}
@@ -132,7 +132,7 @@ static int dra7xx_pcie_establish_link(struct dra7xx_pcie *dra7xx)
 	reg |= LTSSM_EN;
 	dra7xx_pcie_writel(dra7xx, PCIECTRL_DRA7XX_CONF_DEVICE_CMD, reg);
 
-	return dw_pcie_wait_for_link(pp);
+	return dw_pcie_wait_for_link(pci);
 }
 
 static void dra7xx_pcie_enable_interrupts(struct dra7xx_pcie *dra7xx)
@@ -149,7 +149,8 @@ static void dra7xx_pcie_enable_interrupts(struct dra7xx_pcie *dra7xx)
 
 static void dra7xx_pcie_host_init(struct pcie_port *pp)
 {
-	struct dra7xx_pcie *dra7xx = to_dra7xx_pcie(pp);
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct dra7xx_pcie *dra7xx = to_dra7xx_pcie(pci);
 
 	pp->io_base &= DRA7XX_CPU_TO_BUS_ADDR;
 	pp->mem_base &= DRA7XX_CPU_TO_BUS_ADDR;
@@ -163,8 +164,7 @@ static void dra7xx_pcie_host_init(struct pcie_port *pp)
 	dra7xx_pcie_enable_interrupts(dra7xx);
 }
 
-static struct pcie_host_ops dra7xx_pcie_host_ops = {
-	.link_up = dra7xx_pcie_link_up,
+static struct dw_pcie_host_ops dra7xx_pcie_host_ops = {
 	.host_init = dra7xx_pcie_host_init,
 };
 
@@ -183,8 +183,9 @@ static const struct irq_domain_ops intx_domain_ops = {
 
 static int dra7xx_pcie_init_irq_domain(struct pcie_port *pp)
 {
-	struct device *dev = pp->dev;
-	struct dra7xx_pcie *dra7xx = to_dra7xx_pcie(pp);
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct device *dev = pci->dev;
+	struct dra7xx_pcie *dra7xx = to_dra7xx_pcie(pci);
 	struct device_node *node = dev->of_node;
 	struct device_node *pcie_intc_node =  of_get_next_child(node, NULL);
 
@@ -206,7 +207,8 @@ static int dra7xx_pcie_init_irq_domain(struct pcie_port *pp)
 static irqreturn_t dra7xx_pcie_msi_irq_handler(int irq, void *arg)
 {
 	struct dra7xx_pcie *dra7xx = arg;
-	struct pcie_port *pp = &dra7xx->pp;
+	struct dw_pcie *pci = dra7xx->pci;
+	struct pcie_port *pp = &pci->pp;
 	u32 reg;
 
 	reg = dra7xx_pcie_readl(dra7xx, PCIECTRL_DRA7XX_CONF_IRQSTATUS_MSI);
@@ -233,7 +235,8 @@ static irqreturn_t dra7xx_pcie_msi_irq_handler(int irq, void *arg)
 static irqreturn_t dra7xx_pcie_irq_handler(int irq, void *arg)
 {
 	struct dra7xx_pcie *dra7xx = arg;
-	struct device *dev = dra7xx->pp.dev;
+	struct dw_pcie *pci = dra7xx->pci;
+	struct device *dev = pci->dev;
 	u32 reg;
 
 	reg = dra7xx_pcie_readl(dra7xx, PCIECTRL_DRA7XX_CONF_IRQSTATUS_MAIN);
@@ -288,8 +291,9 @@ static int __init dra7xx_add_pcie_port(struct dra7xx_pcie *dra7xx,
 				       struct platform_device *pdev)
 {
 	int ret;
-	struct pcie_port *pp = &dra7xx->pp;
-	struct device *dev = pp->dev;
+	struct dw_pcie *pci = dra7xx->pci;
+	struct pcie_port *pp = &pci->pp;
+	struct device *dev = pci->dev;
 	struct resource *res;
 
 	pp->irq = platform_get_irq(pdev, 1);
@@ -311,8 +315,8 @@ static int __init dra7xx_add_pcie_port(struct dra7xx_pcie *dra7xx,
 		return ret;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rc_dbics");
-	pp->dbi_base = devm_ioremap(dev, res->start, resource_size(res));
-	if (!pp->dbi_base)
+	pci->dbi_base = devm_ioremap(dev, res->start, resource_size(res));
+	if (!pci->dbi_base)
 		return -ENOMEM;
 
 	ret = dw_pcie_host_init(pp);
@@ -323,6 +327,10 @@ static int __init dra7xx_add_pcie_port(struct dra7xx_pcie *dra7xx,
 
 	return 0;
 }
+
+static const struct dw_pcie_ops dw_pcie_ops = {
+	.link_up = dra7xx_pcie_link_up,
+};
 
 static void dra7xx_pcie_disable_phy(struct dra7xx_pcie *dra7xx)
 {
@@ -373,8 +381,9 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 	struct phy **phy;
 	void __iomem *base;
 	struct resource *res;
-	struct dra7xx_pcie *dra7xx;
+	struct dw_pcie *pci;
 	struct pcie_port *pp;
+	struct dra7xx_pcie *dra7xx;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	char name[10];
@@ -384,8 +393,14 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 	if (!dra7xx)
 		return -ENOMEM;
 
-	pp = &dra7xx->pp;
-	pp->dev = dev;
+	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
+	if (!pci)
+		return -ENOMEM;
+
+	pci->dev = dev;
+	pci->ops = &dw_pcie_ops;
+
+	pp = &pci->pp;
 	pp->ops = &dra7xx_pcie_host_ops;
 
 	irq = platform_get_irq(pdev, 0);
@@ -425,6 +440,7 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 
 	dra7xx->base = base;
 	dra7xx->phy = phy;
+	dra7xx->pci = pci;
 	dra7xx->phy_count = phy_count;
 
 	ret = dra7xx_pcie_enable_phy(dra7xx);
@@ -477,13 +493,13 @@ err_get_sync:
 static int dra7xx_pcie_suspend(struct device *dev)
 {
 	struct dra7xx_pcie *dra7xx = dev_get_drvdata(dev);
-	struct pcie_port *pp = &dra7xx->pp;
+	struct dw_pcie *pci = dra7xx->pci;
 	u32 val;
 
 	/* clear MSE */
-	val = dw_pcie_readl_rc(pp, PCI_COMMAND);
+	val = dw_pcie_readl_dbi(pci, PCI_COMMAND);
 	val &= ~PCI_COMMAND_MEMORY;
-	dw_pcie_writel_rc(pp, PCI_COMMAND, val);
+	dw_pcie_writel_dbi(pci, PCI_COMMAND, val);
 
 	return 0;
 }
@@ -491,13 +507,13 @@ static int dra7xx_pcie_suspend(struct device *dev)
 static int dra7xx_pcie_resume(struct device *dev)
 {
 	struct dra7xx_pcie *dra7xx = dev_get_drvdata(dev);
-	struct pcie_port *pp = &dra7xx->pp;
+	struct dw_pcie *pci = dra7xx->pci;
 	u32 val;
 
 	/* set MSE */
-	val = dw_pcie_readl_rc(pp, PCI_COMMAND);
+	val = dw_pcie_readl_dbi(pci, PCI_COMMAND);
 	val |= PCI_COMMAND_MEMORY;
-	dw_pcie_writel_rc(pp, PCI_COMMAND, val);
+	dw_pcie_writel_dbi(pci, PCI_COMMAND, val);
 
 	return 0;
 }
