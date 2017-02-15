@@ -193,7 +193,6 @@ static int ppgtt_bind_vma(struct i915_vma *vma,
 	u32 pte_flags;
 	int ret;
 
-	trace_i915_va_alloc(vma);
 	ret = vma->vm->allocate_va_range(vma->vm, vma->node.start, vma->size);
 	if (ret)
 		return ret;
@@ -1321,9 +1320,6 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 
 		ppgtt->base.total = 1ULL << 32;
 		ppgtt->switch_mm = gen8_legacy_mm_switch;
-		trace_i915_page_directory_pointer_entry_alloc(&ppgtt->base,
-							      0, 0,
-							      GEN8_PML4E_SHIFT);
 
 		if (intel_vgpu_active(dev_priv)) {
 			ret = gen8_preallocate_top_level_pdp(ppgtt);
