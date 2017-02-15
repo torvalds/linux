@@ -215,6 +215,7 @@ enum txdone_entry_desc_flags {
 	TXDONE_FAILURE,
 	TXDONE_EXCESSIVE_RETRY,
 	TXDONE_AMPDU,
+	TXDONE_NO_ACK_REQ,
 };
 
 /**

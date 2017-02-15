@@ -357,6 +357,9 @@ static void rt2x00lib_fill_tx_status(struct rt2x00_dev *rt2x00dev,
 	if (i < (IEEE80211_TX_MAX_RATES - 1))
 		tx_info->status.rates[i].idx = -1; /* terminate */
 
+	if (test_bit(TXDONE_NO_ACK_REQ, &txdesc->flags))
+		tx_info->flags |= IEEE80211_TX_CTL_NO_ACK;
+
 	if (!(tx_info->flags & IEEE80211_TX_CTL_NO_ACK)) {
 		if (success)
 			tx_info->flags |= IEEE80211_TX_STAT_ACK;
@@ -375,7 +378,8 @@ static void rt2x00lib_fill_tx_status(struct rt2x00_dev *rt2x00dev,
 	 */
 	if (test_bit(TXDONE_AMPDU, &txdesc->flags) ||
 	    tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
-		tx_info->flags |= IEEE80211_TX_STAT_AMPDU;
+		tx_info->flags |= IEEE80211_TX_STAT_AMPDU |
+				  IEEE80211_TX_CTL_AMPDU;
 		tx_info->status.ampdu_len = 1;
 		tx_info->status.ampdu_ack_len = success ? 1 : 0;
 
