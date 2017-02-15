@@ -1483,7 +1483,13 @@ static int __init fbtft_device_init(void)
 			displays[i].pdev->name = name;
 			displays[i].spi = NULL;
 		} else {
-			strlcpy(displays[i].spi->modalias, name, SPI_NAME_SIZE);
+			size_t len;
+
+			len = strlcpy(displays[i].spi->modalias, name,
+				SPI_NAME_SIZE);
+			if (len >= SPI_NAME_SIZE)
+				pr_warn("modalias (name) truncated to: %s\n",
+					displays[i].spi->modalias);
 			displays[i].pdev = NULL;
 		}
 	}
