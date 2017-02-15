@@ -197,7 +197,8 @@ tasks, since it generally exists anyway.
 
 A driver must have all firmwares it may need in RAM before suspend() is called.
 If keeping them is not practical, for example due to their size, they must be
-requested early enough using the suspend notifier API described in notifiers.txt.
+requested early enough using the suspend notifier API described in
+Documentation/driver-api/pm/notifiers.rst.
 
 VI. Are there any precautions to be taken to prevent freezing failures?
 

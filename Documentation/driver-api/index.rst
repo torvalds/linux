@@ -16,11 +16,15 @@ available subsections can be seen below.
 
    basics
    infrastructure
+   pm/index
+   device-io
    dma-buf
    device_link
    message-based
    sound
    frame-buffer
+   regulator
+   iio/index
    input
    usb
    spi
