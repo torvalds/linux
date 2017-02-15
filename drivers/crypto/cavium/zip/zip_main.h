@@ -68,6 +68,20 @@ struct zip_registers {
 	u64   reg_offset;
 };
 
+/* ZIP Compression - Decompression stats */
+struct zip_stats {
+	atomic64_t    comp_req_submit;
+	atomic64_t    comp_req_complete;
+	atomic64_t    decomp_req_submit;
+	atomic64_t    decomp_req_complete;
+	atomic64_t    pending_req;
+	atomic64_t    comp_in_bytes;
+	atomic64_t    comp_out_bytes;
+	atomic64_t    decomp_in_bytes;
+	atomic64_t    decomp_out_bytes;
+	atomic64_t    decomp_bad_reqs;
+};
+
 /* ZIP Instruction Queue */
 struct zip_iq {
 	u64        *sw_head;
@@ -93,6 +107,7 @@ struct zip_device {
 	u64               ctxsize;
 
 	struct zip_iq     iq[ZIP_MAX_NUM_QUEUES];
+	struct zip_stats  stats;
 };
 
 /* Prototypes */

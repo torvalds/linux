@@ -122,11 +122,18 @@ int zip_deflate(struct zip_operation *zip_ops, struct zip_state *s,
 	/* Prepares zip command based on the input parameters */
 	prepare_zip_command(zip_ops, s, zip_cmd);
 
+	atomic64_add(zip_ops->input_len, &zip_dev->stats.comp_in_bytes);
 	/* Loads zip command into command queues and rings door bell */
 	queue = zip_load_instr(zip_cmd, zip_dev);
 
+	/* Stats update for compression requests submitted */
+	atomic64_inc(&zip_dev->stats.comp_req_submit);
+
 	while (!result_ptr->s.compcode)
 		continue;
+
+	/* Stats update for compression requests completed */
+	atomic64_inc(&zip_dev->stats.comp_req_complete);
 
 	zip_ops->compcode = result_ptr->s.compcode;
 	switch (zip_ops->compcode) {
@@ -174,6 +181,9 @@ int zip_deflate(struct zip_operation *zip_ops, struct zip_state *s,
 	default:
 		zip_err("Unknown Format:%d\n", zip_ops->format);
 	}
+
+	atomic64_add(result_ptr->s.totalbyteswritten,
+		     &zip_dev->stats.comp_out_bytes);
 
 	/* Update output_len */
 	if (zip_ops->output_len < result_ptr->s.totalbyteswritten) {

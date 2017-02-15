@@ -135,11 +135,19 @@ int zip_inflate(struct zip_operation *zip_ops, struct zip_state *s,
 	/* Prepare inflate zip command */
 	prepare_inflate_zcmd(zip_ops, s, zip_cmd);
 
+	atomic64_add(zip_ops->input_len, &zip_dev->stats.decomp_in_bytes);
+
 	/* Load inflate command to zip queue and ring the doorbell */
 	queue = zip_load_instr(zip_cmd, zip_dev);
 
+	/* Decompression requests submitted stats update */
+	atomic64_inc(&zip_dev->stats.decomp_req_submit);
+
 	while (!result_ptr->s.compcode)
 		continue;
+
+	/* Decompression requests completed stats update */
+	atomic64_inc(&zip_dev->stats.decomp_req_complete);
 
 	zip_ops->compcode = result_ptr->s.compcode;
 	switch (zip_ops->compcode) {
@@ -157,6 +165,7 @@ int zip_inflate(struct zip_operation *zip_ops, struct zip_state *s,
 
 	default:
 		zip_dbg("Instruction failed. Code = %d\n", zip_ops->compcode);
+		atomic64_inc(&zip_dev->stats.decomp_bad_reqs);
 		zip_update_cmd_bufs(zip_dev, queue);
 		return ZIP_ERROR;
 	}
@@ -168,6 +177,9 @@ int zip_inflate(struct zip_operation *zip_ops, struct zip_state *s,
 		result_ptr->s.ef = 1;
 
 	zip_ops->csum = result_ptr->s.adler32;
+
+	atomic64_add(result_ptr->s.totalbyteswritten,
+		     &zip_dev->stats.decomp_out_bytes);
 
 	if (zip_ops->output_len < result_ptr->s.totalbyteswritten) {
 		zip_err("output_len (%d) < total bytes written (%d)\n",
