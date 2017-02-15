@@ -149,6 +149,8 @@ static void do_setup(struct net_device *netdev)
 {
 	ether_setup(netdev);
 
+	netdev->max_mtu = ETH_MAX_MTU;
+
 	netdev->netdev_ops = &internal_dev_netdev_ops;
 
 	netdev->priv_flags &= ~IFF_TX_SKB_SHARING;
