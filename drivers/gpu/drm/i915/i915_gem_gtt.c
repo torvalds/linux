@@ -1887,6 +1887,11 @@ static void gen6_ppgtt_clear_range(struct i915_address_space *vm,
 	}
 }
 
+struct sgt_dma {
+	struct scatterlist *sg;
+	dma_addr_t dma, max;
+};
+
 static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 				      struct sg_table *pages,
 				      uint64_t start,
@@ -1896,27 +1901,34 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 	unsigned first_entry = start >> PAGE_SHIFT;
 	unsigned act_pt = first_entry / GEN6_PTES;
 	unsigned act_pte = first_entry % GEN6_PTES;
-	gen6_pte_t *pt_vaddr = NULL;
-	struct sgt_iter sgt_iter;
-	dma_addr_t addr;
+	const u32 pte_encode = vm->pte_encode(0, cache_level, flags);
+	struct sgt_dma iter;
+	gen6_pte_t *vaddr;
 
-	for_each_sgt_dma(addr, sgt_iter, pages) {
-		if (pt_vaddr == NULL)
-			pt_vaddr = kmap_px(ppgtt->pd.page_table[act_pt]);
+	vaddr = kmap_px(ppgtt->pd.page_table[act_pt]);
+	iter.sg = pages->sgl;
+	iter.dma = sg_dma_address(iter.sg);
+	iter.max = iter.dma + iter.sg->length;
+	do {
+		vaddr[act_pte] = pte_encode | GEN6_PTE_ADDR_ENCODE(iter.dma);
 
-		pt_vaddr[act_pte] =
-			vm->pte_encode(addr, cache_level, flags);
+		iter.dma += PAGE_SIZE;
+		if (iter.dma == iter.max) {
+			iter.sg = __sg_next(iter.sg);
+			if (!iter.sg)
+				break;
+
+			iter.dma = sg_dma_address(iter.sg);
+			iter.max = iter.dma + iter.sg->length;
+		}
 
 		if (++act_pte == GEN6_PTES) {
-			kunmap_px(ppgtt, pt_vaddr);
-			pt_vaddr = NULL;
-			act_pt++;
+			kunmap_px(ppgtt, vaddr);
+			vaddr = kmap_px(ppgtt->pd.page_table[++act_pt]);
 			act_pte = 0;
 		}
-	}
-
-	if (pt_vaddr)
-		kunmap_px(ppgtt, pt_vaddr);
+	} while (1);
+	kunmap_px(ppgtt, vaddr);
 }
 
 static int gen6_alloc_va_range(struct i915_address_space *vm,
@@ -2502,27 +2514,13 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 				     enum i915_cache_level level, u32 flags)
 {
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
-	struct sgt_iter sgt_iter;
-	gen6_pte_t __iomem *gtt_entries;
-	gen6_pte_t gtt_entry;
+	gen6_pte_t __iomem *entries = (gen6_pte_t __iomem *)ggtt->gsm;
+	unsigned int i = start >> PAGE_SHIFT;
+	struct sgt_iter iter;
 	dma_addr_t addr;
-	int i = 0;
-
-	gtt_entries = (gen6_pte_t __iomem *)ggtt->gsm + (start >> PAGE_SHIFT);
-
-	for_each_sgt_dma(addr, sgt_iter, st) {
-		gtt_entry = vm->pte_encode(addr, level, flags);
-		iowrite32(gtt_entry, &gtt_entries[i++]);
-	}
-
-	/* XXX: This serves as a posting read to make sure that the PTE has
-	 * actually been updated. There is some concern that even though
-	 * registers and PTEs are within the same BAR that they are potentially
-	 * of NUMA access patterns. Therefore, even with the way we assume
-	 * hardware should work, we must keep this posting read for paranoia.
-	 */
-	if (i != 0)
-		WARN_ON(readl(&gtt_entries[i-1]) != gtt_entry);
+	for_each_sgt_dma(addr, iter, st)
+		iowrite32(vm->pte_encode(addr, level, flags), &entries[i++]);
+	wmb();
 
 	/* This next bit makes the above posting read even more important. We
 	 * want to flush the TLBs only after we're certain all the PTE updates
