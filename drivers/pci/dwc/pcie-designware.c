@@ -33,7 +33,7 @@
 
 static struct pci_ops dw_pcie_ops;
 
-int dw_pcie_cfg_read(void __iomem *addr, int size, u32 *val)
+int dw_pcie_read(void __iomem *addr, int size, u32 *val)
 {
 	if ((uintptr_t)addr & (size - 1)) {
 		*val = 0;
@@ -54,7 +54,7 @@ int dw_pcie_cfg_read(void __iomem *addr, int size, u32 *val)
 	return PCIBIOS_SUCCESSFUL;
 }
 
-int dw_pcie_cfg_write(void __iomem *addr, int size, u32 val)
+int dw_pcie_write(void __iomem *addr, int size, u32 val)
 {
 	if ((uintptr_t)addr & (size - 1))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
@@ -108,7 +108,7 @@ static int dw_pcie_rd_own_conf(struct pcie_port *pp, int where, int size,
 	if (pp->ops->rd_own_conf)
 		return pp->ops->rd_own_conf(pp, where, size, val);
 
-	return dw_pcie_cfg_read(pp->dbi_base + where, size, val);
+	return dw_pcie_read(pp->dbi_base + where, size, val);
 }
 
 static int dw_pcie_wr_own_conf(struct pcie_port *pp, int where, int size,
@@ -117,7 +117,7 @@ static int dw_pcie_wr_own_conf(struct pcie_port *pp, int where, int size,
 	if (pp->ops->wr_own_conf)
 		return pp->ops->wr_own_conf(pp, where, size, val);
 
-	return dw_pcie_cfg_write(pp->dbi_base + where, size, val);
+	return dw_pcie_write(pp->dbi_base + where, size, val);
 }
 
 static void dw_pcie_prog_outbound_atu(struct pcie_port *pp, int index,
@@ -635,7 +635,7 @@ static int dw_pcie_rd_other_conf(struct pcie_port *pp, struct pci_bus *bus,
 	dw_pcie_prog_outbound_atu(pp, PCIE_ATU_REGION_INDEX1,
 				  type, cpu_addr,
 				  busdev, cfg_size);
-	ret = dw_pcie_cfg_read(va_cfg_base + where, size, val);
+	ret = dw_pcie_read(va_cfg_base + where, size, val);
 	if (pp->num_viewport <= 2)
 		dw_pcie_prog_outbound_atu(pp, PCIE_ATU_REGION_INDEX1,
 					  PCIE_ATU_TYPE_IO, pp->io_base,
@@ -673,7 +673,7 @@ static int dw_pcie_wr_other_conf(struct pcie_port *pp, struct pci_bus *bus,
 	dw_pcie_prog_outbound_atu(pp, PCIE_ATU_REGION_INDEX1,
 				  type, cpu_addr,
 				  busdev, cfg_size);
-	ret = dw_pcie_cfg_write(va_cfg_base + where, size, val);
+	ret = dw_pcie_write(va_cfg_base + where, size, val);
 	if (pp->num_viewport <= 2)
 		dw_pcie_prog_outbound_atu(pp, PCIE_ATU_REGION_INDEX1,
 					  PCIE_ATU_TYPE_IO, pp->io_base,
