@@ -136,6 +136,9 @@ struct plat_stmmacenet_data {
 	void (*fix_mac_speed)(void *priv, unsigned int speed);
 	int (*init)(struct platform_device *pdev, void *priv);
 	void (*exit)(struct platform_device *pdev, void *priv);
+	struct mac_device_info *(*setup)(void __iomem *ioaddr, int mcbins,
+					 int perfect_uc_entries,
+					 int *synopsys_id);
 	void *bsp_priv;
 	struct clk *stmmac_clk;
 	struct clk *pclk;
