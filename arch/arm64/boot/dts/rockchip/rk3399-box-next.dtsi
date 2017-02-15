@@ -141,14 +141,8 @@
 			sound-dai = <&i2s2>;
 		};
 		simple-audio-card,codec {
-			sound-dai = <&dw_hdmi_audio>;
+			sound-dai = <&hdmi>;
 		};
-	};
-
-	dw_hdmi_audio: dw-hdmi-audio {
-		status = "okay";
-		compatible = "rockchip,dw-hdmi-audio";
-		#sound-dai-cells = <0>;
 	};
 
 	sdio_pwrseq: sdio-pwrseq {
