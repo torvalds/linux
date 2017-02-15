@@ -282,9 +282,8 @@ static int usb_extcon_resume(struct device *dev)
 	if (info->vbus_gpiod)
 		enable_irq(info->vbus_irq);
 
-	if (!device_may_wakeup(dev))
-		queue_delayed_work(system_power_efficient_wq,
-				   &info->wq_detcable, 0);
+	queue_delayed_work(system_power_efficient_wq,
+			   &info->wq_detcable, 0);
 
 	return ret;
 }
