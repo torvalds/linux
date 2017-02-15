@@ -30,6 +30,7 @@
 #include <media/videobuf2-vmalloc.h>
 
 #include "coda.h"
+#include "imx-vdoa.h"
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
@@ -758,7 +759,7 @@ static void coda9_set_frame_cache(struct coda_ctx *ctx, u32 fourcc)
 		cache_config = 1 << CODA9_CACHE_PAGEMERGE_OFFSET;
 	}
 	coda_write(ctx->dev, cache_size, CODA9_CMD_SET_FRAME_CACHE_SIZE);
-	if (fourcc == V4L2_PIX_FMT_NV12) {
+	if (fourcc == V4L2_PIX_FMT_NV12 || fourcc == V4L2_PIX_FMT_YUYV) {
 		cache_config |= 32 << CODA9_CACHE_LUMA_BUFFER_SIZE_OFFSET |
 				16 << CODA9_CACHE_CR_BUFFER_SIZE_OFFSET |
 				0 << CODA9_CACHE_CB_BUFFER_SIZE_OFFSET;
@@ -1517,6 +1518,10 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 	u32 val;
 	int ret;
 
+	v4l2_dbg(1, coda_debug, &dev->v4l2_dev,
+		 "Video Data Order Adapter: %s\n",
+		 ctx->use_vdoa ? "Enabled" : "Disabled");
+
 	/* Start decoding */
 	q_data_src = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
 	q_data_dst = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
@@ -1532,10 +1537,11 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 
 	ctx->frame_mem_ctrl &= ~(CODA_FRAME_CHROMA_INTERLEAVE | (0x3 << 9) |
 				 CODA9_FRAME_TILED2LINEAR);
-	if (dst_fourcc == V4L2_PIX_FMT_NV12)
+	if (dst_fourcc == V4L2_PIX_FMT_NV12 || dst_fourcc == V4L2_PIX_FMT_YUYV)
 		ctx->frame_mem_ctrl |= CODA_FRAME_CHROMA_INTERLEAVE;
 	if (ctx->tiled_map_type == GDI_TILED_FRAME_MB_RASTER_MAP)
-		ctx->frame_mem_ctrl |= (0x3 << 9) | CODA9_FRAME_TILED2LINEAR;
+		ctx->frame_mem_ctrl |= (0x3 << 9) |
+			((ctx->use_vdoa) ? 0 : CODA9_FRAME_TILED2LINEAR);
 	coda_write(dev, ctx->frame_mem_ctrl, CODA_REG_BIT_FRAME_MEM_CTRL);
 
 	ctx->display_idx = -1;
@@ -1618,6 +1624,15 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 		 __func__, ctx->idx, width, height);
 
 	ctx->num_internal_frames = coda_read(dev, CODA_RET_DEC_SEQ_FRAME_NEED);
+	/*
+	 * If the VDOA is used, the decoder needs one additional frame,
+	 * because the frames are freed when the next frame is decoded.
+	 * Otherwise there are visible errors in the decoded frames (green
+	 * regions in displayed frames) and a broken order of frames (earlier
+	 * frames are sporadically displayed after later frames).
+	 */
+	if (ctx->use_vdoa)
+		ctx->num_internal_frames += 1;
 	if (ctx->num_internal_frames > CODA_MAX_FRAMEBUFFERS) {
 		v4l2_err(&dev->v4l2_dev,
 			 "not enough framebuffers to decode (%d < %d)\n",
@@ -1724,6 +1739,7 @@ static int coda_prepare_decode(struct coda_ctx *ctx)
 	struct coda_q_data *q_data_dst;
 	struct coda_buffer_meta *meta;
 	unsigned long flags;
+	u32 rot_mode = 0;
 	u32 reg_addr, reg_stride;
 
 	dst_buf = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
@@ -1759,27 +1775,40 @@ static int coda_prepare_decode(struct coda_ctx *ctx)
 	if (dev->devtype->product == CODA_960)
 		coda_set_gdi_regs(ctx);
 
-	if (dev->devtype->product == CODA_960) {
-		/*
-		 * The CODA960 seems to have an internal list of buffers with
-		 * 64 entries that includes the registered frame buffers as
-		 * well as the rotator buffer output.
-		 * ROT_INDEX needs to be < 0x40, but > ctx->num_internal_frames.
-		 */
-		coda_write(dev, CODA_MAX_FRAMEBUFFERS + dst_buf->vb2_buf.index,
-				CODA9_CMD_DEC_PIC_ROT_INDEX);
-
-		reg_addr = CODA9_CMD_DEC_PIC_ROT_ADDR_Y;
-		reg_stride = CODA9_CMD_DEC_PIC_ROT_STRIDE;
+	if (ctx->use_vdoa &&
+	    ctx->display_idx >= 0 &&
+	    ctx->display_idx < ctx->num_internal_frames) {
+		vdoa_device_run(ctx->vdoa,
+				vb2_dma_contig_plane_dma_addr(&dst_buf->vb2_buf, 0),
+				ctx->internal_frames[ctx->display_idx].paddr);
 	} else {
-		reg_addr = CODA_CMD_DEC_PIC_ROT_ADDR_Y;
-		reg_stride = CODA_CMD_DEC_PIC_ROT_STRIDE;
-	}
-	coda_write_base(ctx, q_data_dst, dst_buf, reg_addr);
-	coda_write(dev, q_data_dst->bytesperline, reg_stride);
+		if (dev->devtype->product == CODA_960) {
+			/*
+			 * The CODA960 seems to have an internal list of
+			 * buffers with 64 entries that includes the
+			 * registered frame buffers as well as the rotator
+			 * buffer output.
+			 *
+			 * ROT_INDEX needs to be < 0x40, but >
+			 * ctx->num_internal_frames.
+			 */
+			coda_write(dev,
+				   CODA_MAX_FRAMEBUFFERS + dst_buf->vb2_buf.index,
+				   CODA9_CMD_DEC_PIC_ROT_INDEX);
 
-	coda_write(dev, CODA_ROT_MIR_ENABLE | ctx->params.rot_mode,
-			CODA_CMD_DEC_PIC_ROT_MODE);
+			reg_addr = CODA9_CMD_DEC_PIC_ROT_ADDR_Y;
+			reg_stride = CODA9_CMD_DEC_PIC_ROT_STRIDE;
+		} else {
+			reg_addr = CODA_CMD_DEC_PIC_ROT_ADDR_Y;
+			reg_stride = CODA_CMD_DEC_PIC_ROT_STRIDE;
+		}
+		coda_write_base(ctx, q_data_dst, dst_buf, reg_addr);
+		coda_write(dev, q_data_dst->bytesperline, reg_stride);
+
+		rot_mode = CODA_ROT_MIR_ENABLE | ctx->params.rot_mode;
+	}
+
+	coda_write(dev, rot_mode, CODA_CMD_DEC_PIC_ROT_MODE);
 
 	switch (dev->devtype->product) {
 	case CODA_DX6:
@@ -1851,6 +1880,7 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 	u32 src_fourcc;
 	int success;
 	u32 err_mb;
+	int err_vdoa = 0;
 	u32 val;
 
 	/* Update kfifo out pointer from coda bitstream read pointer */
@@ -1934,13 +1964,17 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 		}
 	}
 
+	/* Wait until the VDOA finished writing the previous display frame */
+	if (ctx->use_vdoa &&
+	    ctx->display_idx >= 0 &&
+	    ctx->display_idx < ctx->num_internal_frames) {
+		err_vdoa = vdoa_wait_for_completion(ctx->vdoa);
+	}
+
 	ctx->frm_dis_flg = coda_read(dev,
 				     CODA_REG_BIT_FRM_DIS_FLG(ctx->reg_idx));
 
-	/*
-	 * The previous display frame was copied out by the rotator,
-	 * now it can be overwritten again
-	 */
+	/* The previous display frame was copied out and can be overwritten */
 	if (ctx->display_idx >= 0 &&
 	    ctx->display_idx < ctx->num_internal_frames) {
 		ctx->frm_dis_flg &= ~(1 << ctx->display_idx);
@@ -2045,6 +2079,9 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 		trace_coda_dec_rot_done(ctx, dst_buf, meta);
 
 		switch (q_data_dst->fourcc) {
+		case V4L2_PIX_FMT_YUYV:
+			payload = width * height * 2;
+			break;
 		case V4L2_PIX_FMT_YUV420:
 		case V4L2_PIX_FMT_YVU420:
 		case V4L2_PIX_FMT_NV12:
@@ -2057,8 +2094,10 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 		}
 		vb2_set_plane_payload(&dst_buf->vb2_buf, 0, payload);
 
-		coda_m2m_buf_done(ctx, dst_buf, ctx->frame_errors[display_idx] ?
-				  VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
+		if (ctx->frame_errors[ctx->display_idx] || err_vdoa)
+			coda_m2m_buf_done(ctx, dst_buf, VB2_BUF_STATE_ERROR);
+		else
+			coda_m2m_buf_done(ctx, dst_buf, VB2_BUF_STATE_DONE);
 
 		v4l2_dbg(1, coda_debug, &dev->v4l2_dev,
 			"job finished: decoding frame (%d) (%s)\n",

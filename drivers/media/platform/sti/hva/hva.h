@@ -21,7 +21,8 @@
 
 #define ctx_to_hdev(c)  (c->hva_dev)
 
-#define HVA_PREFIX "[---:----]"
+#define HVA_NAME	"st-hva"
+#define HVA_PREFIX	"[---:----]"
 
 extern const struct hva_enc nv12h264enc;
 extern const struct hva_enc nv21h264enc;
@@ -153,6 +154,61 @@ struct hva_stream {
 #define to_hva_stream(vb) \
 	container_of(vb, struct hva_stream, vbuf)
 
+#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
+/**
+ * struct hva_ctx_dbg - instance context debug info
+ *
+ * @debugfs_entry:      debugfs entry
+ * @is_valid_period:    true if the sequence is valid for performance
+ * @begin:              start time of last HW task
+ * @total_duration:     total HW processing durations in 0.1ms
+ * @cnt_duration:       number of HW processings
+ * @min_duration:       minimum HW processing duration in 0.1ms
+ * @max_duration:       maximum HW processing duration in 0.1ms
+ * @avg_duration:       average HW processing duration in 0.1ms
+ * @max_fps:            maximum frames encoded per second (in 0.1Hz)
+ * @total_period:       total encoding periods in 0.1ms
+ * @cnt_period:         number of periods
+ * @min_period:         minimum encoding period in 0.1ms
+ * @max_period:         maximum encoding period in 0.1ms
+ * @avg_period:         average encoding period in 0.1ms
+ * @total_stream_size:  total number of encoded bytes
+ * @avg_fps:            average frames encoded per second (in 0.1Hz)
+ * @window_duration:    duration of the sampling window in 0.1ms
+ * @cnt_window:         number of samples in the window
+ * @window_stream_size: number of encoded bytes upon the sampling window
+ * @last_bitrate:       bitrate upon the last sampling window
+ * @min_bitrate:        minimum bitrate in kbps
+ * @max_bitrate:        maximum bitrate in kbps
+ * @avg_bitrate:        average bitrate in kbps
+ */
+struct hva_ctx_dbg {
+	struct dentry	*debugfs_entry;
+	bool		is_valid_period;
+	ktime_t		begin;
+	u32		total_duration;
+	u32		cnt_duration;
+	u32		min_duration;
+	u32		max_duration;
+	u32		avg_duration;
+	u32		max_fps;
+	u32		total_period;
+	u32		cnt_period;
+	u32		min_period;
+	u32		max_period;
+	u32		avg_period;
+	u32		total_stream_size;
+	u32		avg_fps;
+	u32		window_duration;
+	u32		cnt_window;
+	u32		window_stream_size;
+	u32		last_bitrate;
+	u32		min_bitrate;
+	u32		max_bitrate;
+	u32		avg_bitrate;
+};
+#endif
+
 struct hva_dev;
 struct hva_enc;
 
@@ -182,6 +238,11 @@ struct hva_enc;
  * @priv:            private codec data for this instance, allocated
  *                   by encoder @open time
  * @hw_err:          true if hardware error detected
+ * @encoded_frames:  number of encoded frames
+ * @sys_errors:      number of system errors (memory, resource, pm...)
+ * @encode_errors:   number of encoding errors (hw/driver errors)
+ * @frame_errors:    number of frame errors (format, size, header...)
+ * @dbg:             context debug info
  */
 struct hva_ctx {
 	struct hva_dev		        *hva_dev;
@@ -207,10 +268,30 @@ struct hva_ctx {
 	struct hva_enc			*enc;
 	void				*priv;
 	bool				hw_err;
+	u32				encoded_frames;
+	u32				sys_errors;
+	u32				encode_errors;
+	u32				frame_errors;
+#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
+	struct hva_ctx_dbg		dbg;
+#endif
 };
 
 #define HVA_FLAG_STREAMINFO	0x0001
 #define HVA_FLAG_FRAMEINFO	0x0002
+
+#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
+/**
+ * struct hva_dev_dbg - device debug info
+ *
+ * @debugfs_entry: debugfs entry
+ * @last_ctx:      debug information about last running instance context
+ */
+struct hva_dev_dbg {
+	struct dentry	*debugfs_entry;
+	struct hva_ctx	last_ctx;
+};
+#endif
 
 #define HVA_MAX_INSTANCES	16
 #define HVA_MAX_ENCODERS	10
@@ -250,6 +331,7 @@ struct hva_ctx {
  * @lmi_err_reg:         local memory interface error register value
  * @emi_err_reg:         external memory interface error register value
  * @hec_mif_err_reg:     HEC memory interface error register value
+ * @dbg:                 device debug info
  */
 struct hva_dev {
 	struct v4l2_device	v4l2_dev;
@@ -284,6 +366,9 @@ struct hva_dev {
 	u32			lmi_err_reg;
 	u32			emi_err_reg;
 	u32			hec_mif_err_reg;
+#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
+	struct hva_dev_dbg	dbg;
+#endif
 };
 
 /**
@@ -311,5 +396,14 @@ struct hva_enc {
 	int		(*encode)(struct hva_ctx *ctx, struct hva_frame *frame,
 				  struct hva_stream *stream);
 };
+
+#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
+void hva_debugfs_create(struct hva_dev *hva);
+void hva_debugfs_remove(struct hva_dev *hva);
+void hva_dbg_ctx_create(struct hva_ctx *ctx);
+void hva_dbg_ctx_remove(struct hva_ctx *ctx);
+void hva_dbg_perf_begin(struct hva_ctx *ctx);
+void hva_dbg_perf_end(struct hva_ctx *ctx, struct hva_stream *stream);
+#endif
 
 #endif /* HVA_H */

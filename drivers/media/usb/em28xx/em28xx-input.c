@@ -259,18 +259,21 @@ static int em2874_polling_getkey(struct em28xx_IR *ir,
 		break;
 
 	case RC_BIT_NEC:
-		poll_result->protocol = RC_TYPE_RC5;
 		poll_result->scancode = msg[1] << 8 | msg[2];
-		if ((msg[3] ^ msg[4]) != 0xff)		/* 32 bits NEC */
+		if ((msg[3] ^ msg[4]) != 0xff) {	/* 32 bits NEC */
+			poll_result->protocol = RC_TYPE_NEC32;
 			poll_result->scancode = RC_SCANCODE_NEC32((msg[1] << 24) |
 								  (msg[2] << 16) |
 								  (msg[3] << 8)  |
 								  (msg[4]));
-		else if ((msg[1] ^ msg[2]) != 0xff)	/* 24 bits NEC */
+		} else if ((msg[1] ^ msg[2]) != 0xff) {	/* 24 bits NEC */
+			poll_result->protocol = RC_TYPE_NECX;
 			poll_result->scancode = RC_SCANCODE_NECX(msg[1] << 8 |
 								 msg[2], msg[3]);
-		else					/* Normal NEC */
+		} else {				/* Normal NEC */
+			poll_result->protocol = RC_TYPE_NEC;
 			poll_result->scancode = RC_SCANCODE_NEC(msg[1], msg[3]);
+		}
 		break;
 
 	case RC_BIT_RC6_0:
@@ -719,7 +722,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
 	if (!ir)
 		return -ENOMEM;
-	rc = rc_allocate_device();
+	rc = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!rc)
 		goto error;
 
@@ -777,7 +780,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 		case CHIP_ID_EM28178:
 			ir->get_key = em2874_polling_getkey;
 			rc->allowed_protocols = RC_BIT_RC5 | RC_BIT_NEC |
-					     RC_BIT_RC6_0;
+				RC_BIT_NECX | RC_BIT_NEC32 | RC_BIT_RC6_0;
 			break;
 		default:
 			err = -ENODEV;

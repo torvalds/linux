@@ -592,9 +592,9 @@ struct v4l2_subdev_ir_ops {
 /**
  * struct v4l2_subdev_pad_config - Used for storing subdev pad information.
  *
- * @try_fmt: pointer to &struct v4l2_mbus_framefmt
- * @try_crop: pointer to &struct v4l2_rect to be used for crop
- * @try_compose: pointer to &struct v4l2_rect to be used for compose
+ * @try_fmt: &struct v4l2_mbus_framefmt
+ * @try_crop: &struct v4l2_rect to be used for crop
+ * @try_compose: &struct v4l2_rect to be used for compose
  *
  * This structure only needs to be passed to the pad op if the 'which' field
  * of the main argument is set to %V4L2_SUBDEV_FORMAT_TRY. For

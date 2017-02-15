@@ -1596,7 +1596,7 @@ static int fdp1_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	else
 		fdp1_try_fmt_capture(ctx, NULL, &f->fmt.pix_mp);
 
-	dprintk(ctx->fdp1, "Try %s format: %4s (0x%08x) %ux%u field %u\n",
+	dprintk(ctx->fdp1, "Try %s format: %4.4s (0x%08x) %ux%u field %u\n",
 		V4L2_TYPE_IS_OUTPUT(f->type) ? "output" : "capture",
 		(char *)&f->fmt.pix_mp.pixelformat, f->fmt.pix_mp.pixelformat,
 		f->fmt.pix_mp.width, f->fmt.pix_mp.height, f->fmt.pix_mp.field);
@@ -1671,7 +1671,7 @@ static int fdp1_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 
 	fdp1_set_format(ctx, &f->fmt.pix_mp, f->type);
 
-	dprintk(ctx->fdp1, "Set %s format: %4s (0x%08x) %ux%u field %u\n",
+	dprintk(ctx->fdp1, "Set %s format: %4.4s (0x%08x) %ux%u field %u\n",
 		V4L2_TYPE_IS_OUTPUT(f->type) ? "output" : "capture",
 		(char *)&f->fmt.pix_mp.pixelformat, f->fmt.pix_mp.pixelformat,
 		f->fmt.pix_mp.width, f->fmt.pix_mp.height, f->fmt.pix_mp.field);

@@ -20,10 +20,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  *  Stripped of 2.4 stuff ready for main kernel submit by
  *		Alan Cox <alan@lxorguk.ukuu.org.uk>
  ****************************************************************************/
@@ -551,11 +547,9 @@ static int write_packet(struct usb_device *udev,
 	if (!registers || size <= 0)
 		return -EINVAL;
 
-	buf = kmalloc(size, GFP_KERNEL);
+	buf = kmemdup(registers, size, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
-
-	memcpy(buf, registers, size);
 
 	ret = usb_control_msg(udev,
 			       usb_sndctrlpipe(udev, 0),

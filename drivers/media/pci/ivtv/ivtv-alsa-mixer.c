@@ -13,27 +13,17 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- *  02111-1307  USA
  */
 
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/device.h>
-#include <linux/spinlock.h>
-#include <linux/videodev2.h>
+#include "ivtv-alsa.h"
+#include "ivtv-alsa-mixer.h"
+#include "ivtv-driver.h"
 
-#include <media/v4l2-device.h>
+#include <linux/videodev2.h>
 
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/tlv.h>
-
-#include "ivtv-alsa.h"
-#include "ivtv-driver.h"
 
 /*
  * Note the cx25840-core volume scale is funny, due to the alignment of the
