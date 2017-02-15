@@ -2648,6 +2648,15 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 	return 0;
 }
 
+static void ggtt_unbind_vma(struct i915_vma *vma)
+{
+	struct drm_i915_private *i915 = vma->vm->i915;
+
+	intel_runtime_pm_get(i915);
+	vma->vm->clear_range(vma->vm, vma->node.start, vma->size);
+	intel_runtime_pm_put(i915);
+}
+
 static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 				 enum i915_cache_level cache_level,
 				 u32 flags)
@@ -2684,22 +2693,21 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 	return 0;
 }
 
-static void ggtt_unbind_vma(struct i915_vma *vma)
+static void aliasing_gtt_unbind_vma(struct i915_vma *vma)
 {
 	struct drm_i915_private *i915 = vma->vm->i915;
-	struct i915_hw_ppgtt *appgtt = i915->mm.aliasing_ppgtt;
-	const u64 size = min(vma->size, vma->node.size);
 
 	if (vma->flags & I915_VMA_GLOBAL_BIND) {
 		intel_runtime_pm_get(i915);
-		vma->vm->clear_range(vma->vm,
-				     vma->node.start, size);
+		vma->vm->clear_range(vma->vm, vma->node.start, vma->size);
 		intel_runtime_pm_put(i915);
 	}
 
-	if (vma->flags & I915_VMA_LOCAL_BIND && appgtt)
-		appgtt->base.clear_range(&appgtt->base,
-					 vma->node.start, size);
+	if (vma->flags & I915_VMA_LOCAL_BIND) {
+		struct i915_address_space *vm = &i915->mm.aliasing_ppgtt->base;
+
+		vm->clear_range(vm, vma->node.start, vma->size);
+	}
 }
 
 void i915_gem_gtt_finish_pages(struct drm_i915_gem_object *obj,
@@ -2760,8 +2768,12 @@ int i915_gem_init_aliasing_ppgtt(struct drm_i915_private *i915)
 				ppgtt->base.total);
 
 	i915->mm.aliasing_ppgtt = ppgtt;
+
 	WARN_ON(ggtt->base.bind_vma != ggtt_bind_vma);
 	ggtt->base.bind_vma = aliasing_gtt_bind_vma;
+
+	WARN_ON(ggtt->base.unbind_vma != ggtt_unbind_vma);
+	ggtt->base.unbind_vma = aliasing_gtt_unbind_vma;
 
 	return 0;
 
@@ -2782,6 +2794,7 @@ void i915_gem_fini_aliasing_ppgtt(struct drm_i915_private *i915)
 	i915_ppgtt_put(ppgtt);
 
 	ggtt->base.bind_vma = ggtt_bind_vma;
+	ggtt->base.unbind_vma = ggtt_unbind_vma;
 }
 
 int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
