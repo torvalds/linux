@@ -417,6 +417,56 @@ static void rt2x00lib_clear_entry(struct rt2x00_dev *rt2x00dev,
 	spin_unlock_bh(&entry->queue->tx_lock);
 }
 
+void rt2x00lib_txdone_nomatch(struct queue_entry *entry,
+			      struct txdone_entry_desc *txdesc)
+{
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
+	struct ieee80211_tx_info txinfo = {};
+	bool success;
+
+	/*
+	 * Unmap the skb.
+	 */
+	rt2x00queue_unmap_skb(entry);
+
+	/*
+	 * Signal that the TX descriptor is no longer in the skb.
+	 */
+	skbdesc->flags &= ~SKBDESC_DESC_IN_SKB;
+
+	/*
+	 * Send frame to debugfs immediately, after this call is completed
+	 * we are going to overwrite the skb->cb array.
+	 */
+	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_TXDONE, entry);
+
+	/*
+	 * Determine if the frame has been successfully transmitted and
+	 * remove BARs from our check list while checking for their
+	 * TX status.
+	 */
+	success =
+	    rt2x00lib_txdone_bar_status(entry) ||
+	    test_bit(TXDONE_SUCCESS, &txdesc->flags);
+
+	if (!test_bit(TXDONE_UNKNOWN, &txdesc->flags)) {
+		/*
+		 * Update TX statistics.
+		 */
+		rt2x00dev->link.qual.tx_success += success;
+		rt2x00dev->link.qual.tx_failed += !success;
+
+		rt2x00lib_fill_tx_status(rt2x00dev, &txinfo, skbdesc, txdesc,
+					 success);
+		ieee80211_tx_status_noskb(rt2x00dev->hw, skbdesc->sta, &txinfo);
+	}
+
+	dev_kfree_skb_any(entry->skb);
+	rt2x00lib_clear_entry(rt2x00dev, entry);
+}
+EXPORT_SYMBOL_GPL(rt2x00lib_txdone_nomatch);
+
 void rt2x00lib_txdone(struct queue_entry *entry,
 		      struct txdone_entry_desc *txdesc)
 {
