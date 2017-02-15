@@ -446,8 +446,9 @@ static u8 dw_pcie_iatu_unroll_enabled(struct pcie_port *pp)
 
 int dw_pcie_host_init(struct pcie_port *pp)
 {
-	struct device_node *np = pp->dev->of_node;
-	struct platform_device *pdev = to_platform_device(pp->dev);
+	struct device *dev = pp->dev;
+	struct device_node *np = dev->of_node;
+	struct platform_device *pdev = to_platform_device(dev);
 	struct pci_bus *bus, *child;
 	struct resource *cfg_res;
 	int i, ret;
@@ -461,14 +462,14 @@ int dw_pcie_host_init(struct pcie_port *pp)
 		pp->cfg0_base = cfg_res->start;
 		pp->cfg1_base = cfg_res->start + pp->cfg0_size;
 	} else if (!pp->va_cfg0_base) {
-		dev_err(pp->dev, "missing *config* reg space\n");
+		dev_err(dev, "missing *config* reg space\n");
 	}
 
 	ret = of_pci_get_host_bridge_resources(np, 0, 0xff, &res, &pp->io_base);
 	if (ret)
 		return ret;
 
-	ret = devm_request_pci_bus_resources(&pdev->dev, &res);
+	ret = devm_request_pci_bus_resources(dev, &res);
 	if (ret)
 		goto error;
 
@@ -478,7 +479,7 @@ int dw_pcie_host_init(struct pcie_port *pp)
 		case IORESOURCE_IO:
 			ret = pci_remap_iospace(win->res, pp->io_base);
 			if (ret) {
-				dev_warn(pp->dev, "error %d: failed to map resource %pR\n",
+				dev_warn(dev, "error %d: failed to map resource %pR\n",
 					 ret, win->res);
 				resource_list_destroy_entry(win);
 			} else {
@@ -508,10 +509,10 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	}
 
 	if (!pp->dbi_base) {
-		pp->dbi_base = devm_ioremap(pp->dev, pp->cfg->start,
+		pp->dbi_base = devm_ioremap(dev, pp->cfg->start,
 					resource_size(pp->cfg));
 		if (!pp->dbi_base) {
-			dev_err(pp->dev, "error with ioremap\n");
+			dev_err(dev, "error with ioremap\n");
 			ret = -ENOMEM;
 			goto error;
 		}
@@ -520,20 +521,20 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	pp->mem_base = pp->mem->start;
 
 	if (!pp->va_cfg0_base) {
-		pp->va_cfg0_base = devm_ioremap(pp->dev, pp->cfg0_base,
+		pp->va_cfg0_base = devm_ioremap(dev, pp->cfg0_base,
 						pp->cfg0_size);
 		if (!pp->va_cfg0_base) {
-			dev_err(pp->dev, "error with ioremap in function\n");
+			dev_err(dev, "error with ioremap in function\n");
 			ret = -ENOMEM;
 			goto error;
 		}
 	}
 
 	if (!pp->va_cfg1_base) {
-		pp->va_cfg1_base = devm_ioremap(pp->dev, pp->cfg1_base,
+		pp->va_cfg1_base = devm_ioremap(dev, pp->cfg1_base,
 						pp->cfg1_size);
 		if (!pp->va_cfg1_base) {
-			dev_err(pp->dev, "error with ioremap\n");
+			dev_err(dev, "error with ioremap\n");
 			ret = -ENOMEM;
 			goto error;
 		}
@@ -549,11 +550,11 @@ int dw_pcie_host_init(struct pcie_port *pp)
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		if (!pp->ops->msi_host_init) {
-			pp->irq_domain = irq_domain_add_linear(pp->dev->of_node,
+			pp->irq_domain = irq_domain_add_linear(dev->of_node,
 						MAX_MSI_IRQS, &msi_domain_ops,
 						&dw_pcie_msi_chip);
 			if (!pp->irq_domain) {
-				dev_err(pp->dev, "irq domain init failed\n");
+				dev_err(dev, "irq domain init failed\n");
 				ret = -ENXIO;
 				goto error;
 			}
@@ -572,12 +573,12 @@ int dw_pcie_host_init(struct pcie_port *pp)
 
 	pp->root_bus_nr = pp->busn->start;
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-		bus = pci_scan_root_bus_msi(pp->dev, pp->root_bus_nr,
+		bus = pci_scan_root_bus_msi(dev, pp->root_bus_nr,
 					    &dw_pcie_ops, pp, &res,
 					    &dw_pcie_msi_chip);
-		dw_pcie_msi_chip.dev = pp->dev;
+		dw_pcie_msi_chip.dev = dev;
 	} else
-		bus = pci_scan_root_bus(pp->dev, pp->root_bus_nr, &dw_pcie_ops,
+		bus = pci_scan_root_bus(dev, pp->root_bus_nr, &dw_pcie_ops,
 					pp, &res);
 	if (!bus) {
 		ret = -ENOMEM;
