@@ -149,7 +149,7 @@ struct cppi41_dd {
 };
 
 #define FIST_COMPLETION_QUEUE	93
-static struct chan_queues usb_queues_tx[] = {
+static struct chan_queues am335x_usb_queues_tx[] = {
 	/* USB0 ENDP 1 */
 	[ 0] = { .submit = 32, .complete =  93},
 	[ 1] = { .submit = 34, .complete =  94},
@@ -185,7 +185,7 @@ static struct chan_queues usb_queues_tx[] = {
 	[29] = { .submit = 90, .complete = 139},
 };
 
-static const struct chan_queues usb_queues_rx[] = {
+static const struct chan_queues am335x_usb_queues_rx[] = {
 	/* USB0 ENDP 1 */
 	[ 0] = { .submit =  1, .complete = 109},
 	[ 1] = { .submit =  2, .complete = 110},
@@ -932,8 +932,9 @@ static bool cpp41_dma_filter_fn(struct dma_chan *chan, void *param)
 	else
 		queues = cdd->queues_rx;
 
-	BUILD_BUG_ON(ARRAY_SIZE(usb_queues_rx) != ARRAY_SIZE(usb_queues_tx));
-	if (WARN_ON(cchan->port_num > ARRAY_SIZE(usb_queues_rx)))
+	BUILD_BUG_ON(ARRAY_SIZE(am335x_usb_queues_rx) !=
+		     ARRAY_SIZE(am335x_usb_queues_tx));
+	if (WARN_ON(cchan->port_num > ARRAY_SIZE(am335x_usb_queues_rx)))
 		return false;
 
 	cchan->q_num = queues[cchan->port_num].submit;
@@ -961,15 +962,15 @@ static struct dma_chan *cppi41_dma_xlate(struct of_phandle_args *dma_spec,
 			&dma_spec->args[0]);
 }
 
-static const struct cppi_glue_infos usb_infos = {
+static const struct cppi_glue_infos am335x_usb_infos = {
 	.isr = cppi41_irq,
-	.queues_rx = usb_queues_rx,
-	.queues_tx = usb_queues_tx,
+	.queues_rx = am335x_usb_queues_rx,
+	.queues_tx = am335x_usb_queues_tx,
 	.td_queue = { .submit = 31, .complete = 0 },
 };
 
 static const struct of_device_id cppi41_dma_ids[] = {
-	{ .compatible = "ti,am3359-cppi41", .data = &usb_infos},
+	{ .compatible = "ti,am3359-cppi41", .data = &am335x_usb_infos},
 	{},
 };
 MODULE_DEVICE_TABLE(of, cppi41_dma_ids);
