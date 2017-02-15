@@ -490,7 +490,8 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 			amdgpu_ip_block_add(adev, &dce_virtual_ip_block);
 		amdgpu_ip_block_add(adev, &gfx_v9_0_ip_block);
 		amdgpu_ip_block_add(adev, &sdma_v4_0_ip_block);
-		amdgpu_ip_block_add(adev, &uvd_v7_0_ip_block);
+		if (!amdgpu_sriov_vf(adev))
+			amdgpu_ip_block_add(adev, &uvd_v7_0_ip_block);
 		amdgpu_ip_block_add(adev, &vce_v4_0_ip_block);
 		break;
 	default:
