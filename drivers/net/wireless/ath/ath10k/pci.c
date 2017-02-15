@@ -1651,6 +1651,8 @@ static int ath10k_pci_hif_start(struct ath10k *ar)
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot hif start\n");
 
+	napi_enable(&ar->napi);
+
 	ath10k_pci_irq_enable(ar);
 	ath10k_pci_rx_post(ar);
 
@@ -2535,7 +2537,6 @@ static int ath10k_pci_hif_power_up(struct ath10k *ar)
 		ath10k_err(ar, "could not wake up target CPU: %d\n", ret);
 		goto err_ce;
 	}
-	napi_enable(&ar->napi);
 
 	return 0;
 
