@@ -442,7 +442,15 @@ static void stmmac_ethtool_gregs(struct net_device *dev,
 
 	memset(reg_space, 0x0, REG_SPACE_SIZE);
 
-	if (!(priv->plat->has_gmac || priv->plat->has_gmac4)) {
+	if (priv->plat->has_gmac || priv->plat->has_gmac4) {
+		/* MAC registers */
+		for (i = 0; i < 55; i++)
+			reg_space[i] = readl(priv->ioaddr + (i * 4));
+		/* DMA registers */
+		for (i = 0; i < 22; i++)
+			reg_space[i + 55] =
+			    readl(priv->ioaddr + (DMA_BUS_MODE + (i * 4)));
+	} else {
 		/* MAC registers */
 		for (i = 0; i < 12; i++)
 			reg_space[i] = readl(priv->ioaddr + (i * 4));
@@ -452,14 +460,6 @@ static void stmmac_ethtool_gregs(struct net_device *dev,
 			    readl(priv->ioaddr + (DMA_BUS_MODE + (i * 4)));
 		reg_space[22] = readl(priv->ioaddr + DMA_CUR_TX_BUF_ADDR);
 		reg_space[23] = readl(priv->ioaddr + DMA_CUR_RX_BUF_ADDR);
-	} else {
-		/* MAC registers */
-		for (i = 0; i < 55; i++)
-			reg_space[i] = readl(priv->ioaddr + (i * 4));
-		/* DMA registers */
-		for (i = 0; i < 22; i++)
-			reg_space[i + 55] =
-			    readl(priv->ioaddr + (DMA_BUS_MODE + (i * 4)));
 	}
 }
 
