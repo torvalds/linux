@@ -1483,7 +1483,7 @@ static int __init fbtft_device_init(void)
 			displays[i].pdev->name = name;
 			displays[i].spi = NULL;
 		} else {
-			strncpy(displays[i].spi->modalias, name, SPI_NAME_SIZE);
+			strlcpy(displays[i].spi->modalias, name, SPI_NAME_SIZE);
 			displays[i].pdev = NULL;
 		}
 	}
