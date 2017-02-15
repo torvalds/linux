@@ -64,8 +64,8 @@ static void adf_service_add(struct service_hndl *service)
 
 int adf_service_register(struct service_hndl *service)
 {
-	service->init_status = 0;
-	service->start_status = 0;
+	memset(service->init_status, 0, sizeof(service->init_status));
+	memset(service->start_status, 0, sizeof(service->start_status));
 	adf_service_add(service);
 	return 0;
 }
@@ -79,9 +79,13 @@ static void adf_service_remove(struct service_hndl *service)
 
 int adf_service_unregister(struct service_hndl *service)
 {
-	if (service->init_status || service->start_status) {
-		pr_err("QAT: Could not remove active service\n");
-		return -EFAULT;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(service->init_status); i++) {
+		if (service->init_status[i] || service->start_status[i]) {
+			pr_err("QAT: Could not remove active service\n");
+			return -EFAULT;
+		}
 	}
 	adf_service_remove(service);
 	return 0;
@@ -163,7 +167,7 @@ int adf_dev_init(struct adf_accel_dev *accel_dev)
 				service->name);
 			return -EFAULT;
 		}
-		set_bit(accel_dev->accel_id, &service->init_status);
+		set_bit(accel_dev->accel_id, service->init_status);
 	}
 
 	hw_data->enable_error_correction(accel_dev);
@@ -210,7 +214,7 @@ int adf_dev_start(struct adf_accel_dev *accel_dev)
 				service->name);
 			return -EFAULT;
 		}
-		set_bit(accel_dev->accel_id, &service->start_status);
+		set_bit(accel_dev->accel_id, service->start_status);
 	}
 
 	clear_bit(ADF_STATUS_STARTING, &accel_dev->status);
@@ -259,14 +263,14 @@ void adf_dev_stop(struct adf_accel_dev *accel_dev)
 
 	list_for_each(list_itr, &service_table) {
 		service = list_entry(list_itr, struct service_hndl, list);
-		if (!test_bit(accel_dev->accel_id, &service->start_status))
+		if (!test_bit(accel_dev->accel_id, service->start_status))
 			continue;
 		ret = service->event_hld(accel_dev, ADF_EVENT_STOP);
 		if (!ret) {
-			clear_bit(accel_dev->accel_id, &service->start_status);
+			clear_bit(accel_dev->accel_id, service->start_status);
 		} else if (ret == -EAGAIN) {
 			wait = true;
-			clear_bit(accel_dev->accel_id, &service->start_status);
+			clear_bit(accel_dev->accel_id, service->start_status);
 		}
 	}
 
@@ -317,14 +321,14 @@ void adf_dev_shutdown(struct adf_accel_dev *accel_dev)
 
 	list_for_each(list_itr, &service_table) {
 		service = list_entry(list_itr, struct service_hndl, list);
-		if (!test_bit(accel_dev->accel_id, &service->init_status))
+		if (!test_bit(accel_dev->accel_id, service->init_status))
 			continue;
 		if (service->event_hld(accel_dev, ADF_EVENT_SHUTDOWN))
 			dev_err(&GET_DEV(accel_dev),
 				"Failed to shutdown service %s\n",
 				service->name);
 		else
-			clear_bit(accel_dev->accel_id, &service->init_status);
+			clear_bit(accel_dev->accel_id, service->init_status);
 	}
 
 	hw_data->disable_iov(accel_dev);

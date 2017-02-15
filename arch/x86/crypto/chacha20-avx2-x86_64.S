@@ -11,13 +11,18 @@
 
 #include <linux/linkage.h>
 
-.data
+.section	.rodata.cst32.ROT8, "aM", @progbits, 32
 .align 32
-
 ROT8:	.octa 0x0e0d0c0f0a09080b0605040702010003
 	.octa 0x0e0d0c0f0a09080b0605040702010003
+
+.section	.rodata.cst32.ROT16, "aM", @progbits, 32
+.align 32
 ROT16:	.octa 0x0d0c0f0e09080b0a0504070601000302
 	.octa 0x0d0c0f0e09080b0a0504070601000302
+
+.section	.rodata.cst32.CTRINC, "aM", @progbits, 32
+.align 32
 CTRINC:	.octa 0x00000003000000020000000100000000
 	.octa 0x00000007000000060000000500000004
 

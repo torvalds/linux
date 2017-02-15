@@ -171,7 +171,7 @@ int chcr_handle_resp(struct crypto_async_request *req, unsigned char *input,
 		}
 		break;
 
-	case CRYPTO_ALG_TYPE_BLKCIPHER:
+	case CRYPTO_ALG_TYPE_ABLKCIPHER:
 		ctx_req.req.ablk_req = (struct ablkcipher_request *)req;
 		ctx_req.ctx.ablk_ctx =
 			ablkcipher_request_ctx(ctx_req.req.ablk_req);
@@ -542,10 +542,11 @@ static inline void create_wreq(struct chcr_context *ctx,
 				    (calc_tx_flits_ofld(skb) * 8), 16)));
 	chcr_req->wreq.cookie = cpu_to_be64((uintptr_t)req);
 	chcr_req->wreq.rx_chid_to_rx_q_id =
-		FILL_WR_RX_Q_ID(ctx->dev->tx_channel_id, qid,
-				is_iv ? iv_loc : IV_NOP);
+		FILL_WR_RX_Q_ID(ctx->dev->rx_channel_id, qid,
+				is_iv ? iv_loc : IV_NOP, ctx->tx_channel_id);
 
-	chcr_req->ulptx.cmd_dest = FILL_ULPTX_CMD_DEST(ctx->dev->tx_channel_id);
+	chcr_req->ulptx.cmd_dest = FILL_ULPTX_CMD_DEST(ctx->dev->tx_channel_id,
+						       qid);
 	chcr_req->ulptx.len = htonl((DIV_ROUND_UP((calc_tx_flits_ofld(skb) * 8),
 					16) - ((sizeof(chcr_req->wreq)) >> 4)));
 
@@ -606,7 +607,7 @@ static struct sk_buff
 	chcr_req = (struct chcr_wr *)__skb_put(skb, transhdr_len);
 	memset(chcr_req, 0, transhdr_len);
 	chcr_req->sec_cpl.op_ivinsrtofst =
-		FILL_SEC_CPL_OP_IVINSR(ctx->dev->tx_channel_id, 2, 1);
+		FILL_SEC_CPL_OP_IVINSR(ctx->dev->rx_channel_id, 2, 1);
 
 	chcr_req->sec_cpl.pldlen = htonl(ivsize + req->nbytes);
 	chcr_req->sec_cpl.aadstart_cipherstop_hi =
@@ -782,6 +783,7 @@ static int chcr_device_init(struct chcr_context *ctx)
 		spin_lock(&ctx->dev->lock_chcr_dev);
 		ctx->tx_channel_id = rxq_idx;
 		ctx->dev->tx_channel_id = !ctx->dev->tx_channel_id;
+		ctx->dev->rx_channel_id = 0;
 		spin_unlock(&ctx->dev->lock_chcr_dev);
 	}
 out:
@@ -874,7 +876,7 @@ static struct sk_buff *create_hash_wr(struct ahash_request *req,
 	memset(chcr_req, 0, transhdr_len);
 
 	chcr_req->sec_cpl.op_ivinsrtofst =
-		FILL_SEC_CPL_OP_IVINSR(ctx->dev->tx_channel_id, 2, 0);
+		FILL_SEC_CPL_OP_IVINSR(ctx->dev->rx_channel_id, 2, 0);
 	chcr_req->sec_cpl.pldlen = htonl(param->bfr_len + param->sg_len);
 
 	chcr_req->sec_cpl.aadstart_cipherstop_hi =
@@ -1425,7 +1427,7 @@ static struct sk_buff *create_authenc_wr(struct aead_request *req,
 	 * to the hardware spec
 	 */
 	chcr_req->sec_cpl.op_ivinsrtofst =
-		FILL_SEC_CPL_OP_IVINSR(ctx->dev->tx_channel_id, 2,
+		FILL_SEC_CPL_OP_IVINSR(ctx->dev->rx_channel_id, 2,
 				       (ivsize ? (assoclen + 1) : 0));
 	chcr_req->sec_cpl.pldlen = htonl(assoclen + ivsize + req->cryptlen);
 	chcr_req->sec_cpl.aadstart_cipherstop_hi = FILL_SEC_CPL_CIPHERSTOP_HI(
@@ -1601,7 +1603,7 @@ static void fill_sec_cpl_for_aead(struct cpl_tx_sec_pdu *sec_cpl,
 	unsigned int ivsize = AES_BLOCK_SIZE;
 	unsigned int cipher_mode = CHCR_SCMD_CIPHER_MODE_AES_CCM;
 	unsigned int mac_mode = CHCR_SCMD_AUTH_MODE_CBCMAC;
-	unsigned int c_id = chcrctx->dev->tx_channel_id;
+	unsigned int c_id = chcrctx->dev->rx_channel_id;
 	unsigned int ccm_xtra;
 	unsigned char tag_offset = 0, auth_offset = 0;
 	unsigned char hmac_ctrl = get_hmac(crypto_aead_authsize(tfm));
@@ -1877,7 +1879,7 @@ static struct sk_buff *create_gcm_wr(struct aead_request *req,
 
 	tag_offset = (op_type == CHCR_ENCRYPT_OP) ? 0 : authsize;
 	chcr_req->sec_cpl.op_ivinsrtofst = FILL_SEC_CPL_OP_IVINSR(
-					ctx->dev->tx_channel_id, 2, (ivsize ?
+					ctx->dev->rx_channel_id, 2, (ivsize ?
 					(req->assoclen + 1) : 0));
 	chcr_req->sec_cpl.pldlen = htonl(req->assoclen + ivsize + crypt_len);
 	chcr_req->sec_cpl.aadstart_cipherstop_hi = FILL_SEC_CPL_CIPHERSTOP_HI(
@@ -2187,8 +2189,7 @@ static int chcr_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 	struct chcr_context *ctx = crypto_aead_ctx(aead);
 	struct chcr_aead_ctx *aeadctx = AEAD_CTX(ctx);
 	struct chcr_gcm_ctx *gctx = GCM_CTX(aeadctx);
-	struct blkcipher_desc h_desc;
-	struct scatterlist src[1];
+	struct crypto_cipher *cipher;
 	unsigned int ck_size;
 	int ret = 0, key_ctx_size = 0;
 
@@ -2221,27 +2222,26 @@ static int chcr_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 						CHCR_KEYCTX_MAC_KEY_SIZE_128,
 						0, 0,
 						key_ctx_size >> 4);
-	/* Calculate the H = CIPH(K, 0 repeated 16 times) using sync aes
-	 * blkcipher It will go on key context
+	/* Calculate the H = CIPH(K, 0 repeated 16 times).
+	 * It will go in key context
 	 */
-	h_desc.tfm = crypto_alloc_blkcipher("cbc(aes-generic)", 0, 0);
-	if (IS_ERR(h_desc.tfm)) {
+	cipher = crypto_alloc_cipher("aes-generic", 0, 0);
+	if (IS_ERR(cipher)) {
 		aeadctx->enckey_len = 0;
 		ret = -ENOMEM;
 		goto out;
 	}
-	h_desc.flags = 0;
-	ret = crypto_blkcipher_setkey(h_desc.tfm, key, keylen);
+
+	ret = crypto_cipher_setkey(cipher, key, keylen);
 	if (ret) {
 		aeadctx->enckey_len = 0;
 		goto out1;
 	}
 	memset(gctx->ghash_h, 0, AEAD_H_SIZE);
-	sg_init_one(&src[0], gctx->ghash_h, AEAD_H_SIZE);
-	ret = crypto_blkcipher_encrypt(&h_desc, &src[0], &src[0], AEAD_H_SIZE);
+	crypto_cipher_encrypt_one(cipher, gctx->ghash_h, gctx->ghash_h);
 
 out1:
-	crypto_free_blkcipher(h_desc.tfm);
+	crypto_free_cipher(cipher);
 out:
 	return ret;
 }
@@ -2456,13 +2456,14 @@ static int chcr_aead_op(struct aead_request *req,
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	struct chcr_context *ctx = crypto_aead_ctx(tfm);
-	struct uld_ctx *u_ctx = ULD_CTX(ctx);
+	struct uld_ctx *u_ctx;
 	struct sk_buff *skb;
 
-	if (ctx && !ctx->dev) {
+	if (!ctx->dev) {
 		pr_err("chcr : %s : No crypto device.\n", __func__);
 		return -ENXIO;
 	}
+	u_ctx = ULD_CTX(ctx);
 	if (cxgb4_is_crypto_q_full(u_ctx->lldi.ports[0],
 				   ctx->tx_channel_id)) {
 		if (!(req->base.flags & CRYPTO_TFM_REQ_MAY_BACKLOG))
@@ -2492,7 +2493,7 @@ static struct chcr_alg_template driver_algs[] = {
 			.cra_name		= "cbc(aes)",
 			.cra_driver_name	= "cbc-aes-chcr",
 			.cra_priority		= CHCR_CRA_PRIORITY,
-			.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+			.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
 				CRYPTO_ALG_ASYNC,
 			.cra_blocksize		= AES_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct chcr_context)
@@ -2519,7 +2520,7 @@ static struct chcr_alg_template driver_algs[] = {
 			.cra_name		= "xts(aes)",
 			.cra_driver_name	= "xts-aes-chcr",
 			.cra_priority		= CHCR_CRA_PRIORITY,
-			.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+			.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
 				CRYPTO_ALG_ASYNC,
 			.cra_blocksize		= AES_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct chcr_context) +

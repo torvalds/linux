@@ -288,8 +288,7 @@ static int virtio_crypto_ablkcipher_setkey(struct crypto_ablkcipher *tfm,
 static int
 __virtio_crypto_ablkcipher_do_req(struct virtio_crypto_request *vc_req,
 		struct ablkcipher_request *req,
-		struct data_queue *data_vq,
-		__u8 op)
+		struct data_queue *data_vq)
 {
 	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(req);
 	unsigned int ivsize = crypto_ablkcipher_ivsize(tfm);
@@ -329,7 +328,7 @@ __virtio_crypto_ablkcipher_do_req(struct virtio_crypto_request *vc_req,
 	vc_req->req_data = req_data;
 	vc_req->type = VIRTIO_CRYPTO_SYM_OP_CIPHER;
 	/* Head of operation */
-	if (op) {
+	if (vc_req->encrypt) {
 		req_data->header.session_id =
 			cpu_to_le64(ctx->enc_sess_info.session_id);
 		req_data->header.opcode =
@@ -424,19 +423,15 @@ static int virtio_crypto_ablkcipher_encrypt(struct ablkcipher_request *req)
 	struct virtio_crypto_ablkcipher_ctx *ctx = crypto_ablkcipher_ctx(atfm);
 	struct virtio_crypto_request *vc_req = ablkcipher_request_ctx(req);
 	struct virtio_crypto *vcrypto = ctx->vcrypto;
-	int ret;
 	/* Use the first data virtqueue as default */
 	struct data_queue *data_vq = &vcrypto->data_vq[0];
 
 	vc_req->ablkcipher_ctx = ctx;
 	vc_req->ablkcipher_req = req;
-	ret = __virtio_crypto_ablkcipher_do_req(vc_req, req, data_vq, 1);
-	if (ret < 0) {
-		pr_err("virtio_crypto: Encryption failed!\n");
-		return ret;
-	}
+	vc_req->encrypt = true;
+	vc_req->dataq = data_vq;
 
-	return -EINPROGRESS;
+	return crypto_transfer_cipher_request_to_engine(data_vq->engine, req);
 }
 
 static int virtio_crypto_ablkcipher_decrypt(struct ablkcipher_request *req)
@@ -445,20 +440,16 @@ static int virtio_crypto_ablkcipher_decrypt(struct ablkcipher_request *req)
 	struct virtio_crypto_ablkcipher_ctx *ctx = crypto_ablkcipher_ctx(atfm);
 	struct virtio_crypto_request *vc_req = ablkcipher_request_ctx(req);
 	struct virtio_crypto *vcrypto = ctx->vcrypto;
-	int ret;
 	/* Use the first data virtqueue as default */
 	struct data_queue *data_vq = &vcrypto->data_vq[0];
 
 	vc_req->ablkcipher_ctx = ctx;
 	vc_req->ablkcipher_req = req;
 
-	ret = __virtio_crypto_ablkcipher_do_req(vc_req, req, data_vq, 0);
-	if (ret < 0) {
-		pr_err("virtio_crypto: Decryption failed!\n");
-		return ret;
-	}
+	vc_req->encrypt = false;
+	vc_req->dataq = data_vq;
 
-	return -EINPROGRESS;
+	return crypto_transfer_cipher_request_to_engine(data_vq->engine, req);
 }
 
 static int virtio_crypto_ablkcipher_init(struct crypto_tfm *tfm)
@@ -484,10 +475,37 @@ static void virtio_crypto_ablkcipher_exit(struct crypto_tfm *tfm)
 	ctx->vcrypto = NULL;
 }
 
+int virtio_crypto_ablkcipher_crypt_req(
+	struct crypto_engine *engine,
+	struct ablkcipher_request *req)
+{
+	struct virtio_crypto_request *vc_req = ablkcipher_request_ctx(req);
+	struct data_queue *data_vq = vc_req->dataq;
+	int ret;
+
+	ret = __virtio_crypto_ablkcipher_do_req(vc_req, req, data_vq);
+	if (ret < 0)
+		return ret;
+
+	virtqueue_kick(data_vq->vq);
+
+	return 0;
+}
+
+void virtio_crypto_ablkcipher_finalize_req(
+	struct virtio_crypto_request *vc_req,
+	struct ablkcipher_request *req,
+	int err)
+{
+	crypto_finalize_cipher_request(vc_req->dataq->engine, req, err);
+
+	virtcrypto_clear_request(vc_req);
+}
+
 static struct crypto_alg virtio_crypto_algs[] = { {
 	.cra_name = "cbc(aes)",
 	.cra_driver_name = "virtio_crypto_aes_cbc",
-	.cra_priority = 501,
+	.cra_priority = 150,
 	.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
 	.cra_blocksize = AES_BLOCK_SIZE,
 	.cra_ctxsize  = sizeof(struct virtio_crypto_ablkcipher_ctx),

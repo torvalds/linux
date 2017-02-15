@@ -19,6 +19,7 @@
 #include <crypto/scatterwalk.h>
 #include <linux/bug.h>
 #include <linux/cryptouser.h>
+#include <linux/compiler.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/rtnetlink.h>
@@ -185,12 +186,12 @@ void skcipher_walk_complete(struct skcipher_walk *walk, int err)
 		data = p->data;
 		if (!data) {
 			data = PTR_ALIGN(&p->buffer[0], walk->alignmask + 1);
-			data = skcipher_get_spot(data, walk->chunksize);
+			data = skcipher_get_spot(data, walk->stride);
 		}
 
 		scatterwalk_copychunks(data, &p->dst, p->len, 1);
 
-		if (offset_in_page(p->data) + p->len + walk->chunksize >
+		if (offset_in_page(p->data) + p->len + walk->stride >
 		    PAGE_SIZE)
 			free_page((unsigned long)p->data);
 
@@ -299,7 +300,7 @@ static int skcipher_next_copy(struct skcipher_walk *walk)
 	p->len = walk->nbytes;
 	skcipher_queue_write(walk, p);
 
-	if (offset_in_page(walk->page) + walk->nbytes + walk->chunksize >
+	if (offset_in_page(walk->page) + walk->nbytes + walk->stride >
 	    PAGE_SIZE)
 		walk->page = NULL;
 	else
@@ -344,7 +345,7 @@ static int skcipher_walk_next(struct skcipher_walk *walk)
 			 SKCIPHER_WALK_DIFF);
 
 	n = walk->total;
-	bsize = min(walk->chunksize, max(n, walk->blocksize));
+	bsize = min(walk->stride, max(n, walk->blocksize));
 	n = scatterwalk_clamp(&walk->in, n);
 	n = scatterwalk_clamp(&walk->out, n);
 
@@ -393,7 +394,7 @@ static int skcipher_copy_iv(struct skcipher_walk *walk)
 	unsigned a = crypto_tfm_ctx_alignment() - 1;
 	unsigned alignmask = walk->alignmask;
 	unsigned ivsize = walk->ivsize;
-	unsigned bs = walk->chunksize;
+	unsigned bs = walk->stride;
 	unsigned aligned_bs;
 	unsigned size;
 	u8 *iv;
@@ -463,7 +464,7 @@ static int skcipher_walk_skcipher(struct skcipher_walk *walk,
 		       SKCIPHER_WALK_SLEEP : 0;
 
 	walk->blocksize = crypto_skcipher_blocksize(tfm);
-	walk->chunksize = crypto_skcipher_chunksize(tfm);
+	walk->stride = crypto_skcipher_walksize(tfm);
 	walk->ivsize = crypto_skcipher_ivsize(tfm);
 	walk->alignmask = crypto_skcipher_alignmask(tfm);
 
@@ -525,7 +526,7 @@ static int skcipher_walk_aead_common(struct skcipher_walk *walk,
 		walk->flags &= ~SKCIPHER_WALK_SLEEP;
 
 	walk->blocksize = crypto_aead_blocksize(tfm);
-	walk->chunksize = crypto_aead_chunksize(tfm);
+	walk->stride = crypto_aead_chunksize(tfm);
 	walk->ivsize = crypto_aead_ivsize(tfm);
 	walk->alignmask = crypto_aead_alignmask(tfm);
 
@@ -807,7 +808,7 @@ static void crypto_skcipher_free_instance(struct crypto_instance *inst)
 }
 
 static void crypto_skcipher_show(struct seq_file *m, struct crypto_alg *alg)
-	__attribute__ ((unused));
+	__maybe_unused;
 static void crypto_skcipher_show(struct seq_file *m, struct crypto_alg *alg)
 {
 	struct skcipher_alg *skcipher = container_of(alg, struct skcipher_alg,
@@ -821,6 +822,7 @@ static void crypto_skcipher_show(struct seq_file *m, struct crypto_alg *alg)
 	seq_printf(m, "max keysize  : %u\n", skcipher->max_keysize);
 	seq_printf(m, "ivsize       : %u\n", skcipher->ivsize);
 	seq_printf(m, "chunksize    : %u\n", skcipher->chunksize);
+	seq_printf(m, "walksize     : %u\n", skcipher->walksize);
 }
 
 #ifdef CONFIG_NET
@@ -893,11 +895,14 @@ static int skcipher_prepare_alg(struct skcipher_alg *alg)
 {
 	struct crypto_alg *base = &alg->base;
 
-	if (alg->ivsize > PAGE_SIZE / 8 || alg->chunksize > PAGE_SIZE / 8)
+	if (alg->ivsize > PAGE_SIZE / 8 || alg->chunksize > PAGE_SIZE / 8 ||
+	    alg->walksize > PAGE_SIZE / 8)
 		return -EINVAL;
 
 	if (!alg->chunksize)
 		alg->chunksize = base->cra_blocksize;
+	if (!alg->walksize)
+		alg->walksize = alg->chunksize;
 
 	base->cra_type = &crypto_skcipher_type2;
 	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;
