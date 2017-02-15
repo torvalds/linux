@@ -224,7 +224,6 @@ static const struct chan_queues am335x_usb_queues_rx[] = {
 };
 
 struct cppi_glue_infos {
-	irqreturn_t (*isr)(int irq, void *data);
 	const struct chan_queues *queues_rx;
 	const struct chan_queues *queues_tx;
 	struct chan_queues td_queue;
@@ -965,7 +964,6 @@ static struct dma_chan *cppi41_dma_xlate(struct of_phandle_args *dma_spec,
 }
 
 static const struct cppi_glue_infos am335x_usb_infos = {
-	.isr = cppi41_irq,
 	.queues_rx = am335x_usb_queues_rx,
 	.queues_tx = am335x_usb_queues_tx,
 	.td_queue = { .submit = 31, .complete = 0 },
@@ -1075,7 +1073,7 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 		goto err_irq;
 	}
 
-	ret = devm_request_irq(&pdev->dev, irq, glue_info->isr, IRQF_SHARED,
+	ret = devm_request_irq(&pdev->dev, irq, cppi41_irq, IRQF_SHARED,
 			dev_name(dev), cdd);
 	if (ret)
 		goto err_irq;
