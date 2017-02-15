@@ -21,7 +21,7 @@
 
 struct property_set {
 	struct fwnode_handle fwnode;
-	struct property_entry *properties;
+	const struct property_entry *properties;
 };
 
 static inline bool is_pset_node(struct fwnode_handle *fwnode)
@@ -35,10 +35,10 @@ static inline struct property_set *to_pset_node(struct fwnode_handle *fwnode)
 		container_of(fwnode, struct property_set, fwnode) : NULL;
 }
 
-static struct property_entry *pset_prop_get(struct property_set *pset,
-					    const char *name)
+static const struct property_entry *pset_prop_get(struct property_set *pset,
+						  const char *name)
 {
-	struct property_entry *prop;
+	const struct property_entry *prop;
 
 	if (!pset || !pset->properties)
 		return NULL;
@@ -50,11 +50,11 @@ static struct property_entry *pset_prop_get(struct property_set *pset,
 	return NULL;
 }
 
-static void *pset_prop_find(struct property_set *pset, const char *propname,
-			    size_t length)
+static const void *pset_prop_find(struct property_set *pset,
+				  const char *propname, size_t length)
 {
-	struct property_entry *prop;
-	void *pointer;
+	const struct property_entry *prop;
+	const void *pointer;
 
 	prop = pset_prop_get(pset, propname);
 	if (!prop)
@@ -74,7 +74,7 @@ static int pset_prop_read_u8_array(struct property_set *pset,
 				   const char *propname,
 				   u8 *values, size_t nval)
 {
-	void *pointer;
+	const void *pointer;
 	size_t length = nval * sizeof(*values);
 
 	pointer = pset_prop_find(pset, propname, length);
@@ -89,7 +89,7 @@ static int pset_prop_read_u16_array(struct property_set *pset,
 				    const char *propname,
 				    u16 *values, size_t nval)
 {
-	void *pointer;
+	const void *pointer;
 	size_t length = nval * sizeof(*values);
 
 	pointer = pset_prop_find(pset, propname, length);
@@ -104,7 +104,7 @@ static int pset_prop_read_u32_array(struct property_set *pset,
 				    const char *propname,
 				    u32 *values, size_t nval)
 {
-	void *pointer;
+	const void *pointer;
 	size_t length = nval * sizeof(*values);
 
 	pointer = pset_prop_find(pset, propname, length);
@@ -119,7 +119,7 @@ static int pset_prop_read_u64_array(struct property_set *pset,
 				    const char *propname,
 				    u64 *values, size_t nval)
 {
-	void *pointer;
+	const void *pointer;
 	size_t length = nval * sizeof(*values);
 
 	pointer = pset_prop_find(pset, propname, length);
@@ -133,7 +133,7 @@ static int pset_prop_read_u64_array(struct property_set *pset,
 static int pset_prop_count_elems_of_size(struct property_set *pset,
 					 const char *propname, size_t length)
 {
-	struct property_entry *prop;
+	const struct property_entry *prop;
 
 	prop = pset_prop_get(pset, propname);
 	if (!prop)
@@ -146,7 +146,7 @@ static int pset_prop_read_string_array(struct property_set *pset,
 				       const char *propname,
 				       const char **strings, size_t nval)
 {
-	void *pointer;
+	const void *pointer;
 	size_t length = nval * sizeof(*strings);
 
 	pointer = pset_prop_find(pset, propname, length);
@@ -160,8 +160,8 @@ static int pset_prop_read_string_array(struct property_set *pset,
 static int pset_prop_read_string(struct property_set *pset,
 				 const char *propname, const char **strings)
 {
-	struct property_entry *prop;
-	const char **pointer;
+	const struct property_entry *prop;
+	const char * const *pointer;
 
 	prop = pset_prop_get(pset, propname);
 	if (!prop)
@@ -682,77 +682,64 @@ out:
 }
 EXPORT_SYMBOL_GPL(fwnode_property_match_string);
 
-/**
- * pset_free_set - releases memory allocated for copied property set
- * @pset: Property set to release
- *
- * Function takes previously copied property set and releases all the
- * memory allocated to it.
- */
-static void pset_free_set(struct property_set *pset)
+static int property_copy_string_array(struct property_entry *dst,
+				      const struct property_entry *src)
 {
-	const struct property_entry *prop;
-	size_t i, nval;
+	char **d;
+	size_t nval = src->length / sizeof(*d);
+	int i;
 
-	if (!pset)
-		return;
+	d = kcalloc(nval, sizeof(*d), GFP_KERNEL);
+	if (!d)
+		return -ENOMEM;
 
-	for (prop = pset->properties; prop->name; prop++) {
-		if (prop->is_array) {
-			if (prop->is_string && prop->pointer.str) {
-				nval = prop->length / sizeof(const char *);
-				for (i = 0; i < nval; i++)
-					kfree(prop->pointer.str[i]);
-			}
-			kfree(prop->pointer.raw_data);
-		} else if (prop->is_string) {
-			kfree(prop->value.str);
+	for (i = 0; i < nval; i++) {
+		d[i] = kstrdup(src->pointer.str[i], GFP_KERNEL);
+		if (!d[i] && src->pointer.str[i]) {
+			while (--i >= 0)
+				kfree(d[i]);
+			kfree(d);
+			return -ENOMEM;
 		}
-		kfree(prop->name);
 	}
 
-	kfree(pset->properties);
-	kfree(pset);
+	dst->pointer.raw_data = d;
+	return 0;
 }
 
-static int pset_copy_entry(struct property_entry *dst,
-			   const struct property_entry *src)
+static int property_entry_copy_data(struct property_entry *dst,
+				    const struct property_entry *src)
 {
-	const char **d, **s;
-	size_t i, nval;
+	int error;
 
 	dst->name = kstrdup(src->name, GFP_KERNEL);
 	if (!dst->name)
 		return -ENOMEM;
 
 	if (src->is_array) {
-		if (!src->length)
-			return -ENODATA;
+		if (!src->length) {
+			error = -ENODATA;
+			goto out_free_name;
+		}
 
 		if (src->is_string) {
-			nval = src->length / sizeof(const char *);
-			dst->pointer.str = kcalloc(nval, sizeof(const char *),
-						   GFP_KERNEL);
-			if (!dst->pointer.str)
-				return -ENOMEM;
-
-			d = dst->pointer.str;
-			s = src->pointer.str;
-			for (i = 0; i < nval; i++) {
-				d[i] = kstrdup(s[i], GFP_KERNEL);
-				if (!d[i] && s[i])
-					return -ENOMEM;
-			}
+			error = property_copy_string_array(dst, src);
+			if (error)
+				goto out_free_name;
 		} else {
 			dst->pointer.raw_data = kmemdup(src->pointer.raw_data,
 							src->length, GFP_KERNEL);
-			if (!dst->pointer.raw_data)
-				return -ENOMEM;
+			if (!dst->pointer.raw_data) {
+				error = -ENOMEM;
+				goto out_free_name;
+			}
 		}
 	} else if (src->is_string) {
 		dst->value.str = kstrdup(src->value.str, GFP_KERNEL);
-		if (!dst->value.str && src->value.str)
-			return -ENOMEM;
+		if (!dst->value.str && src->value.str) {
+			error = -ENOMEM;
+			goto out_free_name;
+		}
 	} else {
 		dst->value.raw_data = src->value.raw_data;
 	}
@@ -762,6 +749,95 @@ static int pset_copy_entry(struct property_entry *dst,
 	dst->is_string = src->is_string;
 
 	return 0;
+
+out_free_name:
+	kfree(dst->name);
+	return error;
+}
+
+static void property_entry_free_data(const struct property_entry *p)
+{
+	size_t i, nval;
+
+	if (p->is_array) {
+		if (p->is_string && p->pointer.str) {
+			nval = p->length / sizeof(const char *);
+			for (i = 0; i < nval; i++)
+				kfree(p->pointer.str[i]);
+		}
+		kfree(p->pointer.raw_data);
+	} else if (p->is_string) {
+		kfree(p->value.str);
+	}
+	kfree(p->name);
+}
+
+/**
+ * property_entries_dup - duplicate array of properties
+ * @properties: array of properties to copy
+ *
+ * This function creates a deep copy of the given NULL-terminated array
+ * of property entries.
+ */
+struct property_entry *
+property_entries_dup(const struct property_entry *properties)
+{
+	struct property_entry *p;
+	int i, n = 0;
+
+	while (properties[n].name)
+		n++;
+
+	p = kcalloc(n + 1, sizeof(*p), GFP_KERNEL);
+	if (!p)
+		return ERR_PTR(-ENOMEM);
+
+	for (i = 0; i < n; i++) {
+		int ret = property_entry_copy_data(&p[i], &properties[i]);
+		if (ret) {
+			while (--i >= 0)
+				property_entry_free_data(&p[i]);
+			kfree(p);
+			return ERR_PTR(ret);
+		}
+	}
+
+	return p;
+}
+EXPORT_SYMBOL_GPL(property_entries_dup);
+
+/**
+ * property_entries_free - free previously allocated array of properties
+ * @properties: array of properties to destroy
+ *
+ * This function frees given NULL-terminated array of property entries,
+ * along with their data.
+ */
+void property_entries_free(const struct property_entry *properties)
+{
+	const struct property_entry *p;
+
+	for (p = properties; p->name; p++)
+		property_entry_free_data(p);
+
+	kfree(properties);
+}
+EXPORT_SYMBOL_GPL(property_entries_free);
+
+/**
+ * pset_free_set - releases memory allocated for copied property set
+ * @pset: Property set to release
+ *
+ * Function takes previously copied property set and releases all the
+ * memory allocated to it.
+ */
+static void pset_free_set(struct property_set *pset)
+{
+	if (!pset)
+		return;
+
+	property_entries_free(pset->properties);
+	kfree(pset);
 }
 
 /**
@@ -776,32 +852,20 @@ static int pset_copy_entry(struct property_entry *dst,
  */
 static struct property_set *pset_copy_set(const struct property_set *pset)
 {
-	const struct property_entry *entry;
+	struct property_entry *properties;
 	struct property_set *p;
-	size_t i, n = 0;
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
 		return ERR_PTR(-ENOMEM);
 
-	while (pset->properties[n].name)
-		n++;
-
-	p->properties = kcalloc(n + 1, sizeof(*entry), GFP_KERNEL);
-	if (!p->properties) {
+	properties = property_entries_dup(pset->properties);
+	if (IS_ERR(properties)) {
 		kfree(p);
-		return ERR_PTR(-ENOMEM);
+		return ERR_CAST(properties);
 	}
 
-	for (i = 0; i < n; i++) {
-		int ret = pset_copy_entry(&p->properties[i],
-					  &pset->properties[i]);
-		if (ret) {
-			pset_free_set(p);
-			return ERR_PTR(ret);
-		}
-	}
-
+	p->properties = properties;
 	return p;
 }
 
@@ -847,7 +911,8 @@ EXPORT_SYMBOL_GPL(device_remove_properties);
  * @dev as its secondary firmware node. The function takes a copy of
  * @properties.
  */
-int device_add_properties(struct device *dev, struct property_entry *properties)
+int device_add_properties(struct device *dev,
+			  const struct property_entry *properties)
 {
 	struct property_set *p, pset;
 

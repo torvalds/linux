@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -129,12 +129,12 @@ static inline u8 acpi_os_readable(void *pointer, acpi_size length)
 	return TRUE;
 }
 
-static inline acpi_status acpi_os_initialize_command_signals(void)
+static inline acpi_status acpi_os_initialize_debugger(void)
 {
 	return AE_OK;
 }
 
-static inline void acpi_os_terminate_command_signals(void)
+static inline void acpi_os_terminate_debugger(void)
 {
 	return;
 }
