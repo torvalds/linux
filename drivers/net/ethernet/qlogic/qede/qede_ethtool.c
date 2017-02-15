@@ -39,6 +39,7 @@
 #include <linux/capability.h>
 #include <linux/vmalloc.h>
 #include "qede.h"
+#include "qede_ptp.h"
 
 #define QEDE_RQSTAT_OFFSET(stat_name) \
 	 (offsetof(struct qede_rx_queue, stat_name))
@@ -940,6 +941,14 @@ static int qede_set_channels(struct net_device *dev,
 	return 0;
 }
 
+static int qede_get_ts_info(struct net_device *dev,
+			    struct ethtool_ts_info *info)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	return qede_ptp_get_ts_info(edev, info);
+}
+
 static int qede_set_phys_id(struct net_device *dev,
 			    enum ethtool_phys_id_state state)
 {
@@ -1586,6 +1595,7 @@ static const struct ethtool_ops qede_ethtool_ops = {
 	.get_rxfh_key_size = qede_get_rxfh_key_size,
 	.get_rxfh = qede_get_rxfh,
 	.set_rxfh = qede_set_rxfh,
+	.get_ts_info = qede_get_ts_info,
 	.get_channels = qede_get_channels,
 	.set_channels = qede_set_channels,
 	.self_test = qede_self_test,

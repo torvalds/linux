@@ -137,6 +137,8 @@ struct qede_rdma_dev {
 	struct workqueue_struct *roce_wq;
 };
 
+struct qede_ptp;
+
 struct qede_dev {
 	struct qed_dev			*cdev;
 	struct net_device		*ndev;
@@ -148,8 +150,10 @@ struct qede_dev {
 	u32 flags;
 #define QEDE_FLAG_IS_VF	BIT(0)
 #define IS_VF(edev)	(!!((edev)->flags & QEDE_FLAG_IS_VF))
+#define QEDE_TX_TIMESTAMPING_EN		BIT(1)
 
 	const struct qed_eth_ops	*ops;
+	struct qede_ptp			*ptp;
 
 	struct qed_dev_eth_info dev_info;
 #define QEDE_MAX_RSS_CNT(edev)	((edev)->dev_info.num_queues)
