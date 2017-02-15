@@ -1877,6 +1877,8 @@ static int rtl8180_probe(struct pci_dev *pdev,
 	else
 		ieee80211_hw_set(dev, SIGNAL_UNSPEC);
 
+	wiphy_ext_feature_set(dev->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
+
 	rtl8180_eeprom_read(priv);
 
 	switch (priv->rf_type) {

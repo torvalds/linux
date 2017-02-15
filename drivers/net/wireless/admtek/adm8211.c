@@ -1917,6 +1917,8 @@ static int adm8211_probe(struct pci_dev *pdev,
 
 	dev->wiphy->bands[NL80211_BAND_2GHZ] = &priv->band;
 
+	wiphy_ext_feature_set(dev->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
+
 	err = ieee80211_register_hw(dev);
 	if (err) {
 		printk(KERN_ERR "%s (adm8211): Cannot register device\n",

@@ -6144,6 +6144,8 @@ static int mwl8k_firmware_load_success(struct mwl8k_priv *priv)
 	if (priv->sta_macids_supported || priv->device_info->fw_image_sta)
 		hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_STATION);
 
+	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
+
 	rc = ieee80211_register_hw(hw);
 	if (rc) {
 		wiphy_err(hw->wiphy, "Cannot register device\n");

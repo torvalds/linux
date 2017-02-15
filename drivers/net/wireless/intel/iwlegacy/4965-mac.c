@@ -5799,6 +5799,8 @@ il4965_mac_setup_register(struct il_priv *il, u32 max_probe_length)
 
 	il_leds_init(il);
 
+	wiphy_ext_feature_set(il->hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
+
 	ret = ieee80211_register_hw(il->hw);
 	if (ret) {
 		IL_ERR("Failed to register hw (error %d)\n", ret);
