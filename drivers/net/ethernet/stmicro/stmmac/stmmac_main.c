@@ -721,15 +721,19 @@ static void stmmac_adjust_link(struct net_device *dev)
 					ctrl &= ~priv->hw->link.port;
 				break;
 			case 100:
+				if (priv->plat->has_gmac ||
+				    priv->plat->has_gmac4) {
+					ctrl |= priv->hw->link.port;
+					ctrl |= priv->hw->link.speed;
+				} else {
+					ctrl &= ~priv->hw->link.port;
+				}
+				break;
 			case 10:
 				if (priv->plat->has_gmac ||
 				    priv->plat->has_gmac4) {
 					ctrl |= priv->hw->link.port;
-					if (phydev->speed == SPEED_100) {
-						ctrl |= priv->hw->link.speed;
-					} else {
-						ctrl &= ~(priv->hw->link.speed);
-					}
+					ctrl &= ~(priv->hw->link.speed);
 				} else {
 					ctrl &= ~priv->hw->link.port;
 				}
