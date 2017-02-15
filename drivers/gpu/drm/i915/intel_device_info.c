@@ -410,10 +410,6 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 
 	info->has_snoop = !info->has_llc;
 
-	/* Snooping is broken on BXT A stepping. */
-	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1))
-		info->has_snoop = false;
-
 	DRM_DEBUG_DRIVER("slice mask: %04x\n", info->sseu.slice_mask);
 	DRM_DEBUG_DRIVER("slice total: %u\n", hweight8(info->sseu.slice_mask));
 	DRM_DEBUG_DRIVER("subslice total: %u\n",
