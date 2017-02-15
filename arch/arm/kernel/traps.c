@@ -788,12 +788,41 @@ void __init trap_init(void)
 }
 
 #ifdef CONFIG_KUSER_HELPERS
+#ifdef CONFIG_CPU_THUMB_CAPABLE
+static void __init kuser_thumb_init(void *vectors)
+{
+	extern char __kuser_helper_start_thumb[], __kuser_helper_end_thumb[];
+	int kuser_sz = __kuser_helper_end_thumb - __kuser_helper_start_thumb;
+
+	memcpy(vectors + 0x1000 - kuser_sz, __kuser_helper_start_thumb,
+	       kuser_sz);
+}
+#else
+static void __init kuser_thumb_init(void *vectors)
+{
+}
+#endif
+
+#if defined(CONFIG_CPU_32v3) || defined(CONFIG_CPU_32v4)
+static void __init kuser_v4_init(void *vectors)
+{
+	extern char __kuser_helper_start_v4[], __kuser_helper_end_v4[];
+	int kuser_sz = __kuser_helper_end_v4 - __kuser_helper_start_v4;
+
+	memcpy(vectors + 0x1000 - kuser_sz, __kuser_helper_start_v4, kuser_sz);
+}
+#else
+static void __init kuser_v4_init(void *vectors)
+{
+}
+#endif
+
 static void __init kuser_init(void *vectors)
 {
-	extern char __kuser_helper_start[], __kuser_helper_end[];
-	int kuser_sz = __kuser_helper_end - __kuser_helper_start;
-
-	memcpy(vectors + 0x1000 - kuser_sz, __kuser_helper_start, kuser_sz);
+	if (!(elf_hwcap & HWCAP_THUMB))
+		kuser_v4_init(vectors);
+	else
+		kuser_thumb_init(vectors);
 
 	/*
 	 * vectors + 0xfe0 = __kuser_get_tls

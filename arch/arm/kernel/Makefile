@@ -30,6 +30,16 @@ else
 obj-y		+= entry-armv.o
 endif
 
+# Build non-Thumb variant for non-Thumb CPUs
+kuser-$(CONFIG_CPU_32v3)	+= kuser-v4.o
+kuser-$(CONFIG_CPU_32v4)	+= kuser-v4.o
+
+# Always build kuser-t for an arch that includes Thumb support
+AFLAGS_kuser-t.o		:= -march=armv7-a
+kuser-$(CONFIG_CPU_THUMB_CAPABLE) += kuser-t.o
+
+obj-$(CONFIG_KUSER_HELPERS)	+= $(kuser-y)
+
 obj-$(CONFIG_CPU_IDLE)		+= cpuidle.o
 obj-$(CONFIG_ISA_DMA_API)	+= dma.o
 obj-$(CONFIG_FIQ)		+= fiq.o fiqasm.o
