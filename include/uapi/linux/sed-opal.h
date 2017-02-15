@@ -106,7 +106,7 @@ struct opal_mbr_data {
 #define IOC_OPAL_SAVE		    _IOW('p', 220, struct opal_lock_unlock)
 #define IOC_OPAL_LOCK_UNLOCK	    _IOW('p', 221, struct opal_lock_unlock)
 #define IOC_OPAL_TAKE_OWNERSHIP	    _IOW('p', 222, struct opal_key)
-#define IOC_OPAL_ACTIVATE_LSP       _IOW('p', 223, struct opal_key)
+#define IOC_OPAL_ACTIVATE_LSP       _IOW('p', 223, struct opal_lr_act)
 #define IOC_OPAL_SET_PW             _IOW('p', 224, struct opal_new_pw)
 #define IOC_OPAL_ACTIVATE_USR       _IOW('p', 225, struct opal_session_info)
 #define IOC_OPAL_REVERT_TPR         _IOW('p', 226, struct opal_key)
