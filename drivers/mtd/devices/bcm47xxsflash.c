@@ -105,15 +105,33 @@ static int bcm47xxsflash_read(struct mtd_info *mtd, loff_t from, size_t len,
 			      size_t *retlen, u_char *buf)
 {
 	struct bcm47xxsflash *b47s = mtd->priv;
+	size_t orig_len = len;
 
 	/* Check address range */
 	if ((from + len) > mtd->size)
 		return -EINVAL;
 
-	memcpy_fromio(buf, b47s->window + from, len);
-	*retlen = len;
+	/* Read as much as possible using fast MMIO window */
+	if (from < BCM47XXSFLASH_WINDOW_SZ) {
+		size_t memcpy_len;
 
-	return len;
+		memcpy_len = min(len, (size_t)(BCM47XXSFLASH_WINDOW_SZ - from));
+		memcpy_fromio(buf, b47s->window + from, memcpy_len);
+		from += memcpy_len;
+		len -= memcpy_len;
+		buf += memcpy_len;
+	}
+
+	/* Use indirect access for content out of the window */
+	for (; len; len--) {
+		b47s->cc_write(b47s, BCMA_CC_FLASHADDR, from++);
+		bcm47xxsflash_cmd(b47s, OPCODE_ST_READ4B);
+		*buf++ = b47s->cc_read(b47s, BCMA_CC_FLASHDATA);
+	}
+
+	*retlen = orig_len;
+
+	return orig_len;
 }
 
 static int bcm47xxsflash_write_st(struct mtd_info *mtd, u32 offset, size_t len,
@@ -284,7 +302,6 @@ static int bcm47xxsflash_bcma_probe(struct platform_device *pdev)
 	b47s = devm_kzalloc(dev, sizeof(*b47s), GFP_KERNEL);
 	if (!b47s)
 		return -ENOMEM;
-	sflash->priv = b47s;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -334,6 +351,8 @@ static int bcm47xxsflash_bcma_probe(struct platform_device *pdev)
 	b47s->size = sflash->size;
 	bcm47xxsflash_fill_mtd(b47s, &pdev->dev);
 
+	platform_set_drvdata(pdev, b47s);
+
 	err = mtd_device_parse_register(&b47s->mtd, probes, NULL, NULL, 0);
 	if (err) {
 		pr_err("Failed to register MTD device: %d\n", err);
@@ -349,8 +368,7 @@ static int bcm47xxsflash_bcma_probe(struct platform_device *pdev)
 
 static int bcm47xxsflash_bcma_remove(struct platform_device *pdev)
 {
-	struct bcma_sflash *sflash = dev_get_platdata(&pdev->dev);
-	struct bcm47xxsflash *b47s = sflash->priv;
+	struct bcm47xxsflash *b47s = platform_get_drvdata(pdev);
 
 	mtd_device_unregister(&b47s->mtd);
 	iounmap(b47s->window);
