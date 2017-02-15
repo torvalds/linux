@@ -1326,7 +1326,7 @@ parse_tag_1_packet(struct ecryptfs_crypt_stat *crypt_stat,
 	if ((*new_auth_tok)->session_key.encrypted_key_size
 	    > ECRYPTFS_MAX_ENCRYPTED_KEY_BYTES) {
 		printk(KERN_WARNING "Tag 1 packet contains key larger "
-		       "than ECRYPTFS_MAX_ENCRYPTED_KEY_BYTES");
+		       "than ECRYPTFS_MAX_ENCRYPTED_KEY_BYTES\n");
 		rc = -EINVAL;
 		goto out;
 	}

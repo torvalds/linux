@@ -42,21 +42,6 @@
 #define ENCRYPT		1
 
 /**
- * ecryptfs_to_hex
- * @dst: Buffer to take hex character representation of contents of
- *       src; must be at least of size (src_size * 2)
- * @src: Buffer to be converted to a hex string representation
- * @src_size: number of bytes to convert
- */
-void ecryptfs_to_hex(char *dst, char *src, size_t src_size)
-{
-	int x;
-
-	for (x = 0; x < src_size; x++)
-		sprintf(&dst[x * 2], "%.2x", (unsigned char)src[x]);
-}
-
-/**
  * ecryptfs_from_hex
  * @dst: Buffer to take the bytes from src hex; must be at least of
  *       size (src_size / 2)
