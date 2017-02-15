@@ -500,7 +500,7 @@ static void vcn_v1_0_dec_ring_insert_start(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, 0);
 	amdgpu_ring_write(ring,
 		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_CMD), 0));
-	amdgpu_ring_write(ring, VCN_CMD_PACKET_START << 1);
+	amdgpu_ring_write(ring, VCN_DEC_CMD_PACKET_START << 1);
 }
 
 /**
@@ -514,7 +514,7 @@ static void vcn_v1_0_dec_ring_insert_end(struct amdgpu_ring *ring)
 {
 	amdgpu_ring_write(ring,
 		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_CMD), 0));
-	amdgpu_ring_write(ring, VCN_CMD_PACKET_END << 1);
+	amdgpu_ring_write(ring, VCN_DEC_CMD_PACKET_END << 1);
 }
 
 /**
@@ -541,7 +541,7 @@ static void vcn_v1_0_dec_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64
 	amdgpu_ring_write(ring, upper_32_bits(addr) & 0xff);
 	amdgpu_ring_write(ring,
 		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_CMD), 0));
-	amdgpu_ring_write(ring, VCN_CMD_FENCE << 1);
+	amdgpu_ring_write(ring, VCN_DEC_CMD_FENCE << 1);
 
 	amdgpu_ring_write(ring,
 		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_DATA0), 0));
@@ -551,7 +551,7 @@ static void vcn_v1_0_dec_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64
 	amdgpu_ring_write(ring, 0);
 	amdgpu_ring_write(ring,
 		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_CMD), 0));
-	amdgpu_ring_write(ring, VCN_CMD_TRAP << 1);
+	amdgpu_ring_write(ring, VCN_DEC_CMD_TRAP << 1);
 }
 
 /**
@@ -605,7 +605,7 @@ static void vcn_v1_0_dec_vm_reg_write(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, data1);
 	amdgpu_ring_write(ring,
 		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_CMD), 0));
-	amdgpu_ring_write(ring, VCN_CMD_WRITE_REG << 1);
+	amdgpu_ring_write(ring, VCN_DEC_CMD_WRITE_REG << 1);
 }
 
 static void vcn_v1_0_dec_vm_reg_wait(struct amdgpu_ring *ring,
@@ -622,7 +622,7 @@ static void vcn_v1_0_dec_vm_reg_wait(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, mask);
 	amdgpu_ring_write(ring,
 		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_CMD), 0));
-	amdgpu_ring_write(ring, VCN_CMD_REG_READ_COND_WAIT << 1);
+	amdgpu_ring_write(ring, VCN_DEC_CMD_REG_READ_COND_WAIT << 1);
 }
 
 static void vcn_v1_0_dec_ring_emit_vm_flush(struct amdgpu_ring *ring,
