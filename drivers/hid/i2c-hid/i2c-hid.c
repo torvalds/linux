@@ -994,6 +994,10 @@ static int i2c_hid_of_probe(struct i2c_client *client,
 	}
 	pdata->hid_descriptor_address = val;
 
+	ret = of_property_read_u32(dev->of_node, "init-delay-ms", &val);
+	if (!ret)
+		pdata->init_delay_ms = val;
+
 	return 0;
 }
 
@@ -1053,6 +1057,24 @@ static int i2c_hid_probe(struct i2c_client *client,
 		ihid->pdata = *platform_data;
 	}
 
+	ihid->pdata.supply = devm_regulator_get(&client->dev, "vdd");
+ 	if (IS_ERR(ihid->pdata.supply)) {
+ 		ret = PTR_ERR(ihid->pdata.supply);
+ 		if (ret != -EPROBE_DEFER)
+ 			dev_err(&client->dev, "Failed to get regulator: %d\n",
+ 				ret);
+ 		return ret;
+ 	}
+ 
+	ret = regulator_enable(ihid->pdata.supply);
+	if (ret < 0) {
+		dev_err(&client->dev, "Failed to enable regulator: %d\n",
+			ret);
+		goto err;
+	}
+	if (ihid->pdata.init_delay_ms)
+		msleep(ihid->pdata.init_delay_ms);
+
 	i2c_set_clientdata(client, ihid);
 
 	ihid->client = client;
@@ -1068,7 +1090,7 @@ static int i2c_hid_probe(struct i2c_client *client,
 	 * real computation later. */
 	ret = i2c_hid_alloc_buffers(ihid, HID_MIN_BUFFER_SIZE);
 	if (ret < 0)
-		goto err;
+		goto err_regulator;
 
 	pm_runtime_get_noresume(&client->dev);
 	pm_runtime_set_active(&client->dev);
@@ -1125,6 +1147,9 @@ err_pm:
 	pm_runtime_put_noidle(&client->dev);
 	pm_runtime_disable(&client->dev);
 
+err_regulator:
+	regulator_disable(ihid->pdata.supply);
+
 err:
 	i2c_hid_free_buffers(ihid);
 	kfree(ihid);
@@ -1148,6 +1173,8 @@ static int i2c_hid_remove(struct i2c_client *client)
 
 	if (ihid->bufsize)
 		i2c_hid_free_buffers(ihid);
+
+	regulator_disable(ihid->pdata.supply);
 
 	kfree(ihid);
 
@@ -1199,6 +1226,11 @@ static int i2c_hid_suspend(struct device *dev)
 		else
 			hid_warn(hid, "Failed to enable irq wake: %d\n",
 				wake_status);
+	} else {
+		ret = regulator_disable(ihid->pdata.supply);
+		if (ret < 0)
+			hid_warn(hid, "Failed to disable supply: %d\n",
+				 ret);
 	}
 
 	return 0;
@@ -1212,13 +1244,20 @@ static int i2c_hid_resume(struct device *dev)
 	struct hid_device *hid = ihid->hid;
 	int wake_status;
 
-	if (device_may_wakeup(&client->dev) && ihid->irq_wake_enabled) {
+	if (!device_may_wakeup(&client->dev)) {
+		ret = regulator_enable(ihid->pdata.supply);
+		if (ret < 0)
+			hid_warn(hid, "Failed to enable supply: %d\n",
+					ret);
+		if (ihid->pdata.init_delay_ms)
+			msleep(ihid->pdata.init_delay_ms);
+	} else if (ihid->irq_wake_enabled) {
 		wake_status = disable_irq_wake(client->irq);
 		if (!wake_status)
 			ihid->irq_wake_enabled = false;
 		else
 			hid_warn(hid, "Failed to disable irq wake: %d\n",
-				wake_status);
+					wake_status);
 	}
 
 	/* We'll resume to full power */
