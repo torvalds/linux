@@ -218,6 +218,4 @@ static inline int mmc_card_broken_hpi(const struct mmc_card *c)
 	return c->quirks & MMC_QUIRK_BROKEN_HPI;
 }
 
-void mmc_fixup_device(struct mmc_card *card, const struct mmc_fixup *table);
-
 #endif

@@ -9,10 +9,6 @@
  *
  */
 
-#include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/export.h>
-#include <linux/mmc/card.h>
 #include <linux/mmc/sdio_ids.h>
 
 #include "card.h"
@@ -53,7 +49,8 @@ static const struct mmc_fixup mmc_fixup_methods[] = {
 	END_FIXUP
 };
 
-void mmc_fixup_device(struct mmc_card *card, const struct mmc_fixup *table)
+static inline void mmc_fixup_device(struct mmc_card *card,
+				    const struct mmc_fixup *table)
 {
 	const struct mmc_fixup *f;
 	u64 rev = cid_rev_card(card);
@@ -82,4 +79,3 @@ void mmc_fixup_device(struct mmc_card *card, const struct mmc_fixup *table)
 		}
 	}
 }
-EXPORT_SYMBOL(mmc_fixup_device);

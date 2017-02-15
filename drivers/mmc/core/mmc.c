@@ -25,6 +25,7 @@
 #include "host.h"
 #include "bus.h"
 #include "mmc_ops.h"
+#include "quirks.h"
 #include "sd_ops.h"
 
 #define DEFAULT_CMD6_TIMEOUT_MS	500

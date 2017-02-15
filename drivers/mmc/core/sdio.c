@@ -23,6 +23,7 @@
 #include "card.h"
 #include "host.h"
 #include "bus.h"
+#include "quirks.h"
 #include "sd.h"
 #include "sdio_bus.h"
 #include "mmc_ops.h"
