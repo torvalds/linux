@@ -1102,6 +1102,11 @@ static int __nvm_configure_create(struct nvm_ioctl_create *create)
 	}
 	s = &create->conf.s;
 
+	if (s->lun_begin == -1 && s->lun_end == -1) {
+		s->lun_begin = 0;
+		s->lun_end = dev->geo.nr_luns - 1;
+	}
+
 	if (s->lun_begin > s->lun_end || s->lun_end >= dev->geo.nr_luns) {
 		pr_err("nvm: lun out of bound (%u:%u > %u)\n",
 			s->lun_begin, s->lun_end, dev->geo.nr_luns - 1);
