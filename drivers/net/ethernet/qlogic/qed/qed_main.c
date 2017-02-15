@@ -902,6 +902,7 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 	struct qed_mcp_drv_version drv_version;
 	const u8 *data = NULL;
 	struct qed_hwfn *hwfn;
+	struct qed_ptt *p_ptt;
 	int rc = -EINVAL;
 
 	if (qed_iov_wq_start(cdev))
@@ -914,6 +915,14 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 			DP_NOTICE(cdev,
 				  "Failed to find fw file - /lib/firmware/%s\n",
 				  QED_FW_FILE_NAME);
+			goto err;
+		}
+
+		p_ptt = qed_ptt_acquire(QED_LEADING_HWFN(cdev));
+		if (p_ptt) {
+			QED_LEADING_HWFN(cdev)->p_ptp_ptt = p_ptt;
+		} else {
+			DP_NOTICE(cdev, "Failed to acquire PTT for PTP\n");
 			goto err;
 		}
 	}
@@ -1003,6 +1012,10 @@ err:
 	if (IS_PF(cdev))
 		release_firmware(cdev->firmware);
 
+	if (IS_PF(cdev) && QED_LEADING_HWFN(cdev)->p_ptp_ptt)
+		qed_ptt_release(QED_LEADING_HWFN(cdev),
+				QED_LEADING_HWFN(cdev)->p_ptp_ptt);
+
 	qed_iov_wq_stop(cdev, false);
 
 	return rc;
@@ -1016,6 +1029,8 @@ static int qed_slowpath_stop(struct qed_dev *cdev)
 	qed_ll2_dealloc_if(cdev);
 
 	if (IS_PF(cdev)) {
+		qed_ptt_release(QED_LEADING_HWFN(cdev),
+				QED_LEADING_HWFN(cdev)->p_ptp_ptt);
 		qed_free_stream_mem(cdev);
 		if (IS_QED_ETH_IF(cdev))
 			qed_sriov_disable(cdev, true);

@@ -456,6 +456,8 @@ struct qed_hwfn {
 	u8 dcbx_no_edpm;
 	u8 db_bar_no_edpm;
 
+	/* p_ptp_ptt is valid for leading HWFN only */
+	struct qed_ptt *p_ptp_ptt;
 	struct qed_simd_fp_handler	simd_proto_handler[64];
 
 #ifdef CONFIG_QED_SRIOV

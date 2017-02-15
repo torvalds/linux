@@ -156,6 +156,7 @@ struct qed_sp_vport_start_params {
 	enum qed_tpa_mode tpa_mode;
 	bool remove_inner_vlan;
 	bool tx_switching;
+	bool handle_ptp_pkts;
 	bool only_untagged;
 	bool drop_ttl0;
 	u8 max_buffers_per_cqe;
