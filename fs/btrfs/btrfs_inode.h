@@ -224,16 +224,16 @@ static inline void btrfs_insert_inode_hash(struct inode *inode)
 	__insert_inode_hash(inode, h);
 }
 
-static inline u64 btrfs_ino(struct inode *inode)
+static inline u64 btrfs_ino(struct btrfs_inode *inode)
 {
-	u64 ino = BTRFS_I(inode)->location.objectid;
+	u64 ino = inode->location.objectid;
 
 	/*
 	 * !ino: btree_inode
 	 * type == BTRFS_ROOT_ITEM_KEY: subvol dir
 	 */
-	if (!ino || BTRFS_I(inode)->location.type == BTRFS_ROOT_ITEM_KEY)
-		ino = inode->i_ino;
+	if (!ino || inode->location.type == BTRFS_ROOT_ITEM_KEY)
+		ino = inode->vfs_inode.i_ino;
 	return ino;
 }
 
@@ -248,23 +248,21 @@ static inline bool btrfs_is_free_space_inode(struct inode *inode)
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 
 	if (root == root->fs_info->tree_root &&
-	    btrfs_ino(inode) != BTRFS_BTREE_INODE_OBJECTID)
+	    btrfs_ino(BTRFS_I(inode)) != BTRFS_BTREE_INODE_OBJECTID)
 		return true;
 	if (BTRFS_I(inode)->location.objectid == BTRFS_FREE_INO_OBJECTID)
 		return true;
 	return false;
 }
 
-static inline int btrfs_inode_in_log(struct inode *inode, u64 generation)
+static inline int btrfs_inode_in_log(struct btrfs_inode *inode, u64 generation)
 {
 	int ret = 0;
 
-	spin_lock(&BTRFS_I(inode)->lock);
-	if (BTRFS_I(inode)->logged_trans == generation &&
-	    BTRFS_I(inode)->last_sub_trans <=
-	    BTRFS_I(inode)->last_log_commit &&
-	    BTRFS_I(inode)->last_sub_trans <=
-	    BTRFS_I(inode)->root->last_log_commit) {
+	spin_lock(&inode->lock);
+	if (inode->logged_trans == generation &&
+	    inode->last_sub_trans <= inode->last_log_commit &&
+	    inode->last_sub_trans <= inode->root->last_log_commit) {
 		/*
 		 * After a ranged fsync we might have left some extent maps
 		 * (that fall outside the fsync's range). So return false
@@ -272,10 +270,10 @@ static inline int btrfs_inode_in_log(struct inode *inode, u64 generation)
 		 * will be called and process those extent maps.
 		 */
 		smp_mb();
-		if (list_empty(&BTRFS_I(inode)->extent_tree.modified_extents))
+		if (list_empty(&inode->extent_tree.modified_extents))
 			ret = 1;
 	}
-	spin_unlock(&BTRFS_I(inode)->lock);
+	spin_unlock(&inode->lock);
 	return ret;
 }
 
@@ -324,6 +322,24 @@ static inline void btrfs_inode_resume_unlocked_dio(struct inode *inode)
 	smp_mb__before_atomic();
 	clear_bit(BTRFS_INODE_READDIO_NEED_LOCK,
 		  &BTRFS_I(inode)->runtime_flags);
+}
+
+static inline void btrfs_print_data_csum_error(struct inode *inode,
+		u64 logical_start, u32 csum, u32 csum_expected, int mirror_num)
+{
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+
+	/* Output minus objectid, which is more meaningful */
+	if (root->objectid >= BTRFS_LAST_FREE_OBJECTID)
+		btrfs_warn_rl(root->fs_info,
+	"csum failed root %lld ino %lld off %llu csum 0x%08x expected csum 0x%08x mirror %d",
+			root->objectid, btrfs_ino(BTRFS_I(inode)),
+			logical_start, csum, csum_expected, mirror_num);
+	else
+		btrfs_warn_rl(root->fs_info,
+	"csum failed root %llu ino %llu off %llu csum 0x%08x expected csum 0x%08x mirror %d",
+			root->objectid, btrfs_ino(BTRFS_I(inode)),
+			logical_start, csum, csum_expected, mirror_num);
 }
 
 bool btrfs_page_exists_in_range(struct inode *inode, loff_t start, loff_t end);

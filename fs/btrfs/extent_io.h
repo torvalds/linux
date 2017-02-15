@@ -45,13 +45,14 @@
 #define EXTENT_BUFFER_IN_TREE 10
 #define EXTENT_BUFFER_WRITE_ERR 11    /* write IO error */
 
-/* these are flags for extent_clear_unlock_delalloc */
+/* these are flags for __process_pages_contig */
 #define PAGE_UNLOCK		(1 << 0)
 #define PAGE_CLEAR_DIRTY	(1 << 1)
 #define PAGE_SET_WRITEBACK	(1 << 2)
 #define PAGE_END_WRITEBACK	(1 << 3)
 #define PAGE_SET_PRIVATE2	(1 << 4)
 #define PAGE_SET_ERROR		(1 << 5)
+#define PAGE_LOCK		(1 << 6)
 
 /*
  * page->private values.  Every page that is controlled by the extent
@@ -192,7 +193,7 @@ struct extent_changeset {
 	u64 bytes_changed;
 
 	/* Changed ranges */
-	struct ulist *range_changed;
+	struct ulist range_changed;
 };
 
 static inline void extent_set_compress_type(unsigned long *bio_flags,
