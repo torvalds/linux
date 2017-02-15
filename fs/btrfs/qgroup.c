@@ -1464,8 +1464,9 @@ int btrfs_qgroup_prepare_account_extents(struct btrfs_trans_handle *trans,
 	while (node) {
 		record = rb_entry(node, struct btrfs_qgroup_extent_record,
 				  node);
-		ret = btrfs_find_all_roots(NULL, fs_info, record->bytenr, 0,
-					   &record->old_roots);
+		if (WARN_ON(!record->old_roots))
+			ret = btrfs_find_all_roots(NULL, fs_info,
+					record->bytenr, 0, &record->old_roots);
 		if (ret < 0)
 			break;
 		if (qgroup_to_skip)
@@ -1504,6 +1505,28 @@ int btrfs_qgroup_trace_extent_nolock(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
+int btrfs_qgroup_trace_extent_post(struct btrfs_fs_info *fs_info,
+				   struct btrfs_qgroup_extent_record *qrecord)
+{
+	struct ulist *old_root;
+	u64 bytenr = qrecord->bytenr;
+	int ret;
+
+	ret = btrfs_find_all_roots(NULL, fs_info, bytenr, 0, &old_root);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Here we don't need to get the lock of
+	 * trans->transaction->delayed_refs, since inserted qrecord won't
+	 * be deleted, only qrecord->node may be modified (new qrecord insert)
+	 *
+	 * So modifying qrecord->old_roots is safe here
+	 */
+	qrecord->old_roots = old_root;
+	return 0;
+}
+
 int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans,
 		struct btrfs_fs_info *fs_info, u64 bytenr, u64 num_bytes,
 		gfp_t gfp_flag)
@@ -1529,9 +1552,11 @@ int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans,
 	spin_lock(&delayed_refs->lock);
 	ret = btrfs_qgroup_trace_extent_nolock(fs_info, delayed_refs, record);
 	spin_unlock(&delayed_refs->lock);
-	if (ret > 0)
+	if (ret > 0) {
 		kfree(record);
-	return 0;
+		return 0;
+	}
+	return btrfs_qgroup_trace_extent_post(fs_info, record);
 }
 
 int btrfs_qgroup_trace_leaf_items(struct btrfs_trans_handle *trans,
