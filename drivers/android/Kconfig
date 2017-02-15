@@ -22,7 +22,7 @@ config ANDROID_BINDER_IPC
 config ANDROID_BINDER_DEVICES
 	string "Android Binder devices"
 	depends on ANDROID_BINDER_IPC
-	default "binder"
+	default "binder,hwbinder"
 	---help---
 	  Default value for the binder.devices parameter.
 
