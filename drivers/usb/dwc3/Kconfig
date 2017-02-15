@@ -105,6 +105,15 @@ config USB_DWC3_ROCKCHIP
 	  Support of USB2/3 functionality in Rockchip platforms.
 	  say 'Y' or 'M' if you have one such device.
 
+config USB_DWC3_ROCKCHIP_INNO
+	tristate "Rockchip Platforms with INNO PHY"
+	depends on OF && COMMON_CLK && ARCH_ROCKCHIP
+	default USB_DWC3
+	help
+	  Support of USB2/3 functionality in Rockchip platforms
+	  with INNO USB 3.0 PHY IP inside.
+	  say 'Y' or 'M' if you have one such device.
+
 config USB_DWC3_ST
 	tristate "STMicroelectronics Platforms"
 	depends on ARCH_STI && OF
