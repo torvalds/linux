@@ -107,9 +107,6 @@ struct cpt_vf {
 	void __iomem *reg_base; /* Register start address */
 	void *wqe_info;	/* BH worker info */
 	/* MSI-X */
-	bool msix_enabled;
-	struct msix_entry msix_entries[CPT_VF_MSIX_VECTORS];
-	bool irq_allocated[CPT_VF_MSIX_VECTORS];
 	cpumask_var_t affinity_mask[CPT_VF_MSIX_VECTORS];
 	/* Command and Pending queues */
 	u32 qsize;
