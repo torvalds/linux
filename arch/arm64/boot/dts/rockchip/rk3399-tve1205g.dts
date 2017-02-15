@@ -191,19 +191,22 @@
 		status = "okay";
 	};
 
-	spdif-sound {
+	bt-sound {
 		compatible = "simple-audio-card";
-		simple-audio-card,name = "rockchip,spdif";
+		simple-audio-card,format = "dsp_b";
+		simple-audio-card,bitclock-inversion = <1>;
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,bt";
 		simple-audio-card,cpu {
-			sound-dai = <&spdif>;
+			sound-dai = <&i2s1>;
 		};
 		simple-audio-card,codec {
-			sound-dai = <&spdif_out>;
+			sound-dai = <&bt_sco>;
 		};
 	};
 
-	spdif_out: spdif-out {
-		compatible = "linux,spdif-dit";
+	bt_sco: bt-sco {
+		compatible = "delta,dfbmcs320";
 		#sound-dai-cells = <0>;
 	};
 
@@ -448,6 +451,14 @@
 	rockchip,playback-channels = <8>;
 	rockchip,capture-channels = <8>;
 	rockchip,bclk-fs = <32>;
+	#sound-dai-cells = <0>;
+};
+
+&i2s1 {
+	status = "okay";
+	rockchip,i2s-broken-burst-len;
+	rockchip,playback-channels = <2>;
+	rockchip,capture-channels = <2>;
 	#sound-dai-cells = <0>;
 };
 
