@@ -2827,9 +2827,7 @@ intel_info(const struct drm_i915_private *dev_priv)
 
 /* WaRsDisableCoarsePowerGating:skl,bxt */
 #define NEEDS_WaRsDisableCoarsePowerGating(dev_priv) \
-	(IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1) || \
-	 IS_SKL_GT3(dev_priv) || \
-	 IS_SKL_GT4(dev_priv))
+	(IS_SKL_GT3(dev_priv) || IS_SKL_GT4(dev_priv))
 
 /*
  * dp aux and gmbus irq on gen4 seems to be able to generate legacy interrupts
