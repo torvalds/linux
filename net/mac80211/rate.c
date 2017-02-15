@@ -208,7 +208,6 @@ static struct rate_control_ref *rate_control_alloc(const char *name,
 	ref = kmalloc(sizeof(struct rate_control_ref), GFP_KERNEL);
 	if (!ref)
 		return NULL;
-	ref->local = local;
 	ref->ops = ieee80211_rate_control_ops_get(name);
 	if (!ref->ops)
 		goto free;
@@ -229,13 +228,14 @@ free:
 	return NULL;
 }
 
-static void rate_control_free(struct rate_control_ref *ctrl_ref)
+static void rate_control_free(struct ieee80211_local *local,
+			      struct rate_control_ref *ctrl_ref)
 {
 	ctrl_ref->ops->free(ctrl_ref->priv);
 
 #ifdef CONFIG_MAC80211_DEBUGFS
-	debugfs_remove_recursive(ctrl_ref->local->debugfs.rcdir);
-	ctrl_ref->local->debugfs.rcdir = NULL;
+	debugfs_remove_recursive(local->debugfs.rcdir);
+	local->debugfs.rcdir = NULL;
 #endif
 
 	kfree(ctrl_ref);
@@ -936,6 +936,6 @@ void rate_control_deinitialize(struct ieee80211_local *local)
 		return;
 
 	local->rate_ctrl = NULL;
-	rate_control_free(ref);
+	rate_control_free(local, ref);
 }
 

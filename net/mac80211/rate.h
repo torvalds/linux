@@ -20,7 +20,6 @@
 #include "driver-ops.h"
 
 struct rate_control_ref {
-	struct ieee80211_local *local;
 	const struct rate_control_ops *ops;
 	void *priv;
 };
