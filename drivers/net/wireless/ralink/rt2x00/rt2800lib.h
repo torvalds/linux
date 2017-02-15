@@ -41,6 +41,7 @@ struct rt2800_drv_data {
 	unsigned int tbtt_tick;
 	unsigned int ampdu_factor_cnt[4];
 	DECLARE_BITMAP(sta_ids, STA_IDS_SIZE);
+	struct ieee80211_sta *wcid_to_sta[STA_IDS_SIZE];
 };
 
 struct rt2800_ops {

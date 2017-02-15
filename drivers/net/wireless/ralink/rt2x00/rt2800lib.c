@@ -855,11 +855,13 @@ EXPORT_SYMBOL_GPL(rt2800_process_rxwi);
 void rt2800_txdone_entry(struct queue_entry *entry, u32 status, __le32 *txwi)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct rt2800_drv_data *drv_data = rt2x00dev->drv_data;
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	struct txdone_entry_desc txdesc;
 	u32 word;
 	u16 mcs, real_mcs;
 	int aggr, ampdu;
+	int wcid;
 
 	/*
 	 * Obtain the status about this packet.
@@ -872,6 +874,7 @@ void rt2800_txdone_entry(struct queue_entry *entry, u32 status, __le32 *txwi)
 
 	real_mcs = rt2x00_get_field32(status, TX_STA_FIFO_MCS);
 	aggr = rt2x00_get_field32(status, TX_STA_FIFO_TX_AGGRE);
+	wcid = rt2x00_get_field32(status, TX_STA_FIFO_WCID);
 
 	/*
 	 * If a frame was meant to be sent as a single non-aggregated MPDU
@@ -1468,6 +1471,7 @@ int rt2800_sta_add(struct rt2x00_dev *rt2x00dev, struct ieee80211_vif *vif,
 		return 0;
 
 	__set_bit(wcid - WCID_START, drv_data->sta_ids);
+	drv_data->wcid_to_sta[wcid - WCID_START] = sta;
 
 	/*
 	 * Clean up WCID attributes and write STA address to the device.
@@ -1498,6 +1502,7 @@ int rt2800_sta_remove(struct rt2x00_dev *rt2x00dev, struct ieee80211_sta *sta)
 	 * get renewed when the WCID is reused.
 	 */
 	rt2800_config_wcid(rt2x00dev, NULL, wcid);
+	drv_data->wcid_to_sta[wcid - WCID_START] = NULL;
 	__clear_bit(wcid - WCID_START, drv_data->sta_ids);
 
 	return 0;
