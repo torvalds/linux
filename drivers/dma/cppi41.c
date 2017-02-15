@@ -131,7 +131,6 @@ struct cppi41_dd {
 	u32 first_td_desc;
 	struct cppi41_channel *chan_busy[ALLOC_DECS_NUM];
 
-	void __iomem *usbss_mem;
 	void __iomem *ctrl_mem;
 	void __iomem *sched_mem;
 	void __iomem *qmgr_mem;
@@ -995,6 +994,7 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 	struct cppi41_dd *cdd;
 	struct device *dev = &pdev->dev;
 	const struct cppi_glue_infos *glue_info;
+	int index;
 	int irq;
 	int ret;
 
@@ -1021,16 +1021,20 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&cdd->ddev.channels);
 	cpp41_dma_info.dma_cap = cdd->ddev.cap_mask;
 
-	cdd->usbss_mem = of_iomap(dev->of_node, 0);
-	cdd->ctrl_mem = of_iomap(dev->of_node, 1);
-	cdd->sched_mem = of_iomap(dev->of_node, 2);
-	cdd->qmgr_mem = of_iomap(dev->of_node, 3);
+	index = of_property_match_string(dev->of_node,
+					 "reg-names", "controller");
+	if (index < 0)
+		return index;
+
+	cdd->ctrl_mem = of_iomap(dev->of_node, index);
+	cdd->sched_mem = of_iomap(dev->of_node, index + 1);
+	cdd->qmgr_mem = of_iomap(dev->of_node, index + 2);
 	spin_lock_init(&cdd->lock);
 	INIT_LIST_HEAD(&cdd->pending);
 
 	platform_set_drvdata(pdev, cdd);
 
-	if (!cdd->usbss_mem || !cdd->ctrl_mem || !cdd->sched_mem ||
+	if (!cdd->ctrl_mem || !cdd->sched_mem ||
 			!cdd->qmgr_mem)
 		return -ENXIO;
 
@@ -1090,7 +1094,6 @@ err_init_cppi:
 err_get_sync:
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
-	iounmap(cdd->usbss_mem);
 	iounmap(cdd->ctrl_mem);
 	iounmap(cdd->sched_mem);
 	iounmap(cdd->qmgr_mem);
@@ -1112,7 +1115,6 @@ static int cppi41_dma_remove(struct platform_device *pdev)
 	devm_free_irq(&pdev->dev, cdd->irq, cdd);
 	cleanup_chans(cdd);
 	deinit_cppi41(&pdev->dev, cdd);
-	iounmap(cdd->usbss_mem);
 	iounmap(cdd->ctrl_mem);
 	iounmap(cdd->sched_mem);
 	iounmap(cdd->qmgr_mem);
