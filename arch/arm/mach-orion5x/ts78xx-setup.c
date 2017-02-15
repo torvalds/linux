@@ -16,7 +16,6 @@
 #include <linux/platform_device.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/ata_platform.h>
-#include <linux/platform_data/rtc-m48t86.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/timeriomem-rng.h>
@@ -80,33 +79,19 @@ static struct mv_sata_platform_data ts78xx_sata_data = {
 /*****************************************************************************
  * RTC M48T86 - nicked^Wborrowed from arch/arm/mach-ep93xx/ts72xx.c
  ****************************************************************************/
-#define TS_RTC_CTRL	(TS78XX_FPGA_REGS_VIRT_BASE + 0x808)
-#define TS_RTC_DATA	(TS78XX_FPGA_REGS_VIRT_BASE + 0x80c)
+#define TS_RTC_CTRL	(TS78XX_FPGA_REGS_PHYS_BASE + 0x808)
+#define TS_RTC_DATA	(TS78XX_FPGA_REGS_PHYS_BASE + 0x80c)
 
-static unsigned char ts78xx_ts_rtc_readbyte(unsigned long addr)
-{
-	writeb(addr, TS_RTC_CTRL);
-	return readb(TS_RTC_DATA);
-}
-
-static void ts78xx_ts_rtc_writebyte(unsigned char value, unsigned long addr)
-{
-	writeb(addr, TS_RTC_CTRL);
-	writeb(value, TS_RTC_DATA);
-}
-
-static struct m48t86_ops ts78xx_ts_rtc_ops = {
-	.readbyte	= ts78xx_ts_rtc_readbyte,
-	.writebyte	= ts78xx_ts_rtc_writebyte,
+static struct resource ts78xx_ts_rtc_resources[] = {
+	DEFINE_RES_MEM(TS_RTC_CTRL, 0x01),
+	DEFINE_RES_MEM(TS_RTC_DATA, 0x01),
 };
 
 static struct platform_device ts78xx_ts_rtc_device = {
 	.name		= "rtc-m48t86",
 	.id		= -1,
-	.dev		= {
-		.platform_data	= &ts78xx_ts_rtc_ops,
-	},
-	.num_resources	= 0,
+	.resource	= ts78xx_ts_rtc_resources,
+	.num_resources 	= ARRAY_SIZE(ts78xx_ts_rtc_resources),
 };
 
 static int ts78xx_ts_rtc_load(void)
