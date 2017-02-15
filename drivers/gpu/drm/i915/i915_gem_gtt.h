@@ -226,8 +226,8 @@ struct i915_page_table {
 struct i915_page_directory {
 	struct i915_page_dma base;
 
-	unsigned long *used_pdes;
 	struct i915_page_table *page_table[I915_PDES]; /* PDEs */
+	unsigned int used_pdes;
 };
 
 struct i915_page_directory_pointer {
@@ -520,9 +520,7 @@ static inline size_t gen8_pte_count(uint64_t address, uint64_t length)
 static inline dma_addr_t
 i915_page_dir_dma_addr(const struct i915_hw_ppgtt *ppgtt, const unsigned n)
 {
-	return test_bit(n, ppgtt->pdp.used_pdpes) ?
-		px_dma(ppgtt->pdp.page_directory[n]) :
-		px_dma(ppgtt->base.scratch_pd);
+	return px_dma(ppgtt->pdp.page_directory[n]);
 }
 
 static inline struct i915_ggtt *
