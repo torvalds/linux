@@ -68,7 +68,6 @@
 #define QMGR_MEMCTRL_IDX_SH	16
 #define QMGR_MEMCTRL_DESC_SH	8
 
-#define QMGR_NUM_PEND	5
 #define QMGR_PEND(x)	(0x90 + (x) * 4)
 
 #define QMGR_PENDING_SLOT_Q(x)	(x / 32)
@@ -138,6 +137,8 @@ struct cppi41_dd {
 	const struct chan_queues *queues_rx;
 	const struct chan_queues *queues_tx;
 	struct chan_queues td_queue;
+	u16 first_completion_queue;
+	u16 qmgr_num_pend;
 
 	struct list_head pending;	/* Pending queued transfers */
 	spinlock_t lock;		/* Lock for pending list */
@@ -148,7 +149,6 @@ struct cppi41_dd {
 	bool is_suspended;
 };
 
-#define FIST_COMPLETION_QUEUE	93
 static struct chan_queues am335x_usb_queues_tx[] = {
 	/* USB0 ENDP 1 */
 	[ 0] = { .submit = 32, .complete =  93},
@@ -226,6 +226,8 @@ struct cppi_glue_infos {
 	const struct chan_queues *queues_rx;
 	const struct chan_queues *queues_tx;
 	struct chan_queues td_queue;
+	u16 first_completion_queue;
+	u16 qmgr_num_pend;
 };
 
 static struct cppi41_channel *to_cpp41_chan(struct dma_chan *c)
@@ -284,19 +286,21 @@ static u32 cppi41_pop_desc(struct cppi41_dd *cdd, unsigned queue_num)
 static irqreturn_t cppi41_irq(int irq, void *data)
 {
 	struct cppi41_dd *cdd = data;
+	u16 first_completion_queue = cdd->first_completion_queue;
+	u16 qmgr_num_pend = cdd->qmgr_num_pend;
 	struct cppi41_channel *c;
 	int i;
 
-	for (i = QMGR_PENDING_SLOT_Q(FIST_COMPLETION_QUEUE); i < QMGR_NUM_PEND;
+	for (i = QMGR_PENDING_SLOT_Q(first_completion_queue); i < qmgr_num_pend;
 			i++) {
 		u32 val;
 		u32 q_num;
 
 		val = cppi_readl(cdd->qmgr_mem + QMGR_PEND(i));
-		if (i == QMGR_PENDING_SLOT_Q(FIST_COMPLETION_QUEUE) && val) {
+		if (i == QMGR_PENDING_SLOT_Q(first_completion_queue) && val) {
 			u32 mask;
 			/* set corresponding bit for completetion Q 93 */
-			mask = 1 << QMGR_PENDING_BIT_Q(FIST_COMPLETION_QUEUE);
+			mask = 1 << QMGR_PENDING_BIT_Q(first_completion_queue);
 			/* not set all bits for queues less than Q 93 */
 			mask--;
 			/* now invert and keep only Q 93+ set */
@@ -884,7 +888,7 @@ static int init_cppi41(struct device *dev, struct cppi41_dd *cdd)
 		return -ENOMEM;
 
 	cppi_writel(cdd->scratch_phys, cdd->qmgr_mem + QMGR_LRAM0_BASE);
-	cppi_writel(QMGR_SCRATCH_SIZE, cdd->qmgr_mem + QMGR_LRAM_SIZE);
+	cppi_writel(TOTAL_DESCS_NUM, cdd->qmgr_mem + QMGR_LRAM_SIZE);
 	cppi_writel(0, cdd->qmgr_mem + QMGR_LRAM1_BASE);
 
 	ret = init_descs(dev, cdd);
@@ -967,6 +971,8 @@ static const struct cppi_glue_infos am335x_usb_infos = {
 	.queues_rx = am335x_usb_queues_rx,
 	.queues_tx = am335x_usb_queues_tx,
 	.td_queue = { .submit = 31, .complete = 0 },
+	.first_completion_queue = 93,
+	.qmgr_num_pend = 5,
 };
 
 static const struct of_device_id cppi41_dma_ids[] = {
@@ -1049,6 +1055,8 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 	cdd->queues_rx = glue_info->queues_rx;
 	cdd->queues_tx = glue_info->queues_tx;
 	cdd->td_queue = glue_info->td_queue;
+	cdd->qmgr_num_pend = glue_info->qmgr_num_pend;
+	cdd->first_completion_queue = glue_info->first_completion_queue;
 
 	ret = init_cppi41(dev, cdd);
 	if (ret)
