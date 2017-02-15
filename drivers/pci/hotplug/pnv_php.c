@@ -35,9 +35,11 @@ static void pnv_php_register(struct device_node *dn);
 static void pnv_php_unregister_one(struct device_node *dn);
 static void pnv_php_unregister(struct device_node *dn);
 
-static void pnv_php_disable_irq(struct pnv_php_slot *php_slot)
+static void pnv_php_disable_irq(struct pnv_php_slot *php_slot,
+				bool disable_device)
 {
 	struct pci_dev *pdev = php_slot->pdev;
+	int irq = php_slot->irq;
 	u16 ctrl;
 
 	if (php_slot->irq > 0) {
@@ -56,10 +58,14 @@ static void pnv_php_disable_irq(struct pnv_php_slot *php_slot)
 		php_slot->wq = NULL;
 	}
 
-	if (pdev->msix_enabled)
-		pci_disable_msix(pdev);
-	else if (pdev->msi_enabled)
-		pci_disable_msi(pdev);
+	if (disable_device || irq > 0) {
+		if (pdev->msix_enabled)
+			pci_disable_msix(pdev);
+		else if (pdev->msi_enabled)
+			pci_disable_msi(pdev);
+
+		pci_disable_device(pdev);
+	}
 }
 
 static void pnv_php_free_slot(struct kref *kref)
@@ -68,7 +74,7 @@ static void pnv_php_free_slot(struct kref *kref)
 					struct pnv_php_slot, kref);
 
 	WARN_ON(!list_empty(&php_slot->children));
-	pnv_php_disable_irq(php_slot);
+	pnv_php_disable_irq(php_slot, false);
 	kfree(php_slot->name);
 	kfree(php_slot);
 }
@@ -759,7 +765,7 @@ static void pnv_php_init_irq(struct pnv_php_slot *php_slot, int irq)
 	php_slot->wq = alloc_workqueue("pciehp-%s", 0, 0, php_slot->name);
 	if (!php_slot->wq) {
 		dev_warn(&pdev->dev, "Cannot alloc workqueue\n");
-		pnv_php_disable_irq(php_slot);
+		pnv_php_disable_irq(php_slot, true);
 		return;
 	}
 
@@ -772,7 +778,7 @@ static void pnv_php_init_irq(struct pnv_php_slot *php_slot, int irq)
 	ret = request_irq(irq, pnv_php_interrupt, IRQF_SHARED,
 			  php_slot->name, php_slot);
 	if (ret) {
-		pnv_php_disable_irq(php_slot);
+		pnv_php_disable_irq(php_slot, true);
 		dev_warn(&pdev->dev, "Error %d enabling IRQ %d\n", ret, irq);
 		return;
 	}
