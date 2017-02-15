@@ -61,12 +61,6 @@ MODULE_ALIAS("mmc:block");
 #endif
 #define MODULE_PARAM_PREFIX "mmcblk."
 
-#define INAND_CMD38_ARG_EXT_CSD  113
-#define INAND_CMD38_ARG_ERASE    0x00
-#define INAND_CMD38_ARG_TRIM     0x01
-#define INAND_CMD38_ARG_SECERASE 0x80
-#define INAND_CMD38_ARG_SECTRIM1 0x81
-#define INAND_CMD38_ARG_SECTRIM2 0x88
 #define MMC_BLK_TIMEOUT_MS  (10 * 60 * 1000)        /* 10 minute timeout */
 #define MMC_SANITIZE_REQ_TIMEOUT 240000
 #define MMC_EXTRACT_INDEX_FROM_ARG(x) ((x & 0x00FF0000) >> 16)
@@ -2107,80 +2101,6 @@ force_ro_fail:
 
 	return ret;
 }
-
-static const struct mmc_fixup blk_fixups[] =
-{
-	MMC_FIXUP("SEM02G", CID_MANFID_SANDISK, 0x100, add_quirk,
-		  MMC_QUIRK_INAND_CMD38),
-	MMC_FIXUP("SEM04G", CID_MANFID_SANDISK, 0x100, add_quirk,
-		  MMC_QUIRK_INAND_CMD38),
-	MMC_FIXUP("SEM08G", CID_MANFID_SANDISK, 0x100, add_quirk,
-		  MMC_QUIRK_INAND_CMD38),
-	MMC_FIXUP("SEM16G", CID_MANFID_SANDISK, 0x100, add_quirk,
-		  MMC_QUIRK_INAND_CMD38),
-	MMC_FIXUP("SEM32G", CID_MANFID_SANDISK, 0x100, add_quirk,
-		  MMC_QUIRK_INAND_CMD38),
-
-	/*
-	 * Some MMC cards experience performance degradation with CMD23
-	 * instead of CMD12-bounded multiblock transfers. For now we'll
-	 * black list what's bad...
-	 * - Certain Toshiba cards.
-	 *
-	 * N.B. This doesn't affect SD cards.
-	 */
-	MMC_FIXUP("SDMB-32", CID_MANFID_SANDISK, CID_OEMID_ANY, add_quirk_mmc,
-		  MMC_QUIRK_BLK_NO_CMD23),
-	MMC_FIXUP("SDM032", CID_MANFID_SANDISK, CID_OEMID_ANY, add_quirk_mmc,
-		  MMC_QUIRK_BLK_NO_CMD23),
-	MMC_FIXUP("MMC08G", CID_MANFID_TOSHIBA, CID_OEMID_ANY, add_quirk_mmc,
-		  MMC_QUIRK_BLK_NO_CMD23),
-	MMC_FIXUP("MMC16G", CID_MANFID_TOSHIBA, CID_OEMID_ANY, add_quirk_mmc,
-		  MMC_QUIRK_BLK_NO_CMD23),
-	MMC_FIXUP("MMC32G", CID_MANFID_TOSHIBA, CID_OEMID_ANY, add_quirk_mmc,
-		  MMC_QUIRK_BLK_NO_CMD23),
-
-	/*
-	 * Some MMC cards need longer data read timeout than indicated in CSD.
-	 */
-	MMC_FIXUP(CID_NAME_ANY, CID_MANFID_MICRON, 0x200, add_quirk_mmc,
-		  MMC_QUIRK_LONG_READ_TIME),
-	MMC_FIXUP("008GE0", CID_MANFID_TOSHIBA, CID_OEMID_ANY, add_quirk_mmc,
-		  MMC_QUIRK_LONG_READ_TIME),
-
-	/*
-	 * On these Samsung MoviNAND parts, performing secure erase or
-	 * secure trim can result in unrecoverable corruption due to a
-	 * firmware bug.
-	 */
-	MMC_FIXUP("M8G2FA", CID_MANFID_SAMSUNG, CID_OEMID_ANY, add_quirk_mmc,
-		  MMC_QUIRK_SEC_ERASE_TRIM_BROKEN),
-	MMC_FIXUP("MAG4FA", CID_MANFID_SAMSUNG, CID_OEMID_ANY, add_quirk_mmc,
-		  MMC_QUIRK_SEC_ERASE_TRIM_BROKEN),
-	MMC_FIXUP("MBG8FA", CID_MANFID_SAMSUNG, CID_OEMID_ANY, add_quirk_mmc,
-		  MMC_QUIRK_SEC_ERASE_TRIM_BROKEN),
-	MMC_FIXUP("MCGAFA", CID_MANFID_SAMSUNG, CID_OEMID_ANY, add_quirk_mmc,
-		  MMC_QUIRK_SEC_ERASE_TRIM_BROKEN),
-	MMC_FIXUP("VAL00M", CID_MANFID_SAMSUNG, CID_OEMID_ANY, add_quirk_mmc,
-		  MMC_QUIRK_SEC_ERASE_TRIM_BROKEN),
-	MMC_FIXUP("VYL00M", CID_MANFID_SAMSUNG, CID_OEMID_ANY, add_quirk_mmc,
-		  MMC_QUIRK_SEC_ERASE_TRIM_BROKEN),
-	MMC_FIXUP("KYL00M", CID_MANFID_SAMSUNG, CID_OEMID_ANY, add_quirk_mmc,
-		  MMC_QUIRK_SEC_ERASE_TRIM_BROKEN),
-	MMC_FIXUP("VZL00M", CID_MANFID_SAMSUNG, CID_OEMID_ANY, add_quirk_mmc,
-		  MMC_QUIRK_SEC_ERASE_TRIM_BROKEN),
-
-	/*
-	 *  On Some Kingston eMMCs, performing trim can result in
-	 *  unrecoverable data conrruption occasionally due to a firmware bug.
-	 */
-	MMC_FIXUP("V10008", CID_MANFID_KINGSTON, CID_OEMID_ANY, add_quirk_mmc,
-		  MMC_QUIRK_TRIM_BROKEN),
-	MMC_FIXUP("V10016", CID_MANFID_KINGSTON, CID_OEMID_ANY, add_quirk_mmc,
-		  MMC_QUIRK_TRIM_BROKEN),
-
-	END_FIXUP
-};
 
 static int mmc_blk_probe(struct mmc_card *card)
 {

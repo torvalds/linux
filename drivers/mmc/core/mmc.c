@@ -49,17 +49,6 @@ static const unsigned int tacc_mant[] = {
 	35,	40,	45,	50,	55,	60,	70,	80,
 };
 
-static const struct mmc_fixup mmc_ext_csd_fixups[] = {
-	/*
-	 * Certain Hynix eMMC 4.41 cards might get broken when HPI feature
-	 * is used so disable the HPI feature for such buggy cards.
-	 */
-	MMC_FIXUP_EXT_CSD_REV(CID_NAME_ANY, CID_MANFID_HYNIX,
-			      0x014a, add_quirk, MMC_QUIRK_BROKEN_HPI, 5),
-
-	END_FIXUP
-};
-
 #define UNSTUFF_BITS(resp,start,size)					\
 	({								\
 		const int __size = size;				\
