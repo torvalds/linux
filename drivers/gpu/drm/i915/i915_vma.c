@@ -263,15 +263,6 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 					vma->vm->total)))
 		return -ENODEV;
 
-	if (vma_flags == 0 && vma->vm->allocate_va_range) {
-		trace_i915_va_alloc(vma);
-		ret = vma->vm->allocate_va_range(vma->vm,
-						 vma->node.start,
-						 vma->node.size);
-		if (ret)
-			return ret;
-	}
-
 	trace_i915_vma_bind(vma, bind_flags);
 	ret = vma->vm->bind_vma(vma, cache_level, bind_flags);
 	if (ret)

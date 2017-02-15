@@ -190,11 +190,18 @@ static int ppgtt_bind_vma(struct i915_vma *vma,
 			  enum i915_cache_level cache_level,
 			  u32 unused)
 {
-	u32 pte_flags = 0;
+	u32 pte_flags;
+	int ret;
+
+	trace_i915_va_alloc(vma);
+	ret = vma->vm->allocate_va_range(vma->vm, vma->node.start, vma->size);
+	if (ret)
+		return ret;
 
 	vma->pages = vma->obj->mm.pages;
 
 	/* Currently applicable only to VLV */
+	pte_flags = 0;
 	if (vma->obj->gt_ro)
 		pte_flags |= PTE_READ_ONLY;
 
@@ -206,9 +213,7 @@ static int ppgtt_bind_vma(struct i915_vma *vma,
 
 static void ppgtt_unbind_vma(struct i915_vma *vma)
 {
-	vma->vm->clear_range(vma->vm,
-			     vma->node.start,
-			     vma->size);
+	vma->vm->clear_range(vma->vm, vma->node.start, vma->size);
 }
 
 static gen8_pte_t gen8_pte_encode(dma_addr_t addr,
@@ -2650,9 +2655,10 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 {
 	struct drm_i915_private *i915 = vma->vm->i915;
 	u32 pte_flags;
+	int ret;
 
 	if (unlikely(!vma->pages)) {
-		int ret = i915_get_ggtt_vma_pages(vma);
+		ret = i915_get_ggtt_vma_pages(vma);
 		if (ret)
 			return ret;
 	}
@@ -2662,19 +2668,28 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 	if (vma->obj->gt_ro)
 		pte_flags |= PTE_READ_ONLY;
 
+	if (flags & I915_VMA_LOCAL_BIND) {
+		struct i915_hw_ppgtt *appgtt = i915->mm.aliasing_ppgtt;
+
+		if (appgtt->base.allocate_va_range) {
+			ret = appgtt->base.allocate_va_range(&appgtt->base,
+							     vma->node.start,
+							     vma->node.size);
+			if (ret)
+				return ret;
+		}
+
+		appgtt->base.insert_entries(&appgtt->base,
+					    vma->pages, vma->node.start,
+					    cache_level, pte_flags);
+	}
+
 	if (flags & I915_VMA_GLOBAL_BIND) {
 		intel_runtime_pm_get(i915);
 		vma->vm->insert_entries(vma->vm,
 					vma->pages, vma->node.start,
 					cache_level, pte_flags);
 		intel_runtime_pm_put(i915);
-	}
-
-	if (flags & I915_VMA_LOCAL_BIND) {
-		struct i915_hw_ppgtt *appgtt = i915->mm.aliasing_ppgtt;
-		appgtt->base.insert_entries(&appgtt->base,
-					    vma->pages, vma->node.start,
-					    cache_level, pte_flags);
 	}
 
 	return 0;
