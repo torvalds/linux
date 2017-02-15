@@ -1008,9 +1008,14 @@
 	status = "disabled";
 };
 
+&hdmi {
+	status = "disabled";
+};
+
 &cdn_dp {
 	status = "okay";
 	extcon = <&fusb0>;
+	phys = <&tcphy0_dp>;
 };
 
 &dp_in_vopb {
