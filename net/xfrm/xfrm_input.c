@@ -117,6 +117,24 @@ struct sec_path *secpath_dup(struct sec_path *src)
 }
 EXPORT_SYMBOL(secpath_dup);
 
+int secpath_set(struct sk_buff *skb)
+{
+	struct sec_path *sp;
+
+	/* Allocate new secpath or COW existing one. */
+	if (!skb->sp || atomic_read(&skb->sp->refcnt) != 1) {
+		sp = secpath_dup(skb->sp);
+		if (!sp)
+			return -ENOMEM;
+
+		if (skb->sp)
+			secpath_put(skb->sp);
+		skb->sp = sp;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(secpath_set);
+
 /* Fetch spi and seq from ipsec header */
 
 int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, __be32 *spi, __be32 *seq)
@@ -212,18 +230,10 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 		break;
 	}
 
-	/* Allocate new secpath or COW existing one. */
-	if (!skb->sp || atomic_read(&skb->sp->refcnt) != 1) {
-		struct sec_path *sp;
-
-		sp = secpath_dup(skb->sp);
-		if (!sp) {
-			XFRM_INC_STATS(net, LINUX_MIB_XFRMINERROR);
-			goto drop;
-		}
-		if (skb->sp)
-			secpath_put(skb->sp);
-		skb->sp = sp;
+	err = secpath_set(skb);
+	if (err) {
+		XFRM_INC_STATS(net, LINUX_MIB_XFRMINERROR);
+		goto drop;
 	}
 
 	seq = 0;

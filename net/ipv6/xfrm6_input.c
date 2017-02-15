@@ -69,18 +69,9 @@ int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 	struct xfrm_state *x = NULL;
 	int i = 0;
 
-	/* Allocate new secpath or COW existing one. */
-	if (!skb->sp || atomic_read(&skb->sp->refcnt) != 1) {
-		struct sec_path *sp;
-
-		sp = secpath_dup(skb->sp);
-		if (!sp) {
-			XFRM_INC_STATS(net, LINUX_MIB_XFRMINERROR);
-			goto drop;
-		}
-		if (skb->sp)
-			secpath_put(skb->sp);
-		skb->sp = sp;
+	if (secpath_set(skb)) {
+		XFRM_INC_STATS(net, LINUX_MIB_XFRMINERROR);
+		goto drop;
 	}
 
 	if (1 + skb->sp->len == XFRM_MAX_DEPTH) {

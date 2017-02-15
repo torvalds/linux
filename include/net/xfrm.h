@@ -1006,6 +1006,7 @@ secpath_put(struct sec_path *sp)
 }
 
 struct sec_path *secpath_dup(struct sec_path *src);
+int secpath_set(struct sk_buff *skb);
 
 static inline void
 secpath_reset(struct sk_buff *skb)
