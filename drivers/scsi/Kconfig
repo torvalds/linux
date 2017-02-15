@@ -1235,6 +1235,7 @@ config SCSI_QLOGICPTI
 source "drivers/scsi/qla2xxx/Kconfig"
 source "drivers/scsi/qla4xxx/Kconfig"
 source "drivers/scsi/qedi/Kconfig"
+source "drivers/scsi/qedf/Kconfig"
 
 config SCSI_LPFC
 	tristate "Emulex LightPulse Fibre Channel Support"
