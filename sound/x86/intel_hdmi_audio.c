@@ -971,12 +971,14 @@ static void had_process_buffer_done(struct snd_intelhad *intelhaddata)
 {
 	struct snd_pcm_substream *substream;
 
-	if (!intelhaddata->connected)
-		return; /* disconnected? - bail out */
-
 	substream = had_substream_get(intelhaddata);
 	if (!substream)
 		return; /* no stream? - bail out */
+
+	if (!intelhaddata->connected) {
+		snd_pcm_stop_xrun(substream);
+		goto out; /* disconnected? - bail out */
+	}
 
 	/* process or stop the stream */
 	if (had_process_ringbuf(substream, intelhaddata) < 0)
@@ -984,6 +986,7 @@ static void had_process_buffer_done(struct snd_intelhad *intelhaddata)
 	else
 		snd_pcm_period_elapsed(substream);
 
+ out:
 	had_substream_put(intelhaddata);
 }
 
