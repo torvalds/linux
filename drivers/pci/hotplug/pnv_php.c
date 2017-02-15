@@ -76,7 +76,7 @@ static void pnv_php_free_slot(struct kref *kref)
 static inline void pnv_php_put_slot(struct pnv_php_slot *php_slot)
 {
 
-	if (WARN_ON(!php_slot))
+	if (!php_slot)
 		return;
 
 	kref_put(&php_slot->kref, pnv_php_free_slot);
