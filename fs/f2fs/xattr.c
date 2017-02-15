@@ -217,6 +217,112 @@ static struct f2fs_xattr_entry *__find_xattr(void *base_addr, int index,
 	return entry;
 }
 
+static struct f2fs_xattr_entry *__find_inline_xattr(void *base_addr,
+					void **last_addr, int index,
+					size_t len, const char *name)
+{
+	struct f2fs_xattr_entry *entry;
+	unsigned int inline_size = F2FS_INLINE_XATTR_ADDRS << 2;
+
+	list_for_each_xattr(entry, base_addr) {
+		if ((void *)entry + sizeof(__u32) > base_addr + inline_size ||
+			(void *)XATTR_NEXT_ENTRY(entry) + sizeof(__u32) >
+			base_addr + inline_size) {
+			*last_addr = entry;
+			return NULL;
+		}
+		if (entry->e_name_index != index)
+			continue;
+		if (entry->e_name_len != len)
+			continue;
+		if (!memcmp(entry->e_name, name, len))
+			break;
+	}
+	return entry;
+}
+
+static int lookup_all_xattrs(struct inode *inode, struct page *ipage,
+				unsigned int index, unsigned int len,
+				const char *name, struct f2fs_xattr_entry **xe,
+				void **base_addr)
+{
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	void *cur_addr, *txattr_addr, *last_addr = NULL;
+	nid_t xnid = F2FS_I(inode)->i_xattr_nid;
+	unsigned int size = xnid ? VALID_XATTR_BLOCK_SIZE : 0;
+	unsigned int inline_size = 0;
+	int err = 0;
+
+	inline_size = inline_xattr_size(inode);
+
+	if (!size && !inline_size)
+		return -ENODATA;
+
+	txattr_addr = kzalloc(inline_size + size + sizeof(__u32),
+							GFP_F2FS_ZERO);
+	if (!txattr_addr)
+		return -ENOMEM;
+
+	/* read from inline xattr */
+	if (inline_size) {
+		struct page *page = NULL;
+		void *inline_addr;
+
+		if (ipage) {
+			inline_addr = inline_xattr_addr(ipage);
+		} else {
+			page = get_node_page(sbi, inode->i_ino);
+			if (IS_ERR(page)) {
+				err = PTR_ERR(page);
+				goto out;
+			}
+			inline_addr = inline_xattr_addr(page);
+		}
+		memcpy(txattr_addr, inline_addr, inline_size);
+		f2fs_put_page(page, 1);
+
+		*xe = __find_inline_xattr(txattr_addr, &last_addr,
+						index, len, name);
+		if (*xe)
+			goto check;
+	}
+
+	/* read from xattr node block */
+	if (xnid) {
+		struct page *xpage;
+		void *xattr_addr;
+
+		/* The inode already has an extended attribute block. */
+		xpage = get_node_page(sbi, xnid);
+		if (IS_ERR(xpage)) {
+			err = PTR_ERR(xpage);
+			goto out;
+		}
+
+		xattr_addr = page_address(xpage);
+		memcpy(txattr_addr + inline_size, xattr_addr, size);
+		f2fs_put_page(xpage, 1);
+	}
+
+	if (last_addr)
+		cur_addr = XATTR_HDR(last_addr) - 1;
+	else
+		cur_addr = txattr_addr;
+
+	*xe = __find_xattr(cur_addr, index, len, name);
+check:
+	if (IS_XATTR_LAST_ENTRY(*xe)) {
+		err = -ENODATA;
+		goto out;
+	}
+
+	*base_addr = txattr_addr;
+	return 0;
+out:
+	kzfree(txattr_addr);
+	return err;
+}
+
 static int read_all_xattrs(struct inode *inode, struct page *ipage,
 							void **base_addr)
 {
@@ -348,8 +454,7 @@ static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
 	}
 
 	xattr_addr = page_address(xpage);
-	memcpy(xattr_addr, txattr_addr + inline_size, PAGE_SIZE -
-						sizeof(struct node_footer));
+	memcpy(xattr_addr, txattr_addr + inline_size, MAX_XATTR_BLOCK_SIZE);
 	set_page_dirty(xpage);
 	f2fs_put_page(xpage, 1);
 
@@ -361,10 +466,11 @@ static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
 int f2fs_getxattr(struct inode *inode, int index, const char *name,
 		void *buffer, size_t buffer_size, struct page *ipage)
 {
-	struct f2fs_xattr_entry *entry;
-	void *base_addr;
+	struct f2fs_xattr_entry *entry = NULL;
 	int error = 0;
-	size_t size, len;
+	unsigned int size, len;
+	char *pval;
+	void *base_addr = NULL;
 
 	if (name == NULL)
 		return -EINVAL;
@@ -373,30 +479,26 @@ int f2fs_getxattr(struct inode *inode, int index, const char *name,
 	if (len > F2FS_NAME_LEN)
 		return -ERANGE;
 
-	error = read_all_xattrs(inode, ipage, &base_addr);
+	error = lookup_all_xattrs(inode, ipage, index, len, name,
+				&entry, &base_addr);
 	if (error)
 		return error;
-
-	entry = __find_xattr(base_addr, index, len, name);
-	if (IS_XATTR_LAST_ENTRY(entry)) {
-		error = -ENODATA;
-		goto cleanup;
-	}
 
 	size = le16_to_cpu(entry->e_value_size);
 
 	if (buffer && size > buffer_size) {
 		error = -ERANGE;
-		goto cleanup;
+		goto out;
 	}
+
+	pval = entry->e_name + entry->e_name_len;
 
 	if (buffer) {
 		char *pval = entry->e_name + entry->e_name_len;
 		memcpy(buffer, pval, size);
 	}
 	error = size;
-
-cleanup:
+out:
 	kzfree(base_addr);
 	return error;
 }

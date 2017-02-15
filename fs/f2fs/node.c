@@ -245,12 +245,24 @@ bool need_inode_block_update(struct f2fs_sb_info *sbi, nid_t ino)
 	return need_update;
 }
 
-static struct nat_entry *grab_nat_entry(struct f2fs_nm_info *nm_i, nid_t nid)
+static struct nat_entry *grab_nat_entry(struct f2fs_nm_info *nm_i, nid_t nid,
+								bool no_fail)
 {
 	struct nat_entry *new;
 
-	new = f2fs_kmem_cache_alloc(nat_entry_slab, GFP_NOFS);
-	f2fs_radix_tree_insert(&nm_i->nat_root, nid, new);
+	if (no_fail) {
+		new = f2fs_kmem_cache_alloc(nat_entry_slab, GFP_NOFS);
+		f2fs_radix_tree_insert(&nm_i->nat_root, nid, new);
+	} else {
+		new = kmem_cache_alloc(nat_entry_slab, GFP_NOFS);
+		if (!new)
+			return NULL;
+		if (radix_tree_insert(&nm_i->nat_root, nid, new)) {
+			kmem_cache_free(nat_entry_slab, new);
+			return NULL;
+		}
+	}
+
 	memset(new, 0, sizeof(struct nat_entry));
 	nat_set_nid(new, nid);
 	nat_reset_flag(new);
@@ -267,8 +279,9 @@ static void cache_nat_entry(struct f2fs_sb_info *sbi, nid_t nid,
 
 	e = __lookup_nat_cache(nm_i, nid);
 	if (!e) {
-		e = grab_nat_entry(nm_i, nid);
-		node_info_from_raw_nat(&e->ni, ne);
+		e = grab_nat_entry(nm_i, nid, false);
+		if (e)
+			node_info_from_raw_nat(&e->ni, ne);
 	} else {
 		f2fs_bug_on(sbi, nat_get_ino(e) != le32_to_cpu(ne->ino) ||
 				nat_get_blkaddr(e) !=
@@ -286,7 +299,7 @@ static void set_node_addr(struct f2fs_sb_info *sbi, struct node_info *ni,
 	down_write(&nm_i->nat_tree_lock);
 	e = __lookup_nat_cache(nm_i, ni->nid);
 	if (!e) {
-		e = grab_nat_entry(nm_i, ni->nid);
+		e = grab_nat_entry(nm_i, ni->nid, true);
 		copy_node_info(&e->ni, ni);
 		f2fs_bug_on(sbi, ni->blk_addr == NEW_ADDR);
 	} else if (new_blkaddr == NEW_ADDR) {
@@ -1305,16 +1318,99 @@ continue_unlock:
 	return last_page;
 }
 
+static int __write_node_page(struct page *page, bool atomic, bool *submitted,
+				struct writeback_control *wbc)
+{
+	struct f2fs_sb_info *sbi = F2FS_P_SB(page);
+	nid_t nid;
+	struct node_info ni;
+	struct f2fs_io_info fio = {
+		.sbi = sbi,
+		.type = NODE,
+		.op = REQ_OP_WRITE,
+		.op_flags = wbc_to_write_flags(wbc),
+		.page = page,
+		.encrypted_page = NULL,
+		.submitted = false,
+	};
+
+	trace_f2fs_writepage(page, NODE);
+
+	if (unlikely(is_sbi_flag_set(sbi, SBI_POR_DOING)))
+		goto redirty_out;
+	if (unlikely(f2fs_cp_error(sbi)))
+		goto redirty_out;
+
+	/* get old block addr of this node page */
+	nid = nid_of_node(page);
+	f2fs_bug_on(sbi, page->index != nid);
+
+	if (wbc->for_reclaim) {
+		if (!down_read_trylock(&sbi->node_write))
+			goto redirty_out;
+	} else {
+		down_read(&sbi->node_write);
+	}
+
+	get_node_info(sbi, nid, &ni);
+
+	/* This page is already truncated */
+	if (unlikely(ni.blk_addr == NULL_ADDR)) {
+		ClearPageUptodate(page);
+		dec_page_count(sbi, F2FS_DIRTY_NODES);
+		up_read(&sbi->node_write);
+		unlock_page(page);
+		return 0;
+	}
+
+	if (atomic && !test_opt(sbi, NOBARRIER))
+		fio.op_flags |= REQ_PREFLUSH | REQ_FUA;
+
+	set_page_writeback(page);
+	fio.old_blkaddr = ni.blk_addr;
+	write_node_page(nid, &fio);
+	set_node_addr(sbi, &ni, fio.new_blkaddr, is_fsync_dnode(page));
+	dec_page_count(sbi, F2FS_DIRTY_NODES);
+	up_read(&sbi->node_write);
+
+	if (wbc->for_reclaim) {
+		f2fs_submit_merged_bio_cond(sbi, page->mapping->host, 0,
+						page->index, NODE, WRITE);
+		submitted = NULL;
+	}
+
+	unlock_page(page);
+
+	if (unlikely(f2fs_cp_error(sbi))) {
+		f2fs_submit_merged_bio(sbi, NODE, WRITE);
+		submitted = NULL;
+	}
+	if (submitted)
+		*submitted = fio.submitted;
+
+	return 0;
+
+redirty_out:
+	redirty_page_for_writepage(wbc, page);
+	return AOP_WRITEPAGE_ACTIVATE;
+}
+
+static int f2fs_write_node_page(struct page *page,
+				struct writeback_control *wbc)
+{
+	return __write_node_page(page, false, NULL, wbc);
+}
+
 int fsync_node_pages(struct f2fs_sb_info *sbi, struct inode *inode,
 			struct writeback_control *wbc, bool atomic)
 {
 	pgoff_t index, end;
+	pgoff_t last_idx = ULONG_MAX;
 	struct pagevec pvec;
 	int ret = 0;
 	struct page *last_page = NULL;
 	bool marked = false;
 	nid_t ino = inode->i_ino;
-	int nwritten = 0;
 
 	if (atomic) {
 		last_page = last_fsync_dnode(sbi, ino);
@@ -1336,6 +1432,7 @@ retry:
 
 		for (i = 0; i < nr_pages; i++) {
 			struct page *page = pvec.pages[i];
+			bool submitted = false;
 
 			if (unlikely(f2fs_cp_error(sbi))) {
 				f2fs_put_page(last_page, 0);
@@ -1384,13 +1481,15 @@ continue_unlock:
 			if (!clear_page_dirty_for_io(page))
 				goto continue_unlock;
 
-			ret = NODE_MAPPING(sbi)->a_ops->writepage(page, wbc);
+			ret = __write_node_page(page, atomic &&
+						page == last_page,
+						&submitted, wbc);
 			if (ret) {
 				unlock_page(page);
 				f2fs_put_page(last_page, 0);
 				break;
-			} else {
-				nwritten++;
+			} else if (submitted) {
+				last_idx = page->index;
 			}
 
 			if (page == last_page) {
@@ -1416,8 +1515,9 @@ continue_unlock:
 		goto retry;
 	}
 out:
-	if (nwritten)
-		f2fs_submit_merged_bio_cond(sbi, NULL, NULL, ino, NODE, WRITE);
+	if (last_idx != ULONG_MAX)
+		f2fs_submit_merged_bio_cond(sbi, NULL, ino, last_idx,
+							NODE, WRITE);
 	return ret ? -EIO: 0;
 }
 
@@ -1445,6 +1545,7 @@ next_step:
 
 		for (i = 0; i < nr_pages; i++) {
 			struct page *page = pvec.pages[i];
+			bool submitted = false;
 
 			if (unlikely(f2fs_cp_error(sbi))) {
 				pagevec_release(&pvec);
@@ -1498,9 +1599,10 @@ continue_unlock:
 			set_fsync_mark(page, 0);
 			set_dentry_mark(page, 0);
 
-			if (NODE_MAPPING(sbi)->a_ops->writepage(page, wbc))
+			ret = __write_node_page(page, false, &submitted, wbc);
+			if (ret)
 				unlock_page(page);
-			else
+			else if (submitted)
 				nwritten++;
 
 			if (--wbc->nr_to_write == 0)
@@ -1562,72 +1664,6 @@ int wait_on_node_pages_writeback(struct f2fs_sb_info *sbi, nid_t ino)
 	if (!ret)
 		ret = ret2;
 	return ret;
-}
-
-static int f2fs_write_node_page(struct page *page,
-				struct writeback_control *wbc)
-{
-	struct f2fs_sb_info *sbi = F2FS_P_SB(page);
-	nid_t nid;
-	struct node_info ni;
-	struct f2fs_io_info fio = {
-		.sbi = sbi,
-		.type = NODE,
-		.op = REQ_OP_WRITE,
-		.op_flags = wbc_to_write_flags(wbc),
-		.page = page,
-		.encrypted_page = NULL,
-	};
-
-	trace_f2fs_writepage(page, NODE);
-
-	if (unlikely(is_sbi_flag_set(sbi, SBI_POR_DOING)))
-		goto redirty_out;
-	if (unlikely(f2fs_cp_error(sbi)))
-		goto redirty_out;
-
-	/* get old block addr of this node page */
-	nid = nid_of_node(page);
-	f2fs_bug_on(sbi, page->index != nid);
-
-	if (wbc->for_reclaim) {
-		if (!down_read_trylock(&sbi->node_write))
-			goto redirty_out;
-	} else {
-		down_read(&sbi->node_write);
-	}
-
-	get_node_info(sbi, nid, &ni);
-
-	/* This page is already truncated */
-	if (unlikely(ni.blk_addr == NULL_ADDR)) {
-		ClearPageUptodate(page);
-		dec_page_count(sbi, F2FS_DIRTY_NODES);
-		up_read(&sbi->node_write);
-		unlock_page(page);
-		return 0;
-	}
-
-	set_page_writeback(page);
-	fio.old_blkaddr = ni.blk_addr;
-	write_node_page(nid, &fio);
-	set_node_addr(sbi, &ni, fio.new_blkaddr, is_fsync_dnode(page));
-	dec_page_count(sbi, F2FS_DIRTY_NODES);
-	up_read(&sbi->node_write);
-
-	if (wbc->for_reclaim)
-		f2fs_submit_merged_bio_cond(sbi, NULL, page, 0, NODE, WRITE);
-
-	unlock_page(page);
-
-	if (unlikely(f2fs_cp_error(sbi)))
-		f2fs_submit_merged_bio(sbi, NODE, WRITE);
-
-	return 0;
-
-redirty_out:
-	redirty_page_for_writepage(wbc, page);
-	return AOP_WRITEPAGE_ACTIVATE;
 }
 
 static int f2fs_write_node_pages(struct address_space *mapping,
@@ -2152,7 +2188,7 @@ static void remove_nats_in_journal(struct f2fs_sb_info *sbi)
 
 		ne = __lookup_nat_cache(nm_i, nid);
 		if (!ne) {
-			ne = grab_nat_entry(nm_i, nid);
+			ne = grab_nat_entry(nm_i, nid, true);
 			node_info_from_raw_nat(&ne->ni, &raw_ne);
 		}
 
@@ -2350,6 +2386,14 @@ static int init_node_manager(struct f2fs_sb_info *sbi)
 					GFP_KERNEL);
 	if (!nm_i->nat_bitmap)
 		return -ENOMEM;
+
+#ifdef CONFIG_F2FS_CHECK_FS
+	nm_i->nat_bitmap_mir = kmemdup(version_bitmap, nm_i->bitmap_size,
+					GFP_KERNEL);
+	if (!nm_i->nat_bitmap_mir)
+		return -ENOMEM;
+#endif
+
 	return 0;
 }
 
@@ -2424,6 +2468,9 @@ void destroy_node_manager(struct f2fs_sb_info *sbi)
 	up_write(&nm_i->nat_tree_lock);
 
 	kfree(nm_i->nat_bitmap);
+#ifdef CONFIG_F2FS_CHECK_FS
+	kfree(nm_i->nat_bitmap_mir);
+#endif
 	sbi->nm_info = NULL;
 	kfree(nm_i);
 }

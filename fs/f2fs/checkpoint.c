@@ -249,7 +249,8 @@ static int f2fs_write_meta_page(struct page *page,
 	dec_page_count(sbi, F2FS_DIRTY_META);
 
 	if (wbc->for_reclaim)
-		f2fs_submit_merged_bio_cond(sbi, NULL, page, 0, META, WRITE);
+		f2fs_submit_merged_bio_cond(sbi, page->mapping->host,
+						0, page->index, META, WRITE);
 
 	unlock_page(page);
 
@@ -891,7 +892,7 @@ retry:
 				F2FS_DIRTY_DENTS : F2FS_DIRTY_DATA));
 		return 0;
 	}
-	fi = list_entry(head->next, struct f2fs_inode_info, dirty_list);
+	fi = list_first_entry(head, struct f2fs_inode_info, dirty_list);
 	inode = igrab(&fi->vfs_inode);
 	spin_unlock(&sbi->inode_lock[type]);
 	if (inode) {
@@ -924,7 +925,7 @@ int f2fs_sync_inode_meta(struct f2fs_sb_info *sbi)
 			spin_unlock(&sbi->inode_lock[DIRTY_META]);
 			return 0;
 		}
-		fi = list_entry(head->next, struct f2fs_inode_info,
+		fi = list_first_entry(head, struct f2fs_inode_info,
 							gdirty_list);
 		inode = igrab(&fi->vfs_inode);
 		spin_unlock(&sbi->inode_lock[DIRTY_META]);
@@ -1248,15 +1249,20 @@ int write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	f2fs_flush_merged_bios(sbi);
 
 	/* this is the case of multiple fstrims without any changes */
-	if (cpc->reason == CP_DISCARD && !is_sbi_flag_set(sbi, SBI_IS_DIRTY)) {
-		f2fs_bug_on(sbi, NM_I(sbi)->dirty_nat_cnt);
-		f2fs_bug_on(sbi, SIT_I(sbi)->dirty_sentries);
-		f2fs_bug_on(sbi, prefree_segments(sbi));
-		flush_sit_entries(sbi, cpc);
-		clear_prefree_segments(sbi, cpc);
-		f2fs_wait_all_discard_bio(sbi);
-		unblock_operations(sbi);
-		goto out;
+	if (cpc->reason == CP_DISCARD) {
+		if (!exist_trim_candidates(sbi, cpc)) {
+			unblock_operations(sbi);
+			goto out;
+		}
+
+		if (NM_I(sbi)->dirty_nat_cnt == 0 &&
+				SIT_I(sbi)->dirty_sentries == 0 &&
+				prefree_segments(sbi) == 0) {
+			flush_sit_entries(sbi, cpc);
+			clear_prefree_segments(sbi, cpc);
+			unblock_operations(sbi);
+			goto out;
+		}
 	}
 
 	/*
@@ -1273,12 +1279,10 @@ int write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	/* unlock all the fs_lock[] in do_checkpoint() */
 	err = do_checkpoint(sbi, cpc);
-	if (err) {
+	if (err)
 		release_discard_addrs(sbi);
-	} else {
+	else
 		clear_prefree_segments(sbi, cpc);
-		f2fs_wait_all_discard_bio(sbi);
-	}
 
 	unblock_operations(sbi);
 	stat_inc_cp_count(sbi->stat_info);

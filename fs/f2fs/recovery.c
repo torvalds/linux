@@ -428,8 +428,9 @@ retry_dn:
 		}
 
 		if (!file_keep_isize(inode) &&
-				(i_size_read(inode) <= (start << PAGE_SHIFT)))
-			f2fs_i_size_write(inode, (start + 1) << PAGE_SHIFT);
+			(i_size_read(inode) <= ((loff_t)start << PAGE_SHIFT)))
+			f2fs_i_size_write(inode,
+				(loff_t)(start + 1) << PAGE_SHIFT);
 
 		/*
 		 * dest is reserved block, invalidate src block
@@ -552,10 +553,8 @@ next:
 
 int recover_fsync_data(struct f2fs_sb_info *sbi, bool check_only)
 {
-	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_WARM_NODE);
 	struct list_head inode_list;
 	struct list_head dir_list;
-	block_t blkaddr;
 	int err;
 	int ret = 0;
 	bool need_writecp = false;
@@ -570,8 +569,6 @@ int recover_fsync_data(struct f2fs_sb_info *sbi, bool check_only)
 
 	/* prevent checkpoint */
 	mutex_lock(&sbi->cp_mutex);
-
-	blkaddr = NEXT_FREE_BLKADDR(sbi, curseg);
 
 	/* step #1: find fsynced inode numbers */
 	err = find_fsync_dnodes(sbi, &inode_list);
