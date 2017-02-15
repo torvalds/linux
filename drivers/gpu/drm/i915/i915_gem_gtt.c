@@ -2103,6 +2103,12 @@ static int gen6_ppgtt_allocate_page_directories(struct i915_hw_ppgtt *ppgtt)
 	if (ppgtt->node.start < ggtt->mappable_end)
 		DRM_DEBUG("Forced to use aperture for PDEs\n");
 
+	ppgtt->pd.base.ggtt_offset =
+		ppgtt->node.start / PAGE_SIZE * sizeof(gen6_pte_t);
+
+	ppgtt->pd_addr = (gen6_pte_t __iomem *)ggtt->gsm +
+		ppgtt->pd.base.ggtt_offset / sizeof(gen6_pte_t);
+
 	return 0;
 
 err_out:
@@ -2145,7 +2151,6 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	if (ret)
 		return ret;
 
-	ppgtt->base.allocate_va_range = gen6_alloc_va_range;
 	ppgtt->base.clear_range = gen6_ppgtt_clear_range;
 	ppgtt->base.insert_entries = gen6_ppgtt_insert_entries;
 	ppgtt->base.unbind_vma = ppgtt_unbind_vma;
@@ -2155,22 +2160,21 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	ppgtt->base.total = I915_PDES * GEN6_PTES * PAGE_SIZE;
 	ppgtt->debug_dump = gen6_dump_ppgtt;
 
-	ppgtt->pd.base.ggtt_offset =
-		ppgtt->node.start / PAGE_SIZE * sizeof(gen6_pte_t);
-
-	ppgtt->pd_addr = (gen6_pte_t __iomem *)ggtt->gsm +
-		ppgtt->pd.base.ggtt_offset / sizeof(gen6_pte_t);
-
 	gen6_scratch_va_range(ppgtt, 0, ppgtt->base.total);
-
 	gen6_write_page_range(dev_priv, &ppgtt->pd, 0, ppgtt->base.total);
+
+	ret = gen6_alloc_va_range(&ppgtt->base, 0, ppgtt->base.total);
+	if (ret) {
+		gen6_ppgtt_cleanup(&ppgtt->base);
+		return ret;
+	}
 
 	DRM_DEBUG_DRIVER("Allocated pde space (%lldM) at GTT entry: %llx\n",
 			 ppgtt->node.size >> 20,
 			 ppgtt->node.start / PAGE_SIZE);
 
-	DRM_DEBUG("Adding PPGTT at offset %x\n",
-		  ppgtt->pd.base.ggtt_offset << 10);
+	DRM_DEBUG_DRIVER("Adding PPGTT at offset %x\n",
+			 ppgtt->pd.base.ggtt_offset << 10);
 
 	return 0;
 }
