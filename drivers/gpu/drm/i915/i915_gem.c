@@ -313,6 +313,8 @@ static const struct drm_i915_gem_object_ops i915_gem_phys_ops = {
 	.release = i915_gem_object_release_phys,
 };
 
+static const struct drm_i915_gem_object_ops i915_gem_object_ops;
+
 int i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 {
 	struct i915_vma *vma;
@@ -586,9 +588,18 @@ i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
 	if (obj->mm.pages)
 		return -EBUSY;
 
+	GEM_BUG_ON(obj->ops != &i915_gem_object_ops);
 	obj->ops = &i915_gem_phys_ops;
 
-	return i915_gem_object_pin_pages(obj);
+	ret = i915_gem_object_pin_pages(obj);
+	if (ret)
+		goto err_xfer;
+
+	return 0;
+
+err_xfer:
+	obj->ops = &i915_gem_object_ops;
+	return ret;
 }
 
 static int
