@@ -444,11 +444,12 @@ static void had_build_channel_allocation_map(struct snd_intelhad *intelhaddata)
 	u8 eld_high, eld_high_mask = 0xF0;
 	u8 high_msb;
 
+	kfree(intelhaddata->chmap->chmap);
+	intelhaddata->chmap->chmap = NULL;
+
 	chmap = kzalloc(sizeof(*chmap), GFP_KERNEL);
-	if (!chmap) {
-		intelhaddata->chmap->chmap = NULL;
+	if (!chmap)
 		return;
-	}
 
 	dev_dbg(intelhaddata->dev, "eld speaker = %x\n",
 		intelhaddata->eld[DRM_ELD_SPEAKER]);
@@ -493,10 +494,8 @@ static void had_build_channel_allocation_map(struct snd_intelhad *intelhaddata)
 			break;
 		}
 	}
-	if (i >= ARRAY_SIZE(channel_allocations)) {
-		intelhaddata->chmap->chmap = NULL;
+	if (i >= ARRAY_SIZE(channel_allocations))
 		kfree(chmap);
-	}
 }
 
 /*
