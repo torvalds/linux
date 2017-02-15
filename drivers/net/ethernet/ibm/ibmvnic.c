@@ -2186,12 +2186,12 @@ static void handle_error_info_rsp(union ibmvnic_crq *crq,
 
 	if (!found) {
 		dev_err(dev, "Couldn't find error id %x\n",
-			crq->request_error_rsp.error_id);
+			be32_to_cpu(crq->request_error_rsp.error_id));
 		return;
 	}
 
 	dev_err(dev, "Detailed info for error id %x:",
-		crq->request_error_rsp.error_id);
+		be32_to_cpu(crq->request_error_rsp.error_id));
 
 	for (i = 0; i < error_buff->len; i++) {
 		pr_cont("%02x", (int)error_buff->buff[i]);
@@ -2270,8 +2270,8 @@ static void handle_error_indication(union ibmvnic_crq *crq,
 	dev_err(dev, "Firmware reports %serror id %x, cause %d\n",
 		crq->error_indication.
 		    flags & IBMVNIC_FATAL_ERROR ? "FATAL " : "",
-		crq->error_indication.error_id,
-		crq->error_indication.error_cause);
+		be32_to_cpu(crq->error_indication.error_id),
+		be16_to_cpu(crq->error_indication.error_cause));
 
 	error_buff = kmalloc(sizeof(*error_buff), GFP_ATOMIC);
 	if (!error_buff)
