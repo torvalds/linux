@@ -13,7 +13,7 @@
 
 #include "card.h"
 
-static const struct mmc_fixup blk_fixups[] = {
+static const struct mmc_fixup mmc_blk_fixups[] = {
 #define INAND_CMD38_ARG_EXT_CSD  113
 #define INAND_CMD38_ARG_ERASE    0x00
 #define INAND_CMD38_ARG_TRIM     0x01
