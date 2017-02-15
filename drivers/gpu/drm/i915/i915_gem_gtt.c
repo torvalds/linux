@@ -2380,7 +2380,7 @@ int i915_gem_init_aliasing_ppgtt(struct drm_i915_private *i915)
 	struct i915_hw_ppgtt *ppgtt;
 	int err;
 
-	ppgtt = i915_ppgtt_create(i915, NULL, "[alias]");
+	ppgtt = i915_ppgtt_create(i915, ERR_PTR(-EPERM), "[alias]");
 	if (IS_ERR(ppgtt))
 		return PTR_ERR(ppgtt);
 
