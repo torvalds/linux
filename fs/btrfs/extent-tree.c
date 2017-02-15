@@ -3374,7 +3374,7 @@ static int cache_save_setup(struct btrfs_block_group_cache *block_group,
 	if (trans->aborted)
 		return 0;
 again:
-	inode = lookup_free_space_inode(root, block_group, path);
+	inode = lookup_free_space_inode(fs_info, block_group, path);
 	if (IS_ERR(inode) && PTR_ERR(inode) != -ENOENT) {
 		ret = PTR_ERR(inode);
 		btrfs_release_path(path);
@@ -3388,7 +3388,8 @@ again:
 		if (block_group->ro)
 			goto out_free;
 
-		ret = create_free_space_inode(root, trans, block_group, path);
+		ret = create_free_space_inode(fs_info, trans, block_group,
+					      path);
 		if (ret)
 			goto out_free;
 		goto again;
@@ -3430,7 +3431,7 @@ again:
 		if (ret)
 			goto out_put;
 
-		ret = btrfs_truncate_free_space_cache(root, trans, NULL, inode);
+		ret = btrfs_truncate_free_space_cache(trans, NULL, inode);
 		if (ret)
 			goto out_put;
 	}
@@ -10314,7 +10315,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	 * get the inode first so any iput calls done for the io_list
 	 * aren't the final iput (no unlinks allowed now)
 	 */
-	inode = lookup_free_space_inode(tree_root, block_group, path);
+	inode = lookup_free_space_inode(fs_info, block_group, path);
 
 	mutex_lock(&trans->transaction->cache_write_mutex);
 	/*
