@@ -789,7 +789,8 @@ static int nvme_ioctl(struct block_device *bdev, fmode_t mode,
 			return nvme_nvm_ioctl(ns, cmd, arg);
 #endif
 		if (is_sed_ioctl(cmd))
-			return sed_ioctl(&ns->ctrl->opal_dev, cmd, arg);
+			return sed_ioctl(&ns->ctrl->opal_dev, cmd,
+					 (void __user *) arg);
 		return -ENOTTY;
 	}
 }

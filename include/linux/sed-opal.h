@@ -132,7 +132,7 @@ struct opal_dev {
 #ifdef CONFIG_BLK_SED_OPAL
 bool opal_unlock_from_suspend(struct opal_dev *dev);
 void init_opal_dev(struct opal_dev *opal_dev, sec_send_recv *send_recv);
-int sed_ioctl(struct opal_dev *dev, unsigned int cmd, unsigned long ptr);
+int sed_ioctl(struct opal_dev *dev, unsigned int cmd, void __user *ioctl_ptr);
 
 static inline bool is_sed_ioctl(unsigned int cmd)
 {
@@ -160,7 +160,7 @@ static inline bool is_sed_ioctl(unsigned int cmd)
 }
 
 static inline int sed_ioctl(struct opal_dev *dev, unsigned int cmd,
-			    unsigned long ptr)
+			    void __user *ioctl_ptr)
 {
 	return 0;
 }

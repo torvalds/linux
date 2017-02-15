@@ -2344,9 +2344,10 @@ bool opal_unlock_from_suspend(struct opal_dev *dev)
 }
 EXPORT_SYMBOL(opal_unlock_from_suspend);
 
-int sed_ioctl(struct opal_dev *dev, unsigned int cmd, unsigned long ptr)
+int sed_ioctl(struct opal_dev *dev, unsigned int cmd, void __user *arg)
 {
-	void __user *arg = (void __user *)ptr;
+	void *p;
+	int ret = -ENOTTY;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
@@ -2355,94 +2356,52 @@ int sed_ioctl(struct opal_dev *dev, unsigned int cmd, unsigned long ptr)
 		return -ENOTSUPP;
 	}
 
+	p = memdup_user(arg,  _IOC_SIZE(cmd));
+	if (IS_ERR(p))
+		return PTR_ERR(p);
+
 	switch (cmd) {
-	case IOC_OPAL_SAVE: {
-		struct opal_lock_unlock lk_unlk;
-
-		if (copy_from_user(&lk_unlk, arg, sizeof(lk_unlk)))
-			return -EFAULT;
-		return opal_save(dev, &lk_unlk);
-	}
-	case IOC_OPAL_LOCK_UNLOCK: {
-		struct opal_lock_unlock lk_unlk;
-
-		if (copy_from_user(&lk_unlk, arg, sizeof(lk_unlk)))
-			return -EFAULT;
-		return opal_lock_unlock(dev, &lk_unlk);
-	}
-	case IOC_OPAL_TAKE_OWNERSHIP: {
-		struct opal_key opal_key;
-
-		if (copy_from_user(&opal_key, arg, sizeof(opal_key)))
-			return -EFAULT;
-		return opal_take_ownership(dev, &opal_key);
-	}
-	case IOC_OPAL_ACTIVATE_LSP: {
-		struct opal_lr_act opal_lr_act;
-
-		if (copy_from_user(&opal_lr_act, arg, sizeof(opal_lr_act)))
-			return -EFAULT;
-		return opal_activate_lsp(dev, &opal_lr_act);
-	}
-	case IOC_OPAL_SET_PW: {
-		struct opal_new_pw opal_pw;
-
-		if (copy_from_user(&opal_pw, arg, sizeof(opal_pw)))
-			return -EFAULT;
-		return opal_set_new_pw(dev, &opal_pw);
-	}
-	case IOC_OPAL_ACTIVATE_USR: {
-		struct opal_session_info session;
-
-		if (copy_from_user(&session, arg, sizeof(session)))
-			return -EFAULT;
-		return opal_activate_user(dev, &session);
-	}
-	case IOC_OPAL_REVERT_TPR: {
-		struct opal_key opal_key;
-
-		if (copy_from_user(&opal_key, arg, sizeof(opal_key)))
-			return -EFAULT;
-		return opal_reverttper(dev, &opal_key);
-	}
-	case IOC_OPAL_LR_SETUP: {
-		struct opal_user_lr_setup lrs;
-
-		if (copy_from_user(&lrs, arg, sizeof(lrs)))
-			return -EFAULT;
-		return opal_setup_locking_range(dev, &lrs);
-	}
-	case IOC_OPAL_ADD_USR_TO_LR: {
-		struct opal_lock_unlock lk_unlk;
-
-		if (copy_from_user(&lk_unlk, arg, sizeof(lk_unlk)))
-			return -EFAULT;
-		return opal_add_user_to_lr(dev, &lk_unlk);
-	}
-	case IOC_OPAL_ENABLE_DISABLE_MBR: {
-		struct opal_mbr_data mbr;
-
-		if (copy_from_user(&mbr, arg, sizeof(mbr)))
-			return -EFAULT;
-		return opal_enable_disable_shadow_mbr(dev, &mbr);
-	}
-	case IOC_OPAL_ERASE_LR: {
-		struct opal_session_info session;
-
-		if (copy_from_user(&session, arg, sizeof(session)))
-			return -EFAULT;
-		return opal_erase_locking_range(dev, &session);
-	}
-	case IOC_OPAL_SECURE_ERASE_LR: {
-		struct opal_session_info session;
-
-		if (copy_from_user(&session, arg, sizeof(session)))
-			return -EFAULT;
-		return opal_secure_erase_locking_range(dev, &session);
-	}
+	case IOC_OPAL_SAVE:
+		ret = opal_save(dev, p);
+		break;
+	case IOC_OPAL_LOCK_UNLOCK:
+		ret = opal_lock_unlock(dev, p);
+		break;
+	case IOC_OPAL_TAKE_OWNERSHIP:
+		ret = opal_take_ownership(dev, p);
+		break;
+	case IOC_OPAL_ACTIVATE_LSP:
+		ret = opal_activate_lsp(dev, p);
+		break;
+	case IOC_OPAL_SET_PW:
+		ret = opal_set_new_pw(dev, p);
+		break;
+	case IOC_OPAL_ACTIVATE_USR:
+		ret = opal_activate_user(dev, p);
+		break;
+	case IOC_OPAL_REVERT_TPR:
+		ret = opal_reverttper(dev, p);
+		break;
+	case IOC_OPAL_LR_SETUP:
+		ret = opal_setup_locking_range(dev, p);
+		break;
+	case IOC_OPAL_ADD_USR_TO_LR:
+		ret = opal_add_user_to_lr(dev, p);
+		break;
+	case IOC_OPAL_ENABLE_DISABLE_MBR:
+		ret = opal_enable_disable_shadow_mbr(dev, p);
+		break;
+	case IOC_OPAL_ERASE_LR:
+		ret = opal_erase_locking_range(dev, p);
+		break;
+	case IOC_OPAL_SECURE_ERASE_LR:
+		ret = opal_secure_erase_locking_range(dev, p);
+		break;
 	default:
 		pr_warn("No such Opal Ioctl %u\n", cmd);
 	}
-	return -ENOTTY;
+
+	kfree(p);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(sed_ioctl);
