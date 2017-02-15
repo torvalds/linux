@@ -86,3 +86,8 @@
 	/* eMMC is missing pull-ups */
 	bias-pull-up;
 };
+
+&emac {
+	/* LEDs changed to active high on the plus */
+	/delete-property/ allwinner,leds-active-low;
+};
