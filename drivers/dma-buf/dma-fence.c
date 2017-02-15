@@ -239,6 +239,8 @@ EXPORT_SYMBOL(dma_fence_enable_sw_signaling);
  * after it signals with dma_fence_signal. The callback itself can be called
  * from irq context.
  *
+ * Returns 0 in case of success, -ENOENT if the fence is already signaled
+ * and -EINVAL in case of error.
  */
 int dma_fence_add_callback(struct dma_fence *fence, struct dma_fence_cb *cb,
 			   dma_fence_func_t func)
