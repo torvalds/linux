@@ -256,7 +256,6 @@ struct i915_address_space {
 	 */
 	struct drm_i915_file_private *file;
 	struct list_head global_link;
-	u64 start;		/* Start offset always 0 for dri2 */
 	u64 total;		/* size addr space maps (ex. 2GB for ggtt) */
 
 	bool closed;

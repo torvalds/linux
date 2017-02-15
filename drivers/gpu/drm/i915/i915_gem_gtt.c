@@ -1218,10 +1218,9 @@ static void gen8_dump_pdp(struct i915_hw_ppgtt *ppgtt,
 static void gen8_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
 {
 	struct i915_address_space *vm = &ppgtt->base;
-	uint64_t start = ppgtt->base.start;
-	uint64_t length = ppgtt->base.total;
 	const gen8_pte_t scratch_pte =
 		gen8_pte_encode(vm->scratch_page.daddr, I915_CACHE_LLC);
+	u64 start = 0, length = ppgtt->base.total;
 
 	if (!USES_FULL_48BIT_PPGTT(vm->i915)) {
 		gen8_dump_pdp(ppgtt, &ppgtt->pdp, start, length, scratch_pte, m);
@@ -1288,7 +1287,6 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	if (ret)
 		return ret;
 
-	ppgtt->base.start = 0;
 	ppgtt->base.cleanup = gen8_ppgtt_cleanup;
 	ppgtt->base.unbind_vma = ppgtt_unbind_vma;
 	ppgtt->base.bind_vma = ppgtt_bind_vma;
@@ -1349,9 +1347,8 @@ static void gen6_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
 	struct i915_address_space *vm = &ppgtt->base;
 	struct i915_page_table *unused;
 	gen6_pte_t scratch_pte;
-	uint32_t pd_entry;
-	uint32_t  pte, pde;
-	uint32_t start = ppgtt->base.start, length = ppgtt->base.total;
+	u32 pd_entry, pte, pde;
+	u32 start = 0, length = ppgtt->base.total;
 
 	scratch_pte = vm->pte_encode(vm->scratch_page.daddr,
 				     I915_CACHE_LLC, 0);
@@ -1785,7 +1782,6 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	ppgtt->base.unbind_vma = ppgtt_unbind_vma;
 	ppgtt->base.bind_vma = ppgtt_bind_vma;
 	ppgtt->base.cleanup = gen6_ppgtt_cleanup;
-	ppgtt->base.start = 0;
 	ppgtt->base.total = I915_PDES * GEN6_PTES * PAGE_SIZE;
 	ppgtt->debug_dump = gen6_dump_ppgtt;
 
@@ -1826,7 +1822,7 @@ static void i915_address_space_init(struct i915_address_space *vm,
 {
 	i915_gem_timeline_init(dev_priv, &vm->timeline, name);
 
-	drm_mm_init(&vm->mm, vm->start, vm->total);
+	drm_mm_init(&vm->mm, 0, vm->total);
 	vm->mm.head_node.color = I915_COLOR_UNEVICTABLE;
 
 	INIT_LIST_HEAD(&vm->active_list);
@@ -2012,7 +2008,7 @@ void i915_gem_suspend_gtt_mappings(struct drm_i915_private *dev_priv)
 
 	i915_check_and_clear_faults(dev_priv);
 
-	ggtt->base.clear_range(&ggtt->base, ggtt->base.start, ggtt->base.total);
+	ggtt->base.clear_range(&ggtt->base, 0, ggtt->base.total);
 
 	i915_ggtt_invalidate(dev_priv);
 }
@@ -2980,7 +2976,7 @@ void i915_gem_restore_gtt_mappings(struct drm_i915_private *dev_priv)
 	i915_check_and_clear_faults(dev_priv);
 
 	/* First fill our portion of the GTT with scratch pages */
-	ggtt->base.clear_range(&ggtt->base, ggtt->base.start, ggtt->base.total);
+	ggtt->base.clear_range(&ggtt->base, 0, ggtt->base.total);
 
 	ggtt->base.closed = true; /* skip rewriting PTE on VMA unbind */
 

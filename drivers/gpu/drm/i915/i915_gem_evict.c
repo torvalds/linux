@@ -274,7 +274,7 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 	check_color = vm->mm.color_adjust;
 	if (check_color) {
 		/* Expand search to cover neighbouring guard pages (or lack!) */
-		if (start > vm->start)
+		if (start)
 			start -= I915_GTT_PAGE_SIZE;
 
 		/* Always look at the page afterwards to avoid the end-of-GTT */
