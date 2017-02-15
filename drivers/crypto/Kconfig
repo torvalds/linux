@@ -515,6 +515,13 @@ config CRYPTO_DEV_MXS_DCP
 source "drivers/crypto/qat/Kconfig"
 source "drivers/crypto/cavium/cpt/Kconfig"
 
+config CRYPTO_DEV_CAVIUM_ZIP
+	tristate "Cavium ZIP driver"
+	depends on PCI && 64BIT && (ARM64 || COMPILE_TEST)
+	---help---
+	  Select this option if you want to enable compression/decompression
+	  acceleration on Cavium's ARM based SoCs
+
 config CRYPTO_DEV_QCE
 	tristate "Qualcomm crypto engine accelerator"
 	depends on (ARCH_QCOM || COMPILE_TEST) && HAS_DMA && HAS_IOMEM
