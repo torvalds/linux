@@ -852,7 +852,8 @@ void rt2800_process_rxwi(struct queue_entry *entry,
 }
 EXPORT_SYMBOL_GPL(rt2800_process_rxwi);
 
-void rt2800_txdone_entry(struct queue_entry *entry, u32 status, __le32 *txwi)
+void rt2800_txdone_entry(struct queue_entry *entry, u32 status, __le32 *txwi,
+			 bool match)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct rt2800_drv_data *drv_data = rt2x00dev->drv_data;
@@ -860,8 +861,7 @@ void rt2800_txdone_entry(struct queue_entry *entry, u32 status, __le32 *txwi)
 	struct txdone_entry_desc txdesc;
 	u32 word;
 	u16 mcs, real_mcs;
-	int aggr, ampdu;
-	int wcid;
+	int aggr, ampdu, wcid, ack_req;
 
 	/*
 	 * Obtain the status about this packet.
@@ -875,6 +875,7 @@ void rt2800_txdone_entry(struct queue_entry *entry, u32 status, __le32 *txwi)
 	real_mcs = rt2x00_get_field32(status, TX_STA_FIFO_MCS);
 	aggr = rt2x00_get_field32(status, TX_STA_FIFO_TX_AGGRE);
 	wcid = rt2x00_get_field32(status, TX_STA_FIFO_WCID);
+	ack_req	= rt2x00_get_field32(status, TX_STA_FIFO_TX_ACK_REQUIRED);
 
 	/*
 	 * If a frame was meant to be sent as a single non-aggregated MPDU
@@ -891,14 +892,21 @@ void rt2800_txdone_entry(struct queue_entry *entry, u32 status, __le32 *txwi)
 	 * Hence, replace the requested rate with the real tx rate to not
 	 * confuse the rate control algortihm by providing clearly wrong
 	 * data.
-	 */
-	if (unlikely(aggr == 1 && ampdu == 0 && real_mcs != mcs)) {
+	 *
+	 * FIXME: if we do not find matching entry, we tell that frame was
+	 * posted without any retries. We need to find a way to fix that
+	 * and provide retry count.
+ 	 */
+	if (unlikely((aggr == 1 && ampdu == 0 && real_mcs != mcs)) || !match) {
 		skbdesc->tx_rate_idx = real_mcs;
 		mcs = real_mcs;
 	}
 
 	if (aggr == 1 || ampdu == 1)
 		__set_bit(TXDONE_AMPDU, &txdesc.flags);
+
+	if (!ack_req)
+		__set_bit(TXDONE_NO_ACK_REQ, &txdesc.flags);
 
 	/*
 	 * Ralink has a retry mechanism using a global fallback
@@ -931,7 +939,18 @@ void rt2800_txdone_entry(struct queue_entry *entry, u32 status, __le32 *txwi)
 	if (txdesc.retry)
 		__set_bit(TXDONE_FALLBACK, &txdesc.flags);
 
-	rt2x00lib_txdone(entry, &txdesc);
+	if (!match) {
+		/* RCU assures non-null sta will not be freed by mac80211. */
+		rcu_read_lock();
+		if (likely(wcid >= WCID_START && wcid <= WCID_END))
+			skbdesc->sta = drv_data->wcid_to_sta[wcid - WCID_START];
+		else
+			skbdesc->sta = NULL;
+		rt2x00lib_txdone_nomatch(entry, &txdesc);
+		rcu_read_unlock();
+	} else {
+		rt2x00lib_txdone(entry, &txdesc);
+	}
 }
 EXPORT_SYMBOL_GPL(rt2800_txdone_entry);
 
