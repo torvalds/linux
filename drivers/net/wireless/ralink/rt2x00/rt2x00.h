@@ -1396,7 +1396,7 @@ void rt2x00queue_flush_queues(struct rt2x00_dev *rt2x00dev, bool drop);
  * rt2x00debug_dump_frame - Dump a frame to userspace through debugfs.
  * @rt2x00dev: Pointer to &struct rt2x00_dev.
  * @type: The type of frame that is being dumped.
- * @skb: The skb containing the frame to be dumped.
+ * @entry: The queue entry containing the frame to be dumped.
  */
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
 void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
