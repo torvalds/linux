@@ -353,7 +353,7 @@ xfs_extent_busy_trim(
 	struct rb_node		*rbp;
 	bool			ret = false;
 
-	ASSERT(len > 0);
+	ASSERT(*len > 0);
 
 	spin_lock(&args->pag->pagb_lock);
 restart:
