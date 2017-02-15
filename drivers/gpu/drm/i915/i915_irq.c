@@ -4269,6 +4269,16 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	if (!IS_GEN2(dev_priv))
 		dev->vblank_disable_immediate = true;
 
+	/* Most platforms treat the display irq block as an always-on
+	 * power domain. vlv/chv can disable it at runtime and need
+	 * special care to avoid writing any of the display block registers
+	 * outside of the power domain. We defer setting up the display irqs
+	 * in this case to the runtime pm.
+	 */
+	dev_priv->display_irqs_enabled = true;
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+		dev_priv->display_irqs_enabled = false;
+
 	dev_priv->hotplug.hpd_storm_threshold = HPD_STORM_DEFAULT_THRESHOLD;
 
 	dev->driver->get_vblank_timestamp = i915_get_vblank_timestamp;
