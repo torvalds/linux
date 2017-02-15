@@ -149,12 +149,6 @@ enum pvrdma_intr_cause {
 	PVRDMA_INTR_CAUSE_CQ		= (1 << PVRDMA_INTR_VECTOR_CQ),
 };
 
-enum pvrdma_intr_type {
-	PVRDMA_INTR_TYPE_INTX,		/* Legacy. */
-	PVRDMA_INTR_TYPE_MSI,		/* MSI. */
-	PVRDMA_INTR_TYPE_MSIX,		/* MSI-X. */
-};
-
 enum pvrdma_gos_bits {
 	PVRDMA_GOS_BITS_UNK,		/* Unknown. */
 	PVRDMA_GOS_BITS_32,		/* 32-bit. */
