@@ -99,24 +99,11 @@ void rockchip_unregister_crtc_funcs(struct drm_crtc *crtc)
 	priv->crtc_funcs[pipe] = NULL;
 }
 
-static struct drm_crtc *rockchip_crtc_from_pipe(struct drm_device *drm,
-						int pipe)
-{
-	struct drm_crtc *crtc;
-	int i = 0;
-
-	list_for_each_entry(crtc, &drm->mode_config.crtc_list, head)
-		if (i++ == pipe)
-			return crtc;
-
-	return NULL;
-}
-
 static int rockchip_drm_crtc_enable_vblank(struct drm_device *dev,
 					   unsigned int pipe)
 {
 	struct rockchip_drm_private *priv = dev->dev_private;
-	struct drm_crtc *crtc = rockchip_crtc_from_pipe(dev, pipe);
+	struct drm_crtc *crtc = drm_crtc_from_index(dev, pipe);
 
 	if (crtc && priv->crtc_funcs[pipe] &&
 	    priv->crtc_funcs[pipe]->enable_vblank)
@@ -129,7 +116,7 @@ static void rockchip_drm_crtc_disable_vblank(struct drm_device *dev,
 					     unsigned int pipe)
 {
 	struct rockchip_drm_private *priv = dev->dev_private;
-	struct drm_crtc *crtc = rockchip_crtc_from_pipe(dev, pipe);
+	struct drm_crtc *crtc = drm_crtc_from_index(dev, pipe);
 
 	if (crtc && priv->crtc_funcs[pipe] &&
 	    priv->crtc_funcs[pipe]->enable_vblank)

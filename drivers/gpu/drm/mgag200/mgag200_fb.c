@@ -24,7 +24,7 @@ static void mga_dirty_update(struct mga_fbdev *mfbdev,
 	struct drm_gem_object *obj;
 	struct mgag200_bo *bo;
 	int src_offset, dst_offset;
-	int bpp = (mfbdev->mfb.base.bits_per_pixel + 7)/8;
+	int bpp = mfbdev->mfb.base.format->cpp[0];
 	int ret = -EBUSY;
 	bool unmap = false;
 	bool store_for_later = false;
@@ -217,7 +217,7 @@ static int mgag200fb_create(struct drm_fb_helper *helper,
 	info->apertures->ranges[0].base = mdev->dev->mode_config.fb_base;
 	info->apertures->ranges[0].size = mdev->mc.vram_size;
 
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 	drm_fb_helper_fill_var(info, &mfbdev->helper, sizes->fb_width,
 			       sizes->fb_height);
 
@@ -286,7 +286,7 @@ int mgag200_fbdev_init(struct mga_device *mdev)
 	drm_fb_helper_prepare(mdev->dev, &mfbdev->helper, &mga_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(mdev->dev, &mfbdev->helper,
-				 mdev->num_crtc, MGAG200FB_CONN_LIMIT);
+				 MGAG200FB_CONN_LIMIT);
 	if (ret)
 		goto err_fb_helper;
 

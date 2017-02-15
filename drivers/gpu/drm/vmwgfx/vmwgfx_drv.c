@@ -951,7 +951,7 @@ out_err0:
 	return ret;
 }
 
-static int vmw_driver_unload(struct drm_device *dev)
+static void vmw_driver_unload(struct drm_device *dev)
 {
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	enum vmw_res_type i;
@@ -998,8 +998,6 @@ static int vmw_driver_unload(struct drm_device *dev)
 		idr_destroy(&dev_priv->res_idr[i]);
 
 	kfree(dev_priv);
-
-	return 0;
 }
 
 static void vmw_postclose(struct drm_device *dev,
@@ -1295,7 +1293,7 @@ static void __vmw_svga_enable(struct vmw_private *dev_priv)
  */
 void vmw_svga_enable(struct vmw_private *dev_priv)
 {
-	ttm_read_lock(&dev_priv->reservation_sem, false);
+	(void) ttm_read_lock(&dev_priv->reservation_sem, false);
 	__vmw_svga_enable(dev_priv);
 	ttm_read_unlock(&dev_priv->reservation_sem);
 }

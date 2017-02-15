@@ -431,15 +431,8 @@ static void atmel_hlcdc_fb_output_poll_changed(struct drm_device *dev)
 {
 	struct atmel_hlcdc_dc *dc = dev->dev_private;
 
-	if (dc->fbdev) {
+	if (dc->fbdev)
 		drm_fbdev_cma_hotplug_event(dc->fbdev);
-	} else {
-		dc->fbdev = drm_fbdev_cma_init(dev, 24,
-				dev->mode_config.num_crtc,
-				dev->mode_config.num_connector);
-		if (IS_ERR(dc->fbdev))
-			dc->fbdev = NULL;
-	}
 }
 
 struct atmel_hlcdc_dc_commit {
@@ -653,10 +646,12 @@ static int atmel_hlcdc_dc_load(struct drm_device *dev)
 
 	platform_set_drvdata(pdev, dev);
 
-	drm_kms_helper_poll_init(dev);
+	dc->fbdev = drm_fbdev_cma_init(dev, 24,
+			dev->mode_config.num_connector);
+	if (IS_ERR(dc->fbdev))
+		dc->fbdev = NULL;
 
-	/* force connectors detection */
-	drm_helper_hpd_irq_event(dev);
+	drm_kms_helper_poll_init(dev);
 
 	return 0;
 

@@ -1,6 +1,6 @@
 config DRM_HISI_HIBMC
 	tristate "DRM Support for Hisilicon Hibmc"
-	depends on DRM && PCI
+	depends on DRM && PCI && MMU
 	select DRM_KMS_HELPER
 	select DRM_TTM
 

@@ -199,7 +199,7 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 		if (!nvxx_device(device)->func->pci)
 			getparam->value = 3;
 		else
-		if (drm_pci_device_is_agp(dev))
+		if (pci_find_capability(dev->pdev, PCI_CAP_ID_AGP))
 			getparam->value = 0;
 		else
 		if (!pci_is_pcie(dev->pdev))

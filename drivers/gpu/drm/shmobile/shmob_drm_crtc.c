@@ -174,7 +174,7 @@ static void shmob_drm_crtc_start(struct shmob_drm_crtc *scrtc)
 	if (scrtc->started)
 		return;
 
-	format = shmob_drm_format_info(crtc->primary->fb->pixel_format);
+	format = shmob_drm_format_info(crtc->primary->fb->format->format);
 	if (WARN_ON(format == NULL))
 		return;
 
@@ -376,10 +376,10 @@ static int shmob_drm_crtc_mode_set(struct drm_crtc *crtc,
 	const struct shmob_drm_format_info *format;
 	void *cache;
 
-	format = shmob_drm_format_info(crtc->primary->fb->pixel_format);
+	format = shmob_drm_format_info(crtc->primary->fb->format->format);
 	if (format == NULL) {
 		dev_dbg(sdev->dev, "mode_set: unsupported format %08x\n",
-			crtc->primary->fb->pixel_format);
+			crtc->primary->fb->format->format);
 		return -EINVAL;
 	}
 

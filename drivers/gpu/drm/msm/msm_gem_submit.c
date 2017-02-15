@@ -95,13 +95,13 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 		 */
 		submit->bos[i].flags = 0;
 
-		ret = copy_from_user_inatomic(&submit_bo, userptr, sizeof(submit_bo));
-		if (unlikely(ret)) {
+		if (copy_from_user_inatomic(&submit_bo, userptr, sizeof(submit_bo))) {
 			pagefault_enable();
 			spin_unlock(&file->table_lock);
-			ret = copy_from_user(&submit_bo, userptr, sizeof(submit_bo));
-			if (ret)
+			if (copy_from_user(&submit_bo, userptr, sizeof(submit_bo))) {
+				ret = -EFAULT;
 				goto out;
+			}
 			spin_lock(&file->table_lock);
 			pagefault_disable();
 		}
@@ -317,9 +317,10 @@ static int submit_reloc(struct msm_gem_submit *submit, struct msm_gem_object *ob
 		uint64_t iova;
 		bool valid;
 
-		ret = copy_from_user(&submit_reloc, userptr, sizeof(submit_reloc));
-		if (ret)
+		if (copy_from_user(&submit_reloc, userptr, sizeof(submit_reloc))) {
+			ret = -EFAULT;
 			goto out;
+		}
 
 		if (submit_reloc.submit_offset % 4) {
 			DRM_ERROR("non-aligned reloc offset: %u\n",

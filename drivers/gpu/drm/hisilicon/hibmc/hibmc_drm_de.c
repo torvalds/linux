@@ -122,11 +122,11 @@ static void hibmc_plane_atomic_update(struct drm_plane *plane,
 
 	writel(gpu_addr, priv->mmio + HIBMC_CRT_FB_ADDRESS);
 
-	reg = state->fb->width * (state->fb->bits_per_pixel / 8);
+	reg = state->fb->width * (state->fb->format->cpp[0]);
 	/* now line_pad is 16 */
 	reg = PADDING(16, reg);
 
-	line_l = state->fb->width * state->fb->bits_per_pixel / 8;
+	line_l = state->fb->width * state->fb->format->cpp[0];
 	line_l = PADDING(16, line_l);
 	writel(HIBMC_FIELD(HIBMC_CRT_FB_WIDTH_WIDTH, reg) |
 	       HIBMC_FIELD(HIBMC_CRT_FB_WIDTH_OFFS, line_l),
@@ -136,7 +136,7 @@ static void hibmc_plane_atomic_update(struct drm_plane *plane,
 	reg = readl(priv->mmio + HIBMC_CRT_DISP_CTL);
 	reg &= ~HIBMC_CRT_DISP_CTL_FORMAT_MASK;
 	reg |= HIBMC_FIELD(HIBMC_CRT_DISP_CTL_FORMAT,
-			   state->fb->bits_per_pixel / 16);
+			   state->fb->format->cpp[0] * 8 / 16);
 	writel(reg, priv->mmio + HIBMC_CRT_DISP_CTL);
 }
 

@@ -121,6 +121,7 @@ static void __i915_error_advance(struct drm_i915_error_state_buf *e,
 	e->pos += len;
 }
 
+__printf(2, 0)
 static void i915_error_vprintf(struct drm_i915_error_state_buf *e,
 			       const char *f, va_list args)
 {
@@ -176,9 +177,14 @@ static void i915_error_puts(struct drm_i915_error_state_buf *e,
 
 #ifdef CONFIG_DRM_I915_COMPRESS_ERROR
 
-static bool compress_init(struct z_stream_s *zstream)
+struct compress {
+	struct z_stream_s zstream;
+	void *tmp;
+};
+
+static bool compress_init(struct compress *c)
 {
-	memset(zstream, 0, sizeof(*zstream));
+	struct z_stream_s *zstream = memset(&c->zstream, 0, sizeof(c->zstream));
 
 	zstream->workspace =
 		kmalloc(zlib_deflate_workspacesize(MAX_WBITS, MAX_MEM_LEVEL),
@@ -191,14 +197,22 @@ static bool compress_init(struct z_stream_s *zstream)
 		return false;
 	}
 
+	c->tmp = NULL;
+	if (i915_has_memcpy_from_wc())
+		c->tmp = (void *)__get_free_page(GFP_ATOMIC | __GFP_NOWARN);
+
 	return true;
 }
 
-static int compress_page(struct z_stream_s *zstream,
+static int compress_page(struct compress *c,
 			 void *src,
 			 struct drm_i915_error_object *dst)
 {
+	struct z_stream_s *zstream = &c->zstream;
+
 	zstream->next_in = src;
+	if (c->tmp && i915_memcpy_from_wc(c->tmp, src, PAGE_SIZE))
+		zstream->next_in = c->tmp;
 	zstream->avail_in = PAGE_SIZE;
 
 	do {
@@ -226,9 +240,11 @@ static int compress_page(struct z_stream_s *zstream,
 	return 0;
 }
 
-static void compress_fini(struct z_stream_s *zstream,
+static void compress_fini(struct compress *c,
 			  struct drm_i915_error_object *dst)
 {
+	struct z_stream_s *zstream = &c->zstream;
+
 	if (dst) {
 		zlib_deflate(zstream, Z_FINISH);
 		dst->unused = zstream->avail_out;
@@ -236,6 +252,9 @@ static void compress_fini(struct z_stream_s *zstream,
 
 	zlib_deflateEnd(zstream);
 	kfree(zstream->workspace);
+
+	if (c->tmp)
+		free_page((unsigned long)c->tmp);
 }
 
 static void err_compression_marker(struct drm_i915_error_state_buf *m)
@@ -245,28 +264,34 @@ static void err_compression_marker(struct drm_i915_error_state_buf *m)
 
 #else
 
-static bool compress_init(struct z_stream_s *zstream)
+struct compress {
+};
+
+static bool compress_init(struct compress *c)
 {
 	return true;
 }
 
-static int compress_page(struct z_stream_s *zstream,
+static int compress_page(struct compress *c,
 			 void *src,
 			 struct drm_i915_error_object *dst)
 {
 	unsigned long page;
+	void *ptr;
 
 	page = __get_free_page(GFP_ATOMIC | __GFP_NOWARN);
 	if (!page)
 		return -ENOMEM;
 
-	dst->pages[dst->page_count++] =
-		memcpy((void *)page, src, PAGE_SIZE);
+	ptr = (void *)page;
+	if (!i915_memcpy_from_wc(ptr, src, PAGE_SIZE))
+		memcpy(ptr, src, PAGE_SIZE);
+	dst->pages[dst->page_count++] = ptr;
 
 	return 0;
 }
 
-static void compress_fini(struct z_stream_s *zstream,
+static void compress_fini(struct compress *c,
 			  struct drm_i915_error_object *dst)
 {
 }
@@ -316,24 +341,6 @@ static void print_error_buffers(struct drm_i915_error_state_buf *m,
 	}
 }
 
-static const char *hangcheck_action_to_str(enum intel_engine_hangcheck_action a)
-{
-	switch (a) {
-	case HANGCHECK_IDLE:
-		return "idle";
-	case HANGCHECK_WAIT:
-		return "wait";
-	case HANGCHECK_ACTIVE:
-		return "active";
-	case HANGCHECK_KICK:
-		return "kick";
-	case HANGCHECK_HUNG:
-		return "hung";
-	}
-
-	return "unknown";
-}
-
 static void error_print_instdone(struct drm_i915_error_state_buf *m,
 				 struct drm_i915_error_engine *ee)
 {
@@ -370,8 +377,8 @@ static void error_print_request(struct drm_i915_error_state_buf *m,
 	if (!erq->seqno)
 		return;
 
-	err_printf(m, "%s pid %d, seqno %8x:%08x, emitted %dms ago, head %08x, tail %08x\n",
-		   prefix, erq->pid,
+	err_printf(m, "%s pid %d, ban score %d, seqno %8x:%08x, emitted %dms ago, head %08x, tail %08x\n",
+		   prefix, erq->pid, erq->ban_score,
 		   erq->context, erq->seqno,
 		   jiffies_to_msecs(jiffies - erq->jiffies),
 		   erq->head, erq->tail);
@@ -441,9 +448,13 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 	err_printf(m, "  waiting: %s\n", yesno(ee->waiting));
 	err_printf(m, "  ring->head: 0x%08x\n", ee->cpu_ring_head);
 	err_printf(m, "  ring->tail: 0x%08x\n", ee->cpu_ring_tail);
-	err_printf(m, "  hangcheck: %s [%d]\n",
-		   hangcheck_action_to_str(ee->hangcheck_action),
-		   ee->hangcheck_score);
+	err_printf(m, "  hangcheck stall: %s\n", yesno(ee->hangcheck_stalled));
+	err_printf(m, "  hangcheck action: %s\n",
+		   hangcheck_action_to_str(ee->hangcheck_action));
+	err_printf(m, "  hangcheck action timestamp: %lu, %u ms ago\n",
+		   ee->hangcheck_timestamp,
+		   jiffies_to_msecs(jiffies - ee->hangcheck_timestamp));
+
 	error_print_request(m, "  ELSP[0]: ", &ee->execlist[0]);
 	error_print_request(m, "  ELSP[1]: ", &ee->execlist[1]);
 }
@@ -528,11 +539,10 @@ static void err_print_capabilities(struct drm_i915_error_state_buf *m,
 int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			    const struct i915_error_state_file_priv *error_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(error_priv->dev);
+	struct drm_i915_private *dev_priv = error_priv->i915;
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct drm_i915_error_state *error = error_priv->error;
 	struct drm_i915_error_object *obj;
-	int max_hangcheck_score;
 	int i, j;
 
 	if (!error) {
@@ -549,22 +559,20 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	err_printf(m, "Uptime: %ld s %ld us\n",
 		   error->uptime.tv_sec, error->uptime.tv_usec);
 	err_print_capabilities(m, &error->device_info);
-	max_hangcheck_score = 0;
+
 	for (i = 0; i < ARRAY_SIZE(error->engine); i++) {
-		if (error->engine[i].hangcheck_score > max_hangcheck_score)
-			max_hangcheck_score = error->engine[i].hangcheck_score;
-	}
-	for (i = 0; i < ARRAY_SIZE(error->engine); i++) {
-		if (error->engine[i].hangcheck_score == max_hangcheck_score &&
+		if (error->engine[i].hangcheck_stalled &&
 		    error->engine[i].pid != -1) {
-			err_printf(m, "Active process (on ring %s): %s [%d]\n",
+			err_printf(m, "Active process (on ring %s): %s [%d], context bans %d\n",
 				   engine_str(i),
 				   error->engine[i].comm,
-				   error->engine[i].pid);
+				   error->engine[i].pid,
+				   error->engine[i].context_bans);
 		}
 	}
 	err_printf(m, "Reset count: %u\n", error->reset_count);
 	err_printf(m, "Suspend count: %u\n", error->suspend_count);
+	err_printf(m, "Platform: %s\n", intel_platform_name(error->device_info.platform));
 	err_printf(m, "PCI ID: 0x%04x\n", pdev->device);
 	err_printf(m, "PCI Revision: 0x%02x\n", pdev->revision);
 	err_printf(m, "PCI Subsystem: %04x:%04x\n",
@@ -651,9 +659,10 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		if (obj) {
 			err_puts(m, dev_priv->engine[i]->name);
 			if (ee->pid != -1)
-				err_printf(m, " (submitted by %s [%d])",
+				err_printf(m, " (submitted by %s [%d], bans %d)",
 					   ee->comm,
-					   ee->pid);
+					   ee->pid,
+					   ee->context_bans);
 			err_printf(m, " --- gtt_offset = 0x%08x %08x\n",
 				   upper_32_bits(obj->gtt_offset),
 				   lower_32_bits(obj->gtt_offset));
@@ -801,7 +810,7 @@ i915_error_object_create(struct drm_i915_private *i915,
 	struct i915_ggtt *ggtt = &i915->ggtt;
 	const u64 slot = ggtt->error_capture.start;
 	struct drm_i915_error_object *dst;
-	struct z_stream_s zstream;
+	struct compress compress;
 	unsigned long num_pages;
 	struct sgt_iter iter;
 	dma_addr_t dma;
@@ -821,7 +830,7 @@ i915_error_object_create(struct drm_i915_private *i915,
 	dst->page_count = 0;
 	dst->unused = 0;
 
-	if (!compress_init(&zstream)) {
+	if (!compress_init(&compress)) {
 		kfree(dst);
 		return NULL;
 	}
@@ -834,7 +843,7 @@ i915_error_object_create(struct drm_i915_private *i915,
 				       I915_CACHE_NONE, 0);
 
 		s = io_mapping_map_atomic_wc(&ggtt->mappable, slot);
-		ret = compress_page(&zstream, (void  __force *)s, dst);
+		ret = compress_page(&compress, (void  __force *)s, dst);
 		io_mapping_unmap_atomic(s);
 
 		if (ret)
@@ -849,7 +858,7 @@ unwind:
 	dst = NULL;
 
 out:
-	compress_fini(&zstream, dst);
+	compress_fini(&compress, dst);
 	ggtt->base.clear_range(&ggtt->base, slot, PAGE_SIZE);
 	return dst;
 }
@@ -941,7 +950,7 @@ static uint32_t i915_error_generate_code(struct drm_i915_private *dev_priv,
 	 * strictly a client bug. Use instdone to differentiate those some.
 	 */
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
-		if (error->engine[i].hangcheck_action == HANGCHECK_HUNG) {
+		if (error->engine[i].hangcheck_stalled) {
 			if (engine_id)
 				*engine_id = i;
 
@@ -1159,8 +1168,9 @@ static void error_record_engine_registers(struct drm_i915_error_state *error,
 		ee->hws = I915_READ(mmio);
 	}
 
-	ee->hangcheck_score = engine->hangcheck.score;
+	ee->hangcheck_timestamp = engine->hangcheck.action_timestamp;
 	ee->hangcheck_action = engine->hangcheck.action;
+	ee->hangcheck_stalled = engine->hangcheck.stalled;
 
 	if (USES_PPGTT(dev_priv)) {
 		int i;
@@ -1188,6 +1198,7 @@ static void record_request(struct drm_i915_gem_request *request,
 			   struct drm_i915_error_request *erq)
 {
 	erq->context = request->ctx->hw_id;
+	erq->ban_score = request->ctx->ban_score;
 	erq->seqno = request->global_seqno;
 	erq->jiffies = request->emitted_jiffies;
 	erq->head = request->head;
@@ -1321,7 +1332,7 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 			}
 
 			error->simulated |=
-				request->ctx->flags & CONTEXT_NO_ERROR_CAPTURE;
+				i915_gem_context_no_error_capture(request->ctx);
 
 			ee->rq_head = request->head;
 			ee->rq_post = request->postfix;
@@ -1659,9 +1670,8 @@ void i915_error_state_put(struct i915_error_state_file_priv *error_priv)
 		kref_put(&error_priv->error->ref, i915_error_state_free);
 }
 
-void i915_destroy_error_state(struct drm_device *dev)
+void i915_destroy_error_state(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_error_state *error;
 
 	spin_lock_irq(&dev_priv->gpu_error.lock);

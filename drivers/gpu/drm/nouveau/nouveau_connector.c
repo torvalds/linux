@@ -33,6 +33,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic.h>
 
 #include "nouveau_reg.h"
 #include "nouveau_drv.h"
@@ -769,7 +770,7 @@ nouveau_connector_set_property(struct drm_connector *connector,
 	struct drm_encoder *encoder = to_drm_encoder(nv_encoder);
 	int ret;
 
-	if (connector->dev->mode_config.funcs->atomic_commit)
+	if (drm_drv_uses_atomic_modeset(connector->dev))
 		return drm_atomic_helper_connector_set_property(connector, property, value);
 
 	ret = connector->funcs->atomic_set_property(&nv_connector->base,
@@ -1074,7 +1075,7 @@ nouveau_connector_helper_funcs = {
 static int
 nouveau_connector_dpms(struct drm_connector *connector, int mode)
 {
-	if (connector->dev->mode_config.funcs->atomic_commit)
+	if (drm_drv_uses_atomic_modeset(connector->dev))
 		return drm_atomic_helper_connector_dpms(connector, mode);
 	return drm_helper_connector_dpms(connector, mode);
 }

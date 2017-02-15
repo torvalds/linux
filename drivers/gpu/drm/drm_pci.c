@@ -191,7 +191,7 @@ int drm_irq_by_busid(struct drm_device *dev, void *data,
 static void drm_pci_agp_init(struct drm_device *dev)
 {
 	if (drm_core_check_feature(dev, DRIVER_USE_AGP)) {
-		if (drm_pci_device_is_agp(dev))
+		if (pci_find_capability(dev->pdev, PCI_CAP_ID_AGP))
 			dev->agp = drm_agp_init(dev);
 		if (dev->agp) {
 			dev->agp->agp_mtrr = arch_phys_wc_add(
@@ -223,7 +223,7 @@ void drm_pci_agp_destroy(struct drm_device *dev)
  * Try and register, if we fail to register, backout previous work.
  *
  * NOTE: This function is deprecated, please use drm_dev_alloc() and
- * drm_dev_register() instead and remove your ->load() callback.
+ * drm_dev_register() instead and remove your &drm_driver.load callback.
  *
  * Return: 0 on success or a negative error code on failure.
  */
@@ -256,10 +256,6 @@ int drm_get_pci_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 	ret = drm_dev_register(dev, ent->driver_data);
 	if (ret)
 		goto err_agp;
-
-	DRM_INFO("Initialized %s %d.%d.%d %s for %s on minor %d\n",
-		 driver->name, driver->major, driver->minor, driver->patchlevel,
-		 driver->date, pci_name(pdev), dev->primary->index);
 
 	/* No locking needed since shadow-attach is single-threaded since it may
 	 * only be called from the per-driver module init hook. */

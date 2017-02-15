@@ -34,7 +34,6 @@ struct sti_private {
 };
 
 extern struct platform_driver sti_tvout_driver;
-extern struct platform_driver sti_vtac_driver;
 extern struct platform_driver sti_hqvdp_driver;
 extern struct platform_driver sti_hdmi_driver;
 extern struct platform_driver sti_hda_driver;

@@ -159,7 +159,7 @@ static int psb_do_init(struct drm_device *dev)
 	return 0;
 }
 
-static int psb_driver_unload(struct drm_device *dev)
+static void psb_driver_unload(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
@@ -220,7 +220,6 @@ static int psb_driver_unload(struct drm_device *dev)
 		dev->dev_private = NULL;
 	}
 	gma_power_uninit(dev);
-	return 0;
 }
 
 static int psb_driver_load(struct drm_device *dev, unsigned long flags)
@@ -407,11 +406,6 @@ out_err:
 	return ret;
 }
 
-static int psb_driver_device_is_agp(struct drm_device *dev)
-{
-	return 0;
-}
-
 static inline void get_brightness(struct backlight_device *bd)
 {
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
@@ -488,7 +482,6 @@ static struct drm_driver driver = {
 	.set_busid = drm_pci_set_busid,
 
 	.num_ioctls = ARRAY_SIZE(psb_ioctls),
-	.device_is_agp = psb_driver_device_is_agp,
 	.irq_preinstall = psb_irq_preinstall,
 	.irq_postinstall = psb_irq_postinstall,
 	.irq_uninstall = psb_irq_uninstall,

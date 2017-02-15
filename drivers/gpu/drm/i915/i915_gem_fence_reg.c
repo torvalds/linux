@@ -77,16 +77,17 @@ static void i965_write_fence_reg(struct drm_i915_fence_reg *fence,
 
 	val = 0;
 	if (vma) {
-		unsigned int tiling = i915_gem_object_get_tiling(vma->obj);
-		bool is_y_tiled = tiling == I915_TILING_Y;
 		unsigned int stride = i915_gem_object_get_stride(vma->obj);
-		u32 row_size = stride * (is_y_tiled ? 32 : 8);
-		u32 size = rounddown((u32)vma->node.size, row_size);
 
-		val = ((vma->node.start + size - 4096) & 0xfffff000) << 32;
-		val |= vma->node.start & 0xfffff000;
+		GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
+		GEM_BUG_ON(!IS_ALIGNED(vma->node.start, I965_FENCE_PAGE));
+		GEM_BUG_ON(!IS_ALIGNED(vma->fence_size, I965_FENCE_PAGE));
+		GEM_BUG_ON(!IS_ALIGNED(stride, 128));
+
+		val = (vma->node.start + vma->fence_size - I965_FENCE_PAGE) << 32;
+		val |= vma->node.start;
 		val |= (u64)((stride / 128) - 1) << fence_pitch_shift;
-		if (is_y_tiled)
+		if (i915_gem_object_get_tiling(vma->obj) == I915_TILING_Y)
 			val |= BIT(I965_FENCE_TILING_Y_SHIFT);
 		val |= I965_FENCE_REG_VALID;
 	}
@@ -122,31 +123,24 @@ static void i915_write_fence_reg(struct drm_i915_fence_reg *fence,
 		unsigned int tiling = i915_gem_object_get_tiling(vma->obj);
 		bool is_y_tiled = tiling == I915_TILING_Y;
 		unsigned int stride = i915_gem_object_get_stride(vma->obj);
-		int pitch_val;
-		int tile_width;
 
-		WARN((vma->node.start & ~I915_FENCE_START_MASK) ||
-		     !is_power_of_2(vma->node.size) ||
-		     (vma->node.start & (vma->node.size - 1)),
-		     "object 0x%08llx [fenceable? %d] not 1M or pot-size (0x%08llx) aligned\n",
-		     vma->node.start,
-		     i915_vma_is_map_and_fenceable(vma),
-		     vma->node.size);
+		GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
+		GEM_BUG_ON(vma->node.start & ~I915_FENCE_START_MASK);
+		GEM_BUG_ON(!is_power_of_2(vma->fence_size));
+		GEM_BUG_ON(!IS_ALIGNED(vma->node.start, vma->fence_size));
 
 		if (is_y_tiled && HAS_128_BYTE_Y_TILING(fence->i915))
-			tile_width = 128;
+			stride /= 128;
 		else
-			tile_width = 512;
-
-		/* Note: pitch better be a power of two tile widths */
-		pitch_val = stride / tile_width;
-		pitch_val = ffs(pitch_val) - 1;
+			stride /= 512;
+		GEM_BUG_ON(!is_power_of_2(stride));
 
 		val = vma->node.start;
 		if (is_y_tiled)
 			val |= BIT(I830_FENCE_TILING_Y_SHIFT);
-		val |= I915_FENCE_SIZE_BITS(vma->node.size);
-		val |= pitch_val << I830_FENCE_PITCH_SHIFT;
+		val |= I915_FENCE_SIZE_BITS(vma->fence_size);
+		val |= ilog2(stride) << I830_FENCE_PITCH_SHIFT;
+
 		val |= I830_FENCE_REG_VALID;
 	}
 
@@ -166,25 +160,19 @@ static void i830_write_fence_reg(struct drm_i915_fence_reg *fence,
 
 	val = 0;
 	if (vma) {
-		unsigned int tiling = i915_gem_object_get_tiling(vma->obj);
-		bool is_y_tiled = tiling == I915_TILING_Y;
 		unsigned int stride = i915_gem_object_get_stride(vma->obj);
-		u32 pitch_val;
 
-		WARN((vma->node.start & ~I830_FENCE_START_MASK) ||
-		     !is_power_of_2(vma->node.size) ||
-		     (vma->node.start & (vma->node.size - 1)),
-		     "object 0x%08llx not 512K or pot-size 0x%08llx aligned\n",
-		     vma->node.start, vma->node.size);
-
-		pitch_val = stride / 128;
-		pitch_val = ffs(pitch_val) - 1;
+		GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
+		GEM_BUG_ON(vma->node.start & ~I830_FENCE_START_MASK);
+		GEM_BUG_ON(!is_power_of_2(vma->fence_size));
+		GEM_BUG_ON(!is_power_of_2(stride / 128));
+		GEM_BUG_ON(!IS_ALIGNED(vma->node.start, vma->fence_size));
 
 		val = vma->node.start;
-		if (is_y_tiled)
+		if (i915_gem_object_get_tiling(vma->obj) == I915_TILING_Y)
 			val |= BIT(I830_FENCE_TILING_Y_SHIFT);
-		val |= I830_FENCE_SIZE_BITS(vma->node.size);
-		val |= pitch_val << I830_FENCE_PITCH_SHIFT;
+		val |= I830_FENCE_SIZE_BITS(vma->fence_size);
+		val |= ilog2(stride / 128) << I830_FENCE_PITCH_SHIFT;
 		val |= I830_FENCE_REG_VALID;
 	}
 
@@ -290,7 +278,7 @@ i915_vma_put_fence(struct i915_vma *vma)
 {
 	struct drm_i915_fence_reg *fence = vma->fence;
 
-	assert_rpm_wakelock_held(to_i915(vma->vm->dev));
+	assert_rpm_wakelock_held(vma->vm->i915);
 
 	if (!fence)
 		return 0;
@@ -313,7 +301,7 @@ static struct drm_i915_fence_reg *fence_find(struct drm_i915_private *dev_priv)
 	}
 
 	/* Wait for completion of pending flips which consume fences */
-	if (intel_has_pending_fb_unpin(&dev_priv->drm))
+	if (intel_has_pending_fb_unpin(dev_priv))
 		return ERR_PTR(-EAGAIN);
 
 	return ERR_PTR(-EDEADLK);
@@ -346,7 +334,7 @@ i915_vma_get_fence(struct i915_vma *vma)
 	/* Note that we revoke fences on runtime suspend. Therefore the user
 	 * must keep the device awake whilst using the fence.
 	 */
-	assert_rpm_wakelock_held(to_i915(vma->vm->dev));
+	assert_rpm_wakelock_held(vma->vm->i915);
 
 	/* Just update our place in the LRU if our fence is getting reused. */
 	if (vma->fence) {
@@ -357,13 +345,37 @@ i915_vma_get_fence(struct i915_vma *vma)
 			return 0;
 		}
 	} else if (set) {
-		fence = fence_find(to_i915(vma->vm->dev));
+		fence = fence_find(vma->vm->i915);
 		if (IS_ERR(fence))
 			return PTR_ERR(fence);
 	} else
 		return 0;
 
 	return fence_update(fence, set);
+}
+
+/**
+ * i915_gem_revoke_fences - revoke fence state
+ * @dev_priv: i915 device private
+ *
+ * Removes all GTT mmappings via the fence registers. This forces any user
+ * of the fence to reacquire that fence before continuing with their access.
+ * One use is during GPU reset where the fence register is lost and we need to
+ * revoke concurrent userspace access via GTT mmaps until the hardware has been
+ * reset and the fence registers have been restored.
+ */
+void i915_gem_revoke_fences(struct drm_i915_private *dev_priv)
+{
+	int i;
+
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
+
+	for (i = 0; i < dev_priv->num_fence_regs; i++) {
+		struct drm_i915_fence_reg *fence = &dev_priv->fence_regs[i];
+
+		if (fence->vma)
+			i915_gem_release_mmap(fence->vma->obj);
+	}
 }
 
 /**
@@ -512,8 +524,8 @@ i915_gem_detect_bit_6_swizzle(struct drm_i915_private *dev_priv)
 		 */
 		swizzle_x = I915_BIT_6_SWIZZLE_NONE;
 		swizzle_y = I915_BIT_6_SWIZZLE_NONE;
-	} else if (IS_MOBILE(dev_priv) || (IS_GEN3(dev_priv) &&
-		   !IS_G33(dev_priv))) {
+	} else if (IS_MOBILE(dev_priv) ||
+		   IS_I915G(dev_priv) || IS_I945G(dev_priv)) {
 		uint32_t dcc;
 
 		/* On 9xx chipsets, channel interleave by the CPU is

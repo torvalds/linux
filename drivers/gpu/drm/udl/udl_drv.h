@@ -100,7 +100,7 @@ int udl_submit_urb(struct drm_device *dev, struct urb *urb, size_t len);
 void udl_urb_completion(struct urb *urb);
 
 int udl_driver_load(struct drm_device *dev, unsigned long flags);
-int udl_driver_unload(struct drm_device *dev);
+void udl_driver_unload(struct drm_device *dev);
 
 int udl_fbdev_init(struct drm_device *dev);
 void udl_fbdev_cleanup(struct drm_device *dev);

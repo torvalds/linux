@@ -332,6 +332,7 @@ struct sti_hqvdp_cmd {
  * @hqvdp_cmd_paddr:   physical address of hqvdp_cmd
  * @vtg:               vtg for main data path
  * @xp70_initialized:  true if xp70 is already initialized
+ * @vtg_registered:    true if registered to VTG
  */
 struct sti_hqvdp {
 	struct device *dev;
@@ -347,6 +348,7 @@ struct sti_hqvdp {
 	u32 hqvdp_cmd_paddr;
 	struct sti_vtg *vtg;
 	bool xp70_initialized;
+	bool vtg_registered;
 };
 
 #define to_sti_hqvdp(x) container_of(x, struct sti_hqvdp, plane)
@@ -771,7 +773,7 @@ static void sti_hqvdp_disable(struct sti_hqvdp *hqvdp)
 		DRM_ERROR("XP70 could not revert to idle\n");
 
 	hqvdp->plane.status = STI_PLANE_DISABLED;
-	hqvdp->xp70_initialized = false;
+	hqvdp->vtg_registered = false;
 }
 
 /**
@@ -1064,10 +1066,11 @@ static int sti_hqvdp_atomic_check(struct drm_plane *drm_plane,
 		return -EINVAL;
 	}
 
-	if (!hqvdp->xp70_initialized) {
+	if (!hqvdp->xp70_initialized)
 		/* Start HQVDP XP70 coprocessor */
 		sti_hqvdp_start_xp70(hqvdp);
 
+	if (!hqvdp->vtg_registered) {
 		/* Prevent VTG shutdown */
 		if (clk_prepare_enable(hqvdp->clk_pix_main)) {
 			DRM_ERROR("Failed to prepare/enable pix main clk\n");
@@ -1081,6 +1084,7 @@ static int sti_hqvdp_atomic_check(struct drm_plane *drm_plane,
 			DRM_ERROR("Cannot register VTG notifier\n");
 			return -EINVAL;
 		}
+		hqvdp->vtg_registered = true;
 	}
 
 	DRM_DEBUG_KMS("CRTC:%d (%s) drm plane:%d (%s)\n",
@@ -1112,6 +1116,21 @@ static void sti_hqvdp_atomic_update(struct drm_plane *drm_plane,
 
 	if (!crtc || !fb)
 		return;
+
+	if ((oldstate->fb == state->fb) &&
+	    (oldstate->crtc_x == state->crtc_x) &&
+	    (oldstate->crtc_y == state->crtc_y) &&
+	    (oldstate->crtc_w == state->crtc_w) &&
+	    (oldstate->crtc_h == state->crtc_h) &&
+	    (oldstate->src_x == state->src_x) &&
+	    (oldstate->src_y == state->src_y) &&
+	    (oldstate->src_w == state->src_w) &&
+	    (oldstate->src_h == state->src_h)) {
+		/* No change since last update, do not post cmd */
+		DRM_DEBUG_DRIVER("No change, not posting cmd\n");
+		plane->status = STI_PLANE_UPDATED;
+		return;
+	}
 
 	mode = &crtc->mode;
 	dst_x = state->crtc_x;
@@ -1147,7 +1166,7 @@ static void sti_hqvdp_atomic_update(struct drm_plane *drm_plane,
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
 
 	DRM_DEBUG_DRIVER("drm FB:%d format:%.4s phys@:0x%lx\n", fb->base.id,
-			 (char *)&fb->pixel_format,
+			 (char *)&fb->format->format,
 			 (unsigned long)cma_obj->paddr);
 
 	/* Buffer planes address */

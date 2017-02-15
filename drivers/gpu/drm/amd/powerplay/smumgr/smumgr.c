@@ -22,6 +22,7 @@
  */
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <drm/amdgpu_drm.h>
 #include "pp_instance.h"
@@ -29,44 +30,57 @@
 #include "cgs_common.h"
 #include "linux/delay.h"
 
+MODULE_FIRMWARE("amdgpu/topaz_smc.bin");
+MODULE_FIRMWARE("amdgpu/topaz_k_smc.bin");
+MODULE_FIRMWARE("amdgpu/tonga_smc.bin");
+MODULE_FIRMWARE("amdgpu/tonga_k_smc.bin");
+MODULE_FIRMWARE("amdgpu/fiji_smc.bin");
+MODULE_FIRMWARE("amdgpu/polaris10_smc.bin");
+MODULE_FIRMWARE("amdgpu/polaris10_smc_sk.bin");
+MODULE_FIRMWARE("amdgpu/polaris10_k_smc.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_smc.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_smc_sk.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_k_smc.bin");
+MODULE_FIRMWARE("amdgpu/polaris12_smc.bin");
 
-int smum_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
+
+int smum_early_init(struct pp_instance *handle)
 {
 	struct pp_smumgr *smumgr;
 
-	if ((handle == NULL) || (pp_init == NULL))
+	if (handle == NULL)
 		return -EINVAL;
 
 	smumgr = kzalloc(sizeof(struct pp_smumgr), GFP_KERNEL);
 	if (smumgr == NULL)
 		return -ENOMEM;
 
-	smumgr->device = pp_init->device;
-	smumgr->chip_family = pp_init->chip_family;
-	smumgr->chip_id = pp_init->chip_id;
+	smumgr->device = handle->device;
+	smumgr->chip_family = handle->chip_family;
+	smumgr->chip_id = handle->chip_id;
 	smumgr->usec_timeout = AMD_MAX_USEC_TIMEOUT;
 	smumgr->reload_fw = 1;
 	handle->smu_mgr = smumgr;
 
 	switch (smumgr->chip_family) {
 	case AMDGPU_FAMILY_CZ:
-		cz_smum_init(smumgr);
+		smumgr->smumgr_funcs = &cz_smu_funcs;
 		break;
 	case AMDGPU_FAMILY_VI:
 		switch (smumgr->chip_id) {
 		case CHIP_TOPAZ:
-			iceland_smum_init(smumgr);
+			smumgr->smumgr_funcs = &iceland_smu_funcs;
 			break;
 		case CHIP_TONGA:
-			tonga_smum_init(smumgr);
+			smumgr->smumgr_funcs = &tonga_smu_funcs;
 			break;
 		case CHIP_FIJI:
-			fiji_smum_init(smumgr);
+			smumgr->smumgr_funcs = &fiji_smu_funcs;
 			break;
 		case CHIP_POLARIS11:
 		case CHIP_POLARIS10:
 		case CHIP_POLARIS12:
-			polaris10_smum_init(smumgr);
+			smumgr->smumgr_funcs = &polaris10_smu_funcs;
 			break;
 		default:
 			return -EINVAL;
@@ -77,13 +91,6 @@ int smum_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 		return -EINVAL;
 	}
 
-	return 0;
-}
-
-int smum_fini(struct pp_smumgr *smumgr)
-{
-	kfree(smumgr->device);
-	kfree(smumgr);
 	return 0;
 }
 

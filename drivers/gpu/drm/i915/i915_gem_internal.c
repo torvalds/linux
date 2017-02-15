@@ -79,7 +79,7 @@ i915_gem_object_get_pages_internal(struct drm_i915_gem_object *obj)
 #endif
 
 	gfp = GFP_KERNEL | __GFP_HIGHMEM | __GFP_RECLAIMABLE;
-	if (IS_CRESTLINE(i915) || IS_BROADWATER(i915)) {
+	if (IS_I965GM(i915) || IS_I965G(i915)) {
 		/* 965gm cannot relocate objects above 4GiB. */
 		gfp &= ~__GFP_HIGHMEM;
 		gfp |= __GFP_DMA32;
@@ -159,11 +159,17 @@ static const struct drm_i915_gem_object_ops i915_gem_object_internal_ops = {
  */
 struct drm_i915_gem_object *
 i915_gem_object_create_internal(struct drm_i915_private *i915,
-				unsigned int size)
+				phys_addr_t size)
 {
 	struct drm_i915_gem_object *obj;
 
-	obj = i915_gem_object_alloc(&i915->drm);
+	GEM_BUG_ON(!size);
+	GEM_BUG_ON(!IS_ALIGNED(size, PAGE_SIZE));
+
+	if (overflows_type(size, obj->base.size))
+		return ERR_PTR(-E2BIG);
+
+	obj = i915_gem_object_alloc(i915);
 	if (!obj)
 		return ERR_PTR(-ENOMEM);
 

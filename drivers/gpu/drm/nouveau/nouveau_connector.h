@@ -30,6 +30,7 @@
 #include <nvif/notify.h>
 
 #include <drm/drm_edid.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_dp_helper.h>
 #include "nouveau_crtc.h"
 

@@ -72,10 +72,8 @@ struct fsl_tcon *fsl_tcon_init(struct device *dev)
 		return NULL;
 
 	tcon = devm_kzalloc(dev, sizeof(*tcon), GFP_KERNEL);
-	if (!tcon) {
-		ret = -ENOMEM;
+	if (!tcon)
 		goto err_node_put;
-	}
 
 	ret = fsl_tcon_init_regmap(dev, tcon, np);
 	if (ret) {
@@ -89,9 +87,13 @@ struct fsl_tcon *fsl_tcon_init(struct device *dev)
 		goto err_node_put;
 	}
 
-	of_node_put(np);
-	clk_prepare_enable(tcon->ipg_clk);
+	ret = clk_prepare_enable(tcon->ipg_clk);
+	if (ret) {
+		dev_err(dev, "Couldn't enable the TCON clock\n");
+		goto err_node_put;
+	}
 
+	of_node_put(np);
 	dev_info(dev, "Using TCON in bypass mode\n");
 
 	return tcon;

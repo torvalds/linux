@@ -278,7 +278,7 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 
 	get_dma_buf(dma_buf);
 
-	obj = i915_gem_object_alloc(dev);
+	obj = i915_gem_object_alloc(to_i915(dev));
 	if (obj == NULL) {
 		ret = -ENOMEM;
 		goto fail_detach;

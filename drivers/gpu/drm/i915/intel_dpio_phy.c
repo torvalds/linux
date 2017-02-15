@@ -131,6 +131,18 @@ struct bxt_ddi_phy_info {
 	enum dpio_phy rcomp_phy;
 
 	/**
+	 * @reset_delay: delay in us to wait before setting the common reset
+	 * bit in BXT_PHY_CTL_FAMILY, which effectively enables the phy.
+	 */
+	int reset_delay;
+
+	/**
+	 * @pwron_mask: Mask with the appropriate bit set that would cause the
+	 * punit to power this phy if written to BXT_P_CR_GT_DISP_PWRON.
+	 */
+	u32 pwron_mask;
+
+	/**
 	 * @channel: struct containing per channel information.
 	 */
 	struct {
@@ -145,6 +157,7 @@ static const struct bxt_ddi_phy_info bxt_ddi_phy_info[] = {
 	[DPIO_PHY0] = {
 		.dual_channel = true,
 		.rcomp_phy = DPIO_PHY1,
+		.pwron_mask = BIT(0),
 
 		.channel = {
 			[DPIO_CH0] = { .port = PORT_B },
@@ -154,9 +167,43 @@ static const struct bxt_ddi_phy_info bxt_ddi_phy_info[] = {
 	[DPIO_PHY1] = {
 		.dual_channel = false,
 		.rcomp_phy = -1,
+		.pwron_mask = BIT(1),
 
 		.channel = {
 			[DPIO_CH0] = { .port = PORT_A },
+		}
+	},
+};
+
+static const struct bxt_ddi_phy_info glk_ddi_phy_info[] = {
+	[DPIO_PHY0] = {
+		.dual_channel = false,
+		.rcomp_phy = DPIO_PHY1,
+		.pwron_mask = BIT(0),
+		.reset_delay = 20,
+
+		.channel = {
+			[DPIO_CH0] = { .port = PORT_B },
+		}
+	},
+	[DPIO_PHY1] = {
+		.dual_channel = false,
+		.rcomp_phy = -1,
+		.pwron_mask = BIT(3),
+		.reset_delay = 20,
+
+		.channel = {
+			[DPIO_CH0] = { .port = PORT_A },
+		}
+	},
+	[DPIO_PHY2] = {
+		.dual_channel = false,
+		.rcomp_phy = DPIO_PHY1,
+		.pwron_mask = BIT(1),
+		.reset_delay = 20,
+
+		.channel = {
+			[DPIO_CH0] = { .port = PORT_C },
 		}
 	},
 };
@@ -167,14 +214,38 @@ static u32 bxt_phy_port_mask(const struct bxt_ddi_phy_info *phy_info)
 		BIT(phy_info->channel[DPIO_CH0].port);
 }
 
-void bxt_port_to_phy_channel(enum port port,
+static const struct bxt_ddi_phy_info *
+bxt_get_phy_list(struct drm_i915_private *dev_priv, int *count)
+{
+	if (IS_GEMINILAKE(dev_priv)) {
+		*count =  ARRAY_SIZE(glk_ddi_phy_info);
+		return glk_ddi_phy_info;
+	} else {
+		*count =  ARRAY_SIZE(bxt_ddi_phy_info);
+		return bxt_ddi_phy_info;
+	}
+}
+
+static const struct bxt_ddi_phy_info *
+bxt_get_phy_info(struct drm_i915_private *dev_priv, enum dpio_phy phy)
+{
+	int count;
+	const struct bxt_ddi_phy_info *phy_list =
+		bxt_get_phy_list(dev_priv, &count);
+
+	return &phy_list[phy];
+}
+
+void bxt_port_to_phy_channel(struct drm_i915_private *dev_priv, enum port port,
 			     enum dpio_phy *phy, enum dpio_channel *ch)
 {
-	const struct bxt_ddi_phy_info *phy_info;
-	int i;
+	const struct bxt_ddi_phy_info *phy_info, *phys;
+	int i, count;
 
-	for (i = 0; i < ARRAY_SIZE(bxt_ddi_phy_info); i++) {
-		phy_info = &bxt_ddi_phy_info[i];
+	phys = bxt_get_phy_list(dev_priv, &count);
+
+	for (i = 0; i < count; i++) {
+		phy_info = &phys[i];
 
 		if (port == phy_info->channel[DPIO_CH0].port) {
 			*phy = i;
@@ -203,7 +274,7 @@ void bxt_ddi_phy_set_signal_level(struct drm_i915_private *dev_priv,
 	enum dpio_phy phy;
 	enum dpio_channel ch;
 
-	bxt_port_to_phy_channel(port, &phy, &ch);
+	bxt_port_to_phy_channel(dev_priv, port, &phy, &ch);
 
 	/*
 	 * While we write to the group register to program all lanes at once we
@@ -241,23 +312,17 @@ void bxt_ddi_phy_set_signal_level(struct drm_i915_private *dev_priv,
 bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,
 			    enum dpio_phy phy)
 {
-	const struct bxt_ddi_phy_info *phy_info = &bxt_ddi_phy_info[phy];
+	const struct bxt_ddi_phy_info *phy_info;
 	enum port port;
 
-	if (!(I915_READ(BXT_P_CR_GT_DISP_PWRON) & GT_DISPLAY_POWER_ON(phy)))
+	phy_info = bxt_get_phy_info(dev_priv, phy);
+
+	if (!(I915_READ(BXT_P_CR_GT_DISP_PWRON) & phy_info->pwron_mask))
 		return false;
 
 	if ((I915_READ(BXT_PORT_CL1CM_DW0(phy)) &
 	     (PHY_POWER_GOOD | PHY_RESERVED)) != PHY_POWER_GOOD) {
 		DRM_DEBUG_DRIVER("DDI PHY %d powered, but power hasn't settled\n",
-				 phy);
-
-		return false;
-	}
-
-	if (phy_info->rcomp_phy == -1 &&
-	    !(I915_READ(BXT_PORT_REF_DW3(phy)) & GRC_DONE)) {
-		DRM_DEBUG_DRIVER("DDI PHY %d powered, but GRC isn't done\n",
 				 phy);
 
 		return false;
@@ -306,8 +371,10 @@ static void bxt_phy_wait_grc_done(struct drm_i915_private *dev_priv,
 static void _bxt_ddi_phy_init(struct drm_i915_private *dev_priv,
 			      enum dpio_phy phy)
 {
-	const struct bxt_ddi_phy_info *phy_info = &bxt_ddi_phy_info[phy];
+	const struct bxt_ddi_phy_info *phy_info;
 	u32 val;
+
+	phy_info = bxt_get_phy_info(dev_priv, phy);
 
 	if (bxt_ddi_phy_is_enabled(dev_priv, phy)) {
 		/* Still read out the GRC value for state verification */
@@ -317,7 +384,6 @@ static void _bxt_ddi_phy_init(struct drm_i915_private *dev_priv,
 		if (bxt_ddi_phy_verify_state(dev_priv, phy)) {
 			DRM_DEBUG_DRIVER("DDI PHY %d already enabled, "
 					 "won't reprogram it\n", phy);
-
 			return;
 		}
 
@@ -326,7 +392,7 @@ static void _bxt_ddi_phy_init(struct drm_i915_private *dev_priv,
 	}
 
 	val = I915_READ(BXT_P_CR_GT_DISP_PWRON);
-	val |= GT_DISPLAY_POWER_ON(phy);
+	val |= phy_info->pwron_mask;
 	I915_WRITE(BXT_P_CR_GT_DISP_PWRON, val);
 
 	/*
@@ -367,6 +433,9 @@ static void _bxt_ddi_phy_init(struct drm_i915_private *dev_priv,
 
 	if (phy_info->rcomp_phy != -1) {
 		uint32_t grc_code;
+
+		bxt_phy_wait_grc_done(dev_priv, phy_info->rcomp_phy);
+
 		/*
 		 * PHY0 isn't connected to an RCOMP resistor so copy over
 		 * the corresponding calibrated value from PHY1, and disable
@@ -384,31 +453,34 @@ static void _bxt_ddi_phy_init(struct drm_i915_private *dev_priv,
 		I915_WRITE(BXT_PORT_REF_DW8(phy), val);
 	}
 
+	if (phy_info->reset_delay)
+		udelay(phy_info->reset_delay);
+
 	val = I915_READ(BXT_PHY_CTL_FAMILY(phy));
 	val |= COMMON_RESET_DIS;
 	I915_WRITE(BXT_PHY_CTL_FAMILY(phy), val);
-
-	if (phy_info->rcomp_phy == -1)
-		bxt_phy_wait_grc_done(dev_priv, phy);
-
 }
 
 void bxt_ddi_phy_uninit(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 {
+	const struct bxt_ddi_phy_info *phy_info;
 	uint32_t val;
+
+	phy_info = bxt_get_phy_info(dev_priv, phy);
 
 	val = I915_READ(BXT_PHY_CTL_FAMILY(phy));
 	val &= ~COMMON_RESET_DIS;
 	I915_WRITE(BXT_PHY_CTL_FAMILY(phy), val);
 
 	val = I915_READ(BXT_P_CR_GT_DISP_PWRON);
-	val &= ~GT_DISPLAY_POWER_ON(phy);
+	val &= ~phy_info->pwron_mask;
 	I915_WRITE(BXT_P_CR_GT_DISP_PWRON, val);
 }
 
 void bxt_ddi_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 {
-	const struct bxt_ddi_phy_info *phy_info = &bxt_ddi_phy_info[phy];
+	const struct bxt_ddi_phy_info *phy_info =
+		bxt_get_phy_info(dev_priv, phy);
 	enum dpio_phy rcomp_phy = phy_info->rcomp_phy;
 	bool was_enabled;
 
@@ -461,9 +533,11 @@ __phy_reg_verify_state(struct drm_i915_private *dev_priv, enum dpio_phy phy,
 bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
 			      enum dpio_phy phy)
 {
-	const struct bxt_ddi_phy_info *phy_info = &bxt_ddi_phy_info[phy];
+	const struct bxt_ddi_phy_info *phy_info;
 	uint32_t mask;
 	bool ok;
+
+	phy_info = bxt_get_phy_info(dev_priv, phy);
 
 #define _CHK(reg, mask, exp, fmt, ...)					\
 	__phy_reg_verify_state(dev_priv, phy, reg, mask, exp, fmt,	\
@@ -540,7 +614,7 @@ void bxt_ddi_phy_set_lane_optim_mask(struct intel_encoder *encoder,
 	enum dpio_channel ch;
 	int lane;
 
-	bxt_port_to_phy_channel(port, &phy, &ch);
+	bxt_port_to_phy_channel(dev_priv, port, &phy, &ch);
 
 	for (lane = 0; lane < 4; lane++) {
 		u32 val = I915_READ(BXT_PORT_TX_DW14_LN(phy, ch, lane));
@@ -568,7 +642,7 @@ bxt_ddi_phy_get_lane_lat_optim_mask(struct intel_encoder *encoder)
 	int lane;
 	uint8_t mask;
 
-	bxt_port_to_phy_channel(port, &phy, &ch);
+	bxt_port_to_phy_channel(dev_priv, port, &phy, &ch);
 
 	mask = 0;
 	for (lane = 0; lane < 4; lane++) {

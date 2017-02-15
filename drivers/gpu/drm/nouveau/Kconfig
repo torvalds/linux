@@ -1,6 +1,6 @@
 config DRM_NOUVEAU
 	tristate "Nouveau (NVIDIA) cards"
-	depends on DRM && PCI
+	depends on DRM && PCI && MMU
         select FW_LOADER
 	select DRM_KMS_HELPER
 	select DRM_TTM
@@ -16,6 +16,7 @@ config DRM_NOUVEAU
 	select INPUT if ACPI && X86
 	select THERMAL if ACPI && X86
 	select ACPI_VIDEO if ACPI && X86
+	select DRM_VM
 	help
 	  Choose this option for open-source NVIDIA support.
 

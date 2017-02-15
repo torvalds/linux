@@ -111,8 +111,6 @@ struct tilcdc_module_ops {
 #ifdef CONFIG_DEBUG_FS
 	/* create debugfs nodes (can be NULL): */
 	int (*debugfs_init)(struct tilcdc_module *mod, struct drm_minor *minor);
-	/* cleanup debugfs nodes (can be NULL): */
-	void (*debugfs_cleanup)(struct tilcdc_module *mod, struct drm_minor *minor);
 #endif
 };
 

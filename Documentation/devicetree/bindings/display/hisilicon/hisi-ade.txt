@@ -16,7 +16,7 @@ Required properties:
   "clk_ade_core" for the ADE core clock.
   "clk_codec_jpeg" for the media NOC QoS clock, which use the same clock with
   jpeg codec.
-  "clk_ade_pix" for the ADE pixel clok.
+  "clk_ade_pix" for the ADE pixel clock.
 - assigned-clocks: Should contain "clk_ade_core" and "clk_codec_jpeg" clocks'
   phandle + clock-specifier pairs.
 - assigned-clock-rates: clock rates, one for each entry in assigned-clocks.

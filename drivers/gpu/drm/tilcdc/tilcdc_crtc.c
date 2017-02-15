@@ -91,7 +91,7 @@ static void set_scanout(struct drm_crtc *crtc, struct drm_framebuffer *fb)
 
 	start = gem->paddr + fb->offsets[0] +
 		crtc->y * fb->pitches[0] +
-		crtc->x * drm_format_plane_cpp(fb->pixel_format, 0);
+		crtc->x * fb->format->cpp[0];
 
 	end = start + (crtc->mode.vdisplay * fb->pitches[0]);
 
@@ -399,7 +399,7 @@ static void tilcdc_crtc_set_mode(struct drm_crtc *crtc)
 	if (info->tft_alt_mode)
 		reg |= LCDC_TFT_ALT_ENABLE;
 	if (priv->rev == 2) {
-		switch (fb->pixel_format) {
+		switch (fb->format->format) {
 		case DRM_FORMAT_BGR565:
 		case DRM_FORMAT_RGB565:
 			break;

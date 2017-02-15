@@ -189,10 +189,11 @@ int sun4i_backend_update_layer_formats(struct sun4i_backend *backend,
 	DRM_DEBUG_DRIVER("Switching display backend interlaced mode %s\n",
 			 interlaced ? "on" : "off");
 
-	ret = sun4i_backend_drm_format_to_layer(plane, fb->pixel_format, &val);
+	ret = sun4i_backend_drm_format_to_layer(plane, fb->format->format,
+						&val);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Invalid format\n");
-		return val;
+		return ret;
 	}
 
 	regmap_update_bits(backend->regs, SUN4I_BACKEND_ATTCTL_REG1(layer),
@@ -218,7 +219,7 @@ int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 	DRM_DEBUG_DRIVER("Using GEM @ %pad\n", &gem->paddr);
 
 	/* Compute the start of the displayed memory */
-	bpp = drm_format_plane_cpp(fb->pixel_format, 0);
+	bpp = fb->format->cpp[0];
 	paddr = gem->paddr + fb->offsets[0];
 	paddr += (state->src_x >> 16) * bpp;
 	paddr += (state->src_y >> 16) * fb->pitches[0];

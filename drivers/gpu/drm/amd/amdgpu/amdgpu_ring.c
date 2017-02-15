@@ -207,6 +207,8 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	}
 	ring->cond_exe_gpu_addr = adev->wb.gpu_addr + (ring->cond_exe_offs * 4);
 	ring->cond_exe_cpu_addr = &adev->wb.wb[ring->cond_exe_offs];
+	/* always set cond_exec_polling to CONTINUE */
+	*ring->cond_exe_cpu_addr = 1;
 
 	r = amdgpu_fence_driver_start_ring(ring, irq_src, irq_type);
 	if (r) {
@@ -307,7 +309,7 @@ static ssize_t amdgpu_debugfs_ring_read(struct file *f, char __user *buf,
 	while (size) {
 		if (*pos >= (ring->ring_size + 12))
 			return result;
-			
+
 		value = ring->ring[(*pos - 12)/4];
 		r = put_user(value, (uint32_t*)buf);
 		if (r)

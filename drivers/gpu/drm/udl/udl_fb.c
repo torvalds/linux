@@ -89,7 +89,7 @@ int udl_handle_damage(struct udl_framebuffer *fb, int x, int y,
 	int bytes_identical = 0;
 	struct urb *urb;
 	int aligned_x;
-	int bpp = (fb->base.bits_per_pixel / 8);
+	int bpp = fb->base.format->cpp[0];
 
 	if (!fb->active_16)
 		return 0;
@@ -330,7 +330,7 @@ udl_framebuffer_init(struct drm_device *dev,
 	int ret;
 
 	ufb->obj = obj;
-	drm_helper_mode_fill_fb_struct(&ufb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &ufb->base, mode_cmd);
 	ret = drm_framebuffer_init(dev, &ufb->base, &udlfb_funcs);
 	return ret;
 }
@@ -395,7 +395,7 @@ static int udlfb_create(struct drm_fb_helper *helper,
 
 	info->flags = FBINFO_DEFAULT | FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &udlfb_ops;
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 	drm_fb_helper_fill_var(info, &ufbdev->helper, sizes->fb_width, sizes->fb_height);
 
 	DRM_DEBUG_KMS("allocated %dx%d vmal %p\n",
@@ -441,8 +441,7 @@ int udl_fbdev_init(struct drm_device *dev)
 
 	drm_fb_helper_prepare(dev, &ufbdev->helper, &udl_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(dev, &ufbdev->helper,
-				 1, 1);
+	ret = drm_fb_helper_init(dev, &ufbdev->helper, 1);
 	if (ret)
 		goto free;
 

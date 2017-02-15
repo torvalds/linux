@@ -459,6 +459,8 @@ int of_get_drm_display_mode(struct device_node *np,
 void drm_mode_set_name(struct drm_display_mode *mode);
 int drm_mode_hsync(const struct drm_display_mode *mode);
 int drm_mode_vrefresh(const struct drm_display_mode *mode);
+void drm_mode_get_hv_timing(const struct drm_display_mode *mode,
+			    int *hdisplay, int *vdisplay);
 
 void drm_mode_set_crtcinfo(struct drm_display_mode *p,
 			   int adjust_flags);

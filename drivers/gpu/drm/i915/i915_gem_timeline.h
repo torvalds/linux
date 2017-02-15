@@ -56,7 +56,7 @@ struct intel_timeline {
 
 struct i915_gem_timeline {
 	struct list_head link;
-	atomic_t next_seqno;
+	atomic_t seqno;
 
 	struct drm_i915_private *i915;
 	const char *name;
