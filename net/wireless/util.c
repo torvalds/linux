@@ -1097,6 +1097,35 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 	return err;
 }
 
+static u32 cfg80211_calculate_bitrate_ht(struct rate_info *rate)
+{
+	int modulation, streams, bitrate;
+
+	/* the formula below does only work for MCS values smaller than 32 */
+	if (WARN_ON_ONCE(rate->mcs >= 32))
+		return 0;
+
+	modulation = rate->mcs & 7;
+	streams = (rate->mcs >> 3) + 1;
+
+	bitrate = (rate->bw == RATE_INFO_BW_40) ? 13500000 : 6500000;
+
+	if (modulation < 4)
+		bitrate *= (modulation + 1);
+	else if (modulation == 4)
+		bitrate *= (modulation + 2);
+	else
+		bitrate *= (modulation + 3);
+
+	bitrate *= streams;
+
+	if (rate->flags & RATE_INFO_FLAGS_SHORT_GI)
+		bitrate = (bitrate / 9) * 10;
+
+	/* do NOT round down here */
+	return (bitrate + 50000) / 100000;
+}
+
 static u32 cfg80211_calculate_bitrate_60g(struct rate_info *rate)
 {
 	static const u32 __mcs2bitrate[] = {
@@ -1230,39 +1259,14 @@ static u32 cfg80211_calculate_bitrate_vht(struct rate_info *rate)
 
 u32 cfg80211_calculate_bitrate(struct rate_info *rate)
 {
-	int modulation, streams, bitrate;
-
-	if (!(rate->flags & RATE_INFO_FLAGS_MCS) &&
-	    !(rate->flags & RATE_INFO_FLAGS_VHT_MCS))
-		return rate->legacy;
+	if (rate->flags & RATE_INFO_FLAGS_MCS)
+		return cfg80211_calculate_bitrate_ht(rate);
 	if (rate->flags & RATE_INFO_FLAGS_60G)
 		return cfg80211_calculate_bitrate_60g(rate);
 	if (rate->flags & RATE_INFO_FLAGS_VHT_MCS)
 		return cfg80211_calculate_bitrate_vht(rate);
 
-	/* the formula below does only work for MCS values smaller than 32 */
-	if (WARN_ON_ONCE(rate->mcs >= 32))
-		return 0;
-
-	modulation = rate->mcs & 7;
-	streams = (rate->mcs >> 3) + 1;
-
-	bitrate = (rate->bw == RATE_INFO_BW_40) ? 13500000 : 6500000;
-
-	if (modulation < 4)
-		bitrate *= (modulation + 1);
-	else if (modulation == 4)
-		bitrate *= (modulation + 2);
-	else
-		bitrate *= (modulation + 3);
-
-	bitrate *= streams;
-
-	if (rate->flags & RATE_INFO_FLAGS_SHORT_GI)
-		bitrate = (bitrate / 9) * 10;
-
-	/* do NOT round down here */
-	return (bitrate + 50000) / 100000;
+	return rate->legacy;
 }
 EXPORT_SYMBOL(cfg80211_calculate_bitrate);
 
