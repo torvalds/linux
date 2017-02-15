@@ -221,6 +221,7 @@ static struct dentry *__sdcardfs_lookup(struct dentry *dentry,
 	struct dentry *lower_dentry;
 	const struct qstr *name;
 	struct path lower_path;
+	struct qstr dname;
 	struct sdcardfs_sb_info *sbi;
 
 	sbi = SDCARDFS_SB(dentry->d_sb);
@@ -306,11 +307,14 @@ static struct dentry *__sdcardfs_lookup(struct dentry *dentry,
 		goto out;
 
 	/* instatiate a new negative dentry */
-	lower_dentry = d_lookup(lower_dir_dentry, name);
+	dname.name = name->name;
+	dname.len = name->len;
+	dname.hash = full_name_hash(dname.name, dname.len);
+	lower_dentry = d_lookup(lower_dir_dentry, &dname);
 	if (lower_dentry)
 		goto setup_lower;
 
-	lower_dentry = d_alloc(lower_dir_dentry, name);
+	lower_dentry = d_alloc(lower_dir_dentry, &dname);
 	if (!lower_dentry) {
 		err = -ENOMEM;
 		goto out;
