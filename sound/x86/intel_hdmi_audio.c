@@ -1378,7 +1378,7 @@ static void had_process_hot_plug(struct snd_intelhad *intelhaddata)
 		dev_dbg(intelhaddata->dev,
 			"Force to stop the active stream by disconnection\n");
 		/* Set runtime->state to hw_params done */
-		snd_pcm_stop(substream, SNDRV_PCM_STATE_SETUP);
+		snd_pcm_stop_xrun(substream);
 		had_substream_put(intelhaddata);
 	}
 
@@ -1414,7 +1414,7 @@ static void had_process_hot_unplug(struct snd_intelhad *intelhaddata)
 
 	/* Report to above ALSA layer */
 	if (substream)
-		snd_pcm_stop(substream, SNDRV_PCM_STATE_SETUP);
+		snd_pcm_stop_xrun(substream);
 
  out:
 	snd_jack_report(intelhaddata->jack, 0);
