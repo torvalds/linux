@@ -703,12 +703,6 @@ static int fsl_diu_check_var(struct fb_var_screeninfo *var,
 	if (var->yres_virtual < var->yres)
 		var->yres_virtual = var->yres;
 
-	if (var->xoffset < 0)
-		var->xoffset = 0;
-
-	if (var->yoffset < 0)
-		var->yoffset = 0;
-
 	if (var->xoffset + info->var.xres > info->var.xres_virtual)
 		var->xoffset = info->var.xres_virtual - info->var.xres;
 
@@ -1254,8 +1248,7 @@ static int fsl_diu_pan_display(struct fb_var_screeninfo *var,
 	    (info->var.yoffset == var->yoffset))
 		return 0;	/* No change, do nothing */
 
-	if (var->xoffset < 0 || var->yoffset < 0
-	    || var->xoffset + info->var.xres > info->var.xres_virtual
+	if (var->xoffset + info->var.xres > info->var.xres_virtual
 	    || var->yoffset + info->var.yres > info->var.yres_virtual)
 		return -EINVAL;
 

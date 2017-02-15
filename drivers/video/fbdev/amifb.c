@@ -1484,13 +1484,11 @@ static int ami_decode_var(struct fb_var_screeninfo *var, struct amifb_par *par,
 		par->xoffset = var->xoffset;
 		par->yoffset = var->yoffset;
 		if (par->vmode & FB_VMODE_YWRAP) {
-			if (par->xoffset || par->yoffset < 0 ||
-			    par->yoffset >= par->vyres)
+			if (par->yoffset >= par->vyres)
 				par->xoffset = par->yoffset = 0;
 		} else {
-			if (par->xoffset < 0 ||
-			    par->xoffset > upx(16 << maxfmode, par->vxres - par->xres) ||
-			    par->yoffset < 0 || par->yoffset > par->vyres - par->yres)
+			if (par->xoffset > upx(16 << maxfmode, par->vxres - par->xres) ||
+			    par->yoffset > par->vyres - par->yres)
 				par->xoffset = par->yoffset = 0;
 		}
 	} else
