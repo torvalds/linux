@@ -2384,9 +2384,19 @@ int i915_gem_init_aliasing_ppgtt(struct drm_i915_private *i915)
 	if (IS_ERR(ppgtt))
 		return PTR_ERR(ppgtt);
 
+	if (WARN_ON(ppgtt->base.total < ggtt->base.total)) {
+		err = -ENODEV;
+		goto err_ppgtt;
+	}
+
 	if (ppgtt->base.allocate_va_range) {
+		/* Note we only pre-allocate as far as the end of the global
+		 * GTT. On 48b / 4-level page-tables, the difference is very,
+		 * very significant! We have to preallocate as GVT/vgpu does
+		 * not like the page directory disappearing.
+		 */
 		err = ppgtt->base.allocate_va_range(&ppgtt->base,
-						    0, ppgtt->base.total);
+						    0, ggtt->base.total);
 		if (err)
 			goto err_ppgtt;
 	}
