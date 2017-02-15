@@ -145,6 +145,11 @@
 		compatible = "dallas,ds1339";
 		reg = <0x68>;
 	};
+
+	ltc@5c {
+		compatible = "ltc2977";
+		reg = <0x5c>;
+	};
 };
 
 &uart1 {
@@ -152,5 +157,9 @@
 };
 
 &usb0 {
+	status = "okay";
+};
+
+&watchdog1 {
 	status = "okay";
 };

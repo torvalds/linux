@@ -35,7 +35,6 @@ struct exynos_pm_domain_config {
  */
 struct exynos_pm_domain {
 	void __iomem *base;
-	char const *name;
 	bool is_off;
 	struct generic_pm_domain pd;
 	struct clk *oscclk;
@@ -70,7 +69,7 @@ static int exynos_pd_power(struct generic_pm_domain *domain, bool power_on)
 			pd->pclk[i] = clk_get_parent(pd->clk[i]);
 			if (clk_set_parent(pd->clk[i], pd->oscclk))
 				pr_err("%s: error setting oscclk as parent to clock %d\n",
-						pd->name, i);
+						domain->name, i);
 		}
 	}
 
@@ -101,7 +100,7 @@ static int exynos_pd_power(struct generic_pm_domain *domain, bool power_on)
 				continue; /* Skip on first power up */
 			if (clk_set_parent(pd->clk[i], pd->pclk[i]))
 				pr_err("%s: error setting parent to clock%d\n",
-						pd->name, i);
+						domain->name, i);
 		}
 	}
 
@@ -128,13 +127,29 @@ static const struct exynos_pm_domain_config exynos4210_cfg __initconst = {
 	.local_pwr_cfg		= 0x7,
 };
 
+static const struct exynos_pm_domain_config exynos5433_cfg __initconst = {
+	.local_pwr_cfg		= 0xf,
+};
+
 static const struct of_device_id exynos_pm_domain_of_match[] __initconst = {
 	{
 		.compatible = "samsung,exynos4210-pd",
 		.data = &exynos4210_cfg,
+	}, {
+		.compatible = "samsung,exynos5433-pd",
+		.data = &exynos5433_cfg,
 	},
 	{ },
 };
+
+static __init const char *exynos_get_domain_name(struct device_node *node)
+{
+	const char *name;
+
+	if (of_property_read_string(node, "label", &name) < 0)
+		name = strrchr(node->full_name, '/') + 1;
+	return kstrdup_const(name, GFP_KERNEL);
+}
 
 static __init int exynos4_pm_init_power_domain(void)
 {
@@ -150,20 +165,16 @@ static __init int exynos4_pm_init_power_domain(void)
 
 		pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 		if (!pd) {
-			pr_err("%s: failed to allocate memory for domain\n",
-					__func__);
 			of_node_put(np);
 			return -ENOMEM;
 		}
-		pd->pd.name = kstrdup_const(strrchr(np->full_name, '/') + 1,
-					    GFP_KERNEL);
+		pd->pd.name = exynos_get_domain_name(np);
 		if (!pd->pd.name) {
 			kfree(pd);
 			of_node_put(np);
 			return -ENOMEM;
 		}
 
-		pd->name = pd->pd.name;
 		pd->base = of_iomap(np, 0);
 		if (!pd->base) {
 			pr_warn("%s: failed to map memory\n", __func__);
@@ -227,10 +238,10 @@ no_clk:
 
 		if (of_genpd_add_subdomain(&parent, &child))
 			pr_warn("%s failed to add subdomain: %s\n",
-				parent.np->name, child.np->name);
+				parent.np->full_name, child.np->full_name);
 		else
 			pr_info("%s has as child subdomain: %s.\n",
-				parent.np->name, child.np->name);
+				parent.np->full_name, child.np->full_name);
 	}
 
 	return 0;

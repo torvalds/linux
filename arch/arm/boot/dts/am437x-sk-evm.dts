@@ -24,6 +24,10 @@
 		display0 = &lcd0;
 	};
 
+	chosen {
+		stdout-path = &uart0;
+	};
+
 	/* fixed 32k external oscillator clock */
 	clk_32k_rtc: clk_32k_rtc {
 		#clock-cells = <0>;

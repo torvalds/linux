@@ -1,0 +1,253 @@
+fixes
+	patch
+		ARM64: dts: meson-gxbb-odroidc2: fix GbE tx link breakage
+		ARM64: dts: meson-gx: Add firmware reserved memory zones
+	<no branch> (a971c5545c3d45a1e33fda6e57913bb75aaa20c9)
+		git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-fixes-4.10-3
+	<no branch> (8413299cb3933dade6186bbee8363f190032107e)
+		git://git.kernel.org/pub/scm/linux/kernel/git/pchotard/sti tags/sti-dt-for-v4.10-rc
+	<no branch> (420a3879d694e5c3e734fb92151d19b2ec503e46)
+		git://git.kernel.org/pub/scm/linux/kernel/git/abelloni/linux tags/at91-ab-4.10-soc
+	patch
+		MAINTAINERS: socfpga: update email for Dinh Nguyen
+	<no branch> (1a902f6b70c55171ca2419d946b85274e35c9757)
+		git://git.infradead.org/linux-mvebu tags/mvebu-fixes-4.10-1
+	patch
+		ARM: defconfigs: make NF_CT_PROTO_SCTP and NF_CT_PROTO_UDPLITE built-in
+
+next/fixes-non-critical
+	davinci/fixes-nc
+		git://git.kernel.org/pub/scm/linux/kernel/git/nsekhar/linux-davinci tags/davinci-for-v4.11/fixes-non-critical
+	omap/fixes-nc
+		git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap tags/omap-for-v4.11/fixes-not-urgent-signed
+	patch
+		firmware: arm_scpi: Add hardware dependencies
+
+next/cleanup
+
+next/soc
+	renesas/soc
+		https://git.kernel.org/pub/scm/linux/kernel/git/horms/renesas tags/renesas-soc-for-v4.11
+	ux500/dev
+		git://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-stericsson tags/ux500-dev-for-armsoc
+	samsung/soc
+		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-soc-4.11
+	at91/soc
+		git://git.kernel.org/pub/scm/linux/kernel/git/abelloni/linux tags/at91-ab-4.11-soc
+	aspeed/soc
+		git://git.kernel.org/pub/scm/linux/kernel/git/joel/aspeed tags/aspeed-4.11-soc
+	omap/soc
+		git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap tags/omap-for-v4.11/soc-signed
+	hisi/soc
+		git://github.com/hisilicon/linux-hisi tags/hisi-armv7-soc-for-4.11
+	pxa/devel
+		https://github.com/rjarzmik/linux tags/pxa-for-4.11
+	renesas/soc2
+		https://git.kernel.org/pub/scm/linux/kernel/git/horms/renesas tags/renesas-soc2-for-v4.11
+	tegra/soc
+		git://git.kernel.org/pub/scm/linux/kernel/git/tegra/linux tags/tegra-for-4.11-soc
+	mvebu/soc
+		git://git.infradead.org/linux-mvebu tags/mvebu-soc-4.11-1
+	imx/cleanup
+		git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-cleanup-4.11
+	samsung/soc2
+		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-soc-4.11-2
+	patch
+		ARM: ux500: cut some platform data
+		ARM: ep93xx: Disable TS-72xx watchdog before uncompressing
+	mvebu/soc-2
+		git://git.infradead.org/linux-mvebu tags/mvebu-soc-4.11-2
+	sunxi/core
+		https://git.kernel.org/pub/scm/linux/kernel/git/mripard/linux tags/sunxi-core-for-4.11
+	brcm/maintainers
+		http://github.com/Broadcom/stblinux tags/arm-soc/for-4.11/maintainers
+	patch
+		ARM: ux500: remove deleted file from Makefile
+
+next/arm64
+	mvebu/defconfig64
+		git://git.infradead.org/linux-mvebu tags/mvebu-defconfig64-4.11-1
+	patch
+		arm64: defconfig: enable CONFIG_MMC_SDHCI_CADENCE
+		MAINTAINERS: Extend ARM/Mediatek SoC support section
+
+next/dt
+	renesas/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/horms/renesas tags/renesas-dt-for-v4.11
+	oxnas/dt
+		https://github.com/OXNAS/linux tags/oxnas-arm-soc-dt-for-4.11
+	sunxi/generic-pinconf
+		https://git.kernel.org/pub/scm/linux/kernel/git/mripard/linux tags/sunxi-generic-pinconf-for-4.10
+	socfpga/dts
+		git://git.kernel.org/pub/scm/linux/kernel/git/dinguyen/linux tags/socfpga_dts_for_v4.11_part_1
+	sti/dt
+		git://git.kernel.org/pub/scm/linux/kernel/git/pchotard/sti tags/sti-dt-for-v4.11
+	samsung/dt
+		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-dt-4.11
+	mvebu/dt
+		git://git.infradead.org/linux-mvebu tags/mvebu-dt-4.11-1
+	stm32/dt
+		git://git.kernel.org/pub/scm/linux/kernel/git/atorgue/stm32 tags/stm32-dt-for-v4.11-1
+	at91/dt
+		git://git.kernel.org/pub/scm/linux/kernel/git/abelloni/linux tags/at91-ab-4.11-dt
+	aspeed/dt
+		git://git.kernel.org/pub/scm/linux/kernel/git/joel/aspeed tags/aspeed-4.11-devicetree
+	patch
+		ARM: dts: tango4: Add alias for eth0
+		ARM: dts: tango4: Import MMC nodes
+		ARM: dts: tango4: Import USB nodes
+	brcm/dt
+		http://github.com/Broadcom/stblinux tags/arm-soc/for-4.11/devicetree
+	rockchip/dt
+		git://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v4.11-rockchip-dts32-1
+	keystone/dt
+		git://git.kernel.org/pub/scm/linux/kernel/git/ssantosh/linux-keystone tags/keystone_dts_for_4.11
+	uniphier/dt
+		git://git.kernel.org/pub/scm/linux/kernel/git/masahiroy/linux-uniphier tags/uniphier-dt-v4.11
+	qcom/dts
+		git://git.kernel.org/pub/scm/linux/kernel/git/agross/linux tags/qcom-dts-for-4.11
+	davinci/dt
+		git://git.kernel.org/pub/scm/linux/kernel/git/nsekhar/linux-davinci tags/davinci-for-v4.11/dt
+	omap/dt
+		git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap tags/omap-for-v4.11/dt-signed-v2
+	mediatek/dts32
+		https://github.com/mbgg/linux-mediatek tags/v4.10-next-dts32
+	renesas/dt2
+		https://git.kernel.org/pub/scm/linux/kernel/git/horms/renesas tags/renesas-dt2-for-v4.11
+	at91/dt2
+		git://git.kernel.org/pub/scm/linux/kernel/git/abelloni/linux tags/at91-ab-4.11-dt2
+	tegra/dt
+		git://git.kernel.org/pub/scm/linux/kernel/git/tegra/linux tags/tegra-for-4.11-arm-dt
+	sti/dt2
+		git://git.kernel.org/pub/scm/linux/kernel/git/pchotard/sti sti-dt-for-v4.11-round2
+	mvebu/dt2
+		git://git.infradead.org/linux-mvebu tags/mvebu-dt-4.11-2
+	imx/fixes-nc
+		git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-fixes-nc-4.11
+	imx/dt
+		git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-dt-4.11
+	samsung/dt2
+		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-dt-4.11-2
+	stm32/dt2
+		git://git.kernel.org/pub/scm/linux/kernel/git/atorgue/stm32 tags/stm32-dt-for-v4.11-1-v2
+		contains depends/clk-stm32f4
+	patch
+		dt-bindings: arm,gic: Fix binding example for a virt-capable GIC
+		ARM: DTS: Fix register map for virt-capable GIC
+	mvebu/dt-3
+		git://git.infradead.org/linux-mvebu tags/mvebu-dt-4.11-3
+	stm32/dt-2
+		git://git.kernel.org/pub/scm/linux/kernel/git/atorgue/stm32 tags/stm32-dt-for-v4.11-2
+	ux500/dt-1
+		git://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-stericsson tags/ux500-dt-1
+	samsung/dt-3
+		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-dt-4.11-3
+	socfpga/dt-2
+		git://git.kernel.org/pub/scm/linux/kernel/git/dinguyen/linux tags/socfpga_dts_for_v4.11_part_2
+	allwinner/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/mripard/linux tags/sunxi-dt-for-4.11
+	allwinner/dt-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/mripard/linux tags/sunxi-dt-for-4.11-2
+
+next/dt64
+	renesas/dt64
+		https://git.kernel.org/pub/scm/linux/kernel/git/horms/renesas tags/renesas-arm64-dt-for-v4.11
+	samsung/dt64
+		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-dt64-4.11
+	mvebu/dt64
+		git://git.infradead.org/linux-mvebu tags/mvebu-dt64-4.11-1
+	juno/dt64
+		git://git.kernel.org/pub/scm/linux/kernel/git/sudeep.holla/linux tags/juno-updates-4.11
+	brcm/dt64
+		http://github.com/Broadcom/stblinux tags/arm-soc/for-4.11/devicetree-arm64
+	rockchip/dt64
+		git://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v4.11-rockchip-dts64-1
+	uniphier/dt64
+		git://git.kernel.org/pub/scm/linux/kernel/git/masahiroy/linux-uniphier tags/uniphier-dt64-v4.11
+	qcom/dt64
+		git://git.kernel.org/pub/scm/linux/kernel/git/agross/linux tags/qcom-arm64-for-4.11
+	mediatek/dts
+		https://github.com/mbgg/linux-mediatek tags/v4.10-next-dts
+	hisi/dt64
+		git://github.com/hisilicon/linux-hisi tags/hisi-arm64-dt-for-4.11
+	renesas/dt64-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/horms/renesas tags/renesas-arm64-dt2-for-v4.11
+	tegra/dt64
+		git://git.kernel.org/pub/scm/linux/kernel/git/tegra/linux tags/tegra-for-4.11-arm64-dt
+	mvebu/dt64-2
+		git://git.infradead.org/linux-mvebu tags/mvebu-dt64-4.11-2
+	imx/dt64
+		git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-dt64-4.11
+	zte/dt64
+		git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/zte-dt64-4.11
+	samsung/dt64-2
+		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-dt64-4.11-2
+
+next/defconfig
+	patch
+		ARM: multi_v7_defconfig: enable Qualcomm RPMCC
+		ARM: defconfig: replace MPU3050 driver on multi_v7
+		ARM: defconfig: tegra: switch to MPU3050 IIO driver
+		ARM: defconfig: pxa: cut MPU3050 input driver
+	<no branch> (e37278d83e348eb53029452e65892780359b6bea)
+		https://git.kernel.org/pub/scm/linux/kernel/git/horms/renesas tags/renesas-defconfig-for-v4.11
+	socfpga/defconfig
+		git://git.kernel.org/pub/scm/linux/kernel/git/dinguyen/linux tags/socfpga_defconfig_updates_for_v4.11
+	samsung/defconfig
+		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-defconfig-4.11
+	at91/defconfig
+		git://git.kernel.org/pub/scm/linux/kernel/git/abelloni/linux tags/at91-ab-4.11-defconfig
+	aspeed/defconfig
+		git://git.kernel.org/pub/scm/linux/kernel/git/joel/aspeed tags/aspeed-4.11-defconfig
+	keystone/config
+		git://git.kernel.org/pub/scm/linux/kernel/git/ssantosh/linux-keystone tags/keystone_config_for_4.11
+	qcom/defconfig
+		git://git.kernel.org/pub/scm/linux/kernel/git/agross/linux tags/qcom-defconfig-for-4.11
+	davinci/defconfig
+		git://git.kernel.org/pub/scm/linux/kernel/git/nsekhar/linux-davinci tags/davinci-for-v4.11/defconfig
+	patch
+		ARM: Import tango4_defconfig
+	omap/defconfig
+		git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap tags/omap-for-v4.11/defconfig-signed
+	hisi/defconfig
+		git://github.com/hisilicon/linux-hisi tags/hisi-defconfig-for-4.11
+	stm32/defconfig
+		git://git.kernel.org/pub/scm/linux/kernel/git/atorgue/stm32 tags/stm32-defconfig-for-v4.11-1
+	imx/defconfig
+		git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-defconfig-4.11
+	patch
+		arm64: defconfig: enable CONFIG_MTD_BLOCK
+		arm64: defconfig: enable CONFIG_MTD_NAND and CONFIG_MTD_NAND_DENALI_DT
+	sunxi/defconfig
+		https://git.kernel.org/pub/scm/linux/kernel/git/mripard/linux tags/sunxi-defconfig-for-4.11
+
+next/drivers
+	at91/drivers
+		git://git.kernel.org/pub/scm/linux/kernel/git/abelloni/linux tags/at91-ab-4.11-drivers
+	drivers/reset
+		git://git.pengutronix.de/pza/linux tags/reset-for-4.11
+	samsung/drivers
+		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-drivers-soc-pmu-4.11
+	rockchip/drivers
+		git://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v4.11-armsoc-drivers1
+	keystone/soc
+		git://git.kernel.org/pub/scm/linux/kernel/git/ssantosh/linux-keystone tags/keystone_soc_for_4.11
+	qcom/drivers
+		git://git.kernel.org/pub/scm/linux/kernel/git/agross/linux tags/qcom-drivers-for-4.11
+	omap/drivers
+		git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap tags/omap-for-v4.11/drivers-signed
+	tegra/memory
+		git://git.kernel.org/pub/scm/linux/kernel/git/tegra/linux tags/tegra-for-4.11-memory
+	at91/drivers2
+		git://git.kernel.org/pub/scm/linux/kernel/git/abelloni/linux tags/at91-ab-4.11-drivers2
+	zte/pd
+		git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/zte-pd-4.11
+	samsung/drivers2
+		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-drivers-soc-pmu-4.11-2
+	drivers/reset-2
+		git://git.pengutronix.de/pza/linux tags/reset-for-4.11-2
+	samsung/drivers-soc-pm-domains
+		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-drivers-soc-pm-domains-4.11
+	samsung/drivers-soc-pmu-3
+		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-drivers-soc-pmu-4.11-3
+

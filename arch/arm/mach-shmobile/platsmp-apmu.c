@@ -31,9 +31,21 @@ static struct {
 	int bit;
 } apmu_cpus[NR_CPUS];
 
-#define WUPCR_OFFS 0x10
-#define PSTR_OFFS 0x40
-#define CPUNCR_OFFS(n) (0x100 + (0x10 * (n)))
+#define WUPCR_OFFS	 0x10		/* Wake Up Control Register */
+#define PSTR_OFFS	 0x40		/* Power Status Register */
+#define CPUNCR_OFFS(n)	(0x100 + (0x10 * (n)))
+					/* CPUn Power Status Control Register */
+#define DBGRCR_OFFS	0x180		/* Debug Resource Reset Control Reg. */
+
+/* Power Status Register */
+#define CPUNST(r, n)	(((r) >> (n * 4)) & 3)	/* CPUn Status Bit */
+#define CPUST_RUN	0		/* Run Mode */
+#define CPUST_STANDBY	3		/* CoreStandby Mode */
+
+/* Debug Resource Reset Control Register */
+#define DBGCPUREN	BIT(24)		/* CPU Other Reset Request Enable */
+#define DBGCPUNREN(n)	BIT((n) + 20)	/* CPUn Reset Request Enable */
+#define DBGCPUPREN	BIT(19)		/* CPU Peripheral Reset Req. Enable */
 
 static int __maybe_unused apmu_power_on(void __iomem *p, int bit)
 {
@@ -59,7 +71,7 @@ static int __maybe_unused apmu_power_off_poll(void __iomem *p, int bit)
 	int k;
 
 	for (k = 0; k < 1000; k++) {
-		if (((readl_relaxed(p + PSTR_OFFS) >> (bit * 4)) & 0x03) == 3)
+		if (CPUNST(readl_relaxed(p + PSTR_OFFS), bit) == CPUST_STANDBY)
 			return 1;
 
 		mdelay(1);
@@ -78,6 +90,8 @@ static int __maybe_unused apmu_wrap(int cpu, int (*fn)(void __iomem *p, int cpu)
 #ifdef CONFIG_SMP
 static void apmu_init_cpu(struct resource *res, int cpu, int bit)
 {
+	u32 x;
+
 	if ((cpu >= ARRAY_SIZE(apmu_cpus)) || apmu_cpus[cpu].iomem)
 		return;
 
@@ -85,6 +99,11 @@ static void apmu_init_cpu(struct resource *res, int cpu, int bit)
 	apmu_cpus[cpu].bit = bit;
 
 	pr_debug("apmu ioremap %d %d %pr\n", cpu, bit, res);
+
+	/* Setup for debug mode */
+	x = readl(apmu_cpus[cpu].iomem + DBGRCR_OFFS);
+	x |= DBGCPUREN | DBGCPUNREN(bit) | DBGCPUPREN;
+	writel(x, apmu_cpus[cpu].iomem + DBGRCR_OFFS);
 }
 
 static void apmu_parse_cfg(void (*fn)(struct resource *res, int cpu, int bit),
@@ -197,21 +216,9 @@ static void __init shmobile_smp_apmu_prepare_cpus_dt(unsigned int max_cpus)
 	rcar_gen2_pm_init();
 }
 
-static int shmobile_smp_apmu_boot_secondary_md21(unsigned int cpu,
-						 struct task_struct *idle)
-{
-	/* Error out when hardware debug mode is enabled */
-	if (rcar_gen2_read_mode_pins() & BIT(21)) {
-		pr_warn("Unable to boot CPU%u when MD21 is set\n", cpu);
-		return -ENOTSUPP;
-	}
-
-	return shmobile_smp_apmu_boot_secondary(cpu, idle);
-}
-
 static struct smp_operations apmu_smp_ops __initdata = {
 	.smp_prepare_cpus	= shmobile_smp_apmu_prepare_cpus_dt,
-	.smp_boot_secondary	= shmobile_smp_apmu_boot_secondary_md21,
+	.smp_boot_secondary	= shmobile_smp_apmu_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_can_disable	= shmobile_smp_cpu_can_disable,
 	.cpu_die		= shmobile_smp_apmu_cpu_die,

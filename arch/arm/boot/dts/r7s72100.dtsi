@@ -108,6 +108,15 @@
 			clock-output-names = "scif0", "scif1", "scif2", "scif3", "scif4", "scif5", "scif6", "scif7";
 		};
 
+		mstp5_clks: mstp5_clks@fcfe0428 {
+			#clock-cells = <1>;
+			compatible = "renesas,r7s72100-mstp-clocks", "renesas,cpg-mstp-clocks";
+			reg = <0xfcfe0428 4>;
+			clocks = <&p0_clk>, <&p0_clk>;
+			clock-indices = <R7S72100_CLK_OSTM0 R7S72100_CLK_OSTM1>;
+			clock-output-names = "ostm0", "ostm1";
+		};
+
 		mstp7_clks: mstp7_clks@fcfe0430 {
 			#clock-cells = <1>;
 			compatible = "renesas,r7s72100-mstp-clocks", "renesas,cpg-mstp-clocks";
@@ -466,6 +475,7 @@
 			      GIC_SPI 269 IRQ_TYPE_LEVEL_HIGH
 			      GIC_SPI 267 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp8_clks R7S72100_CLK_MMCIF>;
+		power-domains = <&cpg_clocks>;
 		reg-io-width = <4>;
 		bus-width = <8>;
 		status = "disabled";
@@ -494,6 +504,24 @@
 		clocks = <&mstp12_clks R7S72100_CLK_SDHI1>;
 		cap-sd-highspeed;
 		cap-sdio-irq;
+		status = "disabled";
+	};
+
+	ostm0: timer@fcfec000 {
+		compatible = "renesas,r7s72100-ostm", "renesas,ostm";
+		reg = <0xfcfec000 0x30>;
+		interrupts = <GIC_SPI 102 IRQ_TYPE_EDGE_RISING>;
+		clocks = <&mstp5_clks R7S72100_CLK_OSTM0>;
+		power-domains = <&cpg_clocks>;
+		status = "disabled";
+	};
+
+	ostm1: timer@fcfec400 {
+		compatible = "renesas,r7s72100-ostm", "renesas,ostm";
+		reg = <0xfcfec400 0x30>;
+		interrupts = <GIC_SPI 103 IRQ_TYPE_EDGE_RISING>;
+		clocks = <&mstp5_clks R7S72100_CLK_OSTM1>;
+		power-domains = <&cpg_clocks>;
 		status = "disabled";
 	};
 };

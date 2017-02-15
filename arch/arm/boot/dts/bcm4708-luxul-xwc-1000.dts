@@ -56,10 +56,6 @@
 	};
 };
 
-&uart0 {
-	status = "okay";
-};
-
 &spi_nor {
 	status = "okay";
 };

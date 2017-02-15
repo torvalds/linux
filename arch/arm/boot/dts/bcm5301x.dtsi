@@ -243,13 +243,39 @@
 			#gpio-cells = <2>;
 		};
 
+		pcie0: pcie@12000 {
+			reg = <0x00012000 0x1000>;
+		};
+
+		pcie1: pcie@13000 {
+			reg = <0x00013000 0x1000>;
+		};
+
 		usb2: usb2@21000 {
 			reg = <0x00021000 0x1000>;
 
 			#address-cells = <1>;
 			#size-cells = <1>;
+			ranges;
 
-			phys = <&usb2_phy>;
+			interrupt-parent = <&gic>;
+
+			ehci: ehci@21000 {
+				#usb-cells = <0>;
+
+				compatible = "generic-ehci";
+				reg = <0x00021000 0x1000>;
+				interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
+				phys = <&usb2_phy>;
+			};
+
+			ohci: ohci@22000 {
+				#usb-cells = <0>;
+
+				compatible = "generic-ohci";
+				reg = <0x00022000 0x1000>;
+				interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
+			};
 		};
 
 		usb3: usb3@23000 {
@@ -257,6 +283,19 @@
 
 			#address-cells = <1>;
 			#size-cells = <1>;
+			ranges;
+
+			interrupt-parent = <&gic>;
+
+			xhci: xhci@23000 {
+				#usb-cells = <0>;
+
+				compatible = "generic-xhci";
+				reg = <0x00023000 0x1000>;
+				interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
+				phys = <&usb3_phy>;
+				phy-names = "usb";
+			};
 		};
 
 		spi@29000 {

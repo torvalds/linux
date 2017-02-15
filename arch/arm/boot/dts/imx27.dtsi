@@ -73,6 +73,7 @@
 
 		cpu: cpu@0 {
 			device_type = "cpu";
+			reg = <0>;
 			compatible = "arm,arm926ej-s";
 			operating-points = <
 				/* kHz uV */

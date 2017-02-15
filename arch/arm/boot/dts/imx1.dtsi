@@ -51,8 +51,9 @@
 		#size-cells = <0>;
 		#address-cells = <1>;
 
-		cpu: cpu@0 {
+		cpu@0 {
 			device_type = "cpu";
+			reg = <0>;
 			compatible = "arm,arm920t";
 			operating-points = <200000 1900000>;
 			clock-latency = <62500>;

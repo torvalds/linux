@@ -128,24 +128,19 @@
 
 &pio {
 	led_pins_m9: led_pins@0 {
-		allwinner,pins = "PH13";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH13";
+		function = "gpio_out";
 	};
 
 	mmc0_cd_pin_m9: mmc0_cd_pin@0 {
-		allwinner,pins = "PH22";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PH22";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 
 	usb1_vbus_pin_m9: usb1_vbus_pin@0 {
-		allwinner,pins = "PC27";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PC27";
+		function = "gpio_out";
 	};
 };
 

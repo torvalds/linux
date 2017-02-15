@@ -560,3 +560,21 @@ int __qcom_scm_pas_mss_reset(struct device *dev, bool reset)
 
 	return ret ? : le32_to_cpu(out);
 }
+
+int __qcom_scm_set_remote_state(struct device *dev, u32 state, u32 id)
+{
+	struct {
+		__le32 state;
+		__le32 id;
+	} req;
+	__le32 scm_ret = 0;
+	int ret;
+
+	req.state = cpu_to_le32(state);
+	req.id = cpu_to_le32(id);
+
+	ret = qcom_scm_call(dev, QCOM_SCM_SVC_BOOT, QCOM_SCM_SET_REMOTE_STATE,
+			    &req, sizeof(req), &scm_ret, sizeof(scm_ret));
+
+	return ret ? : le32_to_cpu(scm_ret);
+}

@@ -124,29 +124,25 @@
 };
 
 &mmc0_pins_a {
-	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	bias-pull-up;
 };
 
 &pio {
 	mmc0_cd_pin_colombus: mmc0_cd_pin@0 {
-		allwinner,pins = "PA8";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PA8";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 
 	usb2_vbus_pin_colombus: usb2_vbus_pin@0 {
-		allwinner,pins = "PH24";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH24";
+		function = "gpio_out";
 	};
 
 	i2c_lcd_pins: i2c_lcd_pin@0 {
-		allwinner,pins = "PA23", "PA24";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PA23", "PA24";
+		function = "gpio_out";
+		bias-pull-up;
 	};
 };
 

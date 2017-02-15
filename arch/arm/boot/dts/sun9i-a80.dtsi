@@ -613,7 +613,7 @@
 		gic: interrupt-controller@01c41000 {
 			compatible = "arm,cortex-a7-gic", "arm,cortex-a15-gic";
 			reg = <0x01c41000 0x1000>,
-			      <0x01c42000 0x1000>,
+			      <0x01c42000 0x2000>,
 			      <0x01c44000 0x2000>,
 			      <0x01c46000 0x2000>;
 			interrupt-controller;
@@ -687,50 +687,44 @@
 			#gpio-cells = <3>;
 
 			i2c3_pins_a: i2c3@0 {
-				allwinner,pins = "PG10", "PG11";
-				allwinner,function = "i2c3";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				pins = "PG10", "PG11";
+				function = "i2c3";
 			};
 
 			mmc0_pins: mmc0 {
-				allwinner,pins = "PF0", "PF1" ,"PF2", "PF3",
-						 "PF4", "PF5";
-				allwinner,function = "mmc0";
-				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				pins = "PF0", "PF1" ,"PF2", "PF3",
+				       "PF4", "PF5";
+				function = "mmc0";
+				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			mmc1_pins: mmc1 {
-				allwinner,pins = "PG0", "PG1" ,"PG2", "PG3",
+				pins = "PG0", "PG1" ,"PG2", "PG3",
 						 "PG4", "PG5";
-				allwinner,function = "mmc1";
-				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				function = "mmc1";
+				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			mmc2_8bit_pins: mmc2_8bit {
-				allwinner,pins = "PC6", "PC7", "PC8", "PC9",
-						 "PC10", "PC11", "PC12",
-						 "PC13", "PC14", "PC15",
-						 "PC16";
-				allwinner,function = "mmc2";
-				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				pins = "PC6", "PC7", "PC8", "PC9",
+				       "PC10", "PC11", "PC12",
+				       "PC13", "PC14", "PC15",
+				       "PC16";
+				function = "mmc2";
+				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			uart0_pins_a: uart0@0 {
-				allwinner,pins = "PH12", "PH13";
-				allwinner,function = "uart0";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				pins = "PH12", "PH13";
+				function = "uart0";
 			};
 
 			uart4_pins_a: uart4@0 {
-				allwinner,pins = "PG12", "PG13", "PG14", "PG15";
-				allwinner,function = "uart4";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				pins = "PG12", "PG13", "PG14", "PG15";
+				function = "uart4";
 			};
 		};
 
@@ -912,17 +906,15 @@
 			#gpio-cells = <3>;
 
 			r_ir_pins: r_ir {
-				allwinner,pins = "PL6";
-				allwinner,function = "s_cir_rx";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				pins = "PL6";
+				function = "s_cir_rx";
 			};
 
 			r_rsb_pins: r_rsb {
-				allwinner,pins = "PN0", "PN1";
-				allwinner,function = "s_rsb";
-				allwinner,drive = <SUN4I_PINCTRL_20_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+				pins = "PN0", "PN1";
+				function = "s_rsb";
+				drive-strength = <20>;
+				bias-pull-up;
 			};
 		};
 

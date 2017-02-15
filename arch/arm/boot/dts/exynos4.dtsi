@@ -64,8 +64,10 @@
 	i2s0: i2s@03830000 {
 		compatible = "samsung,s5pv210-i2s";
 		reg = <0x03830000 0x100>;
-		clocks = <&clock_audss EXYNOS_I2S_BUS>;
-		clock-names = "iis";
+		clocks = <&clock_audss EXYNOS_I2S_BUS>,
+			 <&clock_audss EXYNOS_DOUT_AUD_BUS>,
+			 <&clock_audss EXYNOS_SCLK_I2S>;
+		clock-names = "iis", "i2s_opclk0", "i2s_opclk1";
 		#clock-cells = <1>;
 		clock-output-names = "i2s_cdclk0";
 		dmas = <&pdma0 12>, <&pdma0 11>, <&pdma0 10>;
@@ -100,18 +102,21 @@
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023C40 0x20>;
 		#power-domain-cells = <0>;
+		label = "MFC";
 	};
 
 	pd_g3d: g3d-power-domain@10023C60 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023C60 0x20>;
 		#power-domain-cells = <0>;
+		label = "G3D";
 	};
 
 	pd_lcd0: lcd0-power-domain@10023C80 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023C80 0x20>;
 		#power-domain-cells = <0>;
+		label = "LCD0";
 	};
 
 	pd_tv: tv-power-domain@10023C20 {
@@ -119,24 +124,28 @@
 		reg = <0x10023C20 0x20>;
 		#power-domain-cells = <0>;
 		power-domains = <&pd_lcd0>;
+		label = "TV";
 	};
 
 	pd_cam: cam-power-domain@10023C00 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023C00 0x20>;
 		#power-domain-cells = <0>;
+		label = "CAM";
 	};
 
 	pd_gps: gps-power-domain@10023CE0 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023CE0 0x20>;
 		#power-domain-cells = <0>;
+		label = "GPS";
 	};
 
 	pd_gps_alive: gps-alive-power-domain@10023D00 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023D00 0x20>;
 		#power-domain-cells = <0>;
+		label = "GPS alive";
 	};
 
 	gic: interrupt-controller@10490000 {
@@ -370,19 +379,19 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		port@0 {
-		    reg = <0>;
-		    phys = <&exynos_usbphy 1>;
-		    status = "disabled";
+			reg = <0>;
+			phys = <&exynos_usbphy 1>;
+			status = "disabled";
 		};
 		port@1 {
-		    reg = <1>;
-		    phys = <&exynos_usbphy 2>;
-		    status = "disabled";
+			reg = <1>;
+			phys = <&exynos_usbphy 2>;
+			status = "disabled";
 		};
 		port@2 {
-		    reg = <2>;
-		    phys = <&exynos_usbphy 3>;
-		    status = "disabled";
+			reg = <2>;
+			phys = <&exynos_usbphy 3>;
+			status = "disabled";
 		};
 	};
 
@@ -396,9 +405,9 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		port@0 {
-		    reg = <0>;
-		    phys = <&exynos_usbphy 1>;
-		    status = "disabled";
+			reg = <0>;
+			phys = <&exynos_usbphy 1>;
+			status = "disabled";
 		};
 	};
 

@@ -185,7 +185,7 @@
 
 &mmc3_pins_a {
 	/* AP6210 / AP6330 requires pull-up */
-	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	bias-pull-up;
 };
 
 &ohci0 {
@@ -198,31 +198,23 @@
 
 &pio {
 	vmmc3_pin_i12_tvbox: vmmc3_pin@0 {
-		allwinner,pins = "PH2";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH2";
+		function = "gpio_out";
 	};
 
 	vmmc3_io_pin_i12_tvbox: vmmc3_io_pin@0 {
-		allwinner,pins = "PH12";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH12";
+		function = "gpio_out";
 	};
 
 	gmac_power_pin_i12_tvbox: gmac_power_pin@0 {
-		allwinner,pins = "PH21";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH21";
+		function = "gpio_out";
 	};
 
 	led_pins_i12_tvbox: led_pins@0 {
-		allwinner,pins = "PH9", "PH20";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH9", "PH20";
+		function = "gpio_out";
 	};
 };
 

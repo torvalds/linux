@@ -130,8 +130,6 @@
 				regulator-name = "VDAC";
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <2775000>;
-				regulator-boot-on;
-				regulator-always-on;
 			};
 
 			vgen1_reg: vgen1 {
@@ -151,4 +149,8 @@
 			};
 		};
 	};
+};
+
+&tve {
+	dac-supply = <&vdac_reg>;
 };

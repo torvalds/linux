@@ -18,7 +18,8 @@
 	};
 
 	memory {
-		reg = <0x00000000 0x08000000>;
+		reg = <0x00000000 0x08000000
+		       0x88000000 0x08000000>;
 	};
 
 	leds {
@@ -31,13 +32,13 @@
 		};
 
 		lan3	{
-			label = "bcm53xx:green:lan1";
+			label = "bcm53xx:green:lan3";
 			gpios = <&chipcommon 1 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-off";
 		};
 
 		lan4	{
-			label = "bcm53xx:green:lan0";
+			label = "bcm53xx:green:lan4";
 			gpios = <&chipcommon 2 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-off";
 		};
@@ -49,7 +50,7 @@
 		};
 
 		lan1	{
-			label = "bcm53xx:green:lan3";
+			label = "bcm53xx:green:lan1";
 			gpios = <&chipcommon 4 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-off";
 		};
@@ -96,10 +97,6 @@
 			gpios = <&chipcommon 17 GPIO_ACTIVE_LOW>;
 		};
 	};
-};
-
-&uart0 {
-	status = "okay";
 };
 
 &usb3 {

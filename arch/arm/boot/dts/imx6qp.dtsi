@@ -95,6 +95,12 @@
 	};
 };
 
+&fec {
+	/delete-property/interrupts-extended;
+	interrupts = <0 118 IRQ_TYPE_LEVEL_HIGH>,
+		     <0 119 IRQ_TYPE_LEVEL_HIGH>;
+};
+
 &ldb {
 	clocks = <&clks IMX6QDL_CLK_LDB_DI0_SEL>, <&clks IMX6QDL_CLK_LDB_DI1_SEL>,
 		 <&clks IMX6QDL_CLK_IPU1_DI0_SEL>, <&clks IMX6QDL_CLK_IPU1_DI1_SEL>,

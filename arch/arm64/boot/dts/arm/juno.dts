@@ -9,6 +9,7 @@
 /dts-v1/;
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include "juno-base.dtsi"
 
 / {
 	model = "ARM Juno development board (r0)";
@@ -176,8 +177,6 @@
 				     <&A53_2>,
 				     <&A53_3>;
 	};
-
-	#include "juno-base.dtsi"
 };
 
 &etm0 {
@@ -202,4 +201,28 @@
 
 &etm5 {
 	cpu = <&A53_3>;
+};
+
+&etf0_out_port {
+	remote-endpoint = <&replicator_in_port0>;
+};
+
+&replicator_in_port0 {
+	remote-endpoint = <&etf0_out_port>;
+};
+
+&stm_out_port {
+	remote-endpoint = <&main_funnel_in_port2>;
+};
+
+&main_funnel {
+	ports {
+		port@3 {
+			reg = <2>;
+			main_funnel_in_port2: endpoint {
+				slave-mode;
+				remote-endpoint = <&stm_out_port>;
+			};
+		};
+	};
 };

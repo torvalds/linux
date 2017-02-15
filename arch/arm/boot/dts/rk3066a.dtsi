@@ -687,6 +687,7 @@
 };
 
 &uart0 {
+	compatible = "rockchip,rk3066-uart", "snps,dw-apb-uart";
 	dmas = <&dmac1_s 0>, <&dmac1_s 1>;
 	dma-names = "tx", "rx";
 	pinctrl-names = "default";
@@ -694,6 +695,7 @@
 };
 
 &uart1 {
+	compatible = "rockchip,rk3066-uart", "snps,dw-apb-uart";
 	dmas = <&dmac1_s 2>, <&dmac1_s 3>;
 	dma-names = "tx", "rx";
 	pinctrl-names = "default";
@@ -701,6 +703,7 @@
 };
 
 &uart2 {
+	compatible = "rockchip,rk3066-uart", "snps,dw-apb-uart";
 	dmas = <&dmac2 6>, <&dmac2 7>;
 	dma-names = "tx", "rx";
 	pinctrl-names = "default";
@@ -708,6 +711,7 @@
 };
 
 &uart3 {
+	compatible = "rockchip,rk3066-uart", "snps,dw-apb-uart";
 	dmas = <&dmac2 8>, <&dmac2 9>;
 	dma-names = "tx", "rx";
 	pinctrl-names = "default";

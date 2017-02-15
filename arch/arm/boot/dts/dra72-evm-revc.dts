@@ -68,6 +68,8 @@
 		ti,tx-internal-delay = <DP83867_RGMIIDCTL_250_PS>;
 		ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_8_B_NIB>;
 		ti,min-output-impedance;
+		interrupt-parent = <&gpio6>;
+		interrupts = <16 IRQ_TYPE_EDGE_FALLING>;
 	};
 
 	dp83867_1: ethernet-phy@3 {
@@ -76,5 +78,7 @@
 		ti,tx-internal-delay = <DP83867_RGMIIDCTL_250_PS>;
 		ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_8_B_NIB>;
 		ti,min-output-impedance;
+		interrupt-parent = <&gpio6>;
+		interrupts = <16 IRQ_TYPE_EDGE_FALLING>;
 	};
 };
