@@ -668,6 +668,23 @@ __cr_alignment:
 #endif
 	.ltorg
 
+#ifdef CONFIG_UNICORE32_OLDABI
+/*
+ * Special system call wrappers
+ */
+ENTRY(sys_clone_wrapper)
+		add	ip, sp, #S_OFF
+		stw	ip, [sp+], #4
+		b	sys_clone
+ENDPROC(sys_clone_wrapper)
+
+ENTRY(sys_sigreturn_wrapper)
+		add	r0, sp, #S_OFF
+		mov	why, #0		@ prevent syscall restart handling
+		b	__sys_sigreturn
+ENDPROC(sys_sigreturn_wrapper)
+#endif
+
 ENTRY(sys_rt_sigreturn)
 		add	r0, sp, #S_OFF
 		mov	why, #0		@ prevent syscall restart handling

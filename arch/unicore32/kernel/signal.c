@@ -23,9 +23,18 @@
 /*
  * For UniCore syscalls, we encode the syscall number into the instruction.
  */
+#ifdef CONFIG_UNICORE32_OLDABI
+#define SWI_SYS_SIGRETURN	(0xff000000 | (__NR_SYSCALL_BASE)	\
+					| (__NR_sigreturn))
+#define SWI_SYS_RT_SIGRETURN	(0xff000000 | (__NR_SYSCALL_BASE)	\
+					| (__NR_rt_sigreturn))
+#define SWI_SYS_RESTART		(0xff000000 | (__NR_SYSCALL_BASE)	\
+					| (__NR_restart_syscall))
+#else
 #define SWI_SYS_SIGRETURN	(0xff000000) /* error number for new abi */
 #define SWI_SYS_RT_SIGRETURN	(0xff000000 | (__NR_rt_sigreturn))
 #define SWI_SYS_RESTART		(0xff000000 | (__NR_restart_syscall))
+#endif
 
 #define KERN_SIGRETURN_CODE	(KUSER_VECPAGE_BASE + 0x00000500)
 #define KERN_RESTART_CODE	(KERN_SIGRETURN_CODE + sizeof(sigreturn_codes))
@@ -99,6 +108,38 @@ static int restore_sigframe(struct pt_regs *regs, struct sigframe __user *sf)
 
 	return err;
 }
+
+#ifdef CONFIG_UNICORE32_OLDABI
+asmlinkage int __sys_sigreturn(struct pt_regs *regs)
+{
+	struct sigframe __user *frame;
+
+	/* Always make any pending restarted system calls return -EINTR */
+	current->restart_block.fn = do_no_restart_syscall;
+
+	/*
+	 * Since we stacked the signal on a 64-bit boundary,
+	 * then 'sp' should be word aligned here.  If it's
+	 * not, then the user is trying to mess with us.
+	 */
+	if (regs->UCreg_sp & 7)
+		goto badframe;
+
+	frame = (struct sigframe __user *)regs->UCreg_sp;
+
+	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
+		goto badframe;
+
+	if (restore_sigframe(regs, frame))
+		goto badframe;
+
+	return regs->UCreg_00;
+
+badframe:
+	force_sig(SIGSEGV, current);
+	return 0;
+}
+#endif
 
 asmlinkage int __sys_rt_sigreturn(struct pt_regs *regs)
 {

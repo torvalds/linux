@@ -12,6 +12,14 @@
 
 #define __ARCH_WANT_RENAMEAT
 
+#ifndef CONFIG_UNICORE32_OLDABI
+
 /* Use the standard ABI for syscalls. */
 #include <asm-generic/unistd.h>
 #define __ARCH_WANT_SYS_CLONE
+
+#else
+
+#include <asm/unistd-oldabi.h>
+
+#endif /* CONFIG_UNICORE32_OLDABI */
