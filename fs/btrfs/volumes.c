@@ -6956,7 +6956,8 @@ static int update_dev_stat_item(struct btrfs_trans_handle *trans,
 	key.offset = device->devid;
 
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path)
+		return -ENOMEM;
 	ret = btrfs_search_slot(trans, dev_root, &key, path, -1, 1);
 	if (ret < 0) {
 		btrfs_warn_in_rcu(fs_info,
