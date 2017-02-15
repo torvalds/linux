@@ -1,9 +1,12 @@
 /*
- * Device Tree Include file for Marvell Armada 390 SoC.
+ * Device Tree file for SolidRun Clearfog Base revision A1 rev 2.0 (88F6828)
  *
- * Copyright (C) 2015 Marvell
+ *  Copyright (C) 2015 Russell King
  *
- * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ * This board is in development; the contents of this file work with
+ * the A1 rev 2.0 of the board, which does not represent final
+ * production board.  Things will change, don't expect this file to
+ * remain compatible info the future.
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -11,9 +14,8 @@
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License as
- *     published by the Free Software Foundation; either version 2 of the
- *     License, or (at your option) any later version.
+ *     modify it under the terms of the GNU General Public License
+ *     version 2 as published by the Free Software Foundation.
  *
  *     This file is distributed in the hope that it will be useful,
  *     but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -44,17 +46,64 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "armada-39x.dtsi"
+/dts-v1/;
+#include "armada-388-clearfog.dtsi"
 
 / {
-	compatible = "marvell,armada390";
+	model = "SolidRun Clearfog Base A1";
+	compatible = "solidrun,clearfog-base-a1",
+		"solidrun,clearfog-a1", "marvell,armada388",
+		"marvell,armada385", "marvell,armada380";
 
-	soc {
-		internal-regs {
-			pinctrl@18000 {
-				compatible = "marvell,mv88f6920-pinctrl";
-				reg = <0x18000 0x20>;
-			};
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&rear_button_pins>;
+		pinctrl-names = "default";
+
+		button_0 {
+			/* The rear SW3 button */
+			label = "Rear Button";
+			gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
+			linux,can-disable;
+			linux,code = <BTN_0>;
 		};
+	};
+};
+
+&eth1 {
+	phy = <&phy1>;
+};
+
+&gpio0 {
+	phy1_reset {
+		gpio-hog;
+		gpios = <19 GPIO_ACTIVE_LOW>;
+		output-low;
+		line-name = "phy1-reset";
+	};
+};
+
+&mdio {
+	pinctrl-0 = <&mdio_pins &microsom_phy_clk_pins &clearfog_phy_pins>;
+	phy1: ethernet-phy@1 {
+		/*
+		 * Annoyingly, the marvell phy driver configures the LED
+		 * register, rather than preserving reset-loaded setting.
+		 * We undo that rubbish here.
+		 */
+		marvell,reg-init = <3 16 0 0x101e>;
+		reg = <1>;
+	};
+};
+
+&pinctrl {
+	/* phy1 reset */
+	clearfog_phy_pins: clearfog-phy-pins {
+		marvell,pins = "mpp19";
+		marvell,function = "gpio";
+	};
+	rear_button_pins: rear-button-pins {
+		marvell,pins = "mpp44";
+		marvell,function = "gpio";
 	};
 };

@@ -1,10 +1,9 @@
 /*
- * Device Tree file for Marvell Armada 390 Development Board
- * (DB-88F6920)
+ * Device Tree file for DB-XC3-24G4XG board
  *
- * Copyright (C) 2016 Marvell
+ * Copyright (C) 2016 Allied Telesis Labs
  *
- * Grzegorz Jaszczyk <jaz@semihalf.com>
+ * Based on armada-xp-db.dts
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -43,133 +42,101 @@
  *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Note: this Device Tree assumes that the bootloader has remapped the
+ * internal registers to 0xf1000000 (instead of the default
+ * 0xd0000000). The 0xf1000000 is the default used by the recent,
+ * DT-capable, U-Boot bootloaders provided by Marvell. Some earlier
+ * boards were delivered with an older version of the bootloader that
+ * left internal registers mapped at 0xd0000000. If you are in this
+ * situation, you should either update your bootloader (preferred
+ * solution) or the below Device Tree should be adjusted.
  */
 
 /dts-v1/;
-#include "armada-390.dtsi"
+#include "armada-xp-98dx3336.dtsi"
 
 / {
-	model = "Marvell Armada 390 Development Board";
-	compatible = "marvell,a390-db", "marvell,armada390";
+	model = "DB-XC3-24G4XG";
+	compatible = "marvell,db-xc3-24g4xg", "marvell,armadaxp-98dx3336", "marvell,armadaxp", "marvell,armada-370-xp";
 
 	chosen {
-		stdout-path = "serial0:115200n8";
+		bootargs = "console=ttyS0,115200 earlyprintk";
 	};
 
 	memory {
 		device_type = "memory";
-		reg = <0x00000000 0x80000000>; /* 2 GB */
-	};
-
-	soc {
-		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000
-			  MBUS_ID(0x01, 0x1d) 0 0xfff00000 0x100000>;
-
-		internal-regs {
-			i2c@11000 {
-				status = "okay";
-				clock-frequency = <100000>;
-
-				eeprom@50 {
-					compatible = "atmel,24c64";
-					reg = <0x50>;
-				};
-			};
-
-			/* CON104 */
-			serial@12000 {
-				status = "okay";
-			};
-
-			/* CON97 */
-			usb@58000 {
-				status = "okay";
-			};
-
-			flash@d0000 {
-				status = "okay";
-				pinctrl-0 = <&nand_pins>;
-				pinctrl-names = "default";
-				num-cs = <1>;
-				marvell,nand-keep-config;
-				marvell,nand-enable-arbiter;
-				nand-on-flash-bbt;
-				nand-ecc-strength = <8>;
-				nand-ecc-step-size = <512>;
-
-				partitions {
-					compatible = "fixed-partitions";
-					#address-cells = <1>;
-					#size-cells = <1>;
-
-					partition@0 {
-						label = "U-Boot";
-						reg = <0 0x800000>;
-					};
-					partition@800000 {
-						label = "Linux";
-						reg = <0x800000 0x800000>;
-					};
-					partition@1000000 {
-						label = "Filesystem";
-						reg = <0x1000000 0x3f000000>;
-					};
-				};
-			};
-
-			/* CON98 */
-			usb3@f8000 {
-				status = "okay";
-			};
-		};
-
-		pcie-controller {
-			status = "okay";
-
-			/* CON30 */
-			pcie@1,0 {
-				status = "okay";
-			};
-
-			/* CON44 */
-			pcie@2,0 {
-				status = "okay";
-			};
-
-			/* CON61 */
-			pcie@3,0 {
-				status = "okay";
-			};
-		};
+		reg = <0 0x00000000 0 0x40000000>; /* 1 GB */
 	};
 };
 
-&spi1 {
+&devbus_bootcs {
 	status = "okay";
-	pinctrl-0 = <&spi1_pins>;
-	pinctrl-names = "default";
 
-	spi-flash@1 {
+	/* Device Bus parameters are required */
+
+	/* Read parameters */
+	devbus,bus-width    = <16>;
+	devbus,turn-off-ps  = <60000>;
+	devbus,badr-skew-ps = <0>;
+	devbus,acc-first-ps = <124000>;
+	devbus,acc-next-ps  = <248000>;
+	devbus,rd-setup-ps  = <0>;
+	devbus,rd-hold-ps   = <0>;
+
+	/* Write parameters */
+	devbus,sync-enable = <0>;
+	devbus,wr-high-ps  = <60000>;
+	devbus,wr-low-ps   = <60000>;
+	devbus,ale-wr-ps   = <60000>;
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&i2c0 {
+	clock-frequency = <100000>;
+	status = "okay";
+};
+
+&nand {
+	status = "okay";
+	num-cs = <1>;
+	marvell,nand-keep-config;
+	marvell,nand-enable-arbiter;
+	nand-on-flash-bbt;
+	nand-ecc-strength = <4>;
+	nand-ecc-step-size = <512>;
+};
+
+&spi0 {
+	status = "okay";
+
+	spi-flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "n25q128a13",
-			     "jedec,spi-nor";
+		compatible = "m25p64";
 		reg = <0>; /* Chip select 0 */
-		spi-max-frequency = <108000000>;
+		spi-max-frequency = <20000000>;
+		m25p,fast-read;
 
-		partitions {
-			compatible = "fixed-partitions";
-			#address-cells = <1>;
-			#size-cells = <1>;
-
-			partition@0 {
-				label = "U-Boot";
-				reg = <0 0x400000>;
-			};
-			partition@400000 {
-				label = "Filesystem";
-				reg = <0x400000 0xc00000>;
-			};
+		partition@u-boot {
+			reg = <0x00000000 0x00100000>;
+			label = "u-boot";
 		};
+		partition@u-boot-env {
+			reg = <0x00100000 0x00040000>;
+			label = "u-boot-env";
+		};
+		partition@unused {
+			reg = <0x00140000 0x00ec0000>;
+			label = "unused";
+		};
+
 	};
 };
