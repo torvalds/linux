@@ -1,0 +1,59 @@
+Rockchip SuperSpeed DWC3 USB SoC controller with INNO USB3 PHY inside
+
+Required properties:
+- compatible : should be one of the listed compatibles:
+  * "rockchip,rk3328-dwc3"
+  * "rockchip,rk322xh-dwc3"
+- clocks : a list of phandle + clock-specifier pairs for the
+	   clocks listed in clock-names.
+- clock-names : Should contain the following:
+  * "ref_clk" for controller reference clk, have to be 24 MHz
+  * "suspend_clk" for controller suspend clk, have to be 24 MHz or 32 KHz
+  * "bus_clk" for master/Core clock, have to be >= 62.5 MHz for SS
+	      operation and >= 30MHz for HS operation.
+
+Required child node:
+A child node must exist to represent the core DWC3 IP block. The name of
+the node is not important. The content of the node is defined in dwc3.txt.
+
+Phy documentation is provided in the following places:
+Documentation/devicetree/bindings/phy/phy-rockchip-inno-usb3.txt
+
+Example device nodes:
+
+	u3phy: usb3-phy@ff470000 {
+		compatible = "rockchip,rk3328-u3phy";
+		reg = <0x0 0xff470000 0x0 0x0>;
+		...
+
+		u3phy_utmi: utmi@ff470000 {
+			reg = <0x0 0xff470000 0x0 0x8000>;
+			#phy-cells = <0>;
+		};
+
+		u3phy_pipe: pipe@ff478000 {
+			reg = <0x0 0xff478000 0x0 0x8000>;
+			#phy-cells = <0>;
+		};
+	};
+
+	usbdrd3: usb@ff600000 {
+		compatible = "rockchip,rk3328-dwc3";
+		clocks = <&cru SCLK_USB3OTG_REF>, <&cru SCLK_USB3OTG_SUSPEND>,
+			 <&cru ACLK_USB3OTG>;
+		clock-names = "ref_clk", "suspend_clk",
+			      "bus_clk";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		usbdrd_dwc3: dwc3@ff600000 {
+			compatible = "snps,dwc3";
+			reg = <0x0 0xff600000 0x0 0x100000>;
+			interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
+			dr_mode = "host";
+			phys = <&u3phy_utmi>, <&u3phy_pipe>;
+			phy-names = "usb2-phy", "usb3-phy";
+			phy_type = "utmi_wide";
+		};
+	};
