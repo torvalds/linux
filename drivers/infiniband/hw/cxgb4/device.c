@@ -214,6 +214,52 @@ static const struct file_operations wr_log_debugfs_fops = {
 	.write   = wr_log_clear,
 };
 
+static struct sockaddr_in zero_sin = {
+	.sin_family = AF_INET,
+};
+
+static struct sockaddr_in6 zero_sin6 = {
+	.sin6_family = AF_INET6,
+};
+
+static void set_ep_sin_addrs(struct c4iw_ep *ep,
+			     struct sockaddr_in **lsin,
+			     struct sockaddr_in **rsin,
+			     struct sockaddr_in **m_lsin,
+			     struct sockaddr_in **m_rsin)
+{
+	struct iw_cm_id *id = ep->com.cm_id;
+
+	*lsin = (struct sockaddr_in *)&ep->com.local_addr;
+	*rsin = (struct sockaddr_in *)&ep->com.remote_addr;
+	if (id) {
+		*m_lsin = (struct sockaddr_in *)&id->m_local_addr;
+		*m_rsin = (struct sockaddr_in *)&id->m_remote_addr;
+	} else {
+		*m_lsin = &zero_sin;
+		*m_rsin = &zero_sin;
+	}
+}
+
+static void set_ep_sin6_addrs(struct c4iw_ep *ep,
+			      struct sockaddr_in6 **lsin6,
+			      struct sockaddr_in6 **rsin6,
+			      struct sockaddr_in6 **m_lsin6,
+			      struct sockaddr_in6 **m_rsin6)
+{
+	struct iw_cm_id *id = ep->com.cm_id;
+
+	*lsin6 = (struct sockaddr_in6 *)&ep->com.local_addr;
+	*rsin6 = (struct sockaddr_in6 *)&ep->com.remote_addr;
+	if (id) {
+		*m_lsin6 = (struct sockaddr_in6 *)&id->m_local_addr;
+		*m_rsin6 = (struct sockaddr_in6 *)&id->m_remote_addr;
+	} else {
+		*m_lsin6 = &zero_sin6;
+		*m_rsin6 = &zero_sin6;
+	}
+}
+
 static int dump_qp(int id, void *p, void *data)
 {
 	struct c4iw_qp *qp = p;
@@ -229,16 +275,15 @@ static int dump_qp(int id, void *p, void *data)
 		return 1;
 
 	if (qp->ep) {
-		if (qp->ep->com.local_addr.ss_family == AF_INET) {
-			struct sockaddr_in *lsin = (struct sockaddr_in *)
-				&qp->ep->com.cm_id->local_addr;
-			struct sockaddr_in *rsin = (struct sockaddr_in *)
-				&qp->ep->com.cm_id->remote_addr;
-			struct sockaddr_in *mapped_lsin = (struct sockaddr_in *)
-				&qp->ep->com.cm_id->m_local_addr;
-			struct sockaddr_in *mapped_rsin = (struct sockaddr_in *)
-				&qp->ep->com.cm_id->m_remote_addr;
+		struct c4iw_ep *ep = qp->ep;
 
+		if (ep->com.local_addr.ss_family == AF_INET) {
+			struct sockaddr_in *lsin;
+			struct sockaddr_in *rsin;
+			struct sockaddr_in *m_lsin;
+			struct sockaddr_in *m_rsin;
+
+			set_ep_sin_addrs(ep, &lsin, &rsin, &m_lsin, &m_rsin);
 			cc = snprintf(qpd->buf + qpd->pos, space,
 				      "rc qp sq id %u rq id %u state %u "
 				      "onchip %u ep tid %u state %u "
@@ -246,23 +291,19 @@ static int dump_qp(int id, void *p, void *data)
 				      qp->wq.sq.qid, qp->wq.rq.qid,
 				      (int)qp->attr.state,
 				      qp->wq.sq.flags & T4_SQ_ONCHIP,
-				      qp->ep->hwtid, (int)qp->ep->com.state,
+				      ep->hwtid, (int)ep->com.state,
 				      &lsin->sin_addr, ntohs(lsin->sin_port),
-				      ntohs(mapped_lsin->sin_port),
+				      ntohs(m_lsin->sin_port),
 				      &rsin->sin_addr, ntohs(rsin->sin_port),
-				      ntohs(mapped_rsin->sin_port));
+				      ntohs(m_rsin->sin_port));
 		} else {
-			struct sockaddr_in6 *lsin6 = (struct sockaddr_in6 *)
-				&qp->ep->com.cm_id->local_addr;
-			struct sockaddr_in6 *rsin6 = (struct sockaddr_in6 *)
-				&qp->ep->com.cm_id->remote_addr;
-			struct sockaddr_in6 *mapped_lsin6 =
-				(struct sockaddr_in6 *)
-				&qp->ep->com.cm_id->m_local_addr;
-			struct sockaddr_in6 *mapped_rsin6 =
-				(struct sockaddr_in6 *)
-				&qp->ep->com.cm_id->m_remote_addr;
+			struct sockaddr_in6 *lsin6;
+			struct sockaddr_in6 *rsin6;
+			struct sockaddr_in6 *m_lsin6;
+			struct sockaddr_in6 *m_rsin6;
 
+			set_ep_sin6_addrs(ep, &lsin6, &rsin6, &m_lsin6,
+					  &m_rsin6);
 			cc = snprintf(qpd->buf + qpd->pos, space,
 				      "rc qp sq id %u rq id %u state %u "
 				      "onchip %u ep tid %u state %u "
@@ -270,13 +311,13 @@ static int dump_qp(int id, void *p, void *data)
 				      qp->wq.sq.qid, qp->wq.rq.qid,
 				      (int)qp->attr.state,
 				      qp->wq.sq.flags & T4_SQ_ONCHIP,
-				      qp->ep->hwtid, (int)qp->ep->com.state,
+				      ep->hwtid, (int)ep->com.state,
 				      &lsin6->sin6_addr,
 				      ntohs(lsin6->sin6_port),
-				      ntohs(mapped_lsin6->sin6_port),
+				      ntohs(m_lsin6->sin6_port),
 				      &rsin6->sin6_addr,
 				      ntohs(rsin6->sin6_port),
-				      ntohs(mapped_rsin6->sin6_port));
+				      ntohs(m_rsin6->sin6_port));
 		}
 	} else
 		cc = snprintf(qpd->buf + qpd->pos, space,
@@ -533,15 +574,12 @@ static int dump_ep(int id, void *p, void *data)
 		return 1;
 
 	if (ep->com.local_addr.ss_family == AF_INET) {
-		struct sockaddr_in *lsin = (struct sockaddr_in *)
-			&ep->com.cm_id->local_addr;
-		struct sockaddr_in *rsin = (struct sockaddr_in *)
-			&ep->com.cm_id->remote_addr;
-		struct sockaddr_in *mapped_lsin = (struct sockaddr_in *)
-			&ep->com.cm_id->m_local_addr;
-		struct sockaddr_in *mapped_rsin = (struct sockaddr_in *)
-			&ep->com.cm_id->m_remote_addr;
+		struct sockaddr_in *lsin;
+		struct sockaddr_in *rsin;
+		struct sockaddr_in *m_lsin;
+		struct sockaddr_in *m_rsin;
 
+		set_ep_sin_addrs(ep, &lsin, &rsin, &m_lsin, &m_rsin);
 		cc = snprintf(epd->buf + epd->pos, space,
 			      "ep %p cm_id %p qp %p state %d flags 0x%lx "
 			      "history 0x%lx hwtid %d atid %d "
@@ -553,19 +591,16 @@ static int dump_ep(int id, void *p, void *data)
 			      ep->stats.connect_neg_adv,
 			      ep->stats.abort_neg_adv,
 			      &lsin->sin_addr, ntohs(lsin->sin_port),
-			      ntohs(mapped_lsin->sin_port),
+			      ntohs(m_lsin->sin_port),
 			      &rsin->sin_addr, ntohs(rsin->sin_port),
-			      ntohs(mapped_rsin->sin_port));
+			      ntohs(m_rsin->sin_port));
 	} else {
-		struct sockaddr_in6 *lsin6 = (struct sockaddr_in6 *)
-			&ep->com.cm_id->local_addr;
-		struct sockaddr_in6 *rsin6 = (struct sockaddr_in6 *)
-			&ep->com.cm_id->remote_addr;
-		struct sockaddr_in6 *mapped_lsin6 = (struct sockaddr_in6 *)
-			&ep->com.cm_id->m_local_addr;
-		struct sockaddr_in6 *mapped_rsin6 = (struct sockaddr_in6 *)
-			&ep->com.cm_id->m_remote_addr;
+		struct sockaddr_in6 *lsin6;
+		struct sockaddr_in6 *rsin6;
+		struct sockaddr_in6 *m_lsin6;
+		struct sockaddr_in6 *m_rsin6;
 
+		set_ep_sin6_addrs(ep, &lsin6, &rsin6, &m_lsin6, &m_rsin6);
 		cc = snprintf(epd->buf + epd->pos, space,
 			      "ep %p cm_id %p qp %p state %d flags 0x%lx "
 			      "history 0x%lx hwtid %d atid %d "
@@ -577,9 +612,9 @@ static int dump_ep(int id, void *p, void *data)
 			      ep->stats.connect_neg_adv,
 			      ep->stats.abort_neg_adv,
 			      &lsin6->sin6_addr, ntohs(lsin6->sin6_port),
-			      ntohs(mapped_lsin6->sin6_port),
+			      ntohs(m_lsin6->sin6_port),
 			      &rsin6->sin6_addr, ntohs(rsin6->sin6_port),
-			      ntohs(mapped_rsin6->sin6_port));
+			      ntohs(m_rsin6->sin6_port));
 	}
 	if (cc < space)
 		epd->pos += cc;
@@ -600,7 +635,7 @@ static int dump_listen_ep(int id, void *p, void *data)
 	if (ep->com.local_addr.ss_family == AF_INET) {
 		struct sockaddr_in *lsin = (struct sockaddr_in *)
 			&ep->com.cm_id->local_addr;
-		struct sockaddr_in *mapped_lsin = (struct sockaddr_in *)
+		struct sockaddr_in *m_lsin = (struct sockaddr_in *)
 			&ep->com.cm_id->m_local_addr;
 
 		cc = snprintf(epd->buf + epd->pos, space,
@@ -609,11 +644,11 @@ static int dump_listen_ep(int id, void *p, void *data)
 			      ep, ep->com.cm_id, (int)ep->com.state,
 			      ep->com.flags, ep->stid, ep->backlog,
 			      &lsin->sin_addr, ntohs(lsin->sin_port),
-			      ntohs(mapped_lsin->sin_port));
+			      ntohs(m_lsin->sin_port));
 	} else {
 		struct sockaddr_in6 *lsin6 = (struct sockaddr_in6 *)
 			&ep->com.cm_id->local_addr;
-		struct sockaddr_in6 *mapped_lsin6 = (struct sockaddr_in6 *)
+		struct sockaddr_in6 *m_lsin6 = (struct sockaddr_in6 *)
 			&ep->com.cm_id->m_local_addr;
 
 		cc = snprintf(epd->buf + epd->pos, space,
@@ -622,7 +657,7 @@ static int dump_listen_ep(int id, void *p, void *data)
 			      ep, ep->com.cm_id, (int)ep->com.state,
 			      ep->com.flags, ep->stid, ep->backlog,
 			      &lsin6->sin6_addr, ntohs(lsin6->sin6_port),
-			      ntohs(mapped_lsin6->sin6_port));
+			      ntohs(m_lsin6->sin6_port));
 	}
 	if (cc < space)
 		epd->pos += cc;

@@ -728,7 +728,7 @@ isert_disconnected_handler(struct rdma_cm_id *cma_id,
 		iscsit_cause_connection_reinstatement(isert_conn->conn, 0);
 		break;
 	default:
-		isert_warn("conn %p teminating in state %d\n",
+		isert_warn("conn %p terminating in state %d\n",
 			   isert_conn, isert_conn->state);
 	}
 	mutex_unlock(&isert_conn->mutex);

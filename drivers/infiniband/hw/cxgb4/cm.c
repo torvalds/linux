@@ -2517,18 +2517,18 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 		struct sockaddr_in *sin = (struct sockaddr_in *)
 			&child_ep->com.local_addr;
 
-		sin->sin_family = PF_INET;
+		sin->sin_family = AF_INET;
 		sin->sin_port = local_port;
 		sin->sin_addr.s_addr = *(__be32 *)local_ip;
 
 		sin = (struct sockaddr_in *)&child_ep->com.local_addr;
-		sin->sin_family = PF_INET;
+		sin->sin_family = AF_INET;
 		sin->sin_port = ((struct sockaddr_in *)
 				 &parent_ep->com.local_addr)->sin_port;
 		sin->sin_addr.s_addr = *(__be32 *)local_ip;
 
 		sin = (struct sockaddr_in *)&child_ep->com.remote_addr;
-		sin->sin_family = PF_INET;
+		sin->sin_family = AF_INET;
 		sin->sin_port = peer_port;
 		sin->sin_addr.s_addr = *(__be32 *)peer_ip;
 	} else {

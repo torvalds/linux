@@ -820,9 +820,12 @@ void ipoib_cm_handle_tx_wc(struct net_device *dev, struct ib_wc *wc)
 	    wc->status != IB_WC_WR_FLUSH_ERR) {
 		struct ipoib_neigh *neigh;
 
-		ipoib_dbg(priv, "failed cm send event "
-			   "(status=%d, wrid=%d vend_err %x)\n",
-			   wc->status, wr_id, wc->vendor_err);
+		if (wc->status != IB_WC_RNR_RETRY_EXC_ERR)
+			ipoib_warn(priv, "failed cm send event (status=%d, wrid=%d vend_err %x)\n",
+				   wc->status, wr_id, wc->vendor_err);
+		else
+			ipoib_dbg(priv, "failed cm send event (status=%d, wrid=%d vend_err %x)\n",
+				  wc->status, wr_id, wc->vendor_err);
 
 		spin_lock_irqsave(&priv->lock, flags);
 		neigh = tx->neigh;
@@ -1015,9 +1018,10 @@ static int ipoib_cm_rep_handler(struct ib_cm_id *cm_id, struct ib_cm_event *even
 
 	while ((skb = __skb_dequeue(&skqueue))) {
 		skb->dev = p->dev;
-		if (dev_queue_xmit(skb))
-			ipoib_warn(priv, "dev_queue_xmit failed "
-				   "to requeue packet\n");
+		ret = dev_queue_xmit(skb);
+		if (ret)
+			ipoib_warn(priv, "%s:dev_queue_xmit failed to re-queue packet, ret:%d\n",
+				   __func__, ret);
 	}
 
 	ret = ib_send_cm_rtu(cm_id, NULL, 0);
@@ -1388,7 +1392,7 @@ static void ipoib_cm_tx_reap(struct work_struct *work)
 
 	while (!list_empty(&priv->cm.reap_list)) {
 		p = list_entry(priv->cm.reap_list.next, typeof(*p), list);
-		list_del(&p->list);
+		list_del_init(&p->list);
 		spin_unlock_irqrestore(&priv->lock, flags);
 		netif_tx_unlock_bh(dev);
 		ipoib_cm_tx_destroy(p);
@@ -1507,12 +1511,14 @@ static ssize_t set_mode(struct device *d, struct device_attribute *attr,
 
 	ret = ipoib_set_mode(dev, buf);
 
-	rtnl_unlock();
+	/* The assumption is that the function ipoib_set_mode returned
+	 * with the rtnl held by it, if not the value -EBUSY returned,
+	 * then no need to rtnl_unlock
+	 */
+	if (ret != -EBUSY)
+		rtnl_unlock();
 
-	if (!ret)
-		return count;
-
-	return ret;
+	return (!ret || ret == -EBUSY) ? count : ret;
 }
 
 static DEVICE_ATTR(mode, S_IWUSR | S_IRUGO, show_mode, set_mode);

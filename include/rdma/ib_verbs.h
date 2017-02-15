@@ -1789,12 +1789,17 @@ enum ib_mad_result {
 
 #define IB_DEVICE_NAME_MAX 64
 
+struct ib_port_cache {
+	struct ib_pkey_cache  *pkey;
+	struct ib_gid_table   *gid;
+	u8                     lmc;
+	enum ib_port_state     port_state;
+};
+
 struct ib_cache {
 	rwlock_t                lock;
 	struct ib_event_handler event_handler;
-	struct ib_pkey_cache  **pkey_cache;
-	struct ib_gid_table   **gid_cache;
-	u8                     *lmc_cache;
+	struct ib_port_cache   *ports;
 };
 
 struct ib_dma_mapping_ops {
@@ -2287,6 +2292,13 @@ static inline u8 rdma_start_port(const struct ib_device *device)
 static inline u8 rdma_end_port(const struct ib_device *device)
 {
 	return rdma_cap_ib_switch(device) ? 0 : device->phys_port_cnt;
+}
+
+static inline int rdma_is_port_valid(const struct ib_device *device,
+				     unsigned int port)
+{
+	return (port >= rdma_start_port(device) &&
+		port <= rdma_end_port(device));
 }
 
 static inline bool rdma_protocol_ib(const struct ib_device *device, u8 port_num)

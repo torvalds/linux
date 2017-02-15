@@ -824,9 +824,9 @@ void rxe_qp_destroy(struct rxe_qp *qp)
 }
 
 /* called when the last reference to the qp is dropped */
-void rxe_qp_cleanup(void *arg)
+void rxe_qp_cleanup(struct rxe_pool_entry *arg)
 {
-	struct rxe_qp *qp = arg;
+	struct rxe_qp *qp = container_of(arg, typeof(*qp), pelem);
 
 	rxe_drop_all_mcast_groups(qp);
 
