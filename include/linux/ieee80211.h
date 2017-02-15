@@ -1525,14 +1525,14 @@ enum ieee80211_vht_chanwidth {
  * This structure is the "VHT operation element" as
  * described in 802.11ac D3.0 8.4.2.161
  * @chan_width: Operating channel width
+ * @center_freq_seg0_idx: center freq segment 0 index
  * @center_freq_seg1_idx: center freq segment 1 index
- * @center_freq_seg2_idx: center freq segment 2 index
  * @basic_mcs_set: VHT Basic MCS rate set
  */
 struct ieee80211_vht_operation {
 	u8 chan_width;
+	u8 center_freq_seg0_idx;
 	u8 center_freq_seg1_idx;
-	u8 center_freq_seg2_idx;
 	__le16 basic_mcs_set;
 } __packed;
 
