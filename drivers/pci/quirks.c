@@ -4150,15 +4150,35 @@ static int pci_quirk_intel_pch_acs(struct pci_dev *dev, u16 acs_flags)
  *
  * N.B. This doesn't fix what lspci shows.
  *
+ * The 100 series chipset specification update includes this as errata #23[3].
+ *
+ * The 200 series chipset (Union Point) has the same bug according to the
+ * specification update (Intel 200 Series Chipset Family Platform Controller
+ * Hub, Specification Update, January 2017, Revision 001, Document# 335194-001,
+ * Errata 22)[4].  Per the datasheet[5], root port PCI Device IDs for this
+ * chipset include:
+ *
+ * 0xa290-0xa29f PCI Express Root port #{0-16}
+ * 0xa2e7-0xa2ee PCI Express Root port #{17-24}
+ *
  * [1] http://www.intel.com/content/www/us/en/chipsets/100-series-chipset-datasheet-vol-2.html
  * [2] http://www.intel.com/content/www/us/en/chipsets/100-series-chipset-datasheet-vol-1.html
+ * [3] http://www.intel.com/content/www/us/en/chipsets/100-series-chipset-spec-update.html
+ * [4] http://www.intel.com/content/www/us/en/chipsets/200-series-chipset-pch-spec-update.html
+ * [5] http://www.intel.com/content/www/us/en/chipsets/200-series-chipset-pch-datasheet-vol-1.html
  */
 static bool pci_quirk_intel_spt_pch_acs_match(struct pci_dev *dev)
 {
-	return pci_is_pcie(dev) &&
-		pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT &&
-		((dev->device & ~0xf) == 0xa110 ||
-		 (dev->device >= 0xa167 && dev->device <= 0xa16a));
+	if (!pci_is_pcie(dev) || pci_pcie_type(dev) != PCI_EXP_TYPE_ROOT_PORT)
+		return false;
+
+	switch (dev->device) {
+	case 0xa110 ... 0xa11f: case 0xa167 ... 0xa16a: /* Sunrise Point */
+	case 0xa290 ... 0xa29f: case 0xa2e7 ... 0xa2ee: /* Union Point */
+		return true;
+	}
+
+	return false;
 }
 
 #define INTEL_SPT_ACS_CTRL (PCI_ACS_CAP + 4)
