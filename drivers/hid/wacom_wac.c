@@ -1780,6 +1780,14 @@ static void wacom_wac_pad_usage_mapping(struct hid_device *hdev,
 		wacom_map_usage(input, usage, field, EV_KEY, KEY_CONTROLPANEL, 0);
 		features->device_type |= WACOM_DEVICETYPE_PAD;
 		break;
+	case WACOM_HID_WD_MODE_CHANGE:
+		/* do not overwrite previous data */
+		if (!wacom_wac->has_mode_change) {
+			wacom_wac->has_mode_change = true;
+			wacom_wac->is_direct_mode = true;
+		}
+		features->device_type |= WACOM_DEVICETYPE_PAD;
+		break;
 	}
 
 	switch (equivalent_usage & 0xfffffff0) {
@@ -1828,7 +1836,7 @@ static void wacom_wac_pad_event(struct hid_device *hdev, struct hid_field *field
 	 * Avoid reporting this event and setting inrange_state if this usage
 	 * hasn't been mapped.
 	 */
-	if (!usage->type)
+	if (!usage->type && equivalent_usage != WACOM_HID_WD_MODE_CHANGE)
 		return;
 
 	if (wacom_equivalent_usage(field->physical) == HID_DG_TABLETFUNCTIONKEY) {
@@ -1847,6 +1855,13 @@ static void wacom_wac_pad_event(struct hid_device *hdev, struct hid_field *field
 			input_report_switch(wacom_wac->shared->touch_input,
 					    SW_MUTE_DEVICE, !value);
 			input_sync(wacom_wac->shared->touch_input);
+		}
+		break;
+
+	case WACOM_HID_WD_MODE_CHANGE:
+		if (wacom_wac->is_direct_mode != value) {
+			wacom_wac->is_direct_mode = value;
+			wacom_schedule_work(&wacom->wacom_wac, WACOM_WORKER_MODE_CHANGE);
 		}
 		break;
 
