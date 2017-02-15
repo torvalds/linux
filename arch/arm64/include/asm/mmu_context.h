@@ -19,6 +19,10 @@
 #ifndef __ASM_MMU_CONTEXT_H
 #define __ASM_MMU_CONTEXT_H
 
+#define FALKOR_RESERVED_ASID	1
+
+#ifndef __ASSEMBLY__
+
 #include <linux/compiler.h>
 #include <linux/sched.h>
 
@@ -45,7 +49,7 @@ static inline void contextidr_thread_switch(struct task_struct *next)
  */
 static inline void cpu_set_reserved_ttbr0(void)
 {
-	unsigned long ttbr = virt_to_phys(empty_zero_page);
+	unsigned long ttbr = __pa_symbol(empty_zero_page);
 
 	write_sysreg(ttbr, ttbr0_el1);
 	isb();
@@ -114,7 +118,7 @@ static inline void cpu_install_idmap(void)
 	local_flush_tlb_all();
 	cpu_set_idmap_tcr_t0sz();
 
-	cpu_switch_mm(idmap_pg_dir, &init_mm);
+	cpu_switch_mm(lm_alias(idmap_pg_dir), &init_mm);
 }
 
 /*
@@ -129,7 +133,7 @@ static inline void cpu_replace_ttbr1(pgd_t *pgd)
 
 	phys_addr_t pgd_phys = virt_to_phys(pgd);
 
-	replace_phys = (void *)virt_to_phys(idmap_cpu_replace_ttbr1);
+	replace_phys = (void *)__pa_symbol(idmap_cpu_replace_ttbr1);
 
 	cpu_install_idmap();
 	replace_phys(pgd_phys);
@@ -220,4 +224,6 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 
 void verify_cpu_asid_bits(void);
 
-#endif
+#endif /* !__ASSEMBLY__ */
+
+#endif /* !__ASM_MMU_CONTEXT_H */
