@@ -25,7 +25,8 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
-#define NR_BANKS		4
+#define BANK_INCREMENT		4
+#define NR_BANKS		8
 
 struct socfpga_reset_data {
 	spinlock_t			lock;
@@ -46,8 +47,8 @@ static int socfpga_reset_assert(struct reset_controller_dev *rcdev,
 
 	spin_lock_irqsave(&data->lock, flags);
 
-	reg = readl(data->membase + (bank * NR_BANKS));
-	writel(reg | BIT(offset), data->membase + (bank * NR_BANKS));
+	reg = readl(data->membase + (bank * BANK_INCREMENT));
+	writel(reg | BIT(offset), data->membase + (bank * BANK_INCREMENT));
 	spin_unlock_irqrestore(&data->lock, flags);
 
 	return 0;
@@ -67,8 +68,8 @@ static int socfpga_reset_deassert(struct reset_controller_dev *rcdev,
 
 	spin_lock_irqsave(&data->lock, flags);
 
-	reg = readl(data->membase + (bank * NR_BANKS));
-	writel(reg & ~BIT(offset), data->membase + (bank * NR_BANKS));
+	reg = readl(data->membase + (bank * BANK_INCREMENT));
+	writel(reg & ~BIT(offset), data->membase + (bank * BANK_INCREMENT));
 
 	spin_unlock_irqrestore(&data->lock, flags);
 
@@ -84,7 +85,7 @@ static int socfpga_reset_status(struct reset_controller_dev *rcdev,
 	int offset = id % BITS_PER_LONG;
 	u32 reg;
 
-	reg = readl(data->membase + (bank * NR_BANKS));
+	reg = readl(data->membase + (bank * BANK_INCREMENT));
 
 	return !(reg & BIT(offset));
 }
