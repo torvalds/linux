@@ -1101,6 +1101,8 @@ int dsa_slave_suspend(struct net_device *slave_dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(slave_dev);
 
+	netif_device_detach(slave_dev);
+
 	if (p->phy) {
 		phy_stop(p->phy);
 		p->old_pause = -1;

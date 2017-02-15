@@ -95,6 +95,7 @@ static inline bool kvm_hv_vapic_assist_page_enabled(struct kvm_vcpu *vcpu)
 
 int kvm_lapic_enable_pv_eoi(struct kvm_vcpu *vcpu, u64 data);
 void kvm_lapic_init(void);
+void kvm_lapic_exit(void);
 
 static inline u32 kvm_apic_get_reg(struct kvm_lapic *apic, int reg_off)
 {

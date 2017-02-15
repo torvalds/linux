@@ -1277,8 +1277,9 @@ int fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 		    nla_put_u32(skb, RTA_FLOW, fi->fib_nh[0].nh_tclassid))
 			goto nla_put_failure;
 #endif
-		if (fi->fib_nh->nh_lwtstate)
-			lwtunnel_fill_encap(skb, fi->fib_nh->nh_lwtstate);
+		if (fi->fib_nh->nh_lwtstate &&
+		    lwtunnel_fill_encap(skb, fi->fib_nh->nh_lwtstate) < 0)
+			goto nla_put_failure;
 	}
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	if (fi->fib_nhs > 1) {
@@ -1314,8 +1315,10 @@ int fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 			    nla_put_u32(skb, RTA_FLOW, nh->nh_tclassid))
 				goto nla_put_failure;
 #endif
-			if (nh->nh_lwtstate)
-				lwtunnel_fill_encap(skb, nh->nh_lwtstate);
+			if (nh->nh_lwtstate &&
+			    lwtunnel_fill_encap(skb, nh->nh_lwtstate) < 0)
+				goto nla_put_failure;
+
 			/* length of rtnetlink header + attributes */
 			rtnh->rtnh_len = nlmsg_get_pos(skb) - (void *) rtnh;
 		} endfor_nexthops(fi);

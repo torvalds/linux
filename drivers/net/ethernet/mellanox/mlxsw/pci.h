@@ -206,21 +206,21 @@ MLXSW_ITEM32(pci, eqe, owner, 0x0C, 0, 1);
 /* pci_eqe_cmd_token
  * Command completion event - token
  */
-MLXSW_ITEM32(pci, eqe, cmd_token, 0x08, 16, 16);
+MLXSW_ITEM32(pci, eqe, cmd_token, 0x00, 16, 16);
 
 /* pci_eqe_cmd_status
  * Command completion event - status
  */
-MLXSW_ITEM32(pci, eqe, cmd_status, 0x08, 0, 8);
+MLXSW_ITEM32(pci, eqe, cmd_status, 0x00, 0, 8);
 
 /* pci_eqe_cmd_out_param_h
  * Command completion event - output parameter - higher part
  */
-MLXSW_ITEM32(pci, eqe, cmd_out_param_h, 0x0C, 0, 32);
+MLXSW_ITEM32(pci, eqe, cmd_out_param_h, 0x04, 0, 32);
 
 /* pci_eqe_cmd_out_param_l
  * Command completion event - output parameter - lower part
  */
-MLXSW_ITEM32(pci, eqe, cmd_out_param_l, 0x10, 0, 32);
+MLXSW_ITEM32(pci, eqe, cmd_out_param_l, 0x08, 0, 32);
 
 #endif

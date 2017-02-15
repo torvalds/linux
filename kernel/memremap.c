@@ -159,7 +159,9 @@ static void devm_memremap_pages_release(struct device *dev, void *res)
 	struct page_map *page_map = res;
 
 	/* pages are dead and unused, undo the arch mapping */
+	mem_hotplug_begin();
 	arch_remove_memory(page_map->res.start, resource_size(&page_map->res));
+	mem_hotplug_done();
 }
 
 void *devm_memremap_pages(struct device *dev, struct resource *res)
@@ -189,7 +191,9 @@ void *devm_memremap_pages(struct device *dev, struct resource *res)
 	if (nid < 0)
 		nid = numa_mem_id();
 
+	mem_hotplug_begin();
 	error = arch_add_memory(nid, res->start, resource_size(res), true);
+	mem_hotplug_done();
 	if (error) {
 		devres_free(page_map);
 		return ERR_PTR(error);

@@ -263,6 +263,8 @@ static void ite_set_carrier_params(struct ite_dev *dev)
 
 			if (allowance > ITE_RXDCR_MAX)
 				allowance = ITE_RXDCR_MAX;
+
+			use_demodulator = true;
 		}
 	}
 
