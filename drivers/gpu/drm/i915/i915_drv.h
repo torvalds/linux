@@ -2481,8 +2481,6 @@ struct drm_i915_private {
 	/* Used to save the pipe-to-encoder mapping for audio */
 	struct intel_encoder *av_enc_map[I915_MAX_PIPES];
 
-	I915_SELFTEST_DECLARE(struct fault_attr vm_fault);
-
 	/*
 	 * NOTE: This is the dri1/ums dungeon, don't add stuff here. Your patch
 	 * will be rejected. Instead look for a better place.

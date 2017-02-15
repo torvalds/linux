@@ -36,9 +36,11 @@
 
 #include <linux/io-mapping.h>
 #include <linux/mm.h>
+#include <linux/pagevec.h>
 
 #include "i915_gem_timeline.h"
 #include "i915_gem_request.h"
+#include "i915_selftest.h"
 
 #define I915_GTT_PAGE_SIZE 4096UL
 #define I915_GTT_MIN_ALIGNMENT I915_GTT_PAGE_SIZE
@@ -247,6 +249,7 @@ struct i915_address_space {
 	struct drm_mm mm;
 	struct i915_gem_timeline timeline;
 	struct drm_i915_private *i915;
+	struct device *dma;
 	/* Every address space belongs to a struct file - except for the global
 	 * GTT that is owned by the driver (and so @file is set to NULL). In
 	 * principle, no information should leak from one context to another
@@ -297,6 +300,9 @@ struct i915_address_space {
 	 */
 	struct list_head unbound_list;
 
+	struct pagevec free_pages;
+	bool pt_kmap_wc;
+
 	/* FIXME: Need a more generic return type */
 	gen6_pte_t (*pte_encode)(dma_addr_t addr,
 				 enum i915_cache_level level,
@@ -326,6 +332,8 @@ struct i915_address_space {
 	int (*bind_vma)(struct i915_vma *vma,
 			enum i915_cache_level cache_level,
 			u32 flags);
+
+	I915_SELFTEST_DECLARE(struct fault_attr fault_attr);
 };
 
 #define i915_is_ggtt(V) (!(V)->file)

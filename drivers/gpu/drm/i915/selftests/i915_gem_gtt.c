@@ -832,17 +832,17 @@ static int shrink_hole(struct drm_i915_private *i915,
 	unsigned long prime;
 	int err;
 
-	i915->vm_fault.probability = 999;
-	atomic_set(&i915->vm_fault.times, -1);
+	vm->fault_attr.probability = 999;
+	atomic_set(&vm->fault_attr.times, -1);
 
 	for_each_prime_number_from(prime, 0, ULONG_MAX - 1) {
-		i915->vm_fault.interval = prime;
+		vm->fault_attr.interval = prime;
 		err = __shrink_hole(i915, vm, hole_start, hole_end, end_time);
 		if (err)
 			break;
 	}
 
-	memset(&i915->vm_fault, 0, sizeof(i915->vm_fault));
+	memset(&vm->fault_attr, 0, sizeof(vm->fault_attr));
 
 	return err;
 }
