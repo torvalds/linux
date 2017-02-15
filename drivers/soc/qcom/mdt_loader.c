@@ -98,7 +98,7 @@ int qcom_mdt_load(struct device *dev, const struct firmware *fw,
 	phys_addr_t min_addr = (phys_addr_t)ULLONG_MAX;
 	phys_addr_t max_addr = 0;
 	size_t fw_name_len;
-	size_t offset;
+	ssize_t offset;
 	char *fw_name;
 	bool relocate = false;
 	void *ptr;

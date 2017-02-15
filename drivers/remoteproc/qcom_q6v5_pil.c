@@ -502,7 +502,7 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 	phys_addr_t max_addr = 0;
 	bool relocate = false;
 	char seg_name[10];
-	size_t offset;
+	ssize_t offset;
 	size_t size;
 	void *ptr;
 	int ret;
