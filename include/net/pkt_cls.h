@@ -17,7 +17,13 @@ struct tcf_walker {
 int register_tcf_proto_ops(struct tcf_proto_ops *ops);
 int unregister_tcf_proto_ops(struct tcf_proto_ops *ops);
 
+#ifdef CONFIG_NET_CLS
 void tcf_destroy_chain(struct tcf_proto __rcu **fl);
+#else
+static inline void tcf_destroy_chain(struct tcf_proto __rcu **fl)
+{
+}
+#endif
 
 static inline unsigned long
 __cls_set_class(unsigned long *clp, unsigned long cl)
