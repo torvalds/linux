@@ -997,61 +997,13 @@ int tpm2_probe(struct tpm_chip *chip)
 }
 EXPORT_SYMBOL_GPL(tpm2_probe);
 
-/**
- * tpm2_auto_startup - Perform the standard automatic TPM initialization
- *                     sequence
- * @chip: TPM chip to use
- *
- * Returns 0 on success, < 0 in case of fatal error.
- */
-int tpm2_auto_startup(struct tpm_chip *chip)
-{
-	int rc;
-
-	rc = tpm_get_timeouts(chip);
-	if (rc)
-		goto out;
-
-	rc = tpm2_do_selftest(chip);
-	if (rc != 0 && rc != TPM2_RC_INITIALIZE) {
-		dev_err(&chip->dev, "TPM self test failed\n");
-		goto out;
-	}
-
-	if (rc == TPM2_RC_INITIALIZE) {
-		rc = tpm2_startup(chip, TPM2_SU_CLEAR);
-		if (rc)
-			goto out;
-
-		rc = tpm2_do_selftest(chip);
-		if (rc) {
-			dev_err(&chip->dev, "TPM self test failed\n");
-			goto out;
-		}
-	}
-
-	rc = tpm2_get_pcr_allocation(chip);
-
-out:
-	if (rc > 0)
-		rc = -ENODEV;
-	return rc;
-}
-
 struct tpm2_pcr_selection {
 	__be16  hash_alg;
 	u8  size_of_select;
 	u8  pcr_select[3];
 } __packed;
 
-/**
- * tpm2_get_pcr_allocation() - get TPM active PCR banks.
- *
- * @chip: TPM chip to use.
- *
- * Return: Same as with tpm_transmit_cmd.
- */
-ssize_t tpm2_get_pcr_allocation(struct tpm_chip *chip)
+static ssize_t tpm2_get_pcr_allocation(struct tpm_chip *chip)
 {
 	struct tpm2_pcr_selection pcr_selection;
 	struct tpm_buf buf;
@@ -1112,5 +1064,49 @@ out:
 
 	tpm_buf_destroy(&buf);
 
+	return rc;
+}
+
+/**
+ * tpm2_auto_startup - Perform the standard automatic TPM initialization
+ *                     sequence
+ * @chip: TPM chip to use
+ *
+ * Initializes timeout values for operation and command durations, conducts
+ * a self-test and reads the list of active PCR banks.
+ *
+ * Return: 0 on success. Otherwise, a system error code is returned.
+ */
+int tpm2_auto_startup(struct tpm_chip *chip)
+{
+	int rc;
+
+	rc = tpm_get_timeouts(chip);
+	if (rc)
+		goto out;
+
+	rc = tpm2_do_selftest(chip);
+	if (rc != 0 && rc != TPM2_RC_INITIALIZE) {
+		dev_err(&chip->dev, "TPM self test failed\n");
+		goto out;
+	}
+
+	if (rc == TPM2_RC_INITIALIZE) {
+		rc = tpm2_startup(chip, TPM2_SU_CLEAR);
+		if (rc)
+			goto out;
+
+		rc = tpm2_do_selftest(chip);
+		if (rc) {
+			dev_err(&chip->dev, "TPM self test failed\n");
+			goto out;
+		}
+	}
+
+	rc = tpm2_get_pcr_allocation(chip);
+
+out:
+	if (rc > 0)
+		rc = -ENODEV;
 	return rc;
 }
