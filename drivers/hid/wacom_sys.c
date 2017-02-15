@@ -2100,8 +2100,10 @@ static void wacom_set_shared_values(struct wacom_wac *wacom_wac)
 		wacom_wac->shared->touch_input = wacom_wac->touch_input;
 	}
 
-	if (wacom_wac->has_mute_touch_switch)
+	if (wacom_wac->has_mute_touch_switch) {
 		wacom_wac->shared->has_mute_touch_switch = true;
+		wacom_wac->shared->is_touch_on = true;
+	}
 
 	if (wacom_wac->shared->has_mute_touch_switch &&
 	    wacom_wac->shared->touch_input) {
