@@ -121,7 +121,7 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct drm_mode_fb_cmd2 mode_cmd = {};
-	struct drm_i915_gem_object *obj = NULL;
+	struct drm_i915_gem_object *obj;
 	int size, ret;
 
 	/* we don't do packed 24bpp */
@@ -136,14 +136,13 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
 							  sizes->surface_depth);
 
-	mutex_lock(&dev->struct_mutex);
-
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 	size = PAGE_ALIGN(size);
 
 	/* If the FB is too big, just don't use it since fbdev is not very
 	 * important and we should probably use that space with FBC or other
 	 * features. */
+	obj = NULL;
 	if (size * 2 < ggtt->stolen_usable_size)
 		obj = i915_gem_object_create_stolen(dev_priv, size);
 	if (obj == NULL)
@@ -151,24 +150,22 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 	if (IS_ERR(obj)) {
 		DRM_ERROR("failed to allocate framebuffer\n");
 		ret = PTR_ERR(obj);
-		goto out;
+		goto err;
 	}
 
-	fb = __intel_framebuffer_create(dev, &mode_cmd, obj);
+	fb = intel_framebuffer_create(obj, &mode_cmd);
 	if (IS_ERR(fb)) {
-		i915_gem_object_put(obj);
 		ret = PTR_ERR(fb);
-		goto out;
+		goto err_obj;
 	}
-
-	mutex_unlock(&dev->struct_mutex);
 
 	ifbdev->fb = to_intel_framebuffer(fb);
 
 	return 0;
 
-out:
-	mutex_unlock(&dev->struct_mutex);
+err_obj:
+	i915_gem_object_put(obj);
+err:
 	return ret;
 }
 
@@ -631,7 +628,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 		}
 
 		cur_size = intel_crtc->config->base.adjusted_mode.crtc_vdisplay;
-		cur_size = intel_fb_align_height(dev, cur_size,
+		cur_size = intel_fb_align_height(to_i915(dev), cur_size,
 						 fb->base.format->format,
 						 fb->base.modifier);
 		cur_size *= fb->base.pitches[0];

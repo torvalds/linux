@@ -96,10 +96,9 @@ static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 static void ironlake_pch_clock_get(struct intel_crtc *crtc,
 				   struct intel_crtc_state *pipe_config);
 
-static int intel_framebuffer_init(struct drm_device *dev,
-				  struct intel_framebuffer *ifb,
-				  struct drm_mode_fb_cmd2 *mode_cmd,
-				  struct drm_i915_gem_object *obj);
+static int intel_framebuffer_init(struct intel_framebuffer *ifb,
+				  struct drm_i915_gem_object *obj,
+				  struct drm_mode_fb_cmd2 *mode_cmd);
 static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc);
 static void intel_set_pipe_timings(struct intel_crtc *intel_crtc);
 static void intel_set_pipe_src_size(struct intel_crtc *intel_crtc);
@@ -2052,11 +2051,13 @@ static void intel_tile_dims(const struct drm_i915_private *dev_priv,
 }
 
 unsigned int
-intel_fb_align_height(struct drm_device *dev, unsigned int height,
-		      uint32_t pixel_format, uint64_t fb_modifier)
+intel_fb_align_height(struct drm_i915_private *dev_priv,
+		      unsigned int height,
+		      uint32_t pixel_format,
+		      uint64_t fb_modifier)
 {
 	unsigned int cpp = drm_format_plane_cpp(pixel_format, 0);
-	unsigned int tile_height = intel_tile_height(to_i915(dev), fb_modifier, cpp);
+	unsigned int tile_height = intel_tile_height(dev_priv, fb_modifier, cpp);
 
 	return ALIGN(height, tile_height);
 }
@@ -2622,15 +2623,13 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 		return false;
 
 	mutex_lock(&dev->struct_mutex);
-
 	obj = i915_gem_object_create_stolen_for_preallocated(dev_priv,
 							     base_aligned,
 							     base_aligned,
 							     size_aligned);
-	if (!obj) {
-		mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev->struct_mutex);
+	if (!obj)
 		return false;
-	}
 
 	if (plane_config->tiling == I915_TILING_X)
 		obj->tiling_and_stride = fb->pitches[0] | I915_TILING_X;
@@ -2642,20 +2641,17 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 	mode_cmd.modifier[0] = fb->modifier;
 	mode_cmd.flags = DRM_MODE_FB_MODIFIERS;
 
-	if (intel_framebuffer_init(dev, to_intel_framebuffer(fb),
-				   &mode_cmd, obj)) {
+	if (intel_framebuffer_init(to_intel_framebuffer(fb), obj, &mode_cmd)) {
 		DRM_DEBUG_KMS("intel fb init failed\n");
 		goto out_unref_obj;
 	}
 
-	mutex_unlock(&dev->struct_mutex);
 
 	DRM_DEBUG_KMS("initial plane fb obj %p\n", obj);
 	return true;
 
 out_unref_obj:
 	i915_gem_object_put(obj);
-	mutex_unlock(&dev->struct_mutex);
 	return false;
 }
 
@@ -7434,7 +7430,8 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 	val = I915_READ(DSPSTRIDE(pipe));
 	fb->pitches[0] = val & 0xffffffc0;
 
-	aligned_height = intel_fb_align_height(dev, fb->height,
+	aligned_height = intel_fb_align_height(dev_priv,
+					       fb->height,
 					       fb->format->format,
 					       fb->modifier);
 
@@ -8475,7 +8472,8 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 						fb->format->format);
 	fb->pitches[0] = (val & 0x3ff) * stride_mult;
 
-	aligned_height = intel_fb_align_height(dev, fb->height,
+	aligned_height = intel_fb_align_height(dev_priv,
+					       fb->height,
 					       fb->format->format,
 					       fb->modifier);
 
@@ -8573,7 +8571,8 @@ ironlake_get_initial_plane_config(struct intel_crtc *crtc,
 	val = I915_READ(DSPSTRIDE(pipe));
 	fb->pitches[0] = val & 0xffffffc0;
 
-	aligned_height = intel_fb_align_height(dev, fb->height,
+	aligned_height = intel_fb_align_height(dev_priv,
+					       fb->height,
 					       fb->format->format,
 					       fb->modifier);
 
@@ -9399,9 +9398,8 @@ static struct drm_display_mode load_detect_mode = {
 };
 
 struct drm_framebuffer *
-__intel_framebuffer_create(struct drm_device *dev,
-			   struct drm_mode_fb_cmd2 *mode_cmd,
-			   struct drm_i915_gem_object *obj)
+intel_framebuffer_create(struct drm_i915_gem_object *obj,
+			 struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct intel_framebuffer *intel_fb;
 	int ret;
@@ -9410,7 +9408,7 @@ __intel_framebuffer_create(struct drm_device *dev,
 	if (!intel_fb)
 		return ERR_PTR(-ENOMEM);
 
-	ret = intel_framebuffer_init(dev, intel_fb, mode_cmd, obj);
+	ret = intel_framebuffer_init(intel_fb, obj, mode_cmd);
 	if (ret)
 		goto err;
 
@@ -9419,23 +9417,6 @@ __intel_framebuffer_create(struct drm_device *dev,
 err:
 	kfree(intel_fb);
 	return ERR_PTR(ret);
-}
-
-static struct drm_framebuffer *
-intel_framebuffer_create(struct drm_device *dev,
-			 struct drm_mode_fb_cmd2 *mode_cmd,
-			 struct drm_i915_gem_object *obj)
-{
-	struct drm_framebuffer *fb;
-	int ret;
-
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		return ERR_PTR(ret);
-	fb = __intel_framebuffer_create(dev, mode_cmd, obj);
-	mutex_unlock(&dev->struct_mutex);
-
-	return fb;
 }
 
 static u32
@@ -9472,7 +9453,7 @@ intel_framebuffer_create_for_mode(struct drm_device *dev,
 								bpp);
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(bpp, depth);
 
-	fb = intel_framebuffer_create(dev, &mode_cmd, obj);
+	fb = intel_framebuffer_create(obj, &mode_cmd);
 	if (IS_ERR(fb))
 		i915_gem_object_put(obj);
 
@@ -14319,7 +14300,7 @@ static
 u32 intel_fb_pitch_limit(struct drm_i915_private *dev_priv,
 			 uint64_t fb_modifier, uint32_t pixel_format)
 {
-	u32 gen = INTEL_INFO(dev_priv)->gen;
+	u32 gen = INTEL_GEN(dev_priv);
 
 	if (gen >= 9) {
 		int cpp = drm_format_plane_cpp(pixel_format, 0);
@@ -14346,18 +14327,17 @@ u32 intel_fb_pitch_limit(struct drm_i915_private *dev_priv,
 	}
 }
 
-static int intel_framebuffer_init(struct drm_device *dev,
-				  struct intel_framebuffer *intel_fb,
-				  struct drm_mode_fb_cmd2 *mode_cmd,
-				  struct drm_i915_gem_object *obj)
+static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
+				  struct drm_i915_gem_object *obj,
+				  struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	unsigned int tiling = i915_gem_object_get_tiling(obj);
-	int ret;
 	u32 pitch_limit, stride_alignment;
 	struct drm_format_name_buf format_name;
+	int ret = -EINVAL;
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	atomic_inc(&obj->framebuffer_references);
 
 	if (mode_cmd->flags & DRM_MODE_FB_MODIFIERS) {
 		/*
@@ -14367,14 +14347,14 @@ static int intel_framebuffer_init(struct drm_device *dev,
 		if (tiling != I915_TILING_NONE &&
 		    tiling != intel_fb_modifier_to_tiling(mode_cmd->modifier[0])) {
 			DRM_DEBUG("tiling_mode doesn't match fb modifier\n");
-			return -EINVAL;
+			goto err;
 		}
 	} else {
 		if (tiling == I915_TILING_X) {
 			mode_cmd->modifier[0] = I915_FORMAT_MOD_X_TILED;
 		} else if (tiling == I915_TILING_Y) {
 			DRM_DEBUG("No Y tiling for legacy addfb\n");
-			return -EINVAL;
+			goto err;
 		}
 	}
 
@@ -14385,7 +14365,7 @@ static int intel_framebuffer_init(struct drm_device *dev,
 		if (INTEL_GEN(dev_priv) < 9) {
 			DRM_DEBUG("Unsupported tiling 0x%llx!\n",
 				  mode_cmd->modifier[0]);
-			return -EINVAL;
+			goto err;
 		}
 	case DRM_FORMAT_MOD_NONE:
 	case I915_FORMAT_MOD_X_TILED:
@@ -14393,7 +14373,7 @@ static int intel_framebuffer_init(struct drm_device *dev,
 	default:
 		DRM_DEBUG("Unsupported fb modifier 0x%llx!\n",
 			  mode_cmd->modifier[0]);
-		return -EINVAL;
+		goto err;
 	}
 
 	/*
@@ -14412,7 +14392,7 @@ static int intel_framebuffer_init(struct drm_device *dev,
 	if (mode_cmd->pitches[0] & (stride_alignment - 1)) {
 		DRM_DEBUG("pitch (%d) must be at least %u byte aligned\n",
 			  mode_cmd->pitches[0], stride_alignment);
-		return -EINVAL;
+		goto err;
 	}
 
 	pitch_limit = intel_fb_pitch_limit(dev_priv, mode_cmd->modifier[0],
@@ -14422,7 +14402,7 @@ static int intel_framebuffer_init(struct drm_device *dev,
 			  mode_cmd->modifier[0] != DRM_FORMAT_MOD_NONE ?
 			  "tiled" : "linear",
 			  mode_cmd->pitches[0], pitch_limit);
-		return -EINVAL;
+		goto err;
 	}
 
 	/*
@@ -14434,7 +14414,7 @@ static int intel_framebuffer_init(struct drm_device *dev,
 		DRM_DEBUG("pitch (%d) must match tiling stride (%d)\n",
 			  mode_cmd->pitches[0],
 			  i915_gem_object_get_stride(obj));
-		return -EINVAL;
+		goto err;
 	}
 
 	/* Reject formats not supported by any plane early. */
@@ -14493,24 +14473,29 @@ static int intel_framebuffer_init(struct drm_device *dev,
 
 	/* FIXME need to adjust LINOFF/TILEOFF accordingly. */
 	if (mode_cmd->offsets[0] != 0)
-		return -EINVAL;
+		goto err;
 
-	drm_helper_mode_fill_fb_struct(dev, &intel_fb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(&dev_priv->drm,
+				       &intel_fb->base, mode_cmd);
 	intel_fb->obj = obj;
 
 	ret = intel_fill_fb_info(dev_priv, &intel_fb->base);
 	if (ret)
 		return ret;
 
-	ret = drm_framebuffer_init(dev, &intel_fb->base, &intel_fb_funcs);
+	ret = drm_framebuffer_init(obj->base.dev,
+				   &intel_fb->base,
+				   &intel_fb_funcs);
 	if (ret) {
 		DRM_ERROR("framebuffer init failed %d\n", ret);
-		return ret;
+		goto err;
 	}
 
-	atomic_inc(&intel_fb->obj->framebuffer_references);
-
 	return 0;
+
+err:
+	atomic_dec(&obj->framebuffer_references);
+	return ret;
 }
 
 static struct drm_framebuffer *
@@ -14526,7 +14511,7 @@ intel_user_framebuffer_create(struct drm_device *dev,
 	if (!obj)
 		return ERR_PTR(-ENOENT);
 
-	fb = intel_framebuffer_create(dev, &mode_cmd, obj);
+	fb = intel_framebuffer_create(obj, &mode_cmd);
 	if (IS_ERR(fb))
 		i915_gem_object_put(obj);
 
