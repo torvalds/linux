@@ -131,7 +131,7 @@ void mmu_cleanup_all(void)
 int create_section_mapping(unsigned long start, unsigned long end)
 {
 	if (radix_enabled())
-		return -ENODEV;
+		return radix__create_section_mapping(start, end);
 
 	return hash__create_section_mapping(start, end);
 }
@@ -139,7 +139,7 @@ int create_section_mapping(unsigned long start, unsigned long end)
 int remove_section_mapping(unsigned long start, unsigned long end)
 {
 	if (radix_enabled())
-		return -ENODEV;
+		return radix__remove_section_mapping(start, end);
 
 	return hash__remove_section_mapping(start, end);
 }

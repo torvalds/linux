@@ -290,7 +290,7 @@ int of_node_to_nid(struct device_node *device)
 
 	return nid;
 }
-EXPORT_SYMBOL_GPL(of_node_to_nid);
+EXPORT_SYMBOL(of_node_to_nid);
 
 static int __init find_min_common_depth(void)
 {
@@ -786,14 +786,9 @@ new_range:
 		fake_numa_create_new_node(((start + size) >> PAGE_SHIFT), &nid);
 		node_set_online(nid);
 
-		if (!(size = numa_enforce_memory_limit(start, size))) {
-			if (--ranges)
-				goto new_range;
-			else
-				continue;
-		}
-
-		memblock_set_node(start, size, &memblock.memory, nid);
+		size = numa_enforce_memory_limit(start, size);
+		if (size)
+			memblock_set_node(start, size, &memblock.memory, nid);
 
 		if (--ranges)
 			goto new_range;
@@ -1098,7 +1093,7 @@ int hot_add_scn_to_nid(unsigned long scn_addr)
 		nid = hot_add_node_scn_to_nid(scn_addr);
 	}
 
-	if (nid < 0 || !node_online(nid))
+	if (nid < 0 || !node_possible(nid))
 		nid = first_online_node;
 
 	return nid;

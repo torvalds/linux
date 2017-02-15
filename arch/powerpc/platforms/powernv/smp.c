@@ -184,15 +184,17 @@ static void pnv_smp_cpu_kill_self(void)
 
 		ppc64_runlatch_off();
 
-		if (cpu_has_feature(CPU_FTR_ARCH_300))
-			srr1 = power9_idle_stop(pnv_deepest_stop_state);
-		else if (idle_states & OPAL_PM_WINKLE_ENABLED)
+		if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+			srr1 = power9_idle_stop(pnv_deepest_stop_psscr_val,
+						pnv_deepest_stop_psscr_mask);
+		} else if (idle_states & OPAL_PM_WINKLE_ENABLED) {
 			srr1 = power7_winkle();
-		else if ((idle_states & OPAL_PM_SLEEP_ENABLED) ||
-				(idle_states & OPAL_PM_SLEEP_ENABLED_ER1))
+		} else if ((idle_states & OPAL_PM_SLEEP_ENABLED) ||
+			   (idle_states & OPAL_PM_SLEEP_ENABLED_ER1)) {
 			srr1 = power7_sleep();
-		else
+		} else {
 			srr1 = power7_nap(1);
+		}
 
 		ppc64_runlatch_on();
 

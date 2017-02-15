@@ -33,9 +33,9 @@
 				 H_PUD_INDEX_SIZE + H_PGD_INDEX_SIZE + PAGE_SHIFT)
 #define H_PGTABLE_RANGE		(ASM_CONST(1) << H_PGTABLE_EADDR_SIZE)
 
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) &&  defined(CONFIG_PPC_64K_PAGES)
 /*
- * only with hash we need to use the second half of pmd page table
+ * only with hash 64k we need to use the second half of pmd page table
  * to store pointer to deposited pgtable_t
  */
 #define H_PMD_CACHE_INDEX	(H_PMD_INDEX_SIZE + 1)
