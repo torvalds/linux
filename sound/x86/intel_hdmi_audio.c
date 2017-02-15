@@ -1384,17 +1384,14 @@ static void had_process_hot_plug(struct snd_intelhad *intelhaddata)
 			__func__, __LINE__);
 	spin_unlock_irq(&intelhaddata->had_spinlock);
 
-	/* Safety check */
+	had_build_channel_allocation_map(intelhaddata);
+
+	/* Report to above ALSA layer */
 	substream = had_substream_get(intelhaddata);
 	if (substream) {
-		dev_dbg(intelhaddata->dev,
-			"Force to stop the active stream by disconnection\n");
-		/* Set runtime->state to hw_params done */
 		snd_pcm_stop_xrun(substream);
 		had_substream_put(intelhaddata);
 	}
-
-	had_build_channel_allocation_map(intelhaddata);
 
 	snd_jack_report(intelhaddata->jack, SND_JACK_AVOUT);
 }
@@ -1404,14 +1401,11 @@ static void had_process_hot_unplug(struct snd_intelhad *intelhaddata)
 {
 	struct snd_pcm_substream *substream;
 
-	substream = had_substream_get(intelhaddata);
-
 	spin_lock_irq(&intelhaddata->had_spinlock);
-
 	if (!intelhaddata->connected) {
 		dev_dbg(intelhaddata->dev, "Device already disconnected\n");
 		spin_unlock_irq(&intelhaddata->had_spinlock);
-		goto out;
+		return;
 
 	}
 
@@ -1424,16 +1418,17 @@ static void had_process_hot_unplug(struct snd_intelhad *intelhaddata)
 			__func__, __LINE__);
 	spin_unlock_irq(&intelhaddata->had_spinlock);
 
-	/* Report to above ALSA layer */
-	if (substream)
-		snd_pcm_stop_xrun(substream);
-
- out:
-	snd_jack_report(intelhaddata->jack, 0);
-	if (substream)
-		had_substream_put(intelhaddata);
 	kfree(intelhaddata->chmap->chmap);
 	intelhaddata->chmap->chmap = NULL;
+
+	/* Report to above ALSA layer */
+	substream = had_substream_get(intelhaddata);
+	if (substream) {
+		snd_pcm_stop_xrun(substream);
+		had_substream_put(intelhaddata);
+	}
+
+	snd_jack_report(intelhaddata->jack, 0);
 }
 
 /*
