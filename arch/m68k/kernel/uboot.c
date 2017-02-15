@@ -83,8 +83,7 @@ static void __init parse_uboot_commandline(char *commandp, int size)
 		initrd_start = uboot_initrd_start;
 		initrd_end = uboot_initrd_end;
 		ROOT_DEV = Root_RAM0;
-		printk(KERN_INFO "initrd at 0x%lx:0x%lx\n",
-			initrd_start, initrd_end);
+		pr_info("initrd at 0x%lx:0x%lx\n", initrd_start, initrd_end);
 	}
 #endif /* if defined(CONFIG_BLK_DEV_INITRD) */
 }

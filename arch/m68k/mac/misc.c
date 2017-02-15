@@ -4,7 +4,6 @@
 
 #include <linux/types.h>
 #include <linux/errno.h>
-#include <linux/miscdevice.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
