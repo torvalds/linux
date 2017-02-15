@@ -42,7 +42,6 @@ typedef struct xlog_recover_item {
 	xfs_log_iovec_t		*ri_buf;	/* ptr to regions buffer */
 } xlog_recover_item_t;
 
-struct xlog_tid;
 typedef struct xlog_recover {
 	struct hlist_node	r_list;
 	xlog_tid_t		r_log_tid;	/* log's transaction id */

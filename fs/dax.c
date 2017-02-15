@@ -1079,7 +1079,7 @@ dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
  */
 ssize_t
 dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
-		struct iomap_ops *ops)
+		const struct iomap_ops *ops)
 {
 	struct address_space *mapping = iocb->ki_filp->f_mapping;
 	struct inode *inode = mapping->host;
@@ -1127,7 +1127,7 @@ static int dax_fault_return(int error)
  * necessary locking for the page fault to proceed successfully.
  */
 int dax_iomap_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
-			struct iomap_ops *ops)
+			const struct iomap_ops *ops)
 {
 	struct address_space *mapping = vma->vm_file->f_mapping;
 	struct inode *inode = mapping->host;
@@ -1326,7 +1326,7 @@ static int dax_pmd_load_hole(struct vm_area_struct *vma, pmd_t *pmd,
 }
 
 int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
-		pmd_t *pmd, unsigned int flags, struct iomap_ops *ops)
+		pmd_t *pmd, unsigned int flags, const struct iomap_ops *ops)
 {
 	struct address_space *mapping = vma->vm_file->f_mapping;
 	unsigned long pmd_addr = address & PMD_MASK;

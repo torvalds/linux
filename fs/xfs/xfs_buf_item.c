@@ -1162,6 +1162,7 @@ xfs_buf_iodone_callbacks(
 	 */
 	bp->b_last_error = 0;
 	bp->b_retries = 0;
+	bp->b_first_retry_time = 0;
 
 	xfs_buf_do_callbacks(bp);
 	bp->b_fspriv = NULL;
