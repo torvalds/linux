@@ -1385,10 +1385,16 @@ xfs_shift_file_space(
 	xfs_fileoff_t		stop_fsb;
 	xfs_fileoff_t		next_fsb;
 	xfs_fileoff_t		shift_fsb;
+	uint			resblks;
 
 	ASSERT(direction == SHIFT_LEFT || direction == SHIFT_RIGHT);
 
 	if (direction == SHIFT_LEFT) {
+		/*
+		 * Reserve blocks to cover potential extent merges after left
+		 * shift operations.
+		 */
+		resblks = XFS_DIOSTRAT_SPACE_RES(mp, 0);
 		next_fsb = XFS_B_TO_FSB(mp, offset + len);
 		stop_fsb = XFS_B_TO_FSB(mp, VFS_I(ip)->i_size);
 	} else {
@@ -1396,6 +1402,7 @@ xfs_shift_file_space(
 		 * If right shift, delegate the work of initialization of
 		 * next_fsb to xfs_bmap_shift_extent as it has ilock held.
 		 */
+		resblks = 0;
 		next_fsb = NULLFSBLOCK;
 		stop_fsb = XFS_B_TO_FSB(mp, offset);
 	}
@@ -1437,21 +1444,14 @@ xfs_shift_file_space(
 	}
 
 	while (!error && !done) {
-		/*
-		 * We would need to reserve permanent block for transaction.
-		 * This will come into picture when after shifting extent into
-		 * hole we found that adjacent extents can be merged which
-		 * may lead to freeing of a block during record update.
-		 */
-		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write,
-				XFS_DIOSTRAT_SPACE_RES(mp, 0), 0, 0, &tp);
+		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, resblks, 0, 0,
+					&tp);
 		if (error)
 			break;
 
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		error = xfs_trans_reserve_quota(tp, mp, ip->i_udquot,
-				ip->i_gdquot, ip->i_pdquot,
-				XFS_DIOSTRAT_SPACE_RES(mp, 0), 0,
+				ip->i_gdquot, ip->i_pdquot, resblks, 0,
 				XFS_QMOPT_RES_REGBLKS);
 		if (error)
 			goto out_trans_cancel;
