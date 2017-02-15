@@ -728,9 +728,10 @@ void ieee80211_sta_ps_deliver_uapsd(struct sta_info *sta);
 unsigned long ieee80211_sta_last_active(struct sta_info *sta);
 
 #define STA_STATS_RATE_INVALID		0
-#define STA_STATS_RATE_VHT		0x8000
-#define STA_STATS_RATE_HT		0x4000
-#define STA_STATS_RATE_LEGACY		0x2000
+#define STA_STATS_RATE_TYPE_MASK	0xC000
+#define STA_STATS_RATE_TYPE_LEGACY	0x4000
+#define STA_STATS_RATE_TYPE_HT		0x8000
+#define STA_STATS_RATE_TYPE_VHT		0xC000
 #define STA_STATS_RATE_SGI		0x1000
 #define STA_STATS_RATE_BW_SHIFT		9
 #define STA_STATS_RATE_BW_MASK		(0x7 << STA_STATS_RATE_BW_SHIFT)
@@ -756,11 +757,11 @@ static inline u16 sta_stats_encode_rate(struct ieee80211_rx_status *s)
 		r |= STA_STATS_RATE_SGI;
 
 	if (s->flag & RX_FLAG_VHT)
-		r |= STA_STATS_RATE_VHT | (s->vht_nss << 4);
+		r |= STA_STATS_RATE_TYPE_VHT | (s->vht_nss << 4);
 	else if (s->flag & RX_FLAG_HT)
-		r |= STA_STATS_RATE_HT;
+		r |= STA_STATS_RATE_TYPE_HT;
 	else
-		r |= STA_STATS_RATE_LEGACY | (s->band << 4);
+		r |= STA_STATS_RATE_TYPE_LEGACY | (s->band << 4);
 
 	return r;
 }
