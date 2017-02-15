@@ -57,6 +57,9 @@ static ssize_t ext4_dax_read_iter(struct kiocb *iocb, struct iov_iter *to)
 
 static ssize_t ext4_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(file_inode(iocb->ki_filp)->i_sb))))
+		return -EIO;
+
 	if (!iov_iter_count(to))
 		return 0; /* skip atime */
 
@@ -175,7 +178,6 @@ ext4_dax_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct inode *inode = file_inode(iocb->ki_filp);
 	ssize_t ret;
-	bool overwrite = false;
 
 	inode_lock(inode);
 	ret = ext4_write_checks(iocb, from);
@@ -188,16 +190,9 @@ ext4_dax_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (ret)
 		goto out;
 
-	if (ext4_overwrite_io(inode, iocb->ki_pos, iov_iter_count(from))) {
-		overwrite = true;
-		downgrade_write(&inode->i_rwsem);
-	}
 	ret = dax_iomap_rw(iocb, from, &ext4_iomap_ops);
 out:
-	if (!overwrite)
-		inode_unlock(inode);
-	else
-		inode_unlock_shared(inode);
+	inode_unlock(inode);
 	if (ret > 0)
 		ret = generic_write_sync(iocb, ret);
 	return ret;
@@ -212,6 +207,9 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	int unaligned_aio = 0;
 	int overwrite = 0;
 	ssize_t ret;
+
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
+		return -EIO;
 
 #ifdef CONFIG_FS_DAX
 	if (IS_DAX(inode))
@@ -348,6 +346,9 @@ static int ext4_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct inode *inode = file->f_mapping->host;
 
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
+		return -EIO;
+
 	if (ext4_encrypted_inode(inode)) {
 		int err = fscrypt_get_encryption_info(inode);
 		if (err)
@@ -374,6 +375,9 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 	struct path path;
 	char buf[64], *cp;
 	int ret;
+
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
+		return -EIO;
 
 	if (unlikely(!(sbi->s_mount_flags & EXT4_MF_MNTDIR_SAMPLED) &&
 		     !(sb->s_flags & MS_RDONLY))) {
