@@ -143,8 +143,8 @@ static int gfs2_writepage(struct page *page, struct writeback_control *wbc)
 /* This is the same as calling block_write_full_page, but it also
  * writes pages outside of i_size
  */
-int gfs2_write_full_page(struct page *page, get_block_t *get_block,
-			 struct writeback_control *wbc)
+static int gfs2_write_full_page(struct page *page, get_block_t *get_block,
+				struct writeback_control *wbc)
 {
 	struct inode * const inode = page->mapping->host;
 	loff_t i_size = i_size_read(inode);
