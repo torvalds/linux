@@ -228,7 +228,7 @@ static int bnxt_re_net_ring_free(struct bnxt_re_dev *rdev, u16 fw_ring_id,
 	}
 
 	bnxt_re_init_hwrm_hdr(rdev, (void *)&req, HWRM_RING_FREE, -1, -1);
-	req.ring_type = RING_ALLOC_REQ_RING_TYPE_CMPL;
+	req.ring_type = RING_ALLOC_REQ_RING_TYPE_L2_CMPL;
 	req.ring_id = cpu_to_le16(fw_ring_id);
 	bnxt_re_fill_fw_msg(&fw_msg, (void *)&req, sizeof(req), (void *)&resp,
 			    sizeof(resp), DFLT_HWRM_CMD_TIMEOUT);
@@ -268,7 +268,7 @@ static int bnxt_re_net_ring_alloc(struct bnxt_re_dev *rdev, dma_addr_t *dma_arr,
 	/* Association of ring index with doorbell index and MSIX number */
 	req.logical_id = cpu_to_le16(map_index);
 	req.length = cpu_to_le32(ring_mask + 1);
-	req.ring_type = RING_ALLOC_REQ_RING_TYPE_CMPL;
+	req.ring_type = RING_ALLOC_REQ_RING_TYPE_L2_CMPL;
 	req.int_mode = RING_ALLOC_REQ_INT_MODE_MSIX;
 	bnxt_re_fill_fw_msg(&fw_msg, (void *)&req, sizeof(req), (void *)&resp,
 			    sizeof(resp), DFLT_HWRM_CMD_TIMEOUT);
