@@ -9359,17 +9359,16 @@ out:
 	return ret;
 }
 
-int btrfs_inc_block_group_ro(struct btrfs_root *root,
+int btrfs_inc_block_group_ro(struct btrfs_fs_info *fs_info,
 			     struct btrfs_block_group_cache *cache)
 
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_trans_handle *trans;
 	u64 alloc_flags;
 	int ret;
 
 again:
-	trans = btrfs_join_transaction(root);
+	trans = btrfs_join_transaction(fs_info->extent_root);
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 
