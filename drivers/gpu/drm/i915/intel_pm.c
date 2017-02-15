@@ -4376,6 +4376,12 @@ static void gen6_set_rps_thresholds(struct drm_i915_private *dev_priv, u8 val)
 		break;
 	}
 
+	/* When byt can survive without system hang with dynamic
+	 * sw freq adjustments, this restriction can be lifted.
+	 */
+	if (IS_VALLEYVIEW(dev_priv))
+		goto skip_hw_write;
+
 	I915_WRITE(GEN6_RP_UP_EI,
 		GT_INTERVAL_FROM_US(dev_priv, ei_up));
 	I915_WRITE(GEN6_RP_UP_THRESHOLD,
@@ -4394,6 +4400,7 @@ static void gen6_set_rps_thresholds(struct drm_i915_private *dev_priv, u8 val)
 		    GEN6_RP_UP_BUSY_AVG |
 		    GEN6_RP_DOWN_IDLE_AVG);
 
+skip_hw_write:
 	dev_priv->rps.power = new_power;
 	dev_priv->rps.up_threshold = threshold_up;
 	dev_priv->rps.down_threshold = threshold_down;
