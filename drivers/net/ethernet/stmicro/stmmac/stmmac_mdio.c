@@ -247,50 +247,48 @@ int stmmac_mdio_register(struct net_device *ndev)
 	found = 0;
 	for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
 		struct phy_device *phydev = mdiobus_get_phy(new_bus, addr);
+		int act = 0;
+		char irq_num[4];
+		char *irq_str;
 
-		if (phydev) {
-			int act = 0;
-			char irq_num[4];
-			char *irq_str;
+		if (!phydev)
+			continue;
 
-			/*
-			 * If an IRQ was provided to be assigned after
-			 * the bus probe, do it here.
-			 */
-			if ((!mdio_bus_data->irqs) &&
-			    (mdio_bus_data->probed_phy_irq > 0)) {
-				new_bus->irq[addr] =
-					mdio_bus_data->probed_phy_irq;
-				phydev->irq = mdio_bus_data->probed_phy_irq;
-			}
-
-			/*
-			 * If we're going to bind the MAC to this PHY bus,
-			 * and no PHY number was provided to the MAC,
-			 * use the one probed here.
-			 */
-			if (priv->plat->phy_addr == -1)
-				priv->plat->phy_addr = addr;
-
-			act = (priv->plat->phy_addr == addr);
-			switch (phydev->irq) {
-			case PHY_POLL:
-				irq_str = "POLL";
-				break;
-			case PHY_IGNORE_INTERRUPT:
-				irq_str = "IGNORE";
-				break;
-			default:
-				sprintf(irq_num, "%d", phydev->irq);
-				irq_str = irq_num;
-				break;
-			}
-			netdev_info(ndev, "PHY ID %08x at %d IRQ %s (%s)%s\n",
-				    phydev->phy_id, addr,
-				    irq_str, phydev_name(phydev),
-				    act ? " active" : "");
-			found = 1;
+		/*
+		 * If an IRQ was provided to be assigned after
+		 * the bus probe, do it here.
+		 */
+		if (!mdio_bus_data->irqs &&
+		    (mdio_bus_data->probed_phy_irq > 0)) {
+			new_bus->irq[addr] = mdio_bus_data->probed_phy_irq;
+			phydev->irq = mdio_bus_data->probed_phy_irq;
 		}
+
+		/*
+		 * If we're going to bind the MAC to this PHY bus,
+		 * and no PHY number was provided to the MAC,
+		 * use the one probed here.
+		 */
+		if (priv->plat->phy_addr == -1)
+			priv->plat->phy_addr = addr;
+
+		act = (priv->plat->phy_addr == addr);
+		switch (phydev->irq) {
+		case PHY_POLL:
+			irq_str = "POLL";
+			break;
+		case PHY_IGNORE_INTERRUPT:
+			irq_str = "IGNORE";
+			break;
+		default:
+			sprintf(irq_num, "%d", phydev->irq);
+			irq_str = irq_num;
+			break;
+		}
+		netdev_info(ndev, "PHY ID %08x at %d IRQ %s (%s)%s\n",
+			    phydev->phy_id, addr, irq_str, phydev_name(phydev),
+			    act ? " active" : "");
+		found = 1;
 	}
 
 	if (!found && !mdio_node) {

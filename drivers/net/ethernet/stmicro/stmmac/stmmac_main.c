@@ -716,32 +716,36 @@ static void stmmac_adjust_link(struct net_device *dev)
 			new_state = 1;
 			switch (phydev->speed) {
 			case 1000:
-				if (likely((priv->plat->has_gmac) ||
-					   (priv->plat->has_gmac4)))
+				if (priv->plat->has_gmac ||
+				    priv->plat->has_gmac4)
 					ctrl &= ~priv->hw->link.port;
-				stmmac_hw_fix_mac_speed(priv);
 				break;
 			case 100:
-			case 10:
-				if (likely((priv->plat->has_gmac) ||
-					   (priv->plat->has_gmac4))) {
+				if (priv->plat->has_gmac ||
+				    priv->plat->has_gmac4) {
 					ctrl |= priv->hw->link.port;
-					if (phydev->speed == SPEED_100) {
-						ctrl |= priv->hw->link.speed;
-					} else {
-						ctrl &= ~(priv->hw->link.speed);
-					}
+					ctrl |= priv->hw->link.speed;
 				} else {
 					ctrl &= ~priv->hw->link.port;
 				}
-				stmmac_hw_fix_mac_speed(priv);
+				break;
+			case 10:
+				if (priv->plat->has_gmac ||
+				    priv->plat->has_gmac4) {
+					ctrl |= priv->hw->link.port;
+					ctrl &= ~(priv->hw->link.speed);
+				} else {
+					ctrl &= ~priv->hw->link.port;
+				}
 				break;
 			default:
 				netif_warn(priv, link, priv->dev,
 					   "broken speed: %d\n", phydev->speed);
+				phydev->speed = SPEED_UNKNOWN;
 				break;
 			}
-
+			if (phydev->speed != SPEED_UNKNOWN)
+				stmmac_hw_fix_mac_speed(priv);
 			priv->speed = phydev->speed;
 		}
 
@@ -754,8 +758,8 @@ static void stmmac_adjust_link(struct net_device *dev)
 	} else if (priv->oldlink) {
 		new_state = 1;
 		priv->oldlink = 0;
-		priv->speed = 0;
-		priv->oldduplex = -1;
+		priv->speed = SPEED_UNKNOWN;
+		priv->oldduplex = DUPLEX_UNKNOWN;
 	}
 
 	if (new_state && netif_msg_link(priv))
@@ -817,8 +821,8 @@ static int stmmac_init_phy(struct net_device *dev)
 	int interface = priv->plat->interface;
 	int max_speed = priv->plat->max_speed;
 	priv->oldlink = 0;
-	priv->speed = 0;
-	priv->oldduplex = -1;
+	priv->speed = SPEED_UNKNOWN;
+	priv->oldduplex = DUPLEX_UNKNOWN;
 
 	if (priv->plat->phy_node) {
 		phydev = of_phy_connect(dev, priv->plat->phy_node,
@@ -3434,8 +3438,8 @@ int stmmac_suspend(struct device *dev)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	priv->oldlink = 0;
-	priv->speed = 0;
-	priv->oldduplex = -1;
+	priv->speed = SPEED_UNKNOWN;
+	priv->oldduplex = DUPLEX_UNKNOWN;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(stmmac_suspend);
