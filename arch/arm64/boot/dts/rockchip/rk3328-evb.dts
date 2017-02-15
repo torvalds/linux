@@ -109,6 +109,14 @@
 	status = "okay";
 };
 
+&usbdrd3 {
+	status = "okay";
+};
+
+&usbdrd_dwc3 {
+	status = "okay";
+};
+
 &i2c1 {
 	status = "okay";
 
