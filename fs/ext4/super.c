@@ -3666,7 +3666,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	db_count = (sbi->s_groups_count + EXT4_DESC_PER_BLOCK(sb) - 1) /
 		   EXT4_DESC_PER_BLOCK(sb);
 	if (ext4_has_feature_meta_bg(sb)) {
-		if (le32_to_cpu(es->s_first_meta_bg) >= db_count) {
+		if (le32_to_cpu(es->s_first_meta_bg) > db_count) {
 			ext4_msg(sb, KERN_WARNING,
 				 "first meta block group too large: %u "
 				 "(group descriptor block count %u)",
