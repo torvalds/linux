@@ -95,10 +95,14 @@ check_attr_support(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		   u32 *bmval, u32 *writable)
 {
 	struct dentry *dentry = cstate->current_fh.fh_dentry;
+	struct svc_export *exp = cstate->current_fh.fh_export;
 
 	if (!nfsd_attrs_supported(cstate->minorversion, bmval))
 		return nfserr_attrnotsupp;
 	if ((bmval[0] & FATTR4_WORD0_ACL) && !IS_POSIXACL(d_inode(dentry)))
+		return nfserr_attrnotsupp;
+	if ((bmval[2] & FATTR4_WORD2_SECURITY_LABEL) &&
+			!(exp->ex_flags & NFSEXP_SECURITY_LABEL))
 		return nfserr_attrnotsupp;
 	if (writable && !bmval_is_subset(bmval, writable))
 		return nfserr_inval;
@@ -983,7 +987,7 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	status = nfsd_vfs_write(rqstp, &cstate->current_fh, filp,
 				write->wr_offset, rqstp->rq_vec, nvecs, &cnt,
-				&write->wr_how_written);
+				write->wr_how_written);
 	fput(filp);
 
 	write->wr_bytes_written = cnt;
