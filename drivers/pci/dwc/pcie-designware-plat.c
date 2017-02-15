@@ -104,6 +104,8 @@ static int dw_plat_pcie_probe(struct platform_device *pdev)
 	if (IS_ERR(pp->dbi_base))
 		return PTR_ERR(pp->dbi_base);
 
+	platform_set_drvdata(pdev, dw_plat_pcie);
+
 	ret = dw_plat_add_pcie_port(pp, pdev);
 	if (ret < 0)
 		return ret;

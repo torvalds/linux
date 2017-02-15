@@ -261,6 +261,8 @@ static int artpec6_pcie_probe(struct platform_device *pdev)
 	if (IS_ERR(artpec6_pcie->regmap))
 		return PTR_ERR(artpec6_pcie->regmap);
 
+	platform_set_drvdata(pdev, artpec6_pcie);
+
 	ret = artpec6_add_pcie_port(artpec6_pcie, pdev);
 	if (ret < 0)
 		return ret;

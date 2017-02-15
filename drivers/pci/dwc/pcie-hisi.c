@@ -287,6 +287,8 @@ static int hisi_pcie_probe(struct platform_device *pdev)
 	if (IS_ERR(pp->dbi_base))
 		return PTR_ERR(pp->dbi_base);
 
+	platform_set_drvdata(pdev, hisi_pcie);
+
 	ret = hisi_add_pcie_port(hisi_pcie, pdev);
 	if (ret)
 		return ret;

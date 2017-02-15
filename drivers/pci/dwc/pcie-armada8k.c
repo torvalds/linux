@@ -226,6 +226,8 @@ static int armada8k_pcie_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
+	platform_set_drvdata(pdev, pcie);
+
 	ret = armada8k_add_pcie_port(pcie, pdev);
 	if (ret)
 		goto fail;

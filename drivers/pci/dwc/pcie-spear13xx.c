@@ -270,11 +270,12 @@ static int spear13xx_pcie_probe(struct platform_device *pdev)
 	if (of_property_read_bool(np, "st,pcie-is-gen1"))
 		spear13xx_pcie->is_gen1 = true;
 
+	platform_set_drvdata(pdev, spear13xx_pcie);
+
 	ret = spear13xx_add_pcie_port(spear13xx_pcie, pdev);
 	if (ret < 0)
 		goto fail_clk;
 
-	platform_set_drvdata(pdev, spear13xx_pcie);
 	return 0;
 
 fail_clk:

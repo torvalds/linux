@@ -268,6 +268,8 @@ static int __init ls_pcie_probe(struct platform_device *pdev)
 	if (!ls_pcie_is_bridge(pcie))
 		return -ENODEV;
 
+	platform_set_drvdata(pdev, pcie);
+
 	ret = ls_add_pcie_port(pcie);
 	if (ret < 0)
 		return ret;

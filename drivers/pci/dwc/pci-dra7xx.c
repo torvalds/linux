@@ -433,6 +433,8 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	platform_set_drvdata(pdev, dra7xx);
+
 	pm_runtime_enable(dev);
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
@@ -459,7 +461,6 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_gpio;
 
-	platform_set_drvdata(pdev, dra7xx);
 	return 0;
 
 err_gpio:

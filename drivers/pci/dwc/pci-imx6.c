@@ -719,11 +719,12 @@ static int __init imx6_pcie_probe(struct platform_device *pdev)
 	if (ret)
 		imx6_pcie->link_gen = 1;
 
+	platform_set_drvdata(pdev, imx6_pcie);
+
 	ret = imx6_add_pcie_port(imx6_pcie, pdev);
 	if (ret < 0)
 		return ret;
 
-	platform_set_drvdata(pdev, imx6_pcie);
 	return 0;
 }
 

@@ -583,11 +583,12 @@ static int __init exynos_pcie_probe(struct platform_device *pdev)
 		goto fail_bus_clk;
 	}
 
+	platform_set_drvdata(pdev, exynos_pcie);
+
 	ret = exynos_add_pcie_port(exynos_pcie, pdev);
 	if (ret < 0)
 		goto fail_bus_clk;
 
-	platform_set_drvdata(pdev, exynos_pcie);
 	return 0;
 
 fail_bus_clk:
