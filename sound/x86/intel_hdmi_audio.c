@@ -504,11 +504,6 @@ static void had_build_channel_allocation_map(struct snd_intelhad *intelhaddata)
 static int had_chmap_ctl_info(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_info *uinfo)
 {
-	struct snd_pcm_chmap *info = snd_kcontrol_chip(kcontrol);
-	struct snd_intelhad *intelhaddata = info->private_data;
-
-	if (!intelhaddata->connected)
-		return -ENODEV;
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = HAD_MAX_CHANNEL;
 	uinfo->value.integer.min = 0;
@@ -524,13 +519,12 @@ static int had_chmap_ctl_get(struct snd_kcontrol *kcontrol,
 	int i;
 	const struct snd_pcm_chmap_elem *chmap;
 
-	if (!intelhaddata->connected)
-		return -ENODEV;
-
+	memset(ucontrol->value.integer.value, 0,
+	       sizeof(long) * HAD_MAX_CHANNEL);
 	mutex_lock(&intelhaddata->mutex);
 	if (!intelhaddata->chmap->chmap) {
 		mutex_unlock(&intelhaddata->mutex);
-		return -ENODATA;
+		return 0;
 	}
 
 	chmap = intelhaddata->chmap->chmap;
