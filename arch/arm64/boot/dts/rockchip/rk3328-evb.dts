@@ -83,6 +83,19 @@
 	};
 };
 
+&u3phy {
+	vbus-drv-gpios = <&gpio0 0 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&u3phy_utmi {
+	status = "okay";
+};
+
+&u3phy_pipe {
+	status = "okay";
+};
+
 &usb20_otg {
 	dr_mode = "peripheral";
 	status = "okay";
