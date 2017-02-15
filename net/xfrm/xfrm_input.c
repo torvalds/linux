@@ -105,6 +105,8 @@ struct sec_path *secpath_dup(struct sec_path *src)
 		return NULL;
 
 	sp->len = 0;
+	sp->olen = 0;
+
 	if (src) {
 		int i;
 
