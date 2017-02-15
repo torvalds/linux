@@ -1709,36 +1709,28 @@ static void gen6_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
 }
 
 /* Write pde (index) from the page directory @pd to the page table @pt */
-static void gen6_write_pde(struct i915_page_directory *pd,
-			    const int pde, struct i915_page_table *pt)
+static inline void gen6_write_pde(const struct i915_hw_ppgtt *ppgtt,
+				  const unsigned int pde,
+				  const struct i915_page_table *pt)
 {
 	/* Caller needs to make sure the write completes if necessary */
-	struct i915_hw_ppgtt *ppgtt =
-		container_of(pd, struct i915_hw_ppgtt, pd);
-	u32 pd_entry;
-
-	pd_entry = GEN6_PDE_ADDR_ENCODE(px_dma(pt));
-	pd_entry |= GEN6_PDE_VALID;
-
-	writel(pd_entry, ppgtt->pd_addr + pde);
+	writel_relaxed(GEN6_PDE_ADDR_ENCODE(px_dma(pt)) | GEN6_PDE_VALID,
+		       ppgtt->pd_addr + pde);
 }
 
 /* Write all the page tables found in the ppgtt structure to incrementing page
  * directories. */
-static void gen6_write_page_range(struct drm_i915_private *dev_priv,
-				  struct i915_page_directory *pd,
+static void gen6_write_page_range(struct i915_hw_ppgtt *ppgtt,
 				  uint32_t start, uint32_t length)
 {
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct i915_page_table *pt;
-	uint32_t pde;
+	unsigned int pde;
 
-	gen6_for_each_pde(pt, pd, start, length, pde)
-		gen6_write_pde(pd, pde, pt);
+	gen6_for_each_pde(pt, &ppgtt->pd, start, length, pde)
+		gen6_write_pde(ppgtt, pde, pt);
+	wmb();
 
-	/* Make sure write is complete before other code can use this page
-	 * table. Also require for WC mapped PTEs */
-	readl(ggtt->gsm);
+	mark_tlbs_dirty(ppgtt);
 }
 
 static uint32_t get_pd_offset(struct i915_hw_ppgtt *ppgtt)
@@ -2003,7 +1995,7 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 			   gen6_pte_count(start, length));
 
 		if (__test_and_clear_bit(pde, new_page_tables))
-			gen6_write_pde(&ppgtt->pd, pde, pt);
+			gen6_write_pde(ppgtt, pde, pt);
 
 		trace_i915_page_table_entry_map(vm, pde, pt,
 					 gen6_pte_index(start),
@@ -2161,7 +2153,7 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	ppgtt->debug_dump = gen6_dump_ppgtt;
 
 	gen6_scratch_va_range(ppgtt, 0, ppgtt->base.total);
-	gen6_write_page_range(dev_priv, &ppgtt->pd, 0, ppgtt->base.total);
+	gen6_write_page_range(ppgtt, 0, ppgtt->base.total);
 
 	ret = gen6_alloc_va_range(&ppgtt->base, 0, ppgtt->base.total);
 	if (ret) {
@@ -3395,8 +3387,6 @@ void i915_gem_restore_gtt_mappings(struct drm_i915_private *dev_priv)
 		struct i915_address_space *vm;
 
 		list_for_each_entry(vm, &dev_priv->vm_list, global_link) {
-			/* TODO: Perhaps it shouldn't be gen6 specific */
-
 			struct i915_hw_ppgtt *ppgtt;
 
 			if (i915_is_ggtt(vm))
@@ -3404,8 +3394,7 @@ void i915_gem_restore_gtt_mappings(struct drm_i915_private *dev_priv)
 			else
 				ppgtt = i915_vm_to_ppgtt(vm);
 
-			gen6_write_page_range(dev_priv, &ppgtt->pd,
-					      0, ppgtt->base.total);
+			gen6_write_page_range(ppgtt, 0, ppgtt->base.total);
 		}
 	}
 
