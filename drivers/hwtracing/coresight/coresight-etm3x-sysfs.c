@@ -730,19 +730,29 @@ static ssize_t cntr_val_show(struct device *dev,
 	u32 val;
 	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	struct etm_config *config = &drvdata->config;
+	int buf_size = PAGE_SIZE;
 
 	if (!local_read(&drvdata->mode)) {
 		spin_lock(&drvdata->spinlock);
-		for (i = 0; i < drvdata->nr_cntr; i++)
-			ret += scnprintf(buf, PAGE_SIZE, "counter %d: %x\n",
-				       i, config->cntr_val[i]);
+		for (i = 0; i < drvdata->nr_cntr; i++) {
+			ret += scnprintf(&buf[ret], buf_size,
+					 "counter %d: %x\n",
+					 i, config->cntr_val[i]);
+			buf_size -= ret;
+			if (buf_size <= 0)
+				break;
+		}
 		spin_unlock(&drvdata->spinlock);
 		return ret;
 	}
 
 	for (i = 0; i < drvdata->nr_cntr; i++) {
 		val = etm_readl(drvdata, ETMCNTVRn(i));
-		ret += scnprintf(buf, PAGE_SIZE, "counter %d: %x\n", i, val);
+		ret += scnprintf(&buf[ret], buf_size,
+				 "counter %d: %x\n", i, val);
+		buf_size -= ret;
+		if (buf_size <= 0)
+			break;
 	}
 
 	return ret;
