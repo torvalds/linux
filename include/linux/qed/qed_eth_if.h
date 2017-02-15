@@ -96,6 +96,7 @@ struct qed_update_vport_params {
 
 struct qed_start_vport_params {
 	bool remove_inner_vlan;
+	bool handle_ptp_pkts;
 	bool gro_enable;
 	bool drop_ttl0;
 	u8 vport_id;
@@ -159,6 +160,15 @@ struct qed_eth_cb_ops {
 	void (*force_mac) (void *dev, u8 *mac, bool forced);
 };
 
+#define QED_MAX_PHC_DRIFT_PPB   291666666
+
+enum qed_ptp_filter_type {
+	QED_PTP_FILTER_L2,
+	QED_PTP_FILTER_IPV4,
+	QED_PTP_FILTER_IPV4_IPV6,
+	QED_PTP_FILTER_L2_IPV4_IPV6
+};
+
 #ifdef CONFIG_DCB
 /* Prototype declaration of qed_eth_dcbnl_ops should match with the declaration
  * of dcbnl_rtnl_ops structure.
@@ -218,6 +228,17 @@ struct qed_eth_dcbnl_ops {
 };
 #endif
 
+struct qed_eth_ptp_ops {
+	int (*hwtstamp_tx_on)(struct qed_dev *);
+	int (*cfg_rx_filters)(struct qed_dev *, enum qed_ptp_filter_type);
+	int (*read_rx_ts)(struct qed_dev *, u64 *);
+	int (*read_tx_ts)(struct qed_dev *, u64 *);
+	int (*read_cc)(struct qed_dev *, u64 *);
+	int (*disable)(struct qed_dev *);
+	int (*adjfreq)(struct qed_dev *, s32);
+	int (*enable)(struct qed_dev *);
+};
+
 struct qed_eth_ops {
 	const struct qed_common_ops *common;
 #ifdef CONFIG_QED_SRIOV
@@ -226,6 +247,7 @@ struct qed_eth_ops {
 #ifdef CONFIG_DCB
 	const struct qed_eth_dcbnl_ops *dcb;
 #endif
+	const struct qed_eth_ptp_ops *ptp;
 
 	int (*fill_dev_info)(struct qed_dev *cdev,
 			     struct qed_dev_eth_info *info);

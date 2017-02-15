@@ -40,6 +40,7 @@
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
 #include <net/ip6_checksum.h>
+#include "qede_ptp.h"
 
 #include <linux/qed/qed_if.h>
 #include "qede.h"
@@ -1277,6 +1278,7 @@ static int qede_rx_process_cqe(struct qede_dev *edev,
 	qede_get_rxhash(skb, fp_cqe->bitfields, fp_cqe->rss_hash);
 	qede_set_skb_csum(skb, csum_flag);
 	skb_record_rx_queue(skb, rxq->rxq_id);
+	qede_ptp_record_rx_ts(edev, cqe, skb);
 
 	/* SKB is prepared - pass it to stack */
 	qede_skb_receive(edev, fp, rxq, skb, le16_to_cpu(fp_cqe->vlan_tag));
@@ -1450,6 +1452,9 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	memset(first_bd, 0, sizeof(*first_bd));
 	first_bd->data.bd_flags.bitfields =
 		1 << ETH_TX_1ST_BD_FLAGS_START_BD_SHIFT;
+
+	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP))
+		qede_ptp_tx_ts(edev, skb);
 
 	/* Map skb linear data for DMA and set in the first BD */
 	mapping = dma_map_single(txq->dev, skb->data,

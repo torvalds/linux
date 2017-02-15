@@ -214,6 +214,7 @@ int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
 	p_ramrod->vport_id	= abs_vport_id;
 
 	p_ramrod->mtu			= cpu_to_le16(p_params->mtu);
+	p_ramrod->handle_ptp_pkts	= p_params->handle_ptp_pkts;
 	p_ramrod->inner_vlan_removal_en	= p_params->remove_inner_vlan;
 	p_ramrod->drop_ttl0_en		= p_params->drop_ttl0;
 	p_ramrod->untagged		= p_params->only_untagged;
@@ -1886,6 +1887,7 @@ static int qed_start_vport(struct qed_dev *cdev,
 		start.drop_ttl0 = params->drop_ttl0;
 		start.opaque_fid = p_hwfn->hw_info.opaque_fid;
 		start.concrete_fid = p_hwfn->hw_info.concrete_fid;
+		start.handle_ptp_pkts = params->handle_ptp_pkts;
 		start.vport_id = params->vport_id;
 		start.max_buffers_per_cqe = 16;
 		start.mtu = params->mtu;
@@ -2328,6 +2330,8 @@ extern const struct qed_iov_hv_ops qed_iov_ops_pass;
 extern const struct qed_eth_dcbnl_ops qed_dcbnl_ops_pass;
 #endif
 
+extern const struct qed_eth_ptp_ops qed_ptp_ops_pass;
+
 static const struct qed_eth_ops qed_eth_ops_pass = {
 	.common = &qed_common_ops_pass,
 #ifdef CONFIG_QED_SRIOV
@@ -2336,6 +2340,7 @@ static const struct qed_eth_ops qed_eth_ops_pass = {
 #ifdef CONFIG_DCB
 	.dcb = &qed_dcbnl_ops_pass,
 #endif
+	.ptp = &qed_ptp_ops_pass,
 	.fill_dev_info = &qed_fill_eth_dev_info,
 	.register_ops = &qed_register_eth_ops,
 	.check_mac = &qed_check_mac,
