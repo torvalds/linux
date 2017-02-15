@@ -63,7 +63,7 @@ struct amdgpu_bo_list_entry;
 #define AMDGPU_PTE_READABLE	(1ULL << 5)
 #define AMDGPU_PTE_WRITEABLE	(1ULL << 6)
 
-#define AMDGPU_PTE_FRAG(x)	((x & 0x1f) << 7)
+#define AMDGPU_PTE_FRAG(x)	((x & 0x1fULL) << 7)
 
 #define AMDGPU_PTE_PRT		(1ULL << 63)
 
