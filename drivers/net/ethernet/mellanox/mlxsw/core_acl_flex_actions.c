@@ -651,17 +651,16 @@ int mlxsw_afa_block_append_fwd(struct mlxsw_afa_block *block,
 			       u8 local_port, bool in_port)
 {
 	struct mlxsw_afa_fwd_entry_ref *fwd_entry_ref;
-	u32 kvdl_index = 0;
+	u32 kvdl_index;
 	char *act;
 	int err;
 
-	if (!in_port) {
-		fwd_entry_ref = mlxsw_afa_fwd_entry_ref_create(block,
-							       local_port);
-		if (IS_ERR(fwd_entry_ref))
-			return PTR_ERR(fwd_entry_ref);
-		kvdl_index = fwd_entry_ref->fwd_entry->kvdl_index;
-	}
+	if (in_port)
+		return -EOPNOTSUPP;
+	fwd_entry_ref = mlxsw_afa_fwd_entry_ref_create(block, local_port);
+	if (IS_ERR(fwd_entry_ref))
+		return PTR_ERR(fwd_entry_ref);
+	kvdl_index = fwd_entry_ref->fwd_entry->kvdl_index;
 
 	act = mlxsw_afa_block_append_action(block, MLXSW_AFA_FORWARD_CODE,
 					    MLXSW_AFA_FORWARD_SIZE);
@@ -669,13 +668,12 @@ int mlxsw_afa_block_append_fwd(struct mlxsw_afa_block *block,
 		err = -ENOBUFS;
 		goto err_append_action;
 	}
-	mlxsw_afa_forward_pack(act, MLXSW_AFA_FORWARD_TYPE_OUTPUT,
+	mlxsw_afa_forward_pack(act, MLXSW_AFA_FORWARD_TYPE_PBS,
 			       kvdl_index, in_port);
 	return 0;
 
 err_append_action:
-	if (!in_port)
-		mlxsw_afa_fwd_entry_ref_destroy(block, fwd_entry_ref);
+	mlxsw_afa_fwd_entry_ref_destroy(block, fwd_entry_ref);
 	return err;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_fwd);
