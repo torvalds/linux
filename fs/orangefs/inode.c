@@ -136,12 +136,6 @@ static ssize_t orangefs_direct_IO(struct kiocb *iocb,
 	return -EINVAL;
 }
 
-struct backing_dev_info orangefs_backing_dev_info = {
-	.name = "orangefs",
-	.ra_pages = 0,
-	.capabilities = BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_WRITEBACK,
-};
-
 /** ORANGEFS2 implementation of address space operations */
 const struct address_space_operations orangefs_address_operations = {
 	.readpage = orangefs_readpage,
