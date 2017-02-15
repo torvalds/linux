@@ -257,7 +257,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 			 * If an IRQ was provided to be assigned after
 			 * the bus probe, do it here.
 			 */
-			if ((!mdio_bus_data->irqs) &&
+			if (!mdio_bus_data->irqs &&
 			    (mdio_bus_data->probed_phy_irq > 0)) {
 				new_bus->irq[addr] =
 					mdio_bus_data->probed_phy_irq;
