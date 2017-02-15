@@ -2238,23 +2238,6 @@ static void gtt_write_workarounds(struct drm_i915_private *dev_priv)
 		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_BXT);
 }
 
-static int i915_ppgtt_init(struct i915_hw_ppgtt *ppgtt,
-			   struct drm_i915_private *dev_priv,
-			   struct drm_i915_file_private *file_priv,
-			   const char *name)
-{
-	int ret;
-
-	ret = __hw_ppgtt_init(ppgtt, dev_priv);
-	if (ret == 0) {
-		kref_init(&ppgtt->ref);
-		i915_address_space_init(&ppgtt->base, dev_priv, name);
-		ppgtt->base.file = file_priv;
-	}
-
-	return ret;
-}
-
 int i915_ppgtt_init_hw(struct drm_i915_private *dev_priv)
 {
 	gtt_write_workarounds(dev_priv);
@@ -2292,11 +2275,15 @@ i915_ppgtt_create(struct drm_i915_private *dev_priv,
 	if (!ppgtt)
 		return ERR_PTR(-ENOMEM);
 
-	ret = i915_ppgtt_init(ppgtt, dev_priv, fpriv, name);
+	ret = __hw_ppgtt_init(ppgtt, dev_priv);
 	if (ret) {
 		kfree(ppgtt);
 		return ERR_PTR(ret);
 	}
+
+	kref_init(&ppgtt->ref);
+	i915_address_space_init(&ppgtt->base, dev_priv, name);
+	ppgtt->base.file = fpriv;
 
 	trace_i915_ppgtt_create(&ppgtt->base);
 
@@ -2757,19 +2744,15 @@ int i915_gem_init_aliasing_ppgtt(struct drm_i915_private *i915)
 	struct i915_hw_ppgtt *ppgtt;
 	int err;
 
-	ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
-	if (!ppgtt)
-		return -ENOMEM;
-
-	err = __hw_ppgtt_init(ppgtt, i915);
-	if (err)
-		goto err_ppgtt;
+	ppgtt = i915_ppgtt_create(i915, NULL, "[alias]");
+	if (IS_ERR(ppgtt))
+		return PTR_ERR(ppgtt);
 
 	if (ppgtt->base.allocate_va_range) {
 		err = ppgtt->base.allocate_va_range(&ppgtt->base,
 						    0, ppgtt->base.total);
 		if (err)
-			goto err_ppgtt_cleanup;
+			goto err_ppgtt;
 	}
 
 	ppgtt->base.clear_range(&ppgtt->base,
@@ -2782,10 +2765,8 @@ int i915_gem_init_aliasing_ppgtt(struct drm_i915_private *i915)
 
 	return 0;
 
-err_ppgtt_cleanup:
-	ppgtt->base.cleanup(&ppgtt->base);
 err_ppgtt:
-	kfree(ppgtt);
+	i915_ppgtt_put(ppgtt);
 	return err;
 }
 
@@ -2798,8 +2779,7 @@ void i915_gem_fini_aliasing_ppgtt(struct drm_i915_private *i915)
 	if (!ppgtt)
 		return;
 
-	ppgtt->base.cleanup(&ppgtt->base);
-	kfree(ppgtt);
+	i915_ppgtt_put(ppgtt);
 
 	ggtt->base.bind_vma = ggtt_bind_vma;
 }
@@ -2874,21 +2854,21 @@ void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv)
 		WARN_ON(i915_vma_unbind(vma));
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
-	i915_gem_fini_aliasing_ppgtt(dev_priv);
 	i915_gem_cleanup_stolen(&dev_priv->drm);
+
+	mutex_lock(&dev_priv->drm.struct_mutex);
+	i915_gem_fini_aliasing_ppgtt(dev_priv);
 
 	if (drm_mm_node_allocated(&ggtt->error_capture))
 		drm_mm_remove_node(&ggtt->error_capture);
 
 	if (drm_mm_initialized(&ggtt->base.mm)) {
 		intel_vgt_deballoon(dev_priv);
-
-		mutex_lock(&dev_priv->drm.struct_mutex);
 		i915_address_space_fini(&ggtt->base);
-		mutex_unlock(&dev_priv->drm.struct_mutex);
 	}
 
 	ggtt->base.cleanup(&ggtt->base);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	arch_phys_wc_del(ggtt->mtrr);
 	io_mapping_fini(&ggtt->mappable);
