@@ -43,21 +43,7 @@ static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
  * Initialize a new pgd / pmd table with invalid pointers.
  */
 extern void pgd_init(unsigned long page);
-
-static inline pgd_t *pgd_alloc(struct mm_struct *mm)
-{
-	pgd_t *ret, *init;
-
-	ret = (pgd_t *) __get_free_pages(GFP_KERNEL, PGD_ORDER);
-	if (ret) {
-		init = pgd_offset(&init_mm, 0UL);
-		pgd_init((unsigned long)ret);
-		memcpy(ret + USER_PTRS_PER_PGD, init + USER_PTRS_PER_PGD,
-		       (PTRS_PER_PGD - USER_PTRS_PER_PGD) * sizeof(pgd_t));
-	}
-
-	return ret;
-}
+extern pgd_t *pgd_alloc(struct mm_struct *mm);
 
 static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {

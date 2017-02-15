@@ -92,15 +92,15 @@
 			compatible = "brcm,bcm7120-l2-intc";
 			reg = <0x406780 0x8>;
 
-			brcm,int-map-mask = <0x44>, <0x1f000000>;
+			brcm,int-map-mask = <0x44>, <0x1f000000>, <0x100000>;
 			brcm,int-fwd-mask = <0x70000>;
 
 			interrupt-controller;
 			#interrupt-cells = <1>;
 
 			interrupt-parent = <&periph_intc>;
-			interrupts = <18>, <19>;
-			interrupt-names = "upg_main", "upg_bsc";
+			interrupts = <18>, <19>, <20>;
+			interrupt-names = "upg_main", "upg_bsc", "upg_spi";
 		};
 
 		sun_top_ctrl: syscon@404000 {
@@ -285,6 +285,49 @@
 			no-big-frame-no;
 			interrupt-parent = <&periph_intc>;
 			interrupts = <62>;
+			status = "disabled";
+		};
+
+		spi_l2_intc: interrupt-controller@411d00 {
+			compatible = "brcm,l2-intc";
+			reg = <0x411d00 0x30>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			interrupt-parent = <&periph_intc>;
+			interrupts = <78>;
+		};
+
+		qspi: spi@443000 {
+			#address-cells = <0x1>;
+			#size-cells = <0x0>;
+			compatible = "brcm,spi-bcm-qspi",
+				     "brcm,spi-brcmstb-qspi";
+			clocks = <&upg_clk>;
+			reg = <0x440920 0x4 0x443200 0x188 0x443000 0x50>;
+			reg-names = "cs_reg", "hif_mspi", "bspi";
+			interrupts = <0x0 0x1 0x2 0x3 0x4 0x5 0x6>;
+			interrupt-parent = <&spi_l2_intc>;
+			interrupt-names = "spi_lr_fullness_reached",
+					  "spi_lr_session_aborted",
+					  "spi_lr_impatient",
+					  "spi_lr_session_done",
+					  "spi_lr_overread",
+					  "mspi_done",
+					  "mspi_halted";
+			status = "disabled";
+		};
+
+		mspi: spi@406400 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "brcm,spi-bcm-qspi",
+				     "brcm,spi-brcmstb-mspi";
+			clocks = <&upg_clk>;
+			reg = <0x406400 0x180>;
+			reg-names = "mspi";
+			interrupts = <0x14>;
+			interrupt-parent = <&upg_irq0_intc>;
+			interrupt-names = "mspi_done";
 			status = "disabled";
 		};
 	};
