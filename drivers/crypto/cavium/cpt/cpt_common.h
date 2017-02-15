@@ -20,12 +20,10 @@
 #define CPT_81XX_PCI_VF_DEVICE_ID 0xa041
 
 /* flags to indicate the features supported */
-#define CPT_FLAG_MSIX_ENABLED BIT(0)
 #define CPT_FLAG_SRIOV_ENABLED BIT(1)
 #define CPT_FLAG_VF_DRIVER BIT(2)
 #define CPT_FLAG_DEVICE_READY BIT(3)
 
-#define cpt_msix_enabled(cpt) ((cpt)->flags & CPT_FLAG_MSIX_ENABLED)
 #define cpt_sriov_enabled(cpt) ((cpt)->flags & CPT_FLAG_SRIOV_ENABLED)
 #define cpt_vf_driver(cpt) ((cpt)->flags & CPT_FLAG_VF_DRIVER)
 #define cpt_device_ready(cpt) ((cpt)->flags & CPT_FLAG_DEVICE_READY)
