@@ -2418,6 +2418,7 @@ static void handle_request_cap_rsp(union ibmvnic_crq *crq,
 		struct ibmvnic_query_ip_offload_buffer *ip_offload_buf =
 		    &adapter->ip_offload_buf;
 
+		adapter->wait_capability = false;
 		adapter->ip_offload_tok = dma_map_single(dev, ip_offload_buf,
 							 buf_sz,
 							 DMA_FROM_DEVICE);
@@ -2713,9 +2714,11 @@ static void handle_query_cap_rsp(union ibmvnic_crq *crq,
 	}
 
 out:
-	if (atomic_read(&adapter->running_cap_crqs) == 0)
+	if (atomic_read(&adapter->running_cap_crqs) == 0) {
+		adapter->wait_capability = false;
 		init_sub_crqs(adapter, 0);
 		/* We're done querying the capabilities, initialize sub-crqs */
+	}
 }
 
 static void handle_control_ras_rsp(union ibmvnic_crq *crq,
@@ -3458,9 +3461,18 @@ static void ibmvnic_tasklet(void *data)
 			ibmvnic_handle_crq(crq, adapter);
 			crq->generic.first = 0;
 		} else {
-			done = true;
+			/* remain in tasklet until all
+			 * capabilities responses are received
+			 */
+			if (!adapter->wait_capability)
+				done = true;
 		}
 	}
+	/* if capabilities CRQ's were sent in this tasklet, the following
+	 * tasklet must wait until all responses are received
+	 */
+	if (atomic_read(&adapter->running_cap_crqs) != 0)
+		adapter->wait_capability = true;
 	spin_unlock_irqrestore(&queue->lock, flags);
 }
 
