@@ -1331,14 +1331,11 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	}
 	if (bpf_jit_enable > 1) {
 		bpf_jit_dump(fp->len, jit.size, pass, jit.prg_buf);
-		if (jit.prg_buf)
-			print_fn_code(jit.prg_buf, jit.size_prg);
+		print_fn_code(jit.prg_buf, jit.size_prg);
 	}
-	if (jit.prg_buf) {
-		set_memory_ro((unsigned long)header, header->pages);
-		fp->bpf_func = (void *) jit.prg_buf;
-		fp->jited = 1;
-	}
+	set_memory_ro((unsigned long)header, header->pages);
+	fp->bpf_func = (void *) jit.prg_buf;
+	fp->jited = 1;
 free_addrs:
 	kfree(jit.addrs);
 out:

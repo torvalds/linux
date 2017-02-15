@@ -805,7 +805,7 @@ struct dasd_device *dasd_device_from_devindex(int);
 void dasd_add_link_to_gendisk(struct gendisk *, struct dasd_device *);
 struct dasd_device *dasd_device_from_gendisk(struct gendisk *);
 
-int dasd_parse(void);
+int dasd_parse(void) __init;
 int dasd_busid_known(const char *);
 
 /* externals in dasd_gendisk.c */

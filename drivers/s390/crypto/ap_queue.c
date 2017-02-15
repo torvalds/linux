@@ -564,7 +564,7 @@ static const struct attribute_group *ap_queue_dev_attr_groups[] = {
 	NULL
 };
 
-struct device_type ap_queue_type = {
+static struct device_type ap_queue_type = {
 	.name = "ap_queue",
 	.groups = ap_queue_dev_attr_groups,
 };

@@ -110,22 +110,30 @@ static const u8 initial_parm_block[32] __initconst = {
 
 /*** helper functions ***/
 
+/*
+ * generate_entropy:
+ * This algorithm produces 64 bytes of entropy data based on 1024
+ * individual stckf() invocations assuming that each stckf() value
+ * contributes 0.25 bits of entropy. So the caller gets 256 bit
+ * entropy per 64 byte or 4 bits entropy per byte.
+ */
 static int generate_entropy(u8 *ebuf, size_t nbytes)
 {
 	int n, ret = 0;
-	u8 *pg, *h, hash[32];
+	u8 *pg, *h, hash[64];
 
-	pg = (u8 *) __get_free_page(GFP_KERNEL);
+	/* allocate 2 pages */
+	pg = (u8 *) __get_free_pages(GFP_KERNEL, 1);
 	if (!pg) {
 		prng_errorflag = PRNG_GEN_ENTROPY_FAILED;
 		return -ENOMEM;
 	}
 
 	while (nbytes) {
-		/* fill page with urandom bytes */
-		get_random_bytes(pg, PAGE_SIZE);
-		/* exor page with stckf values */
-		for (n = 0; n < PAGE_SIZE / sizeof(u64); n++) {
+		/* fill pages with urandom bytes */
+		get_random_bytes(pg, 2*PAGE_SIZE);
+		/* exor pages with 1024 stckf values */
+		for (n = 0; n < 2 * PAGE_SIZE / sizeof(u64); n++) {
 			u64 *p = ((u64 *)pg) + n;
 			*p ^= get_tod_clock_fast();
 		}
@@ -134,8 +142,8 @@ static int generate_entropy(u8 *ebuf, size_t nbytes)
 			h = hash;
 		else
 			h = ebuf;
-		/* generate sha256 from this page */
-		cpacf_kimd(CPACF_KIMD_SHA_256, h, pg, PAGE_SIZE);
+		/* hash over the filled pages */
+		cpacf_kimd(CPACF_KIMD_SHA_512, h, pg, 2*PAGE_SIZE);
 		if (n < sizeof(hash))
 			memcpy(ebuf, hash, n);
 		ret += n;
@@ -143,7 +151,7 @@ static int generate_entropy(u8 *ebuf, size_t nbytes)
 		nbytes -= n;
 	}
 
-	free_page((unsigned long)pg);
+	free_pages((unsigned long)pg, 1);
 	return ret;
 }
 
@@ -334,7 +342,7 @@ static int __init prng_sha512_selftest(void)
 static int __init prng_sha512_instantiate(void)
 {
 	int ret, datalen;
-	u8 seed[64];
+	u8 seed[64 + 32 + 16];
 
 	pr_debug("prng runs in SHA-512 mode "
 		 "with chunksize=%d and reseed_limit=%u\n",
@@ -357,12 +365,12 @@ static int __init prng_sha512_instantiate(void)
 	if (ret)
 		goto outfree;
 
-	/* generate initial seed bytestring, first 48 bytes of entropy */
-	ret = generate_entropy(seed, 48);
-	if (ret != 48)
+	/* generate initial seed bytestring, with 256 + 128 bits entropy */
+	ret = generate_entropy(seed, 64 + 32);
+	if (ret != 64 + 32)
 		goto outfree;
 	/* followed by 16 bytes of unique nonce */
-	get_tod_clock_ext(seed + 48);
+	get_tod_clock_ext(seed + 64 + 32);
 
 	/* initial seed of the ppno drng */
 	cpacf_ppno(CPACF_PPNO_SHA512_DRNG_SEED,
@@ -395,9 +403,9 @@ static void prng_sha512_deinstantiate(void)
 static int prng_sha512_reseed(void)
 {
 	int ret;
-	u8 seed[32];
+	u8 seed[64];
 
-	/* generate 32 bytes of fresh entropy */
+	/* fetch 256 bits of fresh entropy */
 	ret = generate_entropy(seed, sizeof(seed));
 	if (ret != sizeof(seed))
 		return ret;

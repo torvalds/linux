@@ -661,7 +661,7 @@ static int virtio_ccw_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 		ret = virtio_ccw_register_adapter_ind(vcdev, vqs, nvqs, ccw);
 		if (ret)
 			/* no error, just fall back to legacy interrupts */
-			vcdev->is_thinint = 0;
+			vcdev->is_thinint = false;
 	}
 	if (!vcdev->is_thinint) {
 		/* Register queue indicators with host. */

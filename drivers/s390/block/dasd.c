@@ -1712,8 +1712,11 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	/* check for for attention message */
 	if (scsw_dstat(&irb->scsw) & DEV_STAT_ATTENTION) {
 		device = dasd_device_from_cdev_locked(cdev);
-		device->discipline->check_attention(device, irb->esw.esw1.lpum);
-		dasd_put_device(device);
+		if (!IS_ERR(device)) {
+			device->discipline->check_attention(device,
+							    irb->esw.esw1.lpum);
+			dasd_put_device(device);
+		}
 	}
 
 	if (!cqr)
@@ -3598,10 +3601,11 @@ int dasd_generic_set_offline(struct ccw_device *cdev)
 		 * empty
 		 */
 		/* sync blockdev and partitions */
-		rc = fsync_bdev(device->block->bdev);
-		if (rc != 0)
-			goto interrupted;
-
+		if (device->block) {
+			rc = fsync_bdev(device->block->bdev);
+			if (rc != 0)
+				goto interrupted;
+		}
 		/* schedule device tasklet and wait for completion */
 		dasd_schedule_device_bh(device);
 		rc = wait_event_interruptible(shutdown_waitq,

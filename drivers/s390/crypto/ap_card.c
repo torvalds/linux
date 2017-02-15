@@ -137,7 +137,7 @@ static const struct attribute_group *ap_card_dev_attr_groups[] = {
 	NULL
 };
 
-struct device_type ap_card_type = {
+static struct device_type ap_card_type = {
 	.name = "ap_card",
 	.groups = ap_card_dev_attr_groups,
 };

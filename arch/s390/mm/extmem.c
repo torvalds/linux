@@ -154,7 +154,7 @@ dcss_mkname(char *name, char *dcss_name)
 		if (name[i] == '\0')
 			break;
 		dcss_name[i] = toupper(name[i]);
-	};
+	}
 	for (; i < 8; i++)
 		dcss_name[i] = ' ';
 	ASCEBC(dcss_name, 8);
