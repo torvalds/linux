@@ -769,7 +769,7 @@ static ssize_t sht15_show_humidity(struct device *dev,
 	return ret ? ret : sprintf(buf, "%d\n", sht15_calc_humid(data));
 }
 
-static ssize_t show_name(struct device *dev,
+static ssize_t name_show(struct device *dev,
 			 struct device_attribute *attr,
 			 char *buf)
 {
@@ -787,7 +787,7 @@ static SENSOR_DEVICE_ATTR(humidity1_fault, S_IRUGO, sht15_show_status, NULL,
 			  SHT15_STATUS_LOW_BATTERY);
 static SENSOR_DEVICE_ATTR(heater_enable, S_IRUGO | S_IWUSR, sht15_show_status,
 			  sht15_store_heater, SHT15_STATUS_HEATER);
-static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+static DEVICE_ATTR_RO(name);
 static struct attribute *sht15_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	&sensor_dev_attr_humidity1_input.dev_attr.attr,
