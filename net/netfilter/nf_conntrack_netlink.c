@@ -1478,13 +1478,22 @@ static int ctnetlink_change_helper(struct nf_conn *ct,
 	struct nlattr *helpinfo = NULL;
 	int err;
 
-	/* don't change helper of sibling connections */
-	if (ct->master)
-		return -EBUSY;
-
 	err = ctnetlink_parse_help(cda[CTA_HELP], &helpname, &helpinfo);
 	if (err < 0)
 		return err;
+
+	/* don't change helper of sibling connections */
+	if (ct->master) {
+		/* If we try to change the helper to the same thing twice,
+		 * treat the second attempt as a no-op instead of returning
+		 * an error.
+		 */
+		if (help && help->helper &&
+		    !strcmp(help->helper->name, helpname))
+			return 0;
+		else
+			return -EBUSY;
+	}
 
 	if (!strcmp(helpname, "")) {
 		if (help && help->helper) {
@@ -2270,6 +2279,30 @@ nla_put_failure:
 }
 
 static int
+ctnetlink_update_status(struct nf_conn *ct, const struct nlattr * const cda[])
+{
+	unsigned int status = ntohl(nla_get_be32(cda[CTA_STATUS]));
+	unsigned long d = ct->status ^ status;
+
+	if (d & IPS_SEEN_REPLY && !(status & IPS_SEEN_REPLY))
+		/* SEEN_REPLY bit can only be set */
+		return -EBUSY;
+
+	if (d & IPS_ASSURED && !(status & IPS_ASSURED))
+		/* ASSURED bit can only be set */
+		return -EBUSY;
+
+	/* This check is less strict than ctnetlink_change_status()
+	 * because callers often flip IPS_EXPECTED bits when sending
+	 * an NFQA_CT attribute to the kernel.  So ignore the
+	 * unchangeable bits but do not error out.
+	 */
+	ct->status = (status & ~IPS_UNCHANGEABLE_MASK) |
+		     (ct->status & IPS_UNCHANGEABLE_MASK);
+	return 0;
+}
+
+static int
 ctnetlink_glue_parse_ct(const struct nlattr *cda[], struct nf_conn *ct)
 {
 	int err;
@@ -2280,7 +2313,7 @@ ctnetlink_glue_parse_ct(const struct nlattr *cda[], struct nf_conn *ct)
 			return err;
 	}
 	if (cda[CTA_STATUS]) {
-		err = ctnetlink_change_status(ct, cda);
+		err = ctnetlink_update_status(ct, cda);
 		if (err < 0)
 			return err;
 	}
