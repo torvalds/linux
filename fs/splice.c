@@ -244,11 +244,6 @@ ssize_t add_to_pipe(struct pipe_inode_info *pipe, struct pipe_buffer *buf)
 }
 EXPORT_SYMBOL(add_to_pipe);
 
-void spd_release_page(struct splice_pipe_desc *spd, unsigned int i)
-{
-	put_page(spd->pages[i]);
-}
-
 /*
  * Check if we need to grow the arrays holding pages and partial page
  * descriptions.
@@ -305,6 +300,8 @@ ssize_t generic_file_splice_read(struct file *in, loff_t *ppos,
 	iov_iter_pipe(&to, ITER_PIPE | READ, pipe, len);
 	idx = to.idx;
 	init_sync_kiocb(&kiocb, in);
+	if (flags & SPLICE_F_NONBLOCK)
+		kiocb.ki_flags |= IOCB_NDELAY;
 	kiocb.ki_pos = *ppos;
 	ret = in->f_op->read_iter(&kiocb, &to);
 	if (ret > 0) {
@@ -390,7 +387,7 @@ static ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
 	struct iov_iter to;
 	struct page **pages;
 	unsigned int nr_pages;
-	size_t offset, dummy, copied = 0;
+	size_t offset, base, copied = 0;
 	ssize_t res;
 	int i;
 
@@ -405,12 +402,11 @@ static ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
 
 	iov_iter_pipe(&to, ITER_PIPE | READ, pipe, len + offset);
 
-	res = iov_iter_get_pages_alloc(&to, &pages, len + offset, &dummy);
+	res = iov_iter_get_pages_alloc(&to, &pages, len + offset, &base);
 	if (res <= 0)
 		return -ENOMEM;
 
-	BUG_ON(dummy);
-	nr_pages = DIV_ROUND_UP(res, PAGE_SIZE);
+	nr_pages = DIV_ROUND_UP(res + base, PAGE_SIZE);
 
 	vec = __vec;
 	if (nr_pages > PIPE_DEF_BUFFERS) {
@@ -1356,6 +1352,8 @@ SYSCALL_DEFINE4(vmsplice, int, fd, const struct iovec __user *, iov,
 	struct fd f;
 	long error;
 
+	if (unlikely(flags & ~SPLICE_F_ALL))
+		return -EINVAL;
 	if (unlikely(nr_segs > UIO_MAXIOV))
 		return -EINVAL;
 	else if (unlikely(!nr_segs))
@@ -1405,6 +1403,9 @@ SYSCALL_DEFINE6(splice, int, fd_in, loff_t __user *, off_in,
 
 	if (unlikely(!len))
 		return 0;
+
+	if (unlikely(flags & ~SPLICE_F_ALL))
+		return -EINVAL;
 
 	error = -EBADF;
 	in = fdget(fd_in);
@@ -1733,6 +1734,9 @@ SYSCALL_DEFINE4(tee, int, fdin, int, fdout, size_t, len, unsigned int, flags)
 {
 	struct fd in;
 	int error;
+
+	if (unlikely(flags & ~SPLICE_F_ALL))
+		return -EINVAL;
 
 	if (unlikely(!len))
 		return 0;

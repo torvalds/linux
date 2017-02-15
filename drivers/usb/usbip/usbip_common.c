@@ -327,13 +327,11 @@ EXPORT_SYMBOL_GPL(usbip_dump_header);
 int usbip_recv(struct socket *sock, void *buf, int size)
 {
 	int result;
-	struct msghdr msg;
-	struct kvec iov;
+	struct kvec iov = {.iov_base = buf, .iov_len = size};
+	struct msghdr msg = {.msg_flags = MSG_NOSIGNAL};
 	int total = 0;
 
-	/* for blocks of if (usbip_dbg_flag_xmit) */
-	char *bp = buf;
-	int osize = size;
+	iov_iter_kvec(&msg.msg_iter, READ|ITER_KVEC, &iov, 1, size);
 
 	usbip_dbg_xmit("enter\n");
 
@@ -344,26 +342,18 @@ int usbip_recv(struct socket *sock, void *buf, int size)
 	}
 
 	do {
+		int sz = msg_data_left(&msg);
 		sock->sk->sk_allocation = GFP_NOIO;
-		iov.iov_base    = buf;
-		iov.iov_len     = size;
-		msg.msg_name    = NULL;
-		msg.msg_namelen = 0;
-		msg.msg_control = NULL;
-		msg.msg_controllen = 0;
-		msg.msg_flags      = MSG_NOSIGNAL;
 
-		result = kernel_recvmsg(sock, &msg, &iov, 1, size, MSG_WAITALL);
+		result = sock_recvmsg(sock, &msg, MSG_WAITALL);
 		if (result <= 0) {
 			pr_debug("receive sock %p buf %p size %u ret %d total %d\n",
-				 sock, buf, size, result, total);
+				 sock, buf + total, sz, result, total);
 			goto err;
 		}
 
-		size -= result;
-		buf += result;
 		total += result;
-	} while (size > 0);
+	} while (msg_data_left(&msg));
 
 	if (usbip_dbg_flag_xmit) {
 		if (!in_interrupt())
@@ -372,9 +362,9 @@ int usbip_recv(struct socket *sock, void *buf, int size)
 			pr_debug("interrupt  :");
 
 		pr_debug("receiving....\n");
-		usbip_dump_buffer(bp, osize);
-		pr_debug("received, osize %d ret %d size %d total %d\n",
-			 osize, result, size, total);
+		usbip_dump_buffer(buf, size);
+		pr_debug("received, osize %d ret %d size %zd total %d\n",
+			 size, result, msg_data_left(&msg), total);
 	}
 
 	return total;
