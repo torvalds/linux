@@ -16,7 +16,6 @@
 #include <linux/module.h>
 #include <linux/rtc.h>
 #include <linux/platform_device.h>
-#include <linux/platform_data/rtc-m48t86.h>
 #include <linux/bcd.h>
 #include <linux/io.h>
 
@@ -45,7 +44,6 @@ struct m48t86_rtc_info {
 	void __iomem *index_reg;
 	void __iomem *data_reg;
 	struct rtc_device *rtc;
-	struct m48t86_ops *ops;
 };
 
 static unsigned char m48t86_readb(struct device *dev, unsigned long addr)
@@ -53,12 +51,9 @@ static unsigned char m48t86_readb(struct device *dev, unsigned long addr)
 	struct m48t86_rtc_info *info = dev_get_drvdata(dev);
 	unsigned char value;
 
-	if (info->ops) {
-		value = info->ops->readbyte(addr);
-	} else {
-		writeb(addr, info->index_reg);
-		value = readb(info->data_reg);
-	}
+	writeb(addr, info->index_reg);
+	value = readb(info->data_reg);
+
 	return value;
 }
 
@@ -67,12 +62,8 @@ static void m48t86_writeb(struct device *dev,
 {
 	struct m48t86_rtc_info *info = dev_get_drvdata(dev);
 
-	if (info->ops) {
-		info->ops->writebyte(value, addr);
-	} else {
-		writeb(addr, info->index_reg);
-		writeb(value, info->data_reg);
-	}
+	writeb(addr, info->index_reg);
+	writeb(value, info->data_reg);
 }
 
 static int m48t86_rtc_read_time(struct device *dev, struct rtc_time *tm)
@@ -235,30 +226,26 @@ static bool m48t86_verify_chip(struct platform_device *pdev)
 static int m48t86_rtc_probe(struct platform_device *pdev)
 {
 	struct m48t86_rtc_info *info;
+	struct resource *res;
 	unsigned char reg;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
-	info->ops = dev_get_platdata(&pdev->dev);
-	if (!info->ops) {
-		struct resource *res;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -ENODEV;
+	info->index_reg = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(info->index_reg))
+		return PTR_ERR(info->index_reg);
 
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		if (!res)
-			return -ENODEV;
-		info->index_reg = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(info->index_reg))
-			return PTR_ERR(info->index_reg);
-
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		if (!res)
-			return -ENODEV;
-		info->data_reg = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(info->data_reg))
-			return PTR_ERR(info->data_reg);
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (!res)
+		return -ENODEV;
+	info->data_reg = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(info->data_reg))
+		return PTR_ERR(info->data_reg);
 
 	dev_set_drvdata(&pdev->dev, info);
 
