@@ -806,7 +806,6 @@ static void gen8_ppgtt_clear_4lvl(struct i915_address_space *vm,
 			continue;
 
 		gen8_ppgtt_set_pml4e(pml4, vm->scratch_pdp, pml4e);
-		__clear_bit(pml4e, pml4->used_pml4es);
 
 		free_pdp(vm, pdp);
 	}
@@ -1027,8 +1026,8 @@ static void gen8_ppgtt_cleanup_4lvl(struct i915_hw_ppgtt *ppgtt)
 {
 	int i;
 
-	for_each_set_bit(i, ppgtt->pml4.used_pml4es, GEN8_PML4ES_PER_PML4) {
-		if (WARN_ON(!ppgtt->pml4.pdps[i]))
+	for (i = 0; i < GEN8_PML4ES_PER_PML4; i++) {
+		if (ppgtt->pml4.pdps[i] == ppgtt->base.scratch_pdp)
 			continue;
 
 		gen8_ppgtt_cleanup_3lvl(&ppgtt->base, ppgtt->pml4.pdps[i]);
@@ -1082,53 +1081,9 @@ unwind:
 	return -ENOMEM;
 }
 
-/**
- * gen8_ppgtt_alloc_page_dirpointers() - Allocate pdps for VA range.
- * @vm:	Master vm structure.
- * @pml4:	Page map level 4 for this address range.
- * @start:	Starting virtual address to begin allocations.
- * @length:	Size of the allocations.
- * @new_pdps:	Bitmap set by function with new allocations. Likely used by the
- *		caller to free on error.
- *
- * Allocate the required number of page directory pointers. Extremely similar to
- * gen8_ppgtt_alloc_page_directories() and gen8_ppgtt_alloc_pd().
- * The main difference is here we are limited by the pml4 boundary (instead of
- * the page directory pointer).
- *
- * Return: 0 if success; negative error code otherwise.
- */
-static int
-gen8_ppgtt_alloc_page_dirpointers(struct i915_address_space *vm,
-				  struct i915_pml4 *pml4,
-				  uint64_t start,
-				  uint64_t length)
-{
-	struct i915_page_directory_pointer *pdp;
-	uint32_t pml4e;
-
-	gen8_for_each_pml4e(pdp, pml4, start, length, pml4e) {
-		if (!test_bit(pml4e, pml4->used_pml4es)) {
-			pdp = alloc_pdp(vm);
-			if (IS_ERR(pdp))
-				return PTR_ERR(pdp);
-
-			gen8_initialize_pdp(vm, pdp);
-			pml4->pdps[pml4e] = pdp;
-			trace_i915_page_directory_pointer_entry_alloc(vm,
-								      pml4e,
-								      start,
-								      GEN8_PML4E_SHIFT);
-		}
-	}
-
-	return 0;
-}
-
-static int gen8_alloc_va_range_3lvl(struct i915_address_space *vm,
-				    struct i915_page_directory_pointer *pdp,
-				    uint64_t start,
-				    uint64_t length)
+static int gen8_ppgtt_alloc_pdp(struct i915_address_space *vm,
+				struct i915_page_directory_pointer *pdp,
+				u64 start, u64 length)
 {
 	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 	struct i915_page_directory *pd;
@@ -1164,58 +1119,46 @@ unwind:
 	return -ENOMEM;
 }
 
-static int gen8_alloc_va_range_4lvl(struct i915_address_space *vm,
-				    struct i915_pml4 *pml4,
-				    uint64_t start,
-				    uint64_t length)
+static int gen8_ppgtt_alloc_3lvl(struct i915_address_space *vm,
+				 u64 start, u64 length)
 {
-	DECLARE_BITMAP(new_pdps, GEN8_PML4ES_PER_PML4);
+	return gen8_ppgtt_alloc_pdp(vm,
+				    &i915_vm_to_ppgtt(vm)->pdp, start, length);
+}
+
+static int gen8_ppgtt_alloc_4lvl(struct i915_address_space *vm,
+				 u64 start, u64 length)
+{
+	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
+	struct i915_pml4 *pml4 = &ppgtt->pml4;
 	struct i915_page_directory_pointer *pdp;
-	uint64_t pml4e;
-	int ret = 0;
-
-	/* Do the pml4 allocations first, so we don't need to track the newly
-	 * allocated tables below the pdp */
-	bitmap_zero(new_pdps, GEN8_PML4ES_PER_PML4);
-
-	/* The pagedirectory and pagetable allocations are done in the shared 3
-	 * and 4 level code. Just allocate the pdps.
-	 */
-	ret = gen8_ppgtt_alloc_page_dirpointers(vm, pml4, start, length);
-	if (ret)
-		return ret;
+	u64 from = start;
+	u32 pml4e;
+	int ret;
 
 	gen8_for_each_pml4e(pdp, pml4, start, length, pml4e) {
-		WARN_ON(!pdp);
+		if (pml4->pdps[pml4e] == vm->scratch_pdp) {
+			pdp = alloc_pdp(vm);
+			if (IS_ERR(pdp))
+				goto unwind;
 
-		ret = gen8_alloc_va_range_3lvl(vm, pdp, start, length);
-		if (ret)
-			goto err_out;
+			gen8_initialize_pdp(vm, pdp);
+			gen8_ppgtt_set_pml4e(pml4, pdp, pml4e);
+		}
 
-		gen8_ppgtt_set_pml4e(pml4, pdp, pml4e);
+		ret = gen8_ppgtt_alloc_pdp(vm, pdp, start, length);
+		if (unlikely(ret)) {
+			gen8_ppgtt_set_pml4e(pml4, vm->scratch_pdp, pml4e);
+			free_pdp(vm, pdp);
+			goto unwind;
+		}
 	}
-
-	bitmap_or(pml4->used_pml4es, new_pdps, pml4->used_pml4es,
-		  GEN8_PML4ES_PER_PML4);
 
 	return 0;
 
-err_out:
-	for_each_set_bit(pml4e, new_pdps, GEN8_PML4ES_PER_PML4)
-		gen8_ppgtt_cleanup_3lvl(vm, pml4->pdps[pml4e]);
-
-	return ret;
-}
-
-static int gen8_alloc_va_range(struct i915_address_space *vm,
-			       uint64_t start, uint64_t length)
-{
-	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
-
-	if (USES_FULL_48BIT_PPGTT(vm->i915))
-		return gen8_alloc_va_range_4lvl(vm, &ppgtt->pml4, start, length);
-	else
-		return gen8_alloc_va_range_3lvl(vm, &ppgtt->pdp, start, length);
+unwind:
+	gen8_ppgtt_clear_4lvl(vm, from, start - from);
+	return -ENOMEM;
 }
 
 static void gen8_dump_pdp(struct i915_hw_ppgtt *ppgtt,
@@ -1289,7 +1232,7 @@ static void gen8_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
 		struct i915_page_directory_pointer *pdp;
 
 		gen8_for_each_pml4e(pdp, pml4, start, length, pml4e) {
-			if (!test_bit(pml4e, pml4->used_pml4es))
+			if (pml4->pdps[pml4e] == ppgtt->base.scratch_pdp)
 				continue;
 
 			seq_printf(m, "    PML4E #%llu\n", pml4e);
@@ -1348,7 +1291,6 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 
 	ppgtt->base.start = 0;
 	ppgtt->base.cleanup = gen8_ppgtt_cleanup;
-	ppgtt->base.allocate_va_range = gen8_alloc_va_range;
 	ppgtt->base.unbind_vma = ppgtt_unbind_vma;
 	ppgtt->base.bind_vma = ppgtt_bind_vma;
 	ppgtt->debug_dump = gen8_dump_ppgtt;
@@ -1369,6 +1311,7 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 		ppgtt->base.total = 1ULL << 48;
 		ppgtt->switch_mm = gen8_48b_mm_switch;
 
+		ppgtt->base.allocate_va_range = gen8_ppgtt_alloc_4lvl;
 		ppgtt->base.insert_entries = gen8_ppgtt_insert_4lvl;
 		ppgtt->base.clear_range = gen8_ppgtt_clear_4lvl;
 	} else {
@@ -1390,6 +1333,7 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 			}
 		}
 
+		ppgtt->base.allocate_va_range = gen8_ppgtt_alloc_3lvl;
 		ppgtt->base.insert_entries = gen8_ppgtt_insert_3lvl;
 		ppgtt->base.clear_range = gen8_ppgtt_clear_3lvl;
 	}

@@ -238,8 +238,6 @@ struct i915_page_directory_pointer {
 
 struct i915_pml4 {
 	struct i915_page_dma base;
-
-	DECLARE_BITMAP(used_pml4es, GEN8_PML4ES_PER_PML4);
 	struct i915_page_directory_pointer *pdps[GEN8_PML4ES_PER_PML4];
 };
 
