@@ -44,7 +44,7 @@ struct ulist {
 };
 
 void ulist_init(struct ulist *ulist);
-void ulist_fini(struct ulist *ulist);
+void ulist_release(struct ulist *ulist);
 void ulist_reinit(struct ulist *ulist);
 struct ulist *ulist_alloc(gfp_t gfp_mask);
 void ulist_free(struct ulist *ulist);
