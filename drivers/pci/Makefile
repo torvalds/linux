@@ -66,8 +66,5 @@ obj-$(CONFIG_OF) += of.o
 
 ccflags-$(CONFIG_PCI_DEBUG) := -DDEBUG
 
-# PCI dwc controller drivers
-obj-y += dwc/
-
 # PCI host controller drivers
 obj-y += host/

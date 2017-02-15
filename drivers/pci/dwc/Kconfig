@@ -1,16 +1,17 @@
 menu "DesignWare PCI Core Support"
-	depends on PCI
 
 config PCIE_DW
 	bool
 
 config PCIE_DW_HOST
         bool
+	depends on PCI
 	depends on PCI_MSI_IRQ_DOMAIN
         select PCIE_DW
 
 config PCI_DRA7XX
 	bool "TI DRA7xx PCIe controller"
+	depends on PCI
 	depends on OF && HAS_IOMEM && TI_PIPE3
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIE_DW_HOST
@@ -21,6 +22,7 @@ config PCI_DRA7XX
 
 config PCIE_DW_PLAT
 	bool "Platform bus based DesignWare PCIe Controller"
+	depends on PCI
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIE_DW_HOST
 	---help---
@@ -33,6 +35,7 @@ config PCIE_DW_PLAT
 
 config PCI_EXYNOS
 	bool "Samsung Exynos PCIe controller"
+	depends on PCI
 	depends on SOC_EXYNOS5440
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIEPORTBUS
@@ -40,6 +43,7 @@ config PCI_EXYNOS
 
 config PCI_IMX6
 	bool "Freescale i.MX6 PCIe controller"
+	depends on PCI
 	depends on SOC_IMX6Q
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIEPORTBUS
@@ -47,6 +51,7 @@ config PCI_IMX6
 
 config PCIE_SPEAR13XX
 	bool "STMicroelectronics SPEAr PCIe controller"
+	depends on PCI
 	depends on ARCH_SPEAR13XX
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIEPORTBUS
@@ -56,6 +61,7 @@ config PCIE_SPEAR13XX
 
 config PCI_KEYSTONE
 	bool "TI Keystone PCIe controller"
+	depends on PCI
 	depends on ARCH_KEYSTONE
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIEPORTBUS
@@ -68,6 +74,7 @@ config PCI_KEYSTONE
 
 config PCI_LAYERSCAPE
 	bool "Freescale Layerscape PCIe controller"
+	depends on PCI
 	depends on OF && (ARM || ARCH_LAYERSCAPE)
 	depends on PCI_MSI_IRQ_DOMAIN
 	select MFD_SYSCON
@@ -78,6 +85,7 @@ config PCI_LAYERSCAPE
 config PCI_HISI
 	depends on OF && ARM64
 	bool "HiSilicon Hip05 and Hip06 SoCs PCIe controllers"
+	depends on PCI
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIEPORTBUS
 	select PCIE_DW_HOST
@@ -87,6 +95,7 @@ config PCI_HISI
 
 config PCIE_QCOM
 	bool "Qualcomm PCIe controller"
+	depends on PCI
 	depends on ARCH_QCOM && OF
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIEPORTBUS
@@ -98,6 +107,7 @@ config PCIE_QCOM
 
 config PCIE_ARMADA_8K
 	bool "Marvell Armada-8K PCIe controller"
+	depends on PCI
 	depends on ARCH_MVEBU
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIEPORTBUS
@@ -110,6 +120,7 @@ config PCIE_ARMADA_8K
 
 config PCIE_ARTPEC6
 	bool "Axis ARTPEC-6 PCIe controller"
+	depends on PCI
 	depends on MACH_ARTPEC6
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIEPORTBUS
