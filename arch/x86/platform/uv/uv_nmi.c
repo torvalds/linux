@@ -65,7 +65,6 @@
 static struct uv_hub_nmi_s **uv_hub_nmi_list;
 
 DEFINE_PER_CPU(struct uv_cpu_nmi_s, uv_cpu_nmi);
-EXPORT_PER_CPU_SYMBOL_GPL(uv_cpu_nmi);
 
 /* UV hubless values */
 #define NMI_CONTROL_PORT	0x70
