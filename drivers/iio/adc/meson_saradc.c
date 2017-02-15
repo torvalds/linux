@@ -278,33 +278,31 @@ static int meson_sar_adc_read_raw_sample(struct iio_dev *indio_dev,
 					 int *val)
 {
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
-	int regval, fifo_chan, fifo_val, sum = 0, count = 0;
+	int regval, fifo_chan, fifo_val, count;
 
 	if(!wait_for_completion_timeout(&priv->done,
 				msecs_to_jiffies(MESON_SAR_ADC_TIMEOUT)))
 		return -ETIMEDOUT;
 
-	while (meson_sar_adc_get_fifo_count(indio_dev) > 0 &&
-	       count < MESON_SAR_ADC_MAX_FIFO_SIZE) {
-		regmap_read(priv->regmap, MESON_SAR_ADC_FIFO_RD, &regval);
-
-		fifo_chan = FIELD_GET(MESON_SAR_ADC_FIFO_RD_CHAN_ID_MASK,
-				      regval);
-		if (fifo_chan != chan->channel)
-			continue;
-
-		fifo_val = FIELD_GET(MESON_SAR_ADC_FIFO_RD_SAMPLE_VALUE_MASK,
-				     regval);
-		fifo_val &= (BIT(priv->data->resolution) - 1);
-
-		sum += fifo_val;
-		count++;
+	count = meson_sar_adc_get_fifo_count(indio_dev);
+	if (count != 1) {
+		dev_err(&indio_dev->dev,
+			"ADC FIFO has %d element(s) instead of one\n", count);
+		return -EINVAL;
 	}
 
-	if (!count)
-		return -ENOENT;
+	regmap_read(priv->regmap, MESON_SAR_ADC_FIFO_RD, &regval);
+	fifo_chan = FIELD_GET(MESON_SAR_ADC_FIFO_RD_CHAN_ID_MASK, regval);
+	if (fifo_chan != chan->channel) {
+		dev_err(&indio_dev->dev,
+			"ADC FIFO entry belongs to channel %d instead of %d\n",
+			fifo_chan, chan->channel);
+		return -EINVAL;
+	}
 
-	*val = sum / count;
+	fifo_val = FIELD_GET(MESON_SAR_ADC_FIFO_RD_SAMPLE_VALUE_MASK, regval);
+	fifo_val &= GENMASK(priv->data->resolution - 1, 0);
+	*val = fifo_val;
 
 	return 0;
 }
