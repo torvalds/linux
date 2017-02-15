@@ -2769,10 +2769,6 @@ int i915_gem_init_aliasing_ppgtt(struct drm_i915_private *i915)
 			goto err_ppgtt;
 	}
 
-	ppgtt->base.clear_range(&ppgtt->base,
-				ppgtt->base.start,
-				ppgtt->base.total);
-
 	i915->mm.aliasing_ppgtt = ppgtt;
 
 	WARN_ON(ggtt->base.bind_vma != ggtt_bind_vma);
