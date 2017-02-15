@@ -83,7 +83,6 @@ struct channel_map_table {
 struct pcm_stream_info {
 	struct snd_pcm_substream *substream;
 	int substream_refcount;
-	bool running;
 };
 
 /*
@@ -130,6 +129,7 @@ struct snd_intelhad {
 	union aud_cfg aud_config;	/* AUD_CONFIG reg value cache */
 	struct work_struct hdmi_audio_wq;
 	struct mutex mutex; /* for protecting chmap and eld */
+	bool need_reset;
 };
 
 #endif /* _INTEL_HDMI_AUDIO_ */
