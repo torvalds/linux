@@ -190,14 +190,28 @@ static void had_substream_put(struct snd_intelhad *intelhaddata)
 }
 
 /* Register access functions */
+static u32 had_read_register_raw(struct snd_intelhad *ctx, u32 reg)
+{
+	return ioread32(ctx->mmio_start + ctx->had_config_offset + reg);
+}
+
+static void had_write_register_raw(struct snd_intelhad *ctx, u32 reg, u32 val)
+{
+	iowrite32(val, ctx->mmio_start + ctx->had_config_offset + reg);
+}
+
 static void had_read_register(struct snd_intelhad *ctx, u32 reg, u32 *val)
 {
-	*val = ioread32(ctx->mmio_start + ctx->had_config_offset + reg);
+	if (!ctx->connected)
+		*val = 0;
+	else
+		*val = had_read_register_raw(ctx, reg);
 }
 
 static void had_write_register(struct snd_intelhad *ctx, u32 reg, u32 val)
 {
-	iowrite32(val, ctx->mmio_start + ctx->had_config_offset + reg);
+	if (ctx->connected)
+		had_write_register_raw(ctx, reg, val);
 }
 
 /*
@@ -229,6 +243,8 @@ static void had_ack_irqs(struct snd_intelhad *ctx)
 {
 	u32 status_reg;
 
+	if (!ctx->connected)
+		return;
 	had_read_register(ctx, AUD_HDMI_STATUS, &status_reg);
 	status_reg |= HDMI_AUDIO_BUFFER_DONE | HDMI_AUDIO_UNDERRUN;
 	had_write_register(ctx, AUD_HDMI_STATUS, status_reg);
@@ -998,7 +1014,7 @@ static void wait_clear_underrun_bit(struct snd_intelhad *intelhaddata)
  */
 static void had_do_reset(struct snd_intelhad *intelhaddata)
 {
-	if (!intelhaddata->need_reset)
+	if (!intelhaddata->need_reset || !intelhaddata->connected)
 		return;
 
 	/* Reset buffer pointers */
@@ -1526,18 +1542,20 @@ static const struct snd_kcontrol_new had_controls[] = {
 static irqreturn_t display_pipe_interrupt_handler(int irq, void *dev_id)
 {
 	struct snd_intelhad *ctx = dev_id;
-	u32 audio_stat, audio_reg;
+	u32 audio_stat;
 
-	audio_reg = AUD_HDMI_STATUS;
-	had_read_register(ctx, audio_reg, &audio_stat);
+	/* use raw register access to ack IRQs even while disconnected */
+	audio_stat = had_read_register_raw(ctx, AUD_HDMI_STATUS);
 
 	if (audio_stat & HDMI_AUDIO_UNDERRUN) {
-		had_write_register(ctx, audio_reg, HDMI_AUDIO_UNDERRUN);
+		had_write_register_raw(ctx, AUD_HDMI_STATUS,
+				       HDMI_AUDIO_UNDERRUN);
 		had_process_buffer_underrun(ctx);
 	}
 
 	if (audio_stat & HDMI_AUDIO_BUFFER_DONE) {
-		had_write_register(ctx, audio_reg, HDMI_AUDIO_BUFFER_DONE);
+		had_write_register_raw(ctx, AUD_HDMI_STATUS,
+				       HDMI_AUDIO_BUFFER_DONE);
 		had_process_buffer_done(ctx);
 	}
 
