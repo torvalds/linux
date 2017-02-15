@@ -623,9 +623,7 @@ create_visor_device(struct visor_device *dev)
 	dev->device.release = visorbus_release_device;
 	/* keep a reference just for us (now 2) */
 	get_device(&dev->device);
-	init_timer(&dev->timer);
-	dev->timer.data = (unsigned long)(dev);
-	dev->timer.function = dev_periodic_work;
+	setup_timer(&dev->timer, dev_periodic_work, (unsigned long)dev);
 
 	/*
 	 * bus_id must be a unique name with respect to this bus TYPE
