@@ -249,6 +249,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_IRQ_ACTIVE:
 	case I915_PARAM_ALLOW_BATCHBUFFER:
 	case I915_PARAM_LAST_DISPATCH:
+	case I915_PARAM_HAS_EXEC_CONSTANTS:
 		/* Reject all old ums/dri params. */
 		return -ENODEV;
 	case I915_PARAM_CHIPSET_ID:
@@ -274,9 +275,6 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		break;
 	case I915_PARAM_HAS_BSD2:
 		value = !!dev_priv->engine[VCS2];
-		break;
-	case I915_PARAM_HAS_EXEC_CONSTANTS:
-		value = INTEL_GEN(dev_priv) >= 4;
 		break;
 	case I915_PARAM_HAS_LLC:
 		value = HAS_LLC(dev_priv);
