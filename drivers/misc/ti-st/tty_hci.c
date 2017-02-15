@@ -392,6 +392,7 @@ static long hci_tty_ioctl(struct file *file,
 	struct sk_buff *skb = NULL;
 	int		retcode = 0;
 	struct ti_st	*hst;
+	unsigned int	value = 0;
 
 	pr_debug("inside %s (%p, %u, %lx)", __func__, file, cmd, arg);
 
@@ -412,13 +413,13 @@ static long hci_tty_ioctl(struct file *file,
 		 */
 		skb = skb_dequeue(&hst->rx_list);
 		if (skb != NULL) {
-			*(unsigned int *)arg = skb->len + 1;
+			value = skb->len + 1;
 			/* Re-Store the SKB for furtur Read operations */
 			skb_queue_head(&hst->rx_list, skb);
-		} else {
-			*(unsigned int *)arg = 0;
 		}
-		pr_debug("returning %d\n", *(unsigned int *)arg);
+		pr_debug("returning %d\n", value);
+		if (copy_to_user((void __user *)arg, &value, sizeof(value)))
+			return -EFAULT;
 		break;
 	default:
 		pr_debug("Un-Identified IOCTL %d", cmd);
