@@ -14,6 +14,10 @@
 #ifndef _PCIE_DESIGNWARE_H
 #define _PCIE_DESIGNWARE_H
 
+#include <linux/irq.h>
+#include <linux/msi.h>
+#include <linux/pci.h>
+
 /* Parameters for the waiting for link up routine */
 #define LINK_WAIT_MAX_RETRIES		10
 #define LINK_WAIT_USLEEP_MIN		90000
@@ -166,4 +170,8 @@ u32 dw_pcie_readl_dbi(struct dw_pcie *pci, u32 reg);
 void dw_pcie_writel_dbi(struct dw_pcie *pci, u32 reg, u32 val);
 int dw_pcie_link_up(struct dw_pcie *pci);
 int dw_pcie_wait_for_link(struct dw_pcie *pci);
+void dw_pcie_prog_outbound_atu(struct dw_pcie *pci, int index,
+			       int type, u64 cpu_addr, u64 pci_addr,
+			       u32 size);
+void dw_pcie_setup(struct dw_pcie *pci);
 #endif /* _PCIE_DESIGNWARE_H */
