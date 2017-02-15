@@ -739,6 +739,7 @@ static void stmmac_adjust_link(struct net_device *dev)
 			default:
 				netif_warn(priv, link, priv->dev,
 					   "broken speed: %d\n", phydev->speed);
+				phydev->speed = SPEED_UNKNOWN;
 				break;
 			}
 
