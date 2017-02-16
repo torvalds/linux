@@ -772,6 +772,9 @@ static int atmel_hlcdc_plane_prepare_fb(struct drm_plane *p,
 			drm_plane_state_to_atmel_hlcdc_plane_state(s);
 	int ret;
 
+	if (!new_state->fb)
+		return 0;
+
 	ret = atmel_hlcdc_layer_update_start(&plane->layer);
 	if (!ret)
 		state->prepared = true;

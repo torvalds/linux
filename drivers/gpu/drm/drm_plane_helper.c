@@ -450,8 +450,7 @@ int drm_plane_helper_commit(struct drm_plane *plane,
 			goto out;
 	}
 
-	if (plane_funcs->prepare_fb && plane_state->fb &&
-	    plane_state->fb != old_fb) {
+	if (plane_funcs->prepare_fb && plane_state->fb != old_fb) {
 		ret = plane_funcs->prepare_fb(plane,
 					      plane_state);
 		if (ret)
