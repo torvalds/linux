@@ -125,6 +125,7 @@
 #define   PCIE_CORE_INT_CT			BIT(11)
 #define   PCIE_CORE_INT_UTC			BIT(18)
 #define   PCIE_CORE_INT_MMVC			BIT(19)
+#define PCIE_CORE_CONFIG_VENDOR		(PCIE_CORE_CTRL_MGMT_BASE + 0x44)
 #define PCIE_CORE_INT_MASK		(PCIE_CORE_CTRL_MGMT_BASE + 0x210)
 #define PCIE_RC_BAR_CONF		(PCIE_CORE_CTRL_MGMT_BASE + 0x300)
 
@@ -138,7 +139,6 @@
 		 PCIE_CORE_INT_MMVC)
 
 #define PCIE_RC_CONFIG_BASE		0xa00000
-#define PCIE_RC_CONFIG_VENDOR		(PCIE_RC_CONFIG_BASE + 0x00)
 #define PCIE_RC_CONFIG_RID_CCR		(PCIE_RC_CONFIG_BASE + 0x08)
 #define   PCIE_RC_CONFIG_SCC_SHIFT		16
 #define PCIE_RC_CONFIG_DCR		(PCIE_RC_CONFIG_BASE + 0xc4)
@@ -637,7 +637,7 @@ static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 	dev_dbg(dev, "current link width is x%d\n", status);
 
 	rockchip_pcie_write(rockchip, ROCKCHIP_VENDOR_ID,
-			    PCIE_RC_CONFIG_VENDOR);
+			    PCIE_CORE_CONFIG_VENDOR);
 	rockchip_pcie_write(rockchip,
 			    PCI_CLASS_BRIDGE_PCI << PCIE_RC_CONFIG_SCC_SHIFT,
 			    PCIE_RC_CONFIG_RID_CCR);
