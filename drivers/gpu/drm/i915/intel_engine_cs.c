@@ -210,10 +210,8 @@ cleanup:
 	for_each_engine(engine, dev_priv, id) {
 		if (id >= err_id)
 			kfree(engine);
-		else if (i915.enable_execlists)
-			intel_logical_ring_cleanup(engine);
 		else
-			intel_engine_cleanup(engine);
+			dev_priv->gt.cleanup_engine(engine);
 	}
 	return err;
 }
