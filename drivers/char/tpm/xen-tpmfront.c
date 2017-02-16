@@ -289,7 +289,6 @@ static int tpmfront_probe(struct xenbus_device *dev,
 		const struct xenbus_device_id *id)
 {
 	struct tpm_private *priv;
-	struct tpm_chip *chip;
 	int rv;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
@@ -306,7 +305,6 @@ static int tpmfront_probe(struct xenbus_device *dev,
 
 	rv = setup_ring(dev, priv);
 	if (rv) {
-		chip = dev_get_drvdata(&dev->dev);
 		ring_free(priv);
 		return rv;
 	}

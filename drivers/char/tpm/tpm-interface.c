@@ -47,7 +47,7 @@
 static int tpm_suspend_pcr;
 module_param_named(suspend_pcr, tpm_suspend_pcr, uint, 0644);
 MODULE_PARM_DESC(suspend_pcr,
-		 "PCR to use for dummy writes to faciltate flush on suspend.");
+		 "PCR to use for dummy writes to facilitate flush on suspend.");
 
 /*
  * Array with one entry per ordinal defining the maximum amount
@@ -767,7 +767,7 @@ EXPORT_SYMBOL_GPL(tpm_pcr_read);
 
 #define TPM_ORD_PCR_EXTEND cpu_to_be32(20)
 #define EXTEND_PCR_RESULT_SIZE 34
-#define EXTEND_PCR_RESULT_BODY_SIZE 24
+#define EXTEND_PCR_RESULT_BODY_SIZE 20
 static const struct tpm_input_header pcrextend_header = {
 	.tag = TPM_TAG_RQU_COMMAND,
 	.length = cpu_to_be32(34),

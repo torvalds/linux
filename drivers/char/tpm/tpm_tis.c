@@ -432,7 +432,7 @@ err_pnp:
 	acpi_bus_unregister_driver(&tis_acpi_driver);
 err_acpi:
 #endif
-	platform_device_unregister(force_pdev);
+	platform_driver_unregister(&tis_drv);
 err_platform:
 	if (force_pdev)
 		platform_device_unregister(force_pdev);
