@@ -85,6 +85,8 @@ static int __vlan_tunnel_info_add(struct net_bridge_vlan_group *vg,
 	return 0;
 out:
 	dst_release(&vlan->tinfo.tunnel_dst->dst);
+	vlan->tinfo.tunnel_dst = NULL;
+	vlan->tinfo.tunnel_id = 0;
 
 	return err;
 }
