@@ -103,7 +103,7 @@ static void bfin_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	disable_gptimer(priv->pin);
 }
 
-static struct pwm_ops bfin_pwm_ops = {
+static const struct pwm_ops bfin_pwm_ops = {
 	.request = bfin_pwm_request,
 	.free = bfin_pwm_free,
 	.config = bfin_pwm_config,
