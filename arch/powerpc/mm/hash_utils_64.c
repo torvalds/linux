@@ -872,6 +872,12 @@ static void __init htab_initialize(void)
 		/* Using a hypervisor which owns the htab */
 		htab_address = NULL;
 		_SDR1 = 0; 
+		/*
+		 * On POWER9, we need to do a H_REGISTER_PROC_TBL hcall
+		 * to inform the hypervisor that we wish to use the HPT.
+		 */
+		if (cpu_has_feature(CPU_FTR_ARCH_300))
+			register_process_table(0, 0, 0);
 #ifdef CONFIG_FA_DUMP
 		/*
 		 * If firmware assisted dump is active firmware preserves
