@@ -37,6 +37,7 @@
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
 #include <sound/control.h>
+#include <sound/jack.h>
 #include <drm/drm_edid.h>
 #include <drm/intel_lpe_audio.h>
 #include "intel_hdmi_audio.h"
@@ -189,14 +190,28 @@ static void had_substream_put(struct snd_intelhad *intelhaddata)
 }
 
 /* Register access functions */
+static u32 had_read_register_raw(struct snd_intelhad *ctx, u32 reg)
+{
+	return ioread32(ctx->mmio_start + ctx->had_config_offset + reg);
+}
+
+static void had_write_register_raw(struct snd_intelhad *ctx, u32 reg, u32 val)
+{
+	iowrite32(val, ctx->mmio_start + ctx->had_config_offset + reg);
+}
+
 static void had_read_register(struct snd_intelhad *ctx, u32 reg, u32 *val)
 {
-	*val = ioread32(ctx->mmio_start + ctx->had_config_offset + reg);
+	if (!ctx->connected)
+		*val = 0;
+	else
+		*val = had_read_register_raw(ctx, reg);
 }
 
 static void had_write_register(struct snd_intelhad *ctx, u32 reg, u32 val)
 {
-	iowrite32(val, ctx->mmio_start + ctx->had_config_offset + reg);
+	if (ctx->connected)
+		had_write_register_raw(ctx, reg, val);
 }
 
 /*
@@ -228,6 +243,8 @@ static void had_ack_irqs(struct snd_intelhad *ctx)
 {
 	u32 status_reg;
 
+	if (!ctx->connected)
+		return;
 	had_read_register(ctx, AUD_HDMI_STATUS, &status_reg);
 	status_reg |= HDMI_AUDIO_BUFFER_DONE | HDMI_AUDIO_UNDERRUN;
 	had_write_register(ctx, AUD_HDMI_STATUS, status_reg);
@@ -443,11 +460,12 @@ static void had_build_channel_allocation_map(struct snd_intelhad *intelhaddata)
 	u8 eld_high, eld_high_mask = 0xF0;
 	u8 high_msb;
 
+	kfree(intelhaddata->chmap->chmap);
+	intelhaddata->chmap->chmap = NULL;
+
 	chmap = kzalloc(sizeof(*chmap), GFP_KERNEL);
-	if (!chmap) {
-		intelhaddata->chmap->chmap = NULL;
+	if (!chmap)
 		return;
-	}
 
 	dev_dbg(intelhaddata->dev, "eld speaker = %x\n",
 		intelhaddata->eld[DRM_ELD_SPEAKER]);
@@ -492,10 +510,8 @@ static void had_build_channel_allocation_map(struct snd_intelhad *intelhaddata)
 			break;
 		}
 	}
-	if (i >= ARRAY_SIZE(channel_allocations)) {
-		intelhaddata->chmap->chmap = NULL;
+	if (i >= ARRAY_SIZE(channel_allocations))
 		kfree(chmap);
-	}
 }
 
 /*
@@ -504,11 +520,6 @@ static void had_build_channel_allocation_map(struct snd_intelhad *intelhaddata)
 static int had_chmap_ctl_info(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_info *uinfo)
 {
-	struct snd_pcm_chmap *info = snd_kcontrol_chip(kcontrol);
-	struct snd_intelhad *intelhaddata = info->private_data;
-
-	if (!intelhaddata->connected)
-		return -ENODEV;
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = HAD_MAX_CHANNEL;
 	uinfo->value.integer.min = 0;
@@ -524,13 +535,12 @@ static int had_chmap_ctl_get(struct snd_kcontrol *kcontrol,
 	int i;
 	const struct snd_pcm_chmap_elem *chmap;
 
-	if (!intelhaddata->connected)
-		return -ENODEV;
-
+	memset(ucontrol->value.integer.value, 0,
+	       sizeof(long) * HAD_MAX_CHANNEL);
 	mutex_lock(&intelhaddata->mutex);
 	if (!intelhaddata->chmap->chmap) {
 		mutex_unlock(&intelhaddata->mutex);
-		return -ENODATA;
+		return 0;
 	}
 
 	chmap = intelhaddata->chmap->chmap;
@@ -968,12 +978,14 @@ static void had_process_buffer_done(struct snd_intelhad *intelhaddata)
 	struct snd_pcm_substream *substream;
 	int processed;
 
-	if (!intelhaddata->connected)
-		return; /* disconnected? - bail out */
-
 	substream = had_substream_get(intelhaddata);
 	if (!substream)
 		return; /* no stream? - bail out */
+
+	if (!intelhaddata->connected) {
+		snd_pcm_stop_xrun(substream);
+		goto out; /* disconnected? - bail out */
+	}
 
 	/* process or stop the stream */
 	processed = had_process_ringbuf(substream, intelhaddata, NULL);
@@ -982,6 +994,7 @@ static void had_process_buffer_done(struct snd_intelhad *intelhaddata)
 	else if (processed > 0)
 		snd_pcm_period_elapsed(substream);
 
+ out:
 	had_substream_put(intelhaddata);
 }
 
@@ -1012,7 +1025,7 @@ static void wait_clear_underrun_bit(struct snd_intelhad *intelhaddata)
  */
 static void had_do_reset(struct snd_intelhad *intelhaddata)
 {
-	if (!intelhaddata->need_reset)
+	if (!intelhaddata->need_reset || !intelhaddata->connected)
 		return;
 
 	/* Reset buffer pointers */
@@ -1048,13 +1061,6 @@ static int had_pcm_open(struct snd_pcm_substream *substream)
 	runtime = substream->runtime;
 
 	pm_runtime_get_sync(intelhaddata->dev);
-
-	if (!intelhaddata->connected) {
-		dev_dbg(intelhaddata->dev, "%s: HDMI cable plugged-out\n",
-			__func__);
-		retval = -ENODEV;
-		goto error;
-	}
 
 	/* set the runtime hw parameter with local snd_pcm_hardware struct */
 	runtime->hw = had_pcm_hardware;
@@ -1181,14 +1187,6 @@ static int had_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 	case SNDRV_PCM_TRIGGER_RESUME:
-		/* Disable local INTRs till register prgmng is done */
-		if (!intelhaddata->connected) {
-			dev_dbg(intelhaddata->dev,
-				"_START: HDMI cable plugged-out\n");
-			retval = -ENODEV;
-			break;
-		}
-
 		/* Enable Audio */
 		had_ack_irqs(intelhaddata); /* FIXME: do we need this? */
 		had_enable_audio(intelhaddata, true);
@@ -1221,13 +1219,6 @@ static int had_pcm_prepare(struct snd_pcm_substream *substream)
 
 	intelhaddata = snd_pcm_substream_chip(substream);
 	runtime = substream->runtime;
-
-	if (!intelhaddata->connected) {
-		dev_dbg(intelhaddata->dev, "%s: HDMI cable plugged-out\n",
-			__func__);
-		retval = -ENODEV;
-		goto prep_end;
-	}
 
 	dev_dbg(intelhaddata->dev, "period_size=%d\n",
 		(int)frames_to_bytes(runtime, runtime->period_size));
@@ -1378,17 +1369,16 @@ static void had_process_hot_plug(struct snd_intelhad *intelhaddata)
 			__func__, __LINE__);
 	spin_unlock_irq(&intelhaddata->had_spinlock);
 
-	/* Safety check */
+	had_build_channel_allocation_map(intelhaddata);
+
+	/* Report to above ALSA layer */
 	substream = had_substream_get(intelhaddata);
 	if (substream) {
-		dev_dbg(intelhaddata->dev,
-			"Force to stop the active stream by disconnection\n");
-		/* Set runtime->state to hw_params done */
-		snd_pcm_stop(substream, SNDRV_PCM_STATE_SETUP);
+		snd_pcm_stop_xrun(substream);
 		had_substream_put(intelhaddata);
 	}
 
-	had_build_channel_allocation_map(intelhaddata);
+	snd_jack_report(intelhaddata->jack, SND_JACK_AVOUT);
 }
 
 /* process hot unplug, called from wq with mutex locked */
@@ -1396,14 +1386,11 @@ static void had_process_hot_unplug(struct snd_intelhad *intelhaddata)
 {
 	struct snd_pcm_substream *substream;
 
-	substream = had_substream_get(intelhaddata);
-
 	spin_lock_irq(&intelhaddata->had_spinlock);
-
 	if (!intelhaddata->connected) {
 		dev_dbg(intelhaddata->dev, "Device already disconnected\n");
 		spin_unlock_irq(&intelhaddata->had_spinlock);
-		goto out;
+		return;
 
 	}
 
@@ -1416,15 +1403,17 @@ static void had_process_hot_unplug(struct snd_intelhad *intelhaddata)
 			__func__, __LINE__);
 	spin_unlock_irq(&intelhaddata->had_spinlock);
 
-	/* Report to above ALSA layer */
-	if (substream)
-		snd_pcm_stop(substream, SNDRV_PCM_STATE_SETUP);
-
- out:
-	if (substream)
-		had_substream_put(intelhaddata);
 	kfree(intelhaddata->chmap->chmap);
 	intelhaddata->chmap->chmap = NULL;
+
+	/* Report to above ALSA layer */
+	substream = had_substream_get(intelhaddata);
+	if (substream) {
+		snd_pcm_stop_xrun(substream);
+		had_substream_put(intelhaddata);
+	}
+
+	snd_jack_report(intelhaddata->jack, 0);
 }
 
 /*
@@ -1536,18 +1525,20 @@ static const struct snd_kcontrol_new had_controls[] = {
 static irqreturn_t display_pipe_interrupt_handler(int irq, void *dev_id)
 {
 	struct snd_intelhad *ctx = dev_id;
-	u32 audio_stat, audio_reg;
+	u32 audio_stat;
 
-	audio_reg = AUD_HDMI_STATUS;
-	had_read_register(ctx, audio_reg, &audio_stat);
+	/* use raw register access to ack IRQs even while disconnected */
+	audio_stat = had_read_register_raw(ctx, AUD_HDMI_STATUS);
 
 	if (audio_stat & HDMI_AUDIO_UNDERRUN) {
-		had_write_register(ctx, audio_reg, HDMI_AUDIO_UNDERRUN);
+		had_write_register_raw(ctx, AUD_HDMI_STATUS,
+				       HDMI_AUDIO_UNDERRUN);
 		had_process_buffer_underrun(ctx);
 	}
 
 	if (audio_stat & HDMI_AUDIO_BUFFER_DONE) {
-		had_write_register(ctx, audio_reg, HDMI_AUDIO_BUFFER_DONE);
+		had_write_register_raw(ctx, AUD_HDMI_STATUS,
+				       HDMI_AUDIO_BUFFER_DONE);
 		had_process_buffer_done(ctx);
 	}
 
@@ -1613,6 +1604,21 @@ static void had_audio_wq(struct work_struct *work)
 	}
 	mutex_unlock(&ctx->mutex);
 	pm_runtime_put(ctx->dev);
+}
+
+/*
+ * Jack interface
+ */
+static int had_create_jack(struct snd_intelhad *ctx)
+{
+	int err;
+
+	err = snd_jack_new(ctx->card, "HDMI/DP", SND_JACK_AVOUT, &ctx->jack,
+			   true, false);
+	if (err < 0)
+		return err;
+	ctx->jack->private_data = ctx;
+	return 0;
 }
 
 /*
@@ -1784,6 +1790,10 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 
 	/* Register channel map controls */
 	ret = had_register_chmap_ctls(ctx, pcm);
+	if (ret < 0)
+		goto err;
+
+	ret = had_create_jack(ctx);
 	if (ret < 0)
 		goto err;
 
