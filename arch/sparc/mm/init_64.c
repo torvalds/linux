@@ -1126,6 +1126,10 @@ int of_node_to_nid(struct device_node *dp)
 static void __init add_node_ranges(void)
 {
 	struct memblock_region *reg;
+	unsigned long prev_max;
+
+memblock_resized:
+	prev_max = memblock.memory.max;
 
 	for_each_memblock(memory, reg) {
 		unsigned long size = reg->size;
@@ -1145,6 +1149,8 @@ static void __init add_node_ranges(void)
 
 			memblock_set_node(start, this_end - start,
 					  &memblock.memory, nid);
+			if (memblock.memory.max != prev_max)
+				goto memblock_resized;
 			start = this_end;
 		}
 	}
