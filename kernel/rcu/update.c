@@ -132,8 +132,7 @@ bool rcu_gp_is_normal(void)
 }
 EXPORT_SYMBOL_GPL(rcu_gp_is_normal);
 
-static atomic_t rcu_expedited_nesting =
-	ATOMIC_INIT(IS_ENABLED(CONFIG_RCU_EXPEDITE_BOOT) ? 1 : 0);
+static atomic_t rcu_expedited_nesting = ATOMIC_INIT(1);
 
 /*
  * Should normal grace-period primitives be expedited?  Intended for
@@ -182,8 +181,7 @@ EXPORT_SYMBOL_GPL(rcu_unexpedite_gp);
  */
 void rcu_end_inkernel_boot(void)
 {
-	if (IS_ENABLED(CONFIG_RCU_EXPEDITE_BOOT))
-		rcu_unexpedite_gp();
+	rcu_unexpedite_gp();
 	if (rcu_normal_after_boot)
 		WRITE_ONCE(rcu_normal, 1);
 }
