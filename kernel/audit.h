@@ -199,6 +199,9 @@ struct audit_context {
 		struct {
 			int			argc;
 		} execve;
+		struct {
+			char			*name;
+		} module;
 	};
 	int fds[2];
 	struct audit_proctitle proctitle;
