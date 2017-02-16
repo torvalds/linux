@@ -24,6 +24,7 @@
 
 #include "acr.h"
 #include "ls_ucode.h"
+#include "hs_ucode.h"
 
 struct ls_ucode_img;
 
@@ -32,32 +33,6 @@ struct ls_ucode_img;
 #define LSF_FLAG_LOAD_CODE_AT_0		1
 #define LSF_FLAG_DMACTL_REQ_CTX		4
 #define LSF_FLAG_FORCE_PRIV_LOAD	8
-
-/*
- * HS blob structures
- */
-
-/**
- * struct hsf_load_header - HS firmware load header
- */
-struct hsf_load_header {
-	u32 non_sec_code_off;
-	u32 non_sec_code_size;
-	u32 data_dma_base;
-	u32 data_size;
-	u32 num_apps;
-	/*
-	 * Organized as follows:
-	 * - app0_code_off
-	 * - app1_code_off
-	 * - ...
-	 * - appn_code_off
-	 * - app0_code_size
-	 * - app1_code_size
-	 * - ...
-	 */
-	u32 apps[0];
-};
 
 static inline u32
 hsf_load_header_app_off(const struct hsf_load_header *hdr, u32 app)

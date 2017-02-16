@@ -21,6 +21,7 @@
  */
 
 #include "acr_r352.h"
+#include "hs_ucode.h"
 
 #include <core/gpuobj.h>
 #include <core/firmware.h>
@@ -30,31 +31,6 @@
 #include <subdev/pmu.h>
 #include <core/msgqueue.h>
 #include <engine/sec2.h>
-
-/**
- * struct hsf_fw_header - HS firmware descriptor
- * @sig_dbg_offset:	offset of the debug signature
- * @sig_dbg_size:	size of the debug signature
- * @sig_prod_offset:	offset of the production signature
- * @sig_prod_size:	size of the production signature
- * @patch_loc:		offset of the offset (sic) of where the signature is
- * @patch_sig:		offset of the offset (sic) to add to sig_*_offset
- * @hdr_offset:		offset of the load header (see struct hs_load_header)
- * @hdr_size:		size of above header
- *
- * This structure is embedded in the HS firmware image at
- * hs_bin_hdr.header_offset.
- */
-struct hsf_fw_header {
-	u32 sig_dbg_offset;
-	u32 sig_dbg_size;
-	u32 sig_prod_offset;
-	u32 sig_prod_size;
-	u32 patch_loc;
-	u32 patch_sig;
-	u32 hdr_offset;
-	u32 hdr_size;
-};
 
 /**
  * struct acr_r352_flcn_bl_desc - DMEM bootloader descriptor
@@ -599,47 +575,6 @@ cleanup:
 
 
 
-/**
- * acr_r352_hsf_patch_signature() - patch HS blob with correct signature for
- * specified falcon.
- */
-static void
-acr_r352_hsf_patch_signature(const struct nvkm_falcon *falcon, void *acr_image,
-			     bool new_format)
-{
-	struct fw_bin_header *hsbin_hdr = acr_image;
-	struct hsf_fw_header *fw_hdr = acr_image + hsbin_hdr->header_offset;
-	void *hs_data = acr_image + hsbin_hdr->data_offset;
-	void *sig;
-	u32 sig_size;
-	u32 patch_loc, patch_sig;
-
-	/*
-	 * I had the brilliant idea to "improve" the binary format by
-	 * removing this useless indirection. However to make NVIDIA files
-	 * directly compatible, let's support both format.
-	 */
-	if (new_format) {
-		patch_loc = fw_hdr->patch_loc;
-		patch_sig = fw_hdr->patch_sig;
-	} else {
-		patch_loc = *(u32 *)(acr_image + fw_hdr->patch_loc);
-		patch_sig = *(u32 *)(acr_image + fw_hdr->patch_sig);
-	}
-
-	/* Falcon in debug or production mode? */
-	if (falcon->debug) {
-		sig = acr_image + fw_hdr->sig_dbg_offset;
-		sig_size = fw_hdr->sig_dbg_size;
-	} else {
-		sig = acr_image + fw_hdr->sig_prod_offset;
-		sig_size = fw_hdr->sig_prod_size;
-	}
-
-	/* Patch signature */
-	memcpy(hs_data + patch_loc, sig + patch_sig, sig_size);
-}
-
 void
 acr_r352_fixup_hs_desc(struct acr_r352 *acr, struct nvkm_secboot *sb,
 		       void *_desc)
@@ -687,37 +622,6 @@ acr_r352_generate_hs_bl_desc(const struct hsf_load_header *hdr, void *_bl_desc,
 	bl_desc->data_size = hdr->data_size;
 }
 
-void *
-acr_r352_load_hs_blob(struct nvkm_secboot *sb, const struct nvkm_falcon *falcon,
-		      const char *fw)
-{
-	struct nvkm_subdev *subdev = &sb->subdev;
-	void *acr_image;
-	bool new_format;
-
-	acr_image = nvkm_acr_load_firmware(subdev, fw, 0);
-	if (IS_ERR(acr_image))
-		return acr_image;
-
-	/* detect the format to define how signature should be patched */
-	switch (((u32 *)acr_image)[0]) {
-	case 0x3b1d14f0:
-		new_format = true;
-		break;
-	case 0x000010de:
-		new_format = false;
-		break;
-	default:
-		nvkm_error(subdev, "unknown header for HS blob %s\n", fw);
-		return ERR_PTR(-EINVAL);
-	}
-
-	/* Patch signature */
-	acr_r352_hsf_patch_signature(falcon, acr_image, new_format);
-
-	return acr_image;
-}
-
 /**
  * acr_r352_prepare_hs_blob - load and prepare a HS blob and BL descriptor
  *
@@ -740,7 +644,7 @@ acr_r352_prepare_hs_blob(struct acr_r352 *acr, struct nvkm_secboot *sb,
 	void *acr_data;
 	int ret;
 
-	acr_image = acr_r352_load_hs_blob(sb, sb->boot_falcon, fw);
+	acr_image = hs_ucode_load_blob(subdev, sb->boot_falcon, fw);
 	if (IS_ERR(acr_image))
 		return PTR_ERR(acr_image);
 
