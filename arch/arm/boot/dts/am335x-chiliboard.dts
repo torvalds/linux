@@ -185,3 +185,19 @@
 	cd-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
+
+&tps {
+	interrupt-parent = <&intc>;
+	interrupts = <7>; /* NNMI */
+
+	charger {
+		interrupts = <0>, <1>;
+		interrupt-names = "USB", "AC";
+		status = "okay";
+	};
+
+	pwrbutton {
+		interrupts = <2>;
+		status = "okay";
+	};
+};
