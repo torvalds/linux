@@ -46,6 +46,7 @@ config SGI_MBCS
          say Y or M here, otherwise say N.
 
 source "drivers/tty/serial/Kconfig"
+source "drivers/tty/serdev/Kconfig"
 
 config TTY_PRINTK
 	tristate "TTY driver to output user messages via printk"

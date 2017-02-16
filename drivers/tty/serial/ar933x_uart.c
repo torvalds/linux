@@ -493,7 +493,7 @@ static int ar933x_uart_verify_port(struct uart_port *port,
 	return 0;
 }
 
-static struct uart_ops ar933x_uart_ops = {
+static const struct uart_ops ar933x_uart_ops = {
 	.tx_empty	= ar933x_uart_tx_empty,
 	.set_mctrl	= ar933x_uart_set_mctrl,
 	.get_mctrl	= ar933x_uart_get_mctrl,

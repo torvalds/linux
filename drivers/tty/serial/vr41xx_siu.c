@@ -681,7 +681,7 @@ static int siu_verify_port(struct uart_port *port, struct serial_struct *serial)
 	return 0;
 }
 
-static struct uart_ops siu_uart_ops = {
+static const struct uart_ops siu_uart_ops = {
 	.tx_empty	= siu_tx_empty,
 	.set_mctrl	= siu_set_mctrl,
 	.get_mctrl	= siu_get_mctrl,

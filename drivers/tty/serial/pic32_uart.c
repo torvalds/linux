@@ -495,13 +495,13 @@ static int pic32_uart_startup(struct uart_port *port)
 
 out_t:
 	kfree(sport->irq_tx_name);
-	free_irq(sport->irq_tx, sport);
+	free_irq(sport->irq_tx, port);
 out_r:
 	kfree(sport->irq_rx_name);
-	free_irq(sport->irq_rx, sport);
+	free_irq(sport->irq_rx, port);
 out_f:
 	kfree(sport->irq_fault_name);
-	free_irq(sport->irq_fault, sport);
+	free_irq(sport->irq_fault, port);
 out_done:
 	return ret;
 }

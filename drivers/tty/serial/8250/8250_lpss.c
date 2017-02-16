@@ -332,10 +332,10 @@ static void lpss8250_remove(struct pci_dev *pdev)
 {
 	struct lpss8250 *lpss = pci_get_drvdata(pdev);
 
+	serial8250_unregister_port(lpss->line);
+
 	if (lpss->board->exit)
 		lpss->board->exit(lpss);
-
-	serial8250_unregister_port(lpss->line);
 }
 
 static const struct lpss8250_board byt_board = {

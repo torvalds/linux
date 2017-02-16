@@ -17,8 +17,8 @@
 #include <asm/addrspace.h>
 
 static struct plat_sci_port scif0_platform_data = {
-	.flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP,
-	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
+	.flags		= UPF_IOREMAP,
+	.scscr		= SCSCR_REIE,
 	.type		= PORT_SCIF,
 };
 

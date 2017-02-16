@@ -20,9 +20,7 @@
 #include <asm/clock.h>
 
 static struct plat_sci_port scif0_platform_data = {
-	.port_reg	= 0xa405013e,
-	.flags		= UPF_BOOT_AUTOCONF,
-	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
+	.scscr		= SCSCR_REIE,
 	.type		= PORT_SCIF,
 };
 
