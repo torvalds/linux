@@ -536,7 +536,7 @@ static const struct iommu_ops *iort_iommu_xlate(struct device *dev,
 		if (!iort_fwnode)
 			return NULL;
 
-		ops = iommu_get_instance(iort_fwnode);
+		ops = iommu_ops_from_fwnode(iort_fwnode);
 		if (!ops)
 			return NULL;
 
