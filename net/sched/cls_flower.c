@@ -273,6 +273,8 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 
 	err = dev->netdev_ops->ndo_setup_tc(dev, tp->q->handle, tp->protocol,
 					    tc);
+	if (!err)
+		f->flags |= TCA_CLS_FLAGS_IN_HW;
 
 	if (tc_skip_sw(f->flags))
 		return err;
@@ -911,6 +913,9 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 		if (err)
 			goto errout;
 	}
+
+	if (!tc_in_hw(fnew->flags))
+		fnew->flags |= TCA_CLS_FLAGS_NOT_IN_HW;
 
 	if (fold) {
 		if (!tc_skip_sw(fold->flags))
