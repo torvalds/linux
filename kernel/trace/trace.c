@@ -1193,6 +1193,7 @@ int trace_parser_get_init(struct trace_parser *parser, int size)
 void trace_parser_put(struct trace_parser *parser)
 {
 	kfree(parser->buffer);
+	parser->buffer = NULL;
 }
 
 /*

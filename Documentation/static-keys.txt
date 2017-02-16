@@ -155,7 +155,9 @@ or:
 
 There are a few functions and macros that architectures must implement in order
 to take advantage of this optimization. If there is no architecture support, we
-simply fall back to a traditional, load, test, and jump sequence.
+simply fall back to a traditional, load, test, and jump sequence. Also, the
+struct jump_entry table must be at least 4-byte aligned because the
+static_key->entry field makes use of the two least significant bits.
 
 * select HAVE_ARCH_JUMP_LABEL, see: arch/x86/Kconfig
 
