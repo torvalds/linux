@@ -2200,6 +2200,9 @@ nv132_chipset = {
 	.ltc = gp100_ltc_new,
 	.mc = gp100_mc_new,
 	.mmu = gf100_mmu_new,
+	.secboot = gp102_secboot_new,
+	.sec2 = gp102_sec2_new,
+	.nvdec = gp102_nvdec_new,
 	.pci = gp100_pci_new,
 	.pmu = gp102_pmu_new,
 	.timer = gk20a_timer_new,
@@ -2211,6 +2214,8 @@ nv132_chipset = {
 	.disp = gp102_disp_new,
 	.dma = gf119_dma_new,
 	.fifo = gp100_fifo_new,
+	.gr = gp102_gr_new,
+	.sw = gf100_sw_new,
 };
 
 static const struct nvkm_device_chip
@@ -2229,6 +2234,9 @@ nv134_chipset = {
 	.ltc = gp100_ltc_new,
 	.mc = gp100_mc_new,
 	.mmu = gf100_mmu_new,
+	.secboot = gp102_secboot_new,
+	.sec2 = gp102_sec2_new,
+	.nvdec = gp102_nvdec_new,
 	.pci = gp100_pci_new,
 	.pmu = gp102_pmu_new,
 	.timer = gk20a_timer_new,
@@ -2240,6 +2248,8 @@ nv134_chipset = {
 	.disp = gp102_disp_new,
 	.dma = gf119_dma_new,
 	.fifo = gp100_fifo_new,
+	.gr = gp102_gr_new,
+	.sw = gf100_sw_new,
 };
 
 static const struct nvkm_device_chip
@@ -2258,6 +2268,9 @@ nv136_chipset = {
 	.ltc = gp100_ltc_new,
 	.mc = gp100_mc_new,
 	.mmu = gf100_mmu_new,
+	.secboot = gp102_secboot_new,
+	.sec2 = gp102_sec2_new,
+	.nvdec = gp102_nvdec_new,
 	.pci = gp100_pci_new,
 	.pmu = gp102_pmu_new,
 	.timer = gk20a_timer_new,
@@ -2269,6 +2282,8 @@ nv136_chipset = {
 	.disp = gp102_disp_new,
 	.dma = gf119_dma_new,
 	.fifo = gp100_fifo_new,
+	.gr = gp102_gr_new,
+	.sw = gf100_sw_new,
 };
 
 static int
