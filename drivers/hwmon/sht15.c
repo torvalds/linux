@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <linux/atomic.h>
 #include <linux/bitrev.h>
+#include <linux/of_gpio.h>
 
 /* Commands */
 #define SHT15_MEASURE_TEMP		0x03
@@ -911,6 +912,54 @@ static int sht15_invalidate_voltage(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id sht15_dt_match[] = {
+	{ .compatible = "sensirion,sht15" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, sht15_dt_match);
+
+/*
+ * This function returns NULL if pdev isn't a device instatiated by dt,
+ * a pointer to pdata if it could successfully get all information
+ * from dt or a negative ERR_PTR() on error.
+ */
+static struct sht15_platform_data *sht15_probe_dt(struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	struct sht15_platform_data *pdata;
+
+	/* no device tree device */
+	if (!np)
+		return NULL;
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return ERR_PTR(-ENOMEM);
+
+	pdata->gpio_data = of_get_named_gpio(np, "data-gpios", 0);
+	if (pdata->gpio_data < 0) {
+		if (pdata->gpio_data != -EPROBE_DEFER)
+			dev_err(dev, "data-gpios not found\n");
+		return ERR_PTR(pdata->gpio_data);
+	}
+
+	pdata->gpio_sck = of_get_named_gpio(np, "clk-gpios", 0);
+	if (pdata->gpio_sck < 0) {
+		if (pdata->gpio_sck != -EPROBE_DEFER)
+			dev_err(dev, "clk-gpios not found\n");
+		return ERR_PTR(pdata->gpio_sck);
+	}
+
+	return pdata;
+}
+#else
+static inline struct sht15_platform_data *sht15_probe_dt(struct device *dev)
+{
+	return NULL;
+}
+#endif
+
 static int sht15_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -928,11 +977,17 @@ static int sht15_probe(struct platform_device *pdev)
 	data->dev = &pdev->dev;
 	init_waitqueue_head(&data->wait_queue);
 
-	if (dev_get_platdata(&pdev->dev) == NULL) {
-		dev_err(&pdev->dev, "no platform data supplied\n");
-		return -EINVAL;
+	data->pdata = sht15_probe_dt(&pdev->dev);
+	if (IS_ERR(data->pdata))
+		return PTR_ERR(data->pdata);
+	if (data->pdata == NULL) {
+		data->pdata = dev_get_platdata(&pdev->dev);
+		if (data->pdata == NULL) {
+			dev_err(&pdev->dev, "no platform data supplied\n");
+			return -EINVAL;
+		}
 	}
-	data->pdata = dev_get_platdata(&pdev->dev);
+
 	data->supply_uv = data->pdata->supply_mv * 1000;
 	if (data->pdata->checksum)
 		data->checksumming = true;
@@ -1075,6 +1130,7 @@ MODULE_DEVICE_TABLE(platform, sht15_device_ids);
 static struct platform_driver sht15_driver = {
 	.driver = {
 		.name = "sht15",
+		.of_match_table = of_match_ptr(sht15_dt_match),
 	},
 	.probe = sht15_probe,
 	.remove = sht15_remove,
