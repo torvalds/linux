@@ -26,6 +26,7 @@
 #include <core/firmware.h>
 #include <engine/falcon.h>
 #include <subdev/mc.h>
+#include <subdev/timer.h>
 #include <subdev/pmu.h>
 #include <core/msgqueue.h>
 #include <engine/sec2.h>
@@ -977,6 +978,7 @@ acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
 {
 	const struct nvkm_subdev *subdev = &sb->subdev;
 	unsigned long managed_falcons = acr->base.managed_falcons;
+	u32 reg;
 	int falcon_id;
 	int ret;
 
@@ -1025,6 +1027,37 @@ acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
 
 	/* Start LS firmware on boot falcon */
 	nvkm_falcon_start(sb->boot_falcon);
+
+	/*
+	 * There is a bug where the LS firmware sometimes require to be started
+	 * twice (this happens only on SEC). Detect and workaround that
+	 * condition.
+	 *
+	 * Once started, the falcon will end up in STOPPED condition (bit 5)
+	 * if successful, or in HALT condition (bit 4) if not.
+	 */
+	nvkm_msec(subdev->device, 1,
+		  if ((reg = nvkm_rd32(subdev->device,
+				       sb->boot_falcon->addr + 0x100)
+		       & 0x30) != 0)
+			  break;
+	);
+	if (reg & BIT(4)) {
+		nvkm_debug(subdev, "applying workaround for start bug...");
+		nvkm_falcon_start(sb->boot_falcon);
+		nvkm_msec(subdev->device, 1,
+			if ((reg = nvkm_rd32(subdev->device,
+					     sb->boot_falcon->addr + 0x100)
+			     & 0x30) != 0)
+				break;
+		);
+		if (reg & BIT(4)) {
+			nvkm_error(subdev, "%s failed to start\n",
+			       nvkm_secboot_falcon_name[acr->base.boot_falcon]);
+			return -EINVAL;
+		}
+	}
+
 	nvkm_debug(subdev, "%s started\n",
 		   nvkm_secboot_falcon_name[acr->base.boot_falcon]);
 
