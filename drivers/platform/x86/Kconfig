@@ -92,9 +92,8 @@ config ASUS_LAPTOP
 	  If you have an ACPI-compatible ASUS laptop, say Y or M here.
 
 config DELL_SMBIOS
-	tristate "Dell SMBIOS Support"
-	depends on DCDBAS
-	default n
+	tristate
+	select DCDBAS
 	---help---
 	This module provides common functions for kernel modules using
 	Dell SMBIOS.
@@ -103,16 +102,15 @@ config DELL_SMBIOS
 
 config DELL_LAPTOP
 	tristate "Dell Laptop Extras"
-	depends on DELL_SMBIOS
 	depends on DMI
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	depends on RFKILL || RFKILL = n
 	depends on SERIO_I8042
+	select DELL_SMBIOS
 	select POWER_SUPPLY
 	select LEDS_CLASS
 	select NEW_LEDS
-	default n
 	---help---
 	This driver adds support for rfkill and backlight control to Dell
 	laptops (except for some models covered by the Compal driver).
@@ -123,7 +121,7 @@ config DELL_WMI
 	depends on DMI
 	depends on INPUT
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
-	depends on DELL_SMBIOS
+	select DELL_SMBIOS
 	select INPUT_SPARSEKMAP
 	---help---
 	  Say Y here if you want to support WMI-based hotkeys on Dell laptops.
@@ -1068,6 +1066,27 @@ config MLX_CPLD_PLATFORM
 	---help---
 	  This driver handles hot-plug events for the power suppliers, power
 	  cables and fans on the wide range Mellanox IB and Ethernet systems.
+
+config INTEL_TURBO_MAX_3
+	bool "Intel Turbo Boost Max Technology 3.0 enumeration driver"
+	depends on X86_64 && SCHED_MC_PRIO
+	---help---
+	  This driver reads maximum performance ratio of each CPU and set up
+	  the scheduler priority metrics. In this way scheduler can prefer
+	  CPU with higher performance to schedule tasks.
+	  This driver is only required when the system is not using Hardware
+	  P-States (HWP). In HWP mode, priority can be read from ACPI tables.
+
+config SILEAD_DMI
+	bool "Tablets with Silead touchscreens"
+	depends on ACPI && DMI && I2C=y && INPUT
+	---help---
+	  Certain ACPI based tablets with Silead touchscreens do not have
+	  enough data in ACPI tables for the touchscreen driver to handle
+	  the touchscreen properly, as OEMs expected the data to be baked
+	  into the tablet model specific version of the driver shipped
+	  with the OS-image for the device. This option supplies the missing
+	  information. Enable this for x86 tablets with Silead touchscreens.
 
 endif # X86_PLATFORM_DEVICES
 
