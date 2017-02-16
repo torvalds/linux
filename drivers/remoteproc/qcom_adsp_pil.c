@@ -1,5 +1,5 @@
 /*
- * Qualcomm ADSP Peripheral Image Loader for MSM8974 and MSM8996
+ * Qualcomm ADSP/SLPI Peripheral Image Loader for MSM8974 and MSM8996
  *
  * Copyright (C) 2016 Linaro Ltd
  * Copyright (C) 2014 Sony Mobile Communications AB
@@ -26,15 +26,19 @@
 #include <linux/qcom_scm.h>
 #include <linux/regulator/consumer.h>
 #include <linux/remoteproc.h>
+#include <linux/soc/qcom/mdt_loader.h>
 #include <linux/soc/qcom/smem.h>
 #include <linux/soc/qcom/smem_state.h>
 
-#include "qcom_mdt_loader.h"
+#include "qcom_common.h"
 #include "remoteproc_internal.h"
 
-#define ADSP_CRASH_REASON_SMEM		423
-#define ADSP_FIRMWARE_NAME		"adsp.mdt"
-#define ADSP_PAS_ID			1
+struct adsp_data {
+	int crash_reason_smem;
+	const char *firmware_name;
+	int pas_id;
+	bool has_aggre2_clk;
+};
 
 struct qcom_adsp {
 	struct device *dev;
@@ -50,8 +54,14 @@ struct qcom_adsp {
 	unsigned stop_bit;
 
 	struct clk *xo;
+	struct clk *aggre2_clk;
 
 	struct regulator *cx_supply;
+	struct regulator *px_supply;
+
+	int pas_id;
+	int crash_reason_smem;
+	bool has_aggre2_clk;
 
 	struct completion start_done;
 	struct completion stop_done;
@@ -60,39 +70,16 @@ struct qcom_adsp {
 	phys_addr_t mem_reloc;
 	void *mem_region;
 	size_t mem_size;
+
+	struct qcom_rproc_subdev smd_subdev;
 };
 
 static int adsp_load(struct rproc *rproc, const struct firmware *fw)
 {
 	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
-	phys_addr_t fw_addr;
-	size_t fw_size;
-	bool relocate;
-	int ret;
 
-	ret = qcom_scm_pas_init_image(ADSP_PAS_ID, fw->data, fw->size);
-	if (ret) {
-		dev_err(&rproc->dev, "invalid firmware metadata\n");
-		return ret;
-	}
-
-	ret = qcom_mdt_parse(fw, &fw_addr, &fw_size, &relocate);
-	if (ret) {
-		dev_err(&rproc->dev, "failed to parse mdt header\n");
-		return ret;
-	}
-
-	if (relocate) {
-		adsp->mem_reloc = fw_addr;
-
-		ret = qcom_scm_pas_mem_setup(ADSP_PAS_ID, adsp->mem_phys, fw_size);
-		if (ret) {
-			dev_err(&rproc->dev, "unable to setup memory for image\n");
-			return ret;
-		}
-	}
-
-	return qcom_mdt_load(rproc, fw, rproc->firmware);
+	return qcom_mdt_load(adsp->dev, fw, rproc->firmware, adsp->pas_id,
+			     adsp->mem_region, adsp->mem_phys, adsp->mem_size);
 }
 
 static const struct rproc_fw_ops adsp_fw_ops = {
@@ -109,31 +96,43 @@ static int adsp_start(struct rproc *rproc)
 	if (ret)
 		return ret;
 
+	ret = clk_prepare_enable(adsp->aggre2_clk);
+	if (ret)
+		goto disable_xo_clk;
+
 	ret = regulator_enable(adsp->cx_supply);
 	if (ret)
-		goto disable_clocks;
+		goto disable_aggre2_clk;
 
-	ret = qcom_scm_pas_auth_and_reset(ADSP_PAS_ID);
+	ret = regulator_enable(adsp->px_supply);
+	if (ret)
+		goto disable_cx_supply;
+
+	ret = qcom_scm_pas_auth_and_reset(adsp->pas_id);
 	if (ret) {
 		dev_err(adsp->dev,
 			"failed to authenticate image and release reset\n");
-		goto disable_regulators;
+		goto disable_px_supply;
 	}
 
 	ret = wait_for_completion_timeout(&adsp->start_done,
 					  msecs_to_jiffies(5000));
 	if (!ret) {
 		dev_err(adsp->dev, "start timed out\n");
-		qcom_scm_pas_shutdown(ADSP_PAS_ID);
+		qcom_scm_pas_shutdown(adsp->pas_id);
 		ret = -ETIMEDOUT;
-		goto disable_regulators;
+		goto disable_px_supply;
 	}
 
 	ret = 0;
 
-disable_regulators:
+disable_px_supply:
+	regulator_disable(adsp->px_supply);
+disable_cx_supply:
 	regulator_disable(adsp->cx_supply);
-disable_clocks:
+disable_aggre2_clk:
+	clk_disable_unprepare(adsp->aggre2_clk);
+disable_xo_clk:
 	clk_disable_unprepare(adsp->xo);
 
 	return ret;
@@ -157,7 +156,7 @@ static int adsp_stop(struct rproc *rproc)
 				    BIT(adsp->stop_bit),
 				    0);
 
-	ret = qcom_scm_pas_shutdown(ADSP_PAS_ID);
+	ret = qcom_scm_pas_shutdown(adsp->pas_id);
 	if (ret)
 		dev_err(adsp->dev, "failed to shutdown: %d\n", ret);
 
@@ -197,7 +196,7 @@ static irqreturn_t adsp_fatal_interrupt(int irq, void *dev)
 	size_t len;
 	char *msg;
 
-	msg = qcom_smem_get(QCOM_SMEM_HOST_ANY, ADSP_CRASH_REASON_SMEM, &len);
+	msg = qcom_smem_get(QCOM_SMEM_HOST_ANY, adsp->crash_reason_smem, &len);
 	if (!IS_ERR(msg) && len > 0 && msg[0])
 		dev_err(adsp->dev, "fatal error received: %s\n", msg);
 
@@ -244,6 +243,17 @@ static int adsp_init_clock(struct qcom_adsp *adsp)
 		return ret;
 	}
 
+	if (adsp->has_aggre2_clk) {
+		adsp->aggre2_clk = devm_clk_get(adsp->dev, "aggre2");
+		if (IS_ERR(adsp->aggre2_clk)) {
+			ret = PTR_ERR(adsp->aggre2_clk);
+			if (ret != -EPROBE_DEFER)
+				dev_err(adsp->dev,
+					"failed to get aggre2 clock");
+			return ret;
+		}
+	}
+
 	return 0;
 }
 
@@ -254,6 +264,10 @@ static int adsp_init_regulator(struct qcom_adsp *adsp)
 		return PTR_ERR(adsp->cx_supply);
 
 	regulator_set_load(adsp->cx_supply, 100000);
+
+	adsp->px_supply = devm_regulator_get(adsp->dev, "px");
+	if (IS_ERR(adsp->px_supply))
+		return PTR_ERR(adsp->px_supply);
 
 	return 0;
 }
@@ -311,20 +325,20 @@ static int adsp_alloc_memory_region(struct qcom_adsp *adsp)
 
 static int adsp_probe(struct platform_device *pdev)
 {
+	const struct adsp_data *desc;
 	struct qcom_adsp *adsp;
 	struct rproc *rproc;
 	int ret;
 
+	desc = of_device_get_match_data(&pdev->dev);
+	if (!desc)
+		return -EINVAL;
+
 	if (!qcom_scm_is_available())
 		return -EPROBE_DEFER;
 
-	if (!qcom_scm_pas_supported(ADSP_PAS_ID)) {
-		dev_err(&pdev->dev, "PAS is not available for ADSP\n");
-		return -ENXIO;
-	}
-
 	rproc = rproc_alloc(&pdev->dev, pdev->name, &adsp_ops,
-			    ADSP_FIRMWARE_NAME, sizeof(*adsp));
+			    desc->firmware_name, sizeof(*adsp));
 	if (!rproc) {
 		dev_err(&pdev->dev, "unable to allocate remoteproc\n");
 		return -ENOMEM;
@@ -335,6 +349,9 @@ static int adsp_probe(struct platform_device *pdev)
 	adsp = (struct qcom_adsp *)rproc->priv;
 	adsp->dev = &pdev->dev;
 	adsp->rproc = rproc;
+	adsp->pas_id = desc->pas_id;
+	adsp->crash_reason_smem = desc->crash_reason_smem;
+	adsp->has_aggre2_clk = desc->has_aggre2_clk;
 	platform_set_drvdata(pdev, adsp);
 
 	init_completion(&adsp->start_done);
@@ -384,6 +401,8 @@ static int adsp_probe(struct platform_device *pdev)
 		goto free_rproc;
 	}
 
+	qcom_add_smd_subdev(rproc, &adsp->smd_subdev);
+
 	ret = rproc_add(rproc);
 	if (ret)
 		goto free_rproc;
@@ -402,14 +421,31 @@ static int adsp_remove(struct platform_device *pdev)
 
 	qcom_smem_state_put(adsp->state);
 	rproc_del(adsp->rproc);
+
+	qcom_remove_smd_subdev(adsp->rproc, &adsp->smd_subdev);
 	rproc_free(adsp->rproc);
 
 	return 0;
 }
 
+static const struct adsp_data adsp_resource_init = {
+		.crash_reason_smem = 423,
+		.firmware_name = "adsp.mdt",
+		.pas_id = 1,
+		.has_aggre2_clk = false,
+};
+
+static const struct adsp_data slpi_resource_init = {
+		.crash_reason_smem = 424,
+		.firmware_name = "slpi.mdt",
+		.pas_id = 12,
+		.has_aggre2_clk = true,
+};
+
 static const struct of_device_id adsp_of_match[] = {
-	{ .compatible = "qcom,msm8974-adsp-pil" },
-	{ .compatible = "qcom,msm8996-adsp-pil" },
+	{ .compatible = "qcom,msm8974-adsp-pil", .data = &adsp_resource_init},
+	{ .compatible = "qcom,msm8996-adsp-pil", .data = &adsp_resource_init},
+	{ .compatible = "qcom,msm8996-slpi-pil", .data = &slpi_resource_init},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, adsp_of_match);
