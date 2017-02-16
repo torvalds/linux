@@ -61,7 +61,6 @@ struct rhlist_head {
 /**
  * struct bucket_table - Table of hash buckets
  * @size: Number of hash buckets
- * @nest: Number of bits of first-level nested table.
  * @rehash: Current bucket being rehashed
  * @hash_rnd: Random seed to fold into hash
  * @locks_mask: Mask to apply before accessing locks[]
@@ -69,12 +68,10 @@ struct rhlist_head {
  * @walkers: List of active walkers
  * @rcu: RCU structure for freeing the table
  * @future_tbl: Table under construction during rehashing
- * @ntbl: Nested table used when out of memory.
  * @buckets: size * hash buckets
  */
 struct bucket_table {
 	unsigned int		size;
-	unsigned int		nest;
 	unsigned int		rehash;
 	u32			hash_rnd;
 	unsigned int		locks_mask;
@@ -84,7 +81,7 @@ struct bucket_table {
 
 	struct bucket_table __rcu *future_tbl;
 
-	struct rhash_head __rcu *buckets[] ____cacheline_aligned_in_smp;
+	struct rhash_head __rcu	*buckets[] ____cacheline_aligned_in_smp;
 };
 
 /**
@@ -377,12 +374,6 @@ void rhashtable_free_and_destroy(struct rhashtable *ht,
 				 void *arg);
 void rhashtable_destroy(struct rhashtable *ht);
 
-struct rhash_head __rcu **rht_bucket_nested(const struct bucket_table *tbl,
-					    unsigned int hash);
-struct rhash_head __rcu **rht_bucket_nested_insert(struct rhashtable *ht,
-						   struct bucket_table *tbl,
-						   unsigned int hash);
-
 #define rht_dereference(p, ht) \
 	rcu_dereference_protected(p, lockdep_rht_mutex_is_held(ht))
 
@@ -397,27 +388,6 @@ struct rhash_head __rcu **rht_bucket_nested_insert(struct rhashtable *ht,
 
 #define rht_entry(tpos, pos, member) \
 	({ tpos = container_of(pos, typeof(*tpos), member); 1; })
-
-static inline struct rhash_head __rcu *const *rht_bucket(
-	const struct bucket_table *tbl, unsigned int hash)
-{
-	return unlikely(tbl->nest) ? rht_bucket_nested(tbl, hash) :
-				     &tbl->buckets[hash];
-}
-
-static inline struct rhash_head __rcu **rht_bucket_var(
-	struct bucket_table *tbl, unsigned int hash)
-{
-	return unlikely(tbl->nest) ? rht_bucket_nested(tbl, hash) :
-				     &tbl->buckets[hash];
-}
-
-static inline struct rhash_head __rcu **rht_bucket_insert(
-	struct rhashtable *ht, struct bucket_table *tbl, unsigned int hash)
-{
-	return unlikely(tbl->nest) ? rht_bucket_nested_insert(ht, tbl, hash) :
-				     &tbl->buckets[hash];
-}
 
 /**
  * rht_for_each_continue - continue iterating over hash chain
@@ -438,7 +408,7 @@ static inline struct rhash_head __rcu **rht_bucket_insert(
  * @hash:	the hash value / bucket index
  */
 #define rht_for_each(pos, tbl, hash) \
-	rht_for_each_continue(pos, *rht_bucket(tbl, hash), tbl, hash)
+	rht_for_each_continue(pos, (tbl)->buckets[hash], tbl, hash)
 
 /**
  * rht_for_each_entry_continue - continue iterating over hash chain
@@ -463,7 +433,7 @@ static inline struct rhash_head __rcu **rht_bucket_insert(
  * @member:	name of the &struct rhash_head within the hashable struct.
  */
 #define rht_for_each_entry(tpos, pos, tbl, hash, member)		\
-	rht_for_each_entry_continue(tpos, pos, *rht_bucket(tbl, hash),	\
+	rht_for_each_entry_continue(tpos, pos, (tbl)->buckets[hash],	\
 				    tbl, hash, member)
 
 /**
@@ -478,13 +448,13 @@ static inline struct rhash_head __rcu **rht_bucket_insert(
  * This hash chain list-traversal primitive allows for the looped code to
  * remove the loop cursor from the list.
  */
-#define rht_for_each_entry_safe(tpos, pos, next, tbl, hash, member)	      \
-	for (pos = rht_dereference_bucket(*rht_bucket(tbl, hash), tbl, hash), \
-	     next = !rht_is_a_nulls(pos) ?				      \
-		       rht_dereference_bucket(pos->next, tbl, hash) : NULL;   \
-	     (!rht_is_a_nulls(pos)) && rht_entry(tpos, pos, member);	      \
-	     pos = next,						      \
-	     next = !rht_is_a_nulls(pos) ?				      \
+#define rht_for_each_entry_safe(tpos, pos, next, tbl, hash, member)	    \
+	for (pos = rht_dereference_bucket((tbl)->buckets[hash], tbl, hash), \
+	     next = !rht_is_a_nulls(pos) ?				    \
+		       rht_dereference_bucket(pos->next, tbl, hash) : NULL; \
+	     (!rht_is_a_nulls(pos)) && rht_entry(tpos, pos, member);	    \
+	     pos = next,						    \
+	     next = !rht_is_a_nulls(pos) ?				    \
 		       rht_dereference_bucket(pos->next, tbl, hash) : NULL)
 
 /**
@@ -515,7 +485,7 @@ static inline struct rhash_head __rcu **rht_bucket_insert(
  * traversal is guarded by rcu_read_lock().
  */
 #define rht_for_each_rcu(pos, tbl, hash)				\
-	rht_for_each_rcu_continue(pos, *rht_bucket(tbl, hash), tbl, hash)
+	rht_for_each_rcu_continue(pos, (tbl)->buckets[hash], tbl, hash)
 
 /**
  * rht_for_each_entry_rcu_continue - continue iterating over rcu hash chain
@@ -548,8 +518,8 @@ static inline struct rhash_head __rcu **rht_bucket_insert(
  * the _rcu mutation primitives such as rhashtable_insert() as long as the
  * traversal is guarded by rcu_read_lock().
  */
-#define rht_for_each_entry_rcu(tpos, pos, tbl, hash, member)		   \
-	rht_for_each_entry_rcu_continue(tpos, pos, *rht_bucket(tbl, hash), \
+#define rht_for_each_entry_rcu(tpos, pos, tbl, hash, member)		\
+	rht_for_each_entry_rcu_continue(tpos, pos, (tbl)->buckets[hash],\
 					tbl, hash, member)
 
 /**
@@ -595,7 +565,7 @@ static inline struct rhash_head *__rhashtable_lookup(
 		.ht = ht,
 		.key = key,
 	};
-	struct bucket_table *tbl;
+	const struct bucket_table *tbl;
 	struct rhash_head *he;
 	unsigned int hash;
 
@@ -727,12 +697,8 @@ slow_path:
 	}
 
 	elasticity = ht->elasticity;
-	pprev = rht_bucket_insert(ht, tbl, hash);
-	data = ERR_PTR(-ENOMEM);
-	if (!pprev)
-		goto out;
-
-	rht_for_each_continue(head, *pprev, tbl, hash) {
+	pprev = &tbl->buckets[hash];
+	rht_for_each(head, tbl, hash) {
 		struct rhlist_head *plist;
 		struct rhlist_head *list;
 
@@ -770,7 +736,7 @@ slow_path:
 	if (unlikely(rht_grow_above_100(ht, tbl)))
 		goto slow_path;
 
-	head = rht_dereference_bucket(*pprev, tbl, hash);
+	head = rht_dereference_bucket(tbl->buckets[hash], tbl, hash);
 
 	RCU_INIT_POINTER(obj->next, head);
 	if (rhlist) {
@@ -780,7 +746,7 @@ slow_path:
 		RCU_INIT_POINTER(list->next, NULL);
 	}
 
-	rcu_assign_pointer(*pprev, obj);
+	rcu_assign_pointer(tbl->buckets[hash], obj);
 
 	atomic_inc(&ht->nelems);
 	if (rht_grow_above_75(ht, tbl))
@@ -989,8 +955,8 @@ static inline int __rhashtable_remove_fast_one(
 
 	spin_lock_bh(lock);
 
-	pprev = rht_bucket_var(tbl, hash);
-	rht_for_each_continue(he, *pprev, tbl, hash) {
+	pprev = &tbl->buckets[hash];
+	rht_for_each(he, tbl, hash) {
 		struct rhlist_head *list;
 
 		list = container_of(he, struct rhlist_head, rhead);
@@ -1141,8 +1107,8 @@ static inline int __rhashtable_replace_fast(
 
 	spin_lock_bh(lock);
 
-	pprev = rht_bucket_var(tbl, hash);
-	rht_for_each_continue(he, *pprev, tbl, hash) {
+	pprev = &tbl->buckets[hash];
+	rht_for_each(he, tbl, hash) {
 		if (he != obj_old) {
 			pprev = &he->next;
 			continue;
