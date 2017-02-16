@@ -377,26 +377,26 @@ int drm_atomic_normalize_zpos(struct drm_device *dev,
 			      struct drm_atomic_state *state)
 {
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	struct drm_plane *plane;
-	struct drm_plane_state *plane_state;
+	struct drm_plane_state *old_plane_state, *new_plane_state;
 	int i, ret = 0;
 
-	for_each_plane_in_state(state, plane, plane_state, i) {
-		crtc = plane_state->crtc;
+	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
+		crtc = new_plane_state->crtc;
 		if (!crtc)
 			continue;
-		if (plane->state->zpos != plane_state->zpos) {
-			crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
-			crtc_state->zpos_changed = true;
+		if (old_plane_state->zpos != new_plane_state->zpos) {
+			new_crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+			new_crtc_state->zpos_changed = true;
 		}
 	}
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		if (crtc_state->plane_mask != crtc->state->plane_mask ||
-		    crtc_state->zpos_changed) {
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		if (old_crtc_state->plane_mask != new_crtc_state->plane_mask ||
+		    new_crtc_state->zpos_changed) {
 			ret = drm_atomic_helper_crtc_normalize_zpos(crtc,
-								    crtc_state);
+								    new_crtc_state);
 			if (ret)
 				return ret;
 		}
