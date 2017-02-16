@@ -114,7 +114,7 @@ static ssize_t priority_show(struct device *dev,
 	struct funnel_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	unsigned long val = drvdata->priority;
 
-	return sprintf(buf, "%#lx\n", val);
+	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
 }
 
 static ssize_t priority_store(struct device *dev,
@@ -157,7 +157,7 @@ static ssize_t funnel_ctrl_show(struct device *dev,
 
 	pm_runtime_put(drvdata->dev);
 
-	return sprintf(buf, "%#x\n", val);
+	return scnprintf(buf, PAGE_SIZE, "%#x\n", val);
 }
 static DEVICE_ATTR_RO(funnel_ctrl);
 
