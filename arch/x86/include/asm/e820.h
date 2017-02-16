@@ -30,8 +30,6 @@ extern u64 e820_remove_range(u64 start, u64 size, unsigned old_type,
 			     int checktype);
 extern void update_e820(void);
 extern void e820_setup_gap(void);
-extern int e820_search_gap(unsigned long *gapstart, unsigned long *gapsize,
-			unsigned long start_addr, unsigned long long end_addr);
 struct setup_data;
 extern void parse_e820_ext(u64 phys_addr, u32 data_len);
 

@@ -56,6 +56,7 @@ static struct {
 	unsigned int socketid_shift;	/* aka pnode_shift for UV1/2/3 */
 	unsigned int pnode_mask;
 	unsigned int gpa_shift;
+	unsigned int gnode_shift;
 } uv_cpuid;
 
 int uv_min_hub_revision_id;
@@ -133,6 +134,7 @@ static int __init early_get_pnodeid(void)
 		break;
 	case UV4_HUB_PART_NUMBER:
 		uv_min_hub_revision_id += UV4_HUB_REVISION_BASE - 1;
+		uv_cpuid.gnode_shift = 2; /* min partition is 4 sockets */
 		break;
 	}
 
@@ -1074,8 +1076,10 @@ void __init uv_init_hub_info(struct uv_hub_info_s *hub_info)
 		(1UL << uv_cpuid.gpa_shift) - 1;
 
 	node_id.v = uv_read_local_mmr(UVH_NODE_ID);
+	uv_cpuid.gnode_shift = max_t(unsigned int,
+					uv_cpuid.gnode_shift, mn.n_val);
 	hub_info->gnode_extra =
-		(node_id.s.node_id & ~((1 << mn.n_val) - 1)) >> 1;
+		(node_id.s.node_id & ~((1 << uv_cpuid.gnode_shift) - 1)) >> 1;
 
 	hub_info->gnode_upper =
 		((unsigned long)hub_info->gnode_extra << mn.m_val);
@@ -1172,19 +1176,25 @@ static void __init decode_gam_rng_tbl(unsigned long ptr)
 		index, _min_socket, _max_socket, _min_pnode, _max_pnode);
 }
 
-static void __init decode_uv_systab(void)
+static int __init decode_uv_systab(void)
 {
 	struct uv_systab *st;
 	int i;
 
+	if (uv_hub_info->hub_revision < UV4_HUB_REVISION_BASE)
+		return 0;	/* No extended UVsystab required */
+
 	st = uv_systab;
-	if ((!st || st->revision < UV_SYSTAB_VERSION_UV4) && !is_uv4_hub())
-		return;
-	if (st->revision != UV_SYSTAB_VERSION_UV4_LATEST) {
-		pr_crit(
+	if ((!st) || (st->revision < UV_SYSTAB_VERSION_UV4_LATEST)) {
+		int rev = st ? st->revision : 0;
+
+		pr_err(
 		"UV: BIOS UVsystab version(%x) mismatch, expecting(%x)\n",
-			st->revision, UV_SYSTAB_VERSION_UV4_LATEST);
-		BUG();
+			rev, UV_SYSTAB_VERSION_UV4_LATEST);
+		pr_err(
+		"UV: Cannot support UV operations, switching to generic PC\n");
+		uv_system_type = UV_NONE;
+		return -EINVAL;
 	}
 
 	for (i = 0; st->entry[i].type != UV_SYSTAB_TYPE_UNUSED; i++) {
@@ -1205,6 +1215,7 @@ static void __init decode_uv_systab(void)
 			break;
 		}
 	}
+	return 0;
 }
 
 /*
@@ -1373,7 +1384,8 @@ void __init uv_system_init(void)
 	map_low_mmrs();
 
 	uv_bios_init();			/* get uv_systab for decoding */
-	decode_uv_systab();
+	if (decode_uv_systab() < 0)
+		return;			/* UVsystab problem, abort UV init */
 	build_socket_tables();
 	build_uv_gr_table();
 	uv_init_hub_info(&hub_info);

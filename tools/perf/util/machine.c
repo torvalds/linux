@@ -87,6 +87,25 @@ out_delete:
 	return NULL;
 }
 
+struct machine *machine__new_kallsyms(void)
+{
+	struct machine *machine = machine__new_host();
+	/*
+	 * FIXME:
+	 * 1) MAP__FUNCTION will go away when we stop loading separate maps for
+	 *    functions and data objects.
+	 * 2) We should switch to machine__load_kallsyms(), i.e. not explicitely
+	 *    ask for not using the kcore parsing code, once this one is fixed
+	 *    to create a map per module.
+	 */
+	if (machine && __machine__load_kallsyms(machine, "/proc/kallsyms", MAP__FUNCTION, true) <= 0) {
+		machine__delete(machine);
+		machine = NULL;
+	}
+
+	return machine;
+}
+
 static void dsos__purge(struct dsos *dsos)
 {
 	struct dso *pos, *n;

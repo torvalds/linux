@@ -351,8 +351,10 @@ static void perl_process_tracepoint(struct perf_sample *sample,
 	if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
 		return;
 
-	if (!event)
-		die("ug! no event found for type %" PRIu64, (u64)evsel->attr.config);
+	if (!event) {
+		pr_debug("ug! no event found for type %" PRIu64, (u64)evsel->attr.config);
+		return;
+	}
 
 	pid = raw_field_value(event, "common_pid", data);
 

@@ -204,19 +204,18 @@ struct semaphore_waiter {
 static inline int __sched __down_common(struct semaphore *sem, long state,
 								long timeout)
 {
-	struct task_struct *task = current;
 	struct semaphore_waiter waiter;
 
 	list_add_tail(&waiter.list, &sem->wait_list);
-	waiter.task = task;
+	waiter.task = current;
 	waiter.up = false;
 
 	for (;;) {
-		if (signal_pending_state(state, task))
+		if (signal_pending_state(state, current))
 			goto interrupted;
 		if (unlikely(timeout <= 0))
 			goto timed_out;
-		__set_task_state(task, state);
+		__set_current_state(state);
 		raw_spin_unlock_irq(&sem->lock);
 		timeout = schedule_timeout(timeout);
 		raw_spin_lock_irq(&sem->lock);

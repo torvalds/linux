@@ -67,7 +67,7 @@ static ssize_t mei_dbgfs_read_meclients(struct file *fp, char __user *ubuf,
 				me_cl->props.max_number_of_connections,
 				me_cl->props.max_msg_length,
 				me_cl->props.single_recv_buf,
-				atomic_read(&me_cl->refcnt.refcount));
+				kref_read(&me_cl->refcnt));
 
 			mei_me_cl_put(me_cl);
 		}

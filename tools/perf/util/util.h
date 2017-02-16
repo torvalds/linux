@@ -363,4 +363,5 @@ int is_printable_array(char *p, unsigned int len);
 
 int timestamp__scnprintf_usec(u64 timestamp, char *buf, size_t sz);
 
+int unit_number__scnprintf(char *buf, size_t size, u64 n);
 #endif /* GIT_COMPAT_UTIL_H */

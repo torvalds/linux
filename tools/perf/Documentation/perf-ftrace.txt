@@ -1,0 +1,36 @@
+perf-ftrace(1)
+=============
+
+NAME
+----
+perf-ftrace - simple wrapper for kernel's ftrace functionality
+
+
+SYNOPSIS
+--------
+[verse]
+'perf ftrace' <command>
+
+DESCRIPTION
+-----------
+The 'perf ftrace' command is a simple wrapper of kernel's ftrace
+functionality.  It only supports single thread tracing currently and
+just reads trace_pipe in text and then write it to stdout.
+
+The following options apply to perf ftrace.
+
+OPTIONS
+-------
+
+-t::
+--tracer=::
+	Tracer to use: function_graph or function.
+
+-v::
+--verbose=::
+        Verbosity level.
+
+
+SEE ALSO
+--------
+linkperf:perf-record[1], linkperf:perf-trace[1]

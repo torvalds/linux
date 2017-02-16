@@ -80,8 +80,7 @@ bool timerqueue_del(struct timerqueue_head *head, struct timerqueue_node *node)
 	if (head->next == node) {
 		struct rb_node *rbn = rb_next(&node->node);
 
-		head->next = rbn ?
-			rb_entry(rbn, struct timerqueue_node, node) : NULL;
+		head->next = rb_entry_safe(rbn, struct timerqueue_node, node);
 	}
 	rb_erase(&node->node, &head->head);
 	RB_CLEAR_NODE(&node->node);

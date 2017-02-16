@@ -249,9 +249,9 @@ int main(void)
 	DEFINE(ACCOUNT_STARTTIME_USER,
 	       offsetof(struct paca_struct, accounting.starttime_user));
 	DEFINE(ACCOUNT_USER_TIME,
-	       offsetof(struct paca_struct, accounting.user_time));
+	       offsetof(struct paca_struct, accounting.utime));
 	DEFINE(ACCOUNT_SYSTEM_TIME,
-	       offsetof(struct paca_struct, accounting.system_time));
+	       offsetof(struct paca_struct, accounting.stime));
 	DEFINE(PACA_TRAP_SAVE, offsetof(struct paca_struct, trap_save));
 	DEFINE(PACA_NAPSTATELOST, offsetof(struct paca_struct, nap_state_lost));
 	DEFINE(PACA_SPRG_VDSO, offsetof(struct paca_struct, sprg_vdso));
@@ -262,9 +262,9 @@ int main(void)
 	DEFINE(ACCOUNT_STARTTIME_USER,
 	       offsetof(struct thread_info, accounting.starttime_user));
 	DEFINE(ACCOUNT_USER_TIME,
-	       offsetof(struct thread_info, accounting.user_time));
+	       offsetof(struct thread_info, accounting.utime));
 	DEFINE(ACCOUNT_SYSTEM_TIME,
-	       offsetof(struct thread_info, accounting.system_time));
+	       offsetof(struct thread_info, accounting.stime));
 #endif
 #endif /* CONFIG_PPC64 */
 

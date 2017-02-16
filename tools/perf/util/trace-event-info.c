@@ -42,7 +42,7 @@
 #include "evsel.h"
 #include "debug.h"
 
-#define VERSION "0.5"
+#define VERSION "0.6"
 
 static int output_fd;
 
@@ -379,6 +379,34 @@ out:
 	return err;
 }
 
+static int record_saved_cmdline(void)
+{
+	unsigned int size;
+	char *path;
+	struct stat st;
+	int ret, err = 0;
+
+	path = get_tracing_file("saved_cmdlines");
+	if (!path) {
+		pr_debug("can't get tracing/saved_cmdline");
+		return -ENOMEM;
+	}
+
+	ret = stat(path, &st);
+	if (ret < 0) {
+		/* not found */
+		size = 0;
+		if (write(output_fd, &size, 8) != 8)
+			err = -EIO;
+		goto out;
+	}
+	err = record_file(path, 8);
+
+out:
+	put_tracing_file(path);
+	return err;
+}
+
 static void
 put_tracepoints_path(struct tracepoint_path *tps)
 {
@@ -539,6 +567,9 @@ struct tracing_data *tracing_data_get(struct list_head *pattrs,
 	if (err)
 		goto out;
 	err = record_ftrace_printk();
+	if (err)
+		goto out;
+	err = record_saved_cmdline();
 
 out:
 	/*

@@ -672,14 +672,14 @@ enum c4iw_mmid_state {
 
 #define c4iw_put_ep(ep) { \
 	PDBG("put_ep (via %s:%u) ep %p refcnt %d\n", __func__, __LINE__,  \
-	     ep, atomic_read(&((ep)->kref.refcount))); \
-	WARN_ON(atomic_read(&((ep)->kref.refcount)) < 1); \
+	     ep, kref_read(&((ep)->kref))); \
+	WARN_ON(kref_read(&((ep)->kref)) < 1); \
 	kref_put(&((ep)->kref), _c4iw_free_ep); \
 }
 
 #define c4iw_get_ep(ep) { \
 	PDBG("get_ep (via %s:%u) ep %p, refcnt %d\n", __func__, __LINE__, \
-	     ep, atomic_read(&((ep)->kref.refcount))); \
+	     ep, kref_read(&((ep)->kref))); \
 	kref_get(&((ep)->kref));  \
 }
 void _c4iw_free_ep(struct kref *kref);

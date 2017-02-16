@@ -1300,7 +1300,7 @@ static int ion_debug_heap_show(struct seq_file *s, void *unused)
 			seq_printf(s, "%16s %16u %16zu %d %d\n",
 				   buffer->task_comm, buffer->pid,
 				   buffer->size, buffer->kmap_cnt,
-				   atomic_read(&buffer->ref.refcount));
+				   kref_read(&buffer->ref));
 			total_orphaned_size += buffer->size;
 		}
 	}
