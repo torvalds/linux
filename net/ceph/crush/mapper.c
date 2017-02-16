@@ -552,14 +552,12 @@ static int crush_choose_firstn(const struct crush_map *map,
 					}
 				}
 
-				if (!reject) {
+				if (!reject && !collide) {
 					/* out? */
 					if (itemtype == 0)
 						reject = is_out(map, weight,
 								weight_max,
 								item, x);
-					else
-						reject = 0;
 				}
 
 reject:
