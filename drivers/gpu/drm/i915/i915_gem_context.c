@@ -431,7 +431,8 @@ i915_gem_context_create_gvt(struct drm_device *dev)
 	i915_gem_context_set_closed(ctx); /* not user accessible */
 	i915_gem_context_clear_bannable(ctx);
 	i915_gem_context_set_force_single_submission(ctx);
-	ctx->ring_size = 512 * PAGE_SIZE; /* Max ring buffer size */
+	if (!i915.enable_guc_submission)
+		ctx->ring_size = 512 * PAGE_SIZE; /* Max ring buffer size */
 
 	GEM_BUG_ON(i915_gem_context_is_kernel(ctx));
 out:
