@@ -20,49 +20,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include "acr_r352.h"
+#include "acr_r361.h"
 
 #include <engine/falcon.h>
 #include <core/msgqueue.h>
 #include <subdev/pmu.h>
 #include <engine/sec2.h>
-
-/**
- * struct acr_r361_flcn_bl_desc - DMEM bootloader descriptor
- * @signature:		16B signature for secure code. 0s if no secure code
- * @ctx_dma:		DMA context to be used by BL while loading code/data
- * @code_dma_base:	256B-aligned Physical FB Address where code is located
- *			(falcon's $xcbase register)
- * @non_sec_code_off:	offset from code_dma_base where the non-secure code is
- *                      located. The offset must be multiple of 256 to help perf
- * @non_sec_code_size:	the size of the nonSecure code part.
- * @sec_code_off:	offset from code_dma_base where the secure code is
- *                      located. The offset must be multiple of 256 to help perf
- * @sec_code_size:	offset from code_dma_base where the secure code is
- *                      located. The offset must be multiple of 256 to help perf
- * @code_entry_point:	code entry point which will be invoked by BL after
- *                      code is loaded.
- * @data_dma_base:	256B aligned Physical FB Address where data is located.
- *			(falcon's $xdbase register)
- * @data_size:		size of data block. Should be multiple of 256B
- *
- * Structure used by the bootloader to load the rest of the code. This has
- * to be filled by host and copied into DMEM at offset provided in the
- * hsflcn_bl_desc.bl_desc_dmem_load_off.
- */
-struct acr_r361_flcn_bl_desc {
-	u32 reserved[4];
-	u32 signature[4];
-	u32 ctx_dma;
-	struct flcn_u64 code_dma_base;
-	u32 non_sec_code_off;
-	u32 non_sec_code_size;
-	u32 sec_code_off;
-	u32 sec_code_size;
-	u32 code_entry_point;
-	struct flcn_u64 data_dma_base;
-	u32 data_size;
-};
 
 static void
 acr_r361_generate_flcn_bl_desc(const struct nvkm_acr *acr,
@@ -86,7 +49,7 @@ acr_r361_generate_flcn_bl_desc(const struct nvkm_acr *acr,
 	desc->data_size = pdesc->app_resident_data_size;
 }
 
-static void
+void
 acr_r361_generate_hs_bl_desc(const struct hsf_load_header *hdr, void *_bl_desc,
 			    u64 offset)
 {
