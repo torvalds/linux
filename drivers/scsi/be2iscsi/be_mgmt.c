@@ -66,7 +66,6 @@ unsigned int mgmt_vendor_specific_fw_cmd(struct be_ctrl_info *ctrl,
 					 struct bsg_job *job,
 					 struct be_dma_mem *nonemb_cmd)
 {
-	struct be_cmd_resp_hdr *resp;
 	struct be_mcc_wrb *wrb;
 	struct be_sge *mcc_sge;
 	unsigned int tag = 0;
@@ -76,7 +75,6 @@ unsigned int mgmt_vendor_specific_fw_cmd(struct be_ctrl_info *ctrl,
 
 	nonemb_cmd->size = job->request_payload.payload_len;
 	memset(nonemb_cmd->va, 0, nonemb_cmd->size);
-	resp = nonemb_cmd->va;
 	region =  bsg_req->rqst_data.h_vendor.vendor_cmd[1];
 	sector_size =  bsg_req->rqst_data.h_vendor.vendor_cmd[2];
 	sector =  bsg_req->rqst_data.h_vendor.vendor_cmd[3];
@@ -124,50 +122,6 @@ unsigned int mgmt_vendor_specific_fw_cmd(struct be_ctrl_info *ctrl,
 
 	be_mcc_notify(phba, tag);
 
-	mutex_unlock(&ctrl->mbox_lock);
-	return tag;
-}
-
-unsigned int  mgmt_invalidate_icds(struct beiscsi_hba *phba,
-				struct invalidate_command_table *inv_tbl,
-				unsigned int num_invalidate, unsigned int cid,
-				struct be_dma_mem *nonemb_cmd)
-
-{
-	struct be_ctrl_info *ctrl = &phba->ctrl;
-	struct be_mcc_wrb *wrb;
-	struct be_sge *sge;
-	struct invalidate_commands_params_in *req;
-	unsigned int i, tag;
-
-	mutex_lock(&ctrl->mbox_lock);
-	wrb = alloc_mcc_wrb(phba, &tag);
-	if (!wrb) {
-		mutex_unlock(&ctrl->mbox_lock);
-		return 0;
-	}
-
-	req = nonemb_cmd->va;
-	memset(req, 0, sizeof(*req));
-	sge = nonembedded_sgl(wrb);
-
-	be_wrb_hdr_prepare(wrb, sizeof(*req), false, 1);
-	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI,
-			OPCODE_COMMON_ISCSI_ERROR_RECOVERY_INVALIDATE_COMMANDS,
-			sizeof(*req));
-	req->ref_handle = 0;
-	req->cleanup_type = CMD_ISCSI_COMMAND_INVALIDATE;
-	for (i = 0; i < num_invalidate; i++) {
-		req->table[i].icd = inv_tbl->icd;
-		req->table[i].cid = inv_tbl->cid;
-		req->icd_count++;
-		inv_tbl++;
-	}
-	sge->pa_hi = cpu_to_le32(upper_32_bits(nonemb_cmd->dma));
-	sge->pa_lo = cpu_to_le32(nonemb_cmd->dma & 0xFFFFFFFF);
-	sge->len = cpu_to_le32(nonemb_cmd->size);
-
-	be_mcc_notify(phba, tag);
 	mutex_unlock(&ctrl->mbox_lock);
 	return tag;
 }
@@ -1066,7 +1020,6 @@ unsigned int beiscsi_boot_reopen_sess(struct beiscsi_hba *phba)
 unsigned int beiscsi_boot_get_sinfo(struct beiscsi_hba *phba)
 {
 	struct be_ctrl_info *ctrl = &phba->ctrl;
-	struct be_cmd_get_session_resp *resp;
 	struct be_cmd_get_session_req *req;
 	struct be_dma_mem *nonemb_cmd;
 	struct be_mcc_wrb *wrb;
@@ -1081,7 +1034,7 @@ unsigned int beiscsi_boot_get_sinfo(struct beiscsi_hba *phba)
 	}
 
 	nonemb_cmd = &phba->boot_struct.nonemb_cmd;
-	nonemb_cmd->size = sizeof(*resp);
+	nonemb_cmd->size = sizeof(struct be_cmd_get_session_resp);
 	nonemb_cmd->va = pci_alloc_consistent(phba->ctrl.pdev,
 					      nonemb_cmd->size,
 					      &nonemb_cmd->dma);
@@ -1096,7 +1049,7 @@ unsigned int beiscsi_boot_get_sinfo(struct beiscsi_hba *phba)
 	be_wrb_hdr_prepare(wrb, sizeof(*req), false, 1);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI_INI,
 			   OPCODE_ISCSI_INI_SESSION_GET_A_SESSION,
-			   sizeof(*resp));
+			   sizeof(struct be_cmd_get_session_resp));
 	req->session_handle = phba->boot_struct.s_handle;
 	sge->pa_hi = cpu_to_le32(upper_32_bits(nonemb_cmd->dma));
 	sge->pa_lo = cpu_to_le32(nonemb_cmd->dma & 0xFFFFFFFF);
@@ -1309,7 +1262,8 @@ beiscsi_adap_family_disp(struct device *dev, struct device_attribute *attr,
 	case BE_DEVICE_ID1:
 	case OC_DEVICE_ID1:
 	case OC_DEVICE_ID2:
-		return snprintf(buf, PAGE_SIZE, "BE2 Adapter Family\n");
+		return snprintf(buf, PAGE_SIZE,
+				"Obsolete/Unsupported BE2 Adapter Family\n");
 		break;
 	case BE_DEVICE_ID2:
 	case OC_DEVICE_ID3:
@@ -1341,7 +1295,7 @@ beiscsi_phys_port_disp(struct device *dev, struct device_attribute *attr,
 	struct Scsi_Host *shost = class_to_shost(dev);
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
 
-	return snprintf(buf, PAGE_SIZE, "Port Identifier : %d\n",
+	return snprintf(buf, PAGE_SIZE, "Port Identifier : %u\n",
 			phba->fw_config.phys_port);
 }
 
@@ -1493,4 +1447,65 @@ void beiscsi_offload_cxn_v2(struct beiscsi_offload_params *params,
 		      pwrb,
 		     (params->dw[offsetof(struct amap_beiscsi_offload_params,
 		      exp_statsn) / 32] + 1));
+}
+
+int beiscsi_mgmt_invalidate_icds(struct beiscsi_hba *phba,
+				 struct invldt_cmd_tbl *inv_tbl,
+				 unsigned int nents)
+{
+	struct be_ctrl_info *ctrl = &phba->ctrl;
+	struct invldt_cmds_params_in *req;
+	struct be_dma_mem nonemb_cmd;
+	struct be_mcc_wrb *wrb;
+	unsigned int i, tag;
+	struct be_sge *sge;
+	int rc;
+
+	if (!nents || nents > BE_INVLDT_CMD_TBL_SZ)
+		return -EINVAL;
+
+	nonemb_cmd.size = sizeof(union be_invldt_cmds_params);
+	nonemb_cmd.va = pci_zalloc_consistent(phba->ctrl.pdev,
+					      nonemb_cmd.size,
+					      &nonemb_cmd.dma);
+	if (!nonemb_cmd.va) {
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_EH,
+			    "BM_%d : invldt_cmds_params alloc failed\n");
+		return -ENOMEM;
+	}
+
+	mutex_lock(&ctrl->mbox_lock);
+	wrb = alloc_mcc_wrb(phba, &tag);
+	if (!wrb) {
+		mutex_unlock(&ctrl->mbox_lock);
+		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+				    nonemb_cmd.va, nonemb_cmd.dma);
+		return -ENOMEM;
+	}
+
+	req = nonemb_cmd.va;
+	be_wrb_hdr_prepare(wrb, nonemb_cmd.size, false, 1);
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI,
+			OPCODE_COMMON_ISCSI_ERROR_RECOVERY_INVALIDATE_COMMANDS,
+			sizeof(*req));
+	req->ref_handle = 0;
+	req->cleanup_type = CMD_ISCSI_COMMAND_INVALIDATE;
+	for (i = 0; i < nents; i++) {
+		req->table[i].icd = inv_tbl[i].icd;
+		req->table[i].cid = inv_tbl[i].cid;
+		req->icd_count++;
+	}
+	sge = nonembedded_sgl(wrb);
+	sge->pa_hi = cpu_to_le32(upper_32_bits(nonemb_cmd.dma));
+	sge->pa_lo = cpu_to_le32(lower_32_bits(nonemb_cmd.dma));
+	sge->len = cpu_to_le32(nonemb_cmd.size);
+
+	be_mcc_notify(phba, tag);
+	mutex_unlock(&ctrl->mbox_lock);
+
+	rc = beiscsi_mccq_compl_wait(phba, tag, NULL, &nonemb_cmd);
+	if (rc != -EBUSY)
+		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+				    nonemb_cmd.va, nonemb_cmd.dma);
+	return rc;
 }

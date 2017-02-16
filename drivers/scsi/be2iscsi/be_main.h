@@ -36,7 +36,7 @@
 #include <scsi/scsi_transport_iscsi.h>
 
 #define DRV_NAME		"be2iscsi"
-#define BUILD_STR		"11.2.0.0"
+#define BUILD_STR		"11.2.1.0"
 #define BE_NAME			"Emulex OneConnect" \
 				"Open-iSCSI Driver version" BUILD_STR
 #define DRV_DESC		BE_NAME " " "Driver"
@@ -57,7 +57,6 @@
 
 #define BE2_IO_DEPTH		1024
 #define BE2_MAX_SESSIONS	256
-#define BE2_CMDS_PER_CXN	128
 #define BE2_TMFS		16
 #define BE2_NOPOUT_REQ		16
 #define BE2_SGE			32
@@ -72,8 +71,13 @@
 
 #define BEISCSI_SGLIST_ELEMENTS	30
 
-#define BEISCSI_CMD_PER_LUN	128 /* scsi_host->cmd_per_lun */
-#define BEISCSI_MAX_SECTORS	1024 /* scsi_host->max_sectors */
+/**
+ * BE_INVLDT_CMD_TBL_SZ is 128 which is total number commands that can
+ * be invalidated at a time, consider it before changing the value of
+ * BEISCSI_CMD_PER_LUN.
+ */
+#define BEISCSI_CMD_PER_LUN	128	/* scsi_host->cmd_per_lun */
+#define BEISCSI_MAX_SECTORS	1024	/* scsi_host->max_sectors */
 #define BEISCSI_TEMPLATE_HDR_PER_CXN_SIZE 128 /* Template size per cxn */
 
 #define BEISCSI_MAX_CMD_LEN	16	/* scsi_host->max_cmd_len */
@@ -239,19 +243,7 @@ struct hba_parameters {
 	unsigned int num_cq_entries;
 	unsigned int num_eq_entries;
 	unsigned int wrbs_per_cxn;
-	unsigned int crashmode;
-	unsigned int hba_num;
-
-	unsigned int mgmt_ws_sz;
 	unsigned int hwi_ws_sz;
-
-	unsigned int eto;
-	unsigned int ldto;
-
-	unsigned int dbg_flags;
-	unsigned int num_cxn;
-
-	unsigned int eq_timer;
 	/**
 	 * These are calculated from other params. They're here
 	 * for debug purposes
@@ -271,11 +263,6 @@ struct hba_parameters {
 
 	unsigned int num_sge;
 };
-
-struct invalidate_command_table {
-	unsigned short icd;
-	unsigned short cid;
-} __packed;
 
 #define BEISCSI_GET_ULP_FROM_CRI(phwi_ctrlr, cri) \
 	(phwi_ctrlr->wrb_context[cri].ulp_num)
@@ -334,7 +321,6 @@ struct beiscsi_hba {
 	struct be_bus_address pci_pa;	/* CSR */
 	/* PCI representation of our HBA */
 	struct pci_dev *pcidev;
-	unsigned short asic_revision;
 	unsigned int num_cpus;
 	unsigned int nxt_cqid;
 	struct msix_entry msix_entries[MAX_CPUS];
@@ -355,9 +341,9 @@ struct beiscsi_hba {
 	spinlock_t io_sgl_lock;
 	spinlock_t mgmt_sgl_lock;
 	spinlock_t async_pdu_lock;
-	unsigned int age;
 	struct list_head hba_queue;
 #define BE_MAX_SESSION 2048
+#define BE_INVALID_CID 0xffff
 #define BE_SET_CID_TO_CRI(cri_index, cid) \
 			  (phba->cid_to_cri_map[cid] = cri_index)
 #define BE_GET_CRI_FROM_CID(cid) (phba->cid_to_cri_map[cid])
@@ -425,12 +411,10 @@ struct beiscsi_hba {
 	u8 port_name;
 	u8 port_speed;
 	char fw_ver_str[BEISCSI_VER_STRLEN];
-	char wq_name[20];
 	struct workqueue_struct *wq;	/* The actuak work queue */
 	struct be_ctrl_info ctrl;
 	unsigned int generation;
 	unsigned int interface_handle;
-	struct invalidate_command_table inv_tbl[128];
 
 	struct be_aic_obj aic_obj[MAX_CPUS];
 	unsigned int attr_log_enable;
@@ -525,10 +509,6 @@ struct beiscsi_io_task {
 	struct scsi_cmnd *scsi_cmnd;
 	int num_sg;
 	struct hwi_wrb_context *pwrb_context;
-	unsigned int cmd_sn;
-	unsigned int flags;
-	unsigned short cid;
-	unsigned short header_len;
 	itt_t libiscsi_itt;
 	struct be_cmd_bhs *cmd_bhs;
 	struct be_bus_address bhs_pa;
@@ -842,7 +822,7 @@ struct amap_iscsi_wrb_v2 {
 	u8 diff_enbl;   /* DWORD 11 */
 	u8 u_run;       /* DWORD 11 */
 	u8 o_run;       /* DWORD 11 */
-	u8 invalid;     /* DWORD 11 */
+	u8 invld;     /* DWORD 11 */
 	u8 dsp;         /* DWORD 11 */
 	u8 dmsg;        /* DWORD 11 */
 	u8 rsvd4;       /* DWORD 11 */
@@ -1042,10 +1022,8 @@ struct hwi_controller {
 	struct list_head io_sgl_list;
 	struct list_head eh_sgl_list;
 	struct sgl_handle *psgl_handle_base;
-	unsigned int wrb_mem_index;
 
 	struct hwi_wrb_context *wrb_context;
-	struct mcc_wrb *pmcc_wrb_base;
 	struct be_ring default_pdu_hdr[BEISCSI_ULP_COUNT];
 	struct be_ring default_pdu_data[BEISCSI_ULP_COUNT];
 	struct hwi_context_memory *phwi_ctxt;
@@ -1062,9 +1040,7 @@ enum hwh_type_enum {
 };
 
 struct wrb_handle {
-	enum hwh_type_enum type;
 	unsigned short wrb_index;
-
 	struct iscsi_task *pio_handle;
 	struct iscsi_wrb *pwrb;
 };
