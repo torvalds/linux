@@ -3,6 +3,7 @@
 
 #include <linux/sockios.h>
 #include <linux/types.h>
+#include <linux/in.h>		/* For struct in_addr. */
 
 /* Based on the MROUTING 3.5 defines primarily to keep
  * source compatibility with BSD.
