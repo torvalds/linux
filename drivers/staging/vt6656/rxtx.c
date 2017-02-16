@@ -692,8 +692,8 @@ static u16 vnt_generate_tx_parameter(struct vnt_usb_send_context *tx_context,
 	    tx_context->pkt_type == PK_TYPE_11GA) {
 		if (need_rts) {
 			if (need_mic)
-				*mic_hdr = &tx_buffer->
-						tx_head.tx_rts.tx.mic.hdr;
+				*mic_hdr =
+					&tx_buffer->tx_head.tx_rts.tx.mic.hdr;
 
 			return vnt_rxtx_rts(tx_context, &tx_buffer->tx_head,
 					    need_mic);
