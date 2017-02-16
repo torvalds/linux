@@ -329,12 +329,13 @@ typedef struct ieee_param {
 // linux under 2.6.9 release may not support it, so modify it for common use
 #define IEEE80211_DATA_LEN		2304
 /* Maximum size for the MA-UNITDATA primitive, 802.11 standard section
-   6.2.1.1.2.
-
-   The figure in section 7.1.2 suggests a body size of up to 2312
-   bytes is allowed, which is a bit confusing, I suspect this
-   represents the 2304 bytes of real data, plus a possible 8 bytes of
-   WEP IV and ICV. (this interpretation suggested by Ramiro Barreiro) */
+ *   6.2.1.1.2.
+ *
+ *   The figure in section 7.1.2 suggests a body size of up to 2312
+ *   bytes is allowed, which is a bit confusing, I suspect this
+ *   represents the 2304 bytes of real data, plus a possible 8 bytes of
+ *   WEP IV and ICV. (this interpretation suggested by Ramiro Barreiro)
+ */
 #define IEEE80211_1ADDR_LEN 10
 #define IEEE80211_2ADDR_LEN 16
 #define IEEE80211_3ADDR_LEN 24
@@ -685,7 +686,8 @@ struct ieee_ibss_seq {
 
 /* NOTE: This data is for statistical purposes; not all hardware provides this
  *       information for frames received.  Not setting these will not cause
- *       any adverse affects. */
+ *       any adverse affects.
+ */
 struct ieee80211_rx_stats {
 	u32 mac_time[2];
 	s8 rssi;
@@ -754,7 +756,8 @@ struct ieee80211_rx_stats {
 /* IEEE 802.11 requires that STA supports concurrent reception of at least
  * three fragmented frames. This define can be increased to support more
  * concurrent frames, but it should be noted that each entry can consume about
- * 2 kB of RAM and increasing cache size will slow down frame reassembly. */
+ * 2 kB of RAM and increasing cache size will slow down frame reassembly.
+ */
 #define IEEE80211_FRAG_CACHE_LEN 4
 
 struct ieee80211_frag_entry {
@@ -836,15 +839,15 @@ struct ieee80211_security {
 
 
 /*
- 802.11 data frame from AP
-      ,-------------------------------------------------------------------.
-Bytes |  2   |  2   |    6    |    6    |    6    |  2   | 0..2312 |   4  |
-      |------|------|---------|---------|---------|------|---------|------|
-Desc. | ctrl | dura |  DA/RA  |   TA    |    SA   | Sequ |  frame  |  fcs |
-      |      | tion | (BSSID) |         |         | ence |  data   |      |
-      `-------------------------------------------------------------------'
-Total: 28-2340 bytes
-*/
+ *  802.11 data frame from AP
+ *       ,-------------------------------------------------------------------.
+ * Bytes |  2   |  2   |    6    |    6    |    6    |  2   | 0..2312 |   4  |
+ *       |------|------|---------|---------|---------|------|---------|------|
+ * Desc. | ctrl | dura |  DA/RA  |   TA    |    SA   | Sequ |  frame  |  fcs |
+ *       |      | tion | (BSSID) |         |         | ence |  data   |      |
+ *       `-------------------------------------------------------------------'
+ *  Total: 28-2340 bytes
+ */
 
 /* Management Frame Information Element Types */
 enum ieee80211_mfie {
@@ -882,7 +885,8 @@ enum ieee80211_mfie {
 
 /* Minimal header; can be used for passing 802.11 frames with sufficient
  * information to determine what type of underlying data type is actually
- * stored in the data. */
+ * stored in the data.
+ */
 struct rtl_80211_hdr {
 	__le16 frame_ctl;
 	__le16 duration_id;
@@ -980,7 +984,8 @@ struct ieee80211_probe_response {
 	__le16 beacon_interval;
 	__le16 capability;
 	/* SSID, supported rates, FH params, DS params,
-	 * CF params, IBSS params, TIM (if beacon), RSN */
+	 * CF params, IBSS params, TIM (if beacon), RSN
+	 */
 	struct ieee80211_info_element info_element[0];
 } __packed;
 
@@ -1055,7 +1060,8 @@ typedef union _frameqos {
 /* MAX_RATES_LENGTH needs to be 12.  The spec says 8, and many APs
  * only use 8, and then use extended rates for the remaining supported
  * rates.  Other APs, however, stick all of their supported rates on the
- * main rates information element... */
+ * main rates information element...
+ */
 #define MAX_RATES_LENGTH                  ((u8)12)
 #define MAX_RATES_EX_LENGTH               ((u8)16)
 #define MAX_NETWORK_COUNT                  128
@@ -1677,14 +1683,16 @@ struct ieee80211_device {
 	spinlock_t wpax_suitlist_lock;
 
 	int tx_headroom; /* Set to size of any additional room needed at front
-			  * of allocated Tx SKBs */
+			  * of allocated Tx SKBs
+			  */
 	u32 config;
 
 	/* WEP and other encryption related settings at the device level */
 	int open_wep; /* Set to 1 to allow unencrypted frames */
 	int auth_mode;
 	int reset_on_keychange; /* Set to 1 if the HW needs to be reset on
-				 * WEP key changes */
+				 * WEP key changes
+				 */
 
 	/* If the host performs {en,de}cryption, then set to 1 */
 	int host_encrypt;
@@ -1719,7 +1727,8 @@ struct ieee80211_device {
 	int crypt_quiesced;
 
 	int bcrx_sta_key; /* use individual keys to override default keys even
-			   * with RX of broad/multicast frames */
+			   * with RX of broad/multicast frames
+			   */
 
 	/* Fragmentation structures */
 	// each streaming contain a entry
@@ -2004,7 +2013,8 @@ struct ieee80211_device {
 	void (*InitialGainHandler)(struct net_device *dev, u8 Operation);
 
 	/* This must be the last item so that it points to the data
-	 * allocated beyond this structure by alloc_ieee80211 */
+	 * allocated beyond this structure by alloc_ieee80211
+	 */
 	u8 priv[0];
 };
 
@@ -2033,7 +2043,8 @@ struct ieee80211_device {
 
 /* The ieee802.11 stack will manages the netif queue
  * wake/stop for the driver, taking care of 802.11
- * fragmentation. See softmac.c for details. */
+ * fragmentation. See softmac.c for details.
+ */
 #define IEEE_SOFTMAC_TX_QUEUE (1<<7)
 
 /* Uses only the softmac_data_hard_start_xmit
