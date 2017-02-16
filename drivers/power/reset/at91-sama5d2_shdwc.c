@@ -22,8 +22,11 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/printk.h>
+
+#include <soc/at91/at91sam9_ddrsdr.h>
 
 #define SLOW_CLOCK_FREQ	32768
 
@@ -75,6 +78,7 @@ struct shdwc {
  */
 static struct shdwc *at91_shdwc;
 static struct clk *sclk;
+static void __iomem *mpddrc_base;
 
 static const unsigned long long sdwc_dbc_period[] = {
 	0, 3, 32, 512, 4096, 32768,
@@ -106,6 +110,29 @@ static void at91_poweroff(void)
 {
 	writel(AT91_SHDW_KEY | AT91_SHDW_SHDW,
 	       at91_shdwc->at91_shdwc_base + AT91_SHDW_CR);
+}
+
+static void at91_lpddr_poweroff(void)
+{
+	asm volatile(
+		/* Align to cache lines */
+		".balign 32\n\t"
+
+		/* Ensure AT91_SHDW_CR is in the TLB by reading it */
+		"	ldr	r6, [%2, #" __stringify(AT91_SHDW_CR) "]\n\t"
+
+		/* Power down SDRAM0 */
+		"	str	%1, [%0, #" __stringify(AT91_DDRSDRC_LPR) "]\n\t"
+		/* Shutdown CPU */
+		"	str	%3, [%2, #" __stringify(AT91_SHDW_CR) "]\n\t"
+
+		"	b	.\n\t"
+		:
+		: "r" (mpddrc_base),
+		  "r" cpu_to_le32(AT91_DDRSDRC_LPDDR2_PWOFF),
+		  "r" (at91_shdwc->at91_shdwc_base),
+		  "r" cpu_to_le32(AT91_SHDW_KEY | AT91_SHDW_SHDW)
+		: "r0");
 }
 
 static u32 at91_shdwc_debouncer_value(struct platform_device *pdev,
@@ -212,6 +239,8 @@ static int __init at91_shdwc_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	const struct of_device_id *match;
+	struct device_node *np;
+	u32 ddr_type;
 	int ret;
 
 	if (!pdev->dev.of_node)
@@ -249,6 +278,23 @@ static int __init at91_shdwc_probe(struct platform_device *pdev)
 
 	pm_power_off = at91_poweroff;
 
+	np = of_find_compatible_node(NULL, NULL, "atmel,sama5d3-ddramc");
+	if (!np)
+		return 0;
+
+	mpddrc_base = of_iomap(np, 0);
+	of_node_put(np);
+
+	if (!mpddrc_base)
+		return 0;
+
+	ddr_type = readl(mpddrc_base + AT91_DDRSDRC_MDR) & AT91_DDRSDRC_MD;
+	if ((ddr_type == AT91_DDRSDRC_MD_LPDDR2) ||
+	    (ddr_type == AT91_DDRSDRC_MD_LPDDR3))
+		pm_power_off = at91_lpddr_poweroff;
+	else
+		iounmap(mpddrc_base);
+
 	return 0;
 }
 
@@ -256,7 +302,8 @@ static int __exit at91_shdwc_remove(struct platform_device *pdev)
 {
 	struct shdwc *shdw = platform_get_drvdata(pdev);
 
-	if (pm_power_off == at91_poweroff)
+	if (pm_power_off == at91_poweroff ||
+	    pm_power_off == at91_lpddr_poweroff)
 		pm_power_off = NULL;
 
 	/* Reset values to disable wake-up features  */

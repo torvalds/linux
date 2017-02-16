@@ -13,7 +13,7 @@
 
 #include <linux/regmap.h>
 
-enum {
+enum axp20x_variants {
 	AXP152_ID = 0,
 	AXP202_ID,
 	AXP209_ID,
