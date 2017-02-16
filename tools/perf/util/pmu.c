@@ -945,12 +945,12 @@ static int check_info_data(struct perf_pmu_alias *alias,
 	 * define unit, scale and snapshot, fail
 	 * if there's more than one.
 	 */
-	if ((info->unit && alias->unit) ||
+	if ((info->unit && alias->unit[0]) ||
 	    (info->scale && alias->scale) ||
 	    (info->snapshot && alias->snapshot))
 		return -EINVAL;
 
-	if (alias->unit)
+	if (alias->unit[0])
 		info->unit = alias->unit;
 
 	if (alias->scale)
