@@ -176,6 +176,13 @@ static int stripe_operations_active(struct stripe_head *sh)
 	       test_bit(STRIPE_COMPUTE_RUN, &sh->state);
 }
 
+static bool stripe_is_lowprio(struct stripe_head *sh)
+{
+	return (test_bit(STRIPE_R5C_FULL_STRIPE, &sh->state) ||
+		test_bit(STRIPE_R5C_PARTIAL_STRIPE, &sh->state)) &&
+	       !test_bit(STRIPE_R5C_CACHING, &sh->state);
+}
+
 static void raid5_wakeup_stripe_thread(struct stripe_head *sh)
 {
 	struct r5conf *conf = sh->raid_conf;
@@ -191,7 +198,10 @@ static void raid5_wakeup_stripe_thread(struct stripe_head *sh)
 	if (list_empty(&sh->lru)) {
 		struct r5worker_group *group;
 		group = conf->worker_groups + cpu_to_group(cpu);
-		list_add_tail(&sh->lru, &group->handle_list);
+		if (stripe_is_lowprio(sh))
+			list_add_tail(&sh->lru, &group->loprio_list);
+		else
+			list_add_tail(&sh->lru, &group->handle_list);
 		group->stripes_cnt++;
 		sh->group = group;
 	}
@@ -254,7 +264,12 @@ static void do_release_stripe(struct r5conf *conf, struct stripe_head *sh,
 			clear_bit(STRIPE_DELAYED, &sh->state);
 			clear_bit(STRIPE_BIT_DELAY, &sh->state);
 			if (conf->worker_cnt_per_group == 0) {
-				list_add_tail(&sh->lru, &conf->handle_list);
+				if (stripe_is_lowprio(sh))
+					list_add_tail(&sh->lru,
+							&conf->loprio_list);
+				else
+					list_add_tail(&sh->lru,
+							&conf->handle_list);
 			} else {
 				raid5_wakeup_stripe_thread(sh);
 				return;
@@ -5172,19 +5187,27 @@ static struct bio *chunk_aligned_read(struct mddev *mddev, struct bio *raid_bio)
  */
 static struct stripe_head *__get_priority_stripe(struct r5conf *conf, int group)
 {
-	struct stripe_head *sh = NULL, *tmp;
+	struct stripe_head *sh, *tmp;
 	struct list_head *handle_list = NULL;
-	struct r5worker_group *wg = NULL;
+	struct r5worker_group *wg;
+	bool second_try = !r5c_is_writeback(conf->log);
+	bool try_loprio = test_bit(R5C_LOG_TIGHT, &conf->cache_state);
 
+again:
+	wg = NULL;
+	sh = NULL;
 	if (conf->worker_cnt_per_group == 0) {
-		handle_list = &conf->handle_list;
+		handle_list = try_loprio ? &conf->loprio_list :
+					&conf->handle_list;
 	} else if (group != ANY_GROUP) {
-		handle_list = &conf->worker_groups[group].handle_list;
+		handle_list = try_loprio ? &conf->worker_groups[group].loprio_list :
+				&conf->worker_groups[group].handle_list;
 		wg = &conf->worker_groups[group];
 	} else {
 		int i;
 		for (i = 0; i < conf->group_cnt; i++) {
-			handle_list = &conf->worker_groups[i].handle_list;
+			handle_list = try_loprio ? &conf->worker_groups[i].loprio_list :
+				&conf->worker_groups[i].handle_list;
 			wg = &conf->worker_groups[i];
 			if (!list_empty(handle_list))
 				break;
@@ -5235,8 +5258,13 @@ static struct stripe_head *__get_priority_stripe(struct r5conf *conf, int group)
 		wg = NULL;
 	}
 
-	if (!sh)
-		return NULL;
+	if (!sh) {
+		if (second_try)
+			return NULL;
+		second_try = true;
+		try_loprio = !try_loprio;
+		goto again;
+	}
 
 	if (wg) {
 		wg->stripes_cnt--;
@@ -6546,6 +6574,7 @@ static int alloc_thread_groups(struct r5conf *conf, int cnt,
 
 		group = &(*worker_groups)[i];
 		INIT_LIST_HEAD(&group->handle_list);
+		INIT_LIST_HEAD(&group->loprio_list);
 		group->conf = conf;
 		group->workers = workers + i * cnt;
 
@@ -6773,6 +6802,7 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 	init_waitqueue_head(&conf->wait_for_stripe);
 	init_waitqueue_head(&conf->wait_for_overlap);
 	INIT_LIST_HEAD(&conf->handle_list);
+	INIT_LIST_HEAD(&conf->loprio_list);
 	INIT_LIST_HEAD(&conf->hold_list);
 	INIT_LIST_HEAD(&conf->delayed_list);
 	INIT_LIST_HEAD(&conf->bitmap_list);
