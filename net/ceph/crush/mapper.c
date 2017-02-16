@@ -105,7 +105,7 @@ static int bucket_perm_choose(const struct crush_bucket *bucket,
 
 	/* calculate permutation up to pr */
 	for (i = 0; i < work->perm_n; i++)
-		dprintk(" perm_choose have %d: %d\n", i, bucket->perm[i]);
+		dprintk(" perm_choose have %d: %d\n", i, work->perm[i]);
 	while (work->perm_n <= pr) {
 		unsigned int p = work->perm_n;
 		/* no point in swapping the final entry */
@@ -122,7 +122,7 @@ static int bucket_perm_choose(const struct crush_bucket *bucket,
 		work->perm_n++;
 	}
 	for (i = 0; i < bucket->size; i++)
-		dprintk(" perm_choose  %d: %d\n", i, bucket->perm[i]);
+		dprintk(" perm_choose  %d: %d\n", i, work->perm[i]);
 
 	s = work->perm[pr];
 out:
