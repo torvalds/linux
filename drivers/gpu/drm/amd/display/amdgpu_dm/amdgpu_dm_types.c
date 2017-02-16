@@ -1851,8 +1851,9 @@ void amdgpu_dm_connector_init_helper(
 
 	aconnector->connector_id = link_index;
 	aconnector->dc_link = link;
-	aconnector->base.interlace_allowed = true;
-	aconnector->base.doublescan_allowed = true;
+	aconnector->base.interlace_allowed = false;
+	aconnector->base.doublescan_allowed = false;
+	aconnector->base.stereo_allowed = false;
 	aconnector->base.dpms = DRM_MODE_DPMS_OFF;
 	aconnector->hpd.hpd = AMDGPU_HPD_NONE; /* not used */
 
