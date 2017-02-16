@@ -17,7 +17,7 @@ Required properties:
 	"core" - Main peripheral bus clock
 	"clkin0" - Parent clock of internal mux
 	"clkin1" - Other parent clock of internal mux
-  The driver has an interal mux clock which switches between clkin0 and clkin1 depending on the
+  The driver has an internal mux clock which switches between clkin0 and clkin1 depending on the
   clock rate requested by the MMC core.
 
 Example:

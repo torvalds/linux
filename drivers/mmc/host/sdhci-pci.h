@@ -81,7 +81,6 @@ struct sdhci_pci_slot {
 	int			cd_gpio;
 	int			cd_irq;
 
-	char			*cd_con_id;
 	int			cd_idx;
 	bool			cd_override_level;
 
