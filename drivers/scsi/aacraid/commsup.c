@@ -1637,11 +1637,29 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 		command->SCp.phase = AAC_OWNER_ERROR_HANDLER;
 		command->scsi_done(command);
 	}
+	/*
+	 * Any Device that was already marked offline needs to be cleaned up
+	 */
+	__shost_for_each_device(dev, host) {
+		if (!scsi_device_online(dev)) {
+			sdev_printk(KERN_INFO, dev, "Removing offline device\n");
+			scsi_remove_device(dev);
+			scsi_device_put(dev);
+		}
+	}
 	retval = 0;
 
 out:
 	aac->in_reset = 0;
 	scsi_unblock_requests(host);
+	/*
+	 * Issue bus rescan to catch any configuration that might have
+	 * occurred
+	 */
+	if (!retval) {
+		dev_info(&aac->pdev->dev, "Issuing bus rescan\n");
+		scsi_scan_host(host);
+	}
 	if (jafo) {
 		spin_lock_irq(host->host_lock);
 	}
