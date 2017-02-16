@@ -461,6 +461,35 @@ int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_fib * hw
 	return 0;
 }
 
+#ifdef CONFIG_EEH
+static inline int aac_check_eeh_failure(struct aac_dev *dev)
+{
+	/* Check for an EEH failure for the given
+	 * device node. Function eeh_dev_check_failure()
+	 * returns 0 if there has not been an EEH error
+	 * otherwise returns a non-zero value.
+	 *
+	 * Need to be called before any PCI operation,
+	 * i.e.,before aac_adapter_check_health()
+	 */
+	struct eeh_dev *edev = pci_dev_to_eeh_dev(dev->pdev);
+
+	if (eeh_dev_check_failure(edev)) {
+		/* The EEH mechanisms will handle this
+		 * error and reset the device if
+		 * necessary.
+		 */
+		return 1;
+	}
+	return 0;
+}
+#else
+static inline int aac_check_eeh_failure(struct aac_dev *dev)
+{
+	return 0;
+}
+#endif
+
 /*
  *	Define the highest level of host to adapter communication routines.
  *	These routines will support host to adapter FS commuication. These
@@ -495,7 +524,6 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 	unsigned long flags = 0;
 	unsigned long mflags = 0;
 	unsigned long sflags = 0;
-
 
 	if (!(hw_fib->header.XferState & cpu_to_le32(HostOwned)))
 		return -EBUSY;
@@ -662,6 +690,10 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 					}
 					return -ETIMEDOUT;
 				}
+
+				if (aac_check_eeh_failure(dev))
+					return -EFAULT;
+
 				if ((blink = aac_adapter_check_health(dev)) > 0) {
 					if (wait == -1) {
 	        				printk(KERN_ERR "aacraid: aac_fib_send: adapter blinkLED 0x%x.\n"
@@ -755,7 +787,12 @@ int aac_hba_send(u8 command, struct fib *fibptr, fib_callback callback,
 	FIB_COUNTER_INCREMENT(aac_config.NativeSent);
 
 	if (wait) {
+
 		spin_unlock_irqrestore(&fibptr->event_lock, flags);
+
+		if (aac_check_eeh_failure(dev))
+			return -EFAULT;
+
 		/* Only set for first known interruptable command */
 		if (down_interruptible(&fibptr->event_wait)) {
 			fibptr->done = 2;
