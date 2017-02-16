@@ -34,6 +34,8 @@ void tag_check(void);
 void multiorder_checks(void);
 void iteration_test(unsigned order, unsigned duration);
 void benchmark(void);
+void idr_checks(void);
+void ida_checks(void);
 
 struct item *
 item_tag_set(struct radix_tree_root *root, unsigned long index, int tag);

@@ -80,7 +80,7 @@ void regression2_test(void)
 	unsigned long int start, end;
 	struct page *pages[1];
 
-	printf("running regression test 2 (should take milliseconds)\n");
+	printv(1, "running regression test 2 (should take milliseconds)\n");
 	/* 0. */
 	for (i = 0; i <= max_slots - 1; i++) {
 		p = page_alloc();
@@ -103,7 +103,7 @@ void regression2_test(void)
 
 	/* 4. */
 	for (i = max_slots - 1; i >= 0; i--)
-		radix_tree_delete(&mt_tree, i);
+		free(radix_tree_delete(&mt_tree, i));
 
 	/* 5. */
 	// NOTE: start should not be 0 because radix_tree_gang_lookup_tag_slot
@@ -114,7 +114,9 @@ void regression2_test(void)
 		PAGECACHE_TAG_TOWRITE);
 
 	/* We remove all the remained nodes */
-	radix_tree_delete(&mt_tree, max_slots);
+	free(radix_tree_delete(&mt_tree, max_slots));
 
-	printf("regression test 2, done\n");
+	BUG_ON(!radix_tree_empty(&mt_tree));
+
+	printv(1, "regression test 2, done\n");
 }

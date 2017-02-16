@@ -22,11 +22,13 @@
 #define _LINUX_RADIX_TREE_H
 
 #include <linux/bitops.h>
-#include <linux/preempt.h>
-#include <linux/types.h>
 #include <linux/bug.h>
 #include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/preempt.h>
 #include <linux/rcupdate.h>
+#include <linux/spinlock.h>
+#include <linux/types.h>
 
 /*
  * The bottom two bits of the slot determine how the remaining bits in the
@@ -94,7 +96,7 @@ struct radix_tree_node {
 	unsigned char	count;		/* Total entry count */
 	unsigned char	exceptional;	/* Exceptional entry count */
 	struct radix_tree_node *parent;		/* Used when ascending tree */
-	void *private_data;			/* For tree user */
+	struct radix_tree_root *root;		/* The tree we belong to */
 	union {
 		struct list_head private_list;	/* For tree user */
 		struct rcu_head	rcu_head;	/* Used when freeing node */
@@ -103,7 +105,10 @@ struct radix_tree_node {
 	unsigned long	tags[RADIX_TREE_MAX_TAGS][RADIX_TREE_TAG_LONGS];
 };
 
-/* root tags are stored in gfp_mask, shifted by __GFP_BITS_SHIFT */
+/* The top bits of gfp_mask are used to store the root tags and the IDR flag */
+#define ROOT_IS_IDR	(1 << __GFP_BITS_SHIFT)
+#define ROOT_TAG_SHIFT	(__GFP_BITS_SHIFT + 1)
+
 struct radix_tree_root {
 	gfp_t			gfp_mask;
 	struct radix_tree_node	__rcu *rnode;
@@ -123,7 +128,7 @@ do {									\
 	(root)->rnode = NULL;						\
 } while (0)
 
-static inline bool radix_tree_empty(struct radix_tree_root *root)
+static inline bool radix_tree_empty(const struct radix_tree_root *root)
 {
 	return root->rnode == NULL;
 }
@@ -292,10 +297,10 @@ static inline int radix_tree_insert(struct radix_tree_root *root,
 {
 	return __radix_tree_insert(root, index, 0, entry);
 }
-void *__radix_tree_lookup(struct radix_tree_root *root, unsigned long index,
+void *__radix_tree_lookup(const struct radix_tree_root *, unsigned long index,
 			  struct radix_tree_node **nodep, void ***slotp);
-void *radix_tree_lookup(struct radix_tree_root *, unsigned long);
-void **radix_tree_lookup_slot(struct radix_tree_root *, unsigned long);
+void *radix_tree_lookup(const struct radix_tree_root *, unsigned long);
+void **radix_tree_lookup_slot(const struct radix_tree_root *, unsigned long);
 typedef void (*radix_tree_update_node_t)(struct radix_tree_node *, void *);
 void __radix_tree_replace(struct radix_tree_root *root,
 			  struct radix_tree_node *node,
@@ -309,15 +314,17 @@ void __radix_tree_delete_node(struct radix_tree_root *root,
 			      struct radix_tree_node *node,
 			      radix_tree_update_node_t update_node,
 			      void *private);
+void radix_tree_iter_delete(struct radix_tree_root *,
+				struct radix_tree_iter *iter, void **slot);
 void *radix_tree_delete_item(struct radix_tree_root *, unsigned long, void *);
 void *radix_tree_delete(struct radix_tree_root *, unsigned long);
 void radix_tree_clear_tags(struct radix_tree_root *root,
 			   struct radix_tree_node *node,
 			   void **slot);
-unsigned int radix_tree_gang_lookup(struct radix_tree_root *root,
+unsigned int radix_tree_gang_lookup(const struct radix_tree_root *,
 			void **results, unsigned long first_index,
 			unsigned int max_items);
-unsigned int radix_tree_gang_lookup_slot(struct radix_tree_root *root,
+unsigned int radix_tree_gang_lookup_slot(const struct radix_tree_root *,
 			void ***results, unsigned long *indices,
 			unsigned long first_index, unsigned int max_items);
 int radix_tree_preload(gfp_t gfp_mask);
@@ -328,19 +335,21 @@ void *radix_tree_tag_set(struct radix_tree_root *root,
 			unsigned long index, unsigned int tag);
 void *radix_tree_tag_clear(struct radix_tree_root *root,
 			unsigned long index, unsigned int tag);
-int radix_tree_tag_get(struct radix_tree_root *root,
+int radix_tree_tag_get(const struct radix_tree_root *,
 			unsigned long index, unsigned int tag);
-void radix_tree_iter_tag_set(struct radix_tree_root *root,
+void radix_tree_iter_tag_set(struct radix_tree_root *,
+		const struct radix_tree_iter *iter, unsigned int tag);
+void radix_tree_iter_tag_clear(struct radix_tree_root *,
 		const struct radix_tree_iter *iter, unsigned int tag);
 unsigned int
-radix_tree_gang_lookup_tag(struct radix_tree_root *root, void **results,
+radix_tree_gang_lookup_tag(const struct radix_tree_root *, void **results,
 		unsigned long first_index, unsigned int max_items,
 		unsigned int tag);
 unsigned int
-radix_tree_gang_lookup_tag_slot(struct radix_tree_root *root, void ***results,
+radix_tree_gang_lookup_tag_slot(const struct radix_tree_root *, void ***results,
 		unsigned long first_index, unsigned int max_items,
 		unsigned int tag);
-int radix_tree_tagged(struct radix_tree_root *root, unsigned int tag);
+int radix_tree_tagged(const struct radix_tree_root *root, unsigned int tag);
 
 static inline void radix_tree_preload_end(void)
 {
@@ -352,10 +361,14 @@ int radix_tree_split(struct radix_tree_root *, unsigned long index,
 			unsigned new_order);
 int radix_tree_join(struct radix_tree_root *, unsigned long index,
 			unsigned new_order, void *);
+void **idr_get_free(struct radix_tree_root *, struct radix_tree_iter *,
+			gfp_t, int end);
 
-#define RADIX_TREE_ITER_TAG_MASK	0x00FF	/* tag index in lower byte */
-#define RADIX_TREE_ITER_TAGGED		0x0100	/* lookup tagged slots */
-#define RADIX_TREE_ITER_CONTIG		0x0200	/* stop at first hole */
+enum {
+	RADIX_TREE_ITER_TAG_MASK = 0x0f,	/* tag index in lower nybble */
+	RADIX_TREE_ITER_TAGGED   = 0x10,	/* lookup tagged slots */
+	RADIX_TREE_ITER_CONTIG   = 0x20,	/* stop at first hole */
+};
 
 /**
  * radix_tree_iter_init - initialize radix tree iterator
@@ -393,8 +406,42 @@ radix_tree_iter_init(struct radix_tree_iter *iter, unsigned long start)
  * Also it fills @iter with data about chunk: position in the tree (index),
  * its end (next_index), and constructs a bit mask for tagged iterating (tags).
  */
-void **radix_tree_next_chunk(struct radix_tree_root *root,
+void **radix_tree_next_chunk(const struct radix_tree_root *,
 			     struct radix_tree_iter *iter, unsigned flags);
+
+/**
+ * radix_tree_iter_lookup - look up an index in the radix tree
+ * @root: radix tree root
+ * @iter: iterator state
+ * @index: key to look up
+ *
+ * If @index is present in the radix tree, this function returns the slot
+ * containing it and updates @iter to describe the entry.  If @index is not
+ * present, it returns NULL.
+ */
+static inline void **radix_tree_iter_lookup(const struct radix_tree_root *root,
+			struct radix_tree_iter *iter, unsigned long index)
+{
+	radix_tree_iter_init(iter, index);
+	return radix_tree_next_chunk(root, iter, RADIX_TREE_ITER_CONTIG);
+}
+
+/**
+ * radix_tree_iter_find - find a present entry
+ * @root: radix tree root
+ * @iter: iterator state
+ * @index: start location
+ *
+ * This function returns the slot containing the entry with the lowest index
+ * which is at least @index.  If @index is larger than any present entry, this
+ * function returns NULL.  The @iter is updated to describe the entry found.
+ */
+static inline void **radix_tree_iter_find(const struct radix_tree_root *root,
+			struct radix_tree_iter *iter, unsigned long index)
+{
+	radix_tree_iter_init(iter, index);
+	return radix_tree_next_chunk(root, iter, 0);
+}
 
 /**
  * radix_tree_iter_retry - retry this chunk of the iteration
