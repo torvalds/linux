@@ -363,6 +363,7 @@ struct wpa_key_t {
 	u8 tx_mic_key[MIC_KEY_SIZE];
 	u8 rx_mic_key[MIC_KEY_SIZE];
 };
+
 #define WPA_KEY_INDEX_MAX 4
 #define WPA_RX_SEQ_LEN 6
 
