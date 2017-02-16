@@ -429,6 +429,12 @@
 			phy-names = "usb-phy";
 			status = "disabled";
 		};
+		sata: sata@218000 {
+			compatible = "ti,da850-ahci";
+			reg = <0x218000 0x2000>, <0x22c018 0x4>;
+			interrupts = <67>;
+			status = "disabled";
+		};
 		mdio: mdio@224000 {
 			compatible = "ti,davinci_mdio";
 			#address-cells = <1>;
