@@ -285,16 +285,16 @@ struct ap_info_t {
 	uint8_t pad0;	/* +09 */
 	uint16_t beacon_period;	/* +10 */
 	uint16_t capability;	/* +12 */
-#define BSS_CAP_ESS             (1<<0)
-#define BSS_CAP_IBSS            (1<<1)
-#define BSS_CAP_CF_POLABLE      (1<<2)
-#define BSS_CAP_CF_POLL_REQ     (1<<3)
-#define BSS_CAP_PRIVACY         (1<<4)
-#define BSS_CAP_SHORT_PREAMBLE  (1<<5)
-#define BSS_CAP_PBCC            (1<<6)
-#define BSS_CAP_CHANNEL_AGILITY (1<<7)
-#define BSS_CAP_SHORT_SLOT_TIME (1<<10)
-#define BSS_CAP_DSSS_OFDM       (1<<13)
+#define BSS_CAP_ESS             BIT(0)
+#define BSS_CAP_IBSS            BIT(1)
+#define BSS_CAP_CF_POLABLE      BIT(2)
+#define BSS_CAP_CF_POLL_REQ     BIT(3)
+#define BSS_CAP_PRIVACY         BIT(4)
+#define BSS_CAP_SHORT_PREAMBLE  BIT(5)
+#define BSS_CAP_PBCC            BIT(6)
+#define BSS_CAP_CHANNEL_AGILITY BIT(7)
+#define BSS_CAP_SHORT_SLOT_TIME BIT(10)
+#define BSS_CAP_DSSS_OFDM       BIT(13)
 	uint8_t frame_type;	/* +14 */
 	uint8_t ch_info;	/* +15 */
 #define FRAME_TYPE_BEACON	0x80

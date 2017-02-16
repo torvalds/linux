@@ -85,23 +85,23 @@ enum {
 };
 
 /* SME flag */
-#define SME_MODE_SET	    (1<<0)
-#define SME_RTS             (1<<1)
-#define SME_FRAG            (1<<2)
-#define SME_WEP_FLAG        (1<<3)
-#define SME_WEP_INDEX       (1<<4)
-#define SME_WEP_VAL1        (1<<5)
-#define SME_WEP_VAL2        (1<<6)
-#define SME_WEP_VAL3        (1<<7)
-#define SME_WEP_VAL4        (1<<8)
+#define SME_MODE_SET	    BIT(0)
+#define SME_RTS             BIT(1)
+#define SME_FRAG            BIT(2)
+#define SME_WEP_FLAG        BIT(3)
+#define SME_WEP_INDEX       BIT(4)
+#define SME_WEP_VAL1        BIT(5)
+#define SME_WEP_VAL2        BIT(6)
+#define SME_WEP_VAL3        BIT(7)
+#define SME_WEP_VAL4        BIT(8)
 #define SME_WEP_VAL_MASK    (SME_WEP_VAL1 | SME_WEP_VAL2 | SME_WEP_VAL3 | SME_WEP_VAL4)
-#define SME_RSN             (1<<9)
-#define SME_RSN_MULTICAST   (1<<10)
-#define SME_RSN_UNICAST	    (1<<11)
-#define SME_RSN_AUTH	    (1<<12)
+#define SME_RSN             BIT(9)
+#define SME_RSN_MULTICAST   BIT(10)
+#define SME_RSN_UNICAST	    BIT(11)
+#define SME_RSN_AUTH	    BIT(12)
 
-#define SME_AP_SCAN         (1<<13)
-#define SME_MULTICAST       (1<<14)
+#define SME_AP_SCAN         BIT(13)
+#define SME_MULTICAST       BIT(14)
 
 /* SME Event */
 enum {
