@@ -21,7 +21,7 @@ static void TsInactTimeout(unsigned long data)
  *   input:  unsigned long	 data		//acturally we send TX_TS_RECORD or RX_TS_RECORD to these timer
  *  return:  NULL
  *  notice:
-********************************************************************************************************************/
+ ********************************************************************************************************************/
 static void RxPktPendingTimeout(unsigned long data)
 {
 	PRX_TS_RECORD	pRxTs = (PRX_TS_RECORD)data;
@@ -95,7 +95,7 @@ static void RxPktPendingTimeout(unsigned long data)
  *   input:  unsigned long	 data		//acturally we send TX_TS_RECORD or RX_TS_RECORD to these timer
  *  return:  NULL
  *  notice:
-********************************************************************************************************************/
+ ********************************************************************************************************************/
 static void TsAddBaProcess(unsigned long data)
 {
 	PTX_TS_RECORD	pTxTs = (PTX_TS_RECORD)data;
