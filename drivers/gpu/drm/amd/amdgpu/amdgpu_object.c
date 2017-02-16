@@ -395,19 +395,10 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 	amdgpu_fill_placement_to_bo(bo, placement);
 	/* Kernel allocation are uninterruptible */
 
-	if (!resv) {
-		bool locked;
-
-		reservation_object_init(&bo->tbo.ttm_resv);
-		locked = ww_mutex_trylock(&bo->tbo.ttm_resv.lock);
-		WARN_ON(!locked);
-	}
-
 	initial_bytes_moved = atomic64_read(&adev->num_bytes_moved);
-	r = ttm_bo_init(&adev->mman.bdev, &bo->tbo, size, type,
-			&bo->placement, page_align, !kernel, NULL,
-			acc_size, sg, resv ? resv : &bo->tbo.ttm_resv,
-			&amdgpu_ttm_bo_destroy);
+	r = ttm_bo_init_reserved(&adev->mman.bdev, &bo->tbo, size, type,
+				 &bo->placement, page_align, !kernel, NULL,
+				 acc_size, sg, resv, &amdgpu_ttm_bo_destroy);
 	amdgpu_cs_report_moved_bytes(adev,
 		atomic64_read(&adev->num_bytes_moved) - initial_bytes_moved);
 
@@ -433,7 +424,7 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 		dma_fence_put(fence);
 	}
 	if (!resv)
-		ww_mutex_unlock(&bo->tbo.resv->lock);
+		amdgpu_bo_unreserve(bo);
 	*bo_ptr = bo;
 
 	trace_amdgpu_bo_create(bo);
