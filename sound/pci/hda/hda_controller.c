@@ -861,6 +861,10 @@ static int azx_rirb_get_response(struct hdac_bus *bus, unsigned int addr,
 		return -EIO;
 	}
 
+	/* no fallback mechanism? */
+	if (!chip->fallback_to_single_cmd)
+		return -EIO;
+
 	/* a fatal communication error; need either to reset or to fallback
 	 * to the single_cmd mode
 	 */

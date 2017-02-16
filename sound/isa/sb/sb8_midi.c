@@ -247,14 +247,14 @@ static void snd_sb8dsp_midi_output_trigger(struct snd_rawmidi_substream *substre
 		snd_sb8dsp_midi_output_write(substream);
 }
 
-static struct snd_rawmidi_ops snd_sb8dsp_midi_output =
+static const struct snd_rawmidi_ops snd_sb8dsp_midi_output =
 {
 	.open =		snd_sb8dsp_midi_output_open,
 	.close =	snd_sb8dsp_midi_output_close,
 	.trigger =	snd_sb8dsp_midi_output_trigger,
 };
 
-static struct snd_rawmidi_ops snd_sb8dsp_midi_input =
+static const struct snd_rawmidi_ops snd_sb8dsp_midi_input =
 {
 	.open =		snd_sb8dsp_midi_input_open,
 	.close =	snd_sb8dsp_midi_input_close,

@@ -1749,7 +1749,7 @@ static int snd_rawmidi_dev_disconnect(struct snd_device *device)
  * Sets the rawmidi operators for the given stream direction.
  */
 void snd_rawmidi_set_ops(struct snd_rawmidi *rmidi, int stream,
-			 struct snd_rawmidi_ops *ops)
+			 const struct snd_rawmidi_ops *ops)
 {
 	struct snd_rawmidi_substream *substream;
 	

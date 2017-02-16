@@ -34,6 +34,7 @@ config SND_OXFW
 	   * LaCie Firewire Speakers
 	   * Behringer F-Control Audio 202
 	   * Mackie(Loud) Onyx-i series (former models)
+	   * Mackie(Loud) Onyx 1640i (former model)
 	   * Mackie(Loud) Onyx Satellite
 	   * Mackie(Loud) Tapco Link.Firewire
 	   * Mackie(Loud) d.2 pro/d.4 pro
