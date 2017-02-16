@@ -198,7 +198,7 @@ struct aux_payloads *dal_ddc_aux_payloads_create(struct dc_context *ctx, uint32_
 		return NULL;
 
 	if (dal_vector_construct(
-		&payloads->payloads, ctx, count, sizeof(struct aux_payloads)))
+		&payloads->payloads, ctx, count, sizeof(struct aux_payload)))
 		return payloads;
 
 	dm_free(payloads);
