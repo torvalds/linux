@@ -160,8 +160,10 @@ static int get_burstcount(struct tpm_chip *chip)
 	u32 value;
 
 	/* wait for burstcount */
-	/* which timeout value, spec has 2 answers (c & d) */
-	stop = jiffies + chip->timeout_d;
+	if (chip->flags & TPM_CHIP_FLAG_TPM2)
+		stop = jiffies + chip->timeout_a;
+	else
+		stop = jiffies + chip->timeout_d;
 	do {
 		rc = tpm_tis_read32(priv, TPM_STS(priv->locality), &value);
 		if (rc < 0)
