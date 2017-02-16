@@ -26,15 +26,6 @@ config NVM_DEBUG
 
 	It is required to create/remove targets without IOCTLs.
 
-config NVM_GENNVM
-	tristate "General Non-Volatile Memory Manager for Open-Channel SSDs"
-	---help---
-	Non-volatile memory media manager for Open-Channel SSDs that implements
-	physical media metadata management and block provisioning API.
-
-	This is the standard media manager for using Open-Channel SSDs, and
-	required for targets to be instantiated.
-
 config NVM_RRPC
 	tristate "Round-robin Hybrid Open-Channel SSD target"
 	---help---

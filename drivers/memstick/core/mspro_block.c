@@ -827,18 +827,6 @@ static void mspro_block_start(struct memstick_dev *card)
 	spin_unlock_irqrestore(&msb->q_lock, flags);
 }
 
-static int mspro_block_prepare_req(struct request_queue *q, struct request *req)
-{
-	if (req->cmd_type != REQ_TYPE_FS) {
-		blk_dump_rq_flags(req, "MSPro unsupported request");
-		return BLKPREP_KILL;
-	}
-
-	req->rq_flags |= RQF_DONTPREP;
-
-	return BLKPREP_OK;
-}
-
 static void mspro_block_submit_req(struct request_queue *q)
 {
 	struct memstick_dev *card = q->queuedata;
@@ -1228,7 +1216,6 @@ static int mspro_block_init_disk(struct memstick_dev *card)
 	}
 
 	msb->queue->queuedata = card;
-	blk_queue_prep_rq(msb->queue, mspro_block_prepare_req);
 
 	blk_queue_bounce_limit(msb->queue, limit);
 	blk_queue_max_hw_sectors(msb->queue, MSPRO_BLOCK_MAX_PAGES);

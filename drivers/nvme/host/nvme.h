@@ -19,6 +19,7 @@
 #include <linux/kref.h>
 #include <linux/blk-mq.h>
 #include <linux/lightnvm.h>
+#include <linux/sed-opal.h>
 
 enum {
 	/*
@@ -124,6 +125,8 @@ struct nvme_ctrl {
 	struct device *device;	/* char device */
 	struct list_head node;
 	struct ida ns_ida;
+
+	struct opal_dev opal_dev;
 
 	char name[12];
 	char serial[20];
@@ -267,6 +270,17 @@ int nvme_init_identify(struct nvme_ctrl *ctrl);
 void nvme_queue_scan(struct nvme_ctrl *ctrl);
 void nvme_remove_namespaces(struct nvme_ctrl *ctrl);
 
+#ifdef CONFIG_BLK_SED_OPAL
+int nvme_sec_submit(struct opal_dev *dev, u16 spsp, u8 secp,
+		    void *buffer, size_t len, bool send);
+#else
+static inline int nvme_sec_submit(struct opal_dev *dev, u16 spsp, u8 secp,
+				  void *buffer, size_t len, bool send)
+{
+	return 0;
+}
+#endif /* CONFIG_BLK_DEV_SED_OPAL */
+
 #define NVME_NR_AERS	1
 void nvme_complete_async_event(struct nvme_ctrl *ctrl, __le16 status,
 		union nvme_result *res);
@@ -318,6 +332,7 @@ int nvme_nvm_register(struct nvme_ns *ns, char *disk_name, int node);
 void nvme_nvm_unregister(struct nvme_ns *ns);
 int nvme_nvm_register_sysfs(struct nvme_ns *ns);
 void nvme_nvm_unregister_sysfs(struct nvme_ns *ns);
+int nvme_nvm_ioctl(struct nvme_ns *ns, unsigned int cmd, unsigned long arg);
 #else
 static inline int nvme_nvm_register(struct nvme_ns *ns, char *disk_name,
 				    int node)
@@ -334,6 +349,11 @@ static inline void nvme_nvm_unregister_sysfs(struct nvme_ns *ns) {};
 static inline int nvme_nvm_ns_supported(struct nvme_ns *ns, struct nvme_id_ns *id)
 {
 	return 0;
+}
+static inline int nvme_nvm_ioctl(struct nvme_ns *ns, unsigned int cmd,
+							unsigned long arg)
+{
+	return -ENOTTY;
 }
 #endif /* CONFIG_NVM */
 

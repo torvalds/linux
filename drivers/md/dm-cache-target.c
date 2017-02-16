@@ -787,8 +787,7 @@ static void check_if_tick_bio_needed(struct cache *cache, struct bio *bio)
 	struct per_bio_data *pb = get_per_bio_data(bio, pb_data_size);
 
 	spin_lock_irqsave(&cache->lock, flags);
-	if (cache->need_tick_bio &&
-	    !(bio->bi_opf & (REQ_FUA | REQ_PREFLUSH)) &&
+	if (cache->need_tick_bio && !op_is_flush(bio->bi_opf) &&
 	    bio_op(bio) != REQ_OP_DISCARD) {
 		pb->tick = true;
 		cache->need_tick_bio = false;
@@ -826,11 +825,6 @@ static dm_oblock_t get_bio_block(struct cache *cache, struct bio *bio)
 		block_nr >>= cache->sectors_per_block_shift;
 
 	return to_oblock(block_nr);
-}
-
-static int bio_triggers_commit(struct cache *cache, struct bio *bio)
-{
-	return bio->bi_opf & (REQ_PREFLUSH | REQ_FUA);
 }
 
 /*
@@ -884,7 +878,7 @@ static void issue(struct cache *cache, struct bio *bio)
 {
 	unsigned long flags;
 
-	if (!bio_triggers_commit(cache, bio)) {
+	if (!op_is_flush(bio->bi_opf)) {
 		accounted_request(cache, bio);
 		return;
 	}
@@ -1069,8 +1063,7 @@ static void dec_io_migrations(struct cache *cache)
 
 static bool discard_or_flush(struct bio *bio)
 {
-	return bio_op(bio) == REQ_OP_DISCARD ||
-	       bio->bi_opf & (REQ_PREFLUSH | REQ_FUA);
+	return bio_op(bio) == REQ_OP_DISCARD || op_is_flush(bio->bi_opf);
 }
 
 static void __cell_defer(struct cache *cache, struct dm_bio_prison_cell *cell)
@@ -2291,7 +2284,7 @@ static void do_waker(struct work_struct *ws)
 static int is_congested(struct dm_dev *dev, int bdi_bits)
 {
 	struct request_queue *q = bdev_get_queue(dev->bdev);
-	return bdi_congested(&q->backing_dev_info, bdi_bits);
+	return bdi_congested(q->backing_dev_info, bdi_bits);
 }
 
 static int cache_is_congested(struct dm_target_callbacks *cb, int bdi_bits)

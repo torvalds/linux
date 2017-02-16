@@ -1106,7 +1106,7 @@ static int scsi_request_sense(struct scsi_cmnd *scmd)
 
 static int scsi_eh_action(struct scsi_cmnd *scmd, int rtn)
 {
-	if (scmd->request->cmd_type != REQ_TYPE_BLOCK_PC) {
+	if (!blk_rq_is_passthrough(scmd->request)) {
 		struct scsi_driver *sdrv = scsi_cmd_to_driver(scmd);
 		if (sdrv->eh_action)
 			rtn = sdrv->eh_action(scmd, rtn);
@@ -1746,7 +1746,7 @@ check_type:
 	 * the check condition was retryable.
 	 */
 	if (scmd->request->cmd_flags & REQ_FAILFAST_DEV ||
-	    scmd->request->cmd_type == REQ_TYPE_BLOCK_PC)
+	    blk_rq_is_passthrough(scmd->request))
 		return 1;
 	else
 		return 0;
@@ -1968,25 +1968,25 @@ static void eh_lock_door_done(struct request *req, int uptodate)
 static void scsi_eh_lock_door(struct scsi_device *sdev)
 {
 	struct request *req;
+	struct scsi_request *rq;
 
 	/*
 	 * blk_get_request with GFP_KERNEL (__GFP_RECLAIM) sleeps until a
 	 * request becomes available
 	 */
-	req = blk_get_request(sdev->request_queue, READ, GFP_KERNEL);
+	req = blk_get_request(sdev->request_queue, REQ_OP_SCSI_IN, GFP_KERNEL);
 	if (IS_ERR(req))
 		return;
+	rq = scsi_req(req);
+	scsi_req_init(req);
 
-	blk_rq_set_block_pc(req);
-
-	req->cmd[0] = ALLOW_MEDIUM_REMOVAL;
-	req->cmd[1] = 0;
-	req->cmd[2] = 0;
-	req->cmd[3] = 0;
-	req->cmd[4] = SCSI_REMOVAL_PREVENT;
-	req->cmd[5] = 0;
-
-	req->cmd_len = COMMAND_SIZE(req->cmd[0]);
+	rq->cmd[0] = ALLOW_MEDIUM_REMOVAL;
+	rq->cmd[1] = 0;
+	rq->cmd[2] = 0;
+	rq->cmd[3] = 0;
+	rq->cmd[4] = SCSI_REMOVAL_PREVENT;
+	rq->cmd[5] = 0;
+	rq->cmd_len = COMMAND_SIZE(rq->cmd[0]);
 
 	req->rq_flags |= RQF_QUIET;
 	req->timeout = 10 * HZ;
@@ -2331,7 +2331,7 @@ scsi_ioctl_reset(struct scsi_device *dev, int __user *arg)
 {
 	struct scsi_cmnd *scmd;
 	struct Scsi_Host *shost = dev->host;
-	struct request req;
+	struct request *rq;
 	unsigned long flags;
 	int error = 0, rtn, val;
 
@@ -2346,14 +2346,16 @@ scsi_ioctl_reset(struct scsi_device *dev, int __user *arg)
 		return -EIO;
 
 	error = -EIO;
-	scmd = scsi_get_command(dev, GFP_KERNEL);
-	if (!scmd)
+	rq = kzalloc(sizeof(struct request) + sizeof(struct scsi_cmnd) +
+			shost->hostt->cmd_size, GFP_KERNEL);
+	if (!rq)
 		goto out_put_autopm_host;
+	blk_rq_init(NULL, rq);
 
-	blk_rq_init(NULL, &req);
-	scmd->request = &req;
-
-	scmd->cmnd = req.cmd;
+	scmd = (struct scsi_cmnd *)(rq + 1);
+	scsi_init_command(dev, scmd);
+	scmd->request = rq;
+	scmd->cmnd = scsi_req(rq)->cmd;
 
 	scmd->scsi_done		= scsi_reset_provider_done_command;
 	memset(&scmd->sdb, 0, sizeof(scmd->sdb));
@@ -2413,6 +2415,7 @@ scsi_ioctl_reset(struct scsi_device *dev, int __user *arg)
 	scsi_run_host_queues(shost);
 
 	scsi_put_command(scmd);
+	kfree(rq);
 
 out_put_autopm_host:
 	scsi_autopm_put_host(shost);

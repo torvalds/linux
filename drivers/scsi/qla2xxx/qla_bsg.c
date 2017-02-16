@@ -921,7 +921,7 @@ qla2x00_process_loopback(struct bsg_job *bsg_job)
 
 	bsg_job->reply_len = sizeof(struct fc_bsg_reply) +
 	    sizeof(response) + sizeof(uint8_t);
-	fw_sts_ptr = ((uint8_t *)bsg_job->req->sense) +
+	fw_sts_ptr = ((uint8_t *)scsi_req(bsg_job->req)->sense) +
 	    sizeof(struct fc_bsg_reply);
 	memcpy(fw_sts_ptr, response, sizeof(response));
 	fw_sts_ptr += sizeof(response);

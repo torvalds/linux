@@ -1423,7 +1423,7 @@ static inline bool nvme_rdma_queue_is_ready(struct nvme_rdma_queue *queue,
 	if (unlikely(!test_bit(NVME_RDMA_Q_LIVE, &queue->flags))) {
 		struct nvme_command *cmd = nvme_req(rq)->cmd;
 
-		if (rq->cmd_type != REQ_TYPE_DRV_PRIV ||
+		if (!blk_rq_is_passthrough(rq) ||
 		    cmd->common.opcode != nvme_fabrics_command ||
 		    cmd->fabrics.fctype != nvme_fabrics_type_connect)
 			return false;
@@ -1471,7 +1471,7 @@ static int nvme_rdma_queue_rq(struct blk_mq_hw_ctx *hctx,
 	ib_dma_sync_single_for_device(dev, sqe->dma,
 			sizeof(struct nvme_command), DMA_TO_DEVICE);
 
-	if (rq->cmd_type == REQ_TYPE_FS && req_op(rq) == REQ_OP_FLUSH)
+	if (req_op(rq) == REQ_OP_FLUSH)
 		flush = true;
 	ret = nvme_rdma_post_send(queue, sqe, req->sge, req->num_sge,
 			req->mr->need_inval ? &req->reg_wr.wr : NULL, flush);
@@ -1522,7 +1522,7 @@ static void nvme_rdma_complete_rq(struct request *rq)
 			return;
 		}
 
-		if (rq->cmd_type == REQ_TYPE_DRV_PRIV)
+		if (blk_rq_is_passthrough(rq))
 			error = rq->errors;
 		else
 			error = nvme_error_status(rq->errors);

@@ -49,9 +49,13 @@ config LBDAF
 
 	  If unsure, say Y.
 
+config BLK_SCSI_REQUEST
+	bool
+
 config BLK_DEV_BSG
 	bool "Block layer SG support v4"
 	default y
+	select BLK_SCSI_REQUEST
 	help
 	  Saying Y here will enable generic SG (SCSI generic) v4 support
 	  for any block device.
@@ -71,6 +75,7 @@ config BLK_DEV_BSGLIB
 	bool "Block layer SG support v4 helper lib"
 	default n
 	select BLK_DEV_BSG
+	select BLK_SCSI_REQUEST
 	help
 	  Subsystems will normally enable this if needed. Users will not
 	  normally need to manually enable this.
@@ -146,6 +151,25 @@ config BLK_WBT_MQ
 	Enable writeback throttling by default on multiqueue devices.
 	Multiqueue currently doesn't have support for IO scheduling,
 	enabling this option is recommended.
+
+config BLK_DEBUG_FS
+	bool "Block layer debugging information in debugfs"
+	default y
+	depends on DEBUG_FS
+	---help---
+	Include block layer debugging information in debugfs. This information
+	is mostly useful for kernel developers, but it doesn't incur any cost
+	at runtime.
+
+	Unless you are building a kernel for a tiny system, you should
+	say Y here.
+
+config BLK_SED_OPAL
+	bool "Logic for interfacing with Opal enabled SEDs"
+	---help---
+	Builds Logic for interfacing with Opal enabled controllers.
+	Enabling this option enables users to setup/unlock/lock
+	Locking ranges for SED devices using the Opal protocol.
 
 menu "Partition Types"
 
