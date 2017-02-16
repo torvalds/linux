@@ -90,8 +90,13 @@ static int tee_ioctl_version(struct tee_context *ctx,
 	struct tee_ioctl_version_data vers;
 
 	ctx->teedev->desc->ops->get_version(ctx->teedev, &vers);
+
+	if (ctx->teedev->desc->flags & TEE_DESC_PRIVILEGED)
+		vers.gen_caps |= TEE_GEN_CAP_PRIVILEGED;
+
 	if (copy_to_user(uvers, &vers, sizeof(vers)))
 		return -EFAULT;
+
 	return 0;
 }
 
