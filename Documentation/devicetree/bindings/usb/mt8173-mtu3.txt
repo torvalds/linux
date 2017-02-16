@@ -30,7 +30,7 @@ Optional properties:
 	"id_float" and "id_ground" are optinal which depends on
 	"mediatek,enable-manual-drd"
  - pinctrl-0 : pin control group
-	See: Documentation/devicetree/bindings/pinctrl/pinctrl-binding.txt
+	See: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
 
  - maximum-speed : valid arguments are "super-speed", "high-speed" and
 	"full-speed"; refer to usb/generic.txt

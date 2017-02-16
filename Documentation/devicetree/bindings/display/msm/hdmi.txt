@@ -49,7 +49,7 @@ Required properties:
     * "hdmi_tx_l4"
 - power-domains: Should be <&mmcc MDSS_GDSC>.
 - clocks: device clocks
-  See Documentation/devicetree/bindings/clocks/clock-bindings.txt for details.
+  See Documentation/devicetree/bindings/clock/clock-bindings.txt for details.
 - core-vdda-supply: phandle to vdda regulator device node
 
 Example:

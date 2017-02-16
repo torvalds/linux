@@ -59,6 +59,7 @@ static inline void *xrealloc(void *p, size_t len)
 }
 
 extern char *xstrdup(const char *s);
+extern int xasprintf(char **strp, const char *fmt, ...);
 extern char *join_path(const char *path, const char *name);
 
 /**
