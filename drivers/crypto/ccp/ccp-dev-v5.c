@@ -955,7 +955,7 @@ static irqreturn_t ccp5_irq_handler(int irq, void *data)
 static void ccp5_config(struct ccp_device *ccp)
 {
 	/* Public side */
-	iowrite32(0x00001249, ccp->io_regs + CMD5_REQID_CONFIG_OFFSET);
+	iowrite32(0x0, ccp->io_regs + CMD5_REQID_CONFIG_OFFSET);
 }
 
 static void ccp5other_config(struct ccp_device *ccp)

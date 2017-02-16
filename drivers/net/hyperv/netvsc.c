@@ -1288,6 +1288,9 @@ void netvsc_channel_cb(void *context)
 	ndev = hv_get_drvdata(device);
 	buffer = get_per_channel_state(channel);
 
+	/* commit_rd_index() -> hv_signal_on_read() needs this. */
+	init_cached_read_index(channel);
+
 	do {
 		desc = get_next_pkt_raw(channel);
 		if (desc != NULL) {
@@ -1340,6 +1343,9 @@ void netvsc_channel_cb(void *context)
 
 			bufferlen = bytes_recvd;
 		}
+
+		init_cached_read_index(channel);
+
 	} while (1);
 
 	if (bufferlen > NETVSC_PACKET_SIZE)

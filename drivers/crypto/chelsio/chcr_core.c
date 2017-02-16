@@ -51,6 +51,7 @@ static struct cxgb4_uld_info chcr_uld_info = {
 int assign_chcr_device(struct chcr_dev **dev)
 {
 	struct uld_ctx *u_ctx;
+	int ret = -ENXIO;
 
 	/*
 	 * Which device to use if multiple devices are available TODO
@@ -58,15 +59,14 @@ int assign_chcr_device(struct chcr_dev **dev)
 	 * must go to the same device to maintain the ordering.
 	 */
 	mutex_lock(&dev_mutex); /* TODO ? */
-	u_ctx = list_first_entry(&uld_ctx_list, struct uld_ctx, entry);
-	if (!u_ctx) {
-		mutex_unlock(&dev_mutex);
-		return -ENXIO;
+	list_for_each_entry(u_ctx, &uld_ctx_list, entry)
+		if (u_ctx && u_ctx->dev) {
+			*dev = u_ctx->dev;
+			ret = 0;
+			break;
 	}
-
-	*dev = u_ctx->dev;
 	mutex_unlock(&dev_mutex);
-	return 0;
+	return ret;
 }
 
 static int chcr_dev_add(struct uld_ctx *u_ctx)
@@ -203,10 +203,8 @@ static int chcr_uld_state_change(void *handle, enum cxgb4_state state)
 
 static int __init chcr_crypto_init(void)
 {
-	if (cxgb4_register_uld(CXGB4_ULD_CRYPTO, &chcr_uld_info)) {
+	if (cxgb4_register_uld(CXGB4_ULD_CRYPTO, &chcr_uld_info))
 		pr_err("ULD register fail: No chcr crypto support in cxgb4");
-		return -1;
-	}
 
 	return 0;
 }
