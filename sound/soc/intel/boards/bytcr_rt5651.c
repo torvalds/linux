@@ -185,7 +185,7 @@ static int byt_rt5651_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	 */
 	ret = snd_soc_dai_set_fmt(rtd->cpu_dai,
 				  SND_SOC_DAIFMT_I2S     |
-				  SND_SOC_DAIFMT_NB_IF   |
+				  SND_SOC_DAIFMT_NB_NF   |
 				  SND_SOC_DAIFMT_CBS_CFS
 				  );
 
@@ -319,7 +319,6 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 static struct platform_driver snd_byt_rt5651_mc_driver = {
 	.driver = {
 		.name = "bytcr_rt5651",
-		.pm = &snd_soc_pm_ops,
 	},
 	.probe = snd_byt_rt5651_mc_probe,
 };

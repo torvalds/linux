@@ -189,9 +189,9 @@ int skl_get_dmic_geo(struct skl *skl)
 	return dmic_geo;
 }
 
-static void skl_nhlt_trim_space(struct skl *skl)
+static void skl_nhlt_trim_space(char *trim)
 {
-	char *s = skl->tplg_name;
+	char *s = trim;
 	int cnt;
 	int i;
 
@@ -218,7 +218,43 @@ int skl_nhlt_update_topology_bin(struct skl *skl)
 		skl->pci_id, nhlt->header.oem_id, nhlt->header.oem_table_id,
 		nhlt->header.oem_revision, "-tplg.bin");
 
-	skl_nhlt_trim_space(skl);
+	skl_nhlt_trim_space(skl->tplg_name);
 
 	return 0;
+}
+
+static ssize_t skl_nhlt_platform_id_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
+	struct skl *skl = ebus_to_skl(ebus);
+	struct nhlt_acpi_table *nhlt = (struct nhlt_acpi_table *)skl->nhlt;
+	char platform_id[32];
+
+	sprintf(platform_id, "%x-%.6s-%.8s-%d", skl->pci_id,
+			nhlt->header.oem_id, nhlt->header.oem_table_id,
+			nhlt->header.oem_revision);
+
+	skl_nhlt_trim_space(platform_id);
+	return sprintf(buf, "%s\n", platform_id);
+}
+
+static DEVICE_ATTR(platform_id, 0444, skl_nhlt_platform_id_show, NULL);
+
+int skl_nhlt_create_sysfs(struct skl *skl)
+{
+	struct device *dev = &skl->pci->dev;
+
+	if (sysfs_create_file(&dev->kobj, &dev_attr_platform_id.attr))
+		dev_warn(dev, "Error creating sysfs entry\n");
+
+	return 0;
+}
+
+void skl_nhlt_remove_sysfs(struct skl *skl)
+{
+	struct device *dev = &skl->pci->dev;
+
+	sysfs_remove_file(&dev->kobj, &dev_attr_platform_id.attr);
 }

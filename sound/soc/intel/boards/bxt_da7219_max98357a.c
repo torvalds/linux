@@ -34,6 +34,16 @@
 
 static struct snd_soc_jack broxton_headset;
 
+struct bxt_hdmi_pcm {
+	struct list_head head;
+	struct snd_soc_dai *codec_dai;
+	int device;
+};
+
+struct bxt_card_private {
+	struct list_head hdmi_pcm_list;
+};
+
 enum {
 	BXT_DPCM_AUDIO_PB = 0,
 	BXT_DPCM_AUDIO_CP,
@@ -84,9 +94,9 @@ static const struct snd_soc_dapm_route broxton_map[] = {
 	{"codec0_in", NULL, "ssp1 Rx"},
 	{"ssp1 Rx", NULL, "Capture"},
 
-	{"HDMI1", NULL, "hif5 Output"},
-	{"HDMI2", NULL, "hif6 Output"},
-	{"HDMI3", NULL, "hif7 Output"},
+	{"HDMI1", NULL, "hif5-0 Output"},
+	{"HDMI2", NULL, "hif6-0 Output"},
+	{"HDMI2", NULL, "hif7-0 Output"},
 
 	{"hifi3", NULL, "iDisp3 Tx"},
 	{"iDisp3 Tx", NULL, "iDisp3_out"},
@@ -147,9 +157,20 @@ static int broxton_da7219_codec_init(struct snd_soc_pcm_runtime *rtd)
 
 static int broxton_hdmi_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct bxt_card_private *ctx = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *dai = rtd->codec_dai;
+	struct bxt_hdmi_pcm *pcm;
 
-	return hdac_hdmi_jack_init(dai, BXT_DPCM_AUDIO_HDMI1_PB + dai->id);
+	pcm = devm_kzalloc(rtd->card->dev, sizeof(*pcm), GFP_KERNEL);
+	if (!pcm)
+		return -ENOMEM;
+
+	pcm->device = BXT_DPCM_AUDIO_HDMI1_PB + dai->id;
+	pcm->codec_dai = dai;
+
+	list_add_tail(&pcm->head, &ctx->hdmi_pcm_list);
+
+	return 0;
 }
 
 static int broxton_da7219_fe_init(struct snd_soc_pcm_runtime *rtd)
@@ -357,7 +378,6 @@ static struct snd_soc_dai_link broxton_dais[] = {
 		.platform_name = "0000:00:0e.0",
 		.init = NULL,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
 		.nonatomic = 1,
 		.dynamic = 1,
 		.ops = &broxton_refcap_ops,
@@ -497,6 +517,21 @@ static struct snd_soc_dai_link broxton_dais[] = {
 	},
 };
 
+static int bxt_card_late_probe(struct snd_soc_card *card)
+{
+	struct bxt_card_private *ctx = snd_soc_card_get_drvdata(card);
+	struct bxt_hdmi_pcm *pcm;
+	int err;
+
+	list_for_each_entry(pcm, &ctx->hdmi_pcm_list, head) {
+		err = hdac_hdmi_jack_init(pcm->codec_dai, pcm->device);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
 /* broxton audio machine driver for SPT + da7219 */
 static struct snd_soc_card broxton_audio_card = {
 	.name = "bxtda7219max",
@@ -510,11 +545,22 @@ static struct snd_soc_card broxton_audio_card = {
 	.dapm_routes = broxton_map,
 	.num_dapm_routes = ARRAY_SIZE(broxton_map),
 	.fully_routed = true,
+	.late_probe = bxt_card_late_probe,
 };
 
 static int broxton_audio_probe(struct platform_device *pdev)
 {
+	struct bxt_card_private *ctx;
+
+	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_ATOMIC);
+	if (!ctx)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
+
 	broxton_audio_card.dev = &pdev->dev;
+	snd_soc_card_set_drvdata(&broxton_audio_card, ctx);
+
 	return devm_snd_soc_register_card(&pdev->dev, &broxton_audio_card);
 }
 

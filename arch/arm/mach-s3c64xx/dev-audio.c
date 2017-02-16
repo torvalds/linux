@@ -97,9 +97,7 @@ static struct resource s3c64xx_iisv4_resource[] = {
 static struct s3c_audio_pdata i2sv4_pdata = {
 	.cfg_gpio = s3c64xx_i2s_cfg_gpio,
 	.type = {
-		.i2s = {
-			.quirks = QUIRK_PRI_6CHAN,
-		},
+		.quirks = QUIRK_PRI_6CHAN,
 	},
 };
 

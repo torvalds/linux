@@ -252,44 +252,44 @@ void sst_dsp_shim_update_bits_forced(struct sst_dsp *sst, u32 offset,
 EXPORT_SYMBOL_GPL(sst_dsp_shim_update_bits_forced);
 
 int sst_dsp_register_poll(struct sst_dsp *ctx, u32 offset, u32 mask,
-			 u32 target, u32 timeout, char *operation)
+			 u32 target, u32 time, char *operation)
 {
-	int time, ret;
 	u32 reg;
-	bool done = false;
+	unsigned long timeout;
+	int k = 0, s = 500;
 
 	/*
-	 * we will poll for couple of ms using mdelay, if not successful
-	 * then go to longer sleep using usleep_range
+	 * split the loop into sleeps of varying resolution. more accurately,
+	 * the range of wakeups are:
+	 * Phase 1(first 5ms): min sleep 0.5ms; max sleep 1ms.
+	 * Phase 2:( 5ms to 10ms) : min sleep 0.5ms; max sleep 10ms
+	 * (usleep_range (500, 1000) and usleep_range(5000, 10000) are
+	 * both possible in this phase depending on whether k > 10 or not).
+	 * Phase 3: (beyond 10 ms) min sleep 5ms; max sleep 10ms.
 	 */
 
-	/* check if set state successful */
-	for (time = 0; time < 5; time++) {
-		if ((sst_dsp_shim_read_unlocked(ctx, offset) & mask) == target) {
-			done = true;
-			break;
-		}
-		mdelay(1);
-	}
+	timeout = jiffies + msecs_to_jiffies(time);
+	while (((sst_dsp_shim_read_unlocked(ctx, offset) & mask) != target)
+		&& time_before(jiffies, timeout)) {
+		k++;
+		if (k > 10)
+			s = 5000;
 
-	if (done ==  false) {
-		/* sleeping in 10ms steps so adjust timeout value */
-		timeout /= 10;
-
-		for (time = 0; time < timeout; time++) {
-			if ((sst_dsp_shim_read_unlocked(ctx, offset) & mask) == target)
-				break;
-
-			usleep_range(5000, 10000);
-		}
+		usleep_range(s, 2*s);
 	}
 
 	reg = sst_dsp_shim_read_unlocked(ctx, offset);
-	dev_dbg(ctx->dev, "FW Poll Status: reg=%#x %s %s\n", reg, operation,
-			(time < timeout) ? "successful" : "timedout");
-	ret = time < timeout ? 0 : -ETIME;
 
-	return ret;
+	if ((reg & mask) == target) {
+		dev_dbg(ctx->dev, "FW Poll Status: reg=%#x %s successful\n",
+					reg, operation);
+
+		return 0;
+	}
+
+	dev_dbg(ctx->dev, "FW Poll Status: reg=%#x %s timedout\n",
+					reg, operation);
+	return -ETIME;
 }
 EXPORT_SYMBOL_GPL(sst_dsp_register_poll);
 
