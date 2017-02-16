@@ -720,7 +720,16 @@ bool dc_write_dpcd(
 		uint32_t link_index,
 		uint32_t address,
 		const uint8_t *data,
-	uint32_t size);
+		uint32_t size);
+
+bool dc_query_ddc_data(
+		struct dc *dc,
+		uint32_t link_index,
+		uint32_t address,
+		uint8_t *write_buf,
+		uint32_t write_size,
+		uint8_t *read_buf,
+		uint32_t read_size);
 
 bool dc_submit_i2c(
 		struct dc *dc,

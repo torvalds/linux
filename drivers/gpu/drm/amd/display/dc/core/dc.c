@@ -1725,6 +1725,31 @@ bool dc_read_dpcd(
 	return r == DDC_RESULT_SUCESSFULL;
 }
 
+bool dc_query_ddc_data(
+		struct dc *dc,
+		uint32_t link_index,
+		uint32_t address,
+		uint8_t *write_buf,
+		uint32_t write_size,
+		uint8_t *read_buf,
+		uint32_t read_size) {
+
+	struct core_dc *core_dc = DC_TO_CORE(dc);
+
+	struct core_link *link = core_dc->links[link_index];
+
+	bool result = dal_ddc_service_query_ddc_data(
+			link->ddc,
+			address,
+			write_buf,
+			write_size,
+			read_buf,
+			read_size);
+
+	return result;
+}
+
+
 bool dc_write_dpcd(
 		struct dc *dc,
 		uint32_t link_index,
