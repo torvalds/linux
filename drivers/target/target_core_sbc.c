@@ -604,7 +604,7 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 
 	spin_lock_irq(&cmd->t_state_lock);
 	cmd->t_state = TRANSPORT_PROCESSING;
-	cmd->transport_state |= CMD_T_ACTIVE|CMD_T_BUSY|CMD_T_SENT;
+	cmd->transport_state |= CMD_T_ACTIVE | CMD_T_SENT;
 	spin_unlock_irq(&cmd->t_state_lock);
 
 	__target_execute_cmd(cmd, false);

@@ -454,7 +454,7 @@ cxgbit_uld_lro_rx_handler(void *hndl, const __be64 *rsp,
 		if (unlikely(op != *(u8 *)gl->va)) {
 			pr_info("? FL 0x%p,RSS%#llx,FL %#llx,len %u.\n",
 				gl->va, be64_to_cpu(*rsp),
-				be64_to_cpu(*(u64 *)gl->va),
+				get_unaligned_be64(gl->va),
 				gl->tot_len);
 			return 0;
 		}

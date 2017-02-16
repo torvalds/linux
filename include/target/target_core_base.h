@@ -197,6 +197,7 @@ enum tcm_tmreq_table {
 	TMR_LUN_RESET		= 5,
 	TMR_TARGET_WARM_RESET	= 6,
 	TMR_TARGET_COLD_RESET	= 7,
+	TMR_UNKNOWN		= 0xff,
 };
 
 /* fabric independent task management response values */
@@ -397,7 +398,6 @@ struct se_tmr_req {
 	void 			*fabric_tmr_ptr;
 	struct se_cmd		*task_cmd;
 	struct se_device	*tmr_dev;
-	struct se_lun		*tmr_lun;
 	struct list_head	tmr_list;
 };
 
@@ -488,8 +488,6 @@ struct se_cmd {
 #define CMD_T_COMPLETE		(1 << 2)
 #define CMD_T_SENT		(1 << 4)
 #define CMD_T_STOP		(1 << 5)
-#define CMD_T_DEV_ACTIVE	(1 << 7)
-#define CMD_T_BUSY		(1 << 9)
 #define CMD_T_TAS		(1 << 10)
 #define CMD_T_FABRIC_STOP	(1 << 11)
 	spinlock_t		t_state_lock;

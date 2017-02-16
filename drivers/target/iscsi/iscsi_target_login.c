@@ -223,7 +223,7 @@ int iscsi_check_for_session_reinstatement(struct iscsi_conn *conn)
 		return 0;
 
 	pr_debug("%s iSCSI Session SID %u is still active for %s,"
-		" preforming session reinstatement.\n", (sessiontype) ?
+		" performing session reinstatement.\n", (sessiontype) ?
 		"Discovery" : "Normal", sess->sid,
 		sess->sess_ops->InitiatorName);
 

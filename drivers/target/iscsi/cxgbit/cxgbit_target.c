@@ -162,12 +162,14 @@ cxgbit_tx_data_wr(struct cxgbit_sock *csk, struct sk_buff *skb, u32 dlen,
 		  u32 len, u32 credits, u32 compl)
 {
 	struct fw_ofld_tx_data_wr *req;
+	const struct cxgb4_lld_info *lldi = &csk->com.cdev->lldi;
 	u32 submode = cxgbit_skcb_submode(skb);
 	u32 wr_ulp_mode = 0;
 	u32 hdr_size = sizeof(*req);
 	u32 opcode = FW_OFLD_TX_DATA_WR;
 	u32 immlen = 0;
-	u32 force = TX_FORCE_V(!submode);
+	u32 force = is_t5(lldi->adapter_type) ? TX_FORCE_V(!submode) :
+		    T6_TX_FORCE_F;
 
 	if (cxgbit_skcb_flags(skb) & SKCBF_TX_ISO) {
 		opcode = FW_ISCSI_TX_DATA_WR;
@@ -243,7 +245,7 @@ void cxgbit_push_tx_frames(struct cxgbit_sock *csk)
 		}
 		__skb_unlink(skb, &csk->txq);
 		set_wr_txq(skb, CPL_PRIORITY_DATA, csk->txq_idx);
-		skb->csum = credits_needed + flowclen16;
+		skb->csum = (__force __wsum)(credits_needed + flowclen16);
 		csk->wr_cred -= credits_needed;
 		csk->wr_una_cred += credits_needed;
 
