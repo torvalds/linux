@@ -1412,7 +1412,7 @@ config CPU_MIPS32_R6
 	select CPU_SUPPORTS_MSA
 	select GENERIC_CSUM
 	select HAVE_KVM
-	select MIPS_O32_FP64_SUPPORT
+	select MIPS_O32_FP64_SUPPORT if 32BIT
 	help
 	  Choose this option to build a kernel for release 6 or later of the
 	  MIPS32 architecture.  New MIPS processors, starting with the Warrior
