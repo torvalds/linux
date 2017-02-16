@@ -73,7 +73,6 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 		}
 
 		INIT_LIST_HEAD(&precvframe->list);
-		precvframe->len = 0;
 
 		update_recvframe_attrib_88e(precvframe, prxstat);
 
@@ -125,33 +124,15 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 		if (pkt_copy) {
 			pkt_copy->dev = adapt->pnetdev;
 			precvframe->pkt = pkt_copy;
-			precvframe->rx_head = pkt_copy->data;
-			precvframe->rx_end = pkt_copy->data + alloc_sz;
 			skb_reserve(pkt_copy, 8 - ((size_t)(pkt_copy->data) & 7));/* force pkt_copy->data at 8-byte alignment address */
 			skb_reserve(pkt_copy, shift_sz);/* force ip_hdr at 8-byte alignment address according to shift_sz. */
 			memcpy(pkt_copy->data, (pbuf + pattrib->drvinfo_sz + RXDESC_SIZE), skb_len);
-			precvframe->rx_tail = pkt_copy->data;
-			precvframe->rx_data = pkt_copy->data;
+			skb_put(precvframe->pkt, skb_len);
 		} else {
-			if ((pattrib->mfrag == 1) && (pattrib->frag_num == 0)) {
-				DBG_88E("recvbuf2recvframe: alloc_skb fail , drop frag frame\n");
-				rtw_free_recvframe(precvframe, pfree_recv_queue);
-				goto _exit_recvbuf2recvframe;
-			}
-			precvframe->pkt = skb_clone(pskb, GFP_ATOMIC);
-			if (precvframe->pkt) {
-				precvframe->rx_tail = pbuf + pattrib->drvinfo_sz + RXDESC_SIZE;
-				precvframe->rx_head = precvframe->rx_tail;
-				precvframe->rx_data = precvframe->rx_tail;
-				precvframe->rx_end =  pbuf + pattrib->drvinfo_sz + RXDESC_SIZE + alloc_sz;
-			} else {
-				DBG_88E("recvbuf2recvframe: skb_clone fail\n");
-				rtw_free_recvframe(precvframe, pfree_recv_queue);
-				goto _exit_recvbuf2recvframe;
-			}
+			DBG_88E("recvbuf2recvframe: alloc_skb fail , drop frag frame\n");
+			rtw_free_recvframe(precvframe, pfree_recv_queue);
+			goto _exit_recvbuf2recvframe;
 		}
-
-		recvframe_put(precvframe, skb_len);
 
 		switch (haldata->UsbRxAggMode) {
 		case USB_RX_AGG_DMA:
@@ -174,19 +155,19 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 			}
 		} else if (pattrib->pkt_rpt_type == TX_REPORT1) {
 			/* CCX-TXRPT ack for xmit mgmt frames. */
-			handle_txrpt_ccx_88e(adapt, precvframe->rx_data);
+			handle_txrpt_ccx_88e(adapt, precvframe->pkt->data);
 			rtw_free_recvframe(precvframe, pfree_recv_queue);
 		} else if (pattrib->pkt_rpt_type == TX_REPORT2) {
 			ODM_RA_TxRPT2Handle_8188E(
 						&haldata->odmpriv,
-						precvframe->rx_data,
+						precvframe->pkt->data,
 						pattrib->pkt_len,
 						pattrib->MacIDValidEntry[0],
 						pattrib->MacIDValidEntry[1]
 						);
 			rtw_free_recvframe(precvframe, pfree_recv_queue);
 		} else if (pattrib->pkt_rpt_type == HIS_REPORT) {
-			interrupt_handler_8188eu(adapt, pattrib->pkt_len, precvframe->rx_data);
+			interrupt_handler_8188eu(adapt, pattrib->pkt_len, precvframe->pkt->data);
 			rtw_free_recvframe(precvframe, pfree_recv_queue);
 		}
 		pkt_cnt--;
@@ -471,7 +452,7 @@ u32 usb_read_port(struct adapter *adapter, u32 addr, struct recv_buf *precvbuf)
 
 	if ((!precvbuf->reuse) || (precvbuf->pskb == NULL)) {
 		precvbuf->pskb = skb_dequeue(&precvpriv->free_recv_skb_queue);
-		if (NULL != precvbuf->pskb)
+		if (precvbuf->pskb != NULL)
 			precvbuf->reuse = true;
 	}
 

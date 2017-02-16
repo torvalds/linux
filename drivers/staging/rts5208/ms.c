@@ -1108,12 +1108,6 @@ static int ms_read_attribute_info(struct rtsx_chip *chip)
 		i++;
 	} while (i < 1024);
 
-	if (retval != STATUS_SUCCESS) {
-		kfree(buf);
-		rtsx_trace(chip);
-		return STATUS_FAIL;
-	}
-
 	if ((buf[0] != 0xa5) && (buf[1] != 0xc3)) {
 		/* Signature code is wrong */
 		kfree(buf);

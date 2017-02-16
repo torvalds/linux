@@ -266,6 +266,13 @@ static int lov_init_raid0(const struct lu_env *env, struct lov_device *dev,
 			if (result != 0)
 				goto out;
 
+			if (!dev->ld_target[ost_idx]) {
+				CERROR("%s: OST %04x is not initialized\n",
+				lov2obd(dev->ld_lov)->obd_name, ost_idx);
+				result = -EIO;
+				goto out;
+			}
+
 			subdev = lovsub2cl_dev(dev->ld_target[ost_idx]);
 			subconf->u.coc_oinfo = oinfo;
 			LASSERTF(subdev, "not init ost %d\n", ost_idx);
@@ -650,12 +657,16 @@ static enum lov_layout_type lov_type(struct lov_stripe_md *lsm)
 
 static inline void lov_conf_freeze(struct lov_object *lov)
 {
+	CDEBUG(D_INODE, "To take share lov(%p) owner %p/%p\n",
+	       lov, lov->lo_owner, current);
 	if (lov->lo_owner != current)
 		down_read(&lov->lo_type_guard);
 }
 
 static inline void lov_conf_thaw(struct lov_object *lov)
 {
+	CDEBUG(D_INODE, "To release share lov(%p) owner %p/%p\n",
+	       lov, lov->lo_owner, current);
 	if (lov->lo_owner != current)
 		up_read(&lov->lo_type_guard);
 }
@@ -698,10 +709,14 @@ static void lov_conf_lock(struct lov_object *lov)
 	down_write(&lov->lo_type_guard);
 	LASSERT(!lov->lo_owner);
 	lov->lo_owner = current;
+	CDEBUG(D_INODE, "Took exclusive lov(%p) owner %p\n",
+	       lov, lov->lo_owner);
 }
 
 static void lov_conf_unlock(struct lov_object *lov)
 {
+	CDEBUG(D_INODE, "To release exclusive lov(%p) owner %p\n",
+	       lov, lov->lo_owner);
 	lov->lo_owner = NULL;
 	up_write(&lov->lo_type_guard);
 }
@@ -725,6 +740,7 @@ static int lov_layout_change(const struct lu_env *unused,
 			     struct lov_object *lov, struct lov_stripe_md *lsm,
 			     const struct cl_object_conf *conf)
 {
+	struct lov_device *lov_dev = lov_object_dev(lov);
 	enum lov_layout_type llt = lov_type(lsm);
 	union lov_layout_state *state = &lov->u;
 	const struct lov_layout_operations *old_ops;
@@ -760,14 +776,21 @@ static int lov_layout_change(const struct lu_env *unused,
 
 	LASSERT(!atomic_read(&lov->lo_active_ios));
 
+	CDEBUG(D_INODE, DFID "Apply new layout lov %p, type %d\n",
+	       PFID(lu_object_fid(lov2lu(lov))), lov, llt);
+
 	lov->lo_type = LLT_EMPTY;
 
 	/* page bufsize fixup */
 	cl_object_header(&lov->lo_cl)->coh_page_bufsize -=
 			lov_page_slice_fixup(lov, NULL);
 
-	rc = new_ops->llo_init(env, lov_object_dev(lov), lov, lsm, conf, state);
+	rc = new_ops->llo_init(env, lov_dev, lov, lsm, conf, state);
 	if (rc) {
+		struct obd_device *obd = lov2obd(lov_dev->ld_lov);
+
+		CERROR("%s: cannot apply new layout on " DFID " : rc = %d\n",
+		       obd->obd_name, PFID(lu_object_fid(lov2lu(lov))), rc);
 		new_ops->llo_delete(env, lov, state);
 		new_ops->llo_fini(env, lov, state);
 		/* this file becomes an EMPTY file. */
@@ -923,6 +946,11 @@ int lov_io_init(const struct lu_env *env, struct cl_object *obj,
 		struct cl_io *io)
 {
 	CL_IO_SLICE_CLEAN(lov_env_io(env), lis_cl);
+
+	CDEBUG(D_INODE, DFID "io %p type %d ignore/verify layout %d/%d\n",
+	       PFID(lu_object_fid(&obj->co_lu)), io, io->ci_type,
+	       io->ci_ignore_layout, io->ci_verify_layout);
+
 	return LOV_2DISPATCH_MAYLOCK(cl2lov(obj), llo_io_init,
 				     !io->ci_ignore_layout, env, obj, io);
 }
@@ -1453,14 +1481,11 @@ static int lov_object_layout_get(const struct lu_env *env,
 	if (!lsm) {
 		cl->cl_size = 0;
 		cl->cl_layout_gen = CL_LAYOUT_GEN_EMPTY;
-		cl->cl_is_released = false;
-
 		return 0;
 	}
 
 	cl->cl_size = lov_mds_md_size(lsm->lsm_stripe_count, lsm->lsm_magic);
 	cl->cl_layout_gen = lsm->lsm_layout_gen;
-	cl->cl_is_released = lsm_is_released(lsm);
 
 	rc = lov_lsm_pack(lsm, buf->lb_buf, buf->lb_len);
 	lov_lsm_put(lsm);

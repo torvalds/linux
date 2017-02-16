@@ -103,7 +103,7 @@ struct lstcon_rpc_trans {
 
 typedef int (*lstcon_rpc_cond_func_t)(int, struct lstcon_node *, void *);
 typedef int (*lstcon_rpc_readent_func_t)(int, struct srpc_msg *,
-					 lstcon_rpc_ent_t __user *);
+					 struct lstcon_rpc_ent __user *);
 
 int  lstcon_sesrpc_prep(struct lstcon_node *nd, int transop,
 			unsigned int version, struct lstcon_rpc **crpc);
@@ -125,7 +125,7 @@ int  lstcon_rpc_trans_ndlist(struct list_head *ndlist,
 			     void *arg, lstcon_rpc_cond_func_t condition,
 			     struct lstcon_rpc_trans **transpp);
 void lstcon_rpc_trans_stat(struct lstcon_rpc_trans *trans,
-			   lstcon_trans_stat_t *stat);
+			   struct lstcon_trans_stat *stat);
 int  lstcon_rpc_trans_interpreter(struct lstcon_rpc_trans *trans,
 				  struct list_head __user *head_up,
 				  lstcon_rpc_readent_func_t readent);

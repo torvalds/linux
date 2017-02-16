@@ -132,6 +132,15 @@ ll_xattr_set_common(const struct xattr_handler *handler,
 	    (!strcmp(name, "ima") || !strcmp(name, "evm")))
 		return -EOPNOTSUPP;
 
+	/*
+	 * In user.* namespace, only regular files and directories can have
+	 * extended attributes.
+	 */
+	if (handler->flags == XATTR_USER_T) {
+		if (!S_ISREG(inode->i_mode) && !S_ISDIR(inode->i_mode))
+			return -EPERM;
+	}
+
 	sprintf(fullname, "%s%s\n", handler->prefix, name);
 	rc = md_setxattr(sbi->ll_md_exp, ll_inode2fid(inode),
 			 valid, fullname, pv, size, 0, flags,

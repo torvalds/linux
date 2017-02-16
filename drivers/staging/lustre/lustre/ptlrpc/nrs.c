@@ -1559,9 +1559,6 @@ out:
 	return rc;
 }
 
-/* ptlrpc/nrs_fifo.c */
-extern struct ptlrpc_nrs_pol_conf nrs_conf_fifo;
-
 /**
  * Adds all policies that ship with the ptlrpc module, to NRS core's list of
  * policies \e nrs_core.nrs_policies.

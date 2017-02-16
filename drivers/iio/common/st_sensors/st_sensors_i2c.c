@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/iio/iio.h>
 #include <linux/of_device.h>
+#include <linux/acpi.h>
 
 #include <linux/iio/common/st_sensors_i2c.h>
 
@@ -105,6 +106,25 @@ void st_sensors_of_i2c_probe(struct i2c_client *client,
 	client->name[sizeof(client->name) - 1] = '\0';
 }
 EXPORT_SYMBOL(st_sensors_of_i2c_probe);
+#endif
+
+#ifdef CONFIG_ACPI
+int st_sensors_match_acpi_device(struct device *dev)
+{
+	const struct acpi_device_id *acpi_id;
+	kernel_ulong_t driver_data = 0;
+
+	if (ACPI_HANDLE(dev)) {
+		acpi_id = acpi_match_device(dev->driver->acpi_match_table, dev);
+		if (!acpi_id) {
+			dev_err(dev, "No driver data\n");
+			return -EINVAL;
+		}
+		driver_data = acpi_id->driver_data;
+	}
+	return driver_data;
+}
+EXPORT_SYMBOL(st_sensors_match_acpi_device);
 #endif
 
 MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");

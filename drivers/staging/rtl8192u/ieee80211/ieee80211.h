@@ -83,7 +83,7 @@
 #define SUPPORT_CKIP_PK			0x10	// bit4
 /* defined for skb cb field */
 /* At most 28 byte */
-typedef struct cb_desc {
+struct cb_desc {
 	/* Tx Desc Related flags (8-9) */
 	u8 bLastIniPkt:1;
 	u8 bCmdOrInit:1;
@@ -139,7 +139,7 @@ typedef struct cb_desc {
 	u8 DrvAggrNum;
 	u16 pkt_size;
 	u8 reserved12;
-}cb_desc, *pcb_desc;
+};
 
 /*--------------------------Define -------------------------------------------*/
 #define MGN_1M                  0x02
@@ -1894,6 +1894,7 @@ struct ieee80211_device {
 	//u32 STA_EDCA_PARAM[4];
 	//CHANNEL_ACCESS_SETTING ChannelAccessSetting;
 
+	struct ieee80211_rxb *stats_IndicateArray[REORDER_WIN_SIZE];
 
 	/* Callback functions */
 	void (*set_security)(struct net_device *dev,
@@ -2255,7 +2256,6 @@ void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee);
 
 /* ieee80211_crypt_ccmp&tkip&wep.c */
 void ieee80211_tkip_null(void);
-void ieee80211_ccmp_null(void);
 
 int ieee80211_crypto_init(void);
 void ieee80211_crypto_deinit(void);

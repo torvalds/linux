@@ -45,12 +45,6 @@ struct visorchannel {
 	spinlock_t insert_lock; /* protect head writes in chan_hdr */
 	spinlock_t remove_lock;	/* protect tail writes in chan_hdr */
 
-	struct {
-		struct signal_queue_header req_queue;
-		struct signal_queue_header rsp_queue;
-		struct signal_queue_header event_queue;
-		struct signal_queue_header ack_queue;
-	} safe_uis_queue;
 	uuid_le type;
 	uuid_le inst;
 };

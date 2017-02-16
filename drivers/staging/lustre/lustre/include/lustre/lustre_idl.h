@@ -3130,52 +3130,6 @@ struct obdo {
 #define o_cksum   o_nlink
 #define o_grant_used o_data_version
 
-static inline void lustre_set_wire_obdo(const struct obd_connect_data *ocd,
-					struct obdo *wobdo,
-					const struct obdo *lobdo)
-{
-	*wobdo = *lobdo;
-	wobdo->o_flags &= ~OBD_FL_LOCAL_MASK;
-	if (!ocd)
-		return;
-
-	if (unlikely(!(ocd->ocd_connect_flags & OBD_CONNECT_FID)) &&
-	    fid_seq_is_echo(ostid_seq(&lobdo->o_oi))) {
-		/* Currently OBD_FL_OSTID will only be used when 2.4 echo
-		 * client communicate with pre-2.4 server
-		 */
-		wobdo->o_oi.oi.oi_id = fid_oid(&lobdo->o_oi.oi_fid);
-		wobdo->o_oi.oi.oi_seq = fid_seq(&lobdo->o_oi.oi_fid);
-	}
-}
-
-static inline void lustre_get_wire_obdo(const struct obd_connect_data *ocd,
-					struct obdo *lobdo,
-					const struct obdo *wobdo)
-{
-	__u32 local_flags = 0;
-
-	if (lobdo->o_valid & OBD_MD_FLFLAGS)
-		local_flags = lobdo->o_flags & OBD_FL_LOCAL_MASK;
-
-	*lobdo = *wobdo;
-	if (local_flags != 0) {
-		lobdo->o_valid |= OBD_MD_FLFLAGS;
-		lobdo->o_flags &= ~OBD_FL_LOCAL_MASK;
-		lobdo->o_flags |= local_flags;
-	}
-	if (!ocd)
-		return;
-
-	if (unlikely(!(ocd->ocd_connect_flags & OBD_CONNECT_FID)) &&
-	    fid_seq_is_echo(wobdo->o_oi.oi.oi_seq)) {
-		/* see above */
-		lobdo->o_oi.oi_fid.f_seq = wobdo->o_oi.oi.oi_seq;
-		lobdo->o_oi.oi_fid.f_oid = wobdo->o_oi.oi.oi_id;
-		lobdo->o_oi.oi_fid.f_ver = 0;
-	}
-}
-
 /* request structure for OST's */
 struct ost_body {
 	struct  obdo oa;

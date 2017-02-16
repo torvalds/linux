@@ -273,16 +273,38 @@ static void gb_operation_request_handle(struct gb_operation *operation)
 static void gb_operation_work(struct work_struct *work)
 {
 	struct gb_operation *operation;
+	int ret;
 
 	operation = container_of(work, struct gb_operation, work);
 
-	if (gb_operation_is_incoming(operation))
+	if (gb_operation_is_incoming(operation)) {
 		gb_operation_request_handle(operation);
-	else
+	} else {
+		ret = del_timer_sync(&operation->timer);
+		if (!ret) {
+			/* Cancel request message if scheduled by timeout. */
+			if (gb_operation_result(operation) == -ETIMEDOUT)
+				gb_message_cancel(operation->request);
+		}
+
 		operation->callback(operation);
+	}
 
 	gb_operation_put_active(operation);
 	gb_operation_put(operation);
+}
+
+static void gb_operation_timeout(unsigned long arg)
+{
+	struct gb_operation *operation = (void *)arg;
+
+	if (gb_operation_result_set(operation, -ETIMEDOUT)) {
+		/*
+		 * A stuck request message will be cancelled from the
+		 * workqueue.
+		 */
+		queue_work(gb_operation_completion_wq, &operation->work);
+	}
 }
 
 static void gb_operation_message_init(struct gb_host_device *hd,
@@ -518,6 +540,9 @@ gb_operation_create_common(struct gb_connection *connection, u8 type,
 						 gfp_flags)) {
 			goto err_request;
 		}
+
+		setup_timer(&operation->timer, gb_operation_timeout,
+			    (unsigned long)operation);
 	}
 
 	operation->flags = op_flags;
@@ -679,6 +704,7 @@ static void gb_operation_sync_callback(struct gb_operation *operation)
  * gb_operation_request_send() - send an operation request message
  * @operation:	the operation to initiate
  * @callback:	the operation completion callback
+ * @timeout:	operation timeout in milliseconds, or zero for no timeout
  * @gfp:	the memory flags to use for any allocations
  *
  * The caller has filled in any payload so the request message is ready to go.
@@ -693,6 +719,7 @@ static void gb_operation_sync_callback(struct gb_operation *operation)
  */
 int gb_operation_request_send(struct gb_operation *operation,
 				gb_operation_callback callback,
+				unsigned int timeout,
 				gfp_t gfp)
 {
 	struct gb_connection *connection = operation->connection;
@@ -742,6 +769,11 @@ int gb_operation_request_send(struct gb_operation *operation,
 	if (ret)
 		goto err_put_active;
 
+	if (timeout) {
+		operation->timer.expires = jiffies + msecs_to_jiffies(timeout);
+		add_timer(&operation->timer);
+	}
+
 	return 0;
 
 err_put_active:
@@ -763,26 +795,16 @@ int gb_operation_request_send_sync_timeout(struct gb_operation *operation,
 						unsigned int timeout)
 {
 	int ret;
-	unsigned long timeout_jiffies;
 
 	ret = gb_operation_request_send(operation, gb_operation_sync_callback,
-					GFP_KERNEL);
+					timeout, GFP_KERNEL);
 	if (ret)
 		return ret;
 
-	if (timeout)
-		timeout_jiffies = msecs_to_jiffies(timeout);
-	else
-		timeout_jiffies = MAX_SCHEDULE_TIMEOUT;
-
-	ret = wait_for_completion_interruptible_timeout(&operation->completion,
-							timeout_jiffies);
+	ret = wait_for_completion_interruptible(&operation->completion);
 	if (ret < 0) {
 		/* Cancel the operation if interrupted */
 		gb_operation_cancel(operation, -ECANCELED);
-	} else if (ret == 0) {
-		/* Cancel the operation if op timed out */
-		gb_operation_cancel(operation, -ETIMEDOUT);
 	}
 
 	return gb_operation_result(operation);

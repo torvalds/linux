@@ -147,8 +147,7 @@ static struct iio_trigger *__iio_trigger_find_by_name(const char *name)
 	return NULL;
 }
 
-static struct iio_trigger *iio_trigger_find_by_name(const char *name,
-						    size_t len)
+static struct iio_trigger *iio_trigger_acquire_by_name(const char *name)
 {
 	struct iio_trigger *trig = NULL, *iter;
 
@@ -156,6 +155,7 @@ static struct iio_trigger *iio_trigger_find_by_name(const char *name,
 	list_for_each_entry(iter, &iio_trigger_list, list)
 		if (sysfs_streq(iter->name, name)) {
 			trig = iter;
+			iio_trigger_get(trig);
 			break;
 		}
 	mutex_unlock(&iio_trigger_list_lock);
@@ -416,20 +416,22 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 	}
 	mutex_unlock(&indio_dev->mlock);
 
-	trig = iio_trigger_find_by_name(buf, len);
-	if (oldtrig == trig)
-		return len;
+	trig = iio_trigger_acquire_by_name(buf);
+	if (oldtrig == trig) {
+		ret = len;
+		goto out_trigger_put;
+	}
 
 	if (trig && indio_dev->info->validate_trigger) {
 		ret = indio_dev->info->validate_trigger(indio_dev, trig);
 		if (ret)
-			return ret;
+			goto out_trigger_put;
 	}
 
 	if (trig && trig->ops->validate_device) {
 		ret = trig->ops->validate_device(trig, indio_dev);
 		if (ret)
-			return ret;
+			goto out_trigger_put;
 	}
 
 	indio_dev->trig = trig;
@@ -441,13 +443,16 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 		iio_trigger_put(oldtrig);
 	}
 	if (indio_dev->trig) {
-		iio_trigger_get(indio_dev->trig);
 		if (indio_dev->modes & INDIO_EVENT_TRIGGERED)
 			iio_trigger_attach_poll_func(indio_dev->trig,
 						     indio_dev->pollfunc_event);
 	}
 
 	return len;
+
+out_trigger_put:
+	iio_trigger_put(trig);
+	return ret;
 }
 
 static DEVICE_ATTR(current_trigger, S_IRUGO | S_IWUSR,
@@ -487,7 +492,7 @@ static void iio_trig_release(struct device *device)
 	kfree(trig);
 }
 
-static struct device_type iio_trig_type = {
+static const struct device_type iio_trig_type = {
 	.release = iio_trig_release,
 	.groups = iio_trig_dev_groups,
 };
@@ -513,46 +518,45 @@ static void iio_trig_subirqunmask(struct irq_data *d)
 static struct iio_trigger *viio_trigger_alloc(const char *fmt, va_list vargs)
 {
 	struct iio_trigger *trig;
+	int i;
+
 	trig = kzalloc(sizeof *trig, GFP_KERNEL);
-	if (trig) {
-		int i;
-		trig->dev.type = &iio_trig_type;
-		trig->dev.bus = &iio_bus_type;
-		device_initialize(&trig->dev);
+	if (!trig)
+		return NULL;
 
-		mutex_init(&trig->pool_lock);
-		trig->subirq_base
-			= irq_alloc_descs(-1, 0,
-					  CONFIG_IIO_CONSUMERS_PER_TRIGGER,
-					  0);
-		if (trig->subirq_base < 0) {
-			kfree(trig);
-			return NULL;
-		}
+	trig->dev.type = &iio_trig_type;
+	trig->dev.bus = &iio_bus_type;
+	device_initialize(&trig->dev);
 
-		trig->name = kvasprintf(GFP_KERNEL, fmt, vargs);
-		if (trig->name == NULL) {
-			irq_free_descs(trig->subirq_base,
-				       CONFIG_IIO_CONSUMERS_PER_TRIGGER);
-			kfree(trig);
-			return NULL;
-		}
-		trig->subirq_chip.name = trig->name;
-		trig->subirq_chip.irq_mask = &iio_trig_subirqmask;
-		trig->subirq_chip.irq_unmask = &iio_trig_subirqunmask;
-		for (i = 0; i < CONFIG_IIO_CONSUMERS_PER_TRIGGER; i++) {
-			irq_set_chip(trig->subirq_base + i,
-				     &trig->subirq_chip);
-			irq_set_handler(trig->subirq_base + i,
-					&handle_simple_irq);
-			irq_modify_status(trig->subirq_base + i,
-					  IRQ_NOREQUEST | IRQ_NOAUTOEN,
-					  IRQ_NOPROBE);
-		}
-		get_device(&trig->dev);
+	mutex_init(&trig->pool_lock);
+	trig->subirq_base = irq_alloc_descs(-1, 0,
+					    CONFIG_IIO_CONSUMERS_PER_TRIGGER,
+					    0);
+	if (trig->subirq_base < 0)
+		goto free_trig;
+
+	trig->name = kvasprintf(GFP_KERNEL, fmt, vargs);
+	if (trig->name == NULL)
+		goto free_descs;
+
+	trig->subirq_chip.name = trig->name;
+	trig->subirq_chip.irq_mask = &iio_trig_subirqmask;
+	trig->subirq_chip.irq_unmask = &iio_trig_subirqunmask;
+	for (i = 0; i < CONFIG_IIO_CONSUMERS_PER_TRIGGER; i++) {
+		irq_set_chip(trig->subirq_base + i, &trig->subirq_chip);
+		irq_set_handler(trig->subirq_base + i, &handle_simple_irq);
+		irq_modify_status(trig->subirq_base + i,
+				  IRQ_NOREQUEST | IRQ_NOAUTOEN, IRQ_NOPROBE);
 	}
+	get_device(&trig->dev);
 
 	return trig;
+
+free_descs:
+	irq_free_descs(trig->subirq_base, CONFIG_IIO_CONSUMERS_PER_TRIGGER);
+free_trig:
+	kfree(trig);
+	return NULL;
 }
 
 struct iio_trigger *iio_trigger_alloc(const char *fmt, ...)

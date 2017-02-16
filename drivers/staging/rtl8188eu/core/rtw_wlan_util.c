@@ -379,6 +379,7 @@ int get_bsstype(unsigned short capability)
 u16 get_beacon_interval(struct wlan_bssid_ex *bss)
 {
 	__le16 val;
+
 	memcpy((unsigned char *)&val, rtw_get_beacon_interval_from_ie(bss->IEs), 2);
 
 	return le16_to_cpu(val);
@@ -1306,6 +1307,7 @@ void set_sta_rate(struct adapter *padapter, struct sta_info *psta)
 void update_tx_basic_rate(struct adapter *padapter, u8 wirelessmode)
 {
 	unsigned char supported_rates[NDIS_802_11_LENGTH_RATES_EX];
+
 	memset(supported_rates, 0, NDIS_802_11_LENGTH_RATES_EX);
 
 	if ((wirelessmode & WIRELESS_11B) && (wirelessmode == WIRELESS_11B))
@@ -1330,6 +1332,7 @@ unsigned char check_assoc_AP(u8 *pframe, uint len)
 	struct ndis_802_11_var_ie *pIE;
 	u8	epigram_vendor_flag;
 	u8	ralink_vendor_flag;
+
 	epigram_vendor_flag = 0;
 	ralink_vendor_flag = 0;
 

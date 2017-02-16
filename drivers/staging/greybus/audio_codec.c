@@ -496,6 +496,11 @@ static int gbcodec_hw_params(struct snd_pcm_substream *substream,
 
 	gb_pm_runtime_put_noidle(bundle);
 
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		sig_bits = dai->driver->playback.sig_bits;
+	else
+		sig_bits = dai->driver->capture.sig_bits;
+
 	params->state = GBAUDIO_CODEC_HWPARAMS;
 	params->format = format;
 	params->rate = rate;
@@ -689,6 +694,7 @@ static struct snd_soc_dai_driver gbaudio_dai[] = {
 			.rate_min = 48000,
 			.channels_min = 1,
 			.channels_max = 2,
+			.sig_bits = 16,
 		},
 		.capture = {
 			.stream_name = "I2S 0 Capture",
@@ -698,6 +704,7 @@ static struct snd_soc_dai_driver gbaudio_dai[] = {
 			.rate_min = 48000,
 			.channels_min = 1,
 			.channels_max = 2,
+			.sig_bits = 16,
 		},
 		.ops = &gbcodec_dai_ops,
 	},
@@ -831,7 +838,10 @@ int gbaudio_register_module(struct gbaudio_module_info *module)
 		snd_soc_dapm_link_component_dai_widgets(codec->card,
 							&codec->dapm);
 #ifdef CONFIG_SND_JACK
-		/* register jack devices for this module from codec->jack_list */
+		/*
+		 * register jack devices for this module
+		 * from codec->jack_list
+		 */
 		list_for_each_entry(jack, &codec->jack_list, list) {
 			if ((jack == &module->headset_jack)
 			    || (jack == &module->button_jack))
@@ -1019,47 +1029,16 @@ static int gbcodec_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static u8 gbcodec_reg[GBCODEC_REG_COUNT] = {
-	[GBCODEC_CTL_REG] = GBCODEC_CTL_REG_DEFAULT,
-	[GBCODEC_MUTE_REG] = GBCODEC_MUTE_REG_DEFAULT,
-	[GBCODEC_PB_LVOL_REG] = GBCODEC_PB_VOL_REG_DEFAULT,
-	[GBCODEC_PB_RVOL_REG] = GBCODEC_PB_VOL_REG_DEFAULT,
-	[GBCODEC_CAP_LVOL_REG] = GBCODEC_CAP_VOL_REG_DEFAULT,
-	[GBCODEC_CAP_RVOL_REG] = GBCODEC_CAP_VOL_REG_DEFAULT,
-	[GBCODEC_APB1_MUX_REG] = GBCODEC_APB1_MUX_REG_DEFAULT,
-	[GBCODEC_APB2_MUX_REG] = GBCODEC_APB2_MUX_REG_DEFAULT,
-};
-
 static int gbcodec_write(struct snd_soc_codec *codec, unsigned int reg,
 			 unsigned int value)
 {
-	int ret = 0;
-
-	if (reg == SND_SOC_NOPM)
-		return 0;
-
-	BUG_ON(reg >= GBCODEC_REG_COUNT);
-
-	gbcodec_reg[reg] = value;
-	dev_dbg(codec->dev, "reg[%d] = 0x%x\n", reg, value);
-
-	return ret;
+	return 0;
 }
 
 static unsigned int gbcodec_read(struct snd_soc_codec *codec,
 				 unsigned int reg)
 {
-	unsigned int val = 0;
-
-	if (reg == SND_SOC_NOPM)
-		return 0;
-
-	BUG_ON(reg >= GBCODEC_REG_COUNT);
-
-	val = gbcodec_reg[reg];
-	dev_dbg(codec->dev, "reg[%d] = 0x%x\n", reg, val);
-
-	return val;
+	return 0;
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_gbaudio = {
@@ -1068,10 +1047,6 @@ static struct snd_soc_codec_driver soc_codec_dev_gbaudio = {
 
 	.read = gbcodec_read,
 	.write = gbcodec_write,
-
-	.reg_cache_size = GBCODEC_REG_COUNT,
-	.reg_cache_default = gbcodec_reg_defaults,
-	.reg_word_size = 1,
 
 	.idle_bias_off = true,
 	.ignore_pmdown_time = 1,

@@ -401,6 +401,7 @@ static const struct of_device_id mx25_gcq_ids[] = {
 	{ .compatible = "fsl,imx25-gcq", },
 	{ /* Sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, mx25_gcq_ids);
 
 static struct platform_driver mx25_gcq_driver = {
 	.driver		= {

@@ -28,15 +28,11 @@
 #include <linux/delay.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <linux/kmod.h>
 #include <linux/poll.h>
-#include <linux/init.h>
 #include <linux/device.h>
-#include <linux/vmalloc.h>
 #include <linux/fs.h>
 #include "comedidev.h"
 #include <linux/cdev.h>
-#include <linux/stat.h>
 
 #include <linux/io.h>
 #include <linux/uaccess.h>
@@ -2898,9 +2894,6 @@ static int __init comedi_init(void)
 
 	comedi_class->dev_groups = comedi_dev_groups;
 
-	/* XXX requires /proc interface */
-	comedi_proc_init();
-
 	/* create devices files for legacy/manual use */
 	for (i = 0; i < comedi_num_legacy_minors; i++) {
 		struct comedi_device *dev;
@@ -2916,6 +2909,9 @@ static int __init comedi_init(void)
 		/* comedi_alloc_board_minor() locked the mutex */
 		mutex_unlock(&dev->mutex);
 	}
+
+	/* XXX requires /proc interface */
+	comedi_proc_init();
 
 	return 0;
 }

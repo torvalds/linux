@@ -1160,7 +1160,7 @@ static int ptlrpc_import_delay_req(struct obd_import *imp,
 		if (atomic_read(&imp->imp_inval_count) != 0) {
 			DEBUG_REQ(D_ERROR, req, "invalidate in flight");
 			*status = -EIO;
-		} else if (imp->imp_dlm_fake || req->rq_no_delay) {
+		} else if (req->rq_no_delay) {
 			*status = -EWOULDBLOCK;
 		} else if (req->rq_allow_replay &&
 			  (imp->imp_state == LUSTRE_IMP_REPLAY ||
@@ -2662,11 +2662,16 @@ free_req:
 	list_for_each_entry_safe(req, saved, &imp->imp_committed_list,
 				 rq_replay_list) {
 		LASSERT(req->rq_transno != 0);
-		if (req->rq_import_generation < imp->imp_generation) {
-			DEBUG_REQ(D_RPCTRACE, req, "free stale open request");
-			ptlrpc_free_request(req);
-		} else if (!req->rq_replay) {
-			DEBUG_REQ(D_RPCTRACE, req, "free closed open request");
+		if (req->rq_import_generation < imp->imp_generation ||
+		    !req->rq_replay) {
+			DEBUG_REQ(D_RPCTRACE, req, "free %s open request",
+				  req->rq_import_generation <
+				  imp->imp_generation ? "stale" : "closed");
+
+			if (imp->imp_replay_cursor == &req->rq_replay_list)
+				imp->imp_replay_cursor =
+					req->rq_replay_list.next;
+
 			ptlrpc_free_request(req);
 		}
 	}
@@ -3070,7 +3075,7 @@ void ptlrpc_init_xid(void)
 	}
 
 	/* Always need to be aligned to a power-of-two for multi-bulk BRW */
-	CLASSERT(((PTLRPC_BULK_OPS_COUNT - 1) & PTLRPC_BULK_OPS_COUNT) == 0);
+	BUILD_BUG_ON(((PTLRPC_BULK_OPS_COUNT - 1) & PTLRPC_BULK_OPS_COUNT) != 0);
 	ptlrpc_last_xid &= PTLRPC_BULK_OPS_MASK;
 }
 
@@ -3123,8 +3128,11 @@ void ptlrpc_set_bulk_mbits(struct ptlrpc_request *req)
 			req->rq_mbits = ptlrpc_next_xid();
 		} else {
 			/* old version transfers rq_xid to peer as matchbits */
-			req->rq_mbits = ptlrpc_next_xid();
-			req->rq_xid = req->rq_mbits;
+			spin_lock(&req->rq_import->imp_lock);
+			list_del_init(&req->rq_unreplied_list);
+			ptlrpc_assign_next_xid_nolock(req);
+			req->rq_mbits = req->rq_xid;
+			spin_unlock(&req->rq_import->imp_lock);
 		}
 
 		CDEBUG(D_HA, "resend bulk old x%llu new x%llu\n",
@@ -3256,7 +3264,7 @@ void *ptlrpcd_alloc_work(struct obd_import *imp,
 	req->rq_no_resend = 1;
 	req->rq_pill.rc_fmt = (void *)&worker_format;
 
-	CLASSERT(sizeof(*args) <= sizeof(req->rq_async_args));
+	BUILD_BUG_ON(sizeof(*args) > sizeof(req->rq_async_args));
 	args = ptlrpc_req_async_args(req);
 	args->cb = cb;
 	args->cbdata = cbdata;

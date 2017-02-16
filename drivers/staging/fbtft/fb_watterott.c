@@ -40,7 +40,7 @@
 #define COLOR_RGB565		16
 
 static short mode = 565;
-module_param(mode, short, 0);
+module_param(mode, short, 0000);
 MODULE_PARM_DESC(mode, "RGB color transfer mode: 332, 565 (default)");
 
 static void write_reg8_bus8(struct fbtft_par *par, int len, ...)

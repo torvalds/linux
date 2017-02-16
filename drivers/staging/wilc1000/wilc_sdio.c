@@ -81,7 +81,6 @@ static int wilc_sdio_cmd52(struct wilc *wilc, struct sdio_cmd52 *cmd)
 	return ret;
 }
 
-
 static int wilc_sdio_cmd53(struct wilc *wilc, struct sdio_cmd53 *cmd)
 {
 	struct sdio_func *func = container_of(wilc->dev, struct sdio_func, dev);
@@ -127,7 +126,7 @@ static int linux_sdio_probe(struct sdio_func *func,
 
 	dev_dbg(&func->dev, "Initializing netdev\n");
 	ret = wilc_netdev_init(&wilc, &func->dev, HIF_SDIO, gpio,
-			     &wilc_hif_sdio);
+			       &wilc_hif_sdio);
 	if (ret) {
 		dev_err(&func->dev, "Couldn't initialize netdev\n");
 		return ret;
@@ -915,7 +914,6 @@ static int sdio_clear_int_ext(struct wilc *wilc, u32 val)
 					__LINE__);
 				goto _fail_;
 			}
-
 		}
 	} else {
 		if (g_sdio.irq_gpio) {
@@ -945,7 +943,6 @@ static int sdio_clear_int_ext(struct wilc *wilc, u32 val)
 								__LINE__);
 							goto _fail_;
 						}
-
 					}
 					if (!ret)
 						break;

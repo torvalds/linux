@@ -469,6 +469,7 @@ int lustre_shrink_msg(struct lustre_msg *msg, int segment,
 	default:
 		LASSERTF(0, "incorrect message magic: %08x\n", msg->lm_magic);
 	}
+	return 0;
 }
 EXPORT_SYMBOL(lustre_shrink_msg);
 
@@ -509,8 +510,8 @@ static int lustre_unpack_msg_v2(struct lustre_msg_v2 *m, int len)
 		__swab32s(&m->lm_repsize);
 		__swab32s(&m->lm_cksum);
 		__swab32s(&m->lm_flags);
-		CLASSERT(offsetof(typeof(*m), lm_padding_2) != 0);
-		CLASSERT(offsetof(typeof(*m), lm_padding_3) != 0);
+		BUILD_BUG_ON(offsetof(typeof(*m), lm_padding_2) == 0);
+		BUILD_BUG_ON(offsetof(typeof(*m), lm_padding_3) == 0);
 	}
 
 	required_len = lustre_msg_hdr_size_v2(m->lm_bufcount);
@@ -1525,18 +1526,18 @@ void lustre_swab_ptlrpc_body(struct ptlrpc_body *b)
 	__swab64s(&b->pb_pre_versions[2]);
 	__swab64s(&b->pb_pre_versions[3]);
 	__swab64s(&b->pb_mbits);
-	CLASSERT(offsetof(typeof(*b), pb_padding0) != 0);
-	CLASSERT(offsetof(typeof(*b), pb_padding1) != 0);
-	CLASSERT(offsetof(typeof(*b), pb_padding64_0) != 0);
-	CLASSERT(offsetof(typeof(*b), pb_padding64_1) != 0);
-	CLASSERT(offsetof(typeof(*b), pb_padding64_2) != 0);
+	BUILD_BUG_ON(offsetof(typeof(*b), pb_padding0) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*b), pb_padding1) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*b), pb_padding64_0) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*b), pb_padding64_1) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*b), pb_padding64_2) == 0);
 	/* While we need to maintain compatibility between
 	 * clients and servers without ptlrpc_body_v2 (< 2.3)
 	 * do not swab any fields beyond pb_jobid, as we are
 	 * using this swab function for both ptlrpc_body
 	 * and ptlrpc_body_v2.
 	 */
-	CLASSERT(offsetof(typeof(*b), pb_jobid) != 0);
+	BUILD_BUG_ON(offsetof(typeof(*b), pb_jobid) == 0);
 }
 
 void lustre_swab_connect(struct obd_connect_data *ocd)
@@ -1567,23 +1568,23 @@ void lustre_swab_connect(struct obd_connect_data *ocd)
 		__swab64s(&ocd->ocd_maxbytes);
 	if (ocd->ocd_connect_flags & OBD_CONNECT_MULTIMODRPCS)
 		__swab16s(&ocd->ocd_maxmodrpcs);
-	CLASSERT(offsetof(typeof(*ocd), padding0));
-	CLASSERT(offsetof(typeof(*ocd), padding1) != 0);
+	BUILD_BUG_ON(!offsetof(typeof(*ocd), padding0));
+	BUILD_BUG_ON(offsetof(typeof(*ocd), padding1) == 0);
 	if (ocd->ocd_connect_flags & OBD_CONNECT_FLAGS2)
 		__swab64s(&ocd->ocd_connect_flags2);
-	CLASSERT(offsetof(typeof(*ocd), padding3) != 0);
-	CLASSERT(offsetof(typeof(*ocd), padding4) != 0);
-	CLASSERT(offsetof(typeof(*ocd), padding5) != 0);
-	CLASSERT(offsetof(typeof(*ocd), padding6) != 0);
-	CLASSERT(offsetof(typeof(*ocd), padding7) != 0);
-	CLASSERT(offsetof(typeof(*ocd), padding8) != 0);
-	CLASSERT(offsetof(typeof(*ocd), padding9) != 0);
-	CLASSERT(offsetof(typeof(*ocd), paddingA) != 0);
-	CLASSERT(offsetof(typeof(*ocd), paddingB) != 0);
-	CLASSERT(offsetof(typeof(*ocd), paddingC) != 0);
-	CLASSERT(offsetof(typeof(*ocd), paddingD) != 0);
-	CLASSERT(offsetof(typeof(*ocd), paddingE) != 0);
-	CLASSERT(offsetof(typeof(*ocd), paddingF) != 0);
+	BUILD_BUG_ON(offsetof(typeof(*ocd), padding3) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*ocd), padding4) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*ocd), padding5) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*ocd), padding6) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*ocd), padding7) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*ocd), padding8) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*ocd), padding9) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*ocd), paddingA) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*ocd), paddingB) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*ocd), paddingC) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*ocd), paddingD) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*ocd), paddingE) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*ocd), paddingF) == 0);
 }
 
 static void lustre_swab_obdo(struct obdo *o)
@@ -1613,9 +1614,9 @@ static void lustre_swab_obdo(struct obdo *o)
 	__swab32s(&o->o_uid_h);
 	__swab32s(&o->o_gid_h);
 	__swab64s(&o->o_data_version);
-	CLASSERT(offsetof(typeof(*o), o_padding_4) != 0);
-	CLASSERT(offsetof(typeof(*o), o_padding_5) != 0);
-	CLASSERT(offsetof(typeof(*o), o_padding_6) != 0);
+	BUILD_BUG_ON(offsetof(typeof(*o), o_padding_4) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*o), o_padding_5) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*o), o_padding_6) == 0);
 }
 
 void lustre_swab_obd_statfs(struct obd_statfs *os)
@@ -1631,15 +1632,15 @@ void lustre_swab_obd_statfs(struct obd_statfs *os)
 	__swab32s(&os->os_namelen);
 	__swab64s(&os->os_maxbytes);
 	__swab32s(&os->os_state);
-	CLASSERT(offsetof(typeof(*os), os_fprecreated) != 0);
-	CLASSERT(offsetof(typeof(*os), os_spare2) != 0);
-	CLASSERT(offsetof(typeof(*os), os_spare3) != 0);
-	CLASSERT(offsetof(typeof(*os), os_spare4) != 0);
-	CLASSERT(offsetof(typeof(*os), os_spare5) != 0);
-	CLASSERT(offsetof(typeof(*os), os_spare6) != 0);
-	CLASSERT(offsetof(typeof(*os), os_spare7) != 0);
-	CLASSERT(offsetof(typeof(*os), os_spare8) != 0);
-	CLASSERT(offsetof(typeof(*os), os_spare9) != 0);
+	BUILD_BUG_ON(offsetof(typeof(*os), os_fprecreated) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*os), os_spare2) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*os), os_spare3) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*os), os_spare4) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*os), os_spare5) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*os), os_spare6) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*os), os_spare7) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*os), os_spare8) == 0);
+	BUILD_BUG_ON(offsetof(typeof(*os), os_spare9) == 0);
 }
 
 void lustre_swab_obd_ioobj(struct obd_ioobj *ioo)
@@ -1679,7 +1680,7 @@ void lustre_swab_gl_desc(union ldlm_gl_desc *desc)
 	__swab64s(&desc->lquota_desc.gl_hardlimit);
 	__swab64s(&desc->lquota_desc.gl_softlimit);
 	__swab64s(&desc->lquota_desc.gl_time);
-	CLASSERT(offsetof(typeof(desc->lquota_desc), gl_pad2) != 0);
+	BUILD_BUG_ON(offsetof(typeof(desc->lquota_desc), gl_pad2) == 0);
 }
 
 void lustre_swab_ost_lvb_v1(struct ost_lvb_v1 *lvb)
@@ -1738,24 +1739,24 @@ void lustre_swab_mdt_body(struct mdt_body *b)
 	__swab32s(&b->mbo_flags);
 	__swab32s(&b->mbo_rdev);
 	__swab32s(&b->mbo_nlink);
-	CLASSERT(offsetof(typeof(*b), mbo_unused2) != 0);
+	BUILD_BUG_ON(offsetof(typeof(*b), mbo_unused2) == 0);
 	__swab32s(&b->mbo_suppgid);
 	__swab32s(&b->mbo_eadatasize);
 	__swab32s(&b->mbo_aclsize);
 	__swab32s(&b->mbo_max_mdsize);
-	CLASSERT(offsetof(typeof(*b), mbo_unused3));
+	BUILD_BUG_ON(!offsetof(typeof(*b), mbo_unused3));
 	__swab32s(&b->mbo_uid_h);
 	__swab32s(&b->mbo_gid_h);
-	CLASSERT(offsetof(typeof(*b), mbo_padding_5) != 0);
+	BUILD_BUG_ON(offsetof(typeof(*b), mbo_padding_5) == 0);
 }
 
 void lustre_swab_mdt_ioepoch(struct mdt_ioepoch *b)
 {
 	/* handle is opaque */
 	/* mio_handle is opaque */
-	CLASSERT(offsetof(typeof(*b), mio_unused1));
-	CLASSERT(offsetof(typeof(*b), mio_unused2));
-	CLASSERT(offsetof(typeof(*b), mio_padding));
+	BUILD_BUG_ON(!offsetof(typeof(*b), mio_unused1));
+	BUILD_BUG_ON(!offsetof(typeof(*b), mio_unused2));
+	BUILD_BUG_ON(!offsetof(typeof(*b), mio_padding));
 }
 
 void lustre_swab_mgs_target_info(struct mgs_target_info *mti)
@@ -1768,7 +1769,7 @@ void lustre_swab_mgs_target_info(struct mgs_target_info *mti)
 	__swab32s(&mti->mti_flags);
 	__swab32s(&mti->mti_instance);
 	__swab32s(&mti->mti_nid_count);
-	CLASSERT(sizeof(lnet_nid_t) == sizeof(__u64));
+	BUILD_BUG_ON(sizeof(lnet_nid_t) != sizeof(__u64));
 	for (i = 0; i < MTI_NIDS_MAX; i++)
 		__swab64s(&mti->mti_nids[i]);
 }
@@ -1784,13 +1785,13 @@ void lustre_swab_mgs_nidtbl_entry(struct mgs_nidtbl_entry *entry)
 
 	/* mne_nid_(count|type) must be one byte size because we're gonna
 	 * access it w/o swapping. */
-	CLASSERT(sizeof(entry->mne_nid_count) == sizeof(__u8));
-	CLASSERT(sizeof(entry->mne_nid_type) == sizeof(__u8));
+	BUILD_BUG_ON(sizeof(entry->mne_nid_count) != sizeof(__u8));
+	BUILD_BUG_ON(sizeof(entry->mne_nid_type) != sizeof(__u8));
 
 	/* remove this assertion if ipv6 is supported. */
 	LASSERT(entry->mne_nid_type == 0);
 	for (i = 0; i < entry->mne_nid_count; i++) {
-		CLASSERT(sizeof(lnet_nid_t) == sizeof(__u64));
+		BUILD_BUG_ON(sizeof(lnet_nid_t) != sizeof(__u64));
 		__swab64s(&entry->u.nids[i]);
 	}
 }
@@ -1828,7 +1829,7 @@ static void lustre_swab_obd_dqblk(struct obd_dqblk *b)
 	__swab64s(&b->dqb_btime);
 	__swab64s(&b->dqb_itime);
 	__swab32s(&b->dqb_valid);
-	CLASSERT(offsetof(typeof(*b), dqb_padding) != 0);
+	BUILD_BUG_ON(offsetof(typeof(*b), dqb_padding) == 0);
 }
 
 void lustre_swab_obd_quotactl(struct obd_quotactl *q)
@@ -1899,7 +1900,7 @@ void lustre_swab_mdt_rec_reint (struct mdt_rec_reint *rr)
 	__swab32s(&rr->rr_flags_h);
 	__swab32s(&rr->rr_umask);
 
-	CLASSERT(offsetof(typeof(*rr), rr_padding_4) != 0);
+	BUILD_BUG_ON(offsetof(typeof(*rr), rr_padding_4) == 0);
 };
 
 void lustre_swab_lov_desc(struct lov_desc *ld)
@@ -1948,7 +1949,7 @@ void lustre_swab_lmv_user_md(struct lmv_user_md *lum)
 	__swab32s(&lum->lum_stripe_offset);
 	__swab32s(&lum->lum_hash_type);
 	__swab32s(&lum->lum_type);
-	CLASSERT(offsetof(typeof(*lum), lum_padding1));
+	BUILD_BUG_ON(!offsetof(typeof(*lum), lum_padding1));
 }
 EXPORT_SYMBOL(lustre_swab_lmv_user_md);
 
@@ -2037,7 +2038,7 @@ void lustre_swab_ldlm_intent(struct ldlm_intent *i)
 static void lustre_swab_ldlm_resource_desc(struct ldlm_resource_desc *r)
 {
 	__swab32s(&r->lr_type);
-	CLASSERT(offsetof(typeof(*r), lr_padding) != 0);
+	BUILD_BUG_ON(offsetof(typeof(*r), lr_padding) == 0);
 	lustre_swab_ldlm_res_id(&r->lr_name);
 }
 
@@ -2060,7 +2061,7 @@ void lustre_swab_ldlm_request(struct ldlm_request *rq)
 void lustre_swab_ldlm_reply(struct ldlm_reply *r)
 {
 	__swab32s(&r->lock_flags);
-	CLASSERT(offsetof(typeof(*r), lock_padding) != 0);
+	BUILD_BUG_ON(offsetof(typeof(*r), lock_padding) == 0);
 	lustre_swab_ldlm_lock_desc(&r->lock_desc);
 	/* lock_handle opaque */
 	__swab64s(&r->lock_policy_res1);

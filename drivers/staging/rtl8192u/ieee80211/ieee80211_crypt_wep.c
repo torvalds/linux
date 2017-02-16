@@ -88,7 +88,7 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u32 klen, len;
 	u8 key[WEP_KEY_LEN + 3];
 	u8 *pos;
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	u32 crc;
 	u8 *icv;
 	struct scatterlist sg;
@@ -109,7 +109,8 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	/* Fluhrer, Mantin, and Shamir have reported weaknesses in the key
 	 * scheduling algorithm of RC4. At least IVs (KeyByte + 3, 0xff, N)
-	 * can be used to speedup attacks, so avoid using them. */
+	 * can be used to speedup attacks, so avoid using them.
+	 */
 	if ((wep->iv & 0xff00) == 0xff00) {
 		u8 B = (wep->iv >> 16) & 0xff;
 
@@ -166,7 +167,7 @@ static int prism2_wep_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u32  klen, plen;
 	u8 key[WEP_KEY_LEN + 3];
 	u8 keyidx, *pos;
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	u32 crc;
 	u8 icv[4];
 	struct scatterlist sg;

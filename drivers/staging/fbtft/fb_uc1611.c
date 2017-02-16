@@ -42,30 +42,30 @@
 
 /* BR -> actual ratio: 0-3 -> 5, 10, 11, 13 */
 static unsigned int ratio = 2;
-module_param(ratio, uint, 0);
+module_param(ratio, uint, 0000);
 MODULE_PARM_DESC(ratio, "BR[1:0] Bias voltage ratio: 0-3 (default: 2)");
 
 static unsigned int gain = 3;
-module_param(gain, uint, 0);
+module_param(gain, uint, 0000);
 MODULE_PARM_DESC(gain, "GN[1:0] Bias voltage gain: 0-3 (default: 3)");
 
 static unsigned int pot = 16;
-module_param(pot, uint, 0);
+module_param(pot, uint, 0000);
 MODULE_PARM_DESC(pot, "PM[6:0] Bias voltage pot.: 0-63 (default: 16)");
 
 /* TC -> % compensation per deg C: 0-3 -> -.05, -.10, -.015, -.20 */
 static unsigned int temp;
-module_param(temp, uint, 0);
+module_param(temp, uint, 0000);
 MODULE_PARM_DESC(temp, "TC[1:0] Temperature compensation: 0-3 (default: 0)");
 
 /* PC[1:0] -> LCD capacitance: 0-3 -> <20nF, 20-28 nF, 29-40 nF, 40-56 nF */
 static unsigned int load = 1;
-module_param(load, uint, 0);
+module_param(load, uint, 0000);
 MODULE_PARM_DESC(load, "PC[1:0] Panel Loading: 0-3 (default: 1)");
 
 /* PC[3:2] -> V_LCD: 0, 1, 3 -> ext., int. with ratio = 5, int. standard */
 static unsigned int pump = 3;
-module_param(pump, uint, 0);
+module_param(pump, uint, 0000);
 MODULE_PARM_DESC(pump, "PC[3:2] Pump control: 0,1,3 (default: 3)");
 
 static int init_display(struct fbtft_par *par)

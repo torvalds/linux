@@ -226,6 +226,9 @@ struct ptlrpc_nrs_policy *nrs_request_policy(struct ptlrpc_nrs_request *nrq)
  sizeof(NRS_LPROCFS_QUANTUM_NAME_REG __stringify(LPROCFS_NRS_QUANTUM_MAX) " "  \
 	NRS_LPROCFS_QUANTUM_NAME_HP __stringify(LPROCFS_NRS_QUANTUM_MAX))
 
+/* ptlrpc/nrs_fifo.c */
+extern struct ptlrpc_nrs_pol_conf nrs_conf_fifo;
+
 /* recovd_thread.c */
 
 int ptlrpc_expire_one_request(struct ptlrpc_request *req, int async_unlink);

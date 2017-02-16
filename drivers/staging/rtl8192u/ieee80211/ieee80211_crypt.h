@@ -30,7 +30,8 @@ struct ieee80211_crypto_ops {
 
 	/* init new crypto context (e.g., allocate private data space,
 	 * select IV, etc.); returns NULL on failure or pointer to allocated
-	 * private data on success */
+	 * private data on success
+	 */
 	void * (*init)(int keyidx);
 
 	/* deinitialize crypto context and free allocated private data */
@@ -46,7 +47,8 @@ struct ieee80211_crypto_ops {
 	int (*decrypt_mpdu)(struct sk_buff *skb, int hdr_len, void *priv);
 
 	/* These functions are called for full MSDUs, i.e. full frames.
-	 * These can be NULL if full MSDU operations are not needed. */
+	 * These can be NULL if full MSDU operations are not needed.
+	 */
 	int (*encrypt_msdu)(struct sk_buff *skb, int hdr_len, void *priv);
 	int (*decrypt_msdu)(struct sk_buff *skb, int keyidx, int hdr_len,
 			    void *priv);
@@ -55,14 +57,16 @@ struct ieee80211_crypto_ops {
 	int (*get_key)(void *key, int len, u8 *seq, void *priv);
 
 	/* procfs handler for printing out key information and possible
-	 * statistics */
+	 * statistics
+	 */
 	char * (*print_stats)(char *p, void *priv);
 
 	/* maximum number of bytes added by encryption; encrypt buf is
 	 * allocated with extra_prefix_len bytes, copy of in_buf, and
 	 * extra_postfix_len; encrypt need not use all this space, but
 	 * the result must start at the beginning of the buffer and correct
-	 * length must be returned */
+	 * length must be returned
+	 */
 	int extra_prefix_len, extra_postfix_len;
 
 	struct module *owner;

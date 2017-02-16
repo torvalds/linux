@@ -29,85 +29,85 @@ static struct spi_device *spi_device;
 static struct platform_device *p_device;
 
 static char *name;
-module_param(name, charp, 0);
+module_param(name, charp, 0000);
 MODULE_PARM_DESC(name, "Devicename (required). name=list => list all supported devices.");
 
 static unsigned int rotate;
-module_param(rotate, uint, 0);
+module_param(rotate, uint, 0000);
 MODULE_PARM_DESC(rotate,
 "Angle to rotate display counter clockwise: 0, 90, 180, 270");
 
 static unsigned int busnum;
-module_param(busnum, uint, 0);
+module_param(busnum, uint, 0000);
 MODULE_PARM_DESC(busnum, "SPI bus number (default=0)");
 
 static unsigned int cs;
-module_param(cs, uint, 0);
+module_param(cs, uint, 0000);
 MODULE_PARM_DESC(cs, "SPI chip select (default=0)");
 
 static unsigned int speed;
-module_param(speed, uint, 0);
+module_param(speed, uint, 0000);
 MODULE_PARM_DESC(speed, "SPI speed (override device default)");
 
 static int mode = -1;
-module_param(mode, int, 0);
+module_param(mode, int, 0000);
 MODULE_PARM_DESC(mode, "SPI mode (override device default)");
 
 static char *gpios;
-module_param(gpios, charp, 0);
+module_param(gpios, charp, 0000);
 MODULE_PARM_DESC(gpios,
 "List of gpios. Comma separated with the form: reset:23,dc:24 (when overriding the default, all gpios must be specified)");
 
 static unsigned int fps;
-module_param(fps, uint, 0);
+module_param(fps, uint, 0000);
 MODULE_PARM_DESC(fps, "Frames per second (override driver default)");
 
 static char *gamma;
-module_param(gamma, charp, 0);
+module_param(gamma, charp, 0000);
 MODULE_PARM_DESC(gamma,
 "String representation of Gamma Curve(s). Driver specific.");
 
 static int txbuflen;
-module_param(txbuflen, int, 0);
+module_param(txbuflen, int, 0000);
 MODULE_PARM_DESC(txbuflen, "txbuflen (override driver default)");
 
 static int bgr = -1;
-module_param(bgr, int, 0);
+module_param(bgr, int, 0000);
 MODULE_PARM_DESC(bgr,
 "BGR bit (supported by some drivers).");
 
 static unsigned int startbyte;
-module_param(startbyte, uint, 0);
+module_param(startbyte, uint, 0000);
 MODULE_PARM_DESC(startbyte, "Sets the Start byte used by some SPI displays.");
 
 static bool custom;
-module_param(custom, bool, 0);
+module_param(custom, bool, 0000);
 MODULE_PARM_DESC(custom, "Add a custom display device. Use speed= argument to make it a SPI device, else platform_device");
 
 static unsigned int width;
-module_param(width, uint, 0);
+module_param(width, uint, 0000);
 MODULE_PARM_DESC(width, "Display width, used with the custom argument");
 
 static unsigned int height;
-module_param(height, uint, 0);
+module_param(height, uint, 0000);
 MODULE_PARM_DESC(height, "Display height, used with the custom argument");
 
 static unsigned int buswidth = 8;
-module_param(buswidth, uint, 0);
+module_param(buswidth, uint, 0000);
 MODULE_PARM_DESC(buswidth, "Display bus width, used with the custom argument");
 
 static s16 init[FBTFT_MAX_INIT_SEQUENCE];
 static int init_num;
-module_param_array(init, short, &init_num, 0);
+module_param_array(init, short, &init_num, 0000);
 MODULE_PARM_DESC(init, "Init sequence, used with the custom argument");
 
 static unsigned long debug;
-module_param(debug, ulong, 0);
+module_param(debug, ulong, 0000);
 MODULE_PARM_DESC(debug,
 "level: 0-7 (the remaining 29 bits is for advanced usage)");
 
 static unsigned int verbose = 3;
-module_param(verbose, uint, 0);
+module_param(verbose, uint, 0000);
 MODULE_PARM_DESC(verbose,
 "0 silent, >0 show gpios, >1 show devices, >2 show devices before (default=3)");
 
