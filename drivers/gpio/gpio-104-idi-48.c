@@ -47,7 +47,6 @@ MODULE_PARM_DESC(irq, "ACCES 104-IDI-48 interrupt line numbers");
  * @ack_lock:	synchronization lock to prevent IRQ handler race conditions
  * @irq_mask:	input bits affected by interrupts
  * @base:	base port address of the GPIO device
- * @irq:	Interrupt line number
  * @cos_enb:	Change-Of-State IRQ enable boundaries mask
  */
 struct idi_48_gpio {
@@ -56,7 +55,6 @@ struct idi_48_gpio {
 	spinlock_t ack_lock;
 	unsigned char irq_mask[6];
 	unsigned base;
-	unsigned irq;
 	unsigned char cos_enb;
 };
 
@@ -219,6 +217,18 @@ static irqreturn_t idi_48_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+#define IDI48_NGPIO 48
+static const char *idi48_names[IDI48_NGPIO] = {
+	"Bit 0 A", "Bit 1 A", "Bit 2 A", "Bit 3 A", "Bit 4 A", "Bit 5 A",
+	"Bit 6 A", "Bit 7 A", "Bit 8 A", "Bit 9 A", "Bit 10 A", "Bit 11 A",
+	"Bit 12 A", "Bit 13 A", "Bit 14 A", "Bit 15 A",	"Bit 16 A", "Bit 17 A",
+	"Bit 18 A", "Bit 19 A", "Bit 20 A", "Bit 21 A", "Bit 22 A", "Bit 23 A",
+	"Bit 0 B", "Bit 1 B", "Bit 2 B", "Bit 3 B", "Bit 4 B", "Bit 5 B",
+	"Bit 6 B", "Bit 7 B", "Bit 8 B", "Bit 9 B", "Bit 10 B", "Bit 11 B",
+	"Bit 12 B", "Bit 13 B", "Bit 14 B", "Bit 15 B",	"Bit 16 B", "Bit 17 B",
+	"Bit 18 B", "Bit 19 B", "Bit 20 B", "Bit 21 B", "Bit 22 B", "Bit 23 B"
+};
+
 static int idi_48_probe(struct device *dev, unsigned int id)
 {
 	struct idi_48_gpio *idi48gpio;
@@ -239,19 +249,17 @@ static int idi_48_probe(struct device *dev, unsigned int id)
 	idi48gpio->chip.parent = dev;
 	idi48gpio->chip.owner = THIS_MODULE;
 	idi48gpio->chip.base = -1;
-	idi48gpio->chip.ngpio = 48;
+	idi48gpio->chip.ngpio = IDI48_NGPIO;
+	idi48gpio->chip.names = idi48_names;
 	idi48gpio->chip.get_direction = idi_48_gpio_get_direction;
 	idi48gpio->chip.direction_input = idi_48_gpio_direction_input;
 	idi48gpio->chip.get = idi_48_gpio_get;
 	idi48gpio->base = base[id];
-	idi48gpio->irq = irq[id];
 
 	spin_lock_init(&idi48gpio->lock);
 	spin_lock_init(&idi48gpio->ack_lock);
 
-	dev_set_drvdata(dev, idi48gpio);
-
-	err = gpiochip_add_data(&idi48gpio->chip, idi48gpio);
+	err = devm_gpiochip_add_data(dev, &idi48gpio->chip, idi48gpio);
 	if (err) {
 		dev_err(dev, "GPIO registering failed (%d)\n", err);
 		return err;
@@ -265,29 +273,15 @@ static int idi_48_probe(struct device *dev, unsigned int id)
 		handle_edge_irq, IRQ_TYPE_NONE);
 	if (err) {
 		dev_err(dev, "Could not add irqchip (%d)\n", err);
-		goto err_gpiochip_remove;
+		return err;
 	}
 
-	err = request_irq(irq[id], idi_48_irq_handler, IRQF_SHARED, name,
-		idi48gpio);
+	err = devm_request_irq(dev, irq[id], idi_48_irq_handler, IRQF_SHARED,
+		name, idi48gpio);
 	if (err) {
 		dev_err(dev, "IRQ handler registering failed (%d)\n", err);
-		goto err_gpiochip_remove;
+		return err;
 	}
-
-	return 0;
-
-err_gpiochip_remove:
-	gpiochip_remove(&idi48gpio->chip);
-	return err;
-}
-
-static int idi_48_remove(struct device *dev, unsigned int id)
-{
-	struct idi_48_gpio *const idi48gpio = dev_get_drvdata(dev);
-
-	free_irq(idi48gpio->irq, idi48gpio);
-	gpiochip_remove(&idi48gpio->chip);
 
 	return 0;
 }
@@ -297,7 +291,6 @@ static struct isa_driver idi_48_driver = {
 	.driver = {
 		.name = "104-idi-48"
 	},
-	.remove = idi_48_remove
 };
 module_isa_driver(idi_48_driver, num_idi_48);
 

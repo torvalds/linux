@@ -265,6 +265,12 @@ L:	linux-iio@vger.kernel.org
 S:	Maintained
 F:	drivers/iio/counter/104-quad-8.c
 
+ACCES PCI-IDIO-16 GPIO DRIVER
+M:	William Breathitt Gray <vilhelm.gray@gmail.com>
+L:	linux-gpio@vger.kernel.org
+S:	Maintained
+F:	drivers/gpio/gpio-pci-idio-16.c
+
 ACENIC DRIVER
 M:	Jes Sorensen <jes@trained-monkey.org>
 L:	linux-acenic@sunsite.dk

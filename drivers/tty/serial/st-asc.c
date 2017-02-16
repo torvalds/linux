@@ -575,12 +575,13 @@ static void asc_set_termios(struct uart_port *port, struct ktermios *termios,
 			pinctrl_select_state(ascport->pinctrl,
 					     ascport->states[NO_HW_FLOWCTRL]);
 
-			gpiod =	devm_get_gpiod_from_child(port->dev, "rts",
-							  &np->fwnode);
-			if (!IS_ERR(gpiod)) {
-				gpiod_direction_output(gpiod, 0);
+			gpiod = devm_fwnode_get_gpiod_from_child(port->dev,
+								 "rts",
+								 &np->fwnode,
+								 GPIOD_OUT_LOW,
+								 np->name);
+			if (!IS_ERR(gpiod))
 				ascport->rts = gpiod;
-			}
 		}
 	}
 

@@ -190,6 +190,18 @@ static int mrfld_gpio_set_debounce(struct gpio_chip *chip, unsigned int offset,
 	return 0;
 }
 
+static int mrfld_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
+				 unsigned long config)
+{
+	u32 debounce;
+
+	if (pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE)
+		return -ENOTSUPP;
+
+	debounce = pinconf_to_config_argument(config);
+	return mrfld_gpio_set_debounce(chip, offset, debounce);
+}
+
 static void mrfld_irq_ack(struct irq_data *d)
 {
 	struct mrfld_gpio *priv = irq_data_get_irq_chip_data(d);
@@ -414,7 +426,7 @@ static int mrfld_gpio_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	priv->chip.get = mrfld_gpio_get;
 	priv->chip.set = mrfld_gpio_set;
 	priv->chip.get_direction = mrfld_gpio_get_direction;
-	priv->chip.set_debounce = mrfld_gpio_set_debounce;
+	priv->chip.set_config = mrfld_gpio_set_config;
 	priv->chip.base = gpio_base;
 	priv->chip.ngpio = MRFLD_NGPIO;
 	priv->chip.can_sleep = false;

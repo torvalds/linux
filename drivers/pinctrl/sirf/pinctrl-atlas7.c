@@ -5322,7 +5322,8 @@ static int atlas7_pin_config_set(struct pinctrl_dev *pctldev,
 				unsigned pin, unsigned long *configs,
 				unsigned num_configs)
 {
-	u16 param, arg;
+	u16 param;
+	u32 arg;
 	int idx, err;
 
 	for (idx = 0; idx < num_configs; idx++) {

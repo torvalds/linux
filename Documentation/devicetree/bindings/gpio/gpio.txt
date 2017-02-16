@@ -187,10 +187,10 @@ gpio-controller's driver probe function.
 
 Each GPIO hog definition is represented as a child node of the GPIO controller.
 Required properties:
-- gpio-hog:   A property specifying that this child node represent a GPIO hog.
-- gpios:      Store the GPIO information (id, flags, ...). Shall contain the
-	      number of cells specified in its parent node (GPIO controller
-	      node).
+- gpio-hog:   A property specifying that this child node represents a GPIO hog.
+- gpios:      Store the GPIO information (id, flags, ...) for each GPIO to
+	      affect. Shall contain an integer multiple of the number of cells
+	      specified in its parent node (GPIO controller node).
 Only one of the following properties scanned in the order shown below.
 This means that when multiple properties are present they will be searched
 in the order presented below and the first match is taken as the intended

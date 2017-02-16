@@ -303,22 +303,16 @@ static int gpio_keys_polled_probe(struct platform_device *pdev)
 				return -EINVAL;
 			}
 
-			bdata->gpiod = devm_get_gpiod_from_child(dev, NULL,
-								 child);
+			bdata->gpiod = devm_fwnode_get_gpiod_from_child(dev,
+								NULL, child,
+								GPIOD_IN,
+								button->desc);
 			if (IS_ERR(bdata->gpiod)) {
 				error = PTR_ERR(bdata->gpiod);
 				if (error != -EPROBE_DEFER)
 					dev_err(dev,
 						"failed to get gpio: %d\n",
 						error);
-				fwnode_handle_put(child);
-				return error;
-			}
-
-			error = gpiod_direction_input(bdata->gpiod);
-			if (error) {
-				dev_err(dev, "Failed to configure GPIO %d as input: %d\n",
-					desc_to_gpio(bdata->gpiod), error);
 				fwnode_handle_put(child);
 				return error;
 			}
