@@ -1,0 +1,10 @@
+config PINCTRL_TI_IODELAY
+	tristate "TI IODelay Module pinconf driver"
+	depends on OF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	select REGMAP_MMIO
+	help
+	  Say Y here to support Texas Instruments' IO delay pinconf driver.
+	  IO delay module is used for the DRA7 SoC family.

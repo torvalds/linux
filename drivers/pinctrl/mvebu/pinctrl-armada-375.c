@@ -23,18 +23,6 @@
 
 #include "pinctrl-mvebu.h"
 
-static void __iomem *mpp_base;
-
-static int armada_375_mpp_ctrl_get(unsigned pid, unsigned long *config)
-{
-	return default_mpp_ctrl_get(mpp_base, pid, config);
-}
-
-static int armada_375_mpp_ctrl_set(unsigned pid, unsigned long config)
-{
-	return default_mpp_ctrl_set(mpp_base, pid, config);
-}
-
 static struct mvebu_mpp_mode mv88f6720_mpp_modes[] = {
 	MPP_MODE(0,
 		 MPP_FUNCTION(0x0, "gpio", NULL),
@@ -402,8 +390,8 @@ static const struct of_device_id armada_375_pinctrl_of_match[] = {
 	{ },
 };
 
-static struct mvebu_mpp_ctrl mv88f6720_mpp_controls[] = {
-	MPP_FUNC_CTRL(0, 69, NULL, armada_375_mpp_ctrl),
+static const struct mvebu_mpp_ctrl mv88f6720_mpp_controls[] = {
+	MPP_FUNC_CTRL(0, 69, NULL, mvebu_mmio_mpp_ctrl),
 };
 
 static struct pinctrl_gpio_range mv88f6720_mpp_gpio_ranges[] = {
@@ -415,12 +403,6 @@ static struct pinctrl_gpio_range mv88f6720_mpp_gpio_ranges[] = {
 static int armada_375_pinctrl_probe(struct platform_device *pdev)
 {
 	struct mvebu_pinctrl_soc_info *soc = &armada_375_pinctrl_info;
-	struct resource *res;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mpp_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(mpp_base))
-		return PTR_ERR(mpp_base);
 
 	soc->variant = 0; /* no variants for Armada 375 */
 	soc->controls = mv88f6720_mpp_controls;
@@ -432,7 +414,7 @@ static int armada_375_pinctrl_probe(struct platform_device *pdev)
 
 	pdev->dev.platform_data = soc;
 
-	return mvebu_pinctrl_probe(pdev);
+	return mvebu_pinctrl_simple_mmio_probe(pdev);
 }
 
 static struct platform_driver armada_375_pinctrl_driver = {
