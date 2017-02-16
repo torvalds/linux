@@ -39,7 +39,7 @@
  */
 #define LEGACY_REQUEST_SIZE 200
 
-int __intel_ring_space(int head, int tail, int size)
+static int __intel_ring_space(int head, int tail, int size)
 {
 	int space = head - tail;
 	if (space <= 0)

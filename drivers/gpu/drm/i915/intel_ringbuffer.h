@@ -523,7 +523,6 @@ intel_ring_offset(struct drm_i915_gem_request *req, void *addr)
 	return offset & (req->ring->size - 1);
 }
 
-int __intel_ring_space(int head, int tail, int size);
 void intel_ring_update_space(struct intel_ring *ring);
 
 void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno);
