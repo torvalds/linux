@@ -84,12 +84,11 @@ void alloc_ring(void)
 		perror("Unable to allocate ring buffer.\n");
 		exit(3);
 	}
-	event = malloc(sizeof *event);
+	event = calloc(1, sizeof(*event));
 	if (!event) {
 		perror("Unable to allocate event buffer.\n");
 		exit(3);
 	}
-	memset(event, 0, sizeof *event);
 	guest.avail_idx = 0;
 	guest.kicked_avail_idx = -1;
 	guest.last_used_idx = 0;
@@ -102,12 +101,11 @@ void alloc_ring(void)
 		ring[i] = desc;
 	}
 	guest.num_free = ring_size;
-	data = malloc(ring_size * sizeof *data);
+	data = calloc(ring_size, sizeof(*data));
 	if (!data) {
 		perror("Unable to allocate data buffer.\n");
 		exit(3);
 	}
-	memset(data, 0, ring_size * sizeof *data);
 }
 
 /* guest side */
