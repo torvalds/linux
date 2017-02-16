@@ -745,7 +745,7 @@ static int prism2mib_priv(struct mibrec *mib,
  *	pstr		wlan message data
  *
  * Returns:
- * 	Nothing
+ *	Nothing
  *
  */
 
