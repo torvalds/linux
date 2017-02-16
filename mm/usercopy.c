@@ -19,14 +19,8 @@
 #include <linux/sched.h>
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
+#include <linux/thread_info.h>
 #include <asm/sections.h>
-
-enum {
-	BAD_STACK = -1,
-	NOT_STACK = 0,
-	GOOD_FRAME,
-	GOOD_STACK,
-};
 
 /*
  * Checks if a given pointer and length is contained by the current
