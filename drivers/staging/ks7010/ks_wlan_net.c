@@ -285,7 +285,6 @@ static int ks_wlan_set_essid(struct net_device *dev,
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
 
-
 	/* for SLEEP MODE */
 	/* Check if we asked for `any' */
 	if (dwrq->flags == 0) {
@@ -341,7 +340,6 @@ static int ks_wlan_get_essid(struct net_device *dev,
 
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-
 
 	/* for SLEEP MODE */
 	/* Note : if dwrq->flags != 0, we should
