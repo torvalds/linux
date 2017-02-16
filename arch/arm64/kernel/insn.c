@@ -93,7 +93,7 @@ static void __kprobes *patch_map(void *addr, int fixmap)
 	bool module = !core_kernel_text(uintaddr);
 	struct page *page;
 
-	if (module && IS_ENABLED(CONFIG_DEBUG_SET_MODULE_RONX))
+	if (module && IS_ENABLED(CONFIG_STRICT_MODULE_RWX))
 		page = vmalloc_to_page(addr);
 	else if (!module)
 		page = phys_to_page(__pa_symbol(addr));

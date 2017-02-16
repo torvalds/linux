@@ -181,7 +181,7 @@ __printf(1, 2) __cold int printk_deferred(const char *fmt, ...);
  * with all other unrelated printk_ratelimit() callsites.  Instead use
  * printk_ratelimited() or plain old __ratelimit().
  */
-extern int __printk_ratelimit(const char *func);
+extern int __printk_ratelimit(const char *func) __nocapture(1);
 #define printk_ratelimit() __printk_ratelimit(__func__)
 extern bool printk_timed_ratelimit(unsigned long *caller_jiffies,
 				   unsigned int interval_msec);

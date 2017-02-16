@@ -62,13 +62,13 @@ struct bug_entry {
  * to provide better diagnostics.
  */
 #ifndef __WARN_TAINT
-extern __printf(3, 4)
+extern __printf(3, 4) __nocapture(1)
 void warn_slowpath_fmt(const char *file, const int line,
 		       const char *fmt, ...);
-extern __printf(4, 5)
+extern __printf(4, 5) __nocapture(1)
 void warn_slowpath_fmt_taint(const char *file, const int line, unsigned taint,
 			     const char *fmt, ...);
-extern void warn_slowpath_null(const char *file, const int line);
+extern __nocapture(1) void warn_slowpath_null(const char *file, const int line);
 #define WANT_WARN_ON_SLOWPATH
 #define __WARN()		warn_slowpath_null(__FILE__, __LINE__)
 #define __WARN_printf(arg...)	warn_slowpath_fmt(__FILE__, __LINE__, arg)
@@ -84,6 +84,7 @@ extern void warn_slowpath_null(const char *file, const int line);
 /* used internally by panic.c */
 struct warn_args;
 
+__nocapture(1, 0)
 void __warn(const char *file, int line, void *caller, unsigned taint,
 	    struct pt_regs *regs, struct warn_args *args);
 

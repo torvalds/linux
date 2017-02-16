@@ -410,6 +410,68 @@ config GCC_PLUGIN_LATENT_ENTROPY
 	   * https://grsecurity.net/
 	   * https://pax.grsecurity.net/
 
+config GCC_PLUGIN_STRUCTLEAK
+	bool "Force initialization of variables containing userspace addresses"
+	depends on GCC_PLUGINS
+	help
+	  This plugin zero-initializes any structures that containing a
+	  __user attribute. This can prevent some classes of information
+	  exposures.
+
+	  This plugin was ported from grsecurity/PaX. More information at:
+	   * https://grsecurity.net/
+	   * https://pax.grsecurity.net/
+
+config GCC_PLUGIN_STRUCTLEAK_VERBOSE
+	bool "Report initialized variables"
+	depends on GCC_PLUGIN_STRUCTLEAK
+	depends on !COMPILE_TEST
+	help
+	  This option will cause a warning to be printed each time the
+	  structleak plugin finds a variable it thinks needs to be
+	  initialized. Since not all existing initializers are detected
+	  by the plugin, this can produce false positive warnings.
+
+config GCC_PLUGIN_INITIFY
+	bool "Free more kernel memory after init"
+	depends on GCC_PLUGINS
+	help
+	  The kernel has a mechanism to free up code and data memory that is
+	  only used during kernel or module initialization.  Enabling this
+	  feature will teach the compiler to find more such code and data
+	  that can be freed after initialization.
+
+	  This plugin currently triggers false positive warnings from the
+	  section mismatch checker.
+
+	  This plugin is the part of grsecurity/PaX. More information at:
+	   * https://grsecurity.net/
+	   * https://pax.grsecurity.net/
+
+config GCC_PLUGIN_INITIFY_VERBOSE
+	bool "Report initification"
+	depends on GCC_PLUGIN_INITIFY
+	depends on !COMPILE_TEST
+	help
+	  Print all initified strings and all functions which should be
+	  __init/__exit.
+	  Note that the candidates identified for __init/__exit markings
+	  depend on the current kernel configuration and thus should be
+	  verified manually before the source code is patched.
+
+config HAVE_GCC_PLUGIN_INITIFY_INIT_EXIT
+	bool
+	depends on GCC_PLUGINS
+	help
+	  The architecture supports moving functions to the exit section
+	  if they are called by both __init and __exit functions. This
+	  requires that exit sections are not removed from non-modular
+	  builds.
+
+config GCC_PLUGIN_INITIFY_INIT_EXIT
+	bool
+	depends on GCC_PLUGIN_INITIFY && HAVE_GCC_PLUGIN_INITIFY_INIT_EXIT
+
 config HAVE_CC_STACKPROTECTOR
 	bool
 	help
@@ -783,5 +845,39 @@ config VMAP_STACK
 
 config ARCH_WANT_RELAX_ORDER
 	bool
+
+config ARCH_OPTIONAL_KERNEL_RWX
+	def_bool n
+
+config ARCH_OPTIONAL_KERNEL_RWX_DEFAULT
+	def_bool n
+
+config ARCH_HAS_STRICT_KERNEL_RWX
+	def_bool n
+
+config STRICT_KERNEL_RWX
+	bool "Make kernel text and rodata read-only" if ARCH_OPTIONAL_KERNEL_RWX
+	depends on ARCH_HAS_STRICT_KERNEL_RWX
+	default !ARCH_OPTIONAL_KERNEL_RWX || ARCH_OPTIONAL_KERNEL_RWX_DEFAULT
+	help
+	  If this is set, kernel text and rodata memory will be made read-only,
+	  and non-text memory will be made non-executable. This provides
+	  protection against certain security exploits (e.g. executing the heap
+	  or modifying text)
+
+	  These features are considered standard security practice these days.
+	  You should say Y here in almost all cases.
+
+config ARCH_HAS_STRICT_MODULE_RWX
+	def_bool n
+
+config STRICT_MODULE_RWX
+	bool "Set loadable kernel module data as NX and text as RO" if ARCH_OPTIONAL_KERNEL_RWX
+	depends on ARCH_HAS_STRICT_MODULE_RWX && MODULES
+	default !ARCH_OPTIONAL_KERNEL_RWX || ARCH_OPTIONAL_KERNEL_RWX_DEFAULT
+	help
+	  If this is set, module text and rodata memory will be made read-only,
+	  and non-text memory will be made non-executable. This provides
+	  protection against certain security exploits (e.g. writing to text)
 
 source "kernel/gcov/Kconfig"

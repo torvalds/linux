@@ -343,6 +343,7 @@ void *memset(void *addr, int c, size_t len)
 }
 
 #undef memmove
+__unverified_nocapture(2)
 void *memmove(void *dest, const void *src, size_t len)
 {
 	check_memory_region((unsigned long)src, len, false, _RET_IP_);
@@ -352,6 +353,7 @@ void *memmove(void *dest, const void *src, size_t len)
 }
 
 #undef memcpy
+__unverified_nocapture(2)
 void *memcpy(void *dest, const void *src, size_t len)
 {
 	check_memory_region((unsigned long)src, len, false, _RET_IP_);

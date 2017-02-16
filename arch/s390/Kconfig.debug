@@ -17,10 +17,6 @@ config S390_PTDUMP
 	  kernel.
 	  If in doubt, say "N"
 
-config DEBUG_SET_MODULE_RONX
-	def_bool y
-	depends on MODULES
-
 config EARLY_PRINTK
 	def_bool y
 

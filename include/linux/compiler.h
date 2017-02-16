@@ -27,7 +27,11 @@ extern void __chk_user_ptr(const volatile void __user *);
 extern void __chk_io_ptr(const volatile void __iomem *);
 # define ACCESS_PRIVATE(p, member) (*((typeof((p)->member) __force *) &(p)->member))
 #else /* __CHECKER__ */
-# define __user
+# ifdef STRUCTLEAK_PLUGIN
+#  define __user __attribute__((user))
+# else
+#  define __user
+# endif
 # define __kernel
 # define __safe
 # define __force
@@ -431,6 +435,14 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 
 #ifndef __latent_entropy
 # define __latent_entropy
+#endif
+
+#ifndef __nocapture
+# define __nocapture(...)
+#endif
+
+#ifndef __unverified_nocapture
+# define __unverified_nocapture(...)
 #endif
 
 /*

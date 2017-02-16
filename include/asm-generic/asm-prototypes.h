@@ -2,12 +2,12 @@
 #undef __memset
 extern void *__memset(void *, int, __kernel_size_t);
 #undef __memcpy
-extern void *__memcpy(void *, const void *, __kernel_size_t);
+extern void *__memcpy(void *, const void *, __kernel_size_t) __nocapture(2);
 #undef __memmove
-extern void *__memmove(void *, const void *, __kernel_size_t);
+extern void *__memmove(void *, const void *, __kernel_size_t) __nocapture(2);
 #undef memset
 extern void *memset(void *, int, __kernel_size_t);
 #undef memcpy
-extern void *memcpy(void *, const void *, __kernel_size_t);
+extern void *memcpy(void *, const void *, __kernel_size_t) __nocapture(2);
 #undef memmove
-extern void *memmove(void *, const void *, __kernel_size_t);
+extern void *memmove(void *, const void *, __kernel_size_t) __nocapture(2);

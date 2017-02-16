@@ -30,7 +30,7 @@
 
 extern int debug_msgs;
 
-extern __printf(4, 5)
+extern __printf(4, 5) __nocapture(3)
 void __ntfs_debug(const char *file, int line, const char *function,
 		  const char *format, ...);
 /**
@@ -58,12 +58,12 @@ do {									\
 
 #endif	/* !DEBUG */
 
-extern  __printf(3, 4)
+extern  __printf(3, 4) __nocapture(1)
 void __ntfs_warning(const char *function, const struct super_block *sb,
 		    const char *fmt, ...);
 #define ntfs_warning(sb, f, a...)	__ntfs_warning(__func__, sb, f, ##a)
 
-extern  __printf(3, 4)
+extern  __printf(3, 4) __nocapture(1)
 void __ntfs_error(const char *function, const struct super_block *sb,
 		  const char *fmt, ...);
 #define ntfs_error(sb, f, a...)		__ntfs_error(__func__, sb, f, ##a)

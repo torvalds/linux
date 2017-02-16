@@ -29,6 +29,10 @@ lib-$(CONFIG_RANDOMIZE_BASE) += kaslr.o
 obj-y += msr.o msr-reg.o msr-reg-export.o hweight.o
 
 ifeq ($(CONFIG_X86_32),y)
+        CFLAGS_strstr_32.o += $(INITIFY_DISABLE_VERIFIY_NOCAPTURE_FUNCTIONS)
+        CFLAGS_string_32.o += $(INITIFY_DISABLE_VERIFIY_NOCAPTURE_FUNCTIONS)
+        CFLAGS_memcpy_32.o += $(INITIFY_DISABLE_VERIFIY_NOCAPTURE_FUNCTIONS)
+
         obj-y += atomic64_32.o
         lib-y += atomic64_cx8_32.o
         lib-y += checksum_32.o

@@ -1156,7 +1156,7 @@ static int __init hibernate_setup(char *str)
 	} else if (!strncmp(str, "no", 2)) {
 		noresume = 1;
 		nohibernate = 1;
-	} else if (IS_ENABLED(CONFIG_DEBUG_RODATA)
+	} else if (IS_ENABLED(CONFIG_STRICT_KERNEL_RWX)
 		   && !strncmp(str, "protect_image", 13)) {
 		enable_restore_image_protection();
 	}

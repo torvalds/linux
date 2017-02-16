@@ -2415,13 +2415,15 @@ static inline void bd_unlink_disk_holder(struct block_device *bdev,
 #define CHRDEV_MAJOR_HASH_SIZE	255
 /* Marks the bottom of the first segment of free char majors */
 #define CHRDEV_MAJOR_DYN_END 234
-extern int alloc_chrdev_region(dev_t *, unsigned, unsigned, const char *);
+extern int __nocapture(4)
+alloc_chrdev_region(dev_t *, unsigned, unsigned, const char *);
 extern int register_chrdev_region(dev_t, unsigned, const char *);
 extern int __register_chrdev(unsigned int major, unsigned int baseminor,
 			     unsigned int count, const char *name,
 			     const struct file_operations *fops);
-extern void __unregister_chrdev(unsigned int major, unsigned int baseminor,
-				unsigned int count, const char *name);
+extern __nocapture(4) void __unregister_chrdev(unsigned int major,
+				unsigned int baseminor, unsigned int count,
+				const char *name);
 extern void unregister_chrdev_region(dev_t, unsigned);
 extern void chrdev_show(struct seq_file *,off_t);
 

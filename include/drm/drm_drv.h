@@ -436,7 +436,7 @@ struct drm_driver {
 	int dev_priv_size;
 };
 
-extern __printf(6, 7)
+extern __printf(6, 7) __nocapture(4)
 void drm_dev_printk(const struct device *dev, const char *level,
 		    unsigned int category, const char *function_name,
 		    const char *prefix, const char *format, ...);
