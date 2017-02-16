@@ -294,6 +294,10 @@ MODULE_PARM_DESC(aif_timeout, "The duration of time in seconds to wait for"
 	"deregistering them. This is typically adjusted for heavily burdened"
 	" systems.");
 
+int aac_fib_dump;
+module_param(aac_fib_dump, int, 0644);
+MODULE_PARM_DESC(aac_fib_dump, "Dump controller fibs prior to IOP_RESET 0=off, 1=on");
+
 int numacb = -1;
 module_param(numacb, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(numacb, "Request a limit to the number of adapter control"

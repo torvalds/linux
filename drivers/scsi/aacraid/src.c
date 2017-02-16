@@ -679,9 +679,26 @@ void aac_set_intx_mode(struct aac_dev *dev)
 	}
 }
 
+static void aac_dump_fw_fib_iop_reset(struct aac_dev *dev)
+{
+	__le32 supported_options3;
+
+	if (!aac_fib_dump)
+		return;
+
+	supported_options3  = dev->supplement_adapter_info.supported_options3;
+	if (!(supported_options3 & AAC_OPTION_SUPPORTED3_IOP_RESET_FIB_DUMP))
+		return;
+
+	aac_adapter_sync_cmd(dev, IOP_RESET_FW_FIB_DUMP,
+			0, 0, 0,  0, 0, 0, NULL, NULL, NULL, NULL, NULL);
+}
+
 static void aac_send_iop_reset(struct aac_dev *dev, int bled)
 {
 	u32 var, reset_mask;
+
+	aac_dump_fw_fib_iop_reset(dev);
 
 	bled = aac_adapter_sync_cmd(dev, IOP_RESET_ALWAYS,
 				    0, 0, 0, 0, 0, 0, &var,
