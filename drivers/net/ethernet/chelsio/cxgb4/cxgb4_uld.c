@@ -591,7 +591,6 @@ void t4_uld_mem_free(struct adapter *adap)
 
 void t4_uld_clean_up(struct adapter *adap)
 {
-	struct sge_uld_rxq_info *rxq_info;
 	unsigned int i;
 
 	if (!adap->uld)
@@ -599,7 +598,6 @@ void t4_uld_clean_up(struct adapter *adap)
 	for (i = 0; i < CXGB4_ULD_MAX; i++) {
 		if (!adap->uld[i].handle)
 			continue;
-		rxq_info = adap->sge.uld_rxq_info[i];
 		if (adap->flags & FULL_INIT_DONE)
 			quiesce_rx_uld(adap, i);
 		if (adap->flags & USING_MSIX)
