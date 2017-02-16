@@ -535,7 +535,7 @@ static void run_sync(void)
 {
 	int enable_irqs = irqs_disabled();
 
-	/* We may be called with interrupts disbled (on bootup). */
+	/* We may be called with interrupts disabled (on bootup). */
 	if (enable_irqs)
 		local_irq_enable();
 	on_each_cpu(do_sync_core, NULL, 1);

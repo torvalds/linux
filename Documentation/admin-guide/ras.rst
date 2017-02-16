@@ -81,7 +81,7 @@ That defines some categories of errors:
   still run, eventually replacing the affected hardware by a hot spare,
   if available.
 
-  Also, when an error happens on an userspace process, it is also possible to
+  Also, when an error happens on a userspace process, it is also possible to
   kill such process and let userspace restart it.
 
 The mechanism for handling non-fatal errors is usually complex and may

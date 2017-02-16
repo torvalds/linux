@@ -51,7 +51,7 @@ irnet_ctrl_write(irnet_socket *	ap,
   char *	next;		/* Next command to process */
   int		length;		/* Length of current command */
 
-  DENTER(CTRL_TRACE, "(ap=0x%p, count=%Zd)\n", ap, count);
+  DENTER(CTRL_TRACE, "(ap=0x%p, count=%zd)\n", ap, count);
 
   /* Check for overflow... */
   DABORT(count >= IRNET_MAX_COMMAND, -ENOMEM,
@@ -66,7 +66,7 @@ irnet_ctrl_write(irnet_socket *	ap,
 
   /* Safe terminate the string */
   command[count] = '\0';
-  DEBUG(CTRL_INFO, "Command line received is ``%s'' (%Zd).\n",
+  DEBUG(CTRL_INFO, "Command line received is ``%s'' (%zd).\n",
 	command, count);
 
   /* Check every commands in the command line */
@@ -285,7 +285,7 @@ irnet_ctrl_read(irnet_socket *	ap,
   char		event[75];
   ssize_t	ret = 0;
 
-  DENTER(CTRL_TRACE, "(ap=0x%p, count=%Zd)\n", ap, count);
+  DENTER(CTRL_TRACE, "(ap=0x%p, count=%zd)\n", ap, count);
 
 #ifdef INITIAL_DISCOVERY
   /* Check if we have read the log */
@@ -328,7 +328,7 @@ irnet_ctrl_read(irnet_socket *	ap,
   if(ret != 0)
     {
       /* No, return the error code */
-      DEXIT(CTRL_TRACE, " - ret %Zd\n", ret);
+      DEXIT(CTRL_TRACE, " - ret %zd\n", ret);
       return ret;
     }
 
@@ -568,7 +568,7 @@ dev_irnet_write(struct file *	file,
 {
   irnet_socket *	ap = file->private_data;
 
-  DPASS(FS_TRACE, "(file=0x%p, ap=0x%p, count=%Zd)\n",
+  DPASS(FS_TRACE, "(file=0x%p, ap=0x%p, count=%zd)\n",
 	file, ap, count);
   DABORT(ap == NULL, -ENXIO, FS_ERROR, "ap is NULL !!!\n");
 
@@ -592,7 +592,7 @@ dev_irnet_read(struct file *	file,
 {
   irnet_socket *	ap = file->private_data;
 
-  DPASS(FS_TRACE, "(file=0x%p, ap=0x%p, count=%Zd)\n",
+  DPASS(FS_TRACE, "(file=0x%p, ap=0x%p, count=%zd)\n",
 	file, ap, count);
   DABORT(ap == NULL, -ENXIO, FS_ERROR, "ap is NULL !!!\n");
 

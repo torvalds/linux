@@ -951,7 +951,7 @@ static struct dso *__dso__findlink_by_longname(struct rb_root *root,
 		if (rc == 0) {
 			/*
 			 * In case the new DSO is a duplicate of an existing
-			 * one, print an one-time warning & put the new entry
+			 * one, print a one-time warning & put the new entry
 			 * at the end of the list of duplicates.
 			 */
 			if (!dso || (dso == this))

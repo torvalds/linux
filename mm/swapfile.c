@@ -1676,7 +1676,7 @@ int try_to_unuse(unsigned int type, bool frontswap,
 	 * that.
 	 */
 	start_mm = &init_mm;
-	atomic_inc(&init_mm.mm_users);
+	mmget(&init_mm);
 
 	/*
 	 * Keep on scanning until all entries have gone.  Usually,
@@ -1725,7 +1725,7 @@ int try_to_unuse(unsigned int type, bool frontswap,
 		if (atomic_read(&start_mm->mm_users) == 1) {
 			mmput(start_mm);
 			start_mm = &init_mm;
-			atomic_inc(&init_mm.mm_users);
+			mmget(&init_mm);
 		}
 
 		/*
@@ -1762,13 +1762,13 @@ int try_to_unuse(unsigned int type, bool frontswap,
 			struct mm_struct *prev_mm = start_mm;
 			struct mm_struct *mm;
 
-			atomic_inc(&new_start_mm->mm_users);
-			atomic_inc(&prev_mm->mm_users);
+			mmget(new_start_mm);
+			mmget(prev_mm);
 			spin_lock(&mmlist_lock);
 			while (swap_count(*swap_map) && !retval &&
 					(p = p->next) != &start_mm->mmlist) {
 				mm = list_entry(p, struct mm_struct, mmlist);
-				if (!atomic_inc_not_zero(&mm->mm_users))
+				if (!mmget_not_zero(mm))
 					continue;
 				spin_unlock(&mmlist_lock);
 				mmput(prev_mm);
@@ -1786,7 +1786,7 @@ int try_to_unuse(unsigned int type, bool frontswap,
 
 				if (set_start_mm && *swap_map < swcount) {
 					mmput(new_start_mm);
-					atomic_inc(&mm->mm_users);
+					mmget(mm);
 					new_start_mm = mm;
 					set_start_mm = 0;
 				}

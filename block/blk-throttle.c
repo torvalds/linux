@@ -185,7 +185,7 @@ static struct throtl_grp *sq_to_tg(struct throtl_service_queue *sq)
  * sq_to_td - return throtl_data the specified service queue belongs to
  * @sq: the throtl_service_queue of interest
  *
- * A service_queue can be embeded in either a throtl_grp or throtl_data.
+ * A service_queue can be embedded in either a throtl_grp or throtl_data.
  * Determine the associated throtl_data accordingly and return it.
  */
 static struct throtl_data *sq_to_td(struct throtl_service_queue *sq)

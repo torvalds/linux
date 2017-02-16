@@ -178,8 +178,8 @@ asmlinkage void start_secondary(void)
 	struct mm_struct *mm = &init_mm;
 
 	enable_mmu();
-	atomic_inc(&mm->mm_count);
-	atomic_inc(&mm->mm_users);
+	mmgrab(mm);
+	mmget(mm);
 	current->active_mm = mm;
 #ifdef CONFIG_MMU
 	enter_lazy_tlb(mm, current);

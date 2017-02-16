@@ -1252,7 +1252,7 @@ static int __init ohci_hcd_mod_init(void)
 		return -ENODEV;
 
 	printk(KERN_INFO "%s: " DRIVER_DESC "\n", hcd_name);
-	pr_debug ("%s: block sizes: ed %Zd td %Zd\n", hcd_name,
+	pr_debug ("%s: block sizes: ed %zd td %zd\n", hcd_name,
 		sizeof (struct ed), sizeof (struct td));
 	set_bit(USB_OHCI_LOADED, &usb_hcds_loaded);
 

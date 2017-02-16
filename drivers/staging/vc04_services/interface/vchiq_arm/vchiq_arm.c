@@ -1875,8 +1875,8 @@ vchiq_arm_init_state(VCHIQ_STATE_T *state, VCHIQ_ARM_STATE_T *arm_state)
 **
 ** VC_RESUME_IDLE - Initialise the resume completion at the same time.  The
 **			resume completion is in it's 'done' state whenever
-**			videcore is running.  Therfore, the VC_RESUME_IDLE state
-**			implies that videocore is suspended.
+**			videcore is running.  Therefore, the VC_RESUME_IDLE
+**			state implies that videocore is suspended.
 **			Hence, any thread which needs to wait until videocore is
 **			running can wait on this completion - it will only block
 **			if videocore is suspended.

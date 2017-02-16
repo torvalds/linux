@@ -62,15 +62,19 @@ adress||address
 adresses||addresses
 adviced||advised
 afecting||affecting
+againt||against
 agaist||against
 albumns||albums
 alegorical||allegorical
+algined||aligned
 algorith||algorithm
 algorithmical||algorithmically
 algoritm||algorithm
 algoritms||algorithms
 algorrithm||algorithm
 algorritm||algorithm
+aligment||alignment
+alignement||alignment
 allign||align
 allocatrd||allocated
 allocte||allocate
@@ -86,6 +90,10 @@ alue||value
 ambigious||ambiguous
 amoung||among
 amout||amount
+an union||a union
+an user||a user
+an userspace||a userspace
+an one||a one
 analysator||analyzer
 ang||and
 anniversery||anniversary
@@ -98,6 +106,7 @@ appearence||appearance
 applicaion||application
 appliction||application
 applictions||applications
+applys||applies
 appplications||applications
 appropiate||appropriate
 appropriatly||appropriately
@@ -237,6 +246,9 @@ commited||committed
 commiting||committing
 committ||commit
 commoditiy||commodity
+comsume||consume
+comsumer||consumer
+comsuming||consuming
 compability||compatibility
 compaibility||compatibility
 compatability||compatibility
@@ -258,6 +270,7 @@ comunication||communication
 conbination||combination
 conditionaly||conditionally
 conected||connected
+configuartion||configuration
 configuratoin||configuration
 configuraton||configuration
 configuretion||configuration
@@ -310,6 +323,9 @@ defintion||definition
 defintions||definitions
 defualt||default
 defult||default
+deintializing||deinitializing
+deintialize||deinitialize
+deintialized||deinitialized
 deivce||device
 delared||declared
 delare||declare
@@ -352,9 +368,12 @@ differrence||difference
 difinition||definition
 diplay||display
 direectly||directly
+disassocation||disassociation
 disapear||disappear
 disapeared||disappeared
 disappared||disappeared
+disble||disable
+disbled||disabled
 disconnet||disconnect
 discontinous||discontinuous
 dispertion||dispersion
@@ -375,10 +394,12 @@ easilly||easily
 ecspecially||especially
 edditable||editable
 editting||editing
+efective||effective
 efficently||efficiently
 ehther||ether
 eigth||eight
 eletronic||electronic
+embeded||embedded
 enabledi||enabled
 enchanced||enhanced
 encorporating||incorporating
@@ -414,6 +435,7 @@ expecially||especially
 explicite||explicit
 explicitely||explicitly
 explict||explicit
+explictely||explicitly
 explictly||explicitly
 expresion||expression
 exprimental||experimental
@@ -445,6 +467,7 @@ finsih||finish
 flusing||flushing
 folloing||following
 followign||following
+followings||following
 follwing||following
 forseeable||foreseeable
 forse||force
@@ -537,6 +560,7 @@ initalise||initialize
 initalize||initialize
 initation||initiation
 initators||initiators
+initialiazation||initialization
 initializiation||initialization
 initialzed||initialized
 initilization||initialization
@@ -566,6 +590,10 @@ interruptted||interrupted
 interupted||interrupted
 interupt||interrupt
 intial||initial
+intialisation||initialisation
+intialised||initialised
+intialise||initialise
+intialization||initialization
 intialized||initialized
 intialize||initialize
 intregral||integral
@@ -666,6 +694,7 @@ neccecary||necessary
 neccesary||necessary
 neccessary||necessary
 necesary||necessary
+neded||needed
 negaive||negative
 negoitation||negotiation
 negotation||negotiation
@@ -688,6 +717,8 @@ occure||occurred
 occured||occurred
 occuring||occurring
 offet||offset
+omited||omitted
+omiting||omitting
 omitt||omit
 ommiting||omitting
 ommitted||omitted
@@ -706,8 +737,12 @@ oustanding||outstanding
 overaall||overall
 overhread||overhead
 overlaping||overlapping
+overide||override
+overrided||overridden
 overriden||overridden
 overun||overrun
+overwritting||overwriting
+overwriten||overwritten
 pacakge||package
 pachage||package
 packacge||package
@@ -718,6 +753,7 @@ pakage||package
 pallette||palette
 paln||plan
 paramameters||parameters
+paramaters||parameters
 paramater||parameter
 parametes||parameters
 parametised||parametrised
@@ -962,6 +998,7 @@ straming||streaming
 struc||struct
 structres||structures
 stuct||struct
+strucuture||structure
 stucture||structure
 sturcture||structure
 subdirectoires||subdirectories
@@ -991,6 +1028,13 @@ suspeneded||suspended
 suspicously||suspiciously
 swaping||swapping
 switchs||switches
+swith||switch
+swithable||switchable
+swithc||switch
+swithced||switched
+swithcing||switching
+swithed||switched
+swithing||switching
 symetric||symmetric
 synax||syntax
 synchonized||synchronized
@@ -1007,6 +1051,7 @@ targetting||targeting
 teh||the
 temorary||temporary
 temproarily||temporarily
+therfore||therefore
 thier||their
 threds||threads
 threshhold||threshold
@@ -1050,6 +1095,7 @@ unkmown||unknown
 unknonw||unknown
 unknow||unknown
 unkown||unknown
+unneded||unneeded
 unneedingly||unnecessarily
 unnsupported||unsupported
 unmached||unmatched
@@ -1078,6 +1124,7 @@ vaid||valid
 vaild||valid
 valide||valid
 variantions||variations
+varible||variable
 varient||variant
 vaule||value
 verbse||verbose

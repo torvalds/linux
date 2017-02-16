@@ -1849,7 +1849,7 @@ int __ksm_enter(struct mm_struct *mm)
 	spin_unlock(&ksm_mmlist_lock);
 
 	set_bit(MMF_VM_MERGEABLE, &mm->flags);
-	atomic_inc(&mm->mm_count);
+	mmgrab(mm);
 
 	if (needs_wakeup)
 		wake_up_interruptible(&ksm_thread_wait);

@@ -544,7 +544,7 @@ static int wl12xx_init_sta_role(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	return 0;
 }
 
-/* vif-specific intialization */
+/* vif-specific initialization */
 static int wl12xx_init_ap_role(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	int ret;

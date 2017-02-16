@@ -1188,7 +1188,7 @@ static inline void xs_tcp_read_xid(struct sock_xprt *transport, struct xdr_skb_r
 	char *p;
 
 	len = sizeof(transport->tcp_xid) - transport->tcp_offset;
-	dprintk("RPC:       reading XID (%Zu bytes)\n", len);
+	dprintk("RPC:       reading XID (%zu bytes)\n", len);
 	p = ((char *) &transport->tcp_xid) + transport->tcp_offset;
 	used = xdr_skb_read_bits(desc, p, len);
 	transport->tcp_offset += used;
@@ -1219,7 +1219,7 @@ static inline void xs_tcp_read_calldir(struct sock_xprt *transport,
 	 */
 	offset = transport->tcp_offset - sizeof(transport->tcp_xid);
 	len = sizeof(transport->tcp_calldir) - offset;
-	dprintk("RPC:       reading CALL/REPLY flag (%Zu bytes)\n", len);
+	dprintk("RPC:       reading CALL/REPLY flag (%zu bytes)\n", len);
 	p = ((char *) &transport->tcp_calldir) + offset;
 	used = xdr_skb_read_bits(desc, p, len);
 	transport->tcp_offset += used;
@@ -1310,7 +1310,7 @@ static inline void xs_tcp_read_common(struct rpc_xprt *xprt,
 		return;
 	}
 
-	dprintk("RPC:       XID %08x read %Zd bytes\n",
+	dprintk("RPC:       XID %08x read %zd bytes\n",
 			ntohl(transport->tcp_xid), r);
 	dprintk("RPC:       xprt = %p, tcp_copied = %lu, tcp_offset = %u, "
 			"tcp_reclen = %u\n", xprt, transport->tcp_copied,
@@ -1456,7 +1456,7 @@ static inline void xs_tcp_read_discard(struct sock_xprt *transport, struct xdr_s
 	desc->count -= len;
 	desc->offset += len;
 	transport->tcp_offset += len;
-	dprintk("RPC:       discarded %Zu bytes\n", len);
+	dprintk("RPC:       discarded %zu bytes\n", len);
 	xs_tcp_check_fraghdr(transport);
 }
 

@@ -1259,7 +1259,7 @@ static void qib_7220_clear_freeze(struct qib_devdata *dd)
 	/* disable error interrupts, to avoid confusion */
 	qib_write_kreg(dd, kr_errmask, 0ULL);
 
-	/* also disable interrupts; errormask is sometimes overwriten */
+	/* also disable interrupts; errormask is sometimes overwritten */
 	qib_7220_set_intr_state(dd, 0);
 
 	qib_cancel_sends(dd->pport);

@@ -136,7 +136,7 @@ Optional properties:
   larger OPP table, based on what version of the hardware we are running on. We
   still can't have multiple nodes with the same opp-hz value in OPP table.
 
-  It's an user defined array containing a hierarchy of hardware version numbers,
+  It's a user defined array containing a hierarchy of hardware version numbers,
   supported by the OPP. For example: a platform with hierarchy of three levels
   of versions (A, B and C), this field should be like <X Y Z>, where X
   corresponds to Version hierarchy A, Y corresponds to version hierarchy B and Z

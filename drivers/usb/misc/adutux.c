@@ -563,20 +563,20 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 			}
 
 			dev_dbg(&dev->udev->dev,
-				"%s : in progress, count = %Zd\n",
+				"%s : in progress, count = %zd\n",
 				__func__, count);
 		} else {
 			spin_unlock_irqrestore(&dev->buflock, flags);
 			set_current_state(TASK_RUNNING);
 			remove_wait_queue(&dev->write_wait, &waita);
-			dev_dbg(&dev->udev->dev, "%s : sending, count = %Zd\n",
+			dev_dbg(&dev->udev->dev, "%s : sending, count = %zd\n",
 				__func__, count);
 
 			/* write the data into interrupt_out_buffer from userspace */
 			buffer_size = usb_endpoint_maxp(dev->interrupt_out_endpoint);
 			bytes_to_write = count > buffer_size ? buffer_size : count;
 			dev_dbg(&dev->udev->dev,
-				"%s : buffer_size = %Zd, count = %Zd, bytes_to_write = %Zd\n",
+				"%s : buffer_size = %zd, count = %zd, bytes_to_write = %zd\n",
 				__func__, buffer_size, count, bytes_to_write);
 
 			if (copy_from_user(dev->interrupt_out_buffer, buffer, bytes_to_write) != 0) {

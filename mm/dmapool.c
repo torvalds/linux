@@ -93,7 +93,7 @@ show_pools(struct device *dev, struct device_attribute *attr, char *buf)
 		spin_unlock_irq(&pool->lock);
 
 		/* per-pool info, no real statistics yet */
-		temp = scnprintf(next, size, "%-16s %4u %4Zu %4Zu %2u\n",
+		temp = scnprintf(next, size, "%-16s %4u %4zu %4zu %2u\n",
 				 pool->name, blocks,
 				 pages * (pool->allocation / pool->size),
 				 pool->size, pages);

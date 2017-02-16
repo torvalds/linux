@@ -838,7 +838,7 @@ static int ext4_mb_init_cache(struct page *page, char *incore, gfp_t gfp)
 	inode = page->mapping->host;
 	sb = inode->i_sb;
 	ngroups = ext4_get_groups_count(sb);
-	blocksize = 1 << inode->i_blkbits;
+	blocksize = i_blocksize(inode);
 	blocks_per_page = PAGE_SIZE / blocksize;
 
 	groups_per_page = blocks_per_page >> 1;

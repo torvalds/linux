@@ -1228,7 +1228,7 @@ static int __init devfreq_init(void)
 subsys_initcall(devfreq_init);
 
 /*
- * The followings are helper functions for devfreq user device drivers with
+ * The following are helper functions for devfreq user device drivers with
  * OPP framework.
  */
 

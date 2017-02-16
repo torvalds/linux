@@ -861,7 +861,7 @@ static ssize_t fan1_pulses_store(struct device *dev,
  * (i.e. closed or open-loop).
  *
  * Following documentation about hwmon's sysfs interface, a pwm1_enable node
- * should accept followings:
+ * should accept the following:
  *
  *  0 : no fan speed control (i.e. fan at full speed)
  *  1 : manual fan speed control enabled (use pwm[1-*]) (open-loop)

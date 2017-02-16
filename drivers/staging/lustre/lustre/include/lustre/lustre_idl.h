@@ -1704,7 +1704,7 @@ struct ost_lvb {
  *   lquota data structures
  */
 
-/* The lquota_id structure is an union of all the possible identifier types that
+/* The lquota_id structure is a union of all the possible identifier types that
  * can be used with quota, this includes:
  * - 64-bit user ID
  * - 64-bit group ID

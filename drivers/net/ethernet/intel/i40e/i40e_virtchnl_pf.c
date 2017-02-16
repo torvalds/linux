@@ -847,9 +847,7 @@ static void i40e_free_vf_res(struct i40e_vf *vf)
 		wr32(hw, reg_idx, reg);
 		i40e_flush(hw);
 	}
-	/* reset some of the state varibles keeping
-	 * track of the resources
-	 */
+	/* reset some of the state variables keeping track of the resources */
 	vf->num_queue_pairs = 0;
 	vf->vf_states = 0;
 	clear_bit(I40E_VF_STAT_INIT, &vf->vf_states);

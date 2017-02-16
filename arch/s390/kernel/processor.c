@@ -73,7 +73,7 @@ void cpu_init(void)
 	get_cpu_id(id);
 	if (machine_has_cpu_mhz)
 		update_cpu_mhz(NULL);
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 	BUG_ON(current->mm);
 	enter_lazy_tlb(&init_mm, current);

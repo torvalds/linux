@@ -307,7 +307,7 @@ size_t parport_ieee1284_read_byte (struct parport *port,
 		if (parport_read_status (port) & PARPORT_STATUS_ERROR) {
 		end_of_data:
 			DPRINTK (KERN_DEBUG
-				 "%s: No more byte data (%Zd bytes)\n",
+				 "%s: No more byte data (%zd bytes)\n",
 				 port->name, count);
 
 			/* Go to reverse idle phase. */

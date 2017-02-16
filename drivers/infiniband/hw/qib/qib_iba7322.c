@@ -2053,7 +2053,7 @@ static void qib_7322_clear_freeze(struct qib_devdata *dd)
 			qib_write_kreg_port(dd->pport + pidx, krp_errmask,
 					    0ULL);
 
-	/* also disable interrupts; errormask is sometimes overwriten */
+	/* also disable interrupts; errormask is sometimes overwritten */
 	qib_7322_set_intr_state(dd, 0);
 
 	/* clear the freeze, and be sure chip saw it */

@@ -9,7 +9,7 @@ extern struct thread_info *current_set[NR_CPUS];
  * Flush windows so that the VM switch which follows
  * would not pull the stack from under us.
  *
- * SWITCH_ENTER and SWITH_DO_LAZY_FPU do not work yet (e.g. SMP does not work)
+ * SWITCH_ENTER and SWITCH_DO_LAZY_FPU do not work yet (e.g. SMP does not work)
  * XXX WTF is the above comment? Found in late teen 2.4.x.
  */
 #ifdef CONFIG_SMP

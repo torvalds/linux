@@ -26,7 +26,7 @@
  * console is registered and if @earlycon is true, earlycon is set up.
  *
  * When CONFIG_ACPI_SPCR_TABLE is defined, this function should be called
- * from arch inintialization code as soon as the DT/ACPI decision is made.
+ * from arch initialization code as soon as the DT/ACPI decision is made.
  *
  */
 int __init parse_spcr(bool earlycon)

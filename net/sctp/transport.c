@@ -643,9 +643,7 @@ void sctp_transport_reset(struct sctp_transport *t)
 	t->srtt = 0;
 	t->rttvar = 0;
 
-	/* Reset these additional varibles so that we have a clean
-	 * slate.
-	 */
+	/* Reset these additional variables so that we have a clean slate. */
 	t->partial_bytes_acked = 0;
 	t->flight_size = 0;
 	t->error_count = 0;

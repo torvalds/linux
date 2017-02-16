@@ -245,7 +245,7 @@ static const struct analog_demod_ops tuner_analog_ops = {
  * @tuner_callback:	an optional function to be called when switching
  *			to analog mode
  *
- * This function applys the tuner config to tuner specified
+ * This function applies the tuner config to tuner specified
  * by tun_setup structure. It contains several per-tuner initialization "magic"
  */
 static void set_type(struct i2c_client *c, unsigned int type,
@@ -463,7 +463,7 @@ attach_failed:
  * @sd:		subdev descriptor
  * @tun_setup:	type to be associated to a given tuner i2c address
  *
- * This function applys the tuner config to tuner specified
+ * This function applies the tuner config to tuner specified
  * by tun_setup structure.
  * If tuner I2C address is UNSET, then it will only set the device
  * if the tuner supports the mode specified in the call.

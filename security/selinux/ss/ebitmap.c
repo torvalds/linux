@@ -360,7 +360,7 @@ int ebitmap_read(struct ebitmap *e, void *fp)
 
 	if (mapunit != BITS_PER_U64) {
 		printk(KERN_ERR "SELinux: ebitmap: map size %u does not "
-		       "match my size %Zd (high bit was %d)\n",
+		       "match my size %zd (high bit was %d)\n",
 		       mapunit, BITS_PER_U64, e->highbit);
 		goto bad;
 	}

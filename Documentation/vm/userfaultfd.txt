@@ -129,7 +129,7 @@ migration thread in the QEMU running in the destination node will
 receive the page that triggered the userfault and it'll map it as
 usual with the UFFDIO_COPY|ZEROPAGE (without actually knowing if it
 was spontaneously sent by the source or if it was an urgent page
-requested through an userfault).
+requested through a userfault).
 
 By the time the userfaults start, the QEMU in the destination node
 doesn't need to keep any per-page state bitmap relative to the live
