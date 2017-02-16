@@ -1764,7 +1764,8 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 		if (!funcs)
 			continue;
 
-		disabling = drm_atomic_plane_disabling(plane, old_plane_state);
+		disabling = drm_atomic_plane_disabling(old_plane_state,
+						       new_plane_state);
 
 		if (active_only) {
 			/*
@@ -1859,11 +1860,11 @@ drm_atomic_helper_commit_planes_on_crtc(struct drm_crtc_state *old_crtc_state)
 
 		WARN_ON(plane->state->crtc && plane->state->crtc != crtc);
 
-		if (drm_atomic_plane_disabling(plane, old_plane_state) &&
+		if (drm_atomic_plane_disabling(old_plane_state, plane->state) &&
 		    plane_funcs->atomic_disable)
 			plane_funcs->atomic_disable(plane, old_plane_state);
 		else if (plane->state->crtc ||
-			 drm_atomic_plane_disabling(plane, old_plane_state))
+			 drm_atomic_plane_disabling(old_plane_state, plane->state))
 			plane_funcs->atomic_update(plane, old_plane_state);
 	}
 
