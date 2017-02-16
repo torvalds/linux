@@ -279,6 +279,8 @@ static bool dce110_set_input_transfer_func(
 			result = false;
 			break;
 		}
+	} else if (tf->public.type == TF_TYPE_BYPASS) {
+		ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_BYPASS);
 	} else {
 		/*TF_TYPE_DISTRIBUTED_POINTS - Not supported in DCE 11*/
 		result = false;
@@ -428,7 +430,8 @@ static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 	int32_t segment_start, segment_end;
 	uint32_t i, j, k, seg_distr[16], increment, start_index, hw_points;
 
-	if (output_tf == NULL || regamma_params == NULL)
+	if (output_tf == NULL || regamma_params == NULL ||
+			output_tf->type == TF_TYPE_BYPASS)
 		return false;
 
 	arr_points = regamma_params->arr_points;

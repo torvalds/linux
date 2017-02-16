@@ -186,6 +186,7 @@ enum {
 };
 
 struct dc_hdr_static_metadata {
+	bool hdr_supported;
 	bool is_hdr;
 
 	/* display chromaticities and white point in units of 0.00001 */
@@ -207,6 +208,7 @@ struct dc_hdr_static_metadata {
 enum dc_transfer_func_type {
 	TF_TYPE_PREDEFINED,
 	TF_TYPE_DISTRIBUTED_POINTS,
+	TF_TYPE_BYPASS
 };
 
 struct dc_transfer_func_distributed_points {

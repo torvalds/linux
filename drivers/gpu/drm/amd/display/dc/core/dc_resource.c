@@ -1675,7 +1675,7 @@ static void set_hdr_static_info_packet(
 
 	hdr_metadata = surface->public.hdr_static_ctx;
 
-	if (!hdr_metadata.is_hdr)
+	if (!hdr_metadata.hdr_supported)
 		return;
 
 	if (dc_is_hdmi_signal(signal)) {
