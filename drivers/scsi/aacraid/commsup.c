@@ -2215,7 +2215,7 @@ static void aac_process_events(struct aac_dev *dev)
 			/* Thor AIF */
 			aac_handle_sa_aif(dev, fib);
 			aac_fib_adapter_complete(fib, (u16)sizeof(u32));
-			continue;
+			goto free_fib;
 		}
 		/*
 		 *	We will process the FIB here or pass it to a
