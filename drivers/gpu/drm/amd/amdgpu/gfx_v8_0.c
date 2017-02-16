@@ -7379,12 +7379,14 @@ static void gfx_v8_0_compute_mqd_soft_fini(struct amdgpu_device *adev)
 
 	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 		ring = &adev->gfx.compute_ring[i];
+		kfree(adev->gfx.mec.mqd_backup[i]);
 		amdgpu_bo_free_kernel(&ring->mqd_obj,
 				      &ring->mqd_gpu_addr,
 				      &ring->mqd_ptr);
 	}
 
 	ring = &adev->gfx.kiq.ring;
+	kfree(adev->gfx.mec.mqd_backup[AMDGPU_MAX_COMPUTE_RINGS]);
 	amdgpu_bo_free_kernel(&ring->mqd_obj,
 			      &ring->mqd_gpu_addr,
 			      &ring->mqd_ptr);
