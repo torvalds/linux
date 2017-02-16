@@ -34,6 +34,7 @@
 #include <linux/mfd/max77686-private.h>
 #include <linux/err.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 
 static const struct mfd_cell max77686_devs[] = {
 	{ .name = "max77686-pmic", },
@@ -171,11 +172,9 @@ static const struct of_device_id max77686_pmic_dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, max77686_pmic_dt_match);
 
-static int max77686_i2c_probe(struct i2c_client *i2c,
-			      const struct i2c_device_id *id)
+static int max77686_i2c_probe(struct i2c_client *i2c)
 {
 	struct max77686_dev *max77686 = NULL;
-	const struct of_device_id *match;
 	unsigned int data;
 	int ret = 0;
 	const struct regmap_config *config;
@@ -188,16 +187,8 @@ static int max77686_i2c_probe(struct i2c_client *i2c,
 	if (!max77686)
 		return -ENOMEM;
 
-	if (i2c->dev.of_node) {
-		match = of_match_node(max77686_pmic_dt_match, i2c->dev.of_node);
-		if (!match)
-			return -EINVAL;
-
-		max77686->type = (unsigned long)match->data;
-	} else
-		max77686->type = id->driver_data;
-
 	i2c_set_clientdata(i2c, max77686);
+	max77686->type = (unsigned long)of_device_get_match_data(&i2c->dev);
 	max77686->dev = &i2c->dev;
 	max77686->i2c = i2c;
 
@@ -250,13 +241,6 @@ static int max77686_i2c_probe(struct i2c_client *i2c,
 	return 0;
 }
 
-static const struct i2c_device_id max77686_i2c_id[] = {
-	{ "max77686", TYPE_MAX77686 },
-	{ "max77802", TYPE_MAX77802 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, max77686_i2c_id);
-
 #ifdef CONFIG_PM_SLEEP
 static int max77686_suspend(struct device *dev)
 {
@@ -302,8 +286,7 @@ static struct i2c_driver max77686_i2c_driver = {
 		   .pm = &max77686_pm,
 		   .of_match_table = of_match_ptr(max77686_pmic_dt_match),
 	},
-	.probe = max77686_i2c_probe,
-	.id_table = max77686_i2c_id,
+	.probe_new = max77686_i2c_probe,
 };
 
 module_i2c_driver(max77686_i2c_driver);

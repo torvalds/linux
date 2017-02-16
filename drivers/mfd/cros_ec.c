@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/cros_ec.h>
+#include <linux/suspend.h>
 #include <asm/unaligned.h>
 
 #define CROS_EC_DEV_EC_INDEX 0
@@ -63,6 +64,24 @@ static irqreturn_t ec_irq_thread(int irq, void *data)
 		blocking_notifier_call_chain(&ec_dev->event_notifier,
 					     0, ec_dev);
 	return IRQ_HANDLED;
+}
+
+static int cros_ec_sleep_event(struct cros_ec_device *ec_dev, u8 sleep_event)
+{
+	struct {
+		struct cros_ec_command msg;
+		struct ec_params_host_sleep_event req;
+	} __packed buf;
+
+	memset(&buf, 0, sizeof(buf));
+
+	buf.req.sleep_event = sleep_event;
+
+	buf.msg.command = EC_CMD_HOST_SLEEP_EVENT;
+	buf.msg.version = 0;
+	buf.msg.outsize = sizeof(buf.req);
+
+	return cros_ec_cmd_xfer(ec_dev, &buf.msg);
 }
 
 int cros_ec_register(struct cros_ec_device *ec_dev)
@@ -136,6 +155,15 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 		}
 	}
 
+	/*
+	 * Clear sleep event - this will fail harmlessly on platforms that
+	 * don't implement the sleep event host command.
+	 */
+	err = cros_ec_sleep_event(ec_dev, 0);
+	if (err < 0)
+		dev_dbg(ec_dev->dev, "Error %d clearing sleep event to ec",
+			err);
+
 	dev_info(dev, "Chrome EC device registered\n");
 
 	return 0;
@@ -159,12 +187,24 @@ EXPORT_SYMBOL(cros_ec_remove);
 int cros_ec_suspend(struct cros_ec_device *ec_dev)
 {
 	struct device *dev = ec_dev->dev;
+	int ret;
+	u8 sleep_event;
+
+	sleep_event = (!IS_ENABLED(CONFIG_ACPI) || pm_suspend_via_firmware()) ?
+		      HOST_SLEEP_EVENT_S3_RESUME :
+		      HOST_SLEEP_EVENT_S0IX_RESUME;
+
+	ret = cros_ec_sleep_event(ec_dev, sleep_event);
+	if (ret < 0)
+		dev_dbg(ec_dev->dev, "Error %d sending suspend event to ec",
+			ret);
 
 	if (device_may_wakeup(dev))
 		ec_dev->wake_enabled = !enable_irq_wake(ec_dev->irq);
 
 	disable_irq(ec_dev->irq);
 	ec_dev->was_wake_device = ec_dev->wake_enabled;
+	ec_dev->suspended = true;
 
 	return 0;
 }
@@ -179,7 +219,20 @@ static void cros_ec_drain_events(struct cros_ec_device *ec_dev)
 
 int cros_ec_resume(struct cros_ec_device *ec_dev)
 {
+	int ret;
+	u8 sleep_event;
+
+	ec_dev->suspended = false;
 	enable_irq(ec_dev->irq);
+
+	sleep_event = (!IS_ENABLED(CONFIG_ACPI) || pm_suspend_via_firmware()) ?
+		      HOST_SLEEP_EVENT_S3_RESUME :
+		      HOST_SLEEP_EVENT_S0IX_RESUME;
+
+	ret = cros_ec_sleep_event(ec_dev, sleep_event);
+	if (ret < 0)
+		dev_dbg(ec_dev->dev, "Error %d sending resume event to ec",
+			ret);
 
 	/*
 	 * In some cases, we need to distinguish between events that occur

@@ -20,10 +20,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  *  This driver supports the following I/O Controller hubs:
  *	(See the intel documentation on http://developer.intel.com.)
  *	document number 290655-003, 290677-014: 82801AA (ICH), 82801AB (ICHO)
@@ -45,18 +41,6 @@
  *	document number 322169-001, 322170-003: 5 Series, 3400 Series (PCH)
  *	document number 320066-003, 320257-008: EP80597 (IICH)
  *	document number 324645-001, 324646-001: Cougar Point (CPT)
- *	document number TBD : Patsburg (PBG)
- *	document number TBD : DH89xxCC
- *	document number TBD : Panther Point
- *	document number TBD : Lynx Point
- *	document number TBD : Lynx Point-LP
- *	document number TBD : Wellsburg
- *	document number TBD : Avoton SoC
- *	document number TBD : Coleto Creek
- *	document number TBD : Wildcat Point-LP
- *	document number TBD : 9 Series
- *	document number TBD : Lewisburg
- *	document number TBD : Apollo Lake SoC
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -567,6 +551,7 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 	},
 	[LPC_APL] = {
 		.name = "Apollo Lake SoC",
+		.iTCO_version = 5,
 		.spi_type = INTEL_SPI_BXT,
 	},
 };
