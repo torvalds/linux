@@ -165,7 +165,7 @@ struct drm_i915_gem_object {
 	struct reservation_object *resv;
 
 	/** References from framebuffers, locks out tiling changes. */
-	unsigned long framebuffer_references;
+	atomic_t framebuffer_references;
 
 	/** Record of address bit 17 of each page at last unbind. */
 	unsigned long *bit_17;

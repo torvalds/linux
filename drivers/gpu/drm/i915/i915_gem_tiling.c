@@ -238,7 +238,7 @@ i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
 	if ((tiling | stride) == obj->tiling_and_stride)
 		return 0;
 
-	if (obj->framebuffer_references)
+	if (atomic_read(&obj->framebuffer_references))
 		return -EBUSY;
 
 	/* We need to rebind the object if its current allocation
