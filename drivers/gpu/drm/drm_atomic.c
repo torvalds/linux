@@ -2049,6 +2049,112 @@ static void complete_crtc_signaling(struct drm_device *dev,
 	kfree(fence_state);
 }
 
+int drm_atomic_remove_fb(struct drm_framebuffer *fb)
+{
+	struct drm_modeset_acquire_ctx ctx;
+	struct drm_device *dev = fb->dev;
+	struct drm_atomic_state *state;
+	struct drm_plane *plane;
+	struct drm_connector *conn;
+	struct drm_connector_state *conn_state;
+	int i, ret = 0;
+	unsigned plane_mask, disable_crtcs = false;
+
+	state = drm_atomic_state_alloc(dev);
+	if (!state)
+		return -ENOMEM;
+
+	drm_modeset_acquire_init(&ctx, 0);
+	state->acquire_ctx = &ctx;
+
+retry:
+	plane_mask = 0;
+	ret = drm_modeset_lock_all_ctx(dev, &ctx);
+	if (ret)
+		goto unlock;
+
+	drm_for_each_plane(plane, dev) {
+		struct drm_plane_state *plane_state;
+
+		if (plane->state->fb != fb)
+			continue;
+
+		plane_state = drm_atomic_get_plane_state(state, plane);
+		if (IS_ERR(plane_state)) {
+			ret = PTR_ERR(plane_state);
+			goto unlock;
+		}
+
+		/*
+		 * Some drivers do not support keeping crtc active with the
+		 * primary plane disabled. If we fail to commit with -EINVAL
+		 * then we will try to perform the same commit but with all
+		 * crtc's disabled for primary planes as well.
+		 */
+		if (disable_crtcs && plane_state->crtc->primary == plane) {
+			struct drm_crtc_state *crtc_state;
+
+			crtc_state = drm_atomic_get_existing_crtc_state(state, plane_state->crtc);
+
+			ret = drm_atomic_add_affected_connectors(state, plane_state->crtc);
+			if (ret)
+				goto unlock;
+
+			crtc_state->active = false;
+			ret = drm_atomic_set_mode_for_crtc(crtc_state, NULL);
+			if (ret)
+				goto unlock;
+		}
+
+		drm_atomic_set_fb_for_plane(plane_state, NULL);
+		ret = drm_atomic_set_crtc_for_plane(plane_state, NULL);
+		if (ret)
+			goto unlock;
+
+		plane_mask |= BIT(drm_plane_index(plane));
+
+		plane->old_fb = plane->fb;
+	}
+
+	/* This list is only not empty when disable_crtcs is set. */
+	for_each_connector_in_state(state, conn, conn_state, i) {
+		ret = drm_atomic_set_crtc_for_connector(conn_state, NULL);
+
+		if (ret)
+			goto unlock;
+	}
+
+	if (plane_mask)
+		ret = drm_atomic_commit(state);
+
+unlock:
+	if (plane_mask)
+		drm_atomic_clean_old_fb(dev, plane_mask, ret);
+
+	if (ret == -EDEADLK) {
+		drm_modeset_backoff(&ctx);
+		goto retry;
+	}
+
+	drm_atomic_state_put(state);
+
+	if (ret == -EINVAL && !disable_crtcs) {
+		disable_crtcs = true;
+
+		state = drm_atomic_state_alloc(dev);
+		if (state) {
+			state->acquire_ctx = &ctx;
+			goto retry;
+		}
+		ret = -ENOMEM;
+	}
+
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+
+	return ret;
+}
+
 int drm_mode_atomic_ioctl(struct drm_device *dev,
 			  void *data, struct drm_file *file_priv)
 {
