@@ -176,15 +176,9 @@
 			};
 
 			gateclk: clock-gating-control@18220 {
-				compatible = "marvell,armada-xp-gating-clock";
+				compatible = "marvell,mv98dx3236-gating-clock";
 				reg = <0x18220 0x4>;
 				clocks = <&coreclk 0>;
-				#clock-cells = <1>;
-			};
-
-			coreclk: mvebu-sar@18230 {
-				compatible = "marvell,mv98dx3236-core-clock";
-				reg = <0x18230 0x08>;
 				#clock-cells = <1>;
 			};
 
@@ -263,6 +257,12 @@
 			#size-cells = <1>;
 			ranges = <0 MBUS_ID(0x08, 0x00) 0 0x100000>;
 			reg = <MBUS_ID(0x08, 0x00) 0 0x100000>;
+
+			coreclk: mvebu-sar@f8204 {
+				compatible = "marvell,mv98dx3236-core-clock";
+				reg = <0xf8204 0x4>;
+				#clock-cells = <1>;
+			};
 
 			dfx_coredivclk: corediv-clock@f8268 {
 				compatible = "marvell,mv98dx3236-corediv-clock";
