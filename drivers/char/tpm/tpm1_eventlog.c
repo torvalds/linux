@@ -390,9 +390,6 @@ int tpm_bios_log_setup(struct tpm_chip *chip)
 	unsigned int cnt;
 	int rc = 0;
 
-	if (chip->flags & TPM_CHIP_FLAG_TPM2)
-		return 0;
-
 	rc = tpm_read_log(chip);
 	if (rc)
 		return rc;
@@ -407,7 +404,13 @@ int tpm_bios_log_setup(struct tpm_chip *chip)
 	cnt++;
 
 	chip->bin_log_seqops.chip = chip;
-	chip->bin_log_seqops.seqops = &tpm_binary_b_measurements_seqops;
+	if (chip->flags & TPM_CHIP_FLAG_TPM2)
+		chip->bin_log_seqops.seqops =
+			&tpm2_binary_b_measurements_seqops;
+	else
+		chip->bin_log_seqops.seqops =
+			&tpm_binary_b_measurements_seqops;
+
 
 	chip->bios_dir[cnt] =
 	    securityfs_create_file("binary_bios_measurements",
@@ -418,17 +421,21 @@ int tpm_bios_log_setup(struct tpm_chip *chip)
 		goto err;
 	cnt++;
 
-	chip->ascii_log_seqops.chip = chip;
-	chip->ascii_log_seqops.seqops = &tpm_ascii_b_measurements_seqops;
+	if (!(chip->flags & TPM_CHIP_FLAG_TPM2)) {
 
-	chip->bios_dir[cnt] =
-	    securityfs_create_file("ascii_bios_measurements",
-				   0440, chip->bios_dir[0],
-				   (void *)&chip->ascii_log_seqops,
-				   &tpm_bios_measurements_ops);
-	if (IS_ERR(chip->bios_dir[cnt]))
-		goto err;
-	cnt++;
+		chip->ascii_log_seqops.chip = chip;
+		chip->ascii_log_seqops.seqops =
+			&tpm_ascii_b_measurements_seqops;
+
+		chip->bios_dir[cnt] =
+			securityfs_create_file("ascii_bios_measurements",
+					       0440, chip->bios_dir[0],
+					       (void *)&chip->ascii_log_seqops,
+					       &tpm_bios_measurements_ops);
+		if (IS_ERR(chip->bios_dir[cnt]))
+			goto err;
+		cnt++;
+	}
 
 	return 0;
 

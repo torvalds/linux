@@ -1093,7 +1093,8 @@ struct security_hook_list capability_hooks[] = {
 
 void __init capability_add_hooks(void)
 {
-	security_add_hooks(capability_hooks, ARRAY_SIZE(capability_hooks));
+	security_add_hooks(capability_hooks, ARRAY_SIZE(capability_hooks),
+				"capability");
 }
 
 #endif /* CONFIG_SECURITY */
