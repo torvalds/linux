@@ -1,6 +1,7 @@
 TARGETS =  bpf
 TARGETS += breakpoints
 TARGETS += capabilities
+TARGETS += cpufreq
 TARGETS += cpu-hotplug
 TARGETS += efivarfs
 TARGETS += exec
@@ -8,6 +9,7 @@ TARGETS += firmware
 TARGETS += ftrace
 TARGETS += futex
 TARGETS += gpio
+TARGETS += intel_pstate
 TARGETS += ipc
 TARGETS += kcmp
 TARGETS += lib
@@ -49,29 +51,44 @@ override LDFLAGS =
 override MAKEFLAGS =
 endif
 
+BUILD := $(O)
+ifndef BUILD
+  BUILD := $(KBUILD_OUTPUT)
+endif
+ifndef BUILD
+  BUILD := $(shell pwd)
+endif
+
+export BUILD
 all:
-	for TARGET in $(TARGETS); do \
-		make -C $$TARGET; \
+	for TARGET in $(TARGETS); do		\
+		BUILD_TARGET=$$BUILD/$$TARGET;	\
+		mkdir $$BUILD_TARGET  -p;	\
+		make OUTPUT=$$BUILD_TARGET -C $$TARGET;\
 	done;
 
 run_tests: all
 	for TARGET in $(TARGETS); do \
-		make -C $$TARGET run_tests; \
+		BUILD_TARGET=$$BUILD/$$TARGET;	\
+		make OUTPUT=$$BUILD_TARGET -C $$TARGET run_tests;\
 	done;
 
 hotplug:
 	for TARGET in $(TARGETS_HOTPLUG); do \
-		make -C $$TARGET; \
+		BUILD_TARGET=$$BUILD/$$TARGET;	\
+		make OUTPUT=$$BUILD_TARGET -C $$TARGET;\
 	done;
 
 run_hotplug: hotplug
 	for TARGET in $(TARGETS_HOTPLUG); do \
-		make -C $$TARGET run_full_test; \
+		BUILD_TARGET=$$BUILD/$$TARGET;	\
+		make OUTPUT=$$BUILD_TARGET -C $$TARGET run_full_test;\
 	done;
 
 clean_hotplug:
 	for TARGET in $(TARGETS_HOTPLUG); do \
-		make -C $$TARGET clean; \
+		BUILD_TARGET=$$BUILD/$$TARGET;	\
+		make OUTPUT=$$BUILD_TARGET -C $$TARGET clean;\
 	done;
 
 run_pstore_crash:
@@ -86,7 +103,8 @@ ifdef INSTALL_PATH
 	@# Ask all targets to install their files
 	mkdir -p $(INSTALL_PATH)
 	for TARGET in $(TARGETS); do \
-		make -C $$TARGET INSTALL_PATH=$(INSTALL_PATH)/$$TARGET install; \
+		BUILD_TARGET=$$BUILD/$$TARGET;	\
+		make OUTPUT=$$BUILD_TARGET -C $$TARGET INSTALL_PATH=$(INSTALL_PATH)/$$TARGET install; \
 	done;
 
 	@# Ask all targets to emit their test scripts
@@ -95,10 +113,11 @@ ifdef INSTALL_PATH
 	echo "ROOT=\$$PWD" >> $(ALL_SCRIPT)
 
 	for TARGET in $(TARGETS); do \
+		BUILD_TARGET=$$BUILD/$$TARGET;	\
 		echo "echo ; echo Running tests in $$TARGET" >> $(ALL_SCRIPT); \
 		echo "echo ========================================" >> $(ALL_SCRIPT); \
 		echo "cd $$TARGET" >> $(ALL_SCRIPT); \
-		make -s --no-print-directory -C $$TARGET emit_tests >> $(ALL_SCRIPT); \
+		make -s --no-print-directory OUTPUT=$$BUILD_TARGET -C $$TARGET emit_tests >> $(ALL_SCRIPT); \
 		echo "cd \$$ROOT" >> $(ALL_SCRIPT); \
 	done;
 
@@ -109,7 +128,8 @@ endif
 
 clean:
 	for TARGET in $(TARGETS); do \
-		make -C $$TARGET clean; \
+		BUILD_TARGET=$$BUILD/$$TARGET;	\
+		make OUTPUT=$$BUILD_TARGET -C $$TARGET clean;\
 	done;
 
 .PHONY: install
