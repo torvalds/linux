@@ -891,13 +891,13 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 		 * Adapters that support a register, instead of a commanded,
 		 * reset.
 		 */
-		if (((aac->supplement_adapter_info.SupportedOptions2 &
+		if (((aac->supplement_adapter_info.supported_options2 &
 			  AAC_OPTION_MU_RESET) ||
-			  (aac->supplement_adapter_info.SupportedOptions2 &
+			  (aac->supplement_adapter_info.supported_options2 &
 			  AAC_OPTION_DOORBELL_RESET)) &&
 			  aac_check_reset &&
 			  ((aac_check_reset != 1) ||
-			   !(aac->supplement_adapter_info.SupportedOptions2 &
+			   !(aac->supplement_adapter_info.supported_options2 &
 			    AAC_OPTION_IGNORE_RESET))) {
 			/* Bypass wait for command quiesce */
 			aac_reset_adapter(aac, 2, IOP_HWSOFT_RESET);
@@ -1029,8 +1029,8 @@ static ssize_t aac_show_model(struct device *device,
 	struct aac_dev *dev = (struct aac_dev*)class_to_shost(device)->hostdata;
 	int len;
 
-	if (dev->supplement_adapter_info.AdapterTypeText[0]) {
-		char * cp = dev->supplement_adapter_info.AdapterTypeText;
+	if (dev->supplement_adapter_info.adapter_type_text[0]) {
+		char *cp = dev->supplement_adapter_info.adapter_type_text;
 		while (*cp && *cp != ' ')
 			++cp;
 		while (*cp == ' ')
@@ -1046,18 +1046,20 @@ static ssize_t aac_show_vendor(struct device *device,
 			       struct device_attribute *attr, char *buf)
 {
 	struct aac_dev *dev = (struct aac_dev*)class_to_shost(device)->hostdata;
+	struct aac_supplement_adapter_info *sup_adap_info;
 	int len;
 
-	if (dev->supplement_adapter_info.AdapterTypeText[0]) {
-		char * cp = dev->supplement_adapter_info.AdapterTypeText;
+	sup_adap_info = &dev->supplement_adapter_info;
+	if (sup_adap_info->adapter_type_text[0]) {
+		char *cp = sup_adap_info->adapter_type_text;
 		while (*cp && *cp != ' ')
 			++cp;
 		len = snprintf(buf, PAGE_SIZE, "%.*s\n",
-		  (int)(cp - (char *)dev->supplement_adapter_info.AdapterTypeText),
-		  dev->supplement_adapter_info.AdapterTypeText);
+			(int)(cp - (char *)sup_adap_info->adapter_type_text),
+					sup_adap_info->adapter_type_text);
 	} else
 		len = snprintf(buf, PAGE_SIZE, "%s\n",
-		  aac_drivers[dev->cardtype].vname);
+			aac_drivers[dev->cardtype].vname);
 	return len;
 }
 
@@ -1078,7 +1080,7 @@ static ssize_t aac_show_flags(struct device *cdev,
 				"SAI_READ_CAPACITY_16\n");
 	if (dev->jbod)
 		len += snprintf(buf + len, PAGE_SIZE - len, "SUPPORTED_JBOD\n");
-	if (dev->supplement_adapter_info.SupportedOptions2 &
+	if (dev->supplement_adapter_info.supported_options2 &
 		AAC_OPTION_POWER_MANAGEMENT)
 		len += snprintf(buf + len, PAGE_SIZE - len,
 				"SUPPORTED_POWER_MANAGEMENT\n");
@@ -1139,12 +1141,12 @@ static ssize_t aac_show_serial_number(struct device *device,
 		len = snprintf(buf, 16, "%06X\n",
 		  le32_to_cpu(dev->adapter_info.serial[0]));
 	if (len &&
-	  !memcmp(&dev->supplement_adapter_info.MfgPcbaSerialNo[
-	    sizeof(dev->supplement_adapter_info.MfgPcbaSerialNo)-len],
+	  !memcmp(&dev->supplement_adapter_info.mfg_pcba_serial_no[
+	    sizeof(dev->supplement_adapter_info.mfg_pcba_serial_no)-len],
 	  buf, len-1))
 		len = snprintf(buf, 16, "%.*s\n",
-		  (int)sizeof(dev->supplement_adapter_info.MfgPcbaSerialNo),
-		  dev->supplement_adapter_info.MfgPcbaSerialNo);
+		  (int)sizeof(dev->supplement_adapter_info.mfg_pcba_serial_no),
+		  dev->supplement_adapter_info.mfg_pcba_serial_no);
 
 	return min(len, 16);
 }

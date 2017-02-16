@@ -684,7 +684,7 @@ static void aac_send_iop_reset(struct aac_dev *dev, int bled)
 
 	aac_set_intx_mode(dev);
 
-	if (!bled && (dev->supplement_adapter_info.SupportedOptions2 &
+	if (!bled && (dev->supplement_adapter_info.supported_options2 &
 	    AAC_OPTION_DOORBELL_RESET)) {
 		src_writel(dev, MUnit.IDR, reset_mask);
 	} else {

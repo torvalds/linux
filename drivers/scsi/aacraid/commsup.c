@@ -1815,7 +1815,7 @@ int aac_check_health(struct aac_dev * aac)
 	printk(KERN_ERR "%s: Host adapter BLINK LED 0x%x\n", aac->name, BlinkLED);
 
 	if (!aac_check_reset || ((aac_check_reset == 1) &&
-		(aac->supplement_adapter_info.SupportedOptions2 &
+		(aac->supplement_adapter_info.supported_options2 &
 			AAC_OPTION_IGNORE_RESET)))
 		goto out;
 	host = aac->scsi_host_ptr;
@@ -2264,8 +2264,8 @@ static int aac_send_wellness_command(struct aac_dev *dev, char *wellness_str,
 
 	aac_fib_init(fibptr);
 
-	vbus = (u32)le16_to_cpu(dev->supplement_adapter_info.VirtDeviceBus);
-	vid = (u32)le16_to_cpu(dev->supplement_adapter_info.VirtDeviceTarget);
+	vbus = (u32)le16_to_cpu(dev->supplement_adapter_info.virt_device_bus);
+	vid = (u32)le16_to_cpu(dev->supplement_adapter_info.virt_device_target);
 
 	srbcmd = (struct aac_srb *)fib_data(fibptr);
 
