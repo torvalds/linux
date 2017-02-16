@@ -716,6 +716,15 @@ static inline block_t sum_blk_addr(struct f2fs_sb_info *sbi, int base, int type)
 				- (base + 1) + type;
 }
 
+static inline bool no_fggc_candidate(struct f2fs_sb_info *sbi,
+						unsigned int secno)
+{
+	if (get_valid_blocks(sbi, secno, sbi->segs_per_sec) >=
+						sbi->fggc_threshold)
+		return true;
+	return false;
+}
+
 static inline bool sec_usage_check(struct f2fs_sb_info *sbi, unsigned int secno)
 {
 	if (IS_CURSEC(sbi, secno) || (sbi->cur_victim_sec == secno))

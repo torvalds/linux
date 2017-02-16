@@ -890,6 +890,9 @@ struct f2fs_sb_info {
 	struct f2fs_gc_kthread	*gc_thread;	/* GC thread */
 	unsigned int cur_victim_sec;		/* current victim section num */
 
+	/* threshold for converting bg victims for fg */
+	u64 fggc_threshold;
+
 	/* maximum # of trials to find a victim segment for SSR and GC */
 	unsigned int max_victim_search;
 
