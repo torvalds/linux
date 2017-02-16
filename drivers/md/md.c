@@ -190,16 +190,6 @@ struct bio *bio_alloc_mddev(gfp_t gfp_mask, int nr_iovecs,
 }
 EXPORT_SYMBOL_GPL(bio_alloc_mddev);
 
-struct bio *bio_clone_mddev(struct bio *bio, gfp_t gfp_mask,
-			    struct mddev *mddev)
-{
-	if (!mddev || !mddev->bio_set)
-		return bio_clone(bio, gfp_mask);
-
-	return bio_clone_bioset(bio, gfp_mask, mddev->bio_set);
-}
-EXPORT_SYMBOL_GPL(bio_clone_mddev);
-
 /*
  * We have a system wide 'event count' that is incremented
  * on any 'interesting' event, and readers of /proc/mdstat
@@ -5228,8 +5218,11 @@ int md_run(struct mddev *mddev)
 		sysfs_notify_dirent_safe(rdev->sysfs_state);
 	}
 
-	if (mddev->bio_set == NULL)
+	if (mddev->bio_set == NULL) {
 		mddev->bio_set = bioset_create(BIO_POOL_SIZE, 0);
+		if (!mddev->bio_set)
+			return -ENOMEM;
+	}
 
 	spin_lock(&pers_lock);
 	pers = find_pers(mddev->level, mddev->clevel);
@@ -8980,7 +8973,14 @@ static __exit void md_exit(void)
 
 	for_each_mddev(mddev, tmp) {
 		export_array(mddev);
+		mddev->ctime = 0;
 		mddev->hold_active = 0;
+		/*
+		 * for_each_mddev() will call mddev_put() at the end of each
+		 * iteration.  As the mddev is now fully clear, this will
+		 * schedule the mddev for destruction by a workqueue, and the
+		 * destroy_workqueue() below will wait for that to complete.
+		 */
 	}
 	destroy_workqueue(md_misc_wq);
 	destroy_workqueue(md_wq);

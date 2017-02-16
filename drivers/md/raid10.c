@@ -1132,7 +1132,7 @@ read_again:
 	}
 	slot = r10_bio->read_slot;
 
-	read_bio = bio_clone_mddev(bio, GFP_NOIO, mddev);
+	read_bio = bio_clone_fast(bio, GFP_NOIO, mddev->bio_set);
 	bio_trim(read_bio, r10_bio->sector - bio->bi_iter.bi_sector,
 		 max_sectors);
 
@@ -1406,7 +1406,7 @@ retry_write:
 		int d = r10_bio->devs[i].devnum;
 		if (r10_bio->devs[i].bio) {
 			struct md_rdev *rdev = conf->mirrors[d].rdev;
-			mbio = bio_clone_mddev(bio, GFP_NOIO, mddev);
+			mbio = bio_clone_fast(bio, GFP_NOIO, mddev->bio_set);
 			bio_trim(mbio, r10_bio->sector - bio->bi_iter.bi_sector,
 				 max_sectors);
 			r10_bio->devs[i].bio = mbio;
@@ -1457,7 +1457,7 @@ retry_write:
 				smp_mb();
 				rdev = conf->mirrors[d].rdev;
 			}
-			mbio = bio_clone_mddev(bio, GFP_NOIO, mddev);
+			mbio = bio_clone_fast(bio, GFP_NOIO, mddev->bio_set);
 			bio_trim(mbio, r10_bio->sector - bio->bi_iter.bi_sector,
 				 max_sectors);
 			r10_bio->devs[i].repl_bio = mbio;
@@ -2565,7 +2565,7 @@ static int narrow_write_error(struct r10bio *r10_bio, int i)
 		if (sectors > sect_to_write)
 			sectors = sect_to_write;
 		/* Write at 'sector' for 'sectors' */
-		wbio = bio_clone_mddev(bio, GFP_NOIO, mddev);
+		wbio = bio_clone_fast(bio, GFP_NOIO, mddev->bio_set);
 		bio_trim(wbio, sector - bio->bi_iter.bi_sector, sectors);
 		wsector = r10_bio->devs[i].addr + (sector - r10_bio->sector);
 		wbio->bi_iter.bi_sector = wsector +
@@ -2641,8 +2641,7 @@ read_more:
 			   mdname(mddev),
 			   bdevname(rdev->bdev, b),
 			   (unsigned long long)r10_bio->sector);
-	bio = bio_clone_mddev(r10_bio->master_bio,
-			      GFP_NOIO, mddev);
+	bio = bio_clone_fast(r10_bio->master_bio, GFP_NOIO, mddev->bio_set);
 	bio_trim(bio, r10_bio->sector - bio->bi_iter.bi_sector, max_sectors);
 	r10_bio->devs[slot].bio = bio;
 	r10_bio->devs[slot].rdev = rdev;

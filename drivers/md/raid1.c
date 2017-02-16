@@ -1108,7 +1108,7 @@ read_again:
 	r1_bio->read_disk = rdisk;
 	r1_bio->start_next_window = 0;
 
-	read_bio = bio_clone_mddev(bio, GFP_NOIO, mddev);
+	read_bio = bio_clone_fast(bio, GFP_NOIO, mddev->bio_set);
 	bio_trim(read_bio, r1_bio->sector - bio->bi_iter.bi_sector,
 		 max_sectors);
 
@@ -1341,13 +1341,12 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 
 	first_clone = 1;
 	for (i = 0; i < disks; i++) {
-		struct bio *mbio;
+		struct bio *mbio = NULL;
+		sector_t offset;
 		if (!r1_bio->bios[i])
 			continue;
 
-		mbio = bio_clone_mddev(bio, GFP_NOIO, mddev);
-		bio_trim(mbio, r1_bio->sector - bio->bi_iter.bi_sector,
-			 max_sectors);
+		offset = r1_bio->sector - bio->bi_iter.bi_sector;
 
 		if (first_clone) {
 			/* do behind I/O ?
@@ -1357,8 +1356,13 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 			if (bitmap &&
 			    (atomic_read(&bitmap->behind_writes)
 			     < mddev->bitmap_info.max_write_behind) &&
-			    !waitqueue_active(&bitmap->behind_wait))
+			    !waitqueue_active(&bitmap->behind_wait)) {
+				mbio = bio_clone_bioset_partial(bio, GFP_NOIO,
+								mddev->bio_set,
+								offset,
+								max_sectors);
 				alloc_behind_pages(mbio, r1_bio);
+			}
 
 			bitmap_startwrite(bitmap, r1_bio->sector,
 					  r1_bio->sectors,
@@ -1366,6 +1370,12 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 						   &r1_bio->state));
 			first_clone = 0;
 		}
+
+		if (!mbio) {
+			mbio = bio_clone_fast(bio, GFP_NOIO, mddev->bio_set);
+			bio_trim(mbio, offset, max_sectors);
+		}
+
 		if (r1_bio->behind_bvecs) {
 			struct bio_vec *bvec;
 			int j;
@@ -2273,7 +2283,8 @@ static int narrow_write_error(struct r1bio *r1_bio, int i)
 
 			wbio->bi_vcnt = vcnt;
 		} else {
-			wbio = bio_clone_mddev(r1_bio->master_bio, GFP_NOIO, mddev);
+			wbio = bio_clone_fast(r1_bio->master_bio, GFP_NOIO,
+					      mddev->bio_set);
 		}
 
 		bio_set_op_attrs(wbio, REQ_OP_WRITE, 0);
@@ -2411,7 +2422,8 @@ read_more:
 		const unsigned long do_sync
 			= r1_bio->master_bio->bi_opf & REQ_SYNC;
 		r1_bio->read_disk = disk;
-		bio = bio_clone_mddev(r1_bio->master_bio, GFP_NOIO, mddev);
+		bio = bio_clone_fast(r1_bio->master_bio, GFP_NOIO,
+				     mddev->bio_set);
 		bio_trim(bio, r1_bio->sector - bio->bi_iter.bi_sector,
 			 max_sectors);
 		r1_bio->bios[r1_bio->read_disk] = bio;
