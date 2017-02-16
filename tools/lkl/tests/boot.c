@@ -599,8 +599,6 @@ static int test_getdents64(char *str, int len)
 	ret = lkl_sys_getdents64(dir_fd, de, sizeof(buf));
 
 	wr = snprintf(str, len, "%d ", dir_fd);
-	str += wr;
-	len -= wr;
 
 	if (ret < 0)
 		return TEST_FAILURE;
@@ -608,9 +606,9 @@ static int test_getdents64(char *str, int len)
 	for (pos = buf; pos - buf < ret; pos += de->d_reclen) {
 		de = (struct lkl_linux_dirent64 *)pos;
 
-		wr = snprintf(str, len, "%s ", de->d_name);
-		str += wr;
-		len -= wr;
+		wr += snprintf(str + wr, len - wr, "%s ", de->d_name);
+		if (wr >= len)
+			break;
 	}
 
 	return TEST_SUCCESS;
