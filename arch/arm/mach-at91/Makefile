@@ -1,7 +1,6 @@
 #
 # Makefile for the linux kernel.
 #
-obj-y		:= soc.o
 
 # CPU-specific support
 obj-$(CONFIG_SOC_AT91RM9200)	+= at91rm9200.o
