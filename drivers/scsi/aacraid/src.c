@@ -657,7 +657,7 @@ static int aac_srcv_ioremap(struct aac_dev *dev, u32 size)
 	return 0;
 }
 
-static void aac_set_intx_mode(struct aac_dev *dev)
+void aac_set_intx_mode(struct aac_dev *dev)
 {
 	if (dev->msi_enabled) {
 		aac_src_access_devreg(dev, AAC_ENABLE_INTX);
