@@ -334,6 +334,13 @@ static struct ctl_table net_core_table[] = {
 		.mode		= 0600,
 		.proc_handler	= proc_dointvec,
 	},
+	{
+		.procname	= "bpf_jit_kallsyms",
+		.data		= &bpf_jit_kallsyms,
+		.maxlen		= sizeof(int),
+		.mode		= 0600,
+		.proc_handler	= proc_dointvec,
+	},
 # endif
 #endif
 	{
