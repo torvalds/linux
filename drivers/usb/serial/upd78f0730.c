@@ -17,7 +17,7 @@
  * - stop bits: 1 or 2
  * - parity: even, odd or none
  * - flow control: none
- * - baud rates: 0, 2400, 4800, 9600, 19200, 38400, 57600, 115200
+ * - baud rates: 0, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 153600
  * - signals: DTR, RTS and BREAK
  */
 
@@ -32,8 +32,9 @@
 #define DRIVER_AUTHOR "Maksim Salau <maksim.salau@gmail.com>"
 
 static const struct usb_device_id id_table[] = {
-	{ USB_DEVICE(0x045B, 0x0212) }, /* YRPBRL78G13, YRPBRL78G14 */
 	{ USB_DEVICE(0x0409, 0x0063) }, /* V850ESJX3-STICK */
+	{ USB_DEVICE(0x045B, 0x0212) }, /* YRPBRL78G13, YRPBRL78G14 */
+	{ USB_DEVICE(0x064B, 0x7825) }, /* Analog Devices EVAL-ADXL362Z-DB */
 	{}
 };
 
@@ -288,7 +289,7 @@ static speed_t upd78f0730_get_baud_rate(struct tty_struct *tty)
 {
 	const speed_t baud_rate = tty_get_baud_rate(tty);
 	const speed_t supported[] = {
-		0, 2400, 4800, 9600, 19200, 38400, 57600, 115200
+		0, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 153600
 	};
 	int i;
 
