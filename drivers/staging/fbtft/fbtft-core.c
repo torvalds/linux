@@ -556,7 +556,6 @@ static int fbtft_fb_setcolreg(unsigned int regno, unsigned int red, unsigned int
 			ret = 0;
 		}
 		break;
-
 	}
 	return ret;
 }
