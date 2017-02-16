@@ -192,9 +192,11 @@ struct bcm_qspi_dev_id {
 	void *dev;
 };
 
+
 struct qspi_trans {
 	struct spi_transfer *trans;
 	int byte;
+	bool mspi_last_trans;
 };
 
 struct bcm_qspi {
@@ -616,6 +618,16 @@ static int bcm_qspi_setup(struct spi_device *spi)
 	return 0;
 }
 
+static bool bcm_qspi_mspi_transfer_is_last(struct bcm_qspi *qspi,
+					   struct qspi_trans *qt)
+{
+	if (qt->mspi_last_trans &&
+	    spi_transfer_is_last(qspi->master, qt->trans))
+		return true;
+	else
+		return false;
+}
+
 static int update_qspi_trans_byte_count(struct bcm_qspi *qspi,
 					struct qspi_trans *qt, int flags)
 {
@@ -629,7 +641,6 @@ static int update_qspi_trans_byte_count(struct bcm_qspi *qspi,
 
 	if (qt->byte >= qt->trans->len) {
 		/* we're at the end of the spi_transfer */
-
 		/* in TX mode, need to pause for a delay or CS change */
 		if (qt->trans->delay_usecs &&
 		    (flags & TRANS_STATUS_BREAK_DELAY))
@@ -641,7 +652,7 @@ static int update_qspi_trans_byte_count(struct bcm_qspi *qspi,
 			goto done;
 
 		dev_dbg(&qspi->pdev->dev, "advance msg exit\n");
-		if (spi_transfer_is_last(qspi->master, qt->trans))
+		if (bcm_qspi_mspi_transfer_is_last(qspi, qt))
 			ret = TRANS_STATUS_BREAK_EOM;
 		else
 			ret = TRANS_STATUS_BREAK_NO_BYTES;
@@ -885,6 +896,76 @@ static int bcm_qspi_bspi_flash_read(struct spi_device *spi,
 	return ret;
 }
 
+static int bcm_qspi_transfer_one(struct spi_master *master,
+				 struct spi_device *spi,
+				 struct spi_transfer *trans)
+{
+	struct bcm_qspi *qspi = spi_master_get_devdata(master);
+	int slots;
+	unsigned long timeo = msecs_to_jiffies(100);
+
+	bcm_qspi_chip_select(qspi, spi->chip_select);
+	qspi->trans_pos.trans = trans;
+	qspi->trans_pos.byte = 0;
+
+	while (qspi->trans_pos.byte < trans->len) {
+		reinit_completion(&qspi->mspi_done);
+
+		slots = write_to_hw(qspi, spi);
+		if (!wait_for_completion_timeout(&qspi->mspi_done, timeo)) {
+			dev_err(&qspi->pdev->dev, "timeout waiting for MSPI\n");
+			return -ETIMEDOUT;
+		}
+
+		read_from_hw(qspi, slots);
+	}
+
+	return 0;
+}
+
+static int bcm_qspi_mspi_flash_read(struct spi_device *spi,
+				    struct spi_flash_read_message *msg)
+{
+	struct bcm_qspi *qspi = spi_master_get_devdata(spi->master);
+	struct spi_transfer t[2];
+	u8 cmd[6];
+	int ret;
+
+	memset(cmd, 0, sizeof(cmd));
+	memset(t, 0, sizeof(t));
+
+	/* tx */
+	/* opcode is in cmd[0] */
+	cmd[0] = msg->read_opcode;
+	cmd[1] = msg->from >> (msg->addr_width * 8 -  8);
+	cmd[2] = msg->from >> (msg->addr_width * 8 - 16);
+	cmd[3] = msg->from >> (msg->addr_width * 8 - 24);
+	cmd[4] = msg->from >> (msg->addr_width * 8 - 32);
+	t[0].tx_buf = cmd;
+	t[0].len = msg->addr_width + msg->dummy_bytes + 1;
+	t[0].bits_per_word = spi->bits_per_word;
+	t[0].tx_nbits = msg->opcode_nbits;
+	/* lets mspi know that this is not last transfer */
+	qspi->trans_pos.mspi_last_trans = false;
+	ret = bcm_qspi_transfer_one(spi->master, spi, &t[0]);
+
+	/* rx */
+	qspi->trans_pos.mspi_last_trans = true;
+	if (!ret) {
+		/* rx */
+		t[1].rx_buf = msg->buf;
+		t[1].len = msg->len;
+		t[1].rx_nbits =  msg->data_nbits;
+		t[1].bits_per_word = spi->bits_per_word;
+		ret = bcm_qspi_transfer_one(spi->master, spi, &t[1]);
+	}
+
+	if (!ret)
+		msg->retlen = msg->len;
+
+	return ret;
+}
+
 static int bcm_qspi_flash_read(struct spi_device *spi,
 			       struct spi_flash_read_message *msg)
 {
@@ -918,8 +999,7 @@ static int bcm_qspi_flash_read(struct spi_device *spi,
 		mspi_read = true;
 
 	if (mspi_read)
-		/* this will make the m25p80 read to fallback to mspi read */
-		return -EAGAIN;
+		return bcm_qspi_mspi_flash_read(spi, msg);
 
 	io_width = msg->data_nbits ? msg->data_nbits : SPI_NBITS_SINGLE;
 	addrlen = msg->addr_width;
@@ -929,33 +1009,6 @@ static int bcm_qspi_flash_read(struct spi_device *spi,
 		ret = bcm_qspi_bspi_flash_read(spi, msg);
 
 	return ret;
-}
-
-static int bcm_qspi_transfer_one(struct spi_master *master,
-				 struct spi_device *spi,
-				 struct spi_transfer *trans)
-{
-	struct bcm_qspi *qspi = spi_master_get_devdata(master);
-	int slots;
-	unsigned long timeo = msecs_to_jiffies(100);
-
-	bcm_qspi_chip_select(qspi, spi->chip_select);
-	qspi->trans_pos.trans = trans;
-	qspi->trans_pos.byte = 0;
-
-	while (qspi->trans_pos.byte < trans->len) {
-		reinit_completion(&qspi->mspi_done);
-
-		slots = write_to_hw(qspi, spi);
-		if (!wait_for_completion_timeout(&qspi->mspi_done, timeo)) {
-			dev_err(&qspi->pdev->dev, "timeout waiting for MSPI\n");
-			return -ETIMEDOUT;
-		}
-
-		read_from_hw(qspi, slots);
-	}
-
-	return 0;
 }
 
 static void bcm_qspi_cleanup(struct spi_device *spi)
@@ -1187,6 +1240,7 @@ int bcm_qspi_probe(struct platform_device *pdev,
 	qspi->pdev = pdev;
 	qspi->trans_pos.trans = NULL;
 	qspi->trans_pos.byte = 0;
+	qspi->trans_pos.mspi_last_trans = true;
 	qspi->master = master;
 
 	master->bus_num = -1;

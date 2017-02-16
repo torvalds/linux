@@ -341,39 +341,12 @@ static void s3c64xx_spi_set_cs(struct spi_device *spi, bool enable)
 static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 {
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(spi);
-	struct device *dev = &sdd->pdev->dev;
 
 	if (is_polling(sdd))
 		return 0;
 
-	/* Acquire DMA channels */
-	sdd->rx_dma.ch = dma_request_slave_channel(dev, "rx");
-	if (!sdd->rx_dma.ch) {
-		dev_err(dev, "Failed to get RX DMA channel\n");
-		return -EBUSY;
-	}
 	spi->dma_rx = sdd->rx_dma.ch;
-
-	sdd->tx_dma.ch = dma_request_slave_channel(dev, "tx");
-	if (!sdd->tx_dma.ch) {
-		dev_err(dev, "Failed to get TX DMA channel\n");
-		dma_release_channel(sdd->rx_dma.ch);
-		return -EBUSY;
-	}
 	spi->dma_tx = sdd->tx_dma.ch;
-
-	return 0;
-}
-
-static int s3c64xx_spi_unprepare_transfer(struct spi_master *spi)
-{
-	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(spi);
-
-	/* Free DMA channels */
-	if (!is_polling(sdd)) {
-		dma_release_channel(sdd->rx_dma.ch);
-		dma_release_channel(sdd->tx_dma.ch);
-	}
 
 	return 0;
 }
@@ -996,7 +969,7 @@ static struct s3c64xx_spi_info *s3c64xx_spi_parse_dt(struct device *dev)
 		sci->num_cs = temp;
 	}
 
-	sci->no_cs = of_property_read_bool(dev->of_node, "broken-cs");
+	sci->no_cs = of_property_read_bool(dev->of_node, "no-cs-readback");
 
 	return sci;
 }
@@ -1094,7 +1067,6 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	master->prepare_transfer_hardware = s3c64xx_spi_prepare_transfer;
 	master->prepare_message = s3c64xx_spi_prepare_message;
 	master->transfer_one = s3c64xx_spi_transfer_one;
-	master->unprepare_transfer_hardware = s3c64xx_spi_unprepare_transfer;
 	master->num_chipselect = sci->num_cs;
 	master->dma_alignment = 8;
 	master->bits_per_word_mask = SPI_BPW_MASK(32) | SPI_BPW_MASK(16) |
@@ -1161,6 +1133,24 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 		}
 	}
 
+	if (!is_polling(sdd)) {
+		/* Acquire DMA channels */
+		sdd->rx_dma.ch = dma_request_slave_channel_reason(&pdev->dev,
+								  "rx");
+		if (IS_ERR(sdd->rx_dma.ch)) {
+			dev_err(&pdev->dev, "Failed to get RX DMA channel\n");
+			ret = PTR_ERR(sdd->rx_dma.ch);
+			goto err_disable_io_clk;
+		}
+		sdd->tx_dma.ch = dma_request_slave_channel_reason(&pdev->dev,
+								  "tx");
+		if (IS_ERR(sdd->tx_dma.ch)) {
+			dev_err(&pdev->dev, "Failed to get TX DMA channel\n");
+			ret = PTR_ERR(sdd->tx_dma.ch);
+			goto err_release_rx_dma;
+		}
+	}
+
 	pm_runtime_set_autosuspend_delay(&pdev->dev, AUTOSUSPEND_TIMEOUT);
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
@@ -1206,6 +1196,12 @@ err_pm_put:
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 
+	if (!is_polling(sdd))
+		dma_release_channel(sdd->tx_dma.ch);
+err_release_rx_dma:
+	if (!is_polling(sdd))
+		dma_release_channel(sdd->rx_dma.ch);
+err_disable_io_clk:
 	clk_disable_unprepare(sdd->ioclk);
 err_disable_src_clk:
 	clk_disable_unprepare(sdd->src_clk);
@@ -1225,6 +1221,11 @@ static int s3c64xx_spi_remove(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 
 	writel(0, sdd->regs + S3C64XX_SPI_INT_EN);
+
+	if (!is_polling(sdd)) {
+		dma_release_channel(sdd->rx_dma.ch);
+		dma_release_channel(sdd->tx_dma.ch);
+	}
 
 	clk_disable_unprepare(sdd->ioclk);
 
