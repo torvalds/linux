@@ -190,6 +190,7 @@ static void init_header(struct ctl_table_header *head,
 	head->set = set;
 	head->parent = NULL;
 	head->node = node;
+	INIT_LIST_HEAD(&head->inodes);
 	if (node) {
 		struct ctl_table *entry;
 		for (entry = table; entry->procname; entry++, node++)
@@ -259,6 +260,29 @@ static void unuse_table(struct ctl_table_header *p)
 			complete(p->unregistering);
 }
 
+/* called under sysctl_lock */
+static void proc_sys_prune_dcache(struct ctl_table_header *head)
+{
+	struct inode *inode, *prev = NULL;
+	struct proc_inode *ei;
+
+	list_for_each_entry(ei, &head->inodes, sysctl_inodes) {
+		inode = igrab(&ei->vfs_inode);
+		if (inode) {
+			spin_unlock(&sysctl_lock);
+			iput(prev);
+			prev = inode;
+			d_prune_aliases(inode);
+			spin_lock(&sysctl_lock);
+		}
+	}
+	if (prev) {
+		spin_unlock(&sysctl_lock);
+		iput(prev);
+		spin_lock(&sysctl_lock);
+	}
+}
+
 /* called under sysctl_lock, will reacquire if has to wait */
 static void start_unregistering(struct ctl_table_header *p)
 {
@@ -278,25 +302,15 @@ static void start_unregistering(struct ctl_table_header *p)
 		p->unregistering = ERR_PTR(-EINVAL);
 	}
 	/*
+	 * Prune dentries for unregistered sysctls: namespaced sysctls
+	 * can have duplicate names and contaminate dcache very badly.
+	 */
+	proc_sys_prune_dcache(p);
+	/*
 	 * do not remove from the list until nobody holds it; walking the
 	 * list in do_sysctl() relies on that.
 	 */
 	erase_header(p);
-}
-
-static void sysctl_head_get(struct ctl_table_header *head)
-{
-	spin_lock(&sysctl_lock);
-	head->count++;
-	spin_unlock(&sysctl_lock);
-}
-
-void sysctl_head_put(struct ctl_table_header *head)
-{
-	spin_lock(&sysctl_lock);
-	if (!--head->count)
-		kfree_rcu(head, rcu);
-	spin_unlock(&sysctl_lock);
 }
 
 static struct ctl_table_header *sysctl_head_grab(struct ctl_table_header *head)
@@ -440,10 +454,14 @@ static struct inode *proc_sys_make_inode(struct super_block *sb,
 
 	inode->i_ino = get_next_ino();
 
-	sysctl_head_get(head);
 	ei = PROC_I(inode);
 	ei->sysctl = head;
 	ei->sysctl_entry = table;
+
+	spin_lock(&sysctl_lock);
+	list_add(&ei->sysctl_inodes, &head->inodes);
+	head->count++;
+	spin_unlock(&sysctl_lock);
 
 	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
 	inode->i_mode = table->mode;
@@ -464,6 +482,15 @@ static struct inode *proc_sys_make_inode(struct super_block *sb,
 
 out:
 	return inode;
+}
+
+void proc_sys_evict_inode(struct inode *inode, struct ctl_table_header *head)
+{
+	spin_lock(&sysctl_lock);
+	list_del(&PROC_I(inode)->sysctl_inodes);
+	if (!--head->count)
+		kfree_rcu(head, rcu);
+	spin_unlock(&sysctl_lock);
 }
 
 static struct ctl_table_header *grab_header(struct inode *inode)
