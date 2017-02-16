@@ -54,7 +54,7 @@ static const unsigned int pbias_volt_table[] = {
 	3000000
 };
 
-static struct regulator_ops pbias_regulator_voltage_ops = {
+static const struct regulator_ops pbias_regulator_voltage_ops = {
 	.list_voltage = regulator_list_voltage_table,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
