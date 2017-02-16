@@ -350,13 +350,13 @@ static void xgpu_vi_mailbox_set_valid(struct amdgpu_device *adev, bool val)
 }
 
 static void xgpu_vi_mailbox_trans_msg(struct amdgpu_device *adev,
-				      enum idh_event event)
+				      enum idh_request req)
 {
 	u32 reg;
 
 	reg = RREG32_NO_KIQ(mmMAILBOX_MSGBUF_TRN_DW0);
 	reg = REG_SET_FIELD(reg, MAILBOX_MSGBUF_TRN_DW0,
-			    MSGBUF_DATA, event);
+			    MSGBUF_DATA, req);
 	WREG32_NO_KIQ(mmMAILBOX_MSGBUF_TRN_DW0, reg);
 
 	xgpu_vi_mailbox_set_valid(adev, true);
@@ -458,20 +458,20 @@ static int xgpu_vi_request_reset(struct amdgpu_device *adev)
 static int xgpu_vi_request_full_gpu_access(struct amdgpu_device *adev,
 					   bool init)
 {
-	enum idh_event event;
+	enum idh_request req;
 
-	event = init ? IDH_REQ_GPU_INIT_ACCESS : IDH_REQ_GPU_FINI_ACCESS;
-	return xgpu_vi_send_access_requests(adev, event);
+	req = init ? IDH_REQ_GPU_INIT_ACCESS : IDH_REQ_GPU_FINI_ACCESS;
+	return xgpu_vi_send_access_requests(adev, req);
 }
 
 static int xgpu_vi_release_full_gpu_access(struct amdgpu_device *adev,
 					   bool init)
 {
-	enum idh_event event;
+	enum idh_request req;
 	int r = 0;
 
-	event = init ? IDH_REL_GPU_INIT_ACCESS : IDH_REL_GPU_FINI_ACCESS;
-	r = xgpu_vi_send_access_requests(adev, event);
+	req = init ? IDH_REL_GPU_INIT_ACCESS : IDH_REL_GPU_FINI_ACCESS;
+	r = xgpu_vi_send_access_requests(adev, req);
 
 	return r;
 }
