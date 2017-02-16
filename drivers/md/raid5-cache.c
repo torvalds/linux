@@ -43,7 +43,7 @@
 /* wake up reclaim thread periodically */
 #define R5C_RECLAIM_WAKEUP_INTERVAL (30 * HZ)
 /* start flush with these full stripes */
-#define R5C_FULL_STRIPE_FLUSH_BATCH 256
+#define R5C_FULL_STRIPE_FLUSH_BATCH(conf) (conf->max_nr_stripes / 4)
 /* reclaim stripes in groups */
 #define R5C_RECLAIM_STRIPE_GROUP (NR_STRIPE_HASH_LOCKS * 2)
 
@@ -381,7 +381,7 @@ void r5c_check_cached_full_stripe(struct r5conf *conf)
 	 * or a full stripe (chunk size / 4k stripes).
 	 */
 	if (atomic_read(&conf->r5c_cached_full_stripes) >=
-	    min(R5C_FULL_STRIPE_FLUSH_BATCH,
+	    min(R5C_FULL_STRIPE_FLUSH_BATCH(conf),
 		conf->chunk_sectors >> STRIPE_SHIFT))
 		r5l_wake_reclaim(conf->log, 0);
 }
@@ -1393,7 +1393,7 @@ static void r5c_do_reclaim(struct r5conf *conf)
 		stripes_to_flush = R5C_RECLAIM_STRIPE_GROUP;
 	else if (total_cached > conf->min_nr_stripes * 1 / 2 ||
 		 atomic_read(&conf->r5c_cached_full_stripes) - flushing_full >
-		 R5C_FULL_STRIPE_FLUSH_BATCH)
+		 R5C_FULL_STRIPE_FLUSH_BATCH(conf))
 		/*
 		 * if stripe cache pressure moderate, or if there is many full
 		 * stripes,flush all full stripes
