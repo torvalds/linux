@@ -1,0 +1,39 @@
+Broadcom USB3 phy binding for northstar plus SoC
+The USB3 phy is internal to the SoC and is accessed using mdio interface.
+
+Required mdio bus properties:
+- reg: Should be 0x0 for SoC internal USB3 phy
+- #address-cells: must be 1
+- #size-cells: must be 0
+
+Required USB3 PHY properties:
+- compatible: should be "brcm,nsp-usb3-phy"
+- reg: USB3 Phy address on SoC internal MDIO bus and it should be 0x10.
+- usb3-ctrl-syscon: handler of syscon node defining physical address
+  of usb3 control register.
+- #phy-cells: must be 0
+
+Required usb3 control properties:
+- compatible: should be "brcm,nsp-usb3-ctrl"
+- reg: offset and length of the control registers
+
+Example:
+
+	mdio@0 {
+		reg = <0x0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		usb3_phy: usb-phy@10 {
+			compatible = "brcm,nsp-usb3-phy";
+			reg = <0x10>;
+			usb3-ctrl-syscon = <&usb3_ctrl>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+	};
+
+	usb3_ctrl: syscon@104408 {
+		compatible = "brcm,nsp-usb3-ctrl", "syscon";
+		reg = <0x104408 0x3fc>;
+	};

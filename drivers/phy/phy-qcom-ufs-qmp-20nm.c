@@ -190,25 +190,17 @@ static int ufs_qcom_phy_qmp_20nm_probe(struct platform_device *pdev)
 				&ufs_qcom_phy_qmp_20nm_phy_ops, &phy_20nm_ops);
 
 	if (!generic_phy) {
-		dev_err(dev, "%s: ufs_qcom_phy_generic_probe() failed\n",
-			__func__);
 		err = -EIO;
 		goto out;
 	}
 
 	err = ufs_qcom_phy_init_clks(phy_common);
-	if (err) {
-		dev_err(phy_common->dev, "%s: ufs_qcom_phy_init_clks() failed %d\n",
-			__func__, err);
+	if (err)
 		goto out;
-	}
 
 	err = ufs_qcom_phy_init_vregulators(phy_common);
-	if (err) {
-		dev_err(phy_common->dev, "%s: ufs_qcom_phy_init_vregulators() failed %d\n",
-			__func__, err);
+	if (err)
 		goto out;
-	}
 
 	ufs_qcom_phy_qmp_20nm_advertise_quirks(phy_common);
 

@@ -575,7 +575,7 @@ static int omap2430_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops omap2430_pm_ops = {
+static const struct dev_pm_ops omap2430_pm_ops = {
 	.runtime_suspend = omap2430_runtime_suspend,
 	.runtime_resume = omap2430_runtime_resume,
 };

@@ -242,11 +242,7 @@ static int xhci_pci_setup(struct usb_hcd *hcd)
 	xhci_dbg(xhci, "Got SBRN %u\n", (unsigned int) xhci->sbrn);
 
 	/* Find any debug ports */
-	retval = xhci_pci_reinit(xhci, pdev);
-	if (!retval)
-		return retval;
-
-	return retval;
+	return xhci_pci_reinit(xhci, pdev);
 }
 
 /*

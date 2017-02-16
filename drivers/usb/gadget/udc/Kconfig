@@ -60,6 +60,20 @@ config USB_ATMEL_USBA
 	  USBA is the integrated high-speed USB Device controller on
 	  the AT32AP700x, some AT91SAM9 and AT91CAP9 processors from Atmel.
 
+	  The fifo_mode parameter is used to select endpoint allocation mode.
+	  fifo_mode = 0 is used to let the driver autoconfigure the endpoints.
+	  In this case 2 banks are allocated for isochronous endpoints and
+	  only one bank is allocated for the rest of the endpoints.
+
+	  fifo_mode = 1 is a generic maximum fifo size (1024 bytes) configuration
+	  allowing the usage of ep1 - ep6
+
+	  fifo_mode = 2 is a generic performance maximum fifo size (1024 bytes)
+	  configuration allowing the usage of ep1 - ep3
+
+	  fifo_mode = 3 is a balanced performance configuration allowing the
+	  the usage of ep1 - ep8
+
 config USB_BCM63XX_UDC
 	tristate "Broadcom BCM63xx Peripheral Controller"
 	depends on BCM63XX

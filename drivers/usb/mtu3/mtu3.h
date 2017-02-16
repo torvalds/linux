@@ -225,6 +225,7 @@ struct ssusb_mtk {
 	/* common power & clock */
 	struct regulator *vusb33;
 	struct clk *sys_clk;
+	struct clk *ref_clk;
 	/* otg */
 	struct otg_switch_mtk otg_switch;
 	enum usb_dr_mode dr_mode;

@@ -123,7 +123,13 @@ static int ssusb_rscs_init(struct ssusb_mtk *ssusb)
 	ret = clk_prepare_enable(ssusb->sys_clk);
 	if (ret) {
 		dev_err(ssusb->dev, "failed to enable sys_clk\n");
-		goto clk_err;
+		goto sys_clk_err;
+	}
+
+	ret = clk_prepare_enable(ssusb->ref_clk);
+	if (ret) {
+		dev_err(ssusb->dev, "failed to enable ref_clk\n");
+		goto ref_clk_err;
 	}
 
 	ret = ssusb_phy_init(ssusb);
@@ -143,8 +149,10 @@ static int ssusb_rscs_init(struct ssusb_mtk *ssusb)
 phy_err:
 	ssusb_phy_exit(ssusb);
 phy_init_err:
+	clk_disable_unprepare(ssusb->ref_clk);
+ref_clk_err:
 	clk_disable_unprepare(ssusb->sys_clk);
-clk_err:
+sys_clk_err:
 	regulator_disable(ssusb->vusb33);
 vusb33_err:
 
@@ -154,6 +162,7 @@ vusb33_err:
 static void ssusb_rscs_exit(struct ssusb_mtk *ssusb)
 {
 	clk_disable_unprepare(ssusb->sys_clk);
+	clk_disable_unprepare(ssusb->ref_clk);
 	regulator_disable(ssusb->vusb33);
 	ssusb_phy_power_off(ssusb);
 	ssusb_phy_exit(ssusb);
@@ -204,6 +213,31 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 	int i;
 	int ret;
 
+	ssusb->vusb33 = devm_regulator_get(&pdev->dev, "vusb33");
+	if (IS_ERR(ssusb->vusb33)) {
+		dev_err(dev, "failed to get vusb33\n");
+		return PTR_ERR(ssusb->vusb33);
+	}
+
+	ssusb->sys_clk = devm_clk_get(dev, "sys_ck");
+	if (IS_ERR(ssusb->sys_clk)) {
+		dev_err(dev, "failed to get sys clock\n");
+		return PTR_ERR(ssusb->sys_clk);
+	}
+
+	/*
+	 * reference clock is usually a "fixed-clock", make it optional
+	 * for backward compatibility and ignore the error if it does
+	 * not exist.
+	 */
+	ssusb->ref_clk = devm_clk_get(dev, "ref_ck");
+	if (IS_ERR(ssusb->ref_clk)) {
+		if (PTR_ERR(ssusb->ref_clk) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+
+		ssusb->ref_clk = NULL;
+	}
+
 	ssusb->num_phys = of_count_phandle_with_args(node,
 			"phys", "#phy-cells");
 	if (ssusb->num_phys > 0) {
@@ -225,22 +259,8 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ippc");
 	ssusb->ippc_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(ssusb->ippc_base)) {
-		dev_err(dev, "failed to map memory for ippc\n");
+	if (IS_ERR(ssusb->ippc_base))
 		return PTR_ERR(ssusb->ippc_base);
-	}
-
-	ssusb->vusb33 = devm_regulator_get(&pdev->dev, "vusb33");
-	if (IS_ERR(ssusb->vusb33)) {
-		dev_err(dev, "failed to get vusb33\n");
-		return PTR_ERR(ssusb->vusb33);
-	}
-
-	ssusb->sys_clk = devm_clk_get(dev, "sys_ck");
-	if (IS_ERR(ssusb->sys_clk)) {
-		dev_err(dev, "failed to get sys clock\n");
-		return PTR_ERR(ssusb->sys_clk);
-	}
 
 	ssusb->dr_mode = usb_get_dr_mode(dev);
 	if (ssusb->dr_mode == USB_DR_MODE_UNKNOWN) {
@@ -428,6 +448,7 @@ static int __maybe_unused mtu3_suspend(struct device *dev)
 	ssusb_host_disable(ssusb, true);
 	ssusb_phy_power_off(ssusb);
 	clk_disable_unprepare(ssusb->sys_clk);
+	clk_disable_unprepare(ssusb->ref_clk);
 	ssusb_wakeup_enable(ssusb);
 
 	return 0;
@@ -445,6 +466,7 @@ static int __maybe_unused mtu3_resume(struct device *dev)
 
 	ssusb_wakeup_disable(ssusb);
 	clk_prepare_enable(ssusb->sys_clk);
+	clk_prepare_enable(ssusb->ref_clk);
 	ssusb_phy_power_on(ssusb);
 	ssusb_host_enable(ssusb);
 

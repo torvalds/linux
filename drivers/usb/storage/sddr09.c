@@ -870,13 +870,12 @@ sddr09_write_lba(struct us_data *us, unsigned int lba,
 	unsigned int pagelen;
 	unsigned char *bptr, *cptr, *xptr;
 	unsigned char ecc[3];
-	int i, result, isnew;
+	int i, result;
 
 	lbap = ((lba % 1000) << 1) | 0x1000;
 	if (parity[MSB_of(lbap) ^ LSB_of(lbap)])
 		lbap ^= 1;
 	pba = info->lba_to_pba[lba];
-	isnew = 0;
 
 	if (pba == UNDEF) {
 		pba = sddr09_find_unused_pba(info, lba);
@@ -887,7 +886,6 @@ sddr09_write_lba(struct us_data *us, unsigned int lba,
 		}
 		info->pba_to_lba[pba] = lba;
 		info->lba_to_pba[lba] = pba;
-		isnew = 1;
 	}
 
 	if (pba == 1) {
