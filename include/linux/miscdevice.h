@@ -22,6 +22,7 @@
 /*#define ADB_MOUSE_MINOR	10	FIXME OBSOLETE */
 #define WATCHDOG_MINOR		130	/* Watchdog timer     */
 #define TEMP_MINOR		131	/* Temperature Sensor */
+#define APM_MINOR_DEV		134
 #define RTC_MINOR		135
 #define EFI_RTC_MINOR		136	/* EFI Time services */
 #define VHCI_MINOR		137

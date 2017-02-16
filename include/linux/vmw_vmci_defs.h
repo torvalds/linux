@@ -54,13 +54,6 @@
 #define VMCI_IMR_DATAGRAM      0x1
 #define VMCI_IMR_NOTIFICATION  0x2
 
-/* Interrupt type. */
-enum {
-	VMCI_INTR_TYPE_INTX = 0,
-	VMCI_INTR_TYPE_MSI = 1,
-	VMCI_INTR_TYPE_MSIX = 2,
-};
-
 /* Maximum MSI/MSI-X interrupt vectors in the device. */
 #define VMCI_MAX_INTRS 2
 

@@ -557,15 +557,7 @@ static struct clk_lookup da850_clks[] = {
 	CLK("da830-mmc.0",	NULL,		&mmcsd0_clk),
 	CLK("da830-mmc.1",	NULL,		&mmcsd1_clk),
 	CLK("ti-aemif",		NULL,		&aemif_clk),
-	/*
-	 * The only user of this clock is davinci_nand and it get's it through
-	 * con_id. The nand node itself is created from within the aemif
-	 * driver to guarantee that it's probed after the aemif timing
-	 * parameters are configured. of_dev_auxdata is not accessible from
-	 * the aemif driver and can't be passed to of_platform_populate(). For
-	 * that reason we're leaving the dev_id here as NULL.
-	 */
-	CLK(NULL,		"aemif",	&aemif_nand_clk),
+	CLK("davinci-nand.0",	"aemif",	&aemif_nand_clk),
 	CLK("ohci-da8xx",	"usb11",	&usb11_clk),
 	CLK("musb-da8xx",	"usb20",	&usb20_clk),
 	CLK("spi_davinci.0",	NULL,		&spi0_clk),

@@ -35,6 +35,7 @@ available subsections can be seen below.
    vme
    80211/index
    firmware/index
+   uio-howto
 
 .. only::  subproject and html
 

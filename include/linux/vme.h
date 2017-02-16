@@ -108,7 +108,6 @@ struct vme_dev {
 };
 
 struct vme_driver {
-	struct list_head node;
 	const char *name;
 	int (*match)(struct vme_dev *);
 	int (*probe)(struct vme_dev *);

@@ -100,4 +100,14 @@ config EEPROM_DIGSY_MTC_CFG
 
 	  If unsure, say N.
 
+config EEPROM_IDT_89HPESX
+	tristate "IDT 89HPESx PCIe-swtiches EEPROM / CSR support"
+	depends on I2C && SYSFS
+	help
+	  Enable this driver to get read/write access to EEPROM / CSRs
+	  over IDT PCIe-swtich i2c-slave interface.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called idt_89hpesx.
+
 endmenu
