@@ -1101,7 +1101,7 @@ void hostif_event_check(struct ks_wlan_private *priv)
 	priv->hostt.qtail = (priv->hostt.qtail + 1) % SME_EVENT_BUFF_SIZE;
 }
 
-#define CHECK_ALINE(size) (size%4 ? (size+(4-(size%4))):size)
+#define CHECK_ALINE(size) (size % 4 ? (size + (4 - (size % 4))) : size)
 
 int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
 {

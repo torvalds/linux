@@ -2451,7 +2451,7 @@ static int ks_wlan_data_read(struct net_device *dev,
 #if 0
 /*------------------------------------------------------------------*/
 /* Private handler : get wep string */
-#define WEP_ASCII_BUFF_SIZE (17+64*4+1)
+#define WEP_ASCII_BUFF_SIZE (17 + 64 * 4 + 1)
 static int ks_wlan_get_wep_ascii(struct net_device *dev,
 				 struct iw_request_info *info,
 				 struct iw_point *dwrq, char *extra)
@@ -3392,7 +3392,7 @@ int ks_wlan_close(struct net_device *dev)
 
 /* Operational parameters that usually are not changed. */
 /* Time in jiffies before concluding the transmitter is hung. */
-#define TX_TIMEOUT  (3*HZ)
+#define TX_TIMEOUT  (3 * HZ)
 static const unsigned char dummy_addr[] = {
 	0x00, 0x0b, 0xe3, 0x00, 0x00, 0x00
 };
