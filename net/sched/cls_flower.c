@@ -1229,7 +1229,8 @@ static int fl_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 	if (fl_dump_key_flags(skb, key->control.flags, mask->control.flags))
 		goto nla_put_failure;
 
-	nla_put_u32(skb, TCA_FLOWER_FLAGS, f->flags);
+	if (f->flags && nla_put_u32(skb, TCA_FLOWER_FLAGS, f->flags))
+		goto nla_put_failure;
 
 	if (tcf_exts_dump(skb, &f->exts))
 		goto nla_put_failure;
