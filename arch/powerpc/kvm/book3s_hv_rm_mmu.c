@@ -86,10 +86,10 @@ void kvmppc_add_revmap_chain(struct kvm *kvm, struct revmap_entry *rev,
 
 	if (*rmap & KVMPPC_RMAP_PRESENT) {
 		i = *rmap & KVMPPC_RMAP_INDEX;
-		head = &kvm->arch.revmap[i];
+		head = &kvm->arch.hpt.rev[i];
 		if (realmode)
 			head = real_vmalloc_addr(head);
-		tail = &kvm->arch.revmap[head->back];
+		tail = &kvm->arch.hpt.rev[head->back];
 		if (realmode)
 			tail = real_vmalloc_addr(tail);
 		rev->forw = i;
@@ -154,8 +154,8 @@ static void remove_revmap_chain(struct kvm *kvm, long pte_index,
 	lock_rmap(rmap);
 
 	head = *rmap & KVMPPC_RMAP_INDEX;
-	next = real_vmalloc_addr(&kvm->arch.revmap[rev->forw]);
-	prev = real_vmalloc_addr(&kvm->arch.revmap[rev->back]);
+	next = real_vmalloc_addr(&kvm->arch.hpt.rev[rev->forw]);
+	prev = real_vmalloc_addr(&kvm->arch.hpt.rev[rev->back]);
 	next->back = rev->back;
 	prev->forw = rev->forw;
 	if (head == pte_index) {
@@ -292,11 +292,11 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 
 	/* Find and lock the HPTEG slot to use */
  do_insert:
-	if (pte_index >= kvm->arch.hpt_npte)
+	if (pte_index >= kvmppc_hpt_npte(&kvm->arch.hpt))
 		return H_PARAMETER;
 	if (likely((flags & H_EXACT) == 0)) {
 		pte_index &= ~7UL;
-		hpte = (__be64 *)(kvm->arch.hpt_virt + (pte_index << 4));
+		hpte = (__be64 *)(kvm->arch.hpt.virt + (pte_index << 4));
 		for (i = 0; i < 8; ++i) {
 			if ((be64_to_cpu(*hpte) & HPTE_V_VALID) == 0 &&
 			    try_lock_hpte(hpte, HPTE_V_HVLOCK | HPTE_V_VALID |
@@ -327,7 +327,7 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 		}
 		pte_index += i;
 	} else {
-		hpte = (__be64 *)(kvm->arch.hpt_virt + (pte_index << 4));
+		hpte = (__be64 *)(kvm->arch.hpt.virt + (pte_index << 4));
 		if (!try_lock_hpte(hpte, HPTE_V_HVLOCK | HPTE_V_VALID |
 				   HPTE_V_ABSENT)) {
 			/* Lock the slot and check again */
@@ -344,7 +344,7 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 	}
 
 	/* Save away the guest's idea of the second HPTE dword */
-	rev = &kvm->arch.revmap[pte_index];
+	rev = &kvm->arch.hpt.rev[pte_index];
 	if (realmode)
 		rev = real_vmalloc_addr(rev);
 	if (rev) {
@@ -469,9 +469,9 @@ long kvmppc_do_h_remove(struct kvm *kvm, unsigned long flags,
 
 	if (kvm_is_radix(kvm))
 		return H_FUNCTION;
-	if (pte_index >= kvm->arch.hpt_npte)
+	if (pte_index >= kvmppc_hpt_npte(&kvm->arch.hpt))
 		return H_PARAMETER;
-	hpte = (__be64 *)(kvm->arch.hpt_virt + (pte_index << 4));
+	hpte = (__be64 *)(kvm->arch.hpt.virt + (pte_index << 4));
 	while (!try_lock_hpte(hpte, HPTE_V_HVLOCK))
 		cpu_relax();
 	pte = orig_pte = be64_to_cpu(hpte[0]);
@@ -487,7 +487,7 @@ long kvmppc_do_h_remove(struct kvm *kvm, unsigned long flags,
 		return H_NOT_FOUND;
 	}
 
-	rev = real_vmalloc_addr(&kvm->arch.revmap[pte_index]);
+	rev = real_vmalloc_addr(&kvm->arch.hpt.rev[pte_index]);
 	v = pte & ~HPTE_V_HVLOCK;
 	if (v & HPTE_V_VALID) {
 		hpte[0] &= ~cpu_to_be64(HPTE_V_VALID);
@@ -557,13 +557,13 @@ long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
 				break;
 			}
 			if (req != 1 || flags == 3 ||
-			    pte_index >= kvm->arch.hpt_npte) {
+			    pte_index >= kvmppc_hpt_npte(&kvm->arch.hpt)) {
 				/* parameter error */
 				args[j] = ((0xa0 | flags) << 56) + pte_index;
 				ret = H_PARAMETER;
 				break;
 			}
-			hp = (__be64 *) (kvm->arch.hpt_virt + (pte_index << 4));
+			hp = (__be64 *) (kvm->arch.hpt.virt + (pte_index << 4));
 			/* to avoid deadlock, don't spin except for first */
 			if (!try_lock_hpte(hp, HPTE_V_HVLOCK)) {
 				if (n)
@@ -600,7 +600,7 @@ long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
 			}
 
 			args[j] = ((0x80 | flags) << 56) + pte_index;
-			rev = real_vmalloc_addr(&kvm->arch.revmap[pte_index]);
+			rev = real_vmalloc_addr(&kvm->arch.hpt.rev[pte_index]);
 			note_hpte_modification(kvm, rev);
 
 			if (!(hp0 & HPTE_V_VALID)) {
@@ -657,10 +657,10 @@ long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
 
 	if (kvm_is_radix(kvm))
 		return H_FUNCTION;
-	if (pte_index >= kvm->arch.hpt_npte)
+	if (pte_index >= kvmppc_hpt_npte(&kvm->arch.hpt))
 		return H_PARAMETER;
 
-	hpte = (__be64 *)(kvm->arch.hpt_virt + (pte_index << 4));
+	hpte = (__be64 *)(kvm->arch.hpt.virt + (pte_index << 4));
 	while (!try_lock_hpte(hpte, HPTE_V_HVLOCK))
 		cpu_relax();
 	v = pte_v = be64_to_cpu(hpte[0]);
@@ -680,7 +680,7 @@ long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
 	/* Update guest view of 2nd HPTE dword */
 	mask = HPTE_R_PP0 | HPTE_R_PP | HPTE_R_N |
 		HPTE_R_KEY_HI | HPTE_R_KEY_LO;
-	rev = real_vmalloc_addr(&kvm->arch.revmap[pte_index]);
+	rev = real_vmalloc_addr(&kvm->arch.hpt.rev[pte_index]);
 	if (rev) {
 		r = (rev->guest_rpte & ~mask) | bits;
 		rev->guest_rpte = r;
@@ -728,15 +728,15 @@ long kvmppc_h_read(struct kvm_vcpu *vcpu, unsigned long flags,
 
 	if (kvm_is_radix(kvm))
 		return H_FUNCTION;
-	if (pte_index >= kvm->arch.hpt_npte)
+	if (pte_index >= kvmppc_hpt_npte(&kvm->arch.hpt))
 		return H_PARAMETER;
 	if (flags & H_READ_4) {
 		pte_index &= ~3;
 		n = 4;
 	}
-	rev = real_vmalloc_addr(&kvm->arch.revmap[pte_index]);
+	rev = real_vmalloc_addr(&kvm->arch.hpt.rev[pte_index]);
 	for (i = 0; i < n; ++i, ++pte_index) {
-		hpte = (__be64 *)(kvm->arch.hpt_virt + (pte_index << 4));
+		hpte = (__be64 *)(kvm->arch.hpt.virt + (pte_index << 4));
 		v = be64_to_cpu(hpte[0]) & ~HPTE_V_HVLOCK;
 		r = be64_to_cpu(hpte[1]);
 		if (cpu_has_feature(CPU_FTR_ARCH_300)) {
@@ -769,11 +769,11 @@ long kvmppc_h_clear_ref(struct kvm_vcpu *vcpu, unsigned long flags,
 
 	if (kvm_is_radix(kvm))
 		return H_FUNCTION;
-	if (pte_index >= kvm->arch.hpt_npte)
+	if (pte_index >= kvmppc_hpt_npte(&kvm->arch.hpt))
 		return H_PARAMETER;
 
-	rev = real_vmalloc_addr(&kvm->arch.revmap[pte_index]);
-	hpte = (__be64 *)(kvm->arch.hpt_virt + (pte_index << 4));
+	rev = real_vmalloc_addr(&kvm->arch.hpt.rev[pte_index]);
+	hpte = (__be64 *)(kvm->arch.hpt.virt + (pte_index << 4));
 	while (!try_lock_hpte(hpte, HPTE_V_HVLOCK))
 		cpu_relax();
 	v = be64_to_cpu(hpte[0]);
@@ -817,11 +817,11 @@ long kvmppc_h_clear_mod(struct kvm_vcpu *vcpu, unsigned long flags,
 
 	if (kvm_is_radix(kvm))
 		return H_FUNCTION;
-	if (pte_index >= kvm->arch.hpt_npte)
+	if (pte_index >= kvmppc_hpt_npte(&kvm->arch.hpt))
 		return H_PARAMETER;
 
-	rev = real_vmalloc_addr(&kvm->arch.revmap[pte_index]);
-	hpte = (__be64 *)(kvm->arch.hpt_virt + (pte_index << 4));
+	rev = real_vmalloc_addr(&kvm->arch.hpt.rev[pte_index]);
+	hpte = (__be64 *)(kvm->arch.hpt.virt + (pte_index << 4));
 	while (!try_lock_hpte(hpte, HPTE_V_HVLOCK))
 		cpu_relax();
 	v = be64_to_cpu(hpte[0]);
@@ -970,7 +970,7 @@ long kvmppc_hv_find_lock_hpte(struct kvm *kvm, gva_t eaddr, unsigned long slb_v,
 		somask = (1UL << 28) - 1;
 		vsid = (slb_v & ~SLB_VSID_B) >> SLB_VSID_SHIFT;
 	}
-	hash = (vsid ^ ((eaddr & somask) >> pshift)) & kvm->arch.hpt_mask;
+	hash = (vsid ^ ((eaddr & somask) >> pshift)) & kvmppc_hpt_mask(&kvm->arch.hpt);
 	avpn = slb_v & ~(somask >> 16);	/* also includes B */
 	avpn |= (eaddr & somask) >> 16;
 
@@ -981,7 +981,7 @@ long kvmppc_hv_find_lock_hpte(struct kvm *kvm, gva_t eaddr, unsigned long slb_v,
 	val |= avpn;
 
 	for (;;) {
-		hpte = (__be64 *)(kvm->arch.hpt_virt + (hash << 7));
+		hpte = (__be64 *)(kvm->arch.hpt.virt + (hash << 7));
 
 		for (i = 0; i < 16; i += 2) {
 			/* Read the PTE racily */
@@ -1017,7 +1017,7 @@ long kvmppc_hv_find_lock_hpte(struct kvm *kvm, gva_t eaddr, unsigned long slb_v,
 		if (val & HPTE_V_SECONDARY)
 			break;
 		val |= HPTE_V_SECONDARY;
-		hash = hash ^ kvm->arch.hpt_mask;
+		hash = hash ^ kvmppc_hpt_mask(&kvm->arch.hpt);
 	}
 	return -1;
 }
@@ -1066,14 +1066,14 @@ long kvmppc_hpte_hv_fault(struct kvm_vcpu *vcpu, unsigned long addr,
 				return status;	/* there really was no HPTE */
 			return 0;	/* for prot fault, HPTE disappeared */
 		}
-		hpte = (__be64 *)(kvm->arch.hpt_virt + (index << 4));
+		hpte = (__be64 *)(kvm->arch.hpt.virt + (index << 4));
 		v = orig_v = be64_to_cpu(hpte[0]) & ~HPTE_V_HVLOCK;
 		r = be64_to_cpu(hpte[1]);
 		if (cpu_has_feature(CPU_FTR_ARCH_300)) {
 			v = hpte_new_to_old_v(v, r);
 			r = hpte_new_to_old_r(r);
 		}
-		rev = real_vmalloc_addr(&kvm->arch.revmap[index]);
+		rev = real_vmalloc_addr(&kvm->arch.hpt.rev[index]);
 		gr = rev->guest_rpte;
 
 		unlock_hpte(hpte, orig_v);

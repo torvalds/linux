@@ -182,7 +182,8 @@ static void kvmppc_fast_vcpu_kick_hv(struct kvm_vcpu *vcpu)
 		++vcpu->stat.halt_wakeup;
 	}
 
-	if (kvmppc_ipi_thread(vcpu->arch.thread_cpu))
+	cpu = READ_ONCE(vcpu->arch.thread_cpu);
+	if (cpu >= 0 && kvmppc_ipi_thread(cpu))
 		return;
 
 	/* CPU points to the first thread of the core */
@@ -773,12 +774,8 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 		}
 		tvcpu->arch.prodded = 1;
 		smp_mb();
-		if (vcpu->arch.ceded) {
-			if (swait_active(&vcpu->wq)) {
-				swake_up(&vcpu->wq);
-				vcpu->stat.halt_wakeup++;
-			}
-		}
+		if (tvcpu->arch.ceded)
+			kvmppc_fast_vcpu_kick_hv(tvcpu);
 		break;
 	case H_CONFER:
 		target = kvmppc_get_gpr(vcpu, 4);
@@ -2665,7 +2662,8 @@ static int kvmppc_vcore_check_block(struct kvmppc_vcore *vc)
 	int i;
 
 	for_each_runnable_thread(i, vcpu, vc) {
-		if (vcpu->arch.pending_exceptions || !vcpu->arch.ceded)
+		if (vcpu->arch.pending_exceptions || !vcpu->arch.ceded ||
+		    vcpu->arch.prodded)
 			return 1;
 	}
 
@@ -2851,7 +2849,7 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 			break;
 		n_ceded = 0;
 		for_each_runnable_thread(i, v, vc) {
-			if (!v->arch.pending_exceptions)
+			if (!v->arch.pending_exceptions && !v->arch.prodded)
 				n_ceded += v->arch.ceded;
 			else
 				v->arch.ceded = 0;
@@ -3199,12 +3197,23 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 		goto out;	/* another vcpu beat us to it */
 
 	/* Allocate hashed page table (if not done already) and reset it */
-	if (!kvm->arch.hpt_virt) {
-		err = kvmppc_alloc_hpt(kvm, NULL);
-		if (err) {
+	if (!kvm->arch.hpt.virt) {
+		int order = KVM_DEFAULT_HPT_ORDER;
+		struct kvm_hpt_info info;
+
+		err = kvmppc_allocate_hpt(&info, order);
+		/* If we get here, it means userspace didn't specify a
+		 * size explicitly.  So, try successively smaller
+		 * sizes if the default failed. */
+		while ((err == -ENOMEM) && --order >= PPC_MIN_HPT_ORDER)
+			err  = kvmppc_allocate_hpt(&info, order);
+
+		if (err < 0) {
 			pr_err("KVM: Couldn't alloc HPT\n");
 			goto out;
 		}
+
+		kvmppc_set_hpt(kvm, &info);
 	}
 
 	/* Look up the memslot for guest physical address 0 */
@@ -3413,6 +3422,9 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 
 	kvm->arch.lpcr = lpcr;
 
+	/* Initialization for future HPT resizes */
+	kvm->arch.resize_hpt = NULL;
+
 	/*
 	 * Work out how many sets the TLB has, for the use of
 	 * the TLB invalidation loop in book3s_hv_rmhandlers.S.
@@ -3469,7 +3481,7 @@ static void kvmppc_core_destroy_vm_hv(struct kvm *kvm)
 	if (kvm_is_radix(kvm))
 		kvmppc_free_radix(kvm);
 	else
-		kvmppc_free_hpt(kvm);
+		kvmppc_free_hpt(&kvm->arch.hpt);
 
 	kvmppc_free_pimap(kvm);
 }
@@ -3695,11 +3707,8 @@ static long kvm_arch_vm_ioctl_hv(struct file *filp,
 		r = -EFAULT;
 		if (get_user(htab_order, (u32 __user *)argp))
 			break;
-		r = kvmppc_alloc_reset_hpt(kvm, &htab_order);
+		r = kvmppc_alloc_reset_hpt(kvm, htab_order);
 		if (r)
-			break;
-		r = -EFAULT;
-		if (put_user(htab_order, (u32 __user *)argp))
 			break;
 		r = 0;
 		break;
@@ -3712,6 +3721,28 @@ static long kvm_arch_vm_ioctl_hv(struct file *filp,
 		if (copy_from_user(&ghf, argp, sizeof(ghf)))
 			break;
 		r = kvm_vm_ioctl_get_htab_fd(kvm, &ghf);
+		break;
+	}
+
+	case KVM_PPC_RESIZE_HPT_PREPARE: {
+		struct kvm_ppc_resize_hpt rhpt;
+
+		r = -EFAULT;
+		if (copy_from_user(&rhpt, argp, sizeof(rhpt)))
+			break;
+
+		r = kvm_vm_ioctl_resize_hpt_prepare(kvm, &rhpt);
+		break;
+	}
+
+	case KVM_PPC_RESIZE_HPT_COMMIT: {
+		struct kvm_ppc_resize_hpt rhpt;
+
+		r = -EFAULT;
+		if (copy_from_user(&rhpt, argp, sizeof(rhpt)))
+			break;
+
+		r = kvm_vm_ioctl_resize_hpt_commit(kvm, &rhpt);
 		break;
 	}
 

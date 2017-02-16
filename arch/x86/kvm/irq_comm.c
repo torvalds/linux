@@ -41,15 +41,6 @@ static int kvm_set_pic_irq(struct kvm_kernel_irq_routing_entry *e,
 			   bool line_status)
 {
 	struct kvm_pic *pic = pic_irqchip(kvm);
-
-	/*
-	 * XXX: rejecting pic routes when pic isn't in use would be better,
-	 * but the default routing table is installed while kvm->arch.vpic is
-	 * NULL and KVM_CREATE_IRQCHIP can race with KVM_IRQ_LINE.
-	 */
-	if (!pic)
-		return -1;
-
 	return kvm_pic_set_irq(pic, e->irqchip.pin, irq_source_id, level);
 }
 
@@ -58,10 +49,6 @@ static int kvm_set_ioapic_irq(struct kvm_kernel_irq_routing_entry *e,
 			      bool line_status)
 {
 	struct kvm_ioapic *ioapic = kvm->arch.vioapic;
-
-	if (!ioapic)
-		return -1;
-
 	return kvm_ioapic_set_irq(ioapic, e->irqchip.pin, irq_source_id, level,
 				line_status);
 }
@@ -297,16 +284,20 @@ int kvm_set_routing_entry(struct kvm *kvm,
 	case KVM_IRQ_ROUTING_IRQCHIP:
 		delta = 0;
 		switch (ue->u.irqchip.irqchip) {
-		case KVM_IRQCHIP_PIC_MASTER:
-			e->set = kvm_set_pic_irq;
-			max_pin = PIC_NUM_PINS;
-			break;
 		case KVM_IRQCHIP_PIC_SLAVE:
+			delta = 8;
+			/* fall through */
+		case KVM_IRQCHIP_PIC_MASTER:
+			if (!pic_in_kernel(kvm))
+				goto out;
+
 			e->set = kvm_set_pic_irq;
 			max_pin = PIC_NUM_PINS;
-			delta = 8;
 			break;
 		case KVM_IRQCHIP_IOAPIC:
+			if (!ioapic_in_kernel(kvm))
+				goto out;
+
 			max_pin = KVM_IOAPIC_NUM_PINS;
 			e->set = kvm_set_ioapic_irq;
 			break;
@@ -409,7 +400,7 @@ int kvm_setup_empty_irq_routing(struct kvm *kvm)
 
 void kvm_arch_post_irq_routing_update(struct kvm *kvm)
 {
-	if (ioapic_in_kernel(kvm) || !irqchip_in_kernel(kvm))
+	if (!irqchip_split(kvm))
 		return;
 	kvm_make_scan_ioapic_request(kvm);
 }

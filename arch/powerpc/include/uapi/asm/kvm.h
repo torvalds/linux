@@ -633,5 +633,7 @@ struct kvm_ppc_rmmu_info {
 #define  KVM_XICS_LEVEL_SENSITIVE	(1ULL << 40)
 #define  KVM_XICS_MASKED		(1ULL << 41)
 #define  KVM_XICS_PENDING		(1ULL << 42)
+#define  KVM_XICS_PRESENTED		(1ULL << 43)
+#define  KVM_XICS_QUEUED		(1ULL << 44)
 
 #endif /* __LINUX_KVM_POWERPC_H */

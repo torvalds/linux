@@ -467,8 +467,16 @@ enum vmcs_field {
 #define VMX_EPT_WRITABLE_MASK			0x2ull
 #define VMX_EPT_EXECUTABLE_MASK			0x4ull
 #define VMX_EPT_IPAT_BIT    			(1ull << 6)
-#define VMX_EPT_ACCESS_BIT				(1ull << 8)
-#define VMX_EPT_DIRTY_BIT				(1ull << 9)
+#define VMX_EPT_ACCESS_BIT			(1ull << 8)
+#define VMX_EPT_DIRTY_BIT			(1ull << 9)
+#define VMX_EPT_RWX_MASK                        (VMX_EPT_READABLE_MASK |       \
+						 VMX_EPT_WRITABLE_MASK |       \
+						 VMX_EPT_EXECUTABLE_MASK)
+#define VMX_EPT_MT_MASK				(7ull << VMX_EPT_MT_EPTE_SHIFT)
+
+/* The mask to use to trigger an EPT Misconfiguration in order to track MMIO */
+#define VMX_EPT_MISCONFIG_WX_VALUE		(VMX_EPT_WRITABLE_MASK |       \
+						 VMX_EPT_EXECUTABLE_MASK)
 
 #define VMX_EPT_IDENTITY_PAGETABLE_ADDR		0xfffbc000ul
 
@@ -498,6 +506,22 @@ struct vmx_msr_entry {
 #define ENTRY_FAIL_PDPTE		2
 #define ENTRY_FAIL_NMI			3
 #define ENTRY_FAIL_VMCS_LINK_PTR	4
+
+/*
+ * Exit Qualifications for EPT Violations
+ */
+#define EPT_VIOLATION_ACC_READ_BIT	0
+#define EPT_VIOLATION_ACC_WRITE_BIT	1
+#define EPT_VIOLATION_ACC_INSTR_BIT	2
+#define EPT_VIOLATION_READABLE_BIT	3
+#define EPT_VIOLATION_WRITABLE_BIT	4
+#define EPT_VIOLATION_EXECUTABLE_BIT	5
+#define EPT_VIOLATION_ACC_READ		(1 << EPT_VIOLATION_ACC_READ_BIT)
+#define EPT_VIOLATION_ACC_WRITE		(1 << EPT_VIOLATION_ACC_WRITE_BIT)
+#define EPT_VIOLATION_ACC_INSTR		(1 << EPT_VIOLATION_ACC_INSTR_BIT)
+#define EPT_VIOLATION_READABLE		(1 << EPT_VIOLATION_READABLE_BIT)
+#define EPT_VIOLATION_WRITABLE		(1 << EPT_VIOLATION_WRITABLE_BIT)
+#define EPT_VIOLATION_EXECUTABLE	(1 << EPT_VIOLATION_EXECUTABLE_BIT)
 
 /*
  * VM-instruction error numbers

@@ -612,6 +612,9 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_SPAPR_MULTITCE:
 		r = 1;
 		break;
+	case KVM_CAP_SPAPR_RESIZE_HPT:
+		r = !!hv_enabled;
+		break;
 #endif
 	case KVM_CAP_PPC_HTM:
 		r = cpu_has_feature(CPU_FTR_TM_COMP) &&
