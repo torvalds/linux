@@ -132,6 +132,35 @@ static irqreturn_t icp_opal_ipi_action(int irq, void *dev_id)
 	return smp_ipi_demux();
 }
 
+/*
+ * Called when an interrupt is received on an off-line CPU to
+ * clear the interrupt, so that the CPU can go back to nap mode.
+ */
+void icp_opal_flush_interrupt(void)
+{
+	unsigned int xirr;
+	unsigned int vec;
+
+	do {
+		xirr = icp_opal_get_xirr();
+		vec = xirr & 0x00ffffff;
+		if (vec == XICS_IRQ_SPURIOUS)
+			break;
+		if (vec == XICS_IPI) {
+			/* Clear pending IPI */
+			int cpu = smp_processor_id();
+			kvmppc_set_host_ipi(cpu, 0);
+			opal_int_set_mfrr(get_hard_smp_processor_id(cpu), 0xff);
+		} else {
+			pr_err("XICS: hw interrupt 0x%x to offline cpu, "
+			       "disabling\n", vec);
+			xics_mask_unknown_vec(vec);
+		}
+
+		/* EOI the interrupt */
+	} while (opal_int_eoi(xirr) > 0);
+}
+
 #endif /* CONFIG_SMP */
 
 static const struct icp_ops icp_opal_ops = {

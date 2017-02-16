@@ -804,6 +804,10 @@ static void dm_old_request_fn(struct request_queue *q)
 		int srcu_idx;
 		struct dm_table *map = dm_get_live_table(md, &srcu_idx);
 
+		if (unlikely(!map)) {
+			dm_put_live_table(md, srcu_idx);
+			return;
+		}
 		ti = dm_table_find_target(map, pos);
 		dm_put_live_table(md, srcu_idx);
 	}

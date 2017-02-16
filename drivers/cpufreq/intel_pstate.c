@@ -820,6 +820,25 @@ static void intel_pstate_hwp_enable(struct cpudata *cpudata)
 	wrmsrl_on_cpu(cpudata->cpu, MSR_PM_ENABLE, 0x1);
 }
 
+#define MSR_IA32_POWER_CTL_BIT_EE	19
+
+/* Disable energy efficiency optimization */
+static void intel_pstate_disable_ee(int cpu)
+{
+	u64 power_ctl;
+	int ret;
+
+	ret = rdmsrl_on_cpu(cpu, MSR_IA32_POWER_CTL, &power_ctl);
+	if (ret)
+		return;
+
+	if (!(power_ctl & BIT(MSR_IA32_POWER_CTL_BIT_EE))) {
+		pr_info("Disabling energy efficiency optimization\n");
+		power_ctl |= BIT(MSR_IA32_POWER_CTL_BIT_EE);
+		wrmsrl_on_cpu(cpu, MSR_IA32_POWER_CTL, power_ctl);
+	}
+}
+
 static int atom_get_min_pstate(void)
 {
 	u64 value;
@@ -1420,6 +1439,11 @@ static const struct x86_cpu_id intel_pstate_cpu_oob_ids[] __initconst = {
 	{}
 };
 
+static const struct x86_cpu_id intel_pstate_cpu_ee_disable_ids[] = {
+	ICPU(INTEL_FAM6_KABYLAKE_DESKTOP, core_params),
+	{}
+};
+
 static int intel_pstate_init_cpu(unsigned int cpunum)
 {
 	struct cpudata *cpu;
@@ -1435,6 +1459,12 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 	cpu->cpu = cpunum;
 
 	if (hwp_active) {
+		const struct x86_cpu_id *id;
+
+		id = x86_match_cpu(intel_pstate_cpu_ee_disable_ids);
+		if (id)
+			intel_pstate_disable_ee(cpunum);
+
 		intel_pstate_hwp_enable(cpu);
 		pid_params.sample_rate_ms = 50;
 		pid_params.sample_rate_ns = 50 * NSEC_PER_MSEC;
