@@ -1168,7 +1168,6 @@ int prism2mgmt_wlansniff(struct wlandevice *wlandev, void *msgp)
 			}
 		} else {
 			result = hfa384x_drvr_disable(hw, 0);
-
 		}
 
 		netdev_info(wlandev->netdev, "monitor mode disabled\n");
