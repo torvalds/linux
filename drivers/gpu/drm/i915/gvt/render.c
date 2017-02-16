@@ -236,12 +236,18 @@ static void restore_mocs(struct intel_vgpu *vgpu, int ring_id)
 	}
 }
 
+#define CTX_CONTEXT_CONTROL_VAL	0x03
+
 void intel_gvt_load_render_mmio(struct intel_vgpu *vgpu, int ring_id)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	struct render_mmio *mmio;
 	u32 v;
 	int i, array_size;
+	u32 *reg_state = vgpu->shadow_ctx->engine[ring_id].lrc_reg_state;
+	u32 ctx_ctrl = reg_state[CTX_CONTEXT_CONTROL_VAL];
+	u32 inhibit_mask =
+		_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
 
 	if (IS_SKYLAKE(vgpu->gvt->dev_priv)) {
 		mmio = gen9_render_mmio_list;
@@ -257,6 +263,17 @@ void intel_gvt_load_render_mmio(struct intel_vgpu *vgpu, int ring_id)
 			continue;
 
 		mmio->value = I915_READ(mmio->reg);
+
+		/*
+		 * if it is an inhibit context, load in_context mmio
+		 * into HW by mmio write. If it is not, skip this mmio
+		 * write.
+		 */
+		if (mmio->in_context &&
+				((ctx_ctrl & inhibit_mask) != inhibit_mask) &&
+				i915.enable_execlists)
+			continue;
+
 		if (mmio->mask)
 			v = vgpu_vreg(vgpu, mmio->reg) | (mmio->mask << 16);
 		else

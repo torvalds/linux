@@ -169,7 +169,8 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 	gvt_dbg_sched("ring id %d prepare to dispatch workload %p\n",
 		ring_id, workload);
 
-	shadow_ctx->desc_template = workload->ctx_desc.addressing_mode <<
+	shadow_ctx->desc_template &= ~(0x3 << GEN8_CTX_ADDRESSING_MODE_SHIFT);
+	shadow_ctx->desc_template |= workload->ctx_desc.addressing_mode <<
 				    GEN8_CTX_ADDRESSING_MODE_SHIFT;
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
@@ -456,7 +457,7 @@ static int workload_thread(void *priv)
 		}
 
 complete:
-		gvt_dbg_sched("will complete workload %p\n, status: %d\n",
+		gvt_dbg_sched("will complete workload %p, status: %d\n",
 				workload, workload->status);
 
 		if (workload->req)
