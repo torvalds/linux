@@ -227,14 +227,14 @@ static int ec_read_version_supported(struct cros_ec_dev *ec)
 
 	struct cros_ec_command *msg;
 
-	msg = kzalloc(sizeof(*msg) + max(sizeof(params), sizeof(response)),
+	msg = kzalloc(sizeof(*msg) + max(sizeof(*params), sizeof(*response)),
 		GFP_KERNEL);
 	if (!msg)
 		return 0;
 
 	msg->command = EC_CMD_GET_CMD_VERSIONS + ec->cmd_offset;
-	msg->outsize = sizeof(params);
-	msg->insize = sizeof(response);
+	msg->outsize = sizeof(*params);
+	msg->insize = sizeof(*response);
 
 	params = (struct ec_params_get_cmd_versions_v1 *)msg->data;
 	params->cmd = EC_CMD_CONSOLE_READ;
