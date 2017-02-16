@@ -270,6 +270,45 @@ static inline long keyctl_dh_compute(struct keyctl_dh_params __user *params,
 }
 #endif
 
+#ifdef CONFIG_ASYMMETRIC_KEY_TYPE
+extern long keyctl_pkey_query(key_serial_t,
+			      const char __user *,
+			      struct keyctl_pkey_query __user *);
+
+extern long keyctl_pkey_verify(const struct keyctl_pkey_params __user *,
+			       const char __user *,
+			       const void __user *, const void __user *);
+
+extern long keyctl_pkey_e_d_s(int,
+			      const struct keyctl_pkey_params __user *,
+			      const char __user *,
+			      const void __user *, void __user *);
+#else
+static inline long keyctl_pkey_query(key_serial_t id,
+				     const char __user *_info,
+				     struct keyctl_pkey_query __user *_res)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline long keyctl_pkey_verify(const struct keyctl_pkey_params __user *params,
+				      const char __user *_info,
+				      const void __user *_in,
+				      const void __user *_in2)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline long keyctl_pkey_e_d_s(int op,
+				     const struct keyctl_pkey_params __user *params,
+				     const char __user *_info,
+				     const void __user *_in,
+				     void __user *_out)
+{
+	return -EOPNOTSUPP;
+}
+#endif
+
 /*
  * Debugging key validation
  */

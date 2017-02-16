@@ -3,6 +3,12 @@
 #
 
 obj-$(CONFIG_SYSTEM_TRUSTED_KEYRING) += system_keyring.o system_certificates.o
+obj-$(CONFIG_SYSTEM_BLACKLIST_KEYRING) += blacklist.o
+ifneq ($(CONFIG_SYSTEM_BLACKLIST_HASH_LIST),"")
+obj-$(CONFIG_SYSTEM_BLACKLIST_KEYRING) += blacklist_hashes.o
+else
+obj-$(CONFIG_SYSTEM_BLACKLIST_KEYRING) += blacklist_nohashes.o
+endif
 
 ifeq ($(CONFIG_SYSTEM_TRUSTED_KEYRING),y)
 

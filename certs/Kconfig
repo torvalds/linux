@@ -64,4 +64,22 @@ config SECONDARY_TRUSTED_KEYRING
 	  those keys are not blacklisted and are vouched for by a key built
 	  into the kernel or already in the secondary trusted keyring.
 
+config SYSTEM_BLACKLIST_KEYRING
+	bool "Provide system-wide ring of blacklisted keys"
+	depends on KEYS
+	help
+	  Provide a system keyring to which blacklisted keys can be added.
+	  Keys in the keyring are considered entirely untrusted.  Keys in this
+	  keyring are used by the module signature checking to reject loading
+	  of modules signed with a blacklisted key.
+
+config SYSTEM_BLACKLIST_HASH_LIST
+	string "Hashes to be preloaded into the system blacklist keyring"
+	depends on SYSTEM_BLACKLIST_KEYRING
+	help
+	  If set, this option should be the filename of a list of hashes in the
+	  form "<hash>", "<hash>", ... .  This will be included into a C
+	  wrapper to incorporate the list into the kernel.  Each <hash> should
+	  be a string of hex digits.
+
 endmenu
