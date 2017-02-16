@@ -1238,12 +1238,6 @@ static int ipu_add_client_devices(struct ipu_soc *ipu, unsigned long ipu_base)
 			platform_device_put(pdev);
 			goto err_register;
 		}
-
-		/*
-		 * Set of_node only after calling platform_device_add. Otherwise
-		 * the platform:imx-ipuv3-crtc modalias won't be used.
-		 */
-		pdev->dev.of_node = of_node;
 	}
 
 	return 0;
