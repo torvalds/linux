@@ -565,6 +565,7 @@ TRACE_EVENT(f2fs_get_victim,
 		__field(int,	alloc_mode)
 		__field(int,	gc_mode)
 		__field(unsigned int,	victim)
+		__field(unsigned int,	cost)
 		__field(unsigned int,	ofs_unit)
 		__field(unsigned int,	pre_victim)
 		__field(unsigned int,	prefree)
@@ -578,20 +579,23 @@ TRACE_EVENT(f2fs_get_victim,
 		__entry->alloc_mode	= p->alloc_mode;
 		__entry->gc_mode	= p->gc_mode;
 		__entry->victim		= p->min_segno;
+		__entry->cost		= p->min_cost;
 		__entry->ofs_unit	= p->ofs_unit;
 		__entry->pre_victim	= pre_victim;
 		__entry->prefree	= prefree;
 		__entry->free		= free;
 	),
 
-	TP_printk("dev = (%d,%d), type = %s, policy = (%s, %s, %s), victim = %u "
-		"ofs_unit = %u, pre_victim_secno = %d, prefree = %u, free = %u",
+	TP_printk("dev = (%d,%d), type = %s, policy = (%s, %s, %s), "
+		"victim = %u, cost = %u, ofs_unit = %u, "
+		"pre_victim_secno = %d, prefree = %u, free = %u",
 		show_dev(__entry->dev),
 		show_data_type(__entry->type),
 		show_gc_type(__entry->gc_type),
 		show_alloc_mode(__entry->alloc_mode),
 		show_victim_policy(__entry->gc_mode),
 		__entry->victim,
+		__entry->cost,
 		__entry->ofs_unit,
 		(int)__entry->pre_victim,
 		__entry->prefree,
