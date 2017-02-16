@@ -726,15 +726,18 @@ static int pseries_lpar_resize_hpt(unsigned long shift)
 	return 0;
 }
 
-/* Actually only used for radix, so far */
 static int pseries_lpar_register_process_table(unsigned long base,
 			unsigned long page_size, unsigned long table_size)
 {
 	long rc;
-	unsigned long flags = PROC_TABLE_NEW;
+	unsigned long flags = 0;
 
+	if (table_size)
+		flags |= PROC_TABLE_NEW;
 	if (radix_enabled())
 		flags |= PROC_TABLE_RADIX | PROC_TABLE_GTSE;
+	else
+		flags |= PROC_TABLE_HPT_SLB;
 	for (;;) {
 		rc = plpar_hcall_norets(H_REGISTER_PROC_TBL, flags, base,
 					page_size, table_size);
@@ -760,6 +763,7 @@ void __init hpte_init_pseries(void)
 	mmu_hash_ops.flush_hash_range	 = pSeries_lpar_flush_hash_range;
 	mmu_hash_ops.hpte_clear_all      = pseries_hpte_clear_all;
 	mmu_hash_ops.hugepage_invalidate = pSeries_lpar_hugepage_invalidate;
+	register_process_table		 = pseries_lpar_register_process_table;
 
 	if (firmware_has_feature(FW_FEATURE_HPT_RESIZE))
 		mmu_hash_ops.resize_hpt = pseries_lpar_resize_hpt;
