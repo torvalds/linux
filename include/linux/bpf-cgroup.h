@@ -21,20 +21,19 @@ struct cgroup_bpf {
 	 */
 	struct bpf_prog *prog[MAX_BPF_ATTACH_TYPE];
 	struct bpf_prog __rcu *effective[MAX_BPF_ATTACH_TYPE];
+	bool disallow_override[MAX_BPF_ATTACH_TYPE];
 };
 
 void cgroup_bpf_put(struct cgroup *cgrp);
 void cgroup_bpf_inherit(struct cgroup *cgrp, struct cgroup *parent);
 
-void __cgroup_bpf_update(struct cgroup *cgrp,
-			 struct cgroup *parent,
-			 struct bpf_prog *prog,
-			 enum bpf_attach_type type);
+int __cgroup_bpf_update(struct cgroup *cgrp, struct cgroup *parent,
+			struct bpf_prog *prog, enum bpf_attach_type type,
+			bool overridable);
 
 /* Wrapper for __cgroup_bpf_update() protected by cgroup_mutex */
-void cgroup_bpf_update(struct cgroup *cgrp,
-		       struct bpf_prog *prog,
-		       enum bpf_attach_type type);
+int cgroup_bpf_update(struct cgroup *cgrp, struct bpf_prog *prog,
+		      enum bpf_attach_type type, bool overridable);
 
 int __cgroup_bpf_run_filter_skb(struct sock *sk,
 				struct sk_buff *skb,
