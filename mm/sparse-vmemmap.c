@@ -248,20 +248,28 @@ int __meminit vmemmap_populate_basepages(unsigned long start,
 	return 0;
 }
 
-struct page * __meminit sparse_mem_map_populate(unsigned long pnum, int nid)
+struct page * __meminit __populate_section_memmap(unsigned long pfn,
+		unsigned long nr_pages, int nid)
 {
 	unsigned long start;
 	unsigned long end;
-	struct page *map;
 
-	map = pfn_to_page(pnum * PAGES_PER_SECTION);
-	start = (unsigned long)map;
-	end = (unsigned long)(map + PAGES_PER_SECTION);
+	/*
+	 * The minimum granularity of memmap extensions is
+	 * SECTION_ACTIVE_SIZE as allocations are tracked in the
+	 * 'map_active' bitmap of the section.
+	 */
+	end = ALIGN(pfn + nr_pages, PHYS_PFN(SECTION_ACTIVE_SIZE));
+	pfn &= PHYS_PFN(SECTION_ACTIVE_MASK);
+	nr_pages = end - pfn;
+
+	start = (unsigned long) pfn_to_page(pfn);
+	end = start + nr_pages * sizeof(struct page);
 
 	if (vmemmap_populate(start, end, nid))
 		return NULL;
 
-	return map;
+	return pfn_to_page(pfn);
 }
 
 void __init sparse_mem_maps_populate_node(struct page **map_map,
@@ -284,11 +292,13 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
 
 	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
 		struct mem_section *ms;
+		unsigned long pfn = section_nr_to_pfn(pnum);
 
 		if (!present_section_nr(pnum))
 			continue;
 
-		map_map[pnum] = sparse_mem_map_populate(pnum, nodeid);
+		map_map[pnum] = __populate_section_memmap(pfn,
+				PAGES_PER_SECTION, nodeid);
 		if (map_map[pnum])
 			continue;
 		ms = __nr_to_section(pnum);

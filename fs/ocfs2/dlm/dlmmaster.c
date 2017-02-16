@@ -2612,19 +2612,47 @@ static int dlm_migrate_lockres(struct dlm_ctxt *dlm,
 	spin_lock(&dlm->master_lock);
 	ret = dlm_add_migration_mle(dlm, res, mle, &oldmle, name,
 				    namelen, target, dlm->node_num);
+	if (ret == -EEXIST) {
+		if (oldmle)
+			__dlm_put_mle(oldmle);
+
+		spin_unlock(&dlm->master_lock);
+		spin_unlock(&dlm->spinlock);
+		mlog(0, "another process is already migrating it\n");
+		goto fail;
+	}
+
+	/*
+	 * If an old mle is found, it should be put.  If its type is BLOCK,
+	 * it should be put again.  Because it has been unhasded from the map
+	 * in the function dlm_add_migration_mle.
+	 * Otherwise the memory will be leaked.  It will not be found again from
+	 * the hash map.
+	 */
+	if (oldmle) {
+		/* master is known, detach if not already detached */
+		__dlm_mle_detach_hb_events(dlm, oldmle);
+		__dlm_put_mle(oldmle);
+
+		/*
+		 * If the type of the mle is BLOCK, it should be put once for
+		 * release.  Otherwise a memory leak may be caused because
+		 * oldmle has been unhashed from the hash map and it will not
+		 * be found any more.
+		 */
+		if (oldmle->type == DLM_MLE_BLOCK)
+			__dlm_put_mle(oldmle);
+       }
+
 	/* get an extra reference on the mle.
 	 * otherwise the assert_master from the new
 	 * master will destroy this.
 	 */
 	dlm_get_mle_inuse(mle);
+	mle_added = 1;
+
 	spin_unlock(&dlm->master_lock);
 	spin_unlock(&dlm->spinlock);
-
-	if (ret == -EEXIST) {
-		mlog(0, "another process is already migrating it\n");
-		goto fail;
-	}
-	mle_added = 1;
 
 	/*
 	 * set the MIGRATING flag and flush asts
@@ -2642,12 +2670,6 @@ static int dlm_migrate_lockres(struct dlm_ctxt *dlm,
 	}
 
 fail:
-	if (ret != -EEXIST && oldmle) {
-		/* master is known, detach if not already detached */
-		dlm_mle_detach_hb_events(dlm, oldmle);
-		dlm_put_mle(oldmle);
-	}
-
 	if (ret < 0) {
 		if (mle_added) {
 			dlm_mle_detach_hb_events(dlm, mle);
@@ -3182,15 +3204,23 @@ int dlm_migrate_request_handler(struct o2net_msg *msg, u32 len, void *data,
 	if (ret < 0)
 		kmem_cache_free(dlm_mle_cache, mle);
 
+	/*
+	 * If an old mle is found, it should be put.  If its type is BLOCK,
+	 * it should be put again because it has been unhashed from the map
+	 * in the dlm_add_migration_mle().
+	 * Otherwise the memory will be leaked.  It will not be found again from
+	 * the hash map.
+	 */
+	if (oldmle) {
+		__dlm_mle_detach_hb_events(dlm, oldmle);
+		__dlm_put_mle(oldmle);
+		if (ret >= 0 && oldmle->type == DLM_MLE_BLOCK)
+			__dlm_put_mle(oldmle);
+	}
+
 	spin_unlock(&dlm->master_lock);
 unlock:
 	spin_unlock(&dlm->spinlock);
-
-	if (oldmle) {
-		/* master is known, detach if not already detached */
-		dlm_mle_detach_hb_events(dlm, oldmle);
-		dlm_put_mle(oldmle);
-	}
 
 	if (res)
 		dlm_lockres_put(res);

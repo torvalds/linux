@@ -11,6 +11,8 @@ TEST_GEN_FILES += on-fault-limit
 TEST_GEN_FILES += thuge-gen
 TEST_GEN_FILES += transhuge-stress
 TEST_GEN_FILES += userfaultfd
+TEST_GEN_FILES += userfaultfd_hugetlb
+TEST_GEN_FILES += userfaultfd_shmem
 TEST_GEN_FILES += mlock-random-test
 
 TEST_PROGS := run_vmtests
@@ -18,6 +20,8 @@ TEST_PROGS := run_vmtests
 include ../lib.mk
 
 $(OUTPUT)/userfaultfd: LDLIBS += -lpthread ../../../../usr/include/linux/kernel.h
+$(OUTPUT)/userfaultfd_hugetlb: LDLIBS += -lpthread ../../../../usr/include/linux/kernel.h
+$(OUTPUT)/userfaultfd_shmem: LDLIBS += -lpthread ../../../../usr/include/linux/kernel.h
 $(OUTPUT)/mlock-random-test: LDLIBS += -lcap
 
 ../../../../usr/include/linux/kernel.h:

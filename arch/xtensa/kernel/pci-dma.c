@@ -158,7 +158,8 @@ static void *xtensa_dma_alloc(struct device *dev, size_t size,
 		flag |= GFP_DMA;
 
 	if (gfpflags_allow_blocking(flag))
-		page = dma_alloc_from_contiguous(dev, count, get_order(size));
+		page = dma_alloc_from_contiguous(dev, count, get_order(size),
+						 flag);
 
 	if (!page)
 		page = alloc_pages(flag, get_order(size));

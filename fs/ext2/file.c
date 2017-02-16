@@ -87,19 +87,19 @@ out_unlock:
  * The default page_lock and i_size verification done by non-DAX fault paths
  * is sufficient because ext2 doesn't support hole punching.
  */
-static int ext2_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int ext2_dax_fault(struct vm_fault *vmf)
 {
-	struct inode *inode = file_inode(vma->vm_file);
+	struct inode *inode = file_inode(vmf->vma->vm_file);
 	struct ext2_inode_info *ei = EXT2_I(inode);
 	int ret;
 
 	if (vmf->flags & FAULT_FLAG_WRITE) {
 		sb_start_pagefault(inode->i_sb);
-		file_update_time(vma->vm_file);
+		file_update_time(vmf->vma->vm_file);
 	}
 	down_read(&ei->dax_sem);
 
-	ret = dax_iomap_fault(vma, vmf, &ext2_iomap_ops);
+	ret = dax_iomap_fault(vmf, PE_SIZE_PTE, &ext2_iomap_ops);
 
 	up_read(&ei->dax_sem);
 	if (vmf->flags & FAULT_FLAG_WRITE)
@@ -107,16 +107,15 @@ static int ext2_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	return ret;
 }
 
-static int ext2_dax_pfn_mkwrite(struct vm_area_struct *vma,
-		struct vm_fault *vmf)
+static int ext2_dax_pfn_mkwrite(struct vm_fault *vmf)
 {
-	struct inode *inode = file_inode(vma->vm_file);
+	struct inode *inode = file_inode(vmf->vma->vm_file);
 	struct ext2_inode_info *ei = EXT2_I(inode);
 	loff_t size;
 	int ret;
 
 	sb_start_pagefault(inode->i_sb);
-	file_update_time(vma->vm_file);
+	file_update_time(vmf->vma->vm_file);
 	down_read(&ei->dax_sem);
 
 	/* check that the faulting page hasn't raced with truncate */
@@ -124,7 +123,7 @@ static int ext2_dax_pfn_mkwrite(struct vm_area_struct *vma,
 	if (vmf->pgoff >= size)
 		ret = VM_FAULT_SIGBUS;
 	else
-		ret = dax_pfn_mkwrite(vma, vmf);
+		ret = dax_pfn_mkwrite(vmf);
 
 	up_read(&ei->dax_sem);
 	sb_end_pagefault(inode->i_sb);
@@ -134,7 +133,7 @@ static int ext2_dax_pfn_mkwrite(struct vm_area_struct *vma,
 static const struct vm_operations_struct ext2_dax_vm_ops = {
 	.fault		= ext2_dax_fault,
 	/*
-	 * .pmd_fault is not supported for DAX because allocation in ext2
+	 * .huge_fault is not supported for DAX because allocation in ext2
 	 * cannot be reliably aligned to huge page sizes and so pmd faults
 	 * will always fail and fail back to regular faults.
 	 */

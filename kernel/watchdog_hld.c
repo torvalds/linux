@@ -137,12 +137,14 @@ static void watchdog_overflow_callback(struct perf_event *event,
  * Reduce the watchdog noise by only printing messages
  * that are different from what cpu0 displayed.
  */
-static unsigned long cpu0_err;
+static unsigned long firstcpu_err;
+static atomic_t watchdog_cpus;
 
 int watchdog_nmi_enable(unsigned int cpu)
 {
 	struct perf_event_attr *wd_attr;
 	struct perf_event *event = per_cpu(watchdog_ev, cpu);
+	int firstcpu = 0;
 
 	/* nothing to do if the hard lockup detector is disabled */
 	if (!(watchdog_enabled & NMI_WATCHDOG_ENABLED))
@@ -156,19 +158,22 @@ int watchdog_nmi_enable(unsigned int cpu)
 	if (event != NULL)
 		goto out_enable;
 
+	if (atomic_inc_return(&watchdog_cpus) == 1)
+		firstcpu = 1;
+
 	wd_attr = &wd_hw_attr;
 	wd_attr->sample_period = hw_nmi_get_sample_period(watchdog_thresh);
 
 	/* Try to register using hardware perf events */
 	event = perf_event_create_kernel_counter(wd_attr, cpu, NULL, watchdog_overflow_callback, NULL);
 
-	/* save cpu0 error for future comparision */
-	if (cpu == 0 && IS_ERR(event))
-		cpu0_err = PTR_ERR(event);
+	/* save the first cpu's error for future comparision */
+	if (firstcpu && IS_ERR(event))
+		firstcpu_err = PTR_ERR(event);
 
 	if (!IS_ERR(event)) {
-		/* only print for cpu0 or different than cpu0 */
-		if (cpu == 0 || cpu0_err)
+		/* only print for the first cpu initialized */
+		if (firstcpu || firstcpu_err)
 			pr_info("enabled on all CPUs, permanently consumes one hw-PMU counter.\n");
 		goto out_save;
 	}
@@ -186,7 +191,7 @@ int watchdog_nmi_enable(unsigned int cpu)
 	smp_mb__after_atomic();
 
 	/* skip displaying the same error again */
-	if (cpu > 0 && (PTR_ERR(event) == cpu0_err))
+	if (!firstcpu && (PTR_ERR(event) == firstcpu_err))
 		return PTR_ERR(event);
 
 	/* vary the KERN level based on the returned errno */
@@ -222,9 +227,9 @@ void watchdog_nmi_disable(unsigned int cpu)
 
 		/* should be in cleanup, but blocks oprofile */
 		perf_event_release_kernel(event);
-	}
-	if (cpu == 0) {
+
 		/* watchdog_nmi_enable() expects this to be zero initially. */
-		cpu0_err = 0;
+		if (atomic_dec_and_test(&watchdog_cpus))
+			firstcpu_err = 0;
 	}
 }

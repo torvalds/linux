@@ -102,9 +102,9 @@ static void release_spapr_tce_table(struct rcu_head *head)
 	kfree(stt);
 }
 
-static int kvm_spapr_tce_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int kvm_spapr_tce_fault(struct vm_fault *vmf)
 {
-	struct kvmppc_spapr_tce_table *stt = vma->vm_file->private_data;
+	struct kvmppc_spapr_tce_table *stt = vmf->vma->vm_file->private_data;
 	struct page *page;
 
 	if (vmf->pgoff >= kvmppc_tce_pages(stt->size))

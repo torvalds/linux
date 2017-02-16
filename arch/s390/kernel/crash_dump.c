@@ -31,6 +31,7 @@ static struct memblock_type oldmem_type = {
 	.max = 1,
 	.total_size = 0,
 	.regions = &oldmem_region,
+	.name = "oldmem",
 };
 
 struct save_area {
