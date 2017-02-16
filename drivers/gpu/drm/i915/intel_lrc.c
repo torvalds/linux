@@ -918,12 +918,10 @@ gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *engine, u32 *batch)
 	*batch++ = i915_mmio_reg_offset(GEN8_L3SQCREG4);
 	*batch++ = 0x40400000 | GEN8_LQSC_FLUSH_COHERENT_LINES;
 
-	*batch++ = GFX_OP_PIPE_CONTROL(6);
-	*batch++ = PIPE_CONTROL_CS_STALL | PIPE_CONTROL_DC_FLUSH_ENABLE;
-	*batch++ = 0;
-	*batch++ = 0;
-	*batch++ = 0;
-	*batch++ = 0;
+	batch = gen8_emit_pipe_control(batch,
+				       PIPE_CONTROL_CS_STALL |
+				       PIPE_CONTROL_DC_FLUSH_ENABLE,
+				       0);
 
 	*batch++ = MI_LOAD_REGISTER_MEM_GEN8 | MI_SRM_LRM_GLOBAL_GTT;
 	*batch++ = i915_mmio_reg_offset(GEN8_L3SQCREG4);
@@ -957,15 +955,15 @@ static u32 *gen8_init_indirectctx_bb(struct intel_engine_cs *engine, u32 *batch)
 	if (IS_BROADWELL(engine->i915))
 		batch = gen8_emit_flush_coherentl3_wa(engine, batch);
 
-	*batch++ = GFX_OP_PIPE_CONTROL(6);
-	*batch++ = PIPE_CONTROL_FLUSH_L3 | PIPE_CONTROL_GLOBAL_GTT_IVB |
-		   PIPE_CONTROL_CS_STALL | PIPE_CONTROL_QW_WRITE;
 	/* WaClearSlmSpaceAtContextSwitch:bdw,chv */
 	/* Actual scratch location is at 128 bytes offset */
-	*batch++ = i915_ggtt_offset(engine->scratch) + 2 * CACHELINE_BYTES;
-	*batch++ = 0;
-	*batch++ = 0;
-	*batch++ = 0;
+	batch = gen8_emit_pipe_control(batch,
+				       PIPE_CONTROL_FLUSH_L3 |
+				       PIPE_CONTROL_GLOBAL_GTT_IVB |
+				       PIPE_CONTROL_CS_STALL |
+				       PIPE_CONTROL_QW_WRITE,
+				       i915_ggtt_offset(engine->scratch) +
+				       2 * CACHELINE_BYTES);
 
 	/* Pad to end of cacheline */
 	while ((unsigned long)batch % CACHELINE_BYTES)
@@ -1013,14 +1011,13 @@ static u32 *gen9_init_indirectctx_bb(struct intel_engine_cs *engine, u32 *batch)
 	/* WaClearSlmSpaceAtContextSwitch:kbl */
 	/* Actual scratch location is at 128 bytes offset */
 	if (IS_KBL_REVID(engine->i915, 0, KBL_REVID_A0)) {
-		*batch++ = GFX_OP_PIPE_CONTROL(6);
-		*batch++ = PIPE_CONTROL_FLUSH_L3 | PIPE_CONTROL_GLOBAL_GTT_IVB |
-			   PIPE_CONTROL_CS_STALL | PIPE_CONTROL_QW_WRITE;
-		*batch++ = i915_ggtt_offset(engine->scratch) +
-			   2 * CACHELINE_BYTES;
-		*batch++ = 0;
-		*batch++ = 0;
-		*batch++ = 0;
+		batch = gen8_emit_pipe_control(batch,
+					       PIPE_CONTROL_FLUSH_L3 |
+					       PIPE_CONTROL_GLOBAL_GTT_IVB |
+					       PIPE_CONTROL_CS_STALL |
+					       PIPE_CONTROL_QW_WRITE,
+					       i915_ggtt_offset(engine->scratch)
+					       + 2 * CACHELINE_BYTES);
 	}
 
 	/* WaMediaPoolStateCmdInWABB:bxt,glk */
@@ -1456,39 +1453,17 @@ static int gen8_emit_flush_render(struct drm_i915_gem_request *request,
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
-	if (vf_flush_wa) {
-		*cs++ = GFX_OP_PIPE_CONTROL(6);
-		*cs++ = 0;
-		*cs++ = 0;
-		*cs++ = 0;
-		*cs++ = 0;
-		*cs++ = 0;
-	}
+	if (vf_flush_wa)
+		cs = gen8_emit_pipe_control(cs, 0, 0);
 
-	if (dc_flush_wa) {
-		*cs++ = GFX_OP_PIPE_CONTROL(6);
-		*cs++ = PIPE_CONTROL_DC_FLUSH_ENABLE;
-		*cs++ = 0;
-		*cs++ = 0;
-		*cs++ = 0;
-		*cs++ = 0;
-	}
+	if (dc_flush_wa)
+		cs = gen8_emit_pipe_control(cs, PIPE_CONTROL_DC_FLUSH_ENABLE,
+					    0);
 
-	*cs++ = GFX_OP_PIPE_CONTROL(6);
-	*cs++ = flags;
-	*cs++ = scratch_addr;
-	*cs++ = 0;
-	*cs++ = 0;
-	*cs++ = 0;
+	cs = gen8_emit_pipe_control(cs, flags, scratch_addr);
 
-	if (dc_flush_wa) {
-		*cs++ = GFX_OP_PIPE_CONTROL(6);
-		*cs++ = PIPE_CONTROL_CS_STALL;
-		*cs++ = 0;
-		*cs++ = 0;
-		*cs++ = 0;
-		*cs++ = 0;
-	}
+	if (dc_flush_wa)
+		cs = gen8_emit_pipe_control(cs, PIPE_CONTROL_CS_STALL, 0);
 
 	intel_ring_advance(request, cs);
 

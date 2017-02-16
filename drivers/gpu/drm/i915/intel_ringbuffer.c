@@ -334,35 +334,16 @@ gen7_render_ring_flush(struct drm_i915_gem_request *req, u32 mode)
 }
 
 static int
-gen8_emit_pipe_control(struct drm_i915_gem_request *req,
-		       u32 flags, u32 scratch_addr)
+gen8_render_ring_flush(struct drm_i915_gem_request *req, u32 mode)
 {
+	u32 flags;
 	u32 *cs;
 
-	cs = intel_ring_begin(req, 6);
+	cs = intel_ring_begin(req, mode & EMIT_INVALIDATE ? 12 : 6);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
-	*cs++ = GFX_OP_PIPE_CONTROL(6);
-	*cs++ = flags;
-	*cs++ = scratch_addr;
-	*cs++ = 0;
-	*cs++ = 0;
-	*cs++ = 0;
-	intel_ring_advance(req, cs);
-
-	return 0;
-}
-
-static int
-gen8_render_ring_flush(struct drm_i915_gem_request *req, u32 mode)
-{
-	u32 scratch_addr =
-		i915_ggtt_offset(req->engine->scratch) + 2 * CACHELINE_BYTES;
-	u32 flags = 0;
-	int ret;
-
-	flags |= PIPE_CONTROL_CS_STALL;
+	flags = PIPE_CONTROL_CS_STALL;
 
 	if (mode & EMIT_FLUSH) {
 		flags |= PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH;
@@ -381,15 +362,19 @@ gen8_render_ring_flush(struct drm_i915_gem_request *req, u32 mode)
 		flags |= PIPE_CONTROL_GLOBAL_GTT_IVB;
 
 		/* WaCsStallBeforeStateCacheInvalidate:bdw,chv */
-		ret = gen8_emit_pipe_control(req,
-					     PIPE_CONTROL_CS_STALL |
-					     PIPE_CONTROL_STALL_AT_SCOREBOARD,
-					     0);
-		if (ret)
-			return ret;
+		cs = gen8_emit_pipe_control(cs,
+					    PIPE_CONTROL_CS_STALL |
+					    PIPE_CONTROL_STALL_AT_SCOREBOARD,
+					    0);
 	}
 
-	return gen8_emit_pipe_control(req, flags, scratch_addr);
+	cs = gen8_emit_pipe_control(cs, flags,
+				    i915_ggtt_offset(req->engine->scratch) +
+				    2 * CACHELINE_BYTES);
+
+	intel_ring_advance(req, cs);
+
+	return 0;
 }
 
 static void ring_setup_phys_status_page(struct intel_engine_cs *engine)

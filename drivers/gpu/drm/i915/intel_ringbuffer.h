@@ -631,4 +631,15 @@ void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine);
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
 unsigned int intel_breadcrumbs_busy(struct drm_i915_private *i915);
 
+static inline u32 *gen8_emit_pipe_control(u32 *batch, u32 flags, u32 offset)
+{
+	memset(batch, 0, 6 * sizeof(u32));
+
+	batch[0] = GFX_OP_PIPE_CONTROL(6);
+	batch[1] = flags;
+	batch[2] = offset;
+
+	return batch + 6;
+}
+
 #endif /* _INTEL_RINGBUFFER_H_ */
