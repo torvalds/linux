@@ -9,7 +9,7 @@
 
 #include <linux/bug.h>
 
-#define __ctl_load(array, low, high) {					\
+#define __ctl_load(array, low, high) do {				\
 	typedef struct { char _[sizeof(array)]; } addrtype;		\
 									\
 	BUILD_BUG_ON(sizeof(addrtype) != (high - low + 1) * sizeof(long));\
@@ -18,9 +18,9 @@
 		:							\
 		: "Q" (*(addrtype *)(&array)), "i" (low), "i" (high)	\
 		: "memory");						\
-}
+} while (0)
 
-#define __ctl_store(array, low, high) {					\
+#define __ctl_store(array, low, high) do {				\
 	typedef struct { char _[sizeof(array)]; } addrtype;		\
 									\
 	BUILD_BUG_ON(sizeof(addrtype) != (high - low + 1) * sizeof(long));\
@@ -28,7 +28,7 @@
 		"	stctg	%1,%2,%0\n"				\
 		: "=Q" (*(addrtype *)(&array))				\
 		: "i" (low), "i" (high));				\
-}
+} while (0)
 
 static inline void __ctl_set_bit(unsigned int cr, unsigned int bit)
 {
