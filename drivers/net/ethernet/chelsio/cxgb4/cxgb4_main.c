@@ -4907,8 +4907,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			 "continuing\n");
 		adapter->params.offload = 0;
 	} else {
-		adapter->tc_u32 = cxgb4_init_tc_u32(adapter,
-						    CXGB4_MAX_LINK_HANDLE);
+		adapter->tc_u32 = cxgb4_init_tc_u32(adapter);
 		if (!adapter->tc_u32)
 			dev_warn(&pdev->dev,
 				 "could not offload tc u32, continuing\n");
