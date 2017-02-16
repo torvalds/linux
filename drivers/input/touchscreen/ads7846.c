@@ -1462,8 +1462,6 @@ static int ads7846_remove(struct spi_device *spi)
 {
 	struct ads7846 *ts = spi_get_drvdata(spi);
 
-	device_init_wakeup(&spi->dev, false);
-
 	sysfs_remove_group(&spi->dev.kobj, &ads784x_attr_group);
 
 	ads7846_disable(ts);

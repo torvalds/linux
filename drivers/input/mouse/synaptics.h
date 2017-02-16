@@ -183,7 +183,6 @@ struct synaptics_data {
 	bool disable_gesture;			/* disable gestures */
 
 	struct serio *pt_port;			/* Pass-through serio port */
-	unsigned char pt_buttons;		/* Pass-through buttons */
 
 	/*
 	 * Last received Advanced Gesture Mode (AGM) packet. An AGM packet

@@ -237,7 +237,6 @@ static int st1232_ts_remove(struct i2c_client *client)
 {
 	struct st1232_ts_data *ts = i2c_get_clientdata(client);
 
-	device_init_wakeup(&client->dev, 0);
 	st1232_ts_power(ts, false);
 
 	return 0;

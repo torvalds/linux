@@ -923,6 +923,10 @@ static struct pnp_driver i8042_pnp_kbd_driver = {
 	.name           = "i8042 kbd",
 	.id_table       = pnp_kbd_devids,
 	.probe          = i8042_pnp_kbd_probe,
+	.driver         = {
+		.probe_type = PROBE_FORCE_SYNCHRONOUS,
+		.suppress_bind_attrs = true,
+	},
 };
 
 static struct pnp_device_id pnp_aux_devids[] = {
@@ -945,6 +949,10 @@ static struct pnp_driver i8042_pnp_aux_driver = {
 	.name           = "i8042 aux",
 	.id_table       = pnp_aux_devids,
 	.probe          = i8042_pnp_aux_probe,
+	.driver         = {
+		.probe_type = PROBE_FORCE_SYNCHRONOUS,
+		.suppress_bind_attrs = true,
+	},
 };
 
 static void i8042_pnp_exit(void)

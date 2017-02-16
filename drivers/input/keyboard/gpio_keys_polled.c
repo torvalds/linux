@@ -252,13 +252,13 @@ static int gpio_keys_polled_probe(struct platform_device *pdev)
 
 	size = sizeof(struct gpio_keys_polled_dev) +
 			pdata->nbuttons * sizeof(struct gpio_keys_button_data);
-	bdev = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	bdev = devm_kzalloc(dev, size, GFP_KERNEL);
 	if (!bdev) {
 		dev_err(dev, "no memory for private data\n");
 		return -ENOMEM;
 	}
 
-	poll_dev = devm_input_allocate_polled_device(&pdev->dev);
+	poll_dev = devm_input_allocate_polled_device(dev);
 	if (!poll_dev) {
 		dev_err(dev, "no memory for polled device\n");
 		return -ENOMEM;
@@ -332,7 +332,7 @@ static int gpio_keys_polled_probe(struct platform_device *pdev)
 			if (button->active_low)
 				flags |= GPIOF_ACTIVE_LOW;
 
-			error = devm_gpio_request_one(&pdev->dev, button->gpio,
+			error = devm_gpio_request_one(dev, button->gpio,
 					flags, button->desc ? : DRV_NAME);
 			if (error) {
 				dev_err(dev,
@@ -365,7 +365,6 @@ static int gpio_keys_polled_probe(struct platform_device *pdev)
 	bdev->poll_dev = poll_dev;
 	bdev->dev = dev;
 	bdev->pdata = pdata;
-	platform_set_drvdata(pdev, bdev);
 
 	error = input_register_polled_device(poll_dev);
 	if (error) {

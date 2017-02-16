@@ -191,7 +191,6 @@ static int atmel_captouch_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	capdev->client = client;
-	i2c_set_clientdata(client, capdev);
 
 	err = atmel_read(capdev, REG_KEY_STATE,
 			    &capdev->prev_btn, sizeof(capdev->prev_btn));
