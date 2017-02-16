@@ -195,7 +195,7 @@ static int usb_extcon_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, info);
-	device_init_wakeup(dev, true);
+	device_set_wakeup_capable(&pdev->dev, true);
 
 	/* Perform initial detection */
 	usb_extcon_detect_cable(&info->wq_detcable.work);
@@ -282,9 +282,8 @@ static int usb_extcon_resume(struct device *dev)
 	if (info->vbus_gpiod)
 		enable_irq(info->vbus_irq);
 
-	if (!device_may_wakeup(dev))
-		queue_delayed_work(system_power_efficient_wq,
-				   &info->wq_detcable, 0);
+	queue_delayed_work(system_power_efficient_wq,
+			   &info->wq_detcable, 0);
 
 	return ret;
 }

@@ -413,6 +413,12 @@ static int palmas_usb_resume(struct device *dev)
 		if (palmas_usb->enable_gpio_id_detection)
 			disable_irq_wake(palmas_usb->gpio_id_irq);
 	}
+
+	/* check if GPIO states changed while suspend/resume */
+	if (palmas_usb->enable_gpio_vbus_detection)
+		palmas_vbus_irq_handler(palmas_usb->gpio_vbus_irq, palmas_usb);
+	palmas_gpio_id_detect(&palmas_usb->wq_detectid.work);
+
 	return 0;
 };
 #endif
