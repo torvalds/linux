@@ -1551,11 +1551,14 @@ config RTC_DRV_MPC5121
 	  will be called rtc-mpc5121.
 
 config RTC_DRV_JZ4740
-	bool "Ingenic JZ4740 SoC"
+	tristate "Ingenic JZ4740 SoC"
 	depends on MACH_INGENIC || COMPILE_TEST
 	help
 	  If you say yes here you get support for the Ingenic JZ47xx SoCs RTC
 	  controllers.
+
+	  This driver can also be buillt as a module. If so, the module
+	  will be called rtc-jz4740.
 
 config RTC_DRV_LPC24XX
 	tristate "NXP RTC for LPC178x/18xx/408x/43xx"
