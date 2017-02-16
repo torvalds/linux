@@ -437,16 +437,23 @@ static int aac_src_check_health(struct aac_dev *dev)
 	u32 status = src_readl(dev, MUnit.OMR);
 
 	/*
-	 *	Check to see if the board failed any self tests.
-	 */
-	if (unlikely(status & SELF_TEST_FAILED))
-		return -1;
-
-	/*
 	 *	Check to see if the board panic'd.
 	 */
 	if (unlikely(status & KERNEL_PANIC))
-		return (status >> 16) & 0xFF;
+		goto err_blink;
+
+	/*
+	 *	Check to see if the board failed any self tests.
+	 */
+	if (unlikely(status & SELF_TEST_FAILED))
+		goto err_out;
+
+	/*
+	 *	Check to see if the board failed any self tests.
+	 */
+	if (unlikely(status & MONITOR_PANIC))
+		goto err_out;
+
 	/*
 	 *	Wait for the adapter to be up and running.
 	 */
@@ -456,6 +463,12 @@ static int aac_src_check_health(struct aac_dev *dev)
 	 *	Everything is OK
 	 */
 	return 0;
+
+err_out:
+	return -1;
+
+err_blink:
+	return (status > 16) & 0xFF;
 }
 
 static inline u32 aac_get_vector(struct aac_dev *dev)
