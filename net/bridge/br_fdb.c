@@ -65,7 +65,7 @@ static inline unsigned long hold_time(const struct net_bridge *br)
 static inline int has_expired(const struct net_bridge *br,
 				  const struct net_bridge_fdb_entry *fdb)
 {
-	return !fdb->is_static &&
+	return !fdb->is_static && !fdb->added_by_external_learn &&
 		time_before_eq(fdb->updated + hold_time(br), jiffies);
 }
 
