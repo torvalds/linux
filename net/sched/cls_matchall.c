@@ -244,6 +244,9 @@ static int mall_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 	    nla_put_u32(skb, TCA_MATCHALL_CLASSID, head->res.classid))
 		goto nla_put_failure;
 
+	if (head->flags && nla_put_u32(skb, TCA_MATCHALL_FLAGS, head->flags))
+		goto nla_put_failure;
+
 	if (tcf_exts_dump(skb, &head->exts))
 		goto nla_put_failure;
 
