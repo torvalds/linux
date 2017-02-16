@@ -714,6 +714,12 @@ static int aac_src_restart_adapter(struct aac_dev *dev, int bled, u8 reset_type)
 		pr_err("%s%d: adapter kernel panic'd %x.\n",
 				dev->name, dev->id, bled);
 
+	/*
+	 * When there is a BlinkLED, IOP_RESET has not effect
+	 */
+	if (bled >= 2 && dev->sa_firmware && reset_type & HW_IOP_RESET)
+		reset_type &= ~HW_IOP_RESET;
+
 	dev->a_ops.adapter_enable_int = aac_src_disable_interrupt;
 
 	switch (reset_type) {
