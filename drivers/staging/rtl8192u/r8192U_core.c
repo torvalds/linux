@@ -503,8 +503,7 @@ static void watch_dog_timer_callback(unsigned long data);
 
 /****************************************************************************
  *   -----------------------------PROCFS STUFF-------------------------
-*****************************************************************************
- */
+ ****************************************************************************/
 
 static struct proc_dir_entry *rtl8192_proc;
 
@@ -715,8 +714,8 @@ static void rtl8192_proc_remove_one(struct net_device *dev)
 }
 
 /****************************************************************************
-   -----------------------------MISC STUFF-------------------------
-*****************************************************************************/
+ *  -----------------------------MISC STUFF-------------------------
+ *****************************************************************************/
 
 short check_nic_enough_desc(struct net_device *dev, int queue_index)
 {
@@ -1328,7 +1327,7 @@ short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb)
  * 2006.10.30 by Emily
  *
  * \param QUEUEID       Software Queue
-*/
+ */
 static u8 MapHwQueueToFirmwareQueue(u8 QueueID)
 {
 	u8 QueueSelect = 0x0;       /* default set to */
@@ -1499,7 +1498,7 @@ static void tx_zero_isr(struct urb *tx_urb)
  * The tx procedure is just as following,
  * skb->cb will contain all the following information,
  * priority, morefrag, rate, &dev.
- * */
+ */
 short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -1840,8 +1839,8 @@ static void rtl8192_update_beacon(struct work_struct *work)
 }
 
 /*
-* background support to run QoS activate functionality
-*/
+ * background support to run QoS activate functionality
+ */
 static int WDCAPARA_ADD[] = {EDCAPARA_BE, EDCAPARA_BK,
 			     EDCAPARA_VI, EDCAPARA_VO};
 static void rtl8192_qos_activate(struct work_struct *work)
@@ -1946,10 +1945,10 @@ static int rtl8192_handle_beacon(struct net_device *dev,
 }
 
 /*
-* handling the beaconing responses. if we get different QoS setting
-* off the network from the associated setting, adjust the QoS
-* setting
-*/
+ * handling the beaconing responses. if we get different QoS setting
+ * off the network from the associated setting, adjust the QoS
+ * setting
+ */
 static int rtl8192_qos_association_resp(struct r8192_priv *priv,
 					struct ieee80211_network *network)
 {
@@ -3045,8 +3044,8 @@ static bool rtl8192_adapter_start(struct net_device *dev)
  * be used to stop beacon transmission
  */
 /***************************************************************************
-    -------------------------------NET STUFF---------------------------
-***************************************************************************/
+ *   -------------------------------NET STUFF---------------------------
+ ***************************************************************************/
 
 static struct net_device_stats *rtl8192_stats(struct net_device *dev)
 {
@@ -3074,9 +3073,9 @@ static bool HalTxCheckStuck819xUsb(struct net_device *dev)
 }
 
 /*
-*	<Assumption: RT_TX_SPINLOCK is acquired.>
-*	First added: 2006.11.19 by emily
-*/
+ *	<Assumption: RT_TX_SPINLOCK is acquired.>
+ *	First added: 2006.11.19 by emily
+ */
 static RESET_TYPE TxCheckStuck(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -4156,7 +4155,8 @@ static void rtl8192_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
  * Output:		NONE
  *
  * Return:		0-100 percentage
- *---------------------------------------------------------------------------*/
+ *---------------------------------------------------------------------------
+ */
 static u8 rtl819x_query_rxpwrpercentage(s8 antpower)
 {
 	if ((antpower <= -100) || (antpower >= 20))
@@ -4529,19 +4529,19 @@ static void TranslateRxSignalStuff819xUsb(struct sk_buff *skb,
 }
 
 /**
-* Function:	UpdateReceivedRateHistogramStatistics
-* Overview:	Record the received data rate
-*
-* Input:
-*	struct net_device *dev
-*	struct ieee80211_rx_stats *stats
-*
-* Output:
-*
-*			(priv->stats.ReceivedRateHistogram[] is updated)
-* Return:
-*		None
-*/
+ * Function:	UpdateReceivedRateHistogramStatistics
+ * Overview:	Record the received data rate
+ *
+ * Input:
+ *	struct net_device *dev
+ *	struct ieee80211_rx_stats *stats
+ *
+ * Output:
+ *
+ *			(priv->stats.ReceivedRateHistogram[] is updated)
+ * Return:
+ *		None
+ */
 static void
 UpdateReceivedRateHistogramStatistics8190(struct net_device *dev,
 					  struct ieee80211_rx_stats *stats)
@@ -4935,8 +4935,8 @@ static const struct net_device_ops rtl8192_netdev_ops = {
 
 
 /****************************************************************************
-     ---------------------------- USB_STUFF---------------------------
-*****************************************************************************/
+ *    ---------------------------- USB_STUFF---------------------------
+ *****************************************************************************/
 
 static int rtl8192_usb_probe(struct usb_interface *intf,
 			     const struct usb_device_id *id)
@@ -5177,7 +5177,7 @@ void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
 }
 
 /***************************************************************************
-     ------------------- module init / exit stubs ----------------
-****************************************************************************/
+ *    ------------------- module init / exit stubs ----------------
+ ****************************************************************************/
 module_init(rtl8192_usb_module_init);
 module_exit(rtl8192_usb_module_exit);
