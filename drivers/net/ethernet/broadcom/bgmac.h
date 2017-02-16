@@ -474,7 +474,6 @@ struct bgmac {
 
 	struct device *dev;
 	struct device *dma_dev;
-	unsigned char mac_addr[ETH_ALEN];
 	u32 feature_flags;
 
 	struct net_device *net_dev;

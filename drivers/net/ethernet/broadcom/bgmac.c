@@ -1477,14 +1477,13 @@ int bgmac_enet_probe(struct bgmac *bgmac)
 	net_dev->irq = bgmac->irq;
 	SET_NETDEV_DEV(net_dev, bgmac->dev);
 
-	if (!is_valid_ether_addr(bgmac->mac_addr)) {
+	if (!is_valid_ether_addr(net_dev->dev_addr)) {
 		dev_err(bgmac->dev, "Invalid MAC addr: %pM\n",
-			bgmac->mac_addr);
-		eth_random_addr(bgmac->mac_addr);
+			net_dev->dev_addr);
+		eth_hw_addr_random(net_dev);
 		dev_warn(bgmac->dev, "Using random MAC: %pM\n",
-			 bgmac->mac_addr);
+			 net_dev->dev_addr);
 	}
-	ether_addr_copy(net_dev->dev_addr, bgmac->mac_addr);
 
 	/* This (reset &) enable is not preset in specs or reference driver but
 	 * Broadcom does it in arch PCI code when enabling fake PCI device.
