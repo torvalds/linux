@@ -3296,47 +3296,47 @@ static const struct bpf_verifier_ops cg_sock_ops = {
 	.convert_ctx_access	= sock_filter_convert_ctx_access,
 };
 
-static struct bpf_prog_type_list sk_filter_type __read_mostly = {
+static struct bpf_prog_type_list sk_filter_type __ro_after_init = {
 	.ops	= &sk_filter_ops,
 	.type	= BPF_PROG_TYPE_SOCKET_FILTER,
 };
 
-static struct bpf_prog_type_list sched_cls_type __read_mostly = {
+static struct bpf_prog_type_list sched_cls_type __ro_after_init = {
 	.ops	= &tc_cls_act_ops,
 	.type	= BPF_PROG_TYPE_SCHED_CLS,
 };
 
-static struct bpf_prog_type_list sched_act_type __read_mostly = {
+static struct bpf_prog_type_list sched_act_type __ro_after_init = {
 	.ops	= &tc_cls_act_ops,
 	.type	= BPF_PROG_TYPE_SCHED_ACT,
 };
 
-static struct bpf_prog_type_list xdp_type __read_mostly = {
+static struct bpf_prog_type_list xdp_type __ro_after_init = {
 	.ops	= &xdp_ops,
 	.type	= BPF_PROG_TYPE_XDP,
 };
 
-static struct bpf_prog_type_list cg_skb_type __read_mostly = {
+static struct bpf_prog_type_list cg_skb_type __ro_after_init = {
 	.ops	= &cg_skb_ops,
 	.type	= BPF_PROG_TYPE_CGROUP_SKB,
 };
 
-static struct bpf_prog_type_list lwt_in_type __read_mostly = {
+static struct bpf_prog_type_list lwt_in_type __ro_after_init = {
 	.ops	= &lwt_inout_ops,
 	.type	= BPF_PROG_TYPE_LWT_IN,
 };
 
-static struct bpf_prog_type_list lwt_out_type __read_mostly = {
+static struct bpf_prog_type_list lwt_out_type __ro_after_init = {
 	.ops	= &lwt_inout_ops,
 	.type	= BPF_PROG_TYPE_LWT_OUT,
 };
 
-static struct bpf_prog_type_list lwt_xmit_type __read_mostly = {
+static struct bpf_prog_type_list lwt_xmit_type __ro_after_init = {
 	.ops	= &lwt_xmit_ops,
 	.type	= BPF_PROG_TYPE_LWT_XMIT,
 };
 
-static struct bpf_prog_type_list cg_sock_type __read_mostly = {
+static struct bpf_prog_type_list cg_sock_type __ro_after_init = {
 	.ops	= &cg_sock_ops,
 	.type	= BPF_PROG_TYPE_CGROUP_SOCK
 };

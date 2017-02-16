@@ -506,7 +506,7 @@ static const struct bpf_verifier_ops kprobe_prog_ops = {
 	.is_valid_access = kprobe_prog_is_valid_access,
 };
 
-static struct bpf_prog_type_list kprobe_tl = {
+static struct bpf_prog_type_list kprobe_tl __ro_after_init = {
 	.ops	= &kprobe_prog_ops,
 	.type	= BPF_PROG_TYPE_KPROBE,
 };
@@ -589,7 +589,7 @@ static const struct bpf_verifier_ops tracepoint_prog_ops = {
 	.is_valid_access = tp_prog_is_valid_access,
 };
 
-static struct bpf_prog_type_list tracepoint_tl = {
+static struct bpf_prog_type_list tracepoint_tl __ro_after_init = {
 	.ops	= &tracepoint_prog_ops,
 	.type	= BPF_PROG_TYPE_TRACEPOINT,
 };
@@ -648,7 +648,7 @@ static const struct bpf_verifier_ops perf_event_prog_ops = {
 	.convert_ctx_access	= pe_prog_convert_ctx_access,
 };
 
-static struct bpf_prog_type_list perf_event_tl = {
+static struct bpf_prog_type_list perf_event_tl __ro_after_init = {
 	.ops	= &perf_event_prog_ops,
 	.type	= BPF_PROG_TYPE_PERF_EVENT,
 };

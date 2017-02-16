@@ -508,7 +508,7 @@ static const struct bpf_map_ops trie_ops = {
 	.map_delete_elem = trie_delete_elem,
 };
 
-static struct bpf_map_type_list trie_type __read_mostly = {
+static struct bpf_map_type_list trie_type __ro_after_init = {
 	.ops = &trie_ops,
 	.type = BPF_MAP_TYPE_LPM_TRIE,
 };
