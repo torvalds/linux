@@ -281,7 +281,7 @@ void dev_pm_qos_constraints_destroy(struct device *dev)
 	dev->power.qos = ERR_PTR(-ENODEV);
 	spin_unlock_irq(&dev->power.lock);
 
-	kfree(c->notifiers);
+	kfree(qos->resume_latency.notifiers);
 	kfree(qos);
 
  out:
