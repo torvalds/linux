@@ -481,6 +481,9 @@ nvkm_msgqueue_new(u32 version, struct nvkm_falcon *falcon, struct nvkm_msgqueue 
 	case 0x0137c63d:
 		ret = msgqueue_0137c63d_new(falcon, queue);
 		break;
+	case 0x0148cdec:
+		ret = msgqueue_0148cdec_new(falcon, queue);
+		break;
 	default:
 		nvkm_error(subdev, "unhandled firmware version 0x%08x\n",
 			   version);
