@@ -95,7 +95,6 @@
 #define HDMI_CFG_HDCP_EN                BIT(2)
 #define HDMI_CFG_ESS_NOT_OESS           BIT(3)
 #define HDMI_CFG_H_SYNC_POL_NEG         BIT(4)
-#define HDMI_CFG_SINK_TERM_DET_EN       BIT(5)
 #define HDMI_CFG_V_SYNC_POL_NEG         BIT(6)
 #define HDMI_CFG_422_EN                 BIT(8)
 #define HDMI_CFG_FIFO_OVERRUN_CLR       BIT(12)
@@ -159,7 +158,6 @@ struct sti_hdmi_connector {
 	struct drm_encoder *encoder;
 	struct sti_hdmi *hdmi;
 	struct drm_property *colorspace_property;
-	struct drm_property *hdmi_mode_property;
 };
 
 #define to_sti_hdmi_connector(x) \
@@ -266,11 +264,8 @@ static void hdmi_config(struct sti_hdmi *hdmi)
 
 	/* Select encryption type and the framing mode */
 	conf |= HDMI_CFG_ESS_NOT_OESS;
-	if (hdmi->hdmi_mode == HDMI_MODE_HDMI)
+	if (hdmi->hdmi_monitor)
 		conf |= HDMI_CFG_HDMI_NOT_DVI;
-
-	/* Enable sink term detection */
-	conf |= HDMI_CFG_SINK_TERM_DET_EN;
 
 	/* Set Hsync polarity */
 	if (hdmi->mode.flags & DRM_MODE_FLAG_NHSYNC) {
@@ -606,9 +601,6 @@ static void hdmi_dbg_cfg(struct seq_file *s, int val)
 	seq_puts(s, "\t\t\t\t\t");
 	tmp = val & HDMI_CFG_ESS_NOT_OESS;
 	DBGFS_PRINT_STR("HDCP mode:", tmp ? "ESS enable" : "OESS enable");
-	seq_puts(s, "\t\t\t\t\t");
-	tmp = val & HDMI_CFG_SINK_TERM_DET_EN;
-	DBGFS_PRINT_STR("Sink term detection:", tmp ? "enable" : "disable");
 	seq_puts(s, "\t\t\t\t\t");
 	tmp = val & HDMI_CFG_H_SYNC_POL_NEG;
 	DBGFS_PRINT_STR("Hsync polarity:", tmp ? "inverted" : "normal");
@@ -977,6 +969,11 @@ static int sti_hdmi_connector_get_modes(struct drm_connector *connector)
 	if (!edid)
 		goto fail;
 
+	hdmi->hdmi_monitor = drm_detect_hdmi_monitor(edid);
+	DRM_DEBUG_KMS("%s : %dx%d cm\n",
+		      (hdmi->hdmi_monitor ? "hdmi monitor" : "dvi monitor"),
+		      edid->width_cm, edid->height_cm);
+
 	count = drm_add_edid_modes(connector, edid);
 	drm_mode_connector_update_edid_property(connector, edid);
 	drm_edid_to_eld(connector, edid);
@@ -1060,19 +1057,6 @@ static void sti_hdmi_connector_init_property(struct drm_device *drm_dev,
 	}
 	hdmi_connector->colorspace_property = prop;
 	drm_object_attach_property(&connector->base, prop, hdmi->colorspace);
-
-	/* hdmi_mode property */
-	hdmi->hdmi_mode = DEFAULT_HDMI_MODE;
-	prop = drm_property_create_enum(drm_dev, 0, "hdmi_mode",
-					hdmi_mode_names,
-					ARRAY_SIZE(hdmi_mode_names));
-	if (!prop) {
-		DRM_ERROR("fails to create colorspace property\n");
-		return;
-	}
-	hdmi_connector->hdmi_mode_property = prop;
-	drm_object_attach_property(&connector->base, prop, hdmi->hdmi_mode);
-
 }
 
 static int
@@ -1087,11 +1071,6 @@ sti_hdmi_connector_set_property(struct drm_connector *connector,
 
 	if (property == hdmi_connector->colorspace_property) {
 		hdmi->colorspace = val;
-		return 0;
-	}
-
-	if (property == hdmi_connector->hdmi_mode_property) {
-		hdmi->hdmi_mode = val;
 		return 0;
 	}
 
@@ -1111,11 +1090,6 @@ sti_hdmi_connector_get_property(struct drm_connector *connector,
 
 	if (property == hdmi_connector->colorspace_property) {
 		*val = hdmi->colorspace;
-		return 0;
-	}
-
-	if (property == hdmi_connector->hdmi_mode_property) {
-		*val = hdmi->hdmi_mode;
 		return 0;
 	}
 

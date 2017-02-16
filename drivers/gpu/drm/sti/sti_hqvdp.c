@@ -1037,9 +1037,9 @@ static int sti_hqvdp_atomic_check(struct drm_plane *drm_plane,
 	src_w = state->src_w >> 16;
 	src_h = state->src_h >> 16;
 
-	if (!sti_hqvdp_check_hw_scaling(hqvdp, mode,
-					src_w, src_h,
-					dst_w, dst_h)) {
+	if (mode->clock && !sti_hqvdp_check_hw_scaling(hqvdp, mode,
+						       src_w, src_h,
+						       dst_w, dst_h)) {
 		DRM_ERROR("Scaling beyond HW capabilities\n");
 		return -EINVAL;
 	}

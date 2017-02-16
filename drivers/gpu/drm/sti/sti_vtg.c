@@ -17,7 +17,6 @@
 #include "sti_vtg.h"
 
 #define VTG_MODE_MASTER         0
-#define VTG_MODE_SLAVE_BY_EXT0  1
 
 /* registers offset */
 #define VTG_MODE            0x0000
@@ -132,7 +131,6 @@ struct sti_vtg_sync_params {
  * @irq_status: store the IRQ status value
  * @notifier_list: notifier callback
  * @crtc: the CRTC for vblank event
- * @slave: slave vtg
  * @link: List node to link the structure in lookup list
  */
 struct sti_vtg {
@@ -144,7 +142,6 @@ struct sti_vtg {
 	u32 irq_status;
 	struct raw_notifier_head notifier_list;
 	struct drm_crtc *crtc;
-	struct sti_vtg *slave;
 	struct list_head link;
 };
 
@@ -166,10 +163,6 @@ struct sti_vtg *of_vtg_find(struct device_node *np)
 
 static void vtg_reset(struct sti_vtg *vtg)
 {
-	/* reset slave and then master */
-	if (vtg->slave)
-		vtg_reset(vtg->slave);
-
 	writel(1, vtg->regs + VTG_DRST_AUTOC);
 }
 
@@ -259,10 +252,6 @@ static void vtg_set_mode(struct sti_vtg *vtg,
 {
 	unsigned int i;
 
-	if (vtg->slave)
-		vtg_set_mode(vtg->slave, VTG_MODE_SLAVE_BY_EXT0,
-			     vtg->sync_params, mode);
-
 	/* Set the number of clock cycles per line */
 	writel(mode->htotal, vtg->regs + VTG_CLKLN);
 
@@ -318,11 +307,7 @@ void sti_vtg_set_config(struct sti_vtg *vtg,
 
 	vtg_reset(vtg);
 
-	/* enable irq for the vtg vblank synchro */
-	if (vtg->slave)
-		vtg_enable_irq(vtg->slave);
-	else
-		vtg_enable_irq(vtg);
+	vtg_enable_irq(vtg);
 }
 
 /**
@@ -365,18 +350,12 @@ u32 sti_vtg_get_pixel_number(struct drm_display_mode mode, int x)
 int sti_vtg_register_client(struct sti_vtg *vtg, struct notifier_block *nb,
 			    struct drm_crtc *crtc)
 {
-	if (vtg->slave)
-		return sti_vtg_register_client(vtg->slave, nb, crtc);
-
 	vtg->crtc = crtc;
 	return raw_notifier_chain_register(&vtg->notifier_list, nb);
 }
 
 int sti_vtg_unregister_client(struct sti_vtg *vtg, struct notifier_block *nb)
 {
-	if (vtg->slave)
-		return sti_vtg_unregister_client(vtg->slave, nb);
-
 	return raw_notifier_chain_unregister(&vtg->notifier_list, nb);
 }
 
@@ -434,29 +413,20 @@ static int vtg_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	np = of_parse_phandle(pdev->dev.of_node, "st,slave", 0);
-	if (np) {
-		vtg->slave = of_vtg_find(np);
-		of_node_put(np);
+	vtg->irq = platform_get_irq(pdev, 0);
+	if (vtg->irq < 0) {
+		DRM_ERROR("Failed to get VTG interrupt\n");
+		return vtg->irq;
+	}
 
-		if (!vtg->slave)
-			return -EPROBE_DEFER;
-	} else {
-		vtg->irq = platform_get_irq(pdev, 0);
-		if (vtg->irq < 0) {
-			DRM_ERROR("Failed to get VTG interrupt\n");
-			return vtg->irq;
-		}
+	RAW_INIT_NOTIFIER_HEAD(&vtg->notifier_list);
 
-		RAW_INIT_NOTIFIER_HEAD(&vtg->notifier_list);
-
-		ret = devm_request_threaded_irq(dev, vtg->irq, vtg_irq,
-				vtg_irq_thread, IRQF_ONESHOT,
-				dev_name(dev), vtg);
-		if (ret < 0) {
-			DRM_ERROR("Failed to register VTG interrupt\n");
-			return ret;
-		}
+	ret = devm_request_threaded_irq(dev, vtg->irq, vtg_irq,
+					vtg_irq_thread, IRQF_ONESHOT,
+					dev_name(dev), vtg);
+	if (ret < 0) {
+		DRM_ERROR("Failed to register VTG interrupt\n");
+		return ret;
 	}
 
 	vtg_register(vtg);
