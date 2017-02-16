@@ -311,7 +311,7 @@ module_param(update_interval, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(update_interval, "Interval in seconds between time sync"
 	" updates issued to adapter.");
 
-int check_interval = 24 * 60 * 60;
+int check_interval = 60;
 module_param(check_interval, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(check_interval, "Interval in seconds between adapter health"
 	" checks.");
