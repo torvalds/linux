@@ -224,6 +224,7 @@ skl_update_plane(struct drm_plane *drm_plane,
 	if (IS_GEMINILAKE(dev_priv)) {
 		I915_WRITE(PLANE_COLOR_CTL(pipe, plane_id),
 			   PLANE_COLOR_PIPE_GAMMA_ENABLE |
+			   PLANE_COLOR_PIPE_CSC_ENABLE |
 			   PLANE_COLOR_PLANE_GAMMA_DISABLE);
 	} else {
 		plane_ctl |=
