@@ -46,37 +46,29 @@ struct bios_args {
 	unsigned char off_time;
 };
 
-static int dell_led_perform_fn(u8 length,
-		u8 result_code,
-		u8 device_id,
-		u8 command,
-		u8 on_time,
-		u8 off_time)
+static int dell_led_perform_fn(u8 length, u8 result_code, u8 device_id,
+			       u8 command, u8 on_time, u8 off_time)
 {
-	struct bios_args *bios_return;
-	u8 return_code;
-	union acpi_object *obj;
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
+	struct bios_args *bios_return;
 	struct acpi_buffer input;
+	union acpi_object *obj;
 	acpi_status status;
+	u8 return_code;
 
-	struct bios_args args;
-	args.length = length;
-	args.result_code = result_code;
-	args.device_id = device_id;
-	args.command = command;
-	args.on_time = on_time;
-	args.off_time = off_time;
+	struct bios_args args = {
+		.length = length,
+		.result_code = result_code,
+		.device_id = device_id,
+		.command = command,
+		.on_time = on_time,
+		.off_time = off_time
+	};
 
 	input.length = sizeof(struct bios_args);
 	input.pointer = &args;
 
-	status = wmi_evaluate_method(DELL_LED_BIOS_GUID,
-		1,
-		1,
-		&input,
-		&output);
-
+	status = wmi_evaluate_method(DELL_LED_BIOS_GUID, 1, 1, &input, &output);
 	if (ACPI_FAILURE(status))
 		return status;
 
@@ -84,7 +76,7 @@ static int dell_led_perform_fn(u8 length,
 
 	if (!obj)
 		return -EINVAL;
-	else if (obj->type != ACPI_TYPE_BUFFER) {
+	if (obj->type != ACPI_TYPE_BUFFER) {
 		kfree(obj);
 		return -EINVAL;
 	}
@@ -117,8 +109,7 @@ static int led_off(void)
 		0);			/* not used */
 }
 
-static int led_blink(unsigned char on_eighths,
-		unsigned char off_eighths)
+static int led_blink(unsigned char on_eighths, unsigned char off_eighths)
 {
 	return dell_led_perform_fn(5,	/* Length of command */
 		INTERFACE_ERROR,	/* Init to  INTERFACE_ERROR */
@@ -129,7 +120,7 @@ static int led_blink(unsigned char on_eighths,
 }
 
 static void dell_led_set(struct led_classdev *led_cdev,
-		enum led_brightness value)
+			 enum led_brightness value)
 {
 	if (value == LED_OFF)
 		led_off();
@@ -138,27 +129,22 @@ static void dell_led_set(struct led_classdev *led_cdev,
 }
 
 static int dell_led_blink(struct led_classdev *led_cdev,
-		unsigned long *delay_on,
-		unsigned long *delay_off)
+			  unsigned long *delay_on, unsigned long *delay_off)
 {
 	unsigned long on_eighths;
 	unsigned long off_eighths;
 
-	/* The Dell LED delay is based on 125ms intervals.
-	   Need to round up to next interval. */
+	/*
+	 * The Dell LED delay is based on 125ms intervals.
+	 * Need to round up to next interval.
+	 */
 
-	on_eighths = (*delay_on + 124) / 125;
-	if (0 == on_eighths)
-		on_eighths = 1;
-	if (on_eighths > 255)
-		on_eighths = 255;
+	on_eighths = DIV_ROUND_UP(*delay_on, 125);
+	on_eighths = clamp_t(unsigned long, on_eighths, 1, 255);
 	*delay_on = on_eighths * 125;
 
-	off_eighths = (*delay_off + 124) / 125;
-	if (0 == off_eighths)
-		off_eighths = 1;
-	if (off_eighths > 255)
-		off_eighths = 255;
+	off_eighths = DIV_ROUND_UP(*delay_off, 125);
+	off_eighths = clamp_t(unsigned long, off_eighths, 1, 255);
 	*delay_off = off_eighths * 125;
 
 	led_blink(on_eighths, off_eighths);
