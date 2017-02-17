@@ -5389,7 +5389,7 @@ restore_filters:
 	if (rc2)
 		goto reset_nic;
 
-	netif_device_attach(efx->net_dev);
+	efx_device_attach_if_not_resetting(efx);
 
 	return rc;
 
@@ -5675,7 +5675,7 @@ static int efx_ef10_set_mac_address(struct efx_nic *efx)
 
 	if (was_enabled)
 		efx_net_open(efx->net_dev);
-	netif_device_attach(efx->net_dev);
+	efx_device_attach_if_not_resetting(efx);
 
 #ifdef CONFIG_SFC_SRIOV
 	if (efx->pci_dev->is_virtfn && efx->pci_dev->physfn) {
@@ -6127,7 +6127,7 @@ static int efx_ef10_set_udp_tnl_ports(struct efx_nic *efx, bool unloading)
 
 	if (!(nic_data->datapath_caps &
 	    (1 << MC_CMD_GET_CAPABILITIES_OUT_VXLAN_NVGRE_LBN))) {
-		netif_device_attach(efx->net_dev);
+		efx_device_attach_if_not_resetting(efx);
 		return 0;
 	}
 
@@ -6199,7 +6199,7 @@ static int efx_ef10_set_udp_tnl_ports(struct efx_nic *efx, bool unloading)
 		 * trigger a re-attach.  Since there won't be an MC reset, we
 		 * have to do the attach ourselves.
 		 */
-		netif_device_attach(efx->net_dev);
+		efx_device_attach_if_not_resetting(efx);
 	}
 
 	return rc;
