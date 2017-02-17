@@ -610,7 +610,7 @@ static void jr3_pci_poll_dev(unsigned long data)
 		s = &dev->subdevices[i];
 		spriv = s->private;
 
-		if (now > spriv->next_time_min) {
+		if (time_after_eq(now, spriv->next_time_min)) {
 			struct jr3_pci_poll_delay sub_delay;
 
 			sub_delay = jr3_pci_poll_subdevice(s);
