@@ -167,7 +167,7 @@ struct sun4i_layer **sun4i_layers_init(struct drm_device *drm)
 	 */
 	for (i = 0; i < ARRAY_SIZE(sun4i_backend_planes); i++) {
 		const struct sun4i_plane_desc *plane = &sun4i_backend_planes[i];
-		struct sun4i_layer *layer = layers[i];
+		struct sun4i_layer *layer;
 
 		layer = sun4i_layer_init_one(drm, plane);
 		if (IS_ERR(layer)) {
