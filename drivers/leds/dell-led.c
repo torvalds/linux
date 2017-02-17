@@ -46,7 +46,7 @@ MODULE_ALIAS("wmi:" DELL_LED_BIOS_GUID);
 #define GLOBAL_MIC_MUTE_ENABLE	0x364
 #define GLOBAL_MIC_MUTE_DISABLE	0x365
 
-static int dell_micmute_led_set(int state)
+int dell_micmute_led_set(int state)
 {
 	struct calling_interface_buffer *buffer;
 	struct calling_interface_token *token;
@@ -69,23 +69,7 @@ static int dell_micmute_led_set(int state)
 
 	return state;
 }
-
-int dell_app_wmi_led_set(int whichled, int on)
-{
-	int state = 0;
-
-	switch (whichled) {
-	case DELL_LED_MICMUTE:
-		state = dell_micmute_led_set(on);
-		break;
-	default:
-		pr_warn("led type %x is not supported\n", whichled);
-		break;
-	}
-
-	return state;
-}
-EXPORT_SYMBOL_GPL(dell_app_wmi_led_set);
+EXPORT_SYMBOL_GPL(dell_micmute_led_set);
 
 struct bios_args {
 	unsigned char length;

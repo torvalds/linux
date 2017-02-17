@@ -6,7 +6,7 @@
 #include <linux/dell-led.h>
 
 static int dell_led_value;
-static int (*dell_led_set_func)(int, int);
+static int (*dell_led_set_func)(int);
 static void (*dell_old_cap_hook)(struct hda_codec *,
 			         struct snd_kcontrol *,
 				 struct snd_ctl_elem_value *);
@@ -27,7 +27,7 @@ static void update_dell_wmi_micmute_led(struct hda_codec *codec,
 			return;
 		dell_led_value = val;
 		if (dell_led_set_func)
-			dell_led_set_func(DELL_LED_MICMUTE, dell_led_value);
+			dell_led_set_func(dell_led_value);
 	}
 }
 
@@ -40,14 +40,14 @@ static void alc_fixup_dell_wmi(struct hda_codec *codec,
 
 	if (action == HDA_FIXUP_ACT_PROBE) {
 		if (!dell_led_set_func)
-			dell_led_set_func = symbol_request(dell_app_wmi_led_set);
+			dell_led_set_func = symbol_request(dell_micmute_led_set);
 		if (!dell_led_set_func) {
-			codec_warn(codec, "Failed to find dell wmi symbol dell_app_wmi_led_set\n");
+			codec_warn(codec, "Failed to find dell wmi symbol dell_micmute_led_set\n");
 			return;
 		}
 
 		removefunc = true;
-		if (dell_led_set_func(DELL_LED_MICMUTE, false) >= 0) {
+		if (dell_led_set_func(false) >= 0) {
 			dell_led_value = 0;
 			if (spec->gen.num_adc_nids > 1 && !spec->gen.dyn_adc_switch)
 				codec_dbg(codec, "Skipping micmute LED control due to several ADCs");
@@ -61,7 +61,7 @@ static void alc_fixup_dell_wmi(struct hda_codec *codec,
 	}
 
 	if (dell_led_set_func && (action == HDA_FIXUP_ACT_FREE || removefunc)) {
-		symbol_put(dell_app_wmi_led_set);
+		symbol_put(dell_micmute_led_set);
 		dell_led_set_func = NULL;
 		dell_old_cap_hook = NULL;
 	}
