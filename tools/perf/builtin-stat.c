@@ -1765,7 +1765,7 @@ static inline int perf_env__get_cpu(struct perf_env *env, struct cpu_map *map, i
 
 	cpu = map->map[idx];
 
-	if (cpu >= env->nr_cpus_online)
+	if (cpu >= env->nr_cpus_avail)
 		return -1;
 
 	return cpu;

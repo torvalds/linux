@@ -295,11 +295,7 @@ static int write_nrcpus(int fd, struct perf_header *h __maybe_unused,
 	u32 nrc, nra;
 	int ret;
 
-	nr = sysconf(_SC_NPROCESSORS_CONF);
-	if (nr < 0)
-		return -1;
-
-	nrc = (u32)(nr & UINT_MAX);
+	nrc = cpu__max_present_cpu();
 
 	nr = sysconf(_SC_NPROCESSORS_ONLN);
 	if (nr < 0)
@@ -513,9 +509,7 @@ static struct cpu_topo *build_cpu_topology(void)
 	int ret = -1;
 	struct cpu_map *map;
 
-	ncpus = sysconf(_SC_NPROCESSORS_CONF);
-	if (ncpus < 0)
-		return NULL;
+	ncpus = cpu__max_present_cpu();
 
 	/* build online CPU map */
 	map = cpu_map__new(NULL);
@@ -1139,7 +1133,7 @@ static void print_cpu_topology(struct perf_header *ph, int fd __maybe_unused,
 {
 	int nr, i;
 	char *str;
-	int cpu_nr = ph->env.nr_cpus_online;
+	int cpu_nr = ph->env.nr_cpus_avail;
 
 	nr = ph->env.nr_sibling_cores;
 	str = ph->env.sibling_cores;
@@ -1794,7 +1788,7 @@ static int process_cpu_topology(struct perf_file_section *section,
 	u32 nr, i;
 	char *str;
 	struct strbuf sb;
-	int cpu_nr = ph->env.nr_cpus_online;
+	int cpu_nr = ph->env.nr_cpus_avail;
 	u64 size = 0;
 
 	ph->env.cpu = calloc(cpu_nr, sizeof(*ph->env.cpu));
@@ -1875,7 +1869,7 @@ static int process_cpu_topology(struct perf_file_section *section,
 		if (ph->needs_swap)
 			nr = bswap_32(nr);
 
-		if (nr > (u32)cpu_nr) {
+		if (nr != (u32)-1 && nr > (u32)cpu_nr) {
 			pr_debug("socket_id number is too big."
 				 "You may need to upgrade the perf tool.\n");
 			goto free_cpu;
