@@ -2834,20 +2834,20 @@ static int dispc_ovl_setup_common(enum omap_plane_id plane,
 
 static int dispc_ovl_setup(enum omap_plane_id plane,
 		const struct omap_overlay_info *oi,
-		const struct videomode *vm, bool mem_to_mem)
+		const struct videomode *vm, bool mem_to_mem,
+		enum omap_channel channel)
 {
 	int r;
 	enum omap_overlay_caps caps = dss_feat_get_overlay_caps(plane);
-	enum omap_channel channel;
 	const bool replication = true;
-
-	channel = dispc_ovl_get_channel_out(plane);
 
 	DSSDBG("dispc_ovl_setup %d, pa %pad, pa_uv %pad, sw %d, %d,%d, %dx%d ->"
 		" %dx%d, cmode %x, rot %d, mir %d, chan %d repl %d\n",
 		plane, &oi->paddr, &oi->p_uv_addr, oi->screen_width, oi->pos_x,
 		oi->pos_y, oi->width, oi->height, oi->out_width, oi->out_height,
 		oi->color_mode, oi->rotation, oi->mirror, channel, replication);
+
+	dispc_ovl_set_channel_out(plane, channel);
 
 	r = dispc_ovl_setup_common(plane, caps, oi->paddr, oi->p_uv_addr,
 		oi->screen_width, oi->pos_x, oi->pos_y, oi->width, oi->height,
@@ -4304,8 +4304,8 @@ static void dispc_errata_i734_wa(void)
 	REG_FLD_MOD(DISPC_CONFIG, 0x1f, 8, 4);
 
 	/* Setup and enable GFX plane */
-	dispc_ovl_set_channel_out(OMAP_DSS_GFX, OMAP_DSS_CHANNEL_LCD);
-	dispc_ovl_setup(OMAP_DSS_GFX, &ovli, &i734.vm, false);
+	dispc_ovl_setup(OMAP_DSS_GFX, &ovli, &i734.vm, false,
+		OMAP_DSS_CHANNEL_LCD);
 	dispc_ovl_enable(OMAP_DSS_GFX, true);
 
 	/* Set up and enable display manager for LCD1 */
@@ -4372,7 +4372,6 @@ static const struct dispc_ops dispc_ops = {
 	.mgr_set_gamma = dispc_mgr_set_gamma,
 
 	.ovl_enable = dispc_ovl_enable,
-	.ovl_set_channel_out = dispc_ovl_set_channel_out,
 	.ovl_setup = dispc_ovl_setup,
 	.ovl_get_color_modes = dispc_ovl_get_color_modes,
 };

@@ -105,12 +105,10 @@ static void omap_plane_atomic_update(struct drm_plane *plane,
 	DBG("%d,%d %pad %pad", info.pos_x, info.pos_y,
 			&info.paddr, &info.p_uv_addr);
 
-	priv->dispc_ops->ovl_set_channel_out(omap_plane->id,
-				  omap_crtc_channel(state->crtc));
-
 	/* and finally, update omapdss: */
 	ret = priv->dispc_ops->ovl_setup(omap_plane->id, &info,
-			      omap_crtc_timings(state->crtc), false);
+			      omap_crtc_timings(state->crtc), false,
+			      omap_crtc_channel(state->crtc));
 	if (ret) {
 		dev_err(plane->dev->dev, "Failed to setup plane %s\n",
 			omap_plane->name);
