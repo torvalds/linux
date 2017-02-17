@@ -571,6 +571,7 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	u32 tclk_prepare_clkzero, ths_prepare_hszero;
 	u32 lp_to_hs_switch, hs_to_lp_switch;
 	u32 pclk, computed_ddr;
+	u32 mul;
 	u16 burst_mode_ratio;
 	enum port port;
 
@@ -674,11 +675,6 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 		break;
 	}
 
-	/*
-	 * ui(s) = 1/f [f in hz]
-	 * ui(ns) = 10^9 / (f*10^6) [f in Mhz] -> 10^3/f(Mhz)
-	 */
-
 	/* in Kbps */
 	ui_num = NS_KHZ_RATIO;
 	ui_den = bitrate;
@@ -692,21 +688,26 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	 */
 	intel_dsi->lp_byte_clk = DIV_ROUND_UP(tlpx_ns * ui_den, 8 * ui_num);
 
-	/* count values in UI = (ns value) * (bitrate / (2 * 10^6))
+	/* DDR clock period = 2 * UI
+	 * UI(sec) = 1/(bitrate * 10^3) (bitrate is in KHZ)
+	 * UI(nsec) = 10^6 / bitrate
+	 * DDR clock period (nsec) = 2 * UI = (2 * 10^6)/ bitrate
+	 * DDR clock count  = ns_value / DDR clock period
 	 *
-	 * Since txddrclkhs_i is 2xUI, all the count values programmed in
-	 * DPHY param register are divided by 2
-	 *
-	 * prepare count
+	 * For GEMINILAKE dphy_param_reg will be programmed in terms of
+	 * HS byte clock count for other platform in HS ddr clock count
 	 */
+	mul = IS_GEMINILAKE(dev_priv) ? 8 : 2;
 	ths_prepare_ns = max(mipi_config->ths_prepare,
 			     mipi_config->tclk_prepare);
-	prepare_cnt = DIV_ROUND_UP(ths_prepare_ns * ui_den, ui_num * 2);
+
+	/* prepare count */
+	prepare_cnt = DIV_ROUND_UP(ths_prepare_ns * ui_den, ui_num * mul);
 
 	/* exit zero count */
 	exit_zero_cnt = DIV_ROUND_UP(
 				(ths_prepare_hszero - ths_prepare_ns) * ui_den,
-				ui_num * 2
+				ui_num * mul
 				);
 
 	/*
@@ -720,12 +721,12 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 
 	/* clk zero count */
 	clk_zero_cnt = DIV_ROUND_UP(
-			(tclk_prepare_clkzero -	ths_prepare_ns)
-			* ui_den, 2 * ui_num);
+				(tclk_prepare_clkzero -	ths_prepare_ns)
+				* ui_den, ui_num * mul);
 
 	/* trail count */
 	tclk_trail_ns = max(mipi_config->tclk_trail, mipi_config->ths_trail);
-	trail_cnt = DIV_ROUND_UP(tclk_trail_ns * ui_den, 2 * ui_num);
+	trail_cnt = DIV_ROUND_UP(tclk_trail_ns * ui_den, ui_num * mul);
 
 	if (prepare_cnt > PREPARE_CNT_MAX ||
 		exit_zero_cnt > EXIT_ZERO_CNT_MAX ||
