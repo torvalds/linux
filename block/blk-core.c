@@ -33,6 +33,7 @@
 #include <linux/ratelimit.h>
 #include <linux/pm_runtime.h>
 #include <linux/blk-cgroup.h>
+#include <linux/debugfs.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/block.h>
@@ -41,6 +42,10 @@
 #include "blk-mq.h"
 #include "blk-mq-sched.h"
 #include "blk-wbt.h"
+
+#ifdef CONFIG_DEBUG_FS
+struct dentry *blk_debugfs_root;
+#endif
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_bio_remap);
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_rq_remap);
@@ -75,7 +80,7 @@ static void blk_clear_congested(struct request_list *rl, int sync)
 	 * flip its congestion state for events on other blkcgs.
 	 */
 	if (rl == &rl->q->root_rl)
-		clear_wb_congested(rl->q->backing_dev_info.wb.congested, sync);
+		clear_wb_congested(rl->q->backing_dev_info->wb.congested, sync);
 #endif
 }
 
@@ -86,7 +91,7 @@ static void blk_set_congested(struct request_list *rl, int sync)
 #else
 	/* see blk_clear_congested() */
 	if (rl == &rl->q->root_rl)
-		set_wb_congested(rl->q->backing_dev_info.wb.congested, sync);
+		set_wb_congested(rl->q->backing_dev_info->wb.congested, sync);
 #endif
 }
 
@@ -105,22 +110,6 @@ void blk_queue_congestion_threshold(struct request_queue *q)
 	q->nr_congestion_off = nr;
 }
 
-/**
- * blk_get_backing_dev_info - get the address of a queue's backing_dev_info
- * @bdev:	device
- *
- * Locates the passed device's request queue and returns the address of its
- * backing_dev_info.  This function can only be called if @bdev is opened
- * and the return value is never NULL.
- */
-struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bdev)
-{
-	struct request_queue *q = bdev_get_queue(bdev);
-
-	return &q->backing_dev_info;
-}
-EXPORT_SYMBOL(blk_get_backing_dev_info);
-
 void blk_rq_init(struct request_queue *q, struct request *rq)
 {
 	memset(rq, 0, sizeof(*rq));
@@ -132,8 +121,6 @@ void blk_rq_init(struct request_queue *q, struct request *rq)
 	rq->__sector = (sector_t) -1;
 	INIT_HLIST_NODE(&rq->hash);
 	RB_CLEAR_NODE(&rq->rb_node);
-	rq->cmd = rq->__cmd;
-	rq->cmd_len = BLK_MAX_CDB;
 	rq->tag = -1;
 	rq->internal_tag = -1;
 	rq->start_time = jiffies;
@@ -160,10 +147,8 @@ static void req_bio_endio(struct request *rq, struct bio *bio,
 
 void blk_dump_rq_flags(struct request *rq, char *msg)
 {
-	int bit;
-
-	printk(KERN_INFO "%s: dev %s: type=%x, flags=%llx\n", msg,
-		rq->rq_disk ? rq->rq_disk->disk_name : "?", rq->cmd_type,
+	printk(KERN_INFO "%s: dev %s: flags=%llx\n", msg,
+		rq->rq_disk ? rq->rq_disk->disk_name : "?",
 		(unsigned long long) rq->cmd_flags);
 
 	printk(KERN_INFO "  sector %llu, nr/cnr %u/%u\n",
@@ -171,13 +156,6 @@ void blk_dump_rq_flags(struct request *rq, char *msg)
 	       blk_rq_sectors(rq), blk_rq_cur_sectors(rq));
 	printk(KERN_INFO "  bio %p, biotail %p, len %u\n",
 	       rq->bio, rq->biotail, blk_rq_bytes(rq));
-
-	if (rq->cmd_type == REQ_TYPE_BLOCK_PC) {
-		printk(KERN_INFO "  cdb: ");
-		for (bit = 0; bit < BLK_MAX_CDB; bit++)
-			printk("%02x ", rq->cmd[bit]);
-		printk("\n");
-	}
 }
 EXPORT_SYMBOL(blk_dump_rq_flags);
 
@@ -588,7 +566,7 @@ void blk_cleanup_queue(struct request_queue *q)
 	blk_flush_integrity();
 
 	/* @q won't process any more request, flush async actions */
-	del_timer_sync(&q->backing_dev_info.laptop_mode_wb_timer);
+	del_timer_sync(&q->backing_dev_info->laptop_mode_wb_timer);
 	blk_sync_queue(q);
 
 	if (q->mq_ops)
@@ -600,7 +578,8 @@ void blk_cleanup_queue(struct request_queue *q)
 		q->queue_lock = &q->__queue_lock;
 	spin_unlock_irq(lock);
 
-	bdi_unregister(&q->backing_dev_info);
+	bdi_unregister(q->backing_dev_info);
+	put_disk_devt(q->disk_devt);
 
 	/* @q is and will stay empty, shutdown and put */
 	blk_put_queue(q);
@@ -608,15 +587,39 @@ void blk_cleanup_queue(struct request_queue *q)
 EXPORT_SYMBOL(blk_cleanup_queue);
 
 /* Allocate memory local to the request queue */
-static void *alloc_request_struct(gfp_t gfp_mask, void *data)
+static void *alloc_request_simple(gfp_t gfp_mask, void *data)
 {
-	int nid = (int)(long)data;
-	return kmem_cache_alloc_node(request_cachep, gfp_mask, nid);
+	struct request_queue *q = data;
+
+	return kmem_cache_alloc_node(request_cachep, gfp_mask, q->node);
 }
 
-static void free_request_struct(void *element, void *unused)
+static void free_request_simple(void *element, void *data)
 {
 	kmem_cache_free(request_cachep, element);
+}
+
+static void *alloc_request_size(gfp_t gfp_mask, void *data)
+{
+	struct request_queue *q = data;
+	struct request *rq;
+
+	rq = kmalloc_node(sizeof(struct request) + q->cmd_size, gfp_mask,
+			q->node);
+	if (rq && q->init_rq_fn && q->init_rq_fn(q, rq, gfp_mask) < 0) {
+		kfree(rq);
+		rq = NULL;
+	}
+	return rq;
+}
+
+static void free_request_size(void *element, void *data)
+{
+	struct request_queue *q = data;
+
+	if (q->exit_rq_fn)
+		q->exit_rq_fn(q, element);
+	kfree(element);
 }
 
 int blk_init_rl(struct request_list *rl, struct request_queue *q,
@@ -631,10 +634,15 @@ int blk_init_rl(struct request_list *rl, struct request_queue *q,
 	init_waitqueue_head(&rl->wait[BLK_RW_SYNC]);
 	init_waitqueue_head(&rl->wait[BLK_RW_ASYNC]);
 
-	rl->rq_pool = mempool_create_node(BLKDEV_MIN_RQ, alloc_request_struct,
-					  free_request_struct,
-					  (void *)(long)q->node, gfp_mask,
-					  q->node);
+	if (q->cmd_size) {
+		rl->rq_pool = mempool_create_node(BLKDEV_MIN_RQ,
+				alloc_request_size, free_request_size,
+				q, gfp_mask, q->node);
+	} else {
+		rl->rq_pool = mempool_create_node(BLKDEV_MIN_RQ,
+				alloc_request_simple, free_request_simple,
+				q, gfp_mask, q->node);
+	}
 	if (!rl->rq_pool)
 		return -ENOMEM;
 
@@ -697,7 +705,6 @@ static void blk_rq_timed_out_timer(unsigned long data)
 struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 {
 	struct request_queue *q;
-	int err;
 
 	q = kmem_cache_alloc_node(blk_requestq_cachep,
 				gfp_mask | __GFP_ZERO, node_id);
@@ -712,17 +719,17 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	if (!q->bio_split)
 		goto fail_id;
 
-	q->backing_dev_info.ra_pages =
-			(VM_MAX_READAHEAD * 1024) / PAGE_SIZE;
-	q->backing_dev_info.capabilities = BDI_CAP_CGROUP_WRITEBACK;
-	q->backing_dev_info.name = "block";
-	q->node = node_id;
-
-	err = bdi_init(&q->backing_dev_info);
-	if (err)
+	q->backing_dev_info = bdi_alloc_node(gfp_mask, node_id);
+	if (!q->backing_dev_info)
 		goto fail_split;
 
-	setup_timer(&q->backing_dev_info.laptop_mode_wb_timer,
+	q->backing_dev_info->ra_pages =
+			(VM_MAX_READAHEAD * 1024) / PAGE_SIZE;
+	q->backing_dev_info->capabilities = BDI_CAP_CGROUP_WRITEBACK;
+	q->backing_dev_info->name = "block";
+	q->node = node_id;
+
+	setup_timer(&q->backing_dev_info->laptop_mode_wb_timer,
 		    laptop_mode_timer_fn, (unsigned long) q);
 	setup_timer(&q->timeout, blk_rq_timed_out_timer, (unsigned long) q);
 	INIT_LIST_HEAD(&q->queue_head);
@@ -772,7 +779,7 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 fail_ref:
 	percpu_ref_exit(&q->q_usage_counter);
 fail_bdi:
-	bdi_destroy(&q->backing_dev_info);
+	bdi_put(q->backing_dev_info);
 fail_split:
 	bioset_free(q->bio_split);
 fail_id:
@@ -825,15 +832,19 @@ EXPORT_SYMBOL(blk_init_queue);
 struct request_queue *
 blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 {
-	struct request_queue *uninit_q, *q;
+	struct request_queue *q;
 
-	uninit_q = blk_alloc_queue_node(GFP_KERNEL, node_id);
-	if (!uninit_q)
+	q = blk_alloc_queue_node(GFP_KERNEL, node_id);
+	if (!q)
 		return NULL;
 
-	q = blk_init_allocated_queue(uninit_q, rfn, lock);
-	if (!q)
-		blk_cleanup_queue(uninit_q);
+	q->request_fn = rfn;
+	if (lock)
+		q->queue_lock = lock;
+	if (blk_init_allocated_queue(q) < 0) {
+		blk_cleanup_queue(q);
+		return NULL;
+	}
 
 	return q;
 }
@@ -841,29 +852,21 @@ EXPORT_SYMBOL(blk_init_queue_node);
 
 static blk_qc_t blk_queue_bio(struct request_queue *q, struct bio *bio);
 
-struct request_queue *
-blk_init_allocated_queue(struct request_queue *q, request_fn_proc *rfn,
-			 spinlock_t *lock)
-{
-	if (!q)
-		return NULL;
 
-	q->fq = blk_alloc_flush_queue(q, NUMA_NO_NODE, 0);
+int blk_init_allocated_queue(struct request_queue *q)
+{
+	q->fq = blk_alloc_flush_queue(q, NUMA_NO_NODE, q->cmd_size);
 	if (!q->fq)
-		return NULL;
+		return -ENOMEM;
+
+	if (q->init_rq_fn && q->init_rq_fn(q, q->fq->flush_rq, GFP_KERNEL))
+		goto out_free_flush_queue;
 
 	if (blk_init_rl(&q->root_rl, q, GFP_KERNEL))
-		goto fail;
+		goto out_exit_flush_rq;
 
 	INIT_WORK(&q->timeout_work, blk_timeout_work);
-	q->request_fn		= rfn;
-	q->prep_rq_fn		= NULL;
-	q->unprep_rq_fn		= NULL;
 	q->queue_flags		|= QUEUE_FLAG_DEFAULT;
-
-	/* Override internal queue lock with supplied lock pointer */
-	if (lock)
-		q->queue_lock		= lock;
 
 	/*
 	 * This also sets hw/phys segments, boundary and size
@@ -878,17 +881,19 @@ blk_init_allocated_queue(struct request_queue *q, request_fn_proc *rfn,
 	/* init elevator */
 	if (elevator_init(q, NULL)) {
 		mutex_unlock(&q->sysfs_lock);
-		goto fail;
+		goto out_exit_flush_rq;
 	}
 
 	mutex_unlock(&q->sysfs_lock);
+	return 0;
 
-	return q;
-
-fail:
+out_exit_flush_rq:
+	if (q->exit_rq_fn)
+		q->exit_rq_fn(q, q->fq->flush_rq);
+out_free_flush_queue:
 	blk_free_flush_queue(q->fq);
 	wbt_exit(q);
-	return NULL;
+	return -ENOMEM;
 }
 EXPORT_SYMBOL(blk_init_allocated_queue);
 
@@ -1024,25 +1029,6 @@ int blk_update_nr_requests(struct request_queue *q, unsigned int nr)
 	return 0;
 }
 
-/*
- * Determine if elevator data should be initialized when allocating the
- * request associated with @bio.
- */
-static bool blk_rq_should_init_elevator(struct bio *bio)
-{
-	if (!bio)
-		return true;
-
-	/*
-	 * Flush requests do not use the elevator so skip initialization.
-	 * This allows a request to share the flush and elevator data.
-	 */
-	if (op_is_flush(bio->bi_opf))
-		return false;
-
-	return true;
-}
-
 /**
  * __get_request - get a free request
  * @rl: request list to allocate from
@@ -1121,10 +1107,13 @@ static struct request *__get_request(struct request_list *rl, unsigned int op,
 	 * request is freed.  This guarantees icq's won't be destroyed and
 	 * makes creating new ones safe.
 	 *
+	 * Flush requests do not use the elevator so skip initialization.
+	 * This allows a request to share the flush and elevator data.
+	 *
 	 * Also, lookup icq while holding queue_lock.  If it doesn't exist,
 	 * it will be created after releasing queue_lock.
 	 */
-	if (blk_rq_should_init_elevator(bio) && !blk_queue_bypass(q)) {
+	if (!op_is_flush(op) && !blk_queue_bypass(q)) {
 		rq_flags |= RQF_ELVPRIV;
 		q->nr_rqs_elvpriv++;
 		if (et->icq_cache && ioc)
@@ -1184,7 +1173,7 @@ fail_elvpriv:
 	 * disturb iosched and blkcg but weird is bettern than dead.
 	 */
 	printk_ratelimited(KERN_WARNING "%s: dev %s: request aux data allocation failed, iosched may be disturbed\n",
-			   __func__, dev_name(q->backing_dev_info.dev));
+			   __func__, dev_name(q->backing_dev_info->dev));
 
 	rq->rq_flags &= ~RQF_ELVPRIV;
 	rq->elv.icq = NULL;
@@ -1278,8 +1267,6 @@ static struct request *blk_old_get_request(struct request_queue *q, int rw,
 {
 	struct request *rq;
 
-	BUG_ON(rw != READ && rw != WRITE);
-
 	/* create ioc upfront */
 	create_io_context(gfp_mask, q->node);
 
@@ -1307,18 +1294,6 @@ struct request *blk_get_request(struct request_queue *q, int rw, gfp_t gfp_mask)
 		return blk_old_get_request(q, rw, gfp_mask);
 }
 EXPORT_SYMBOL(blk_get_request);
-
-/**
- * blk_rq_set_block_pc - initialize a request to type BLOCK_PC
- * @rq:		request to be initialized
- *
- */
-void blk_rq_set_block_pc(struct request *rq)
-{
-	rq->cmd_type = REQ_TYPE_BLOCK_PC;
-	memset(rq->__cmd, 0, sizeof(rq->__cmd));
-}
-EXPORT_SYMBOL(blk_rq_set_block_pc);
 
 /**
  * blk_requeue_request - put a request back on queue
@@ -1510,6 +1485,30 @@ bool bio_attempt_front_merge(struct request_queue *q, struct request *req,
 	return true;
 }
 
+bool bio_attempt_discard_merge(struct request_queue *q, struct request *req,
+		struct bio *bio)
+{
+	unsigned short segments = blk_rq_nr_discard_segments(req);
+
+	if (segments >= queue_max_discard_segments(q))
+		goto no_merge;
+	if (blk_rq_sectors(req) + bio_sectors(bio) >
+	    blk_rq_get_max_sectors(req, blk_rq_pos(req)))
+		goto no_merge;
+
+	req->biotail->bi_next = bio;
+	req->biotail = bio;
+	req->__data_len += bio->bi_iter.bi_size;
+	req->ioprio = ioprio_best(req->ioprio, bio_prio(bio));
+	req->nr_phys_segments = segments + 1;
+
+	blk_account_io_start(req, false);
+	return true;
+no_merge:
+	req_set_nomerge(q, req);
+	return false;
+}
+
 /**
  * blk_attempt_plug_merge - try to merge with %current's plugged list
  * @q: request_queue new bio is being queued at
@@ -1538,12 +1537,11 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 {
 	struct blk_plug *plug;
 	struct request *rq;
-	bool ret = false;
 	struct list_head *plug_list;
 
 	plug = current->plug;
 	if (!plug)
-		goto out;
+		return false;
 	*request_count = 0;
 
 	if (q->mq_ops)
@@ -1552,7 +1550,7 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 		plug_list = &plug->list;
 
 	list_for_each_entry_reverse(rq, plug_list, queuelist) {
-		int el_ret;
+		bool merged = false;
 
 		if (rq->q == q) {
 			(*request_count)++;
@@ -1568,19 +1566,25 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 		if (rq->q != q || !blk_rq_merge_ok(rq, bio))
 			continue;
 
-		el_ret = blk_try_merge(rq, bio);
-		if (el_ret == ELEVATOR_BACK_MERGE) {
-			ret = bio_attempt_back_merge(q, rq, bio);
-			if (ret)
-				break;
-		} else if (el_ret == ELEVATOR_FRONT_MERGE) {
-			ret = bio_attempt_front_merge(q, rq, bio);
-			if (ret)
-				break;
+		switch (blk_try_merge(rq, bio)) {
+		case ELEVATOR_BACK_MERGE:
+			merged = bio_attempt_back_merge(q, rq, bio);
+			break;
+		case ELEVATOR_FRONT_MERGE:
+			merged = bio_attempt_front_merge(q, rq, bio);
+			break;
+		case ELEVATOR_DISCARD_MERGE:
+			merged = bio_attempt_discard_merge(q, rq, bio);
+			break;
+		default:
+			break;
 		}
+
+		if (merged)
+			return true;
 	}
-out:
-	return ret;
+
+	return false;
 }
 
 unsigned int blk_plug_queued_count(struct request_queue *q)
@@ -1609,7 +1613,6 @@ out:
 
 void init_request_from_bio(struct request *req, struct bio *bio)
 {
-	req->cmd_type = REQ_TYPE_FS;
 	if (bio->bi_opf & REQ_RAHEAD)
 		req->cmd_flags |= REQ_FAILFAST_MASK;
 
@@ -1623,8 +1626,8 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 static blk_qc_t blk_queue_bio(struct request_queue *q, struct bio *bio)
 {
 	struct blk_plug *plug;
-	int el_ret, where = ELEVATOR_INSERT_SORT;
-	struct request *req;
+	int where = ELEVATOR_INSERT_SORT;
+	struct request *req, *free;
 	unsigned int request_count = 0;
 	unsigned int wb_acct;
 
@@ -1661,21 +1664,29 @@ static blk_qc_t blk_queue_bio(struct request_queue *q, struct bio *bio)
 
 	spin_lock_irq(q->queue_lock);
 
-	el_ret = elv_merge(q, &req, bio);
-	if (el_ret == ELEVATOR_BACK_MERGE) {
-		if (bio_attempt_back_merge(q, req, bio)) {
-			elv_bio_merged(q, req, bio);
-			if (!attempt_back_merge(q, req))
-				elv_merged_request(q, req, el_ret);
-			goto out_unlock;
-		}
-	} else if (el_ret == ELEVATOR_FRONT_MERGE) {
-		if (bio_attempt_front_merge(q, req, bio)) {
-			elv_bio_merged(q, req, bio);
-			if (!attempt_front_merge(q, req))
-				elv_merged_request(q, req, el_ret);
-			goto out_unlock;
-		}
+	switch (elv_merge(q, &req, bio)) {
+	case ELEVATOR_BACK_MERGE:
+		if (!bio_attempt_back_merge(q, req, bio))
+			break;
+		elv_bio_merged(q, req, bio);
+		free = attempt_back_merge(q, req);
+		if (free)
+			__blk_put_request(q, free);
+		else
+			elv_merged_request(q, req, ELEVATOR_BACK_MERGE);
+		goto out_unlock;
+	case ELEVATOR_FRONT_MERGE:
+		if (!bio_attempt_front_merge(q, req, bio))
+			break;
+		elv_bio_merged(q, req, bio);
+		free = attempt_front_merge(q, req);
+		if (free)
+			__blk_put_request(q, free);
+		else
+			elv_merged_request(q, req, ELEVATOR_FRONT_MERGE);
+		goto out_unlock;
+	default:
+		break;
 	}
 
 get_rq:
@@ -2452,14 +2463,6 @@ void blk_start_request(struct request *req)
 		wbt_issue(req->q->rq_wb, &req->issue_stat);
 	}
 
-	/*
-	 * We are now handing the request to the hardware, initialize
-	 * resid_len to full count and add the timeout handler.
-	 */
-	req->resid_len = blk_rq_bytes(req);
-	if (unlikely(blk_bidi_rq(req)))
-		req->next_rq->resid_len = blk_rq_bytes(req->next_rq);
-
 	BUG_ON(test_bit(REQ_ATOM_COMPLETE, &req->atomic_flags));
 	blk_add_timer(req);
 }
@@ -2530,10 +2533,10 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 	 * TODO: tj: This is too subtle.  It would be better to let
 	 * low level drivers do what they see fit.
 	 */
-	if (req->cmd_type == REQ_TYPE_FS)
+	if (!blk_rq_is_passthrough(req))
 		req->errors = 0;
 
-	if (error && req->cmd_type == REQ_TYPE_FS &&
+	if (error && !blk_rq_is_passthrough(req) &&
 	    !(req->rq_flags & RQF_QUIET)) {
 		char *error_type;
 
@@ -2605,7 +2608,7 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 	req->__data_len -= total_bytes;
 
 	/* update sector only for requests with clear definition of sector */
-	if (req->cmd_type == REQ_TYPE_FS)
+	if (!blk_rq_is_passthrough(req))
 		req->__sector += total_bytes >> 9;
 
 	/* mixed attributes always follow the first bio */
@@ -2683,8 +2686,8 @@ void blk_finish_request(struct request *req, int error)
 
 	BUG_ON(blk_queued_rq(req));
 
-	if (unlikely(laptop_mode) && req->cmd_type == REQ_TYPE_FS)
-		laptop_io_completion(&req->q->backing_dev_info);
+	if (unlikely(laptop_mode) && !blk_rq_is_passthrough(req))
+		laptop_io_completion(req->q->backing_dev_info);
 
 	blk_delete_timer(req);
 
@@ -3007,8 +3010,6 @@ EXPORT_SYMBOL_GPL(blk_rq_unprep_clone);
 static void __blk_rq_prep_clone(struct request *dst, struct request *src)
 {
 	dst->cpu = src->cpu;
-	dst->cmd_flags = src->cmd_flags | REQ_NOMERGE;
-	dst->cmd_type = src->cmd_type;
 	dst->__sector = blk_rq_pos(src);
 	dst->__data_len = blk_rq_bytes(src);
 	dst->nr_phys_segments = src->nr_phys_segments;
@@ -3483,6 +3484,10 @@ int __init blk_dev_init(void)
 
 	blk_requestq_cachep = kmem_cache_create("request_queue",
 			sizeof(struct request_queue), 0, SLAB_PANIC, NULL);
+
+#ifdef CONFIG_DEBUG_FS
+	blk_debugfs_root = debugfs_create_dir("block", NULL);
+#endif
 
 	return 0;
 }

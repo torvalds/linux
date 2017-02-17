@@ -199,13 +199,7 @@ void blk_mq_rq_ctx_init(struct request_queue *q, struct blk_mq_ctx *ctx,
 	rq->special = NULL;
 	/* tag was already set */
 	rq->errors = 0;
-
-	rq->cmd = rq->__cmd;
-
 	rq->extra_len = 0;
-	rq->sense_len = 0;
-	rq->resid_len = 0;
-	rq->sense = NULL;
 
 	INIT_LIST_HEAD(&rq->timeout_list);
 	rq->timeout = 0;
@@ -486,10 +480,6 @@ void blk_mq_start_request(struct request *rq)
 	blk_mq_sched_started_request(rq);
 
 	trace_block_rq_issue(q, rq);
-
-	rq->resid_len = blk_rq_bytes(rq);
-	if (unlikely(blk_bidi_rq(rq)))
-		rq->next_rq->resid_len = blk_rq_bytes(rq->next_rq);
 
 	if (test_bit(QUEUE_FLAG_STATS, &q->queue_flags)) {
 		blk_stat_set_issue_time(&rq->issue_stat);
@@ -773,7 +763,7 @@ static bool blk_mq_attempt_merge(struct request_queue *q,
 	int checked = 8;
 
 	list_for_each_entry_reverse(rq, &ctx->rq_list, queuelist) {
-		int el_ret;
+		bool merged = false;
 
 		if (!checked--)
 			break;
@@ -781,26 +771,25 @@ static bool blk_mq_attempt_merge(struct request_queue *q,
 		if (!blk_rq_merge_ok(rq, bio))
 			continue;
 
-		el_ret = blk_try_merge(rq, bio);
-		if (el_ret == ELEVATOR_NO_MERGE)
+		switch (blk_try_merge(rq, bio)) {
+		case ELEVATOR_BACK_MERGE:
+			if (blk_mq_sched_allow_merge(q, rq, bio))
+				merged = bio_attempt_back_merge(q, rq, bio);
+			break;
+		case ELEVATOR_FRONT_MERGE:
+			if (blk_mq_sched_allow_merge(q, rq, bio))
+				merged = bio_attempt_front_merge(q, rq, bio);
+			break;
+		case ELEVATOR_DISCARD_MERGE:
+			merged = bio_attempt_discard_merge(q, rq, bio);
+			break;
+		default:
 			continue;
-
-		if (!blk_mq_sched_allow_merge(q, rq, bio))
-			break;
-
-		if (el_ret == ELEVATOR_BACK_MERGE) {
-			if (bio_attempt_back_merge(q, rq, bio)) {
-				ctx->rq_merged++;
-				return true;
-			}
-			break;
-		} else if (el_ret == ELEVATOR_FRONT_MERGE) {
-			if (bio_attempt_front_merge(q, rq, bio)) {
-				ctx->rq_merged++;
-				return true;
-			}
-			break;
 		}
+
+		if (merged)
+			ctx->rq_merged++;
+		return merged;
 	}
 
 	return false;
@@ -1013,7 +1002,7 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list)
 			blk_mq_run_hw_queue(hctx, true);
 	}
 
-	return ret != BLK_MQ_RQ_QUEUE_BUSY;
+	return queued != 0;
 }
 
 static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
@@ -1442,12 +1431,11 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	cookie = request_to_qc_t(data.hctx, rq);
 
 	if (unlikely(is_flush_fua)) {
-		blk_mq_put_ctx(data.ctx);
+		if (q->elevator)
+			goto elv_insert;
 		blk_mq_bio_to_request(rq, bio);
-		blk_mq_get_driver_tag(rq, NULL, true);
 		blk_insert_flush(rq);
-		blk_mq_run_hw_queue(data.hctx, true);
-		goto done;
+		goto run_queue;
 	}
 
 	plug = current->plug;
@@ -1497,6 +1485,7 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	}
 
 	if (q->elevator) {
+elv_insert:
 		blk_mq_put_ctx(data.ctx);
 		blk_mq_bio_to_request(rq, bio);
 		blk_mq_sched_insert_request(rq, false, true,
@@ -1510,6 +1499,7 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		 * latter allows for merging opportunities and more efficient
 		 * dispatching.
 		 */
+run_queue:
 		blk_mq_run_hw_queue(data.hctx, !is_sync || is_flush_fua);
 	}
 	blk_mq_put_ctx(data.ctx);
@@ -1565,12 +1555,11 @@ static blk_qc_t blk_sq_make_request(struct request_queue *q, struct bio *bio)
 	cookie = request_to_qc_t(data.hctx, rq);
 
 	if (unlikely(is_flush_fua)) {
-		blk_mq_put_ctx(data.ctx);
+		if (q->elevator)
+			goto elv_insert;
 		blk_mq_bio_to_request(rq, bio);
-		blk_mq_get_driver_tag(rq, NULL, true);
 		blk_insert_flush(rq);
-		blk_mq_run_hw_queue(data.hctx, true);
-		goto done;
+		goto run_queue;
 	}
 
 	/*
@@ -1608,6 +1597,7 @@ static blk_qc_t blk_sq_make_request(struct request_queue *q, struct bio *bio)
 	}
 
 	if (q->elevator) {
+elv_insert:
 		blk_mq_put_ctx(data.ctx);
 		blk_mq_bio_to_request(rq, bio);
 		blk_mq_sched_insert_request(rq, false, true,
@@ -1621,6 +1611,7 @@ static blk_qc_t blk_sq_make_request(struct request_queue *q, struct bio *bio)
 		 * latter allows for merging opportunities and more efficient
 		 * dispatching.
 		 */
+run_queue:
 		blk_mq_run_hw_queue(data.hctx, !is_sync || is_flush_fua);
 	}
 
@@ -2637,10 +2628,14 @@ void blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set, int nr_hw_queues)
 	list_for_each_entry(q, &set->tag_list, tag_set_list) {
 		blk_mq_realloc_hw_ctxs(set, q);
 
+		/*
+		 * Manually set the make_request_fn as blk_queue_make_request
+		 * resets a lot of the queue settings.
+		 */
 		if (q->nr_hw_queues > 1)
-			blk_queue_make_request(q, blk_mq_make_request);
+			q->make_request_fn = blk_mq_make_request;
 		else
-			blk_queue_make_request(q, blk_sq_make_request);
+			q->make_request_fn = blk_sq_make_request;
 
 		blk_mq_queue_reinit(q, cpu_online_mask);
 	}
@@ -2824,8 +2819,6 @@ void blk_mq_enable_hotplug(void)
 
 static int __init blk_mq_init(void)
 {
-	blk_mq_debugfs_init();
-
 	cpuhp_setup_state_multi(CPUHP_BLK_MQ_DEAD, "block/mq:dead", NULL,
 				blk_mq_hctx_notify_dead);
 

@@ -482,13 +482,6 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 }
 EXPORT_SYMBOL(blk_rq_map_sg);
 
-static void req_set_nomerge(struct request_queue *q, struct request *req)
-{
-	req->cmd_flags |= REQ_NOMERGE;
-	if (req == q->last_merge)
-		q->last_merge = NULL;
-}
-
 static inline int ll_new_hw_segment(struct request_queue *q,
 				    struct request *req,
 				    struct bio *bio)
@@ -659,31 +652,32 @@ static void blk_account_io_merge(struct request *req)
 }
 
 /*
- * Has to be called with the request spinlock acquired
+ * For non-mq, this has to be called with the request spinlock acquired.
+ * For mq with scheduling, the appropriate queue wide lock should be held.
  */
-static int attempt_merge(struct request_queue *q, struct request *req,
-			  struct request *next)
+static struct request *attempt_merge(struct request_queue *q,
+				     struct request *req, struct request *next)
 {
 	if (!rq_mergeable(req) || !rq_mergeable(next))
-		return 0;
+		return NULL;
 
 	if (req_op(req) != req_op(next))
-		return 0;
+		return NULL;
 
 	/*
 	 * not contiguous
 	 */
 	if (blk_rq_pos(req) + blk_rq_sectors(req) != blk_rq_pos(next))
-		return 0;
+		return NULL;
 
 	if (rq_data_dir(req) != rq_data_dir(next)
 	    || req->rq_disk != next->rq_disk
 	    || req_no_special_merge(next))
-		return 0;
+		return NULL;
 
 	if (req_op(req) == REQ_OP_WRITE_SAME &&
 	    !blk_write_same_mergeable(req->bio, next->bio))
-		return 0;
+		return NULL;
 
 	/*
 	 * If we are allowed to merge, then append bio list
@@ -692,7 +686,7 @@ static int attempt_merge(struct request_queue *q, struct request *req,
 	 * counts here.
 	 */
 	if (!ll_merge_requests_fn(q, req, next))
-		return 0;
+		return NULL;
 
 	/*
 	 * If failfast settings disagree or any of the two is already
@@ -732,42 +726,51 @@ static int attempt_merge(struct request_queue *q, struct request *req,
 	if (blk_rq_cpu_valid(next))
 		req->cpu = next->cpu;
 
-	/* owner-ship of bio passed from next to req */
+	/*
+	 * ownership of bio passed from next to req, return 'next' for
+	 * the caller to free
+	 */
 	next->bio = NULL;
-	__blk_put_request(q, next);
-	return 1;
+	return next;
 }
 
-int attempt_back_merge(struct request_queue *q, struct request *rq)
+struct request *attempt_back_merge(struct request_queue *q, struct request *rq)
 {
 	struct request *next = elv_latter_request(q, rq);
 
 	if (next)
 		return attempt_merge(q, rq, next);
 
-	return 0;
+	return NULL;
 }
 
-int attempt_front_merge(struct request_queue *q, struct request *rq)
+struct request *attempt_front_merge(struct request_queue *q, struct request *rq)
 {
 	struct request *prev = elv_former_request(q, rq);
 
 	if (prev)
 		return attempt_merge(q, prev, rq);
 
-	return 0;
+	return NULL;
 }
 
 int blk_attempt_req_merge(struct request_queue *q, struct request *rq,
 			  struct request *next)
 {
 	struct elevator_queue *e = q->elevator;
+	struct request *free;
 
 	if (!e->uses_mq && e->type->ops.sq.elevator_allow_rq_merge_fn)
 		if (!e->type->ops.sq.elevator_allow_rq_merge_fn(q, rq, next))
 			return 0;
 
-	return attempt_merge(q, rq, next);
+	free = attempt_merge(q, rq, next);
+	if (free) {
+		__blk_put_request(q, free);
+		return 1;
+	}
+
+	return 0;
 }
 
 bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
@@ -798,9 +801,12 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 	return true;
 }
 
-int blk_try_merge(struct request *rq, struct bio *bio)
+enum elv_merge blk_try_merge(struct request *rq, struct bio *bio)
 {
-	if (blk_rq_pos(rq) + blk_rq_sectors(rq) == bio->bi_iter.bi_sector)
+	if (req_op(rq) == REQ_OP_DISCARD &&
+	    queue_max_discard_segments(rq->q) > 1)
+		return ELEVATOR_DISCARD_MERGE;
+	else if (blk_rq_pos(rq) + blk_rq_sectors(rq) == bio->bi_iter.bi_sector)
 		return ELEVATOR_BACK_MERGE;
 	else if (blk_rq_pos(rq) - bio_sectors(bio) == bio->bi_iter.bi_sector)
 		return ELEVATOR_FRONT_MERGE;

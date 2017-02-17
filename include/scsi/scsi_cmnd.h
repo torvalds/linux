@@ -8,6 +8,7 @@
 #include <linux/timer.h>
 #include <linux/scatterlist.h>
 #include <scsi/scsi_device.h>
+#include <scsi/scsi_request.h>
 
 struct Scsi_Host;
 struct scsi_driver;
@@ -57,6 +58,7 @@ struct scsi_pointer {
 #define SCMD_TAGGED		(1 << 0)
 
 struct scsi_cmnd {
+	struct scsi_request req;
 	struct scsi_device *device;
 	struct list_head list;  /* scsi_cmnd participates in queue lists */
 	struct list_head eh_entry; /* entry for the host eh_cmd_q */
@@ -149,7 +151,7 @@ static inline void *scsi_cmd_priv(struct scsi_cmnd *cmd)
 	return cmd + 1;
 }
 
-/* make sure not to use it with REQ_TYPE_BLOCK_PC commands */
+/* make sure not to use it with passthrough commands */
 static inline struct scsi_driver *scsi_cmd_to_driver(struct scsi_cmnd *cmd)
 {
 	return *(struct scsi_driver **)cmd->request->rq_disk->private_data;

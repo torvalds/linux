@@ -9,12 +9,22 @@
 struct io_cq;
 struct elevator_type;
 
-typedef int (elevator_merge_fn) (struct request_queue *, struct request **,
+/*
+ * Return values from elevator merger
+ */
+enum elv_merge {
+	ELEVATOR_NO_MERGE	= 0,
+	ELEVATOR_FRONT_MERGE	= 1,
+	ELEVATOR_BACK_MERGE	= 2,
+	ELEVATOR_DISCARD_MERGE	= 3,
+};
+
+typedef enum elv_merge (elevator_merge_fn) (struct request_queue *, struct request **,
 				 struct bio *);
 
 typedef void (elevator_merge_req_fn) (struct request_queue *, struct request *, struct request *);
 
-typedef void (elevator_merged_fn) (struct request_queue *, struct request *, int);
+typedef void (elevator_merged_fn) (struct request_queue *, struct request *, enum elv_merge);
 
 typedef int (elevator_allow_bio_merge_fn) (struct request_queue *,
 					   struct request *, struct bio *);
@@ -87,7 +97,7 @@ struct elevator_mq_ops {
 	bool (*allow_merge)(struct request_queue *, struct request *, struct bio *);
 	bool (*bio_merge)(struct blk_mq_hw_ctx *, struct bio *);
 	int (*request_merge)(struct request_queue *q, struct request **, struct bio *);
-	void (*request_merged)(struct request_queue *, struct request *, int);
+	void (*request_merged)(struct request_queue *, struct request *, enum elv_merge);
 	void (*requests_merged)(struct request_queue *, struct request *, struct request *);
 	struct request *(*get_request)(struct request_queue *, unsigned int, struct blk_mq_alloc_data *);
 	void (*put_request)(struct request *);
@@ -99,7 +109,7 @@ struct elevator_mq_ops {
 	void (*requeue_request)(struct request *);
 	struct request *(*former_request)(struct request_queue *, struct request *);
 	struct request *(*next_request)(struct request_queue *, struct request *);
-	int (*get_rq_priv)(struct request_queue *, struct request *);
+	int (*get_rq_priv)(struct request_queue *, struct request *, struct bio *);
 	void (*put_rq_priv)(struct request_queue *, struct request *);
 	void (*init_icq)(struct io_cq *);
 	void (*exit_icq)(struct io_cq *);
@@ -166,10 +176,12 @@ extern void elv_dispatch_sort(struct request_queue *, struct request *);
 extern void elv_dispatch_add_tail(struct request_queue *, struct request *);
 extern void elv_add_request(struct request_queue *, struct request *, int);
 extern void __elv_add_request(struct request_queue *, struct request *, int);
-extern int elv_merge(struct request_queue *, struct request **, struct bio *);
+extern enum elv_merge elv_merge(struct request_queue *, struct request **,
+		struct bio *);
 extern void elv_merge_requests(struct request_queue *, struct request *,
 			       struct request *);
-extern void elv_merged_request(struct request_queue *, struct request *, int);
+extern void elv_merged_request(struct request_queue *, struct request *,
+		enum elv_merge);
 extern void elv_bio_merged(struct request_queue *q, struct request *,
 				struct bio *);
 extern bool elv_attempt_insert_merge(struct request_queue *, struct request *);
@@ -217,13 +229,6 @@ extern struct request *elv_rb_latter_request(struct request_queue *, struct requ
 extern void elv_rb_add(struct rb_root *, struct request *);
 extern void elv_rb_del(struct rb_root *, struct request *);
 extern struct request *elv_rb_find(struct rb_root *, sector_t);
-
-/*
- * Return values from elevator merger
- */
-#define ELEVATOR_NO_MERGE	0
-#define ELEVATOR_FRONT_MERGE	1
-#define ELEVATOR_BACK_MERGE	2
 
 /*
  * Insertion selection

@@ -589,7 +589,7 @@ static int nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 	 */
 	if (ns && ns->ms && !blk_integrity_rq(req)) {
 		if (!(ns->pi_type && ns->ms == 8) &&
-					req->cmd_type != REQ_TYPE_DRV_PRIV) {
+		    !blk_rq_is_passthrough(req)) {
 			blk_mq_end_request(req, -EFAULT);
 			return BLK_MQ_RQ_QUEUE_OK;
 		}
@@ -646,7 +646,7 @@ static void nvme_complete_rq(struct request *req)
 			return;
 		}
 
-		if (req->cmd_type == REQ_TYPE_DRV_PRIV)
+		if (blk_rq_is_passthrough(req))
 			error = req->errors;
 		else
 			error = nvme_error_status(req->errors);

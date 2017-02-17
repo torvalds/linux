@@ -49,9 +49,13 @@ config LBDAF
 
 	  If unsure, say Y.
 
+config BLK_SCSI_REQUEST
+	bool
+
 config BLK_DEV_BSG
 	bool "Block layer SG support v4"
 	default y
+	select BLK_SCSI_REQUEST
 	help
 	  Saying Y here will enable generic SG (SCSI generic) v4 support
 	  for any block device.
@@ -71,6 +75,7 @@ config BLK_DEV_BSGLIB
 	bool "Block layer SG support v4 helper lib"
 	default n
 	select BLK_DEV_BSG
+	select BLK_SCSI_REQUEST
 	help
 	  Subsystems will normally enable this if needed. Users will not
 	  normally need to manually enable this.

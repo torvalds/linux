@@ -208,18 +208,18 @@ EXPORT_SYMBOL_GPL(nvme_requeue_req);
 struct request *nvme_alloc_request(struct request_queue *q,
 		struct nvme_command *cmd, unsigned int flags, int qid)
 {
+	unsigned op = nvme_is_write(cmd) ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN;
 	struct request *req;
 
 	if (qid == NVME_QID_ANY) {
-		req = blk_mq_alloc_request(q, nvme_is_write(cmd), flags);
+		req = blk_mq_alloc_request(q, op, flags);
 	} else {
-		req = blk_mq_alloc_request_hctx(q, nvme_is_write(cmd), flags,
+		req = blk_mq_alloc_request_hctx(q, op, flags,
 				qid ? qid - 1 : 0);
 	}
 	if (IS_ERR(req))
 		return req;
 
-	req->cmd_type = REQ_TYPE_DRV_PRIV;
 	req->cmd_flags |= REQ_FAILFAST_DRIVER;
 	nvme_req(req)->cmd = cmd;
 
@@ -238,26 +238,38 @@ static inline void nvme_setup_flush(struct nvme_ns *ns,
 static inline int nvme_setup_discard(struct nvme_ns *ns, struct request *req,
 		struct nvme_command *cmnd)
 {
+	unsigned short segments = blk_rq_nr_discard_segments(req), n = 0;
 	struct nvme_dsm_range *range;
-	unsigned int nr_bytes = blk_rq_bytes(req);
+	struct bio *bio;
 
-	range = kmalloc(sizeof(*range), GFP_ATOMIC);
+	range = kmalloc_array(segments, sizeof(*range), GFP_ATOMIC);
 	if (!range)
 		return BLK_MQ_RQ_QUEUE_BUSY;
 
-	range->cattr = cpu_to_le32(0);
-	range->nlb = cpu_to_le32(nr_bytes >> ns->lba_shift);
-	range->slba = cpu_to_le64(nvme_block_nr(ns, blk_rq_pos(req)));
+	__rq_for_each_bio(bio, req) {
+		u64 slba = nvme_block_nr(ns, bio->bi_iter.bi_sector);
+		u32 nlb = bio->bi_iter.bi_size >> ns->lba_shift;
+
+		range[n].cattr = cpu_to_le32(0);
+		range[n].nlb = cpu_to_le32(nlb);
+		range[n].slba = cpu_to_le64(slba);
+		n++;
+	}
+
+	if (WARN_ON_ONCE(n != segments)) {
+		kfree(range);
+		return BLK_MQ_RQ_QUEUE_ERROR;
+	}
 
 	memset(cmnd, 0, sizeof(*cmnd));
 	cmnd->dsm.opcode = nvme_cmd_dsm;
 	cmnd->dsm.nsid = cpu_to_le32(ns->ns_id);
-	cmnd->dsm.nr = 0;
+	cmnd->dsm.nr = segments - 1;
 	cmnd->dsm.attributes = cpu_to_le32(NVME_DSMGMT_AD);
 
 	req->special_vec.bv_page = virt_to_page(range);
 	req->special_vec.bv_offset = offset_in_page(range);
-	req->special_vec.bv_len = sizeof(*range);
+	req->special_vec.bv_len = sizeof(*range) * segments;
 	req->rq_flags |= RQF_SPECIAL_PAYLOAD;
 
 	return BLK_MQ_RQ_QUEUE_OK;
@@ -309,17 +321,27 @@ int nvme_setup_cmd(struct nvme_ns *ns, struct request *req,
 {
 	int ret = BLK_MQ_RQ_QUEUE_OK;
 
-	if (req->cmd_type == REQ_TYPE_DRV_PRIV)
+	switch (req_op(req)) {
+	case REQ_OP_DRV_IN:
+	case REQ_OP_DRV_OUT:
 		memcpy(cmd, nvme_req(req)->cmd, sizeof(*cmd));
-	else if (req_op(req) == REQ_OP_FLUSH)
+		break;
+	case REQ_OP_FLUSH:
 		nvme_setup_flush(ns, cmd);
-	else if (req_op(req) == REQ_OP_DISCARD)
+		break;
+	case REQ_OP_DISCARD:
 		ret = nvme_setup_discard(ns, req, cmd);
-	else
+		break;
+	case REQ_OP_READ:
+	case REQ_OP_WRITE:
 		nvme_setup_rw(ns, req, cmd);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return BLK_MQ_RQ_QUEUE_ERROR;
+	}
 
 	cmd->common.command_id = req->tag;
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nvme_setup_cmd);
@@ -868,6 +890,9 @@ static void nvme_config_discard(struct nvme_ns *ns)
 	struct nvme_ctrl *ctrl = ns->ctrl;
 	u32 logical_block_size = queue_logical_block_size(ns->queue);
 
+	BUILD_BUG_ON(PAGE_SIZE / sizeof(struct nvme_dsm_range) <
+			NVME_DSM_MAX_RANGES);
+
 	if (ctrl->quirks & NVME_QUIRK_DISCARD_ZEROES)
 		ns->queue->limits.discard_zeroes_data = 1;
 	else
@@ -876,6 +901,7 @@ static void nvme_config_discard(struct nvme_ns *ns)
 	ns->queue->limits.discard_alignment = logical_block_size;
 	ns->queue->limits.discard_granularity = logical_block_size;
 	blk_queue_max_discard_sectors(ns->queue, UINT_MAX);
+	blk_queue_max_discard_segments(ns->queue, NVME_DSM_MAX_RANGES);
 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, ns->queue);
 }
 

@@ -554,6 +554,8 @@ enum {
 	NVME_DSMGMT_AD		= 1 << 2,
 };
 
+#define NVME_DSM_MAX_RANGES	256
+
 struct nvme_dsm_range {
 	__le32			cattr;
 	__le32			nlb;

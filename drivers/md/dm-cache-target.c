@@ -2284,7 +2284,7 @@ static void do_waker(struct work_struct *ws)
 static int is_congested(struct dm_dev *dev, int bdi_bits)
 {
 	struct request_queue *q = bdev_get_queue(dev->bdev);
-	return bdi_congested(&q->backing_dev_info, bdi_bits);
+	return bdi_congested(q->backing_dev_info, bdi_bits);
 }
 
 static int cache_is_congested(struct dm_target_callbacks *cb, int bdi_bits)

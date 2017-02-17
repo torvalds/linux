@@ -281,8 +281,8 @@
 #include <linux/fcntl.h>
 #include <linux/blkdev.h>
 #include <linux/times.h>
-
 #include <linux/uaccess.h>
+#include <scsi/scsi_request.h>
 
 /* used to tell the module to turn on full debugging messages */
 static bool debug;
@@ -2170,6 +2170,7 @@ static int cdrom_read_cdda_bpc(struct cdrom_device_info *cdi, __u8 __user *ubuf,
 {
 	struct request_queue *q = cdi->disk->queue;
 	struct request *rq;
+	struct scsi_request *req;
 	struct bio *bio;
 	unsigned int len;
 	int nr, ret = 0;
@@ -2188,12 +2189,13 @@ static int cdrom_read_cdda_bpc(struct cdrom_device_info *cdi, __u8 __user *ubuf,
 
 		len = nr * CD_FRAMESIZE_RAW;
 
-		rq = blk_get_request(q, READ, GFP_KERNEL);
+		rq = blk_get_request(q, REQ_OP_SCSI_IN, GFP_KERNEL);
 		if (IS_ERR(rq)) {
 			ret = PTR_ERR(rq);
 			break;
 		}
-		blk_rq_set_block_pc(rq);
+		req = scsi_req(rq);
+		scsi_req_init(rq);
 
 		ret = blk_rq_map_user(q, rq, NULL, ubuf, len, GFP_KERNEL);
 		if (ret) {
@@ -2201,23 +2203,23 @@ static int cdrom_read_cdda_bpc(struct cdrom_device_info *cdi, __u8 __user *ubuf,
 			break;
 		}
 
-		rq->cmd[0] = GPCMD_READ_CD;
-		rq->cmd[1] = 1 << 2;
-		rq->cmd[2] = (lba >> 24) & 0xff;
-		rq->cmd[3] = (lba >> 16) & 0xff;
-		rq->cmd[4] = (lba >>  8) & 0xff;
-		rq->cmd[5] = lba & 0xff;
-		rq->cmd[6] = (nr >> 16) & 0xff;
-		rq->cmd[7] = (nr >>  8) & 0xff;
-		rq->cmd[8] = nr & 0xff;
-		rq->cmd[9] = 0xf8;
+		req->cmd[0] = GPCMD_READ_CD;
+		req->cmd[1] = 1 << 2;
+		req->cmd[2] = (lba >> 24) & 0xff;
+		req->cmd[3] = (lba >> 16) & 0xff;
+		req->cmd[4] = (lba >>  8) & 0xff;
+		req->cmd[5] = lba & 0xff;
+		req->cmd[6] = (nr >> 16) & 0xff;
+		req->cmd[7] = (nr >>  8) & 0xff;
+		req->cmd[8] = nr & 0xff;
+		req->cmd[9] = 0xf8;
 
-		rq->cmd_len = 12;
+		req->cmd_len = 12;
 		rq->timeout = 60 * HZ;
 		bio = rq->bio;
 
 		if (blk_execute_rq(q, cdi->disk, rq, 0)) {
-			struct request_sense *s = rq->sense;
+			struct request_sense *s = req->sense;
 			ret = -EIO;
 			cdi->last_sense = s->sense_key;
 		}

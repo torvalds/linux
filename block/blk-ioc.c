@@ -35,7 +35,10 @@ static void icq_free_icq_rcu(struct rcu_head *head)
 	kmem_cache_free(icq->__rcu_icq_cache, icq);
 }
 
-/* Exit an icq. Called with both ioc and q locked. */
+/*
+ * Exit an icq. Called with both ioc and q locked for sq, only ioc locked for
+ * mq.
+ */
 static void ioc_exit_icq(struct io_cq *icq)
 {
 	struct elevator_type *et = icq->q->elevator->type;
@@ -166,6 +169,7 @@ EXPORT_SYMBOL(put_io_context);
  */
 void put_io_context_active(struct io_context *ioc)
 {
+	struct elevator_type *et;
 	unsigned long flags;
 	struct io_cq *icq;
 
@@ -184,13 +188,19 @@ retry:
 	hlist_for_each_entry(icq, &ioc->icq_list, ioc_node) {
 		if (icq->flags & ICQ_EXITED)
 			continue;
-		if (spin_trylock(icq->q->queue_lock)) {
+
+		et = icq->q->elevator->type;
+		if (et->uses_mq) {
 			ioc_exit_icq(icq);
-			spin_unlock(icq->q->queue_lock);
 		} else {
-			spin_unlock_irqrestore(&ioc->lock, flags);
-			cpu_relax();
-			goto retry;
+			if (spin_trylock(icq->q->queue_lock)) {
+				ioc_exit_icq(icq);
+				spin_unlock(icq->q->queue_lock);
+			} else {
+				spin_unlock_irqrestore(&ioc->lock, flags);
+				cpu_relax();
+				goto retry;
+			}
 		}
 	}
 	spin_unlock_irqrestore(&ioc->lock, flags);

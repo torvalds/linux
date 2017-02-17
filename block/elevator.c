@@ -428,11 +428,11 @@ void elv_dispatch_add_tail(struct request_queue *q, struct request *rq)
 }
 EXPORT_SYMBOL(elv_dispatch_add_tail);
 
-int elv_merge(struct request_queue *q, struct request **req, struct bio *bio)
+enum elv_merge elv_merge(struct request_queue *q, struct request **req,
+		struct bio *bio)
 {
 	struct elevator_queue *e = q->elevator;
 	struct request *__rq;
-	int ret;
 
 	/*
 	 * Levels of merges:
@@ -447,7 +447,8 @@ int elv_merge(struct request_queue *q, struct request **req, struct bio *bio)
 	 * First try one-hit cache.
 	 */
 	if (q->last_merge && elv_bio_merge_ok(q->last_merge, bio)) {
-		ret = blk_try_merge(q->last_merge, bio);
+		enum elv_merge ret = blk_try_merge(q->last_merge, bio);
+
 		if (ret != ELEVATOR_NO_MERGE) {
 			*req = q->last_merge;
 			return ret;
@@ -515,7 +516,8 @@ bool elv_attempt_insert_merge(struct request_queue *q, struct request *rq)
 	return ret;
 }
 
-void elv_merged_request(struct request_queue *q, struct request *rq, int type)
+void elv_merged_request(struct request_queue *q, struct request *rq,
+		enum elv_merge type)
 {
 	struct elevator_queue *e = q->elevator;
 
@@ -539,7 +541,7 @@ void elv_merge_requests(struct request_queue *q, struct request *rq,
 	if (e->uses_mq && e->type->ops.mq.requests_merged)
 		e->type->ops.mq.requests_merged(q, rq, next);
 	else if (e->type->ops.sq.elevator_merge_req_fn) {
-		next_sorted = next->rq_flags & RQF_SORTED;
+		next_sorted = (__force bool)(next->rq_flags & RQF_SORTED);
 		if (next_sorted)
 			e->type->ops.sq.elevator_merge_req_fn(q, rq, next);
 	}
@@ -635,7 +637,7 @@ void __elv_add_request(struct request_queue *q, struct request *rq, int where)
 
 	if (rq->rq_flags & RQF_SOFTBARRIER) {
 		/* barriers are scheduling boundary, update end_sector */
-		if (rq->cmd_type == REQ_TYPE_FS) {
+		if (!blk_rq_is_passthrough(rq)) {
 			q->end_sector = rq_end_sector(rq);
 			q->boundary_rq = rq;
 		}
@@ -677,7 +679,7 @@ void __elv_add_request(struct request_queue *q, struct request *rq, int where)
 		if (elv_attempt_insert_merge(q, rq))
 			break;
 	case ELEVATOR_INSERT_SORT:
-		BUG_ON(rq->cmd_type != REQ_TYPE_FS);
+		BUG_ON(blk_rq_is_passthrough(rq));
 		rq->rq_flags |= RQF_SORTED;
 		q->nr_sorted++;
 		if (rq_mergeable(rq)) {

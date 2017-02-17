@@ -366,7 +366,7 @@ static noinline void run_scheduled_bios(struct btrfs_device *device)
 	 */
 	blk_start_plug(&plug);
 
-	bdi = blk_get_backing_dev_info(device->bdev);
+	bdi = device->bdev->bd_bdi;
 	limit = btrfs_async_submit_limit(fs_info);
 	limit = limit * 2 / 3;
 

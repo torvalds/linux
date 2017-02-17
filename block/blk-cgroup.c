@@ -184,7 +184,7 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 		goto err_free_blkg;
 	}
 
-	wb_congested = wb_congested_get_create(&q->backing_dev_info,
+	wb_congested = wb_congested_get_create(q->backing_dev_info,
 					       blkcg->css.id,
 					       GFP_NOWAIT | __GFP_NOWARN);
 	if (!wb_congested) {
@@ -469,8 +469,8 @@ static int blkcg_reset_stats(struct cgroup_subsys_state *css,
 const char *blkg_dev_name(struct blkcg_gq *blkg)
 {
 	/* some drivers (floppy) instantiate a queue w/o disk registered */
-	if (blkg->q->backing_dev_info.dev)
-		return dev_name(blkg->q->backing_dev_info.dev);
+	if (blkg->q->backing_dev_info->dev)
+		return dev_name(blkg->q->backing_dev_info->dev);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(blkg_dev_name);
@@ -1079,10 +1079,8 @@ int blkcg_init_queue(struct request_queue *q)
 	if (preloaded)
 		radix_tree_preload_end();
 
-	if (IS_ERR(blkg)) {
-		blkg_free(new_blkg);
+	if (IS_ERR(blkg))
 		return PTR_ERR(blkg);
-	}
 
 	q->root_blkg = blkg;
 	q->root_rl.blkg = blkg;

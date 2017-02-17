@@ -71,15 +71,6 @@ struct request_list {
 };
 
 /*
- * request command types
- */
-enum rq_cmd_type_bits {
-	REQ_TYPE_FS		= 1,	/* fs request */
-	REQ_TYPE_BLOCK_PC,		/* scsi command */
-	REQ_TYPE_DRV_PRIV,		/* driver defined types from here */
-};
-
-/*
  * request flags */
 typedef __u32 __bitwise req_flags_t;
 
@@ -128,8 +119,6 @@ typedef __u32 __bitwise req_flags_t;
 #define RQF_NOMERGE_FLAGS \
 	(RQF_STARTED | RQF_SOFTBARRIER | RQF_FLUSH_SEQ | RQF_SPECIAL_PAYLOAD)
 
-#define BLK_MAX_CDB	16
-
 /*
  * Try to put the fields that are referenced together in the same cacheline.
  *
@@ -147,9 +136,11 @@ struct request {
 	struct blk_mq_ctx *mq_ctx;
 
 	int cpu;
-	unsigned cmd_type;
 	unsigned int cmd_flags;		/* op and common flags */
 	req_flags_t rq_flags;
+
+	int internal_tag;
+
 	unsigned long atomic_flags;
 
 	/* the following two fields are internal, NEVER access directly */
@@ -221,23 +212,11 @@ struct request {
 
 	unsigned short ioprio;
 
-	int internal_tag;
-
 	void *special;		/* opaque pointer available for LLD use */
 
 	int errors;
 
-	/*
-	 * when request is used as a packet command carrier
-	 */
-	unsigned char __cmd[BLK_MAX_CDB];
-	unsigned char *cmd;
-	unsigned short cmd_len;
-
 	unsigned int extra_len;	/* length of alignment and padding */
-	unsigned int sense_len;
-	unsigned int resid_len;	/* residual count */
-	void *sense;
 
 	unsigned long deadline;
 	struct list_head timeout_list;
@@ -253,6 +232,21 @@ struct request {
 	/* for bidi */
 	struct request *next_rq;
 };
+
+static inline bool blk_rq_is_scsi(struct request *rq)
+{
+	return req_op(rq) == REQ_OP_SCSI_IN || req_op(rq) == REQ_OP_SCSI_OUT;
+}
+
+static inline bool blk_rq_is_private(struct request *rq)
+{
+	return req_op(rq) == REQ_OP_DRV_IN || req_op(rq) == REQ_OP_DRV_OUT;
+}
+
+static inline bool blk_rq_is_passthrough(struct request *rq)
+{
+	return blk_rq_is_scsi(rq) || blk_rq_is_private(rq);
+}
 
 static inline unsigned short req_get_ioprio(struct request *req)
 {
@@ -273,6 +267,8 @@ typedef void (softirq_done_fn)(struct request *);
 typedef int (dma_drain_needed_fn)(struct request *);
 typedef int (lld_busy_fn) (struct request_queue *q);
 typedef int (bsg_job_fn) (struct bsg_job *);
+typedef int (init_rq_fn)(struct request_queue *, struct request *, gfp_t);
+typedef void (exit_rq_fn)(struct request_queue *, struct request *);
 
 enum blk_eh_timer_return {
 	BLK_EH_NOT_HANDLED,
@@ -335,6 +331,7 @@ struct queue_limits {
 	unsigned short		logical_block_size;
 	unsigned short		max_segments;
 	unsigned short		max_integrity_segments;
+	unsigned short		max_discard_segments;
 
 	unsigned char		misaligned;
 	unsigned char		discard_misaligned;
@@ -408,6 +405,8 @@ struct request_queue {
 	rq_timed_out_fn		*rq_timed_out_fn;
 	dma_drain_needed_fn	*dma_drain_needed;
 	lld_busy_fn		*lld_busy_fn;
+	init_rq_fn		*init_rq_fn;
+	exit_rq_fn		*exit_rq_fn;
 
 	const struct blk_mq_ops	*mq_ops;
 
@@ -434,7 +433,8 @@ struct request_queue {
 	 */
 	struct delayed_work	delay_work;
 
-	struct backing_dev_info	backing_dev_info;
+	struct backing_dev_info	*backing_dev_info;
+	struct disk_devt	*disk_devt;
 
 	/*
 	 * The queue owner gets to use this for whatever they like.
@@ -571,12 +571,15 @@ struct request_queue {
 	struct list_head	tag_set_list;
 	struct bio_set		*bio_split;
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_BLK_DEBUG_FS
 	struct dentry		*debugfs_dir;
 	struct dentry		*mq_debugfs_dir;
 #endif
 
 	bool			mq_sysfs_init_done;
+
+	size_t			cmd_size;
+	void			*rq_alloc_data;
 };
 
 #define QUEUE_FLAG_QUEUED	1	/* uses generic tag queueing */
@@ -703,9 +706,10 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
 	((rq)->cmd_flags & (REQ_FAILFAST_DEV|REQ_FAILFAST_TRANSPORT| \
 			     REQ_FAILFAST_DRIVER))
 
-#define blk_account_rq(rq) \
-	(((rq)->rq_flags & RQF_STARTED) && \
-	 ((rq)->cmd_type == REQ_TYPE_FS))
+static inline bool blk_account_rq(struct request *rq)
+{
+	return (rq->rq_flags & RQF_STARTED) && !blk_rq_is_passthrough(rq);
+}
 
 #define blk_rq_cpu_valid(rq)	((rq)->cpu != -1)
 #define blk_bidi_rq(rq)		((rq)->next_rq != NULL)
@@ -780,7 +784,7 @@ static inline void blk_clear_rl_full(struct request_list *rl, bool sync)
 
 static inline bool rq_mergeable(struct request *rq)
 {
-	if (rq->cmd_type != REQ_TYPE_FS)
+	if (blk_rq_is_passthrough(rq))
 		return false;
 
 	if (req_op(rq) == REQ_OP_FLUSH)
@@ -918,7 +922,6 @@ extern void blk_rq_init(struct request_queue *q, struct request *rq);
 extern void blk_put_request(struct request *);
 extern void __blk_put_request(struct request_queue *, struct request *);
 extern struct request *blk_get_request(struct request_queue *, int, gfp_t);
-extern void blk_rq_set_block_pc(struct request *);
 extern void blk_requeue_request(struct request_queue *, struct request *);
 extern int blk_lld_busy(struct request_queue *q);
 extern int blk_rq_prep_clone(struct request *rq, struct request *rq_src,
@@ -1055,7 +1058,7 @@ static inline unsigned int blk_rq_get_max_sectors(struct request *rq,
 {
 	struct request_queue *q = rq->q;
 
-	if (unlikely(rq->cmd_type != REQ_TYPE_FS))
+	if (blk_rq_is_passthrough(rq))
 		return q->limits.max_hw_sectors;
 
 	if (!q->limits.chunk_sectors ||
@@ -1137,14 +1140,15 @@ extern void blk_unprep_request(struct request *);
 extern struct request_queue *blk_init_queue_node(request_fn_proc *rfn,
 					spinlock_t *lock, int node_id);
 extern struct request_queue *blk_init_queue(request_fn_proc *, spinlock_t *);
-extern struct request_queue *blk_init_allocated_queue(struct request_queue *,
-						      request_fn_proc *, spinlock_t *);
+extern int blk_init_allocated_queue(struct request_queue *);
 extern void blk_cleanup_queue(struct request_queue *);
 extern void blk_queue_make_request(struct request_queue *, make_request_fn *);
 extern void blk_queue_bounce_limit(struct request_queue *, u64);
 extern void blk_queue_max_hw_sectors(struct request_queue *, unsigned int);
 extern void blk_queue_chunk_sectors(struct request_queue *, unsigned int);
 extern void blk_queue_max_segments(struct request_queue *, unsigned short);
+extern void blk_queue_max_discard_segments(struct request_queue *,
+		unsigned short);
 extern void blk_queue_max_segment_size(struct request_queue *, unsigned int);
 extern void blk_queue_max_discard_sectors(struct request_queue *q,
 		unsigned int max_discard_sectors);
@@ -1187,13 +1191,30 @@ extern void blk_queue_rq_timed_out(struct request_queue *, rq_timed_out_fn *);
 extern void blk_queue_rq_timeout(struct request_queue *, unsigned int);
 extern void blk_queue_flush_queueable(struct request_queue *q, bool queueable);
 extern void blk_queue_write_cache(struct request_queue *q, bool enabled, bool fua);
-extern struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bdev);
 
+/*
+ * Number of physical segments as sent to the device.
+ *
+ * Normally this is the number of discontiguous data segments sent by the
+ * submitter.  But for data-less command like discard we might have no
+ * actual data segments submitted, but the driver might have to add it's
+ * own special payload.  In that case we still return 1 here so that this
+ * special payload will be mapped.
+ */
 static inline unsigned short blk_rq_nr_phys_segments(struct request *rq)
 {
 	if (rq->rq_flags & RQF_SPECIAL_PAYLOAD)
 		return 1;
 	return rq->nr_phys_segments;
+}
+
+/*
+ * Number of discard segments (or ranges) the driver needs to fill in.
+ * Each discard bio merged into a request is counted as one segment.
+ */
+static inline unsigned short blk_rq_nr_discard_segments(struct request *rq)
+{
+	return max_t(unsigned short, rq->nr_phys_segments, 1);
 }
 
 extern int blk_rq_map_sg(struct request_queue *, struct request *, struct scatterlist *);
@@ -1382,6 +1403,11 @@ static inline unsigned int queue_max_hw_sectors(struct request_queue *q)
 static inline unsigned short queue_max_segments(struct request_queue *q)
 {
 	return q->limits.max_segments;
+}
+
+static inline unsigned short queue_max_discard_segments(struct request_queue *q)
+{
+	return q->limits.max_discard_segments;
 }
 
 static inline unsigned int queue_max_segment_size(struct request_queue *q)

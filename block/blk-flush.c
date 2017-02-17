@@ -297,8 +297,14 @@ static bool blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq)
 	if (fq->flush_pending_idx != fq->flush_running_idx || list_empty(pending))
 		return false;
 
-	/* C2 and C3 */
+	/* C2 and C3
+	 *
+	 * For blk-mq + scheduling, we can risk having all driver tags
+	 * assigned to empty flushes, and we deadlock if we are expecting
+	 * other requests to make progress. Don't defer for that case.
+	 */
 	if (!list_empty(&fq->flush_data_in_flight) &&
+	    !(q->mq_ops && q->elevator) &&
 	    time_before(jiffies,
 			fq->flush_pending_since + FLUSH_PENDING_TIMEOUT))
 		return false;
@@ -327,7 +333,6 @@ static bool blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq)
 		blk_mq_tag_set_rq(hctx, first_rq->tag, flush_rq);
 	}
 
-	flush_rq->cmd_type = REQ_TYPE_FS;
 	flush_rq->cmd_flags = REQ_OP_FLUSH | REQ_PREFLUSH;
 	flush_rq->rq_flags |= RQF_FLUSH_SEQ;
 	flush_rq->rq_disk = first_rq->rq_disk;
@@ -547,11 +552,10 @@ struct blk_flush_queue *blk_alloc_flush_queue(struct request_queue *q,
 	if (!fq)
 		goto fail;
 
-	if (q->mq_ops) {
+	if (q->mq_ops)
 		spin_lock_init(&fq->mq_flush_lock);
-		rq_sz = round_up(rq_sz + cmd_size, cache_line_size());
-	}
 
+	rq_sz = round_up(rq_sz + cmd_size, cache_line_size());
 	fq->flush_rq = kzalloc_node(rq_sz, GFP_KERNEL, node);
 	if (!fq->flush_rq)
 		goto fail_rq;

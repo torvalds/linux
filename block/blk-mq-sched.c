@@ -68,7 +68,9 @@ error:
 EXPORT_SYMBOL_GPL(blk_mq_sched_init_hctx_data);
 
 static void __blk_mq_sched_assign_ioc(struct request_queue *q,
-				      struct request *rq, struct io_context *ioc)
+				      struct request *rq,
+				      struct bio *bio,
+				      struct io_context *ioc)
 {
 	struct io_cq *icq;
 
@@ -83,7 +85,7 @@ static void __blk_mq_sched_assign_ioc(struct request_queue *q,
 	}
 
 	rq->elv.icq = icq;
-	if (!blk_mq_sched_get_rq_priv(q, rq)) {
+	if (!blk_mq_sched_get_rq_priv(q, rq, bio)) {
 		rq->rq_flags |= RQF_ELVPRIV;
 		get_io_context(icq->ioc);
 		return;
@@ -99,7 +101,7 @@ static void blk_mq_sched_assign_ioc(struct request_queue *q,
 
 	ioc = rq_ioc(bio);
 	if (ioc)
-		__blk_mq_sched_assign_ioc(q, rq, ioc);
+		__blk_mq_sched_assign_ioc(q, rq, bio, ioc);
 }
 
 struct request *blk_mq_sched_get_request(struct request_queue *q,
@@ -173,6 +175,8 @@ void blk_mq_sched_put_request(struct request *rq)
 void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 {
 	struct elevator_queue *e = hctx->queue->elevator;
+	const bool has_sched_dispatch = e && e->type->ops.mq.dispatch_request;
+	bool did_work = false;
 	LIST_HEAD(rq_list);
 
 	if (unlikely(blk_mq_hctx_stopped(hctx)))
@@ -202,11 +206,18 @@ void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 	 */
 	if (!list_empty(&rq_list)) {
 		blk_mq_sched_mark_restart(hctx);
-		blk_mq_dispatch_rq_list(hctx, &rq_list);
-	} else if (!e || !e->type->ops.mq.dispatch_request) {
+		did_work = blk_mq_dispatch_rq_list(hctx, &rq_list);
+	} else if (!has_sched_dispatch) {
 		blk_mq_flush_busy_ctxs(hctx, &rq_list);
 		blk_mq_dispatch_rq_list(hctx, &rq_list);
-	} else {
+	}
+
+	/*
+	 * We want to dispatch from the scheduler if we had no work left
+	 * on the dispatch list, OR if we did have work but weren't able
+	 * to make progress.
+	 */
+	if (!did_work && has_sched_dispatch) {
 		do {
 			struct request *rq;
 
@@ -234,31 +245,33 @@ void blk_mq_sched_move_to_dispatch(struct blk_mq_hw_ctx *hctx,
 }
 EXPORT_SYMBOL_GPL(blk_mq_sched_move_to_dispatch);
 
-bool blk_mq_sched_try_merge(struct request_queue *q, struct bio *bio)
+bool blk_mq_sched_try_merge(struct request_queue *q, struct bio *bio,
+			    struct request **merged_request)
 {
 	struct request *rq;
-	int ret;
 
-	ret = elv_merge(q, &rq, bio);
-	if (ret == ELEVATOR_BACK_MERGE) {
+	switch (elv_merge(q, &rq, bio)) {
+	case ELEVATOR_BACK_MERGE:
 		if (!blk_mq_sched_allow_merge(q, rq, bio))
 			return false;
-		if (bio_attempt_back_merge(q, rq, bio)) {
-			if (!attempt_back_merge(q, rq))
-				elv_merged_request(q, rq, ret);
-			return true;
-		}
-	} else if (ret == ELEVATOR_FRONT_MERGE) {
+		if (!bio_attempt_back_merge(q, rq, bio))
+			return false;
+		*merged_request = attempt_back_merge(q, rq);
+		if (!*merged_request)
+			elv_merged_request(q, rq, ELEVATOR_BACK_MERGE);
+		return true;
+	case ELEVATOR_FRONT_MERGE:
 		if (!blk_mq_sched_allow_merge(q, rq, bio))
 			return false;
-		if (bio_attempt_front_merge(q, rq, bio)) {
-			if (!attempt_front_merge(q, rq))
-				elv_merged_request(q, rq, ret);
-			return true;
-		}
+		if (!bio_attempt_front_merge(q, rq, bio))
+			return false;
+		*merged_request = attempt_front_merge(q, rq);
+		if (!*merged_request)
+			elv_merged_request(q, rq, ELEVATOR_FRONT_MERGE);
+		return true;
+	default:
+		return false;
 	}
-
-	return false;
 }
 EXPORT_SYMBOL_GPL(blk_mq_sched_try_merge);
 
@@ -289,7 +302,8 @@ void blk_mq_sched_request_inserted(struct request *rq)
 }
 EXPORT_SYMBOL_GPL(blk_mq_sched_request_inserted);
 
-bool blk_mq_sched_bypass_insert(struct blk_mq_hw_ctx *hctx, struct request *rq)
+static bool blk_mq_sched_bypass_insert(struct blk_mq_hw_ctx *hctx,
+				       struct request *rq)
 {
 	if (rq->tag == -1) {
 		rq->rq_flags |= RQF_SORTED;
@@ -305,7 +319,6 @@ bool blk_mq_sched_bypass_insert(struct blk_mq_hw_ctx *hctx, struct request *rq)
 	spin_unlock(&hctx->lock);
 	return true;
 }
-EXPORT_SYMBOL_GPL(blk_mq_sched_bypass_insert);
 
 static void blk_mq_sched_restart_hctx(struct blk_mq_hw_ctx *hctx)
 {
@@ -347,7 +360,7 @@ static void blk_mq_sched_insert_flush(struct blk_mq_hw_ctx *hctx,
 		blk_insert_flush(rq);
 		blk_mq_run_hw_queue(hctx, true);
 	} else
-		blk_mq_add_to_requeue_list(rq, true, true);
+		blk_mq_add_to_requeue_list(rq, false, true);
 }
 
 void blk_mq_sched_insert_request(struct request *rq, bool at_head,
@@ -363,6 +376,9 @@ void blk_mq_sched_insert_request(struct request *rq, bool at_head,
 		return;
 	}
 
+	if (e && blk_mq_sched_bypass_insert(hctx, rq))
+		goto run;
+
 	if (e && e->type->ops.mq.insert_requests) {
 		LIST_HEAD(list);
 
@@ -374,6 +390,7 @@ void blk_mq_sched_insert_request(struct request *rq, bool at_head,
 		spin_unlock(&ctx->lock);
 	}
 
+run:
 	if (run_queue)
 		blk_mq_run_hw_queue(hctx, async);
 }
@@ -384,6 +401,23 @@ void blk_mq_sched_insert_requests(struct request_queue *q,
 {
 	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, ctx->cpu);
 	struct elevator_queue *e = hctx->queue->elevator;
+
+	if (e) {
+		struct request *rq, *next;
+
+		/*
+		 * We bypass requests that already have a driver tag assigned,
+		 * which should only be flushes. Flushes are only ever inserted
+		 * as single requests, so we shouldn't ever hit the
+		 * WARN_ON_ONCE() below (but let's handle it just in case).
+		 */
+		list_for_each_entry_safe(rq, next, list, queuelist) {
+			if (WARN_ON_ONCE(rq->tag != -1)) {
+				list_del_init(&rq->queuelist);
+				blk_mq_sched_bypass_insert(hctx, rq);
+			}
+		}
+	}
 
 	if (e && e->type->ops.mq.insert_requests)
 		e->type->ops.mq.insert_requests(hctx, list, false);

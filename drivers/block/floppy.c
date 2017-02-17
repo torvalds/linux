@@ -2900,8 +2900,8 @@ static void do_fd_request(struct request_queue *q)
 		return;
 
 	if (WARN(atomic_read(&usage_count) == 0,
-		 "warning: usage count=0, current_req=%p sect=%ld type=%x flags=%llx\n",
-		 current_req, (long)blk_rq_pos(current_req), current_req->cmd_type,
+		 "warning: usage count=0, current_req=%p sect=%ld flags=%llx\n",
+		 current_req, (long)blk_rq_pos(current_req),
 		 (unsigned long long) current_req->cmd_flags))
 		return;
 

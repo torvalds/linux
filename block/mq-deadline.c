@@ -121,7 +121,7 @@ static void deadline_remove_request(struct request_queue *q, struct request *rq)
 }
 
 static void dd_request_merged(struct request_queue *q, struct request *req,
-			      int type)
+			      enum elv_merge type)
 {
 	struct deadline_data *dd = q->elevator->elevator_data;
 
@@ -371,11 +371,15 @@ static bool dd_bio_merge(struct blk_mq_hw_ctx *hctx, struct bio *bio)
 {
 	struct request_queue *q = hctx->queue;
 	struct deadline_data *dd = q->elevator->elevator_data;
-	int ret;
+	struct request *free = NULL;
+	bool ret;
 
 	spin_lock(&dd->lock);
-	ret = blk_mq_sched_try_merge(q, bio);
+	ret = blk_mq_sched_try_merge(q, bio, &free);
 	spin_unlock(&dd->lock);
+
+	if (free)
+		blk_mq_free_request(free);
 
 	return ret;
 }
@@ -395,10 +399,7 @@ static void dd_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 
 	blk_mq_sched_request_inserted(rq);
 
-	if (blk_mq_sched_bypass_insert(hctx, rq))
-		return;
-
-	if (at_head || rq->cmd_type != REQ_TYPE_FS) {
+	if (at_head || blk_rq_is_passthrough(rq)) {
 		if (at_head)
 			list_add(&rq->queuelist, &dd->dispatch);
 		else

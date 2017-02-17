@@ -432,11 +432,11 @@ static int null_lnvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 	struct request *rq;
 	struct bio *bio = rqd->bio;
 
-	rq = blk_mq_alloc_request(q, bio_data_dir(bio), 0);
+	rq = blk_mq_alloc_request(q,
+		op_is_write(bio_op(bio)) ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN, 0);
 	if (IS_ERR(rq))
 		return -ENOMEM;
 
-	rq->cmd_type = REQ_TYPE_DRV_PRIV;
 	rq->__sector = bio->bi_iter.bi_sector;
 	rq->ioprio = bio_prio(bio);
 

@@ -1047,7 +1047,7 @@ static int set_bdev_super(struct super_block *s, void *data)
 	 * We set the bdi here to the queue backing, file systems can
 	 * overwrite this in ->fill_super()
 	 */
-	s->s_bdi = &bdev_get_queue(s->s_bdev)->backing_dev_info;
+	s->s_bdi = bdev_get_queue(s->s_bdev)->backing_dev_info;
 	return 0;
 }
 
