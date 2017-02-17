@@ -37,6 +37,10 @@ struct dmcu_funcs {
 			unsigned int start_offset,
 			const char *src,
 			unsigned int bytes);
+	void (*set_psr_enable)(struct dmcu *dmcu, bool enable);
+	void (*setup_psr)(struct dmcu *dmcu,
+			struct core_link *link,
+			struct psr_context *psr_context);
 };
 
 #endif

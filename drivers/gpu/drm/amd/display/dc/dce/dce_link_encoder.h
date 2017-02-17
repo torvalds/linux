@@ -39,11 +39,6 @@
 	SRI(DC_HPD_CONTROL, HPD, id)
 
 #define LE_COMMON_REG_LIST_BASE(id) \
-	SR(MASTER_COMM_DATA_REG1), \
-	SR(MASTER_COMM_DATA_REG2), \
-	SR(MASTER_COMM_DATA_REG3), \
-	SR(MASTER_COMM_CMD_REG), \
-	SR(MASTER_COMM_CNTL_REG), \
 	SR(LVTMA_PWRSEQ_CNTL), \
 	SR(LVTMA_PWRSEQ_STATE), \
 	SR(DMCU_RAM_ACCESS_CTRL), \
@@ -149,62 +144,6 @@ struct dce110_link_encoder {
 	const struct dce110_link_enc_hpd_registers *hpd_regs;
 };
 
-/*******************************************************************
-*   MASTER_COMM_DATA_REG1   Bit position    Data
-*                           7:0	            hyst_frames[7:0]
-*                           14:8	        hyst_lines[6:0]
-*                           15	            RFB_UPDATE_AUTO_EN
-*                           18:16	        phy_num[2:0]
-*                           21:19	        dcp_sel[2:0]
-*                           22	            phy_type
-*                           23	            frame_cap_ind
-*                           26:24	        aux_chan[2:0]
-*                           30:27	        aux_repeat[3:0]
-*                           31:31	        reserved[31:31]
-*******************************************************************/
-union dce110_dmcu_psr_config_data_reg1 {
-	struct {
-		unsigned int timehyst_frames:8;    /*[7:0]*/
-		unsigned int hyst_lines:7;         /*[14:8]*/
-		unsigned int rfb_update_auto_en:1; /*[15:15]*/
-		unsigned int dp_port_num:3;        /*[18:16]*/
-		unsigned int dcp_sel:3;            /*[21:19]*/
-		unsigned int phy_type:1;           /*[22:22]*/
-		unsigned int frame_cap_ind:1;      /*[23:23]*/
-		unsigned int aux_chan:3;           /*[26:24]*/
-		unsigned int aux_repeat:4;         /*[30:27]*/
-		unsigned int reserved:1;           /*[31:31]*/
-	} bits;
-	unsigned int u32All;
-};
-
-/*******************************************************************
-*   MASTER_COMM_DATA_REG2
-*******************************************************************/
-union dce110_dmcu_psr_config_data_reg2 {
-	struct {
-		unsigned int dig_fe:3;                  /*[2:0]*/
-		unsigned int dig_be:3;                  /*[5:3]*/
-		unsigned int skip_wait_for_pll_lock:1;  /*[6:6]*/
-		unsigned int reserved:9;                /*[15:7]*/
-		unsigned int frame_delay:8;             /*[23:16]*/
-		unsigned int smu_phy_id:4;              /*[27:24]*/
-		unsigned int num_of_controllers:4;      /*[31:28]*/
-	} bits;
-	unsigned int u32All;
-};
-
-/*******************************************************************
-*   MASTER_COMM_DATA_REG3
-*******************************************************************/
-union dce110_dmcu_psr_config_data_reg3 {
-	struct {
-		unsigned int psr_level:16;      /*[15:0]*/
-		unsigned int link_rate:4;       /*[19:16]*/
-		unsigned int reserved:12;       /*[31:20]*/
-	} bits;
-	unsigned int u32All;
-};
 
 bool dce110_link_encoder_construct(
 	struct dce110_link_encoder *enc110,
@@ -290,12 +229,6 @@ void dce110_link_encoder_update_mst_stream_allocation_table(
 	struct link_encoder *enc,
 	const struct link_mst_stream_allocation_table *table);
 
-void dce110_link_encoder_set_dmcu_psr_enable(
-		struct link_encoder *enc, bool enable);
-
-void dce110_link_encoder_setup_dmcu_psr(struct link_encoder *enc,
-			struct psr_dmcu_context *psr_context);
-
 void dce110_link_encoder_edp_backlight_control(
 	struct link_encoder *enc,
 	bool enable);
@@ -316,5 +249,11 @@ void dce110_link_encoder_set_dp_phy_pattern_training_pattern(
 void dce110_link_encoder_enable_hpd(struct link_encoder *enc);
 
 void dce110_link_encoder_disable_hpd(struct link_encoder *enc);
+
+void dce110_psr_program_dp_dphy_fast_training(struct link_encoder *enc,
+			bool exit_link_training_required);
+
+void dce110_psr_program_secondary_packet(struct link_encoder *enc,
+			unsigned int sdp_transmit_line_num_deadline);
 
 #endif /* __DC_LINK_ENCODER__DCE110_H__ */

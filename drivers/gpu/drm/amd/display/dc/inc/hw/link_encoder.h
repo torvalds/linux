@@ -116,7 +116,7 @@ union psr_sink_psr_status {
 	unsigned char raw;
 };
 
-struct psr_dmcu_context {
+struct psr_context {
 	/* ddc line */
 	enum channel_id channel;
 	/* Transmitter id */
@@ -220,9 +220,10 @@ struct link_encoder_funcs {
 	void (*update_mst_stream_allocation_table)(
 		struct link_encoder *enc,
 		const struct link_mst_stream_allocation_table *table);
-	void (*set_dmcu_psr_enable)(struct link_encoder *enc, bool enable);
-	void (*setup_dmcu_psr)(struct link_encoder *enc,
-			struct psr_dmcu_context *psr_context);
+	void (*psr_program_dp_dphy_fast_training)(struct link_encoder *enc,
+			bool exit_link_training_required);
+	void (*psr_program_secondary_packet)(struct link_encoder *enc,
+				unsigned int sdp_transmit_line_num_deadline);
 	void (*backlight_control) (struct link_encoder *enc,
 		bool enable);
 	void (*power_control) (struct link_encoder *enc,

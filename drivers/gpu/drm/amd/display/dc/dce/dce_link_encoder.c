@@ -95,14 +95,6 @@
 /* For current ASICs pixel clock - 600MHz */
 #define MAX_ENCODER_CLOCK 600000
 
-/* PSR related commands */
-#define PSR_ENABLE 0x20
-#define PSR_EXIT 0x21
-#define PSR_SET 0x23
-
-/*TODO: Used for psr wakeup for set backlight level*/
-static unsigned int psr_crtc_offset;
-
 enum {
 	DP_MST_UPDATE_MAX_RETRY = 50
 };
@@ -126,8 +118,9 @@ static const struct link_encoder_funcs dce110_lnk_enc_funcs = {
 	.dp_set_phy_pattern = dce110_link_encoder_dp_set_phy_pattern,
 	.update_mst_stream_allocation_table =
 		dce110_link_encoder_update_mst_stream_allocation_table,
-	.set_dmcu_psr_enable = dce110_link_encoder_set_dmcu_psr_enable,
-	.setup_dmcu_psr = dce110_link_encoder_setup_dmcu_psr,
+	.psr_program_dp_dphy_fast_training =
+			dce110_psr_program_dp_dphy_fast_training,
+	.psr_program_secondary_packet = dce110_psr_program_secondary_packet,
 	.backlight_control = dce110_link_encoder_edp_backlight_control,
 	.power_control = dce110_link_encoder_edp_power_control,
 	.connect_dig_be_to_fe = dce110_link_encoder_connect_dig_be_to_fe,
@@ -135,7 +128,6 @@ static const struct link_encoder_funcs dce110_lnk_enc_funcs = {
 	.disable_hpd = dce110_link_encoder_disable_hpd,
 	.destroy = dce110_link_encoder_destroy
 };
-
 
 static enum bp_result link_transmitter_control(
 	struct dce110_link_encoder *enc110,
@@ -719,6 +711,40 @@ static bool is_panel_backlight_on(struct dce110_link_encoder *enc110)
 	REG_GET(LVTMA_PWRSEQ_CNTL, LVTMA_BLON, &value);
 
 	return value;
+}
+
+void dce110_psr_program_dp_dphy_fast_training(struct link_encoder *enc,
+			bool exit_link_training_required)
+{
+	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
+
+	if (exit_link_training_required)
+		REG_UPDATE(DP_DPHY_FAST_TRAINING,
+				DPHY_RX_FAST_TRAINING_CAPABLE, 1);
+	else {
+		REG_UPDATE(DP_DPHY_FAST_TRAINING,
+				DPHY_RX_FAST_TRAINING_CAPABLE, 0);
+		/*In DCE 11, we are able to pre-program a Force SR register
+		 * to be able to trigger SR symbol after 5 idle patterns
+		 * transmitted. Upon PSR Exit, DMCU can trigger
+		 * DPHY_LOAD_BS_COUNT_START = 1. Upon writing 1 to
+		 * DPHY_LOAD_BS_COUNT_START and the internal counter
+		 * reaches DPHY_LOAD_BS_COUNT, the next BS symbol will be
+		 * replaced by SR symbol once.
+		 */
+
+		REG_UPDATE(DP_DPHY_BS_SR_SWAP_CNTL, DPHY_LOAD_BS_COUNT, 0x5);
+	}
+}
+
+void dce110_psr_program_secondary_packet(struct link_encoder *enc,
+			unsigned int sdp_transmit_line_num_deadline)
+{
+	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
+
+	REG_UPDATE_2(DP_SEC_CNTL1,
+		DP_SEC_GSP0_LINE_NUM, sdp_transmit_line_num_deadline,
+		DP_SEC_GSP0_PRIORITY, 1);
 }
 
 /*todo: cloned in stream enc, fix*/
@@ -1558,238 +1584,6 @@ void dce110_link_encoder_update_mst_stream_allocation_table(
 			break;
 		++retries;
 	} while (retries < DP_MST_UPDATE_MAX_RETRY);
-}
-
-static void get_dmcu_psr_state(struct link_encoder *enc, uint32_t *psr_state)
-{
-	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
-	struct dc_context *ctx = enc110->base.ctx;
-
-	uint32_t count = 0;
-	uint32_t psrStateOffset = 0xf0;
-	uint32_t value = -1;
-
-	/* Enable write access to IRAM */
-	REG_UPDATE(DMCU_RAM_ACCESS_CTRL, IRAM_HOST_ACCESS_EN, 1);
-
-	while (REG(DCI_MEM_PWR_STATUS) && value != 0 && count++ < 10) {
-		dm_delay_in_microseconds(ctx, 2);
-		REG_GET(DCI_MEM_PWR_STATUS, DMCU_IRAM_MEM_PWR_STATE, &value);
-	}
-	while (REG(DMU_MEM_PWR_CNTL) && value != 0 && count++ < 10) {
-		dm_delay_in_microseconds(ctx, 2);
-		REG_GET(DMU_MEM_PWR_CNTL, DMCU_IRAM_MEM_PWR_STATE, &value);
-	}
-
-	/* Write address to IRAM_RD_ADDR in DMCU_IRAM_RD_CTRL */
-	REG_WRITE(DMCU_IRAM_RD_CTRL, psrStateOffset);
-
-	/* Read data from IRAM_RD_DATA in DMCU_IRAM_RD_DATA*/
-	*psr_state = REG_READ(DMCU_IRAM_RD_DATA);
-
-	/* Disable write access to IRAM after finished using IRAM
-	 * in order to allow dynamic sleep state
-	 */
-	REG_UPDATE(DMCU_RAM_ACCESS_CTRL, IRAM_HOST_ACCESS_EN, 0);
-}
-
-void dce110_link_encoder_set_dmcu_psr_enable(struct link_encoder *enc,
-								bool enable)
-{
-	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
-	struct dc_context *ctx = enc110->base.ctx;
-
-	unsigned int dmcu_max_retry_on_wait_reg_ready = 801;
-	unsigned int dmcu_wait_reg_ready_interval = 100;
-
-	unsigned int regValue;
-
-	unsigned int retryCount;
-	uint32_t psr_state = 0;
-
-	/* waitDMCUReadyForCmd */
-	do {
-		dm_delay_in_microseconds(ctx, dmcu_wait_reg_ready_interval);
-		regValue = REG_READ(MASTER_COMM_CNTL_REG);
-		dmcu_max_retry_on_wait_reg_ready--;
-	} while
-	/* expected value is 0, loop while not 0*/
-	((MASTER_COMM_CNTL_REG__MASTER_COMM_INTERRUPT_MASK & regValue) &&
-		dmcu_max_retry_on_wait_reg_ready > 0);
-
-	/* setDMCUParam_Cmd */
-	if (enable)
-		REG_UPDATE(MASTER_COMM_CMD_REG, MASTER_COMM_CMD_REG_BYTE0, PSR_ENABLE);
-	else
-		REG_UPDATE(MASTER_COMM_CMD_REG, MASTER_COMM_CMD_REG_BYTE0, PSR_EXIT);
-
-	/* notifyDMCUMsg */
-	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
-
-	for (retryCount = 0; retryCount <= 100; retryCount++) {
-		get_dmcu_psr_state(enc, &psr_state);
-		if (enable) {
-			if (psr_state != 0)
-				break;
-		} else {
-			if (psr_state == 0)
-				break;
-		}
-		dm_delay_in_microseconds(ctx, 10);
-	}
-}
-
-void dce110_link_encoder_setup_dmcu_psr(struct link_encoder *enc,
-			struct psr_dmcu_context *psr_context)
-{
-	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
-	struct dc_context *ctx = enc110->base.ctx;
-
-	unsigned int dmcu_max_retry_on_wait_reg_ready = 801;
-	unsigned int dmcu_wait_reg_ready_interval = 100;
-	unsigned int regValue;
-
-	union dce110_dmcu_psr_config_data_reg1 masterCmdData1;
-	union dce110_dmcu_psr_config_data_reg2 masterCmdData2;
-	union dce110_dmcu_psr_config_data_reg3 masterCmdData3;
-
-	if (psr_context->psrExitLinkTrainingRequired)
-		REG_UPDATE(DP_DPHY_FAST_TRAINING, DPHY_RX_FAST_TRAINING_CAPABLE, 1);
-	else {
-		REG_UPDATE(DP_DPHY_FAST_TRAINING, DPHY_RX_FAST_TRAINING_CAPABLE, 0);
-		/*In DCE 11, we are able to pre-program a Force SR register
-		 * to be able to trigger SR symbol after 5 idle patterns
-		 * transmitted. Upon PSR Exit, DMCU can trigger
-		 * DPHY_LOAD_BS_COUNT_START = 1. Upon writing 1 to
-		 * DPHY_LOAD_BS_COUNT_START and the internal counter
-		 * reaches DPHY_LOAD_BS_COUNT, the next BS symbol will be
-		 * replaced by SR symbol once.
-		 */
-
-		REG_UPDATE(DP_DPHY_BS_SR_SWAP_CNTL, DPHY_LOAD_BS_COUNT, 0x5);
-	}
-
-	/* Enable static screen interrupts for PSR supported display */
-	/* Disable the interrupt coming from other displays. */
-	REG_UPDATE_4(DMCU_INTERRUPT_TO_UC_EN_MASK,
-			STATIC_SCREEN1_INT_TO_UC_EN, 0,
-			STATIC_SCREEN2_INT_TO_UC_EN, 0,
-			STATIC_SCREEN3_INT_TO_UC_EN, 0,
-			STATIC_SCREEN4_INT_TO_UC_EN, 0);
-
-	switch (psr_context->controllerId) {
-	/* Driver uses case 1 for unconfigured */
-	case 1:
-		psr_crtc_offset = mmCRTC0_CRTC_STATIC_SCREEN_CONTROL -
-				mmCRTC0_CRTC_STATIC_SCREEN_CONTROL;
-
-		REG_UPDATE(DMCU_INTERRUPT_TO_UC_EN_MASK,
-				STATIC_SCREEN1_INT_TO_UC_EN, 1);
-		break;
-	case 2:
-		psr_crtc_offset = mmCRTC1_CRTC_STATIC_SCREEN_CONTROL -
-				mmCRTC0_CRTC_STATIC_SCREEN_CONTROL;
-
-		REG_UPDATE(DMCU_INTERRUPT_TO_UC_EN_MASK,
-				STATIC_SCREEN2_INT_TO_UC_EN, 1);
-		break;
-	case 3:
-		psr_crtc_offset = mmCRTC2_CRTC_STATIC_SCREEN_CONTROL -
-				mmCRTC0_CRTC_STATIC_SCREEN_CONTROL;
-
-		REG_UPDATE(DMCU_INTERRUPT_TO_UC_EN_MASK,
-				STATIC_SCREEN3_INT_TO_UC_EN, 1);
-		break;
-	case 4:
-		psr_crtc_offset = mmCRTC3_CRTC_STATIC_SCREEN_CONTROL -
-				mmCRTC0_CRTC_STATIC_SCREEN_CONTROL;
-
-		REG_UPDATE(DMCU_INTERRUPT_TO_UC_EN_MASK,
-				STATIC_SCREEN4_INT_TO_UC_EN, 1);
-		break;
-	case 5:
-		psr_crtc_offset = mmCRTC4_CRTC_STATIC_SCREEN_CONTROL -
-				mmCRTC0_CRTC_STATIC_SCREEN_CONTROL;
-		/* CZ/NL only has 4 CRTC!!
-		 * really valid.
-		 * There is no interrupt enable mask for these instances.
-		 */
-		break;
-	case 6:
-		psr_crtc_offset = mmCRTC5_CRTC_STATIC_SCREEN_CONTROL -
-				mmCRTC0_CRTC_STATIC_SCREEN_CONTROL;
-		/* CZ/NL only has 4 CRTC!!
-		 * These are here because they are defined in HW regspec,
-		 * but not really valid. There is no interrupt enable mask
-		 * for these instances.
-		 */
-		break;
-	default:
-		psr_crtc_offset = mmCRTC0_CRTC_STATIC_SCREEN_CONTROL -
-				mmCRTC0_CRTC_STATIC_SCREEN_CONTROL;
-
-		REG_UPDATE(DMCU_INTERRUPT_TO_UC_EN_MASK,
-				STATIC_SCREEN1_INT_TO_UC_EN, 1);
-		break;
-	}
-
-	REG_UPDATE_2(DP_SEC_CNTL1,
-		DP_SEC_GSP0_LINE_NUM, psr_context->sdpTransmitLineNumDeadline,
-		DP_SEC_GSP0_PRIORITY, 1);
-
-	if (psr_context->psr_level.bits.SKIP_SMU_NOTIFICATION) {
-		REG_UPDATE(SMU_INTERRUPT_CONTROL, DC_SMU_INT_ENABLE, 1);
-	}
-
-	/* waitDMCUReadyForCmd */
-	do {
-		dm_delay_in_microseconds(ctx, dmcu_wait_reg_ready_interval);
-		regValue = REG_READ(MASTER_COMM_CNTL_REG);
-		dmcu_max_retry_on_wait_reg_ready--;
-	} while
-	/* expected value is 0, loop while not 0*/
-	((MASTER_COMM_CNTL_REG__MASTER_COMM_INTERRUPT_MASK & regValue) &&
-		dmcu_max_retry_on_wait_reg_ready > 0);
-
-	/* setDMCUParam_PSRHostConfigData */
-	masterCmdData1.u32All = 0;
-	masterCmdData1.bits.timehyst_frames = psr_context->timehyst_frames;
-	masterCmdData1.bits.hyst_lines = psr_context->hyst_lines;
-	masterCmdData1.bits.rfb_update_auto_en =
-			psr_context->rfb_update_auto_en;
-	masterCmdData1.bits.dp_port_num = psr_context->transmitterId;
-	masterCmdData1.bits.dcp_sel = psr_context->controllerId;
-	masterCmdData1.bits.phy_type  = psr_context->phyType;
-	masterCmdData1.bits.frame_cap_ind =
-			psr_context->psrFrameCaptureIndicationReq;
-	masterCmdData1.bits.aux_chan = psr_context->channel;
-	masterCmdData1.bits.aux_repeat = psr_context->aux_repeats;
-	dm_write_reg(ctx, REG(MASTER_COMM_DATA_REG1),
-					masterCmdData1.u32All);
-
-	masterCmdData2.u32All = 0;
-	masterCmdData2.bits.dig_fe = psr_context->engineId;
-	masterCmdData2.bits.dig_be = psr_context->transmitterId;
-	masterCmdData2.bits.skip_wait_for_pll_lock =
-			psr_context->skipPsrWaitForPllLock;
-	masterCmdData2.bits.frame_delay = psr_context->frame_delay;
-	masterCmdData2.bits.smu_phy_id = psr_context->smuPhyId;
-	masterCmdData2.bits.num_of_controllers =
-			psr_context->numberOfControllers;
-	dm_write_reg(ctx, REG(MASTER_COMM_DATA_REG2),
-			masterCmdData2.u32All);
-
-	masterCmdData3.u32All = 0;
-	masterCmdData3.bits.psr_level = psr_context->psr_level.u32all;
-	dm_write_reg(ctx, REG(MASTER_COMM_DATA_REG3),
-			masterCmdData3.u32All);
-
-	/* setDMCUParam_Cmd */
-	REG_UPDATE(MASTER_COMM_CMD_REG,
-			MASTER_COMM_CMD_REG_BYTE0, PSR_SET);
-
-	/* notifyDMCUMsg */
-	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
 }
 
 void dce110_link_encoder_connect_dig_be_to_fe(

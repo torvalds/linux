@@ -40,6 +40,7 @@
 #include "abm.h"
 #include "fixed31_32.h"
 #include "dpcd_defs.h"
+#include "dmcu.h"
 
 #include "dce/dce_11_0_d.h"
 #include "dce/dce_11_0_enum.h"
@@ -1433,28 +1434,33 @@ bool dc_link_set_backlight_level(const struct dc_link *dc_link, uint32_t level,
 bool dc_link_set_psr_enable(const struct dc_link *dc_link, bool enable)
 {
 	struct core_link *link = DC_LINK_TO_CORE(dc_link);
+	struct dc_context *ctx = link->ctx;
+	struct core_dc *core_dc = DC_TO_CORE(ctx->dc);
+	struct dmcu *dmcu = core_dc->res_pool->dmcu;
 
-	if (dc_link != NULL && dc_link->psr_caps.psr_version > 0)
-		link->link_enc->funcs->set_dmcu_psr_enable(link->link_enc,
-								enable);
+	if (dmcu != NULL && dc_link->psr_caps.psr_version > 0)
+		dmcu->funcs->set_psr_enable(dmcu, enable);
+
 	return true;
 }
 
 bool dc_link_setup_psr(const struct dc_link *dc_link,
 		const struct dc_stream *stream)
 {
-
 	struct core_link *link = DC_LINK_TO_CORE(dc_link);
 	struct dc_context *ctx = link->ctx;
 	struct core_dc *core_dc = DC_TO_CORE(ctx->dc);
+	struct dmcu *dmcu = core_dc->res_pool->dmcu;
 	struct core_stream *core_stream = DC_STREAM_TO_CORE(stream);
-	struct psr_dmcu_context psr_context = {0};
+	struct psr_context psr_context = {0};
 	int i;
 
 	psr_context.controllerId = CONTROLLER_ID_UNDEFINED;
 
 
-	if (dc_link != NULL && dc_link->psr_caps.psr_version > 0) {
+	if (dc_link != NULL &&
+		dmcu != NULL &&
+		dc_link->psr_caps.psr_version > 0) {
 		/* updateSinkPsrDpcdConfig*/
 		union dpcd_psr_configuration psr_configuration;
 
@@ -1552,8 +1558,7 @@ bool dc_link_setup_psr(const struct dc_link *dc_link,
 		 */
 		psr_context.frame_delay = 0;
 
-		link->link_enc->funcs->setup_dmcu_psr
-			(link->link_enc, &psr_context);
+		dmcu->funcs->setup_psr(dmcu, link, &psr_context);
 		return true;
 	} else
 		return false;
