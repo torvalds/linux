@@ -420,6 +420,7 @@ static int ds3232_i2c_probe(struct i2c_client *client,
 	static const struct regmap_config config = {
 		.reg_bits = 8,
 		.val_bits = 8,
+		.max_register = 0x13,
 	};
 
 	regmap = devm_regmap_init_i2c(client, &config);
@@ -479,6 +480,7 @@ static int ds3234_probe(struct spi_device *spi)
 	static const struct regmap_config config = {
 		.reg_bits = 8,
 		.val_bits = 8,
+		.max_register = 0x13,
 		.write_flag_mask = 0x80,
 	};
 	struct regmap *regmap;
