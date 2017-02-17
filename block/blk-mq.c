@@ -1005,7 +1005,7 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list)
 			blk_mq_run_hw_queue(hctx, true);
 	}
 
-	return ret != BLK_MQ_RQ_QUEUE_BUSY;
+	return queued != 0;
 }
 
 static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
