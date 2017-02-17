@@ -37,10 +37,10 @@
 #ifdef AUDIO_VERBOSE_DEBUG_ENABLE
 
 #define audio_debug(fmt, arg...) \
-	printk(KERN_INFO"%s:%d " fmt, __func__, __LINE__, ##arg)
+	pr_info("%s:%d " fmt, __func__, __LINE__, ##arg)
 
 #define audio_info(fmt, arg...) \
-	printk(KERN_INFO"%s:%d " fmt, __func__, __LINE__, ##arg)
+	pr_info("%s:%d " fmt, __func__, __LINE__, ##arg)
 
 #else
 
@@ -59,13 +59,13 @@
 #endif /* AUDIO_DEBUG_ENABLE */
 
 #define audio_error(fmt, arg...) \
-	printk(KERN_ERR"%s:%d " fmt, __func__, __LINE__, ##arg)
+	pr_err("%s:%d " fmt, __func__, __LINE__, ##arg)
 
 #define audio_warning(fmt, arg...) \
-	printk(KERN_WARNING"%s:%d " fmt, __func__, __LINE__, ##arg)
+	pr_warn("%s:%d " fmt, __func__, __LINE__, ##arg)
 
 #define audio_alert(fmt, arg...) \
-	printk(KERN_ALERT"%s:%d " fmt, __func__, __LINE__, ##arg)
+	pr_alert("%s:%d " fmt, __func__, __LINE__, ##arg)
 
 #define MAX_SUBSTREAMS   (8)
 #define AVAIL_SUBSTREAMS_MASK  (0xff)
