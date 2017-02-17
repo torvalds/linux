@@ -549,7 +549,7 @@ int efx_ef10_sriov_set_vf_mac(struct efx_nic *efx, int vf_i, u8 *mac)
 		vf->efx->type->filter_table_probe(vf->efx);
 		up_write(&vf->efx->filter_sem);
 		efx_net_open(vf->efx->net_dev);
-		netif_device_attach(vf->efx->net_dev);
+		efx_device_attach_if_not_resetting(vf->efx);
 	}
 
 	return 0;
@@ -667,7 +667,7 @@ restore_filters:
 		if (rc2)
 			goto reset_nic;
 
-		netif_device_attach(vf->efx->net_dev);
+		efx_device_attach_if_not_resetting(vf->efx);
 	}
 	return rc;
 
