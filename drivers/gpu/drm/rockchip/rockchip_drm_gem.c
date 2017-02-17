@@ -264,6 +264,10 @@ static int rockchip_drm_gem_object_mmap(struct drm_gem_object *obj,
 	int ret;
 	struct rockchip_gem_object *rk_obj = to_rockchip_obj(obj);
 
+	/* default is wc. */
+	if (rk_obj->flags & ROCKCHIP_BO_CACHABLE)
+		vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
+
 	/*
 	 * We allocated a struct page table for rk_obj, so clear
 	 * VM_PFNMAP flag that was set by drm_gem_mmap_obj()/drm_gem_mmap().
@@ -400,7 +404,7 @@ void rockchip_gem_free_object(struct drm_gem_object *obj)
 static struct rockchip_gem_object *
 rockchip_gem_create_with_handle(struct drm_file *file_priv,
 				struct drm_device *drm, unsigned int size,
-				unsigned int *handle)
+				unsigned int *handle, unsigned int flags)
 {
 	struct rockchip_gem_object *rk_obj;
 	struct drm_gem_object *obj;
@@ -419,6 +423,8 @@ rockchip_gem_create_with_handle(struct drm_file *file_priv,
 	ret = drm_gem_handle_create(file_priv, obj, handle);
 	if (ret)
 		goto err_handle_create;
+
+	rk_obj->flags = flags;
 
 	/* drop reference from allocate - handle holds it now. */
 	drm_gem_object_unreference_unlocked(obj);
@@ -478,7 +484,7 @@ int rockchip_gem_dumb_create(struct drm_file *file_priv,
 	args->size = args->pitch * args->height;
 
 	rk_obj = rockchip_gem_create_with_handle(file_priv, dev, args->size,
-						 &args->handle);
+						 &args->handle, args->flags);
 
 	return PTR_ERR_OR_ZERO(rk_obj);
 }
@@ -499,7 +505,7 @@ int rockchip_gem_create_ioctl(struct drm_device *dev, void *data,
 	struct rockchip_gem_object *rk_obj;
 
 	rk_obj = rockchip_gem_create_with_handle(file_priv, dev, args->size,
-						 &args->handle);
+						 &args->handle, args->flags);
 	return PTR_ERR_OR_ZERO(rk_obj);
 }
 
