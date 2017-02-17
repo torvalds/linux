@@ -854,7 +854,8 @@ gen8_ppgtt_insert_pte_entries(struct i915_hw_ppgtt *ppgtt,
 					break;
 				}
 
-				GEM_BUG_ON(pdpe > GEN8_LEGACY_PDPES);
+				GEM_BUG_ON(!i915_vm_is_48bit(&ppgtt->base) &&
+					   pdpe >= GEN8_LEGACY_PDPES);
 				pd = pdp->page_directory[pdpe];
 				pde = 0;
 			}
