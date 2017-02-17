@@ -80,7 +80,8 @@ int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
 	struct extent_buffer *leaf;
 	u32 data_size;
 
-	BUG_ON(name_len + data_len > BTRFS_MAX_XATTR_SIZE(root->fs_info));
+	if (name_len + data_len > BTRFS_MAX_XATTR_SIZE(root->fs_info))
+		return -ENOSPC;
 
 	key.objectid = objectid;
 	key.type = BTRFS_XATTR_ITEM_KEY;
