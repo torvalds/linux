@@ -167,8 +167,7 @@ static void vce_v2_0_init_cg(struct amdgpu_device *adev)
 
 static void vce_v2_0_mc_resume(struct amdgpu_device *adev)
 {
-	uint64_t addr = adev->vce.gpu_addr;
-	uint32_t size;
+	uint32_t size, offset;
 
 	WREG32_P(mmVCE_CLOCK_GATING_A, 0, ~(1 << 16));
 	WREG32_P(mmVCE_UENC_CLOCK_GATING, 0x1FF000, ~0xFF9FF000);
@@ -181,19 +180,21 @@ static void vce_v2_0_mc_resume(struct amdgpu_device *adev)
 	WREG32(mmVCE_LMI_SWAP_CNTL1, 0);
 	WREG32(mmVCE_LMI_VM_CTRL, 0);
 
-	addr += AMDGPU_VCE_FIRMWARE_OFFSET;
+	WREG32(mmVCE_LMI_VCPU_CACHE_40BIT_BAR, (adev->vce.gpu_addr >> 8));
+
+	offset = AMDGPU_VCE_FIRMWARE_OFFSET;
 	size = VCE_V2_0_FW_SIZE;
-	WREG32(mmVCE_VCPU_CACHE_OFFSET0, addr & 0x7fffffff);
+	WREG32(mmVCE_VCPU_CACHE_OFFSET0, offset & 0x7fffffff);
 	WREG32(mmVCE_VCPU_CACHE_SIZE0, size);
 
-	addr += size;
+	offset += size;
 	size = VCE_V2_0_STACK_SIZE;
-	WREG32(mmVCE_VCPU_CACHE_OFFSET1, addr & 0x7fffffff);
+	WREG32(mmVCE_VCPU_CACHE_OFFSET1, offset & 0x7fffffff);
 	WREG32(mmVCE_VCPU_CACHE_SIZE1, size);
 
-	addr += size;
+	offset += size;
 	size = VCE_V2_0_DATA_SIZE;
-	WREG32(mmVCE_VCPU_CACHE_OFFSET2, addr & 0x7fffffff);
+	WREG32(mmVCE_VCPU_CACHE_OFFSET2, offset & 0x7fffffff);
 	WREG32(mmVCE_VCPU_CACHE_SIZE2, size);
 
 	WREG32_P(mmVCE_LMI_CTRL2, 0x0, ~0x100);
