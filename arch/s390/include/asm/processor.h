@@ -14,14 +14,14 @@
 #include <linux/const.h>
 
 #define CIF_MCCK_PENDING	0	/* machine check handling is pending */
-#define CIF_ASCE		1	/* user asce needs fixup / uaccess */
+#define CIF_ASCE_PRIMARY	1	/* primary asce needs fixup / uaccess */
 #define CIF_NOHZ_DELAY		2	/* delay HZ disable for a tick */
 #define CIF_FPU			3	/* restore FPU registers */
 #define CIF_IGNORE_IRQ		4	/* ignore interrupt (for udelay) */
 #define CIF_ENABLED_WAIT	5	/* in enabled wait state */
 
 #define _CIF_MCCK_PENDING	_BITUL(CIF_MCCK_PENDING)
-#define _CIF_ASCE		_BITUL(CIF_ASCE)
+#define _CIF_ASCE_PRIMARY	_BITUL(CIF_ASCE_PRIMARY)
 #define _CIF_NOHZ_DELAY		_BITUL(CIF_NOHZ_DELAY)
 #define _CIF_FPU		_BITUL(CIF_FPU)
 #define _CIF_IGNORE_IRQ		_BITUL(CIF_IGNORE_IRQ)

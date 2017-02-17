@@ -50,7 +50,7 @@ _TIF_WORK	= (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
 		   _TIF_UPROBE)
 _TIF_TRACE	= (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SECCOMP | \
 		   _TIF_SYSCALL_TRACEPOINT)
-_CIF_WORK	= (_CIF_MCCK_PENDING | _CIF_ASCE | _CIF_FPU)
+_CIF_WORK	= (_CIF_MCCK_PENDING | _CIF_ASCE_PRIMARY | _CIF_FPU)
 _PIF_WORK	= (_PIF_PER_TRAP)
 
 #define BASED(name) name-cleanup_critical(%r13)
@@ -339,8 +339,8 @@ ENTRY(system_call)
 	jo	.Lsysc_notify_resume
 	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU
 	jo	.Lsysc_vxrs
-	TSTMSK	__LC_CPU_FLAGS,_CIF_ASCE
-	jo	.Lsysc_uaccess
+	TSTMSK	__LC_CPU_FLAGS,_CIF_ASCE_PRIMARY
+	jo	.Lsysc_asce_primary
 	j	.Lsysc_return		# beware of critical section cleanup
 
 #
@@ -358,10 +358,10 @@ ENTRY(system_call)
 	jg	s390_handle_mcck	# TIF bit will be cleared by handler
 
 #
-# _CIF_ASCE is set, load user space asce
+# _CIF_ASCE_PRIMARY is set, load user space asce
 #
-.Lsysc_uaccess:
-	ni	__LC_CPU_FLAGS+7,255-_CIF_ASCE
+.Lsysc_asce_primary:
+	ni	__LC_CPU_FLAGS+7,255-_CIF_ASCE_PRIMARY
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
 	j	.Lsysc_return
 
@@ -661,8 +661,8 @@ ENTRY(io_int_handler)
 	jo	.Lio_notify_resume
 	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU
 	jo	.Lio_vxrs
-	TSTMSK	__LC_CPU_FLAGS,_CIF_ASCE
-	jo	.Lio_uaccess
+	TSTMSK	__LC_CPU_FLAGS,_CIF_ASCE_PRIMARY
+	jo	.Lio_asce_primary
 	j	.Lio_return		# beware of critical section cleanup
 
 #
@@ -675,10 +675,10 @@ ENTRY(io_int_handler)
 	j	.Lio_return
 
 #
-# _CIF_ASCE is set, load user space asce
+# _CIF_ASCE_PRIMARY is set, load user space asce
 #
-.Lio_uaccess:
-	ni	__LC_CPU_FLAGS+7,255-_CIF_ASCE
+.Lio_asce_primary:
+	ni	__LC_CPU_FLAGS+7,255-_CIF_ASCE_PRIMARY
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
 	j	.Lio_return
 
