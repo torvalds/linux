@@ -31,7 +31,7 @@
 
 #include "ast_dram_tables.h"
 
-static void ast_init_dram_2300(struct drm_device *dev);
+static void ast_post_chip_2300(struct drm_device *dev);
 
 void ast_enable_vga(struct drm_device *dev)
 {
@@ -381,7 +381,7 @@ void ast_post_gpu(struct drm_device *dev)
 
 	if (ast->config_mode == ast_use_p2a) {
 		if (ast->chip == AST2300 || ast->chip == AST2400)
-			ast_init_dram_2300(dev);
+			ast_post_chip_2300(dev);
 		else
 			ast_init_dram_reg(dev);
 
@@ -1589,7 +1589,7 @@ ddr2_init_start:
 
 }
 
-static void ast_init_dram_2300(struct drm_device *dev)
+static void ast_post_chip_2300(struct drm_device *dev)
 {
 	struct ast_private *ast = dev->dev_private;
 	struct ast2300_dram_param param;
