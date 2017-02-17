@@ -834,9 +834,18 @@ static int pmu_config_term(struct list_head *formats,
 	 * Either directly use a numeric term, or try to translate string terms
 	 * using event parameters.
 	 */
-	if (term->type_val == PARSE_EVENTS__TERM_TYPE_NUM)
+	if (term->type_val == PARSE_EVENTS__TERM_TYPE_NUM) {
+		if (term->no_value &&
+		    bitmap_weight(format->bits, PERF_PMU_FORMAT_BITS) > 1) {
+			if (err) {
+				err->idx = term->err_val;
+				err->str = strdup("no value assigned for term");
+			}
+			return -EINVAL;
+		}
+
 		val = term->val.num;
-	else if (term->type_val == PARSE_EVENTS__TERM_TYPE_STR) {
+	} else if (term->type_val == PARSE_EVENTS__TERM_TYPE_STR) {
 		if (strcmp(term->val.str, "?")) {
 			if (verbose) {
 				pr_info("Invalid sysfs entry %s=%s\n",

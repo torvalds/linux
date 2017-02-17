@@ -2349,6 +2349,7 @@ static int new_term(struct parse_events_term **_term,
 
 int parse_events_term__num(struct parse_events_term **term,
 			   int type_term, char *config, u64 num,
+			   bool no_value,
 			   void *loc_term_, void *loc_val_)
 {
 	YYLTYPE *loc_term = loc_term_;
@@ -2358,6 +2359,7 @@ int parse_events_term__num(struct parse_events_term **term,
 		.type_val  = PARSE_EVENTS__TERM_TYPE_NUM,
 		.type_term = type_term,
 		.config    = config,
+		.no_value  = no_value,
 		.err_term  = loc_term ? loc_term->first_column : 0,
 		.err_val   = loc_val  ? loc_val->first_column  : 0,
 	};
