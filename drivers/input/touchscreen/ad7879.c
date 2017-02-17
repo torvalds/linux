@@ -458,7 +458,7 @@ static int ad7879_gpio_add(struct ad7879 *ts,
 
 	mutex_init(&ts->mutex);
 
-	if (pdata->gpio_export) {
+	if (pdata && pdata->gpio_export) {
 		ts->gc.direction_input = ad7879_gpio_direction_input;
 		ts->gc.direction_output = ad7879_gpio_direction_output;
 		ts->gc.get = ad7879_gpio_get_value;
@@ -470,7 +470,7 @@ static int ad7879_gpio_add(struct ad7879 *ts,
 		ts->gc.owner = THIS_MODULE;
 		ts->gc.parent = ts->dev;
 
-		ret = gpiochip_add_data(&ts->gc, ts);
+		ret = devm_gpiochip_add_data(ts->dev, &ts->gc, ts);
 		if (ret)
 			dev_err(ts->dev, "failed to register gpio %d\n",
 				ts->gc.base);
@@ -478,24 +478,11 @@ static int ad7879_gpio_add(struct ad7879 *ts,
 
 	return ret;
 }
-
-static void ad7879_gpio_remove(struct ad7879 *ts)
-{
-	const struct ad7879_platform_data *pdata = dev_get_platdata(ts->dev);
-
-	if (pdata && pdata->gpio_export)
-		gpiochip_remove(&ts->gc);
-
-}
 #else
-static inline int ad7879_gpio_add(struct ad7879 *ts,
-				  const struct ad7879_platform_data *pdata)
+static int ad7879_gpio_add(struct ad7879 *ts,
+			   const struct ad7879_platform_data *pdata)
 {
 	return 0;
-}
-
-static inline void ad7879_gpio_remove(struct ad7879 *ts)
-{
 }
 #endif
 
@@ -523,6 +510,13 @@ static int ad7879_parse_dt(struct device *dev, struct ad7879 *ts)
 	ts->swap_xy = device_property_read_bool(dev, "touchscreen-swapped-x-y");
 
 	return 0;
+}
+
+static void ad7879_cleanup_sysfs(void *_ts)
+{
+	struct ad7879 *ts = _ts;
+
+	sysfs_remove_group(&ts->dev->kobj, &ad7879_attr_group);
 }
 
 struct ad7879 *ad7879_probe(struct device *dev, struct regmap *regmap,
@@ -660,35 +654,23 @@ struct ad7879 *ad7879_probe(struct device *dev, struct regmap *regmap,
 
 	err = sysfs_create_group(&dev->kobj, &ad7879_attr_group);
 	if (err)
-		goto err_out;
+		return ERR_PTR(err);
 
-	if (pdata) {
-		err = ad7879_gpio_add(ts, pdata);
-		if (err)
-			goto err_remove_attr;
-	}
+	err = devm_add_action_or_reset(dev, ad7879_cleanup_sysfs, ts);
+	if (err)
+		return ERR_PTR(err);
+
+	err = ad7879_gpio_add(ts, pdata);
+	if (err)
+		return ERR_PTR(err);
 
 	err = input_register_device(input_dev);
 	if (err)
-		goto err_remove_gpio;
+		return ERR_PTR(err);
 
-	return ts;
-
-err_remove_gpio:
-	ad7879_gpio_remove(ts);
-err_remove_attr:
-	sysfs_remove_group(&dev->kobj, &ad7879_attr_group);
-err_out:
-	return ERR_PTR(err);
+	return 0;
 }
 EXPORT_SYMBOL(ad7879_probe);
-
-void ad7879_remove(struct ad7879 *ts)
-{
-	ad7879_gpio_remove(ts);
-	sysfs_remove_group(&ts->dev->kobj, &ad7879_attr_group);
-}
-EXPORT_SYMBOL(ad7879_remove);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("AD7879(-1) touchscreen Driver");

@@ -45,17 +45,6 @@ static int ad7879_i2c_probe(struct i2c_client *client,
 	if (IS_ERR(ts))
 		return PTR_ERR(ts);
 
-	i2c_set_clientdata(client, ts);
-
-	return 0;
-}
-
-static int ad7879_i2c_remove(struct i2c_client *client)
-{
-	struct ad7879 *ts = i2c_get_clientdata(client);
-
-	ad7879_remove(ts);
-
 	return 0;
 }
 
@@ -81,7 +70,6 @@ static struct i2c_driver ad7879_i2c_driver = {
 		.of_match_table = of_match_ptr(ad7879_i2c_dt_ids),
 	},
 	.probe		= ad7879_i2c_probe,
-	.remove		= ad7879_i2c_remove,
 	.id_table	= ad7879_id,
 };
 

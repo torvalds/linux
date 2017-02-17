@@ -62,15 +62,6 @@ static int ad7879_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int ad7879_spi_remove(struct spi_device *spi)
-{
-	struct ad7879 *ts = spi_get_drvdata(spi);
-
-	ad7879_remove(ts);
-
-	return 0;
-}
-
 #ifdef CONFIG_OF
 static const struct of_device_id ad7879_spi_dt_ids[] = {
 	{ .compatible = "adi,ad7879", },
@@ -86,7 +77,6 @@ static struct spi_driver ad7879_spi_driver = {
 		.of_match_table = of_match_ptr(ad7879_spi_dt_ids),
 	},
 	.probe		= ad7879_spi_probe,
-	.remove		= ad7879_spi_remove,
 };
 
 module_spi_driver(ad7879_spi_driver);
