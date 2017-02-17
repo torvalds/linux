@@ -1,6 +1,6 @@
 config INFINIBAND_BNXT_RE
     tristate "Broadcom Netxtreme HCA support"
-    depends on ETHERNET && NETDEVICES && PCI && INET
+    depends on ETHERNET && NETDEVICES && PCI && INET && DCB
     select NET_VENDOR_BROADCOM
     select BNXT
     ---help---
