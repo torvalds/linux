@@ -183,6 +183,7 @@ struct sun4i_layer **sun4i_layers_init(struct drm_device *drm)
 				   SUN4I_BACKEND_ATTCTL_REG0_LAY_PIPESEL(plane->pipe));
 
 		layer->id = i;
+		layers[i] = layer;
 	};
 
 	return layers;
