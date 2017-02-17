@@ -79,7 +79,7 @@ ast_set_def_ext_reg(struct drm_device *dev)
 	const u8 *ext_reg_info;
 
 	/* reset scratch */
-	for (i = 0x81; i <= 0x8f; i++)
+	for (i = 0x81; i <= 0x9f; i++)
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, i, 0x00);
 
 	if (ast->chip == AST2300 || ast->chip == AST2400) {
