@@ -505,24 +505,31 @@ static void free_cpu_topo(struct cpu_topo *tp)
 
 static struct cpu_topo *build_cpu_topology(void)
 {
-	struct cpu_topo *tp;
+	struct cpu_topo *tp = NULL;
 	void *addr;
 	u32 nr, i;
 	size_t sz;
 	long ncpus;
 	int ret = -1;
+	struct cpu_map *map;
 
 	ncpus = sysconf(_SC_NPROCESSORS_CONF);
 	if (ncpus < 0)
 		return NULL;
 
+	/* build online CPU map */
+	map = cpu_map__new(NULL);
+	if (map == NULL) {
+		pr_debug("failed to get system cpumap\n");
+		return NULL;
+	}
+
 	nr = (u32)(ncpus & UINT_MAX);
 
 	sz = nr * sizeof(char *);
-
 	addr = calloc(1, sizeof(*tp) + 2 * sz);
 	if (!addr)
-		return NULL;
+		goto out_free;
 
 	tp = addr;
 	tp->cpu_nr = nr;
@@ -532,10 +539,16 @@ static struct cpu_topo *build_cpu_topology(void)
 	tp->thread_siblings = addr;
 
 	for (i = 0; i < nr; i++) {
+		if (!cpu_map__has(map, i))
+			continue;
+
 		ret = build_cpu_topo(tp, i);
 		if (ret < 0)
 			break;
 	}
+
+out_free:
+	cpu_map__put(map);
 	if (ret) {
 		free_cpu_topo(tp);
 		tp = NULL;
