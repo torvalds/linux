@@ -297,8 +297,14 @@ static bool blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq)
 	if (fq->flush_pending_idx != fq->flush_running_idx || list_empty(pending))
 		return false;
 
-	/* C2 and C3 */
+	/* C2 and C3
+	 *
+	 * For blk-mq + scheduling, we can risk having all driver tags
+	 * assigned to empty flushes, and we deadlock if we are expecting
+	 * other requests to make progress. Don't defer for that case.
+	 */
 	if (!list_empty(&fq->flush_data_in_flight) &&
+	    !(q->mq_ops && q->elevator) &&
 	    time_before(jiffies,
 			fq->flush_pending_since + FLUSH_PENDING_TIMEOUT))
 		return false;
