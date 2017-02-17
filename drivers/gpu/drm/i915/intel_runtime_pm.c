@@ -862,8 +862,13 @@ static bool skl_power_well_enabled(struct drm_i915_private *dev_priv,
 static void skl_power_well_sync_hw(struct drm_i915_private *dev_priv,
 				struct i915_power_well *power_well)
 {
+	uint32_t mask = SKL_POWER_WELL_REQ(power_well->id);
+	uint32_t bios_req = I915_READ(HSW_PWR_WELL_BIOS);
+
 	/* Clear any request made by BIOS as driver is taking over */
-	I915_WRITE(HSW_PWR_WELL_BIOS, 0);
+	if (bios_req & mask) {
+		I915_WRITE(HSW_PWR_WELL_BIOS, bios_req & ~mask);
+	}
 }
 
 static void skl_power_well_enable(struct drm_i915_private *dev_priv,
