@@ -1841,20 +1841,24 @@ static uint32_t ilk_compute_cur_wm(const struct intel_crtc_state *cstate,
 				   const struct intel_plane_state *pstate,
 				   uint32_t mem_value)
 {
-	/*
-	 * We treat the cursor plane as always-on for the purposes of watermark
-	 * calculation.  Until we have two-stage watermark programming merged,
-	 * this is necessary to avoid flickering.
-	 */
-	int cpp = 4;
-	int width = pstate->base.visible ? pstate->base.crtc_w : 64;
+	int cpp;
 
-	if (!cstate->base.active)
+	/*
+	 * Treat cursor with fb as always visible since cursor updates
+	 * can happen faster than the vrefresh rate, and the current
+	 * watermark code doesn't handle that correctly. Cursor updates
+	 * which set/clear the fb or change the cursor size are going
+	 * to get throttled by intel_legacy_cursor_update() to work
+	 * around this problem with the watermark code.
+	 */
+	if (!cstate->base.active || !pstate->base.fb)
 		return 0;
+
+	cpp = pstate->base.fb->format->cpp[0];
 
 	return ilk_wm_method2(cstate->pixel_rate,
 			      cstate->base.adjusted_mode.crtc_htotal,
-			      width, cpp, mem_value);
+			      pstate->base.crtc_w, cpp, mem_value);
 }
 
 /* Only for WM_LP. */

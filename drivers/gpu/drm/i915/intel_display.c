@@ -12955,6 +12955,17 @@ static int intel_atomic_commit(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret = 0;
 
+	/*
+	 * The intel_legacy_cursor_update() fast path takes care
+	 * of avoiding the vblank waits for simple cursor
+	 * movement and flips. For cursor on/off and size changes,
+	 * we want to perform the vblank waits so that watermark
+	 * updates happen during the correct frames. Gen9+ have
+	 * double buffered watermarks and so shouldn't need this.
+	 */
+	if (INTEL_GEN(dev_priv) < 9)
+		state->legacy_cursor_update = false;
+
 	ret = drm_atomic_helper_setup_commit(state, nonblock);
 	if (ret)
 		return ret;
@@ -13389,8 +13400,7 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 	    old_plane_state->src_h != src_h ||
 	    old_plane_state->crtc_w != crtc_w ||
 	    old_plane_state->crtc_h != crtc_h ||
-	    !old_plane_state->visible ||
-	    old_plane_state->fb->modifier != fb->modifier)
+	    !old_plane_state->fb != !fb)
 		goto slow;
 
 	new_plane_state = intel_plane_duplicate_state(plane);
@@ -13412,10 +13422,6 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 						  to_intel_plane_state(new_plane_state));
 	if (ret)
 		goto out_free;
-
-	/* Visibility changed, must take slowpath. */
-	if (!new_plane_state->visible)
-		goto slow_free;
 
 	ret = mutex_lock_interruptible(&dev_priv->drm.struct_mutex);
 	if (ret)
@@ -13456,9 +13462,12 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 	new_plane_state->fb = old_fb;
 	to_intel_plane_state(new_plane_state)->vma = old_vma;
 
-	intel_plane->update_plane(plane,
-				  to_intel_crtc_state(crtc->state),
-				  to_intel_plane_state(plane->state));
+	if (plane->state->visible)
+		intel_plane->update_plane(plane,
+					  to_intel_crtc_state(crtc->state),
+					  to_intel_plane_state(plane->state));
+	else
+		intel_plane->disable_plane(plane, crtc);
 
 	intel_cleanup_plane_fb(plane, new_plane_state);
 
@@ -13468,8 +13477,6 @@ out_free:
 	intel_plane_destroy_state(plane, new_plane_state);
 	return ret;
 
-slow_free:
-	intel_plane_destroy_state(plane, new_plane_state);
 slow:
 	return drm_atomic_helper_update_plane(plane, crtc, fb,
 					      crtc_x, crtc_y, crtc_w, crtc_h,
