@@ -118,9 +118,14 @@
 };
 
 &u2phy {
+	otg-vbus-gpios = <&gpio0 27 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
 	u2phy_host: host-port {
+		status = "okay";
+	};
+
+	u2phy_otg: otg-port {
 		status = "okay";
 	};
 };
