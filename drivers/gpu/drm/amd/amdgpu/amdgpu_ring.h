@@ -162,7 +162,7 @@ struct amdgpu_ring {
 	u32			queue;
 	struct amdgpu_bo	*mqd_obj;
 	uint64_t                mqd_gpu_addr;
-	struct vi_mqd           *mqd_ptr;
+	void                    *mqd_ptr;
 	u32			doorbell_index;
 	bool			use_doorbell;
 	unsigned		wptr_offs;
