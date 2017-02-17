@@ -4309,13 +4309,18 @@ static int efx_ef10_filter_remove_internal(struct efx_nic *efx,
 			       MC_CMD_FILTER_OP_IN_OP_UNSUBSCRIBE);
 		MCDI_SET_QWORD(inbuf, FILTER_OP_IN_HANDLE,
 			       table->entry[filter_idx].handle);
-		rc = efx_mcdi_rpc(efx, MC_CMD_FILTER_OP,
-				  inbuf, sizeof(inbuf), NULL, 0, NULL);
+		rc = efx_mcdi_rpc_quiet(efx, MC_CMD_FILTER_OP,
+					inbuf, sizeof(inbuf), NULL, 0, NULL);
 
 		spin_lock_bh(&efx->filter_lock);
-		if (rc == 0) {
+		if ((rc == 0) || (rc == -ENOENT)) {
+			/* Filter removed OK or didn't actually exist */
 			kfree(spec);
 			efx_ef10_filter_set_entry(table, filter_idx, NULL, 0);
+		} else {
+			efx_mcdi_display_error(efx, MC_CMD_FILTER_OP,
+					       MC_CMD_FILTER_OP_IN_LEN,
+					       NULL, 0, rc);
 		}
 	}
 
