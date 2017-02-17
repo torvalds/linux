@@ -45,6 +45,15 @@ static void intel_breadcrumbs_hangcheck(unsigned long data)
 		return;
 	}
 
+	/* If the waiter was currently running, assume it hasn't had a chance
+	 * to process the pending interrupt (e.g, low priority task on a loaded
+	 * system) and wait until it sleeps before declaring a missed interrupt.
+	 */
+	if (!intel_engine_wakeup(engine)) {
+		mod_timer(&b->hangcheck, wait_timeout());
+		return;
+	}
+
 	DRM_DEBUG("Hangcheck timer elapsed... %s idle\n", engine->name);
 	set_bit(engine->id, &engine->i915->gpu_error.missed_irq_rings);
 	mod_timer(&engine->breadcrumbs.fake_irq, jiffies + 1);
