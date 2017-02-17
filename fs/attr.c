@@ -183,7 +183,7 @@ EXPORT_SYMBOL(setattr_copy);
 /**
  * notify_change - modify attributes of a filesytem object
  * @dentry:	object affected
- * @iattr:	new attributes
+ * @attr:	new attributes
  * @delegated_inode: returns inode, if the inode is delegated
  *
  * The caller must hold the i_mutex on the affected object.
