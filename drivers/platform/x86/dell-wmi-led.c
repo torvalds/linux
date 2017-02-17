@@ -1,6 +1,4 @@
 /*
- * dell_led.c - Dell LED Driver
- *
  * Copyright (C) 2010 Dell Inc.
  * Louis Davis <louis_davis@dell.com>
  * Jim Dailey <jim_dailey@dell.com>
