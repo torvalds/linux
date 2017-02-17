@@ -10,18 +10,19 @@
 /*
  * In struct r1conf, the following members are related to I/O barrier
  * buckets,
- *	int	*nr_pending;
- *	int	*nr_waiting;
- *	int	*nr_queued;
- *	int	*barrier;
- * Each of them points to array of integers, each array is designed to
- * have BARRIER_BUCKETS_NR elements and occupy a single memory page. The
- * data width of integer variables is 4, equal to 1<<(ilog2(sizeof(int))),
- * BARRIER_BUCKETS_NR_BITS is defined as (PAGE_SHIFT - ilog2(sizeof(int)))
- * to make sure an array of integers with BARRIER_BUCKETS_NR elements just
- * exactly occupies a single memory page.
+ *	atomic_t	*nr_pending;
+ *	atomic_t	*nr_waiting;
+ *	atomic_t	*nr_queued;
+ *	atomic_t	*barrier;
+ * Each of them points to array of atomic_t variables, each array is
+ * designed to have BARRIER_BUCKETS_NR elements and occupy a single
+ * memory page. The data width of atomic_t variables is 4 bytes, equal
+ * to 1<<(ilog2(sizeof(atomic_t))), BARRIER_BUCKETS_NR_BITS is defined
+ * as (PAGE_SHIFT - ilog2(sizeof(int))) to make sure an array of
+ * atomic_t variables with BARRIER_BUCKETS_NR elements just exactly
+ * occupies a single memory page.
  */
-#define BARRIER_BUCKETS_NR_BITS		(PAGE_SHIFT - ilog2(sizeof(int)))
+#define BARRIER_BUCKETS_NR_BITS		(PAGE_SHIFT - ilog2(sizeof(atomic_t)))
 #define BARRIER_BUCKETS_NR		(1<<BARRIER_BUCKETS_NR_BITS)
 
 struct raid1_info {
@@ -83,10 +84,10 @@ struct r1conf {
 	 */
 	wait_queue_head_t	wait_barrier;
 	spinlock_t		resync_lock;
-	int			*nr_pending;
-	int			*nr_waiting;
-	int			*nr_queued;
-	int			*barrier;
+	atomic_t		*nr_pending;
+	atomic_t		*nr_waiting;
+	atomic_t		*nr_queued;
+	atomic_t		*barrier;
 	int			array_frozen;
 
 	/* Set to 1 if a full sync is needed, (fresh device added).
