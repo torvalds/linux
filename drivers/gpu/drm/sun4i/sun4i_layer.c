@@ -140,7 +140,7 @@ struct sun4i_layer **sun4i_layers_init(struct drm_device *drm)
 	int i;
 
 	layers = devm_kcalloc(drm->dev, ARRAY_SIZE(sun4i_backend_planes),
-			      sizeof(**layers), GFP_KERNEL);
+			      sizeof(*layers), GFP_KERNEL);
 	if (!layers)
 		return ERR_PTR(-ENOMEM);
 
