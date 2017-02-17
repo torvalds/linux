@@ -82,10 +82,6 @@
 				      "ldb_di0", "ldb_di1", "prg";
 		};
 
-		pcie: pcie@0x01000000 {
-			compatible = "fsl,imx6qp-pcie", "snps,dw-pcie";
-		};
-
 		aips-bus@02100000 {
 			mmdc0: mmdc@021b0000 { /* MMDC0 */
 				compatible = "fsl,imx6qp-mmdc", "fsl,imx6q-mmdc";
@@ -109,4 +105,8 @@
 	clock-names = "di0_pll", "di1_pll",
 		      "di0_sel", "di1_sel", "di2_sel", "di3_sel",
 		      "di0", "di1";
+};
+
+&pcie {
+	compatible = "fsl,imx6qp-pcie", "snps,dw-pcie";
 };
