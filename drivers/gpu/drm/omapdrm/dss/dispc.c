@@ -2935,11 +2935,6 @@ static int dispc_ovl_enable(enum omap_plane_id plane, bool enable)
 	return 0;
 }
 
-static bool dispc_ovl_enabled(enum omap_plane_id plane)
-{
-	return REG_GET(DISPC_OVL_ATTRIBUTES(plane), 0, 0);
-}
-
 static enum omap_dss_output_id dispc_mgr_get_supported_outputs(enum omap_channel channel)
 {
 	return dss_feat_get_supported_outputs(channel);
@@ -4377,7 +4372,6 @@ static const struct dispc_ops dispc_ops = {
 	.mgr_set_gamma = dispc_mgr_set_gamma,
 
 	.ovl_enable = dispc_ovl_enable,
-	.ovl_enabled = dispc_ovl_enabled,
 	.ovl_set_channel_out = dispc_ovl_set_channel_out,
 	.ovl_setup = dispc_ovl_setup,
 	.ovl_get_color_modes = dispc_ovl_get_color_modes,

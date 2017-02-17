@@ -912,7 +912,6 @@ struct dispc_ops {
 		unsigned int length);
 
 	int (*ovl_enable)(enum omap_plane_id plane, bool enable);
-	bool (*ovl_enabled)(enum omap_plane_id plane);
 	void (*ovl_set_channel_out)(enum omap_plane_id plane,
 			enum omap_channel channel);
 	int (*ovl_setup)(enum omap_plane_id plane,
