@@ -141,19 +141,19 @@ static int is_complete(struct jr3_channel __iomem *channel)
 }
 
 static void set_transforms(struct jr3_channel __iomem *channel,
-			   struct jr3_pci_transform transf, short num)
+			   const struct jr3_pci_transform *transf, short num)
 {
 	int i;
 
 	num &= 0x000f;		/* Make sure that 0 <= num <= 15 */
 	for (i = 0; i < 8; i++) {
 		set_u16(&channel->transforms[num].link[i].link_type,
-			transf.link[i].link_type);
+			transf->link[i].link_type);
 		udelay(1);
 		set_s16(&channel->transforms[num].link[i].link_amount,
-			transf.link[i].link_amount);
+			transf->link[i].link_amount);
 		udelay(1);
-		if (transf.link[i].link_type == end_x_form)
+		if (transf->link[i].link_type == end_x_form)
 			break;
 	}
 }
@@ -505,7 +505,7 @@ jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 				transf.link[i].link_amount = 0;
 			}
 
-			set_transforms(channel, transf, 0);
+			set_transforms(channel, &transf, 0);
 			use_transform(channel, 0);
 			spriv->state = state_jr3_init_transform_complete;
 			/* Allow 20 ms for completion */
