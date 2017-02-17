@@ -872,6 +872,8 @@ void sctp_transport_hashtable_destroy(void)
 
 int sctp_hash_transport(struct sctp_transport *t)
 {
+	struct sctp_transport *transport;
+	struct rhlist_head *tmp, *list;
 	struct sctp_hash_cmp_arg arg;
 	int err;
 
@@ -882,8 +884,19 @@ int sctp_hash_transport(struct sctp_transport *t)
 	arg.paddr = &t->ipaddr;
 	arg.lport = htons(t->asoc->base.bind_addr.port);
 
+	list = rhltable_lookup(&sctp_transport_hashtable, &arg,
+			       sctp_hash_params);
+
+	rhl_for_each_entry_rcu(transport, tmp, list, node)
+		if (transport->asoc->ep == t->asoc->ep) {
+			err = -EEXIST;
+			goto out;
+		}
+
 	err = rhltable_insert_key(&sctp_transport_hashtable, &arg,
 				  &t->node, sctp_hash_params);
+
+out:
 	if (err)
 		pr_err_once("insert transport fail, errno %d\n", err);
 
