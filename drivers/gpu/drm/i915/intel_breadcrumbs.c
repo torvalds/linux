@@ -107,6 +107,23 @@ static void irq_disable(struct intel_engine_cs *engine)
 	spin_unlock(&engine->i915->irq_lock);
 }
 
+static bool use_fake_irq(const struct intel_breadcrumbs *b)
+{
+	const struct intel_engine_cs *engine =
+		container_of(b, struct intel_engine_cs, breadcrumbs);
+
+	if (!test_bit(engine->id, &engine->i915->gpu_error.missed_irq_rings))
+		return false;
+
+	/* Only start with the heavy weight fake irq timer if we have not
+	 * seen any interrupts since enabling it the first time. If the
+	 * interrupts are still arriving, it means we made a mistake in our
+	 * engine->seqno_barrier(), a timing error that should be transient
+	 * and unlikely to reoccur.
+	 */
+	return atomic_read(&engine->irq_count) == b->hangcheck_interrupts;
+}
+
 static void __intel_breadcrumbs_enable_irq(struct intel_breadcrumbs *b)
 {
 	struct intel_engine_cs *engine =
@@ -144,8 +161,7 @@ static void __intel_breadcrumbs_enable_irq(struct intel_breadcrumbs *b)
 		b->irq_enabled = true;
 	}
 
-	if (!b->irq_enabled ||
-	    test_bit(engine->id, &i915->gpu_error.missed_irq_rings)) {
+	if (!b->irq_enabled || use_fake_irq(b)) {
 		mod_timer(&b->fake_irq, jiffies + 1);
 		i915_queue_hangcheck(i915);
 	} else {
