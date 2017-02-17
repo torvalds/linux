@@ -656,7 +656,7 @@ jr3_pci_alloc_spriv(struct comedi_device *dev, struct comedi_subdevice *s)
 
 		for (k = 0; k < 7; k++) {
 			spriv->range_table_list[j + k * 8] =
-				(struct comedi_lrange *)&spriv->range[j];
+				(const struct comedi_lrange *)&spriv->range[j];
 			spriv->maxdata_list[j + k * 8] = 0x7fff;
 		}
 	}
@@ -664,8 +664,10 @@ jr3_pci_alloc_spriv(struct comedi_device *dev, struct comedi_subdevice *s)
 	spriv->range[8].range.min = 0;
 	spriv->range[8].range.max = 65536;
 
-	spriv->range_table_list[56] = (struct comedi_lrange *)&spriv->range[8];
-	spriv->range_table_list[57] = (struct comedi_lrange *)&spriv->range[8];
+	spriv->range_table_list[56] =
+		(const struct comedi_lrange *)&spriv->range[8];
+	spriv->range_table_list[57] =
+		(const struct comedi_lrange *)&spriv->range[8];
 	spriv->maxdata_list[56] = 0xffff;
 	spriv->maxdata_list[57] = 0xffff;
 
