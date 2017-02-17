@@ -51,9 +51,6 @@ static int dell_micmute_led_set(int state)
 	struct calling_interface_buffer *buffer;
 	struct calling_interface_token *token;
 
-	if (!wmi_has_guid(DELL_APP_GUID))
-		return -ENODEV;
-
 	if (state == 0)
 		token = dell_smbios_find_token(GLOBAL_MIC_MUTE_DISABLE);
 	else if (state == 1)
