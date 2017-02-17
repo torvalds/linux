@@ -406,8 +406,8 @@ static int do_synth_init(struct spk_synth *in_synth)
 		speakup_register_var(var);
 	if (!spk_quiet_boot)
 		synth_printf("%s found\n", synth->long_name);
-	if (synth->attributes.name && sysfs_create_group(speakup_kobj,
-							 &synth->attributes) < 0)
+	if (synth->attributes.name &&
+	    sysfs_create_group(speakup_kobj, &synth->attributes) < 0)
 		return -ENOMEM;
 	synth_flags = synth->flags;
 	wake_up_interruptible_all(&speakup_event);
