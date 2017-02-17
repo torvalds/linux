@@ -125,9 +125,9 @@ static int sun4i_drv_bind(struct device *dev)
 
 	/* Create our CRTC */
 	drv->crtc = sun4i_crtc_init(drm);
-	if (!drv->crtc) {
+	if (IS_ERR(drv->crtc)) {
 		dev_err(drm->dev, "Couldn't create the CRTC\n");
-		ret = -EINVAL;
+		ret = PTR_ERR(drv->crtc);
 		goto cleanup_mode_config;
 	}
 	drm->irq_enabled = true;
