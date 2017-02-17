@@ -20,29 +20,26 @@
 
 #include <linux/lightnvm.h>
 
-struct gen_lun {
-	struct nvm_lun vlun;
-
-	int reserved_blocks;
-	/* lun block lists */
-	struct list_head used_list;	/* In-use blocks */
-	struct list_head free_list;	/* Not used blocks i.e. released
-					 * and ready for use
-					 */
-	struct list_head bb_list;	/* Bad blocks. Mutually exclusive with
-					 * free_list and used_list
-					 */
-};
-
 struct gen_dev {
 	struct nvm_dev *dev;
 
 	int nr_luns;
-	struct gen_lun *luns;
 	struct list_head area_list;
 
 	struct mutex lock;
 	struct list_head targets;
+};
+
+/* Map between virtual and physical channel and lun */
+struct gen_ch_map {
+	int ch_off;
+	int nr_luns;
+	int *lun_offs;
+};
+
+struct gen_dev_map {
+	struct gen_ch_map *chnls;
+	int nr_chnls;
 };
 
 struct gen_area {
@@ -50,6 +47,13 @@ struct gen_area {
 	sector_t begin;
 	sector_t end;	/* end is excluded */
 };
+
+static inline void *ch_map_to_lun_offs(struct gen_ch_map *ch_map)
+{
+	return ch_map + 1;
+}
+
+typedef int (gen_trans_fn)(struct nvm_tgt_dev *, struct ppa_addr *);
 
 #define gen_for_each_lun(bm, lun, i) \
 		for ((i) = 0, lun = &(bm)->luns[0]; \

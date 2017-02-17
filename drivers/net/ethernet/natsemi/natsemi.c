@@ -51,7 +51,7 @@
 #include <asm/processor.h>	/* Processor type for cache alignment. */
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define DRV_NAME	"natsemi"
 #define DRV_VERSION	"2.1"
@@ -928,6 +928,10 @@ static int natsemi_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->watchdog_timeo = TX_TIMEOUT;
 
 	dev->ethtool_ops = &ethtool_ops;
+
+	/* MTU range: 64 - 2024 */
+	dev->min_mtu = ETH_ZLEN + ETH_FCS_LEN;
+	dev->max_mtu = NATSEMI_RX_LIMIT - NATSEMI_HEADERS;
 
 	if (mtu)
 		dev->mtu = mtu;
@@ -2526,9 +2530,6 @@ static void __set_rx_mode(struct net_device *dev)
 
 static int natsemi_change_mtu(struct net_device *dev, int new_mtu)
 {
-	if (new_mtu < 64 || new_mtu > NATSEMI_RX_LIMIT-NATSEMI_HEADERS)
-		return -EINVAL;
-
 	dev->mtu = new_mtu;
 
 	/* synchronized against open : rtnl_lock() held by caller */

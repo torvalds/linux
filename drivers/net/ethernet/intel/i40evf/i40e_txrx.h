@@ -173,26 +173,37 @@ static inline bool i40e_test_staterr(union i40e_rx_desc *rx_desc,
 #define I40E_MAX_DATA_PER_TXD_ALIGNED \
 	(I40E_MAX_DATA_PER_TXD & ~(I40E_MAX_READ_REQ_SIZE - 1))
 
-/* This ugly bit of math is equivalent to DIV_ROUNDUP(size, X) where X is
- * the value I40E_MAX_DATA_PER_TXD_ALIGNED.  It is needed due to the fact
- * that 12K is not a power of 2 and division is expensive.  It is used to
- * approximate the number of descriptors used per linear buffer.  Note
- * that this will overestimate in some cases as it doesn't account for the
- * fact that we will add up to 4K - 1 in aligning the 12K buffer, however
- * the error should not impact things much as large buffers usually mean
- * we will use fewer descriptors then there are frags in an skb.
+/**
+ * i40e_txd_use_count  - estimate the number of descriptors needed for Tx
+ * @size: transmit request size in bytes
+ *
+ * Due to hardware alignment restrictions (4K alignment), we need to
+ * assume that we can have no more than 12K of data per descriptor, even
+ * though each descriptor can take up to 16K - 1 bytes of aligned memory.
+ * Thus, we need to divide by 12K. But division is slow! Instead,
+ * we decompose the operation into shifts and one relatively cheap
+ * multiply operation.
+ *
+ * To divide by 12K, we first divide by 4K, then divide by 3:
+ *     To divide by 4K, shift right by 12 bits
+ *     To divide by 3, multiply by 85, then divide by 256
+ *     (Divide by 256 is done by shifting right by 8 bits)
+ * Finally, we add one to round up. Because 256 isn't an exact multiple of
+ * 3, we'll underestimate near each multiple of 12K. This is actually more
+ * accurate as we have 4K - 1 of wiggle room that we can fit into the last
+ * segment.  For our purposes this is accurate out to 1M which is orders of
+ * magnitude greater than our largest possible GSO size.
+ *
+ * This would then be implemented as:
+ *     return (((size >> 12) * 85) >> 8) + 1;
+ *
+ * Since multiplication and division are commutative, we can reorder
+ * operations into:
+ *     return ((size * 85) >> 20) + 1;
  */
 static inline unsigned int i40e_txd_use_count(unsigned int size)
 {
-	const unsigned int max = I40E_MAX_DATA_PER_TXD_ALIGNED;
-	const unsigned int reciprocal = ((1ull << 32) - 1 + (max / 2)) / max;
-	unsigned int adjust = ~(u32)0;
-
-	/* if we rounded up on the reciprocal pull down the adjustment */
-	if ((max * reciprocal) > adjust)
-		adjust = ~(u32)(reciprocal - 1);
-
-	return (u32)((((u64)size * reciprocal) + adjust) >> 32);
+	return ((size * 85) >> 20) + 1;
 }
 
 /* Tx Descriptors needed, worst case */
@@ -309,7 +320,6 @@ struct i40e_ring {
 	bool ring_active;		/* is ring online or not */
 	bool arm_wb;		/* do something to arm write back */
 	u8 packet_stride;
-#define I40E_TXR_FLAGS_LAST_XMIT_MORE_SET BIT(2)
 
 	u16 flags;
 #define I40E_TXR_FLAGS_WB_ON_ITR	BIT(0)

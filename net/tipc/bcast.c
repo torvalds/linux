@@ -247,10 +247,16 @@ int tipc_bcast_rcv(struct net *net, struct tipc_link *l, struct sk_buff *skb)
  *
  * RCU is locked, no other locks set
  */
-void tipc_bcast_ack_rcv(struct net *net, struct tipc_link *l, u32 acked)
+void tipc_bcast_ack_rcv(struct net *net, struct tipc_link *l,
+			struct tipc_msg *hdr)
 {
 	struct sk_buff_head *inputq = &tipc_bc_base(net)->inputq;
+	u16 acked = msg_bcast_ack(hdr);
 	struct sk_buff_head xmitq;
+
+	/* Ignore bc acks sent by peer before bcast synch point was received */
+	if (msg_bc_ack_invalid(hdr))
+		return;
 
 	__skb_queue_head_init(&xmitq);
 
@@ -279,11 +285,11 @@ int tipc_bcast_sync_rcv(struct net *net, struct tipc_link *l,
 	__skb_queue_head_init(&xmitq);
 
 	tipc_bcast_lock(net);
-	if (msg_type(hdr) == STATE_MSG) {
+	if (msg_type(hdr) != STATE_MSG) {
+		tipc_link_bc_init_rcv(l, hdr);
+	} else if (!msg_bc_ack_invalid(hdr)) {
 		tipc_link_bc_ack_rcv(l, msg_bcast_ack(hdr), &xmitq);
 		rc = tipc_link_bc_sync_rcv(l, hdr, &xmitq);
-	} else {
-		tipc_link_bc_init_rcv(l, hdr);
 	}
 	tipc_bcast_unlock(net);
 

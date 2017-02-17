@@ -50,9 +50,13 @@ struct aac_common aac_config = {
 
 static inline int aac_is_msix_mode(struct aac_dev *dev)
 {
-	u32 status;
+	u32 status = 0;
 
-	status = src_readl(dev, MUnit.OMR);
+	if (dev->pdev->device == PMC_DEVICE_S6 ||
+		dev->pdev->device == PMC_DEVICE_S7 ||
+		dev->pdev->device == PMC_DEVICE_S8) {
+		status = src_readl(dev, MUnit.OMR);
+	}
 	return (status & AAC_INT_MODE_MSIX);
 }
 
@@ -378,16 +382,12 @@ void aac_define_int_mode(struct aac_dev *dev)
 	if (msi_count > AAC_MAX_MSIX)
 		msi_count = AAC_MAX_MSIX;
 
-	for (i = 0; i < msi_count; i++)
-		dev->msixentry[i].entry = i;
-
 	if (msi_count > 1 &&
 	    pci_find_capability(dev->pdev, PCI_CAP_ID_MSIX)) {
 		min_msix = 2;
-		i = pci_enable_msix_range(dev->pdev,
-				    dev->msixentry,
-				    min_msix,
-				    msi_count);
+		i = pci_alloc_irq_vectors(dev->pdev,
+					  min_msix, msi_count,
+					  PCI_IRQ_MSIX | PCI_IRQ_AFFINITY);
 		if (i > 0) {
 			dev->msi_enabled = 1;
 			msi_count = i;

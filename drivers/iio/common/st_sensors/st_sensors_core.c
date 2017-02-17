@@ -401,6 +401,15 @@ int st_sensors_init_sensor(struct iio_dev *indio_dev,
 			return err;
 	}
 
+	/* set DAS */
+	if (sdata->sensor_settings->das.addr) {
+		err = st_sensors_write_data_with_mask(indio_dev,
+					sdata->sensor_settings->das.addr,
+					sdata->sensor_settings->das.mask, 1);
+		if (err < 0)
+			return err;
+	}
+
 	if (sdata->int_pin_open_drain) {
 		dev_info(&indio_dev->dev,
 			 "set interrupt line to open drain mode\n");
@@ -483,8 +492,10 @@ static int st_sensors_read_axis_data(struct iio_dev *indio_dev,
 	int err;
 	u8 *outdata;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
-	unsigned int byte_for_channel = ch->scan_type.realbits >> 3;
+	unsigned int byte_for_channel;
 
+	byte_for_channel = DIV_ROUND_UP(ch->scan_type.realbits +
+					ch->scan_type.shift, 8);
 	outdata = kmalloc(byte_for_channel, GFP_KERNEL);
 	if (!outdata)
 		return -ENOMEM;
@@ -612,7 +623,7 @@ EXPORT_SYMBOL(st_sensors_sysfs_sampling_frequency_avail);
 ssize_t st_sensors_sysfs_scale_avail(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	int i, len = 0;
+	int i, len = 0, q, r;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
@@ -621,8 +632,10 @@ ssize_t st_sensors_sysfs_scale_avail(struct device *dev,
 		if (sdata->sensor_settings->fs.fs_avl[i].num == 0)
 			break;
 
-		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%06u ",
-				sdata->sensor_settings->fs.fs_avl[i].gain);
+		q = sdata->sensor_settings->fs.fs_avl[i].gain / 1000000;
+		r = sdata->sensor_settings->fs.fs_avl[i].gain % 1000000;
+
+		len += scnprintf(buf + len, PAGE_SIZE - len, "%u.%06u ", q, r);
 	}
 	mutex_unlock(&indio_dev->mlock);
 	buf[len - 1] = '\n';

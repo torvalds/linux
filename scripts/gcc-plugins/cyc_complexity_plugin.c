@@ -20,7 +20,7 @@
 
 #include "gcc-common.h"
 
-int plugin_is_GPL_compatible;
+__visible int plugin_is_GPL_compatible;
 
 static struct plugin_info cyc_complexity_plugin_info = {
 	.version	= "20160225",
@@ -49,7 +49,7 @@ static unsigned int cyc_complexity_execute(void)
 
 #include "gcc-generate-gimple-pass.h"
 
-int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gcc_version *version)
+__visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gcc_version *version)
 {
 	const char * const plugin_name = plugin_info->base_name;
 	struct register_pass_info cyc_complexity_pass_info;

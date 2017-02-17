@@ -59,6 +59,9 @@
 /* Maximum number of packets to handle per "poll". */
 #define TILE_NET_WEIGHT 64
 
+/* Maximum Jumbo Packet MTU */
+#define TILE_JUMBO_MAX_MTU 9000
+
 /* Number of entries in each iqueue. */
 #define IQUEUE_ENTRIES 512
 
@@ -748,7 +751,7 @@ static void tile_net_schedule_tx_wake_timer(struct net_device *dev,
 		&info->mpipe[instance].tx_wake[priv->echannel];
 
 	hrtimer_start(&tx_wake->timer,
-		      ktime_set(0, TX_TIMER_DELAY_USEC * 1000UL),
+		      TX_TIMER_DELAY_USEC * 1000UL,
 		      HRTIMER_MODE_REL_PINNED);
 }
 
@@ -767,7 +770,7 @@ static void tile_net_schedule_egress_timer(void)
 
 	if (!info->egress_timer_scheduled) {
 		hrtimer_start(&info->egress_timer,
-			      ktime_set(0, EGRESS_TIMER_DELAY_USEC * 1000UL),
+			      EGRESS_TIMER_DELAY_USEC * 1000UL,
 			      HRTIMER_MODE_REL_PINNED);
 		info->egress_timer_scheduled = true;
 	}
@@ -2101,17 +2104,6 @@ static int tile_net_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	return -EOPNOTSUPP;
 }
 
-/* Change the MTU. */
-static int tile_net_change_mtu(struct net_device *dev, int new_mtu)
-{
-	if (new_mtu < 68)
-		return -EINVAL;
-	if (new_mtu > ((jumbo_num != 0) ? 9000 : 1500))
-		return -EINVAL;
-	dev->mtu = new_mtu;
-	return 0;
-}
-
 /* Change the Ethernet address of the NIC.
  *
  * The hypervisor driver does not support changing MAC address.  However,
@@ -2154,7 +2146,6 @@ static const struct net_device_ops tile_net_ops = {
 	.ndo_start_xmit = tile_net_tx,
 	.ndo_select_queue = tile_net_select_queue,
 	.ndo_do_ioctl = tile_net_ioctl,
-	.ndo_change_mtu = tile_net_change_mtu,
 	.ndo_tx_timeout = tile_net_tx_timeout,
 	.ndo_set_mac_address = tile_net_set_mac_address,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -2174,7 +2165,11 @@ static void tile_net_setup(struct net_device *dev)
 	ether_setup(dev);
 	dev->netdev_ops = &tile_net_ops;
 	dev->watchdog_timeo = TILE_NET_TIMEOUT;
-	dev->mtu = 1500;
+
+	/* MTU range: 68 - 1500 or 9000 */
+	dev->mtu = ETH_DATA_LEN;
+	dev->min_mtu = ETH_MIN_MTU;
+	dev->max_mtu = jumbo_num ? TILE_JUMBO_MAX_MTU : ETH_DATA_LEN;
 
 	features |= NETIF_F_HW_CSUM;
 	features |= NETIF_F_SG;

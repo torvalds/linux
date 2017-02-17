@@ -58,7 +58,7 @@ static enum hrtimer_restart snd_hrtimer_callback(struct hrtimer *hrt)
 
 	/* calculate the drift */
 	delta = ktime_sub(hrt->base->get_time(), hrtimer_get_expires(hrt));
-	if (delta.tv64 > 0)
+	if (delta > 0)
 		ticks += ktime_divns(delta, ticks * resolution);
 
 	snd_timer_interrupt(stime->timer, ticks);

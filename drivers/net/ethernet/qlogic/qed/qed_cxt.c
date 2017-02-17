@@ -47,13 +47,8 @@
 #define TM_ALIGN        BIT(TM_SHIFT)
 #define TM_ELEM_SIZE    4
 
-/* ILT constants */
-#if IS_ENABLED(CONFIG_INFINIBAND_QEDR)
 /* For RoCE we configure to 64K to cover for RoCE max tasks 256K purpose. */
-#define ILT_DEFAULT_HW_P_SIZE		4
-#else
-#define ILT_DEFAULT_HW_P_SIZE		3
-#endif
+#define ILT_DEFAULT_HW_P_SIZE	(IS_ENABLED(CONFIG_QED_RDMA) ? 4 : 3)
 
 #define ILT_PAGE_IN_BYTES(hw_p_size)	(1U << ((hw_p_size) + 12))
 #define ILT_CFG_REG(cli, reg)	PSWRQ2_REG_ ## cli ## _ ## reg ## _RT_OFFSET
@@ -349,14 +344,14 @@ static struct qed_tid_seg *qed_cxt_tid_seg_info(struct qed_hwfn *p_hwfn,
 	return NULL;
 }
 
-void qed_cxt_set_srq_count(struct qed_hwfn *p_hwfn, u32 num_srqs)
+static void qed_cxt_set_srq_count(struct qed_hwfn *p_hwfn, u32 num_srqs)
 {
 	struct qed_cxt_mngr *p_mgr = p_hwfn->p_cxt_mngr;
 
 	p_mgr->srq_count = num_srqs;
 }
 
-u32 qed_cxt_get_srq_count(struct qed_hwfn *p_hwfn)
+static u32 qed_cxt_get_srq_count(struct qed_hwfn *p_hwfn)
 {
 	struct qed_cxt_mngr *p_mgr = p_hwfn->p_cxt_mngr;
 
@@ -1804,8 +1799,8 @@ int qed_cxt_get_cid_info(struct qed_hwfn *p_hwfn, struct qed_cxt_info *p_info)
 	return 0;
 }
 
-void qed_rdma_set_pf_params(struct qed_hwfn *p_hwfn,
-			    struct qed_rdma_pf_params *p_params)
+static void qed_rdma_set_pf_params(struct qed_hwfn *p_hwfn,
+				   struct qed_rdma_pf_params *p_params)
 {
 	u32 num_cons, num_tasks, num_qps, num_mrs, num_srqs;
 	enum protocol_type proto;

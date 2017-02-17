@@ -719,14 +719,14 @@ sub set_value {
 
     if ($buildonly && $lvalue =~ /^TEST_TYPE(\[.*\])?$/ && $prvalue ne "build") {
 	# Note if a test is something other than build, then we
-	# will need other manditory options.
+	# will need other mandatory options.
 	if ($prvalue ne "install") {
 	    # for bisect, we need to check BISECT_TYPE
 	    if ($prvalue ne "bisect") {
 		$buildonly = 0;
 	    }
 	} else {
-	    # install still limits some manditory options.
+	    # install still limits some mandatory options.
 	    $buildonly = 2;
 	}
     }
@@ -735,7 +735,7 @@ sub set_value {
 	if ($prvalue ne "install") {
 	    $buildonly = 0;
 	} else {
-	    # install still limits some manditory options.
+	    # install still limits some mandatory options.
 	    $buildonly = 2;
 	}
     }
@@ -3989,7 +3989,7 @@ sub make_min_config {
 		}
 	    }
 
-	    # Save off all the current mandidory configs
+	    # Save off all the current mandatory configs
 	    open (OUT, ">$temp_config")
 		or die "Can't write to $temp_config";
 	    foreach my $config (keys %keep_configs) {

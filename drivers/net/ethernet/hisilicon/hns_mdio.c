@@ -563,6 +563,7 @@ static const struct of_device_id hns_mdio_match[] = {
 	{.compatible = "hisilicon,hns-mdio"},
 	{}
 };
+MODULE_DEVICE_TABLE(of, hns_mdio_match);
 
 static const struct acpi_device_id hns_mdio_acpi_match[] = {
 	{ "HISI0141", 0 },

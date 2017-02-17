@@ -42,6 +42,7 @@ static chcr_handler_func work_handlers[NUM_CPL_CMDS] = {
 static struct cxgb4_uld_info chcr_uld_info = {
 	.name = DRV_MODULE_NAME,
 	.nrxq = MAX_ULD_QSETS,
+	.ntxq = MAX_ULD_QSETS,
 	.rxq_size = 1024,
 	.add = chcr_uld_add,
 	.state_change = chcr_uld_state_change,
@@ -51,6 +52,7 @@ static struct cxgb4_uld_info chcr_uld_info = {
 int assign_chcr_device(struct chcr_dev **dev)
 {
 	struct uld_ctx *u_ctx;
+	int ret = -ENXIO;
 
 	/*
 	 * Which device to use if multiple devices are available TODO
@@ -58,15 +60,14 @@ int assign_chcr_device(struct chcr_dev **dev)
 	 * must go to the same device to maintain the ordering.
 	 */
 	mutex_lock(&dev_mutex); /* TODO ? */
-	u_ctx = list_first_entry(&uld_ctx_list, struct uld_ctx, entry);
-	if (!u_ctx) {
-		mutex_unlock(&dev_mutex);
-		return -ENXIO;
+	list_for_each_entry(u_ctx, &uld_ctx_list, entry)
+		if (u_ctx && u_ctx->dev) {
+			*dev = u_ctx->dev;
+			ret = 0;
+			break;
 	}
-
-	*dev = u_ctx->dev;
 	mutex_unlock(&dev_mutex);
-	return 0;
+	return ret;
 }
 
 static int chcr_dev_add(struct uld_ctx *u_ctx)
@@ -109,14 +110,12 @@ static int cpl_fw6_pld_handler(struct chcr_dev *dev,
 	if (ack_err_status) {
 		if (CHK_MAC_ERR_BIT(ack_err_status) ||
 		    CHK_PAD_ERR_BIT(ack_err_status))
-			error_status = -EINVAL;
+			error_status = -EBADMSG;
 	}
 	/* call completion callback with failure status */
 	if (req) {
-		if (!chcr_handle_resp(req, input, error_status))
-			req->complete(req, error_status);
-		else
-			return -EINVAL;
+		error_status = chcr_handle_resp(req, input, error_status);
+		req->complete(req, error_status);
 	} else {
 		pr_err("Incorrect request address from the firmware\n");
 		return -EFAULT;
@@ -126,7 +125,7 @@ static int cpl_fw6_pld_handler(struct chcr_dev *dev,
 
 int chcr_send_wr(struct sk_buff *skb)
 {
-	return cxgb4_ofld_send(skb->dev, skb);
+	return cxgb4_crypto_send(skb->dev, skb);
 }
 
 static void *chcr_uld_add(const struct cxgb4_lld_info *lld)
@@ -203,10 +202,8 @@ static int chcr_uld_state_change(void *handle, enum cxgb4_state state)
 
 static int __init chcr_crypto_init(void)
 {
-	if (cxgb4_register_uld(CXGB4_ULD_CRYPTO, &chcr_uld_info)) {
+	if (cxgb4_register_uld(CXGB4_ULD_CRYPTO, &chcr_uld_info))
 		pr_err("ULD register fail: No chcr crypto support in cxgb4");
-		return -1;
-	}
 
 	return 0;
 }

@@ -372,16 +372,13 @@ static int __pg_init_all_paths(struct multipath *m)
 	return atomic_read(&m->pg_init_in_progress);
 }
 
-static int pg_init_all_paths(struct multipath *m)
+static void pg_init_all_paths(struct multipath *m)
 {
-	int r;
 	unsigned long flags;
 
 	spin_lock_irqsave(&m->lock, flags);
-	r = __pg_init_all_paths(m);
+	__pg_init_all_paths(m);
 	spin_unlock_irqrestore(&m->lock, flags);
-
-	return r;
 }
 
 static void __switch_pg(struct multipath *m, struct priority_group *pg)
@@ -430,7 +427,7 @@ static struct pgpath *choose_pgpath(struct multipath *m, size_t nr_bytes)
 	unsigned long flags;
 	struct priority_group *pg;
 	struct pgpath *pgpath;
-	bool bypassed = true;
+	unsigned bypassed = 1;
 
 	if (!atomic_read(&m->nr_valid_paths)) {
 		clear_bit(MPATHF_QUEUE_IO, &m->flags);
@@ -469,7 +466,7 @@ check_current_pg:
 	 */
 	do {
 		list_for_each_entry(pg, &m->priority_groups, list) {
-			if (pg->bypassed == bypassed)
+			if (pg->bypassed == !!bypassed)
 				continue;
 			pgpath = choose_path_in_pg(m, pg, nr_bytes);
 			if (!IS_ERR_OR_NULL(pgpath)) {
@@ -583,16 +580,17 @@ static int __multipath_map(struct dm_target *ti, struct request *clone,
 		 * .request_fn stacked on blk-mq path(s) and
 		 * blk-mq stacked on blk-mq path(s).
 		 */
-		*__clone = blk_mq_alloc_request(bdev_get_queue(bdev),
-						rq_data_dir(rq), BLK_MQ_REQ_NOWAIT);
-		if (IS_ERR(*__clone)) {
-			/* ENOMEM, requeue */
+		clone = blk_mq_alloc_request(bdev_get_queue(bdev),
+					     rq_data_dir(rq), BLK_MQ_REQ_NOWAIT);
+		if (IS_ERR(clone)) {
+			/* EBUSY, ENODEV or EWOULDBLOCK: requeue */
 			clear_request_fn_mpio(m, map_context);
 			return r;
 		}
-		(*__clone)->bio = (*__clone)->biotail = NULL;
-		(*__clone)->rq_disk = bdev->bd_disk;
-		(*__clone)->cmd_flags |= REQ_FAILFAST_TRANSPORT;
+		clone->bio = clone->biotail = NULL;
+		clone->rq_disk = bdev->bd_disk;
+		clone->cmd_flags |= REQ_FAILFAST_TRANSPORT;
+		*__clone = clone;
 	}
 
 	if (pgpath->pg->ps.type->start_io)
@@ -852,18 +850,22 @@ retain:
 		attached_handler_name = scsi_dh_attached_handler_name(q, GFP_KERNEL);
 		if (attached_handler_name) {
 			/*
+			 * Clear any hw_handler_params associated with a
+			 * handler that isn't already attached.
+			 */
+			if (m->hw_handler_name && strcmp(attached_handler_name, m->hw_handler_name)) {
+				kfree(m->hw_handler_params);
+				m->hw_handler_params = NULL;
+			}
+
+			/*
 			 * Reset hw_handler_name to match the attached handler
-			 * and clear any hw_handler_params associated with the
-			 * ignored handler.
 			 *
 			 * NB. This modifies the table line to show the actual
 			 * handler instead of the original table passed in.
 			 */
 			kfree(m->hw_handler_name);
 			m->hw_handler_name = attached_handler_name;
-
-			kfree(m->hw_handler_params);
-			m->hw_handler_params = NULL;
 		}
 	}
 
@@ -1002,6 +1004,8 @@ static int parse_hw_handler(struct dm_arg_set *as, struct multipath *m)
 	}
 
 	m->hw_handler_name = kstrdup(dm_shift_arg(as), GFP_KERNEL);
+	if (!m->hw_handler_name)
+		return -EINVAL;
 
 	if (hw_argc > 1) {
 		char *p;
@@ -1362,7 +1366,7 @@ static int switch_pg_num(struct multipath *m, const char *pgstr)
 	char dummy;
 
 	if (!pgstr || (sscanf(pgstr, "%u%c", &pgnum, &dummy) != 1) || !pgnum ||
-	    (pgnum > m->nr_priority_groups)) {
+	    !m->nr_priority_groups || (pgnum > m->nr_priority_groups)) {
 		DMWARN("invalid PG number supplied to switch_pg_num");
 		return -EINVAL;
 	}
@@ -1394,7 +1398,7 @@ static int bypass_pg_num(struct multipath *m, const char *pgstr, bool bypassed)
 	char dummy;
 
 	if (!pgstr || (sscanf(pgstr, "%u%c", &pgnum, &dummy) != 1) || !pgnum ||
-	    (pgnum > m->nr_priority_groups)) {
+	    !m->nr_priority_groups || (pgnum > m->nr_priority_groups)) {
 		DMWARN("invalid PG number supplied to bypass_pg");
 		return -EINVAL;
 	}

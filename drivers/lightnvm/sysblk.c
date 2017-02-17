@@ -62,7 +62,8 @@ static void nvm_cpu_to_sysblk(struct nvm_system_block *sb,
 
 static int nvm_setup_sysblks(struct nvm_dev *dev, struct ppa_addr *sysblk_ppas)
 {
-	int nr_rows = min_t(int, MAX_SYSBLKS, dev->nr_chnls);
+	struct nvm_geo *geo = &dev->geo;
+	int nr_rows = min_t(int, MAX_SYSBLKS, geo->nr_chnls);
 	int i;
 
 	for (i = 0; i < nr_rows; i++)
@@ -71,7 +72,7 @@ static int nvm_setup_sysblks(struct nvm_dev *dev, struct ppa_addr *sysblk_ppas)
 	/* if possible, place sysblk at first channel, middle channel and last
 	 * channel of the device. If not, create only one or two sys blocks
 	 */
-	switch (dev->nr_chnls) {
+	switch (geo->nr_chnls) {
 	case 2:
 		sysblk_ppas[1].g.ch = 1;
 		/* fall-through */
@@ -80,8 +81,8 @@ static int nvm_setup_sysblks(struct nvm_dev *dev, struct ppa_addr *sysblk_ppas)
 		break;
 	default:
 		sysblk_ppas[0].g.ch = 0;
-		sysblk_ppas[1].g.ch = dev->nr_chnls / 2;
-		sysblk_ppas[2].g.ch = dev->nr_chnls - 1;
+		sysblk_ppas[1].g.ch = geo->nr_chnls / 2;
+		sysblk_ppas[2].g.ch = geo->nr_chnls - 1;
 		break;
 	}
 
@@ -162,11 +163,12 @@ static int sysblk_get_host_blks(struct nvm_dev *dev, struct ppa_addr ppa,
 static int nvm_get_all_sysblks(struct nvm_dev *dev, struct sysblk_scan *s,
 				struct ppa_addr *ppas, int get_free)
 {
+	struct nvm_geo *geo = &dev->geo;
 	int i, nr_blks, ret = 0;
 	u8 *blks;
 
 	s->nr_ppas = 0;
-	nr_blks = dev->blks_per_lun * dev->plane_mode;
+	nr_blks = geo->blks_per_lun * geo->plane_mode;
 
 	blks = kmalloc(nr_blks, GFP_KERNEL);
 	if (!blks)
@@ -210,13 +212,14 @@ err_get:
 static int nvm_scan_block(struct nvm_dev *dev, struct ppa_addr *ppa,
 						struct nvm_system_block *sblk)
 {
+	struct nvm_geo *geo = &dev->geo;
 	struct nvm_system_block *cur;
 	int pg, ret, found = 0;
 
 	/* the full buffer for a flash page is allocated. Only the first of it
 	 * contains the system block information
 	 */
-	cur = kmalloc(dev->pfpg_size, GFP_KERNEL);
+	cur = kmalloc(geo->pfpg_size, GFP_KERNEL);
 	if (!cur)
 		return -ENOMEM;
 
@@ -225,7 +228,7 @@ static int nvm_scan_block(struct nvm_dev *dev, struct ppa_addr *ppa,
 		ppa->g.pg = ppa_to_slc(dev, pg);
 
 		ret = nvm_submit_ppa(dev, ppa, 1, NVM_OP_PREAD, NVM_IO_SLC_MODE,
-							cur, dev->pfpg_size);
+							cur, geo->pfpg_size);
 		if (ret) {
 			if (ret == NVM_RSP_ERR_EMPTYPAGE) {
 				pr_debug("nvm: sysblk scan empty ppa (%u %u %u %u)\n",
@@ -267,34 +270,16 @@ static int nvm_scan_block(struct nvm_dev *dev, struct ppa_addr *ppa,
 	return found;
 }
 
-static int nvm_set_bb_tbl(struct nvm_dev *dev, struct sysblk_scan *s, int type)
+static int nvm_sysblk_set_bb_tbl(struct nvm_dev *dev, struct sysblk_scan *s,
+								int type)
 {
-	struct nvm_rq rqd;
-	int ret;
-
-	if (s->nr_ppas > dev->ops->max_phys_sect) {
-		pr_err("nvm: unable to update all sysblocks atomically\n");
-		return -EINVAL;
-	}
-
-	memset(&rqd, 0, sizeof(struct nvm_rq));
-
-	nvm_set_rqd_ppalist(dev, &rqd, s->ppas, s->nr_ppas, 1);
-	nvm_generic_to_addr_mode(dev, &rqd);
-
-	ret = dev->ops->set_bb_tbl(dev, &rqd.ppa_addr, rqd.nr_ppas, type);
-	nvm_free_rqd_ppalist(dev, &rqd);
-	if (ret) {
-		pr_err("nvm: sysblk failed bb mark\n");
-		return -EINVAL;
-	}
-
-	return 0;
+	return nvm_set_bb_tbl(dev, s->ppas, s->nr_ppas, type);
 }
 
 static int nvm_write_and_verify(struct nvm_dev *dev, struct nvm_sb_info *info,
 							struct sysblk_scan *s)
 {
+	struct nvm_geo *geo = &dev->geo;
 	struct nvm_system_block nvmsb;
 	void *buf;
 	int i, sect, ret = 0;
@@ -302,12 +287,12 @@ static int nvm_write_and_verify(struct nvm_dev *dev, struct nvm_sb_info *info,
 
 	nvm_cpu_to_sysblk(&nvmsb, info);
 
-	buf = kzalloc(dev->pfpg_size, GFP_KERNEL);
+	buf = kzalloc(geo->pfpg_size, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 	memcpy(buf, &nvmsb, sizeof(struct nvm_system_block));
 
-	ppas = kcalloc(dev->sec_per_pg, sizeof(struct ppa_addr), GFP_KERNEL);
+	ppas = kcalloc(geo->sec_per_pg, sizeof(struct ppa_addr), GFP_KERNEL);
 	if (!ppas) {
 		ret = -ENOMEM;
 		goto err;
@@ -324,15 +309,15 @@ static int nvm_write_and_verify(struct nvm_dev *dev, struct nvm_sb_info *info,
 							ppas[0].g.pg);
 
 		/* Expand to all sectors within a flash page */
-		if (dev->sec_per_pg > 1) {
-			for (sect = 1; sect < dev->sec_per_pg; sect++) {
+		if (geo->sec_per_pg > 1) {
+			for (sect = 1; sect < geo->sec_per_pg; sect++) {
 				ppas[sect].ppa = ppas[0].ppa;
 				ppas[sect].g.sec = sect;
 			}
 		}
 
-		ret = nvm_submit_ppa(dev, ppas, dev->sec_per_pg, NVM_OP_PWRITE,
-					NVM_IO_SLC_MODE, buf, dev->pfpg_size);
+		ret = nvm_submit_ppa(dev, ppas, geo->sec_per_pg, NVM_OP_PWRITE,
+					NVM_IO_SLC_MODE, buf, geo->pfpg_size);
 		if (ret) {
 			pr_err("nvm: sysblk failed program (%u %u %u)\n",
 							ppas[0].g.ch,
@@ -341,8 +326,8 @@ static int nvm_write_and_verify(struct nvm_dev *dev, struct nvm_sb_info *info,
 			break;
 		}
 
-		ret = nvm_submit_ppa(dev, ppas, dev->sec_per_pg, NVM_OP_PREAD,
-					NVM_IO_SLC_MODE, buf, dev->pfpg_size);
+		ret = nvm_submit_ppa(dev, ppas, geo->sec_per_pg, NVM_OP_PREAD,
+					NVM_IO_SLC_MODE, buf, geo->pfpg_size);
 		if (ret) {
 			pr_err("nvm: sysblk failed read (%u %u %u)\n",
 							ppas[0].g.ch,
@@ -379,7 +364,7 @@ static int nvm_prepare_new_sysblks(struct nvm_dev *dev, struct sysblk_scan *s)
 		ppa = &s->ppas[scan_ppa_idx(i, nxt_blk)];
 		ppa->g.pg = ppa_to_slc(dev, 0);
 
-		ret = nvm_erase_ppa(dev, ppa, 1);
+		ret = nvm_erase_ppa(dev, ppa, 1, 0);
 		if (ret)
 			return ret;
 
@@ -546,6 +531,7 @@ err_sysblk:
 
 int nvm_init_sysblock(struct nvm_dev *dev, struct nvm_sb_info *info)
 {
+	struct nvm_geo *geo = &dev->geo;
 	struct ppa_addr sysblk_ppas[MAX_SYSBLKS];
 	struct sysblk_scan s;
 	int ret;
@@ -560,7 +546,7 @@ int nvm_init_sysblock(struct nvm_dev *dev, struct nvm_sb_info *info)
 	if (!dev->ops->get_bb_tbl || !dev->ops->set_bb_tbl)
 		return -EINVAL;
 
-	if (!(dev->mccap & NVM_ID_CAP_SLC) || !dev->lps_per_blk) {
+	if (!(geo->mccap & NVM_ID_CAP_SLC) || !dev->lps_per_blk) {
 		pr_err("nvm: memory does not support SLC access\n");
 		return -EINVAL;
 	}
@@ -573,7 +559,7 @@ int nvm_init_sysblock(struct nvm_dev *dev, struct nvm_sb_info *info)
 	if (ret)
 		goto err_mark;
 
-	ret = nvm_set_bb_tbl(dev, &s, NVM_BLK_T_HOST);
+	ret = nvm_sysblk_set_bb_tbl(dev, &s, NVM_BLK_T_HOST);
 	if (ret)
 		goto err_mark;
 
@@ -590,11 +576,11 @@ static int factory_nblks(int nblks)
 	return (nblks + (BITS_PER_LONG - 1)) & ~(BITS_PER_LONG - 1);
 }
 
-static unsigned int factory_blk_offset(struct nvm_dev *dev, struct ppa_addr ppa)
+static unsigned int factory_blk_offset(struct nvm_geo *geo, struct ppa_addr ppa)
 {
-	int nblks = factory_nblks(dev->blks_per_lun);
+	int nblks = factory_nblks(geo->blks_per_lun);
 
-	return ((ppa.g.ch * dev->luns_per_chnl * nblks) + (ppa.g.lun * nblks)) /
+	return ((ppa.g.ch * geo->luns_per_chnl * nblks) + (ppa.g.lun * nblks)) /
 								BITS_PER_LONG;
 }
 
@@ -608,7 +594,7 @@ static int nvm_factory_blks(struct nvm_dev *dev, struct ppa_addr ppa,
 	if (nr_blks < 0)
 		return nr_blks;
 
-	lunoff = factory_blk_offset(dev, ppa);
+	lunoff = factory_blk_offset(&dev->geo, ppa);
 
 	/* non-set bits correspond to the block must be erased */
 	for (i = 0; i < nr_blks; i++) {
@@ -637,19 +623,19 @@ static int nvm_factory_blks(struct nvm_dev *dev, struct ppa_addr ppa,
 static int nvm_fact_get_blks(struct nvm_dev *dev, struct ppa_addr *erase_list,
 					int max_ppas, unsigned long *blk_bitmap)
 {
+	struct nvm_geo *geo = &dev->geo;
 	struct ppa_addr ppa;
 	int ch, lun, blkid, idx, done = 0, ppa_cnt = 0;
 	unsigned long *offset;
 
 	while (!done) {
 		done = 1;
-		nvm_for_each_lun_ppa(dev, ppa, ch, lun) {
-			idx = factory_blk_offset(dev, ppa);
+		nvm_for_each_lun_ppa(geo, ppa, ch, lun) {
+			idx = factory_blk_offset(geo, ppa);
 			offset = &blk_bitmap[idx];
 
-			blkid = find_first_zero_bit(offset,
-						dev->blks_per_lun);
-			if (blkid >= dev->blks_per_lun)
+			blkid = find_first_zero_bit(offset, geo->blks_per_lun);
+			if (blkid >= geo->blks_per_lun)
 				continue;
 			set_bit(blkid, offset);
 
@@ -674,16 +660,17 @@ static int nvm_fact_get_blks(struct nvm_dev *dev, struct ppa_addr *erase_list,
 static int nvm_fact_select_blks(struct nvm_dev *dev, unsigned long *blk_bitmap,
 								int flags)
 {
+	struct nvm_geo *geo = &dev->geo;
 	struct ppa_addr ppa;
 	int ch, lun, nr_blks, ret = 0;
 	u8 *blks;
 
-	nr_blks = dev->blks_per_lun * dev->plane_mode;
+	nr_blks = geo->blks_per_lun * geo->plane_mode;
 	blks = kmalloc(nr_blks, GFP_KERNEL);
 	if (!blks)
 		return -ENOMEM;
 
-	nvm_for_each_lun_ppa(dev, ppa, ch, lun) {
+	nvm_for_each_lun_ppa(geo, ppa, ch, lun) {
 		ret = nvm_get_bb_tbl(dev, ppa, blks);
 		if (ret)
 			pr_err("nvm: failed bb tbl for ch%u lun%u\n",
@@ -701,14 +688,15 @@ static int nvm_fact_select_blks(struct nvm_dev *dev, unsigned long *blk_bitmap,
 
 int nvm_dev_factory(struct nvm_dev *dev, int flags)
 {
+	struct nvm_geo *geo = &dev->geo;
 	struct ppa_addr *ppas;
 	int ppa_cnt, ret = -ENOMEM;
-	int max_ppas = dev->ops->max_phys_sect / dev->nr_planes;
+	int max_ppas = dev->ops->max_phys_sect / geo->nr_planes;
 	struct ppa_addr sysblk_ppas[MAX_SYSBLKS];
 	struct sysblk_scan s;
 	unsigned long *blk_bitmap;
 
-	blk_bitmap = kzalloc(factory_nblks(dev->blks_per_lun) * dev->nr_luns,
+	blk_bitmap = kzalloc(factory_nblks(geo->blks_per_lun) * geo->nr_luns,
 								GFP_KERNEL);
 	if (!blk_bitmap)
 		return ret;
@@ -725,7 +713,7 @@ int nvm_dev_factory(struct nvm_dev *dev, int flags)
 	/* continue to erase until list of blks until empty */
 	while ((ppa_cnt =
 			nvm_fact_get_blks(dev, ppas, max_ppas, blk_bitmap)) > 0)
-		nvm_erase_ppa(dev, ppas, ppa_cnt);
+		nvm_erase_ppa(dev, ppas, ppa_cnt, 0);
 
 	/* mark host reserved blocks free */
 	if (flags & NVM_FACTORY_RESET_HOST_BLKS) {
@@ -733,7 +721,7 @@ int nvm_dev_factory(struct nvm_dev *dev, int flags)
 		mutex_lock(&dev->mlock);
 		ret = nvm_get_all_sysblks(dev, &s, sysblk_ppas, 0);
 		if (!ret)
-			ret = nvm_set_bb_tbl(dev, &s, NVM_BLK_T_FREE);
+			ret = nvm_sysblk_set_bb_tbl(dev, &s, NVM_BLK_T_FREE);
 		mutex_unlock(&dev->mlock);
 	}
 err_ppas:

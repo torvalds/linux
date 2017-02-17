@@ -1092,9 +1092,11 @@ int stm32_pctl_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ret = stm32_pctrl_dt_setup_irq(pdev, pctl);
-	if (ret)
-		return ret;
+	if (of_find_property(np, "interrupt-parent", NULL)) {
+		ret = stm32_pctrl_dt_setup_irq(pdev, pctl);
+		if (ret)
+			return ret;
+	}
 
 	for_each_child_of_node(np, child)
 		if (of_property_read_bool(child, "gpio-controller"))

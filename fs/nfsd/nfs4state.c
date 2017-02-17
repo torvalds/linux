@@ -217,7 +217,7 @@ find_blocked_lock(struct nfs4_lockowner *lo, struct knfsd_fh *fh,
 {
 	struct nfsd4_blocked_lock *cur, *found = NULL;
 
-	spin_lock(&nn->client_lock);
+	spin_lock(&nn->blocked_locks_lock);
 	list_for_each_entry(cur, &lo->lo_blocked, nbl_list) {
 		if (fh_match(fh, &cur->nbl_fh)) {
 			list_del_init(&cur->nbl_list);
@@ -226,7 +226,7 @@ find_blocked_lock(struct nfs4_lockowner *lo, struct knfsd_fh *fh,
 			break;
 		}
 	}
-	spin_unlock(&nn->client_lock);
+	spin_unlock(&nn->blocked_locks_lock);
 	if (found)
 		posix_unblock_lock(&found->nbl_lock);
 	return found;
@@ -633,8 +633,8 @@ out:
 	return co;
 }
 
-struct nfs4_stid *nfs4_alloc_stid(struct nfs4_client *cl,
-					 struct kmem_cache *slab)
+struct nfs4_stid *nfs4_alloc_stid(struct nfs4_client *cl, struct kmem_cache *slab,
+				  void (*sc_free)(struct nfs4_stid *))
 {
 	struct nfs4_stid *stid;
 	int new_id;
@@ -650,6 +650,8 @@ struct nfs4_stid *nfs4_alloc_stid(struct nfs4_client *cl,
 	idr_preload_end();
 	if (new_id < 0)
 		goto out_free;
+
+	stid->sc_free = sc_free;
 	stid->sc_client = cl;
 	stid->sc_stateid.si_opaque.so_id = new_id;
 	stid->sc_stateid.si_opaque.so_clid = cl->cl_clientid;
@@ -675,15 +677,12 @@ out_free:
 static struct nfs4_ol_stateid * nfs4_alloc_open_stateid(struct nfs4_client *clp)
 {
 	struct nfs4_stid *stid;
-	struct nfs4_ol_stateid *stp;
 
-	stid = nfs4_alloc_stid(clp, stateid_slab);
+	stid = nfs4_alloc_stid(clp, stateid_slab, nfs4_free_ol_stateid);
 	if (!stid)
 		return NULL;
 
-	stp = openlockstateid(stid);
-	stp->st_stid.sc_free = nfs4_free_ol_stateid;
-	return stp;
+	return openlockstateid(stid);
 }
 
 static void nfs4_free_deleg(struct nfs4_stid *stid)
@@ -781,11 +780,10 @@ alloc_init_deleg(struct nfs4_client *clp, struct svc_fh *current_fh,
 		goto out_dec;
 	if (delegation_blocked(&current_fh->fh_handle))
 		goto out_dec;
-	dp = delegstateid(nfs4_alloc_stid(clp, deleg_slab));
+	dp = delegstateid(nfs4_alloc_stid(clp, deleg_slab, nfs4_free_deleg));
 	if (dp == NULL)
 		goto out_dec;
 
-	dp->dl_stid.sc_free = nfs4_free_deleg;
 	/*
 	 * delegation seqid's are never incremented.  The 4.1 special
 	 * meaning of seqid 0 isn't meaningful, really, but let's avoid
@@ -1227,9 +1225,7 @@ static void put_ol_stateid_locked(struct nfs4_ol_stateid *stp,
 
 static bool unhash_lock_stateid(struct nfs4_ol_stateid *stp)
 {
-	struct nfs4_openowner *oo = openowner(stp->st_openstp->st_stateowner);
-
-	lockdep_assert_held(&oo->oo_owner.so_client->cl_lock);
+	lockdep_assert_held(&stp->st_stid.sc_client->cl_lock);
 
 	list_del_init(&stp->st_locks);
 	nfs4_unhash_stid(&stp->st_stid);
@@ -1238,12 +1234,12 @@ static bool unhash_lock_stateid(struct nfs4_ol_stateid *stp)
 
 static void release_lock_stateid(struct nfs4_ol_stateid *stp)
 {
-	struct nfs4_openowner *oo = openowner(stp->st_openstp->st_stateowner);
+	struct nfs4_client *clp = stp->st_stid.sc_client;
 	bool unhashed;
 
-	spin_lock(&oo->oo_owner.so_client->cl_lock);
+	spin_lock(&clp->cl_lock);
 	unhashed = unhash_lock_stateid(stp);
-	spin_unlock(&oo->oo_owner.so_client->cl_lock);
+	spin_unlock(&clp->cl_lock);
 	if (unhashed)
 		nfs4_put_stid(&stp->st_stid);
 }
@@ -4665,7 +4661,7 @@ nfs4_laundromat(struct nfsd_net *nn)
 	 * indefinitely once the lock does become free.
 	 */
 	BUG_ON(!list_empty(&reaplist));
-	spin_lock(&nn->client_lock);
+	spin_lock(&nn->blocked_locks_lock);
 	while (!list_empty(&nn->blocked_locks_lru)) {
 		nbl = list_first_entry(&nn->blocked_locks_lru,
 					struct nfsd4_blocked_lock, nbl_lru);
@@ -4678,7 +4674,7 @@ nfs4_laundromat(struct nfsd_net *nn)
 		list_move(&nbl->nbl_lru, &reaplist);
 		list_del_init(&nbl->nbl_list);
 	}
-	spin_unlock(&nn->client_lock);
+	spin_unlock(&nn->blocked_locks_lock);
 
 	while (!list_empty(&reaplist)) {
 		nbl = list_first_entry(&nn->blocked_locks_lru,
@@ -5439,13 +5435,13 @@ nfsd4_lm_notify(struct file_lock *fl)
 	bool queue = false;
 
 	/* An empty list means that something else is going to be using it */
-	spin_lock(&nn->client_lock);
+	spin_lock(&nn->blocked_locks_lock);
 	if (!list_empty(&nbl->nbl_list)) {
 		list_del_init(&nbl->nbl_list);
 		list_del_init(&nbl->nbl_lru);
 		queue = true;
 	}
-	spin_unlock(&nn->client_lock);
+	spin_unlock(&nn->blocked_locks_lock);
 
 	if (queue)
 		nfsd4_run_cb(&nbl->nbl_cb);
@@ -5582,7 +5578,6 @@ init_lock_stateid(struct nfs4_ol_stateid *stp, struct nfs4_lockowner *lo,
 	stp->st_stateowner = nfs4_get_stateowner(&lo->lo_owner);
 	get_nfs4_file(fp);
 	stp->st_stid.sc_file = fp;
-	stp->st_stid.sc_free = nfs4_free_lock_stateid;
 	stp->st_access_bmap = 0;
 	stp->st_deny_bmap = open_stp->st_deny_bmap;
 	stp->st_openstp = open_stp;
@@ -5625,7 +5620,7 @@ find_or_create_lock_stateid(struct nfs4_lockowner *lo, struct nfs4_file *fi,
 	lst = find_lock_stateid(lo, fi);
 	if (lst == NULL) {
 		spin_unlock(&clp->cl_lock);
-		ns = nfs4_alloc_stid(clp, stateid_slab);
+		ns = nfs4_alloc_stid(clp, stateid_slab, nfs4_free_lock_stateid);
 		if (ns == NULL)
 			return NULL;
 
@@ -5868,10 +5863,10 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	if (fl_flags & FL_SLEEP) {
 		nbl->nbl_time = jiffies;
-		spin_lock(&nn->client_lock);
+		spin_lock(&nn->blocked_locks_lock);
 		list_add_tail(&nbl->nbl_list, &lock_sop->lo_blocked);
 		list_add_tail(&nbl->nbl_lru, &nn->blocked_locks_lru);
-		spin_unlock(&nn->client_lock);
+		spin_unlock(&nn->blocked_locks_lock);
 	}
 
 	err = vfs_lock_file(filp, F_SETLK, file_lock, conflock);
@@ -5900,10 +5895,10 @@ out:
 	if (nbl) {
 		/* dequeue it if we queued it before */
 		if (fl_flags & FL_SLEEP) {
-			spin_lock(&nn->client_lock);
+			spin_lock(&nn->blocked_locks_lock);
 			list_del_init(&nbl->nbl_list);
 			list_del_init(&nbl->nbl_lru);
-			spin_unlock(&nn->client_lock);
+			spin_unlock(&nn->blocked_locks_lock);
 		}
 		free_blocked_lock(nbl);
 	}
@@ -6943,8 +6938,10 @@ static int nfs4_state_create_net(struct net *net)
 	INIT_LIST_HEAD(&nn->client_lru);
 	INIT_LIST_HEAD(&nn->close_lru);
 	INIT_LIST_HEAD(&nn->del_recall_lru);
-	INIT_LIST_HEAD(&nn->blocked_locks_lru);
 	spin_lock_init(&nn->client_lock);
+
+	spin_lock_init(&nn->blocked_locks_lock);
+	INIT_LIST_HEAD(&nn->blocked_locks_lru);
 
 	INIT_DELAYED_WORK(&nn->laundromat_work, laundromat_main);
 	get_net(net);
@@ -7063,14 +7060,14 @@ nfs4_state_shutdown_net(struct net *net)
 	}
 
 	BUG_ON(!list_empty(&reaplist));
-	spin_lock(&nn->client_lock);
+	spin_lock(&nn->blocked_locks_lock);
 	while (!list_empty(&nn->blocked_locks_lru)) {
 		nbl = list_first_entry(&nn->blocked_locks_lru,
 					struct nfsd4_blocked_lock, nbl_lru);
 		list_move(&nbl->nbl_lru, &reaplist);
 		list_del_init(&nbl->nbl_list);
 	}
-	spin_unlock(&nn->client_lock);
+	spin_unlock(&nn->blocked_locks_lock);
 
 	while (!list_empty(&reaplist)) {
 		nbl = list_first_entry(&nn->blocked_locks_lru,

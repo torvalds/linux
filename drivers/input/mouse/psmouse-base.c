@@ -1115,10 +1115,6 @@ static int psmouse_extensions(struct psmouse *psmouse,
 		if (psmouse_try_protocol(psmouse, PSMOUSE_TOUCHKIT_PS2,
 					 &max_proto, set_properties, true))
 			return PSMOUSE_TOUCHKIT_PS2;
-
-		if (psmouse_try_protocol(psmouse, PSMOUSE_BYD,
-					 &max_proto, set_properties, true))
-			return PSMOUSE_BYD;
 	}
 
 	/*

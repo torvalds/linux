@@ -43,52 +43,52 @@
 		enable-active-high;
 	};
 
-	leds0 {
+	leds-iio {
+		status = "disabled";
 		compatible = "gpio-leds";
-
-		led0 {
+		led-out0 {
 			label = "out0";
 			gpios = <&tpic2810 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		led1 {
+		led-out1 {
 			label = "out1";
 			gpios = <&tpic2810 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		led2 {
+		led-out2 {
 			label = "out2";
 			gpios = <&tpic2810 2 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		led3 {
+		led-out3 {
 			label = "out3";
 			gpios = <&tpic2810 3 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		led4 {
+		led-out4 {
 			label = "out4";
 			gpios = <&tpic2810 4 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		led5 {
+		led-out5 {
 			label = "out5";
 			gpios = <&tpic2810 5 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		led6 {
+		led-out6 {
 			label = "out6";
 			gpios = <&tpic2810 6 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		led7 {
+		led-out7 {
 			label = "out7";
 			gpios = <&tpic2810 7 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
@@ -170,7 +170,6 @@
 			AM33XX_IOPAD(0x8fc, PIN_INPUT_PULLUP | MUX_MODE0) /* (G16) mmc0_dat0.mmc0_dat0 */
 			AM33XX_IOPAD(0x900, PIN_INPUT_PULLUP | MUX_MODE0) /* (G17) mmc0_clk.mmc0_clk */
 			AM33XX_IOPAD(0x904, PIN_INPUT_PULLUP | MUX_MODE0) /* (G18) mmc0_cmd.mmc0_cmd */
-			AM33XX_IOPAD(0x960, PIN_INPUT_PULLUP | MUX_MODE5) /* (C15) spi0_cs1.mmc0_sdcd */
 		>;
 	};
 
@@ -187,6 +186,8 @@
 			AM33XX_IOPAD(0x954, PIN_INPUT_PULLUP | MUX_MODE0) /* (B17) spi0_d0.spi0_d0 */
 			AM33XX_IOPAD(0x958, PIN_INPUT_PULLUP | MUX_MODE0) /* (B16) spi0_d1.spi0_d1 */
 			AM33XX_IOPAD(0x95c, PIN_INPUT_PULLUP | MUX_MODE0) /* (A16) spi0_cs0.spi0_cs0 */
+			AM33XX_IOPAD(0x960, PIN_INPUT_PULLUP | MUX_MODE0) /* (C15) spi0_cs1.spi0_cs1 */
+			AM33XX_IOPAD(0x9a0, PIN_INPUT_PULLUP | MUX_MODE7) /* (B12) mcasp0_aclkr.gpio3[18] */
 		>;
 	};
 
@@ -221,6 +222,31 @@
 		reg = <0x41>;
 		gpio-controller;
 		#gpio-cells = <2>;
+	};
+};
+
+&spi0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_pins_default>;
+
+	sn65hvs882@1 {
+		compatible = "pisosr-gpio";
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		load-gpios = <&gpio3 18 GPIO_ACTIVE_LOW>;
+
+		reg = <1>;
+		spi-max-frequency = <1000000>;
+		spi-cpol;
+	};
+};
+
+&tscadc {
+	status = "okay";
+	adc {
+		ti,adc-channels = <1 2 3 4 5 6 7>;
 	};
 };
 

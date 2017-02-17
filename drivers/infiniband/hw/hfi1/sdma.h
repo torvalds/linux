@@ -667,7 +667,13 @@ int ext_coal_sdma_tx_descs(struct hfi1_devdata *dd, struct sdma_txreq *tx,
 			   int type, void *kvaddr, struct page *page,
 			   unsigned long offset, u16 len);
 int _pad_sdma_tx_descs(struct hfi1_devdata *, struct sdma_txreq *);
-void sdma_txclean(struct hfi1_devdata *, struct sdma_txreq *);
+void __sdma_txclean(struct hfi1_devdata *, struct sdma_txreq *);
+
+static inline void sdma_txclean(struct hfi1_devdata *dd, struct sdma_txreq *tx)
+{
+	if (tx->num_desc)
+		__sdma_txclean(dd, tx);
+}
 
 /* helpers used by public routines */
 static inline void _sdma_close_tx(struct hfi1_devdata *dd,
@@ -753,7 +759,7 @@ static inline int sdma_txadd_page(
 		       DMA_TO_DEVICE);
 
 	if (unlikely(dma_mapping_error(&dd->pcidev->dev, addr))) {
-		sdma_txclean(dd, tx);
+		__sdma_txclean(dd, tx);
 		return -ENOSPC;
 	}
 
@@ -834,7 +840,7 @@ static inline int sdma_txadd_kvaddr(
 		       DMA_TO_DEVICE);
 
 	if (unlikely(dma_mapping_error(&dd->pcidev->dev, addr))) {
-		sdma_txclean(dd, tx);
+		__sdma_txclean(dd, tx);
 		return -ENOSPC;
 	}
 

@@ -190,10 +190,13 @@ unsigned int munlock_vma_page(struct page *page)
 	 */
 	spin_lock_irq(zone_lru_lock(zone));
 
-	nr_pages = hpage_nr_pages(page);
-	if (!TestClearPageMlocked(page))
+	if (!TestClearPageMlocked(page)) {
+		/* Potentially, PTE-mapped THP: do not skip the rest PTEs */
+		nr_pages = 1;
 		goto unlock_out;
+	}
 
+	nr_pages = hpage_nr_pages(page);
 	__mod_zone_page_state(zone, NR_MLOCK, -nr_pages);
 
 	if (__munlock_isolate_lru_page(page, true)) {

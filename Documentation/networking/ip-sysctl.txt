@@ -610,8 +610,13 @@ tcp_syn_retries - INTEGER
 	with the current initial RTO of 1second. With this the final timeout
 	for an active TCP connection attempt will happen after 127seconds.
 
-tcp_timestamps - BOOLEAN
-	Enable timestamps as defined in RFC1323.
+tcp_timestamps - INTEGER
+Enable timestamps as defined in RFC1323.
+	0: Disabled.
+	1: Enable timestamps as defined in RFC1323 and use random offset for
+	each connection rather than only using the current time.
+	2: Like 1, but without random offsets.
+	Default: 1
 
 tcp_min_tso_segs - INTEGER
 	Minimal number of segments per TSO frame.
@@ -966,6 +971,21 @@ igmp_qrv - INTEGER
 	Controls the IGMP query robustness variable (see RFC2236 8.1).
 	Default: 2 (as specified by RFC2236 8.1)
 	Minimum: 1 (as specified by RFC6636 4.5)
+
+force_igmp_version - INTEGER
+	0 - (default) No enforcement of a IGMP version, IGMPv1/v2 fallback
+	    allowed. Will back to IGMPv3 mode again if all IGMPv1/v2 Querier
+	    Present timer expires.
+	1 - Enforce to use IGMP version 1. Will also reply IGMPv1 report if
+	    receive IGMPv2/v3 query.
+	2 - Enforce to use IGMP version 2. Will fallback to IGMPv1 if receive
+	    IGMPv1 query message. Will reply report if receive IGMPv3 query.
+	3 - Enforce to use IGMP version 3. The same react with default 0.
+
+	Note: this is not the same with force_mld_version because IGMPv3 RFC3376
+	Security Considerations does not have clear description that we could
+	ignore other version messages completely as MLDv2 RFC3810. So make
+	this value as default 0 is recommended.
 
 conf/interface/*  changes special settings per interface (where
 "interface" is the name of your network interface)
@@ -1713,6 +1733,15 @@ drop_unsolicited_na - BOOLEAN
 	(or in the case of 802.11, must not be used to prevent attacks.)
 
 	By default this is turned off.
+
+enhanced_dad - BOOLEAN
+	Include a nonce option in the IPv6 neighbor solicitation messages used for
+	duplicate address detection per RFC7527. A received DAD NS will only signal
+	a duplicate address if the nonce is different. This avoids any false
+	detection of duplicates due to loopback of the NS messages that we send.
+	The nonce option will be sent on an interface unless both of
+	conf/{all,interface}/enhanced_dad are set to FALSE.
+	Default: TRUE
 
 icmp/*:
 ratelimit - INTEGER

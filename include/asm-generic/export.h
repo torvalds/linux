@@ -9,17 +9,14 @@
 #ifndef KSYM_ALIGN
 #define KSYM_ALIGN 8
 #endif
-#ifndef KCRC_ALIGN
-#define KCRC_ALIGN 8
-#endif
 #else
 #define __put .long
 #ifndef KSYM_ALIGN
 #define KSYM_ALIGN 4
 #endif
+#endif
 #ifndef KCRC_ALIGN
 #define KCRC_ALIGN 4
-#endif
 #endif
 
 #ifdef CONFIG_HAVE_UNDERSCORE_SYMBOL_PREFIX
@@ -52,7 +49,11 @@ KSYM(__kstrtab_\name):
 	.section ___kcrctab\sec+\name,"a"
 	.balign KCRC_ALIGN
 KSYM(__kcrctab_\name):
-	__put KSYM(__crc_\name)
+#if defined(CONFIG_MODULE_REL_CRCS)
+	.long KSYM(__crc_\name) - .
+#else
+	.long KSYM(__crc_\name)
+#endif
 	.weak KSYM(__crc_\name)
 	.previous
 #endif
@@ -70,7 +71,7 @@ KSYM(__kcrctab_\name):
 #include <generated/autoksyms.h>
 
 #define __EXPORT_SYMBOL(sym, val, sec)				\
-	__cond_export_sym(sym, val, sec, config_enabled(__KSYM_##sym))
+	__cond_export_sym(sym, val, sec, __is_defined(__KSYM_##sym))
 #define __cond_export_sym(sym, val, sec, conf)			\
 	___cond_export_sym(sym, val, sec, conf)
 #define ___cond_export_sym(sym, val, sec, enabled)		\

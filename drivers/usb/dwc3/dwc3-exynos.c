@@ -20,7 +20,6 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
-#include <linux/dma-mapping.h>
 #include <linux/clk.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/usb_phy_generic.h>
@@ -117,15 +116,6 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	if (!exynos)
 		return -ENOMEM;
 
-	/*
-	 * Right now device-tree probed devices don't get dma_mask set.
-	 * Since shared usb code relies on it, set it here for now.
-	 * Once we move to full device tree support this will vanish off.
-	 */
-	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(32));
-	if (ret)
-		return ret;
-
 	platform_set_drvdata(pdev, exynos);
 
 	exynos->dev	= dev;
@@ -148,7 +138,8 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 		exynos->axius_clk = devm_clk_get(dev, "usbdrd30_axius_clk");
 		if (IS_ERR(exynos->axius_clk)) {
 			dev_err(dev, "no AXI UpScaler clk specified\n");
-			return -ENODEV;
+			ret = -ENODEV;
+			goto axius_clk_err;
 		}
 		clk_prepare_enable(exynos->axius_clk);
 	} else {
@@ -206,6 +197,7 @@ err3:
 	regulator_disable(exynos->vdd33);
 err2:
 	clk_disable_unprepare(exynos->axius_clk);
+axius_clk_err:
 	clk_disable_unprepare(exynos->susp_clk);
 	clk_disable_unprepare(exynos->clk);
 	return ret;

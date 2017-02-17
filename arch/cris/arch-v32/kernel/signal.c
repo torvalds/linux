@@ -18,7 +18,7 @@
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/ucontext.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <arch/hwregs/cpu_vect.h>
 
 extern unsigned long cris_signal_return_page;

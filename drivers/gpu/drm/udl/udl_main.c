@@ -98,17 +98,23 @@ success:
 static int udl_select_std_channel(struct udl_device *udl)
 {
 	int ret;
-	u8 set_def_chn[] = {0x57, 0xCD, 0xDC, 0xA7,
-			    0x1C, 0x88, 0x5E, 0x15,
-			    0x60, 0xFE, 0xC6, 0x97,
-			    0x16, 0x3D, 0x47, 0xF2};
+	static const u8 set_def_chn[] = {0x57, 0xCD, 0xDC, 0xA7,
+					 0x1C, 0x88, 0x5E, 0x15,
+					 0x60, 0xFE, 0xC6, 0x97,
+					 0x16, 0x3D, 0x47, 0xF2};
+	void *sendbuf;
+
+	sendbuf = kmemdup(set_def_chn, sizeof(set_def_chn), GFP_KERNEL);
+	if (!sendbuf)
+		return -ENOMEM;
 
 	ret = usb_control_msg(udl->udev,
 			      usb_sndctrlpipe(udl->udev, 0),
 			      NR_USB_REQUEST_CHANNEL,
 			      (USB_DIR_OUT | USB_TYPE_VENDOR), 0, 0,
-			      set_def_chn, sizeof(set_def_chn),
+			      sendbuf, sizeof(set_def_chn),
 			      USB_CTRL_SET_TIMEOUT);
+	kfree(sendbuf);
 	return ret < 0 ? ret : 0;
 }
 

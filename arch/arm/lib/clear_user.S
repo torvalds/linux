@@ -10,7 +10,6 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/unwind.h>
-#include <asm/export.h>
 
 		.text
 
@@ -51,9 +50,6 @@ USER(		strnebt	r2, [r0])
 UNWIND(.fnend)
 ENDPROC(arm_clear_user)
 ENDPROC(__clear_user_std)
-#ifndef CONFIG_UACCESS_WITH_MEMCPY
-EXPORT_SYMBOL(arm_clear_user)
-#endif
 
 		.pushsection .text.fixup,"ax"
 		.align	0

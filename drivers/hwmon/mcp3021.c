@@ -4,6 +4,7 @@
  * Copyright (C) 2008-2009, 2012 Freescale Semiconductor, Inc.
  * Author: Mingkai Hu <Mingkai.hu@freescale.com>
  * Reworked by Sven Schuchmann <schuchmann@schleissheimer.de>
+ * DT support added by Clemens Gruber <clemens.gruber@pqgruber.com>
  *
  * This driver export the value of analog input voltage to sysfs, the
  * voltage unit is mV. Through the sysfs interface, lm-sensors tool
@@ -22,11 +23,13 @@
 #include <linux/i2c.h>
 #include <linux/err.h>
 #include <linux/device.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
-/* Vdd info */
-#define MCP3021_VDD_MAX		5500
-#define MCP3021_VDD_MIN		2700
-#define MCP3021_VDD_REF		3300
+/* Vdd / reference voltage in millivolt */
+#define MCP3021_VDD_REF_MAX	5500
+#define MCP3021_VDD_REF_MIN	2700
+#define MCP3021_VDD_REF_DEFAULT	3300
 
 /* output format */
 #define MCP3021_SAR_SHIFT	2
@@ -47,7 +50,7 @@ enum chips {
  */
 struct mcp3021_data {
 	struct device *hwmon_dev;
-	u32 vdd;	/* device power supply */
+	u32 vdd;        /* supply and reference voltage in millivolt */
 	u16 sar_shift;
 	u16 sar_mask;
 	u8 output_res;
@@ -99,13 +102,14 @@ static ssize_t show_in_input(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", in_input);
 }
 
-static DEVICE_ATTR(in0_input, S_IRUGO, show_in_input, NULL);
+static DEVICE_ATTR(in0_input, 0444, show_in_input, NULL);
 
 static int mcp3021_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	int err;
 	struct mcp3021_data *data = NULL;
+	struct device_node *np = client->dev.of_node;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
@@ -116,6 +120,21 @@ static int mcp3021_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
+
+	if (np) {
+		if (!of_property_read_u32(np, "reference-voltage-microvolt",
+					  &data->vdd))
+			data->vdd /= 1000;
+		else
+			data->vdd = MCP3021_VDD_REF_DEFAULT;
+	} else {
+		u32 *pdata = dev_get_platdata(&client->dev);
+
+		if (pdata)
+			data->vdd = *pdata;
+		else
+			data->vdd = MCP3021_VDD_REF_DEFAULT;
+	}
 
 	switch (id->driver_data) {
 	case mcp3021:
@@ -131,13 +150,8 @@ static int mcp3021_probe(struct i2c_client *client,
 		break;
 	}
 
-	if (dev_get_platdata(&client->dev)) {
-		data->vdd = *(u32 *)dev_get_platdata(&client->dev);
-		if (data->vdd > MCP3021_VDD_MAX || data->vdd < MCP3021_VDD_MIN)
-			return -EINVAL;
-	} else {
-		data->vdd = MCP3021_VDD_REF;
-	}
+	if (data->vdd > MCP3021_VDD_REF_MAX || data->vdd < MCP3021_VDD_REF_MIN)
+		return -EINVAL;
 
 	err = sysfs_create_file(&client->dev.kobj, &dev_attr_in0_input.attr);
 	if (err)
@@ -173,9 +187,19 @@ static const struct i2c_device_id mcp3021_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, mcp3021_id);
 
+#ifdef CONFIG_OF
+static const struct of_device_id of_mcp3021_match[] = {
+	{ .compatible = "microchip,mcp3021", .data = (void *)mcp3021 },
+	{ .compatible = "microchip,mcp3221", .data = (void *)mcp3221 },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, of_mcp3021_match);
+#endif
+
 static struct i2c_driver mcp3021_driver = {
 	.driver = {
 		.name = "mcp3021",
+		.of_match_table = of_match_ptr(of_mcp3021_match),
 	},
 	.probe = mcp3021_probe,
 	.remove = mcp3021_remove,

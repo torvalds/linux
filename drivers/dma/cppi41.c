@@ -153,6 +153,8 @@ struct cppi41_dd {
 
 	/* context for suspend/resume */
 	unsigned int dma_tdfdq;
+
+	bool is_suspended;
 };
 
 #define FIST_COMPLETION_QUEUE	93
@@ -257,6 +259,10 @@ static struct cppi41_channel *desc_to_chan(struct cppi41_dd *cdd, u32 desc)
 	BUG_ON(desc_num >= ALLOC_DECS_NUM);
 	c = cdd->chan_busy[desc_num];
 	cdd->chan_busy[desc_num] = NULL;
+
+	/* Usecount for chan_busy[], paired with push_desc_queue() */
+	pm_runtime_put(cdd->ddev.dev);
+
 	return c;
 }
 
@@ -318,6 +324,12 @@ static irqreturn_t cppi41_irq(int irq, void *data)
 		while (val) {
 			u32 desc, len;
 
+			/*
+			 * This should never trigger, see the comments in
+			 * push_desc_queue()
+			 */
+			WARN_ON(cdd->is_suspended);
+
 			q_num = __fls(val);
 			val &= ~(1 << q_num);
 			q_num += 32 * i;
@@ -337,10 +349,6 @@ static irqreturn_t cppi41_irq(int irq, void *data)
 			c->residue = pd_trans_len(c->desc->pd6) - len;
 			dma_cookie_complete(&c->txd);
 			dmaengine_desc_get_callback_invoke(&c->txd, NULL);
-
-			/* Paired with cppi41_dma_issue_pending */
-			pm_runtime_mark_last_busy(cdd->ddev.dev);
-			pm_runtime_put_autosuspend(cdd->ddev.dev);
 		}
 	}
 	return IRQ_HANDLED;
@@ -362,8 +370,13 @@ static int cppi41_dma_alloc_chan_resources(struct dma_chan *chan)
 	int error;
 
 	error = pm_runtime_get_sync(cdd->ddev.dev);
-	if (error < 0)
+	if (error < 0) {
+		dev_err(cdd->ddev.dev, "%s pm runtime get: %i\n",
+			__func__, error);
+		pm_runtime_put_noidle(cdd->ddev.dev);
+
 		return error;
+	}
 
 	dma_cookie_init(chan);
 	dma_async_tx_descriptor_init(&c->txd, chan);
@@ -385,8 +398,11 @@ static void cppi41_dma_free_chan_resources(struct dma_chan *chan)
 	int error;
 
 	error = pm_runtime_get_sync(cdd->ddev.dev);
-	if (error < 0)
+	if (error < 0) {
+		pm_runtime_put_noidle(cdd->ddev.dev);
+
 		return;
+	}
 
 	WARN_ON(!list_empty(&cdd->pending));
 
@@ -434,6 +450,15 @@ static void push_desc_queue(struct cppi41_channel *c)
 	 */
 	__iowmb();
 
+	/*
+	 * DMA transfers can take at least 200ms to complete with USB mass
+	 * storage connected. To prevent autosuspend timeouts, we must use
+	 * pm_runtime_get/put() when chan_busy[] is modified. This will get
+	 * cleared in desc_to_chan() or cppi41_stop_chan() depending on the
+	 * outcome of the transfer.
+	 */
+	pm_runtime_get(cdd->ddev.dev);
+
 	desc_phys = lower_32_bits(c->desc_phys);
 	desc_num = (desc_phys - cdd->descs_phys) / sizeof(struct cppi41_desc);
 	WARN_ON(cdd->chan_busy[desc_num]);
@@ -444,35 +469,45 @@ static void push_desc_queue(struct cppi41_channel *c)
 	cppi_writel(reg, cdd->qmgr_mem + QMGR_QUEUE_D(c->q_num));
 }
 
-static void pending_desc(struct cppi41_channel *c)
+/*
+ * Caller must hold cdd->lock to prevent push_desc_queue()
+ * getting called out of order. We have both cppi41_dma_issue_pending()
+ * and cppi41_runtime_resume() call this function.
+ */
+static void cppi41_run_queue(struct cppi41_dd *cdd)
 {
-	struct cppi41_dd *cdd = c->cdd;
-	unsigned long flags;
+	struct cppi41_channel *c, *_c;
 
-	spin_lock_irqsave(&cdd->lock, flags);
-	list_add_tail(&c->node, &cdd->pending);
-	spin_unlock_irqrestore(&cdd->lock, flags);
+	list_for_each_entry_safe(c, _c, &cdd->pending, node) {
+		push_desc_queue(c);
+		list_del(&c->node);
+	}
 }
 
 static void cppi41_dma_issue_pending(struct dma_chan *chan)
 {
 	struct cppi41_channel *c = to_cpp41_chan(chan);
 	struct cppi41_dd *cdd = c->cdd;
+	unsigned long flags;
 	int error;
 
-	/* PM runtime paired with dmaengine_desc_get_callback_invoke */
 	error = pm_runtime_get(cdd->ddev.dev);
 	if ((error != -EINPROGRESS) && error < 0) {
+		pm_runtime_put_noidle(cdd->ddev.dev);
 		dev_err(cdd->ddev.dev, "Failed to pm_runtime_get: %i\n",
 			error);
 
 		return;
 	}
 
-	if (likely(pm_runtime_active(cdd->ddev.dev)))
-		push_desc_queue(c);
-	else
-		pending_desc(c);
+	spin_lock_irqsave(&cdd->lock, flags);
+	list_add_tail(&c->node, &cdd->pending);
+	if (!cdd->is_suspended)
+		cppi41_run_queue(cdd);
+	spin_unlock_irqrestore(&cdd->lock, flags);
+
+	pm_runtime_mark_last_busy(cdd->ddev.dev);
+	pm_runtime_put_autosuspend(cdd->ddev.dev);
 }
 
 static u32 get_host_pd0(u32 length)
@@ -688,6 +723,9 @@ static int cppi41_stop_chan(struct dma_chan *chan)
 
 	WARN_ON(!cdd->chan_busy[desc_num]);
 	cdd->chan_busy[desc_num] = NULL;
+
+	/* Usecount for chan_busy[], paired with push_desc_queue() */
+	pm_runtime_put(cdd->ddev.dev);
 
 	return 0;
 }
@@ -1059,8 +1097,8 @@ err_chans:
 	deinit_cppi41(dev, cdd);
 err_init_cppi:
 	pm_runtime_dont_use_autosuspend(dev);
-	pm_runtime_put_sync(dev);
 err_get_sync:
+	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
 	iounmap(cdd->usbss_mem);
 	iounmap(cdd->ctrl_mem);
@@ -1072,7 +1110,12 @@ err_get_sync:
 static int cppi41_dma_remove(struct platform_device *pdev)
 {
 	struct cppi41_dd *cdd = platform_get_drvdata(pdev);
+	int error;
 
+	error = pm_runtime_get_sync(&pdev->dev);
+	if (error < 0)
+		dev_err(&pdev->dev, "%s could not pm_runtime_get: %i\n",
+			__func__, error);
 	of_dma_controller_free(pdev->dev.of_node);
 	dma_async_device_unregister(&cdd->ddev);
 
@@ -1129,8 +1172,12 @@ static int __maybe_unused cppi41_resume(struct device *dev)
 static int __maybe_unused cppi41_runtime_suspend(struct device *dev)
 {
 	struct cppi41_dd *cdd = dev_get_drvdata(dev);
+	unsigned long flags;
 
+	spin_lock_irqsave(&cdd->lock, flags);
+	cdd->is_suspended = true;
 	WARN_ON(!list_empty(&cdd->pending));
+	spin_unlock_irqrestore(&cdd->lock, flags);
 
 	return 0;
 }
@@ -1138,14 +1185,11 @@ static int __maybe_unused cppi41_runtime_suspend(struct device *dev)
 static int __maybe_unused cppi41_runtime_resume(struct device *dev)
 {
 	struct cppi41_dd *cdd = dev_get_drvdata(dev);
-	struct cppi41_channel *c, *_c;
 	unsigned long flags;
 
 	spin_lock_irqsave(&cdd->lock, flags);
-	list_for_each_entry_safe(c, _c, &cdd->pending, node) {
-		push_desc_queue(c);
-		list_del(&c->node);
-	}
+	cdd->is_suspended = false;
+	cppi41_run_queue(cdd);
 	spin_unlock_irqrestore(&cdd->lock, flags);
 
 	return 0;

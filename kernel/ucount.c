@@ -128,10 +128,10 @@ static struct ucounts *get_ucounts(struct user_namespace *ns, kuid_t uid)
 	struct hlist_head *hashent = ucounts_hashentry(ns, uid);
 	struct ucounts *ucounts, *new;
 
-	spin_lock(&ucounts_lock);
+	spin_lock_irq(&ucounts_lock);
 	ucounts = find_ucounts(ns, uid, hashent);
 	if (!ucounts) {
-		spin_unlock(&ucounts_lock);
+		spin_unlock_irq(&ucounts_lock);
 
 		new = kzalloc(sizeof(*new), GFP_KERNEL);
 		if (!new)
@@ -141,7 +141,7 @@ static struct ucounts *get_ucounts(struct user_namespace *ns, kuid_t uid)
 		new->uid = uid;
 		atomic_set(&new->count, 0);
 
-		spin_lock(&ucounts_lock);
+		spin_lock_irq(&ucounts_lock);
 		ucounts = find_ucounts(ns, uid, hashent);
 		if (ucounts) {
 			kfree(new);
@@ -152,16 +152,18 @@ static struct ucounts *get_ucounts(struct user_namespace *ns, kuid_t uid)
 	}
 	if (!atomic_add_unless(&ucounts->count, 1, INT_MAX))
 		ucounts = NULL;
-	spin_unlock(&ucounts_lock);
+	spin_unlock_irq(&ucounts_lock);
 	return ucounts;
 }
 
 static void put_ucounts(struct ucounts *ucounts)
 {
+	unsigned long flags;
+
 	if (atomic_dec_and_test(&ucounts->count)) {
-		spin_lock(&ucounts_lock);
+		spin_lock_irqsave(&ucounts_lock, flags);
 		hlist_del_init(&ucounts->node);
-		spin_unlock(&ucounts_lock);
+		spin_unlock_irqrestore(&ucounts_lock, flags);
 
 		kfree(ucounts);
 	}
@@ -225,11 +227,10 @@ static __init int user_namespace_sysctl_init(void)
 	 * properly.
 	 */
 	user_header = register_sysctl("user", empty);
+	kmemleak_ignore(user_header);
 	BUG_ON(!user_header);
 	BUG_ON(!setup_userns_sysctls(&init_user_ns));
 #endif
 	return 0;
 }
 subsys_initcall(user_namespace_sysctl_init);
-
-

@@ -393,7 +393,7 @@ static int bcm_sf2_sw_mdio_read(struct mii_bus *bus, int addr, int regnum)
 	if (addr == BRCM_PSEUDO_PHY_ADDR && priv->indir_phy_mask & BIT(addr))
 		return bcm_sf2_sw_indir_rw(priv, 1, addr, regnum, 0);
 	else
-		return mdiobus_read(priv->master_mii_bus, addr, regnum);
+		return mdiobus_read_nested(priv->master_mii_bus, addr, regnum);
 }
 
 static int bcm_sf2_sw_mdio_write(struct mii_bus *bus, int addr, int regnum,
@@ -407,7 +407,7 @@ static int bcm_sf2_sw_mdio_write(struct mii_bus *bus, int addr, int regnum,
 	if (addr == BRCM_PSEUDO_PHY_ADDR && priv->indir_phy_mask & BIT(addr))
 		bcm_sf2_sw_indir_rw(priv, 0, addr, regnum, val);
 	else
-		mdiobus_write(priv->master_mii_bus, addr, regnum, val);
+		mdiobus_write_nested(priv->master_mii_bus, addr, regnum, val);
 
 	return 0;
 }
@@ -588,6 +588,7 @@ static void bcm_sf2_sw_adjust_link(struct dsa_switch *ds, int port,
 				   struct phy_device *phydev)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
+	struct ethtool_eee *p = &priv->port_sts[port].eee;
 	u32 id_mode_dis = 0, port_mode;
 	const char *str = NULL;
 	u32 reg;
@@ -662,6 +663,9 @@ force_link:
 		reg |= DUPLX_MODE;
 
 	core_writel(priv, reg, CORE_STS_OVERRIDE_GMIIP_PORT(port));
+
+	if (!phydev->is_pseudo_fixed_link)
+		p->eee_enabled = bcm_sf2_eee_init(ds, port, phydev);
 }
 
 static void bcm_sf2_sw_fixed_link_update(struct dsa_switch *ds, int port,
@@ -978,6 +982,7 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	const char *reg_names[BCM_SF2_REGS_NUM] = BCM_SF2_REGS_NAME;
 	struct device_node *dn = pdev->dev.of_node;
 	struct b53_platform_data *pdata;
+	struct dsa_switch_ops *ops;
 	struct bcm_sf2_priv *priv;
 	struct b53_device *dev;
 	struct dsa_switch *ds;
@@ -989,6 +994,10 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
+		return -ENOMEM;
+
+	ops = devm_kzalloc(&pdev->dev, sizeof(*ops), GFP_KERNEL);
+	if (!ops)
 		return -ENOMEM;
 
 	dev = b53_switch_alloc(&pdev->dev, &bcm_sf2_io_ops, priv);
@@ -1010,6 +1019,8 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	ds = dev->ds;
 
 	/* Override the parts that are non-standard wrt. normal b53 devices */
+	memcpy(ops, ds->ops, sizeof(*ops));
+	ds->ops = ops;
 	ds->ops->get_tag_protocol = bcm_sf2_sw_get_tag_protocol;
 	ds->ops->setup = bcm_sf2_sw_setup;
 	ds->ops->get_phy_flags = bcm_sf2_sw_get_phy_flags;
@@ -1133,6 +1144,20 @@ static int bcm_sf2_sw_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void bcm_sf2_sw_shutdown(struct platform_device *pdev)
+{
+	struct bcm_sf2_priv *priv = platform_get_drvdata(pdev);
+
+	/* For a kernel about to be kexec'd we want to keep the GPHY on for a
+	 * successful MDIO bus scan to occur. If we did turn off the GPHY
+	 * before (e.g: port_disable), this will also power it back on.
+	 *
+	 * Do not rely on kexec_in_progress, just power the PHY on.
+	 */
+	if (priv->hw_params.num_gphy == 1)
+		bcm_sf2_gphy_enable_set(priv->dev->ds, true);
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int bcm_sf2_suspend(struct device *dev)
 {
@@ -1158,10 +1183,12 @@ static const struct of_device_id bcm_sf2_of_match[] = {
 	{ .compatible = "brcm,bcm7445-switch-v4.0" },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, bcm_sf2_of_match);
 
 static struct platform_driver bcm_sf2_driver = {
 	.probe	= bcm_sf2_sw_probe,
 	.remove	= bcm_sf2_sw_remove,
+	.shutdown = bcm_sf2_sw_shutdown,
 	.driver = {
 		.name = "brcm-sf2",
 		.of_match_table = bcm_sf2_of_match,

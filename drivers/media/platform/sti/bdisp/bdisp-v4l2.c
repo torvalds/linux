@@ -1337,6 +1337,7 @@ static int bdisp_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
 		dev_err(dev, "failed to get IRQ resource\n");
+		ret = -EINVAL;
 		goto err_clk;
 	}
 

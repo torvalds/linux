@@ -657,7 +657,7 @@ static int at91_ebi_dev_disable(struct at91_ebi *ebi, struct device_node *np)
 		return -ENOMEM;
 
 	newprop->value = devm_kstrdup(dev, "disabled", GFP_KERNEL);
-	if (!newprop->name)
+	if (!newprop->value)
 		return -ENOMEM;
 
 	newprop->length = sizeof("disabled");

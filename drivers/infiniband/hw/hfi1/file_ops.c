@@ -172,6 +172,9 @@ static int hfi1_file_open(struct inode *inode, struct file *fp)
 					       struct hfi1_devdata,
 					       user_cdev);
 
+	if (!atomic_inc_not_zero(&dd->user_refcount))
+		return -ENXIO;
+
 	/* Just take a ref now. Not all opens result in a context assign */
 	kobject_get(&dd->kobj);
 
@@ -183,11 +186,17 @@ static int hfi1_file_open(struct inode *inode, struct file *fp)
 		fd->rec_cpu_num = -1; /* no cpu affinity by default */
 		fd->mm = current->mm;
 		atomic_inc(&fd->mm->mm_count);
+		fp->private_data = fd;
+	} else {
+		fp->private_data = NULL;
+
+		if (atomic_dec_and_test(&dd->user_refcount))
+			complete(&dd->user_comp);
+
+		return -ENOMEM;
 	}
 
-	fp->private_data = fd;
-
-	return fd ? 0 : -ENOMEM;
+	return 0;
 }
 
 static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
@@ -798,6 +807,10 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 done:
 	mmdrop(fdata->mm);
 	kobject_put(&dd->kobj);
+
+	if (atomic_dec_and_test(&dd->user_refcount))
+		complete(&dd->user_comp);
+
 	kfree(fdata);
 	return 0;
 }

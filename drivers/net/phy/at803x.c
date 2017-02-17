@@ -42,9 +42,17 @@
 #define AT803X_MMD_ACCESS_CONTROL		0x0D
 #define AT803X_MMD_ACCESS_CONTROL_DATA		0x0E
 #define AT803X_FUNC_DATA			0x4003
+#define AT803X_REG_CHIP_CONFIG			0x1f
+#define AT803X_BT_BX_REG_SEL			0x8000
 
 #define AT803X_DEBUG_ADDR			0x1D
 #define AT803X_DEBUG_DATA			0x1E
+
+#define AT803X_MODE_CFG_MASK			0x0F
+#define AT803X_MODE_CFG_SGMII			0x01
+
+#define AT803X_PSSR			0x11	/*PHY-Specific Status Register*/
+#define AT803X_PSSR_MR_AN_COMPLETE	0x0200
 
 #define AT803X_DEBUG_REG_0			0x00
 #define AT803X_DEBUG_RX_CLK_DLY_EN		BIT(15)
@@ -52,12 +60,10 @@
 #define AT803X_DEBUG_REG_5			0x05
 #define AT803X_DEBUG_TX_CLK_DLY_EN		BIT(8)
 
-#define AT803X_REG_CHIP_CONFIG			0x1f
-#define AT803X_BT_BX_REG_SEL			0x8000
-
 #define ATH8030_PHY_ID 0x004dd076
 #define ATH8031_PHY_ID 0x004dd074
 #define ATH8035_PHY_ID 0x004dd072
+#define AT803X_PHY_ID_MASK			0xffffffef
 
 MODULE_DESCRIPTION("Atheros 803x PHY driver");
 MODULE_AUTHOR("Matus Ujhelyi");
@@ -209,7 +215,6 @@ static int at803x_suspend(struct phy_device *phydev)
 {
 	int value;
 	int wol_enabled;
-	int ccr;
 
 	mutex_lock(&phydev->lock);
 
@@ -225,16 +230,6 @@ static int at803x_suspend(struct phy_device *phydev)
 
 	phy_write(phydev, MII_BMCR, value);
 
-	if (phydev->interface != PHY_INTERFACE_MODE_SGMII)
-		goto done;
-
-	/* also power-down SGMII interface */
-	ccr = phy_read(phydev, AT803X_REG_CHIP_CONFIG);
-	phy_write(phydev, AT803X_REG_CHIP_CONFIG, ccr & ~AT803X_BT_BX_REG_SEL);
-	phy_write(phydev, MII_BMCR, phy_read(phydev, MII_BMCR) | BMCR_PDOWN);
-	phy_write(phydev, AT803X_REG_CHIP_CONFIG, ccr | AT803X_BT_BX_REG_SEL);
-
-done:
 	mutex_unlock(&phydev->lock);
 
 	return 0;
@@ -243,7 +238,6 @@ done:
 static int at803x_resume(struct phy_device *phydev)
 {
 	int value;
-	int ccr;
 
 	mutex_lock(&phydev->lock);
 
@@ -251,17 +245,6 @@ static int at803x_resume(struct phy_device *phydev)
 	value &= ~(BMCR_PDOWN | BMCR_ISOLATE);
 	phy_write(phydev, MII_BMCR, value);
 
-	if (phydev->interface != PHY_INTERFACE_MODE_SGMII)
-		goto done;
-
-	/* also power-up SGMII interface */
-	ccr = phy_read(phydev, AT803X_REG_CHIP_CONFIG);
-	phy_write(phydev, AT803X_REG_CHIP_CONFIG, ccr & ~AT803X_BT_BX_REG_SEL);
-	value = phy_read(phydev, MII_BMCR) & ~(BMCR_PDOWN | BMCR_ISOLATE);
-	phy_write(phydev, MII_BMCR, value);
-	phy_write(phydev, AT803X_REG_CHIP_CONFIG, ccr | AT803X_BT_BX_REG_SEL);
-
-done:
 	mutex_unlock(&phydev->lock);
 
 	return 0;
@@ -381,12 +364,42 @@ static void at803x_link_change_notify(struct phy_device *phydev)
 	}
 }
 
+static int at803x_aneg_done(struct phy_device *phydev)
+{
+	int ccr;
+
+	int aneg_done = genphy_aneg_done(phydev);
+	if (aneg_done != BMSR_ANEGCOMPLETE)
+		return aneg_done;
+
+	/*
+	 * in SGMII mode, if copper side autoneg is successful,
+	 * also check SGMII side autoneg result
+	 */
+	ccr = phy_read(phydev, AT803X_REG_CHIP_CONFIG);
+	if ((ccr & AT803X_MODE_CFG_MASK) != AT803X_MODE_CFG_SGMII)
+		return aneg_done;
+
+	/* switch to SGMII/fiber page */
+	phy_write(phydev, AT803X_REG_CHIP_CONFIG, ccr & ~AT803X_BT_BX_REG_SEL);
+
+	/* check if the SGMII link is OK. */
+	if (!(phy_read(phydev, AT803X_PSSR) & AT803X_PSSR_MR_AN_COMPLETE)) {
+		pr_warn("803x_aneg_done: SGMII link is not ok\n");
+		aneg_done = 0;
+	}
+	/* switch back to copper page */
+	phy_write(phydev, AT803X_REG_CHIP_CONFIG, ccr | AT803X_BT_BX_REG_SEL);
+
+	return aneg_done;
+}
+
 static struct phy_driver at803x_driver[] = {
 {
 	/* ATHEROS 8035 */
 	.phy_id			= ATH8035_PHY_ID,
 	.name			= "Atheros 8035 ethernet",
-	.phy_id_mask		= 0xffffffef,
+	.phy_id_mask		= AT803X_PHY_ID_MASK,
 	.probe			= at803x_probe,
 	.config_init		= at803x_config_init,
 	.set_wol		= at803x_set_wol,
@@ -403,7 +416,7 @@ static struct phy_driver at803x_driver[] = {
 	/* ATHEROS 8030 */
 	.phy_id			= ATH8030_PHY_ID,
 	.name			= "Atheros 8030 ethernet",
-	.phy_id_mask		= 0xffffffef,
+	.phy_id_mask		= AT803X_PHY_ID_MASK,
 	.probe			= at803x_probe,
 	.config_init		= at803x_config_init,
 	.link_change_notify	= at803x_link_change_notify,
@@ -421,7 +434,7 @@ static struct phy_driver at803x_driver[] = {
 	/* ATHEROS 8031 */
 	.phy_id			= ATH8031_PHY_ID,
 	.name			= "Atheros 8031 ethernet",
-	.phy_id_mask		= 0xffffffef,
+	.phy_id_mask		= AT803X_PHY_ID_MASK,
 	.probe			= at803x_probe,
 	.config_init		= at803x_config_init,
 	.set_wol		= at803x_set_wol,
@@ -432,6 +445,7 @@ static struct phy_driver at803x_driver[] = {
 	.flags			= PHY_HAS_INTERRUPT,
 	.config_aneg		= genphy_config_aneg,
 	.read_status		= genphy_read_status,
+	.aneg_done		= at803x_aneg_done,
 	.ack_interrupt		= &at803x_ack_interrupt,
 	.config_intr		= &at803x_config_intr,
 } };
@@ -439,9 +453,9 @@ static struct phy_driver at803x_driver[] = {
 module_phy_driver(at803x_driver);
 
 static struct mdio_device_id __maybe_unused atheros_tbl[] = {
-	{ ATH8030_PHY_ID, 0xffffffef },
-	{ ATH8031_PHY_ID, 0xffffffef },
-	{ ATH8035_PHY_ID, 0xffffffef },
+	{ ATH8030_PHY_ID, AT803X_PHY_ID_MASK },
+	{ ATH8031_PHY_ID, AT803X_PHY_ID_MASK },
+	{ ATH8035_PHY_ID, AT803X_PHY_ID_MASK },
 	{ }
 };
 

@@ -96,7 +96,13 @@ void set_affinity(const char *arg)
 	assert(!ret);
 }
 
-static void run_guest(void)
+void poll_used(void)
+{
+	while (used_empty())
+		busy_wait();
+}
+
+static void __attribute__((__flatten__)) run_guest(void)
 {
 	int completed_before;
 	int completed = 0;
@@ -141,7 +147,7 @@ static void run_guest(void)
 		assert(completed <= bufs);
 		assert(started <= bufs);
 		if (do_sleep) {
-			if (enable_call())
+			if (used_empty() && enable_call())
 				wait_for_call();
 		} else {
 			poll_used();
@@ -149,7 +155,13 @@ static void run_guest(void)
 	}
 }
 
-static void run_host(void)
+void poll_avail(void)
+{
+	while (avail_empty())
+		busy_wait();
+}
+
+static void __attribute__((__flatten__)) run_host(void)
 {
 	int completed_before;
 	int completed = 0;
@@ -160,7 +172,7 @@ static void run_host(void)
 
 	for (;;) {
 		if (do_sleep) {
-			if (enable_kick())
+			if (avail_empty() && enable_kick())
 				wait_for_kick();
 		} else {
 			poll_avail();

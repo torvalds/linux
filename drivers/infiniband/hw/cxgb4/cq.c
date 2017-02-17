@@ -505,6 +505,15 @@ static int poll_cq(struct t4_wq *wq, struct t4_cq *cq, struct t4_cqe *cqe,
 	}
 
 	/*
+	 * Special cqe for drain WR completions...
+	 */
+	if (CQE_OPCODE(hw_cqe) == C4IW_DRAIN_OPCODE) {
+		*cookie = CQE_DRAIN_COOKIE(hw_cqe);
+		*cqe = *hw_cqe;
+		goto skip_cqe;
+	}
+
+	/*
 	 * Gotta tweak READ completions:
 	 *	1) the cqe doesn't contain the sq_wptr from the wr.
 	 *	2) opcode not reflected from the wr.
@@ -666,18 +675,6 @@ skip_cqe:
 	return ret;
 }
 
-static void invalidate_mr(struct c4iw_dev *rhp, u32 rkey)
-{
-	struct c4iw_mr *mhp;
-	unsigned long flags;
-
-	spin_lock_irqsave(&rhp->lock, flags);
-	mhp = get_mhp(rhp, rkey >> 8);
-	if (mhp)
-		mhp->attr.state = 0;
-	spin_unlock_irqrestore(&rhp->lock, flags);
-}
-
 /*
  * Get one cq entry from c4iw and map it to openib.
  *
@@ -733,7 +730,7 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 		    CQE_OPCODE(&cqe) == FW_RI_SEND_WITH_SE_INV) {
 			wc->ex.invalidate_rkey = CQE_WRID_STAG(&cqe);
 			wc->wc_flags |= IB_WC_WITH_INVALIDATE;
-			invalidate_mr(qhp->rhp, wc->ex.invalidate_rkey);
+			c4iw_invalidate_mr(qhp->rhp, wc->ex.invalidate_rkey);
 		}
 	} else {
 		switch (CQE_OPCODE(&cqe)) {
@@ -762,7 +759,11 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 
 			/* Invalidate the MR if the fastreg failed */
 			if (CQE_STATUS(&cqe) != T4_ERR_SUCCESS)
-				invalidate_mr(qhp->rhp, CQE_WRID_FR_STAG(&cqe));
+				c4iw_invalidate_mr(qhp->rhp,
+						   CQE_WRID_FR_STAG(&cqe));
+			break;
+		case C4IW_DRAIN_OPCODE:
+			wc->opcode = IB_WC_SEND;
 			break;
 		default:
 			printk(KERN_ERR MOD "Unexpected opcode %d "
@@ -828,15 +829,8 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 		}
 	}
 out:
-	if (wq) {
-		if (unlikely(qhp->attr.state != C4IW_QP_STATE_RTS)) {
-			if (t4_sq_empty(wq))
-				complete(&qhp->sq_drained);
-			if (t4_rq_empty(wq))
-				complete(&qhp->rq_drained);
-		}
+	if (wq)
 		spin_unlock(&qhp->lock);
-	}
 	return ret;
 }
 

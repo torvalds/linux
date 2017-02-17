@@ -7851,7 +7851,6 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf)
 			return ret;
 
 		memcpy(adap->port[i]->dev_addr, addr, ETH_ALEN);
-		adap->port[i]->dev_port = j;
 		j++;
 	}
 	return 0;

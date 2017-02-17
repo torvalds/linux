@@ -1,6 +1,7 @@
 #include "util.h"
 #include "build-id.h"
 #include "hist.h"
+#include "map.h"
 #include "session.h"
 #include "sort.h"
 #include "evlist.h"
@@ -1019,6 +1020,10 @@ int hist_entry_iter__add(struct hist_entry_iter *iter, struct addr_location *al,
 			 int max_stack_depth, void *arg)
 {
 	int err, err2;
+	struct map *alm = NULL;
+
+	if (al && al->map)
+		alm = map__get(al->map);
 
 	err = sample__resolve_callchain(iter->sample, &callchain_cursor, &iter->parent,
 					iter->evsel, al, max_stack_depth);
@@ -1057,6 +1062,8 @@ out:
 	err2 = iter->ops->finish_entry(iter, al);
 	if (!err)
 		err = err2;
+
+	map__put(alm);
 
 	return err;
 }
@@ -1195,6 +1202,7 @@ static void hist_entry__check_and_remove_filter(struct hist_entry *he,
 	case HIST_FILTER__GUEST:
 	case HIST_FILTER__HOST:
 	case HIST_FILTER__SOCKET:
+	case HIST_FILTER__C2C:
 	default:
 		return;
 	}
@@ -1600,18 +1608,18 @@ static void hists__hierarchy_output_resort(struct hists *hists,
 		if (prog)
 			ui_progress__update(prog, 1);
 
+		hists->nr_entries++;
+		if (!he->filtered) {
+			hists->nr_non_filtered_entries++;
+			hists__calc_col_len(hists, he);
+		}
+
 		if (!he->leaf) {
 			hists__hierarchy_output_resort(hists, prog,
 						       &he->hroot_in,
 						       &he->hroot_out,
 						       min_callchain_hits,
 						       use_callchain);
-			hists->nr_entries++;
-			if (!he->filtered) {
-				hists->nr_non_filtered_entries++;
-				hists__calc_col_len(hists, he);
-			}
-
 			continue;
 		}
 

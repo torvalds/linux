@@ -22,6 +22,7 @@
 #include <linux/atomic.h>
 #include <linux/cpumask.h>
 #include <linux/reboot.h>
+#include <linux/irqdomain.h>
 #include <asm/processor.h>
 #include <asm/setup.h>
 #include <asm/mach_desc.h>
@@ -67,11 +68,13 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	int i;
 
 	/*
-	 * Initialise the present map, which describes the set of CPUs
-	 * actually populated at the present time.
+	 * if platform didn't set the present map already, do it now
+	 * boot cpu is set to present already by init/main.c
 	 */
-	for (i = 0; i < max_cpus; i++)
-		set_cpu_present(i, true);
+	if (num_present_cpus() <= 1) {
+		for (i = 0; i < max_cpus; i++)
+			set_cpu_present(i, true);
+	}
 }
 
 void __init smp_cpus_done(unsigned int max_cpus)
@@ -87,21 +90,36 @@ void __init smp_cpus_done(unsigned int max_cpus)
  */
 static volatile int wake_flag;
 
+#ifdef CONFIG_ISA_ARCOMPACT
+
+#define __boot_read(f)		f
+#define __boot_write(f, v)	f = v
+
+#else
+
+#define __boot_read(f)		arc_read_uncached_32(&f)
+#define __boot_write(f, v)	arc_write_uncached_32(&f, v)
+
+#endif
+
 static void arc_default_smp_cpu_kick(int cpu, unsigned long pc)
 {
 	BUG_ON(cpu == 0);
-	wake_flag = cpu;
+
+	__boot_write(wake_flag, cpu);
 }
 
 void arc_platform_smp_wait_to_boot(int cpu)
 {
-	while (wake_flag != cpu)
+	/* for halt-on-reset, we've waited already */
+	if (IS_ENABLED(CONFIG_ARC_SMP_HALT_ON_RESET))
+		return;
+
+	while (__boot_read(wake_flag) != cpu)
 		;
 
-	wake_flag = 0;
-	__asm__ __volatile__("j @first_lines_of_secondary	\n");
+	__boot_write(wake_flag, 0);
 }
-
 
 const char *arc_platform_smp_cpuinfo(void)
 {
@@ -351,20 +369,24 @@ irqreturn_t do_IPI(int irq, void *dev_id)
  */
 static DEFINE_PER_CPU(int, ipi_dev);
 
-int smp_ipi_irq_setup(int cpu, int irq)
+int smp_ipi_irq_setup(int cpu, irq_hw_number_t hwirq)
 {
 	int *dev = per_cpu_ptr(&ipi_dev, cpu);
+	unsigned int virq = irq_find_mapping(NULL, hwirq);
+
+	if (!virq)
+		panic("Cannot find virq for root domain and hwirq=%lu", hwirq);
 
 	/* Boot cpu calls request, all call enable */
 	if (!cpu) {
 		int rc;
 
-		rc = request_percpu_irq(irq, do_IPI, "IPI Interrupt", dev);
+		rc = request_percpu_irq(virq, do_IPI, "IPI Interrupt", dev);
 		if (rc)
-			panic("Percpu IRQ request failed for %d\n", irq);
+			panic("Percpu IRQ request failed for %u\n", virq);
 	}
 
-	enable_percpu_irq(irq, 0);
+	enable_percpu_irq(virq, 0);
 
 	return 0;
 }

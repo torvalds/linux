@@ -74,22 +74,31 @@ static struct rc_map_table rc_map_haupp_table[] = {
  */
 static int nova_t_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
-	u8 key[5],cmd[2] = { DIBUSB_REQ_POLL_REMOTE, 0x35 }, data,toggle,custom;
+	u8 *buf, data, toggle, custom;
 	u16 raw;
-	int i;
+	int i, ret;
 	struct dibusb_device_state *st = d->priv;
 
-	dvb_usb_generic_rw(d,cmd,2,key,5,0);
+	buf = kmalloc(5, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	buf[0] = DIBUSB_REQ_POLL_REMOTE;
+	buf[1] = 0x35;
+	ret = dvb_usb_generic_rw(d, buf, 2, buf, 5, 0);
+	if (ret < 0)
+		goto ret;
 
 	*state = REMOTE_NO_KEY_PRESSED;
-	switch (key[0]) {
+	switch (buf[0]) {
 		case DIBUSB_RC_HAUPPAUGE_KEY_PRESSED:
-			raw = ((key[1] << 8) | key[2]) >> 3;
+			raw = ((buf[1] << 8) | buf[2]) >> 3;
 			toggle = !!(raw & 0x800);
 			data = raw & 0x3f;
 			custom = (raw >> 6) & 0x1f;
 
-			deb_rc("raw key code 0x%02x, 0x%02x, 0x%02x to c: %02x d: %02x toggle: %d\n",key[1],key[2],key[3],custom,data,toggle);
+			deb_rc("raw key code 0x%02x, 0x%02x, 0x%02x to c: %02x d: %02x toggle: %d\n",
+			       buf[1], buf[2], buf[3], custom, data, toggle);
 
 			for (i = 0; i < ARRAY_SIZE(rc_map_haupp_table); i++) {
 				if (rc5_data(&rc_map_haupp_table[i]) == data &&
@@ -117,7 +126,9 @@ static int nova_t_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 			break;
 	}
 
-	return 0;
+ret:
+	kfree(buf);
+	return ret;
 }
 
 static int nova_t_read_mac_address (struct dvb_usb_device *d, u8 mac[6])

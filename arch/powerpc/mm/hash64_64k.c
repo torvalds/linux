@@ -87,7 +87,7 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 	subpg_pte = new_pte & ~subpg_prot;
 	rflags = htab_convert_pte_flags(subpg_pte);
 
-	if (!cpu_has_feature(CPU_FTR_NOEXECUTE) &&
+	if (cpu_has_feature(CPU_FTR_NOEXECUTE) &&
 	    !cpu_has_feature(CPU_FTR_COHERENT_ICACHE)) {
 
 		/*
@@ -258,7 +258,7 @@ int __hash_page_64K(unsigned long ea, unsigned long access,
 
 	rflags = htab_convert_pte_flags(new_pte);
 
-	if (!cpu_has_feature(CPU_FTR_NOEXECUTE) &&
+	if (cpu_has_feature(CPU_FTR_NOEXECUTE) &&
 	    !cpu_has_feature(CPU_FTR_COHERENT_ICACHE))
 		rflags = hash_page_do_lazy_icache(rflags, __pte(old_pte), trap);
 

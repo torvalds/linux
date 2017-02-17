@@ -894,6 +894,7 @@ static const struct of_device_id q6v5_of_match[] = {
 	{ .compatible = "qcom,q6v5-pil", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, q6v5_of_match);
 
 static struct platform_driver q6v5_driver = {
 	.probe = q6v5_probe,

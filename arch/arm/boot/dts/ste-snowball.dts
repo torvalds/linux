@@ -239,14 +239,25 @@
 			arm,primecell-periphid = <0x10480180>;
 			max-frequency = <100000000>;
 			bus-width = <4>;
+			cap-sd-highspeed;
 			cap-mmc-highspeed;
+			sd-uhs-sdr12;
+			sd-uhs-sdr25;
+			/* All direction control is used */
+			st,sig-dir-cmd;
+			st,sig-dir-dat0;
+			st,sig-dir-dat2;
+			st,sig-dir-dat31;
+			st,sig-pin-fbclk;
+			full-pwr-cycle;
 			vmmc-supply = <&ab8500_ldo_aux3_reg>;
 			vqmmc-supply = <&vmmci>;
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&sdi0_default_mode>;
 			pinctrl-1 = <&sdi0_sleep_mode>;
 
-			cd-gpios  = <&gpio6 26 GPIO_ACTIVE_LOW>; // 218
+			/* GPIO218 MMC_CD */
+			cd-gpios  = <&gpio6 26 GPIO_ACTIVE_LOW>;
 
 			status = "okay";
 		};
@@ -549,7 +560,7 @@
 					/* VMMCI level-shifter enable */
 					snowball_cfg3 {
 						pins = "GPIO217_AH12";
-						ste,config = <&gpio_out_lo>;
+						ste,config = <&gpio_out_hi>;
 					};
 					/* VMMCI level-shifter voltage select */
 					snowball_cfg4 {

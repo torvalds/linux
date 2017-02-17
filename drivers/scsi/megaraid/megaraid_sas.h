@@ -35,8 +35,8 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"06.811.02.00-rc1"
-#define MEGASAS_RELDATE				"April 12, 2016"
+#define MEGASAS_VERSION				"06.812.07.00-rc1"
+#define MEGASAS_RELDATE				"August 22, 2016"
 
 /*
  * Device IDs
@@ -1429,6 +1429,8 @@ enum FW_BOOT_CONTEXT {
 #define MR_MAX_REPLY_QUEUES_EXT_OFFSET_SHIFT    14
 #define MR_MAX_MSIX_REG_ARRAY                   16
 #define MR_RDPQ_MODE_OFFSET			0X00800000
+#define MR_CAN_HANDLE_SYNC_CACHE_OFFSET		0X01000000
+
 /*
 * register set for both 1068 and 1078 controllers
 * structure extended for 1078 registers
@@ -2118,7 +2120,6 @@ struct megasas_instance {
 	u32 ctrl_context_pages;
 	struct megasas_ctrl_info *ctrl_info;
 	unsigned int msix_vectors;
-	struct msix_entry msixentry[MEGASAS_MAX_MSIX_QUEUES];
 	struct megasas_irq_context irq_context[MEGASAS_MAX_MSIX_QUEUES];
 	u64 map_id;
 	u64 pd_seq_map_id;
@@ -2140,6 +2141,7 @@ struct megasas_instance {
 	u8 is_imr;
 	u8 is_rdpq;
 	bool dev_handle;
+	bool fw_sync_cache_support;
 };
 struct MR_LD_VF_MAP {
 	u32 size;
@@ -2233,7 +2235,7 @@ struct megasas_instance_template {
 };
 
 #define MEGASAS_IS_LOGICAL(scp)						\
-	(scp->device->channel < MEGASAS_MAX_PD_CHANNELS) ? 0 : 1
+	((scp->device->channel < MEGASAS_MAX_PD_CHANNELS) ? 0 : 1)
 
 #define MEGASAS_DEV_INDEX(scp)						\
 	(((scp->device->channel % 2) * MEGASAS_MAX_DEV_PER_CHANNEL) +	\

@@ -396,7 +396,7 @@ max_retries_show(
 	int		retries;
 	struct xfs_error_cfg *cfg = to_error_cfg(kobject);
 
-	if (cfg->retry_timeout == XFS_ERR_RETRY_FOREVER)
+	if (cfg->max_retries == XFS_ERR_RETRY_FOREVER)
 		retries = -1;
 	else
 		retries = cfg->max_retries;
@@ -422,7 +422,7 @@ max_retries_store(
 		return -EINVAL;
 
 	if (val == -1)
-		cfg->retry_timeout = XFS_ERR_RETRY_FOREVER;
+		cfg->max_retries = XFS_ERR_RETRY_FOREVER;
 	else
 		cfg->max_retries = val;
 	return count;
@@ -512,13 +512,13 @@ static struct attribute *xfs_error_attrs[] = {
 };
 
 
-struct kobj_type xfs_error_cfg_ktype = {
+static struct kobj_type xfs_error_cfg_ktype = {
 	.release = xfs_sysfs_release,
 	.sysfs_ops = &xfs_sysfs_ops,
 	.default_attrs = xfs_error_attrs,
 };
 
-struct kobj_type xfs_error_ktype = {
+static struct kobj_type xfs_error_ktype = {
 	.release = xfs_sysfs_release,
 	.sysfs_ops = &xfs_sysfs_ops,
 };

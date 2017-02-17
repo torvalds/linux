@@ -157,6 +157,7 @@ xfs_free_perag(
 		spin_unlock(&mp->m_perag_lock);
 		ASSERT(pag);
 		ASSERT(atomic_read(&pag->pag_ref) == 0);
+		xfs_buf_hash_destroy(pag);
 		call_rcu(&pag->rcu_head, __xfs_free_perag);
 	}
 }
@@ -212,8 +213,8 @@ xfs_initialize_perag(
 		spin_lock_init(&pag->pag_ici_lock);
 		mutex_init(&pag->pag_ici_reclaim_lock);
 		INIT_RADIX_TREE(&pag->pag_ici_root, GFP_ATOMIC);
-		spin_lock_init(&pag->pag_buf_lock);
-		pag->pag_buf_tree = RB_ROOT;
+		if (xfs_buf_hash_init(pag))
+			goto out_unwind;
 
 		if (radix_tree_preload(GFP_NOFS))
 			goto out_unwind;
@@ -239,9 +240,11 @@ xfs_initialize_perag(
 	return 0;
 
 out_unwind:
+	xfs_buf_hash_destroy(pag);
 	kmem_free(pag);
 	for (; index > first_initialised; index--) {
 		pag = radix_tree_delete(&mp->m_perag_tree, index);
+		xfs_buf_hash_destroy(pag);
 		kmem_free(pag);
 	}
 	return error;
@@ -1009,6 +1012,7 @@ xfs_mountfs(
  out_quota:
 	xfs_qm_unmount_quotas(mp);
  out_rtunmount:
+	mp->m_super->s_flags &= ~MS_ACTIVE;
 	xfs_rtunmount_inodes(mp);
  out_rele_rip:
 	IRELE(rip);

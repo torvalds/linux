@@ -12,7 +12,6 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/unwind.h>
-#include <asm/export.h>
 
 	.text
 	.align	5
@@ -136,5 +135,3 @@ UNWIND( .fnstart            )
 UNWIND( .fnend   )
 ENDPROC(memset)
 ENDPROC(mmioset)
-EXPORT_SYMBOL(memset)
-EXPORT_SYMBOL(mmioset)

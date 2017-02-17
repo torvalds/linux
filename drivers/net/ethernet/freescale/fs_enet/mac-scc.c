@@ -35,7 +35,7 @@
 #include <linux/of_platform.h>
 
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifdef CONFIG_8xx
 #include <asm/8xx_immap.h>

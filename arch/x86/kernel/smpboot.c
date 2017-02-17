@@ -58,7 +58,6 @@
 #include <asm/desc.h>
 #include <asm/nmi.h>
 #include <asm/irq.h>
-#include <asm/idle.h>
 #include <asm/realmode.h>
 #include <asm/cpu.h>
 #include <asm/numa.h>
@@ -104,10 +103,20 @@ static unsigned int max_physical_pkg_id __read_mostly;
 unsigned int __max_logical_packages __read_mostly;
 EXPORT_SYMBOL(__max_logical_packages);
 static unsigned int logical_packages __read_mostly;
-static bool logical_packages_frozen __read_mostly;
 
 /* Maximum number of SMT threads on any online core */
 int __max_smt_threads __read_mostly;
+
+/* Flag to indicate if a complete sched domain rebuild is required */
+bool x86_topology_update;
+
+int arch_update_cpu_topology(void)
+{
+	int retval = x86_topology_update;
+
+	x86_topology_update = false;
+	return retval;
+}
 
 static inline void smpboot_setup_warm_reset_vector(unsigned long start_eip)
 {
@@ -263,9 +272,14 @@ static void notrace start_secondary(void *unused)
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 }
 
-int topology_update_package_map(unsigned int apicid, unsigned int cpu)
+/**
+ * topology_update_package_map - Update the physical to logical package map
+ * @pkg:	The physical package id as retrieved via CPUID
+ * @cpu:	The cpu for which this is updated
+ */
+int topology_update_package_map(unsigned int pkg, unsigned int cpu)
 {
-	unsigned int new, pkg = apicid >> boot_cpu_data.x86_coreid_bits;
+	unsigned int new;
 
 	/* Called from early boot ? */
 	if (!physical_package_map)
@@ -278,16 +292,17 @@ int topology_update_package_map(unsigned int apicid, unsigned int cpu)
 	if (test_and_set_bit(pkg, physical_package_map))
 		goto found;
 
-	if (logical_packages_frozen) {
-		physical_to_logical_pkg[pkg] = -1;
-		pr_warn("APIC(%x) Package %u exceeds logical package max\n",
-			apicid, pkg);
+	if (logical_packages >= __max_logical_packages) {
+		pr_warn("Package %u of CPU %u exceeds BIOS package data %u.\n",
+			logical_packages, cpu, __max_logical_packages);
 		return -ENOSPC;
 	}
 
 	new = logical_packages++;
-	pr_info("APIC(%x) Converting physical %u to logical package %u\n",
-		apicid, pkg, new);
+	if (new != pkg) {
+		pr_info("CPU %u Converting physical %u to logical package %u\n",
+			cpu, pkg, new);
+	}
 	physical_to_logical_pkg[pkg] = new;
 
 found:
@@ -308,9 +323,9 @@ int topology_phys_to_logical_pkg(unsigned int phys_pkg)
 }
 EXPORT_SYMBOL(topology_phys_to_logical_pkg);
 
-static void __init smp_init_package_map(void)
+static void __init smp_init_package_map(struct cpuinfo_x86 *c, unsigned int cpu)
 {
-	unsigned int ncpus, cpu;
+	unsigned int ncpus;
 	size_t size;
 
 	/*
@@ -355,27 +370,9 @@ static void __init smp_init_package_map(void)
 	size = BITS_TO_LONGS(max_physical_pkg_id) * sizeof(unsigned long);
 	physical_package_map = kzalloc(size, GFP_KERNEL);
 
-	for_each_present_cpu(cpu) {
-		unsigned int apicid = apic->cpu_present_to_apicid(cpu);
-
-		if (apicid == BAD_APICID || !apic->apic_id_valid(apicid))
-			continue;
-		if (!topology_update_package_map(apicid, cpu))
-			continue;
-		pr_warn("CPU %u APICId %x disabled\n", cpu, apicid);
-		per_cpu(x86_bios_cpu_apicid, cpu) = BAD_APICID;
-		set_cpu_possible(cpu, false);
-		set_cpu_present(cpu, false);
-	}
-
-	if (logical_packages > __max_logical_packages) {
-		pr_warn("Detected more packages (%u), then computed by BIOS data (%u).\n",
-			logical_packages, __max_logical_packages);
-		logical_packages_frozen = true;
-		__max_logical_packages  = logical_packages;
-	}
-
 	pr_info("Max logical packages: %u\n", __max_logical_packages);
+
+	topology_update_package_map(c->phys_proc_id, cpu);
 }
 
 void __init smp_store_boot_cpu_info(void)
@@ -385,7 +382,7 @@ void __init smp_store_boot_cpu_info(void)
 
 	*c = boot_cpu_data;
 	c->cpu_index = id;
-	smp_init_package_map();
+	smp_init_package_map(c, id);
 }
 
 /*
@@ -436,9 +433,15 @@ static bool match_smt(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 		int cpu1 = c->cpu_index, cpu2 = o->cpu_index;
 
 		if (c->phys_proc_id == o->phys_proc_id &&
-		    per_cpu(cpu_llc_id, cpu1) == per_cpu(cpu_llc_id, cpu2) &&
-		    c->cpu_core_id == o->cpu_core_id)
-			return topology_sane(c, o, "smt");
+		    per_cpu(cpu_llc_id, cpu1) == per_cpu(cpu_llc_id, cpu2)) {
+			if (c->cpu_core_id == o->cpu_core_id)
+				return topology_sane(c, o, "smt");
+
+			if ((c->cu_id != 0xff) &&
+			    (o->cu_id != 0xff) &&
+			    (c->cu_id == o->cu_id))
+				return topology_sane(c, o, "smt");
+		}
 
 	} else if (c->phys_proc_id == o->phys_proc_id &&
 		   c->cpu_core_id == o->cpu_core_id) {
@@ -471,22 +474,42 @@ static bool match_die(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 	return false;
 }
 
+#if defined(CONFIG_SCHED_SMT) || defined(CONFIG_SCHED_MC)
+static inline int x86_sched_itmt_flags(void)
+{
+	return sysctl_sched_itmt_enabled ? SD_ASYM_PACKING : 0;
+}
+
+#ifdef CONFIG_SCHED_MC
+static int x86_core_flags(void)
+{
+	return cpu_core_flags() | x86_sched_itmt_flags();
+}
+#endif
+#ifdef CONFIG_SCHED_SMT
+static int x86_smt_flags(void)
+{
+	return cpu_smt_flags() | x86_sched_itmt_flags();
+}
+#endif
+#endif
+
 static struct sched_domain_topology_level x86_numa_in_package_topology[] = {
 #ifdef CONFIG_SCHED_SMT
-	{ cpu_smt_mask, cpu_smt_flags, SD_INIT_NAME(SMT) },
+	{ cpu_smt_mask, x86_smt_flags, SD_INIT_NAME(SMT) },
 #endif
 #ifdef CONFIG_SCHED_MC
-	{ cpu_coregroup_mask, cpu_core_flags, SD_INIT_NAME(MC) },
+	{ cpu_coregroup_mask, x86_core_flags, SD_INIT_NAME(MC) },
 #endif
 	{ NULL, },
 };
 
 static struct sched_domain_topology_level x86_topology[] = {
 #ifdef CONFIG_SCHED_SMT
-	{ cpu_smt_mask, cpu_smt_flags, SD_INIT_NAME(SMT) },
+	{ cpu_smt_mask, x86_smt_flags, SD_INIT_NAME(SMT) },
 #endif
 #ifdef CONFIG_SCHED_MC
-	{ cpu_coregroup_mask, cpu_core_flags, SD_INIT_NAME(MC) },
+	{ cpu_coregroup_mask, x86_core_flags, SD_INIT_NAME(MC) },
 #endif
 	{ cpu_cpu_mask, SD_INIT_NAME(DIE) },
 	{ NULL, },
@@ -821,14 +844,6 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 	return (send_status | accept_status);
 }
 
-void smp_announce(void)
-{
-	int num_nodes = num_online_nodes();
-
-	printk(KERN_INFO "x86: Booted up %d node%s, %d CPUs\n",
-	       num_nodes, (num_nodes > 1 ? "s" : ""), num_online_cpus());
-}
-
 /* reduce the number of lines printed when booting a large cpu count system */
 static void announce_cpu(int cpu, int apicid)
 {
@@ -964,9 +979,7 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 	int cpu0_nmi_registered = 0;
 	unsigned long timeout;
 
-	idle->thread.sp = (unsigned long) (((struct pt_regs *)
-			  (THREAD_SIZE +  task_stack_page(idle))) - 1);
-
+	idle->thread.sp = (unsigned long)task_pt_regs(idle);
 	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
 	initial_code = (unsigned long)start_secondary;
 	initial_stack  = idle->thread.sp;
@@ -1111,7 +1124,7 @@ int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 		return err;
 
 	/* the FPU context is blank, nobody can own it */
-	__cpu_disable_lazy_restore(cpu);
+	per_cpu(fpu_fpregs_owner_ctx, cpu) = NULL;
 
 	common_cpu_up(cpu, tidle);
 
@@ -1331,7 +1344,7 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	default_setup_apic_routing();
 	cpu0_logical_apicid = apic_bsp_setup(false);
 
-	pr_info("CPU%d: ", 0);
+	pr_info("CPU0: ");
 	print_cpu_info(&cpu_data(0));
 
 	if (is_uv_system())
@@ -1456,15 +1469,15 @@ __init void prefill_possible_map(void)
 		possible = i;
 	}
 
+	nr_cpu_ids = possible;
+
 	pr_info("Allowing %d CPUs, %d hotplug CPUs\n",
 		possible, max_t(int, possible - num_processors, 0));
 
+	reset_cpu_possible_mask();
+
 	for (i = 0; i < possible; i++)
 		set_cpu_possible(i, true);
-	for (; i < NR_CPUS; i++)
-		set_cpu_possible(i, false);
-
-	nr_cpu_ids = possible;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -1575,7 +1588,6 @@ void play_dead_common(void)
 {
 	idle_task_exit();
 	reset_lazy_tlbstate();
-	amd_e400_remove_cpu(raw_smp_processor_id());
 
 	/* Ack it */
 	(void)cpu_report_death();

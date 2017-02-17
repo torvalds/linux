@@ -90,9 +90,6 @@ static u64 rvt_dma_map_page(struct ib_device *dev, struct page *page,
 	if (WARN_ON(!valid_dma_direction(direction)))
 		return BAD_DMA_ADDRESS;
 
-	if (offset + size > PAGE_SIZE)
-		return BAD_DMA_ADDRESS;
-
 	addr = (u64)page_address(page);
 	if (addr)
 		addr += offset;

@@ -64,7 +64,6 @@ struct stmmac_priv {
 	dma_addr_t dma_tx_phy;
 	int tx_coalesce;
 	int hwts_tx_en;
-	spinlock_t tx_lock;
 	bool tx_path_in_lpi_mode;
 	struct timer_list txtimer;
 	bool tso;
@@ -90,7 +89,6 @@ struct stmmac_priv {
 	struct mac_device_info *hw;
 	spinlock_t lock;
 
-	struct phy_device *phydev ____cacheline_aligned_in_smp;
 	int oldlink;
 	int speed;
 	int oldduplex;
@@ -129,6 +127,7 @@ struct stmmac_priv {
 	int irq_wake;
 	spinlock_t ptp_lock;
 	void __iomem *mmcaddr;
+	void __iomem *ptpaddr;
 	u32 rx_tail_addr;
 	u32 tx_tail_addr;
 	u32 mss;
@@ -145,7 +144,7 @@ int stmmac_mdio_register(struct net_device *ndev);
 int stmmac_mdio_reset(struct mii_bus *mii);
 void stmmac_set_ethtool_ops(struct net_device *netdev);
 
-int stmmac_ptp_register(struct stmmac_priv *priv);
+void stmmac_ptp_register(struct stmmac_priv *priv);
 void stmmac_ptp_unregister(struct stmmac_priv *priv);
 int stmmac_resume(struct device *dev);
 int stmmac_suspend(struct device *dev);

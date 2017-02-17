@@ -6017,7 +6017,15 @@ static int read_adv_features(struct sock *sk, struct hci_dev *hdev,
 	return err;
 }
 
-static u8 tlv_data_max_len(u32 adv_flags, bool is_adv_data)
+static u8 calculate_name_len(struct hci_dev *hdev)
+{
+	u8 buf[HCI_MAX_SHORT_NAME_LENGTH + 3];
+
+	return append_local_name(hdev, buf, 0);
+}
+
+static u8 tlv_data_max_len(struct hci_dev *hdev, u32 adv_flags,
+			   bool is_adv_data)
 {
 	u8 max_len = HCI_MAX_AD_LENGTH;
 
@@ -6030,9 +6038,8 @@ static u8 tlv_data_max_len(u32 adv_flags, bool is_adv_data)
 		if (adv_flags & MGMT_ADV_FLAG_TX_POWER)
 			max_len -= 3;
 	} else {
-		/* at least 1 byte of name should fit in */
 		if (adv_flags & MGMT_ADV_FLAG_LOCAL_NAME)
-			max_len -= 3;
+			max_len -= calculate_name_len(hdev);
 
 		if (adv_flags & (MGMT_ADV_FLAG_APPEARANCE))
 			max_len -= 4;
@@ -6063,12 +6070,13 @@ static bool appearance_managed(u32 adv_flags)
 	return adv_flags & MGMT_ADV_FLAG_APPEARANCE;
 }
 
-static bool tlv_data_is_valid(u32 adv_flags, u8 *data, u8 len, bool is_adv_data)
+static bool tlv_data_is_valid(struct hci_dev *hdev, u32 adv_flags, u8 *data,
+			      u8 len, bool is_adv_data)
 {
 	int i, cur_len;
 	u8 max_len;
 
-	max_len = tlv_data_max_len(adv_flags, is_adv_data);
+	max_len = tlv_data_max_len(hdev, adv_flags, is_adv_data);
 
 	if (len > max_len)
 		return false;
@@ -6215,8 +6223,8 @@ static int add_advertising(struct sock *sk, struct hci_dev *hdev,
 		goto unlock;
 	}
 
-	if (!tlv_data_is_valid(flags, cp->data, cp->adv_data_len, true) ||
-	    !tlv_data_is_valid(flags, cp->data + cp->adv_data_len,
+	if (!tlv_data_is_valid(hdev, flags, cp->data, cp->adv_data_len, true) ||
+	    !tlv_data_is_valid(hdev, flags, cp->data + cp->adv_data_len,
 			       cp->scan_rsp_len, false)) {
 		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_ADD_ADVERTISING,
 				      MGMT_STATUS_INVALID_PARAMS);
@@ -6429,8 +6437,8 @@ static int get_adv_size_info(struct sock *sk, struct hci_dev *hdev,
 
 	rp.instance = cp->instance;
 	rp.flags = cp->flags;
-	rp.max_adv_data_len = tlv_data_max_len(flags, true);
-	rp.max_scan_rsp_len = tlv_data_max_len(flags, false);
+	rp.max_adv_data_len = tlv_data_max_len(hdev, flags, true);
+	rp.max_scan_rsp_len = tlv_data_max_len(hdev, flags, false);
 
 	err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_GET_ADV_SIZE_INFO,
 				MGMT_STATUS_SUCCESS, &rp, sizeof(rp));

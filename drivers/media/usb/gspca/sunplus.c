@@ -368,8 +368,7 @@ static void spca504_read_info(struct gspca_dev *gspca_dev)
 		info[i] = gspca_dev->usb_buf[0];
 	}
 	PDEBUG(D_STREAM,
-		"Read info: %d %d %d %d %d %d."
-		" Should be 1,0,2,2,0,0",
+		"Read info: %d %d %d %d %d %d. Should be 1,0,2,2,0,0",
 		info[0], info[1], info[2],
 		info[3], info[4], info[5]);
 }

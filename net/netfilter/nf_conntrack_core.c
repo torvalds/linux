@@ -76,6 +76,7 @@ struct conntrack_gc_work {
 	struct delayed_work	dwork;
 	u32			last_bucket;
 	bool			exiting;
+	long			next_gc_run;
 };
 
 static __read_mostly struct kmem_cache *nf_conntrack_cachep;
@@ -83,10 +84,12 @@ static __read_mostly spinlock_t nf_conntrack_locks_all_lock;
 static __read_mostly DEFINE_SPINLOCK(nf_conntrack_locks_all_lock);
 static __read_mostly bool nf_conntrack_locks_all;
 
-#define GC_MAX_BUCKETS_DIV	64u
-#define GC_MAX_BUCKETS		8192u
-#define GC_INTERVAL		(5 * HZ)
-#define GC_MAX_EVICTS		256u
+/* every gc cycle scans at most 1/GC_MAX_BUCKETS_DIV part of table */
+#define GC_MAX_BUCKETS_DIV	128u
+/* upper bound of full table scan */
+#define GC_MAX_SCAN_JIFFIES	(16u * HZ)
+/* desired ratio of entries found to be expired */
+#define GC_EVICT_RATIO	50u
 
 static struct conntrack_gc_work conntrack_gc_work;
 
@@ -780,7 +783,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	/* set conntrack timestamp, if enabled. */
 	tstamp = nf_conn_tstamp_find(ct);
 	if (tstamp) {
-		if (skb->tstamp.tv64 == 0)
+		if (skb->tstamp == 0)
 			__net_timestamp(skb);
 
 		tstamp->start = ktime_to_ns(skb->tstamp);
@@ -935,14 +938,15 @@ static noinline int early_drop(struct net *net, unsigned int _hash)
 
 static void gc_worker(struct work_struct *work)
 {
+	unsigned int min_interval = max(HZ / GC_MAX_BUCKETS_DIV, 1u);
 	unsigned int i, goal, buckets = 0, expired_count = 0;
-	unsigned long next_run = GC_INTERVAL;
-	unsigned int ratio, scanned = 0;
 	struct conntrack_gc_work *gc_work;
+	unsigned int ratio, scanned = 0;
+	unsigned long next_run;
 
 	gc_work = container_of(work, struct conntrack_gc_work, dwork.work);
 
-	goal = min(nf_conntrack_htable_size / GC_MAX_BUCKETS_DIV, GC_MAX_BUCKETS);
+	goal = nf_conntrack_htable_size / GC_MAX_BUCKETS_DIV;
 	i = gc_work->last_bucket;
 
 	do {
@@ -976,23 +980,50 @@ static void gc_worker(struct work_struct *work)
 		 */
 		rcu_read_unlock();
 		cond_resched_rcu_qs();
-	} while (++buckets < goal &&
-		 expired_count < GC_MAX_EVICTS);
+	} while (++buckets < goal);
 
 	if (gc_work->exiting)
 		return;
 
+	/*
+	 * Eviction will normally happen from the packet path, and not
+	 * from this gc worker.
+	 *
+	 * This worker is only here to reap expired entries when system went
+	 * idle after a busy period.
+	 *
+	 * The heuristics below are supposed to balance conflicting goals:
+	 *
+	 * 1. Minimize time until we notice a stale entry
+	 * 2. Maximize scan intervals to not waste cycles
+	 *
+	 * Normally, expire ratio will be close to 0.
+	 *
+	 * As soon as a sizeable fraction of the entries have expired
+	 * increase scan frequency.
+	 */
 	ratio = scanned ? expired_count * 100 / scanned : 0;
-	if (ratio >= 90)
-		next_run = 0;
+	if (ratio > GC_EVICT_RATIO) {
+		gc_work->next_gc_run = min_interval;
+	} else {
+		unsigned int max = GC_MAX_SCAN_JIFFIES / GC_MAX_BUCKETS_DIV;
 
+		BUILD_BUG_ON((GC_MAX_SCAN_JIFFIES / GC_MAX_BUCKETS_DIV) == 0);
+
+		gc_work->next_gc_run += min_interval;
+		if (gc_work->next_gc_run > max)
+			gc_work->next_gc_run = max;
+	}
+
+	next_run = gc_work->next_gc_run;
 	gc_work->last_bucket = i;
-	schedule_delayed_work(&gc_work->dwork, next_run);
+	queue_delayed_work(system_long_wq, &gc_work->dwork, next_run);
 }
 
 static void conntrack_gc_work_init(struct conntrack_gc_work *gc_work)
 {
 	INIT_DELAYED_WORK(&gc_work->dwork, gc_worker);
+	gc_work->next_gc_run = HZ;
 	gc_work->exiting = false;
 }
 
@@ -1305,7 +1336,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		if (skb->nfct)
 			goto out;
 	}
-
+repeat:
 	ct = resolve_normal_ct(net, tmpl, skb, dataoff, pf, protonum,
 			       l3proto, l4proto, &set_reply, &ctinfo);
 	if (!ct) {
@@ -1337,6 +1368,12 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		NF_CT_STAT_INC_ATOMIC(net, invalid);
 		if (ret == -NF_DROP)
 			NF_CT_STAT_INC_ATOMIC(net, drop);
+		/* Special case: TCP tracker reports an attempt to reopen a
+		 * closed/aborted connection. We have to go back and create a
+		 * fresh conntrack.
+		 */
+		if (ret == -NF_REPEAT)
+			goto repeat;
 		ret = -ret;
 		goto out;
 	}
@@ -1344,15 +1381,8 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	if (set_reply && !test_and_set_bit(IPS_SEEN_REPLY_BIT, &ct->status))
 		nf_conntrack_event_cache(IPCT_REPLY, ct);
 out:
-	if (tmpl) {
-		/* Special case: we have to repeat this hook, assign the
-		 * template again to this packet. We assume that this packet
-		 * has no conntrack assigned. This is used by nf_ct_tcp. */
-		if (ret == NF_REPEAT)
-			skb->nfct = (struct nf_conntrack *)tmpl;
-		else
-			nf_ct_put(tmpl);
-	}
+	if (tmpl)
+		nf_ct_put(tmpl);
 
 	return ret;
 }
@@ -1885,7 +1915,7 @@ int nf_conntrack_init_start(void)
 	nf_ct_untracked_status_or(IPS_CONFIRMED | IPS_UNTRACKED);
 
 	conntrack_gc_work_init(&conntrack_gc_work);
-	schedule_delayed_work(&conntrack_gc_work.dwork, GC_INTERVAL);
+	queue_delayed_work(system_long_wq, &conntrack_gc_work.dwork, HZ);
 
 	return 0;
 

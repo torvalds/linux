@@ -817,8 +817,9 @@ void cxl_dump_debug_buffer(void *addr, size_t size);
 void init_cxl_native(void);
 
 struct cxl_context *cxl_context_alloc(void);
-int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master,
-		     struct address_space *mapping);
+int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master);
+void cxl_context_set_mapping(struct cxl_context *ctx,
+			struct address_space *mapping);
 void cxl_context_free(struct cxl_context *ctx);
 int cxl_context_iomap(struct cxl_context *ctx, struct vm_area_struct *vma);
 unsigned int cxl_map_irq(struct cxl *adapter, irq_hw_number_t hwirq,
@@ -877,6 +878,7 @@ void cxl_native_err_irq_dump_regs(struct cxl *adapter);
 void cxl_stop_trace(struct cxl *cxl);
 int cxl_pci_vphb_add(struct cxl_afu *afu);
 void cxl_pci_vphb_remove(struct cxl_afu *afu);
+void cxl_release_mapping(struct cxl_context *ctx);
 
 extern struct pci_driver cxl_pci_driver;
 extern struct platform_driver cxl_of_driver;

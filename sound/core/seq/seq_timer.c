@@ -448,8 +448,8 @@ snd_seq_real_time_t snd_seq_timer_get_cur_time(struct snd_seq_timer *tmr)
 
 		ktime_get_ts64(&tm);
 		tm = timespec64_sub(tm, tmr->last_update);
-		cur_time.tv_nsec = tm.tv_nsec;
-		cur_time.tv_sec = tm.tv_sec;
+		cur_time.tv_nsec += tm.tv_nsec;
+		cur_time.tv_sec += tm.tv_sec;
 		snd_seq_sanity_real_time(&cur_time);
 	}
 	spin_unlock_irqrestore(&tmr->lock, flags);

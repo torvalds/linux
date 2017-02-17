@@ -113,6 +113,7 @@ config ARCH_MVEBU
 
 config ARCH_QCOM
 	bool "Qualcomm Platforms"
+	select GPIOLIB
 	select PINCTRL
 	help
 	  This enables support for the ARMv8 based Qualcomm chipsets.
@@ -143,6 +144,7 @@ config ARCH_RENESAS
 	select PM
 	select PM_GENERIC_DOMAINS
 	select RENESAS_IRQC
+	select SOC_BUS
 	help
 	  This enables support for the ARMv8 based Renesas SoCs.
 
@@ -190,6 +192,7 @@ config ARCH_THUNDER
 
 config ARCH_UNIPHIER
 	bool "Socionext UniPhier SoC Family"
+	select ARCH_HAS_RESET_CONTROLLER
 	select PINCTRL
 	help
 	  This enables support for Socionext UniPhier SoC family.

@@ -80,6 +80,24 @@ static void bcma_bgmac_cmn_maskset32(struct bgmac *bgmac, u16 offset, u32 mask,
 	bcma_maskset32(bgmac->bcma.cmn, offset, mask, set);
 }
 
+static int bcma_phy_connect(struct bgmac *bgmac)
+{
+	struct phy_device *phy_dev;
+	char bus_id[MII_BUS_ID_SIZE + 3];
+
+	/* Connect to the PHY */
+	snprintf(bus_id, sizeof(bus_id), PHY_ID_FMT, bgmac->mii_bus->id,
+		 bgmac->phyaddr);
+	phy_dev = phy_connect(bgmac->net_dev, bus_id, bgmac_adjust_link,
+			      PHY_INTERFACE_MODE_MII);
+	if (IS_ERR(phy_dev)) {
+		dev_err(bgmac->dev, "PHY connection failed\n");
+		return PTR_ERR(phy_dev);
+	}
+
+	return 0;
+}
+
 static const struct bcma_device_id bgmac_bcma_tbl[] = {
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_4706_MAC_GBIT,
 		  BCMA_ANY_REV, BCMA_ANY_CLASS),
@@ -275,6 +293,10 @@ static int bgmac_probe(struct bcma_device *core)
 	bgmac->cco_ctl_maskset = bcma_bgmac_cco_ctl_maskset;
 	bgmac->get_bus_clock = bcma_bgmac_get_bus_clock;
 	bgmac->cmn_maskset32 = bcma_bgmac_cmn_maskset32;
+	if (bgmac->mii_bus)
+		bgmac->phy_connect = bcma_phy_connect;
+	else
+		bgmac->phy_connect = bgmac_phy_connect_direct;
 
 	err = bgmac_enet_probe(bgmac);
 	if (err)

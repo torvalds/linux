@@ -20,7 +20,7 @@
 /*
  * drivers/i2c/i2c-core.c
  */
-extern void i2c_transfer_trace_reg(void);
+extern int i2c_transfer_trace_reg(void);
 extern void i2c_transfer_trace_unreg(void);
 
 /*

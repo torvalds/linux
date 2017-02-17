@@ -30,7 +30,7 @@ int smu7_fan_ctrl_get_fan_speed_info(struct pp_hwmgr *hwmgr,
 		struct phm_fan_speed_info *fan_speed_info)
 {
 	if (hwmgr->thermal_controller.fanInfo.bNoFan)
-		return 0;
+		return -ENODEV;
 
 	fan_speed_info->supports_percent_read = true;
 	fan_speed_info->supports_percent_write = true;
@@ -60,7 +60,7 @@ int smu7_fan_ctrl_get_fan_speed_percent(struct pp_hwmgr *hwmgr,
 	uint64_t tmp64;
 
 	if (hwmgr->thermal_controller.fanInfo.bNoFan)
-		return 0;
+		return -ENODEV;
 
 	duty100 = PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 			CG_FDO_CTRL1, FMAX_DUTY100);
@@ -89,7 +89,7 @@ int smu7_fan_ctrl_get_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t *speed)
 	if (hwmgr->thermal_controller.fanInfo.bNoFan ||
 			(hwmgr->thermal_controller.fanInfo.
 				ucTachometerPulsesPerRevolution == 0))
-		return 0;
+		return -ENODEV;
 
 	tach_period = PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 			CG_TACH_STATUS, TACH_PERIOD);

@@ -24,15 +24,26 @@
 #include <linux/bpf.h>
 
 int bpf_create_map(enum bpf_map_type map_type, int key_size, int value_size,
-		   int max_entries);
+		   int max_entries, __u32 map_flags);
 
 /* Recommend log buffer size */
 #define BPF_LOG_BUF_SIZE 65536
 int bpf_load_program(enum bpf_prog_type type, struct bpf_insn *insns,
 		     size_t insns_cnt, char *license,
-		     u32 kern_version, char *log_buf,
+		     __u32 kern_version, char *log_buf,
 		     size_t log_buf_sz);
 
 int bpf_map_update_elem(int fd, void *key, void *value,
-			u64 flags);
+			__u64 flags);
+
+int bpf_map_lookup_elem(int fd, void *key, void *value);
+int bpf_map_delete_elem(int fd, void *key);
+int bpf_map_get_next_key(int fd, void *key, void *next_key);
+int bpf_obj_pin(int fd, const char *pathname);
+int bpf_obj_get(const char *pathname);
+int bpf_prog_attach(int prog_fd, int attachable_fd, enum bpf_attach_type type,
+		    unsigned int flags);
+int bpf_prog_detach(int attachable_fd, enum bpf_attach_type type);
+
+
 #endif

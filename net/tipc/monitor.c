@@ -455,14 +455,14 @@ void tipc_mon_rcv(struct net *net, void *data, u16 dlen, u32 addr,
 	int i, applied_bef;
 
 	state->probing = false;
-	if (!dlen)
-		return;
 
 	/* Sanity check received domain record */
-	if ((dlen < new_dlen) || ntohs(arrv_dom->len) != new_dlen) {
-		pr_warn_ratelimited("Received illegal domain record\n");
+	if (dlen < dom_rec_len(arrv_dom, 0))
 		return;
-	}
+	if (dlen != dom_rec_len(arrv_dom, new_member_cnt))
+		return;
+	if ((dlen < new_dlen) || ntohs(arrv_dom->len) != new_dlen)
+		return;
 
 	/* Synch generation numbers with peer if link just came up */
 	if (!state->synched) {

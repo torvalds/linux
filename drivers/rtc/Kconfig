@@ -303,7 +303,7 @@ config RTC_DRV_MAX6900
 
 config RTC_DRV_MAX8907
 	tristate "Maxim MAX8907"
-	depends on MFD_MAX8907
+	depends on MFD_MAX8907 || COMPILE_TEST
 	help
 	  If you say yes here you will get support for the
 	  RTC of Maxim MAX8907 PMIC.
@@ -343,7 +343,7 @@ config RTC_DRV_MAX8997
 
 config RTC_DRV_MAX77686
 	tristate "Maxim MAX77686"
-	depends on MFD_MAX77686 || MFD_MAX77620
+	depends on MFD_MAX77686 || MFD_MAX77620 || COMPILE_TEST
 	help
 	  If you say yes here you will get support for the
 	  RTC of Maxim MAX77686/MAX77620/MAX77802 PMIC.
@@ -481,6 +481,7 @@ config RTC_DRV_TWL92330
 config RTC_DRV_TWL4030
 	tristate "TI TWL4030/TWL5030/TWL6030/TPS659x0"
 	depends on TWL4030_CORE
+	depends on OF
 	help
 	  If you say yes here you get support for the RTC on the
 	  TWL4030/TWL5030/TWL6030 family chips, used mostly with OMAP3 platforms.
@@ -602,7 +603,8 @@ config RTC_DRV_RV8803
 
 config RTC_DRV_S5M
 	tristate "Samsung S2M/S5M series"
-	depends on MFD_SEC_CORE
+	depends on MFD_SEC_CORE || COMPILE_TEST
+	select REGMAP_IRQ
 	help
 	  If you say yes here you will get support for the
 	  RTC of Samsung S2MPS14 and S5M PMIC series.
@@ -820,8 +822,8 @@ config RTC_DRV_RV3029_HWMON
 
 comment "Platform RTC drivers"
 
-# this 'CMOS' RTC driver is arch dependent because <asm-generic/rtc.h>
-# requires <asm/mc146818rtc.h> defining CMOS_READ/CMOS_WRITE, and a
+# this 'CMOS' RTC driver is arch dependent because it requires
+# <asm/mc146818rtc.h> defining CMOS_READ/CMOS_WRITE, and a
 # global rtc_lock ... it's not yet just another platform_device.
 
 config RTC_DRV_CMOS
@@ -1550,10 +1552,10 @@ config RTC_DRV_MPC5121
 
 config RTC_DRV_JZ4740
 	tristate "Ingenic JZ4740 SoC"
-	depends on MACH_JZ4740 || COMPILE_TEST
+	depends on MACH_INGENIC || COMPILE_TEST
 	help
-	  If you say yes here you get support for the Ingenic JZ4740 SoC RTC
-	  controller.
+	  If you say yes here you get support for the Ingenic JZ47xx SoCs RTC
+	  controllers.
 
 	  This driver can also be buillt as a module. If so, the module
 	  will be called rtc-jz4740.
@@ -1567,7 +1569,7 @@ config RTC_DRV_LPC24XX
 	  NXP LPC178x/18xx/408x/43xx devices.
 
 	  If you have one of the devices above enable this driver to use
-	  the hardware RTC. This driver can also be buillt as a module. If
+	  the hardware RTC. This driver can also be built as a module. If
 	  so, the module will be called rtc-lpc24xx.
 
 config RTC_DRV_LPC32XX
@@ -1576,7 +1578,7 @@ config RTC_DRV_LPC32XX
 	help
 	  This enables support for the NXP RTC in the LPC32XX
 
-	  This driver can also be buillt as a module. If so, the module
+	  This driver can also be built as a module. If so, the module
 	  will be called rtc-lpc32xx.
 
 config RTC_DRV_PM8XXX
@@ -1705,6 +1707,17 @@ config RTC_DRV_PIC32
 
 	   This driver can also be built as a module. If so, the module
 	   will be called rtc-pic32
+
+config RTC_DRV_R7301
+	tristate "EPSON TOYOCOM RTC-7301SF/DG"
+	select REGMAP_MMIO
+	depends on OF && HAS_IOMEM
+	help
+	   If you say yes here you get support for the EPSON TOYOCOM
+	   RTC-7301SF/DG chips.
+
+	   This driver can also be built as a module. If so, the module
+	   will be called rtc-r7301.
 
 comment "HID Sensor RTC drivers"
 

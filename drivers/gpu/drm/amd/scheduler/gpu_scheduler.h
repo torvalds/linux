@@ -25,13 +25,10 @@
 #define _GPU_SCHEDULER_H_
 
 #include <linux/kfifo.h>
-#include <linux/fence.h>
+#include <linux/dma-fence.h>
 
 struct amd_gpu_scheduler;
 struct amd_sched_rq;
-
-extern struct kmem_cache *sched_fence_slab;
-extern atomic_t sched_fence_slab_ref;
 
 /**
  * A scheduler entity is a wrapper around a job queue or a group
@@ -50,8 +47,8 @@ struct amd_sched_entity {
 	atomic_t			fence_seq;
 	uint64_t                        fence_context;
 
-	struct fence			*dependency;
-	struct fence_cb			cb;
+	struct dma_fence		*dependency;
+	struct dma_fence_cb		cb;
 };
 
 /**
@@ -66,10 +63,10 @@ struct amd_sched_rq {
 };
 
 struct amd_sched_fence {
-	struct fence                    scheduled;
-	struct fence                    finished;
-	struct fence_cb                 cb;
-	struct fence                    *parent;
+	struct dma_fence                scheduled;
+	struct dma_fence                finished;
+	struct dma_fence_cb             cb;
+	struct dma_fence                *parent;
 	struct amd_gpu_scheduler	*sched;
 	spinlock_t			lock;
 	void                            *owner;
@@ -79,15 +76,15 @@ struct amd_sched_job {
 	struct amd_gpu_scheduler        *sched;
 	struct amd_sched_entity         *s_entity;
 	struct amd_sched_fence          *s_fence;
-	struct fence_cb			finish_cb;
+	struct dma_fence_cb		finish_cb;
 	struct work_struct		finish_work;
 	struct list_head		node;
 	struct delayed_work		work_tdr;
 };
 
-extern const struct fence_ops amd_sched_fence_ops_scheduled;
-extern const struct fence_ops amd_sched_fence_ops_finished;
-static inline struct amd_sched_fence *to_amd_sched_fence(struct fence *f)
+extern const struct dma_fence_ops amd_sched_fence_ops_scheduled;
+extern const struct dma_fence_ops amd_sched_fence_ops_finished;
+static inline struct amd_sched_fence *to_amd_sched_fence(struct dma_fence *f)
 {
 	if (f->ops == &amd_sched_fence_ops_scheduled)
 		return container_of(f, struct amd_sched_fence, scheduled);
@@ -103,8 +100,8 @@ static inline struct amd_sched_fence *to_amd_sched_fence(struct fence *f)
  * these functions should be implemented in driver side
 */
 struct amd_sched_backend_ops {
-	struct fence *(*dependency)(struct amd_sched_job *sched_job);
-	struct fence *(*run_job)(struct amd_sched_job *sched_job);
+	struct dma_fence *(*dependency)(struct amd_sched_job *sched_job);
+	struct dma_fence *(*run_job)(struct amd_sched_job *sched_job);
 	void (*timedout_job)(struct amd_sched_job *sched_job);
 	void (*free_job)(struct amd_sched_job *sched_job);
 };
@@ -144,6 +141,9 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 void amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 			   struct amd_sched_entity *entity);
 void amd_sched_entity_push_job(struct amd_sched_job *sched_job);
+
+int amd_sched_fence_slab_init(void);
+void amd_sched_fence_slab_fini(void);
 
 struct amd_sched_fence *amd_sched_fence_create(
 	struct amd_sched_entity *s_entity, void *owner);

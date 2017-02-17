@@ -1571,7 +1571,6 @@ static const struct net_device_ops bfin_mac_netdev_ops = {
 	.ndo_set_rx_mode	= bfin_mac_set_multicast_list,
 	.ndo_do_ioctl           = bfin_mac_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= bfin_mac_poll_controller,
 #endif

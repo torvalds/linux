@@ -13,5 +13,3 @@ iwl4965-$(CONFIG_IWLEGACY_DEBUGFS) += 4965-debug.o
 obj-$(CONFIG_IWL3945)	+= iwl3945.o
 iwl3945-objs		:= 3945-mac.o 3945.o 3945-rs.o
 iwl3945-$(CONFIG_IWLEGACY_DEBUGFS) += 3945-debug.o
-
-ccflags-y += -D__CHECK_ENDIAN__

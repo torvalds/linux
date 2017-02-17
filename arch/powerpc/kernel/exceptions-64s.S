@@ -95,19 +95,40 @@ __start_interrupts:
 /* No virt vectors corresponding with 0x0..0x100 */
 EXC_VIRT_NONE(0x4000, 0x4100)
 
+
+#ifdef CONFIG_PPC_P7_NAP
+	/*
+	 * If running native on arch 2.06 or later, check if we are waking up
+	 * from nap/sleep/winkle, and branch to idle handler.
+	 */
+#define IDLETEST(n)							\
+	BEGIN_FTR_SECTION ;						\
+	mfspr	r10,SPRN_SRR1 ;						\
+	rlwinm.	r10,r10,47-31,30,31 ;					\
+	beq-	1f ;							\
+	cmpwi	cr3,r10,2 ;						\
+	BRANCH_TO_COMMON(r10, system_reset_idle_common) ;		\
+1:									\
+	END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
+#else
+#define IDLETEST NOTEST
+#endif
+
 EXC_REAL_BEGIN(system_reset, 0x100, 0x200)
 	SET_SCRATCH0(r13)
-#ifdef CONFIG_PPC_P7_NAP
-BEGIN_FTR_SECTION
-	/* Running native on arch 2.06 or later, check if we are
-	 * waking up from nap/sleep/winkle.
-	 */
-	mfspr	r13,SPRN_SRR1
-	rlwinm.	r13,r13,47-31,30,31
-	beq	9f
-
-	cmpwi	cr3,r13,2
 	GET_PACA(r13)
+	clrrdi	r13,r13,1 /* Last bit of HSPRG0 is set if waking from winkle */
+	EXCEPTION_PROLOG_PSERIES_PACA(PACA_EXGEN, system_reset_common, EXC_STD,
+				 IDLETEST, 0x100)
+
+EXC_REAL_END(system_reset, 0x100, 0x200)
+EXC_VIRT_NONE(0x4100, 0x4200)
+
+#ifdef CONFIG_PPC_P7_NAP
+EXC_COMMON_BEGIN(system_reset_idle_common)
+BEGIN_FTR_SECTION
+	GET_PACA(r13) /* Restore HSPRG0 to get the winkle bit in r13 */
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 	bl	pnv_restore_hyp_resource
 
 	li	r0,PNV_THREAD_RUNNING
@@ -130,14 +151,8 @@ BEGIN_FTR_SECTION
 	blt	cr3,2f
 	b	pnv_wakeup_loss
 2:	b	pnv_wakeup_noloss
+#endif
 
-9:
-END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
-#endif /* CONFIG_PPC_P7_NAP */
-	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common, EXC_STD,
-				 NOTEST, 0x100)
-EXC_REAL_END(system_reset, 0x100, 0x200)
-EXC_VIRT_NONE(0x4100, 0x4200)
 EXC_COMMON(system_reset_common, 0x100, system_reset_exception)
 
 #ifdef CONFIG_PPC_PSERIES
@@ -159,7 +174,7 @@ EXC_REAL_BEGIN(machine_check, 0x200, 0x300)
 	SET_SCRATCH0(r13)		/* save r13 */
 	/*
 	 * Running native on arch 2.06 or later, we may wakeup from winkle
-	 * inside machine check. If yes, then last bit of HSPGR0 would be set
+	 * inside machine check. If yes, then last bit of HSPRG0 would be set
 	 * to 1. Hence clear it unconditionally.
 	 */
 	GET_PACA(r13)
@@ -378,7 +393,7 @@ EXC_COMMON_BEGIN(machine_check_handle_early)
 	/*
 	 * Go back to winkle. Please note that this thread was woken up in
 	 * machine check from winkle and have not restored the per-subcore
-	 * state. Hence before going back to winkle, set last bit of HSPGR0
+	 * state. Hence before going back to winkle, set last bit of HSPRG0
 	 * to 1. This will make sure that if this thread gets woken up
 	 * again at reset vector 0x100 then it will get chance to restore
 	 * the subcore state.
@@ -817,10 +832,8 @@ EXC_VIRT(trap_0b, 0x4b00, 0x4c00, 0xb00)
 TRAMP_KVM(PACA_EXGEN, 0xb00)
 EXC_COMMON(trap_0b_common, 0xb00, unknown_exception)
 
-
-#define LOAD_SYSCALL_HANDLER(reg)				\
-	ld	reg,PACAKBASE(r13);				\
-	ori	reg,reg,(ABS_ADDR(system_call_common))@l;
+#define LOAD_SYSCALL_HANDLER(reg)					\
+	__LOAD_HANDLER(reg, system_call_common)
 
 /* Syscall routine is used twice, in reloc-off and reloc-on paths */
 #define SYSCALL_PSERIES_1 					\
@@ -1395,7 +1408,7 @@ USE_TEXT_SECTION()
 /*
  * Hash table stuff
  */
-	.align	7
+	.balign	IFETCH_ALIGN_BYTES
 do_hash_page:
 #ifdef CONFIG_PPC_STD_MMU_64
 	andis.	r0,r4,0xa410		/* weird error? */

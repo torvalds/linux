@@ -202,6 +202,20 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		cpu_to_le32(agg_size << STA_FLG_MAX_AGG_SIZE_SHIFT);
 	add_sta_cmd.station_flags |=
 		cpu_to_le32(mpdu_dens << STA_FLG_AGG_MPDU_DENS_SHIFT);
+	add_sta_cmd.assoc_id = cpu_to_le16(sta->aid);
+
+	if (sta->wme) {
+		add_sta_cmd.modify_mask |= STA_MODIFY_UAPSD_ACS;
+
+		if (sta->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_BK)
+			add_sta_cmd.uapsd_trigger_acs |= BIT(AC_BK);
+		if (sta->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_BE)
+			add_sta_cmd.uapsd_trigger_acs |= BIT(AC_BE);
+		if (sta->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_VI)
+			add_sta_cmd.uapsd_trigger_acs |= BIT(AC_VI);
+		if (sta->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_VO)
+			add_sta_cmd.uapsd_trigger_acs |= BIT(AC_VO);
+	}
 
 	status = ADD_STA_SUCCESS;
 	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA,
@@ -875,12 +889,17 @@ static void iwl_mvm_change_queue_owner(struct iwl_mvm *mvm, int queue)
 	cmd.tx_fifo = iwl_mvm_ac_to_tx_fifo[tid_to_mac80211_ac[tid]];
 
 	ret = iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, 0, sizeof(cmd), &cmd);
-	if (ret)
+	if (ret) {
 		IWL_ERR(mvm, "Failed to update owner of TXQ %d (ret=%d)\n",
 			queue, ret);
-	else
-		IWL_DEBUG_TX_QUEUES(mvm, "Changed TXQ %d ownership to tid %d\n",
-				    queue, tid);
+		return;
+	}
+
+	spin_lock_bh(&mvm->queue_info_lock);
+	mvm->queue_info[queue].txq_tid = tid;
+	spin_unlock_bh(&mvm->queue_info_lock);
+	IWL_DEBUG_TX_QUEUES(mvm, "Changed TXQ %d ownership to tid %d\n",
+			    queue, tid);
 }
 
 static void iwl_mvm_unshare_queue(struct iwl_mvm *mvm, int queue)
@@ -1010,6 +1029,7 @@ static void iwl_mvm_tx_deferred_stream(struct iwl_mvm *mvm,
 	local_bh_disable();
 	spin_lock(&mvmsta->lock);
 	skb_queue_splice_init(&tid_data->deferred_tx_frames, &deferred_tx);
+	mvmsta->deferred_traffic_tid_map &= ~BIT(tid);
 	spin_unlock(&mvmsta->lock);
 
 	while ((skb = __skb_dequeue(&deferred_tx)))
@@ -1144,9 +1164,10 @@ static void iwl_mvm_realloc_queues_after_restart(struct iwl_mvm *mvm,
 		.frame_limit = IWL_FRAME_LIMIT,
 	};
 
-	/* Make sure reserved queue is still marked as such (or allocated) */
-	mvm->queue_info[mvm_sta->reserved_queue].status =
-		IWL_MVM_QUEUE_RESERVED;
+	/* Make sure reserved queue is still marked as such (if allocated) */
+	if (mvm_sta->reserved_queue != IEEE80211_INVAL_HW_QUEUE)
+		mvm->queue_info[mvm_sta->reserved_queue].status =
+			IWL_MVM_QUEUE_RESERVED;
 
 	for (i = 0; i <= IWL_MAX_TID_COUNT; i++) {
 		struct iwl_mvm_tid_data *tid_data = &mvm_sta->tid_data[i];
@@ -1489,11 +1510,14 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		ret = iwl_mvm_drain_sta(mvm, mvm_sta, false);
 
 		/* If DQA is supported - the queues can be disabled now */
-		if (iwl_mvm_is_dqa_supported(mvm)) {
+		if (iwl_mvm_is_dqa_supported(mvm))
+			iwl_mvm_disable_sta_queues(mvm, vif, mvm_sta);
+
+		/* If there is a TXQ still marked as reserved - free it */
+		if (iwl_mvm_is_dqa_supported(mvm) &&
+		    mvm_sta->reserved_queue != IEEE80211_INVAL_HW_QUEUE) {
 			u8 reserved_txq = mvm_sta->reserved_queue;
 			enum iwl_mvm_queue_status *status;
-
-			iwl_mvm_disable_sta_queues(mvm, vif, mvm_sta);
 
 			/*
 			 * If no traffic has gone through the reserved TXQ - it

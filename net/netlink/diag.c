@@ -178,11 +178,8 @@ static int netlink_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		}
 		cb->args[1] = i;
 	} else {
-		if (req->sdiag_protocol >= MAX_LINKS) {
-			read_unlock(&nl_table_lock);
-			rcu_read_unlock();
+		if (req->sdiag_protocol >= MAX_LINKS)
 			return -ENOENT;
-		}
 
 		err = __netlink_diag_dump(skb, cb, req->sdiag_protocol, s_num);
 	}

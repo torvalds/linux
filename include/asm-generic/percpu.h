@@ -118,9 +118,9 @@ do {									\
 #define this_cpu_generic_read(pcp)					\
 ({									\
 	typeof(pcp) __ret;						\
-	preempt_disable();						\
+	preempt_disable_notrace();					\
 	__ret = raw_cpu_generic_read(pcp);				\
-	preempt_enable();						\
+	preempt_enable_notrace();					\
 	__ret;								\
 })
 

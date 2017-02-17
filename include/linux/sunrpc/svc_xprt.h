@@ -25,6 +25,7 @@ struct svc_xprt_ops {
 	void		(*xpo_detach)(struct svc_xprt *);
 	void		(*xpo_free)(struct svc_xprt *);
 	int		(*xpo_secure_port)(struct svc_rqst *);
+	void		(*xpo_kill_temp_xprt)(struct svc_xprt *);
 };
 
 struct svc_xprt_class {
@@ -65,6 +66,7 @@ struct svc_xprt {
 #define XPT_LISTENER	10		/* listening endpoint */
 #define XPT_CACHE_AUTH	11		/* cache auth info */
 #define XPT_LOCAL	12		/* connection from loopback interface */
+#define XPT_KILL_TEMP   13		/* call xpo_kill_temp_xprt before closing */
 
 	struct svc_serv		*xpt_server;	/* service for transport */
 	atomic_t    	    	xpt_reserved;	/* space on outq that is rsvd */

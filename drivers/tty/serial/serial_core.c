@@ -36,7 +36,7 @@
 #include <linux/mutex.h>
 
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * This is used to lock changes in serial line configuration.
@@ -73,7 +73,7 @@ static inline struct uart_port *uart_port_ref(struct uart_state *state)
 
 static inline void uart_port_deref(struct uart_port *uport)
 {
-	if (uport && atomic_dec_and_test(&uport->state->refcount))
+	if (atomic_dec_and_test(&uport->state->refcount))
 		wake_up(&uport->state->remove_wait);
 }
 
@@ -88,9 +88,10 @@ static inline void uart_port_deref(struct uart_port *uport)
 #define uart_port_unlock(uport, flags)					\
 	({								\
 		struct uart_port *__uport = uport;			\
-		if (__uport)						\
+		if (__uport) {						\
 			spin_unlock_irqrestore(&__uport->lock, flags);	\
-		uart_port_deref(__uport);				\
+			uart_port_deref(__uport);			\
+		}							\
 	})
 
 static inline struct uart_port *uart_port_check(struct uart_state *state)
@@ -111,7 +112,7 @@ void uart_write_wakeup(struct uart_port *port)
 	 * closed.  No cookie for you.
 	 */
 	BUG_ON(!state);
-	tty_wakeup(state->port.tty);
+	tty_port_tty_wakeup(&state->port);
 }
 
 static void uart_stop(struct tty_struct *tty)
@@ -632,7 +633,7 @@ static void uart_flush_buffer(struct tty_struct *tty)
 	if (port->ops->flush_buffer)
 		port->ops->flush_buffer(port);
 	uart_port_unlock(port, flags);
-	tty_wakeup(tty);
+	tty_port_tty_wakeup(&state->port);
 }
 
 /*
@@ -1515,7 +1516,10 @@ static void uart_wait_until_sent(struct tty_struct *tty, int timeout)
 	unsigned long char_time, expire;
 
 	port = uart_port_ref(state);
-	if (!port || port->type == PORT_UNKNOWN || port->fifosize == 0) {
+	if (!port)
+		return;
+
+	if (port->type == PORT_UNKNOWN || port->fifosize == 0) {
 		uart_port_deref(port);
 		return;
 	}
@@ -2365,9 +2369,10 @@ static int uart_poll_get_char(struct tty_driver *driver, int line)
 
 	if (state) {
 		port = uart_port_ref(state);
-		if (port)
+		if (port) {
 			ret = port->ops->poll_get_char(port);
-		uart_port_deref(port);
+			uart_port_deref(port);
+		}
 	}
 	return ret;
 }
@@ -2746,8 +2751,6 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 	uport->cons = drv->cons;
 	uport->minor = drv->tty_driver->minor_start + uport->line;
 
-	port->console = uart_console(uport);
-
 	/*
 	 * If this port is a console, then the spinlock is already
 	 * initialised.
@@ -2760,6 +2763,8 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 		of_console_check(uport->dev->of_node, uport->cons->name, uport->line);
 
 	uart_configure_port(drv, state, uport);
+
+	port->console = uart_console(uport);
 
 	num_groups = 2;
 	if (uport->attr_group)

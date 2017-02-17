@@ -1723,6 +1723,7 @@ static int irda_usb_probe(struct usb_interface *intf,
 	/* Don't change this buffer size and allocation without doing
 	 * some heavy and complete testing. Don't ask why :-(
 	 * Jean II */
+	ret = -ENOMEM;
 	self->speed_buff = kzalloc(IRDA_USB_SPEED_MTU, GFP_KERNEL);
 	if (!self->speed_buff)
 		goto err_out_3;

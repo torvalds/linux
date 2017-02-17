@@ -35,7 +35,7 @@ static int cpu_to_node_map[NR_CPUS] = { [0 ... NR_CPUS-1] = NUMA_NO_NODE };
 
 static int numa_distance_cnt;
 static u8 *numa_distance;
-static bool numa_off;
+bool numa_off;
 
 static __init int numa_parse_early_param(char *opt)
 {
@@ -147,7 +147,7 @@ static int __init early_cpu_to_node(int cpu)
 
 static int __init pcpu_cpu_distance(unsigned int from, unsigned int to)
 {
-	return node_distance(from, to);
+	return node_distance(early_cpu_to_node(from), early_cpu_to_node(to));
 }
 
 static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size,
@@ -223,8 +223,11 @@ static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
 	void *nd;
 	int tnid;
 
-	pr_info("Initmem setup node %d [mem %#010Lx-%#010Lx]\n",
-		nid, start_pfn << PAGE_SHIFT, (end_pfn << PAGE_SHIFT) - 1);
+	if (start_pfn < end_pfn)
+		pr_info("Initmem setup node %d [mem %#010Lx-%#010Lx]\n", nid,
+			start_pfn << PAGE_SHIFT, (end_pfn << PAGE_SHIFT) - 1);
+	else
+		pr_info("Initmem setup node %d [<memory-less node>]\n", nid);
 
 	nd_pa = memblock_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
 	nd = __va(nd_pa);

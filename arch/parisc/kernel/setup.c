@@ -334,6 +334,10 @@ static int __init parisc_init(void)
 	/* tell PDC we're Linux. Nevermind failure. */
 	pdc_stable_write(0x40, &osid, sizeof(osid));
 	
+	/* start with known state */
+	flush_cache_all_local();
+	flush_tlb_all_local(NULL);
+
 	processor_init();
 #ifdef CONFIG_SMP
 	pr_info("CPU(s): %d out of %d %s at %d.%06d MHz online\n",

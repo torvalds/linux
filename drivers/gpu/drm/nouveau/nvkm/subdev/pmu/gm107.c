@@ -32,6 +32,12 @@ gm107_pmu = {
 	.code.size = sizeof(gm107_pmu_code),
 	.data.data = gm107_pmu_data,
 	.data.size = sizeof(gm107_pmu_data),
+	.reset = gt215_pmu_reset,
+	.init = gt215_pmu_init,
+	.fini = gt215_pmu_fini,
+	.intr = gt215_pmu_intr,
+	.send = gt215_pmu_send,
+	.recv = gt215_pmu_recv,
 };
 
 int

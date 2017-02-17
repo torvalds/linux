@@ -334,6 +334,7 @@ struct phm_clocks {
 	uint32_t clock[MAX_NUM_CLOCKS];
 };
 
+extern int phm_disable_clock_power_gatings(struct pp_hwmgr *hwmgr);
 extern int phm_enable_clock_power_gatings(struct pp_hwmgr *hwmgr);
 extern int phm_powergate_uvd(struct pp_hwmgr *hwmgr, bool gate);
 extern int phm_powergate_vce(struct pp_hwmgr *hwmgr, bool gate);

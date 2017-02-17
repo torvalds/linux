@@ -72,7 +72,7 @@ static inline struct timer16_priv *cs_to_priv(struct clocksource *cs)
 	return container_of(cs, struct timer16_priv, cs);
 }
 
-static cycle_t timer16_clocksource_read(struct clocksource *cs)
+static u64 timer16_clocksource_read(struct clocksource *cs)
 {
 	struct timer16_priv *p = cs_to_priv(cs);
 	unsigned long raw, value;

@@ -250,6 +250,10 @@ nvkm_mxm_new_(struct nvkm_device *device, int index, struct nvkm_mxm **pmxm)
 	}
 
 	nvkm_info(&mxm->subdev, "BIOS version %d.%d\n", ver >> 4, ver & 0x0f);
+	nvkm_debug(&mxm->subdev, "module flags: %02x\n",
+		   nvbios_rd08(bios, data + 0x01));
+	nvkm_debug(&mxm->subdev, "config flags: %02x\n",
+		   nvbios_rd08(bios, data + 0x02));
 
 	if (mxm_shadow(mxm, ver)) {
 		nvkm_warn(&mxm->subdev, "failed to locate valid SIS\n");

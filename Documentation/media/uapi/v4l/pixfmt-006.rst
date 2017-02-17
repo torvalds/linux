@@ -19,9 +19,16 @@ colorspace field of struct :c:type:`v4l2_pix_format`
 or struct :c:type:`v4l2_pix_format_mplane`
 needs to be filled in.
 
-.. note::
+.. _hsv-colorspace:
 
-   The default R'G'B' quantization is full range for all
+On :ref:`HSV formats <hsv-formats>` the *Hue* is defined as the angle on
+the cylindrical color representation. Usually this angle is measured in
+degrees, i.e. 0-360. When we map this angle value into 8 bits, there are
+two basic ways to do it: Divide the angular value by 2 (0-179), or use the
+whole range, 0-255, dividing the angular value by 1.41. The enum
+:c:type:`v4l2_hsv_encoding` specifies which encoding is used.
+
+.. note:: The default R'G'B' quantization is full range for all
    colorspaces except for BT.2020 which uses limited range R'G'B'
    quantization.
 
@@ -123,6 +130,24 @@ needs to be filled in.
 
 
 
+.. c:type:: v4l2_hsv_encoding
+
+.. tabularcolumns:: |p{6.5cm}|p{11.0cm}|
+
+.. flat-table:: V4L2 HSV Encodings
+    :header-rows:  1
+    :stub-columns: 0
+
+    * - Identifier
+      - Details
+    * - ``V4L2_HSV_ENC_180``
+      - For the Hue, each LSB is two degrees.
+    * - ``V4L2_HSV_ENC_256``
+      - For the Hue, the 360 degrees are mapped into 8 bits, i.e. each
+	LSB is roughly 1.41 degrees.
+
+
+
 .. c:type:: v4l2_quantization
 
 .. tabularcolumns:: |p{6.5cm}|p{11.0cm}|
@@ -136,7 +161,7 @@ needs to be filled in.
     * - ``V4L2_QUANTIZATION_DEFAULT``
       - Use the default quantization encoding as defined by the
 	colorspace. This is always full range for R'G'B' (except for the
-	BT.2020 colorspace) and usually limited range for Y'CbCr.
+	BT.2020 colorspace) and HSV. It is usually limited range for Y'CbCr.
     * - ``V4L2_QUANTIZATION_FULL_RANGE``
       - Use the full range quantization encoding. I.e. the range [0…1] is
 	mapped to [0…255] (with possible clipping to [1…254] to avoid the

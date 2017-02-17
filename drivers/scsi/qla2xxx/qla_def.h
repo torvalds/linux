@@ -401,9 +401,10 @@ typedef struct srb {
 	uint16_t type;
 	char *name;
 	int iocbs;
+	struct qla_qpair *qpair;
 	union {
 		struct srb_iocb iocb_cmd;
-		struct fc_bsg_job *bsg_job;
+		struct bsg_job *bsg_job;
 		struct srb_cmd scmd;
 	} u;
 	void (*done)(void *, void *, int);
@@ -1555,7 +1556,8 @@ typedef struct {
 struct atio {
 	uint8_t		entry_type;		/* Entry type. */
 	uint8_t		entry_count;		/* Entry count. */
-	uint8_t		data[58];
+	__le16		attr_n_length;
+	uint8_t		data[56];
 	uint32_t	signature;
 #define ATIO_PROCESSED 0xDEADDEAD		/* Signature */
 };
@@ -2719,6 +2721,7 @@ struct isp_operations {
 
 	int (*get_flash_version) (struct scsi_qla_host *, void *);
 	int (*start_scsi) (srb_t *);
+	int (*start_scsi_mq) (srb_t *);
 	int (*abort_isp) (struct scsi_qla_host *);
 	int (*iospace_config)(struct qla_hw_data*);
 	int (*initialize_adapter)(struct scsi_qla_host *);
@@ -2730,8 +2733,10 @@ struct isp_operations {
 #define QLA_MSIX_FW_MODE(m)	(((m) & (BIT_7|BIT_8|BIT_9)) >> 7)
 #define QLA_MSIX_FW_MODE_1(m)	(QLA_MSIX_FW_MODE(m) == 1)
 
-#define QLA_MSIX_DEFAULT	0x00
-#define QLA_MSIX_RSP_Q		0x01
+#define QLA_BASE_VECTORS	2 /* default + RSP */
+#define QLA_MSIX_RSP_Q			0x01
+#define QLA_ATIO_VECTOR		0x02
+#define QLA_MSIX_QPAIR_MULTIQ_RSP_Q	0x03
 
 #define QLA_MIDX_DEFAULT	0
 #define QLA_MIDX_RSP_Q		1
@@ -2745,10 +2750,11 @@ struct scsi_qla_host;
 
 struct qla_msix_entry {
 	int have_irq;
+	int in_use;
 	uint32_t vector;
 	uint16_t entry;
-	struct rsp_que *rsp;
-	struct irq_affinity_notify irq_notify;
+	char name[30];
+	void *handle;
 	int cpuid;
 };
 
@@ -2872,7 +2878,6 @@ struct rsp_que {
 	struct qla_msix_entry *msix;
 	struct req_que *req;
 	srb_t *status_srb; /* status continuation entry */
-	struct work_struct q_work;
 
 	dma_addr_t  dma_fx00;
 	response_t *ring_fx00;
@@ -2907,6 +2912,37 @@ struct req_que {
 	request_t *ring_fx00;
 	uint16_t  length_fx00;
 	uint8_t req_pkt[REQUEST_ENTRY_SIZE];
+};
+
+/*Queue pair data structure */
+struct qla_qpair {
+	spinlock_t qp_lock;
+	atomic_t ref_count;
+	/* distill these fields down to 'online=0/1'
+	 * ha->flags.eeh_busy
+	 * ha->flags.pci_channel_io_perm_failure
+	 * base_vha->loop_state
+	 */
+	uint32_t online:1;
+	/* move vha->flags.difdix_supported here */
+	uint32_t difdix_supported:1;
+	uint32_t delete_in_progress:1;
+
+	uint16_t id;			/* qp number used with FW */
+	uint16_t num_active_cmd;	/* cmds down at firmware */
+	cpumask_t cpu_mask; /* CPU mask for cpu affinity operation */
+	uint16_t vp_idx;		/* vport ID */
+
+	mempool_t *srb_mempool;
+
+	/* to do: New driver: move queues to here instead of pointers */
+	struct req_que *req;
+	struct rsp_que *rsp;
+	struct atio_que *atio;
+	struct qla_msix_entry *msix; /* point to &ha->msix_entries[x] */
+	struct qla_hw_data *hw;
+	struct work_struct q_work;
+	struct list_head qp_list_elem; /* vha->qp_list */
 };
 
 /* Place holder for FW buffer parameters */
@@ -3004,7 +3040,6 @@ struct qla_hw_data {
 		uint32_t	chip_reset_done		:1;
 		uint32_t	running_gold_fw		:1;
 		uint32_t	eeh_busy		:1;
-		uint32_t	cpu_affinity_enabled	:1;
 		uint32_t	disable_msix_handshake	:1;
 		uint32_t	fcp_prio_enabled	:1;
 		uint32_t	isp82xx_fw_hung:1;
@@ -3061,10 +3096,15 @@ struct qla_hw_data {
 	uint8_t         mqenable;
 	struct req_que **req_q_map;
 	struct rsp_que **rsp_q_map;
+	struct qla_qpair **queue_pair_map;
 	unsigned long req_qid_map[(QLA_MAX_QUEUES / 8) / sizeof(unsigned long)];
 	unsigned long rsp_qid_map[(QLA_MAX_QUEUES / 8) / sizeof(unsigned long)];
+	unsigned long qpair_qid_map[(QLA_MAX_QUEUES / 8)
+		/ sizeof(unsigned long)];
 	uint8_t 	max_req_queues;
 	uint8_t 	max_rsp_queues;
+	uint8_t		max_qpairs;
+	struct qla_qpair *base_qpair;
 	struct qla_npiv_entry *npiv_info;
 	uint16_t	nvram_npiv_size;
 
@@ -3328,6 +3368,7 @@ struct qla_hw_data {
 
 	struct mutex vport_lock;        /* Virtual port synchronization */
 	spinlock_t vport_slock; /* order is hardware_lock, then vport_slock */
+	struct mutex mq_lock;        /* multi-queue synchronization */
 	struct completion mbx_cmd_comp; /* Serialize mbx access */
 	struct completion mbx_intr_comp;  /* Used for completion notification */
 	struct completion dcbx_comp;	/* For set port config notification */
@@ -3608,6 +3649,7 @@ typedef struct scsi_qla_host {
 
 		uint32_t	fw_tgt_reported:1;
 		uint32_t	bbcr_enable:1;
+		uint32_t	qpairs_available:1;
 	} flags;
 
 	atomic_t	loop_state;
@@ -3646,6 +3688,7 @@ typedef struct scsi_qla_host {
 #define FX00_TARGET_SCAN	24
 #define FX00_CRITEMP_RECOVERY	25
 #define FX00_HOST_INFO_RESEND	26
+#define QPAIR_ONLINE_CHECK_NEEDED	27
 
 	unsigned long	pci_flags;
 #define PFLG_DISCONNECTED	0	/* PCI device removed */
@@ -3704,10 +3747,13 @@ typedef struct scsi_qla_host {
 	/* List of pending PLOGI acks, protected by hw lock */
 	struct list_head	plogi_ack_list;
 
+	struct list_head	qp_list;
+
 	uint32_t	vp_abort_cnt;
 
 	struct fc_vport	*fc_vport;	/* holds fc_vport * for each vport */
 	uint16_t        vp_idx;		/* vport ID */
+	struct qla_qpair *qpair;	/* base qpair */
 
 	unsigned long		vp_flags;
 #define VP_IDX_ACQUIRED		0	/* bit no 0 */
@@ -3763,6 +3809,23 @@ struct qla_tgt_vp_map {
 	scsi_qla_host_t *vha;
 };
 
+struct qla2_sgx {
+	dma_addr_t		dma_addr;	/* OUT */
+	uint32_t		dma_len;	/* OUT */
+
+	uint32_t		tot_bytes;	/* IN */
+	struct scatterlist	*cur_sg;	/* IN */
+
+	/* for book keeping, bzero on initial invocation */
+	uint32_t		bytes_consumed;
+	uint32_t		num_bytes;
+	uint32_t		tot_partial;
+
+	/* for debugging */
+	uint32_t		num_sg;
+	srb_t			*sp;
+};
+
 /*
  * Macros to help code, maintain, etc.
  */
@@ -3775,20 +3838,33 @@ struct qla_tgt_vp_map {
 		(test_bit(ISP_ABORT_NEEDED, &ha->dpc_flags) || \
 			 test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags))
 
-#define QLA_VHA_MARK_BUSY(__vha, __bail) do {		     \
-	atomic_inc(&__vha->vref_count);			     \
-	mb();						     \
-	if (__vha->flags.delete_progress) {		     \
-		atomic_dec(&__vha->vref_count);		     \
-		__bail = 1;				     \
-	} else {					     \
-		__bail = 0;				     \
-	}						     \
+#define QLA_VHA_MARK_BUSY(__vha, __bail) do {		\
+	atomic_inc(&__vha->vref_count);			\
+	mb();						\
+	if (__vha->flags.delete_progress) {		\
+		atomic_dec(&__vha->vref_count);		\
+		__bail = 1;				\
+	} else {					\
+		__bail = 0;				\
+	}						\
 } while (0)
 
-#define QLA_VHA_MARK_NOT_BUSY(__vha) do {		     \
-	atomic_dec(&__vha->vref_count);			     \
+#define QLA_VHA_MARK_NOT_BUSY(__vha)			\
+	atomic_dec(&__vha->vref_count);			\
+
+#define QLA_QPAIR_MARK_BUSY(__qpair, __bail) do {	\
+	atomic_inc(&__qpair->ref_count);		\
+	mb();						\
+	if (__qpair->delete_in_progress) {		\
+		atomic_dec(&__qpair->ref_count);	\
+		__bail = 1;				\
+	} else {					\
+	       __bail = 0;				\
+	}						\
 } while (0)
+
+#define QLA_QPAIR_MARK_NOT_BUSY(__qpair)		\
+	atomic_dec(&__qpair->ref_count);		\
 
 /*
  * qla2x00 local function return status codes

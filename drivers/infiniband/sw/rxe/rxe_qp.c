@@ -522,6 +522,7 @@ static void rxe_qp_reset(struct rxe_qp *qp)
 	if (qp->sq.queue) {
 		__rxe_do_task(&qp->comp.task);
 		__rxe_do_task(&qp->req.task);
+		rxe_queue_reset(qp->sq.queue);
 	}
 
 	/* cleanup attributes */
@@ -573,6 +574,7 @@ void rxe_qp_error(struct rxe_qp *qp)
 {
 	qp->req.state = QP_STATE_ERROR;
 	qp->resp.state = QP_STATE_ERROR;
+	qp->attr.qp_state = IB_QPS_ERR;
 
 	/* drain work and packet queues */
 	rxe_run_task(&qp->resp.task, 1);
@@ -811,8 +813,7 @@ void rxe_qp_destroy(struct rxe_qp *qp)
 	del_timer_sync(&qp->rnr_nak_timer);
 
 	rxe_cleanup_task(&qp->req.task);
-	if (qp_type(qp) == IB_QPT_RC)
-		rxe_cleanup_task(&qp->comp.task);
+	rxe_cleanup_task(&qp->comp.task);
 
 	/* flush out any receive wr's or pending requests */
 	__rxe_do_task(&qp->req.task);
@@ -853,4 +854,5 @@ void rxe_qp_cleanup(void *arg)
 	free_rd_atomic_resources(qp);
 
 	kernel_sock_shutdown(qp->sk, SHUT_RDWR);
+	sock_release(qp->sk);
 }

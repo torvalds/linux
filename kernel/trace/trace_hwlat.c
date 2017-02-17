@@ -127,7 +127,7 @@ static void trace_hwlat_sample(struct hwlat_sample *sample)
 	entry->nmi_count		= sample->nmi_count;
 
 	if (!call_filter_check_discard(call, entry, buffer, event))
-		__buffer_unlock_commit(buffer, event);
+		trace_buffer_unlock_commit_nostack(buffer, event);
 }
 
 /* Macros to encapsulate the time capturing infrastructure */
@@ -266,7 +266,7 @@ out:
 static struct cpumask save_cpumask;
 static bool disable_migrate;
 
-static void move_to_next_cpu(void)
+static void move_to_next_cpu(bool initmask)
 {
 	static struct cpumask *current_mask;
 	int next_cpu;
@@ -275,7 +275,7 @@ static void move_to_next_cpu(void)
 		return;
 
 	/* Just pick the first CPU on first iteration */
-	if (!current_mask) {
+	if (initmask) {
 		current_mask = &save_cpumask;
 		get_online_cpus();
 		cpumask_and(current_mask, cpu_online_mask, tracing_buffer_mask);
@@ -330,10 +330,12 @@ static void move_to_next_cpu(void)
 static int kthread_fn(void *data)
 {
 	u64 interval;
+	bool initmask = true;
 
 	while (!kthread_should_stop()) {
 
-		move_to_next_cpu();
+		move_to_next_cpu(initmask);
+		initmask = false;
 
 		local_irq_disable();
 		get_sample();

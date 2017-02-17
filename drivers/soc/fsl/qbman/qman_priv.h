@@ -73,29 +73,23 @@ struct qm_mcr_querycgr {
 	struct __qm_mc_cgr cgr; /* CGR fields */
 	u8 __reserved2[6];
 	u8 i_bcnt_hi;	/* high 8-bits of 40-bit "Instant" */
-	u32 i_bcnt_lo;	/* low 32-bits of 40-bit */
+	__be32 i_bcnt_lo;	/* low 32-bits of 40-bit */
 	u8 __reserved3[3];
 	u8 a_bcnt_hi;	/* high 8-bits of 40-bit "Average" */
-	u32 a_bcnt_lo;	/* low 32-bits of 40-bit */
-	u32 cscn_targ_swp[4];
+	__be32 a_bcnt_lo;	/* low 32-bits of 40-bit */
+	__be32 cscn_targ_swp[4];
 } __packed;
 
 static inline u64 qm_mcr_querycgr_i_get64(const struct qm_mcr_querycgr *q)
 {
-	return ((u64)q->i_bcnt_hi << 32) | (u64)q->i_bcnt_lo;
+	return ((u64)q->i_bcnt_hi << 32) | be32_to_cpu(q->i_bcnt_lo);
 }
 static inline u64 qm_mcr_querycgr_a_get64(const struct qm_mcr_querycgr *q)
 {
-	return ((u64)q->a_bcnt_hi << 32) | (u64)q->a_bcnt_lo;
+	return ((u64)q->a_bcnt_hi << 32) | be32_to_cpu(q->a_bcnt_lo);
 }
 
 /* "Query FQ Non-Programmable Fields" */
-struct qm_mcc_queryfq_np {
-	u8 _ncw_verb;
-	u8 __reserved1[3];
-	u32 fqid;	/* 24-bit */
-	u8 __reserved2[56];
-} __packed;
 
 struct qm_mcr_queryfq_np {
 	u8 verb;
@@ -367,5 +361,6 @@ int qman_alloc_fq_table(u32 num_fqids);
 #define QM_PIRQ_VISIBLE	(QM_PIRQ_SLOW | QM_PIRQ_DQRI)
 
 extern struct qman_portal *affine_portals[NR_CPUS];
+extern struct qman_portal *qman_dma_portal;
 const struct qm_portal_config *qman_get_qm_portal_config(
 						struct qman_portal *portal);

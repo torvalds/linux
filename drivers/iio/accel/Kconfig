@@ -52,6 +52,26 @@ config BMC150_ACCEL_SPI
 	tristate
 	select REGMAP_SPI
 
+config DA280
+	tristate "MiraMEMS DA280 3-axis 14-bit digital accelerometer driver"
+	depends on I2C
+	help
+	  Say yes here to build support for the MiraMEMS DA280 3-axis 14-bit
+	  digital accelerometer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called da280.
+
+config DA311
+	tristate "MiraMEMS DA311 3-axis 12-bit digital accelerometer driver"
+	depends on I2C
+	help
+	  Say yes here to build support for the MiraMEMS DA311 3-axis 12-bit
+	  digital accelerometer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called da311.
+
 config DMARD06
 	tristate "Domintech DMARD06 Digital Accelerometer Driver"
 	depends on OF || COMPILE_TEST
@@ -72,6 +92,16 @@ config DMARD09
 
 	  Choosing M will build the driver as a module. If so, the module
 	  will be called dmard09.
+
+config DMARD10
+	tristate "Domintech DMARD10 3-axis Accelerometer Driver"
+	depends on I2C
+	help
+	  Say yes here to get support for the Domintech DMARD10 3-axis
+	  accelerometer.
+
+	  Choosing M will build the driver as a module. If so, the module
+	  will be called dmard10.
 
 config HID_SENSOR_ACCEL_3D
 	depends on HID_SENSOR_HUB
@@ -97,7 +127,8 @@ config IIO_ST_ACCEL_3AXIS
 	help
 	  Say yes here to build support for STMicroelectronics accelerometers:
 	  LSM303DLH, LSM303DLHC, LIS3DH, LSM330D, LSM330DL, LSM330DLC,
-	  LIS331DLH, LSM303DL, LSM303DLM, LSM330, LIS2DH12, H3LIS331DL.
+	  LIS331DLH, LSM303DL, LSM303DLM, LSM330, LIS2DH12, H3LIS331DL,
+	  LNG2DM
 
 	  This driver can also be built as a module. If so, these modules
 	  will be created:
@@ -272,6 +303,18 @@ config MXC6255
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called mxc6255.
+
+config SCA3000
+	select IIO_BUFFER
+	select IIO_KFIFO_BUF
+	depends on SPI
+	tristate "VTI SCA3000 series accelerometers"
+	help
+	  Say Y here to build support for the VTI SCA3000 series of SPI
+	  accelerometers. These devices use a hardware ring buffer.
+
+	  To compile this driver as a module, say M here: the module will be
+	  called sca3000.
 
 config STK8312
 	tristate "Sensortek STK8312 3-Axis Accelerometer Driver"

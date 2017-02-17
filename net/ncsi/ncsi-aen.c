@@ -141,23 +141,35 @@ static int ncsi_aen_handler_hncdsc(struct ncsi_dev_priv *ndp,
 		return -ENODEV;
 
 	/* If the channel is active one, we need reconfigure it */
+	spin_lock_irqsave(&nc->lock, flags);
 	ncm = &nc->modes[NCSI_MODE_LINK];
 	hncdsc = (struct ncsi_aen_hncdsc_pkt *)h;
 	ncm->data[3] = ntohl(hncdsc->status);
 	if (!list_empty(&nc->link) ||
-	    nc->state != NCSI_CHANNEL_ACTIVE ||
-	    (ncm->data[3] & 0x1))
+	    nc->state != NCSI_CHANNEL_ACTIVE) {
+		spin_unlock_irqrestore(&nc->lock, flags);
 		return 0;
+	}
 
-	if (ndp->flags & NCSI_DEV_HWA)
+	spin_unlock_irqrestore(&nc->lock, flags);
+	if (!(ndp->flags & NCSI_DEV_HWA) && !(ncm->data[3] & 0x1))
 		ndp->flags |= NCSI_DEV_RESHUFFLE;
 
 	/* If this channel is the active one and the link doesn't
 	 * work, we have to choose another channel to be active one.
 	 * The logic here is exactly similar to what we do when link
 	 * is down on the active channel.
+	 *
+	 * On the other hand, we need configure it when host driver
+	 * state on the active channel becomes ready.
 	 */
 	ncsi_stop_channel_monitor(nc);
+
+	spin_lock_irqsave(&nc->lock, flags);
+	nc->state = (ncm->data[3] & 0x1) ? NCSI_CHANNEL_INACTIVE :
+					   NCSI_CHANNEL_ACTIVE;
+	spin_unlock_irqrestore(&nc->lock, flags);
+
 	spin_lock_irqsave(&ndp->lock, flags);
 	list_add_tail_rcu(&nc->link, &ndp->channel_queue);
 	spin_unlock_irqrestore(&ndp->lock, flags);

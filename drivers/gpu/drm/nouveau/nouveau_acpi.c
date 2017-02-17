@@ -240,7 +240,8 @@ static bool nouveau_pr3_present(struct pci_dev *pdev)
 	if (!parent_adev)
 		return false;
 
-	return acpi_has_method(parent_adev->handle, "_PR3");
+	return parent_adev->power.flags.power_resources &&
+		acpi_has_method(parent_adev->handle, "_PR3");
 }
 
 static void nouveau_dsm_pci_probe(struct pci_dev *pdev, acpi_handle *dhandle_out,

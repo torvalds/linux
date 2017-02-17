@@ -217,6 +217,7 @@ static __init int setup_hugepagesz(char *opt)
 	} else if (MACHINE_HAS_EDAT2 && size == PUD_SIZE) {
 		hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
 	} else {
+		hugetlb_bad_size();
 		pr_err("hugepagesz= specifies an unsupported page size %s\n",
 			string);
 		return 0;

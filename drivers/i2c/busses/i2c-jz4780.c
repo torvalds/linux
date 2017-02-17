@@ -729,6 +729,7 @@ static const struct of_device_id jz4780_i2c_of_matches[] = {
 	{ .compatible = "ingenic,jz4780-i2c", },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, jz4780_i2c_of_matches);
 
 static int jz4780_i2c_probe(struct platform_device *pdev)
 {

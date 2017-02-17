@@ -14,6 +14,7 @@ Required properties :
 			"qcom,gcc-msm8974"
 			"qcom,gcc-msm8974pro"
 			"qcom,gcc-msm8974pro-ac"
+			"qcom,gcc-msm8994"
 			"qcom,gcc-msm8996"
 			"qcom,gcc-mdm9615"
 

@@ -190,7 +190,7 @@ dma_addr_t exynos_drm_fb_dma_addr(struct drm_framebuffer *fb, int index)
 static const struct drm_mode_config_funcs exynos_drm_mode_config_funcs = {
 	.fb_create = exynos_user_fb_create,
 	.output_poll_changed = exynos_drm_output_poll_changed,
-	.atomic_check = drm_atomic_helper_check,
+	.atomic_check = exynos_atomic_check,
 	.atomic_commit = exynos_atomic_commit,
 };
 

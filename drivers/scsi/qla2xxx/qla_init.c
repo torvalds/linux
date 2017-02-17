@@ -1191,7 +1191,7 @@ qla24xx_reset_risc(scsi_qla_host_t *vha)
 
 	/* Wait for soft-reset to complete. */
 	RD_REG_DWORD(&reg->ctrl_status);
-	for (cnt = 0; cnt < 6000000; cnt++) {
+	for (cnt = 0; cnt < 60; cnt++) {
 		barrier();
 		if ((RD_REG_DWORD(&reg->ctrl_status) &
 		    CSRX_ISP_SOFT_RESET) == 0)
@@ -1234,7 +1234,7 @@ qla24xx_reset_risc(scsi_qla_host_t *vha)
 	RD_REG_DWORD(&reg->hccr);
 
 	RD_REG_WORD(&reg->mailbox0);
-	for (cnt = 6000000; RD_REG_WORD(&reg->mailbox0) != 0 &&
+	for (cnt = 60; RD_REG_WORD(&reg->mailbox0) != 0 &&
 	    rval == QLA_SUCCESS; cnt--) {
 		barrier();
 		if (cnt)
@@ -1769,8 +1769,7 @@ qla2x00_alloc_outstanding_cmds(struct qla_hw_data *ha, struct req_que *req)
 	if (req->outstanding_cmds)
 		return QLA_SUCCESS;
 
-	if (!IS_FWI2_CAPABLE(ha) || (ha->mqiobase &&
-	    (ql2xmultique_tag || ql2xmaxqueues > 1)))
+	if (!IS_FWI2_CAPABLE(ha))
 		req->num_outstanding_cmds = DEFAULT_OUTSTANDING_COMMANDS;
 	else {
 		if (ha->cur_fw_xcb_count <= ha->cur_fw_iocb_count)
@@ -4248,10 +4247,7 @@ qla2x00_loop_resync(scsi_qla_host_t *vha)
 	struct req_que *req;
 	struct rsp_que *rsp;
 
-	if (vha->hw->flags.cpu_affinity_enabled)
-		req = vha->hw->req_q_map[0];
-	else
-		req = vha->req;
+	req = vha->req;
 	rsp = req->rsp;
 
 	clear_bit(ISP_ABORT_RETRY, &vha->dpc_flags);
@@ -6040,10 +6036,10 @@ qla24xx_configure_vhba(scsi_qla_host_t *vha)
 		return -EINVAL;
 
 	rval = qla2x00_fw_ready(base_vha);
-	if (ha->flags.cpu_affinity_enabled)
-		req = ha->req_q_map[0];
+	if (vha->qpair)
+		req = vha->qpair->req;
 	else
-		req = vha->req;
+		req = ha->req_q_map[0];
 	rsp = req->rsp;
 
 	if (rval == QLA_SUCCESS) {
@@ -6723,5 +6719,164 @@ qla24xx_update_all_fcp_prio(scsi_qla_host_t *vha)
 	list_for_each_entry(fcport, &vha->vp_fcports, list)
 		ret = qla24xx_update_fcport_fcp_prio(vha, fcport);
 
+	return ret;
+}
+
+struct qla_qpair *qla2xxx_create_qpair(struct scsi_qla_host *vha, int qos, int vp_idx)
+{
+	int rsp_id = 0;
+	int  req_id = 0;
+	int i;
+	struct qla_hw_data *ha = vha->hw;
+	uint16_t qpair_id = 0;
+	struct qla_qpair *qpair = NULL;
+	struct qla_msix_entry *msix;
+
+	if (!(ha->fw_attributes & BIT_6) || !ha->flags.msix_enabled) {
+		ql_log(ql_log_warn, vha, 0x00181,
+		    "FW/Driver is not multi-queue capable.\n");
+		return NULL;
+	}
+
+	if (ql2xmqsupport) {
+		qpair = kzalloc(sizeof(struct qla_qpair), GFP_KERNEL);
+		if (qpair == NULL) {
+			ql_log(ql_log_warn, vha, 0x0182,
+			    "Failed to allocate memory for queue pair.\n");
+			return NULL;
+		}
+		memset(qpair, 0, sizeof(struct qla_qpair));
+
+		qpair->hw = vha->hw;
+
+		/* Assign available que pair id */
+		mutex_lock(&ha->mq_lock);
+		qpair_id = find_first_zero_bit(ha->qpair_qid_map, ha->max_qpairs);
+		if (qpair_id >= ha->max_qpairs) {
+			mutex_unlock(&ha->mq_lock);
+			ql_log(ql_log_warn, vha, 0x0183,
+			    "No resources to create additional q pair.\n");
+			goto fail_qid_map;
+		}
+		set_bit(qpair_id, ha->qpair_qid_map);
+		ha->queue_pair_map[qpair_id] = qpair;
+		qpair->id = qpair_id;
+		qpair->vp_idx = vp_idx;
+
+		for (i = 0; i < ha->msix_count; i++) {
+			msix = &ha->msix_entries[i];
+			if (msix->in_use)
+				continue;
+			qpair->msix = msix;
+			ql_log(ql_dbg_multiq, vha, 0xc00f,
+			    "Vector %x selected for qpair\n", msix->vector);
+			break;
+		}
+		if (!qpair->msix) {
+			ql_log(ql_log_warn, vha, 0x0184,
+			    "Out of MSI-X vectors!.\n");
+			goto fail_msix;
+		}
+
+		qpair->msix->in_use = 1;
+		list_add_tail(&qpair->qp_list_elem, &vha->qp_list);
+
+		mutex_unlock(&ha->mq_lock);
+
+		/* Create response queue first */
+		rsp_id = qla25xx_create_rsp_que(ha, 0, 0, 0, qpair);
+		if (!rsp_id) {
+			ql_log(ql_log_warn, vha, 0x0185,
+			    "Failed to create response queue.\n");
+			goto fail_rsp;
+		}
+
+		qpair->rsp = ha->rsp_q_map[rsp_id];
+
+		/* Create request queue */
+		req_id = qla25xx_create_req_que(ha, 0, vp_idx, 0, rsp_id, qos);
+		if (!req_id) {
+			ql_log(ql_log_warn, vha, 0x0186,
+			    "Failed to create request queue.\n");
+			goto fail_req;
+		}
+
+		qpair->req = ha->req_q_map[req_id];
+		qpair->rsp->req = qpair->req;
+
+		if (IS_T10_PI_CAPABLE(ha) && ql2xenabledif) {
+			if (ha->fw_attributes & BIT_4)
+				qpair->difdix_supported = 1;
+		}
+
+		qpair->srb_mempool = mempool_create_slab_pool(SRB_MIN_REQ, srb_cachep);
+		if (!qpair->srb_mempool) {
+			ql_log(ql_log_warn, vha, 0x0191,
+			    "Failed to create srb mempool for qpair %d\n",
+			    qpair->id);
+			goto fail_mempool;
+		}
+
+		/* Mark as online */
+		qpair->online = 1;
+
+		if (!vha->flags.qpairs_available)
+			vha->flags.qpairs_available = 1;
+
+		ql_dbg(ql_dbg_multiq, vha, 0xc00d,
+		    "Request/Response queue pair created, id %d\n",
+		    qpair->id);
+		ql_dbg(ql_dbg_init, vha, 0x0187,
+		    "Request/Response queue pair created, id %d\n",
+		    qpair->id);
+	}
+	return qpair;
+
+fail_mempool:
+fail_req:
+	qla25xx_delete_rsp_que(vha, qpair->rsp);
+fail_rsp:
+	mutex_lock(&ha->mq_lock);
+	qpair->msix->in_use = 0;
+	list_del(&qpair->qp_list_elem);
+	if (list_empty(&vha->qp_list))
+		vha->flags.qpairs_available = 0;
+fail_msix:
+	ha->queue_pair_map[qpair_id] = NULL;
+	clear_bit(qpair_id, ha->qpair_qid_map);
+	mutex_unlock(&ha->mq_lock);
+fail_qid_map:
+	kfree(qpair);
+	return NULL;
+}
+
+int qla2xxx_delete_qpair(struct scsi_qla_host *vha, struct qla_qpair *qpair)
+{
+	int ret;
+	struct qla_hw_data *ha = qpair->hw;
+
+	qpair->delete_in_progress = 1;
+	while (atomic_read(&qpair->ref_count))
+		msleep(500);
+
+	ret = qla25xx_delete_req_que(vha, qpair->req);
+	if (ret != QLA_SUCCESS)
+		goto fail;
+	ret = qla25xx_delete_rsp_que(vha, qpair->rsp);
+	if (ret != QLA_SUCCESS)
+		goto fail;
+
+	mutex_lock(&ha->mq_lock);
+	ha->queue_pair_map[qpair->id] = NULL;
+	clear_bit(qpair->id, ha->qpair_qid_map);
+	list_del(&qpair->qp_list_elem);
+	if (list_empty(&vha->qp_list))
+		vha->flags.qpairs_available = 0;
+	mempool_destroy(qpair->srb_mempool);
+	kfree(qpair);
+	mutex_unlock(&ha->mq_lock);
+
+	return QLA_SUCCESS;
+fail:
 	return ret;
 }

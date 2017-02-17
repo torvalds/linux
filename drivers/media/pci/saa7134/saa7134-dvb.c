@@ -1449,8 +1449,8 @@ static int dvb_init(struct saa7134_dev *dev)
 
 				if (dvb_attach(tda826x_attach, fe0->dvb.frontend,
 						0x60, &dev->i2c_adap, 0) == NULL) {
-					pr_warn("%s: Medion Quadro, no tda826x "
-						"found !\n", __func__);
+					pr_warn("%s: Medion Quadro, no tda826x found !\n",
+						__func__);
 					goto detach_frontend;
 				}
 				if (dev_id != 0x08) {
@@ -1458,8 +1458,8 @@ static int dvb_init(struct saa7134_dev *dev)
 					fe->ops.i2c_gate_ctrl(fe, 1);
 					if (dvb_attach(isl6405_attach, fe,
 							&dev->i2c_adap, 0x08, 0, 0) == NULL) {
-						pr_warn("%s: Medion Quadro, no ISL6405 "
-							"found !\n", __func__);
+						pr_warn("%s: Medion Quadro, no ISL6405 found !\n",
+							__func__);
 						goto detach_frontend;
 					}
 					if (dev_id == 0x07) {
@@ -1629,8 +1629,8 @@ static int dvb_init(struct saa7134_dev *dev)
 			struct dvb_frontend *fe;
 			if (dvb_attach(dvb_pll_attach, fe0->dvb.frontend, 0x60,
 				  &dev->i2c_adap, DVB_PLL_PHILIPS_SD1878_TDA8261) == NULL) {
-				pr_warn("%s: MD7134 DVB-S, no SD1878 "
-					"found !\n", __func__);
+				pr_warn("%s: MD7134 DVB-S, no SD1878 found !\n",
+					__func__);
 				goto detach_frontend;
 			}
 			/* we need to open the i2c gate (we know it exists) */
@@ -1638,8 +1638,8 @@ static int dvb_init(struct saa7134_dev *dev)
 			fe->ops.i2c_gate_ctrl(fe, 1);
 			if (dvb_attach(isl6405_attach, fe,
 					&dev->i2c_adap, 0x08, 0, 0) == NULL) {
-				pr_warn("%s: MD7134 DVB-S, no ISL6405 "
-					"found !\n", __func__);
+				pr_warn("%s: MD7134 DVB-S, no ISL6405 found !\n",
+					__func__);
 				goto detach_frontend;
 			}
 			fe->ops.i2c_gate_ctrl(fe, 0);
@@ -1670,14 +1670,14 @@ static int dvb_init(struct saa7134_dev *dev)
 				if (dvb_attach(tda826x_attach,
 						fe0->dvb.frontend, 0x60,
 						&dev->i2c_adap, 0) == NULL) {
-					pr_warn("%s: Asus Tiger 3in1, no "
-						"tda826x found!\n", __func__);
+					pr_warn("%s: Asus Tiger 3in1, no tda826x found!\n",
+						__func__);
 					goto detach_frontend;
 				}
 				if (dvb_attach(lnbp21_attach, fe0->dvb.frontend,
 						&dev->i2c_adap, 0, 0) == NULL) {
-					pr_warn("%s: Asus Tiger 3in1, no lnbp21"
-						" found!\n", __func__);
+					pr_warn("%s: Asus Tiger 3in1, no lnbp21 found!\n",
+						__func__);
 					goto detach_frontend;
 			       }
 		       }
@@ -1695,14 +1695,14 @@ static int dvb_init(struct saa7134_dev *dev)
 				if (dvb_attach(tda826x_attach,
 					       fe0->dvb.frontend, 0x60,
 					       &dev->i2c_adap, 0) == NULL) {
-					pr_warn("%s: Asus My Cinema PS3-100, no "
-						"tda826x found!\n", __func__);
+					pr_warn("%s: Asus My Cinema PS3-100, no tda826x found!\n",
+						__func__);
 					goto detach_frontend;
 				}
 				if (dvb_attach(lnbp21_attach, fe0->dvb.frontend,
 					       &dev->i2c_adap, 0, 0) == NULL) {
-					pr_warn("%s: Asus My Cinema PS3-100, no lnbp21"
-						" found!\n", __func__);
+					pr_warn("%s: Asus My Cinema PS3-100, no lnbp21 found!\n",
+						__func__);
 					goto detach_frontend;
 				}
 			}

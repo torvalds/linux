@@ -9,6 +9,7 @@
  *
  */
 
+#include <linux/delay.h>
 #include <linux/io.h>
 #include "common.h"
 #include "rcar3.h"
@@ -35,10 +36,13 @@ static int usbhs_rcar3_power_ctrl(struct platform_device *pdev,
 
 	usbhs_write32(priv, UGCTRL2, UGCTRL2_RESERVED_3 | UGCTRL2_USB0SEL_OTG);
 
-	if (enable)
+	if (enable) {
 		usbhs_bset(priv, LPSTS, LPSTS_SUSPM, LPSTS_SUSPM);
-	else
+		/* The controller on R-Car Gen3 needs to wait up to 45 usec */
+		udelay(45);
+	} else {
 		usbhs_bset(priv, LPSTS, LPSTS_SUSPM, 0);
+	}
 
 	return 0;
 }

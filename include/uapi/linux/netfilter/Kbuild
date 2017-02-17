@@ -5,6 +5,7 @@ header-y += nf_conntrack_ftp.h
 header-y += nf_conntrack_sctp.h
 header-y += nf_conntrack_tcp.h
 header-y += nf_conntrack_tuple_common.h
+header-y += nf_log.h
 header-y += nf_tables.h
 header-y += nf_tables_compat.h
 header-y += nf_nat.h

@@ -88,7 +88,7 @@ MODULE_PARM_DESC(delay_ms, "Milliseconds to delay the response to peer");
 
 static unsigned long db_init = 0x7;
 module_param(db_init, ulong, 0644);
-MODULE_PARM_DESC(delay_ms, "Initial doorbell bits to ring on the peer");
+MODULE_PARM_DESC(db_init, "Initial doorbell bits to ring on the peer");
 
 struct pp_ctx {
 	struct ntb_dev			*ntb;
