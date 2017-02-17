@@ -56,6 +56,7 @@ static int mall_replace_hw_filter(struct tcf_proto *tp,
 	struct net_device *dev = tp->q->dev_queue->dev;
 	struct tc_to_netdev offload;
 	struct tc_cls_matchall_offload mall_offload = {0};
+	int err;
 
 	offload.type = TC_SETUP_MATCHALL;
 	offload.cls_mall = &mall_offload;
@@ -63,8 +64,12 @@ static int mall_replace_hw_filter(struct tcf_proto *tp,
 	offload.cls_mall->exts = &head->exts;
 	offload.cls_mall->cookie = cookie;
 
-	return dev->netdev_ops->ndo_setup_tc(dev, tp->q->handle, tp->protocol,
-					     &offload);
+	err = dev->netdev_ops->ndo_setup_tc(dev, tp->q->handle, tp->protocol,
+					    &offload);
+	if (!err)
+		head->flags |= TCA_CLS_FLAGS_IN_HW;
+
+	return err;
 }
 
 static void mall_destroy_hw_filter(struct tcf_proto *tp,
@@ -194,6 +199,9 @@ static int mall_change(struct net *net, struct sk_buff *in_skb,
 		}
 	}
 
+	if (!tc_in_hw(new->flags))
+		new->flags |= TCA_CLS_FLAGS_NOT_IN_HW;
+
 	*arg = (unsigned long) head;
 	rcu_assign_pointer(tp->root, new);
 	if (head)
@@ -242,6 +250,9 @@ static int mall_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 
 	if (head->res.classid &&
 	    nla_put_u32(skb, TCA_MATCHALL_CLASSID, head->res.classid))
+		goto nla_put_failure;
+
+	if (head->flags && nla_put_u32(skb, TCA_MATCHALL_FLAGS, head->flags))
 		goto nla_put_failure;
 
 	if (tcf_exts_dump(skb, &head->exts))

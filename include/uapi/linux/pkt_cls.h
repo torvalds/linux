@@ -103,8 +103,10 @@ enum {
 #define TCA_POLICE_MAX (__TCA_POLICE_MAX - 1)
 
 /* tca flags definitions */
-#define TCA_CLS_FLAGS_SKIP_HW	(1 << 0)
-#define TCA_CLS_FLAGS_SKIP_SW	(1 << 1)
+#define TCA_CLS_FLAGS_SKIP_HW	(1 << 0) /* don't offload filter to HW */
+#define TCA_CLS_FLAGS_SKIP_SW	(1 << 1) /* don't use filter in SW */
+#define TCA_CLS_FLAGS_IN_HW	(1 << 2) /* filter is offloaded to HW */
+#define TCA_CLS_FLAGS_NOT_IN_HW (1 << 3) /* filter isn't offloaded to HW */
 
 /* U32 filters */
 

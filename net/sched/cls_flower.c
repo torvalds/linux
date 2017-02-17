@@ -273,6 +273,8 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 
 	err = dev->netdev_ops->ndo_setup_tc(dev, tp->q->handle, tp->protocol,
 					    tc);
+	if (!err)
+		f->flags |= TCA_CLS_FLAGS_IN_HW;
 
 	if (tc_skip_sw(f->flags))
 		return err;
@@ -912,6 +914,9 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 			goto errout;
 	}
 
+	if (!tc_in_hw(fnew->flags))
+		fnew->flags |= TCA_CLS_FLAGS_NOT_IN_HW;
+
 	if (fold) {
 		if (!tc_skip_sw(fold->flags))
 			rhashtable_remove_fast(&head->ht, &fold->ht_node,
@@ -1229,7 +1234,8 @@ static int fl_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 	if (fl_dump_key_flags(skb, key->control.flags, mask->control.flags))
 		goto nla_put_failure;
 
-	nla_put_u32(skb, TCA_FLOWER_FLAGS, f->flags);
+	if (f->flags && nla_put_u32(skb, TCA_FLOWER_FLAGS, f->flags))
+		goto nla_put_failure;
 
 	if (tcf_exts_dump(skb, &f->exts))
 		goto nla_put_failure;
