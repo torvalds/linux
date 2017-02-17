@@ -510,6 +510,8 @@ static void vce_v3_0_mc_resume(struct amdgpu_device *adev, int idx)
 	WREG32(mmVCE_LMI_SWAP_CNTL, 0);
 	WREG32(mmVCE_LMI_SWAP_CNTL1, 0);
 	WREG32(mmVCE_LMI_VM_CTRL, 0);
+	WREG32_OR(mmVCE_VCPU_CNTL, 0x00100000);
+
 	if (adev->asic_type >= CHIP_STONEY) {
 		WREG32(mmVCE_LMI_VCPU_CACHE_40BIT_BAR0, (adev->vce.gpu_addr >> 8));
 		WREG32(mmVCE_LMI_VCPU_CACHE_40BIT_BAR1, (adev->vce.gpu_addr >> 8));
@@ -766,12 +768,10 @@ static int vce_v3_0_set_powergating_state(void *handle,
 		ret = vce_v3_0_stop(adev);
 		if (ret)
 			goto out;
-		adev->vce.is_powergated = true;
 	} else {
 		ret = vce_v3_0_start(adev);
 		if (ret)
 			goto out;
-		adev->vce.is_powergated = false;
 	}
 
 out:
@@ -785,7 +785,8 @@ static void vce_v3_0_get_clockgating_state(void *handle, u32 *flags)
 
 	mutex_lock(&adev->pm.mutex);
 
-	if (adev->vce.is_powergated) {
+	if (RREG32_SMC(ixCURRENT_PG_STATUS) &
+			CURRENT_PG_STATUS__VCE_PG_STATUS_MASK) {
 		DRM_INFO("Cannot get clockgating state when VCE is powergated.\n");
 		goto out;
 	}
