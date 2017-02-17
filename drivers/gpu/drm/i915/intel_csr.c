@@ -34,9 +34,9 @@
  * low-power state and comes back to normal.
  */
 
-#define I915_CSR_GLK "i915/glk_dmc_ver1_01.bin"
+#define I915_CSR_GLK "i915/glk_dmc_ver1_03.bin"
 MODULE_FIRMWARE(I915_CSR_GLK);
-#define GLK_CSR_VERSION_REQUIRED	CSR_VERSION(1, 1)
+#define GLK_CSR_VERSION_REQUIRED	CSR_VERSION(1, 3)
 
 #define I915_CSR_KBL "i915/kbl_dmc_ver1_01.bin"
 MODULE_FIRMWARE(I915_CSR_KBL);
