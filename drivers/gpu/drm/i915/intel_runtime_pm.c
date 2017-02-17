@@ -49,19 +49,6 @@
  * present for a given platform.
  */
 
-#define for_each_power_well(i, power_well, domain_mask, power_domains)	\
-	for (i = 0;							\
-	     i < (power_domains)->power_well_count &&			\
-		 ((power_well) = &(power_domains)->power_wells[i]);	\
-	     i++)							\
-		for_each_if ((power_well)->domains & (domain_mask))
-
-#define for_each_power_well_rev(i, power_well, domain_mask, power_domains) \
-	for (i = (power_domains)->power_well_count - 1;			 \
-	     i >= 0 && ((power_well) = &(power_domains)->power_wells[i]);\
-	     i--)							 \
-		for_each_if ((power_well)->domains & (domain_mask))
-
 bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
 				    int power_well_id);
 
@@ -198,19 +185,15 @@ static bool hsw_power_well_enabled(struct drm_i915_private *dev_priv,
 bool __intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 				      enum intel_display_power_domain domain)
 {
-	struct i915_power_domains *power_domains;
 	struct i915_power_well *power_well;
 	bool is_enabled;
-	int i;
 
 	if (dev_priv->pm.suspended)
 		return false;
 
-	power_domains = &dev_priv->power_domains;
-
 	is_enabled = true;
 
-	for_each_power_well_rev(i, power_well, BIT_ULL(domain), power_domains) {
+	for_each_power_domain_well_rev(dev_priv, power_well, BIT_ULL(domain)) {
 		if (power_well->always_on)
 			continue;
 
@@ -1663,9 +1646,8 @@ __intel_display_power_get_domain(struct drm_i915_private *dev_priv,
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *power_well;
-	int i;
 
-	for_each_power_well(i, power_well, BIT_ULL(domain), power_domains)
+	for_each_power_domain_well(dev_priv, power_well, BIT_ULL(domain))
 		intel_power_well_get(dev_priv, power_well);
 
 	power_domains->domain_use_count[domain]++;
@@ -1749,7 +1731,6 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 {
 	struct i915_power_domains *power_domains;
 	struct i915_power_well *power_well;
-	int i;
 
 	power_domains = &dev_priv->power_domains;
 
@@ -1760,7 +1741,7 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	     intel_display_power_domain_str(domain));
 	power_domains->domain_use_count[domain]--;
 
-	for_each_power_well_rev(i, power_well, BIT_ULL(domain), power_domains)
+	for_each_power_domain_well_rev(dev_priv, power_well, BIT_ULL(domain))
 		intel_power_well_put(dev_priv, power_well);
 
 	mutex_unlock(&power_domains->lock);
@@ -2424,10 +2405,9 @@ static void intel_power_domains_sync_hw(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *power_well;
-	int i;
 
 	mutex_lock(&power_domains->lock);
-	for_each_power_well(i, power_well, POWER_DOMAIN_MASK, power_domains) {
+	for_each_power_well(dev_priv, power_well) {
 		power_well->ops->sync_hw(dev_priv, power_well);
 		power_well->hw_enabled = power_well->ops->is_enabled(dev_priv,
 								     power_well);
