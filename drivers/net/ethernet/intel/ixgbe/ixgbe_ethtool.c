@@ -151,6 +151,13 @@ static const char ixgbe_gstrings_test[][ETH_GSTRING_LEN] = {
 };
 #define IXGBE_TEST_LEN sizeof(ixgbe_gstrings_test) / ETH_GSTRING_LEN
 
+static const char ixgbe_priv_flags_strings[][ETH_GSTRING_LEN] = {
+#define IXGBE_PRIV_FLAGS_LEGACY_RX	BIT(0)
+	"legacy-rx",
+};
+
+#define IXGBE_PRIV_FLAGS_STR_LEN ARRAY_SIZE(ixgbe_priv_flags_strings)
+
 /* currently supported speeds for 10G */
 #define ADVRTSD_MSK_10G (SUPPORTED_10000baseT_Full | \
 			 SUPPORTED_10000baseKX4_Full | \
@@ -339,6 +346,9 @@ static int ixgbe_get_settings(struct net_device *netdev,
 		switch (adapter->link_speed) {
 		case IXGBE_LINK_SPEED_10GB_FULL:
 			ethtool_cmd_speed_set(ecmd, SPEED_10000);
+			break;
+		case IXGBE_LINK_SPEED_5GB_FULL:
+			ethtool_cmd_speed_set(ecmd, SPEED_5000);
 			break;
 		case IXGBE_LINK_SPEED_2_5GB_FULL:
 			ethtool_cmd_speed_set(ecmd, SPEED_2500);
@@ -998,6 +1008,8 @@ static void ixgbe_get_drvinfo(struct net_device *netdev,
 
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
+
+	drvinfo->n_priv_flags = IXGBE_PRIV_FLAGS_STR_LEN;
 }
 
 static void ixgbe_get_ringparam(struct net_device *netdev,
@@ -1137,6 +1149,8 @@ static int ixgbe_get_sset_count(struct net_device *netdev, int sset)
 		return IXGBE_TEST_LEN;
 	case ETH_SS_STATS:
 		return IXGBE_STATS_LEN;
+	case ETH_SS_PRIV_FLAGS:
+		return IXGBE_PRIV_FLAGS_STR_LEN;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1261,6 +1275,9 @@ static void ixgbe_get_strings(struct net_device *netdev, u32 stringset,
 		}
 		/* BUG_ON(p - data != IXGBE_STATS_LEN * ETH_GSTRING_LEN); */
 		break;
+	case ETH_SS_PRIV_FLAGS:
+		memcpy(data, ixgbe_priv_flags_strings,
+		       IXGBE_PRIV_FLAGS_STR_LEN * ETH_GSTRING_LEN);
 	}
 }
 
@@ -1865,7 +1882,7 @@ static u16 ixgbe_clean_test_rings(struct ixgbe_ring *rx_ring,
 	tx_ntc = tx_ring->next_to_clean;
 	rx_desc = IXGBE_RX_DESC(rx_ring, rx_ntc);
 
-	while (ixgbe_test_staterr(rx_desc, IXGBE_RXD_STAT_DD)) {
+	while (rx_desc->wb.upper.length) {
 		/* check Rx buffer */
 		rx_buffer = &rx_ring->rx_buffer_info[rx_ntc];
 
@@ -1887,7 +1904,16 @@ static u16 ixgbe_clean_test_rings(struct ixgbe_ring *rx_ring,
 
 		/* unmap buffer on Tx side */
 		tx_buffer = &tx_ring->tx_buffer_info[tx_ntc];
-		ixgbe_unmap_and_free_tx_resource(tx_ring, tx_buffer);
+
+		/* Free all the Tx ring sk_buffs */
+		dev_kfree_skb_any(tx_buffer->skb);
+
+		/* unmap skb header data */
+		dma_unmap_single(tx_ring->dev,
+				 dma_unmap_addr(tx_buffer, dma),
+				 dma_unmap_len(tx_buffer, len),
+				 DMA_TO_DEVICE);
+		dma_unmap_len_set(tx_buffer, len, 0);
 
 		/* increment Rx/Tx next to clean counters */
 		rx_ntc++;
@@ -3342,6 +3368,37 @@ static int ixgbe_set_eee(struct net_device *netdev, struct ethtool_eee *edata)
 	return 0;
 }
 
+static u32 ixgbe_get_priv_flags(struct net_device *netdev)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	u32 priv_flags = 0;
+
+	if (adapter->flags2 & IXGBE_FLAG2_RX_LEGACY)
+		priv_flags |= IXGBE_PRIV_FLAGS_LEGACY_RX;
+
+	return priv_flags;
+}
+
+static int ixgbe_set_priv_flags(struct net_device *netdev, u32 priv_flags)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	unsigned int flags2 = adapter->flags2;
+
+	flags2 &= ~IXGBE_FLAG2_RX_LEGACY;
+	if (priv_flags & IXGBE_PRIV_FLAGS_LEGACY_RX)
+		flags2 |= IXGBE_FLAG2_RX_LEGACY;
+
+	if (flags2 != adapter->flags2) {
+		adapter->flags2 = flags2;
+
+		/* reset interface to repopulate queues */
+		if (netif_running(netdev))
+			ixgbe_reinit_locked(adapter);
+	}
+
+	return 0;
+}
+
 static const struct ethtool_ops ixgbe_ethtool_ops = {
 	.get_settings           = ixgbe_get_settings,
 	.set_settings           = ixgbe_set_settings,
@@ -3378,6 +3435,8 @@ static const struct ethtool_ops ixgbe_ethtool_ops = {
 	.set_eee		= ixgbe_set_eee,
 	.get_channels		= ixgbe_get_channels,
 	.set_channels		= ixgbe_set_channels,
+	.get_priv_flags		= ixgbe_get_priv_flags,
+	.set_priv_flags		= ixgbe_set_priv_flags,
 	.get_ts_info		= ixgbe_get_ts_info,
 	.get_module_info	= ixgbe_get_module_info,
 	.get_module_eeprom	= ixgbe_get_module_eeprom,
