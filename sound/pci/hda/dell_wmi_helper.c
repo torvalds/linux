@@ -2,7 +2,7 @@
  * to be included from codec driver
  */
 
-#if IS_ENABLED(CONFIG_LEDS_DELL_NETBOOKS)
+#if IS_ENABLED(CONFIG_DELL_LAPTOP)
 #include <linux/dell-led.h>
 
 static int dell_led_value;
@@ -67,10 +67,10 @@ static void alc_fixup_dell_wmi(struct hda_codec *codec,
 	}
 }
 
-#else /* CONFIG_LEDS_DELL_NETBOOKS */
+#else /* CONFIG_DELL_LAPTOP */
 static void alc_fixup_dell_wmi(struct hda_codec *codec,
 			       const struct hda_fixup *fix, int action)
 {
 }
 
-#endif /* CONFIG_LEDS_DELL_NETBOOKS */
+#endif /* CONFIG_DELL_LAPTOP */

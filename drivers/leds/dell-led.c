@@ -16,7 +16,6 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/dmi.h>
-#include <linux/dell-led.h>
 #include "../platform/x86/dell-smbios.h"
 
 MODULE_AUTHOR("Louis Davis/Jim Dailey");
@@ -42,34 +41,6 @@ MODULE_ALIAS("wmi:" DELL_LED_BIOS_GUID);
 #define CMD_LED_ON	16
 #define CMD_LED_OFF	17
 #define CMD_LED_BLINK	18
-
-#define GLOBAL_MIC_MUTE_ENABLE	0x364
-#define GLOBAL_MIC_MUTE_DISABLE	0x365
-
-int dell_micmute_led_set(int state)
-{
-	struct calling_interface_buffer *buffer;
-	struct calling_interface_token *token;
-
-	if (state == 0)
-		token = dell_smbios_find_token(GLOBAL_MIC_MUTE_DISABLE);
-	else if (state == 1)
-		token = dell_smbios_find_token(GLOBAL_MIC_MUTE_ENABLE);
-	else
-		return -EINVAL;
-
-	if (!token)
-		return -ENODEV;
-
-	buffer = dell_smbios_get_buffer();
-	buffer->input[0] = token->location;
-	buffer->input[1] = token->value;
-	dell_smbios_send_request(1, 0);
-	dell_smbios_release_buffer();
-
-	return state;
-}
-EXPORT_SYMBOL_GPL(dell_micmute_led_set);
 
 struct bios_args {
 	unsigned char length;
