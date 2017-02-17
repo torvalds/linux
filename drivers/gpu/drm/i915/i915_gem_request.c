@@ -963,7 +963,8 @@ static bool busywait_stop(unsigned long timeout, unsigned int cpu)
 bool __i915_spin_request(const struct drm_i915_gem_request *req,
 			 int state, unsigned long timeout_us)
 {
-	unsigned int cpu;
+	struct intel_engine_cs *engine = req->engine;
+	unsigned int irq, cpu;
 
 	/* When waiting for high frequency requests, e.g. during synchronous
 	 * rendering split between the CPU and GPU, the finite amount of time
@@ -975,10 +976,19 @@ bool __i915_spin_request(const struct drm_i915_gem_request *req,
 	 * takes to sleep on a request, on the order of a microsecond.
 	 */
 
+	irq = atomic_read(&engine->irq_count);
 	timeout_us += local_clock_us(&cpu);
 	do {
 		if (__i915_gem_request_completed(req))
 			return true;
+
+		/* Seqno are meant to be ordered *before* the interrupt. If
+		 * we see an interrupt without a corresponding seqno advance,
+		 * assume we won't see one in the near future but require
+		 * the engine->seqno_barrier() to fixup coherency.
+		 */
+		if (atomic_read(&engine->irq_count) != irq)
+			break;
 
 		if (signal_pending_state(state, current))
 			break;
