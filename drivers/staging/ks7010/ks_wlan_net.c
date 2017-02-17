@@ -225,9 +225,9 @@ static int ks_wlan_set_freq(struct net_device *dev,
 		fwrq->m = c + 1;
 	}
 	/* Setting by channel number */
-	if ((fwrq->m > 1000) || (fwrq->e > 0))
+	if ((fwrq->m > 1000) || (fwrq->e > 0)) {
 		rc = -EOPNOTSUPP;
-	else {
+	} else {
 		int channel = fwrq->m;
 		/* We should do a better check than that,
 		 * based on the card capability !!! */
@@ -977,8 +977,9 @@ static int ks_wlan_set_encode(struct net_device *dev,
 				if (priv->reg.wep_key[index].size) {
 					priv->reg.wep_index = index;
 					priv->need_commit |= SME_WEP_INDEX;
-				} else
+				} else {
 					return -EINVAL;
+				}
 			}
 		}
 	}
@@ -1054,8 +1055,9 @@ static int ks_wlan_get_encode(struct net_device *dev,
 		if ((index >= 0) && (index < 4))
 			memcpy(extra, priv->reg.wep_key[index].val,
 			       dwrq->length);
-	} else
+	} else {
 		memcpy(extra, zeros, dwrq->length);
+	}
 #endif
 	return 0;
 }
@@ -1272,8 +1274,9 @@ static int ks_wlan_set_power(struct net_device *dev,
 			priv->reg.powermgt = POWMGT_SAVE2_MODE;
 		else
 			return -EINVAL;
-	} else
+	} else {
 		return -EINVAL;
+	}
 
 	hostif_sme_enqueue(priv, SME_POW_MNGMT_REQUEST);
 
@@ -1942,8 +1945,9 @@ static int ks_wlan_set_encode_ext(struct net_device *dev,
 			return -EINVAL;
 		}
 		priv->wpa.key[index].alg = enc->alg;
-	} else
+	} else {
 		return -EINVAL;
+	}
 
 	if (commit) {
 		if (commit & SME_WEP_INDEX)
@@ -2201,8 +2205,9 @@ static int ks_wlan_set_detach(struct net_device *dev,
 	} else if (*uwrq == DISCONNECT_STATUS) {	/* 1 */
 		priv->connect_status |= FORCE_DISCONNECT;
 		netif_carrier_off(dev);
-	} else
+	} else {
 		return -EINVAL;
+	}
 	return 0;
 }
 
@@ -2256,8 +2261,9 @@ static int ks_wlan_set_preamble(struct net_device *dev,
 		priv->reg.preamble = LONG_PREAMBLE;
 	} else if (*uwrq == SHORT_PREAMBLE) {	/* 1 */
 		priv->reg.preamble = SHORT_PREAMBLE;
-	} else
+	} else {
 		return -EINVAL;
+	}
 
 	priv->need_commit |= SME_MODE_SET;
 	return -EINPROGRESS;	/* Call commit handler */
@@ -2305,8 +2311,9 @@ static int ks_wlan_set_powermgt(struct net_device *dev,
 			priv->reg.powermgt = POWMGT_SAVE2_MODE;
 		else
 			return -EINVAL;
-	} else
+	} else {
 		return -EINVAL;
+	}
 
 	hostif_sme_enqueue(priv, SME_POW_MNGMT_REQUEST);
 
@@ -2346,8 +2353,9 @@ static int ks_wlan_set_scan_type(struct net_device *dev,
 		priv->reg.scan_type = ACTIVE_SCAN;
 	} else if (*uwrq == PASSIVE_SCAN) {	/* 1 */
 		priv->reg.scan_type = PASSIVE_SCAN;
-	} else
+	} else {
 		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -2519,8 +2527,9 @@ static int ks_wlan_set_beacon_lost(struct net_device *dev,
 	if (priv->reg.operation_mode == MODE_INFRASTRUCTURE) {
 		priv->need_commit |= SME_MODE_SET;
 		return -EINPROGRESS;	/* Call commit handler */
-	} else
+	} else {
 		return 0;
+	}
 }
 
 /*------------------------------------------------------------------*/
@@ -2557,8 +2566,9 @@ static int ks_wlan_set_phy_type(struct net_device *dev,
 		priv->reg.phy_type = D_11G_ONLY_MODE;
 	} else if (*uwrq == D_11BG_COMPATIBLE_MODE) {	/* 2 */
 		priv->reg.phy_type = D_11BG_COMPATIBLE_MODE;
-	} else
+	} else {
 		return -EINVAL;
+	}
 
 	priv->need_commit |= SME_MODE_SET;
 	return -EINPROGRESS;	/* Call commit handler */
@@ -2596,12 +2606,14 @@ static int ks_wlan_set_cts_mode(struct net_device *dev,
 		priv->reg.cts_mode = CTS_MODE_FALSE;
 	} else if (*uwrq == CTS_MODE_TRUE) {	/* 1 */
 		if (priv->reg.phy_type == D_11G_ONLY_MODE ||
-		    priv->reg.phy_type == D_11BG_COMPATIBLE_MODE)
+		    priv->reg.phy_type == D_11BG_COMPATIBLE_MODE) {
 			priv->reg.cts_mode = CTS_MODE_TRUE;
-		else
+		} else {
 			priv->reg.cts_mode = CTS_MODE_FALSE;
-	} else
+		}
+	} else {
 		return -EINVAL;
+	}
 
 	priv->need_commit |= SME_MODE_SET;
 	return -EINPROGRESS;	/* Call commit handler */
