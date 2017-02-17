@@ -280,6 +280,12 @@ struct sctp_chunk *sctp_make_strreset_tsnresp(
 void sctp_chunk_assign_tsn(struct sctp_chunk *);
 void sctp_chunk_assign_ssn(struct sctp_chunk *);
 
+/* Prototypes for stream-processing functions.  */
+struct sctp_chunk *sctp_process_strreset_outreq(
+				struct sctp_association *asoc,
+				union sctp_params param,
+				struct sctp_ulpevent **evp);
+
 /* Prototypes for statetable processing. */
 
 int sctp_do_sm(struct net *net, sctp_event_t event_type, sctp_subtype_t subtype,
