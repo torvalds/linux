@@ -50,33 +50,47 @@ static unsigned int bxt_get_errorcode(struct sst_dsp *ctx)
 	 return sst_dsp_shim_read(ctx, BXT_ADSP_ERROR_CODE);
 }
 
+static void sst_bxt_release_library(struct skl_lib_info *linfo, int lib_count)
+{
+	int i;
+
+	for (i = 1; i < lib_count; i++) {
+		if (linfo[i].fw) {
+			release_firmware(linfo[i].fw);
+			linfo[i].fw = NULL;
+		}
+	}
+}
+
 static int
 bxt_load_library(struct sst_dsp *ctx, struct skl_lib_info *linfo, int lib_count)
 {
 	struct snd_dma_buffer dmab;
 	struct skl_sst *skl = ctx->thread_context;
-	const struct firmware *fw = NULL;
 	struct firmware stripped_fw;
 	int ret = 0, i, dma_id, stream_tag;
 
 	/* library indices start from 1 to N. 0 represents base FW */
 	for (i = 1; i < lib_count; i++) {
-		ret = request_firmware(&fw, linfo[i].name, ctx->dev);
-		if (ret < 0) {
-			dev_err(ctx->dev, "Request lib %s failed:%d\n",
+		if (linfo[i].fw == NULL) {
+			ret = request_firmware(&linfo[i].fw, linfo[i].name,
+						ctx->dev);
+			if (ret < 0) {
+				dev_err(ctx->dev, "Request lib %s failed:%d\n",
 					linfo[i].name, ret);
-			return ret;
+				goto load_library_failed;
+			}
 		}
 
 		if (skl->is_first_boot) {
-			ret = snd_skl_parse_uuids(ctx, fw,
+			ret = snd_skl_parse_uuids(ctx, linfo[i].fw,
 					BXT_ADSP_FW_BIN_HDR_OFFSET, i);
 			if (ret < 0)
 				goto load_library_failed;
 		}
 
-		stripped_fw.data = fw->data;
-		stripped_fw.size = fw->size;
+		stripped_fw.data = linfo[i].fw->data;
+		stripped_fw.size = linfo[i].fw->size;
 		skl_dsp_strip_extended_manifest(&stripped_fw);
 
 		stream_tag = ctx->dsp_ops.prepare(ctx->dev, 0x40,
@@ -99,14 +113,12 @@ bxt_load_library(struct sst_dsp *ctx, struct skl_lib_info *linfo, int lib_count)
 
 		ctx->dsp_ops.trigger(ctx->dev, false, stream_tag);
 		ctx->dsp_ops.cleanup(ctx->dev, &dmab, stream_tag);
-		release_firmware(fw);
-		fw = NULL;
 	}
 
 	return ret;
 
 load_library_failed:
-	release_firmware(fw);
+	sst_bxt_release_library(linfo, lib_count);
 	return ret;
 }
 
@@ -208,15 +220,13 @@ static int bxt_load_base_firmware(struct sst_dsp *ctx)
 	struct skl_sst *skl = ctx->thread_context;
 	int ret;
 
-	ret = request_firmware(&ctx->fw, ctx->fw_name, ctx->dev);
-	if (ret < 0) {
-		dev_err(ctx->dev, "Request firmware failed %d\n", ret);
-		goto sst_load_base_firmware_failed;
+	if (ctx->fw == NULL) {
+		ret = request_firmware(&ctx->fw, ctx->fw_name, ctx->dev);
+		if (ret < 0) {
+			dev_err(ctx->dev, "Request firmware failed %d\n", ret);
+			return ret;
+		}
 	}
-
-	/* check for extended manifest */
-	if (ctx->fw == NULL)
-		goto sst_load_base_firmware_failed;
 
 	/* prase uuids on first boot */
 	if (skl->is_first_boot) {
@@ -265,8 +275,11 @@ static int bxt_load_base_firmware(struct sst_dsp *ctx)
 		}
 	}
 
+	return ret;
+
 sst_load_base_firmware_failed:
 	release_firmware(ctx->fw);
+	ctx->fw = NULL;
 	return ret;
 }
 
@@ -635,6 +648,10 @@ EXPORT_SYMBOL_GPL(bxt_sst_init_fw);
 
 void bxt_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx)
 {
+
+	sst_bxt_release_library(ctx->lib_info, ctx->lib_count);
+	if (ctx->dsp->fw)
+		release_firmware(ctx->dsp->fw);
 	skl_freeup_uuid_list(ctx);
 	skl_ipc_free(&ctx->ipc);
 	ctx->dsp->cl_dev.ops.cl_cleanup_controller(ctx->dsp);
