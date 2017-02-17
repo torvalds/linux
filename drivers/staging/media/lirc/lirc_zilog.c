@@ -1597,7 +1597,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			i2c_set_clientdata(client, NULL);
 			put_ir_rx(rx, true);
 			ir->l.features &= ~LIRC_CAN_REC_LIRCCODE;
-			goto out_put_xx;
+			goto out_put_tx;
 		}
 
 		/* Proceed only if the Tx client is also ready */
@@ -1637,6 +1637,7 @@ out_ok:
 out_put_xx:
 	if (rx != NULL)
 		put_ir_rx(rx, true);
+out_put_tx:
 	if (tx != NULL)
 		put_ir_tx(tx, true);
 out_put_ir:
