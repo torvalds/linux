@@ -7,6 +7,8 @@
 
 #include <linux/slab.h>
 #include <linux/errno.h>
+#include <linux/delay.h>
+#include <linux/ktime.h>
 
 #include "tb.h"
 
@@ -74,14 +76,51 @@ static void __tb_path_deallocate_nfc(struct tb_path *path, int first_hop)
 	}
 }
 
+static int __tb_path_deactivate_hop(struct tb_port *port, int hop_index)
+{
+	struct tb_regs_hop hop;
+	ktime_t timeout;
+	int ret;
+
+	/* Disable the path */
+	ret = tb_port_read(port, &hop, TB_CFG_HOPS, 2 * hop_index, 2);
+	if (ret)
+		return ret;
+
+	/* Already disabled */
+	if (!hop.enable)
+		return 0;
+
+	hop.enable = 0;
+
+	ret = tb_port_write(port, &hop, TB_CFG_HOPS, 2 * hop_index, 2);
+	if (ret)
+		return ret;
+
+	/* Wait until it is drained */
+	timeout = ktime_add_ms(ktime_get(), 500);
+	do {
+		ret = tb_port_read(port, &hop, TB_CFG_HOPS, 2 * hop_index, 2);
+		if (ret)
+			return ret;
+
+		if (!hop.pending)
+			return 0;
+
+		usleep_range(10, 20);
+	} while (ktime_before(ktime_get(), timeout));
+
+	return -ETIMEDOUT;
+}
+
 static void __tb_path_deactivate_hops(struct tb_path *path, int first_hop)
 {
 	int i, res;
-	struct tb_regs_hop hop = { };
+
 	for (i = first_hop; i < path->path_length; i++) {
-		res = tb_port_write(path->hops[i].in_port, &hop, TB_CFG_HOPS,
-				    2 * path->hops[i].in_hop_index, 2);
-		if (res)
+		res = __tb_path_deactivate_hop(path->hops[i].in_port,
+					       path->hops[i].in_hop_index);
+		if (res && res != -ENODEV)
 			tb_port_warn(path->hops[i].in_port,
 				     "hop deactivation failed for hop %d, index %d\n",
 				     i, path->hops[i].in_hop_index);
