@@ -489,8 +489,10 @@ static void bxt_enable_dsi_pll(struct intel_encoder *encoder,
 	POSTING_READ(BXT_DSI_PLL_CTL);
 
 	/* Program TX, RX, Dphy clocks */
-	for_each_dsi_port(port, intel_dsi->ports)
-		bxt_dsi_program_clocks(encoder->base.dev, port, config);
+	if (IS_BROXTON(dev_priv)) {
+		for_each_dsi_port(port, intel_dsi->ports)
+			bxt_dsi_program_clocks(encoder->base.dev, port, config);
+	}
 
 	/* Enable DSI PLL */
 	val = I915_READ(BXT_DSI_PLL_ENABLE);
@@ -554,19 +556,22 @@ void intel_disable_dsi_pll(struct intel_encoder *encoder)
 		bxt_disable_dsi_pll(encoder);
 }
 
-static void bxt_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
+static void gen9lp_dsi_reset_clocks(struct intel_encoder *encoder,
+				    enum port port)
 {
 	u32 tmp;
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	/* Clear old configurations */
-	tmp = I915_READ(BXT_MIPI_CLOCK_CTL);
-	tmp &= ~(BXT_MIPI_TX_ESCLK_FIXDIV_MASK(port));
-	tmp &= ~(BXT_MIPI_RX_ESCLK_UPPER_FIXDIV_MASK(port));
-	tmp &= ~(BXT_MIPI_8X_BY3_DIVIDER_MASK(port));
-	tmp &= ~(BXT_MIPI_RX_ESCLK_LOWER_FIXDIV_MASK(port));
-	I915_WRITE(BXT_MIPI_CLOCK_CTL, tmp);
+	if (IS_BROXTON(dev_priv)) {
+		tmp = I915_READ(BXT_MIPI_CLOCK_CTL);
+		tmp &= ~(BXT_MIPI_TX_ESCLK_FIXDIV_MASK(port));
+		tmp &= ~(BXT_MIPI_RX_ESCLK_UPPER_FIXDIV_MASK(port));
+		tmp &= ~(BXT_MIPI_8X_BY3_DIVIDER_MASK(port));
+		tmp &= ~(BXT_MIPI_RX_ESCLK_LOWER_FIXDIV_MASK(port));
+		I915_WRITE(BXT_MIPI_CLOCK_CTL, tmp);
+	}
 	I915_WRITE(MIPI_EOT_DISABLE(port), CLOCKSTOP);
 }
 
@@ -575,7 +580,7 @@ void intel_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	if (IS_GEN9_LP(dev_priv))
-		bxt_dsi_reset_clocks(encoder, port);
+		gen9lp_dsi_reset_clocks(encoder, port);
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		vlv_dsi_reset_clocks(encoder, port);
 }
