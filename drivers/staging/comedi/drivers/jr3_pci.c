@@ -99,6 +99,11 @@ struct jr3_pci_dev_private {
 	struct timer_list timer;
 };
 
+union jr3_pci_single_range {
+	struct comedi_lrange l;
+	char _reserved[offsetof(struct comedi_lrange, range[1])];
+};
+
 enum jr3_pci_poll_state {
 	state_jr3_poll,
 	state_jr3_init_wait_for_offset,
@@ -114,10 +119,7 @@ struct jr3_pci_subdev_private {
 	enum jr3_pci_poll_state state;
 	int serial_no;
 	int model_no;
-	struct {
-		int length;
-		struct comedi_krange range;
-	} range[9];
+	union jr3_pci_single_range range[9];
 	const struct comedi_lrange *range_table_list[8 * 7 + 2];
 	unsigned int maxdata_list[8 * 7 + 2];
 	u16 errors;
@@ -532,27 +534,28 @@ jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 			result = poll_delay_min_max(20, 100);
 		} else {
 			struct force_array __iomem *fs = &channel->full_scale;
+			union jr3_pci_single_range *r = spriv->range;
 
 			/* Use ranges in kN or we will overflow around 2000N! */
-			spriv->range[0].range.min = -get_s16(&fs->fx) * 1000;
-			spriv->range[0].range.max = get_s16(&fs->fx) * 1000;
-			spriv->range[1].range.min = -get_s16(&fs->fy) * 1000;
-			spriv->range[1].range.max = get_s16(&fs->fy) * 1000;
-			spriv->range[2].range.min = -get_s16(&fs->fz) * 1000;
-			spriv->range[2].range.max = get_s16(&fs->fz) * 1000;
-			spriv->range[3].range.min = -get_s16(&fs->mx) * 100;
-			spriv->range[3].range.max = get_s16(&fs->mx) * 100;
-			spriv->range[4].range.min = -get_s16(&fs->my) * 100;
-			spriv->range[4].range.max = get_s16(&fs->my) * 100;
-			spriv->range[5].range.min = -get_s16(&fs->mz) * 100;
+			r[0].l.range[0].min = -get_s16(&fs->fx) * 1000;
+			r[0].l.range[0].max = get_s16(&fs->fx) * 1000;
+			r[1].l.range[0].min = -get_s16(&fs->fy) * 1000;
+			r[1].l.range[0].max = get_s16(&fs->fy) * 1000;
+			r[2].l.range[0].min = -get_s16(&fs->fz) * 1000;
+			r[2].l.range[0].max = get_s16(&fs->fz) * 1000;
+			r[3].l.range[0].min = -get_s16(&fs->mx) * 100;
+			r[3].l.range[0].max = get_s16(&fs->mx) * 100;
+			r[4].l.range[0].min = -get_s16(&fs->my) * 100;
+			r[4].l.range[0].max = get_s16(&fs->my) * 100;
+			r[5].l.range[0].min = -get_s16(&fs->mz) * 100;
 			/* the next five are questionable */
-			spriv->range[5].range.max = get_s16(&fs->mz) * 100;
-			spriv->range[6].range.min = -get_s16(&fs->v1) * 100;
-			spriv->range[6].range.max = get_s16(&fs->v1) * 100;
-			spriv->range[7].range.min = -get_s16(&fs->v2) * 100;
-			spriv->range[7].range.max = get_s16(&fs->v2) * 100;
-			spriv->range[8].range.min = 0;
-			spriv->range[8].range.max = 65535;
+			r[5].l.range[0].max = get_s16(&fs->mz) * 100;
+			r[6].l.range[0].min = -get_s16(&fs->v1) * 100;
+			r[6].l.range[0].max = get_s16(&fs->v1) * 100;
+			r[7].l.range[0].min = -get_s16(&fs->v2) * 100;
+			r[7].l.range[0].max = get_s16(&fs->v2) * 100;
+			r[8].l.range[0].min = 0;
+			r[8].l.range[0].max = 65535;
 
 			use_offset(channel, 0);
 			spriv->state = state_jr3_init_use_offset_complete;
@@ -643,24 +646,21 @@ jr3_pci_alloc_spriv(struct comedi_device *dev, struct comedi_subdevice *s)
 	spriv->channel = &devpriv->iobase->channel[s->index].data;
 
 	for (j = 0; j < 8; j++) {
-		spriv->range[j].length = 1;
-		spriv->range[j].range.min = -1000000;
-		spriv->range[j].range.max = 1000000;
+		spriv->range[j].l.length = 1;
+		spriv->range[j].l.range[0].min = -1000000;
+		spriv->range[j].l.range[0].max = 1000000;
 
 		for (k = 0; k < 7; k++) {
-			spriv->range_table_list[j + k * 8] =
-				(const struct comedi_lrange *)&spriv->range[j];
+			spriv->range_table_list[j + k * 8] = &spriv->range[j].l;
 			spriv->maxdata_list[j + k * 8] = 0x7fff;
 		}
 	}
-	spriv->range[8].length = 1;
-	spriv->range[8].range.min = 0;
-	spriv->range[8].range.max = 65536;
+	spriv->range[8].l.length = 1;
+	spriv->range[8].l.range[0].min = 0;
+	spriv->range[8].l.range[0].max = 65536;
 
-	spriv->range_table_list[56] =
-		(const struct comedi_lrange *)&spriv->range[8];
-	spriv->range_table_list[57] =
-		(const struct comedi_lrange *)&spriv->range[8];
+	spriv->range_table_list[56] = &spriv->range[8].l;
+	spriv->range_table_list[57] = &spriv->range[8].l;
 	spriv->maxdata_list[56] = 0xffff;
 	spriv->maxdata_list[57] = 0xffff;
 
