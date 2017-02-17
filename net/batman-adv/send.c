@@ -482,6 +482,7 @@ void batadv_forw_packet_free(struct batadv_forw_packet *forw_packet,
  * @if_outgoing: The (optional) if_outgoing to be grabbed
  * @queue_left: The (optional) queue counter to decrease
  * @bat_priv: The bat_priv for the mesh of this forw_packet
+ * @skb: The raw packet this forwarding packet shall contain
  *
  * Allocates a forwarding packet and tries to get a reference to the
  * (optional) if_incoming, if_outgoing and queue_left. If queue_left
@@ -493,7 +494,8 @@ struct batadv_forw_packet *
 batadv_forw_packet_alloc(struct batadv_hard_iface *if_incoming,
 			 struct batadv_hard_iface *if_outgoing,
 			 atomic_t *queue_left,
-			 struct batadv_priv *bat_priv)
+			 struct batadv_priv *bat_priv,
+			 struct sk_buff *skb)
 {
 	struct batadv_forw_packet *forw_packet;
 	const char *qname;
@@ -525,7 +527,7 @@ batadv_forw_packet_alloc(struct batadv_hard_iface *if_incoming,
 
 	INIT_HLIST_NODE(&forw_packet->list);
 	INIT_HLIST_NODE(&forw_packet->cleanup_list);
-	forw_packet->skb = NULL;
+	forw_packet->skb = skb;
 	forw_packet->queue_left = queue_left;
 	forw_packet->if_incoming = if_incoming;
 	forw_packet->if_outgoing = if_outgoing;
@@ -756,22 +758,23 @@ int batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
 	if (!primary_if)
 		goto err;
 
+	newskb = skb_copy(skb, GFP_ATOMIC);
+	if (!newskb) {
+		batadv_hardif_put(primary_if);
+		goto err;
+	}
+
 	forw_packet = batadv_forw_packet_alloc(primary_if, NULL,
 					       &bat_priv->bcast_queue_left,
-					       bat_priv);
+					       bat_priv, newskb);
 	batadv_hardif_put(primary_if);
 	if (!forw_packet)
-		goto err;
-
-	newskb = skb_copy(skb, GFP_ATOMIC);
-	if (!newskb)
 		goto err_packet_free;
 
 	/* as we have a copy now, it is safe to decrease the TTL */
 	bcast_packet = (struct batadv_bcast_packet *)newskb->data;
 	bcast_packet->ttl--;
 
-	forw_packet->skb = newskb;
 	forw_packet->own = own_packet;
 
 	INIT_DELAYED_WORK(&forw_packet->delayed_work,
@@ -781,7 +784,7 @@ int batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
 	return NETDEV_TX_OK;
 
 err_packet_free:
-	batadv_forw_packet_free(forw_packet, true);
+	kfree_skb(newskb);
 err:
 	return NETDEV_TX_BUSY;
 }
