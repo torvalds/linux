@@ -1263,14 +1263,6 @@ static int bpf_jit_prog(struct bpf_jit *jit, struct bpf_prog *fp)
 }
 
 /*
- * Classic BPF function stub. BPF programs will be converted into
- * eBPF and then bpf_int_jit_compile() will be called.
- */
-void bpf_jit_compile(struct bpf_prog *fp)
-{
-}
-
-/*
  * Compile eBPF program "fp"
  */
 struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
@@ -1346,22 +1338,4 @@ out:
 		bpf_jit_prog_release_other(fp, fp == orig_fp ?
 					   tmp : orig_fp);
 	return fp;
-}
-
-/*
- * Free eBPF program
- */
-void bpf_jit_free(struct bpf_prog *fp)
-{
-	unsigned long addr = (unsigned long)fp->bpf_func & PAGE_MASK;
-	struct bpf_binary_header *header = (void *)addr;
-
-	if (!fp->jited)
-		goto free_filter;
-
-	set_memory_rw(addr, header->pages);
-	bpf_jit_binary_free(header);
-
-free_filter:
-	bpf_prog_unlock_free(fp);
 }

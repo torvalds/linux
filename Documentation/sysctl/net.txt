@@ -54,6 +54,18 @@ Values :
 	1 - enable JIT hardening for unprivileged users only
 	2 - enable JIT hardening for all users
 
+bpf_jit_kallsyms
+----------------
+
+When Berkeley Packet Filter Just in Time compiler is enabled, then compiled
+images are unknown addresses to the kernel, meaning they neither show up in
+traces nor in /proc/kallsyms. This enables export of these addresses, which
+can be used for debugging/tracing. If bpf_jit_harden is enabled, this feature
+is disabled.
+Values :
+	0 - disable JIT kallsyms export (default value)
+	1 - enable JIT kallsyms export for privileged users only
+
 dev_weight
 --------------
 
