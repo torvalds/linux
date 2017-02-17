@@ -1901,6 +1901,7 @@ static int __init bm2835_mmal_init(void)
 	unsigned int num_cameras;
 	struct vchiq_mmal_instance *instance;
 	unsigned int resolutions[MAX_BCM2835_CAMERAS][2];
+	int i;
 
 	ret = vchiq_mmal_init(&instance);
 	if (ret < 0)
@@ -1914,8 +1915,10 @@ static int __init bm2835_mmal_init(void)
 
 	for (camera = 0; camera < num_cameras; camera++) {
 		dev = kzalloc(sizeof(struct bm2835_mmal_dev), GFP_KERNEL);
-		if (!dev)
-			return -ENOMEM;
+		if (!dev) {
+			ret = -ENOMEM;
+			goto cleanup_gdev;
+		}
 
 		dev->camera_num = camera;
 		dev->max_width = resolutions[camera][0];
@@ -1998,9 +2001,10 @@ unreg_dev:
 free_dev:
 	kfree(dev);
 
-	for ( ; camera > 0; camera--) {
-		bcm2835_cleanup_instance(gdev[camera]);
-		gdev[camera] = NULL;
+cleanup_gdev:
+	for (i = 0; i < camera; i++) {
+		bcm2835_cleanup_instance(gdev[i]);
+		gdev[i] = NULL;
 	}
 	pr_info("%s: error %d while loading driver\n",
 		BM2835_MMAL_MODULE_NAME, ret);
