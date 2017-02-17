@@ -2567,8 +2567,7 @@ static void end_bio_extent_readpage(struct bio *bio)
 		len = bvec->bv_len;
 
 		mirror = io_bio->mirror_num;
-		if (likely(uptodate && tree->ops &&
-			   tree->ops->readpage_end_io_hook)) {
+		if (likely(uptodate && tree->ops)) {
 			ret = tree->ops->readpage_end_io_hook(io_bio, offset,
 							      page, start, end,
 							      mirror);
@@ -2731,7 +2730,7 @@ static int __must_check submit_one_bio(struct bio *bio, int mirror_num,
 	bio->bi_private = NULL;
 	bio_get(bio);
 
-	if (tree->ops && tree->ops->submit_bio_hook)
+	if (tree->ops)
 		ret = tree->ops->submit_bio_hook(page->mapping->host, bio,
 					   mirror_num, bio_flags, start);
 	else
@@ -2746,7 +2745,7 @@ static int merge_bio(struct extent_io_tree *tree, struct page *page,
 		     unsigned long bio_flags)
 {
 	int ret = 0;
-	if (tree->ops && tree->ops->merge_bio_hook)
+	if (tree->ops)
 		ret = tree->ops->merge_bio_hook(page, offset, size, bio,
 						bio_flags);
 	return ret;
