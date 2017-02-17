@@ -719,13 +719,13 @@ xdp_xmit:
 	return NULL;
 }
 
-static void receive_buf(struct virtnet_info *vi, struct receive_queue *rq,
-			void *buf, unsigned int len)
+static int receive_buf(struct virtnet_info *vi, struct receive_queue *rq,
+		       void *buf, unsigned int len)
 {
 	struct net_device *dev = vi->dev;
-	struct virtnet_stats *stats = this_cpu_ptr(vi->stats);
 	struct sk_buff *skb;
 	struct virtio_net_hdr_mrg_rxbuf *hdr;
+	int ret;
 
 	if (unlikely(len < vi->hdr_len + ETH_HLEN)) {
 		pr_debug("%s: short packet %i\n", dev->name, len);
@@ -739,7 +739,7 @@ static void receive_buf(struct virtnet_info *vi, struct receive_queue *rq,
 		} else {
 			dev_kfree_skb(buf);
 		}
-		return;
+		return 0;
 	}
 
 	if (vi->mergeable_rx_bufs)
@@ -750,14 +750,11 @@ static void receive_buf(struct virtnet_info *vi, struct receive_queue *rq,
 		skb = receive_small(dev, vi, rq, buf, len);
 
 	if (unlikely(!skb))
-		return;
+		return 0;
 
 	hdr = skb_vnet_hdr(skb);
 
-	u64_stats_update_begin(&stats->rx_syncp);
-	stats->rx_bytes += skb->len;
-	stats->rx_packets++;
-	u64_stats_update_end(&stats->rx_syncp);
+	ret = skb->len;
 
 	if (hdr->hdr.flags & VIRTIO_NET_HDR_F_DATA_VALID)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -775,11 +772,12 @@ static void receive_buf(struct virtnet_info *vi, struct receive_queue *rq,
 		 ntohs(skb->protocol), skb->len, skb->pkt_type);
 
 	napi_gro_receive(&rq->napi, skb);
-	return;
+	return ret;
 
 frame_err:
 	dev->stats.rx_frame_errors++;
 	dev_kfree_skb(skb);
+	return 0;
 }
 
 static unsigned int virtnet_get_headroom(struct virtnet_info *vi)
@@ -994,12 +992,13 @@ static void refill_work(struct work_struct *work)
 static int virtnet_receive(struct receive_queue *rq, int budget)
 {
 	struct virtnet_info *vi = rq->vq->vdev->priv;
-	unsigned int len, received = 0;
+	unsigned int len, received = 0, bytes = 0;
 	void *buf;
+	struct virtnet_stats *stats = this_cpu_ptr(vi->stats);
 
 	while (received < budget &&
 	       (buf = virtqueue_get_buf(rq->vq, &len)) != NULL) {
-		receive_buf(vi, rq, buf, len);
+		bytes += receive_buf(vi, rq, buf, len);
 		received++;
 	}
 
@@ -1007,6 +1006,11 @@ static int virtnet_receive(struct receive_queue *rq, int budget)
 		if (!try_fill_recv(vi, rq, GFP_ATOMIC))
 			schedule_delayed_work(&vi->refill, 0);
 	}
+
+	u64_stats_update_begin(&stats->rx_syncp);
+	stats->rx_bytes += bytes;
+	stats->rx_packets += received;
+	u64_stats_update_end(&stats->rx_syncp);
 
 	return received;
 }
@@ -1056,17 +1060,28 @@ static void free_old_xmit_skbs(struct send_queue *sq)
 	unsigned int len;
 	struct virtnet_info *vi = sq->vq->vdev->priv;
 	struct virtnet_stats *stats = this_cpu_ptr(vi->stats);
+	unsigned int packets = 0;
+	unsigned int bytes = 0;
 
 	while ((skb = virtqueue_get_buf(sq->vq, &len)) != NULL) {
 		pr_debug("Sent skb %p\n", skb);
 
-		u64_stats_update_begin(&stats->tx_syncp);
-		stats->tx_bytes += skb->len;
-		stats->tx_packets++;
-		u64_stats_update_end(&stats->tx_syncp);
+		bytes += skb->len;
+		packets++;
 
 		dev_kfree_skb_any(skb);
 	}
+
+	/* Avoid overhead when no packets have been processed
+	 * happens when called speculatively from start_xmit.
+	 */
+	if (!packets)
+		return;
+
+	u64_stats_update_begin(&stats->tx_syncp);
+	stats->tx_bytes += bytes;
+	stats->tx_packets += packets;
+	u64_stats_update_end(&stats->tx_syncp);
 }
 
 static int xmit_skb(struct send_queue *sq, struct sk_buff *skb)
