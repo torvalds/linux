@@ -143,6 +143,8 @@ struct intel_vgpu {
 	int id;
 	unsigned long handle; /* vGPU handle used by hypervisor MPT modules */
 	bool active;
+	bool pv_notified;
+	bool failsafe;
 	bool resetting;
 	void *sched_data;
 
@@ -448,6 +450,10 @@ struct intel_gvt_ops {
 	void (*vgpu_reset)(struct intel_vgpu *);
 };
 
+
+enum {
+	GVT_FAILSAFE_UNSUPPORTED_GUEST,
+};
 
 #include "mpt.h"
 

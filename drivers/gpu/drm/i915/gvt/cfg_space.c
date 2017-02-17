@@ -237,6 +237,9 @@ int intel_vgpu_emulate_cfg_write(struct intel_vgpu *vgpu, unsigned int offset,
 {
 	int ret;
 
+	if (vgpu->failsafe)
+		return 0;
+
 	if (WARN_ON(bytes > 4))
 		return -EINVAL;
 

@@ -150,10 +150,34 @@ static int render_mmio_to_ring_id(struct intel_gvt *gvt, unsigned int reg)
 #define fence_num_to_offset(num) \
 	(num * 8 + i915_mmio_reg_offset(FENCE_REG_GEN6_LO(0)))
 
+
+static void enter_failsafe_mode(struct intel_vgpu *vgpu, int reason)
+{
+	switch (reason) {
+	case GVT_FAILSAFE_UNSUPPORTED_GUEST:
+		pr_err("Detected your guest driver doesn't support GVT-g.\n");
+		break;
+	default:
+		break;
+	}
+	pr_err("Now vgpu %d will enter failsafe mode.\n", vgpu->id);
+	vgpu->failsafe = true;
+}
+
 static int sanitize_fence_mmio_access(struct intel_vgpu *vgpu,
 		unsigned int fence_num, void *p_data, unsigned int bytes)
 {
 	if (fence_num >= vgpu_fence_sz(vgpu)) {
+
+		/* When guest access oob fence regs without access
+		 * pv_info first, we treat guest not supporting GVT,
+		 * and we will let vgpu enter failsafe mode.
+		 */
+		if (!vgpu->pv_notified) {
+			enter_failsafe_mode(vgpu,
+					GVT_FAILSAFE_UNSUPPORTED_GUEST);
+			return -EINVAL;
+		}
 		gvt_err("vgpu%d: found oob fence register access\n",
 				vgpu->id);
 		gvt_err("vgpu%d: total fence num %d access fence num %d\n",
@@ -1001,6 +1025,7 @@ static int pvinfo_mmio_read(struct intel_vgpu *vgpu, unsigned int offset,
 	if (invalid_read)
 		gvt_err("invalid pvinfo read: [%x:%x] = %x\n",
 				offset, bytes, *(u32 *)p_data);
+	vgpu->pv_notified = true;
 	return 0;
 }
 
@@ -1318,6 +1343,17 @@ static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	bool enable_execlist;
 
 	write_vreg(vgpu, offset, p_data, bytes);
+
+	/* when PPGTT mode enabled, we will check if guest has called
+	 * pvinfo, if not, we will treat this guest as non-gvtg-aware
+	 * guest, and stop emulating its cfg space, mmio, gtt, etc.
+	 */
+	if (((data & _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE)) ||
+			(data & _MASKED_BIT_ENABLE(GFX_RUN_LIST_ENABLE)))
+			&& !vgpu->pv_notified) {
+		enter_failsafe_mode(vgpu, GVT_FAILSAFE_UNSUPPORTED_GUEST);
+		return 0;
+	}
 	if ((data & _MASKED_BIT_ENABLE(GFX_RUN_LIST_ENABLE))
 			|| (data & _MASKED_BIT_DISABLE(GFX_RUN_LIST_ENABLE))) {
 		enable_execlist = !!(data & GFX_RUN_LIST_ENABLE);

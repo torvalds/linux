@@ -387,8 +387,12 @@ void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
 		populate_pvinfo_page(vgpu);
 		intel_vgpu_reset_display(vgpu);
 
-		if (dmlr)
+		if (dmlr) {
 			intel_vgpu_reset_cfg_space(vgpu);
+			/* only reset the failsafe mode when dmlr reset */
+			vgpu->failsafe = false;
+			vgpu->pv_notified = false;
+		}
 	}
 
 	vgpu->resetting = false;
