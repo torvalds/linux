@@ -1370,6 +1370,12 @@ static int resize_hpt_rehash(struct kvm_resize_hpt *resize)
 	unsigned  long i;
 	int rc;
 
+	/*
+	 * resize_hpt_rehash_hpte() doesn't handle the new-format HPTEs
+	 * that POWER9 uses, and could well hit a BUG_ON on POWER9.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		return -EIO;
 	for (i = 0; i < kvmppc_hpt_npte(&kvm->arch.hpt); i++) {
 		rc = resize_hpt_rehash_hpte(resize, i);
 		if (rc != 0)
