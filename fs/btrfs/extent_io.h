@@ -103,6 +103,7 @@ struct extent_io_ops {
 	int (*merge_bio_hook)(struct page *page, unsigned long offset,
 			      size_t size, struct bio *bio,
 			      unsigned long bio_flags);
+	int (*readpage_io_failed_hook)(struct page *page, int failed_mirror);
 
 	/*
 	 * Optional hooks, called if the pointer is not NULL
@@ -110,7 +111,6 @@ struct extent_io_ops {
 	int (*fill_delalloc)(struct inode *inode, struct page *locked_page,
 			     u64 start, u64 end, int *page_started,
 			     unsigned long *nr_written);
-	int (*readpage_io_failed_hook)(struct page *page, int failed_mirror);
 
 	int (*writepage_start_hook)(struct page *page, u64 start, u64 end);
 	void (*writepage_end_io_hook)(struct page *page, u64 start, u64 end,

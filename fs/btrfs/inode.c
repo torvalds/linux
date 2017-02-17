@@ -10509,6 +10509,12 @@ out_inode:
 
 }
 
+__attribute__((const))
+static int dummy_readpage_io_failed_hook(struct page *page, int failed_mirror)
+{
+	return 0;
+}
+
 static const struct inode_operations btrfs_dir_inode_operations = {
 	.getattr	= btrfs_getattr,
 	.lookup		= btrfs_lookup,
@@ -10551,6 +10557,7 @@ static const struct extent_io_ops btrfs_extent_io_ops = {
 	.submit_bio_hook = btrfs_submit_bio_hook,
 	.readpage_end_io_hook = btrfs_readpage_end_io_hook,
 	.merge_bio_hook = btrfs_merge_bio_hook,
+	.readpage_io_failed_hook = dummy_readpage_io_failed_hook,
 
 	/* optional callbacks */
 	.fill_delalloc = run_delalloc_range,

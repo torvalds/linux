@@ -2581,7 +2581,7 @@ static void end_bio_extent_readpage(struct bio *bio)
 		if (likely(uptodate))
 			goto readpage_ok;
 
-		if (tree->ops && tree->ops->readpage_io_failed_hook) {
+		if (tree->ops) {
 			ret = tree->ops->readpage_io_failed_hook(page, mirror);
 			if (!ret && !bio->bi_error)
 				uptodate = 1;
