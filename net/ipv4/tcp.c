@@ -1288,7 +1288,7 @@ new_segment:
 			} else {
 				skb_fill_page_desc(skb, i, pfrag->page,
 						   pfrag->offset, copy);
-				get_page(pfrag->page);
+				page_ref_inc(pfrag->page);
 			}
 			pfrag->offset += copy;
 		}
