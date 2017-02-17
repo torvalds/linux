@@ -284,7 +284,8 @@ static void genpd_queue_power_off_work(struct generic_pm_domain *genpd)
  * If all of the @genpd's devices have been suspended and all of its subdomains
  * have been powered down, remove power from @genpd.
  */
-static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on)
+static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
+			   unsigned int depth)
 {
 	struct pm_domain_data *pdd;
 	struct gpd_link *link;
@@ -351,7 +352,9 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on)
 
 	list_for_each_entry(link, &genpd->slave_links, slave_node) {
 		genpd_sd_counter_dec(link->master);
-		genpd_queue_power_off_work(link->master);
+		genpd_lock_nested(link->master, depth + 1);
+		genpd_power_off(link->master, false, depth + 1);
+		genpd_unlock(link->master);
 	}
 
 	return 0;
@@ -405,7 +408,9 @@ static int genpd_power_on(struct generic_pm_domain *genpd, unsigned int depth)
 					&genpd->slave_links,
 					slave_node) {
 		genpd_sd_counter_dec(link->master);
-		genpd_queue_power_off_work(link->master);
+		genpd_lock_nested(link->master, depth + 1);
+		genpd_power_off(link->master, false, depth + 1);
+		genpd_unlock(link->master);
 	}
 
 	return ret;
@@ -462,7 +467,7 @@ static void genpd_power_off_work_fn(struct work_struct *work)
 	genpd = container_of(work, struct generic_pm_domain, power_off_work);
 
 	genpd_lock(genpd);
-	genpd_power_off(genpd, false);
+	genpd_power_off(genpd, false, 0);
 	genpd_unlock(genpd);
 }
 
@@ -581,7 +586,7 @@ static int genpd_runtime_suspend(struct device *dev)
 		return 0;
 
 	genpd_lock(genpd);
-	genpd_power_off(genpd, true);
+	genpd_power_off(genpd, true, 0);
 	genpd_unlock(genpd);
 
 	return 0;
@@ -661,7 +666,7 @@ err_poweroff:
 	if (!pm_runtime_is_irq_safe(dev) ||
 		(pm_runtime_is_irq_safe(dev) && genpd_is_irq_safe(genpd))) {
 		genpd_lock(genpd);
-		genpd_power_off(genpd, true);
+		genpd_power_off(genpd, true, 0);
 		genpd_unlock(genpd);
 	}
 
