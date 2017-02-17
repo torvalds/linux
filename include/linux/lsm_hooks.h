@@ -630,10 +630,19 @@
  *	Check permission before getting the ioprio value of @p.
  *	@p contains the task_struct of process.
  *	Return 0 if permission is granted.
+ * @task_prlimit:
+ *	Check permission before getting and/or setting the resource limits of
+ *	another task.
+ *	@cred points to the cred structure for the current task.
+ *	@tcred points to the cred structure for the target task.
+ *	@flags contains the LSM_PRLIMIT_* flag bits indicating whether the
+ *	resource limits are being read, modified, or both.
+ *	Return 0 if permission is granted.
  * @task_setrlimit:
- *	Check permission before setting the resource limits of the current
- *	process for @resource to @new_rlim.  The old resource limit values can
- *	be examined by dereferencing (current->signal->rlim + resource).
+ *	Check permission before setting the resource limits of process @p
+ *	for @resource to @new_rlim.  The old resource limit values can
+ *	be examined by dereferencing (p->signal->rlim + resource).
+ *	@p points to the task_struct for the target task's group leader.
  *	@resource contains the resource whose limit is being set.
  *	@new_rlim contains the new limits for @resource.
  *	Return 0 if permission is granted.
@@ -1494,6 +1503,8 @@ union security_list_options {
 	int (*task_setnice)(struct task_struct *p, int nice);
 	int (*task_setioprio)(struct task_struct *p, int ioprio);
 	int (*task_getioprio)(struct task_struct *p);
+	int (*task_prlimit)(const struct cred *cred, const struct cred *tcred,
+			    unsigned int flags);
 	int (*task_setrlimit)(struct task_struct *p, unsigned int resource,
 				struct rlimit *new_rlim);
 	int (*task_setscheduler)(struct task_struct *p);
@@ -1755,6 +1766,7 @@ struct security_hook_heads {
 	struct list_head task_setnice;
 	struct list_head task_setioprio;
 	struct list_head task_getioprio;
+	struct list_head task_prlimit;
 	struct list_head task_setrlimit;
 	struct list_head task_setscheduler;
 	struct list_head task_getscheduler;

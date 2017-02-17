@@ -3920,6 +3920,19 @@ static int selinux_task_getioprio(struct task_struct *p)
 			    PROCESS__GETSCHED, NULL);
 }
 
+int selinux_task_prlimit(const struct cred *cred, const struct cred *tcred,
+			 unsigned int flags)
+{
+	u32 av = 0;
+
+	if (flags & LSM_PRLIMIT_WRITE)
+		av |= PROCESS__SETRLIMIT;
+	if (flags & LSM_PRLIMIT_READ)
+		av |= PROCESS__GETRLIMIT;
+	return avc_has_perm(cred_sid(cred), cred_sid(tcred),
+			    SECCLASS_PROCESS, av, NULL);
+}
+
 static int selinux_task_setrlimit(struct task_struct *p, unsigned int resource,
 		struct rlimit *new_rlim)
 {
@@ -6206,6 +6219,7 @@ static struct security_hook_list selinux_hooks[] = {
 	LSM_HOOK_INIT(task_setnice, selinux_task_setnice),
 	LSM_HOOK_INIT(task_setioprio, selinux_task_setioprio),
 	LSM_HOOK_INIT(task_getioprio, selinux_task_getioprio),
+	LSM_HOOK_INIT(task_prlimit, selinux_task_prlimit),
 	LSM_HOOK_INIT(task_setrlimit, selinux_task_setrlimit),
 	LSM_HOOK_INIT(task_setscheduler, selinux_task_setscheduler),
 	LSM_HOOK_INIT(task_getscheduler, selinux_task_getscheduler),

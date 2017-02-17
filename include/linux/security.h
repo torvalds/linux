@@ -133,6 +133,10 @@ extern unsigned long dac_mmap_min_addr;
 /* setfsuid or setfsgid, id0 == fsuid or fsgid */
 #define LSM_SETID_FS	8
 
+/* Flags for security_task_prlimit(). */
+#define LSM_PRLIMIT_READ  1
+#define LSM_PRLIMIT_WRITE 2
+
 /* forward declares to avoid warnings */
 struct sched_param;
 struct request_sock;
@@ -324,6 +328,8 @@ void security_task_getsecid(struct task_struct *p, u32 *secid);
 int security_task_setnice(struct task_struct *p, int nice);
 int security_task_setioprio(struct task_struct *p, int ioprio);
 int security_task_getioprio(struct task_struct *p);
+int security_task_prlimit(const struct cred *cred, const struct cred *tcred,
+			  unsigned int flags);
 int security_task_setrlimit(struct task_struct *p, unsigned int resource,
 		struct rlimit *new_rlim);
 int security_task_setscheduler(struct task_struct *p);
@@ -945,6 +951,13 @@ static inline int security_task_setioprio(struct task_struct *p, int ioprio)
 }
 
 static inline int security_task_getioprio(struct task_struct *p)
+{
+	return 0;
+}
+
+static inline int security_task_prlimit(const struct cred *cred,
+					const struct cred *tcred,
+					unsigned int flags)
 {
 	return 0;
 }
