@@ -1699,6 +1699,7 @@ static bool dw_mci_reset(struct dw_mci *host)
 {
 	u32 flags = SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET;
 	bool ret = false;
+	u32 status = 0;
 
 	/*
 	 * Resetting generates a block interrupt, hence setting
@@ -1714,29 +1715,30 @@ static bool dw_mci_reset(struct dw_mci *host)
 
 	if (dw_mci_ctrl_reset(host, flags)) {
 		/*
-		 * In all cases we clear the RAWINTS register to clear any
-		 * interrupts.
+		 * In all cases we clear the RAWINTS
+		 * register to clear any interrupts.
 		 */
 		mci_writel(host, RINTSTS, 0xFFFFFFFF);
 
-		/* if using dma we wait for dma_req to clear */
-		if (host->use_dma) {
-			u32 status;
-
-			if (readl_poll_timeout_atomic(host->regs + SDMMC_STATUS,
-						      status,
-						      !(status & SDMMC_STATUS_DMA_REQ),
-						      1, 500 * USEC_PER_MSEC)) {
-				dev_err(host->dev,
-					"%s: Timeout waiting for dma_req to clear during reset\n",
-					__func__);
-				goto ciu_out;
-			}
-
-			/* when using DMA next we reset the fifo again */
-			if (!dw_mci_ctrl_reset(host, SDMMC_CTRL_FIFO_RESET))
-				goto ciu_out;
+		if (!host->use_dma) {
+			ret = true;
+			goto ciu_out;
 		}
+
+		/* Wait for dma_req to be cleared */
+		if (readl_poll_timeout_atomic(host->regs + SDMMC_STATUS,
+					      status,
+					      !(status & SDMMC_STATUS_DMA_REQ),
+					      1, 500 * USEC_PER_MSEC)) {
+			dev_err(host->dev,
+				"%s: Timeout waiting for dma_req to be cleared\n",
+				__func__);
+			goto ciu_out;
+		}
+
+		/* when using DMA next we reset the fifo again */
+		if (!dw_mci_ctrl_reset(host, SDMMC_CTRL_FIFO_RESET))
+			goto ciu_out;
 	} else {
 		/* if the controller reset bit did clear, then set clock regs */
 		if (!(mci_readl(host, CTRL) & SDMMC_CTRL_RESET)) {
