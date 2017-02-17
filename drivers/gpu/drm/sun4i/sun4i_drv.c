@@ -160,6 +160,7 @@ static void sun4i_drv_unbind(struct device *dev)
 	drm_dev_unregister(drm);
 	drm_kms_helper_poll_fini(drm);
 	sun4i_framebuffer_free(drm);
+	drm_mode_config_cleanup(drm);
 	drm_vblank_cleanup(drm);
 	drm_dev_unref(drm);
 }
