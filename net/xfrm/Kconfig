@@ -6,6 +6,10 @@ config XFRM
        depends on NET
        select GRO_CELLS
 
+config XFRM_OFFLOAD
+       bool
+       depends on XFRM
+
 config XFRM_ALGO
 	tristate
 	select XFRM
