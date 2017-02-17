@@ -102,7 +102,6 @@ struct jr3_pci_dev_private {
 struct jr3_pci_subdev_private {
 	struct jr3_channel __iomem *channel;
 	unsigned long next_time_min;
-	unsigned long next_time_max;
 	enum { state_jr3_poll,
 		state_jr3_init_wait_for_offset,
 		state_jr3_init_transform_complete,
@@ -611,8 +610,6 @@ static void jr3_pci_poll_dev(unsigned long data)
 
 			spriv->next_time_min = jiffies +
 					       msecs_to_jiffies(sub_delay.min);
-			spriv->next_time_max = jiffies +
-					       msecs_to_jiffies(sub_delay.max);
 
 			if (sub_delay.max && sub_delay.max < delay)
 				/*
@@ -776,7 +773,6 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 		spriv = s->private;
 
 		spriv->next_time_min = jiffies + msecs_to_jiffies(500);
-		spriv->next_time_max = jiffies + msecs_to_jiffies(2000);
 	}
 
 	setup_timer(&devpriv->timer, jr3_pci_poll_dev, (unsigned long)dev);
