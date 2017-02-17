@@ -51,7 +51,7 @@ int spk_serial_synth_probe(struct spk_synth *synth)
 
 	if ((synth->ser >= SPK_LO_TTY) && (synth->ser <= SPK_HI_TTY)) {
 		ser = spk_serial_init(synth->ser);
-		if (ser == NULL) {
+		if (!ser) {
 			failed = -1;
 		} else {
 			outb_p(0, ser->port);
@@ -272,7 +272,7 @@ void spk_reset_index_count(int sc)
 
 int synth_supports_indexing(void)
 {
-	if (synth->get_index != NULL)
+	if (synth->get_index)
 		return 1;
 	return 0;
 }
@@ -350,7 +350,7 @@ int synth_init(char *synth_name)
 	int ret = 0;
 	struct spk_synth *synth = NULL;
 
-	if (synth_name == NULL)
+	if (!synth_name)
 		return 0;
 
 	if (strcmp(synth_name, "none") == 0) {
@@ -362,7 +362,7 @@ int synth_init(char *synth_name)
 
 	mutex_lock(&spk_mutex);
 	/* First, check if we already have it loaded. */
-	for (i = 0; i < MAXSYNTHS && synths[i] != NULL; i++)
+	for (i = 0; i < MAXSYNTHS && synths[i]; i++)
 		if (strcmp(synths[i]->name, synth_name) == 0)
 			synth = synths[i];
 
@@ -421,7 +421,7 @@ void synth_release(void)
 	struct var_t *var;
 	unsigned long flags;
 
-	if (synth == NULL)
+	if (!synth)
 		return;
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	pr_info("releasing synth %s\n", synth->name);
@@ -444,7 +444,7 @@ int synth_add(struct spk_synth *in_synth)
 	int status = 0;
 
 	mutex_lock(&spk_mutex);
-	for (i = 0; i < MAXSYNTHS && synths[i] != NULL; i++)
+	for (i = 0; i < MAXSYNTHS && synths[i]; i++)
 		/* synth_remove() is responsible for rotating the array down */
 		if (in_synth == synths[i]) {
 			mutex_unlock(&spk_mutex);
@@ -471,11 +471,11 @@ void synth_remove(struct spk_synth *in_synth)
 	mutex_lock(&spk_mutex);
 	if (synth == in_synth)
 		synth_release();
-	for (i = 0; synths[i] != NULL; i++) {
+	for (i = 0; synths[i]; i++) {
 		if (in_synth == synths[i])
 			break;
 	}
-	for ( ; synths[i] != NULL; i++) /* compress table */
+	for ( ; synths[i]; i++) /* compress table */
 		synths[i] = synths[i + 1];
 	module_status = 0;
 	mutex_unlock(&spk_mutex);
