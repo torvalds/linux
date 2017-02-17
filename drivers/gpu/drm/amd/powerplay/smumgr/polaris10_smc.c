@@ -2223,7 +2223,7 @@ uint32_t polaris10_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU74_Discrete_DpmTable, LowSclkInterruptThreshold);
 		}
 	}
-	pr_warning("can't get the offset of type %x member %x\n", type, member);
+	pr_warn("can't get the offset of type %x member %x\n", type, member);
 	return 0;
 }
 
@@ -2250,7 +2250,7 @@ uint32_t polaris10_get_mac_definition(uint32_t value)
 		return SMU7_UVD_MCLK_HANDSHAKE_DISABLE;
 	}
 
-	pr_warning("can't get the mac of %x\n", value);
+	pr_warn("can't get the mac of %x\n", value);
 	return 0;
 }
 

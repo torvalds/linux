@@ -2205,7 +2205,7 @@ uint32_t fiji_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU73_Discrete_DpmTable, LowSclkInterruptThreshold);
 		}
 	}
-	pr_warning("can't get the offset of type %x member %x\n", type, member);
+	pr_warn("can't get the offset of type %x member %x\n", type, member);
 	return 0;
 }
 
@@ -2230,7 +2230,7 @@ uint32_t fiji_get_mac_definition(uint32_t value)
 		return SMU73_MAX_LEVELS_MVDD;
 	}
 
-	pr_warning("can't get the mac of %x\n", value);
+	pr_warn("can't get the mac of %x\n", value);
 	return 0;
 }
 

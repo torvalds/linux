@@ -1544,7 +1544,7 @@ static int smu7_get_evv_voltages(struct pp_hwmgr *hwmgr)
 					if (vddc >= 2000 || vddc == 0)
 						return -EINVAL;
 				} else {
-					pr_warning("failed to retrieving EVV voltage!\n");
+					pr_warn("failed to retrieving EVV voltage!\n");
 					continue;
 				}
 
