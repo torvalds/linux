@@ -679,6 +679,19 @@ jr3_pci_alloc_spriv(struct comedi_device *dev, struct comedi_subdevice *s)
 	return spriv;
 }
 
+static void jr3_pci_show_copyright(struct comedi_device *dev)
+{
+	struct jr3_pci_dev_private *devpriv = dev->private;
+	struct jr3_channel __iomem *ch0data = &devpriv->iobase->channel[0].data;
+	char copy[ARRAY_SIZE(ch0data->copyright) + 1];
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ch0data->copyright); i++)
+		copy[i] = (char)(get_u16(&ch0data->copyright[i]) >> 8);
+	copy[i] = '\0';
+	dev_dbg(dev->class_dev, "Firmware copyright: %s\n", copy);
+}
+
 static int jr3_pci_auto_attach(struct comedi_device *dev,
 			       unsigned long context)
 {
@@ -762,11 +775,7 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 	 * can read firmware version
 	 */
 	msleep_interruptible(25);
-	for (i = 0; i < 0x18; i++) {
-		dev_dbg(dev->class_dev, "%c\n",
-			get_u16(&devpriv->iobase->channel[0].
-				data.copyright[i]) >> 8);
-	}
+	jr3_pci_show_copyright(dev);
 
 	/* Start card timer */
 	for (i = 0; i < dev->n_subdevices; i++) {
