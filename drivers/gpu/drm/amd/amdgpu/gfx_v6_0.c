@@ -1579,6 +1579,11 @@ static void gfx_v6_0_setup_spi(struct amdgpu_device *adev)
 	mutex_unlock(&adev->grbm_idx_mutex);
 }
 
+static void gfx_v6_0_config_init(struct amdgpu_device *adev)
+{
+	adev->gfx.config.double_offchip_lds_buf = 1;
+}
+
 static void gfx_v6_0_gpu_init(struct amdgpu_device *adev)
 {
 	u32 gb_addr_config = 0;
@@ -1736,6 +1741,7 @@ static void gfx_v6_0_gpu_init(struct amdgpu_device *adev)
 	gfx_v6_0_setup_spi(adev);
 
 	gfx_v6_0_get_cu_info(adev);
+	gfx_v6_0_config_init(adev);
 
 	WREG32(mmCP_QUEUE_THRESHOLDS, ((0x16 << CP_QUEUE_THRESHOLDS__ROQ_IB1_START__SHIFT) |
 				       (0x2b << CP_QUEUE_THRESHOLDS__ROQ_IB2_START__SHIFT)));

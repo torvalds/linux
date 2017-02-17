@@ -3846,6 +3846,19 @@ static void gfx_v8_0_init_compute_vmid(struct amdgpu_device *adev)
 	mutex_unlock(&adev->srbm_mutex);
 }
 
+static void gfx_v8_0_config_init(struct amdgpu_device *adev)
+{
+	switch (adev->asic_type) {
+	default:
+		adev->gfx.config.double_offchip_lds_buf = 1;
+		break;
+	case CHIP_CARRIZO:
+	case CHIP_STONEY:
+		adev->gfx.config.double_offchip_lds_buf = 0;
+		break;
+	}
+}
+
 static void gfx_v8_0_gpu_init(struct amdgpu_device *adev)
 {
 	u32 tmp;
@@ -3859,6 +3872,7 @@ static void gfx_v8_0_gpu_init(struct amdgpu_device *adev)
 	gfx_v8_0_tiling_mode_table_init(adev);
 	gfx_v8_0_setup_rb(adev);
 	gfx_v8_0_get_cu_info(adev);
+	gfx_v8_0_config_init(adev);
 
 	/* XXX SH_MEM regs */
 	/* where to put LDS, scratch, GPUVM in FSA64 space */

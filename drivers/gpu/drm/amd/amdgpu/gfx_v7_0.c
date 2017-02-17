@@ -1876,6 +1876,11 @@ static void gmc_v7_0_init_compute_vmid(struct amdgpu_device *adev)
 	mutex_unlock(&adev->srbm_mutex);
 }
 
+static void gfx_v7_0_config_init(struct amdgpu_device *adev)
+{
+	adev->gfx.config.double_offchip_lds_buf = 1;
+}
+
 /**
  * gfx_v7_0_gpu_init - setup the 3D engine
  *
@@ -1899,6 +1904,7 @@ static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 
 	gfx_v7_0_setup_rb(adev);
 	gfx_v7_0_get_cu_info(adev);
+	gfx_v7_0_config_init(adev);
 
 	/* set HW defaults for 3D engine */
 	WREG32(mmCP_MEQ_THRESHOLDS,

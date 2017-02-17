@@ -845,6 +845,9 @@ struct amdgpu_gca_config {
 	uint32_t macrotile_mode_array[16];
 
 	struct amdgpu_rb_config rb_config[AMDGPU_GFX_MAX_SE][AMDGPU_GFX_MAX_SH_PER_SE];
+
+	/* gfx configure feature */
+	uint32_t double_offchip_lds_buf;
 };
 
 struct amdgpu_cu_info {

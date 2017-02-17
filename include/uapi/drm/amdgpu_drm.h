@@ -726,6 +726,8 @@ struct drm_amdgpu_info_device {
 	__u32 vram_bit_width;
 	/* vce harvesting instance */
 	__u32 vce_harvest_config;
+	/* gfx double offchip LDS buffers */
+	__u32 gc_double_offchip_lds_buf;
 };
 
 struct drm_amdgpu_info_hw_ip {
