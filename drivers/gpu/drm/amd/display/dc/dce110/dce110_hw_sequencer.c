@@ -861,10 +861,6 @@ static void build_audio_output(
 	audio_output->crtc_info.requested_pixel_clock =
 			pipe_ctx->pix_clk_params.requested_pix_clk;
 
-	/*
-	 * TODO - Investigate why calculated pixel clk has to be
-	 * requested pixel clk
-	 */
 	audio_output->crtc_info.calculated_pixel_clock =
 			pipe_ctx->pix_clk_params.requested_pix_clk;
 
@@ -1044,15 +1040,14 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 			stream->public.timing.display_color_depth,
 			pipe_ctx->stream->signal);
 
+	/* FPGA does not program backend */
+	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
 	pipe_ctx->opp->funcs->opp_program_fmt(
 			pipe_ctx->opp,
 			&stream->bit_depth_params,
 			&stream->clamping);
-
-	/* FPGA does not program backend */
-	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
 		return DC_OK;
-
+	}
 	/* TODO: move to stream encoder */
 	if (pipe_ctx->stream->signal != SIGNAL_TYPE_VIRTUAL)
 		if (DC_OK != bios_parser_crtc_source_select(pipe_ctx)) {
@@ -1064,6 +1059,12 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 		stream->sink->link->link_enc->funcs->setup(
 			stream->sink->link->link_enc,
 			pipe_ctx->stream->signal);
+
+/*vbios crtc_source_selection and encoder_setup will override fmt_C*/
+	pipe_ctx->opp->funcs->opp_program_fmt(
+			pipe_ctx->opp,
+			&stream->bit_depth_params,
+			&stream->clamping);
 
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream_enc->funcs->dp_set_stream_attribute(
