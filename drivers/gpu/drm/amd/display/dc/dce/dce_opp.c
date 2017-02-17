@@ -710,32 +710,32 @@ void dce110_opp_set_dyn_expansion(
 	enum signal_type signal)
 {
 	struct dce110_opp *opp110 = TO_DCE110_OPP(opp);
-	bool enable_dyn_exp = false;
 
 	REG_UPDATE_2(FMT_DYNAMIC_EXP_CNTL,
 			FMT_DYNAMIC_EXP_EN, 0,
 			FMT_DYNAMIC_EXP_MODE, 0);
-	/* From HW programming guide:
-		FMT_DYNAMIC_EXP_EN = 0 for limited RGB or YCbCr output
-		FMT_DYNAMIC_EXP_EN = 1 for RGB full range only*/
-	if (color_sp == COLOR_SPACE_SRGB)
-		enable_dyn_exp = true;
 
 	/*00 - 10-bit -> 12-bit dynamic expansion*/
 	/*01 - 8-bit  -> 12-bit dynamic expansion*/
-	if (signal == SIGNAL_TYPE_HDMI_TYPE_A) {
+	if (signal == SIGNAL_TYPE_HDMI_TYPE_A ||
+		signal == SIGNAL_TYPE_DISPLAY_PORT ||
+		signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
 		switch (color_dpth) {
 		case COLOR_DEPTH_888:
 			REG_UPDATE_2(FMT_DYNAMIC_EXP_CNTL,
-				FMT_DYNAMIC_EXP_EN, enable_dyn_exp ? 1:0,
+				FMT_DYNAMIC_EXP_EN, 1,
 				FMT_DYNAMIC_EXP_MODE, 1);
 			break;
 		case COLOR_DEPTH_101010:
 			REG_UPDATE_2(FMT_DYNAMIC_EXP_CNTL,
-				FMT_DYNAMIC_EXP_EN, enable_dyn_exp ? 1:0,
+				FMT_DYNAMIC_EXP_EN, 1,
 				FMT_DYNAMIC_EXP_MODE, 0);
 			break;
 		case COLOR_DEPTH_121212:
+			REG_UPDATE_2(
+				FMT_DYNAMIC_EXP_CNTL,
+				FMT_DYNAMIC_EXP_EN, 1,/*otherwise last two bits are zero*/
+				FMT_DYNAMIC_EXP_MODE, 0);
 			break;
 		default:
 			break;
