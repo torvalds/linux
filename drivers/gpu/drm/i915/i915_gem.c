@@ -427,7 +427,9 @@ i915_gem_object_wait_reservation(struct reservation_object *resv,
 				 long timeout,
 				 struct intel_rps_client *rps)
 {
+	unsigned int seq = __read_seqcount_begin(&resv->seq);
 	struct dma_fence *excl;
+	bool prune_fences = false;
 
 	if (flags & I915_WAIT_ALL) {
 		struct dma_fence **shared;
@@ -452,14 +454,25 @@ i915_gem_object_wait_reservation(struct reservation_object *resv,
 		for (; i < count; i++)
 			dma_fence_put(shared[i]);
 		kfree(shared);
+
+		prune_fences = count && timeout >= 0;
 	} else {
 		excl = reservation_object_get_excl_rcu(resv);
 	}
 
-	if (excl && timeout >= 0)
+	if (excl && timeout >= 0) {
 		timeout = i915_gem_object_wait_fence(excl, flags, timeout, rps);
+		prune_fences = timeout >= 0;
+	}
 
 	dma_fence_put(excl);
+
+	if (prune_fences && !__read_seqcount_retry(&resv->seq, seq)) {
+		reservation_object_lock(resv, NULL);
+		if (!__read_seqcount_retry(&resv->seq, seq))
+			reservation_object_add_excl_fence(resv, NULL);
+		reservation_object_unlock(resv);
+	}
 
 	return timeout;
 }
