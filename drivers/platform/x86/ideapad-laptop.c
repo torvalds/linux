@@ -423,9 +423,42 @@ static ssize_t store_ideapad_fan(struct device *dev,
 
 static DEVICE_ATTR(fan_mode, 0644, show_ideapad_fan, store_ideapad_fan);
 
+static ssize_t touchpad_show(struct device *dev,
+			     struct device_attribute *attr,
+			     char *buf)
+{
+	struct ideapad_private *priv = dev_get_drvdata(dev);
+	unsigned long result;
+
+	if (read_ec_data(priv->adev->handle, VPCCMD_R_TOUCHPAD, &result))
+		return sprintf(buf, "-1\n");
+	return sprintf(buf, "%lu\n", result);
+}
+
+static ssize_t touchpad_store(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct ideapad_private *priv = dev_get_drvdata(dev);
+	bool state;
+	int ret;
+
+	ret = kstrtobool(buf, &state);
+	if (ret)
+		return ret;
+
+	ret = write_ec_cmd(priv->adev->handle, VPCCMD_W_TOUCHPAD, state);
+	if (ret < 0)
+		return -EIO;
+	return count;
+}
+
+static DEVICE_ATTR_RW(touchpad);
+
 static struct attribute *ideapad_attributes[] = {
 	&dev_attr_camera_power.attr,
 	&dev_attr_fan_mode.attr,
+	&dev_attr_touchpad.attr,
 	NULL
 };
 
