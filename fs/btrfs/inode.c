@@ -2972,7 +2972,7 @@ static void finish_ordered_fn(struct btrfs_work *work)
 	btrfs_finish_ordered_io(ordered_extent);
 }
 
-static int btrfs_writepage_end_io_hook(struct page *page, u64 start, u64 end,
+static void btrfs_writepage_end_io_hook(struct page *page, u64 start, u64 end,
 				struct extent_state *state, int uptodate)
 {
 	struct inode *inode = page->mapping->host;
@@ -2986,7 +2986,7 @@ static int btrfs_writepage_end_io_hook(struct page *page, u64 start, u64 end,
 	ClearPagePrivate2(page);
 	if (!btrfs_dec_test_ordered_pending(inode, &ordered_extent, start,
 					    end - start + 1, uptodate))
-		return 0;
+		return;
 
 	if (btrfs_is_free_space_inode(BTRFS_I(inode))) {
 		wq = fs_info->endio_freespace_worker;
@@ -2999,8 +2999,6 @@ static int btrfs_writepage_end_io_hook(struct page *page, u64 start, u64 end,
 	btrfs_init_work(&ordered_extent->work, func, finish_ordered_fn, NULL,
 			NULL);
 	btrfs_queue_work(wq, &ordered_extent->work);
-
-	return 0;
 }
 
 static int __readpage_endio_check(struct inode *inode,

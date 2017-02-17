@@ -2437,12 +2437,9 @@ void end_extent_writepage(struct page *page, int err, u64 start, u64 end)
 
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
 
-	if (tree->ops && tree->ops->writepage_end_io_hook) {
-		ret = tree->ops->writepage_end_io_hook(page, start,
-					       end, NULL, uptodate);
-		if (ret)
-			uptodate = 0;
-	}
+	if (tree->ops && tree->ops->writepage_end_io_hook)
+		tree->ops->writepage_end_io_hook(page, start, end, NULL,
+				uptodate);
 
 	if (!uptodate) {
 		ClearPageUptodate(page);
