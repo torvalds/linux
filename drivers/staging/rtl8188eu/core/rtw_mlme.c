@@ -663,7 +663,7 @@ void rtw_surveydone_event_callback(struct adapter	*adapter, u8 *pbuf)
 			set_fwstate(pmlmepriv, _FW_UNDER_LINKING);
 			pmlmepriv->to_join = false;
 			s_ret = rtw_select_and_join_from_scanned_queue(pmlmepriv);
-			if (_SUCCESS == s_ret) {
+			if (s_ret == _SUCCESS) {
 				mod_timer(&pmlmepriv->assoc_timer,
 					jiffies + msecs_to_jiffies(MAX_JOIN_TIMEOUT));
 			} else if (s_ret == 2) { /* there is no need to wait for join */
@@ -673,7 +673,7 @@ void rtw_surveydone_event_callback(struct adapter	*adapter, u8 *pbuf)
 				DBG_88E("try_to_join, but select scanning queue fail, to_roaming:%d\n", pmlmepriv->to_roaming);
 				if (pmlmepriv->to_roaming != 0) {
 					if (--pmlmepriv->to_roaming == 0 ||
-					    _SUCCESS != rtw_sitesurvey_cmd(adapter, &pmlmepriv->assoc_ssid, 1, NULL, 0)) {
+					    rtw_sitesurvey_cmd(adapter, &pmlmepriv->assoc_ssid, 1, NULL, 0) != _SUCCESS) {
 						pmlmepriv->to_roaming = 0;
 						rtw_free_assoc_resources(adapter);
 						rtw_indicate_disconnect(adapter);
@@ -1361,7 +1361,7 @@ void _rtw_join_timeout_handler (unsigned long data)
 			if (pmlmepriv->to_roaming != 0) { /* try another , */
 				DBG_88E("%s try another roaming\n", __func__);
 				do_join_r = rtw_do_join(adapter);
-				if (_SUCCESS != do_join_r) {
+				if (do_join_r != _SUCCESS) {
 					DBG_88E("%s roaming do_join return %d\n", __func__, do_join_r);
 					continue;
 				}
@@ -1547,8 +1547,8 @@ int rtw_select_and_join_from_scanned_queue(struct mlme_priv *pmlmepriv)
 
 		rtw_hal_get_def_var(adapter, HAL_DEF_CURRENT_ANTENNA, &(cur_ant));
 		DBG_88E("#### Opt_Ant_(%s), cur_Ant(%s)\n",
-			(2 == candidate->network.PhyInfo.Optimum_antenna) ? "A" : "B",
-			(2 == cur_ant) ? "A" : "B"
+			(candidate->network.PhyInfo.Optimum_antenna == 2) ? "A" : "B",
+			(cur_ant == 2) ? "A" : "B"
 		);
 	}
 
@@ -2074,7 +2074,7 @@ void rtw_issue_addbareq_cmd(struct adapter *padapter, struct xmit_frame *pxmitfr
 		issued = (phtpriv->agg_enable_bitmap>>priority)&0x1;
 		issued |= (phtpriv->candidate_tid_bitmap>>priority)&0x1;
 
-		if (0 == issued) {
+		if (issued == 0) {
 			DBG_88E("rtw_issue_addbareq_cmd, p=%d\n", priority);
 			psta->htpriv.candidate_tid_bitmap |= BIT((u8)priority);
 			rtw_addbareq_cmd(padapter, (u8)priority, pattrib->ra);
@@ -2102,7 +2102,7 @@ void _rtw_roaming(struct adapter *padapter, struct wlan_network *tgt_network)
 	else
 		pnetwork = &pmlmepriv->cur_network;
 
-	if (0 < pmlmepriv->to_roaming) {
+	if (pmlmepriv->to_roaming > 0) {
 		DBG_88E("roaming from %s(%pM length:%d\n",
 			pnetwork->network.Ssid.Ssid, pnetwork->network.MacAddress,
 			pnetwork->network.Ssid.SsidLength);
@@ -2112,13 +2112,13 @@ void _rtw_roaming(struct adapter *padapter, struct wlan_network *tgt_network)
 
 		while (1) {
 			do_join_r = rtw_do_join(padapter);
-			if (_SUCCESS == do_join_r) {
+			if (do_join_r == _SUCCESS) {
 				break;
 			} else {
 				DBG_88E("roaming do_join return %d\n", do_join_r);
 				pmlmepriv->to_roaming--;
 
-				if (0 < pmlmepriv->to_roaming) {
+				if (pmlmepriv->to_roaming > 0) {
 					continue;
 				} else {
 					DBG_88E("%s(%d) -to roaming fail, indicate_disconnect\n", __func__, __LINE__);
