@@ -107,7 +107,7 @@
 				status = "okay";
 
 				switch@0 {
-					compatible = "marvell,mv88e6095";
+					compatible = "marvell,mv88e6085";
 					#address-cells = <1>;
 					#size-cells = <0>;
 					reg = <0>;
