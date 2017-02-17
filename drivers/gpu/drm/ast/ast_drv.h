@@ -65,6 +65,7 @@ enum ast_chip {
 	AST2150,
 	AST2300,
 	AST2400,
+	AST2500,
 	AST1180,
 };
 
@@ -81,6 +82,7 @@ enum ast_tx_chip {
 #define AST_DRAM_1Gx32   3
 #define AST_DRAM_2Gx16   6
 #define AST_DRAM_4Gx16   7
+#define AST_DRAM_8Gx16   8
 
 struct ast_fbdev;
 
