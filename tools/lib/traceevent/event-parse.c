@@ -5204,13 +5204,13 @@ int pevent_data_pid(struct pevent *pevent, struct pevent_record *rec)
 }
 
 /**
- * pevent_data_prempt_count - parse the preempt count from the record
+ * pevent_data_preempt_count - parse the preempt count from the record
  * @pevent: a handle to the pevent
  * @rec: the record to parse
  *
  * This returns the preempt count from a record.
  */
-int pevent_data_prempt_count(struct pevent *pevent, struct pevent_record *rec)
+int pevent_data_preempt_count(struct pevent *pevent, struct pevent_record *rec)
 {
 	return parse_common_pc(pevent, rec->data);
 }
