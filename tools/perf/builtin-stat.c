@@ -2445,8 +2445,9 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 	} else if (big_num_opt == 0) /* User passed --no-big-num */
 		big_num = false;
 
+	/* Make system wide (-a) the default target. */
 	if (!argc && target__none(&target))
-		usage_with_options(stat_usage, stat_options);
+		target.system_wide = true;
 
 	if (run_count < 0) {
 		pr_err("Run count must be a positive number\n");
