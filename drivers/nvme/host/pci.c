@@ -1742,6 +1742,7 @@ static void nvme_pci_free_ctrl(struct nvme_ctrl *ctrl)
 	if (dev->ctrl.admin_q)
 		blk_put_queue(dev->ctrl.admin_q);
 	kfree(dev->queues);
+	kfree(dev->ctrl.opal_dev);
 	kfree(dev);
 }
 
@@ -1791,10 +1792,13 @@ static void nvme_reset_work(struct work_struct *work)
 	if (result)
 		goto out;
 
-	init_opal_dev(&dev->ctrl.opal_dev, &nvme_sec_submit);
+	if (!dev->ctrl.opal_dev) {
+		dev->ctrl.opal_dev =
+			init_opal_dev(&dev->ctrl, &nvme_sec_submit);
+	}
 
 	if (was_suspend)
-		opal_unlock_from_suspend(&dev->ctrl.opal_dev);
+		opal_unlock_from_suspend(dev->ctrl.opal_dev);
 
 	result = nvme_setup_io_queues(dev);
 	if (result)

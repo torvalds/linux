@@ -19,6 +19,29 @@
 #ifndef _OPAL_PROTO_H
 #define _OPAL_PROTO_H
 
+/*
+ * These constant values come from:
+ * SPC-4 section
+ * 6.30 SECURITY PROTOCOL IN command / table 265.
+ */
+enum {
+	TCG_SECP_00 = 0,
+	TCG_SECP_01,
+};
+
+/*
+ * Token defs derived from:
+ * TCG_Storage_Architecture_Core_Spec_v2.01_r1.00
+ * 3.2.2 Data Stream Encoding
+ */
+enum opal_response_token {
+	OPAL_DTA_TOKENID_BYTESTRING = 0xe0,
+	OPAL_DTA_TOKENID_SINT = 0xe1,
+	OPAL_DTA_TOKENID_UINT = 0xe2,
+	OPAL_DTA_TOKENID_TOKEN = 0xe3, /* actual token is returned */
+	OPAL_DTA_TOKENID_INVALID = 0X0
+};
+
 #define DTAERROR_NO_METHOD_STATUS 0x89
 #define GENERIC_HOST_SESSION_NUM 0x41
 

@@ -31,6 +31,77 @@
 
 #include "opal_proto.h"
 
+#define IO_BUFFER_LENGTH 2048
+#define MAX_TOKS 64
+
+typedef int (*opal_step)(struct opal_dev *dev);
+
+enum opal_atom_width {
+	OPAL_WIDTH_TINY,
+	OPAL_WIDTH_SHORT,
+	OPAL_WIDTH_MEDIUM,
+	OPAL_WIDTH_LONG,
+	OPAL_WIDTH_TOKEN
+};
+
+/*
+ * On the parsed response, we don't store again the toks that are already
+ * stored in the response buffer. Instead, for each token, we just store a
+ * pointer to the position in the buffer where the token starts, and the size
+ * of the token in bytes.
+ */
+struct opal_resp_tok {
+	const u8 *pos;
+	size_t len;
+	enum opal_response_token type;
+	enum opal_atom_width width;
+	union {
+		u64 u;
+		s64 s;
+	} stored;
+};
+
+/*
+ * From the response header it's not possible to know how many tokens there are
+ * on the payload. So we hardcode that the maximum will be MAX_TOKS, and later
+ * if we start dealing with messages that have more than that, we can increase
+ * this number. This is done to avoid having to make two passes through the
+ * response, the first one counting how many tokens we have and the second one
+ * actually storing the positions.
+ */
+struct parsed_resp {
+	int num;
+	struct opal_resp_tok toks[MAX_TOKS];
+};
+
+struct opal_dev {
+	bool supported;
+
+	void *data;
+	sec_send_recv *send_recv;
+
+	const opal_step *funcs;
+	void **func_data;
+	int state;
+	struct mutex dev_lock;
+	u16 comid;
+	u32 hsn;
+	u32 tsn;
+	u64 align;
+	u64 lowest_lba;
+
+	size_t pos;
+	u8 cmd[IO_BUFFER_LENGTH];
+	u8 resp[IO_BUFFER_LENGTH];
+
+	struct parsed_resp parsed;
+	size_t prev_d_len;
+	void *prev_data;
+
+	struct list_head unlk_lst;
+};
+
+
 static const u8 opaluid[][OPAL_UID_LENGTH] = {
 	/* users */
 	[OPAL_SMUID_UID] =
@@ -243,14 +314,14 @@ static u16 get_comid_v200(const void *data)
 
 static int opal_send_cmd(struct opal_dev *dev)
 {
-	return dev->send_recv(dev, dev->comid, TCG_SECP_01,
+	return dev->send_recv(dev->data, dev->comid, TCG_SECP_01,
 			      dev->cmd, IO_BUFFER_LENGTH,
 			      true);
 }
 
 static int opal_recv_cmd(struct opal_dev *dev)
 {
-	return dev->send_recv(dev, dev->comid, TCG_SECP_01,
+	return dev->send_recv(dev->data, dev->comid, TCG_SECP_01,
 			      dev->resp, IO_BUFFER_LENGTH,
 			      false);
 }
@@ -1943,16 +2014,24 @@ static int check_opal_support(struct opal_dev *dev)
 	return ret;
 }
 
-void init_opal_dev(struct opal_dev *opal_dev, sec_send_recv *send_recv)
+struct opal_dev *init_opal_dev(void *data, sec_send_recv *send_recv)
 {
-	if (opal_dev->initialized)
-		return;
-	INIT_LIST_HEAD(&opal_dev->unlk_lst);
-	mutex_init(&opal_dev->dev_lock);
-	opal_dev->send_recv = send_recv;
-	if (check_opal_support(opal_dev) < 0)
+	struct opal_dev *dev;
+
+	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return NULL;
+
+	INIT_LIST_HEAD(&dev->unlk_lst);
+	mutex_init(&dev->dev_lock);
+	dev->data = data;
+	dev->send_recv = send_recv;
+	if (check_opal_support(dev) != 0) {
 		pr_debug("Opal is not supported on this device\n");
-	opal_dev->initialized = true;
+		kfree(dev);
+		return NULL;
+	}
+	return dev;
 }
 EXPORT_SYMBOL(init_opal_dev);
 
@@ -2351,6 +2430,8 @@ int sed_ioctl(struct opal_dev *dev, unsigned int cmd, void __user *arg)
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
+	if (!dev)
+		return -ENOTSUPP;
 	if (!dev->supported) {
 		pr_err("Not supported\n");
 		return -ENOTSUPP;
