@@ -5,7 +5,8 @@ config PPC_POWERNV
 	select PPC_XICS
 	select PPC_ICP_NATIVE
 	select PPC_P7_NAP
-	select PPC_PCI_CHOICE if EMBEDDED
+	select PCI
+	select PCI_MSI
 	select EPAPR_BOOT
 	select PPC_INDIRECT_PIO
 	select PPC_UDBG_16550
