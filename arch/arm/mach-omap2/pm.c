@@ -163,7 +163,6 @@ static int omap_pm_enter(suspend_state_t suspend_state)
 		return -ENOENT; /* XXX doublecheck */
 
 	switch (suspend_state) {
-	case PM_SUSPEND_STANDBY:
 	case PM_SUSPEND_MEM:
 		ret = omap_pm_suspend();
 		break;
