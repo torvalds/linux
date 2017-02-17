@@ -1802,7 +1802,7 @@ ntb_transport_create_queue(void *data, struct device *client_dev,
 
 	node = dev_to_node(&ndev->dev);
 
-	free_queue = ffs(nt->qp_bitmap);
+	free_queue = ffs(nt->qp_bitmap_free);
 	if (!free_queue)
 		goto err;
 
@@ -2273,9 +2273,8 @@ module_init(ntb_transport_init);
 
 static void __exit ntb_transport_exit(void)
 {
-	debugfs_remove_recursive(nt_debugfs_dir);
-
 	ntb_unregister_client(&ntb_transport_client);
 	bus_unregister(&ntb_transport_bus);
+	debugfs_remove_recursive(nt_debugfs_dir);
 }
 module_exit(ntb_transport_exit);
