@@ -483,12 +483,13 @@ static void glk_load_luts(struct drm_crtc_state *state)
 	struct intel_crtc_state *intel_state = to_intel_crtc_state(state);
 	enum pipe pipe = to_intel_crtc(crtc)->pipe;
 
+	glk_load_degamma_lut(state);
+
 	if (crtc_state_is_legacy(state)) {
 		haswell_load_luts(state);
 		return;
 	}
 
-	glk_load_degamma_lut(state);
 	bdw_load_gamma_lut(state, 0);
 
 	intel_state->gamma_mode = GAMMA_MODE_MODE_10BIT;
