@@ -96,9 +96,22 @@ static void omap_atomic_complete(struct omap_atomic_state_commit *commit)
 	dispc_runtime_get();
 
 	drm_atomic_helper_commit_modeset_disables(dev, old_state);
-	drm_atomic_helper_commit_planes(dev, old_state,
-					DRM_PLANE_COMMIT_ACTIVE_ONLY);
+
+	/* With the current dss dispc implementation we have to enable
+	 * the new modeset before we can commit planes. The dispc ovl
+	 * configuration relies on the video mode configuration been
+	 * written into the HW when the ovl configuration is
+	 * calculated.
+	 *
+	 * This approach is not ideal because after a mode change the
+	 * plane update is executed only after the first vblank
+	 * interrupt. The dispc implementation should be fixed so that
+	 * it is able use uncommitted drm state information.
+	 */
 	drm_atomic_helper_commit_modeset_enables(dev, old_state);
+	omap_atomic_wait_for_completion(dev, old_state);
+
+	drm_atomic_helper_commit_planes(dev, old_state, 0);
 
 	omap_atomic_wait_for_completion(dev, old_state);
 
