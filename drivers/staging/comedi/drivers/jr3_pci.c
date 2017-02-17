@@ -279,9 +279,6 @@ static int jr3_pci_ai_insn_read(struct comedi_device *dev,
 	u16 errors;
 	int i;
 
-	if (!spriv)
-		return -EINVAL;
-
 	errors = get_u16(&spriv->channel->errors);
 	if (spriv->state != state_jr3_done ||
 	    (errors & (watch_dog | watch_dog2 | sensor_change))) {
@@ -309,9 +306,8 @@ static int jr3_pci_open(struct comedi_device *dev)
 	for (i = 0; i < dev->n_subdevices; i++) {
 		s = &dev->subdevices[i];
 		spriv = s->private;
-		if (spriv)
-			dev_dbg(dev->class_dev, "serial: %p %d (%d)\n",
-				spriv, spriv->serial_no, s->index);
+		dev_dbg(dev->class_dev, "serial: %p %d (%d)\n",
+			spriv, spriv->serial_no, s->index);
 	}
 	return 0;
 }
@@ -458,9 +454,6 @@ jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 	u16 serial_no;
 	int errors;
 	int i;
-
-	if (!spriv)
-		return result;
 
 	channel = spriv->channel;
 	errors = get_u16(&channel->errors);
