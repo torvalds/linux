@@ -3617,7 +3617,7 @@ struct sctp_chunk *sctp_make_strreset_req(
 	__u16 stream_len = stream_num * 2;
 	struct sctp_strreset_inreq inreq;
 	struct sctp_chunk *retval;
-	__u16 outlen, inlen, i;
+	__u16 outlen, inlen;
 
 	outlen = (sizeof(outreq) + stream_len) * out;
 	inlen = (sizeof(inreq) + stream_len) * in;
@@ -3625,9 +3625,6 @@ struct sctp_chunk *sctp_make_strreset_req(
 	retval = sctp_make_reconf(asoc, outlen + inlen);
 	if (!retval)
 		return NULL;
-
-	for (i = 0; i < stream_num; i++)
-		stream_list[i] = htons(stream_list[i]);
 
 	if (outlen) {
 		outreq.param_hdr.type = SCTP_PARAM_RESET_OUT_REQUEST;
@@ -3652,9 +3649,6 @@ struct sctp_chunk *sctp_make_strreset_req(
 		if (stream_len)
 			sctp_addto_chunk(retval, stream_len, stream_list);
 	}
-
-	for (i = 0; i < stream_num; i++)
-		stream_list[i] = ntohs(stream_list[i]);
 
 	return retval;
 }
