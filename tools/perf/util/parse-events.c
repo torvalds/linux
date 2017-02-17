@@ -2318,24 +2318,20 @@ int parse_events__is_hardcoded_term(struct parse_events_term *term)
 	return term->type_term != PARSE_EVENTS__TERM_TYPE_USER;
 }
 
-static int new_term(struct parse_events_term **_term, int type_val,
-		    int type_term, char *config,
-		    char *str, u64 num, int err_term, int err_val)
+static int new_term(struct parse_events_term **_term,
+		    struct parse_events_term *temp,
+		    char *str, u64 num)
 {
 	struct parse_events_term *term;
 
-	term = zalloc(sizeof(*term));
+	term = malloc(sizeof(*term));
 	if (!term)
 		return -ENOMEM;
 
+	*term = *temp;
 	INIT_LIST_HEAD(&term->list);
-	term->type_val  = type_val;
-	term->type_term = type_term;
-	term->config = config;
-	term->err_term = err_term;
-	term->err_val  = err_val;
 
-	switch (type_val) {
+	switch (term->type_val) {
 	case PARSE_EVENTS__TERM_TYPE_NUM:
 		term->val.num = num;
 		break;
@@ -2358,10 +2354,15 @@ int parse_events_term__num(struct parse_events_term **term,
 	YYLTYPE *loc_term = loc_term_;
 	YYLTYPE *loc_val = loc_val_;
 
-	return new_term(term, PARSE_EVENTS__TERM_TYPE_NUM, type_term,
-			config, NULL, num,
-			loc_term ? loc_term->first_column : 0,
-			loc_val ? loc_val->first_column : 0);
+	struct parse_events_term temp = {
+		.type_val  = PARSE_EVENTS__TERM_TYPE_NUM,
+		.type_term = type_term,
+		.config    = config,
+		.err_term  = loc_term ? loc_term->first_column : 0,
+		.err_val   = loc_val  ? loc_val->first_column  : 0,
+	};
+
+	return new_term(term, &temp, NULL, num);
 }
 
 int parse_events_term__str(struct parse_events_term **term,
@@ -2371,37 +2372,45 @@ int parse_events_term__str(struct parse_events_term **term,
 	YYLTYPE *loc_term = loc_term_;
 	YYLTYPE *loc_val = loc_val_;
 
-	return new_term(term, PARSE_EVENTS__TERM_TYPE_STR, type_term,
-			config, str, 0,
-			loc_term ? loc_term->first_column : 0,
-			loc_val ? loc_val->first_column : 0);
+	struct parse_events_term temp = {
+		.type_val  = PARSE_EVENTS__TERM_TYPE_STR,
+		.type_term = type_term,
+		.config    = config,
+		.err_term  = loc_term ? loc_term->first_column : 0,
+		.err_val   = loc_val  ? loc_val->first_column  : 0,
+	};
+
+	return new_term(term, &temp, str, 0);
 }
 
 int parse_events_term__sym_hw(struct parse_events_term **term,
 			      char *config, unsigned idx)
 {
 	struct event_symbol *sym;
+	struct parse_events_term temp = {
+		.type_val  = PARSE_EVENTS__TERM_TYPE_STR,
+		.type_term = PARSE_EVENTS__TERM_TYPE_USER,
+		.config    = config ?: (char *) "event",
+	};
 
 	BUG_ON(idx >= PERF_COUNT_HW_MAX);
 	sym = &event_symbols_hw[idx];
 
-	if (config)
-		return new_term(term, PARSE_EVENTS__TERM_TYPE_STR,
-				PARSE_EVENTS__TERM_TYPE_USER, config,
-				(char *) sym->symbol, 0, 0, 0);
-	else
-		return new_term(term, PARSE_EVENTS__TERM_TYPE_STR,
-				PARSE_EVENTS__TERM_TYPE_USER,
-				(char *) "event", (char *) sym->symbol,
-				0, 0, 0);
+	return new_term(term, &temp, (char *) sym->symbol, 0);
 }
 
 int parse_events_term__clone(struct parse_events_term **new,
 			     struct parse_events_term *term)
 {
-	return new_term(new, term->type_val, term->type_term, term->config,
-			term->val.str, term->val.num,
-			term->err_term, term->err_val);
+	struct parse_events_term temp = {
+		.type_val  = term->type_val,
+		.type_term = term->type_term,
+		.config    = term->config,
+		.err_term  = term->err_term,
+		.err_val   = term->err_val,
+	};
+
+	return new_term(new, &temp, term->val.str, term->val.num);
 }
 
 void parse_events_terms__purge(struct list_head *terms)
