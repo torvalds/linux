@@ -305,8 +305,8 @@ struct ast_vbios_dclk_info {
 };
 
 struct ast_vbios_mode_info {
-	struct ast_vbios_stdtable *std_table;
-	struct ast_vbios_enhtable *enh_table;
+	const struct ast_vbios_stdtable *std_table;
+	const struct ast_vbios_enhtable *enh_table;
 };
 
 extern int ast_mode_init(struct drm_device *dev);

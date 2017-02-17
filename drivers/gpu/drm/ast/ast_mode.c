@@ -81,9 +81,9 @@ static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mo
 	struct ast_private *ast = crtc->dev->dev_private;
 	const struct drm_framebuffer *fb = crtc->primary->fb;
 	u32 refresh_rate_index = 0, mode_id, color_index, refresh_rate;
+	const struct ast_vbios_enhtable *best = NULL;
 	u32 hborder, vborder;
 	bool check_sync;
-	struct ast_vbios_enhtable *best = NULL;
 
 	switch (fb->format->cpp[0] * 8) {
 	case 8:
@@ -147,7 +147,7 @@ static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mo
 	refresh_rate = drm_mode_vrefresh(mode);
 	check_sync = vbios_mode->enh_table->flags & WideScreenMode;
 	do {
-		struct ast_vbios_enhtable *loop = vbios_mode->enh_table;
+		const struct ast_vbios_enhtable *loop = vbios_mode->enh_table;
 
 		while (loop->refresh_rate != 0xff) {
 			if ((check_sync) &&
@@ -227,7 +227,7 @@ static void ast_set_std_reg(struct drm_crtc *crtc, struct drm_display_mode *mode
 			    struct ast_vbios_mode_info *vbios_mode)
 {
 	struct ast_private *ast = crtc->dev->dev_private;
-	struct ast_vbios_stdtable *stdtable;
+	const struct ast_vbios_stdtable *stdtable;
 	u32 i;
 	u8 jreg;
 
@@ -384,7 +384,7 @@ static void ast_set_dclk_reg(struct drm_device *dev, struct drm_display_mode *mo
 			     struct ast_vbios_mode_info *vbios_mode)
 {
 	struct ast_private *ast = dev->dev_private;
-	struct ast_vbios_dclk_info *clk_info;
+	const struct ast_vbios_dclk_info *clk_info;
 
 	clk_info = &dclk_table[vbios_mode->enh_table->dclk_index];
 
