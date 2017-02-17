@@ -502,9 +502,7 @@ static int load_twl4030_script(const struct twl4030_power_data *pdata,
 	}
 	if (tscript->flags & TWL4030_SLEEP_SCRIPT) {
 		if (!order)
-			pr_warning("TWL4030: Bad order of scripts (sleep "\
-					"script before wakeup) Leads to boot"\
-					"failure on some boards\n");
+			pr_warn("TWL4030: Bad order of scripts (sleep script before wakeup) Leads to boot failure on some boards\n");
 		err = twl4030_config_sleep_sequence(address);
 	}
 out:
@@ -930,8 +928,7 @@ static int twl4030_power_probe(struct platform_device *pdev)
 		err = twl_i2c_read_u8(TWL_MODULE_PM_MASTER, &val,
 				      TWL4030_PM_MASTER_CFG_P123_TRANSITION);
 		if (err) {
-			pr_warning("TWL4030 Unable to read registers\n");
-
+			pr_warn("TWL4030 Unable to read registers\n");
 		} else if (!(val & SEQ_OFFSYNC)) {
 			val |= SEQ_OFFSYNC;
 			err = twl_i2c_write_u8(TWL_MODULE_PM_MASTER, val,
