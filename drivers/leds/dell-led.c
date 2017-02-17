@@ -15,15 +15,12 @@
 #include <linux/leds.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/dmi.h>
-#include "../platform/x86/dell-smbios.h"
 
 MODULE_AUTHOR("Louis Davis/Jim Dailey");
 MODULE_DESCRIPTION("Dell LED Control Driver");
 MODULE_LICENSE("GPL");
 
 #define DELL_LED_BIOS_GUID "F6E4FE6E-909D-47cb-8BAB-C9F6F2F8D396"
-#define DELL_APP_GUID "A80593CE-A997-11DA-B012-B622A1EF5492"
 MODULE_ALIAS("wmi:" DELL_LED_BIOS_GUID);
 
 /* Error Result Codes: */
@@ -184,29 +181,21 @@ static int __init dell_led_init(void)
 {
 	int error = 0;
 
-	if (!wmi_has_guid(DELL_LED_BIOS_GUID) && !wmi_has_guid(DELL_APP_GUID))
+	if (!wmi_has_guid(DELL_LED_BIOS_GUID))
 		return -ENODEV;
 
-	if (wmi_has_guid(DELL_LED_BIOS_GUID)) {
-		error = led_off();
-		if (error != 0)
-			return -ENODEV;
+	error = led_off();
+	if (error != 0)
+		return -ENODEV;
 
-		error = led_classdev_register(NULL, &dell_led);
-	}
-
-	return error;
+	return led_classdev_register(NULL, &dell_led);
 }
 
 static void __exit dell_led_exit(void)
 {
-	int error = 0;
+	led_classdev_unregister(&dell_led);
 
-	if (wmi_has_guid(DELL_LED_BIOS_GUID)) {
-		error = led_off();
-		if (error == 0)
-			led_classdev_unregister(&dell_led);
-	}
+	led_off();
 }
 
 module_init(dell_led_init);
