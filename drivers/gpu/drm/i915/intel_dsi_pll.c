@@ -372,6 +372,53 @@ static void vlv_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 			ESCAPE_CLOCK_DIVIDER_SHIFT);
 }
 
+static void glk_dsi_program_esc_clock(struct drm_device *dev,
+				   const struct intel_crtc_state *config)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	u32 dsi_rate = 0;
+	u32 pll_ratio = 0;
+	u32 ddr_clk = 0;
+	u32 div1_value = 0;
+	u32 div2_value = 0;
+	u32 txesc1_div = 0;
+	u32 txesc2_div = 0;
+
+	pll_ratio = config->dsi_pll.ctrl & BXT_DSI_PLL_RATIO_MASK;
+
+	dsi_rate = (BXT_REF_CLOCK_KHZ * pll_ratio) / 2;
+
+	ddr_clk = dsi_rate / 2;
+
+	/* Variable divider value */
+	div1_value = DIV_ROUND_CLOSEST(ddr_clk, 20000);
+
+	/* Calculate TXESC1 divider */
+	if (div1_value <= 10)
+		txesc1_div = div1_value;
+	else if ((div1_value > 10) && (div1_value <= 20))
+		txesc1_div = DIV_ROUND_UP(div1_value, 2);
+	else if ((div1_value > 20) && (div1_value <= 30))
+		txesc1_div = DIV_ROUND_UP(div1_value, 4);
+	else if ((div1_value > 30) && (div1_value <= 40))
+		txesc1_div = DIV_ROUND_UP(div1_value, 6);
+	else if ((div1_value > 40) && (div1_value <= 50))
+		txesc1_div = DIV_ROUND_UP(div1_value, 8);
+	else
+		txesc1_div = 10;
+
+	/* Calculate TXESC2 divider */
+	div2_value = DIV_ROUND_UP(div1_value, txesc1_div);
+
+	if (div2_value < 10)
+		txesc2_div = div2_value;
+	else
+		txesc2_div = 10;
+
+	I915_WRITE(MIPIO_TXESC_CLK_DIV1, txesc1_div & GLK_TX_ESC_CLK_DIV1_MASK);
+	I915_WRITE(MIPIO_TXESC_CLK_DIV2, txesc2_div & GLK_TX_ESC_CLK_DIV2_MASK);
+}
+
 /* Program BXT Mipi clocks and dividers */
 static void bxt_dsi_program_clocks(struct drm_device *dev, enum port port,
 				   const struct intel_crtc_state *config)
@@ -474,7 +521,7 @@ static int gen9lp_compute_dsi_pll(struct intel_encoder *encoder,
 	return 0;
 }
 
-static void bxt_enable_dsi_pll(struct intel_encoder *encoder,
+static void gen9lp_enable_dsi_pll(struct intel_encoder *encoder,
 			       const struct intel_crtc_state *config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
@@ -492,6 +539,8 @@ static void bxt_enable_dsi_pll(struct intel_encoder *encoder,
 	if (IS_BROXTON(dev_priv)) {
 		for_each_dsi_port(port, intel_dsi->ports)
 			bxt_dsi_program_clocks(encoder->base.dev, port, config);
+	} else {
+		glk_dsi_program_esc_clock(encoder->base.dev, config);
 	}
 
 	/* Enable DSI PLL */
@@ -543,7 +592,7 @@ void intel_enable_dsi_pll(struct intel_encoder *encoder,
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		vlv_enable_dsi_pll(encoder, config);
 	else if (IS_GEN9_LP(dev_priv))
-		bxt_enable_dsi_pll(encoder, config);
+		gen9lp_enable_dsi_pll(encoder, config);
 }
 
 void intel_disable_dsi_pll(struct intel_encoder *encoder)
@@ -571,6 +620,14 @@ static void gen9lp_dsi_reset_clocks(struct intel_encoder *encoder,
 		tmp &= ~(BXT_MIPI_8X_BY3_DIVIDER_MASK(port));
 		tmp &= ~(BXT_MIPI_RX_ESCLK_LOWER_FIXDIV_MASK(port));
 		I915_WRITE(BXT_MIPI_CLOCK_CTL, tmp);
+	} else {
+		tmp = I915_READ(MIPIO_TXESC_CLK_DIV1);
+		tmp &= ~GLK_TX_ESC_CLK_DIV1_MASK;
+		I915_WRITE(MIPIO_TXESC_CLK_DIV1, tmp);
+
+		tmp = I915_READ(MIPIO_TXESC_CLK_DIV2);
+		tmp &= ~GLK_TX_ESC_CLK_DIV2_MASK;
+		I915_WRITE(MIPIO_TXESC_CLK_DIV2, tmp);
 	}
 	I915_WRITE(MIPI_EOT_DISABLE(port), CLOCKSTOP);
 }

@@ -8251,6 +8251,11 @@ enum {
 #define _MIPI_PORT(port, a, c)	_PORT3(port, a, 0, c)	/* ports A and C only */
 #define _MMIO_MIPI(port, a, c)	_MMIO(_MIPI_PORT(port, a, c))
 
+#define MIPIO_TXESC_CLK_DIV1			_MMIO(0x160004)
+#define  GLK_TX_ESC_CLK_DIV1_MASK			0x3FF
+#define MIPIO_TXESC_CLK_DIV2			_MMIO(0x160008)
+#define  GLK_TX_ESC_CLK_DIV2_MASK			0x3FF
+
 /* BXT MIPI clock controls */
 #define BXT_MAX_VAR_OUTPUT_KHZ			39500
 
