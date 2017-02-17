@@ -1309,6 +1309,14 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 		 */
 		I915_WRITE(MIPI_LP_BYTECLK(port), intel_dsi->lp_byte_clk);
 
+		if (IS_GEMINILAKE(dev_priv)) {
+			I915_WRITE(MIPI_TLPX_TIME_COUNT(port),
+					intel_dsi->lp_byte_clk);
+			/* Shadow of DPHY reg */
+			I915_WRITE(MIPI_CLK_LANE_TIMING(port),
+					intel_dsi->dphy_reg);
+		}
+
 		/* the bw essential for transmitting 16 long packets containing
 		 * 252 bytes meant for dcs write memory command is programmed in
 		 * this register in terms of byte clocks. based on dsi transfer
