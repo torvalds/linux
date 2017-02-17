@@ -15,13 +15,15 @@
 
 #define CIF_MCCK_PENDING	0	/* machine check handling is pending */
 #define CIF_ASCE_PRIMARY	1	/* primary asce needs fixup / uaccess */
-#define CIF_NOHZ_DELAY		2	/* delay HZ disable for a tick */
-#define CIF_FPU			3	/* restore FPU registers */
-#define CIF_IGNORE_IRQ		4	/* ignore interrupt (for udelay) */
-#define CIF_ENABLED_WAIT	5	/* in enabled wait state */
+#define CIF_ASCE_SECONDARY	2	/* secondary asce needs fixup / uaccess */
+#define CIF_NOHZ_DELAY		3	/* delay HZ disable for a tick */
+#define CIF_FPU			4	/* restore FPU registers */
+#define CIF_IGNORE_IRQ		5	/* ignore interrupt (for udelay) */
+#define CIF_ENABLED_WAIT	6	/* in enabled wait state */
 
 #define _CIF_MCCK_PENDING	_BITUL(CIF_MCCK_PENDING)
 #define _CIF_ASCE_PRIMARY	_BITUL(CIF_ASCE_PRIMARY)
+#define _CIF_ASCE_SECONDARY	_BITUL(CIF_ASCE_SECONDARY)
 #define _CIF_NOHZ_DELAY		_BITUL(CIF_NOHZ_DELAY)
 #define _CIF_FPU		_BITUL(CIF_FPU)
 #define _CIF_IGNORE_IRQ		_BITUL(CIF_IGNORE_IRQ)
@@ -200,10 +202,12 @@ struct stack_frame {
 struct task_struct;
 struct mm_struct;
 struct seq_file;
+struct pt_regs;
 
 typedef int (*dump_trace_func_t)(void *data, unsigned long address, int reliable);
 void dump_trace(dump_trace_func_t func, void *data,
 		struct task_struct *task, unsigned long sp);
+void show_registers(struct pt_regs *regs);
 
 void show_cacheinfo(struct seq_file *m);
 
