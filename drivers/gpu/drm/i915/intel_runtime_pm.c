@@ -830,12 +830,14 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 static void hsw_power_well_sync_hw(struct drm_i915_private *dev_priv,
 				   struct i915_power_well *power_well)
 {
-	/*
-	 * We're taking over the BIOS, so clear any requests made by it since
-	 * the driver is in charge now.
-	 */
-	if (I915_READ(HSW_PWR_WELL_BIOS) & HSW_PWR_WELL_ENABLE_REQUEST)
+	/* Take over the request bit if set by BIOS. */
+	if (I915_READ(HSW_PWR_WELL_BIOS) & HSW_PWR_WELL_ENABLE_REQUEST) {
+		if (!(I915_READ(HSW_PWR_WELL_DRIVER) &
+		      HSW_PWR_WELL_ENABLE_REQUEST))
+			I915_WRITE(HSW_PWR_WELL_DRIVER,
+				   HSW_PWR_WELL_ENABLE_REQUEST);
 		I915_WRITE(HSW_PWR_WELL_BIOS, 0);
+	}
 }
 
 static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
@@ -865,8 +867,12 @@ static void skl_power_well_sync_hw(struct drm_i915_private *dev_priv,
 	uint32_t mask = SKL_POWER_WELL_REQ(power_well->id);
 	uint32_t bios_req = I915_READ(HSW_PWR_WELL_BIOS);
 
-	/* Clear any request made by BIOS as driver is taking over */
+	/* Take over the request bit if set by BIOS. */
 	if (bios_req & mask) {
+		uint32_t drv_req = I915_READ(HSW_PWR_WELL_DRIVER);
+
+		if (!(drv_req & mask))
+			I915_WRITE(HSW_PWR_WELL_DRIVER, drv_req | mask);
 		I915_WRITE(HSW_PWR_WELL_BIOS, bios_req & ~mask);
 	}
 }
