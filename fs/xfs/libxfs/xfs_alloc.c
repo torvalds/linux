@@ -2664,21 +2664,11 @@ xfs_alloc_vextent(
 		args->agbno = XFS_FSB_TO_AGBNO(mp, args->fsbno);
 		args->type = XFS_ALLOCTYPE_NEAR_BNO;
 		/* FALLTHROUGH */
-	case XFS_ALLOCTYPE_ANY_AG:
-	case XFS_ALLOCTYPE_START_AG:
 	case XFS_ALLOCTYPE_FIRST_AG:
 		/*
 		 * Rotate through the allocation groups looking for a winner.
 		 */
-		if (type == XFS_ALLOCTYPE_ANY_AG) {
-			/*
-			 * Start with the last place we left off.
-			 */
-			args->agno = sagno = (mp->m_agfrotor / rotorstep) %
-					mp->m_sb.sb_agcount;
-			args->type = XFS_ALLOCTYPE_THIS_AG;
-			flags = XFS_ALLOC_FLAG_TRYLOCK;
-		} else if (type == XFS_ALLOCTYPE_FIRST_AG) {
+		if (type == XFS_ALLOCTYPE_FIRST_AG) {
 			/*
 			 * Start with allocation group given by bno.
 			 */
@@ -2687,8 +2677,6 @@ xfs_alloc_vextent(
 			sagno = 0;
 			flags = 0;
 		} else {
-			if (type == XFS_ALLOCTYPE_START_AG)
-				args->type = XFS_ALLOCTYPE_THIS_AG;
 			/*
 			 * Start with the given allocation group.
 			 */
@@ -2756,7 +2744,7 @@ xfs_alloc_vextent(
 			}
 			xfs_perag_put(args->pag);
 		}
-		if (bump_rotor || (type == XFS_ALLOCTYPE_ANY_AG)) {
+		if (bump_rotor) {
 			if (args->agno == sagno)
 				mp->m_agfrotor = (mp->m_agfrotor + 1) %
 					(mp->m_sb.sb_agcount * rotorstep);
