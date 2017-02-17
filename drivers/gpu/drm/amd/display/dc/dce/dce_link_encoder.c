@@ -871,6 +871,8 @@ static bool dce110_link_encoder_validate_hdmi_output(
 	if (max_deep_color < crtc_timing->display_color_depth)
 		return false;
 
+	if (crtc_timing->display_color_depth < COLOR_DEPTH_888)
+		return false;
 	if (adjusted_pix_clk_khz < TMDS_MIN_PIXEL_CLOCK)
 		return false;
 

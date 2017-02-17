@@ -93,6 +93,7 @@ struct dce_audio_shift {
 	uint8_t DCCG_AUDIO_DTO0_PHASE;
 	uint8_t DCCG_AUDIO_DTO1_MODULE;
 	uint8_t DCCG_AUDIO_DTO1_PHASE;
+	uint8_t DCCG_AUDIO_DTO2_USE_512FBR_DTO;
 };
 
 struct dce_aduio_mask {
@@ -109,6 +110,7 @@ struct dce_aduio_mask {
 	uint32_t DCCG_AUDIO_DTO0_PHASE;
 	uint32_t DCCG_AUDIO_DTO1_MODULE;
 	uint32_t DCCG_AUDIO_DTO1_PHASE;
+	uint32_t DCCG_AUDIO_DTO2_USE_512FBR_DTO;
 };
 
 struct dce_audio {

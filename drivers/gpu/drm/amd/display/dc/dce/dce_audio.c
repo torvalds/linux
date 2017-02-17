@@ -828,11 +828,9 @@ void dce_aud_wall_dto_setup(
 		REG_UPDATE(DCCG_AUDIO_DTO1_PHASE,
 				DCCG_AUDIO_DTO1_PHASE, clock_info.audio_dto_phase);
 
-		/* DAL2 code separate DCCG_AUDIO_DTO_SEL and
-		DCCG_AUDIO_DTO2_USE_512FBR_DTO programming into two different
-		location. merge together should not hurt */
-		/*value.bits.DCCG_AUDIO_DTO2_USE_512FBR_DTO = 1;
-		dal_write_reg(mmDCCG_AUDIO_DTO_SOURCE, value);*/
+		REG_UPDATE(DCCG_AUDIO_DTO_SOURCE,
+				DCCG_AUDIO_DTO2_USE_512FBR_DTO, 1);
+
 	}
 }
 

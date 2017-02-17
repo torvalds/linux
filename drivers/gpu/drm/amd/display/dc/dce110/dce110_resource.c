@@ -776,6 +776,7 @@ static void get_pixel_clock_parameters(
 	pixel_clk_params->flags.DISPLAY_BLANKED = 1;
 	pixel_clk_params->flags.SUPPORT_YCBCR420 = (stream->public.timing.pixel_encoding ==
 			PIXEL_ENCODING_YCBCR420);
+	pixel_clk_params->pixel_encoding = stream->public.timing.pixel_encoding;
 }
 
 void dce110_resource_build_bit_depth_reduction_params(
