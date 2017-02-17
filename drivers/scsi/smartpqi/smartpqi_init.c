@@ -533,8 +533,7 @@ static int pqi_write_current_time_to_host_wellness(
 	size_t buffer_length;
 	time64_t local_time;
 	unsigned int year;
-	struct timeval time;
-	struct rtc_time tm;
+	struct tm tm;
 
 	buffer_length = sizeof(*buffer);
 
@@ -551,9 +550,8 @@ static int pqi_write_current_time_to_host_wellness(
 	put_unaligned_le16(sizeof(buffer->time),
 		&buffer->time_length);
 
-	do_gettimeofday(&time);
-	local_time = time.tv_sec - (sys_tz.tz_minuteswest * 60);
-	rtc_time64_to_tm(local_time, &tm);
+	local_time = ktime_get_real_seconds();
+	time64_to_tm(local_time, -sys_tz.tz_minuteswest * 60, &tm);
 	year = tm.tm_year + 1900;
 
 	buffer->time[0] = bin2bcd(tm.tm_hour);
