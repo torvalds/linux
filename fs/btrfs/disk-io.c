@@ -4653,9 +4653,12 @@ static int btrfs_cleanup_transaction(struct btrfs_fs_info *fs_info)
 }
 
 static const struct extent_io_ops btree_extent_io_ops = {
-	.readpage_end_io_hook = btree_readpage_end_io_hook,
-	.readpage_io_failed_hook = btree_io_failed_hook,
+	/* mandatory callbacks */
 	.submit_bio_hook = btree_submit_bio_hook,
+	.readpage_end_io_hook = btree_readpage_end_io_hook,
 	/* note we're sharing with inode.c for the merge bio hook */
 	.merge_bio_hook = btrfs_merge_bio_hook,
+
+	/* optional callbacks */
+	.readpage_io_failed_hook = btree_io_failed_hook,
 };

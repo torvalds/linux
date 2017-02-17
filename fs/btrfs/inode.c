@@ -10547,10 +10547,13 @@ static const struct file_operations btrfs_dir_file_operations = {
 };
 
 static const struct extent_io_ops btrfs_extent_io_ops = {
-	.fill_delalloc = run_delalloc_range,
+	/* mandatory callbacks */
 	.submit_bio_hook = btrfs_submit_bio_hook,
-	.merge_bio_hook = btrfs_merge_bio_hook,
 	.readpage_end_io_hook = btrfs_readpage_end_io_hook,
+	.merge_bio_hook = btrfs_merge_bio_hook,
+
+	/* optional callbacks */
+	.fill_delalloc = run_delalloc_range,
 	.writepage_end_io_hook = btrfs_writepage_end_io_hook,
 	.writepage_start_hook = btrfs_writepage_start_hook,
 	.set_bit_hook = btrfs_set_bit_hook,
