@@ -890,18 +890,6 @@ err:
 	return ret;
 }
 
-#define wa_ctx_emit(batch, index, cmd)					\
-	do {								\
-		int __index = (index)++;				\
-		if (WARN_ON(__index >= (PAGE_SIZE / sizeof(uint32_t)))) { \
-			return -ENOSPC;					\
-		}							\
-		batch[__index] = (cmd);					\
-	} while (0)
-
-#define wa_ctx_emit_reg(batch, index, reg) \
-	wa_ctx_emit((batch), (index), i915_mmio_reg_offset(reg))
-
 /*
  * In this WA we need to set GEN8_L3SQCREG4[21:21] and reset it after
  * PIPE_CONTROL instruction. This is required for the flush to happen correctly
@@ -918,56 +906,31 @@ err:
  * This WA is also required for Gen9 so extracting as a function avoids
  * code duplication.
  */
-static inline int gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *engine,
-						uint32_t *batch,
-						uint32_t index)
+static u32 *
+gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *engine, u32 *batch)
 {
-	uint32_t l3sqc4_flush = (0x40400000 | GEN8_LQSC_FLUSH_COHERENT_LINES);
+	*batch++ = MI_STORE_REGISTER_MEM_GEN8 | MI_SRM_LRM_GLOBAL_GTT;
+	*batch++ = i915_mmio_reg_offset(GEN8_L3SQCREG4);
+	*batch++ = i915_ggtt_offset(engine->scratch) + 256;
+	*batch++ = 0;
 
-	wa_ctx_emit(batch, index, (MI_STORE_REGISTER_MEM_GEN8 |
-				   MI_SRM_LRM_GLOBAL_GTT));
-	wa_ctx_emit_reg(batch, index, GEN8_L3SQCREG4);
-	wa_ctx_emit(batch, index, i915_ggtt_offset(engine->scratch) + 256);
-	wa_ctx_emit(batch, index, 0);
+	*batch++ = MI_LOAD_REGISTER_IMM(1);
+	*batch++ = i915_mmio_reg_offset(GEN8_L3SQCREG4);
+	*batch++ = 0x40400000 | GEN8_LQSC_FLUSH_COHERENT_LINES;
 
-	wa_ctx_emit(batch, index, MI_LOAD_REGISTER_IMM(1));
-	wa_ctx_emit_reg(batch, index, GEN8_L3SQCREG4);
-	wa_ctx_emit(batch, index, l3sqc4_flush);
+	*batch++ = GFX_OP_PIPE_CONTROL(6);
+	*batch++ = PIPE_CONTROL_CS_STALL | PIPE_CONTROL_DC_FLUSH_ENABLE;
+	*batch++ = 0;
+	*batch++ = 0;
+	*batch++ = 0;
+	*batch++ = 0;
 
-	wa_ctx_emit(batch, index, GFX_OP_PIPE_CONTROL(6));
-	wa_ctx_emit(batch, index, (PIPE_CONTROL_CS_STALL |
-				   PIPE_CONTROL_DC_FLUSH_ENABLE));
-	wa_ctx_emit(batch, index, 0);
-	wa_ctx_emit(batch, index, 0);
-	wa_ctx_emit(batch, index, 0);
-	wa_ctx_emit(batch, index, 0);
+	*batch++ = MI_LOAD_REGISTER_MEM_GEN8 | MI_SRM_LRM_GLOBAL_GTT;
+	*batch++ = i915_mmio_reg_offset(GEN8_L3SQCREG4);
+	*batch++ = i915_ggtt_offset(engine->scratch) + 256;
+	*batch++ = 0;
 
-	wa_ctx_emit(batch, index, (MI_LOAD_REGISTER_MEM_GEN8 |
-				   MI_SRM_LRM_GLOBAL_GTT));
-	wa_ctx_emit_reg(batch, index, GEN8_L3SQCREG4);
-	wa_ctx_emit(batch, index, i915_ggtt_offset(engine->scratch) + 256);
-	wa_ctx_emit(batch, index, 0);
-
-	return index;
-}
-
-static inline uint32_t wa_ctx_start(struct i915_wa_ctx_bb *wa_ctx,
-				    uint32_t offset,
-				    uint32_t start_alignment)
-{
-	return wa_ctx->offset = ALIGN(offset, start_alignment);
-}
-
-static inline int wa_ctx_end(struct i915_wa_ctx_bb *wa_ctx,
-			     uint32_t offset,
-			     uint32_t size_alignment)
-{
-	wa_ctx->size = offset - wa_ctx->offset;
-
-	WARN(wa_ctx->size % size_alignment,
-	     "wa_ctx_bb failed sanity checks: size %d is not aligned to %d\n",
-	     wa_ctx->size, size_alignment);
-	return 0;
+	return batch;
 }
 
 /*
@@ -985,42 +948,28 @@ static inline int wa_ctx_end(struct i915_wa_ctx_bb *wa_ctx,
  * MI_BATCH_BUFFER_END will be added to perctx batch and both of them together
  * makes a complete batch buffer.
  */
-static int gen8_init_indirectctx_bb(struct intel_engine_cs *engine,
-				    struct i915_wa_ctx_bb *wa_ctx,
-				    uint32_t *batch,
-				    uint32_t *offset)
+static u32 *gen8_init_indirectctx_bb(struct intel_engine_cs *engine, u32 *batch)
 {
-	uint32_t scratch_addr;
-	uint32_t index = wa_ctx_start(wa_ctx, *offset, CACHELINE_DWORDS);
-
 	/* WaDisableCtxRestoreArbitration:bdw,chv */
-	wa_ctx_emit(batch, index, MI_ARB_ON_OFF | MI_ARB_DISABLE);
+	*batch++ = MI_ARB_ON_OFF | MI_ARB_DISABLE;
 
 	/* WaFlushCoherentL3CacheLinesAtContextSwitch:bdw */
-	if (IS_BROADWELL(engine->i915)) {
-		int rc = gen8_emit_flush_coherentl3_wa(engine, batch, index);
-		if (rc < 0)
-			return rc;
-		index = rc;
-	}
+	if (IS_BROADWELL(engine->i915))
+		batch = gen8_emit_flush_coherentl3_wa(engine, batch);
 
+	*batch++ = GFX_OP_PIPE_CONTROL(6);
+	*batch++ = PIPE_CONTROL_FLUSH_L3 | PIPE_CONTROL_GLOBAL_GTT_IVB |
+		   PIPE_CONTROL_CS_STALL | PIPE_CONTROL_QW_WRITE;
 	/* WaClearSlmSpaceAtContextSwitch:bdw,chv */
 	/* Actual scratch location is at 128 bytes offset */
-	scratch_addr = i915_ggtt_offset(engine->scratch) + 2 * CACHELINE_BYTES;
-
-	wa_ctx_emit(batch, index, GFX_OP_PIPE_CONTROL(6));
-	wa_ctx_emit(batch, index, (PIPE_CONTROL_FLUSH_L3 |
-				   PIPE_CONTROL_GLOBAL_GTT_IVB |
-				   PIPE_CONTROL_CS_STALL |
-				   PIPE_CONTROL_QW_WRITE));
-	wa_ctx_emit(batch, index, scratch_addr);
-	wa_ctx_emit(batch, index, 0);
-	wa_ctx_emit(batch, index, 0);
-	wa_ctx_emit(batch, index, 0);
+	*batch++ = i915_ggtt_offset(engine->scratch) + 2 * CACHELINE_BYTES;
+	*batch++ = 0;
+	*batch++ = 0;
+	*batch++ = 0;
 
 	/* Pad to end of cacheline */
-	while (index % CACHELINE_DWORDS)
-		wa_ctx_emit(batch, index, MI_NOOP);
+	while ((unsigned long)batch % CACHELINE_BYTES)
+		*batch++ = MI_NOOP;
 
 	/*
 	 * MI_BATCH_BUFFER_END is not required in Indirect ctx BB because
@@ -1028,7 +977,7 @@ static int gen8_init_indirectctx_bb(struct intel_engine_cs *engine,
 	 * in the register CTX_RCS_INDIRECT_CTX
 	 */
 
-	return wa_ctx_end(wa_ctx, *offset = index, CACHELINE_DWORDS);
+	return batch;
 }
 
 /*
@@ -1040,58 +989,38 @@ static int gen8_init_indirectctx_bb(struct intel_engine_cs *engine,
  *  This batch is terminated with MI_BATCH_BUFFER_END and so we need not add padding
  *  to align it with cacheline as padding after MI_BATCH_BUFFER_END is redundant.
  */
-static int gen8_init_perctx_bb(struct intel_engine_cs *engine,
-			       struct i915_wa_ctx_bb *wa_ctx,
-			       uint32_t *batch,
-			       uint32_t *offset)
+static u32 *gen8_init_perctx_bb(struct intel_engine_cs *engine, u32 *batch)
 {
-	uint32_t index = wa_ctx_start(wa_ctx, *offset, CACHELINE_DWORDS);
-
 	/* WaDisableCtxRestoreArbitration:bdw,chv */
-	wa_ctx_emit(batch, index, MI_ARB_ON_OFF | MI_ARB_ENABLE);
+	*batch++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
+	*batch++ = MI_BATCH_BUFFER_END;
 
-	wa_ctx_emit(batch, index, MI_BATCH_BUFFER_END);
-
-	return wa_ctx_end(wa_ctx, *offset = index, 1);
+	return batch;
 }
 
-static int gen9_init_indirectctx_bb(struct intel_engine_cs *engine,
-				    struct i915_wa_ctx_bb *wa_ctx,
-				    uint32_t *batch,
-				    uint32_t *offset)
+static u32 *gen9_init_indirectctx_bb(struct intel_engine_cs *engine, u32 *batch)
 {
-	int ret;
-	struct drm_i915_private *dev_priv = engine->i915;
-	uint32_t index = wa_ctx_start(wa_ctx, *offset, CACHELINE_DWORDS);
-
 	/* WaFlushCoherentL3CacheLinesAtContextSwitch:skl,bxt,glk */
-	ret = gen8_emit_flush_coherentl3_wa(engine, batch, index);
-	if (ret < 0)
-		return ret;
-	index = ret;
+	batch = gen8_emit_flush_coherentl3_wa(engine, batch);
 
 	/* WaDisableGatherAtSetShaderCommonSlice:skl,bxt,kbl,glk */
-	wa_ctx_emit(batch, index, MI_LOAD_REGISTER_IMM(1));
-	wa_ctx_emit_reg(batch, index, COMMON_SLICE_CHICKEN2);
-	wa_ctx_emit(batch, index, _MASKED_BIT_DISABLE(
-			    GEN9_DISABLE_GATHER_AT_SET_SHADER_COMMON_SLICE));
-	wa_ctx_emit(batch, index, MI_NOOP);
+	*batch++ = MI_LOAD_REGISTER_IMM(1);
+	*batch++ = i915_mmio_reg_offset(COMMON_SLICE_CHICKEN2);
+	*batch++ = _MASKED_BIT_DISABLE(
+			GEN9_DISABLE_GATHER_AT_SET_SHADER_COMMON_SLICE);
+	*batch++ = MI_NOOP;
 
 	/* WaClearSlmSpaceAtContextSwitch:kbl */
 	/* Actual scratch location is at 128 bytes offset */
-	if (IS_KBL_REVID(dev_priv, 0, KBL_REVID_A0)) {
-		u32 scratch_addr =
-			i915_ggtt_offset(engine->scratch) + 2 * CACHELINE_BYTES;
-
-		wa_ctx_emit(batch, index, GFX_OP_PIPE_CONTROL(6));
-		wa_ctx_emit(batch, index, (PIPE_CONTROL_FLUSH_L3 |
-					   PIPE_CONTROL_GLOBAL_GTT_IVB |
-					   PIPE_CONTROL_CS_STALL |
-					   PIPE_CONTROL_QW_WRITE));
-		wa_ctx_emit(batch, index, scratch_addr);
-		wa_ctx_emit(batch, index, 0);
-		wa_ctx_emit(batch, index, 0);
-		wa_ctx_emit(batch, index, 0);
+	if (IS_KBL_REVID(engine->i915, 0, KBL_REVID_A0)) {
+		*batch++ = GFX_OP_PIPE_CONTROL(6);
+		*batch++ = PIPE_CONTROL_FLUSH_L3 | PIPE_CONTROL_GLOBAL_GTT_IVB |
+			   PIPE_CONTROL_CS_STALL | PIPE_CONTROL_QW_WRITE;
+		*batch++ = i915_ggtt_offset(engine->scratch) +
+			   2 * CACHELINE_BYTES;
+		*batch++ = 0;
+		*batch++ = 0;
+		*batch++ = 0;
 	}
 
 	/* WaMediaPoolStateCmdInWABB:bxt,glk */
@@ -1109,41 +1038,37 @@ static int gen9_init_indirectctx_bb(struct intel_engine_cs *engine,
 		 * possible configurations, to avoid duplication they are
 		 * not shown here again.
 		 */
-		u32 eu_pool_config = 0x00777000;
-		wa_ctx_emit(batch, index, GEN9_MEDIA_POOL_STATE);
-		wa_ctx_emit(batch, index, GEN9_MEDIA_POOL_ENABLE);
-		wa_ctx_emit(batch, index, eu_pool_config);
-		wa_ctx_emit(batch, index, 0);
-		wa_ctx_emit(batch, index, 0);
-		wa_ctx_emit(batch, index, 0);
+		*batch++ = GEN9_MEDIA_POOL_STATE;
+		*batch++ = GEN9_MEDIA_POOL_ENABLE;
+		*batch++ = 0x00777000;
+		*batch++ = 0;
+		*batch++ = 0;
+		*batch++ = 0;
 	}
 
 	/* Pad to end of cacheline */
-	while (index % CACHELINE_DWORDS)
-		wa_ctx_emit(batch, index, MI_NOOP);
+	while ((unsigned long)batch % CACHELINE_BYTES)
+		*batch++ = MI_NOOP;
 
-	return wa_ctx_end(wa_ctx, *offset = index, CACHELINE_DWORDS);
+	return batch;
 }
 
-static int gen9_init_perctx_bb(struct intel_engine_cs *engine,
-			       struct i915_wa_ctx_bb *wa_ctx,
-			       uint32_t *batch,
-			       uint32_t *offset)
+static u32 *gen9_init_perctx_bb(struct intel_engine_cs *engine, u32 *batch)
 {
-	uint32_t index = wa_ctx_start(wa_ctx, *offset, CACHELINE_DWORDS);
+	*batch++ = MI_BATCH_BUFFER_END;
 
-	wa_ctx_emit(batch, index, MI_BATCH_BUFFER_END);
-
-	return wa_ctx_end(wa_ctx, *offset = index, 1);
+	return batch;
 }
 
-static int lrc_setup_wa_ctx_obj(struct intel_engine_cs *engine, u32 size)
+#define CTX_WA_BB_OBJ_SIZE (PAGE_SIZE)
+
+static int lrc_setup_wa_ctx(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
 	int err;
 
-	obj = i915_gem_object_create(engine->i915, PAGE_ALIGN(size));
+	obj = i915_gem_object_create(engine->i915, CTX_WA_BB_OBJ_SIZE);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
@@ -1165,78 +1090,70 @@ err:
 	return err;
 }
 
-static void lrc_destroy_wa_ctx_obj(struct intel_engine_cs *engine)
+static void lrc_destroy_wa_ctx(struct intel_engine_cs *engine)
 {
 	i915_vma_unpin_and_release(&engine->wa_ctx.vma);
 }
 
+typedef u32 *(*wa_bb_func_t)(struct intel_engine_cs *engine, u32 *batch);
+
 static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 {
 	struct i915_ctx_workarounds *wa_ctx = &engine->wa_ctx;
-	uint32_t *batch;
-	uint32_t offset;
+	struct i915_wa_ctx_bb *wa_bb[2] = { &wa_ctx->indirect_ctx,
+					    &wa_ctx->per_ctx };
+	wa_bb_func_t wa_bb_fn[2];
 	struct page *page;
+	void *batch, *batch_ptr;
+	unsigned int i;
 	int ret;
 
-	WARN_ON(engine->id != RCS);
+	if (WARN_ON(engine->id != RCS || !engine->scratch))
+		return -EINVAL;
 
-	/* update this when WA for higher Gen are added */
-	if (INTEL_GEN(engine->i915) > 9) {
-		DRM_ERROR("WA batch buffer is not initialized for Gen%d\n",
-			  INTEL_GEN(engine->i915));
+	switch (INTEL_GEN(engine->i915)) {
+	case 9:
+		wa_bb_fn[0] = gen9_init_indirectctx_bb;
+		wa_bb_fn[1] = gen9_init_perctx_bb;
+		break;
+	case 8:
+		wa_bb_fn[0] = gen8_init_indirectctx_bb;
+		wa_bb_fn[1] = gen8_init_perctx_bb;
+		break;
+	default:
+		MISSING_CASE(INTEL_GEN(engine->i915));
 		return 0;
 	}
 
-	/* some WA perform writes to scratch page, ensure it is valid */
-	if (!engine->scratch) {
-		DRM_ERROR("scratch page not allocated for %s\n", engine->name);
-		return -EINVAL;
-	}
-
-	ret = lrc_setup_wa_ctx_obj(engine, PAGE_SIZE);
+	ret = lrc_setup_wa_ctx(engine);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Failed to setup context WA page: %d\n", ret);
 		return ret;
 	}
 
 	page = i915_gem_object_get_dirty_page(wa_ctx->vma->obj, 0);
-	batch = kmap_atomic(page);
-	offset = 0;
+	batch = batch_ptr = kmap_atomic(page);
 
-	if (IS_GEN8(engine->i915)) {
-		ret = gen8_init_indirectctx_bb(engine,
-					       &wa_ctx->indirect_ctx,
-					       batch,
-					       &offset);
-		if (ret)
-			goto out;
-
-		ret = gen8_init_perctx_bb(engine,
-					  &wa_ctx->per_ctx,
-					  batch,
-					  &offset);
-		if (ret)
-			goto out;
-	} else if (IS_GEN9(engine->i915)) {
-		ret = gen9_init_indirectctx_bb(engine,
-					       &wa_ctx->indirect_ctx,
-					       batch,
-					       &offset);
-		if (ret)
-			goto out;
-
-		ret = gen9_init_perctx_bb(engine,
-					  &wa_ctx->per_ctx,
-					  batch,
-					  &offset);
-		if (ret)
-			goto out;
+	/*
+	 * Emit the two workaround batch buffers, recording the offset from the
+	 * start of the workaround batch buffer object for each and their
+	 * respective sizes.
+	 */
+	for (i = 0; i < ARRAY_SIZE(wa_bb_fn); i++) {
+		wa_bb[i]->offset = batch_ptr - batch;
+		if (WARN_ON(!IS_ALIGNED(wa_bb[i]->offset, CACHELINE_BYTES))) {
+			ret = -EINVAL;
+			break;
+		}
+		batch_ptr = wa_bb_fn[i](engine, batch_ptr);
+		wa_bb[i]->size = batch_ptr - (batch + wa_bb[i]->offset);
 	}
 
-out:
+	BUG_ON(batch_ptr - batch > CTX_WA_BB_OBJ_SIZE);
+
 	kunmap_atomic(batch);
 	if (ret)
-		lrc_destroy_wa_ctx_obj(engine);
+		lrc_destroy_wa_ctx(engine);
 
 	return ret;
 }
@@ -1685,7 +1602,7 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *engine)
 
 	intel_engine_cleanup_common(engine);
 
-	lrc_destroy_wa_ctx_obj(engine);
+	lrc_destroy_wa_ctx(engine);
 	engine->i915 = NULL;
 	dev_priv->engine[engine->id] = NULL;
 	kfree(engine);
@@ -1971,15 +1888,14 @@ static void execlists_init_reg_state(u32 *reg_state,
 			u32 ggtt_offset = i915_ggtt_offset(wa_ctx->vma);
 
 			reg_state[CTX_RCS_INDIRECT_CTX+1] =
-				(ggtt_offset + wa_ctx->indirect_ctx.offset * sizeof(uint32_t)) |
-				(wa_ctx->indirect_ctx.size / CACHELINE_DWORDS);
+				(ggtt_offset + wa_ctx->indirect_ctx.offset) |
+				(wa_ctx->indirect_ctx.size / CACHELINE_BYTES);
 
 			reg_state[CTX_RCS_INDIRECT_CTX_OFFSET+1] =
 				intel_lr_indirect_ctx_offset(engine) << 6;
 
 			reg_state[CTX_BB_PER_CTX_PTR+1] =
-				(ggtt_offset + wa_ctx->per_ctx.offset * sizeof(uint32_t)) |
-				0x01;
+				(ggtt_offset + wa_ctx->per_ctx.offset) | 0x01;
 		}
 	}
 	reg_state[CTX_LRI_HEADER_1] = MI_LOAD_REGISTER_IMM(9) | MI_LRI_FORCE_POSTED;
