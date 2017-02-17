@@ -1377,9 +1377,11 @@ struct batadv_nc_packet {
  *  relevant to batman-adv in the skb->cb buffer in skbs.
  * @decoded: Marks a skb as decoded, which is checked when searching for coding
  *  opportunities in network-coding.c
+ * @num_bcasts: Counter for broadcast packet retransmissions
  */
 struct batadv_skb_cb {
 	bool decoded;
+	unsigned int num_bcasts;
 };
 
 /**
@@ -1392,7 +1394,7 @@ struct batadv_skb_cb {
  * @skb: bcast packet's skb buffer
  * @packet_len: size of aggregated OGM packet inside the skb buffer
  * @direct_link_flags: direct link flags for aggregated OGM packets
- * @num_packets: counter for bcast packet retransmission
+ * @num_packets: counter for aggregated OGMv1 packets
  * @delayed_work: work queue callback item for packet sending
  * @if_incoming: pointer to incoming hard-iface or primary iface if
  *  locally generated packet

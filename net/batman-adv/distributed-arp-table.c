@@ -1303,7 +1303,7 @@ bool batadv_dat_drop_broadcast_packet(struct batadv_priv *bat_priv,
 	/* If this packet is an ARP_REQUEST and the node already has the
 	 * information that it is going to ask, then the packet can be dropped
 	 */
-	if (forw_packet->num_packets)
+	if (batadv_forw_packet_is_rebroadcast(forw_packet))
 		goto out;
 
 	vid = batadv_dat_get_vid(forw_packet->skb, &hdr_size);
