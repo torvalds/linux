@@ -173,16 +173,19 @@ static int sanitize_fence_mmio_access(struct intel_vgpu *vgpu,
 		 * pv_info first, we treat guest not supporting GVT,
 		 * and we will let vgpu enter failsafe mode.
 		 */
-		if (!vgpu->pv_notified) {
+		if (!vgpu->pv_notified)
 			enter_failsafe_mode(vgpu,
 					GVT_FAILSAFE_UNSUPPORTED_GUEST);
-			return -EINVAL;
+
+		if (!vgpu->mmio.disable_warn_untrack) {
+			gvt_err("vgpu%d: found oob fence register access\n",
+					vgpu->id);
+			gvt_err("vgpu%d: total fence %d, access fence %d\n",
+					vgpu->id, vgpu_fence_sz(vgpu),
+					fence_num);
 		}
-		gvt_err("vgpu%d: found oob fence register access\n",
-				vgpu->id);
-		gvt_err("vgpu%d: total fence num %d access fence num %d\n",
-				vgpu->id, vgpu_fence_sz(vgpu), fence_num);
 		memset(p_data, 0, bytes);
+		return -EINVAL;
 	}
 	return 0;
 }

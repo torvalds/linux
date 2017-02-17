@@ -384,6 +384,8 @@ void intel_vgpu_reset_mmio(struct intel_vgpu *vgpu)
 
 	/* set the bit 0:2(Core C-State ) to C0 */
 	vgpu_vreg(vgpu, GEN6_GT_CORE_STATUS) = 0;
+
+	vgpu->mmio.disable_warn_untrack = false;
 }
 
 /**
