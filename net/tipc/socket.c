@@ -430,8 +430,6 @@ static int tipc_sk_create(struct net *net, struct socket *sock,
 	INIT_LIST_HEAD(&tsk->cong_links);
 	msg = &tsk->phdr;
 	tn = net_generic(sock_net(sk), tipc_net_id);
-	tipc_msg_init(tn->own_addr, msg, TIPC_LOW_IMPORTANCE, TIPC_NAMED_MSG,
-		      NAMED_H_SIZE, 0);
 
 	/* Finish initializing socket data structures */
 	sock->ops = ops;
@@ -441,6 +439,13 @@ static int tipc_sk_create(struct net *net, struct socket *sock,
 		pr_warn("Socket create failed; port number exhausted\n");
 		return -EINVAL;
 	}
+
+	/* Ensure tsk is visible before we read own_addr. */
+	smp_mb();
+
+	tipc_msg_init(tn->own_addr, msg, TIPC_LOW_IMPORTANCE, TIPC_NAMED_MSG,
+		      NAMED_H_SIZE, 0);
+
 	msg_set_origport(msg, tsk->portid);
 	setup_timer(&sk->sk_timer, tipc_sk_timeout, (unsigned long)tsk);
 	sk->sk_shutdown = 0;
@@ -2234,24 +2239,27 @@ static int tipc_sk_withdraw(struct tipc_sock *tsk, uint scope,
 void tipc_sk_reinit(struct net *net)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	const struct bucket_table *tbl;
-	struct rhash_head *pos;
+	struct rhashtable_iter iter;
 	struct tipc_sock *tsk;
 	struct tipc_msg *msg;
-	int i;
 
-	rcu_read_lock();
-	tbl = rht_dereference_rcu((&tn->sk_rht)->tbl, &tn->sk_rht);
-	for (i = 0; i < tbl->size; i++) {
-		rht_for_each_entry_rcu(tsk, pos, tbl, i, node) {
+	rhashtable_walk_enter(&tn->sk_rht, &iter);
+
+	do {
+		tsk = ERR_PTR(rhashtable_walk_start(&iter));
+		if (tsk)
+			continue;
+
+		while ((tsk = rhashtable_walk_next(&iter)) && !IS_ERR(tsk)) {
 			spin_lock_bh(&tsk->sk.sk_lock.slock);
 			msg = &tsk->phdr;
 			msg_set_prevnode(msg, tn->own_addr);
 			msg_set_orignode(msg, tn->own_addr);
 			spin_unlock_bh(&tsk->sk.sk_lock.slock);
 		}
-	}
-	rcu_read_unlock();
+
+		rhashtable_walk_stop(&iter);
+	} while (tsk == ERR_PTR(-EAGAIN));
 }
 
 static struct tipc_sock *tipc_sk_lookup(struct net *net, u32 portid)
