@@ -596,7 +596,9 @@ static inline void sctp_v4_map_v6(union sctp_addr *addr)
  */
 static inline struct dst_entry *sctp_transport_dst_check(struct sctp_transport *t)
 {
-	if (t->dst && !dst_check(t->dst, t->dst_cookie))
+	if (t->dst && (!dst_check(t->dst, t->dst_cookie) ||
+		       t->pathmtu != max_t(size_t, SCTP_TRUNC4(dst_mtu(t->dst)),
+					   SCTP_DEFAULT_MINSEGMENT)))
 		sctp_transport_dst_release(t);
 
 	return t->dst;
