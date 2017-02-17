@@ -354,25 +354,25 @@ static struct attribute *cpumcf_z13_pmu_event_attr[] __initdata = {
 
 /* END: CPUM_CF COUNTER DEFINITIONS ===================================== */
 
-static struct attribute_group cpumsf_pmu_events_group = {
+static struct attribute_group cpumcf_pmu_events_group = {
 	.name = "events",
 };
 
 PMU_FORMAT_ATTR(event, "config:0-63");
 
-static struct attribute *cpumsf_pmu_format_attr[] = {
+static struct attribute *cpumcf_pmu_format_attr[] = {
 	&format_attr_event.attr,
 	NULL,
 };
 
-static struct attribute_group cpumsf_pmu_format_group = {
+static struct attribute_group cpumcf_pmu_format_group = {
 	.name = "format",
-	.attrs = cpumsf_pmu_format_attr,
+	.attrs = cpumcf_pmu_format_attr,
 };
 
-static const struct attribute_group *cpumsf_pmu_attr_groups[] = {
-	&cpumsf_pmu_events_group,
-	&cpumsf_pmu_format_group,
+static const struct attribute_group *cpumcf_pmu_attr_groups[] = {
+	&cpumcf_pmu_events_group,
+	&cpumcf_pmu_format_group,
 	NULL,
 };
 
@@ -433,6 +433,6 @@ __init const struct attribute_group **cpumf_cf_event_group(void)
 
 	combined = merge_attr(cpumcf_pmu_event_attr, model);
 	if (combined)
-		cpumsf_pmu_events_group.attrs = combined;
-	return cpumsf_pmu_attr_groups;
+		cpumcf_pmu_events_group.attrs = combined;
+	return cpumcf_pmu_attr_groups;
 }
