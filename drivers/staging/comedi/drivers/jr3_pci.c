@@ -95,7 +95,6 @@ struct jr3_pci_poll_delay {
 };
 
 struct jr3_pci_dev_private {
-	struct jr3_t __iomem *iobase;
 	struct timer_list timer;
 };
 
@@ -375,8 +374,7 @@ static int jr3_check_firmware(struct comedi_device *dev,
 static void jr3_write_firmware(struct comedi_device *dev,
 			       int subdev, const u8 *data, size_t size)
 {
-	struct jr3_pci_dev_private *devpriv = dev->private;
-	struct jr3_t __iomem *iobase = devpriv->iobase;
+	struct jr3_t __iomem *iobase = dev->mmio;
 	u32 __iomem *lo;
 	u32 __iomem *hi;
 	int more = 1;
@@ -634,7 +632,7 @@ static void jr3_pci_poll_dev(unsigned long data)
 static struct jr3_pci_subdev_private *
 jr3_pci_alloc_spriv(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct jr3_pci_dev_private *devpriv = dev->private;
+	struct jr3_t __iomem *iobase = dev->mmio;
 	struct jr3_pci_subdev_private *spriv;
 	int j;
 	int k;
@@ -643,7 +641,7 @@ jr3_pci_alloc_spriv(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (!spriv)
 		return NULL;
 
-	spriv->channel = &devpriv->iobase->channel[s->index].data;
+	spriv->channel = &iobase->channel[s->index].data;
 
 	for (j = 0; j < 8; j++) {
 		spriv->range[j].l.length = 1;
@@ -665,17 +663,17 @@ jr3_pci_alloc_spriv(struct comedi_device *dev, struct comedi_subdevice *s)
 	spriv->maxdata_list[57] = 0xffff;
 
 	dev_dbg(dev->class_dev, "p->channel %p %p (%tx)\n",
-		spriv->channel, devpriv->iobase,
+		spriv->channel, iobase,
 		((char __iomem *)spriv->channel -
-		 (char __iomem *)devpriv->iobase));
+		 (char __iomem *)iobase));
 
 	return spriv;
 }
 
 static void jr3_pci_show_copyright(struct comedi_device *dev)
 {
-	struct jr3_pci_dev_private *devpriv = dev->private;
-	struct jr3_channel __iomem *ch0data = &devpriv->iobase->channel[0].data;
+	struct jr3_t __iomem *iobase = dev->mmio;
+	struct jr3_channel __iomem *ch0data = &iobase->channel[0].data;
 	char copy[ARRAY_SIZE(ch0data->copyright) + 1];
 	int i;
 
@@ -692,6 +690,7 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 	static const struct jr3_pci_board *board;
 	struct jr3_pci_dev_private *devpriv;
 	struct jr3_pci_subdev_private *spriv;
+	struct jr3_t __iomem *iobase;
 	struct comedi_subdevice *s;
 	int ret;
 	int i;
@@ -718,9 +717,11 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	devpriv->iobase = pci_ioremap_bar(pcidev, 0);
-	if (!devpriv->iobase)
+	dev->mmio = pci_ioremap_bar(pcidev, 0);
+	if (!dev->mmio)
 		return -ENOMEM;
+
+	iobase = dev->mmio;
 
 	ret = comedi_alloc_subdevices(dev, board->n_subdevs);
 	if (ret)
@@ -745,7 +746,7 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 
 	/* Reset DSP card */
 	for (i = 0; i < dev->n_subdevices; i++)
-		writel(0, &devpriv->iobase->channel[i].reset);
+		writel(0, &iobase->channel[i].reset);
 
 	ret = comedi_load_firmware(dev, &comedi_to_pci_dev(dev)->dev,
 				   "comedi/jr3pci.idm",
@@ -789,13 +790,10 @@ static void jr3_pci_detach(struct comedi_device *dev)
 {
 	struct jr3_pci_dev_private *devpriv = dev->private;
 
-	if (devpriv) {
+	if (devpriv)
 		del_timer_sync(&devpriv->timer);
 
-		if (devpriv->iobase)
-			iounmap(devpriv->iobase);
-	}
-	comedi_pci_disable(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver jr3_pci_driver = {
