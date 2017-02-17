@@ -2353,18 +2353,6 @@ __nvme_fc_create_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 
 	/* sanity checks */
 
-	/* FC-NVME supports 64-byte SQE only */
-	if (ctrl->ctrl.ioccsz != 4) {
-		dev_err(ctrl->ctrl.device, "ioccsz %d is not supported!\n",
-				ctrl->ctrl.ioccsz);
-		goto out_remove_admin_queue;
-	}
-	/* FC-NVME supports 16-byte CQE only */
-	if (ctrl->ctrl.iorcsz != 1) {
-		dev_err(ctrl->ctrl.device, "iorcsz %d is not supported!\n",
-				ctrl->ctrl.iorcsz);
-		goto out_remove_admin_queue;
-	}
 	/* FC-NVME does not have other data in the capsule */
 	if (ctrl->ctrl.icdoff) {
 		dev_err(ctrl->ctrl.device, "icdoff %d is not supported!\n",
