@@ -206,17 +206,24 @@ static bool bxt_dsi_pll_is_enabled(struct drm_i915_private *dev_priv)
 		return false;
 
 	/*
-	 * Both dividers must be programmed with valid values even if only one
-	 * of the PLL is used, see BSpec/Broxton Clocks. Check this here for
+	 * Dividers must be programmed with valid values. As per BSEPC, for
+	 * GEMINLAKE only PORT A divider values are checked while for BXT
+	 * both divider values are validated. Check this here for
 	 * paranoia, since BIOS is known to misconfigure PLLs in this way at
 	 * times, and since accessing DSI registers with invalid dividers
 	 * causes a system hang.
 	 */
 	val = I915_READ(BXT_DSI_PLL_CTL);
-	if (!(val & BXT_DSIA_16X_MASK) || !(val & BXT_DSIC_16X_MASK)) {
-		DRM_DEBUG_DRIVER("PLL is enabled with invalid divider settings (%08x)\n",
-				 val);
-		enabled = false;
+	if (IS_GEMINILAKE(dev_priv)) {
+		if (!(val & BXT_DSIA_16X_MASK)) {
+			DRM_DEBUG_DRIVER("Invalid PLL divider (%08x)\n", val);
+			enabled = false;
+		}
+	} else {
+		if (!(val & BXT_DSIA_16X_MASK) || !(val & BXT_DSIC_16X_MASK)) {
+			DRM_DEBUG_DRIVER("Invalid PLL divider (%08x)\n", val);
+			enabled = false;
+		}
 	}
 
 	return enabled;
