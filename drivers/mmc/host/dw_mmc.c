@@ -107,7 +107,6 @@ struct idmac_desc {
 /* Each descriptor can transfer up to 4KB of data in chained mode */
 #define DW_MCI_DESC_DATA_LENGTH	0x1000
 
-static bool dw_mci_ctrl_reset(struct dw_mci *host, u32 reset);
 static int dw_mci_card_busy(struct mmc_host *mmc);
 static int dw_mci_get_cd(struct mmc_host *mmc);
 
@@ -235,6 +234,26 @@ err:
 #endif /* defined(CONFIG_DEBUG_FS) */
 
 static void mci_send_cmd(struct dw_mci_slot *slot, u32 cmd, u32 arg);
+static bool dw_mci_ctrl_reset(struct dw_mci *host, u32 reset)
+{
+	u32 ctrl;
+
+	ctrl = mci_readl(host, CTRL);
+	ctrl |= reset;
+	mci_writel(host, CTRL, ctrl);
+
+	/* wait till resets clear */
+	if (readl_poll_timeout_atomic(host->regs + SDMMC_CTRL, ctrl,
+				      !(ctrl & reset),
+				      1, 500 * USEC_PER_MSEC)) {
+		dev_err(host->dev,
+			"Timeout resetting block (ctrl reset %#x)\n",
+			ctrl & reset);
+		return false;
+	}
+
+	return true;
+}
 
 static u32 dw_mci_prepare_command(struct mmc_host *mmc, struct mmc_command *cmd)
 {
@@ -2885,27 +2904,6 @@ static void dw_mci_init_dma(struct dw_mci *host)
 no_dma:
 	dev_info(host->dev, "Using PIO mode.\n");
 	host->use_dma = TRANS_MODE_PIO;
-}
-
-static bool dw_mci_ctrl_reset(struct dw_mci *host, u32 reset)
-{
-	u32 ctrl;
-
-	ctrl = mci_readl(host, CTRL);
-	ctrl |= reset;
-	mci_writel(host, CTRL, ctrl);
-
-	/* wait till resets clear */
-	if (readl_poll_timeout_atomic(host->regs + SDMMC_CTRL, ctrl,
-				      !(ctrl & reset),
-				      1, 500 * USEC_PER_MSEC)) {
-		dev_err(host->dev,
-			"Timeout resetting block (ctrl reset %#x)\n",
-			ctrl & reset);
-		return false;
-	}
-
-	return true;
 }
 
 static void dw_mci_cmd11_timer(unsigned long arg)
