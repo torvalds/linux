@@ -2818,7 +2818,7 @@ int bnxt_re_dereg_mr(struct ib_mr *ib_mr)
 {
 	struct bnxt_re_mr *mr = container_of(ib_mr, struct bnxt_re_mr, ib_mr);
 	struct bnxt_re_dev *rdev = mr->rdev;
-	int rc = 0;
+	int rc;
 
 	if (mr->npages && mr->pages) {
 		rc = bnxt_qplib_free_fast_reg_page_list(&rdev->qplib_res,
