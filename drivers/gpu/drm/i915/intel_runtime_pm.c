@@ -2683,7 +2683,10 @@ static void vlv_cmnlane_wa(struct drm_i915_private *dev_priv)
  * @resume: Called from resume code paths or not
  *
  * This function initializes the hardware power domain state and enables all
- * power domains using intel_display_set_init_power().
+ * power wells belonging to the INIT power domain. Power wells in other
+ * domains (and not in the INIT domain) are referenced or disabled during the
+ * modeset state HW readout. After that the reference count of each power well
+ * must match its HW enabled state, see intel_power_domains_verify_state().
  */
 void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume)
 {
@@ -2734,6 +2737,86 @@ void intel_power_domains_suspend(struct drm_i915_private *dev_priv)
 		skl_display_core_uninit(dev_priv);
 	else if (IS_GEN9_LP(dev_priv))
 		bxt_display_core_uninit(dev_priv);
+}
+
+static void intel_power_domains_dump_info(struct drm_i915_private *dev_priv)
+{
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	struct i915_power_well *power_well;
+
+	for_each_power_well(dev_priv, power_well) {
+		enum intel_display_power_domain domain;
+
+		DRM_DEBUG_DRIVER("%-25s %d\n",
+				 power_well->name, power_well->count);
+
+		for_each_power_domain(domain, power_well->domains)
+			DRM_DEBUG_DRIVER("  %-23s %d\n",
+					 intel_display_power_domain_str(domain),
+					 power_domains->domain_use_count[domain]);
+	}
+}
+
+/**
+ * intel_power_domains_verify_state - verify the HW/SW state for all power wells
+ * @dev_priv: i915 device instance
+ *
+ * Verify if the reference count of each power well matches its HW enabled
+ * state and the total refcount of the domains it belongs to. This must be
+ * called after modeset HW state sanitization, which is responsible for
+ * acquiring reference counts for any power wells in use and disabling the
+ * ones left on by BIOS but not required by any active output.
+ */
+void intel_power_domains_verify_state(struct drm_i915_private *dev_priv)
+{
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	struct i915_power_well *power_well;
+	bool dump_domain_info;
+
+	mutex_lock(&power_domains->lock);
+
+	dump_domain_info = false;
+	for_each_power_well(dev_priv, power_well) {
+		enum intel_display_power_domain domain;
+		int domains_count;
+		bool enabled;
+
+		/*
+		 * Power wells not belonging to any domain (like the MISC_IO
+		 * and PW1 power wells) are under FW control, so ignore them,
+		 * since their state can change asynchronously.
+		 */
+		if (!power_well->domains)
+			continue;
+
+		enabled = power_well->ops->is_enabled(dev_priv, power_well);
+		if ((power_well->count || power_well->always_on) != enabled)
+			DRM_ERROR("power well %s state mismatch (refcount %d/enabled %d)",
+				  power_well->name, power_well->count, enabled);
+
+		domains_count = 0;
+		for_each_power_domain(domain, power_well->domains)
+			domains_count += power_domains->domain_use_count[domain];
+
+		if (power_well->count != domains_count) {
+			DRM_ERROR("power well %s refcount/domain refcount mismatch "
+				  "(refcount %d/domains refcount %d)\n",
+				  power_well->name, power_well->count,
+				  domains_count);
+			dump_domain_info = true;
+		}
+	}
+
+	if (dump_domain_info) {
+		static bool dumped;
+
+		if (!dumped) {
+			intel_power_domains_dump_info(dev_priv);
+			dumped = true;
+		}
+	}
+
+	mutex_unlock(&power_domains->lock);
 }
 
 /**
