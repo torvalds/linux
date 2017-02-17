@@ -351,7 +351,7 @@ static void blk_mq_sched_insert_flush(struct blk_mq_hw_ctx *hctx,
 		blk_insert_flush(rq);
 		blk_mq_run_hw_queue(hctx, true);
 	} else
-		blk_mq_add_to_requeue_list(rq, true, true);
+		blk_mq_add_to_requeue_list(rq, false, true);
 }
 
 void blk_mq_sched_insert_request(struct request *rq, bool at_head,
