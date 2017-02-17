@@ -213,6 +213,7 @@ struct intel_engine_cs {
 
 	struct intel_render_state *render_state;
 
+	atomic_t irq_count;
 	unsigned long irq_posted;
 #define ENGINE_IRQ_BREADCRUMB 0
 #define ENGINE_IRQ_EXECLIST 1
@@ -245,7 +246,7 @@ struct intel_engine_cs {
 		struct timer_list fake_irq; /* used after a missed interrupt */
 		struct timer_list hangcheck; /* detect missed interrupts */
 
-		unsigned long timeout;
+		unsigned int hangcheck_interrupts;
 
 		bool irq_enabled : 1;
 		bool rpm_wakelock : 1;

@@ -26,6 +26,11 @@
 
 #include "i915_drv.h"
 
+static unsigned long wait_timeout(void)
+{
+	return round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES);
+}
+
 static void intel_breadcrumbs_hangcheck(unsigned long data)
 {
 	struct intel_engine_cs *engine = (struct intel_engine_cs *)data;
@@ -34,8 +39,9 @@ static void intel_breadcrumbs_hangcheck(unsigned long data)
 	if (!b->irq_enabled)
 		return;
 
-	if (time_before(jiffies, b->timeout)) {
-		mod_timer(&b->hangcheck, b->timeout);
+	if (b->hangcheck_interrupts != atomic_read(&engine->irq_count)) {
+		b->hangcheck_interrupts = atomic_read(&engine->irq_count);
+		mod_timer(&b->hangcheck, wait_timeout());
 		return;
 	}
 
@@ -53,11 +59,6 @@ static void intel_breadcrumbs_hangcheck(unsigned long data)
 	 * worker.
 	 */
 	i915_queue_hangcheck(engine->i915);
-}
-
-static unsigned long wait_timeout(void)
-{
-	return round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES);
 }
 
 static void intel_breadcrumbs_fake_irq(unsigned long data)
@@ -140,8 +141,7 @@ static void __intel_breadcrumbs_enable_irq(struct intel_breadcrumbs *b)
 		i915_queue_hangcheck(i915);
 	} else {
 		/* Ensure we never sleep indefinitely */
-		GEM_BUG_ON(!time_after(b->timeout, jiffies));
-		mod_timer(&b->hangcheck, b->timeout);
+		mod_timer(&b->hangcheck, wait_timeout());
 	}
 }
 
@@ -258,7 +258,6 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 		GEM_BUG_ON(!next && !first);
 		if (next && next != &wait->node) {
 			GEM_BUG_ON(first);
-			b->timeout = wait_timeout();
 			b->first_wait = to_wait(next);
 			rcu_assign_pointer(b->irq_seqno_bh, b->first_wait->tsk);
 			/* As there is a delay between reading the current
@@ -286,7 +285,6 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 
 	if (first) {
 		GEM_BUG_ON(rb_first(&b->waiters) != &wait->node);
-		b->timeout = wait_timeout();
 		b->first_wait = wait;
 		rcu_assign_pointer(b->irq_seqno_bh, wait->tsk);
 		/* After assigning ourselves as the new bottom-half, we must
@@ -396,7 +394,6 @@ void intel_engine_remove_wait(struct intel_engine_cs *engine,
 			 * the interrupt, or if we have to handle an
 			 * exception rather than a seqno completion.
 			 */
-			b->timeout = wait_timeout();
 			b->first_wait = to_wait(next);
 			rcu_assign_pointer(b->irq_seqno_bh, b->first_wait->tsk);
 			if (b->first_wait->seqno != wait->seqno)
@@ -627,7 +624,6 @@ void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine)
 
 	__intel_breadcrumbs_disable_irq(b);
 	if (intel_engine_has_waiter(engine)) {
-		b->timeout = wait_timeout();
 		__intel_breadcrumbs_enable_irq(b);
 		if (test_bit(ENGINE_IRQ_BREADCRUMB, &engine->irq_posted))
 			wake_up_process(b->first_wait->tsk);
