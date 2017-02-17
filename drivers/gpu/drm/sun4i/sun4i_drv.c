@@ -108,7 +108,7 @@ static int sun4i_drv_bind(struct device *dev)
 	ret = component_bind_all(drm->dev, drm);
 	if (ret) {
 		dev_err(drm->dev, "Couldn't bind all pipelines components\n");
-		goto free_drm;
+		goto cleanup_mode_config;
 	}
 
 	/* Create our layers */
@@ -116,7 +116,7 @@ static int sun4i_drv_bind(struct device *dev)
 	if (IS_ERR(drv->layers)) {
 		dev_err(drm->dev, "Couldn't create the planes\n");
 		ret = PTR_ERR(drv->layers);
-		goto free_drm;
+		goto cleanup_mode_config;
 	}
 
 	/* Create our CRTC */
@@ -124,7 +124,7 @@ static int sun4i_drv_bind(struct device *dev)
 	if (!drv->crtc) {
 		dev_err(drm->dev, "Couldn't create the CRTC\n");
 		ret = -EINVAL;
-		goto free_drm;
+		goto cleanup_mode_config;
 	}
 	drm->irq_enabled = true;
 
@@ -136,7 +136,7 @@ static int sun4i_drv_bind(struct device *dev)
 	if (IS_ERR(drv->fbdev)) {
 		dev_err(drm->dev, "Couldn't create our framebuffer\n");
 		ret = PTR_ERR(drv->fbdev);
-		goto free_drm;
+		goto cleanup_mode_config;
 	}
 
 	/* Enable connectors polling */
@@ -144,10 +144,16 @@ static int sun4i_drv_bind(struct device *dev)
 
 	ret = drm_dev_register(drm, 0);
 	if (ret)
-		goto free_drm;
+		goto finish_poll;
 
 	return 0;
 
+finish_poll:
+	drm_kms_helper_poll_fini(drm);
+	sun4i_framebuffer_free(drm);
+cleanup_mode_config:
+	drm_mode_config_cleanup(drm);
+	drm_vblank_cleanup(drm);
 free_drm:
 	drm_dev_unref(drm);
 	return ret;
