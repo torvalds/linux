@@ -935,18 +935,22 @@ static int bpf_obj_get(const union bpf_attr *attr)
 
 #ifdef CONFIG_CGROUP_BPF
 
-#define BPF_PROG_ATTACH_LAST_FIELD attach_type
+#define BPF_PROG_ATTACH_LAST_FIELD attach_flags
 
 static int bpf_prog_attach(const union bpf_attr *attr)
 {
+	enum bpf_prog_type ptype;
 	struct bpf_prog *prog;
 	struct cgroup *cgrp;
-	enum bpf_prog_type ptype;
+	int ret;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
 	if (CHECK_ATTR(BPF_PROG_ATTACH))
+		return -EINVAL;
+
+	if (attr->attach_flags & ~BPF_F_ALLOW_OVERRIDE)
 		return -EINVAL;
 
 	switch (attr->attach_type) {
@@ -971,10 +975,13 @@ static int bpf_prog_attach(const union bpf_attr *attr)
 		return PTR_ERR(cgrp);
 	}
 
-	cgroup_bpf_update(cgrp, prog, attr->attach_type);
+	ret = cgroup_bpf_update(cgrp, prog, attr->attach_type,
+				attr->attach_flags & BPF_F_ALLOW_OVERRIDE);
+	if (ret)
+		bpf_prog_put(prog);
 	cgroup_put(cgrp);
 
-	return 0;
+	return ret;
 }
 
 #define BPF_PROG_DETACH_LAST_FIELD attach_type
@@ -982,6 +989,7 @@ static int bpf_prog_attach(const union bpf_attr *attr)
 static int bpf_prog_detach(const union bpf_attr *attr)
 {
 	struct cgroup *cgrp;
+	int ret;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
@@ -997,7 +1005,7 @@ static int bpf_prog_detach(const union bpf_attr *attr)
 		if (IS_ERR(cgrp))
 			return PTR_ERR(cgrp);
 
-		cgroup_bpf_update(cgrp, NULL, attr->attach_type);
+		ret = cgroup_bpf_update(cgrp, NULL, attr->attach_type, false);
 		cgroup_put(cgrp);
 		break;
 
@@ -1005,7 +1013,7 @@ static int bpf_prog_detach(const union bpf_attr *attr)
 		return -EINVAL;
 	}
 
-	return 0;
+	return ret;
 }
 #endif /* CONFIG_CGROUP_BPF */
 

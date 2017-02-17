@@ -3242,7 +3242,7 @@ qla2x00_free_irqs(scsi_qla_host_t *vha)
 	 * from a probe failure context.
 	 */
 	if (!ha->rsp_q_map || !ha->rsp_q_map[0])
-		return;
+		goto free_irqs;
 	rsp = ha->rsp_q_map[0];
 
 	if (ha->flags.msix_enabled) {
@@ -3262,6 +3262,7 @@ qla2x00_free_irqs(scsi_qla_host_t *vha)
 		free_irq(pci_irq_vector(ha->pdev, 0), rsp);
 	}
 
+free_irqs:
 	pci_free_irq_vectors(ha->pdev);
 }
 
