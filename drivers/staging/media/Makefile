@@ -5,3 +5,4 @@ obj-$(CONFIG_LIRC_STAGING)	+= lirc/
 obj-$(CONFIG_VIDEO_DM365_VPFE)	+= davinci_vpfe/
 obj-$(CONFIG_VIDEO_OMAP4)	+= omap4iss/
 obj-$(CONFIG_VIDEO_STI_HDMI_CEC) += st-cec/
+obj-$(CONFIG_INTEL_ATOMISP)     += atomisp/
