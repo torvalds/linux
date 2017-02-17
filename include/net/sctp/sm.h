@@ -277,6 +277,9 @@ struct sctp_chunk *sctp_make_strreset_tsnresp(
 				struct sctp_association *asoc,
 				__u32 result, __u32 sn,
 				__u32 sender_tsn, __u32 receiver_tsn);
+bool sctp_verify_reconf(const struct sctp_association *asoc,
+			struct sctp_chunk *chunk,
+			struct sctp_paramhdr **errp);
 void sctp_chunk_assign_tsn(struct sctp_chunk *);
 void sctp_chunk_assign_ssn(struct sctp_chunk *);
 
