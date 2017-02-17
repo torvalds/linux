@@ -847,8 +847,6 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 static void hsw_power_well_sync_hw(struct drm_i915_private *dev_priv,
 				   struct i915_power_well *power_well)
 {
-	hsw_set_power_well(dev_priv, power_well, power_well->count > 0);
-
 	/*
 	 * We're taking over the BIOS, so clear any requests made by it since
 	 * the driver is in charge now.
@@ -881,8 +879,6 @@ static bool skl_power_well_enabled(struct drm_i915_private *dev_priv,
 static void skl_power_well_sync_hw(struct drm_i915_private *dev_priv,
 				struct i915_power_well *power_well)
 {
-	skl_set_power_well(dev_priv, power_well, power_well->count > 0);
-
 	/* Clear any request made by BIOS as driver is taking over */
 	I915_WRITE(HSW_PWR_WELL_BIOS, 0);
 }
@@ -916,16 +912,6 @@ static bool bxt_dpio_cmn_power_well_enabled(struct drm_i915_private *dev_priv,
 {
 	return bxt_ddi_phy_is_enabled(dev_priv, power_well->data);
 }
-
-static void bxt_dpio_cmn_power_well_sync_hw(struct drm_i915_private *dev_priv,
-					    struct i915_power_well *power_well)
-{
-	if (power_well->count > 0)
-		bxt_dpio_cmn_power_well_enable(dev_priv, power_well);
-	else
-		bxt_dpio_cmn_power_well_disable(dev_priv, power_well);
-}
-
 
 static void bxt_verify_ddi_phy_power_wells(struct drm_i915_private *dev_priv)
 {
@@ -989,13 +975,9 @@ static void gen9_dc_off_power_well_disable(struct drm_i915_private *dev_priv,
 		gen9_enable_dc5(dev_priv);
 }
 
-static void gen9_dc_off_power_well_sync_hw(struct drm_i915_private *dev_priv,
-					   struct i915_power_well *power_well)
+static void i9xx_power_well_sync_hw_noop(struct drm_i915_private *dev_priv,
+					 struct i915_power_well *power_well)
 {
-	if (power_well->count > 0)
-		gen9_dc_off_power_well_enable(dev_priv, power_well);
-	else
-		gen9_dc_off_power_well_disable(dev_priv, power_well);
 }
 
 static void i9xx_always_on_power_well_noop(struct drm_i915_private *dev_priv,
@@ -1043,12 +1025,6 @@ static void vlv_set_power_well(struct drm_i915_private *dev_priv,
 
 out:
 	mutex_unlock(&dev_priv->rps.hw_lock);
-}
-
-static void vlv_power_well_sync_hw(struct drm_i915_private *dev_priv,
-				   struct i915_power_well *power_well)
-{
-	vlv_set_power_well(dev_priv, power_well, power_well->count > 0);
 }
 
 static void vlv_power_well_enable(struct drm_i915_private *dev_priv,
@@ -1661,14 +1637,6 @@ out:
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
-static void chv_pipe_power_well_sync_hw(struct drm_i915_private *dev_priv,
-					struct i915_power_well *power_well)
-{
-	WARN_ON_ONCE(power_well->id != PIPE_A);
-
-	chv_set_pipe_power_well(dev_priv, power_well, power_well->count > 0);
-}
-
 static void chv_pipe_power_well_enable(struct drm_i915_private *dev_priv,
 				       struct i915_power_well *power_well)
 {
@@ -1914,21 +1882,21 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	BIT_ULL(POWER_DOMAIN_INIT))
 
 static const struct i915_power_well_ops i9xx_always_on_power_well_ops = {
-	.sync_hw = i9xx_always_on_power_well_noop,
+	.sync_hw = i9xx_power_well_sync_hw_noop,
 	.enable = i9xx_always_on_power_well_noop,
 	.disable = i9xx_always_on_power_well_noop,
 	.is_enabled = i9xx_always_on_power_well_enabled,
 };
 
 static const struct i915_power_well_ops chv_pipe_power_well_ops = {
-	.sync_hw = chv_pipe_power_well_sync_hw,
+	.sync_hw = i9xx_power_well_sync_hw_noop,
 	.enable = chv_pipe_power_well_enable,
 	.disable = chv_pipe_power_well_disable,
 	.is_enabled = chv_pipe_power_well_enabled,
 };
 
 static const struct i915_power_well_ops chv_dpio_cmn_power_well_ops = {
-	.sync_hw = vlv_power_well_sync_hw,
+	.sync_hw = i9xx_power_well_sync_hw_noop,
 	.enable = chv_dpio_cmn_power_well_enable,
 	.disable = chv_dpio_cmn_power_well_disable,
 	.is_enabled = vlv_power_well_enabled,
@@ -1958,14 +1926,14 @@ static const struct i915_power_well_ops skl_power_well_ops = {
 };
 
 static const struct i915_power_well_ops gen9_dc_off_power_well_ops = {
-	.sync_hw = gen9_dc_off_power_well_sync_hw,
+	.sync_hw = i9xx_power_well_sync_hw_noop,
 	.enable = gen9_dc_off_power_well_enable,
 	.disable = gen9_dc_off_power_well_disable,
 	.is_enabled = gen9_dc_off_power_well_enabled,
 };
 
 static const struct i915_power_well_ops bxt_dpio_cmn_power_well_ops = {
-	.sync_hw = bxt_dpio_cmn_power_well_sync_hw,
+	.sync_hw = i9xx_power_well_sync_hw_noop,
 	.enable = bxt_dpio_cmn_power_well_enable,
 	.disable = bxt_dpio_cmn_power_well_disable,
 	.is_enabled = bxt_dpio_cmn_power_well_enabled,
@@ -2000,21 +1968,21 @@ static struct i915_power_well bdw_power_wells[] = {
 };
 
 static const struct i915_power_well_ops vlv_display_power_well_ops = {
-	.sync_hw = vlv_power_well_sync_hw,
+	.sync_hw = i9xx_power_well_sync_hw_noop,
 	.enable = vlv_display_power_well_enable,
 	.disable = vlv_display_power_well_disable,
 	.is_enabled = vlv_power_well_enabled,
 };
 
 static const struct i915_power_well_ops vlv_dpio_cmn_power_well_ops = {
-	.sync_hw = vlv_power_well_sync_hw,
+	.sync_hw = i9xx_power_well_sync_hw_noop,
 	.enable = vlv_dpio_cmn_power_well_enable,
 	.disable = vlv_dpio_cmn_power_well_disable,
 	.is_enabled = vlv_power_well_enabled,
 };
 
 static const struct i915_power_well_ops vlv_dpio_power_well_ops = {
-	.sync_hw = vlv_power_well_sync_hw,
+	.sync_hw = i9xx_power_well_sync_hw_noop,
 	.enable = vlv_power_well_enable,
 	.disable = vlv_power_well_disable,
 	.is_enabled = vlv_power_well_enabled,
