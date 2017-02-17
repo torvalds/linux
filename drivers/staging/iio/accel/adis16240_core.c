@@ -65,7 +65,7 @@ static ssize_t adis16240_read_12bit_signed(struct device *dev,
 	return ret;
 }
 
-static IIO_DEVICE_ATTR(in_accel_xyz_squared_peak_raw, S_IRUGO,
+static IIO_DEVICE_ATTR(in_accel_xyz_squared_peak_raw, 0444,
 		       adis16240_read_12bit_signed, NULL,
 		       ADIS16240_XYZPEAK_OUT);
 
