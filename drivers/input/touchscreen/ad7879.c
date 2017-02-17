@@ -26,9 +26,8 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/regmap.h>
 #include <linux/slab.h>
-#include <linux/spi/spi.h>
-#include <linux/i2c.h>
 #include <linux/gpio.h>
 
 #include <linux/input/touchscreen.h>
@@ -106,8 +105,7 @@ enum {
 #define	TS_PEN_UP_TIMEOUT		msecs_to_jiffies(50)
 
 struct ad7879 {
-	const struct ad7879_bus_ops *bops;
-
+	struct regmap		*regmap;
 	struct device		*dev;
 	struct input_dev	*input;
 	struct timer_list	timer;
@@ -137,17 +135,32 @@ struct ad7879 {
 
 static int ad7879_read(struct ad7879 *ts, u8 reg)
 {
-	return ts->bops->read(ts->dev, reg);
-}
+	unsigned int val;
+	int error;
 
-static int ad7879_multi_read(struct ad7879 *ts, u8 first_reg, u8 count, u16 *buf)
-{
-	return ts->bops->multi_read(ts->dev, first_reg, count, buf);
+	error = regmap_read(ts->regmap, reg, &val);
+	if (error) {
+		dev_err(ts->dev, "failed to read register %#02x: %d\n",
+			reg, error);
+		return error;
+	}
+
+	return val;
 }
 
 static int ad7879_write(struct ad7879 *ts, u8 reg, u16 val)
 {
-	return ts->bops->write(ts->dev, reg, val);
+	int error;
+
+	error = regmap_write(ts->regmap, reg, val);
+	if (error) {
+		dev_err(ts->dev,
+			"failed to write %#04x to register %#02x: %d\n",
+			val, reg, error);
+		return error;
+	}
+
+	return 0;
 }
 
 static int ad7879_report(struct ad7879 *ts)
@@ -234,7 +247,8 @@ static irqreturn_t ad7879_irq(int irq, void *handle)
 {
 	struct ad7879 *ts = handle;
 
-	ad7879_multi_read(ts, AD7879_REG_XPLUS, AD7879_NR_SENSE, ts->conversion_data);
+	regmap_bulk_read(ts->regmap, AD7879_REG_XPLUS,
+			 ts->conversion_data, AD7879_NR_SENSE);
 
 	if (!ad7879_report(ts))
 		mod_timer(&ts->timer, jiffies + TS_PEN_UP_TIMEOUT);
@@ -511,8 +525,8 @@ static int ad7879_parse_dt(struct device *dev, struct ad7879 *ts)
 	return 0;
 }
 
-struct ad7879 *ad7879_probe(struct device *dev, u8 devid, unsigned int irq,
-			    const struct ad7879_bus_ops *bops)
+struct ad7879 *ad7879_probe(struct device *dev, struct regmap *regmap,
+			    int irq, u16 bustype, u8 devid)
 {
 	struct ad7879_platform_data *pdata = dev_get_platdata(dev);
 	struct ad7879 *ts;
@@ -520,7 +534,7 @@ struct ad7879 *ad7879_probe(struct device *dev, u8 devid, unsigned int irq,
 	int err;
 	u16 revid;
 
-	if (!irq) {
+	if (irq <= 0) {
 		dev_err(dev, "No IRQ specified\n");
 		return ERR_PTR(-EINVAL);
 	}
@@ -553,10 +567,10 @@ struct ad7879 *ad7879_probe(struct device *dev, u8 devid, unsigned int irq,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	ts->bops = bops;
 	ts->dev = dev;
 	ts->input = input_dev;
 	ts->irq = irq;
+	ts->regmap = regmap;
 
 	setup_timer(&ts->timer, ad7879_timer, (unsigned long) ts);
 	snprintf(ts->phys, sizeof(ts->phys), "%s/input0", dev_name(dev));
@@ -564,7 +578,7 @@ struct ad7879 *ad7879_probe(struct device *dev, u8 devid, unsigned int irq,
 	input_dev->name = "AD7879 Touchscreen";
 	input_dev->phys = ts->phys;
 	input_dev->dev.parent = dev;
-	input_dev->id.bustype = bops->bustype;
+	input_dev->id.bustype = bustype;
 
 	input_dev->open = ad7879_open;
 	input_dev->close = ad7879_close;

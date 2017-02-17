@@ -73,6 +73,7 @@ config TOUCHSCREEN_AD7879
 config TOUCHSCREEN_AD7879_I2C
 	tristate "support I2C bus connection"
 	depends on TOUCHSCREEN_AD7879 && I2C
+	select REGMAP_I2C
 	help
 	  Say Y here if you have AD7879-1/AD7889-1 hooked to an I2C bus.
 
@@ -82,6 +83,7 @@ config TOUCHSCREEN_AD7879_I2C
 config TOUCHSCREEN_AD7879_SPI
 	tristate "support SPI bus connection"
 	depends on TOUCHSCREEN_AD7879 && SPI_MASTER
+	select REGMAP_SPI
 	help
 	  Say Y here if you have AD7879-1/AD7889-1 hooked to a SPI bus.
 
