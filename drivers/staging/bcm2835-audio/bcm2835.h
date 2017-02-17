@@ -77,8 +77,11 @@ enum {
 
 /* macros for alsa2chip and chip2alsa, instead of functions */
 
-#define alsa2chip(vol) (uint)(-((vol << 8) / 100)) /* convert alsa to chip volume (defined as macro rather than function call) */
-#define chip2alsa(vol) -((vol * 100) >> 8)   /* convert chip to alsa volume */
+// convert alsa to chip volume (defined as macro rather than function call)
+#define alsa2chip(vol) (uint)(-(((vol) << 8) / 100))
+
+// convert chip to alsa volume
+#define chip2alsa(vol) -(((vol) * 100) >> 8)
 
 /* Some constants for values .. */
 enum snd_bcm2835_route {
