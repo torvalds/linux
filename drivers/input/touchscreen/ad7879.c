@@ -454,17 +454,28 @@ static void ad7879_gpio_set_value(struct gpio_chip *chip,
 static int ad7879_gpio_add(struct ad7879 *ts,
 			   const struct ad7879_platform_data *pdata)
 {
+	bool gpio_export;
+	int gpio_base;
 	int ret = 0;
+
+	if (pdata) {
+		gpio_export = pdata->gpio_export;
+		gpio_base = pdata->gpio_base;
+	} else {
+		gpio_export = device_property_read_bool(ts->dev,
+							"gpio-controller");
+		gpio_base = -1;
+	}
 
 	mutex_init(&ts->mutex);
 
-	if (pdata && pdata->gpio_export) {
+	if (gpio_export) {
 		ts->gc.direction_input = ad7879_gpio_direction_input;
 		ts->gc.direction_output = ad7879_gpio_direction_output;
 		ts->gc.get = ad7879_gpio_get_value;
 		ts->gc.set = ad7879_gpio_set_value;
 		ts->gc.can_sleep = 1;
-		ts->gc.base = pdata->gpio_base;
+		ts->gc.base = gpio_base;
 		ts->gc.ngpio = 1;
 		ts->gc.label = "AD7879-GPIO";
 		ts->gc.owner = THIS_MODULE;

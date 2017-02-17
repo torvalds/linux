@@ -35,6 +35,7 @@ Optional properties:
 - adi,conversion-interval:	: 0    : convert one time only
 				  1-255: 515us + val * 35us (up to 9.440ms)
 				  This property has to be a '/bits/ 8' value
+- gpio-controller		: Switch AUX/VBAT/GPIO pin to GPIO mode
 
 Example:
 
