@@ -1,6 +1,29 @@
 #ifndef _RAID1_H
 #define _RAID1_H
 
+/*
+ * each barrier unit size is 64MB fow now
+ * note: it must be larger than RESYNC_DEPTH
+ */
+#define BARRIER_UNIT_SECTOR_BITS	17
+#define BARRIER_UNIT_SECTOR_SIZE	(1<<17)
+/*
+ * In struct r1conf, the following members are related to I/O barrier
+ * buckets,
+ *	int	*nr_pending;
+ *	int	*nr_waiting;
+ *	int	*nr_queued;
+ *	int	*barrier;
+ * Each of them points to array of integers, each array is designed to
+ * have BARRIER_BUCKETS_NR elements and occupy a single memory page. The
+ * data width of integer variables is 4, equal to 1<<(ilog2(sizeof(int))),
+ * BARRIER_BUCKETS_NR_BITS is defined as (PAGE_SHIFT - ilog2(sizeof(int)))
+ * to make sure an array of integers with BARRIER_BUCKETS_NR elements just
+ * exactly occupies a single memory page.
+ */
+#define BARRIER_BUCKETS_NR_BITS		(PAGE_SHIFT - ilog2(sizeof(int)))
+#define BARRIER_BUCKETS_NR		(1<<BARRIER_BUCKETS_NR_BITS)
+
 struct raid1_info {
 	struct md_rdev	*rdev;
 	sector_t	head_position;
@@ -35,25 +58,6 @@ struct r1conf {
 						 */
 	int			raid_disks;
 
-	/* During resync, read_balancing is only allowed on the part
-	 * of the array that has been resynced.  'next_resync' tells us
-	 * where that is.
-	 */
-	sector_t		next_resync;
-
-	/* When raid1 starts resync, we divide array into four partitions
-	 * |---------|--------------|---------------------|-------------|
-	 *        next_resync   start_next_window       end_window
-	 * start_next_window = next_resync + NEXT_NORMALIO_DISTANCE
-	 * end_window = start_next_window + NEXT_NORMALIO_DISTANCE
-	 * current_window_requests means the count of normalIO between
-	 *   start_next_window and end_window.
-	 * next_window_requests means the count of normalIO after end_window.
-	 * */
-	sector_t		start_next_window;
-	int			current_window_requests;
-	int			next_window_requests;
-
 	spinlock_t		device_lock;
 
 	/* list of 'struct r1bio' that need to be processed by raid1d,
@@ -79,10 +83,10 @@ struct r1conf {
 	 */
 	wait_queue_head_t	wait_barrier;
 	spinlock_t		resync_lock;
-	int			nr_pending;
-	int			nr_waiting;
-	int			nr_queued;
-	int			barrier;
+	int			*nr_pending;
+	int			*nr_waiting;
+	int			*nr_queued;
+	int			*barrier;
 	int			array_frozen;
 
 	/* Set to 1 if a full sync is needed, (fresh device added).
@@ -135,7 +139,6 @@ struct r1bio {
 						 * in this BehindIO request
 						 */
 	sector_t		sector;
-	sector_t		start_next_window;
 	int			sectors;
 	unsigned long		state;
 	struct mddev		*mddev;
@@ -185,4 +188,10 @@ enum r1bio_state {
 	R1BIO_WriteError,
 	R1BIO_FailFast,
 };
+
+static inline int sector_to_idx(sector_t sector)
+{
+	return hash_long(sector >> BARRIER_UNIT_SECTOR_BITS,
+			 BARRIER_BUCKETS_NR_BITS);
+}
 #endif
