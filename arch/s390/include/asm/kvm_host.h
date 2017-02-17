@@ -521,6 +521,12 @@ struct kvm_s390_local_interrupt {
 #define FIRQ_CNTR_PFAULT   3
 #define FIRQ_MAX_COUNT     4
 
+/* mask the AIS mode for a given ISC */
+#define AIS_MODE_MASK(isc) (0x80 >> isc)
+
+#define KVM_S390_AIS_MODE_ALL    0
+#define KVM_S390_AIS_MODE_SINGLE 1
+
 struct kvm_s390_float_interrupt {
 	unsigned long pending_irqs;
 	spinlock_t lock;
@@ -530,6 +536,10 @@ struct kvm_s390_float_interrupt {
 	struct kvm_s390_ext_info srv_signal;
 	int next_rr_cpu;
 	unsigned long idle_mask[BITS_TO_LONGS(KVM_MAX_VCPUS)];
+	struct mutex ais_lock;
+	u8 simm;
+	u8 nimm;
+	int ais_enabled;
 };
 
 struct kvm_hw_wp_info_arch {

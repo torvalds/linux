@@ -280,6 +280,37 @@ TRACE_EVENT(kvm_s390_enable_disable_ibs,
 		      __entry->state ? "enabling" : "disabling", __entry->id)
 	);
 
+/*
+ * Trace point for modifying ais mode for a given isc.
+ */
+TRACE_EVENT(kvm_s390_modify_ais_mode,
+	    TP_PROTO(__u8 isc, __u16 from, __u16 to),
+	    TP_ARGS(isc, from, to),
+
+	    TP_STRUCT__entry(
+		    __field(__u8, isc)
+		    __field(__u16, from)
+		    __field(__u16, to)
+		    ),
+
+	    TP_fast_assign(
+		    __entry->isc = isc;
+		    __entry->from = from;
+		    __entry->to = to;
+		    ),
+
+	    TP_printk("for isc %x, modifying interruption mode from %s to %s",
+		      __entry->isc,
+		      (__entry->from == KVM_S390_AIS_MODE_ALL) ?
+		      "ALL-Interruptions Mode" :
+		      (__entry->from == KVM_S390_AIS_MODE_SINGLE) ?
+		      "Single-Interruption Mode" : "No-Interruptions Mode",
+		      (__entry->to == KVM_S390_AIS_MODE_ALL) ?
+		      "ALL-Interruptions Mode" :
+		      (__entry->to == KVM_S390_AIS_MODE_SINGLE) ?
+		      "Single-Interruption Mode" : "No-Interruptions Mode")
+	);
+
 
 #endif /* _TRACE_KVMS390_H */
 

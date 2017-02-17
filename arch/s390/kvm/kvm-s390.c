@@ -1515,6 +1515,10 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	kvm_s390_crypto_init(kvm);
 
+	mutex_init(&kvm->arch.float_int.ais_lock);
+	kvm->arch.float_int.simm = 0;
+	kvm->arch.float_int.nimm = 0;
+	kvm->arch.float_int.ais_enabled = 0;
 	spin_lock_init(&kvm->arch.float_int.lock);
 	for (i = 0; i < FIRQ_LIST_COUNT; i++)
 		INIT_LIST_HEAD(&kvm->arch.float_int.lists[i]);

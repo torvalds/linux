@@ -2152,6 +2152,45 @@ static int clear_io_irq(struct kvm *kvm, struct kvm_device_attr *attr)
 	return 0;
 }
 
+static int modify_ais_mode(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	struct kvm_s390_float_interrupt *fi = &kvm->arch.float_int;
+	struct kvm_s390_ais_req req;
+	int ret = 0;
+
+	if (!fi->ais_enabled)
+		return -ENOTSUPP;
+
+	if (copy_from_user(&req, (void __user *)attr->addr, sizeof(req)))
+		return -EFAULT;
+
+	if (req.isc > MAX_ISC)
+		return -EINVAL;
+
+	trace_kvm_s390_modify_ais_mode(req.isc,
+				       (fi->simm & AIS_MODE_MASK(req.isc)) ?
+				       (fi->nimm & AIS_MODE_MASK(req.isc)) ?
+				       2 : KVM_S390_AIS_MODE_SINGLE :
+				       KVM_S390_AIS_MODE_ALL, req.mode);
+
+	mutex_lock(&fi->ais_lock);
+	switch (req.mode) {
+	case KVM_S390_AIS_MODE_ALL:
+		fi->simm &= ~AIS_MODE_MASK(req.isc);
+		fi->nimm &= ~AIS_MODE_MASK(req.isc);
+		break;
+	case KVM_S390_AIS_MODE_SINGLE:
+		fi->simm |= AIS_MODE_MASK(req.isc);
+		fi->nimm &= ~AIS_MODE_MASK(req.isc);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+	mutex_unlock(&fi->ais_lock);
+
+	return ret;
+}
+
 static int flic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 {
 	int r = 0;
@@ -2188,6 +2227,9 @@ static int flic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 	case KVM_DEV_FLIC_CLEAR_IO_IRQ:
 		r = clear_io_irq(dev->kvm, attr);
 		break;
+	case KVM_DEV_FLIC_AISM:
+		r = modify_ais_mode(dev->kvm, attr);
+		break;
 	default:
 		r = -EINVAL;
 	}
@@ -2207,6 +2249,7 @@ static int flic_has_attr(struct kvm_device *dev,
 	case KVM_DEV_FLIC_ADAPTER_REGISTER:
 	case KVM_DEV_FLIC_ADAPTER_MODIFY:
 	case KVM_DEV_FLIC_CLEAR_IO_IRQ:
+	case KVM_DEV_FLIC_AISM:
 		return 0;
 	}
 	return -ENXIO;

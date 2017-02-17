@@ -14,6 +14,7 @@ FLIC provides support to
 - purge one pending floating I/O interrupt (KVM_DEV_FLIC_CLEAR_IO_IRQ)
 - enable/disable for the guest transparent async page faults
 - register and modify adapter interrupt sources (KVM_DEV_FLIC_ADAPTER_*)
+- modify AIS (adapter-interruption-suppression) mode state (KVM_DEV_FLIC_AISM)
 
 Groups:
   KVM_DEV_FLIC_ENQUEUE
@@ -106,6 +107,25 @@ struct kvm_s390_io_adapter_req {
     KVM_S390_IO_ADAPTER_UNMAP
       release a userspace page for the translated address specified in addr
       from the list of mappings
+
+  KVM_DEV_FLIC_AISM
+    modify the adapter-interruption-suppression mode for a given isc if the
+    AIS capability is enabled. Takes a kvm_s390_ais_req describing:
+
+struct kvm_s390_ais_req {
+	__u8 isc;
+	__u16 mode;
+};
+
+    isc contains the target I/O interruption subclass, mode the target
+    adapter-interruption-suppression mode. The following modes are
+    currently supported:
+    - KVM_S390_AIS_MODE_ALL: ALL-Interruptions Mode, i.e. airq injection
+      is always allowed;
+    - KVM_S390_AIS_MODE_SINGLE: SINGLE-Interruption Mode, i.e. airq
+      injection is only allowed once and the following adapter interrupts
+      will be suppressed until the mode is set again to ALL-Interruptions
+      or SINGLE-Interruption mode.
 
 Note: The KVM_SET_DEVICE_ATTR/KVM_GET_DEVICE_ATTR device ioctls executed on
 FLIC with an unknown group or attribute gives the error code EINVAL (instead of
