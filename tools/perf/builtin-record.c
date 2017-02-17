@@ -432,7 +432,7 @@ static int record__open(struct record *rec)
 try_again:
 		if (perf_evsel__open(pos, pos->cpus, pos->threads) < 0) {
 			if (perf_evsel__fallback(pos, errno, msg, sizeof(msg))) {
-				if (verbose)
+				if (verbose > 0)
 					ui__warning("%s\n", msg);
 				goto try_again;
 			}

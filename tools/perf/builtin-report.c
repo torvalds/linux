@@ -1009,7 +1009,7 @@ repeat:
  		 * providing it only in verbose mode not to bloat too
  		 * much struct symbol.
  		 */
-		if (verbose) {
+		if (verbose > 0) {
 			/*
 			 * XXX: Need to provide a less kludgy way to ask for
 			 * more space per symbol, the u32 is for the index on

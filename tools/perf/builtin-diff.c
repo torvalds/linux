@@ -744,7 +744,7 @@ static void data_process(void)
 
 		first = false;
 
-		if (verbose || data__files_cnt > 2)
+		if (verbose > 0 || data__files_cnt > 2)
 			data__fprintf();
 
 		/* Don't sort callchain for perf diff */

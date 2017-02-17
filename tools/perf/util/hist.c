@@ -69,7 +69,7 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 	 */
 	if (h->ms.sym) {
 		symlen = h->ms.sym->namelen + 4;
-		if (verbose)
+		if (verbose > 0)
 			symlen += BITS_PER_LONG / 4 + 2 + 3;
 		hists__new_col_len(hists, HISTC_SYMBOL, symlen);
 	} else {
@@ -93,7 +93,7 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 	if (h->branch_info) {
 		if (h->branch_info->from.sym) {
 			symlen = (int)h->branch_info->from.sym->namelen + 4;
-			if (verbose)
+			if (verbose > 0)
 				symlen += BITS_PER_LONG / 4 + 2 + 3;
 			hists__new_col_len(hists, HISTC_SYMBOL_FROM, symlen);
 
@@ -107,7 +107,7 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 
 		if (h->branch_info->to.sym) {
 			symlen = (int)h->branch_info->to.sym->namelen + 4;
-			if (verbose)
+			if (verbose > 0)
 				symlen += BITS_PER_LONG / 4 + 2 + 3;
 			hists__new_col_len(hists, HISTC_SYMBOL_TO, symlen);
 

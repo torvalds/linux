@@ -573,7 +573,7 @@ try_again:
 			if (errno == EINVAL || errno == ENOSYS ||
 			    errno == ENOENT || errno == EOPNOTSUPP ||
 			    errno == ENXIO) {
-				if (verbose)
+				if (verbose > 0)
 					ui__warning("%s event is not supported by the kernel.\n",
 						    perf_evsel__name(counter));
 				counter->supported = false;
@@ -582,7 +582,7 @@ try_again:
 				    !(counter->leader->nr_members > 1))
 					continue;
 			} else if (perf_evsel__fallback(counter, errno, msg, sizeof(msg))) {
-                                if (verbose)
+                                if (verbose > 0)
                                         ui__warning("%s\n", msg);
                                 goto try_again;
                         }
@@ -2539,7 +2539,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	status = 0;
 	for (run_idx = 0; forever || run_idx < run_count; run_idx++) {
-		if (run_count != 1 && verbose)
+		if (run_count != 1 && verbose > 0)
 			fprintf(output, "[ perf stat: executing run #%d ... ]\n",
 				run_idx + 1);
 

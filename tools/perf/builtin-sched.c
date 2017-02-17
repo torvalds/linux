@@ -460,7 +460,7 @@ static struct task_desc *register_pid(struct perf_sched *sched,
 	BUG_ON(!sched->tasks);
 	sched->tasks[task->nr] = task;
 
-	if (verbose)
+	if (verbose > 0)
 		printf("registered task #%ld, PID %ld (%s)\n", sched->nr_tasks, pid, comm);
 
 	return task;
@@ -794,7 +794,7 @@ replay_wakeup_event(struct perf_sched *sched,
 	const u32 pid	 = perf_evsel__intval(evsel, sample, "pid");
 	struct task_desc *waker, *wakee;
 
-	if (verbose) {
+	if (verbose > 0) {
 		printf("sched_wakeup event %p\n", evsel);
 
 		printf(" ... pid %d woke up %s/%d\n", sample->tid, comm, pid);
@@ -822,7 +822,7 @@ static int replay_switch_event(struct perf_sched *sched,
 	int cpu = sample->cpu;
 	s64 delta;
 
-	if (verbose)
+	if (verbose > 0)
 		printf("sched_switch event %p\n", evsel);
 
 	if (cpu >= MAX_CPUS || cpu < 0)
@@ -870,7 +870,7 @@ static int replay_fork_event(struct perf_sched *sched,
 		goto out_put;
 	}
 
-	if (verbose) {
+	if (verbose > 0) {
 		printf("fork event\n");
 		printf("... parent: %s/%d\n", thread__comm_str(parent), parent->tid);
 		printf("...  child: %s/%d\n", thread__comm_str(child), child->tid);
@@ -1573,7 +1573,7 @@ static int map_switch_event(struct perf_sched *sched, struct perf_evsel *evsel,
 
 	timestamp__scnprintf_usec(timestamp, stimestamp, sizeof(stimestamp));
 	color_fprintf(stdout, color, "  %12s secs ", stimestamp);
-	if (new_shortname || (verbose && sched_in->tid)) {
+	if (new_shortname || (verbose > 0 && sched_in->tid)) {
 		const char *pid_color = color;
 
 		if (thread__has_color(sched_in))
@@ -2050,7 +2050,7 @@ static void save_task_callchain(struct perf_sched *sched,
 
 	if (thread__resolve_callchain(thread, cursor, evsel, sample,
 				      NULL, NULL, sched->max_stack + 2) != 0) {
-		if (verbose)
+		if (verbose > 0)
 			error("Failed to resolve callchain. Skipping\n");
 
 		return;
