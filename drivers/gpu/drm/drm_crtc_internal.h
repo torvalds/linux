@@ -183,7 +183,6 @@ int drm_atomic_get_property(struct drm_mode_object *obj,
 			    struct drm_property *property, uint64_t *val);
 int drm_mode_atomic_ioctl(struct drm_device *dev,
 			  void *data, struct drm_file *file_priv);
-int drm_atomic_remove_fb(struct drm_framebuffer *fb);
 
 
 /* drm_plane.c */
