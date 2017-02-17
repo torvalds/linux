@@ -426,11 +426,12 @@ static void bxt_dsi_program_clocks(struct drm_device *dev, enum port port,
 	I915_WRITE(BXT_MIPI_CLOCK_CTL, tmp);
 }
 
-static int bxt_compute_dsi_pll(struct intel_encoder *encoder,
+static int gen9lp_compute_dsi_pll(struct intel_encoder *encoder,
 			       struct intel_crtc_state *config)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
-	u8 dsi_ratio;
+	u8 dsi_ratio, dsi_ratio_min, dsi_ratio_max;
 	u32 dsi_clk;
 
 	dsi_clk = dsi_clk_from_pclk(intel_dsi->pclk, intel_dsi->pixel_format,
@@ -442,11 +443,20 @@ static int bxt_compute_dsi_pll(struct intel_encoder *encoder,
 	 * round 'up' the result
 	 */
 	dsi_ratio = DIV_ROUND_UP(dsi_clk * 2, BXT_REF_CLOCK_KHZ);
-	if (dsi_ratio < BXT_DSI_PLL_RATIO_MIN ||
-	    dsi_ratio > BXT_DSI_PLL_RATIO_MAX) {
+
+	if (IS_BROXTON(dev_priv)) {
+		dsi_ratio_min = BXT_DSI_PLL_RATIO_MIN;
+		dsi_ratio_max = BXT_DSI_PLL_RATIO_MAX;
+	} else {
+		dsi_ratio_min = GLK_DSI_PLL_RATIO_MIN;
+		dsi_ratio_max = GLK_DSI_PLL_RATIO_MAX;
+	}
+
+	if (dsi_ratio < dsi_ratio_min || dsi_ratio > dsi_ratio_max) {
 		DRM_ERROR("Cant get a suitable ratio from DSI PLL ratios\n");
 		return -ECHRNG;
-	}
+	} else
+		DRM_DEBUG_KMS("DSI PLL calculation is Done!!\n");
 
 	/*
 	 * Program DSI ratio and Select MIPIC and MIPIA PLL output as 8x
@@ -458,7 +468,7 @@ static int bxt_compute_dsi_pll(struct intel_encoder *encoder,
 	/* As per recommendation from hardware team,
 	 * Prog PVD ratio =1 if dsi ratio <= 50
 	 */
-	if (dsi_ratio <= 50)
+	if (IS_BROXTON(dev_priv) && dsi_ratio <= 50)
 		config->dsi_pll.ctrl |= BXT_DSI_PLL_PVD_RATIO_1;
 
 	return 0;
@@ -518,7 +528,7 @@ int intel_compute_dsi_pll(struct intel_encoder *encoder,
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		return vlv_compute_dsi_pll(encoder, config);
 	else if (IS_GEN9_LP(dev_priv))
-		return bxt_compute_dsi_pll(encoder, config);
+		return gen9lp_compute_dsi_pll(encoder, config);
 
 	return -ENODEV;
 }

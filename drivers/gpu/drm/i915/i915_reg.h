@@ -8337,10 +8337,12 @@ enum {
 #define  BXT_DSI_PLL_PVD_RATIO_SHIFT	16
 #define  BXT_DSI_PLL_PVD_RATIO_MASK	(3 << BXT_DSI_PLL_PVD_RATIO_SHIFT)
 #define  BXT_DSI_PLL_PVD_RATIO_1	(1 << BXT_DSI_PLL_PVD_RATIO_SHIFT)
+#define  BXT_DSIC_16X_BY1		(0 << 10)
 #define  BXT_DSIC_16X_BY2		(1 << 10)
 #define  BXT_DSIC_16X_BY3		(2 << 10)
 #define  BXT_DSIC_16X_BY4		(3 << 10)
 #define  BXT_DSIC_16X_MASK		(3 << 10)
+#define  BXT_DSIA_16X_BY1		(0 << 8)
 #define  BXT_DSIA_16X_BY2		(1 << 8)
 #define  BXT_DSIA_16X_BY3		(2 << 8)
 #define  BXT_DSIA_16X_BY4		(3 << 8)
@@ -8350,6 +8352,8 @@ enum {
 
 #define BXT_DSI_PLL_RATIO_MAX		0x7D
 #define BXT_DSI_PLL_RATIO_MIN		0x22
+#define GLK_DSI_PLL_RATIO_MAX		0x6F
+#define GLK_DSI_PLL_RATIO_MIN		0x22
 #define BXT_DSI_PLL_RATIO_MASK		0xFF
 #define BXT_REF_CLOCK_KHZ		19200
 
