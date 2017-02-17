@@ -453,6 +453,7 @@ struct intel_gvt_ops {
 
 enum {
 	GVT_FAILSAFE_UNSUPPORTED_GUEST,
+	GVT_FAILSAFE_INSUFFICIENT_RESOURCE,
 };
 
 #include "mpt.h"

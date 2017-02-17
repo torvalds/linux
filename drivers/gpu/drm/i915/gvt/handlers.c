@@ -157,6 +157,8 @@ static void enter_failsafe_mode(struct intel_vgpu *vgpu, int reason)
 	case GVT_FAILSAFE_UNSUPPORTED_GUEST:
 		pr_err("Detected your guest driver doesn't support GVT-g.\n");
 		break;
+	case GVT_FAILSAFE_INSUFFICIENT_RESOURCE:
+		pr_err("Graphics resource is not enough for the guest\n");
 	default:
 		break;
 	}
@@ -1105,6 +1107,9 @@ static int pvinfo_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	case _vgtif_reg(pdp[3].hi):
 	case _vgtif_reg(execlist_context_descriptor_lo):
 	case _vgtif_reg(execlist_context_descriptor_hi):
+		break;
+	case _vgtif_reg(rsv5[0])..._vgtif_reg(rsv5[3]):
+		enter_failsafe_mode(vgpu, GVT_FAILSAFE_INSUFFICIENT_RESOURCE);
 		break;
 	default:
 		gvt_err("invalid pvinfo write offset %x bytes %x data %x\n",
