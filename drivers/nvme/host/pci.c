@@ -1792,7 +1792,7 @@ static void nvme_reset_work(struct work_struct *work)
 	if (result)
 		goto out;
 
-	if (!dev->ctrl.opal_dev) {
+	if ((dev->ctrl.oacs & NVME_CTRL_OACS_SEC_SUPP) && !dev->ctrl.opal_dev) {
 		dev->ctrl.opal_dev =
 			init_opal_dev(&dev->ctrl, &nvme_sec_submit);
 	}

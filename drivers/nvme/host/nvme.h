@@ -140,6 +140,7 @@ struct nvme_ctrl {
 	u32 max_hw_sectors;
 	u16 oncs;
 	u16 vid;
+	u16 oacs;
 	atomic_t abort_limit;
 	u8 event_limit;
 	u8 vwc;
