@@ -26,6 +26,9 @@
 #include <nvif/driver.h>
 #include <nvif/ioctl.h>
 
+#include <nvif/class.h>
+#include <nvif/if0000.h>
+
 int
 nvif_client_ioctl(struct nvif_client *client, void *data, u32 size)
 {
@@ -47,37 +50,29 @@ nvif_client_resume(struct nvif_client *client)
 void
 nvif_client_fini(struct nvif_client *client)
 {
+	nvif_object_fini(&client->object);
 	if (client->driver) {
-		client->driver->fini(client->object.priv);
+		if (client->driver->fini)
+			client->driver->fini(client->object.priv);
 		client->driver = NULL;
-		client->object.client = NULL;
-		nvif_object_fini(&client->object);
 	}
 }
 
-static const struct nvif_driver *
-nvif_drivers[] = {
-#ifdef __KERNEL__
-	&nvif_driver_nvkm,
-#else
-	&nvif_driver_drm,
-	&nvif_driver_lib,
-	&nvif_driver_null,
-#endif
-	NULL
-};
-
 int
-nvif_client_init(const char *driver, const char *name, u64 device,
-		 const char *cfg, const char *dbg, struct nvif_client *client)
+nvif_client_init(struct nvif_client *parent, const char *name, u64 device,
+		 struct nvif_client *client)
 {
+	struct nvif_client_v0 args = { .device = device };
 	struct {
 		struct nvif_ioctl_v0 ioctl;
 		struct nvif_ioctl_nop_v0 nop;
-	} args = {};
-	int ret, i;
+	} nop = {};
+	int ret;
 
-	ret = nvif_object_init(NULL, 0, 0, NULL, 0, &client->object);
+	strncpy(args.name, name, sizeof(args.name));
+	ret = nvif_object_init(parent != client ? &parent->object : NULL,
+			       0, NVIF_CLASS_CLIENT, &args, sizeof(args),
+			       &client->object);
 	if (ret)
 		return ret;
 
@@ -85,19 +80,11 @@ nvif_client_init(const char *driver, const char *name, u64 device,
 	client->object.handle = ~0;
 	client->route = NVIF_IOCTL_V0_ROUTE_NVIF;
 	client->super = true;
-
-	for (i = 0, ret = -EINVAL; (client->driver = nvif_drivers[i]); i++) {
-		if (!driver || !strcmp(client->driver->name, driver)) {
-			ret = client->driver->init(name, device, cfg, dbg,
-						  &client->object.priv);
-			if (!ret || driver)
-				break;
-		}
-	}
+	client->driver = parent->driver;
 
 	if (ret == 0) {
-		ret = nvif_client_ioctl(client, &args, sizeof(args));
-		client->version = args.nop.version;
+		ret = nvif_client_ioctl(client, &nop, sizeof(nop));
+		client->version = nop.nop.version;
 	}
 
 	if (ret)

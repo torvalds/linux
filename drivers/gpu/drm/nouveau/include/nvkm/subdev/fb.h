@@ -29,7 +29,7 @@ struct nvkm_mem {
 	u8  page_shift;
 
 	struct nvkm_mm_node *tag;
-	struct list_head regions;
+	struct nvkm_mm_node *mem;
 	dma_addr_t *pages;
 	u32 memtype;
 	u64 offset;

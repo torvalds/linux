@@ -112,7 +112,7 @@ read_pll_src(struct nv50_clk *clk, u32 base)
 		M    = (coef & 0x000000ff) >> 0;
 		break;
 	default:
-		BUG_ON(1);
+		BUG();
 	}
 
 	if (M)
