@@ -147,6 +147,25 @@ config BLK_WBT_MQ
 	Multiqueue currently doesn't have support for IO scheduling,
 	enabling this option is recommended.
 
+config BLK_DEBUG_FS
+	bool "Block layer debugging information in debugfs"
+	default y
+	depends on DEBUG_FS
+	---help---
+	Include block layer debugging information in debugfs. This information
+	is mostly useful for kernel developers, but it doesn't incur any cost
+	at runtime.
+
+	Unless you are building a kernel for a tiny system, you should
+	say Y here.
+
+config BLK_SED_OPAL
+	bool "Logic for interfacing with Opal enabled SEDs"
+	---help---
+	Builds Logic for interfacing with Opal enabled controllers.
+	Enabling this option enables users to setup/unlock/lock
+	Locking ranges for SED devices using the Opal protocol.
+
 menu "Partition Types"
 
 source "block/partitions/Kconfig"

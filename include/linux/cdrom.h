@@ -36,7 +36,7 @@ struct packet_command
 
 /* Uniform cdrom data structures for cdrom.c */
 struct cdrom_device_info {
-	struct cdrom_device_ops  *ops;  /* link to device_ops */
+	const struct cdrom_device_ops *ops; /* link to device_ops */
 	struct list_head list;		/* linked list of all device_info */
 	struct gendisk *disk;		/* matching block layer disk */
 	void *handle;		        /* driver-dependent data */
@@ -87,7 +87,6 @@ struct cdrom_device_ops {
 
 /* driver specifications */
 	const int capability;   /* capability flags */
-	int n_minors;           /* number of active minor devices */
 	/* handle uniform packets for scsi type devices (scsi,atapi) */
 	int (*generic_packet) (struct cdrom_device_info *,
 			       struct packet_command *);
@@ -123,6 +122,8 @@ extern int cdrom_mode_sense(struct cdrom_device_info *cdi,
 			    int page_code, int page_control);
 extern void init_cdrom_command(struct packet_command *cgc,
 			       void *buffer, int len, int type);
+extern int cdrom_dummy_generic_packet(struct cdrom_device_info *cdi,
+				      struct packet_command *cgc);
 
 /* The SCSI spec says there could be 256 slots. */
 #define CDROM_MAX_SLOTS	256
