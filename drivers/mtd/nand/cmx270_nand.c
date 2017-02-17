@@ -145,7 +145,7 @@ static int __init cmx270_init(void)
 
 	ret = gpio_request(GPIO_NAND_CS, "NAND CS");
 	if (ret) {
-		pr_warning("CM-X270: failed to request NAND CS gpio\n");
+		pr_warn("CM-X270: failed to request NAND CS gpio\n");
 		return ret;
 	}
 
@@ -153,7 +153,7 @@ static int __init cmx270_init(void)
 
 	ret = gpio_request(GPIO_NAND_RB, "NAND R/B");
 	if (ret) {
-		pr_warning("CM-X270: failed to request NAND R/B gpio\n");
+		pr_warn("CM-X270: failed to request NAND R/B gpio\n");
 		goto err_gpio_request;
 	}
 
