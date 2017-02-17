@@ -321,7 +321,6 @@ int is_same_network(struct wlan_bssid_ex *src, struct wlan_bssid_ex *dst)
 	memcpy((u8 *)&le_scap, rtw_get_capability_from_ie(src->IEs), 2);
 	memcpy((u8 *)&le_dcap, rtw_get_capability_from_ie(dst->IEs), 2);
 
-
 	s_cap = le16_to_cpu(le_scap);
 	d_cap = le16_to_cpu(le_dcap);
 
@@ -546,7 +545,6 @@ static int rtw_is_desired_network(struct adapter *adapter, struct wlan_network *
 			bselected = false;
 	}
 
-
 	return bselected;
 }
 
@@ -555,7 +553,6 @@ void rtw_atimdone_event_callback(struct adapter *adapter, u8 *pbuf)
 {
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("receive atimdone_evet\n"));
 }
-
 
 void rtw_survey_event_callback(struct adapter	*adapter, u8 *pbuf)
 {
@@ -823,7 +820,6 @@ void rtw_indicate_disconnect(struct adapter *padapter)
 
 	_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING | WIFI_UNDER_WPS);
 
-
 	if (pmlmepriv->to_roaming > 0)
 		_clr_fwstate_(pmlmepriv, _FW_LINKED);
 
@@ -957,7 +953,6 @@ static void rtw_joinbss_update_network(struct adapter *padapter, struct wlan_net
 
 	cur_network->aid = pnetwork->join_res;
 
-
 	rtw_set_signal_stat_timer(&padapter->recvpriv);
 	padapter->recvpriv.signal_strength = ptarget_wlan->network.PhyInfo.SignalStrength;
 	padapter->recvpriv.signal_qual = ptarget_wlan->network.PhyInfo.SignalQuality;
@@ -1008,7 +1003,6 @@ void rtw_joinbss_event_prehandle(struct adapter *adapter, u8 *pbuf)
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("joinbss event call back received with res=%d\n", pnetwork->join_res));
 
 	rtw_get_encrypt_decrypt_from_registrypriv(adapter);
-
 
 	if (pmlmepriv->assoc_ssid.SsidLength == 0)
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("@@@@@   joinbss event call back  for Any SSid\n"));
@@ -1068,7 +1062,6 @@ void rtw_joinbss_event_prehandle(struct adapter *adapter, u8 *pbuf)
 				spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
 				goto ignore_joinbss_callback;
 			}
-
 
 			/* s3. find ptarget_sta & update ptarget_sta after update cur_network only for station mode */
 			if (check_fwstate(pmlmepriv, WIFI_STATION_STATE) == true) {
@@ -1350,7 +1343,6 @@ void _rtw_join_timeout_handler (unsigned long data)
 	if (adapter->bDriverStopped || adapter->bSurpriseRemoved)
 		return;
 
-
 	spin_lock_bh(&pmlmepriv->lock);
 
 	if (pmlmepriv->to_roaming > 0) { /*  join timeout caused by roaming */
@@ -1446,7 +1438,6 @@ static int rtw_check_join_candidate(struct mlme_priv *pmlmepriv
 	unsigned long since_scan;
 	struct adapter *adapter = container_of(pmlmepriv, struct adapter, mlmepriv);
 
-
 	/* check bssid, if needed */
 	if (pmlmepriv->assoc_by_bssid) {
 		if (memcmp(competitor->network.MacAddress, pmlmepriv->assoc_bssid, ETH_ALEN))
@@ -1528,7 +1519,6 @@ int rtw_select_and_join_from_scanned_queue(struct mlme_priv *pmlmepriv)
 			candidate->network.Ssid.Ssid, candidate->network.MacAddress,
 			candidate->network.Configuration.DSConfig);
 	}
-
 
 	/*  check for situation of  _FW_LINKED */
 	if (check_fwstate(pmlmepriv, _FW_LINKED) == true) {
@@ -1926,7 +1916,6 @@ unsigned int rtw_restructure_ht_ie(struct adapter *padapter, u8 *in_ie, u8 *out_
 	struct qos_priv		*pqospriv = &pmlmepriv->qospriv;
 	struct ht_priv		*phtpriv = &pmlmepriv->htpriv;
 	u32 rx_packet_offset, max_recvbuf_sz;
-
 
 	phtpriv->ht_option = false;
 
