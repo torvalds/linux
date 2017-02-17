@@ -55,32 +55,6 @@
 			reg = <0x00960000 0x20000>;
 			clocks = <&clks IMX6QDL_CLK_OCRAM>;
 		};
-
-		ipu1: ipu@02400000 {
-			compatible = "fsl,imx6qp-ipu", "fsl,imx6q-ipu";
-			clocks = <&clks IMX6QDL_CLK_IPU1>,
-				 <&clks IMX6QDL_CLK_IPU1_DI0>, <&clks IMX6QDL_CLK_IPU1_DI1>,
-				 <&clks IMX6QDL_CLK_IPU1_DI0_SEL>, <&clks IMX6QDL_CLK_IPU1_DI1_SEL>,
-				 <&clks IMX6QDL_CLK_LDB_DI0_PODF>, <&clks IMX6QDL_CLK_LDB_DI1_PODF>,
-				 <&clks IMX6QDL_CLK_PRG0_APB>;
-			clock-names = "bus",
-				      "di0", "di1",
-				      "di0_sel", "di1_sel",
-				      "ldb_di0", "ldb_di1", "prg";
-		};
-
-		ipu2: ipu@02800000 {
-			compatible = "fsl,imx6qp-ipu", "fsl,imx6q-ipu";
-			clocks = <&clks IMX6QDL_CLK_IPU2>,
-				 <&clks IMX6QDL_CLK_IPU2_DI0>, <&clks IMX6QDL_CLK_IPU2_DI1>,
-				 <&clks IMX6QDL_CLK_IPU2_DI0_SEL>, <&clks IMX6QDL_CLK_IPU2_DI1_SEL>,
-				 <&clks IMX6QDL_CLK_LDB_DI0_PODF>, <&clks IMX6QDL_CLK_LDB_DI1_PODF>,
-				 <&clks IMX6QDL_CLK_PRG1_APB>;
-			clock-names = "bus",
-				      "di0", "di1",
-				      "di0_sel", "di1_sel",
-				      "ldb_di0", "ldb_di1", "prg";
-		};
 	};
 };
 
@@ -88,6 +62,14 @@
 	/delete-property/interrupts-extended;
 	interrupts = <0 118 IRQ_TYPE_LEVEL_HIGH>,
 		     <0 119 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&ipu1 {
+	compatible = "fsl,imx6qp-ipu", "fsl,imx6q-ipu";
+};
+
+&ipu2 {
+	compatible = "fsl,imx6qp-ipu", "fsl,imx6q-ipu";
 };
 
 &ldb {
