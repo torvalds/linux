@@ -1078,7 +1078,15 @@ xfs_file_iomap_end_delalloc(
 	xfs_fileoff_t		end_fsb;
 	int			error = 0;
 
-	start_fsb = XFS_B_TO_FSB(mp, offset + written);
+	/*
+	 * start_fsb refers to the first unused block after a short write. If
+	 * nothing was written, round offset down to point at the first block in
+	 * the range.
+	 */
+	if (unlikely(!written))
+		start_fsb = XFS_B_TO_FSBT(mp, offset);
+	else
+		start_fsb = XFS_B_TO_FSB(mp, offset + written);
 	end_fsb = XFS_B_TO_FSB(mp, offset + length);
 
 	/*
@@ -1090,6 +1098,9 @@ xfs_file_iomap_end_delalloc(
 	 * blocks in the range, they are ours.
 	 */
 	if (start_fsb < end_fsb) {
+		truncate_pagecache_range(VFS_I(ip), XFS_FSB_TO_B(mp, start_fsb),
+					 XFS_FSB_TO_B(mp, end_fsb) - 1);
+
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		error = xfs_bmap_punch_delalloc_range(ip, start_fsb,
 					       end_fsb - start_fsb);
