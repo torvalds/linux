@@ -99,16 +99,19 @@ struct jr3_pci_dev_private {
 	struct timer_list timer;
 };
 
+enum jr3_pci_poll_state {
+	state_jr3_poll,
+	state_jr3_init_wait_for_offset,
+	state_jr3_init_transform_complete,
+	state_jr3_init_set_full_scale_complete,
+	state_jr3_init_use_offset_complete,
+	state_jr3_done
+};
+
 struct jr3_pci_subdev_private {
 	struct jr3_channel __iomem *channel;
 	unsigned long next_time_min;
-	enum { state_jr3_poll,
-		state_jr3_init_wait_for_offset,
-		state_jr3_init_transform_complete,
-		state_jr3_init_set_full_scale_complete,
-		state_jr3_init_use_offset_complete,
-		state_jr3_done
-	} state;
+	enum jr3_pci_poll_state state;
 	int serial_no;
 	int model_no;
 	struct {
