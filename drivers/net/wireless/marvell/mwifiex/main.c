@@ -1519,13 +1519,13 @@ static void mwifiex_probe_of(struct mwifiex_adapter *adapter)
 	struct device *dev = adapter->dev;
 
 	if (!dev->of_node)
-		return;
+		goto err_exit;
 
 	adapter->dt_node = dev->of_node;
 	adapter->irq_wakeup = irq_of_parse_and_map(adapter->dt_node, 0);
 	if (!adapter->irq_wakeup) {
-		dev_info(dev, "fail to parse irq_wakeup from device tree\n");
-		return;
+		dev_dbg(dev, "fail to parse irq_wakeup from device tree\n");
+		goto err_exit;
 	}
 
 	ret = devm_request_irq(dev, adapter->irq_wakeup,
@@ -1545,7 +1545,7 @@ static void mwifiex_probe_of(struct mwifiex_adapter *adapter)
 	return;
 
 err_exit:
-	adapter->irq_wakeup = 0;
+	adapter->irq_wakeup = -1;
 }
 
 /*

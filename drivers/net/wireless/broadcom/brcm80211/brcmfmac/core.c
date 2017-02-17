@@ -249,10 +249,10 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 
 done:
 	if (ret) {
-		ifp->stats.tx_dropped++;
+		ndev->stats.tx_dropped++;
 	} else {
-		ifp->stats.tx_packets++;
-		ifp->stats.tx_bytes += skb->len;
+		ndev->stats.tx_packets++;
+		ndev->stats.tx_bytes += skb->len;
 	}
 
 	/* Return ok: we always eat the packet */
@@ -296,15 +296,15 @@ void brcmf_txflowblock(struct device *dev, bool state)
 void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb)
 {
 	if (skb->pkt_type == PACKET_MULTICAST)
-		ifp->stats.multicast++;
+		ifp->ndev->stats.multicast++;
 
 	if (!(ifp->ndev->flags & IFF_UP)) {
 		brcmu_pkt_buf_free_skb(skb);
 		return;
 	}
 
-	ifp->stats.rx_bytes += skb->len;
-	ifp->stats.rx_packets++;
+	ifp->ndev->stats.rx_bytes += skb->len;
+	ifp->ndev->stats.rx_packets++;
 
 	brcmf_dbg(DATA, "rx proto=0x%X\n", ntohs(skb->protocol));
 	if (in_interrupt())
@@ -327,7 +327,7 @@ static int brcmf_rx_hdrpull(struct brcmf_pub *drvr, struct sk_buff *skb,
 
 	if (ret || !(*ifp) || !(*ifp)->ndev) {
 		if (ret != -ENODATA && *ifp)
-			(*ifp)->stats.rx_errors++;
+			(*ifp)->ndev->stats.rx_errors++;
 		brcmu_pkt_buf_free_skb(skb);
 		return -ENODATA;
 	}
@@ -388,7 +388,7 @@ void brcmf_txfinalize(struct brcmf_if *ifp, struct sk_buff *txp, bool success)
 	}
 
 	if (!success)
-		ifp->stats.tx_errors++;
+		ifp->ndev->stats.tx_errors++;
 
 	brcmu_pkt_buf_free_skb(txp);
 }
@@ -409,15 +409,6 @@ void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success)
 		else
 			brcmf_txfinalize(ifp, txp, success);
 	}
-}
-
-static struct net_device_stats *brcmf_netdev_get_stats(struct net_device *ndev)
-{
-	struct brcmf_if *ifp = netdev_priv(ndev);
-
-	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d\n", ifp->bsscfgidx);
-
-	return &ifp->stats;
 }
 
 static void brcmf_ethtool_get_drvinfo(struct net_device *ndev,
@@ -492,7 +483,6 @@ static int brcmf_netdev_open(struct net_device *ndev)
 static const struct net_device_ops brcmf_netdev_ops_pri = {
 	.ndo_open = brcmf_netdev_open,
 	.ndo_stop = brcmf_netdev_stop,
-	.ndo_get_stats = brcmf_netdev_get_stats,
 	.ndo_start_xmit = brcmf_netdev_start_xmit,
 	.ndo_set_mac_address = brcmf_netdev_set_mac_address,
 	.ndo_set_rx_mode = brcmf_netdev_set_multicast_list

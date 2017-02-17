@@ -482,7 +482,7 @@ ath_cmn_is_fft_buf_full(struct ath_spec_scan_priv *spec_priv)
 	struct rchan *rc = spec_priv->rfs_chan_spec_scan;
 
 	for_each_online_cpu(i)
-		ret += relay_buf_full(rc->buf[i]);
+		ret += relay_buf_full(*per_cpu_ptr(rc->buf, i));
 
 	i = num_online_cpus();
 
