@@ -86,7 +86,6 @@ static bool initialised;
 /*
  * AP bus related debug feature things.
  */
-static struct dentry *ap_dbf_root;
 debug_info_t *ap_dbf_info;
 
 /*
@@ -1148,7 +1147,6 @@ static struct reset_call ap_reset_call = {
 
 int __init ap_debug_init(void)
 {
-	ap_dbf_root = debugfs_create_dir("ap", NULL);
 	ap_dbf_info = debug_register("ap", 1, 1,
 				     DBF_MAX_SPRINTF_ARGS * sizeof(long));
 	debug_register_view(ap_dbf_info, &debug_sprintf_view);
@@ -1159,7 +1157,6 @@ int __init ap_debug_init(void)
 
 void ap_debug_exit(void)
 {
-	debugfs_remove(ap_dbf_root);
 	debug_unregister(ap_dbf_info);
 }
 

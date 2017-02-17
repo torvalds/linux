@@ -81,7 +81,6 @@ EXPORT_SYMBOL(zcrypt_rescan_req);
 static LIST_HEAD(zcrypt_ops_list);
 
 /* Zcrypt related debug feature stuff. */
-static struct dentry *zcrypt_dbf_root;
 debug_info_t *zcrypt_dbf_info;
 
 /**
@@ -1427,7 +1426,6 @@ void zcrypt_rng_device_remove(void)
 
 int __init zcrypt_debug_init(void)
 {
-	zcrypt_dbf_root = debugfs_create_dir("zcrypt", NULL);
 	zcrypt_dbf_info = debug_register("zcrypt", 1, 1,
 					 DBF_MAX_SPRINTF_ARGS * sizeof(long));
 	debug_register_view(zcrypt_dbf_info, &debug_sprintf_view);
@@ -1438,7 +1436,6 @@ int __init zcrypt_debug_init(void)
 
 void zcrypt_debug_exit(void)
 {
-	debugfs_remove(zcrypt_dbf_root);
 	debug_unregister(zcrypt_dbf_info);
 }
 
