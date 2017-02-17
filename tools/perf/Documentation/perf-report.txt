@@ -25,6 +25,10 @@ OPTIONS
 --verbose::
         Be more verbose. (show symbol address, etc)
 
+-q::
+--quiet::
+	Do not show any message.  (Suppress -v)
+
 -n::
 --show-nr-samples::
 	Show the number of samples for each symbol
