@@ -81,13 +81,6 @@
 				      "di0_sel", "di1_sel",
 				      "ldb_di0", "ldb_di1", "prg";
 		};
-
-		aips-bus@02100000 {
-			mmdc0: mmdc@021b0000 { /* MMDC0 */
-				compatible = "fsl,imx6qp-mmdc", "fsl,imx6q-mmdc";
-				reg = <0x021b0000 0x4000>;
-			};
-		};
 	};
 };
 
@@ -105,6 +98,10 @@
 	clock-names = "di0_pll", "di1_pll",
 		      "di0_sel", "di1_sel", "di2_sel", "di3_sel",
 		      "di0", "di1";
+};
+
+&mmdc0 {
+	compatible = "fsl,imx6qp-mmdc", "fsl,imx6q-mmdc";
 };
 
 &pcie {
