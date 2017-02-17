@@ -242,6 +242,7 @@ static int alloc_command_queues(struct cpt_vf *cptvf,
 			if (!curr->head) {
 				dev_err(&pdev->dev, "Command Q (%d) chunk (%d) allocation failed\n",
 					i, queue->nchunks);
+				kfree(curr);
 				goto cmd_qfail;
 			}
 
