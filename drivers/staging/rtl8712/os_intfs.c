@@ -392,7 +392,7 @@ static int netdev_open(struct net_device *pnetdev)
 		if (!r8712_initmac)
 			/* Use the mac address stored in the Efuse */
 			memcpy(pnetdev->dev_addr,
-				padapter->eeprompriv.mac_addr, ETH_ALEN);
+			       padapter->eeprompriv.mac_addr, ETH_ALEN);
 		else {
 			/* We have to inform f/w to use user-supplied MAC
 			 * address.
@@ -409,7 +409,7 @@ static int netdev_open(struct net_device *pnetdev)
 			 * users specify.
 			 */
 			memcpy(padapter->eeprompriv.mac_addr,
-				pnetdev->dev_addr, ETH_ALEN);
+			       pnetdev->dev_addr, ETH_ALEN);
 		}
 		if (start_drv_threads(padapter) != _SUCCESS)
 			goto netdev_open_error;
