@@ -339,9 +339,7 @@ static struct nf_conn_labels *ovs_ct_get_conn_labels(struct nf_conn *ct)
 
 /* Initialize labels for a new, yet to be committed conntrack entry.  Note that
  * since the new connection is not yet confirmed, and thus no-one else has
- * access to it's labels, we simply write them over.  Also, we refrain from
- * triggering events, as receiving change events before the create event would
- * be confusing.
+ * access to it's labels, we simply write them over.
  */
 static int ovs_ct_init_labels(struct nf_conn *ct, struct sw_flow_key *key,
 			      const struct ovs_key_ct_labels *labels,
@@ -373,6 +371,11 @@ static int ovs_ct_init_labels(struct nf_conn *ct, struct sw_flow_key *key,
 				(labels->ct_labels_32[i]
 				 & mask->ct_labels_32[i]);
 	}
+
+	/* Labels are included in the IPCTNL_MSG_CT_NEW event only if the
+	 * IPCT_LABEL bit it set in the event cache.
+	 */
+	nf_conntrack_event_cache(IPCT_LABEL, ct);
 
 	memcpy(&key->ct.labels, cl->bits, OVS_CT_LABELS_LEN);
 
