@@ -445,85 +445,65 @@ static const u32 pattern[8] = {
 	0x7C61D253
 };
 
-static int mmc_test_burst(struct ast_private *ast, u32 datagen)
+static bool mmc_test(struct ast_private *ast, u32 datagen, u8 test_ctl)
 {
 	u32 data, timeout;
 
 	ast_moutdwm(ast, 0x1e6e0070, 0x00000000);
-	ast_moutdwm(ast, 0x1e6e0070, 0x000000c1 | (datagen << 3));
-	timeout = 0;
-	do {
-		data = ast_mindwm(ast, 0x1e6e0070) & 0x3000;
-		if (data & 0x2000) {
-			return 0;
-		}
-		if (++timeout > TIMEOUT) {
-			ast_moutdwm(ast, 0x1e6e0070, 0x00000000);
-			return 0;
-		}
-	} while (!data);
-	ast_moutdwm(ast, 0x1e6e0070, 0x00000000);
-	return 1;
-}
-
-static int mmc_test_burst2(struct ast_private *ast, u32 datagen)
-{
-	u32 data, timeout;
-
-	ast_moutdwm(ast, 0x1e6e0070, 0x00000000);
-	ast_moutdwm(ast, 0x1e6e0070, 0x00000041 | (datagen << 3));
-	timeout = 0;
-	do {
-		data = ast_mindwm(ast, 0x1e6e0070) & 0x1000;
-		if (++timeout > TIMEOUT) {
-			ast_moutdwm(ast, 0x1e6e0070, 0x0);
-			return -1;
-		}
-	} while (!data);
-	data = ast_mindwm(ast, 0x1e6e0078);
-	data = (data | (data >> 16)) & 0xffff;
-	ast_moutdwm(ast, 0x1e6e0070, 0x0);
-	return data;
-}
-
-static int mmc_test_single(struct ast_private *ast, u32 datagen)
-{
-	u32 data, timeout;
-
-	ast_moutdwm(ast, 0x1e6e0070, 0x00000000);
-	ast_moutdwm(ast, 0x1e6e0070, 0x000000c5 | (datagen << 3));
+	ast_moutdwm(ast, 0x1e6e0070, (datagen << 3) | test_ctl);
 	timeout = 0;
 	do {
 		data = ast_mindwm(ast, 0x1e6e0070) & 0x3000;
 		if (data & 0x2000)
-			return 0;
+			return false;
 		if (++timeout > TIMEOUT) {
-			ast_moutdwm(ast, 0x1e6e0070, 0x0);
-			return 0;
+			ast_moutdwm(ast, 0x1e6e0070, 0x00000000);
+			return false;
 		}
 	} while (!data);
 	ast_moutdwm(ast, 0x1e6e0070, 0x0);
-	return 1;
+	return true;
 }
 
-static int mmc_test_single2(struct ast_private *ast, u32 datagen)
+static u32 mmc_test2(struct ast_private *ast, u32 datagen, u8 test_ctl)
 {
 	u32 data, timeout;
 
 	ast_moutdwm(ast, 0x1e6e0070, 0x00000000);
-	ast_moutdwm(ast, 0x1e6e0070, 0x00000005 | (datagen << 3));
+	ast_moutdwm(ast, 0x1e6e0070, (datagen << 3) | test_ctl);
 	timeout = 0;
 	do {
 		data = ast_mindwm(ast, 0x1e6e0070) & 0x1000;
 		if (++timeout > TIMEOUT) {
 			ast_moutdwm(ast, 0x1e6e0070, 0x0);
-			return -1;
+			return 0xffffffff;
 		}
 	} while (!data);
 	data = ast_mindwm(ast, 0x1e6e0078);
 	data = (data | (data >> 16)) & 0xffff;
-	ast_moutdwm(ast, 0x1e6e0070, 0x0);
+	ast_moutdwm(ast, 0x1e6e0070, 0x00000000);
 	return data;
+}
+
+
+static bool mmc_test_burst(struct ast_private *ast, u32 datagen)
+{
+	return mmc_test(ast, datagen, 0xc1);
+}
+
+static u32 mmc_test_burst2(struct ast_private *ast, u32 datagen)
+{
+	return mmc_test2(ast, datagen, 0x41);
+}
+
+static bool mmc_test_single(struct ast_private *ast, u32 datagen)
+{
+	return mmc_test(ast, datagen, 0xc5);
+}
+
+static u32 mmc_test_single2(struct ast_private *ast, u32 datagen)
+{
+	return mmc_test2(ast, datagen, 0x05);
 }
 
 static int cbr_test(struct ast_private *ast)
@@ -601,16 +581,16 @@ static u32 cbr_scan2(struct ast_private *ast)
 	return data2;
 }
 
-static u32 cbr_test3(struct ast_private *ast)
+static bool cbr_test3(struct ast_private *ast)
 {
 	if (!mmc_test_burst(ast, 0))
-		return 0;
+		return false;
 	if (!mmc_test_single(ast, 0))
-		return 0;
-	return 1;
+		return false;
+	return true;
 }
 
-static u32 cbr_scan3(struct ast_private *ast)
+static bool cbr_scan3(struct ast_private *ast)
 {
 	u32 patcnt, loop;
 
@@ -621,9 +601,9 @@ static u32 cbr_scan3(struct ast_private *ast)
 				break;
 		}
 		if (loop == 2)
-			return 0;
+			return false;
 	}
-	return 1;
+	return true;
 }
 
 static bool finetuneDQI_L(struct ast_private *ast, struct ast2300_dram_param *param)
