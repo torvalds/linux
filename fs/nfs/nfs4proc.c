@@ -768,10 +768,6 @@ static int nfs41_sequence_process(struct rpc_task *task,
 	case -NFS4ERR_SEQ_FALSE_RETRY:
 		++slot->seq_nr;
 		goto retry_nowait;
-	case -NFS4ERR_DEADSESSION:
-	case -NFS4ERR_BADSESSION:
-		nfs4_schedule_session_recovery(session, res->sr_status);
-		goto retry_nowait;
 	default:
 		/* Just update the slot sequence no. */
 		slot->seq_done = 1;
