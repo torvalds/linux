@@ -153,6 +153,30 @@ void idr_nowait_test(void)
 	idr_destroy(&idr);
 }
 
+void idr_get_next_test(void)
+{
+	unsigned long i;
+	int nextid;
+	DEFINE_IDR(idr);
+
+	int indices[] = {4, 7, 9, 15, 65, 128, 1000, 99999, 0};
+
+	for(i = 0; indices[i]; i++) {
+		struct item *item = item_create(indices[i], 0);
+		assert(idr_alloc(&idr, item, indices[i], indices[i+1],
+				 GFP_KERNEL) == indices[i]);
+	}
+
+	for(i = 0, nextid = 0; indices[i]; i++) {
+		idr_get_next(&idr, &nextid);
+		assert(nextid == indices[i]);
+		nextid++;
+	}
+
+	idr_for_each(&idr, item_idr_free, &idr);
+	idr_destroy(&idr);
+}
+
 void idr_checks(void)
 {
 	unsigned long i;
@@ -202,6 +226,7 @@ void idr_checks(void)
 	idr_alloc_test();
 	idr_null_test();
 	idr_nowait_test();
+	idr_get_next_test();
 }
 
 /*
