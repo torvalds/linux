@@ -900,8 +900,9 @@ static int ldlm_pools_recalc(enum ldlm_side client)
 {
 	struct ldlm_namespace *ns;
 	struct ldlm_namespace *ns_old = NULL;
+	/* seconds of sleep if no active namespaces */
+	int time = LDLM_POOL_CLI_DEF_RECALC_PERIOD;
 	int nr;
-	int time = 50; /* seconds of sleep if no active namespaces */
 
 	/*
 	 * Recalc at least ldlm_namespace_nr_read(client) namespaces.
