@@ -718,9 +718,10 @@ static int ti_qspi_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_MEMCPY, mask);
 
 	qspi->rx_chan = dma_request_chan_by_mask(&mask);
-	if (!qspi->rx_chan) {
+	if (IS_ERR(qspi->rx_chan)) {
 		dev_err(qspi->dev,
 			"No Rx DMA available, trying mmap mode\n");
+		qspi->rx_chan = NULL;
 		ret = 0;
 		goto no_dma;
 	}
