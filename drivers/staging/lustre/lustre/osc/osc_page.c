@@ -42,8 +42,8 @@
 
 static void osc_lru_del(struct client_obd *cli, struct osc_page *opg);
 static void osc_lru_use(struct client_obd *cli, struct osc_page *opg);
-static int osc_lru_reserve(const struct lu_env *env, struct osc_object *obj,
-			   struct osc_page *opg);
+static int osc_lru_alloc(const struct lu_env *env, struct client_obd *cli,
+			 struct osc_page *opg);
 
 /** \addtogroup osc
  *  @{
@@ -273,7 +273,7 @@ int osc_page_init(const struct lu_env *env, struct cl_object *obj,
 
 	/* reserve an LRU space for this page */
 	if (page->cp_type == CPT_CACHEABLE && result == 0) {
-		result = osc_lru_reserve(env, osc, opg);
+		result = osc_lru_alloc(env, osc_cli(osc), opg);
 		if (result == 0) {
 			spin_lock(&osc->oo_tree_lock);
 			result = radix_tree_insert(&osc->oo_tree, index, opg);
@@ -676,7 +676,7 @@ long osc_lru_shrink(const struct lu_env *env, struct client_obd *cli,
  * LRU pages in batch. Therefore, the actual number is adjusted at least
  * max_pages_per_rpc.
  */
-long osc_lru_reclaim(struct client_obd *cli, unsigned long npages)
+static long osc_lru_reclaim(struct client_obd *cli, unsigned long npages)
 {
 	struct lu_env *env;
 	struct cl_client_cache *cache = cli->cl_cache;
@@ -749,18 +749,17 @@ out:
 }
 
 /**
- * osc_lru_reserve() is called to reserve an LRU slot for a cl_page.
+ * osc_lru_alloc() is called to reserve an LRU slot for a cl_page.
  *
  * Usually the LRU slots are reserved in osc_io_iter_rw_init().
  * Only in the case that the LRU slots are in extreme shortage, it should
  * have reserved enough slots for an IO.
  */
-static int osc_lru_reserve(const struct lu_env *env, struct osc_object *obj,
-			   struct osc_page *opg)
+static int osc_lru_alloc(const struct lu_env *env, struct client_obd *cli,
+			 struct osc_page *opg)
 {
 	struct l_wait_info lwi = LWI_INTR(LWI_ON_SIGNAL_NOOP, NULL);
 	struct osc_io *oio = osc_env_io(env);
-	struct client_obd *cli = osc_cli(obj);
 	int rc = 0;
 
 	if (!cli->cl_cache) /* shall not be in LRU */
@@ -798,6 +797,64 @@ out:
 	}
 
 	return rc;
+}
+
+/**
+ * osc_lru_reserve() is called to reserve enough LRU slots for I/O.
+ *
+ * The benefit of doing this is to reduce contention against atomic counter
+ * cl_lru_left by changing it from per-page access to per-IO access.
+ */
+unsigned long osc_lru_reserve(struct client_obd *cli, unsigned long npages)
+{
+	unsigned long reserved = 0;
+	unsigned long max_pages;
+	unsigned long c;
+
+	/*
+	 * reserve a full RPC window at most to avoid that a thread accidentally
+	 * consumes too many LRU slots
+	 */
+	max_pages = cli->cl_max_pages_per_rpc * cli->cl_max_rpcs_in_flight;
+	if (npages > max_pages)
+		npages = max_pages;
+
+	c = atomic_long_read(cli->cl_lru_left);
+	if (c < npages && osc_lru_reclaim(cli, npages) > 0)
+		c = atomic_long_read(cli->cl_lru_left);
+	while (c >= npages) {
+		if (c == atomic_long_cmpxchg(cli->cl_lru_left, c, c - npages)) {
+			reserved = npages;
+			break;
+		}
+		c = atomic_long_read(cli->cl_lru_left);
+	}
+	if (atomic_long_read(cli->cl_lru_left) < max_pages) {
+		/*
+		 * If there aren't enough pages in the per-OSC LRU then
+		 * wake up the LRU thread to try and clear out space, so
+		 * we don't block if pages are being dirtied quickly.
+		 */
+		CDEBUG(D_CACHE, "%s: queue LRU, left: %lu/%ld.\n",
+		       cli_name(cli), atomic_long_read(cli->cl_lru_left),
+		       max_pages);
+		(void)ptlrpcd_queue_work(cli->cl_lru_work);
+	}
+
+	return reserved;
+}
+
+/**
+ * osc_lru_unreserve() is called to unreserve LRU slots.
+ *
+ * LRU slots reserved by osc_lru_reserve() may have entries left due to several
+ * reasons such as page already existing or I/O error. Those reserved slots
+ * should be freed by calling this function.
+ */
+void osc_lru_unreserve(struct client_obd *cli, unsigned long npages)
+{
+	atomic_long_add(npages, cli->cl_lru_left);
+	wake_up_all(&osc_lru_waitq);
 }
 
 /**

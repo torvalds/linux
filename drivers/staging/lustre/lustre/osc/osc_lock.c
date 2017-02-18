@@ -840,13 +840,14 @@ static void osc_lock_wake_waiters(const struct lu_env *env,
 	spin_unlock(&oscl->ols_lock);
 }
 
-static void osc_lock_enqueue_wait(const struct lu_env *env,
-				  struct osc_object *obj,
-				  struct osc_lock *oscl)
+static int osc_lock_enqueue_wait(const struct lu_env *env,
+				 struct osc_object *obj,
+				 struct osc_lock *oscl)
 {
 	struct osc_lock *tmp_oscl;
 	struct cl_lock_descr *need = &oscl->ols_cl.cls_lock->cll_descr;
 	struct cl_sync_io *waiter = &osc_env_info(env)->oti_anchor;
+	int rc = 0;
 
 	spin_lock(&obj->oo_ol_spin);
 	list_add_tail(&oscl->ols_nextlock_oscobj, &obj->oo_ol_list);
@@ -883,13 +884,17 @@ restart:
 		spin_unlock(&tmp_oscl->ols_lock);
 
 		spin_unlock(&obj->oo_ol_spin);
-		(void)cl_sync_io_wait(env, waiter, 0);
-
+		rc = cl_sync_io_wait(env, waiter, 0);
 		spin_lock(&obj->oo_ol_spin);
+		if (rc < 0)
+			break;
+
 		oscl->ols_owner = NULL;
 		goto restart;
 	}
 	spin_unlock(&obj->oo_ol_spin);
+
+	return rc;
 }
 
 /**
@@ -937,7 +942,9 @@ static int osc_lock_enqueue(const struct lu_env *env,
 		goto enqueue_base;
 	}
 
-	osc_lock_enqueue_wait(env, osc, oscl);
+	result = osc_lock_enqueue_wait(env, osc, oscl);
+	if (result < 0)
+		goto out;
 
 	/* we can grant lockless lock right after all conflicting locks
 	 * are canceled.
@@ -962,7 +969,6 @@ enqueue_base:
 	 * osc_lock.
 	 */
 	ostid_build_res_name(&osc->oo_oinfo->loi_oi, resname);
-	osc_lock_build_einfo(env, lock, osc, &oscl->ols_einfo);
 	osc_lock_build_policy(env, lock, policy);
 	if (oscl->ols_agl) {
 		oscl->ols_einfo.ei_cbdata = NULL;
@@ -977,18 +983,7 @@ enqueue_base:
 				  upcall, cookie,
 				  &oscl->ols_einfo, PTLRPCD_SET, async,
 				  oscl->ols_agl);
-	if (result != 0) {
-		oscl->ols_state = OLS_CANCELLED;
-		osc_lock_wake_waiters(env, osc, oscl);
-
-		/* hide error for AGL lock. */
-		if (oscl->ols_agl) {
-			cl_object_put(env, osc2cl(osc));
-			result = 0;
-		}
-		if (anchor)
-			cl_sync_io_note(env, anchor, result);
-	} else {
+	if (!result) {
 		if (osc_lock_is_lockless(oscl)) {
 			oio->oi_lockless = 1;
 		} else if (!async) {
@@ -996,6 +991,18 @@ enqueue_base:
 			LASSERT(oscl->ols_hold);
 			LASSERT(oscl->ols_dlmlock);
 		}
+	} else if (oscl->ols_agl) {
+		cl_object_put(env, osc2cl(osc));
+		result = 0;
+	}
+
+out:
+	if (result < 0) {
+		oscl->ols_state = OLS_CANCELLED;
+		osc_lock_wake_waiters(env, osc, oscl);
+
+		if (anchor)
+			cl_sync_io_note(env, anchor, result);
 	}
 	return result;
 }
@@ -1159,6 +1166,7 @@ int osc_lock_init(const struct lu_env *env,
 		oscl->ols_flags |= LDLM_FL_BLOCK_GRANTED;
 		oscl->ols_glimpse = 1;
 	}
+	osc_lock_build_einfo(env, lock, cl2osc(obj), &oscl->ols_einfo);
 
 	cl_lock_slice_add(lock, &oscl->ols_cl, obj, &osc_lock_ops);
 

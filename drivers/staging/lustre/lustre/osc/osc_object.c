@@ -453,8 +453,14 @@ int osc_object_invalidate(const struct lu_env *env, struct osc_object *osc)
 
 	l_wait_event(osc->oo_io_waitq, !atomic_read(&osc->oo_nr_ios), &lwi);
 
-	/* Discard all pages of this object. */
+	/* Discard all dirty pages of this object. */
 	osc_cache_truncate_start(env, osc, 0, NULL);
+
+	/* Discard all caching pages */
+	osc_lock_discard_pages(env, osc, 0, CL_PAGE_EOF, CLM_WRITE);
+
+	/* Clear ast data of dlm lock. Do this after discarding all pages */
+	osc_object_prune(env, osc2cl(osc));
 
 	return 0;
 }
