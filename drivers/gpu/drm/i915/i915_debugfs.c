@@ -2356,10 +2356,10 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 		seq_printf(m, "\nRPS Autotuning (current \"%s\" window):\n",
 			   rps_power_to_str(dev_priv->rps.power));
 		seq_printf(m, "  Avg. up: %d%% [above threshold? %d%%]\n",
-			   100 * rpup / rpupei,
+			   rpup && rpupei ? 100 * rpup / rpupei : 0,
 			   dev_priv->rps.up_threshold);
 		seq_printf(m, "  Avg. down: %d%% [below threshold? %d%%]\n",
-			   100 * rpdown / rpdownei,
+			   rpdown && rpdownei ? 100 * rpdown / rpdownei : 0,
 			   dev_priv->rps.down_threshold);
 	} else {
 		seq_puts(m, "\nRPS Autotuning inactive\n");
