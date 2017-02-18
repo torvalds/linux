@@ -1513,6 +1513,7 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 		 */
 		attr->ia_valid |= MDS_OPEN_OWNEROVERRIDE;
 		op_data->op_bias |= MDS_DATA_MODIFIED;
+		clear_bit(LLIF_DATA_MODIFIED, &lli->lli_flags);
 	}
 
 	rc = ll_md_setattr(dentry, op_data);
@@ -1560,8 +1561,15 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 		int rc2;
 
 		rc2 = ll_hsm_state_set(inode, &hss);
+		/*
+		 * truncate and write can happen at the same time, so that
+		 * the file can be set modified even though the file is not
+		 * restored from released state, and ll_hsm_state_set() is
+		 * not applicable for the file, and rc2 < 0 is normal in this
+		 * case.
+		 */
 		if (rc2 < 0)
-			CERROR(DFID "HSM set dirty failed: rc2 = %d\n",
+			CDEBUG(D_INFO, DFID "HSM set dirty failed: rc2 = %d\n",
 			       PFID(ll_inode2fid(inode)), rc2);
 	}
 
