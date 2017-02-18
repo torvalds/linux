@@ -771,8 +771,10 @@ static inline int qedr_init_user_queue(struct ib_ucontext *ib_ctx,
 		goto err0;
 
 	q->pbl_tbl = qedr_alloc_pbl_tbl(dev, &q->pbl_info, GFP_KERNEL);
-	if (IS_ERR_OR_NULL(q->pbl_tbl))
+	if (IS_ERR(q->pbl_tbl)) {
+		rc = PTR_ERR(q->pbl_tbl);
 		goto err0;
+	}
 
 	qedr_populate_pbls(dev, q->umem, q->pbl_tbl, &q->pbl_info);
 
@@ -2105,8 +2107,8 @@ static int init_mr_info(struct qedr_dev *dev, struct mr_info *info,
 		goto done;
 
 	info->pbl_table = qedr_alloc_pbl_tbl(dev, &info->pbl_info, GFP_KERNEL);
-	if (!info->pbl_table) {
-		rc = -ENOMEM;
+	if (IS_ERR(info->pbl_table)) {
+		rc = PTR_ERR(info->pbl_table);
 		goto done;
 	}
 
@@ -2117,7 +2119,7 @@ static int init_mr_info(struct qedr_dev *dev, struct mr_info *info,
 	 * list and allocating another one
 	 */
 	tmp = qedr_alloc_pbl_tbl(dev, &info->pbl_info, GFP_KERNEL);
-	if (!tmp) {
+	if (IS_ERR(tmp)) {
 		DP_DEBUG(dev, QEDR_MSG_MR, "Extra PBL is not allocated\n");
 		goto done;
 	}
