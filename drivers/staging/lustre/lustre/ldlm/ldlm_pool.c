@@ -975,6 +975,10 @@ static int ldlm_pools_recalc(enum ldlm_side client)
 			ldlm_namespace_put(ns);
 		}
 	}
+
+	/* Wake up the blocking threads from time to time. */
+	ldlm_bl_thread_wakeup();
+
 	return time;
 }
 
