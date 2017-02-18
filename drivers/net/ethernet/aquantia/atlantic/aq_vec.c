@@ -59,10 +59,14 @@ __acquires(&self->lock)
 			}
 
 			if (ring[AQ_VEC_TX_ID].sw_head !=
-				ring[AQ_VEC_TX_ID].hw_head) {
-				err = aq_ring_tx_clean(&ring[AQ_VEC_TX_ID]);
-				if (err < 0)
-					goto err_exit;
+			    ring[AQ_VEC_TX_ID].hw_head) {
+				aq_ring_tx_clean(&ring[AQ_VEC_TX_ID]);
+
+				if (aq_ring_avail_dx(&ring[AQ_VEC_TX_ID]) >
+				    AQ_CFG_SKB_FRAGS_MAX) {
+					aq_nic_ndev_queue_start(self->aq_nic,
+						ring[AQ_VEC_TX_ID].idx);
+				}
 				was_tx_cleaned = true;
 			}
 
@@ -271,7 +275,7 @@ void aq_vec_deinit(struct aq_vec_s *self)
 
 	for (i = 0U, ring = self->ring[0];
 		self->tx_rings > i; ++i, ring = self->ring[i]) {
-		aq_ring_tx_deinit(&ring[AQ_VEC_TX_ID]);
+		aq_ring_tx_clean(&ring[AQ_VEC_TX_ID]);
 		aq_ring_rx_deinit(&ring[AQ_VEC_RX_ID]);
 	}
 err_exit:;

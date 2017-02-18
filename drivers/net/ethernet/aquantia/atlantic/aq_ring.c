@@ -123,7 +123,7 @@ void aq_ring_tx_append_buffs(struct aq_ring_s *self,
 	}
 }
 
-int aq_ring_tx_clean(struct aq_ring_s *self)
+void aq_ring_tx_clean(struct aq_ring_s *self)
 {
 	struct device *dev = aq_nic_get_dev(self->aq_nic);
 
@@ -143,11 +143,6 @@ int aq_ring_tx_clean(struct aq_ring_s *self)
 		if (unlikely(buff->is_eop))
 			dev_kfree_skb_any(buff->skb);
 	}
-
-	if (aq_ring_avail_dx(self) > AQ_CFG_SKB_FRAGS_MAX)
-		aq_nic_ndev_queue_start(self->aq_nic, self->idx);
-
-	return 0;
 }
 
 static inline unsigned int aq_ring_dx_in_range(unsigned int h, unsigned int i,
@@ -330,32 +325,6 @@ void aq_ring_rx_deinit(struct aq_ring_s *self)
 		__free_pages(buff->page, 0);
 	}
 
-err_exit:;
-}
-
-void aq_ring_tx_deinit(struct aq_ring_s *self)
-{
-	if (!self)
-		goto err_exit;
-
-	for (; self->sw_head != self->sw_tail;
-		self->sw_head = aq_ring_next_dx(self, self->sw_head)) {
-		struct aq_ring_buff_s *buff = &self->buff_ring[self->sw_head];
-		struct device *ndev = aq_nic_get_dev(self->aq_nic);
-
-		if (likely(buff->is_mapped)) {
-			if (unlikely(buff->is_sop)) {
-				dma_unmap_single(ndev, buff->pa, buff->len,
-						 DMA_TO_DEVICE);
-			} else {
-				dma_unmap_page(ndev, buff->pa, buff->len,
-					       DMA_TO_DEVICE);
-			}
-		}
-
-		if (unlikely(buff->is_eop))
-			dev_kfree_skb_any(buff->skb);
-	}
 err_exit:;
 }
 
