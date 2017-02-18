@@ -1504,8 +1504,6 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 		goto out;
 	}
 
-	op_data->op_attr = *attr;
-
 	if (!hsm_import && attr->ia_valid & ATTR_SIZE) {
 		/*
 		 * If we are changing file size, file content is
@@ -1515,6 +1513,8 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 		op_data->op_bias |= MDS_DATA_MODIFIED;
 		clear_bit(LLIF_DATA_MODIFIED, &lli->lli_flags);
 	}
+
+	op_data->op_attr = *attr;
 
 	rc = ll_md_setattr(dentry, op_data);
 	if (rc)
