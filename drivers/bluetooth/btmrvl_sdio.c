@@ -1624,7 +1624,7 @@ static int btmrvl_sdio_suspend(struct device *dev)
 
 	if (priv->adapter->hs_state != HS_ACTIVATED) {
 		if (btmrvl_enable_hs(priv)) {
-			BT_ERR("HS not actived, suspend failed!");
+			BT_ERR("HS not activated, suspend failed!");
 			priv->adapter->is_suspending = false;
 			return -EBUSY;
 		}
