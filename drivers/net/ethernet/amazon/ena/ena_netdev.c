@@ -3163,12 +3163,6 @@ static void ena_remove(struct pci_dev *pdev)
 	struct ena_com_dev *ena_dev;
 	struct net_device *netdev;
 
-	if (!adapter)
-		/* This device didn't load properly and it's resources
-		 * already released, nothing to do
-		 */
-		return;
-
 	ena_dev = adapter->ena_dev;
 	netdev = adapter->netdev;
 
