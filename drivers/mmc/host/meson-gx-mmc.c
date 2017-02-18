@@ -793,6 +793,8 @@ static int meson_mmc_remove(struct platform_device *pdev)
 {
 	struct meson_host *host = dev_get_drvdata(&pdev->dev);
 
+	mmc_remove_host(host->mmc);
+
 	/* disable interrupts */
 	writel(0, host->regs + SD_EMMC_IRQ_EN);
 
