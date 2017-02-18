@@ -202,9 +202,9 @@ static acpi_status get_registers_cb(struct acpi_resource *ares, void *context)
 	}
 
 	vaddr = devm_ioremap(ctx->dev, reg->address, REG_SIZE);
-	if (IS_ERR(vaddr)) {
+	if (!vaddr) {
 		dev_err(ctx->dev, "Can't map register @%pa\n", &paddr);
-		ctx->err = PTR_ERR(vaddr);
+		ctx->err = -ENOMEM;
 		return AE_ERROR;
 	}
 
