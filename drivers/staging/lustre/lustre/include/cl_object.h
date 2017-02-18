@@ -1640,9 +1640,14 @@ enum cl_enq_flags {
 	 */
 	CEF_PEEK	= 0x00000040,
 	/**
+	 * Lock match only. Used by group lock in I/O as group lock
+	 * is known to exist.
+	 */
+	CEF_LOCK_MATCH	= BIT(7),
+	/**
 	 * mask of enq_flags.
 	 */
-	CEF_MASK         = 0x0000007f,
+	CEF_MASK	= 0x000000ff,
 };
 
 /**
