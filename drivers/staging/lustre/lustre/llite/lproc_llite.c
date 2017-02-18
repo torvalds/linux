@@ -386,7 +386,7 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file,
 	struct lu_env *env;
 	long diff = 0;
 	long nrpages = 0;
-	int refcheck;
+	u16 refcheck;
 	long pages_number;
 	int mult;
 	long rc;

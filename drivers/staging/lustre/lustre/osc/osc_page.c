@@ -681,7 +681,7 @@ static long osc_lru_reclaim(struct client_obd *cli, unsigned long npages)
 	struct lu_env *env;
 	struct cl_client_cache *cache = cli->cl_cache;
 	int max_scans;
-	int refcheck;
+	u16 refcheck;
 	long rc = 0;
 
 	LASSERT(cache);
@@ -1045,7 +1045,7 @@ unsigned long osc_cache_shrink_scan(struct shrinker *sk,
 	struct client_obd *cli;
 	struct lu_env *env;
 	long shrank = 0;
-	int refcheck;
+	u16 refcheck;
 	int rc;
 
 	if (!sc->nr_to_scan)

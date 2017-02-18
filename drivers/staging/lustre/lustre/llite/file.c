@@ -1159,7 +1159,7 @@ static ssize_t ll_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	struct lu_env      *env;
 	struct vvp_io_args *args;
 	ssize_t	     result;
-	int		 refcheck;
+	u16 refcheck;
 
 	env = cl_env_get(&refcheck);
 	if (IS_ERR(env))
@@ -1183,7 +1183,7 @@ static ssize_t ll_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct lu_env      *env;
 	struct vvp_io_args *args;
 	ssize_t	     result;
-	int		 refcheck;
+	u16 refcheck;
 
 	env = cl_env_get(&refcheck);
 	if (IS_ERR(env))
@@ -1340,7 +1340,7 @@ static int ll_file_getstripe(struct inode *inode,
 			     struct lov_user_md __user *lum)
 {
 	struct lu_env *env;
-	int refcheck;
+	u16 refcheck;
 	int rc;
 
 	env = cl_env_get(&refcheck);
@@ -1517,7 +1517,7 @@ static int ll_do_fiemap(struct inode *inode, struct fiemap *fiemap,
 {
 	struct ll_fiemap_info_key fmkey = { .lfik_name = KEY_FIEMAP, };
 	struct lu_env *env;
-	int refcheck;
+	u16 refcheck;
 	int rc = 0;
 
 	/* Checks for fiemap flags */
@@ -1623,7 +1623,7 @@ int ll_data_version(struct inode *inode, __u64 *data_version, int flags)
 	struct cl_object *obj = ll_i2info(inode)->lli_clob;
 	struct lu_env *env;
 	struct cl_io *io;
-	int refcheck;
+	u16 refcheck;
 	int result;
 
 	/* If no file object initialized, we consider its version is 0. */
@@ -1668,7 +1668,7 @@ int ll_hsm_release(struct inode *inode)
 	struct obd_client_handle *och = NULL;
 	__u64 data_version = 0;
 	int rc;
-	int refcheck;
+	u16 refcheck;
 
 	CDEBUG(D_INODE, "%s: Releasing file "DFID".\n",
 	       ll_get_fsname(inode->i_sb, NULL, 0),
@@ -2324,7 +2324,7 @@ int cl_sync_file_range(struct inode *inode, loff_t start, loff_t end,
 	struct cl_io *io;
 	struct cl_fsync_io *fio;
 	int result;
-	int refcheck;
+	u16 refcheck;
 
 	if (mode != CL_FSYNC_NONE && mode != CL_FSYNC_LOCAL &&
 	    mode != CL_FSYNC_DISCARD && mode != CL_FSYNC_ALL)
@@ -3272,7 +3272,7 @@ int ll_layout_conf(struct inode *inode, const struct cl_object_conf *conf)
 	struct cl_object *obj = lli->lli_clob;
 	struct lu_env *env;
 	int rc;
-	int refcheck;
+	u16 refcheck;
 
 	if (!obj)
 		return 0;

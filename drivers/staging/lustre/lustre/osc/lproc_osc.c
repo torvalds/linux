@@ -229,7 +229,7 @@ static ssize_t osc_cached_mb_seq_write(struct file *file,
 	rc = atomic_long_read(&cli->cl_lru_in_list) - pages_number;
 	if (rc > 0) {
 		struct lu_env *env;
-		int refcheck;
+		u16 refcheck;
 
 		env = cl_env_get(&refcheck);
 		if (!IS_ERR(env)) {

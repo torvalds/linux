@@ -297,7 +297,7 @@ static int osc_lock_upcall(void *cookie, struct lustre_handle *lockh,
 	struct cl_lock_slice *slice = &oscl->ols_cl;
 	struct lu_env *env;
 	int rc;
-	int refcheck;
+	u16 refcheck;
 
 	env = cl_env_get(&refcheck);
 	/* should never happen, similar to osc_ldlm_blocking_ast(). */
@@ -349,7 +349,7 @@ static int osc_lock_upcall_agl(void *cookie, struct lustre_handle *lockh,
 	struct osc_object *osc = cookie;
 	struct ldlm_lock *dlmlock;
 	struct lu_env *env;
-	int refcheck;
+	u16 refcheck;
 
 	env = cl_env_get(&refcheck);
 	LASSERT(!IS_ERR(env));
@@ -384,7 +384,7 @@ static int osc_lock_flush(struct osc_object *obj, pgoff_t start, pgoff_t end,
 			  enum cl_lock_mode mode, int discard)
 {
 	struct lu_env *env;
-	int refcheck;
+	u16 refcheck;
 	int rc = 0;
 	int rc2 = 0;
 
@@ -538,7 +538,7 @@ static int osc_ldlm_blocking_ast(struct ldlm_lock *dlmlock,
 	}
 	case LDLM_CB_CANCELING: {
 		struct lu_env *env;
-		int refcheck;
+		u16 refcheck;
 
 		/*
 		 * This can be called in the context of outer IO, e.g.,
@@ -575,7 +575,7 @@ static int osc_ldlm_glimpse_ast(struct ldlm_lock *dlmlock, void *data)
 	struct req_capsule *cap;
 	struct cl_object *obj = NULL;
 	int result;
-	int refcheck;
+	u16 refcheck;
 
 	LASSERT(lustre_msg_get_opc(req->rq_reqmsg) == LDLM_GL_CALLBACK);
 
@@ -686,7 +686,7 @@ unsigned long osc_ldlm_weigh_ast(struct ldlm_lock *dlmlock)
 	struct osc_lock		*oscl;
 	unsigned long            weight;
 	bool			 found = false;
-	int refcheck;
+	u16 refcheck;
 
 	might_sleep();
 	/*
