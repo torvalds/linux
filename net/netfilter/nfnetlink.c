@@ -279,7 +279,7 @@ static void nfnetlink_rcv_batch(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct net *net = sock_net(skb->sk);
 	const struct nfnetlink_subsystem *ss;
 	const struct nfnl_callback *nc;
-	static LIST_HEAD(err_list);
+	LIST_HEAD(err_list);
 	u32 status;
 	int err;
 
