@@ -157,7 +157,6 @@ kiblnd_post_rx(struct kib_rx *rx, int credit)
 	struct kib_conn *conn = rx->rx_conn;
 	struct kib_net *net = conn->ibc_peer->ibp_ni->ni_data;
 	struct ib_recv_wr *bad_wrq = NULL;
-	struct ib_mr *mr = conn->ibc_hdev->ibh_mrs;
 	int rc;
 
 	LASSERT(net);
@@ -165,9 +164,8 @@ kiblnd_post_rx(struct kib_rx *rx, int credit)
 	LASSERT(credit == IBLND_POSTRX_NO_CREDIT ||
 		credit == IBLND_POSTRX_PEER_CREDIT ||
 		credit == IBLND_POSTRX_RSRVD_CREDIT);
-	LASSERT(mr);
 
-	rx->rx_sge.lkey   = mr->lkey;
+	rx->rx_sge.lkey   = conn->ibc_hdev->ibh_pd->local_dma_lkey;
 	rx->rx_sge.addr   = rx->rx_msgaddr;
 	rx->rx_sge.length = IBLND_MSG_SIZE;
 
@@ -613,7 +611,6 @@ static int kiblnd_map_tx(lnet_ni_t *ni, struct kib_tx *tx, struct kib_rdma_desc 
 {
 	struct kib_net *net = ni->ni_data;
 	struct kib_hca_dev *hdev = net->ibn_dev->ibd_hdev;
-	struct ib_mr *mr    = NULL;
 	__u32 nob;
 	int i;
 
@@ -633,14 +630,6 @@ static int kiblnd_map_tx(lnet_ni_t *ni, struct kib_tx *tx, struct kib_rdma_desc 
 		rd->rd_frags[i].rf_addr = kiblnd_sg_dma_address(
 			hdev->ibh_ibdev, &tx->tx_frags[i]);
 		nob += rd->rd_frags[i].rf_nob;
-	}
-
-	mr = kiblnd_find_rd_dma_mr(ni, rd, tx->tx_conn ?
-				   tx->tx_conn->ibc_max_frags : -1);
-	if (mr) {
-		/* found pre-mapping MR */
-		rd->rd_key = (rd != tx->tx_rd) ? mr->rkey : mr->lkey;
-		return 0;
 	}
 
 	if (net->ibn_fmr_ps)
@@ -1028,16 +1017,14 @@ kiblnd_init_tx_msg(lnet_ni_t *ni, struct kib_tx *tx, int type, int body_nob)
 	struct ib_sge *sge = &tx->tx_sge[tx->tx_nwrq];
 	struct ib_rdma_wr *wrq = &tx->tx_wrq[tx->tx_nwrq];
 	int nob = offsetof(struct kib_msg, ibm_u) + body_nob;
-	struct ib_mr *mr = hdev->ibh_mrs;
 
 	LASSERT(tx->tx_nwrq >= 0);
 	LASSERT(tx->tx_nwrq < IBLND_MAX_RDMA_FRAGS + 1);
 	LASSERT(nob <= IBLND_MSG_SIZE);
-	LASSERT(mr);
 
 	kiblnd_init_msg(tx->tx_msg, type, body_nob);
 
-	sge->lkey   = mr->lkey;
+	sge->lkey   = hdev->ibh_pd->local_dma_lkey;
 	sge->addr   = tx->tx_msgaddr;
 	sge->length = nob;
 

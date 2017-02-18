@@ -172,7 +172,6 @@ struct kib_hca_dev {
 	__u64              ibh_page_mask;       /* page mask of current HCA */
 	int                ibh_mr_shift;        /* bits shift of max MR size */
 	__u64              ibh_mr_size;         /* size of MR */
-	struct ib_mr	   *ibh_mrs;		/* global MR */
 	struct ib_pd       *ibh_pd;             /* PD */
 	struct kib_dev	   *ibh_dev;		/* owner */
 	atomic_t           ibh_ref;             /* refcount */
@@ -978,8 +977,6 @@ static inline unsigned int kiblnd_sg_dma_len(struct ib_device *dev,
 #define KIBLND_CONN_PARAM(e)     ((e)->param.conn.private_data)
 #define KIBLND_CONN_PARAM_LEN(e) ((e)->param.conn.private_data_len)
 
-struct ib_mr *kiblnd_find_rd_dma_mr(struct lnet_ni *ni, struct kib_rdma_desc *rd,
-				    int negotiated_nfrags);
 void kiblnd_map_rx_descs(struct kib_conn *conn);
 void kiblnd_unmap_rx_descs(struct kib_conn *conn);
 void kiblnd_pool_free_node(struct kib_pool *pool, struct list_head *node);
