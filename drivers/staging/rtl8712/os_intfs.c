@@ -185,8 +185,8 @@ static int r871x_net_set_mac_address(struct net_device *pnetdev, void *p)
 static struct net_device_stats *r871x_net_get_stats(struct net_device *pnetdev)
 {
 	struct _adapter *padapter = netdev_priv(pnetdev);
-	struct xmit_priv *pxmitpriv = &(padapter->xmitpriv);
-	struct recv_priv *precvpriv = &(padapter->recvpriv);
+	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
+	struct recv_priv *precvpriv = &padapter->recvpriv;
 
 	padapter->stats.tx_packets = pxmitpriv->tx_pkts;
 	padapter->stats.rx_packets = precvpriv->rx_pkts;
