@@ -434,7 +434,7 @@ void __init fork_init(void)
 #ifndef ARCH_MIN_TASKALIGN
 #define ARCH_MIN_TASKALIGN	0
 #endif
-	int align = min_t(int, L1_CACHE_BYTES, ARCH_MIN_TASKALIGN);
+	int align = max_t(int, L1_CACHE_BYTES, ARCH_MIN_TASKALIGN);
 
 	/* create a slab on which task_structs can be allocated */
 	task_struct_cachep = kmem_cache_create("task_struct",
