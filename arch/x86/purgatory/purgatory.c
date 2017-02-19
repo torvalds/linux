@@ -18,11 +18,11 @@ struct sha_region {
 	unsigned long len;
 };
 
-unsigned long backup_dest = 0;
-unsigned long backup_src = 0;
-unsigned long backup_sz = 0;
+static unsigned long backup_dest;
+static unsigned long backup_src;
+static unsigned long backup_sz;
 
-u8 sha256_digest[SHA256_DIGEST_SIZE] = { 0 };
+static u8 sha256_digest[SHA256_DIGEST_SIZE] = { 0 };
 
 struct sha_region sha_regions[16] = {};
 
@@ -39,7 +39,7 @@ static int copy_backup_region(void)
 	return 0;
 }
 
-int verify_sha256_digest(void)
+static int verify_sha256_digest(void)
 {
 	struct sha_region *ptr, *end;
 	u8 digest[SHA256_DIGEST_SIZE];
