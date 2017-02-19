@@ -3617,7 +3617,7 @@ struct sctp_chunk *sctp_make_strreset_req(
 	__u16 stream_len = stream_num * 2;
 	struct sctp_strreset_inreq inreq;
 	struct sctp_chunk *retval;
-	__u16 outlen, inlen, i;
+	__u16 outlen, inlen;
 
 	outlen = (sizeof(outreq) + stream_len) * out;
 	inlen = (sizeof(inreq) + stream_len) * in;
@@ -3625,9 +3625,6 @@ struct sctp_chunk *sctp_make_strreset_req(
 	retval = sctp_make_reconf(asoc, outlen + inlen);
 	if (!retval)
 		return NULL;
-
-	for (i = 0; i < stream_num; i++)
-		stream_list[i] = htons(stream_list[i]);
 
 	if (outlen) {
 		outreq.param_hdr.type = SCTP_PARAM_RESET_OUT_REQUEST;
@@ -3652,9 +3649,6 @@ struct sctp_chunk *sctp_make_strreset_req(
 		if (stream_len)
 			sctp_addto_chunk(retval, stream_len, stream_list);
 	}
-
-	for (i = 0; i < stream_num; i++)
-		stream_list[i] = ntohs(stream_list[i]);
 
 	return retval;
 }
@@ -3732,4 +3726,137 @@ struct sctp_chunk *sctp_make_strreset_addstrm(
 	}
 
 	return retval;
+}
+
+/* RE-CONFIG 4.4 (RESP)
+ *   0                   1                   2                   3
+ *   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |     Parameter Type = 16       |      Parameter Length         |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |         Re-configuration Response Sequence Number             |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |                            Result                             |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+struct sctp_chunk *sctp_make_strreset_resp(
+				const struct sctp_association *asoc,
+				__u32 result, __u32 sn)
+{
+	struct sctp_strreset_resp resp;
+	__u16 length = sizeof(resp);
+	struct sctp_chunk *retval;
+
+	retval = sctp_make_reconf(asoc, length);
+	if (!retval)
+		return NULL;
+
+	resp.param_hdr.type = SCTP_PARAM_RESET_RESPONSE;
+	resp.param_hdr.length = htons(length);
+	resp.response_seq = htonl(sn);
+	resp.result = htonl(result);
+
+	sctp_addto_chunk(retval, sizeof(resp), &resp);
+
+	return retval;
+}
+
+/* RE-CONFIG 4.4 OPTIONAL (TSNRESP)
+ *   0                   1                   2                   3
+ *   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |     Parameter Type = 16       |      Parameter Length         |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |         Re-configuration Response Sequence Number             |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |                            Result                             |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |                   Sender's Next TSN (optional)                |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |                  Receiver's Next TSN (optional)               |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+struct sctp_chunk *sctp_make_strreset_tsnresp(
+					struct sctp_association *asoc,
+					__u32 result, __u32 sn,
+					__u32 sender_tsn, __u32 receiver_tsn)
+{
+	struct sctp_strreset_resptsn tsnresp;
+	__u16 length = sizeof(tsnresp);
+	struct sctp_chunk *retval;
+
+	retval = sctp_make_reconf(asoc, length);
+	if (!retval)
+		return NULL;
+
+	tsnresp.param_hdr.type = SCTP_PARAM_RESET_RESPONSE;
+	tsnresp.param_hdr.length = htons(length);
+
+	tsnresp.response_seq = htonl(sn);
+	tsnresp.result = htonl(result);
+	tsnresp.senders_next_tsn = htonl(sender_tsn);
+	tsnresp.receivers_next_tsn = htonl(receiver_tsn);
+
+	sctp_addto_chunk(retval, sizeof(tsnresp), &tsnresp);
+
+	return retval;
+}
+
+bool sctp_verify_reconf(const struct sctp_association *asoc,
+			struct sctp_chunk *chunk,
+			struct sctp_paramhdr **errp)
+{
+	struct sctp_reconf_chunk *hdr;
+	union sctp_params param;
+	__u16 last = 0, cnt = 0;
+
+	hdr = (struct sctp_reconf_chunk *)chunk->chunk_hdr;
+	sctp_walk_params(param, hdr, params) {
+		__u16 length = ntohs(param.p->length);
+
+		*errp = param.p;
+		if (cnt++ > 2)
+			return false;
+		switch (param.p->type) {
+		case SCTP_PARAM_RESET_OUT_REQUEST:
+			if (length < sizeof(struct sctp_strreset_outreq) ||
+			    (last && last != SCTP_PARAM_RESET_RESPONSE &&
+			     last != SCTP_PARAM_RESET_IN_REQUEST))
+				return false;
+			break;
+		case SCTP_PARAM_RESET_IN_REQUEST:
+			if (length < sizeof(struct sctp_strreset_inreq) ||
+			    (last && last != SCTP_PARAM_RESET_OUT_REQUEST))
+				return false;
+			break;
+		case SCTP_PARAM_RESET_RESPONSE:
+			if ((length != sizeof(struct sctp_strreset_resp) &&
+			     length != sizeof(struct sctp_strreset_resptsn)) ||
+			    (last && last != SCTP_PARAM_RESET_RESPONSE &&
+			     last != SCTP_PARAM_RESET_OUT_REQUEST))
+				return false;
+			break;
+		case SCTP_PARAM_RESET_TSN_REQUEST:
+			if (length !=
+			    sizeof(struct sctp_strreset_tsnreq) || last)
+				return false;
+			break;
+		case SCTP_PARAM_RESET_ADD_IN_STREAMS:
+			if (length != sizeof(struct sctp_strreset_addstrm) ||
+			    (last && last != SCTP_PARAM_RESET_ADD_OUT_STREAMS))
+				return false;
+			break;
+		case SCTP_PARAM_RESET_ADD_OUT_STREAMS:
+			if (length != sizeof(struct sctp_strreset_addstrm) ||
+			    (last && last != SCTP_PARAM_RESET_ADD_IN_STREAMS))
+				return false;
+			break;
+		default:
+			return false;
+		}
+
+		last = param.p->type;
+	}
+
+	return true;
 }

@@ -749,4 +749,28 @@ struct sctp_strreset_addstrm {
 	__u16 reserved;
 };
 
+enum {
+	SCTP_STRRESET_NOTHING_TO_DO	= 0x00,
+	SCTP_STRRESET_PERFORMED		= 0x01,
+	SCTP_STRRESET_DENIED		= 0x02,
+	SCTP_STRRESET_ERR_WRONG_SSN	= 0x03,
+	SCTP_STRRESET_ERR_IN_PROGRESS	= 0x04,
+	SCTP_STRRESET_ERR_BAD_SEQNO	= 0x05,
+	SCTP_STRRESET_IN_PROGRESS	= 0x06,
+};
+
+struct sctp_strreset_resp {
+	sctp_paramhdr_t param_hdr;
+	__u32 response_seq;
+	__u32 result;
+};
+
+struct sctp_strreset_resptsn {
+	sctp_paramhdr_t param_hdr;
+	__u32 response_seq;
+	__u32 result;
+	__u32 senders_next_tsn;
+	__u32 receivers_next_tsn;
+};
+
 #endif /* __LINUX_SCTP_H__ */

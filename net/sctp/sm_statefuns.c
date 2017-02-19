@@ -3834,6 +3834,60 @@ sctp_disposition_t sctp_sf_do_asconf_ack(struct net *net,
 	return SCTP_DISPOSITION_DISCARD;
 }
 
+/* RE-CONFIG Section 5.2 Upon reception of an RECONF Chunk. */
+sctp_disposition_t sctp_sf_do_reconf(struct net *net,
+				     const struct sctp_endpoint *ep,
+				     const struct sctp_association *asoc,
+				     const sctp_subtype_t type, void *arg,
+				     sctp_cmd_seq_t *commands)
+{
+	struct sctp_paramhdr *err_param = NULL;
+	struct sctp_chunk *chunk = arg;
+	struct sctp_reconf_chunk *hdr;
+	union sctp_params param;
+
+	if (!sctp_vtag_verify(chunk, asoc)) {
+		sctp_add_cmd_sf(commands, SCTP_CMD_REPORT_BAD_TAG,
+				SCTP_NULL());
+		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
+	}
+
+	/* Make sure that the RECONF chunk has a valid length.  */
+	if (!sctp_chunk_length_valid(chunk, sizeof(*hdr)))
+		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
+						  commands);
+
+	if (!sctp_verify_reconf(asoc, chunk, &err_param))
+		return sctp_sf_violation_paramlen(net, ep, asoc, type, arg,
+						  (void *)err_param, commands);
+
+	hdr = (struct sctp_reconf_chunk *)chunk->chunk_hdr;
+	sctp_walk_params(param, hdr, params) {
+		struct sctp_chunk *reply = NULL;
+		struct sctp_ulpevent *ev = NULL;
+
+		if (param.p->type == SCTP_PARAM_RESET_OUT_REQUEST)
+			reply = sctp_process_strreset_outreq(
+				(struct sctp_association *)asoc, param, &ev);
+		else if (param.p->type == SCTP_PARAM_RESET_IN_REQUEST)
+			reply = sctp_process_strreset_inreq(
+				(struct sctp_association *)asoc, param, &ev);
+		/* More handles for other types will be added here, by now it
+		 * just ignores other types.
+		 */
+
+		if (ev)
+			sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP,
+					SCTP_ULPEVENT(ev));
+
+		if (reply)
+			sctp_add_cmd_sf(commands, SCTP_CMD_REPLY,
+					SCTP_CHUNK(reply));
+	}
+
+	return SCTP_DISPOSITION_CONSUME;
+}
+
 /*
  * PR-SCTP Section 3.6 Receiver Side Implementation of PR-SCTP
  *

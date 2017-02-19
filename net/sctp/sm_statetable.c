@@ -482,6 +482,32 @@ static const sctp_sm_table_entry_t prsctp_chunk_event_table[SCTP_NUM_PRSCTP_CHUN
 	TYPE_SCTP_FWD_TSN,
 }; /*state_fn_t prsctp_chunk_event_table[][] */
 
+#define TYPE_SCTP_RECONF { \
+	/* SCTP_STATE_CLOSED */ \
+	TYPE_SCTP_FUNC(sctp_sf_discard_chunk), \
+	/* SCTP_STATE_COOKIE_WAIT */ \
+	TYPE_SCTP_FUNC(sctp_sf_discard_chunk), \
+	/* SCTP_STATE_COOKIE_ECHOED */ \
+	TYPE_SCTP_FUNC(sctp_sf_discard_chunk), \
+	/* SCTP_STATE_ESTABLISHED */ \
+	TYPE_SCTP_FUNC(sctp_sf_do_reconf), \
+	/* SCTP_STATE_SHUTDOWN_PENDING */ \
+	TYPE_SCTP_FUNC(sctp_sf_do_reconf), \
+	/* SCTP_STATE_SHUTDOWN_SENT */ \
+	TYPE_SCTP_FUNC(sctp_sf_discard_chunk), \
+	/* SCTP_STATE_SHUTDOWN_RECEIVED */ \
+	TYPE_SCTP_FUNC(sctp_sf_discard_chunk), \
+	/* SCTP_STATE_SHUTDOWN_ACK_SENT */ \
+	TYPE_SCTP_FUNC(sctp_sf_discard_chunk), \
+} /* TYPE_SCTP_RECONF */
+
+/* The primary index for this table is the chunk type.
+ * The secondary index for this table is the state.
+ */
+static const sctp_sm_table_entry_t reconf_chunk_event_table[SCTP_NUM_RECONF_CHUNK_TYPES][SCTP_STATE_NUM_STATES] = {
+	TYPE_SCTP_RECONF,
+}; /*state_fn_t reconf_chunk_event_table[][] */
+
 #define TYPE_SCTP_AUTH { \
 	/* SCTP_STATE_CLOSED */ \
 	TYPE_SCTP_FUNC(sctp_sf_ootb), \
@@ -963,6 +989,10 @@ static const sctp_sm_table_entry_t *sctp_chunk_event_lookup(struct net *net,
 		if (cid == SCTP_CID_ASCONF_ACK)
 			return &addip_chunk_event_table[1][state];
 	}
+
+	if (net->sctp.reconf_enable)
+		if (cid == SCTP_CID_RECONF)
+			return &reconf_chunk_event_table[0][state];
 
 	if (net->sctp.auth_enable) {
 		if (cid == SCTP_CID_AUTH)

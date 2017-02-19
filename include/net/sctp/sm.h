@@ -135,6 +135,7 @@ sctp_state_fn_t sctp_sf_do_8_5_1_E_sa;
 sctp_state_fn_t sctp_sf_cookie_echoed_err;
 sctp_state_fn_t sctp_sf_do_asconf;
 sctp_state_fn_t sctp_sf_do_asconf_ack;
+sctp_state_fn_t sctp_sf_do_reconf;
 sctp_state_fn_t sctp_sf_do_9_2_reshutack;
 sctp_state_fn_t sctp_sf_eat_fwd_tsn;
 sctp_state_fn_t sctp_sf_eat_fwd_tsn_fast;
@@ -270,8 +271,28 @@ struct sctp_chunk *sctp_make_strreset_tsnreq(
 struct sctp_chunk *sctp_make_strreset_addstrm(
 				const struct sctp_association *asoc,
 				__u16 out, __u16 in);
+struct sctp_chunk *sctp_make_strreset_resp(
+				const struct sctp_association *asoc,
+				__u32 result, __u32 sn);
+struct sctp_chunk *sctp_make_strreset_tsnresp(
+				struct sctp_association *asoc,
+				__u32 result, __u32 sn,
+				__u32 sender_tsn, __u32 receiver_tsn);
+bool sctp_verify_reconf(const struct sctp_association *asoc,
+			struct sctp_chunk *chunk,
+			struct sctp_paramhdr **errp);
 void sctp_chunk_assign_tsn(struct sctp_chunk *);
 void sctp_chunk_assign_ssn(struct sctp_chunk *);
+
+/* Prototypes for stream-processing functions.  */
+struct sctp_chunk *sctp_process_strreset_outreq(
+				struct sctp_association *asoc,
+				union sctp_params param,
+				struct sctp_ulpevent **evp);
+struct sctp_chunk *sctp_process_strreset_inreq(
+				struct sctp_association *asoc,
+				union sctp_params param,
+				struct sctp_ulpevent **evp);
 
 /* Prototypes for statetable processing. */
 

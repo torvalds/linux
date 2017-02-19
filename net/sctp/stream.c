@@ -135,7 +135,14 @@ int sctp_send_reset_streams(struct sctp_association *asoc,
 			if (str_list[i] >= stream->incnt)
 				goto out;
 
+	for (i = 0; i < str_nums; i++)
+		str_list[i] = htons(str_list[i]);
+
 	chunk = sctp_make_strreset_req(asoc, str_nums, str_list, out, in);
+
+	for (i = 0; i < str_nums; i++)
+		str_list[i] = ntohs(str_list[i]);
+
 	if (!chunk) {
 		retval = -ENOMEM;
 		goto out;
@@ -293,4 +300,180 @@ int sctp_send_add_streams(struct sctp_association *asoc,
 
 out:
 	return retval;
+}
+
+static sctp_paramhdr_t *sctp_chunk_lookup_strreset_param(
+			struct sctp_association *asoc, __u32 resp_seq)
+{
+	struct sctp_chunk *chunk = asoc->strreset_chunk;
+	struct sctp_reconf_chunk *hdr;
+	union sctp_params param;
+
+	if (ntohl(resp_seq) != asoc->strreset_outseq || !chunk)
+		return NULL;
+
+	hdr = (struct sctp_reconf_chunk *)chunk->chunk_hdr;
+	sctp_walk_params(param, hdr, params) {
+		/* sctp_strreset_tsnreq is actually the basic structure
+		 * of all stream reconf params, so it's safe to use it
+		 * to access request_seq.
+		 */
+		struct sctp_strreset_tsnreq *req = param.v;
+
+		if (req->request_seq == resp_seq)
+			return param.v;
+	}
+
+	return NULL;
+}
+
+struct sctp_chunk *sctp_process_strreset_outreq(
+				struct sctp_association *asoc,
+				union sctp_params param,
+				struct sctp_ulpevent **evp)
+{
+	struct sctp_strreset_outreq *outreq = param.v;
+	struct sctp_stream *stream = asoc->stream;
+	__u16 i, nums, flags = 0, *str_p = NULL;
+	__u32 result = SCTP_STRRESET_DENIED;
+	__u32 request_seq;
+
+	request_seq = ntohl(outreq->request_seq);
+
+	if (ntohl(outreq->send_reset_at_tsn) >
+	    sctp_tsnmap_get_ctsn(&asoc->peer.tsn_map)) {
+		result = SCTP_STRRESET_IN_PROGRESS;
+		goto out;
+	}
+
+	if (request_seq > asoc->strreset_inseq) {
+		result = SCTP_STRRESET_ERR_BAD_SEQNO;
+		goto out;
+	} else if (request_seq == asoc->strreset_inseq) {
+		asoc->strreset_inseq++;
+	}
+
+	/* Check strreset_enable after inseq inc, as sender cannot tell
+	 * the peer doesn't enable strreset after receiving response with
+	 * result denied, as well as to keep consistent with bsd.
+	 */
+	if (!(asoc->strreset_enable & SCTP_ENABLE_RESET_STREAM_REQ))
+		goto out;
+
+	if (asoc->strreset_chunk) {
+		sctp_paramhdr_t *param_hdr;
+		struct sctp_transport *t;
+
+		param_hdr = sctp_chunk_lookup_strreset_param(
+					asoc, outreq->response_seq);
+		if (!param_hdr || param_hdr->type !=
+					SCTP_PARAM_RESET_IN_REQUEST) {
+			/* same process with outstanding isn't 0 */
+			result = SCTP_STRRESET_ERR_IN_PROGRESS;
+			goto out;
+		}
+
+		asoc->strreset_outstanding--;
+		asoc->strreset_outseq++;
+
+		if (!asoc->strreset_outstanding) {
+			t = asoc->strreset_chunk->transport;
+			if (del_timer(&t->reconf_timer))
+				sctp_transport_put(t);
+
+			sctp_chunk_put(asoc->strreset_chunk);
+			asoc->strreset_chunk = NULL;
+		}
+
+		flags = SCTP_STREAM_RESET_INCOMING_SSN;
+	}
+
+	nums = (ntohs(param.p->length) - sizeof(*outreq)) / 2;
+	if (nums) {
+		str_p = outreq->list_of_streams;
+		for (i = 0; i < nums; i++) {
+			if (ntohs(str_p[i]) >= stream->incnt) {
+				result = SCTP_STRRESET_ERR_WRONG_SSN;
+				goto out;
+			}
+		}
+
+		for (i = 0; i < nums; i++)
+			stream->in[ntohs(str_p[i])].ssn = 0;
+	} else {
+		for (i = 0; i < stream->incnt; i++)
+			stream->in[i].ssn = 0;
+	}
+
+	result = SCTP_STRRESET_PERFORMED;
+
+	*evp = sctp_ulpevent_make_stream_reset_event(asoc,
+		flags | SCTP_STREAM_RESET_OUTGOING_SSN, nums, str_p,
+		GFP_ATOMIC);
+
+out:
+	return sctp_make_strreset_resp(asoc, result, request_seq);
+}
+
+struct sctp_chunk *sctp_process_strreset_inreq(
+				struct sctp_association *asoc,
+				union sctp_params param,
+				struct sctp_ulpevent **evp)
+{
+	struct sctp_strreset_inreq *inreq = param.v;
+	struct sctp_stream *stream = asoc->stream;
+	__u32 result = SCTP_STRRESET_DENIED;
+	struct sctp_chunk *chunk = NULL;
+	__u16 i, nums, *str_p;
+	__u32 request_seq;
+
+	request_seq = ntohl(inreq->request_seq);
+	if (request_seq > asoc->strreset_inseq) {
+		result = SCTP_STRRESET_ERR_BAD_SEQNO;
+		goto out;
+	} else if (request_seq == asoc->strreset_inseq) {
+		asoc->strreset_inseq++;
+	}
+
+	if (!(asoc->strreset_enable & SCTP_ENABLE_RESET_STREAM_REQ))
+		goto out;
+
+	if (asoc->strreset_outstanding) {
+		result = SCTP_STRRESET_ERR_IN_PROGRESS;
+		goto out;
+	}
+
+	nums = (ntohs(param.p->length) - sizeof(*inreq)) / 2;
+	str_p = inreq->list_of_streams;
+	for (i = 0; i < nums; i++) {
+		if (ntohs(str_p[i]) >= stream->outcnt) {
+			result = SCTP_STRRESET_ERR_WRONG_SSN;
+			goto out;
+		}
+	}
+
+	chunk = sctp_make_strreset_req(asoc, nums, str_p, 1, 0);
+	if (!chunk)
+		goto out;
+
+	if (nums)
+		for (i = 0; i < nums; i++)
+			stream->out[ntohs(str_p[i])].state =
+					       SCTP_STREAM_CLOSED;
+	else
+		for (i = 0; i < stream->outcnt; i++)
+			stream->out[i].state = SCTP_STREAM_CLOSED;
+
+	asoc->strreset_chunk = chunk;
+	asoc->strreset_outstanding = 1;
+	sctp_chunk_hold(asoc->strreset_chunk);
+
+	*evp = sctp_ulpevent_make_stream_reset_event(asoc,
+		SCTP_STREAM_RESET_INCOMING_SSN, nums, str_p, GFP_ATOMIC);
+
+out:
+	if (!chunk)
+		chunk =  sctp_make_strreset_resp(asoc, result, request_seq);
+
+	return chunk;
 }
