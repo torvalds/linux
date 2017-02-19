@@ -141,7 +141,7 @@ static const unsigned int max77693_safeout_table[] = {
 	3300000,
 };
 
-static struct regulator_ops max77693_safeout_ops = {
+static const struct regulator_ops max77693_safeout_ops = {
 	.list_voltage		= regulator_list_voltage_table,
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
