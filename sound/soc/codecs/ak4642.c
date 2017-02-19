@@ -189,7 +189,7 @@ static int ak4642_lout_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 	case SND_SOC_DAPM_POST_PMD:
 		/* Power save mode OFF */
-		mdelay(300);
+		msleep(300);
 		snd_soc_update_bits(codec, SG_SL2, LOPS, 0);
 		break;
 	}
