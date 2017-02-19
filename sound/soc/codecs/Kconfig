@@ -525,14 +525,16 @@ config SND_SOC_HDMI_CODEC
 	select HDMI
 
 config SND_SOC_ES8328
-	tristate "Everest Semi ES8328 CODEC"
+	tristate
 
 config SND_SOC_ES8328_I2C
-	tristate
+	tristate "Everest Semi ES8328 CODEC (I2C)"
+	depends on I2C
 	select SND_SOC_ES8328
 
 config SND_SOC_ES8328_SPI
-	tristate
+	tristate "Everest Semi ES8328 CODEC (SPI)"
+	depends on SPI_MASTER
 	select SND_SOC_ES8328
 
 config SND_SOC_GTM601

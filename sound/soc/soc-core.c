@@ -3675,10 +3675,10 @@ found:
 EXPORT_SYMBOL_GPL(snd_soc_unregister_codec);
 
 /* Retrieve a card's name from device tree */
-int snd_soc_of_parse_card_name_from_node(struct snd_soc_card *card,
-					 struct device_node *np,
-					 const char *propname)
+int snd_soc_of_parse_card_name(struct snd_soc_card *card,
+			       const char *propname)
 {
+	struct device_node *np;
 	int ret;
 
 	if (!card->dev) {
@@ -3686,8 +3686,7 @@ int snd_soc_of_parse_card_name_from_node(struct snd_soc_card *card,
 		return -EINVAL;
 	}
 
-	if (!np)
-		np = card->dev->of_node;
+	np = card->dev->of_node;
 
 	ret = of_property_read_string_index(np, propname, 0, &card->name);
 	/*
@@ -3704,7 +3703,7 @@ int snd_soc_of_parse_card_name_from_node(struct snd_soc_card *card,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_soc_of_parse_card_name_from_node);
+EXPORT_SYMBOL_GPL(snd_soc_of_parse_card_name);
 
 static const struct snd_soc_dapm_widget simple_widgets[] = {
 	SND_SOC_DAPM_MIC("Microphone", NULL),
@@ -3713,16 +3712,13 @@ static const struct snd_soc_dapm_widget simple_widgets[] = {
 	SND_SOC_DAPM_SPK("Speaker", NULL),
 };
 
-int snd_soc_of_parse_audio_simple_widgets_from_node(struct snd_soc_card *card,
-					  struct device_node *np,
+int snd_soc_of_parse_audio_simple_widgets(struct snd_soc_card *card,
 					  const char *propname)
 {
+	struct device_node *np = card->dev->of_node;
 	struct snd_soc_dapm_widget *widgets;
 	const char *template, *wname;
 	int i, j, num_widgets, ret;
-
-	if (!np)
-		np = card->dev->of_node;
 
 	num_widgets = of_property_count_strings(np, propname);
 	if (num_widgets < 0) {
@@ -3794,7 +3790,7 @@ int snd_soc_of_parse_audio_simple_widgets_from_node(struct snd_soc_card *card,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_soc_of_parse_audio_simple_widgets_from_node);
+EXPORT_SYMBOL_GPL(snd_soc_of_parse_audio_simple_widgets);
 
 static int snd_soc_of_get_slot_mask(struct device_node *np,
 				    const char *prop_name,
@@ -3850,17 +3846,14 @@ int snd_soc_of_parse_tdm_slot(struct device_node *np,
 }
 EXPORT_SYMBOL_GPL(snd_soc_of_parse_tdm_slot);
 
-void snd_soc_of_parse_audio_prefix_from_node(struct snd_soc_card *card,
-				   struct device_node *np,
+void snd_soc_of_parse_audio_prefix(struct snd_soc_card *card,
 				   struct snd_soc_codec_conf *codec_conf,
 				   struct device_node *of_node,
 				   const char *propname)
 {
+	struct device_node *np = card->dev->of_node;
 	const char *str;
 	int ret;
-
-	if (!np)
-		np = card->dev->of_node;
 
 	ret = of_property_read_string(np, propname, &str);
 	if (ret < 0) {
@@ -3871,18 +3864,15 @@ void snd_soc_of_parse_audio_prefix_from_node(struct snd_soc_card *card,
 	codec_conf->of_node	= of_node;
 	codec_conf->name_prefix	= str;
 }
-EXPORT_SYMBOL_GPL(snd_soc_of_parse_audio_prefix_from_node);
+EXPORT_SYMBOL_GPL(snd_soc_of_parse_audio_prefix);
 
-int snd_soc_of_parse_audio_routing_from_node(struct snd_soc_card *card,
-				   struct device_node *np,
+int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 				   const char *propname)
 {
+	struct device_node *np = card->dev->of_node;
 	int num_routes;
 	struct snd_soc_dapm_route *routes;
 	int i, ret;
-
-	if (!np)
-		np = card->dev->of_node;
 
 	num_routes = of_property_count_strings(np, propname);
 	if (num_routes < 0 || num_routes & 1) {
@@ -3930,7 +3920,7 @@ int snd_soc_of_parse_audio_routing_from_node(struct snd_soc_card *card,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_soc_of_parse_audio_routing_from_node);
+EXPORT_SYMBOL_GPL(snd_soc_of_parse_audio_routing);
 
 unsigned int snd_soc_of_parse_daifmt(struct device_node *np,
 				     const char *prefix,
