@@ -582,12 +582,8 @@ out:
 
 static __be32 encode_string(struct xdr_stream *xdr, unsigned int len, const char *str)
 {
-	__be32 *p;
-
-	p = xdr_reserve_space(xdr, 4 + len);
-	if (unlikely(p == NULL))
-		return htonl(NFS4ERR_RESOURCE);
-	xdr_encode_opaque(p, str, len);
+	if (unlikely(xdr_stream_encode_opaque(xdr, str, len) < 0))
+		return cpu_to_be32(NFS4ERR_RESOURCE);
 	return 0;
 }
 

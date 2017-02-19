@@ -924,34 +924,22 @@ static __be32 *reserve_space(struct xdr_stream *xdr, size_t nbytes)
 
 static void encode_opaque_fixed(struct xdr_stream *xdr, const void *buf, size_t len)
 {
-	__be32 *p;
-
-	p = xdr_reserve_space(xdr, len);
-	xdr_encode_opaque_fixed(p, buf, len);
+	WARN_ON_ONCE(xdr_stream_encode_opaque_fixed(xdr, buf, len) < 0);
 }
 
 static void encode_string(struct xdr_stream *xdr, unsigned int len, const char *str)
 {
-	__be32 *p;
-
-	p = reserve_space(xdr, 4 + len);
-	xdr_encode_opaque(p, str, len);
+	WARN_ON_ONCE(xdr_stream_encode_opaque(xdr, str, len) < 0);
 }
 
 static void encode_uint32(struct xdr_stream *xdr, u32 n)
 {
-	__be32 *p;
-
-	p = reserve_space(xdr, 4);
-	*p = cpu_to_be32(n);
+	WARN_ON_ONCE(xdr_stream_encode_u32(xdr, n) < 0);
 }
 
 static void encode_uint64(struct xdr_stream *xdr, u64 n)
 {
-	__be32 *p;
-
-	p = reserve_space(xdr, 8);
-	xdr_encode_hyper(p, n);
+	WARN_ON_ONCE(xdr_stream_encode_u64(xdr, n) < 0);
 }
 
 static void encode_nfs4_seqid(struct xdr_stream *xdr,
@@ -4294,15 +4282,12 @@ out_overflow:
 
 static int decode_opaque_fixed(struct xdr_stream *xdr, void *buf, size_t len)
 {
-	__be32 *p;
-
-	p = xdr_inline_decode(xdr, len);
-	if (likely(p)) {
-		memcpy(buf, p, len);
-		return 0;
+	ssize_t ret = xdr_stream_decode_opaque_fixed(xdr, buf, len);
+	if (unlikely(ret < 0)) {
+		print_overflow_msg(__func__, xdr);
+		return -EIO;
 	}
-	print_overflow_msg(__func__, xdr);
-	return -EIO;
+	return 0;
 }
 
 static int decode_stateid(struct xdr_stream *xdr, nfs4_stateid *stateid)
