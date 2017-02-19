@@ -4540,6 +4540,16 @@ static int __init regulator_init_complete(void)
 	if (of_have_populated_dt())
 		has_full_constraints = true;
 
+	/*
+	 * Regulators may had failed to resolve their input supplies
+	 * when were registered, either because the input supply was
+	 * not registered yet or because its parent device was not
+	 * bound yet. So attempt to resolve the input supplies for
+	 * pending regulators before trying to disable unused ones.
+	 */
+	class_for_each_device(&regulator_class, NULL, NULL,
+			      regulator_register_resolve_supply);
+
 	/* If we have a full configuration then disable any regulators
 	 * we have permission to change the status for and which are
 	 * not in use or always_on.  This is effectively the default
