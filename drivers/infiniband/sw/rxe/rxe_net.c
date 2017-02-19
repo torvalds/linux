@@ -538,7 +538,7 @@ struct rxe_dev *rxe_net_add(struct net_device *ndev)
 	}
 
 	spin_lock_bh(&dev_list_lock);
-	list_add_tail(&rxe_dev_list, &rxe->list);
+	list_add_tail(&rxe->list, &rxe_dev_list);
 	spin_unlock_bh(&dev_list_lock);
 	return rxe;
 }
