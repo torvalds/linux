@@ -586,6 +586,10 @@ static int tb_init_port(struct tb_port *port)
 			port->cap_phy = cap;
 		else
 			tb_port_WARN(port, "non switch port without a PHY\n");
+	} else if (port->port != 0) {
+		cap = tb_port_find_cap(port, TB_PORT_CAP_ADAP);
+		if (cap > 0)
+			port->cap_adap = cap;
 	}
 
 	tb_dump_port(port->sw->tb, &port->config);

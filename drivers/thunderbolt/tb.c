@@ -151,8 +151,8 @@ static struct tb_port *tb_find_unused_down_port(struct tb_switch *sw)
 			continue;
 		if (sw->ports[i].config.type != TB_TYPE_PCIE_DOWN)
 			continue;
-		cap = tb_port_find_cap(&sw->ports[i], TB_PORT_CAP_ADAP);
-		if (cap < 0)
+		cap = sw->ports[i].cap_adap;
+		if (!cap)
 			continue;
 		res = tb_port_read(&sw->ports[i], &data, TB_CFG_PORT, cap, 1);
 		if (res < 0)
@@ -197,8 +197,8 @@ static void tb_activate_pcie_devices(struct tb *tb)
 		}
 
 		/* check whether port is already activated */
-		cap = tb_port_find_cap(up_port, TB_PORT_CAP_ADAP);
-		if (cap < 0)
+		cap = up_port->cap_adap;
+		if (!cap)
 			continue;
 		if (tb_port_read(up_port, &data, TB_CFG_PORT, cap, 1))
 			continue;
