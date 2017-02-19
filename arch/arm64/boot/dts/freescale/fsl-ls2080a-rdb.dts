@@ -46,7 +46,7 @@
 
 /dts-v1/;
 
-/include/ "fsl-ls2080a.dtsi"
+#include "fsl-ls2080a.dtsi"
 
 / {
 	model = "Freescale Layerscape 2080a RDB Board";

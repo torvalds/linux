@@ -10,7 +10,7 @@
 #include <linux/slab.h>
 #include <asm/dasd.h>
 #include <asm/ebcdic.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/vtoc.h>
 
 #include "check.h"

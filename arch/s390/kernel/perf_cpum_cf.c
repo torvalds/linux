@@ -711,7 +711,7 @@ static int __init cpumf_pmu_init(void)
 		return rc;
 	}
 	return cpuhp_setup_state(CPUHP_AP_PERF_S390_CF_ONLINE,
-				 "AP_PERF_S390_CF_ONLINE",
+				 "perf/s390/cf:online",
 				 s390_pmu_online_cpu, s390_pmu_offline_cpu);
 }
 early_initcall(cpumf_pmu_init);

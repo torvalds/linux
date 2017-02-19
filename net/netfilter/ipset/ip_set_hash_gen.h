@@ -85,6 +85,8 @@ struct htable {
 };
 
 #define hbucket(h, i)		((h)->bucket[i])
+#define ext_size(n, dsize)	\
+	(sizeof(struct hbucket) + (n) * (dsize))
 
 #ifndef IPSET_NET_COUNT
 #define IPSET_NET_COUNT		1
@@ -150,23 +152,33 @@ htable_bits(u32 hashsize)
 #define INIT_CIDR(cidr, host_mask)	\
 	DCIDR_PUT(((cidr) ? NCIDR_GET(cidr) : host_mask))
 
-#define SET_HOST_MASK(family)	(family == AF_INET ? 32 : 128)
-
 #ifdef IP_SET_HASH_WITH_NET0
-/* cidr from 0 to SET_HOST_MASK() value and c = cidr + 1 */
-#define NLEN(family)		(SET_HOST_MASK(family) + 1)
+/* cidr from 0 to HOST_MASK value and c = cidr + 1 */
+#define NLEN			(HOST_MASK + 1)
 #define CIDR_POS(c)		((c) - 1)
 #else
-/* cidr from 1 to SET_HOST_MASK() value and c = cidr + 1 */
-#define NLEN(family)		SET_HOST_MASK(family)
+/* cidr from 1 to HOST_MASK value and c = cidr + 1 */
+#define NLEN			HOST_MASK
 #define CIDR_POS(c)		((c) - 2)
 #endif
 
 #else
-#define NLEN(family)		0
+#define NLEN			0
 #endif /* IP_SET_HASH_WITH_NETS */
 
 #endif /* _IP_SET_HASH_GEN_H */
+
+#ifndef MTYPE
+#error "MTYPE is not defined!"
+#endif
+
+#ifndef HTYPE
+#error "HTYPE is not defined!"
+#endif
+
+#ifndef HOST_MASK
+#error "HOST_MASK is not defined!"
+#endif
 
 /* Family dependent templates */
 
@@ -191,7 +203,6 @@ htable_bits(u32 hashsize)
 #undef mtype_same_set
 #undef mtype_kadt
 #undef mtype_uadt
-#undef mtype
 
 #undef mtype_add
 #undef mtype_del
@@ -207,6 +218,7 @@ htable_bits(u32 hashsize)
 #undef mtype_variant
 #undef mtype_data_match
 
+#undef htype
 #undef HKEY
 
 #define mtype_data_equal	IPSET_TOKEN(MTYPE, _data_equal)
@@ -233,7 +245,6 @@ htable_bits(u32 hashsize)
 #define mtype_same_set		IPSET_TOKEN(MTYPE, _same_set)
 #define mtype_kadt		IPSET_TOKEN(MTYPE, _kadt)
 #define mtype_uadt		IPSET_TOKEN(MTYPE, _uadt)
-#define mtype			MTYPE
 
 #define mtype_add		IPSET_TOKEN(MTYPE, _add)
 #define mtype_del		IPSET_TOKEN(MTYPE, _del)
@@ -249,62 +260,54 @@ htable_bits(u32 hashsize)
 #define mtype_variant		IPSET_TOKEN(MTYPE, _variant)
 #define mtype_data_match	IPSET_TOKEN(MTYPE, _data_match)
 
-#ifndef MTYPE
-#error "MTYPE is not defined!"
-#endif
-
-#ifndef HOST_MASK
-#error "HOST_MASK is not defined!"
-#endif
-
 #ifndef HKEY_DATALEN
 #define HKEY_DATALEN		sizeof(struct mtype_elem)
 #endif
 
-#define HKEY(data, initval, htable_bits)			\
-(jhash2((u32 *)(data), HKEY_DATALEN / sizeof(u32), initval)	\
-	& jhash_mask(htable_bits))
+#define htype			MTYPE
 
-#ifndef htype
-#ifndef HTYPE
-#error "HTYPE is not defined!"
-#endif /* HTYPE */
-#define htype			HTYPE
+#define HKEY(data, initval, htable_bits)			\
+({								\
+	const u32 *__k = (const u32 *)data;			\
+	u32 __l = HKEY_DATALEN / sizeof(u32);			\
+								\
+	BUILD_BUG_ON(HKEY_DATALEN % sizeof(u32) != 0);		\
+								\
+	jhash2(__k, __l, initval) & jhash_mask(htable_bits);	\
+})
 
 /* The generic hash structure */
 struct htype {
 	struct htable __rcu *table; /* the hash table */
+	struct timer_list gc;	/* garbage collection when timeout enabled */
 	u32 maxelem;		/* max elements in the hash */
-	u32 elements;		/* current element (vs timeout) */
 	u32 initval;		/* random jhash init value */
 #ifdef IP_SET_HASH_WITH_MARKMASK
 	u32 markmask;		/* markmask value for mark mask to store */
 #endif
-	struct timer_list gc;	/* garbage collection when timeout enabled */
-	struct mtype_elem next; /* temporary storage for uadd */
 #ifdef IP_SET_HASH_WITH_MULTI
 	u8 ahash_max;		/* max elements in an array block */
 #endif
 #ifdef IP_SET_HASH_WITH_NETMASK
 	u8 netmask;		/* netmask value for subnets to store */
 #endif
+	struct mtype_elem next; /* temporary storage for uadd */
 #ifdef IP_SET_HASH_WITH_NETS
-	struct net_prefixes nets[0]; /* book-keeping of prefixes */
+	struct net_prefixes nets[NLEN]; /* book-keeping of prefixes */
 #endif
 };
-#endif /* htype */
 
 #ifdef IP_SET_HASH_WITH_NETS
 /* Network cidr size book keeping when the hash stores different
  * sized networks. cidr == real cidr + 1 to support /0.
  */
 static void
-mtype_add_cidr(struct htype *h, u8 cidr, u8 nets_length, u8 n)
+mtype_add_cidr(struct htype *h, u8 cidr, u8 n)
 {
 	int i, j;
 
 	/* Add in increasing prefix order, so larger cidr first */
-	for (i = 0, j = -1; i < nets_length && h->nets[i].cidr[n]; i++) {
+	for (i = 0, j = -1; i < NLEN && h->nets[i].cidr[n]; i++) {
 		if (j != -1) {
 			continue;
 		} else if (h->nets[i].cidr[n] < cidr) {
@@ -323,11 +326,11 @@ mtype_add_cidr(struct htype *h, u8 cidr, u8 nets_length, u8 n)
 }
 
 static void
-mtype_del_cidr(struct htype *h, u8 cidr, u8 nets_length, u8 n)
+mtype_del_cidr(struct htype *h, u8 cidr, u8 n)
 {
-	u8 i, j, net_end = nets_length - 1;
+	u8 i, j, net_end = NLEN - 1;
 
-	for (i = 0; i < nets_length; i++) {
+	for (i = 0; i < NLEN; i++) {
 		if (h->nets[i].cidr[n] != cidr)
 			continue;
 		h->nets[CIDR_POS(cidr)].nets[n]--;
@@ -343,24 +346,9 @@ mtype_del_cidr(struct htype *h, u8 cidr, u8 nets_length, u8 n)
 
 /* Calculate the actual memory size of the set data */
 static size_t
-mtype_ahash_memsize(const struct htype *h, const struct htable *t,
-		    u8 nets_length, size_t dsize)
+mtype_ahash_memsize(const struct htype *h, const struct htable *t)
 {
-	u32 i;
-	struct hbucket *n;
-	size_t memsize = sizeof(*h) + sizeof(*t);
-
-#ifdef IP_SET_HASH_WITH_NETS
-	memsize += sizeof(struct net_prefixes) * nets_length;
-#endif
-	for (i = 0; i < jhash_size(t->htable_bits); i++) {
-		n = rcu_dereference_bh(hbucket(t, i));
-		if (!n)
-			continue;
-		memsize += sizeof(struct hbucket) + n->size * dsize;
-	}
-
-	return memsize;
+	return sizeof(*h) + sizeof(*t);
 }
 
 /* Get the ith element from the array block n */
@@ -398,9 +386,10 @@ mtype_flush(struct ip_set *set)
 		kfree_rcu(n, rcu);
 	}
 #ifdef IP_SET_HASH_WITH_NETS
-	memset(h->nets, 0, sizeof(struct net_prefixes) * NLEN(set->family));
+	memset(h->nets, 0, sizeof(h->nets));
 #endif
-	h->elements = 0;
+	set->elements = 0;
+	set->ext_size = 0;
 }
 
 /* Destroy the hashtable part of the set */
@@ -444,11 +433,8 @@ mtype_gc_init(struct ip_set *set, void (*gc)(unsigned long ul_set))
 {
 	struct htype *h = set->data;
 
-	init_timer(&h->gc);
-	h->gc.data = (unsigned long)set;
-	h->gc.function = gc;
-	h->gc.expires = jiffies + IPSET_GC_PERIOD(set->timeout) * HZ;
-	add_timer(&h->gc);
+	setup_timer(&h->gc, gc, (unsigned long)set);
+	mod_timer(&h->gc, jiffies + IPSET_GC_PERIOD(set->timeout) * HZ);
 	pr_debug("gc initialized, run in every %u\n",
 		 IPSET_GC_PERIOD(set->timeout));
 }
@@ -473,12 +459,13 @@ mtype_same_set(const struct ip_set *a, const struct ip_set *b)
 
 /* Delete expired elements from the hashtable */
 static void
-mtype_expire(struct ip_set *set, struct htype *h, u8 nets_length, size_t dsize)
+mtype_expire(struct ip_set *set, struct htype *h)
 {
 	struct htable *t;
 	struct hbucket *n, *tmp;
 	struct mtype_elem *data;
 	u32 i, j, d;
+	size_t dsize = set->dsize;
 #ifdef IP_SET_HASH_WITH_NETS
 	u8 k;
 #endif
@@ -494,21 +481,20 @@ mtype_expire(struct ip_set *set, struct htype *h, u8 nets_length, size_t dsize)
 				continue;
 			}
 			data = ahash_data(n, j, dsize);
-			if (ip_set_timeout_expired(ext_timeout(data, set))) {
-				pr_debug("expired %u/%u\n", i, j);
-				clear_bit(j, n->used);
-				smp_mb__after_atomic();
+			if (!ip_set_timeout_expired(ext_timeout(data, set)))
+				continue;
+			pr_debug("expired %u/%u\n", i, j);
+			clear_bit(j, n->used);
+			smp_mb__after_atomic();
 #ifdef IP_SET_HASH_WITH_NETS
-				for (k = 0; k < IPSET_NET_COUNT; k++)
-					mtype_del_cidr(h,
-						NCIDR_PUT(DCIDR_GET(data->cidr,
-								    k)),
-						nets_length, k);
+			for (k = 0; k < IPSET_NET_COUNT; k++)
+				mtype_del_cidr(h,
+					NCIDR_PUT(DCIDR_GET(data->cidr, k)),
+					k);
 #endif
-				ip_set_ext_destroy(set, data);
-				h->elements--;
-				d++;
-			}
+			ip_set_ext_destroy(set, data);
+			set->elements--;
+			d++;
 		}
 		if (d >= AHASH_INIT_SIZE) {
 			if (d >= n->size) {
@@ -532,6 +518,7 @@ mtype_expire(struct ip_set *set, struct htype *h, u8 nets_length, size_t dsize)
 				d++;
 			}
 			tmp->pos = d;
+			set->ext_size -= ext_size(AHASH_INIT_SIZE, dsize);
 			rcu_assign_pointer(hbucket(t, i), tmp);
 			kfree_rcu(n, rcu);
 		}
@@ -546,7 +533,7 @@ mtype_gc(unsigned long ul_set)
 
 	pr_debug("called\n");
 	spin_lock_bh(&set->lock);
-	mtype_expire(set, h, NLEN(set->family), set->dsize);
+	mtype_expire(set, h);
 	spin_unlock_bh(&set->lock);
 
 	h->gc.expires = jiffies + IPSET_GC_PERIOD(set->timeout) * HZ;
@@ -563,7 +550,7 @@ mtype_resize(struct ip_set *set, bool retried)
 	struct htype *h = set->data;
 	struct htable *t, *orig;
 	u8 htable_bits;
-	size_t dsize = set->dsize;
+	size_t extsize, dsize = set->dsize;
 #ifdef IP_SET_HASH_WITH_NETS
 	u8 flags;
 	struct mtype_elem *tmp;
@@ -606,6 +593,7 @@ retry:
 	/* There can't be another parallel resizing, but dumping is possible */
 	atomic_set(&orig->ref, 1);
 	atomic_inc(&orig->uref);
+	extsize = 0;
 	pr_debug("attempt to resize set %s from %u to %u, t %p\n",
 		 set->name, orig->htable_bits, htable_bits, orig);
 	for (i = 0; i < jhash_size(orig->htable_bits); i++) {
@@ -636,6 +624,7 @@ retry:
 					goto cleanup;
 				}
 				m->size = AHASH_INIT_SIZE;
+				extsize = ext_size(AHASH_INIT_SIZE, dsize);
 				RCU_INIT_POINTER(hbucket(t, key), m);
 			} else if (m->pos >= m->size) {
 				struct hbucket *ht;
@@ -655,6 +644,7 @@ retry:
 				memcpy(ht, m, sizeof(struct hbucket) +
 					      m->size * dsize);
 				ht->size = m->size + AHASH_INIT_SIZE;
+				extsize += ext_size(AHASH_INIT_SIZE, dsize);
 				kfree(m);
 				m = ht;
 				RCU_INIT_POINTER(hbucket(t, key), ht);
@@ -668,6 +658,7 @@ retry:
 		}
 	}
 	rcu_assign_pointer(h->table, t);
+	set->ext_size = extsize;
 
 	spin_unlock_bh(&set->lock);
 
@@ -715,11 +706,11 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 	bool deleted = false, forceadd = false, reuse = false;
 	u32 key, multi = 0;
 
-	if (h->elements >= h->maxelem) {
+	if (set->elements >= h->maxelem) {
 		if (SET_WITH_TIMEOUT(set))
 			/* FIXME: when set is full, we slow down here */
-			mtype_expire(set, h, NLEN(set->family), set->dsize);
-		if (h->elements >= h->maxelem && SET_WITH_FORCEADD(set))
+			mtype_expire(set, h);
+		if (set->elements >= h->maxelem && SET_WITH_FORCEADD(set))
 			forceadd = true;
 	}
 
@@ -727,20 +718,15 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 	key = HKEY(value, h->initval, t->htable_bits);
 	n = __ipset_dereference_protected(hbucket(t, key), 1);
 	if (!n) {
-		if (forceadd) {
-			if (net_ratelimit())
-				pr_warn("Set %s is full, maxelem %u reached\n",
-					set->name, h->maxelem);
-			return -IPSET_ERR_HASH_FULL;
-		} else if (h->elements >= h->maxelem) {
+		if (forceadd || set->elements >= h->maxelem)
 			goto set_full;
-		}
 		old = NULL;
 		n = kzalloc(sizeof(*n) + AHASH_INIT_SIZE * set->dsize,
 			    GFP_ATOMIC);
 		if (!n)
 			return -ENOMEM;
 		n->size = AHASH_INIT_SIZE;
+		set->ext_size += ext_size(AHASH_INIT_SIZE, set->dsize);
 		goto copy_elem;
 	}
 	for (i = 0; i < n->pos; i++) {
@@ -778,14 +764,14 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 			for (i = 0; i < IPSET_NET_COUNT; i++)
 				mtype_del_cidr(h,
 					NCIDR_PUT(DCIDR_GET(data->cidr, i)),
-					NLEN(set->family), i);
+					i);
 #endif
 			ip_set_ext_destroy(set, data);
-			h->elements--;
+			set->elements--;
 		}
 		goto copy_data;
 	}
-	if (h->elements >= h->maxelem)
+	if (set->elements >= h->maxelem)
 		goto set_full;
 	/* Create a new slot */
 	if (n->pos >= n->size) {
@@ -804,17 +790,17 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 		memcpy(n, old, sizeof(struct hbucket) +
 		       old->size * set->dsize);
 		n->size = old->size + AHASH_INIT_SIZE;
+		set->ext_size += ext_size(AHASH_INIT_SIZE, set->dsize);
 	}
 
 copy_elem:
 	j = n->pos++;
 	data = ahash_data(n, j, set->dsize);
 copy_data:
-	h->elements++;
+	set->elements++;
 #ifdef IP_SET_HASH_WITH_NETS
 	for (i = 0; i < IPSET_NET_COUNT; i++)
-		mtype_add_cidr(h, NCIDR_PUT(DCIDR_GET(d->cidr, i)),
-			       NLEN(set->family), i);
+		mtype_add_cidr(h, NCIDR_PUT(DCIDR_GET(d->cidr, i)), i);
 #endif
 	memcpy(data, d, sizeof(struct mtype_elem));
 overwrite_extensions:
@@ -824,7 +810,7 @@ overwrite_extensions:
 	if (SET_WITH_COUNTER(set))
 		ip_set_init_counter(ext_counter(data, set), ext);
 	if (SET_WITH_COMMENT(set))
-		ip_set_init_comment(ext_comment(data, set), ext);
+		ip_set_init_comment(set, ext_comment(data, set), ext);
 	if (SET_WITH_SKBINFO(set))
 		ip_set_init_skbinfo(ext_skbinfo(data, set), ext);
 	/* Must come last for the case when timed out entry is reused */
@@ -883,11 +869,11 @@ mtype_del(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 		smp_mb__after_atomic();
 		if (i + 1 == n->pos)
 			n->pos--;
-		h->elements--;
+		set->elements--;
 #ifdef IP_SET_HASH_WITH_NETS
 		for (j = 0; j < IPSET_NET_COUNT; j++)
 			mtype_del_cidr(h, NCIDR_PUT(DCIDR_GET(d->cidr, j)),
-				       NLEN(set->family), j);
+				       j);
 #endif
 		ip_set_ext_destroy(set, data);
 
@@ -896,6 +882,7 @@ mtype_del(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 				k++;
 		}
 		if (n->pos == 0 && k == 0) {
+			set->ext_size -= ext_size(n->size, dsize);
 			rcu_assign_pointer(hbucket(t, key), NULL);
 			kfree_rcu(n, rcu);
 		} else if (k >= AHASH_INIT_SIZE) {
@@ -914,6 +901,7 @@ mtype_del(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 				k++;
 			}
 			tmp->pos = k;
+			set->ext_size -= ext_size(AHASH_INIT_SIZE, dsize);
 			rcu_assign_pointer(hbucket(t, key), tmp);
 			kfree_rcu(n, rcu);
 		}
@@ -957,14 +945,13 @@ mtype_test_cidrs(struct ip_set *set, struct mtype_elem *d,
 	int i, j = 0;
 #endif
 	u32 key, multi = 0;
-	u8 nets_length = NLEN(set->family);
 
 	pr_debug("test by nets\n");
-	for (; j < nets_length && h->nets[j].cidr[0] && !multi; j++) {
+	for (; j < NLEN && h->nets[j].cidr[0] && !multi; j++) {
 #if IPSET_NET_COUNT == 2
 		mtype_data_reset_elem(d, &orig);
 		mtype_data_netmask(d, NCIDR_GET(h->nets[j].cidr[0]), false);
-		for (k = 0; k < nets_length && h->nets[k].cidr[1] && !multi;
+		for (k = 0; k < NLEN && h->nets[k].cidr[1] && !multi;
 		     k++) {
 			mtype_data_netmask(d, NCIDR_GET(h->nets[k].cidr[1]),
 					   true);
@@ -1021,7 +1008,7 @@ mtype_test(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 	 * try all possible network sizes
 	 */
 	for (i = 0; i < IPSET_NET_COUNT; i++)
-		if (DCIDR_GET(d->cidr, i) != SET_HOST_MASK(set->family))
+		if (DCIDR_GET(d->cidr, i) != HOST_MASK)
 			break;
 	if (i == IPSET_NET_COUNT) {
 		ret = mtype_test_cidrs(set, d, ext, mext, flags);
@@ -1062,7 +1049,7 @@ mtype_head(struct ip_set *set, struct sk_buff *skb)
 
 	rcu_read_lock_bh();
 	t = rcu_dereference_bh_nfnl(h->table);
-	memsize = mtype_ahash_memsize(h, t, NLEN(set->family), set->dsize);
+	memsize = mtype_ahash_memsize(h, t) + set->ext_size;
 	htable_bits = t->htable_bits;
 	rcu_read_unlock_bh();
 
@@ -1083,7 +1070,8 @@ mtype_head(struct ip_set *set, struct sk_buff *skb)
 		goto nla_put_failure;
 #endif
 	if (nla_put_net32(skb, IPSET_ATTR_REFERENCES, htonl(set->ref)) ||
-	    nla_put_net32(skb, IPSET_ATTR_MEMSIZE, htonl(memsize)))
+	    nla_put_net32(skb, IPSET_ATTR_MEMSIZE, htonl(memsize)) ||
+	    nla_put_net32(skb, IPSET_ATTR_ELEMENTS, htonl(set->elements)))
 		goto nla_put_failure;
 	if (unlikely(ip_set_put_flags(skb, set)))
 		goto nla_put_failure;
@@ -1238,18 +1226,12 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 	struct htype *h;
 	struct htable *t;
 
+	pr_debug("Create set %s with family %s\n",
+		 set->name, set->family == NFPROTO_IPV4 ? "inet" : "inet6");
+
 #ifndef IP_SET_PROTO_UNDEF
 	if (!(set->family == NFPROTO_IPV4 || set->family == NFPROTO_IPV6))
 		return -IPSET_ERR_INVALID_FAMILY;
-#endif
-
-#ifdef IP_SET_HASH_WITH_MARKMASK
-	markmask = 0xffffffff;
-#endif
-#ifdef IP_SET_HASH_WITH_NETMASK
-	netmask = set->family == NFPROTO_IPV4 ? 32 : 128;
-	pr_debug("Create set %s with family %s\n",
-		 set->name, set->family == NFPROTO_IPV4 ? "inet" : "inet6");
 #endif
 
 	if (unlikely(!ip_set_optattr_netorder(tb, IPSET_ATTR_HASHSIZE) ||
@@ -1257,10 +1239,30 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT) ||
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_CADT_FLAGS)))
 		return -IPSET_ERR_PROTOCOL;
+
 #ifdef IP_SET_HASH_WITH_MARKMASK
 	/* Separated condition in order to avoid directive in argument list */
 	if (unlikely(!ip_set_optattr_netorder(tb, IPSET_ATTR_MARKMASK)))
 		return -IPSET_ERR_PROTOCOL;
+
+	markmask = 0xffffffff;
+	if (tb[IPSET_ATTR_MARKMASK]) {
+		markmask = ntohl(nla_get_be32(tb[IPSET_ATTR_MARKMASK]));
+		if (markmask == 0)
+			return -IPSET_ERR_INVALID_MARKMASK;
+	}
+#endif
+
+#ifdef IP_SET_HASH_WITH_NETMASK
+	netmask = set->family == NFPROTO_IPV4 ? 32 : 128;
+	if (tb[IPSET_ATTR_NETMASK]) {
+		netmask = nla_get_u8(tb[IPSET_ATTR_NETMASK]);
+
+		if ((set->family == NFPROTO_IPV4 && netmask > 32) ||
+		    (set->family == NFPROTO_IPV6 && netmask > 128) ||
+		    netmask == 0)
+			return -IPSET_ERR_INVALID_NETMASK;
+	}
 #endif
 
 	if (tb[IPSET_ATTR_HASHSIZE]) {
@@ -1272,42 +1274,10 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 	if (tb[IPSET_ATTR_MAXELEM])
 		maxelem = ip_set_get_h32(tb[IPSET_ATTR_MAXELEM]);
 
-#ifdef IP_SET_HASH_WITH_NETMASK
-	if (tb[IPSET_ATTR_NETMASK]) {
-		netmask = nla_get_u8(tb[IPSET_ATTR_NETMASK]);
-
-		if ((set->family == NFPROTO_IPV4 && netmask > 32) ||
-		    (set->family == NFPROTO_IPV6 && netmask > 128) ||
-		    netmask == 0)
-			return -IPSET_ERR_INVALID_NETMASK;
-	}
-#endif
-#ifdef IP_SET_HASH_WITH_MARKMASK
-	if (tb[IPSET_ATTR_MARKMASK]) {
-		markmask = ntohl(nla_get_be32(tb[IPSET_ATTR_MARKMASK]));
-
-		if (markmask == 0)
-			return -IPSET_ERR_INVALID_MARKMASK;
-	}
-#endif
-
 	hsize = sizeof(*h);
-#ifdef IP_SET_HASH_WITH_NETS
-	hsize += sizeof(struct net_prefixes) * NLEN(set->family);
-#endif
 	h = kzalloc(hsize, GFP_KERNEL);
 	if (!h)
 		return -ENOMEM;
-
-	h->maxelem = maxelem;
-#ifdef IP_SET_HASH_WITH_NETMASK
-	h->netmask = netmask;
-#endif
-#ifdef IP_SET_HASH_WITH_MARKMASK
-	h->markmask = markmask;
-#endif
-	get_random_bytes(&h->initval, sizeof(h->initval));
-	set->timeout = IPSET_NO_TIMEOUT;
 
 	hbits = htable_bits(hashsize);
 	hsize = htable_size(hbits);
@@ -1320,8 +1290,17 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 		kfree(h);
 		return -ENOMEM;
 	}
+	h->maxelem = maxelem;
+#ifdef IP_SET_HASH_WITH_NETMASK
+	h->netmask = netmask;
+#endif
+#ifdef IP_SET_HASH_WITH_MARKMASK
+	h->markmask = markmask;
+#endif
+	get_random_bytes(&h->initval, sizeof(h->initval));
+
 	t->htable_bits = hbits;
-	rcu_assign_pointer(h->table, t);
+	RCU_INIT_POINTER(h->table, t);
 
 	set->data = h;
 #ifndef IP_SET_PROTO_UNDEF
@@ -1339,6 +1318,7 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 			__alignof__(struct IPSET_TOKEN(HTYPE, 6_elem)));
 	}
 #endif
+	set->timeout = IPSET_NO_TIMEOUT;
 	if (tb[IPSET_ATTR_TIMEOUT]) {
 		set->timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
 #ifndef IP_SET_PROTO_UNDEF

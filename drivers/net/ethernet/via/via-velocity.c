@@ -2284,13 +2284,6 @@ static int velocity_change_mtu(struct net_device *dev, int new_mtu)
 	struct velocity_info *vptr = netdev_priv(dev);
 	int ret = 0;
 
-	if ((new_mtu < VELOCITY_MIN_MTU) || new_mtu > (VELOCITY_MAX_MTU)) {
-		VELOCITY_PRT(MSG_LEVEL_ERR, KERN_NOTICE "%s: Invalid MTU.\n",
-				vptr->netdev->name);
-		ret = -EINVAL;
-		goto out_0;
-	}
-
 	if (!netif_running(dev)) {
 		dev->mtu = new_mtu;
 		goto out_0;
@@ -2863,6 +2856,10 @@ static int velocity_probe(struct device *dev, int irq,
 	netdev->features |= NETIF_F_HW_VLAN_CTAG_TX |
 			NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_VLAN_CTAG_RX |
 			NETIF_F_IP_CSUM;
+
+	/* MTU range: 64 - 9000 */
+	netdev->min_mtu = VELOCITY_MIN_MTU;
+	netdev->max_mtu = VELOCITY_MAX_MTU;
 
 	ret = register_netdev(netdev);
 	if (ret < 0)

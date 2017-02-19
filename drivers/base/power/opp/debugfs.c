@@ -15,6 +15,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/limits.h>
+#include <linux/slab.h>
 
 #include "opp.h"
 
@@ -32,6 +33,46 @@ static void opp_set_dev_name(const struct device *dev, char *name)
 void opp_debug_remove_one(struct dev_pm_opp *opp)
 {
 	debugfs_remove_recursive(opp->dentry);
+}
+
+static bool opp_debug_create_supplies(struct dev_pm_opp *opp,
+				      struct opp_table *opp_table,
+				      struct dentry *pdentry)
+{
+	struct dentry *d;
+	int i = 0;
+	char *name;
+
+	/* Always create at least supply-0 directory */
+	do {
+		name = kasprintf(GFP_KERNEL, "supply-%d", i);
+
+		/* Create per-opp directory */
+		d = debugfs_create_dir(name, pdentry);
+
+		kfree(name);
+
+		if (!d)
+			return false;
+
+		if (!debugfs_create_ulong("u_volt_target", S_IRUGO, d,
+					  &opp->supplies[i].u_volt))
+			return false;
+
+		if (!debugfs_create_ulong("u_volt_min", S_IRUGO, d,
+					  &opp->supplies[i].u_volt_min))
+			return false;
+
+		if (!debugfs_create_ulong("u_volt_max", S_IRUGO, d,
+					  &opp->supplies[i].u_volt_max))
+			return false;
+
+		if (!debugfs_create_ulong("u_amp", S_IRUGO, d,
+					  &opp->supplies[i].u_amp))
+			return false;
+	} while (++i < opp_table->regulator_count);
+
+	return true;
 }
 
 int opp_debug_create_one(struct dev_pm_opp *opp, struct opp_table *opp_table)
@@ -63,16 +104,7 @@ int opp_debug_create_one(struct dev_pm_opp *opp, struct opp_table *opp_table)
 	if (!debugfs_create_ulong("rate_hz", S_IRUGO, d, &opp->rate))
 		return -ENOMEM;
 
-	if (!debugfs_create_ulong("u_volt_target", S_IRUGO, d, &opp->u_volt))
-		return -ENOMEM;
-
-	if (!debugfs_create_ulong("u_volt_min", S_IRUGO, d, &opp->u_volt_min))
-		return -ENOMEM;
-
-	if (!debugfs_create_ulong("u_volt_max", S_IRUGO, d, &opp->u_volt_max))
-		return -ENOMEM;
-
-	if (!debugfs_create_ulong("u_amp", S_IRUGO, d, &opp->u_amp))
+	if (!opp_debug_create_supplies(opp, opp_table, d))
 		return -ENOMEM;
 
 	if (!debugfs_create_ulong("clock_latency_ns", S_IRUGO, d,

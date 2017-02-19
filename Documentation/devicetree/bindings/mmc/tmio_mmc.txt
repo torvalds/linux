@@ -11,8 +11,8 @@ optional bindings can be used.
 
 Required properties:
 - compatible:	"renesas,sdhi-shmobile" - a generic sh-mobile SDHI unit
-		"renesas,sdhi-sh7372" - SDHI IP on SH7372 SoC
 		"renesas,sdhi-sh73a0" - SDHI IP on SH73A0 SoC
+		"renesas,sdhi-r7s72100" - SDHI IP on R7S72100 SoC
 		"renesas,sdhi-r8a73a4" - SDHI IP on R8A73A4 SoC
 		"renesas,sdhi-r8a7740" - SDHI IP on R8A7740 SoC
 		"renesas,sdhi-r8a7778" - SDHI IP on R8A7778 SoC

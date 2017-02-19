@@ -528,7 +528,7 @@ static int uniphier_fi2c_probe(struct platform_device *pdev)
 	if (!clk_rate) {
 		dev_err(dev, "input clock rate should not be zero\n");
 		ret = -EINVAL;
-		goto err;
+		goto disable_clk;
 	}
 
 	init_completion(&priv->comp);
@@ -547,11 +547,11 @@ static int uniphier_fi2c_probe(struct platform_device *pdev)
 			       pdev->name, priv);
 	if (ret) {
 		dev_err(dev, "failed to request irq %d\n", irq);
-		goto err;
+		goto disable_clk;
 	}
 
 	ret = i2c_add_adapter(&priv->adap);
-err:
+disable_clk:
 	if (ret)
 		clk_disable_unprepare(priv->clk);
 

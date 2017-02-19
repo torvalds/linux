@@ -16,7 +16,7 @@
  */
 
 #include <linux/in6.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* computes the checksum of a memory block at buff, length len,
  * and adds in "sum" (32-bit)

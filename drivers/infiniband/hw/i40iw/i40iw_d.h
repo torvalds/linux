@@ -35,6 +35,8 @@
 #ifndef I40IW_D_H
 #define I40IW_D_H
 
+#define I40IW_FIRST_USER_QP_ID  2
+
 #define I40IW_DB_ADDR_OFFSET    (4 * 1024 * 1024 - 64 * 1024)
 #define I40IW_VF_DB_ADDR_OFFSET (64 * 1024)
 
@@ -67,12 +69,17 @@
 #define I40IW_STAG_TYPE_NONSHARED 1
 
 #define I40IW_MAX_USER_PRIORITY 8
+#define I40IW_MAX_STATS_COUNT 16
+#define I40IW_FIRST_NON_PF_STAT	4
+
 
 #define LS_64_1(val, bits)      ((u64)(uintptr_t)val << bits)
 #define RS_64_1(val, bits)      ((u64)(uintptr_t)val >> bits)
 #define LS_32_1(val, bits)      (u32)(val << bits)
 #define RS_32_1(val, bits)      (u32)(val >> bits)
 #define I40E_HI_DWORD(x)        ((u32)((((x) >> 16) >> 16) & 0xFFFFFFFF))
+
+#define QS_HANDLE_UNKNOWN       0xffff
 
 #define LS_64(val, field) (((u64)val << field ## _SHIFT) & (field ## _MASK))
 
@@ -1199,8 +1206,11 @@
 #define I40IWQPC_RXCQNUM_SHIFT 32
 #define I40IWQPC_RXCQNUM_MASK (0x1ffffULL << I40IWQPC_RXCQNUM_SHIFT)
 
-#define I40IWQPC_Q2ADDR_SHIFT I40IW_CQPHC_QPCTX_SHIFT
-#define I40IWQPC_Q2ADDR_MASK I40IW_CQPHC_QPCTX_MASK
+#define I40IWQPC_STAT_INDEX_SHIFT 0
+#define I40IWQPC_STAT_INDEX_MASK (0x1fULL << I40IWQPC_STAT_INDEX_SHIFT)
+
+#define I40IWQPC_Q2ADDR_SHIFT 0
+#define I40IWQPC_Q2ADDR_MASK (0xffffffffffffff00ULL << I40IWQPC_Q2ADDR_SHIFT)
 
 #define I40IWQPC_LASTBYTESENT_SHIFT 0
 #define I40IWQPC_LASTBYTESENT_MASK (0xffUL << I40IWQPC_LASTBYTESENT_SHIFT)
@@ -1232,11 +1242,8 @@
 #define I40IWQPC_PRIVEN_SHIFT 25
 #define I40IWQPC_PRIVEN_MASK (1UL << I40IWQPC_PRIVEN_SHIFT)
 
-#define I40IWQPC_LSMMPRESENT_SHIFT 26
-#define I40IWQPC_LSMMPRESENT_MASK (1UL << I40IWQPC_LSMMPRESENT_SHIFT)
-
-#define I40IWQPC_ADJUSTFORLSMM_SHIFT 27
-#define I40IWQPC_ADJUSTFORLSMM_MASK (1UL << I40IWQPC_ADJUSTFORLSMM_SHIFT)
+#define I40IWQPC_USESTATSINSTANCE_SHIFT 26
+#define I40IWQPC_USESTATSINSTANCE_MASK (1UL << I40IWQPC_USESTATSINSTANCE_SHIFT)
 
 #define I40IWQPC_IWARPMODE_SHIFT 28
 #define I40IWQPC_IWARPMODE_MASK (1UL << I40IWQPC_IWARPMODE_SHIFT)
@@ -1713,6 +1720,8 @@ enum i40iw_alignment {
 #define OP_MANAGE_VF_PBLE_BP                    28
 #define OP_QUERY_FPM_VALUES                     29
 #define OP_COMMIT_FPM_VALUES                    30
-#define OP_SIZE_CQP_STAT_ARRAY                  31
+#define OP_REQUESTED_COMMANDS                   31
+#define OP_COMPLETED_COMMANDS                   32
+#define OP_SIZE_CQP_STAT_ARRAY                  33
 
 #endif

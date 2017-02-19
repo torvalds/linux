@@ -28,4 +28,6 @@ else
         CFLAGS_KASAN := $(CFLAGS_KASAN_MINIMAL)
     endif
 endif
+
+CFLAGS_KASAN += $(call cc-option, -fsanitize-address-use-after-scope)
 endif

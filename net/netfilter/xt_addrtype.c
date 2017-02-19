@@ -125,7 +125,7 @@ static inline bool match_type(struct net *net, const struct net_device *dev,
 static bool
 addrtype_mt_v0(const struct sk_buff *skb, struct xt_action_param *par)
 {
-	struct net *net = par->net;
+	struct net *net = xt_net(par);
 	const struct xt_addrtype_info *info = par->matchinfo;
 	const struct iphdr *iph = ip_hdr(skb);
 	bool ret = true;
@@ -143,19 +143,19 @@ addrtype_mt_v0(const struct sk_buff *skb, struct xt_action_param *par)
 static bool
 addrtype_mt_v1(const struct sk_buff *skb, struct xt_action_param *par)
 {
-	struct net *net = par->net;
+	struct net *net = xt_net(par);
 	const struct xt_addrtype_info_v1 *info = par->matchinfo;
 	const struct iphdr *iph;
 	const struct net_device *dev = NULL;
 	bool ret = true;
 
 	if (info->flags & XT_ADDRTYPE_LIMIT_IFACE_IN)
-		dev = par->in;
+		dev = xt_in(par);
 	else if (info->flags & XT_ADDRTYPE_LIMIT_IFACE_OUT)
-		dev = par->out;
+		dev = xt_out(par);
 
 #if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
-	if (par->family == NFPROTO_IPV6)
+	if (xt_family(par) == NFPROTO_IPV6)
 		return addrtype_mt6(net, dev, skb, info);
 #endif
 	iph = ip_hdr(skb);

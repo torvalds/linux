@@ -10,10 +10,12 @@ endif
 quiet_cmd_perl = PERL $@
       cmd_perl = $(PERL) $(<) $(TARGET) > $(@)
 
-$(src)/aesp8-ppc.S: $(src)/aesp8-ppc.pl
-	$(call cmd,perl)
-  
-$(src)/ghashp8-ppc.S: $(src)/ghashp8-ppc.pl
-	$(call cmd,perl)
+targets += aesp8-ppc.S ghashp8-ppc.S
 
-.PRECIOUS: $(obj)/aesp8-ppc.S $(obj)/ghashp8-ppc.S
+$(obj)/aesp8-ppc.S: $(src)/aesp8-ppc.pl FORCE
+	$(call if_changed,perl)
+  
+$(obj)/ghashp8-ppc.S: $(src)/ghashp8-ppc.pl FORCE
+	$(call if_changed,perl)
+
+clean-files := aesp8-ppc.S ghashp8-ppc.S

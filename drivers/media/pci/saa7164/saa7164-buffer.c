@@ -218,8 +218,7 @@ int saa7164_buffer_activate(struct saa7164_buffer *buf, int i)
 	saa7164_writel(port->bufptr32h + ((sizeof(u32) * 2) * i), buf->pt_dma);
 	saa7164_writel(port->bufptr32l + ((sizeof(u32) * 2) * i), 0);
 
-	dprintk(DBGLVL_BUF, "   buf[%d] offset 0x%llx (0x%x) "
-		"buf 0x%llx/%llx (0x%x/%x) nr=%d\n",
+	dprintk(DBGLVL_BUF, "	buf[%d] offset 0x%llx (0x%x) buf 0x%llx/%llx (0x%x/%x) nr=%d\n",
 		buf->idx,
 		(u64)port->bufoffset + (i * sizeof(u32)),
 		saa7164_readl(port->bufoffset + (sizeof(u32) * i)),

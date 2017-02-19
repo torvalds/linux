@@ -62,7 +62,7 @@
 		stdout-path = &uart0;
 	};
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x00000000 0x20000000>; /* 512 MiB */
 	};
@@ -71,20 +71,6 @@
 		ranges = <MBUS_ID(0xf0, 0x01) 0 0xd0000000 0x100000
 			MBUS_ID(0x01, 0xe0) 0 0xfff00000 0x100000
 			MBUS_ID(0x09, 0x01) 0 0xf1100000 0x10000>;
-
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-
-			pcie@2,0 {
-				/* Port 1, Lane 0 */
-				status = "okay";
-			};
-		};
 
 		internal-regs {
 			sata@a0000 {
@@ -259,6 +245,20 @@
 			regulator-boot-on;
 			gpio = <&gpio1 24 GPIO_ACTIVE_HIGH>;
 		};
+	};
+};
+
+&pciec {
+	status = "okay";
+
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
+	};
+
+	pcie@2,0 {
+		/* Port 1, Lane 0 */
+		status = "okay";
 	};
 };
 

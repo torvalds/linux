@@ -315,11 +315,7 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 	mutex_lock(&sta->ampdu_mlme.mtx);
 
 	if (test_bit(tid, sta->ampdu_mlme.agg_session_valid)) {
-		tid_agg_rx = rcu_dereference_protected(
-				sta->ampdu_mlme.tid_rx[tid],
-				lockdep_is_held(&sta->ampdu_mlme.mtx));
-
-		if (tid_agg_rx->dialog_token == dialog_token) {
+		if (sta->ampdu_mlme.tid_rx_token[tid] == dialog_token) {
 			ht_dbg_ratelimited(sta->sdata,
 					   "updated AddBA Req from %pM on tid %u\n",
 					   sta->sta.addr, tid);
@@ -396,7 +392,6 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 	}
 
 	/* update data */
-	tid_agg_rx->dialog_token = dialog_token;
 	tid_agg_rx->ssn = start_seq_num;
 	tid_agg_rx->head_seq_num = start_seq_num;
 	tid_agg_rx->buf_size = buf_size;
@@ -418,6 +413,7 @@ end:
 	if (status == WLAN_STATUS_SUCCESS) {
 		__set_bit(tid, sta->ampdu_mlme.agg_session_valid);
 		__clear_bit(tid, sta->ampdu_mlme.unexpected_agg);
+		sta->ampdu_mlme.tid_rx_token[tid] = dialog_token;
 	}
 	mutex_unlock(&sta->ampdu_mlme.mtx);
 

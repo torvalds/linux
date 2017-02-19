@@ -504,6 +504,7 @@ static void pmu_add_cpu_aliases(struct list_head *head)
 	struct pmu_events_map *map;
 	struct pmu_event *pe;
 	char *cpuid;
+	static bool printed;
 
 	cpuid = getenv("PERF_CPUID");
 	if (cpuid)
@@ -513,7 +514,10 @@ static void pmu_add_cpu_aliases(struct list_head *head)
 	if (!cpuid)
 		return;
 
-	pr_debug("Using CPUID %s\n", cpuid);
+	if (!printed) {
+		pr_debug("Using CPUID %s\n", cpuid);
+		printed = true;
+	}
 
 	i = 0;
 	while (1) {
@@ -1135,9 +1139,11 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 			bool is_cpu = !strcmp(pmu->name, "cpu");
 
 			if (event_glob != NULL &&
-			    !(strglobmatch(name, event_glob) ||
-			      (!is_cpu && strglobmatch(alias->name,
-						       event_glob))))
+			    !(strglobmatch_nocase(name, event_glob) ||
+			      (!is_cpu && strglobmatch_nocase(alias->name,
+						       event_glob)) ||
+			      (alias->topic &&
+			       strglobmatch_nocase(alias->topic, event_glob))))
 				continue;
 
 			if (is_cpu && !name_only && !alias->desc)

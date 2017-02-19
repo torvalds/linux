@@ -118,6 +118,7 @@ struct xhci_hcd_mtk {
 	struct usb_hcd *hcd;
 	struct mu3h_sch_bw_info *sch_array;
 	struct mu3c_ippc_regs __iomem *ippc_regs;
+	bool has_ippc;
 	int num_u2_ports;
 	int num_u3_ports;
 	struct regulator *vusb33;

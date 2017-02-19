@@ -353,8 +353,8 @@ static int cx18_prep_dev(struct cx18 *cx, int type)
 		if (cx->card->hw_all & CX18_HW_DVB) {
 			s->dvb = kzalloc(sizeof(struct cx18_dvb), GFP_KERNEL);
 			if (s->dvb == NULL) {
-				CX18_ERR("Couldn't allocate cx18_dvb structure"
-					 " for %s\n", s->name);
+				CX18_ERR("Couldn't allocate cx18_dvb structure for %s\n",
+					 s->name);
 				return -ENOMEM;
 			}
 		} else {
@@ -462,8 +462,7 @@ static int cx18_reg_dev(struct cx18 *cx, int type)
 
 	case VFL_TYPE_VBI:
 		if (cx->stream_buffers[type])
-			CX18_INFO("Registered device %s for %s "
-				  "(%d x %d bytes)\n",
+			CX18_INFO("Registered device %s for %s (%d x %d bytes)\n",
 				  name, s->name, cx->stream_buffers[type],
 				  cx->stream_buf_size[type]);
 		else

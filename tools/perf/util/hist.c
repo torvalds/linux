@@ -1195,6 +1195,7 @@ static void hist_entry__check_and_remove_filter(struct hist_entry *he,
 	case HIST_FILTER__GUEST:
 	case HIST_FILTER__HOST:
 	case HIST_FILTER__SOCKET:
+	case HIST_FILTER__C2C:
 	default:
 		return;
 	}

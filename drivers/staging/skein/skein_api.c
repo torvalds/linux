@@ -98,19 +98,16 @@ int skein_mac_init(struct skein_ctx *ctx, const u8 *key, size_t key_len,
 	switch (ctx->skein_size) {
 	case SKEIN_256:
 		ret = skein_256_init_ext(&ctx->m.s256, hash_bit_len,
-					 tree_info,
-					 (const u8 *)key, key_len);
+					 tree_info, key, key_len);
 
 		break;
 	case SKEIN_512:
 		ret = skein_512_init_ext(&ctx->m.s512, hash_bit_len,
-					 tree_info,
-					 (const u8 *)key, key_len);
+					 tree_info, key, key_len);
 		break;
 	case SKEIN_1024:
 		ret = skein_1024_init_ext(&ctx->m.s1024, hash_bit_len,
-					  tree_info,
-					  (const u8 *)key, key_len);
+					  tree_info, key, key_len);
 
 		break;
 	}
@@ -152,16 +149,13 @@ int skein_update(struct skein_ctx *ctx, const u8 *msg,
 
 	switch (ctx->skein_size) {
 	case SKEIN_256:
-		ret = skein_256_update(&ctx->m.s256, (const u8 *)msg,
-				       msg_byte_cnt);
+		ret = skein_256_update(&ctx->m.s256, msg, msg_byte_cnt);
 		break;
 	case SKEIN_512:
-		ret = skein_512_update(&ctx->m.s512, (const u8 *)msg,
-				       msg_byte_cnt);
+		ret = skein_512_update(&ctx->m.s512, msg, msg_byte_cnt);
 		break;
 	case SKEIN_1024:
-		ret = skein_1024_update(&ctx->m.s1024, (const u8 *)msg,
-					msg_byte_cnt);
+		ret = skein_1024_update(&ctx->m.s1024, msg, msg_byte_cnt);
 		break;
 	}
 	return ret;
@@ -211,7 +205,7 @@ int skein_update_bits(struct skein_ctx *ctx, const u8 *msg,
 	/* partial byte bit mask */
 	mask = (u8)(1u << (7 - (msg_bit_cnt & 7)));
 	/* apply bit padding on final byte (in the buffer) */
-	up[length - 1]  = (u8)((up[length - 1] & (0 - mask)) | mask);
+	up[length - 1]  = (up[length - 1] & (0 - mask)) | mask;
 
 	return SKEIN_SUCCESS;
 }
@@ -224,13 +218,13 @@ int skein_final(struct skein_ctx *ctx, u8 *hash)
 
 	switch (ctx->skein_size) {
 	case SKEIN_256:
-		ret = skein_256_final(&ctx->m.s256, (u8 *)hash);
+		ret = skein_256_final(&ctx->m.s256, hash);
 		break;
 	case SKEIN_512:
-		ret = skein_512_final(&ctx->m.s512, (u8 *)hash);
+		ret = skein_512_final(&ctx->m.s512, hash);
 		break;
 	case SKEIN_1024:
-		ret = skein_1024_final(&ctx->m.s1024, (u8 *)hash);
+		ret = skein_1024_final(&ctx->m.s1024, hash);
 		break;
 	}
 	return ret;

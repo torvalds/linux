@@ -229,19 +229,6 @@ struct exynos_mipi_video_phy {
 	spinlock_t slock;
 };
 
-static inline int __is_running(const struct exynos_mipi_phy_desc *data,
-			struct exynos_mipi_video_phy *state)
-{
-	u32 val;
-	int ret;
-
-	ret = regmap_read(state->regmaps[data->resetn_map], data->resetn_reg, &val);
-	if (ret)
-		return 0;
-
-	return val & data->resetn_val;
-}
-
 static int __set_phy_state(const struct exynos_mipi_phy_desc *data,
 			   struct exynos_mipi_video_phy *state, unsigned int on)
 {
@@ -251,7 +238,7 @@ static int __set_phy_state(const struct exynos_mipi_phy_desc *data,
 
 	/* disable in PMU sysreg */
 	if (!on && data->coupled_phy_id >= 0 &&
-	    !__is_running(state->phys[data->coupled_phy_id].data, state)) {
+	    state->phys[data->coupled_phy_id].phy->power_count == 0) {
 		regmap_read(state->regmaps[data->enable_map], data->enable_reg,
 			    &val);
 		val &= ~data->enable_val;

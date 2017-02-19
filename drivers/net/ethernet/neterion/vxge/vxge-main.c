@@ -3074,11 +3074,6 @@ static int vxge_change_mtu(struct net_device *dev, int new_mtu)
 
 	vxge_debug_entryexit(vdev->level_trace,
 		"%s:%d", __func__, __LINE__);
-	if ((new_mtu < VXGE_HW_MIN_MTU) || (new_mtu > VXGE_HW_MAX_MTU)) {
-		vxge_debug_init(vdev->level_err,
-			"%s: mtu size is invalid", dev->name);
-		return -EPERM;
-	}
 
 	/* check if device is down already */
 	if (unlikely(!is_vxge_card_up(vdev))) {
@@ -3461,6 +3456,10 @@ static int vxge_device_register(struct __vxge_hw_device *hldev,
 		vxge_debug_init(vxge_hw_device_trace_level_get(hldev),
 			"%s : using High DMA", __func__);
 	}
+
+	/* MTU range: 68 - 9600 */
+	ndev->min_mtu = VXGE_HW_MIN_MTU;
+	ndev->max_mtu = VXGE_HW_MAX_MTU;
 
 	ret = register_netdev(ndev);
 	if (ret) {

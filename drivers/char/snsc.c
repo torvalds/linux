@@ -285,7 +285,7 @@ scdrv_write(struct file *file, const char __user *buf,
 		DECLARE_WAITQUEUE(wait, current);
 
 		if (file->f_flags & O_NONBLOCK) {
-			spin_unlock(&sd->sd_wlock);
+			spin_unlock_irqrestore(&sd->sd_wlock, flags);
 			up(&sd->sd_wbs);
 			return -EAGAIN;
 		}

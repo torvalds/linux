@@ -69,7 +69,7 @@ struct cls_uart_struct {
 #define UART_EXAR654_EFR_IXON     0x2     /* Receiver compares Xon1/Xoff1 */
 #define UART_EXAR654_EFR_IXOFF    0x8     /* Transmit Xon1/Xoff1 */
 #define UART_EXAR654_EFR_RTSDTR   0x40    /* Auto RTS/DTR Flow Control Enable */
-#define UART_EXAR654_EFR_CTSDSR   0x80    /* Auto CTS/DSR Flow COntrol Enable */
+#define UART_EXAR654_EFR_CTSDSR   0x80    /* Auto CTS/DSR Flow Control Enable */
 #define UART_EXAR654_IER_XOFF     0x20    /* Xoff Interrupt Enable */
 #define UART_EXAR654_IER_RTSDTR   0x40    /* Output Interrupt Enable */
 #define UART_EXAR654_IER_CTSDSR   0x80    /* Input Interrupt Enable */

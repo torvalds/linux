@@ -27,6 +27,7 @@ __typeof, TYPEOF_KEYW
 __typeof__, TYPEOF_KEYW
 __volatile, VOLATILE_KEYW
 __volatile__, VOLATILE_KEYW
+__builtin_va_list, VA_LIST_KEYW
 # According to rth, c99 defines _Bool, __restrict, __restrict__, restrict.  KAO
 _Bool, BOOL_KEYW
 _restrict, RESTRICT_KEYW

@@ -44,8 +44,6 @@
 #define OPA_MAX_SLS				32
 #define OPA_MAX_SCS				32
 
-#define OPA_SMI_CLASS_VERSION			0x80
-
 #define OPA_LID_PERMISSIVE			cpu_to_be32(0xFFFFFFFF)
 
 struct opa_smp {

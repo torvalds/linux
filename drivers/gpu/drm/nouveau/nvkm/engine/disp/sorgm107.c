@@ -43,6 +43,7 @@ gm107_sor_dp_func = {
 	.lnk_pwr = g94_sor_dp_lnk_pwr,
 	.lnk_ctl = gf119_sor_dp_lnk_ctl,
 	.drv_ctl = gf119_sor_dp_drv_ctl,
+	.vcpi = gf119_sor_dp_vcpi,
 };
 
 int

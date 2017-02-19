@@ -19,7 +19,7 @@
 #include <linux/list.h>
 #include <linux/netfilter_bridge.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "br_private.h"
 
 #define COMMON_FEATURES (NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA | \
@@ -185,7 +185,7 @@ static struct rtnl_link_stats64 *br_get_stats64(struct net_device *dev,
 static int br_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct net_bridge *br = netdev_priv(dev);
-	if (new_mtu < 68 || new_mtu > br_min_mtu(br))
+	if (new_mtu > br_min_mtu(br))
 		return -EINVAL;
 
 	dev->mtu = new_mtu;
@@ -409,7 +409,8 @@ void br_dev_setup(struct net_device *dev)
 	br->bridge_max_age = br->max_age = 20 * HZ;
 	br->bridge_hello_time = br->hello_time = 2 * HZ;
 	br->bridge_forward_delay = br->forward_delay = 15 * HZ;
-	br->ageing_time = BR_DEFAULT_AGEING_TIME;
+	br->bridge_ageing_time = br->ageing_time = BR_DEFAULT_AGEING_TIME;
+	dev->max_mtu = ETH_MAX_MTU;
 
 	br_netfilter_rtable_init(br);
 	br_stp_timer_init(br);

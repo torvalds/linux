@@ -189,7 +189,7 @@ static inline unsigned int drm_encoder_index(struct drm_encoder *encoder)
 }
 
 /* FIXME: We have an include file mess still, drm_crtc.h needs untangling. */
-static inline uint32_t drm_crtc_mask(struct drm_crtc *crtc);
+static inline uint32_t drm_crtc_mask(const struct drm_crtc *crtc);
 
 /**
  * drm_encoder_crtc_ok - can a given crtc drive a given encoder?

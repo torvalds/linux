@@ -264,8 +264,8 @@ static int xen_hvm_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	return 0;
 
 error:
-	dev_err(&dev->dev,
-		"Xen PCI frontend has not registered MSI/MSI-X support!\n");
+	dev_err(&dev->dev, "Failed to create MSI%s! ret=%d!\n",
+		type == PCI_CAP_ID_MSI ? "" : "-X", irq);
 	return irq;
 }
 

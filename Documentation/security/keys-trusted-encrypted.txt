@@ -32,8 +32,6 @@ Usage:
                      (40 ascii zeros)
        blobauth=     ascii hex auth for sealed data default 0x00...
                      (40 ascii zeros)
-       blobauth=     ascii hex auth for sealed data default 0x00...
-                     (40 ascii zeros)
        pcrinfo=	     ascii hex of PCR_INFO or PCR_INFO_LONG (no default)
        pcrlock=	     pcr number to be extended to "lock" blob
        migratable=   0|1 indicating permission to reseal to new PCR values,

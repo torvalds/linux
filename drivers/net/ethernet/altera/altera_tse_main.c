@@ -37,6 +37,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mii.h>
 #include <linux/netdevice.h>
 #include <linux/of_device.h>
 #include <linux/of_mdio.h>
@@ -94,6 +95,27 @@ static const struct of_device_id altera_tse_ids[];
 static inline u32 tse_tx_avail(struct altera_tse_private *priv)
 {
 	return priv->tx_cons + priv->tx_ring_size - priv->tx_prod - 1;
+}
+
+/* PCS Register read/write functions
+ */
+static u16 sgmii_pcs_read(struct altera_tse_private *priv, int regnum)
+{
+	return csrrd32(priv->mac_dev,
+		       tse_csroffs(mdio_phy0) + regnum * 4) & 0xffff;
+}
+
+static void sgmii_pcs_write(struct altera_tse_private *priv, int regnum,
+				u16 value)
+{
+	csrwr32(value, priv->mac_dev, tse_csroffs(mdio_phy0) + regnum * 4);
+}
+
+/* Check PCS scratch memory */
+static int sgmii_pcs_scratch_test(struct altera_tse_private *priv, u16 value)
+{
+	sgmii_pcs_write(priv, SGMII_PCS_SCRATCH, value);
+	return (sgmii_pcs_read(priv, SGMII_PCS_SCRATCH) == value);
 }
 
 /* MDIO specific functions
@@ -984,18 +1006,9 @@ static void tse_set_mac(struct altera_tse_private *priv, bool enable)
  */
 static int tse_change_mtu(struct net_device *dev, int new_mtu)
 {
-	struct altera_tse_private *priv = netdev_priv(dev);
-	unsigned int max_mtu = priv->max_mtu;
-	unsigned int min_mtu = ETH_ZLEN + ETH_FCS_LEN;
-
 	if (netif_running(dev)) {
 		netdev_err(dev, "must be stopped to change its MTU\n");
 		return -EBUSY;
-	}
-
-	if ((new_mtu < min_mtu) || (new_mtu > max_mtu)) {
-		netdev_err(dev, "invalid MTU, max MTU is: %u\n", max_mtu);
-		return -EINVAL;
 	}
 
 	dev->mtu = new_mtu;
@@ -1082,6 +1095,66 @@ static void tse_set_rx_mode(struct net_device *dev)
 	spin_unlock(&priv->mac_cfg_lock);
 }
 
+/* Initialise (if necessary) the SGMII PCS component
+ */
+static int init_sgmii_pcs(struct net_device *dev)
+{
+	struct altera_tse_private *priv = netdev_priv(dev);
+	int n;
+	unsigned int tmp_reg = 0;
+
+	if (priv->phy_iface != PHY_INTERFACE_MODE_SGMII)
+		return 0; /* Nothing to do, not in SGMII mode */
+
+	/* The TSE SGMII PCS block looks a little like a PHY, it is
+	 * mapped into the zeroth MDIO space of the MAC and it has
+	 * ID registers like a PHY would.  Sadly this is often
+	 * configured to zeroes, so don't be surprised if it does
+	 * show 0x00000000.
+	 */
+
+	if (sgmii_pcs_scratch_test(priv, 0x0000) &&
+		sgmii_pcs_scratch_test(priv, 0xffff) &&
+		sgmii_pcs_scratch_test(priv, 0xa5a5) &&
+		sgmii_pcs_scratch_test(priv, 0x5a5a)) {
+		netdev_info(dev, "PCS PHY ID: 0x%04x%04x\n",
+				sgmii_pcs_read(priv, MII_PHYSID1),
+				sgmii_pcs_read(priv, MII_PHYSID2));
+	} else {
+		netdev_err(dev, "SGMII PCS Scratch memory test failed.\n");
+		return -ENOMEM;
+	}
+
+	/* Starting on page 5-29 of the MegaCore Function User Guide
+	 * Set SGMII Link timer to 1.6ms
+	 */
+	sgmii_pcs_write(priv, SGMII_PCS_LINK_TIMER_0, 0x0D40);
+	sgmii_pcs_write(priv, SGMII_PCS_LINK_TIMER_1, 0x03);
+
+	/* Enable SGMII Interface and Enable SGMII Auto Negotiation */
+	sgmii_pcs_write(priv, SGMII_PCS_IF_MODE, 0x3);
+
+	/* Enable Autonegotiation */
+	tmp_reg = sgmii_pcs_read(priv, MII_BMCR);
+	tmp_reg |= (BMCR_SPEED1000 | BMCR_FULLDPLX | BMCR_ANENABLE);
+	sgmii_pcs_write(priv, MII_BMCR, tmp_reg);
+
+	/* Reset PCS block */
+	tmp_reg |= BMCR_RESET;
+	sgmii_pcs_write(priv, MII_BMCR, tmp_reg);
+	for (n = 0; n < SGMII_PCS_SW_RESET_TIMEOUT; n++) {
+		if (!(sgmii_pcs_read(priv, MII_BMCR) & BMCR_RESET)) {
+			netdev_info(dev, "SGMII PCS block initialised OK\n");
+			return 0;
+		}
+		udelay(1);
+	}
+
+	/* We failed to reset the block, return a timeout */
+	netdev_err(dev, "SGMII PCS block reset failed.\n");
+	return -ETIMEDOUT;
+}
+
 /* Open and initialize the interface
  */
 static int tse_open(struct net_device *dev)
@@ -1106,6 +1179,15 @@ static int tse_open(struct net_device *dev)
 		netdev_warn(dev, "TSE revision %x\n", priv->revision);
 
 	spin_lock(&priv->mac_cfg_lock);
+	/* no-op if MAC not operating in SGMII mode*/
+	ret = init_sgmii_pcs(dev);
+	if (ret) {
+		netdev_err(dev,
+			   "Cannot init the SGMII PCS (error: %d)\n", ret);
+		spin_unlock(&priv->mac_cfg_lock);
+		goto phy_error;
+	}
+
 	ret = reset_mac(priv);
 	/* Note that reset_mac will fail if the clocks are gated by the PHY
 	 * due to the PHY being put into isolation or power down mode.
@@ -1328,11 +1410,13 @@ static int altera_tse_probe(struct platform_device *pdev)
 		if (upper_32_bits(priv->rxdescmem_busaddr)) {
 			dev_dbg(priv->device,
 				"SGDMA bus addresses greater than 32-bits\n");
+			ret = -EINVAL;
 			goto err_free_netdev;
 		}
 		if (upper_32_bits(priv->txdescmem_busaddr)) {
 			dev_dbg(priv->device,
 				"SGDMA bus addresses greater than 32-bits\n");
+			ret = -EINVAL;
 			goto err_free_netdev;
 		}
 	} else if (priv->dmaops &&
@@ -1436,15 +1520,16 @@ static int altera_tse_probe(struct platform_device *pdev)
 		of_property_read_bool(pdev->dev.of_node,
 				      "altr,has-supplementary-unicast");
 
+	priv->dev->min_mtu = ETH_ZLEN + ETH_FCS_LEN;
 	/* Max MTU is 1500, ETH_DATA_LEN */
-	priv->max_mtu = ETH_DATA_LEN;
+	priv->dev->max_mtu = ETH_DATA_LEN;
 
 	/* Get the max mtu from the device tree. Note that the
 	 * "max-frame-size" parameter is actually max mtu. Definition
 	 * in the ePAPR v1.1 spec and usage differ, so go with usage.
 	 */
 	of_property_read_u32(pdev->dev.of_node, "max-frame-size",
-			     &priv->max_mtu);
+			     &priv->dev->max_mtu);
 
 	/* The DMA buffer size already accounts for an alignment bias
 	 * to avoid unaligned access exceptions for the NIOS processor,

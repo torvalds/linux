@@ -88,11 +88,11 @@
 			#interrupt-cells = <1>;
 			#address-cells = <0>;
 			#size-cells = <0>;
-			interrupt-map = <0 &gic 0 57 0>,
+			interrupt-map = <0 &gic 0 57 IRQ_TYPE_LEVEL_HIGH>,
 					<1 &combiner 12 5>,
 					<2 &combiner 12 6>,
 					<3 &combiner 12 7>,
-					<4 &gic 1 12 0>;
+					<4 &gic 1 12 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};
 
@@ -112,7 +112,7 @@
 	g2d: g2d@10800000 {
 		compatible = "samsung,exynos4212-g2d";
 		reg = <0x10800000 0x1000>;
-		interrupts = <0 89 0>;
+		interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clock CLK_SCLK_FIMG2D>, <&clock CLK_G2D>;
 		clock-names = "sclk_fimg2d", "fimg2d";
 		iommus = <&sysmmu_g2d>;
@@ -127,7 +127,7 @@
 		fimc_lite_0: fimc-lite@12390000 {
 			compatible = "samsung,exynos4212-fimc-lite";
 			reg = <0x12390000 0x1000>;
-			interrupts = <0 105 0>;
+			interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
 			power-domains = <&pd_isp>;
 			clocks = <&clock CLK_FIMC_LITE0>;
 			clock-names = "flite";
@@ -138,7 +138,7 @@
 		fimc_lite_1: fimc-lite@123A0000 {
 			compatible = "samsung,exynos4212-fimc-lite";
 			reg = <0x123A0000 0x1000>;
-			interrupts = <0 106 0>;
+			interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
 			power-domains = <&pd_isp>;
 			clocks = <&clock CLK_FIMC_LITE1>;
 			clock-names = "flite";
@@ -147,9 +147,10 @@
 		};
 
 		fimc_is: fimc-is@12000000 {
-			compatible = "samsung,exynos4212-fimc-is", "simple-bus";
+			compatible = "samsung,exynos4212-fimc-is";
 			reg = <0x12000000 0x260000>;
-			interrupts = <0 90 0>, <0 95 0>;
+			interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
 			power-domains = <&pd_isp>;
 			clocks = <&clock CLK_FIMC_LITE0>,
 				 <&clock CLK_FIMC_LITE1>, <&clock CLK_PPMUISPX>,
@@ -200,7 +201,7 @@
 	mshc_0: mmc@12550000 {
 		compatible = "samsung,exynos4412-dw-mshc";
 		reg = <0x12550000 0x1000>;
-		interrupts = <0 77 0>;
+		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		fifo-depth = <0x80>;
@@ -461,11 +462,26 @@
 };
 
 &combiner {
-	interrupts = <0 0 0>, <0 1 0>, <0 2 0>, <0 3 0>,
-		     <0 4 0>, <0 5 0>, <0 6 0>, <0 7 0>,
-		     <0 8 0>, <0 9 0>, <0 10 0>, <0 11 0>,
-		     <0 12 0>, <0 13 0>, <0 14 0>, <0 15 0>,
-		     <0 107 0>, <0 108 0>, <0 48 0>, <0 42 0>;
+	interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 };
 
 &exynos_usbphy {
@@ -529,18 +545,18 @@
 &pinctrl_0 {
 	compatible = "samsung,exynos4x12-pinctrl";
 	reg = <0x11400000 0x1000>;
-	interrupts = <0 47 0>;
+	interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
 };
 
 &pinctrl_1 {
 	compatible = "samsung,exynos4x12-pinctrl";
 	reg = <0x11000000 0x1000>;
-	interrupts = <0 46 0>;
+	interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 
 	wakup_eint: wakeup-interrupt-controller {
 		compatible = "samsung,exynos4210-wakeup-eint";
 		interrupt-parent = <&gic>;
-		interrupts = <0 32 0>;
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 	};
 };
 
@@ -554,7 +570,7 @@
 &pinctrl_3 {
 	compatible = "samsung,exynos4x12-pinctrl";
 	reg = <0x106E0000 0x1000>;
-	interrupts = <0 72 0>;
+	interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
 };
 
 &pmu_system_controller {

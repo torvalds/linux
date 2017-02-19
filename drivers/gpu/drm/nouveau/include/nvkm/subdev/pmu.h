@@ -35,6 +35,8 @@ int gk110_pmu_new(struct nvkm_device *, int, struct nvkm_pmu **);
 int gk208_pmu_new(struct nvkm_device *, int, struct nvkm_pmu **);
 int gk20a_pmu_new(struct nvkm_device *, int, struct nvkm_pmu **);
 int gm107_pmu_new(struct nvkm_device *, int, struct nvkm_pmu **);
+int gp100_pmu_new(struct nvkm_device *, int, struct nvkm_pmu **);
+int gp102_pmu_new(struct nvkm_device *, int, struct nvkm_pmu **);
 
 /* interface to MEMX process running on PMU */
 struct nvkm_memx;
