@@ -65,12 +65,12 @@
 #define IWL_A000_TX_POWER_VERSION	0xffff /* meaningless */
 
 /* Memory offsets and lengths */
-#define IWL_A000_DCCM_OFFSET		0x800000
-#define IWL_A000_DCCM_LEN		0x18000
+#define IWL_A000_DCCM_OFFSET		0x800000 /* LMAC1 */
+#define IWL_A000_DCCM_LEN		0x10000 /* LMAC1 */
 #define IWL_A000_DCCM2_OFFSET		0x880000
 #define IWL_A000_DCCM2_LEN		0x8000
 #define IWL_A000_SMEM_OFFSET		0x400000
-#define IWL_A000_SMEM_LEN		0x68000
+#define IWL_A000_SMEM_LEN		0xD0000
 
 #define IWL_A000_JF_FW_PRE	"iwlwifi-Qu-a0-jf-b0-"
 #define IWL_A000_HR_FW_PRE	"iwlwifi-Qu-a0-hr-a0-"
