@@ -417,6 +417,14 @@ config SPI_NUC900
 	help
 	  SPI driver for Nuvoton NUC900 series ARM SoCs
 
+config SPI_LANTIQ_SSC
+	tristate "Lantiq SSC SPI controller"
+	depends on LANTIQ || COMPILE_TEST
+	help
+	  This driver supports the Lantiq SSC SPI controller in master
+	  mode. This controller is found on Intel (former Lantiq) SoCs like
+	  the Danube, Falcon, xRX200, xRX300.
+
 config SPI_OC_TINY
 	tristate "OpenCores tiny SPI"
 	depends on GPIOLIB || COMPILE_TEST
