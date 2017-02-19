@@ -1785,6 +1785,9 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 		ba_info.status.status_driver_data[0] =
 			(void *)(uintptr_t)ba_res->reduced_txp;
 
+		if (!le16_to_cpu(ba_res->tfd_cnt))
+			goto out;
+
 		/*
 		 * TODO:
 		 * When supporting multi TID aggregations - we need to move
@@ -1802,6 +1805,7 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 				   le16_to_cpu(ba_res->tfd[0].tfd_index),
 				   &ba_info, le32_to_cpu(ba_res->tx_rate));
 
+out:
 		IWL_DEBUG_TX_REPLY(mvm,
 				   "BA_NOTIFICATION Received from sta_id = %d, flags %x, sent:%d, acked:%d\n",
 				   sta_id, le32_to_cpu(ba_res->flags),
