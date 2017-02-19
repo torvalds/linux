@@ -8748,6 +8748,7 @@ F:	drivers/regulator/tps65217-regulator.c
 F:	drivers/regulator/tps65218-regulator.c
 F:	drivers/regulator/tps65910-regulator.c
 F:	drivers/regulator/twl-regulator.c
+F:	drivers/regulator/twl6030-regulator.c
 F:	include/linux/i2c-omap.h
 
 OMAP DEVICE TREE SUPPORT
