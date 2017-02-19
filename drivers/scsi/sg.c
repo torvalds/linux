@@ -1753,6 +1753,10 @@ sg_start_req(Sg_request *srp, unsigned char *cmd)
 			return res;
 
 		iov_iter_truncate(&i, hp->dxfer_len);
+		if (!iov_iter_count(&i)) {
+			kfree(iov);
+			return -EINVAL;
+		}
 
 		res = blk_rq_map_user_iov(q, rq, md, &i, GFP_ATOMIC);
 		kfree(iov);
