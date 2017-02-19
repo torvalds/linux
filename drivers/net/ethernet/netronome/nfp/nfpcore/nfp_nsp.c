@@ -99,6 +99,10 @@ enum nfp_nsp_cmd {
 struct nfp_nsp {
 	struct nfp_cpp *cpp;
 	struct nfp_resource *res;
+	struct {
+		u16 major;
+		u16 minor;
+	} ver;
 };
 
 static int nfp_nsp_check(struct nfp_nsp *state)
@@ -120,11 +124,12 @@ static int nfp_nsp_check(struct nfp_nsp *state)
 		return -ENODEV;
 	}
 
-	if (FIELD_GET(NSP_STATUS_MAJOR, reg) != NSP_MAJOR ||
-	    FIELD_GET(NSP_STATUS_MINOR, reg) < NSP_MINOR) {
-		nfp_err(cpp, "Unsupported ABI %lld.%lld\n",
-			FIELD_GET(NSP_STATUS_MAJOR, reg),
-			FIELD_GET(NSP_STATUS_MINOR, reg));
+	state->ver.major = FIELD_GET(NSP_STATUS_MAJOR, reg);
+	state->ver.minor = FIELD_GET(NSP_STATUS_MINOR, reg);
+
+	if (state->ver.major != NSP_MAJOR || state->ver.minor < NSP_MINOR) {
+		nfp_err(cpp, "Unsupported ABI %hu.%hu\n",
+			state->ver.major, state->ver.minor);
 		return -EINVAL;
 	}
 
@@ -301,15 +306,9 @@ static int nfp_nsp_command_buf(struct nfp_nsp *nsp, u16 code, u32 option,
 	int ret, err;
 	u32 cpp_id;
 
-	err = nfp_cpp_readq(cpp, nfp_resource_cpp_id(nsp->res),
-			    nfp_resource_address(nsp->res) + NSP_STATUS, &reg);
-	if (err < 0)
-		return err;
-
-	if (FIELD_GET(NSP_STATUS_MINOR, reg) < 13) {
-		nfp_err(cpp, "NSP: Code 0x%04x with buffer not supported (ABI %lld.%lld)\n",
-			code, FIELD_GET(NSP_STATUS_MAJOR, reg),
-			FIELD_GET(NSP_STATUS_MINOR, reg));
+	if (nsp->ver.minor < 13) {
+		nfp_err(cpp, "NSP: Code 0x%04x with buffer not supported (ABI %hu.%hu)\n",
+			code, nsp->ver.major, nsp->ver.minor);
 		return -EOPNOTSUPP;
 	}
 
