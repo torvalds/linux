@@ -3875,45 +3875,50 @@ out_overflow:
 	return -EIO;
 }
 
+static ssize_t decode_nfs4_string(struct xdr_stream *xdr,
+		struct nfs4_string *name, gfp_t gfp_flags)
+{
+	ssize_t ret;
+
+	ret = xdr_stream_decode_string_dup(xdr, &name->data,
+			XDR_MAX_NETOBJ, gfp_flags);
+	name->len = 0;
+	if (ret > 0)
+		name->len = ret;
+	return ret;
+}
+
 static int decode_attr_owner(struct xdr_stream *xdr, uint32_t *bitmap,
 		const struct nfs_server *server, kuid_t *uid,
 		struct nfs4_string *owner_name)
 {
-	uint32_t len;
-	__be32 *p;
-	int ret = 0;
+	ssize_t len;
+	char *p;
 
 	*uid = make_kuid(&init_user_ns, -2);
 	if (unlikely(bitmap[1] & (FATTR4_WORD1_OWNER - 1U)))
 		return -EIO;
-	if (likely(bitmap[1] & FATTR4_WORD1_OWNER)) {
-		p = xdr_inline_decode(xdr, 4);
-		if (unlikely(!p))
-			goto out_overflow;
-		len = be32_to_cpup(p);
-		p = xdr_inline_decode(xdr, len);
-		if (unlikely(!p))
-			goto out_overflow;
-		if (owner_name != NULL) {
-			owner_name->data = kmemdup(p, len, GFP_NOWAIT);
-			if (owner_name->data != NULL) {
-				owner_name->len = len;
-				ret = NFS_ATTR_FATTR_OWNER_NAME;
-			}
-		} else if (len < XDR_MAX_NETOBJ) {
-			if (nfs_map_name_to_uid(server, (char *)p, len, uid) == 0)
-				ret = NFS_ATTR_FATTR_OWNER;
-			else
-				dprintk("%s: nfs_map_name_to_uid failed!\n",
-						__func__);
-		} else
-			dprintk("%s: name too long (%u)!\n",
-					__func__, len);
-		bitmap[1] &= ~FATTR4_WORD1_OWNER;
+	if (!(bitmap[1] & FATTR4_WORD1_OWNER))
+		return 0;
+	bitmap[1] &= ~FATTR4_WORD1_OWNER;
+
+	if (owner_name != NULL) {
+		len = decode_nfs4_string(xdr, owner_name, GFP_NOWAIT);
+		if (len <= 0)
+			goto out;
+		dprintk("%s: name=%s\n", __func__, owner_name->data);
+		return NFS_ATTR_FATTR_OWNER_NAME;
+	} else {
+		len = xdr_stream_decode_opaque_inline(xdr, (void **)&p,
+				XDR_MAX_NETOBJ);
+		if (len <= 0 || nfs_map_name_to_uid(server, p, len, uid) != 0)
+			goto out;
+		dprintk("%s: uid=%d\n", __func__, (int)from_kuid(&init_user_ns, *uid));
+		return NFS_ATTR_FATTR_OWNER;
 	}
-	dprintk("%s: uid=%d\n", __func__, (int)from_kuid(&init_user_ns, *uid));
-	return ret;
-out_overflow:
+out:
+	if (len != -EBADMSG)
+		return 0;
 	print_overflow_msg(__func__, xdr);
 	return -EIO;
 }
@@ -3922,41 +3927,33 @@ static int decode_attr_group(struct xdr_stream *xdr, uint32_t *bitmap,
 		const struct nfs_server *server, kgid_t *gid,
 		struct nfs4_string *group_name)
 {
-	uint32_t len;
-	__be32 *p;
-	int ret = 0;
+	ssize_t len;
+	char *p;
 
 	*gid = make_kgid(&init_user_ns, -2);
 	if (unlikely(bitmap[1] & (FATTR4_WORD1_OWNER_GROUP - 1U)))
 		return -EIO;
-	if (likely(bitmap[1] & FATTR4_WORD1_OWNER_GROUP)) {
-		p = xdr_inline_decode(xdr, 4);
-		if (unlikely(!p))
-			goto out_overflow;
-		len = be32_to_cpup(p);
-		p = xdr_inline_decode(xdr, len);
-		if (unlikely(!p))
-			goto out_overflow;
-		if (group_name != NULL) {
-			group_name->data = kmemdup(p, len, GFP_NOWAIT);
-			if (group_name->data != NULL) {
-				group_name->len = len;
-				ret = NFS_ATTR_FATTR_GROUP_NAME;
-			}
-		} else if (len < XDR_MAX_NETOBJ) {
-			if (nfs_map_group_to_gid(server, (char *)p, len, gid) == 0)
-				ret = NFS_ATTR_FATTR_GROUP;
-			else
-				dprintk("%s: nfs_map_group_to_gid failed!\n",
-						__func__);
-		} else
-			dprintk("%s: name too long (%u)!\n",
-					__func__, len);
-		bitmap[1] &= ~FATTR4_WORD1_OWNER_GROUP;
+	if (!(bitmap[1] & FATTR4_WORD1_OWNER_GROUP))
+		return 0;
+	bitmap[1] &= ~FATTR4_WORD1_OWNER_GROUP;
+
+	if (group_name != NULL) {
+		len = decode_nfs4_string(xdr, group_name, GFP_NOWAIT);
+		if (len <= 0)
+			goto out;
+		dprintk("%s: name=%s\n", __func__, group_name->data);
+		return NFS_ATTR_FATTR_OWNER_NAME;
+	} else {
+		len = xdr_stream_decode_opaque_inline(xdr, (void **)&p,
+				XDR_MAX_NETOBJ);
+		if (len <= 0 || nfs_map_group_to_gid(server, p, len, gid) != 0)
+			goto out;
+		dprintk("%s: gid=%d\n", __func__, (int)from_kgid(&init_user_ns, *gid));
+		return NFS_ATTR_FATTR_GROUP;
 	}
-	dprintk("%s: gid=%d\n", __func__, (int)from_kgid(&init_user_ns, *gid));
-	return ret;
-out_overflow:
+out:
+	if (len != -EBADMSG)
+		return 0;
 	print_overflow_msg(__func__, xdr);
 	return -EIO;
 }
