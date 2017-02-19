@@ -33,7 +33,7 @@
 #include <asm/pcic.h>
 #include <asm/timex.h>
 #include <asm/timer.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/irq_regs.h>
 
 #include "kernel.h"

@@ -1397,6 +1397,8 @@ static inline int sti_uniperiph_get_unip_tdm_frame_size(struct uniperif *uni)
 	return (uni->tdm_slot.slots * uni->tdm_slot.slot_width / 8);
 }
 
+int  sti_uniperiph_reset(struct uniperif *uni);
+
 int sti_uniperiph_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 			       unsigned int rx_mask, int slots,
 			       int slot_width);

@@ -2237,7 +2237,7 @@ static int musb_urb_enqueue(
 	 * Some musb cores don't support high bandwidth ISO transfers; and
 	 * we don't (yet!) support high bandwidth interrupt transfers.
 	 */
-	qh->hb_mult = 1 + ((qh->maxpacket >> 11) & 0x03);
+	qh->hb_mult = usb_endpoint_maxp_mult(epd);
 	if (qh->hb_mult > 1) {
 		int ok = (qh->type == USB_ENDPOINT_XFER_ISOC);
 

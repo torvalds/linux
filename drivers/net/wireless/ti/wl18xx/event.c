@@ -218,5 +218,33 @@ int wl18xx_process_mailbox_events(struct wl1271 *wl)
 	if (vector & FW_LOGGER_INDICATION)
 		wlcore_event_fw_logger(wl);
 
+	if (vector & RX_BA_WIN_SIZE_CHANGE_EVENT_ID) {
+		struct wl12xx_vif *wlvif;
+		struct ieee80211_vif *vif;
+		struct ieee80211_sta *sta;
+		u8 link_id = mbox->rx_ba_link_id;
+		u8 win_size = mbox->rx_ba_win_size;
+		const u8 *addr;
+
+		wlvif = wl->links[link_id].wlvif;
+		vif = wl12xx_wlvif_to_vif(wlvif);
+
+		/* Update RX aggregation window size and call
+		 * MAC routine to stop active RX aggregations for this link
+		 */
+		if (wlvif->bss_type != BSS_TYPE_AP_BSS)
+			addr = vif->bss_conf.bssid;
+		else
+			addr = wl->links[link_id].addr;
+
+		sta = ieee80211_find_sta(vif, addr);
+		if (sta) {
+			sta->max_rx_aggregation_subframes = win_size;
+			ieee80211_stop_rx_ba_session(vif,
+						wl->links[link_id].ba_bitmap,
+						addr);
+		}
+	}
+
 	return 0;
 }

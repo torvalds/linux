@@ -14,7 +14,7 @@
 #include <linux/consolemap.h>
 #include <linux/kbd_kern.h>
 #include <linux/kbd_diacr.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "keyboard.h"
 

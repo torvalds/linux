@@ -216,6 +216,36 @@ qla2x00_reset_active(scsi_qla_host_t *vha)
 }
 
 static inline srb_t *
+qla2xxx_get_qpair_sp(struct qla_qpair *qpair, fc_port_t *fcport, gfp_t flag)
+{
+	srb_t *sp = NULL;
+	uint8_t bail;
+
+	QLA_QPAIR_MARK_BUSY(qpair, bail);
+	if (unlikely(bail))
+		return NULL;
+
+	sp = mempool_alloc(qpair->srb_mempool, flag);
+	if (!sp)
+		goto done;
+
+	memset(sp, 0, sizeof(*sp));
+	sp->fcport = fcport;
+	sp->iocbs = 1;
+done:
+	if (!sp)
+		QLA_QPAIR_MARK_NOT_BUSY(qpair);
+	return sp;
+}
+
+static inline void
+qla2xxx_rel_qpair_sp(struct qla_qpair *qpair, srb_t *sp)
+{
+	mempool_free(sp, qpair->srb_mempool);
+	QLA_QPAIR_MARK_NOT_BUSY(qpair);
+}
+
+static inline srb_t *
 qla2x00_get_sp(scsi_qla_host_t *vha, fc_port_t *fcport, gfp_t flag)
 {
 	srb_t *sp = NULL;

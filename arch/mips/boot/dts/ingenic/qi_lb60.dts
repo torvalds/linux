@@ -13,3 +13,7 @@
 &ext {
 	clock-frequency = <12000000>;
 };
+
+&rtc_dev {
+	system-power-controller;
+};

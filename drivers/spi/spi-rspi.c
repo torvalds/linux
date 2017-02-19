@@ -1226,10 +1226,8 @@ static int rspi_probe(struct platform_device *pdev)
 	const struct spi_ops *ops;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct rspi_data));
-	if (master == NULL) {
-		dev_err(&pdev->dev, "spi_alloc_master error.\n");
+	if (master == NULL)
 		return -ENOMEM;
-	}
 
 	of_id = of_match_device(rspi_of_match, &pdev->dev);
 	if (of_id) {

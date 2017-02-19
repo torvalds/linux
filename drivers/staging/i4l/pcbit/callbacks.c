@@ -22,7 +22,7 @@
 #include <linux/mm.h>
 #include <linux/skbuff.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 
 #include <linux/isdnif.h>
 

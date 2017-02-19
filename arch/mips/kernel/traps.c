@@ -61,7 +61,7 @@
 #include <asm/siginfo.h>
 #include <asm/tlbdebug.h>
 #include <asm/traps.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/watch.h>
 #include <asm/mmu_context.h>
 #include <asm/types.h>

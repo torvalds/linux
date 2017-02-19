@@ -83,10 +83,12 @@ static bool rpfilter_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		return true ^ invert;
 
 	iph = ip_hdr(skb);
-	if (ipv4_is_multicast(iph->daddr)) {
-		if (ipv4_is_zeronet(iph->saddr))
-			return ipv4_is_local_multicast(iph->daddr) ^ invert;
+	if (ipv4_is_zeronet(iph->saddr)) {
+		if (ipv4_is_lbcast(iph->daddr) ||
+		    ipv4_is_local_multicast(iph->daddr))
+			return true ^ invert;
 	}
+
 	flow.flowi4_iif = LOOPBACK_IFINDEX;
 	flow.daddr = iph->saddr;
 	flow.saddr = rpfilter_get_saddr(iph->daddr);
@@ -95,7 +97,7 @@ static bool rpfilter_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	flow.flowi4_tos = RT_TOS(iph->tos);
 	flow.flowi4_scope = RT_SCOPE_UNIVERSE;
 
-	return rpfilter_lookup_reverse(par->net, &flow, par->in, info->flags) ^ invert;
+	return rpfilter_lookup_reverse(xt_net(par), &flow, xt_in(par), info->flags) ^ invert;
 }
 
 static int rpfilter_check(const struct xt_mtchk_param *par)

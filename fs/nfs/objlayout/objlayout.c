@@ -504,10 +504,10 @@ encode_accumulated_error(struct objlayout *objlay, __be32 *p)
 }
 
 void
-objlayout_encode_layoutreturn(struct pnfs_layout_hdr *pnfslay,
-			      struct xdr_stream *xdr,
+objlayout_encode_layoutreturn(struct xdr_stream *xdr,
 			      const struct nfs4_layoutreturn_args *args)
 {
+	struct pnfs_layout_hdr *pnfslay = args->layout;
 	struct objlayout *objlay = OBJLAYOUT(pnfslay);
 	struct objlayout_io_res *oir, *tmp;
 	__be32 *start;

@@ -18,7 +18,6 @@
  * This is the main header file to be included in each DLM source file.
  */
 
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/types.h>
@@ -39,7 +38,7 @@
 #include <linux/mutex.h>
 #include <linux/idr.h>
 #include <linux/ratelimit.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/dlm.h>
 #include "config.h"

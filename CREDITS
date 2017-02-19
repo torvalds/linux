@@ -2775,6 +2775,10 @@ S: C/ Mieses 20, 9-B
 S: Valladolid 47009
 S: Spain
 
+N: Peter Oruba
+D: AMD Microcode loader driver
+S: Germany
+
 N: Jens Osterkamp
 E: jens@de.ibm.com
 D: Maintainer of Spidernet network driver for Cell
@@ -3945,8 +3949,6 @@ E: gwingerde@gmail.com
 D: Ralink rt2x00 WLAN driver
 D: Minix V2 file-system
 D: Misc fixes
-S: Geessinkweg 177
-S: 7544 TX Enschede
 S: The Netherlands
 
 N: Lars Wirzenius

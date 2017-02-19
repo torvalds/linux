@@ -206,10 +206,10 @@ static void cik_sdma_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
 
 	for (i = 0; i < count; i++)
 		if (sdma && sdma->burst_nop && (i == 0))
-			amdgpu_ring_write(ring, ring->nop |
+			amdgpu_ring_write(ring, ring->funcs->nop |
 					  SDMA_NOP_COUNT(count - 1));
 		else
-			amdgpu_ring_write(ring, ring->nop);
+			amdgpu_ring_write(ring, ring->funcs->nop);
 }
 
 /**
@@ -622,7 +622,7 @@ static int cik_sdma_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_ib ib;
-	struct fence *f = NULL;
+	struct dma_fence *f = NULL;
 	unsigned index;
 	u32 tmp = 0;
 	u64 gpu_addr;
@@ -655,7 +655,7 @@ static int cik_sdma_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	if (r)
 		goto err1;
 
-	r = fence_wait_timeout(f, false, timeout);
+	r = dma_fence_wait_timeout(f, false, timeout);
 	if (r == 0) {
 		DRM_ERROR("amdgpu: IB test timed out\n");
 		r = -ETIMEDOUT;
@@ -675,7 +675,7 @@ static int cik_sdma_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 
 err1:
 	amdgpu_ib_free(adev, &ib, NULL);
-	fence_put(f);
+	dma_fence_put(f);
 err0:
 	amdgpu_wb_free(adev, index);
 	return r;
@@ -848,22 +848,6 @@ static void cik_sdma_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, (0xfff << 16) | 10); /* retry count, poll interval */
 }
 
-static unsigned cik_sdma_ring_get_emit_ib_size(struct amdgpu_ring *ring)
-{
-	return
-		7 + 4; /* cik_sdma_ring_emit_ib */
-}
-
-static unsigned cik_sdma_ring_get_dma_frame_size(struct amdgpu_ring *ring)
-{
-	return
-		6 + /* cik_sdma_ring_emit_hdp_flush */
-		3 + /* cik_sdma_ring_emit_hdp_invalidate */
-		6 + /* cik_sdma_ring_emit_pipeline_sync */
-		12 + /* cik_sdma_ring_emit_vm_flush */
-		9 + 9 + 9; /* cik_sdma_ring_emit_fence x3 for user fence, vm fence */
-}
-
 static void cik_enable_sdma_mgcg(struct amdgpu_device *adev,
 				 bool enable)
 {
@@ -959,11 +943,10 @@ static int cik_sdma_sw_init(void *handle)
 		ring->ring_obj = NULL;
 		sprintf(ring->name, "sdma%d", i);
 		r = amdgpu_ring_init(adev, ring, 1024,
-				     SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0), 0xf,
 				     &adev->sdma.trap_irq,
 				     (i == 0) ?
-				     AMDGPU_SDMA_IRQ_TRAP0 : AMDGPU_SDMA_IRQ_TRAP1,
-				     AMDGPU_RING_TYPE_SDMA);
+				     AMDGPU_SDMA_IRQ_TRAP0 :
+				     AMDGPU_SDMA_IRQ_TRAP1);
 		if (r)
 			return r;
 	}
@@ -1207,7 +1190,7 @@ static int cik_sdma_set_powergating_state(void *handle,
 	return 0;
 }
 
-const struct amd_ip_funcs cik_sdma_ip_funcs = {
+static const struct amd_ip_funcs cik_sdma_ip_funcs = {
 	.name = "cik_sdma",
 	.early_init = cik_sdma_early_init,
 	.late_init = NULL,
@@ -1225,10 +1208,19 @@ const struct amd_ip_funcs cik_sdma_ip_funcs = {
 };
 
 static const struct amdgpu_ring_funcs cik_sdma_ring_funcs = {
+	.type = AMDGPU_RING_TYPE_SDMA,
+	.align_mask = 0xf,
+	.nop = SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0),
 	.get_rptr = cik_sdma_ring_get_rptr,
 	.get_wptr = cik_sdma_ring_get_wptr,
 	.set_wptr = cik_sdma_ring_set_wptr,
-	.parse_cs = NULL,
+	.emit_frame_size =
+		6 + /* cik_sdma_ring_emit_hdp_flush */
+		3 + /* cik_sdma_ring_emit_hdp_invalidate */
+		6 + /* cik_sdma_ring_emit_pipeline_sync */
+		12 + /* cik_sdma_ring_emit_vm_flush */
+		9 + 9 + 9, /* cik_sdma_ring_emit_fence x3 for user fence, vm fence */
+	.emit_ib_size = 7 + 4, /* cik_sdma_ring_emit_ib */
 	.emit_ib = cik_sdma_ring_emit_ib,
 	.emit_fence = cik_sdma_ring_emit_fence,
 	.emit_pipeline_sync = cik_sdma_ring_emit_pipeline_sync,
@@ -1239,8 +1231,6 @@ static const struct amdgpu_ring_funcs cik_sdma_ring_funcs = {
 	.test_ib = cik_sdma_ring_test_ib,
 	.insert_nop = cik_sdma_ring_insert_nop,
 	.pad_ib = cik_sdma_ring_pad_ib,
-	.get_emit_ib_size = cik_sdma_ring_get_emit_ib_size,
-	.get_dma_frame_size = cik_sdma_ring_get_dma_frame_size,
 };
 
 static void cik_sdma_set_ring_funcs(struct amdgpu_device *adev)
@@ -1352,3 +1342,12 @@ static void cik_sdma_set_vm_pte_funcs(struct amdgpu_device *adev)
 		adev->vm_manager.vm_pte_num_rings = adev->sdma.num_instances;
 	}
 }
+
+const struct amdgpu_ip_block_version cik_sdma_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_SDMA,
+	.major = 2,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &cik_sdma_ip_funcs,
+};

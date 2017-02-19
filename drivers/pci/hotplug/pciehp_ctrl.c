@@ -31,6 +31,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/slab.h>
+#include <linux/pm_runtime.h>
 #include <linux/pci.h>
 #include "../pci.h"
 #include "pciehp.h"
@@ -98,6 +99,7 @@ static int board_added(struct slot *p_slot)
 	pciehp_green_led_blink(p_slot);
 
 	/* Check link training status */
+	pm_runtime_get_sync(&ctrl->pcie->port->dev);
 	retval = pciehp_check_link_status(ctrl);
 	if (retval) {
 		ctrl_err(ctrl, "Failed to check link status\n");
@@ -118,12 +120,14 @@ static int board_added(struct slot *p_slot)
 		if (retval != -EEXIST)
 			goto err_exit;
 	}
+	pm_runtime_put(&ctrl->pcie->port->dev);
 
 	pciehp_green_led_on(p_slot);
 	pciehp_set_attention_status(p_slot, 0);
 	return 0;
 
 err_exit:
+	pm_runtime_put(&ctrl->pcie->port->dev);
 	set_slot_off(ctrl, p_slot);
 	return retval;
 }
@@ -137,7 +141,9 @@ static int remove_board(struct slot *p_slot)
 	int retval;
 	struct controller *ctrl = p_slot->ctrl;
 
+	pm_runtime_get_sync(&ctrl->pcie->port->dev);
 	retval = pciehp_unconfigure_device(p_slot);
+	pm_runtime_put(&ctrl->pcie->port->dev);
 	if (retval)
 		return retval;
 
@@ -410,7 +416,7 @@ int pciehp_enable_slot(struct slot *p_slot)
 		if (getstatus) {
 			ctrl_info(ctrl, "Slot(%s): Already enabled\n",
 				  slot_name(p_slot));
-			return -EINVAL;
+			return 0;
 		}
 	}
 

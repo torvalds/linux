@@ -268,7 +268,7 @@ static int si_ih_set_powergating_state(void *handle,
 	return 0;
 }
 
-const struct amd_ip_funcs si_ih_ip_funcs = {
+static const struct amd_ip_funcs si_ih_ip_funcs = {
 	.name = "si_ih",
 	.early_init = si_ih_early_init,
 	.late_init = NULL,
@@ -297,3 +297,11 @@ static void si_ih_set_interrupt_funcs(struct amdgpu_device *adev)
 		adev->irq.ih_funcs = &si_ih_funcs;
 }
 
+const struct amdgpu_ip_block_version si_ih_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_IH,
+	.major = 1,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &si_ih_ip_funcs,
+};

@@ -32,19 +32,20 @@ static struct class *fpga_mgr_class;
 /**
  * fpga_mgr_buf_load - load fpga from image in buffer
  * @mgr:	fpga manager
- * @flags:	flags setting fpga confuration modes
+ * @info:	fpga image specific information
  * @buf:	buffer contain fpga image
  * @count:	byte count of buf
  *
  * Step the low level fpga manager through the device-specific steps of getting
  * an FPGA ready to be configured, writing the image to it, then doing whatever
  * post-configuration steps necessary.  This code assumes the caller got the
- * mgr pointer from of_fpga_mgr_get() and checked that it is not an error code.
+ * mgr pointer from of_fpga_mgr_get() or fpga_mgr_get() and checked that it is
+ * not an error code.
  *
  * Return: 0 on success, negative error code otherwise.
  */
-int fpga_mgr_buf_load(struct fpga_manager *mgr, u32 flags, const char *buf,
-		      size_t count)
+int fpga_mgr_buf_load(struct fpga_manager *mgr, struct fpga_image_info *info,
+		      const char *buf, size_t count)
 {
 	struct device *dev = &mgr->dev;
 	int ret;
@@ -52,10 +53,12 @@ int fpga_mgr_buf_load(struct fpga_manager *mgr, u32 flags, const char *buf,
 	/*
 	 * Call the low level driver's write_init function.  This will do the
 	 * device-specific things to get the FPGA into the state where it is
-	 * ready to receive an FPGA image.
+	 * ready to receive an FPGA image. The low level driver only gets to
+	 * see the first initial_header_size bytes in the buffer.
 	 */
 	mgr->state = FPGA_MGR_STATE_WRITE_INIT;
-	ret = mgr->mops->write_init(mgr, flags, buf, count);
+	ret = mgr->mops->write_init(mgr, info, buf,
+				    min(mgr->mops->initial_header_size, count));
 	if (ret) {
 		dev_err(dev, "Error preparing FPGA for writing\n");
 		mgr->state = FPGA_MGR_STATE_WRITE_INIT_ERR;
@@ -78,7 +81,7 @@ int fpga_mgr_buf_load(struct fpga_manager *mgr, u32 flags, const char *buf,
 	 * steps to finish and set the FPGA into operating mode.
 	 */
 	mgr->state = FPGA_MGR_STATE_WRITE_COMPLETE;
-	ret = mgr->mops->write_complete(mgr, flags);
+	ret = mgr->mops->write_complete(mgr, info);
 	if (ret) {
 		dev_err(dev, "Error after writing image data to FPGA\n");
 		mgr->state = FPGA_MGR_STATE_WRITE_COMPLETE_ERR;
@@ -93,17 +96,19 @@ EXPORT_SYMBOL_GPL(fpga_mgr_buf_load);
 /**
  * fpga_mgr_firmware_load - request firmware and load to fpga
  * @mgr:	fpga manager
- * @flags:	flags setting fpga confuration modes
+ * @info:	fpga image specific information
  * @image_name:	name of image file on the firmware search path
  *
  * Request an FPGA image using the firmware class, then write out to the FPGA.
  * Update the state before each step to provide info on what step failed if
  * there is a failure.  This code assumes the caller got the mgr pointer
- * from of_fpga_mgr_get() and checked that it is not an error code.
+ * from of_fpga_mgr_get() or fpga_mgr_get() and checked that it is not an error
+ * code.
  *
  * Return: 0 on success, negative error code otherwise.
  */
-int fpga_mgr_firmware_load(struct fpga_manager *mgr, u32 flags,
+int fpga_mgr_firmware_load(struct fpga_manager *mgr,
+			   struct fpga_image_info *info,
 			   const char *image_name)
 {
 	struct device *dev = &mgr->dev;
@@ -121,7 +126,7 @@ int fpga_mgr_firmware_load(struct fpga_manager *mgr, u32 flags,
 		return ret;
 	}
 
-	ret = fpga_mgr_buf_load(mgr, flags, fw->data, fw->size);
+	ret = fpga_mgr_buf_load(mgr, info, fw->data, fw->size);
 
 	release_firmware(fw);
 
@@ -181,29 +186,10 @@ static struct attribute *fpga_mgr_attrs[] = {
 };
 ATTRIBUTE_GROUPS(fpga_mgr);
 
-static int fpga_mgr_of_node_match(struct device *dev, const void *data)
-{
-	return dev->of_node == data;
-}
-
-/**
- * of_fpga_mgr_get - get an exclusive reference to a fpga mgr
- * @node:	device node
- *
- * Given a device node, get an exclusive reference to a fpga mgr.
- *
- * Return: fpga manager struct or IS_ERR() condition containing error code.
- */
-struct fpga_manager *of_fpga_mgr_get(struct device_node *node)
+struct fpga_manager *__fpga_mgr_get(struct device *dev)
 {
 	struct fpga_manager *mgr;
-	struct device *dev;
 	int ret = -ENODEV;
-
-	dev = class_find_device(fpga_mgr_class, NULL, node,
-				fpga_mgr_of_node_match);
-	if (!dev)
-		return ERR_PTR(-ENODEV);
 
 	mgr = to_fpga_manager(dev);
 	if (!mgr)
@@ -225,6 +211,55 @@ err_ll_mod:
 err_dev:
 	put_device(dev);
 	return ERR_PTR(ret);
+}
+
+static int fpga_mgr_dev_match(struct device *dev, const void *data)
+{
+	return dev->parent == data;
+}
+
+/**
+ * fpga_mgr_get - get an exclusive reference to a fpga mgr
+ * @dev:	parent device that fpga mgr was registered with
+ *
+ * Given a device, get an exclusive reference to a fpga mgr.
+ *
+ * Return: fpga manager struct or IS_ERR() condition containing error code.
+ */
+struct fpga_manager *fpga_mgr_get(struct device *dev)
+{
+	struct device *mgr_dev = class_find_device(fpga_mgr_class, NULL, dev,
+						   fpga_mgr_dev_match);
+	if (!mgr_dev)
+		return ERR_PTR(-ENODEV);
+
+	return __fpga_mgr_get(mgr_dev);
+}
+EXPORT_SYMBOL_GPL(fpga_mgr_get);
+
+static int fpga_mgr_of_node_match(struct device *dev, const void *data)
+{
+	return dev->of_node == data;
+}
+
+/**
+ * of_fpga_mgr_get - get an exclusive reference to a fpga mgr
+ * @node:	device node
+ *
+ * Given a device node, get an exclusive reference to a fpga mgr.
+ *
+ * Return: fpga manager struct or IS_ERR() condition containing error code.
+ */
+struct fpga_manager *of_fpga_mgr_get(struct device_node *node)
+{
+	struct device *dev;
+
+	dev = class_find_device(fpga_mgr_class, NULL, node,
+				fpga_mgr_of_node_match);
+	if (!dev)
+		return ERR_PTR(-ENODEV);
+
+	return __fpga_mgr_get(dev);
 }
 EXPORT_SYMBOL_GPL(of_fpga_mgr_get);
 

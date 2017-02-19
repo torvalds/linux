@@ -1539,7 +1539,7 @@ static int gr_ep_enable(struct usb_ep *_ep,
 	 * additional transactions.
 	 */
 	max = 0x7ff & usb_endpoint_maxp(desc);
-	nt = 0x3 & (usb_endpoint_maxp(desc) >> 11);
+	nt = usb_endpoint_maxp_mult(desc) - 1;
 	buffer_size = GR_BUFFER_SIZE(epctrl);
 	if (nt && (mode == 0 || mode == 2)) {
 		dev_err(dev->dev,

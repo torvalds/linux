@@ -105,7 +105,7 @@ static void omap_atomic_complete(struct omap_atomic_state_commit *commit)
 
 	dispc_runtime_put();
 
-	drm_atomic_state_free(old_state);
+	drm_atomic_state_put(old_state);
 
 	/* Complete the commit, wake up any waiter. */
 	spin_lock(&priv->commit.lock);
@@ -176,6 +176,7 @@ static int omap_atomic_commit(struct drm_device *dev,
 	/* Swap the state, this is the point of no return. */
 	drm_atomic_helper_swap_state(state, true);
 
+	drm_atomic_state_get(state);
 	if (nonblock)
 		schedule_work(&commit->work);
 	else
@@ -266,13 +267,15 @@ cleanup:
 }
 
 static int omap_modeset_create_crtc(struct drm_device *dev, int id,
-				    enum omap_channel channel)
+				    enum omap_channel channel,
+				    u32 possible_crtcs)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct drm_plane *plane;
 	struct drm_crtc *crtc;
 
-	plane = omap_plane_init(dev, id, DRM_PLANE_TYPE_PRIMARY);
+	plane = omap_plane_init(dev, id, DRM_PLANE_TYPE_PRIMARY,
+		possible_crtcs);
 	if (IS_ERR(plane))
 		return PTR_ERR(plane);
 
@@ -292,16 +295,6 @@ static int omap_modeset_init_properties(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 
-	if (priv->has_dmm) {
-		dev->mode_config.rotation_property =
-			drm_mode_create_rotation_property(dev,
-				DRM_ROTATE_0 | DRM_ROTATE_90 |
-				DRM_ROTATE_180 | DRM_ROTATE_270 |
-				DRM_REFLECT_X | DRM_REFLECT_Y);
-		if (!dev->mode_config.rotation_property)
-			return -ENOMEM;
-	}
-
 	priv->zorder_prop = drm_property_create_range(dev, 0, "zorder", 0, 3);
 	if (!priv->zorder_prop)
 		return -ENOMEM;
@@ -318,6 +311,7 @@ static int omap_modeset_init(struct drm_device *dev)
 	int num_crtcs;
 	int i, id = 0;
 	int ret;
+	u32 possible_crtcs;
 
 	drm_mode_config_init(dev);
 
@@ -334,6 +328,7 @@ static int omap_modeset_init(struct drm_device *dev)
 	 * We use the num_crtc argument to limit the number of crtcs we create.
 	 */
 	num_crtcs = min3(num_crtc, num_mgrs, num_ovls);
+	possible_crtcs = (1 << num_crtcs) - 1;
 
 	dssdev = NULL;
 
@@ -397,7 +392,8 @@ static int omap_modeset_init(struct drm_device *dev)
 		 * allocated crtc, we create a new crtc for it
 		 */
 		if (!channel_used(dev, channel)) {
-			ret = omap_modeset_create_crtc(dev, id, channel);
+			ret = omap_modeset_create_crtc(dev, id, channel,
+				possible_crtcs);
 			if (ret < 0) {
 				dev_err(dev->dev,
 					"could not create CRTC (channel %u)\n",
@@ -427,7 +423,8 @@ static int omap_modeset_init(struct drm_device *dev)
 			return -ENOMEM;
 		}
 
-		ret = omap_modeset_create_crtc(dev, id, i);
+		ret = omap_modeset_create_crtc(dev, id, i,
+			possible_crtcs);
 		if (ret < 0) {
 			dev_err(dev->dev,
 				"could not create CRTC (channel %u)\n", i);
@@ -441,7 +438,8 @@ static int omap_modeset_init(struct drm_device *dev)
 	for (; id < num_ovls; id++) {
 		struct drm_plane *plane;
 
-		plane = omap_plane_init(dev, id, DRM_PLANE_TYPE_OVERLAY);
+		plane = omap_plane_init(dev, id, DRM_PLANE_TYPE_OVERLAY,
+			possible_crtcs);
 		if (IS_ERR(plane))
 			return PTR_ERR(plane);
 
@@ -752,22 +750,32 @@ static void dev_lastclose(struct drm_device *dev)
 
 	DBG("lastclose: dev=%p", dev);
 
-	if (dev->mode_config.rotation_property) {
-		/* need to restore default rotation state.. not sure
-		 * if there is a cleaner way to restore properties to
-		 * default state?  Maybe a flag that properties should
-		 * automatically be restored to default state on
-		 * lastclose?
-		 */
-		for (i = 0; i < priv->num_crtcs; i++) {
-			drm_object_property_set_value(&priv->crtcs[i]->base,
-					dev->mode_config.rotation_property, 0);
-		}
+	/* need to restore default rotation state.. not sure
+	 * if there is a cleaner way to restore properties to
+	 * default state?  Maybe a flag that properties should
+	 * automatically be restored to default state on
+	 * lastclose?
+	 */
+	for (i = 0; i < priv->num_crtcs; i++) {
+		struct drm_crtc *crtc = priv->crtcs[i];
 
-		for (i = 0; i < priv->num_planes; i++) {
-			drm_object_property_set_value(&priv->planes[i]->base,
-					dev->mode_config.rotation_property, 0);
-		}
+		if (!crtc->primary->rotation_property)
+			continue;
+
+		drm_object_property_set_value(&crtc->base,
+					      crtc->primary->rotation_property,
+					      DRM_ROTATE_0);
+	}
+
+	for (i = 0; i < priv->num_planes; i++) {
+		struct drm_plane *plane = priv->planes[i];
+
+		if (!plane->rotation_property)
+			continue;
+
+		drm_object_property_set_value(&plane->base,
+					      plane->rotation_property,
+					      DRM_ROTATE_0);
 	}
 
 	if (priv->fbdev) {

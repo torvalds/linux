@@ -2459,9 +2459,6 @@ static int get_serial_info(struct edgeport_port *edge_port,
 	struct serial_struct tmp;
 	unsigned cwait;
 
-	if (!retinfo)
-		return -EFAULT;
-
 	cwait = edge_port->port->port.closing_wait;
 	if (cwait != ASYNC_CLOSING_WAIT_NONE)
 		cwait = jiffies_to_msecs(cwait) / 10;

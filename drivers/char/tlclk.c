@@ -44,7 +44,7 @@
 #include <linux/miscdevice.h>
 #include <linux/platform_device.h>
 #include <asm/io.h>		/* inb/outb */
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 MODULE_AUTHOR("Sebastien Bouchard <sebastien.bouchard@ca.kontron.com>");
 MODULE_LICENSE("GPL");

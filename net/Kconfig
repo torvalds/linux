@@ -402,6 +402,14 @@ config LWTUNNEL
 	  weight tunnel endpoint. Tunnel encapsulation parameters are stored
 	  with light weight tunnel state associated with fib routes.
 
+config LWTUNNEL_BPF
+	bool "Execute BPF program as route nexthop action"
+	depends on LWTUNNEL
+	default y if LWTUNNEL=y
+	---help---
+	  Allows to run BPF programs as a nexthop action following a route
+	  lookup for incoming and outgoing packets.
+
 config DST_CACHE
 	bool
 	default n

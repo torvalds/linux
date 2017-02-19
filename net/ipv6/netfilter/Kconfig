@@ -25,6 +25,12 @@ config NF_CONNTRACK_IPV6
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NF_SOCKET_IPV6
+	tristate "IPv6 socket lookup support"
+	help
+	  This option enables the IPv6 socket lookup infrastructure. This
+	  is used by the ip6tables socket match.
+
 if NF_TABLES
 
 config NF_TABLES_IPV6
@@ -53,6 +59,14 @@ config NFT_DUP_IPV6
 	select NF_DUP_IPV6
 	help
 	  This module enables IPv6 packet duplication support for nf_tables.
+
+config NFT_FIB_IPV6
+	tristate "nf_tables fib / ipv6 route lookup support"
+	select NFT_FIB
+	help
+	  This module enables IPv6 FIB lookups, e.g. for reverse path filtering.
+	  It also allows query of the FIB for the route type, e.g. local, unicast,
+	  multicast or blackhole.
 
 endif # NF_TABLES_IPV6
 endif # NF_TABLES

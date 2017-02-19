@@ -426,7 +426,7 @@ config I2C_BLACKFIN_TWI_CLK_KHZ
 
 config I2C_CADENCE
 	tristate "Cadence I2C Controller"
-	depends on ARCH_ZYNQ || ARM64
+	depends on ARCH_ZYNQ || ARM64 || XTENSA
 	help
 	  Say yes here to select Cadence I2C Host Controller. This controller is
 	  e.g. used by Xilinx Zynq.
@@ -597,6 +597,16 @@ config I2C_IMX
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-imx.
 
+config I2C_IMX_LPI2C
+	tristate "IMX Low Power I2C interface"
+	depends on ARCH_MXC || COMPILE_TEST
+	help
+          Say Y here if you want to use the Low Power IIC bus controller
+          on the Freescale i.MX processors.
+
+          This driver can also be built as a module. If so, the module
+          will be called i2c-imx-lpi2c.
+
 config I2C_IOP3XX
 	tristate "Intel IOPx3xx and IXP4xx on-chip I2C interface"
 	depends on ARCH_IOP32X || ARCH_IOP33X || ARCH_IXP4XX || ARCH_IOP13XX
@@ -763,7 +773,7 @@ config I2C_PUV3
 
 config I2C_PXA
 	tristate "Intel PXA2XX I2C adapter"
-	depends on ARCH_PXA || ARCH_MMP || (X86_32 && PCI && OF)
+	depends on ARCH_PXA || ARCH_MMP || ARCH_MVEBU || (X86_32 && PCI && OF)
 	help
 	  If you have devices in the PXA I2C bus, say yes to this option.
 	  This driver can also be built as a module.  If so, the module
@@ -1149,6 +1159,17 @@ config I2C_ELEKTOR
 
 	  This support is also available as a module.  If so, the module
 	  will be called i2c-elektor.
+
+config I2C_MLXCPLD
+	tristate "Mellanox I2C driver"
+	depends on X86_64
+	help
+	  This exposes the Mellanox platform I2C busses to the linux I2C layer
+	  for X86 based systems.
+	  Controller is implemented as CPLD logic.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called as i2c-mlxcpld.
 
 config I2C_PCA_ISA
 	tristate "PCA9564/PCA9665 on an ISA bus"

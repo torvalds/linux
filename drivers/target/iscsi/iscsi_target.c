@@ -23,7 +23,9 @@
 #include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/idr.h>
+#include <linux/delay.h>
 #include <asm/unaligned.h>
+#include <net/ipv6.h>
 #include <scsi/scsi_proto.h>
 #include <scsi/iscsi_proto.h>
 #include <scsi/scsi_tcq.h>

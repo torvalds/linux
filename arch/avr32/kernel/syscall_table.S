@@ -341,4 +341,7 @@ sys_call_table:
 	.long __sys_copy_file_range
 	.long __sys_preadv2
 	.long __sys_pwritev2
+	.long sys_pkey_mprotect
+	.long sys_pkey_alloc
+	.long sys_pkey_free /* 330 */
 	.long sys_ni_syscall /* r8 is saturated at nr_syscalls */

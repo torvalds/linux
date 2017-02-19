@@ -27,12 +27,24 @@
 #define   LAYER_H_FLIP			(1 << 10)
 #define   LAYER_V_FLIP			(1 << 11)
 #define   LAYER_ROT_MASK		(0xf << 8)
+#define   LAYER_COMP_MASK		(0x3 << 12)
+#define   LAYER_COMP_PIXEL		(0x3 << 12)
+#define   LAYER_COMP_PLANE		(0x2 << 12)
+#define MALIDP_LAYER_COMPOSE		0x008
 #define MALIDP_LAYER_SIZE		0x00c
 #define   LAYER_H_VAL(x)		(((x) & 0x1fff) << 0)
 #define   LAYER_V_VAL(x)		(((x) & 0x1fff) << 16)
 #define MALIDP_LAYER_COMP_SIZE		0x010
 #define MALIDP_LAYER_OFFSET		0x014
 #define MALIDP_LAYER_STRIDE		0x018
+
+/*
+ * This 4-entry look-up-table is used to determine the full 8-bit alpha value
+ * for formats with 1- or 2-bit alpha channels.
+ * We set it to give 100%/0% opacity for 1-bit formats and 100%/66%/33%/0%
+ * opacity for 2-bit formats.
+ */
+#define MALIDP_ALPHA_LUT 0xffaa5500
 
 static void malidp_de_plane_destroy(struct drm_plane *plane)
 {
@@ -46,7 +58,8 @@ static void malidp_de_plane_destroy(struct drm_plane *plane)
 	devm_kfree(plane->dev->dev, mp);
 }
 
-struct drm_plane_state *malidp_duplicate_plane_state(struct drm_plane *plane)
+static struct
+drm_plane_state *malidp_duplicate_plane_state(struct drm_plane *plane)
 {
 	struct malidp_plane_state *state, *m_state;
 
@@ -58,13 +71,15 @@ struct drm_plane_state *malidp_duplicate_plane_state(struct drm_plane *plane)
 		m_state = to_malidp_plane_state(plane->state);
 		__drm_atomic_helper_plane_duplicate_state(plane, &state->base);
 		state->rotmem_size = m_state->rotmem_size;
+		state->format = m_state->format;
+		state->n_planes = m_state->n_planes;
 	}
 
 	return &state->base;
 }
 
-void malidp_destroy_plane_state(struct drm_plane *plane,
-				struct drm_plane_state *state)
+static void malidp_destroy_plane_state(struct drm_plane *plane,
+				       struct drm_plane_state *state)
 {
 	struct malidp_plane_state *m_state = to_malidp_plane_state(state);
 
@@ -75,6 +90,7 @@ void malidp_destroy_plane_state(struct drm_plane *plane,
 static const struct drm_plane_funcs malidp_de_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
+	.set_property = drm_atomic_helper_plane_set_property,
 	.destroy = malidp_de_plane_destroy,
 	.reset = drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = malidp_duplicate_plane_state,
@@ -86,16 +102,28 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 {
 	struct malidp_plane *mp = to_malidp_plane(plane);
 	struct malidp_plane_state *ms = to_malidp_plane_state(state);
-	u8 format_id;
+	struct drm_framebuffer *fb;
+	int i;
 	u32 src_w, src_h;
 
 	if (!state->crtc || !state->fb)
 		return 0;
 
-	format_id = malidp_hw_get_format_id(&mp->hwdev->map, mp->layer->id,
-					    state->fb->pixel_format);
-	if (format_id == MALIDP_INVALID_FORMAT_ID)
+	fb = state->fb;
+
+	ms->format = malidp_hw_get_format_id(&mp->hwdev->map, mp->layer->id,
+					    fb->pixel_format);
+	if (ms->format == MALIDP_INVALID_FORMAT_ID)
 		return -EINVAL;
+
+	ms->n_planes = drm_format_num_planes(fb->pixel_format);
+	for (i = 0; i < ms->n_planes; i++) {
+		if (!malidp_hw_pitch_valid(mp->hwdev, fb->pitches[i])) {
+			DRM_DEBUG_KMS("Invalid pitch %u for plane %d\n",
+				      fb->pitches[i], i);
+			return -EINVAL;
+		}
+	}
 
 	src_w = state->src_w >> 16;
 	src_h = state->src_h >> 16;
@@ -135,17 +163,13 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	struct drm_gem_cma_object *obj;
 	struct malidp_plane *mp;
 	const struct malidp_hw_regmap *map;
-	u8 format_id;
+	struct malidp_plane_state *ms = to_malidp_plane_state(plane->state);
 	u16 ptr;
-	u32 format, src_w, src_h, dest_w, dest_h, val = 0;
-	int num_planes, i;
+	u32 src_w, src_h, dest_w, dest_h, val;
+	int i;
 
 	mp = to_malidp_plane(plane);
-
 	map = &mp->hwdev->map;
-	format = plane->state->fb->pixel_format;
-	format_id = malidp_hw_get_format_id(map, mp->layer->id, format);
-	num_planes = drm_format_num_planes(format);
 
 	/* convert src values from Q16 fixed point to integer */
 	src_w = plane->state->src_w >> 16;
@@ -158,9 +182,9 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 		dest_h = plane->state->crtc_h;
 	}
 
-	malidp_hw_write(mp->hwdev, format_id, mp->layer->base);
+	malidp_hw_write(mp->hwdev, ms->format, mp->layer->base);
 
-	for (i = 0; i < num_planes; i++) {
+	for (i = 0; i < ms->n_planes; i++) {
 		/* calculate the offset for the layer's plane registers */
 		ptr = mp->layer->ptr + (i << 4);
 
@@ -181,9 +205,9 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 			LAYER_V_VAL(plane->state->crtc_y),
 			mp->layer->base + MALIDP_LAYER_OFFSET);
 
-	/* first clear the rotation bits in the register */
-	malidp_hw_clearbits(mp->hwdev, LAYER_ROT_MASK,
-			    mp->layer->base + MALIDP_LAYER_CONTROL);
+	/* first clear the rotation bits */
+	val = malidp_hw_read(mp->hwdev, mp->layer->base + MALIDP_LAYER_CONTROL);
+	val &= ~LAYER_ROT_MASK;
 
 	/* setup the rotation and axis flip bits */
 	if (plane->state->rotation & DRM_ROTATE_MASK)
@@ -193,11 +217,18 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	if (plane->state->rotation & DRM_REFLECT_Y)
 		val |= LAYER_H_FLIP;
 
+	/*
+	 * always enable pixel alpha blending until we have a way to change
+	 * blend modes
+	 */
+	val &= ~LAYER_COMP_MASK;
+	val |= LAYER_COMP_PIXEL;
+
 	/* set the 'enable layer' bit */
 	val |= LAYER_ENABLE;
 
-	malidp_hw_setbits(mp->hwdev, val,
-			  mp->layer->base + MALIDP_LAYER_CONTROL);
+	malidp_hw_write(mp->hwdev, val,
+			mp->layer->base + MALIDP_LAYER_CONTROL);
 }
 
 static void malidp_de_plane_disable(struct drm_plane *plane,
@@ -222,6 +253,8 @@ int malidp_de_planes_init(struct drm_device *drm)
 	struct malidp_plane *plane = NULL;
 	enum drm_plane_type plane_type;
 	unsigned long crtcs = 1 << drm->mode_config.num_crtc;
+	unsigned long flags = DRM_ROTATE_0 | DRM_ROTATE_90 | DRM_ROTATE_180 |
+			      DRM_ROTATE_270 | DRM_REFLECT_X | DRM_REFLECT_Y;
 	u32 *formats;
 	int ret, i, j, n;
 
@@ -254,26 +287,18 @@ int malidp_de_planes_init(struct drm_device *drm)
 		if (ret < 0)
 			goto cleanup;
 
-		if (!drm->mode_config.rotation_property) {
-			unsigned long flags = DRM_ROTATE_0 |
-					      DRM_ROTATE_90 |
-					      DRM_ROTATE_180 |
-					      DRM_ROTATE_270 |
-					      DRM_REFLECT_X |
-					      DRM_REFLECT_Y;
-			drm->mode_config.rotation_property =
-				drm_mode_create_rotation_property(drm, flags);
-		}
-		/* SMART layer can't be rotated */
-		if (drm->mode_config.rotation_property && (id != DE_SMART))
-			drm_object_attach_property(&plane->base.base,
-						   drm->mode_config.rotation_property,
-						   DRM_ROTATE_0);
-
 		drm_plane_helper_add(&plane->base,
 				     &malidp_de_plane_helper_funcs);
 		plane->hwdev = malidp->dev;
 		plane->layer = &map->layers[i];
+
+		/* Skip the features which the SMART layer doesn't have */
+		if (id == DE_SMART)
+			continue;
+
+		drm_plane_create_rotation_property(&plane->base, DRM_ROTATE_0, flags);
+		malidp_hw_write(malidp->dev, MALIDP_ALPHA_LUT,
+				plane->layer->base + MALIDP_LAYER_COMPOSE);
 	}
 
 	kfree(formats);

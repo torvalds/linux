@@ -203,6 +203,16 @@ struct vfio_device_info {
 };
 #define VFIO_DEVICE_GET_INFO		_IO(VFIO_TYPE, VFIO_BASE + 7)
 
+/*
+ * Vendor driver using Mediated device framework should provide device_api
+ * attribute in supported type attribute groups. Device API string should be one
+ * of the following corresponding to device flags in vfio_device_info structure.
+ */
+
+#define VFIO_DEVICE_API_PCI_STRING		"vfio-pci"
+#define VFIO_DEVICE_API_PLATFORM_STRING		"vfio-platform"
+#define VFIO_DEVICE_API_AMBA_STRING		"vfio-amba"
+
 /**
  * VFIO_DEVICE_GET_REGION_INFO - _IOWR(VFIO_TYPE, VFIO_BASE + 8,
  *				       struct vfio_region_info)

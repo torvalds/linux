@@ -71,13 +71,8 @@ static int osc_object_init(const struct lu_env *env, struct lu_object *obj,
 {
 	struct osc_object *osc = lu2osc(obj);
 	const struct cl_object_conf *cconf = lu2cl_conf(conf);
-	int i;
 
 	osc->oo_oinfo = cconf->u.coc_oinfo;
-	spin_lock_init(&osc->oo_seatbelt);
-	for (i = 0; i < CRT_NR; ++i)
-		INIT_LIST_HEAD(&osc->oo_inflight[i]);
-
 	INIT_LIST_HEAD(&osc->oo_ready_item);
 	INIT_LIST_HEAD(&osc->oo_hp_ready_item);
 	INIT_LIST_HEAD(&osc->oo_write_item);
@@ -103,10 +98,6 @@ static int osc_object_init(const struct lu_env *env, struct lu_object *obj,
 static void osc_object_free(const struct lu_env *env, struct lu_object *obj)
 {
 	struct osc_object *osc = lu2osc(obj);
-	int i;
-
-	for (i = 0; i < CRT_NR; ++i)
-		LASSERT(list_empty(&osc->oo_inflight[i]));
 
 	LASSERT(list_empty(&osc->oo_ready_item));
 	LASSERT(list_empty(&osc->oo_hp_ready_item));
@@ -218,6 +209,94 @@ static int osc_object_prune(const struct lu_env *env, struct cl_object *obj)
 	return 0;
 }
 
+static int osc_object_fiemap(const struct lu_env *env, struct cl_object *obj,
+			     struct ll_fiemap_info_key *fmkey,
+			     struct fiemap *fiemap, size_t *buflen)
+{
+	struct obd_export *exp = osc_export(cl2osc(obj));
+	union ldlm_policy_data policy;
+	struct ptlrpc_request *req;
+	struct lustre_handle lockh;
+	struct ldlm_res_id resid;
+	enum ldlm_mode mode = 0;
+	struct fiemap *reply;
+	char *tmp;
+	int rc;
+
+	fmkey->lfik_oa.o_oi = cl2osc(obj)->oo_oinfo->loi_oi;
+	if (!(fmkey->lfik_fiemap.fm_flags & FIEMAP_FLAG_SYNC))
+		goto skip_locking;
+
+	policy.l_extent.start = fmkey->lfik_fiemap.fm_start & PAGE_MASK;
+
+	if (OBD_OBJECT_EOF - fmkey->lfik_fiemap.fm_length <=
+	    fmkey->lfik_fiemap.fm_start + PAGE_SIZE - 1)
+		policy.l_extent.end = OBD_OBJECT_EOF;
+	else
+		policy.l_extent.end = (fmkey->lfik_fiemap.fm_start +
+				       fmkey->lfik_fiemap.fm_length +
+				       PAGE_SIZE - 1) & PAGE_MASK;
+
+	ostid_build_res_name(&fmkey->lfik_oa.o_oi, &resid);
+	mode = ldlm_lock_match(exp->exp_obd->obd_namespace,
+			       LDLM_FL_BLOCK_GRANTED | LDLM_FL_LVB_READY,
+			       &resid, LDLM_EXTENT, &policy,
+			       LCK_PR | LCK_PW, &lockh, 0);
+	if (mode) { /* lock is cached on client */
+		if (mode != LCK_PR) {
+			ldlm_lock_addref(&lockh, LCK_PR);
+			ldlm_lock_decref(&lockh, LCK_PW);
+		}
+	} else { /* no cached lock, needs acquire lock on server side */
+		fmkey->lfik_oa.o_valid |= OBD_MD_FLFLAGS;
+		fmkey->lfik_oa.o_flags |= OBD_FL_SRVLOCK;
+	}
+
+skip_locking:
+	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
+				   &RQF_OST_GET_INFO_FIEMAP);
+	if (!req) {
+		rc = -ENOMEM;
+		goto drop_lock;
+	}
+
+	req_capsule_set_size(&req->rq_pill, &RMF_FIEMAP_KEY, RCL_CLIENT,
+			     sizeof(*fmkey));
+	req_capsule_set_size(&req->rq_pill, &RMF_FIEMAP_VAL, RCL_CLIENT,
+			     *buflen);
+	req_capsule_set_size(&req->rq_pill, &RMF_FIEMAP_VAL, RCL_SERVER,
+			     *buflen);
+
+	rc = ptlrpc_request_pack(req, LUSTRE_OST_VERSION, OST_GET_INFO);
+	if (rc) {
+		ptlrpc_request_free(req);
+		goto drop_lock;
+	}
+	tmp = req_capsule_client_get(&req->rq_pill, &RMF_FIEMAP_KEY);
+	memcpy(tmp, fmkey, sizeof(*fmkey));
+	tmp = req_capsule_client_get(&req->rq_pill, &RMF_FIEMAP_VAL);
+	memcpy(tmp, fiemap, *buflen);
+	ptlrpc_request_set_replen(req);
+
+	rc = ptlrpc_queue_wait(req);
+	if (rc)
+		goto fini_req;
+
+	reply = req_capsule_server_get(&req->rq_pill, &RMF_FIEMAP_VAL);
+	if (!reply) {
+		rc = -EPROTO;
+		goto fini_req;
+	}
+
+	memcpy(fiemap, reply, *buflen);
+fini_req:
+	ptlrpc_req_finished(req);
+drop_lock:
+	if (mode)
+		ldlm_lock_decref(&lockh, LCK_PR);
+	return rc;
+}
+
 void osc_object_set_contended(struct osc_object *obj)
 {
 	obj->oo_contention_time = cfs_time_current();
@@ -256,6 +335,76 @@ int osc_object_is_contended(struct osc_object *obj)
 	return 1;
 }
 
+/**
+ * Implementation of struct cl_object_operations::coo_req_attr_set() for osc
+ * layer. osc is responsible for struct obdo::o_id and struct obdo::o_seq
+ * fields.
+ */
+static void osc_req_attr_set(const struct lu_env *env, struct cl_object *obj,
+			     struct cl_req_attr *attr)
+{
+	u64 flags = attr->cra_flags;
+	struct lov_oinfo *oinfo;
+	struct ost_lvb *lvb;
+	struct obdo *oa;
+
+	oinfo = cl2osc(obj)->oo_oinfo;
+	lvb = &oinfo->loi_lvb;
+	oa = attr->cra_oa;
+
+	if (flags & OBD_MD_FLMTIME) {
+		oa->o_mtime = lvb->lvb_mtime;
+		oa->o_valid |= OBD_MD_FLMTIME;
+	}
+	if (flags & OBD_MD_FLATIME) {
+		oa->o_atime = lvb->lvb_atime;
+		oa->o_valid |= OBD_MD_FLATIME;
+	}
+	if (flags & OBD_MD_FLCTIME) {
+		oa->o_ctime = lvb->lvb_ctime;
+		oa->o_valid |= OBD_MD_FLCTIME;
+	}
+	if (flags & OBD_MD_FLGROUP) {
+		ostid_set_seq(&oa->o_oi, ostid_seq(&oinfo->loi_oi));
+		oa->o_valid |= OBD_MD_FLGROUP;
+	}
+	if (flags & OBD_MD_FLID) {
+		ostid_set_id(&oa->o_oi, ostid_id(&oinfo->loi_oi));
+		oa->o_valid |= OBD_MD_FLID;
+	}
+	if (flags & OBD_MD_FLHANDLE) {
+		struct ldlm_lock *lock;
+		struct osc_page *opg;
+
+		opg = osc_cl_page_osc(attr->cra_page, cl2osc(obj));
+		lock = osc_dlmlock_at_pgoff(env, cl2osc(obj), osc_index(opg),
+					    OSC_DAP_FL_TEST_LOCK | OSC_DAP_FL_CANCELING);
+		if (!lock && !opg->ops_srvlock) {
+			struct ldlm_resource *res;
+			struct ldlm_res_id *resname;
+
+			CL_PAGE_DEBUG(D_ERROR, env, attr->cra_page,
+				      "uncovered page!\n");
+
+			resname = &osc_env_info(env)->oti_resname;
+			ostid_build_res_name(&oinfo->loi_oi, resname);
+			res = ldlm_resource_get(
+				osc_export(cl2osc(obj))->exp_obd->obd_namespace,
+				NULL, resname, LDLM_EXTENT, 0);
+			ldlm_resource_dump(D_ERROR, res);
+
+			LBUG();
+		}
+
+		/* check for lockless io. */
+		if (lock) {
+			oa->o_handle = lock->l_remote_handle;
+			oa->o_valid |= OBD_MD_FLHANDLE;
+			LDLM_LOCK_PUT(lock);
+		}
+	}
+}
+
 static const struct cl_object_operations osc_ops = {
 	.coo_page_init = osc_page_init,
 	.coo_lock_init = osc_lock_init,
@@ -263,7 +412,9 @@ static const struct cl_object_operations osc_ops = {
 	.coo_attr_get  = osc_attr_get,
 	.coo_attr_update = osc_attr_update,
 	.coo_glimpse   = osc_object_glimpse,
-	.coo_prune     = osc_object_prune
+	.coo_prune	 = osc_object_prune,
+	.coo_fiemap		= osc_object_fiemap,
+	.coo_req_attr_set	= osc_req_attr_set
 };
 
 static const struct lu_object_operations osc_lu_obj_ops = {

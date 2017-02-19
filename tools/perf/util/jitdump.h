@@ -19,6 +19,7 @@
 #define JITHEADER_MAGIC_SW	0x4454694A
 
 #define PADDING_8ALIGNED(x) ((((x) + 7) & 7) ^ 7)
+#define ALIGN_8(x) (((x) + 7) & (~7))
 
 #define JITHEADER_VERSION 1
 
@@ -48,6 +49,7 @@ enum jit_record_type {
         JIT_CODE_MOVE           = 1,
 	JIT_CODE_DEBUG_INFO	= 2,
 	JIT_CODE_CLOSE		= 3,
+	JIT_CODE_UNWINDING_INFO	= 4,
 
 	JIT_CODE_MAX,
 };
@@ -101,12 +103,22 @@ struct jr_code_debug_info {
 	struct debug_entry entries[0];
 };
 
+struct jr_code_unwinding_info {
+	struct jr_prefix p;
+
+	uint64_t unwinding_size;
+	uint64_t eh_frame_hdr_size;
+	uint64_t mapped_size;
+	const char unwinding_data[0];
+};
+
 union jr_entry {
         struct jr_code_debug_info info;
         struct jr_code_close close;
         struct jr_code_load load;
         struct jr_code_move move;
         struct jr_prefix prefix;
+        struct jr_code_unwinding_info unwinding;
 };
 
 static inline struct debug_entry *

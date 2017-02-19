@@ -43,12 +43,14 @@ static int debugfs_io_u64_set(void *data, u64 val)
 	out_be64((u64 __iomem *)data, val);
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(fops_io_x64, debugfs_io_u64_get, debugfs_io_u64_set, "0x%016llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_io_x64, debugfs_io_u64_get, debugfs_io_u64_set,
+			 "0x%016llx\n");
 
 static struct dentry *debugfs_create_io_x64(const char *name, umode_t mode,
 					    struct dentry *parent, u64 __iomem *value)
 {
-	return debugfs_create_file(name, mode, parent, (void __force *)value, &fops_io_x64);
+	return debugfs_create_file_unsafe(name, mode, parent,
+					  (void __force *)value, &fops_io_x64);
 }
 
 void cxl_debugfs_add_adapter_psl_regs(struct cxl *adapter, struct dentry *dir)

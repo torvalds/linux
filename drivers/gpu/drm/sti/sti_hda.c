@@ -642,12 +642,6 @@ struct drm_connector_helper_funcs sti_hda_connector_helper_funcs = {
 	.mode_valid = sti_hda_connector_mode_valid,
 };
 
-static enum drm_connector_status
-sti_hda_connector_detect(struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
-}
-
 static int sti_hda_late_register(struct drm_connector *connector)
 {
 	struct sti_hda_connector *hda_connector
@@ -665,7 +659,6 @@ static int sti_hda_late_register(struct drm_connector *connector)
 static const struct drm_connector_funcs sti_hda_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.detect = sti_hda_connector_detect,
 	.destroy = drm_connector_cleanup,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,

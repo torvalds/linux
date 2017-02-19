@@ -1504,37 +1504,18 @@ err_init_queue:
 /*-------------------------------------------------------------------------*/
 
 #if defined(CONFIG_OF)
-static struct spi_device *
-of_register_spi_device(struct spi_master *master, struct device_node *nc)
+static int of_spi_parse_dt(struct spi_master *master, struct spi_device *spi,
+			   struct device_node *nc)
 {
-	struct spi_device *spi;
-	int rc;
 	u32 value;
-
-	/* Alloc an spi_device */
-	spi = spi_alloc_device(master);
-	if (!spi) {
-		dev_err(&master->dev, "spi_device alloc error for %s\n",
-			nc->full_name);
-		rc = -ENOMEM;
-		goto err_out;
-	}
-
-	/* Select device driver */
-	rc = of_modalias_node(nc, spi->modalias,
-				sizeof(spi->modalias));
-	if (rc < 0) {
-		dev_err(&master->dev, "cannot find modalias for %s\n",
-			nc->full_name);
-		goto err_out;
-	}
+	int rc;
 
 	/* Device address */
 	rc = of_property_read_u32(nc, "reg", &value);
 	if (rc) {
 		dev_err(&master->dev, "%s has no valid 'reg' property (%d)\n",
 			nc->full_name, rc);
-		goto err_out;
+		return rc;
 	}
 	spi->chip_select = value;
 
@@ -1592,9 +1573,40 @@ of_register_spi_device(struct spi_master *master, struct device_node *nc)
 	if (rc) {
 		dev_err(&master->dev, "%s has no valid 'spi-max-frequency' property (%d)\n",
 			nc->full_name, rc);
-		goto err_out;
+		return rc;
 	}
 	spi->max_speed_hz = value;
+
+	return 0;
+}
+
+static struct spi_device *
+of_register_spi_device(struct spi_master *master, struct device_node *nc)
+{
+	struct spi_device *spi;
+	int rc;
+
+	/* Alloc an spi_device */
+	spi = spi_alloc_device(master);
+	if (!spi) {
+		dev_err(&master->dev, "spi_device alloc error for %s\n",
+			nc->full_name);
+		rc = -ENOMEM;
+		goto err_out;
+	}
+
+	/* Select device driver */
+	rc = of_modalias_node(nc, spi->modalias,
+				sizeof(spi->modalias));
+	if (rc < 0) {
+		dev_err(&master->dev, "cannot find modalias for %s\n",
+			nc->full_name);
+		goto err_out;
+	}
+
+	rc = of_spi_parse_dt(master, spi, nc);
+	if (rc)
+		goto err_out;
 
 	/* Store a pointer to the node in the device structure */
 	of_node_get(nc);

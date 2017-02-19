@@ -703,6 +703,7 @@ config ARCH_VIRT
 	select ARM_GIC
 	select ARM_GIC_V2M if PCI
 	select ARM_GIC_V3
+	select ARM_GIC_V3_ITS if PCI
 	select ARM_PSCI
 	select HAVE_ARM_ARCH_TIMER
 
@@ -884,6 +885,11 @@ config ARCH_STM32
 
 config MACH_STM32F429
 	bool "STMicrolectronics STM32F429"
+	depends on ARCH_STM32
+	default y
+
+config MACH_STM32F746
+	bool "STMicrolectronics STM32F746"
 	depends on ARCH_STM32
 	default y
 

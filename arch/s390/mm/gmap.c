@@ -1015,7 +1015,7 @@ static inline void gmap_insert_rmap(struct gmap *sg, unsigned long vmaddr,
 	if (slot) {
 		rmap->next = radix_tree_deref_slot_protected(slot,
 							&sg->guest_table_lock);
-		radix_tree_replace_slot(slot, rmap);
+		radix_tree_replace_slot(&sg->host_to_rmap, slot, rmap);
 	} else {
 		rmap->next = NULL;
 		radix_tree_insert(&sg->host_to_rmap, vmaddr >> PAGE_SHIFT,

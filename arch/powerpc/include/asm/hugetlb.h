@@ -9,7 +9,7 @@ extern struct kmem_cache *hugepte_cache;
 
 #ifdef CONFIG_PPC_BOOK3S_64
 
-#include <asm/book3s/64/hugetlb-radix.h>
+#include <asm/book3s/64/hugetlb.h>
 /*
  * This should work for other subarchs too. But right now we use the
  * new format only for 64bit book3s
@@ -51,12 +51,20 @@ static inline void __local_flush_hugetlb_page(struct vm_area_struct *vma,
 static inline pte_t *hugepd_page(hugepd_t hpd)
 {
 	BUG_ON(!hugepd_ok(hpd));
+#ifdef CONFIG_PPC_8xx
+	return (pte_t *)__va(hpd.pd & ~(_PMD_PAGE_MASK | _PMD_PRESENT_MASK));
+#else
 	return (pte_t *)((hpd.pd & ~HUGEPD_SHIFT_MASK) | PD_HUGE);
+#endif
 }
 
 static inline unsigned int hugepd_shift(hugepd_t hpd)
 {
+#ifdef CONFIG_PPC_8xx
+	return ((hpd.pd & _PMD_PAGE_MASK) >> 1) + 17;
+#else
 	return hpd.pd & HUGEPD_SHIFT_MASK;
+#endif
 }
 
 #endif /* CONFIG_PPC_BOOK3S_64 */
@@ -99,7 +107,15 @@ static inline int is_hugepage_only_range(struct mm_struct *mm,
 
 void book3e_hugetlb_preload(struct vm_area_struct *vma, unsigned long ea,
 			    pte_t pte);
+#ifdef CONFIG_PPC_8xx
+static inline void flush_hugetlb_page(struct vm_area_struct *vma,
+				      unsigned long vmaddr)
+{
+	flush_tlb_page(vma, vmaddr);
+}
+#else
 void flush_hugetlb_page(struct vm_area_struct *vma, unsigned long vmaddr);
+#endif
 
 void hugetlb_free_pgd_range(struct mmu_gather *tlb, unsigned long addr,
 			    unsigned long end, unsigned long floor,
@@ -205,7 +221,8 @@ static inline pte_t *hugepte_offset(hugepd_t hpd, unsigned long addr,
  * are reserved early in the boot process by memblock instead of via
  * the .dts as on IBM platforms.
  */
-#if defined(CONFIG_HUGETLB_PAGE) && defined(CONFIG_PPC_FSL_BOOK3E)
+#if defined(CONFIG_HUGETLB_PAGE) && (defined(CONFIG_PPC_FSL_BOOK3E) || \
+    defined(CONFIG_PPC_8xx))
 extern void __init reserve_hugetlb_gpages(void);
 #else
 static inline void reserve_hugetlb_gpages(void)

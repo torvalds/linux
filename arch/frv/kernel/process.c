@@ -28,7 +28,7 @@
 #include <linux/rcupdate.h>
 
 #include <asm/asm-offsets.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/setup.h>
 #include <asm/pgtable.h>
 #include <asm/tlb.h>

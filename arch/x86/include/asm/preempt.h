@@ -24,7 +24,13 @@ static __always_inline int preempt_count(void)
 
 static __always_inline void preempt_count_set(int pc)
 {
-	raw_cpu_write_4(__preempt_count, pc);
+	int old, new;
+
+	do {
+		old = raw_cpu_read_4(__preempt_count);
+		new = (old & PREEMPT_NEED_RESCHED) |
+			(pc & ~PREEMPT_NEED_RESCHED);
+	} while (raw_cpu_cmpxchg_4(__preempt_count, old, new) != old);
 }
 
 /*

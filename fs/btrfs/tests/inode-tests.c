@@ -249,19 +249,19 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 	BTRFS_I(inode)->location.objectid = BTRFS_FIRST_FREE_OBJECTID;
 	BTRFS_I(inode)->location.offset = 0;
 
-	fs_info = btrfs_alloc_dummy_fs_info();
+	fs_info = btrfs_alloc_dummy_fs_info(nodesize, sectorsize);
 	if (!fs_info) {
 		test_msg("Couldn't allocate dummy fs info\n");
 		goto out;
 	}
 
-	root = btrfs_alloc_dummy_root(fs_info, sectorsize, nodesize);
+	root = btrfs_alloc_dummy_root(fs_info);
 	if (IS_ERR(root)) {
 		test_msg("Couldn't allocate root\n");
 		goto out;
 	}
 
-	root->node = alloc_dummy_extent_buffer(NULL, nodesize, nodesize);
+	root->node = alloc_dummy_extent_buffer(fs_info, nodesize);
 	if (!root->node) {
 		test_msg("Couldn't allocate dummy buffer\n");
 		goto out;
@@ -854,19 +854,19 @@ static int test_hole_first(u32 sectorsize, u32 nodesize)
 	BTRFS_I(inode)->location.objectid = BTRFS_FIRST_FREE_OBJECTID;
 	BTRFS_I(inode)->location.offset = 0;
 
-	fs_info = btrfs_alloc_dummy_fs_info();
+	fs_info = btrfs_alloc_dummy_fs_info(nodesize, sectorsize);
 	if (!fs_info) {
 		test_msg("Couldn't allocate dummy fs info\n");
 		goto out;
 	}
 
-	root = btrfs_alloc_dummy_root(fs_info, sectorsize, nodesize);
+	root = btrfs_alloc_dummy_root(fs_info);
 	if (IS_ERR(root)) {
 		test_msg("Couldn't allocate root\n");
 		goto out;
 	}
 
-	root->node = alloc_dummy_extent_buffer(NULL, nodesize, nodesize);
+	root->node = alloc_dummy_extent_buffer(fs_info, nodesize);
 	if (!root->node) {
 		test_msg("Couldn't allocate dummy buffer\n");
 		goto out;
@@ -950,13 +950,13 @@ static int test_extent_accounting(u32 sectorsize, u32 nodesize)
 		return ret;
 	}
 
-	fs_info = btrfs_alloc_dummy_fs_info();
+	fs_info = btrfs_alloc_dummy_fs_info(nodesize, sectorsize);
 	if (!fs_info) {
 		test_msg("Couldn't allocate dummy fs info\n");
 		goto out;
 	}
 
-	root = btrfs_alloc_dummy_root(fs_info, sectorsize, nodesize);
+	root = btrfs_alloc_dummy_root(fs_info);
 	if (IS_ERR(root)) {
 		test_msg("Couldn't allocate root\n");
 		goto out;

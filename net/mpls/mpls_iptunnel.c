@@ -133,7 +133,6 @@ static int mpls_build_state(struct net_device *dev, struct nlattr *nla,
 	struct mpls_iptunnel_encap *tun_encap_info;
 	struct nlattr *tb[MPLS_IPTUNNEL_MAX + 1];
 	struct lwtunnel_state *newts;
-	int tun_encap_info_len;
 	int ret;
 
 	ret = nla_parse_nested(tb, MPLS_IPTUNNEL_MAX, nla,
@@ -144,13 +143,11 @@ static int mpls_build_state(struct net_device *dev, struct nlattr *nla,
 	if (!tb[MPLS_IPTUNNEL_DST])
 		return -EINVAL;
 
-	tun_encap_info_len = sizeof(*tun_encap_info);
 
-	newts = lwtunnel_state_alloc(tun_encap_info_len);
+	newts = lwtunnel_state_alloc(sizeof(*tun_encap_info));
 	if (!newts)
 		return -ENOMEM;
 
-	newts->len = tun_encap_info_len;
 	tun_encap_info = mpls_lwtunnel_encap(newts);
 	ret = nla_get_labels(tb[MPLS_IPTUNNEL_DST], MAX_NEW_LABELS,
 			     &tun_encap_info->labels, tun_encap_info->label);

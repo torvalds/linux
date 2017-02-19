@@ -118,7 +118,7 @@ static int dh_compute_value(struct kpp_request *req)
 	if (req->src) {
 		base = mpi_read_raw_from_sgl(req->src, req->src_len);
 		if (!base) {
-			ret = EINVAL;
+			ret = -EINVAL;
 			goto err_free_val;
 		}
 	} else {

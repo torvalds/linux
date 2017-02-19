@@ -484,6 +484,7 @@ xfs_rmapbt_init_cursor(
 	cur->bc_blocklog = mp->m_sb.sb_blocklog;
 	cur->bc_ops = &xfs_rmapbt_ops;
 	cur->bc_nlevels = be32_to_cpu(agf->agf_levels[XFS_BTNUM_RMAP]);
+	cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_rmap_2);
 
 	cur->bc_private.a.agbp = agbp;
 	cur->bc_private.a.agno = agno;

@@ -61,8 +61,7 @@ int vchiu_queue_init(VCHIU_QUEUE_T *queue, int size)
 
 void vchiu_queue_delete(VCHIU_QUEUE_T *queue)
 {
-	if (queue->storage != NULL)
-		kfree(queue->storage);
+	kfree(queue->storage);
 }
 
 int vchiu_queue_is_empty(VCHIU_QUEUE_T *queue)

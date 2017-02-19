@@ -1861,9 +1861,6 @@ static int get_serial_info(struct moschip_port *mos7720_port,
 {
 	struct serial_struct tmp;
 
-	if (!retinfo)
-		return -EFAULT;
-
 	memset(&tmp, 0, sizeof(tmp));
 
 	tmp.type		= PORT_16550A;

@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
+#include <linux/etherdevice.h>
 #include "qed.h"
 #include "qed_dcbx.h"
 #include "qed_hsi.h"
@@ -329,6 +330,7 @@ static int qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 				 struct qed_mcp_mb_params *p_mb_params)
 {
 	u32 union_data_addr;
+
 	int rc;
 
 	/* MCP not initialized */
@@ -374,11 +376,32 @@ int qed_mcp_cmd(struct qed_hwfn *p_hwfn,
 		u32 *o_mcp_param)
 {
 	struct qed_mcp_mb_params mb_params;
+	union drv_union_data data_src;
 	int rc;
 
 	memset(&mb_params, 0, sizeof(mb_params));
+	memset(&data_src, 0, sizeof(data_src));
 	mb_params.cmd = cmd;
 	mb_params.param = param;
+
+	/* In case of UNLOAD_DONE, set the primary MAC */
+	if ((cmd == DRV_MSG_CODE_UNLOAD_DONE) &&
+	    (p_hwfn->cdev->wol_config == QED_OV_WOL_ENABLED)) {
+		u8 *p_mac = p_hwfn->cdev->wol_mac;
+
+		data_src.wol_mac.mac_upper = p_mac[0] << 8 | p_mac[1];
+		data_src.wol_mac.mac_lower = p_mac[2] << 24 | p_mac[3] << 16 |
+					     p_mac[4] << 8 | p_mac[5];
+
+		DP_VERBOSE(p_hwfn,
+			   (QED_MSG_SP | NETIF_MSG_IFDOWN),
+			   "Setting WoL MAC: %pM --> [%08x,%08x]\n",
+			   p_mac, data_src.wol_mac.mac_upper,
+			   data_src.wol_mac.mac_lower);
+
+		mb_params.p_data_src = &data_src;
+	}
+
 	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
 	if (rc)
 		return rc;
@@ -1001,28 +1024,89 @@ int qed_mcp_get_media_type(struct qed_dev *cdev, u32 *p_media_type)
 	return 0;
 }
 
+/* Old MFW has a global configuration for all PFs regarding RDMA support */
+static void
+qed_mcp_get_shmem_proto_legacy(struct qed_hwfn *p_hwfn,
+			       enum qed_pci_personality *p_proto)
+{
+	/* There wasn't ever a legacy MFW that published iwarp.
+	 * So at this point, this is either plain l2 or RoCE.
+	 */
+	if (test_bit(QED_DEV_CAP_ROCE, &p_hwfn->hw_info.device_capabilities))
+		*p_proto = QED_PCI_ETH_ROCE;
+	else
+		*p_proto = QED_PCI_ETH;
+
+	DP_VERBOSE(p_hwfn, NETIF_MSG_IFUP,
+		   "According to Legacy capabilities, L2 personality is %08x\n",
+		   (u32) *p_proto);
+}
+
+static int
+qed_mcp_get_shmem_proto_mfw(struct qed_hwfn *p_hwfn,
+			    struct qed_ptt *p_ptt,
+			    enum qed_pci_personality *p_proto)
+{
+	u32 resp = 0, param = 0;
+	int rc;
+
+	rc = qed_mcp_cmd(p_hwfn, p_ptt,
+			 DRV_MSG_CODE_GET_PF_RDMA_PROTOCOL, 0, &resp, &param);
+	if (rc)
+		return rc;
+	if (resp != FW_MSG_CODE_OK) {
+		DP_VERBOSE(p_hwfn, NETIF_MSG_IFUP,
+			   "MFW lacks support for command; Returns %08x\n",
+			   resp);
+		return -EINVAL;
+	}
+
+	switch (param) {
+	case FW_MB_PARAM_GET_PF_RDMA_NONE:
+		*p_proto = QED_PCI_ETH;
+		break;
+	case FW_MB_PARAM_GET_PF_RDMA_ROCE:
+		*p_proto = QED_PCI_ETH_ROCE;
+		break;
+	case FW_MB_PARAM_GET_PF_RDMA_BOTH:
+		DP_NOTICE(p_hwfn,
+			  "Current day drivers don't support RoCE & iWARP. Default to RoCE-only\n");
+		*p_proto = QED_PCI_ETH_ROCE;
+		break;
+	case FW_MB_PARAM_GET_PF_RDMA_IWARP:
+	default:
+		DP_NOTICE(p_hwfn,
+			  "MFW answers GET_PF_RDMA_PROTOCOL but param is %08x\n",
+			  param);
+		return -EINVAL;
+	}
+
+	DP_VERBOSE(p_hwfn,
+		   NETIF_MSG_IFUP,
+		   "According to capabilities, L2 personality is %08x [resp %08x param %08x]\n",
+		   (u32) *p_proto, resp, param);
+	return 0;
+}
+
 static int
 qed_mcp_get_shmem_proto(struct qed_hwfn *p_hwfn,
 			struct public_func *p_info,
+			struct qed_ptt *p_ptt,
 			enum qed_pci_personality *p_proto)
 {
 	int rc = 0;
 
 	switch (p_info->config & FUNC_MF_CFG_PROTOCOL_MASK) {
 	case FUNC_MF_CFG_PROTOCOL_ETHERNET:
-		if (test_bit(QED_DEV_CAP_ROCE,
-			     &p_hwfn->hw_info.device_capabilities))
-			*p_proto = QED_PCI_ETH_ROCE;
-		else
-			*p_proto = QED_PCI_ETH;
+		if (qed_mcp_get_shmem_proto_mfw(p_hwfn, p_ptt, p_proto))
+			qed_mcp_get_shmem_proto_legacy(p_hwfn, p_proto);
 		break;
 	case FUNC_MF_CFG_PROTOCOL_ISCSI:
 		*p_proto = QED_PCI_ISCSI;
 		break;
 	case FUNC_MF_CFG_PROTOCOL_ROCE:
 		DP_NOTICE(p_hwfn, "RoCE personality is not a valid value!\n");
-		rc = -EINVAL;
-		break;
+	/* Fallthrough */
 	default:
 		rc = -EINVAL;
 	}
@@ -1042,7 +1126,8 @@ int qed_mcp_fill_shmem_func_info(struct qed_hwfn *p_hwfn,
 	info->pause_on_host = (shmem_info.config &
 			       FUNC_MF_CFG_PAUSE_ON_HOST_RING) ? 1 : 0;
 
-	if (qed_mcp_get_shmem_proto(p_hwfn, &shmem_info, &info->protocol)) {
+	if (qed_mcp_get_shmem_proto(p_hwfn, &shmem_info, p_ptt,
+				    &info->protocol)) {
 		DP_ERR(p_hwfn, "Unknown personality %08x\n",
 		       (u32)(shmem_info.config & FUNC_MF_CFG_PROTOCOL_MASK));
 		return -EINVAL;
@@ -1057,6 +1142,9 @@ int qed_mcp_fill_shmem_func_info(struct qed_hwfn *p_hwfn,
 		info->mac[3] = (u8)(shmem_info.mac_lower >> 16);
 		info->mac[4] = (u8)(shmem_info.mac_lower >> 8);
 		info->mac[5] = (u8)(shmem_info.mac_lower);
+
+		/* Store primary MAC for later possible WoL */
+		memcpy(&p_hwfn->cdev->wol_mac, info->mac, ETH_ALEN);
 	} else {
 		DP_NOTICE(p_hwfn, "MAC is 0 in shmem\n");
 	}
@@ -1068,13 +1156,30 @@ int qed_mcp_fill_shmem_func_info(struct qed_hwfn *p_hwfn,
 
 	info->ovlan = (u16)(shmem_info.ovlan_stag & FUNC_MF_CFG_OV_STAG_MASK);
 
+	info->mtu = (u16)shmem_info.mtu_size;
+
+	p_hwfn->hw_info.b_wol_support = QED_WOL_SUPPORT_NONE;
+	p_hwfn->cdev->wol_config = (u8)QED_OV_WOL_DEFAULT;
+	if (qed_mcp_is_init(p_hwfn)) {
+		u32 resp = 0, param = 0;
+		int rc;
+
+		rc = qed_mcp_cmd(p_hwfn, p_ptt,
+				 DRV_MSG_CODE_OS_WOL, 0, &resp, &param);
+		if (rc)
+			return rc;
+		if (resp == FW_MSG_CODE_OS_WOL_SUPPORTED)
+			p_hwfn->hw_info.b_wol_support = QED_WOL_SUPPORT_PME;
+	}
+
 	DP_VERBOSE(p_hwfn, (QED_MSG_SP | NETIF_MSG_IFUP),
-		   "Read configuration from shmem: pause_on_host %02x protocol %02x BW [%02x - %02x] MAC %02x:%02x:%02x:%02x:%02x:%02x wwn port %llx node %llx ovlan %04x\n",
+		   "Read configuration from shmem: pause_on_host %02x protocol %02x BW [%02x - %02x] MAC %02x:%02x:%02x:%02x:%02x:%02x wwn port %llx node %llx ovlan %04x wol %02x\n",
 		info->pause_on_host, info->protocol,
 		info->bandwidth_min, info->bandwidth_max,
 		info->mac[0], info->mac[1], info->mac[2],
 		info->mac[3], info->mac[4], info->mac[5],
-		info->wwn_port, info->wwn_node, info->ovlan);
+		info->wwn_port, info->wwn_node,
+		info->ovlan, (u8)p_hwfn->hw_info.b_wol_support);
 
 	return 0;
 }
@@ -1223,6 +1328,178 @@ int qed_mcp_resume(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	return (cpu_mode & MCP_REG_CPU_MODE_SOFT_HALT) ? -EAGAIN : 0;
 }
 
+int qed_mcp_ov_update_current_config(struct qed_hwfn *p_hwfn,
+				     struct qed_ptt *p_ptt,
+				     enum qed_ov_client client)
+{
+	u32 resp = 0, param = 0;
+	u32 drv_mb_param;
+	int rc;
+
+	switch (client) {
+	case QED_OV_CLIENT_DRV:
+		drv_mb_param = DRV_MB_PARAM_OV_CURR_CFG_OS;
+		break;
+	case QED_OV_CLIENT_USER:
+		drv_mb_param = DRV_MB_PARAM_OV_CURR_CFG_OTHER;
+		break;
+	case QED_OV_CLIENT_VENDOR_SPEC:
+		drv_mb_param = DRV_MB_PARAM_OV_CURR_CFG_VENDOR_SPEC;
+		break;
+	default:
+		DP_NOTICE(p_hwfn, "Invalid client type %d\n", client);
+		return -EINVAL;
+	}
+
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_OV_UPDATE_CURR_CFG,
+			 drv_mb_param, &resp, &param);
+	if (rc)
+		DP_ERR(p_hwfn, "MCP response failure, aborting\n");
+
+	return rc;
+}
+
+int qed_mcp_ov_update_driver_state(struct qed_hwfn *p_hwfn,
+				   struct qed_ptt *p_ptt,
+				   enum qed_ov_driver_state drv_state)
+{
+	u32 resp = 0, param = 0;
+	u32 drv_mb_param;
+	int rc;
+
+	switch (drv_state) {
+	case QED_OV_DRIVER_STATE_NOT_LOADED:
+		drv_mb_param = DRV_MSG_CODE_OV_UPDATE_DRIVER_STATE_NOT_LOADED;
+		break;
+	case QED_OV_DRIVER_STATE_DISABLED:
+		drv_mb_param = DRV_MSG_CODE_OV_UPDATE_DRIVER_STATE_DISABLED;
+		break;
+	case QED_OV_DRIVER_STATE_ACTIVE:
+		drv_mb_param = DRV_MSG_CODE_OV_UPDATE_DRIVER_STATE_ACTIVE;
+		break;
+	default:
+		DP_NOTICE(p_hwfn, "Invalid driver state %d\n", drv_state);
+		return -EINVAL;
+	}
+
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_OV_UPDATE_DRIVER_STATE,
+			 drv_mb_param, &resp, &param);
+	if (rc)
+		DP_ERR(p_hwfn, "Failed to send driver state\n");
+
+	return rc;
+}
+
+int qed_mcp_ov_update_mtu(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u16 mtu)
+{
+	u32 resp = 0, param = 0;
+	u32 drv_mb_param;
+	int rc;
+
+	drv_mb_param = (u32)mtu << DRV_MB_PARAM_OV_MTU_SIZE_SHIFT;
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_OV_UPDATE_MTU,
+			 drv_mb_param, &resp, &param);
+	if (rc)
+		DP_ERR(p_hwfn, "Failed to send mtu value, rc = %d\n", rc);
+
+	return rc;
+}
+
+int qed_mcp_ov_update_mac(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u8 *mac)
+{
+	struct qed_mcp_mb_params mb_params;
+	union drv_union_data union_data;
+	int rc;
+
+	memset(&mb_params, 0, sizeof(mb_params));
+	mb_params.cmd = DRV_MSG_CODE_SET_VMAC;
+	mb_params.param = DRV_MSG_CODE_VMAC_TYPE_MAC <<
+			  DRV_MSG_CODE_VMAC_TYPE_SHIFT;
+	mb_params.param |= MCP_PF_ID(p_hwfn);
+	ether_addr_copy(&union_data.raw_data[0], mac);
+	mb_params.p_data_src = &union_data;
+	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
+	if (rc)
+		DP_ERR(p_hwfn, "Failed to send mac address, rc = %d\n", rc);
+
+	/* Store primary MAC for later possible WoL */
+	memcpy(p_hwfn->cdev->wol_mac, mac, ETH_ALEN);
+
+	return rc;
+}
+
+int qed_mcp_ov_update_wol(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, enum qed_ov_wol wol)
+{
+	u32 resp = 0, param = 0;
+	u32 drv_mb_param;
+	int rc;
+
+	if (p_hwfn->hw_info.b_wol_support == QED_WOL_SUPPORT_NONE) {
+		DP_VERBOSE(p_hwfn, QED_MSG_SP,
+			   "Can't change WoL configuration when WoL isn't supported\n");
+		return -EINVAL;
+	}
+
+	switch (wol) {
+	case QED_OV_WOL_DEFAULT:
+		drv_mb_param = DRV_MB_PARAM_WOL_DEFAULT;
+		break;
+	case QED_OV_WOL_DISABLED:
+		drv_mb_param = DRV_MB_PARAM_WOL_DISABLED;
+		break;
+	case QED_OV_WOL_ENABLED:
+		drv_mb_param = DRV_MB_PARAM_WOL_ENABLED;
+		break;
+	default:
+		DP_ERR(p_hwfn, "Invalid wol state %d\n", wol);
+		return -EINVAL;
+	}
+
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_OV_UPDATE_WOL,
+			 drv_mb_param, &resp, &param);
+	if (rc)
+		DP_ERR(p_hwfn, "Failed to send wol mode, rc = %d\n", rc);
+
+	/* Store the WoL update for a future unload */
+	p_hwfn->cdev->wol_config = (u8)wol;
+
+	return rc;
+}
+
+int qed_mcp_ov_update_eswitch(struct qed_hwfn *p_hwfn,
+			      struct qed_ptt *p_ptt,
+			      enum qed_ov_eswitch eswitch)
+{
+	u32 resp = 0, param = 0;
+	u32 drv_mb_param;
+	int rc;
+
+	switch (eswitch) {
+	case QED_OV_ESWITCH_NONE:
+		drv_mb_param = DRV_MB_PARAM_ESWITCH_MODE_NONE;
+		break;
+	case QED_OV_ESWITCH_VEB:
+		drv_mb_param = DRV_MB_PARAM_ESWITCH_MODE_VEB;
+		break;
+	case QED_OV_ESWITCH_VEPA:
+		drv_mb_param = DRV_MB_PARAM_ESWITCH_MODE_VEPA;
+		break;
+	default:
+		DP_ERR(p_hwfn, "Invalid eswitch mode %d\n", eswitch);
+		return -EINVAL;
+	}
+
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_OV_UPDATE_ESWITCH_MODE,
+			 drv_mb_param, &resp, &param);
+	if (rc)
+		DP_ERR(p_hwfn, "Failed to send eswitch mode, rc = %d\n", rc);
+
+	return rc;
+}
+
 int qed_mcp_set_led(struct qed_hwfn *p_hwfn,
 		    struct qed_ptt *p_ptt, enum qed_led_mode mode)
 {
@@ -1271,6 +1548,52 @@ int qed_mcp_mask_parities(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
+int qed_mcp_nvm_read(struct qed_dev *cdev, u32 addr, u8 *p_buf, u32 len)
+{
+	u32 bytes_left = len, offset = 0, bytes_to_copy, read_len = 0;
+	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
+	u32 resp = 0, resp_param = 0;
+	struct qed_ptt *p_ptt;
+	int rc = 0;
+
+	p_ptt = qed_ptt_acquire(p_hwfn);
+	if (!p_ptt)
+		return -EBUSY;
+
+	while (bytes_left > 0) {
+		bytes_to_copy = min_t(u32, bytes_left, MCP_DRV_NVM_BUF_LEN);
+
+		rc = qed_mcp_nvm_rd_cmd(p_hwfn, p_ptt,
+					DRV_MSG_CODE_NVM_READ_NVRAM,
+					addr + offset +
+					(bytes_to_copy <<
+					 DRV_MB_PARAM_NVM_LEN_SHIFT),
+					&resp, &resp_param,
+					&read_len,
+					(u32 *)(p_buf + offset));
+
+		if (rc || (resp != FW_MSG_CODE_NVM_OK)) {
+			DP_NOTICE(cdev, "MCP command rc = %d\n", rc);
+			break;
+		}
+
+		/* This can be a lengthy process, and it's possible scheduler
+		 * isn't preemptable. Sleep a bit to prevent CPU hogging.
+		 */
+		if (bytes_left % 0x1000 <
+		    (bytes_left - read_len) % 0x1000)
+			usleep_range(1000, 2000);
+
+		offset += read_len;
+		bytes_left -= read_len;
+	}
+
+	cdev->mcp_nvm_resp = resp;
+	qed_ptt_release(p_hwfn, p_ptt);
+
+	return rc;
+}
+
 int qed_mcp_bist_register_test(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	u32 drv_mb_param = 0, rsp, param;
@@ -1311,4 +1634,102 @@ int qed_mcp_bist_clock_test(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		rc = -EAGAIN;
 
 	return rc;
+}
+
+int qed_mcp_bist_nvm_test_get_num_images(struct qed_hwfn *p_hwfn,
+					 struct qed_ptt *p_ptt,
+					 u32 *num_images)
+{
+	u32 drv_mb_param = 0, rsp;
+	int rc = 0;
+
+	drv_mb_param = (DRV_MB_PARAM_BIST_NVM_TEST_NUM_IMAGES <<
+			DRV_MB_PARAM_BIST_TEST_INDEX_SHIFT);
+
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_BIST_TEST,
+			 drv_mb_param, &rsp, num_images);
+	if (rc)
+		return rc;
+
+	if (((rsp & FW_MSG_CODE_MASK) != FW_MSG_CODE_OK))
+		rc = -EINVAL;
+
+	return rc;
+}
+
+int qed_mcp_bist_nvm_test_get_image_att(struct qed_hwfn *p_hwfn,
+					struct qed_ptt *p_ptt,
+					struct bist_nvm_image_att *p_image_att,
+					u32 image_index)
+{
+	u32 buf_size = 0, param, resp = 0, resp_param = 0;
+	int rc;
+
+	param = DRV_MB_PARAM_BIST_NVM_TEST_IMAGE_BY_INDEX <<
+		DRV_MB_PARAM_BIST_TEST_INDEX_SHIFT;
+	param |= image_index << DRV_MB_PARAM_BIST_TEST_IMAGE_INDEX_SHIFT;
+
+	rc = qed_mcp_nvm_rd_cmd(p_hwfn, p_ptt,
+				DRV_MSG_CODE_BIST_TEST, param,
+				&resp, &resp_param,
+				&buf_size,
+				(u32 *)p_image_att);
+	if (rc)
+		return rc;
+
+	if (((resp & FW_MSG_CODE_MASK) != FW_MSG_CODE_OK) ||
+	    (p_image_att->return_code != 1))
+		rc = -EINVAL;
+
+	return rc;
+}
+
+#define QED_RESC_ALLOC_VERSION_MAJOR    1
+#define QED_RESC_ALLOC_VERSION_MINOR    0
+#define QED_RESC_ALLOC_VERSION				     \
+	((QED_RESC_ALLOC_VERSION_MAJOR <<		     \
+	  DRV_MB_PARAM_RESOURCE_ALLOC_VERSION_MAJOR_SHIFT) | \
+	 (QED_RESC_ALLOC_VERSION_MINOR <<		     \
+	  DRV_MB_PARAM_RESOURCE_ALLOC_VERSION_MINOR_SHIFT))
+int qed_mcp_get_resc_info(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt,
+			  struct resource_info *p_resc_info,
+			  u32 *p_mcp_resp, u32 *p_mcp_param)
+{
+	struct qed_mcp_mb_params mb_params;
+	union drv_union_data union_data;
+	int rc;
+
+	memset(&mb_params, 0, sizeof(mb_params));
+	memset(&union_data, 0, sizeof(union_data));
+	mb_params.cmd = DRV_MSG_GET_RESOURCE_ALLOC_MSG;
+	mb_params.param = QED_RESC_ALLOC_VERSION;
+
+	/* Need to have a sufficient large struct, as the cmd_and_union
+	 * is going to do memcpy from and to it.
+	 */
+	memcpy(&union_data.resource, p_resc_info, sizeof(*p_resc_info));
+
+	mb_params.p_data_src = &union_data;
+	mb_params.p_data_dst = &union_data;
+	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
+	if (rc)
+		return rc;
+
+	/* Copy the data back */
+	memcpy(p_resc_info, &union_data.resource, sizeof(*p_resc_info));
+	*p_mcp_resp = mb_params.mcp_resp;
+	*p_mcp_param = mb_params.mcp_param;
+
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_SP,
+		   "MFW resource_info: version 0x%x, res_id 0x%x, size 0x%x, offset 0x%x, vf_size 0x%x, vf_offset 0x%x, flags 0x%x\n",
+		   *p_mcp_param,
+		   p_resc_info->res_id,
+		   p_resc_info->size,
+		   p_resc_info->offset,
+		   p_resc_info->vf_size,
+		   p_resc_info->vf_offset, p_resc_info->flags);
+
+	return 0;
 }

@@ -50,8 +50,7 @@ MODULE_PARM_DESC(debug,
 static int disable_led_control;
 module_param(disable_led_control, int, 0444);
 MODULE_PARM_DESC(disable_led_control,
-		"disable LED control of the device "
-		"(default: 0 - LED control is active).");
+		"disable LED control of the device (default: 0 - LED control is active).");
 
 /* device private data */
 struct technisat_usb2_state {

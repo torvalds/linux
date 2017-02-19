@@ -3,6 +3,7 @@
  *
  *    Copyright IBM Corp. 2006, 2008
  *    Author(s): Michael Holzheu <holzheu@de.ibm.com>
+ *    License: GPL
  */
 
 #define KMSG_COMPONENT "hypfs"
@@ -18,7 +19,8 @@
 #include <linux/time.h>
 #include <linux/parser.h>
 #include <linux/sysfs.h>
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/kobject.h>
 #include <linux/seq_file.h>
 #include <linux/mount.h>
 #include <linux/uio.h>
@@ -443,7 +445,6 @@ static struct file_system_type hypfs_type = {
 	.mount		= hypfs_mount,
 	.kill_sb	= hypfs_kill_super
 };
-MODULE_ALIAS_FS("s390_hypfs");
 
 static const struct super_operations hypfs_s_ops = {
 	.statfs		= simple_statfs,
@@ -497,21 +498,4 @@ fail_dbfs_exit:
 	pr_err("Initialization of hypfs failed with rc=%i\n", rc);
 	return rc;
 }
-
-static void __exit hypfs_exit(void)
-{
-	unregister_filesystem(&hypfs_type);
-	sysfs_remove_mount_point(hypervisor_kobj, "s390");
-	hypfs_diag0c_exit();
-	hypfs_sprp_exit();
-	hypfs_vm_exit();
-	hypfs_diag_exit();
-	hypfs_dbfs_exit();
-}
-
-module_init(hypfs_init)
-module_exit(hypfs_exit)
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Michael Holzheu <holzheu@de.ibm.com>");
-MODULE_DESCRIPTION("s390 Hypervisor Filesystem");
+device_initcall(hypfs_init)

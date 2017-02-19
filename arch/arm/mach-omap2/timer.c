@@ -369,9 +369,9 @@ static bool use_gptimer_clksrc __initdata;
 /*
  * clocksource
  */
-static cycle_t clocksource_read_cycles(struct clocksource *cs)
+static u64 clocksource_read_cycles(struct clocksource *cs)
 {
-	return (cycle_t)__omap_dm_timer_read_counter(&clksrc,
+	return (u64)__omap_dm_timer_read_counter(&clksrc,
 						     OMAP_TIMER_NONPOSTED);
 }
 

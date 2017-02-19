@@ -62,7 +62,7 @@ config USB_DWC3_OMAP
 
 config USB_DWC3_EXYNOS
 	tristate "Samsung Exynos Platform"
-	depends on ARCH_EXYNOS && OF || COMPILE_TEST
+	depends on (ARCH_EXYNOS || COMPILE_TEST) && OF
 	default USB_DWC3
 	help
 	  Recent Exynos5 SoCs ship with one DesignWare Core USB3 IP inside,
@@ -70,7 +70,7 @@ config USB_DWC3_EXYNOS
 
 config USB_DWC3_PCI
 	tristate "PCIe-based Platforms"
-	depends on PCI
+	depends on PCI && ACPI
 	default USB_DWC3
 	help
 	  If you're using the DesignWare Core IP with a PCIe, please say
@@ -98,7 +98,7 @@ config USB_DWC3_OF_SIMPLE
 
 config USB_DWC3_ST
 	tristate "STMicroelectronics Platforms"
-	depends on ARCH_STI && OF
+	depends on (ARCH_STI || COMPILE_TEST) && OF
 	default USB_DWC3
 	help
 	  STMicroelectronics SoCs with one DesignWare Core USB3 IP

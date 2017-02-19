@@ -538,6 +538,8 @@ static int xenbus_file_open(struct inode *inode, struct file *filp)
 
 	nonseekable_open(inode, filp);
 
+	filp->f_mode &= ~FMODE_ATOMIC_POS; /* cdev-style semantics */
+
 	u = kzalloc(sizeof(*u), GFP_KERNEL);
 	if (u == NULL)
 		return -ENOMEM;

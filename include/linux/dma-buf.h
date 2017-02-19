@@ -30,7 +30,7 @@
 #include <linux/list.h>
 #include <linux/dma-mapping.h>
 #include <linux/fs.h>
-#include <linux/fence.h>
+#include <linux/dma-fence.h>
 #include <linux/wait.h>
 
 struct device;
@@ -143,7 +143,7 @@ struct dma_buf {
 	wait_queue_head_t poll;
 
 	struct dma_buf_poll_cb_t {
-		struct fence_cb cb;
+		struct dma_fence_cb cb;
 		wait_queue_head_t *poll;
 
 		unsigned long active;

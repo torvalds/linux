@@ -111,8 +111,8 @@ struct uart_icount {
 	__u32	buf_overrun;
 };
 
-typedef unsigned int __bitwise__ upf_t;
-typedef unsigned int __bitwise__ upstat_t;
+typedef unsigned int __bitwise upf_t;
+typedef unsigned int __bitwise upstat_t;
 
 struct uart_port {
 	spinlock_t		lock;			/* port lock */
@@ -123,6 +123,8 @@ struct uart_port {
 	void			(*set_termios)(struct uart_port *,
 				               struct ktermios *new,
 				               struct ktermios *old);
+	void			(*set_ldisc)(struct uart_port *,
+					     struct ktermios *);
 	unsigned int		(*get_mctrl)(struct uart_port *);
 	void			(*set_mctrl)(struct uart_port *, unsigned int);
 	int			(*startup)(struct uart_port *port);

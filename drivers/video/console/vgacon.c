@@ -60,15 +60,6 @@ static struct vgastate vgastate;
 
 #define BLANK 0x0020
 
-#define CAN_LOAD_EGA_FONTS	/* undefine if the user must not do this */
-#define CAN_LOAD_PALETTE	/* undefine if the user must not do this */
-
-/* You really do _NOT_ want to define this, unless you have buggy
- * Trident VGA which will resize cursor when moving it between column
- * 15 & 16. If you define this and your VGA is OK, inverse bug will
- * appear.
- */
-#undef TRIDENT_GLITCH
 #define VGA_FONTWIDTH       8   /* VGA does not support fontwidths != 8 */
 /*
  *  Interface used by the world
@@ -83,14 +74,12 @@ static int vgacon_blank(struct vc_data *c, int blank, int mode_switch);
 static void vgacon_scrolldelta(struct vc_data *c, int lines);
 static int vgacon_set_origin(struct vc_data *c);
 static void vgacon_save_screen(struct vc_data *c);
-static int vgacon_scroll(struct vc_data *c, int t, int b, int dir,
-			 int lines);
 static void vgacon_invert_region(struct vc_data *c, u16 * p, int count);
 static struct uni_pagedir *vgacon_uni_pagedir;
 static int vgacon_refcount;
 
 /* Description of the hardware situation */
-static int		vga_init_done		__read_mostly;
+static bool		vga_init_done;
 static unsigned long	vga_vram_base		__read_mostly;	/* Base of video memory */
 static unsigned long	vga_vram_end		__read_mostly;	/* End of video memory */
 static unsigned int	vga_vram_size		__read_mostly;	/* Size of video memory */
@@ -98,31 +87,31 @@ static u16		vga_video_port_reg	__read_mostly;	/* Video register select port */
 static u16		vga_video_port_val	__read_mostly;	/* Video register value port */
 static unsigned int	vga_video_num_columns;			/* Number of text columns */
 static unsigned int	vga_video_num_lines;			/* Number of text lines */
-static int		vga_can_do_color	__read_mostly;	/* Do we support colors? */
+static bool		vga_can_do_color;			/* Do we support colors? */
 static unsigned int	vga_default_font_height __read_mostly;	/* Height of default screen font */
 static unsigned char	vga_video_type		__read_mostly;	/* Card type */
-static unsigned char	vga_hardscroll_enabled	__read_mostly;
-static unsigned char	vga_hardscroll_user_enable __read_mostly = 1;
-static unsigned char	vga_font_is_default = 1;
+static bool		vga_font_is_default = true;
 static int		vga_vesa_blanked;
-static int 		vga_palette_blanked;
-static int 		vga_is_gfx;
-static int 		vga_512_chars;
+static bool 		vga_palette_blanked;
+static bool 		vga_is_gfx;
+static bool 		vga_512_chars;
 static int 		vga_video_font_height;
 static int 		vga_scan_lines		__read_mostly;
 static unsigned int 	vga_rolled_over;
 
-static int vgacon_text_mode_force;
+static bool vgacon_text_mode_force;
+static bool vga_hardscroll_enabled;
+static bool vga_hardscroll_user_enable = true;
 
 bool vgacon_text_force(void)
 {
-	return vgacon_text_mode_force ? true : false;
+	return vgacon_text_mode_force;
 }
 EXPORT_SYMBOL(vgacon_text_force);
 
 static int __init text_mode(char *str)
 {
-	vgacon_text_mode_force = 1;
+	vgacon_text_mode_force = true;
 	return 1;
 }
 
@@ -136,7 +125,7 @@ static int __init no_scroll(char *str)
 	 * Braille reader made by F.H. Papenmeier (Germany).
 	 * Use the "no-scroll" bootflag.
 	 */
-	vga_hardscroll_user_enable = vga_hardscroll_enabled = 0;
+	vga_hardscroll_user_enable = vga_hardscroll_enabled = false;
 	return 1;
 }
 
@@ -159,18 +148,10 @@ static inline void write_vga(unsigned char reg, unsigned int val)
 	 * handlers, thus the write has to be IRQ-atomic.
 	 */
 	raw_spin_lock_irqsave(&vga_lock, flags);
-
-#ifndef SLOW_VGA
 	v1 = reg + (val & 0xff00);
 	v2 = reg + 1 + ((val << 8) & 0xff00);
 	outw(v1, vga_video_port_reg);
 	outw(v2, vga_video_port_reg);
-#else
-	outb_p(reg, vga_video_port_reg);
-	outb_p(val >> 8, vga_video_port_val);
-	outb_p(reg + 1, vga_video_port_reg);
-	outb_p(val & 0xff, vga_video_port_val);
-#endif
 	raw_spin_unlock_irqrestore(&vga_lock, flags);
 }
 
@@ -334,31 +315,8 @@ static void vgacon_restore_screen(struct vc_data *c)
 
 static void vgacon_scrolldelta(struct vc_data *c, int lines)
 {
-	if (!lines)		/* Turn scrollback off */
-		c->vc_visible_origin = c->vc_origin;
-	else {
-		int margin = c->vc_size_row * 4;
-		int ul, we, p, st;
-
-		if (vga_rolled_over >
-		    (c->vc_scr_end - vga_vram_base) + margin) {
-			ul = c->vc_scr_end - vga_vram_base;
-			we = vga_rolled_over + c->vc_size_row;
-		} else {
-			ul = 0;
-			we = vga_vram_size;
-		}
-		p = (c->vc_visible_origin - vga_vram_base - ul + we) % we +
-		    lines * c->vc_size_row;
-		st = (c->vc_origin - vga_vram_base - ul + we) % we;
-		if (st < 2 * margin)
-			margin = 0;
-		if (p < margin)
-			p = 0;
-		if (p > st - margin)
-			p = st;
-		c->vc_visible_origin = vga_vram_base + (p + ul) % we;
-	}
+	vc_scrolldelta_helper(c, lines, vga_rolled_over, (void *)vga_vram_base,
+			vga_vram_size);
 	vga_set_mem_top(c);
 }
 #endif /* CONFIG_VGACON_SOFT_SCROLLBACK */
@@ -427,7 +385,7 @@ static const char *vgacon_startup(void)
 		}
 	} else {
 		/* If not, it is color. */
-		vga_can_do_color = 1;
+		vga_can_do_color = true;
 		vga_vram_base = 0xb8000;
 		vga_video_port_reg = VGA_CRT_IC;
 		vga_video_port_val = VGA_CRT_DC;
@@ -451,18 +409,6 @@ static const char *vgacon_startup(void)
 				request_resource(&ioport_resource,
 						 &vga_console_resource);
 
-#ifdef VGA_CAN_DO_64KB
-				/*
-				 * get 64K rather than 32K of video RAM.
-				 * This doesn't actually work on all "VGA"
-				 * controllers (it seems like setting MM=01
-				 * and COE=1 isn't necessarily a good idea)
-				 */
-				vga_vram_base = 0xa0000;
-				vga_vram_size = 0x10000;
-				outb_p(6, VGA_GFX_I);
-				outb_p(6, VGA_GFX_D);
-#endif
 				/*
 				 * Normalise the palette registers, to point
 				 * the 16 screen colours to the first 16
@@ -542,7 +488,7 @@ static const char *vgacon_startup(void)
 
 	if (!vga_init_done) {
 		vgacon_scrollback_startup();
-		vga_init_done = 1;
+		vga_init_done = true;
 	}
 
 	return display_desc;
@@ -634,7 +580,7 @@ static u8 vgacon_build_attr(struct vc_data *c, u8 color, u8 intensity,
 
 static void vgacon_invert_region(struct vc_data *c, u16 * p, int count)
 {
-	int col = vga_can_do_color;
+	const bool col = vga_can_do_color;
 
 	while (count--) {
 		u16 a = scr_readw(p);
@@ -651,11 +597,6 @@ static void vgacon_set_cursor_size(int xpos, int from, int to)
 {
 	unsigned long flags;
 	int curs, cure;
-
-#ifdef TRIDENT_GLITCH
-	if (xpos < 16)
-		from--, to--;
-#endif
 
 	if ((from == cursor_size_lastfrom) && (to == cursor_size_lastto))
 		return;
@@ -858,12 +799,10 @@ static void vga_set_palette(struct vc_data *vc, const unsigned char *table)
 
 static void vgacon_set_palette(struct vc_data *vc, const unsigned char *table)
 {
-#ifdef CAN_LOAD_PALETTE
 	if (vga_video_type != VIDEO_TYPE_VGAC || vga_palette_blanked
 	    || !con_is_visible(vc))
 		return;
 	vga_set_palette(vc, table);
-#endif
 }
 
 /* structure holding original VGA register settings */
@@ -1006,24 +945,24 @@ static int vgacon_blank(struct vc_data *c, int blank, int mode_switch)
 		}
 		if (vga_palette_blanked) {
 			vga_set_palette(c, color_table);
-			vga_palette_blanked = 0;
+			vga_palette_blanked = false;
 			return 0;
 		}
-		vga_is_gfx = 0;
+		vga_is_gfx = false;
 		/* Tell console.c that it has to restore the screen itself */
 		return 1;
 	case 1:		/* Normal blanking */
 	case -1:	/* Obsolete */
 		if (!mode_switch && vga_video_type == VIDEO_TYPE_VGAC) {
 			vga_pal_blank(&vgastate);
-			vga_palette_blanked = 1;
+			vga_palette_blanked = true;
 			return 0;
 		}
 		vgacon_set_origin(c);
 		scr_memsetw((void *) vga_vram_base, BLANK,
 			    c->vc_screenbuf_size);
 		if (mode_switch)
-			vga_is_gfx = 1;
+			vga_is_gfx = true;
 		return 1;
 	default:		/* VESA blanking */
 		if (vga_video_type == VIDEO_TYPE_VGAC) {
@@ -1046,15 +985,14 @@ static int vgacon_blank(struct vc_data *c, int blank, int mode_switch)
  * (sizif@botik.yaroslavl.su).
  */
 
-#ifdef CAN_LOAD_EGA_FONTS
-
 #define colourmap 0xa0000
 /* Pauline Middelink <middelin@polyware.iaf.nl> reports that we
    should use 0xA0000 for the bwmap as well.. */
 #define blackwmap 0xa0000
 #define cmapsz 8192
 
-static int vgacon_do_font_op(struct vgastate *state,char *arg,int set,int ch512)
+static int vgacon_do_font_op(struct vgastate *state, char *arg, int set,
+		bool ch512)
 {
 	unsigned short video_port_status = vga_video_port_reg + 6;
 	int font_select = 0x00, beg, i;
@@ -1063,10 +1001,6 @@ static int vgacon_do_font_op(struct vgastate *state,char *arg,int set,int ch512)
 	if (vga_video_type != VIDEO_TYPE_EGAM) {
 		charmap = (char *) VGA_MAP_MEM(colourmap, 0);
 		beg = 0x0e;
-#ifdef VGA_CAN_DO_64KB
-		if (vga_video_type == VIDEO_TYPE_VGAC)
-			beg = 0x06;
-#endif
 	} else {
 		charmap = (char *) VGA_MAP_MEM(blackwmap, 0);
 		beg = 0x0a;
@@ -1080,7 +1014,7 @@ static int vgacon_do_font_op(struct vgastate *state,char *arg,int set,int ch512)
 	if (!arg)
 		return -EINVAL;	/* Return to default font not supported */
 
-	vga_font_is_default = 0;
+	vga_font_is_default = false;
 	font_select = ch512 ? 0x04 : 0x00;
 #else
 	/*
@@ -1091,7 +1025,7 @@ static int vgacon_do_font_op(struct vgastate *state,char *arg,int set,int ch512)
 	if (set) {
 		vga_font_is_default = !arg;
 		if (!arg)
-			ch512 = 0;	/* Default font is always 256 */
+			ch512 = false;	/* Default font is always 256 */
 		font_select = arg ? (ch512 ? 0x0e : 0x0a) : 0x00;
 	}
 
@@ -1295,13 +1229,6 @@ static int vgacon_font_get(struct vc_data *c, struct console_font *font)
 	return vgacon_do_font_op(&vgastate, font->data, 0, vga_512_chars);
 }
 
-#else
-
-#define vgacon_font_set NULL
-#define vgacon_font_get NULL
-
-#endif
-
 static int vgacon_resize(struct vc_data *c, unsigned int width,
 			 unsigned int height, unsigned int user)
 {
@@ -1350,17 +1277,17 @@ static void vgacon_save_screen(struct vc_data *c)
 			    c->vc_screenbuf_size > vga_vram_size ? vga_vram_size : c->vc_screenbuf_size);
 }
 
-static int vgacon_scroll(struct vc_data *c, int t, int b, int dir,
-			 int lines)
+static bool vgacon_scroll(struct vc_data *c, unsigned int t, unsigned int b,
+		enum con_scroll dir, unsigned int lines)
 {
 	unsigned long oldo;
 	unsigned int delta;
 
 	if (t || b != c->vc_rows || vga_is_gfx || c->vc_mode != KD_TEXT)
-		return 0;
+		return false;
 
 	if (!vga_hardscroll_enabled || lines >= c->vc_rows / 2)
-		return 0;
+		return false;
 
 	vgacon_restore_screen(c);
 	oldo = c->vc_origin;
@@ -1396,7 +1323,7 @@ static int vgacon_scroll(struct vc_data *c, int t, int b, int dir,
 	c->vc_visible_origin = c->vc_origin;
 	vga_set_mem_top(c);
 	c->vc_pos = (c->vc_pos - oldo) + c->vc_origin;
-	return 1;
+	return true;
 }
 
 

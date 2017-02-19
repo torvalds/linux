@@ -58,7 +58,7 @@ static inline int virtio_net_hdr_from_skb(const struct sk_buff *skb,
 					  struct virtio_net_hdr *hdr,
 					  bool little_endian)
 {
-	memset(hdr, 0, sizeof(*hdr));
+	memset(hdr, 0, sizeof(*hdr));   /* no info leak */
 
 	if (skb_is_gso(skb)) {
 		struct skb_shared_info *sinfo = skb_shinfo(skb);
@@ -98,4 +98,4 @@ static inline int virtio_net_hdr_from_skb(const struct sk_buff *skb,
 	return 0;
 }
 
-#endif /* _LINUX_VIRTIO_BYTEORDER */
+#endif /* _LINUX_VIRTIO_NET_H */

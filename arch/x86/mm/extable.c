@@ -1,5 +1,5 @@
 #include <linux/extable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/traps.h>
 #include <asm/kdebug.h>
 

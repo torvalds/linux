@@ -1595,7 +1595,7 @@
 		clock-frequency = <400000>;
 
 		/* SGTL5000 audio codec */
-		sgtl5000: codec@0a {
+		sgtl5000: codec@a {
 			compatible = "fsl,sgtl5000";
 			reg = <0x0a>;
 			VDDA-supply = <&reg_3v3>;

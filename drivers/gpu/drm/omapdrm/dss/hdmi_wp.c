@@ -144,87 +144,84 @@ void hdmi_wp_video_config_format(struct hdmi_wp_data *wp,
 }
 
 void hdmi_wp_video_config_interface(struct hdmi_wp_data *wp,
-		struct omap_video_timings *timings)
+				    struct videomode *vm)
 {
 	u32 r;
 	bool vsync_pol, hsync_pol;
 	DSSDBG("Enter hdmi_wp_video_config_interface\n");
 
-	vsync_pol = timings->vsync_level == OMAPDSS_SIG_ACTIVE_HIGH;
-	hsync_pol = timings->hsync_level == OMAPDSS_SIG_ACTIVE_HIGH;
+	vsync_pol = !!(vm->flags & DISPLAY_FLAGS_VSYNC_HIGH);
+	hsync_pol = !!(vm->flags & DISPLAY_FLAGS_HSYNC_HIGH);
 
 	r = hdmi_read_reg(wp->base, HDMI_WP_VIDEO_CFG);
 	r = FLD_MOD(r, vsync_pol, 7, 7);
 	r = FLD_MOD(r, hsync_pol, 6, 6);
-	r = FLD_MOD(r, timings->interlace, 3, 3);
+	r = FLD_MOD(r, !!(vm->flags & DISPLAY_FLAGS_INTERLACED), 3, 3);
 	r = FLD_MOD(r, 1, 1, 0); /* HDMI_TIMING_MASTER_24BIT */
 	hdmi_write_reg(wp->base, HDMI_WP_VIDEO_CFG, r);
 }
 
 void hdmi_wp_video_config_timing(struct hdmi_wp_data *wp,
-		struct omap_video_timings *timings)
+				 struct videomode *vm)
 {
 	u32 timing_h = 0;
 	u32 timing_v = 0;
-	unsigned hsw_offset = 1;
+	unsigned hsync_len_offset = 1;
 
 	DSSDBG("Enter hdmi_wp_video_config_timing\n");
 
 	/*
 	 * On OMAP4 and OMAP5 ES1 the HSW field is programmed as is. On OMAP5
-	 * ES2+ (including DRA7/AM5 SoCs) HSW field is programmed to hsw-1.
+	 * ES2+ (including DRA7/AM5 SoCs) HSW field is programmed to hsync_len-1.
 	 * However, we don't support OMAP5 ES1 at all, so we can just check for
 	 * OMAP4 here.
 	 */
 	if (omapdss_get_version() == OMAPDSS_VER_OMAP4430_ES1 ||
 	    omapdss_get_version() == OMAPDSS_VER_OMAP4430_ES2 ||
 	    omapdss_get_version() == OMAPDSS_VER_OMAP4)
-		hsw_offset = 0;
+		hsync_len_offset = 0;
 
-	timing_h |= FLD_VAL(timings->hbp, 31, 20);
-	timing_h |= FLD_VAL(timings->hfp, 19, 8);
-	timing_h |= FLD_VAL(timings->hsw - hsw_offset, 7, 0);
+	timing_h |= FLD_VAL(vm->hback_porch, 31, 20);
+	timing_h |= FLD_VAL(vm->hfront_porch, 19, 8);
+	timing_h |= FLD_VAL(vm->hsync_len - hsync_len_offset, 7, 0);
 	hdmi_write_reg(wp->base, HDMI_WP_VIDEO_TIMING_H, timing_h);
 
-	timing_v |= FLD_VAL(timings->vbp, 31, 20);
-	timing_v |= FLD_VAL(timings->vfp, 19, 8);
-	timing_v |= FLD_VAL(timings->vsw, 7, 0);
+	timing_v |= FLD_VAL(vm->vback_porch, 31, 20);
+	timing_v |= FLD_VAL(vm->vfront_porch, 19, 8);
+	timing_v |= FLD_VAL(vm->vsync_len, 7, 0);
 	hdmi_write_reg(wp->base, HDMI_WP_VIDEO_TIMING_V, timing_v);
 }
 
 void hdmi_wp_init_vid_fmt_timings(struct hdmi_video_format *video_fmt,
-		struct omap_video_timings *timings, struct hdmi_config *param)
+		struct videomode *vm, struct hdmi_config *param)
 {
 	DSSDBG("Enter hdmi_wp_video_init_format\n");
 
 	video_fmt->packing_mode = HDMI_PACK_10b_RGB_YUV444;
-	video_fmt->y_res = param->timings.y_res;
-	video_fmt->x_res = param->timings.x_res;
+	video_fmt->y_res = param->vm.vactive;
+	video_fmt->x_res = param->vm.hactive;
 
-	timings->hbp = param->timings.hbp;
-	timings->hfp = param->timings.hfp;
-	timings->hsw = param->timings.hsw;
-	timings->vbp = param->timings.vbp;
-	timings->vfp = param->timings.vfp;
-	timings->vsw = param->timings.vsw;
+	vm->hback_porch = param->vm.hback_porch;
+	vm->hfront_porch = param->vm.hfront_porch;
+	vm->hsync_len = param->vm.hsync_len;
+	vm->vback_porch = param->vm.vback_porch;
+	vm->vfront_porch = param->vm.vfront_porch;
+	vm->vsync_len = param->vm.vsync_len;
 
-	timings->vsync_level = param->timings.vsync_level;
-	timings->hsync_level = param->timings.hsync_level;
-	timings->interlace = param->timings.interlace;
-	timings->double_pixel = param->timings.double_pixel;
+	vm->flags = param->vm.flags;
 
-	if (param->timings.interlace) {
+	if (param->vm.flags & DISPLAY_FLAGS_INTERLACED) {
 		video_fmt->y_res /= 2;
-		timings->vbp /= 2;
-		timings->vfp /= 2;
-		timings->vsw /= 2;
+		vm->vback_porch /= 2;
+		vm->vfront_porch /= 2;
+		vm->vsync_len /= 2;
 	}
 
-	if (param->timings.double_pixel) {
+	if (param->vm.flags & DISPLAY_FLAGS_DOUBLECLK) {
 		video_fmt->x_res *= 2;
-		timings->hfp *= 2;
-		timings->hsw *= 2;
-		timings->hbp *= 2;
+		vm->hfront_porch *= 2;
+		vm->hsync_len *= 2;
+		vm->hback_porch *= 2;
 	}
 }
 

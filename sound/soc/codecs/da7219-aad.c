@@ -204,10 +204,19 @@ static void da7219_aad_hptest_work(struct work_struct *work)
 	snd_soc_update_bits(codec, DA7219_MIXOUT_R_CTRL,
 			    DA7219_MIXOUT_R_AMP_EN_MASK,
 			    DA7219_MIXOUT_R_AMP_EN_MASK);
-	snd_soc_write(codec, DA7219_HP_L_CTRL,
-		      DA7219_HP_L_AMP_OE_MASK | DA7219_HP_L_AMP_EN_MASK);
-	snd_soc_write(codec, DA7219_HP_R_CTRL,
-		      DA7219_HP_R_AMP_OE_MASK | DA7219_HP_R_AMP_EN_MASK);
+	snd_soc_update_bits(codec, DA7219_HP_L_CTRL,
+			    DA7219_HP_L_AMP_OE_MASK | DA7219_HP_L_AMP_EN_MASK,
+			    DA7219_HP_L_AMP_OE_MASK | DA7219_HP_L_AMP_EN_MASK);
+	snd_soc_update_bits(codec, DA7219_HP_R_CTRL,
+			    DA7219_HP_R_AMP_OE_MASK | DA7219_HP_R_AMP_EN_MASK,
+			    DA7219_HP_R_AMP_OE_MASK | DA7219_HP_R_AMP_EN_MASK);
+	msleep(DA7219_SETTLING_DELAY);
+	snd_soc_update_bits(codec, DA7219_HP_L_CTRL,
+			    DA7219_HP_L_AMP_MUTE_EN_MASK |
+			    DA7219_HP_L_AMP_MIN_GAIN_EN_MASK, 0);
+	snd_soc_update_bits(codec, DA7219_HP_R_CTRL,
+			    DA7219_HP_R_AMP_MUTE_EN_MASK |
+			    DA7219_HP_R_AMP_MIN_GAIN_EN_MASK, 0);
 
 	/*
 	 * If we're running from the internal oscillator then give audio paths
@@ -244,6 +253,7 @@ static void da7219_aad_hptest_work(struct work_struct *work)
 	regcache_mark_dirty(da7219->regmap);
 	regcache_sync_region(da7219->regmap, DA7219_HP_L_CTRL,
 			     DA7219_HP_R_CTRL);
+	msleep(DA7219_SETTLING_DELAY);
 	regcache_sync_region(da7219->regmap, DA7219_MIXOUT_L_CTRL,
 			     DA7219_MIXOUT_R_CTRL);
 	regcache_sync_region(da7219->regmap, DA7219_DROUTING_ST_OUTFILT_1L,

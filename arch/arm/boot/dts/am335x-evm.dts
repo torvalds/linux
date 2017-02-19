@@ -783,3 +783,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&dcan1_pins_default>;
 };
+
+&rtc {
+	clocks = <&clk_32768_ck>, <&clkdiv32k_ick>;
+	clock-names = "ext-clk", "int-clk";
+};

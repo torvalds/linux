@@ -27,6 +27,9 @@ static struct clk_hw *uniphier_clk_register(struct device *dev,
 					const struct uniphier_clk_data *data)
 {
 	switch (data->type) {
+	case UNIPHIER_CLK_TYPE_CPUGEAR:
+		return uniphier_clk_register_cpugear(dev, regmap, data->name,
+						     &data->data.cpugear);
 	case UNIPHIER_CLK_TYPE_FIXED_FACTOR:
 		return uniphier_clk_register_fixed_factor(dev, data->name,
 							  &data->data.factor);

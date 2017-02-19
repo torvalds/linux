@@ -76,7 +76,6 @@ static void rio_free_tx (struct net_device *dev, int irq);
 static void tx_error (struct net_device *dev, int tx_status);
 static int receive_packet (struct net_device *dev);
 static void rio_error (struct net_device *dev, int int_status);
-static int change_mtu (struct net_device *dev, int new_mtu);
 static void set_multicast (struct net_device *dev);
 static struct net_device_stats *get_stats (struct net_device *dev);
 static int clear_stats (struct net_device *dev);
@@ -106,7 +105,6 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_set_rx_mode	= set_multicast,
 	.ndo_do_ioctl		= rio_ioctl,
 	.ndo_tx_timeout		= rio_tx_timeout,
-	.ndo_change_mtu		= change_mtu,
 };
 
 static int
@@ -230,6 +228,10 @@ rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 #if 0
 	dev->features = NETIF_F_IP_CSUM;
 #endif
+	/* MTU range: 68 - 1536 or 8000 */
+	dev->min_mtu = ETH_MIN_MTU;
+	dev->max_mtu = np->jumbo ? MAX_JUMBO : PACKET_SIZE;
+
 	pci_set_drvdata (pdev, dev);
 
 	ring_space = pci_alloc_consistent (pdev, TX_TOTAL_SIZE, &ring_dma);
@@ -1195,22 +1197,6 @@ clear_stats (struct net_device *dev)
 	dr16(TCPCheckSumErrors);
 	dr16(UDPCheckSumErrors);
 	dr16(IPCheckSumErrors);
-	return 0;
-}
-
-
-static int
-change_mtu (struct net_device *dev, int new_mtu)
-{
-	struct netdev_private *np = netdev_priv(dev);
-	int max = (np->jumbo) ? MAX_JUMBO : 1536;
-
-	if ((new_mtu < 68) || (new_mtu > max)) {
-		return -EINVAL;
-	}
-
-	dev->mtu = new_mtu;
-
 	return 0;
 }
 

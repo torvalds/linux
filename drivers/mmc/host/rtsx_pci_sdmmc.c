@@ -190,8 +190,7 @@ static int sd_pre_dma_transfer(struct realtek_pci_sdmmc *host,
 	return using_cookie;
 }
 
-static void sdmmc_pre_req(struct mmc_host *mmc, struct mmc_request *mrq,
-		bool is_first_req)
+static void sdmmc_pre_req(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	struct realtek_pci_sdmmc *host = mmc_priv(mmc);
 	struct mmc_data *data = mrq->data;
