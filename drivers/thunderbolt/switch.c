@@ -677,6 +677,60 @@ void tb_port_release_out_hopid(struct tb_port *port, int hopid)
 }
 
 /**
+ * tb_next_port_on_path() - Return next port for given port on a path
+ * @start: Start port of the walk
+ * @end: End port of the walk
+ * @prev: Previous port (%NULL if this is the first)
+ *
+ * This function can be used to walk from one port to another if they
+ * are connected through zero or more switches. If the @prev is dual
+ * link port, the function follows that link and returns another end on
+ * that same link.
+ *
+ * If the @end port has been reached, return %NULL.
+ *
+ * Domain tb->lock must be held when this function is called.
+ */
+struct tb_port *tb_next_port_on_path(struct tb_port *start, struct tb_port *end,
+				     struct tb_port *prev)
+{
+	struct tb_port *next;
+
+	if (!prev)
+		return start;
+
+	if (prev->sw == end->sw) {
+		if (prev == end)
+			return NULL;
+		return end;
+	}
+
+	if (start->sw->config.depth < end->sw->config.depth) {
+		if (prev->remote &&
+		    prev->remote->sw->config.depth > prev->sw->config.depth)
+			next = prev->remote;
+		else
+			next = tb_port_at(tb_route(end->sw), prev->sw);
+	} else {
+		if (tb_is_upstream_port(prev)) {
+			next = prev->remote;
+		} else {
+			next = tb_upstream_port(prev->sw);
+			/*
+			 * Keep the same link if prev and next are both
+			 * dual link ports.
+			 */
+			if (next->dual_link_port &&
+			    next->link_nr != prev->link_nr) {
+				next = next->dual_link_port;
+			}
+		}
+	}
+
+	return next;
+}
+
+/**
  * tb_pci_port_enable() - Enable PCIe adapter port
  * @port: PCIe port to enable
  * @enable: Enable/disable the PCIe adapter
