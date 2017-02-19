@@ -1002,7 +1002,8 @@ static int dspi_probe(struct platform_device *pdev)
 	if (IS_ERR(dspi->regmap)) {
 		dev_err(&pdev->dev, "failed to init regmap: %ld\n",
 				PTR_ERR(dspi->regmap));
-		return PTR_ERR(dspi->regmap);
+		ret = PTR_ERR(dspi->regmap);
+		goto out_master_put;
 	}
 
 	dspi_init(dspi);
