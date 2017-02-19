@@ -111,6 +111,11 @@ static inline int __ptr_ring_produce(struct ptr_ring *r, void *ptr)
 	return 0;
 }
 
+/*
+ * Note: resize (below) nests producer lock within consumer lock, so if you
+ * consume in interrupt or BH context, you must disable interrupts/BH when
+ * calling this.
+ */
 static inline int ptr_ring_produce(struct ptr_ring *r, void *ptr)
 {
 	int ret;
@@ -242,6 +247,11 @@ static inline void *__ptr_ring_consume(struct ptr_ring *r)
 	return ptr;
 }
 
+/*
+ * Note: resize (below) nests producer lock within consumer lock, so if you
+ * call this in interrupt or BH context, you must disable interrupts/BH when
+ * producing.
+ */
 static inline void *ptr_ring_consume(struct ptr_ring *r)
 {
 	void *ptr;
@@ -357,7 +367,7 @@ static inline void **__ptr_ring_swap_queue(struct ptr_ring *r, void **queue,
 	void **old;
 	void *ptr;
 
-	while ((ptr = ptr_ring_consume(r)))
+	while ((ptr = __ptr_ring_consume(r)))
 		if (producer < size)
 			queue[producer++] = ptr;
 		else if (destroy)
@@ -372,6 +382,12 @@ static inline void **__ptr_ring_swap_queue(struct ptr_ring *r, void **queue,
 	return old;
 }
 
+/*
+ * Note: producer lock is nested within consumer lock, so if you
+ * resize you must make sure all uses nest correctly.
+ * In particular if you consume ring in interrupt or BH context, you must
+ * disable interrupts/BH when doing so.
+ */
 static inline int ptr_ring_resize(struct ptr_ring *r, int size, gfp_t gfp,
 				  void (*destroy)(void *))
 {
@@ -382,17 +398,25 @@ static inline int ptr_ring_resize(struct ptr_ring *r, int size, gfp_t gfp,
 	if (!queue)
 		return -ENOMEM;
 
-	spin_lock_irqsave(&(r)->producer_lock, flags);
+	spin_lock_irqsave(&(r)->consumer_lock, flags);
+	spin_lock(&(r)->producer_lock);
 
 	old = __ptr_ring_swap_queue(r, queue, size, gfp, destroy);
 
-	spin_unlock_irqrestore(&(r)->producer_lock, flags);
+	spin_unlock(&(r)->producer_lock);
+	spin_unlock_irqrestore(&(r)->consumer_lock, flags);
 
 	kfree(old);
 
 	return 0;
 }
 
+/*
+ * Note: producer lock is nested within consumer lock, so if you
+ * resize you must make sure all uses nest correctly.
+ * In particular if you consume ring in interrupt or BH context, you must
+ * disable interrupts/BH when doing so.
+ */
 static inline int ptr_ring_resize_multiple(struct ptr_ring **rings, int nrings,
 					   int size,
 					   gfp_t gfp, void (*destroy)(void *))
@@ -412,10 +436,12 @@ static inline int ptr_ring_resize_multiple(struct ptr_ring **rings, int nrings,
 	}
 
 	for (i = 0; i < nrings; ++i) {
-		spin_lock_irqsave(&(rings[i])->producer_lock, flags);
+		spin_lock_irqsave(&(rings[i])->consumer_lock, flags);
+		spin_lock(&(rings[i])->producer_lock);
 		queues[i] = __ptr_ring_swap_queue(rings[i], queues[i],
 						  size, gfp, destroy);
-		spin_unlock_irqrestore(&(rings[i])->producer_lock, flags);
+		spin_unlock(&(rings[i])->producer_lock);
+		spin_unlock_irqrestore(&(rings[i])->consumer_lock, flags);
 	}
 
 	for (i = 0; i < nrings; ++i)
