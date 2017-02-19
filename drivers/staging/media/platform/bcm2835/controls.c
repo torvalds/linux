@@ -218,9 +218,7 @@ static int ctrl_set_iso(struct bm2835_mmal_dev *dev,
 		dev->iso = iso_values[ctrl->val];
 	else if (ctrl->id == V4L2_CID_ISO_SENSITIVITY_AUTO)
 		dev->manual_iso_enabled =
-				(ctrl->val == V4L2_ISO_SENSITIVITY_MANUAL ?
-							true :
-							false);
+				(ctrl->val == V4L2_ISO_SENSITIVITY_MANUAL);
 
 	control = &dev->component[MMAL_COMPONENT_CAMERA]->control;
 
