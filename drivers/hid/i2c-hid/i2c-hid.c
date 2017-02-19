@@ -1064,7 +1064,7 @@ static int i2c_hid_probe(struct i2c_client *client,
 		if (ret != -EPROBE_DEFER)
 			dev_err(&client->dev, "Failed to get regulator: %d\n",
 				ret);
-		return ret;
+		goto err;
 	}
 
 	ret = regulator_enable(ihid->pdata.supply);
