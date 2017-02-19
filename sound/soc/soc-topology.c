@@ -1871,7 +1871,7 @@ static int soc_tplg_pcm_elems_load(struct soc_tplg *tplg,
 {
 	struct snd_soc_tplg_pcm *pcm, *_pcm;
 	int count = hdr->count;
-	int i, err;
+	int i;
 	bool abi_match;
 
 	if (tplg->pass != SOC_TPLG_PASS_PCM_DAI)
@@ -1905,7 +1905,7 @@ static int soc_tplg_pcm_elems_load(struct soc_tplg *tplg,
 			_pcm = pcm;
 		} else {
 			abi_match = false;
-			err = pcm_new_ver(tplg, pcm, &_pcm);
+			pcm_new_ver(tplg, pcm, &_pcm);
 		}
 
 		/* create the FE DAIs and DAI links */
