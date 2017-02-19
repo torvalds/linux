@@ -185,8 +185,18 @@ int tb_tunnel_restart(struct tb_tunnel *tunnel)
 
 	tb_tunnel_info(tunnel, "activating\n");
 
+	/*
+	 * Make sure all paths are properly disabled before enabling
+	 * them again.
+	 */
 	for (i = 0; i < tunnel->npaths; i++) {
-		tunnel->paths[i]->activated = false;
+		if (tunnel->paths[i]->activated) {
+			tb_path_deactivate(tunnel->paths[i]);
+			tunnel->paths[i]->activated = false;
+		}
+	}
+
+	for (i = 0; i < tunnel->npaths; i++) {
 		res = tb_path_activate(tunnel->paths[i]);
 		if (res)
 			goto err;
