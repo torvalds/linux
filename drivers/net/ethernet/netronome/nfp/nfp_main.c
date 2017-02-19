@@ -228,6 +228,40 @@ exit_release_fw:
 	return err < 0 ? err : 1;
 }
 
+static int nfp_nsp_init(struct pci_dev *pdev, struct nfp_pf *pf)
+{
+	struct nfp_nsp *nsp;
+	int err;
+
+	nsp = nfp_nsp_open(pf->cpp);
+	if (IS_ERR(nsp)) {
+		err = PTR_ERR(nsp);
+		dev_err(&pdev->dev, "Failed to access the NSP: %d\n", err);
+		return err;
+	}
+
+	err = nfp_nsp_wait(nsp);
+	if (err < 0)
+		goto exit_close_nsp;
+
+	pf->eth_tbl = __nfp_eth_read_ports(pf->cpp, nsp);
+
+	err = nfp_fw_load(pdev, pf, nsp);
+	if (err < 0) {
+		kfree(pf->eth_tbl);
+		dev_err(&pdev->dev, "Failed to load FW\n");
+		goto exit_close_nsp;
+	}
+
+	pf->fw_loaded = !!err;
+	err = 0;
+
+exit_close_nsp:
+	nfp_nsp_close(nsp);
+
+	return err;
+}
+
 static void nfp_fw_unload(struct nfp_pf *pf)
 {
 	struct nfp_nsp *nsp;
@@ -251,7 +285,6 @@ static void nfp_fw_unload(struct nfp_pf *pf)
 static int nfp_pci_probe(struct pci_dev *pdev,
 			 const struct pci_device_id *pci_id)
 {
-	struct nfp_nsp *nsp;
 	struct nfp_pf *pf;
 	int err;
 
@@ -289,28 +322,9 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 		goto err_disable_msix;
 	}
 
-	nsp = nfp_nsp_open(pf->cpp);
-	if (IS_ERR(nsp)) {
-		err = PTR_ERR(nsp);
+	err = nfp_nsp_init(pdev, pf);
+	if (err)
 		goto err_cpp_free;
-	}
-
-	err = nfp_nsp_wait(nsp);
-	if (err < 0) {
-		nfp_nsp_close(nsp);
-		goto err_cpp_free;
-	}
-
-	pf->eth_tbl = __nfp_eth_read_ports(pf->cpp, nsp);
-
-	err = nfp_fw_load(pdev, pf, nsp);
-	nfp_nsp_close(nsp);
-	if (err < 0) {
-		dev_err(&pdev->dev, "Failed to load FW\n");
-		goto err_eth_tbl_free;
-	}
-
-	pf->fw_loaded = !!err;
 
 	err = nfp_net_pci_probe(pf);
 	if (err)
@@ -321,7 +335,6 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 err_fw_unload:
 	if (pf->fw_loaded)
 		nfp_fw_unload(pf);
-err_eth_tbl_free:
 	kfree(pf->eth_tbl);
 err_cpp_free:
 	nfp_cpp_free(pf->cpp);
