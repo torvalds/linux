@@ -267,7 +267,7 @@ static void free_zlib(void)
 	big_oops_buf_sz = 0;
 }
 
-static struct pstore_zbackend backend_zlib = {
+static const struct pstore_zbackend backend_zlib = {
 	.compress	= compress_zlib,
 	.decompress	= decompress_zlib,
 	.allocate	= allocate_zlib,
@@ -328,7 +328,7 @@ static void free_lzo(void)
 	big_oops_buf_sz = 0;
 }
 
-static struct pstore_zbackend backend_lzo = {
+static const struct pstore_zbackend backend_lzo = {
 	.compress	= compress_lzo,
 	.decompress	= decompress_lzo,
 	.allocate	= allocate_lzo,
@@ -393,7 +393,7 @@ static void free_lz4(void)
 	big_oops_buf_sz = 0;
 }
 
-static struct pstore_zbackend backend_lz4 = {
+static const struct pstore_zbackend backend_lz4 = {
 	.compress	= compress_lz4,
 	.decompress	= decompress_lz4,
 	.allocate	= allocate_lz4,
@@ -402,7 +402,7 @@ static struct pstore_zbackend backend_lz4 = {
 };
 #endif
 
-static struct pstore_zbackend *zbackend =
+static const struct pstore_zbackend *zbackend =
 #if defined(CONFIG_PSTORE_ZLIB_COMPRESS)
 	&backend_zlib;
 #elif defined(CONFIG_PSTORE_LZO_COMPRESS)
