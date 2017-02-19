@@ -594,9 +594,86 @@ static int tb_init_port(struct tb_port *port)
 
 	tb_dump_port(port->sw->tb, &port->config);
 
-	/* TODO: Read dual link port, DP port and more from EEPROM. */
+	/* Control port does not need HopID allocation */
+	if (port->port) {
+		ida_init(&port->in_hopids);
+		ida_init(&port->out_hopids);
+	}
+
 	return 0;
 
+}
+
+static int tb_port_alloc_hopid(struct tb_port *port, bool in, int min_hopid,
+			       int max_hopid)
+{
+	int port_max_hopid;
+	struct ida *ida;
+
+	if (in) {
+		port_max_hopid = port->config.max_in_hop_id;
+		ida = &port->in_hopids;
+	} else {
+		port_max_hopid = port->config.max_out_hop_id;
+		ida = &port->out_hopids;
+	}
+
+	/* HopIDs 0-7 are reserved */
+	if (min_hopid < TB_PATH_MIN_HOPID)
+		min_hopid = TB_PATH_MIN_HOPID;
+
+	if (max_hopid < 0 || max_hopid > port_max_hopid)
+		max_hopid = port_max_hopid;
+
+	return ida_simple_get(ida, min_hopid, max_hopid + 1, GFP_KERNEL);
+}
+
+/**
+ * tb_port_alloc_in_hopid() - Allocate input HopID from port
+ * @port: Port to allocate HopID for
+ * @min_hopid: Minimum acceptable input HopID
+ * @max_hopid: Maximum acceptable input HopID
+ *
+ * Return: HopID between @min_hopid and @max_hopid or negative errno in
+ * case of error.
+ */
+int tb_port_alloc_in_hopid(struct tb_port *port, int min_hopid, int max_hopid)
+{
+	return tb_port_alloc_hopid(port, true, min_hopid, max_hopid);
+}
+
+/**
+ * tb_port_alloc_out_hopid() - Allocate output HopID from port
+ * @port: Port to allocate HopID for
+ * @min_hopid: Minimum acceptable output HopID
+ * @max_hopid: Maximum acceptable output HopID
+ *
+ * Return: HopID between @min_hopid and @max_hopid or negative errno in
+ * case of error.
+ */
+int tb_port_alloc_out_hopid(struct tb_port *port, int min_hopid, int max_hopid)
+{
+	return tb_port_alloc_hopid(port, false, min_hopid, max_hopid);
+}
+
+/**
+ * tb_port_release_in_hopid() - Release allocated input HopID from port
+ * @port: Port whose HopID to release
+ * @hopid: HopID to release
+ */
+void tb_port_release_in_hopid(struct tb_port *port, int hopid)
+{
+	ida_simple_remove(&port->in_hopids, hopid);
+}
+
+/**
+ * tb_port_release_out_hopid() - Release allocated output HopID from port
+ * @port: Port whose HopID to release
+ * @hopid: HopID to release
+ */
+void tb_port_release_out_hopid(struct tb_port *port, int hopid)
+{
+	ida_simple_remove(&port->out_hopids, hopid);
 }
 
 /**
@@ -1055,8 +1132,16 @@ static const struct attribute_group *switch_groups[] = {
 static void tb_switch_release(struct device *dev)
 {
 	struct tb_switch *sw = tb_to_switch(dev);
+	int i;
 
 	dma_port_free(sw->dma_port);
+
+	for (i = 1; i <= sw->config.max_port_number; i++) {
+		if (!sw->ports[i].disabled) {
+			ida_destroy(&sw->ports[i].in_hopids);
+			ida_destroy(&sw->ports[i].out_hopids);
+		}
+	}
 
 	kfree(sw->uuid);
 	kfree(sw->device_name);

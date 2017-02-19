@@ -127,6 +127,8 @@ struct tb_switch {
  * @dual_link_port: If the switch is connected using two ports, points
  *		    to the other port.
  * @link_nr: Is this primary or secondary port on the dual_link.
+ * @in_hopids: Currently allocated input HopIDs
+ * @out_hopids: Currently allocated output HopIDs
  */
 struct tb_port {
 	struct tb_regs_port_header config;
@@ -139,6 +141,8 @@ struct tb_port {
 	bool disabled;
 	struct tb_port *dual_link_port;
 	u8 link_nr:1;
+	struct ida in_hopids;
+	struct ida out_hopids;
 };
 
 /**
@@ -193,6 +197,9 @@ struct tb_path {
 	struct tb_path_hop *hops;
 	int path_length; /* number of hops */
 };
+
+/* HopIDs 0-7 are reserved by the Thunderbolt protocol */
+#define TB_PATH_MIN_HOPID	8
 
 /**
  * struct tb_cm_ops - Connection manager specific operations vector
@@ -453,6 +460,10 @@ static inline bool tb_switch_is_er(const struct tb_switch *sw)
 int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged);
 int tb_port_add_nfc_credits(struct tb_port *port, int credits);
 int tb_port_clear_counter(struct tb_port *port, int counter);
+int tb_port_alloc_in_hopid(struct tb_port *port, int hopid, int max_hopid);
+void tb_port_release_in_hopid(struct tb_port *port, int hopid);
+int tb_port_alloc_out_hopid(struct tb_port *port, int hopid, int max_hopid);
+void tb_port_release_out_hopid(struct tb_port *port, int hopid);
 
 int tb_switch_find_vse_cap(struct tb_switch *sw, enum tb_switch_vse_cap vsec);
 int tb_port_find_cap(struct tb_port *port, enum tb_port_cap cap);
