@@ -264,7 +264,7 @@ config SPI_EP93XX
 	  mode.
 
 config SPI_FALCON
-	tristate "Falcon SPI controller support"
+	bool "Falcon SPI controller support"
 	depends on SOC_FALCON
 	help
 	  The external bus unit (EBU) found on the FALC-ON SoC has SPI
