@@ -970,7 +970,6 @@ static struct platform_driver lantiq_ssc_driver = {
 	.remove = lantiq_ssc_remove,
 	.driver = {
 		.name = "spi-lantiq-ssc",
-		.owner = THIS_MODULE,
 		.of_match_table = lantiq_ssc_match,
 	},
 };
