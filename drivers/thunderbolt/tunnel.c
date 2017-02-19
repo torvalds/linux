@@ -12,6 +12,9 @@
 #include "tunnel.h"
 #include "tb.h"
 
+/* PCIe adapters use always HopID of 8 for both directions */
+#define TB_PCI_HOPID			8
+
 #define TB_PCI_PATH_DOWN		0
 #define TB_PCI_PATH_UP			1
 
@@ -86,21 +89,13 @@ static void tb_pci_init_path(struct tb_path *path)
  * Allocate a PCI tunnel. The ports must be of type TB_TYPE_PCIE_UP and
  * TB_TYPE_PCIE_DOWN.
  *
- * Currently only paths consisting of two hops are supported (that is the
- * ports must be on "adjacent" switches).
- *
- * The paths are hard-coded to use hop 8 (the only working hop id available on
- * my thunderbolt devices). Therefore at most ONE path per device may be
- * activated.
- *
  * Return: Returns a tb_tunnel on success or NULL on failure.
  */
 struct tb_tunnel *tb_tunnel_alloc_pci(struct tb *tb, struct tb_port *up,
 				      struct tb_port *down)
 {
-	struct tb_path *path_to_up;
-	struct tb_path *path_to_down;
 	struct tb_tunnel *tunnel;
+	struct tb_path *path;
 
 	tunnel = tb_tunnel_alloc(tb, 2);
 	if (!tunnel)
@@ -110,46 +105,23 @@ struct tb_tunnel *tb_tunnel_alloc_pci(struct tb *tb, struct tb_port *up,
 	tunnel->src_port = down;
 	tunnel->dst_port = up;
 
-	path_to_up = tb_path_alloc(tb, 2);
-	if (!path_to_up) {
+	path = tb_path_alloc(tb, down, TB_PCI_HOPID, up, TB_PCI_HOPID, 0,
+			     "PCIe Down");
+	if (!path) {
 		tb_tunnel_free(tunnel);
 		return NULL;
 	}
-	tunnel->paths[TB_PCI_PATH_UP] = path_to_up;
+	tb_pci_init_path(path);
+	tunnel->paths[TB_PCI_PATH_UP] = path;
 
-	path_to_down = tb_path_alloc(tb, 2);
-	if (!path_to_down) {
+	path = tb_path_alloc(tb, up, TB_PCI_HOPID, down, TB_PCI_HOPID, 0,
+			     "PCIe Up");
+	if (!path) {
 		tb_tunnel_free(tunnel);
 		return NULL;
 	}
-	tunnel->paths[TB_PCI_PATH_DOWN] = path_to_down;
-
-	tb_pci_init_path(path_to_up);
-	tb_pci_init_path(path_to_down);
-
-	path_to_up->hops[0].in_port = down;
-	path_to_up->hops[0].in_hop_index = 8;
-	path_to_up->hops[0].in_counter_index = -1;
-	path_to_up->hops[0].out_port = tb_upstream_port(up->sw)->remote;
-	path_to_up->hops[0].next_hop_index = 8;
-
-	path_to_up->hops[1].in_port = tb_upstream_port(up->sw);
-	path_to_up->hops[1].in_hop_index = 8;
-	path_to_up->hops[1].in_counter_index = -1;
-	path_to_up->hops[1].out_port = up;
-	path_to_up->hops[1].next_hop_index = 8;
-
-	path_to_down->hops[0].in_port = up;
-	path_to_down->hops[0].in_hop_index = 8;
-	path_to_down->hops[0].in_counter_index = -1;
-	path_to_down->hops[0].out_port = tb_upstream_port(up->sw);
-	path_to_down->hops[0].next_hop_index = 8;
-
-	path_to_down->hops[1].in_port = tb_upstream_port(up->sw)->remote;
-	path_to_down->hops[1].in_hop_index = 8;
-	path_to_down->hops[1].in_counter_index = -1;
-	path_to_down->hops[1].out_port = down;
-	path_to_down->hops[1].next_hop_index = 8;
+	tb_pci_init_path(path);
+	tunnel->paths[TB_PCI_PATH_DOWN] = path;
 
 	return tunnel;
 }

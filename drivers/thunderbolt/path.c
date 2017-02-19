@@ -31,23 +31,100 @@ static void tb_dump_hop(struct tb_port *port, struct tb_regs_hop *hop)
 }
 
 /**
- * tb_path_alloc() - allocate a thunderbolt path
+ * tb_path_alloc() - allocate a thunderbolt path between two ports
+ * @tb: Domain pointer
+ * @src: Source port of the path
+ * @src_hopid: HopID used for the first ingress port in the path
+ * @dst: Destination port of the path
+ * @dst_hopid: HopID used for the last egress port in the path
+ * @link_nr: Preferred link if there are dual links on the path
+ * @name: Name of the path
+ *
+ * Creates path between two ports starting with given @src_hopid. Reserves
+ * HopIDs for each port (they can be different from @src_hopid depending on
+ * how many HopIDs each port already have reserved). If there are dual
+ * links on the path, prioritizes using @link_nr.
  *
  * Return: Returns a tb_path on success or NULL on failure.
  */
-struct tb_path *tb_path_alloc(struct tb *tb, int num_hops)
+struct tb_path *tb_path_alloc(struct tb *tb, struct tb_port *src, int src_hopid,
+			      struct tb_port *dst, int dst_hopid, int link_nr,
+			      const char *name)
 {
-	struct tb_path *path = kzalloc(sizeof(*path), GFP_KERNEL);
+	struct tb_port *in_port, *out_port;
+	int in_hopid, out_hopid;
+	struct tb_path *path;
+	size_t num_hops;
+	int i, ret;
+
+	path = kzalloc(sizeof(*path), GFP_KERNEL);
 	if (!path)
 		return NULL;
+
+	/*
+	 * Number of hops on a path is the distance between the two
+	 * switches plus the source adapter port.
+	 */
+	num_hops = abs(tb_route_length(tb_route(src->sw)) -
+		       tb_route_length(tb_route(dst->sw))) + 1;
+
 	path->hops = kcalloc(num_hops, sizeof(*path->hops), GFP_KERNEL);
 	if (!path->hops) {
 		kfree(path);
 		return NULL;
 	}
+
+	in_hopid = src_hopid;
+	out_port = NULL;
+
+	for (i = 0; i < num_hops; i++) {
+		in_port = tb_next_port_on_path(src, dst, out_port);
+		if (!in_port)
+			goto err;
+
+		if (in_port->dual_link_port && in_port->link_nr != link_nr)
+			in_port = in_port->dual_link_port;
+
+		ret = tb_port_alloc_in_hopid(in_port, in_hopid, in_hopid);
+		if (ret < 0)
+			goto err;
+		in_hopid = ret;
+
+		out_port = tb_next_port_on_path(src, dst, in_port);
+		if (!out_port)
+			goto err;
+
+		if (out_port->dual_link_port && out_port->link_nr != link_nr)
+			out_port = out_port->dual_link_port;
+
+		if (i == num_hops - 1)
+			ret = tb_port_alloc_out_hopid(out_port, dst_hopid,
+						      dst_hopid);
+		else
+			ret = tb_port_alloc_out_hopid(out_port, -1, -1);
+
+		if (ret < 0)
+			goto err;
+		out_hopid = ret;
+
+		path->hops[i].in_hop_index = in_hopid;
+		path->hops[i].in_port = in_port;
+		path->hops[i].in_counter_index = -1;
+		path->hops[i].out_port = out_port;
+		path->hops[i].next_hop_index = out_hopid;
+
+		in_hopid = out_hopid;
+	}
+
 	path->tb = tb;
 	path->path_length = num_hops;
+	path->name = name;
+
 	return path;
+
+err:
+	tb_path_free(path);
+	return NULL;
 }
 
 /**
@@ -55,10 +132,24 @@ struct tb_path *tb_path_alloc(struct tb *tb, int num_hops)
  */
 void tb_path_free(struct tb_path *path)
 {
+	int i;
+
 	if (path->activated) {
 		tb_WARN(path->tb, "trying to free an activated path\n")
 		return;
 	}
+
+	for (i = 0; i < path->path_length; i++) {
+		const struct tb_path_hop *hop = &path->hops[i];
+
+		if (hop->in_port)
+			tb_port_release_in_hopid(hop->in_port,
+						 hop->in_hop_index);
+		if (hop->out_port)
+			tb_port_release_out_hopid(hop->out_port,
+						  hop->next_hop_index);
+	}
+
 	kfree(path->hops);
 	kfree(path);
 }
@@ -133,12 +224,12 @@ void tb_path_deactivate(struct tb_path *path)
 		tb_WARN(path->tb, "trying to deactivate an inactive path\n");
 		return;
 	}
-	tb_info(path->tb,
-		"deactivating path from %llx:%x to %llx:%x\n",
-		tb_route(path->hops[0].in_port->sw),
-		path->hops[0].in_port->port,
-		tb_route(path->hops[path->path_length - 1].out_port->sw),
-		path->hops[path->path_length - 1].out_port->port);
+	tb_dbg(path->tb,
+	       "deactivating %s path from %llx:%x to %llx:%x\n",
+	       path->name, tb_route(path->hops[0].in_port->sw),
+	       path->hops[0].in_port->port,
+	       tb_route(path->hops[path->path_length - 1].out_port->sw),
+	       path->hops[path->path_length - 1].out_port->port);
 	__tb_path_deactivate_hops(path, 0);
 	__tb_path_deallocate_nfc(path, 0);
 	path->activated = false;
@@ -161,12 +252,12 @@ int tb_path_activate(struct tb_path *path)
 		return -EINVAL;
 	}
 
-	tb_info(path->tb,
-		"activating path from %llx:%x to %llx:%x\n",
-		tb_route(path->hops[0].in_port->sw),
-		path->hops[0].in_port->port,
-		tb_route(path->hops[path->path_length - 1].out_port->sw),
-		path->hops[path->path_length - 1].out_port->port);
+	tb_dbg(path->tb,
+	       "activating %s path from %llx:%x to %llx:%x\n",
+	       path->name, tb_route(path->hops[0].in_port->sw),
+	       path->hops[0].in_port->port,
+	       tb_route(path->hops[path->path_length - 1].out_port->sw),
+	       path->hops[path->path_length - 1].out_port->port);
 
 	/* Clear counters. */
 	for (i = path->path_length - 1; i >= 0; i--) {

@@ -147,11 +147,22 @@ struct tb_port {
 
 /**
  * struct tb_path_hop - routing information for a tb_path
+ * @in_port: Ingress port of a switch
+ * @out_port: Egress port of a switch where the packet is routed out
+ *	      (must be on the same switch than @in_port)
+ * @in_hop_index: HopID where the path configuration entry is placed in
+ *		  the path config space of @in_port.
+ * @in_counter_index: Used counter index (not used in the driver
+ *		      currently, %-1 to disable)
+ * @next_hop_index: HopID of the packet when it is routed out from @out_port
  *
  * Hop configuration is always done on the IN port of a switch.
  * in_port and out_port have to be on the same switch. Packets arriving on
  * in_port with "hop" = in_hop_index will get routed to through out_port. The
- * next hop to take (on out_port->remote) is determined by next_hop_index.
+ * next hop to take (on out_port->remote) is determined by
+ * next_hop_index. When routing packet to another switch (out->remote is
+ * set) the @next_hop_index must match the @in_hop_index of that next
+ * hop to make routing possible.
  *
  * in_counter_index is the index of a counter (in TB_CFG_COUNTERS) on the in
  * port.
@@ -160,31 +171,50 @@ struct tb_path_hop {
 	struct tb_port *in_port;
 	struct tb_port *out_port;
 	int in_hop_index;
-	int in_counter_index; /* write -1 to disable counters for this hop. */
+	int in_counter_index;
 	int next_hop_index;
 };
 
 /**
  * enum tb_path_port - path options mask
+ * @TB_PATH_NONE: Do not activate on any hop on path
+ * @TB_PATH_SOURCE: Activate on the first hop (out of src)
+ * @TB_PATH_INTERNAL: Activate on the intermediate hops (not the first/last)
+ * @TB_PATH_DESTINATION: Activate on the last hop (into dst)
+ * @TB_PATH_ALL: Activate on all hops on the path
  */
 enum tb_path_port {
 	TB_PATH_NONE = 0,
-	TB_PATH_SOURCE = 1, /* activate on the first hop (out of src) */
-	TB_PATH_INTERNAL = 2, /* activate on other hops (not the first/last) */
-	TB_PATH_DESTINATION = 4, /* activate on the last hop (into dst) */
+	TB_PATH_SOURCE = 1,
+	TB_PATH_INTERNAL = 2,
+	TB_PATH_DESTINATION = 4,
 	TB_PATH_ALL = 7,
 };
 
 /**
  * struct tb_path - a unidirectional path between two ports
+ * @tb: Pointer to the domain structure
+ * @name: Name of the path (used for debugging)
+ * @nfc_credits: Number of non flow controlled credits allocated for the path
+ * @ingress_shared_buffer: Shared buffering used for ingress ports on the path
+ * @egress_shared_buffer: Shared buffering used for egress ports on the path
+ * @ingress_fc_enable: Flow control for ingress ports on the path
+ * @egress_fc_enable: Flow control for egress ports on the path
+ * @priority: Priority group if the path
+ * @weight: Weight of the path inside the priority group
+ * @drop_packages: Drop packages from queue tail or head
+ * @activated: Is the path active
+ * @hops: Path hops
+ * @path_length: How many hops the path uses
  *
- * A path consists of a number of hops (see tb_path_hop). To establish a PCIe
- * tunnel two paths have to be created between the two PCIe ports.
- *
+ * A path consists of a number of hops (see &struct tb_path_hop). To
+ * establish a PCIe tunnel two paths have to be created between the two
+ * PCIe ports.
  */
 struct tb_path {
 	struct tb *tb;
-	int nfc_credits; /* non flow controlled credits */
+	const char *name;
+	int nfc_credits;
 	enum tb_path_port ingress_shared_buffer;
 	enum tb_path_port egress_shared_buffer;
 	enum tb_path_port ingress_fc_enable;
@@ -195,7 +225,7 @@ struct tb_path {
 	bool drop_packages;
 	bool activated;
 	struct tb_path_hop *hops;
-	int path_length; /* number of hops */
+	int path_length;
 };
 
 /* HopIDs 0-7 are reserved by the Thunderbolt protocol */
@@ -503,7 +533,9 @@ int tb_port_find_cap(struct tb_port *port, enum tb_port_cap cap);
 
 int tb_pci_port_enable(struct tb_port *port, bool enable);
 
-struct tb_path *tb_path_alloc(struct tb *tb, int num_hops);
+struct tb_path *tb_path_alloc(struct tb *tb, struct tb_port *src, int src_hopid,
+			      struct tb_port *dst, int dst_hopid, int link_nr,
+			      const char *name);
 void tb_path_free(struct tb_path *path);
 int tb_path_activate(struct tb_path *path);
 void tb_path_deactivate(struct tb_path *path);
