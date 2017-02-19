@@ -56,7 +56,7 @@ typedef unsigned int xfs_alloctype_t;
 #define	XFS_ALLOC_FLAG_FREEING	0x00000002  /* indicate caller is freeing extents*/
 #define	XFS_ALLOC_FLAG_NORMAP	0x00000004  /* don't modify the rmapbt */
 #define	XFS_ALLOC_FLAG_NOSHRINK	0x00000008  /* don't shrink the freelist */
-
+#define	XFS_ALLOC_FLAG_CHECK	0x00000010  /* test only, don't modify args */
 
 /*
  * Argument structure for xfs_alloc routines.

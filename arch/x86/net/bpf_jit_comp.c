@@ -1172,6 +1172,8 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 		set_memory_ro((unsigned long)header, header->pages);
 		prog->bpf_func = (void *)image;
 		prog->jited = 1;
+	} else {
+		prog = orig_prog;
 	}
 
 out_addrs:

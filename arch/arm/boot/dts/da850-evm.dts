@@ -99,6 +99,7 @@
 				#size-cells = <1>;
 				compatible = "m25p64";
 				spi-max-frequency = <30000000>;
+				m25p,fast-read;
 				reg = <0>;
 				partition@0 {
 					label = "U-Boot-SPL";

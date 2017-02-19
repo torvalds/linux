@@ -350,13 +350,15 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 {
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
 	struct intel_vgpu_workload *workload;
+	struct intel_vgpu *vgpu;
 	int event;
 
 	mutex_lock(&gvt->lock);
 
 	workload = scheduler->current_workload[ring_id];
+	vgpu = workload->vgpu;
 
-	if (!workload->status && !workload->vgpu->resetting) {
+	if (!workload->status && !vgpu->resetting) {
 		wait_event(workload->shadow_ctx_status_wq,
 			   !atomic_read(&workload->shadow_ctx_active));
 
@@ -364,8 +366,7 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 
 		for_each_set_bit(event, workload->pending_events,
 				 INTEL_GVT_EVENT_MAX)
-			intel_vgpu_trigger_virtual_event(workload->vgpu,
-					event);
+			intel_vgpu_trigger_virtual_event(vgpu, event);
 	}
 
 	gvt_dbg_sched("ring id %d complete workload %p status %d\n",
@@ -373,11 +374,10 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 
 	scheduler->current_workload[ring_id] = NULL;
 
-	atomic_dec(&workload->vgpu->running_workload_num);
-
 	list_del_init(&workload->list);
 	workload->complete(workload);
 
+	atomic_dec(&vgpu->running_workload_num);
 	wake_up(&scheduler->workload_complete_wq);
 	mutex_unlock(&gvt->lock);
 }
@@ -459,10 +459,10 @@ complete:
 		gvt_dbg_sched("will complete workload %p\n, status: %d\n",
 				workload, workload->status);
 
-		complete_current_workload(gvt, ring_id);
-
 		if (workload->req)
 			i915_gem_request_put(fetch_and_zero(&workload->req));
+
+		complete_current_workload(gvt, ring_id);
 
 		if (need_force_wake)
 			intel_uncore_forcewake_put(gvt->dev_priv,
