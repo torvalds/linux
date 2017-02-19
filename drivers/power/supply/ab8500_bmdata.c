@@ -430,10 +430,10 @@ static const struct abx500_maxim_parameters ab8500_maxi_params = {
 };
 
 static const struct abx500_maxim_parameters abx540_maxi_params = {
-        .ena_maxi = true,
-        .chg_curr = 3000,
-        .wait_cycles = 10,
-        .charger_curr_step = 200,
+	.ena_maxi = true,
+	.chg_curr = 3000,
+	.wait_cycles = 10,
+	.charger_curr_step = 200,
 };
 
 static const struct abx500_bm_charger_parameters chg = {
