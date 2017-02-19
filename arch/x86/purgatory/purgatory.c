@@ -11,6 +11,7 @@
  */
 
 #include "sha256.h"
+#include "purgatory.h"
 #include "../boot/string.h"
 
 struct sha_region {
