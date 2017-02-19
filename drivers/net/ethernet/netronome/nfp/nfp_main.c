@@ -47,6 +47,7 @@
 
 #include "nfpcore/nfp.h"
 #include "nfpcore/nfp_cpp.h"
+#include "nfpcore/nfp_nffw.h"
 #include "nfpcore/nfp_nsp_eth.h"
 
 #include "nfpcore/nfp6000_pcie.h"
@@ -70,11 +71,33 @@ static const struct pci_device_id nfp_pci_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, nfp_pci_device_ids);
 
+static void nfp_pcie_sriov_read_nfd_limit(struct nfp_pf *pf)
+{
+#ifdef CONFIG_PCI_IOV
+	int err;
+
+	pf->limit_vfs = nfp_rtsym_read_le(pf->cpp, "nfd_vf_cfg_max_vfs", &err);
+	if (!err)
+		return;
+
+	pf->limit_vfs = ~0;
+	/* Allow any setting for backwards compatibility if symbol not found */
+	if (err != -ENOENT)
+		nfp_warn(pf->cpp, "Warning: VF limit read failed: %d\n", err);
+#endif
+}
+
 static int nfp_pcie_sriov_enable(struct pci_dev *pdev, int num_vfs)
 {
 #ifdef CONFIG_PCI_IOV
 	struct nfp_pf *pf = pci_get_drvdata(pdev);
 	int err;
+
+	if (num_vfs > pf->limit_vfs) {
+		nfp_info(pf->cpp, "Firmware limits number of VFs to %u\n",
+			 pf->limit_vfs);
+		return -EINVAL;
+	}
 
 	err = pci_enable_sriov(pdev, num_vfs);
 	if (err) {
@@ -332,6 +355,8 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 	err = nfp_nsp_init(pdev, pf);
 	if (err)
 		goto err_cpp_free;
+
+	nfp_pcie_sriov_read_nfd_limit(pf);
 
 	err = nfp_net_pci_probe(pf);
 	if (err)
