@@ -110,44 +110,44 @@ static int em28xx_probe_sensor_micron(struct em28xx *dev)
 	__be16 id_be;
 	u16 id;
 
-	struct i2c_client client = dev->i2c_client[dev->def_i2c_bus];
+	struct i2c_client *client = &dev->i2c_client[dev->def_i2c_bus];
 
 	dev->em28xx_sensor = EM28XX_NOSENSOR;
 	for (i = 0; micron_sensor_addrs[i] != I2C_CLIENT_END; i++) {
-		client.addr = micron_sensor_addrs[i];
+		client->addr = micron_sensor_addrs[i];
 		/* NOTE: i2c_smbus_read_word_data() doesn't work with BE data */
 		/* Read chip ID from register 0x00 */
 		reg = 0x00;
-		ret = i2c_master_send(&client, &reg, 1);
+		ret = i2c_master_send(client, &reg, 1);
 		if (ret < 0) {
 			if (ret != -ENXIO)
 				dev_err(&dev->intf->dev,
 					"couldn't read from i2c device 0x%02x: error %i\n",
-				       client.addr << 1, ret);
+				       client->addr << 1, ret);
 			continue;
 		}
-		ret = i2c_master_recv(&client, (u8 *)&id_be, 2);
+		ret = i2c_master_recv(client, (u8 *)&id_be, 2);
 		if (ret < 0) {
 			dev_err(&dev->intf->dev,
 				"couldn't read from i2c device 0x%02x: error %i\n",
-				client.addr << 1, ret);
+				client->addr << 1, ret);
 			continue;
 		}
 		id = be16_to_cpu(id_be);
 		/* Read chip ID from register 0xff */
 		reg = 0xff;
-		ret = i2c_master_send(&client, &reg, 1);
+		ret = i2c_master_send(client, &reg, 1);
 		if (ret < 0) {
 			dev_err(&dev->intf->dev,
 				"couldn't read from i2c device 0x%02x: error %i\n",
-				client.addr << 1, ret);
+				client->addr << 1, ret);
 			continue;
 		}
-		ret = i2c_master_recv(&client, (u8 *)&id_be, 2);
+		ret = i2c_master_recv(client, (u8 *)&id_be, 2);
 		if (ret < 0) {
 			dev_err(&dev->intf->dev,
 				"couldn't read from i2c device 0x%02x: error %i\n",
-				client.addr << 1, ret);
+				client->addr << 1, ret);
 			continue;
 		}
 		/* Validate chip ID to be sure we have a Micron device */
@@ -197,7 +197,6 @@ static int em28xx_probe_sensor_micron(struct em28xx *dev)
 			dev_info(&dev->intf->dev,
 				 "sensor %s detected\n", name);
 
-		dev->i2c_client[dev->def_i2c_bus].addr = client.addr;
 		return 0;
 	}
 
@@ -213,30 +212,30 @@ static int em28xx_probe_sensor_omnivision(struct em28xx *dev)
 	char *name;
 	u8 reg;
 	u16 id;
-	struct i2c_client client = dev->i2c_client[dev->def_i2c_bus];
+	struct i2c_client *client = &dev->i2c_client[dev->def_i2c_bus];
 
 	dev->em28xx_sensor = EM28XX_NOSENSOR;
 	/* NOTE: these devices have the register auto incrementation disabled
 	 * by default, so we have to use single byte reads !              */
 	for (i = 0; omnivision_sensor_addrs[i] != I2C_CLIENT_END; i++) {
-		client.addr = omnivision_sensor_addrs[i];
+		client->addr = omnivision_sensor_addrs[i];
 		/* Read manufacturer ID from registers 0x1c-0x1d (BE) */
 		reg = 0x1c;
-		ret = i2c_smbus_read_byte_data(&client, reg);
+		ret = i2c_smbus_read_byte_data(client, reg);
 		if (ret < 0) {
 			if (ret != -ENXIO)
 				dev_err(&dev->intf->dev,
 					"couldn't read from i2c device 0x%02x: error %i\n",
-					client.addr << 1, ret);
+					client->addr << 1, ret);
 			continue;
 		}
 		id = ret << 8;
 		reg = 0x1d;
-		ret = i2c_smbus_read_byte_data(&client, reg);
+		ret = i2c_smbus_read_byte_data(client, reg);
 		if (ret < 0) {
 			dev_err(&dev->intf->dev,
 				"couldn't read from i2c device 0x%02x: error %i\n",
-				client.addr << 1, ret);
+				client->addr << 1, ret);
 			continue;
 		}
 		id += ret;
@@ -245,20 +244,20 @@ static int em28xx_probe_sensor_omnivision(struct em28xx *dev)
 			continue;
 		/* Read product ID from registers 0x0a-0x0b (BE) */
 		reg = 0x0a;
-		ret = i2c_smbus_read_byte_data(&client, reg);
+		ret = i2c_smbus_read_byte_data(client, reg);
 		if (ret < 0) {
 			dev_err(&dev->intf->dev,
 				"couldn't read from i2c device 0x%02x: error %i\n",
-				client.addr << 1, ret);
+				client->addr << 1, ret);
 			continue;
 		}
 		id = ret << 8;
 		reg = 0x0b;
-		ret = i2c_smbus_read_byte_data(&client, reg);
+		ret = i2c_smbus_read_byte_data(client, reg);
 		if (ret < 0) {
 			dev_err(&dev->intf->dev,
 				"couldn't read from i2c device 0x%02x: error %i\n",
-				client.addr << 1, ret);
+				client->addr << 1, ret);
 			continue;
 		}
 		id += ret;
@@ -309,7 +308,6 @@ static int em28xx_probe_sensor_omnivision(struct em28xx *dev)
 			dev_info(&dev->intf->dev,
 				 "sensor %s detected\n", name);
 
-		dev->i2c_client[dev->def_i2c_bus].addr = client.addr;
 		return 0;
 	}
 
