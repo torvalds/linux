@@ -211,6 +211,10 @@ struct tb_regs_port_header {
 
 } __packed;
 
+/* PCIe adapter registers */
+
+#define TB_PCI_EN			BIT(31)
+
 /* Hop register from TB_CFG_HOPS. 8 byte per entry. */
 struct tb_regs_hop {
 	/* DWORD 0 */

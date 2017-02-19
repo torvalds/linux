@@ -599,6 +599,19 @@ static int tb_init_port(struct tb_port *port)
 
 }
 
+/**
+ * tb_pci_port_enable() - Enable PCIe adapter port
+ * @port: PCIe port to enable
+ * @enable: Enable/disable the PCIe adapter
+ */
+int tb_pci_port_enable(struct tb_port *port, bool enable)
+{
+	u32 word = enable ? TB_PCI_EN : 0x0;
+	if (!port->cap_adap)
+		return -ENXIO;
+	return tb_port_write(port, &word, TB_CFG_PORT, port->cap_adap, 1);
+}
+
 /* switch utility functions */
 
 static void tb_dump_switch(struct tb *tb, struct tb_regs_switch_header *sw)

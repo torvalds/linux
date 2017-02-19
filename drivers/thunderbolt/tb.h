@@ -457,6 +457,8 @@ int tb_port_clear_counter(struct tb_port *port, int counter);
 int tb_switch_find_vse_cap(struct tb_switch *sw, enum tb_switch_vse_cap vsec);
 int tb_port_find_cap(struct tb_port *port, enum tb_port_cap cap);
 
+int tb_pci_port_enable(struct tb_port *port, bool enable);
+
 struct tb_path *tb_path_alloc(struct tb *tb, int num_hops);
 void tb_path_free(struct tb_path *path);
 int tb_path_activate(struct tb_path *path);

@@ -91,14 +91,14 @@ static void tb_scan_port(struct tb_port *port)
 static void tb_free_invalid_tunnels(struct tb *tb)
 {
 	struct tb_cm *tcm = tb_priv(tb);
-	struct tb_pci_tunnel *tunnel;
-	struct tb_pci_tunnel *n;
+	struct tb_tunnel *tunnel;
+	struct tb_tunnel *n;
 
 	list_for_each_entry_safe(tunnel, n, &tcm->tunnel_list, list) {
-		if (tb_pci_is_invalid(tunnel)) {
-			tb_pci_deactivate(tunnel);
+		if (tb_tunnel_is_invalid(tunnel)) {
+			tb_tunnel_deactivate(tunnel);
 			list_del(&tunnel->list);
-			tb_pci_free(tunnel);
+			tb_tunnel_free(tunnel);
 		}
 	}
 }
@@ -178,7 +178,7 @@ static void tb_activate_pcie_devices(struct tb *tb)
 	struct tb_switch *sw;
 	struct tb_port *up_port;
 	struct tb_port *down_port;
-	struct tb_pci_tunnel *tunnel;
+	struct tb_tunnel *tunnel;
 	struct tb_cm *tcm = tb_priv(tb);
 
 	/* scan for pcie devices at depth 1*/
@@ -214,17 +214,17 @@ static void tb_activate_pcie_devices(struct tb *tb)
 				     "All PCIe down ports are occupied, aborting\n");
 			continue;
 		}
-		tunnel = tb_pci_alloc(tb, up_port, down_port);
+		tunnel = tb_tunnel_alloc_pci(tb, up_port, down_port);
 		if (!tunnel) {
 			tb_port_info(up_port,
 				     "PCIe tunnel allocation failed, aborting\n");
 			continue;
 		}
 
-		if (tb_pci_activate(tunnel)) {
+		if (tb_tunnel_activate(tunnel)) {
 			tb_port_info(up_port,
 				     "PCIe tunnel activation failed, aborting\n");
-			tb_pci_free(tunnel);
+			tb_tunnel_free(tunnel);
 			continue;
 		}
 
@@ -353,13 +353,13 @@ static void tb_handle_event(struct tb *tb, enum tb_cfg_pkg_type type,
 static void tb_stop(struct tb *tb)
 {
 	struct tb_cm *tcm = tb_priv(tb);
-	struct tb_pci_tunnel *tunnel;
-	struct tb_pci_tunnel *n;
+	struct tb_tunnel *tunnel;
+	struct tb_tunnel *n;
 
 	/* tunnels are only present after everything has been initialized */
 	list_for_each_entry_safe(tunnel, n, &tcm->tunnel_list, list) {
-		tb_pci_deactivate(tunnel);
-		tb_pci_free(tunnel);
+		tb_tunnel_deactivate(tunnel);
+		tb_tunnel_free(tunnel);
 	}
 	tb_switch_remove(tb->root_switch);
 	tcm->hotplug_active = false; /* signal tb_handle_hotplug to quit */
@@ -418,7 +418,7 @@ static int tb_suspend_noirq(struct tb *tb)
 static int tb_resume_noirq(struct tb *tb)
 {
 	struct tb_cm *tcm = tb_priv(tb);
-	struct tb_pci_tunnel *tunnel, *n;
+	struct tb_tunnel *tunnel, *n;
 
 	tb_dbg(tb, "resuming...\n");
 
@@ -429,7 +429,7 @@ static int tb_resume_noirq(struct tb *tb)
 	tb_free_invalid_tunnels(tb);
 	tb_free_unplugged_children(tb->root_switch);
 	list_for_each_entry_safe(tunnel, n, &tcm->tunnel_list, list)
-		tb_pci_restart(tunnel);
+		tb_tunnel_restart(tunnel);
 	if (!list_empty(&tcm->tunnel_list)) {
 		/*
 		 * the pcie links need some time to get going.
