@@ -29,6 +29,43 @@ struct tb_cm {
 
 /* enumeration & hot plug handling */
 
+static void tb_discover_tunnels(struct tb_switch *sw)
+{
+	struct tb *tb = sw->tb;
+	struct tb_cm *tcm = tb_priv(tb);
+	struct tb_port *port;
+	int i;
+
+	for (i = 1; i <= sw->config.max_port_number; i++) {
+		struct tb_tunnel *tunnel = NULL;
+
+		port = &sw->ports[i];
+		switch (port->config.type) {
+		case TB_TYPE_PCIE_DOWN:
+			tunnel = tb_tunnel_discover_pci(tb, port);
+			break;
+
+		default:
+			break;
+		}
+
+		if (tunnel) {
+			struct tb_switch *parent = tunnel->dst_port->sw;
+
+			while (parent != tunnel->src_port->sw) {
+				parent->boot = true;
+				parent = tb_switch_parent(parent);
+			}
+
+			list_add_tail(&tunnel->list, &tcm->tunnel_list);
+		}
+	}
+
+	for (i = 1; i <= sw->config.max_port_number; i++) {
+		if (tb_port_has_remote(&sw->ports[i]))
+			tb_discover_tunnels(sw->ports[i].remote->sw);
+	}
+}
 
 static void tb_scan_port(struct tb_port *port);
 
@@ -408,6 +445,8 @@ static int tb_start(struct tb *tb)
 
 	/* Full scan to discover devices added before the driver was loaded. */
 	tb_scan_switch(tb->root_switch);
+	/* Find out tunnels created by the boot firmware */
+	tb_discover_tunnels(tb->root_switch);
 	tb_activate_pcie_devices(tb);
 
 	/* Allow tb_handle_hotplug to progress events */

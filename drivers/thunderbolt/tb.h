@@ -155,6 +155,8 @@ struct tb_port {
  * @in_counter_index: Used counter index (not used in the driver
  *		      currently, %-1 to disable)
  * @next_hop_index: HopID of the packet when it is routed out from @out_port
+ * @initial_credits: Number of initial flow control credits allocated for
+ *		     the path
  *
  * Hop configuration is always done on the IN port of a switch.
  * in_port and out_port have to be on the same switch. Packets arriving on
@@ -173,6 +175,7 @@ struct tb_path_hop {
 	int in_hop_index;
 	int in_counter_index;
 	int next_hop_index;
+	unsigned int initial_credits;
 };
 
 /**
@@ -230,6 +233,7 @@ struct tb_path {
 
 /* HopIDs 0-7 are reserved by the Thunderbolt protocol */
 #define TB_PATH_MIN_HOPID	8
+#define TB_PATH_MAX_HOPS	7
 
 /**
  * struct tb_cm_ops - Connection manager specific operations vector
@@ -344,6 +348,11 @@ static inline bool tb_port_has_remote(const struct tb_port *port)
 		return false;
 
 	return true;
+}
+
+static inline bool tb_port_is_pcie_up(const struct tb_port *port)
+{
+	return port && port->config.type == TB_TYPE_PCIE_UP;
 }
 
 static inline int tb_sw_read(struct tb_switch *sw, void *buffer,
@@ -508,6 +517,11 @@ static inline struct tb_switch *tb_to_switch(struct device *dev)
 	return NULL;
 }
 
+static inline struct tb_switch *tb_switch_parent(struct tb_switch *sw)
+{
+	return tb_to_switch(sw->dev.parent);
+}
+
 static inline bool tb_switch_is_lr(const struct tb_switch *sw)
 {
 	return sw->config.device_id == PCI_DEVICE_ID_INTEL_LIGHT_RIDGE;
@@ -531,8 +545,12 @@ struct tb_port *tb_next_port_on_path(struct tb_port *start, struct tb_port *end,
 int tb_switch_find_vse_cap(struct tb_switch *sw, enum tb_switch_vse_cap vsec);
 int tb_port_find_cap(struct tb_port *port, enum tb_port_cap cap);
 
+bool tb_pci_port_is_enabled(struct tb_port *port);
 int tb_pci_port_enable(struct tb_port *port, bool enable);
 
+struct tb_path *tb_path_discover(struct tb_port *src, int src_hopid,
+				 struct tb_port *dst, int dst_hopid,
+				 struct tb_port **last, const char *name);
 struct tb_path *tb_path_alloc(struct tb *tb, struct tb_port *src, int src_hopid,
 			      struct tb_port *dst, int dst_hopid, int link_nr,
 			      const char *name);

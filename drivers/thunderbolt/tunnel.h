@@ -15,7 +15,8 @@
  * struct tb_tunnel - Tunnel between two ports
  * @tb: Pointer to the domain
  * @src_port: Source port of the tunnel
- * @dst_port: Destination port of the tunnel
+ * @dst_port: Destination port of the tunnel. For discovered incomplete
+ *	      tunnels may be %NULL or null adapter port instead.
  * @paths: All paths required by the tunnel
  * @npaths: Number of paths in @paths
  * @activate: Optional tunnel specific activation/deactivation
@@ -31,6 +32,7 @@ struct tb_tunnel {
 	struct list_head list;
 };
 
+struct tb_tunnel *tb_tunnel_discover_pci(struct tb *tb, struct tb_port *down);
 struct tb_tunnel *tb_tunnel_alloc_pci(struct tb *tb, struct tb_port *up,
 				      struct tb_port *down);
 void tb_tunnel_free(struct tb_tunnel *tunnel);

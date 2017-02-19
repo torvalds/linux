@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Thunderbolt Cactus Ridge driver - path/tunnel functionality
+ * Thunderbolt driver - path/tunnel functionality
  *
  * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (C) 2019, Intel Corporation
  */
 
 #include <linux/slab.h>
@@ -11,7 +12,6 @@
 #include <linux/ktime.h>
 
 #include "tb.h"
-
 
 static void tb_dump_hop(struct tb_port *port, struct tb_regs_hop *hop)
 {
@@ -28,6 +28,182 @@ static void tb_dump_hop(struct tb_port *port, struct tb_regs_hop *hop)
 		    hop->ingress_shared_buffer, hop->egress_shared_buffer);
 	tb_port_dbg(port, "  Unknown1: %#x Unknown2: %#x Unknown3: %#x\n",
 		    hop->unknown1, hop->unknown2, hop->unknown3);
+}
+
+static struct tb_port *tb_path_find_dst_port(struct tb_port *src, int src_hopid,
+					     int dst_hopid)
+{
+	struct tb_port *port, *out_port = NULL;
+	struct tb_regs_hop hop;
+	struct tb_switch *sw;
+	int i, ret, hopid;
+
+	hopid = src_hopid;
+	port = src;
+
+	for (i = 0; port && i < TB_PATH_MAX_HOPS; i++) {
+		sw = port->sw;
+
+		ret = tb_port_read(port, &hop, TB_CFG_HOPS, 2 * hopid, 2);
+		if (ret) {
+			tb_port_warn(port, "failed to read path at %d\n", hopid);
+			return NULL;
+		}
+
+		if (!hop.enable)
+			return NULL;
+
+		out_port = &sw->ports[hop.out_port];
+		hopid = hop.next_hop;
+		port = out_port->remote;
+	}
+
+	return out_port && hopid == dst_hopid ? out_port : NULL;
+}
+
+static int tb_path_find_src_hopid(struct tb_port *src,
+	const struct tb_port *dst, int dst_hopid)
+{
+	struct tb_port *out;
+	int i;
+
+	for (i = TB_PATH_MIN_HOPID; i <= src->config.max_in_hop_id; i++) {
+		out = tb_path_find_dst_port(src, i, dst_hopid);
+		if (out == dst)
+			return i;
+	}
+
+	return 0;
+}
+
+/**
+ * tb_path_discover() - Discover a path
+ * @src: First input port of a path
+ * @src_hopid: Starting HopID of a path (%-1 if don't care)
+ * @dst: Expected destination port of the path (%NULL if don't care)
+ * @dst_hopid: HopID to the @dst (%-1 if don't care)
+ * @last: Last port is filled here if not %NULL
+ * @name: Name of the path
+ *
+ * Follows a path starting from @src and @src_hopid to the last output
+ * port of the path. Allocates HopIDs for the visited ports. Call
+ * tb_path_free() to release the path and allocated HopIDs when the path
+ * is not needed anymore.
+ *
+ * Note function discovers also incomplete paths so caller should check
+ * that the @dst port is the expected one. If it is not, the path can be
+ * cleaned up by calling tb_path_deactivate() before tb_path_free().
+ *
+ * Return: Discovered path on success, %NULL in case of failure
+ */
+struct tb_path *tb_path_discover(struct tb_port *src, int src_hopid,
+				 struct tb_port *dst, int dst_hopid,
+				 struct tb_port **last, const char *name)
+{
+	struct tb_port *out_port;
+	struct tb_regs_hop hop;
+	struct tb_path *path;
+	struct tb_switch *sw;
+	struct tb_port *p;
+	size_t num_hops;
+	int ret, i, h;
+
+	if (src_hopid < 0 && dst) {
+		/*
+		 * For incomplete paths the intermediate HopID can be
+		 * different from the one used by the protocol adapter
+		 * so in that case find a path that ends on @dst with
+		 * matching @dst_hopid. That should give us the correct
+		 * HopID for the @src.
+		 */
+		src_hopid = tb_path_find_src_hopid(src, dst, dst_hopid);
+		if (!src_hopid)
+			return NULL;
+	}
+
+	p = src;
+	h = src_hopid;
+	num_hops = 0;
+
+	for (i = 0; p && i < TB_PATH_MAX_HOPS; i++) {
+		sw = p->sw;
+
+		ret = tb_port_read(p, &hop, TB_CFG_HOPS, 2 * h, 2);
+		if (ret) {
+			tb_port_warn(p, "failed to read path at %d\n", h);
+			return NULL;
+		}
+
+		/* If the hop is not enabled we got an incomplete path */
+		if (!hop.enable)
+			break;
+
+		out_port = &sw->ports[hop.out_port];
+		if (last)
+			*last = out_port;
+
+		h = hop.next_hop;
+		p = out_port->remote;
+		num_hops++;
+	}
+
+	path = kzalloc(sizeof(*path), GFP_KERNEL);
+	if (!path)
+		return NULL;
+
+	path->name = name;
+	path->tb = src->sw->tb;
+	path->path_length = num_hops;
+	path->activated = true;
+
+	path->hops = kcalloc(num_hops, sizeof(*path->hops), GFP_KERNEL);
+	if (!path->hops) {
+		kfree(path);
+		return NULL;
+	}
+
+	p = src;
+	h = src_hopid;
+
+	for (i = 0; i < num_hops; i++) {
+		int next_hop;
+
+		sw = p->sw;
+
+		ret = tb_port_read(p, &hop, TB_CFG_HOPS, 2 * h, 2);
+		if (ret) {
+			tb_port_warn(p, "failed to read path at %d\n", h);
+			goto err;
+		}
+
+		if (tb_port_alloc_in_hopid(p, h, h) < 0)
+			goto err;
+
+		out_port = &sw->ports[hop.out_port];
+		next_hop = hop.next_hop;
+
+		if (tb_port_alloc_out_hopid(out_port, next_hop, next_hop) < 0) {
+			tb_port_release_in_hopid(p, h);
+			goto err;
+		}
+
+		path->hops[i].in_port = p;
+		path->hops[i].in_hop_index = h;
+		path->hops[i].in_counter_index = -1;
+		path->hops[i].out_port = out_port;
+		path->hops[i].next_hop_index = next_hop;
+
+		h = next_hop;
+		p = out_port->remote;
+	}
+
+	return path;
+
+err:
+	tb_port_warn(src, "failed to discover path starting at HopID %d\n",
+		     src_hopid);
+	tb_path_free(path);
+	return NULL;
 }
 
 /**
@@ -283,30 +459,14 @@ int tb_path_activate(struct tb_path *path)
 	for (i = path->path_length - 1; i >= 0; i--) {
 		struct tb_regs_hop hop = { 0 };
 
-		/*
-		 * We do (currently) not tear down paths setup by the firmeware.
-		 * If a firmware device is unplugged and plugged in again then
-		 * it can happen that we reuse some of the hops from the (now
-		 * defunct) firmeware path. This causes the hotplug operation to
-		 * fail (the pci device does not show up). Clearing the hop
-		 * before overwriting it fixes the problem.
-		 *
-		 * Should be removed once we discover and tear down firmeware
-		 * paths.
-		 */
-		res = tb_port_write(path->hops[i].in_port, &hop, TB_CFG_HOPS,
-				    2 * path->hops[i].in_hop_index, 2);
-		if (res) {
-			__tb_path_deactivate_hops(path, i);
-			__tb_path_deallocate_nfc(path, 0);
-			goto err;
-		}
+		/* If it is left active deactivate it first */
+		__tb_path_deactivate_hop(path->hops[i].in_port,
+				path->hops[i].in_hop_index);
 
 		/* dword 0 */
 		hop.next_hop = path->hops[i].next_hop_index;
 		hop.out_port = path->hops[i].out_port->port;
-		/* TODO: figure out why these are good values */
-		hop.initial_credits = (i == path->path_length - 1) ? 16 : 7;
+		hop.initial_credits = path->hops[i].initial_credits;
 		hop.unknown1 = 0;
 		hop.enable = 1;
 

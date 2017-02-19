@@ -731,6 +731,20 @@ struct tb_port *tb_next_port_on_path(struct tb_port *start, struct tb_port *end,
 }
 
 /**
+ * tb_pci_port_is_enabled() - Is the PCIe adapter port enabled
+ * @port: PCIe port to check
+ */
+bool tb_pci_port_is_enabled(struct tb_port *port)
+{
+	u32 data;
+
+	if (tb_port_read(port, &data, TB_CFG_PORT, port->cap_adap, 1))
+		return false;
+
+	return !!(data & TB_PCI_EN);
+}
+
+/**
  * tb_pci_port_enable() - Enable PCIe adapter port
  * @port: PCIe port to enable
  * @enable: Enable/disable the PCIe adapter

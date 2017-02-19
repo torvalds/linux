@@ -35,6 +35,8 @@
 	__TB_TUNNEL_PRINT(tb_warn, tunnel, fmt, ##arg)
 #define tb_tunnel_info(tunnel, fmt, arg...) \
 	__TB_TUNNEL_PRINT(tb_info, tunnel, fmt, ##arg)
+#define tb_tunnel_dbg(tunnel, fmt, arg...) \
+	__TB_TUNNEL_PRINT(tb_dbg, tunnel, fmt, ##arg)
 
 static struct tb_tunnel *tb_tunnel_alloc(struct tb *tb, size_t npaths)
 {
@@ -65,7 +67,10 @@ static int tb_pci_activate(struct tb_tunnel *tunnel, bool activate)
 	if (res)
 		return res;
 
-	return tb_pci_port_enable(tunnel->dst_port, activate);
+	if (tb_port_is_pcie_up(tunnel->dst_port))
+		return tb_pci_port_enable(tunnel->dst_port, activate);
+
+	return 0;
 }
 
 static void tb_pci_init_path(struct tb_path *path)
@@ -78,6 +83,83 @@ static void tb_pci_init_path(struct tb_path *path)
 	path->weight = 1;
 	path->drop_packages = 0;
 	path->nfc_credits = 0;
+	path->hops[0].initial_credits = 7;
+	path->hops[1].initial_credits = 16;
+}
+
+/**
+ * tb_tunnel_discover_pci() - Discover existing PCIe tunnels
+ * @tb: Pointer to the domain structure
+ * @down: PCIe downstream adapter
+ *
+ * If @down adapter is active, follows the tunnel to the PCIe upstream
+ * adapter and back. Returns the discovered tunnel or %NULL if there was
+ * no tunnel.
+ */
+struct tb_tunnel *tb_tunnel_discover_pci(struct tb *tb, struct tb_port *down)
+{
+	struct tb_tunnel *tunnel;
+	struct tb_path *path;
+
+	if (!tb_pci_port_is_enabled(down))
+		return NULL;
+
+	tunnel = tb_tunnel_alloc(tb, 2);
+	if (!tunnel)
+		return NULL;
+
+	tunnel->activate = tb_pci_activate;
+	tunnel->src_port = down;
+
+	/*
+	 * Discover both paths even if they are not complete. We will
+	 * clean them up by calling tb_tunnel_deactivate() below in that
+	 * case.
+	 */
+	path = tb_path_discover(down, TB_PCI_HOPID, NULL, -1,
+				&tunnel->dst_port, "PCIe Up");
+	if (!path) {
+		/* Just disable the downstream port */
+		tb_pci_port_enable(down, false);
+		goto err_free;
+	}
+	tunnel->paths[TB_PCI_PATH_UP] = path;
+	tb_pci_init_path(tunnel->paths[TB_PCI_PATH_UP]);
+
+	path = tb_path_discover(tunnel->dst_port, -1, down, TB_PCI_HOPID, NULL,
+				"PCIe Down");
+	if (!path)
+		goto err_deactivate;
+	tunnel->paths[TB_PCI_PATH_DOWN] = path;
+	tb_pci_init_path(tunnel->paths[TB_PCI_PATH_DOWN]);
+
+	/* Validate that the tunnel is complete */
+	if (!tb_port_is_pcie_up(tunnel->dst_port)) {
+		tb_port_warn(tunnel->dst_port,
+			     "path does not end on a PCIe adapter, cleaning up\n");
+		goto err_deactivate;
+	}
+
+	if (down != tunnel->src_port) {
+		tb_tunnel_warn(tunnel, "path is not complete, cleaning up\n");
+		goto err_deactivate;
+	}
+
+	if (!tb_pci_port_is_enabled(tunnel->dst_port)) {
+		tb_tunnel_warn(tunnel,
+			       "tunnel is not fully activated, cleaning up\n");
+		goto err_deactivate;
+	}
+
+	tb_tunnel_dbg(tunnel, "discovered\n");
+	return tunnel;
+
+err_deactivate:
+	tb_tunnel_deactivate(tunnel);
+err_free:
+	tb_tunnel_free(tunnel);
+
+	return NULL;
 }
 
 /**
@@ -253,7 +335,7 @@ void tb_tunnel_deactivate(struct tb_tunnel *tunnel)
 		tunnel->activate(tunnel, false);
 
 	for (i = 0; i < tunnel->npaths; i++) {
-		if (tunnel->paths[i]->activated)
+		if (tunnel->paths[i] && tunnel->paths[i]->activated)
 			tb_path_deactivate(tunnel->paths[i]);
 	}
 }
