@@ -157,19 +157,19 @@ static struct tps65086_regulator regulators[] = {
 			   VDOA23_VID_MASK, TPS65086_LDOA3CTRL, BIT(0),
 			   tps65086_ldoa23_ranges, 0, 0),
 	TPS65086_SWITCH("SWA1", "swa1", SWA1, TPS65086_SWVTT_EN, BIT(5)),
-	TPS65086_SWITCH("SWB1", "swa2", SWB1, TPS65086_SWVTT_EN, BIT(6)),
-	TPS65086_SWITCH("SWB2", "swa3", SWB2, TPS65086_SWVTT_EN, BIT(7)),
+	TPS65086_SWITCH("SWB1", "swb1", SWB1, TPS65086_SWVTT_EN, BIT(6)),
+	TPS65086_SWITCH("SWB2", "swb2", SWB2, TPS65086_SWVTT_EN, BIT(7)),
 	TPS65086_SWITCH("VTT", "vtt", VTT, TPS65086_SWVTT_EN, BIT(4)),
 };
 
-static int tps65086_of_parse_cb(struct device_node *dev,
+static int tps65086_of_parse_cb(struct device_node *node,
 				const struct regulator_desc *desc,
 				struct regulator_config *config)
 {
 	int ret;
 
 	/* Check for 25mV step mode */
-	if (of_property_read_bool(config->of_node, "ti,regulator-step-size-25mv")) {
+	if (of_property_read_bool(node, "ti,regulator-step-size-25mv")) {
 		switch (desc->id) {
 		case BUCK1:
 		case BUCK2:
@@ -193,7 +193,7 @@ static int tps65086_of_parse_cb(struct device_node *dev,
 	}
 
 	/* Check for decay mode */
-	if (desc->id <= BUCK6 && of_property_read_bool(config->of_node, "ti,regulator-decay")) {
+	if (desc->id <= BUCK6 && of_property_read_bool(node, "ti,regulator-decay")) {
 		ret = regmap_write_bits(config->regmap,
 					regulators[desc->id].decay_reg,
 					regulators[desc->id].decay_mask,
