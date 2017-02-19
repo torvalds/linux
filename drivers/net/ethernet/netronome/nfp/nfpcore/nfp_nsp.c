@@ -182,6 +182,16 @@ void nfp_nsp_close(struct nfp_nsp *state)
 	kfree(state);
 }
 
+u16 nfp_nsp_get_abi_ver_major(struct nfp_nsp *state)
+{
+	return state->ver.major;
+}
+
+u16 nfp_nsp_get_abi_ver_minor(struct nfp_nsp *state)
+{
+	return state->ver.minor;
+}
+
 static int
 nfp_nsp_wait_reg(struct nfp_cpp *cpp, u64 *reg,
 		 u32 nsp_cpp, u64 addr, u64 mask, u64 val)

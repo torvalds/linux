@@ -111,6 +111,7 @@
 				 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
 /* Forward declarations */
+struct nfp_cpp;
 struct nfp_net;
 struct nfp_net_r_vector;
 
@@ -492,6 +493,7 @@ struct nfp_stat_pair {
  * @rx_bar:             Pointer to mapped FL/RX queues
  * @debugfs_dir:	Device directory in debugfs
  * @port_list:		Entry on device port list
+ * @cpp:		CPP device handle if available
  */
 struct nfp_net {
 	struct pci_dev *pdev;
@@ -579,6 +581,8 @@ struct nfp_net {
 	struct dentry *debugfs_dir;
 
 	struct list_head port_list;
+
+	struct nfp_cpp *cpp;
 };
 
 struct nfp_net_ring_set {

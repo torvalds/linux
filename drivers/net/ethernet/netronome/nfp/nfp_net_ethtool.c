@@ -47,6 +47,7 @@
 #include <linux/pci.h>
 #include <linux/ethtool.h>
 
+#include "nfpcore/nfp.h"
 #include "nfp_net_ctrl.h"
 #include "nfp_net.h"
 
@@ -127,19 +128,39 @@ static const struct _nfp_net_et_stats nfp_net_et_stats[] = {
 #define NN_ET_STATS_LEN (NN_ET_GLOBAL_STATS_LEN + NN_ET_RVEC_GATHER_STATS + \
 			 NN_ET_RVEC_STATS_LEN + NN_ET_QUEUE_STATS_LEN)
 
+static void nfp_net_get_nspinfo(struct nfp_net *nn, char *version)
+{
+	struct nfp_nsp *nsp;
+
+	if (!nn->cpp)
+		return;
+
+	nsp = nfp_nsp_open(nn->cpp);
+	if (IS_ERR(nsp))
+		return;
+
+	snprintf(version, ETHTOOL_FWVERS_LEN, "sp:%hu.%hu",
+		 nfp_nsp_get_abi_ver_major(nsp),
+		 nfp_nsp_get_abi_ver_minor(nsp));
+
+	nfp_nsp_close(nsp);
+}
+
 static void nfp_net_get_drvinfo(struct net_device *netdev,
 				struct ethtool_drvinfo *drvinfo)
 {
+	char nsp_version[ETHTOOL_FWVERS_LEN] = {};
 	struct nfp_net *nn = netdev_priv(netdev);
 
 	strlcpy(drvinfo->driver, nn->pdev->driver->name,
 		sizeof(drvinfo->driver));
 	strlcpy(drvinfo->version, nfp_driver_version, sizeof(drvinfo->version));
 
+	nfp_net_get_nspinfo(nn, nsp_version);
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
-		 "%d.%d.%d.%d",
+		 "%d.%d.%d.%d %s",
 		 nn->fw_ver.resv, nn->fw_ver.class,
-		 nn->fw_ver.major, nn->fw_ver.minor);
+		 nn->fw_ver.major, nn->fw_ver.minor, nsp_version);
 	strlcpy(drvinfo->bus_info, pci_name(nn->pdev),
 		sizeof(drvinfo->bus_info));
 
