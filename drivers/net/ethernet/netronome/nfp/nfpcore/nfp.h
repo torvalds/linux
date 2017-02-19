@@ -86,6 +86,7 @@ int nfp_nsp_write_eth_table(struct nfp_nsp *state,
 
 /* Service Processor */
 #define NFP_RESOURCE_NSP		"nfp.sp"
+#define NFP_RESOURCE_NSP_DIAG		"arm.diag"
 
 /* Netronone Flow Firmware Table */
 #define NFP_RESOURCE_NFP_NFFW		"nfp.nffw"
