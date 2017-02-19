@@ -106,9 +106,7 @@ static struct s3c_audio_pdata i2sv4_pdata = {
 	.dma_playback = DMACH_HSI_I2SV40_TX,
 	.dma_capture = DMACH_HSI_I2SV40_RX,
 	.type = {
-		.i2s = {
-			.quirks = QUIRK_PRI_6CHAN,
-		},
+		.quirks = QUIRK_PRI_6CHAN,
 	},
 };
 
