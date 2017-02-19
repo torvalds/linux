@@ -12,7 +12,7 @@
 
 #include "tb.h"
 #include "tb_regs.h"
-#include "tunnel_pci.h"
+#include "tunnel.h"
 
 /**
  * struct tb_cm - Simple Thunderbolt connection manager

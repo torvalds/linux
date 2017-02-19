@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Thunderbolt Cactus Ridge driver - PCIe tunnel
+ * Thunderbolt Cactus Ridge driver - Tunneling support
  *
  * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
  */
@@ -8,7 +8,7 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 
-#include "tunnel_pci.h"
+#include "tunnel.h"
 #include "tb.h"
 
 #define __TB_TUNNEL_PRINT(level, tunnel, fmt, arg...)                   \
