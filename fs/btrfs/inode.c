@@ -933,7 +933,7 @@ static noinline int cow_file_range(struct inode *inode,
 	struct extent_map *em;
 	int ret = 0;
 
-	if (btrfs_is_free_space_inode(inode)) {
+	if (btrfs_is_free_space_inode(BTRFS_I(inode))) {
 		WARN_ON_ONCE(1);
 		ret = -EINVAL;
 		goto out_unlock;
@@ -1231,7 +1231,7 @@ static noinline int run_delalloc_nocow(struct inode *inode,
 		return -ENOMEM;
 	}
 
-	nolock = btrfs_is_free_space_inode(inode);
+	nolock = btrfs_is_free_space_inode(BTRFS_I(inode));
 
 	cow_start = (u64)-1;
 	cur_offset = start;
@@ -1670,7 +1670,7 @@ static void btrfs_set_bit_hook(struct inode *inode,
 	if (!(state->state & EXTENT_DELALLOC) && (*bits & EXTENT_DELALLOC)) {
 		struct btrfs_root *root = BTRFS_I(inode)->root;
 		u64 len = state->end + 1 - state->start;
-		bool do_list = !btrfs_is_free_space_inode(inode);
+		bool do_list = !btrfs_is_free_space_inode(BTRFS_I(inode));
 
 		if (*bits & EXTENT_FIRST_DELALLOC) {
 			*bits &= ~EXTENT_FIRST_DELALLOC;
@@ -1720,7 +1720,7 @@ static void btrfs_clear_bit_hook(struct inode *inode,
 	 */
 	if ((state->state & EXTENT_DELALLOC) && (*bits & EXTENT_DELALLOC)) {
 		struct btrfs_root *root = BTRFS_I(inode)->root;
-		bool do_list = !btrfs_is_free_space_inode(inode);
+		bool do_list = !btrfs_is_free_space_inode(BTRFS_I(inode));
 
 		if (*bits & EXTENT_FIRST_DELALLOC) {
 			*bits &= ~EXTENT_FIRST_DELALLOC;
@@ -1854,7 +1854,7 @@ static int btrfs_submit_bio_hook(struct inode *inode, struct bio *bio,
 
 	skip_sum = BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM;
 
-	if (btrfs_is_free_space_inode(inode))
+	if (btrfs_is_free_space_inode(BTRFS_I(inode)))
 		metadata = BTRFS_WQ_ENDIO_FREE_SPACE;
 
 	if (bio_op(bio) != REQ_OP_WRITE) {
@@ -2793,7 +2793,7 @@ static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
 	bool nolock;
 	bool truncated = false;
 
-	nolock = btrfs_is_free_space_inode(inode);
+	nolock = btrfs_is_free_space_inode(BTRFS_I(inode));
 
 	if (test_bit(BTRFS_ORDERED_IOERR, &ordered_extent->flags)) {
 		ret = -EIO;
@@ -2993,7 +2993,7 @@ static int btrfs_writepage_end_io_hook(struct page *page, u64 start, u64 end,
 					    end - start + 1, uptodate))
 		return 0;
 
-	if (btrfs_is_free_space_inode(inode)) {
+	if (btrfs_is_free_space_inode(BTRFS_I(inode))) {
 		wq = fs_info->endio_freespace_worker;
 		func = btrfs_freespace_write_helper;
 	} else {
@@ -3865,7 +3865,7 @@ noinline int btrfs_update_inode(struct btrfs_trans_handle *trans,
 	 * The data relocation inode should also be directly updated
 	 * without delay
 	 */
-	if (!btrfs_is_free_space_inode(inode)
+	if (!btrfs_is_free_space_inode(BTRFS_I(inode))
 	    && root->root_key.objectid != BTRFS_DATA_RELOC_TREE_OBJECTID
 	    && !test_bit(BTRFS_FS_LOG_RECOVERING, &fs_info->flags)) {
 		btrfs_update_root_times(trans, root);
@@ -4319,7 +4319,7 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	 * for non-free space inodes and ref cows, we want to back off from
 	 * time to time
 	 */
-	if (!btrfs_is_free_space_inode(inode) &&
+	if (!btrfs_is_free_space_inode(BTRFS_I(inode)) &&
 	    test_bit(BTRFS_ROOT_REF_COWS, &root->state))
 		be_nice = 1;
 
@@ -5180,7 +5180,7 @@ void btrfs_evict_inode(struct inode *inode)
 	if (inode->i_nlink &&
 	    ((btrfs_root_refs(&root->root_item) != 0 &&
 	      root->root_key.objectid != BTRFS_ROOT_TREE_OBJECTID) ||
-	     btrfs_is_free_space_inode(inode)))
+	     btrfs_is_free_space_inode(BTRFS_I(inode))))
 		goto no_delete;
 
 	if (is_bad_inode(inode)) {
@@ -5897,7 +5897,8 @@ int btrfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	if (test_bit(BTRFS_INODE_DUMMY, &BTRFS_I(inode)->runtime_flags))
 		return 0;
 
-	if (btrfs_fs_closing(root->fs_info) && btrfs_is_free_space_inode(inode))
+	if (btrfs_fs_closing(root->fs_info) &&
+			btrfs_is_free_space_inode(BTRFS_I(inode)))
 		nolock = true;
 
 	if (wbc->sync_mode == WB_SYNC_ALL) {

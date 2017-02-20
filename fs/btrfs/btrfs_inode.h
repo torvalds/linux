@@ -243,14 +243,14 @@ static inline void btrfs_i_size_write(struct btrfs_inode *inode, u64 size)
 	inode->disk_i_size = size;
 }
 
-static inline bool btrfs_is_free_space_inode(struct inode *inode)
+static inline bool btrfs_is_free_space_inode(struct btrfs_inode *inode)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_root *root = inode->root;
 
 	if (root == root->fs_info->tree_root &&
-	    btrfs_ino(BTRFS_I(inode)) != BTRFS_BTREE_INODE_OBJECTID)
+	    btrfs_ino(inode) != BTRFS_BTREE_INODE_OBJECTID)
 		return true;
-	if (BTRFS_I(inode)->location.objectid == BTRFS_FREE_INO_OBJECTID)
+	if (inode->location.objectid == BTRFS_FREE_INO_OBJECTID)
 		return true;
 	return false;
 }
