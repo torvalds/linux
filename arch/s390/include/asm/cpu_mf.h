@@ -174,7 +174,7 @@ static inline int lcctl(u64 ctl)
 /* Extract CPU counter */
 static inline int __ecctr(u64 ctr, u64 *content)
 {
-	register u64 _content asm("4") = 0;
+	u64 _content;
 	int cc;
 
 	asm volatile (
