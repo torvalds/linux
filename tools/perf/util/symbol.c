@@ -1460,9 +1460,11 @@ int dso__load(struct dso *dso, struct map *map)
 	 * DSO_BINARY_TYPE__BUILDID_DEBUGINFO to work
 	 */
 	if (!dso->has_build_id &&
-	    is_regular_file(dso->long_name) &&
-	    filename__read_build_id(dso->long_name, build_id, BUILD_ID_SIZE) > 0)
+	    is_regular_file(dso->long_name)) {
+	    __symbol__join_symfs(name, PATH_MAX, dso->long_name);
+	    if (filename__read_build_id(name, build_id, BUILD_ID_SIZE) > 0)
 		dso__set_build_id(dso, build_id);
+	}
 
 	/*
 	 * Iterate over candidate debug images.

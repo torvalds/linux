@@ -23,6 +23,7 @@ int cmd_diff(int argc, const char **argv, const char *prefix);
 int cmd_evlist(int argc, const char **argv, const char *prefix);
 int cmd_help(int argc, const char **argv, const char *prefix);
 int cmd_sched(int argc, const char **argv, const char *prefix);
+int cmd_kallsyms(int argc, const char **argv, const char *prefix);
 int cmd_list(int argc, const char **argv, const char *prefix);
 int cmd_record(int argc, const char **argv, const char *prefix);
 int cmd_report(int argc, const char **argv, const char *prefix);
@@ -40,6 +41,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix);
 int cmd_inject(int argc, const char **argv, const char *prefix);
 int cmd_mem(int argc, const char **argv, const char *prefix);
 int cmd_data(int argc, const char **argv, const char *prefix);
+int cmd_ftrace(int argc, const char **argv, const char *prefix);
 
 int find_scripts(char **scripts_array, char **scripts_path_array);
 #endif

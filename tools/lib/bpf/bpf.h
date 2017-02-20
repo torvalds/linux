@@ -22,6 +22,7 @@
 #define __BPF_BPF_H
 
 #include <linux/bpf.h>
+#include <stddef.h>
 
 int bpf_create_map(enum bpf_map_type map_type, int key_size, int value_size,
 		   int max_entries, __u32 map_flags);
