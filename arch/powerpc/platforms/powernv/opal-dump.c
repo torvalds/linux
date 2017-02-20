@@ -371,13 +371,12 @@ static irqreturn_t process_dump(int irq, void *data)
 {
 	int rc;
 	uint32_t dump_id, dump_size, dump_type;
-	struct dump_obj *dump;
 	char name[22];
 	struct kobject *kobj;
 
 	rc = dump_read_info(&dump_id, &dump_size, &dump_type);
 	if (rc != OPAL_SUCCESS)
-		return rc;
+		return IRQ_HANDLED;
 
 	sprintf(name, "0x%x-0x%x", dump_type, dump_id);
 
@@ -389,12 +388,10 @@ static irqreturn_t process_dump(int irq, void *data)
 	if (kobj) {
 		/* Drop reference added by kset_find_obj() */
 		kobject_put(kobj);
-		return 0;
+		return IRQ_HANDLED;
 	}
 
-	dump = create_dump_obj(dump_id, dump_size, dump_type);
-	if (!dump)
-		return -1;
+	create_dump_obj(dump_id, dump_size, dump_type);
 
 	return IRQ_HANDLED;
 }
