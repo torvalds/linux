@@ -15,6 +15,7 @@ FLIC provides support to
 - enable/disable for the guest transparent async page faults
 - register and modify adapter interrupt sources (KVM_DEV_FLIC_ADAPTER_*)
 - modify AIS (adapter-interruption-suppression) mode state (KVM_DEV_FLIC_AISM)
+- inject adapter interrupts on a specified adapter (KVM_DEV_FLIC_AIRQ_INJECT)
 
 Groups:
   KVM_DEV_FLIC_ENQUEUE
@@ -126,6 +127,14 @@ struct kvm_s390_ais_req {
       injection is only allowed once and the following adapter interrupts
       will be suppressed until the mode is set again to ALL-Interruptions
       or SINGLE-Interruption mode.
+
+  KVM_DEV_FLIC_AIRQ_INJECT
+    Inject adapter interrupts on a specified adapter.
+    attr->attr contains the unique id for the adapter, which allows for
+    adapter-specific checks and actions.
+    For adapters subject to AIS, handle the airq injection suppression for
+    an isc according to the adapter-interruption-suppression mode on condition
+    that the AIS capability is enabled.
 
 Note: The KVM_SET_DEVICE_ATTR/KVM_GET_DEVICE_ATTR device ioctls executed on
 FLIC with an unknown group or attribute gives the error code EINVAL (instead of

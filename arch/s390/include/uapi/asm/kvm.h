@@ -27,6 +27,7 @@
 #define KVM_DEV_FLIC_ADAPTER_MODIFY	7
 #define KVM_DEV_FLIC_CLEAR_IO_IRQ	8
 #define KVM_DEV_FLIC_AISM		9
+#define KVM_DEV_FLIC_AIRQ_INJECT	10
 /*
  * We can have up to 4*64k pending subchannels + 8 adapter interrupts,
  * as well as up  to ASYNC_PF_PER_VCPU*KVM_MAX_VCPUS pfault done interrupts.

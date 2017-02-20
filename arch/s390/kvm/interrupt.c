@@ -2191,6 +2191,48 @@ static int modify_ais_mode(struct kvm *kvm, struct kvm_device_attr *attr)
 	return ret;
 }
 
+static int kvm_s390_inject_airq(struct kvm *kvm,
+				struct s390_io_adapter *adapter)
+{
+	struct kvm_s390_float_interrupt *fi = &kvm->arch.float_int;
+	struct kvm_s390_interrupt s390int = {
+		.type = KVM_S390_INT_IO(1, 0, 0, 0),
+		.parm = 0,
+		.parm64 = (adapter->isc << 27) | 0x80000000,
+	};
+	int ret = 0;
+
+	if (!fi->ais_enabled || !adapter->suppressible)
+		return kvm_s390_inject_vm(kvm, &s390int);
+
+	mutex_lock(&fi->ais_lock);
+	if (fi->nimm & AIS_MODE_MASK(adapter->isc)) {
+		trace_kvm_s390_airq_suppressed(adapter->id, adapter->isc);
+		goto out;
+	}
+
+	ret = kvm_s390_inject_vm(kvm, &s390int);
+	if (!ret && (fi->simm & AIS_MODE_MASK(adapter->isc))) {
+		fi->nimm |= AIS_MODE_MASK(adapter->isc);
+		trace_kvm_s390_modify_ais_mode(adapter->isc,
+					       KVM_S390_AIS_MODE_SINGLE, 2);
+	}
+out:
+	mutex_unlock(&fi->ais_lock);
+	return ret;
+}
+
+static int flic_inject_airq(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	unsigned int id = attr->attr;
+	struct s390_io_adapter *adapter = get_io_adapter(kvm, id);
+
+	if (!adapter)
+		return -EINVAL;
+
+	return kvm_s390_inject_airq(kvm, adapter);
+}
+
 static int flic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 {
 	int r = 0;
@@ -2230,6 +2272,9 @@ static int flic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 	case KVM_DEV_FLIC_AISM:
 		r = modify_ais_mode(dev->kvm, attr);
 		break;
+	case KVM_DEV_FLIC_AIRQ_INJECT:
+		r = flic_inject_airq(dev->kvm, attr);
+		break;
 	default:
 		r = -EINVAL;
 	}
@@ -2250,6 +2295,7 @@ static int flic_has_attr(struct kvm_device *dev,
 	case KVM_DEV_FLIC_ADAPTER_MODIFY:
 	case KVM_DEV_FLIC_CLEAR_IO_IRQ:
 	case KVM_DEV_FLIC_AISM:
+	case KVM_DEV_FLIC_AIRQ_INJECT:
 		return 0;
 	}
 	return -ENXIO;
@@ -2360,12 +2406,7 @@ static int set_adapter_int(struct kvm_kernel_irq_routing_entry *e,
 	ret = adapter_indicators_set(kvm, adapter, &e->adapter);
 	up_read(&adapter->maps_lock);
 	if ((ret > 0) && !adapter->masked) {
-		struct kvm_s390_interrupt s390int = {
-			.type = KVM_S390_INT_IO(1, 0, 0, 0),
-			.parm = 0,
-			.parm64 = (adapter->isc << 27) | 0x80000000,
-		};
-		ret = kvm_s390_inject_vm(kvm, &s390int);
+		ret = kvm_s390_inject_airq(kvm, adapter);
 		if (ret == 0)
 			ret = 1;
 	}

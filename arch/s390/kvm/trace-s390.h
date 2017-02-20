@@ -311,6 +311,27 @@ TRACE_EVENT(kvm_s390_modify_ais_mode,
 		      "Single-Interruption Mode" : "No-Interruptions Mode")
 	);
 
+/*
+ * Trace point for suppressed adapter I/O interrupt.
+ */
+TRACE_EVENT(kvm_s390_airq_suppressed,
+	    TP_PROTO(__u32 id, __u8 isc),
+	    TP_ARGS(id, isc),
+
+	    TP_STRUCT__entry(
+		    __field(__u32, id)
+		    __field(__u8, isc)
+		    ),
+
+	    TP_fast_assign(
+		    __entry->id = id;
+		    __entry->isc = isc;
+		    ),
+
+	    TP_printk("adapter I/O interrupt suppressed (id:%x isc:%x)",
+		      __entry->id, __entry->isc)
+	);
+
 
 #endif /* _TRACE_KVMS390_H */
 
