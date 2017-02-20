@@ -1123,12 +1123,11 @@ static long tce_iommu_ioctl(void *iommu_data,
 		mutex_lock(&container->lock);
 
 		ret = tce_iommu_create_default_window(container);
-		if (ret)
-			return ret;
-
-		ret = tce_iommu_create_window(container, create.page_shift,
-				create.window_size, create.levels,
-				&create.start_addr);
+		if (!ret)
+			ret = tce_iommu_create_window(container,
+					create.page_shift,
+					create.window_size, create.levels,
+					&create.start_addr);
 
 		mutex_unlock(&container->lock);
 
