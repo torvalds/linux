@@ -1599,7 +1599,8 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 			}
 		}
 
-		ret = btrfs_delalloc_reserve_metadata(inode, reserve_bytes);
+		ret = btrfs_delalloc_reserve_metadata(BTRFS_I(inode),
+				reserve_bytes);
 		if (ret) {
 			if (!only_release_metadata)
 				btrfs_free_reserved_data_space(inode, pos,

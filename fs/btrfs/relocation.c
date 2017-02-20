@@ -3203,7 +3203,8 @@ static int relocate_file_extent_cluster(struct inode *inode,
 	index = (cluster->start - offset) >> PAGE_SHIFT;
 	last_index = (cluster->end - offset) >> PAGE_SHIFT;
 	while (index <= last_index) {
-		ret = btrfs_delalloc_reserve_metadata(inode, PAGE_SIZE);
+		ret = btrfs_delalloc_reserve_metadata(BTRFS_I(inode),
+				PAGE_SIZE);
 		if (ret)
 			goto out;
 
