@@ -146,6 +146,7 @@
 #define CX2072X_I2SPCM_CONTROL6                          0x6e18
 #define CX2072X_UM_INTERRUPT_CRTL_E                      0x6e14
 #define CX2072X_CODEC_TEST2                              0x7108
+#define CX2072X_CODEC_TEST9                              0x7124
 #define CX2072X_CODEC_TEST20                             0x7310
 #define CX2072X_CODEC_TEST26                             0x7328
 #define CX2072X_ANALOG_TEST3                             0x718c
