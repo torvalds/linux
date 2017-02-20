@@ -930,6 +930,17 @@ config I2C_TEGRA
 	  If you say yes to this option, support will be included for the
 	  I2C controller embedded in NVIDIA Tegra SOCs
 
+config I2C_TEGRA_BPMP
+	tristate "NVIDIA Tegra BPMP I2C controller"
+	depends on TEGRA_BPMP
+	help
+	  If you say yes to this option, support will be included for the I2C
+	  controller embedded in NVIDIA Tegra SoCs accessed via the BPMP.
+
+	  This I2C driver is a 'virtual' I2C driver. The real driver is part
+	  of the BPMP firmware, and this driver merely communicates with that
+	  real driver.
+
 config I2C_UNIPHIER
 	tristate "UniPhier FIFO-less I2C controller"
 	depends on ARCH_UNIPHIER || COMPILE_TEST
