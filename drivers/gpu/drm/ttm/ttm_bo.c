@@ -140,8 +140,8 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	struct ttm_bo_device *bdev = bo->bdev;
 	size_t acc_size = bo->acc_size;
 
-	BUG_ON(atomic_read(&bo->list_kref.refcount));
-	BUG_ON(atomic_read(&bo->kref.refcount));
+	BUG_ON(kref_read(&bo->list_kref));
+	BUG_ON(kref_read(&bo->kref));
 	BUG_ON(atomic_read(&bo->cpu_writers));
 	BUG_ON(bo->mem.mm_node != NULL);
 	BUG_ON(!list_empty(&bo->lru));
@@ -181,61 +181,46 @@ void ttm_bo_add_to_lru(struct ttm_buffer_object *bo)
 }
 EXPORT_SYMBOL(ttm_bo_add_to_lru);
 
-int ttm_bo_del_from_lru(struct ttm_buffer_object *bo)
+static void ttm_bo_ref_bug(struct kref *list_kref)
+{
+	BUG();
+}
+
+void ttm_bo_del_from_lru(struct ttm_buffer_object *bo)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	int put_count = 0;
 
 	if (bdev->driver->lru_removal)
 		bdev->driver->lru_removal(bo);
 
 	if (!list_empty(&bo->swap)) {
 		list_del_init(&bo->swap);
-		++put_count;
+		kref_put(&bo->list_kref, ttm_bo_ref_bug);
 	}
 	if (!list_empty(&bo->lru)) {
 		list_del_init(&bo->lru);
-		++put_count;
+		kref_put(&bo->list_kref, ttm_bo_ref_bug);
 	}
-
-	return put_count;
-}
-
-static void ttm_bo_ref_bug(struct kref *list_kref)
-{
-	BUG();
-}
-
-void ttm_bo_list_ref_sub(struct ttm_buffer_object *bo, int count,
-			 bool never_free)
-{
-	kref_sub(&bo->list_kref, count,
-		 (never_free) ? ttm_bo_ref_bug : ttm_bo_release_list);
 }
 
 void ttm_bo_del_sub_from_lru(struct ttm_buffer_object *bo)
 {
-	int put_count;
-
 	spin_lock(&bo->glob->lru_lock);
-	put_count = ttm_bo_del_from_lru(bo);
+	ttm_bo_del_from_lru(bo);
 	spin_unlock(&bo->glob->lru_lock);
-	ttm_bo_list_ref_sub(bo, put_count, true);
 }
 EXPORT_SYMBOL(ttm_bo_del_sub_from_lru);
 
 void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	int put_count = 0;
 
 	lockdep_assert_held(&bo->resv->lock.base);
 
 	if (bdev->driver->lru_removal)
 		bdev->driver->lru_removal(bo);
 
-	put_count = ttm_bo_del_from_lru(bo);
-	ttm_bo_list_ref_sub(bo, put_count, true);
+	ttm_bo_del_from_lru(bo);
 	ttm_bo_add_to_lru(bo);
 }
 EXPORT_SYMBOL(ttm_bo_move_to_lru_tail);
@@ -447,7 +432,6 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_bo_global *glob = bo->glob;
-	int put_count;
 	int ret;
 
 	spin_lock(&glob->lru_lock);
@@ -455,12 +439,9 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 
 	if (!ret) {
 		if (!ttm_bo_wait(bo, false, true)) {
-			put_count = ttm_bo_del_from_lru(bo);
-
+			ttm_bo_del_from_lru(bo);
 			spin_unlock(&glob->lru_lock);
 			ttm_bo_cleanup_memtype_use(bo);
-
-			ttm_bo_list_ref_sub(bo, put_count, true);
 
 			return;
 		} else
@@ -504,7 +485,6 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 					  bool no_wait_gpu)
 {
 	struct ttm_bo_global *glob = bo->glob;
-	int put_count;
 	int ret;
 
 	ret = ttm_bo_wait(bo, false, true);
@@ -554,14 +534,12 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 		return ret;
 	}
 
-	put_count = ttm_bo_del_from_lru(bo);
+	ttm_bo_del_from_lru(bo);
 	list_del_init(&bo->ddestroy);
-	++put_count;
+	kref_put(&bo->list_kref, ttm_bo_ref_bug);
 
 	spin_unlock(&glob->lru_lock);
 	ttm_bo_cleanup_memtype_use(bo);
-
-	ttm_bo_list_ref_sub(bo, put_count, true);
 
 	return 0;
 }
@@ -740,7 +718,7 @@ static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 	struct ttm_bo_global *glob = bdev->glob;
 	struct ttm_mem_type_manager *man = &bdev->man[mem_type];
 	struct ttm_buffer_object *bo;
-	int ret = -EBUSY, put_count;
+	int ret = -EBUSY;
 
 	spin_lock(&glob->lru_lock);
 	list_for_each_entry(bo, &man->lru, lru) {
@@ -771,12 +749,10 @@ static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 		return ret;
 	}
 
-	put_count = ttm_bo_del_from_lru(bo);
+	ttm_bo_del_from_lru(bo);
 	spin_unlock(&glob->lru_lock);
 
 	BUG_ON(ret != 0);
-
-	ttm_bo_list_ref_sub(bo, put_count, true);
 
 	ret = ttm_bo_evict(bo, interruptible, no_wait_gpu);
 	ttm_bo_unreserve(bo);
@@ -1669,7 +1645,6 @@ static int ttm_bo_swapout(struct ttm_mem_shrink *shrink)
 	    container_of(shrink, struct ttm_bo_global, shrink);
 	struct ttm_buffer_object *bo;
 	int ret = -EBUSY;
-	int put_count;
 	uint32_t swap_placement = (TTM_PL_FLAG_CACHED | TTM_PL_FLAG_SYSTEM);
 
 	spin_lock(&glob->lru_lock);
@@ -1692,10 +1667,8 @@ static int ttm_bo_swapout(struct ttm_mem_shrink *shrink)
 		return ret;
 	}
 
-	put_count = ttm_bo_del_from_lru(bo);
+	ttm_bo_del_from_lru(bo);
 	spin_unlock(&glob->lru_lock);
-
-	ttm_bo_list_ref_sub(bo, put_count, true);
 
 	/**
 	 * Move to system cached

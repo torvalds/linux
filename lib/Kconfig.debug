@@ -716,6 +716,19 @@ source "lib/Kconfig.kmemcheck"
 
 source "lib/Kconfig.kasan"
 
+config DEBUG_REFCOUNT
+	bool "Verbose refcount checks"
+	help
+	  Say Y here if you want reference counters (refcount_t and kref) to
+	  generate WARNs on dubious usage. Without this refcount_t will still
+	  be a saturating counter and avoid Use-After-Free by turning it into
+	  a resource leak Denial-Of-Service.
+
+	  Use of this option will increase kernel text size but will alert the
+	  admin of potential abuse.
+
+	  If in doubt, say "N".
+
 endmenu # "Memory Debugging"
 
 config ARCH_HAS_KCOV
@@ -1164,6 +1177,18 @@ config LOCK_TORTURE_TEST
 	  Say Y here if you want kernel locking-primitive torture tests
 	  to be built into the kernel.
 	  Say M if you want these torture tests to build as a module.
+	  Say N if you are unsure.
+
+config WW_MUTEX_SELFTEST
+	tristate "Wait/wound mutex selftests"
+	help
+	  This option provides a kernel module that runs tests on the
+	  on the struct ww_mutex locking API.
+
+	  It is recommended to enable DEBUG_WW_MUTEX_SLOWPATH in conjunction
+	  with this test harness.
+
+	  Say M if you want these self tests to build as a module.
 	  Say N if you are unsure.
 
 endmenu # lock debugging

@@ -2072,7 +2072,7 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 	INIT_LIST_HEAD(&dlm->dlm_eviction_callbacks);
 
 	mlog(0, "context init: refcount %u\n",
-		  atomic_read(&dlm->dlm_refs.refcount));
+		  kref_read(&dlm->dlm_refs));
 
 leave:
 	if (ret < 0 && dlm) {
