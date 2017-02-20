@@ -749,13 +749,13 @@ static void snd_mts64_rawmidi_input_trigger(struct snd_rawmidi_substream *substr
 	spin_unlock_irqrestore(&mts->lock, flags);
 }
 
-static struct snd_rawmidi_ops snd_mts64_rawmidi_output_ops = {
+static const struct snd_rawmidi_ops snd_mts64_rawmidi_output_ops = {
 	.open    = snd_mts64_rawmidi_open,
 	.close   = snd_mts64_rawmidi_close,
 	.trigger = snd_mts64_rawmidi_output_trigger
 };
 
-static struct snd_rawmidi_ops snd_mts64_rawmidi_input_ops = {
+static const struct snd_rawmidi_ops snd_mts64_rawmidi_input_ops = {
 	.open    = snd_mts64_rawmidi_open,
 	.close   = snd_mts64_rawmidi_close,
 	.trigger = snd_mts64_rawmidi_input_trigger
