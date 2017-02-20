@@ -462,7 +462,7 @@ static int hw_perf_event_reset(struct perf_event *event)
 	return err;
 }
 
-static int hw_perf_event_update(struct perf_event *event)
+static void hw_perf_event_update(struct perf_event *event)
 {
 	u64 prev, new, delta;
 	int err;
@@ -471,14 +471,12 @@ static int hw_perf_event_update(struct perf_event *event)
 		prev = local64_read(&event->hw.prev_count);
 		err = ecctr(event->hw.config, &new);
 		if (err)
-			goto out;
+			return;
 	} while (local64_cmpxchg(&event->hw.prev_count, prev, new) != prev);
 
 	delta = (prev <= new) ? new - prev
 			      : (-1ULL - prev) + new + 1;	 /* overflow */
 	local64_add(delta, &event->count);
-out:
-	return err;
 }
 
 static void cpumf_pmu_read(struct perf_event *event)
