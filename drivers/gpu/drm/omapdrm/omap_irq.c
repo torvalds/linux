@@ -41,7 +41,6 @@ static void omap_irq_update(struct drm_device *dev)
 	DBG("irqmask=%08x", irqmask);
 
 	priv->dispc_ops->write_irqenable(irqmask);
-	priv->dispc_ops->read_irqenable();        /* flush posted write */
 }
 
 static void omap_irq_wait_handler(struct omap_irq_wait *wait)

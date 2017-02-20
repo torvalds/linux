@@ -880,7 +880,6 @@ void dss_mgr_unregister_framedone_handler(enum omap_channel channel,
 struct dispc_ops {
 	u32 (*read_irqstatus)(void);
 	void (*clear_irqstatus)(u32 mask);
-	u32 (*read_irqenable)(void);
 	void (*write_irqenable)(u32 mask);
 
 	int (*request_irq)(irq_handler_t handler, void *dev_id);

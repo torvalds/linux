@@ -3782,11 +3782,6 @@ static void dispc_clear_irqstatus(u32 mask)
 	dispc_write_reg(DISPC_IRQSTATUS, mask);
 }
 
-static u32 dispc_read_irqenable(void)
-{
-	return dispc_read_reg(DISPC_IRQENABLE);
-}
-
 static void dispc_write_irqenable(u32 mask)
 {
 	u32 old_mask = dispc_read_reg(DISPC_IRQENABLE);
@@ -3795,6 +3790,9 @@ static void dispc_write_irqenable(u32 mask)
 	dispc_clear_irqstatus((mask ^ old_mask) & mask);
 
 	dispc_write_reg(DISPC_IRQENABLE, mask);
+
+	/* flush posted write */
+	dispc_read_reg(DISPC_IRQENABLE);
 }
 
 void dispc_enable_sidle(void)
@@ -4345,7 +4343,6 @@ static void dispc_errata_i734_wa(void)
 static const struct dispc_ops dispc_ops = {
 	.read_irqstatus = dispc_read_irqstatus,
 	.clear_irqstatus = dispc_clear_irqstatus,
-	.read_irqenable = dispc_read_irqenable,
 	.write_irqenable = dispc_write_irqenable,
 
 	.request_irq = dispc_request_irq,
