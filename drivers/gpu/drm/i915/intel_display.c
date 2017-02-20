@@ -14970,11 +14970,10 @@ int intel_modeset_init(struct drm_device *dev)
 		}
 	}
 
-	intel_update_czclk(dev_priv);
-	intel_update_cdclk(dev_priv);
-	dev_priv->cdclk.logical = dev_priv->cdclk.actual = dev_priv->cdclk.hw;
-
 	intel_shared_dpll_init(dev);
+
+	intel_update_czclk(dev_priv);
+	intel_modeset_init_hw(dev);
 
 	if (dev_priv->max_cdclk_freq == 0)
 		intel_update_max_cdclk(dev_priv);
@@ -15554,8 +15553,6 @@ void intel_modeset_gem_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	intel_init_gt_powersave(dev_priv);
-
-	intel_modeset_init_hw(dev);
 
 	intel_setup_overlay(dev_priv);
 }
