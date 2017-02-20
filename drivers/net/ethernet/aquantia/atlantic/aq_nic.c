@@ -214,6 +214,7 @@ struct aq_nic_s *aq_nic_alloc_cold(const struct net_device_ops *ndev_ops,
 	SET_NETDEV_DEV(ndev, dev);
 
 	ndev->if_port = port;
+	ndev->min_mtu = ETH_MIN_MTU;
 	self->ndev = ndev;
 
 	self->aq_pci_func = aq_pci_func;
