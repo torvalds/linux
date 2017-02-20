@@ -1069,7 +1069,7 @@ static int send_display_ready_uevent(struct intel_vgpu *vgpu, int ready)
 	char vmid_str[20];
 	char display_ready_str[20];
 
-	snprintf(display_ready_str, 20, "GVT_DISPLAY_READY=%d\n", ready);
+	snprintf(display_ready_str, 20, "GVT_DISPLAY_READY=%d", ready);
 	env[0] = display_ready_str;
 
 	snprintf(vmid_str, 20, "VMID=%d", vgpu->id);
