@@ -161,7 +161,7 @@ struct its_cmd_desc {
 			struct its_device *dev;
 			u32 phys_id;
 			u32 event_id;
-		} its_mapvi_cmd;
+		} its_mapti_cmd;
 
 		struct {
 			struct its_device *dev;
@@ -193,58 +193,56 @@ struct its_cmd_block {
 typedef struct its_collection *(*its_cmd_builder_t)(struct its_cmd_block *,
 						    struct its_cmd_desc *);
 
+static void its_mask_encode(u64 *raw_cmd, u64 val, int h, int l)
+{
+	u64 mask = GENMASK_ULL(h, l);
+	*raw_cmd &= ~mask;
+	*raw_cmd |= (val << l) & mask;
+}
+
 static void its_encode_cmd(struct its_cmd_block *cmd, u8 cmd_nr)
 {
-	cmd->raw_cmd[0] &= ~0xffULL;
-	cmd->raw_cmd[0] |= cmd_nr;
+	its_mask_encode(&cmd->raw_cmd[0], cmd_nr, 7, 0);
 }
 
 static void its_encode_devid(struct its_cmd_block *cmd, u32 devid)
 {
-	cmd->raw_cmd[0] &= BIT_ULL(32) - 1;
-	cmd->raw_cmd[0] |= ((u64)devid) << 32;
+	its_mask_encode(&cmd->raw_cmd[0], devid, 63, 32);
 }
 
 static void its_encode_event_id(struct its_cmd_block *cmd, u32 id)
 {
-	cmd->raw_cmd[1] &= ~0xffffffffULL;
-	cmd->raw_cmd[1] |= id;
+	its_mask_encode(&cmd->raw_cmd[1], id, 31, 0);
 }
 
 static void its_encode_phys_id(struct its_cmd_block *cmd, u32 phys_id)
 {
-	cmd->raw_cmd[1] &= 0xffffffffULL;
-	cmd->raw_cmd[1] |= ((u64)phys_id) << 32;
+	its_mask_encode(&cmd->raw_cmd[1], phys_id, 63, 32);
 }
 
 static void its_encode_size(struct its_cmd_block *cmd, u8 size)
 {
-	cmd->raw_cmd[1] &= ~0x1fULL;
-	cmd->raw_cmd[1] |= size & 0x1f;
+	its_mask_encode(&cmd->raw_cmd[1], size, 4, 0);
 }
 
 static void its_encode_itt(struct its_cmd_block *cmd, u64 itt_addr)
 {
-	cmd->raw_cmd[2] &= ~0xffffffffffffULL;
-	cmd->raw_cmd[2] |= itt_addr & 0xffffffffff00ULL;
+	its_mask_encode(&cmd->raw_cmd[2], itt_addr >> 8, 50, 8);
 }
 
 static void its_encode_valid(struct its_cmd_block *cmd, int valid)
 {
-	cmd->raw_cmd[2] &= ~(1ULL << 63);
-	cmd->raw_cmd[2] |= ((u64)!!valid) << 63;
+	its_mask_encode(&cmd->raw_cmd[2], !!valid, 63, 63);
 }
 
 static void its_encode_target(struct its_cmd_block *cmd, u64 target_addr)
 {
-	cmd->raw_cmd[2] &= ~(0xffffffffULL << 16);
-	cmd->raw_cmd[2] |= (target_addr & (0xffffffffULL << 16));
+	its_mask_encode(&cmd->raw_cmd[2], target_addr >> 16, 50, 16);
 }
 
 static void its_encode_collection(struct its_cmd_block *cmd, u16 col)
 {
-	cmd->raw_cmd[2] &= ~0xffffULL;
-	cmd->raw_cmd[2] |= col;
+	its_mask_encode(&cmd->raw_cmd[2], col, 15, 0);
 }
 
 static inline void its_fixup_cmd(struct its_cmd_block *cmd)
@@ -289,18 +287,18 @@ static struct its_collection *its_build_mapc_cmd(struct its_cmd_block *cmd,
 	return desc->its_mapc_cmd.col;
 }
 
-static struct its_collection *its_build_mapvi_cmd(struct its_cmd_block *cmd,
+static struct its_collection *its_build_mapti_cmd(struct its_cmd_block *cmd,
 						  struct its_cmd_desc *desc)
 {
 	struct its_collection *col;
 
-	col = dev_event_to_col(desc->its_mapvi_cmd.dev,
-			       desc->its_mapvi_cmd.event_id);
+	col = dev_event_to_col(desc->its_mapti_cmd.dev,
+			       desc->its_mapti_cmd.event_id);
 
-	its_encode_cmd(cmd, GITS_CMD_MAPVI);
-	its_encode_devid(cmd, desc->its_mapvi_cmd.dev->device_id);
-	its_encode_event_id(cmd, desc->its_mapvi_cmd.event_id);
-	its_encode_phys_id(cmd, desc->its_mapvi_cmd.phys_id);
+	its_encode_cmd(cmd, GITS_CMD_MAPTI);
+	its_encode_devid(cmd, desc->its_mapti_cmd.dev->device_id);
+	its_encode_event_id(cmd, desc->its_mapti_cmd.event_id);
+	its_encode_phys_id(cmd, desc->its_mapti_cmd.phys_id);
 	its_encode_collection(cmd, col->col_id);
 
 	its_fixup_cmd(cmd);
@@ -412,6 +410,12 @@ static struct its_cmd_block *its_allocate_entry(struct its_node *its)
 	/* Handle queue wrapping */
 	if (its->cmd_write == (its->cmd_base + ITS_CMD_QUEUE_NR_ENTRIES))
 		its->cmd_write = its->cmd_base;
+
+	/* Clear command  */
+	cmd->raw_cmd[0] = 0;
+	cmd->raw_cmd[1] = 0;
+	cmd->raw_cmd[2] = 0;
+	cmd->raw_cmd[3] = 0;
 
 	return cmd;
 }
@@ -531,15 +535,15 @@ static void its_send_mapc(struct its_node *its, struct its_collection *col,
 	its_send_single_command(its, its_build_mapc_cmd, &desc);
 }
 
-static void its_send_mapvi(struct its_device *dev, u32 irq_id, u32 id)
+static void its_send_mapti(struct its_device *dev, u32 irq_id, u32 id)
 {
 	struct its_cmd_desc desc;
 
-	desc.its_mapvi_cmd.dev = dev;
-	desc.its_mapvi_cmd.phys_id = irq_id;
-	desc.its_mapvi_cmd.event_id = id;
+	desc.its_mapti_cmd.dev = dev;
+	desc.its_mapti_cmd.phys_id = irq_id;
+	desc.its_mapti_cmd.event_id = id;
 
-	its_send_single_command(dev->its, its_build_mapvi_cmd, &desc);
+	its_send_single_command(dev->its, its_build_mapti_cmd, &desc);
 }
 
 static void its_send_movi(struct its_device *dev,
@@ -824,7 +828,7 @@ static int __init its_alloc_lpi_tables(void)
 static const char *its_base_type_string[] = {
 	[GITS_BASER_TYPE_DEVICE]	= "Devices",
 	[GITS_BASER_TYPE_VCPU]		= "Virtual CPUs",
-	[GITS_BASER_TYPE_CPU]		= "Physical CPUs",
+	[GITS_BASER_TYPE_RESERVED3]	= "Reserved (3)",
 	[GITS_BASER_TYPE_COLLECTION]	= "Interrupt Collections",
 	[GITS_BASER_TYPE_RESERVED5] 	= "Reserved (5)",
 	[GITS_BASER_TYPE_RESERVED6] 	= "Reserved (6)",
@@ -960,7 +964,7 @@ static bool its_parse_baser_device(struct its_node *its, struct its_baser *baser
 				   u32 psz, u32 *order)
 {
 	u64 esz = GITS_BASER_ENTRY_SIZE(its_read_baser(its, baser));
-	u64 val = GITS_BASER_InnerShareable | GITS_BASER_WaWb;
+	u64 val = GITS_BASER_InnerShareable | GITS_BASER_RaWaWb;
 	u32 ids = its->device_ids;
 	u32 new_order = *order;
 	bool indirect = false;
@@ -1025,7 +1029,7 @@ static int its_alloc_tables(struct its_node *its)
 	u64 typer = gic_read_typer(its->base + GITS_TYPER);
 	u32 ids = GITS_TYPER_DEVBITS(typer);
 	u64 shr = GITS_BASER_InnerShareable;
-	u64 cache = GITS_BASER_WaWb;
+	u64 cache = GITS_BASER_RaWaWb;
 	u32 psz = SZ_64K;
 	int err, i;
 
@@ -1122,7 +1126,7 @@ static void its_cpu_init_lpis(void)
 	/* set PROPBASE */
 	val = (page_to_phys(gic_rdists->prop_page) |
 	       GICR_PROPBASER_InnerShareable |
-	       GICR_PROPBASER_WaWb |
+	       GICR_PROPBASER_RaWaWb |
 	       ((LPI_NRBITS - 1) & GICR_PROPBASER_IDBITS_MASK));
 
 	gicr_write_propbaser(val, rbase + GICR_PROPBASER);
@@ -1147,7 +1151,7 @@ static void its_cpu_init_lpis(void)
 	/* set PENDBASE */
 	val = (page_to_phys(pend_page) |
 	       GICR_PENDBASER_InnerShareable |
-	       GICR_PENDBASER_WaWb);
+	       GICR_PENDBASER_RaWaWb);
 
 	gicr_write_pendbaser(val, rbase + GICR_PENDBASER);
 	tmp = gicr_read_pendbaser(rbase + GICR_PENDBASER);
@@ -1498,7 +1502,7 @@ static void its_irq_domain_activate(struct irq_domain *domain,
 	its_dev->event_map.col_map[event] = cpumask_first(cpu_mask);
 
 	/* Map the GIC IRQ and event to the device */
-	its_send_mapvi(its_dev, d->hwirq, event);
+	its_send_mapti(its_dev, d->hwirq, event);
 }
 
 static void its_irq_domain_deactivate(struct irq_domain *domain,
@@ -1693,7 +1697,8 @@ static int __init its_probe_one(struct resource *res,
 	its->ite_size = ((gic_read_typer(its_base + GITS_TYPER) >> 4) & 0xf) + 1;
 	its->numa_node = numa_node;
 
-	its->cmd_base = kzalloc(ITS_CMD_QUEUE_SZ, GFP_KERNEL);
+	its->cmd_base = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+						get_order(ITS_CMD_QUEUE_SZ));
 	if (!its->cmd_base) {
 		err = -ENOMEM;
 		goto out_free_its;
@@ -1711,7 +1716,7 @@ static int __init its_probe_one(struct resource *res,
 		goto out_free_tables;
 
 	baser = (virt_to_phys(its->cmd_base)	|
-		 GITS_CBASER_WaWb		|
+		 GITS_CBASER_RaWaWb		|
 		 GITS_CBASER_InnerShareable	|
 		 (ITS_CMD_QUEUE_SZ / SZ_4K - 1)	|
 		 GITS_CBASER_VALID);
@@ -1751,7 +1756,7 @@ static int __init its_probe_one(struct resource *res,
 out_free_tables:
 	its_free_tables(its);
 out_free_cmd:
-	kfree(its->cmd_base);
+	free_pages((unsigned long)its->cmd_base, get_order(ITS_CMD_QUEUE_SZ));
 out_free_its:
 	kfree(its);
 out_unmap:

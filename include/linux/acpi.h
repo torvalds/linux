@@ -1153,4 +1153,14 @@ int parse_spcr(bool earlycon);
 static inline int parse_spcr(bool earlycon) { return 0; }
 #endif
 
+#if IS_ENABLED(CONFIG_ACPI_GENERIC_GSI)
+int acpi_irq_get(acpi_handle handle, unsigned int index, struct resource *res);
+#else
+static inline
+int acpi_irq_get(acpi_handle handle, unsigned int index, struct resource *res)
+{
+	return -EINVAL;
+}
+#endif
+
 #endif	/*_LINUX_ACPI_H*/
