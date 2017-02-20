@@ -59,6 +59,13 @@
 			interrupt-parent = <&gic>;
 			ranges = <0x0 0x0 0xf4000000 0x2000000>;
 
+			cps_rtc: rtc@284000 {
+				compatible = "marvell,armada-8k-rtc";
+				reg = <0x284000 0x20>, <0x284080 0x24>;
+				reg-names = "rtc", "rtc-soc";
+				interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
 			cps_syscon0: system-controller@440000 {
 				compatible = "marvell,cp110-system-controller0",
 					     "syscon";
