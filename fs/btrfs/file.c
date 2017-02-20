@@ -194,10 +194,10 @@ int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
  * the same inode in the tree, we will merge them together (by
  * __btrfs_add_inode_defrag()) and free the one that we want to requeue.
  */
-static void btrfs_requeue_inode_defrag(struct inode *inode,
+static void btrfs_requeue_inode_defrag(struct btrfs_inode *inode,
 				       struct inode_defrag *defrag)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
 	int ret;
 
 	if (!__need_auto_defrag(fs_info))
@@ -208,7 +208,7 @@ static void btrfs_requeue_inode_defrag(struct inode *inode,
 	 * them together.
 	 */
 	spin_lock(&fs_info->defrag_inodes_lock);
-	ret = __btrfs_add_inode_defrag(BTRFS_I(inode), defrag);
+	ret = __btrfs_add_inode_defrag(inode, defrag);
 	spin_unlock(&fs_info->defrag_inodes_lock);
 	if (ret)
 		goto out;
@@ -334,7 +334,7 @@ static int __btrfs_run_defrag_inode(struct btrfs_fs_info *fs_info,
 	 */
 	if (num_defrag == BTRFS_DEFRAG_BATCH) {
 		defrag->last_offset = range.start;
-		btrfs_requeue_inode_defrag(inode, defrag);
+		btrfs_requeue_inode_defrag(BTRFS_I(inode), defrag);
 	} else if (defrag->last_offset && !defrag->cycled) {
 		/*
 		 * we didn't fill our defrag batch, but
@@ -343,7 +343,7 @@ static int __btrfs_run_defrag_inode(struct btrfs_fs_info *fs_info,
 		 */
 		defrag->last_offset = 0;
 		defrag->cycled = 1;
-		btrfs_requeue_inode_defrag(inode, defrag);
+		btrfs_requeue_inode_defrag(BTRFS_I(inode), defrag);
 	} else {
 		kmem_cache_free(btrfs_inode_defrag_cachep, defrag);
 	}
