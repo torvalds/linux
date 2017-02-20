@@ -2086,13 +2086,6 @@ static unsigned long segment_base(u16 selector)
 	return v;
 }
 
-static inline unsigned long kvm_read_tr_base(void)
-{
-	u16 tr;
-	asm("str %0" : "=g"(tr));
-	return segment_base(tr);
-}
-
 static void vmx_save_host_state(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -2292,10 +2285,11 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 		/*
 		 * Linux uses per-cpu TSS and GDT, so set these when switching
-		 * processors.
+		 * processors.  See 22.2.4.
 		 */
-		vmcs_writel(HOST_TR_BASE, kvm_read_tr_base()); /* 22.2.4 */
-		vmcs_writel(HOST_GDTR_BASE, gdt->address);   /* 22.2.4 */
+		vmcs_writel(HOST_TR_BASE,
+			    (unsigned long)this_cpu_ptr(&cpu_tss));
+		vmcs_writel(HOST_GDTR_BASE, gdt->address);
 
 		rdmsrl(MSR_IA32_SYSENTER_ESP, sysenter_esp);
 		vmcs_writel(HOST_IA32_SYSENTER_ESP, sysenter_esp); /* 22.2.3 */
