@@ -529,7 +529,7 @@ usba_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 
 	DBG(DBG_GADGET, "%s: ep_enable: desc=%p\n", ep->ep.name, desc);
 
-	maxpacket = usb_endpoint_maxp(desc) & 0x7ff;
+	maxpacket = usb_endpoint_maxp(desc);
 
 	if (((desc->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK) != ep->index)
 			|| ep->index == 0
@@ -573,7 +573,7 @@ usba_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 		 * Bits 11:12 specify number of _additional_
 		 * transactions per microframe.
 		 */
-		nr_trans = ((usb_endpoint_maxp(desc) >> 11) & 3) + 1;
+		nr_trans = usb_endpoint_maxp_mult(desc);
 		if (nr_trans > 3)
 			return -EINVAL;
 
@@ -1464,8 +1464,8 @@ restart:
 		pkt_len = USBA_BFEXT(BYTE_COUNT, usba_ep_readl(ep, STA));
 		DBG(DBG_HW, "Packet length: %u\n", pkt_len);
 		if (pkt_len != sizeof(crq)) {
-			pr_warning("udc: Invalid packet length %u "
-				"(expected %zu)\n", pkt_len, sizeof(crq));
+			pr_warn("udc: Invalid packet length %u (expected %zu)\n",
+				pkt_len, sizeof(crq));
 			set_protocol_stall(udc, ep);
 			return;
 		}
@@ -1978,7 +1978,8 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 			dev_err(&pdev->dev, "of_probe: name error(%d)\n", ret);
 			goto err;
 		}
-		ep->ep.name = kasprintf(GFP_KERNEL, "ep%d", ep->index);
+		sprintf(ep->name, "ep%d", ep->index);
+		ep->ep.name = ep->name;
 
 		ep->ep_regs = udc->regs + USBA_EPT_BASE(i);
 		ep->dma_regs = udc->regs + USBA_DMA_BASE(i);

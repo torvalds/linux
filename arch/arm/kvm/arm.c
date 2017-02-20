@@ -33,7 +33,7 @@
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ptrace.h>
 #include <asm/mman.h>
 #include <asm/tlbflush.h>
@@ -220,6 +220,12 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		break;
 	case KVM_CAP_MAX_VCPUS:
 		r = KVM_MAX_VCPUS;
+		break;
+	case KVM_CAP_MSI_DEVID:
+		if (!kvm)
+			r = -EINVAL;
+		else
+			r = kvm->arch.vgic.msis_require_devid;
 		break;
 	default:
 		r = kvm_arch_dev_ioctl_check_extension(kvm, ext);
@@ -1092,6 +1098,9 @@ static void cpu_init_hyp_mode(void *dummy)
 
 	__cpu_init_hyp_mode(pgd_ptr, hyp_stack_ptr, vector_ptr);
 	__cpu_init_stage2();
+
+	if (is_kernel_in_hyp_mode())
+		kvm_timer_init_vhe();
 
 	kvm_arm_init_debug();
 }

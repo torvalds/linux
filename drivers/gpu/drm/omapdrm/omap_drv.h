@@ -148,7 +148,7 @@ static inline void omap_fbdev_free(struct drm_device *dev)
 }
 #endif
 
-struct omap_video_timings *omap_crtc_timings(struct drm_crtc *crtc);
+struct videomode *omap_crtc_timings(struct drm_crtc *crtc);
 enum omap_channel omap_crtc_channel(struct drm_crtc *crtc);
 void omap_crtc_pre_init(void);
 void omap_crtc_pre_uninit(void);
@@ -157,7 +157,8 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 int omap_crtc_wait_pending(struct drm_crtc *crtc);
 
 struct drm_plane *omap_plane_init(struct drm_device *dev,
-		int id, enum drm_plane_type type);
+		int id, enum drm_plane_type type,
+		u32 possible_crtcs);
 void omap_plane_install_properties(struct drm_plane *plane,
 		struct drm_mode_object *obj);
 
@@ -170,11 +171,6 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 struct drm_encoder *omap_connector_attached_encoder(
 		struct drm_connector *connector);
 bool omap_connector_get_hdmi_mode(struct drm_connector *connector);
-
-void copy_timings_omap_to_drm(struct drm_display_mode *mode,
-		struct omap_video_timings *timings);
-void copy_timings_drm_to_omap(struct omap_video_timings *timings,
-		struct drm_display_mode *mode);
 
 uint32_t omap_framebuffer_get_formats(uint32_t *pixel_formats,
 		uint32_t max_formats, enum omap_color_mode supported_modes);

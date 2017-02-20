@@ -42,7 +42,7 @@
 #include <linux/delay.h>
 #include <linux/uio.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/fs.h>
 #include <linux/compat.h>
 #include <linux/blkdev.h>
@@ -1700,11 +1700,8 @@ megasas_queue_command(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 		goto out_done;
 	}
 
-	/*
-	 * FW takes care of flush cache on its own for Virtual Disk.
-	 * No need to send it down for VD. For JBOD send SYNCHRONIZE_CACHE to FW.
-	 */
-	if ((scmd->cmnd[0] == SYNCHRONIZE_CACHE) && MEGASAS_IS_LOGICAL(scmd)) {
+	if ((scmd->cmnd[0] == SYNCHRONIZE_CACHE) && MEGASAS_IS_LOGICAL(scmd) &&
+		(!instance->fw_sync_cache_support)) {
 		scmd->result = DID_OK << 16;
 		goto out_done;
 	}
@@ -4840,7 +4837,7 @@ fail_alloc_cmds:
 }
 
 /*
- * megasas_setup_irqs_msix -		register legacy interrupts.
+ * megasas_setup_irqs_ioapic -		register legacy interrupts.
  * @instance:				Adapter soft state
  *
  * Do not enable interrupt, only setup ISRs.
@@ -4855,8 +4852,9 @@ megasas_setup_irqs_ioapic(struct megasas_instance *instance)
 	pdev = instance->pdev;
 	instance->irq_context[0].instance = instance;
 	instance->irq_context[0].MSIxIndex = 0;
-	if (request_irq(pdev->irq, instance->instancet->service_isr,
-		IRQF_SHARED, "megasas", &instance->irq_context[0])) {
+	if (request_irq(pci_irq_vector(pdev, 0),
+			instance->instancet->service_isr, IRQF_SHARED,
+			"megasas", &instance->irq_context[0])) {
 		dev_err(&instance->pdev->dev,
 				"Failed to register IRQ from %s %d\n",
 				__func__, __LINE__);
@@ -4877,42 +4875,29 @@ megasas_setup_irqs_ioapic(struct megasas_instance *instance)
 static int
 megasas_setup_irqs_msix(struct megasas_instance *instance, u8 is_probe)
 {
-	int i, j, cpu;
+	int i, j;
 	struct pci_dev *pdev;
 
 	pdev = instance->pdev;
 
 	/* Try MSI-x */
-	cpu = cpumask_first(cpu_online_mask);
 	for (i = 0; i < instance->msix_vectors; i++) {
 		instance->irq_context[i].instance = instance;
 		instance->irq_context[i].MSIxIndex = i;
-		if (request_irq(instance->msixentry[i].vector,
+		if (request_irq(pci_irq_vector(pdev, i),
 			instance->instancet->service_isr, 0, "megasas",
 			&instance->irq_context[i])) {
 			dev_err(&instance->pdev->dev,
 				"Failed to register IRQ for vector %d.\n", i);
-			for (j = 0; j < i; j++) {
-				if (smp_affinity_enable)
-					irq_set_affinity_hint(
-						instance->msixentry[j].vector, NULL);
-				free_irq(instance->msixentry[j].vector,
-					&instance->irq_context[j]);
-			}
+			for (j = 0; j < i; j++)
+				free_irq(pci_irq_vector(pdev, j),
+					 &instance->irq_context[j]);
 			/* Retry irq register for IO_APIC*/
 			instance->msix_vectors = 0;
 			if (is_probe)
 				return megasas_setup_irqs_ioapic(instance);
 			else
 				return -1;
-		}
-		if (smp_affinity_enable) {
-			if (irq_set_affinity_hint(instance->msixentry[i].vector,
-				get_cpu_mask(cpu)))
-				dev_err(&instance->pdev->dev,
-					"Failed to set affinity hint"
-					" for cpu %d\n", cpu);
-			cpu = cpumask_next(cpu, cpu_online_mask);
 		}
 	}
 	return 0;
@@ -4930,14 +4915,12 @@ megasas_destroy_irqs(struct megasas_instance *instance) {
 
 	if (instance->msix_vectors)
 		for (i = 0; i < instance->msix_vectors; i++) {
-			if (smp_affinity_enable)
-				irq_set_affinity_hint(
-					instance->msixentry[i].vector, NULL);
-			free_irq(instance->msixentry[i].vector,
+			free_irq(pci_irq_vector(instance->pdev, i),
 				 &instance->irq_context[i]);
 		}
 	else
-		free_irq(instance->pdev->irq, &instance->irq_context[0]);
+		free_irq(pci_irq_vector(instance->pdev, 0),
+			 &instance->irq_context[0]);
 }
 
 /**
@@ -5095,6 +5078,8 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	msix_enable = (instance->instancet->read_fw_status_reg(reg_set) &
 		       0x4000000) >> 0x1a;
 	if (msix_enable && !msix_disable) {
+		int irq_flags = PCI_IRQ_MSIX;
+
 		scratch_pad_2 = readl
 			(&instance->reg_set->outbound_scratch_pad_2);
 		/* Check max MSI-X vectors */
@@ -5131,15 +5116,18 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		/* Don't bother allocating more MSI-X vectors than cpus */
 		instance->msix_vectors = min(instance->msix_vectors,
 					     (unsigned int)num_online_cpus());
-		for (i = 0; i < instance->msix_vectors; i++)
-			instance->msixentry[i].entry = i;
-		i = pci_enable_msix_range(instance->pdev, instance->msixentry,
-					  1, instance->msix_vectors);
+		if (smp_affinity_enable)
+			irq_flags |= PCI_IRQ_AFFINITY;
+		i = pci_alloc_irq_vectors(instance->pdev, 1,
+					  instance->msix_vectors, irq_flags);
 		if (i > 0)
 			instance->msix_vectors = i;
 		else
 			instance->msix_vectors = 0;
 	}
+	i = pci_alloc_irq_vectors(instance->pdev, 1, 1, PCI_IRQ_LEGACY);
+	if (i < 0)
+		goto fail_setup_irqs;
 
 	dev_info(&instance->pdev->dev,
 		"firmware supports msix\t: (%d)", fw_msix_count);
@@ -5151,11 +5139,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 
 	tasklet_init(&instance->isr_tasklet, instance->instancet->tasklet,
 		(unsigned long)instance);
-
-	if (instance->msix_vectors ?
-		megasas_setup_irqs_msix(instance, 1) :
-		megasas_setup_irqs_ioapic(instance))
-		goto fail_setup_irqs;
 
 	instance->ctrl_info = kzalloc(sizeof(struct megasas_ctrl_info),
 				GFP_KERNEL);
@@ -5172,6 +5155,10 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	if (instance->instancet->init_adapter(instance))
 		goto fail_init_adapter;
 
+	if (instance->msix_vectors ?
+		megasas_setup_irqs_msix(instance, 1) :
+		megasas_setup_irqs_ioapic(instance))
+		goto fail_init_adapter;
 
 	instance->instancet->enable_intr(instance);
 
@@ -5315,7 +5302,7 @@ fail_init_adapter:
 	megasas_destroy_irqs(instance);
 fail_setup_irqs:
 	if (instance->msix_vectors)
-		pci_disable_msix(instance->pdev);
+		pci_free_irq_vectors(instance->pdev);
 	instance->msix_vectors = 0;
 fail_ready_state:
 	kfree(instance->ctrl_info);
@@ -5584,7 +5571,6 @@ static int megasas_io_attach(struct megasas_instance *instance)
 	/*
 	 * Export parameters required by SCSI mid-layer
 	 */
-	host->irq = instance->pdev->irq;
 	host->unique_id = instance->unique_id;
 	host->can_queue = instance->max_scsi_cmds;
 	host->this_id = instance->init_id;
@@ -5947,7 +5933,7 @@ fail_io_attach:
 	else
 		megasas_release_mfi(instance);
 	if (instance->msix_vectors)
-		pci_disable_msix(instance->pdev);
+		pci_free_irq_vectors(instance->pdev);
 fail_init_mfi:
 fail_alloc_dma_buf:
 	if (instance->evt_detail)
@@ -6105,7 +6091,7 @@ megasas_suspend(struct pci_dev *pdev, pm_message_t state)
 	megasas_destroy_irqs(instance);
 
 	if (instance->msix_vectors)
-		pci_disable_msix(instance->pdev);
+		pci_free_irq_vectors(instance->pdev);
 
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
@@ -6125,6 +6111,7 @@ megasas_resume(struct pci_dev *pdev)
 	int rval;
 	struct Scsi_Host *host;
 	struct megasas_instance *instance;
+	int irq_flags = PCI_IRQ_LEGACY;
 
 	instance = pci_get_drvdata(pdev);
 	host = instance->host;
@@ -6160,9 +6147,15 @@ megasas_resume(struct pci_dev *pdev)
 		goto fail_ready_state;
 
 	/* Now re-enable MSI-X */
-	if (instance->msix_vectors &&
-	    pci_enable_msix_exact(instance->pdev, instance->msixentry,
-				  instance->msix_vectors))
+	if (instance->msix_vectors) {
+		irq_flags = PCI_IRQ_MSIX;
+		if (smp_affinity_enable)
+			irq_flags |= PCI_IRQ_AFFINITY;
+	}
+	rval = pci_alloc_irq_vectors(instance->pdev, 1,
+				     instance->msix_vectors ?
+				     instance->msix_vectors : 1, irq_flags);
+	if (rval < 0)
 		goto fail_reenable_msix;
 
 	if (instance->ctrl_context) {
@@ -6245,6 +6238,34 @@ fail_reenable_msix:
 #define megasas_resume	NULL
 #endif
 
+static inline int
+megasas_wait_for_adapter_operational(struct megasas_instance *instance)
+{
+	int wait_time = MEGASAS_RESET_WAIT_TIME * 2;
+	int i;
+
+	if (atomic_read(&instance->adprecovery) == MEGASAS_HW_CRITICAL_ERROR)
+		return 1;
+
+	for (i = 0; i < wait_time; i++) {
+		if (atomic_read(&instance->adprecovery)	== MEGASAS_HBA_OPERATIONAL)
+			break;
+
+		if (!(i % MEGASAS_RESET_NOTICE_INTERVAL))
+			dev_notice(&instance->pdev->dev, "waiting for controller reset to finish\n");
+
+		msleep(1000);
+	}
+
+	if (atomic_read(&instance->adprecovery) != MEGASAS_HBA_OPERATIONAL) {
+		dev_info(&instance->pdev->dev, "%s timed out while waiting for HBA to recover.\n",
+			__func__);
+		return 1;
+	}
+
+	return 0;
+}
+
 /**
  * megasas_detach_one -	PCI hot"un"plug entry point
  * @pdev:		PCI device structure
@@ -6269,9 +6290,14 @@ static void megasas_detach_one(struct pci_dev *pdev)
 	if (instance->fw_crash_state != UNAVAILABLE)
 		megasas_free_host_crash_buffer(instance);
 	scsi_remove_host(instance->host);
+
+	if (megasas_wait_for_adapter_operational(instance))
+		goto skip_firing_dcmds;
+
 	megasas_flush_cache(instance);
 	megasas_shutdown_controller(instance, MR_DCMD_CTRL_SHUTDOWN);
 
+skip_firing_dcmds:
 	/* cancel the delayed work if this work still in queue*/
 	if (instance->ev != NULL) {
 		struct megasas_aen_event *ev = instance->ev;
@@ -6302,7 +6328,7 @@ static void megasas_detach_one(struct pci_dev *pdev)
 	megasas_destroy_irqs(instance);
 
 	if (instance->msix_vectors)
-		pci_disable_msix(instance->pdev);
+		pci_free_irq_vectors(instance->pdev);
 
 	if (instance->ctrl_context) {
 		megasas_release_fusion(instance);
@@ -6385,13 +6411,19 @@ static void megasas_shutdown(struct pci_dev *pdev)
 	struct megasas_instance *instance = pci_get_drvdata(pdev);
 
 	instance->unload = 1;
+
+	if (megasas_wait_for_adapter_operational(instance))
+		goto skip_firing_dcmds;
+
 	megasas_flush_cache(instance);
 	megasas_shutdown_controller(instance, MR_DCMD_CTRL_SHUTDOWN);
+
+skip_firing_dcmds:
 	instance->instancet->disable_intr(instance);
 	megasas_destroy_irqs(instance);
 
 	if (instance->msix_vectors)
-		pci_disable_msix(instance->pdev);
+		pci_free_irq_vectors(instance->pdev);
 }
 
 /**
@@ -6752,8 +6784,7 @@ static int megasas_mgmt_ioctl_fw(struct file *file, unsigned long arg)
 	if (atomic_read(&instance->adprecovery) != MEGASAS_HBA_OPERATIONAL) {
 		spin_unlock_irqrestore(&instance->hba_lock, flags);
 
-		dev_err(&instance->pdev->dev, "timed out while"
-			"waiting for HBA to recover\n");
+		dev_err(&instance->pdev->dev, "timed out while waiting for HBA to recover\n");
 		error = -ENODEV;
 		goto out_up;
 	}
@@ -6821,8 +6852,7 @@ static int megasas_mgmt_ioctl_aen(struct file *file, unsigned long arg)
 	spin_lock_irqsave(&instance->hba_lock, flags);
 	if (atomic_read(&instance->adprecovery) != MEGASAS_HBA_OPERATIONAL) {
 		spin_unlock_irqrestore(&instance->hba_lock, flags);
-		dev_err(&instance->pdev->dev, "timed out while waiting"
-				"for HBA to recover\n");
+		dev_err(&instance->pdev->dev, "timed out while waiting for HBA to recover\n");
 		return -ENODEV;
 	}
 	spin_unlock_irqrestore(&instance->hba_lock, flags);

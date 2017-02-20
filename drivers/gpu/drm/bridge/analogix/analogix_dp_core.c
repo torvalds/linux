@@ -112,7 +112,7 @@ int analogix_dp_enable_psr(struct device *dev)
 	struct edp_vsc_psr psr_vsc;
 
 	if (!dp->psr_support)
-		return -EINVAL;
+		return 0;
 
 	/* Prepare VSC packet as per EDP 1.4 spec, Table 6.9 */
 	memset(&psr_vsc, 0, sizeof(psr_vsc));
@@ -135,7 +135,7 @@ int analogix_dp_disable_psr(struct device *dev)
 	struct edp_vsc_psr psr_vsc;
 
 	if (!dp->psr_support)
-		return -EINVAL;
+		return 0;
 
 	/* Prepare VSC packet as per EDP 1.4 spec, Table 6.9 */
 	memset(&psr_vsc, 0, sizeof(psr_vsc));
@@ -1382,6 +1382,7 @@ int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 
 	pm_runtime_enable(dev);
 
+	pm_runtime_get_sync(dev);
 	phy_power_on(dp->phy);
 
 	analogix_dp_init_dp(dp);
@@ -1414,9 +1415,15 @@ int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 		goto err_disable_pm_runtime;
 	}
 
+	phy_power_off(dp->phy);
+	pm_runtime_put(dev);
+
 	return 0;
 
 err_disable_pm_runtime:
+
+	phy_power_off(dp->phy);
+	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
 
 	return ret;

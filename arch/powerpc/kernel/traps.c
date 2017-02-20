@@ -40,7 +40,7 @@
 
 #include <asm/emulated_ops.h>
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
 #include <asm/rtas.h>
@@ -64,8 +64,9 @@
 #include <asm/asm-prototypes.h>
 #include <asm/hmi.h>
 #include <sysdev/fsl_pci.h>
+#include <asm/kprobes.h>
 
-#if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
+#if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC_CORE)
 int (*__debugger)(struct pt_regs *regs) __read_mostly;
 int (*__debugger_ipi)(struct pt_regs *regs) __read_mostly;
 int (*__debugger_bpt)(struct pt_regs *regs) __read_mostly;
@@ -122,9 +123,6 @@ static unsigned long oops_begin(struct pt_regs *regs)
 	int cpu;
 	unsigned long flags;
 
-	if (debugger(regs))
-		return 1;
-
 	oops_enter();
 
 	/* racy, but better than risking deadlock. */
@@ -150,14 +148,15 @@ static void oops_end(unsigned long flags, struct pt_regs *regs,
 			       int signr)
 {
 	bust_spinlocks(0);
-	die_owner = -1;
 	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
 	die_nest_count--;
 	oops_exit();
 	printk("\n");
-	if (!die_nest_count)
+	if (!die_nest_count) {
 		/* Nest count reaches zero, release the lock. */
+		die_owner = -1;
 		arch_spin_unlock(&die_lock);
+	}
 	raw_local_irq_restore(flags);
 
 	crash_fadump(regs, "die oops");
@@ -227,8 +226,12 @@ NOKPROBE_SYMBOL(__die);
 
 void die(const char *str, struct pt_regs *regs, long err)
 {
-	unsigned long flags = oops_begin(regs);
+	unsigned long flags;
 
+	if (debugger(regs))
+		return;
+
+	flags = oops_begin(regs);
 	if (__die(str, regs, err))
 		err = 0;
 	oops_end(flags, regs, err);
@@ -365,7 +368,7 @@ static inline int check_io_access(struct pt_regs *regs)
 			       (*nip & 0x100)? "OUT to": "IN from",
 			       regs->gpr[rb] - _IO_BASE, nip);
 			regs->msr |= MSR_RI;
-			regs->nip = entry->fixup;
+			regs->nip = extable_fixup(entry);
 			return 1;
 		}
 	}
@@ -824,6 +827,9 @@ void single_step_exception(struct pt_regs *regs)
 
 	clear_single_step(regs);
 
+	if (kprobe_post_handler(regs))
+		return;
+
 	if (notify_die(DIE_SSTEP, "single_step", regs, 5,
 					5, SIGTRAP) == NOTIFY_STOP)
 		goto bail;
@@ -1177,6 +1183,9 @@ void program_check_exception(struct pt_regs *regs)
 		if (debugger_bpt(regs))
 			goto bail;
 
+		if (kprobe_handler(regs))
+			goto bail;
+
 		/* trap exception */
 		if (notify_die(DIE_BPT, "breakpoint", regs, 5, 5, SIGTRAP)
 				== NOTIFY_STOP)
@@ -1430,7 +1439,6 @@ void facility_unavailable_exception(struct pt_regs *regs)
 		[FSCR_TM_LG] = "TM",
 		[FSCR_EBB_LG] = "EBB",
 		[FSCR_TAR_LG] = "TAR",
-		[FSCR_LM_LG] = "LM",
 	};
 	char *facility = "unknown";
 	u64 value;
@@ -1488,14 +1496,6 @@ void facility_unavailable_exception(struct pt_regs *regs)
 			emulate_single_step(regs);
 		}
 		return;
-	} else if ((status == FSCR_LM_LG) && cpu_has_feature(CPU_FTR_ARCH_300)) {
-		/*
-		 * This process has touched LM, so turn it on forever
-		 * for this process
-		 */
-		current->thread.fscr |= FSCR_LM;
-		mtspr(SPRN_FSCR, current->thread.fscr);
-		return;
 	}
 
 	if (status == FSCR_TM_LG) {
@@ -1519,7 +1519,8 @@ void facility_unavailable_exception(struct pt_regs *regs)
 		return;
 	}
 
-	if ((status < ARRAY_SIZE(facility_strings)) &&
+	if ((hv || status >= 2) &&
+	    (status < ARRAY_SIZE(facility_strings)) &&
 	    facility_strings[status])
 		facility = facility_strings[status];
 
@@ -1527,9 +1528,8 @@ void facility_unavailable_exception(struct pt_regs *regs)
 	if (!arch_irq_disabled_regs(regs))
 		local_irq_enable();
 
-	pr_err_ratelimited(
-		"%sFacility '%s' unavailable, exception at 0x%lx, MSR=%lx\n",
-		hv ? "Hypervisor " : "", facility, regs->nip, regs->msr);
+	pr_err_ratelimited("%sFacility '%s' unavailable (%d), exception at 0x%lx, MSR=%lx\n",
+		hv ? "Hypervisor " : "", facility, status, regs->nip, regs->msr);
 
 out:
 	if (user_mode(regs)) {
@@ -1754,6 +1754,9 @@ void DebugException(struct pt_regs *regs, unsigned long debug_status)
 			return;
 		}
 
+		if (kprobe_post_handler(regs))
+			return;
+
 		if (notify_die(DIE_SSTEP, "block_step", regs, 5,
 			       5, SIGTRAP) == NOTIFY_STOP) {
 			return;
@@ -1767,6 +1770,9 @@ void DebugException(struct pt_regs *regs, unsigned long debug_status)
 		mtspr(SPRN_DBCR0, mfspr(SPRN_DBCR0) & ~DBCR0_IC);
 		/* Clear the instruction completion event */
 		mtspr(SPRN_DBSR, DBSR_IC);
+
+		if (kprobe_post_handler(regs))
+			return;
 
 		if (notify_die(DIE_SSTEP, "single_step", regs, 5,
 			       5, SIGTRAP) == NOTIFY_STOP) {

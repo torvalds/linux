@@ -70,7 +70,7 @@
 #include <linux/workqueue.h>
 #include <linux/delay.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 
     /* Override mptbase.h by pre-defining these! */

@@ -145,6 +145,10 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 	/* check value type */
 	switch (xattr_data->type) {
 	case EVM_XATTR_HMAC:
+		if (xattr_len != sizeof(struct evm_ima_xattr_data)) {
+			evm_status = INTEGRITY_FAIL;
+			goto out;
+		}
 		rc = evm_calc_hmac(dentry, xattr_name, xattr_value,
 				   xattr_value_len, calc.digest);
 		if (rc)

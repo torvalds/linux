@@ -1759,9 +1759,7 @@ static void pe_boardname(struct qib_devdata *dd)
 	}
 	namelen = strlen(n) + 1;
 	dd->boardname = kmalloc(namelen, GFP_KERNEL);
-	if (!dd->boardname)
-		qib_dev_err(dd, "Failed allocation for board name: %s\n", n);
-	else
+	if (dd->boardname)
 		snprintf(dd->boardname, namelen, "%s", n);
 
 	if (dd->majrev != 4 || !dd->minrev || dd->minrev > 2)
@@ -2533,8 +2531,6 @@ static void init_6120_cntrnames(struct qib_devdata *dd)
 		dd->cspec->cntrnamelen = 1 + s - cntr6120names;
 	dd->cspec->cntrs = kmalloc(dd->cspec->ncntrs
 		* sizeof(u64), GFP_KERNEL);
-	if (!dd->cspec->cntrs)
-		qib_dev_err(dd, "Failed allocation for counters\n");
 
 	for (i = 0, s = (char *)portcntr6120names; s; i++)
 		s = strchr(s + 1, '\n');
@@ -2542,8 +2538,6 @@ static void init_6120_cntrnames(struct qib_devdata *dd)
 	dd->cspec->portcntrnamelen = sizeof(portcntr6120names) - 1;
 	dd->cspec->portcntrs = kmalloc(dd->cspec->nportcntrs
 		* sizeof(u64), GFP_KERNEL);
-	if (!dd->cspec->portcntrs)
-		qib_dev_err(dd, "Failed allocation for portcounters\n");
 }
 
 static u32 qib_read_6120cntrs(struct qib_devdata *dd, loff_t pos, char **namep,

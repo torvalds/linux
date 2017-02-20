@@ -109,7 +109,7 @@ static enum hrtimer_restart lirc_rx51_timer_cb(struct hrtimer *timer)
 
 		now = timer->base->get_time();
 
-	} while (hrtimer_get_expires_tv64(timer) < now.tv64);
+	} while (hrtimer_get_expires_tv64(timer) < now);
 
 	return HRTIMER_RESTART;
 end:

@@ -6,6 +6,11 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_of.h>
 
+static void drm_release_of(struct device *dev, void *data)
+{
+	of_node_put(data);
+}
+
 /**
  * drm_crtc_port_mask - find the mask of a registered CRTC by port OF node
  * @dev: DRM device
@@ -64,6 +69,24 @@ uint32_t drm_of_find_possible_crtcs(struct drm_device *dev,
 EXPORT_SYMBOL(drm_of_find_possible_crtcs);
 
 /**
+ * drm_of_component_match_add - Add a component helper OF node match rule
+ * @master: master device
+ * @matchptr: component match pointer
+ * @compare: compare function used for matching component
+ * @node: of_node
+ */
+void drm_of_component_match_add(struct device *master,
+				struct component_match **matchptr,
+				int (*compare)(struct device *, void *),
+				struct device_node *node)
+{
+	of_node_get(node);
+	component_match_add_release(master, matchptr, drm_release_of,
+				    compare, node);
+}
+EXPORT_SYMBOL_GPL(drm_of_component_match_add);
+
+/**
  * drm_of_component_probe - Generic probe function for a component based master
  * @dev: master device containing the OF node
  * @compare_of: compare function used for matching components
@@ -101,7 +124,7 @@ int drm_of_component_probe(struct device *dev,
 			continue;
 		}
 
-		component_match_add(dev, &match, compare_of, port);
+		drm_of_component_match_add(dev, &match, compare_of, port);
 		of_node_put(port);
 	}
 
@@ -140,7 +163,8 @@ int drm_of_component_probe(struct device *dev,
 				continue;
 			}
 
-			component_match_add(dev, &match, compare_of, remote);
+			drm_of_component_match_add(dev, &match, compare_of,
+						   remote);
 			of_node_put(remote);
 		}
 		of_node_put(port);

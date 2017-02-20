@@ -6,7 +6,7 @@ basic-pm-debugging.txt
 	- Debugging suspend and resume
 charger-manager.txt
 	- Battery charger management.
-devices.txt
+admin-guide/devices.rst
 	- How drivers interact with system-wide power management
 drivers-testing.txt
 	- Testing suspend and resume support in device drivers

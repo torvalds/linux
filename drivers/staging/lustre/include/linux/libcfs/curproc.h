@@ -53,7 +53,7 @@
 #define current_pid()		(current->pid)
 #define current_comm()		(current->comm)
 
-typedef __u32 cfs_cap_t;
+typedef u32 cfs_cap_t;
 
 #define CFS_CAP_CHOWN		   0
 #define CFS_CAP_DAC_OVERRIDE	    1
@@ -65,15 +65,15 @@ typedef __u32 cfs_cap_t;
 #define CFS_CAP_SYS_BOOT	       23
 #define CFS_CAP_SYS_RESOURCE	   24
 
-#define CFS_CAP_FS_MASK ((1 << CFS_CAP_CHOWN) |		 \
-			 (1 << CFS_CAP_DAC_OVERRIDE) |	  \
-			 (1 << CFS_CAP_DAC_READ_SEARCH) |       \
-			 (1 << CFS_CAP_FOWNER) |		\
-			 (1 << CFS_CAP_FSETID) |	       \
-			 (1 << CFS_CAP_LINUX_IMMUTABLE) |       \
-			 (1 << CFS_CAP_SYS_ADMIN) |	     \
-			 (1 << CFS_CAP_SYS_BOOT) |	      \
-			 (1 << CFS_CAP_SYS_RESOURCE))
+#define CFS_CAP_FS_MASK (BIT(CFS_CAP_CHOWN) |		\
+			 BIT(CFS_CAP_DAC_OVERRIDE) |	\
+			 BIT(CFS_CAP_DAC_READ_SEARCH) |	\
+			 BIT(CFS_CAP_FOWNER) |		\
+			 BIT(CFS_CAP_FSETID) |		\
+			 BIT(CFS_CAP_LINUX_IMMUTABLE) | \
+			 BIT(CFS_CAP_SYS_ADMIN) |	\
+			 BIT(CFS_CAP_SYS_BOOT) |	\
+			 BIT(CFS_CAP_SYS_RESOURCE))
 
 void cfs_cap_raise(cfs_cap_t cap);
 void cfs_cap_lower(cfs_cap_t cap);

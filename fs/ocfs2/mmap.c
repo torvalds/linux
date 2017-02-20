@@ -120,8 +120,7 @@ static int __ocfs2_page_mkwrite(struct file *file, struct buffer_head *di_bh,
 		ret = VM_FAULT_NOPAGE;
 		goto out;
 	}
-	ret = ocfs2_write_end_nolock(mapping, pos, len, len, locked_page,
-				     fsdata);
+	ret = ocfs2_write_end_nolock(mapping, pos, len, len, fsdata);
 	BUG_ON(ret != len);
 	ret = VM_FAULT_LOCKED;
 out:

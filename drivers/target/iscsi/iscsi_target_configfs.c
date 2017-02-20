@@ -21,10 +21,11 @@
 #include <linux/ctype.h>
 #include <linux/export.h>
 #include <linux/inet.h>
+#include <linux/module.h>
+#include <net/ipv6.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
 #include <target/iscsi/iscsi_transport.h>
-
 #include <target/iscsi/iscsi_target_core.h>
 #include "iscsi_target_parameters.h"
 #include "iscsi_target_device.h"
@@ -100,8 +101,10 @@ static ssize_t lio_target_np_driver_store(struct config_item *item,
 
 		tpg_np_new = iscsit_tpg_add_network_portal(tpg,
 					&np->np_sockaddr, tpg_np, type);
-		if (IS_ERR(tpg_np_new))
+		if (IS_ERR(tpg_np_new)) {
+			rc = PTR_ERR(tpg_np_new);
 			goto out;
+		}
 	} else {
 		tpg_np_new = iscsit_tpg_locate_child_np(tpg_np, type);
 		if (tpg_np_new) {

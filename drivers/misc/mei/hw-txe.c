@@ -19,7 +19,7 @@
 #include <linux/ktime.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
-#include <linux/irqreturn.h>
+#include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
 
 #include <linux/mei.h>
@@ -441,6 +441,18 @@ static void mei_txe_intr_enable(struct mei_device *dev)
 }
 
 /**
+ * mei_txe_synchronize_irq - wait for pending IRQ handlers
+ *
+ * @dev: the device structure
+ */
+static void mei_txe_synchronize_irq(struct mei_device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
+
+	synchronize_irq(pdev->irq);
+}
+
+/**
  * mei_txe_pending_interrupts - check if there are pending interrupts
  *	only Aliveness, Input ready, and output doorbell are of relevance
  *
@@ -691,7 +703,8 @@ static void mei_txe_hw_config(struct mei_device *dev)
  */
 
 static int mei_txe_write(struct mei_device *dev,
-		struct mei_msg_hdr *header, unsigned char *buf)
+			 struct mei_msg_hdr *header,
+			 const unsigned char *buf)
 {
 	struct mei_txe_hw *hw = to_txe_hw(dev);
 	unsigned long rem;
@@ -1167,6 +1180,7 @@ static const struct mei_hw_ops mei_txe_hw_ops = {
 	.intr_clear = mei_txe_intr_clear,
 	.intr_enable = mei_txe_intr_enable,
 	.intr_disable = mei_txe_intr_disable,
+	.synchronize_irq = mei_txe_synchronize_irq,
 
 	.hbuf_free_slots = mei_txe_hbuf_empty_slots,
 	.hbuf_is_ready = mei_txe_is_input_ready,

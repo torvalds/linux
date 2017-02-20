@@ -1431,14 +1431,7 @@ static void clear_tx_sa(struct macsec_tx_sa *tx_sa)
 	macsec_txsa_put(tx_sa);
 }
 
-static struct genl_family macsec_fam = {
-	.id		= GENL_ID_GENERATE,
-	.name		= MACSEC_GENL_NAME,
-	.hdrsize	= 0,
-	.version	= MACSEC_GENL_VERSION,
-	.maxattr	= MACSEC_ATTR_MAX,
-	.netnsok	= true,
-};
+static struct genl_family macsec_fam;
 
 static struct net_device *get_dev_from_nl(struct net *net,
 					  struct nlattr **attrs)
@@ -2665,6 +2658,17 @@ static const struct genl_ops macsec_genl_ops[] = {
 	},
 };
 
+static struct genl_family macsec_fam __ro_after_init = {
+	.name		= MACSEC_GENL_NAME,
+	.hdrsize	= 0,
+	.version	= MACSEC_GENL_VERSION,
+	.maxattr	= MACSEC_ATTR_MAX,
+	.netnsok	= true,
+	.module		= THIS_MODULE,
+	.ops		= macsec_genl_ops,
+	.n_ops		= ARRAY_SIZE(macsec_genl_ops),
+};
+
 static netdev_tx_t macsec_start_xmit(struct sk_buff *skb,
 				     struct net_device *dev)
 {
@@ -2980,6 +2984,8 @@ static void macsec_free_netdev(struct net_device *dev)
 static void macsec_setup(struct net_device *dev)
 {
 	ether_setup(dev);
+	dev->min_mtu = 0;
+	dev->max_mtu = ETH_MAX_MTU;
 	dev->priv_flags |= IFF_NO_QUEUE;
 	dev->netdev_ops = &macsec_netdev_ops;
 	dev->destructor = macsec_free_netdev;
@@ -3340,19 +3346,18 @@ static struct net *macsec_get_link_net(const struct net_device *dev)
 
 static size_t macsec_get_size(const struct net_device *dev)
 {
-	return 0 +
-		nla_total_size_64bit(8) + /* SCI */
-		nla_total_size(1) + /* ICV_LEN */
-		nla_total_size_64bit(8) + /* CIPHER_SUITE */
-		nla_total_size(4) + /* WINDOW */
-		nla_total_size(1) + /* ENCODING_SA */
-		nla_total_size(1) + /* ENCRYPT */
-		nla_total_size(1) + /* PROTECT */
-		nla_total_size(1) + /* INC_SCI */
-		nla_total_size(1) + /* ES */
-		nla_total_size(1) + /* SCB */
-		nla_total_size(1) + /* REPLAY_PROTECT */
-		nla_total_size(1) + /* VALIDATION */
+	return  nla_total_size_64bit(8) + /* IFLA_MACSEC_SCI */
+		nla_total_size(1) + /* IFLA_MACSEC_ICV_LEN */
+		nla_total_size_64bit(8) + /* IFLA_MACSEC_CIPHER_SUITE */
+		nla_total_size(4) + /* IFLA_MACSEC_WINDOW */
+		nla_total_size(1) + /* IFLA_MACSEC_ENCODING_SA */
+		nla_total_size(1) + /* IFLA_MACSEC_ENCRYPT */
+		nla_total_size(1) + /* IFLA_MACSEC_PROTECT */
+		nla_total_size(1) + /* IFLA_MACSEC_INC_SCI */
+		nla_total_size(1) + /* IFLA_MACSEC_ES */
+		nla_total_size(1) + /* IFLA_MACSEC_SCB */
+		nla_total_size(1) + /* IFLA_MACSEC_REPLAY_PROTECT */
+		nla_total_size(1) + /* IFLA_MACSEC_VALIDATION */
 		0;
 }
 
@@ -3470,7 +3475,7 @@ static int __init macsec_init(void)
 	if (err)
 		goto notifier;
 
-	err = genl_register_family_with_ops(&macsec_fam, macsec_genl_ops);
+	err = genl_register_family(&macsec_fam);
 	if (err)
 		goto rtnl;
 

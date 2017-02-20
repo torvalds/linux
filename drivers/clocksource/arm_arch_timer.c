@@ -81,6 +81,7 @@ static struct clock_event_device __percpu *arch_timer_evt;
 static enum ppi_nr arch_timer_uses_ppi = VIRT_PPI;
 static bool arch_timer_c3stop;
 static bool arch_timer_mem_use_virtual;
+static bool arch_counter_suspend_stop;
 
 static bool evtstrm_enable = IS_ENABLED(CONFIG_ARM_ARCH_TIMER_EVTSTREAM);
 
@@ -561,12 +562,12 @@ static u64 arch_counter_get_cntvct_mem(void)
  */
 u64 (*arch_timer_read_counter)(void) = arch_counter_get_cntvct;
 
-static cycle_t arch_counter_read(struct clocksource *cs)
+static u64 arch_counter_read(struct clocksource *cs)
 {
 	return arch_timer_read_counter();
 }
 
-static cycle_t arch_counter_read_cc(const struct cyclecounter *cc)
+static u64 arch_counter_read_cc(const struct cyclecounter *cc)
 {
 	return arch_timer_read_counter();
 }
@@ -576,7 +577,7 @@ static struct clocksource clocksource_counter = {
 	.rating	= 400,
 	.read	= arch_counter_read,
 	.mask	= CLOCKSOURCE_MASK(56),
-	.flags	= CLOCK_SOURCE_IS_CONTINUOUS | CLOCK_SOURCE_SUSPEND_NONSTOP,
+	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
 static struct cyclecounter cyclecounter = {
@@ -616,6 +617,8 @@ static void __init arch_counter_register(unsigned type)
 		arch_timer_read_counter = arch_counter_get_cntvct_mem;
 	}
 
+	if (!arch_counter_suspend_stop)
+		clocksource_counter.flags |= CLOCK_SOURCE_SUSPEND_NONSTOP;
 	start_count = arch_timer_read_counter();
 	clocksource_register_hz(&clocksource_counter, arch_timer_rate);
 	cyclecounter.mult = clocksource_counter.mult;
@@ -735,7 +738,7 @@ static int __init arch_timer_register(void)
 
 	/* Register and immediately configure the timer on the boot CPU */
 	err = cpuhp_setup_state(CPUHP_AP_ARM_ARCH_TIMER_STARTING,
-				"AP_ARM_ARCH_TIMER_STARTING",
+				"clockevents/arm/arch_timer:starting",
 				arch_timer_starting_cpu, arch_timer_dying_cpu);
 	if (err)
 		goto out_unreg_cpupm;
@@ -907,6 +910,10 @@ static int __init arch_timer_of_init(struct device_node *np)
 	    of_property_read_bool(np, "arm,cpu-registers-not-fw-configured"))
 		arch_timer_uses_ppi = PHYS_SECURE_PPI;
 
+	/* On some systems, the counter stops ticking when in suspend. */
+	arch_counter_suspend_stop = of_property_read_bool(np,
+							 "arm,no-tick-in-suspend");
+
 	return arch_timer_init();
 }
 CLOCKSOURCE_OF_DECLARE(armv7_arch_timer, "arm,armv7-timer", arch_timer_of_init);
@@ -964,8 +971,9 @@ static int __init arch_timer_mem_init(struct device_node *np)
 	}
 
 	ret= -ENXIO;
-	base = arch_counter_base = of_iomap(best_frame, 0);
-	if (!base) {
+	base = arch_counter_base = of_io_request_and_map(best_frame, 0,
+							 "arch_mem_timer");
+	if (IS_ERR(base)) {
 		pr_err("arch_timer: Can't map frame's registers\n");
 		goto out;
 	}

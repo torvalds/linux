@@ -52,8 +52,9 @@
 #include <net/udplite.h>
 #include <net/xfrm.h>
 #include <net/compat.h>
+#include <net/seg6.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 struct ip6_ra_chain *ip6_ra_chain;
 DEFINE_RWLOCK(ip6_ra_lock);
@@ -430,6 +431,15 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 
 				break;
 #endif
+			case IPV6_SRCRT_TYPE_4:
+			{
+				struct ipv6_sr_hdr *srh = (struct ipv6_sr_hdr *)
+							  opt->srcrt;
+
+				if (!seg6_validate_srh(srh, optlen))
+					goto sticky_done;
+				break;
+			}
 			default:
 				goto sticky_done;
 			}
@@ -866,6 +876,10 @@ pref_skip_coa:
 		break;
 	case IPV6_AUTOFLOWLABEL:
 		np->autoflowlabel = valbool;
+		retv = 0;
+		break;
+	case IPV6_RECVFRAGSIZE:
+		np->rxopt.bits.recvfragsize = valbool;
 		retv = 0;
 		break;
 	}
@@ -1308,6 +1322,10 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 
 	case IPV6_AUTOFLOWLABEL:
 		val = np->autoflowlabel;
+		break;
+
+	case IPV6_RECVFRAGSIZE:
+		val = np->rxopt.bits.recvfragsize;
 		break;
 
 	default:

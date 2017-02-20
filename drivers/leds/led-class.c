@@ -20,6 +20,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/timer.h>
+#include <uapi/linux/uleds.h>
 #include "leds.h"
 
 static struct class *leds_class;
@@ -187,7 +188,7 @@ static int led_classdev_next_name(const char *init_name, char *name,
  */
 int led_classdev_register(struct device *parent, struct led_classdev *led_cdev)
 {
-	char name[64];
+	char name[LED_MAX_NAME_SIZE];
 	int ret;
 
 	ret = led_classdev_next_name(led_cdev->name, name, sizeof(name));
@@ -203,6 +204,7 @@ int led_classdev_register(struct device *parent, struct led_classdev *led_cdev)
 		dev_warn(parent, "Led %s renamed to %s due to name collision",
 				led_cdev->name, dev_name(led_cdev->dev));
 
+	led_cdev->work_flags = 0;
 #ifdef CONFIG_LEDS_TRIGGERS
 	init_rwsem(&led_cdev->trigger_lock);
 #endif

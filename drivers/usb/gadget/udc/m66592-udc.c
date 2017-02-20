@@ -637,7 +637,7 @@ static void init_controller(struct m66592 *m66592)
 			clock = M66592_XTAL48;
 			break;
 		default:
-			pr_warning("m66592-udc: xtal configuration error\n");
+			pr_warn("m66592-udc: xtal configuration error\n");
 			clock = 0;
 		}
 
@@ -649,7 +649,7 @@ static void init_controller(struct m66592 *m66592)
 			irq_sense = 0;
 			break;
 		default:
-			pr_warning("m66592-udc: irq trigger config error\n");
+			pr_warn("m66592-udc: irq trigger config error\n");
 			irq_sense = 0;
 		}
 

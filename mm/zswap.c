@@ -78,7 +78,13 @@ static u64 zswap_duplicate_entry;
 
 /* Enable/disable zswap (disabled by default) */
 static bool zswap_enabled;
-module_param_named(enabled, zswap_enabled, bool, 0644);
+static int zswap_enabled_param_set(const char *,
+				   const struct kernel_param *);
+static struct kernel_param_ops zswap_enabled_param_ops = {
+	.set =		zswap_enabled_param_set,
+	.get =		param_get_bool,
+};
+module_param_cb(enabled, &zswap_enabled_param_ops, &zswap_enabled, 0644);
 
 /* Crypto compressor to use */
 #define ZSWAP_COMPRESSOR_DEFAULT "lzo"
@@ -118,7 +124,7 @@ struct zswap_pool {
 	struct kref kref;
 	struct list_head list;
 	struct work_struct work;
-	struct notifier_block notifier;
+	struct hlist_node node;
 	char tfm_name[CRYPTO_MAX_ALG_NAME];
 };
 
@@ -175,6 +181,9 @@ static atomic_t zswap_pools_count = ATOMIC_INIT(0);
 
 /* used by param callback function */
 static bool zswap_init_started;
+
+/* fatal error during init */
+static bool zswap_init_failed;
 
 /*********************************
 * helpers and fwd declarations
@@ -352,143 +361,58 @@ static struct zswap_entry *zswap_entry_find_get(struct rb_root *root,
 **********************************/
 static DEFINE_PER_CPU(u8 *, zswap_dstmem);
 
-static int __zswap_cpu_dstmem_notifier(unsigned long action, unsigned long cpu)
+static int zswap_dstmem_prepare(unsigned int cpu)
 {
 	u8 *dst;
 
-	switch (action) {
-	case CPU_UP_PREPARE:
-		dst = kmalloc_node(PAGE_SIZE * 2, GFP_KERNEL, cpu_to_node(cpu));
-		if (!dst) {
-			pr_err("can't allocate compressor buffer\n");
-			return NOTIFY_BAD;
-		}
-		per_cpu(zswap_dstmem, cpu) = dst;
-		break;
-	case CPU_DEAD:
-	case CPU_UP_CANCELED:
-		dst = per_cpu(zswap_dstmem, cpu);
-		kfree(dst);
-		per_cpu(zswap_dstmem, cpu) = NULL;
-		break;
-	default:
-		break;
+	dst = kmalloc_node(PAGE_SIZE * 2, GFP_KERNEL, cpu_to_node(cpu));
+	if (!dst) {
+		pr_err("can't allocate compressor buffer\n");
+		return -ENOMEM;
 	}
-	return NOTIFY_OK;
-}
-
-static int zswap_cpu_dstmem_notifier(struct notifier_block *nb,
-				     unsigned long action, void *pcpu)
-{
-	return __zswap_cpu_dstmem_notifier(action, (unsigned long)pcpu);
-}
-
-static struct notifier_block zswap_dstmem_notifier = {
-	.notifier_call =	zswap_cpu_dstmem_notifier,
-};
-
-static int __init zswap_cpu_dstmem_init(void)
-{
-	unsigned long cpu;
-
-	cpu_notifier_register_begin();
-	for_each_online_cpu(cpu)
-		if (__zswap_cpu_dstmem_notifier(CPU_UP_PREPARE, cpu) ==
-		    NOTIFY_BAD)
-			goto cleanup;
-	__register_cpu_notifier(&zswap_dstmem_notifier);
-	cpu_notifier_register_done();
+	per_cpu(zswap_dstmem, cpu) = dst;
 	return 0;
-
-cleanup:
-	for_each_online_cpu(cpu)
-		__zswap_cpu_dstmem_notifier(CPU_UP_CANCELED, cpu);
-	cpu_notifier_register_done();
-	return -ENOMEM;
 }
 
-static void zswap_cpu_dstmem_destroy(void)
+static int zswap_dstmem_dead(unsigned int cpu)
 {
-	unsigned long cpu;
+	u8 *dst;
 
-	cpu_notifier_register_begin();
-	for_each_online_cpu(cpu)
-		__zswap_cpu_dstmem_notifier(CPU_UP_CANCELED, cpu);
-	__unregister_cpu_notifier(&zswap_dstmem_notifier);
-	cpu_notifier_register_done();
+	dst = per_cpu(zswap_dstmem, cpu);
+	kfree(dst);
+	per_cpu(zswap_dstmem, cpu) = NULL;
+
+	return 0;
 }
 
-static int __zswap_cpu_comp_notifier(struct zswap_pool *pool,
-				     unsigned long action, unsigned long cpu)
+static int zswap_cpu_comp_prepare(unsigned int cpu, struct hlist_node *node)
 {
+	struct zswap_pool *pool = hlist_entry(node, struct zswap_pool, node);
 	struct crypto_comp *tfm;
 
-	switch (action) {
-	case CPU_UP_PREPARE:
-		if (WARN_ON(*per_cpu_ptr(pool->tfm, cpu)))
-			break;
-		tfm = crypto_alloc_comp(pool->tfm_name, 0, 0);
-		if (IS_ERR_OR_NULL(tfm)) {
-			pr_err("could not alloc crypto comp %s : %ld\n",
-			       pool->tfm_name, PTR_ERR(tfm));
-			return NOTIFY_BAD;
-		}
-		*per_cpu_ptr(pool->tfm, cpu) = tfm;
-		break;
-	case CPU_DEAD:
-	case CPU_UP_CANCELED:
-		tfm = *per_cpu_ptr(pool->tfm, cpu);
-		if (!IS_ERR_OR_NULL(tfm))
-			crypto_free_comp(tfm);
-		*per_cpu_ptr(pool->tfm, cpu) = NULL;
-		break;
-	default:
-		break;
+	if (WARN_ON(*per_cpu_ptr(pool->tfm, cpu)))
+		return 0;
+
+	tfm = crypto_alloc_comp(pool->tfm_name, 0, 0);
+	if (IS_ERR_OR_NULL(tfm)) {
+		pr_err("could not alloc crypto comp %s : %ld\n",
+		       pool->tfm_name, PTR_ERR(tfm));
+		return -ENOMEM;
 	}
-	return NOTIFY_OK;
-}
-
-static int zswap_cpu_comp_notifier(struct notifier_block *nb,
-				   unsigned long action, void *pcpu)
-{
-	unsigned long cpu = (unsigned long)pcpu;
-	struct zswap_pool *pool = container_of(nb, typeof(*pool), notifier);
-
-	return __zswap_cpu_comp_notifier(pool, action, cpu);
-}
-
-static int zswap_cpu_comp_init(struct zswap_pool *pool)
-{
-	unsigned long cpu;
-
-	memset(&pool->notifier, 0, sizeof(pool->notifier));
-	pool->notifier.notifier_call = zswap_cpu_comp_notifier;
-
-	cpu_notifier_register_begin();
-	for_each_online_cpu(cpu)
-		if (__zswap_cpu_comp_notifier(pool, CPU_UP_PREPARE, cpu) ==
-		    NOTIFY_BAD)
-			goto cleanup;
-	__register_cpu_notifier(&pool->notifier);
-	cpu_notifier_register_done();
+	*per_cpu_ptr(pool->tfm, cpu) = tfm;
 	return 0;
-
-cleanup:
-	for_each_online_cpu(cpu)
-		__zswap_cpu_comp_notifier(pool, CPU_UP_CANCELED, cpu);
-	cpu_notifier_register_done();
-	return -ENOMEM;
 }
 
-static void zswap_cpu_comp_destroy(struct zswap_pool *pool)
+static int zswap_cpu_comp_dead(unsigned int cpu, struct hlist_node *node)
 {
-	unsigned long cpu;
+	struct zswap_pool *pool = hlist_entry(node, struct zswap_pool, node);
+	struct crypto_comp *tfm;
 
-	cpu_notifier_register_begin();
-	for_each_online_cpu(cpu)
-		__zswap_cpu_comp_notifier(pool, CPU_UP_CANCELED, cpu);
-	__unregister_cpu_notifier(&pool->notifier);
-	cpu_notifier_register_done();
+	tfm = *per_cpu_ptr(pool->tfm, cpu);
+	if (!IS_ERR_OR_NULL(tfm))
+		crypto_free_comp(tfm);
+	*per_cpu_ptr(pool->tfm, cpu) = NULL;
+	return 0;
 }
 
 /*********************************
@@ -569,6 +493,7 @@ static struct zswap_pool *zswap_pool_create(char *type, char *compressor)
 	struct zswap_pool *pool;
 	char name[38]; /* 'zswap' + 32 char (max) num + \0 */
 	gfp_t gfp = __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_RECLAIM;
+	int ret;
 
 	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
 	if (!pool) {
@@ -593,7 +518,9 @@ static struct zswap_pool *zswap_pool_create(char *type, char *compressor)
 		goto error;
 	}
 
-	if (zswap_cpu_comp_init(pool))
+	ret = cpuhp_state_add_instance(CPUHP_MM_ZSWP_POOL_PREPARE,
+				       &pool->node);
+	if (ret)
 		goto error;
 	pr_debug("using %s compressor\n", pool->tfm_name);
 
@@ -647,7 +574,7 @@ static void zswap_pool_destroy(struct zswap_pool *pool)
 {
 	zswap_pool_debug("destroying", pool);
 
-	zswap_cpu_comp_destroy(pool);
+	cpuhp_state_remove_instance(CPUHP_MM_ZSWP_POOL_PREPARE, &pool->node);
 	free_percpu(pool->tfm);
 	zpool_destroy_pool(pool->zpool);
 	kfree(pool);
@@ -705,6 +632,11 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
 	struct zswap_pool *pool, *put_pool = NULL;
 	char *s = strstrip((char *)val);
 	int ret;
+
+	if (zswap_init_failed) {
+		pr_err("can't set param, initialization failed\n");
+		return -ENODEV;
+	}
 
 	/* no change required */
 	if (!strcmp(s, *(char **)kp->arg))
@@ -783,6 +715,17 @@ static int zswap_zpool_param_set(const char *val,
 				 const struct kernel_param *kp)
 {
 	return __zswap_param_set(val, kp, NULL, zswap_compressor);
+}
+
+static int zswap_enabled_param_set(const char *val,
+				   const struct kernel_param *kp)
+{
+	if (zswap_init_failed) {
+		pr_err("can't enable, initialization failed\n");
+		return -ENODEV;
+	}
+
+	return param_set_bool(val, kp);
 }
 
 /*********************************
@@ -1238,6 +1181,7 @@ static void __exit zswap_debugfs_exit(void) { }
 static int __init init_zswap(void)
 {
 	struct zswap_pool *pool;
+	int ret;
 
 	zswap_init_started = true;
 
@@ -1246,10 +1190,19 @@ static int __init init_zswap(void)
 		goto cache_fail;
 	}
 
-	if (zswap_cpu_dstmem_init()) {
+	ret = cpuhp_setup_state(CPUHP_MM_ZSWP_MEM_PREPARE, "mm/zswap:prepare",
+				zswap_dstmem_prepare, zswap_dstmem_dead);
+	if (ret) {
 		pr_err("dstmem alloc failed\n");
 		goto dstmem_fail;
 	}
+
+	ret = cpuhp_setup_state_multi(CPUHP_MM_ZSWP_POOL_PREPARE,
+				      "mm/zswap_pool:prepare",
+				      zswap_cpu_comp_prepare,
+				      zswap_cpu_comp_dead);
+	if (ret)
+		goto hp_fail;
 
 	pool = __zswap_pool_create_fallback();
 	if (!pool) {
@@ -1267,10 +1220,15 @@ static int __init init_zswap(void)
 	return 0;
 
 pool_fail:
-	zswap_cpu_dstmem_destroy();
+	cpuhp_remove_state_nocalls(CPUHP_MM_ZSWP_POOL_PREPARE);
+hp_fail:
+	cpuhp_remove_state(CPUHP_MM_ZSWP_MEM_PREPARE);
 dstmem_fail:
 	zswap_entry_cache_destroy();
 cache_fail:
+	/* if built-in, we aren't unloaded on failure; don't allow use */
+	zswap_init_failed = true;
+	zswap_enabled = false;
 	return -ENOMEM;
 }
 /* must be late so crypto has time to come up */

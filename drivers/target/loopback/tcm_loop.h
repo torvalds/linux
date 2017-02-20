@@ -1,3 +1,7 @@
+#include <linux/types.h>
+#include <linux/device.h>
+#include <target/target_core_base.h> /* struct se_cmd */
+
 #define TCM_LOOP_VERSION		"v2.1-rc2"
 #define TL_WWN_ADDR_LEN			256
 #define TL_TPGS_PER_HBA			32

@@ -223,10 +223,11 @@ nfsd4_alloc_layout_stateid(struct nfsd4_compound_state *cstate,
 	struct nfs4_layout_stateid *ls;
 	struct nfs4_stid *stp;
 
-	stp = nfs4_alloc_stid(cstate->clp, nfs4_layout_stateid_cache);
+	stp = nfs4_alloc_stid(cstate->clp, nfs4_layout_stateid_cache,
+					nfsd4_free_layout_stateid);
 	if (!stp)
 		return NULL;
-	stp->sc_free = nfsd4_free_layout_stateid;
+
 	get_nfs4_file(fp);
 	stp->sc_file = fp;
 
@@ -686,10 +687,6 @@ nfsd4_cb_layout_done(struct nfsd4_callback *cb, struct rpc_task *task)
 			return 0;
 		}
 		/* Fallthrough */
-	case -NFS4ERR_NOMATCHING_LAYOUT:
-		trace_layout_recall_done(&ls->ls_stid.sc_stateid);
-		task->tk_status = 0;
-		return 1;
 	default:
 		/*
 		 * Unknown error or non-responding client, we'll need to fence.
@@ -702,6 +699,10 @@ nfsd4_cb_layout_done(struct nfsd4_callback *cb, struct rpc_task *task)
 		else
 			nfsd4_cb_layout_fail(ls);
 		return -1;
+	case -NFS4ERR_NOMATCHING_LAYOUT:
+		trace_layout_recall_done(&ls->ls_stid.sc_stateid);
+		task->tk_status = 0;
+		return 1;
 	}
 }
 

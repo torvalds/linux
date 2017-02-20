@@ -169,7 +169,7 @@ bool nfs4_try_to_lock_slot(struct nfs4_slot_table *tbl, struct nfs4_slot *slot)
 struct nfs4_slot *nfs4_lookup_slot(struct nfs4_slot_table *tbl, u32 slotid)
 {
 	if (slotid <= tbl->max_slotid)
-		return nfs4_find_or_create_slot(tbl, slotid, 1, GFP_NOWAIT);
+		return nfs4_find_or_create_slot(tbl, slotid, 0, GFP_NOWAIT);
 	return ERR_PTR(-E2BIG);
 }
 

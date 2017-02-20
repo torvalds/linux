@@ -93,7 +93,7 @@
 #include <asm/mpc85xx.h>
 #endif
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <linux/crc32.h>
@@ -1339,7 +1339,10 @@ static int gfar_probe(struct platform_device *ofdev)
 
 	/* Fill in the dev structure */
 	dev->watchdog_timeo = TX_TIMEOUT;
+	/* MTU range: 50 - 9586 */
 	dev->mtu = 1500;
+	dev->min_mtu = 50;
+	dev->max_mtu = GFAR_JUMBO_FRAME_SIZE - ETH_HLEN;
 	dev->netdev_ops = &gfar_netdev_ops;
 	dev->ethtool_ops = &gfar_ethtool_ops;
 
@@ -2007,8 +2010,8 @@ static void free_skb_rx_queue(struct gfar_priv_rx_q *rx_queue)
 		if (!rxb->page)
 			continue;
 
-		dma_unmap_single(rx_queue->dev, rxb->dma,
-				 PAGE_SIZE, DMA_FROM_DEVICE);
+		dma_unmap_page(rx_queue->dev, rxb->dma,
+			       PAGE_SIZE, DMA_FROM_DEVICE);
 		__free_page(rxb->page);
 
 		rxb->page = NULL;
@@ -2600,12 +2603,6 @@ static int gfar_set_mac_address(struct net_device *dev)
 static int gfar_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	int frame_size = new_mtu + ETH_HLEN;
-
-	if ((frame_size < 64) || (frame_size > GFAR_JUMBO_FRAME_SIZE)) {
-		netif_err(priv, drv, dev, "Invalid MTU setting\n");
-		return -EINVAL;
-	}
 
 	while (test_and_set_bit_lock(GFAR_RESETTING, &priv->state))
 		cpu_relax();
@@ -2951,7 +2948,7 @@ static bool gfar_add_rx_frag(struct gfar_rx_buff *rxb, u32 lstatus,
 	}
 
 	/* try reuse page */
-	if (unlikely(page_count(page) != 1))
+	if (unlikely(page_count(page) != 1 || page_is_pfmemalloc(page)))
 		return false;
 
 	/* change offset to the other half */

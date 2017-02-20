@@ -42,6 +42,10 @@ static void uvd_v6_0_set_irq_funcs(struct amdgpu_device *adev);
 static int uvd_v6_0_start(struct amdgpu_device *adev);
 static void uvd_v6_0_stop(struct amdgpu_device *adev);
 static void uvd_v6_0_set_sw_clock_gating(struct amdgpu_device *adev);
+static int uvd_v6_0_set_clockgating_state(void *handle,
+					  enum amd_clockgating_state state);
+static void uvd_v6_0_enable_mgcg(struct amdgpu_device *adev,
+				 bool enable);
 
 /**
  * uvd_v6_0_ring_get_rptr - get read pointer
@@ -116,8 +120,7 @@ static int uvd_v6_0_sw_init(void *handle)
 
 	ring = &adev->uvd.ring;
 	sprintf(ring->name, "uvd");
-	r = amdgpu_ring_init(adev, ring, 512, PACKET0(mmUVD_NO_OP, 0), 0xf,
-			     &adev->uvd.irq, 0, AMDGPU_RING_TYPE_UVD);
+	r = amdgpu_ring_init(adev, ring, 512, &adev->uvd.irq, 0);
 
 	return r;
 }
@@ -394,10 +397,10 @@ static int uvd_v6_0_start(struct amdgpu_device *adev)
 	lmi_swap_cntl = 0;
 	mp_swap_cntl = 0;
 
+	amdgpu_asic_set_uvd_clocks(adev, 10000, 10000);
+	uvd_v6_0_set_clockgating_state(adev, AMD_CG_STATE_UNGATE);
+	uvd_v6_0_enable_mgcg(adev, true);
 	uvd_v6_0_mc_resume(adev);
-
-	/* disable clock gating */
-	WREG32_FIELD(UVD_CGC_CTRL, DYN_CLOCK_MODE, 0);
 
 	/* disable interupt */
 	WREG32_FIELD(UVD_MASTINT_EN, VCPU_EN, 0);
@@ -725,31 +728,6 @@ static void uvd_v6_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, 0xE);
 }
 
-static unsigned uvd_v6_0_ring_get_emit_ib_size(struct amdgpu_ring *ring)
-{
-	return
-		8; /* uvd_v6_0_ring_emit_ib */
-}
-
-static unsigned uvd_v6_0_ring_get_dma_frame_size(struct amdgpu_ring *ring)
-{
-	return
-		2 + /* uvd_v6_0_ring_emit_hdp_flush */
-		2 + /* uvd_v6_0_ring_emit_hdp_invalidate */
-		10 + /* uvd_v6_0_ring_emit_pipeline_sync */
-		14; /* uvd_v6_0_ring_emit_fence x1 no user fence */
-}
-
-static unsigned uvd_v6_0_ring_get_dma_frame_size_vm(struct amdgpu_ring *ring)
-{
-	return
-		2 + /* uvd_v6_0_ring_emit_hdp_flush */
-		2 + /* uvd_v6_0_ring_emit_hdp_invalidate */
-		10 + /* uvd_v6_0_ring_emit_pipeline_sync */
-		20 + /* uvd_v6_0_ring_emit_vm_flush */
-		14 + 14; /* uvd_v6_0_ring_emit_fence x2 vm fence */
-}
-
 static bool uvd_v6_0_is_idle(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -862,22 +840,72 @@ static int uvd_v6_0_process_interrupt(struct amdgpu_device *adev,
 	return 0;
 }
 
+static void uvd_v6_0_enable_clock_gating(struct amdgpu_device *adev, bool enable)
+{
+	uint32_t data1, data3;
+
+	data1 = RREG32(mmUVD_SUVD_CGC_GATE);
+	data3 = RREG32(mmUVD_CGC_GATE);
+
+	data1 |= UVD_SUVD_CGC_GATE__SRE_MASK |
+		     UVD_SUVD_CGC_GATE__SIT_MASK |
+		     UVD_SUVD_CGC_GATE__SMP_MASK |
+		     UVD_SUVD_CGC_GATE__SCM_MASK |
+		     UVD_SUVD_CGC_GATE__SDB_MASK |
+		     UVD_SUVD_CGC_GATE__SRE_H264_MASK |
+		     UVD_SUVD_CGC_GATE__SRE_HEVC_MASK |
+		     UVD_SUVD_CGC_GATE__SIT_H264_MASK |
+		     UVD_SUVD_CGC_GATE__SIT_HEVC_MASK |
+		     UVD_SUVD_CGC_GATE__SCM_H264_MASK |
+		     UVD_SUVD_CGC_GATE__SCM_HEVC_MASK |
+		     UVD_SUVD_CGC_GATE__SDB_H264_MASK |
+		     UVD_SUVD_CGC_GATE__SDB_HEVC_MASK;
+
+	if (enable) {
+		data3 |= (UVD_CGC_GATE__SYS_MASK       |
+			UVD_CGC_GATE__UDEC_MASK      |
+			UVD_CGC_GATE__MPEG2_MASK     |
+			UVD_CGC_GATE__RBC_MASK       |
+			UVD_CGC_GATE__LMI_MC_MASK    |
+			UVD_CGC_GATE__LMI_UMC_MASK   |
+			UVD_CGC_GATE__IDCT_MASK      |
+			UVD_CGC_GATE__MPRD_MASK      |
+			UVD_CGC_GATE__MPC_MASK       |
+			UVD_CGC_GATE__LBSI_MASK      |
+			UVD_CGC_GATE__LRBBM_MASK     |
+			UVD_CGC_GATE__UDEC_RE_MASK   |
+			UVD_CGC_GATE__UDEC_CM_MASK   |
+			UVD_CGC_GATE__UDEC_IT_MASK   |
+			UVD_CGC_GATE__UDEC_DB_MASK   |
+			UVD_CGC_GATE__UDEC_MP_MASK   |
+			UVD_CGC_GATE__WCB_MASK       |
+			UVD_CGC_GATE__JPEG_MASK      |
+			UVD_CGC_GATE__SCPU_MASK      |
+			UVD_CGC_GATE__JPEG2_MASK);
+		/* only in pg enabled, we can gate clock to vcpu*/
+		if (adev->pg_flags & AMD_PG_SUPPORT_UVD)
+			data3 |= UVD_CGC_GATE__VCPU_MASK;
+
+		data3 &= ~UVD_CGC_GATE__REGS_MASK;
+	} else {
+		data3 = 0;
+	}
+
+	WREG32(mmUVD_SUVD_CGC_GATE, data1);
+	WREG32(mmUVD_CGC_GATE, data3);
+}
+
 static void uvd_v6_0_set_sw_clock_gating(struct amdgpu_device *adev)
 {
-	uint32_t data, data1, data2, suvd_flags;
+	uint32_t data, data2;
 
 	data = RREG32(mmUVD_CGC_CTRL);
-	data1 = RREG32(mmUVD_SUVD_CGC_GATE);
 	data2 = RREG32(mmUVD_SUVD_CGC_CTRL);
+
 
 	data &= ~(UVD_CGC_CTRL__CLK_OFF_DELAY_MASK |
 		  UVD_CGC_CTRL__CLK_GATE_DLY_TIMER_MASK);
 
-	suvd_flags = UVD_SUVD_CGC_GATE__SRE_MASK |
-		     UVD_SUVD_CGC_GATE__SIT_MASK |
-		     UVD_SUVD_CGC_GATE__SMP_MASK |
-		     UVD_SUVD_CGC_GATE__SCM_MASK |
-		     UVD_SUVD_CGC_GATE__SDB_MASK;
 
 	data |= UVD_CGC_CTRL__DYN_CLOCK_MODE_MASK |
 		(1 << REG_FIELD_SHIFT(UVD_CGC_CTRL, CLK_GATE_DLY_TIMER)) |
@@ -910,11 +938,8 @@ static void uvd_v6_0_set_sw_clock_gating(struct amdgpu_device *adev)
 			UVD_SUVD_CGC_CTRL__SMP_MODE_MASK |
 			UVD_SUVD_CGC_CTRL__SCM_MODE_MASK |
 			UVD_SUVD_CGC_CTRL__SDB_MODE_MASK);
-	data1 |= suvd_flags;
 
 	WREG32(mmUVD_CGC_CTRL, data);
-	WREG32(mmUVD_CGC_GATE, 0);
-	WREG32(mmUVD_SUVD_CGC_GATE, data1);
 	WREG32(mmUVD_SUVD_CGC_CTRL, data2);
 }
 
@@ -961,44 +986,53 @@ static void uvd_v6_0_set_hw_clock_gating(struct amdgpu_device *adev)
 }
 #endif
 
-static void uvd_v6_set_bypass_mode(struct amdgpu_device *adev, bool enable)
+static void uvd_v6_0_enable_mgcg(struct amdgpu_device *adev,
+				 bool enable)
 {
-	u32 tmp = RREG32_SMC(ixGCK_DFS_BYPASS_CNTL);
+	u32 orig, data;
 
-	if (enable)
-		tmp |= (GCK_DFS_BYPASS_CNTL__BYPASSDCLK_MASK |
-			GCK_DFS_BYPASS_CNTL__BYPASSVCLK_MASK);
-	else
-		tmp &= ~(GCK_DFS_BYPASS_CNTL__BYPASSDCLK_MASK |
-			 GCK_DFS_BYPASS_CNTL__BYPASSVCLK_MASK);
+	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_UVD_MGCG)) {
+		data = RREG32_UVD_CTX(ixUVD_CGC_MEM_CTRL);
+		data |= 0xfff;
+		WREG32_UVD_CTX(ixUVD_CGC_MEM_CTRL, data);
 
-	WREG32_SMC(ixGCK_DFS_BYPASS_CNTL, tmp);
+		orig = data = RREG32(mmUVD_CGC_CTRL);
+		data |= UVD_CGC_CTRL__DYN_CLOCK_MODE_MASK;
+		if (orig != data)
+			WREG32(mmUVD_CGC_CTRL, data);
+	} else {
+		data = RREG32_UVD_CTX(ixUVD_CGC_MEM_CTRL);
+		data &= ~0xfff;
+		WREG32_UVD_CTX(ixUVD_CGC_MEM_CTRL, data);
+
+		orig = data = RREG32(mmUVD_CGC_CTRL);
+		data &= ~UVD_CGC_CTRL__DYN_CLOCK_MODE_MASK;
+		if (orig != data)
+			WREG32(mmUVD_CGC_CTRL, data);
+	}
 }
 
 static int uvd_v6_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	if (adev->asic_type == CHIP_FIJI ||
-	    adev->asic_type == CHIP_POLARIS10)
-		uvd_v6_set_bypass_mode(adev, state == AMD_CG_STATE_GATE ? true : false);
+	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
 
 	if (!(adev->cg_flags & AMD_CG_SUPPORT_UVD_MGCG))
 		return 0;
 
-	if (state == AMD_CG_STATE_GATE) {
-		/* disable HW gating and enable Sw gating */
-		uvd_v6_0_set_sw_clock_gating(adev);
-	} else {
+	if (enable) {
 		/* wait for STATUS to clear */
 		if (uvd_v6_0_wait_for_idle(handle))
 			return -EBUSY;
-
+		uvd_v6_0_enable_clock_gating(adev, true);
 		/* enable HW gates because UVD is idle */
 /*		uvd_v6_0_set_hw_clock_gating(adev); */
+	} else {
+		/* disable HW gating and enable Sw gating */
+		uvd_v6_0_enable_clock_gating(adev, false);
 	}
-
+	uvd_v6_0_set_sw_clock_gating(adev);
 	return 0;
 }
 
@@ -1027,7 +1061,7 @@ static int uvd_v6_0_set_powergating_state(void *handle,
 	}
 }
 
-const struct amd_ip_funcs uvd_v6_0_ip_funcs = {
+static const struct amd_ip_funcs uvd_v6_0_ip_funcs = {
 	.name = "uvd_v6_0",
 	.early_init = uvd_v6_0_early_init,
 	.late_init = NULL,
@@ -1048,10 +1082,19 @@ const struct amd_ip_funcs uvd_v6_0_ip_funcs = {
 };
 
 static const struct amdgpu_ring_funcs uvd_v6_0_ring_phys_funcs = {
+	.type = AMDGPU_RING_TYPE_UVD,
+	.align_mask = 0xf,
+	.nop = PACKET0(mmUVD_NO_OP, 0),
 	.get_rptr = uvd_v6_0_ring_get_rptr,
 	.get_wptr = uvd_v6_0_ring_get_wptr,
 	.set_wptr = uvd_v6_0_ring_set_wptr,
 	.parse_cs = amdgpu_uvd_ring_parse_cs,
+	.emit_frame_size =
+		2 + /* uvd_v6_0_ring_emit_hdp_flush */
+		2 + /* uvd_v6_0_ring_emit_hdp_invalidate */
+		10 + /* uvd_v6_0_ring_emit_pipeline_sync */
+		14, /* uvd_v6_0_ring_emit_fence x1 no user fence */
+	.emit_ib_size = 8, /* uvd_v6_0_ring_emit_ib */
 	.emit_ib = uvd_v6_0_ring_emit_ib,
 	.emit_fence = uvd_v6_0_ring_emit_fence,
 	.emit_hdp_flush = uvd_v6_0_ring_emit_hdp_flush,
@@ -1062,15 +1105,22 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_phys_funcs = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_uvd_ring_begin_use,
 	.end_use = amdgpu_uvd_ring_end_use,
-	.get_emit_ib_size = uvd_v6_0_ring_get_emit_ib_size,
-	.get_dma_frame_size = uvd_v6_0_ring_get_dma_frame_size,
 };
 
 static const struct amdgpu_ring_funcs uvd_v6_0_ring_vm_funcs = {
+	.type = AMDGPU_RING_TYPE_UVD,
+	.align_mask = 0xf,
+	.nop = PACKET0(mmUVD_NO_OP, 0),
 	.get_rptr = uvd_v6_0_ring_get_rptr,
 	.get_wptr = uvd_v6_0_ring_get_wptr,
 	.set_wptr = uvd_v6_0_ring_set_wptr,
-	.parse_cs = NULL,
+	.emit_frame_size =
+		2 + /* uvd_v6_0_ring_emit_hdp_flush */
+		2 + /* uvd_v6_0_ring_emit_hdp_invalidate */
+		10 + /* uvd_v6_0_ring_emit_pipeline_sync */
+		20 + /* uvd_v6_0_ring_emit_vm_flush */
+		14 + 14, /* uvd_v6_0_ring_emit_fence x2 vm fence */
+	.emit_ib_size = 8, /* uvd_v6_0_ring_emit_ib */
 	.emit_ib = uvd_v6_0_ring_emit_ib,
 	.emit_fence = uvd_v6_0_ring_emit_fence,
 	.emit_vm_flush = uvd_v6_0_ring_emit_vm_flush,
@@ -1083,8 +1133,6 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_vm_funcs = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_uvd_ring_begin_use,
 	.end_use = amdgpu_uvd_ring_end_use,
-	.get_emit_ib_size = uvd_v6_0_ring_get_emit_ib_size,
-	.get_dma_frame_size = uvd_v6_0_ring_get_dma_frame_size_vm,
 };
 
 static void uvd_v6_0_set_ring_funcs(struct amdgpu_device *adev)
@@ -1108,3 +1156,30 @@ static void uvd_v6_0_set_irq_funcs(struct amdgpu_device *adev)
 	adev->uvd.irq.num_types = 1;
 	adev->uvd.irq.funcs = &uvd_v6_0_irq_funcs;
 }
+
+const struct amdgpu_ip_block_version uvd_v6_0_ip_block =
+{
+		.type = AMD_IP_BLOCK_TYPE_UVD,
+		.major = 6,
+		.minor = 0,
+		.rev = 0,
+		.funcs = &uvd_v6_0_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version uvd_v6_2_ip_block =
+{
+		.type = AMD_IP_BLOCK_TYPE_UVD,
+		.major = 6,
+		.minor = 2,
+		.rev = 0,
+		.funcs = &uvd_v6_0_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version uvd_v6_3_ip_block =
+{
+		.type = AMD_IP_BLOCK_TYPE_UVD,
+		.major = 6,
+		.minor = 3,
+		.rev = 0,
+		.funcs = &uvd_v6_0_ip_funcs,
+};

@@ -659,8 +659,8 @@ static int ll_statahead_interpret(struct ptlrpc_request *req,
 	struct ll_inode_info     *lli = ll_i2info(dir);
 	struct ll_statahead_info *sai = lli->lli_sai;
 	struct sa_entry *entry = (struct sa_entry *)minfo->mi_cbdata;
+	wait_queue_head_t *waitq = NULL;
 	__u64 handle = 0;
-	bool wakeup;
 
 	if (it_disposition(it, DISP_LOOKUP_NEG))
 		rc = -ENOENT;
@@ -693,7 +693,8 @@ static int ll_statahead_interpret(struct ptlrpc_request *req,
 
 	spin_lock(&lli->lli_sa_lock);
 	if (rc) {
-		wakeup = __sa_make_ready(sai, entry, rc);
+		if (__sa_make_ready(sai, entry, rc))
+			waitq = &sai->sai_waitq;
 	} else {
 		entry->se_minfo = minfo;
 		entry->se_req = ptlrpc_request_addref(req);
@@ -704,13 +705,15 @@ static int ll_statahead_interpret(struct ptlrpc_request *req,
 		 * with parent's lock held, for example: unlink.
 		 */
 		entry->se_handle = handle;
-		wakeup = !sa_has_callback(sai);
+		if (!sa_has_callback(sai))
+			waitq = &sai->sai_thread.t_ctl_waitq;
+
 		list_add_tail(&entry->se_list, &sai->sai_interim_entries);
 	}
 	sai->sai_replied++;
 
-	if (wakeup)
-		wake_up(&sai->sai_thread.t_ctl_waitq);
+	if (waitq)
+		wake_up(waitq);
 	spin_unlock(&lli->lli_sa_lock);
 
 	return rc;
@@ -1397,10 +1400,10 @@ static int revalidate_statahead_dentry(struct inode *dir,
 				       struct dentry **dentryp,
 				       bool unplug)
 {
+	struct ll_inode_info *lli = ll_i2info(dir);
 	struct sa_entry *entry = NULL;
 	struct l_wait_info lwi = { 0 };
 	struct ll_dentry_data *ldd;
-	struct ll_inode_info *lli;
 	int rc = 0;
 
 	if ((*dentryp)->d_name.name[0] == '.') {
@@ -1446,7 +1449,9 @@ static int revalidate_statahead_dentry(struct inode *dir,
 		sa_handle_callback(sai);
 
 	if (!sa_ready(entry)) {
+		spin_lock(&lli->lli_sa_lock);
 		sai->sai_index_wait = entry->se_index;
+		spin_unlock(&lli->lli_sa_lock);
 		lwi = LWI_TIMEOUT_INTR(cfs_time_seconds(30), NULL,
 				       LWI_ON_SIGNAL_NOOP, NULL);
 		rc = l_wait_event(sai->sai_waitq, sa_ready(entry), &lwi);
@@ -1475,6 +1480,7 @@ static int revalidate_statahead_dentry(struct inode *dir,
 
 				alias = ll_splice_alias(inode, *dentryp);
 				if (IS_ERR(alias)) {
+					ll_intent_release(&it);
 					rc = PTR_ERR(alias);
 					goto out_unplug;
 				}
@@ -1493,6 +1499,7 @@ static int revalidate_statahead_dentry(struct inode *dir,
 				       *dentryp,
 				       PFID(ll_inode2fid((*dentryp)->d_inode)),
 				       PFID(ll_inode2fid(inode)));
+				ll_intent_release(&it);
 				rc = -ESTALE;
 				goto out_unplug;
 			}
@@ -1512,10 +1519,7 @@ out_unplug:
 	 * dentry_may_statahead().
 	 */
 	ldd = ll_d2d(*dentryp);
-	lli = ll_i2info(dir);
-	/* ldd can be NULL if llite lookup failed. */
-	if (ldd)
-		ldd->lld_sa_generation = lli->lli_sa_generation;
+	ldd->lld_sa_generation = lli->lli_sa_generation;
 	sa_put(sai, entry);
 	return rc;
 }

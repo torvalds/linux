@@ -315,8 +315,7 @@ static void dm1105_card_list(struct pci_dev *pci)
 			"dm1105: Updating to the latest version might help\n"
 			"dm1105: as well.\n");
 	}
-	printk(KERN_ERR "Here is a list of valid choices for the card=<n> "
-		   "insmod option:\n");
+	printk(KERN_ERR "Here is a list of valid choices for the card=<n> insmod option:\n");
 	for (i = 0; i < ARRAY_SIZE(dm1105_boards); i++)
 		printk(KERN_ERR "dm1105:    card=%d -> %s\n",
 				i, dm1105_boards[i].name);

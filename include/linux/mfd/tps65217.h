@@ -73,13 +73,15 @@
 #define TPS65217_PPATH_AC_CURRENT_MASK	0x0C
 #define TPS65217_PPATH_USB_CURRENT_MASK	0x03
 
-#define TPS65217_INT_RESERVEDM		BIT(7)
 #define TPS65217_INT_PBM		BIT(6)
 #define TPS65217_INT_ACM		BIT(5)
 #define TPS65217_INT_USBM		BIT(4)
 #define TPS65217_INT_PBI		BIT(2)
 #define TPS65217_INT_ACI		BIT(1)
 #define TPS65217_INT_USBI		BIT(0)
+#define TPS65217_INT_SHIFT		4
+#define TPS65217_INT_MASK		(TPS65217_INT_PBM | TPS65217_INT_ACM | \
+					TPS65217_INT_USBM)
 
 #define TPS65217_CHGCONFIG0_TREG	BIT(7)
 #define TPS65217_CHGCONFIG0_DPPM	BIT(6)
@@ -234,12 +236,11 @@ struct tps65217_bl_pdata {
 	int dft_brightness;
 };
 
-enum tps65217_irq_type {
-	TPS65217_IRQ_PB,
-	TPS65217_IRQ_AC,
-	TPS65217_IRQ_USB,
-	TPS65217_NUM_IRQ
-};
+/* Interrupt numbers */
+#define TPS65217_IRQ_USB		0
+#define TPS65217_IRQ_AC			1
+#define TPS65217_IRQ_PB			2
+#define TPS65217_NUM_IRQ		3
 
 /**
  * struct tps65217_board - packages regulator init data

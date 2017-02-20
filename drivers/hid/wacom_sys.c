@@ -122,6 +122,7 @@ static void wacom_feature_mapping(struct hid_device *hdev,
 	struct hid_data *hid_data = &wacom->wacom_wac.hid_data;
 	u8 *data;
 	int ret;
+	int n;
 
 	switch (usage->hid) {
 	case HID_DG_CONTACTMAX:
@@ -159,21 +160,47 @@ static void wacom_feature_mapping(struct hid_device *hdev,
 
 	case HID_UP_DIGITIZER:
 		if (field->report->id == 0x0B &&
-		    (field->application == WACOM_G9_DIGITIZER ||
-		     field->application == WACOM_G11_DIGITIZER)) {
+		    (field->application == WACOM_HID_G9_PEN ||
+		     field->application == WACOM_HID_G11_PEN)) {
 			wacom->wacom_wac.mode_report = field->report->id;
 			wacom->wacom_wac.mode_value = 0;
 		}
 		break;
 
-	case WACOM_G9_PAGE:
-	case WACOM_G11_PAGE:
+	case WACOM_HID_WD_DATAMODE:
+		wacom->wacom_wac.mode_report = field->report->id;
+		wacom->wacom_wac.mode_value = 2;
+		break;
+
+	case WACOM_HID_UP_G9:
+	case WACOM_HID_UP_G11:
 		if (field->report->id == 0x03 &&
-		    (field->application == WACOM_G9_TOUCHSCREEN ||
-		     field->application == WACOM_G11_TOUCHSCREEN)) {
+		    (field->application == WACOM_HID_G9_TOUCHSCREEN ||
+		     field->application == WACOM_HID_G11_TOUCHSCREEN)) {
 			wacom->wacom_wac.mode_report = field->report->id;
 			wacom->wacom_wac.mode_value = 0;
 		}
+		break;
+	case WACOM_HID_WD_OFFSETLEFT:
+	case WACOM_HID_WD_OFFSETTOP:
+	case WACOM_HID_WD_OFFSETRIGHT:
+	case WACOM_HID_WD_OFFSETBOTTOM:
+		/* read manually */
+		n = hid_report_len(field->report);
+		data = hid_alloc_report_buf(field->report, GFP_KERNEL);
+		if (!data)
+			break;
+		data[0] = field->report->id;
+		ret = wacom_get_report(hdev, HID_FEATURE_REPORT,
+					data, n, WAC_CMD_RETRIES);
+		if (ret == n) {
+			ret = hid_report_raw_event(hdev, HID_FEATURE_REPORT,
+						   data, n, 0);
+		} else {
+			hid_warn(hdev, "%s: could not retrieve sensor offsets\n",
+				 __func__);
+		}
+		kfree(data);
 		break;
 	}
 }
@@ -238,6 +265,30 @@ static void wacom_usage_mapping(struct hid_device *hdev,
 		/* ISDv4 touch devices at least supports one touch point */
 		if (finger && !features->touch_max)
 			features->touch_max = 1;
+	}
+
+	/*
+	 * ISDv4 devices which predate HID's adoption of the
+	 * HID_DG_BARELSWITCH2 usage use 0x000D0000 in its
+	 * position instead. We can accurately detect if a
+	 * usage with that value should be HID_DG_BARRELSWITCH2
+	 * based on the surrounding usages, which have remained
+	 * constant across generations.
+	 */
+	if (features->type == HID_GENERIC &&
+	    usage->hid == 0x000D0000 &&
+	    field->application == HID_DG_PEN &&
+	    field->physical == HID_DG_STYLUS) {
+		int i = usage->usage_index;
+
+		if (i-4 >= 0 && i+1 < field->maxusage &&
+		    field->usage[i-4].hid == HID_DG_TIPSWITCH &&
+		    field->usage[i-3].hid == HID_DG_BARRELSWITCH &&
+		    field->usage[i-2].hid == HID_DG_ERASER &&
+		    field->usage[i-1].hid == HID_DG_INVERT &&
+		    field->usage[i+1].hid == HID_DG_INRANGE) {
+			usage->hid = HID_DG_BARRELSWITCH2;
+		}
 	}
 
 	switch (usage->hid) {
@@ -1916,6 +1967,19 @@ static void wacom_update_name(struct wacom *wacom, const char *suffix)
 				/* shift everything including the terminator */
 				memmove(gap, gap+1, strlen(gap));
 			}
+
+			/* strip off excessive prefixing */
+			if (strstr(name, "Wacom Co.,Ltd. Wacom ") == name) {
+				int n = strlen(name);
+				int x = strlen("Wacom Co.,Ltd. ");
+				memmove(name, name+x, n-x+1);
+			}
+			if (strstr(name, "Wacom Co., Ltd. Wacom ") == name) {
+				int n = strlen(name);
+				int x = strlen("Wacom Co., Ltd. ");
+				memmove(name, name+x, n-x+1);
+			}
+
 			/* get rid of trailing whitespace */
 			if (name[strlen(name)-1] == ' ')
 				name[strlen(name)-1] = '\0';

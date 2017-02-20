@@ -38,7 +38,7 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "uverbs.h"
 #include "core_priv.h"
@@ -2328,99 +2328,155 @@ static int modify_qp_mask(enum ib_qp_type qp_type, int mask)
 	}
 }
 
-ssize_t ib_uverbs_modify_qp(struct ib_uverbs_file *file,
-			    struct ib_device *ib_dev,
-			    const char __user *buf, int in_len,
-			    int out_len)
+static int modify_qp(struct ib_uverbs_file *file,
+		     struct ib_uverbs_ex_modify_qp *cmd, struct ib_udata *udata)
 {
-	struct ib_uverbs_modify_qp cmd;
-	struct ib_udata            udata;
-	struct ib_qp              *qp;
-	struct ib_qp_attr         *attr;
-	int                        ret;
-
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
-
-	INIT_UDATA(&udata, buf + sizeof cmd, NULL, in_len - sizeof cmd,
-		   out_len);
+	struct ib_qp_attr *attr;
+	struct ib_qp *qp;
+	int ret;
 
 	attr = kmalloc(sizeof *attr, GFP_KERNEL);
 	if (!attr)
 		return -ENOMEM;
 
-	qp = idr_read_qp(cmd.qp_handle, file->ucontext);
+	qp = idr_read_qp(cmd->base.qp_handle, file->ucontext);
 	if (!qp) {
 		ret = -EINVAL;
 		goto out;
 	}
 
-	attr->qp_state 		  = cmd.qp_state;
-	attr->cur_qp_state 	  = cmd.cur_qp_state;
-	attr->path_mtu 		  = cmd.path_mtu;
-	attr->path_mig_state 	  = cmd.path_mig_state;
-	attr->qkey 		  = cmd.qkey;
-	attr->rq_psn 		  = cmd.rq_psn;
-	attr->sq_psn 		  = cmd.sq_psn;
-	attr->dest_qp_num 	  = cmd.dest_qp_num;
-	attr->qp_access_flags 	  = cmd.qp_access_flags;
-	attr->pkey_index 	  = cmd.pkey_index;
-	attr->alt_pkey_index 	  = cmd.alt_pkey_index;
-	attr->en_sqd_async_notify = cmd.en_sqd_async_notify;
-	attr->max_rd_atomic 	  = cmd.max_rd_atomic;
-	attr->max_dest_rd_atomic  = cmd.max_dest_rd_atomic;
-	attr->min_rnr_timer 	  = cmd.min_rnr_timer;
-	attr->port_num 		  = cmd.port_num;
-	attr->timeout 		  = cmd.timeout;
-	attr->retry_cnt 	  = cmd.retry_cnt;
-	attr->rnr_retry 	  = cmd.rnr_retry;
-	attr->alt_port_num 	  = cmd.alt_port_num;
-	attr->alt_timeout 	  = cmd.alt_timeout;
+	attr->qp_state		  = cmd->base.qp_state;
+	attr->cur_qp_state	  = cmd->base.cur_qp_state;
+	attr->path_mtu		  = cmd->base.path_mtu;
+	attr->path_mig_state	  = cmd->base.path_mig_state;
+	attr->qkey		  = cmd->base.qkey;
+	attr->rq_psn		  = cmd->base.rq_psn;
+	attr->sq_psn		  = cmd->base.sq_psn;
+	attr->dest_qp_num	  = cmd->base.dest_qp_num;
+	attr->qp_access_flags	  = cmd->base.qp_access_flags;
+	attr->pkey_index	  = cmd->base.pkey_index;
+	attr->alt_pkey_index	  = cmd->base.alt_pkey_index;
+	attr->en_sqd_async_notify = cmd->base.en_sqd_async_notify;
+	attr->max_rd_atomic	  = cmd->base.max_rd_atomic;
+	attr->max_dest_rd_atomic  = cmd->base.max_dest_rd_atomic;
+	attr->min_rnr_timer	  = cmd->base.min_rnr_timer;
+	attr->port_num		  = cmd->base.port_num;
+	attr->timeout		  = cmd->base.timeout;
+	attr->retry_cnt		  = cmd->base.retry_cnt;
+	attr->rnr_retry		  = cmd->base.rnr_retry;
+	attr->alt_port_num	  = cmd->base.alt_port_num;
+	attr->alt_timeout	  = cmd->base.alt_timeout;
+	attr->rate_limit	  = cmd->rate_limit;
 
-	memcpy(attr->ah_attr.grh.dgid.raw, cmd.dest.dgid, 16);
-	attr->ah_attr.grh.flow_label        = cmd.dest.flow_label;
-	attr->ah_attr.grh.sgid_index        = cmd.dest.sgid_index;
-	attr->ah_attr.grh.hop_limit         = cmd.dest.hop_limit;
-	attr->ah_attr.grh.traffic_class     = cmd.dest.traffic_class;
-	attr->ah_attr.dlid 	    	    = cmd.dest.dlid;
-	attr->ah_attr.sl   	    	    = cmd.dest.sl;
-	attr->ah_attr.src_path_bits 	    = cmd.dest.src_path_bits;
-	attr->ah_attr.static_rate   	    = cmd.dest.static_rate;
-	attr->ah_attr.ah_flags 	    	    = cmd.dest.is_global ? IB_AH_GRH : 0;
-	attr->ah_attr.port_num 	    	    = cmd.dest.port_num;
+	memcpy(attr->ah_attr.grh.dgid.raw, cmd->base.dest.dgid, 16);
+	attr->ah_attr.grh.flow_label	= cmd->base.dest.flow_label;
+	attr->ah_attr.grh.sgid_index	= cmd->base.dest.sgid_index;
+	attr->ah_attr.grh.hop_limit	= cmd->base.dest.hop_limit;
+	attr->ah_attr.grh.traffic_class	= cmd->base.dest.traffic_class;
+	attr->ah_attr.dlid		= cmd->base.dest.dlid;
+	attr->ah_attr.sl		= cmd->base.dest.sl;
+	attr->ah_attr.src_path_bits	= cmd->base.dest.src_path_bits;
+	attr->ah_attr.static_rate	= cmd->base.dest.static_rate;
+	attr->ah_attr.ah_flags		= cmd->base.dest.is_global ?
+					  IB_AH_GRH : 0;
+	attr->ah_attr.port_num		= cmd->base.dest.port_num;
 
-	memcpy(attr->alt_ah_attr.grh.dgid.raw, cmd.alt_dest.dgid, 16);
-	attr->alt_ah_attr.grh.flow_label    = cmd.alt_dest.flow_label;
-	attr->alt_ah_attr.grh.sgid_index    = cmd.alt_dest.sgid_index;
-	attr->alt_ah_attr.grh.hop_limit     = cmd.alt_dest.hop_limit;
-	attr->alt_ah_attr.grh.traffic_class = cmd.alt_dest.traffic_class;
-	attr->alt_ah_attr.dlid 	    	    = cmd.alt_dest.dlid;
-	attr->alt_ah_attr.sl   	    	    = cmd.alt_dest.sl;
-	attr->alt_ah_attr.src_path_bits     = cmd.alt_dest.src_path_bits;
-	attr->alt_ah_attr.static_rate       = cmd.alt_dest.static_rate;
-	attr->alt_ah_attr.ah_flags 	    = cmd.alt_dest.is_global ? IB_AH_GRH : 0;
-	attr->alt_ah_attr.port_num 	    = cmd.alt_dest.port_num;
+	memcpy(attr->alt_ah_attr.grh.dgid.raw, cmd->base.alt_dest.dgid, 16);
+	attr->alt_ah_attr.grh.flow_label    = cmd->base.alt_dest.flow_label;
+	attr->alt_ah_attr.grh.sgid_index    = cmd->base.alt_dest.sgid_index;
+	attr->alt_ah_attr.grh.hop_limit     = cmd->base.alt_dest.hop_limit;
+	attr->alt_ah_attr.grh.traffic_class = cmd->base.alt_dest.traffic_class;
+	attr->alt_ah_attr.dlid		    = cmd->base.alt_dest.dlid;
+	attr->alt_ah_attr.sl		    = cmd->base.alt_dest.sl;
+	attr->alt_ah_attr.src_path_bits	    = cmd->base.alt_dest.src_path_bits;
+	attr->alt_ah_attr.static_rate	    = cmd->base.alt_dest.static_rate;
+	attr->alt_ah_attr.ah_flags	    = cmd->base.alt_dest.is_global ?
+					      IB_AH_GRH : 0;
+	attr->alt_ah_attr.port_num	    = cmd->base.alt_dest.port_num;
 
 	if (qp->real_qp == qp) {
-		ret = ib_resolve_eth_dmac(qp, attr, &cmd.attr_mask);
-		if (ret)
-			goto release_qp;
+		if (cmd->base.attr_mask & IB_QP_AV) {
+			ret = ib_resolve_eth_dmac(qp->device, &attr->ah_attr);
+			if (ret)
+				goto release_qp;
+		}
 		ret = qp->device->modify_qp(qp, attr,
-			modify_qp_mask(qp->qp_type, cmd.attr_mask), &udata);
+					    modify_qp_mask(qp->qp_type,
+							   cmd->base.attr_mask),
+					    udata);
 	} else {
-		ret = ib_modify_qp(qp, attr, modify_qp_mask(qp->qp_type, cmd.attr_mask));
+		ret = ib_modify_qp(qp, attr,
+				   modify_qp_mask(qp->qp_type,
+						  cmd->base.attr_mask));
 	}
-
-	if (ret)
-		goto release_qp;
-
-	ret = in_len;
 
 release_qp:
 	put_qp_read(qp);
 
 out:
 	kfree(attr);
+
+	return ret;
+}
+
+ssize_t ib_uverbs_modify_qp(struct ib_uverbs_file *file,
+			    struct ib_device *ib_dev,
+			    const char __user *buf, int in_len,
+			    int out_len)
+{
+	struct ib_uverbs_ex_modify_qp cmd = {};
+	struct ib_udata udata;
+	int ret;
+
+	if (copy_from_user(&cmd.base, buf, sizeof(cmd.base)))
+		return -EFAULT;
+
+	if (cmd.base.attr_mask &
+	    ~((IB_USER_LEGACY_LAST_QP_ATTR_MASK << 1) - 1))
+		return -EOPNOTSUPP;
+
+	INIT_UDATA(&udata, buf + sizeof(cmd.base), NULL,
+		   in_len - sizeof(cmd.base), out_len);
+
+	ret = modify_qp(file, &cmd, &udata);
+	if (ret)
+		return ret;
+
+	return in_len;
+}
+
+int ib_uverbs_ex_modify_qp(struct ib_uverbs_file *file,
+			   struct ib_device *ib_dev,
+			   struct ib_udata *ucore,
+			   struct ib_udata *uhw)
+{
+	struct ib_uverbs_ex_modify_qp cmd = {};
+	int ret;
+
+	/*
+	 * Last bit is reserved for extending the attr_mask by
+	 * using another field.
+	 */
+	BUILD_BUG_ON(IB_USER_LAST_QP_ATTR_MASK == (1 << 31));
+
+	if (ucore->inlen < sizeof(cmd.base))
+		return -EINVAL;
+
+	ret = ib_copy_from_udata(&cmd, ucore, min(sizeof(cmd), ucore->inlen));
+	if (ret)
+		return ret;
+
+	if (cmd.base.attr_mask &
+	    ~((IB_USER_LAST_QP_ATTR_MASK << 1) - 1))
+		return -EOPNOTSUPP;
+
+	if (ucore->inlen > sizeof(cmd)) {
+		if (ib_is_udata_cleared(ucore, sizeof(cmd),
+					ucore->inlen - sizeof(cmd)))
+			return -EOPNOTSUPP;
+	}
+
+	ret = modify_qp(file, &cmd, uhw);
 
 	return ret;
 }
@@ -2875,12 +2931,17 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 	struct ib_ah			*ah;
 	struct ib_ah_attr		attr;
 	int ret;
+	struct ib_udata                   udata;
 
 	if (out_len < sizeof resp)
 		return -ENOSPC;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
+
+	INIT_UDATA(&udata, buf + sizeof(cmd),
+		   (unsigned long)cmd.response + sizeof(resp),
+		   in_len - sizeof(cmd), out_len - sizeof(resp));
 
 	uobj = kmalloc(sizeof *uobj, GFP_KERNEL);
 	if (!uobj)
@@ -2908,12 +2969,16 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 	memset(&attr.dmac, 0, sizeof(attr.dmac));
 	memcpy(attr.grh.dgid.raw, cmd.attr.grh.dgid, 16);
 
-	ah = ib_create_ah(pd, &attr);
+	ah = pd->device->create_ah(pd, &attr, &udata);
+
 	if (IS_ERR(ah)) {
 		ret = PTR_ERR(ah);
 		goto err_put;
 	}
 
+	ah->device  = pd->device;
+	ah->pd      = pd;
+	atomic_inc(&pd->usecnt);
 	ah->uobject  = uobj;
 	uobj->object = ah;
 
@@ -3124,8 +3189,10 @@ static int kern_spec_to_ib_spec(struct ib_uverbs_flow_spec *kern_spec,
 	kern_spec_val = (void *)kern_spec +
 		sizeof(struct ib_uverbs_flow_spec_hdr);
 	kern_spec_mask = kern_spec_val + kern_filter_sz;
+	if (ib_spec->type == (IB_FLOW_SPEC_INNER | IB_FLOW_SPEC_VXLAN_TUNNEL))
+		return -EINVAL;
 
-	switch (ib_spec->type) {
+	switch (ib_spec->type & ~IB_FLOW_SPEC_INNER) {
 	case IB_FLOW_SPEC_ETH:
 		ib_filter_sz = offsetof(struct ib_flow_eth_filter, real_sz);
 		actual_filter_sz = spec_filter_size(kern_spec_mask,
@@ -3174,6 +3241,21 @@ static int kern_spec_to_ib_spec(struct ib_uverbs_flow_spec *kern_spec,
 		ib_spec->size = sizeof(struct ib_flow_spec_tcp_udp);
 		memcpy(&ib_spec->tcp_udp.val, kern_spec_val, actual_filter_sz);
 		memcpy(&ib_spec->tcp_udp.mask, kern_spec_mask, actual_filter_sz);
+		break;
+	case IB_FLOW_SPEC_VXLAN_TUNNEL:
+		ib_filter_sz = offsetof(struct ib_flow_tunnel_filter, real_sz);
+		actual_filter_sz = spec_filter_size(kern_spec_mask,
+						    kern_filter_sz,
+						    ib_filter_sz);
+		if (actual_filter_sz <= 0)
+			return -EINVAL;
+		ib_spec->tunnel.size = sizeof(struct ib_flow_spec_tunnel);
+		memcpy(&ib_spec->tunnel.val, kern_spec_val, actual_filter_sz);
+		memcpy(&ib_spec->tunnel.mask, kern_spec_mask, actual_filter_sz);
+
+		if ((ntohl(ib_spec->tunnel.mask.tunnel_id)) >= BIT(24) ||
+		    (ntohl(ib_spec->tunnel.val.tunnel_id)) >= BIT(24))
+			return -EINVAL;
 		break;
 	default:
 		return -EINVAL;
@@ -3745,7 +3827,6 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 		err = PTR_ERR(flow_id);
 		goto err_free;
 	}
-	flow_id->qp = qp;
 	flow_id->uobject = uobj;
 	uobj->object = flow_id;
 

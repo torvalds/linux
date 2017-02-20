@@ -115,6 +115,8 @@ enum {
 #define AXP806_CLDO2_V_CTRL		0x25
 #define AXP806_CLDO3_V_CTRL		0x26
 #define AXP806_VREF_TEMP_WARN_L		0xf3
+#define AXP806_BUS_ADDR_EXT		0xfe
+#define AXP806_REG_ADDR_EXT		0xff
 
 /* Interrupt */
 #define AXP152_IRQ1_EN			0x40
@@ -226,6 +228,10 @@ enum {
 #define AXP20X_OCV_MAX			0xf
 
 /* AXP22X specific registers */
+#define AXP22X_PMIC_ADC_H		0x56
+#define AXP22X_PMIC_ADC_L		0x57
+#define AXP22X_TS_ADC_H			0x58
+#define AXP22X_TS_ADC_L			0x59
 #define AXP22X_BATLOW_THRES1		0xe6
 
 /* AXP288 specific registers */

@@ -2196,7 +2196,7 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 
 			memcpy(skb_put(csum_skb, tcp_hdrlen(skb)),
 			       tcph, tcp_hdrlen(skb));
-			skb_set_transport_header(csum_skb, 0);
+			skb_reset_transport_header(csum_skb);
 			csum_skb->csum_start =
 				(unsigned char *)tcp_hdr(csum_skb) -
 						 csum_skb->head;

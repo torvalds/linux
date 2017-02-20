@@ -221,11 +221,9 @@ int kvm_register_vgic_device(unsigned long type)
 		ret = kvm_register_device_ops(&kvm_arm_vgic_v3_ops,
 					      KVM_DEV_TYPE_ARM_VGIC_V3);
 
-#ifdef CONFIG_KVM_ARM_VGIC_V3_ITS
 		if (ret)
 			break;
 		ret = kvm_vgic_register_its_device();
-#endif
 		break;
 	}
 

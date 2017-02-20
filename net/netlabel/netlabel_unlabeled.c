@@ -123,13 +123,7 @@ static struct netlbl_unlhsh_iface __rcu *netlbl_unlhsh_def;
 static u8 netlabel_unlabel_acceptflg;
 
 /* NetLabel Generic NETLINK unlabeled family */
-static struct genl_family netlbl_unlabel_gnl_family = {
-	.id = GENL_ID_GENERATE,
-	.hdrsize = 0,
-	.name = NETLBL_NLTYPE_UNLABELED_NAME,
-	.version = NETLBL_PROTO_VERSION,
-	.maxattr = NLBL_UNLABEL_A_MAX,
-};
+static struct genl_family netlbl_unlabel_gnl_family;
 
 /* NetLabel Netlink attribute policy */
 static const struct nla_policy netlbl_unlabel_genl_policy[NLBL_UNLABEL_A_MAX + 1] = {
@@ -1378,6 +1372,16 @@ static const struct genl_ops netlbl_unlabel_genl_ops[] = {
 	},
 };
 
+static struct genl_family netlbl_unlabel_gnl_family __ro_after_init = {
+	.hdrsize = 0,
+	.name = NETLBL_NLTYPE_UNLABELED_NAME,
+	.version = NETLBL_PROTO_VERSION,
+	.maxattr = NLBL_UNLABEL_A_MAX,
+	.module = THIS_MODULE,
+	.ops = netlbl_unlabel_genl_ops,
+	.n_ops = ARRAY_SIZE(netlbl_unlabel_genl_ops),
+};
+
 /*
  * NetLabel Generic NETLINK Protocol Functions
  */
@@ -1392,8 +1396,7 @@ static const struct genl_ops netlbl_unlabel_genl_ops[] = {
  */
 int __init netlbl_unlabel_genl_init(void)
 {
-	return genl_register_family_with_ops(&netlbl_unlabel_gnl_family,
-					     netlbl_unlabel_genl_ops);
+	return genl_register_family(&netlbl_unlabel_gnl_family);
 }
 
 /*

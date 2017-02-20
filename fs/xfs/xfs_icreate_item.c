@@ -133,7 +133,7 @@ xfs_icreate_item_committing(
 /*
  * This is the ops vector shared by all buf log items.
  */
-static struct xfs_item_ops xfs_icreate_item_ops = {
+static const struct xfs_item_ops xfs_icreate_item_ops = {
 	.iop_size	= xfs_icreate_item_size,
 	.iop_format	= xfs_icreate_item_format,
 	.iop_pin	= xfs_icreate_item_pin,

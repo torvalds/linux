@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -96,7 +92,7 @@ int rtl92c_init_sw_vars(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	char *fw_name = "rtlwifi/rtl8192cfwU.bin";
+	char *fw_name;
 
 	rtl8192ce_bt_reg_init(hw);
 
@@ -168,8 +164,13 @@ int rtl92c_init_sw_vars(struct ieee80211_hw *hw)
 	}
 
 	/* request fw */
-	if (IS_81XXC_VENDOR_UMC_B_CUT(rtlhal->version))
+	if (IS_VENDOR_UMC_A_CUT(rtlhal->version) &&
+	    !IS_92C_SERIAL(rtlhal->version))
+		fw_name = "rtlwifi/rtl8192cfwU.bin";
+	else if (IS_81XXC_VENDOR_UMC_B_CUT(rtlhal->version))
 		fw_name = "rtlwifi/rtl8192cfwU_B.bin";
+	else
+		fw_name = "rtlwifi/rtl8192cfw.bin";
 
 	rtlpriv->max_fw_size = 0x4000;
 	pr_info("Using firmware %s\n", fw_name);

@@ -26,7 +26,7 @@
 #include <linux/module.h>
 #include <linux/io.h>
 #include <asm/syscalls.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
 #include <asm/fpu.h>

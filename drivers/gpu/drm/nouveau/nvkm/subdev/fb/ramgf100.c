@@ -420,8 +420,6 @@ gf100_ram_tidy(struct nvkm_ram *base)
 	ram_exec(&ram->fuc, false);
 }
 
-extern const u8 gf100_pte_storage_type_map[256];
-
 void
 gf100_ram_put(struct nvkm_ram *ram, struct nvkm_mem **pmem)
 {

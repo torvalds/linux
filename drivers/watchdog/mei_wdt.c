@@ -389,6 +389,8 @@ static int mei_wdt_register(struct mei_wdt *wdt)
 	wdt->wdd.max_timeout = MEI_WDT_MAX_TIMEOUT;
 
 	watchdog_set_drvdata(&wdt->wdd, wdt);
+	watchdog_stop_on_reboot(&wdt->wdd);
+
 	ret = watchdog_register_device(&wdt->wdd);
 	if (ret) {
 		dev_err(dev, "unable to register watchdog device = %d.\n", ret);
@@ -410,11 +412,11 @@ static void mei_wdt_unregister_work(struct work_struct *work)
 }
 
 /**
- * mei_wdt_event_rx - callback for data receive
+ * mei_wdt_rx - callback for data receive
  *
  * @cldev: bus device
  */
-static void mei_wdt_event_rx(struct mei_cl_device *cldev)
+static void mei_wdt_rx(struct mei_cl_device *cldev)
 {
 	struct mei_wdt *wdt = mei_cldev_get_drvdata(cldev);
 	struct mei_wdt_start_response res;
@@ -482,11 +484,11 @@ out:
 }
 
 /*
- * mei_wdt_notify_event - callback for event notification
+ * mei_wdt_notif - callback for event notification
  *
  * @cldev: bus device
  */
-static void mei_wdt_notify_event(struct mei_cl_device *cldev)
+static void mei_wdt_notif(struct mei_cl_device *cldev)
 {
 	struct mei_wdt *wdt = mei_cldev_get_drvdata(cldev);
 
@@ -494,23 +496,6 @@ static void mei_wdt_notify_event(struct mei_cl_device *cldev)
 		return;
 
 	mei_wdt_register(wdt);
-}
-
-/**
- * mei_wdt_event - callback for event receive
- *
- * @cldev: bus device
- * @events: event mask
- * @context: callback context
- */
-static void mei_wdt_event(struct mei_cl_device *cldev,
-			  u32 events, void *context)
-{
-	if (events & BIT(MEI_CL_EVENT_RX))
-		mei_wdt_event_rx(cldev);
-
-	if (events & BIT(MEI_CL_EVENT_NOTIF))
-		mei_wdt_notify_event(cldev);
 }
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
@@ -623,16 +608,17 @@ static int mei_wdt_probe(struct mei_cl_device *cldev,
 		goto err_out;
 	}
 
-	ret = mei_cldev_register_event_cb(wdt->cldev,
-					  BIT(MEI_CL_EVENT_RX) |
-					  BIT(MEI_CL_EVENT_NOTIF),
-					  mei_wdt_event, NULL);
+	ret = mei_cldev_register_rx_cb(wdt->cldev, mei_wdt_rx);
+	if (ret) {
+		dev_err(&cldev->dev, "Could not reg rx event ret=%d\n", ret);
+		goto err_disable;
+	}
 
+	ret = mei_cldev_register_notif_cb(wdt->cldev, mei_wdt_notif);
 	/* on legacy devices notification is not supported
-	 * this doesn't fail the registration for RX event
 	 */
 	if (ret && ret != -EOPNOTSUPP) {
-		dev_err(&cldev->dev, "Could not register event ret=%d\n", ret);
+		dev_err(&cldev->dev, "Could not reg notif event ret=%d\n", ret);
 		goto err_disable;
 	}
 
@@ -699,25 +685,7 @@ static struct mei_cl_driver mei_wdt_driver = {
 	.remove = mei_wdt_remove,
 };
 
-static int __init mei_wdt_init(void)
-{
-	int ret;
-
-	ret = mei_cldev_driver_register(&mei_wdt_driver);
-	if (ret) {
-		pr_err(KBUILD_MODNAME ": module registration failed\n");
-		return ret;
-	}
-	return 0;
-}
-
-static void __exit mei_wdt_exit(void)
-{
-	mei_cldev_driver_unregister(&mei_wdt_driver);
-}
-
-module_init(mei_wdt_init);
-module_exit(mei_wdt_exit);
+module_mei_cl_driver(mei_wdt_driver);
 
 MODULE_AUTHOR("Intel Corporation");
 MODULE_LICENSE("GPL");

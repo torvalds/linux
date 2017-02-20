@@ -9,9 +9,18 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-#include "skeleton.dtsi"
-
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	/*
+	 * The decompressor and also some bootloaders rely on a
+	 * pre-existing /chosen node to be available to insert the
+	 * command line and merge other ATAGS info.
+	 * Also for U-Boot there must be a pre-existing /memory node.
+	 */
+	chosen {};
+	memory { device_type = "memory"; reg = <0 0>; };
+
 	aliases {
 		serial0 = &uart1;
 		serial1 = &uart2;
@@ -30,11 +39,11 @@
 		};
 	};
 
-	avic: avic-interrupt-controller@60000000 {
+	avic: interrupt-controller@68000000 {
 		compatible = "fsl,imx31-avic", "fsl,avic";
 		interrupt-controller;
 		#interrupt-cells = <1>;
-		reg = <0x60000000 0x100000>;
+		reg = <0x68000000 0x100000>;
 	};
 
 	soc {
@@ -118,13 +127,6 @@
 				interrupts = <19>;
 				clocks = <&clks 25>;
 			};
-
-			clks: ccm@53f80000{
-				compatible = "fsl,imx31-ccm";
-				reg = <0x53f80000 0x4000>;
-				interrupts = <0 31 0x04 0 53 0x04>;
-				#clock-cells = <1>;
-			};
 		};
 
 		aips@53f00000 { /* AIPS2 */
@@ -133,6 +135,13 @@
 			#size-cells = <1>;
 			reg = <0x53f00000 0x100000>;
 			ranges;
+
+			clks: ccm@53f80000{
+				compatible = "fsl,imx31-ccm";
+				reg = <0x53f80000 0x4000>;
+				interrupts = <31>, <53>;
+				#clock-cells = <1>;
+			};
 
 			gpt: timer@53f90000 {
 				compatible = "fsl,imx31-gpt";

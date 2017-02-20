@@ -8,9 +8,10 @@
 
 config ARC
 	def_bool y
+	select ARC_TIMERS
+	select ARCH_HAS_SG_CHAIN
 	select ARCH_SUPPORTS_ATOMIC_RMW if ARC_HAS_LLSC
 	select BUILDTIME_EXTABLE_SORT
-	select CLKSRC_OF
 	select CLONE_BACKWARDS
 	select COMMON_CLK
 	select GENERIC_ATOMIC64 if !ISA_ARCV2 || !(ARC_HAS_LL64 && ARC_HAS_LLSC)
@@ -28,7 +29,7 @@ config ARC
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select HAVE_MEMBLOCK
-	select HAVE_MOD_ARCH_SPECIFIC if ARC_DW2_UNWIND
+	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
 	select HANDLE_DOMAIN_IRQ
@@ -115,6 +116,7 @@ config ISA_ARCOMPACT
 
 config ISA_ARCV2
 	bool "ARC ISA v2"
+	select ARC_TIMERS_64BIT
 	help
 	  ISA for the Next Generation ARC-HS cores
 
@@ -409,16 +411,6 @@ config ARC_HAS_LL64
 config ARC_HAS_DIV_REM
 	bool "Insn: div, divu, rem, remu"
 	default y
-
-config ARC_HAS_RTC
-	bool "Local 64-bit r/o cycle counter"
-	default n
-	depends on !SMP
-
-config ARC_HAS_GFRC
-	bool "SMP synchronized 64-bit cycle counter"
-	default y
-	depends on SMP
 
 config ARC_NUMBER_OF_INTERRUPTS
 	int "Number of interrupts"

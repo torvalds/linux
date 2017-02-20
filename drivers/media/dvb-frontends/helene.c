@@ -434,14 +434,13 @@ static int helene_init(struct dvb_frontend *fe)
 	return helene_leave_power_save(priv);
 }
 
-static int helene_release(struct dvb_frontend *fe)
+static void helene_release(struct dvb_frontend *fe)
 {
 	struct helene_priv *priv = fe->tuner_priv;
 
 	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 static int helene_sleep(struct dvb_frontend *fe)

@@ -305,7 +305,6 @@ static const char *configfs_get_link(struct dentry *dentry,
 
 const struct inode_operations configfs_symlink_inode_operations = {
 	.get_link = configfs_get_link,
-	.readlink = generic_readlink,
 	.setattr = configfs_setattr,
 };
 

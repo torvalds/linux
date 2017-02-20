@@ -359,9 +359,7 @@ xfs_bmap_count_blocks(
 	mp = ip->i_mount;
 	ifp = XFS_IFORK_PTR(ip, whichfork);
 	if ( XFS_IFORK_FORMAT(ip, whichfork) == XFS_DINODE_FMT_EXTENTS ) {
-		xfs_bmap_count_leaves(ifp, 0,
-			ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t),
-			count);
+		xfs_bmap_count_leaves(ifp, 0, xfs_iext_count(ifp), count);
 		return 0;
 	}
 
@@ -426,7 +424,7 @@ xfs_getbmapx_fix_eof_hole(
 		ifp = XFS_IFORK_PTR(ip, whichfork);
 		if (!moretocome &&
 		    xfs_iext_bno_to_ext(ifp, fileblock, &lastx) &&
-		   (lastx == (ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t))-1))
+		   (lastx == xfs_iext_count(ifp) - 1))
 			out->bmv_oflags |= BMV_OF_LAST;
 	}
 
@@ -530,7 +528,6 @@ xfs_getbmap(
 	xfs_bmbt_irec_t		*map;		/* buffer for user's data */
 	xfs_mount_t		*mp;		/* file system mount point */
 	int			nex;		/* # of user extents can do */
-	int			nexleft;	/* # of user extents left */
 	int			subnex;		/* # of bmapi's can do */
 	int			nmap;		/* number of map entries */
 	struct getbmapx		*out;		/* output structure */
@@ -688,10 +685,8 @@ xfs_getbmap(
 		goto out_free_map;
 	}
 
-	nexleft = nex;
-
 	do {
-		nmap = (nexleft > subnex) ? subnex : nexleft;
+		nmap = (nex> subnex) ? subnex : nex;
 		error = xfs_bmapi_read(ip, XFS_BB_TO_FSBT(mp, bmv->bmv_offset),
 				       XFS_BB_TO_FSB(mp, bmv->bmv_length),
 				       map, &nmap, bmapi_flags);
@@ -699,8 +694,8 @@ xfs_getbmap(
 			goto out_free_map;
 		ASSERT(nmap <= subnex);
 
-		for (i = 0; i < nmap && nexleft && bmv->bmv_length &&
-				cur_ext < bmv->bmv_count; i++) {
+		for (i = 0; i < nmap && bmv->bmv_length &&
+				cur_ext < bmv->bmv_count - 1; i++) {
 			out[cur_ext].bmv_oflags = 0;
 			if (map[i].br_state == XFS_EXT_UNWRITTEN)
 				out[cur_ext].bmv_oflags |= BMV_OF_PREALLOC;
@@ -762,16 +757,27 @@ xfs_getbmap(
 				continue;
 			}
 
+			/*
+			 * In order to report shared extents accurately,
+			 * we report each distinct shared/unshared part
+			 * of a single bmbt record using multiple bmap
+			 * extents.  To make that happen, we iterate the
+			 * same map array item multiple times, each
+			 * time trimming out the subextent that we just
+			 * reported.
+			 *
+			 * Because of this, we must check the out array
+			 * index (cur_ext) directly against bmv_count-1
+			 * to avoid overflows.
+			 */
 			if (inject_map.br_startblock != NULLFSBLOCK) {
 				map[i] = inject_map;
 				i--;
-			} else
-				nexleft--;
+			}
 			bmv->bmv_entries++;
 			cur_ext++;
 		}
-	} while (nmap && nexleft && bmv->bmv_length &&
-		 cur_ext < bmv->bmv_count);
+	} while (nmap && bmv->bmv_length && cur_ext < bmv->bmv_count - 1);
 
  out_free_map:
 	kmem_free(map);
@@ -1792,6 +1798,7 @@ xfs_swap_extent_forks(
 	struct xfs_ifork	tempifp, *ifp, *tifp;
 	int			aforkblks = 0;
 	int			taforkblks = 0;
+	xfs_extnum_t		nextents;
 	__uint64_t		tmp;
 	int			error;
 
@@ -1877,14 +1884,13 @@ xfs_swap_extent_forks(
 
 	switch (ip->i_d.di_format) {
 	case XFS_DINODE_FMT_EXTENTS:
-		/* If the extents fit in the inode, fix the
-		 * pointer.  Otherwise it's already NULL or
-		 * pointing to the extent.
+		/*
+		 * If the extents fit in the inode, fix the pointer.  Otherwise
+		 * it's already NULL or pointing to the extent.
 		 */
-		if (ip->i_d.di_nextents <= XFS_INLINE_EXTS) {
-			ifp->if_u1.if_extents =
-				ifp->if_u2.if_inline_ext;
-		}
+		nextents = xfs_iext_count(&ip->i_df);
+		if (nextents <= XFS_INLINE_EXTS)
+			ifp->if_u1.if_extents = ifp->if_u2.if_inline_ext;
 		(*src_log_flags) |= XFS_ILOG_DEXT;
 		break;
 	case XFS_DINODE_FMT_BTREE:
@@ -1896,14 +1902,13 @@ xfs_swap_extent_forks(
 
 	switch (tip->i_d.di_format) {
 	case XFS_DINODE_FMT_EXTENTS:
-		/* If the extents fit in the inode, fix the
-		 * pointer.  Otherwise it's already NULL or
-		 * pointing to the extent.
+		/*
+		 * If the extents fit in the inode, fix the pointer.  Otherwise
+		 * it's already NULL or pointing to the extent.
 		 */
-		if (tip->i_d.di_nextents <= XFS_INLINE_EXTS) {
-			tifp->if_u1.if_extents =
-				tifp->if_u2.if_inline_ext;
-		}
+		nextents = xfs_iext_count(&tip->i_df);
+		if (nextents <= XFS_INLINE_EXTS)
+			tifp->if_u1.if_extents = tifp->if_u2.if_inline_ext;
 		(*target_log_flags) |= XFS_ILOG_DEXT;
 		break;
 	case XFS_DINODE_FMT_BTREE:
@@ -1938,8 +1943,8 @@ xfs_swap_extents(
 	 * page cache safely. Once we have done this we can take the ilocks and
 	 * do the rest of the checks.
 	 */
-	lock_flags = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
-	xfs_lock_two_inodes(ip, tip, XFS_IOLOCK_EXCL);
+	lock_two_nondirectories(VFS_I(ip), VFS_I(tip));
+	lock_flags = XFS_MMAPLOCK_EXCL;
 	xfs_lock_two_inodes(ip, tip, XFS_MMAPLOCK_EXCL);
 
 	/* Verify that both files have the same format */
@@ -2079,15 +2084,13 @@ xfs_swap_extents(
 	trace_xfs_swap_extent_after(ip, 0);
 	trace_xfs_swap_extent_after(tip, 1);
 
+out_unlock:
 	xfs_iunlock(ip, lock_flags);
 	xfs_iunlock(tip, lock_flags);
+	unlock_two_nondirectories(VFS_I(ip), VFS_I(tip));
 	return error;
 
 out_trans_cancel:
 	xfs_trans_cancel(tp);
-
-out_unlock:
-	xfs_iunlock(ip, lock_flags);
-	xfs_iunlock(tip, lock_flags);
-	return error;
+	goto out_unlock;
 }

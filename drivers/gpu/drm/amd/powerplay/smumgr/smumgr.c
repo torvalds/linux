@@ -65,6 +65,7 @@ int smum_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 			break;
 		case CHIP_POLARIS11:
 		case CHIP_POLARIS10:
+		case CHIP_POLARIS12:
 			polaris10_smum_init(smumgr);
 			break;
 		default:

@@ -19,7 +19,7 @@
 #include <linux/sysctl.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <asm/mb86943a.h>
 

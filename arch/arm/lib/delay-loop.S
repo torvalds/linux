@@ -17,24 +17,23 @@
 .LC1:		.word	UDELAY_MULT
 
 /*
+ * loops = r0 * HZ * loops_per_jiffy / 1000000
+ *
  * r0  <= 2000
  * HZ  <= 1000
  */
 
 ENTRY(__loop_udelay)
 		ldr	r2, .LC1
-		mul	r0, r2, r0
-ENTRY(__loop_const_udelay)			@ 0 <= r0 <= 0x7fffff06
+		mul	r0, r2, r0		@ r0 = delay_us * UDELAY_MULT
+ENTRY(__loop_const_udelay)			@ 0 <= r0 <= 0xfffffaf0
 		ldr	r2, .LC0
 		ldr	r2, [r2]
-		umull	r1, r0, r2, r0
-		adds	r1, r1, #0xffffffff
-		adcs	r0, r0, r0
+		umull	r1, r0, r2, r0		@ r0-r1 = r0 * loops_per_jiffy
+		adds	r1, r1, #0xffffffff	@ rounding up ...
+		adcs	r0, r0, r0		@ and right shift by 31
 		reteq	lr
 
-/*
- * loops = r0 * HZ * loops_per_jiffy / 1000000
- */
 		.align 3
 
 @ Delay routine

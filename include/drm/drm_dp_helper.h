@@ -690,6 +690,12 @@ drm_dp_tps3_supported(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 		dpcd[DP_MAX_LANE_COUNT] & DP_TPS3_SUPPORTED;
 }
 
+static inline bool
+drm_dp_is_branch(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_PRESENT;
+}
+
 /*
  * DisplayPort AUX channel
  */

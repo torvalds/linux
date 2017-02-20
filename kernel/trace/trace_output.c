@@ -1288,6 +1288,35 @@ static struct trace_event trace_print_event = {
 	.funcs		= &trace_print_funcs,
 };
 
+static enum print_line_t trace_raw_data(struct trace_iterator *iter, int flags,
+					 struct trace_event *event)
+{
+	struct raw_data_entry *field;
+	int i;
+
+	trace_assign_type(field, iter->ent);
+
+	trace_seq_printf(&iter->seq, "# %x buf:", field->id);
+
+	for (i = 0; i < iter->ent_size - offsetof(struct raw_data_entry, buf); i++)
+		trace_seq_printf(&iter->seq, " %02x",
+				 (unsigned char)field->buf[i]);
+
+	trace_seq_putc(&iter->seq, '\n');
+
+	return trace_handle_return(&iter->seq);
+}
+
+static struct trace_event_functions trace_raw_data_funcs = {
+	.trace		= trace_raw_data,
+	.raw		= trace_raw_data,
+};
+
+static struct trace_event trace_raw_data_event = {
+	.type	 	= TRACE_RAW_DATA,
+	.funcs		= &trace_raw_data_funcs,
+};
+
 
 static struct trace_event *events[] __initdata = {
 	&trace_fn_event,
@@ -1299,6 +1328,7 @@ static struct trace_event *events[] __initdata = {
 	&trace_bprint_event,
 	&trace_print_event,
 	&trace_hwlat_event,
+	&trace_raw_data_event,
 	NULL
 };
 

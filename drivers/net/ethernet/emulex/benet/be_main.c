@@ -275,8 +275,7 @@ static int be_dev_mac_add(struct be_adapter *adapter, u8 *mac)
 
 	/* Check if mac has already been added as part of uc-list */
 	for (i = 0; i < adapter->uc_macs; i++) {
-		if (ether_addr_equal((u8 *)&adapter->uc_list[i * ETH_ALEN],
-				     mac)) {
+		if (ether_addr_equal(adapter->uc_list[i].mac, mac)) {
 			/* mac already added, skip addition */
 			adapter->pmac_id[0] = adapter->pmac_id[i + 1];
 			return 0;
@@ -319,6 +318,13 @@ static int be_mac_addr_set(struct net_device *netdev, void *p)
 	if (ether_addr_equal(addr->sa_data, adapter->dev_mac))
 		return 0;
 
+	/* BE3 VFs without FILTMGMT privilege are not allowed to set its MAC
+	 * address
+	 */
+	if (BEx_chip(adapter) && be_virtfn(adapter) &&
+	    !check_privilege(adapter, BE_PRIV_FILTMGMT))
+		return -EPERM;
+
 	/* if device is not running, copy MAC to netdev->dev_addr */
 	if (!netif_running(netdev))
 		goto done;
@@ -356,8 +362,10 @@ static int be_mac_addr_set(struct net_device *netdev, void *p)
 		status = -EPERM;
 		goto err;
 	}
-done:
+
+	/* Remember currently programmed MAC */
 	ether_addr_copy(adapter->dev_mac, addr->sa_data);
+done:
 	ether_addr_copy(netdev->dev_addr, addr->sa_data);
 	dev_info(dev, "MAC address changed to %pM\n", addr->sa_data);
 	return 0;
@@ -1406,23 +1414,6 @@ drop:
 	return NETDEV_TX_OK;
 }
 
-static int be_change_mtu(struct net_device *netdev, int new_mtu)
-{
-	struct be_adapter *adapter = netdev_priv(netdev);
-	struct device *dev = &adapter->pdev->dev;
-
-	if (new_mtu < BE_MIN_MTU || new_mtu > BE_MAX_MTU) {
-		dev_info(dev, "MTU must be between %d and %d bytes\n",
-			 BE_MIN_MTU, BE_MAX_MTU);
-		return -EINVAL;
-	}
-
-	dev_info(dev, "MTU changed from %d to %d bytes\n",
-		 netdev->mtu, new_mtu);
-	netdev->mtu = new_mtu;
-	return 0;
-}
-
 static inline bool be_in_all_promisc(struct be_adapter *adapter)
 {
 	return (adapter->if_flags & BE_IF_FLAGS_ALL_PROMISCUOUS) ==
@@ -1672,14 +1663,12 @@ static void be_clear_mc_list(struct be_adapter *adapter)
 
 static int be_uc_mac_add(struct be_adapter *adapter, int uc_idx)
 {
-	if (ether_addr_equal((u8 *)&adapter->uc_list[uc_idx * ETH_ALEN],
-			     adapter->dev_mac)) {
+	if (ether_addr_equal(adapter->uc_list[uc_idx].mac, adapter->dev_mac)) {
 		adapter->pmac_id[uc_idx + 1] = adapter->pmac_id[0];
 		return 0;
 	}
 
-	return be_cmd_pmac_add(adapter,
-			       (u8 *)&adapter->uc_list[uc_idx * ETH_ALEN],
+	return be_cmd_pmac_add(adapter, adapter->uc_list[uc_idx].mac,
 			       adapter->if_handle,
 			       &adapter->pmac_id[uc_idx + 1], 0);
 }
@@ -1715,9 +1704,8 @@ static void be_set_uc_list(struct be_adapter *adapter)
 	}
 
 	if (adapter->update_uc_list) {
-		i = 1; /* First slot is claimed by the Primary MAC */
-
 		/* cache the uc-list in adapter array */
+		i = 0;
 		netdev_for_each_uc_addr(ha, netdev) {
 			ether_addr_copy(adapter->uc_list[i].mac, ha->addr);
 			i++;
@@ -3630,7 +3618,13 @@ static void be_rx_qs_destroy(struct be_adapter *adapter)
 
 static void be_disable_if_filters(struct be_adapter *adapter)
 {
-	be_dev_mac_del(adapter, adapter->pmac_id[0]);
+	/* Don't delete MAC on BE3 VFs without FILTMGMT privilege  */
+	if (!BEx_chip(adapter) || !be_virtfn(adapter) ||
+	    check_privilege(adapter, BE_PRIV_FILTMGMT)) {
+		be_dev_mac_del(adapter, adapter->pmac_id[0]);
+		eth_zero_addr(adapter->dev_mac);
+	}
+
 	be_clear_uc_list(adapter);
 	be_clear_mc_list(adapter);
 
@@ -3783,11 +3777,27 @@ static int be_enable_if_filters(struct be_adapter *adapter)
 	if (status)
 		return status;
 
-	/* For BE3 VFs, the PF programs the initial MAC address */
-	if (!(BEx_chip(adapter) && be_virtfn(adapter))) {
+	/* Normally this condition usually true as the ->dev_mac is zeroed.
+	 * But on BE3 VFs the initial MAC is pre-programmed by PF and
+	 * subsequent be_dev_mac_add() can fail (after fresh boot)
+	 */
+	if (!ether_addr_equal(adapter->dev_mac, adapter->netdev->dev_addr)) {
+		int old_pmac_id = -1;
+
+		/* Remember old programmed MAC if any - can happen on BE3 VF */
+		if (!is_zero_ether_addr(adapter->dev_mac))
+			old_pmac_id = adapter->pmac_id[0];
+
 		status = be_dev_mac_add(adapter, adapter->netdev->dev_addr);
 		if (status)
 			return status;
+
+		/* Delete the old programmed MAC as we successfully programmed
+		 * a new MAC
+		 */
+		if (old_pmac_id >= 0 && old_pmac_id != adapter->pmac_id[0])
+			be_dev_mac_del(adapter, old_pmac_id);
+
 		ether_addr_copy(adapter->dev_mac, adapter->netdev->dev_addr);
 	}
 
@@ -4561,6 +4571,10 @@ static int be_mac_setup(struct be_adapter *adapter)
 
 		memcpy(adapter->netdev->dev_addr, mac, ETH_ALEN);
 		memcpy(adapter->netdev->perm_addr, mac, ETH_ALEN);
+
+		/* Initial MAC for BE3 VFs is already programmed by PF */
+		if (BEx_chip(adapter) && be_virtfn(adapter))
+			memcpy(adapter->dev_mac, mac, ETH_ALEN);
 	}
 
 	return 0;
@@ -5172,7 +5186,9 @@ static netdev_features_t be_features_check(struct sk_buff *skb,
 	    skb->inner_protocol_type != ENCAP_TYPE_ETHER ||
 	    skb->inner_protocol != htons(ETH_P_TEB) ||
 	    skb_inner_mac_header(skb) - skb_transport_header(skb) !=
-	    sizeof(struct udphdr) + sizeof(struct vxlanhdr))
+		sizeof(struct udphdr) + sizeof(struct vxlanhdr) ||
+	    !adapter->vxlan_port ||
+	    udp_hdr(skb)->dest != adapter->vxlan_port)
 		return features & ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
 
 	return features;
@@ -5215,7 +5231,6 @@ static const struct net_device_ops be_netdev_ops = {
 	.ndo_start_xmit		= be_xmit,
 	.ndo_set_rx_mode	= be_set_rx_mode,
 	.ndo_set_mac_address	= be_mac_addr_set,
-	.ndo_change_mtu		= be_change_mtu,
 	.ndo_get_stats64	= be_get_stats64,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_vlan_rx_add_vid	= be_vlan_add_vid,
@@ -5265,6 +5280,10 @@ static void be_netdev_init(struct net_device *netdev)
 	netdev->netdev_ops = &be_netdev_ops;
 
 	netdev->ethtool_ops = &be_ethtool_ops;
+
+	/* MTU range: 256 - 9000 */
+	netdev->min_mtu = BE_MIN_MTU;
+	netdev->max_mtu = BE_MAX_MTU;
 }
 
 static void be_cleanup(struct be_adapter *adapter)

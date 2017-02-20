@@ -54,7 +54,7 @@ struct synproxy_net {
 	struct synproxy_stats __percpu	*stats;
 };
 
-extern int synproxy_net_id;
+extern unsigned int synproxy_net_id;
 static inline struct synproxy_net *synproxy_pernet(struct net *net)
 {
 	return net_generic(net, synproxy_net_id);

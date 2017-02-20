@@ -28,13 +28,6 @@
 
 #include "nv50_display.h"
 
-u64
-nv84_fence_crtc(struct nouveau_channel *chan, int crtc)
-{
-	struct nv84_fence_chan *fctx = chan->fence;
-	return fctx->dispc_vma[crtc].offset;
-}
-
 static int
 nv84_fence_emit32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 {
@@ -110,19 +103,14 @@ nv84_fence_read(struct nouveau_channel *chan)
 static void
 nv84_fence_context_del(struct nouveau_channel *chan)
 {
-	struct drm_device *dev = chan->drm->dev;
 	struct nv84_fence_priv *priv = chan->drm->fence;
 	struct nv84_fence_chan *fctx = chan->fence;
-	int i;
-
-	for (i = 0; i < dev->mode_config.num_crtc; i++) {
-		struct nouveau_bo *bo = nv50_display_crtc_sema(dev, i);
-		nouveau_bo_vma_del(bo, &fctx->dispc_vma[i]);
-	}
 
 	nouveau_bo_wr32(priv->bo, chan->chid * 16 / 4, fctx->base.sequence);
+	mutex_lock(&priv->mutex);
 	nouveau_bo_vma_del(priv->bo, &fctx->vma_gart);
 	nouveau_bo_vma_del(priv->bo, &fctx->vma);
+	mutex_unlock(&priv->mutex);
 	nouveau_fence_context_del(&fctx->base);
 	chan->fence = NULL;
 	nouveau_fence_context_free(&fctx->base);
@@ -134,7 +122,7 @@ nv84_fence_context_new(struct nouveau_channel *chan)
 	struct nouveau_cli *cli = (void *)chan->user.client;
 	struct nv84_fence_priv *priv = chan->drm->fence;
 	struct nv84_fence_chan *fctx;
-	int ret, i;
+	int ret;
 
 	fctx = chan->fence = kzalloc(sizeof(*fctx), GFP_KERNEL);
 	if (!fctx)
@@ -148,17 +136,13 @@ nv84_fence_context_new(struct nouveau_channel *chan)
 	fctx->base.sync32 = nv84_fence_sync32;
 	fctx->base.sequence = nv84_fence_read(chan);
 
+	mutex_lock(&priv->mutex);
 	ret = nouveau_bo_vma_add(priv->bo, cli->vm, &fctx->vma);
 	if (ret == 0) {
 		ret = nouveau_bo_vma_add(priv->bo_gart, cli->vm,
 					&fctx->vma_gart);
 	}
-
-	/* map display semaphore buffers into channel's vm */
-	for (i = 0; !ret && i < chan->drm->dev->mode_config.num_crtc; i++) {
-		struct nouveau_bo *bo = nv50_display_crtc_sema(chan->drm->dev, i);
-		ret = nouveau_bo_vma_add(bo, cli->vm, &fctx->dispc_vma[i]);
-	}
+	mutex_unlock(&priv->mutex);
 
 	if (ret)
 		nv84_fence_context_del(chan);
@@ -229,8 +213,10 @@ nv84_fence_create(struct nouveau_drm *drm)
 	priv->base.context_del = nv84_fence_context_del;
 
 	priv->base.contexts = fifo->nr;
-	priv->base.context_base = fence_context_alloc(priv->base.contexts);
+	priv->base.context_base = dma_fence_context_alloc(priv->base.contexts);
 	priv->base.uevent = true;
+
+	mutex_init(&priv->mutex);
 
 	/* Use VRAM if there is any ; otherwise fallback to system memory */
 	domain = drm->device.info.ram_size != 0 ? TTM_PL_FLAG_VRAM :

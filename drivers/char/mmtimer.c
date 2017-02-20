@@ -35,7 +35,7 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/sn/addrs.h>
 #include <asm/sn/intr.h>
 #include <asm/sn/shub_mmr.h>

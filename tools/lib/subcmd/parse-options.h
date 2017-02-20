@@ -109,11 +109,13 @@ struct option {
 	intptr_t defval;
 	bool *set;
 	void *data;
+	const struct option *parent;
 };
 
 #define check_vtype(v, type) ( BUILD_BUG_ON_ZERO(!__builtin_types_compatible_p(typeof(v), type)) + v )
 
 #define OPT_END()                   { .type = OPTION_END }
+#define OPT_PARENT(p)               { .type = OPTION_END, .parent = (p) }
 #define OPT_ARGUMENT(l, h)          { .type = OPTION_ARGUMENT, .long_name = (l), .help = (h) }
 #define OPT_GROUP(h)                { .type = OPTION_GROUP, .help = (h) }
 #define OPT_BIT(s, l, v, h, b)      { .type = OPTION_BIT, .short_name = (s), .long_name = (l), .value = check_vtype(v, int *), .help = (h), .defval = (b) }
@@ -135,6 +137,11 @@ struct option {
 	{ .type = OPTION_STRING,  .short_name = (s), .long_name = (l), \
 	  .value = check_vtype(v, const char **), (a), .help = (h), \
 	  .flags = PARSE_OPT_OPTARG, .defval = (intptr_t)(d) }
+#define OPT_STRING_OPTARG_SET(s, l, v, os, a, h, d) \
+	{ .type = OPTION_STRING, .short_name = (s), .long_name = (l), \
+	  .value = check_vtype(v, const char **), (a), .help = (h), \
+	  .flags = PARSE_OPT_OPTARG, .defval = (intptr_t)(d), \
+	  .set = check_vtype(os, bool *)}
 #define OPT_STRING_NOEMPTY(s, l, v, a, h)   { .type = OPTION_STRING,  .short_name = (s), .long_name = (l), .value = check_vtype(v, const char **), (a), .help = (h), .flags = PARSE_OPT_NOEMPTY}
 #define OPT_DATE(s, l, v, h) \
 	{ .type = OPTION_CALLBACK, .short_name = (s), .long_name = (l), .value = (v), .argh = "time", .help = (h), .callback = parse_opt_approxidate_cb }

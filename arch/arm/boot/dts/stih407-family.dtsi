@@ -680,6 +680,7 @@
 				phy-names	= "usb2-phy", "usb3-phy";
 				phys		= <&usb2_picophy0>,
 						  <&phy_port2 PHY_TYPE_USB3>;
+				snps,dis_u3_susphy_quirk;
 			};
 		};
 
@@ -916,7 +917,7 @@
 		};
 
 		sti_uni_player0: sti-uni-player@8d80000 {
-			compatible = "st,sti-uni-player";
+			compatible = "st,stih407-uni-player-hdmi";
 			#sound-dai-cells = <0>;
 			st,syscfg = <&syscfg_core>;
 			clocks = <&clk_s_d0_flexgen CLK_PCM_0>;
@@ -926,17 +927,13 @@
 			reg = <0x8d80000 0x158>;
 			interrupts = <GIC_SPI 84 IRQ_TYPE_NONE>;
 			dmas = <&fdma0 2 0 1>;
-			dai-name = "Uni Player #0 (HDMI)";
 			dma-names = "tx";
-			st,uniperiph-id = <0>;
-			st,version = <5>;
-			st,mode = "HDMI";
 
 			status		= "disabled";
 		};
 
 		sti_uni_player1: sti-uni-player@8d81000 {
-			compatible = "st,sti-uni-player";
+			compatible = "st,stih407-uni-player-pcm-out";
 			#sound-dai-cells = <0>;
 			st,syscfg = <&syscfg_core>;
 			clocks = <&clk_s_d0_flexgen CLK_PCM_1>;
@@ -946,17 +943,13 @@
 			reg = <0x8d81000 0x158>;
 			interrupts = <GIC_SPI 85 IRQ_TYPE_NONE>;
 			dmas = <&fdma0 3 0 1>;
-			dai-name = "Uni Player #1 (PIO)";
 			dma-names = "tx";
-			st,uniperiph-id = <1>;
-			st,version = <5>;
-			st,mode = "PCM";
 
 			status = "disabled";
 		};
 
 		sti_uni_player2: sti-uni-player@8d82000 {
-			compatible = "st,sti-uni-player";
+			compatible = "st,stih407-uni-player-dac";
 			#sound-dai-cells = <0>;
 			st,syscfg = <&syscfg_core>;
 			clocks = <&clk_s_d0_flexgen CLK_PCM_2>;
@@ -966,17 +959,13 @@
 			reg = <0x8d82000 0x158>;
 			interrupts = <GIC_SPI 86 IRQ_TYPE_NONE>;
 			dmas = <&fdma0 4 0 1>;
-			dai-name = "Uni Player #1 (DAC)";
 			dma-names = "tx";
-			st,uniperiph-id = <2>;
-			st,version = <5>;
-			st,mode = "PCM";
 
 			status = "disabled";
 		};
 
 		sti_uni_player3: sti-uni-player@8d85000 {
-			compatible = "st,sti-uni-player";
+			compatible = "st,stih407-uni-player-spdif";
 			#sound-dai-cells = <0>;
 			st,syscfg = <&syscfg_core>;
 			clocks = <&clk_s_d0_flexgen CLK_SPDIFF>;
@@ -987,38 +976,30 @@
 			interrupts = <GIC_SPI 89 IRQ_TYPE_NONE>;
 			dmas = <&fdma0 7 0 1>;
 			dma-names = "tx";
-			dai-name = "Uni Player #1 (PIO)";
-			st,uniperiph-id = <3>;
-			st,version = <5>;
-			st,mode = "SPDIF";
 
 			status = "disabled";
 		};
 
 		sti_uni_reader0: sti-uni-reader@8d83000 {
-			compatible = "st,sti-uni-reader";
+			compatible = "st,stih407-uni-reader-pcm_in";
 			#sound-dai-cells = <0>;
 			st,syscfg = <&syscfg_core>;
 			reg = <0x8d83000 0x158>;
 			interrupts = <GIC_SPI 87 IRQ_TYPE_NONE>;
 			dmas = <&fdma0 5 0 1>;
 			dma-names = "rx";
-			dai-name = "Uni Reader #0 (PCM IN)";
-			st,version = <3>;
 
 			status = "disabled";
 		};
 
 		sti_uni_reader1: sti-uni-reader@8d84000 {
-			compatible = "st,sti-uni-reader";
+			compatible = "st,stih407-uni-reader-hdmi";
 			#sound-dai-cells = <0>;
 			st,syscfg = <&syscfg_core>;
 			reg = <0x8d84000 0x158>;
 			interrupts = <GIC_SPI 88 IRQ_TYPE_NONE>;
 			dmas = <&fdma0 6 0 1>;
 			dma-names = "rx";
-			dai-name = "Uni Reader #1 (HDMI RX)";
-			st,version = <3>;
 
 			status = "disabled";
 		};

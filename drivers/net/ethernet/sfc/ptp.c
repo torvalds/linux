@@ -835,7 +835,7 @@ static int efx_ptp_synchronize(struct efx_nic *efx, unsigned int num_readings)
 	ACCESS_ONCE(*start) = 0;
 	rc = efx_mcdi_rpc_start(efx, MC_CMD_PTP, synch_buf,
 				MC_CMD_PTP_IN_SYNCHRONIZE_LEN);
-	EFX_BUG_ON_PARANOID(rc);
+	EFX_WARN_ON_ONCE_PARANOID(rc);
 
 	/* Wait for start from MCDI (or timeout) */
 	timeout = jiffies + msecs_to_jiffies(MAX_SYNCHRONISE_WAIT_MS);

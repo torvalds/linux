@@ -24,7 +24,7 @@
 
 #include <asm/ptrace.h>
 #include <asm/traps.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 int main(void)
 {

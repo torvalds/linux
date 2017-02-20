@@ -365,6 +365,11 @@ static inline void slave_write(struct cpsw_slave *slave, u32 val, u32 offset)
 	__raw_writel(val, slave->regs + offset);
 }
 
+struct cpsw_vector {
+	struct cpdma_chan *ch;
+	int budget;
+};
+
 struct cpsw_common {
 	struct device			*dev;
 	struct cpsw_platform_data	data;
@@ -380,8 +385,8 @@ struct cpsw_common {
 	int				rx_packet_max;
 	struct cpsw_slave		*slaves;
 	struct cpdma_ctlr		*dma;
-	struct cpdma_chan		*txch[CPSW_MAX_QUEUES];
-	struct cpdma_chan		*rxch[CPSW_MAX_QUEUES];
+	struct cpsw_vector		txv[CPSW_MAX_QUEUES];
+	struct cpsw_vector		rxv[CPSW_MAX_QUEUES];
 	struct cpsw_ale			*ale;
 	bool				quirk_irq;
 	bool				rx_irq_disabled;
@@ -389,6 +394,7 @@ struct cpsw_common {
 	u32 irqs_table[IRQ_NUM];
 	struct cpts			*cpts;
 	int				rx_ch_num, tx_ch_num;
+	int				speed;
 };
 
 struct cpsw_priv {
@@ -741,11 +747,98 @@ requeue:
 		return;
 	}
 
-	ch = cpsw->rxch[skb_get_queue_mapping(new_skb)];
+	ch = cpsw->rxv[skb_get_queue_mapping(new_skb)].ch;
 	ret = cpdma_chan_submit(ch, new_skb, new_skb->data,
 				skb_tailroom(new_skb), 0);
 	if (WARN_ON(ret < 0))
 		dev_kfree_skb_any(new_skb);
+}
+
+static void cpsw_split_res(struct net_device *ndev)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	u32 consumed_rate = 0, bigest_rate = 0;
+	struct cpsw_common *cpsw = priv->cpsw;
+	struct cpsw_vector *txv = cpsw->txv;
+	int i, ch_weight, rlim_ch_num = 0;
+	int budget, bigest_rate_ch = 0;
+	u32 ch_rate, max_rate;
+	int ch_budget = 0;
+
+	for (i = 0; i < cpsw->tx_ch_num; i++) {
+		ch_rate = cpdma_chan_get_rate(txv[i].ch);
+		if (!ch_rate)
+			continue;
+
+		rlim_ch_num++;
+		consumed_rate += ch_rate;
+	}
+
+	if (cpsw->tx_ch_num == rlim_ch_num) {
+		max_rate = consumed_rate;
+	} else if (!rlim_ch_num) {
+		ch_budget = CPSW_POLL_WEIGHT / cpsw->tx_ch_num;
+		bigest_rate = 0;
+		max_rate = consumed_rate;
+	} else {
+		max_rate = cpsw->speed * 1000;
+
+		/* if max_rate is less then expected due to reduced link speed,
+		 * split proportionally according next potential max speed
+		 */
+		if (max_rate < consumed_rate)
+			max_rate *= 10;
+
+		if (max_rate < consumed_rate)
+			max_rate *= 10;
+
+		ch_budget = (consumed_rate * CPSW_POLL_WEIGHT) / max_rate;
+		ch_budget = (CPSW_POLL_WEIGHT - ch_budget) /
+			    (cpsw->tx_ch_num - rlim_ch_num);
+		bigest_rate = (max_rate - consumed_rate) /
+			      (cpsw->tx_ch_num - rlim_ch_num);
+	}
+
+	/* split tx weight/budget */
+	budget = CPSW_POLL_WEIGHT;
+	for (i = 0; i < cpsw->tx_ch_num; i++) {
+		ch_rate = cpdma_chan_get_rate(txv[i].ch);
+		if (ch_rate) {
+			txv[i].budget = (ch_rate * CPSW_POLL_WEIGHT) / max_rate;
+			if (!txv[i].budget)
+				txv[i].budget++;
+			if (ch_rate > bigest_rate) {
+				bigest_rate_ch = i;
+				bigest_rate = ch_rate;
+			}
+
+			ch_weight = (ch_rate * 100) / max_rate;
+			if (!ch_weight)
+				ch_weight++;
+			cpdma_chan_set_weight(cpsw->txv[i].ch, ch_weight);
+		} else {
+			txv[i].budget = ch_budget;
+			if (!bigest_rate_ch)
+				bigest_rate_ch = i;
+			cpdma_chan_set_weight(cpsw->txv[i].ch, 0);
+		}
+
+		budget -= txv[i].budget;
+	}
+
+	if (budget)
+		txv[bigest_rate_ch].budget += budget;
+
+	/* split rx budget */
+	budget = CPSW_POLL_WEIGHT;
+	ch_budget = budget / cpsw->rx_ch_num;
+	for (i = 0; i < cpsw->rx_ch_num; i++) {
+		cpsw->rxv[i].budget = ch_budget;
+		budget -= ch_budget;
+	}
+
+	if (budget)
+		cpsw->rxv[0].budget += budget;
 }
 
 static irqreturn_t cpsw_tx_interrupt(int irq, void *dev_id)
@@ -783,24 +876,25 @@ static irqreturn_t cpsw_rx_interrupt(int irq, void *dev_id)
 static int cpsw_tx_poll(struct napi_struct *napi_tx, int budget)
 {
 	u32			ch_map;
-	int			num_tx, ch;
+	int			num_tx, cur_budget, ch;
 	struct cpsw_common	*cpsw = napi_to_cpsw(napi_tx);
+	struct cpsw_vector	*txv;
 
 	/* process every unprocessed channel */
 	ch_map = cpdma_ctrl_txchs_state(cpsw->dma);
-	for (ch = 0, num_tx = 0; num_tx < budget; ch_map >>= 1, ch++) {
-		if (!ch_map) {
-			ch_map = cpdma_ctrl_txchs_state(cpsw->dma);
-			if (!ch_map)
-				break;
-
-			ch = 0;
-		}
-
+	for (ch = 0, num_tx = 0; ch_map; ch_map >>= 1, ch++) {
 		if (!(ch_map & 0x01))
 			continue;
 
-		num_tx += cpdma_chan_process(cpsw->txch[ch], budget - num_tx);
+		txv = &cpsw->txv[ch];
+		if (unlikely(txv->budget > budget - num_tx))
+			cur_budget = budget - num_tx;
+		else
+			cur_budget = txv->budget;
+
+		num_tx += cpdma_chan_process(txv->ch, cur_budget);
+		if (num_tx >= budget)
+			break;
 	}
 
 	if (num_tx < budget) {
@@ -818,24 +912,25 @@ static int cpsw_tx_poll(struct napi_struct *napi_tx, int budget)
 static int cpsw_rx_poll(struct napi_struct *napi_rx, int budget)
 {
 	u32			ch_map;
-	int			num_rx, ch;
+	int			num_rx, cur_budget, ch;
 	struct cpsw_common	*cpsw = napi_to_cpsw(napi_rx);
+	struct cpsw_vector	*rxv;
 
 	/* process every unprocessed channel */
 	ch_map = cpdma_ctrl_rxchs_state(cpsw->dma);
-	for (ch = 0, num_rx = 0; num_rx < budget; ch_map >>= 1, ch++) {
-		if (!ch_map) {
-			ch_map = cpdma_ctrl_rxchs_state(cpsw->dma);
-			if (!ch_map)
-				break;
-
-			ch = 0;
-		}
-
+	for (ch = 0, num_rx = 0; ch_map; ch_map >>= 1, ch++) {
 		if (!(ch_map & 0x01))
 			continue;
 
-		num_rx += cpdma_chan_process(cpsw->rxch[ch], budget - num_rx);
+		rxv = &cpsw->rxv[ch];
+		if (unlikely(rxv->budget > budget - num_rx))
+			cur_budget = budget - num_rx;
+		else
+			cur_budget = rxv->budget;
+
+		num_rx += cpdma_chan_process(rxv->ch, cur_budget);
+		if (num_rx >= budget)
+			break;
 	}
 
 	if (num_rx < budget) {
@@ -926,14 +1021,56 @@ static void _cpsw_adjust_link(struct cpsw_slave *slave,
 	slave->mac_control = mac_control;
 }
 
+static int cpsw_get_common_speed(struct cpsw_common *cpsw)
+{
+	int i, speed;
+
+	for (i = 0, speed = 0; i < cpsw->data.slaves; i++)
+		if (cpsw->slaves[i].phy && cpsw->slaves[i].phy->link)
+			speed += cpsw->slaves[i].phy->speed;
+
+	return speed;
+}
+
+static int cpsw_need_resplit(struct cpsw_common *cpsw)
+{
+	int i, rlim_ch_num;
+	int speed, ch_rate;
+
+	/* re-split resources only in case speed was changed */
+	speed = cpsw_get_common_speed(cpsw);
+	if (speed == cpsw->speed || !speed)
+		return 0;
+
+	cpsw->speed = speed;
+
+	for (i = 0, rlim_ch_num = 0; i < cpsw->tx_ch_num; i++) {
+		ch_rate = cpdma_chan_get_rate(cpsw->txv[i].ch);
+		if (!ch_rate)
+			break;
+
+		rlim_ch_num++;
+	}
+
+	/* cases not dependent on speed */
+	if (!rlim_ch_num || rlim_ch_num == cpsw->tx_ch_num)
+		return 0;
+
+	return 1;
+}
+
 static void cpsw_adjust_link(struct net_device *ndev)
 {
 	struct cpsw_priv	*priv = netdev_priv(ndev);
+	struct cpsw_common	*cpsw = priv->cpsw;
 	bool			link = false;
 
 	for_each_slave(priv, _cpsw_adjust_link, priv, &link);
 
 	if (link) {
+		if (cpsw_need_resplit(cpsw))
+			cpsw_split_res(ndev);
+
 		netif_carrier_on(ndev);
 		if (netif_running(ndev))
 			netif_tx_wake_all_queues(ndev);
@@ -1075,7 +1212,7 @@ static void cpsw_get_ethtool_stats(struct net_device *ndev,
 				cpsw_gstrings_stats[l].stat_offset);
 
 	for (ch = 0; ch < cpsw->rx_ch_num; ch++) {
-		cpdma_chan_get_stats(cpsw->rxch[ch], &ch_stats);
+		cpdma_chan_get_stats(cpsw->rxv[ch].ch, &ch_stats);
 		for (i = 0; i < CPSW_STATS_CH_LEN; i++, l++) {
 			p = (u8 *)&ch_stats +
 				cpsw_gstrings_ch_stats[i].stat_offset;
@@ -1084,7 +1221,7 @@ static void cpsw_get_ethtool_stats(struct net_device *ndev,
 	}
 
 	for (ch = 0; ch < cpsw->tx_ch_num; ch++) {
-		cpdma_chan_get_stats(cpsw->txch[ch], &ch_stats);
+		cpdma_chan_get_stats(cpsw->txv[ch].ch, &ch_stats);
 		for (i = 0; i < CPSW_STATS_CH_LEN; i++, l++) {
 			p = (u8 *)&ch_stats +
 				cpsw_gstrings_ch_stats[i].stat_offset;
@@ -1281,7 +1418,7 @@ static int cpsw_fill_rx_channels(struct cpsw_priv *priv)
 	int ch, i, ret;
 
 	for (ch = 0; ch < cpsw->rx_ch_num; ch++) {
-		ch_buf_num = cpdma_chan_get_rx_buf_num(cpsw->rxch[ch]);
+		ch_buf_num = cpdma_chan_get_rx_buf_num(cpsw->rxv[ch].ch);
 		for (i = 0; i < ch_buf_num; i++) {
 			skb = __netdev_alloc_skb_ip_align(priv->ndev,
 							  cpsw->rx_packet_max,
@@ -1292,8 +1429,9 @@ static int cpsw_fill_rx_channels(struct cpsw_priv *priv)
 			}
 
 			skb_set_queue_mapping(skb, ch);
-			ret = cpdma_chan_submit(cpsw->rxch[ch], skb, skb->data,
-						skb_tailroom(skb), 0);
+			ret = cpdma_chan_submit(cpsw->rxv[ch].ch, skb,
+						skb->data, skb_tailroom(skb),
+						0);
 			if (ret < 0) {
 				cpsw_err(priv, ifup,
 					 "cannot submit skb to channel %d rx, error %d\n",
@@ -1376,10 +1514,6 @@ static int cpsw_ndo_open(struct net_device *ndev)
 				  ALE_ALL_PORTS, ALE_ALL_PORTS, 0, 0);
 
 	if (!cpsw_common_res_usage_state(cpsw)) {
-		/* setup tx dma to fixed prio and zero offset */
-		cpdma_control_set(cpsw->dma, CPDMA_TX_PRIO_FIXED, 1);
-		cpdma_control_set(cpsw->dma, CPDMA_RX_BUFFER_OFFSET, 0);
-
 		/* disable priority elevation */
 		__raw_writel(0, &cpsw->regs->ptype);
 
@@ -1406,9 +1540,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		if (ret < 0)
 			goto err_cleanup;
 
-		if (cpts_register(cpsw->dev, cpsw->cpts,
-				  cpsw->data.cpts_clock_mult,
-				  cpsw->data.cpts_clock_shift))
+		if (cpts_register(cpsw->cpts))
 			dev_err(priv->dev, "error registering cpts device\n");
 
 	}
@@ -1426,8 +1558,6 @@ static int cpsw_ndo_open(struct net_device *ndev)
 
 	if (cpsw->data.dual_emac)
 		cpsw->slaves[priv->emac_port].open_stat = true;
-
-	netif_tx_start_all_queues(ndev);
 
 	return 0;
 
@@ -1457,6 +1587,10 @@ static int cpsw_ndo_stop(struct net_device *ndev)
 		cpsw_ale_stop(cpsw->ale);
 	}
 	for_each_slave(priv, cpsw_slave_stop, cpsw);
+
+	if (cpsw_need_resplit(cpsw))
+		cpsw_split_res(ndev);
+
 	pm_runtime_put_sync(cpsw->dev);
 	if (cpsw->data.dual_emac)
 		cpsw->slaves[priv->emac_port].open_stat = false;
@@ -1481,7 +1615,7 @@ static netdev_tx_t cpsw_ndo_start_xmit(struct sk_buff *skb,
 	}
 
 	if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP &&
-				cpsw->cpts->tx_enable)
+	    cpts_is_tx_enabled(cpsw->cpts))
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 
 	skb_tx_timestamp(skb);
@@ -1490,7 +1624,7 @@ static netdev_tx_t cpsw_ndo_start_xmit(struct sk_buff *skb,
 	if (q_idx >= cpsw->tx_ch_num)
 		q_idx = q_idx % cpsw->tx_ch_num;
 
-	txch = cpsw->txch[q_idx];
+	txch = cpsw->txv[q_idx].ch;
 	ret = cpsw_tx_packet_submit(priv, skb, txch);
 	if (unlikely(ret != 0)) {
 		cpsw_err(priv, tx_err, "desc submit failed\n");
@@ -1513,14 +1647,15 @@ fail:
 	return NETDEV_TX_BUSY;
 }
 
-#ifdef CONFIG_TI_CPTS
+#if IS_ENABLED(CONFIG_TI_CPTS)
 
 static void cpsw_hwtstamp_v1(struct cpsw_common *cpsw)
 {
 	struct cpsw_slave *slave = &cpsw->slaves[cpsw->data.active_slave];
 	u32 ts_en, seq_id;
 
-	if (!cpsw->cpts->tx_enable && !cpsw->cpts->rx_enable) {
+	if (!cpts_is_tx_enabled(cpsw->cpts) &&
+	    !cpts_is_rx_enabled(cpsw->cpts)) {
 		slave_write(slave, 0, CPSW1_TS_CTL);
 		return;
 	}
@@ -1528,10 +1663,10 @@ static void cpsw_hwtstamp_v1(struct cpsw_common *cpsw)
 	seq_id = (30 << CPSW_V1_SEQ_ID_OFS_SHIFT) | ETH_P_1588;
 	ts_en = EVENT_MSG_BITS << CPSW_V1_MSG_TYPE_OFS;
 
-	if (cpsw->cpts->tx_enable)
+	if (cpts_is_tx_enabled(cpsw->cpts))
 		ts_en |= CPSW_V1_TS_TX_EN;
 
-	if (cpsw->cpts->rx_enable)
+	if (cpts_is_rx_enabled(cpsw->cpts))
 		ts_en |= CPSW_V1_TS_RX_EN;
 
 	slave_write(slave, ts_en, CPSW1_TS_CTL);
@@ -1544,30 +1679,27 @@ static void cpsw_hwtstamp_v2(struct cpsw_priv *priv)
 	struct cpsw_common *cpsw = priv->cpsw;
 	u32 ctrl, mtype;
 
-	if (cpsw->data.dual_emac)
-		slave = &cpsw->slaves[priv->emac_port];
-	else
-		slave = &cpsw->slaves[cpsw->data.active_slave];
+	slave = &cpsw->slaves[cpsw_slave_index(cpsw, priv)];
 
 	ctrl = slave_read(slave, CPSW2_CONTROL);
 	switch (cpsw->version) {
 	case CPSW_VERSION_2:
 		ctrl &= ~CTRL_V2_ALL_TS_MASK;
 
-		if (cpsw->cpts->tx_enable)
+		if (cpts_is_tx_enabled(cpsw->cpts))
 			ctrl |= CTRL_V2_TX_TS_BITS;
 
-		if (cpsw->cpts->rx_enable)
+		if (cpts_is_rx_enabled(cpsw->cpts))
 			ctrl |= CTRL_V2_RX_TS_BITS;
 		break;
 	case CPSW_VERSION_3:
 	default:
 		ctrl &= ~CTRL_V3_ALL_TS_MASK;
 
-		if (cpsw->cpts->tx_enable)
+		if (cpts_is_tx_enabled(cpsw->cpts))
 			ctrl |= CTRL_V3_TX_TS_BITS;
 
-		if (cpsw->cpts->rx_enable)
+		if (cpts_is_rx_enabled(cpsw->cpts))
 			ctrl |= CTRL_V3_RX_TS_BITS;
 		break;
 	}
@@ -1603,7 +1735,7 @@ static int cpsw_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 
 	switch (cfg.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
-		cpts->rx_enable = 0;
+		cpts_rx_enable(cpts, 0);
 		break;
 	case HWTSTAMP_FILTER_ALL:
 	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
@@ -1619,14 +1751,14 @@ static int cpsw_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
-		cpts->rx_enable = 1;
+		cpts_rx_enable(cpts, 1);
 		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
 		break;
 	default:
 		return -ERANGE;
 	}
 
-	cpts->tx_enable = cfg.tx_type == HWTSTAMP_TX_ON;
+	cpts_tx_enable(cpts, cfg.tx_type == HWTSTAMP_TX_ON);
 
 	switch (cpsw->version) {
 	case CPSW_VERSION_1:
@@ -1655,13 +1787,23 @@ static int cpsw_hwtstamp_get(struct net_device *dev, struct ifreq *ifr)
 		return -EOPNOTSUPP;
 
 	cfg.flags = 0;
-	cfg.tx_type = cpts->tx_enable ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
-	cfg.rx_filter = (cpts->rx_enable ?
+	cfg.tx_type = cpts_is_tx_enabled(cpts) ?
+		      HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
+	cfg.rx_filter = (cpts_is_rx_enabled(cpts) ?
 			 HWTSTAMP_FILTER_PTP_V2_EVENT : HWTSTAMP_FILTER_NONE);
 
 	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
 }
+#else
+static int cpsw_hwtstamp_get(struct net_device *dev, struct ifreq *ifr)
+{
+	return -EOPNOTSUPP;
+}
 
+static int cpsw_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
+{
+	return -EOPNOTSUPP;
+}
 #endif /*CONFIG_TI_CPTS*/
 
 static int cpsw_ndo_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
@@ -1674,12 +1816,10 @@ static int cpsw_ndo_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 		return -EINVAL;
 
 	switch (cmd) {
-#ifdef CONFIG_TI_CPTS
 	case SIOCSHWTSTAMP:
 		return cpsw_hwtstamp_set(dev, req);
 	case SIOCGHWTSTAMP:
 		return cpsw_hwtstamp_get(dev, req);
-#endif
 	}
 
 	if (!cpsw->slaves[slave_no].phy)
@@ -1697,8 +1837,8 @@ static void cpsw_ndo_tx_timeout(struct net_device *ndev)
 	ndev->stats.tx_errors++;
 	cpsw_intr_disable(cpsw);
 	for (ch = 0; ch < cpsw->tx_ch_num; ch++) {
-		cpdma_chan_stop(cpsw->txch[ch]);
-		cpdma_chan_start(cpsw->txch[ch]);
+		cpdma_chan_stop(cpsw->txv[ch].ch);
+		cpdma_chan_start(cpsw->txv[ch].ch);
 	}
 
 	cpsw_intr_enable(cpsw);
@@ -1876,6 +2016,57 @@ static int cpsw_ndo_vlan_rx_kill_vid(struct net_device *ndev,
 	return ret;
 }
 
+static int cpsw_ndo_set_tx_maxrate(struct net_device *ndev, int queue, u32 rate)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	struct cpsw_common *cpsw = priv->cpsw;
+	struct cpsw_slave *slave;
+	u32 min_rate;
+	u32 ch_rate;
+	int i, ret;
+
+	ch_rate = netdev_get_tx_queue(ndev, queue)->tx_maxrate;
+	if (ch_rate == rate)
+		return 0;
+
+	ch_rate = rate * 1000;
+	min_rate = cpdma_chan_get_min_rate(cpsw->dma);
+	if ((ch_rate < min_rate && ch_rate)) {
+		dev_err(priv->dev, "The channel rate cannot be less than %dMbps",
+			min_rate);
+		return -EINVAL;
+	}
+
+	if (rate > cpsw->speed) {
+		dev_err(priv->dev, "The channel rate cannot be more than 2Gbps");
+		return -EINVAL;
+	}
+
+	ret = pm_runtime_get_sync(cpsw->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(cpsw->dev);
+		return ret;
+	}
+
+	ret = cpdma_chan_set_rate(cpsw->txv[queue].ch, ch_rate);
+	pm_runtime_put(cpsw->dev);
+
+	if (ret)
+		return ret;
+
+	/* update rates for slaves tx queues */
+	for (i = 0; i < cpsw->data.slaves; i++) {
+		slave = &cpsw->slaves[i];
+		if (!slave->ndev)
+			continue;
+
+		netdev_get_tx_queue(slave->ndev, queue)->tx_maxrate = rate;
+	}
+
+	cpsw_split_res(ndev);
+	return ret;
+}
+
 static const struct net_device_ops cpsw_netdev_ops = {
 	.ndo_open		= cpsw_ndo_open,
 	.ndo_stop		= cpsw_ndo_stop,
@@ -1883,9 +2074,9 @@ static const struct net_device_ops cpsw_netdev_ops = {
 	.ndo_set_mac_address	= cpsw_ndo_set_mac_address,
 	.ndo_do_ioctl		= cpsw_ndo_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_tx_timeout		= cpsw_ndo_tx_timeout,
 	.ndo_set_rx_mode	= cpsw_ndo_set_rx_mode,
+	.ndo_set_tx_maxrate	= cpsw_ndo_set_tx_maxrate,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= cpsw_ndo_poll_controller,
 #endif
@@ -1935,10 +2126,10 @@ static void cpsw_set_msglevel(struct net_device *ndev, u32 value)
 	priv->msg_enable = value;
 }
 
+#if IS_ENABLED(CONFIG_TI_CPTS)
 static int cpsw_get_ts_info(struct net_device *ndev,
 			    struct ethtool_ts_info *info)
 {
-#ifdef CONFIG_TI_CPTS
 	struct cpsw_common *cpsw = ndev_to_cpsw(ndev);
 
 	info->so_timestamping =
@@ -1955,7 +2146,12 @@ static int cpsw_get_ts_info(struct net_device *ndev,
 	info->rx_filters =
 		(1 << HWTSTAMP_FILTER_NONE) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_EVENT);
+	return 0;
+}
 #else
+static int cpsw_get_ts_info(struct net_device *ndev,
+			    struct ethtool_ts_info *info)
+{
 	info->so_timestamping =
 		SOF_TIMESTAMPING_TX_SOFTWARE |
 		SOF_TIMESTAMPING_RX_SOFTWARE |
@@ -1963,31 +2159,34 @@ static int cpsw_get_ts_info(struct net_device *ndev,
 	info->phc_index = -1;
 	info->tx_types = 0;
 	info->rx_filters = 0;
-#endif
 	return 0;
 }
+#endif
 
-static int cpsw_get_settings(struct net_device *ndev,
-			     struct ethtool_cmd *ecmd)
+static int cpsw_get_link_ksettings(struct net_device *ndev,
+				   struct ethtool_link_ksettings *ecmd)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	struct cpsw_common *cpsw = priv->cpsw;
 	int slave_no = cpsw_slave_index(cpsw, priv);
 
 	if (cpsw->slaves[slave_no].phy)
-		return phy_ethtool_gset(cpsw->slaves[slave_no].phy, ecmd);
+		return phy_ethtool_ksettings_get(cpsw->slaves[slave_no].phy,
+						 ecmd);
 	else
 		return -EOPNOTSUPP;
 }
 
-static int cpsw_set_settings(struct net_device *ndev, struct ethtool_cmd *ecmd)
+static int cpsw_set_link_ksettings(struct net_device *ndev,
+				   const struct ethtool_link_ksettings *ecmd)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	struct cpsw_common *cpsw = priv->cpsw;
 	int slave_no = cpsw_slave_index(cpsw, priv);
 
 	if (cpsw->slaves[slave_no].phy)
-		return phy_ethtool_sset(cpsw->slaves[slave_no].phy, ecmd);
+		return phy_ethtool_ksettings_set(cpsw->slaves[slave_no].phy,
+						 ecmd);
 	else
 		return -EOPNOTSUPP;
 }
@@ -2102,28 +2301,31 @@ static int cpsw_update_channels_res(struct cpsw_priv *priv, int ch_num, int rx)
 	int (*poll)(struct napi_struct *, int);
 	struct cpsw_common *cpsw = priv->cpsw;
 	void (*handler)(void *, int, int);
-	struct cpdma_chan **chan;
+	struct netdev_queue *queue;
+	struct cpsw_vector *vec;
 	int ret, *ch;
 
 	if (rx) {
 		ch = &cpsw->rx_ch_num;
-		chan = cpsw->rxch;
+		vec = cpsw->rxv;
 		handler = cpsw_rx_handler;
 		poll = cpsw_rx_poll;
 	} else {
 		ch = &cpsw->tx_ch_num;
-		chan = cpsw->txch;
+		vec = cpsw->txv;
 		handler = cpsw_tx_handler;
 		poll = cpsw_tx_poll;
 	}
 
 	while (*ch < ch_num) {
-		chan[*ch] = cpdma_chan_create(cpsw->dma, *ch, handler, rx);
+		vec[*ch].ch = cpdma_chan_create(cpsw->dma, *ch, handler, rx);
+		queue = netdev_get_tx_queue(priv->ndev, *ch);
+		queue->tx_maxrate = 0;
 
-		if (IS_ERR(chan[*ch]))
-			return PTR_ERR(chan[*ch]);
+		if (IS_ERR(vec[*ch].ch))
+			return PTR_ERR(vec[*ch].ch);
 
-		if (!chan[*ch])
+		if (!vec[*ch].ch)
 			return -EINVAL;
 
 		cpsw_info(priv, ifup, "created new %d %s channel\n", *ch,
@@ -2134,7 +2336,7 @@ static int cpsw_update_channels_res(struct cpsw_priv *priv, int ch_num, int rx)
 	while (*ch > ch_num) {
 		(*ch)--;
 
-		ret = cpdma_chan_destroy(chan[*ch]);
+		ret = cpdma_chan_destroy(vec[*ch].ch);
 		if (ret)
 			return ret;
 
@@ -2221,6 +2423,8 @@ static int cpsw_set_channels(struct net_device *ndev,
 		if (ret)
 			goto err;
 
+		cpsw_split_res(ndev);
+
 		/* After this receive is started */
 		cpdma_ctlr_start(cpsw->dma);
 		cpsw_intr_enable(cpsw);
@@ -2239,14 +2443,48 @@ err:
 	return ret;
 }
 
+static int cpsw_get_eee(struct net_device *ndev, struct ethtool_eee *edata)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	struct cpsw_common *cpsw = priv->cpsw;
+	int slave_no = cpsw_slave_index(cpsw, priv);
+
+	if (cpsw->slaves[slave_no].phy)
+		return phy_ethtool_get_eee(cpsw->slaves[slave_no].phy, edata);
+	else
+		return -EOPNOTSUPP;
+}
+
+static int cpsw_set_eee(struct net_device *ndev, struct ethtool_eee *edata)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	struct cpsw_common *cpsw = priv->cpsw;
+	int slave_no = cpsw_slave_index(cpsw, priv);
+
+	if (cpsw->slaves[slave_no].phy)
+		return phy_ethtool_set_eee(cpsw->slaves[slave_no].phy, edata);
+	else
+		return -EOPNOTSUPP;
+}
+
+static int cpsw_nway_reset(struct net_device *ndev)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	struct cpsw_common *cpsw = priv->cpsw;
+	int slave_no = cpsw_slave_index(cpsw, priv);
+
+	if (cpsw->slaves[slave_no].phy)
+		return genphy_restart_aneg(cpsw->slaves[slave_no].phy);
+	else
+		return -EOPNOTSUPP;
+}
+
 static const struct ethtool_ops cpsw_ethtool_ops = {
 	.get_drvinfo	= cpsw_get_drvinfo,
 	.get_msglevel	= cpsw_get_msglevel,
 	.set_msglevel	= cpsw_set_msglevel,
 	.get_link	= ethtool_op_get_link,
 	.get_ts_info	= cpsw_get_ts_info,
-	.get_settings	= cpsw_get_settings,
-	.set_settings	= cpsw_set_settings,
 	.get_coalesce	= cpsw_get_coalesce,
 	.set_coalesce	= cpsw_set_coalesce,
 	.get_sset_count		= cpsw_get_sset_count,
@@ -2262,6 +2500,11 @@ static const struct ethtool_ops cpsw_ethtool_ops = {
 	.complete	= cpsw_ethtool_op_complete,
 	.get_channels	= cpsw_get_channels,
 	.set_channels	= cpsw_set_channels,
+	.get_link_ksettings	= cpsw_get_link_ksettings,
+	.set_link_ksettings	= cpsw_set_link_ksettings,
+	.get_eee	= cpsw_get_eee,
+	.set_eee	= cpsw_set_eee,
+	.nway_reset	= cpsw_nway_reset,
 };
 
 static void cpsw_slave_init(struct cpsw_slave *slave, struct cpsw_common *cpsw,
@@ -2299,18 +2542,6 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		return -EINVAL;
 	}
 	data->active_slave = prop;
-
-	if (of_property_read_u32(node, "cpts_clock_mult", &prop)) {
-		dev_err(&pdev->dev, "Missing cpts_clock_mult property in the DT.\n");
-		return -EINVAL;
-	}
-	data->cpts_clock_mult = prop;
-
-	if (of_property_read_u32(node, "cpts_clock_shift", &prop)) {
-		dev_err(&pdev->dev, "Missing cpts_clock_shift property in the DT.\n");
-		return -EINVAL;
-	}
-	data->cpts_clock_shift = prop;
 
 	data->slave_data = devm_kzalloc(&pdev->dev, data->slaves
 					* sizeof(struct cpsw_slave_data),
@@ -2570,6 +2801,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	struct cpdma_params		dma_params;
 	struct cpsw_ale_params		ale_params;
 	void __iomem			*ss_regs;
+	void __iomem			*cpts_regs;
 	struct resource			*res, *ss_res;
 	const struct of_device_id	*of_id;
 	struct gpio_descs		*mode;
@@ -2597,12 +2829,6 @@ static int cpsw_probe(struct platform_device *pdev)
 	priv->dev  = &ndev->dev;
 	priv->msg_enable = netif_msg_init(debug_level, CPSW_DEBUG);
 	cpsw->rx_packet_max = max(rx_packet_max, 128);
-	cpsw->cpts = devm_kzalloc(&pdev->dev, sizeof(struct cpts), GFP_KERNEL);
-	if (!cpsw->cpts) {
-		dev_err(&pdev->dev, "error allocating cpts\n");
-		ret = -ENOMEM;
-		goto clean_ndev_ret;
-	}
 
 	mode = devm_gpiod_get_array_optional(&pdev->dev, "mode", GPIOD_OUT_LOW);
 	if (IS_ERR(mode)) {
@@ -2690,7 +2916,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	switch (cpsw->version) {
 	case CPSW_VERSION_1:
 		cpsw->host_port_regs = ss_regs + CPSW1_HOST_PORT_OFFSET;
-		cpsw->cpts->reg      = ss_regs + CPSW1_CPTS_OFFSET;
+		cpts_regs		= ss_regs + CPSW1_CPTS_OFFSET;
 		cpsw->hw_stats	     = ss_regs + CPSW1_HW_STATS;
 		dma_params.dmaregs   = ss_regs + CPSW1_CPDMA_OFFSET;
 		dma_params.txhdp     = ss_regs + CPSW1_STATERAM_OFFSET;
@@ -2704,7 +2930,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	case CPSW_VERSION_3:
 	case CPSW_VERSION_4:
 		cpsw->host_port_regs = ss_regs + CPSW2_HOST_PORT_OFFSET;
-		cpsw->cpts->reg      = ss_regs + CPSW2_CPTS_OFFSET;
+		cpts_regs		= ss_regs + CPSW2_CPTS_OFFSET;
 		cpsw->hw_stats	     = ss_regs + CPSW2_HW_STATS;
 		dma_params.dmaregs   = ss_regs + CPSW2_CPDMA_OFFSET;
 		dma_params.txhdp     = ss_regs + CPSW2_STATERAM_OFFSET;
@@ -2742,6 +2968,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	dma_params.desc_align		= 16;
 	dma_params.has_ext_regs		= true;
 	dma_params.desc_hw_addr         = dma_params.desc_mem_phys;
+	dma_params.bus_freq_mhz		= cpsw->bus_freq_mhz;
 
 	cpsw->dma = cpdma_ctlr_create(&dma_params);
 	if (!cpsw->dma) {
@@ -2750,9 +2977,9 @@ static int cpsw_probe(struct platform_device *pdev)
 		goto clean_dt_ret;
 	}
 
-	cpsw->txch[0] = cpdma_chan_create(cpsw->dma, 0, cpsw_tx_handler, 0);
-	cpsw->rxch[0] = cpdma_chan_create(cpsw->dma, 0, cpsw_rx_handler, 1);
-	if (WARN_ON(!cpsw->rxch[0] || !cpsw->txch[0])) {
+	cpsw->txv[0].ch = cpdma_chan_create(cpsw->dma, 0, cpsw_tx_handler, 0);
+	cpsw->rxv[0].ch = cpdma_chan_create(cpsw->dma, 0, cpsw_rx_handler, 1);
+	if (WARN_ON(!cpsw->rxv[0].ch || !cpsw->txv[0].ch)) {
 		dev_err(priv->dev, "error initializing dma channels\n");
 		ret = -ENOMEM;
 		goto clean_dma_ret;
@@ -2768,6 +2995,12 @@ static int cpsw_probe(struct platform_device *pdev)
 		dev_err(priv->dev, "error initializing ale engine\n");
 		ret = -ENODEV;
 		goto clean_dma_ret;
+	}
+
+	cpsw->cpts = cpts_create(cpsw->dev, cpts_regs, cpsw->dev->of_node);
+	if (IS_ERR(cpsw->cpts)) {
+		ret = PTR_ERR(cpsw->cpts);
+		goto clean_ale_ret;
 	}
 
 	ndev->irq = platform_get_irq(pdev, 1);
@@ -2828,6 +3061,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	ndev->ethtool_ops = &cpsw_ethtool_ops;
 	netif_napi_add(ndev, &cpsw->napi_rx, cpsw_rx_poll, CPSW_POLL_WEIGHT);
 	netif_tx_napi_add(ndev, &cpsw->napi_tx, cpsw_tx_poll, CPSW_POLL_WEIGHT);
+	cpsw_split_res(ndev);
 
 	/* register the network device */
 	SET_NETDEV_DEV(ndev, &pdev->dev);
@@ -2885,6 +3119,7 @@ static int cpsw_remove(struct platform_device *pdev)
 		unregister_netdev(cpsw->slaves[1].ndev);
 	unregister_netdev(ndev);
 
+	cpts_release(cpsw->cpts);
 	cpsw_ale_destroy(cpsw->ale);
 	cpdma_ctlr_destroy(cpsw->dma);
 	cpsw_remove_dt(pdev);
@@ -2925,7 +3160,7 @@ static int cpsw_resume(struct device *dev)
 {
 	struct platform_device	*pdev = to_platform_device(dev);
 	struct net_device	*ndev = platform_get_drvdata(pdev);
-	struct cpsw_common	*cpsw = netdev_priv(ndev);
+	struct cpsw_common	*cpsw = ndev_to_cpsw(ndev);
 
 	/* Select default pin state */
 	pinctrl_pm_select_default_state(dev);

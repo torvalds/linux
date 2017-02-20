@@ -433,8 +433,6 @@ nv50_disp_dptmds_war(struct nvkm_device *device)
 	case 0x94:
 	case 0x96:
 	case 0x98:
-	case 0xaa:
-	case 0xac:
 		return true;
 	default:
 		break;
@@ -590,6 +588,7 @@ nv50_disp_intr_unk20_0(struct nv50_disp *disp, int head)
 			.execute = 1,
 		};
 
+		nvkm_notify_put(&outpdp->irq);
 		nvbios_exec(&init);
 		atomic_set(&outpdp->lt.done, 0);
 	}
@@ -779,7 +778,7 @@ nv50_disp_intr_unk20_2(struct nv50_disp *disp, int head)
 			break;
 		}
 
-		if (nvkm_output_dp_train(outp, datarate / soff, true))
+		if (nvkm_output_dp_train(outp, datarate / soff))
 			OUTP_ERR(outp, "link not trained before attach");
 	}
 

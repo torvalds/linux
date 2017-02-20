@@ -16,6 +16,78 @@
 #include "isa207-common.h"
 
 /*
+ * Raw event encoding for Power9:
+ *
+ *        60        56        52        48        44        40        36        32
+ * | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - |
+ *   | | [ ]                       [ ] [      thresh_cmp     ]   [  thresh_ctl   ]
+ *   | |  |                         |                                     |
+ *   | |  *- IFM (Linux)            |    thresh start/stop OR FAB match -*
+ *   | *- BHRB (Linux)              *sm
+ *   *- EBB (Linux)
+ *
+ *        28        24        20        16        12         8         4         0
+ * | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - |
+ *   [   ] [  sample ]   [cache]   [ pmc ]   [unit ]   []    m   [    pmcxsel    ]
+ *     |        |           |                          |     |
+ *     |        |           |                          |     *- mark
+ *     |        |           *- L1/L2/L3 cache_sel      |
+ *     |        |                                      |
+ *     |        *- sampling mode for marked events     *- combine
+ *     |
+ *     *- thresh_sel
+ *
+ * Below uses IBM bit numbering.
+ *
+ * MMCR1[x:y] = unit    (PMCxUNIT)
+ * MMCR1[24]   = pmc1combine[0]
+ * MMCR1[25]   = pmc1combine[1]
+ * MMCR1[26]   = pmc2combine[0]
+ * MMCR1[27]   = pmc2combine[1]
+ * MMCR1[28]   = pmc3combine[0]
+ * MMCR1[29]   = pmc3combine[1]
+ * MMCR1[30]   = pmc4combine[0]
+ * MMCR1[31]   = pmc4combine[1]
+ *
+ * if pmc == 3 and unit == 0 and pmcxsel[0:6] == 0b0101011
+ *	# PM_MRK_FAB_RSP_MATCH
+ *	MMCR1[20:27] = thresh_ctl   (FAB_CRESP_MATCH / FAB_TYPE_MATCH)
+ * else if pmc == 4 and unit == 0xf and pmcxsel[0:6] == 0b0101001
+ *	# PM_MRK_FAB_RSP_MATCH_CYC
+ *	MMCR1[20:27] = thresh_ctl   (FAB_CRESP_MATCH / FAB_TYPE_MATCH)
+ * else
+ *	MMCRA[48:55] = thresh_ctl   (THRESH START/END)
+ *
+ * if thresh_sel:
+ *	MMCRA[45:47] = thresh_sel
+ *
+ * if thresh_cmp:
+ *	MMCRA[9:11] = thresh_cmp[0:2]
+ *	MMCRA[12:18] = thresh_cmp[3:9]
+ *
+ * if unit == 6 or unit == 7
+ *	MMCRC[53:55] = cache_sel[1:3]      (L2EVENT_SEL)
+ * else if unit == 8 or unit == 9:
+ *	if cache_sel[0] == 0: # L3 bank
+ *		MMCRC[47:49] = cache_sel[1:3]  (L3EVENT_SEL0)
+ *	else if cache_sel[0] == 1:
+ *		MMCRC[50:51] = cache_sel[2:3]  (L3EVENT_SEL1)
+ * else if cache_sel[1]: # L1 event
+ *	MMCR1[16] = cache_sel[2]
+ *	MMCR1[17] = cache_sel[3]
+ *
+ * if mark:
+ *	MMCRA[63]    = 1		(SAMPLE_ENABLE)
+ *	MMCRA[57:59] = sample[0:2]	(RAND_SAMP_ELIG)
+ *	MMCRA[61:62] = sample[3:4]	(RAND_SAMP_MODE)
+ *
+ * if EBB and BHRB:
+ *	MMCRA[32:33] = IFM
+ *
+ * MMCRA[SDAR_MODE]  = sm
+ */
+
+/*
  * Some power9 event codes.
  */
 #define EVENT(_name, _code)	_name = _code,
@@ -30,6 +102,9 @@ enum {
 #define POWER9_MMCRA_IFM1		0x0000000040000000UL
 #define POWER9_MMCRA_IFM2		0x0000000080000000UL
 #define POWER9_MMCRA_IFM3		0x00000000C0000000UL
+
+/* PowerISA v2.07 format attribute structure*/
+extern struct attribute_group isa207_pmu_format_group;
 
 GENERIC_EVENT_ATTR(cpu-cycles,			PM_CYC);
 GENERIC_EVENT_ATTR(stalled-cycles-frontend,	PM_ICT_NOSLOT_CYC);
@@ -90,10 +165,16 @@ static struct attribute_group power9_pmu_events_group = {
 	.attrs = power9_events_attr,
 };
 
-PMU_FORMAT_ATTR(event,		"config:0-49");
+static const struct attribute_group *power9_isa207_pmu_attr_groups[] = {
+	&isa207_pmu_format_group,
+	&power9_pmu_events_group,
+	NULL,
+};
+
+PMU_FORMAT_ATTR(event,		"config:0-51");
 PMU_FORMAT_ATTR(pmcxsel,	"config:0-7");
 PMU_FORMAT_ATTR(mark,		"config:8");
-PMU_FORMAT_ATTR(combine,	"config:11");
+PMU_FORMAT_ATTR(combine,	"config:10-11");
 PMU_FORMAT_ATTR(unit,		"config:12-15");
 PMU_FORMAT_ATTR(pmc,		"config:16-19");
 PMU_FORMAT_ATTR(cache_sel,	"config:20-23");
@@ -102,6 +183,7 @@ PMU_FORMAT_ATTR(thresh_sel,	"config:29-31");
 PMU_FORMAT_ATTR(thresh_stop,	"config:32-35");
 PMU_FORMAT_ATTR(thresh_start,	"config:36-39");
 PMU_FORMAT_ATTR(thresh_cmp,	"config:40-49");
+PMU_FORMAT_ATTR(sdar_mode,	"config:50-51");
 
 static struct attribute *power9_pmu_format_attr[] = {
 	&format_attr_event.attr,
@@ -116,6 +198,7 @@ static struct attribute *power9_pmu_format_attr[] = {
 	&format_attr_thresh_stop.attr,
 	&format_attr_thresh_start.attr,
 	&format_attr_thresh_cmp.attr,
+	&format_attr_sdar_mode.attr,
 	NULL,
 };
 
@@ -291,6 +374,24 @@ static int power9_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 
 #undef C
 
+static struct power_pmu power9_isa207_pmu = {
+	.name			= "POWER9",
+	.n_counter		= MAX_PMU_COUNTERS,
+	.add_fields		= ISA207_ADD_FIELDS,
+	.test_adder		= ISA207_TEST_ADDER,
+	.compute_mmcr		= isa207_compute_mmcr,
+	.config_bhrb		= power9_config_bhrb,
+	.bhrb_filter_map	= power9_bhrb_filter_map,
+	.get_constraint		= isa207_get_constraint,
+	.disable_pmc		= isa207_disable_pmc,
+	.flags			= PPMU_NO_SIAR | PPMU_ARCH_207S,
+	.n_generic		= ARRAY_SIZE(power9_generic_events),
+	.generic_events		= power9_generic_events,
+	.cache_events		= &power9_cache_events,
+	.attr_groups		= power9_isa207_pmu_attr_groups,
+	.bhrb_nr		= 32,
+};
+
 static struct power_pmu power9_pmu = {
 	.name			= "POWER9",
 	.n_counter		= MAX_PMU_COUNTERS,
@@ -311,14 +412,19 @@ static struct power_pmu power9_pmu = {
 
 static int __init init_power9_pmu(void)
 {
-	int rc;
+	int rc = 0;
 
 	/* Comes from cpu_specs[] */
 	if (!cur_cpu_spec->oprofile_cpu_type ||
 	    strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power9"))
 		return -ENODEV;
 
-	rc = register_power_pmu(&power9_pmu);
+	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
+		rc = register_power_pmu(&power9_isa207_pmu);
+	} else {
+		rc = register_power_pmu(&power9_pmu);
+	}
+
 	if (rc)
 		return rc;
 

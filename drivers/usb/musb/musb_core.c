@@ -100,6 +100,7 @@
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
 #include <linux/usb.h>
+#include <linux/usb/of.h>
 
 #include "musb_core.h"
 #include "musb_trace.h"
@@ -129,6 +130,24 @@ static inline struct musb *dev_to_musb(struct device *dev)
 {
 	return dev_get_drvdata(dev);
 }
+
+enum musb_mode musb_get_mode(struct device *dev)
+{
+	enum usb_dr_mode mode;
+
+	mode = usb_get_dr_mode(dev);
+	switch (mode) {
+	case USB_DR_MODE_HOST:
+		return MUSB_HOST;
+	case USB_DR_MODE_PERIPHERAL:
+		return MUSB_PERIPHERAL;
+	case USB_DR_MODE_OTG:
+	case USB_DR_MODE_UNKNOWN:
+	default:
+		return MUSB_OTG;
+	}
+}
+EXPORT_SYMBOL_GPL(musb_get_mode);
 
 /*-------------------------------------------------------------------------*/
 
@@ -569,20 +588,17 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 		if (devctl & MUSB_DEVCTL_HM) {
 			switch (musb->xceiv->otg->state) {
 			case OTG_STATE_A_SUSPEND:
-				/* remote wakeup?  later, GetPortStatus
-				 * will stop RESUME signaling
-				 */
-
+				/* remote wakeup? */
 				musb->port1_status |=
 						(USB_PORT_STAT_C_SUSPEND << 16)
 						| MUSB_PORT_STAT_RESUME;
 				musb->rh_timer = jiffies
 					+ msecs_to_jiffies(USB_RESUME_TIMEOUT);
-				musb->need_finish_resume = 1;
-
 				musb->xceiv->otg->state = OTG_STATE_A_HOST;
 				musb->is_active = 1;
 				musb_host_resume_root_hub(musb);
+				schedule_delayed_work(&musb->finish_resume_work,
+					msecs_to_jiffies(USB_RESUME_TIMEOUT));
 				break;
 			case OTG_STATE_B_WAIT_ACON:
 				musb->xceiv->otg->state = OTG_STATE_B_PERIPHERAL;
@@ -1909,6 +1925,14 @@ static void musb_pm_runtime_check_session(struct musb *musb)
 static void musb_irq_work(struct work_struct *data)
 {
 	struct musb *musb = container_of(data, struct musb, irq_work.work);
+	int error;
+
+	error = pm_runtime_get_sync(musb->controller);
+	if (error < 0) {
+		dev_err(musb->controller, "Could not enable: %i\n", error);
+
+		return;
+	}
 
 	musb_pm_runtime_check_session(musb);
 
@@ -1916,6 +1940,9 @@ static void musb_irq_work(struct work_struct *data)
 		musb->xceiv_old_state = musb->xceiv->otg->state;
 		sysfs_notify(&musb->controller->kobj, NULL, "mode");
 	}
+
+	pm_runtime_mark_last_busy(musb->controller);
+	pm_runtime_put_autosuspend(musb->controller);
 }
 
 static void musb_recover_from_babble(struct musb *musb)
@@ -2034,6 +2061,7 @@ struct musb_pending_work {
 	struct list_head node;
 };
 
+#ifdef CONFIG_PM
 /*
  * Called from musb_runtime_resume(), musb_resume(), and
  * musb_queue_resume_work(). Callers must take musb->lock.
@@ -2061,6 +2089,7 @@ static int musb_run_resume_work(struct musb *musb)
 
 	return error;
 }
+#endif
 
 /*
  * Called to run work if device is active or else queue the work to happen
@@ -2414,8 +2443,9 @@ fail2:
 	musb_platform_exit(musb);
 
 fail1:
-	dev_err(musb->controller,
-		"musb_init_controller failed with status %d\n", status);
+	if (status != -EPROBE_DEFER)
+		dev_err(musb->controller,
+			"%s failed with status %d\n", __func__, status);
 
 	musb_free(musb);
 
@@ -2691,11 +2721,6 @@ static int musb_resume(struct device *dev)
 	mask = MUSB_DEVCTL_BDEVICE | MUSB_DEVCTL_FSDEV | MUSB_DEVCTL_LSDEV;
 	if ((devctl & mask) != (musb->context.devctl & mask))
 		musb->port1_status = 0;
-	if (musb->need_finish_resume) {
-		musb->need_finish_resume = 0;
-		schedule_delayed_work(&musb->finish_resume_work,
-				      msecs_to_jiffies(USB_RESUME_TIMEOUT));
-	}
 
 	/*
 	 * The USB HUB code expects the device to be in RPM_ACTIVE once it came
@@ -2746,12 +2771,6 @@ static int musb_runtime_resume(struct device *dev)
 		return 0;
 
 	musb_restore_context(musb);
-
-	if (musb->need_finish_resume) {
-		musb->need_finish_resume = 0;
-		schedule_delayed_work(&musb->finish_resume_work,
-				msecs_to_jiffies(USB_RESUME_TIMEOUT));
-	}
 
 	spin_lock_irqsave(&musb->lock, flags);
 	error = musb_run_resume_work(musb);

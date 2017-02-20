@@ -122,7 +122,7 @@ dcss_set_subcodes(void)
 		"1:	la	%2,3\n"
 		"2:\n"
 		EX_TABLE(0b, 1b)
-		: "+d" (rx), "+d" (ry), "=d" (rc) : : "cc");
+		: "+d" (rx), "+d" (ry), "=d" (rc) : : "cc", "memory");
 
 	kfree(name);
 	/* Diag x'64' new subcodes are supported, set to new subcodes */

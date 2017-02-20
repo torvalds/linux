@@ -35,7 +35,7 @@ static int cpu_to_node_map[NR_CPUS] = { [0 ... NR_CPUS-1] = NUMA_NO_NODE };
 
 static int numa_distance_cnt;
 static u8 *numa_distance;
-static bool numa_off;
+bool numa_off;
 
 static __init int numa_parse_early_param(char *opt)
 {

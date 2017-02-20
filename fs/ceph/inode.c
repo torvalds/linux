@@ -305,7 +305,8 @@ static int frag_tree_split_cmp(const void *l, const void *r)
 {
 	struct ceph_frag_tree_split *ls = (struct ceph_frag_tree_split*)l;
 	struct ceph_frag_tree_split *rs = (struct ceph_frag_tree_split*)r;
-	return ceph_frag_compare(ls->frag, rs->frag);
+	return ceph_frag_compare(le32_to_cpu(ls->frag),
+				 le32_to_cpu(rs->frag));
 }
 
 static bool is_frag_child(u32 f, struct ceph_inode_frag *frag)
@@ -1023,16 +1024,17 @@ static void update_dentry_lease(struct dentry *dentry,
 	long unsigned half_ttl = from_time + (duration * HZ / 2) / 1000;
 	struct inode *dir;
 
-	/* only track leases on regular dentries */
-	if (dentry->d_op != &ceph_dentry_ops)
-		return;
-
 	spin_lock(&dentry->d_lock);
 	dout("update_dentry_lease %p duration %lu ms ttl %lu\n",
 	     dentry, duration, ttl);
 
 	/* make lease_rdcache_gen match directory */
 	dir = d_inode(dentry->d_parent);
+
+	/* only track leases on regular dentries */
+	if (ceph_snap(dir) != CEPH_NOSNAP)
+		goto out_unlock;
+
 	di->lease_shared_gen = ceph_inode(dir)->i_shared_gen;
 
 	if (duration == 0)
@@ -1202,12 +1204,7 @@ retry_lookup:
 					err = -ENOMEM;
 					goto done;
 				}
-				err = ceph_init_dentry(dn);
-				if (err < 0) {
-					dput(dn);
-					dput(parent);
-					goto done;
-				}
+				err = 0;
 			} else if (d_really_is_positive(dn) &&
 				   (ceph_ino(d_inode(dn)) != vino.ino ||
 				    ceph_snap(d_inode(dn)) != vino.snap)) {
@@ -1561,12 +1558,6 @@ retry_lookup:
 				err = -ENOMEM;
 				goto out;
 			}
-			ret = ceph_init_dentry(dn);
-			if (ret < 0) {
-				dput(dn);
-				err = ret;
-				goto out;
-			}
 		} else if (d_really_is_positive(dn) &&
 			   (ceph_ino(d_inode(dn)) != vino.ino ||
 			    ceph_snap(d_inode(dn)) != vino.snap)) {
@@ -1879,7 +1870,6 @@ retry:
  * symlinks
  */
 static const struct inode_operations ceph_symlink_iops = {
-	.readlink = generic_readlink,
 	.get_link = simple_get_link,
 	.setattr = ceph_setattr,
 	.getattr = ceph_getattr,

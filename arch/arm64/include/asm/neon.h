@@ -9,8 +9,9 @@
  */
 
 #include <linux/types.h>
+#include <asm/fpsimd.h>
 
-#define cpu_has_neon()		(1)
+#define cpu_has_neon()		system_supports_fpsimd()
 
 #define kernel_neon_begin()	kernel_neon_begin_partial(32)
 

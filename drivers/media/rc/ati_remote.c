@@ -527,8 +527,7 @@ static void ati_remote_input_report(struct urb *urb)
 	remote_num = (data[3] >> 4) & 0x0f;
 	if (channel_mask & (1 << (remote_num + 1))) {
 		dbginfo(&ati_remote->interface->dev,
-			"Masked input from channel 0x%02x: data %02x, "
-			"mask= 0x%02lx\n",
+			"Masked input from channel 0x%02x: data %02x, mask= 0x%02lx\n",
 			remote_num, data[2], channel_mask);
 		return;
 	}

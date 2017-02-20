@@ -148,7 +148,7 @@ static unsigned int sbus_cycles_offset(void)
 	return offset;
 }
 
-static cycle_t timer_cs_read(struct clocksource *cs)
+static u64 timer_cs_read(struct clocksource *cs)
 {
 	unsigned int seq, offset;
 	u64 cycles;

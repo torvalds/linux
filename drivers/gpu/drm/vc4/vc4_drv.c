@@ -61,23 +61,28 @@ static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 		if (ret < 0)
 			return ret;
 		args->value = V3D_READ(V3D_IDENT0);
-		pm_runtime_put(&vc4->v3d->pdev->dev);
+		pm_runtime_mark_last_busy(&vc4->v3d->pdev->dev);
+		pm_runtime_put_autosuspend(&vc4->v3d->pdev->dev);
 		break;
 	case DRM_VC4_PARAM_V3D_IDENT1:
 		ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
 		if (ret < 0)
 			return ret;
 		args->value = V3D_READ(V3D_IDENT1);
-		pm_runtime_put(&vc4->v3d->pdev->dev);
+		pm_runtime_mark_last_busy(&vc4->v3d->pdev->dev);
+		pm_runtime_put_autosuspend(&vc4->v3d->pdev->dev);
 		break;
 	case DRM_VC4_PARAM_V3D_IDENT2:
 		ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
 		if (ret < 0)
 			return ret;
 		args->value = V3D_READ(V3D_IDENT2);
-		pm_runtime_put(&vc4->v3d->pdev->dev);
+		pm_runtime_mark_last_busy(&vc4->v3d->pdev->dev);
+		pm_runtime_put_autosuspend(&vc4->v3d->pdev->dev);
 		break;
 	case DRM_VC4_PARAM_SUPPORTS_BRANCHES:
+	case DRM_VC4_PARAM_SUPPORTS_ETC1:
+	case DRM_VC4_PARAM_SUPPORTS_THREADED_FS:
 		args->value = true;
 		break;
 	default:
@@ -103,9 +108,7 @@ static const struct file_operations vc4_drm_fops = {
 	.mmap = vc4_mmap,
 	.poll = drm_poll,
 	.read = drm_read,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 	.llseek = noop_llseek,
 };
 
@@ -274,12 +277,14 @@ static void vc4_drm_unbind(struct device *dev)
 	struct drm_device *drm = platform_get_drvdata(pdev);
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 
+	drm_dev_unregister(drm);
+
 	if (vc4->fbdev)
 		drm_fbdev_cma_fini(vc4->fbdev);
 
 	drm_mode_config_cleanup(drm);
 
-	drm_put_dev(drm);
+	drm_dev_unref(drm);
 }
 
 static const struct component_master_ops vc4_drm_ops = {
@@ -289,6 +294,7 @@ static const struct component_master_ops vc4_drm_ops = {
 
 static struct platform_driver *const component_drivers[] = {
 	&vc4_hdmi_driver,
+	&vc4_vec_driver,
 	&vc4_dpi_driver,
 	&vc4_hvs_driver,
 	&vc4_crtc_driver,

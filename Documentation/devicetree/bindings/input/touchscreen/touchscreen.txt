@@ -14,6 +14,9 @@ Optional properties for Touchscreens:
  - touchscreen-fuzz-pressure	: pressure noise value of the absolute input
 				  device (arbitrary range dependent on the
 				  controller)
+ - touchscreen-average-samples : Number of data samples which are averaged
+				  for each read (valid values dependent on the
+				  controller)
  - touchscreen-inverted-x	: X axis is inverted (boolean)
  - touchscreen-inverted-y	: Y axis is inverted (boolean)
  - touchscreen-swapped-x-y	: X and Y axis are swapped (boolean)

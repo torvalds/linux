@@ -1796,7 +1796,7 @@ static int __init cci_platform_init(void)
 	int ret;
 
 	ret = cpuhp_setup_state_multi(CPUHP_AP_PERF_ARM_CCI_ONLINE,
-				      "AP_PERF_ARM_CCI_ONLINE", NULL,
+				      "perf/arm/cci:online", NULL,
 				      cci_pmu_offline_cpu);
 	if (ret)
 		return ret;
@@ -2190,6 +2190,9 @@ static int cci_probe_ports(struct device_node *np)
 		if (!of_match_node(arm_cci_ctrl_if_matches, cp))
 			continue;
 
+		if (!of_device_is_available(cp))
+			continue;
+
 		i = nb_ace + nb_ace_lite;
 
 		if (i >= nb_cci_ports)
@@ -2231,6 +2234,13 @@ static int cci_probe_ports(struct device_node *np)
 		}
 		ports[i].dn = cp;
 	}
+
+	/*
+	 * If there is no CCI port that is under kernel control
+	 * return early and report probe status.
+	 */
+	if (!nb_ace && !nb_ace_lite)
+		return -ENODEV;
 
 	 /* initialize a stashed array of ACE ports to speed-up look-up */
 	cci_ace_init_ports();

@@ -419,6 +419,7 @@ enum htt_10_4_t2h_msg_type {
 	HTT_10_4_T2H_MSG_TYPE_STATS_NOUPLOAD         = 0x18,
 	/* 0x19 to 0x2f are reserved */
 	HTT_10_4_T2H_MSG_TYPE_TX_MODE_SWITCH_IND     = 0x30,
+	HTT_10_4_T2H_MSG_TYPE_PEER_STATS	     = 0x31,
 	/* keep this last */
 	HTT_10_4_T2H_NUM_MSGS
 };
@@ -453,6 +454,7 @@ enum htt_t2h_msg_type {
 	HTT_T2H_MSG_TYPE_TX_FETCH_IND,
 	HTT_T2H_MSG_TYPE_TX_FETCH_CONFIRM,
 	HTT_T2H_MSG_TYPE_TX_MODE_SWITCH_IND,
+	HTT_T2H_MSG_TYPE_PEER_STATS,
 	/* keep this last */
 	HTT_T2H_NUM_MSGS
 };
@@ -1470,6 +1472,28 @@ struct htt_channel_change {
 	__le32 phymode;
 } __packed;
 
+struct htt_per_peer_tx_stats_ind {
+	__le32	succ_bytes;
+	__le32  retry_bytes;
+	__le32  failed_bytes;
+	u8	ratecode;
+	u8	flags;
+	__le16	peer_id;
+	__le16  succ_pkts;
+	__le16	retry_pkts;
+	__le16	failed_pkts;
+	__le16	tx_duration;
+	__le32	reserved1;
+	__le32	reserved2;
+} __packed;
+
+struct htt_peer_tx_stats {
+	u8 num_ppdu;
+	u8 ppdu_len;
+	u8 version;
+	u8 payload[0];
+} __packed;
+
 union htt_rx_pn_t {
 	/* WEP: 24-bit PN */
 	u32 pn24;
@@ -1521,6 +1545,7 @@ struct htt_resp {
 		struct htt_tx_fetch_confirm tx_fetch_confirm;
 		struct htt_tx_mode_switch_ind tx_mode_switch_ind;
 		struct htt_channel_change chan_change;
+		struct htt_peer_tx_stats peer_tx_stats;
 	};
 } __packed;
 
@@ -1692,6 +1717,8 @@ struct ath10k_htt {
 		enum htt_tx_mode_switch_mode mode;
 		enum htt_q_depth_type type;
 	} tx_q_state;
+
+	bool tx_mem_allocated;
 };
 
 #define RX_HTT_HDR_STATUS_LEN 64
@@ -1754,7 +1781,9 @@ int ath10k_htt_connect(struct ath10k_htt *htt);
 int ath10k_htt_init(struct ath10k *ar);
 int ath10k_htt_setup(struct ath10k_htt *htt);
 
-int ath10k_htt_tx_alloc(struct ath10k_htt *htt);
+int ath10k_htt_tx_start(struct ath10k_htt *htt);
+void ath10k_htt_tx_stop(struct ath10k_htt *htt);
+void ath10k_htt_tx_destroy(struct ath10k_htt *htt);
 void ath10k_htt_tx_free(struct ath10k_htt *htt);
 
 int ath10k_htt_rx_alloc(struct ath10k_htt *htt);

@@ -31,6 +31,7 @@ nvkm-y += nvkm/subdev/bios/timing.o
 nvkm-y += nvkm/subdev/bios/therm.o
 nvkm-y += nvkm/subdev/bios/vmap.o
 nvkm-y += nvkm/subdev/bios/volt.o
+nvkm-y += nvkm/subdev/bios/vpstate.o
 nvkm-y += nvkm/subdev/bios/xpio.o
 nvkm-y += nvkm/subdev/bios/M0203.o
 nvkm-y += nvkm/subdev/bios/M0205.o

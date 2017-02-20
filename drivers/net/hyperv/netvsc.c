@@ -410,8 +410,8 @@ static int netvsc_init_buf(struct hv_device *device)
 	net_device->send_section_cnt =
 		net_device->send_buf_size / net_device->send_section_size;
 
-	dev_info(&device->device, "Send section size: %d, Section count:%d\n",
-		 net_device->send_section_size, net_device->send_section_cnt);
+	netdev_dbg(ndev, "Send section size: %d, Section count:%d\n",
+		   net_device->send_section_size, net_device->send_section_cnt);
 
 	/* Setup state for managing the send buffer. */
 	net_device->map_words = DIV_ROUND_UP(net_device->send_section_cnt,
@@ -578,7 +578,7 @@ void netvsc_device_remove(struct hv_device *device)
 	 * At this point, no one should be accessing net_device
 	 * except in here
 	 */
-	dev_notice(&device->device, "net device safe to remove\n");
+	netdev_dbg(ndev, "net device safe to remove\n");
 
 	/* Now, we can close the channel safely */
 	vmbus_close(device->channel);
@@ -887,6 +887,13 @@ int netvsc_send(struct hv_device *device,
 	net_device = get_outbound_net_device(device);
 	if (!net_device)
 		return -ENODEV;
+
+	/* We may race with netvsc_connect_vsp()/netvsc_init_buf() and get
+	 * here before the negotiation with the host is finished and
+	 * send_section_map may not be allocated yet.
+	 */
+	if (!net_device->send_section_map)
+		return -EAGAIN;
 
 	out_channel = net_device->chn_table[q_idx];
 
@@ -1288,6 +1295,9 @@ void netvsc_channel_cb(void *context)
 	ndev = hv_get_drvdata(device);
 	buffer = get_per_channel_state(channel);
 
+	/* commit_rd_index() -> hv_signal_on_read() needs this. */
+	init_cached_read_index(channel);
+
 	do {
 		desc = get_next_pkt_raw(channel);
 		if (desc != NULL) {
@@ -1340,6 +1350,9 @@ void netvsc_channel_cb(void *context)
 
 			bufferlen = bytes_recvd;
 		}
+
+		init_cached_read_index(channel);
+
 	} while (1);
 
 	if (bufferlen > NETVSC_PACKET_SIZE)
@@ -1380,7 +1393,7 @@ int netvsc_device_add(struct hv_device *device, void *additional_info)
 	}
 
 	/* Channel is opened */
-	pr_info("hv_netvsc channel opened successfully\n");
+	netdev_dbg(ndev, "hv_netvsc channel opened successfully\n");
 
 	/* If we're reopening the device we may have multiple queues, fill the
 	 * chn_table with the default channel to use it before subchannels are

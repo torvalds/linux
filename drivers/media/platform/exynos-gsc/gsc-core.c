@@ -24,11 +24,10 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <media/v4l2-ioctl.h>
 
 #include "gsc-core.h"
-
-#define GSC_CLOCK_GATE_NAME	"gscl"
 
 static const struct gsc_fmt gsc_formats[] = {
 	{
@@ -39,8 +38,8 @@ static const struct gsc_fmt gsc_formats[] = {
 		.num_planes	= 1,
 		.num_comp	= 1,
 	}, {
-		.name		= "XRGB-8-8-8-8, 32 bpp",
-		.pixelformat	= V4L2_PIX_FMT_RGB32,
+		.name		= "BGRX-8-8-8-8, 32 bpp",
+		.pixelformat	= V4L2_PIX_FMT_BGR32,
 		.depth		= { 32 },
 		.color		= GSC_RGB,
 		.num_planes	= 1,
@@ -441,7 +440,7 @@ int gsc_try_fmt_mplane(struct gsc_ctx *ctx, struct v4l2_format *f)
 	v4l_bound_align_image(&pix_mp->width, min_w, max_w, mod_x,
 		&pix_mp->height, min_h, max_h, mod_y, 0);
 	if (tmp_w != pix_mp->width || tmp_h != pix_mp->height)
-		pr_info("Image size has been modified from %dx%d to %dx%d",
+		pr_debug("Image size has been modified from %dx%d to %dx%d\n",
 			 tmp_w, tmp_h, pix_mp->width, pix_mp->height);
 
 	pix_mp->num_planes = fmt->num_planes;
@@ -451,12 +450,25 @@ int gsc_try_fmt_mplane(struct gsc_ctx *ctx, struct v4l2_format *f)
 	else /* SD */
 		pix_mp->colorspace = V4L2_COLORSPACE_SMPTE170M;
 
-
 	for (i = 0; i < pix_mp->num_planes; ++i) {
-		int bpl = (pix_mp->width * fmt->depth[i]) >> 3;
-		pix_mp->plane_fmt[i].bytesperline = bpl;
-		pix_mp->plane_fmt[i].sizeimage = bpl * pix_mp->height;
+		struct v4l2_plane_pix_format *plane_fmt = &pix_mp->plane_fmt[i];
+		u32 bpl = plane_fmt->bytesperline;
 
+		if (fmt->num_comp == 1 && /* Packed */
+		    (bpl == 0 || (bpl * 8 / fmt->depth[i]) < pix_mp->width))
+			bpl = pix_mp->width * fmt->depth[i] / 8;
+
+		if (fmt->num_comp > 1 && /* Planar */
+		    (bpl == 0 || bpl < pix_mp->width))
+			bpl = pix_mp->width;
+
+		if (i != 0 && fmt->num_comp == 3)
+			bpl /= 2;
+
+		plane_fmt->bytesperline = bpl;
+		plane_fmt->sizeimage = max(pix_mp->width * pix_mp->height *
+					   fmt->depth[i] / 8,
+					   plane_fmt->sizeimage);
 		pr_debug("[%d]: bpl: %d, sizeimage: %d",
 				i, bpl, pix_mp->plane_fmt[i].sizeimage);
 	}
@@ -964,7 +976,19 @@ static struct gsc_driverdata gsc_v_100_drvdata = {
 		[3] = &gsc_v_100_variant,
 	},
 	.num_entities = 4,
-	.lclk_frequency = 266000000UL,
+	.clk_names = { "gscl" },
+	.num_clocks = 1,
+};
+
+static struct gsc_driverdata gsc_5433_drvdata = {
+	.variant = {
+		[0] = &gsc_v_100_variant,
+		[1] = &gsc_v_100_variant,
+		[2] = &gsc_v_100_variant,
+	},
+	.num_entities = 3,
+	.clk_names = { "pclk", "aclk", "aclk_xiu", "aclk_gsclbend" },
+	.num_clocks = 4,
 };
 
 static const struct of_device_id exynos_gsc_match[] = {
@@ -972,52 +996,134 @@ static const struct of_device_id exynos_gsc_match[] = {
 		.compatible = "samsung,exynos5-gsc",
 		.data = &gsc_v_100_drvdata,
 	},
+	{
+		.compatible = "samsung,exynos5433-gsc",
+		.data = &gsc_5433_drvdata,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, exynos_gsc_match);
 
-static void *gsc_get_drv_data(struct platform_device *pdev)
+static int gsc_probe(struct platform_device *pdev)
 {
-	struct gsc_driverdata *driver_data = NULL;
-	const struct of_device_id *match;
-
-	match = of_match_node(exynos_gsc_match, pdev->dev.of_node);
-	if (match)
-		driver_data = (struct gsc_driverdata *)match->data;
-
-	return driver_data;
-}
-
-static void gsc_clk_put(struct gsc_dev *gsc)
-{
-	if (!IS_ERR(gsc->clock))
-		clk_unprepare(gsc->clock);
-}
-
-static int gsc_clk_get(struct gsc_dev *gsc)
-{
+	struct gsc_dev *gsc;
+	struct resource *res;
+	struct device *dev = &pdev->dev;
+	const struct gsc_driverdata *drv_data = of_device_get_match_data(dev);
 	int ret;
+	int i;
 
-	dev_dbg(&gsc->pdev->dev, "gsc_clk_get Called\n");
+	gsc = devm_kzalloc(dev, sizeof(struct gsc_dev), GFP_KERNEL);
+	if (!gsc)
+		return -ENOMEM;
 
-	gsc->clock = devm_clk_get(&gsc->pdev->dev, GSC_CLOCK_GATE_NAME);
-	if (IS_ERR(gsc->clock)) {
-		dev_err(&gsc->pdev->dev, "failed to get clock~~~: %s\n",
-			GSC_CLOCK_GATE_NAME);
-		return PTR_ERR(gsc->clock);
-	}
-
-	ret = clk_prepare(gsc->clock);
-	if (ret < 0) {
-		dev_err(&gsc->pdev->dev, "clock prepare failed for clock: %s\n",
-			GSC_CLOCK_GATE_NAME);
-		gsc->clock = ERR_PTR(-EINVAL);
+	ret = of_alias_get_id(pdev->dev.of_node, "gsc");
+	if (ret < 0)
 		return ret;
+
+	gsc->id = ret;
+	if (gsc->id >= drv_data->num_entities) {
+		dev_err(dev, "Invalid platform device id: %d\n", gsc->id);
+		return -EINVAL;
 	}
 
+	gsc->num_clocks = drv_data->num_clocks;
+	gsc->variant = drv_data->variant[gsc->id];
+	gsc->pdev = pdev;
+
+	init_waitqueue_head(&gsc->irq_queue);
+	spin_lock_init(&gsc->slock);
+	mutex_init(&gsc->lock);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	gsc->regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(gsc->regs))
+		return PTR_ERR(gsc->regs);
+
+	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (!res) {
+		dev_err(dev, "failed to get IRQ resource\n");
+		return -ENXIO;
+	}
+
+	for (i = 0; i < gsc->num_clocks; i++) {
+		gsc->clock[i] = devm_clk_get(dev, drv_data->clk_names[i]);
+		if (IS_ERR(gsc->clock[i])) {
+			dev_err(dev, "failed to get clock: %s\n",
+				drv_data->clk_names[i]);
+			return PTR_ERR(gsc->clock[i]);
+		}
+	}
+
+	for (i = 0; i < gsc->num_clocks; i++) {
+		ret = clk_prepare_enable(gsc->clock[i]);
+		if (ret) {
+			dev_err(dev, "clock prepare failed for clock: %s\n",
+				drv_data->clk_names[i]);
+			while (--i >= 0)
+				clk_disable_unprepare(gsc->clock[i]);
+			return ret;
+		}
+	}
+
+	ret = devm_request_irq(dev, res->start, gsc_irq_handler,
+				0, pdev->name, gsc);
+	if (ret) {
+		dev_err(dev, "failed to install irq (%d)\n", ret);
+		goto err_clk;
+	}
+
+	ret = v4l2_device_register(dev, &gsc->v4l2_dev);
+	if (ret)
+		goto err_clk;
+
+	ret = gsc_register_m2m_device(gsc);
+	if (ret)
+		goto err_v4l2;
+
+	platform_set_drvdata(pdev, gsc);
+
+	gsc_hw_set_sw_reset(gsc);
+	gsc_wait_reset(gsc);
+
+	vb2_dma_contig_set_max_seg_size(dev, DMA_BIT_MASK(32));
+
+	dev_dbg(dev, "gsc-%d registered successfully\n", gsc->id);
+
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+
+	return 0;
+
+err_v4l2:
+	v4l2_device_unregister(&gsc->v4l2_dev);
+err_clk:
+	for (i = gsc->num_clocks - 1; i >= 0; i--)
+		clk_disable_unprepare(gsc->clock[i]);
+	return ret;
+}
+
+static int gsc_remove(struct platform_device *pdev)
+{
+	struct gsc_dev *gsc = platform_get_drvdata(pdev);
+	int i;
+
+	pm_runtime_get_sync(&pdev->dev);
+
+	gsc_unregister_m2m_device(gsc);
+	v4l2_device_unregister(&gsc->v4l2_dev);
+
+	vb2_dma_contig_clear_max_seg_size(&pdev->dev);
+	for (i = 0; i < gsc->num_clocks; i++)
+		clk_disable_unprepare(gsc->clock[i]);
+
+	pm_runtime_put_noidle(&pdev->dev);
+
+	dev_dbg(&pdev->dev, "%s driver unloaded\n", pdev->name);
 	return 0;
 }
 
+#ifdef CONFIG_PM
 static int gsc_m2m_suspend(struct gsc_dev *gsc)
 {
 	unsigned long flags;
@@ -1040,7 +1146,7 @@ static int gsc_m2m_suspend(struct gsc_dev *gsc)
 	return timeout == 0 ? -EAGAIN : 0;
 }
 
-static int gsc_m2m_resume(struct gsc_dev *gsc)
+static void gsc_m2m_resume(struct gsc_dev *gsc)
 {
 	struct gsc_ctx *ctx;
 	unsigned long flags;
@@ -1053,179 +1159,54 @@ static int gsc_m2m_resume(struct gsc_dev *gsc)
 
 	if (test_and_clear_bit(ST_M2M_SUSPENDED, &gsc->state))
 		gsc_m2m_job_finish(ctx, VB2_BUF_STATE_ERROR);
-
-	return 0;
-}
-
-static int gsc_probe(struct platform_device *pdev)
-{
-	struct gsc_dev *gsc;
-	struct resource *res;
-	struct gsc_driverdata *drv_data = gsc_get_drv_data(pdev);
-	struct device *dev = &pdev->dev;
-	int ret;
-
-	gsc = devm_kzalloc(dev, sizeof(struct gsc_dev), GFP_KERNEL);
-	if (!gsc)
-		return -ENOMEM;
-
-	ret = of_alias_get_id(pdev->dev.of_node, "gsc");
-	if (ret < 0)
-		return ret;
-
-	gsc->id = ret;
-	if (gsc->id >= drv_data->num_entities) {
-		dev_err(dev, "Invalid platform device id: %d\n", gsc->id);
-		return -EINVAL;
-	}
-
-	gsc->variant = drv_data->variant[gsc->id];
-	gsc->pdev = pdev;
-
-	init_waitqueue_head(&gsc->irq_queue);
-	spin_lock_init(&gsc->slock);
-	mutex_init(&gsc->lock);
-	gsc->clock = ERR_PTR(-EINVAL);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	gsc->regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(gsc->regs))
-		return PTR_ERR(gsc->regs);
-
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		dev_err(dev, "failed to get IRQ resource\n");
-		return -ENXIO;
-	}
-
-	ret = gsc_clk_get(gsc);
-	if (ret)
-		return ret;
-
-	ret = devm_request_irq(dev, res->start, gsc_irq_handler,
-				0, pdev->name, gsc);
-	if (ret) {
-		dev_err(dev, "failed to install irq (%d)\n", ret);
-		goto err_clk;
-	}
-
-	ret = v4l2_device_register(dev, &gsc->v4l2_dev);
-	if (ret)
-		goto err_clk;
-
-	ret = gsc_register_m2m_device(gsc);
-	if (ret)
-		goto err_v4l2;
-
-	platform_set_drvdata(pdev, gsc);
-	pm_runtime_enable(dev);
-	ret = pm_runtime_get_sync(&pdev->dev);
-	if (ret < 0)
-		goto err_m2m;
-
-	vb2_dma_contig_set_max_seg_size(dev, DMA_BIT_MASK(32));
-
-	dev_dbg(dev, "gsc-%d registered successfully\n", gsc->id);
-
-	pm_runtime_put(dev);
-	return 0;
-
-err_m2m:
-	gsc_unregister_m2m_device(gsc);
-err_v4l2:
-	v4l2_device_unregister(&gsc->v4l2_dev);
-err_clk:
-	gsc_clk_put(gsc);
-	return ret;
-}
-
-static int gsc_remove(struct platform_device *pdev)
-{
-	struct gsc_dev *gsc = platform_get_drvdata(pdev);
-
-	gsc_unregister_m2m_device(gsc);
-	v4l2_device_unregister(&gsc->v4l2_dev);
-
-	vb2_dma_contig_clear_max_seg_size(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
-	gsc_clk_put(gsc);
-
-	dev_dbg(&pdev->dev, "%s driver unloaded\n", pdev->name);
-	return 0;
 }
 
 static int gsc_runtime_resume(struct device *dev)
 {
 	struct gsc_dev *gsc = dev_get_drvdata(dev);
 	int ret = 0;
+	int i;
 
-	pr_debug("gsc%d: state: 0x%lx", gsc->id, gsc->state);
+	pr_debug("gsc%d: state: 0x%lx\n", gsc->id, gsc->state);
 
-	ret = clk_enable(gsc->clock);
-	if (ret)
-		return ret;
+	for (i = 0; i < gsc->num_clocks; i++) {
+		ret = clk_prepare_enable(gsc->clock[i]);
+		if (ret) {
+			while (--i >= 0)
+				clk_disable_unprepare(gsc->clock[i]);
+			return ret;
+		}
+	}
 
 	gsc_hw_set_sw_reset(gsc);
 	gsc_wait_reset(gsc);
+	gsc_m2m_resume(gsc);
 
-	return gsc_m2m_resume(gsc);
+	return 0;
 }
 
 static int gsc_runtime_suspend(struct device *dev)
 {
 	struct gsc_dev *gsc = dev_get_drvdata(dev);
 	int ret = 0;
+	int i;
 
 	ret = gsc_m2m_suspend(gsc);
-	if (!ret)
-		clk_disable(gsc->clock);
+	if (ret)
+		return ret;
 
-	pr_debug("gsc%d: state: 0x%lx", gsc->id, gsc->state);
+	for (i = gsc->num_clocks - 1; i >= 0; i--)
+		clk_disable_unprepare(gsc->clock[i]);
+
+	pr_debug("gsc%d: state: 0x%lx\n", gsc->id, gsc->state);
 	return ret;
 }
-
-static int gsc_resume(struct device *dev)
-{
-	struct gsc_dev *gsc = dev_get_drvdata(dev);
-	unsigned long flags;
-
-	pr_debug("gsc%d: state: 0x%lx", gsc->id, gsc->state);
-
-	/* Do not resume if the device was idle before system suspend */
-	spin_lock_irqsave(&gsc->slock, flags);
-	if (!test_and_clear_bit(ST_SUSPEND, &gsc->state) ||
-	    !gsc_m2m_opened(gsc)) {
-		spin_unlock_irqrestore(&gsc->slock, flags);
-		return 0;
-	}
-	spin_unlock_irqrestore(&gsc->slock, flags);
-
-	if (!pm_runtime_suspended(dev))
-		return gsc_runtime_resume(dev);
-
-	return 0;
-}
-
-static int gsc_suspend(struct device *dev)
-{
-	struct gsc_dev *gsc = dev_get_drvdata(dev);
-
-	pr_debug("gsc%d: state: 0x%lx", gsc->id, gsc->state);
-
-	if (test_and_set_bit(ST_SUSPEND, &gsc->state))
-		return 0;
-
-	if (!pm_runtime_suspended(dev))
-		return gsc_runtime_suspend(dev);
-
-	return 0;
-}
+#endif
 
 static const struct dev_pm_ops gsc_pm_ops = {
-	.suspend		= gsc_suspend,
-	.resume			= gsc_resume,
-	.runtime_suspend	= gsc_runtime_suspend,
-	.runtime_resume		= gsc_runtime_resume,
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(gsc_runtime_suspend, gsc_runtime_resume, NULL)
 };
 
 static struct platform_driver gsc_driver = {

@@ -382,6 +382,12 @@
 #define GEM_TX_PKT_BUFF_OFFSET			21
 #define GEM_TX_PKT_BUFF_SIZE			1
 
+/* Bitfields in DCFG6. */
+#define GEM_PBUF_LSO_OFFSET			27
+#define GEM_PBUF_LSO_SIZE			1
+#define GEM_DAW64_OFFSET			23
+#define GEM_DAW64_SIZE				1
+
 /* Constants for CLK */
 #define MACB_CLK_DIV8				0
 #define MACB_CLK_DIV16				1
@@ -413,6 +419,10 @@
 #define MACB_CAPS_GIGABIT_MODE_AVAILABLE	0x20000000
 #define MACB_CAPS_SG_DISABLED			0x40000000
 #define MACB_CAPS_MACB_IS_GEM			0x80000000
+
+/* LSO settings */
+#define MACB_LSO_UFO_ENABLE			0x01
+#define MACB_LSO_TSO_ENABLE			0x02
 
 /* Bit manipulation macros */
 #define MACB_BIT(name)					\
@@ -479,11 +489,19 @@
 struct macb_dma_desc {
 	u32	addr;
 	u32	ctrl;
-#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-	u32     addrh;
-	u32     resvd;
-#endif
 };
+
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+enum macb_hw_dma_cap {
+	HW_DMA_CAP_32B,
+	HW_DMA_CAP_64B,
+};
+
+struct macb_dma_desc_64 {
+	u32 addrh;
+	u32 resvd;
+};
+#endif
 
 /* DMA descriptor bitfields */
 #define MACB_RX_USED_OFFSET			0
@@ -545,6 +563,12 @@ struct macb_dma_desc {
 #define MACB_TX_LAST_SIZE			1
 #define MACB_TX_NOCRC_OFFSET			16
 #define MACB_TX_NOCRC_SIZE			1
+#define MACB_MSS_MFS_OFFSET			16
+#define MACB_MSS_MFS_SIZE			14
+#define MACB_TX_LSO_OFFSET			17
+#define MACB_TX_LSO_SIZE			2
+#define MACB_TX_TCP_SEQ_SRC_OFFSET		19
+#define MACB_TX_TCP_SEQ_SRC_SIZE		1
 #define MACB_TX_BUF_EXHAUSTED_OFFSET		27
 #define MACB_TX_BUF_EXHAUSTED_SIZE		1
 #define MACB_TX_UNDERRUN_OFFSET			28
@@ -811,6 +835,9 @@ struct macb {
 	void			*rx_buffers;
 	size_t			rx_buffer_size;
 
+	unsigned int		rx_ring_size;
+	unsigned int		tx_ring_size;
+
 	unsigned int		num_queues;
 	unsigned int		queue_mask;
 	struct macb_queue	queues[MACB_MAX_QUEUES];
@@ -857,6 +884,10 @@ struct macb {
 	unsigned int		jumbo_max_len;
 
 	u32			wol;
+
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+	enum macb_hw_dma_cap hw_dma_cap;
+#endif
 };
 
 static inline bool macb_is_gem(struct macb *bp)

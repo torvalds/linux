@@ -475,29 +475,27 @@ static int i2c_dw_wait_bus_not_busy(struct dw_i2c_dev *dev)
 static void i2c_dw_xfer_init(struct dw_i2c_dev *dev)
 {
 	struct i2c_msg *msgs = dev->msgs;
-	u32 ic_tar = 0;
+	u32 ic_con, ic_tar = 0;
 
 	/* Disable the adapter */
 	__i2c_dw_enable_and_wait(dev, false);
 
 	/* if the slave address is ten bit address, enable 10BITADDR */
-	if (dev->dynamic_tar_update_enabled) {
+	ic_con = dw_readl(dev, DW_IC_CON);
+	if (msgs[dev->msg_write_idx].flags & I2C_M_TEN) {
+		ic_con |= DW_IC_CON_10BITADDR_MASTER;
 		/*
 		 * If I2C_DYNAMIC_TAR_UPDATE is set, the 10-bit addressing
-		 * mode has to be enabled via bit 12 of IC_TAR register,
-		 * otherwise bit 4 of IC_CON is used.
+		 * mode has to be enabled via bit 12 of IC_TAR register.
+		 * We set it always as I2C_DYNAMIC_TAR_UPDATE can't be
+		 * detected from registers.
 		 */
-		if (msgs[dev->msg_write_idx].flags & I2C_M_TEN)
-			ic_tar = DW_IC_TAR_10BITADDR_MASTER;
+		ic_tar = DW_IC_TAR_10BITADDR_MASTER;
 	} else {
-		u32 ic_con = dw_readl(dev, DW_IC_CON);
-
-		if (msgs[dev->msg_write_idx].flags & I2C_M_TEN)
-			ic_con |= DW_IC_CON_10BITADDR_MASTER;
-		else
-			ic_con &= ~DW_IC_CON_10BITADDR_MASTER;
-		dw_writel(dev, ic_con, DW_IC_CON);
+		ic_con &= ~DW_IC_CON_10BITADDR_MASTER;
 	}
+
+	dw_writel(dev, ic_con, DW_IC_CON);
 
 	/*
 	 * Set the slave (target) address and enable 10-bit addressing mode
@@ -536,6 +534,8 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 	intr_mask = DW_IC_INTR_DEFAULT_MASK;
 
 	for (; dev->msg_write_idx < dev->msgs_num; dev->msg_write_idx++) {
+		u32 flags = msgs[dev->msg_write_idx].flags;
+
 		/*
 		 * if target address has changed, we need to
 		 * reprogram the target address in the i2c
@@ -581,8 +581,15 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 			 * detected from the registers so we set it always
 			 * when writing/reading the last byte.
 			 */
+
+			/*
+			 * i2c-core.c always sets the buffer length of
+			 * I2C_FUNC_SMBUS_BLOCK_DATA to 1. The length will
+			 * be adjusted when receiving the first byte.
+			 * Thus we can't stop the transaction here.
+			 */
 			if (dev->msg_write_idx == dev->msgs_num - 1 &&
-			    buf_len == 1)
+			    buf_len == 1 && !(flags & I2C_M_RECV_LEN))
 				cmd |= BIT(9);
 
 			if (need_restart) {
@@ -607,7 +614,12 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 		dev->tx_buf = buf;
 		dev->tx_buf_len = buf_len;
 
-		if (buf_len > 0) {
+		/*
+		 * Because we don't know the buffer length in the
+		 * I2C_FUNC_SMBUS_BLOCK_DATA case, we can't stop
+		 * the transaction here.
+		 */
+		if (buf_len > 0 || flags & I2C_M_RECV_LEN) {
 			/* more bytes to be written */
 			dev->status |= STATUS_WRITE_IN_PROGRESS;
 			break;
@@ -626,6 +638,24 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 		intr_mask = 0;
 
 	dw_writel(dev, intr_mask,  DW_IC_INTR_MASK);
+}
+
+static u8
+i2c_dw_recv_len(struct dw_i2c_dev *dev, u8 len)
+{
+	struct i2c_msg *msgs = dev->msgs;
+	u32 flags = msgs[dev->msg_read_idx].flags;
+
+	/*
+	 * Adjust the buffer length and mask the flag
+	 * after receiving the first byte.
+	 */
+	len += (flags & I2C_CLIENT_PEC) ? 2 : 1;
+	dev->tx_buf_len = len - min_t(u8, len, dev->rx_outstanding);
+	msgs[dev->msg_read_idx].len = len;
+	msgs[dev->msg_read_idx].flags &= ~I2C_M_RECV_LEN;
+
+	return len;
 }
 
 static void
@@ -652,7 +682,15 @@ i2c_dw_read(struct dw_i2c_dev *dev)
 		rx_valid = dw_readl(dev, DW_IC_RXFLR);
 
 		for (; len > 0 && rx_valid > 0; len--, rx_valid--) {
-			*buf++ = dw_readl(dev, DW_IC_DATA_CMD);
+			u32 flags = msgs[dev->msg_read_idx].flags;
+
+			*buf = dw_readl(dev, DW_IC_DATA_CMD);
+			/* Ensure length byte is a valid value */
+			if (flags & I2C_M_RECV_LEN &&
+				*buf <= I2C_SMBUS_BLOCK_MAX && *buf > 0) {
+				len = i2c_dw_recv_len(dev, *buf);
+			}
+			buf++;
 			dev->rx_outstanding--;
 		}
 
@@ -923,33 +961,12 @@ int i2c_dw_probe(struct dw_i2c_dev *dev)
 {
 	struct i2c_adapter *adap = &dev->adapter;
 	int r;
-	u32 reg;
 
 	init_completion(&dev->cmd_complete);
 
 	r = i2c_dw_init(dev);
 	if (r)
 		return r;
-
-	r = i2c_dw_acquire_lock(dev);
-	if (r)
-		return r;
-
-	/*
-	 * Test if dynamic TAR update is enabled in this controller by writing
-	 * to IC_10BITADDR_MASTER field in IC_CON: when it is enabled this
-	 * field is read-only so it should not succeed
-	 */
-	reg = dw_readl(dev, DW_IC_CON);
-	dw_writel(dev, reg ^ DW_IC_CON_10BITADDR_MASTER, DW_IC_CON);
-
-	if ((dw_readl(dev, DW_IC_CON) & DW_IC_CON_10BITADDR_MASTER) ==
-	    (reg & DW_IC_CON_10BITADDR_MASTER)) {
-		dev->dynamic_tar_update_enabled = true;
-		dev_dbg(dev->dev, "Dynamic TAR update enabled");
-	}
-
-	i2c_dw_release_lock(dev);
 
 	snprintf(adap->name, sizeof(adap->name),
 		 "Synopsys DesignWare I2C adapter");

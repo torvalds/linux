@@ -36,7 +36,6 @@
 
 #include "dmxdev.h"
 #include "dvb_demux.h"
-#include "dvb_filter.h"
 #include "dvb_frontend.h"
 #include "dvb_net.h"
 #include "ttusbdecfe.h"
@@ -90,6 +89,15 @@ enum ttusb_dec_interface {
 	TTUSB_DEC_INTERFACE_INITIAL,
 	TTUSB_DEC_INTERFACE_IN,
 	TTUSB_DEC_INTERFACE_OUT
+};
+
+typedef int (dvb_filter_pes2ts_cb_t) (void *, unsigned char *);
+
+struct dvb_filter_pes2ts {
+	unsigned char buf[188];
+	unsigned char cc;
+	dvb_filter_pes2ts_cb_t *cb;
+	void *priv;
 };
 
 struct ttusb_dec {
@@ -201,6 +209,54 @@ static u16 rc_keys[] = {
 	KEY_RADIO
 };
 
+static void dvb_filter_pes2ts_init(struct dvb_filter_pes2ts *p2ts,
+				   unsigned short pid,
+				   dvb_filter_pes2ts_cb_t *cb, void *priv)
+{
+	unsigned char *buf=p2ts->buf;
+
+	buf[0]=0x47;
+	buf[1]=(pid>>8);
+	buf[2]=pid&0xff;
+	p2ts->cc=0;
+	p2ts->cb=cb;
+	p2ts->priv=priv;
+}
+
+static int dvb_filter_pes2ts(struct dvb_filter_pes2ts *p2ts,
+			     unsigned char *pes, int len, int payload_start)
+{
+	unsigned char *buf=p2ts->buf;
+	int ret=0, rest;
+
+	//len=6+((pes[4]<<8)|pes[5]);
+
+	if (payload_start)
+		buf[1]|=0x40;
+	else
+		buf[1]&=~0x40;
+	while (len>=184) {
+		buf[3]=0x10|((p2ts->cc++)&0x0f);
+		memcpy(buf+4, pes, 184);
+		if ((ret=p2ts->cb(p2ts->priv, buf)))
+			return ret;
+		len-=184; pes+=184;
+		buf[1]&=~0x40;
+	}
+	if (!len)
+		return 0;
+	buf[3]=0x30|((p2ts->cc++)&0x0f);
+	rest=183-len;
+	if (rest) {
+		buf[5]=0x00;
+		if (rest-1)
+			memset(buf+6, 0xff, rest-1);
+	}
+	buf[4]=rest;
+	memcpy(buf+5+rest, pes, len);
+	return p2ts->cb(p2ts->priv, buf);
+}
+
 static void ttusb_dec_set_model(struct ttusb_dec *dec,
 				enum ttusb_dec_model model);
 
@@ -273,7 +329,7 @@ static int ttusb_dec_send_command(struct ttusb_dec *dec, const u8 command,
 				  int param_length, const u8 params[],
 				  int *result_length, u8 cmd_result[])
 {
-	int result, actual_len, i;
+	int result, actual_len;
 	u8 *b;
 
 	dprintk("%s\n", __func__);
@@ -297,10 +353,8 @@ static int ttusb_dec_send_command(struct ttusb_dec *dec, const u8 command,
 		memcpy(&b[4], params, param_length);
 
 	if (debug) {
-		printk("%s: command: ", __func__);
-		for (i = 0; i < param_length + 4; i++)
-			printk("0x%02X ", b[i]);
-		printk("\n");
+		printk(KERN_DEBUG "%s: command: %*ph\n",
+		       __func__, param_length, b);
 	}
 
 	result = usb_bulk_msg(dec->udev, dec->command_pipe, b,
@@ -325,10 +379,8 @@ static int ttusb_dec_send_command(struct ttusb_dec *dec, const u8 command,
 		return result;
 	} else {
 		if (debug) {
-			printk("%s: result: ", __func__);
-			for (i = 0; i < actual_len; i++)
-				printk("0x%02X ", b[i]);
-			printk("\n");
+			printk(KERN_DEBUG "%s: result: %*ph\n",
+			       __func__, actual_len, b);
 		}
 
 		if (result_length)
@@ -652,8 +704,8 @@ static void ttusb_dec_process_urb_frame(struct ttusb_dec *dec, u8 *b,
 					dec->packet_payload_length = 2;
 					dec->packet_state = 7;
 				} else {
-					printk("%s: unknown packet type: "
-					       "%02x%02x\n", __func__,
+					printk("%s: unknown packet type: %02x%02x\n",
+					       __func__,
 					       dec->packet[0], dec->packet[1]);
 					dec->packet_state = 0;
 				}
@@ -905,8 +957,8 @@ static int ttusb_dec_start_iso_xfer(struct ttusb_dec *dec)
 		for (i = 0; i < ISO_BUF_COUNT; i++) {
 			if ((result = usb_submit_urb(dec->iso_urb[i],
 						     GFP_ATOMIC))) {
-				printk("%s: failed urb submission %d: "
-				       "error %d\n", __func__, i, result);
+				printk("%s: failed urb submission %d: error %d\n",
+				       __func__, i, result);
 
 				while (i) {
 					usb_kill_urb(dec->iso_urb[i - 1]);
@@ -1319,8 +1371,7 @@ static int ttusb_dec_boot_dsp(struct ttusb_dec *dec)
 	memcpy(&tmp, &firmware[56], 4);
 	crc32_check = ntohl(tmp);
 	if (crc32_csum != crc32_check) {
-		printk("%s: crc32 check of DSP code failed (calculated "
-		       "0x%08x != 0x%08x in file), file invalid.\n",
+		printk("%s: crc32 check of DSP code failed (calculated 0x%08x != 0x%08x in file), file invalid.\n",
 			__func__, crc32_csum, crc32_check);
 		release_firmware(fw_entry);
 		return -ENOENT;
@@ -1397,11 +1448,9 @@ static int ttusb_dec_init_stb(struct ttusb_dec *dec)
 
 	if (!mode) {
 		if (version == 0xABCDEFAB)
-			printk(KERN_INFO "ttusb_dec: no version "
-			       "info in Firmware\n");
+			printk(KERN_INFO "ttusb_dec: no version info in Firmware\n");
 		else
-			printk(KERN_INFO "ttusb_dec: Firmware "
-			       "%x.%02x%c%c\n",
+			printk(KERN_INFO "ttusb_dec: Firmware %x.%02x%c%c\n",
 			       version >> 24, (version >> 16) & 0xff,
 			       (version >> 8) & 0xff, version & 0xff);
 
@@ -1425,8 +1474,7 @@ static int ttusb_dec_init_stb(struct ttusb_dec *dec)
 			ttusb_dec_set_model(dec, TTUSB_DEC2540T);
 			break;
 		default:
-			printk(KERN_ERR "%s: unknown model returned "
-			       "by firmware (%08x) - please report\n",
+			printk(KERN_ERR "%s: unknown model returned by firmware (%08x) - please report\n",
 			       __func__, model);
 			return -ENOENT;
 		}

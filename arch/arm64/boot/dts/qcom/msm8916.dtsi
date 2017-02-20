@@ -77,7 +77,7 @@
 			no-map;
 		};
 
-		mpss@86800000 {
+		mpss_mem: mpss@86800000 {
 			reg = <0x0 0x86800000 0x0 0x2b00000>;
 			no-map;
 		};
@@ -504,6 +504,15 @@
 			reg-names = "lpass-lpaif";
 		};
 
+                lpass_codec: codec{
+			compatible = "qcom,msm8916-wcd-digital-codec";
+			reg = <0x0771c000 0x400>;
+			clocks = <&gcc GCC_ULTAUDIO_AHBFABRIC_IXFABRIC_CLK>,
+				 <&gcc GCC_CODEC_DIGCODEC_CLK>;
+			clock-names = "ahbix-clk", "mclk";
+			#sound-dai-cells = <1>;
+                };
+
 		sdhc_1: sdhci@07824000 {
 			compatible = "qcom,sdhci-msm-v4";
 			reg = <0x07824900 0x11c>, <0x07824000 0x800>;
@@ -512,8 +521,10 @@
 			interrupts = <0 123 0>, <0 138 0>;
 			interrupt-names = "hc_irq", "pwr_irq";
 			clocks = <&gcc GCC_SDCC1_APPS_CLK>,
-				 <&gcc GCC_SDCC1_AHB_CLK>;
-			clock-names = "core", "iface";
+				 <&gcc GCC_SDCC1_AHB_CLK>,
+				 <&xo_board>;
+			clock-names = "core", "iface", "xo";
+			mmc-ddr-1_8v;
 			bus-width = <8>;
 			non-removable;
 			status = "disabled";
@@ -527,8 +538,9 @@
 			interrupts = <0 125 0>, <0 221 0>;
 			interrupt-names = "hc_irq", "pwr_irq";
 			clocks = <&gcc GCC_SDCC2_APPS_CLK>,
-				 <&gcc GCC_SDCC2_AHB_CLK>;
-			clock-names = "core", "iface";
+				 <&gcc GCC_SDCC2_AHB_CLK>,
+				 <&xo_board>;
+			clock-names = "core", "iface", "xo";
 			bus-width = <4>;
 			status = "disabled";
 		};
@@ -801,6 +813,49 @@
 				clock-names = "iface_clk";
 			};
 		};
+
+
+		hexagon@4080000 {
+			compatible = "qcom,q6v5-pil";
+			reg = <0x04080000 0x100>,
+			      <0x04020000 0x040>;
+
+			reg-names = "qdsp6", "rmb";
+
+			interrupts-extended = <&intc 0 24 1>,
+					      <&hexagon_smp2p_in 0 0>,
+					      <&hexagon_smp2p_in 1 0>,
+					      <&hexagon_smp2p_in 2 0>,
+					      <&hexagon_smp2p_in 3 0>;
+			interrupt-names = "wdog", "fatal", "ready",
+					  "handover", "stop-ack";
+
+			clocks = <&gcc GCC_MSS_CFG_AHB_CLK>,
+				 <&gcc GCC_MSS_Q6_BIMC_AXI_CLK>,
+				 <&gcc GCC_BOOT_ROM_AHB_CLK>;
+			clock-names = "iface", "bus", "mem";
+
+			qcom,smem-states = <&hexagon_smp2p_out 0>;
+			qcom,smem-state-names = "stop";
+
+			resets = <&scm 0>;
+			reset-names = "mss_restart";
+
+			mx-supply = <&pm8916_l3>;
+			pll-supply = <&pm8916_l7>;
+
+			qcom,halt-regs = <&tcsr 0x18000 0x19000 0x1a000>;
+
+			status = "disabled";
+
+			mba {
+				memory-region = <&mba_mem>;
+			};
+
+			mpss {
+				memory-region = <&mpss_mem>;
+			};
+		};
 	};
 
 	smd {
@@ -847,6 +902,14 @@
 					pm8916_l18: l18 {};
 				};
 			};
+		};
+
+		hexagon {
+			interrupts = <0 25 IRQ_TYPE_EDGE_RISING>;
+
+			qcom,smd-edge = <0>;
+			qcom,ipc = <&apcs 8 12>;
+			qcom,remote-pid = <1>;
 		};
 	};
 

@@ -68,7 +68,6 @@ DECLARE_RWSEM(dmar_global_lock);
 LIST_HEAD(dmar_drhd_units);
 
 struct acpi_table_header * __initdata dmar_tbl;
-static acpi_size dmar_tbl_size;
 static int dmar_dev_scope_status = 1;
 static unsigned long dmar_seq_ids[BITS_TO_LONGS(DMAR_UNITS_SUPPORTED)];
 
@@ -543,9 +542,7 @@ static int __init dmar_table_detect(void)
 	acpi_status status = AE_OK;
 
 	/* if we could find DMAR table, then there are DMAR devices */
-	status = acpi_get_table_with_size(ACPI_SIG_DMAR, 0,
-				(struct acpi_table_header **)&dmar_tbl,
-				&dmar_tbl_size);
+	status = acpi_get_table(ACPI_SIG_DMAR, 0, &dmar_tbl);
 
 	if (ACPI_SUCCESS(status) && !dmar_tbl) {
 		pr_warn("Unable to map DMAR\n");
@@ -906,8 +903,10 @@ int __init detect_intel_iommu(void)
 		x86_init.iommu.iommu_init = intel_iommu_init;
 #endif
 
-	early_acpi_os_unmap_memory((void __iomem *)dmar_tbl, dmar_tbl_size);
-	dmar_tbl = NULL;
+	if (dmar_tbl) {
+		acpi_put_table(dmar_tbl);
+		dmar_tbl = NULL;
+	}
 	up_write(&dmar_global_lock);
 
 	return ret ? 1 : -ENODEV;

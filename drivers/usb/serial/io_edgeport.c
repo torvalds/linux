@@ -1554,9 +1554,6 @@ static int get_serial_info(struct edgeport_port *edge_port,
 {
 	struct serial_struct tmp;
 
-	if (!retinfo)
-		return -EFAULT;
-
 	memset(&tmp, 0, sizeof(tmp));
 
 	tmp.type		= PORT_16550A;
@@ -2753,6 +2750,11 @@ static int edge_startup(struct usb_serial *serial)
 	static __u32 descriptor[3] = {	EDGE_COMPATIBILITY_MASK0,
 					EDGE_COMPATIBILITY_MASK1,
 					EDGE_COMPATIBILITY_MASK2 };
+
+	if (serial->num_bulk_in < 1 || serial->num_interrupt_in < 1) {
+		dev_err(&serial->interface->dev, "missing endpoints\n");
+		return -ENODEV;
+	}
 
 	dev = serial->dev;
 

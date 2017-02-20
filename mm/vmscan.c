@@ -242,6 +242,16 @@ unsigned long lruvec_lru_size(struct lruvec *lruvec, enum lru_list lru)
 	return node_page_state(lruvec_pgdat(lruvec), NR_LRU_BASE + lru);
 }
 
+unsigned long lruvec_zone_lru_size(struct lruvec *lruvec, enum lru_list lru,
+				   int zone_idx)
+{
+	if (!mem_cgroup_disabled())
+		return mem_cgroup_get_zone_lru_size(lruvec, lru, zone_idx);
+
+	return zone_page_state(&lruvec_pgdat(lruvec)->node_zones[zone_idx],
+			       NR_ZONE_LRU_BASE + lru);
+}
+
 /*
  * Add a shrinker callback to be called from the vm.
  */
@@ -291,6 +301,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
 	int nid = shrinkctl->nid;
 	long batch_size = shrinker->batch ? shrinker->batch
 					  : SHRINK_BATCH;
+	long scanned = 0, next_deferred;
 
 	freeable = shrinker->count_objects(shrinker, shrinkctl);
 	if (freeable == 0)
@@ -312,7 +323,9 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
 		pr_err("shrink_slab: %pF negative objects to delete nr=%ld\n",
 		       shrinker->scan_objects, total_scan);
 		total_scan = freeable;
-	}
+		next_deferred = nr;
+	} else
+		next_deferred = total_scan;
 
 	/*
 	 * We need to avoid excessive windup on filesystem shrinkers
@@ -369,17 +382,22 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
 
 		count_vm_events(SLABS_SCANNED, nr_to_scan);
 		total_scan -= nr_to_scan;
+		scanned += nr_to_scan;
 
 		cond_resched();
 	}
 
+	if (next_deferred >= scanned)
+		next_deferred -= scanned;
+	else
+		next_deferred = 0;
 	/*
 	 * move the unused scan count back into the shrinker in a
 	 * manner that handles concurrent updates. If we exhausted the
 	 * scan, there is no need to do an update.
 	 */
-	if (total_scan > 0)
-		new_nr = atomic_long_add_return(total_scan,
+	if (next_deferred > 0)
+		new_nr = atomic_long_add_return(next_deferred,
 						&shrinker->nr_deferred[nid]);
 	else
 		new_nr = atomic_long_read(&shrinker->nr_deferred[nid]);
@@ -1374,8 +1392,7 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode)
  * be complete before mem_cgroup_update_lru_size due to a santity check.
  */
 static __always_inline void update_lru_sizes(struct lruvec *lruvec,
-			enum lru_list lru, unsigned long *nr_zone_taken,
-			unsigned long nr_taken)
+			enum lru_list lru, unsigned long *nr_zone_taken)
 {
 	int zid;
 
@@ -1384,11 +1401,11 @@ static __always_inline void update_lru_sizes(struct lruvec *lruvec,
 			continue;
 
 		__update_lru_size(lruvec, lru, zid, -nr_zone_taken[zid]);
+#ifdef CONFIG_MEMCG
+		mem_cgroup_update_lru_size(lruvec, lru, zid, -nr_zone_taken[zid]);
+#endif
 	}
 
-#ifdef CONFIG_MEMCG
-	mem_cgroup_update_lru_size(lruvec, lru, -nr_taken);
-#endif
 }
 
 /*
@@ -1493,7 +1510,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 	*nr_scanned = scan;
 	trace_mm_vmscan_lru_isolate(sc->reclaim_idx, sc->order, nr_to_scan, scan,
 				    nr_taken, mode, is_file_lru(lru));
-	update_lru_sizes(lruvec, lru, nr_zone_taken, nr_taken);
+	update_lru_sizes(lruvec, lru, nr_zone_taken);
 	return nr_taken;
 }
 
@@ -2039,10 +2056,8 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
 		if (!managed_zone(zone))
 			continue;
 
-		inactive_zone = zone_page_state(zone,
-				NR_ZONE_LRU_BASE + (file * LRU_FILE));
-		active_zone = zone_page_state(zone,
-				NR_ZONE_LRU_BASE + (file * LRU_FILE) + LRU_ACTIVE);
+		inactive_zone = lruvec_zone_lru_size(lruvec, file * LRU_FILE, zid);
+		active_zone = lruvec_zone_lru_size(lruvec, (file * LRU_FILE) + LRU_ACTIVE, zid);
 
 		inactive -= min(inactive, inactive_zone);
 		active -= min(active, active_zone);
@@ -3558,24 +3573,21 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
    not required for correctness.  So if the last cpu in a node goes
    away, we get changed to run anywhere: as the first one comes back,
    restore their cpu bindings. */
-static int cpu_callback(struct notifier_block *nfb, unsigned long action,
-			void *hcpu)
+static int kswapd_cpu_online(unsigned int cpu)
 {
 	int nid;
 
-	if (action == CPU_ONLINE || action == CPU_ONLINE_FROZEN) {
-		for_each_node_state(nid, N_MEMORY) {
-			pg_data_t *pgdat = NODE_DATA(nid);
-			const struct cpumask *mask;
+	for_each_node_state(nid, N_MEMORY) {
+		pg_data_t *pgdat = NODE_DATA(nid);
+		const struct cpumask *mask;
 
-			mask = cpumask_of_node(pgdat->node_id);
+		mask = cpumask_of_node(pgdat->node_id);
 
-			if (cpumask_any_and(cpu_online_mask, mask) < nr_cpu_ids)
-				/* One of our CPUs online: restore mask */
-				set_cpus_allowed_ptr(pgdat->kswapd, mask);
-		}
+		if (cpumask_any_and(cpu_online_mask, mask) < nr_cpu_ids)
+			/* One of our CPUs online: restore mask */
+			set_cpus_allowed_ptr(pgdat->kswapd, mask);
 	}
-	return NOTIFY_OK;
+	return 0;
 }
 
 /*
@@ -3617,12 +3629,15 @@ void kswapd_stop(int nid)
 
 static int __init kswapd_init(void)
 {
-	int nid;
+	int nid, ret;
 
 	swap_setup();
 	for_each_node_state(nid, N_MEMORY)
  		kswapd_run(nid);
-	hotcpu_notifier(cpu_callback, 0);
+	ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+					"mm/vmscan:online", kswapd_cpu_online,
+					NULL);
+	WARN_ON(ret < 0);
 	return 0;
 }
 

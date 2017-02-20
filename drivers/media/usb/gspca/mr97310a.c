@@ -72,8 +72,7 @@
 #define MR97310A_MIN_CLOCKDIV_MAX	8
 #define MR97310A_MIN_CLOCKDIV_DEFAULT	3
 
-MODULE_AUTHOR("Kyle Guinn <elyk03@gmail.com>,"
-	      "Theodore Kilgore <kilgota@auburn.edu>");
+MODULE_AUTHOR("Kyle Guinn <elyk03@gmail.com>,Theodore Kilgore <kilgota@auburn.edu>");
 MODULE_DESCRIPTION("GSPCA/Mars-Semi MR97310A USB Camera Driver");
 MODULE_LICENSE("GPL");
 
