@@ -5045,14 +5045,14 @@ static bool btrfs_must_commit_transaction(struct btrfs_trans_handle *trans,
  * a full commit is required.
  */
 static noinline int check_parent_dirs_for_sync(struct btrfs_trans_handle *trans,
-					       struct inode *inode,
+					       struct btrfs_inode *inode,
 					       struct dentry *parent,
 					       struct super_block *sb,
 					       u64 last_committed)
 {
 	int ret = 0;
 	struct dentry *old_parent = NULL;
-	struct inode *orig_inode = inode;
+	struct btrfs_inode *orig_inode = inode;
 
 	/*
 	 * for regular files, if its inode is already on disk, we don't
@@ -5060,15 +5060,15 @@ static noinline int check_parent_dirs_for_sync(struct btrfs_trans_handle *trans,
 	 * we can use the last_unlink_trans field to record renames
 	 * and other fun in this file.
 	 */
-	if (S_ISREG(inode->i_mode) &&
-	    BTRFS_I(inode)->generation <= last_committed &&
-	    BTRFS_I(inode)->last_unlink_trans <= last_committed)
-			goto out;
+	if (S_ISREG(inode->vfs_inode.i_mode) &&
+	    inode->generation <= last_committed &&
+	    inode->last_unlink_trans <= last_committed)
+		goto out;
 
-	if (!S_ISDIR(inode->i_mode)) {
+	if (!S_ISDIR(inode->vfs_inode.i_mode)) {
 		if (!parent || d_really_is_negative(parent) || sb != parent->d_sb)
 			goto out;
-		inode = d_inode(parent);
+		inode = BTRFS_I(d_inode(parent));
 	}
 
 	while (1) {
@@ -5079,10 +5079,10 @@ static noinline int check_parent_dirs_for_sync(struct btrfs_trans_handle *trans,
 		 * think this inode has already been logged.
 		 */
 		if (inode != orig_inode)
-			BTRFS_I(inode)->logged_trans = trans->transid;
+			inode->logged_trans = trans->transid;
 		smp_mb();
 
-		if (btrfs_must_commit_transaction(trans, BTRFS_I(inode))) {
+		if (btrfs_must_commit_transaction(trans, inode)) {
 			ret = 1;
 			break;
 		}
@@ -5091,8 +5091,8 @@ static noinline int check_parent_dirs_for_sync(struct btrfs_trans_handle *trans,
 			break;
 
 		if (IS_ROOT(parent)) {
-			inode = d_inode(parent);
-			if (btrfs_must_commit_transaction(trans, BTRFS_I(inode)))
+			inode = BTRFS_I(d_inode(parent));
+			if (btrfs_must_commit_transaction(trans, inode))
 				ret = 1;
 			break;
 		}
@@ -5100,7 +5100,7 @@ static noinline int check_parent_dirs_for_sync(struct btrfs_trans_handle *trans,
 		parent = dget_parent(parent);
 		dput(old_parent);
 		old_parent = parent;
-		inode = d_inode(parent);
+		inode = BTRFS_I(d_inode(parent));
 
 	}
 	dput(old_parent);
@@ -5429,7 +5429,7 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 		goto end_no_trans;
 	}
 
-	ret = check_parent_dirs_for_sync(trans, inode, parent,
+	ret = check_parent_dirs_for_sync(trans, BTRFS_I(inode), parent,
 					 sb, last_committed);
 	if (ret)
 		goto end_no_trans;
