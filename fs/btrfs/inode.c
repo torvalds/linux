@@ -6321,10 +6321,10 @@ fail_dir_item:
 }
 
 static int btrfs_add_nondir(struct btrfs_trans_handle *trans,
-			    struct inode *dir, struct dentry *dentry,
-			    struct inode *inode, int backref, u64 index)
+			    struct btrfs_inode *dir, struct dentry *dentry,
+			    struct btrfs_inode *inode, int backref, u64 index)
 {
-	int err = btrfs_add_link(trans, BTRFS_I(dir), BTRFS_I(inode),
+	int err = btrfs_add_link(trans, dir, inode,
 				 dentry->d_name.name, dentry->d_name.len,
 				 backref, index);
 	if (err > 0)
@@ -6378,7 +6378,8 @@ static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
 	if (err)
 		goto out_unlock_inode;
 
-	err = btrfs_add_nondir(trans, dir, dentry, inode, 0, index);
+	err = btrfs_add_nondir(trans, BTRFS_I(dir), dentry, BTRFS_I(inode),
+			0, index);
 	if (err) {
 		goto out_unlock_inode;
 	} else {
@@ -6455,7 +6456,8 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 	if (err)
 		goto out_unlock_inode;
 
-	err = btrfs_add_nondir(trans, dir, dentry, inode, 0, index);
+	err = btrfs_add_nondir(trans, BTRFS_I(dir), dentry, BTRFS_I(inode),
+			0, index);
 	if (err)
 		goto out_unlock_inode;
 
@@ -6521,7 +6523,8 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	ihold(inode);
 	set_bit(BTRFS_INODE_COPY_EVERYTHING, &BTRFS_I(inode)->runtime_flags);
 
-	err = btrfs_add_nondir(trans, dir, dentry, inode, 1, index);
+	err = btrfs_add_nondir(trans, BTRFS_I(dir), dentry, BTRFS_I(inode),
+			1, index);
 
 	if (err) {
 		drop_inode = 1;
@@ -9703,8 +9706,8 @@ static int btrfs_whiteout_for_rename(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto out;
 
-	ret = btrfs_add_nondir(trans, dir, dentry,
-				inode, 0, index);
+	ret = btrfs_add_nondir(trans, BTRFS_I(dir), dentry,
+				BTRFS_I(inode), 0, index);
 	if (ret)
 		goto out;
 
@@ -10253,7 +10256,8 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 	 * elsewhere above.
 	 */
 	if (!err)
-		err = btrfs_add_nondir(trans, dir, dentry, inode, 0, index);
+		err = btrfs_add_nondir(trans, BTRFS_I(dir), dentry,
+				BTRFS_I(inode), 0, index);
 	if (err) {
 		drop_inode = 1;
 		goto out_unlock_inode;
