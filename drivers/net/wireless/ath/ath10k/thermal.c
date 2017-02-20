@@ -191,7 +191,8 @@ int ath10k_thermal_register(struct ath10k *ar)
 		return 0;
 
 	/* Avoid linking error on devm_hwmon_device_register_with_groups, I
-	 * guess linux/hwmon.h is missing proper stubs. */
+	 * guess linux/hwmon.h is missing proper stubs.
+	 */
 	if (!IS_REACHABLE(CONFIG_HWMON))
 		return 0;
 

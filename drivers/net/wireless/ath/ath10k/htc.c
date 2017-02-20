@@ -422,7 +422,8 @@ static void ath10k_htc_control_rx_complete(struct ath10k *ar,
 					   struct sk_buff *skb)
 {
 	/* This is unexpected. FW is not supposed to send regular rx on this
-	 * endpoint. */
+	 * endpoint.
+	 */
 	ath10k_warn(ar, "unexpected htc rx\n");
 	kfree_skb(skb);
 }

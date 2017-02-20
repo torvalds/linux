@@ -1645,7 +1645,8 @@ static void ath10k_core_restart(struct work_struct *work)
 		break;
 	case ATH10K_STATE_OFF:
 		/* this can happen if driver is being unloaded
-		 * or if the crash happens during FW probing */
+		 * or if the crash happens during FW probing
+		 */
 		ath10k_warn(ar, "cannot restart a device that hasn't been started\n");
 		break;
 	case ATH10K_STATE_RESTARTING:
@@ -2173,7 +2174,8 @@ EXPORT_SYMBOL(ath10k_core_stop);
 /* mac80211 manages fw/hw initialization through start/stop hooks. However in
  * order to know what hw capabilities should be advertised to mac80211 it is
  * necessary to load the firmware (and tear it down immediately since start
- * hook will try to init it again) before registering */
+ * hook will try to init it again) before registering
+ */
 static int ath10k_core_probe_fw(struct ath10k *ar)
 {
 	struct bmi_target_info target_info;
@@ -2367,7 +2369,8 @@ void ath10k_core_unregister(struct ath10k *ar)
 
 	/* We must unregister from mac80211 before we stop HTC and HIF.
 	 * Otherwise we will fail to submit commands to FW and mac80211 will be
-	 * unhappy about callback failures. */
+	 * unhappy about callback failures.
+	 */
 	ath10k_mac_unregister(ar);
 
 	ath10k_testmode_destroy(ar);
