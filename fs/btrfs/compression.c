@@ -100,7 +100,7 @@ static struct bio *compressed_bio_alloc(struct block_device *bdev,
 	return btrfs_bio_alloc(bdev, first_byte >> 9, BIO_MAX_PAGES, gfp_flags);
 }
 
-static int check_compressed_csum(struct inode *inode,
+static int check_compressed_csum(struct btrfs_inode *inode,
 				 struct compressed_bio *cb,
 				 u64 disk_start)
 {
@@ -111,7 +111,7 @@ static int check_compressed_csum(struct inode *inode,
 	u32 csum;
 	u32 *cb_sum = &cb->sums;
 
-	if (BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)
+	if (inode->flags & BTRFS_INODE_NODATASUM)
 		return 0;
 
 	for (i = 0; i < cb->nr_pages; i++) {
@@ -124,8 +124,7 @@ static int check_compressed_csum(struct inode *inode,
 		kunmap_atomic(kaddr);
 
 		if (csum != *cb_sum) {
-			btrfs_print_data_csum_error(BTRFS_I(inode),
-					disk_start, csum,
+			btrfs_print_data_csum_error(inode, disk_start, csum,
 					*cb_sum, cb->mirror_num);
 			ret = -EIO;
 			goto fail;
@@ -166,7 +165,7 @@ static void end_compressed_bio_read(struct bio *bio)
 		goto out;
 
 	inode = cb->inode;
-	ret = check_compressed_csum(inode, cb,
+	ret = check_compressed_csum(BTRFS_I(inode), cb,
 				    (u64)bio->bi_iter.bi_sector << 9);
 	if (ret)
 		goto csum_failed;
