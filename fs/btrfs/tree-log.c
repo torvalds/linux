@@ -1322,8 +1322,9 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 			}
 
 			/* insert our name */
-			ret = btrfs_add_link(trans, dir, inode, name, namelen,
-					     0, ref_index);
+			ret = btrfs_add_link(trans, BTRFS_I(dir),
+					BTRFS_I(inode),
+					name, namelen, 0, ref_index);
 			if (ret)
 				goto out;
 
@@ -1641,7 +1642,8 @@ static noinline int insert_one_name(struct btrfs_trans_handle *trans,
 		return -EIO;
 	}
 
-	ret = btrfs_add_link(trans, dir, inode, name, name_len, 1, index);
+	ret = btrfs_add_link(trans, BTRFS_I(dir), BTRFS_I(inode), name,
+			name_len, 1, index);
 
 	/* FIXME, put inode into FIXUP list */
 

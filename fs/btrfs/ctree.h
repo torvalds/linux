@@ -3129,7 +3129,7 @@ int btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 		       struct btrfs_inode *dir, struct btrfs_inode *inode,
 		       const char *name, int name_len);
 int btrfs_add_link(struct btrfs_trans_handle *trans,
-		   struct inode *parent_inode, struct inode *inode,
+		   struct btrfs_inode *parent_inode, struct btrfs_inode *inode,
 		   const char *name, int name_len, int add_backref, u64 index);
 int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root,
