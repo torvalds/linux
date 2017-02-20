@@ -545,6 +545,7 @@ ENTRY(pgm_check_handler)
 #
 .Lpgm_svcper:
 	mvc	__LC_RETURN_PSW(8),__LC_SVC_NEW_PSW
+	lghi	%r13,__TASK_thread
 	larl	%r14,.Lsysc_per
 	stg	%r14,__LC_RETURN_PSW+8
 	lghi	%r14,_PIF_SYSCALL | _PIF_PER_TRAP
