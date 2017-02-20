@@ -245,6 +245,7 @@ static const struct of_device_id zet6223_of_match[] = {
 	{ .compatible = "zeitec,zet6223" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, zet6223_of_match);
 
 static const struct i2c_device_id zet6223_id[] = {
 	{ "zet6223", 0},
