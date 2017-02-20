@@ -311,9 +311,9 @@ struct btrfs_dio_private {
  * to grab i_mutex. It is used to avoid the endless truncate due to
  * nonlocked dio read.
  */
-static inline void btrfs_inode_block_unlocked_dio(struct inode *inode)
+static inline void btrfs_inode_block_unlocked_dio(struct btrfs_inode *inode)
 {
-	set_bit(BTRFS_INODE_READDIO_NEED_LOCK, &BTRFS_I(inode)->runtime_flags);
+	set_bit(BTRFS_INODE_READDIO_NEED_LOCK, &inode->runtime_flags);
 	smp_mb();
 }
 
