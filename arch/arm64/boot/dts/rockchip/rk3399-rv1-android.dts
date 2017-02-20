@@ -44,7 +44,7 @@
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/sensor-dev.h>
 #include "rk3399.dtsi"
-#include "rk3399-android.dtsi"
+#include "rk3399-android-6.0.dtsi"
 #include "rk3399-opp.dtsi"
 
 / {

@@ -42,12 +42,12 @@
 
 /dts-v1/;
 
-#include "rk3399-evb-rev2.dtsi"
-#include "rk3399-android.dtsi"
+#include "rk3399-evb-rev3.dtsi"
+#include "rk3399-android-6.0.dtsi"
 
 / {
-	model = "Rockchip RK3399 Evaluation Board v2 (Android)";
-	compatible = "rockchip,android", "rockchip,rk3399-evb-rev2", "rockchip,rk3399";
+	model = "Rockchip RK3399 Evaluation Board v3 (Android)";
+	compatible = "rockchip,android", "rockchip,rk3399-evb-rev3", "rockchip,rk3399";
 };
 
 &rk_screen {
@@ -135,16 +135,7 @@
 		pinctrl-1 = <&cam0_sleep_pins>;
 
 		rockchip,pd-gpio = <&gpio2 12 GPIO_ACTIVE_LOW>;
-		/*
-		rockchip,pwr-gpio = <&gpio0 17 GPIO_ACTIVE_HIGH>;
-		rockchip,rst-gpio = <&gpio2 15 GPIO_ACTIVE_HIGH>;
-		*/
 		rockchip,camera-module-mclk-name = "clk_cif_out";
-		/*
-		rockchip,camera-module-regulator-names = "avdd", "dovdd", "dvdd";
-		rockchip,camera-module-regulator-voltages = <2800000 1800000 1500000>;
-		*/
-
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "cmk-cb0695-fv1";
 		rockchip,camera-module-len-name = "lg9569a2";
@@ -162,7 +153,7 @@
 		rockchip,camera-module-mipi-dphy-index = <0>;
 	};
 };
-
+/*
 &isp0 {
 	status = "okay";
 };
@@ -174,5 +165,4 @@
 &cif_isp0 {
 	status = "okay";
 	rockchip,camera-modules-attached = <&camera0>;
-};
-
+};*/

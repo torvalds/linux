@@ -41,7 +41,7 @@
  */
 
 /dts-v1/;
-#include "rk3399-box.dtsi"
+#include "rk3399-box-android-6.0.dtsi"
 
 / {
 	model = "Rockchip RK3399 Board rev1 (BOX)";

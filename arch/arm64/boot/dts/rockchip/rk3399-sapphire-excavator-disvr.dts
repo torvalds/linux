@@ -44,7 +44,7 @@
 
 #include <dt-bindings/input/input.h>
 #include "rk3399-excavator-sapphire.dtsi"
-#include "rk3399-android.dtsi"
+#include "rk3399-android-6.0.dtsi"
 
 / {
 	compatible = "rockchip,rk3399-excavator-edp", "rockchip,rk3399";

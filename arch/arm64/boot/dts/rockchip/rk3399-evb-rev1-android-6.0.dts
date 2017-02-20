@@ -42,16 +42,16 @@
 
 /dts-v1/;
 
-#include "rk3399-evb-rev3.dtsi"
-#include "rk3399-android.dtsi"
+#include "rk3399-evb-rev1.dtsi"
+#include "rk3399-android-6.0.dtsi"
 
 / {
-	model = "Rockchip RK3399 Evaluation Board v3 edp (Android)";
-	compatible = "rockchip,android", "rockchip,rk3399-evb-rev3", "rockchip,rk3399";
+	model = "Rockchip RK3399 Evaluation Board v1 (Android)";
+	compatible = "rockchip,android", "rockchip,rk3399-evb-rev1", "rockchip,rk3399";
 };
 
 &rk_screen {
-	#include <dt-bindings/display/screen-timing/lcd-F402.dtsi>
+	#include <dt-bindings/display/screen-timing/lcd-tv080wum-nl0-mipi.dtsi>
 };
 
 &vopb_rk_fb {
@@ -82,7 +82,7 @@
 	status = "okay";
 };
 
-&edp_rk_fb {
+&mipi0_rk_fb {
 	status = "okay";
 };
 
@@ -115,17 +115,18 @@
 	status = "okay";
 };
 
-&gt9xx {
-	status = "disabled";
+&i2c0 {
+	status = "okay";
 };
 
-&i2c4 {
-	gsl3673: gsl3673@40 {
-		compatible = "GSL,GSL3673";
-		reg = <0x40>;
-		screen_max_x = <1536>;
-		screen_max_y = <2048>;
-		irq_gpio_number = <&gpio1 20 IRQ_TYPE_LEVEL_LOW>;
-		rst_gpio_number = <&gpio4 22 GPIO_ACTIVE_HIGH>;
-	};
+&i2c1 {
+	status = "okay";
+};
+
+&isp0 {
+	status = "okay";
+};
+
+&isp1 {
+	status = "okay";
 };
