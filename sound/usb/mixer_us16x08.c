@@ -1040,7 +1040,7 @@ static struct snd_us16x08_eq_store *snd_us16x08_create_eq_store(void)
 	return tmp;
 }
 
-struct snd_us16x08_meter_store *snd_us16x08_create_meter_store(void)
+static struct snd_us16x08_meter_store *snd_us16x08_create_meter_store(void)
 {
 	struct snd_us16x08_meter_store *tmp =
 		kzalloc(sizeof(struct snd_us16x08_meter_store), GFP_KERNEL);
