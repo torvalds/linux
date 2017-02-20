@@ -2747,7 +2747,8 @@ static long btrfs_fallocate(struct file *file, int mode,
 	 *
 	 * For qgroup space, it will be checked later.
 	 */
-	ret = btrfs_alloc_data_chunk_ondemand(inode, alloc_end - alloc_start);
+	ret = btrfs_alloc_data_chunk_ondemand(BTRFS_I(inode),
+			alloc_end - alloc_start);
 	if (ret < 0)
 		return ret;
 

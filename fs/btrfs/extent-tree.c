@@ -4135,10 +4135,10 @@ static u64 btrfs_space_info_used(struct btrfs_space_info *s_info,
 		(may_use_included ? s_info->bytes_may_use : 0);
 }
 
-int btrfs_alloc_data_chunk_ondemand(struct inode *inode, u64 bytes)
+int btrfs_alloc_data_chunk_ondemand(struct btrfs_inode *inode, u64 bytes)
 {
 	struct btrfs_space_info *data_sinfo;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	u64 used;
 	int ret = 0;
@@ -4148,7 +4148,7 @@ int btrfs_alloc_data_chunk_ondemand(struct inode *inode, u64 bytes)
 	/* make sure bytes are sectorsize aligned */
 	bytes = ALIGN(bytes, fs_info->sectorsize);
 
-	if (btrfs_is_free_space_inode(BTRFS_I(inode))) {
+	if (btrfs_is_free_space_inode(inode)) {
 		need_commit = 0;
 		ASSERT(current->journal_info);
 	}
@@ -4281,7 +4281,7 @@ int btrfs_check_data_free_space(struct inode *inode, u64 start, u64 len)
 	      round_down(start, fs_info->sectorsize);
 	start = round_down(start, fs_info->sectorsize);
 
-	ret = btrfs_alloc_data_chunk_ondemand(inode, len);
+	ret = btrfs_alloc_data_chunk_ondemand(BTRFS_I(inode), len);
 	if (ret < 0)
 		return ret;
 
