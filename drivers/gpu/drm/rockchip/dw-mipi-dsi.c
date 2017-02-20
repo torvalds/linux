@@ -158,7 +158,6 @@
 #define LPRX_TO_CNT(p)			((p) & 0xffff)
 
 #define DSI_BTA_TO_CNT			0x8c
-
 #define DSI_LPCLK_CTRL			0x94
 #define AUTO_CLKLANE_CTRL		BIT(1)
 #define PHY_TXREQUESTCLKHS		BIT(0)
@@ -224,11 +223,11 @@
 
 #define HSFREQRANGE_SEL(val)	(((val) & 0x3f) << 1)
 
-#define INPUT_DIVIDER(val)	((val - 1) & 0x7f)
+#define INPUT_DIVIDER(val)	(((val) - 1) & 0x7f)
 #define LOW_PROGRAM_EN		0
 #define HIGH_PROGRAM_EN		BIT(7)
-#define LOOP_DIV_LOW_SEL(val)	((val - 1) & 0x1f)
-#define LOOP_DIV_HIGH_SEL(val)	(((val - 1) >> 5) & 0x1f)
+#define LOOP_DIV_LOW_SEL(val)	(((val) - 1) & 0x1f)
+#define LOOP_DIV_HIGH_SEL(val)	((((val) - 1) >> 5) & 0x1f)
 #define PLL_LOOP_DIV_EN		BIT(5)
 #define PLL_INPUT_DIV_EN	BIT(4)
 
@@ -370,6 +369,7 @@ static inline struct dw_mipi_dsi *encoder_to_dsi(struct drm_encoder *encoder)
 {
 	return container_of(encoder, struct dw_mipi_dsi, encoder);
 }
+
 static inline void dsi_write(struct dw_mipi_dsi *dsi, u32 reg, u32 val)
 {
 	writel(val, dsi->base + reg);
@@ -381,7 +381,7 @@ static inline u32 dsi_read(struct dw_mipi_dsi *dsi, u32 reg)
 }
 
 static void dw_mipi_dsi_phy_write(struct dw_mipi_dsi *dsi, u8 test_code,
-				 u8 test_data)
+				  u8 test_data)
 {
 	/*
 	 * With the falling edge on TESTCLK, the TESTDIN[7:0] signal content
@@ -493,7 +493,6 @@ static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 	dsi_write(dsi, DSI_PHY_RSTZ, PHY_ENFORCEPLL | PHY_ENABLECLK |
 				     PHY_UNRSTZ | PHY_UNSHUTDOWNZ);
 
-
 	ret = readl_poll_timeout(dsi->base + DSI_PHY_STATUS,
 				 val, val & LOCK, 1000, PHY_STATUS_TIMEOUT_US);
 	if (ret < 0) {
@@ -579,7 +578,7 @@ static int dw_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 
 	if (device->lanes > dsi->pdata->max_data_lanes) {
 		dev_err(dsi->dev, "the number of data lanes(%u) is too many\n",
-				device->lanes);
+			device->lanes);
 		return -EINVAL;
 	}
 
@@ -1024,14 +1023,14 @@ dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 	return 0;
 }
 
-static struct drm_encoder_helper_funcs
+static const struct drm_encoder_helper_funcs
 dw_mipi_dsi_encoder_helper_funcs = {
 	.enable = dw_mipi_dsi_encoder_enable,
 	.disable = dw_mipi_dsi_encoder_disable,
 	.atomic_check = dw_mipi_dsi_encoder_atomic_check,
 };
 
-static struct drm_encoder_funcs dw_mipi_dsi_encoder_funcs = {
+static const struct drm_encoder_funcs dw_mipi_dsi_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
@@ -1067,7 +1066,7 @@ static void dw_mipi_dsi_drm_connector_destroy(struct drm_connector *connector)
 	drm_connector_cleanup(connector);
 }
 
-static struct drm_connector_funcs dw_mipi_dsi_atomic_connector_funcs = {
+static const struct drm_connector_funcs dw_mipi_dsi_atomic_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = dw_mipi_dsi_drm_connector_destroy,
@@ -1077,7 +1076,7 @@ static struct drm_connector_funcs dw_mipi_dsi_atomic_connector_funcs = {
 };
 
 static int dw_mipi_dsi_register(struct drm_device *drm,
-				      struct dw_mipi_dsi *dsi)
+				struct dw_mipi_dsi *dsi)
 {
 	struct drm_encoder *encoder = &dsi->encoder;
 	struct drm_connector *connector = &dsi->connector;
@@ -1098,14 +1097,14 @@ static int dw_mipi_dsi_register(struct drm_device *drm,
 	drm_encoder_helper_add(&dsi->encoder,
 			       &dw_mipi_dsi_encoder_helper_funcs);
 	ret = drm_encoder_init(drm, &dsi->encoder, &dw_mipi_dsi_encoder_funcs,
-			 DRM_MODE_ENCODER_DSI, NULL);
+			       DRM_MODE_ENCODER_DSI, NULL);
 	if (ret) {
 		dev_err(dev, "Failed to initialize encoder with drm\n");
 		return ret;
 	}
 
 	drm_connector_helper_add(connector,
-			&dw_mipi_dsi_connector_helper_funcs);
+				 &dw_mipi_dsi_connector_helper_funcs);
 
 	drm_connector_init(drm, &dsi->connector,
 			   &dw_mipi_dsi_atomic_connector_funcs,
@@ -1180,7 +1179,7 @@ static const struct of_device_id dw_mipi_dsi_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, dw_mipi_dsi_dt_ids);
 
 static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
-			     void *data)
+			    void *data)
 {
 	const struct of_device_id *of_id =
 			of_match_device(dw_mipi_dsi_dt_ids, dev);
@@ -1304,7 +1303,7 @@ err_pllref:
 }
 
 static void dw_mipi_dsi_unbind(struct device *dev, struct device *master,
-	void *data)
+			       void *data)
 {
 	struct dw_mipi_dsi *dsi = dev_get_drvdata(dev);
 
