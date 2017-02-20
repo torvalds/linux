@@ -193,7 +193,7 @@ static ssize_t u2_timeout_store(struct device *dev,
 		return ret;
 	}
 
-	if (val < 0 || val > 127)
+	if (val > 127)
 		return -EINVAL;
 
 	ret = lvs_rh_set_port_feature(hdev, lvs->portnum | (val << 8),
