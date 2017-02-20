@@ -50,6 +50,7 @@ static inline int rk_pm_enable_regulator(struct kbase_device *kbdev)
 {
 	return 0;
 }
+
 static inline void rk_pm_disable_regulator(struct kbase_device *kbdev)
 {
 }
@@ -85,6 +86,7 @@ static void rk_pm_power_off_delay_work(struct work_struct *work)
 
 	platform->is_powered = false;
 	KBASE_TIMELINE_GPU_POWER(kbdev, 0);
+	wake_unlock(&platform->wake_lock);
 }
 
 static int kbase_platform_rk_init(struct kbase_device *kbdev)
@@ -109,21 +111,30 @@ static int kbase_platform_rk_init(struct kbase_device *kbdev)
 	platform->power_off_wq = create_freezable_workqueue("gpu_power_off_wq");
 	if (!platform->power_off_wq) {
 		E("couldn't create workqueue");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_wq;
 	}
 	INIT_DEFERRABLE_WORK(&platform->work, rk_pm_power_off_delay_work);
+
+	wake_lock_init(&platform->wake_lock, WAKE_LOCK_SUSPEND, "gpu");
+
 	platform->utilisation_period = DEFAULT_UTILISATION_PERIOD_IN_MS;
 
 	ret = kbase_platform_rk_create_sysfs_files(kbdev->dev);
 	if (ret) {
 		E("fail to create sysfs_files. ret = %d.", ret);
-		goto EXIT;
+		goto err_sysfs_files;
 	}
 
 	kbdev->platform_context = (void *)platform;
 	pm_runtime_enable(kbdev->dev);
 
-EXIT:
+	return 0;
+
+err_sysfs_files:
+	wake_lock_destroy(&platform->wake_lock);
+	destroy_workqueue(platform->power_off_wq);
+err_wq:
 	return ret;
 }
 
@@ -136,6 +147,7 @@ static void kbase_platform_rk_term(struct kbase_device *kbdev)
 	kbdev->platform_context = NULL;
 
 	if (platform) {
+		wake_lock_destroy(&platform->wake_lock);
 		destroy_workqueue(platform->power_off_wq);
 		platform->is_powered = false;
 		platform->kbdev = NULL;
@@ -204,6 +216,7 @@ static int rk_pm_callback_power_on(struct kbase_device *kbdev)
 
 	platform->is_powered = true;
 	KBASE_TIMELINE_GPU_POWER(kbdev, 1);
+	wake_lock(&platform->wake_lock);
 
 	return ret;
 }
