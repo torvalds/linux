@@ -170,4 +170,11 @@ void amd_sched_job_recovery(struct amd_gpu_scheduler *sched);
 bool amd_sched_dependency_optimized(struct dma_fence* fence,
 				    struct amd_sched_entity *entity);
 void amd_sched_job_kickout(struct amd_sched_job *s_job);
+
+static inline enum amd_sched_priority
+amd_sched_get_job_priority(struct amd_sched_job *job)
+{
+	return (job->s_entity->rq - job->sched->sched_rq);
+}
+
 #endif
