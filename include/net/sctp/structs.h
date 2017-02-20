@@ -497,6 +497,7 @@ struct sctp_datamsg {
 	/* Did the messenge fail to send? */
 	int send_error;
 	u8 send_failed:1,
+	   force_delay:1,
 	   can_delay;	    /* should this message be Nagle delayed */
 };
 
