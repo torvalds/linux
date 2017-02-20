@@ -1768,12 +1768,12 @@ static int qed_roce_query_qp(struct qed_hwfn *p_hwfn,
 	if (rc)
 		goto err_resp;
 
-	dma_free_coherent(&p_hwfn->cdev->pdev->dev, sizeof(*p_resp_ramrod_res),
-			  p_resp_ramrod_res, resp_ramrod_res_phys);
-
 	out_params->rq_psn = le32_to_cpu(p_resp_ramrod_res->psn);
 	rq_err_state = GET_FIELD(le32_to_cpu(p_resp_ramrod_res->err_flag),
 				 ROCE_QUERY_QP_RESP_OUTPUT_PARAMS_ERROR_FLG);
+
+	dma_free_coherent(&p_hwfn->cdev->pdev->dev, sizeof(*p_resp_ramrod_res),
+			  p_resp_ramrod_res, resp_ramrod_res_phys);
 
 	if (!(qp->req_offloaded)) {
 		/* Don't send query qp for the requester */
@@ -1815,15 +1815,15 @@ static int qed_roce_query_qp(struct qed_hwfn *p_hwfn,
 	if (rc)
 		goto err_req;
 
-	dma_free_coherent(&p_hwfn->cdev->pdev->dev, sizeof(*p_req_ramrod_res),
-			  p_req_ramrod_res, req_ramrod_res_phys);
-
 	out_params->sq_psn = le32_to_cpu(p_req_ramrod_res->psn);
 	sq_err_state = GET_FIELD(le32_to_cpu(p_req_ramrod_res->flags),
 				 ROCE_QUERY_QP_REQ_OUTPUT_PARAMS_ERR_FLG);
 	sq_draining =
 		GET_FIELD(le32_to_cpu(p_req_ramrod_res->flags),
 			  ROCE_QUERY_QP_REQ_OUTPUT_PARAMS_SQ_DRAINING_FLG);
+
+	dma_free_coherent(&p_hwfn->cdev->pdev->dev, sizeof(*p_req_ramrod_res),
+			  p_req_ramrod_res, req_ramrod_res_phys);
 
 	out_params->draining = false;
 
