@@ -221,6 +221,7 @@ struct mlx5e_params {
 	u8  toeplitz_hash_key[40];
 	u32 indirection_rqt[MLX5E_INDIR_RQT_SIZE];
 	bool vlan_strip_disable;
+	bool scatter_fcs_en;
 	bool rx_am_enabled;
 	u32 lro_timeout;
 	u32 pflags;
