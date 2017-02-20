@@ -428,6 +428,13 @@ static irqreturn_t bcm63xx_spi_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static size_t bcm63xx_spi_max_length(struct spi_device *dev)
+{
+	struct bcm63xx_spi *bs = spi_master_get_devdata(spi->master);
+
+	return bs->fifo_size;
+}
+
 static const unsigned long bcm6348_spi_reg_offsets[] = {
 	[SPI_CMD]		= SPI_6348_CMD,
 	[SPI_INT_STATUS]	= SPI_6348_INT_STATUS,
@@ -541,6 +548,8 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 	master->transfer_one_message = bcm63xx_spi_transfer_one;
 	master->mode_bits = MODEBITS;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
+	master->max_transfer_size = bcm63xx_spi_max_length;
+	master->max_message_size = bcm63xx_spi_max_length;
 	master->auto_runtime_pm = true;
 	bs->msg_type_shift = bs->reg_offsets[SPI_MSG_TYPE_SHIFT];
 	bs->msg_ctl_width = bs->reg_offsets[SPI_MSG_CTL_WIDTH];
