@@ -2950,7 +2950,7 @@ static int mlx5e_modify_channels_scatter_fcs(struct mlx5e_channels *chs, bool en
 	return 0;
 }
 
-int mlx5e_modify_channels_vsd(struct mlx5e_channels *chs, bool vsd)
+static int mlx5e_modify_channels_vsd(struct mlx5e_channels *chs, bool vsd)
 {
 	int err = 0;
 	int i;
