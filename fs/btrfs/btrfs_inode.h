@@ -317,11 +317,10 @@ static inline void btrfs_inode_block_unlocked_dio(struct btrfs_inode *inode)
 	smp_mb();
 }
 
-static inline void btrfs_inode_resume_unlocked_dio(struct inode *inode)
+static inline void btrfs_inode_resume_unlocked_dio(struct btrfs_inode *inode)
 {
 	smp_mb__before_atomic();
-	clear_bit(BTRFS_INODE_READDIO_NEED_LOCK,
-		  &BTRFS_I(inode)->runtime_flags);
+	clear_bit(BTRFS_INODE_READDIO_NEED_LOCK, &inode->runtime_flags);
 }
 
 static inline void btrfs_print_data_csum_error(struct btrfs_inode *inode,
