@@ -468,95 +468,116 @@ err_exit:
 	return err;
 }
 
-static unsigned int aq_nic_map_skb_frag(struct aq_nic_s *self,
-					struct sk_buff *skb,
-					struct aq_ring_buff_s *dx)
+static unsigned int aq_nic_map_skb(struct aq_nic_s *self,
+				   struct sk_buff *skb,
+				   struct aq_ring_s *ring)
 {
 	unsigned int ret = 0U;
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
 	unsigned int frag_count = 0U;
+	unsigned int dx = ring->sw_tail;
+	struct aq_ring_buff_s *dx_buff = &ring->buff_ring[dx];
 
-	dx->flags = 0U;
-	dx->len = skb_headlen(skb);
-	dx->pa = dma_map_single(aq_nic_get_dev(self), skb->data, dx->len,
-				DMA_TO_DEVICE);
-	dx->len_pkt = skb->len;
-	dx->is_sop = 1U;
-	dx->is_mapped = 1U;
+	if (unlikely(skb_is_gso(skb))) {
+		dx_buff->flags = 0U;
+		dx_buff->len_pkt = skb->len;
+		dx_buff->len_l2 = ETH_HLEN;
+		dx_buff->len_l3 = ip_hdrlen(skb);
+		dx_buff->len_l4 = tcp_hdrlen(skb);
+		dx_buff->mss = skb_shinfo(skb)->gso_size;
+		dx_buff->is_txc = 1U;
 
+		dx = aq_ring_next_dx(ring, dx);
+		dx_buff = &ring->buff_ring[dx];
+		++ret;
+	}
+
+	dx_buff->flags = 0U;
+	dx_buff->len = skb_headlen(skb);
+	dx_buff->pa = dma_map_single(aq_nic_get_dev(self),
+				     skb->data,
+				     dx_buff->len,
+				     DMA_TO_DEVICE);
+
+	if (unlikely(dma_mapping_error(aq_nic_get_dev(self), dx_buff->pa)))
+		goto exit;
+
+	dx_buff->len_pkt = skb->len;
+	dx_buff->is_sop = 1U;
+	dx_buff->is_mapped = 1U;
 	++ret;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		dx->is_ip_cso = (htons(ETH_P_IP) == skb->protocol) ? 1U : 0U;
-		dx->is_tcp_cso =
+		dx_buff->is_ip_cso = (htons(ETH_P_IP) == skb->protocol) ?
+			1U : 0U;
+		dx_buff->is_tcp_cso =
 			(ip_hdr(skb)->protocol == IPPROTO_TCP) ? 1U : 0U;
-		dx->is_udp_cso =
+		dx_buff->is_udp_cso =
 			(ip_hdr(skb)->protocol == IPPROTO_UDP) ? 1U : 0U;
 	}
 
 	for (; nr_frags--; ++frag_count) {
-		unsigned int frag_len;
+		unsigned int frag_len = 0U;
 		dma_addr_t frag_pa;
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[frag_count];
 
 		frag_len = skb_frag_size(frag);
-
 		frag_pa = skb_frag_dma_map(aq_nic_get_dev(self), frag, 0,
 					   frag_len, DMA_TO_DEVICE);
 
+		if (unlikely(dma_mapping_error(aq_nic_get_dev(self), frag_pa)))
+			goto mapping_error;
+
 		while (frag_len > AQ_CFG_TX_FRAME_MAX) {
-			++dx;
-			++ret;
-			dx->flags = 0U;
-			dx->len = AQ_CFG_TX_FRAME_MAX;
-			dx->pa = frag_pa;
-			dx->is_mapped = 1U;
+			dx = aq_ring_next_dx(ring, dx);
+			dx_buff = &ring->buff_ring[dx];
+
+			dx_buff->flags = 0U;
+			dx_buff->len = AQ_CFG_TX_FRAME_MAX;
+			dx_buff->pa = frag_pa;
+			dx_buff->is_mapped = 1U;
 
 			frag_len -= AQ_CFG_TX_FRAME_MAX;
 			frag_pa += AQ_CFG_TX_FRAME_MAX;
+			++ret;
 		}
 
-		++dx;
+		dx = aq_ring_next_dx(ring, dx);
+		dx_buff = &ring->buff_ring[dx];
+
+		dx_buff->flags = 0U;
+		dx_buff->len = frag_len;
+		dx_buff->pa = frag_pa;
+		dx_buff->is_mapped = 1U;
 		++ret;
-
-		dx->flags = 0U;
-		dx->len = frag_len;
-		dx->pa = frag_pa;
-		dx->is_mapped = 1U;
 	}
 
-	dx->is_eop = 1U;
-	dx->skb = skb;
+	dx_buff->is_eop = 1U;
+	dx_buff->skb = skb;
+	goto exit;
 
-	return ret;
-}
+mapping_error:
+	for (dx = ring->sw_tail;
+	     ret > 0;
+	     --ret, dx = aq_ring_next_dx(ring, dx)) {
+		dx_buff = &ring->buff_ring[dx];
 
-static unsigned int aq_nic_map_skb_lso(struct aq_nic_s *self,
-				       struct sk_buff *skb,
-				       struct aq_ring_buff_s *dx)
-{
-	dx->flags = 0U;
-	dx->len_pkt = skb->len;
-	dx->len_l2 = ETH_HLEN;
-	dx->len_l3 = ip_hdrlen(skb);
-	dx->len_l4 = tcp_hdrlen(skb);
-	dx->mss = skb_shinfo(skb)->gso_size;
-	dx->is_txc = 1U;
-	return 1U;
-}
-
-static unsigned int aq_nic_map_skb(struct aq_nic_s *self, struct sk_buff *skb,
-				   struct aq_ring_buff_s *dx)
-{
-	unsigned int ret = 0U;
-
-	if (unlikely(skb_is_gso(skb))) {
-		ret = aq_nic_map_skb_lso(self, skb, dx);
-		++dx;
+		if (!dx_buff->is_txc && dx_buff->pa) {
+			if (unlikely(dx_buff->is_sop)) {
+				dma_unmap_single(aq_nic_get_dev(self),
+						 dx_buff->pa,
+						 dx_buff->len,
+						 DMA_TO_DEVICE);
+			} else {
+				dma_unmap_page(aq_nic_get_dev(self),
+					       dx_buff->pa,
+					       dx_buff->len,
+					       DMA_TO_DEVICE);
+			}
+		}
 	}
 
-	ret += aq_nic_map_skb_frag(self, skb, dx);
-
+exit:
 	return ret;
 }
 
@@ -571,7 +592,6 @@ __acquires(&ring->lock)
 	unsigned int trys = AQ_CFG_LOCK_TRYS;
 	int err = NETDEV_TX_OK;
 	bool is_nic_in_bad_state;
-	struct aq_ring_buff_s buffers[AQ_CFG_SKB_FRAGS_MAX];
 
 	frags = skb_shinfo(skb)->nr_frags + 1;
 
@@ -595,23 +615,27 @@ __acquires(&ring->lock)
 
 	do {
 		if (spin_trylock(&ring->header.lock)) {
-			frags = aq_nic_map_skb(self, skb, &buffers[0]);
+			frags = aq_nic_map_skb(self, skb, ring);
 
-			aq_ring_tx_append_buffs(ring, &buffers[0], frags);
+			if (likely(frags)) {
+				err = self->aq_hw_ops.hw_ring_tx_xmit(
+								self->aq_hw,
+								ring, frags);
+				if (err >= 0) {
+					if (aq_ring_avail_dx(ring) <
+					    AQ_CFG_SKB_FRAGS_MAX + 1)
+						aq_nic_ndev_queue_stop(
+								self,
+								ring->idx);
 
-			err = self->aq_hw_ops.hw_ring_tx_xmit(self->aq_hw,
-							      ring, frags);
-			if (err >= 0) {
-				if (aq_ring_avail_dx(ring) <
-				    AQ_CFG_SKB_FRAGS_MAX + 1)
-					aq_nic_ndev_queue_stop(self, ring->idx);
+					++ring->stats.tx.packets;
+					ring->stats.tx.bytes += skb->len;
+				}
+			} else {
+				err = NETDEV_TX_BUSY;
 			}
+
 			spin_unlock(&ring->header.lock);
-
-			if (err >= 0) {
-				++ring->stats.tx.packets;
-				ring->stats.tx.bytes += skb->len;
-			}
 			break;
 		}
 	} while (--trys);

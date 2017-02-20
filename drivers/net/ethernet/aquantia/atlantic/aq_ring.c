@@ -104,25 +104,6 @@ int aq_ring_init(struct aq_ring_s *self)
 	return 0;
 }
 
-void aq_ring_tx_append_buffs(struct aq_ring_s *self,
-			     struct aq_ring_buff_s *buffer,
-			     unsigned int buffers)
-{
-	if (likely(self->sw_tail + buffers < self->size)) {
-		memcpy(&self->buff_ring[self->sw_tail], buffer,
-		       sizeof(buffer[0]) * buffers);
-	} else {
-		unsigned int first_part = self->size - self->sw_tail;
-		unsigned int second_part = buffers - first_part;
-
-		memcpy(&self->buff_ring[self->sw_tail], buffer,
-		       sizeof(buffer[0]) * first_part);
-
-		memcpy(&self->buff_ring[0], &buffer[first_part],
-		       sizeof(buffer[0]) * second_part);
-	}
-}
-
 void aq_ring_tx_clean(struct aq_ring_s *self)
 {
 	struct device *dev = aq_nic_get_dev(self->aq_nic);
