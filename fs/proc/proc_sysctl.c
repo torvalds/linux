@@ -266,21 +266,19 @@ static void proc_sys_prune_dcache(struct ctl_table_header *head)
 	struct inode *inode, *prev = NULL;
 	struct proc_inode *ei;
 
-	list_for_each_entry(ei, &head->inodes, sysctl_inodes) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(ei, &head->inodes, sysctl_inodes) {
 		inode = igrab(&ei->vfs_inode);
 		if (inode) {
-			spin_unlock(&sysctl_lock);
+			rcu_read_unlock();
 			iput(prev);
 			prev = inode;
 			d_prune_aliases(inode);
-			spin_lock(&sysctl_lock);
+			rcu_read_lock();
 		}
 	}
-	if (prev) {
-		spin_unlock(&sysctl_lock);
-		iput(prev);
-		spin_lock(&sysctl_lock);
-	}
+	rcu_read_unlock();
+	iput(prev);
 }
 
 /* called under sysctl_lock, will reacquire if has to wait */
@@ -296,10 +294,10 @@ static void start_unregistering(struct ctl_table_header *p)
 		p->unregistering = &wait;
 		spin_unlock(&sysctl_lock);
 		wait_for_completion(&wait);
-		spin_lock(&sysctl_lock);
 	} else {
 		/* anything non-NULL; we'll never dereference it */
 		p->unregistering = ERR_PTR(-EINVAL);
+		spin_unlock(&sysctl_lock);
 	}
 	/*
 	 * Prune dentries for unregistered sysctls: namespaced sysctls
@@ -310,6 +308,7 @@ static void start_unregistering(struct ctl_table_header *p)
 	 * do not remove from the list until nobody holds it; walking the
 	 * list in do_sysctl() relies on that.
 	 */
+	spin_lock(&sysctl_lock);
 	erase_header(p);
 }
 
@@ -455,11 +454,17 @@ static struct inode *proc_sys_make_inode(struct super_block *sb,
 	inode->i_ino = get_next_ino();
 
 	ei = PROC_I(inode);
-	ei->sysctl = head;
-	ei->sysctl_entry = table;
 
 	spin_lock(&sysctl_lock);
-	list_add(&ei->sysctl_inodes, &head->inodes);
+	if (unlikely(head->unregistering)) {
+		spin_unlock(&sysctl_lock);
+		iput(inode);
+		inode = NULL;
+		goto out;
+	}
+	ei->sysctl = head;
+	ei->sysctl_entry = table;
+	list_add_rcu(&ei->sysctl_inodes, &head->inodes);
 	head->count++;
 	spin_unlock(&sysctl_lock);
 
@@ -487,7 +492,7 @@ out:
 void proc_sys_evict_inode(struct inode *inode, struct ctl_table_header *head)
 {
 	spin_lock(&sysctl_lock);
-	list_del(&PROC_I(inode)->sysctl_inodes);
+	list_del_rcu(&PROC_I(inode)->sysctl_inodes);
 	if (!--head->count)
 		kfree_rcu(head, rcu);
 	spin_unlock(&sysctl_lock);
