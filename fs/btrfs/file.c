@@ -1474,11 +1474,11 @@ lock_and_cleanup_extent_if_need(struct inode *inode, struct page **pages,
 	return ret;
 }
 
-static noinline int check_can_nocow(struct inode *inode, loff_t pos,
+static noinline int check_can_nocow(struct btrfs_inode *inode, loff_t pos,
 				    size_t *write_bytes)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
+	struct btrfs_root *root = inode->root;
 	struct btrfs_ordered_extent *ordered;
 	u64 lockstart, lockend;
 	u64 num_bytes;
@@ -1493,19 +1493,20 @@ static noinline int check_can_nocow(struct inode *inode, loff_t pos,
 			   fs_info->sectorsize) - 1;
 
 	while (1) {
-		lock_extent(&BTRFS_I(inode)->io_tree, lockstart, lockend);
-		ordered = btrfs_lookup_ordered_range(BTRFS_I(inode), lockstart,
+		lock_extent(&inode->io_tree, lockstart, lockend);
+		ordered = btrfs_lookup_ordered_range(inode, lockstart,
 						     lockend - lockstart + 1);
 		if (!ordered) {
 			break;
 		}
-		unlock_extent(&BTRFS_I(inode)->io_tree, lockstart, lockend);
-		btrfs_start_ordered_extent(inode, ordered, 1);
+		unlock_extent(&inode->io_tree, lockstart, lockend);
+		btrfs_start_ordered_extent(&inode->vfs_inode, ordered, 1);
 		btrfs_put_ordered_extent(ordered);
 	}
 
 	num_bytes = lockend - lockstart + 1;
-	ret = can_nocow_extent(inode, lockstart, &num_bytes, NULL, NULL, NULL);
+	ret = can_nocow_extent(&inode->vfs_inode, lockstart, &num_bytes,
+			NULL, NULL, NULL);
 	if (ret <= 0) {
 		ret = 0;
 		btrfs_end_write_no_snapshoting(root);
@@ -1514,7 +1515,7 @@ static noinline int check_can_nocow(struct inode *inode, loff_t pos,
 				     num_bytes - pos + lockstart);
 	}
 
-	unlock_extent(&BTRFS_I(inode)->io_tree, lockstart, lockend);
+	unlock_extent(&inode->io_tree, lockstart, lockend);
 
 	return ret;
 }
@@ -1579,7 +1580,8 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 		if (ret < 0) {
 			if ((BTRFS_I(inode)->flags & (BTRFS_INODE_NODATACOW |
 						      BTRFS_INODE_PREALLOC)) &&
-			    check_can_nocow(inode, pos, &write_bytes) > 0) {
+			    check_can_nocow(BTRFS_I(inode), pos,
+					&write_bytes) > 0) {
 				/*
 				 * For nodata cow case, no need to reserve
 				 * data space.
