@@ -424,8 +424,8 @@ err:
  */
 void perf_aux_output_end(struct perf_output_handle *handle, unsigned long size)
 {
+	bool wakeup = !!(handle->aux_flags & PERF_AUX_FLAG_TRUNCATED);
 	struct ring_buffer *rb = handle->rb;
-	bool wakeup = !!handle->aux_flags;
 	unsigned long aux_head;
 
 	/* in overwrite mode, driver provides aux_head via handle */
