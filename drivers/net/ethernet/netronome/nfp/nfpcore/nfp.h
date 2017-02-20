@@ -40,6 +40,7 @@
 #define __NFP_H__
 
 #include <linux/device.h>
+#include <linux/types.h>
 
 #include "nfp_cpp.h"
 
@@ -54,6 +55,8 @@ struct firmware;
 
 struct nfp_nsp *nfp_nsp_open(struct nfp_cpp *cpp);
 void nfp_nsp_close(struct nfp_nsp *state);
+u16 nfp_nsp_get_abi_ver_major(struct nfp_nsp *state);
+u16 nfp_nsp_get_abi_ver_minor(struct nfp_nsp *state);
 int nfp_nsp_wait(struct nfp_nsp *state);
 int nfp_nsp_device_soft_reset(struct nfp_nsp *state);
 int nfp_nsp_load_fw(struct nfp_nsp *state, const struct firmware *fw);
@@ -83,6 +86,7 @@ int nfp_nsp_write_eth_table(struct nfp_nsp *state,
 
 /* Service Processor */
 #define NFP_RESOURCE_NSP		"nfp.sp"
+#define NFP_RESOURCE_NSP_DIAG		"arm.diag"
 
 /* Netronone Flow Firmware Table */
 #define NFP_RESOURCE_NFP_NFFW		"nfp.nffw"

@@ -269,8 +269,10 @@ u64 nfp_rtsym_read_le(struct nfp_cpp *cpp, const char *name, int *error)
 	int err;
 
 	sym = nfp_rtsym_lookup(cpp, name);
-	if (!sym)
-		return -ENOENT;
+	if (!sym) {
+		err = -ENOENT;
+		goto exit;
+	}
 
 	id = NFP_CPP_ISLAND_ID(sym->target, NFP_CPP_ACTION_RW, 0, sym->domain);
 
@@ -294,7 +296,7 @@ u64 nfp_rtsym_read_le(struct nfp_cpp *cpp, const char *name, int *error)
 		err = 0;
 	else if (err >= 0)
 		err = -EIO;
-
+exit:
 	if (error)
 		*error = err;
 

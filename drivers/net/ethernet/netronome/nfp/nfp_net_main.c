@@ -303,6 +303,7 @@ nfp_net_pf_alloc_port_netdev(struct nfp_pf *pf, void __iomem *ctrl_bar,
 	if (IS_ERR(nn))
 		return nn;
 
+	nn->cpp = pf->cpp;
 	nn->fw_ver = *fw_ver;
 	nn->ctrl_bar = ctrl_bar;
 	nn->tx_bar = tx_bar;

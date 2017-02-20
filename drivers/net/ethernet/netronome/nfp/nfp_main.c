@@ -47,6 +47,7 @@
 
 #include "nfpcore/nfp.h"
 #include "nfpcore/nfp_cpp.h"
+#include "nfpcore/nfp_nffw.h"
 #include "nfpcore/nfp_nsp_eth.h"
 
 #include "nfpcore/nfp6000_pcie.h"
@@ -70,11 +71,33 @@ static const struct pci_device_id nfp_pci_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, nfp_pci_device_ids);
 
+static void nfp_pcie_sriov_read_nfd_limit(struct nfp_pf *pf)
+{
+#ifdef CONFIG_PCI_IOV
+	int err;
+
+	pf->limit_vfs = nfp_rtsym_read_le(pf->cpp, "nfd_vf_cfg_max_vfs", &err);
+	if (!err)
+		return;
+
+	pf->limit_vfs = ~0;
+	/* Allow any setting for backwards compatibility if symbol not found */
+	if (err != -ENOENT)
+		nfp_warn(pf->cpp, "Warning: VF limit read failed: %d\n", err);
+#endif
+}
+
 static int nfp_pcie_sriov_enable(struct pci_dev *pdev, int num_vfs)
 {
 #ifdef CONFIG_PCI_IOV
 	struct nfp_pf *pf = pci_get_drvdata(pdev);
 	int err;
+
+	if (num_vfs > pf->limit_vfs) {
+		nfp_info(pf->cpp, "Firmware limits number of VFs to %u\n",
+			 pf->limit_vfs);
+		return -EINVAL;
+	}
 
 	err = pci_enable_sriov(pdev, num_vfs);
 	if (err) {
@@ -228,6 +251,40 @@ exit_release_fw:
 	return err < 0 ? err : 1;
 }
 
+static int nfp_nsp_init(struct pci_dev *pdev, struct nfp_pf *pf)
+{
+	struct nfp_nsp *nsp;
+	int err;
+
+	nsp = nfp_nsp_open(pf->cpp);
+	if (IS_ERR(nsp)) {
+		err = PTR_ERR(nsp);
+		dev_err(&pdev->dev, "Failed to access the NSP: %d\n", err);
+		return err;
+	}
+
+	err = nfp_nsp_wait(nsp);
+	if (err < 0)
+		goto exit_close_nsp;
+
+	pf->eth_tbl = __nfp_eth_read_ports(pf->cpp, nsp);
+
+	err = nfp_fw_load(pdev, pf, nsp);
+	if (err < 0) {
+		kfree(pf->eth_tbl);
+		dev_err(&pdev->dev, "Failed to load FW\n");
+		goto exit_close_nsp;
+	}
+
+	pf->fw_loaded = !!err;
+	err = 0;
+
+exit_close_nsp:
+	nfp_nsp_close(nsp);
+
+	return err;
+}
+
 static void nfp_fw_unload(struct nfp_pf *pf)
 {
 	struct nfp_nsp *nsp;
@@ -251,7 +308,6 @@ static void nfp_fw_unload(struct nfp_pf *pf)
 static int nfp_pci_probe(struct pci_dev *pdev,
 			 const struct pci_device_id *pci_id)
 {
-	struct nfp_nsp *nsp;
 	struct nfp_pf *pf;
 	int err;
 
@@ -289,28 +345,18 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 		goto err_disable_msix;
 	}
 
-	nsp = nfp_nsp_open(pf->cpp);
-	if (IS_ERR(nsp)) {
-		err = PTR_ERR(nsp);
+	dev_info(&pdev->dev, "Assembly: %s%s%s-%s CPLD: %s\n",
+		 nfp_hwinfo_lookup(pf->cpp, "assembly.vendor"),
+		 nfp_hwinfo_lookup(pf->cpp, "assembly.partno"),
+		 nfp_hwinfo_lookup(pf->cpp, "assembly.serial"),
+		 nfp_hwinfo_lookup(pf->cpp, "assembly.revision"),
+		 nfp_hwinfo_lookup(pf->cpp, "cpld.version"));
+
+	err = nfp_nsp_init(pdev, pf);
+	if (err)
 		goto err_cpp_free;
-	}
 
-	err = nfp_nsp_wait(nsp);
-	if (err < 0) {
-		nfp_nsp_close(nsp);
-		goto err_cpp_free;
-	}
-
-	pf->eth_tbl = __nfp_eth_read_ports(pf->cpp, nsp);
-
-	err = nfp_fw_load(pdev, pf, nsp);
-	nfp_nsp_close(nsp);
-	if (err < 0) {
-		dev_err(&pdev->dev, "Failed to load FW\n");
-		goto err_eth_tbl_free;
-	}
-
-	pf->fw_loaded = !!err;
+	nfp_pcie_sriov_read_nfd_limit(pf);
 
 	err = nfp_net_pci_probe(pf);
 	if (err)
@@ -321,7 +367,6 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 err_fw_unload:
 	if (pf->fw_loaded)
 		nfp_fw_unload(pf);
-err_eth_tbl_free:
 	kfree(pf->eth_tbl);
 err_cpp_free:
 	nfp_cpp_free(pf->cpp);
