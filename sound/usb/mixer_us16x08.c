@@ -153,7 +153,7 @@ static const char ratio_map[] = {
 };
 
 /* route enumeration names */
-const const char *route_names[] = {
+static const char *const route_names[] = {
 	"Master Left", "Master Right", "Output 1", "Output 2", "Output 3",
 	"Output 4", "Output 5", "Output 6", "Output 7", "Output 8",
 };
@@ -1040,7 +1040,7 @@ static struct snd_us16x08_eq_store *snd_us16x08_create_eq_store(void)
 	return tmp;
 }
 
-struct snd_us16x08_meter_store *snd_us16x08_create_meter_store(void)
+static struct snd_us16x08_meter_store *snd_us16x08_create_meter_store(void)
 {
 	struct snd_us16x08_meter_store *tmp =
 		kzalloc(sizeof(struct snd_us16x08_meter_store), GFP_KERNEL);
