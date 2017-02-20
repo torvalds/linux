@@ -2392,39 +2392,41 @@ static inline void ieee80211_process_probe_response(
 #ifdef CONFIG_IEEE80211_DEBUG
 	struct ieee80211_info_element *info_element = &beacon->info_element[0];
 #endif
+	int fc = WLAN_FC_GET_STYPE(le16_to_cpu(beacon->header.frame_ctl));
 	unsigned long flags;
 	short renew;
+	u16 capability;
 	//u8 wmm_info;
 
 	memset(&network, 0, sizeof(struct ieee80211_network));
+	capability = le16_to_cpu(beacon->capability);
 	IEEE80211_DEBUG_SCAN(
 		"'%s' (%pM): %c%c%c%c %c%c%c%c-%c%c%c%c %c%c%c%c\n",
 		escape_essid(info_element->data, info_element->len),
 		beacon->header.addr3,
-		(beacon->capability & (1<<0xf)) ? '1' : '0',
-		(beacon->capability & (1<<0xe)) ? '1' : '0',
-		(beacon->capability & (1<<0xd)) ? '1' : '0',
-		(beacon->capability & (1<<0xc)) ? '1' : '0',
-		(beacon->capability & (1<<0xb)) ? '1' : '0',
-		(beacon->capability & (1<<0xa)) ? '1' : '0',
-		(beacon->capability & (1<<0x9)) ? '1' : '0',
-		(beacon->capability & (1<<0x8)) ? '1' : '0',
-		(beacon->capability & (1<<0x7)) ? '1' : '0',
-		(beacon->capability & (1<<0x6)) ? '1' : '0',
-		(beacon->capability & (1<<0x5)) ? '1' : '0',
-		(beacon->capability & (1<<0x4)) ? '1' : '0',
-		(beacon->capability & (1<<0x3)) ? '1' : '0',
-		(beacon->capability & (1<<0x2)) ? '1' : '0',
-		(beacon->capability & (1<<0x1)) ? '1' : '0',
-		(beacon->capability & (1<<0x0)) ? '1' : '0');
+		(capability & (1 << 0xf)) ? '1' : '0',
+		(capability & (1 << 0xe)) ? '1' : '0',
+		(capability & (1 << 0xd)) ? '1' : '0',
+		(capability & (1 << 0xc)) ? '1' : '0',
+		(capability & (1 << 0xb)) ? '1' : '0',
+		(capability & (1 << 0xa)) ? '1' : '0',
+		(capability & (1 << 0x9)) ? '1' : '0',
+		(capability & (1 << 0x8)) ? '1' : '0',
+		(capability & (1 << 0x7)) ? '1' : '0',
+		(capability & (1 << 0x6)) ? '1' : '0',
+		(capability & (1 << 0x5)) ? '1' : '0',
+		(capability & (1 << 0x4)) ? '1' : '0',
+		(capability & (1 << 0x3)) ? '1' : '0',
+		(capability & (1 << 0x2)) ? '1' : '0',
+		(capability & (1 << 0x1)) ? '1' : '0',
+		(capability & (1 << 0x0)) ? '1' : '0');
 
 	if (ieee80211_network_init(ieee, beacon, &network, stats)) {
 		IEEE80211_DEBUG_SCAN("Dropped '%s' (%pM) via %s.\n",
 				     escape_essid(info_element->data,
 						  info_element->len),
 				     beacon->header.addr3,
-				     WLAN_FC_GET_STYPE(beacon->header.frame_ctl) ==
-				     IEEE80211_STYPE_PROBE_RESP ?
+				     fc == IEEE80211_STYPE_PROBE_RESP ?
 				     "PROBE RESPONSE" : "BEACON");
 		return;
 	}
@@ -2440,7 +2442,7 @@ static inline void ieee80211_process_probe_response(
 		return;
 	if (ieee->bGlobalDomain)
 	{
-		if (WLAN_FC_GET_STYPE(beacon->header.frame_ctl) == IEEE80211_STYPE_PROBE_RESP)
+		if (fc == IEEE80211_STYPE_PROBE_RESP)
 		{
 			// Case 1: Country code
 			if(IS_COUNTRY_IE_VALID(ieee) )
@@ -2547,8 +2549,7 @@ static inline void ieee80211_process_probe_response(
 				     escape_essid(network.ssid,
 						  network.ssid_len),
 				     network.bssid,
-				     WLAN_FC_GET_STYPE(beacon->header.frame_ctl) ==
-				     IEEE80211_STYPE_PROBE_RESP ?
+				     fc == IEEE80211_STYPE_PROBE_RESP ?
 				     "PROBE RESPONSE" : "BEACON");
 #endif
 		memcpy(target, &network, sizeof(*target));
@@ -2560,8 +2561,7 @@ static inline void ieee80211_process_probe_response(
 				     escape_essid(target->ssid,
 						  target->ssid_len),
 				     target->bssid,
-				     WLAN_FC_GET_STYPE(beacon->header.frame_ctl) ==
-				     IEEE80211_STYPE_PROBE_RESP ?
+				     fc == IEEE80211_STYPE_PROBE_RESP ?
 				     "PROBE RESPONSE" : "BEACON");
 
 		/* we have an entry and we are going to update it. But this entry may
@@ -2598,11 +2598,11 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 		      struct rtl_80211_hdr_4addr *header,
 		      struct ieee80211_rx_stats *stats)
 {
-	switch (WLAN_FC_GET_STYPE(header->frame_ctl)) {
+	switch (WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl))) {
 
 	case IEEE80211_STYPE_BEACON:
 		IEEE80211_DEBUG_MGMT("received BEACON (%d)\n",
-				     WLAN_FC_GET_STYPE(header->frame_ctl));
+			WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl)));
 		IEEE80211_DEBUG_SCAN("Beacon\n");
 		ieee80211_process_probe_response(
 			ieee, (struct ieee80211_probe_response *)header, stats);
@@ -2610,7 +2610,7 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 
 	case IEEE80211_STYPE_PROBE_RESP:
 		IEEE80211_DEBUG_MGMT("received PROBE RESPONSE (%d)\n",
-				     WLAN_FC_GET_STYPE(header->frame_ctl));
+			WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl)));
 		IEEE80211_DEBUG_SCAN("Probe response\n");
 		ieee80211_process_probe_response(
 			ieee, (struct ieee80211_probe_response *)header, stats);
