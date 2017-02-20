@@ -568,7 +568,7 @@ __acquires(&ring->lock)
 	unsigned int vec = skb->queue_mapping % self->aq_nic_cfg.vecs;
 	unsigned int tc = 0U;
 	unsigned int trys = AQ_CFG_LOCK_TRYS;
-	int err = 0;
+	int err = NETDEV_TX_OK;
 	bool is_nic_in_bad_state;
 	struct aq_ring_buff_s buffers[AQ_CFG_SKB_FRAGS_MAX];
 
