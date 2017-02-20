@@ -5287,15 +5287,15 @@ next_dir_inode:
 }
 
 static int btrfs_log_all_parents(struct btrfs_trans_handle *trans,
-				 struct inode *inode,
+				 struct btrfs_inode *inode,
 				 struct btrfs_log_ctx *ctx)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
 	int ret;
 	struct btrfs_path *path;
 	struct btrfs_key key;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	const u64 ino = btrfs_ino(BTRFS_I(inode));
+	struct btrfs_root *root = inode->root;
+	const u64 ino = btrfs_ino(inode);
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -5506,7 +5506,7 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 	 * and has a link count of 2.
 	 */
 	if (BTRFS_I(inode)->last_unlink_trans > last_committed) {
-		ret = btrfs_log_all_parents(trans, orig_inode, ctx);
+		ret = btrfs_log_all_parents(trans, BTRFS_I(orig_inode), ctx);
 		if (ret)
 			goto end_trans;
 	}
