@@ -5978,15 +5978,15 @@ static int btrfs_update_time(struct inode *inode, struct timespec *now,
  * and then set the in-memory index_cnt variable to reflect
  * free sequence numbers
  */
-static int btrfs_set_inode_index_count(struct inode *inode)
+static int btrfs_set_inode_index_count(struct btrfs_inode *inode)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_root *root = inode->root;
 	struct btrfs_key key, found_key;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
 	int ret;
 
-	key.objectid = btrfs_ino(BTRFS_I(inode));
+	key.objectid = btrfs_ino(inode);
 	key.type = BTRFS_DIR_INDEX_KEY;
 	key.offset = (u64)-1;
 
@@ -6009,7 +6009,7 @@ static int btrfs_set_inode_index_count(struct inode *inode)
 	 * else has to start at 2
 	 */
 	if (path->slots[0] == 0) {
-		BTRFS_I(inode)->index_cnt = 2;
+		inode->index_cnt = 2;
 		goto out;
 	}
 
@@ -6018,13 +6018,13 @@ static int btrfs_set_inode_index_count(struct inode *inode)
 	leaf = path->nodes[0];
 	btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
 
-	if (found_key.objectid != btrfs_ino(BTRFS_I(inode)) ||
+	if (found_key.objectid != btrfs_ino(inode) ||
 	    found_key.type != BTRFS_DIR_INDEX_KEY) {
-		BTRFS_I(inode)->index_cnt = 2;
+		inode->index_cnt = 2;
 		goto out;
 	}
 
-	BTRFS_I(inode)->index_cnt = found_key.offset + 1;
+	inode->index_cnt = found_key.offset + 1;
 out:
 	btrfs_free_path(path);
 	return ret;
@@ -6041,7 +6041,7 @@ int btrfs_set_inode_index(struct inode *dir, u64 *index)
 	if (BTRFS_I(dir)->index_cnt == (u64)-1) {
 		ret = btrfs_inode_delayed_dir_index_count(BTRFS_I(dir));
 		if (ret) {
-			ret = btrfs_set_inode_index_count(dir);
+			ret = btrfs_set_inode_index_count(BTRFS_I(dir));
 			if (ret)
 				return ret;
 		}
