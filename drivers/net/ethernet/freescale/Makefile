@@ -4,8 +4,6 @@
 
 obj-$(CONFIG_FEC) += fec.o
 fec-objs :=fec_main.o fec_ptp.o
-CFLAGS_fec_main.o := -D__CHECK_ENDIAN__
-CFLAGS_fec_ptp.o := -D__CHECK_ENDIAN__
 
 obj-$(CONFIG_FEC_MPC52xx) += fec_mpc52xx.o
 ifeq ($(CONFIG_FEC_MPC52xx_MDIO),y)

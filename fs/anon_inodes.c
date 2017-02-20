@@ -20,7 +20,7 @@
 #include <linux/magic.h>
 #include <linux/anon_inodes.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static struct vfsmount *anon_inode_mnt __read_mostly;
 static struct inode *anon_inode_inode;

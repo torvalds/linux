@@ -26,7 +26,7 @@ config CONSOLE_LOGLEVEL_DEFAULT
 	  the kernel bootargs. loglevel=<x> continues to override whatever
 	  value is specified here as well.
 
-	  Note: This does not affect the log level of un-prefixed prink()
+	  Note: This does not affect the log level of un-prefixed printk()
 	  usage in the kernel. That is controlled by the MESSAGE_LOGLEVEL_DEFAULT
 	  option.
 
@@ -164,7 +164,7 @@ config DEBUG_INFO_REDUCED
 
 config DEBUG_INFO_SPLIT
 	bool "Produce split debuginfo in .dwo files"
-	depends on DEBUG_INFO
+	depends on DEBUG_INFO && !FRV
 	help
 	  Generate debug info into separate .dwo files. This significantly
 	  reduces the build directory size for builds with DEBUG_INFO,
@@ -194,8 +194,8 @@ config GDB_SCRIPTS
 	  build directory. If you load vmlinux into gdb, the helper
 	  scripts will be automatically imported by gdb as well, and
 	  additional functions are available to analyze a Linux kernel
-	  instance. See Documentation/gdb-kernel-debugging.txt for further
-	  details.
+	  instance. See Documentation/dev-tools/gdb-kernel-debugging.rst
+	  for further details.
 
 config ENABLE_WARN_DEPRECATED
 	bool "Enable __deprecated logic"
@@ -542,7 +542,7 @@ config DEBUG_KMEMLEAK
 	  difference being that the orphan objects are not freed but
 	  only shown in /sys/kernel/debug/kmemleak. Enabling this
 	  feature will introduce an overhead to memory
-	  allocations. See Documentation/kmemleak.txt for more
+	  allocations. See Documentation/dev-tools/kmemleak.rst for more
 	  details.
 
 	  Enabling DEBUG_SLAB or SLUB_DEBUG may increase the chances
@@ -739,7 +739,7 @@ config KCOV
 	  different machines and across reboots. If you need stable PC values,
 	  disable RANDOMIZE_BASE.
 
-	  For more details, see Documentation/kcov.txt.
+	  For more details, see Documentation/dev-tools/kcov.rst.
 
 config KCOV_INSTRUMENT_ALL
 	bool "Instrument all code by default"
@@ -1537,30 +1537,6 @@ config NOTIFIER_ERROR_INJECTION
 	  handling of notifier call chain failures.
 
 	  Say N if unsure.
-
-config CPU_NOTIFIER_ERROR_INJECT
-	tristate "CPU notifier error injection module"
-	depends on HOTPLUG_CPU && NOTIFIER_ERROR_INJECTION
-	help
-	  This option provides a kernel module that can be used to test
-	  the error handling of the cpu notifiers by injecting artificial
-	  errors to CPU notifier chain callbacks.  It is controlled through
-	  debugfs interface under /sys/kernel/debug/notifier-error-inject/cpu
-
-	  If the notifier call chain should be failed with some events
-	  notified, write the error code to "actions/<notifier event>/error".
-
-	  Example: Inject CPU offline error (-1 == -EPERM)
-
-	  # cd /sys/kernel/debug/notifier-error-inject/cpu
-	  # echo -1 > actions/CPU_DOWN_PREPARE/error
-	  # echo 0 > /sys/devices/system/cpu/cpu1/online
-	  bash: echo: write error: Operation not permitted
-
-	  To compile this code as a module, choose M here: the module will
-	  be called cpu-notifier-error-inject.
-
-	  If unsure, say N.
 
 config PM_NOTIFIER_ERROR_INJECT
 	tristate "PM notifier error injection module"

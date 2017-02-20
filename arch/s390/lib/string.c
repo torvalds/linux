@@ -20,7 +20,7 @@ static inline char *__strend(const char *s)
 
 	asm volatile ("0: srst  %0,%1\n"
 		      "   jo    0b"
-		      : "+d" (r0), "+a" (s) :  : "cc" );
+		      : "+d" (r0), "+a" (s) :  : "cc", "memory");
 	return (char *) r0;
 }
 
@@ -31,7 +31,7 @@ static inline char *__strnend(const char *s, size_t n)
 
 	asm volatile ("0: srst  %0,%1\n"
 		      "   jo    0b"
-		      : "+d" (p), "+a" (s) : "d" (r0) : "cc" );
+		      : "+d" (p), "+a" (s) : "d" (r0) : "cc", "memory");
 	return (char *) p;
 }
 
@@ -213,7 +213,7 @@ int strcmp(const char *cs, const char *ct)
 		      "   sr   %0,%1\n"
 		      "1:"
 		      : "+d" (ret), "+d" (r0), "+a" (cs), "+a" (ct)
-		      : : "cc" );
+		      : : "cc", "memory");
 	return ret;
 }
 EXPORT_SYMBOL(strcmp);
@@ -250,7 +250,7 @@ static inline int clcle(const char *s1, unsigned long l1,
 		      "   ipm   %0\n"
 		      "   srl   %0,28"
 		      : "=&d" (cc), "+a" (r2), "+a" (r3),
-			"+a" (r4), "+a" (r5) : : "cc");
+			"+a" (r4), "+a" (r5) : : "cc", "memory");
 	return cc;
 }
 
@@ -298,7 +298,7 @@ void *memchr(const void *s, int c, size_t n)
 		      "   jl	1f\n"
 		      "   la    %0,0\n"
 		      "1:"
-		      : "+a" (ret), "+&a" (s) : "d" (r0) : "cc" );
+		      : "+a" (ret), "+&a" (s) : "d" (r0) : "cc", "memory");
 	return (void *) ret;
 }
 EXPORT_SYMBOL(memchr);
@@ -336,7 +336,7 @@ void *memscan(void *s, int c, size_t n)
 
 	asm volatile ("0: srst  %0,%1\n"
 		      "   jo    0b\n"
-		      : "+a" (ret), "+&a" (s) : "d" (r0) : "cc" );
+		      : "+a" (ret), "+&a" (s) : "d" (r0) : "cc", "memory");
 	return (void *) ret;
 }
 EXPORT_SYMBOL(memscan);

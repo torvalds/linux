@@ -28,7 +28,6 @@
 #include <linux/of_address.h>
 #include <linux/regmap.h>
 
-#include "edac_core.h"
 #include "edac_module.h"
 
 #define EDAC_MOD_STR			"xgene_edac"

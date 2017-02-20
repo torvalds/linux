@@ -100,7 +100,7 @@ LC_NUMERIC=C
 export LC_COLLATE LC_NUMERIC
 
 ifeq ($(srctree),)
-srctree := $(patsubst %/,%,$(dir $(shell pwd)))
+srctree := $(patsubst %/,%,$(dir $(CURDIR)))
 srctree := $(patsubst %/,%,$(dir $(srctree)))
 #$(info Determined 'srctree' to be $(srctree))
 endif
@@ -201,6 +201,7 @@ goals := $(filter-out all sub-make, $(MAKECMDGOALS))
 $(goals) all: sub-make
 
 sub-make: fixdep
+	@./check-headers.sh
 	$(Q)$(MAKE) FIXDEP=1 -f Makefile.perf $(goals)
 
 else # force_fixdep
@@ -404,99 +405,6 @@ export JEVENTS
 build := -f $(srctree)/tools/build/Makefile.build dir=. obj
 
 $(PERF_IN): prepare FORCE
-	@(test -f ../../include/uapi/linux/perf_event.h && ( \
-        (diff -B ../include/uapi/linux/perf_event.h ../../include/uapi/linux/perf_event.h >/dev/null) \
-        || echo "Warning: tools/include/uapi/linux/perf_event.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/linux/hash.h && ( \
-        (diff -B ../include/linux/hash.h ../../include/linux/hash.h >/dev/null) \
-        || echo "Warning: tools/include/linux/hash.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/uapi/linux/hw_breakpoint.h && ( \
-        (diff -B ../include/uapi/linux/hw_breakpoint.h ../../include/uapi/linux/hw_breakpoint.h >/dev/null) \
-        || echo "Warning: tools/include/uapi/linux/hw_breakpoint.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/x86/include/asm/disabled-features.h && ( \
-        (diff -B ../arch/x86/include/asm/disabled-features.h ../../arch/x86/include/asm/disabled-features.h >/dev/null) \
-        || echo "Warning: tools/arch/x86/include/asm/disabled-features.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/x86/include/asm/required-features.h && ( \
-        (diff -B ../arch/x86/include/asm/required-features.h ../../arch/x86/include/asm/required-features.h >/dev/null) \
-        || echo "Warning: tools/arch/x86/include/asm/required-features.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/x86/include/asm/cpufeatures.h && ( \
-        (diff -B ../arch/x86/include/asm/cpufeatures.h ../../arch/x86/include/asm/cpufeatures.h >/dev/null) \
-        || echo "Warning: tools/arch/x86/include/asm/cpufeatures.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/x86/lib/memcpy_64.S && ( \
-        (diff -B -I "^EXPORT_SYMBOL" -I "^#include <asm/export.h>" ../arch/x86/lib/memcpy_64.S ../../arch/x86/lib/memcpy_64.S >/dev/null) \
-        || echo "Warning: tools/arch/x86/lib/memcpy_64.S differs from kernel" >&2 )) || true
-	@(test -f ../../arch/x86/lib/memset_64.S && ( \
-        (diff -B -I "^EXPORT_SYMBOL" -I "^#include <asm/export.h>" ../arch/x86/lib/memset_64.S ../../arch/x86/lib/memset_64.S >/dev/null) \
-        || echo "Warning: tools/arch/x86/lib/memset_64.S differs from kernel" >&2 )) || true
-	@(test -f ../../arch/arm/include/uapi/asm/perf_regs.h && ( \
-        (diff -B ../arch/arm/include/uapi/asm/perf_regs.h ../../arch/arm/include/uapi/asm/perf_regs.h >/dev/null) \
-        || echo "Warning: tools/arch/arm/include/uapi/asm/perf_regs.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/arm64/include/uapi/asm/perf_regs.h && ( \
-        (diff -B ../arch/arm64/include/uapi/asm/perf_regs.h ../../arch/arm64/include/uapi/asm/perf_regs.h >/dev/null) \
-        || echo "Warning: tools/arch/arm64/include/uapi/asm/perf_regs.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/powerpc/include/uapi/asm/perf_regs.h && ( \
-        (diff -B ../arch/powerpc/include/uapi/asm/perf_regs.h ../../arch/powerpc/include/uapi/asm/perf_regs.h >/dev/null) \
-        || echo "Warning: tools/arch/powerpc/include/uapi/asm/perf_regs.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/x86/include/uapi/asm/perf_regs.h && ( \
-        (diff -B ../arch/x86/include/uapi/asm/perf_regs.h ../../arch/x86/include/uapi/asm/perf_regs.h >/dev/null) \
-        || echo "Warning: tools/arch/x86/include/uapi/asm/perf_regs.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/x86/include/uapi/asm/kvm.h && ( \
-        (diff -B ../arch/x86/include/uapi/asm/kvm.h ../../arch/x86/include/uapi/asm/kvm.h >/dev/null) \
-        || echo "Warning: tools/arch/x86/include/uapi/asm/kvm.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/x86/include/uapi/asm/kvm_perf.h && ( \
-        (diff -B ../arch/x86/include/uapi/asm/kvm_perf.h ../../arch/x86/include/uapi/asm/kvm_perf.h >/dev/null) \
-        || echo "Warning: tools/arch/x86/include/uapi/asm/kvm_perf.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/x86/include/uapi/asm/svm.h && ( \
-        (diff -B ../arch/x86/include/uapi/asm/svm.h ../../arch/x86/include/uapi/asm/svm.h >/dev/null) \
-        || echo "Warning: tools/arch/x86/include/uapi/asm/svm.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/x86/include/uapi/asm/vmx.h && ( \
-        (diff -B ../arch/x86/include/uapi/asm/vmx.h ../../arch/x86/include/uapi/asm/vmx.h >/dev/null) \
-        || echo "Warning: tools/arch/x86/include/uapi/asm/vmx.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/powerpc/include/uapi/asm/kvm.h && ( \
-        (diff -B ../arch/powerpc/include/uapi/asm/kvm.h ../../arch/powerpc/include/uapi/asm/kvm.h >/dev/null) \
-        || echo "Warning: tools/arch/powerpc/include/uapi/asm/kvm.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/s390/include/uapi/asm/kvm.h && ( \
-        (diff -B ../arch/s390/include/uapi/asm/kvm.h ../../arch/s390/include/uapi/asm/kvm.h >/dev/null) \
-        || echo "Warning: tools/arch/s390/include/uapi/asm/kvm.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/s390/include/uapi/asm/kvm_perf.h && ( \
-        (diff -B ../arch/s390/include/uapi/asm/kvm_perf.h ../../arch/s390/include/uapi/asm/kvm_perf.h >/dev/null) \
-        || echo "Warning: tools/arch/s390/include/uapi/asm/kvm_perf.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/s390/include/uapi/asm/sie.h && ( \
-        (diff -B ../arch/s390/include/uapi/asm/sie.h ../../arch/s390/include/uapi/asm/sie.h >/dev/null) \
-        || echo "Warning: tools/arch/s390/include/uapi/asm/sie.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/arm/include/uapi/asm/kvm.h && ( \
-        (diff -B ../arch/arm/include/uapi/asm/kvm.h ../../arch/arm/include/uapi/asm/kvm.h >/dev/null) \
-        || echo "Warning: tools/arch/arm/include/uapi/asm/kvm.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/arm64/include/uapi/asm/kvm.h && ( \
-        (diff -B ../arch/arm64/include/uapi/asm/kvm.h ../../arch/arm64/include/uapi/asm/kvm.h >/dev/null) \
-        || echo "Warning: tools/arch/arm64/include/uapi/asm/kvm.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/asm-generic/bitops/arch_hweight.h && ( \
-        (diff -B ../include/asm-generic/bitops/arch_hweight.h ../../include/asm-generic/bitops/arch_hweight.h >/dev/null) \
-        || echo "Warning: tools/include/asm-generic/bitops/arch_hweight.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/asm-generic/bitops/const_hweight.h && ( \
-        (diff -B ../include/asm-generic/bitops/const_hweight.h ../../include/asm-generic/bitops/const_hweight.h >/dev/null) \
-        || echo "Warning: tools/include/asm-generic/bitops/const_hweight.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/asm-generic/bitops/__fls.h && ( \
-        (diff -B ../include/asm-generic/bitops/__fls.h ../../include/asm-generic/bitops/__fls.h >/dev/null) \
-        || echo "Warning: tools/include/asm-generic/bitops/__fls.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/asm-generic/bitops/fls.h && ( \
-        (diff -B ../include/asm-generic/bitops/fls.h ../../include/asm-generic/bitops/fls.h >/dev/null) \
-        || echo "Warning: tools/include/asm-generic/bitops/fls.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/asm-generic/bitops/fls64.h && ( \
-        (diff -B ../include/asm-generic/bitops/fls64.h ../../include/asm-generic/bitops/fls64.h >/dev/null) \
-        || echo "Warning: tools/include/asm-generic/bitops/fls64.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/linux/coresight-pmu.h && ( \
-	(diff -B ../include/linux/coresight-pmu.h ../../include/linux/coresight-pmu.h >/dev/null) \
-	|| echo "Warning: tools/include/linux/coresight-pmu.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/uapi/asm-generic/mman-common.h && ( \
-	(diff -B ../include/uapi/asm-generic/mman-common.h ../../include/uapi/asm-generic/mman-common.h >/dev/null) \
-	|| echo "Warning: tools/include/uapi/asm-generic/mman-common.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/uapi/asm-generic/mman.h && ( \
-	(diff -B -I "^#include <\(uapi/\)*asm-generic/mman-common.h>$$" ../include/uapi/asm-generic/mman.h ../../include/uapi/asm-generic/mman.h >/dev/null) \
-	|| echo "Warning: tools/include/uapi/asm-generic/mman.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/uapi/linux/mman.h && ( \
-	(diff -B -I "^#include <\(uapi/\)*asm/mman.h>$$" ../include/uapi/linux/mman.h ../../include/uapi/linux/mman.h >/dev/null) \
-	|| echo "Warning: tools/include/uapi/linux/mman.h differs from kernel" >&2 )) || true
 	$(Q)$(MAKE) $(build)=perf
 
 $(JEVENTS_IN): FORCE
@@ -796,9 +704,9 @@ install-tests: all install-gtk
 		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/tests/attr'; \
 		$(INSTALL) tests/attr/* '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/tests/attr'
 
-install-bin: install-tools install-tests
+install-bin: install-tools install-tests install-traceevent-plugins
 
-install: install-bin try-install-man install-traceevent-plugins
+install: install-bin try-install-man
 
 install-python_ext:
 	$(PYTHON_WORD) util/setup.py --quiet install --root='/$(DESTDIR_SQ)'

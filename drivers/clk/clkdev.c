@@ -448,11 +448,19 @@ EXPORT_SYMBOL(clk_register_clkdev);
  *
  * con_id or dev_id may be NULL as a wildcard, just as in the rest of
  * clkdev.
+ *
+ * To make things easier for mass registration, we detect error clk_hws
+ * from a previous clk_hw_register_*() call, and return the error code for
+ * those.  This is to permit this function to be called immediately
+ * after clk_hw_register_*().
  */
 int clk_hw_register_clkdev(struct clk_hw *hw, const char *con_id,
 	const char *dev_id)
 {
 	struct clk_lookup *cl;
+
+	if (IS_ERR(hw))
+		return PTR_ERR(hw);
 
 	/*
 	 * Since dev_id can be NULL, and NULL is handled specially, we must

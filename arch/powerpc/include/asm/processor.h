@@ -312,8 +312,6 @@ struct thread_struct {
 	unsigned long	mmcr2;
 	unsigned 	mmcr0;
 	unsigned 	used_ebb;
-	unsigned long	lmrr;
-	unsigned long	lmser;
 #endif
 };
 

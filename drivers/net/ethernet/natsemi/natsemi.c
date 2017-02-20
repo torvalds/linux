@@ -51,7 +51,7 @@
 #include <asm/processor.h>	/* Processor type for cache alignment. */
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define DRV_NAME	"natsemi"
 #define DRV_VERSION	"2.1"

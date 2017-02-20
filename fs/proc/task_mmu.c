@@ -17,7 +17,7 @@
 #include <linux/shmem_fs.h>
 
 #include <asm/elf.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/tlbflush.h>
 #include "internal.h"
 

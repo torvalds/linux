@@ -6,6 +6,7 @@
 
 void __init x86_early_init_platform_quirks(void)
 {
+	x86_platform.legacy.i8042 = X86_LEGACY_I8042_EXPECTED_PRESENT;
 	x86_platform.legacy.rtc = 1;
 	x86_platform.legacy.reserve_bios_regions = 0;
 	x86_platform.legacy.devices.pnpbios = 1;
@@ -16,10 +17,14 @@ void __init x86_early_init_platform_quirks(void)
 		break;
 	case X86_SUBARCH_XEN:
 	case X86_SUBARCH_LGUEST:
+		x86_platform.legacy.devices.pnpbios = 0;
+		x86_platform.legacy.rtc = 0;
+		break;
 	case X86_SUBARCH_INTEL_MID:
 	case X86_SUBARCH_CE4100:
 		x86_platform.legacy.devices.pnpbios = 0;
 		x86_platform.legacy.rtc = 0;
+		x86_platform.legacy.i8042 = X86_LEGACY_I8042_PLATFORM_ABSENT;
 		break;
 	}
 

@@ -26,6 +26,7 @@ available subsections can be seen below.
    spi
    i2c
    hsi
+   edac
    miscellaneous
    vme
    80211/index

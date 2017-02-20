@@ -1237,6 +1237,7 @@ static int f81534_attach(struct usb_serial *serial)
 static int f81534_port_probe(struct usb_serial_port *port)
 {
 	struct f81534_port_private *port_priv;
+	int ret;
 
 	port_priv = devm_kzalloc(&port->dev, sizeof(*port_priv), GFP_KERNEL);
 	if (!port_priv)
@@ -1246,10 +1247,11 @@ static int f81534_port_probe(struct usb_serial_port *port)
 	mutex_init(&port_priv->mcr_mutex);
 
 	/* Assign logic-to-phy mapping */
-	port_priv->phy_num = f81534_logic_to_phy_port(port->serial, port);
-	if (port_priv->phy_num < 0 || port_priv->phy_num >= F81534_NUM_PORT)
-		return -ENODEV;
+	ret = f81534_logic_to_phy_port(port->serial, port);
+	if (ret < 0)
+		return ret;
 
+	port_priv->phy_num = ret;
 	usb_set_serial_port_data(port, port_priv);
 	dev_dbg(&port->dev, "%s: port_number: %d, phy_num: %d\n", __func__,
 			port->port_number, port_priv->phy_num);

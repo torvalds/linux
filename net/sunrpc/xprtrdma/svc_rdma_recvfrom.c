@@ -279,7 +279,6 @@ int rdma_read_chunk_frmr(struct svcxprt_rdma *xprt,
 		       frmr->sg);
 		return -ENOMEM;
 	}
-	atomic_inc(&xprt->sc_dma_used);
 
 	n = ib_map_mr_sg(frmr->mr, frmr->sg, frmr->sg_nents, NULL, PAGE_SIZE);
 	if (unlikely(n != frmr->sg_nents)) {
@@ -348,8 +347,6 @@ int rdma_read_chunk_frmr(struct svcxprt_rdma *xprt,
 	atomic_inc(&rdma_stat_read);
 	return ret;
  err:
-	ib_dma_unmap_sg(xprt->sc_cm_id->device,
-			frmr->sg, frmr->sg_nents, frmr->direction);
 	svc_rdma_put_context(ctxt, 0);
 	svc_rdma_put_frmr(xprt, frmr);
 	return ret;
@@ -374,9 +371,7 @@ rdma_copy_tail(struct svc_rqst *rqstp, struct svc_rdma_op_ctxt *head,
 	       u32 position, u32 byte_count, u32 page_offset, int page_no)
 {
 	char *srcp, *destp;
-	int ret;
 
-	ret = 0;
 	srcp = head->arg.head[0].iov_base + position;
 	byte_count = head->arg.head[0].iov_len - position;
 	if (byte_count > PAGE_SIZE) {
@@ -413,6 +408,20 @@ done:
 	head->arg.len += byte_count;
 	head->arg.buflen += byte_count;
 	return 1;
+}
+
+/* Returns the address of the first read chunk or <nul> if no read chunk
+ * is present
+ */
+static struct rpcrdma_read_chunk *
+svc_rdma_get_read_chunk(struct rpcrdma_msg *rmsgp)
+{
+	struct rpcrdma_read_chunk *ch =
+		(struct rpcrdma_read_chunk *)&rmsgp->rm_body.rm_chunks[0];
+
+	if (ch->rc_discrim == xdr_zero)
+		return NULL;
+	return ch;
 }
 
 static int rdma_read_chunks(struct svcxprt_rdma *xprt,
@@ -627,8 +636,8 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 			goto defer;
 		goto out;
 	}
-	dprintk("svcrdma: processing ctxt=%p on xprt=%p, rqstp=%p, status=%d\n",
-		ctxt, rdma_xprt, rqstp, ctxt->wc_status);
+	dprintk("svcrdma: processing ctxt=%p on xprt=%p, rqstp=%p\n",
+		ctxt, rdma_xprt, rqstp);
 	atomic_inc(&rdma_stat_recv);
 
 	/* Build up the XDR from the receive buffers. */

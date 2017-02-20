@@ -179,6 +179,11 @@ int fscrypt_has_permitted_context(struct inode *parent, struct inode *child)
 		BUG_ON(1);
 	}
 
+	/* No restrictions on file types which are never encrypted */
+	if (!S_ISREG(child->i_mode) && !S_ISDIR(child->i_mode) &&
+	    !S_ISLNK(child->i_mode))
+		return 1;
+
 	/* no restrictions if the parent directory is not encrypted */
 	if (!parent->i_sb->s_cop->is_encrypted(parent))
 		return 1;

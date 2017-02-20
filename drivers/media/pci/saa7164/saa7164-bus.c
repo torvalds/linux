@@ -427,8 +427,8 @@ int saa7164_bus_get(struct saa7164_dev *dev, struct tmComResInfo* msg,
 		write_distance = curr_gwp + bus->m_dwSizeGetRing - curr_grp;
 
 	if (bytes_to_read > write_distance) {
-		printk(KERN_ERR "%s() Invalid bus state, missing msg "
-			"or mangled ring, faulty H/W / bad code?\n", __func__);
+		printk(KERN_ERR "%s() Invalid bus state, missing msg or mangled ring, faulty H/W / bad code?\n",
+		       __func__);
 		ret = SAA_ERR_INVALID_COMMAND;
 		goto out;
 	}

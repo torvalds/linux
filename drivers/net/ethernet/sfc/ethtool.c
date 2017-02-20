@@ -120,44 +120,53 @@ static int efx_ethtool_phys_id(struct net_device *net_dev,
 }
 
 /* This must be called with rtnl_lock held. */
-static int efx_ethtool_get_settings(struct net_device *net_dev,
-				    struct ethtool_cmd *ecmd)
+static int
+efx_ethtool_get_link_ksettings(struct net_device *net_dev,
+			       struct ethtool_link_ksettings *cmd)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_link_state *link_state = &efx->link_state;
+	u32 supported;
 
 	mutex_lock(&efx->mac_lock);
-	efx->phy_op->get_settings(efx, ecmd);
+	efx->phy_op->get_link_ksettings(efx, cmd);
 	mutex_unlock(&efx->mac_lock);
 
 	/* Both MACs support pause frames (bidirectional and respond-only) */
-	ecmd->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+	ethtool_convert_link_mode_to_legacy_u32(&supported,
+						cmd->link_modes.supported);
+
+	supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						supported);
 
 	if (LOOPBACK_INTERNAL(efx)) {
-		ethtool_cmd_speed_set(ecmd, link_state->speed);
-		ecmd->duplex = link_state->fd ? DUPLEX_FULL : DUPLEX_HALF;
+		cmd->base.speed = link_state->speed;
+		cmd->base.duplex = link_state->fd ? DUPLEX_FULL : DUPLEX_HALF;
 	}
 
 	return 0;
 }
 
 /* This must be called with rtnl_lock held. */
-static int efx_ethtool_set_settings(struct net_device *net_dev,
-				    struct ethtool_cmd *ecmd)
+static int
+efx_ethtool_set_link_ksettings(struct net_device *net_dev,
+			       const struct ethtool_link_ksettings *cmd)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	int rc;
 
 	/* GMAC does not support 1000Mbps HD */
-	if ((ethtool_cmd_speed(ecmd) == SPEED_1000) &&
-	    (ecmd->duplex != DUPLEX_FULL)) {
+	if ((cmd->base.speed == SPEED_1000) &&
+	    (cmd->base.duplex != DUPLEX_FULL)) {
 		netif_dbg(efx, drv, efx->net_dev,
 			  "rejecting unsupported 1000Mbps HD setting\n");
 		return -EINVAL;
 	}
 
 	mutex_lock(&efx->mac_lock);
-	rc = efx->phy_op->set_settings(efx, ecmd);
+	rc = efx->phy_op->set_link_ksettings(efx, cmd);
 	mutex_unlock(&efx->mac_lock);
 	return rc;
 }
@@ -966,6 +975,8 @@ efx_ethtool_get_rxnfc(struct net_device *net_dev,
 
 	case ETHTOOL_GRXFH: {
 		info->data = 0;
+		if (!efx->rss_active) /* No RSS */
+			return 0;
 		switch (info->flow_type) {
 		case UDP_V4_FLOW:
 			if (efx->rx_hash_udp_4tuple)
@@ -1342,8 +1353,6 @@ static int efx_ethtool_get_module_info(struct net_device *net_dev,
 }
 
 const struct ethtool_ops efx_ethtool_ops = {
-	.get_settings		= efx_ethtool_get_settings,
-	.set_settings		= efx_ethtool_set_settings,
 	.get_drvinfo		= efx_ethtool_get_drvinfo,
 	.get_regs_len		= efx_ethtool_get_regs_len,
 	.get_regs		= efx_ethtool_get_regs,
@@ -1373,4 +1382,6 @@ const struct ethtool_ops efx_ethtool_ops = {
 	.get_ts_info		= efx_ethtool_get_ts_info,
 	.get_module_info	= efx_ethtool_get_module_info,
 	.get_module_eeprom	= efx_ethtool_get_module_eeprom,
+	.get_link_ksettings	= efx_ethtool_get_link_ksettings,
+	.set_link_ksettings	= efx_ethtool_set_link_ksettings,
 };

@@ -70,8 +70,6 @@ xfs_inode_alloc(
 	ASSERT(!xfs_isiflocked(ip));
 	ASSERT(ip->i_ino == 0);
 
-	mrlock_init(&ip->i_iolock, MRLOCK_BARRIER, "xfsio", ip->i_ino);
-
 	/* initialise the xfs inode */
 	ip->i_ino = ino;
 	ip->i_mount = mp;
@@ -123,7 +121,6 @@ __xfs_inode_free(
 {
 	/* asserts to verify all state is correct here */
 	ASSERT(atomic_read(&ip->i_pincount) == 0);
-	ASSERT(!xfs_isiflocked(ip));
 	XFS_STATS_DEC(ip->i_mount, vn_active);
 
 	call_rcu(&VFS_I(ip)->i_rcu, xfs_inode_free_callback);
@@ -133,6 +130,8 @@ void
 xfs_inode_free(
 	struct xfs_inode	*ip)
 {
+	ASSERT(!xfs_isiflocked(ip));
+
 	/*
 	 * Because we use RCU freeing we need to ensure the inode always
 	 * appears to be reclaimed with an invalid inode number when in the
@@ -393,8 +392,8 @@ xfs_iget_cache_hit(
 		xfs_inode_clear_reclaim_tag(pag, ip->i_ino);
 		inode->i_state = I_NEW;
 
-		ASSERT(!rwsem_is_locked(&ip->i_iolock.mr_lock));
-		mrlock_init(&ip->i_iolock, MRLOCK_BARRIER, "xfsio", ip->i_ino);
+		ASSERT(!rwsem_is_locked(&inode->i_rwsem));
+		init_rwsem(&inode->i_rwsem);
 
 		spin_unlock(&ip->i_flags_lock);
 		spin_unlock(&pag->pag_ici_lock);
@@ -981,6 +980,7 @@ restart:
 
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
 		xfs_iunpin_wait(ip);
+		/* xfs_iflush_abort() drops the flush lock */
 		xfs_iflush_abort(ip, false);
 		goto reclaim;
 	}
@@ -989,10 +989,10 @@ restart:
 			goto out_ifunlock;
 		xfs_iunpin_wait(ip);
 	}
-	if (xfs_iflags_test(ip, XFS_ISTALE))
+	if (xfs_iflags_test(ip, XFS_ISTALE) || xfs_inode_clean(ip)) {
+		xfs_ifunlock(ip);
 		goto reclaim;
-	if (xfs_inode_clean(ip))
-		goto reclaim;
+	}
 
 	/*
 	 * Never flush out dirty data during non-blocking reclaim, as it would
@@ -1030,25 +1030,24 @@ restart:
 		xfs_buf_relse(bp);
 	}
 
-	xfs_iflock(ip);
 reclaim:
+	ASSERT(!xfs_isiflocked(ip));
+
 	/*
 	 * Because we use RCU freeing we need to ensure the inode always appears
 	 * to be reclaimed with an invalid inode number when in the free state.
-	 * We do this as early as possible under the ILOCK and flush lock so
-	 * that xfs_iflush_cluster() can be guaranteed to detect races with us
-	 * here. By doing this, we guarantee that once xfs_iflush_cluster has
-	 * locked both the XFS_ILOCK and the flush lock that it will see either
-	 * a valid, flushable inode that will serialise correctly against the
-	 * locks below, or it will see a clean (and invalid) inode that it can
-	 * skip.
+	 * We do this as early as possible under the ILOCK so that
+	 * xfs_iflush_cluster() can be guaranteed to detect races with us here.
+	 * By doing this, we guarantee that once xfs_iflush_cluster has locked
+	 * XFS_ILOCK that it will see either a valid, flushable inode that will
+	 * serialise correctly, or it will see a clean (and invalid) inode that
+	 * it can skip.
 	 */
 	spin_lock(&ip->i_flags_lock);
 	ip->i_flags = XFS_IRECLAIM;
 	ip->i_ino = 0;
 	spin_unlock(&ip->i_flags_lock);
 
-	xfs_ifunlock(ip);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 
 	XFS_STATS_INC(ip->i_mount, xs_ig_reclaims);
@@ -1580,10 +1579,15 @@ xfs_inode_free_cowblocks(
 	struct xfs_eofblocks *eofb = args;
 	bool need_iolock = true;
 	int match;
+	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
 
 	ASSERT(!eofb || (eofb && eofb->eof_scan_owner != 0));
 
-	if (!xfs_reflink_has_real_cow_blocks(ip)) {
+	/*
+	 * Just clear the tag if we have an empty cow fork or none at all. It's
+	 * possible the inode was fully unshared since it was originally tagged.
+	 */
+	if (!xfs_is_reflink_inode(ip) || !ifp->if_bytes) {
 		trace_xfs_inode_free_cowblocks_invalid(ip);
 		xfs_inode_clear_cowblocks_tag(ip);
 		return 0;
@@ -1593,7 +1597,8 @@ xfs_inode_free_cowblocks(
 	 * If the mapping is dirty or under writeback we cannot touch the
 	 * CoW fork.  Leave it alone if we're in the midst of a directio.
 	 */
-	if (mapping_tagged(VFS_I(ip)->i_mapping, PAGECACHE_TAG_DIRTY) ||
+	if ((VFS_I(ip)->i_state & I_DIRTY_PAGES) ||
+	    mapping_tagged(VFS_I(ip)->i_mapping, PAGECACHE_TAG_DIRTY) ||
 	    mapping_tagged(VFS_I(ip)->i_mapping, PAGECACHE_TAG_WRITEBACK) ||
 	    atomic_read(&VFS_I(ip)->i_dio_count))
 		return 0;

@@ -1775,6 +1775,9 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 			if (dsa_is_dsa_port(ds, i) || dsa_is_cpu_port(ds, i))
 				continue;
 
+			if (!ds->ports[port].netdev)
+				continue;
+
 			if (vlan.data[i] ==
 			    GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER)
 				continue;
@@ -1782,6 +1785,9 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 			if (chip->ports[i].bridge_dev ==
 			    chip->ports[port].bridge_dev)
 				break; /* same bridge, check next VLAN */
+
+			if (!chip->ports[i].bridge_dev)
+				continue;
 
 			netdev_warn(ds->ports[port].netdev,
 				    "hardware VLAN %d already used by %s\n",

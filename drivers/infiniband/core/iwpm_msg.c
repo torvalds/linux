@@ -604,7 +604,6 @@ int iwpm_remote_info_cb(struct sk_buff *skb, struct netlink_callback *cb)
 	}
 	rem_info = kzalloc(sizeof(struct iwpm_remote_info), GFP_ATOMIC);
 	if (!rem_info) {
-		pr_err("%s: Unable to allocate a remote info\n", __func__);
 		ret = -ENOMEM;
 		return ret;
 	}

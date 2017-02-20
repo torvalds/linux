@@ -921,7 +921,7 @@ EXPORT_SYMBOL_GPL(gb_timesync_schedule_asynchronous);
 static ssize_t gb_timesync_ping_read(struct file *file, char __user *ubuf,
 				     size_t len, loff_t *offset, bool ktime)
 {
-	struct gb_timesync_svc *timesync_svc = file->f_inode->i_private;
+	struct gb_timesync_svc *timesync_svc = file_inode(file)->i_private;
 	char *buf;
 	ssize_t ret = 0;
 

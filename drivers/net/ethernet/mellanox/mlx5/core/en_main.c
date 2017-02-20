@@ -291,36 +291,12 @@ static void mlx5e_update_q_counter(struct mlx5e_priv *priv)
 				      &qcnt->rx_out_of_buffer);
 }
 
-static void mlx5e_update_pcie_counters(struct mlx5e_priv *priv)
-{
-	struct mlx5e_pcie_stats *pcie_stats = &priv->stats.pcie;
-	struct mlx5_core_dev *mdev = priv->mdev;
-	int sz = MLX5_ST_SZ_BYTES(mpcnt_reg);
-	void *out;
-	u32 *in;
-
-	in = mlx5_vzalloc(sz);
-	if (!in)
-		return;
-
-	out = pcie_stats->pcie_perf_counters;
-	MLX5_SET(mpcnt_reg, in, grp, MLX5_PCIE_PERFORMANCE_COUNTERS_GROUP);
-	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_MPCNT, 0, 0);
-
-	out = pcie_stats->pcie_tas_counters;
-	MLX5_SET(mpcnt_reg, in, grp, MLX5_PCIE_TIMERS_AND_STATES_COUNTERS_GROUP);
-	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_MPCNT, 0, 0);
-
-	kvfree(in);
-}
-
 void mlx5e_update_stats(struct mlx5e_priv *priv)
 {
 	mlx5e_update_q_counter(priv);
 	mlx5e_update_vport_counters(priv);
 	mlx5e_update_pport_counters(priv);
 	mlx5e_update_sw_counters(priv);
-	mlx5e_update_pcie_counters(priv);
 }
 
 void mlx5e_update_stats_work(struct work_struct *work)
@@ -3699,13 +3675,7 @@ static void mlx5e_nic_init(struct mlx5_core_dev *mdev,
 
 static void mlx5e_nic_cleanup(struct mlx5e_priv *priv)
 {
-	struct mlx5_core_dev *mdev = priv->mdev;
-	struct mlx5_eswitch *esw = mdev->priv.eswitch;
-
 	mlx5e_vxlan_cleanup(priv);
-
-	if (MLX5_CAP_GEN(mdev, vport_group_manager))
-		mlx5_eswitch_unregister_vport_rep(esw, 0);
 
 	if (priv->xdp_prog)
 		bpf_prog_put(priv->xdp_prog);
@@ -3805,14 +3775,7 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 
 	mlx5_lag_add(mdev, netdev);
 
-	if (mlx5e_vxlan_allowed(mdev)) {
-		rtnl_lock();
-		udp_tunnel_get_rx_info(netdev);
-		rtnl_unlock();
-	}
-
 	mlx5e_enable_async_events(priv);
-	queue_work(priv->wq, &priv->set_rx_mode_work);
 
 	if (MLX5_CAP_GEN(mdev, vport_group_manager)) {
 		mlx5_query_nic_vport_mac_address(mdev, 0, rep.hw_id);
@@ -3822,13 +3785,30 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 		rep.netdev = netdev;
 		mlx5_eswitch_register_vport_rep(esw, 0, &rep);
 	}
+
+	if (netdev->reg_state != NETREG_REGISTERED)
+		return;
+
+	/* Device already registered: sync netdev system state */
+	if (mlx5e_vxlan_allowed(mdev)) {
+		rtnl_lock();
+		udp_tunnel_get_rx_info(netdev);
+		rtnl_unlock();
+	}
+
+	queue_work(priv->wq, &priv->set_rx_mode_work);
 }
 
 static void mlx5e_nic_disable(struct mlx5e_priv *priv)
 {
+	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5_eswitch *esw = mdev->priv.eswitch;
+
 	queue_work(priv->wq, &priv->set_rx_mode_work);
+	if (MLX5_CAP_GEN(mdev, vport_group_manager))
+		mlx5_eswitch_unregister_vport_rep(esw, 0);
 	mlx5e_disable_async_events(priv);
-	mlx5_lag_remove(priv->mdev);
+	mlx5_lag_remove(mdev);
 }
 
 static const struct mlx5e_profile mlx5e_nic_profile = {
@@ -3966,16 +3946,16 @@ void mlx5e_detach_netdev(struct mlx5_core_dev *mdev, struct net_device *netdev)
 	const struct mlx5e_profile *profile = priv->profile;
 
 	set_bit(MLX5E_STATE_DESTROYING, &priv->state);
-	if (profile->disable)
-		profile->disable(priv);
-
-	flush_workqueue(priv->wq);
 
 	rtnl_lock();
 	if (netif_running(netdev))
 		mlx5e_close(netdev);
 	netif_device_detach(netdev);
 	rtnl_unlock();
+
+	if (profile->disable)
+		profile->disable(priv);
+	flush_workqueue(priv->wq);
 
 	mlx5e_destroy_q_counter(priv);
 	profile->cleanup_rx(priv);

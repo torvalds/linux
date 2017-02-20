@@ -57,8 +57,7 @@ struct bpf_prog_aux;
 /* BPF program can access up to 512 bytes of stack space. */
 #define MAX_BPF_STACK	512
 
-/* Maximum BPF program size in bytes. */
-#define MAX_BPF_SIZE	(BPF_MAXINSNS * sizeof(struct bpf_insn))
+#define BPF_TAG_SIZE	8
 
 /* Helper macros for filter block array initializers. */
 
@@ -411,7 +410,7 @@ struct bpf_prog {
 	kmemcheck_bitfield_end(meta);
 	enum bpf_prog_type	type;		/* Type of BPF program */
 	u32			len;		/* Number of filter blocks */
-	u32			digest[SHA_DIGEST_WORDS]; /* Program digest */
+	u8			tag[BPF_TAG_SIZE];
 	struct bpf_prog_aux	*aux;		/* Auxiliary fields */
 	struct sock_fprog_kern	*orig_prog;	/* Original BPF program */
 	unsigned int		(*bpf_func)(const void *ctx,
@@ -515,6 +514,17 @@ static __always_inline u32 bpf_prog_run_xdp(const struct bpf_prog *prog,
 	 * it's not necessary here anymore.
 	 */
 	return BPF_PROG_RUN(prog, xdp);
+}
+
+static inline u32 bpf_prog_insn_size(const struct bpf_prog *prog)
+{
+	return prog->len * sizeof(struct bpf_insn);
+}
+
+static inline u32 bpf_prog_tag_scratch_size(const struct bpf_prog *prog)
+{
+	return round_up(bpf_prog_insn_size(prog) +
+			sizeof(__be64) + 1, SHA_MESSAGE_BYTES);
 }
 
 static inline unsigned int bpf_prog_size(unsigned int proglen)

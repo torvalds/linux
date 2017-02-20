@@ -199,16 +199,6 @@
 
 #define PHASE_SR_TO_TCR(phase) ((phase) >> 2)
 
-/*
- * These are "special" values for the irq and dma_channel fields of the 
- * Scsi_Host structure
- */
-
-#define DMA_NONE	255
-#define IRQ_AUTO	254
-#define DMA_AUTO	254
-#define PORT_AUTO	0xffff	/* autoprobe io port for 53c400a */
-
 #ifndef NO_IRQ
 #define NO_IRQ		0
 #endif
@@ -290,7 +280,6 @@ static void NCR5380_print(struct Scsi_Host *instance);
 #define NCR5380_dprint_phase(flg, arg) do {} while (0)
 #endif
 
-static int NCR5380_probe_irq(struct Scsi_Host *instance, int possible);
 static int NCR5380_init(struct Scsi_Host *instance, int flags);
 static int NCR5380_maybe_reset_bus(struct Scsi_Host *);
 static void NCR5380_exit(struct Scsi_Host *instance);

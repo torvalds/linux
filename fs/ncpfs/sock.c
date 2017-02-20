@@ -16,7 +16,7 @@
 #include <linux/fcntl.h>
 #include <linux/stat.h>
 #include <linux/string.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/in.h>
 #include <linux/net.h>
 #include <linux/mm.h>

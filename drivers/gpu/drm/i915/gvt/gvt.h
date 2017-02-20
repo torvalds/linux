@@ -164,15 +164,18 @@ struct intel_vgpu {
 
 #if IS_ENABLED(CONFIG_DRM_I915_GVT_KVMGT)
 	struct {
-		struct device *mdev;
+		struct mdev_device *mdev;
 		struct vfio_region *region;
 		int num_regions;
 		struct eventfd_ctx *intx_trigger;
 		struct eventfd_ctx *msi_trigger;
 		struct rb_root cache;
 		struct mutex cache_lock;
-		void *vfio_group;
 		struct notifier_block iommu_notifier;
+		struct notifier_block group_notifier;
+		struct kvm *kvm;
+		struct work_struct release_work;
+		atomic_t released;
 	} vdev;
 #endif
 };

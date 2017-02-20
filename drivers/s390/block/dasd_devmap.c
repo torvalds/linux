@@ -20,7 +20,7 @@
 #include <linux/slab.h>
 
 #include <asm/debug.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ipl.h>
 
 /* This is ugly... */

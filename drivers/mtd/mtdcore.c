@@ -46,8 +46,7 @@
 
 #include "mtdcore.h"
 
-static struct backing_dev_info mtd_bdi = {
-};
+static struct backing_dev_info *mtd_bdi;
 
 #ifdef CONFIG_PM_SLEEP
 
@@ -500,7 +499,7 @@ int add_mtd_device(struct mtd_info *mtd)
 	if (WARN_ONCE(mtd->backing_dev_info, "MTD already registered\n"))
 		return -EEXIST;
 
-	mtd->backing_dev_info = &mtd_bdi;
+	mtd->backing_dev_info = mtd_bdi;
 
 	BUG_ON(mtd->writesize == 0);
 	mutex_lock(&mtd_table_mutex);
@@ -1274,8 +1273,8 @@ static int mtd_ooblayout_get_bytes(struct mtd_info *mtd, u8 *buf,
 					    int section,
 					    struct mtd_oob_region *oobregion))
 {
-	struct mtd_oob_region oobregion = { };
-	int section = 0, ret;
+	struct mtd_oob_region oobregion;
+	int section, ret;
 
 	ret = mtd_ooblayout_find_region(mtd, start, &section,
 					&oobregion, iter);
@@ -1283,7 +1282,7 @@ static int mtd_ooblayout_get_bytes(struct mtd_info *mtd, u8 *buf,
 	while (!ret) {
 		int cnt;
 
-		cnt = oobregion.length > nbytes ? nbytes : oobregion.length;
+		cnt = min_t(int, nbytes, oobregion.length);
 		memcpy(buf, oobbuf + oobregion.offset, cnt);
 		buf += cnt;
 		nbytes -= cnt;
@@ -1317,8 +1316,8 @@ static int mtd_ooblayout_set_bytes(struct mtd_info *mtd, const u8 *buf,
 					    int section,
 					    struct mtd_oob_region *oobregion))
 {
-	struct mtd_oob_region oobregion = { };
-	int section = 0, ret;
+	struct mtd_oob_region oobregion;
+	int section, ret;
 
 	ret = mtd_ooblayout_find_region(mtd, start, &section,
 					&oobregion, iter);
@@ -1326,7 +1325,7 @@ static int mtd_ooblayout_set_bytes(struct mtd_info *mtd, const u8 *buf,
 	while (!ret) {
 		int cnt;
 
-		cnt = oobregion.length > nbytes ? nbytes : oobregion.length;
+		cnt = min_t(int, nbytes, oobregion.length);
 		memcpy(oobbuf + oobregion.offset, buf, cnt);
 		buf += cnt;
 		nbytes -= cnt;
@@ -1354,7 +1353,7 @@ static int mtd_ooblayout_count_bytes(struct mtd_info *mtd,
 					    int section,
 					    struct mtd_oob_region *oobregion))
 {
-	struct mtd_oob_region oobregion = { };
+	struct mtd_oob_region oobregion;
 	int section = 0, ret, nbytes = 0;
 
 	while (1) {
@@ -1771,18 +1770,20 @@ static const struct file_operations mtd_proc_ops = {
 /*====================================================================*/
 /* Init code */
 
-static int __init mtd_bdi_init(struct backing_dev_info *bdi, const char *name)
+static struct backing_dev_info * __init mtd_bdi_init(char *name)
 {
+	struct backing_dev_info *bdi;
 	int ret;
 
-	ret = bdi_init(bdi);
-	if (!ret)
-		ret = bdi_register(bdi, NULL, "%s", name);
+	bdi = kzalloc(sizeof(*bdi), GFP_KERNEL);
+	if (!bdi)
+		return ERR_PTR(-ENOMEM);
 
+	ret = bdi_setup_and_register(bdi, name);
 	if (ret)
-		bdi_destroy(bdi);
+		kfree(bdi);
 
-	return ret;
+	return ret ? ERR_PTR(ret) : bdi;
 }
 
 static struct proc_dir_entry *proc_mtd;
@@ -1795,9 +1796,11 @@ static int __init init_mtd(void)
 	if (ret)
 		goto err_reg;
 
-	ret = mtd_bdi_init(&mtd_bdi, "mtd");
-	if (ret)
+	mtd_bdi = mtd_bdi_init("mtd");
+	if (IS_ERR(mtd_bdi)) {
+		ret = PTR_ERR(mtd_bdi);
 		goto err_bdi;
+	}
 
 	proc_mtd = proc_create("mtd", 0, NULL, &mtd_proc_ops);
 
@@ -1810,6 +1813,8 @@ static int __init init_mtd(void)
 out_procfs:
 	if (proc_mtd)
 		remove_proc_entry("mtd", NULL);
+	bdi_destroy(mtd_bdi);
+	kfree(mtd_bdi);
 err_bdi:
 	class_unregister(&mtd_class);
 err_reg:
@@ -1823,7 +1828,8 @@ static void __exit cleanup_mtd(void)
 	if (proc_mtd)
 		remove_proc_entry("mtd", NULL);
 	class_unregister(&mtd_class);
-	bdi_destroy(&mtd_bdi);
+	bdi_destroy(mtd_bdi);
+	kfree(mtd_bdi);
 	idr_destroy(&mtd_idr);
 }
 

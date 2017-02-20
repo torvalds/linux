@@ -14,7 +14,7 @@
 #include <linux/irqdomain.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/abx500.h>
@@ -123,6 +123,10 @@ static DEFINE_SPINLOCK(on_stat_lock);
 static u8 turn_on_stat_mask = 0xFF;
 static u8 turn_on_stat_set;
 static bool no_bm; /* No battery management */
+/*
+ * not really modular, but the easiest way to keep compat with existing
+ * bootargs behaviour is to continue using module_param here.
+ */
 module_param(no_bm, bool, S_IRUGO);
 
 #define AB9540_MODEM_CTRL2_REG			0x23
@@ -1324,25 +1328,6 @@ static int ab8500_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int ab8500_remove(struct platform_device *pdev)
-{
-	struct ab8500 *ab8500 = platform_get_drvdata(pdev);
-
-	if (((is_ab8505(ab8500) || is_ab9540(ab8500)) &&
-			ab8500->chip_id >= AB8500_CUT2P0) || is_ab8540(ab8500))
-		sysfs_remove_group(&ab8500->dev->kobj, &ab9540_attr_group);
-	else
-		sysfs_remove_group(&ab8500->dev->kobj, &ab8500_attr_group);
-
-	if ((is_ab8505(ab8500) || is_ab9540(ab8500)) &&
-			ab8500->chip_id >= AB8500_CUT2P0)
-		sysfs_remove_group(&ab8500->dev->kobj, &ab8505_attr_group);
-
-	mfd_remove_devices(ab8500->dev);
-
-	return 0;
-}
-
 static const struct platform_device_id ab8500_id[] = {
 	{ "ab8500-core", AB8500_VERSION_AB8500 },
 	{ "ab8505-i2c", AB8500_VERSION_AB8505 },
@@ -1354,9 +1339,9 @@ static const struct platform_device_id ab8500_id[] = {
 static struct platform_driver ab8500_core_driver = {
 	.driver = {
 		.name = "ab8500-core",
+		.suppress_bind_attrs = true,
 	},
 	.probe	= ab8500_probe,
-	.remove	= ab8500_remove,
 	.id_table = ab8500_id,
 };
 
@@ -1364,14 +1349,4 @@ static int __init ab8500_core_init(void)
 {
 	return platform_driver_register(&ab8500_core_driver);
 }
-
-static void __exit ab8500_core_exit(void)
-{
-	platform_driver_unregister(&ab8500_core_driver);
-}
 core_initcall(ab8500_core_init);
-module_exit(ab8500_core_exit);
-
-MODULE_AUTHOR("Mattias Wallin, Srinidhi Kasagar, Rabin Vincent");
-MODULE_DESCRIPTION("AB8500 MFD core");
-MODULE_LICENSE("GPL v2");

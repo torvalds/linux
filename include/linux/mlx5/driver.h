@@ -123,7 +123,6 @@ enum {
 	MLX5_REG_HOST_ENDIANNESS = 0x7004,
 	MLX5_REG_MCIA		 = 0x9014,
 	MLX5_REG_MLCR		 = 0x902b,
-	MLX5_REG_MPCNT		 = 0x9051,
 };
 
 enum mlx5_dcbx_oper_mode {

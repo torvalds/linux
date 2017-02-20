@@ -121,7 +121,7 @@ static int cpts_fifo_read(struct cpts *cpts, int match)
 	return type == match ? 0 : -1;
 }
 
-static cycle_t cpts_systim_read(const struct cyclecounter *cc)
+static u64 cpts_systim_read(const struct cyclecounter *cc)
 {
 	u64 val = 0;
 	struct cpts_event *event;

@@ -126,15 +126,19 @@ static int bman_portal_probe(struct platform_device *pdev)
 	pcfg->irq = irq;
 
 	va = ioremap_prot(addr_phys[0]->start, resource_size(addr_phys[0]), 0);
-	if (!va)
+	if (!va) {
+		dev_err(dev, "ioremap::CE failed\n");
 		goto err_ioremap1;
+	}
 
 	pcfg->addr_virt[DPAA_PORTAL_CE] = va;
 
 	va = ioremap_prot(addr_phys[1]->start, resource_size(addr_phys[1]),
 			  _PAGE_GUARDED | _PAGE_NO_CACHE);
-	if (!va)
+	if (!va) {
+		dev_err(dev, "ioremap::CI failed\n");
 		goto err_ioremap2;
+	}
 
 	pcfg->addr_virt[DPAA_PORTAL_CI] = va;
 
@@ -150,8 +154,10 @@ static int bman_portal_probe(struct platform_device *pdev)
 	spin_unlock(&bman_lock);
 	pcfg->cpu = cpu;
 
-	if (!init_pcfg(pcfg))
-		goto err_ioremap2;
+	if (!init_pcfg(pcfg)) {
+		dev_err(dev, "portal init failed\n");
+		goto err_portal_init;
+	}
 
 	/* clear irq affinity if assigned cpu is offline */
 	if (!cpu_online(cpu))
@@ -159,10 +165,11 @@ static int bman_portal_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_portal_init:
+	iounmap(pcfg->addr_virt[DPAA_PORTAL_CI]);
 err_ioremap2:
 	iounmap(pcfg->addr_virt[DPAA_PORTAL_CE]);
 err_ioremap1:
-	dev_err(dev, "ioremap failed\n");
 	return -ENXIO;
 }
 

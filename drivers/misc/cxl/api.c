@@ -9,18 +9,119 @@
 
 #include <linux/pci.h>
 #include <linux/slab.h>
-#include <linux/anon_inodes.h>
 #include <linux/file.h>
 #include <misc/cxl.h>
-#include <linux/fs.h>
 #include <asm/pnv-pci.h>
 #include <linux/msi.h>
+#include <linux/module.h>
+#include <linux/mount.h>
 
 #include "cxl.h"
 
+/*
+ * Since we want to track memory mappings to be able to force-unmap
+ * when the AFU is no longer reachable, we need an inode. For devices
+ * opened through the cxl user API, this is not a problem, but a
+ * userland process can also get a cxl fd through the cxl_get_fd()
+ * API, which is used by the cxlflash driver.
+ *
+ * Therefore we implement our own simple pseudo-filesystem and inode
+ * allocator. We don't use the anonymous inode, as we need the
+ * meta-data associated with it (address_space) and it is shared by
+ * other drivers/processes, so it could lead to cxl unmapping VMAs
+ * from random processes.
+ */
+
+#define CXL_PSEUDO_FS_MAGIC	0x1697697f
+
+static int cxl_fs_cnt;
+static struct vfsmount *cxl_vfs_mount;
+
+static const struct dentry_operations cxl_fs_dops = {
+	.d_dname	= simple_dname,
+};
+
+static struct dentry *cxl_fs_mount(struct file_system_type *fs_type, int flags,
+				const char *dev_name, void *data)
+{
+	return mount_pseudo(fs_type, "cxl:", NULL, &cxl_fs_dops,
+			CXL_PSEUDO_FS_MAGIC);
+}
+
+static struct file_system_type cxl_fs_type = {
+	.name		= "cxl",
+	.owner		= THIS_MODULE,
+	.mount		= cxl_fs_mount,
+	.kill_sb	= kill_anon_super,
+};
+
+
+void cxl_release_mapping(struct cxl_context *ctx)
+{
+	if (ctx->kernelapi && ctx->mapping)
+		simple_release_fs(&cxl_vfs_mount, &cxl_fs_cnt);
+}
+
+static struct file *cxl_getfile(const char *name,
+				const struct file_operations *fops,
+				void *priv, int flags)
+{
+	struct qstr this;
+	struct path path;
+	struct file *file;
+	struct inode *inode = NULL;
+	int rc;
+
+	/* strongly inspired by anon_inode_getfile() */
+
+	if (fops->owner && !try_module_get(fops->owner))
+		return ERR_PTR(-ENOENT);
+
+	rc = simple_pin_fs(&cxl_fs_type, &cxl_vfs_mount, &cxl_fs_cnt);
+	if (rc < 0) {
+		pr_err("Cannot mount cxl pseudo filesystem: %d\n", rc);
+		file = ERR_PTR(rc);
+		goto err_module;
+	}
+
+	inode = alloc_anon_inode(cxl_vfs_mount->mnt_sb);
+	if (IS_ERR(inode)) {
+		file = ERR_CAST(inode);
+		goto err_fs;
+	}
+
+	file = ERR_PTR(-ENOMEM);
+	this.name = name;
+	this.len = strlen(name);
+	this.hash = 0;
+	path.dentry = d_alloc_pseudo(cxl_vfs_mount->mnt_sb, &this);
+	if (!path.dentry)
+		goto err_inode;
+
+	path.mnt = mntget(cxl_vfs_mount);
+	d_instantiate(path.dentry, inode);
+
+	file = alloc_file(&path, OPEN_FMODE(flags), fops);
+	if (IS_ERR(file))
+		goto err_dput;
+	file->f_flags = flags & (O_ACCMODE | O_NONBLOCK);
+	file->private_data = priv;
+
+	return file;
+
+err_dput:
+	path_put(&path);
+err_inode:
+	iput(inode);
+err_fs:
+	simple_release_fs(&cxl_vfs_mount, &cxl_fs_cnt);
+err_module:
+	module_put(fops->owner);
+	return file;
+}
+
 struct cxl_context *cxl_dev_context_init(struct pci_dev *dev)
 {
-	struct address_space *mapping;
 	struct cxl_afu *afu;
 	struct cxl_context  *ctx;
 	int rc;
@@ -30,38 +131,20 @@ struct cxl_context *cxl_dev_context_init(struct pci_dev *dev)
 		return ERR_CAST(afu);
 
 	ctx = cxl_context_alloc();
-	if (IS_ERR(ctx)) {
-		rc = PTR_ERR(ctx);
-		goto err_dev;
-	}
+	if (!ctx)
+		return ERR_PTR(-ENOMEM);
 
 	ctx->kernelapi = true;
 
-	/*
-	 * Make our own address space since we won't have one from the
-	 * filesystem like the user api has, and even if we do associate a file
-	 * with this context we don't want to use the global anonymous inode's
-	 * address space as that can invalidate unrelated users:
-	 */
-	mapping = kmalloc(sizeof(struct address_space), GFP_KERNEL);
-	if (!mapping) {
-		rc = -ENOMEM;
-		goto err_ctx;
-	}
-	address_space_init_once(mapping);
-
 	/* Make it a slave context.  We can promote it later? */
-	rc = cxl_context_init(ctx, afu, false, mapping);
+	rc = cxl_context_init(ctx, afu, false);
 	if (rc)
-		goto err_mapping;
+		goto err_ctx;
 
 	return ctx;
 
-err_mapping:
-	kfree(mapping);
 err_ctx:
 	kfree(ctx);
-err_dev:
 	return ERR_PTR(rc);
 }
 EXPORT_SYMBOL_GPL(cxl_dev_context_init);
@@ -340,6 +423,11 @@ struct file *cxl_get_fd(struct cxl_context *ctx, struct file_operations *fops,
 {
 	struct file *file;
 	int rc, flags, fdtmp;
+	char *name = NULL;
+
+	/* only allow one per context */
+	if (ctx->mapping)
+		return ERR_PTR(-EEXIST);
 
 	flags = O_RDWR | O_CLOEXEC;
 
@@ -363,12 +451,13 @@ struct file *cxl_get_fd(struct cxl_context *ctx, struct file_operations *fops,
 	} else /* use default ops */
 		fops = (struct file_operations *)&afu_fops;
 
-	file = anon_inode_getfile("cxl", fops, ctx, flags);
+	name = kasprintf(GFP_KERNEL, "cxl:%d", ctx->pe);
+	file = cxl_getfile(name, fops, ctx, flags);
+	kfree(name);
 	if (IS_ERR(file))
 		goto err_fd;
 
-	file->f_mapping = ctx->mapping;
-
+	cxl_context_set_mapping(ctx, file->f_mapping);
 	*fd = fdtmp;
 	return file;
 
@@ -541,7 +630,7 @@ int _cxl_cx4_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 
 		if (remaining > 0) {
 			new_ctx = cxl_dev_context_init(pdev);
-			if (!new_ctx) {
+			if (IS_ERR(new_ctx)) {
 				pr_warn("%s: Failed to allocate enough contexts for MSIs\n", pci_name(pdev));
 				return -ENOSPC;
 			}

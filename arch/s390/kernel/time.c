@@ -38,7 +38,7 @@
 #include <linux/clockchips.h>
 #include <linux/gfp.h>
 #include <linux/kprobes.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/facility.h>
 #include <asm/delay.h>
 #include <asm/div64.h>
@@ -209,7 +209,7 @@ void read_boot_clock64(struct timespec64 *ts)
 	tod_to_timeval(clock - TOD_UNIX_EPOCH, ts);
 }
 
-static cycle_t read_tod_clock(struct clocksource *cs)
+static u64 read_tod_clock(struct clocksource *cs)
 {
 	unsigned long long now, adj;
 

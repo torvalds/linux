@@ -76,7 +76,7 @@
 #include <linux/cache.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* These identify the driver base version and may not be removed. */
 static char version[] =

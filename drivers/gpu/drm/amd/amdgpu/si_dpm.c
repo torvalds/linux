@@ -56,7 +56,6 @@
 #define BIOS_SCRATCH_4                                    0x5cd
 
 MODULE_FIRMWARE("radeon/tahiti_smc.bin");
-MODULE_FIRMWARE("radeon/tahiti_k_smc.bin");
 MODULE_FIRMWARE("radeon/pitcairn_smc.bin");
 MODULE_FIRMWARE("radeon/pitcairn_k_smc.bin");
 MODULE_FIRMWARE("radeon/verde_smc.bin");
@@ -3488,19 +3487,6 @@ static void si_apply_state_adjust_rules(struct amdgpu_device *adev,
 		    (adev->pdev->device == 0x6817) ||
 		    (adev->pdev->device == 0x6806))
 			max_mclk = 120000;
-	} else if (adev->asic_type == CHIP_VERDE) {
-		if ((adev->pdev->revision == 0x81) ||
-		    (adev->pdev->revision == 0x83) ||
-		    (adev->pdev->revision == 0x87) ||
-		    (adev->pdev->device == 0x6820) ||
-		    (adev->pdev->device == 0x6821) ||
-		    (adev->pdev->device == 0x6822) ||
-		    (adev->pdev->device == 0x6823) ||
-		    (adev->pdev->device == 0x682A) ||
-		    (adev->pdev->device == 0x682B)) {
-			max_sclk = 75000;
-			max_mclk = 80000;
-		}
 	} else if (adev->asic_type == CHIP_OLAND) {
 		if ((adev->pdev->revision == 0xC7) ||
 		    (adev->pdev->revision == 0x80) ||
@@ -7687,49 +7673,49 @@ static int si_dpm_init_microcode(struct amdgpu_device *adev)
 		chip_name = "tahiti";
 		break;
 	case CHIP_PITCAIRN:
-		if ((adev->pdev->revision == 0x81) ||
-		    (adev->pdev->device == 0x6810) ||
-		    (adev->pdev->device == 0x6811) ||
-		    (adev->pdev->device == 0x6816) ||
-		    (adev->pdev->device == 0x6817) ||
-		    (adev->pdev->device == 0x6806))
+		if ((adev->pdev->revision == 0x81) &&
+		    ((adev->pdev->device == 0x6810) ||
+		    (adev->pdev->device == 0x6811)))
 			chip_name = "pitcairn_k";
 		else
 			chip_name = "pitcairn";
 		break;
 	case CHIP_VERDE:
-		if ((adev->pdev->revision == 0x81) ||
-		    (adev->pdev->revision == 0x83) ||
-		    (adev->pdev->revision == 0x87) ||
-		    (adev->pdev->device == 0x6820) ||
-		    (adev->pdev->device == 0x6821) ||
-		    (adev->pdev->device == 0x6822) ||
-		    (adev->pdev->device == 0x6823) ||
-		    (adev->pdev->device == 0x682A) ||
-		    (adev->pdev->device == 0x682B))
+		if (((adev->pdev->device == 0x6820) &&
+			((adev->pdev->revision == 0x81) ||
+			(adev->pdev->revision == 0x83))) ||
+		    ((adev->pdev->device == 0x6821) &&
+			((adev->pdev->revision == 0x83) ||
+			(adev->pdev->revision == 0x87))) ||
+		    ((adev->pdev->revision == 0x87) &&
+			((adev->pdev->device == 0x6823) ||
+			(adev->pdev->device == 0x682b))))
 			chip_name = "verde_k";
 		else
 			chip_name = "verde";
 		break;
 	case CHIP_OLAND:
-		if ((adev->pdev->revision == 0xC7) ||
-		    (adev->pdev->revision == 0x80) ||
-		    (adev->pdev->revision == 0x81) ||
-		    (adev->pdev->revision == 0x83) ||
-		    (adev->pdev->revision == 0x87) ||
-		    (adev->pdev->device == 0x6604) ||
-		    (adev->pdev->device == 0x6605))
+		if (((adev->pdev->revision == 0x81) &&
+			((adev->pdev->device == 0x6600) ||
+			(adev->pdev->device == 0x6604) ||
+			(adev->pdev->device == 0x6605) ||
+			(adev->pdev->device == 0x6610))) ||
+		    ((adev->pdev->revision == 0x83) &&
+			(adev->pdev->device == 0x6610)))
 			chip_name = "oland_k";
 		else
 			chip_name = "oland";
 		break;
 	case CHIP_HAINAN:
-		if ((adev->pdev->revision == 0x81) ||
-		    (adev->pdev->revision == 0x83) ||
-		    (adev->pdev->revision == 0xC3) ||
-		    (adev->pdev->device == 0x6664) ||
-		    (adev->pdev->device == 0x6665) ||
-		    (adev->pdev->device == 0x6667))
+		if (((adev->pdev->revision == 0x81) &&
+			(adev->pdev->device == 0x6660)) ||
+		    ((adev->pdev->revision == 0x83) &&
+			((adev->pdev->device == 0x6660) ||
+			(adev->pdev->device == 0x6663) ||
+			(adev->pdev->device == 0x6665) ||
+			(adev->pdev->device == 0x6667))) ||
+		    ((adev->pdev->revision == 0xc3) &&
+			(adev->pdev->device == 0x6665)))
 			chip_name = "hainan_k";
 		else
 			chip_name = "hainan";

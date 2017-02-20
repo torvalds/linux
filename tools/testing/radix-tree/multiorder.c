@@ -26,7 +26,6 @@ static void __multiorder_tag_test(int index, int order)
 {
 	RADIX_TREE(tree, GFP_KERNEL);
 	int base, err, i;
-	unsigned long first = 0;
 
 	/* our canonical entry */
 	base = index & ~((1 << order) - 1);
@@ -60,7 +59,7 @@ static void __multiorder_tag_test(int index, int order)
 		assert(!radix_tree_tag_get(&tree, i, 1));
 	}
 
-	assert(radix_tree_range_tag_if_tagged(&tree, &first, ~0UL, 10, 0, 1) == 1);
+	assert(tag_tagged_items(&tree, NULL, 0, ~0UL, 10, 0, 1) == 1);
 	assert(radix_tree_tag_clear(&tree, index, 0));
 
 	for_each_index(i, base, order) {
@@ -76,8 +75,27 @@ static void __multiorder_tag_test(int index, int order)
 	item_kill_tree(&tree);
 }
 
+static void __multiorder_tag_test2(unsigned order, unsigned long index2)
+{
+	RADIX_TREE(tree, GFP_KERNEL);
+	unsigned long index = (1 << order);
+	index2 += index;
+
+	assert(item_insert_order(&tree, 0, order) == 0);
+	assert(item_insert(&tree, index2) == 0);
+
+	assert(radix_tree_tag_set(&tree, 0, 0));
+	assert(radix_tree_tag_set(&tree, index2, 0));
+
+	assert(tag_tagged_items(&tree, NULL, 0, ~0UL, 10, 0, 1) == 2);
+
+	item_kill_tree(&tree);
+}
+
 static void multiorder_tag_tests(void)
 {
+	int i, j;
+
 	/* test multi-order entry for indices 0-7 with no sibling pointers */
 	__multiorder_tag_test(0, 3);
 	__multiorder_tag_test(5, 3);
@@ -117,6 +135,10 @@ static void multiorder_tag_tests(void)
 	__multiorder_tag_test(300, 8);
 
 	__multiorder_tag_test(0x12345678UL, 8);
+
+	for (i = 1; i < 10; i++)
+		for (j = 0; j < (10 << i); j++)
+			__multiorder_tag_test2(i, j);
 }
 
 static void multiorder_check(unsigned long index, int order)
@@ -125,7 +147,7 @@ static void multiorder_check(unsigned long index, int order)
 	unsigned long min = index & ~((1UL << order) - 1);
 	unsigned long max = min + (1UL << order);
 	void **slot;
-	struct item *item2 = item_create(min);
+	struct item *item2 = item_create(min, order);
 	RADIX_TREE(tree, GFP_KERNEL);
 
 	printf("Multiorder index %ld, order %d\n", index, order);
@@ -231,11 +253,14 @@ void multiorder_iteration(void)
 		radix_tree_for_each_slot(slot, &tree, &iter, j) {
 			int height = order[i] / RADIX_TREE_MAP_SHIFT;
 			int shift = height * RADIX_TREE_MAP_SHIFT;
-			int mask = (1 << order[i]) - 1;
+			unsigned long mask = (1UL << order[i]) - 1;
+			struct item *item = *slot;
 
-			assert(iter.index >= (index[i] &~ mask));
-			assert(iter.index <= (index[i] | mask));
+			assert((iter.index | mask) == (index[i] | mask));
 			assert(iter.shift == shift);
+			assert(!radix_tree_is_internal_node(item));
+			assert((item->index | mask) == (index[i] | mask));
+			assert(item->order == order[i]);
 			i++;
 		}
 	}
@@ -248,7 +273,6 @@ void multiorder_tagged_iteration(void)
 	RADIX_TREE(tree, GFP_KERNEL);
 	struct radix_tree_iter iter;
 	void **slot;
-	unsigned long first = 0;
 	int i, j;
 
 	printf("Multiorder tagged iteration test\n");
@@ -269,7 +293,7 @@ void multiorder_tagged_iteration(void)
 		assert(radix_tree_tag_set(&tree, tag_index[i], 1));
 
 	for (j = 0; j < 256; j++) {
-		int mask, k;
+		int k;
 
 		for (i = 0; i < TAG_ENTRIES; i++) {
 			for (k = i; index[k] < tag_index[i]; k++)
@@ -279,18 +303,22 @@ void multiorder_tagged_iteration(void)
 		}
 
 		radix_tree_for_each_tagged(slot, &tree, &iter, j, 1) {
+			unsigned long mask;
+			struct item *item = *slot;
 			for (k = i; index[k] < tag_index[i]; k++)
 				;
-			mask = (1 << order[k]) - 1;
+			mask = (1UL << order[k]) - 1;
 
-			assert(iter.index >= (tag_index[i] &~ mask));
-			assert(iter.index <= (tag_index[i] | mask));
+			assert((iter.index | mask) == (tag_index[i] | mask));
+			assert(!radix_tree_is_internal_node(item));
+			assert((item->index | mask) == (tag_index[i] | mask));
+			assert(item->order == order[k]);
 			i++;
 		}
 	}
 
-	radix_tree_range_tag_if_tagged(&tree, &first, ~0UL,
-					MT_NUM_ENTRIES, 1, 2);
+	assert(tag_tagged_items(&tree, NULL, 0, ~0UL, TAG_ENTRIES, 1, 2) ==
+				TAG_ENTRIES);
 
 	for (j = 0; j < 256; j++) {
 		int mask, k;
@@ -303,24 +331,281 @@ void multiorder_tagged_iteration(void)
 		}
 
 		radix_tree_for_each_tagged(slot, &tree, &iter, j, 2) {
+			struct item *item = *slot;
 			for (k = i; index[k] < tag_index[i]; k++)
 				;
 			mask = (1 << order[k]) - 1;
 
-			assert(iter.index >= (tag_index[i] &~ mask));
-			assert(iter.index <= (tag_index[i] | mask));
+			assert((iter.index | mask) == (tag_index[i] | mask));
+			assert(!radix_tree_is_internal_node(item));
+			assert((item->index | mask) == (tag_index[i] | mask));
+			assert(item->order == order[k]);
 			i++;
 		}
 	}
 
-	first = 1;
-	radix_tree_range_tag_if_tagged(&tree, &first, ~0UL,
-					MT_NUM_ENTRIES, 1, 0);
+	assert(tag_tagged_items(&tree, NULL, 1, ~0UL, MT_NUM_ENTRIES * 2, 1, 0)
+			== TAG_ENTRIES);
 	i = 0;
 	radix_tree_for_each_tagged(slot, &tree, &iter, 0, 0) {
 		assert(iter.index == tag_index[i]);
 		i++;
 	}
+
+	item_kill_tree(&tree);
+}
+
+static void multiorder_join1(unsigned long index,
+				unsigned order1, unsigned order2)
+{
+	unsigned long loc;
+	void *item, *item2 = item_create(index + 1, order1);
+	RADIX_TREE(tree, GFP_KERNEL);
+
+	item_insert_order(&tree, index, order2);
+	item = radix_tree_lookup(&tree, index);
+	radix_tree_join(&tree, index + 1, order1, item2);
+	loc = find_item(&tree, item);
+	if (loc == -1)
+		free(item);
+	item = radix_tree_lookup(&tree, index + 1);
+	assert(item == item2);
+	item_kill_tree(&tree);
+}
+
+static void multiorder_join2(unsigned order1, unsigned order2)
+{
+	RADIX_TREE(tree, GFP_KERNEL);
+	struct radix_tree_node *node;
+	void *item1 = item_create(0, order1);
+	void *item2;
+
+	item_insert_order(&tree, 0, order2);
+	radix_tree_insert(&tree, 1 << order2, (void *)0x12UL);
+	item2 = __radix_tree_lookup(&tree, 1 << order2, &node, NULL);
+	assert(item2 == (void *)0x12UL);
+	assert(node->exceptional == 1);
+
+	radix_tree_join(&tree, 0, order1, item1);
+	item2 = __radix_tree_lookup(&tree, 1 << order2, &node, NULL);
+	assert(item2 == item1);
+	assert(node->exceptional == 0);
+	item_kill_tree(&tree);
+}
+
+/*
+ * This test revealed an accounting bug for exceptional entries at one point.
+ * Nodes were being freed back into the pool with an elevated exception count
+ * by radix_tree_join() and then radix_tree_split() was failing to zero the
+ * count of exceptional entries.
+ */
+static void multiorder_join3(unsigned int order)
+{
+	RADIX_TREE(tree, GFP_KERNEL);
+	struct radix_tree_node *node;
+	void **slot;
+	struct radix_tree_iter iter;
+	unsigned long i;
+
+	for (i = 0; i < (1 << order); i++) {
+		radix_tree_insert(&tree, i, (void *)0x12UL);
+	}
+
+	radix_tree_join(&tree, 0, order, (void *)0x16UL);
+	rcu_barrier();
+
+	radix_tree_split(&tree, 0, 0);
+
+	radix_tree_for_each_slot(slot, &tree, &iter, 0) {
+		radix_tree_iter_replace(&tree, &iter, slot, (void *)0x12UL);
+	}
+
+	__radix_tree_lookup(&tree, 0, &node, NULL);
+	assert(node->exceptional == node->count);
+
+	item_kill_tree(&tree);
+}
+
+static void multiorder_join(void)
+{
+	int i, j, idx;
+
+	for (idx = 0; idx < 1024; idx = idx * 2 + 3) {
+		for (i = 1; i < 15; i++) {
+			for (j = 0; j < i; j++) {
+				multiorder_join1(idx, i, j);
+			}
+		}
+	}
+
+	for (i = 1; i < 15; i++) {
+		for (j = 0; j < i; j++) {
+			multiorder_join2(i, j);
+		}
+	}
+
+	for (i = 3; i < 10; i++) {
+		multiorder_join3(i);
+	}
+}
+
+static void check_mem(unsigned old_order, unsigned new_order, unsigned alloc)
+{
+	struct radix_tree_preload *rtp = &radix_tree_preloads;
+	if (rtp->nr != 0)
+		printf("split(%u %u) remaining %u\n", old_order, new_order,
+							rtp->nr);
+	/*
+	 * Can't check for equality here as some nodes may have been
+	 * RCU-freed while we ran.  But we should never finish with more
+	 * nodes allocated since they should have all been preloaded.
+	 */
+	if (nr_allocated > alloc)
+		printf("split(%u %u) allocated %u %u\n", old_order, new_order,
+							alloc, nr_allocated);
+}
+
+static void __multiorder_split(int old_order, int new_order)
+{
+	RADIX_TREE(tree, GFP_ATOMIC);
+	void **slot;
+	struct radix_tree_iter iter;
+	unsigned alloc;
+
+	radix_tree_preload(GFP_KERNEL);
+	assert(item_insert_order(&tree, 0, old_order) == 0);
+	radix_tree_preload_end();
+
+	/* Wipe out the preloaded cache or it'll confuse check_mem() */
+	radix_tree_cpu_dead(0);
+
+	radix_tree_tag_set(&tree, 0, 2);
+
+	radix_tree_split_preload(old_order, new_order, GFP_KERNEL);
+	alloc = nr_allocated;
+	radix_tree_split(&tree, 0, new_order);
+	check_mem(old_order, new_order, alloc);
+	radix_tree_for_each_slot(slot, &tree, &iter, 0) {
+		radix_tree_iter_replace(&tree, &iter, slot,
+					item_create(iter.index, new_order));
+	}
+	radix_tree_preload_end();
+
+	item_kill_tree(&tree);
+}
+
+static void __multiorder_split2(int old_order, int new_order)
+{
+	RADIX_TREE(tree, GFP_KERNEL);
+	void **slot;
+	struct radix_tree_iter iter;
+	struct radix_tree_node *node;
+	void *item;
+
+	__radix_tree_insert(&tree, 0, old_order, (void *)0x12);
+
+	item = __radix_tree_lookup(&tree, 0, &node, NULL);
+	assert(item == (void *)0x12);
+	assert(node->exceptional > 0);
+
+	radix_tree_split(&tree, 0, new_order);
+	radix_tree_for_each_slot(slot, &tree, &iter, 0) {
+		radix_tree_iter_replace(&tree, &iter, slot,
+					item_create(iter.index, new_order));
+	}
+
+	item = __radix_tree_lookup(&tree, 0, &node, NULL);
+	assert(item != (void *)0x12);
+	assert(node->exceptional == 0);
+
+	item_kill_tree(&tree);
+}
+
+static void __multiorder_split3(int old_order, int new_order)
+{
+	RADIX_TREE(tree, GFP_KERNEL);
+	void **slot;
+	struct radix_tree_iter iter;
+	struct radix_tree_node *node;
+	void *item;
+
+	__radix_tree_insert(&tree, 0, old_order, (void *)0x12);
+
+	item = __radix_tree_lookup(&tree, 0, &node, NULL);
+	assert(item == (void *)0x12);
+	assert(node->exceptional > 0);
+
+	radix_tree_split(&tree, 0, new_order);
+	radix_tree_for_each_slot(slot, &tree, &iter, 0) {
+		radix_tree_iter_replace(&tree, &iter, slot, (void *)0x16);
+	}
+
+	item = __radix_tree_lookup(&tree, 0, &node, NULL);
+	assert(item == (void *)0x16);
+	assert(node->exceptional > 0);
+
+	item_kill_tree(&tree);
+
+	__radix_tree_insert(&tree, 0, old_order, (void *)0x12);
+
+	item = __radix_tree_lookup(&tree, 0, &node, NULL);
+	assert(item == (void *)0x12);
+	assert(node->exceptional > 0);
+
+	radix_tree_split(&tree, 0, new_order);
+	radix_tree_for_each_slot(slot, &tree, &iter, 0) {
+		if (iter.index == (1 << new_order))
+			radix_tree_iter_replace(&tree, &iter, slot,
+						(void *)0x16);
+		else
+			radix_tree_iter_replace(&tree, &iter, slot, NULL);
+	}
+
+	item = __radix_tree_lookup(&tree, 1 << new_order, &node, NULL);
+	assert(item == (void *)0x16);
+	assert(node->count == node->exceptional);
+	do {
+		node = node->parent;
+		if (!node)
+			break;
+		assert(node->count == 1);
+		assert(node->exceptional == 0);
+	} while (1);
+
+	item_kill_tree(&tree);
+}
+
+static void multiorder_split(void)
+{
+	int i, j;
+
+	for (i = 3; i < 11; i++)
+		for (j = 0; j < i; j++) {
+			__multiorder_split(i, j);
+			__multiorder_split2(i, j);
+			__multiorder_split3(i, j);
+		}
+}
+
+static void multiorder_account(void)
+{
+	RADIX_TREE(tree, GFP_KERNEL);
+	struct radix_tree_node *node;
+	void **slot;
+
+	item_insert_order(&tree, 0, 5);
+
+	__radix_tree_insert(&tree, 1 << 5, 5, (void *)0x12);
+	__radix_tree_lookup(&tree, 0, &node, NULL);
+	assert(node->count == node->exceptional * 2);
+	radix_tree_delete(&tree, 1 << 5);
+	assert(node->exceptional == 0);
+
+	__radix_tree_insert(&tree, 1 << 5, 5, (void *)0x12);
+	__radix_tree_lookup(&tree, 1 << 5, &node, &slot);
+	assert(node->count == node->exceptional * 2);
+	__radix_tree_replace(&tree, node, slot, NULL, NULL, NULL);
+	assert(node->exceptional == 0);
 
 	item_kill_tree(&tree);
 }
@@ -342,4 +627,9 @@ void multiorder_checks(void)
 	multiorder_tag_tests();
 	multiorder_iteration();
 	multiorder_tagged_iteration();
+	multiorder_join();
+	multiorder_split();
+	multiorder_account();
+
+	radix_tree_cpu_dead(0);
 }

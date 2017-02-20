@@ -37,7 +37,7 @@
 #define MAX_CARDS 8
 
 /* old-style parameters for compatibility */
-static int ncr_irq;
+static int ncr_irq = -1;
 static int ncr_addr;
 static int ncr_5380;
 static int ncr_53c400;
@@ -52,9 +52,9 @@ module_param(ncr_53c400a, int, 0);
 module_param(dtc_3181e, int, 0);
 module_param(hp_c2502, int, 0);
 
-static int irq[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+static int irq[] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 module_param_array(irq, int, NULL, 0);
-MODULE_PARM_DESC(irq, "IRQ number(s)");
+MODULE_PARM_DESC(irq, "IRQ number(s) (0=none, 254=auto [default])");
 
 static int base[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 module_param_array(base, int, NULL, 0);
@@ -66,6 +66,56 @@ MODULE_PARM_DESC(card, "card type (0=NCR5380, 1=NCR53C400, 2=NCR53C400A, 3=DTC31
 
 MODULE_ALIAS("g_NCR5380_mmio");
 MODULE_LICENSE("GPL");
+
+static void g_NCR5380_trigger_irq(struct Scsi_Host *instance)
+{
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+
+	/*
+	 * An interrupt is triggered whenever BSY = false, SEL = true
+	 * and a bit set in the SELECT_ENABLE_REG is asserted on the
+	 * SCSI bus.
+	 *
+	 * Note that the bus is only driven when the phase control signals
+	 * (I/O, C/D, and MSG) match those in the TCR.
+	 */
+	NCR5380_write(TARGET_COMMAND_REG,
+	              PHASE_SR_TO_TCR(NCR5380_read(STATUS_REG) & PHASE_MASK));
+	NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
+	NCR5380_write(OUTPUT_DATA_REG, hostdata->id_mask);
+	NCR5380_write(INITIATOR_COMMAND_REG,
+	              ICR_BASE | ICR_ASSERT_DATA | ICR_ASSERT_SEL);
+
+	msleep(1);
+
+	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
+	NCR5380_write(SELECT_ENABLE_REG, 0);
+	NCR5380_write(TARGET_COMMAND_REG, 0);
+}
+
+/**
+ * g_NCR5380_probe_irq - find the IRQ of a NCR5380 or equivalent
+ * @instance: SCSI host instance
+ *
+ * Autoprobe for the IRQ line used by the card by triggering an IRQ
+ * and then looking to see what interrupt actually turned up.
+ */
+
+static int g_NCR5380_probe_irq(struct Scsi_Host *instance)
+{
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+	int irq_mask, irq;
+
+	NCR5380_read(RESET_PARITY_INTERRUPT_REG);
+	irq_mask = probe_irq_on();
+	g_NCR5380_trigger_irq(instance);
+	irq = probe_irq_off(irq_mask);
+	NCR5380_read(RESET_PARITY_INTERRUPT_REG);
+
+	if (irq <= 0)
+		return NO_IRQ;
+	return irq;
+}
 
 /*
  * Configure I/O address of 53C400A or DTC436 by writing magic numbers
@@ -81,12 +131,31 @@ static void magic_configure(int idx, u8 irq, u8 magic[])
 	outb(magic[3], 0x379);
 	outb(magic[4], 0x379);
 
-	/* allowed IRQs for HP C2502 */
-	if (irq != 2 && irq != 3 && irq != 4 && irq != 5 && irq != 7)
-		irq = 0;
+	if (irq == 9)
+		irq = 2;
+
 	if (idx >= 0 && idx <= 7)
 		cfg = 0x80 | idx | (irq << 4);
 	outb(cfg, 0x379);
+}
+
+static irqreturn_t legacy_empty_irq_handler(int irq, void *dev_id)
+{
+	return IRQ_HANDLED;
+}
+
+static int legacy_find_free_irq(int *irq_table)
+{
+	while (*irq_table != -1) {
+		if (!request_irq(*irq_table, legacy_empty_irq_handler,
+		                 IRQF_PROBE_SHARED, "Test IRQ",
+		                 (void *)irq_table)) {
+			free_irq(*irq_table, (void *) irq_table);
+			return *irq_table;
+		}
+		irq_table++;
+	}
+	return -1;
 }
 
 static unsigned int ncr_53c400a_ports[] = {
@@ -100,6 +169,9 @@ static u8 ncr_53c400a_magic[] = {	/* 53C400A & DTC436 */
 };
 static u8 hp_c2502_magic[] = {	/* HP C2502 */
 	0x0f, 0x22, 0xf0, 0x20, 0x80
+};
+static int hp_c2502_irqs[] = {
+	9, 5, 7, 3, 4, -1
 };
 
 static int generic_NCR5380_init_one(struct scsi_host_template *tpnt,
@@ -248,6 +320,13 @@ static int generic_NCR5380_init_one(struct scsi_host_template *tpnt,
 		}
 	}
 
+	/* Check for vacant slot */
+	NCR5380_write(MODE_REG, 0);
+	if (NCR5380_read(MODE_REG) != 0) {
+		ret = -ENODEV;
+		goto out_unregister;
+	}
+
 	ret = NCR5380_init(instance, flags | FLAG_LATE_DMA_SETUP);
 	if (ret)
 		goto out_unregister;
@@ -262,29 +341,57 @@ static int generic_NCR5380_init_one(struct scsi_host_template *tpnt,
 
 	NCR5380_maybe_reset_bus(instance);
 
-	if (irq != IRQ_AUTO)
-		instance->irq = irq;
-	else
-		instance->irq = NCR5380_probe_irq(instance, 0xffff);
-
 	/* Compatibility with documented NCR5380 kernel parameters */
-	if (instance->irq == 255)
-		instance->irq = NO_IRQ;
+	if (irq == 255 || irq == 0)
+		irq = NO_IRQ;
+	else if (irq == -1)
+		irq = IRQ_AUTO;
 
-	if (instance->irq != NO_IRQ) {
-		/* set IRQ for HP C2502 */
-		if (board == BOARD_HP_C2502)
-			magic_configure(port_idx, instance->irq, magic);
-		if (request_irq(instance->irq, generic_NCR5380_intr,
-				0, "NCR5380", instance)) {
-			printk(KERN_WARNING "scsi%d : IRQ%d not free, interrupts disabled\n", instance->host_no, instance->irq);
-			instance->irq = NO_IRQ;
+	if (board == BOARD_HP_C2502) {
+		int *irq_table = hp_c2502_irqs;
+		int board_irq = -1;
+
+		switch (irq) {
+		case NO_IRQ:
+			board_irq = 0;
+			break;
+		case IRQ_AUTO:
+			board_irq = legacy_find_free_irq(irq_table);
+			break;
+		default:
+			while (*irq_table != -1)
+				if (*irq_table++ == irq)
+					board_irq = irq;
 		}
+
+		if (board_irq <= 0) {
+			board_irq = 0;
+			irq = NO_IRQ;
+		}
+
+		magic_configure(port_idx, board_irq, magic);
 	}
 
-	if (instance->irq == NO_IRQ) {
-		printk(KERN_INFO "scsi%d : interrupts not enabled. for better interactive performance,\n", instance->host_no);
-		printk(KERN_INFO "scsi%d : please jumper the board for a free IRQ.\n", instance->host_no);
+	if (irq == IRQ_AUTO) {
+		instance->irq = g_NCR5380_probe_irq(instance);
+		if (instance->irq == NO_IRQ)
+			shost_printk(KERN_INFO, instance, "no irq detected\n");
+	} else {
+		instance->irq = irq;
+		if (instance->irq == NO_IRQ)
+			shost_printk(KERN_INFO, instance, "no irq provided\n");
+	}
+
+	if (instance->irq != NO_IRQ) {
+		if (request_irq(instance->irq, generic_NCR5380_intr,
+				0, "NCR5380", instance)) {
+			instance->irq = NO_IRQ;
+			shost_printk(KERN_INFO, instance,
+			             "irq %d denied\n", instance->irq);
+		} else {
+			shost_printk(KERN_INFO, instance,
+			             "irq %d acquired\n", instance->irq);
+		}
 	}
 
 	ret = scsi_add_host(instance, pdev);
@@ -597,7 +704,7 @@ static int __init generic_NCR5380_init(void)
 	int ret = 0;
 
 	/* compatibility with old-style parameters */
-	if (irq[0] == 0 && base[0] == 0 && card[0] == -1) {
+	if (irq[0] == -1 && base[0] == 0 && card[0] == -1) {
 		irq[0] = ncr_irq;
 		base[0] = ncr_addr;
 		if (ncr_5380)

@@ -63,7 +63,7 @@
 #include <net/addrconf.h>
 #include <net/bonding.h>
 #include <net/addrconf.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/crash_dump.h>
 
 #include "cxgb4.h"

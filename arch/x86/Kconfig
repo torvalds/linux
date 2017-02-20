@@ -412,6 +412,19 @@ config GOLDFISH
        def_bool y
        depends on X86_GOLDFISH
 
+config INTEL_RDT_A
+	bool "Intel Resource Director Technology Allocation support"
+	default n
+	depends on X86 && CPU_SUP_INTEL
+	select KERNFS
+	help
+	  Select to enable resource allocation which is a sub-feature of
+	  Intel Resource Director Technology(RDT). More information about
+	  RDT can be found in the Intel x86 Architecture Software
+	  Developer Manual.
+
+	  Say N if unsure.
+
 if X86_32
 config X86_EXTENDED_PLATFORM
 	bool "Support for extended (non-PC) x86 platforms"
@@ -554,18 +567,6 @@ config X86_INTEL_QUARK
 	  Select to include support for Quark X1000 SoC.
 	  Say Y here if you have a Quark based system such as the Arduino
 	  compatible Intel Galileo.
-
-config MLX_PLATFORM
-	tristate "Mellanox Technologies platform support"
-	depends on X86_64
-	depends on X86_EXTENDED_PLATFORM
-	---help---
-	  This option enables system support for the Mellanox Technologies
-	  platform.
-
-	  Say Y here if you are building a kernel for Mellanox system.
-
-	  Otherwise, say N.
 
 config X86_INTEL_LPSS
 	bool "Intel Low Power Subsystem Support"

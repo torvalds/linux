@@ -232,7 +232,7 @@ static bool ipv6_dest_hao(struct sk_buff *skb, int optoff)
 	ipv6h->saddr = hao->addr;
 	hao->addr = tmp_addr;
 
-	if (skb->tstamp.tv64 == 0)
+	if (skb->tstamp == 0)
 		__net_timestamp(skb);
 
 	return true;

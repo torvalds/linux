@@ -769,7 +769,6 @@ int ll_hsm_release(struct inode *inode);
 
 /* llite/dcache.c */
 
-int ll_d_init(struct dentry *de);
 extern const struct dentry_operations ll_d_ops;
 void ll_intent_drop_lock(struct lookup_intent *);
 void ll_intent_release(struct lookup_intent *);
@@ -1148,7 +1147,7 @@ dentry_may_statahead(struct inode *dir, struct dentry *dentry)
 	 * 'lld_sa_generation == lli->lli_sa_generation'.
 	 */
 	ldd = ll_d2d(dentry);
-	if (ldd && ldd->lld_sa_generation == lli->lli_sa_generation)
+	if (ldd->lld_sa_generation == lli->lli_sa_generation)
 		return false;
 
 	return true;
@@ -1267,17 +1266,7 @@ static inline void ll_set_lock_data(struct obd_export *exp, struct inode *inode,
 
 static inline int d_lustre_invalid(const struct dentry *dentry)
 {
-	struct ll_dentry_data *lld = ll_d2d(dentry);
-
-	return !lld || lld->lld_invalid;
-}
-
-static inline void __d_lustre_invalidate(struct dentry *dentry)
-{
-	struct ll_dentry_data *lld = ll_d2d(dentry);
-
-	if (lld)
-		lld->lld_invalid = 1;
+	return ll_d2d(dentry)->lld_invalid;
 }
 
 /*
@@ -1293,7 +1282,7 @@ static inline void d_lustre_invalidate(struct dentry *dentry, int nested)
 
 	spin_lock_nested(&dentry->d_lock,
 			 nested ? DENTRY_D_LOCK_NESTED : DENTRY_D_LOCK_NORMAL);
-	__d_lustre_invalidate(dentry);
+	ll_d2d(dentry)->lld_invalid = 1;
 	/*
 	 * We should be careful about dentries created by d_obtain_alias().
 	 * These dentries are not put in the dentry tree, instead they are

@@ -52,7 +52,7 @@ static const char * osst_version = "0.99.4";
 #include <linux/delay.h>
 #include <linux/jiffies.h>
 #include <linux/mutex.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/dma.h>
 
 /* The driver prints some debugging information on the console if DEBUG

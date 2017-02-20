@@ -605,7 +605,7 @@ static inline struct ahash_request *ahash_request_cast(
  * the cipher operation completes.
  *
  * The callback function is registered with the &ahash_request handle and
- * must comply with the following template
+ * must comply with the following template::
  *
  *	void callback_function(struct crypto_async_request *req, int error)
  */

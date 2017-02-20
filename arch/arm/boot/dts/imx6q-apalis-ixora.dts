@@ -147,28 +147,6 @@
 			gpios = <&gpio2 2 GPIO_ACTIVE_HIGH>;
 		};
 	};
-
-	pwmleds {
-		compatible = "pwm-leds";
-
-		ledpwm1 {
-			label = "PWM1";
-			pwms = <&pwm1 0 50000>;
-			max-brightness = <255>;
-		};
-
-		ledpwm2 {
-			label = "PWM2";
-			pwms = <&pwm2 0 50000>;
-			max-brightness = <255>;
-		};
-
-		ledpwm3 {
-			label = "PWM3";
-			pwms = <&pwm3 0 50000>;
-			max-brightness = <255>;
-		};
-	};
 };
 
 &backlight {

@@ -58,6 +58,7 @@ needed).
    gpu/index
    security/index
    sound/index
+   crypto/index
 
 Korean translations
 -------------------

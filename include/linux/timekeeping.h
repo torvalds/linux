@@ -293,7 +293,7 @@ extern void ktime_get_raw_and_real_ts64(struct timespec64 *ts_raw,
  * @cs_was_changed_seq:	The sequence number of clocksource change events
  */
 struct system_time_snapshot {
-	cycle_t		cycles;
+	u64		cycles;
 	ktime_t		real;
 	ktime_t		raw;
 	unsigned int	clock_was_set_seq;
@@ -321,7 +321,7 @@ struct system_device_crosststamp {
  *	timekeeping code to verify comparibility of two cycle values
  */
 struct system_counterval_t {
-	cycle_t			cycles;
+	u64			cycles;
 	struct clocksource	*cs;
 };
 

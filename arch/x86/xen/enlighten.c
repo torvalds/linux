@@ -1529,11 +1529,11 @@ static int xen_cpuhp_setup(void)
 	int rc;
 
 	rc = cpuhp_setup_state_nocalls(CPUHP_XEN_PREPARE,
-				       "XEN_HVM_GUEST_PREPARE",
+				       "x86/xen/hvm_guest:prepare",
 				       xen_cpu_up_prepare, xen_cpu_dead);
 	if (rc >= 0) {
 		rc = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
-					       "XEN_HVM_GUEST_ONLINE",
+					       "x86/xen/hvm_guest:online",
 					       xen_cpu_up_online, NULL);
 		if (rc < 0)
 			cpuhp_remove_state_nocalls(CPUHP_XEN_PREPARE);

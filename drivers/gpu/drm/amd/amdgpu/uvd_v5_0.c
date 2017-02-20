@@ -791,15 +791,10 @@ static int uvd_v5_0_set_clockgating_state(void *handle,
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
-	static int curstate = -1;
 
 	if (!(adev->cg_flags & AMD_CG_SUPPORT_UVD_MGCG))
 		return 0;
 
-	if (curstate == state)
-		return 0;
-
-	curstate = state;
 	if (enable) {
 		/* wait for STATUS to clear */
 		if (uvd_v5_0_wait_for_idle(handle))

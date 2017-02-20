@@ -11,7 +11,7 @@
 #include <linux/slab.h>
 #include <asm/current.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <as-layout.h>
 #include <mem_user.h>
 #include <skas.h>

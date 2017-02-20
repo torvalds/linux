@@ -80,7 +80,7 @@ unsigned native_patch(u8 type, u16 clobbers, void *ibuf,
 #endif
 
 	default:
-patch_default:
+patch_default: __maybe_unused
 		ret = paravirt_patch_default(type, clobbers, ibuf, addr, len);
 		break;
 

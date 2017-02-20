@@ -64,7 +64,7 @@
 #include <asm/nvram.h>
 #include <asm/cache.h>
 #include <asm/machdep.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/time.h>
 #include <asm/prom.h>
 #include <asm/irq.h>
@@ -80,7 +80,7 @@
 #include <linux/clockchips.h>
 #include <linux/timekeeper_internal.h>
 
-static cycle_t rtc_read(struct clocksource *);
+static u64 rtc_read(struct clocksource *);
 static struct clocksource clocksource_rtc = {
 	.name         = "rtc",
 	.rating       = 400,
@@ -89,7 +89,7 @@ static struct clocksource clocksource_rtc = {
 	.read         = rtc_read,
 };
 
-static cycle_t timebase_read(struct clocksource *);
+static u64 timebase_read(struct clocksource *);
 static struct clocksource clocksource_timebase = {
 	.name         = "timebase",
 	.rating       = 400,
@@ -802,18 +802,18 @@ void read_persistent_clock(struct timespec *ts)
 }
 
 /* clocksource code */
-static cycle_t rtc_read(struct clocksource *cs)
+static u64 rtc_read(struct clocksource *cs)
 {
-	return (cycle_t)get_rtc();
+	return (u64)get_rtc();
 }
 
-static cycle_t timebase_read(struct clocksource *cs)
+static u64 timebase_read(struct clocksource *cs)
 {
-	return (cycle_t)get_tb();
+	return (u64)get_tb();
 }
 
 void update_vsyscall_old(struct timespec *wall_time, struct timespec *wtm,
-			 struct clocksource *clock, u32 mult, cycle_t cycle_last)
+			 struct clocksource *clock, u32 mult, u64 cycle_last)
 {
 	u64 new_tb_to_xs, new_stamp_xsec;
 	u32 frac_sec;

@@ -23,7 +23,7 @@
 #ifndef __AMD_SHARED_H__
 #define __AMD_SHARED_H__
 
-#define AMD_MAX_USEC_TIMEOUT		100000  /* 100 ms */
+#define AMD_MAX_USEC_TIMEOUT		200000  /* 200 ms */
 
 /*
  * Supported ASIC types
@@ -46,6 +46,7 @@ enum amd_asic_type {
 	CHIP_STONEY,
 	CHIP_POLARIS10,
 	CHIP_POLARIS11,
+	CHIP_POLARIS12,
 	CHIP_LAST,
 };
 
@@ -126,6 +127,10 @@ enum amd_vce_level {
 #define AMD_CG_SUPPORT_HDP_LS			(1 << 15)
 #define AMD_CG_SUPPORT_HDP_MGCG			(1 << 16)
 #define AMD_CG_SUPPORT_ROM_MGCG			(1 << 17)
+#define AMD_CG_SUPPORT_DRM_LS			(1 << 18)
+#define AMD_CG_SUPPORT_BIF_MGCG			(1 << 19)
+#define AMD_CG_SUPPORT_GFX_3D_CGCG		(1 << 20)
+#define AMD_CG_SUPPORT_GFX_3D_CGLS		(1 << 21)
 
 /* PG flags */
 #define AMD_PG_SUPPORT_GFX_PG			(1 << 0)

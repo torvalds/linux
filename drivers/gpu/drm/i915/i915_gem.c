@@ -174,21 +174,35 @@ static struct sg_table *
 i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
 {
 	struct address_space *mapping = obj->base.filp->f_mapping;
-	char *vaddr = obj->phys_handle->vaddr;
+	drm_dma_handle_t *phys;
 	struct sg_table *st;
 	struct scatterlist *sg;
+	char *vaddr;
 	int i;
 
 	if (WARN_ON(i915_gem_object_needs_bit17_swizzle(obj)))
 		return ERR_PTR(-EINVAL);
 
+	/* Always aligning to the object size, allows a single allocation
+	 * to handle all possible callers, and given typical object sizes,
+	 * the alignment of the buddy allocation will naturally match.
+	 */
+	phys = drm_pci_alloc(obj->base.dev,
+			     obj->base.size,
+			     roundup_pow_of_two(obj->base.size));
+	if (!phys)
+		return ERR_PTR(-ENOMEM);
+
+	vaddr = phys->vaddr;
 	for (i = 0; i < obj->base.size / PAGE_SIZE; i++) {
 		struct page *page;
 		char *src;
 
 		page = shmem_read_mapping_page(mapping, i);
-		if (IS_ERR(page))
-			return ERR_CAST(page);
+		if (IS_ERR(page)) {
+			st = ERR_CAST(page);
+			goto err_phys;
+		}
 
 		src = kmap_atomic(page);
 		memcpy(vaddr, src, PAGE_SIZE);
@@ -202,34 +216,44 @@ i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
 	i915_gem_chipset_flush(to_i915(obj->base.dev));
 
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
-	if (st == NULL)
-		return ERR_PTR(-ENOMEM);
+	if (!st) {
+		st = ERR_PTR(-ENOMEM);
+		goto err_phys;
+	}
 
 	if (sg_alloc_table(st, 1, GFP_KERNEL)) {
 		kfree(st);
-		return ERR_PTR(-ENOMEM);
+		st = ERR_PTR(-ENOMEM);
+		goto err_phys;
 	}
 
 	sg = st->sgl;
 	sg->offset = 0;
 	sg->length = obj->base.size;
 
-	sg_dma_address(sg) = obj->phys_handle->busaddr;
+	sg_dma_address(sg) = phys->busaddr;
 	sg_dma_len(sg) = obj->base.size;
 
+	obj->phys_handle = phys;
+	return st;
+
+err_phys:
+	drm_pci_free(obj->base.dev, phys);
 	return st;
 }
 
 static void
 __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
-				struct sg_table *pages)
+				struct sg_table *pages,
+				bool needs_clflush)
 {
 	GEM_BUG_ON(obj->mm.madv == __I915_MADV_PURGED);
 
 	if (obj->mm.madv == I915_MADV_DONTNEED)
 		obj->mm.dirty = false;
 
-	if ((obj->base.read_domains & I915_GEM_DOMAIN_CPU) == 0 &&
+	if (needs_clflush &&
+	    (obj->base.read_domains & I915_GEM_DOMAIN_CPU) == 0 &&
 	    !cpu_cache_is_coherent(obj->base.dev, obj->cache_level))
 		drm_clflush_sg(pages);
 
@@ -241,7 +265,7 @@ static void
 i915_gem_object_put_pages_phys(struct drm_i915_gem_object *obj,
 			       struct sg_table *pages)
 {
-	__i915_gem_object_release_shmem(obj, pages);
+	__i915_gem_object_release_shmem(obj, pages, false);
 
 	if (obj->mm.dirty) {
 		struct address_space *mapping = obj->base.filp->f_mapping;
@@ -272,12 +296,13 @@ i915_gem_object_put_pages_phys(struct drm_i915_gem_object *obj,
 
 	sg_free_table(pages);
 	kfree(pages);
+
+	drm_pci_free(obj->base.dev, obj->phys_handle);
 }
 
 static void
 i915_gem_object_release_phys(struct drm_i915_gem_object *obj)
 {
-	drm_pci_free(obj->base.dev, obj->phys_handle);
 	i915_gem_object_unpin_pages(obj);
 }
 
@@ -538,15 +563,13 @@ int
 i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
 			    int align)
 {
-	drm_dma_handle_t *phys;
 	int ret;
 
-	if (obj->phys_handle) {
-		if ((unsigned long)obj->phys_handle->vaddr & (align -1))
-			return -EBUSY;
+	if (align > obj->base.size)
+		return -EINVAL;
 
+	if (obj->ops == &i915_gem_phys_ops)
 		return 0;
-	}
 
 	if (obj->mm.madv != I915_MADV_WILLNEED)
 		return -EFAULT;
@@ -562,12 +585,6 @@ i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
 	if (obj->mm.pages)
 		return -EBUSY;
 
-	/* create a new object */
-	phys = drm_pci_alloc(obj->base.dev, obj->base.size, align);
-	if (!phys)
-		return -ENOMEM;
-
-	obj->phys_handle = phys;
 	obj->ops = &i915_gem_phys_ops;
 
 	return i915_gem_object_pin_pages(obj);
@@ -1796,8 +1813,7 @@ int i915_gem_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 	int ret;
 
 	/* We don't use vmf->pgoff since that has the fake offset */
-	page_offset = ((unsigned long)vmf->virtual_address - area->vm_start) >>
-		PAGE_SHIFT;
+	page_offset = (vmf->address - area->vm_start) >> PAGE_SHIFT;
 
 	trace_i915_gem_object_fault(obj, page_offset, true, write);
 
@@ -2217,7 +2233,7 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
 	struct sgt_iter sgt_iter;
 	struct page *page;
 
-	__i915_gem_object_release_shmem(obj, pages);
+	__i915_gem_object_release_shmem(obj, pages, true);
 
 	i915_gem_gtt_finish_pages(obj, pages);
 
@@ -2290,15 +2306,6 @@ unlock:
 	mutex_unlock(&obj->mm.lock);
 }
 
-static unsigned int swiotlb_max_size(void)
-{
-#if IS_ENABLED(CONFIG_SWIOTLB)
-	return rounddown(swiotlb_nr_tbl() << IO_TLB_SHIFT, PAGE_SIZE);
-#else
-	return 0;
-#endif
-}
-
 static void i915_sg_trim(struct sg_table *orig_st)
 {
 	struct sg_table new_st;
@@ -2308,7 +2315,7 @@ static void i915_sg_trim(struct sg_table *orig_st)
 	if (orig_st->nents == orig_st->orig_nents)
 		return;
 
-	if (sg_alloc_table(&new_st, orig_st->nents, GFP_KERNEL))
+	if (sg_alloc_table(&new_st, orig_st->nents, GFP_KERNEL | __GFP_NOWARN))
 		return;
 
 	new_sg = new_st.sgl;
@@ -2327,7 +2334,8 @@ static struct sg_table *
 i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
-	int page_count, i;
+	const unsigned long page_count = obj->base.size / PAGE_SIZE;
+	unsigned long i;
 	struct address_space *mapping;
 	struct sg_table *st;
 	struct scatterlist *sg;
@@ -2345,7 +2353,7 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	GEM_BUG_ON(obj->base.read_domains & I915_GEM_GPU_DOMAINS);
 	GEM_BUG_ON(obj->base.write_domain & I915_GEM_GPU_DOMAINS);
 
-	max_segment = swiotlb_max_size();
+	max_segment = swiotlb_max_segment();
 	if (!max_segment)
 		max_segment = rounddown(UINT_MAX, PAGE_SIZE);
 
@@ -2353,7 +2361,7 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	if (st == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	page_count = obj->base.size / PAGE_SIZE;
+rebuild_st:
 	if (sg_alloc_table(st, page_count, GFP_KERNEL)) {
 		kfree(st);
 		return ERR_PTR(-ENOMEM);
@@ -2412,8 +2420,25 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	i915_sg_trim(st);
 
 	ret = i915_gem_gtt_prepare_pages(obj, st);
-	if (ret)
-		goto err_pages;
+	if (ret) {
+		/* DMA remapping failed? One possible cause is that
+		 * it could not reserve enough large entries, asking
+		 * for PAGE_SIZE chunks instead may be helpful.
+		 */
+		if (max_segment > PAGE_SIZE) {
+			for_each_sgt_page(page, sgt_iter, st)
+				put_page(page);
+			sg_free_table(st);
+
+			max_segment = PAGE_SIZE;
+			goto rebuild_st;
+		} else {
+			dev_warn(&dev_priv->drm.pdev->dev,
+				 "Failed to DMA remap %lu pages\n",
+				 page_count);
+			goto err_pages;
+		}
+	}
 
 	if (i915_gem_object_needs_bit17_swizzle(obj))
 		i915_gem_object_do_bit_17_swizzle(obj, st);
@@ -2696,6 +2721,7 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 	struct drm_i915_gem_request *request;
 	struct i915_gem_context *incomplete_ctx;
 	struct intel_timeline *timeline;
+	unsigned long flags;
 	bool ring_hung;
 
 	if (engine->irq_seqno_barrier)
@@ -2731,13 +2757,20 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 	if (i915_gem_context_is_default(incomplete_ctx))
 		return;
 
+	timeline = i915_gem_context_lookup_timeline(incomplete_ctx, engine);
+
+	spin_lock_irqsave(&engine->timeline->lock, flags);
+	spin_lock(&timeline->lock);
+
 	list_for_each_entry_continue(request, &engine->timeline->requests, link)
 		if (request->ctx == incomplete_ctx)
 			reset_request(request);
 
-	timeline = i915_gem_context_lookup_timeline(incomplete_ctx, engine);
 	list_for_each_entry(request, &timeline->requests, link)
 		reset_request(request);
+
+	spin_unlock(&timeline->lock);
+	spin_unlock_irqrestore(&engine->timeline->lock, flags);
 }
 
 void i915_gem_reset(struct drm_i915_private *dev_priv)

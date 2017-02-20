@@ -17,7 +17,7 @@
 #include <linux/unistd.h>
 #include <linux/tracehook.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ucontext.h>
 #include <asm/syscalls.h>
 

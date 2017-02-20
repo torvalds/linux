@@ -68,6 +68,7 @@ enum rc_filter_type {
  * struct rc_dev - represents a remote control device
  * @dev: driver model's view of this device
  * @initialized: 1 if the device init has completed, 0 otherwise
+ * @managed_alloc: devm_rc_allocate_device was used to create rc_dev
  * @sysfs_groups: sysfs attribute groups
  * @input_name: name of the input child device
  * @input_phys: physical path to the input child device
@@ -131,6 +132,7 @@ enum rc_filter_type {
 struct rc_dev {
 	struct device			dev;
 	atomic_t			initialized;
+	bool				managed_alloc;
 	const struct attribute_group	*sysfs_groups[5];
 	const char			*input_name;
 	const char			*input_phys;
@@ -203,6 +205,14 @@ struct rc_dev {
 struct rc_dev *rc_allocate_device(void);
 
 /**
+ * devm_rc_allocate_device - Managed RC device allocation
+ *
+ * @dev: pointer to struct device
+ * returns a pointer to struct rc_dev.
+ */
+struct rc_dev *devm_rc_allocate_device(struct device *dev);
+
+/**
  * rc_free_device - Frees a RC device
  *
  * @dev: pointer to struct rc_dev.
@@ -215,6 +225,14 @@ void rc_free_device(struct rc_dev *dev);
  * @dev: pointer to struct rc_dev.
  */
 int rc_register_device(struct rc_dev *dev);
+
+/**
+ * devm_rc_register_device - Manageded registering of a RC device
+ *
+ * @parent: pointer to struct device.
+ * @dev: pointer to struct rc_dev.
+ */
+int devm_rc_register_device(struct device *parent, struct rc_dev *dev);
 
 /**
  * rc_unregister_device - Unregisters a RC device

@@ -390,6 +390,7 @@ static int video_end(struct saa7146_fh *fh, struct file *file)
 {
 	struct saa7146_dev *dev = fh->dev;
 	struct saa7146_vv *vv = dev->vv_data;
+	struct saa7146_dmaqueue *q = &vv->video_dmaq;
 	struct saa7146_format *fmt = NULL;
 	unsigned long flags;
 	unsigned int resource;
@@ -427,6 +428,9 @@ static int video_end(struct saa7146_fh *fh, struct file *file)
 
 	/* shut down all used video dma transfers */
 	saa7146_write(dev, MC1, dmas);
+
+	if (q->curr)
+		saa7146_buffer_finish(dev, q, VIDEOBUF_DONE);
 
 	spin_unlock_irqrestore(&dev->slock, flags);
 

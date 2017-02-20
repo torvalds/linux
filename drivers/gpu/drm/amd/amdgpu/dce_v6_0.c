@@ -1944,9 +1944,7 @@ static int dce_v6_0_crtc_cursor_set2(struct drm_crtc *crtc,
 
 	dce_v6_0_lock_cursor(crtc, true);
 
-	if (width != amdgpu_crtc->cursor_width ||
-	    height != amdgpu_crtc->cursor_height ||
-	    hot_x != amdgpu_crtc->cursor_hot_x ||
+	if (hot_x != amdgpu_crtc->cursor_hot_x ||
 	    hot_y != amdgpu_crtc->cursor_hot_y) {
 		int x, y;
 
@@ -1955,8 +1953,6 @@ static int dce_v6_0_crtc_cursor_set2(struct drm_crtc *crtc,
 
 		dce_v6_0_cursor_move_locked(crtc, x, y);
 
-		amdgpu_crtc->cursor_width = width;
-		amdgpu_crtc->cursor_height = height;
 		amdgpu_crtc->cursor_hot_x = hot_x;
 		amdgpu_crtc->cursor_hot_y = hot_y;
 	}

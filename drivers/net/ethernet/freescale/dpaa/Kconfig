@@ -1,6 +1,6 @@
 menuconfig FSL_DPAA_ETH
 	tristate "DPAA Ethernet"
-	depends on FSL_SOC && FSL_DPAA && FSL_FMAN
+	depends on FSL_DPAA && FSL_FMAN
 	select PHYLIB
 	select FSL_FMAN_MAC
 	---help---

@@ -37,10 +37,10 @@ static void irq_spread_init_one(struct cpumask *irqmsk, struct cpumask *nmsk,
 
 static int get_nodes_in_cpumask(const struct cpumask *mask, nodemask_t *nodemsk)
 {
-	int n, nodes;
+	int n, nodes = 0;
 
 	/* Calculate the number of nodes in the supplied affinity mask */
-	for (n = 0, nodes = 0; n < num_online_nodes(); n++) {
+	for_each_online_node(n) {
 		if (cpumask_intersects(mask, cpumask_of_node(n))) {
 			node_set(n, *nodemsk);
 			nodes++;
@@ -82,7 +82,7 @@ irq_create_affinity_masks(int nvecs, const struct irq_affinity *affd)
 	nodes = get_nodes_in_cpumask(cpu_online_mask, &nodemsk);
 
 	/*
-	 * If the number of nodes in the mask is less than or equal the
+	 * If the number of nodes in the mask is greater than or equal the
 	 * number of vectors we just spread the vectors across the nodes.
 	 */
 	if (affv <= nodes) {

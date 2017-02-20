@@ -466,13 +466,15 @@ int migrate_page_move_mapping(struct address_space *mapping,
 	 */
 	newpage->index = page->index;
 	newpage->mapping = page->mapping;
-	if (PageSwapBacked(page))
-		__SetPageSwapBacked(newpage);
-
 	get_page(newpage);	/* add cache reference */
-	if (PageSwapCache(page)) {
-		SetPageSwapCache(newpage);
-		set_page_private(newpage, page_private(page));
+	if (PageSwapBacked(page)) {
+		__SetPageSwapBacked(newpage);
+		if (PageSwapCache(page)) {
+			SetPageSwapCache(newpage);
+			set_page_private(newpage, page_private(page));
+		}
+	} else {
+		VM_BUG_ON_PAGE(PageSwapCache(page), page);
 	}
 
 	/* Move dirty while page refs frozen and newpage not yet exposed */

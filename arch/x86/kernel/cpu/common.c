@@ -667,13 +667,14 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
 		c->x86_capability[CPUID_1_EDX] = edx;
 	}
 
+	/* Thermal and Power Management Leaf: level 0x00000006 (eax) */
+	if (c->cpuid_level >= 0x00000006)
+		c->x86_capability[CPUID_6_EAX] = cpuid_eax(0x00000006);
+
 	/* Additional Intel-defined flags: level 0x00000007 */
 	if (c->cpuid_level >= 0x00000007) {
 		cpuid_count(0x00000007, 0, &eax, &ebx, &ecx, &edx);
-
 		c->x86_capability[CPUID_7_0_EBX] = ebx;
-
-		c->x86_capability[CPUID_6_EAX] = cpuid_eax(0x00000006);
 		c->x86_capability[CPUID_7_ECX] = ecx;
 	}
 
@@ -979,29 +980,21 @@ static void x86_init_cache_qos(struct cpuinfo_x86 *c)
 }
 
 /*
- * The physical to logical package id mapping is initialized from the
- * acpi/mptables information. Make sure that CPUID actually agrees with
- * that.
+ * Validate that ACPI/mptables have the same information about the
+ * effective APIC id and update the package map.
  */
-static void sanitize_package_id(struct cpuinfo_x86 *c)
+static void validate_apic_and_package_id(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_SMP
-	unsigned int pkg, apicid, cpu = smp_processor_id();
+	unsigned int apicid, cpu = smp_processor_id();
 
 	apicid = apic->cpu_present_to_apicid(cpu);
-	pkg = apicid >> boot_cpu_data.x86_coreid_bits;
 
-	if (apicid != c->initial_apicid) {
-		pr_err(FW_BUG "CPU%u: APIC id mismatch. Firmware: %x CPUID: %x\n",
+	if (apicid != c->apicid) {
+		pr_err(FW_BUG "CPU%u: APIC id mismatch. Firmware: %x APIC: %x\n",
 		       cpu, apicid, c->initial_apicid);
-		c->initial_apicid = apicid;
 	}
-	if (pkg != c->phys_proc_id) {
-		pr_err(FW_BUG "CPU%u: Using firmware package id %u instead of %u\n",
-		       cpu, pkg, c->phys_proc_id);
-		c->phys_proc_id = pkg;
-	}
-	c->logical_proc_id = topology_phys_to_logical_pkg(pkg);
+	BUG_ON(topology_update_package_map(c->phys_proc_id, cpu));
 #else
 	c->logical_proc_id = 0;
 #endif
@@ -1132,7 +1125,6 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 #ifdef CONFIG_NUMA
 	numa_add_cpu(smp_processor_id());
 #endif
-	sanitize_package_id(c);
 }
 
 /*
@@ -1187,6 +1179,7 @@ void identify_secondary_cpu(struct cpuinfo_x86 *c)
 	enable_sep_cpu();
 #endif
 	mtrr_ap_init();
+	validate_apic_and_package_id(c);
 }
 
 static __init int setup_noclflush(char *arg)
@@ -1228,7 +1221,7 @@ static __init int setup_disablecpuid(char *arg)
 {
 	int bit;
 
-	if (get_option(&arg, &bit) && bit < NCAPINTS*32)
+	if (get_option(&arg, &bit) && bit >= 0 && bit < NCAPINTS * 32)
 		setup_clear_cpu_cap(bit);
 	else
 		return 0;

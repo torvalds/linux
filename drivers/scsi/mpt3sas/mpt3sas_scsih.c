@@ -4053,6 +4053,8 @@ scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 	struct MPT3SAS_DEVICE *sas_device_priv_data;
 	struct MPT3SAS_TARGET *sas_target_priv_data;
 	struct _raid_device *raid_device;
+	struct request *rq = scmd->request;
+	int class;
 	Mpi2SCSIIORequest_t *mpi_request;
 	u32 mpi_control;
 	u16 smid;
@@ -4115,7 +4117,12 @@ scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 
 	/* set tags */
 	mpi_control |= MPI2_SCSIIO_CONTROL_SIMPLEQ;
-
+	/* NCQ Prio supported, make sure control indicated high priority */
+	if (sas_device_priv_data->ncq_prio_enable) {
+		class = IOPRIO_PRIO_CLASS(req_get_ioprio(rq));
+		if (class == IOPRIO_CLASS_RT)
+			mpi_control |= 1 << MPI2_SCSIIO_CONTROL_CMDPRI_SHIFT;
+	}
 	/* Make sure Device is not raid volume.
 	 * We do not expose raid functionality to upper layer for warpdrive.
 	 */
@@ -9099,6 +9106,31 @@ scsih_pci_mmio_enabled(struct pci_dev *pdev)
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
+/**
+ * scsih__ncq_prio_supp - Check for NCQ command priority support
+ * @sdev: scsi device struct
+ *
+ * This is called when a user indicates they would like to enable
+ * ncq command priorities. This works only on SATA devices.
+ */
+bool scsih_ncq_prio_supp(struct scsi_device *sdev)
+{
+	unsigned char *buf;
+	bool ncq_prio_supp = false;
+
+	if (!scsi_device_supports_vpd(sdev))
+		return ncq_prio_supp;
+
+	buf = kmalloc(SCSI_VPD_PG_LEN, GFP_KERNEL);
+	if (!buf)
+		return ncq_prio_supp;
+
+	if (!scsi_get_vpd_page(sdev, 0x89, buf, SCSI_VPD_PG_LEN))
+		ncq_prio_supp = (buf[213] >> 4) & 1;
+
+	kfree(buf);
+	return ncq_prio_supp;
+}
 /*
  * The pci device ids are defined in mpi/mpi2_cnfg.h.
  */

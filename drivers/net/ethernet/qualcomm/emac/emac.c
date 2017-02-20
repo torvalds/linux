@@ -460,6 +460,12 @@ static int emac_clks_phase1_init(struct platform_device *pdev,
 {
 	int ret;
 
+	/* On ACPI platforms, clocks are controlled by firmware and/or
+	 * ACPI, not by drivers.
+	 */
+	if (has_acpi_companion(&pdev->dev))
+		return 0;
+
 	ret = emac_clks_get(pdev, adpt);
 	if (ret)
 		return ret;
@@ -484,6 +490,9 @@ static int emac_clks_phase2_init(struct platform_device *pdev,
 				 struct emac_adapter *adpt)
 {
 	int ret;
+
+	if (has_acpi_companion(&pdev->dev))
+		return 0;
 
 	ret = clk_set_rate(adpt->clk[EMAC_CLK_TX], 125000000);
 	if (ret)
@@ -710,8 +719,7 @@ static int emac_probe(struct platform_device *pdev)
 err_undo_napi:
 	netif_napi_del(&adpt->rx_q.napi);
 err_undo_mdiobus:
-	if (!has_acpi_companion(&pdev->dev))
-		put_device(&adpt->phydev->mdio.dev);
+	put_device(&adpt->phydev->mdio.dev);
 	mdiobus_unregister(adpt->mii_bus);
 err_undo_clocks:
 	emac_clks_teardown(adpt);
@@ -731,8 +739,7 @@ static int emac_remove(struct platform_device *pdev)
 
 	emac_clks_teardown(adpt);
 
-	if (!has_acpi_companion(&pdev->dev))
-		put_device(&adpt->phydev->mdio.dev);
+	put_device(&adpt->phydev->mdio.dev);
 	mdiobus_unregister(adpt->mii_bus);
 	free_netdev(netdev);
 

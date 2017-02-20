@@ -684,6 +684,7 @@ static netdev_tx_t mlxsw_sp_port_xmit(struct sk_buff *skb,
 			dev_kfree_skb_any(skb_orig);
 			return NETDEV_TX_OK;
 		}
+		dev_consume_skb_any(skb_orig);
 	}
 
 	if (eth_skb_pad(skb)) {
@@ -2404,7 +2405,7 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 			local_port);
 		return err;
 	}
-	err = __mlxsw_sp_port_create(mlxsw_sp, local_port, false,
+	err = __mlxsw_sp_port_create(mlxsw_sp, local_port, split,
 				     module, width, lane);
 	if (err)
 		goto err_port_create;

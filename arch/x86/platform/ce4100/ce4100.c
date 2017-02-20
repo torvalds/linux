@@ -23,11 +23,6 @@
 #include <asm/io_apic.h>
 #include <asm/emergency-restart.h>
 
-static int ce4100_i8042_detect(void)
-{
-	return 0;
-}
-
 /*
  * The CE4100 platform has an internal 8051 Microcontroller which is
  * responsible for signaling to the external Power Management Unit the
@@ -145,7 +140,6 @@ static void sdv_pci_init(void)
 void __init x86_ce4100_early_setup(void)
 {
 	x86_init.oem.arch_setup = sdv_arch_setup;
-	x86_platform.i8042_detect = ce4100_i8042_detect;
 	x86_init.resources.probe_roms = x86_init_noop;
 	x86_init.mpparse.get_smp_config = x86_init_uint_noop;
 	x86_init.mpparse.find_smp_config = x86_init_noop;

@@ -22,25 +22,34 @@
 #include <poll.h>
 #include <ctype.h>
 #include "libbpf.h"
-#include "bpf_helpers.h"
 #include "bpf_load.h"
+#include "perf-sys.h"
 
 #define DEBUGFS "/sys/kernel/debug/tracing/"
 
 static char license[128];
 static int kern_version;
 static bool processed_sec[128];
+char bpf_log_buf[BPF_LOG_BUF_SIZE];
 int map_fd[MAX_MAPS];
 int prog_fd[MAX_PROGS];
 int event_fd[MAX_PROGS];
 int prog_cnt;
 int prog_array_fd = -1;
 
+struct bpf_map_def {
+	unsigned int type;
+	unsigned int key_size;
+	unsigned int value_size;
+	unsigned int max_entries;
+	unsigned int map_flags;
+};
+
 static int populate_prog_array(const char *event, int prog_fd)
 {
 	int ind = atoi(event), err;
 
-	err = bpf_update_elem(prog_array_fd, &ind, &prog_fd, BPF_ANY);
+	err = bpf_map_update_elem(prog_array_fd, &ind, &prog_fd, BPF_ANY);
 	if (err < 0) {
 		printf("failed to store prog_fd in prog_array\n");
 		return -1;
@@ -58,6 +67,7 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	bool is_perf_event = strncmp(event, "perf_event", 10) == 0;
 	bool is_cgroup_skb = strncmp(event, "cgroup/skb", 10) == 0;
 	bool is_cgroup_sk = strncmp(event, "cgroup/sock", 11) == 0;
+	size_t insns_cnt = size / sizeof(struct bpf_insn);
 	enum bpf_prog_type prog_type;
 	char buf[256];
 	int fd, efd, err, id;
@@ -87,9 +97,10 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 		return -1;
 	}
 
-	fd = bpf_prog_load(prog_type, prog, size, license, kern_version);
+	fd = bpf_load_program(prog_type, prog, insns_cnt, license, kern_version,
+			      bpf_log_buf, BPF_LOG_BUF_SIZE);
 	if (fd < 0) {
-		printf("bpf_prog_load() err=%d\n%s", errno, bpf_log_buf);
+		printf("bpf_load_program() err=%d\n%s", errno, bpf_log_buf);
 		return -1;
 	}
 
@@ -169,7 +180,7 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	id = atoi(buf);
 	attr.config = id;
 
-	efd = perf_event_open(&attr, -1/*pid*/, 0/*cpu*/, -1/*group_fd*/, 0);
+	efd = sys_perf_event_open(&attr, -1/*pid*/, 0/*cpu*/, -1/*group_fd*/, 0);
 	if (efd < 0) {
 		printf("event %d fd %d err %s\n", id, efd, strerror(errno));
 		return -1;

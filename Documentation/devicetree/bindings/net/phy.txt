@@ -38,8 +38,14 @@ Optional Properties:
 - enet-phy-lane-swap: If set, indicates the PHY will swap the TX/RX lanes to
   compensate for the board being designed with the lanes swapped.
 
-- eee-broken-modes: Bits to clear in the MDIO_AN_EEE_ADV register to
-  disable EEE broken modes.
+- eee-broken-100tx:
+- eee-broken-1000t:
+- eee-broken-10gt:
+- eee-broken-1000kx:
+- eee-broken-10gkx4:
+- eee-broken-10gkr:
+  Mark the corresponding energy efficient ethernet mode as broken and
+  request the ethernet to stop advertising it.
 
 Example:
 

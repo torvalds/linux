@@ -454,12 +454,13 @@ static int aead_recvmsg_async(struct socket *sock, struct msghdr *msg,
 	used -= ctx->aead_assoclen;
 
 	/* take over all tx sgls from ctx */
-	areq->tsgl = sock_kmalloc(sk, sizeof(*areq->tsgl) * sgl->cur,
+	areq->tsgl = sock_kmalloc(sk,
+				  sizeof(*areq->tsgl) * max_t(u32, sgl->cur, 1),
 				  GFP_KERNEL);
 	if (unlikely(!areq->tsgl))
 		goto free;
 
-	sg_init_table(areq->tsgl, sgl->cur);
+	sg_init_table(areq->tsgl, max_t(u32, sgl->cur, 1));
 	for (i = 0; i < sgl->cur; i++)
 		sg_set_page(&areq->tsgl[i], sg_page(&sgl->sg[i]),
 			    sgl->sg[i].length, sgl->sg[i].offset);
@@ -555,18 +556,8 @@ static int aead_recvmsg_sync(struct socket *sock, struct msghdr *msg, int flags)
 	lock_sock(sk);
 
 	/*
-	 * AEAD memory structure: For encryption, the tag is appended to the
-	 * ciphertext which implies that the memory allocated for the ciphertext
-	 * must be increased by the tag length. For decryption, the tag
-	 * is expected to be concatenated to the ciphertext. The plaintext
-	 * therefore has a memory size of the ciphertext minus the tag length.
-	 *
-	 * The memory structure for cipher operation has the following
-	 * structure:
-	 *	AEAD encryption input:  assoc data || plaintext
-	 *	AEAD encryption output: cipherntext || auth tag
-	 *	AEAD decryption input:  assoc data || ciphertext || auth tag
-	 *	AEAD decryption output: plaintext
+	 * Please see documentation of aead_request_set_crypt for the
+	 * description of the AEAD memory structure expected from the caller.
 	 */
 
 	if (ctx->more) {

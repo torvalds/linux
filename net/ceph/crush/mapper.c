@@ -17,10 +17,12 @@
 # include <linux/kernel.h>
 # include <linux/crush/crush.h>
 # include <linux/crush/hash.h>
+# include <linux/crush/mapper.h>
 #else
 # include "crush_compat.h"
 # include "crush.h"
 # include "hash.h"
+# include "mapper.h"
 #endif
 #include "crush_ln_table.h"
 

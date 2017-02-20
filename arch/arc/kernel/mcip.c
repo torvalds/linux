@@ -11,8 +11,8 @@
 #include <linux/smp.h>
 #include <linux/irq.h>
 #include <linux/spinlock.h>
+#include <soc/arc/mcip.h>
 #include <asm/irqflags-arcv2.h>
-#include <asm/mcip.h>
 #include <asm/setup.h>
 
 static DEFINE_RAW_SPINLOCK(mcip_lock);

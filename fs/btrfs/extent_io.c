@@ -2029,7 +2029,7 @@ int repair_io_failure(struct inode *inode, u64 start, u64 length, u64 logical,
 	 * read repair operation.
 	 */
 	btrfs_bio_counter_inc_blocked(fs_info);
-	ret = btrfs_map_block(fs_info, WRITE, logical,
+	ret = btrfs_map_block(fs_info, BTRFS_MAP_WRITE, logical,
 			      &map_length, &bbio, mirror_num);
 	if (ret) {
 		btrfs_bio_counter_dec(fs_info);
@@ -2067,20 +2067,20 @@ int repair_io_failure(struct inode *inode, u64 start, u64 length, u64 logical,
 	return 0;
 }
 
-int repair_eb_io_failure(struct btrfs_root *root, struct extent_buffer *eb,
-			 int mirror_num)
+int repair_eb_io_failure(struct btrfs_fs_info *fs_info,
+			 struct extent_buffer *eb, int mirror_num)
 {
 	u64 start = eb->start;
 	unsigned long i, num_pages = num_extent_pages(eb->start, eb->len);
 	int ret = 0;
 
-	if (root->fs_info->sb->s_flags & MS_RDONLY)
+	if (fs_info->sb->s_flags & MS_RDONLY)
 		return -EROFS;
 
 	for (i = 0; i < num_pages; i++) {
 		struct page *p = eb->pages[i];
 
-		ret = repair_io_failure(root->fs_info->btree_inode, start,
+		ret = repair_io_failure(fs_info->btree_inode, start,
 					PAGE_SIZE, start, p,
 					start - page_offset(p), mirror_num);
 		if (ret)
@@ -2341,6 +2341,7 @@ struct bio *btrfs_create_repair_bio(struct inode *inode, struct bio *failed_bio,
 				    struct page *page, int pg_offset, int icsum,
 				    bio_end_io_t *endio_func, void *data)
 {
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct bio *bio;
 	struct btrfs_io_bio *btrfs_failed_bio;
 	struct btrfs_io_bio *btrfs_bio;
@@ -2351,13 +2352,12 @@ struct bio *btrfs_create_repair_bio(struct inode *inode, struct bio *failed_bio,
 
 	bio->bi_end_io = endio_func;
 	bio->bi_iter.bi_sector = failrec->logical >> 9;
-	bio->bi_bdev = BTRFS_I(inode)->root->fs_info->fs_devices->latest_bdev;
+	bio->bi_bdev = fs_info->fs_devices->latest_bdev;
 	bio->bi_iter.bi_size = 0;
 	bio->bi_private = data;
 
 	btrfs_failed_bio = btrfs_io_bio(failed_bio);
 	if (btrfs_failed_bio->csum) {
-		struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
 		u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
 
 		btrfs_bio = btrfs_io_bio(bio);
@@ -2474,6 +2474,8 @@ static void end_bio_extent_writepage(struct bio *bio)
 
 	bio_for_each_segment_all(bvec, bio, i) {
 		struct page *page = bvec->bv_page;
+		struct inode *inode = page->mapping->host;
+		struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 
 		/* We always issue full-page reads, but if some block
 		 * in a page fails to read, blk_update_request() will
@@ -2482,11 +2484,11 @@ static void end_bio_extent_writepage(struct bio *bio)
 		 * if they don't add up to a full page.  */
 		if (bvec->bv_offset || bvec->bv_len != PAGE_SIZE) {
 			if (bvec->bv_offset + bvec->bv_len != PAGE_SIZE)
-				btrfs_err(BTRFS_I(page->mapping->host)->root->fs_info,
+				btrfs_err(fs_info,
 				   "partial page write in btrfs with offset %u and length %u",
 					bvec->bv_offset, bvec->bv_len);
 			else
-				btrfs_info(BTRFS_I(page->mapping->host)->root->fs_info,
+				btrfs_info(fs_info,
 				   "incomplete page write in btrfs with offset %u and length %u",
 					bvec->bv_offset, bvec->bv_len);
 		}
@@ -3741,16 +3743,15 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 	if (btrfs_header_level(eb) > 0) {
 		end = btrfs_node_key_ptr_offset(nritems);
 
-		memset_extent_buffer(eb, 0, end, eb->len - end);
+		memzero_extent_buffer(eb, end, eb->len - end);
 	} else {
 		/*
 		 * leaf:
 		 * header 0 1 2 .. N ... data_N .. data_2 data_1 data_0
 		 */
 		start = btrfs_item_nr_offset(nritems);
-		end = btrfs_leaf_data(eb) +
-		      leaf_data_end(fs_info->tree_root, eb);
-		memset_extent_buffer(eb, 0, start, end - start);
+		end = btrfs_leaf_data(eb) + leaf_data_end(fs_info, eb);
+		memzero_extent_buffer(eb, start, end - start);
 	}
 
 	for (i = 0; i < num_pages; i++) {
@@ -4341,7 +4342,7 @@ static struct extent_map *get_extent_skip_holes(struct inode *inode,
 						u64 last,
 						get_extent_t *get_extent)
 {
-	u64 sectorsize = BTRFS_I(inode)->root->sectorsize;
+	u64 sectorsize = btrfs_inode_sectorsize(inode);
 	struct extent_map *em;
 	u64 len;
 
@@ -4402,8 +4403,8 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		return -ENOMEM;
 	path->leave_spinning = 1;
 
-	start = round_down(start, BTRFS_I(inode)->root->sectorsize);
-	len = round_up(max, BTRFS_I(inode)->root->sectorsize) - start;
+	start = round_down(start, btrfs_inode_sectorsize(inode));
+	len = round_up(max, btrfs_inode_sectorsize(inode)) - start;
 
 	/*
 	 * lookup the last file extent.  We're not using i_size here
@@ -4537,7 +4538,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 						 root->objectid,
 						 btrfs_ino(inode), bytenr);
 			if (trans)
-				btrfs_end_transaction(trans, root);
+				btrfs_end_transaction(trans);
 			if (ret < 0)
 				goto out_free;
 			if (ret)
@@ -4718,9 +4719,9 @@ struct extent_buffer *btrfs_clone_extent_buffer(struct extent_buffer *src)
 		WARN_ON(PageDirty(p));
 		SetPageUptodate(p);
 		new->pages[i] = p;
+		copy_page(page_address(p), page_address(src->pages[i]));
 	}
 
-	copy_extent_buffer(new, src, 0, 0, src->len);
 	set_bit(EXTENT_BUFFER_UPTODATE, &new->bflags);
 	set_bit(EXTENT_BUFFER_DUMMY, &new->bflags);
 
@@ -4758,21 +4759,9 @@ err:
 }
 
 struct extent_buffer *alloc_dummy_extent_buffer(struct btrfs_fs_info *fs_info,
-						u64 start, u32 nodesize)
+						u64 start)
 {
-	unsigned long len;
-
-	if (!fs_info) {
-		/*
-		 * Called only from tests that don't always have a fs_info
-		 * available
-		 */
-		len = nodesize;
-	} else {
-		len = fs_info->tree_root->nodesize;
-	}
-
-	return __alloc_dummy_extent_buffer(fs_info, start, len);
+	return __alloc_dummy_extent_buffer(fs_info, start, fs_info->nodesize);
 }
 
 static void check_buffer_tree_ref(struct extent_buffer *eb)
@@ -4863,7 +4852,7 @@ struct extent_buffer *find_extent_buffer(struct btrfs_fs_info *fs_info,
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 struct extent_buffer *alloc_test_extent_buffer(struct btrfs_fs_info *fs_info,
-					u64 start, u32 nodesize)
+					u64 start)
 {
 	struct extent_buffer *eb, *exists = NULL;
 	int ret;
@@ -4871,7 +4860,7 @@ struct extent_buffer *alloc_test_extent_buffer(struct btrfs_fs_info *fs_info,
 	eb = find_extent_buffer(fs_info, start);
 	if (eb)
 		return eb;
-	eb = alloc_dummy_extent_buffer(fs_info, start, nodesize);
+	eb = alloc_dummy_extent_buffer(fs_info, start);
 	if (!eb)
 		return NULL;
 	eb->fs_info = fs_info;
@@ -4911,7 +4900,7 @@ free_eb:
 struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 					  u64 start)
 {
-	unsigned long len = fs_info->tree_root->nodesize;
+	unsigned long len = fs_info->nodesize;
 	unsigned long num_pages = num_extent_pages(start, len);
 	unsigned long i;
 	unsigned long index = start >> PAGE_SHIFT;
@@ -4922,7 +4911,7 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 	int uptodate = 1;
 	int ret;
 
-	if (!IS_ALIGNED(start, fs_info->tree_root->sectorsize)) {
+	if (!IS_ALIGNED(start, fs_info->sectorsize)) {
 		btrfs_err(fs_info, "bad tree block start %llu", start);
 		return ERR_PTR(-EINVAL);
 	}
@@ -5463,6 +5452,27 @@ int memcmp_extent_buffer(struct extent_buffer *eb, const void *ptrv,
 	return ret;
 }
 
+void write_extent_buffer_chunk_tree_uuid(struct extent_buffer *eb,
+		const void *srcv)
+{
+	char *kaddr;
+
+	WARN_ON(!PageUptodate(eb->pages[0]));
+	kaddr = page_address(eb->pages[0]);
+	memcpy(kaddr + offsetof(struct btrfs_header, chunk_tree_uuid), srcv,
+			BTRFS_FSID_SIZE);
+}
+
+void write_extent_buffer_fsid(struct extent_buffer *eb, const void *srcv)
+{
+	char *kaddr;
+
+	WARN_ON(!PageUptodate(eb->pages[0]));
+	kaddr = page_address(eb->pages[0]);
+	memcpy(kaddr + offsetof(struct btrfs_header, fsid), srcv,
+			BTRFS_FSID_SIZE);
+}
+
 void write_extent_buffer(struct extent_buffer *eb, const void *srcv,
 			 unsigned long start, unsigned long len)
 {
@@ -5494,8 +5504,8 @@ void write_extent_buffer(struct extent_buffer *eb, const void *srcv,
 	}
 }
 
-void memset_extent_buffer(struct extent_buffer *eb, char c,
-			  unsigned long start, unsigned long len)
+void memzero_extent_buffer(struct extent_buffer *eb, unsigned long start,
+		unsigned long len)
 {
 	size_t cur;
 	size_t offset;
@@ -5515,12 +5525,26 @@ void memset_extent_buffer(struct extent_buffer *eb, char c,
 
 		cur = min(len, PAGE_SIZE - offset);
 		kaddr = page_address(page);
-		memset(kaddr + offset, c, cur);
+		memset(kaddr + offset, 0, cur);
 
 		len -= cur;
 		offset = 0;
 		i++;
 	}
+}
+
+void copy_extent_buffer_full(struct extent_buffer *dst,
+			     struct extent_buffer *src)
+{
+	int i;
+	unsigned num_pages;
+
+	ASSERT(dst->len == src->len);
+
+	num_pages = num_extent_pages(dst->start, dst->len);
+	for (i = 0; i < num_pages; i++)
+		copy_page(page_address(dst->pages[i]),
+				page_address(src->pages[i]));
 }
 
 void copy_extent_buffer(struct extent_buffer *dst, struct extent_buffer *src,
@@ -5764,6 +5788,7 @@ static void copy_pages(struct page *dst_page, struct page *src_page,
 void memcpy_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 			   unsigned long src_offset, unsigned long len)
 {
+	struct btrfs_fs_info *fs_info = dst->fs_info;
 	size_t cur;
 	size_t dst_off_in_page;
 	size_t src_off_in_page;
@@ -5772,13 +5797,13 @@ void memcpy_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 	unsigned long src_i;
 
 	if (src_offset + len > dst->len) {
-		btrfs_err(dst->fs_info,
+		btrfs_err(fs_info,
 			"memmove bogus src_offset %lu move len %lu dst len %lu",
 			 src_offset, len, dst->len);
 		BUG_ON(1);
 	}
 	if (dst_offset + len > dst->len) {
-		btrfs_err(dst->fs_info,
+		btrfs_err(fs_info,
 			"memmove bogus dst_offset %lu move len %lu dst len %lu",
 			 dst_offset, len, dst->len);
 		BUG_ON(1);
@@ -5810,6 +5835,7 @@ void memcpy_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 			   unsigned long src_offset, unsigned long len)
 {
+	struct btrfs_fs_info *fs_info = dst->fs_info;
 	size_t cur;
 	size_t dst_off_in_page;
 	size_t src_off_in_page;
@@ -5820,13 +5846,13 @@ void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 	unsigned long src_i;
 
 	if (src_offset + len > dst->len) {
-		btrfs_err(dst->fs_info,
+		btrfs_err(fs_info,
 			  "memmove bogus src_offset %lu move len %lu len %lu",
 			  src_offset, len, dst->len);
 		BUG_ON(1);
 	}
 	if (dst_offset + len > dst->len) {
-		btrfs_err(dst->fs_info,
+		btrfs_err(fs_info,
 			  "memmove bogus dst_offset %lu move len %lu len %lu",
 			  dst_offset, len, dst->len);
 		BUG_ON(1);

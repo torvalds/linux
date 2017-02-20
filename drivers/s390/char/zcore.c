@@ -23,7 +23,7 @@
 #include <asm/ipl.h>
 #include <asm/sclp.h>
 #include <asm/setup.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/debug.h>
 #include <asm/processor.h>
 #include <asm/irqflags.h>

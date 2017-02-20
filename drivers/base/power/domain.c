@@ -544,6 +544,7 @@ static int genpd_runtime_suspend(struct device *dev)
 		return -EBUSY;
 
 	/* Measure suspend latency. */
+	time_start = 0;
 	if (runtime_pm)
 		time_start = ktime_get();
 
@@ -625,6 +626,7 @@ static int genpd_runtime_resume(struct device *dev)
 
  out:
 	/* Measure resume latency. */
+	time_start = 0;
 	if (timed && runtime_pm)
 		time_start = ktime_get();
 

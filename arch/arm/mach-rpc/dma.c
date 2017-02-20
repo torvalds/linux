@@ -20,7 +20,7 @@
 #include <asm/fiq.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <asm/mach/dma.h>
 #include <asm/hardware/iomd.h>

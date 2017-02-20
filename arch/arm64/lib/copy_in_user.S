@@ -19,7 +19,7 @@
 #include <linux/linkage.h>
 
 #include <asm/cache.h>
-#include <asm/uaccess.h>
+#include <asm/asm-uaccess.h>
 
 /*
  * Copy from user space to user space (alignment handled by the hardware)

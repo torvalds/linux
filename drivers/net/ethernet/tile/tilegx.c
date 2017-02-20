@@ -751,7 +751,7 @@ static void tile_net_schedule_tx_wake_timer(struct net_device *dev,
 		&info->mpipe[instance].tx_wake[priv->echannel];
 
 	hrtimer_start(&tx_wake->timer,
-		      ktime_set(0, TX_TIMER_DELAY_USEC * 1000UL),
+		      TX_TIMER_DELAY_USEC * 1000UL,
 		      HRTIMER_MODE_REL_PINNED);
 }
 
@@ -770,7 +770,7 @@ static void tile_net_schedule_egress_timer(void)
 
 	if (!info->egress_timer_scheduled) {
 		hrtimer_start(&info->egress_timer,
-			      ktime_set(0, EGRESS_TIMER_DELAY_USEC * 1000UL),
+			      EGRESS_TIMER_DELAY_USEC * 1000UL,
 			      HRTIMER_MODE_REL_PINNED);
 		info->egress_timer_scheduled = true;
 	}

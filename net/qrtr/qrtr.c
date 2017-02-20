@@ -252,7 +252,7 @@ static struct sk_buff *qrtr_alloc_resume_tx(u32 src_node,
 	const int pkt_len = 20;
 	struct qrtr_hdr *hdr;
 	struct sk_buff *skb;
-	u32 *buf;
+	__le32 *buf;
 
 	skb = alloc_skb(QRTR_HDR_SIZE + pkt_len, GFP_KERNEL);
 	if (!skb)
@@ -269,7 +269,7 @@ static struct sk_buff *qrtr_alloc_resume_tx(u32 src_node,
 	hdr->dst_node_id = cpu_to_le32(dst_node);
 	hdr->dst_port_id = cpu_to_le32(QRTR_PORT_CTRL);
 
-	buf = (u32 *)skb_put(skb, pkt_len);
+	buf = (__le32 *)skb_put(skb, pkt_len);
 	memset(buf, 0, pkt_len);
 	buf[0] = cpu_to_le32(QRTR_TYPE_RESUME_TX);
 	buf[1] = cpu_to_le32(src_node);

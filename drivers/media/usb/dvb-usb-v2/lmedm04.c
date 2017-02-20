@@ -156,21 +156,19 @@ struct lme2510_state {
 static int lme2510_bulk_write(struct usb_device *dev,
 				u8 *snd, int len, u8 pipe)
 {
-	int ret, actual_l;
+	int actual_l;
 
-	ret = usb_bulk_msg(dev, usb_sndbulkpipe(dev, pipe),
-				snd, len , &actual_l, 100);
-	return ret;
+	return usb_bulk_msg(dev, usb_sndbulkpipe(dev, pipe),
+			    snd, len, &actual_l, 100);
 }
 
 static int lme2510_bulk_read(struct usb_device *dev,
 				u8 *rev, int len, u8 pipe)
 {
-	int ret, actual_l;
+	int actual_l;
 
-	ret = usb_bulk_msg(dev, usb_rcvbulkpipe(dev, pipe),
-				 rev, len , &actual_l, 200);
-	return ret;
+	return usb_bulk_msg(dev, usb_rcvbulkpipe(dev, pipe),
+			    rev, len, &actual_l, 200);
 }
 
 static int lme2510_usb_talk(struct dvb_usb_device *d,

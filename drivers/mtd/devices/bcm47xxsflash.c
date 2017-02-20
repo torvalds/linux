@@ -296,15 +296,29 @@ static int bcm47xxsflash_bcma_probe(struct platform_device *pdev)
 		dev_err(dev, "can't request region for resource %pR\n", res);
 		return -EBUSY;
 	}
-	b47s->window = ioremap_cache(res->start, resource_size(res));
-	if (!b47s->window) {
-		dev_err(dev, "ioremap failed for resource %pR\n", res);
-		return -ENOMEM;
-	}
 
 	b47s->bcma_cc = container_of(sflash, struct bcma_drv_cc, sflash);
 	b47s->cc_read = bcm47xxsflash_bcma_cc_read;
 	b47s->cc_write = bcm47xxsflash_bcma_cc_write;
+
+	/*
+	 * On old MIPS devices cache was magically invalidated when needed,
+	 * allowing us to use cached access and gain some performance. Trying
+	 * the same on ARM based BCM53573 results in flash corruptions, we need
+	 * to use uncached access for it.
+	 *
+	 * It may be arch specific, but right now there is only 1 ARM SoC using
+	 * this driver, so let's follow Broadcom's reference code and check
+	 * ChipCommon revision.
+	 */
+	if (b47s->bcma_cc->core->id.rev == 54)
+		b47s->window = ioremap_nocache(res->start, resource_size(res));
+	else
+		b47s->window = ioremap_cache(res->start, resource_size(res));
+	if (!b47s->window) {
+		dev_err(dev, "ioremap failed for resource %pR\n", res);
+		return -ENOMEM;
+	}
 
 	switch (b47s->bcma_cc->capabilities & BCMA_CC_CAP_FLASHT) {
 	case BCMA_CC_FLASHT_STSER:

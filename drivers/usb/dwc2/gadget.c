@@ -3753,7 +3753,7 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 		hs_ep->desc_list = dma_alloc_coherent(hsotg->dev,
 			MAX_DMA_DESC_NUM_GENERIC *
 			sizeof(struct dwc2_dma_desc),
-			&hs_ep->desc_list_dma, GFP_KERNEL);
+			&hs_ep->desc_list_dma, GFP_ATOMIC);
 		if (!hs_ep->desc_list) {
 			ret = -ENOMEM;
 			goto error2;

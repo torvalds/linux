@@ -485,7 +485,7 @@ static void __init setup_memory_end(void)
 	max_pfn = max_low_pfn = PFN_DOWN(memory_end);
 	memblock_remove(memory_end, ULONG_MAX);
 
-	pr_notice("Max memory size: %luMB\n", memory_end >> 20);
+	pr_notice("The maximum memory size is %luMB\n", memory_end >> 20);
 }
 
 static void __init setup_vmcoreinfo(void)
@@ -650,7 +650,7 @@ static void __init check_initrd(void)
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (INITRD_START && INITRD_SIZE &&
 	    !memblock_is_region_memory(INITRD_START, INITRD_SIZE)) {
-		pr_err("initrd does not fit memory.\n");
+		pr_err("The initial RAM disk does not fit into the memory\n");
 		memblock_free(INITRD_START, INITRD_SIZE);
 		initrd_start = initrd_end = 0;
 	}

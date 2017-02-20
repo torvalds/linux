@@ -116,10 +116,11 @@ static inline u16 find_equiv_id(struct equiv_cpu_entry *equiv_cpu_table,
 
 /*
  * This scans the ucode blob for the proper container as we can have multiple
- * containers glued together.
+ * containers glued together. Returns the equivalence ID from the equivalence
+ * table or 0 if none found.
  */
-static struct container
-find_proper_container(u8 *ucode, size_t size, u16 *ret_id)
+static u16
+find_proper_container(u8 *ucode, size_t size, struct container *ret_cont)
 {
 	struct container ret = { NULL, 0 };
 	u32 eax, ebx, ecx, edx;
@@ -138,7 +139,7 @@ find_proper_container(u8 *ucode, size_t size, u16 *ret_id)
 	if (header[0] != UCODE_MAGIC ||
 	    header[1] != UCODE_EQUIV_CPU_TABLE_TYPE || /* type */
 	    header[2] == 0)                            /* size */
-		return ret;
+		return eq_id;
 
 	eax = 0x00000001;
 	ecx = 0;
@@ -163,8 +164,9 @@ find_proper_container(u8 *ucode, size_t size, u16 *ret_id)
 			 * ucode update loop below
 			 */
 			left = ret.size - offset;
-			*ret_id = eq_id;
-			return ret;
+
+			*ret_cont = ret;
+			return eq_id;
 		}
 
 		/*
@@ -189,7 +191,7 @@ find_proper_container(u8 *ucode, size_t size, u16 *ret_id)
 		ucode     = data;
 	}
 
-	return ret;
+	return eq_id;
 }
 
 static int __apply_microcode_amd(struct microcode_amd *mc_amd)
@@ -214,17 +216,18 @@ static int __apply_microcode_amd(struct microcode_amd *mc_amd)
  * and on 32-bit during save_microcode_in_initrd_amd() -- we can call
  * load_microcode_amd() to save equivalent cpu table and microcode patches in
  * kernel heap memory.
+ *
+ * Returns true if container found (sets @ret_cont), false otherwise.
  */
-static struct container
-apply_microcode_early_amd(void *ucode, size_t size, bool save_patch)
+static bool apply_microcode_early_amd(void *ucode, size_t size, bool save_patch,
+				      struct container *ret_cont)
 {
-	struct container ret = { NULL, 0 };
 	u8 (*patch)[PATCH_MAX_SIZE];
+	u32 rev, *header, *new_rev;
+	struct container ret;
 	int offset, left;
-	u32 rev, *header;
-	u8  *data;
 	u16 eq_id = 0;
-	u32 *new_rev;
+	u8  *data;
 
 #ifdef CONFIG_X86_32
 	new_rev = (u32 *)__pa_nodebug(&ucode_new_rev);
@@ -235,11 +238,11 @@ apply_microcode_early_amd(void *ucode, size_t size, bool save_patch)
 #endif
 
 	if (check_current_patch_level(&rev, true))
-		return (struct container){ NULL, 0 };
+		return false;
 
-	ret = find_proper_container(ucode, size, &eq_id);
+	eq_id = find_proper_container(ucode, size, &ret);
 	if (!eq_id)
-		return (struct container){ NULL, 0 };
+		return false;
 
 	this_equiv_id = eq_id;
 	header = (u32 *)ret.data;
@@ -273,7 +276,11 @@ apply_microcode_early_amd(void *ucode, size_t size, bool save_patch)
 		data   += offset;
 		left   -= offset;
 	}
-	return ret;
+
+	if (ret_cont)
+		*ret_cont = ret;
+
+	return true;
 }
 
 static bool get_builtin_microcode(struct cpio_data *cp, unsigned int family)
@@ -294,6 +301,7 @@ static bool get_builtin_microcode(struct cpio_data *cp, unsigned int family)
 void __init load_ucode_amd_bsp(unsigned int family)
 {
 	struct ucode_cpu_info *uci;
+	u32 eax, ebx, ecx, edx;
 	struct cpio_data cp;
 	const char *path;
 	bool use_pa;
@@ -315,9 +323,12 @@ void __init load_ucode_amd_bsp(unsigned int family)
 		return;
 
 	/* Get BSP's CPUID.EAX(1), needed in load_microcode_amd() */
-	uci->cpu_sig.sig = cpuid_eax(1);
+	eax = 1;
+	ecx = 0;
+	native_cpuid(&eax, &ebx, &ecx, &edx);
+	uci->cpu_sig.sig = eax;
 
-	apply_microcode_early_amd(cp.data, cp.size, true);
+	apply_microcode_early_amd(cp.data, cp.size, true, NULL);
 }
 
 #ifdef CONFIG_X86_32
@@ -349,7 +360,7 @@ void load_ucode_amd_ap(unsigned int family)
 	 * This would set amd_ucode_patch above so that the following APs can
 	 * use it directly instead of going down this path again.
 	 */
-	apply_microcode_early_amd(cp.data, cp.size, true);
+	apply_microcode_early_amd(cp.data, cp.size, true, NULL);
 }
 #else
 void load_ucode_amd_ap(unsigned int family)
@@ -387,8 +398,7 @@ reget:
 			}
 		}
 
-		cont = apply_microcode_early_amd(cp.data, cp.size, false);
-		if (!(cont.data && cont.size)) {
+		if (!apply_microcode_early_amd(cp.data, cp.size, false, &cont)) {
 			cont.size = -1;
 			return;
 		}
@@ -443,7 +453,7 @@ int __init save_microcode_in_initrd_amd(unsigned int fam)
 				return -EINVAL;
 			}
 
-			cont = find_proper_container(cp.data, cp.size, &eq_id);
+			eq_id = find_proper_container(cp.data, cp.size, &cont);
 			if (!eq_id) {
 				cont.size = -1;
 				return -EINVAL;

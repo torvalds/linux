@@ -152,8 +152,6 @@ driver-model/
 	- directory with info about Linux driver model.
 early-userspace/
 	- info about initramfs, klibc, and userspace early during boot.
-edac.txt
-	- information on EDAC - Error Detection And Correction
 efi-stub.txt
 	- How to use the EFI boot stub to bypass GRUB or elilo on EFI systems.
 eisa.txt

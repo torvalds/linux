@@ -294,3 +294,10 @@ Description:
 		a firmware bug to the system vendor.  Writing to this file
 		taints the kernel with TAINT_FIRMWARE_WORKAROUND, which
 		reduces the supportability of your system.
+
+What:		/sys/bus/pci/devices/.../revision
+Date:		November 2016
+Contact:	Emil Velikov <emil.l.velikov@gmail.com>
+Description:
+		This file contains the revision field of the the PCI device.
+		The value comes from device config space. The file is read only.

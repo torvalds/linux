@@ -42,7 +42,7 @@
 #include <linux/usb.h>
 #include <linux/module.h>
 #include <asm/byteorder.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "pegasus.h"
 
 /*

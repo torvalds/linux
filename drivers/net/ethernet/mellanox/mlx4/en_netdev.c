@@ -1638,7 +1638,8 @@ int mlx4_en_start_port(struct net_device *dev)
 
 	/* Configure tx cq's and rings */
 	for (t = 0 ; t < MLX4_EN_NUM_TX_TYPES; t++) {
-		u8 num_tx_rings_p_up = t == TX ? priv->num_tx_rings_p_up : 1;
+		u8 num_tx_rings_p_up = t == TX ?
+			priv->num_tx_rings_p_up : priv->tx_ring_num[t];
 
 		for (i = 0; i < priv->tx_ring_num[t]; i++) {
 			/* Configure cq */
@@ -1747,8 +1748,11 @@ int mlx4_en_start_port(struct net_device *dev)
 	/* Process all completions if exist to prevent
 	 * the queues freezing if they are full
 	 */
-	for (i = 0; i < priv->rx_ring_num; i++)
+	for (i = 0; i < priv->rx_ring_num; i++) {
+		local_bh_disable();
 		napi_schedule(&priv->rx_cq[i]->napi);
+		local_bh_enable();
+	}
 
 	netif_tx_start_all_queues(dev);
 	netif_device_attach(dev);
@@ -2276,7 +2280,7 @@ static int mlx4_en_change_mtu(struct net_device *dev, int new_mtu)
 
 	if (priv->tx_ring_num[TX_XDP] &&
 	    !mlx4_en_check_xdp_mtu(dev, new_mtu))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	dev->mtu = new_mtu;
 

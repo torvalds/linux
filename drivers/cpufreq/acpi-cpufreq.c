@@ -930,7 +930,7 @@ static void __init acpi_cpufreq_boost_init(void)
 
 static void acpi_cpufreq_boost_exit(void)
 {
-	if (acpi_cpufreq_online >= 0)
+	if (acpi_cpufreq_online > 0)
 		cpuhp_remove_state_nocalls(acpi_cpufreq_online);
 }
 

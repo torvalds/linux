@@ -152,8 +152,8 @@ struct orinoco_private {
 	u8 *wpa_ie;
 	int wpa_ie_len;
 
-	struct crypto_ahash *rx_tfm_mic;
-	struct crypto_ahash *tx_tfm_mic;
+	struct crypto_shash *rx_tfm_mic;
+	struct crypto_shash *tx_tfm_mic;
 
 	unsigned int wpa_enabled:1;
 	unsigned int tkip_cm_active:1;

@@ -335,7 +335,7 @@ our $Attribute	= qr{
 			__percpu|
 			__nocast|
 			__safe|
-			__bitwise__|
+			__bitwise|
 			__packed__|
 			__packed2__|
 			__naked|
@@ -3681,7 +3681,7 @@ sub process {
 		    $line !~ /\btypedef\s+$Type\s*\(\s*\*?$Ident\s*\)\s*\(/ &&
 		    $line !~ /\btypedef\s+$Type\s+$Ident\s*\(/ &&
 		    $line !~ /\b$typeTypedefs\b/ &&
-		    $line !~ /\b__bitwise(?:__|)\b/) {
+		    $line !~ /\b__bitwise\b/) {
 			WARN("NEW_TYPEDEFS",
 			     "do not add new typedefs\n" . $herecurr);
 		}

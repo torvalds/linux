@@ -1,5 +1,5 @@
 /*
- * simple_card_core.h
+ * simple_card_utils.h
  *
  * Copyright (c) 2016 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  *
@@ -7,8 +7,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#ifndef __SIMPLE_CARD_CORE_H
-#define __SIMPLE_CARD_CORE_H
+#ifndef __SIMPLE_CARD_UTILS_H
+#define __SIMPLE_CARD_UTILS_H
 
 #include <sound/soc.h>
 
@@ -68,4 +68,4 @@ void asoc_simple_card_canonicalize_cpu(struct snd_soc_dai_link *dai_link,
 
 int asoc_simple_card_clean_reference(struct snd_soc_card *card);
 
-#endif /* __SIMPLE_CARD_CORE_H */
+#endif /* __SIMPLE_CARD_UTILS_H */

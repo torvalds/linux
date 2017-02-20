@@ -17,7 +17,7 @@
 #include <linux/mmzone.h>
 #include <linux/edac.h>
 #include <asm/msr.h>
-#include "edac_core.h"
+#include "edac_module.h"
 #include "mce_amd.h"
 
 #define amd64_debug(fmt, arg...) \

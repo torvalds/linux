@@ -71,7 +71,7 @@ static struct vfsmount *shm_mnt;
 #include <linux/fcntl.h>
 #include <uapi/linux/memfd.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 
 #include "internal.h"
@@ -661,8 +661,8 @@ unsigned long shmem_partial_swap_usage(struct address_space *mapping,
 			swapped++;
 
 		if (need_resched()) {
+			slot = radix_tree_iter_resume(slot, &iter);
 			cond_resched_rcu();
-			slot = radix_tree_iter_next(&iter);
 		}
 	}
 
@@ -1049,6 +1049,30 @@ static void shmem_evict_inode(struct inode *inode)
 	clear_inode(inode);
 }
 
+static unsigned long find_swap_entry(struct radix_tree_root *root, void *item)
+{
+	struct radix_tree_iter iter;
+	void **slot;
+	unsigned long found = -1;
+	unsigned int checked = 0;
+
+	rcu_read_lock();
+	radix_tree_for_each_slot(slot, root, &iter, 0) {
+		if (*slot == item) {
+			found = iter.index;
+			break;
+		}
+		checked++;
+		if ((checked % 4096) != 0)
+			continue;
+		slot = radix_tree_iter_resume(slot, &iter);
+		cond_resched_rcu();
+	}
+
+	rcu_read_unlock();
+	return found;
+}
+
 /*
  * If swap found in inode, free it and move page from swapcache to filecache.
  */
@@ -1062,7 +1086,7 @@ static int shmem_unuse_inode(struct shmem_inode_info *info,
 	int error = 0;
 
 	radswap = swp_to_radix_entry(swap);
-	index = radix_tree_locate_item(&mapping->page_tree, radswap);
+	index = find_swap_entry(&mapping->page_tree, radswap);
 	if (index == -1)
 		return -EAGAIN;	/* tell shmem_unuse we found nothing */
 
@@ -2447,8 +2471,8 @@ static void shmem_tag_pins(struct address_space *mapping)
 		}
 
 		if (need_resched()) {
+			slot = radix_tree_iter_resume(slot, &iter);
 			cond_resched_rcu();
-			slot = radix_tree_iter_next(&iter);
 		}
 	}
 	rcu_read_unlock();
@@ -2517,8 +2541,8 @@ static int shmem_wait_for_pins(struct address_space *mapping)
 			spin_unlock_irq(&mapping->tree_lock);
 continue_resched:
 			if (need_resched()) {
+				slot = radix_tree_iter_resume(slot, &iter);
 				cond_resched_rcu();
-				slot = radix_tree_iter_next(&iter);
 			}
 		}
 		rcu_read_unlock();
@@ -3188,7 +3212,6 @@ static ssize_t shmem_listxattr(struct dentry *dentry, char *buffer, size_t size)
 #endif /* CONFIG_TMPFS_XATTR */
 
 static const struct inode_operations shmem_short_symlink_operations = {
-	.readlink	= generic_readlink,
 	.get_link	= simple_get_link,
 #ifdef CONFIG_TMPFS_XATTR
 	.listxattr	= shmem_listxattr,
@@ -3196,7 +3219,6 @@ static const struct inode_operations shmem_short_symlink_operations = {
 };
 
 static const struct inode_operations shmem_symlink_inode_operations = {
-	.readlink	= generic_readlink,
 	.get_link	= shmem_get_link,
 #ifdef CONFIG_TMPFS_XATTR
 	.listxattr	= shmem_listxattr,
