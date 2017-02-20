@@ -3409,41 +3409,6 @@ void cond_synchronize_sched(unsigned long oldstate)
 }
 EXPORT_SYMBOL_GPL(cond_synchronize_sched);
 
-/* Adjust sequence number for start of update-side operation. */
-static void rcu_seq_start(unsigned long *sp)
-{
-	WRITE_ONCE(*sp, *sp + 1);
-	smp_mb(); /* Ensure update-side operation after counter increment. */
-	WARN_ON_ONCE(!(*sp & 0x1));
-}
-
-/* Adjust sequence number for end of update-side operation. */
-static void rcu_seq_end(unsigned long *sp)
-{
-	smp_mb(); /* Ensure update-side operation before counter increment. */
-	WRITE_ONCE(*sp, *sp + 1);
-	WARN_ON_ONCE(*sp & 0x1);
-}
-
-/* Take a snapshot of the update side's sequence number. */
-static unsigned long rcu_seq_snap(unsigned long *sp)
-{
-	unsigned long s;
-
-	s = (READ_ONCE(*sp) + 3) & ~0x1;
-	smp_mb(); /* Above access must not bleed into critical section. */
-	return s;
-}
-
-/*
- * Given a snapshot from rcu_seq_snap(), determine whether or not a
- * full update-side operation has occurred.
- */
-static bool rcu_seq_done(unsigned long *sp, unsigned long s)
-{
-	return ULONG_CMP_GE(READ_ONCE(*sp), s);
-}
-
 /*
  * Check to see if there is any immediate RCU-related work to be done
  * by the current CPU, for the specified type of RCU, returning 1 if so.
