@@ -589,7 +589,7 @@ out:
 	local_irq_restore(flags);
 }
 
-__visible bool __kvm_vcpu_is_preempted(int cpu)
+__visible bool __kvm_vcpu_is_preempted(long cpu)
 {
 	struct kvm_steal_time *src = &per_cpu(steal_time, cpu);
 
