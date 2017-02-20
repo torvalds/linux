@@ -97,11 +97,11 @@ static int btmrvl_sdio_probe_of(struct device *dev,
 		cfg->irq_bt = irq_of_parse_and_map(card->plt_of_node, 0);
 		if (!cfg->irq_bt) {
 			dev_err(dev, "fail to parse irq_bt from device tree");
+			cfg->irq_bt = -1;
 		} else {
 			ret = devm_request_irq(dev, cfg->irq_bt,
 					       btmrvl_wake_irq_bt,
-					       IRQF_TRIGGER_LOW,
-					       "bt_wake", cfg);
+					       0, "bt_wake", cfg);
 			if (ret) {
 				dev_err(dev,
 					"Failed to request irq_bt %d (%d)\n",
@@ -1624,7 +1624,7 @@ static int btmrvl_sdio_suspend(struct device *dev)
 
 	if (priv->adapter->hs_state != HS_ACTIVATED) {
 		if (btmrvl_enable_hs(priv)) {
-			BT_ERR("HS not actived, suspend failed!");
+			BT_ERR("HS not activated, suspend failed!");
 			priv->adapter->is_suspending = false;
 			return -EBUSY;
 		}
@@ -1682,8 +1682,12 @@ static int btmrvl_sdio_resume(struct device *dev)
 	/* Disable platform specific wakeup interrupt */
 	if (card->plt_wake_cfg && card->plt_wake_cfg->irq_bt >= 0) {
 		disable_irq_wake(card->plt_wake_cfg->irq_bt);
-		if (!card->plt_wake_cfg->wake_by_bt)
-			disable_irq(card->plt_wake_cfg->irq_bt);
+		disable_irq(card->plt_wake_cfg->irq_bt);
+		if (card->plt_wake_cfg->wake_by_bt)
+			/* Undo our disable, since interrupt handler already
+			 * did this.
+			 */
+			enable_irq(card->plt_wake_cfg->irq_bt);
 	}
 
 	return 0;
