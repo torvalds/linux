@@ -2057,6 +2057,12 @@ static bool update_transition_efer(struct vcpu_vmx *vmx, int efer_offset)
 	}
 }
 
+#ifdef CONFIG_X86_32
+/*
+ * On 32-bit kernels, VM exits still load the FS and GS bases from the
+ * VMCS rather than the segment table.  KVM uses this helper to figure
+ * out the current bases to poke them into the VMCS before entry.
+ */
 static unsigned long segment_base(u16 selector)
 {
 	struct desc_ptr *gdt = this_cpu_ptr(&host_gdt);
@@ -2079,12 +2085,9 @@ static unsigned long segment_base(u16 selector)
 	}
 	d = (struct desc_struct *)(table_base + (selector & ~7));
 	v = get_desc_base(d);
-#ifdef CONFIG_X86_64
-       if (d->s == 0 && (d->type == 2 || d->type == 9 || d->type == 11))
-               v |= ((unsigned long)((struct ldttss_desc64 *)d)->base3) << 32;
-#endif
 	return v;
 }
+#endif
 
 static void vmx_save_host_state(struct kvm_vcpu *vcpu)
 {
