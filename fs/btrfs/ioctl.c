@@ -580,7 +580,7 @@ static noinline int create_subvol(struct inode *dir,
 	/*
 	 * insert the directory item
 	 */
-	ret = btrfs_set_inode_index(dir, &index);
+	ret = btrfs_set_inode_index(BTRFS_I(dir), &index);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;

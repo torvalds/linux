@@ -1505,7 +1505,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	/*
 	 * insert the directory item
 	 */
-	ret = btrfs_set_inode_index(parent_inode, &index);
+	ret = btrfs_set_inode_index(BTRFS_I(parent_inode), &index);
 	BUG_ON(ret); /* -ENOMEM */
 
 	/* check if there is a file/dir which has the same name. */

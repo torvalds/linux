@@ -6034,21 +6034,21 @@ out:
  * helper to find a free sequence number in a given directory.  This current
  * code is very simple, later versions will do smarter things in the btree
  */
-int btrfs_set_inode_index(struct inode *dir, u64 *index)
+int btrfs_set_inode_index(struct btrfs_inode *dir, u64 *index)
 {
 	int ret = 0;
 
-	if (BTRFS_I(dir)->index_cnt == (u64)-1) {
-		ret = btrfs_inode_delayed_dir_index_count(BTRFS_I(dir));
+	if (dir->index_cnt == (u64)-1) {
+		ret = btrfs_inode_delayed_dir_index_count(dir);
 		if (ret) {
-			ret = btrfs_set_inode_index_count(BTRFS_I(dir));
+			ret = btrfs_set_inode_index_count(dir);
 			if (ret)
 				return ret;
 		}
 	}
 
-	*index = BTRFS_I(dir)->index_cnt;
-	BTRFS_I(dir)->index_cnt++;
+	*index = dir->index_cnt;
+	dir->index_cnt++;
 
 	return ret;
 }
@@ -6109,7 +6109,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	if (dir && name) {
 		trace_btrfs_inode_request(dir);
 
-		ret = btrfs_set_inode_index(dir, index);
+		ret = btrfs_set_inode_index(BTRFS_I(dir), index);
 		if (ret) {
 			btrfs_free_path(path);
 			iput(inode);
@@ -6490,7 +6490,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	if (inode->i_nlink >= BTRFS_LINK_MAX)
 		return -EMLINK;
 
-	err = btrfs_set_inode_index(dir, &index);
+	err = btrfs_set_inode_index(BTRFS_I(dir), &index);
 	if (err)
 		goto fail;
 
@@ -9480,10 +9480,10 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 	 * We need to find a free sequence number both in the source and
 	 * in the destination directory for the exchange.
 	 */
-	ret = btrfs_set_inode_index(new_dir, &old_idx);
+	ret = btrfs_set_inode_index(BTRFS_I(new_dir), &old_idx);
 	if (ret)
 		goto out_fail;
-	ret = btrfs_set_inode_index(old_dir, &new_idx);
+	ret = btrfs_set_inode_index(BTRFS_I(old_dir), &new_idx);
 	if (ret)
 		goto out_fail;
 
@@ -9791,7 +9791,7 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (dest != root)
 		btrfs_record_root_in_trans(trans, dest);
 
-	ret = btrfs_set_inode_index(new_dir, &index);
+	ret = btrfs_set_inode_index(BTRFS_I(new_dir), &index);
 	if (ret)
 		goto out_fail;
 
