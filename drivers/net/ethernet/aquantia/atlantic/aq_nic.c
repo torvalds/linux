@@ -122,14 +122,11 @@ static void aq_nic_service_timer_cb(unsigned long param)
 	struct aq_nic_s *self = (struct aq_nic_s *)param;
 	struct net_device *ndev = aq_nic_get_ndev(self);
 	int err = 0;
-	bool is_busy = false;
 	unsigned int i = 0U;
 	struct aq_hw_link_status_s link_status;
 	struct aq_ring_stats_rx_s stats_rx;
 	struct aq_ring_stats_tx_s stats_tx;
 
-	atomic_inc(&self->header.busy_count);
-	is_busy = true;
 	if (aq_utils_obj_test(&self->header.flags, AQ_NIC_FLAGS_IS_NOT_READY))
 		goto err_exit;
 
@@ -170,8 +167,6 @@ static void aq_nic_service_timer_cb(unsigned long param)
 	ndev->stats.tx_errors = stats_tx.errors;
 
 err_exit:
-	if (is_busy)
-		atomic_dec(&self->header.busy_count);
 	mod_timer(&self->service_timer,
 		  jiffies + AQ_CFG_SERVICE_TIMER_INTERVAL);
 }
@@ -574,15 +569,11 @@ __acquires(&ring->lock)
 	unsigned int trys = AQ_CFG_LOCK_TRYS;
 	int err = 0;
 	bool is_nic_in_bad_state;
-	bool is_busy = false;
 	struct aq_ring_buff_s buffers[AQ_CFG_SKB_FRAGS_MAX];
 
 	frags = skb_shinfo(skb)->nr_frags + 1;
 
 	ring = self->aq_ring_tx[AQ_NIC_TCVEC2RING(self, tc, vec)];
-
-	atomic_inc(&self->header.busy_count);
-	is_busy = true;
 
 	if (frags > AQ_CFG_SKB_FRAGS_MAX) {
 		dev_kfree_skb_any(skb);
@@ -629,8 +620,6 @@ __acquires(&ring->lock)
 	}
 
 err_exit:
-	if (is_busy)
-		atomic_dec(&self->header.busy_count);
 	return err;
 }
 
