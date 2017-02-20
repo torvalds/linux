@@ -209,7 +209,6 @@ int aq_ring_rx_clean(struct aq_ring_s *self, int *work_done, int budget)
 				goto err_exit;
 			}
 
-			skb->dev = ndev;
 			skb_put(skb, buff->len);
 		} else {
 			skb = netdev_alloc_skb(ndev, ETH_HLEN);
