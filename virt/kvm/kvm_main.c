@@ -617,7 +617,7 @@ static struct kvm *kvm_create_vm(unsigned long type)
 	mutex_init(&kvm->lock);
 	mutex_init(&kvm->irq_lock);
 	mutex_init(&kvm->slots_lock);
-	atomic_set(&kvm->users_count, 1);
+	refcount_set(&kvm->users_count, 1);
 	INIT_LIST_HEAD(&kvm->devices);
 
 	r = kvm_arch_init_vm(kvm, type);
@@ -747,13 +747,13 @@ static void kvm_destroy_vm(struct kvm *kvm)
 
 void kvm_get_kvm(struct kvm *kvm)
 {
-	atomic_inc(&kvm->users_count);
+	refcount_inc(&kvm->users_count);
 }
 EXPORT_SYMBOL_GPL(kvm_get_kvm);
 
 void kvm_put_kvm(struct kvm *kvm)
 {
-	if (atomic_dec_and_test(&kvm->users_count))
+	if (refcount_dec_and_test(&kvm->users_count))
 		kvm_destroy_vm(kvm);
 }
 EXPORT_SYMBOL_GPL(kvm_put_kvm);
@@ -3639,7 +3639,7 @@ static int kvm_debugfs_open(struct inode *inode, struct file *file,
 	 * To avoid the race between open and the removal of the debugfs
 	 * directory we test against the users count.
 	 */
-	if (!atomic_add_unless(&stat_data->kvm->users_count, 1, 0))
+	if (!refcount_inc_not_zero(&stat_data->kvm->users_count))
 		return -ENOENT;
 
 	if (simple_attr_open(inode, file, get, set, fmt)) {
