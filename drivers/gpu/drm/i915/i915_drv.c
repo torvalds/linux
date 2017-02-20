@@ -999,7 +999,7 @@ static void intel_sanitize_options(struct drm_i915_private *dev_priv)
 	DRM_DEBUG_DRIVER("ppgtt mode: %i\n", i915.enable_ppgtt);
 
 	i915.semaphores = intel_sanitize_semaphores(dev_priv, i915.semaphores);
-	DRM_DEBUG_DRIVER("use GPU sempahores? %s\n", yesno(i915.semaphores));
+	DRM_DEBUG_DRIVER("use GPU semaphores? %s\n", yesno(i915.semaphores));
 }
 
 /**
