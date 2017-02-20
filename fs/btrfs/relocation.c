@@ -4246,7 +4246,7 @@ struct inode *create_reloc_inode(struct btrfs_fs_info *fs_info,
 	BUG_ON(IS_ERR(inode) || is_bad_inode(inode));
 	BTRFS_I(inode)->index_cnt = group->key.objectid;
 
-	err = btrfs_orphan_add(trans, inode);
+	err = btrfs_orphan_add(trans, BTRFS_I(inode));
 out:
 	btrfs_end_transaction(trans);
 	btrfs_btree_balance_dirty(fs_info);

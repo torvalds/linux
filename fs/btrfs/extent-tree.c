@@ -10337,7 +10337,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	mutex_unlock(&trans->transaction->cache_write_mutex);
 
 	if (!IS_ERR(inode)) {
-		ret = btrfs_orphan_add(trans, inode);
+		ret = btrfs_orphan_add(trans, BTRFS_I(inode));
 		if (ret) {
 			btrfs_add_delayed_iput(inode);
 			goto out;
