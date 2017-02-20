@@ -287,7 +287,7 @@ static int vgem_prime_mmap(struct drm_gem_object *obj,
 	if (!obj->filp)
 		return -ENODEV;
 
-	ret = obj->filp->f_op->mmap(obj->filp, vma);
+	ret = call_mmap(obj->filp, vma);
 	if (ret)
 		return ret;
 
