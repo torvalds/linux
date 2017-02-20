@@ -31,8 +31,7 @@
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/timer.h>
-#include <linux/gpio.h>
-#include <linux/input/eeti_ts.h>
+#include <linux/gpio/consumer.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
 
@@ -47,7 +46,7 @@ MODULE_PARM_DESC(flip_y, "flip y coordinate");
 struct eeti_ts {
 	struct i2c_client *client;
 	struct input_dev *input;
-	int irq_gpio, irq_active_high;
+	struct gpio_desc *attn_gpio;
 	bool running;
 };
 
@@ -59,11 +58,6 @@ struct eeti_ts {
 #define REPORT_BIT_AD1		BIT(2)
 #define REPORT_BIT_HAS_PRESSURE	BIT(6)
 #define REPORT_RES_BITS(v)	(((v) >> 1) + EETI_TS_BITDEPTH)
-
-static inline int eeti_ts_irq_active(struct eeti_ts *eeti)
-{
-	return gpio_get_value_cansleep(eeti->irq_gpio) == eeti->irq_active_high;
-}
 
 static void eeti_ts_report_event(struct eeti_ts *eeti, u8 *buf)
 {
@@ -115,7 +109,8 @@ static irqreturn_t eeti_ts_isr(int irq, void *dev_id)
 			/* Motion packet */
 			eeti_ts_report_event(eeti, buf);
 		}
-	} while (eeti->running && eeti_ts_irq_active(eeti));
+	} while (eeti->running &&
+		 eeti->attn_gpio && gpiod_get_value_cansleep(eeti->attn_gpio));
 
 	return IRQ_HANDLED;
 }
@@ -154,7 +149,6 @@ static int eeti_ts_probe(struct i2c_client *client,
 			 const struct i2c_device_id *idp)
 {
 	struct device *dev = &client->dev;
-	struct eeti_ts_platform_data *pdata = dev_get_platdata(dev);
 	struct eeti_ts *eeti;
 	struct input_dev *input;
 	int error;
@@ -191,14 +185,10 @@ static int eeti_ts_probe(struct i2c_client *client,
 
 	eeti->client = client;
 	eeti->input = input;
-	eeti->irq_gpio = pdata->irq_gpio;
 
-	error = devm_gpio_request_one(dev, pdata->irq_gpio, GPIOF_IN,
-				      client->name);
-	if (error)
-		return error;
-
-	eeti->irq_active_high = pdata->irq_active_high;
+	eeti->attn_gpio = devm_gpiod_get_optional(dev, "attn", GPIOD_IN);
+	if (IS_ERR(eeti->attn_gpio))
+		return PTR_ERR(eeti->attn_gpio);
 
 	i2c_set_clientdata(client, eeti);
 	input_set_drvdata(input, eeti);
