@@ -44,14 +44,6 @@
 
 #include <media/videobuf2-dma-contig.h>
 
-static inline dma_addr_t s5p_mfc_mem_cookie(void *a, void *b)
-{
-	/* Same functionality as the vb2_dma_contig_plane_paddr */
-	dma_addr_t *paddr = vb2_dma_contig_memops.cookie(b);
-
-	return *paddr;
-}
-
 /* MFC definitions */
 #define MFC_MAX_EXTRA_DPB       5
 #define MFC_MAX_BUFFERS		32
@@ -229,16 +221,11 @@ struct s5p_mfc_buf_size {
 	void *priv;
 };
 
-struct s5p_mfc_buf_align {
-	unsigned int base;
-};
-
 struct s5p_mfc_variant {
 	unsigned int version;
 	unsigned int port_num;
 	u32 version_bit;
 	struct s5p_mfc_buf_size *buf_size;
-	struct s5p_mfc_buf_align *buf_align;
 	char	*fw_name[MFC_FW_MAX_VERSIONS];
 	const char	*clk_names[MFC_MAX_CLOCKS];
 	int		num_clocks;

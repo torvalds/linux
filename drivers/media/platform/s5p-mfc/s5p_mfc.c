@@ -1417,16 +1417,11 @@ static struct s5p_mfc_buf_size buf_size_v5 = {
 	.priv	= &mfc_buf_size_v5,
 };
 
-static struct s5p_mfc_buf_align mfc_buf_align_v5 = {
-	.base = MFC_BASE_ALIGN_ORDER,
-};
-
 static struct s5p_mfc_variant mfc_drvdata_v5 = {
 	.version	= MFC_VERSION,
 	.version_bit	= MFC_V5_BIT,
 	.port_num	= MFC_NUM_PORTS,
 	.buf_size	= &buf_size_v5,
-	.buf_align	= &mfc_buf_align_v5,
 	.fw_name[0]	= "s5p-mfc.fw",
 	.clk_names	= {"mfc", "sclk_mfc"},
 	.num_clocks	= 2,
@@ -1447,16 +1442,11 @@ static struct s5p_mfc_buf_size buf_size_v6 = {
 	.priv	= &mfc_buf_size_v6,
 };
 
-static struct s5p_mfc_buf_align mfc_buf_align_v6 = {
-	.base = 0,
-};
-
 static struct s5p_mfc_variant mfc_drvdata_v6 = {
 	.version	= MFC_VERSION_V6,
 	.version_bit	= MFC_V6_BIT,
 	.port_num	= MFC_NUM_PORTS_V6,
 	.buf_size	= &buf_size_v6,
-	.buf_align	= &mfc_buf_align_v6,
 	.fw_name[0]     = "s5p-mfc-v6.fw",
 	/*
 	 * v6-v2 firmware contains bug fixes and interface change
@@ -1481,16 +1471,11 @@ static struct s5p_mfc_buf_size buf_size_v7 = {
 	.priv	= &mfc_buf_size_v7,
 };
 
-static struct s5p_mfc_buf_align mfc_buf_align_v7 = {
-	.base = 0,
-};
-
 static struct s5p_mfc_variant mfc_drvdata_v7 = {
 	.version	= MFC_VERSION_V7,
 	.version_bit	= MFC_V7_BIT,
 	.port_num	= MFC_NUM_PORTS_V7,
 	.buf_size	= &buf_size_v7,
-	.buf_align	= &mfc_buf_align_v7,
 	.fw_name[0]     = "s5p-mfc-v7.fw",
 	.clk_names	= {"mfc", "sclk_mfc"},
 	.num_clocks	= 2,
@@ -1510,16 +1495,11 @@ static struct s5p_mfc_buf_size buf_size_v8 = {
 	.priv	= &mfc_buf_size_v8,
 };
 
-static struct s5p_mfc_buf_align mfc_buf_align_v8 = {
-	.base = 0,
-};
-
 static struct s5p_mfc_variant mfc_drvdata_v8 = {
 	.version	= MFC_VERSION_V8,
 	.version_bit	= MFC_V8_BIT,
 	.port_num	= MFC_NUM_PORTS_V8,
 	.buf_size	= &buf_size_v8,
-	.buf_align	= &mfc_buf_align_v8,
 	.fw_name[0]     = "s5p-mfc-v8.fw",
 	.clk_names	= {"mfc"},
 	.num_clocks	= 1,
@@ -1530,7 +1510,6 @@ static struct s5p_mfc_variant mfc_drvdata_v8_5433 = {
 	.version_bit	= MFC_V8_BIT,
 	.port_num	= MFC_NUM_PORTS_V8,
 	.buf_size	= &buf_size_v8,
-	.buf_align	= &mfc_buf_align_v8,
 	.fw_name[0]     = "s5p-mfc-v8.fw",
 	.clk_names	= {"pclk", "aclk", "aclk_xiu"},
 	.num_clocks	= 3,
