@@ -2502,7 +2502,7 @@ struct clk *__clk_create_clk(struct clk_hw *hw, const char *dev_id,
 
 	clk->core = hw->core;
 	clk->dev_id = dev_id;
-	clk->con_id = con_id;
+	clk->con_id = kstrdup_const(con_id, GFP_KERNEL);
 	clk->max_rate = ULONG_MAX;
 
 	clk_prepare_lock();
@@ -2518,6 +2518,7 @@ void __clk_free_clk(struct clk *clk)
 	hlist_del(&clk->clks_node);
 	clk_prepare_unlock();
 
+	kfree_const(clk->con_id);
 	kfree(clk);
 }
 
