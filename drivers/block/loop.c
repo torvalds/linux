@@ -501,9 +501,9 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
 	cmd->iocb.ki_flags = IOCB_DIRECT;
 
 	if (rw == WRITE)
-		ret = file->f_op->write_iter(&cmd->iocb, &iter);
+		ret = call_write_iter(file, &cmd->iocb, &iter);
 	else
-		ret = file->f_op->read_iter(&cmd->iocb, &iter);
+		ret = call_read_iter(file, &cmd->iocb, &iter);
 
 	if (ret != -EIOCBQUEUED)
 		cmd->iocb.ki_complete(&cmd->iocb, ret, 0);
