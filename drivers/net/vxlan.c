@@ -1596,7 +1596,7 @@ static int neigh_reduce(struct net_device *dev, struct sk_buff *skb, __be32 vni)
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct nd_msg *msg;
 	const struct ipv6hdr *iphdr;
-	const struct in6_addr *saddr, *daddr;
+	const struct in6_addr *daddr;
 	struct neighbour *n;
 	struct inet6_dev *in6_dev;
 
@@ -1605,7 +1605,6 @@ static int neigh_reduce(struct net_device *dev, struct sk_buff *skb, __be32 vni)
 		goto out;
 
 	iphdr = ipv6_hdr(skb);
-	saddr = &iphdr->saddr;
 	daddr = &iphdr->daddr;
 
 	msg = (struct nd_msg *)skb_transport_header(skb);
