@@ -674,7 +674,7 @@ static int open_poll_files(struct loopback_test *t)
 
 err:
 	for (i = 0; i < fds_idx; i++)
-		close(t->fds[fds_idx].fd);
+		close(t->fds[i].fd);
 
 	return -1;
 }
