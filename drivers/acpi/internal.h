@@ -172,8 +172,8 @@ struct acpi_ec {
 	struct work_struct work;
 	unsigned long timestamp;
 	unsigned long nr_pending_queries;
-	bool saved_busy_polling;
-	unsigned int saved_polling_guard;
+	bool busy_polling;
+	unsigned int polling_guard;
 };
 
 extern struct acpi_ec *first_ec;
