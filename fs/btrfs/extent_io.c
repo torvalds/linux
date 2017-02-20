@@ -2152,9 +2152,9 @@ out:
  * - under ordered extent
  * - the inode is freeing
  */
-void btrfs_free_io_failure_record(struct inode *inode, u64 start, u64 end)
+void btrfs_free_io_failure_record(struct btrfs_inode *inode, u64 start, u64 end)
 {
-	struct extent_io_tree *failure_tree = &BTRFS_I(inode)->io_failure_tree;
+	struct extent_io_tree *failure_tree = &inode->io_failure_tree;
 	struct io_failure_record *failrec;
 	struct extent_state *state, *next;
 

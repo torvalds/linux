@@ -2803,9 +2803,10 @@ static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
 		goto out;
 	}
 
-	btrfs_free_io_failure_record(inode, ordered_extent->file_offset,
-				     ordered_extent->file_offset +
-				     ordered_extent->len - 1);
+	btrfs_free_io_failure_record(BTRFS_I(inode),
+			ordered_extent->file_offset,
+			ordered_extent->file_offset +
+			ordered_extent->len - 1);
 
 	if (test_bit(BTRFS_ORDERED_TRUNCATED, &ordered_extent->flags)) {
 		truncated = true;
@@ -5196,7 +5197,7 @@ void btrfs_evict_inode(struct inode *inode)
 	if (!special_file(inode->i_mode))
 		btrfs_wait_ordered_range(inode, 0, (u64)-1);
 
-	btrfs_free_io_failure_record(inode, 0, (u64)-1);
+	btrfs_free_io_failure_record(BTRFS_I(inode), 0, (u64)-1);
 
 	if (test_bit(BTRFS_FS_LOG_RECOVERING, &fs_info->flags)) {
 		BUG_ON(test_bit(BTRFS_INODE_HAS_ORPHAN_ITEM,
