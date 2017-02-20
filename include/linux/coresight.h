@@ -201,7 +201,7 @@ struct coresight_ops_sink {
 			  void *sink_config);
 	unsigned long (*reset_buffer)(struct coresight_device *csdev,
 				      struct perf_output_handle *handle,
-				      void *sink_config, bool *lost);
+				      void *sink_config);
 	void (*update_buffer)(struct coresight_device *csdev,
 			      struct perf_output_handle *handle,
 			      void *sink_config);

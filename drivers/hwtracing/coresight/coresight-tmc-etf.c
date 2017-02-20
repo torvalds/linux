@@ -329,7 +329,7 @@ static int tmc_set_etf_buffer(struct coresight_device *csdev,
 
 static unsigned long tmc_reset_etf_buffer(struct coresight_device *csdev,
 					  struct perf_output_handle *handle,
-					  void *sink_config, bool *lost)
+					  void *sink_config)
 {
 	long size = 0;
 	struct cs_buffers *buf = sink_config;
@@ -350,7 +350,6 @@ static unsigned long tmc_reset_etf_buffer(struct coresight_device *csdev,
 		 * resetting parameters here and squaring off with the ring
 		 * buffer API in the tracer PMU is fine.
 		 */
-		*lost = !!local_xchg(&buf->lost, 0);
 		size = local_xchg(&buf->data_size, 0);
 	}
 
@@ -389,7 +388,7 @@ static void tmc_update_etf_buffer(struct coresight_device *csdev,
 	 */
 	status = readl_relaxed(drvdata->base + TMC_STS);
 	if (status & TMC_STS_FULL) {
-		local_inc(&buf->lost);
+		perf_aux_output_flag(handle, PERF_AUX_FLAG_TRUNCATED);
 		to_read = drvdata->size;
 	} else {
 		to_read = CIRC_CNT(write_ptr, read_ptr, drvdata->size);
@@ -434,7 +433,7 @@ static void tmc_update_etf_buffer(struct coresight_device *csdev,
 			read_ptr -= drvdata->size;
 		/* Tell the HW */
 		writel_relaxed(read_ptr, drvdata->base + TMC_RRP);
-		local_inc(&buf->lost);
+		perf_aux_output_flag(handle, PERF_AUX_FLAG_TRUNCATED);
 	}
 
 	cur = buf->cur;

@@ -753,7 +753,8 @@ static void pt_handle_status(struct pt *pt)
 		 */
 		if (!pt_cap_get(PT_CAP_topa_multiple_entries) ||
 		    buf->output_off == sizes(TOPA_ENTRY(buf->cur, buf->cur_idx)->size)) {
-			local_inc(&buf->lost);
+			perf_aux_output_flag(&pt->handle,
+			                     PERF_AUX_FLAG_TRUNCATED);
 			advance++;
 		}
 	}
@@ -846,8 +847,10 @@ static int pt_buffer_reset_markers(struct pt_buffer *buf,
 
 	/* can't stop in the middle of an output region */
 	if (buf->output_off + handle->size + 1 <
-	    sizes(TOPA_ENTRY(buf->cur, buf->cur_idx)->size))
+	    sizes(TOPA_ENTRY(buf->cur, buf->cur_idx)->size)) {
+		perf_aux_output_flag(handle, PERF_AUX_FLAG_TRUNCATED);
 		return -EINVAL;
+	}
 
 
 	/* single entry ToPA is handled by marking all regions STOP=1 INT=1 */
@@ -1192,8 +1195,7 @@ void intel_pt_interrupt(void)
 
 	pt_update_head(pt);
 
-	perf_aux_output_end(&pt->handle, local_xchg(&buf->data_size, 0),
-			    local_xchg(&buf->lost, 0));
+	perf_aux_output_end(&pt->handle, local_xchg(&buf->data_size, 0));
 
 	if (!event->hw.state) {
 		int ret;
@@ -1208,7 +1210,7 @@ void intel_pt_interrupt(void)
 		/* snapshot counters don't use PMI, so it's safe */
 		ret = pt_buffer_reset_markers(buf, &pt->handle);
 		if (ret) {
-			perf_aux_output_end(&pt->handle, 0, true);
+			perf_aux_output_end(&pt->handle, 0);
 			return;
 		}
 
@@ -1280,7 +1282,7 @@ static void pt_event_start(struct perf_event *event, int mode)
 	return;
 
 fail_end_stop:
-	perf_aux_output_end(&pt->handle, 0, true);
+	perf_aux_output_end(&pt->handle, 0);
 fail_stop:
 	hwc->state = PERF_HES_STOPPED;
 }
@@ -1321,8 +1323,7 @@ static void pt_event_stop(struct perf_event *event, int mode)
 			pt->handle.head =
 				local_xchg(&buf->data_size,
 					   buf->nr_pages << PAGE_SHIFT);
-		perf_aux_output_end(&pt->handle, local_xchg(&buf->data_size, 0),
-				    local_xchg(&buf->lost, 0));
+		perf_aux_output_end(&pt->handle, local_xchg(&buf->data_size, 0));
 	}
 }
 

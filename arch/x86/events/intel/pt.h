@@ -143,7 +143,6 @@ struct pt_buffer {
 	size_t			output_off;
 	unsigned long		nr_pages;
 	local_t			data_size;
-	local_t			lost;
 	local64_t		head;
 	bool			snapshot;
 	unsigned long		stop_pos, intr_pos;
