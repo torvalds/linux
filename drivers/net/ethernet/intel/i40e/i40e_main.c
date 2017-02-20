@@ -77,7 +77,6 @@ static const struct pci_device_id i40e_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_C), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_10G_BASE_T), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_10G_BASE_T4), 0},
-	{PCI_VDEVICE(INTEL, I40E_DEV_ID_20G_KR2), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_KX_X722), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_X722), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_SFP_X722), 0},
@@ -1254,6 +1253,7 @@ static int i40e_correct_mac_vlan_filters(struct i40e_vsi *vsi,
 					 struct hlist_head *tmp_del_list,
 					 int vlan_filters)
 {
+	s16 pvid = le16_to_cpu(vsi->info.pvid);
 	struct i40e_mac_filter *f, *add_head;
 	struct i40e_new_mac_filter *new;
 	struct hlist_node *h;
@@ -1275,8 +1275,8 @@ static int i40e_correct_mac_vlan_filters(struct i40e_vsi *vsi,
 
 	/* Update the filters about to be added in place */
 	hlist_for_each_entry(new, tmp_add_list, hlist) {
-		if (vsi->info.pvid && new->f->vlan != vsi->info.pvid)
-			new->f->vlan = vsi->info.pvid;
+		if (pvid && new->f->vlan != pvid)
+			new->f->vlan = pvid;
 		else if (vlan_filters && new->f->vlan == I40E_VLAN_ANY)
 			new->f->vlan = 0;
 		else if (!vlan_filters && new->f->vlan == 0)
@@ -1290,12 +1290,12 @@ static int i40e_correct_mac_vlan_filters(struct i40e_vsi *vsi,
 		 * order to avoid duplicating code for adding the new filter
 		 * then deleting the old filter.
 		 */
-		if ((vsi->info.pvid && f->vlan != vsi->info.pvid) ||
+		if ((pvid && f->vlan != pvid) ||
 		    (vlan_filters && f->vlan == I40E_VLAN_ANY) ||
 		    (!vlan_filters && f->vlan == 0)) {
 			/* Determine the new vlan we will be adding */
-			if (vsi->info.pvid)
-				new_vlan = vsi->info.pvid;
+			if (pvid)
+				new_vlan = pvid;
 			else if (vlan_filters)
 				new_vlan = 0;
 			else
@@ -1447,18 +1447,20 @@ void __i40e_del_filter(struct i40e_vsi *vsi, struct i40e_mac_filter *f)
 	if (!f)
 		return;
 
+	/* If the filter was never added to firmware then we can just delete it
+	 * directly and we don't want to set the status to remove or else an
+	 * admin queue command will unnecessarily fire.
+	 */
 	if ((f->state == I40E_FILTER_FAILED) ||
 	    (f->state == I40E_FILTER_NEW)) {
-		/* this one never got added by the FW. Just remove it,
-		 * no need to sync anything.
-		 */
 		hash_del(&f->hlist);
 		kfree(f);
 	} else {
 		f->state = I40E_FILTER_REMOVE;
-		vsi->flags |= I40E_VSI_FLAG_FILTER_CHANGED;
-		vsi->back->flags |= I40E_FLAG_FILTER_SYNC;
 	}
+
+	vsi->flags |= I40E_VSI_FLAG_FILTER_CHANGED;
+	vsi->back->flags |= I40E_FLAG_FILTER_SYNC;
 }
 
 /**
@@ -4683,8 +4685,10 @@ static void i40e_detect_recover_hung_queue(int q_idx, struct i40e_vsi *vsi)
 	 */
 	if ((!tx_pending_hw) && i40e_get_tx_pending(tx_ring, true) &&
 	    (!(val & I40E_PFINT_DYN_CTLN_INTENA_MASK))) {
+		local_bh_disable();
 		if (napi_reschedule(&tx_ring->q_vector->napi))
 			tx_ring->tx_stats.tx_lost_interrupt++;
+		local_bh_enable();
 	}
 }
 
@@ -6350,7 +6354,16 @@ static void i40e_link_event(struct i40e_pf *pf)
 	old_link = (pf->hw.phy.link_info_old.link_info & I40E_AQ_LINK_UP);
 
 	status = i40e_get_link_status(&pf->hw, &new_link);
-	if (status) {
+
+	/* On success, disable temp link polling */
+	if (status == I40E_SUCCESS) {
+		if (pf->flags & I40E_FLAG_TEMP_LINK_POLLING)
+			pf->flags &= ~I40E_FLAG_TEMP_LINK_POLLING;
+	} else {
+		/* Enable link polling temporarily until i40e_get_link_status
+		 * returns I40E_SUCCESS
+		 */
+		pf->flags |= I40E_FLAG_TEMP_LINK_POLLING;
 		dev_dbg(&pf->pdev->dev, "couldn't get link state, status: %d\n",
 			status);
 		return;
@@ -6402,7 +6415,8 @@ static void i40e_watchdog_subtask(struct i40e_pf *pf)
 		return;
 	pf->service_timer_previous = jiffies;
 
-	if (pf->flags & I40E_FLAG_LINK_POLLING_ENABLED)
+	if ((pf->flags & I40E_FLAG_LINK_POLLING_ENABLED) ||
+	    (pf->flags & I40E_FLAG_TEMP_LINK_POLLING))
 		i40e_link_event(pf);
 
 	/* Update the stats for active netdevs so the network stack
@@ -8813,16 +8827,17 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	}
 #endif /* CONFIG_PCI_IOV */
 	if (pf->hw.mac.type == I40E_MAC_X722) {
-		pf->flags |= I40E_FLAG_RSS_AQ_CAPABLE |
-			     I40E_FLAG_128_QP_RSS_CAPABLE |
-			     I40E_FLAG_HW_ATR_EVICT_CAPABLE |
-			     I40E_FLAG_OUTER_UDP_CSUM_CAPABLE |
-			     I40E_FLAG_WB_ON_ITR_CAPABLE |
-			     I40E_FLAG_MULTIPLE_TCP_UDP_RSS_PCTYPE |
-			     I40E_FLAG_NO_PCI_LINK_CHECK |
-			     I40E_FLAG_USE_SET_LLDP_MIB |
-			     I40E_FLAG_GENEVE_OFFLOAD_CAPABLE |
-			     I40E_FLAG_PTP_L4_CAPABLE;
+		pf->flags |= I40E_FLAG_RSS_AQ_CAPABLE
+			     | I40E_FLAG_128_QP_RSS_CAPABLE
+			     | I40E_FLAG_HW_ATR_EVICT_CAPABLE
+			     | I40E_FLAG_OUTER_UDP_CSUM_CAPABLE
+			     | I40E_FLAG_WB_ON_ITR_CAPABLE
+			     | I40E_FLAG_MULTIPLE_TCP_UDP_RSS_PCTYPE
+			     | I40E_FLAG_NO_PCI_LINK_CHECK
+			     | I40E_FLAG_USE_SET_LLDP_MIB
+			     | I40E_FLAG_GENEVE_OFFLOAD_CAPABLE
+			     | I40E_FLAG_PTP_L4_CAPABLE
+			     | I40E_FLAG_WOL_MC_MAGIC_PKT_WAKE;
 	} else if ((pf->hw.aq.api_maj_ver > 1) ||
 		   ((pf->hw.aq.api_maj_ver == 1) &&
 		    (pf->hw.aq.api_min_ver > 4))) {
@@ -10758,7 +10773,6 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit)
 		i40e_pf_config_rss(pf);
 
 	/* fill in link information and enable LSE reporting */
-	i40e_update_link_info(&pf->hw);
 	i40e_link_event(pf);
 
 	/* Initialize user-specific link properties */
@@ -11739,6 +11753,53 @@ static void i40e_pci_error_resume(struct pci_dev *pdev)
 }
 
 /**
+ * i40e_enable_mc_magic_wake - enable multicast magic packet wake up
+ * using the mac_address_write admin q function
+ * @pf: pointer to i40e_pf struct
+ **/
+static void i40e_enable_mc_magic_wake(struct i40e_pf *pf)
+{
+	struct i40e_hw *hw = &pf->hw;
+	i40e_status ret;
+	u8 mac_addr[6];
+	u16 flags = 0;
+
+	/* Get current MAC address in case it's an LAA */
+	if (pf->vsi[pf->lan_vsi] && pf->vsi[pf->lan_vsi]->netdev) {
+		ether_addr_copy(mac_addr,
+				pf->vsi[pf->lan_vsi]->netdev->dev_addr);
+	} else {
+		dev_err(&pf->pdev->dev,
+			"Failed to retrieve MAC address; using default\n");
+		ether_addr_copy(mac_addr, hw->mac.addr);
+	}
+
+	/* The FW expects the mac address write cmd to first be called with
+	 * one of these flags before calling it again with the multicast
+	 * enable flags.
+	 */
+	flags = I40E_AQC_WRITE_TYPE_LAA_WOL;
+
+	if (hw->func_caps.flex10_enable && hw->partition_id != 1)
+		flags = I40E_AQC_WRITE_TYPE_LAA_ONLY;
+
+	ret = i40e_aq_mac_address_write(hw, flags, mac_addr, NULL);
+	if (ret) {
+		dev_err(&pf->pdev->dev,
+			"Failed to update MAC address registers; cannot enable Multicast Magic packet wake up");
+		return;
+	}
+
+	flags = I40E_AQC_MC_MAG_EN
+			| I40E_AQC_WOL_PRESERVE_ON_PFR
+			| I40E_AQC_WRITE_TYPE_UPDATE_MC_MAG;
+	ret = i40e_aq_mac_address_write(hw, flags, mac_addr, NULL);
+	if (ret)
+		dev_err(&pf->pdev->dev,
+			"Failed to enable Multicast Magic Packet wake up\n");
+}
+
+/**
  * i40e_shutdown - PCI callback for shutting down
  * @pdev: PCI device information struct
  **/
@@ -11759,6 +11820,9 @@ static void i40e_shutdown(struct pci_dev *pdev)
 	del_timer_sync(&pf->service_timer);
 	cancel_work_sync(&pf->service_task);
 	i40e_fdir_teardown(pf);
+
+	if (pf->wol_en && (pf->flags & I40E_FLAG_WOL_MC_MAGIC_PKT_WAKE))
+		i40e_enable_mc_magic_wake(pf);
 
 	rtnl_lock();
 	i40e_prep_for_reset(pf);
@@ -11790,6 +11854,9 @@ static int i40e_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	set_bit(__I40E_SUSPENDED, &pf->state);
 	set_bit(__I40E_DOWN, &pf->state);
+
+	if (pf->wol_en && (pf->flags & I40E_FLAG_WOL_MC_MAGIC_PKT_WAKE))
+		i40e_enable_mc_magic_wake(pf);
 
 	rtnl_lock();
 	i40e_prep_for_reset(pf);

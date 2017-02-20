@@ -348,6 +348,8 @@ struct i40e_pf {
 #define I40E_FLAG_TRUE_PROMISC_SUPPORT		BIT_ULL(51)
 #define I40E_FLAG_HAVE_CRT_RETIMER		BIT_ULL(52)
 #define I40E_FLAG_PTP_L4_CAPABLE		BIT_ULL(53)
+#define I40E_FLAG_WOL_MC_MAGIC_PKT_WAKE		BIT_ULL(54)
+#define I40E_FLAG_TEMP_LINK_POLLING		BIT_ULL(55)
 
 	/* tracks features that get auto disabled by errors */
 	u64 auto_disable_flags;

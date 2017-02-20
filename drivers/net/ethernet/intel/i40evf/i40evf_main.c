@@ -2153,6 +2153,11 @@ static int i40evf_close(struct net_device *netdev)
 	adapter->state = __I40EVF_DOWN_PENDING;
 	i40evf_free_traffic_irqs(adapter);
 
+	/* We explicitly don't free resources here because the hardware is
+	 * still active and can DMA into memory. Resources are cleared in
+	 * i40evf_virtchnl_completion() after we get confirmation from the PF
+	 * driver that the rings have been stopped.
+	 */
 	return 0;
 }
 
@@ -2871,7 +2876,8 @@ static void i40evf_remove(struct pci_dev *pdev)
 		i40evf_request_reset(adapter);
 		msleep(50);
 	}
-
+	i40evf_free_all_tx_resources(adapter);
+	i40evf_free_all_rx_resources(adapter);
 	i40evf_misc_irq_disable(adapter);
 	i40evf_free_misc_irq(adapter);
 	i40evf_reset_interrupt_capability(adapter);

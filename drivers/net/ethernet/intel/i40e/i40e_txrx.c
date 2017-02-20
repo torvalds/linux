@@ -1864,14 +1864,14 @@ static u32 i40e_buildreg_itr(const int type, const u16 itr)
 
 /* a small macro to shorten up some long lines */
 #define INTREG I40E_PFINT_DYN_CTLN
-static inline int get_rx_itr_enabled(struct i40e_vsi *vsi, int idx)
+static inline int get_rx_itr(struct i40e_vsi *vsi, int idx)
 {
-	return !!(vsi->rx_rings[idx]->rx_itr_setting);
+	return vsi->rx_rings[idx]->rx_itr_setting;
 }
 
-static inline int get_tx_itr_enabled(struct i40e_vsi *vsi, int idx)
+static inline int get_tx_itr(struct i40e_vsi *vsi, int idx)
 {
-	return !!(vsi->tx_rings[idx]->tx_itr_setting);
+	return vsi->tx_rings[idx]->tx_itr_setting;
 }
 
 /**
@@ -1897,8 +1897,8 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 	 */
 	rxval = txval = i40e_buildreg_itr(I40E_ITR_NONE, 0);
 
-	rx_itr_setting = get_rx_itr_enabled(vsi, idx);
-	tx_itr_setting = get_tx_itr_enabled(vsi, idx);
+	rx_itr_setting = get_rx_itr(vsi, idx);
+	tx_itr_setting = get_tx_itr(vsi, idx);
 
 	if (q_vector->itr_countdown > 0 ||
 	    (!ITR_IS_DYNAMIC(rx_itr_setting) &&
@@ -2335,7 +2335,8 @@ static int i40e_tso(struct i40e_tx_buffer *first, u8 *hdr_len,
 
 			/* remove payload length from outer checksum */
 			paylen = skb->len - l4_offset;
-			csum_replace_by_diff(&l4.udp->check, htonl(paylen));
+			csum_replace_by_diff(&l4.udp->check,
+					     (__force __wsum)htonl(paylen));
 		}
 
 		/* reset pointers to inner headers */
@@ -2356,7 +2357,7 @@ static int i40e_tso(struct i40e_tx_buffer *first, u8 *hdr_len,
 
 	/* remove payload length from inner checksum */
 	paylen = skb->len - l4_offset;
-	csum_replace_by_diff(&l4.tcp->check, htonl(paylen));
+	csum_replace_by_diff(&l4.tcp->check, (__force __wsum)htonl(paylen));
 
 	/* compute length of segmentation header */
 	*hdr_len = (l4.tcp->doff * 4) + l4_offset;
