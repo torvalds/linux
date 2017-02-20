@@ -1849,6 +1849,7 @@ err_resp:
 
 static int qed_roce_destroy_qp(struct qed_hwfn *p_hwfn, struct qed_rdma_qp *qp)
 {
+	struct qed_rdma_info *p_rdma_info = p_hwfn->p_rdma_info;
 	u32 num_invalidated_mw = 0;
 	u32 num_bound_mw = 0;
 	u32 start_cid;
@@ -1863,35 +1864,39 @@ static int qed_roce_destroy_qp(struct qed_hwfn *p_hwfn, struct qed_rdma_qp *qp)
 		return -EINVAL;
 	}
 
-	rc = qed_roce_sp_destroy_qp_responder(p_hwfn, qp, &num_invalidated_mw);
-	if (rc)
-		return rc;
+	if (qp->cur_state != QED_ROCE_QP_STATE_RESET) {
+		rc = qed_roce_sp_destroy_qp_responder(p_hwfn, qp,
+						      &num_invalidated_mw);
+		if (rc)
+			return rc;
 
-	/* Send destroy requester ramrod */
-	rc = qed_roce_sp_destroy_qp_requester(p_hwfn, qp, &num_bound_mw);
-	if (rc)
-		return rc;
+		/* Send destroy requester ramrod */
+		rc = qed_roce_sp_destroy_qp_requester(p_hwfn, qp,
+						      &num_bound_mw);
+		if (rc)
+			return rc;
 
-	if (num_invalidated_mw != num_bound_mw) {
-		DP_NOTICE(p_hwfn,
-			  "number of invalidate memory windows is different from bounded ones\n");
-		return -EINVAL;
+		if (num_invalidated_mw != num_bound_mw) {
+			DP_NOTICE(p_hwfn,
+				  "number of invalidate memory windows is different from bounded ones\n");
+			return -EINVAL;
+		}
+
+		spin_lock_bh(&p_rdma_info->lock);
+
+		start_cid = qed_cxt_get_proto_cid_start(p_hwfn,
+							p_rdma_info->proto);
+
+		/* Release responder's icid */
+		qed_bmap_release_id(p_hwfn, &p_rdma_info->cid_map,
+				    qp->icid - start_cid);
+
+		/* Release requester's icid */
+		qed_bmap_release_id(p_hwfn, &p_rdma_info->cid_map,
+				    qp->icid + 1 - start_cid);
+
+		spin_unlock_bh(&p_rdma_info->lock);
 	}
-
-	spin_lock_bh(&p_hwfn->p_rdma_info->lock);
-
-	start_cid = qed_cxt_get_proto_cid_start(p_hwfn,
-						p_hwfn->p_rdma_info->proto);
-
-	/* Release responder's icid */
-	qed_bmap_release_id(p_hwfn, &p_hwfn->p_rdma_info->cid_map,
-			    qp->icid - start_cid);
-
-	/* Release requester's icid */
-	qed_bmap_release_id(p_hwfn, &p_hwfn->p_rdma_info->cid_map,
-			    qp->icid + 1 - start_cid);
-
-	spin_unlock_bh(&p_hwfn->p_rdma_info->lock);
 
 	return 0;
 }
