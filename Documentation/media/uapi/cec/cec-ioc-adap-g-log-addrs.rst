@@ -351,3 +351,16 @@ On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
+The :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>` can return the following
+error codes:
+
+ENOTTY
+    The ``CEC_CAP_LOG_ADDRS`` capability wasn't set, so this ioctl is not supported.
+
+EBUSY
+    The CEC adapter is currently configuring itself, or it is already configured and
+    ``num_log_addrs`` is non-zero, or another filehandle is in exclusive follower or
+    initiator mode, or the filehandle is in mode ``CEC_MODE_NO_INITIATOR``.
+
+EINVAL
+    The contents of struct :c:type:`cec_log_addrs` is invalid.

@@ -289,3 +289,40 @@ Return Value
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
+
+The :ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>` can return the following
+error codes:
+
+EAGAIN
+    No messages are in the receive queue, and the filehandle is in non-blocking mode.
+
+ETIMEDOUT
+    The ``timeout`` was reached while waiting for a message.
+
+ERESTARTSYS
+    The wait for a message was interrupted (e.g. by Ctrl-C).
+
+The :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` can return the following
+error codes:
+
+ENOTTY
+    The ``CEC_CAP_TRANSMIT`` capability wasn't set, so this ioctl is not supported.
+
+EPERM
+    The CEC adapter is not configured, i.e. :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
+    has never been called.
+
+ENONET
+    The CEC adapter is not configured, i.e. :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
+    was called, but the physical address is invalid so no logical address was claimed.
+
+EBUSY
+    Another filehandle is in exclusive follower or initiator mode, or the filehandle
+    is in mode ``CEC_MODE_NO_INITIATOR``. This is also returned if the transmit
+    queue is full.
+
+EINVAL
+    The contents of struct :c:type:`cec_msg` is invalid.
+
+ERESTARTSYS
+    The wait for a successful transmit was interrupted (e.g. by Ctrl-C).
