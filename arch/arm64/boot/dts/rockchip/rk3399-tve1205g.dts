@@ -43,7 +43,7 @@
 /dts-v1/;
 #include <dt-bindings/pinctrl/rk.h>
 #include "rk3399.dtsi"
-#include "rk3399-android-next.dtsi"
+#include "rk3399-android.dtsi"
 #include "rk3399-opp.dtsi"
 #include <dt-bindings/sensor-dev.h>
 #include <dt-bindings/pwm/pwm.h>

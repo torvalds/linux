@@ -43,7 +43,7 @@
 /dts-v1/;
 
 #include "rk3399-evb-rev3.dtsi"
-#include "rk3399-android-next.dtsi"
+#include "rk3399-android.dtsi"
 
 / {
 	model = "Rockchip RK3399 Evaluation Board v3 edp (Android)";

@@ -42,58 +42,89 @@
 
 /dts-v1/;
 
-#include "rk3399-evb-rev1.dtsi"
-#include "rk3399-android-next.dtsi"
+#include "rk3399-excavator-sapphire.dtsi"
+#include "rk3399-android.dtsi"
 
 / {
-	model = "Rockchip RK3399 Evaluation Board v1 (Android)";
-	compatible = "rockchip,android", "rockchip,rk3399-evb-rev1", "rockchip,rk3399";
-};
+	model = "Rockchip RK3399 Excavator Board edp (Android)";
+	compatible = "rockchip,android", "rockchip,rk3399-excavator-edp-next", "rockchip,rk3399";
 
-&vdd_log {
-	rockchip,pwm_id= <2>;
-	rockchip,pwm_voltage = <900000>;
-};
-
-&vdd_center {
-	rockchip,pwm_id= <3>;
-	rockchip,pwm_voltage = <900000>;
-};
-
-&mipi_dsi {
-	status = "okay";
-	panel {
-		compatible ="simple-panel-dsi";
-		reg = <0>;
+	edp_panel: edp-panel {
+		compatible = "lg,lp079qx1-sp0v", "panel-simple";
 		backlight = <&backlight>;
-		enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
-		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-				MIPI_DSI_MODE_VIDEO_SYNC_PULSE)>;
-		dsi,format = <MIPI_DSI_FMT_RGB888>;
-		dsi,lanes = <4>;
-		status = "okay";
+		power-supply = <&vcc3v3_s0>;
+		enable-gpios = <&gpio4 30 GPIO_ACTIVE_HIGH>;
 
-		display-timings {
-			native-mode = <&timing0>;
-			timing0: timing0 {
-				clock-frequency = <160000000>;
-				hactive = <1200>;
-				vactive = <1920>;
-				hback-porch = <21>;
-				hfront-porch = <120>;
-				vback-porch = <18>;
-				vfront-porch = <21>;
-				hsync-len = <20>;
-				vsync-len = <3>;
-				hsync-active = <0>;
-				vsync-active = <0>;
-				de-active = <0>;
-				pixelclk-active = <0>;
+		ports {
+			panel_in_edp: endpoint {
+				remote-endpoint = <&edp_out_panel>;
+			};
+		};
+	};
+
+	test-power {
+		status = "okay";
+	};
+};
+
+&backlight {
+	status = "okay";
+};
+
+&i2s2 {
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+
+	gsl3673: gsl3673@40 {
+		compatible = "GSL,GSL3673";
+		reg = <0x40>;
+		screen_max_x = <1536>;
+		screen_max_y = <2048>;
+		irq_gpio_number = <&gpio1 20 IRQ_TYPE_LEVEL_LOW>;
+		rst_gpio_number = <&gpio4 22 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&edp {
+	status = "okay";
+
+	ports {
+		edp_out: port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			edp_out_panel: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&panel_in_edp>;
 			};
 		};
 	};
 };
 
-&route_mipi {
+&pinctrl {
+	lcd-panel {
+		lcd_panel_reset: lcd-panel-reset {
+			rockchip,pins = <4 30 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
+
+&backlight{
+	enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
+};
+
+&route_edp {
+	status = "okay";
+};
+
+&vpu {
+	status = "okay";
+};
+
+&rkvdec {
 	status = "okay";
 };

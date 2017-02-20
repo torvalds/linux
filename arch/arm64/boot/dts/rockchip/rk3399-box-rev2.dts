@@ -41,70 +41,112 @@
  */
 
 /dts-v1/;
-
-#include "rk3399-evb-rev2.dtsi"
-#include "rk3399-android-next.dtsi"
+#include "rk3399-box.dtsi"
 
 / {
-	model = "Rockchip RK3399 Evaluation Board v2 (Android)";
-	compatible = "rockchip,android", "rockchip,rk3399-evb-rev2", "rockchip,rk3399";
+	model = "Rockchip RK3399 Board rev2 (BOX)";
+	compatible = "rockchip-box-rev2","rockchip,rk3399-box";
 };
 
-&vdd_center {
-	rockchip,pwm_id= <3>;
-	rockchip,pwm_voltage = <900000>;
-};
+&pinctrl {
+	sdio0 {
+		sdio0_bus1: sdio0-bus1 {
+			rockchip,pins =
+				<2 20 RK_FUNC_1 &pcfg_pull_up_20ma>;
+		};
 
-&i2s2 {
-	status = "okay";
-};
+		sdio0_bus4: sdio0-bus4 {
+			rockchip,pins =
+				<2 20 RK_FUNC_1 &pcfg_pull_up_20ma>,
+				<2 21 RK_FUNC_1 &pcfg_pull_up_20ma>,
+				<2 22 RK_FUNC_1 &pcfg_pull_up_20ma>,
+				<2 23 RK_FUNC_1 &pcfg_pull_up_20ma>;
+		};
 
-&spdif {
-	status = "okay";
-};
+		sdio0_cmd: sdio0-cmd {
+			rockchip,pins =
+				<2 24 RK_FUNC_1 &pcfg_pull_up_20ma>;
+		};
 
-&spdif_out {
-	status = "okay";
-};
+		sdio0_clk: sdio0-clk {
+			rockchip,pins =
+				<2 25 RK_FUNC_1 &pcfg_pull_none_20ma>;
+		};
+	};
 
-&spdif_sound {
-	status = "okay";
-};
+	sdmmc {
+		sdmmc_bus1: sdmmc-bus1 {
+			rockchip,pins =
+				<4 8 RK_FUNC_1 &pcfg_pull_up_8ma>;
+		};
 
-&mipi_dsi {
-	status = "okay";
-	panel {
-		compatible ="simple-panel-dsi";
-		reg = <0>;
-		backlight = <&backlight>;
-		enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
-		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-				MIPI_DSI_MODE_VIDEO_SYNC_PULSE)>;
-		dsi,format = <MIPI_DSI_FMT_RGB888>;
-		dsi,lanes = <4>;
-		status = "okay";
+		sdmmc_bus4: sdmmc-bus4 {
+			rockchip,pins =
+				<4 8 RK_FUNC_1 &pcfg_pull_up_8ma>,
+				<4 9 RK_FUNC_1 &pcfg_pull_up_8ma>,
+				<4 10 RK_FUNC_1 &pcfg_pull_up_8ma>,
+				<4 11 RK_FUNC_1 &pcfg_pull_up_8ma>;
+		};
 
-		display-timings {
-			native-mode = <&timing0>;
-			timing0: timing0 {
-				clock-frequency = <160000000>;
-				hactive = <1200>;
-				vactive = <1920>;
-				hback-porch = <21>;
-				hfront-porch = <120>;
-				vback-porch = <18>;
-				vfront-porch = <21>;
-				hsync-len = <20>;
-				vsync-len = <3>;
-				hsync-active = <0>;
-				vsync-active = <0>;
-				de-active = <0>;
-				pixelclk-active = <0>;
-			};
+		sdmmc_clk: sdmmc-clk {
+			rockchip,pins =
+				<4 12 RK_FUNC_1 &pcfg_pull_none_18ma>;
+		};
+
+		sdmmc_cmd: sdmmc-cmd {
+			rockchip,pins =
+				<4 13 RK_FUNC_1 &pcfg_pull_up_8ma>;
+		};
+	};
+
+	fusb30x {
+		fusb0_int: fusb0-int {
+			rockchip,pins =
+				<1 2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	pmic {
+		vsel1_gpio: vsel1-gpio {
+			rockchip,pins =
+				<1 18 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };
 
-&route_mipi {
+&i2c4 {
 	status = "okay";
+	fusb0: fusb30x@22 {
+		compatible = "fairchild,fusb302";
+		reg = <0x22>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&fusb0_int>;
+		vbus-5v-gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
+		int-n-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+};
+
+&cdn_dp {
+	status = "okay";
+	extcon = <&fusb0>;
+};
+
+&hdmi_in_vopl {
+	status = "disabled";
+};
+
+&dp_in_vopb {
+	status = "disabled";
+};
+
+&vdd_cpu_b {
+	vsel-gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
+	fcs,suspend-voltage-selector = <0>;
+};
+
+&rockchip_suspend {
+	rockchip,power-ctrl =
+		<&gpio1 18 GPIO_ACTIVE_LOW>,
+		<&gpio1 14 GPIO_ACTIVE_HIGH>;
 };
