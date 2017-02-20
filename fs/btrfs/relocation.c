@@ -1714,8 +1714,8 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 				if (!ret)
 					continue;
 
-				btrfs_drop_extent_cache(inode, key.offset, end,
-							1);
+				btrfs_drop_extent_cache(BTRFS_I(inode),
+						key.offset,	end, 1);
 				unlock_extent(&BTRFS_I(inode)->io_tree,
 					      key.offset, end);
 			}
@@ -2130,7 +2130,7 @@ static int invalidate_extent_cache(struct btrfs_root *root,
 
 		/* the lock_extent waits for readpage to complete */
 		lock_extent(&BTRFS_I(inode)->io_tree, start, end);
-		btrfs_drop_extent_cache(inode, start, end, 1);
+		btrfs_drop_extent_cache(BTRFS_I(inode), start, end, 1);
 		unlock_extent(&BTRFS_I(inode)->io_tree, start, end);
 	}
 	return 0;
@@ -3161,7 +3161,7 @@ int setup_extent_mapping(struct inode *inode, u64 start, u64 end,
 			free_extent_map(em);
 			break;
 		}
-		btrfs_drop_extent_cache(inode, start, end, 0);
+		btrfs_drop_extent_cache(BTRFS_I(inode), start, end, 0);
 	}
 	unlock_extent(&BTRFS_I(inode)->io_tree, start, end);
 	return ret;

@@ -529,13 +529,13 @@ int btrfs_dirty_pages(struct inode *inode, struct page **pages,
  * this drops all the extents in the cache that intersect the range
  * [start, end].  Existing extents are split as required.
  */
-void btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
+void btrfs_drop_extent_cache(struct btrfs_inode *inode, u64 start, u64 end,
 			     int skip_pinned)
 {
 	struct extent_map *em;
 	struct extent_map *split = NULL;
 	struct extent_map *split2 = NULL;
-	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
+	struct extent_map_tree *em_tree = &inode->extent_tree;
 	u64 len = end - start + 1;
 	u64 gen;
 	int ret;
@@ -720,7 +720,7 @@ int __btrfs_drop_extents(struct btrfs_trans_handle *trans,
 	int leafs_visited = 0;
 
 	if (drop_cache)
-		btrfs_drop_extent_cache(inode, start, end - 1, 0);
+		btrfs_drop_extent_cache(BTRFS_I(inode), start, end - 1, 0);
 
 	if (start >= BTRFS_I(inode)->disk_i_size && !replace_extent)
 		modify_tree = 0;
@@ -2297,7 +2297,7 @@ out:
 
 	hole_em = alloc_extent_map();
 	if (!hole_em) {
-		btrfs_drop_extent_cache(inode, offset, end - 1, 0);
+		btrfs_drop_extent_cache(BTRFS_I(inode), offset, end - 1, 0);
 		set_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
 			&BTRFS_I(inode)->runtime_flags);
 	} else {
@@ -2314,7 +2314,8 @@ out:
 		hole_em->generation = trans->transid;
 
 		do {
-			btrfs_drop_extent_cache(inode, offset, end - 1, 0);
+			btrfs_drop_extent_cache(BTRFS_I(inode), offset,
+					end - 1, 0);
 			write_lock(&em_tree->lock);
 			ret = add_extent_mapping(em_tree, hole_em, 1);
 			write_unlock(&em_tree->lock);

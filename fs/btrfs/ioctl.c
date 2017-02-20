@@ -3359,7 +3359,7 @@ static void clone_update_extent_map(struct inode *inode,
 			free_extent_map(em);
 			break;
 		}
-		btrfs_drop_extent_cache(inode, em->start,
+		btrfs_drop_extent_cache(BTRFS_I(inode), em->start,
 					em->start + em->len - 1, 0);
 	}
 
