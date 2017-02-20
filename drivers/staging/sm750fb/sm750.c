@@ -954,23 +954,23 @@ static void sm750fb_setup(struct sm750_dev *sm750_dev, char *src)
 		dev_info(&sm750_dev->pdev->dev, "opt=%s\n", opt);
 		dev_info(&sm750_dev->pdev->dev, "src=%s\n", src);
 
-		if (!strncmp(opt, "swap", strlen("swap")))
+		if (!strncmp(opt, "swap", strlen("swap"))) {
 			swap = 1;
-		else if (!strncmp(opt, "nocrt", strlen("nocrt")))
+		} else if (!strncmp(opt, "nocrt", strlen("nocrt"))) {
 			sm750_dev->nocrt = 1;
-		else if (!strncmp(opt, "36bit", strlen("36bit")))
+		} else if (!strncmp(opt, "36bit", strlen("36bit"))) {
 			sm750_dev->pnltype = sm750_doubleTFT;
-		else if (!strncmp(opt, "18bit", strlen("18bit")))
+		} else if (!strncmp(opt, "18bit", strlen("18bit"))) {
 			sm750_dev->pnltype = sm750_dualTFT;
-		else if (!strncmp(opt, "24bit", strlen("24bit")))
+		} else if (!strncmp(opt, "24bit", strlen("24bit"))) {
 			sm750_dev->pnltype = sm750_24TFT;
-		else if (!strncmp(opt, "nohwc0", strlen("nohwc0")))
+		} else if (!strncmp(opt, "nohwc0", strlen("nohwc0"))) {
 			g_hwcursor &= ~0x1;
-		else if (!strncmp(opt, "nohwc1", strlen("nohwc1")))
+		} else if (!strncmp(opt, "nohwc1", strlen("nohwc1"))) {
 			g_hwcursor &= ~0x2;
-		else if (!strncmp(opt, "nohwc", strlen("nohwc")))
+		} else if (!strncmp(opt, "nohwc", strlen("nohwc"))) {
 			g_hwcursor = 0;
-		else {
+		} else {
 			if (!g_fbmode[0]) {
 				g_fbmode[0] = opt;
 				dev_info(&sm750_dev->pdev->dev,
@@ -1168,13 +1168,13 @@ static int __init lynxfb_setup(char *options)
 	 */
 	while ((opt = strsep(&options, ":")) != NULL) {
 		/* options that mean for any lynx chips are configured here */
-		if (!strncmp(opt, "noaccel", strlen("noaccel")))
+		if (!strncmp(opt, "noaccel", strlen("noaccel"))) {
 			g_noaccel = 1;
-		else if (!strncmp(opt, "nomtrr", strlen("nomtrr")))
+		} else if (!strncmp(opt, "nomtrr", strlen("nomtrr"))) {
 			g_nomtrr = 1;
-		else if (!strncmp(opt, "dual", strlen("dual")))
+		} else if (!strncmp(opt, "dual", strlen("dual"))) {
 			g_dualview = 1;
-		else {
+		} else {
 			strcat(tmp, opt);
 			tmp += strlen(opt);
 			if (options)
