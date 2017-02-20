@@ -6862,7 +6862,8 @@ next:
 		goto not_found_em;
 	}
 
-	btrfs_extent_item_to_extent_map(inode, path, item, new_inline, em);
+	btrfs_extent_item_to_extent_map(BTRFS_I(inode), path, item,
+			new_inline, em);
 
 	if (found_type == BTRFS_FILE_EXTENT_REG ||
 	    found_type == BTRFS_FILE_EXTENT_PREALLOC) {
