@@ -3880,6 +3880,7 @@ static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
 	stats->last_rate = sta_stats_encode_rate(status);
 
 	stats->fragments++;
+	stats->packets++;
 
 	if (!(status->flag & RX_FLAG_NO_SIGNAL_VAL)) {
 		stats->last_signal = status->signal;
