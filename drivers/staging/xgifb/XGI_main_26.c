@@ -1480,9 +1480,9 @@ static void XGIfb_detect_VB(struct xgifb_video_info *xgifb_info)
 
 	cr32 = xgifb_reg_get(XGICR, IND_XGI_SCRATCH_REG_CR32);
 
-	if ((cr32 & SIS_CRT1) && !XGIfb_crt1off)
+	if ((cr32 & SIS_CRT1) && !XGIfb_crt1off) {
 		XGIfb_crt1off = 0;
-	else {
+	} else {
 		if (cr32 & 0x5F)
 			XGIfb_crt1off = 1;
 		else
@@ -1500,18 +1500,19 @@ static void XGIfb_detect_VB(struct xgifb_video_info *xgifb_info)
 			xgifb_info->display2 = XGIFB_DISP_NONE;
 	}
 
-	if (XGIfb_tvplug != -1)
+	if (XGIfb_tvplug != -1) {
 		/* Override with option */
 		xgifb_info->TV_plug = XGIfb_tvplug;
-	else if (cr32 & SIS_VB_HIVISION) {
+	} else if (cr32 & SIS_VB_HIVISION) {
 		xgifb_info->TV_type = TVMODE_HIVISION;
 		xgifb_info->TV_plug = TVPLUG_SVIDEO;
-	} else if (cr32 & SIS_VB_SVIDEO)
+	} else if (cr32 & SIS_VB_SVIDEO) {
 		xgifb_info->TV_plug = TVPLUG_SVIDEO;
-	else if (cr32 & SIS_VB_COMPOSITE)
+	} else if (cr32 & SIS_VB_COMPOSITE) {
 		xgifb_info->TV_plug = TVPLUG_COMPOSITE;
-	else if (cr32 & SIS_VB_SCART)
+	} else if (cr32 & SIS_VB_SCART) {
 		xgifb_info->TV_plug = TVPLUG_SCART;
+	}
 
 	if (xgifb_info->TV_type == 0) {
 		temp = xgifb_reg_get(XGICR, 0x38);
