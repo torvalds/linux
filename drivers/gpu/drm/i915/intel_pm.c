@@ -4914,10 +4914,6 @@ static u32 gen6_rps_pm_mask(struct drm_i915_private *dev_priv, u8 val)
  * update the GEN6_RP_INTERRUPT_LIMITS register accordingly. */
 static int gen6_set_rps(struct drm_i915_private *dev_priv, u8 val)
 {
-	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
-	WARN_ON(val > dev_priv->rps.max_freq);
-	WARN_ON(val < dev_priv->rps.min_freq);
-
 	/* min/max delay may still have been modified so be sure to
 	 * write the limits value.
 	 */
@@ -4954,10 +4950,6 @@ static int gen6_set_rps(struct drm_i915_private *dev_priv, u8 val)
 static int valleyview_set_rps(struct drm_i915_private *dev_priv, u8 val)
 {
 	int err;
-
-	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
-	WARN_ON(val > dev_priv->rps.max_freq);
-	WARN_ON(val < dev_priv->rps.min_freq);
 
 	if (WARN_ONCE(IS_CHERRYVIEW(dev_priv) && (val & 1),
 		      "Odd GPU freq value\n"))
@@ -5108,6 +5100,10 @@ void gen6_rps_boost(struct drm_i915_private *dev_priv,
 int intel_set_rps(struct drm_i915_private *dev_priv, u8 val)
 {
 	int err;
+
+	lockdep_assert_held(&dev_priv->rps.hw_lock);
+	GEM_BUG_ON(val > dev_priv->rps.max_freq);
+	GEM_BUG_ON(val < dev_priv->rps.min_freq);
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		err = valleyview_set_rps(dev_priv, val);
