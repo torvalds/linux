@@ -6081,27 +6081,27 @@ out_fail:
  * once we complete IO for a given set of bytes to release their metadata
  * reservations.
  */
-void btrfs_delalloc_release_metadata(struct inode *inode, u64 num_bytes)
+void btrfs_delalloc_release_metadata(struct btrfs_inode *inode, u64 num_bytes)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
 	u64 to_free = 0;
 	unsigned dropped;
 
 	num_bytes = ALIGN(num_bytes, fs_info->sectorsize);
-	spin_lock(&BTRFS_I(inode)->lock);
-	dropped = drop_outstanding_extent(BTRFS_I(inode), num_bytes);
+	spin_lock(&inode->lock);
+	dropped = drop_outstanding_extent(inode, num_bytes);
 
 	if (num_bytes)
-		to_free = calc_csum_metadata_size(BTRFS_I(inode), num_bytes, 0);
-	spin_unlock(&BTRFS_I(inode)->lock);
+		to_free = calc_csum_metadata_size(inode, num_bytes, 0);
+	spin_unlock(&inode->lock);
 	if (dropped > 0)
 		to_free += btrfs_calc_trans_metadata_size(fs_info, dropped);
 
 	if (btrfs_is_testing(fs_info))
 		return;
 
-	trace_btrfs_space_reservation(fs_info, "delalloc",
-				      btrfs_ino(BTRFS_I(inode)), to_free, 0);
+	trace_btrfs_space_reservation(fs_info, "delalloc", btrfs_ino(inode),
+				      to_free, 0);
 
 	btrfs_block_rsv_release(fs_info, &fs_info->delalloc_block_rsv, to_free);
 }
@@ -6159,7 +6159,7 @@ int btrfs_delalloc_reserve_space(struct inode *inode, u64 start, u64 len)
  */
 void btrfs_delalloc_release_space(struct inode *inode, u64 start, u64 len)
 {
-	btrfs_delalloc_release_metadata(inode, len);
+	btrfs_delalloc_release_metadata(BTRFS_I(inode), len);
 	btrfs_free_reserved_data_space(inode, start, len);
 }
 

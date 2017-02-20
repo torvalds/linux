@@ -1678,7 +1678,7 @@ again:
 				spin_unlock(&BTRFS_I(inode)->lock);
 			}
 			if (only_release_metadata) {
-				btrfs_delalloc_release_metadata(inode,
+				btrfs_delalloc_release_metadata(BTRFS_I(inode),
 								release_bytes);
 			} else {
 				u64 __pos;
@@ -1739,7 +1739,8 @@ again:
 	if (release_bytes) {
 		if (only_release_metadata) {
 			btrfs_end_write_no_snapshoting(root);
-			btrfs_delalloc_release_metadata(inode, release_bytes);
+			btrfs_delalloc_release_metadata(BTRFS_I(inode),
+					release_bytes);
 		} else {
 			btrfs_delalloc_release_space(inode,
 						round_down(pos, fs_info->sectorsize),
