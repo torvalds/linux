@@ -3237,7 +3237,7 @@ int btrfs_orphan_add(struct btrfs_trans_handle *trans, struct inode *inode)
 			if (reserve) {
 				clear_bit(BTRFS_INODE_ORPHAN_META_RESERVED,
 					  &BTRFS_I(inode)->runtime_flags);
-				btrfs_orphan_release_metadata(inode);
+				btrfs_orphan_release_metadata(BTRFS_I(inode));
 			}
 			if (ret != -EEXIST) {
 				clear_bit(BTRFS_INODE_HAS_ORPHAN_ITEM,
@@ -3291,7 +3291,7 @@ static int btrfs_orphan_del(struct btrfs_trans_handle *trans,
 	}
 
 	if (release_rsv)
-		btrfs_orphan_release_metadata(inode);
+		btrfs_orphan_release_metadata(BTRFS_I(inode));
 
 	return ret;
 }
