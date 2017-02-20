@@ -85,7 +85,7 @@ void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 	ht_dbg(sta->sdata,
 	       "Rx BA session stop requested for %pM tid %u %s reason: %d\n",
 	       sta->sta.addr, tid,
-	       initiator == WLAN_BACK_RECIPIENT ? "recipient" : "inititator",
+	       initiator == WLAN_BACK_RECIPIENT ? "recipient" : "initiator",
 	       (int)reason);
 
 	if (drv_ampdu_action(local, sta->sdata, &params))
