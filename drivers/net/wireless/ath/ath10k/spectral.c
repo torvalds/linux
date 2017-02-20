@@ -536,15 +536,15 @@ int ath10k_spectral_create(struct ath10k *ar)
 						     1140, 2500,
 						     &rfs_spec_scan_cb, NULL);
 	debugfs_create_file("spectral_scan_ctl",
-			    S_IRUSR | S_IWUSR,
+			    0600,
 			    ar->debug.debugfs_phy, ar,
 			    &fops_spec_scan_ctl);
 	debugfs_create_file("spectral_count",
-			    S_IRUSR | S_IWUSR,
+			    0600,
 			    ar->debug.debugfs_phy, ar,
 			    &fops_spectral_count);
 	debugfs_create_file("spectral_bins",
-			    S_IRUSR | S_IWUSR,
+			    0600,
 			    ar->debug.debugfs_phy, ar,
 			    &fops_spectral_bins);
 

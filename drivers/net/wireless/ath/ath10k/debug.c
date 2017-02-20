@@ -2444,86 +2444,82 @@ int ath10k_debug_register(struct ath10k *ar)
 	init_completion(&ar->debug.tpc_complete);
 	init_completion(&ar->debug.fw_stats_complete);
 
-	debugfs_create_file("fw_stats", S_IRUSR, ar->debug.debugfs_phy, ar,
+	debugfs_create_file("fw_stats", 0400, ar->debug.debugfs_phy, ar,
 			    &fops_fw_stats);
 
-	debugfs_create_file("fw_reset_stats", S_IRUSR, ar->debug.debugfs_phy,
-			    ar, &fops_fw_reset_stats);
+	debugfs_create_file("fw_reset_stats", 0400, ar->debug.debugfs_phy, ar,
+			    &fops_fw_reset_stats);
 
-	debugfs_create_file("wmi_services", S_IRUSR, ar->debug.debugfs_phy, ar,
+	debugfs_create_file("wmi_services", 0400, ar->debug.debugfs_phy, ar,
 			    &fops_wmi_services);
 
-	debugfs_create_file("simulate_fw_crash", S_IRUSR | S_IWUSR,
-			    ar->debug.debugfs_phy, ar, &fops_simulate_fw_crash);
+	debugfs_create_file("simulate_fw_crash", 0600, ar->debug.debugfs_phy, ar,
+			    &fops_simulate_fw_crash);
 
-	debugfs_create_file("fw_crash_dump", S_IRUSR, ar->debug.debugfs_phy,
-			    ar, &fops_fw_crash_dump);
+	debugfs_create_file("fw_crash_dump", 0400, ar->debug.debugfs_phy, ar,
+			    &fops_fw_crash_dump);
 
-	debugfs_create_file("reg_addr", S_IRUSR | S_IWUSR,
-			    ar->debug.debugfs_phy, ar, &fops_reg_addr);
+	debugfs_create_file("reg_addr", 0600, ar->debug.debugfs_phy, ar,
+			    &fops_reg_addr);
 
-	debugfs_create_file("reg_value", S_IRUSR | S_IWUSR,
-			    ar->debug.debugfs_phy, ar, &fops_reg_value);
+	debugfs_create_file("reg_value", 0600, ar->debug.debugfs_phy, ar,
+			    &fops_reg_value);
 
-	debugfs_create_file("mem_value", S_IRUSR | S_IWUSR,
-			    ar->debug.debugfs_phy, ar, &fops_mem_value);
+	debugfs_create_file("mem_value", 0600, ar->debug.debugfs_phy, ar,
+			    &fops_mem_value);
 
-	debugfs_create_file("chip_id", S_IRUSR, ar->debug.debugfs_phy,
-			    ar, &fops_chip_id);
+	debugfs_create_file("chip_id", 0400, ar->debug.debugfs_phy, ar,
+			    &fops_chip_id);
 
-	debugfs_create_file("htt_stats_mask", S_IRUSR | S_IWUSR,
-			    ar->debug.debugfs_phy, ar, &fops_htt_stats_mask);
+	debugfs_create_file("htt_stats_mask", 0600, ar->debug.debugfs_phy, ar,
+			    &fops_htt_stats_mask);
 
-	debugfs_create_file("htt_max_amsdu_ampdu", S_IRUSR | S_IWUSR,
-			    ar->debug.debugfs_phy, ar,
+	debugfs_create_file("htt_max_amsdu_ampdu", 0600, ar->debug.debugfs_phy, ar,
 			    &fops_htt_max_amsdu_ampdu);
 
-	debugfs_create_file("fw_dbglog", S_IRUSR | S_IWUSR,
-			    ar->debug.debugfs_phy, ar, &fops_fw_dbglog);
+	debugfs_create_file("fw_dbglog", 0600, ar->debug.debugfs_phy, ar,
+			    &fops_fw_dbglog);
 
-	debugfs_create_file("cal_data", S_IRUSR, ar->debug.debugfs_phy,
-			    ar, &fops_cal_data);
+	debugfs_create_file("cal_data", 0400, ar->debug.debugfs_phy, ar,
+			    &fops_cal_data);
 
-	debugfs_create_file("ani_enable", S_IRUSR | S_IWUSR,
-			    ar->debug.debugfs_phy, ar, &fops_ani_enable);
+	debugfs_create_file("ani_enable", 0600, ar->debug.debugfs_phy, ar,
+			    &fops_ani_enable);
 
-	debugfs_create_file("nf_cal_period", S_IRUSR | S_IWUSR,
-			    ar->debug.debugfs_phy, ar, &fops_nf_cal_period);
+	debugfs_create_file("nf_cal_period", 0600, ar->debug.debugfs_phy, ar,
+			    &fops_nf_cal_period);
 
 	if (IS_ENABLED(CONFIG_ATH10K_DFS_CERTIFIED)) {
-		debugfs_create_file("dfs_simulate_radar", S_IWUSR,
-				    ar->debug.debugfs_phy, ar,
-				    &fops_simulate_radar);
+		debugfs_create_file("dfs_simulate_radar", 0200, ar->debug.debugfs_phy,
+				    ar, &fops_simulate_radar);
 
-		debugfs_create_bool("dfs_block_radar_events", S_IWUSR,
+		debugfs_create_bool("dfs_block_radar_events", 0200,
 				    ar->debug.debugfs_phy,
 				    &ar->dfs_block_radar_events);
 
-		debugfs_create_file("dfs_stats", S_IRUSR,
-				    ar->debug.debugfs_phy, ar,
+		debugfs_create_file("dfs_stats", 0400, ar->debug.debugfs_phy, ar,
 				    &fops_dfs_stats);
 	}
 
-	debugfs_create_file("pktlog_filter", S_IRUGO | S_IWUSR,
-			    ar->debug.debugfs_phy, ar, &fops_pktlog_filter);
+	debugfs_create_file("pktlog_filter", 0644, ar->debug.debugfs_phy, ar,
+			    &fops_pktlog_filter);
 
-	debugfs_create_file("quiet_period", S_IRUGO | S_IWUSR,
-			    ar->debug.debugfs_phy, ar, &fops_quiet_period);
+	debugfs_create_file("quiet_period", 0644, ar->debug.debugfs_phy, ar,
+			    &fops_quiet_period);
 
-	debugfs_create_file("tpc_stats", S_IRUSR,
-			    ar->debug.debugfs_phy, ar, &fops_tpc_stats);
+	debugfs_create_file("tpc_stats", 0400, ar->debug.debugfs_phy, ar,
+			    &fops_tpc_stats);
 
 	if (test_bit(WMI_SERVICE_COEX_GPIO, ar->wmi.svc_map))
-		debugfs_create_file("btcoex", S_IRUGO | S_IWUSR,
-				    ar->debug.debugfs_phy, ar, &fops_btcoex);
+		debugfs_create_file("btcoex", 0644, ar->debug.debugfs_phy, ar,
+				    &fops_btcoex);
 
 	if (test_bit(WMI_SERVICE_PEER_STATS, ar->wmi.svc_map))
-		debugfs_create_file("peer_stats", S_IRUGO | S_IWUSR,
-				    ar->debug.debugfs_phy, ar,
+		debugfs_create_file("peer_stats", 0644, ar->debug.debugfs_phy, ar,
 				    &fops_peer_stats);
 
-	debugfs_create_file("fw_checksums", S_IRUSR,
-			    ar->debug.debugfs_phy, ar, &fops_fw_checksums);
+	debugfs_create_file("fw_checksums", 0400, ar->debug.debugfs_phy, ar,
+			    &fops_fw_checksums);
 
 	return 0;
 }

@@ -124,7 +124,7 @@ void ath10k_thermal_event_temperature(struct ath10k *ar, int temperature)
 	complete(&ar->thermal.wmi_sync);
 }
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, ath10k_thermal_show_temp,
+static SENSOR_DEVICE_ATTR(temp1_input, 0444, ath10k_thermal_show_temp,
 			  NULL, 0);
 
 static struct attribute *ath10k_hwmon_attrs[] = {
