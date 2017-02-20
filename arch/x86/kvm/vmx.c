@@ -2067,24 +2067,23 @@ static unsigned long segment_base(u16 selector)
 {
 	struct desc_ptr *gdt = this_cpu_ptr(&host_gdt);
 	struct desc_struct *d;
-	unsigned long table_base;
+	struct desc_struct *table;
 	unsigned long v;
 
-	if (!(selector & ~3))
+	if (!(selector & ~SEGMENT_RPL_MASK))
 		return 0;
 
-	table_base = gdt->address;
+	table = (struct desc_struct *)gdt->address;
 
-	if (selector & 4) {           /* from ldt */
+	if ((selector & SEGMENT_TI_MASK) == SEGMENT_LDT) {
 		u16 ldt_selector = kvm_read_ldt();
 
-		if (!(ldt_selector & ~3))
+		if (!(ldt_selector & ~SEGMENT_RPL_MASK))
 			return 0;
 
-		table_base = segment_base(ldt_selector);
+		table = (struct desc_struct *)segment_base(ldt_selector);
 	}
-	d = (struct desc_struct *)(table_base + (selector & ~7));
-	v = get_desc_base(d);
+	v = get_desc_base(&table[selector >> 3]);
 	return v;
 }
 #endif
