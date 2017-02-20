@@ -261,15 +261,15 @@ int aq_nic_ndev_register(struct aq_nic_s *self)
 		ether_addr_copy(self->ndev->dev_addr, mac_addr_permanent);
 	}
 #endif
-	err = register_netdev(self->ndev);
-	if (err < 0)
-		goto err_exit;
 
-	self->is_ndev_registered = true;
 	netif_carrier_off(self->ndev);
 
 	for (i = AQ_CFG_VECS_MAX; i--;)
 		aq_nic_ndev_queue_stop(self, i);
+
+	err = register_netdev(self->ndev);
+	if (err < 0)
+		goto err_exit;
 
 err_exit:
 	return err;
@@ -293,7 +293,7 @@ void aq_nic_ndev_free(struct aq_nic_s *self)
 	if (!self->ndev)
 		goto err_exit;
 
-	if (self->is_ndev_registered)
+	if (self->ndev->reg_state == NETREG_REGISTERED)
 		unregister_netdev(self->ndev);
 
 	if (self->aq_hw)
