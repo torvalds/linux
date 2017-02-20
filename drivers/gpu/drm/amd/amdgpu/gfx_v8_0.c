@@ -1395,7 +1395,6 @@ static int gfx_v8_0_kiq_init_ring(struct amdgpu_device *adev,
 		ring->pipe = 1;
 	}
 
-	irq->data = ring;
 	ring->queue = 0;
 	sprintf(ring->name, "kiq %d.%d.%d", ring->me, ring->pipe, ring->queue);
 	r = amdgpu_ring_init(adev, ring, 1024,
@@ -1410,7 +1409,6 @@ static void gfx_v8_0_kiq_free_ring(struct amdgpu_ring *ring,
 {
 	amdgpu_wb_free(ring->adev, ring->adev->virt.reg_val_offs);
 	amdgpu_ring_fini(ring);
-	irq->data = NULL;
 }
 
 #define MEC_HPD_SIZE 2048
@@ -6945,9 +6943,9 @@ static int gfx_v8_0_kiq_set_interrupt_state(struct amdgpu_device *adev,
 					    enum amdgpu_interrupt_state state)
 {
 	uint32_t tmp, target;
-	struct amdgpu_ring *ring = (struct amdgpu_ring *)src->data;
+	struct amdgpu_ring *ring = &(adev->gfx.kiq.ring);
 
-	BUG_ON(!ring || (ring->funcs->type != AMDGPU_RING_TYPE_KIQ));
+	BUG_ON(ring->funcs->type != AMDGPU_RING_TYPE_KIQ);
 
 	if (ring->me == 1)
 		target = mmCP_ME1_PIPE0_INT_CNTL;
@@ -6991,9 +6989,9 @@ static int gfx_v8_0_kiq_irq(struct amdgpu_device *adev,
 			    struct amdgpu_iv_entry *entry)
 {
 	u8 me_id, pipe_id, queue_id;
-	struct amdgpu_ring *ring = (struct amdgpu_ring *)source->data;
+	struct amdgpu_ring *ring = &(adev->gfx.kiq.ring);
 
-	BUG_ON(!ring || (ring->funcs->type != AMDGPU_RING_TYPE_KIQ));
+	BUG_ON(ring->funcs->type != AMDGPU_RING_TYPE_KIQ);
 
 	me_id = (entry->ring_id & 0x0c) >> 2;
 	pipe_id = (entry->ring_id & 0x03) >> 0;
