@@ -153,7 +153,7 @@ static const char ratio_map[] = {
 };
 
 /* route enumeration names */
-const const char *route_names[] = {
+static const char *const route_names[] = {
 	"Master Left", "Master Right", "Output 1", "Output 2", "Output 3",
 	"Output 4", "Output 5", "Output 6", "Output 7", "Output 8",
 };
