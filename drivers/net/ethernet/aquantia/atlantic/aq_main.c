@@ -87,14 +87,8 @@ err_exit:
 static int aq_ndev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
-	int err = 0;
 
-	err = aq_nic_xmit(aq_nic, skb);
-	if (err < 0)
-		goto err_exit;
-
-err_exit:
-	return err;
+	return aq_nic_xmit(aq_nic, skb);
 }
 
 static int aq_ndev_change_mtu(struct net_device *ndev, int new_mtu)
