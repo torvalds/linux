@@ -679,7 +679,7 @@ struct fsxattr {
 #define EXT4_IOC_FSGETXATTR		FS_IOC_FSGETXATTR
 #define EXT4_IOC_FSSETXATTR		FS_IOC_FSSETXATTR
 
-#define EXT4_IOC_GOINGDOWN _IOR ('X', 125, __u32)
+#define EXT4_IOC_SHUTDOWN _IOR ('X', 125, __u32)
 
 /*
  * Flags for going down operation
