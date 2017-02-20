@@ -464,6 +464,8 @@
 			clock-names = "ssc";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi1_default>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
 			status = "disabled";
 		};
@@ -476,6 +478,8 @@
 			clock-names = "ssc";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi2_default>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
 			status = "disabled";
 		};
@@ -488,6 +492,8 @@
 			clock-names = "ssc";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi3_default>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
 			status = "disabled";
 		};
@@ -500,6 +506,8 @@
 			clock-names = "ssc";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi4_default>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
 			status = "disabled";
 		};
@@ -513,6 +521,8 @@
 			clock-names = "ssc";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi10_default>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
 			status = "disabled";
 		};
@@ -525,6 +535,8 @@
 			clock-names = "ssc";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi11_default>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
 			status = "disabled";
 		};
@@ -537,6 +549,8 @@
 			clock-names = "ssc";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi12_default>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
 			status = "disabled";
 		};
