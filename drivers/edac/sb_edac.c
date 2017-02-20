@@ -3117,7 +3117,8 @@ static int sbridge_mce_check_error(struct notifier_block *nb, unsigned long val,
 }
 
 static struct notifier_block sbridge_mce_dec = {
-	.notifier_call      = sbridge_mce_check_error,
+	.notifier_call	= sbridge_mce_check_error,
+	.priority	= MCE_PRIO_EDAC,
 };
 
 /****************************************************************************

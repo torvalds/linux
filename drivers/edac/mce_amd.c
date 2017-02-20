@@ -942,7 +942,8 @@ static const char *decode_error_status(struct mce *m)
 	return "Corrected error, no action required.";
 }
 
-int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
+static int
+amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 {
 	struct mce *m = (struct mce *)data;
 	struct cpuinfo_x86 *c = &cpu_data(m->extcpu);
@@ -1005,6 +1006,9 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 		goto err_code;
 	}
 
+	if (m->tsc)
+		pr_emerg(HW_ERR "TSC: %llu\n", m->tsc);
+
 	if (!fam_ops)
 		goto err_code;
 
@@ -1046,10 +1050,10 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 
 	return NOTIFY_STOP;
 }
-EXPORT_SYMBOL_GPL(amd_decode_mce);
 
 static struct notifier_block amd_mce_dec_nb = {
 	.notifier_call	= amd_decode_mce,
+	.priority	= MCE_PRIO_EDAC,
 };
 
 static int __init mce_amd_init(void)
