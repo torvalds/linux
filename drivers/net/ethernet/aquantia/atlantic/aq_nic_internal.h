@@ -22,7 +22,6 @@ struct aq_nic_s {
 	unsigned int aq_vecs;
 	unsigned int packet_filter;
 	unsigned int power_state;
-	bool is_ndev_registered;
 	u8 port;
 	struct aq_hw_ops aq_hw_ops;
 	struct aq_hw_caps_s aq_hw_caps;

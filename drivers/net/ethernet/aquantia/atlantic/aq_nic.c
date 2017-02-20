@@ -122,14 +122,11 @@ static void aq_nic_service_timer_cb(unsigned long param)
 	struct aq_nic_s *self = (struct aq_nic_s *)param;
 	struct net_device *ndev = aq_nic_get_ndev(self);
 	int err = 0;
-	bool is_busy = false;
 	unsigned int i = 0U;
 	struct aq_hw_link_status_s link_status;
 	struct aq_ring_stats_rx_s stats_rx;
 	struct aq_ring_stats_tx_s stats_tx;
 
-	atomic_inc(&self->header.busy_count);
-	is_busy = true;
 	if (aq_utils_obj_test(&self->header.flags, AQ_NIC_FLAGS_IS_NOT_READY))
 		goto err_exit;
 
@@ -170,8 +167,6 @@ static void aq_nic_service_timer_cb(unsigned long param)
 	ndev->stats.tx_errors = stats_tx.errors;
 
 err_exit:
-	if (is_busy)
-		atomic_dec(&self->header.busy_count);
 	mod_timer(&self->service_timer,
 		  jiffies + AQ_CFG_SERVICE_TIMER_INTERVAL);
 }
@@ -207,11 +202,12 @@ struct aq_nic_s *aq_nic_alloc_cold(const struct net_device_ops *ndev_ops,
 	int err = 0;
 
 	ndev = aq_nic_ndev_alloc();
-	self = netdev_priv(ndev);
-	if (!self) {
-		err = -EINVAL;
+	if (!ndev) {
+		err = -ENOMEM;
 		goto err_exit;
 	}
+
+	self = netdev_priv(ndev);
 
 	ndev->netdev_ops = ndev_ops;
 	ndev->ethtool_ops = et_ops;
@@ -219,6 +215,7 @@ struct aq_nic_s *aq_nic_alloc_cold(const struct net_device_ops *ndev_ops,
 	SET_NETDEV_DEV(ndev, dev);
 
 	ndev->if_port = port;
+	ndev->min_mtu = ETH_MIN_MTU;
 	self->ndev = ndev;
 
 	self->aq_pci_func = aq_pci_func;
@@ -264,15 +261,15 @@ int aq_nic_ndev_register(struct aq_nic_s *self)
 		ether_addr_copy(self->ndev->dev_addr, mac_addr_permanent);
 	}
 #endif
-	err = register_netdev(self->ndev);
-	if (err < 0)
-		goto err_exit;
 
-	self->is_ndev_registered = true;
 	netif_carrier_off(self->ndev);
 
 	for (i = AQ_CFG_VECS_MAX; i--;)
 		aq_nic_ndev_queue_stop(self, i);
+
+	err = register_netdev(self->ndev);
+	if (err < 0)
+		goto err_exit;
 
 err_exit:
 	return err;
@@ -296,7 +293,7 @@ void aq_nic_ndev_free(struct aq_nic_s *self)
 	if (!self->ndev)
 		goto err_exit;
 
-	if (self->is_ndev_registered)
+	if (self->ndev->reg_state == NETREG_REGISTERED)
 		unregister_netdev(self->ndev);
 
 	if (self->aq_hw)
@@ -471,95 +468,116 @@ err_exit:
 	return err;
 }
 
-static unsigned int aq_nic_map_skb_frag(struct aq_nic_s *self,
-					struct sk_buff *skb,
-					struct aq_ring_buff_s *dx)
+static unsigned int aq_nic_map_skb(struct aq_nic_s *self,
+				   struct sk_buff *skb,
+				   struct aq_ring_s *ring)
 {
 	unsigned int ret = 0U;
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
 	unsigned int frag_count = 0U;
+	unsigned int dx = ring->sw_tail;
+	struct aq_ring_buff_s *dx_buff = &ring->buff_ring[dx];
 
-	dx->flags = 0U;
-	dx->len = skb_headlen(skb);
-	dx->pa = dma_map_single(aq_nic_get_dev(self), skb->data, dx->len,
-				DMA_TO_DEVICE);
-	dx->len_pkt = skb->len;
-	dx->is_sop = 1U;
-	dx->is_mapped = 1U;
+	if (unlikely(skb_is_gso(skb))) {
+		dx_buff->flags = 0U;
+		dx_buff->len_pkt = skb->len;
+		dx_buff->len_l2 = ETH_HLEN;
+		dx_buff->len_l3 = ip_hdrlen(skb);
+		dx_buff->len_l4 = tcp_hdrlen(skb);
+		dx_buff->mss = skb_shinfo(skb)->gso_size;
+		dx_buff->is_txc = 1U;
 
+		dx = aq_ring_next_dx(ring, dx);
+		dx_buff = &ring->buff_ring[dx];
+		++ret;
+	}
+
+	dx_buff->flags = 0U;
+	dx_buff->len = skb_headlen(skb);
+	dx_buff->pa = dma_map_single(aq_nic_get_dev(self),
+				     skb->data,
+				     dx_buff->len,
+				     DMA_TO_DEVICE);
+
+	if (unlikely(dma_mapping_error(aq_nic_get_dev(self), dx_buff->pa)))
+		goto exit;
+
+	dx_buff->len_pkt = skb->len;
+	dx_buff->is_sop = 1U;
+	dx_buff->is_mapped = 1U;
 	++ret;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		dx->is_ip_cso = (htons(ETH_P_IP) == skb->protocol) ? 1U : 0U;
-		dx->is_tcp_cso =
+		dx_buff->is_ip_cso = (htons(ETH_P_IP) == skb->protocol) ?
+			1U : 0U;
+		dx_buff->is_tcp_cso =
 			(ip_hdr(skb)->protocol == IPPROTO_TCP) ? 1U : 0U;
-		dx->is_udp_cso =
+		dx_buff->is_udp_cso =
 			(ip_hdr(skb)->protocol == IPPROTO_UDP) ? 1U : 0U;
 	}
 
 	for (; nr_frags--; ++frag_count) {
-		unsigned int frag_len;
+		unsigned int frag_len = 0U;
 		dma_addr_t frag_pa;
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[frag_count];
 
 		frag_len = skb_frag_size(frag);
-
 		frag_pa = skb_frag_dma_map(aq_nic_get_dev(self), frag, 0,
 					   frag_len, DMA_TO_DEVICE);
 
+		if (unlikely(dma_mapping_error(aq_nic_get_dev(self), frag_pa)))
+			goto mapping_error;
+
 		while (frag_len > AQ_CFG_TX_FRAME_MAX) {
-			++dx;
-			++ret;
-			dx->flags = 0U;
-			dx->len = AQ_CFG_TX_FRAME_MAX;
-			dx->pa = frag_pa;
-			dx->is_mapped = 1U;
+			dx = aq_ring_next_dx(ring, dx);
+			dx_buff = &ring->buff_ring[dx];
+
+			dx_buff->flags = 0U;
+			dx_buff->len = AQ_CFG_TX_FRAME_MAX;
+			dx_buff->pa = frag_pa;
+			dx_buff->is_mapped = 1U;
 
 			frag_len -= AQ_CFG_TX_FRAME_MAX;
 			frag_pa += AQ_CFG_TX_FRAME_MAX;
+			++ret;
 		}
 
-		++dx;
+		dx = aq_ring_next_dx(ring, dx);
+		dx_buff = &ring->buff_ring[dx];
+
+		dx_buff->flags = 0U;
+		dx_buff->len = frag_len;
+		dx_buff->pa = frag_pa;
+		dx_buff->is_mapped = 1U;
 		++ret;
-
-		dx->flags = 0U;
-		dx->len = frag_len;
-		dx->pa = frag_pa;
-		dx->is_mapped = 1U;
 	}
 
-	dx->is_eop = 1U;
-	dx->skb = skb;
+	dx_buff->is_eop = 1U;
+	dx_buff->skb = skb;
+	goto exit;
 
-	return ret;
-}
+mapping_error:
+	for (dx = ring->sw_tail;
+	     ret > 0;
+	     --ret, dx = aq_ring_next_dx(ring, dx)) {
+		dx_buff = &ring->buff_ring[dx];
 
-static unsigned int aq_nic_map_skb_lso(struct aq_nic_s *self,
-				       struct sk_buff *skb,
-				       struct aq_ring_buff_s *dx)
-{
-	dx->flags = 0U;
-	dx->len_pkt = skb->len;
-	dx->len_l2 = ETH_HLEN;
-	dx->len_l3 = ip_hdrlen(skb);
-	dx->len_l4 = tcp_hdrlen(skb);
-	dx->mss = skb_shinfo(skb)->gso_size;
-	dx->is_txc = 1U;
-	return 1U;
-}
-
-static unsigned int aq_nic_map_skb(struct aq_nic_s *self, struct sk_buff *skb,
-				   struct aq_ring_buff_s *dx)
-{
-	unsigned int ret = 0U;
-
-	if (unlikely(skb_is_gso(skb))) {
-		ret = aq_nic_map_skb_lso(self, skb, dx);
-		++dx;
+		if (!dx_buff->is_txc && dx_buff->pa) {
+			if (unlikely(dx_buff->is_sop)) {
+				dma_unmap_single(aq_nic_get_dev(self),
+						 dx_buff->pa,
+						 dx_buff->len,
+						 DMA_TO_DEVICE);
+			} else {
+				dma_unmap_page(aq_nic_get_dev(self),
+					       dx_buff->pa,
+					       dx_buff->len,
+					       DMA_TO_DEVICE);
+			}
+		}
 	}
 
-	ret += aq_nic_map_skb_frag(self, skb, dx);
-
+exit:
 	return ret;
 }
 
@@ -572,17 +590,12 @@ __acquires(&ring->lock)
 	unsigned int vec = skb->queue_mapping % self->aq_nic_cfg.vecs;
 	unsigned int tc = 0U;
 	unsigned int trys = AQ_CFG_LOCK_TRYS;
-	int err = 0;
+	int err = NETDEV_TX_OK;
 	bool is_nic_in_bad_state;
-	bool is_busy = false;
-	struct aq_ring_buff_s buffers[AQ_CFG_SKB_FRAGS_MAX];
 
 	frags = skb_shinfo(skb)->nr_frags + 1;
 
 	ring = self->aq_ring_tx[AQ_NIC_TCVEC2RING(self, tc, vec)];
-
-	atomic_inc(&self->header.busy_count);
-	is_busy = true;
 
 	if (frags > AQ_CFG_SKB_FRAGS_MAX) {
 		dev_kfree_skb_any(skb);
@@ -602,23 +615,27 @@ __acquires(&ring->lock)
 
 	do {
 		if (spin_trylock(&ring->header.lock)) {
-			frags = aq_nic_map_skb(self, skb, &buffers[0]);
+			frags = aq_nic_map_skb(self, skb, ring);
 
-			aq_ring_tx_append_buffs(ring, &buffers[0], frags);
+			if (likely(frags)) {
+				err = self->aq_hw_ops.hw_ring_tx_xmit(
+								self->aq_hw,
+								ring, frags);
+				if (err >= 0) {
+					if (aq_ring_avail_dx(ring) <
+					    AQ_CFG_SKB_FRAGS_MAX + 1)
+						aq_nic_ndev_queue_stop(
+								self,
+								ring->idx);
 
-			err = self->aq_hw_ops.hw_ring_tx_xmit(self->aq_hw,
-							      ring, frags);
-			if (err >= 0) {
-				if (aq_ring_avail_dx(ring) <
-				    AQ_CFG_SKB_FRAGS_MAX + 1)
-					aq_nic_ndev_queue_stop(self, ring->idx);
+					++ring->stats.tx.packets;
+					ring->stats.tx.bytes += skb->len;
+				}
+			} else {
+				err = NETDEV_TX_BUSY;
 			}
+
 			spin_unlock(&ring->header.lock);
-
-			if (err >= 0) {
-				++ring->stats.tx.packets;
-				ring->stats.tx.bytes += skb->len;
-			}
 			break;
 		}
 	} while (--trys);
@@ -629,8 +646,6 @@ __acquires(&ring->lock)
 	}
 
 err_exit:
-	if (is_busy)
-		atomic_dec(&self->header.busy_count);
 	return err;
 }
 
@@ -942,7 +957,7 @@ int aq_nic_change_pm_state(struct aq_nic_s *self, pm_message_t *pm_msg)
 
 	if (!netif_running(self->ndev)) {
 		err = 0;
-		goto err_exit;
+		goto out;
 	}
 	rtnl_lock();
 	if (pm_msg->event & PM_EVENT_SLEEP || pm_msg->event & PM_EVENT_FREEZE) {
@@ -967,8 +982,9 @@ int aq_nic_change_pm_state(struct aq_nic_s *self, pm_message_t *pm_msg)
 		netif_device_attach(self->ndev);
 		netif_tx_start_all_queues(self->ndev);
 	}
-	rtnl_unlock();
 
 err_exit:
+	rtnl_unlock();
+out:
 	return err;
 }

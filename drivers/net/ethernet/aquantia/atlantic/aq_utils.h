@@ -19,7 +19,6 @@
 struct aq_obj_s {
 	spinlock_t lock; /* spinlock for nic/rings processing */
 	atomic_t flags;
-	atomic_t busy_count;
 };
 
 static inline void aq_utils_obj_set(atomic_t *flags, u32 mask)
