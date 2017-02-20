@@ -1333,7 +1333,7 @@ static int qede_selftest_receive_traffic(struct qede_dev *edev)
 	struct qede_rx_queue *rxq = NULL;
 	struct sw_rx_data *sw_rx_data;
 	union eth_rx_cqe *cqe;
-	int i, rc = 0;
+	int i, iter, rc = 0;
 	u8 *data_ptr;
 
 	for_each_queue(i) {
@@ -1352,7 +1352,7 @@ static int qede_selftest_receive_traffic(struct qede_dev *edev)
 	 * enabled. This is because the queue 0 is configured as the default
 	 * queue and that the loopback traffic is not IP.
 	 */
-	for (i = 0; i < QEDE_SELFTEST_POLL_COUNT; i++) {
+	for (iter = 0; iter < QEDE_SELFTEST_POLL_COUNT; iter++) {
 		if (!qede_has_rx_work(rxq)) {
 			usleep_range(100, 200);
 			continue;
@@ -1399,7 +1399,7 @@ static int qede_selftest_receive_traffic(struct qede_dev *edev)
 		qed_chain_recycle_consumed(&rxq->rx_comp_ring);
 	}
 
-	if (i == QEDE_SELFTEST_POLL_COUNT) {
+	if (iter == QEDE_SELFTEST_POLL_COUNT) {
 		DP_NOTICE(edev, "Failed to receive the traffic\n");
 		return -1;
 	}
