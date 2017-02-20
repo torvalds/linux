@@ -126,6 +126,11 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	return abs_prev;
 }
 
+int host_task_stub(void *unused)
+{
+	return 0;
+}
+
 void switch_to_host_task(struct task_struct *task)
 {
 	if (current == task)
@@ -170,7 +175,7 @@ int copy_thread(unsigned long clone_flags, unsigned long esp,
 	struct thread_info *ti = task_thread_info(p);
 	struct thread_bootstrap_arg *tba;
 
-	if (!esp) {
+	if ((int (*)(void *))esp == host_task_stub) {
 		set_ti_thread_flag(ti, TIF_HOST_THREAD);
 		return 0;
 	}
