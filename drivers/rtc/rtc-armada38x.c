@@ -16,6 +16,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/rtc.h>
 
@@ -23,23 +24,23 @@
 #define RTC_STATUS_ALARM1	    BIT(0)
 #define RTC_STATUS_ALARM2	    BIT(1)
 #define RTC_IRQ1_CONF	    0x4
-#define RTC_IRQ1_AL_EN		    BIT(0)
-#define RTC_IRQ1_FREQ_EN	    BIT(1)
-#define RTC_IRQ1_FREQ_1HZ	    BIT(2)
+#define RTC_IRQ_AL_EN		    BIT(0)
+#define RTC_IRQ_FREQ_EN		    BIT(1)
+#define RTC_IRQ_FREQ_1HZ	    BIT(2)
+
 #define RTC_TIME	    0xC
 #define RTC_ALARM1	    0x10
+#define RTC_38X_BRIDGE_TIMING_CTL   0x0
+#define RTC_38X_PERIOD_OFFS		0
+#define RTC_38X_PERIOD_MASK		(0x3FF << RTC_38X_PERIOD_OFFS)
+#define RTC_38X_READ_DELAY_OFFS		26
+#define RTC_38X_READ_DELAY_MASK		(0x1F << RTC_38X_READ_DELAY_OFFS)
 
-#define SOC_RTC_BRIDGE_TIMING_CTL   0x0
-#define SOC_RTC_PERIOD_OFFS		0
-#define SOC_RTC_PERIOD_MASK		(0x3FF << SOC_RTC_PERIOD_OFFS)
-#define SOC_RTC_READ_DELAY_OFFS		26
-#define SOC_RTC_READ_DELAY_MASK		(0x1F << SOC_RTC_READ_DELAY_OFFS)
-
-#define SOC_RTC_INTERRUPT   0x8
-#define SOC_RTC_ALARM1		BIT(0)
-#define SOC_RTC_ALARM2		BIT(1)
-#define SOC_RTC_ALARM1_MASK	BIT(2)
-#define SOC_RTC_ALARM2_MASK	BIT(3)
+#define SOC_RTC_INTERRUPT	    0x8
+#define SOC_RTC_ALARM1			BIT(0)
+#define SOC_RTC_ALARM2			BIT(1)
+#define SOC_RTC_ALARM1_MASK		BIT(2)
+#define SOC_RTC_ALARM2_MASK		BIT(3)
 
 #define SAMPLE_NR 100
 
@@ -55,6 +56,19 @@ struct armada38x_rtc {
 	spinlock_t	    lock;
 	int		    irq;
 	struct value_to_freq *val_to_freq;
+	struct armada38x_rtc_data *data;
+};
+
+#define ALARM1	0
+#define ALARM_REG(base, alarm)	 ((base) + (alarm) * sizeof(u32))
+
+struct armada38x_rtc_data {
+	/* Initialize the RTC-MBUS bridge timing */
+	void (*update_mbus_timing)(struct armada38x_rtc *rtc);
+	u32 (*read_rtc_reg)(struct armada38x_rtc *rtc, u8 rtc_reg);
+	void (*clear_isr)(struct armada38x_rtc *rtc);
+	void (*unmask_interrupt)(struct armada38x_rtc *rtc);
+	u32 alarm;
 };
 
 /*
@@ -76,19 +90,19 @@ static void rtc_delayed_write(u32 val, struct armada38x_rtc *rtc, int offset)
 }
 
 /* Update RTC-MBUS bridge timing parameters */
-static void rtc_update_mbus_timing_params(struct armada38x_rtc *rtc)
+static void rtc_update_38x_mbus_timing_params(struct armada38x_rtc *rtc)
 {
 	u32 reg;
 
-	reg = readl(rtc->regs_soc + SOC_RTC_BRIDGE_TIMING_CTL);
-	reg &= ~SOC_RTC_PERIOD_MASK;
-	reg |= 0x3FF << SOC_RTC_PERIOD_OFFS; /* Maximum value */
-	reg &= ~SOC_RTC_READ_DELAY_MASK;
-	reg |= 0x1F << SOC_RTC_READ_DELAY_OFFS; /* Maximum value */
-	writel(reg, rtc->regs_soc + SOC_RTC_BRIDGE_TIMING_CTL);
+	reg = readl(rtc->regs_soc + RTC_38X_BRIDGE_TIMING_CTL);
+	reg &= ~RTC_38X_PERIOD_MASK;
+	reg |= 0x3FF << RTC_38X_PERIOD_OFFS; /* Maximum value */
+	reg &= ~RTC_38X_READ_DELAY_MASK;
+	reg |= 0x1F << RTC_38X_READ_DELAY_OFFS; /* Maximum value */
+	writel(reg, rtc->regs_soc + RTC_38X_BRIDGE_TIMING_CTL);
 }
 
-static u32 read_rtc_register_wa(struct armada38x_rtc *rtc, u8 rtc_reg)
+static u32 read_rtc_register_38x_wa(struct armada38x_rtc *rtc, u8 rtc_reg)
 {
 	int i, index_max = 0, max = 0;
 
@@ -130,13 +144,26 @@ static u32 read_rtc_register_wa(struct armada38x_rtc *rtc, u8 rtc_reg)
 	return rtc->val_to_freq[index_max].value;
 }
 
+static void armada38x_clear_isr(struct armada38x_rtc *rtc)
+{
+	u32 val = readl(rtc->regs_soc + SOC_RTC_INTERRUPT);
+
+	writel(val & ~SOC_RTC_ALARM1, rtc->regs_soc + SOC_RTC_INTERRUPT);
+}
+
+static void armada38x_unmask_interrupt(struct armada38x_rtc *rtc)
+{
+	u32 val = readl(rtc->regs_soc + SOC_RTC_INTERRUPT);
+
+	writel(val | SOC_RTC_ALARM1_MASK, rtc->regs_soc + SOC_RTC_INTERRUPT);
+}
 static int armada38x_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct armada38x_rtc *rtc = dev_get_drvdata(dev);
 	unsigned long time, flags;
 
 	spin_lock_irqsave(&rtc->lock, flags);
-	time = read_rtc_register_wa(rtc, RTC_TIME);
+	time = rtc->data->read_rtc_reg(rtc, RTC_TIME);
 	spin_unlock_irqrestore(&rtc->lock, flags);
 
 	rtc_time_to_tm(time, tm);
@@ -167,12 +194,14 @@ static int armada38x_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	struct armada38x_rtc *rtc = dev_get_drvdata(dev);
 	unsigned long time, flags;
+	u32 reg = ALARM_REG(RTC_ALARM1, rtc->data->alarm);
+	u32 reg_irq = ALARM_REG(RTC_IRQ1_CONF, rtc->data->alarm);
 	u32 val;
 
 	spin_lock_irqsave(&rtc->lock, flags);
 
-	time = read_rtc_register_wa(rtc, RTC_ALARM1);
-	val = read_rtc_register_wa(rtc, RTC_IRQ1_CONF) & RTC_IRQ1_AL_EN;
+	time = rtc->data->read_rtc_reg(rtc, reg);
+	val = rtc->data->read_rtc_reg(rtc, reg_irq) & RTC_IRQ_AL_EN;
 
 	spin_unlock_irqrestore(&rtc->lock, flags);
 
@@ -185,9 +214,10 @@ static int armada38x_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 static int armada38x_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	struct armada38x_rtc *rtc = dev_get_drvdata(dev);
+	u32 reg = ALARM_REG(RTC_ALARM1, rtc->data->alarm);
+	u32 reg_irq = ALARM_REG(RTC_IRQ1_CONF, rtc->data->alarm);
 	unsigned long time, flags;
 	int ret = 0;
-	u32 val;
 
 	ret = rtc_tm_to_time(&alrm->time, &time);
 
@@ -196,13 +226,11 @@ static int armada38x_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	spin_lock_irqsave(&rtc->lock, flags);
 
-	rtc_delayed_write(time, rtc, RTC_ALARM1);
+	rtc_delayed_write(time, rtc, reg);
 
 	if (alrm->enabled) {
-			rtc_delayed_write(RTC_IRQ1_AL_EN, rtc, RTC_IRQ1_CONF);
-			val = readl(rtc->regs_soc + SOC_RTC_INTERRUPT);
-			writel(val | SOC_RTC_ALARM1_MASK,
-			       rtc->regs_soc + SOC_RTC_INTERRUPT);
+		rtc_delayed_write(RTC_IRQ_AL_EN, rtc, reg_irq);
+		rtc->data->unmask_interrupt(rtc);
 	}
 
 	spin_unlock_irqrestore(&rtc->lock, flags);
@@ -215,14 +243,15 @@ static int armada38x_rtc_alarm_irq_enable(struct device *dev,
 					 unsigned int enabled)
 {
 	struct armada38x_rtc *rtc = dev_get_drvdata(dev);
+	u32 reg_irq = ALARM_REG(RTC_IRQ1_CONF, rtc->data->alarm);
 	unsigned long flags;
 
 	spin_lock_irqsave(&rtc->lock, flags);
 
 	if (enabled)
-		rtc_delayed_write(RTC_IRQ1_AL_EN, rtc, RTC_IRQ1_CONF);
+		rtc_delayed_write(RTC_IRQ_AL_EN, rtc, reg_irq);
 	else
-		rtc_delayed_write(0, rtc, RTC_IRQ1_CONF);
+		rtc_delayed_write(0, rtc, reg_irq);
 
 	spin_unlock_irqrestore(&rtc->lock, flags);
 
@@ -234,24 +263,23 @@ static irqreturn_t armada38x_rtc_alarm_irq(int irq, void *data)
 	struct armada38x_rtc *rtc = data;
 	u32 val;
 	int event = RTC_IRQF | RTC_AF;
+	u32 reg_irq = ALARM_REG(RTC_IRQ1_CONF, rtc->data->alarm);
 
 	dev_dbg(&rtc->rtc_dev->dev, "%s:irq(%d)\n", __func__, irq);
 
 	spin_lock(&rtc->lock);
 
-	val = readl(rtc->regs_soc + SOC_RTC_INTERRUPT);
-
-	writel(val & ~SOC_RTC_ALARM1, rtc->regs_soc + SOC_RTC_INTERRUPT);
-	val = read_rtc_register_wa(rtc, RTC_IRQ1_CONF);
-	/* disable all the interrupts for alarm 1 */
-	rtc_delayed_write(0, rtc, RTC_IRQ1_CONF);
+	rtc->data->clear_isr(rtc);
+	val = rtc->data->read_rtc_reg(rtc, reg_irq);
+	/* disable all the interrupts for alarm*/
+	rtc_delayed_write(0, rtc, reg_irq);
 	/* Ack the event */
-	rtc_delayed_write(RTC_STATUS_ALARM1, rtc, RTC_STATUS);
+	rtc_delayed_write(1 << rtc->data->alarm, rtc, RTC_STATUS);
 
 	spin_unlock(&rtc->lock);
 
-	if (val & RTC_IRQ1_FREQ_EN) {
-		if (val & RTC_IRQ1_FREQ_1HZ)
+	if (val & RTC_IRQ_FREQ_EN) {
+		if (val & RTC_IRQ_FREQ_1HZ)
 			event |= RTC_UF;
 		else
 			event |= RTC_PF;
@@ -276,12 +304,36 @@ static const struct rtc_class_ops armada38x_rtc_ops_noirq = {
 	.read_alarm = armada38x_rtc_read_alarm,
 };
 
+static const struct armada38x_rtc_data armada38x_data = {
+	.update_mbus_timing = rtc_update_38x_mbus_timing_params,
+	.read_rtc_reg = read_rtc_register_38x_wa,
+	.clear_isr = armada38x_clear_isr,
+	.unmask_interrupt = armada38x_unmask_interrupt,
+	.alarm = ALARM1,
+};
+
+#ifdef CONFIG_OF
+static const struct of_device_id armada38x_rtc_of_match_table[] = {
+	{
+		.compatible = "marvell,armada-380-rtc",
+		.data = &armada38x_data,
+	},
+	{}
+};
+MODULE_DEVICE_TABLE(of, armada38x_rtc_of_match_table);
+#endif
+
 static __init int armada38x_rtc_probe(struct platform_device *pdev)
 {
 	const struct rtc_class_ops *ops;
 	struct resource *res;
 	struct armada38x_rtc *rtc;
+	const struct of_device_id *match;
 	int ret;
+
+	match = of_match_device(armada38x_rtc_of_match_table, &pdev->dev);
+	if (!match)
+		return -ENODEV;
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(struct armada38x_rtc),
 			    GFP_KERNEL);
@@ -327,9 +379,11 @@ static __init int armada38x_rtc_probe(struct platform_device *pdev)
 		 */
 		ops = &armada38x_rtc_ops_noirq;
 	}
+	rtc->data = (struct armada38x_rtc_data *)match->data;
+
 
 	/* Update RTC-MBUS bridge timing parameters */
-	rtc_update_mbus_timing_params(rtc);
+	rtc->data->update_mbus_timing(rtc);
 
 	rtc->rtc_dev = devm_rtc_device_register(&pdev->dev, pdev->name,
 						ops, THIS_MODULE);
@@ -359,7 +413,7 @@ static int armada38x_rtc_resume(struct device *dev)
 		struct armada38x_rtc *rtc = dev_get_drvdata(dev);
 
 		/* Update RTC-MBUS bridge timing parameters */
-		rtc_update_mbus_timing_params(rtc);
+		rtc->data->update_mbus_timing(rtc);
 
 		return disable_irq_wake(rtc->irq);
 	}
@@ -370,14 +424,6 @@ static int armada38x_rtc_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(armada38x_rtc_pm_ops,
 			 armada38x_rtc_suspend, armada38x_rtc_resume);
-
-#ifdef CONFIG_OF
-static const struct of_device_id armada38x_rtc_of_match_table[] = {
-	{ .compatible = "marvell,armada-380-rtc", },
-	{}
-};
-MODULE_DEVICE_TABLE(of, armada38x_rtc_of_match_table);
-#endif
 
 static struct platform_driver armada38x_rtc_driver = {
 	.driver		= {
