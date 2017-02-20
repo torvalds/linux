@@ -1072,6 +1072,7 @@ static u32 qed_sb_init(struct qed_dev *cdev,
 		       enum qed_sb_type type)
 {
 	struct qed_hwfn *p_hwfn;
+	struct qed_ptt *p_ptt;
 	int hwfn_index;
 	u16 rel_sb_id;
 	u8 n_hwfns;
@@ -1093,8 +1094,18 @@ static u32 qed_sb_init(struct qed_dev *cdev,
 		   "hwfn [%d] <--[init]-- SB %04x [0x%04x upper]\n",
 		   hwfn_index, rel_sb_id, sb_id);
 
-	rc = qed_int_sb_init(p_hwfn, p_hwfn->p_main_ptt, sb_info,
-			     sb_virt_addr, sb_phy_addr, rel_sb_id);
+	if (IS_PF(p_hwfn->cdev)) {
+		p_ptt = qed_ptt_acquire(p_hwfn);
+		if (!p_ptt)
+			return -EBUSY;
+
+		rc = qed_int_sb_init(p_hwfn, p_ptt, sb_info, sb_virt_addr,
+				     sb_phy_addr, rel_sb_id);
+		qed_ptt_release(p_hwfn, p_ptt);
+	} else {
+		rc = qed_int_sb_init(p_hwfn, NULL, sb_info, sb_virt_addr,
+				     sb_phy_addr, rel_sb_id);
+	}
 
 	return rc;
 }
