@@ -673,8 +673,8 @@ static int hw_atl_b0_hw_ring_rx_receive(struct aq_hw_s *self,
 			}
 
 			if (HW_ATL_B0_RXD_WB_STAT2_EOP & rxd_wb->status) {
-				buff->len = (rxd_wb->pkt_len &
-						(AQ_CFG_RX_FRAME_MAX - 1U));
+				buff->len = rxd_wb->pkt_len %
+					AQ_CFG_RX_FRAME_MAX;
 				buff->len = buff->len ?
 					buff->len : AQ_CFG_RX_FRAME_MAX;
 				buff->next = 0U;
