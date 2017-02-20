@@ -128,22 +128,8 @@ static void drm_connector_get_cmdline_mode(struct drm_connector *connector)
 		return;
 
 	if (mode->force) {
-		const char *s;
-
-		switch (mode->force) {
-		case DRM_FORCE_OFF:
-			s = "OFF";
-			break;
-		case DRM_FORCE_ON_DIGITAL:
-			s = "ON - dig";
-			break;
-		default:
-		case DRM_FORCE_ON:
-			s = "ON";
-			break;
-		}
-
-		DRM_INFO("forcing %s connector %s\n", connector->name, s);
+		DRM_INFO("forcing %s connector %s\n", connector->name,
+			 drm_get_connector_force_name(mode->force));
 		connector->force = mode->force;
 	}
 
@@ -491,6 +477,28 @@ const char *drm_get_connector_status_name(enum drm_connector_status status)
 		return "unknown";
 }
 EXPORT_SYMBOL(drm_get_connector_status_name);
+
+/**
+ * drm_get_connector_force_name - return a string for connector force
+ * @force: connector force to get name of
+ *
+ * Returns: const pointer to name.
+ */
+const char *drm_get_connector_force_name(enum drm_connector_force force)
+{
+	switch (force) {
+	case DRM_FORCE_UNSPECIFIED:
+		return "unspecified";
+	case DRM_FORCE_OFF:
+		return "off";
+	case DRM_FORCE_ON:
+		return "on";
+	case DRM_FORCE_ON_DIGITAL:
+		return "digital";
+	default:
+		return "unknown";
+	}
+}
 
 #ifdef CONFIG_LOCKDEP
 static struct lockdep_map connector_list_iter_dep_map = {
