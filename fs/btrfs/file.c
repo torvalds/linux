@@ -2195,7 +2195,7 @@ static int btrfs_file_mmap(struct file	*filp, struct vm_area_struct *vma)
 	return 0;
 }
 
-static int hole_mergeable(struct inode *inode, struct extent_buffer *leaf,
+static int hole_mergeable(struct btrfs_inode *inode, struct extent_buffer *leaf,
 			  int slot, u64 start, u64 end)
 {
 	struct btrfs_file_extent_item *fi;
@@ -2205,7 +2205,7 @@ static int hole_mergeable(struct inode *inode, struct extent_buffer *leaf,
 		return 0;
 
 	btrfs_item_key_to_cpu(leaf, &key, slot);
-	if (key.objectid != btrfs_ino(BTRFS_I(inode)) ||
+	if (key.objectid != btrfs_ino(inode) ||
 	    key.type != BTRFS_EXTENT_DATA_KEY)
 		return 0;
 
@@ -2255,7 +2255,8 @@ static int fill_holes(struct btrfs_trans_handle *trans, struct inode *inode,
 	}
 
 	leaf = path->nodes[0];
-	if (hole_mergeable(inode, leaf, path->slots[0]-1, offset, end)) {
+	if (hole_mergeable(BTRFS_I(inode), leaf, path->slots[0] - 1,
+				offset, end)) {
 		u64 num_bytes;
 
 		path->slots[0]--;
@@ -2270,7 +2271,7 @@ static int fill_holes(struct btrfs_trans_handle *trans, struct inode *inode,
 		goto out;
 	}
 
-	if (hole_mergeable(inode, leaf, path->slots[0], offset, end)) {
+	if (hole_mergeable(BTRFS_I(inode), leaf, path->slots[0], offset, end)) {
 		u64 num_bytes;
 
 		key.offset = offset;
