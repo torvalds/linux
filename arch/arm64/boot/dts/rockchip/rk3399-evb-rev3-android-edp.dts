@@ -47,7 +47,7 @@
 
 / {
 	model = "Rockchip RK3399 Evaluation Board v3 edp (Android)";
-	compatible = "rockchip,android", "rockchip,rk3399-evb-rev3-next", "rockchip,rk3399";
+	compatible = "rockchip,android", "rockchip,rk3399-evb-rev3", "rockchip,rk3399";
 
 	edp_panel: edp-panel {
 		compatible = "lg,lp079qx1-sp0v", "panel-simple";

@@ -47,7 +47,7 @@
 
 / {
 	model = "Rockchip RK3399 Excavator Board edp (Android)";
-	compatible = "rockchip,android", "rockchip,rk3399-excavator-edp-next", "rockchip,rk3399";
+	compatible = "rockchip,android", "rockchip,rk3399-excavator-edp", "rockchip,rk3399";
 
 	edp_panel: edp-panel {
 		compatible = "lg,lp079qx1-sp0v", "panel-simple";
