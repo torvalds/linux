@@ -5893,24 +5893,21 @@ static unsigned drop_outstanding_extent(struct btrfs_inode *inode,
  *
  * This must be called with BTRFS_I(inode)->lock held.
  */
-static u64 calc_csum_metadata_size(struct inode *inode, u64 num_bytes,
+static u64 calc_csum_metadata_size(struct btrfs_inode *inode, u64 num_bytes,
 				   int reserve)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
 	u64 old_csums, num_csums;
 
-	if (BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM &&
-	    BTRFS_I(inode)->csum_bytes == 0)
+	if (inode->flags & BTRFS_INODE_NODATASUM && inode->csum_bytes == 0)
 		return 0;
 
-	old_csums = btrfs_csum_bytes_to_leaves(fs_info,
-					       BTRFS_I(inode)->csum_bytes);
+	old_csums = btrfs_csum_bytes_to_leaves(fs_info, inode->csum_bytes);
 	if (reserve)
-		BTRFS_I(inode)->csum_bytes += num_bytes;
+		inode->csum_bytes += num_bytes;
 	else
-		BTRFS_I(inode)->csum_bytes -= num_bytes;
-	num_csums = btrfs_csum_bytes_to_leaves(fs_info,
-					       BTRFS_I(inode)->csum_bytes);
+		inode->csum_bytes -= num_bytes;
+	num_csums = btrfs_csum_bytes_to_leaves(fs_info, inode->csum_bytes);
 
 	/* No change, no need to reserve more */
 	if (old_csums == num_csums)
@@ -5974,7 +5971,7 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 
 	/* We always want to reserve a slot for updating the inode. */
 	to_reserve = btrfs_calc_trans_metadata_size(fs_info, nr_extents + 1);
-	to_reserve += calc_csum_metadata_size(inode, num_bytes, 1);
+	to_reserve += calc_csum_metadata_size(BTRFS_I(inode), num_bytes, 1);
 	csum_bytes = BTRFS_I(inode)->csum_bytes;
 	spin_unlock(&BTRFS_I(inode)->lock);
 
@@ -6021,7 +6018,7 @@ out_fail:
 	 * so we can just reduce our inodes csum bytes and carry on.
 	 */
 	if (BTRFS_I(inode)->csum_bytes == csum_bytes) {
-		calc_csum_metadata_size(inode, num_bytes, 0);
+		calc_csum_metadata_size(BTRFS_I(inode), num_bytes, 0);
 	} else {
 		u64 orig_csum_bytes = BTRFS_I(inode)->csum_bytes;
 		u64 bytes;
@@ -6036,7 +6033,7 @@ out_fail:
 		 */
 		bytes = csum_bytes - BTRFS_I(inode)->csum_bytes;
 		BTRFS_I(inode)->csum_bytes = csum_bytes;
-		to_free = calc_csum_metadata_size(inode, bytes, 0);
+		to_free = calc_csum_metadata_size(BTRFS_I(inode), bytes, 0);
 
 
 		/*
@@ -6046,7 +6043,7 @@ out_fail:
 		 */
 		BTRFS_I(inode)->csum_bytes = csum_bytes - num_bytes;
 		bytes = csum_bytes - orig_csum_bytes;
-		bytes = calc_csum_metadata_size(inode, bytes, 0);
+		bytes = calc_csum_metadata_size(BTRFS_I(inode), bytes, 0);
 
 		/*
 		 * Now reset ->csum_bytes to what it should be.  If bytes is
@@ -6096,7 +6093,7 @@ void btrfs_delalloc_release_metadata(struct inode *inode, u64 num_bytes)
 	dropped = drop_outstanding_extent(BTRFS_I(inode), num_bytes);
 
 	if (num_bytes)
-		to_free = calc_csum_metadata_size(inode, num_bytes, 0);
+		to_free = calc_csum_metadata_size(BTRFS_I(inode), num_bytes, 0);
 	spin_unlock(&BTRFS_I(inode)->lock);
 	if (dropped > 0)
 		to_free += btrfs_calc_trans_metadata_size(fs_info, dropped);
