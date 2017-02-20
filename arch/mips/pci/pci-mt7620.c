@@ -33,7 +33,6 @@
 #define RALINK_GPIOMODE			0x60
 
 #define PPLL_CFG1			0x9c
-#define PDRV_SW_SET			BIT(23)
 
 #define PPLL_DRV			0xa0
 #define PDRV_SW_SET			(1<<31)
