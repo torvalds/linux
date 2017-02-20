@@ -111,7 +111,10 @@ struct thread_struct {
 	unsigned int  acrs[NUM_ACRS];
         unsigned long ksp;              /* kernel stack pointer             */
 	unsigned long user_timer;	/* task cputime in user space */
+	unsigned long guest_timer;	/* task cputime in kvm guest */
 	unsigned long system_timer;	/* task cputime in kernel space */
+	unsigned long hardirq_timer;	/* task cputime in hardirq context */
+	unsigned long softirq_timer;	/* task cputime in softirq context */
 	unsigned long sys_call_table;	/* system call table address */
 	mm_segment_t mm_segment;
 	unsigned long gmap_addr;	/* address of last gmap fault. */
