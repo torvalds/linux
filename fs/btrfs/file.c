@@ -1082,10 +1082,10 @@ static int extent_mergeable(struct extent_buffer *leaf, int slot,
  * two or three.
  */
 int btrfs_mark_extent_written(struct btrfs_trans_handle *trans,
-			      struct inode *inode, u64 start, u64 end)
+			      struct btrfs_inode *inode, u64 start, u64 end)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
+	struct btrfs_root *root = inode->root;
 	struct extent_buffer *leaf;
 	struct btrfs_path *path;
 	struct btrfs_file_extent_item *fi;
@@ -1102,7 +1102,7 @@ int btrfs_mark_extent_written(struct btrfs_trans_handle *trans,
 	int del_slot = 0;
 	int recow;
 	int ret;
-	u64 ino = btrfs_ino(BTRFS_I(inode));
+	u64 ino = btrfs_ino(inode);
 
 	path = btrfs_alloc_path();
 	if (!path)
