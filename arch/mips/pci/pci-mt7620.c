@@ -35,11 +35,11 @@
 #define PPLL_CFG1			0x9c
 
 #define PPLL_DRV			0xa0
-#define PDRV_SW_SET			(1<<31)
-#define LC_CKDRVPD			(1<<19)
-#define LC_CKDRVOHZ			(1<<18)
-#define LC_CKDRVHZ			(1<<17)
-#define LC_CKTEST			(1<<16)
+#define PDRV_SW_SET			BIT(31)
+#define LC_CKDRVPD			BIT(19)
+#define LC_CKDRVOHZ			BIT(18)
+#define LC_CKDRVHZ			BIT(17)
+#define LC_CKTEST			BIT(16)
 
 /* PCI Bridge registers */
 #define RALINK_PCI_PCICFG_ADDR		0x00
@@ -65,7 +65,7 @@
 #define PCIEPHY0_CFG			0x90
 
 #define RALINK_PCIEPHY_P0_CTL_OFFSET	0x7498
-#define RALINK_PCIE0_CLK_EN		(1 << 26)
+#define RALINK_PCIE0_CLK_EN		BIT(26)
 
 #define BUSY				0x80000000
 #define WAITRETRY_MAX			10
