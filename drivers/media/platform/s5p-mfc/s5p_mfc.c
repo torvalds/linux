@@ -22,6 +22,7 @@
 #include <media/v4l2-event.h>
 #include <linux/workqueue.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/of_reserved_mem.h>
 #include <media/videobuf2-v4l2.h>
 #include "s5p_mfc_common.h"
@@ -1152,8 +1153,6 @@ static void s5p_mfc_unconfigure_dma_memory(struct s5p_mfc_dev *mfc_dev)
 	device_unregister(mfc_dev->mem_dev_r);
 }
 
-static void *mfc_get_drv_data(struct platform_device *pdev);
-
 /* MFC probe function */
 static int s5p_mfc_probe(struct platform_device *pdev)
 {
@@ -1177,7 +1176,7 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	dev->variant = mfc_get_drv_data(pdev);
+	dev->variant = of_device_get_match_data(&pdev->dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dev->regs_base = devm_ioremap_resource(&pdev->dev, res);
@@ -1535,18 +1534,6 @@ static const struct of_device_id exynos_mfc_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, exynos_mfc_match);
-
-static void *mfc_get_drv_data(struct platform_device *pdev)
-{
-	struct s5p_mfc_variant *driver_data = NULL;
-	const struct of_device_id *match;
-
-	match = of_match_node(exynos_mfc_match, pdev->dev.of_node);
-	if (match)
-		driver_data = (struct s5p_mfc_variant *)match->data;
-
-	return driver_data;
-}
 
 static struct platform_driver s5p_mfc_driver = {
 	.probe		= s5p_mfc_probe,
