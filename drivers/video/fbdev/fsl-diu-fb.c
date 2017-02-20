@@ -439,12 +439,12 @@ static struct mfb_info mfb_template[] = {
 static void __attribute__ ((unused)) fsl_diu_dump(struct diu __iomem *hw)
 {
 	mb();
-	pr_debug("DIU: desc=%08x,%08x,%08x, gamma=%08x pallete=%08x "
+	pr_debug("DIU: desc=%08x,%08x,%08x, gamma=%08x palette=%08x "
 		 "cursor=%08x curs_pos=%08x diu_mode=%08x bgnd=%08x "
 		 "disp_size=%08x hsyn_para=%08x vsyn_para=%08x syn_pol=%08x "
 		 "thresholds=%08x int_mask=%08x plut=%08x\n",
 		 hw->desc[0], hw->desc[1], hw->desc[2], hw->gamma,
-		 hw->pallete, hw->cursor, hw->curs_pos, hw->diu_mode,
+		 hw->palette, hw->cursor, hw->curs_pos, hw->diu_mode,
 		 hw->bgnd, hw->disp_size, hw->hsyn_para, hw->vsyn_para,
 		 hw->syn_pol, hw->thresholds, hw->int_mask, hw->plut);
 	rmb();
