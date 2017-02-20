@@ -4852,7 +4852,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 
 	cur_offset = hole_start;
 	while (1) {
-		em = btrfs_get_extent(inode, NULL, 0, cur_offset,
+		em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, cur_offset,
 				block_end - cur_offset, 0);
 		if (IS_ERR(em)) {
 			err = PTR_ERR(em);
@@ -6732,25 +6732,26 @@ static noinline int uncompress_inline(struct btrfs_path *path,
  * This also copies inline extents directly into the page.
  */
 
-struct extent_map *btrfs_get_extent(struct inode *inode, struct page *page,
-				    size_t pg_offset, u64 start, u64 len,
-				    int create)
+struct extent_map *btrfs_get_extent(struct btrfs_inode *inode,
+		struct page *page,
+	    size_t pg_offset, u64 start, u64 len,
+		int create)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
 	int ret;
 	int err = 0;
 	u64 extent_start = 0;
 	u64 extent_end = 0;
-	u64 objectid = btrfs_ino(BTRFS_I(inode));
+	u64 objectid = btrfs_ino(inode);
 	u32 found_type;
 	struct btrfs_path *path = NULL;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_root *root = inode->root;
 	struct btrfs_file_extent_item *item;
 	struct extent_buffer *leaf;
 	struct btrfs_key found_key;
 	struct extent_map *em = NULL;
-	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
-	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
+	struct extent_map_tree *em_tree = &inode->extent_tree;
+	struct extent_io_tree *io_tree = &inode->io_tree;
 	struct btrfs_trans_handle *trans = NULL;
 	const bool new_inline = !page || create;
 
@@ -6863,7 +6864,7 @@ next:
 		goto not_found_em;
 	}
 
-	btrfs_extent_item_to_extent_map(BTRFS_I(inode), path, item,
+	btrfs_extent_item_to_extent_map(inode, path, item,
 			new_inline, em);
 
 	if (found_type == BTRFS_FILE_EXTENT_REG ||
@@ -7000,7 +7001,7 @@ insert:
 	write_unlock(&em_tree->lock);
 out:
 
-	trace_btrfs_get_extent(root, BTRFS_I(inode), em);
+	trace_btrfs_get_extent(root, inode, em);
 
 	btrfs_free_path(path);
 	if (trans) {
@@ -7016,9 +7017,10 @@ out:
 	return em;
 }
 
-struct extent_map *btrfs_get_extent_fiemap(struct inode *inode, struct page *page,
-					   size_t pg_offset, u64 start, u64 len,
-					   int create)
+struct extent_map *btrfs_get_extent_fiemap(struct btrfs_inode *inode,
+		struct page *page,
+		size_t pg_offset, u64 start, u64 len,
+		int create)
 {
 	struct extent_map *em;
 	struct extent_map *hole_em = NULL;
@@ -7055,7 +7057,7 @@ struct extent_map *btrfs_get_extent_fiemap(struct inode *inode, struct page *pag
 	em = NULL;
 
 	/* ok, we didn't find anything, lets look for delalloc */
-	found = count_range_bits(&BTRFS_I(inode)->io_tree, &range_start,
+	found = count_range_bits(&inode->io_tree, &range_start,
 				 end, len, EXTENT_DELALLOC, 1);
 	found_end = range_start + found;
 	if (found_end < range_start)
@@ -7625,7 +7627,7 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 		goto err;
 	}
 
-	em = btrfs_get_extent(inode, NULL, 0, start, len, 0);
+	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, start, len, 0);
 	if (IS_ERR(em)) {
 		ret = PTR_ERR(em);
 		goto unlock_err;

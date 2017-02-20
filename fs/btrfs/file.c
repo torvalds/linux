@@ -2341,7 +2341,7 @@ static int find_first_non_hole(struct inode *inode, u64 *start, u64 *len)
 	struct extent_map *em;
 	int ret = 0;
 
-	em = btrfs_get_extent(inode, NULL, 0, *start, *len, 0);
+	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, *start, *len, 0);
 	if (IS_ERR_OR_NULL(em)) {
 		if (!em)
 			ret = -ENOMEM;
@@ -2833,7 +2833,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 	/* First, check if we exceed the qgroup limit */
 	INIT_LIST_HEAD(&reserve_list);
 	while (1) {
-		em = btrfs_get_extent(inode, NULL, 0, cur_offset,
+		em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, cur_offset,
 				      alloc_end - cur_offset, 0);
 		if (IS_ERR_OR_NULL(em)) {
 			if (!em)
@@ -2960,7 +2960,8 @@ static int find_desired_extent(struct inode *inode, loff_t *offset, int whence)
 			 &cached_state);
 
 	while (start < inode->i_size) {
-		em = btrfs_get_extent_fiemap(inode, NULL, 0, start, len, 0);
+		em = btrfs_get_extent_fiemap(BTRFS_I(inode), NULL, 0,
+				start, len, 0);
 		if (IS_ERR(em)) {
 			ret = PTR_ERR(em);
 			em = NULL;

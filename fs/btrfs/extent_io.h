@@ -211,7 +211,7 @@ static inline int extent_compress_type(unsigned long bio_flags)
 
 struct extent_map_tree;
 
-typedef struct extent_map *(get_extent_t)(struct inode *inode,
+typedef struct extent_map *(get_extent_t)(struct btrfs_inode *inode,
 					  struct page *page,
 					  size_t pg_offset,
 					  u64 start, u64 len,
