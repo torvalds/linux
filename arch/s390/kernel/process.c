@@ -100,8 +100,8 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	return 0;
 }
 
-int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
-		unsigned long arg, struct task_struct *p)
+int copy_thread_tls(unsigned long clone_flags, unsigned long new_stackp,
+		    unsigned long arg, struct task_struct *p, unsigned long tls)
 {
 	struct fake_frame
 	{
@@ -156,7 +156,6 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 
 	/* Set a new TLS ?  */
 	if (clone_flags & CLONE_SETTLS) {
-		unsigned long tls = frame->childregs.gprs[6];
 		if (is_compat_task()) {
 			p->thread.acrs[0] = (unsigned int)tls;
 		} else {
