@@ -3122,10 +3122,10 @@ static int dt_gpio_count(struct device *dev, const char *con_id)
 				 gpio_suffixes[i]);
 
 		ret = of_gpio_named_count(dev->of_node, propname);
-		if (ret >= 0)
+		if (ret > 0)
 			break;
 	}
-	return ret;
+	return ret ? ret : -ENOENT;
 }
 
 static int platform_gpio_count(struct device *dev, const char *con_id)
