@@ -2090,23 +2090,23 @@ int repair_eb_io_failure(struct btrfs_fs_info *fs_info,
  * each time an IO finishes, we do a fast check in the IO failure tree
  * to see if we need to process or clean up an io_failure_record
  */
-int clean_io_failure(struct inode *inode, u64 start, struct page *page,
+int clean_io_failure(struct btrfs_inode *inode, u64 start, struct page *page,
 		     unsigned int pg_offset)
 {
 	u64 private;
 	struct io_failure_record *failrec;
-	struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct extent_state *state;
 	int num_copies;
 	int ret;
 
 	private = 0;
-	ret = count_range_bits(&BTRFS_I(inode)->io_failure_tree, &private,
+	ret = count_range_bits(&inode->io_failure_tree, &private,
 				(u64)-1, 1, EXTENT_DIRTY, 0);
 	if (!ret)
 		return 0;
 
-	ret = get_state_failrec(&BTRFS_I(inode)->io_failure_tree, start,
+	ret = get_state_failrec(&inode->io_failure_tree, start,
 			&failrec);
 	if (ret)
 		return 0;
@@ -2123,25 +2123,25 @@ int clean_io_failure(struct inode *inode, u64 start, struct page *page,
 	if (fs_info->sb->s_flags & MS_RDONLY)
 		goto out;
 
-	spin_lock(&BTRFS_I(inode)->io_tree.lock);
-	state = find_first_extent_bit_state(&BTRFS_I(inode)->io_tree,
+	spin_lock(&inode->io_tree.lock);
+	state = find_first_extent_bit_state(&inode->io_tree,
 					    failrec->start,
 					    EXTENT_LOCKED);
-	spin_unlock(&BTRFS_I(inode)->io_tree.lock);
+	spin_unlock(&inode->io_tree.lock);
 
 	if (state && state->start <= failrec->start &&
 	    state->end >= failrec->start + failrec->len - 1) {
 		num_copies = btrfs_num_copies(fs_info, failrec->logical,
 					      failrec->len);
 		if (num_copies > 1)  {
-			repair_io_failure(BTRFS_I(inode), start, failrec->len,
+			repair_io_failure(inode, start, failrec->len,
 					  failrec->logical, page,
 					  pg_offset, failrec->failed_mirror);
 		}
 	}
 
 out:
-	free_io_failure(BTRFS_I(inode), failrec);
+	free_io_failure(inode, failrec);
 
 	return 0;
 }
@@ -2577,7 +2577,8 @@ static void end_bio_extent_readpage(struct bio *bio)
 			if (ret)
 				uptodate = 0;
 			else
-				clean_io_failure(inode, start, page, 0);
+				clean_io_failure(BTRFS_I(inode), start,
+						page, 0);
 		}
 
 		if (likely(uptodate))

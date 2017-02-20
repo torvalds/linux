@@ -7914,7 +7914,7 @@ static void btrfs_retry_endio_nocsum(struct bio *bio)
 
 	done->uptodate = 1;
 	bio_for_each_segment_all(bvec, bio, i)
-		clean_io_failure(done->inode, done->start, bvec->bv_page, 0);
+	clean_io_failure(BTRFS_I(done->inode), done->start, bvec->bv_page, 0);
 end:
 	complete(&done->done);
 	bio_put(bio);
@@ -8000,7 +8000,7 @@ static void btrfs_retry_endio(struct bio *bio)
 					bvec->bv_page, bvec->bv_offset,
 					done->start, bvec->bv_len);
 		if (!ret)
-			clean_io_failure(done->inode, done->start,
+			clean_io_failure(BTRFS_I(done->inode), done->start,
 					bvec->bv_page, bvec->bv_offset);
 		else
 			uptodate = 0;
