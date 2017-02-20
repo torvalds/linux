@@ -192,6 +192,7 @@ int qed_mcp_cmd_init(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 	/* Initialize the MFW spinlock */
 	spin_lock_init(&p_info->lock);
+	spin_lock_init(&p_info->link_lock);
 
 	return 0;
 
@@ -610,6 +611,9 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 	u8 max_bw, min_bw;
 	u32 status = 0;
 
+	/* Prevent SW/attentions from doing this at the same time */
+	spin_lock_bh(&p_hwfn->mcp_info->link_lock);
+
 	p_link = &p_hwfn->mcp_info->link_output;
 	memset(p_link, 0, sizeof(*p_link));
 	if (!b_reset) {
@@ -624,7 +628,7 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 	} else {
 		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
 			   "Resetting link indications\n");
-		return;
+		goto out;
 	}
 
 	if (p_hwfn->b_drv_link_init)
@@ -731,6 +735,8 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 	p_link->sfp_tx_fault = !!(status & LINK_STATUS_SFP_TX_FAULT);
 
 	qed_link_update(p_hwfn);
+out:
+	spin_unlock_bh(&p_hwfn->mcp_info->link_lock);
 }
 
 int qed_mcp_set_link(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool b_up)
@@ -780,9 +786,13 @@ int qed_mcp_set_link(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool b_up)
 		return rc;
 	}
 
-	/* Reset the link status if needed */
-	if (!b_up)
-		qed_mcp_handle_link_change(p_hwfn, p_ptt, true);
+	/* Mimic link-change attention, done for several reasons:
+	 *  - On reset, there's no guarantee MFW would trigger
+	 *    an attention.
+	 *  - On initialization, older MFWs might not indicate link change
+	 *    during LFA, so we'll never get an UP indication.
+	 */
+	qed_mcp_handle_link_change(p_hwfn, p_ptt, !b_up);
 
 	return 0;
 }

@@ -854,6 +854,13 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 	if (rc)
 		goto err3;
 
+	/* Prepare the lock prior to the registeration of the netdev,
+	 * as once it's registered we might reach flows requiring it
+	 * [it's even possible to reach a flow needing it directly
+	 * from there, although it's unlikely].
+	 */
+	INIT_DELAYED_WORK(&edev->sp_task, qede_sp_task);
+	mutex_init(&edev->qede_lock);
 	rc = register_netdev(edev->ndev);
 	if (rc) {
 		DP_NOTICE(edev, "Cannot register net-device\n");
@@ -878,8 +885,6 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 		qede_set_dcbnl_ops(edev->ndev);
 #endif
 
-	INIT_DELAYED_WORK(&edev->sp_task, qede_sp_task);
-	mutex_init(&edev->qede_lock);
 	edev->rx_copybreak = QEDE_RX_HDR_SIZE;
 
 	DP_INFO(edev, "Ending successfully qede probe\n");
@@ -951,13 +956,19 @@ static void __qede_remove(struct pci_dev *pdev, enum qede_remove_mode mode)
 	if (edev->xdp_prog)
 		bpf_prog_put(edev->xdp_prog);
 
-	free_netdev(ndev);
-
 	/* Use global ops since we've freed edev */
 	qed_ops->common->slowpath_stop(cdev);
 	if (system_state == SYSTEM_POWER_OFF)
 		return;
 	qed_ops->common->remove(cdev);
+
+	/* Since this can happen out-of-sync with other flows,
+	 * don't release the netdevice until after slowpath stop
+	 * has been called to guarantee various other contexts
+	 * [e.g., QED register callbacks] won't break anything when
+	 * accessing the netdevice.
+	 */
+	 free_netdev(ndev);
 
 	dev_info(&pdev->dev, "Ending qede_remove successfully\n");
 }
@@ -1861,7 +1872,6 @@ static int qede_load(struct qede_dev *edev, enum qede_load_mode mode,
 		     bool is_locked)
 {
 	struct qed_link_params link_params;
-	struct qed_link_output link_output;
 	int rc;
 
 	DP_INFO(edev, "Starting qede load\n");
@@ -1913,11 +1923,7 @@ static int qede_load(struct qede_dev *edev, enum qede_load_mode mode,
 	link_params.link_up = true;
 	edev->ops->common->set_link(edev->cdev, &link_params);
 
-	/* Query whether link is already-up */
-	memset(&link_output, 0, sizeof(link_output));
-	edev->ops->common->get_link(edev->cdev, &link_output);
 	qede_roce_dev_event_open(edev);
-	qede_link_update(edev, &link_output);
 
 	qede_ptp_start(edev, (mode == QEDE_LOAD_NORMAL));
 
