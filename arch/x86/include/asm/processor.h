@@ -303,7 +303,7 @@ struct x86_hw_tss {
 	u16			reserved5;
 	u16			io_bitmap_base;
 
-} __attribute__((packed)) ____cacheline_aligned;
+} __attribute__((packed));
 #endif
 
 /*
