@@ -202,11 +202,12 @@ struct aq_nic_s *aq_nic_alloc_cold(const struct net_device_ops *ndev_ops,
 	int err = 0;
 
 	ndev = aq_nic_ndev_alloc();
-	self = netdev_priv(ndev);
-	if (!self) {
-		err = -EINVAL;
+	if (!ndev) {
+		err = -ENOMEM;
 		goto err_exit;
 	}
+
+	self = netdev_priv(ndev);
 
 	ndev->netdev_ops = ndev_ops;
 	ndev->ethtool_ops = et_ops;
