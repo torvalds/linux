@@ -2111,10 +2111,7 @@ static int asus_wmi_add(struct platform_device *pdev)
 	if (result & (ASUS_WMI_DSTS_PRESENCE_BIT | ASUS_WMI_DSTS_USER_BIT))
 		asus->driver->wlan_ctrl_by_user = 1;
 
-	if (asus->driver->wlan_ctrl_by_user && ashs_present())
-		asus->driver->quirks->no_rfkill = 1;
-
-	if (!asus->driver->quirks->no_rfkill) {
+	if (!(asus->driver->wlan_ctrl_by_user && ashs_present())) {
 		err = asus_wmi_rfkill_init(asus);
 		if (err)
 			goto fail_rfkill;
