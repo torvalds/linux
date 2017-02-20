@@ -1990,19 +1990,6 @@ static void add_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr,
 	m->host[i].value = host_val;
 }
 
-static void reload_tss(void)
-{
-	/*
-	 * VT restores TR but not its size.  Useless.
-	 */
-	struct desc_ptr *gdt = this_cpu_ptr(&host_gdt);
-	struct desc_struct *descs;
-
-	descs = (void *)gdt->address;
-	descs[GDT_ENTRY_TSS].type = 9; /* available TSS */
-	load_TR_desc();
-}
-
 static bool update_transition_efer(struct vcpu_vmx *vmx, int efer_offset)
 {
 	u64 guest_efer = vmx->vcpu.arch.efer;
@@ -2172,7 +2159,7 @@ static void __vmx_load_host_state(struct vcpu_vmx *vmx)
 		loadsegment(es, vmx->host_state.es_sel);
 	}
 #endif
-	reload_tss();
+	invalidate_tss_limit();
 #ifdef CONFIG_X86_64
 	wrmsrl(MSR_KERNEL_GS_BASE, vmx->msr_host_kernel_gs_base);
 #endif
@@ -2292,6 +2279,14 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		vmcs_writel(HOST_TR_BASE,
 			    (unsigned long)this_cpu_ptr(&cpu_tss));
 		vmcs_writel(HOST_GDTR_BASE, gdt->address);
+
+		/*
+		 * VM exits change the host TR limit to 0x67 after a VM
+		 * exit.  This is okay, since 0x67 covers everything except
+		 * the IO bitmap and have have code to handle the IO bitmap
+		 * being lost after a VM exit.
+		 */
+		BUILD_BUG_ON(IO_BITMAP_OFFSET - 1 != 0x67);
 
 		rdmsrl(MSR_IA32_SYSENTER_ESP, sysenter_esp);
 		vmcs_writel(HOST_IA32_SYSENTER_ESP, sysenter_esp); /* 22.2.3 */

@@ -205,6 +205,54 @@ static inline void native_load_tr_desc(void)
 	asm volatile("ltr %w0"::"q" (GDT_ENTRY_TSS*8));
 }
 
+static inline void force_reload_TR(void)
+{
+	struct desc_struct *d = get_cpu_gdt_table(smp_processor_id());
+	tss_desc tss;
+
+	memcpy(&tss, &d[GDT_ENTRY_TSS], sizeof(tss_desc));
+
+	/*
+	 * LTR requires an available TSS, and the TSS is currently
+	 * busy.  Make it be available so that LTR will work.
+	 */
+	tss.type = DESC_TSS;
+	write_gdt_entry(d, GDT_ENTRY_TSS, &tss, DESC_TSS);
+
+	load_TR_desc();
+}
+
+DECLARE_PER_CPU(bool, need_tr_refresh);
+
+static inline void refresh_TR(void)
+{
+	DEBUG_LOCKS_WARN_ON(preemptible());
+
+	if (unlikely(this_cpu_read(need_tr_refresh))) {
+		force_reload_TR();
+		this_cpu_write(need_tr_refresh, false);
+	}
+}
+
+/*
+ * If you do something evil that corrupts the cached TSS limit (I'm looking
+ * at you, VMX exits), call this function.
+ *
+ * The optimization here is that the TSS limit only matters for Linux if the
+ * IO bitmap is in use.  If the TSS limit gets forced to its minimum value,
+ * everything works except that IO bitmap will be ignored and all CPL 3 IO
+ * instructions will #GP, which is exactly what we want for normal tasks.
+ */
+static inline void invalidate_tss_limit(void)
+{
+	DEBUG_LOCKS_WARN_ON(preemptible());
+
+	if (unlikely(test_thread_flag(TIF_IO_BITMAP)))
+		force_reload_TR();
+	else
+		this_cpu_write(need_tr_refresh, true);
+}
+
 static inline void native_load_gdt(const struct desc_ptr *dtr)
 {
 	asm volatile("lgdt %0"::"m" (*dtr));
