@@ -111,14 +111,14 @@ void sm750_hw_cursor_setData(struct lynx_cursor *cursor,
 		data = 0;
 
 		for (j = 0; j < 8; j++) {
-			if (mask & (0x80>>j)) {
+			if (mask & (0x80 >> j)) {
 				if (rop == ROP_XOR)
 					opr = mask ^ color;
 				else
 					opr = mask & color;
 
 				/* 2 stands for forecolor and 1 for backcolor */
-				data |= ((opr & (0x80>>j))?2:1)<<(j*2);
+				data |= ((opr & (0x80 >> j)) ? 2 : 1) << (j * 2);
 			}
 		}
 		iowrite16(data, pbuffer);
@@ -165,13 +165,13 @@ void sm750_hw_cursor_setData2(struct lynx_cursor *cursor,
 		data = 0;
 
 		for (j = 0; j < 8; j++) {
-			if (mask & (1<<j))
-				data |= ((color & (1<<j))?1:2)<<(j*2);
+			if (mask & (1 << j))
+				data |= ((color & (1 << j)) ? 1 : 2) << (j * 2);
 		}
 		iowrite16(data, pbuffer);
 
 		/* assume pitch is 1,2,4,8,...*/
-		if (!(i&(pitch-1))) {
+		if (!(i & (pitch - 1))) {
 			/* need a return */
 			pstart += offset;
 			pbuffer = pstart;
