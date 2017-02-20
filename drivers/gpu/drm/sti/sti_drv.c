@@ -117,15 +117,6 @@ err:
 	return ret;
 }
 
-static void sti_drm_dbg_cleanup(struct drm_minor *minor)
-{
-	drm_debugfs_remove_files(sti_drm_dbg_list,
-				 ARRAY_SIZE(sti_drm_dbg_list), minor);
-
-	drm_debugfs_remove_files((struct drm_info_list *)&sti_drm_fps_fops,
-				 1, minor);
-}
-
 static int sti_atomic_check(struct drm_device *dev,
 			    struct drm_atomic_state *state)
 {

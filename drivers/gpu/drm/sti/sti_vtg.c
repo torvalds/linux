@@ -389,7 +389,6 @@ static irqreturn_t vtg_irq(int irq, void *arg)
 static int vtg_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np;
 	struct sti_vtg *vtg;
 	struct resource *res;
 	int ret;
