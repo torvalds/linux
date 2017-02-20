@@ -260,7 +260,7 @@ int btrfs_truncate_free_space_cache(struct btrfs_trans_handle *trans,
 		btrfs_free_path(path);
 	}
 
-	btrfs_i_size_write(inode, 0);
+	btrfs_i_size_write(BTRFS_I(inode), 0);
 	truncate_pagecache(inode, 0);
 
 	/*

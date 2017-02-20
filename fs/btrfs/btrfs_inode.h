@@ -237,10 +237,10 @@ static inline u64 btrfs_ino(struct btrfs_inode *inode)
 	return ino;
 }
 
-static inline void btrfs_i_size_write(struct inode *inode, u64 size)
+static inline void btrfs_i_size_write(struct btrfs_inode *inode, u64 size)
 {
-	i_size_write(inode, size);
-	BTRFS_I(inode)->disk_i_size = size;
+	i_size_write(&inode->vfs_inode, size);
+	inode->disk_i_size = size;
 }
 
 static inline bool btrfs_is_free_space_inode(struct inode *inode)
