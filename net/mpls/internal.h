@@ -16,7 +16,7 @@ struct mpls_pcpu_stats {
 
 struct mpls_dev {
 	int				input_enabled;
-
+	struct net_device		*dev;
 	struct mpls_pcpu_stats __percpu	*stats;
 
 	struct ctl_table_header		*sysctl;
