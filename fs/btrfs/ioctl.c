@@ -587,7 +587,7 @@ static noinline int create_subvol(struct inode *dir,
 	}
 
 	ret = btrfs_insert_dir_item(trans, root,
-				    name, namelen, dir, &key,
+				    name, namelen, BTRFS_I(dir), &key,
 				    BTRFS_FT_DIR, index);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);

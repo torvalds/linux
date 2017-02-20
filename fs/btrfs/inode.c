@@ -6276,7 +6276,7 @@ int btrfs_add_link(struct btrfs_trans_handle *trans,
 		return ret;
 
 	ret = btrfs_insert_dir_item(trans, root, name, name_len,
-				    parent_inode, &key,
+				    BTRFS_I(parent_inode), &key,
 				    btrfs_inode_type(inode), index);
 	if (ret == -EEXIST || ret == -EOVERFLOW)
 		goto fail_dir_item;
