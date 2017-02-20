@@ -275,11 +275,8 @@ static int rtl_load_config(struct hci_dev *hdev, const char *name, u8 **buff)
 
 	BT_INFO("%s: rtl: loading %s", hdev->name, name);
 	ret = request_firmware(&fw, name, &hdev->dev);
-	if (ret < 0) {
-		BT_ERR("%s: Failed to load %s", hdev->name, name);
+	if (ret < 0)
 		return ret;
-	}
-
 	ret = fw->size;
 	*buff = kmemdup(fw->data, ret, GFP_KERNEL);
 
@@ -331,6 +328,7 @@ static int btrtl_setup_rtl8723b(struct hci_dev *hdev, u16 lmp_subver,
 	u8 *cfg_buff = NULL;
 	u8 *tbuff;
 	char *cfg_name = NULL;
+	bool config_needed = false;
 
 	switch (lmp_subver) {
 	case RTL_ROM_LMP_8723B:
@@ -344,6 +342,7 @@ static int btrtl_setup_rtl8723b(struct hci_dev *hdev, u16 lmp_subver,
 		break;
 	case RTL_ROM_LMP_8822B:
 		cfg_name = "rtl_bt/rtl8822b_config.bin";
+		config_needed = true;
 		break;
 	default:
 		BT_ERR("%s: rtl: no config according to lmp_subver %04x",
@@ -353,8 +352,12 @@ static int btrtl_setup_rtl8723b(struct hci_dev *hdev, u16 lmp_subver,
 
 	if (cfg_name) {
 		cfg_sz = rtl_load_config(hdev, cfg_name, &cfg_buff);
-		if (cfg_sz < 0)
+		if (cfg_sz < 0) {
 			cfg_sz = 0;
+			if (config_needed)
+				BT_ERR("Necessary config file %s not found\n",
+				       cfg_name);
+		}
 	} else
 		cfg_sz = 0;
 
