@@ -1436,7 +1436,7 @@ lock_and_cleanup_extent_if_need(struct inode *inode, struct page **pages,
 		struct btrfs_ordered_extent *ordered;
 		lock_extent_bits(&BTRFS_I(inode)->io_tree,
 				 start_pos, last_pos, cached_state);
-		ordered = btrfs_lookup_ordered_range(inode, start_pos,
+		ordered = btrfs_lookup_ordered_range(BTRFS_I(inode), start_pos,
 						     last_pos - start_pos + 1);
 		if (ordered &&
 		    ordered->file_offset + ordered->len > start_pos &&
@@ -1494,7 +1494,7 @@ static noinline int check_can_nocow(struct inode *inode, loff_t pos,
 
 	while (1) {
 		lock_extent(&BTRFS_I(inode)->io_tree, lockstart, lockend);
-		ordered = btrfs_lookup_ordered_range(inode, lockstart,
+		ordered = btrfs_lookup_ordered_range(BTRFS_I(inode), lockstart,
 						     lockend - lockstart + 1);
 		if (!ordered) {
 			break;

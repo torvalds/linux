@@ -879,15 +879,14 @@ out:
 /* Since the DIO code tries to lock a wide area we need to look for any ordered
  * extents that exist in the range, rather than just the start of the range.
  */
-struct btrfs_ordered_extent *btrfs_lookup_ordered_range(struct inode *inode,
-							u64 file_offset,
-							u64 len)
+struct btrfs_ordered_extent *btrfs_lookup_ordered_range(
+		struct btrfs_inode *inode, u64 file_offset, u64 len)
 {
 	struct btrfs_ordered_inode_tree *tree;
 	struct rb_node *node;
 	struct btrfs_ordered_extent *entry = NULL;
 
-	tree = &BTRFS_I(inode)->ordered_tree;
+	tree = &inode->ordered_tree;
 	spin_lock_irq(&tree->lock);
 	node = tree_search(tree, file_offset);
 	if (!node) {
@@ -923,7 +922,7 @@ bool btrfs_have_ordered_extents_in_range(struct inode *inode,
 {
 	struct btrfs_ordered_extent *oe;
 
-	oe = btrfs_lookup_ordered_range(inode, file_offset, len);
+	oe = btrfs_lookup_ordered_range(BTRFS_I(inode), file_offset, len);
 	if (oe) {
 		btrfs_put_ordered_extent(oe);
 		return true;

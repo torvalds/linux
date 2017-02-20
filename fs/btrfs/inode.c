@@ -1966,7 +1966,7 @@ again:
 	if (PagePrivate2(page))
 		goto out;
 
-	ordered = btrfs_lookup_ordered_range(inode, page_start,
+	ordered = btrfs_lookup_ordered_range(BTRFS_I(inode), page_start,
 					PAGE_SIZE);
 	if (ordered) {
 		unlock_extent_cached(&BTRFS_I(inode)->io_tree, page_start,
@@ -4838,7 +4838,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 
 		lock_extent_bits(io_tree, hole_start, block_end - 1,
 				 &cached_state);
-		ordered = btrfs_lookup_ordered_range(inode, hole_start,
+		ordered = btrfs_lookup_ordered_range(BTRFS_I(inode), hole_start,
 						     block_end - hole_start);
 		if (!ordered)
 			break;
@@ -7428,7 +7428,7 @@ static int lock_extent_direct(struct inode *inode, u64 lockstart, u64 lockend,
 		 * doing DIO to, so we need to make sure there's no ordered
 		 * extents in this range.
 		 */
-		ordered = btrfs_lookup_ordered_range(inode, lockstart,
+		ordered = btrfs_lookup_ordered_range(BTRFS_I(inode), lockstart,
 						     lockend - lockstart + 1);
 
 		/*
@@ -8801,7 +8801,7 @@ static void btrfs_invalidatepage(struct page *page, unsigned int offset,
 		lock_extent_bits(tree, page_start, page_end, &cached_state);
 again:
 	start = page_start;
-	ordered = btrfs_lookup_ordered_range(inode, start,
+	ordered = btrfs_lookup_ordered_range(BTRFS_I(inode), start,
 					page_end - start + 1);
 	if (ordered) {
 		end = min(page_end, ordered->file_offset + ordered->len - 1);
@@ -8967,7 +8967,8 @@ again:
 	 * we can't set the delalloc bits if there are pending ordered
 	 * extents.  Drop our locks and wait for them to finish
 	 */
-	ordered = btrfs_lookup_ordered_range(inode, page_start, PAGE_SIZE);
+	ordered = btrfs_lookup_ordered_range(BTRFS_I(inode), page_start,
+			PAGE_SIZE);
 	if (ordered) {
 		unlock_extent_cached(io_tree, page_start, page_end,
 				     &cached_state, GFP_NOFS);

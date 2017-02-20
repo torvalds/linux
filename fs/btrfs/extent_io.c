@@ -3101,7 +3101,7 @@ static inline void __do_contiguous_readpages(struct extent_io_tree *tree,
 	inode = pages[0]->mapping->host;
 	while (1) {
 		lock_extent(tree, start, end);
-		ordered = btrfs_lookup_ordered_range(inode, start,
+		ordered = btrfs_lookup_ordered_range(BTRFS_I(inode), start,
 						     end - start + 1);
 		if (!ordered)
 			break;
@@ -3173,7 +3173,7 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 
 	while (1) {
 		lock_extent(tree, start, end);
-		ordered = btrfs_lookup_ordered_range(inode, start,
+		ordered = btrfs_lookup_ordered_range(BTRFS_I(inode), start,
 						PAGE_SIZE);
 		if (!ordered)
 			break;
