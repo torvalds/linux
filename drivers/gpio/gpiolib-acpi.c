@@ -1098,7 +1098,7 @@ int acpi_gpio_count(struct device *dev, const char *con_id)
 					break;
 				}
 		}
-		if (count >= 0)
+		if (count > 0)
 			break;
 	}
 
@@ -1114,7 +1114,7 @@ int acpi_gpio_count(struct device *dev, const char *con_id)
 		if (crs_count > 0)
 			count = crs_count;
 	}
-	return count;
+	return count ? count : -ENOENT;
 }
 
 struct acpi_crs_lookup {
