@@ -1436,6 +1436,7 @@ config RCU_CPU_STALL_TIMEOUT
 config RCU_TRACE
 	bool "Enable tracing for RCU"
 	depends on DEBUG_KERNEL
+	default y if TREE_RCU
 	select TRACE_CLOCK
 	help
 	  This option provides tracing in RCU which presents stats

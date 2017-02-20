@@ -3269,6 +3269,13 @@
 			Lazy RCU callbacks are those which RCU can
 			prove do nothing more than free memory.
 
+	rcutree.rcu_kick_kthreads= [KNL]
+			Cause the grace-period kthread to get an extra
+			wake_up() if it sleeps three times longer than
+			it should at force-quiescent-state time.
+			This wake_up() will be accompanied by a
+			WARN_ONCE() splat and an ftrace_dump().
+
 	rcuperf.gp_exp= [KNL]
 			Measure performance of expedited synchronous
 			grace-period primitives.
