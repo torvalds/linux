@@ -157,7 +157,6 @@ static int eeti_ts_probe(struct i2c_client *client,
 	struct eeti_ts_platform_data *pdata = dev_get_platdata(dev);
 	struct eeti_ts *eeti;
 	struct input_dev *input;
-	unsigned int irq_flags;
 	int error;
 
 	/*
@@ -201,15 +200,12 @@ static int eeti_ts_probe(struct i2c_client *client,
 
 	eeti->irq_active_high = pdata->irq_active_high;
 
-	irq_flags = eeti->irq_active_high ?
-		IRQF_TRIGGER_HIGH : IRQF_TRIGGER_LOW;
-
 	i2c_set_clientdata(client, eeti);
 	input_set_drvdata(input, eeti);
 
 	error = devm_request_threaded_irq(dev, client->irq,
 					  NULL, eeti_ts_isr,
-					  irq_flags | IRQF_ONESHOT,
+					  IRQF_ONESHOT,
 					  client->name, eeti);
 	if (error) {
 		dev_err(dev, "Unable to request touchscreen IRQ: %d\n",

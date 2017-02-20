@@ -970,10 +970,19 @@ static struct eeti_ts_platform_data eeti_ts_pdata = {
 	.irq_gpio = GPIO_TOUCH_IRQ,
 };
 
+static const struct resource raumfeld_controller_resources[] = __initconst {
+	{
+		.start	= PXA_GPIO_TO_IRQ(GPIO_TOUCH_IRQ),
+		.end	= PXA_GPIO_TO_IRQ(GPIO_TOUCH_IRQ),
+		.flags	= IORESOURCE_IRQ | IRQF_TRIGGER_HIGH,
+	},
+};
+
 static struct i2c_board_info raumfeld_controller_i2c_board_info __initdata = {
 	.type	= "eeti_ts",
 	.addr	= 0x0a,
-	.irq	= PXA_GPIO_TO_IRQ(GPIO_TOUCH_IRQ),
+	.resources = raumfeld_controller_resources,
+	.num_resources = ARRAY_SIZE(raumfeld_controller_resources),
 	.platform_data = &eeti_ts_pdata,
 };
 
