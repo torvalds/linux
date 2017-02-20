@@ -956,13 +956,19 @@ static void __qede_remove(struct pci_dev *pdev, enum qede_remove_mode mode)
 	if (edev->xdp_prog)
 		bpf_prog_put(edev->xdp_prog);
 
-	free_netdev(ndev);
-
 	/* Use global ops since we've freed edev */
 	qed_ops->common->slowpath_stop(cdev);
 	if (system_state == SYSTEM_POWER_OFF)
 		return;
 	qed_ops->common->remove(cdev);
+
+	/* Since this can happen out-of-sync with other flows,
+	 * don't release the netdevice until after slowpath stop
+	 * has been called to guarantee various other contexts
+	 * [e.g., QED register callbacks] won't break anything when
+	 * accessing the netdevice.
+	 */
+	 free_netdev(ndev);
 
 	dev_info(&pdev->dev, "Ending qede_remove successfully\n");
 }
