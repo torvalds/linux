@@ -428,7 +428,8 @@ static void clear_state_cb(struct extent_io_tree *tree,
 			   struct extent_state *state, unsigned *bits)
 {
 	if (tree->ops && tree->ops->clear_bit_hook)
-		tree->ops->clear_bit_hook(tree->mapping->host, state, bits);
+		tree->ops->clear_bit_hook(BTRFS_I(tree->mapping->host),
+				state, bits);
 }
 
 static void set_state_bits(struct extent_io_tree *tree,

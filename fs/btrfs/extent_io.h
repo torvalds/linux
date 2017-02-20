@@ -84,6 +84,7 @@ extern void le_bitmap_clear(u8 *map, unsigned int start, int len);
 
 struct extent_state;
 struct btrfs_root;
+struct btrfs_inode;
 struct btrfs_io_bio;
 struct io_failure_record;
 
@@ -107,8 +108,9 @@ struct extent_io_ops {
 				      struct extent_state *state, int uptodate);
 	void (*set_bit_hook)(struct inode *inode, struct extent_state *state,
 			     unsigned *bits);
-	void (*clear_bit_hook)(struct inode *inode, struct extent_state *state,
-			       unsigned *bits);
+	void (*clear_bit_hook)(struct btrfs_inode *inode,
+			struct extent_state *state,
+			unsigned *bits);
 	void (*merge_extent_hook)(struct inode *inode,
 				  struct extent_state *new,
 				  struct extent_state *other);

@@ -1703,18 +1703,18 @@ static void btrfs_set_bit_hook(struct inode *inode,
 /*
  * extent_io.c clear_bit_hook, see set_bit_hook for why
  */
-static void btrfs_clear_bit_hook(struct inode *inode,
+static void btrfs_clear_bit_hook(struct btrfs_inode *inode,
 				 struct extent_state *state,
 				 unsigned *bits)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
 	u64 len = state->end + 1 - state->start;
 	u32 num_extents = count_max_extents(len);
 
-	spin_lock(&BTRFS_I(inode)->lock);
+	spin_lock(&inode->lock);
 	if ((state->state & EXTENT_DEFRAG) && (*bits & EXTENT_DEFRAG))
-		BTRFS_I(inode)->defrag_bytes -= len;
-	spin_unlock(&BTRFS_I(inode)->lock);
+		inode->defrag_bytes -= len;
+	spin_unlock(&inode->lock);
 
 	/*
 	 * set_bit and clear bit hooks normally require _irqsave/restore
@@ -1722,15 +1722,15 @@ static void btrfs_clear_bit_hook(struct inode *inode,
 	 * bit, which is only set or cleared with irqs on
 	 */
 	if ((state->state & EXTENT_DELALLOC) && (*bits & EXTENT_DELALLOC)) {
-		struct btrfs_root *root = BTRFS_I(inode)->root;
-		bool do_list = !btrfs_is_free_space_inode(BTRFS_I(inode));
+		struct btrfs_root *root = inode->root;
+		bool do_list = !btrfs_is_free_space_inode(inode);
 
 		if (*bits & EXTENT_FIRST_DELALLOC) {
 			*bits &= ~EXTENT_FIRST_DELALLOC;
 		} else if (!(*bits & EXTENT_DO_ACCOUNTING)) {
-			spin_lock(&BTRFS_I(inode)->lock);
-			BTRFS_I(inode)->outstanding_extents -= num_extents;
-			spin_unlock(&BTRFS_I(inode)->lock);
+			spin_lock(&inode->lock);
+			inode->outstanding_extents -= num_extents;
+			spin_unlock(&inode->lock);
 		}
 
 		/*
@@ -1740,7 +1740,7 @@ static void btrfs_clear_bit_hook(struct inode *inode,
 		 */
 		if (*bits & EXTENT_DO_ACCOUNTING &&
 		    root != fs_info->tree_root)
-			btrfs_delalloc_release_metadata(BTRFS_I(inode), len);
+			btrfs_delalloc_release_metadata(inode, len);
 
 		/* For sanity tests. */
 		if (btrfs_is_testing(fs_info))
@@ -1750,18 +1750,19 @@ static void btrfs_clear_bit_hook(struct inode *inode,
 		    && do_list && !(state->state & EXTENT_NORESERVE)
 		    && (*bits & (EXTENT_DO_ACCOUNTING |
 		    EXTENT_CLEAR_DATA_RESV)))
-			btrfs_free_reserved_data_space_noquota(inode,
+			btrfs_free_reserved_data_space_noquota(
+					&inode->vfs_inode,
 					state->start, len);
 
 		__percpu_counter_add(&fs_info->delalloc_bytes, -len,
 				     fs_info->delalloc_batch);
-		spin_lock(&BTRFS_I(inode)->lock);
-		BTRFS_I(inode)->delalloc_bytes -= len;
-		if (do_list && BTRFS_I(inode)->delalloc_bytes == 0 &&
+		spin_lock(&inode->lock);
+		inode->delalloc_bytes -= len;
+		if (do_list && inode->delalloc_bytes == 0 &&
 		    test_bit(BTRFS_INODE_IN_DELALLOC_LIST,
-			     &BTRFS_I(inode)->runtime_flags))
-			btrfs_del_delalloc_inode(root, inode);
-		spin_unlock(&BTRFS_I(inode)->lock);
+				&inode->runtime_flags))
+			btrfs_del_delalloc_inode(root, &inode->vfs_inode);
+		spin_unlock(&inode->lock);
 	}
 }
 
