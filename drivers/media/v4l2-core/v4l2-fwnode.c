@@ -28,8 +28,8 @@
 
 #include <media/v4l2-fwnode.h>
 
-static int v4l2_fwnode_endpoint_parse_csi_bus(struct fwnode_handle *fwnode,
-					      struct v4l2_fwnode_endpoint *vep)
+static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
+					       struct v4l2_fwnode_endpoint *vep)
 {
 	struct v4l2_fwnode_bus_mipi_csi2 *bus = &vep->bus.mipi_csi2;
 	bool have_clk_lane = false;
@@ -176,7 +176,7 @@ int v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 	memset(&vep->bus_type, 0, sizeof(*vep) -
 	       offsetof(typeof(*vep), bus_type));
 
-	rval = v4l2_fwnode_endpoint_parse_csi_bus(fwnode, vep);
+	rval = v4l2_fwnode_endpoint_parse_csi2_bus(fwnode, vep);
 	if (rval)
 		return rval;
 	/*
