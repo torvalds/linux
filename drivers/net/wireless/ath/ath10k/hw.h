@@ -296,7 +296,8 @@ void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
  *  - raw appears in nwifi decap, raw and nwifi appear in ethernet decap
  *  - raw have FCS, nwifi doesn't
  *  - ethernet frames have 802.11 header decapped and parts (base hdr, cipher
- *    param, llc/snap) are aligned to 4byte boundaries each */
+ *    param, llc/snap) are aligned to 4byte boundaries each
+ */
 enum ath10k_hw_txrx_mode {
 	ATH10K_HW_TXRX_RAW = 0,
 
