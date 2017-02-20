@@ -92,10 +92,10 @@ static int __compare_inode_defrag(struct inode_defrag *defrag1,
  * If an existing record is found the defrag item you
  * pass in is freed
  */
-static int __btrfs_add_inode_defrag(struct inode *inode,
+static int __btrfs_add_inode_defrag(struct btrfs_inode *inode,
 				    struct inode_defrag *defrag)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
 	struct inode_defrag *entry;
 	struct rb_node **p;
 	struct rb_node *parent = NULL;
@@ -123,7 +123,7 @@ static int __btrfs_add_inode_defrag(struct inode *inode,
 			return -EEXIST;
 		}
 	}
-	set_bit(BTRFS_INODE_IN_DEFRAG, &BTRFS_I(inode)->runtime_flags);
+	set_bit(BTRFS_INODE_IN_DEFRAG, &inode->runtime_flags);
 	rb_link_node(&defrag->rb_node, parent, p);
 	rb_insert_color(&defrag->rb_node, &fs_info->defrag_inodes);
 	return 0;
@@ -145,10 +145,10 @@ static inline int __need_auto_defrag(struct btrfs_fs_info *fs_info)
  * enabled
  */
 int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
-			   struct inode *inode)
+			   struct btrfs_inode *inode)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
+	struct btrfs_root *root = inode->root;
 	struct inode_defrag *defrag;
 	u64 transid;
 	int ret;
@@ -156,24 +156,24 @@ int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 	if (!__need_auto_defrag(fs_info))
 		return 0;
 
-	if (test_bit(BTRFS_INODE_IN_DEFRAG, &BTRFS_I(inode)->runtime_flags))
+	if (test_bit(BTRFS_INODE_IN_DEFRAG, &inode->runtime_flags))
 		return 0;
 
 	if (trans)
 		transid = trans->transid;
 	else
-		transid = BTRFS_I(inode)->root->last_trans;
+		transid = inode->root->last_trans;
 
 	defrag = kmem_cache_zalloc(btrfs_inode_defrag_cachep, GFP_NOFS);
 	if (!defrag)
 		return -ENOMEM;
 
-	defrag->ino = btrfs_ino(BTRFS_I(inode));
+	defrag->ino = btrfs_ino(inode);
 	defrag->transid = transid;
 	defrag->root = root->root_key.objectid;
 
 	spin_lock(&fs_info->defrag_inodes_lock);
-	if (!test_bit(BTRFS_INODE_IN_DEFRAG, &BTRFS_I(inode)->runtime_flags)) {
+	if (!test_bit(BTRFS_INODE_IN_DEFRAG, &inode->runtime_flags)) {
 		/*
 		 * If we set IN_DEFRAG flag and evict the inode from memory,
 		 * and then re-read this inode, this new inode doesn't have
@@ -208,7 +208,7 @@ static void btrfs_requeue_inode_defrag(struct inode *inode,
 	 * them together.
 	 */
 	spin_lock(&fs_info->defrag_inodes_lock);
-	ret = __btrfs_add_inode_defrag(inode, defrag);
+	ret = __btrfs_add_inode_defrag(BTRFS_I(inode), defrag);
 	spin_unlock(&fs_info->defrag_inodes_lock);
 	if (ret)
 		goto out;
