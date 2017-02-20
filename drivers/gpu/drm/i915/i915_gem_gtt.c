@@ -2085,32 +2085,6 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 	ggtt->invalidate(vm->i915);
 }
 
-struct insert_entries {
-	struct i915_address_space *vm;
-	struct sg_table *st;
-	u64 start;
-	enum i915_cache_level level;
-	u32 flags;
-};
-
-static int gen8_ggtt_insert_entries__cb(void *_arg)
-{
-	struct insert_entries *arg = _arg;
-	gen8_ggtt_insert_entries(arg->vm, arg->st,
-				 arg->start, arg->level, arg->flags);
-	return 0;
-}
-
-static void gen8_ggtt_insert_entries__BKL(struct i915_address_space *vm,
-					  struct sg_table *st,
-					  u64 start,
-					  enum i915_cache_level level,
-					  u32 flags)
-{
-	struct insert_entries arg = { vm, st, start, level, flags };
-	stop_machine(gen8_ggtt_insert_entries__cb, &arg, NULL);
-}
-
 static void gen6_ggtt_insert_page(struct i915_address_space *vm,
 				  dma_addr_t addr,
 				  u64 offset,
@@ -2762,8 +2736,6 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 		ggtt->base.clear_range = gen8_ggtt_clear_range;
 
 	ggtt->base.insert_entries = gen8_ggtt_insert_entries;
-	if (IS_CHERRYVIEW(dev_priv))
-		ggtt->base.insert_entries = gen8_ggtt_insert_entries__BKL;
 
 	ggtt->invalidate = gen6_ggtt_invalidate;
 
