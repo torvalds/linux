@@ -203,6 +203,7 @@ static void free_r1bio(struct r1bio *r1_bio)
 static void put_buf(struct r1bio *r1_bio)
 {
 	struct r1conf *conf = r1_bio->mddev->private;
+	sector_t sect = r1_bio->sector;
 	int i;
 
 	for (i = 0; i < conf->raid_disks * 2; i++) {
@@ -213,7 +214,7 @@ static void put_buf(struct r1bio *r1_bio)
 
 	mempool_free(r1_bio, conf->r1buf_pool);
 
-	lower_barrier(conf, r1_bio->sector);
+	lower_barrier(conf, sect);
 }
 
 static void reschedule_retry(struct r1bio *r1_bio)
