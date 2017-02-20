@@ -42,28 +42,6 @@
 
 #define NVME_RDMA_MAX_INLINE_SEGMENTS	1
 
-static const char *const nvme_rdma_cm_status_strs[] = {
-	[NVME_RDMA_CM_INVALID_LEN]	= "invalid length",
-	[NVME_RDMA_CM_INVALID_RECFMT]	= "invalid record format",
-	[NVME_RDMA_CM_INVALID_QID]	= "invalid queue ID",
-	[NVME_RDMA_CM_INVALID_HSQSIZE]	= "invalid host SQ size",
-	[NVME_RDMA_CM_INVALID_HRQSIZE]	= "invalid host RQ size",
-	[NVME_RDMA_CM_NO_RSC]		= "resource not found",
-	[NVME_RDMA_CM_INVALID_IRD]	= "invalid IRD",
-	[NVME_RDMA_CM_INVALID_ORD]	= "Invalid ORD",
-};
-
-static const char *nvme_rdma_cm_msg(enum nvme_rdma_cm_status status)
-{
-	size_t index = status;
-
-	if (index < ARRAY_SIZE(nvme_rdma_cm_status_strs) &&
-	    nvme_rdma_cm_status_strs[index])
-		return nvme_rdma_cm_status_strs[index];
-	else
-		return "unrecognized reason";
-};
-
 /*
  * We handle AEN commands ourselves and don't even let the
  * block layer know about them.
