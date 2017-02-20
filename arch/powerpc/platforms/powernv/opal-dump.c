@@ -225,13 +225,16 @@ static int64_t dump_read_info(uint32_t *dump_id, uint32_t *dump_size, uint32_t *
 	if (rc == OPAL_PARAMETER)
 		rc = opal_dump_info(&id, &size);
 
+	if (rc) {
+		pr_warn("%s: Failed to get dump info (%d)\n",
+			__func__, rc);
+		return rc;
+	}
+
 	*dump_id = be32_to_cpu(id);
 	*dump_size = be32_to_cpu(size);
 	*dump_type = be32_to_cpu(type);
 
-	if (rc)
-		pr_warn("%s: Failed to get dump info (%d)\n",
-			__func__, rc);
 	return rc;
 }
 
