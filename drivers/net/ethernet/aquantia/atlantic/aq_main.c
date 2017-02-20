@@ -242,22 +242,4 @@ static struct pci_driver aq_pci_ops = {
 	.resume = aq_pci_resume,
 };
 
-static int __init aq_module_init(void)
-{
-	int err = 0;
-
-	err = pci_register_driver(&aq_pci_ops);
-	if (err < 0)
-		goto err_exit;
-
-err_exit:
-	return err;
-}
-
-static void __exit aq_module_exit(void)
-{
-	pci_unregister_driver(&aq_pci_ops);
-}
-
-module_init(aq_module_init);
-module_exit(aq_module_exit);
+module_pci_driver(aq_pci_ops);
