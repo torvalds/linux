@@ -1102,42 +1102,13 @@ static struct device *s5p_mfc_alloc_memdev(struct device *dev,
 	return NULL;
 }
 
-static int s5p_mfc_configure_dma_memory(struct s5p_mfc_dev *mfc_dev)
+static int s5p_mfc_configure_2port_memory(struct s5p_mfc_dev *mfc_dev)
 {
 	struct device *dev = &mfc_dev->plat_dev->dev;
 	void *bank2_virt;
 	dma_addr_t bank2_dma_addr;
 	unsigned long align_size = 1 << MFC_BASE_ALIGN_ORDER;
-	struct s5p_mfc_priv_buf *fw_buf = &mfc_dev->fw_buf;
 	int ret;
-
-	/*
-	 * When IOMMU is available, we cannot use the default configuration,
-	 * because of MFC firmware requirements: address space limited to
-	 * 256M and non-zero default start address.
-	 * This is still simplified, not optimal configuration, but for now
-	 * IOMMU core doesn't allow to configure device's IOMMUs channel
-	 * separately.
-	 */
-	if (exynos_is_iommu_available(dev)) {
-		int ret = exynos_configure_iommu(dev, S5P_MFC_IOMMU_DMA_BASE,
-						 S5P_MFC_IOMMU_DMA_SIZE);
-		if (ret)
-			return ret;
-
-		mfc_dev->mem_dev[BANK1_CTX] = mfc_dev->mem_dev[BANK2_CTX] = dev;
-		ret = s5p_mfc_alloc_firmware(mfc_dev);
-		if (ret) {
-			exynos_unconfigure_iommu(dev);
-			return ret;
-		}
-
-		mfc_dev->dma_base[BANK1_CTX] = fw_buf->dma;
-		mfc_dev->dma_base[BANK2_CTX] = fw_buf->dma;
-		vb2_dma_contig_set_max_seg_size(dev, DMA_BIT_MASK(32));
-
-		return 0;
-	}
 
 	/*
 	 * Create and initialize virtual devices for accessing
@@ -1162,7 +1133,7 @@ static int s5p_mfc_configure_dma_memory(struct s5p_mfc_dev *mfc_dev)
 		return ret;
 	}
 
-	mfc_dev->dma_base[BANK1_CTX] = fw_buf->dma;
+	mfc_dev->dma_base[BANK1_CTX] = mfc_dev->fw_buf.dma;
 
 	bank2_virt = dma_alloc_coherent(mfc_dev->mem_dev[BANK2_CTX], align_size,
 					&bank2_dma_addr, GFP_KERNEL);
@@ -1191,22 +1162,71 @@ static int s5p_mfc_configure_dma_memory(struct s5p_mfc_dev *mfc_dev)
 	return 0;
 }
 
+static void s5p_mfc_unconfigure_2port_memory(struct s5p_mfc_dev *mfc_dev)
+{
+	device_unregister(mfc_dev->mem_dev[BANK1_CTX]);
+	device_unregister(mfc_dev->mem_dev[BANK2_CTX]);
+	vb2_dma_contig_clear_max_seg_size(mfc_dev->mem_dev[BANK1_CTX]);
+	vb2_dma_contig_clear_max_seg_size(mfc_dev->mem_dev[BANK2_CTX]);
+}
+
+static int s5p_mfc_configure_common_memory(struct s5p_mfc_dev *mfc_dev)
+{
+	struct device *dev = &mfc_dev->plat_dev->dev;
+	/*
+	 * When IOMMU is available, we cannot use the default configuration,
+	 * because of MFC firmware requirements: address space limited to
+	 * 256M and non-zero default start address.
+	 * This is still simplified, not optimal configuration, but for now
+	 * IOMMU core doesn't allow to configure device's IOMMUs channel
+	 * separately.
+	 */
+	int ret = exynos_configure_iommu(dev, S5P_MFC_IOMMU_DMA_BASE,
+					 S5P_MFC_IOMMU_DMA_SIZE);
+	if (ret)
+		return ret;
+
+	mfc_dev->mem_dev[BANK1_CTX] = mfc_dev->mem_dev[BANK2_CTX] = dev;
+	ret = s5p_mfc_alloc_firmware(mfc_dev);
+	if (ret) {
+		exynos_unconfigure_iommu(dev);
+		return ret;
+	}
+
+	mfc_dev->dma_base[BANK1_CTX] = mfc_dev->fw_buf.dma;
+	mfc_dev->dma_base[BANK2_CTX] = mfc_dev->fw_buf.dma;
+	vb2_dma_contig_set_max_seg_size(dev, DMA_BIT_MASK(32));
+
+	return 0;
+}
+
+static void s5p_mfc_unconfigure_common_memory(struct s5p_mfc_dev *mfc_dev)
+{
+	struct device *dev = &mfc_dev->plat_dev->dev;
+
+	exynos_unconfigure_iommu(dev);
+	vb2_dma_contig_clear_max_seg_size(dev);
+}
+
+static int s5p_mfc_configure_dma_memory(struct s5p_mfc_dev *mfc_dev)
+{
+	struct device *dev = &mfc_dev->plat_dev->dev;
+
+	if (exynos_is_iommu_available(dev))
+		return s5p_mfc_configure_common_memory(mfc_dev);
+	else
+		return s5p_mfc_configure_2port_memory(mfc_dev);
+}
+
 static void s5p_mfc_unconfigure_dma_memory(struct s5p_mfc_dev *mfc_dev)
 {
 	struct device *dev = &mfc_dev->plat_dev->dev;
 
 	s5p_mfc_release_firmware(mfc_dev);
-
-	if (exynos_is_iommu_available(dev)) {
-		exynos_unconfigure_iommu(dev);
-		vb2_dma_contig_clear_max_seg_size(dev);
-		return;
-	}
-
-	device_unregister(mfc_dev->mem_dev[BANK1_CTX]);
-	device_unregister(mfc_dev->mem_dev[BANK2_CTX]);
-	vb2_dma_contig_clear_max_seg_size(mfc_dev->mem_dev[BANK1_CTX]);
-	vb2_dma_contig_clear_max_seg_size(mfc_dev->mem_dev[BANK2_CTX]);
+	if (exynos_is_iommu_available(dev))
+		s5p_mfc_unconfigure_common_memory(mfc_dev);
+	else
+		s5p_mfc_unconfigure_2port_memory(mfc_dev);
 }
 
 /* MFC probe function */
