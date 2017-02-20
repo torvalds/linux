@@ -746,10 +746,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	mutex_lock(&mvm->mutex);
 	iwl_mvm_ref(mvm, IWL_MVM_REF_INIT_UCODE);
-	if (iwl_mvm_has_new_tx_api(mvm))
-		err = iwl_run_unified_mvm_ucode(mvm, true);
-	else
-		err = iwl_run_init_mvm_ucode(mvm, true);
+	err = iwl_run_init_mvm_ucode(mvm, true);
 	if (!err || !iwlmvm_mod_params.init_dbg)
 		iwl_mvm_stop_device(mvm);
 	iwl_mvm_unref(mvm, IWL_MVM_REF_INIT_UCODE);
