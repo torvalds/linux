@@ -1872,7 +1872,6 @@ static int qede_load(struct qede_dev *edev, enum qede_load_mode mode,
 		     bool is_locked)
 {
 	struct qed_link_params link_params;
-	struct qed_link_output link_output;
 	int rc;
 
 	DP_INFO(edev, "Starting qede load\n");
@@ -1924,11 +1923,7 @@ static int qede_load(struct qede_dev *edev, enum qede_load_mode mode,
 	link_params.link_up = true;
 	edev->ops->common->set_link(edev->cdev, &link_params);
 
-	/* Query whether link is already-up */
-	memset(&link_output, 0, sizeof(link_output));
-	edev->ops->common->get_link(edev->cdev, &link_output);
 	qede_roce_dev_event_open(edev);
-	qede_link_update(edev, &link_output);
 
 	qede_ptp_start(edev, (mode == QEDE_LOAD_NORMAL));
 

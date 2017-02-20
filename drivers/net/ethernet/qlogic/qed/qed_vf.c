@@ -1285,6 +1285,9 @@ void qed_iov_vf_task(struct work_struct *work)
 
 	/* Handle bulletin board changes */
 	qed_vf_read_bulletin(hwfn, &change);
+	if (test_and_clear_bit(QED_IOV_WQ_VF_FORCE_LINK_QUERY_FLAG,
+			       &hwfn->iov_task_flags))
+		change = 1;
 	if (change)
 		qed_handle_bulletin_change(hwfn);
 

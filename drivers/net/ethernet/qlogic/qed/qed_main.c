@@ -1146,11 +1146,17 @@ static int qed_set_link(struct qed_dev *cdev, struct qed_link_params *params)
 	if (!cdev)
 		return -ENODEV;
 
-	if (IS_VF(cdev))
-		return 0;
-
 	/* The link should be set only once per PF */
 	hwfn = &cdev->hwfns[0];
+
+	/* When VF wants to set link, force it to read the bulletin instead.
+	 * This mimics the PF behavior, where a noitification [both immediate
+	 * and possible later] would be generated when changing properties.
+	 */
+	if (IS_VF(cdev)) {
+		qed_schedule_iov(hwfn, QED_IOV_WQ_VF_FORCE_LINK_QUERY_FLAG);
+		return 0;
+	}
 
 	ptt = qed_ptt_acquire(hwfn);
 	if (!ptt)
