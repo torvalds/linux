@@ -146,8 +146,8 @@ static int exynos_bus_target(struct device *dev, unsigned long *freq, u32 flags)
 	}
 	bus->curr_freq = new_freq;
 
-	dev_dbg(dev, "Set the frequency of bus (%lukHz -> %lukHz)\n",
-			old_freq/1000, new_freq/1000);
+	dev_dbg(dev, "Set the frequency of bus (%luHz -> %luHz, %luHz)\n",
+			old_freq, new_freq, clk_get_rate(bus->clk));
 out:
 	mutex_unlock(&bus->lock);
 
@@ -239,8 +239,8 @@ static int exynos_bus_passive_target(struct device *dev, unsigned long *freq,
 	*freq = new_freq;
 	bus->curr_freq = new_freq;
 
-	dev_dbg(dev, "Set the frequency of bus (%lukHz -> %lukHz)\n",
-			old_freq/1000, new_freq/1000);
+	dev_dbg(dev, "Set the frequency of bus (%luHz -> %luHz, %luHz)\n",
+			old_freq, new_freq, clk_get_rate(bus->clk));
 out:
 	mutex_unlock(&bus->lock);
 
