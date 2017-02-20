@@ -3215,7 +3215,7 @@ int btrfs_orphan_add(struct btrfs_trans_handle *trans, struct inode *inode)
 
 	/* grab metadata reservation from transaction handle */
 	if (reserve) {
-		ret = btrfs_orphan_reserve_metadata(trans, inode);
+		ret = btrfs_orphan_reserve_metadata(trans, BTRFS_I(inode));
 		ASSERT(!ret);
 		if (ret) {
 			atomic_dec(&root->orphan_inodes);
