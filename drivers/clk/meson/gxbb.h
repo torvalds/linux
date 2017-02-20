@@ -280,8 +280,11 @@
 #define CLKID_CTS_AMCLK		  107
 #define CLKID_CTS_AMCLK_SEL	  108
 #define CLKID_CTS_AMCLK_DIV	  109
+#define CLKID_CTS_MCLK_I958	  110
+#define CLKID_CTS_MCLK_I958_SEL	  111
+#define CLKID_CTS_MCLK_I958_DIV	  112
 
-#define NR_CLKS			  110
+#define NR_CLKS			  113
 
 /* include the CLKIDs that have been made part of the stable DT binding */
 #include <dt-bindings/clock/gxbb-clkc.h>
