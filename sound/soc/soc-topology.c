@@ -1555,6 +1555,15 @@ widget:
 		widget = snd_soc_dapm_new_control(dapm, &template);
 	else
 		widget = snd_soc_dapm_new_control_unlocked(dapm, &template);
+	if (IS_ERR(widget)) {
+		ret = PTR_ERR(widget);
+		/* Do not nag about probe deferrals */
+		if (ret != -EPROBE_DEFER)
+			dev_err(tplg->dev,
+				"ASoC: failed to create widget %s controls (%d)\n",
+				w->name, ret);
+		goto hdr_err;
+	}
 	if (widget == NULL) {
 		dev_err(tplg->dev, "ASoC: failed to create widget %s controls\n",
 			w->name);
@@ -1862,7 +1871,7 @@ static int soc_tplg_pcm_elems_load(struct soc_tplg *tplg,
 {
 	struct snd_soc_tplg_pcm *pcm, *_pcm;
 	int count = hdr->count;
-	int i, err;
+	int i;
 	bool abi_match;
 
 	if (tplg->pass != SOC_TPLG_PASS_PCM_DAI)
@@ -1896,7 +1905,7 @@ static int soc_tplg_pcm_elems_load(struct soc_tplg *tplg,
 			_pcm = pcm;
 		} else {
 			abi_match = false;
-			err = pcm_new_ver(tplg, pcm, &_pcm);
+			pcm_new_ver(tplg, pcm, &_pcm);
 		}
 
 		/* create the FE DAIs and DAI links */
@@ -1918,7 +1927,7 @@ static int soc_tplg_pcm_elems_load(struct soc_tplg *tplg,
 
 /**
  * set_link_hw_format - Set the HW audio format of the physical DAI link.
- * @tplg: topology context
+ * @link: &snd_soc_dai_link which should be updated
  * @cfg: physical link configs.
  *
  * Topology context contains a list of supported HW formats (configs) and
@@ -1969,7 +1978,7 @@ static void set_link_hw_format(struct snd_soc_dai_link *link,
 /**
  * link_new_ver - Create a new physical link config from the old
  * version of source.
- * @toplogy: topology context
+ * @tplg: topology context
  * @src: old version of phyical link config as a source
  * @link: latest version of physical link config created from the source
  *
@@ -2211,7 +2220,7 @@ static int soc_tplg_dai_elems_load(struct soc_tplg *tplg,
 /**
  * manifest_new_ver - Create a new version of manifest from the old version
  * of source.
- * @toplogy: topology context
+ * @tplg: topology context
  * @src: old version of manifest as a source
  * @manifest: latest version of manifest created from the source
  *

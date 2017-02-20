@@ -128,7 +128,7 @@ static int asoc_simple_card_dai_link_of(struct device_node *np,
 		if (ret)
 			return ret;
 
-		ret = asoc_simple_card_parse_clk_cpu(np, dai_link, dai_props);
+		ret = asoc_simple_card_parse_clk_cpu(dev, np, dai_link, dai_props);
 		if (ret < 0)
 			return ret;
 
@@ -153,7 +153,7 @@ static int asoc_simple_card_dai_link_of(struct device_node *np,
 		if (ret < 0)
 			return ret;
 
-		ret = asoc_simple_card_parse_clk_codec(np, dai_link, dai_props);
+		ret = asoc_simple_card_parse_clk_codec(dev, np, dai_link, dai_props);
 		if (ret < 0)
 			return ret;
 
