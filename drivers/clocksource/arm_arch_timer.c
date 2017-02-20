@@ -235,7 +235,8 @@ static u64 notrace hisi_161010101_read_cntvct_el0(void)
 #endif
 
 #ifdef CONFIG_ARM_ARCH_TIMER_OOL_WORKAROUND
-const struct arch_timer_erratum_workaround *timer_unstable_counter_workaround = NULL;
+DEFINE_PER_CPU(const struct arch_timer_erratum_workaround *,
+	       timer_unstable_counter_workaround);
 EXPORT_SYMBOL_GPL(timer_unstable_counter_workaround);
 
 DEFINE_STATIC_KEY_FALSE(arch_timer_read_ool_enabled);
@@ -338,9 +339,18 @@ arch_timer_iterate_errata(enum arch_timer_erratum_match_type type,
 }
 
 static
-void arch_timer_enable_workaround(const struct arch_timer_erratum_workaround *wa)
+void arch_timer_enable_workaround(const struct arch_timer_erratum_workaround *wa,
+				  bool local)
 {
-	timer_unstable_counter_workaround = wa;
+	int i;
+
+	if (local) {
+		__this_cpu_write(timer_unstable_counter_workaround, wa);
+	} else {
+		for_each_possible_cpu(i)
+			per_cpu(timer_unstable_counter_workaround, i) = wa;
+	}
+
 	static_branch_enable(&arch_timer_read_ool_enabled);
 }
 
@@ -369,14 +379,17 @@ static void arch_timer_check_ool_workaround(enum arch_timer_erratum_match_type t
 		return;
 
 	if (needs_unstable_timer_counter_workaround()) {
-		if (wa != timer_unstable_counter_workaround)
+		const struct arch_timer_erratum_workaround *__wa;
+		__wa = __this_cpu_read(timer_unstable_counter_workaround);
+		if (__wa && wa != __wa)
 			pr_warn("Can't enable workaround for %s (clashes with %s\n)",
-				wa->desc,
-				timer_unstable_counter_workaround->desc);
-		return;
+				wa->desc, __wa->desc);
+
+		if (__wa)
+			return;
 	}
 
-	arch_timer_enable_workaround(wa);
+	arch_timer_enable_workaround(wa, local);
 	pr_info("Enabling %s workaround for %s\n",
 		local ? "local" : "global", wa->desc);
 }
@@ -384,10 +397,15 @@ static void arch_timer_check_ool_workaround(enum arch_timer_erratum_match_type t
 #define erratum_handler(fn, r, ...)					\
 ({									\
 	bool __val;							\
-	if (needs_unstable_timer_counter_workaround() &&		\
-	    timer_unstable_counter_workaround->fn) {			\
-		r = timer_unstable_counter_workaround->fn(__VA_ARGS__);	\
-		__val = true;						\
+	if (needs_unstable_timer_counter_workaround()) {		\
+		const struct arch_timer_erratum_workaround *__wa;	\
+		__wa = __this_cpu_read(timer_unstable_counter_workaround); \
+		if (__wa && __wa->fn) {					\
+			r = __wa->fn(__VA_ARGS__);			\
+			__val = true;					\
+		} else {						\
+			__val = false;					\
+		}							\
 	} else {							\
 		__val = false;						\
 	}								\

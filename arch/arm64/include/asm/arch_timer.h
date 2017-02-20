@@ -25,6 +25,7 @@
 #include <linux/bug.h>
 #include <linux/init.h>
 #include <linux/jump_label.h>
+#include <linux/smp.h>
 #include <linux/types.h>
 
 #include <clocksource/arm_arch_timer.h>
@@ -55,17 +56,25 @@ struct arch_timer_erratum_workaround {
 	int (*set_next_event_virt)(unsigned long, struct clock_event_device *);
 };
 
-extern const struct arch_timer_erratum_workaround *timer_unstable_counter_workaround;
+DECLARE_PER_CPU(const struct arch_timer_erratum_workaround *,
+		timer_unstable_counter_workaround);
 
-#define arch_timer_reg_read_stable(reg) 		\
-({							\
-	u64 _val;					\
-	if (needs_unstable_timer_counter_workaround() &&		\
-	    timer_unstable_counter_workaround->read_##reg)		\
-		_val = timer_unstable_counter_workaround->read_##reg();	\
-	else						\
-		_val = read_sysreg(reg);		\
-	_val;						\
+#define arch_timer_reg_read_stable(reg)					\
+({									\
+	u64 _val;							\
+	if (needs_unstable_timer_counter_workaround()) {		\
+		const struct arch_timer_erratum_workaround *wa;		\
+		preempt_disable();					\
+		wa = __this_cpu_read(timer_unstable_counter_workaround); \
+		if (wa && wa->read_##reg)				\
+			_val = wa->read_##reg();			\
+		else							\
+			_val = read_sysreg(reg);			\
+		preempt_enable();					\
+	} else {							\
+		_val = read_sysreg(reg);				\
+	}								\
+	_val;								\
 })
 
 /*
