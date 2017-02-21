@@ -28,6 +28,7 @@
 
 #include <asm/x86_init.h>
 #include <asm/reboot.h>
+#include <asm/kvmclock.h>
 
 static int kvmclock __ro_after_init = 1;
 static int msr_kvm_system_time = MSR_KVM_SYSTEM_TIME;
@@ -49,6 +50,7 @@ struct pvclock_vsyscall_time_info *pvclock_pvti_cpu0_va(void)
 {
 	return hv_clock;
 }
+EXPORT_SYMBOL_GPL(pvclock_pvti_cpu0_va);
 
 /*
  * The wallclock is the time of day when we booted. Since then, some time may
@@ -174,13 +176,14 @@ bool kvm_check_and_clear_guest_paused(void)
 	return ret;
 }
 
-static struct clocksource kvm_clock = {
+struct clocksource kvm_clock = {
 	.name = "kvm-clock",
 	.read = kvm_clock_get_cycles,
 	.rating = 400,
 	.mask = CLOCKSOURCE_MASK(64),
 	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
 };
+EXPORT_SYMBOL_GPL(kvm_clock);
 
 int kvm_register_clock(char *txt)
 {

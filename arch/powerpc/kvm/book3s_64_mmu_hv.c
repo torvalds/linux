@@ -127,8 +127,8 @@ void kvmppc_set_hpt(struct kvm *kvm, struct kvm_hpt_info *info)
 	kvm->arch.hpt = *info;
 	kvm->arch.sdr1 = __pa(info->virt) | (info->order - 18);
 
-	pr_info("KVM guest htab at %lx (order %ld), LPID %x\n",
-		info->virt, (long)info->order, kvm->arch.lpid);
+	pr_debug("KVM guest htab at %lx (order %ld), LPID %x\n",
+		 info->virt, (long)info->order, kvm->arch.lpid);
 }
 
 long kvmppc_alloc_reset_hpt(struct kvm *kvm, int order)
@@ -1370,6 +1370,12 @@ static int resize_hpt_rehash(struct kvm_resize_hpt *resize)
 	unsigned  long i;
 	int rc;
 
+	/*
+	 * resize_hpt_rehash_hpte() doesn't handle the new-format HPTEs
+	 * that POWER9 uses, and could well hit a BUG_ON on POWER9.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		return -EIO;
 	for (i = 0; i < kvmppc_hpt_npte(&kvm->arch.hpt); i++) {
 		rc = resize_hpt_rehash_hpte(resize, i);
 		if (rc != 0)
@@ -1406,6 +1412,9 @@ static void resize_hpt_pivot(struct kvm_resize_hpt *resize)
 static void resize_hpt_release(struct kvm *kvm, struct kvm_resize_hpt *resize)
 {
 	BUG_ON(kvm->arch.resize_hpt != resize);
+
+	if (!resize)
+		return;
 
 	if (resize->hpt.virt)
 		kvmppc_free_hpt(&resize->hpt);
