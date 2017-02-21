@@ -69,4 +69,7 @@
 /* Hub needs extra delay after resetting its port. */
 #define USB_QUIRK_HUB_SLOW_RESET		BIT(14)
 
+/* device can't support auto suspend function */
+#define USB_QUIRK_AUTO_SUSPEND			BIT(15)
+
 #endif /* __LINUX_USB_QUIRKS_H */
