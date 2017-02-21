@@ -964,16 +964,6 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 	}
 
-	if (drm_rect_width(dest) >> 16 > vop_data->max_input_fb.width ||
-	    drm_rect_height(dest) >> 16 > vop_data->max_input_fb.height) {
-		DRM_ERROR("Invalid destination: %dx%d. max output: %dx%d\n",
-			  drm_rect_width(dest),
-			  drm_rect_height(dest),
-			  vop_data->max_output_fb.width,
-			  vop_data->max_output_fb.height);
-		return -EINVAL;
-	}
-
 	/*
 	 * Src.x1 can be odd when do clip, but yuv plane start point
 	 * need align with 2 pixel.
