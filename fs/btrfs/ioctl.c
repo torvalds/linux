@@ -3041,11 +3041,21 @@ static int btrfs_cmp_data_prepare(struct inode *src, u64 loff,
 	cmp->src_pages = src_pgarr;
 	cmp->dst_pages = dst_pgarr;
 
-	ret = gather_extent_pages(src, cmp->src_pages, cmp->num_pages, loff);
+	/*
+	 * If deduping ranges in the same inode, locking rules make it mandatory
+	 * to always lock pages in ascending order to avoid deadlocks with
+	 * concurrent tasks (such as starting writeback/delalloc).
+	 */
+	if (src == dst && dst_loff < loff) {
+		swap(src_pgarr, dst_pgarr);
+		swap(loff, dst_loff);
+	}
+
+	ret = gather_extent_pages(src, src_pgarr, cmp->num_pages, loff);
 	if (ret)
 		goto out;
 
-	ret = gather_extent_pages(dst, cmp->dst_pages, cmp->num_pages, dst_loff);
+	ret = gather_extent_pages(dst, dst_pgarr, cmp->num_pages, dst_loff);
 
 out:
 	if (ret)
