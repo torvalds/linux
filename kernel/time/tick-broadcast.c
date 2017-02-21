@@ -347,17 +347,16 @@ static void tick_handle_periodic_broadcast(struct clock_event_device *dev)
  *
  * Called when the system enters a state where affected tick devices
  * might stop. Note: TICK_BROADCAST_FORCE cannot be undone.
- *
- * Called with interrupts disabled, so clockevents_lock is not
- * required here because the local clock event device cannot go away
- * under us.
  */
 void tick_broadcast_control(enum tick_broadcast_mode mode)
 {
 	struct clock_event_device *bc, *dev;
 	struct tick_device *td;
 	int cpu, bc_stopped;
+	unsigned long flags;
 
+	/* Protects also the local clockevent device. */
+	raw_spin_lock_irqsave(&tick_broadcast_lock, flags);
 	td = this_cpu_ptr(&tick_cpu_device);
 	dev = td->evtdev;
 
@@ -365,12 +364,11 @@ void tick_broadcast_control(enum tick_broadcast_mode mode)
 	 * Is the device not affected by the powerstate ?
 	 */
 	if (!dev || !(dev->features & CLOCK_EVT_FEAT_C3STOP))
-		return;
+		goto out;
 
 	if (!tick_device_is_functional(dev))
-		return;
+		goto out;
 
-	raw_spin_lock(&tick_broadcast_lock);
 	cpu = smp_processor_id();
 	bc = tick_broadcast_device.evtdev;
 	bc_stopped = cpumask_empty(tick_broadcast_mask);
@@ -420,7 +418,8 @@ void tick_broadcast_control(enum tick_broadcast_mode mode)
 				tick_broadcast_setup_oneshot(bc);
 		}
 	}
-	raw_spin_unlock(&tick_broadcast_lock);
+out:
+	raw_spin_unlock_irqrestore(&tick_broadcast_lock, flags);
 }
 EXPORT_SYMBOL_GPL(tick_broadcast_control);
 

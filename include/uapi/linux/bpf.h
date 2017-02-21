@@ -116,6 +116,12 @@ enum bpf_attach_type {
 
 #define MAX_BPF_ATTACH_TYPE __MAX_BPF_ATTACH_TYPE
 
+/* If BPF_F_ALLOW_OVERRIDE flag is used in BPF_PROG_ATTACH command
+ * to the given target_fd cgroup the descendent cgroup will be able to
+ * override effective bpf program that was inherited from this cgroup
+ */
+#define BPF_F_ALLOW_OVERRIDE	(1U << 0)
+
 #define BPF_PSEUDO_MAP_FD	1
 
 /* flags for BPF_MAP_UPDATE_ELEM command */
@@ -171,6 +177,7 @@ union bpf_attr {
 		__u32		target_fd;	/* container object to attach to */
 		__u32		attach_bpf_fd;	/* eBPF program to attach */
 		__u32		attach_type;
+		__u32		attach_flags;
 	};
 } __attribute__((aligned(8)));
 

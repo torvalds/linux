@@ -399,6 +399,10 @@ static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 static void queue_interrupt(struct fuse_iqueue *fiq, struct fuse_req *req)
 {
 	spin_lock(&fiq->waitq.lock);
+	if (test_bit(FR_FINISHED, &req->flags)) {
+		spin_unlock(&fiq->waitq.lock);
+		return;
+	}
 	if (list_empty(&req->intr_entry)) {
 		list_add_tail(&req->intr_entry, &fiq->interrupts);
 		wake_up_locked(&fiq->waitq);
@@ -1372,6 +1376,7 @@ static ssize_t fuse_dev_splice_read(struct file *in, loff_t *ppos,
 		 * code can Oops if the buffer persists after module unload.
 		 */
 		bufs[page_nr].ops = &nosteal_pipe_buf_ops;
+		bufs[page_nr].flags = 0;
 		ret = add_to_pipe(pipe, &bufs[page_nr++]);
 		if (unlikely(ret < 0))
 			break;
