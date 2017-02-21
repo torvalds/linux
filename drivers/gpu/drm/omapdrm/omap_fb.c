@@ -450,7 +450,7 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 
 		if (size > omap_gem_mmap_size(bos[i]) - mode_cmd->offsets[i]) {
 			dev_dbg(dev->dev,
-				"provided buffer object is too small! %d < %d\n",
+				"provided buffer object is too small! %zu < %d\n",
 				bos[i]->size - mode_cmd->offsets[i], size);
 			ret = -EINVAL;
 			goto fail;

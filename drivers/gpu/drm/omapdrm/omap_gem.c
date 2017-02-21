@@ -1048,7 +1048,7 @@ void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 					area->p1.x, area->p1.y);
 		}
 	} else {
-		seq_printf(m, " %d", obj->size);
+		seq_printf(m, " %zu", obj->size);
 	}
 
 	seq_printf(m, "\n");
