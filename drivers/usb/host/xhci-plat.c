@@ -311,6 +311,15 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		hcd->skip_phy_initialization = 1;
 	}
 
+	xhci->shared_hcd->usb_phy = devm_usb_get_phy(sysdev,
+						     USB_PHY_TYPE_USB3);
+	if (IS_ERR(xhci->shared_hcd->usb_phy)) {
+		ret = PTR_ERR(xhci->shared_hcd->usb_phy);
+		if (ret == -EPROBE_DEFER)
+			goto put_usb3_hcd;
+		xhci->shared_hcd->usb_phy = NULL;
+	}
+
 	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret)
 		goto disable_usb_phy;
