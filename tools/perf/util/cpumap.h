@@ -3,13 +3,13 @@
 
 #include <stdio.h>
 #include <stdbool.h>
-#include <linux/atomic.h>
+#include <linux/refcount.h>
 
 #include "perf.h"
 #include "util/debug.h"
 
 struct cpu_map {
-	atomic_t refcnt;
+	refcount_t refcnt;
 	int nr;
 	int map[];
 };
