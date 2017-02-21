@@ -2114,7 +2114,7 @@ static void try_to_wake_up_local(struct task_struct *p, struct rq_flags *rf)
 			delayacct_blkio_end();
 			atomic_dec(&rq->nr_iowait);
 		}
-		ttwu_activate(rq, p, ENQUEUE_WAKEUP);
+		ttwu_activate(rq, p, ENQUEUE_WAKEUP | ENQUEUE_NOCLOCK);
 	}
 
 	ttwu_do_wakeup(rq, p, 0, rf);
@@ -3393,13 +3393,14 @@ static void __sched notrace __schedule(bool preempt)
 
 	/* Promote REQ to ACT */
 	rq->clock_update_flags <<= 1;
+	update_rq_clock(rq);
 
 	switch_count = &prev->nivcsw;
 	if (!preempt && prev->state) {
 		if (unlikely(signal_pending_state(prev->state, prev))) {
 			prev->state = TASK_RUNNING;
 		} else {
-			deactivate_task(rq, prev, DEQUEUE_SLEEP);
+			deactivate_task(rq, prev, DEQUEUE_SLEEP | DEQUEUE_NOCLOCK);
 			prev->on_rq = 0;
 
 			if (prev->in_iowait) {
@@ -3422,9 +3423,6 @@ static void __sched notrace __schedule(bool preempt)
 		}
 		switch_count = &prev->nvcsw;
 	}
-
-	if (task_on_rq_queued(prev))
-		update_rq_clock(rq);
 
 	next = pick_next_task(rq, prev, &rf);
 	clear_tsk_need_resched(prev);
