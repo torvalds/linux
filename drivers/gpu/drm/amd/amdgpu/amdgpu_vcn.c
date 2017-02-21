@@ -497,7 +497,7 @@ int amdgpu_vcn_enc_ring_test_ring(struct amdgpu_ring *ring)
 			  ring->idx, r);
 		return r;
 	}
-	amdgpu_ring_write(ring, VCE_CMD_END);
+	amdgpu_ring_write(ring, VCN_ENC_CMD_END);
 	amdgpu_ring_commit(ring);
 
 	for (i = 0; i < adev->usec_timeout; i++) {

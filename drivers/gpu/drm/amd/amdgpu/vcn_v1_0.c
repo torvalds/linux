@@ -144,7 +144,7 @@ static int vcn_v1_0_hw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct amdgpu_ring *ring = &adev->vcn.ring_dec;
-	int r;
+	int i, r;
 
 	r = vcn_v1_0_start(adev);
 	if (r)
@@ -157,9 +157,19 @@ static int vcn_v1_0_hw_init(void *handle)
 		goto done;
 	}
 
+	for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
+		ring = &adev->vcn.ring_enc[i];
+		ring->ready = true;
+		r = amdgpu_ring_test_ring(ring);
+		if (r) {
+			ring->ready = false;
+			goto done;
+		}
+	}
+
 done:
 	if (!r)
-		DRM_INFO("VCN decode initialized successfully.\n");
+		DRM_INFO("VCN decode and encode initialized successfully.\n");
 
 	return r;
 }
@@ -930,6 +940,7 @@ static const struct amdgpu_ring_funcs vcn_v1_0_enc_ring_vm_funcs = {
 	.emit_ib = vcn_v1_0_enc_ring_emit_ib,
 	.emit_fence = vcn_v1_0_enc_ring_emit_fence,
 	.emit_vm_flush = vcn_v1_0_enc_ring_emit_vm_flush,
+	.test_ring = amdgpu_vcn_enc_ring_test_ring,
 	.insert_nop = amdgpu_ring_insert_nop,
 	.insert_end = vcn_v1_0_enc_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
