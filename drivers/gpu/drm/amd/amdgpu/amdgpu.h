@@ -815,7 +815,7 @@ struct amdgpu_rb_config {
 	uint32_t raster_config_1;
 };
 
-struct amdgpu_gca_config {
+struct amdgpu_gfx_config {
 	unsigned max_shader_engines;
 	unsigned max_tile_pipes;
 	unsigned max_cu_per_sh;
@@ -867,7 +867,7 @@ struct amdgpu_gfx_funcs {
 
 struct amdgpu_gfx {
 	struct mutex			gpu_clock_mutex;
-	struct amdgpu_gca_config	config;
+	struct amdgpu_gfx_config	config;
 	struct amdgpu_rlc		rlc;
 	struct amdgpu_mec		mec;
 	struct amdgpu_kiq		kiq;
