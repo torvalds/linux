@@ -18,8 +18,6 @@
 #include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/of.h>
-#include <linux/dmi.h>
-#include <linux/ctype.h>
 #include <asm/byteorder.h>
 
 #include "core.h"
@@ -713,72 +711,6 @@ static int ath10k_core_get_board_id_from_otp(struct ath10k *ar)
 	return 0;
 }
 
-static void ath10k_core_check_bdfext(const struct dmi_header *hdr, void *data)
-{
-	struct ath10k *ar = data;
-	const char *bdf_ext;
-	const char *magic = ATH10K_SMBIOS_BDF_EXT_MAGIC;
-	u8 bdf_enabled;
-	int i;
-
-	if (hdr->type != ATH10K_SMBIOS_BDF_EXT_TYPE)
-		return;
-
-	if (hdr->length != ATH10K_SMBIOS_BDF_EXT_LENGTH) {
-		ath10k_dbg(ar, ATH10K_DBG_BOOT,
-			   "wrong smbios bdf ext type length (%d).\n",
-			   hdr->length);
-		return;
-	}
-
-	bdf_enabled = *((u8 *)hdr + ATH10K_SMBIOS_BDF_EXT_OFFSET);
-	if (!bdf_enabled) {
-		ath10k_dbg(ar, ATH10K_DBG_BOOT, "bdf variant name not found.\n");
-		return;
-	}
-
-	/* Only one string exists (per spec) */
-	bdf_ext = (char *)hdr + hdr->length;
-
-	if (memcmp(bdf_ext, magic, strlen(magic)) != 0) {
-		ath10k_dbg(ar, ATH10K_DBG_BOOT,
-			   "bdf variant magic does not match.\n");
-		return;
-	}
-
-	for (i = 0; i < strlen(bdf_ext); i++) {
-		if (!isascii(bdf_ext[i]) || !isprint(bdf_ext[i])) {
-			ath10k_dbg(ar, ATH10K_DBG_BOOT,
-				   "bdf variant name contains non ascii chars.\n");
-			return;
-		}
-	}
-
-	/* Copy extension name without magic suffix */
-	if (strscpy(ar->id.bdf_ext, bdf_ext + strlen(magic),
-		    sizeof(ar->id.bdf_ext)) < 0) {
-		ath10k_dbg(ar, ATH10K_DBG_BOOT,
-			   "bdf variant string is longer than the buffer can accommodate (variant: %s)\n",
-			    bdf_ext);
-		return;
-	}
-
-	ath10k_dbg(ar, ATH10K_DBG_BOOT,
-		   "found and validated bdf variant smbios_type 0x%x bdf %s\n",
-		   ATH10K_SMBIOS_BDF_EXT_TYPE, bdf_ext);
-}
-
-static int ath10k_core_check_smbios(struct ath10k *ar)
-{
-	ar->id.bdf_ext[0] = '\0';
-	dmi_walk(ath10k_core_check_bdfext, ar);
-
-	if (ar->id.bdf_ext[0] == '\0')
-		return -ENODATA;
-
-	return 0;
-}
-
 static int ath10k_download_and_run_otp(struct ath10k *ar)
 {
 	u32 result, address = ar->hw_params.patch_load_addr;
@@ -1125,9 +1057,6 @@ err:
 static int ath10k_core_create_board_name(struct ath10k *ar, char *name,
 					 size_t name_len)
 {
-	/* strlen(',variant=') + strlen(ar->id.bdf_ext) */
-	char variant[9 + ATH10K_SMBIOS_BDF_EXT_STR_LENGTH] = { 0 };
-
 	if (ar->id.bmi_ids_valid) {
 		scnprintf(name, name_len,
 			  "bus=%s,bmi-chip-id=%d,bmi-board-id=%d",
@@ -1137,15 +1066,12 @@ static int ath10k_core_create_board_name(struct ath10k *ar, char *name,
 		goto out;
 	}
 
-	if (ar->id.bdf_ext[0] != '\0')
-		scnprintf(variant, sizeof(variant), ",variant=%s",
-			  ar->id.bdf_ext);
-
 	scnprintf(name, name_len,
-		  "bus=%s,vendor=%04x,device=%04x,subsystem-vendor=%04x,subsystem-device=%04x%s",
+		  "bus=%s,vendor=%04x,device=%04x,subsystem-vendor=%04x,subsystem-device=%04x",
 		  ath10k_bus_str(ar->hif.bus),
 		  ar->id.vendor, ar->id.device,
-		  ar->id.subsystem_vendor, ar->id.subsystem_device, variant);
+		  ar->id.subsystem_vendor, ar->id.subsystem_device);
+
 out:
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot using board name '%s'\n", name);
 
@@ -2201,10 +2127,6 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 			   ret);
 		goto err_free_firmware_files;
 	}
-
-	ret = ath10k_core_check_smbios(ar);
-	if (ret)
-		ath10k_dbg(ar, ATH10K_DBG_BOOT, "bdf variant name not set.\n");
 
 	ret = ath10k_core_fetch_board_file(ar);
 	if (ret) {
