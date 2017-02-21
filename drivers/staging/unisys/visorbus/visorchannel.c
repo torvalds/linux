@@ -286,16 +286,6 @@ visorchannel_signalremove(struct visorchannel *channel, u32 queue, void *msg)
 }
 EXPORT_SYMBOL_GPL(visorchannel_signalremove);
 
-/**
- * visorchannel_signalempty() - checks if the designated channel/queue
- *                              contains any messages
- * @channel: the channel to query
- * @queue:   the queue in the channel to query
- *
- * Return: boolean indicating whether any messages in the designated
- *         channel/queue are present
- */
-
 static bool
 queue_empty(struct visorchannel *channel, u32 queue)
 {
@@ -307,6 +297,15 @@ queue_empty(struct visorchannel *channel, u32 queue)
 	return (sig_hdr.head == sig_hdr.tail);
 }
 
+/**
+ * visorchannel_signalempty() - checks if the designated channel/queue
+ *                              contains any messages
+ * @channel: the channel to query
+ * @queue:   the queue in the channel to query
+ *
+ * Return: boolean indicating whether any messages in the designated
+ *         channel/queue are present
+ */
 bool
 visorchannel_signalempty(struct visorchannel *channel, u32 queue)
 {
