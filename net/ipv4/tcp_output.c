@@ -2558,7 +2558,9 @@ void tcp_push_one(struct sock *sk, unsigned int mss_now)
 {
 	struct sk_buff *skb = tcp_send_head(sk);
 
-	BUG_ON(!skb || skb->len < mss_now);
+	/* Don't be forced to send not meaningful data */
+	if (!skb || skb->len < mss_now)
+		return;
 
 	tcp_write_xmit(sk, mss_now, TCP_NAGLE_PUSH, 1, sk->sk_allocation);
 }

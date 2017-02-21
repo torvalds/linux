@@ -490,6 +490,18 @@ config TCP_CONG_BIC
 	increase provides TCP friendliness.
 	See http://www.csc.ncsu.edu/faculty/rhee/export/bitcp/
 
+config TCP_CONG_WAVE
+	tristate "Wave TCP"
+	default m
+	---help---
+	TCP Wave (TCPW) replaces the window-based transmission paradigm of the
+	standard TCP with a burst-based transmission, the ACK-clock scheduling
+	with a self-managed timer and the RTT-based congestion control loop with
+	an Ack-based Capacity and Congestion Estimation (ACCE) module. In
+	non-technical words, it sends data down the stack when its internal
+	timer expires, and the timing of the received ACKs contribute to
+	updating this timer regularly.
+
 config TCP_CONG_CUBIC
 	tristate "CUBIC TCP"
 	default y
@@ -688,6 +700,9 @@ choice
 	config DEFAULT_CUBIC
 		bool "Cubic" if TCP_CONG_CUBIC=y
 
+	config DEFAULT_WAVE
+		bool "Wave" if TCP_CONG_WAVE=y
+
 	config DEFAULT_HTCP
 		bool "Htcp" if TCP_CONG_HTCP=y
 
@@ -727,6 +742,7 @@ config DEFAULT_TCP_CONG
 	string
 	default "bic" if DEFAULT_BIC
 	default "cubic" if DEFAULT_CUBIC
+	default "wave" if DEFAULT_WAVE
 	default "htcp" if DEFAULT_HTCP
 	default "hybla" if DEFAULT_HYBLA
 	default "vegas" if DEFAULT_VEGAS

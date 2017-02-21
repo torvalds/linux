@@ -13027,6 +13027,12 @@ W:	http://tcp-lp-mod.sourceforge.net/
 S:	Maintained
 F:	net/ipv4/tcp_lp.c
 
+TCP WAVE MODULE
+M:	"Natale Patriciello" <natale.patriciello@gmail.com>
+W:	http://tlcsat.uniroma2.it/tcpwave4linux/
+S:	Maintained
+F:	net/ipv4/tcp_wave.c
+
 TDA10071 MEDIA DRIVER
 M:	Antti Palosaari <crope@iki.fi>
 L:	linux-media@vger.kernel.org
