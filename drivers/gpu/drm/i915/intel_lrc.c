@@ -190,7 +190,7 @@
 #define CTX_R_PWR_CLK_STATE		0x42
 #define CTX_GPGPU_CSR_BASE_ADDRESS	0x44
 
-#define ASSIGN_CTX_REG(reg_state, pos, reg, val) do { \
+#define CTX_REG(reg_state, pos, reg, val) do { \
 	(reg_state)[(pos)+0] = i915_mmio_reg_offset(reg); \
 	(reg_state)[(pos)+1] = (val); \
 } while (0)
@@ -1812,104 +1812,89 @@ static u32 intel_lr_indirect_ctx_offset(struct intel_engine_cs *engine)
 	return indirect_ctx_offset;
 }
 
-static void execlists_init_reg_state(u32 *reg_state,
+static void execlists_init_reg_state(u32 *regs,
 				     struct i915_gem_context *ctx,
 				     struct intel_engine_cs *engine,
 				     struct intel_ring *ring)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 	struct i915_hw_ppgtt *ppgtt = ctx->ppgtt ?: dev_priv->mm.aliasing_ppgtt;
+	u32 base = engine->mmio_base;
+	bool rcs = engine->id == RCS;
 
-	/* A context is actually a big batch buffer with several MI_LOAD_REGISTER_IMM
-	 * commands followed by (reg, value) pairs. The values we are setting here are
-	 * only for the first context restore: on a subsequent save, the GPU will
-	 * recreate this batchbuffer with new values (including all the missing
-	 * MI_LOAD_REGISTER_IMM commands that we are not initializing here). */
-	reg_state[CTX_LRI_HEADER_0] =
-		MI_LOAD_REGISTER_IMM(engine->id == RCS ? 14 : 11) | MI_LRI_FORCE_POSTED;
-	ASSIGN_CTX_REG(reg_state, CTX_CONTEXT_CONTROL,
-		       RING_CONTEXT_CONTROL(engine),
-		       _MASKED_BIT_ENABLE(CTX_CTRL_INHIBIT_SYN_CTX_SWITCH |
-					  CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
-					  (HAS_RESOURCE_STREAMER(dev_priv) ?
-					   CTX_CTRL_RS_CTX_ENABLE : 0)));
-	ASSIGN_CTX_REG(reg_state, CTX_RING_HEAD, RING_HEAD(engine->mmio_base),
-		       0);
-	ASSIGN_CTX_REG(reg_state, CTX_RING_TAIL, RING_TAIL(engine->mmio_base),
-		       0);
-	ASSIGN_CTX_REG(reg_state, CTX_RING_BUFFER_START,
-		       RING_START(engine->mmio_base), 0);
-	ASSIGN_CTX_REG(reg_state, CTX_RING_BUFFER_CONTROL,
-		       RING_CTL(engine->mmio_base),
-		       RING_CTL_SIZE(ring->size) | RING_VALID);
-	ASSIGN_CTX_REG(reg_state, CTX_BB_HEAD_U,
-		       RING_BBADDR_UDW(engine->mmio_base), 0);
-	ASSIGN_CTX_REG(reg_state, CTX_BB_HEAD_L,
-		       RING_BBADDR(engine->mmio_base), 0);
-	ASSIGN_CTX_REG(reg_state, CTX_BB_STATE,
-		       RING_BBSTATE(engine->mmio_base),
-		       RING_BB_PPGTT);
-	ASSIGN_CTX_REG(reg_state, CTX_SECOND_BB_HEAD_U,
-		       RING_SBBADDR_UDW(engine->mmio_base), 0);
-	ASSIGN_CTX_REG(reg_state, CTX_SECOND_BB_HEAD_L,
-		       RING_SBBADDR(engine->mmio_base), 0);
-	ASSIGN_CTX_REG(reg_state, CTX_SECOND_BB_STATE,
-		       RING_SBBSTATE(engine->mmio_base), 0);
-	if (engine->id == RCS) {
-		ASSIGN_CTX_REG(reg_state, CTX_BB_PER_CTX_PTR,
-			       RING_BB_PER_CTX_PTR(engine->mmio_base), 0);
-		ASSIGN_CTX_REG(reg_state, CTX_RCS_INDIRECT_CTX,
-			       RING_INDIRECT_CTX(engine->mmio_base), 0);
-		ASSIGN_CTX_REG(reg_state, CTX_RCS_INDIRECT_CTX_OFFSET,
-			       RING_INDIRECT_CTX_OFFSET(engine->mmio_base), 0);
+	/* A context is actually a big batch buffer with several
+	 * MI_LOAD_REGISTER_IMM commands followed by (reg, value) pairs. The
+	 * values we are setting here are only for the first context restore:
+	 * on a subsequent save, the GPU will recreate this batchbuffer with new
+	 * values (including all the missing MI_LOAD_REGISTER_IMM commands that
+	 * we are not initializing here).
+	 */
+	regs[CTX_LRI_HEADER_0] = MI_LOAD_REGISTER_IMM(rcs ? 14 : 11) |
+				 MI_LRI_FORCE_POSTED;
+
+	CTX_REG(regs, CTX_CONTEXT_CONTROL, RING_CONTEXT_CONTROL(engine),
+		_MASKED_BIT_ENABLE(CTX_CTRL_INHIBIT_SYN_CTX_SWITCH |
+				   CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
+				   (HAS_RESOURCE_STREAMER(dev_priv) ?
+				   CTX_CTRL_RS_CTX_ENABLE : 0)));
+	CTX_REG(regs, CTX_RING_HEAD, RING_HEAD(base), 0);
+	CTX_REG(regs, CTX_RING_TAIL, RING_TAIL(base), 0);
+	CTX_REG(regs, CTX_RING_BUFFER_START, RING_START(base), 0);
+	CTX_REG(regs, CTX_RING_BUFFER_CONTROL, RING_CTL(base),
+		RING_CTL_SIZE(ring->size) | RING_VALID);
+	CTX_REG(regs, CTX_BB_HEAD_U, RING_BBADDR_UDW(base), 0);
+	CTX_REG(regs, CTX_BB_HEAD_L, RING_BBADDR(base), 0);
+	CTX_REG(regs, CTX_BB_STATE, RING_BBSTATE(base), RING_BB_PPGTT);
+	CTX_REG(regs, CTX_SECOND_BB_HEAD_U, RING_SBBADDR_UDW(base), 0);
+	CTX_REG(regs, CTX_SECOND_BB_HEAD_L, RING_SBBADDR(base), 0);
+	CTX_REG(regs, CTX_SECOND_BB_STATE, RING_SBBSTATE(base), 0);
+	if (rcs) {
+		CTX_REG(regs, CTX_BB_PER_CTX_PTR, RING_BB_PER_CTX_PTR(base), 0);
+		CTX_REG(regs, CTX_RCS_INDIRECT_CTX, RING_INDIRECT_CTX(base), 0);
+		CTX_REG(regs, CTX_RCS_INDIRECT_CTX_OFFSET,
+			RING_INDIRECT_CTX_OFFSET(base), 0);
+
 		if (engine->wa_ctx.vma) {
 			struct i915_ctx_workarounds *wa_ctx = &engine->wa_ctx;
 			u32 ggtt_offset = i915_ggtt_offset(wa_ctx->vma);
 
-			reg_state[CTX_RCS_INDIRECT_CTX+1] =
+			regs[CTX_RCS_INDIRECT_CTX + 1] =
 				(ggtt_offset + wa_ctx->indirect_ctx.offset) |
 				(wa_ctx->indirect_ctx.size / CACHELINE_BYTES);
 
-			reg_state[CTX_RCS_INDIRECT_CTX_OFFSET+1] =
+			regs[CTX_RCS_INDIRECT_CTX_OFFSET + 1] =
 				intel_lr_indirect_ctx_offset(engine) << 6;
 
-			reg_state[CTX_BB_PER_CTX_PTR+1] =
+			regs[CTX_BB_PER_CTX_PTR + 1] =
 				(ggtt_offset + wa_ctx->per_ctx.offset) | 0x01;
 		}
 	}
-	reg_state[CTX_LRI_HEADER_1] = MI_LOAD_REGISTER_IMM(9) | MI_LRI_FORCE_POSTED;
-	ASSIGN_CTX_REG(reg_state, CTX_CTX_TIMESTAMP,
-		       RING_CTX_TIMESTAMP(engine->mmio_base), 0);
+
+	regs[CTX_LRI_HEADER_1] = MI_LOAD_REGISTER_IMM(9) | MI_LRI_FORCE_POSTED;
+
+	CTX_REG(regs, CTX_CTX_TIMESTAMP, RING_CTX_TIMESTAMP(base), 0);
 	/* PDP values well be assigned later if needed */
-	ASSIGN_CTX_REG(reg_state, CTX_PDP3_UDW, GEN8_RING_PDP_UDW(engine, 3),
-		       0);
-	ASSIGN_CTX_REG(reg_state, CTX_PDP3_LDW, GEN8_RING_PDP_LDW(engine, 3),
-		       0);
-	ASSIGN_CTX_REG(reg_state, CTX_PDP2_UDW, GEN8_RING_PDP_UDW(engine, 2),
-		       0);
-	ASSIGN_CTX_REG(reg_state, CTX_PDP2_LDW, GEN8_RING_PDP_LDW(engine, 2),
-		       0);
-	ASSIGN_CTX_REG(reg_state, CTX_PDP1_UDW, GEN8_RING_PDP_UDW(engine, 1),
-		       0);
-	ASSIGN_CTX_REG(reg_state, CTX_PDP1_LDW, GEN8_RING_PDP_LDW(engine, 1),
-		       0);
-	ASSIGN_CTX_REG(reg_state, CTX_PDP0_UDW, GEN8_RING_PDP_UDW(engine, 0),
-		       0);
-	ASSIGN_CTX_REG(reg_state, CTX_PDP0_LDW, GEN8_RING_PDP_LDW(engine, 0),
-		       0);
+	CTX_REG(regs, CTX_PDP3_UDW, GEN8_RING_PDP_UDW(engine, 3), 0);
+	CTX_REG(regs, CTX_PDP3_LDW, GEN8_RING_PDP_LDW(engine, 3), 0);
+	CTX_REG(regs, CTX_PDP2_UDW, GEN8_RING_PDP_UDW(engine, 2), 0);
+	CTX_REG(regs, CTX_PDP2_LDW, GEN8_RING_PDP_LDW(engine, 2), 0);
+	CTX_REG(regs, CTX_PDP1_UDW, GEN8_RING_PDP_UDW(engine, 1), 0);
+	CTX_REG(regs, CTX_PDP1_LDW, GEN8_RING_PDP_LDW(engine, 1), 0);
+	CTX_REG(regs, CTX_PDP0_UDW, GEN8_RING_PDP_UDW(engine, 0), 0);
+	CTX_REG(regs, CTX_PDP0_LDW, GEN8_RING_PDP_LDW(engine, 0), 0);
 
 	if (ppgtt && i915_vm_is_48bit(&ppgtt->base)) {
 		/* 64b PPGTT (48bit canonical)
 		 * PDP0_DESCRIPTOR contains the base address to PML4 and
 		 * other PDP Descriptors are ignored.
 		 */
-		ASSIGN_CTX_PML4(ppgtt, reg_state);
+		ASSIGN_CTX_PML4(ppgtt, regs);
 	}
 
-	if (engine->id == RCS) {
-		reg_state[CTX_LRI_HEADER_2] = MI_LOAD_REGISTER_IMM(1);
-		ASSIGN_CTX_REG(reg_state, CTX_R_PWR_CLK_STATE, GEN8_R_PWR_CLK_STATE,
-			       make_rpcs(dev_priv));
+	if (rcs) {
+		regs[CTX_LRI_HEADER_2] = MI_LOAD_REGISTER_IMM(1);
+		CTX_REG(regs, CTX_R_PWR_CLK_STATE, GEN8_R_PWR_CLK_STATE,
+			make_rpcs(dev_priv));
 	}
 }
 
