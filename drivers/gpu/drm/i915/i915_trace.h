@@ -501,24 +501,27 @@ trace_i915_gem_request_execute(struct drm_i915_gem_request *req)
 #endif
 #endif
 
-TRACE_EVENT(i915_gem_request_notify,
-	    TP_PROTO(struct intel_engine_cs *engine),
-	    TP_ARGS(engine),
+TRACE_EVENT(intel_engine_notify,
+	    TP_PROTO(struct intel_engine_cs *engine, bool waiters),
+	    TP_ARGS(engine, waiters),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
 			     __field(u32, ring)
 			     __field(u32, seqno)
+			     __field(bool, waiters)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->dev = engine->i915->drm.primary->index;
 			   __entry->ring = engine->id;
 			   __entry->seqno = intel_engine_get_seqno(engine);
+			   __entry->waiters = waiters;
 			   ),
 
-	    TP_printk("dev=%u, ring=%u, seqno=%u",
-		      __entry->dev, __entry->ring, __entry->seqno)
+	    TP_printk("dev=%u, ring=%u, seqno=%u, waiters=%u",
+		      __entry->dev, __entry->ring, __entry->seqno,
+		      __entry->waiters)
 );
 
 DEFINE_EVENT(i915_gem_request, i915_gem_request_retire,

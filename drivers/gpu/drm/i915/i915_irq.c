@@ -1033,10 +1033,12 @@ static void ironlake_rps_change_irq_handler(struct drm_i915_private *dev_priv)
 
 static void notify_ring(struct intel_engine_cs *engine)
 {
+	bool waiters;
+
 	atomic_inc(&engine->irq_count);
 	set_bit(ENGINE_IRQ_BREADCRUMB, &engine->irq_posted);
-	if (intel_engine_wakeup(engine))
-		trace_i915_gem_request_notify(engine);
+	waiters = intel_engine_wakeup(engine);
+	trace_intel_engine_notify(engine, waiters);
 }
 
 static void vlv_c0_read(struct drm_i915_private *dev_priv,
