@@ -195,6 +195,17 @@
 #endif
 #endif
 
+#ifdef CONFIG_STACK_VALIDATION
+#define annotate_unreachable() ({					\
+	asm("1:\t\n"							\
+	    ".pushsection __unreachable, \"a\"\t\n"			\
+	    ".long 1b\t\n"						\
+	    ".popsection\t\n");						\
+})
+#else
+#define annotate_unreachable()
+#endif
+
 /*
  * Mark a position in code as unreachable.  This can be used to
  * suppress control flow warnings after asm blocks that transfer
@@ -204,7 +215,7 @@
  * this in the preprocessor, but we can live with this because they're
  * unreleased.  Really, we need to have autoconf for the kernel.
  */
-#define unreachable() __builtin_unreachable()
+#define unreachable() annotate_unreachable(); __builtin_unreachable()
 
 /* Mark a function definition as prohibited from being cloned. */
 #define __noclone	__attribute__((__noclone__, __optimize__("no-tracer")))
