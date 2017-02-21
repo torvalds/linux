@@ -958,15 +958,9 @@ gc_more:
 		 * enough free sections, we should flush dent/node blocks and do
 		 * garbage collections.
 		 */
-		if (dirty_segments(sbi) || prefree_segments(sbi)) {
-			ret = write_checkpoint(sbi, &cpc);
-			if (ret)
-				goto stop;
-		} else if (has_not_enough_free_secs(sbi, 0, 0)) {
-			ret = write_checkpoint(sbi, &cpc);
-			if (ret)
-				goto stop;
-		}
+		ret = write_checkpoint(sbi, &cpc);
+		if (ret)
+			goto stop;
 	} else if (gc_type == BG_GC && !background) {
 		/* f2fs_balance_fs doesn't need to do BG_GC in critical path. */
 		goto stop;
