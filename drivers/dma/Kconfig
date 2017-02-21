@@ -571,12 +571,12 @@ config XILINX_ZYNQMP_DMA
 	  Enable support for Xilinx ZynqMP DMA controller.
 
 config ZX_DMA
-	tristate "ZTE ZX296702 DMA support"
+	tristate "ZTE ZX DMA support"
 	depends on ARCH_ZX || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
-	  Support the DMA engine for ZTE ZX296702 platform devices.
+	  Support the DMA engine for ZTE ZX family platform devices.
 
 
 # driver files
