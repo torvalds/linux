@@ -295,6 +295,27 @@ static void __iomem *crb_map_res(struct device *dev, struct crb_priv *priv,
 	return priv->iobase + (new_res.start - io_res->start);
 }
 
+/*
+ * Work around broken BIOSs that return inconsistent values from the ACPI
+ * region vs the registers. Trust the ACPI region. Such broken systems
+ * probably cannot send large TPM commands since the buffer will be truncated.
+ */
+static u64 crb_fixup_cmd_size(struct device *dev, struct resource *io_res,
+			      u64 start, u64 size)
+{
+	if (io_res->start > start || io_res->end < start)
+		return size;
+
+	if (start + size - 1 <= io_res->end)
+		return size;
+
+	dev_err(dev,
+		FW_BUG "ACPI region does not cover the entire command/response buffer. %pr vs %llx %llx\n",
+		io_res, start, size);
+
+	return io_res->end - start + 1;
+}
+
 static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 		      struct acpi_table_tpm2 *buf)
 {
@@ -340,7 +361,8 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 	pa_high = ioread32(&priv->cca->cmd_pa_high);
 	pa_low  = ioread32(&priv->cca->cmd_pa_low);
 	cmd_pa = ((u64)pa_high << 32) | pa_low;
-	cmd_size = ioread32(&priv->cca->cmd_size);
+	cmd_size = crb_fixup_cmd_size(dev, &io_res, cmd_pa,
+				      ioread32(&priv->cca->cmd_size));
 
 	dev_dbg(dev, "cmd_hi = %X cmd_low = %X cmd_size %X\n",
 		pa_high, pa_low, cmd_size);
@@ -353,7 +375,8 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 
 	memcpy_fromio(&rsp_pa, &priv->cca->rsp_pa, 8);
 	rsp_pa = le64_to_cpu(rsp_pa);
-	rsp_size = ioread32(&priv->cca->rsp_size);
+	rsp_size = crb_fixup_cmd_size(dev, &io_res, rsp_pa,
+				      ioread32(&priv->cca->rsp_size));
 
 	if (cmd_pa != rsp_pa) {
 		priv->rsp = crb_map_res(dev, priv, &io_res, rsp_pa, rsp_size);
