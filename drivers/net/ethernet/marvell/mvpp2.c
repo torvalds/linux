@@ -4381,11 +4381,12 @@ static void mvpp2_txp_max_tx_size_set(struct mvpp2_port *port)
 static void mvpp2_rx_pkts_coal_set(struct mvpp2_port *port,
 				   struct mvpp2_rx_queue *rxq)
 {
-	u32 val;
+	if (rxq->pkts_coal > MVPP2_OCCUPIED_THRESH_MASK)
+		rxq->pkts_coal = MVPP2_OCCUPIED_THRESH_MASK;
 
-	val = (rxq->pkts_coal & MVPP2_OCCUPIED_THRESH_MASK);
 	mvpp2_write(port->priv, MVPP2_RXQ_NUM_REG, rxq->id);
-	mvpp2_write(port->priv, MVPP2_RXQ_THRESH_REG, val);
+	mvpp2_write(port->priv, MVPP2_RXQ_THRESH_REG,
+		    rxq->pkts_coal);
 }
 
 /* Set the time delay in usec before Rx interrupt */
