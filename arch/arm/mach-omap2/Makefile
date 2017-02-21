@@ -241,6 +241,3 @@ obj-$(CONFIG_MACH_OMAP2_TUSB6010)	+= usb-tusb6010.o
 
 onenand-$(CONFIG_MTD_ONENAND_OMAP2)	:= gpmc-onenand.o
 obj-y					+= $(onenand-m) $(onenand-y)
-
-nand-$(CONFIG_MTD_NAND_OMAP2)		:= gpmc-nand.o
-obj-y					+= $(nand-m) $(nand-y)
