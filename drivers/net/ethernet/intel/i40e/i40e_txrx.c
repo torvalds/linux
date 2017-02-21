@@ -1392,8 +1392,6 @@ no_buffers:
  * @vsi: the VSI we care about
  * @skb: skb currently being received and modified
  * @rx_desc: the receive descriptor
- *
- * skb->protocol must be set before this function is called
  **/
 static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 				    struct sk_buff *skb,
@@ -1555,12 +1553,12 @@ void i40e_process_skb_fields(struct i40e_ring *rx_ring,
 
 	i40e_rx_hash(rx_ring, rx_desc, skb, rx_ptype);
 
-	/* modifies the skb - consumes the enet header */
-	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
-
 	i40e_rx_checksum(rx_ring->vsi, skb, rx_desc);
 
 	skb_record_rx_queue(skb, rx_ring->queue_index);
+
+	/* modifies the skb - consumes the enet header */
+	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
 }
 
 /**
