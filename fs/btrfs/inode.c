@@ -7190,7 +7190,7 @@ static struct extent_map *btrfs_new_extent_direct(struct inode *inode,
 
 	em = btrfs_create_dio_extent(inode, start, ins.offset, start,
 				     ins.objectid, ins.offset, ins.offset,
-				     ins.offset, 0);
+				     ins.offset, BTRFS_ORDERED_REGULAR);
 	btrfs_dec_block_group_reservations(fs_info, ins.objectid);
 	if (IS_ERR(em))
 		btrfs_free_reserved_extent(fs_info, ins.objectid,
