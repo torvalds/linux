@@ -143,6 +143,7 @@ enum {
 	INET_DIAG_PAD,
 	INET_DIAG_MARK,
 	INET_DIAG_BBRINFO,
+	INET_DIAG_WAVEINFO,
 	INET_DIAG_CLASS_ID,
 	INET_DIAG_MD5SIG,
 	__INET_DIAG_MAX,
@@ -189,9 +190,21 @@ struct tcp_bbr_info {
 	__u32	bbr_cwnd_gain;		/* cwnd gain shifted left 8 bits */
 };
 
+/* INET_DIAG_WAVEINFO */
+
+struct tcp_wave_info {
+	__u32	tx_timer;
+	__u16	burst;
+	__u32	previous_ack_t_disp;
+	__u32	min_rtt;
+	__u32	avg_rtt;
+	__u32	max_rtt;
+};
+
 union tcp_cc_info {
 	struct tcpvegas_info	vegas;
 	struct tcp_dctcp_info	dctcp;
 	struct tcp_bbr_info	bbr;
+	struct tcp_wave_info	wave;
 };
 #endif /* _UAPI_INET_DIAG_H_ */
