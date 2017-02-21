@@ -63,7 +63,7 @@ struct eeti_ts {
 
 static inline int eeti_ts_irq_active(struct eeti_ts *eeti)
 {
-	return gpio_get_value(eeti->irq_gpio) == eeti->irq_active_high;
+	return gpio_get_value_cansleep(eeti->irq_gpio) == eeti->irq_active_high;
 }
 
 static void eeti_ts_read(struct work_struct *work)
