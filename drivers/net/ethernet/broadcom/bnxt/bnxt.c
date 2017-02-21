@@ -3134,8 +3134,10 @@ static void bnxt_disable_int(struct bnxt *bp)
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		struct bnxt_napi *bnapi = bp->bnapi[i];
 		struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
+		struct bnxt_ring_struct *ring = &cpr->cp_ring_struct;
 
-		BNXT_CP_DB(cpr->cp_doorbell, cpr->cp_raw_cons);
+		if (ring->fw_ring_id != INVALID_HW_RING_ID)
+			BNXT_CP_DB(cpr->cp_doorbell, cpr->cp_raw_cons);
 	}
 }
 
