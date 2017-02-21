@@ -886,14 +886,12 @@ static void dm_handle_hpd_rx_irq(struct amdgpu_connector *aconnector)
 		process_count++;
 
 		DRM_DEBUG_KMS("ESI %02x %02x %02x\n", esi[0], esi[1], esi[2]);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
 		/* handle HPD short pulse irq */
 		if (aconnector->mst_mgr.mst_state)
 			drm_dp_mst_hpd_irq(
 				&aconnector->mst_mgr,
 				esi,
 				&new_irq_handled);
-#endif
 
 		if (new_irq_handled) {
 			/* ACK at DPCD to notify down stream */
