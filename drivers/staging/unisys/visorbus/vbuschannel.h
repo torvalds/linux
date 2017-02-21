@@ -66,7 +66,7 @@ struct ultra_vbus_deviceinfo {
 	u8 reserved[128];	/* pad size to 256 bytes */
 };
 
-/**
+/*
  * vbuschannel_print_devinfo() - format a struct ultra_vbus_deviceinfo
  *                               and write it to a seq_file
  * @devinfo: the struct ultra_vbus_deviceinfo to format
