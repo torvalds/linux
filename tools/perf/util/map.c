@@ -485,7 +485,7 @@ void map_groups__init(struct map_groups *mg, struct machine *machine)
 		maps__init(&mg->maps[i]);
 	}
 	mg->machine = machine;
-	atomic_set(&mg->refcnt, 1);
+	refcount_set(&mg->refcnt, 1);
 }
 
 static void __maps__purge(struct maps *maps)
@@ -547,7 +547,7 @@ void map_groups__delete(struct map_groups *mg)
 
 void map_groups__put(struct map_groups *mg)
 {
-	if (mg && atomic_dec_and_test(&mg->refcnt))
+	if (mg && refcount_dec_and_test(&mg->refcnt))
 		map_groups__delete(mg);
 }
 

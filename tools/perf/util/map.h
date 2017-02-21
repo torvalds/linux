@@ -67,7 +67,7 @@ struct maps {
 struct map_groups {
 	struct maps	 maps[MAP__NR_TYPES];
 	struct machine	 *machine;
-	atomic_t	 refcnt;
+	refcount_t	 refcnt;
 };
 
 struct map_groups *map_groups__new(struct machine *machine);
@@ -77,7 +77,7 @@ bool map_groups__empty(struct map_groups *mg);
 static inline struct map_groups *map_groups__get(struct map_groups *mg)
 {
 	if (mg)
-		atomic_inc(&mg->refcnt);
+		refcount_inc(&mg->refcnt);
 	return mg;
 }
 
