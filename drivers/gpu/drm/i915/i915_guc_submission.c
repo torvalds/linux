@@ -518,6 +518,8 @@ static void __i915_guc_submit(struct drm_i915_gem_request *rq)
 	if (i915_vma_is_map_and_fenceable(rq->ring->vma))
 		POSTING_READ_FW(GUC_STATUS);
 
+	trace_i915_gem_request_in(rq, 0);
+
 	b_ret = guc_ring_doorbell(client);
 
 	client->submissions[engine_id] += 1;
