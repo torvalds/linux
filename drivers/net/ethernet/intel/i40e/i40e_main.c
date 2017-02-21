@@ -8577,9 +8577,12 @@ static int i40e_pf_config_rss(struct i40e_pf *pf)
 	i40e_write_rx_ctl(hw, I40E_PFQF_CTL_0, reg_val);
 
 	/* Determine the RSS size of the VSI */
-	if (!vsi->rss_size)
-		vsi->rss_size = min_t(int, pf->alloc_rss_size,
-				      vsi->num_queue_pairs);
+	if (!vsi->rss_size) {
+		u16 qcount;
+
+		qcount = vsi->num_queue_pairs / vsi->tc_config.numtc;
+		vsi->rss_size = min_t(int, pf->alloc_rss_size, qcount);
+	}
 	if (!vsi->rss_size)
 		return -EINVAL;
 
@@ -8625,6 +8628,8 @@ int i40e_reconfig_rss_queues(struct i40e_pf *pf, int queue_count)
 	new_rss_size = min_t(int, queue_count, pf->rss_size_max);
 
 	if (queue_count != vsi->num_queue_pairs) {
+		u16 qcount;
+
 		vsi->req_queue_pairs = queue_count;
 		i40e_prep_for_reset(pf);
 
@@ -8642,8 +8647,8 @@ int i40e_reconfig_rss_queues(struct i40e_pf *pf, int queue_count)
 		}
 
 		/* Reset vsi->rss_size, as number of enabled queues changed */
-		vsi->rss_size = min_t(int, pf->alloc_rss_size,
-				      vsi->num_queue_pairs);
+		qcount = vsi->num_queue_pairs / vsi->tc_config.numtc;
+		vsi->rss_size = min_t(int, pf->alloc_rss_size, qcount);
 
 		i40e_pf_config_rss(pf);
 	}
