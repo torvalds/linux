@@ -143,6 +143,7 @@ MODULE_DEVICE_TABLE(of, sh_mobile_sdhi_of_match);
 
 struct sh_mobile_sdhi {
 	struct clk *clk;
+	struct clk *clk_cd;
 	struct tmio_mmc_data mmc_data;
 	struct tmio_mmc_dma dma_priv;
 	struct pinctrl *pinctrl;
@@ -189,6 +190,12 @@ static int sh_mobile_sdhi_clk_enable(struct tmio_mmc_host *host)
 	int ret = clk_prepare_enable(priv->clk);
 	if (ret < 0)
 		return ret;
+
+	ret = clk_prepare_enable(priv->clk_cd);
+	if (ret < 0) {
+		clk_disable_unprepare(priv->clk);
+		return ret;
+	}
 
 	/*
 	 * The clock driver may not know what maximum frequency
@@ -255,6 +262,7 @@ static void sh_mobile_sdhi_clk_disable(struct tmio_mmc_host *host)
 	struct sh_mobile_sdhi *priv = host_to_priv(host);
 
 	clk_disable_unprepare(priv->clk);
+	clk_disable_unprepare(priv->clk_cd);
 }
 
 static int sh_mobile_sdhi_card_busy(struct mmc_host *mmc)
@@ -334,9 +342,6 @@ static inline void sd_scc_write32(struct tmio_mmc_host *host,
 static unsigned int sh_mobile_sdhi_init_tuning(struct tmio_mmc_host *host)
 {
 	struct sh_mobile_sdhi *priv;
-
-	if (!(host->mmc->caps & MMC_CAP_UHS_SDR104))
-		return 0;
 
 	priv = host_to_priv(host);
 
@@ -444,12 +449,7 @@ static int sh_mobile_sdhi_select_tuning(struct tmio_mmc_host *host)
 
 static bool sh_mobile_sdhi_check_scc_error(struct tmio_mmc_host *host)
 {
-	struct sh_mobile_sdhi *priv;
-
-	if (!(host->mmc->caps & MMC_CAP_UHS_SDR104))
-		return 0;
-
-	priv = host_to_priv(host);
+	struct sh_mobile_sdhi *priv = host_to_priv(host);
 
 	/* Check SCC error */
 	if (sd_scc_read32(host, priv, SH_MOBILE_SDHI_SCC_RVSCNTL) &
@@ -467,9 +467,6 @@ static bool sh_mobile_sdhi_check_scc_error(struct tmio_mmc_host *host)
 static void sh_mobile_sdhi_hw_reset(struct tmio_mmc_host *host)
 {
 	struct sh_mobile_sdhi *priv;
-
-	if (!(host->mmc->caps & MMC_CAP_UHS_SDR104))
-		return;
 
 	priv = host_to_priv(host);
 
@@ -556,8 +553,7 @@ static void sh_mobile_sdhi_enable_dma(struct tmio_mmc_host *host, bool enable)
 
 static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id =
-		of_match_device(sh_mobile_sdhi_of_match, &pdev->dev);
+	const struct sh_mobile_sdhi_of_data *of_data = of_device_get_match_data(&pdev->dev);
 	struct sh_mobile_sdhi *priv;
 	struct tmio_mmc_data *mmc_data;
 	struct tmio_mmc_data *mmd = pdev->dev.platform_data;
@@ -584,6 +580,21 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		goto eprobe;
 	}
 
+	/*
+	 * Some controllers provide a 2nd clock just to run the internal card
+	 * detection logic. Unfortunately, the existing driver architecture does
+	 * not support a separation of clocks for runtime PM usage. When
+	 * native hotplug is used, the tmio driver assumes that the core
+	 * must continue to run for card detect to stay active, so we cannot
+	 * disable it.
+	 * Additionally, it is prohibited to supply a clock to the core but not
+	 * to the card detect circuit. That leaves us with if separate clocks
+	 * are presented, we must treat them both as virtually 1 clock.
+	 */
+	priv->clk_cd = devm_clk_get(&pdev->dev, "cd");
+	if (IS_ERR(priv->clk_cd))
+		priv->clk_cd = NULL;
+
 	priv->pinctrl = devm_pinctrl_get(&pdev->dev);
 	if (!IS_ERR(priv->pinctrl)) {
 		priv->pins_default = pinctrl_lookup_state(priv->pinctrl,
@@ -598,9 +609,8 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		goto eprobe;
 	}
 
-	if (of_id && of_id->data) {
-		const struct sh_mobile_sdhi_of_data *of_data = of_id->data;
 
+	if (of_data) {
 		mmc_data->flags |= of_data->tmio_flags;
 		mmc_data->ocr_mask = of_data->tmio_ocr_mask;
 		mmc_data->capabilities |= of_data->capabilities;
@@ -623,11 +633,6 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		host->card_busy	= sh_mobile_sdhi_card_busy;
 		host->start_signal_voltage_switch =
 			sh_mobile_sdhi_start_signal_voltage_switch;
-		host->init_tuning	= sh_mobile_sdhi_init_tuning;
-		host->prepare_tuning	= sh_mobile_sdhi_prepare_tuning;
-		host->select_tuning	= sh_mobile_sdhi_select_tuning;
-		host->check_scc_error	= sh_mobile_sdhi_check_scc_error;
-		host->hw_reset		= sh_mobile_sdhi_hw_reset;
 	}
 
 	/* Orginally registers were 16 bit apart, could be 32 or 64 nowadays */
@@ -659,40 +664,40 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	 */
 	mmc_data->flags |= TMIO_MMC_HAVE_CMD12_CTRL;
 
-	/*
-	 * All SDHI need SDIO_INFO1 reserved bit
-	 */
-	mmc_data->flags |= TMIO_MMC_SDIO_STATUS_QUIRK;
+	/* All SDHI have SDIO status bits which must be 1 */
+	mmc_data->flags |= TMIO_MMC_SDIO_STATUS_SETBITS;
 
 	ret = tmio_mmc_host_probe(host, mmc_data);
 	if (ret < 0)
 		goto efree;
 
-	if (host->mmc->caps & MMC_CAP_UHS_SDR104) {
+	/* Enable tuning iff we have an SCC and a supported mode */
+	if (of_data && of_data->scc_offset &&
+	    (host->mmc->caps & MMC_CAP_UHS_SDR104 ||
+	     host->mmc->caps2 & MMC_CAP2_HS200_1_8V_SDR)) {
+		const struct sh_mobile_sdhi_scc *taps = of_data->taps;
+		bool hit = false;
+
 		host->mmc->caps |= MMC_CAP_HW_RESET;
 
-		if (of_id && of_id->data) {
-			const struct sh_mobile_sdhi_of_data *of_data;
-			const struct sh_mobile_sdhi_scc *taps;
-			bool hit = false;
-
-			of_data = of_id->data;
-			taps = of_data->taps;
-
-			for (i = 0; i < of_data->taps_num; i++) {
-				if (taps[i].clk_rate == 0 ||
-				    taps[i].clk_rate == host->mmc->f_max) {
-					host->scc_tappos = taps->tap;
-					hit = true;
-					break;
-				}
+		for (i = 0; i < of_data->taps_num; i++) {
+			if (taps[i].clk_rate == 0 ||
+			    taps[i].clk_rate == host->mmc->f_max) {
+				host->scc_tappos = taps->tap;
+				hit = true;
+				break;
 			}
-
-			if (!hit)
-				dev_warn(&host->pdev->dev, "Unknown clock rate for SDR104\n");
-
-			priv->scc_ctl = host->ctl + of_data->scc_offset;
 		}
+
+		if (!hit)
+			dev_warn(&host->pdev->dev, "Unknown clock rate for SDR104\n");
+
+		priv->scc_ctl = host->ctl + of_data->scc_offset;
+		host->init_tuning = sh_mobile_sdhi_init_tuning;
+		host->prepare_tuning = sh_mobile_sdhi_prepare_tuning;
+		host->select_tuning = sh_mobile_sdhi_select_tuning;
+		host->check_scc_error = sh_mobile_sdhi_check_scc_error;
+		host->hw_reset = sh_mobile_sdhi_hw_reset;
 	}
 
 	i = 0;

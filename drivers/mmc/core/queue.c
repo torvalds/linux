@@ -20,6 +20,8 @@
 
 #include "queue.h"
 #include "block.h"
+#include "core.h"
+#include "card.h"
 
 #define MMC_QUEUE_BOUNCESZ	65536
 
@@ -75,8 +77,8 @@ static int mmc_queue_thread(void *d)
 			set_current_state(TASK_RUNNING);
 			mmc_blk_issue_rq(mq, req);
 			cond_resched();
-			if (mq->flags & MMC_QUEUE_NEW_REQUEST) {
-				mq->flags &= ~MMC_QUEUE_NEW_REQUEST;
+			if (mq->new_request) {
+				mq->new_request = false;
 				continue; /* fetch again */
 			}
 
@@ -143,7 +145,7 @@ static struct scatterlist *mmc_alloc_sg(int sg_len, int *err)
 {
 	struct scatterlist *sg;
 
-	sg = kmalloc(sizeof(struct scatterlist)*sg_len, GFP_KERNEL);
+	sg = kmalloc_array(sg_len, sizeof(*sg), GFP_KERNEL);
 	if (!sg)
 		*err = -ENOMEM;
 	else {
@@ -390,8 +392,8 @@ void mmc_queue_suspend(struct mmc_queue *mq)
 	struct request_queue *q = mq->queue;
 	unsigned long flags;
 
-	if (!(mq->flags & MMC_QUEUE_SUSPENDED)) {
-		mq->flags |= MMC_QUEUE_SUSPENDED;
+	if (!mq->suspended) {
+		mq->suspended |= true;
 
 		spin_lock_irqsave(q->queue_lock, flags);
 		blk_stop_queue(q);
@@ -410,8 +412,8 @@ void mmc_queue_resume(struct mmc_queue *mq)
 	struct request_queue *q = mq->queue;
 	unsigned long flags;
 
-	if (mq->flags & MMC_QUEUE_SUSPENDED) {
-		mq->flags &= ~MMC_QUEUE_SUSPENDED;
+	if (mq->suspended) {
+		mq->suspended = false;
 
 		up(&mq->thread_sem);
 
