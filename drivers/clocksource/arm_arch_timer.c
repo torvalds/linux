@@ -190,6 +190,12 @@ static struct cyclecounter cyclecounter __ro_after_init = {
 	.mask	= CLOCKSOURCE_MASK(56),
 };
 
+struct ate_acpi_oem_info {
+	char oem_id[ACPI_OEM_ID_SIZE + 1];
+	char oem_table_id[ACPI_OEM_TABLE_ID_SIZE + 1];
+	u32 oem_revision;
+};
+
 #ifdef CONFIG_FSL_ERRATUM_A008585
 /*
  * The number of retries is an arbitrary value well beyond the highest number
@@ -371,6 +377,28 @@ bool arch_timer_check_local_cap_erratum(const struct arch_timer_erratum_workarou
 	return this_cpu_has_cap((uintptr_t)wa->id);
 }
 
+
+static
+bool arch_timer_check_acpi_oem_erratum(const struct arch_timer_erratum_workaround *wa,
+				       const void *arg)
+{
+	static const struct ate_acpi_oem_info empty_oem_info = {};
+	const struct ate_acpi_oem_info *info = wa->id;
+	const struct acpi_table_header *table = arg;
+
+	/* Iterate over the ACPI OEM info array, looking for a match */
+	while (memcmp(info, &empty_oem_info, sizeof(*info))) {
+		if (!memcmp(info->oem_id, table->oem_id, ACPI_OEM_ID_SIZE) &&
+		    !memcmp(info->oem_table_id, table->oem_table_id, ACPI_OEM_TABLE_ID_SIZE) &&
+		    info->oem_revision == table->oem_revision)
+			return true;
+
+		info++;
+	}
+
+	return false;
+}
+
 static const struct arch_timer_erratum_workaround *
 arch_timer_iterate_errata(enum arch_timer_erratum_match_type type,
 			  ate_match_fn_t match_fn,
@@ -430,6 +458,9 @@ static void arch_timer_check_ool_workaround(enum arch_timer_erratum_match_type t
 	case ate_match_local_cap_id:
 		match_fn = arch_timer_check_local_cap_erratum;
 		local = true;
+		break;
+	case ate_match_acpi_oem_info:
+		match_fn = arch_timer_check_acpi_oem_erratum;
 		break;
 	default:
 		WARN_ON(1);
@@ -1276,6 +1307,9 @@ static int __init arch_timer_acpi_init(struct acpi_table_header *table)
 
 	/* Always-on capability */
 	arch_timer_c3stop = !(gtdt->non_secure_el1_flags & ACPI_GTDT_ALWAYS_ON);
+
+	/* Check for globally applicable workarounds */
+	arch_timer_check_ool_workaround(ate_match_acpi_oem_info, table);
 
 	arch_timer_init();
 	return 0;
