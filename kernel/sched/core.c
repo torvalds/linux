@@ -23,6 +23,9 @@
 
 #include <asm/switch_to.h>
 #include <asm/tlb.h>
+#ifdef CONFIG_PARAVIRT
+#include <asm/paravirt.h>
+#endif
 
 #include "sched.h"
 #include "../workqueue_internal.h"
