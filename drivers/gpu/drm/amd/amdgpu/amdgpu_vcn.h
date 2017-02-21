@@ -37,6 +37,14 @@
 #define VCN_DEC_CMD_PACKET_START	0x0000000a
 #define VCN_DEC_CMD_PACKET_END		0x0000000b
 
+#define VCN_ENC_CMD_NO_OP		0x00000000
+#define VCN_ENC_CMD_END 		0x00000001
+#define VCN_ENC_CMD_IB			0x00000002
+#define VCN_ENC_CMD_FENCE		0x00000003
+#define VCN_ENC_CMD_TRAP		0x00000004
+#define VCN_ENC_CMD_REG_WRITE		0x0000000b
+#define VCN_ENC_CMD_REG_WAIT		0x0000000c
+
 struct amdgpu_vcn {
 	struct amdgpu_bo	*vcpu_bo;
 	void			*cpu_addr;
