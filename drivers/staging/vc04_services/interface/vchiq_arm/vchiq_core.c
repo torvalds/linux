@@ -192,6 +192,7 @@ VCHIQ_SERVICE_T *
 find_service_by_port(VCHIQ_STATE_T *state, int localport)
 {
 	VCHIQ_SERVICE_T *service = NULL;
+
 	if ((unsigned int)localport <= VCHIQ_PORT_MAX) {
 		spin_lock(&service_spinlock);
 		service = state->services[localport];
@@ -268,6 +269,7 @@ next_service_by_instance(VCHIQ_STATE_T *state, VCHIQ_INSTANCE_T instance,
 	spin_lock(&service_spinlock);
 	while (idx < state->unused_service) {
 		VCHIQ_SERVICE_T *srv = state->services[idx++];
+
 		if (srv && (srv->srvstate != VCHIQ_SRVSTATE_FREE) &&
 			(srv->instance == instance)) {
 			service = srv;
@@ -381,6 +383,7 @@ make_service_callback(VCHIQ_SERVICE_T *service, VCHIQ_REASON_T reason,
 	VCHIQ_HEADER_T *header, void *bulk_userdata)
 {
 	VCHIQ_STATUS_T status;
+
 	vchiq_log_trace(vchiq_core_log_level, "%d: callback:%d (%s, %pK, %pK)",
 		service->state->id, service->localport, reason_names[reason],
 		header, bulk_userdata);
@@ -399,6 +402,7 @@ inline void
 vchiq_set_conn_state(VCHIQ_STATE_T *state, VCHIQ_CONNSTATE_T newstate)
 {
 	VCHIQ_CONNSTATE_T oldstate = state->conn_state;
+
 	vchiq_log_info(vchiq_core_log_level, "%d: %s->%s", state->id,
 		conn_state_names[oldstate],
 		conn_state_names[newstate]);
@@ -485,6 +489,7 @@ get_listening_service(VCHIQ_STATE_T *state, int fourcc)
 
 	for (i = 0; i < state->unused_service; i++) {
 		VCHIQ_SERVICE_T *service = state->services[i];
+
 		if (service &&
 			(service->public_fourcc == fourcc) &&
 			((service->srvstate == VCHIQ_SRVSTATE_LISTENING) ||
@@ -503,8 +508,10 @@ static VCHIQ_SERVICE_T *
 get_connected_service(VCHIQ_STATE_T *state, unsigned int port)
 {
 	int i;
+
 	for (i = 0; i < state->unused_service; i++) {
 		VCHIQ_SERVICE_T *service = state->services[i];
+
 		if (service && (service->srvstate == VCHIQ_SRVSTATE_OPEN)
 			&& (service->remoteport == port)) {
 			lock_service(service);
@@ -645,11 +652,13 @@ process_free_queue(VCHIQ_STATE_T *state)
 			VCHIQ_HEADER_T *header =
 				(VCHIQ_HEADER_T *)(data + pos);
 			int msgid = header->msgid;
+
 			if (VCHIQ_MSG_TYPE(msgid) == VCHIQ_MSG_DATA) {
 				int port = VCHIQ_MSG_SRCPORT(msgid);
 				VCHIQ_SERVICE_QUOTA_T *service_quota =
 					&state->service_quotas[port];
 				int count;
+
 				spin_lock(&quota_spinlock);
 				count = service_quota->message_use_count;
 				if (count > 0)
@@ -719,6 +728,7 @@ process_free_queue(VCHIQ_STATE_T *state)
 
 		if (data_found) {
 			int count;
+
 			spin_lock(&quota_spinlock);
 			count = state->data_use_count;
 			if (count > 0)
@@ -1059,6 +1069,7 @@ queue_message_sync(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 
 	{
 		int oldmsgid = header->msgid;
+
 		if (oldmsgid != VCHIQ_MSGID_PADDING)
 			vchiq_log_error(vchiq_core_log_level,
 				"%d: qms - msgid %x, not PADDING",
@@ -1143,6 +1154,7 @@ release_slot(VCHIQ_STATE_T *state, VCHIQ_SLOT_INFO_T *slot_info,
 
 	if (header) {
 		int msgid = header->msgid;
+
 		if (((msgid & VCHIQ_MSGID_CLAIMED) == 0) ||
 			(service && service->closing)) {
 			mutex_unlock(&state->recycle_mutex);
@@ -1252,6 +1264,7 @@ notify_bulks(VCHIQ_SERVICE_T *service, VCHIQ_BULK_QUEUE_T *queue,
 				}
 				if (bulk->mode == VCHIQ_BULK_MODE_BLOCKING) {
 					struct bulk_waiter *waiter;
+
 					spin_lock(&bulk_waiter_spinlock);
 					waiter = bulk->userdata;
 					if (waiter) {
@@ -1301,6 +1314,7 @@ poll_services(VCHIQ_STATE_T *state)
 
 	for (group = 0; group < BITSET_SIZE(state->unused_service); group++) {
 		u32 flags;
+
 		flags = atomic_xchg(&state->poll_services[group], 0);
 		for (i = 0; flags; i++) {
 			if (flags & (1 << i)) {
@@ -1308,6 +1322,7 @@ poll_services(VCHIQ_STATE_T *state)
 					find_service_by_port(state,
 						(group<<5) + i);
 				u32 service_flags;
+
 				flags &= ~(1 << i);
 				if (!service)
 					continue;
@@ -1421,6 +1436,7 @@ static void
 abort_outstanding_bulks(VCHIQ_SERVICE_T *service, VCHIQ_BULK_QUEUE_T *queue)
 {
 	int is_tx = (queue == &service->bulk_tx);
+
 	vchiq_log_trace(vchiq_core_log_level,
 		"%d: aob:%d %cx - li=%x ri=%x p=%x",
 		service->state->id, service->localport, is_tx ? 't' : 'r',
@@ -1484,6 +1500,7 @@ static void
 resume_bulks(VCHIQ_STATE_T *state)
 {
 	int i;
+
 	if (unlikely(atomic_dec_return(&pause_bulks_count) != 0)) {
 		WARN_ON_ONCE(1);
 		atomic_set(&pause_bulks_count, 0);
@@ -1507,6 +1524,7 @@ resume_bulks(VCHIQ_STATE_T *state)
 		VCHIQ_SERVICE_T *service = state->services[i];
 		int resolved_rx = 0;
 		int resolved_tx = 0;
+
 		if (!service || (service->srvstate != VCHIQ_SRVSTATE_OPEN))
 			continue;
 
@@ -1550,6 +1568,7 @@ parse_open(VCHIQ_STATE_T *state, VCHIQ_HEADER_T *header)
 			/* A matching service exists */
 			short version = payload->version;
 			short version_min = payload->version_min;
+
 			if ((service->version < version_min) ||
 				(version < service->version_min)) {
 				/* Version mismatch */
@@ -1651,6 +1670,7 @@ parse_rx_slots(VCHIQ_STATE_T *state)
 	VCHIQ_SHARED_STATE_T *remote = state->remote;
 	VCHIQ_SERVICE_T *service = NULL;
 	int tx_pos;
+
 	DEBUG_INITIALISE(state->local)
 
 	tx_pos = remote->tx_pos;
@@ -1664,6 +1684,7 @@ parse_rx_slots(VCHIQ_STATE_T *state)
 		DEBUG_TRACE(PARSE_LINE);
 		if (!state->rx_data) {
 			int rx_index;
+
 			WARN_ON(!((state->rx_pos & VCHIQ_SLOT_MASK) == 0));
 			rx_index = remote->slot_queue[
 				SLOT_QUEUE_INDEX_FROM_POS(state->rx_pos) &
@@ -1841,6 +1862,7 @@ parse_rx_slots(VCHIQ_STATE_T *state)
 		case VCHIQ_MSG_BULK_RX:
 		case VCHIQ_MSG_BULK_TX: {
 			VCHIQ_BULK_QUEUE_T *queue;
+
 			WARN_ON(!state->is_master);
 			queue = (type == VCHIQ_MSG_BULK_RX) ?
 				&service->bulk_tx : &service->bulk_rx;
@@ -2054,6 +2076,7 @@ slot_handler_func(void *v)
 {
 	VCHIQ_STATE_T *state = (VCHIQ_STATE_T *) v;
 	VCHIQ_SHARED_STATE_T *local = state->local;
+
 	DEBUG_INITIALISE(local)
 
 	while (1) {
@@ -2613,6 +2636,7 @@ vchiq_add_service_internal(VCHIQ_STATE_T *state,
 		if (srvstate == VCHIQ_SRVSTATE_OPENING) {
 			for (i = 0; i < state->unused_service; i++) {
 				VCHIQ_SERVICE_T *srv = state->services[i];
+
 				if (!srv) {
 					pservice = &state->services[i];
 					break;
@@ -2621,6 +2645,7 @@ vchiq_add_service_internal(VCHIQ_STATE_T *state,
 		} else {
 			for (i = (state->unused_service - 1); i >= 0; i--) {
 				VCHIQ_SERVICE_T *srv = state->services[i];
+
 				if (!srv)
 					pservice = &state->services[i];
 				else if ((srv->public_fourcc == params->fourcc)
@@ -2766,6 +2791,7 @@ release_service_messages(VCHIQ_SERVICE_T *service)
 					(VCHIQ_HEADER_T *)(data + pos);
 				int msgid = header->msgid;
 				int port = VCHIQ_MSG_DSTPORT(msgid);
+
 				if ((port == service->localport) &&
 					(msgid & VCHIQ_MSGID_CLAIMED)) {
 					vchiq_log_info(vchiq_core_log_level,
@@ -3498,6 +3524,7 @@ vchiq_release_message(VCHIQ_SERVICE_HANDLE_T handle, VCHIQ_HEADER_T *header)
 	if ((slot_index >= remote->slot_first) &&
 		(slot_index <= remote->slot_last)) {
 		int msgid = header->msgid;
+
 		if (msgid & VCHIQ_MSGID_CLAIMED) {
 			VCHIQ_SLOT_INFO_T *slot_info =
 				SLOT_INFO_FROM_INDEX(state, slot_index);
@@ -3656,9 +3683,9 @@ vchiq_dump_shared_state(void *dump_context, VCHIQ_STATE_T *state,
 		"COMPLETION_QUEUE_FULL_COUNT"
 	};
 	int i;
-
 	char buf[80];
 	int len;
+
 	len = snprintf(buf, sizeof(buf),
 		"  %s: slots %d-%d tx_pos=%x recycle=%x",
 		label, shared->slot_first, shared->slot_last,
@@ -3762,9 +3789,11 @@ vchiq_dump_service_state(void *dump_context, VCHIQ_SERVICE_T *service)
 			&service->state->service_quotas[service->localport];
 		int fourcc = service->base.fourcc;
 		int tx_pending, rx_pending;
+
 		if (service->remoteport != VCHIQ_PORT_FREE) {
 			int len2 = snprintf(remoteport, sizeof(remoteport),
 				"%u", service->remoteport);
+
 			if (service->public_fourcc != VCHIQ_FOURCC_INVALID)
 				snprintf(remoteport + len2,
 					sizeof(remoteport) - len2,
@@ -3866,6 +3895,7 @@ vchiq_loud_error_footer(void)
 VCHIQ_STATUS_T vchiq_send_remote_use(VCHIQ_STATE_T *state)
 {
 	VCHIQ_STATUS_T status = VCHIQ_RETRY;
+
 	if (state->conn_state != VCHIQ_CONNSTATE_DISCONNECTED)
 		status = queue_message(state, NULL,
 			VCHIQ_MAKE_MSG(VCHIQ_MSG_REMOTE_USE, 0, 0),
@@ -3876,6 +3906,7 @@ VCHIQ_STATUS_T vchiq_send_remote_use(VCHIQ_STATE_T *state)
 VCHIQ_STATUS_T vchiq_send_remote_release(VCHIQ_STATE_T *state)
 {
 	VCHIQ_STATUS_T status = VCHIQ_RETRY;
+
 	if (state->conn_state != VCHIQ_CONNSTATE_DISCONNECTED)
 		status = queue_message(state, NULL,
 			VCHIQ_MAKE_MSG(VCHIQ_MSG_REMOTE_RELEASE, 0, 0),
@@ -3886,6 +3917,7 @@ VCHIQ_STATUS_T vchiq_send_remote_release(VCHIQ_STATE_T *state)
 VCHIQ_STATUS_T vchiq_send_remote_use_active(VCHIQ_STATE_T *state)
 {
 	VCHIQ_STATUS_T status = VCHIQ_RETRY;
+
 	if (state->conn_state != VCHIQ_CONNSTATE_DISCONNECTED)
 		status = queue_message(state, NULL,
 			VCHIQ_MAKE_MSG(VCHIQ_MSG_REMOTE_USE_ACTIVE, 0, 0),

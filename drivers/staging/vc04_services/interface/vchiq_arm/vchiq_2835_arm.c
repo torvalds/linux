@@ -208,6 +208,7 @@ VCHIQ_STATUS_T
 vchiq_platform_init_state(VCHIQ_STATE_T *state)
 {
 	VCHIQ_STATUS_T status = VCHIQ_SUCCESS;
+
 	state->platform_state = kzalloc(sizeof(VCHIQ_2835_ARM_STATE_T), GFP_KERNEL);
 	((VCHIQ_2835_ARM_STATE_T *)state->platform_state)->inited = 1;
 	status = vchiq_arm_init_state(state, &((VCHIQ_2835_ARM_STATE_T *)state->platform_state)->arm_state);
@@ -293,6 +294,7 @@ vchiq_dump_platform_state(void *dump_context)
 {
 	char buf[80];
 	int len;
+
 	len = snprintf(buf, sizeof(buf),
 		"  Platform: 2835 (VC master)");
 	vchiq_dump(dump_context, buf, len + 1);
@@ -591,6 +593,7 @@ free_pagelist(struct vchiq_pagelist_info *pagelistinfo,
 			(pagelist->type - PAGELIST_READ_WITH_FRAGMENTS) *
 			g_fragments_size;
 		int head_bytes, tail_bytes;
+
 		head_bytes = (g_cache_line_size - pagelist->offset) &
 			(g_cache_line_size - 1);
 		tail_bytes = (pagelist->offset + actual) &
