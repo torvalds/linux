@@ -94,6 +94,15 @@ int amdgpu_cs_get_ring(struct amdgpu_device *adev, u32 ip_type,
 	case AMDGPU_HW_IP_VCN_DEC:
 		*out_ring = &adev->vcn.ring_dec;
 		break;
+	case AMDGPU_HW_IP_VCN_ENC:
+		if (ring < adev->vcn.num_enc_rings){
+			*out_ring = &adev->vcn.ring_enc[ring];
+		} else {
+			DRM_ERROR("only %d VCN ENC rings are supported\n",
+				adev->vcn.num_enc_rings);
+			return -EINVAL;
+		}
+		break;
 	}
 
 	if (!(*out_ring && (*out_ring)->adev)) {
