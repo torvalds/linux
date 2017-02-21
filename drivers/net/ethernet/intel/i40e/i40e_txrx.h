@@ -401,13 +401,6 @@ int i40e_setup_rx_descriptors(struct i40e_ring *rx_ring);
 void i40e_free_tx_resources(struct i40e_ring *tx_ring);
 void i40e_free_rx_resources(struct i40e_ring *rx_ring);
 int i40e_napi_poll(struct napi_struct *napi, int budget);
-#ifdef I40E_FCOE
-void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
-		 struct i40e_tx_buffer *first, u32 tx_flags,
-		 const u8 hdr_len, u32 td_cmd, u32 td_offset);
-int i40e_tx_prepare_vlan_flags(struct sk_buff *skb,
-			       struct i40e_ring *tx_ring, u32 *flags);
-#endif
 void i40e_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector);
 u32 i40e_get_tx_pending(struct i40e_ring *ring, bool in_sw);
 int __i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size);
@@ -488,16 +481,6 @@ static inline bool i40e_chk_linearize(struct sk_buff *skb, int count)
 
 	/* we can support up to 8 data buffers for a single send */
 	return count != I40E_MAX_BUFFER_TXD;
-}
-
-/**
- * i40e_rx_is_fcoe - returns true if the Rx packet type is FCoE
- * @ptype: the packet type field from Rx descriptor write-back
- **/
-static inline bool i40e_rx_is_fcoe(u16 ptype)
-{
-	return (ptype >= I40E_RX_PTYPE_L2_FCOE_PAY3) &&
-	       (ptype <= I40E_RX_PTYPE_L2_FCOE_VFT_FCOTHER);
 }
 
 /**

@@ -1062,11 +1062,6 @@ static void i40e_clean_programming_status(struct i40e_ring *rx_ring,
 
 	if (id == I40E_RX_PROG_STATUS_DESC_FD_FILTER_STATUS)
 		i40e_fd_handle_status(rx_ring, rx_desc, id);
-#ifdef I40E_FCOE
-	else if ((id == I40E_RX_PROG_STATUS_DESC_FCOE_CTXT_PROG_STATUS) ||
-		 (id == I40E_RX_PROG_STATUS_DESC_FCOE_CTXT_INVL_STATUS))
-		i40e_fcoe_handle_status(rx_ring, rx_desc, id);
-#endif
 }
 
 /**
@@ -1958,15 +1953,6 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 		/* populate checksum, VLAN, and protocol */
 		i40e_process_skb_fields(rx_ring, rx_desc, skb, rx_ptype);
 
-#ifdef I40E_FCOE
-		if (unlikely(
-		    i40e_rx_is_fcoe(rx_ptype) &&
-		    !i40e_fcoe_handle_offload(rx_ring, rx_desc, skb))) {
-			dev_kfree_skb_any(skb);
-			continue;
-		}
-#endif
-
 		vlan_tag = (qword & BIT(I40E_RX_DESC_STATUS_L2TAG1P_SHIFT)) ?
 			   le16_to_cpu(rx_desc->wb.qword0.lo_dword.l2tag1) : 0;
 
@@ -2342,15 +2328,9 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
  * Returns error code indicate the frame should be dropped upon error and the
  * otherwise  returns 0 to indicate the flags has been set properly.
  **/
-#ifdef I40E_FCOE
-inline int i40e_tx_prepare_vlan_flags(struct sk_buff *skb,
-				      struct i40e_ring *tx_ring,
-				      u32 *flags)
-#else
 static inline int i40e_tx_prepare_vlan_flags(struct sk_buff *skb,
 					     struct i40e_ring *tx_ring,
 					     u32 *flags)
-#endif
 {
 	__be16 protocol = skb->protocol;
 	u32  tx_flags = 0;
@@ -2858,15 +2838,9 @@ bool __i40e_chk_linearize(struct sk_buff *skb)
  * @td_cmd:   the command field in the descriptor
  * @td_offset: offset for checksum or crc
  **/
-#ifdef I40E_FCOE
-inline void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
-			struct i40e_tx_buffer *first, u32 tx_flags,
-			const u8 hdr_len, u32 td_cmd, u32 td_offset)
-#else
 static inline void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 			       struct i40e_tx_buffer *first, u32 tx_flags,
 			       const u8 hdr_len, u32 td_cmd, u32 td_offset)
-#endif
 {
 	unsigned int data_len = skb->data_len;
 	unsigned int size = skb_headlen(skb);
