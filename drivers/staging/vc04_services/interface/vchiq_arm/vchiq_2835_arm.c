@@ -408,7 +408,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 	dma_addr_t dma_addr;
 
 	offset = ((unsigned int)(unsigned long)buf & (PAGE_SIZE - 1));
-	num_pages = (count + offset + PAGE_SIZE - 1) / PAGE_SIZE;
+	num_pages = DIV_ROUND_UP(count + offset, PAGE_SIZE);
 
 	pagelist_size = sizeof(PAGELIST_T) +
 			(num_pages * sizeof(u32)) +

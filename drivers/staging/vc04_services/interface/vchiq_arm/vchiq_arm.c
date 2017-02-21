@@ -1587,7 +1587,7 @@ dump_phys_mem(void *virt_addr, u32 num_bytes)
 	offset = (int)(long)virt_addr & (PAGE_SIZE - 1);
 	end_offset = (int)(long)end_virt_addr & (PAGE_SIZE - 1);
 
-	num_pages = (offset + num_bytes + PAGE_SIZE - 1) / PAGE_SIZE;
+	num_pages = DIV_ROUND_UP(offset + num_bytes, PAGE_SIZE);
 
 	pages = kmalloc(sizeof(struct page *) * num_pages, GFP_KERNEL);
 	if (pages == NULL) {
