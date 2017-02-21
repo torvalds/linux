@@ -7400,7 +7400,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct bnxt *bp;
 	int rc, max_irqs;
 
-	if (pdev->device == 0x16cd && pci_is_bridge(pdev))
+	if (pci_is_bridge(pdev))
 		return -ENODEV;
 
 	if (version_printed++ == 0)
