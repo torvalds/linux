@@ -495,6 +495,8 @@ static int iwl_mvm_free_inactive_queue(struct iwl_mvm *mvm, int queue,
 	spin_unlock_bh(&mvm->queue_info_lock);
 
 	mvmsta = iwl_mvm_sta_from_staid_protected(mvm, sta_id);
+	if (WARN_ON(!mvmsta))
+		return -EINVAL;
 
 	disable_agg_tids = iwl_mvm_remove_sta_queue_marking(mvm, queue);
 	/* Disable the queue */
