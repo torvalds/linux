@@ -125,7 +125,8 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 		s390_handle_damage();
 	} else {
 		asm volatile(
-			"	lctlg	0,15,0(%0)"
+			"	lctlg	0,15,0(%0)\n"
+			"	ptlb\n"
 			: : "a" (&S390_lowcore.cregs_save_area) : "memory");
 	}
 	if (!mci.fp) {
