@@ -298,7 +298,7 @@ int intel_vgpu_emulate_mmio_write(struct intel_vgpu *vgpu, uint64_t pa,
 
 	mmio = intel_gvt_find_mmio_info(gvt, rounddown(offset, 4));
 	if (!mmio && !vgpu->mmio.disable_warn_untrack)
-		gvt_err("vgpu%d: write untracked MMIO %x len %d val %x\n",
+		gvt_dbg_mmio("vgpu%d: write untracked MMIO %x len %d val %x\n",
 				vgpu->id, offset, bytes, *(u32 *)p_data);
 
 	if (!intel_gvt_mmio_is_unalign(gvt, offset)) {
