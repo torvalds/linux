@@ -29,7 +29,7 @@ int test__thread_map(int subtest __maybe_unused)
 			thread_map__comm(map, 0) &&
 			!strcmp(thread_map__comm(map, 0), NAME));
 	TEST_ASSERT_VAL("wrong refcnt",
-			atomic_read(&map->refcnt) == 1);
+			refcount_read(&map->refcnt) == 1);
 	thread_map__put(map);
 
 	/* test dummy pid */
@@ -44,7 +44,7 @@ int test__thread_map(int subtest __maybe_unused)
 			thread_map__comm(map, 0) &&
 			!strcmp(thread_map__comm(map, 0), "dummy"));
 	TEST_ASSERT_VAL("wrong refcnt",
-			atomic_read(&map->refcnt) == 1);
+			refcount_read(&map->refcnt) == 1);
 	thread_map__put(map);
 	return 0;
 }
@@ -71,7 +71,7 @@ static int process_event(struct perf_tool *tool __maybe_unused,
 			thread_map__comm(threads, 0) &&
 			!strcmp(thread_map__comm(threads, 0), NAME));
 	TEST_ASSERT_VAL("wrong refcnt",
-			atomic_read(&threads->refcnt) == 1);
+			refcount_read(&threads->refcnt) == 1);
 	thread_map__put(threads);
 	return 0;
 }
