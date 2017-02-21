@@ -398,6 +398,74 @@ static int pipeconf_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	return 0;
 }
 
+/* ascendingly sorted */
+static i915_reg_t force_nonpriv_white_list[] = {
+	GEN9_CS_DEBUG_MODE1, //_MMIO(0x20ec)
+	GEN9_CTX_PREEMPT_REG,//_MMIO(0x2248)
+	GEN8_CS_CHICKEN1,//_MMIO(0x2580)
+	_MMIO(0x2690),
+	_MMIO(0x2694),
+	_MMIO(0x2698),
+	_MMIO(0x4de0),
+	_MMIO(0x4de4),
+	_MMIO(0x4dfc),
+	GEN7_COMMON_SLICE_CHICKEN1,//_MMIO(0x7010)
+	_MMIO(0x7014),
+	HDC_CHICKEN0,//_MMIO(0x7300)
+	GEN8_HDC_CHICKEN1,//_MMIO(0x7304)
+	_MMIO(0x7700),
+	_MMIO(0x7704),
+	_MMIO(0x7708),
+	_MMIO(0x770c),
+	_MMIO(0xb110),
+	GEN8_L3SQCREG4,//_MMIO(0xb118)
+	_MMIO(0xe100),
+	_MMIO(0xe18c),
+	_MMIO(0xe48c),
+	_MMIO(0xe5f4),
+};
+
+/* a simple bsearch */
+static inline bool in_whitelist(unsigned int reg)
+{
+	int left = 0, right = ARRAY_SIZE(force_nonpriv_white_list);
+	i915_reg_t *array = force_nonpriv_white_list;
+
+	while (left < right) {
+		int mid = (left + right)/2;
+
+		if (reg > array[mid].reg)
+			left = mid + 1;
+		else if (reg < array[mid].reg)
+			right = mid;
+		else
+			return true;
+	}
+	return false;
+}
+
+static int force_nonpriv_write(struct intel_vgpu *vgpu,
+	unsigned int offset, void *p_data, unsigned int bytes)
+{
+	u32 reg_nonpriv = *(u32 *)p_data;
+	int ret = -EINVAL;
+
+	if ((bytes != 4) || ((offset & (bytes - 1)) != 0)) {
+		gvt_err("vgpu(%d) Invalid FORCE_NONPRIV offset %x(%dB)\n",
+			vgpu->id, offset, bytes);
+		return ret;
+	}
+
+	if (in_whitelist(reg_nonpriv)) {
+		ret = intel_vgpu_default_mmio_write(vgpu, offset, p_data,
+			bytes);
+	} else {
+		gvt_err("vgpu(%d) Invalid FORCE_NONPRIV write %x\n",
+			vgpu->id, reg_nonpriv);
+	}
+	return ret;
+}
+
 static int ddi_buf_ctl_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
@@ -2420,10 +2488,8 @@ static int init_broadwell_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(0xb10c, D_BDW);
 	MMIO_D(0xb110, D_BDW);
 
-	MMIO_DFH(0x24d0, D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
-	MMIO_DFH(0x24d4, D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
-	MMIO_DFH(0x24d8, D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
-	MMIO_DFH(0x24dc, D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
+	MMIO_F(0x24d0, 48, F_CMD_ACCESS, 0, 0, D_BDW_PLUS,
+		NULL, force_nonpriv_write);
 
 	MMIO_D(0x22040, D_BDW_PLUS);
 	MMIO_D(0x44484, D_BDW_PLUS);
