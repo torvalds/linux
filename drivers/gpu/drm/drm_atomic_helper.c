@@ -2442,9 +2442,13 @@ int drm_atomic_helper_disable_all(struct drm_device *dev,
 				  struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_atomic_state *state;
+	struct drm_connector_state *conn_state;
 	struct drm_connector *conn;
-	struct drm_connector_list_iter conn_iter;
-	int err;
+	struct drm_plane_state *plane_state;
+	struct drm_plane *plane;
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc *crtc;
+	int ret, i;
 
 	state = drm_atomic_state_alloc(dev);
 	if (!state)
@@ -2452,29 +2456,48 @@ int drm_atomic_helper_disable_all(struct drm_device *dev,
 
 	state->acquire_ctx = ctx;
 
-	drm_connector_list_iter_get(dev, &conn_iter);
-	drm_for_each_connector_iter(conn, &conn_iter) {
-		struct drm_crtc *crtc = conn->state->crtc;
-		struct drm_crtc_state *crtc_state;
-
-		if (!crtc || conn->dpms != DRM_MODE_DPMS_ON)
-			continue;
-
+	drm_for_each_crtc(crtc, dev) {
 		crtc_state = drm_atomic_get_crtc_state(state, crtc);
 		if (IS_ERR(crtc_state)) {
-			err = PTR_ERR(crtc_state);
+			ret = PTR_ERR(crtc_state);
 			goto free;
 		}
 
 		crtc_state->active = false;
+
+		ret = drm_atomic_set_mode_prop_for_crtc(crtc_state, NULL);
+		if (ret < 0)
+			goto free;
+
+		ret = drm_atomic_add_affected_planes(state, crtc);
+		if (ret < 0)
+			goto free;
+
+		ret = drm_atomic_add_affected_connectors(state, crtc);
+		if (ret < 0)
+			goto free;
 	}
 
-	err = drm_atomic_commit(state);
+	for_each_connector_in_state(state, conn, conn_state, i) {
+		ret = drm_atomic_set_crtc_for_connector(conn_state, NULL);
+		if (ret < 0)
+			goto free;
+	}
+
+	for_each_plane_in_state(state, plane, plane_state, i) {
+		ret = drm_atomic_set_crtc_for_plane(plane_state, NULL);
+		if (ret < 0)
+			goto free;
+
+		drm_atomic_set_fb_for_plane(plane_state, NULL);
+	}
+
+	ret = drm_atomic_commit(state);
 free:
-	drm_connector_list_iter_put(&conn_iter);
 	drm_atomic_state_put(state);
-	return err;
+	return ret;
 }
+
 EXPORT_SYMBOL(drm_atomic_helper_disable_all);
 
 /**
