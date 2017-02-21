@@ -1266,6 +1266,10 @@ void i915_audio_component_init(struct drm_i915_private *dev_priv);
 void i915_audio_component_cleanup(struct drm_i915_private *dev_priv);
 
 /* intel_cdclk.c */
+void skl_init_cdclk(struct drm_i915_private *dev_priv);
+void skl_uninit_cdclk(struct drm_i915_private *dev_priv);
+void bxt_init_cdclk(struct drm_i915_private *dev_priv);
+void bxt_uninit_cdclk(struct drm_i915_private *dev_priv);
 void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv);
 void intel_update_max_cdclk(struct drm_i915_private *dev_priv);
 void intel_update_cdclk(struct drm_i915_private *dev_priv);
@@ -1411,14 +1415,10 @@ void intel_prepare_reset(struct drm_i915_private *dev_priv);
 void intel_finish_reset(struct drm_i915_private *dev_priv);
 void hsw_enable_pc8(struct drm_i915_private *dev_priv);
 void hsw_disable_pc8(struct drm_i915_private *dev_priv);
-void bxt_init_cdclk(struct drm_i915_private *dev_priv);
-void bxt_uninit_cdclk(struct drm_i915_private *dev_priv);
 void gen9_sanitize_dc_state(struct drm_i915_private *dev_priv);
 void bxt_enable_dc9(struct drm_i915_private *dev_priv);
 void bxt_disable_dc9(struct drm_i915_private *dev_priv);
 void gen9_enable_dc5(struct drm_i915_private *dev_priv);
-void skl_init_cdclk(struct drm_i915_private *dev_priv);
-void skl_uninit_cdclk(struct drm_i915_private *dev_priv);
 unsigned int skl_cdclk_get_vco(unsigned int freq);
 void skl_enable_dc6(struct drm_i915_private *dev_priv);
 void skl_disable_dc6(struct drm_i915_private *dev_priv);
