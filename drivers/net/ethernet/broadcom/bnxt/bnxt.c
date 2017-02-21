@@ -4552,7 +4552,7 @@ static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 			/* overwrite netdev dev_adr with admin VF MAC */
 			memcpy(bp->dev->dev_addr, vf->mac_addr, ETH_ALEN);
 		} else {
-			random_ether_addr(bp->dev->dev_addr);
+			eth_hw_addr_random(bp->dev);
 			rc = bnxt_approve_mac(bp, bp->dev->dev_addr);
 		}
 		return rc;
