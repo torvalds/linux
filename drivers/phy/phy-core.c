@@ -392,6 +392,21 @@ int phy_reset(struct phy *phy)
 }
 EXPORT_SYMBOL_GPL(phy_reset);
 
+int phy_cp_test(struct phy *phy)
+{
+	int ret;
+
+	if (!phy || !phy->ops->cp_test)
+		return 0;
+
+	mutex_lock(&phy->mutex);
+	ret = phy->ops->cp_test(phy);
+	mutex_unlock(&phy->mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(phy_cp_test);
+
 int phy_calibrate(struct phy *phy)
 {
 	int ret;

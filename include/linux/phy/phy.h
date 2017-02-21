@@ -56,6 +56,7 @@ enum phy_mode {
  * @set_mode: set the mode of the phy
  * @reset: resetting the phy
  * @calibrate: calibrate the phy
+ * @cp_test: prepare for the phy compliance test
  * @owner: the module owner containing the ops
  */
 struct phy_ops {
@@ -66,6 +67,7 @@ struct phy_ops {
 	int	(*set_mode)(struct phy *phy, enum phy_mode mode);
 	int	(*reset)(struct phy *phy);
 	int	(*calibrate)(struct phy *phy);
+	int	(*cp_test)(struct phy *phy);
 	struct module *owner;
 };
 
@@ -174,6 +176,7 @@ static inline enum phy_mode phy_get_mode(struct phy *phy)
 }
 int phy_reset(struct phy *phy);
 int phy_calibrate(struct phy *phy);
+int phy_cp_test(struct phy *phy);
 static inline int phy_get_bus_width(struct phy *phy)
 {
 	return phy->attrs.bus_width;
@@ -294,6 +297,13 @@ static inline enum phy_mode phy_get_mode(struct phy *phy)
 }
 
 static inline int phy_reset(struct phy *phy)
+{
+	if (!phy)
+		return 0;
+	return -ENOSYS;
+}
+
+static inline int phy_cp_test(struct phy *phy)
 {
 	if (!phy)
 		return 0;
