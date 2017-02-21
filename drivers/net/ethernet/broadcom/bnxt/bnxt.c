@@ -3134,8 +3134,10 @@ static void bnxt_disable_int(struct bnxt *bp)
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		struct bnxt_napi *bnapi = bp->bnapi[i];
 		struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
+		struct bnxt_ring_struct *ring = &cpr->cp_ring_struct;
 
-		BNXT_CP_DB(cpr->cp_doorbell, cpr->cp_raw_cons);
+		if (ring->fw_ring_id != INVALID_HW_RING_ID)
+			BNXT_CP_DB(cpr->cp_doorbell, cpr->cp_raw_cons);
 	}
 }
 
@@ -6674,6 +6676,31 @@ int bnxt_reserve_rings(struct bnxt *bp, int tx, int rx, int tcs, int tx_xdp)
 	return 0;
 }
 
+static void bnxt_unmap_bars(struct bnxt *bp, struct pci_dev *pdev)
+{
+	if (bp->bar2) {
+		pci_iounmap(pdev, bp->bar2);
+		bp->bar2 = NULL;
+	}
+
+	if (bp->bar1) {
+		pci_iounmap(pdev, bp->bar1);
+		bp->bar1 = NULL;
+	}
+
+	if (bp->bar0) {
+		pci_iounmap(pdev, bp->bar0);
+		bp->bar0 = NULL;
+	}
+}
+
+static void bnxt_cleanup_pci(struct bnxt *bp)
+{
+	bnxt_unmap_bars(bp, bp->pdev);
+	pci_release_regions(bp->pdev);
+	pci_disable_device(bp->pdev);
+}
+
 static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 {
 	int rc;
@@ -6761,25 +6788,10 @@ static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->current_interval = BNXT_TIMER_INTERVAL;
 
 	clear_bit(BNXT_STATE_OPEN, &bp->state);
-
 	return 0;
 
 init_err_release:
-	if (bp->bar2) {
-		pci_iounmap(pdev, bp->bar2);
-		bp->bar2 = NULL;
-	}
-
-	if (bp->bar1) {
-		pci_iounmap(pdev, bp->bar1);
-		bp->bar1 = NULL;
-	}
-
-	if (bp->bar0) {
-		pci_iounmap(pdev, bp->bar0);
-		bp->bar0 = NULL;
-	}
-
+	bnxt_unmap_bars(bp, pdev);
 	pci_release_regions(pdev);
 
 init_err_disable:
@@ -7184,17 +7196,12 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	bnxt_hwrm_func_drv_unrgtr(bp);
 	bnxt_free_hwrm_resources(bp);
 	bnxt_dcb_free(bp);
-	pci_iounmap(pdev, bp->bar2);
-	pci_iounmap(pdev, bp->bar1);
-	pci_iounmap(pdev, bp->bar0);
 	kfree(bp->edev);
 	bp->edev = NULL;
 	if (bp->xdp_prog)
 		bpf_prog_put(bp->xdp_prog);
+	bnxt_cleanup_pci(bp);
 	free_netdev(dev);
-
-	pci_release_regions(pdev);
-	pci_disable_device(pdev);
 }
 
 static int bnxt_probe_phy(struct bnxt *bp)
@@ -7400,7 +7407,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct bnxt *bp;
 	int rc, max_irqs;
 
-	if (pdev->device == 0x16cd && pci_is_bridge(pdev))
+	if (pci_is_bridge(pdev))
 		return -ENODEV;
 
 	if (version_printed++ == 0)
@@ -7426,17 +7433,16 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->netdev_ops = &bnxt_netdev_ops;
 	dev->watchdog_timeo = BNXT_TX_TIMEOUT;
 	dev->ethtool_ops = &bnxt_ethtool_ops;
-
 	pci_set_drvdata(pdev, dev);
 
 	rc = bnxt_alloc_hwrm_resources(bp);
 	if (rc)
-		goto init_err;
+		goto init_err_pci_clean;
 
 	mutex_init(&bp->hwrm_cmd_lock);
 	rc = bnxt_hwrm_ver_get(bp);
 	if (rc)
-		goto init_err;
+		goto init_err_pci_clean;
 
 	bnxt_hwrm_fw_set_time(bp);
 
@@ -7480,11 +7486,11 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	rc = bnxt_hwrm_func_drv_rgtr(bp);
 	if (rc)
-		goto init_err;
+		goto init_err_pci_clean;
 
 	rc = bnxt_hwrm_func_rgtr_async_events(bp, NULL, 0);
 	if (rc)
-		goto init_err;
+		goto init_err_pci_clean;
 
 	bp->ulp_probe = bnxt_ulp_probe;
 
@@ -7494,7 +7500,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev_err(bp->dev, "hwrm query capability failure rc: %x\n",
 			   rc);
 		rc = -1;
-		goto init_err;
+		goto init_err_pci_clean;
 	}
 
 	rc = bnxt_hwrm_queue_qportcfg(bp);
@@ -7502,7 +7508,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev_err(bp->dev, "hwrm query qportcfg failure rc: %x\n",
 			   rc);
 		rc = -1;
-		goto init_err;
+		goto init_err_pci_clean;
 	}
 
 	bnxt_hwrm_func_qcfg(bp);
@@ -7516,7 +7522,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc) {
 		netdev_err(bp->dev, "Not enough rings available.\n");
 		rc = -ENOMEM;
-		goto init_err;
+		goto init_err_pci_clean;
 	}
 
 	/* Default RSS hash cfg. */
@@ -7546,15 +7552,15 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	rc = bnxt_probe_phy(bp);
 	if (rc)
-		goto init_err;
+		goto init_err_pci_clean;
 
 	rc = bnxt_hwrm_func_reset(bp);
 	if (rc)
-		goto init_err;
+		goto init_err_pci_clean;
 
 	rc = bnxt_init_int_mode(bp);
 	if (rc)
-		goto init_err;
+		goto init_err_pci_clean;
 
 	rc = register_netdev(dev);
 	if (rc)
@@ -7571,10 +7577,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 init_err_clr_int:
 	bnxt_clear_int_mode(bp);
 
-init_err:
-	pci_iounmap(pdev, bp->bar0);
-	pci_release_regions(pdev);
-	pci_disable_device(pdev);
+init_err_pci_clean:
+	bnxt_cleanup_pci(bp);
 
 init_err_free:
 	free_netdev(dev);
