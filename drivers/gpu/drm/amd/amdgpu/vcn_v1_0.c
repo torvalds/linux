@@ -74,10 +74,18 @@ static int vcn_v1_0_sw_init(void *handle)
 	int i, r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	/* VCN TRAP */
+	/* VCN DEC TRAP */
 	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_VCN, 124, &adev->vcn.irq);
 	if (r)
 		return r;
+
+	/* VCN ENC TRAP */
+	for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
+		r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_VCN, i + 119,
+					&adev->vcn.irq);
+		if (r)
+			return r;
+	}
 
 	r = amdgpu_vcn_sw_init(adev);
 	if (r)
@@ -839,7 +847,21 @@ static int vcn_v1_0_process_interrupt(struct amdgpu_device *adev,
 {
 	DRM_DEBUG("IH: VCN TRAP\n");
 
-	amdgpu_fence_process(&adev->vcn.ring_dec);
+	switch (entry->src_id) {
+	case 124:
+		amdgpu_fence_process(&adev->vcn.ring_dec);
+		break;
+	case 119:
+		amdgpu_fence_process(&adev->vcn.ring_enc[0]);
+		break;
+	case 120:
+		amdgpu_fence_process(&adev->vcn.ring_enc[1]);
+		break;
+	default:
+		DRM_ERROR("Unhandled interrupt: %d %d\n",
+			  entry->src_id, entry->src_data[0]);
+		break;
+	}
 
 	return 0;
 }
@@ -938,7 +960,7 @@ static const struct amdgpu_irq_src_funcs vcn_v1_0_irq_funcs = {
 
 static void vcn_v1_0_set_irq_funcs(struct amdgpu_device *adev)
 {
-	adev->vcn.irq.num_types = 1;
+	adev->uvd.irq.num_types = adev->vcn.num_enc_rings + 1;
 	adev->vcn.irq.funcs = &vcn_v1_0_irq_funcs;
 }
 
