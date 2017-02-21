@@ -5281,7 +5281,7 @@ M:	Jaegeuk Kim <jaegeuk@kernel.org>
 L:	linux-fsdevel@vger.kernel.org
 S:	Supported
 F:	fs/crypto/
-F:	include/linux/fscrypto.h
+F:	include/linux/fscrypt*.h
 
 F2FS FILE SYSTEM
 M:	Jaegeuk Kim <jaegeuk@kernel.org>
