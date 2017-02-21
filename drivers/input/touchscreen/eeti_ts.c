@@ -54,10 +54,10 @@ struct eeti_ts {
 #define EETI_TS_BITDEPTH	(11)
 #define EETI_MAXVAL		((1 << (EETI_TS_BITDEPTH + 1)) - 1)
 
-#define REPORT_BIT_PRESSED	(1 << 0)
-#define REPORT_BIT_AD0		(1 << 1)
-#define REPORT_BIT_AD1		(1 << 2)
-#define REPORT_BIT_HAS_PRESSURE	(1 << 6)
+#define REPORT_BIT_PRESSED	BIT(0)
+#define REPORT_BIT_AD0		BIT(1)
+#define REPORT_BIT_AD1		BIT(2)
+#define REPORT_BIT_HAS_PRESSURE	BIT(6)
 #define REPORT_RES_BITS(v)	(((v) >> 1) + EETI_TS_BITDEPTH)
 
 static inline int eeti_ts_irq_active(struct eeti_ts *eeti)
