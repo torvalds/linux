@@ -106,6 +106,7 @@ struct visorhba_devices_open {
 		if ((iter->channel == match->channel) &&		  \
 		    (iter->id == match->id) &&			  \
 		    (iter->lun == match->lun))
+
 /**
  *	visor_thread_start - starts a thread for the device
  *	@threadfn: Function the thread starts
@@ -184,7 +185,7 @@ static int add_scsipending_entry(struct visorhba_devdata *devdata,
 }
 
 /**
- *	del_scsipending_enty - removes an entry from the pending array
+ *	del_scsipending_ent - removes an entry from the pending array
  *	@devdata: Device holding the pending array
  *	@del: Entry to remove
  *
@@ -212,7 +213,7 @@ static void *del_scsipending_ent(struct visorhba_devdata *devdata,
 
 /**
  *	get_scsipending_cmdrsp - return the cmdrsp stored in a pending entry
- *	#ddata: Device holding the pending array
+ *	@ddata: Device holding the pending array
  *	@ent: Entry that stores the cmdrsp
  *
  *	Each scsipending entry has a cmdrsp in it. The cmdrsp is only valid
@@ -1201,7 +1202,7 @@ cleanup_debugfs:
 }
 
 /**
- *	visorhba_cleanup	- driver exit routine
+ *	visorhba_exit	- driver exit routine
  *
  *	Unregister driver from the bus and free up memory.
  */
