@@ -1825,11 +1825,8 @@ static int emulate_gtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 	gma = g_gtt_index << GTT_PAGE_SHIFT;
 
 	/* the VM may configure the whole GM space when ballooning is used */
-	if (WARN_ONCE(!vgpu_gmadr_is_valid(vgpu, gma),
-				"vgpu%d: found oob ggtt write, offset %x\n",
-				vgpu->id, off)) {
+	if (!vgpu_gmadr_is_valid(vgpu, gma))
 		return 0;
-	}
 
 	ggtt_get_guest_entry(ggtt_mm, &e, g_gtt_index);
 
