@@ -1532,12 +1532,58 @@ static void dce_v6_0_audio_fini(struct amdgpu_device *adev)
 	adev->mode_info.audio.enabled = false;
 }
 
-/*
-static void dce_v6_0_afmt_update_ACR(struct drm_encoder *encoder, uint32_t clock)
+static void dce_v6_0_audio_set_vbi_packet(struct drm_encoder *encoder)
 {
-	DRM_INFO("xxxx: dce_v6_0_afmt_update_ACR---no imp!!!!!\n");
+	struct drm_device *dev = encoder->dev;
+	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_encoder *amdgpu_encoder = to_amdgpu_encoder(encoder);
+	struct amdgpu_encoder_atom_dig *dig = amdgpu_encoder->enc_priv;
+	u32 tmp;
+
+	tmp = RREG32(mmHDMI_VBI_PACKET_CONTROL + dig->afmt->offset);
+	tmp = REG_SET_FIELD(tmp, HDMI_VBI_PACKET_CONTROL, HDMI_NULL_SEND, 1);
+	tmp = REG_SET_FIELD(tmp, HDMI_VBI_PACKET_CONTROL, HDMI_GC_SEND, 1);
+	tmp = REG_SET_FIELD(tmp, HDMI_VBI_PACKET_CONTROL, HDMI_GC_CONT, 1);
+	WREG32(mmHDMI_VBI_PACKET_CONTROL + dig->afmt->offset, tmp);
 }
-*/
+
+static void dce_v6_0_audio_set_acr(struct drm_encoder *encoder,
+				   uint32_t clock, int bpc)
+{
+	struct drm_device *dev = encoder->dev;
+	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_afmt_acr acr = amdgpu_afmt_acr(clock);
+	struct amdgpu_encoder *amdgpu_encoder = to_amdgpu_encoder(encoder);
+	struct amdgpu_encoder_atom_dig *dig = amdgpu_encoder->enc_priv;
+	u32 tmp;
+
+	tmp = RREG32(mmHDMI_ACR_PACKET_CONTROL + dig->afmt->offset);
+	tmp = REG_SET_FIELD(tmp, HDMI_ACR_PACKET_CONTROL, HDMI_ACR_AUTO_SEND, 1);
+	tmp = REG_SET_FIELD(tmp, HDMI_ACR_PACKET_CONTROL, HDMI_ACR_SOURCE,
+			bpc > 8 ? 0 : 1);
+	WREG32(mmHDMI_ACR_PACKET_CONTROL + dig->afmt->offset, tmp);
+
+	tmp = RREG32(mmHDMI_ACR_32_0 + dig->afmt->offset);
+	tmp = REG_SET_FIELD(tmp, HDMI_ACR_32_0, HDMI_ACR_CTS_32, acr.cts_32khz);
+	WREG32(mmHDMI_ACR_32_0 + dig->afmt->offset, tmp);
+	tmp = RREG32(mmHDMI_ACR_32_1 + dig->afmt->offset);
+	tmp = REG_SET_FIELD(tmp, HDMI_ACR_32_1, HDMI_ACR_N_32, acr.n_32khz);
+	WREG32(mmHDMI_ACR_32_1 + dig->afmt->offset, tmp);
+
+	tmp = RREG32(mmHDMI_ACR_44_0 + dig->afmt->offset);
+	tmp = REG_SET_FIELD(tmp, HDMI_ACR_44_0, HDMI_ACR_CTS_44, acr.cts_44_1khz);
+	WREG32(mmHDMI_ACR_44_0 + dig->afmt->offset, tmp);
+	tmp = RREG32(mmHDMI_ACR_44_1 + dig->afmt->offset);
+	tmp = REG_SET_FIELD(tmp, HDMI_ACR_44_1, HDMI_ACR_N_44, acr.n_44_1khz);
+	WREG32(mmHDMI_ACR_44_1 + dig->afmt->offset, tmp);
+
+	tmp = RREG32(mmHDMI_ACR_48_0 + dig->afmt->offset);
+	tmp = REG_SET_FIELD(tmp, HDMI_ACR_48_0, HDMI_ACR_CTS_48, acr.cts_48khz);
+	WREG32(mmHDMI_ACR_48_0 + dig->afmt->offset, tmp);
+	tmp = RREG32(mmHDMI_ACR_48_1 + dig->afmt->offset);
+	tmp = REG_SET_FIELD(tmp, HDMI_ACR_48_1, HDMI_ACR_N_48, acr.n_48khz);
+	WREG32(mmHDMI_ACR_48_1 + dig->afmt->offset, tmp);
+}
 
 static void dce_v6_0_audio_set_avi_infoframe(struct drm_encoder *encoder,
 					       struct drm_display_mode *mode)
@@ -1586,6 +1632,7 @@ static void dce_v6_0_audio_set_dto(struct drm_encoder *encoder, u32 clock)
 	struct drm_device *dev = encoder->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(encoder->crtc);
+	int em = amdgpu_atombios_encoder_get_encoder_mode(encoder);
 	u32 tmp;
 
 	/*
@@ -1597,10 +1644,21 @@ static void dce_v6_0_audio_set_dto(struct drm_encoder *encoder, u32 clock)
 	tmp = RREG32(mmDCCG_AUDIO_DTO_SOURCE);
 	tmp = REG_SET_FIELD(tmp, DCCG_AUDIO_DTO_SOURCE,
 			DCCG_AUDIO_DTO0_SOURCE_SEL, amdgpu_crtc->crtc_id);
-	tmp = REG_SET_FIELD(tmp, DCCG_AUDIO_DTO_SOURCE, DCCG_AUDIO_DTO_SEL, 1);
+	if (em == ATOM_ENCODER_MODE_HDMI) {
+		tmp = REG_SET_FIELD(tmp, DCCG_AUDIO_DTO_SOURCE,
+				DCCG_AUDIO_DTO_SEL, 0);
+	} else if (ENCODER_MODE_IS_DP(em)) {
+		tmp = REG_SET_FIELD(tmp, DCCG_AUDIO_DTO_SOURCE,
+				DCCG_AUDIO_DTO_SEL, 1);
+	}
 	WREG32(mmDCCG_AUDIO_DTO_SOURCE, tmp);
-	WREG32(mmDCCG_AUDIO_DTO1_PHASE, 24000);
-	WREG32(mmDCCG_AUDIO_DTO1_MODULE, clock);
+	if (em == ATOM_ENCODER_MODE_HDMI) {
+		WREG32(mmDCCG_AUDIO_DTO0_PHASE, 24000);
+		WREG32(mmDCCG_AUDIO_DTO0_MODULE, clock);
+	} else if (ENCODER_MODE_IS_DP(em)) {
+		WREG32(mmDCCG_AUDIO_DTO1_PHASE, 24000);
+		WREG32(mmDCCG_AUDIO_DTO1_MODULE, clock);
+	}
 }
 
 static void dce_v6_0_audio_set_packet(struct drm_encoder *encoder)
@@ -1660,6 +1718,43 @@ static void dce_v6_0_audio_set_mute(struct drm_encoder *encoder, bool mute)
 	WREG32(mmHDMI_GC + dig->afmt->offset, tmp);
 }
 
+static void dce_v6_0_audio_hdmi_enable(struct drm_encoder *encoder, bool enable)
+{
+	struct drm_device *dev = encoder->dev;
+	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_encoder *amdgpu_encoder = to_amdgpu_encoder(encoder);
+	struct amdgpu_encoder_atom_dig *dig = amdgpu_encoder->enc_priv;
+	u32 tmp;
+
+	if (enable) {
+		tmp = RREG32(mmHDMI_INFOFRAME_CONTROL0 + dig->afmt->offset);
+		tmp = REG_SET_FIELD(tmp, HDMI_INFOFRAME_CONTROL0, HDMI_AVI_INFO_SEND, 1);
+		tmp = REG_SET_FIELD(tmp, HDMI_INFOFRAME_CONTROL0, HDMI_AVI_INFO_CONT, 1);
+		tmp = REG_SET_FIELD(tmp, HDMI_INFOFRAME_CONTROL0, HDMI_AUDIO_INFO_SEND, 1);
+		tmp = REG_SET_FIELD(tmp, HDMI_INFOFRAME_CONTROL0, HDMI_AUDIO_INFO_CONT, 1);
+		WREG32(mmHDMI_INFOFRAME_CONTROL0 + dig->afmt->offset, tmp);
+
+		tmp = RREG32(mmHDMI_INFOFRAME_CONTROL1 + dig->afmt->offset);
+		tmp = REG_SET_FIELD(tmp, HDMI_INFOFRAME_CONTROL1, HDMI_AVI_INFO_LINE, 2);
+		WREG32(mmHDMI_INFOFRAME_CONTROL1 + dig->afmt->offset, tmp);
+
+		tmp = RREG32(mmAFMT_AUDIO_PACKET_CONTROL + dig->afmt->offset);
+		tmp = REG_SET_FIELD(tmp, AFMT_AUDIO_PACKET_CONTROL, AFMT_AUDIO_SAMPLE_SEND, 1);
+		WREG32(mmAFMT_AUDIO_PACKET_CONTROL + dig->afmt->offset, tmp);
+	} else {
+		tmp = RREG32(mmHDMI_INFOFRAME_CONTROL0 + dig->afmt->offset);
+		tmp = REG_SET_FIELD(tmp, HDMI_INFOFRAME_CONTROL0, HDMI_AVI_INFO_SEND, 0);
+		tmp = REG_SET_FIELD(tmp, HDMI_INFOFRAME_CONTROL0, HDMI_AVI_INFO_CONT, 0);
+		tmp = REG_SET_FIELD(tmp, HDMI_INFOFRAME_CONTROL0, HDMI_AUDIO_INFO_SEND, 0);
+		tmp = REG_SET_FIELD(tmp, HDMI_INFOFRAME_CONTROL0, HDMI_AUDIO_INFO_CONT, 0);
+		WREG32(mmHDMI_INFOFRAME_CONTROL0 + dig->afmt->offset, tmp);
+
+		tmp = RREG32(mmAFMT_AUDIO_PACKET_CONTROL + dig->afmt->offset);
+		tmp = REG_SET_FIELD(tmp, AFMT_AUDIO_PACKET_CONTROL, AFMT_AUDIO_SAMPLE_SEND, 0);
+		WREG32(mmAFMT_AUDIO_PACKET_CONTROL + dig->afmt->offset, tmp);
+	}
+}
+
 static void dce_v6_0_audio_dp_enable(struct drm_encoder *encoder, bool enable)
 {
 	struct drm_device *dev = encoder->dev;
@@ -1697,6 +1792,8 @@ static void dce_v6_0_afmt_setmode(struct drm_encoder *encoder,
 	struct amdgpu_encoder_atom_dig *dig = amdgpu_encoder->enc_priv;
 	struct drm_connector *connector;
 	struct amdgpu_connector *amdgpu_connector = NULL;
+	int em = amdgpu_atombios_encoder_get_encoder_mode(encoder);
+	int bpc = 8;
 
 	if (!dig || !dig->afmt)
 		return;
@@ -1720,6 +1817,11 @@ static void dce_v6_0_afmt_setmode(struct drm_encoder *encoder,
 	if (!dig->afmt->pin)
 		return;
 
+	if (encoder->crtc) {
+		struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(encoder->crtc);
+		bpc = amdgpu_crtc->bpc;
+	}
+
 	/* disable audio before setting up hw */
 	dce_v6_0_audio_enable(adev, dig->afmt->pin, false);
 
@@ -1727,12 +1829,22 @@ static void dce_v6_0_afmt_setmode(struct drm_encoder *encoder,
 	dce_v6_0_audio_write_speaker_allocation(encoder);
 	dce_v6_0_audio_write_sad_regs(encoder);
 	dce_v6_0_audio_write_latency_fields(encoder, mode);
-	dce_v6_0_audio_set_dto(encoder, adev->clock.default_dispclk * 10);
+	if (em == ATOM_ENCODER_MODE_HDMI) {
+		dce_v6_0_audio_set_dto(encoder, mode->clock);
+		dce_v6_0_audio_set_vbi_packet(encoder);
+		dce_v6_0_audio_set_acr(encoder, mode->clock, bpc);
+	} else if (ENCODER_MODE_IS_DP(em)) {
+		dce_v6_0_audio_set_dto(encoder, adev->clock.default_dispclk * 10);
+	}
 	dce_v6_0_audio_set_packet(encoder);
 	dce_v6_0_audio_select_pin(encoder);
 	dce_v6_0_audio_set_avi_infoframe(encoder, mode);
 	dce_v6_0_audio_set_mute(encoder, false);
-	dce_v6_0_audio_dp_enable(encoder, 1);
+	if (em == ATOM_ENCODER_MODE_HDMI) {
+		dce_v6_0_audio_hdmi_enable(encoder, 1);
+	} else if (ENCODER_MODE_IS_DP(em)) {
+		dce_v6_0_audio_dp_enable(encoder, 1);
+	}
 
 	/* enable audio after setting up hw */
 	dce_v6_0_audio_enable(adev, dig->afmt->pin, true);
