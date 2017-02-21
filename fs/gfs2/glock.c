@@ -655,10 +655,10 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	struct lm_lockname name = { .ln_number = number,
 				    .ln_type = glops->go_type,
 				    .ln_sbd = sdp };
-	struct gfs2_glock *gl, *tmp = NULL;
+	struct gfs2_glock *gl, *tmp;
 	struct address_space *mapping;
 	struct kmem_cache *cachep;
-	int ret, tries = 0;
+	int ret = 0;
 
 	rcu_read_lock();
 	gl = rhashtable_lookup_fast(&gl_hash_table, &name, ht_parms);
@@ -723,35 +723,32 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	}
 
 again:
-	ret = rhashtable_lookup_insert_fast(&gl_hash_table, &gl->gl_node,
-					    ht_parms);
-	if (ret == 0) {
+	rcu_read_lock();
+	tmp = rhashtable_lookup_get_insert_fast(&gl_hash_table, &gl->gl_node,
+						ht_parms);
+	if (!tmp) {
 		*glp = gl;
-		return 0;
+		goto out;
 	}
+	if (IS_ERR(tmp)) {
+		ret = PTR_ERR(tmp);
+		goto out_free;
+	}
+	if (lockref_get_not_dead(&tmp->gl_lockref)) {
+		*glp = tmp;
+		goto out_free;
+	}
+	rcu_read_unlock();
+	cond_resched();
+	goto again;
 
-	if (ret == -EEXIST) {
-		ret = 0;
-		rcu_read_lock();
-		tmp = rhashtable_lookup_fast(&gl_hash_table, &name, ht_parms);
-		if (tmp == NULL || !lockref_get_not_dead(&tmp->gl_lockref)) {
-			if (++tries < 100) {
-				rcu_read_unlock();
-				cond_resched();
-				goto again;
-			}
-			tmp = NULL;
-			ret = -ENOMEM;
-		}
-		rcu_read_unlock();
-	} else {
-		WARN_ON_ONCE(ret);
-	}
+out_free:
 	kfree(gl->gl_lksb.sb_lvbptr);
 	kmem_cache_free(cachep, gl);
 	atomic_dec(&sdp->sd_glock_disposal);
-	*glp = tmp;
 
+out:
+	rcu_read_unlock();
 	return ret;
 }
 
