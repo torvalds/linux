@@ -119,8 +119,9 @@ struct atmel_uart_char {
 /*
  * at91: 6 USARTs and one DBGU port (SAM9260)
  * avr32: 4
+ * samx7: 3 USARTs and 5 UARTs
  */
-#define ATMEL_MAX_UART		7
+#define ATMEL_MAX_UART		8
 
 /*
  * We wrap our port structure around the generic uart_port.
