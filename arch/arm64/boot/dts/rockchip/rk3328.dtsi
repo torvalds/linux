@@ -728,6 +728,7 @@
 			snps,dis_enblslpm_quirk;
 			snps,dis-u2-freeclk-exists-quirk;
 			snps,dis_u2_susphy_quirk;
+			snps,dis-u3-autosuspend-quirk;
 			snps,dis_u3_susphy_quirk;
 			snps,dis-del-phy-power-chg-quirk;
 			status = "disabled";
