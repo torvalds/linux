@@ -508,14 +508,16 @@ DEFINE_EVENT(i915_gem_request, i915_gem_request_complete,
 );
 
 TRACE_EVENT(i915_gem_request_wait_begin,
-	    TP_PROTO(struct drm_i915_gem_request *req),
-	    TP_ARGS(req),
+	    TP_PROTO(struct drm_i915_gem_request *req, unsigned int flags),
+	    TP_ARGS(req, flags),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
 			     __field(u32, ring)
+			     __field(u32, ctx)
 			     __field(u32, seqno)
-			     __field(bool, blocking)
+			     __field(u32, global)
+			     __field(unsigned int, flags)
 			     ),
 
 	    /* NB: the blocking information is racy since mutex_is_locked
@@ -527,14 +529,16 @@ TRACE_EVENT(i915_gem_request_wait_begin,
 	    TP_fast_assign(
 			   __entry->dev = req->i915->drm.primary->index;
 			   __entry->ring = req->engine->id;
-			   __entry->seqno = req->global_seqno;
-			   __entry->blocking =
-				     mutex_is_locked(&req->i915->drm.struct_mutex);
+			   __entry->ctx = req->ctx->hw_id;
+			   __entry->seqno = req->fence.seqno;
+			   __entry->global = req->global_seqno;
+			   __entry->flags = flags;
 			   ),
 
-	    TP_printk("dev=%u, ring=%u, seqno=%u, blocking=%s",
-		      __entry->dev, __entry->ring,
-		      __entry->seqno, __entry->blocking ?  "yes (NB)" : "no")
+	    TP_printk("dev=%u, ring=%u, ctx=%u, seqno=%u, global=%u, blocking=%u, flags=0x%x",
+		      __entry->dev, __entry->ring, __entry->ctx, __entry->seqno,
+		      __entry->global, !!(__entry->flags & I915_WAIT_LOCKED),
+		      __entry->flags)
 );
 
 DEFINE_EVENT(i915_gem_request, i915_gem_request_wait_end,

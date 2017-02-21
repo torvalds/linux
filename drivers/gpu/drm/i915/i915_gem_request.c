@@ -1092,7 +1092,7 @@ long i915_wait_request(struct drm_i915_gem_request *req,
 	if (!timeout)
 		return -ETIME;
 
-	trace_i915_gem_request_wait_begin(req);
+	trace_i915_gem_request_wait_begin(req, flags);
 
 	if (!i915_sw_fence_done(&req->execute)) {
 		timeout = __i915_request_wait_for_execute(req, flags, timeout);
