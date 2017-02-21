@@ -502,9 +502,6 @@ struct i40e_pf {
 	 */
 	u16 dcbx_cap;
 
-	u32 fcoe_hmc_filt_num;
-	u32 fcoe_hmc_cntx_num;
-
 	struct i40e_filter_control_settings filter_settings;
 
 	struct ptp_clock *ptp_clock;
