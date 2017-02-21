@@ -1965,7 +1965,7 @@ static int vmaster_mute_mode_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static struct snd_kcontrol_new vmaster_mute_mode = {
+static const struct snd_kcontrol_new vmaster_mute_mode = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Mute-LED Mode",
 	.info = vmaster_mute_mode_info,
@@ -2705,7 +2705,7 @@ static int spdif_share_sw_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new spdif_share_sw = {
+static const struct snd_kcontrol_new spdif_share_sw = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "IEC958 Default PCM Playback Switch",
 	.info = snd_ctl_boolean_mono_info,
