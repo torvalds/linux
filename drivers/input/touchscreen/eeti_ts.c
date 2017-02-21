@@ -34,6 +34,7 @@
 #include <linux/gpio.h>
 #include <linux/input/eeti_ts.h>
 #include <linux/slab.h>
+#include <asm/unaligned.h>
 
 static bool flip_x;
 module_param(flip_x, bool, 0644);
@@ -89,8 +90,9 @@ static void eeti_ts_read(struct work_struct *work)
 
 	pressed = buf[0] & REPORT_BIT_PRESSED;
 	res = REPORT_RES_BITS(buf[0] & (REPORT_BIT_AD0 | REPORT_BIT_AD1));
-	x = buf[2] | (buf[1] << 8);
-	y = buf[4] | (buf[3] << 8);
+
+	x = get_unaligned_be16(&buf[1]);
+	y = get_unaligned_be16(&buf[3]);
 
 	/* fix the range to 11 bits */
 	x >>= res - EETI_TS_BITDEPTH;
