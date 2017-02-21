@@ -154,6 +154,7 @@
 
 /* Interrupt Cause and Mask registers */
 #define MVPP2_ISR_RX_THRESHOLD_REG(rxq)		(0x5200 + 4 * (rxq))
+#define     MVPP2_MAX_ISR_RX_THRESHOLD		0xfffff0
 #define MVPP2_ISR_RXQ_GROUP_REG(rxq)		(0x5400 + 4 * (rxq))
 #define MVPP2_ISR_ENABLE_REG(port)		(0x5420 + 4 * (port))
 #define     MVPP2_ISR_ENABLE_INTERRUPT(mask)	((mask) & 0xffff)
@@ -4389,13 +4390,39 @@ static void mvpp2_rx_pkts_coal_set(struct mvpp2_port *port,
 		    rxq->pkts_coal);
 }
 
+static u32 mvpp2_usec_to_cycles(u32 usec, unsigned long clk_hz)
+{
+	u64 tmp = (u64)clk_hz * usec;
+
+	do_div(tmp, USEC_PER_SEC);
+
+	return tmp > U32_MAX ? U32_MAX : tmp;
+}
+
+static u32 mvpp2_cycles_to_usec(u32 cycles, unsigned long clk_hz)
+{
+	u64 tmp = (u64)cycles * USEC_PER_SEC;
+
+	do_div(tmp, clk_hz);
+
+	return tmp > U32_MAX ? U32_MAX : tmp;
+}
+
 /* Set the time delay in usec before Rx interrupt */
 static void mvpp2_rx_time_coal_set(struct mvpp2_port *port,
 				   struct mvpp2_rx_queue *rxq)
 {
-	u32 val;
+	unsigned long freq = port->priv->tclk;
+	u32 val = mvpp2_usec_to_cycles(rxq->time_coal, freq);
 
-	val = (port->priv->tclk / USEC_PER_SEC) * rxq->time_coal;
+	if (val > MVPP2_MAX_ISR_RX_THRESHOLD) {
+		rxq->time_coal =
+			mvpp2_cycles_to_usec(MVPP2_MAX_ISR_RX_THRESHOLD, freq);
+
+		/* re-evaluate to get actual register value */
+		val = mvpp2_usec_to_cycles(rxq->time_coal, freq);
+	}
+
 	mvpp2_write(port->priv, MVPP2_ISR_RX_THRESHOLD_REG(rxq->id), val);
 }
 
