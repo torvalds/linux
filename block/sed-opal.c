@@ -706,8 +706,8 @@ static enum opal_token response_get_token(const struct parsed_resp *resp,
 	return tok->pos[0];
 }
 
-static size_t response_parse_tiny(struct opal_resp_tok *tok,
-				  const u8 *pos)
+static ssize_t response_parse_tiny(struct opal_resp_tok *tok,
+				   const u8 *pos)
 {
 	tok->pos = pos;
 	tok->len = 1;
@@ -723,8 +723,8 @@ static size_t response_parse_tiny(struct opal_resp_tok *tok,
 	return tok->len;
 }
 
-static size_t response_parse_short(struct opal_resp_tok *tok,
-				   const u8 *pos)
+static ssize_t response_parse_short(struct opal_resp_tok *tok,
+				    const u8 *pos)
 {
 	tok->pos = pos;
 	tok->len = (pos[0] & SHORT_ATOM_LEN_MASK) + 1;
@@ -736,7 +736,7 @@ static size_t response_parse_short(struct opal_resp_tok *tok,
 		tok->type = OPAL_DTA_TOKENID_SINT;
 	} else {
 		u64 u_integer = 0;
-		int i, b = 0;
+		ssize_t i, b = 0;
 
 		tok->type = OPAL_DTA_TOKENID_UINT;
 		if (tok->len > 9) {
@@ -753,8 +753,8 @@ static size_t response_parse_short(struct opal_resp_tok *tok,
 	return tok->len;
 }
 
-static size_t response_parse_medium(struct opal_resp_tok *tok,
-				    const u8 *pos)
+static ssize_t response_parse_medium(struct opal_resp_tok *tok,
+				     const u8 *pos)
 {
 	tok->pos = pos;
 	tok->len = (((pos[0] & MEDIUM_ATOM_LEN_MASK) << 8) | pos[1]) + 2;
@@ -770,8 +770,8 @@ static size_t response_parse_medium(struct opal_resp_tok *tok,
 	return tok->len;
 }
 
-static size_t response_parse_long(struct opal_resp_tok *tok,
-				  const u8 *pos)
+static ssize_t response_parse_long(struct opal_resp_tok *tok,
+				   const u8 *pos)
 {
 	tok->pos = pos;
 	tok->len = ((pos[1] << 16) | (pos[2] << 8) | pos[3]) + 4;
@@ -787,8 +787,8 @@ static size_t response_parse_long(struct opal_resp_tok *tok,
 	return tok->len;
 }
 
-static size_t response_parse_token(struct opal_resp_tok *tok,
-				   const u8 *pos)
+static ssize_t response_parse_token(struct opal_resp_tok *tok,
+				    const u8 *pos)
 {
 	tok->pos = pos;
 	tok->len = 1;
@@ -805,7 +805,7 @@ static int response_parse(const u8 *buf, size_t length,
 	struct opal_resp_tok *iter;
 	int num_entries = 0;
 	int total;
-	size_t token_length;
+	ssize_t token_length;
 	const u8 *pos;
 
 	if (!buf)
@@ -851,8 +851,8 @@ static int response_parse(const u8 *buf, size_t length,
 		else /* TOKEN */
 			token_length = response_parse_token(iter, pos);
 
-		if (token_length == -EINVAL)
-			return -EINVAL;
+		if (token_length < 0)
+			return token_length;
 
 		pos += token_length;
 		total -= token_length;
