@@ -56,29 +56,6 @@ struct scsi_transport_template {
 	 * Allows a transport to override the default error handler.
 	 */
 	void (* eh_strategy_handler)(struct Scsi_Host *);
-
-	/*
-	 * This is an optional routine that allows the transport to become
-	 * involved when a scsi io timer fires. The return value tells the
-	 * timer routine how to finish the io timeout handling:
-	 * EH_HANDLED:		I fixed the error, please complete the command
-	 * EH_RESET_TIMER:	I need more time, reset the timer and
-	 *			begin counting again
-	 * EH_NOT_HANDLED	Begin normal error recovery
-	 */
-	enum blk_eh_timer_return (*eh_timed_out)(struct scsi_cmnd *);
-
-	/*
-	 * Used as callback for the completion of i_t_nexus request
-	 * for target drivers.
-	 */
-	int (* it_nexus_response)(struct Scsi_Host *, u64, int);
-
-	/*
-	 * Used as callback for the completion of task management
-	 * request for target drivers.
-	 */
-	int (* tsk_mgmt_response)(struct Scsi_Host *, u64, u64, int);
 };
 
 #define transport_class_to_shost(tc) \

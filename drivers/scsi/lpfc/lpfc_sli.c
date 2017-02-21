@@ -120,6 +120,8 @@ lpfc_sli4_wq_put(struct lpfc_queue *q, union lpfc_wqe *wqe)
 	if (q->phba->sli3_options & LPFC_SLI4_PHWQ_ENABLED)
 		bf_set(wqe_wqid, &wqe->generic.wqe_com, q->queue_id);
 	lpfc_sli_pcimem_bcopy(wqe, temp_wqe, q->entry_size);
+	/* ensure WQE bcopy flushed before doorbell write */
+	wmb();
 
 	/* Update the host index before invoking device */
 	host_index = q->host_index;
@@ -6313,7 +6315,8 @@ lpfc_set_host_data(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 			 LPFC_SLI4_MBX_EMBED);
 
 	mbox->u.mqe.un.set_host_data.param_id = LPFC_SET_HOST_OS_DRIVER_VERSION;
-	mbox->u.mqe.un.set_host_data.param_len = 8;
+	mbox->u.mqe.un.set_host_data.param_len =
+					LPFC_HOST_OS_DRIVER_VERSION_SIZE;
 	snprintf(mbox->u.mqe.un.set_host_data.data,
 		 LPFC_HOST_OS_DRIVER_VERSION_SIZE,
 		 "Linux %s v"LPFC_DRIVER_VERSION,
@@ -10035,6 +10038,7 @@ lpfc_sli_abort_iotag_issue(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		iabt->ulpCommand = CMD_CLOSE_XRI_CN;
 
 	abtsiocbp->iocb_cmpl = lpfc_sli_abort_els_cmpl;
+	abtsiocbp->vport = vport;
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_SLI,
 			 "0339 Abort xri x%x, original iotag x%x, "
@@ -17226,7 +17230,8 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 	unsigned long iflags = 0;
 	char *fail_msg = NULL;
 	struct lpfc_sglq *sglq;
-	union lpfc_wqe wqe;
+	union lpfc_wqe128 wqe128;
+	union lpfc_wqe *wqe = (union lpfc_wqe *) &wqe128;
 	uint32_t txq_cnt = 0;
 
 	spin_lock_irqsave(&pring->ring_lock, iflags);
@@ -17265,9 +17270,9 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 		piocbq->sli4_xritag = sglq->sli4_xritag;
 		if (NO_XRI == lpfc_sli4_bpl2sgl(phba, piocbq, sglq))
 			fail_msg = "to convert bpl to sgl";
-		else if (lpfc_sli4_iocb2wqe(phba, piocbq, &wqe))
+		else if (lpfc_sli4_iocb2wqe(phba, piocbq, wqe))
 			fail_msg = "to convert iocb to wqe";
-		else if (lpfc_sli4_wq_put(phba->sli4_hba.els_wq, &wqe))
+		else if (lpfc_sli4_wq_put(phba->sli4_hba.els_wq, wqe))
 			fail_msg = " - Wq is full";
 		else
 			lpfc_sli_ringtxcmpl_put(phba, pring, piocbq);

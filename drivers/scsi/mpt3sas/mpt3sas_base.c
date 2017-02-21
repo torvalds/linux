@@ -1040,6 +1040,25 @@ _base_interrupt(int irq, void *bus_id)
 		    reply_q->reply_post_free[reply_q->reply_post_host_index].
 		    Default.ReplyFlags & MPI2_RPY_DESCRIPT_FLAGS_TYPE_MASK;
 		completed_cmds++;
+		/* Update the reply post host index after continuously
+		 * processing the threshold number of Reply Descriptors.
+		 * So that FW can find enough entries to post the Reply
+		 * Descriptors in the reply descriptor post queue.
+		 */
+		if (completed_cmds > ioc->hba_queue_depth/3) {
+			if (ioc->combined_reply_queue) {
+				writel(reply_q->reply_post_host_index |
+						((msix_index  & 7) <<
+						 MPI2_RPHI_MSIX_INDEX_SHIFT),
+				    ioc->replyPostRegisterIndex[msix_index/8]);
+			} else {
+				writel(reply_q->reply_post_host_index |
+						(msix_index <<
+						 MPI2_RPHI_MSIX_INDEX_SHIFT),
+						&ioc->chip->ReplyPostHostIndex);
+			}
+			completed_cmds = 1;
+		}
 		if (request_desript_type == MPI2_RPY_DESCRIPT_FLAGS_UNUSED)
 			goto out;
 		if (!reply_q->reply_post_host_index)
@@ -5522,6 +5541,7 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 		goto out_free_resources;
 
 	ioc->non_operational_loop = 0;
+	ioc->got_task_abort_from_ioctl = 0;
 	return 0;
 
  out_free_resources:

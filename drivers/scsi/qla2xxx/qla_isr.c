@@ -2997,14 +2997,14 @@ struct qla_init_msix_entry {
 	irq_handler_t handler;
 };
 
-static struct qla_init_msix_entry msix_entries[] = {
+static const struct qla_init_msix_entry msix_entries[] = {
 	{ "qla2xxx (default)", qla24xx_msix_default },
 	{ "qla2xxx (rsp_q)", qla24xx_msix_rsp_q },
 	{ "qla2xxx (atio_q)", qla83xx_msix_atio_q },
 	{ "qla2xxx (qpair_multiq)", qla2xxx_msix_rsp_q },
 };
 
-static struct qla_init_msix_entry qla82xx_msix_entries[] = {
+static const struct qla_init_msix_entry qla82xx_msix_entries[] = {
 	{ "qla2xxx (default)", qla82xx_msix_default },
 	{ "qla2xxx (rsp_q)", qla82xx_msix_rsp_q },
 };
@@ -3078,7 +3078,7 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 		qentry->handle = rsp;
 		rsp->msix = qentry;
 		scnprintf(qentry->name, sizeof(qentry->name),
-		    msix_entries[i].name);
+		    "%s", msix_entries[i].name);
 		if (IS_P3P_TYPE(ha))
 			ret = request_irq(qentry->vector,
 				qla82xx_msix_entries[i].handler,
@@ -3102,7 +3102,7 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 		rsp->msix = qentry;
 		qentry->handle = rsp;
 		scnprintf(qentry->name, sizeof(qentry->name),
-		    msix_entries[QLA_ATIO_VECTOR].name);
+		    "%s", msix_entries[QLA_ATIO_VECTOR].name);
 		qentry->in_use = 1;
 		ret = request_irq(qentry->vector,
 			msix_entries[QLA_ATIO_VECTOR].handler,
@@ -3271,7 +3271,7 @@ free_irqs:
 int qla25xx_request_irq(struct qla_hw_data *ha, struct qla_qpair *qpair,
 	struct qla_msix_entry *msix, int vector_type)
 {
-	struct qla_init_msix_entry *intr = &msix_entries[vector_type];
+	const struct qla_init_msix_entry *intr = &msix_entries[vector_type];
 	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 	int ret;
 

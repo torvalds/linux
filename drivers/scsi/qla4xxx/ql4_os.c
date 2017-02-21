@@ -9539,15 +9539,15 @@ exit_host_reset:
  * driver calls the following device driver's callbacks
  *
  * - Fatal Errors - link_reset
- * - Non-Fatal Errors - driver's pci_error_detected() which
+ * - Non-Fatal Errors - driver's error_detected() which
  * returns CAN_RECOVER, NEED_RESET or DISCONNECT.
  *
  * PCI AER driver calls
- * CAN_RECOVER - driver's pci_mmio_enabled(), mmio_enabled
+ * CAN_RECOVER - driver's mmio_enabled(), mmio_enabled()
  *               returns RECOVERED or NEED_RESET if fw_hung
  * NEED_RESET - driver's slot_reset()
  * DISCONNECT - device is dead & cannot recover
- * RECOVERED - driver's pci_resume()
+ * RECOVERED - driver's resume()
  */
 static pci_ers_result_t
 qla4xxx_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
