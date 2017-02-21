@@ -248,6 +248,7 @@ void rtl88eu_dm_ant_sel_statistics(struct odm_dm_struct *dm_odm,
 				   u8 antsel_tr_mux, u32 mac_id, u8 rx_pwdb_all)
 {
 	struct fast_ant_train *dm_fat_tbl = &dm_odm->DM_FatTable;
+
 	if (dm_odm->AntDivType == CG_TRX_HW_ANTDIV) {
 		if (antsel_tr_mux == MAIN_ANT_CG_TRX) {
 			dm_fat_tbl->MainAnt_Sum[mac_id] += rx_pwdb_all;

@@ -70,6 +70,7 @@ s32 iol_execute(struct adapter *padapter, u8 control)
 static s32 iol_InitLLTTable(struct adapter *padapter, u8 txpktbuf_bndy)
 {
 	s32 rst = _SUCCESS;
+
 	iol_mode_enable(padapter, 1);
 	usb_write8(padapter, REG_TDECTRL+1, txpktbuf_bndy);
 	rst = iol_execute(padapter, CMD_INIT_LLT);
