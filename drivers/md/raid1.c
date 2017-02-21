@@ -1472,8 +1472,8 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio)
 			    !waitqueue_active(&bitmap->behind_wait)) {
 				mbio = bio_clone_bioset_partial(bio, GFP_NOIO,
 								mddev->bio_set,
-								offset,
-								max_sectors);
+								offset << 9,
+								max_sectors << 9);
 				alloc_behind_pages(mbio, r1_bio);
 			}
 
@@ -1485,8 +1485,15 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio)
 		}
 
 		if (!mbio) {
-			mbio = bio_clone_fast(bio, GFP_NOIO, mddev->bio_set);
-			bio_trim(mbio, offset, max_sectors);
+			if (r1_bio->behind_bvecs)
+				mbio = bio_clone_bioset_partial(bio, GFP_NOIO,
+								mddev->bio_set,
+								offset << 9,
+								max_sectors << 9);
+			else {
+				mbio = bio_clone_fast(bio, GFP_NOIO, mddev->bio_set);
+				bio_trim(mbio, offset, max_sectors);
+			}
 		}
 
 		if (r1_bio->behind_bvecs) {
