@@ -247,9 +247,6 @@ static int imx6q_pcie_abort_handler(unsigned long addr,
 
 static void imx6_pcie_assert_core_reset(struct imx6_pcie *imx6_pcie)
 {
-	struct dw_pcie *pci = imx6_pcie->pci;
-	u32 val, gpr1, gpr12;
-
 	switch (imx6_pcie->variant) {
 	case IMX6SX:
 		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
@@ -266,33 +263,6 @@ static void imx6_pcie_assert_core_reset(struct imx6_pcie *imx6_pcie)
 				   IMX6Q_GPR1_PCIE_SW_RST);
 		break;
 	case IMX6Q:
-		/*
-		 * If the bootloader already enabled the link we need some
-		 * special handling to get the core back into a state where
-		 * it is safe to touch it for configuration.  As there is
-		 * no dedicated reset signal wired up for MX6QDL, we need
-		 * to manually force LTSSM into "detect" state before
-		 * completely disabling LTSSM, which is a prerequisite for
-		 * core configuration.
-		 *
-		 * If both LTSSM_ENABLE and REF_SSP_ENABLE are active we
-		 * have a strong indication that the bootloader activated
-		 * the link.
-		 */
-		regmap_read(imx6_pcie->iomuxc_gpr, IOMUXC_GPR1, &gpr1);
-		regmap_read(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12, &gpr12);
-
-		if ((gpr1 & IMX6Q_GPR1_PCIE_REF_CLK_EN) &&
-		    (gpr12 & IMX6Q_GPR12_PCIE_CTL_2)) {
-			val = dw_pcie_readl_dbi(pci, PCIE_PL_PFLR);
-			val &= ~PCIE_PL_PFLR_LINK_STATE_MASK;
-			val |= PCIE_PL_PFLR_FORCE_LINK;
-			dw_pcie_writel_dbi(pci, PCIE_PL_PFLR, val);
-
-			regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
-					   IMX6Q_GPR12_PCIE_CTL_2, 0 << 10);
-		}
-
 		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR1,
 				   IMX6Q_GPR1_PCIE_TEST_PD, 1 << 18);
 		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR1,
@@ -503,10 +473,8 @@ static int imx6_pcie_establish_link(struct imx6_pcie *imx6_pcie)
 			IMX6Q_GPR12_PCIE_CTL_2, 1 << 10);
 
 	ret = imx6_pcie_wait_for_link(imx6_pcie);
-	if (ret) {
-		dev_info(dev, "Link never came up\n");
+	if (ret)
 		goto err_reset_phy;
-	}
 
 	if (imx6_pcie->link_gen == 2) {
 		/* Allow Gen2 mode after the link is up. */
@@ -688,8 +656,7 @@ static int __init imx6_pcie_probe(struct platform_device *pdev)
 		imx6_pcie->pcie_inbound_axi = devm_clk_get(dev,
 							   "pcie_inbound_axi");
 		if (IS_ERR(imx6_pcie->pcie_inbound_axi)) {
-			dev_err(dev,
-				"pcie_incbound_axi clock missing or invalid\n");
+			dev_err(dev, "pcie_inbound_axi clock missing or invalid\n");
 			return PTR_ERR(imx6_pcie->pcie_inbound_axi);
 		}
 	}
