@@ -358,7 +358,7 @@ static int clariion_prep_fn(struct scsi_device *sdev, struct request *req)
 static int clariion_std_inquiry(struct scsi_device *sdev,
 				struct clariion_dh_data *csdev)
 {
-	int err;
+	int err = SCSI_DH_OK;
 	char *sp_model;
 
 	sp_model = parse_sp_model(sdev, sdev->inquiry);
