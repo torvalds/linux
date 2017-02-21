@@ -1201,6 +1201,12 @@ static int iwl_mvm_sar_get_ewrd_table(struct iwl_mvm *mvm)
 	enabled = !!(wifi_pkg->package.elements[1].integer.value);
 	n_profiles = wifi_pkg->package.elements[2].integer.value;
 
+	/* in case of BIOS bug */
+	if (n_profiles <= 0) {
+		ret = -EINVAL;
+		goto out_free;
+	}
+
 	for (i = 0; i < n_profiles; i++) {
 		/* the tables start at element 3 */
 		static int pos = 3;
