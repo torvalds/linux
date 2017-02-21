@@ -27,6 +27,13 @@ config RESET_BERLIN
 	help
 	  This enables the reset controller driver for Marvell Berlin SoCs.
 
+config RESET_IMX7
+	bool "i.MX7 Reset Driver" if COMPILE_TEST
+	default SOC_IMX7D
+	select MFD_SYSCON
+	help
+	  This enables the reset controller driver for i.MX7 SoCs.
+
 config RESET_LPC18XX
 	bool "LPC18xx/43xx Reset Driver" if COMPILE_TEST
 	default ARCH_LPC18XX
