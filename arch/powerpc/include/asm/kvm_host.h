@@ -438,6 +438,11 @@ struct mmio_hpte_cache {
 	unsigned int index;
 };
 
+#define KVMPPC_VSX_COPY_NONE		0
+#define KVMPPC_VSX_COPY_WORD		1
+#define KVMPPC_VSX_COPY_DWORD		2
+#define KVMPPC_VSX_COPY_DWORD_LOAD_DUMP	3
+
 struct openpic;
 
 struct kvm_vcpu_arch {
@@ -641,6 +646,21 @@ struct kvm_vcpu_arch {
 	u8 io_gpr; /* GPR used as IO source/target */
 	u8 mmio_host_swabbed;
 	u8 mmio_sign_extend;
+	/* conversion between single and double precision */
+	u8 mmio_sp64_extend;
+	/*
+	 * Number of simulations for vsx.
+	 * If we use 2*8bytes to simulate 1*16bytes,
+	 * then the number should be 2 and
+	 * mmio_vsx_copy_type=KVMPPC_VSX_COPY_DWORD.
+	 * If we use 4*4bytes to simulate 1*16bytes,
+	 * the number should be 4 and
+	 * mmio_vsx_copy_type=KVMPPC_VSX_COPY_WORD.
+	 */
+	u8 mmio_vsx_copy_nums;
+	u8 mmio_vsx_offset;
+	u8 mmio_vsx_copy_type;
+	u8 mmio_vsx_tx_sx_enabled;
 	u8 osi_needed;
 	u8 osi_enabled;
 	u8 papr_enabled;
@@ -729,6 +749,8 @@ struct kvm_vcpu_arch {
 };
 
 #define VCPU_FPR(vcpu, i)	(vcpu)->arch.fp.fpr[i][TS_FPROFFSET]
+#define VCPU_VSX_FPR(vcpu, i, j)	((vcpu)->arch.fp.fpr[i][j])
+#define VCPU_VSX_VR(vcpu, i)		((vcpu)->arch.vr.vr[i])
 
 /* Values for vcpu->arch.state */
 #define KVMPPC_VCPU_NOTREADY		0
@@ -742,6 +764,7 @@ struct kvm_vcpu_arch {
 #define KVM_MMIO_REG_FPR	0x0020
 #define KVM_MMIO_REG_QPR	0x0040
 #define KVM_MMIO_REG_FQPR	0x0060
+#define KVM_MMIO_REG_VSX	0x0080
 
 #define __KVM_HAVE_ARCH_WQP
 #define __KVM_HAVE_CREATE_DEVICE
