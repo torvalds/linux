@@ -570,6 +570,7 @@
 		compatible = "rockchip,rk3328-u3phy";
 		reg = <0x0 0xff470000 0x0 0x0>;
 		rockchip,u3phygrf = <&usb3phy_grf>;
+		rockchip,grf = <&grf>;
 		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "linestate";
 		clocks = <&cru PCLK_USB3PHY_OTG>, <&cru PCLK_USB3PHY_PIPE>;
