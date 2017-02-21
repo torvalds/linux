@@ -29,6 +29,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder_slave.h>
+#include <drm/drm_scdc_helper.h>
 #include <drm/bridge/dw_hdmi.h>
 #ifdef CONFIG_SWITCH
 #include <linux/switch.h>
@@ -1065,7 +1066,7 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi, unsigned char prep,
 			      unsigned char res, int cscon)
 {
 	unsigned res_idx;
-	u8 val, msec;
+	u8 val, msec, tmds_cfg;
 	const struct dw_hdmi_plat_data *pdata = hdmi->plat_data;
 	const struct dw_hdmi_mpll_config *mpll_config = pdata->mpll_cfg;
 	const struct dw_hdmi_curr_ctrl *curr_ctrl = pdata->cur_ctr;
@@ -1127,6 +1128,16 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi, unsigned char prep,
 	/* gen2 pddq */
 	dw_hdmi_phy_gen2_pddq(hdmi, 1);
 
+	/* Control for TMDS Bit Period/TMDS Clock-Period Ratio */
+	if (hdmi->connector.scdc_present) {
+		drm_scdc_readb(hdmi->ddc, SCDC_TMDS_CONFIG, &tmds_cfg);
+		if (mpll_config->mpixelclock > 340000000)
+			tmds_cfg |= 2;
+		else
+			tmds_cfg &= 0x1;
+		drm_scdc_writeb(hdmi->ddc, SCDC_TMDS_CONFIG, tmds_cfg);
+	}
+
 	/* PHY reset */
 	hdmi_writeb(hdmi, HDMI_MC_PHYRSTZ_DEASSERT, HDMI_MC_PHYRSTZ);
 	hdmi_writeb(hdmi, HDMI_MC_PHYRSTZ_ASSERT, HDMI_MC_PHYRSTZ);
@@ -1156,8 +1167,14 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi, unsigned char prep,
 
 	dw_hdmi_phy_enable_powerdown(hdmi, false);
 
-	/* toggle TMDS enable */
+	/* toggle TMDS disable */
 	dw_hdmi_phy_enable_tmds(hdmi, 0);
+
+	/* Wait for resuming transmission of TMDS clock and data */
+	if (mpll_config->mpixelclock > 340000000)
+		msleep(100);
+
+	/* toggle TMDS enable */
 	dw_hdmi_phy_enable_tmds(hdmi, 1);
 
 	/* gen2 tx power on */
@@ -1167,7 +1184,7 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi, unsigned char prep,
 	if (is_rockchip(hdmi->dev_type))
 		dw_hdmi_phy_enable_spare(hdmi, 1);
 
-	/*Wait for PHY PLL lock */
+	/* Wait for PHY PLL lock */
 	msec = 5;
 	do {
 		val = hdmi_readb(hdmi, HDMI_PHY_STAT0) & HDMI_PHY_TX_PHY_LOCK;
@@ -1332,7 +1349,7 @@ static void hdmi_config_AVI(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 static void hdmi_av_composer(struct dw_hdmi *hdmi,
 			     const struct drm_display_mode *mode)
 {
-	u8 inv_val;
+	u8 inv_val, bytes;
 	struct hdmi_vmode *vmode = &hdmi->hdmi_data.video_mode;
 	int hblank, vblank, h_de_hs, v_de_vs, hsync_len, vsync_len;
 	unsigned int vdisplay;
@@ -1341,8 +1358,13 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 
 	dev_dbg(hdmi->dev, "final pixclk = %d\n", vmode->mpixelclock);
 
-	/* Set up HDMI_FC_INVIDCONF */
-	inv_val = (hdmi->hdmi_data.hdcp_enable ?
+	/* Set up HDMI_FC_INVIDCONF
+	 * fc_invidconf.HDCP_keepout must be set (1'b1)
+	 * when activate the scrambler feature.
+	 */
+	inv_val = (hdmi->hdmi_data.hdcp_enable ||
+		   vmode->mpixelclock > 340000000 ||
+		   hdmi->connector.lte_340mcsc_scramble ?
 		HDMI_FC_INVIDCONF_HDCP_KEEPOUT_ACTIVE :
 		HDMI_FC_INVIDCONF_HDCP_KEEPOUT_INACTIVE);
 
@@ -1389,6 +1411,26 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 		vblank /= 2;
 		v_de_vs /= 2;
 		vsync_len /= 2;
+	}
+
+	/* Scrambling Control */
+	if (hdmi->connector.scdc_present) {
+		if (vmode->mpixelclock > 340000000 ||
+		    hdmi->connector.lte_340mcsc_scramble) {
+			drm_scdc_readb(&hdmi->i2c->adap, SCDC_SINK_VERSION,
+				       &bytes);
+			drm_scdc_writeb(&hdmi->i2c->adap, SCDC_SOURCE_VERSION,
+					bytes);
+			drm_scdc_writeb(&hdmi->i2c->adap, SCDC_TMDS_CONFIG, 1);
+			hdmi_writeb(hdmi, (u8)~HDMI_MC_SWRSTZ_TMDSSWRST_REQ,
+				    HDMI_MC_SWRSTZ);
+			hdmi_writeb(hdmi, 1, HDMI_FC_SCRAMBLER_CTRL);
+		} else {
+			hdmi_writeb(hdmi, 0, HDMI_FC_SCRAMBLER_CTRL);
+			hdmi_writeb(hdmi, (u8)~HDMI_MC_SWRSTZ_TMDSSWRST_REQ,
+				    HDMI_MC_SWRSTZ);
+			drm_scdc_writeb(&hdmi->i2c->adap, SCDC_TMDS_CONFIG, 0);
+		}
 	}
 
 	/* Set up horizontal active pixel width */
