@@ -176,6 +176,7 @@ struct atmel_uart_port {
 	unsigned int		pending_status;
 	spinlock_t		lock_suspended;
 
+#ifdef CONFIG_PM
 	struct {
 		u32		cr;
 		u32		mr;
@@ -186,6 +187,7 @@ struct atmel_uart_port {
 		u32		fmr;
 		u32		fimr;
 	} cache;
+#endif
 
 	int (*prepare_rx)(struct uart_port *port);
 	int (*prepare_tx)(struct uart_port *port);
