@@ -186,8 +186,7 @@ static int eeti_ts_probe(struct i2c_client *client,
 		goto err1;
 	}
 
-	input->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
-	input->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
+	input_set_capability(input, EV_KEY, BTN_TOUCH);
 
 	input_set_abs_params(input, ABS_X, 0, EETI_MAXVAL, 0, 0);
 	input_set_abs_params(input, ABS_Y, 0, EETI_MAXVAL, 0, 0);
