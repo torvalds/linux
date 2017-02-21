@@ -1809,11 +1809,13 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	pdata->notify_pending = false;
 	spin_unlock_irq(&pdata->lpe_audio_slock);
 
+	/* runtime PM isn't enabled as default, since it won't save much on
+	 * BYT/CHT devices; user who want the runtime PM should adjust the
+	 * power/ontrol and power/autosuspend_delay_ms sysfs entries instead
+	 */
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_mark_last_busy(&pdev->dev);
-
 	pm_runtime_set_active(&pdev->dev);
-	pm_runtime_enable(&pdev->dev);
 
 	dev_dbg(&pdev->dev, "%s: handle pending notification\n", __func__);
 	schedule_work(&ctx->hdmi_audio_wq);
