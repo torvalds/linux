@@ -764,8 +764,8 @@ static void bcm_remove_op(struct bcm_op *op)
 static void bcm_rx_unreg(struct net_device *dev, struct bcm_op *op)
 {
 	if (op->rx_reg_dev == dev) {
-		can_rx_unregister(dev, op->can_id, REGMASK(op->can_id),
-				  bcm_rx_handler, op);
+		can_rx_unregister(&init_net, dev, op->can_id,
+				  REGMASK(op->can_id), bcm_rx_handler, op);
 
 		/* mark as removed subscription */
 		op->rx_reg_dev = NULL;
@@ -808,7 +808,7 @@ static int bcm_delete_rx_op(struct list_head *ops, struct bcm_msg_head *mh,
 					}
 				}
 			} else
-				can_rx_unregister(NULL, op->can_id,
+				can_rx_unregister(&init_net, NULL, op->can_id,
 						  REGMASK(op->can_id),
 						  bcm_rx_handler, op);
 
@@ -1222,7 +1222,8 @@ static int bcm_rx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
 
 			dev = dev_get_by_index(&init_net, ifindex);
 			if (dev) {
-				err = can_rx_register(dev, op->can_id,
+				err = can_rx_register(&init_net, dev,
+						      op->can_id,
 						      REGMASK(op->can_id),
 						      bcm_rx_handler, op,
 						      "bcm", sk);
@@ -1232,7 +1233,7 @@ static int bcm_rx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
 			}
 
 		} else
-			err = can_rx_register(NULL, op->can_id,
+			err = can_rx_register(&init_net, NULL, op->can_id,
 					      REGMASK(op->can_id),
 					      bcm_rx_handler, op, "bcm", sk);
 		if (err) {
@@ -1528,7 +1529,7 @@ static int bcm_release(struct socket *sock)
 				}
 			}
 		} else
-			can_rx_unregister(NULL, op->can_id,
+			can_rx_unregister(&init_net, NULL, op->can_id,
 					  REGMASK(op->can_id),
 					  bcm_rx_handler, op);
 

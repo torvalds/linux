@@ -62,17 +62,6 @@
 #define CAN_PROC_RCVLIST_EFF "rcvlist_eff"
 #define CAN_PROC_RCVLIST_ERR "rcvlist_err"
 
-static struct proc_dir_entry *can_dir;
-static struct proc_dir_entry *pde_version;
-static struct proc_dir_entry *pde_stats;
-static struct proc_dir_entry *pde_reset_stats;
-static struct proc_dir_entry *pde_rcvlist_all;
-static struct proc_dir_entry *pde_rcvlist_fil;
-static struct proc_dir_entry *pde_rcvlist_inv;
-static struct proc_dir_entry *pde_rcvlist_sff;
-static struct proc_dir_entry *pde_rcvlist_eff;
-static struct proc_dir_entry *pde_rcvlist_err;
-
 static int user_reset;
 
 static const char rx_list_name[][8] = {
@@ -351,20 +340,21 @@ static inline void can_rcvlist_proc_show_one(struct seq_file *m, int idx,
 static int can_rcvlist_proc_show(struct seq_file *m, void *v)
 {
 	/* double cast to prevent GCC warning */
-	int idx = (int)(long)m->private;
+	int idx = (int)(long)PDE_DATA(m->file->f_inode);
 	struct net_device *dev;
 	struct dev_rcv_lists *d;
+	struct net *net = m->private;
 
 	seq_printf(m, "\nreceive list '%s':\n", rx_list_name[idx]);
 
 	rcu_read_lock();
 
 	/* receive list for 'all' CAN devices (dev == NULL) */
-	d = &can_rx_alldev_list;
+	d = net->can.can_rx_alldev_list;
 	can_rcvlist_proc_show_one(m, idx, NULL, d);
 
 	/* receive list for registered CAN devices */
-	for_each_netdev_rcu(&init_net, dev) {
+	for_each_netdev_rcu(net, dev) {
 		if (dev->type == ARPHRD_CAN && dev->ml_priv)
 			can_rcvlist_proc_show_one(m, idx, dev, dev->ml_priv);
 	}
@@ -377,7 +367,7 @@ static int can_rcvlist_proc_show(struct seq_file *m, void *v)
 
 static int can_rcvlist_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, can_rcvlist_proc_show, PDE_DATA(inode));
+	return single_open_net(inode, file, can_rcvlist_proc_show);
 }
 
 static const struct file_operations can_rcvlist_proc_fops = {
@@ -417,6 +407,7 @@ static int can_rcvlist_sff_proc_show(struct seq_file *m, void *v)
 {
 	struct net_device *dev;
 	struct dev_rcv_lists *d;
+	struct net *net = m->private;
 
 	/* RX_SFF */
 	seq_puts(m, "\nreceive list 'rx_sff':\n");
@@ -424,11 +415,11 @@ static int can_rcvlist_sff_proc_show(struct seq_file *m, void *v)
 	rcu_read_lock();
 
 	/* sff receive list for 'all' CAN devices (dev == NULL) */
-	d = &can_rx_alldev_list;
+	d = net->can.can_rx_alldev_list;
 	can_rcvlist_proc_show_array(m, NULL, d->rx_sff, ARRAY_SIZE(d->rx_sff));
 
 	/* sff receive list for registered CAN devices */
-	for_each_netdev_rcu(&init_net, dev) {
+	for_each_netdev_rcu(net, dev) {
 		if (dev->type == ARPHRD_CAN && dev->ml_priv) {
 			d = dev->ml_priv;
 			can_rcvlist_proc_show_array(m, dev, d->rx_sff,
@@ -444,7 +435,7 @@ static int can_rcvlist_sff_proc_show(struct seq_file *m, void *v)
 
 static int can_rcvlist_sff_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, can_rcvlist_sff_proc_show, NULL);
+	return single_open_net(inode, file, can_rcvlist_sff_proc_show);
 }
 
 static const struct file_operations can_rcvlist_sff_proc_fops = {
@@ -460,6 +451,7 @@ static int can_rcvlist_eff_proc_show(struct seq_file *m, void *v)
 {
 	struct net_device *dev;
 	struct dev_rcv_lists *d;
+	struct net *net = m->private;
 
 	/* RX_EFF */
 	seq_puts(m, "\nreceive list 'rx_eff':\n");
@@ -467,11 +459,11 @@ static int can_rcvlist_eff_proc_show(struct seq_file *m, void *v)
 	rcu_read_lock();
 
 	/* eff receive list for 'all' CAN devices (dev == NULL) */
-	d = &can_rx_alldev_list;
+	d = net->can.can_rx_alldev_list;
 	can_rcvlist_proc_show_array(m, NULL, d->rx_eff, ARRAY_SIZE(d->rx_eff));
 
 	/* eff receive list for registered CAN devices */
-	for_each_netdev_rcu(&init_net, dev) {
+	for_each_netdev_rcu(net, dev) {
 		if (dev->type == ARPHRD_CAN && dev->ml_priv) {
 			d = dev->ml_priv;
 			can_rcvlist_proc_show_array(m, dev, d->rx_eff,
@@ -487,7 +479,7 @@ static int can_rcvlist_eff_proc_show(struct seq_file *m, void *v)
 
 static int can_rcvlist_eff_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, can_rcvlist_eff_proc_show, NULL);
+	return single_open_net(inode, file, can_rcvlist_eff_proc_show);
 }
 
 static const struct file_operations can_rcvlist_eff_proc_fops = {
@@ -499,81 +491,85 @@ static const struct file_operations can_rcvlist_eff_proc_fops = {
 };
 
 /*
- * proc utility functions
- */
-
-static void can_remove_proc_readentry(const char *name)
-{
-	if (can_dir)
-		remove_proc_entry(name, can_dir);
-}
-
-/*
  * can_init_proc - create main CAN proc directory and procfs entries
  */
-void can_init_proc(void)
+void can_init_proc(struct net *net)
 {
 	/* create /proc/net/can directory */
-	can_dir = proc_mkdir("can", init_net.proc_net);
+	net->can.proc_dir = proc_net_mkdir(net, "can", net->proc_net);
 
-	if (!can_dir) {
-		pr_info("can: failed to create /proc/net/can.\n");
+	if (!net->can.proc_dir) {
+		printk(KERN_INFO "can: failed to create /proc/net/can . "
+			   "CONFIG_PROC_FS missing?\n");
 		return;
 	}
 
 	/* own procfs entries from the AF_CAN core */
-	pde_version     = proc_create(CAN_PROC_VERSION, 0644, can_dir,
-				      &can_version_proc_fops);
-	pde_stats       = proc_create(CAN_PROC_STATS, 0644, can_dir,
-				      &can_stats_proc_fops);
-	pde_reset_stats = proc_create(CAN_PROC_RESET_STATS, 0644, can_dir,
-				      &can_reset_stats_proc_fops);
-	pde_rcvlist_err = proc_create_data(CAN_PROC_RCVLIST_ERR, 0644, can_dir,
-					   &can_rcvlist_proc_fops, (void *)RX_ERR);
-	pde_rcvlist_all = proc_create_data(CAN_PROC_RCVLIST_ALL, 0644, can_dir,
-					   &can_rcvlist_proc_fops, (void *)RX_ALL);
-	pde_rcvlist_fil = proc_create_data(CAN_PROC_RCVLIST_FIL, 0644, can_dir,
-					   &can_rcvlist_proc_fops, (void *)RX_FIL);
-	pde_rcvlist_inv = proc_create_data(CAN_PROC_RCVLIST_INV, 0644, can_dir,
-					   &can_rcvlist_proc_fops, (void *)RX_INV);
-	pde_rcvlist_eff = proc_create(CAN_PROC_RCVLIST_EFF, 0644, can_dir,
-				      &can_rcvlist_eff_proc_fops);
-	pde_rcvlist_sff = proc_create(CAN_PROC_RCVLIST_SFF, 0644, can_dir,
-				      &can_rcvlist_sff_proc_fops);
+	net->can.pde_version     = proc_create(CAN_PROC_VERSION, 0644,
+					       net->can.proc_dir,
+					       &can_version_proc_fops);
+	net->can.pde_stats       = proc_create(CAN_PROC_STATS, 0644,
+					       net->can.proc_dir,
+					       &can_stats_proc_fops);
+	net->can.pde_reset_stats = proc_create(CAN_PROC_RESET_STATS, 0644,
+					       net->can.proc_dir,
+					       &can_reset_stats_proc_fops);
+	net->can.pde_rcvlist_err = proc_create_data(CAN_PROC_RCVLIST_ERR, 0644,
+						    net->can.proc_dir,
+						    &can_rcvlist_proc_fops,
+						    (void *)RX_ERR);
+	net->can.pde_rcvlist_all = proc_create_data(CAN_PROC_RCVLIST_ALL, 0644,
+						    net->can.proc_dir,
+						    &can_rcvlist_proc_fops,
+						    (void *)RX_ALL);
+	net->can.pde_rcvlist_fil = proc_create_data(CAN_PROC_RCVLIST_FIL, 0644,
+						    net->can.proc_dir,
+						    &can_rcvlist_proc_fops,
+						    (void *)RX_FIL);
+	net->can.pde_rcvlist_inv = proc_create_data(CAN_PROC_RCVLIST_INV, 0644,
+						    net->can.proc_dir,
+						    &can_rcvlist_proc_fops,
+						    (void *)RX_INV);
+	net->can.pde_rcvlist_eff = proc_create(CAN_PROC_RCVLIST_EFF, 0644,
+					       net->can.proc_dir,
+					       &can_rcvlist_eff_proc_fops);
+	net->can.pde_rcvlist_sff = proc_create(CAN_PROC_RCVLIST_SFF, 0644,
+					       net->can.proc_dir,
+					       &can_rcvlist_sff_proc_fops);
 }
 
 /*
  * can_remove_proc - remove procfs entries and main CAN proc directory
  */
-void can_remove_proc(void)
+void can_remove_proc(struct net *net)
 {
-	if (pde_version)
-		can_remove_proc_readentry(CAN_PROC_VERSION);
+	if (net->can.pde_version)
+		remove_proc_entry(CAN_PROC_VERSION, net->can.proc_dir);
 
-	if (pde_stats)
-		can_remove_proc_readentry(CAN_PROC_STATS);
+	if (net->can.pde_stats)
+		remove_proc_entry(CAN_PROC_STATS, net->can.proc_dir);
 
-	if (pde_reset_stats)
-		can_remove_proc_readentry(CAN_PROC_RESET_STATS);
+	if (net->can.pde_reset_stats)
+		remove_proc_entry(CAN_PROC_RESET_STATS, net->can.proc_dir);
 
-	if (pde_rcvlist_err)
-		can_remove_proc_readentry(CAN_PROC_RCVLIST_ERR);
+	if (net->can.pde_rcvlist_err)
+		remove_proc_entry(CAN_PROC_RCVLIST_ERR, net->can.proc_dir);
 
-	if (pde_rcvlist_all)
-		can_remove_proc_readentry(CAN_PROC_RCVLIST_ALL);
+	if (net->can.pde_rcvlist_all)
+		remove_proc_entry(CAN_PROC_RCVLIST_ALL, net->can.proc_dir);
 
-	if (pde_rcvlist_fil)
-		can_remove_proc_readentry(CAN_PROC_RCVLIST_FIL);
+	if (net->can.pde_rcvlist_fil)
+		remove_proc_entry(CAN_PROC_RCVLIST_FIL, net->can.proc_dir);
 
-	if (pde_rcvlist_inv)
-		can_remove_proc_readentry(CAN_PROC_RCVLIST_INV);
+	if (net->can.pde_rcvlist_inv)
+		remove_proc_entry(CAN_PROC_RCVLIST_INV, net->can.proc_dir);
 
-	if (pde_rcvlist_eff)
-		can_remove_proc_readentry(CAN_PROC_RCVLIST_EFF);
+	if (net->can.pde_rcvlist_eff)
+		remove_proc_entry(CAN_PROC_RCVLIST_EFF, net->can.proc_dir);
 
-	if (pde_rcvlist_sff)
-		can_remove_proc_readentry(CAN_PROC_RCVLIST_SFF);
+	if (net->can.pde_rcvlist_sff)
+		remove_proc_entry(CAN_PROC_RCVLIST_SFF, net->can.proc_dir);
 
-	if (can_dir)
-		remove_proc_entry("can", init_net.proc_net);
+	if (net->can.proc_dir)
+		remove_proc_entry("can", net->proc_net);
 }
