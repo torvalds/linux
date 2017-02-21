@@ -21,11 +21,14 @@
  * @xhci_slow_suspend:	set if this xhci platform need an extraordinary
  *			delay to wait for xHC enter the Halted state
  *			after the Run/Stop (R/S) bit is cleared to '0'.
+ * @usb3_disable_autosuspend: determines if this xhci platform supports
+ *			USB3 autosuspend capability
  *
  */
 struct usb_xhci_pdata {
 	unsigned	usb3_lpm_capable:1;
 	unsigned	xhci_slow_suspend:1;
+	unsigned	usb3_disable_autosuspend:1;
 };
 
 #endif /* __USB_CORE_XHCI_PDRIVER_H */
