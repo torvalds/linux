@@ -758,7 +758,7 @@ void pnv_tce_free(struct iommu_table *tbl, long index, long npages)
 
 unsigned long pnv_tce_get(struct iommu_table *tbl, long index)
 {
-	return *(pnv_tce(tbl, index - tbl->it_offset));
+	return be64_to_cpu(*(pnv_tce(tbl, index - tbl->it_offset)));
 }
 
 struct iommu_table *pnv_pci_table_alloc(int nid)
