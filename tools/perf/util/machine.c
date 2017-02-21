@@ -1439,7 +1439,7 @@ static void __machine__remove_thread(struct machine *machine, struct thread *th,
 	if (machine->last_match == th)
 		machine->last_match = NULL;
 
-	BUG_ON(atomic_read(&th->refcnt) == 0);
+	BUG_ON(refcount_read(&th->refcnt) == 0);
 	if (lock)
 		pthread_rwlock_wrlock(&machine->threads_lock);
 	rb_erase_init(&th->rb_node, &machine->threads);

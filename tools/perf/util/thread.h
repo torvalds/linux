@@ -1,7 +1,7 @@
 #ifndef __PERF_THREAD_H
 #define __PERF_THREAD_H
 
-#include <linux/atomic.h>
+#include <linux/refcount.h>
 #include <linux/rbtree.h>
 #include <linux/list.h>
 #include <unistd.h>
@@ -23,7 +23,7 @@ struct thread {
 	pid_t			tid;
 	pid_t			ppid;
 	int			cpu;
-	atomic_t		refcnt;
+	refcount_t		refcnt;
 	char			shortname[3];
 	bool			comm_set;
 	int			comm_len;
