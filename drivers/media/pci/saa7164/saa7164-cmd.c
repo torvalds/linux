@@ -177,8 +177,6 @@ static int saa7164_cmd_dequeue(struct saa7164_dev *dev)
 		wake_up(q);
 		return SAA_OK;
 	}
-
-	return SAA_OK;
 }
 
 static int saa7164_cmd_set(struct saa7164_dev *dev, struct tmComResInfo *msg,
