@@ -1,0 +1,6 @@
+config RTL8188FU
+	tristate "Realtek 8188F USB WiFi"
+	depends on USB
+	---help---
+	  Help message of RTL8818FU
+

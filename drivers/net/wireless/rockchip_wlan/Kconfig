@@ -12,5 +12,22 @@ config WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
 	  Wifi driver will be load (use late_initcall) when kernel bootup
 
 source "drivers/net/wireless/rockchip_wlan/rkwifi/Kconfig"
+
+menuconfig RTL_WIRELESS_SOLUTION
+    bool "Realtek Wireless Device Driver Support"
+    default y
+
+if RTL_WIRELESS_SOLUTION
+choice
+    prompt "Realtek WiFi Device Driver Support"
+    default RTL8188EU
+
+    config RTL_WIFI_NONE
+    bool "No Realtek WiFi"
+
 source "drivers/net/wireless/rockchip_wlan/rtl8188eu/Kconfig"
+source "drivers/net/wireless/rockchip_wlan/rtl8188fu/Kconfig"
+endchoice
+endif # RTL_WIRELESS_SOLUTION
+
 endif # WL_ROCKCHIP
