@@ -557,6 +557,8 @@ static __always_inline void err_print_param(struct drm_i915_error_state_buf *m,
 		err_printf(m, "i915.%s=%d\n", name, *(const int *)x);
 	else if (!__builtin_strcmp(type, "unsigned int"))
 		err_printf(m, "i915.%s=%u\n", name, *(const unsigned int *)x);
+	else if (!__builtin_strcmp(type, "char *"))
+		err_printf(m, "i915.%s=%s\n", name, *(const char **)x);
 	else
 		BUILD_BUG();
 }
@@ -810,6 +812,12 @@ static void i915_error_object_free(struct drm_i915_error_object *obj)
 	kfree(obj);
 }
 
+static __always_inline void free_param(const char *type, void *x)
+{
+	if (!__builtin_strcmp(type, "char *"))
+		kfree(*(void **)x);
+}
+
 void __i915_gpu_state_free(struct kref *error_ref)
 {
 	struct i915_gpu_state *error =
@@ -840,6 +848,11 @@ void __i915_gpu_state_free(struct kref *error_ref)
 
 	kfree(error->overlay);
 	kfree(error->display);
+
+#define FREE(T, x) free_param(#T, &error->params.x);
+	I915_PARAMS_FOR_EACH(FREE);
+#undef FREE
+
 	kfree(error);
 }
 
@@ -1614,6 +1627,12 @@ static void i915_capture_gen_state(struct drm_i915_private *dev_priv,
 	       sizeof(error->device_info));
 }
 
+static __always_inline void dup_param(const char *type, void *x)
+{
+	if (!__builtin_strcmp(type, "char *"))
+		*(void **)x = kstrdup(*(void **)x, GFP_ATOMIC);
+}
+
 static int capture(void *data)
 {
 	struct i915_gpu_state *error = data;
@@ -1625,6 +1644,9 @@ static int capture(void *data)
 					   error->i915->gt.last_init_time));
 
 	error->params = i915;
+#define DUP(T, x) dup_param(#T, &error->params.x);
+	I915_PARAMS_FOR_EACH(DUP);
+#undef DUP
 
 	i915_capture_gen_state(error->i915, error);
 	i915_capture_reg_state(error->i915, error);
