@@ -9,10 +9,13 @@ config MIPS
 	select HAVE_CONTEXT_TRACKING
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_IDE
+	select HAVE_IRQ_EXIT_ON_IRQ_STACK
 	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
 	select PERF_USE_VMALLOC
 	select HAVE_ARCH_KGDB
+	select HAVE_ARCH_MMAP_RND_BITS if MMU
+	select HAVE_ARCH_MMAP_RND_COMPAT_BITS if MMU && COMPAT
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_CBPF_JIT if !CPU_MICROMIPS
@@ -94,6 +97,7 @@ config MIPS_GENERIC
 	select PCI_DRIVERS_GENERIC
 	select PINCTRL
 	select SMP_UP if SMP
+	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_HAS_CPU_MIPS32_R2
 	select SYS_HAS_CPU_MIPS32_R6
@@ -478,6 +482,7 @@ config MACH_XILFPGA
 	select SYS_SUPPORTS_ZBOOT_UART16550
 	select USE_OF
 	select USE_GENERIC_EARLY_PRINTK_8250
+	select XILINX_INTC
 	help
 	  This enables support for the IMG University Program MIPSfpga platform.
 
@@ -909,6 +914,7 @@ config CAVIUM_OCTEON_SOC
 	select NR_CPUS_DEFAULT_16
 	select BUILTIN_DTB
 	select MTD_COMPLEX_MAPPINGS
+	select SYS_SUPPORTS_RELOCATABLE
 	help
 	  This option supports all of the Octeon reference boards from Cavium
 	  Networks. It builds a kernel that dynamically determines the Octeon
@@ -1427,7 +1433,6 @@ config CPU_LOONGSON1C
 	bool "Loongson 1C"
 	depends on SYS_HAS_CPU_LOONGSON1C
 	select CPU_LOONGSON1
-	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select LEDS_GPIO_REGISTER
 	help
 	  The Loongson 1C is a 32-bit SoC, which implements the MIPS32
@@ -2288,7 +2293,7 @@ config MIPS_MT_FPAFF
 
 config MIPSR2_TO_R6_EMULATOR
 	bool "MIPS R2-to-R6 emulator"
-	depends on CPU_MIPSR6 && !SMP
+	depends on CPU_MIPSR6
 	default y
 	help
 	  Choose this option if you want to run non-R6 MIPS userland code.
@@ -2296,8 +2301,6 @@ config MIPSR2_TO_R6_EMULATOR
 	  default. You can enable it using the 'mipsr2emu' kernel option.
 	  The only reason this is a build-time option is to save ~14K from the
 	  final kernel image.
-comment "MIPS R2-to-R6 emulator is only available for UP kernels"
-	depends on SMP && CPU_MIPSR6
 
 config MIPS_VPE_LOADER
 	bool "VPE loader support."
@@ -2572,7 +2575,7 @@ config SYS_SUPPORTS_NUMA
 
 config RELOCATABLE
 	bool "Relocatable kernel"
-	depends on SYS_SUPPORTS_RELOCATABLE && (CPU_MIPS32_R2 || CPU_MIPS64_R2 || CPU_MIPS32_R6 || CPU_MIPS64_R6)
+	depends on SYS_SUPPORTS_RELOCATABLE && (CPU_MIPS32_R2 || CPU_MIPS64_R2 || CPU_MIPS32_R6 || CPU_MIPS64_R6 || CAVIUM_OCTEON_SOC)
 	help
 	  This builds a kernel image that retains relocation information
 	  so it can be loaded someplace besides the default 1MB.
@@ -2828,8 +2831,8 @@ config KEXEC
 	  made.
 
 config CRASH_DUMP
-	  bool "Kernel crash dumps"
-	  help
+	bool "Kernel crash dumps"
+	help
 	  Generate crash dump after being started by kexec.
 	  This should be normally only set in special crash dump kernels
 	  which are loaded in the main kernel with kexec-tools into
@@ -2839,11 +2842,11 @@ config CRASH_DUMP
 	  PHYSICAL_START.
 
 config PHYSICAL_START
-	  hex "Physical address where the kernel is loaded"
-	  default "0xffffffff84000000" if 64BIT
-	  default "0x84000000" if 32BIT
-	  depends on CRASH_DUMP
-	  help
+	hex "Physical address where the kernel is loaded"
+	default "0xffffffff84000000" if 64BIT
+	default "0x84000000" if 32BIT
+	depends on CRASH_DUMP
+	help
 	  This gives the CKSEG0 or KSEG0 address where the kernel is loaded.
 	  If you plan to use kernel for capturing the crash dump change
 	  this value to start of the reserved region (the "X" value as
@@ -3074,6 +3077,20 @@ config TC
 config MMU
 	bool
 	default y
+
+config ARCH_MMAP_RND_BITS_MIN
+	default 12 if 64BIT
+	default 8
+
+config ARCH_MMAP_RND_BITS_MAX
+	default 18 if 64BIT
+	default 15
+
+config ARCH_MMAP_RND_COMPAT_BITS_MIN
+       default 8
+
+config ARCH_MMAP_RND_COMPAT_BITS_MAX
+       default 15
 
 config I8253
 	bool

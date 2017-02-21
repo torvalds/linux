@@ -1241,6 +1241,9 @@ extern size_t __copy_in_user_eva(void *__to, const void *__from, size_t __n);
 	__cu_len;							\
 })
 
+extern __kernel_size_t __bzero_kernel(void __user *addr, __kernel_size_t size);
+extern __kernel_size_t __bzero(void __user *addr, __kernel_size_t size);
+
 /*
  * __clear_user: - Zero a block of memory in user space, with less checking.
  * @to:	  Destination address, in user space.
@@ -1293,6 +1296,9 @@ __clear_user(void __user *addr, __kernel_size_t size)
 	__cl_size;							\
 })
 
+extern long __strncpy_from_kernel_nocheck_asm(char *__to, const char __user *__from, long __len);
+extern long __strncpy_from_user_nocheck_asm(char *__to, const char __user *__from, long __len);
+
 /*
  * __strncpy_from_user: - Copy a NUL terminated string from userspace, with less checking.
  * @dst:   Destination address, in kernel space.  This buffer must be at
@@ -1344,6 +1350,9 @@ __strncpy_from_user(char *__to, const char __user *__from, long __len)
 	return res;
 }
 
+extern long __strncpy_from_kernel_asm(char *__to, const char __user *__from, long __len);
+extern long __strncpy_from_user_asm(char *__to, const char __user *__from, long __len);
+
 /*
  * strncpy_from_user: - Copy a NUL terminated string from userspace.
  * @dst:   Destination address, in kernel space.  This buffer must be at
@@ -1393,6 +1402,9 @@ strncpy_from_user(char *__to, const char __user *__from, long __len)
 	return res;
 }
 
+extern long __strlen_kernel_asm(const char __user *s);
+extern long __strlen_user_asm(const char __user *s);
+
 /*
  * strlen_user: - Get the size of a string in user space.
  * @str: The string to measure.
@@ -1434,6 +1446,9 @@ static inline long strlen_user(const char __user *s)
 	return res;
 }
 
+extern long __strnlen_kernel_nocheck_asm(const char __user *s, long n);
+extern long __strnlen_user_nocheck_asm(const char __user *s, long n);
+
 /* Returns: 0 if bad, string length+1 (memory size) of string if ok */
 static inline long __strnlen_user(const char __user *s, long n)
 {
@@ -1462,6 +1477,9 @@ static inline long __strnlen_user(const char __user *s, long n)
 
 	return res;
 }
+
+extern long __strnlen_kernel_asm(const char __user *s, long n);
+extern long __strnlen_user_asm(const char __user *s, long n);
 
 /*
  * strnlen_user: - Get the size of a string in user space.

@@ -7707,6 +7707,12 @@ W:	http://www.kernel.org/doc/man-pages
 L:	linux-man@vger.kernel.org
 S:	Maintained
 
+MARDUK (CREATOR CI40) DEVICE TREE SUPPORT
+M:	Rahul Bedarkar <rahul.bedarkar@imgtec.com>
+L:	linux-mips@linux-mips.org
+S:	Maintained
+F:	arch/mips/boot/dts/img/pistachio_marduk.dts
+
 MARVELL 88E6XXX ETHERNET SWITCH FABRIC DRIVER
 M:	Andrew Lunn <andrew@lunn.ch>
 M:	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
@@ -9795,7 +9801,7 @@ L:      linux-mips@linux-mips.org
 S:      Maintained
 F:      arch/mips/pistachio/
 F:      arch/mips/include/asm/mach-pistachio/
-F:      arch/mips/boot/dts/pistachio/
+F:      arch/mips/boot/dts/img/pistachio*
 F:      arch/mips/configs/pistachio*_defconfig
 
 PKTCDVD DRIVER

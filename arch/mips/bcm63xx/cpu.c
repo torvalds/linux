@@ -8,7 +8,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/cpu.h>
 #include <asm/cpu.h>
 #include <asm/cpu-info.h>
