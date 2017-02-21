@@ -76,3 +76,14 @@ config DRM_I915_SELFTEST
 	  Recommended for driver developers only.
 
 	  If in doubt, say "N".
+
+config DRM_I915_LOW_LEVEL_TRACEPOINTS
+        bool "Enable low level request tracing events"
+        depends on DRM_I915
+        default n
+        help
+          Choose this option to turn on low level request tracing events.
+          This provides the ability to precisely monitor engine utilisation
+          and also analyze the request dependency resolving timeline.
+
+          If in doubt, say "N".
