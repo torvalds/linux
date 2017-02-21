@@ -143,9 +143,9 @@ struct bus_type visorbus_type = {
 };
 
 /**
- * visorbus_releae_busdevice() - called when device_unregister() is called for
- *                               the bus device instance, after all other tasks
- *                               involved with destroying the dev are complete
+ * visorbus_release_busdevice() - called when device_unregister() is called for
+ *                                the bus device instance, after all other tasks
+ *                                involved with destroying the dev are complete
  * @xdev: struct device for the bus being released
  */
 static void
