@@ -689,7 +689,7 @@ unsigned long long running_clock(void)
 	 * time and on a host which doesn't do any virtualisation TB *should* equal
 	 * VTB so it makes no difference anyway.
 	 */
-	return local_clock() - cputime_to_nsecs(kcpustat_this_cpu->cpustat[CPUTIME_STEAL]);
+	return local_clock() - kcpustat_this_cpu->cpustat[CPUTIME_STEAL];
 }
 #endif
 
