@@ -110,8 +110,8 @@ static void m68k_dma_sync_single_for_device(struct device *dev,
 		cache_clear(handle, size);
 		break;
 	default:
-		if (printk_ratelimit())
-			printk("dma_sync_single_for_device: unsupported dir %u\n", dir);
+		pr_err_ratelimited("dma_sync_single_for_device: unsupported dir %u\n",
+				   dir);
 		break;
 	}
 }
