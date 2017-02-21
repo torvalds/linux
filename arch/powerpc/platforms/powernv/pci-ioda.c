@@ -2735,9 +2735,7 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 	if (rc)
 		return;
 
-	if (pe->flags & PNV_IODA_PE_DEV)
-		iommu_add_device(&pe->pdev->dev);
-	else if (pe->flags & (PNV_IODA_PE_BUS | PNV_IODA_PE_BUS_ALL))
+	if (pe->flags & (PNV_IODA_PE_BUS | PNV_IODA_PE_BUS_ALL))
 		pnv_ioda_setup_bus_dma(pe, pe->pbus, true);
 }
 
