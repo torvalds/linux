@@ -61,6 +61,7 @@
 #include <linux/pfn.h>
 #include <linux/bsearch.h>
 #include <linux/dynamic_debug.h>
+#include <linux/audit.h>
 #include <uapi/linux/module.h>
 #include "module-internal.h"
 
@@ -3608,6 +3609,8 @@ static int load_module(struct load_info *info, const char __user *uargs,
 		goto free_copy;
 	}
 
+	audit_log_kern_module(mod->name);
+
 	/* Reserve our place in the list. */
 	err = add_unformed_module(mod);
 	if (err)
@@ -3696,7 +3699,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 		       mod->name, after_dashes);
 	}
 
-	/* Link in to syfs. */
+	/* Link in to sysfs. */
 	err = mod_sysfs_setup(mod, info, mod->kp, mod->num_kp);
 	if (err < 0)
 		goto coming_cleanup;
