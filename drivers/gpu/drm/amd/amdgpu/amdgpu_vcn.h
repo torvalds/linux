@@ -50,7 +50,7 @@ struct amdgpu_vcn {
 	struct amdgpu_irq_src	irq;
 	struct amd_sched_entity entity_dec;
 	struct amd_sched_entity entity_enc;
-	uint32_t                srbm_soft_reset;
+	unsigned		num_enc_rings;
 };
 
 int amdgpu_vcn_sw_init(struct amdgpu_device *adev);

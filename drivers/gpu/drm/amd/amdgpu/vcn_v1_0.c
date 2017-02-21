@@ -51,6 +51,8 @@ static int vcn_v1_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	adev->vcn.num_enc_rings = 2;
+
 	vcn_v1_0_set_dec_ring_funcs(adev);
 	vcn_v1_0_set_irq_funcs(adev);
 
@@ -67,7 +69,7 @@ static int vcn_v1_0_early_init(void *handle)
 static int vcn_v1_0_sw_init(void *handle)
 {
 	struct amdgpu_ring *ring;
-	int r;
+	int i, r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* VCN TRAP */
@@ -86,6 +88,16 @@ static int vcn_v1_0_sw_init(void *handle)
 	ring = &adev->vcn.ring_dec;
 	sprintf(ring->name, "vcn_dec");
 	r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.irq, 0);
+	if (r)
+		return r;
+
+	for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
+		ring = &adev->vcn.ring_enc[i];
+		sprintf(ring->name, "vcn_enc%d", i);
+		r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.irq, 0);
+		if (r)
+			return r;
+	}
 
 	return r;
 }
@@ -400,6 +412,20 @@ static int vcn_v1_0_start(struct amdgpu_device *adev)
 
 	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_RBC_RB_CNTL), 0,
 			~UVD_RBC_RB_CNTL__RB_NO_FETCH_MASK);
+
+	ring = &adev->vcn.ring_enc[0];
+	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_RB_RPTR), lower_32_bits(ring->wptr));
+	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_RB_WPTR), lower_32_bits(ring->wptr));
+	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_RB_BASE_LO), ring->gpu_addr);
+	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_RB_BASE_HI), upper_32_bits(ring->gpu_addr));
+	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_RB_SIZE), ring->ring_size / 4);
+
+	ring = &adev->vcn.ring_enc[1];
+	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_RB_RPTR2), lower_32_bits(ring->wptr));
+	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_RB_WPTR2), lower_32_bits(ring->wptr));
+	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_RB_BASE_LO2), ring->gpu_addr);
+	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_RB_BASE_HI2), upper_32_bits(ring->gpu_addr));
+	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_RB_SIZE2), ring->ring_size / 4);
 
 	return 0;
 }

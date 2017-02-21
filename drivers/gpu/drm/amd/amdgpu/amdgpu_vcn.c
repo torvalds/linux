@@ -126,6 +126,8 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 
 int amdgpu_vcn_sw_fini(struct amdgpu_device *adev)
 {
+	int i;
+
 	kfree(adev->vcn.saved_bo);
 
 	amd_sched_entity_fini(&adev->vcn.ring_dec.sched, &adev->vcn.entity_dec);
@@ -137,6 +139,9 @@ int amdgpu_vcn_sw_fini(struct amdgpu_device *adev)
 			      (void **)&adev->vcn.cpu_addr);
 
 	amdgpu_ring_fini(&adev->vcn.ring_dec);
+
+	for (i = 0; i < adev->vcn.num_enc_rings; ++i)
+		amdgpu_ring_fini(&adev->vcn.ring_enc[i]);
 
 	release_firmware(adev->vcn.fw);
 
