@@ -625,7 +625,6 @@ asmlinkage __visible void __init start_kernel(void)
 	numa_policy_init();
 	if (late_time_init)
 		late_time_init();
-	sched_clock_init();
 	calibrate_delay();
 	pidmap_init();
 	anon_vma_init();
@@ -663,7 +662,6 @@ asmlinkage __visible void __init start_kernel(void)
 	sfi_init_late();
 
 	if (efi_enabled(EFI_RUNTIME_SERVICES)) {
-		efi_late_init();
 		efi_free_boot_services();
 	}
 

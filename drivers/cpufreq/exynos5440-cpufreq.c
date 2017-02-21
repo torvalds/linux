@@ -118,12 +118,10 @@ static int init_div_table(void)
 	unsigned int tmp, clk_div, ema_div, freq, volt_id;
 	struct dev_pm_opp *opp;
 
-	rcu_read_lock();
 	cpufreq_for_each_entry(pos, freq_tbl) {
 		opp = dev_pm_opp_find_freq_exact(dvfs_info->dev,
 					pos->frequency * 1000, true);
 		if (IS_ERR(opp)) {
-			rcu_read_unlock();
 			dev_err(dvfs_info->dev,
 				"failed to find valid OPP for %u KHZ\n",
 				pos->frequency);
@@ -140,6 +138,7 @@ static int init_div_table(void)
 
 		/* Calculate EMA */
 		volt_id = dev_pm_opp_get_voltage(opp);
+
 		volt_id = (MAX_VOLTAGE - volt_id) / VOLTAGE_STEP;
 		if (volt_id < PMIC_HIGH_VOLT) {
 			ema_div = (CPUEMA_HIGH << P0_7_CPUEMA_SHIFT) |
@@ -157,9 +156,9 @@ static int init_div_table(void)
 
 		__raw_writel(tmp, dvfs_info->base + XMU_PMU_P0_7 + 4 *
 						(pos - freq_tbl));
+		dev_pm_opp_put(opp);
 	}
 
-	rcu_read_unlock();
 	return 0;
 }
 

@@ -731,7 +731,25 @@ asmlinkage long compat_sys_fanotify_mark(int, unsigned int, __u32, __u32,
 static inline bool in_compat_syscall(void) { return is_compat_task(); }
 #endif
 
-#else
+/**
+ * ns_to_compat_timeval - Compat version of ns_to_timeval
+ * @nsec:	the nanoseconds value to be converted
+ *
+ * Returns the compat_timeval representation of the nsec parameter.
+ */
+static inline struct compat_timeval ns_to_compat_timeval(s64 nsec)
+{
+	struct timeval tv;
+	struct compat_timeval ctv;
+
+	tv = ns_to_timeval(nsec);
+	ctv.tv_sec = tv.tv_sec;
+	ctv.tv_usec = tv.tv_usec;
+
+	return ctv;
+}
+
+#else /* !CONFIG_COMPAT */
 
 #define is_compat_task() (0)
 static inline bool in_compat_syscall(void) { return false; }

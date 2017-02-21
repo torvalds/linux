@@ -57,6 +57,7 @@
 #include <linux/clk-provider.h>
 #include <linux/suspend.h>
 #include <linux/rtc.h>
+#include <linux/cputime.h>
 #include <asm/trace.h>
 
 #include <asm/io.h>
@@ -72,7 +73,6 @@
 #include <asm/smp.h>
 #include <asm/vdso_datapage.h>
 #include <asm/firmware.h>
-#include <asm/cputime.h>
 #include <asm/asm-prototypes.h>
 
 /* powerpc clocksource/clockevent code */
@@ -152,20 +152,11 @@ EXPORT_SYMBOL_GPL(ppc_tb_freq);
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 /*
- * Factors for converting from cputime_t (timebase ticks) to
- * jiffies, microseconds, seconds, and clock_t (1/USER_HZ seconds).
- * These are all stored as 0.64 fixed-point binary fractions.
+ * Factor for converting from cputime_t (timebase ticks) to
+ * microseconds. This is stored as 0.64 fixed-point binary fraction.
  */
-u64 __cputime_jiffies_factor;
-EXPORT_SYMBOL(__cputime_jiffies_factor);
 u64 __cputime_usec_factor;
 EXPORT_SYMBOL(__cputime_usec_factor);
-u64 __cputime_sec_factor;
-EXPORT_SYMBOL(__cputime_sec_factor);
-u64 __cputime_clockt_factor;
-EXPORT_SYMBOL(__cputime_clockt_factor);
-
-cputime_t cputime_one_jiffy;
 
 #ifdef CONFIG_PPC_SPLPAR
 void (*dtl_consumer)(struct dtl_entry *, u64);
@@ -181,14 +172,8 @@ static void calc_cputime_factors(void)
 {
 	struct div_result res;
 
-	div128_by_32(HZ, 0, tb_ticks_per_sec, &res);
-	__cputime_jiffies_factor = res.result_low;
 	div128_by_32(1000000, 0, tb_ticks_per_sec, &res);
 	__cputime_usec_factor = res.result_low;
-	div128_by_32(1, 0, tb_ticks_per_sec, &res);
-	__cputime_sec_factor = res.result_low;
-	div128_by_32(USER_HZ, 0, tb_ticks_per_sec, &res);
-	__cputime_clockt_factor = res.result_low;
 }
 
 /*
@@ -271,25 +256,19 @@ void accumulate_stolen_time(void)
 
 	sst = scan_dispatch_log(acct->starttime_user);
 	ust = scan_dispatch_log(acct->starttime);
-	acct->system_time -= sst;
-	acct->user_time -= ust;
-	local_paca->stolen_time += ust + sst;
+	acct->stime -= sst;
+	acct->utime -= ust;
+	acct->steal_time += ust + sst;
 
 	local_paca->soft_enabled = save_soft_enabled;
 }
 
 static inline u64 calculate_stolen_time(u64 stop_tb)
 {
-	u64 stolen = 0;
+	if (get_paca()->dtl_ridx != be64_to_cpu(get_lppaca()->dtl_idx))
+		return scan_dispatch_log(stop_tb);
 
-	if (get_paca()->dtl_ridx != be64_to_cpu(get_lppaca()->dtl_idx)) {
-		stolen = scan_dispatch_log(stop_tb);
-		get_paca()->accounting.system_time -= stolen;
-	}
-
-	stolen += get_paca()->stolen_time;
-	get_paca()->stolen_time = 0;
-	return stolen;
+	return 0;
 }
 
 #else /* CONFIG_PPC_SPLPAR */
@@ -305,28 +284,27 @@ static inline u64 calculate_stolen_time(u64 stop_tb)
  * or soft irq state.
  */
 static unsigned long vtime_delta(struct task_struct *tsk,
-				 unsigned long *sys_scaled,
-				 unsigned long *stolen)
+				 unsigned long *stime_scaled,
+				 unsigned long *steal_time)
 {
 	unsigned long now, nowscaled, deltascaled;
-	unsigned long udelta, delta, user_scaled;
+	unsigned long stime;
+	unsigned long utime, utime_scaled;
 	struct cpu_accounting_data *acct = get_accounting(tsk);
 
 	WARN_ON_ONCE(!irqs_disabled());
 
 	now = mftb();
 	nowscaled = read_spurr(now);
-	acct->system_time += now - acct->starttime;
+	stime = now - acct->starttime;
 	acct->starttime = now;
 	deltascaled = nowscaled - acct->startspurr;
 	acct->startspurr = nowscaled;
 
-	*stolen = calculate_stolen_time(now);
+	*steal_time = calculate_stolen_time(now);
 
-	delta = acct->system_time;
-	acct->system_time = 0;
-	udelta = acct->user_time - acct->utime_sspurr;
-	acct->utime_sspurr = acct->user_time;
+	utime = acct->utime - acct->utime_sspurr;
+	acct->utime_sspurr = acct->utime;
 
 	/*
 	 * Because we don't read the SPURR on every kernel entry/exit,
@@ -338,62 +316,105 @@ static unsigned long vtime_delta(struct task_struct *tsk,
 	 * the user ticks get saved up in paca->user_time_scaled to be
 	 * used by account_process_tick.
 	 */
-	*sys_scaled = delta;
-	user_scaled = udelta;
-	if (deltascaled != delta + udelta) {
-		if (udelta) {
-			*sys_scaled = deltascaled * delta / (delta + udelta);
-			user_scaled = deltascaled - *sys_scaled;
+	*stime_scaled = stime;
+	utime_scaled = utime;
+	if (deltascaled != stime + utime) {
+		if (utime) {
+			*stime_scaled = deltascaled * stime / (stime + utime);
+			utime_scaled = deltascaled - *stime_scaled;
 		} else {
-			*sys_scaled = deltascaled;
+			*stime_scaled = deltascaled;
 		}
 	}
-	acct->user_time_scaled += user_scaled;
+	acct->utime_scaled += utime_scaled;
 
-	return delta;
+	return stime;
 }
 
 void vtime_account_system(struct task_struct *tsk)
 {
-	unsigned long delta, sys_scaled, stolen;
+	unsigned long stime, stime_scaled, steal_time;
+	struct cpu_accounting_data *acct = get_accounting(tsk);
 
-	delta = vtime_delta(tsk, &sys_scaled, &stolen);
-	account_system_time(tsk, 0, delta);
-	tsk->stimescaled += sys_scaled;
-	if (stolen)
-		account_steal_time(stolen);
+	stime = vtime_delta(tsk, &stime_scaled, &steal_time);
+
+	stime -= min(stime, steal_time);
+	acct->steal_time += steal_time;
+
+	if ((tsk->flags & PF_VCPU) && !irq_count()) {
+		acct->gtime += stime;
+		acct->utime_scaled += stime_scaled;
+	} else {
+		if (hardirq_count())
+			acct->hardirq_time += stime;
+		else if (in_serving_softirq())
+			acct->softirq_time += stime;
+		else
+			acct->stime += stime;
+
+		acct->stime_scaled += stime_scaled;
+	}
 }
 EXPORT_SYMBOL_GPL(vtime_account_system);
 
 void vtime_account_idle(struct task_struct *tsk)
 {
-	unsigned long delta, sys_scaled, stolen;
+	unsigned long stime, stime_scaled, steal_time;
+	struct cpu_accounting_data *acct = get_accounting(tsk);
 
-	delta = vtime_delta(tsk, &sys_scaled, &stolen);
-	account_idle_time(delta + stolen);
+	stime = vtime_delta(tsk, &stime_scaled, &steal_time);
+	acct->idle_time += stime + steal_time;
 }
 
 /*
- * Transfer the user time accumulated in the paca
- * by the exception entry and exit code to the generic
- * process user time records.
+ * Account the whole cputime accumulated in the paca
  * Must be called with interrupts disabled.
  * Assumes that vtime_account_system/idle() has been called
  * recently (i.e. since the last entry from usermode) so that
  * get_paca()->user_time_scaled is up to date.
  */
-void vtime_account_user(struct task_struct *tsk)
+void vtime_flush(struct task_struct *tsk)
 {
-	cputime_t utime, utimescaled;
 	struct cpu_accounting_data *acct = get_accounting(tsk);
 
-	utime = acct->user_time;
-	utimescaled = acct->user_time_scaled;
-	acct->user_time = 0;
-	acct->user_time_scaled = 0;
+	if (acct->utime)
+		account_user_time(tsk, cputime_to_nsecs(acct->utime));
+
+	if (acct->utime_scaled)
+		tsk->utimescaled += cputime_to_nsecs(acct->utime_scaled);
+
+	if (acct->gtime)
+		account_guest_time(tsk, cputime_to_nsecs(acct->gtime));
+
+	if (acct->steal_time)
+		account_steal_time(cputime_to_nsecs(acct->steal_time));
+
+	if (acct->idle_time)
+		account_idle_time(cputime_to_nsecs(acct->idle_time));
+
+	if (acct->stime)
+		account_system_index_time(tsk, cputime_to_nsecs(acct->stime),
+					  CPUTIME_SYSTEM);
+	if (acct->stime_scaled)
+		tsk->stimescaled += cputime_to_nsecs(acct->stime_scaled);
+
+	if (acct->hardirq_time)
+		account_system_index_time(tsk, cputime_to_nsecs(acct->hardirq_time),
+					  CPUTIME_IRQ);
+	if (acct->softirq_time)
+		account_system_index_time(tsk, cputime_to_nsecs(acct->softirq_time),
+					  CPUTIME_SOFTIRQ);
+
+	acct->utime = 0;
+	acct->utime_scaled = 0;
 	acct->utime_sspurr = 0;
-	account_user_time(tsk, utime);
-	tsk->utimescaled += utimescaled;
+	acct->gtime = 0;
+	acct->steal_time = 0;
+	acct->idle_time = 0;
+	acct->stime = 0;
+	acct->stime_scaled = 0;
+	acct->hardirq_time = 0;
+	acct->softirq_time = 0;
 }
 
 #ifdef CONFIG_PPC32
@@ -407,8 +428,7 @@ void arch_vtime_task_switch(struct task_struct *prev)
 	struct cpu_accounting_data *acct = get_accounting(current);
 
 	acct->starttime = get_accounting(prev)->starttime;
-	acct->system_time = 0;
-	acct->user_time = 0;
+	acct->startspurr = get_accounting(prev)->startspurr;
 }
 #endif /* CONFIG_PPC32 */
 
@@ -1018,7 +1038,6 @@ void __init time_init(void)
 	tb_ticks_per_sec = ppc_tb_freq;
 	tb_ticks_per_usec = ppc_tb_freq / 1000000;
 	calc_cputime_factors();
-	setup_cputime_one_jiffy();
 
 	/*
 	 * Compute scale factor for sched_clock.

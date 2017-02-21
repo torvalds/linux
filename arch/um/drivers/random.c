@@ -76,7 +76,7 @@ static ssize_t rng_dev_read (struct file *filp, char __user *buf, size_t size,
 			add_sigio_fd(random_fd);
 
 			add_wait_queue(&host_read_wait, &wait);
-			set_task_state(current, TASK_INTERRUPTIBLE);
+			set_current_state(TASK_INTERRUPTIBLE);
 
 			schedule();
 			remove_wait_queue(&host_read_wait, &wait);

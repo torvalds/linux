@@ -15,6 +15,8 @@
 #include <asm/cpu.h>
 #include <asm/intel-family.h>
 #include <asm/microcode_intel.h>
+#include <asm/hwcap2.h>
+#include <asm/elf.h>
 
 #ifdef CONFIG_X86_64
 #include <linux/topology.h>
@@ -60,6 +62,46 @@ void check_mpx_erratum(struct cpuinfo_x86 *c)
 		setup_clear_cpu_cap(X86_FEATURE_MPX);
 		pr_warn("x86/mpx: Disabling MPX since SMEP not present\n");
 	}
+}
+
+static bool ring3mwait_disabled __read_mostly;
+
+static int __init ring3mwait_disable(char *__unused)
+{
+	ring3mwait_disabled = true;
+	return 0;
+}
+__setup("ring3mwait=disable", ring3mwait_disable);
+
+static void probe_xeon_phi_r3mwait(struct cpuinfo_x86 *c)
+{
+	/*
+	 * Ring 3 MONITOR/MWAIT feature cannot be detected without
+	 * cpu model and family comparison.
+	 */
+	if (c->x86 != 6)
+		return;
+	switch (c->x86_model) {
+	case INTEL_FAM6_XEON_PHI_KNL:
+	case INTEL_FAM6_XEON_PHI_KNM:
+		break;
+	default:
+		return;
+	}
+
+	if (ring3mwait_disabled) {
+		msr_clear_bit(MSR_MISC_FEATURE_ENABLES,
+			      MSR_MISC_FEATURE_ENABLES_RING3MWAIT_BIT);
+		return;
+	}
+
+	msr_set_bit(MSR_MISC_FEATURE_ENABLES,
+		    MSR_MISC_FEATURE_ENABLES_RING3MWAIT_BIT);
+
+	set_cpu_cap(c, X86_FEATURE_RING3MWAIT);
+
+	if (c == &boot_cpu_data)
+		ELF_HWCAP2 |= HWCAP2_RING3MWAIT;
 }
 
 static void early_init_intel(struct cpuinfo_x86 *c)
@@ -119,8 +161,10 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 	if (c->x86_power & (1 << 8)) {
 		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 		set_cpu_cap(c, X86_FEATURE_NONSTOP_TSC);
-		if (!check_tsc_unstable())
-			set_sched_clock_stable();
+		if (check_tsc_unstable())
+			clear_sched_clock_stable();
+	} else {
+		clear_sched_clock_stable();
 	}
 
 	/* Penwell and Cloverview have the TSC which doesn't sleep on S3 */
@@ -560,6 +604,8 @@ static void init_intel(struct cpuinfo_x86 *c)
 		detect_vmx_virtcap(c);
 
 	init_intel_energy_perf(c);
+
+	probe_xeon_phi_r3mwait(c);
 }
 
 #ifdef CONFIG_X86_32

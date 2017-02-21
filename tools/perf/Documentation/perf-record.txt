@@ -421,9 +421,19 @@ Configure all used events to run in user space.
 --timestamp-filename
 Append timestamp to output file name.
 
---switch-output::
+--switch-output[=mode]::
 Generate multiple perf.data files, timestamp prefixed, switching to a new one
-when receiving a SIGUSR2.
+based on 'mode' value:
+  "signal" - when receiving a SIGUSR2 (default value) or
+  <size>   - when reaching the size threshold, size is expected to
+             be a number with appended unit character - B/K/M/G
+  <time>   - when reaching the time threshold, size is expected to
+             be a number with appended unit character - s/m/h/d
+
+             Note: the precision of  the size  threshold  hugely depends
+             on your configuration  - the number and size of  your  ring
+             buffers (-m). It is generally more precise for higher sizes
+             (like >5M), for lower values expect different sizes.
 
 A possible use case is to, given an external event, slice the perf.data file
 that gets then processed, possibly via a perf script, to decide if that

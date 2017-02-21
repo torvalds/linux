@@ -1210,14 +1210,14 @@ continue_locked:
 		spin_unlock_irq(&cc->write_thread_wait.lock);
 
 		if (unlikely(kthread_should_stop())) {
-			set_task_state(current, TASK_RUNNING);
+			set_current_state(TASK_RUNNING);
 			remove_wait_queue(&cc->write_thread_wait, &wait);
 			break;
 		}
 
 		schedule();
 
-		set_task_state(current, TASK_RUNNING);
+		set_current_state(TASK_RUNNING);
 		spin_lock_irq(&cc->write_thread_wait.lock);
 		__remove_wait_queue(&cc->write_thread_wait, &wait);
 		goto continue_locked;

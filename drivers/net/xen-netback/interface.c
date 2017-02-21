@@ -221,10 +221,10 @@ static struct net_device_stats *xenvif_get_stats(struct net_device *dev)
 {
 	struct xenvif *vif = netdev_priv(dev);
 	struct xenvif_queue *queue = NULL;
-	unsigned long rx_bytes = 0;
-	unsigned long rx_packets = 0;
-	unsigned long tx_bytes = 0;
-	unsigned long tx_packets = 0;
+	u64 rx_bytes = 0;
+	u64 rx_packets = 0;
+	u64 tx_bytes = 0;
+	u64 tx_packets = 0;
 	unsigned int index;
 
 	spin_lock(&vif->lock);

@@ -770,7 +770,7 @@ static void virtblk_remove(struct virtio_device *vdev)
 	/* Stop all the virtqueues. */
 	vdev->config->reset(vdev);
 
-	refc = atomic_read(&disk_to_dev(vblk->disk)->kobj.kref.refcount);
+	refc = kref_read(&disk_to_dev(vblk->disk)->kobj.kref);
 	put_disk(vblk->disk);
 	vdev->config->del_vqs(vdev);
 	kfree(vblk->vqs);

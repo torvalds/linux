@@ -9,6 +9,7 @@
 #include <linux/irq_work.h>
 
 int sched_rr_timeslice = RR_TIMESLICE;
+int sysctl_sched_rr_timeslice = (MSEC_PER_SEC / HZ) * RR_TIMESLICE;
 
 static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun);
 
@@ -1523,7 +1524,7 @@ static struct task_struct *_pick_next_task_rt(struct rq *rq)
 }
 
 static struct task_struct *
-pick_next_task_rt(struct rq *rq, struct task_struct *prev, struct pin_cookie cookie)
+pick_next_task_rt(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 {
 	struct task_struct *p;
 	struct rt_rq *rt_rq = &rq->rt;
@@ -1535,9 +1536,9 @@ pick_next_task_rt(struct rq *rq, struct task_struct *prev, struct pin_cookie coo
 		 * disabled avoiding further scheduler activity on it and we're
 		 * being very careful to re-start the picking loop.
 		 */
-		lockdep_unpin_lock(&rq->lock, cookie);
+		rq_unpin_lock(rq, rf);
 		pull_rt_task(rq);
-		lockdep_repin_lock(&rq->lock, cookie);
+		rq_repin_lock(rq, rf);
 		/*
 		 * pull_rt_task() can drop (and re-acquire) rq->lock; this
 		 * means a dl or stop task can slip in, in which case we need
@@ -2198,10 +2199,9 @@ static void switched_to_rt(struct rq *rq, struct task_struct *p)
 #ifdef CONFIG_SMP
 		if (tsk_nr_cpus_allowed(p) > 1 && rq->rt.overloaded)
 			queue_push_tasks(rq);
-#else
+#endif /* CONFIG_SMP */
 		if (p->prio < rq->curr->prio)
 			resched_curr(rq);
-#endif /* CONFIG_SMP */
 	}
 }
 
@@ -2246,6 +2246,7 @@ prio_changed_rt(struct rq *rq, struct task_struct *p, int oldprio)
 	}
 }
 
+#ifdef CONFIG_POSIX_TIMERS
 static void watchdog(struct rq *rq, struct task_struct *p)
 {
 	unsigned long soft, hard;
@@ -2267,6 +2268,9 @@ static void watchdog(struct rq *rq, struct task_struct *p)
 			p->cputime_expires.sched_exp = p->se.sum_exec_runtime;
 	}
 }
+#else
+static inline void watchdog(struct rq *rq, struct task_struct *p) { }
+#endif
 
 static void task_tick_rt(struct rq *rq, struct task_struct *p, int queued)
 {

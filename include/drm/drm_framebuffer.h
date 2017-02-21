@@ -247,7 +247,7 @@ static inline void drm_framebuffer_unreference(struct drm_framebuffer *fb)
  */
 static inline uint32_t drm_framebuffer_read_refcount(struct drm_framebuffer *fb)
 {
-	return atomic_read(&fb->base.refcount.refcount);
+	return kref_read(&fb->base.refcount);
 }
 
 /**

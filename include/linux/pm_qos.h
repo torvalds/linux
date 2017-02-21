@@ -6,7 +6,6 @@
  */
 #include <linux/plist.h>
 #include <linux/notifier.h>
-#include <linux/miscdevice.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
 

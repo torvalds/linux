@@ -438,7 +438,7 @@ static void ceph_osdc_release_request(struct kref *kref)
 void ceph_osdc_get_request(struct ceph_osd_request *req)
 {
 	dout("%s %p (was %d)\n", __func__, req,
-	     atomic_read(&req->r_kref.refcount));
+	     kref_read(&req->r_kref));
 	kref_get(&req->r_kref);
 }
 EXPORT_SYMBOL(ceph_osdc_get_request);
@@ -447,7 +447,7 @@ void ceph_osdc_put_request(struct ceph_osd_request *req)
 {
 	if (req) {
 		dout("%s %p (was %d)\n", __func__, req,
-		     atomic_read(&req->r_kref.refcount));
+		     kref_read(&req->r_kref));
 		kref_put(&req->r_kref, ceph_osdc_release_request);
 	}
 }
@@ -487,11 +487,11 @@ static void request_reinit(struct ceph_osd_request *req)
 	struct ceph_msg *reply_msg = req->r_reply;
 
 	dout("%s req %p\n", __func__, req);
-	WARN_ON(atomic_read(&req->r_kref.refcount) != 1);
+	WARN_ON(kref_read(&req->r_kref) != 1);
 	request_release_checks(req);
 
-	WARN_ON(atomic_read(&request_msg->kref.refcount) != 1);
-	WARN_ON(atomic_read(&reply_msg->kref.refcount) != 1);
+	WARN_ON(kref_read(&request_msg->kref) != 1);
+	WARN_ON(kref_read(&reply_msg->kref) != 1);
 	target_destroy(&req->r_t);
 
 	request_init(req);

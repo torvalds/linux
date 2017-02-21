@@ -1070,7 +1070,7 @@ config X86_MCE_THRESHOLD
 	def_bool y
 
 config X86_MCE_INJECT
-	depends on X86_MCE
+	depends on X86_MCE && X86_LOCAL_APIC
 	tristate "Machine check injector support"
 	---help---
 	  Provide support for injecting machine checks for testing purposes.
@@ -1993,10 +1993,6 @@ config RANDOMIZE_BASE
 	  minimum of 2MB. As a result, only 10 bits of entropy are
 	  theoretically possible, but the implementations are further
 	  limited due to memory layouts.
-
-	  If CONFIG_HIBERNATE is also enabled, KASLR is disabled at boot
-	  time. To enable it, boot with "kaslr" on the kernel command
-	  line (which will also disable hibernation).
 
 	  If unsure, say N.
 

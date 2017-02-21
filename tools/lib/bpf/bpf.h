@@ -22,6 +22,7 @@
 #define __BPF_BPF_H
 
 #include <linux/bpf.h>
+#include <stddef.h>
 
 int bpf_create_map(enum bpf_map_type map_type, int key_size, int value_size,
 		   int max_entries, __u32 map_flags);
@@ -41,7 +42,8 @@ int bpf_map_delete_elem(int fd, void *key);
 int bpf_map_get_next_key(int fd, void *key, void *next_key);
 int bpf_obj_pin(int fd, const char *pathname);
 int bpf_obj_get(const char *pathname);
-int bpf_prog_attach(int prog_fd, int attachable_fd, enum bpf_attach_type type);
+int bpf_prog_attach(int prog_fd, int attachable_fd, enum bpf_attach_type type,
+		    unsigned int flags);
 int bpf_prog_detach(int attachable_fd, enum bpf_attach_type type);
 
 
