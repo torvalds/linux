@@ -141,7 +141,7 @@ struct visornic_devdata {
 	struct uiscmdrsp cmdrsp[SIZEOF_CMDRSP];
 };
 
-/**
+/*
  *	visor_copy_fragsinfo_from_skb(
  *	@skb_in: skbuff that we are pulling the frags from
  *	@firstfraglen: length of first fragment in skb
@@ -250,7 +250,7 @@ static const struct file_operations debugfs_enable_ints_fops = {
 	.write = enable_ints_write,
 };
 
-/**
+/*
  *	visornic_serverdown_complete - IOPART went down, pause device
  *	@work: Work queue it was scheduled on
  *
@@ -285,7 +285,7 @@ visornic_serverdown_complete(struct visornic_devdata *devdata)
 	devdata->server_down_complete_func = NULL;
 }
 
-/**
+/*
  *	visornic_serverdown - Command has notified us that IOPART is down
  *	@devdata: device that is being managed by IOPART
  *
@@ -332,7 +332,7 @@ err_unlock:
 	return err;
 }
 
-/**
+/*
  *	alloc_rcv_buf	- alloc rcv buffer to be given to the IO Partition.
  *	@netdev: network adapter the rcv bufs are attached too.
  *
@@ -363,7 +363,7 @@ alloc_rcv_buf(struct net_device *netdev)
 	return skb;
 }
 
-/**
+/*
  *	post_skb	- post a skb to the IO Partition.
  *	@cmdrsp: cmdrsp packet to be send to the IO Partition
  *	@devdata: visornic_devdata to post the skb too
@@ -397,7 +397,7 @@ post_skb(struct uiscmdrsp *cmdrsp,
 	}
 }
 
-/**
+/*
  *	send_enbdis	- send NET_RCV_ENBDIS to IO Partition
  *	@netdev: netdevice we are enable/disable, used as context
  *		 return value
@@ -421,7 +421,7 @@ send_enbdis(struct net_device *netdev, int state,
 		devdata->chstat.sent_enbdis++;
 }
 
-/**
+/*
  *	visornic_disable_with_timeout - Disable network adapter
  *	@netdev: netdevice to disable
  *	@timeout: timeout to wait for disable
@@ -507,7 +507,7 @@ visornic_disable_with_timeout(struct net_device *netdev, const int timeout)
 	return 0;
 }
 
-/**
+/*
  *	init_rcv_bufs  -- initialize receive bufs and send them to the IO Part
  *	@netdev: struct netdevice
  *	@devdata: visornic_devdata
@@ -554,7 +554,7 @@ init_rcv_bufs(struct net_device *netdev, struct visornic_devdata *devdata)
 	return 0;
 }
 
-/**
+/*
  *	visornic_enable_with_timeout	- send enable to IO Part
  *	@netdev: struct net_device
  *	@timeout: Time to wait for the ACK from the enable
@@ -626,7 +626,7 @@ visornic_enable_with_timeout(struct net_device *netdev, const int timeout)
 	return 0;
 }
 
-/**
+/*
  *	visornic_timeout_reset	- handle xmit timeout resets
  *	@work	work item that scheduled the work
  *
@@ -669,7 +669,7 @@ call_serverdown:
 	rtnl_unlock();
 }
 
-/**
+/*
  *	visornic_open - Enable the visornic device and mark the queue started
  *	@netdev: netdevice to start
  *
@@ -684,7 +684,7 @@ visornic_open(struct net_device *netdev)
 	return 0;
 }
 
-/**
+/*
  *	visornic_close - Disables the visornic device and stops the queues
  *	@netdev: netdevice to start
  *
@@ -699,7 +699,7 @@ visornic_close(struct net_device *netdev)
 	return 0;
 }
 
-/**
+/*
  *	devdata_xmits_outstanding - compute outstanding xmits
  *	@devdata: visornic_devdata for device
  *
@@ -714,7 +714,7 @@ static unsigned long devdata_xmits_outstanding(struct visornic_devdata *devdata)
 		+ devdata->chstat.sent_xmit + 1);
 }
 
-/**
+/*
  *	vnic_hit_high_watermark
  *	@devdata: indicates visornic device we are checking
  *	@high_watermark: max num of unacked xmits we will tolerate,
@@ -729,7 +729,7 @@ static inline bool vnic_hit_high_watermark(struct visornic_devdata *devdata,
 	return (devdata_xmits_outstanding(devdata) >= high_watermark);
 }
 
-/**
+/*
  *	vnic_hit_low_watermark
  *	@devdata: indicates visornic device we are checking
  *	@low_watermark: we will wait until the num of unacked xmits
@@ -745,7 +745,7 @@ static inline bool vnic_hit_low_watermark(struct visornic_devdata *devdata,
 	return (devdata_xmits_outstanding(devdata) <= low_watermark);
 }
 
-/**
+/*
  *	visornic_xmit - send a packet to the IO Partition
  *	@skb: Packet to be sent
  *	@netdev: net device the packet is being sent from
@@ -916,7 +916,7 @@ visornic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	return NETDEV_TX_OK;
 }
 
-/**
+/*
  *	visornic_get_stats - returns net_stats of the visornic device
  *	@netdev: netdevice
  *
@@ -930,7 +930,7 @@ visornic_get_stats(struct net_device *netdev)
 	return &devdata->net_stats;
 }
 
-/**
+/*
  *	visornic_change_mtu - changes mtu of device.
  *	@netdev: netdevice
  *	@new_mtu: value of new mtu
@@ -947,7 +947,7 @@ visornic_change_mtu(struct net_device *netdev, int new_mtu)
 	return -EINVAL;
 }
 
-/**
+/*
  *	visornic_set_multi - changes mtu of device.
  *	@netdev: netdevice
  *
@@ -984,7 +984,7 @@ out_save_flags:
 	devdata->old_flags = netdev->flags;
 }
 
-/**
+/*
  *	visornic_xmit_timeout - request to timeout the xmit
  *	@netdev
  *
@@ -1019,7 +1019,7 @@ visornic_xmit_timeout(struct net_device *netdev)
 	spin_unlock_irqrestore(&devdata->priv_lock, flags);
 }
 
-/**
+/*
  *	repost_return	- repost rcv bufs that have come back
  *	@cmdrsp: io channel command struct to post
  *	@devdata: visornic devdata for the device
@@ -1091,7 +1091,7 @@ repost_return(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata,
 	return status;
 }
 
-/**
+/*
  *	visornic_rx - Handle receive packets coming back from IO Part
  *	@cmdrsp: Receive packet returned from IO Part
  *
@@ -1293,7 +1293,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 	return 1;
 }
 
-/**
+/*
  *	devdata_initialize	- Initialize devdata structure
  *	@devdata: visornic_devdata structure to initialize
  *	#dev: visorbus_deviced it belongs to
@@ -1310,7 +1310,7 @@ devdata_initialize(struct visornic_devdata *devdata, struct visor_device *dev)
 	return devdata;
 }
 
-/**
+/*
  *	devdata_release	- Frees up references in devdata
  *	@devdata: struct to clean up
  *
@@ -1487,7 +1487,7 @@ static const struct file_operations debugfs_info_fops = {
 	.read = info_debugfs_read,
 };
 
-/**
+/*
  *	send_rcv_posts_if_needed
  *	@devdata: visornic device
  *
@@ -1530,7 +1530,7 @@ send_rcv_posts_if_needed(struct visornic_devdata *devdata)
 	devdata->num_rcv_bufs_could_not_alloc -= rcv_bufs_allocated;
 }
 
-/**
+/*
  *	drain_resp_queue  - drains and ignores all messages from the resp queue
  *	@cmdrsp: io channel command response message
  *	@devdata: visornic device to drain
@@ -1544,7 +1544,7 @@ drain_resp_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata)
 		;
 }
 
-/**
+/*
  *	service_resp_queue	- drains the response queue
  *	@cmdrsp: io channel command response message
  *	@devdata: visornic device to drain
@@ -1661,7 +1661,7 @@ static int visornic_poll(struct napi_struct *napi, int budget)
 	return rx_count;
 }
 
-/**
+/*
  *	poll_for_irq	- Checks the status of the response queue.
  *	@v: void pointer to the visronic devdata
  *
@@ -1684,7 +1684,7 @@ poll_for_irq(unsigned long v)
 	mod_timer(&devdata->irq_poll_timer, msecs_to_jiffies(2));
 }
 
-/**
+/*
  *	visornic_probe	- probe function for visornic devices
  *	@dev: The visor device discovered
  *
@@ -1881,7 +1881,7 @@ cleanup_netdev:
 	return err;
 }
 
-/**
+/*
  *	host_side_disappeared	- IO part is gone.
  *	@devdata: device object
  *
@@ -1897,7 +1897,7 @@ static void host_side_disappeared(struct visornic_devdata *devdata)
 	spin_unlock_irqrestore(&devdata->priv_lock, flags);
 }
 
-/**
+/*
  *	visornic_remove		- Called when visornic dev goes away
  *	@dev: visornic device that is being removed
  *
@@ -1944,7 +1944,7 @@ static void visornic_remove(struct visor_device *dev)
 	free_netdev(netdev);
 }
 
-/**
+/*
  *	visornic_pause		- Called when IO Part disappears
  *	@dev: visornic device that is being serviced
  *	@complete_func: call when finished.
@@ -1966,7 +1966,7 @@ static int visornic_pause(struct visor_device *dev,
 	return 0;
 }
 
-/**
+/*
  *	visornic_resume		- Called when IO part has recovered
  *	@dev: visornic device that is being serviced
  *	@compelte_func: call when finished
@@ -2036,7 +2036,7 @@ static struct visor_driver visornic_driver = {
 	.channel_interrupt = NULL,
 };
 
-/**
+/*
  *	visornic_init	- Init function
  *
  *	Init function for the visornic driver. Do initial driver setup
@@ -2073,7 +2073,7 @@ cleanup_debugfs:
 	return err;
 }
 
-/**
+/*
  *	visornic_cleanup	- driver exit routine
  *
  *	Unregister driver from the bus and free up memory.
