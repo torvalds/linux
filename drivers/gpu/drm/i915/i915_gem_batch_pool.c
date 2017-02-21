@@ -122,9 +122,9 @@ i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 
 		if (tmp->base.size >= size) {
 			/* Clear the set of shared fences early */
-			ww_mutex_lock(&tmp->resv->lock, NULL);
+			reservation_object_lock(tmp->resv, NULL);
 			reservation_object_add_excl_fence(tmp->resv, NULL);
-			ww_mutex_unlock(&tmp->resv->lock);
+			reservation_object_unlock(tmp->resv);
 
 			obj = tmp;
 			break;

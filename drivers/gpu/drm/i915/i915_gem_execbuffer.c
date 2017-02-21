@@ -1301,12 +1301,12 @@ static void eb_export_fence(struct drm_i915_gem_object *obj,
 	 * handle an error right now. Worst case should be missed
 	 * synchronisation leading to rendering corruption.
 	 */
-	ww_mutex_lock(&resv->lock, NULL);
+	reservation_object_lock(resv, NULL);
 	if (flags & EXEC_OBJECT_WRITE)
 		reservation_object_add_excl_fence(resv, &req->fence);
 	else if (reservation_object_reserve_shared(resv) == 0)
 		reservation_object_add_shared_fence(resv, &req->fence);
-	ww_mutex_unlock(&resv->lock);
+	reservation_object_unlock(resv);
 }
 
 static void
