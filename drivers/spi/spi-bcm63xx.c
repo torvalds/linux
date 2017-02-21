@@ -429,7 +429,7 @@ static irqreturn_t bcm63xx_spi_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static size_t bcm63xx_spi_max_length(struct spi_device *dev)
+static size_t bcm63xx_spi_max_length(struct spi_device *spi)
 {
 	struct bcm63xx_spi *bs = spi_master_get_devdata(spi->master);
 
