@@ -33,6 +33,8 @@ Optional properties:
  - snps,tx_de_emphasis_quirk: when set core will set Tx de-emphasis value.
  - snps,tx_de_emphasis: the value driven to the PHY is controlled by the
 			LTSSM during USB3 Compliance mode.
+ - snps,dis-u3-autosuspend-quirk: when set USB core driver will disable
+			USB3 autosuspend function.
  - snps,dis_u3_susphy_quirk: when set core will disable USB3 suspend phy.
  - snps,dis_u2_susphy_quirk: when set core will disable USB2 suspend phy.
  - snps,dis_enblslpm_quirk: when set clears the enblslpm in GUSB2PHYCFG,

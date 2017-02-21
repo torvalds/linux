@@ -91,6 +91,7 @@ int dwc3_host_init(struct dwc3 *dwc)
 
 	memset(&pdata, 0, sizeof(pdata));
 
+	pdata.usb3_disable_autosuspend = dwc->dis_u3_autosuspend_quirk;
 	pdata.usb3_lpm_capable = dwc->usb3_lpm_capable;
 	pdata.xhci_slow_suspend = dwc->xhci_slow_suspend_quirk;
 

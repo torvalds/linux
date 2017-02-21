@@ -967,6 +967,8 @@ static int dwc3_probe(struct platform_device *pdev)
 				"snps,lfps_filter_quirk");
 	dwc->rx_detect_poll_quirk = device_property_read_bool(dev,
 				"snps,rx_detect_poll_quirk");
+	dwc->dis_u3_autosuspend_quirk = device_property_read_bool(dev,
+				"snps,dis-u3-autosuspend-quirk");
 	dwc->dis_u3_susphy_quirk = device_property_read_bool(dev,
 				"snps,dis_u3_susphy_quirk");
 	dwc->dis_u2_susphy_quirk = device_property_read_bool(dev,
