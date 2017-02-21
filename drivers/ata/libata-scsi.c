@@ -1265,13 +1265,13 @@ static void ata_scsi_sdev_config(struct scsi_device *sdev)
  */
 static int atapi_drain_needed(struct request *rq)
 {
-	if (likely(rq->cmd_type != REQ_TYPE_BLOCK_PC))
+	if (likely(!blk_rq_is_passthrough(rq)))
 		return 0;
 
 	if (!blk_rq_bytes(rq) || op_is_write(req_op(rq)))
 		return 0;
 
-	return atapi_cmd_type(rq->cmd[0]) == ATAPI_MISC;
+	return atapi_cmd_type(scsi_req(rq)->cmd[0]) == ATAPI_MISC;
 }
 
 static int ata_scsi_dev_config(struct scsi_device *sdev,

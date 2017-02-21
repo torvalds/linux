@@ -781,7 +781,7 @@ static int sd_setup_discard_cmnd(struct scsi_cmnd *cmd)
 	rq->special_vec.bv_len = len;
 
 	rq->rq_flags |= RQF_SPECIAL_PAYLOAD;
-	rq->resid_len = len;
+	scsi_req(rq)->resid_len = len;
 
 	ret = scsi_init_io(cmd);
 out:
@@ -1179,7 +1179,7 @@ static void sd_uninit_command(struct scsi_cmnd *SCpnt)
 	if (rq->rq_flags & RQF_SPECIAL_PAYLOAD)
 		__free_page(rq->special_vec.bv_page);
 
-	if (SCpnt->cmnd != rq->cmd) {
+	if (SCpnt->cmnd != scsi_req(rq)->cmd) {
 		mempool_free(SCpnt->cmnd, sd_cdb_pool);
 		SCpnt->cmnd = NULL;
 		SCpnt->cmd_len = 0;
@@ -1749,9 +1749,6 @@ static unsigned int sd_completed_bytes(struct scsi_cmnd *scmd)
 	 */
 	unsigned int transferred = scsi_bufflen(scmd) - scsi_get_resid(scmd);
 	unsigned int good_bytes;
-
-	if (scmd->request->cmd_type != REQ_TYPE_FS)
-		return 0;
 
 	info_valid = scsi_get_sense_info_fld(scmd->sense_buffer,
 					     SCSI_SENSE_BUFFERSIZE,
@@ -3082,6 +3079,23 @@ static void sd_probe_async(void *data, async_cookie_t cookie)
 	put_device(&sdkp->dev);
 }
 
+struct sd_devt {
+	int idx;
+	struct disk_devt disk_devt;
+};
+
+void sd_devt_release(struct disk_devt *disk_devt)
+{
+	struct sd_devt *sd_devt = container_of(disk_devt, struct sd_devt,
+			disk_devt);
+
+	spin_lock(&sd_index_lock);
+	ida_remove(&sd_index_ida, sd_devt->idx);
+	spin_unlock(&sd_index_lock);
+
+	kfree(sd_devt);
+}
+
 /**
  *	sd_probe - called during driver initialization and whenever a
  *	new scsi device is attached to the system. It is called once
@@ -3103,6 +3117,7 @@ static void sd_probe_async(void *data, async_cookie_t cookie)
 static int sd_probe(struct device *dev)
 {
 	struct scsi_device *sdp = to_scsi_device(dev);
+	struct sd_devt *sd_devt;
 	struct scsi_disk *sdkp;
 	struct gendisk *gd;
 	int index;
@@ -3128,9 +3143,13 @@ static int sd_probe(struct device *dev)
 	if (!sdkp)
 		goto out;
 
+	sd_devt = kzalloc(sizeof(*sd_devt), GFP_KERNEL);
+	if (!sd_devt)
+		goto out_free;
+
 	gd = alloc_disk(SD_MINORS);
 	if (!gd)
-		goto out_free;
+		goto out_free_devt;
 
 	do {
 		if (!ida_pre_get(&sd_index_ida, GFP_KERNEL))
@@ -3145,6 +3164,11 @@ static int sd_probe(struct device *dev)
 		sdev_printk(KERN_WARNING, sdp, "sd_probe: memory exhausted.\n");
 		goto out_put;
 	}
+
+	atomic_set(&sd_devt->disk_devt.count, 1);
+	sd_devt->disk_devt.release = sd_devt_release;
+	sd_devt->idx = index;
+	gd->disk_devt = &sd_devt->disk_devt;
 
 	error = sd_format_disk_name("sd", index, gd->disk_name, DISK_NAME_LEN);
 	if (error) {
@@ -3185,13 +3209,14 @@ static int sd_probe(struct device *dev)
 	return 0;
 
  out_free_index:
-	spin_lock(&sd_index_lock);
-	ida_remove(&sd_index_ida, index);
-	spin_unlock(&sd_index_lock);
+	put_disk_devt(&sd_devt->disk_devt);
+	sd_devt = NULL;
  out_put:
 	put_disk(gd);
  out_free:
 	kfree(sdkp);
+ out_free_devt:
+	kfree(sd_devt);
  out:
 	scsi_autopm_put_device(sdp);
 	return error;
@@ -3250,10 +3275,7 @@ static void scsi_disk_release(struct device *dev)
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 	struct gendisk *disk = sdkp->disk;
 	
-	spin_lock(&sd_index_lock);
-	ida_remove(&sd_index_ida, sdkp->index);
-	spin_unlock(&sd_index_lock);
-
+	put_disk_devt(disk->disk_devt);
 	disk->private_data = NULL;
 	put_disk(disk);
 	put_device(&sdkp->device->sdev_gendev);

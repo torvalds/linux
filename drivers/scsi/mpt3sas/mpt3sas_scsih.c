@@ -4723,7 +4723,7 @@ _scsih_io_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 	 * then scsi-ml does not need to handle this misbehavior.
 	 */
 	sector_sz = scmd->device->sector_size;
-	if (unlikely(scmd->request->cmd_type == REQ_TYPE_FS && sector_sz &&
+	if (unlikely(!blk_rq_is_passthrough(scmd->request) && sector_sz &&
 		     xfer_cnt % sector_sz)) {
 		sdev_printk(KERN_INFO, scmd->device,
 		    "unaligned partial completion avoided (xfer_cnt=%u, sector_sz=%u)\n",

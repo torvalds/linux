@@ -91,7 +91,6 @@ static int dm_numa_node = DM_NUMA_NODE;
  */
 struct dm_md_mempools {
 	mempool_t *io_pool;
-	mempool_t *rq_pool;
 	struct bio_set *bs;
 };
 
@@ -466,13 +465,16 @@ static int dm_blk_ioctl(struct block_device *bdev, fmode_t mode,
 
 	if (r > 0) {
 		/*
-		 * Target determined this ioctl is being issued against
-		 * a logical partition of the parent bdev; so extra
-		 * validation is needed.
+		 * Target determined this ioctl is being issued against a
+		 * subset of the parent bdev; require extra privileges.
 		 */
-		r = scsi_verify_blk_ioctl(NULL, cmd);
-		if (r)
+		if (!capable(CAP_SYS_RAWIO)) {
+			DMWARN_LIMIT(
+	"%s: sending ioctl %x to DM device without required privilege.",
+				current->comm, cmd);
+			r = -ENOIOCTLCMD;
 			goto out;
+		}
 	}
 
 	r =  __blkdev_driver_ioctl(bdev, mode, cmd, arg);
@@ -1314,7 +1316,7 @@ static int dm_any_congested(void *congested_data, int bdi_bits)
 			 * With request-based DM we only need to check the
 			 * top-level queue for congestion.
 			 */
-			r = md->queue->backing_dev_info.wb.state & bdi_bits;
+			r = md->queue->backing_dev_info->wb.state & bdi_bits;
 		} else {
 			map = dm_get_live_table_fast(md);
 			if (map)
@@ -1397,7 +1399,7 @@ void dm_init_md_queue(struct mapped_device *md)
 	 * - must do so here (in alloc_dev callchain) before queue is used
 	 */
 	md->queue->queuedata = md;
-	md->queue->backing_dev_info.congested_data = md;
+	md->queue->backing_dev_info->congested_data = md;
 }
 
 void dm_init_normal_md_queue(struct mapped_device *md)
@@ -1408,7 +1410,7 @@ void dm_init_normal_md_queue(struct mapped_device *md)
 	/*
 	 * Initialize aspects of queue that aren't relevant for blk-mq
 	 */
-	md->queue->backing_dev_info.congested_fn = dm_any_congested;
+	md->queue->backing_dev_info->congested_fn = dm_any_congested;
 	blk_queue_bounce_limit(md->queue, BLK_BOUNCE_ANY);
 }
 
@@ -1419,7 +1421,6 @@ static void cleanup_mapped_device(struct mapped_device *md)
 	if (md->kworker_task)
 		kthread_stop(md->kworker_task);
 	mempool_destroy(md->io_pool);
-	mempool_destroy(md->rq_pool);
 	if (md->bs)
 		bioset_free(md->bs);
 
@@ -1595,12 +1596,10 @@ static void __bind_mempools(struct mapped_device *md, struct dm_table *t)
 		goto out;
 	}
 
-	BUG_ON(!p || md->io_pool || md->rq_pool || md->bs);
+	BUG_ON(!p || md->io_pool || md->bs);
 
 	md->io_pool = p->io_pool;
 	p->io_pool = NULL;
-	md->rq_pool = p->rq_pool;
-	p->rq_pool = NULL;
 	md->bs = p->bs;
 	p->bs = NULL;
 
@@ -1777,7 +1776,7 @@ int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t)
 
 	switch (type) {
 	case DM_TYPE_REQUEST_BASED:
-		r = dm_old_init_request_queue(md);
+		r = dm_old_init_request_queue(md, t);
 		if (r) {
 			DMERR("Cannot initialize queue for request-based mapped device");
 			return r;
@@ -2493,7 +2492,6 @@ struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, unsigned t
 					    unsigned integrity, unsigned per_io_data_size)
 {
 	struct dm_md_mempools *pools = kzalloc_node(sizeof(*pools), GFP_KERNEL, md->numa_node_id);
-	struct kmem_cache *cachep = NULL;
 	unsigned int pool_size = 0;
 	unsigned int front_pad;
 
@@ -2503,31 +2501,21 @@ struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, unsigned t
 	switch (type) {
 	case DM_TYPE_BIO_BASED:
 	case DM_TYPE_DAX_BIO_BASED:
-		cachep = _io_cache;
 		pool_size = dm_get_reserved_bio_based_ios();
 		front_pad = roundup(per_io_data_size, __alignof__(struct dm_target_io)) + offsetof(struct dm_target_io, clone);
+	
+		pools->io_pool = mempool_create_slab_pool(pool_size, _io_cache);
+		if (!pools->io_pool)
+			goto out;
 		break;
 	case DM_TYPE_REQUEST_BASED:
-		cachep = _rq_tio_cache;
-		pool_size = dm_get_reserved_rq_based_ios();
-		pools->rq_pool = mempool_create_slab_pool(pool_size, _rq_cache);
-		if (!pools->rq_pool)
-			goto out;
-		/* fall through to setup remaining rq-based pools */
 	case DM_TYPE_MQ_REQUEST_BASED:
-		if (!pool_size)
-			pool_size = dm_get_reserved_rq_based_ios();
+		pool_size = dm_get_reserved_rq_based_ios();
 		front_pad = offsetof(struct dm_rq_clone_bio_info, clone);
 		/* per_io_data_size is used for blk-mq pdu at queue allocation */
 		break;
 	default:
 		BUG();
-	}
-
-	if (cachep) {
-		pools->io_pool = mempool_create_slab_pool(pool_size, cachep);
-		if (!pools->io_pool)
-			goto out;
 	}
 
 	pools->bs = bioset_create_nobvec(pool_size, front_pad);
@@ -2551,7 +2539,6 @@ void dm_free_md_mempools(struct dm_md_mempools *pools)
 		return;
 
 	mempool_destroy(pools->io_pool);
-	mempool_destroy(pools->rq_pool);
 
 	if (pools->bs)
 		bioset_free(pools->bs);

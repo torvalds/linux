@@ -5539,8 +5539,8 @@ static int hpsa_scsi_queue_command(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 	 * Retries always go down the normal I/O path.
 	 */
 	if (likely(cmd->retries == 0 &&
-		cmd->request->cmd_type == REQ_TYPE_FS &&
-		h->acciopath_status)) {
+			!blk_rq_is_passthrough(cmd->request) &&
+			h->acciopath_status)) {
 		rc = hpsa_ioaccel_submit(h, c, cmd, scsi3addr);
 		if (rc == 0)
 			return 0;

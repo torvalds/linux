@@ -117,7 +117,7 @@ static void zram_revalidate_disk(struct zram *zram)
 {
 	revalidate_disk(zram->disk);
 	/* revalidate_disk reset the BDI_CAP_STABLE_WRITES so set again */
-	zram->disk->queue->backing_dev_info.capabilities |=
+	zram->disk->queue->backing_dev_info->capabilities |=
 		BDI_CAP_STABLE_WRITES;
 }
 
