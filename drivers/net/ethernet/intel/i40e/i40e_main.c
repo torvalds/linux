@@ -4101,8 +4101,6 @@ static int i40e_vsi_control_tx(struct i40e_vsi *vsi, bool enable)
 		}
 	}
 
-	if (hw->revision_id == 0)
-		mdelay(50);
 	return ret;
 }
 
