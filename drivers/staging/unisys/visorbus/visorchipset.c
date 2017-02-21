@@ -20,7 +20,6 @@
 #include <linux/mm.h>
 #include <linux/nls.h>
 #include <linux/netdevice.h>
-#include <linux/platform_device.h>
 #include <linux/uuid.h>
 #include <linux/crash_dump.h>
 
@@ -1175,18 +1174,6 @@ static const struct attribute_group *visorchipset_dev_groups[] = {
 	NULL
 };
 
-static void visorchipset_dev_release(struct device *dev)
-{
-}
-
-/* /sys/devices/platform/visorchipset */
-static struct platform_device visorchipset_platform_device = {
-	.name = "visorchipset",
-	.id = -1,
-	.dev.groups = visorchipset_dev_groups,
-	.dev.release = visorchipset_dev_release,
-};
-
 /*
  * parahotplug_request_kickoff() - initiate parahotplug request
  * @req: the request to initiate
@@ -1215,7 +1202,7 @@ parahotplug_request_kickoff(struct parahotplug_request *req)
 	sprintf(env_func, "SPAR_PARAHOTPLUG_FUNCTION=%d",
 		cmd->device_change_state.dev_no & 0x7);
 
-	kobject_uevent_env(&visorchipset_platform_device.dev.kobj, KOBJ_CHANGE,
+	kobject_uevent_env(&chipset_dev->acpi_device->dev.kobj, KOBJ_CHANGE,
 			   envp);
 }
 
@@ -1277,7 +1264,7 @@ parahotplug_process_message(struct controlvm_message *inmsg)
 static int
 chipset_ready_uevent(struct controlvm_message_header *msg_hdr)
 {
-	kobject_uevent(&visorchipset_platform_device.dev.kobj, KOBJ_ONLINE);
+	kobject_uevent(&chipset_dev->acpi_device->dev.kobj, KOBJ_ONLINE);
 
 	if (msg_hdr->flags.response_expected)
 		return controlvm_respond(msg_hdr, CONTROLVM_RESP_SUCCESS);
@@ -1299,7 +1286,7 @@ chipset_selftest_uevent(struct controlvm_message_header *msg_hdr)
 	char *envp[] = { env_selftest, NULL };
 
 	sprintf(env_selftest, "SPARSP_SELFTEST=%d", 1);
-	kobject_uevent_env(&visorchipset_platform_device.dev.kobj, KOBJ_CHANGE,
+	kobject_uevent_env(&chipset_dev->acpi_device->dev.kobj, KOBJ_CHANGE,
 			   envp);
 
 	if (msg_hdr->flags.response_expected)
@@ -1318,7 +1305,7 @@ chipset_selftest_uevent(struct controlvm_message_header *msg_hdr)
 static int
 chipset_notready_uevent(struct controlvm_message_header *msg_hdr)
 {
-	kobject_uevent(&visorchipset_platform_device.dev.kobj, KOBJ_OFFLINE);
+	kobject_uevent(&chipset_dev->acpi_device->dev.kobj, KOBJ_OFFLINE);
 
 	if (msg_hdr->flags.response_expected)
 		return controlvm_respond(msg_hdr, CONTROLVM_RESP_SUCCESS);
@@ -1846,9 +1833,15 @@ visorchipset_init(struct acpi_device *acpi_device)
 		goto error_free_chipset_dev;
 
 	chipset_dev->controlvm_channel = controlvm_channel;
+
+	err = sysfs_create_groups(&chipset_dev->acpi_device->dev.kobj,
+				  visorchipset_dev_groups);
+	if (err < 0)
+		goto error_destroy_channel;
+
 	if (!SPAR_CONTROLVM_CHANNEL_OK_CLIENT(
 				visorchannel_get_header(controlvm_channel)))
-		goto error_destroy_channel;
+		goto error_delete_groups;
 
 	/* if booting in a crash kernel */
 	if (is_kdump_kernel())
@@ -1863,25 +1856,20 @@ visorchipset_init(struct acpi_device *acpi_device)
 	schedule_delayed_work(&chipset_dev->periodic_controlvm_work,
 			      chipset_dev->poll_jiffies);
 
-	if (platform_device_register(&visorchipset_platform_device) < 0) {
-		POSTCODE_LINUX(DEVICE_REGISTER_FAILURE_PC, 0, 0,
-			       DIAG_SEVERITY_ERR);
-		err = -ENODEV;
-		goto error_cancel_work;
-	}
 	POSTCODE_LINUX(CHIPSET_INIT_SUCCESS_PC, 0, 0, DIAG_SEVERITY_PRINT);
 
 	err = visorbus_init();
 	if (err < 0)
-		goto error_unregister;
+		goto error_cancel_work;
 
 	return 0;
 
-error_unregister:
-	platform_device_unregister(&visorchipset_platform_device);
-
 error_cancel_work:
 	cancel_delayed_work_sync(&chipset_dev->periodic_controlvm_work);
+
+error_delete_groups:
+	sysfs_remove_groups(&chipset_dev->acpi_device->dev.kobj,
+			    visorchipset_dev_groups);
 
 error_destroy_channel:
 	visorchannel_destroy(chipset_dev->controlvm_channel);
@@ -1901,8 +1889,10 @@ visorchipset_exit(struct acpi_device *acpi_device)
 
 	visorbus_exit();
 	cancel_delayed_work_sync(&chipset_dev->periodic_controlvm_work);
+	sysfs_remove_groups(&chipset_dev->acpi_device->dev.kobj,
+			    visorchipset_dev_groups);
+
 	visorchannel_destroy(chipset_dev->controlvm_channel);
-	platform_device_unregister(&visorchipset_platform_device);
 	kfree(chipset_dev);
 
 	POSTCODE_LINUX(DRIVER_EXIT_PC, 0, 0, DIAG_SEVERITY_PRINT);
