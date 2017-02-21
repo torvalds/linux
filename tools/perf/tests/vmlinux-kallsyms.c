@@ -168,7 +168,7 @@ next_pair:
 		err = -1;
 	}
 
-	if (!verbose)
+	if (verbose <= 0)
 		goto out;
 
 	header_printed = false;
