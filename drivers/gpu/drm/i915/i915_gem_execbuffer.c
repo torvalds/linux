@@ -1493,8 +1493,6 @@ execbuf_submit(struct i915_execbuffer_params *params,
 	if (ret)
 		return ret;
 
-	trace_i915_gem_ring_dispatch(params->request, params->dispatch_flags);
-
 	i915_gem_execbuffer_move_to_active(vmas, params->request);
 
 	return 0;
@@ -1835,6 +1833,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	params->engine                    = engine;
 	params->dispatch_flags          = dispatch_flags;
 	params->ctx                     = ctx;
+
+	trace_i915_gem_request_queue(params->request, dispatch_flags);
 
 	ret = execbuf_submit(params, args, &eb->vmas);
 err_request:

@@ -399,13 +399,14 @@ TRACE_EVENT(i915_gem_ring_sync_to,
 		      __entry->seqno)
 );
 
-TRACE_EVENT(i915_gem_ring_dispatch,
+TRACE_EVENT(i915_gem_request_queue,
 	    TP_PROTO(struct drm_i915_gem_request *req, u32 flags),
 	    TP_ARGS(req, flags),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
 			     __field(u32, ring)
+			     __field(u32, ctx)
 			     __field(u32, seqno)
 			     __field(u32, flags)
 			     ),
@@ -413,13 +414,14 @@ TRACE_EVENT(i915_gem_ring_dispatch,
 	    TP_fast_assign(
 			   __entry->dev = req->i915->drm.primary->index;
 			   __entry->ring = req->engine->id;
-			   __entry->seqno = req->global_seqno;
+			   __entry->ctx = req->ctx->hw_id;
+			   __entry->seqno = req->fence.seqno;
 			   __entry->flags = flags;
-			   dma_fence_enable_sw_signaling(&req->fence);
 			   ),
 
-	    TP_printk("dev=%u, ring=%u, seqno=%u, flags=%x",
-		      __entry->dev, __entry->ring, __entry->seqno, __entry->flags)
+	    TP_printk("dev=%u, ring=%u, ctx=%u, seqno=%u, flags=0x%x",
+		      __entry->dev, __entry->ring, __entry->ctx, __entry->seqno,
+		      __entry->flags)
 );
 
 TRACE_EVENT(i915_gem_ring_flush,
