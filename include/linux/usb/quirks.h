@@ -50,4 +50,7 @@
 /* device can't handle Link Power Management */
 #define USB_QUIRK_NO_LPM			BIT(10)
 
+/* device can't support auto suspend function */
+#define USB_QUIRK_AUTO_SUSPEND			BIT(11)
+
 #endif /* __LINUX_USB_QUIRKS_H */
