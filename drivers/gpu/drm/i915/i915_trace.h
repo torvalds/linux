@@ -747,17 +747,19 @@ DECLARE_EVENT_CLASS(i915_context,
 	TP_STRUCT__entry(
 			__field(u32, dev)
 			__field(struct i915_gem_context *, ctx)
+			__field(u32, hw_id)
 			__field(struct i915_address_space *, vm)
 	),
 
 	TP_fast_assign(
-			__entry->ctx = ctx;
-			__entry->vm = ctx->ppgtt ? &ctx->ppgtt->base : NULL;
 			__entry->dev = ctx->i915->drm.primary->index;
+			__entry->ctx = ctx;
+			__entry->hw_id = ctx->hw_id;
+			__entry->vm = ctx->ppgtt ? &ctx->ppgtt->base : NULL;
 	),
 
-	TP_printk("dev=%u, ctx=%p, ctx_vm=%p",
-		  __entry->dev, __entry->ctx, __entry->vm)
+	TP_printk("dev=%u, ctx=%p, ctx_vm=%p, hw_id=%u",
+		  __entry->dev, __entry->ctx, __entry->vm, __entry->hw_id)
 )
 
 DEFINE_EVENT(i915_context, i915_context_create,
