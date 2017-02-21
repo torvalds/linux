@@ -367,7 +367,7 @@ signalinsert_inner(struct visorchannel *channel, u32 queue, void *msg)
 	return 0;
 }
 
-/**
+/*
  * visorchannel_create_guts() - creates the struct visorchannel abstraction
  *                              for a data area in memory, but does NOT modify
  *                              this data area
