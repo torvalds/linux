@@ -2007,7 +2007,7 @@ static unsigned int get_divisor(unsigned int ns, unsigned int flags)
 
 	switch (flags & CMDF_ROUND_MASK) {
 	case CMDF_ROUND_UP:
-		divisor = (ns + TIMER_BASE - 1) / TIMER_BASE;
+		divisor = DIV_ROUND_UP(ns, TIMER_BASE);
 		break;
 	case CMDF_ROUND_DOWN:
 		divisor = ns / TIMER_BASE;

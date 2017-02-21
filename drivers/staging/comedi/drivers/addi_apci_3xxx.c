@@ -502,7 +502,7 @@ static int apci3xxx_ai_ns_to_timer(struct comedi_device *dev,
 			timer = *ns / base;
 			break;
 		case CMDF_ROUND_UP:
-			timer = (*ns + base - 1) / base;
+			timer = DIV_ROUND_UP(*ns, base);
 			break;
 		}
 
