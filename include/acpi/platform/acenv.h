@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,7 +75,8 @@
 	(defined ACPI_NAMES_APP)    || \
 	(defined ACPI_SRC_APP)      || \
 	(defined ACPI_XTRACT_APP)   || \
-	(defined ACPI_EXAMPLE_APP)
+	(defined ACPI_EXAMPLE_APP)  || \
+	(defined ACPI_EFI_HELLO)
 #define ACPI_APPLICATION
 #define ACPI_SINGLE_THREADED
 #define USE_NATIVE_ALLOCATE_ZEROED
@@ -177,7 +178,7 @@
 #include "acmsvc.h"
 
 #elif defined(__INTEL_COMPILER)
-#include "acintel.h"
+#include <acpi/platform/acintel.h>
 
 #endif
 
@@ -357,7 +358,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#ifdef ACPI_APPLICATION
+#if defined (ACPI_APPLICATION) || defined(ACPI_LIBRARY)
 #include <stdio.h>
 #include <fcntl.h>
 #include <errno.h>

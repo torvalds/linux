@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Name: acenvex.h - Extra host and compiler configuration
+ * Name: acintel.h - VC specific defines, etc.
  *
  *****************************************************************************/
 
@@ -41,42 +41,47 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#ifndef __ACENVEX_H__
-#define __ACENVEX_H__
-
-/*! [Begin] no source code translation */
-
-/******************************************************************************
- *
- * Extra host configuration files. All ACPICA headers are included before
- * including these files.
- *
- *****************************************************************************/
-
-#if defined(_LINUX) || defined(__linux__)
-#include <acpi/platform/aclinuxex.h>
-
-#elif defined(__DragonFly__)
-#include "acdragonflyex.h"
+#ifndef __ACINTEL_H__
+#define __ACINTEL_H__
 
 /*
- * EFI applications can be built with -nostdlib, in this case, it must be
- * included after including all other host environmental definitions, in
- * order to override the definitions.
+ * Use compiler specific <stdarg.h> is a good practice for even when
+ * -nostdinc is specified (i.e., ACPI_USE_STANDARD_HEADERS undefined.
  */
-#elif defined(_AED_EFI) || defined(_GNU_EFI) || defined(_EDK2_EFI)
-#include "acefiex.h"
+#include <stdarg.h>
 
-#endif
+/* Configuration specific to Intel 64-bit C compiler */
 
-#if defined(__GNUC__) && !defined(__INTEL_COMPILER)
-#include "acgccex.h"
+#define COMPILER_DEPENDENT_INT64    __int64
+#define COMPILER_DEPENDENT_UINT64   unsigned __int64
+#define ACPI_INLINE                 __inline
 
-#elif defined(_MSC_VER)
-#include "acmsvcex.h"
+/*
+ * Calling conventions:
+ *
+ * ACPI_SYSTEM_XFACE        - Interfaces to host OS (handlers, threads)
+ * ACPI_EXTERNAL_XFACE      - External ACPI interfaces
+ * ACPI_INTERNAL_XFACE      - Internal ACPI interfaces
+ * ACPI_INTERNAL_VAR_XFACE  - Internal variable-parameter list interfaces
+ */
+#define ACPI_SYSTEM_XFACE
+#define ACPI_EXTERNAL_XFACE
+#define ACPI_INTERNAL_XFACE
+#define ACPI_INTERNAL_VAR_XFACE
 
-#endif
+/* remark 981 - operands evaluated in no particular order */
+#pragma warning(disable:981)
 
-/*! [End] no source code translation !*/
+/* warn C4100: unreferenced formal parameter */
+#pragma warning(disable:4100)
 
-#endif				/* __ACENVEX_H__ */
+/* warn C4127: conditional expression is constant */
+#pragma warning(disable:4127)
+
+/* warn C4706: assignment within conditional expression */
+#pragma warning(disable:4706)
+
+/* warn C4214: bit field types other than int */
+#pragma warning(disable:4214)
+
+#endif				/* __ACINTEL_H__ */
