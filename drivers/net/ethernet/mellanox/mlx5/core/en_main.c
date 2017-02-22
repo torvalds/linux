@@ -82,6 +82,7 @@ static bool mlx5e_check_fragmented_striding_rq_cap(struct mlx5_core_dev *mdev)
 static void mlx5e_set_rq_type_params(struct mlx5e_priv *priv, u8 rq_type)
 {
 	priv->params.rq_wq_type = rq_type;
+	priv->params.lro_wqe_sz = MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ;
 	switch (priv->params.rq_wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
 		priv->params.log_rq_size = is_kdump_kernel() ?
@@ -98,6 +99,10 @@ static void mlx5e_set_rq_type_params(struct mlx5e_priv *priv, u8 rq_type)
 		priv->params.log_rq_size = is_kdump_kernel() ?
 			MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE :
 			MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE;
+
+		/* Extra room needed for build_skb */
+		priv->params.lro_wqe_sz -= MLX5_RX_HEADROOM +
+			SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 	}
 	priv->params.min_rx_wqes = mlx5_min_rx_wqes(priv->params.rq_wq_type,
 					       BIT(priv->params.log_rq_size));
@@ -3546,12 +3551,6 @@ static void mlx5e_build_nic_netdev_priv(struct mlx5_core_dev *mdev,
 
 	mlx5e_build_default_indir_rqt(mdev, priv->params.indirection_rqt,
 				      MLX5E_INDIR_RQT_SIZE, profile->max_nch(mdev));
-
-	priv->params.lro_wqe_sz =
-		MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ -
-		/* Extra room needed for build_skb */
-		MLX5_RX_HEADROOM -
-		SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
 	/* Initialize pflags */
 	MLX5E_SET_PFLAG(priv, MLX5E_PFLAG_RX_CQE_BASED_MODER,
