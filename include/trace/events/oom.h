@@ -69,6 +69,45 @@ TRACE_EVENT(reclaim_retry_zone,
 			__entry->no_progress_loops,
 			__entry->wmark_check)
 );
+
+#ifdef CONFIG_COMPACTION
+TRACE_EVENT(compact_retry,
+
+	TP_PROTO(int order,
+		enum compact_priority priority,
+		enum compact_result result,
+		int retries,
+		int max_retries,
+		bool ret),
+
+	TP_ARGS(order, priority, result, retries, max_retries, ret),
+
+	TP_STRUCT__entry(
+		__field(	int, order)
+		__field(	int, priority)
+		__field(	int, result)
+		__field(	int, retries)
+		__field(	int, max_retries)
+		__field(	bool, ret)
+	),
+
+	TP_fast_assign(
+		__entry->order = order;
+		__entry->priority = priority;
+		__entry->result = compact_result_to_feedback(result);
+		__entry->retries = retries;
+		__entry->max_retries = max_retries;
+		__entry->ret = ret;
+	),
+
+	TP_printk("order=%d priority=%s compaction_result=%s retries=%d max_retries=%d should_retry=%d",
+			__entry->order,
+			__print_symbolic(__entry->priority, COMPACTION_PRIORITY),
+			__print_symbolic(__entry->result, COMPACTION_FEEDBACK),
+			__entry->retries, __entry->max_retries,
+			__entry->ret)
+);
+#endif /* CONFIG_COMPACTION */
 #endif
 
 /* This part must be outside protection */
