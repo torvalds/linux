@@ -699,10 +699,8 @@ static void complete_scsi_command(CommandList_struct *c, int timeout,
 			ei->SenseLen);
 	scsi_set_resid(cmd, ei->ResidualCnt);
 
-	if(ei->CommandStatus != 0)
-	{ /* an error has occurred */
-		switch(ei->CommandStatus)
-		{
+	if (ei->CommandStatus != 0) { /* an error has occurred */
+		switch (ei->CommandStatus) {
 			case CMD_TARGET_STATUS:
 				/* Pass it up to the upper layers... */
 				if (!ei->ScsiStatus) {
@@ -902,8 +900,7 @@ cciss_scsi_interpret_error(ctlr_info_t *h, CommandList_struct *c)
 	ErrorInfo_struct *ei;
 
 	ei = c->err_info;
-	switch(ei->CommandStatus)
-	{
+	switch (ei->CommandStatus) {
 		case CMD_TARGET_STATUS:
 			dev_warn(&h->pdev->dev,
 				"cmd %p has completed with errors\n", c);
@@ -1182,8 +1179,7 @@ cciss_update_non_disk_devices(ctlr_info_t *h, int hostno)
 		cciss_scsi_get_device_id(h, scsi3addr,
 			this_device->device_id, sizeof(this_device->device_id));
 
-		switch (this_device->devtype)
-		{
+		switch (this_device->devtype) {
 		  case 0x05: /* CD-ROM */ {
 
 			/* We don't *really* support actual CD-ROM devices,
@@ -1414,8 +1410,7 @@ cciss_scsi_queue_command_lck(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmn
 	memcpy(c->Request.CDB, cmd->cmnd, cmd->cmd_len);
 	c->Request.Type.Type = TYPE_CMD;
 	c->Request.Type.Attribute = ATTR_SIMPLE;
-	switch(cmd->sc_data_direction)
-	{
+	switch (cmd->sc_data_direction) {
 	  case DMA_TO_DEVICE:
 		c->Request.Type.Direction = XFER_WRITE;
 		break;
