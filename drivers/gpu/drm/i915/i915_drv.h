@@ -3383,7 +3383,7 @@ int i915_gem_reset_prepare(struct drm_i915_private *dev_priv);
 void i915_gem_reset(struct drm_i915_private *dev_priv);
 void i915_gem_reset_finish(struct drm_i915_private *dev_priv);
 void i915_gem_set_wedged(struct drm_i915_private *dev_priv);
-void i915_gem_clflush_object(struct drm_i915_gem_object *obj, bool force);
+
 void i915_gem_init_mmio(struct drm_i915_private *i915);
 int __must_check i915_gem_init(struct drm_i915_private *dev_priv);
 int __must_check i915_gem_init_hw(struct drm_i915_private *dev_priv);

@@ -29,6 +29,7 @@
 #include <drm/drm_vma_manager.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
+#include "i915_gem_clflush.h"
 #include "i915_vgpu.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
@@ -3133,46 +3134,6 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915, unsigned int flags)
 	return 0;
 }
 
-void i915_gem_clflush_object(struct drm_i915_gem_object *obj,
-			     bool force)
-{
-	/* If we don't have a page list set up, then we're not pinned
-	 * to GPU, and we can ignore the cache flush because it'll happen
-	 * again at bind time.
-	 */
-	if (!obj->mm.pages) {
-		GEM_BUG_ON(obj->base.write_domain != I915_GEM_DOMAIN_CPU);
-		return;
-	}
-
-	/*
-	 * Stolen memory is always coherent with the GPU as it is explicitly
-	 * marked as wc by the system, or the system is cache-coherent.
-	 * Similarly, we only access struct pages through the CPU cache, so
-	 * anything not backed by physical memory we consider to be always
-	 * coherent and not need clflushing.
-	 */
-	if (!i915_gem_object_has_struct_page(obj))
-		return;
-
-	/* If the GPU is snooping the contents of the CPU cache,
-	 * we do not need to manually clear the CPU cache lines.  However,
-	 * the caches are only snooped when the render cache is
-	 * flushed/invalidated.  As we always have to emit invalidations
-	 * and flushes when moving into and out of the RENDER domain, correct
-	 * snooping behaviour occurs naturally as the result of our domain
-	 * tracking.
-	 */
-	if (!force && i915_gem_object_is_coherent(obj)) {
-		obj->cache_dirty = true;
-		return;
-	}
-
-	trace_i915_gem_object_clflush(obj);
-	drm_clflush_sg(obj->mm.pages);
-	obj->cache_dirty = false;
-}
-
 /** Flushes the GTT write domain for the object if it's dirty. */
 static void
 i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj)
@@ -3213,9 +3174,7 @@ i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj)
 	if (obj->base.write_domain != I915_GEM_DOMAIN_CPU)
 		return;
 
-	i915_gem_clflush_object(obj, obj->pin_display);
-	intel_fb_obj_flush(obj, false, ORIGIN_CPU);
-
+	i915_gem_clflush_object(obj, I915_CLFLUSH_SYNC);
 	obj->base.write_domain = 0;
 }
 
@@ -3224,9 +3183,7 @@ static void __i915_gem_object_flush_for_display(struct drm_i915_gem_object *obj)
 	if (obj->base.write_domain != I915_GEM_DOMAIN_CPU && !obj->cache_dirty)
 		return;
 
-	i915_gem_clflush_object(obj, true);
-	intel_fb_obj_flush(obj, false, ORIGIN_CPU);
-
+	i915_gem_clflush_object(obj, I915_CLFLUSH_FORCE);
 	obj->base.write_domain = 0;
 }
 
@@ -3657,8 +3614,7 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 
 	/* Flush the CPU cache if it's still invalid. */
 	if ((obj->base.read_domains & I915_GEM_DOMAIN_CPU) == 0) {
-		i915_gem_clflush_object(obj, false);
-
+		i915_gem_clflush_object(obj, I915_CLFLUSH_SYNC);
 		obj->base.read_domains |= I915_GEM_DOMAIN_CPU;
 	}
 
@@ -4525,6 +4481,8 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	int ret;
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
+
+	i915_gem_clflush_init(dev_priv);
 
 	if (!i915.enable_execlists) {
 		dev_priv->gt.resume = intel_legacy_submission_resume;

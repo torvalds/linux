@@ -37,6 +37,7 @@
 #include "intel_frontbuffer.h"
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
+#include "i915_gem_clflush.h"
 #include "intel_dsi.h"
 #include "i915_trace.h"
 #include <drm/drm_atomic.h>
@@ -13188,6 +13189,29 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->state->fb);
 	int ret;
 
+	if (obj) {
+		if (plane->type == DRM_PLANE_TYPE_CURSOR &&
+		    INTEL_INFO(dev_priv)->cursor_needs_physical) {
+			const int align = IS_I830(dev_priv) ? 16 * 1024 : 256;
+
+			ret = i915_gem_object_attach_phys(obj, align);
+			if (ret) {
+				DRM_DEBUG_KMS("failed to attach phys object\n");
+				return ret;
+			}
+		} else {
+			struct i915_vma *vma;
+
+			vma = intel_pin_and_fence_fb_obj(fb, new_state->rotation);
+			if (IS_ERR(vma)) {
+				DRM_DEBUG_KMS("failed to pin object\n");
+				return PTR_ERR(vma);
+			}
+
+			to_intel_plane_state(new_state)->vma = vma;
+		}
+	}
+
 	if (!obj && !old_obj)
 		return 0;
 
@@ -13238,26 +13262,6 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 			return ret;
 
 		i915_gem_object_wait_priority(obj, 0, I915_PRIORITY_DISPLAY);
-	}
-
-	if (plane->type == DRM_PLANE_TYPE_CURSOR &&
-	    INTEL_INFO(dev_priv)->cursor_needs_physical) {
-		int align = IS_I830(dev_priv) ? 16 * 1024 : 256;
-		ret = i915_gem_object_attach_phys(obj, align);
-		if (ret) {
-			DRM_DEBUG_KMS("failed to attach phys object\n");
-			return ret;
-		}
-	} else {
-		struct i915_vma *vma;
-
-		vma = intel_pin_and_fence_fb_obj(fb, new_state->rotation);
-		if (IS_ERR(vma)) {
-			DRM_DEBUG_KMS("failed to pin object\n");
-			return PTR_ERR(vma);
-		}
-
-		to_intel_plane_state(new_state)->vma = vma;
 	}
 
 	return 0;

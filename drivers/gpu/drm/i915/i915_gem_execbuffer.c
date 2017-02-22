@@ -35,6 +35,7 @@
 #include <drm/i915_drm.h>
 
 #include "i915_drv.h"
+#include "i915_gem_clflush.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
 #include "intel_frontbuffer.h"
@@ -1114,13 +1115,15 @@ i915_gem_execbuffer_move_to_gpu(struct drm_i915_gem_request *req,
 		if (vma->exec_entry->flags & EXEC_OBJECT_ASYNC)
 			continue;
 
+		if (obj->base.write_domain & I915_GEM_DOMAIN_CPU) {
+			i915_gem_clflush_object(obj, 0);
+			obj->base.write_domain = 0;
+		}
+
 		ret = i915_gem_request_await_object
 			(req, obj, obj->base.pending_write_domain);
 		if (ret)
 			return ret;
-
-		if (obj->base.write_domain & I915_GEM_DOMAIN_CPU)
-			i915_gem_clflush_object(obj, false);
 	}
 
 	/* Unconditionally flush any chipset caches (for streaming writes). */
