@@ -683,6 +683,6 @@ struct ad7879 *ad7879_probe(struct device *dev, struct regmap *regmap,
 }
 EXPORT_SYMBOL(ad7879_probe);
 
-MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
+MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
 MODULE_DESCRIPTION("AD7879(-1) touchscreen Driver");
 MODULE_LICENSE("GPL");

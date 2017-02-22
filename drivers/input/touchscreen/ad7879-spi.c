@@ -73,7 +73,7 @@ static struct spi_driver ad7879_spi_driver = {
 
 module_spi_driver(ad7879_spi_driver);
 
-MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
+MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
 MODULE_DESCRIPTION("AD7879(-1) touchscreen SPI bus driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("spi:ad7879");

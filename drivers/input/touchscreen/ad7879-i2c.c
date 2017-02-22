@@ -75,6 +75,6 @@ static struct i2c_driver ad7879_i2c_driver = {
 
 module_i2c_driver(ad7879_i2c_driver);
 
-MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
+MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
 MODULE_DESCRIPTION("AD7879(-1) touchscreen I2C bus driver");
 MODULE_LICENSE("GPL");
