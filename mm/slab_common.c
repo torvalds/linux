@@ -154,6 +154,7 @@ static int init_memcg_params(struct kmem_cache *s,
 		s->memcg_params.root_cache = root_cache;
 		s->memcg_params.memcg = memcg;
 		INIT_LIST_HEAD(&s->memcg_params.children_node);
+		INIT_LIST_HEAD(&s->memcg_params.kmem_caches_node);
 		return 0;
 	}
 
@@ -224,6 +225,7 @@ int memcg_update_all_caches(int num_memcgs)
 static void unlink_memcg_cache(struct kmem_cache *s)
 {
 	list_del(&s->memcg_params.children_node);
+	list_del(&s->memcg_params.kmem_caches_node);
 }
 #else
 static inline int init_memcg_params(struct kmem_cache *s,
@@ -596,6 +598,7 @@ void memcg_create_kmem_cache(struct mem_cgroup *memcg,
 
 	list_add(&s->memcg_params.children_node,
 		 &root_cache->memcg_params.children);
+	list_add(&s->memcg_params.kmem_caches_node, &memcg->kmem_caches);
 
 	/*
 	 * Since readers won't lock (see cache_from_memcg_idx()), we need a
@@ -651,9 +654,8 @@ void memcg_destroy_kmem_caches(struct mem_cgroup *memcg)
 	get_online_mems();
 
 	mutex_lock(&slab_mutex);
-	list_for_each_entry_safe(s, s2, &slab_caches, list) {
-		if (is_root_cache(s) || s->memcg_params.memcg != memcg)
-			continue;
+	list_for_each_entry_safe(s, s2, &memcg->kmem_caches,
+				 memcg_params.kmem_caches_node) {
 		/*
 		 * The cgroup is about to be freed and therefore has no charges
 		 * left. Hence, all its caches must be empty by now.
@@ -1201,15 +1203,35 @@ static int slab_show(struct seq_file *m, void *p)
 }
 
 #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
-int memcg_slab_show(struct seq_file *m, void *p)
+void *memcg_slab_start(struct seq_file *m, loff_t *pos)
 {
-	struct kmem_cache *s = list_entry(p, struct kmem_cache, list);
 	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
 
-	if (p == slab_caches.next)
+	mutex_lock(&slab_mutex);
+	return seq_list_start(&memcg->kmem_caches, *pos);
+}
+
+void *memcg_slab_next(struct seq_file *m, void *p, loff_t *pos)
+{
+	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+
+	return seq_list_next(p, &memcg->kmem_caches, pos);
+}
+
+void memcg_slab_stop(struct seq_file *m, void *p)
+{
+	mutex_unlock(&slab_mutex);
+}
+
+int memcg_slab_show(struct seq_file *m, void *p)
+{
+	struct kmem_cache *s = list_entry(p, struct kmem_cache,
+					  memcg_params.kmem_caches_node);
+	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+
+	if (p == memcg->kmem_caches.next)
 		print_slabinfo_header(m);
-	if (!is_root_cache(s) && s->memcg_params.memcg == memcg)
-		cache_show(s, m);
+	cache_show(s, m);
 	return 0;
 }
 #endif
