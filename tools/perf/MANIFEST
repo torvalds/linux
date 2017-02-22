@@ -79,6 +79,7 @@ tools/include/uapi/linux/perf_event.h
 tools/include/linux/poison.h
 tools/include/linux/rbtree.h
 tools/include/linux/rbtree_augmented.h
+tools/include/linux/refcount.h
 tools/include/linux/string.h
 tools/include/linux/stringify.h
 tools/include/linux/types.h
