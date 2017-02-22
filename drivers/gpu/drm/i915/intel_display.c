@@ -14278,15 +14278,10 @@ static int intel_user_framebuffer_dirty(struct drm_framebuffer *fb,
 					struct drm_clip_rect *clips,
 					unsigned num_clips)
 {
-	struct drm_device *dev = fb->dev;
-	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
-	struct drm_i915_gem_object *obj = intel_fb->obj;
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 
-	mutex_lock(&dev->struct_mutex);
-	if (obj->pin_display && obj->cache_dirty)
-		i915_gem_clflush_object(obj, true);
+	i915_gem_object_flush_if_display(obj);
 	intel_fb_obj_flush(obj, false, ORIGIN_DIRTYFB);
-	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }

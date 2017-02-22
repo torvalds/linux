@@ -1613,23 +1613,16 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_gem_sw_finish *args = data;
 	struct drm_i915_gem_object *obj;
-	int err = 0;
 
 	obj = i915_gem_object_lookup(file, args->handle);
 	if (!obj)
 		return -ENOENT;
 
 	/* Pinned buffers may be scanout, so flush the cache */
-	if (READ_ONCE(obj->pin_display)) {
-		err = i915_mutex_lock_interruptible(dev);
-		if (!err) {
-			i915_gem_object_flush_cpu_write_domain(obj);
-			mutex_unlock(&dev->struct_mutex);
-		}
-	}
-
+	i915_gem_object_flush_if_display(obj);
 	i915_gem_object_put(obj);
-	return err;
+
+	return 0;
 }
 
 /**
@@ -3221,6 +3214,27 @@ i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj)
 	obj->base.write_domain = 0;
 }
 
+static void __i915_gem_object_flush_for_display(struct drm_i915_gem_object *obj)
+{
+	if (obj->base.write_domain != I915_GEM_DOMAIN_CPU && !obj->cache_dirty)
+		return;
+
+	i915_gem_clflush_object(obj, true);
+	intel_fb_obj_flush(obj, false, ORIGIN_CPU);
+
+	obj->base.write_domain = 0;
+}
+
+void i915_gem_object_flush_if_display(struct drm_i915_gem_object *obj)
+{
+	if (!READ_ONCE(obj->pin_display))
+		return;
+
+	mutex_lock(&obj->base.dev->struct_mutex);
+	__i915_gem_object_flush_for_display(obj);
+	mutex_unlock(&obj->base.dev->struct_mutex);
+}
+
 /**
  * Moves a single object to the GTT read, and possibly write domain.
  * @obj: object to act on
@@ -3575,15 +3589,12 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	vma->display_alignment = max_t(u64, vma->display_alignment, alignment);
 
 	/* Treat this as an end-of-frame, like intel_user_framebuffer_dirty() */
-	if (obj->cache_dirty || obj->base.write_domain == I915_GEM_DOMAIN_CPU) {
-		i915_gem_clflush_object(obj, true);
-		intel_fb_obj_flush(obj, false, ORIGIN_DIRTYFB);
-	}
+	__i915_gem_object_flush_for_display(obj);
+	intel_fb_obj_flush(obj, false, ORIGIN_DIRTYFB);
 
 	/* It should now be out of any other write domains, and we can update
 	 * the domain values for our changes.
 	 */
-	obj->base.write_domain = 0;
 	obj->base.read_domains |= I915_GEM_DOMAIN_GTT;
 
 	return vma;

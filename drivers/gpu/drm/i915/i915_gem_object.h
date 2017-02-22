@@ -364,5 +364,7 @@ i915_gem_object_last_write_engine(struct drm_i915_gem_object *obj)
 	return engine;
 }
 
+void i915_gem_object_flush_if_display(struct drm_i915_gem_object *obj);
+
 #endif
 
