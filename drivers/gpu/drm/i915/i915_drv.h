@@ -4097,4 +4097,10 @@ int remap_io_mapping(struct vm_area_struct *vma,
 		     unsigned long addr, unsigned long pfn, unsigned long size,
 		     struct io_mapping *iomap);
 
+static inline bool i915_gem_object_is_coherent(struct drm_i915_gem_object *obj)
+{
+	return (obj->cache_level != I915_CACHE_NONE ||
+		HAS_LLC(to_i915(obj->base.dev)));
+}
+
 #endif

@@ -48,18 +48,12 @@ static void i915_gem_flush_free_objects(struct drm_i915_private *i915);
 static void i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj);
 static void i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj);
 
-static bool cpu_cache_is_coherent(struct drm_device *dev,
-				  enum i915_cache_level level)
-{
-	return HAS_LLC(to_i915(dev)) || level != I915_CACHE_NONE;
-}
-
 static bool cpu_write_needs_clflush(struct drm_i915_gem_object *obj)
 {
 	if (obj->base.write_domain == I915_GEM_DOMAIN_CPU)
 		return false;
 
-	if (!cpu_cache_is_coherent(obj->base.dev, obj->cache_level))
+	if (!i915_gem_object_is_coherent(obj))
 		return true;
 
 	return obj->pin_display;
@@ -255,7 +249,7 @@ __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
 
 	if (needs_clflush &&
 	    (obj->base.read_domains & I915_GEM_DOMAIN_CPU) == 0 &&
-	    !cpu_cache_is_coherent(obj->base.dev, obj->cache_level))
+	    !i915_gem_object_is_coherent(obj))
 		drm_clflush_sg(pages);
 
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
@@ -796,8 +790,7 @@ int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
 	 * anyway again before the next pread happens.
 	 */
 	if (!(obj->base.read_domains & I915_GEM_DOMAIN_CPU))
-		*needs_clflush = !cpu_cache_is_coherent(obj->base.dev,
-							obj->cache_level);
+		*needs_clflush = !i915_gem_object_is_coherent(obj);
 
 	if (*needs_clflush && !static_cpu_has(X86_FEATURE_CLFLUSH)) {
 		ret = i915_gem_object_set_to_cpu_domain(obj, false);
@@ -853,8 +846,7 @@ int i915_gem_obj_prepare_shmem_write(struct drm_i915_gem_object *obj,
 	 * before writing.
 	 */
 	if (!(obj->base.read_domains & I915_GEM_DOMAIN_CPU))
-		*needs_clflush |= !cpu_cache_is_coherent(obj->base.dev,
-							 obj->cache_level);
+		*needs_clflush |= !i915_gem_object_is_coherent(obj);
 
 	if (*needs_clflush && !static_cpu_has(X86_FEATURE_CLFLUSH)) {
 		ret = i915_gem_object_set_to_cpu_domain(obj, true);
@@ -3173,7 +3165,7 @@ void i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	 * snooping behaviour occurs naturally as the result of our domain
 	 * tracking.
 	 */
-	if (!force && cpu_cache_is_coherent(obj->base.dev, obj->cache_level)) {
+	if (!force && i915_gem_object_is_coherent(obj)) {
 		obj->cache_dirty = true;
 		return;
 	}
@@ -3412,7 +3404,7 @@ restart:
 	}
 
 	if (obj->base.write_domain == I915_GEM_DOMAIN_CPU &&
-	    cpu_cache_is_coherent(obj->base.dev, obj->cache_level))
+	    i915_gem_object_is_coherent(obj))
 		obj->cache_dirty = true;
 
 	list_for_each_entry(vma, &obj->vma_list, obj_link)
