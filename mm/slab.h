@@ -201,6 +201,11 @@ void __kmem_cache_free_bulk(struct kmem_cache *, size_t, void **);
 int __kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
 
 #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+
+/* List of all root caches. */
+extern struct list_head		slab_root_caches;
+#define root_caches_node	memcg_params.__root_caches_node
+
 /*
  * Iterate over all memcg caches of the given root cache. The caller must hold
  * slab_mutex.
@@ -300,8 +305,13 @@ static __always_inline void memcg_uncharge_slab(struct page *page, int order,
 }
 
 extern void slab_init_memcg_params(struct kmem_cache *);
+extern void memcg_link_cache(struct kmem_cache *s);
 
 #else /* CONFIG_MEMCG && !CONFIG_SLOB */
+
+/* If !memcg, all caches are root. */
+#define slab_root_caches	slab_caches
+#define root_caches_node	list
 
 #define for_each_memcg_cache(iter, root) \
 	for ((void)(iter), (void)(root); 0; )
@@ -347,6 +357,11 @@ static inline void memcg_uncharge_slab(struct page *page, int order,
 static inline void slab_init_memcg_params(struct kmem_cache *s)
 {
 }
+
+static inline void memcg_link_cache(struct kmem_cache *s)
+{
+}
+
 #endif /* CONFIG_MEMCG && !CONFIG_SLOB */
 
 static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)

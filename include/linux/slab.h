@@ -556,6 +556,8 @@ struct memcg_cache_array {
  *		used to index child cachces during allocation and cleared
  *		early during shutdown.
  *
+ * @root_caches_node: List node for slab_root_caches list.
+ *
  * @children:	List of all child caches.  While the child caches are also
  *		reachable through @memcg_caches, a child cache remains on
  *		this list until it is actually destroyed.
@@ -573,6 +575,7 @@ struct memcg_cache_params {
 	union {
 		struct {
 			struct memcg_cache_array __rcu *memcg_caches;
+			struct list_head __root_caches_node;
 			struct list_head children;
 		};
 		struct {
