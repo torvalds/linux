@@ -112,7 +112,6 @@ struct snd_us16x08_control_params {
 	int type;
 	int num_channels;
 	const char *name;
-	void (*freeer)(struct snd_kcontrol *kctl);
 	int default_val;
 };
 
