@@ -17,12 +17,9 @@
  *
  * This QoS design is best effort based. Dependents register their QoS needs.
  * Watchers register to keep track of the current QoS needs of the system.
- * Watchers can register different types of notification callbacks:
- *  . a per-device notification callback using the dev_pm_qos_*_notifier API.
- *    The notification chain data is stored in the per-device constraint
- *    data struct.
- *  . a system-wide notification callback using the dev_pm_qos_*_global_notifier
- *    API. The notification chain data is stored in a static variable.
+ * Watchers can register a per-device notification callback using the
+ * dev_pm_qos_*_notifier API. The notification chain data is stored in the
+ * per-device constraint data struct.
  *
  * Note about the per-device constraint data struct allocation:
  * . The per-device constraints data struct ptr is tored into the device
@@ -48,8 +45,6 @@
 
 static DEFINE_MUTEX(dev_pm_qos_mtx);
 static DEFINE_MUTEX(dev_pm_qos_sysfs_mtx);
-
-static BLOCKING_NOTIFIER_HEAD(dev_pm_notifiers);
 
 /**
  * __dev_pm_qos_flags - Check PM QoS flags for a given device.
@@ -135,8 +130,7 @@ s32 dev_pm_qos_read_value(struct device *dev)
  * @value: Value to assign to the QoS request.
  *
  * Internal function to update the constraints list using the PM QoS core
- * code and if needed call the per-device and the global notification
- * callbacks
+ * code and if needed call the per-device callbacks.
  */
 static int apply_constraint(struct dev_pm_qos_request *req,
 			    enum pm_qos_req_action action, s32 value)
@@ -148,12 +142,6 @@ static int apply_constraint(struct dev_pm_qos_request *req,
 	case DEV_PM_QOS_RESUME_LATENCY:
 		ret = pm_qos_update_target(&qos->resume_latency,
 					   &req->data.pnode, action, value);
-		if (ret) {
-			value = pm_qos_read_value(&qos->resume_latency);
-			blocking_notifier_call_chain(&dev_pm_notifiers,
-						     (unsigned long)value,
-						     req);
-		}
 		break;
 	case DEV_PM_QOS_LATENCY_TOLERANCE:
 		ret = pm_qos_update_target(&qos->latency_tolerance,
@@ -534,36 +522,6 @@ int dev_pm_qos_remove_notifier(struct device *dev,
 	return retval;
 }
 EXPORT_SYMBOL_GPL(dev_pm_qos_remove_notifier);
-
-/**
- * dev_pm_qos_add_global_notifier - sets notification entry for changes to
- * target value of the PM QoS constraints for any device
- *
- * @notifier: notifier block managed by caller.
- *
- * Will register the notifier into a notification chain that gets called
- * upon changes to the target value for any device.
- */
-int dev_pm_qos_add_global_notifier(struct notifier_block *notifier)
-{
-	return blocking_notifier_chain_register(&dev_pm_notifiers, notifier);
-}
-EXPORT_SYMBOL_GPL(dev_pm_qos_add_global_notifier);
-
-/**
- * dev_pm_qos_remove_global_notifier - deletes notification for changes to
- * target value of PM QoS constraints for any device
- *
- * @notifier: notifier block to be removed.
- *
- * Will remove the notifier from the notification chain that gets called
- * upon changes to the target value for any device.
- */
-int dev_pm_qos_remove_global_notifier(struct notifier_block *notifier)
-{
-	return blocking_notifier_chain_unregister(&dev_pm_notifiers, notifier);
-}
-EXPORT_SYMBOL_GPL(dev_pm_qos_remove_global_notifier);
 
 /**
  * dev_pm_qos_add_ancestor_request - Add PM QoS request for device's ancestor.
