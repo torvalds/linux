@@ -275,6 +275,10 @@ retry:
 		rc = 0;
 	} else
 		rc = swiotlb_late_init_with_tbl(xen_io_tlb_start, xen_io_tlb_nslabs);
+
+	if (!rc)
+		swiotlb_set_max_segment(PAGE_SIZE);
+
 	return rc;
 error:
 	if (repeat--) {
@@ -392,7 +396,7 @@ dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
 	if (dma_capable(dev, dev_addr, size) &&
 	    !range_straddles_page_boundary(phys, size) &&
 		!xen_arch_need_swiotlb(dev, phys, dev_addr) &&
-		!swiotlb_force) {
+		(swiotlb_force != SWIOTLB_FORCE)) {
 		/* we are not interested in the dma_addr returned by
 		 * xen_dma_map_page, only in the potential cache flushes executed
 		 * by the function. */
@@ -410,9 +414,9 @@ dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
 	if (map == SWIOTLB_MAP_ERROR)
 		return DMA_ERROR_CODE;
 
+	dev_addr = xen_phys_to_bus(map);
 	xen_dma_map_page(dev, pfn_to_page(map >> PAGE_SHIFT),
 					dev_addr, map & ~PAGE_MASK, size, dir, attrs);
-	dev_addr = xen_phys_to_bus(map);
 
 	/*
 	 * Ensure that the address returned is DMA'ble
@@ -552,7 +556,7 @@ xen_swiotlb_map_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
 		phys_addr_t paddr = sg_phys(sg);
 		dma_addr_t dev_addr = xen_phys_to_bus(paddr);
 
-		if (swiotlb_force ||
+		if (swiotlb_force == SWIOTLB_FORCE ||
 		    xen_arch_need_swiotlb(hwdev, paddr, dev_addr) ||
 		    !dma_capable(hwdev, dev_addr, sg->length) ||
 		    range_straddles_page_boundary(paddr, sg->length)) {
@@ -571,13 +575,14 @@ xen_swiotlb_map_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
 				sg_dma_len(sgl) = 0;
 				return 0;
 			}
+			dev_addr = xen_phys_to_bus(map);
 			xen_dma_map_page(hwdev, pfn_to_page(map >> PAGE_SHIFT),
 						dev_addr,
 						map & ~PAGE_MASK,
 						sg->length,
 						dir,
 						attrs);
-			sg->dma_address = xen_phys_to_bus(map);
+			sg->dma_address = dev_addr;
 		} else {
 			/* we are not interested in the dma_addr returned by
 			 * xen_dma_map_page, only in the potential cache flushes executed

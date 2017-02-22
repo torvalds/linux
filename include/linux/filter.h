@@ -57,6 +57,8 @@ struct bpf_prog_aux;
 /* BPF program can access up to 512 bytes of stack space. */
 #define MAX_BPF_STACK	512
 
+#define BPF_TAG_SIZE	8
+
 /* Helper macros for filter block array initializers. */
 
 /* ALU ops on registers, bpf_add|sub|...: dst_reg += src_reg */
@@ -408,7 +410,7 @@ struct bpf_prog {
 	kmemcheck_bitfield_end(meta);
 	enum bpf_prog_type	type;		/* Type of BPF program */
 	u32			len;		/* Number of filter blocks */
-	u32			digest[SHA_DIGEST_WORDS]; /* Program digest */
+	u8			tag[BPF_TAG_SIZE];
 	struct bpf_prog_aux	*aux;		/* Auxiliary fields */
 	struct sock_fprog_kern	*orig_prog;	/* Original BPF program */
 	unsigned int		(*bpf_func)(const void *ctx,
@@ -519,7 +521,7 @@ static inline u32 bpf_prog_insn_size(const struct bpf_prog *prog)
 	return prog->len * sizeof(struct bpf_insn);
 }
 
-static inline u32 bpf_prog_digest_scratch_size(const struct bpf_prog *prog)
+static inline u32 bpf_prog_tag_scratch_size(const struct bpf_prog *prog)
 {
 	return round_up(bpf_prog_insn_size(prog) +
 			sizeof(__be64) + 1, SHA_MESSAGE_BYTES);
@@ -610,7 +612,6 @@ bool bpf_helper_changes_pkt_data(void *func);
 struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 				       const struct bpf_insn *patch, u32 len);
 void bpf_warn_invalid_xdp_action(u32 act);
-void bpf_warn_invalid_xdp_buffer(void);
 
 #ifdef CONFIG_BPF_JIT
 extern int bpf_jit_enable;

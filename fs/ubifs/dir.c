@@ -390,16 +390,6 @@ static int do_tmpfile(struct inode *dir, struct dentry *dentry,
 	dbg_gen("dent '%pd', mode %#hx in dir ino %lu",
 		dentry, mode, dir->i_ino);
 
-	if (ubifs_crypt_is_encrypted(dir)) {
-		err = fscrypt_get_encryption_info(dir);
-		if (err)
-			return err;
-
-		if (!fscrypt_has_encryption_key(dir)) {
-			return -EPERM;
-		}
-	}
-
 	err = fscrypt_setup_filename(dir, &dentry->d_name, 0, &nm);
 	if (err)
 		return err;
@@ -741,17 +731,9 @@ static int ubifs_link(struct dentry *old_dentry, struct inode *dir,
 	ubifs_assert(inode_is_locked(dir));
 	ubifs_assert(inode_is_locked(inode));
 
-	if (ubifs_crypt_is_encrypted(dir)) {
-		if (!fscrypt_has_permitted_context(dir, inode))
-			return -EPERM;
-
-		err = fscrypt_get_encryption_info(inode);
-		if (err)
-			return err;
-
-		if (!fscrypt_has_encryption_key(inode))
-			return -EPERM;
-	}
+	if (ubifs_crypt_is_encrypted(dir) &&
+	    !fscrypt_has_permitted_context(dir, inode))
+		return -EPERM;
 
 	err = fscrypt_setup_filename(dir, &dentry->d_name, 0, &nm);
 	if (err)
@@ -1000,17 +982,6 @@ static int ubifs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	if (err)
 		return err;
 
-	if (ubifs_crypt_is_encrypted(dir)) {
-		err = fscrypt_get_encryption_info(dir);
-		if (err)
-			goto out_budg;
-
-		if (!fscrypt_has_encryption_key(dir)) {
-			err = -EPERM;
-			goto out_budg;
-		}
-	}
-
 	err = fscrypt_setup_filename(dir, &dentry->d_name, 0, &nm);
 	if (err)
 		goto out_budg;
@@ -1094,17 +1065,6 @@ static int ubifs_mknod(struct inode *dir, struct dentry *dentry,
 	if (err) {
 		kfree(dev);
 		return err;
-	}
-
-	if (ubifs_crypt_is_encrypted(dir)) {
-		err = fscrypt_get_encryption_info(dir);
-		if (err)
-			goto out_budg;
-
-		if (!fscrypt_has_encryption_key(dir)) {
-			err = -EPERM;
-			goto out_budg;
-		}
 	}
 
 	err = fscrypt_setup_filename(dir, &dentry->d_name, 0, &nm);
@@ -1228,18 +1188,6 @@ static int ubifs_symlink(struct inode *dir, struct dentry *dentry,
 		sd = kzalloc(disk_link.len, GFP_NOFS);
 		if (!sd) {
 			err = -ENOMEM;
-			goto out_inode;
-		}
-
-		err = fscrypt_get_encryption_info(inode);
-		if (err) {
-			kfree(sd);
-			goto out_inode;
-		}
-
-		if (!fscrypt_has_encryption_key(inode)) {
-			kfree(sd);
-			err = -EPERM;
 			goto out_inode;
 		}
 

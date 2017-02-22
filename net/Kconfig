@@ -258,10 +258,6 @@ config XPS
 config HWBM
        bool
 
-config SOCK_CGROUP_DATA
-	bool
-	default n
-
 config CGROUP_NET_PRIO
 	bool "Network priority cgroup"
 	depends on CGROUPS

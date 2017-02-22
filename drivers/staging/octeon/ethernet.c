@@ -770,6 +770,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 			/* Initialize the device private structure. */
 			struct octeon_ethernet *priv = netdev_priv(dev);
 
+			SET_NETDEV_DEV(dev, &pdev->dev);
 			dev->netdev_ops = &cvm_oct_pow_netdev_ops;
 			priv->imode = CVMX_HELPER_INTERFACE_MODE_DISABLED;
 			priv->port = CVMX_PIP_NUM_INPUT_PORTS;
@@ -816,6 +817,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 			}
 
 			/* Initialize the device private structure. */
+			SET_NETDEV_DEV(dev, &pdev->dev);
 			priv = netdev_priv(dev);
 			priv->netdev = dev;
 			priv->of_node = cvm_oct_node_for_port(pip, interface,

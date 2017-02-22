@@ -413,6 +413,25 @@ i915_gem_active_set(struct i915_gem_active *active,
 	rcu_assign_pointer(active->request, request);
 }
 
+/**
+ * i915_gem_active_set_retire_fn - updates the retirement callback
+ * @active - the active tracker
+ * @fn - the routine called when the request is retired
+ * @mutex - struct_mutex used to guard retirements
+ *
+ * i915_gem_active_set_retire_fn() updates the function pointer that
+ * is called when the final request associated with the @active tracker
+ * is retired.
+ */
+static inline void
+i915_gem_active_set_retire_fn(struct i915_gem_active *active,
+			      i915_gem_retire_fn fn,
+			      struct mutex *mutex)
+{
+	lockdep_assert_held(mutex);
+	active->retire = fn ?: i915_gem_retire_noop;
+}
+
 static inline struct drm_i915_gem_request *
 __i915_gem_active_peek(const struct i915_gem_active *active)
 {

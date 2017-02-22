@@ -514,13 +514,12 @@ static void remove_widget(struct snd_soc_component *comp,
 			    == SND_SOC_TPLG_TYPE_MIXER)
 				kfree(kcontrol->tlv.p);
 
-			snd_ctl_remove(card, kcontrol);
-
 			/* Private value is used as struct soc_mixer_control
 			 * for volume mixers or soc_bytes_ext for bytes
 			 * controls.
 			 */
 			kfree((void *)kcontrol->private_value);
+			snd_ctl_remove(card, kcontrol);
 		}
 		kfree(w->kcontrol_news);
 	}

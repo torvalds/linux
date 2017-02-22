@@ -23,7 +23,7 @@
 #include <asm/assembler.h>
 #include <asm/cpufeature.h>
 #include <asm/alternative.h>
-#include <linux/uaccess.h>
+#include <asm/asm-uaccess.h>
 
 /*
  *	flush_icache_range(start,end)

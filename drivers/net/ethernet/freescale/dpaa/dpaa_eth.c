@@ -733,6 +733,7 @@ static int dpaa_eth_cgr_init(struct dpaa_priv *priv)
 	priv->cgr_data.cgr.cb = dpaa_eth_cgscn;
 
 	/* Enable Congestion State Change Notifications and CS taildrop */
+	memset(&initcgr, 0, sizeof(initcgr));
 	initcgr.we_mask = cpu_to_be16(QM_CGR_WE_CSCN_EN | QM_CGR_WE_CS_THRES);
 	initcgr.cgr.cscn_en = QM_CGR_EN;
 
@@ -1667,7 +1668,7 @@ static struct sk_buff *sg_fd_to_skb(const struct dpaa_priv *priv,
 
 free_buffers:
 	/* compensate sw bpool counter changes */
-	for (i--; i > 0; i--) {
+	for (i--; i >= 0; i--) {
 		dpaa_bp = dpaa_bpid2pool(sgt[i].bpid);
 		if (dpaa_bp) {
 			count_ptr = this_cpu_ptr(dpaa_bp->percpu_count);
@@ -2291,7 +2292,8 @@ static int dpaa_open(struct net_device *net_dev)
 	net_dev->phydev = mac_dev->init_phy(net_dev, priv->mac_dev);
 	if (!net_dev->phydev) {
 		netif_err(priv, ifup, net_dev, "init_phy() failed\n");
-		return -ENODEV;
+		err = -ENODEV;
+		goto phy_init_failed;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(mac_dev->port); i++) {
@@ -2314,6 +2316,7 @@ mac_start_failed:
 	for (i = 0; i < ARRAY_SIZE(mac_dev->port); i++)
 		fman_port_disable(mac_dev->port[i]);
 
+phy_init_failed:
 	dpaa_eth_napi_disable(priv);
 
 	return err;
@@ -2420,6 +2423,7 @@ static int dpaa_ingress_cgr_init(struct dpaa_priv *priv)
 	}
 
 	/* Enable CS TD, but disable Congestion State Change Notifications. */
+	memset(&initcgr, 0, sizeof(initcgr));
 	initcgr.we_mask = cpu_to_be16(QM_CGR_WE_CS_THRES);
 	initcgr.cgr.cscn_en = QM_CGR_EN;
 	cs_th = DPAA_INGRESS_CS_THRESHOLD;

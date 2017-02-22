@@ -88,6 +88,7 @@ MODULE_FIRMWARE("amdgpu/polaris10_smc.bin");
 MODULE_FIRMWARE("amdgpu/polaris10_smc_sk.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_smc.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_smc_sk.bin");
+MODULE_FIRMWARE("amdgpu/polaris12_smc.bin");
 
 /*
  * Indirect registers accessor
@@ -312,6 +313,7 @@ static void vi_init_golden_registers(struct amdgpu_device *adev)
 		break;
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS10:
+	case CHIP_POLARIS12:
 	default:
 		break;
 	}
@@ -671,6 +673,7 @@ static int vi_read_register(struct amdgpu_device *adev, u32 se_num,
 	case CHIP_TONGA:
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS10:
+	case CHIP_POLARIS12:
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
 		asic_register_table = cz_allowed_read_registers;
@@ -993,6 +996,11 @@ static int vi_common_early_init(void *handle)
 			AMD_CG_SUPPORT_VCE_MGCG;
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x50;
+		break;
+	case CHIP_POLARIS12:
+		adev->cg_flags = AMD_CG_SUPPORT_UVD_MGCG;
+		adev->pg_flags = 0;
+		adev->external_rev_id = adev->rev_id + 0x64;
 		break;
 	case CHIP_CARRIZO:
 		adev->cg_flags = AMD_CG_SUPPORT_UVD_MGCG |
@@ -1346,6 +1354,7 @@ static int vi_common_set_clockgating_state(void *handle,
 	case CHIP_TONGA:
 	case CHIP_POLARIS10:
 	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
 		vi_common_set_clockgating_state_by_smu(adev, state);
 	default:
 		break;
@@ -1429,6 +1438,7 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 		break;
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS10:
+	case CHIP_POLARIS12:
 		amdgpu_ip_block_add(adev, &vi_common_ip_block);
 		amdgpu_ip_block_add(adev, &gmc_v8_1_ip_block);
 		amdgpu_ip_block_add(adev, &tonga_ih_ip_block);

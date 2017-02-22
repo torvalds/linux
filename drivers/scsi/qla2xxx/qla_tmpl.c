@@ -433,6 +433,18 @@ qla27xx_fwdt_entry_t263(struct scsi_qla_host *vha,
 				count++;
 			}
 		}
+	} else if (QLA_TGT_MODE_ENABLED() &&
+	    ent->t263.queue_type == T263_QUEUE_TYPE_ATIO) {
+		struct qla_hw_data *ha = vha->hw;
+		struct atio *atr = ha->tgt.atio_ring;
+
+		if (atr || !buf) {
+			length = ha->tgt.atio_q_length;
+			qla27xx_insert16(0, buf, len);
+			qla27xx_insert16(length, buf, len);
+			qla27xx_insertbuf(atr, length * sizeof(*atr), buf, len);
+			count++;
+		}
 	} else {
 		ql_dbg(ql_dbg_misc, vha, 0xd026,
 		    "%s: unknown queue %x\n", __func__, ent->t263.queue_type);
@@ -675,6 +687,18 @@ qla27xx_fwdt_entry_t274(struct scsi_qla_host *vha,
 				    *rsp->in_ptr : 0, buf, len);
 				count++;
 			}
+		}
+	} else if (QLA_TGT_MODE_ENABLED() &&
+	    ent->t274.queue_type == T274_QUEUE_TYPE_ATIO_SHAD) {
+		struct qla_hw_data *ha = vha->hw;
+		struct atio *atr = ha->tgt.atio_ring_ptr;
+
+		if (atr || !buf) {
+			qla27xx_insert16(0, buf, len);
+			qla27xx_insert16(1, buf, len);
+			qla27xx_insert32(ha->tgt.atio_q_in ?
+			    readl(ha->tgt.atio_q_in) : 0, buf, len);
+			count++;
 		}
 	} else {
 		ql_dbg(ql_dbg_misc, vha, 0xd02f,

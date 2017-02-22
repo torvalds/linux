@@ -444,6 +444,10 @@ bool __rcu_is_watching(void);
 #error "Unknown RCU implementation specified to kernel configuration"
 #endif
 
+#define RCU_SCHEDULER_INACTIVE	0
+#define RCU_SCHEDULER_INIT	1
+#define RCU_SCHEDULER_RUNNING	2
+
 /*
  * init_rcu_head_on_stack()/destroy_rcu_head_on_stack() are needed for dynamic
  * initialization and destruction of rcu_head on the stack. rcu_head structures

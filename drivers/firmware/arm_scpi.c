@@ -721,11 +721,17 @@ static int scpi_sensor_get_value(u16 sensor, u64 *val)
 
 	ret = scpi_send_message(CMD_SENSOR_VALUE, &id, sizeof(id),
 				&buf, sizeof(buf));
-	if (!ret)
+	if (ret)
+		return ret;
+
+	if (scpi_info->is_legacy)
+		/* only 32-bits supported, hi_val can be junk */
+		*val = le32_to_cpu(buf.lo_val);
+	else
 		*val = (u64)le32_to_cpu(buf.hi_val) << 32 |
 			le32_to_cpu(buf.lo_val);
 
-	return ret;
+	return 0;
 }
 
 static int scpi_device_get_power_state(u16 dev_id)

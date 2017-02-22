@@ -1181,13 +1181,13 @@ validate_exec_list(struct drm_device *dev,
 			if (exec[i].offset !=
 			    gen8_canonical_addr(exec[i].offset & PAGE_MASK))
 				return -EINVAL;
-
-			/* From drm_mm perspective address space is continuous,
-			 * so from this point we're always using non-canonical
-			 * form internally.
-			 */
-			exec[i].offset = gen8_noncanonical_addr(exec[i].offset);
 		}
+
+		/* From drm_mm perspective address space is continuous,
+		 * so from this point we're always using non-canonical
+		 * form internally.
+		 */
+		exec[i].offset = gen8_noncanonical_addr(exec[i].offset);
 
 		if (exec[i].alignment && !is_power_of_2(exec[i].alignment))
 			return -EINVAL;

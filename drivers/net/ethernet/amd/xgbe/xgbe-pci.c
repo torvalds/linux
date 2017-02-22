@@ -265,6 +265,7 @@ static int xgbe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct xgbe_prv_data *pdata;
 	struct device *dev = &pdev->dev;
 	void __iomem * const *iomap_table;
+	struct pci_dev *rdev;
 	unsigned int ma_lo, ma_hi;
 	unsigned int reg;
 	int bar_mask;
@@ -326,8 +327,20 @@ static int xgbe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (netif_msg_probe(pdata))
 		dev_dbg(dev, "xpcs_regs  = %p\n", pdata->xpcs_regs);
 
+	/* Set the PCS indirect addressing definition registers */
+	rdev = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(0, 0));
+	if (rdev &&
+	    (rdev->vendor == PCI_VENDOR_ID_AMD) && (rdev->device == 0x15d0)) {
+		pdata->xpcs_window_def_reg = PCS_V2_RV_WINDOW_DEF;
+		pdata->xpcs_window_sel_reg = PCS_V2_RV_WINDOW_SELECT;
+	} else {
+		pdata->xpcs_window_def_reg = PCS_V2_WINDOW_DEF;
+		pdata->xpcs_window_sel_reg = PCS_V2_WINDOW_SELECT;
+	}
+	pci_dev_put(rdev);
+
 	/* Configure the PCS indirect addressing support */
-	reg = XPCS32_IOREAD(pdata, PCS_V2_WINDOW_DEF);
+	reg = XPCS32_IOREAD(pdata, pdata->xpcs_window_def_reg);
 	pdata->xpcs_window = XPCS_GET_BITS(reg, PCS_V2_WINDOW_DEF, OFFSET);
 	pdata->xpcs_window <<= 6;
 	pdata->xpcs_window_size = XPCS_GET_BITS(reg, PCS_V2_WINDOW_DEF, SIZE);

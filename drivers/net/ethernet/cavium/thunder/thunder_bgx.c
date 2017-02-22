@@ -31,6 +31,7 @@ struct lmac {
 	u8                      lmac_type;
 	u8                      lane_to_sds;
 	bool                    use_training;
+	bool                    autoneg;
 	bool			link_up;
 	int			lmacid; /* ID within BGX */
 	int			lmacid_bd; /* ID on board */
@@ -47,8 +48,9 @@ struct lmac {
 struct bgx {
 	u8			bgx_id;
 	struct	lmac		lmac[MAX_LMAC_PER_BGX];
-	int			lmac_count;
+	u8			lmac_count;
 	u8			max_lmac;
+	u8                      acpi_lmac_idx;
 	void __iomem		*reg_base;
 	struct pci_dev		*pdev;
 	bool                    is_dlm;
@@ -460,7 +462,17 @@ static int bgx_lmac_sgmii_init(struct bgx *bgx, struct lmac *lmac)
 	/* power down, reset autoneg, autoneg enable */
 	cfg = bgx_reg_read(bgx, lmacid, BGX_GMP_PCS_MRX_CTL);
 	cfg &= ~PCS_MRX_CTL_PWR_DN;
-	cfg |= (PCS_MRX_CTL_RST_AN | PCS_MRX_CTL_AN_EN);
+	cfg |= PCS_MRX_CTL_RST_AN;
+	if (lmac->phydev) {
+		cfg |= PCS_MRX_CTL_AN_EN;
+	} else {
+		/* In scenarios where PHY driver is not present or it's a
+		 * non-standard PHY, FW sets AN_EN to inform Linux driver
+		 * to do auto-neg and link polling or not.
+		 */
+		if (cfg & PCS_MRX_CTL_AN_EN)
+			lmac->autoneg = true;
+	}
 	bgx_reg_write(bgx, lmacid, BGX_GMP_PCS_MRX_CTL, cfg);
 
 	if (lmac->lmac_type == BGX_MODE_QSGMII) {
@@ -471,7 +483,7 @@ static int bgx_lmac_sgmii_init(struct bgx *bgx, struct lmac *lmac)
 		return 0;
 	}
 
-	if (lmac->lmac_type == BGX_MODE_SGMII) {
+	if ((lmac->lmac_type == BGX_MODE_SGMII) && lmac->phydev) {
 		if (bgx_poll_reg(bgx, lmacid, BGX_GMP_PCS_MRX_STATUS,
 				 PCS_MRX_STATUS_AN_CPT, false)) {
 			dev_err(&bgx->pdev->dev, "BGX AN_CPT not completed\n");
@@ -677,12 +689,71 @@ static int bgx_xaui_check_link(struct lmac *lmac)
 	return -1;
 }
 
+static void bgx_poll_for_sgmii_link(struct lmac *lmac)
+{
+	u64 pcs_link, an_result;
+	u8 speed;
+
+	pcs_link = bgx_reg_read(lmac->bgx, lmac->lmacid,
+				BGX_GMP_PCS_MRX_STATUS);
+
+	/*Link state bit is sticky, read it again*/
+	if (!(pcs_link & PCS_MRX_STATUS_LINK))
+		pcs_link = bgx_reg_read(lmac->bgx, lmac->lmacid,
+					BGX_GMP_PCS_MRX_STATUS);
+
+	if (bgx_poll_reg(lmac->bgx, lmac->lmacid, BGX_GMP_PCS_MRX_STATUS,
+			 PCS_MRX_STATUS_AN_CPT, false)) {
+		lmac->link_up = false;
+		lmac->last_speed = SPEED_UNKNOWN;
+		lmac->last_duplex = DUPLEX_UNKNOWN;
+		goto next_poll;
+	}
+
+	lmac->link_up = ((pcs_link & PCS_MRX_STATUS_LINK) != 0) ? true : false;
+	an_result = bgx_reg_read(lmac->bgx, lmac->lmacid,
+				 BGX_GMP_PCS_ANX_AN_RESULTS);
+
+	speed = (an_result >> 3) & 0x3;
+	lmac->last_duplex = (an_result >> 1) & 0x1;
+	switch (speed) {
+	case 0:
+		lmac->last_speed = 10;
+		break;
+	case 1:
+		lmac->last_speed = 100;
+		break;
+	case 2:
+		lmac->last_speed = 1000;
+		break;
+	default:
+		lmac->link_up = false;
+		lmac->last_speed = SPEED_UNKNOWN;
+		lmac->last_duplex = DUPLEX_UNKNOWN;
+		break;
+	}
+
+next_poll:
+
+	if (lmac->last_link != lmac->link_up) {
+		if (lmac->link_up)
+			bgx_sgmii_change_link_state(lmac);
+		lmac->last_link = lmac->link_up;
+	}
+
+	queue_delayed_work(lmac->check_link, &lmac->dwork, HZ * 3);
+}
+
 static void bgx_poll_for_link(struct work_struct *work)
 {
 	struct lmac *lmac;
 	u64 spu_link, smu_link;
 
 	lmac = container_of(work, struct lmac, dwork.work);
+	if (lmac->is_sgmii) {
+		bgx_poll_for_sgmii_link(lmac);
+		return;
+	}
 
 	/* Receive link is latching low. Force it high and verify it */
 	bgx_reg_modify(lmac->bgx, lmac->lmacid,
@@ -774,9 +845,21 @@ static int bgx_lmac_enable(struct bgx *bgx, u8 lmacid)
 	    (lmac->lmac_type != BGX_MODE_XLAUI) &&
 	    (lmac->lmac_type != BGX_MODE_40G_KR) &&
 	    (lmac->lmac_type != BGX_MODE_10G_KR)) {
-		if (!lmac->phydev)
-			return -ENODEV;
-
+		if (!lmac->phydev) {
+			if (lmac->autoneg) {
+				bgx_reg_write(bgx, lmacid,
+					      BGX_GMP_PCS_LINKX_TIMER,
+					      PCS_LINKX_TIMER_COUNT);
+				goto poll;
+			} else {
+				/* Default to below link speed and duplex */
+				lmac->link_up = true;
+				lmac->last_speed = 1000;
+				lmac->last_duplex = 1;
+				bgx_sgmii_change_link_state(lmac);
+				return 0;
+			}
+		}
 		lmac->phydev->dev_flags = 0;
 
 		if (phy_connect_direct(&lmac->netdev, lmac->phydev,
@@ -785,14 +868,16 @@ static int bgx_lmac_enable(struct bgx *bgx, u8 lmacid)
 			return -ENODEV;
 
 		phy_start_aneg(lmac->phydev);
-	} else {
-		lmac->check_link = alloc_workqueue("check_link", WQ_UNBOUND |
-						   WQ_MEM_RECLAIM, 1);
-		if (!lmac->check_link)
-			return -ENOMEM;
-		INIT_DELAYED_WORK(&lmac->dwork, bgx_poll_for_link);
-		queue_delayed_work(lmac->check_link, &lmac->dwork, 0);
+		return 0;
 	}
+
+poll:
+	lmac->check_link = alloc_workqueue("check_link", WQ_UNBOUND |
+					   WQ_MEM_RECLAIM, 1);
+	if (!lmac->check_link)
+		return -ENOMEM;
+	INIT_DELAYED_WORK(&lmac->dwork, bgx_poll_for_link);
+	queue_delayed_work(lmac->check_link, &lmac->dwork, 0);
 
 	return 0;
 }
@@ -1143,13 +1228,13 @@ static acpi_status bgx_acpi_register_phy(acpi_handle handle,
 	if (acpi_bus_get_device(handle, &adev))
 		goto out;
 
-	acpi_get_mac_address(dev, adev, bgx->lmac[bgx->lmac_count].mac);
+	acpi_get_mac_address(dev, adev, bgx->lmac[bgx->acpi_lmac_idx].mac);
 
-	SET_NETDEV_DEV(&bgx->lmac[bgx->lmac_count].netdev, dev);
+	SET_NETDEV_DEV(&bgx->lmac[bgx->acpi_lmac_idx].netdev, dev);
 
-	bgx->lmac[bgx->lmac_count].lmacid = bgx->lmac_count;
+	bgx->lmac[bgx->acpi_lmac_idx].lmacid = bgx->acpi_lmac_idx;
+	bgx->acpi_lmac_idx++; /* move to next LMAC */
 out:
-	bgx->lmac_count++;
 	return AE_OK;
 }
 

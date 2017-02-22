@@ -146,10 +146,11 @@ void __bpf_prog_free(struct bpf_prog *fp)
 	vfree(fp);
 }
 
-int bpf_prog_calc_digest(struct bpf_prog *fp)
+int bpf_prog_calc_tag(struct bpf_prog *fp)
 {
 	const u32 bits_offset = SHA_MESSAGE_BYTES - sizeof(__be64);
-	u32 raw_size = bpf_prog_digest_scratch_size(fp);
+	u32 raw_size = bpf_prog_tag_scratch_size(fp);
+	u32 digest[SHA_DIGEST_WORDS];
 	u32 ws[SHA_WORKSPACE_WORDS];
 	u32 i, bsize, psize, blocks;
 	struct bpf_insn *dst;
@@ -162,7 +163,7 @@ int bpf_prog_calc_digest(struct bpf_prog *fp)
 	if (!raw)
 		return -ENOMEM;
 
-	sha_init(fp->digest);
+	sha_init(digest);
 	memset(ws, 0, sizeof(ws));
 
 	/* We need to take out the map fd for the digest calculation
@@ -204,13 +205,14 @@ int bpf_prog_calc_digest(struct bpf_prog *fp)
 	*bits = cpu_to_be64((psize - 1) << 3);
 
 	while (blocks--) {
-		sha_transform(fp->digest, todo, ws);
+		sha_transform(digest, todo, ws);
 		todo += SHA_MESSAGE_BYTES;
 	}
 
-	result = (__force __be32 *)fp->digest;
+	result = (__force __be32 *)digest;
 	for (i = 0; i < SHA_DIGEST_WORDS; i++)
-		result[i] = cpu_to_be32(fp->digest[i]);
+		result[i] = cpu_to_be32(digest[i]);
+	memcpy(fp->tag, result, sizeof(fp->tag));
 
 	vfree(raw);
 	return 0;

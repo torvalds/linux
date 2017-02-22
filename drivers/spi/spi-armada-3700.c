@@ -800,7 +800,7 @@ static int a3700_spi_probe(struct platform_device *pdev)
 	struct spi_master *master;
 	struct a3700_spi *spi;
 	u32 num_cs = 0;
-	int ret = 0;
+	int irq, ret = 0;
 
 	master = spi_alloc_master(dev, sizeof(*spi));
 	if (!master) {
@@ -825,7 +825,7 @@ static int a3700_spi_probe(struct platform_device *pdev)
 	master->unprepare_message = a3700_spi_unprepare_message;
 	master->set_cs = a3700_spi_set_cs;
 	master->flags = SPI_MASTER_HALF_DUPLEX;
-	master->mode_bits |= (SPI_RX_DUAL | SPI_RX_DUAL |
+	master->mode_bits |= (SPI_RX_DUAL | SPI_TX_DUAL |
 			      SPI_RX_QUAD | SPI_TX_QUAD);
 
 	platform_set_drvdata(pdev, master);
@@ -846,12 +846,13 @@ static int a3700_spi_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	spi->irq = platform_get_irq(pdev, 0);
-	if (spi->irq < 0) {
-		dev_err(dev, "could not get irq: %d\n", spi->irq);
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		dev_err(dev, "could not get irq: %d\n", irq);
 		ret = -ENXIO;
 		goto error;
 	}
+	spi->irq = irq;
 
 	init_completion(&spi->done);
 

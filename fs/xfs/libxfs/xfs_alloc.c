@@ -95,10 +95,7 @@ unsigned int
 xfs_alloc_set_aside(
 	struct xfs_mount	*mp)
 {
-	unsigned int		blocks;
-
-	blocks = 4 + (mp->m_sb.sb_agcount * XFS_ALLOC_AGFL_RESERVE);
-	return blocks;
+	return mp->m_sb.sb_agcount * (XFS_ALLOC_AGFL_RESERVE + 4);
 }
 
 /*
@@ -365,33 +362,9 @@ xfs_alloc_fix_len(
 		return;
 	ASSERT(rlen >= args->minlen && rlen <= args->maxlen);
 	ASSERT(rlen % args->prod == args->mod);
+	ASSERT(args->pag->pagf_freeblks + args->pag->pagf_flcount >=
+		rlen + args->minleft);
 	args->len = rlen;
-}
-
-/*
- * Fix up length if there is too little space left in the a.g.
- * Return 1 if ok, 0 if too little, should give up.
- */
-STATIC int
-xfs_alloc_fix_minleft(
-	xfs_alloc_arg_t	*args)		/* allocation argument structure */
-{
-	xfs_agf_t	*agf;		/* a.g. freelist header */
-	int		diff;		/* free space difference */
-
-	if (args->minleft == 0)
-		return 1;
-	agf = XFS_BUF_TO_AGF(args->agbp);
-	diff = be32_to_cpu(agf->agf_freeblks)
-		- args->len - args->minleft;
-	if (diff >= 0)
-		return 1;
-	args->len += diff;		/* shrink the allocated space */
-	/* casts to (int) catch length underflows */
-	if ((int)args->len >= (int)args->minlen)
-		return 1;
-	args->agbno = NULLAGBLOCK;
-	return 0;
 }
 
 /*
@@ -689,28 +662,12 @@ xfs_alloc_ag_vextent(
 	xfs_alloc_arg_t	*args)	/* argument structure for allocation */
 {
 	int		error=0;
-	xfs_extlen_t	reservation;
-	xfs_extlen_t	oldmax;
 
 	ASSERT(args->minlen > 0);
 	ASSERT(args->maxlen > 0);
 	ASSERT(args->minlen <= args->maxlen);
 	ASSERT(args->mod < args->prod);
 	ASSERT(args->alignment > 0);
-
-	/*
-	 * Clamp maxlen to the amount of free space minus any reservations
-	 * that have been made.
-	 */
-	oldmax = args->maxlen;
-	reservation = xfs_ag_resv_needed(args->pag, args->resv);
-	if (args->maxlen > args->pag->pagf_freeblks - reservation)
-		args->maxlen = args->pag->pagf_freeblks - reservation;
-	if (args->maxlen == 0) {
-		args->agbno = NULLAGBLOCK;
-		args->maxlen = oldmax;
-		return 0;
-	}
 
 	/*
 	 * Branch to correct routine based on the type.
@@ -730,8 +687,6 @@ xfs_alloc_ag_vextent(
 		ASSERT(0);
 		/* NOTREACHED */
 	}
-
-	args->maxlen = oldmax;
 
 	if (error || args->agbno == NULLAGBLOCK)
 		return error;
@@ -841,9 +796,6 @@ xfs_alloc_ag_vextent_exact(
 	args->len = XFS_AGBLOCK_MIN(tend, args->agbno + args->maxlen)
 						- args->agbno;
 	xfs_alloc_fix_len(args);
-	if (!xfs_alloc_fix_minleft(args))
-		goto not_found;
-
 	ASSERT(args->agbno + args->len <= tend);
 
 	/*
@@ -1149,12 +1101,7 @@ restart:
 		XFS_WANT_CORRUPTED_GOTO(args->mp, i == 1, error0);
 		ASSERT(ltbno + ltlen <= be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_length));
 		args->len = blen;
-		if (!xfs_alloc_fix_minleft(args)) {
-			xfs_btree_del_cursor(cnt_cur, XFS_BTREE_NOERROR);
-			trace_xfs_alloc_near_nominleft(args);
-			return 0;
-		}
-		blen = args->len;
+
 		/*
 		 * We are allocating starting at bnew for blen blocks.
 		 */
@@ -1346,12 +1293,6 @@ restart:
 	 */
 	args->len = XFS_EXTLEN_MIN(ltlena, args->maxlen);
 	xfs_alloc_fix_len(args);
-	if (!xfs_alloc_fix_minleft(args)) {
-		trace_xfs_alloc_near_nominleft(args);
-		xfs_btree_del_cursor(bno_cur_lt, XFS_BTREE_NOERROR);
-		xfs_btree_del_cursor(cnt_cur, XFS_BTREE_NOERROR);
-		return 0;
-	}
 	rlen = args->len;
 	(void)xfs_alloc_compute_diff(args->agbno, rlen, args->alignment,
 				     args->datatype, ltbnoa, ltlena, &ltnew);
@@ -1553,8 +1494,6 @@ restart:
 	}
 	xfs_alloc_fix_len(args);
 
-	if (!xfs_alloc_fix_minleft(args))
-		goto out_nominleft;
 	rlen = args->len;
 	XFS_WANT_CORRUPTED_GOTO(args->mp, rlen <= flen, error0);
 	/*
@@ -2056,7 +1995,7 @@ xfs_alloc_space_available(
 	int			flags)
 {
 	struct xfs_perag	*pag = args->pag;
-	xfs_extlen_t		longest;
+	xfs_extlen_t		alloc_len, longest;
 	xfs_extlen_t		reservation; /* blocks that are still reserved */
 	int			available;
 
@@ -2066,16 +2005,27 @@ xfs_alloc_space_available(
 	reservation = xfs_ag_resv_needed(pag, args->resv);
 
 	/* do we have enough contiguous free space for the allocation? */
+	alloc_len = args->minlen + (args->alignment - 1) + args->minalignslop;
 	longest = xfs_alloc_longest_free_extent(args->mp, pag, min_free,
 			reservation);
-	if ((args->minlen + args->alignment + args->minalignslop - 1) > longest)
+	if (longest < alloc_len)
 		return false;
 
 	/* do we have enough free space remaining for the allocation? */
 	available = (int)(pag->pagf_freeblks + pag->pagf_flcount -
-			  reservation - min_free - args->total);
-	if (available < (int)args->minleft || available <= 0)
+			  reservation - min_free - args->minleft);
+	if (available < (int)max(args->total, alloc_len))
 		return false;
+
+	/*
+	 * Clamp maxlen to the amount of free space available for the actual
+	 * extent allocation.
+	 */
+	if (available < (int)args->maxlen && !(flags & XFS_ALLOC_FLAG_CHECK)) {
+		args->maxlen = available;
+		ASSERT(args->maxlen > 0);
+		ASSERT(args->maxlen >= args->minlen);
+	}
 
 	return true;
 }
@@ -2122,7 +2072,8 @@ xfs_alloc_fix_freelist(
 	}
 
 	need = xfs_alloc_min_freelist(mp, pag);
-	if (!xfs_alloc_space_available(args, need, flags))
+	if (!xfs_alloc_space_available(args, need, flags |
+			XFS_ALLOC_FLAG_CHECK))
 		goto out_agbp_relse;
 
 	/*
@@ -2638,12 +2589,10 @@ xfs_alloc_vextent(
 	xfs_agblock_t	agsize;	/* allocation group size */
 	int		error;
 	int		flags;	/* XFS_ALLOC_FLAG_... locking flags */
-	xfs_extlen_t	minleft;/* minimum left value, temp copy */
 	xfs_mount_t	*mp;	/* mount structure pointer */
 	xfs_agnumber_t	sagno;	/* starting allocation group number */
 	xfs_alloctype_t	type;	/* input allocation type */
 	int		bump_rotor = 0;
-	int		no_min = 0;
 	xfs_agnumber_t	rotorstep = xfs_rotorstep; /* inode32 agf stepper */
 
 	mp = args->mp;
@@ -2672,7 +2621,6 @@ xfs_alloc_vextent(
 		trace_xfs_alloc_vextent_badargs(args);
 		return 0;
 	}
-	minleft = args->minleft;
 
 	switch (type) {
 	case XFS_ALLOCTYPE_THIS_AG:
@@ -2683,9 +2631,7 @@ xfs_alloc_vextent(
 		 */
 		args->agno = XFS_FSB_TO_AGNO(mp, args->fsbno);
 		args->pag = xfs_perag_get(mp, args->agno);
-		args->minleft = 0;
 		error = xfs_alloc_fix_freelist(args, 0);
-		args->minleft = minleft;
 		if (error) {
 			trace_xfs_alloc_vextent_nofix(args);
 			goto error0;
@@ -2750,9 +2696,7 @@ xfs_alloc_vextent(
 		 */
 		for (;;) {
 			args->pag = xfs_perag_get(mp, args->agno);
-			if (no_min) args->minleft = 0;
 			error = xfs_alloc_fix_freelist(args, flags);
-			args->minleft = minleft;
 			if (error) {
 				trace_xfs_alloc_vextent_nofix(args);
 				goto error0;
@@ -2792,20 +2736,17 @@ xfs_alloc_vextent(
 			 * or switch to non-trylock mode.
 			 */
 			if (args->agno == sagno) {
-				if (no_min == 1) {
+				if (flags == 0) {
 					args->agbno = NULLAGBLOCK;
 					trace_xfs_alloc_vextent_allfailed(args);
 					break;
 				}
-				if (flags == 0) {
-					no_min = 1;
-				} else {
-					flags = 0;
-					if (type == XFS_ALLOCTYPE_START_BNO) {
-						args->agbno = XFS_FSB_TO_AGBNO(mp,
-							args->fsbno);
-						args->type = XFS_ALLOCTYPE_NEAR_BNO;
-					}
+
+				flags = 0;
+				if (type == XFS_ALLOCTYPE_START_BNO) {
+					args->agbno = XFS_FSB_TO_AGBNO(mp,
+						args->fsbno);
+					args->type = XFS_ALLOCTYPE_NEAR_BNO;
 				}
 			}
 			xfs_perag_put(args->pag);

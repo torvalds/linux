@@ -441,15 +441,19 @@ static void __tipc_shutdown(struct socket *sock, int error)
 	while ((skb = __skb_dequeue(&sk->sk_receive_queue)) != NULL) {
 		if (TIPC_SKB_CB(skb)->bytes_read) {
 			kfree_skb(skb);
-		} else {
-			if (!tipc_sk_type_connectionless(sk) &&
-			    sk->sk_state != TIPC_DISCONNECTING) {
-				tipc_set_sk_state(sk, TIPC_DISCONNECTING);
-				tipc_node_remove_conn(net, dnode, tsk->portid);
-			}
-			tipc_sk_respond(sk, skb, error);
+			continue;
 		}
+		if (!tipc_sk_type_connectionless(sk) &&
+		    sk->sk_state != TIPC_DISCONNECTING) {
+			tipc_set_sk_state(sk, TIPC_DISCONNECTING);
+			tipc_node_remove_conn(net, dnode, tsk->portid);
+		}
+		tipc_sk_respond(sk, skb, error);
 	}
+
+	if (tipc_sk_type_connectionless(sk))
+		return;
+
 	if (sk->sk_state != TIPC_DISCONNECTING) {
 		skb = tipc_msg_create(TIPC_CRITICAL_IMPORTANCE,
 				      TIPC_CONN_MSG, SHORT_H_SIZE, 0, dnode,
@@ -457,10 +461,8 @@ static void __tipc_shutdown(struct socket *sock, int error)
 				      tsk->portid, error);
 		if (skb)
 			tipc_node_xmit_skb(net, skb, dnode, tsk->portid);
-		if (!tipc_sk_type_connectionless(sk)) {
-			tipc_node_remove_conn(net, dnode, tsk->portid);
-			tipc_set_sk_state(sk, TIPC_DISCONNECTING);
-		}
+		tipc_node_remove_conn(net, dnode, tsk->portid);
+		tipc_set_sk_state(sk, TIPC_DISCONNECTING);
 	}
 }
 

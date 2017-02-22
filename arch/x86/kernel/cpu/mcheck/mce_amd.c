@@ -1182,6 +1182,9 @@ static int threshold_create_bank(unsigned int cpu, unsigned int bank)
 	const char *name = get_name(bank, NULL);
 	int err = 0;
 
+	if (!dev)
+		return -ENODEV;
+
 	if (is_shared_bank(bank)) {
 		nb = node_to_amd_nb(amd_get_nb_id(cpu));
 

@@ -144,6 +144,11 @@ clusterip_config_find_get(struct net *net, __be32 clusterip, int entry)
 	rcu_read_lock_bh();
 	c = __clusterip_config_find(net, clusterip);
 	if (c) {
+#ifdef CONFIG_PROC_FS
+		if (!c->pde)
+			c = NULL;
+		else
+#endif
 		if (unlikely(!atomic_inc_not_zero(&c->refcount)))
 			c = NULL;
 		else if (entry)
@@ -166,14 +171,15 @@ clusterip_config_init_nodelist(struct clusterip_config *c,
 
 static struct clusterip_config *
 clusterip_config_init(const struct ipt_clusterip_tgt_info *i, __be32 ip,
-			struct net_device *dev)
+		      struct net_device *dev)
 {
+	struct net *net = dev_net(dev);
 	struct clusterip_config *c;
-	struct clusterip_net *cn = net_generic(dev_net(dev), clusterip_net_id);
+	struct clusterip_net *cn = net_generic(net, clusterip_net_id);
 
 	c = kzalloc(sizeof(*c), GFP_ATOMIC);
 	if (!c)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	c->dev = dev;
 	c->clusterip = ip;
@@ -185,6 +191,17 @@ clusterip_config_init(const struct ipt_clusterip_tgt_info *i, __be32 ip,
 	atomic_set(&c->refcount, 1);
 	atomic_set(&c->entries, 1);
 
+	spin_lock_bh(&cn->lock);
+	if (__clusterip_config_find(net, ip)) {
+		spin_unlock_bh(&cn->lock);
+		kfree(c);
+
+		return ERR_PTR(-EBUSY);
+	}
+
+	list_add_rcu(&c->list, &cn->configs);
+	spin_unlock_bh(&cn->lock);
+
 #ifdef CONFIG_PROC_FS
 	{
 		char buffer[16];
@@ -195,15 +212,15 @@ clusterip_config_init(const struct ipt_clusterip_tgt_info *i, __be32 ip,
 					  cn->procdir,
 					  &clusterip_proc_fops, c);
 		if (!c->pde) {
+			spin_lock_bh(&cn->lock);
+			list_del_rcu(&c->list);
+			spin_unlock_bh(&cn->lock);
 			kfree(c);
-			return NULL;
+
+			return ERR_PTR(-ENOMEM);
 		}
 	}
 #endif
-
-	spin_lock_bh(&cn->lock);
-	list_add_rcu(&c->list, &cn->configs);
-	spin_unlock_bh(&cn->lock);
 
 	return c;
 }
@@ -410,9 +427,9 @@ static int clusterip_tg_check(const struct xt_tgchk_param *par)
 
 			config = clusterip_config_init(cipinfo,
 							e->ip.dst.s_addr, dev);
-			if (!config) {
+			if (IS_ERR(config)) {
 				dev_put(dev);
-				return -ENOMEM;
+				return PTR_ERR(config);
 			}
 			dev_mc_add(config->dev, config->clustermac);
 		}

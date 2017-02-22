@@ -77,20 +77,20 @@ void arc_init_IRQ(void)
 
 static void arcv2_irq_mask(struct irq_data *data)
 {
-	write_aux_reg(AUX_IRQ_SELECT, data->irq);
+	write_aux_reg(AUX_IRQ_SELECT, data->hwirq);
 	write_aux_reg(AUX_IRQ_ENABLE, 0);
 }
 
 static void arcv2_irq_unmask(struct irq_data *data)
 {
-	write_aux_reg(AUX_IRQ_SELECT, data->irq);
+	write_aux_reg(AUX_IRQ_SELECT, data->hwirq);
 	write_aux_reg(AUX_IRQ_ENABLE, 1);
 }
 
 void arcv2_irq_enable(struct irq_data *data)
 {
 	/* set default priority */
-	write_aux_reg(AUX_IRQ_SELECT, data->irq);
+	write_aux_reg(AUX_IRQ_SELECT, data->hwirq);
 	write_aux_reg(AUX_IRQ_PRIORITY, ARCV2_IRQ_DEF_PRIO);
 
 	/*

@@ -167,6 +167,7 @@ static void dce_v11_0_init_golden_registers(struct amdgpu_device *adev)
 						 (const u32)ARRAY_SIZE(stoney_golden_settings_a11));
 		break;
 	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
 		amdgpu_program_register_sequence(adev,
 						 polaris11_golden_settings_a11,
 						 (const u32)ARRAY_SIZE(polaris11_golden_settings_a11));
@@ -608,6 +609,7 @@ static int dce_v11_0_get_num_crtc (struct amdgpu_device *adev)
 		num_crtc = 6;
 		break;
 	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
 		num_crtc = 5;
 		break;
 	default:
@@ -1589,6 +1591,7 @@ static int dce_v11_0_audio_init(struct amdgpu_device *adev)
 		adev->mode_info.audio.num_pins = 8;
 		break;
 	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
 		adev->mode_info.audio.num_pins = 6;
 		break;
 	default:
@@ -2388,7 +2391,8 @@ static u32 dce_v11_0_pick_pll(struct drm_crtc *crtc)
 	int pll;
 
 	if ((adev->asic_type == CHIP_POLARIS10) ||
-	    (adev->asic_type == CHIP_POLARIS11)) {
+	    (adev->asic_type == CHIP_POLARIS11) ||
+	    (adev->asic_type == CHIP_POLARIS12)) {
 		struct amdgpu_encoder *amdgpu_encoder =
 			to_amdgpu_encoder(amdgpu_crtc->encoder);
 		struct amdgpu_encoder_atom_dig *dig = amdgpu_encoder->enc_priv;
@@ -2528,6 +2532,8 @@ static int dce_v11_0_cursor_move_locked(struct drm_crtc *crtc,
 
 	WREG32(mmCUR_POSITION + amdgpu_crtc->crtc_offset, (x << 16) | y);
 	WREG32(mmCUR_HOT_SPOT + amdgpu_crtc->crtc_offset, (xorigin << 16) | yorigin);
+	WREG32(mmCUR_SIZE + amdgpu_crtc->crtc_offset,
+	       ((amdgpu_crtc->cursor_width - 1) << 16) | (amdgpu_crtc->cursor_height - 1));
 
 	return 0;
 }
@@ -2553,7 +2559,6 @@ static int dce_v11_0_crtc_cursor_set2(struct drm_crtc *crtc,
 				      int32_t hot_y)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
-	struct amdgpu_device *adev = crtc->dev->dev_private;
 	struct drm_gem_object *obj;
 	struct amdgpu_bo *aobj;
 	int ret;
@@ -2594,7 +2599,9 @@ static int dce_v11_0_crtc_cursor_set2(struct drm_crtc *crtc,
 
 	dce_v11_0_lock_cursor(crtc, true);
 
-	if (hot_x != amdgpu_crtc->cursor_hot_x ||
+	if (width != amdgpu_crtc->cursor_width ||
+	    height != amdgpu_crtc->cursor_height ||
+	    hot_x != amdgpu_crtc->cursor_hot_x ||
 	    hot_y != amdgpu_crtc->cursor_hot_y) {
 		int x, y;
 
@@ -2603,16 +2610,10 @@ static int dce_v11_0_crtc_cursor_set2(struct drm_crtc *crtc,
 
 		dce_v11_0_cursor_move_locked(crtc, x, y);
 
-		amdgpu_crtc->cursor_hot_x = hot_x;
-		amdgpu_crtc->cursor_hot_y = hot_y;
-	}
-
-	if (width != amdgpu_crtc->cursor_width ||
-	    height != amdgpu_crtc->cursor_height) {
-		WREG32(mmCUR_SIZE + amdgpu_crtc->crtc_offset,
-		       (width - 1) << 16 | (height - 1));
 		amdgpu_crtc->cursor_width = width;
 		amdgpu_crtc->cursor_height = height;
+		amdgpu_crtc->cursor_hot_x = hot_x;
+		amdgpu_crtc->cursor_hot_y = hot_y;
 	}
 
 	dce_v11_0_show_cursor(crtc);
@@ -2636,17 +2637,12 @@ unpin:
 static void dce_v11_0_cursor_reset(struct drm_crtc *crtc)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
-	struct amdgpu_device *adev = crtc->dev->dev_private;
 
 	if (amdgpu_crtc->cursor_bo) {
 		dce_v11_0_lock_cursor(crtc, true);
 
 		dce_v11_0_cursor_move_locked(crtc, amdgpu_crtc->cursor_x,
 					     amdgpu_crtc->cursor_y);
-
-		WREG32(mmCUR_SIZE + amdgpu_crtc->crtc_offset,
-		       (amdgpu_crtc->cursor_width - 1) << 16 |
-		       (amdgpu_crtc->cursor_height - 1));
 
 		dce_v11_0_show_cursor(crtc);
 
@@ -2822,7 +2818,8 @@ static int dce_v11_0_crtc_mode_set(struct drm_crtc *crtc,
 		return -EINVAL;
 
 	if ((adev->asic_type == CHIP_POLARIS10) ||
-	    (adev->asic_type == CHIP_POLARIS11)) {
+	    (adev->asic_type == CHIP_POLARIS11) ||
+	    (adev->asic_type == CHIP_POLARIS12)) {
 		struct amdgpu_encoder *amdgpu_encoder =
 			to_amdgpu_encoder(amdgpu_crtc->encoder);
 		int encoder_mode =
@@ -2992,6 +2989,7 @@ static int dce_v11_0_early_init(void *handle)
 		adev->mode_info.num_dig = 6;
 		break;
 	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
 		adev->mode_info.num_hpd = 5;
 		adev->mode_info.num_dig = 5;
 		break;
@@ -3101,7 +3099,8 @@ static int dce_v11_0_hw_init(void *handle)
 	amdgpu_atombios_crtc_powergate_init(adev);
 	amdgpu_atombios_encoder_init_dig(adev);
 	if ((adev->asic_type == CHIP_POLARIS10) ||
-	    (adev->asic_type == CHIP_POLARIS11)) {
+	    (adev->asic_type == CHIP_POLARIS11) ||
+	    (adev->asic_type == CHIP_POLARIS12)) {
 		amdgpu_atombios_crtc_set_dce_clock(adev, adev->clock.default_dispclk,
 						   DCE_CLOCK_TYPE_DISPCLK, ATOM_GCK_DFS);
 		amdgpu_atombios_crtc_set_dce_clock(adev, 0,

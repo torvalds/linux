@@ -112,15 +112,8 @@ struct qed_ll2_tx_queue {
 	bool b_completing_packet;
 };
 
-struct qed_ll2_info {
-	/* Lock protecting the state of LL2 */
-	struct mutex mutex;
+struct qed_ll2_conn {
 	enum qed_ll2_conn_type conn_type;
-	u32 cid;
-	u8 my_id;
-	u8 queue_id;
-	u8 tx_stats_id;
-	bool b_active;
 	u16 mtu;
 	u8 rx_drop_ttl0_flg;
 	u8 rx_vlan_removal_en;
@@ -128,10 +121,21 @@ struct qed_ll2_info {
 	enum core_tx_dest tx_dest;
 	enum core_error_handle ai_err_packet_too_big;
 	enum core_error_handle ai_err_no_buf;
+	u8 gsi_enable;
+};
+
+struct qed_ll2_info {
+	/* Lock protecting the state of LL2 */
+	struct mutex mutex;
+	struct qed_ll2_conn conn;
+	u32 cid;
+	u8 my_id;
+	u8 queue_id;
+	u8 tx_stats_id;
+	bool b_active;
 	u8 tx_stats_en;
 	struct qed_ll2_rx_queue rx_queue;
 	struct qed_ll2_tx_queue tx_queue;
-	u8 gsi_enable;
 };
 
 /**
@@ -149,7 +153,7 @@ struct qed_ll2_info {
  * @return 0 on success, failure otherwise
  */
 int qed_ll2_acquire_connection(struct qed_hwfn *p_hwfn,
-			       struct qed_ll2_info *p_params,
+			       struct qed_ll2_conn *p_params,
 			       u16 rx_num_desc,
 			       u16 tx_num_desc,
 			       u8 *p_connection_handle);

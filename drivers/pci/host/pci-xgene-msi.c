@@ -517,7 +517,7 @@ static int xgene_msi_probe(struct platform_device *pdev)
 
 	rc = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "pci/xgene:online",
 			       xgene_msi_hwirq_alloc, NULL);
-	if (rc)
+	if (rc < 0)
 		goto err_cpuhp;
 	pci_xgene_online = rc;
 	rc = cpuhp_setup_state(CPUHP_PCI_XGENE_DEAD, "pci/xgene:dead", NULL,

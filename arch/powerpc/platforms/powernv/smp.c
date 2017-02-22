@@ -155,8 +155,10 @@ static void pnv_smp_cpu_kill_self(void)
 		wmask = SRR1_WAKEMASK_P8;
 
 	idle_states = pnv_get_supported_cpuidle_states();
+
 	/* We don't want to take decrementer interrupts while we are offline,
-	 * so clear LPCR:PECE1. We keep PECE2 enabled.
+	 * so clear LPCR:PECE1. We keep PECE2 (and LPCR_PECE_HVEE on P9)
+	 * enabled as to let IPIs in.
 	 */
 	mtspr(SPRN_LPCR, mfspr(SPRN_LPCR) & ~(u64)LPCR_PECE1);
 
@@ -206,8 +208,12 @@ static void pnv_smp_cpu_kill_self(void)
 		 * contains 0.
 		 */
 		if (((srr1 & wmask) == SRR1_WAKEEE) ||
+		    ((srr1 & wmask) == SRR1_WAKEHVI) ||
 		    (local_paca->irq_happened & PACA_IRQ_EE)) {
-			icp_native_flush_interrupt();
+			if (cpu_has_feature(CPU_FTR_ARCH_300))
+				icp_opal_flush_interrupt();
+			else
+				icp_native_flush_interrupt();
 		} else if ((srr1 & wmask) == SRR1_WAKEHDBELL) {
 			unsigned long msg = PPC_DBELL_TYPE(PPC_DBELL_SERVER);
 			asm volatile(PPC_MSGCLR(%0) : : "r" (msg));
@@ -221,6 +227,8 @@ static void pnv_smp_cpu_kill_self(void)
 		if (srr1 && !generic_check_cpu_restart(cpu))
 			DBG("CPU%d Unexpected exit while offline !\n", cpu);
 	}
+
+	/* Re-enable decrementer interrupts */
 	mtspr(SPRN_LPCR, mfspr(SPRN_LPCR) | LPCR_PECE1);
 	DBG("CPU%d coming online...\n", cpu);
 }

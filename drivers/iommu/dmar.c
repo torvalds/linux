@@ -903,8 +903,10 @@ int __init detect_intel_iommu(void)
 		x86_init.iommu.iommu_init = intel_iommu_init;
 #endif
 
-	acpi_put_table(dmar_tbl);
-	dmar_tbl = NULL;
+	if (dmar_tbl) {
+		acpi_put_table(dmar_tbl);
+		dmar_tbl = NULL;
+	}
 	up_write(&dmar_global_lock);
 
 	return ret ? 1 : -ENODEV;

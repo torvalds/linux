@@ -813,6 +813,7 @@ struct snd_soc_component {
 	unsigned int suspended:1; /* is in suspend PM state */
 
 	struct list_head list;
+	struct list_head card_aux_list; /* for auxiliary bound components */
 	struct list_head card_list;
 
 	struct snd_soc_dai_driver *dai_drv;
@@ -1152,6 +1153,7 @@ struct snd_soc_card {
 	 */
 	struct snd_soc_aux_dev *aux_dev;
 	int num_aux_devs;
+	struct list_head aux_comp_list;
 
 	const struct snd_kcontrol_new *controls;
 	int num_controls;
@@ -1547,6 +1549,7 @@ static inline void snd_soc_initialize_card_lists(struct snd_soc_card *card)
 	INIT_LIST_HEAD(&card->widgets);
 	INIT_LIST_HEAD(&card->paths);
 	INIT_LIST_HEAD(&card->dapm_list);
+	INIT_LIST_HEAD(&card->aux_comp_list);
 	INIT_LIST_HEAD(&card->component_dev_list);
 }
 

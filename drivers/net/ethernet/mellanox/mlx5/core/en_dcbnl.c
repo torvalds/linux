@@ -89,7 +89,7 @@ static int mlx5e_dcbnl_ieee_getets(struct net_device *netdev,
 	int i;
 
 	if (!MLX5_CAP_GEN(priv->mdev, ets))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	ets->ets_cap = mlx5_max_tc(priv->mdev) + 1;
 	for (i = 0; i < ets->ets_cap; i++) {
@@ -236,7 +236,7 @@ static int mlx5e_dcbnl_ieee_setets(struct net_device *netdev,
 	int err;
 
 	if (!MLX5_CAP_GEN(priv->mdev, ets))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	err = mlx5e_dbcnl_validate_ets(netdev, ets);
 	if (err)
@@ -402,7 +402,7 @@ static u8 mlx5e_dcbnl_setall(struct net_device *netdev)
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct ieee_ets ets;
 	struct ieee_pfc pfc;
-	int err = -ENOTSUPP;
+	int err = -EOPNOTSUPP;
 	int i;
 
 	if (!MLX5_CAP_GEN(mdev, ets))
@@ -510,6 +510,11 @@ static void mlx5e_dcbnl_getpgtccfgtx(struct net_device *netdev,
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
+
+	if (!MLX5_CAP_GEN(priv->mdev, ets)) {
+		netdev_err(netdev, "%s, ets is not supported\n", __func__);
+		return;
+	}
 
 	if (priority >= CEE_DCBX_MAX_PRIO) {
 		netdev_err(netdev,
@@ -722,6 +727,9 @@ static void mlx5e_ets_init(struct mlx5e_priv *priv)
 {
 	int i;
 	struct ieee_ets ets;
+
+	if (!MLX5_CAP_GEN(priv->mdev, ets))
+		return;
 
 	memset(&ets, 0, sizeof(ets));
 	ets.ets_cap = mlx5_max_tc(priv->mdev) + 1;

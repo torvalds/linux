@@ -674,11 +674,7 @@ BEGIN_FTR_SECTION
 	mtspr	SPRN_SPEFSCR,r0		/* restore SPEFSCR reg */
 END_FTR_SECTION_IFSET(CPU_FTR_SPE)
 #endif /* CONFIG_SPE */
-#if defined(CONFIG_CC_STACKPROTECTOR) && !defined(CONFIG_SMP)
-	lwz	r0,TSK_STACK_CANARY(r2)
-	lis	r4,__stack_chk_guard@ha
-	stw	r0,__stack_chk_guard@l(r4)
-#endif
+
 	lwz	r0,_CCR(r1)
 	mtcrf	0xFF,r0
 	/* r3-r12 are destroyed -- Cort */

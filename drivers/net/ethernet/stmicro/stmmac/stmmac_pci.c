@@ -89,6 +89,9 @@ static void stmmac_default_data(struct plat_stmmacenet_data *plat)
 
 	/* Set default value for unicast filter entries */
 	plat->unicast_filter_entries = 1;
+
+	/* Set the maxmtu to a default of JUMBO_LEN */
+	plat->maxmtu = JUMBO_LEN;
 }
 
 static int quark_default_data(struct plat_stmmacenet_data *plat,
@@ -125,6 +128,9 @@ static int quark_default_data(struct plat_stmmacenet_data *plat,
 
 	/* Set default value for unicast filter entries */
 	plat->unicast_filter_entries = 1;
+
+	/* Set the maxmtu to a default of JUMBO_LEN */
+	plat->maxmtu = JUMBO_LEN;
 
 	return 0;
 }

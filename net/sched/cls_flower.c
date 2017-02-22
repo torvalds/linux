@@ -153,10 +153,14 @@ static int fl_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 
 		switch (ip_tunnel_info_af(info)) {
 		case AF_INET:
+			skb_key.enc_control.addr_type =
+				FLOW_DISSECTOR_KEY_IPV4_ADDRS;
 			skb_key.enc_ipv4.src = key->u.ipv4.src;
 			skb_key.enc_ipv4.dst = key->u.ipv4.dst;
 			break;
 		case AF_INET6:
+			skb_key.enc_control.addr_type =
+				FLOW_DISSECTOR_KEY_IPV6_ADDRS;
 			skb_key.enc_ipv6.src = key->u.ipv6.src;
 			skb_key.enc_ipv6.dst = key->u.ipv6.dst;
 			break;
@@ -564,9 +568,9 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 			       &mask->icmp.type,
 			       TCA_FLOWER_KEY_ICMPV6_TYPE_MASK,
 			       sizeof(key->icmp.type));
-		fl_set_key_val(tb, &key->icmp.code, TCA_FLOWER_KEY_ICMPV4_CODE,
+		fl_set_key_val(tb, &key->icmp.code, TCA_FLOWER_KEY_ICMPV6_CODE,
 			       &mask->icmp.code,
-			       TCA_FLOWER_KEY_ICMPV4_CODE_MASK,
+			       TCA_FLOWER_KEY_ICMPV6_CODE_MASK,
 			       sizeof(key->icmp.code));
 	}
 

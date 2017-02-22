@@ -43,7 +43,7 @@
 
 #include "meson-gx.dtsi"
 #include <dt-bindings/clock/gxbb-clkc.h>
-#include <dt-bindings/gpio/meson-gxbb-gpio.h>
+#include <dt-bindings/gpio/meson-gxl-gpio.h>
 
 / {
 	compatible = "amlogic,meson-gxl";
@@ -298,4 +298,8 @@
 		 <&xtal>,
 		 <&clkc CLKID_FCLK_DIV2>;
 	clock-names = "core", "clkin0", "clkin1";
+};
+
+&vpu {
+	compatible = "amlogic,meson-gxl-vpu", "amlogic,meson-gx-vpu";
 };

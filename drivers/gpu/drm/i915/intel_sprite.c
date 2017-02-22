@@ -273,7 +273,7 @@ skl_update_plane(struct drm_plane *drm_plane,
 
 	I915_WRITE(PLANE_CTL(pipe, plane), plane_ctl);
 	I915_WRITE(PLANE_SURF(pipe, plane),
-		   intel_fb_gtt_offset(fb, rotation) + surf_addr);
+		   intel_plane_ggtt_offset(plane_state) + surf_addr);
 	POSTING_READ(PLANE_SURF(pipe, plane));
 }
 
@@ -458,7 +458,7 @@ vlv_update_plane(struct drm_plane *dplane,
 	I915_WRITE(SPSIZE(pipe, plane), (crtc_h << 16) | crtc_w);
 	I915_WRITE(SPCNTR(pipe, plane), sprctl);
 	I915_WRITE(SPSURF(pipe, plane),
-		   intel_fb_gtt_offset(fb, rotation) + sprsurf_offset);
+		   intel_plane_ggtt_offset(plane_state) + sprsurf_offset);
 	POSTING_READ(SPSURF(pipe, plane));
 }
 
@@ -594,7 +594,7 @@ ivb_update_plane(struct drm_plane *plane,
 		I915_WRITE(SPRSCALE(pipe), sprscale);
 	I915_WRITE(SPRCTL(pipe), sprctl);
 	I915_WRITE(SPRSURF(pipe),
-		   intel_fb_gtt_offset(fb, rotation) + sprsurf_offset);
+		   intel_plane_ggtt_offset(plane_state) + sprsurf_offset);
 	POSTING_READ(SPRSURF(pipe));
 }
 
@@ -721,7 +721,7 @@ ilk_update_plane(struct drm_plane *plane,
 	I915_WRITE(DVSSCALE(pipe), dvsscale);
 	I915_WRITE(DVSCNTR(pipe), dvscntr);
 	I915_WRITE(DVSSURF(pipe),
-		   intel_fb_gtt_offset(fb, rotation) + dvssurf_offset);
+		   intel_plane_ggtt_offset(plane_state) + dvssurf_offset);
 	POSTING_READ(DVSSURF(pipe));
 }
 

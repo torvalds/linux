@@ -539,6 +539,7 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 		}
 	}
 
+isr_done:
 	/* If there is not a separate AN irq, handle it here */
 	if (pdata->dev_irq == pdata->an_irq)
 		pdata->phy_if.an_isr(irq, pdata);
@@ -551,7 +552,6 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 	if (pdata->vdata->i2c_support && (pdata->dev_irq == pdata->i2c_irq))
 		pdata->i2c_if.i2c_isr(irq, pdata);
 
-isr_done:
 	return IRQ_HANDLED;
 }
 
@@ -1070,7 +1070,9 @@ static int xgbe_start(struct xgbe_prv_data *pdata)
 
 	DBGPR("-->xgbe_start\n");
 
-	hw_if->init(pdata);
+	ret = hw_if->init(pdata);
+	if (ret)
+		return ret;
 
 	xgbe_napi_enable(pdata, 1);
 

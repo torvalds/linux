@@ -270,8 +270,7 @@ static int suspend_test_thread(void *arg)
 	struct cpuidle_device *dev;
 	struct cpuidle_driver *drv;
 	/* No need for an actual callback, we just want to wake up the CPU. */
-	struct timer_list wakeup_timer =
-		TIMER_INITIALIZER(dummy_callback, 0, 0);
+	struct timer_list wakeup_timer;
 
 	/* Wait for the main thread to give the start signal. */
 	wait_for_completion(&suspend_threads_started);
@@ -287,6 +286,7 @@ static int suspend_test_thread(void *arg)
 	pr_info("CPU %d entering suspend cycles, states 1 through %d\n",
 		cpu, drv->state_count - 1);
 
+	setup_timer_on_stack(&wakeup_timer, dummy_callback, 0);
 	for (i = 0; i < NUM_SUSPEND_CYCLE; ++i) {
 		int index;
 		/*

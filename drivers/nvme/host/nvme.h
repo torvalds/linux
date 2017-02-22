@@ -135,7 +135,6 @@ struct nvme_ctrl {
 
 	u32 page_size;
 	u32 max_hw_sectors;
-	u32 stripe_size;
 	u16 oncs;
 	u16 vid;
 	atomic_t abort_limit;
@@ -224,14 +223,6 @@ static inline int nvme_reset_subsystem(struct nvme_ctrl *ctrl)
 static inline u64 nvme_block_nr(struct nvme_ns *ns, sector_t sector)
 {
 	return (sector >> (ns->lba_shift - 9));
-}
-
-static inline unsigned nvme_map_len(struct request *rq)
-{
-	if (req_op(rq) == REQ_OP_DISCARD)
-		return sizeof(struct nvme_dsm_range);
-	else
-		return blk_rq_bytes(rq);
 }
 
 static inline void nvme_cleanup_cmd(struct request *req)

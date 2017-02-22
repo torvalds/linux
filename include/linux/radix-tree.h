@@ -306,7 +306,9 @@ void radix_tree_iter_replace(struct radix_tree_root *,
 void radix_tree_replace_slot(struct radix_tree_root *root,
 			     void **slot, void *item);
 void __radix_tree_delete_node(struct radix_tree_root *root,
-			      struct radix_tree_node *node);
+			      struct radix_tree_node *node,
+			      radix_tree_update_node_t update_node,
+			      void *private);
 void *radix_tree_delete_item(struct radix_tree_root *, unsigned long, void *);
 void *radix_tree_delete(struct radix_tree_root *, unsigned long);
 void radix_tree_clear_tags(struct radix_tree_root *root,
