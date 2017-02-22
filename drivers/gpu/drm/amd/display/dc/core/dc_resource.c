@@ -1101,9 +1101,14 @@ enum dc_status resource_map_pool_resources(
 	for (i = 0; i < context->stream_count; i++) {
 		struct core_stream *stream = context->streams[i];
 
-		if (!resource_is_stream_unchanged(dc->current_context, stream))
+		if (!resource_is_stream_unchanged(dc->current_context, stream)) {
+			if (stream != NULL && dc->current_context->streams[i] != NULL) {
+				stream->bit_depth_params =
+						dc->current_context->streams[i]->bit_depth_params;
+				stream->clamping = dc->current_context->streams[i]->clamping;
 			continue;
-
+		}
+	}
 		/* mark resources used for stream that is already active */
 		for (j = 0; j < MAX_PIPES; j++) {
 			struct pipe_ctx *pipe_ctx =

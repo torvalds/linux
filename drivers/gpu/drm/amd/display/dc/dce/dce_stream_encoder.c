@@ -873,22 +873,6 @@ static const struct audio_clock_info audio_clock_info_table[16] = {
 	{59400, 3072, 445500, 9408, 990000, 6144, 594000}
 };
 
-static const struct audio_clock_info audio_clock_info_table_30bpc[14] = {
-	{2517, 9152, 70312, 14014, 78125, 9152, 46875},
-	{2518, 9152, 70312, 14014, 78125, 9152, 46875},
-	{2520, 4096, 31500, 6272, 35000, 6144, 31500},
-	{2700, 4096, 33750, 6272, 37500, 6144, 33750},
-	{2702, 8192, 67567, 12544, 75075, 8192, 45045},
-	{2703, 8192, 67567, 12544, 75075, 8192, 45045},
-	{5400, 4096, 67500, 6272, 75000, 6144, 67500},
-	{5405, 8192, 135135, 6272, 75075, 8192, 90090},
-	{7417, 11648, 263672, 17836, 292969, 11648, 175181},
-	{7425, 8192, 185625,  6272, 103125, 12288, 185625},
-	{14835, 11648, 527344, 17836, 585938, 11648, 351563},
-	{14850, 4096, 185625, 6272, 206250, 6144, 185625},
-	{29670, 11648, 527344, 17836, 585938, 11648, 703125},
-	{29700, 6144, 556875, 4704, 309375, 5120, 309375}
-};
 static const struct audio_clock_info audio_clock_info_table_36bpc[14] = {
 	{2517,  9152,  84375,  7007,  48875,  9152,  56250},
 	{2518,  9152,  84375,  7007,  48875,  9152,  56250},
@@ -1005,11 +989,6 @@ bool get_audio_clock_info(
 		audio_array_size = ARRAY_SIZE(
 				audio_clock_info_table_36bpc);
 		break;
-	case COLOR_DEPTH_101010:
-		clock_info = audio_clock_info_table_30bpc;
-		audio_array_size = ARRAY_SIZE(
-				audio_clock_info_table_30bpc);
-		break;
 	default:
 		clock_info = audio_clock_info_table;
 		audio_array_size = ARRAY_SIZE(
@@ -1114,6 +1093,11 @@ static void dce110_se_setup_hdmi_audio(
 		crtc_info->requested_pixel_clock,
 		crtc_info->calculated_pixel_clock,
 		&audio_clock_info)) {
+		dm_logger_write(enc->ctx->logger, LOG_HW_SET_MODE,
+				"\n*********************%s:Input::requested_pixel_clock = %d"\
+				"calculated_pixel_clock = %d \n", __func__,\
+				crtc_info->requested_pixel_clock,\
+				crtc_info->calculated_pixel_clock);
 
 		/* HDMI_ACR_32_0__HDMI_ACR_CTS_32_MASK */
 		REG_UPDATE(HDMI_ACR_32_0, HDMI_ACR_CTS_32, audio_clock_info.cts_32khz);

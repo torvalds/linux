@@ -873,25 +873,7 @@ static void build_audio_output(
 					audio_output->crtc_info.requested_pixel_clock/2;
 			audio_output->crtc_info.calculated_pixel_clock =
 					pipe_ctx->pix_clk_params.requested_pix_clk/2;
-		}
 
-		if (pipe_ctx->pix_clk_params.pixel_encoding != PIXEL_ENCODING_YCBCR422) {
-			switch (pipe_ctx->pix_clk_params.color_depth) {
-			case COLOR_DEPTH_888:
-				break;
-			case COLOR_DEPTH_101010:
-				audio_output->crtc_info.calculated_pixel_clock = (audio_output->crtc_info.calculated_pixel_clock * 30) / 24;
-			break;
-			case COLOR_DEPTH_121212:
-				audio_output->crtc_info.calculated_pixel_clock = (audio_output->crtc_info.calculated_pixel_clock * 36) / 24;
-			break;
-			case COLOR_DEPTH_161616:
-				audio_output->crtc_info.calculated_pixel_clock = (audio_output->crtc_info.calculated_pixel_clock * 48) / 24;
-			break;
-			default:
-				ASSERT(0);
-			break;
-			}
 		}
 	}
 

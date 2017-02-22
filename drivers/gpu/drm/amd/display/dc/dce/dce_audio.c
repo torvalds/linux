@@ -773,6 +773,15 @@ void dce_aud_wall_dto_setup(
 			crtc_info->calculated_pixel_clock,
 			&clock_info);
 
+		dm_logger_write(audio->ctx->logger, LOG_HW_SET_MODE,\
+				"\n************************%s:Input::requested_pixel_clock = %d"\
+				"calculated_pixel_clock =%d\n"\
+				"audio_dto_module = %d audio_dto_phase =%d \n\n", __func__,\
+				crtc_info->requested_pixel_clock,\
+				crtc_info->calculated_pixel_clock,\
+				clock_info.audio_dto_module,\
+				clock_info.audio_dto_phase);
+
 		/* On TN/SI, Program DTO source select and DTO select before
 		programming DTO modulo and DTO phase. These bits must be
 		programmed first, otherwise there will be no HDMI audio at boot

@@ -305,7 +305,7 @@ void dc_stream_log(
 
 	dm_logger_write(dm_logger,
 			log_type,
-			"core_stream 0x%x: src: %d, %d, %d, %d; dst: %d, %d, %d, %d;\n",
+			"core_stream 0x%x: src: %d, %d, %d, %d; dst: %d, %d, %d, %d, colorSpace:%d\n",
 			core_stream,
 			core_stream->public.src.x,
 			core_stream->public.src.y,
@@ -314,13 +314,16 @@ void dc_stream_log(
 			core_stream->public.dst.x,
 			core_stream->public.dst.y,
 			core_stream->public.dst.width,
-			core_stream->public.dst.height);
+			core_stream->public.dst.height,
+			core_stream->public.output_color_space);
 	dm_logger_write(dm_logger,
 			log_type,
-			"\tpix_clk_khz: %d, h_total: %d, v_total: %d\n",
+			"\tpix_clk_khz: %d, h_total: %d, v_total: %d, pixelencoder:%d, displaycolorDepth:%d\n",
 			core_stream->public.timing.pix_clk_khz,
 			core_stream->public.timing.h_total,
-			core_stream->public.timing.v_total);
+			core_stream->public.timing.v_total,
+			core_stream->public.timing.pixel_encoding,
+			core_stream->public.timing.display_color_depth);
 	dm_logger_write(dm_logger,
 			log_type,
 			"\tsink name: %s, serial: %d\n",
