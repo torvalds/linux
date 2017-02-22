@@ -178,6 +178,8 @@ static struct hashtable_entry *alloc_hashtable_entry(const struct qstr *key,
 			GFP_KERNEL);
 	if (!ret)
 		return NULL;
+	INIT_HLIST_NODE(&ret->dlist);
+	INIT_HLIST_NODE(&ret->hlist);
 
 	if (!qstr_copy(key, &ret->key)) {
 		kmem_cache_free(hashtable_entry_cachep, ret);
@@ -326,7 +328,6 @@ static int insert_userid_exclude_entry(const struct qstr *key, userid_t value)
 static void free_hashtable_entry(struct hashtable_entry *entry)
 {
 	kfree(entry->key.name);
-	hash_del_rcu(&entry->dlist);
 	kmem_cache_free(hashtable_entry_cachep, entry);
 }
 
