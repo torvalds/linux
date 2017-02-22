@@ -99,7 +99,7 @@ int speakup_set_selection(struct tty_struct *tty)
 	sel_start = new_sel_start;
 	sel_end = new_sel_end;
 	/* Allocate a new buffer before freeing the old one ... */
-	bp = kmalloc((sel_end-sel_start)/2+1, GFP_ATOMIC);
+	bp = kmalloc((sel_end - sel_start) / 2 + 1, GFP_ATOMIC);
 	if (!bp) {
 		speakup_clear_selection();
 		return -ENOMEM;

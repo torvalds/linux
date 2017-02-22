@@ -97,7 +97,7 @@ static irqreturn_t synth_readbuf_handler(int irq, void *dev_id)
 
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	while (inb_p(speakup_info.port_tts + UART_LSR) & UART_LSR_DR) {
-		c = inb_p(speakup_info.port_tts+UART_RX);
+		c = inb_p(speakup_info.port_tts + UART_RX);
 		synth->read_buff_add((u_char)c);
 	}
 	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
@@ -122,10 +122,10 @@ static void start_serial_interrupt(int irq)
 	/* Turn on Interrupts */
 	outb(UART_IER_MSI|UART_IER_RLSI|UART_IER_RDI,
 			speakup_info.port_tts + UART_IER);
-	inb(speakup_info.port_tts+UART_LSR);
-	inb(speakup_info.port_tts+UART_RX);
-	inb(speakup_info.port_tts+UART_IIR);
-	inb(speakup_info.port_tts+UART_MSR);
+	inb(speakup_info.port_tts + UART_LSR);
+	inb(speakup_info.port_tts + UART_RX);
+	inb(speakup_info.port_tts + UART_IIR);
+	inb(speakup_info.port_tts + UART_MSR);
 	outb(1, speakup_info.port_tts + UART_FCR);	/* Turn FIFO On */
 }
 
@@ -138,7 +138,7 @@ void spk_stop_serial_interrupt(void)
 		return;
 
 	/* Turn off interrupts */
-	outb(0, speakup_info.port_tts+UART_IER);
+	outb(0, speakup_info.port_tts + UART_IER);
 	/* Free IRQ */
 	free_irq(serstate->irq, (void *)synth_readbuf_handler);
 }

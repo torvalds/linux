@@ -291,7 +291,7 @@ static ssize_t keymap_store(struct kobject *kobj, struct kobj_attribute *attr,
 	i *= (int)cp1[-1] + 1;
 	i += 2; /* 0 and last map ver */
 	if (cp1[-3] != KEY_MAP_VER || cp1[-1] > 10 ||
-			i+SHIFT_TBL_SIZE+4 >= sizeof(spk_key_buf)) {
+			i + SHIFT_TBL_SIZE + 4 >= sizeof(spk_key_buf)) {
 		pr_warn("i %d %d %d %d\n", i,
 				(int)cp1[-3], (int)cp1[-2], (int)cp1[-1]);
 		kfree(in_buff);
@@ -483,7 +483,7 @@ static ssize_t punc_show(struct kobject *kobj, struct kobj_attribute *attr,
 		*cp++ = (char)i;
 	}
 	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
-	return cp-buf;
+	return cp - buf;
 }
 
 /*
@@ -574,7 +574,7 @@ ssize_t spk_var_show(struct kobject *kobj, struct kobj_attribute *attr,
 			*cp1++ = '"';
 			*cp1++ = '\n';
 			*cp1 = '\0';
-			rv = cp1-buf;
+			rv = cp1 - buf;
 		} else {
 			rv = sprintf(buf, "\"\"\n");
 		}
