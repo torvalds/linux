@@ -3957,6 +3957,12 @@ int __kmem_cache_shrink(struct kmem_cache *s)
 }
 
 #ifdef CONFIG_MEMCG
+static void kmemcg_cache_deact_after_rcu(struct kmem_cache *s)
+{
+	/* called with all the locks held after a sched RCU grace period */
+	__kmem_cache_shrink(s);
+}
+
 void __kmemcg_cache_deactivate(struct kmem_cache *s)
 {
 	/*
@@ -3968,11 +3974,9 @@ void __kmemcg_cache_deactivate(struct kmem_cache *s)
 
 	/*
 	 * s->cpu_partial is checked locklessly (see put_cpu_partial), so
-	 * we have to make sure the change is visible.
+	 * we have to make sure the change is visible before shrinking.
 	 */
-	synchronize_sched();
-
-	__kmem_cache_shrink(s);
+	slab_deactivate_memcg_cache_rcu_sched(s, kmemcg_cache_deact_after_rcu);
 }
 #endif
 
