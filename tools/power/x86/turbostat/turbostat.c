@@ -434,12 +434,45 @@ unsigned long long bic_present = BIC_sysfs;
 #define BIC_PRESENT(COUNTER_BIT) (bic_present |= COUNTER_BIT)
 #define BIC_NOT_PRESENT(COUNTER_BIT) (bic_present &= ~COUNTER_BIT)
 
+#define MAX_DEFERRED 16
+char *deferred_skip_names[MAX_DEFERRED];
+int deferred_skip_index;
+
+/*
+ * HIDE_LIST - hide this list of counters, show the rest [default]
+ * SHOW_LIST - show this list of counters, hide the rest
+ */
+enum show_hide_mode { SHOW_LIST, HIDE_LIST } global_show_hide_mode = HIDE_LIST;
+
+void help(void)
+{
+	fprintf(outf,
+	"Usage: turbostat [OPTIONS][(--interval seconds) | COMMAND ...]\n"
+	"\n"
+	"Turbostat forks the specified COMMAND and prints statistics\n"
+	"when COMMAND completes.\n"
+	"If no COMMAND is specified, turbostat wakes every 5-seconds\n"
+	"to print statistics, until interrupted.\n"
+	"--add		add a counter\n"
+	"		eg. --add msr0x10,u64,cpu,delta,MY_TSC\n"
+	"--cpu	cpu-set	limit output to summary plus cpu-set:\n"
+	"		{core | package | j,k,l..m,n-p }\n"
+	"--quiet	skip decoding system configuration header\n"
+	"--interval sec	Override default 5-second measurement interval\n"
+	"--help		print this help message\n"
+	"--list		list column headers only\n"
+	"--out file	create or truncate \"file\" for all output\n"
+	"--version	print version information\n"
+	"\n"
+	"For more help, run \"man turbostat\"\n");
+}
+
 /*
  * bic_lookup
  * for all the strings in comma separate name_list,
  * set the approprate bit in return value.
  */
-unsigned long long bic_lookup(char *name_list)
+unsigned long long bic_lookup(char *name_list, enum show_hide_mode mode)
 {
 	int i;
 	unsigned long long retval = 0;
@@ -459,8 +492,19 @@ unsigned long long bic_lookup(char *name_list)
 			}
 		}
 		if (i == MAX_BIC) {
-			fprintf(stderr, "Invalid counter name: %s\n", name_list);
-			exit(-1);
+			if (mode == SHOW_LIST) {
+				fprintf(stderr, "Invalid counter name: %s\n", name_list);
+				exit(-1);
+			}
+			deferred_skip_names[deferred_skip_index++] = name_list;
+			if (debug)
+				fprintf(stderr, "deferred \"%s\"\n", name_list);
+			if (deferred_skip_index >= MAX_DEFERRED) {
+				fprintf(stderr, "More than max %d un-recognized --skip options '%s'\n",
+					MAX_DEFERRED, name_list);
+				help();
+				exit(1);
+			}
 		}
 
 		name_list = comma;
@@ -470,6 +514,7 @@ unsigned long long bic_lookup(char *name_list)
 	}
 	return retval;
 }
+
 
 void print_header(char *delim)
 {
@@ -502,20 +547,17 @@ void print_header(char *delim)
 		outp += sprintf(outp, "%sSMI", (printed++ ? delim : ""));
 
 	for (mp = sys.tp; mp; mp = mp->next) {
-		if (*delim == ',') {
-			outp += sprintf(outp, "%s%s", (printed++ ? delim : ""), "sysfs");
-			break;
-		}
+
 		if (mp->format == FORMAT_RAW) {
 			if (mp->width == 64)
-				outp += sprintf(outp, "%s%18.18s", delim, mp->name);
+				outp += sprintf(outp, "%s%18.18s", (printed++ ? delim : ""), mp->name);
 			else
-				outp += sprintf(outp, "%s%10.10s", delim, mp->name);
+				outp += sprintf(outp, "%s%10.10s", (printed++ ? delim : ""), mp->name);
 		} else {
 			if ((mp->type == COUNTER_ITEMS) && sums_need_wide_columns)
-				outp += sprintf(outp, "%s%8s", delim, mp->name);
+				outp += sprintf(outp, "%s%8s", (printed++ ? delim : ""), mp->name);
 			else
-				outp += sprintf(outp, "%s%s", delim, mp->name);
+				outp += sprintf(outp, "%s%s", (printed++ ? delim : ""), mp->name);
 		}
 	}
 
@@ -4142,29 +4184,6 @@ void process_cpuid()
 	return;
 }
 
-void help()
-{
-	fprintf(outf,
-	"Usage: turbostat [OPTIONS][(--interval seconds) | COMMAND ...]\n"
-	"\n"
-	"Turbostat forks the specified COMMAND and prints statistics\n"
-	"when COMMAND completes.\n"
-	"If no COMMAND is specified, turbostat wakes every 5-seconds\n"
-	"to print statistics, until interrupted.\n"
-	"--add		add a counter\n"
-	"		eg. --add msr0x10,u64,cpu,delta,MY_TSC\n"
-	"--cpu	cpu-set	limit output to summary plus cpu-set:\n"
-	"		{core | package | j,k,l..m,n-p }\n"
-	"--quiet	skip decoding system configuration header\n"
-	"--interval sec	Override default 5-second measurement interval\n"
-	"--help		print this help message\n"
-	"--list		list column headers only\n"
-	"--out file	create or truncate \"file\" for all output\n"
-	"--version	print version information\n"
-	"\n"
-	"For more help, run \"man turbostat\"\n");
-}
-
 
 /*
  * in /dev/cpu/ return success for names that are numbers
@@ -4689,6 +4708,16 @@ next:
 	}
 }
 
+int is_deferred_skip(char *name)
+{
+	int i;
+
+	for (i = 0; i < deferred_skip_index; ++i)
+		if (!strcmp(name, deferred_skip_names[i]))
+			return 1;
+	return 0;
+}
+
 void probe_sysfs(void)
 {
 	char path[64];
@@ -4720,6 +4749,9 @@ void probe_sysfs(void)
 
 		sprintf(path, "cpuidle/state%d/time", state);
 
+		if (is_deferred_skip(name_buf))
+			continue;
+
 		add_counter(0, path, name_buf, 64, SCOPE_CPU, COUNTER_USEC,
 				FORMAT_PERCENT, SYSFS_PERCPU);
 	}
@@ -4740,6 +4772,9 @@ void probe_sysfs(void)
 		fclose(input);
 
 		sprintf(path, "cpuidle/state%d/usage", state);
+
+		if (is_deferred_skip(name_buf))
+			continue;
 
 		add_counter(0, path, name_buf, 64, SCOPE_CPU, COUNTER_ITEMS,
 				FORMAT_DELTA, SYSFS_PERCPU);
@@ -4834,12 +4869,6 @@ error:
 	exit(-1);
 }
 
-/*
- * HIDE_LIST - hide this list of counters, show the rest [default]
- * SHOW_LIST - show this list of counters, hide the rest
- */
-enum show_hide_mode { SHOW_LIST, HIDE_LIST } global_show_hide_mode = HIDE_LIST;
-
 int shown;
 /*
  * parse_show_hide() - process cmdline to set default counter action
@@ -4853,9 +4882,9 @@ void parse_show_hide(char *optarg, enum show_hide_mode new_mode)
 	 */
 	if (new_mode == SHOW_LIST) {
 		if (shown == 0)
-			bic_enabled = bic_lookup(optarg);
+			bic_enabled = bic_lookup(optarg, new_mode);
 		else
-			bic_enabled |= bic_lookup(optarg);
+			bic_enabled |= bic_lookup(optarg, new_mode);
 		shown = 1;
 
 		return;
@@ -4865,7 +4894,7 @@ void parse_show_hide(char *optarg, enum show_hide_mode new_mode)
 	 * --hide: do not show those specified
 	 *  multiple invocations simply clear more bits in enabled mask
 	 */
-	bic_enabled &= ~bic_lookup(optarg);
+	bic_enabled &= ~bic_lookup(optarg, new_mode);
 
 }
 

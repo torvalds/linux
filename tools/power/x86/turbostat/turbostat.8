@@ -114,7 +114,7 @@ This is ideal for remote debugging, use the "--out" option to save everything to
 .PP
 When you are not interested in all that information, and there are several ways to see only what you want.  First the "--quiet" option will skip the configuration information, and turbostat will show only the counter columns.  Second, you can reduce the columns with the "--hide" and "--show" options.  If you use the "--show" option, then turbostat will show only the columns you list.  If you use the "--hide" option, turbostat will show all columns, except the ones you list.
 .PP
-To find out what columns are available for --show and --hide, the "--list" option is available.  Note, however, there is an exception.  The C-state columns collected from sysfs "C1,C2,C3,C1%,C2%,C3%" are not built-in counters, but are discovered after --show and --hide are processed.  You can use the special counter name "sysfs" to refer to all of them at the same time.
+To find out what columns are available for --show and --hide, the "--list" option is available.  For convenience, the special strings "sysfs" can be used to refer to all of the sysfs C-state counters at once:
 .nf
 sudo ./turbostat --show sysfs --quiet sleep 10
 10.003837 sec
