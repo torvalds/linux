@@ -980,11 +980,6 @@ bool dc_pre_update_surfaces_to_stream(
 
 			resource_build_scaling_params(
 				new_surfaces[i], &context->res_ctx.pipe_ctx[j]);
-
-			if (dc->debug.surface_visual_confirm) {
-				context->res_ctx.pipe_ctx[j].scl_data.recout.height -= 2;
-				context->res_ctx.pipe_ctx[j].scl_data.recout.width -= 2;
-			}
 		}
 
 	if (!core_dc->res_pool->funcs->validate_bandwidth(core_dc, context)) {
@@ -1267,10 +1262,6 @@ void dc_update_surfaces_for_stream(struct dc *dc,
 					continue;
 
 				resource_build_scaling_params(updates[i].surface, pipe_ctx);
-				if (dc->debug.surface_visual_confirm) {
-					pipe_ctx->scl_data.recout.height -= 2;
-					pipe_ctx->scl_data.recout.width -= 2;
-				}
 			}
 		}
 

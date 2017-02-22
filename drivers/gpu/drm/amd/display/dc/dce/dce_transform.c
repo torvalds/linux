@@ -27,6 +27,7 @@
 #include "reg_helper.h"
 #include "opp.h"
 #include "basics/conversion.h"
+#include "dc.h"
 
 #define REG(reg) \
 	(xfm_dce->regs->reg)
@@ -120,6 +121,11 @@ static void program_overscan(
 			- data->recout.x - data->recout.width;
 	int overscan_bottom = data->v_active
 			- data->recout.y - data->recout.height;
+
+	if (xfm_dce->base.ctx->dc->debug.surface_visual_confirm) {
+		overscan_bottom += 2;
+		overscan_right += 2;
+	}
 
 	if (overscan_right < 0) {
 		BREAK_TO_DEBUGGER();
