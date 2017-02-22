@@ -1403,7 +1403,7 @@ static void xmon_show_stack(unsigned long sp, unsigned long lr,
 	struct pt_regs regs;
 
 	while (max_to_print--) {
-		if (sp < PAGE_OFFSET) {
+		if (!is_kernel_addr(sp)) {
 			if (sp != 0)
 				printf("SP (%lx) is in userspace\n", sp);
 			break;
@@ -1431,12 +1431,12 @@ static void xmon_show_stack(unsigned long sp, unsigned long lr,
 				mread(newsp + LRSAVE_OFFSET, &nextip,
 				      sizeof(unsigned long));
 			if (lr == ip) {
-				if (lr < PAGE_OFFSET
+				if (!is_kernel_addr(lr)
 				    || (fnstart <= lr && lr < fnend))
 					printip = 0;
 			} else if (lr == nextip) {
 				printip = 0;
-			} else if (lr >= PAGE_OFFSET
+			} else if (is_kernel_addr(lr)
 				   && !(fnstart <= lr && lr < fnend)) {
 				printf("[link register   ] ");
 				xmon_print_symbol(lr, " ", "\n");
@@ -1496,7 +1496,7 @@ static void print_bug_trap(struct pt_regs *regs)
 	if (regs->msr & MSR_PR)
 		return;		/* not in kernel */
 	addr = regs->nip;	/* address of trap instruction */
-	if (addr < PAGE_OFFSET)
+	if (!is_kernel_addr(addr))
 		return;
 	bug = find_bug(regs->nip);
 	if (bug == NULL)
