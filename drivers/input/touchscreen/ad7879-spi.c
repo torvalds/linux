@@ -34,19 +34,11 @@ static int ad7879_spi_probe(struct spi_device *spi)
 {
 	struct ad7879 *ts;
 	struct regmap *regmap;
-	int err;
 
 	/* don't exceed max specified SPI CLK frequency */
 	if (spi->max_speed_hz > MAX_SPI_FREQ_HZ) {
 		dev_err(&spi->dev, "SPI CLK %d Hz?\n", spi->max_speed_hz);
 		return -EINVAL;
-	}
-
-	spi->bits_per_word = 16;
-	err = spi_setup(spi);
-	if (err) {
-		dev_dbg(&spi->dev, "spi master doesn't support 16 bits/word\n");
-		return err;
 	}
 
 	regmap = devm_regmap_init_spi(spi, &ad7879_spi_regmap_config);
