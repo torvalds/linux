@@ -62,7 +62,7 @@ static int packet_type_to_index(u16 packetType)
 
 static struct mux_tx *alloc_mux_tx(int len)
 {
-	struct mux_tx *t = NULL;
+	struct mux_tx *t;
 
 	t = kzalloc(sizeof(*t), GFP_ATOMIC);
 	if (!t)
@@ -91,7 +91,7 @@ static void free_mux_tx(struct mux_tx *t)
 
 static struct mux_rx *alloc_mux_rx(void)
 {
-	struct mux_rx *r = NULL;
+	struct mux_rx *r;
 
 	r = kzalloc(sizeof(*r), GFP_KERNEL);
 	if (!r)

@@ -350,7 +350,7 @@ static s32 gdm_lte_tx_nic_type(struct net_device *dev, struct sk_buff *skb)
 	struct ipv6hdr *ipv6;
 	int mac_proto;
 	void *network_data;
-	u32 nic_type = 0;
+	u32 nic_type;
 
 	/* NIC TYPE is based on the nic_id of this net_device */
 	nic_type = 0x00000010 | nic->nic_id;
