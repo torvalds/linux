@@ -561,6 +561,7 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 		len = qword_get(&mesg, vers, size);
 		if (len <= 0) return -EINVAL;
 		do {
+			enum vers_op cmd;
 			sign = *vers;
 			if (sign == '+' || sign == '-')
 				num = simple_strtol((vers+1), &minorp, 0);
@@ -571,21 +572,20 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 					return -EINVAL;
 				if (kstrtouint(minorp+1, 0, &minor) < 0)
 					return -EINVAL;
-				if (nfsd_minorversion(minor, sign == '-' ?
-						     NFSD_CLEAR : NFSD_SET) < 0)
-					return -EINVAL;
-				goto next;
-			}
+			} else
+				minor = 0;
+			cmd = sign == '-' ? NFSD_CLEAR : NFSD_SET;
 			switch(num) {
 			case 2:
 			case 3:
-			case 4:
-				nfsd_vers(num, sign == '-' ? NFSD_CLEAR : NFSD_SET);
+				nfsd_vers(num, cmd);
 				break;
+			case 4:
+				if (nfsd_minorversion(minor, cmd) >= 0)
+					break;
 			default:
 				return -EINVAL;
 			}
-		next:
 			vers += len + 1;
 		} while ((len = qword_get(&mesg, vers, size)) > 0);
 		/* If all get turned off, turn them back on, as

@@ -153,6 +153,18 @@ int nfsd_vers(int vers, enum vers_op change)
 	return 0;
 }
 
+static void
+nfsd_adjust_nfsd_versions4(void)
+{
+	unsigned i;
+
+	for (i = 0; i <= NFSD_SUPPORTED_MINOR_VERSION; i++) {
+		if (nfsd_supported_minorversions[i])
+			return;
+	}
+	nfsd_vers(4, NFSD_CLEAR);
+}
+
 int nfsd_minorversion(u32 minorversion, enum vers_op change)
 {
 	if (minorversion > NFSD_SUPPORTED_MINOR_VERSION)
@@ -160,9 +172,11 @@ int nfsd_minorversion(u32 minorversion, enum vers_op change)
 	switch(change) {
 	case NFSD_SET:
 		nfsd_supported_minorversions[minorversion] = true;
+		nfsd_vers(4, NFSD_SET);
 		break;
 	case NFSD_CLEAR:
 		nfsd_supported_minorversions[minorversion] = false;
+		nfsd_adjust_nfsd_versions4();
 		break;
 	case NFSD_TEST:
 		return nfsd_supported_minorversions[minorversion];
