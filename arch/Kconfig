@@ -410,6 +410,28 @@ config GCC_PLUGIN_LATENT_ENTROPY
 	   * https://grsecurity.net/
 	   * https://pax.grsecurity.net/
 
+config GCC_PLUGIN_STRUCTLEAK
+	bool "Force initialization of variables containing userspace addresses"
+	depends on GCC_PLUGINS
+	help
+	  This plugin zero-initializes any structures that containing a
+	  __user attribute. This can prevent some classes of information
+	  exposures.
+
+	  This plugin was ported from grsecurity/PaX. More information at:
+	   * https://grsecurity.net/
+	   * https://pax.grsecurity.net/
+
+config GCC_PLUGIN_STRUCTLEAK_VERBOSE
+	bool "Report forcefully initialized variables"
+	depends on GCC_PLUGIN_STRUCTLEAK
+	depends on !COMPILE_TEST
+	help
+	  This option will cause a warning to be printed each time the
+	  structleak plugin finds a variable it thinks needs to be
+	  initialized. Since not all existing initializers are detected
+	  by the plugin, this can produce false positive warnings.
+
 config HAVE_CC_STACKPROTECTOR
 	bool
 	help
