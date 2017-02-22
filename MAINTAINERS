@@ -10251,7 +10251,8 @@ F:	include/uapi/linux/qnx4_fs.h
 F:	include/uapi/linux/qnxtypes.h
 
 QORIQ DPAA2 FSL-MC BUS DRIVER
-M:	Stuart Yoder <stuart.yoder@nxp.com>
+M:	Stuart Yoder <stuyoder@gmail.com>
+M:	Laurentiu Tudor <laurentiu.tudor@nxp.com>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	drivers/staging/fsl-mc/
@@ -10527,6 +10528,12 @@ L:	netdev@vger.kernel.org
 L:	linux-renesas-soc@vger.kernel.org
 F:	drivers/net/ethernet/renesas/
 F:	include/linux/sh_eth.h
+
+RENESAS R-CAR GYROADC DRIVER
+M:	Marek Vasut <marek.vasut@gmail.com>
+L:	linux-iio@vger.kernel.org
+S:	Supported
+F:	drivers/iio/adc/rcar_gyro_adc.c
 
 RENESAS USB2 PHY DRIVER
 M:	Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>

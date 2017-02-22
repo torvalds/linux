@@ -2695,10 +2695,8 @@ static void _rtl92e_pci_disconnect(struct pci_dev *pdev)
 		priv->polling_timer_on = 0;
 		_rtl92e_down(dev, true);
 		rtl92e_dm_deinit(dev);
-		if (priv->pFirmware) {
-			vfree(priv->pFirmware);
-			priv->pFirmware = NULL;
-		}
+		vfree(priv->pFirmware);
+		priv->pFirmware = NULL;
 		_rtl92e_free_rx_ring(dev);
 		for (i = 0; i < MAX_TX_QUEUE_COUNT; i++)
 			_rtl92e_free_tx_ring(dev, i);
@@ -2797,9 +2795,9 @@ MODULE_FIRMWARE(RTL8192E_BOOT_IMG_FW);
 MODULE_FIRMWARE(RTL8192E_MAIN_IMG_FW);
 MODULE_FIRMWARE(RTL8192E_DATA_IMG_FW);
 
-module_param(ifname, charp, S_IRUGO|S_IWUSR);
-module_param(hwwep, int, S_IRUGO|S_IWUSR);
-module_param(channels, int, S_IRUGO|S_IWUSR);
+module_param(ifname, charp, 0644);
+module_param(hwwep, int, 0644);
+module_param(channels, int, 0644);
 
 MODULE_PARM_DESC(ifname, " Net interface name, wlan%d=default");
 MODULE_PARM_DESC(hwwep, " Try to use hardware WEP support(default use hw. set 0 to use software security)");

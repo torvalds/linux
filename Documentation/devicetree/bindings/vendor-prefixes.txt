@@ -40,6 +40,7 @@ atmel	Atmel Corporation
 auo	AU Optronics Corporation
 auvidea Auvidea GmbH
 avago	Avago Technologies
+avia	avia semiconductor
 avic	Shanghai AVIC Optoelectronics Co., Ltd.
 axentia	Axentia Technologies AB
 axis	Axis Communications AB
@@ -75,6 +76,7 @@ dallas	Maxim Integrated Products (formerly Dallas Semiconductor)
 davicom	DAVICOM Semiconductor, Inc.
 delta	Delta Electronics, Inc.
 denx	Denx Software Engineering
+devantech	Devantech, Ltd.
 digi	Digi International Inc.
 digilent	Diglent, Inc.
 dlg	Dialog Semiconductor
@@ -118,6 +120,7 @@ gmt	Global Mixed-mode Technology, Inc.
 goodix	Shenzhen Huiding Technology Co., Ltd.
 google	Google, Inc.
 grinn	Grinn
+grmn	Garmin Limited
 gumstix	Gumstix, Inc.
 gw	Gateworks Corporation
 hannstar	HannStar Display Corporation
