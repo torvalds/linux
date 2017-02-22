@@ -277,9 +277,9 @@ TRACE_EVENT(mm_vmscan_lru_isolate,
 		unsigned long nr_skipped,
 		unsigned long nr_taken,
 		isolate_mode_t isolate_mode,
-		int file),
+		int lru),
 
-	TP_ARGS(classzone_idx, order, nr_requested, nr_scanned, nr_skipped, nr_taken, isolate_mode, file),
+	TP_ARGS(classzone_idx, order, nr_requested, nr_scanned, nr_skipped, nr_taken, isolate_mode, lru),
 
 	TP_STRUCT__entry(
 		__field(int, classzone_idx)
@@ -289,7 +289,7 @@ TRACE_EVENT(mm_vmscan_lru_isolate,
 		__field(unsigned long, nr_skipped)
 		__field(unsigned long, nr_taken)
 		__field(isolate_mode_t, isolate_mode)
-		__field(int, file)
+		__field(int, lru)
 	),
 
 	TP_fast_assign(
@@ -300,10 +300,10 @@ TRACE_EVENT(mm_vmscan_lru_isolate,
 		__entry->nr_skipped = nr_skipped;
 		__entry->nr_taken = nr_taken;
 		__entry->isolate_mode = isolate_mode;
-		__entry->file = file;
+		__entry->lru = lru;
 	),
 
-	TP_printk("isolate_mode=%d classzone=%d order=%d nr_requested=%lu nr_scanned=%lu nr_skipped=%lu nr_taken=%lu file=%d",
+	TP_printk("isolate_mode=%d classzone=%d order=%d nr_requested=%lu nr_scanned=%lu nr_skipped=%lu nr_taken=%lu lru=%s",
 		__entry->isolate_mode,
 		__entry->classzone_idx,
 		__entry->order,
@@ -311,7 +311,7 @@ TRACE_EVENT(mm_vmscan_lru_isolate,
 		__entry->nr_scanned,
 		__entry->nr_skipped,
 		__entry->nr_taken,
-		__entry->file)
+		__print_symbolic(__entry->lru, LRU_NAMES))
 );
 
 TRACE_EVENT(mm_vmscan_writepage,
