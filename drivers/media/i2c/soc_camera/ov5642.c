@@ -1063,9 +1063,18 @@ static const struct i2c_device_id ov5642_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ov5642_id);
 
+#if IS_ENABLED(CONFIG_OF)
+static const struct of_device_id ov5642_of_match[] = {
+	{ .compatible = "ovti,ov5642" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ov5642_of_match);
+#endif
+
 static struct i2c_driver ov5642_i2c_driver = {
 	.driver = {
 		.name = "ov5642",
+		.of_match_table = of_match_ptr(ov5642_of_match),
 	},
 	.probe		= ov5642_probe,
 	.remove		= ov5642_remove,
