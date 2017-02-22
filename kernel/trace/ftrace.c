@@ -5487,7 +5487,7 @@ static void ftrace_ops_assist_func(unsigned long ip, unsigned long parent_ip,
  * Normally the mcount trampoline will call the ops->func, but there
  * are times that it should not. For example, if the ops does not
  * have its own recursion protection, then it should call the
- * ftrace_ops_recurs_func() instead.
+ * ftrace_ops_assist_func() instead.
  *
  * Returns the function that the trampoline should call for @ops.
  */
