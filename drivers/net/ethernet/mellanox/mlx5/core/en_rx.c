@@ -94,19 +94,18 @@ static inline void mlx5e_cqes_update_owner(struct mlx5e_cq *cq, u32 cqcc, int n)
 static inline void mlx5e_decompress_cqe(struct mlx5e_rq *rq,
 					struct mlx5e_cq *cq, u32 cqcc)
 {
-	u16 wqe_cnt_step;
-
 	cq->title.byte_cnt     = cq->mini_arr[cq->mini_arr_idx].byte_cnt;
 	cq->title.check_sum    = cq->mini_arr[cq->mini_arr_idx].checksum;
 	cq->title.op_own      &= 0xf0;
 	cq->title.op_own      |= 0x01 & (cqcc >> cq->wq.log_sz);
 	cq->title.wqe_counter  = cpu_to_be16(cq->decmprs_wqe_counter);
 
-	wqe_cnt_step =
-		rq->wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ ?
-		mpwrq_get_cqe_consumed_strides(&cq->title) : 1;
-	cq->decmprs_wqe_counter =
-		(cq->decmprs_wqe_counter + wqe_cnt_step) & rq->wq.sz_m1;
+	if (rq->wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ)
+		cq->decmprs_wqe_counter +=
+			mpwrq_get_cqe_consumed_strides(&cq->title);
+	else
+		cq->decmprs_wqe_counter =
+			(cq->decmprs_wqe_counter + 1) & rq->wq.sz_m1;
 }
 
 static inline void mlx5e_decompress_cqe_no_hash(struct mlx5e_rq *rq,
