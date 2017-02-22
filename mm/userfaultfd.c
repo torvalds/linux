@@ -301,8 +301,23 @@ retry:
 out_unlock:
 	up_read(&dst_mm->mmap_sem);
 out:
-	if (page)
+	if (page) {
+		/*
+		 * We encountered an error and are about to free a newly
+		 * allocated huge page.  It is possible that there was a
+		 * reservation associated with the page that has been
+		 * consumed.  See the routine restore_reserve_on_error
+		 * for details.  Unfortunately, we can not call
+		 * restore_reserve_on_error now as it would require holding
+		 * mmap_sem.  Clear the PagePrivate flag so that the global
+		 * reserve count will not be incremented in free_huge_page.
+		 * The reservation map will still indicate the reservation
+		 * was consumed and possibly prevent later page allocation.
+		 * This is better than leaking a global reservation.
+		 */
+		ClearPagePrivate(page);
 		put_page(page);
+	}
 	BUG_ON(copied < 0);
 	BUG_ON(err > 0);
 	BUG_ON(!copied && !err);
