@@ -3005,7 +3005,7 @@ static inline bool should_suppress_show_mem(void)
 	return ret;
 }
 
-static void warn_alloc_show_mem(gfp_t gfp_mask)
+static void warn_alloc_show_mem(gfp_t gfp_mask, nodemask_t *nodemask)
 {
 	unsigned int filter = SHOW_MEM_FILTER_NODES;
 	static DEFINE_RATELIMIT_STATE(show_mem_rs, HZ, 1);
@@ -3025,7 +3025,7 @@ static void warn_alloc_show_mem(gfp_t gfp_mask)
 	if (in_interrupt() || !(gfp_mask & __GFP_DIRECT_RECLAIM))
 		filter &= ~SHOW_MEM_FILTER_NODES;
 
-	show_mem(filter);
+	show_mem(filter, nodemask);
 }
 
 void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
@@ -3052,7 +3052,7 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
 	cpuset_print_current_mems_allowed();
 
 	dump_stack();
-	warn_alloc_show_mem(gfp_mask);
+	warn_alloc_show_mem(gfp_mask, nm);
 }
 
 static inline struct page *
@@ -4274,20 +4274,20 @@ void si_meminfo_node(struct sysinfo *val, int nid)
  * Determine whether the node should be displayed or not, depending on whether
  * SHOW_MEM_FILTER_NODES was passed to show_free_areas().
  */
-bool skip_free_areas_node(unsigned int flags, int nid)
+static bool show_mem_node_skip(unsigned int flags, int nid, nodemask_t *nodemask)
 {
-	bool ret = false;
-	unsigned int cpuset_mems_cookie;
-
 	if (!(flags & SHOW_MEM_FILTER_NODES))
-		goto out;
+		return false;
 
-	do {
-		cpuset_mems_cookie = read_mems_allowed_begin();
-		ret = !node_isset(nid, cpuset_current_mems_allowed);
-	} while (read_mems_allowed_retry(cpuset_mems_cookie));
-out:
-	return ret;
+	/*
+	 * no node mask - aka implicit memory numa policy. Do not bother with
+	 * the synchronization - read_mems_allowed_begin - because we do not
+	 * have to be precise here.
+	 */
+	if (!nodemask)
+		nodemask = &cpuset_current_mems_allowed;
+
+	return !node_isset(nid, *nodemask);
 }
 
 #define K(x) ((x) << (PAGE_SHIFT-10))
@@ -4328,7 +4328,7 @@ static void show_migration_types(unsigned char type)
  * SHOW_MEM_FILTER_NODES: suppress nodes that are not allowed by current's
  *   cpuset.
  */
-void show_free_areas(unsigned int filter)
+void show_free_areas(unsigned int filter, nodemask_t *nodemask)
 {
 	unsigned long free_pcp = 0;
 	int cpu;
@@ -4336,7 +4336,7 @@ void show_free_areas(unsigned int filter)
 	pg_data_t *pgdat;
 
 	for_each_populated_zone(zone) {
-		if (skip_free_areas_node(filter, zone_to_nid(zone)))
+		if (show_mem_node_skip(filter, zone_to_nid(zone), nodemask))
 			continue;
 
 		for_each_online_cpu(cpu)
@@ -4370,7 +4370,7 @@ void show_free_areas(unsigned int filter)
 		global_page_state(NR_FREE_CMA_PAGES));
 
 	for_each_online_pgdat(pgdat) {
-		if (skip_free_areas_node(filter, pgdat->node_id))
+		if (show_mem_node_skip(filter, pgdat->node_id, nodemask))
 			continue;
 
 		printk("Node %d"
@@ -4422,7 +4422,7 @@ void show_free_areas(unsigned int filter)
 	for_each_populated_zone(zone) {
 		int i;
 
-		if (skip_free_areas_node(filter, zone_to_nid(zone)))
+		if (show_mem_node_skip(filter, zone_to_nid(zone), nodemask))
 			continue;
 
 		free_pcp = 0;
@@ -4487,7 +4487,7 @@ void show_free_areas(unsigned int filter)
 		unsigned long nr[MAX_ORDER], flags, total = 0;
 		unsigned char types[MAX_ORDER];
 
-		if (skip_free_areas_node(filter, zone_to_nid(zone)))
+		if (show_mem_node_skip(filter, zone_to_nid(zone), nodemask))
 			continue;
 		show_node(zone);
 		printk(KERN_CONT "%s: ", zone->name);
