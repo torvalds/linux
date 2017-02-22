@@ -1615,8 +1615,8 @@ int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 
 	drm_crtc_helper_add(&acrtc->base, &amdgpu_dm_crtc_helper_funcs);
 
-	acrtc->max_cursor_width = 128;
-	acrtc->max_cursor_height = 128;
+	acrtc->max_cursor_width = dm->adev->dm.dc->caps.max_cursor_size;
+	acrtc->max_cursor_height = dm->adev->dm.dc->caps.max_cursor_size;
 
 	acrtc->crtc_id = crtc_index;
 	acrtc->base.enabled = false;
