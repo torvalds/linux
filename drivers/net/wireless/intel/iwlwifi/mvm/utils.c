@@ -592,14 +592,15 @@ int iwl_mvm_find_free_queue(struct iwl_mvm *mvm, u8 sta_id, u8 minq, u8 maxq)
 
 	lockdep_assert_held(&mvm->queue_info_lock);
 
+	/* This should not be hit with new TX path */
+	if (WARN_ON(iwl_mvm_has_new_tx_api(mvm)))
+		return -ENOSPC;
+
 	/* Start by looking for a free queue */
 	for (i = minq; i <= maxq; i++)
 		if (mvm->queue_info[i].hw_queue_refcount == 0 &&
 		    mvm->queue_info[i].status == IWL_MVM_QUEUE_FREE)
 			return i;
-
-	if (iwl_mvm_has_new_tx_api(mvm))
-		return -ENOSPC;
 
 	/*
 	 * If no free queue found - settle for an inactive one to reconfigure

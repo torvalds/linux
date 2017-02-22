@@ -1188,6 +1188,10 @@ static int iwl_mvm_reserve_sta_stream(struct iwl_mvm *mvm,
 	int queue;
 	bool using_inactive_queue = false, same_sta = false;
 
+	/* queue reserving is disabled on new TX path */
+	if (WARN_ON(iwl_mvm_has_new_tx_api(mvm)))
+		return 0;
+
 	/*
 	 * Check for inactive queues, so we don't reach a situation where we
 	 * can't add a STA due to a shortage in queues that doesn't really exist
@@ -1387,7 +1391,7 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 		mvm_sta->dup_data = dup_data;
 	}
 
-	if (iwl_mvm_is_dqa_supported(mvm)) {
+	if (iwl_mvm_is_dqa_supported(mvm) && !iwl_mvm_has_new_tx_api(mvm)) {
 		ret = iwl_mvm_reserve_sta_stream(mvm, sta,
 						 ieee80211_vif_type_p2p(vif));
 		if (ret)
