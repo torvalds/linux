@@ -74,7 +74,7 @@ static void __i915_do_clflush(struct drm_i915_gem_object *obj)
 	drm_clflush_sg(obj->mm.pages);
 	obj->cache_dirty = false;
 
-	intel_fb_obj_flush(obj, false, ORIGIN_CPU);
+	intel_fb_obj_flush(obj, ORIGIN_CPU);
 }
 
 static void i915_clflush_work(struct work_struct *work)

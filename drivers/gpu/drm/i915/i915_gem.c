@@ -628,7 +628,7 @@ i915_gem_phys_pwrite(struct drm_i915_gem_object *obj,
 	drm_clflush_virt_range(vaddr, args->size);
 	i915_gem_chipset_flush(to_i915(obj->base.dev));
 
-	intel_fb_obj_flush(obj, false, ORIGIN_CPU);
+	intel_fb_obj_flush(obj, ORIGIN_CPU);
 	return 0;
 }
 
@@ -1275,7 +1275,7 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_gem_object *obj,
 		user_data += page_length;
 		offset += page_length;
 	}
-	intel_fb_obj_flush(obj, false, ORIGIN_CPU);
+	intel_fb_obj_flush(obj, ORIGIN_CPU);
 
 	mutex_lock(&i915->drm.struct_mutex);
 out_unpin:
@@ -1411,7 +1411,7 @@ i915_gem_shmem_pwrite(struct drm_i915_gem_object *obj,
 		offset = 0;
 	}
 
-	intel_fb_obj_flush(obj, false, ORIGIN_CPU);
+	intel_fb_obj_flush(obj, ORIGIN_CPU);
 	i915_gem_obj_finish_shmem_access(obj);
 	return ret;
 }
@@ -3162,7 +3162,7 @@ i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj)
 	if (INTEL_GEN(dev_priv) >= 6 && !HAS_LLC(dev_priv))
 		POSTING_READ(RING_ACTHD(dev_priv->engine[RCS]->mmio_base));
 
-	intel_fb_obj_flush(obj, false, write_origin(obj, I915_GEM_DOMAIN_GTT));
+	intel_fb_obj_flush(obj, write_origin(obj, I915_GEM_DOMAIN_GTT));
 
 	obj->base.write_domain = 0;
 }
@@ -3552,7 +3552,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 
 	/* Treat this as an end-of-frame, like intel_user_framebuffer_dirty() */
 	__i915_gem_object_flush_for_display(obj);
-	intel_fb_obj_flush(obj, false, ORIGIN_DIRTYFB);
+	intel_fb_obj_flush(obj, ORIGIN_DIRTYFB);
 
 	/* It should now be out of any other write domains, and we can update
 	 * the domain values for our changes.
@@ -3953,7 +3953,7 @@ frontbuffer_retire(struct i915_gem_active *active,
 	struct drm_i915_gem_object *obj =
 		container_of(active, typeof(*obj), frontbuffer_write);
 
-	intel_fb_obj_flush(obj, true, ORIGIN_CS);
+	intel_fb_obj_flush(obj, ORIGIN_CS);
 }
 
 void i915_gem_object_init(struct drm_i915_gem_object *obj,
