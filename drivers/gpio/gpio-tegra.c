@@ -238,6 +238,18 @@ static int tegra_gpio_set_debounce(struct gpio_chip *chip, unsigned int offset,
 	return 0;
 }
 
+static int tegra_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
+				 unsigned long config)
+{
+	u32 debounce;
+
+	if (pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE)
+		return -ENOTSUPP;
+
+	debounce = pinconf_to_config_argument(config);
+	return tegra_gpio_set_debounce(chip, offset, debounce);
+}
+
 static int tegra_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
 	struct tegra_gpio_info *tgi = gpiochip_get_data(chip);
@@ -615,7 +627,7 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, tgi);
 
 	if (config->debounce_supported)
-		tgi->gc.set_debounce = tegra_gpio_set_debounce;
+		tgi->gc.set_config = tegra_gpio_set_config;
 
 	tgi->bank_info = devm_kzalloc(&pdev->dev, tgi->bank_count *
 				      sizeof(*tgi->bank_info), GFP_KERNEL);

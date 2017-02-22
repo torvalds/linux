@@ -1691,6 +1691,72 @@ static const struct sh_pfc_pin pinmux_pins[] = {
 	PINMUX_GPIO_GP_ALL(),
 };
 
+/* - ADI -------------------------------------------------------------------- */
+static const unsigned int adi_common_pins[] = {
+	/* ADIDATA, ADICS/SAMP, ADICLK */
+	RCAR_GP_PIN(6, 24), RCAR_GP_PIN(6, 25), RCAR_GP_PIN(6, 26),
+};
+static const unsigned int adi_common_mux[] = {
+	/* ADIDATA, ADICS/SAMP, ADICLK */
+	ADIDATA_MARK, ADICS_SAMP_MARK, ADICLK_MARK,
+};
+static const unsigned int adi_chsel0_pins[] = {
+	/* ADICHS 0 */
+	RCAR_GP_PIN(6, 27),
+};
+static const unsigned int adi_chsel0_mux[] = {
+	/* ADICHS 0 */
+	ADICHS0_MARK,
+};
+static const unsigned int adi_chsel1_pins[] = {
+	/* ADICHS 1 */
+	RCAR_GP_PIN(6, 28),
+};
+static const unsigned int adi_chsel1_mux[] = {
+	/* ADICHS 1 */
+	ADICHS1_MARK,
+};
+static const unsigned int adi_chsel2_pins[] = {
+	/* ADICHS 2 */
+	RCAR_GP_PIN(6, 29),
+};
+static const unsigned int adi_chsel2_mux[] = {
+	/* ADICHS 2 */
+	ADICHS2_MARK,
+};
+static const unsigned int adi_common_b_pins[] = {
+	/* ADIDATA B, ADICS/SAMP B, ADICLK B */
+	RCAR_GP_PIN(5, 25), RCAR_GP_PIN(5, 26), RCAR_GP_PIN(5, 27),
+};
+static const unsigned int adi_common_b_mux[] = {
+	/* ADIDATA B, ADICS/SAMP B, ADICLK B */
+	ADIDATA_B_MARK, ADICS_SAMP_B_MARK, ADICLK_B_MARK,
+};
+static const unsigned int adi_chsel0_b_pins[] = {
+	/* ADICHS B 0 */
+	RCAR_GP_PIN(5, 28),
+};
+static const unsigned int adi_chsel0_b_mux[] = {
+	/* ADICHS B 0 */
+	ADICHS0_B_MARK,
+};
+static const unsigned int adi_chsel1_b_pins[] = {
+	/* ADICHS B 1 */
+	RCAR_GP_PIN(5, 29),
+};
+static const unsigned int adi_chsel1_b_mux[] = {
+	/* ADICHS B 1 */
+	ADICHS1_B_MARK,
+};
+static const unsigned int adi_chsel2_b_pins[] = {
+	/* ADICHS B 2 */
+	RCAR_GP_PIN(5, 30),
+};
+static const unsigned int adi_chsel2_b_mux[] = {
+	/* ADICHS B 2 */
+	ADICHS2_B_MARK,
+};
+
 /* - Audio Clock ------------------------------------------------------------ */
 static const unsigned int audio_clk_a_pins[] = {
 	/* CLK */
@@ -4343,6 +4409,14 @@ static const unsigned int vin2_clk_mux[] = {
 };
 
 static const struct sh_pfc_pin_group pinmux_groups[] = {
+	SH_PFC_PIN_GROUP(adi_common),
+	SH_PFC_PIN_GROUP(adi_chsel0),
+	SH_PFC_PIN_GROUP(adi_chsel1),
+	SH_PFC_PIN_GROUP(adi_chsel2),
+	SH_PFC_PIN_GROUP(adi_common_b),
+	SH_PFC_PIN_GROUP(adi_chsel0_b),
+	SH_PFC_PIN_GROUP(adi_chsel1_b),
+	SH_PFC_PIN_GROUP(adi_chsel2_b),
 	SH_PFC_PIN_GROUP(audio_clk_a),
 	SH_PFC_PIN_GROUP(audio_clk_b),
 	SH_PFC_PIN_GROUP(audio_clk_b_b),
@@ -4685,6 +4759,17 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(vin2_field),
 	SH_PFC_PIN_GROUP(vin2_clkenb),
 	SH_PFC_PIN_GROUP(vin2_clk),
+};
+
+static const char * const adi_groups[] = {
+	"adi_common",
+	"adi_chsel0",
+	"adi_chsel1",
+	"adi_chsel2",
+	"adi_common_b",
+	"adi_chsel0_b",
+	"adi_chsel1_b",
+	"adi_chsel2_b",
 };
 
 static const char * const audio_clk_groups[] = {
@@ -5192,6 +5277,7 @@ static const char * const vin2_groups[] = {
 };
 
 static const struct sh_pfc_function pinmux_functions[] = {
+	SH_PFC_FUNCTION(adi),
 	SH_PFC_FUNCTION(audio_clk),
 	SH_PFC_FUNCTION(avb),
 	SH_PFC_FUNCTION(can0),
@@ -6455,6 +6541,7 @@ const struct sh_pfc_soc_info r8a7791_pinmux_info = {
 #ifdef CONFIG_PINCTRL_PFC_R8A7793
 const struct sh_pfc_soc_info r8a7793_pinmux_info = {
 	.name = "r8a77930_pfc",
+	.ops = &r8a7791_pinmux_ops,
 	.unlock_reg = 0xe6060000, /* PMMR */
 
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
