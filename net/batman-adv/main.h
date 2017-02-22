@@ -168,7 +168,7 @@ enum batadv_uev_type {
 /* Maximum number of fragments for one packet */
 #define BATADV_FRAG_MAX_FRAGMENTS 16
 /* Maxumim size of each fragment */
-#define BATADV_FRAG_MAX_FRAG_SIZE 1400
+#define BATADV_FRAG_MAX_FRAG_SIZE 1280
 /* Time to keep fragments while waiting for rest of the fragments */
 #define BATADV_FRAG_TIMEOUT 10000
 
