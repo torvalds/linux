@@ -1401,7 +1401,9 @@ static inline u16 socket_type_to_security_class(int family, int type, int protoc
 			return SECCLASS_KCM_SOCKET;
 		case PF_QIPCRTR:
 			return SECCLASS_QIPCRTR_SOCKET;
-#if PF_MAX > 43
+		case PF_SMC:
+			return SECCLASS_SMC_SOCKET;
+#if PF_MAX > 44
 #error New address family defined, please update this function.
 #endif
 		}
@@ -4363,7 +4365,8 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 
 			inet_get_local_port_range(sock_net(sk), &low, &high);
 
-			if (snum < max(PROT_SOCK, low) || snum > high) {
+			if (snum < max(inet_prot_sock(sock_net(sk)), low) ||
+			    snum > high) {
 				err = sel_netport_sid(sk->sk_protocol,
 						      snum, &sid);
 				if (err)

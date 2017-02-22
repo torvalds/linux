@@ -11913,6 +11913,27 @@
 #define        MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_OUT_RESETTING_LBN 0
 #define        MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_OUT_RESETTING_WIDTH 1
 
+/* TUNNEL_ENCAP_UDP_PORT_ENTRY structuredef */
+#define    TUNNEL_ENCAP_UDP_PORT_ENTRY_LEN 4
+/* UDP port (the standard ports are named below but any port may be used) */
+#define       TUNNEL_ENCAP_UDP_PORT_ENTRY_UDP_PORT_OFST 0
+#define       TUNNEL_ENCAP_UDP_PORT_ENTRY_UDP_PORT_LEN 2
+/* enum: the IANA allocated UDP port for VXLAN */
+#define          TUNNEL_ENCAP_UDP_PORT_ENTRY_IANA_VXLAN_UDP_PORT  0x12b5
+/* enum: the IANA allocated UDP port for Geneve */
+#define          TUNNEL_ENCAP_UDP_PORT_ENTRY_IANA_GENEVE_UDP_PORT  0x17c1
+#define       TUNNEL_ENCAP_UDP_PORT_ENTRY_UDP_PORT_LBN 0
+#define       TUNNEL_ENCAP_UDP_PORT_ENTRY_UDP_PORT_WIDTH 16
+/* tunnel encapsulation protocol (only those named below are supported) */
+#define       TUNNEL_ENCAP_UDP_PORT_ENTRY_PROTOCOL_OFST 2
+#define       TUNNEL_ENCAP_UDP_PORT_ENTRY_PROTOCOL_LEN 2
+/* enum: VXLAN */
+#define          TUNNEL_ENCAP_UDP_PORT_ENTRY_VXLAN  0x0
+/* enum: Geneve */
+#define          TUNNEL_ENCAP_UDP_PORT_ENTRY_GENEVE  0x1
+#define       TUNNEL_ENCAP_UDP_PORT_ENTRY_PROTOCOL_LBN 16
+#define       TUNNEL_ENCAP_UDP_PORT_ENTRY_PROTOCOL_WIDTH 16
+
 
 /***********************************/
 /* MC_CMD_RX_BALANCING

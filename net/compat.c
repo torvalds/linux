@@ -91,11 +91,11 @@ int get_compat_msghdr(struct msghdr *kmsg,
 #define CMSG_COMPAT_ALIGN(len)	ALIGN((len), sizeof(s32))
 
 #define CMSG_COMPAT_DATA(cmsg)				\
-	((void __user *)((char __user *)(cmsg) + CMSG_COMPAT_ALIGN(sizeof(struct compat_cmsghdr))))
+	((void __user *)((char __user *)(cmsg) + sizeof(struct compat_cmsghdr)))
 #define CMSG_COMPAT_SPACE(len)				\
-	(CMSG_COMPAT_ALIGN(sizeof(struct compat_cmsghdr)) + CMSG_COMPAT_ALIGN(len))
+	(sizeof(struct compat_cmsghdr) + CMSG_COMPAT_ALIGN(len))
 #define CMSG_COMPAT_LEN(len)				\
-	(CMSG_COMPAT_ALIGN(sizeof(struct compat_cmsghdr)) + (len))
+	(sizeof(struct compat_cmsghdr) + (len))
 
 #define CMSG_COMPAT_FIRSTHDR(msg)			\
 	(((msg)->msg_controllen) >= sizeof(struct compat_cmsghdr) ?	\
@@ -131,6 +131,9 @@ int cmsghdr_from_user_compat_to_kern(struct msghdr *kmsg, struct sock *sk,
 	__kernel_size_t kcmlen, tmp;
 	int err = -EFAULT;
 
+	BUILD_BUG_ON(sizeof(struct compat_cmsghdr) !=
+		     CMSG_COMPAT_ALIGN(sizeof(struct compat_cmsghdr)));
+
 	kcmlen = 0;
 	kcmsg_base = kcmsg = (struct cmsghdr *)stackbuf;
 	ucmsg = CMSG_COMPAT_FIRSTHDR(kmsg);
@@ -142,8 +145,7 @@ int cmsghdr_from_user_compat_to_kern(struct msghdr *kmsg, struct sock *sk,
 		if (!CMSG_COMPAT_OK(ucmlen, ucmsg, kmsg))
 			return -EINVAL;
 
-		tmp = ((ucmlen - CMSG_COMPAT_ALIGN(sizeof(*ucmsg))) +
-		       CMSG_ALIGN(sizeof(struct cmsghdr)));
+		tmp = ((ucmlen - sizeof(*ucmsg)) + sizeof(struct cmsghdr));
 		tmp = CMSG_ALIGN(tmp);
 		kcmlen += tmp;
 		ucmsg = cmsg_compat_nxthdr(kmsg, ucmsg, ucmlen);
@@ -169,8 +171,7 @@ int cmsghdr_from_user_compat_to_kern(struct msghdr *kmsg, struct sock *sk,
 			goto Efault;
 		if (!CMSG_COMPAT_OK(ucmlen, ucmsg, kmsg))
 			goto Einval;
-		tmp = ((ucmlen - CMSG_COMPAT_ALIGN(sizeof(*ucmsg))) +
-		       CMSG_ALIGN(sizeof(struct cmsghdr)));
+		tmp = ((ucmlen - sizeof(*ucmsg)) + sizeof(struct cmsghdr));
 		if ((char *)kcmsg_base + kcmlen - (char *)kcmsg < CMSG_ALIGN(tmp))
 			goto Einval;
 		kcmsg->cmsg_len = tmp;
@@ -179,7 +180,7 @@ int cmsghdr_from_user_compat_to_kern(struct msghdr *kmsg, struct sock *sk,
 		    __get_user(kcmsg->cmsg_type, &ucmsg->cmsg_type) ||
 		    copy_from_user(CMSG_DATA(kcmsg),
 				   CMSG_COMPAT_DATA(ucmsg),
-				   (ucmlen - CMSG_COMPAT_ALIGN(sizeof(*ucmsg)))))
+				   (ucmlen - sizeof(*ucmsg))))
 			goto Efault;
 
 		/* Advance. */

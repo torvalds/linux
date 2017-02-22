@@ -1779,7 +1779,7 @@ static int eni_do_init(struct atm_dev *dev)
 	printk(")\n");
 	printk(KERN_NOTICE DEV_LABEL "(itf %d): %s,%s\n",dev->number,
 	    eni_in(MID_RES_ID_MCON) & 0x200 ? "ASIC" : "FPGA",
-	    media_name[eni_in(MID_RES_ID_MCON) & DAUGTHER_ID]);
+	    media_name[eni_in(MID_RES_ID_MCON) & DAUGHTER_ID]);
 
 	error = suni_init(dev);
 	if (error)

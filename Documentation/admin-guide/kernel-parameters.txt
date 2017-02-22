@@ -970,9 +970,10 @@
 			address. The serial port must already be setup
 			and configured. Options are not yet supported.
 
-	earlyprintk=	[X86,SH,BLACKFIN,ARM,M68k]
+	earlyprintk=	[X86,SH,BLACKFIN,ARM,M68k,S390]
 			earlyprintk=vga
 			earlyprintk=efi
+			earlyprintk=sclp
 			earlyprintk=xen
 			earlyprintk=serial[,ttySn[,baudrate]]
 			earlyprintk=serial[,0x...[,baudrate]]
@@ -1006,6 +1007,8 @@
 			the real console.
 
 			The xen output can only be used by Xen PV guests.
+
+			The sclp output can only be used on s390.
 
 	edac_report=	[HW,EDAC] Control how to report EDAC event
 			Format: {"on" | "off" | "force"}

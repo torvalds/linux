@@ -28,6 +28,7 @@
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
 #include <linux/phy.h>
+#include <linux/phy_fixed.h>
 #include <linux/platform_device.h>
 #include <linux/skbuff.h>
 #include <net/hwbm.h>
@@ -224,6 +225,7 @@
 #define      MVNETA_TXQ_SENT_THRESH_MASK(coal)   ((coal) << 16)
 #define MVNETA_TXQ_UPDATE_REG(q)                 (0x3c60 + ((q) << 2))
 #define      MVNETA_TXQ_DEC_SENT_SHIFT           16
+#define      MVNETA_TXQ_DEC_SENT_MASK            0xff
 #define MVNETA_TXQ_STATUS_REG(q)                 (0x3c40 + ((q) << 2))
 #define      MVNETA_TXQ_SENT_DESC_SHIFT          16
 #define      MVNETA_TXQ_SENT_DESC_MASK           0x3fff0000
@@ -525,6 +527,7 @@ struct mvneta_tx_queue {
 	 * descriptor ring
 	 */
 	int count;
+	int pending;
 	int tx_stop_threshold;
 	int tx_wake_threshold;
 
@@ -652,7 +655,7 @@ static void mvneta_mib_counters_clear(struct mvneta_port *pp)
 }
 
 /* Get System Network Statistics */
-static struct rtnl_link_stats64 *
+static void
 mvneta_get_stats64(struct net_device *dev,
 		   struct rtnl_link_stats64 *stats)
 {
@@ -686,8 +689,6 @@ mvneta_get_stats64(struct net_device *dev,
 	stats->rx_dropped	= dev->stats.rx_dropped;
 
 	stats->tx_dropped	= dev->stats.tx_dropped;
-
-	return stats;
 }
 
 /* Rx descriptors helper methods */
@@ -820,8 +821,9 @@ static void mvneta_txq_pend_desc_add(struct mvneta_port *pp,
 	/* Only 255 descriptors can be added at once ; Assume caller
 	 * process TX desriptors in quanta less than 256
 	 */
-	val = pend_desc;
+	val = pend_desc + txq->pending;
 	mvreg_write(pp, MVNETA_TXQ_UPDATE_REG(txq->id), val);
+	txq->pending = 0;
 }
 
 /* Get pointer to next TX descriptor to be processed (send) by HW */
@@ -1758,14 +1760,21 @@ static struct mvneta_tx_queue *mvneta_tx_done_policy(struct mvneta_port *pp,
 
 /* Free tx queue skbuffs */
 static void mvneta_txq_bufs_free(struct mvneta_port *pp,
-				 struct mvneta_tx_queue *txq, int num)
+				 struct mvneta_tx_queue *txq, int num,
+				 struct netdev_queue *nq)
 {
+	unsigned int bytes_compl = 0, pkts_compl = 0;
 	int i;
 
 	for (i = 0; i < num; i++) {
 		struct mvneta_tx_desc *tx_desc = txq->descs +
 			txq->txq_get_index;
 		struct sk_buff *skb = txq->tx_skb[txq->txq_get_index];
+
+		if (skb) {
+			bytes_compl += skb->len;
+			pkts_compl++;
+		}
 
 		mvneta_txq_inc_get(txq);
 
@@ -1777,6 +1786,8 @@ static void mvneta_txq_bufs_free(struct mvneta_port *pp,
 			continue;
 		dev_kfree_skb_any(skb);
 	}
+
+	netdev_tx_completed_queue(nq, pkts_compl, bytes_compl);
 }
 
 /* Handle end of transmission */
@@ -1790,7 +1801,7 @@ static void mvneta_txq_done(struct mvneta_port *pp,
 	if (!tx_done)
 		return;
 
-	mvneta_txq_bufs_free(pp, txq, tx_done);
+	mvneta_txq_bufs_free(pp, txq, tx_done, nq);
 
 	txq->count -= tx_done;
 
@@ -2400,11 +2411,17 @@ out:
 		struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
 		struct netdev_queue *nq = netdev_get_tx_queue(dev, txq_id);
 
-		txq->count += frags;
-		mvneta_txq_pend_desc_add(pp, txq, frags);
+		netdev_tx_sent_queue(nq, len);
 
+		txq->count += frags;
 		if (txq->count >= txq->tx_stop_threshold)
 			netif_tx_stop_queue(nq);
+
+		if (!skb->xmit_more || netif_xmit_stopped(nq) ||
+		    txq->pending + frags > MVNETA_TXQ_DEC_SENT_MASK)
+			mvneta_txq_pend_desc_add(pp, txq, frags);
+		else
+			txq->pending += frags;
 
 		u64_stats_update_begin(&stats->syncp);
 		stats->tx_packets++;
@@ -2424,9 +2441,10 @@ static void mvneta_txq_done_force(struct mvneta_port *pp,
 				  struct mvneta_tx_queue *txq)
 
 {
+	struct netdev_queue *nq = netdev_get_tx_queue(pp->dev, txq->id);
 	int tx_done = txq->count;
 
-	mvneta_txq_bufs_free(pp, txq, tx_done);
+	mvneta_txq_bufs_free(pp, txq, tx_done, nq);
 
 	/* reset txq */
 	txq->count = 0;
@@ -2750,11 +2768,9 @@ static int mvneta_poll(struct napi_struct *napi, int budget)
 			rx_done = mvneta_rx_swbm(pp, budget, &pp->rxqs[rx_queue]);
 	}
 
-	budget -= rx_done;
-
-	if (budget > 0) {
+	if (rx_done < budget) {
 		cause_rx_tx = 0;
-		napi_complete(napi);
+		napi_complete_done(napi, rx_done);
 
 		if (pp->neta_armada3700) {
 			unsigned long flags;
@@ -2952,6 +2968,8 @@ static int mvneta_txq_init(struct mvneta_port *pp,
 static void mvneta_txq_deinit(struct mvneta_port *pp,
 			      struct mvneta_tx_queue *txq)
 {
+	struct netdev_queue *nq = netdev_get_tx_queue(pp->dev, txq->id);
+
 	kfree(txq->tx_skb);
 
 	if (txq->tso_hdrs)
@@ -2962,6 +2980,8 @@ static void mvneta_txq_deinit(struct mvneta_port *pp,
 		dma_free_coherent(pp->dev->dev.parent,
 				  txq->size * MVNETA_DESC_ALIGNED_SIZE,
 				  txq->descs, txq->descs_phys);
+
+	netdev_tx_reset_queue(nq);
 
 	txq->descs             = NULL;
 	txq->last_desc         = 0;
@@ -3908,6 +3928,25 @@ static int mvneta_ethtool_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
 	return 0;
 }
 
+static void mvneta_ethtool_get_wol(struct net_device *dev,
+				   struct ethtool_wolinfo *wol)
+{
+	wol->supported = 0;
+	wol->wolopts = 0;
+
+	if (dev->phydev)
+		phy_ethtool_get_wol(dev->phydev, wol);
+}
+
+static int mvneta_ethtool_set_wol(struct net_device *dev,
+				  struct ethtool_wolinfo *wol)
+{
+	if (!dev->phydev)
+		return -EOPNOTSUPP;
+
+	return phy_ethtool_set_wol(dev->phydev, wol);
+}
+
 static const struct net_device_ops mvneta_netdev_ops = {
 	.ndo_open            = mvneta_open,
 	.ndo_stop            = mvneta_stop,
@@ -3920,7 +3959,7 @@ static const struct net_device_ops mvneta_netdev_ops = {
 	.ndo_do_ioctl        = mvneta_ioctl,
 };
 
-const struct ethtool_ops mvneta_eth_tool_ops = {
+static const struct ethtool_ops mvneta_eth_tool_ops = {
 	.nway_reset	= phy_ethtool_nway_reset,
 	.get_link       = ethtool_op_get_link,
 	.set_coalesce   = mvneta_ethtool_set_coalesce,
@@ -3937,6 +3976,8 @@ const struct ethtool_ops mvneta_eth_tool_ops = {
 	.set_rxfh	= mvneta_ethtool_set_rxfh,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = mvneta_ethtool_set_link_ksettings,
+	.get_wol        = mvneta_ethtool_get_wol,
+	.set_wol        = mvneta_ethtool_set_wol,
 };
 
 /* Initialize hw */

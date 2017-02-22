@@ -10,6 +10,7 @@
  * General Public License for more details.
  */
 #include <linux/bpf.h>
+#include <linux/bpf_trace.h>
 #include <linux/syscalls.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -241,6 +242,7 @@ static int map_create(union bpf_attr *attr)
 		/* failed to allocate fd */
 		goto free_map;
 
+	trace_bpf_map_create(map, err);
 	return err;
 
 free_map:
@@ -365,6 +367,7 @@ static int map_lookup_elem(union bpf_attr *attr)
 	if (copy_to_user(uvalue, value, value_size) != 0)
 		goto free_value;
 
+	trace_bpf_map_lookup_elem(map, ufd, key, value);
 	err = 0;
 
 free_value:
@@ -447,6 +450,8 @@ static int map_update_elem(union bpf_attr *attr)
 	__this_cpu_dec(bpf_prog_active);
 	preempt_enable();
 
+	if (!err)
+		trace_bpf_map_update_elem(map, ufd, key, value);
 free_value:
 	kfree(value);
 free_key:
@@ -492,6 +497,8 @@ static int map_delete_elem(union bpf_attr *attr)
 	__this_cpu_dec(bpf_prog_active);
 	preempt_enable();
 
+	if (!err)
+		trace_bpf_map_delete_elem(map, ufd, key);
 free_key:
 	kfree(key);
 err_put:
@@ -544,6 +551,7 @@ static int map_get_next_key(union bpf_attr *attr)
 	if (copy_to_user(unext_key, next_key, map->key_size) != 0)
 		goto free_next_key;
 
+	trace_bpf_map_next_key(map, ufd, key, next_key);
 	err = 0;
 
 free_next_key:
@@ -697,8 +705,11 @@ static void __bpf_prog_put_rcu(struct rcu_head *rcu)
 
 void bpf_prog_put(struct bpf_prog *prog)
 {
-	if (atomic_dec_and_test(&prog->aux->refcnt))
+	if (atomic_dec_and_test(&prog->aux->refcnt)) {
+		trace_bpf_prog_put_rcu(prog);
+		bpf_prog_kallsyms_del(prog);
 		call_rcu(&prog->aux->rcu, __bpf_prog_put_rcu);
+	}
 }
 EXPORT_SYMBOL_GPL(bpf_prog_put);
 
@@ -807,7 +818,11 @@ struct bpf_prog *bpf_prog_get(u32 ufd)
 
 struct bpf_prog *bpf_prog_get_type(u32 ufd, enum bpf_prog_type type)
 {
-	return __bpf_prog_get(ufd, &type);
+	struct bpf_prog *prog = __bpf_prog_get(ufd, &type);
+
+	if (!IS_ERR(prog))
+		trace_bpf_prog_get_type(prog);
+	return prog;
 }
 EXPORT_SYMBOL_GPL(bpf_prog_get_type);
 
@@ -889,6 +904,8 @@ static int bpf_prog_load(union bpf_attr *attr)
 		/* failed to allocate fd */
 		goto free_used_maps;
 
+	bpf_prog_kallsyms_add(prog);
+	trace_bpf_prog_load(prog, err);
 	return err;
 
 free_used_maps:

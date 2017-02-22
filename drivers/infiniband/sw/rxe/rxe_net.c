@@ -118,7 +118,7 @@ static struct device *dma_device(struct rxe_dev *rxe)
 
 	ndev = rxe->ndev;
 
-	if (ndev->priv_flags & IFF_802_1Q_VLAN)
+	if (is_vlan_dev(ndev))
 		ndev = vlan_dev_real_dev(ndev);
 
 	return ndev->dev.parent;

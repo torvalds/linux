@@ -1129,6 +1129,7 @@ static int pci_configure_afu(struct cxl_afu *afu, struct cxl *adapter, struct pc
 	if ((rc = cxl_native_register_psl_irq(afu)))
 		goto err2;
 
+	up_write(&afu->configured_rwsem);
 	return 0;
 
 err2:
@@ -1141,6 +1142,7 @@ err1:
 
 static void pci_deconfigure_afu(struct cxl_afu *afu)
 {
+	down_write(&afu->configured_rwsem);
 	cxl_native_release_psl_irq(afu);
 	if (afu->adapter->native->sl_ops->release_serr_irq)
 		afu->adapter->native->sl_ops->release_serr_irq(afu);
@@ -1609,6 +1611,9 @@ static void cxl_pci_remove_adapter(struct cxl *adapter)
 
 	cxl_sysfs_adapter_remove(adapter);
 	cxl_debugfs_adapter_remove(adapter);
+
+	/* Flush adapter datacache as its about to be removed */
+	cxl_data_cache_flush(adapter);
 
 	cxl_deconfigure_adapter(adapter);
 

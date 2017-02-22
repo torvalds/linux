@@ -27,7 +27,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/kernel_stat.h>
-#include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -54,16 +54,7 @@
 #include "ap_debug.h"
 
 /*
- * Module description.
- */
-MODULE_AUTHOR("IBM Corporation");
-MODULE_DESCRIPTION("Adjunct Processor Bus driver, " \
-		   "Copyright IBM Corp. 2006, 2012");
-MODULE_LICENSE("GPL");
-MODULE_ALIAS_CRYPTO("z90crypt");
-
-/*
- * Module parameter
+ * Module parameters; note though this file itself isn't modular.
  */
 int ap_domain_index = -1;	/* Adjunct Processor Domain Index */
 static DEFINE_SPINLOCK(ap_domain_lock);
@@ -86,7 +77,6 @@ static bool initialised;
 /*
  * AP bus related debug feature things.
  */
-static struct dentry *ap_dbf_root;
 debug_info_t *ap_dbf_info;
 
 /*
@@ -1148,7 +1138,6 @@ static struct reset_call ap_reset_call = {
 
 int __init ap_debug_init(void)
 {
-	ap_dbf_root = debugfs_create_dir("ap", NULL);
 	ap_dbf_info = debug_register("ap", 1, 1,
 				     DBF_MAX_SPRINTF_ARGS * sizeof(long));
 	debug_register_view(ap_dbf_info, &debug_sprintf_view);
@@ -1159,7 +1148,6 @@ int __init ap_debug_init(void)
 
 void ap_debug_exit(void)
 {
-	debugfs_remove(ap_dbf_root);
 	debug_unregister(ap_dbf_info);
 }
 
@@ -1270,43 +1258,4 @@ out_free:
 	kfree(ap_configuration);
 	return rc;
 }
-
-/**
- * ap_modules_exit(): The module termination code
- *
- * Terminates the module.
- */
-void ap_module_exit(void)
-{
-	int i;
-
-	initialised = false;
-	ap_reset_domain();
-	ap_poll_thread_stop();
-	del_timer_sync(&ap_config_timer);
-	hrtimer_cancel(&ap_poll_timer);
-	tasklet_kill(&ap_tasklet);
-
-	/* first remove queue devices */
-	bus_for_each_dev(&ap_bus_type, NULL, NULL,
-			 __ap_queue_devices_unregister);
-	/* now remove the card devices */
-	bus_for_each_dev(&ap_bus_type, NULL, NULL,
-			 __ap_card_devices_unregister);
-
-	/* remove bus attributes */
-	for (i = 0; ap_bus_attrs[i]; i++)
-		bus_remove_file(&ap_bus_type, ap_bus_attrs[i]);
-	unregister_pm_notifier(&ap_power_notifier);
-	root_device_unregister(ap_root_device);
-	bus_unregister(&ap_bus_type);
-	kfree(ap_configuration);
-	unregister_reset_call(&ap_reset_call);
-	if (ap_using_interrupts())
-		unregister_adapter_interrupt(&ap_airq);
-
-	ap_debug_exit();
-}
-
-module_init(ap_module_init);
-module_exit(ap_module_exit);
+device_initcall(ap_module_init);

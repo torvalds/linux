@@ -1274,7 +1274,7 @@ static int bfin_mac_poll(struct napi_struct *napi, int budget)
 	}
 
 	if (i < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, i);
 		if (test_and_clear_bit(BFIN_MAC_RX_IRQ_DISABLED, &lp->flags))
 			enable_irq(IRQ_MAC_RX);
 	}

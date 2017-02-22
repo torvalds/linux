@@ -200,7 +200,6 @@ static inline void rm_writeb(unsigned long paddr, u8 val)
 
 /*
  * Send an interrupt or message to another CPU.
- * This can only be called in real mode.
  * The caller needs to include any barrier needed to order writes
  * to memory vs. the IPI/message.
  */
@@ -229,8 +228,7 @@ void kvmhv_rm_send_ipi(int cpu)
 	if (xics_phys)
 		rm_writeb(xics_phys + XICS_MFRR, IPI_PRIORITY);
 	else
-		opal_rm_int_set_mfrr(get_hard_smp_processor_id(cpu),
-				     IPI_PRIORITY);
+		opal_int_set_mfrr(get_hard_smp_processor_id(cpu), IPI_PRIORITY);
 }
 
 /*
@@ -412,14 +410,13 @@ static long kvmppc_read_one_intr(bool *again)
 
 	/* Now read the interrupt from the ICP */
 	xics_phys = local_paca->kvm_hstate.xics_phys;
-	if (!xics_phys) {
-		/* Use OPAL to read the XIRR */
-		rc = opal_rm_int_get_xirr(&xirr, false);
-		if (rc < 0)
-			return 1;
-	} else {
+	rc = 0;
+	if (!xics_phys)
+		rc = opal_int_get_xirr(&xirr, false);
+	else
 		xirr = _lwzcix(xics_phys + XICS_XIRR);
-	}
+	if (rc < 0)
+		return 1;
 
 	/*
 	 * Save XIRR for later. Since we get control in reverse endian
@@ -445,15 +442,16 @@ static long kvmppc_read_one_intr(bool *again)
 	 * If it is an IPI, clear the MFRR and EOI it.
 	 */
 	if (xisr == XICS_IPI) {
+		rc = 0;
 		if (xics_phys) {
 			_stbcix(xics_phys + XICS_MFRR, 0xff);
 			_stwcix(xics_phys + XICS_XIRR, xirr);
 		} else {
-			opal_rm_int_set_mfrr(hard_smp_processor_id(), 0xff);
-			rc = opal_rm_int_eoi(h_xirr);
-			/* If rc > 0, there is another interrupt pending */
-			*again = rc > 0;
+			opal_int_set_mfrr(hard_smp_processor_id(), 0xff);
+			rc = opal_int_eoi(h_xirr);
 		}
+		/* If rc > 0, there is another interrupt pending */
+		*again = rc > 0;
 
 		/*
 		 * Need to ensure side effects of above stores
@@ -474,8 +472,8 @@ static long kvmppc_read_one_intr(bool *again)
 			if (xics_phys)
 				_stbcix(xics_phys + XICS_MFRR, IPI_PRIORITY);
 			else
-				opal_rm_int_set_mfrr(hard_smp_processor_id(),
-						     IPI_PRIORITY);
+				opal_int_set_mfrr(hard_smp_processor_id(),
+						  IPI_PRIORITY);
 			/* Let side effects complete */
 			smp_mb();
 			return 1;

@@ -212,6 +212,8 @@ struct tcp_sock {
 	/* Information of the most recently (s)acked skb */
 	struct tcp_rack {
 		struct skb_mstamp mstamp; /* (Re)sent time of the skb */
+		u32 rtt_us;  /* Associated RTT */
+		u32 end_seq; /* Ending TCP sequence of the skb */
 		u8 advanced; /* mstamp advanced since last lost marking */
 		u8 reord;    /* reordering detected */
 	} rack;
@@ -220,15 +222,15 @@ struct tcp_sock {
 	u32	chrono_stat[3];	/* Time in jiffies for chrono_stat stats */
 	u8	chrono_type:2,	/* current chronograph type */
 		rate_app_limited:1,  /* rate_{delivered,interval_us} limited? */
-		unused:5;
+		fastopen_connect:1, /* FASTOPEN_CONNECT sockopt */
+		unused:4;
 	u8	nonagle     : 4,/* Disable Nagle algorithm?             */
 		thin_lto    : 1,/* Use linear timeouts for thin streams */
-		thin_dupack : 1,/* Fast retransmit on first dupack      */
+		unused1	    : 1,
 		repair      : 1,
 		frto        : 1;/* F-RTO (RFC5682) activated in CA_Loss */
 	u8	repair_queue;
-	u8	do_early_retrans:1,/* Enable RFC5827 early-retransmit  */
-		syn_data:1,	/* SYN includes data */
+	u8	syn_data:1,	/* SYN includes data */
 		syn_fastopen:1,	/* SYN includes Fast Open option */
 		syn_fastopen_exp:1,/* SYN includes Fast Open exp. option */
 		syn_data_acked:1,/* data in SYN is acked by SYN-ACK */
@@ -310,7 +312,6 @@ struct tcp_sock {
 					 */
 
 	int     lost_cnt_hint;
-	u32     retransmit_high;	/* L-bits may be on up to this seqno */
 
 	u32	prior_ssthresh; /* ssthresh saved at recovery start	*/
 	u32	high_seq;	/* snd_nxt at onset of congestion	*/
@@ -444,4 +445,13 @@ static inline void tcp_saved_syn_free(struct tcp_sock *tp)
 
 struct sk_buff *tcp_get_timestamping_opt_stats(const struct sock *sk);
 
+static inline u16 tcp_mss_clamp(const struct tcp_sock *tp, u16 mss)
+{
+	/* We use READ_ONCE() here because socket might not be locked.
+	 * This happens for listeners.
+	 */
+	u16 user_mss = READ_ONCE(tp->rx_opt.user_mss);
+
+	return (user_mss && user_mss < mss) ? user_mss : mss;
+}
 #endif	/* _LINUX_TCP_H */

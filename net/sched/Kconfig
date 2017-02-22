@@ -650,6 +650,18 @@ config NET_ACT_MIRRED
 	  To compile this code as a module, choose M here: the
 	  module will be called act_mirred.
 
+config NET_ACT_SAMPLE
+        tristate "Traffic Sampling"
+        depends on NET_CLS_ACT
+        select PSAMPLE
+        ---help---
+	  Say Y here to allow packet sampling tc action. The packet sample
+	  action consists of statistically choosing packets and sampling
+	  them using the psample module.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_sample.
+
 config NET_ACT_IPT
         tristate "IPtables targets"
         depends on NET_CLS_ACT && NETFILTER && IP_NF_IPTABLES
@@ -707,6 +719,7 @@ config NET_ACT_SKBEDIT
 config NET_ACT_CSUM
         tristate "Checksum Updating"
         depends on NET_CLS_ACT && INET
+        select LIBCRC32C
         ---help---
 	  Say Y here to update some common checksum after some direct
 	  packet alterations.
@@ -763,6 +776,7 @@ config NET_ACT_SKBMOD
 config NET_ACT_IFE
         tristate "Inter-FE action based on IETF ForCES InterFE LFB"
         depends on NET_CLS_ACT
+        select NET_IFE
         ---help---
 	  Say Y here to allow for sourcing and terminating metadata
 	  For details refer to netdev01 paper:

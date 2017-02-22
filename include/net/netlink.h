@@ -229,6 +229,7 @@ struct nl_info {
 	struct nlmsghdr		*nlh;
 	struct net		*nl_net;
 	u32			portid;
+	bool			skip_notify;
 };
 
 int netlink_rcv_skb(struct sk_buff *skb,

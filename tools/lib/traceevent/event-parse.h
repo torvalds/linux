@@ -292,6 +292,7 @@ enum print_arg_type {
 	PRINT_FUNC,
 	PRINT_BITMASK,
 	PRINT_DYNAMIC_ARRAY_LEN,
+	PRINT_HEX_STR,
 };
 
 struct print_arg {

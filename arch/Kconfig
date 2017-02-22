@@ -222,6 +222,10 @@ config GENERIC_SMP_IDLE_THREAD
 config GENERIC_IDLE_POLL_SETUP
        bool
 
+# Select if arch has all set_memory_ro/rw/x/nx() functions in asm/cacheflush.h
+config ARCH_HAS_SET_MEMORY
+	bool
+
 # Select if arch init_task initializer is different to init/init_task.c
 config ARCH_INIT_TASK
        bool
@@ -409,6 +413,28 @@ config GCC_PLUGIN_LATENT_ENTROPY
 	  This plugin was ported from grsecurity/PaX. More information at:
 	   * https://grsecurity.net/
 	   * https://pax.grsecurity.net/
+
+config GCC_PLUGIN_STRUCTLEAK
+	bool "Force initialization of variables containing userspace addresses"
+	depends on GCC_PLUGINS
+	help
+	  This plugin zero-initializes any structures that containing a
+	  __user attribute. This can prevent some classes of information
+	  exposures.
+
+	  This plugin was ported from grsecurity/PaX. More information at:
+	   * https://grsecurity.net/
+	   * https://pax.grsecurity.net/
+
+config GCC_PLUGIN_STRUCTLEAK_VERBOSE
+	bool "Report forcefully initialized variables"
+	depends on GCC_PLUGIN_STRUCTLEAK
+	depends on !COMPILE_TEST
+	help
+	  This option will cause a warning to be printed each time the
+	  structleak plugin finds a variable it thinks needs to be
+	  initialized. Since not all existing initializers are detected
+	  by the plugin, this can produce false positive warnings.
 
 config HAVE_CC_STACKPROTECTOR
 	bool
@@ -814,5 +840,8 @@ config STRICT_MODULE_RWX
 	  If this is set, module text and rodata memory will be made read-only,
 	  and non-text memory will be made non-executable. This provides
 	  protection against certain security exploits (e.g. writing to text)
+
+config ARCH_WANT_RELAX_ORDER
+	bool
 
 source "kernel/gcov/Kconfig"

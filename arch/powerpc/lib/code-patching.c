@@ -32,6 +32,49 @@ int patch_branch(unsigned int *addr, unsigned long target, int flags)
 	return patch_instruction(addr, create_branch(addr, target, flags));
 }
 
+bool is_offset_in_branch_range(long offset)
+{
+	/*
+	 * Powerpc branch instruction is :
+	 *
+	 *  0         6                 30   31
+	 *  +---------+----------------+---+---+
+	 *  | opcode  |     LI         |AA |LK |
+	 *  +---------+----------------+---+---+
+	 *  Where AA = 0 and LK = 0
+	 *
+	 * LI is a signed 24 bits integer. The real branch offset is computed
+	 * by: imm32 = SignExtend(LI:'0b00', 32);
+	 *
+	 * So the maximum forward branch should be:
+	 *   (0x007fffff << 2) = 0x01fffffc =  0x1fffffc
+	 * The maximum backward branch should be:
+	 *   (0xff800000 << 2) = 0xfe000000 = -0x2000000
+	 */
+	return (offset >= -0x2000000 && offset <= 0x1fffffc && !(offset & 0x3));
+}
+
+/*
+ * Helper to check if a given instruction is a conditional branch
+ * Derived from the conditional checks in analyse_instr()
+ */
+bool __kprobes is_conditional_branch(unsigned int instr)
+{
+	unsigned int opcode = instr >> 26;
+
+	if (opcode == 16)       /* bc, bca, bcl, bcla */
+		return true;
+	if (opcode == 19) {
+		switch ((instr >> 1) & 0x3ff) {
+		case 16:        /* bclr, bclrl */
+		case 528:       /* bcctr, bcctrl */
+		case 560:       /* bctar, bctarl */
+			return true;
+		}
+	}
+	return false;
+}
+
 unsigned int create_branch(const unsigned int *addr,
 			   unsigned long target, int flags)
 {
@@ -43,7 +86,7 @@ unsigned int create_branch(const unsigned int *addr,
 		offset = offset - (unsigned long)addr;
 
 	/* Check we can represent the target in the instruction format */
-	if (offset < -0x2000000 || offset > 0x1fffffc || offset & 0x3)
+	if (!is_offset_in_branch_range(offset))
 		return 0;
 
 	/* Mask out the flags and target, so they don't step on each other. */

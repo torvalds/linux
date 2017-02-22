@@ -84,6 +84,14 @@ config DEBUG_ALIGN_RODATA
 
 	  If in doubt, say N.
 
+config DEBUG_EFI
+	depends on EFI && DEBUG_INFO
+	bool "UEFI debugging"
+	help
+	  Enable this option to include EFI specific debugging features into
+	  the kernel that are only useful when using a debug build of the
+	  UEFI firmware
+
 source "drivers/hwtracing/coresight/Kconfig"
 
 endmenu

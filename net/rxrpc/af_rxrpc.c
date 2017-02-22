@@ -224,6 +224,14 @@ static int rxrpc_listen(struct socket *sock, int backlog)
 		else
 			sk->sk_max_ack_backlog = old;
 		break;
+	case RXRPC_SERVER_LISTENING:
+		if (backlog == 0) {
+			rx->sk.sk_state = RXRPC_SERVER_LISTEN_DISABLED;
+			sk->sk_max_ack_backlog = 0;
+			rxrpc_discard_prealloc(rx);
+			ret = 0;
+			break;
+		}
 	default:
 		ret = -EBUSY;
 		break;

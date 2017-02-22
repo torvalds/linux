@@ -12,10 +12,6 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
@@ -65,7 +61,7 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 	STMMAC_STAT(overflow_error),
 	STMMAC_STAT(ipc_csum_error),
 	STMMAC_STAT(rx_collision),
-	STMMAC_STAT(rx_crc),
+	STMMAC_STAT(rx_crc_errors),
 	STMMAC_STAT(dribbling_bit),
 	STMMAC_STAT(rx_length),
 	STMMAC_STAT(rx_mii),
@@ -446,7 +442,15 @@ static void stmmac_ethtool_gregs(struct net_device *dev,
 
 	memset(reg_space, 0x0, REG_SPACE_SIZE);
 
-	if (!(priv->plat->has_gmac || priv->plat->has_gmac4)) {
+	if (priv->plat->has_gmac || priv->plat->has_gmac4) {
+		/* MAC registers */
+		for (i = 0; i < 55; i++)
+			reg_space[i] = readl(priv->ioaddr + (i * 4));
+		/* DMA registers */
+		for (i = 0; i < 22; i++)
+			reg_space[i + 55] =
+			    readl(priv->ioaddr + (DMA_BUS_MODE + (i * 4)));
+	} else {
 		/* MAC registers */
 		for (i = 0; i < 12; i++)
 			reg_space[i] = readl(priv->ioaddr + (i * 4));
@@ -456,14 +460,6 @@ static void stmmac_ethtool_gregs(struct net_device *dev,
 			    readl(priv->ioaddr + (DMA_BUS_MODE + (i * 4)));
 		reg_space[22] = readl(priv->ioaddr + DMA_CUR_TX_BUF_ADDR);
 		reg_space[23] = readl(priv->ioaddr + DMA_CUR_RX_BUF_ADDR);
-	} else {
-		/* MAC registers */
-		for (i = 0; i < 55; i++)
-			reg_space[i] = readl(priv->ioaddr + (i * 4));
-		/* DMA registers */
-		for (i = 0; i < 22; i++)
-			reg_space[i + 55] =
-			    readl(priv->ioaddr + (DMA_BUS_MODE + (i * 4)));
 	}
 }
 
@@ -712,7 +708,7 @@ static int stmmac_ethtool_op_set_eee(struct net_device *dev,
 
 static u32 stmmac_usec2riwt(u32 usec, struct stmmac_priv *priv)
 {
-	unsigned long clk = clk_get_rate(priv->stmmac_clk);
+	unsigned long clk = clk_get_rate(priv->plat->stmmac_clk);
 
 	if (!clk)
 		return 0;
@@ -722,7 +718,7 @@ static u32 stmmac_usec2riwt(u32 usec, struct stmmac_priv *priv)
 
 static u32 stmmac_riwt2usec(u32 riwt, struct stmmac_priv *priv)
 {
-	unsigned long clk = clk_get_rate(priv->stmmac_clk);
+	unsigned long clk = clk_get_rate(priv->plat->stmmac_clk);
 
 	if (!clk)
 		return 0;

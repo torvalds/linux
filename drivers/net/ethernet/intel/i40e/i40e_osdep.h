@@ -55,7 +55,7 @@ struct i40e_dma_mem {
 	void *va;
 	dma_addr_t pa;
 	u32 size;
-} __packed;
+};
 
 #define i40e_allocate_dma_mem(h, m, unused, s, a) \
 			i40e_allocate_dma_mem_d(h, m, s, a)
@@ -64,17 +64,17 @@ struct i40e_dma_mem {
 struct i40e_virt_mem {
 	void *va;
 	u32 size;
-} __packed;
+};
 
 #define i40e_allocate_virt_mem(h, m, s) i40e_allocate_virt_mem_d(h, m, s)
 #define i40e_free_virt_mem(h, m) i40e_free_virt_mem_d(h, m)
 
-#define i40e_debug(h, m, s, ...)                                \
-do {                                                            \
-	if (((m) & (h)->debug_mask))                            \
-		pr_info("i40e %02x.%x " s,                      \
-			(h)->bus.device, (h)->bus.func,         \
-			##__VA_ARGS__);                         \
+#define i40e_debug(h, m, s, ...)				\
+do {								\
+	if (((m) & (h)->debug_mask))				\
+		pr_info("i40e %02x:%02x.%x " s,			\
+			(h)->bus.bus_id, (h)->bus.device,	\
+			(h)->bus.func, ##__VA_ARGS__);		\
 } while (0)
 
 typedef enum i40e_status_code i40e_status;

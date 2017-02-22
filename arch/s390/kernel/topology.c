@@ -38,7 +38,6 @@ static void set_topology_timer(void);
 static void topology_work_fn(struct work_struct *work);
 static struct sysinfo_15_1_x *tl_info;
 
-static bool topology_enabled = true;
 static DECLARE_WORK(topology_work, topology_work_fn);
 
 /*
@@ -59,7 +58,7 @@ static cpumask_t cpu_group_map(struct mask_info *info, unsigned int cpu)
 	cpumask_t mask;
 
 	cpumask_copy(&mask, cpumask_of(cpu));
-	if (!topology_enabled || !MACHINE_HAS_TOPOLOGY)
+	if (!MACHINE_HAS_TOPOLOGY)
 		return mask;
 	for (; info; info = info->next) {
 		if (cpumask_test_cpu(cpu, &info->mask))
@@ -74,7 +73,7 @@ static cpumask_t cpu_thread_map(unsigned int cpu)
 	int i;
 
 	cpumask_copy(&mask, cpumask_of(cpu));
-	if (!topology_enabled || !MACHINE_HAS_TOPOLOGY)
+	if (!MACHINE_HAS_TOPOLOGY)
 		return mask;
 	cpu -= cpu % (smp_cpu_mtid + 1);
 	for (i = 0; i <= smp_cpu_mtid; i++)
@@ -428,12 +427,6 @@ static const struct cpumask *cpu_drawer_mask(int cpu)
 	return &cpu_topology[cpu].drawer_mask;
 }
 
-static int __init early_parse_topology(char *p)
-{
-	return kstrtobool(p, &topology_enabled);
-}
-early_param("topology", early_parse_topology);
-
 static struct sched_domain_topology_level s390_topology[] = {
 	{ cpu_thread_mask, cpu_smt_flags, SD_INIT_NAME(SMT) },
 	{ cpu_coregroup_mask, cpu_core_flags, SD_INIT_NAME(MC) },
@@ -461,18 +454,16 @@ static void __init alloc_masks(struct sysinfo_15_1_x *info,
 void __init topology_init_early(void)
 {
 	struct sysinfo_15_1_x *info;
-	int i;
 
 	set_sched_topology(s390_topology);
 	if (!MACHINE_HAS_TOPOLOGY)
 		goto out;
-	tl_info = memblock_virt_alloc(sizeof(*tl_info), PAGE_SIZE);
+	tl_info = memblock_virt_alloc(PAGE_SIZE, PAGE_SIZE);
 	info = tl_info;
 	store_topology(info);
-	pr_info("The CPU configuration topology of the machine is:");
-	for (i = 0; i < TOPOLOGY_NR_MAG; i++)
-		printk(KERN_CONT " %d", info->mag[i]);
-	printk(KERN_CONT " / %d\n", info->mnest);
+	pr_info("The CPU configuration topology of the machine is: %d %d %d %d %d %d / %d\n",
+		info->mag[0], info->mag[1], info->mag[2], info->mag[3],
+		info->mag[4], info->mag[5], info->mnest);
 	alloc_masks(info, &socket_info, 1);
 	alloc_masks(info, &book_info, 2);
 	alloc_masks(info, &drawer_info, 3);

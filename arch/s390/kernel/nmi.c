@@ -13,7 +13,7 @@
 #include <linux/errno.h>
 #include <linux/hardirq.h>
 #include <linux/time.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <asm/lowcore.h>
 #include <asm/smp.h>
 #include <asm/stp.h>

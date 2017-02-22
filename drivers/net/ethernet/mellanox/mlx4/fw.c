@@ -672,7 +672,7 @@ int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u8 gen_or_port,
 	MLX4_GET(field, outbox, QUERY_FUNC_CAP_PHYS_PORT_OFFSET);
 	func_cap->physical_port = field;
 	if (func_cap->physical_port != gen_or_port) {
-		err = -ENOSYS;
+		err = -EINVAL;
 		goto out;
 	}
 
@@ -1875,7 +1875,7 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 	*((u8 *) mailbox->buf + INIT_HCA_VERSION_OFFSET) = INIT_HCA_VERSION;
 
 	*((u8 *) mailbox->buf + INIT_HCA_CACHELINE_SZ_OFFSET) =
-		(ilog2(cache_line_size()) - 4) << 5;
+		((ilog2(cache_line_size()) - 4) << 5) | (1 << 4);
 
 #if defined(__LITTLE_ENDIAN)
 	*(inbox + INIT_HCA_FLAGS_OFFSET / 4) &= ~cpu_to_be32(1 << 1);
@@ -2983,7 +2983,7 @@ static int mlx4_SET_PORT_phv_bit(struct mlx4_dev *dev, u8 port, u8 phv_bit)
 		return PTR_ERR(mailbox);
 	context = mailbox->buf;
 
-	context->v_ignore_fcs |=  SET_PORT_GEN_PHV_VALID;
+	context->flags2 |=  SET_PORT_GEN_PHV_VALID;
 	if (phv_bit)
 		context->phv_en |=  SET_PORT_GEN_PHV_EN;
 

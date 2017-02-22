@@ -17,4 +17,7 @@ config S390_PTDUMP
 	  kernel.
 	  If in doubt, say "N"
 
+config EARLY_PRINTK
+	def_bool y
+
 endmenu

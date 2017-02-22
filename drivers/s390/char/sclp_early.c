@@ -55,46 +55,23 @@ struct read_info_sccb {
 	u8	_pad_128[4096 - 128];	/* 128-4095 */
 } __packed __aligned(PAGE_SIZE);
 
-static char sccb_early[PAGE_SIZE] __aligned(PAGE_SIZE) __initdata;
 static struct sclp_ipl_info sclp_ipl_info;
 
 struct sclp_info sclp;
 EXPORT_SYMBOL(sclp);
 
-static int __init sclp_cmd_sync_early(sclp_cmdw_t cmd, void *sccb)
+static int __init sclp_early_read_info(struct read_info_sccb *sccb)
 {
-	int rc;
-
-	__ctl_set_bit(0, 9);
-	rc = sclp_service_call(cmd, sccb);
-	if (rc)
-		goto out;
-	__load_psw_mask(PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_MASK_EA |
-			PSW_MASK_BA | PSW_MASK_EXT | PSW_MASK_WAIT);
-	local_irq_disable();
-out:
-	/* Contents of the sccb might have changed. */
-	barrier();
-	__ctl_clear_bit(0, 9);
-	return rc;
-}
-
-static int __init sclp_read_info_early(struct read_info_sccb *sccb)
-{
-	int rc, i;
+	int i;
 	sclp_cmdw_t commands[] = {SCLP_CMDW_READ_SCP_INFO_FORCED,
 				  SCLP_CMDW_READ_SCP_INFO};
 
 	for (i = 0; i < ARRAY_SIZE(commands); i++) {
-		do {
-			memset(sccb, 0, sizeof(*sccb));
-			sccb->header.length = sizeof(*sccb);
-			sccb->header.function_code = 0x80;
-			sccb->header.control_mask[2] = 0x80;
-			rc = sclp_cmd_sync_early(commands[i], sccb);
-		} while (rc == -EBUSY);
-
-		if (rc)
+		memset(sccb, 0, sizeof(*sccb));
+		sccb->header.length = sizeof(*sccb);
+		sccb->header.function_code = 0x80;
+		sccb->header.control_mask[2] = 0x80;
+		if (sclp_early_cmd(commands[i], sccb))
 			break;
 		if (sccb->header.response_code == 0x10)
 			return 0;
@@ -104,12 +81,12 @@ static int __init sclp_read_info_early(struct read_info_sccb *sccb)
 	return -EIO;
 }
 
-static void __init sclp_facilities_detect(struct read_info_sccb *sccb)
+static void __init sclp_early_facilities_detect(struct read_info_sccb *sccb)
 {
 	struct sclp_core_entry *cpue;
 	u16 boot_cpu_address, cpu;
 
-	if (sclp_read_info_early(sccb))
+	if (sclp_early_read_info(sccb))
 		return;
 
 	sclp.facilities = sccb->facilities;
@@ -172,34 +149,43 @@ static void __init sclp_facilities_detect(struct read_info_sccb *sccb)
 }
 
 /*
- * This function will be called after sclp_facilities_detect(), which gets
- * called from early.c code. The sclp_facilities_detect() function retrieves
+ * This function will be called after sclp_early_facilities_detect(), which gets
+ * called from early.c code. The sclp_early_facilities_detect() function retrieves
  * and saves the IPL information.
  */
-void __init sclp_get_ipl_info(struct sclp_ipl_info *info)
+void __init sclp_early_get_ipl_info(struct sclp_ipl_info *info)
 {
 	*info = sclp_ipl_info;
 }
 
-static int __init sclp_cmd_early(sclp_cmdw_t cmd, void *sccb)
+static struct sclp_core_info sclp_early_core_info __initdata;
+static int sclp_early_core_info_valid __initdata;
+
+static void __init sclp_early_init_core_info(struct read_cpu_info_sccb *sccb)
 {
-	int rc;
+	if (!SCLP_HAS_CPU_INFO)
+		return;
+	memset(sccb, 0, sizeof(*sccb));
+	sccb->header.length = sizeof(*sccb);
+	if (sclp_early_cmd(SCLP_CMDW_READ_CPU_INFO, sccb))
+		return;
+	if (sccb->header.response_code != 0x0010)
+		return;
+	sclp_fill_core_info(&sclp_early_core_info, sccb);
+	sclp_early_core_info_valid = 1;
+}
 
-	do {
-		rc = sclp_cmd_sync_early(cmd, sccb);
-	} while (rc == -EBUSY);
-
-	if (rc)
+int __init sclp_early_get_core_info(struct sclp_core_info *info)
+{
+	if (!sclp_early_core_info_valid)
 		return -EIO;
-	if (((struct sccb_header *) sccb)->response_code != 0x0020)
-		return -EIO;
+	*info = sclp_early_core_info;
 	return 0;
 }
 
-static void __init sccb_init_eq_size(struct sdias_sccb *sccb)
+static long __init sclp_early_hsa_size_init(struct sdias_sccb *sccb)
 {
 	memset(sccb, 0, sizeof(*sccb));
-
 	sccb->hdr.length = sizeof(*sccb);
 	sccb->evbuf.hdr.length = sizeof(struct sdias_evbuf);
 	sccb->evbuf.hdr.type = EVTYP_SDIAS;
@@ -207,106 +193,52 @@ static void __init sccb_init_eq_size(struct sdias_sccb *sccb)
 	sccb->evbuf.data_id = SDIAS_DI_FCP_DUMP;
 	sccb->evbuf.event_id = 4712;
 	sccb->evbuf.dbs = 1;
-}
-
-static int __init sclp_set_event_mask(struct init_sccb *sccb,
-				      unsigned long receive_mask,
-				      unsigned long send_mask)
-{
-	memset(sccb, 0, sizeof(*sccb));
-	sccb->header.length = sizeof(*sccb);
-	sccb->mask_length = sizeof(sccb_mask_t);
-	sccb->receive_mask = receive_mask;
-	sccb->send_mask = send_mask;
-	return sclp_cmd_early(SCLP_CMDW_WRITE_EVENT_MASK, sccb);
-}
-
-static struct sclp_core_info sclp_core_info_early __initdata;
-static int sclp_core_info_early_valid __initdata;
-
-static void __init sclp_init_core_info_early(struct read_cpu_info_sccb *sccb)
-{
-	int rc;
-
-	if (!SCLP_HAS_CPU_INFO)
-		return;
-	memset(sccb, 0, sizeof(*sccb));
-	sccb->header.length = sizeof(*sccb);
-	do {
-		rc = sclp_cmd_sync_early(SCLP_CMDW_READ_CPU_INFO, sccb);
-	} while (rc == -EBUSY);
-	if (rc)
-		return;
-	if (sccb->header.response_code != 0x0010)
-		return;
-	sclp_fill_core_info(&sclp_core_info_early, sccb);
-	sclp_core_info_early_valid = 1;
-}
-
-int __init _sclp_get_core_info_early(struct sclp_core_info *info)
-{
-	if (!sclp_core_info_early_valid)
+	if (sclp_early_cmd(SCLP_CMDW_WRITE_EVENT_DATA, sccb))
 		return -EIO;
-	*info = sclp_core_info_early;
-	return 0;
-}
-
-static long __init sclp_hsa_size_init(struct sdias_sccb *sccb)
-{
-	sccb_init_eq_size(sccb);
-	if (sclp_cmd_early(SCLP_CMDW_WRITE_EVENT_DATA, sccb))
+	if (sccb->hdr.response_code != 0x20)
 		return -EIO;
 	if (sccb->evbuf.blk_cnt == 0)
 		return 0;
 	return (sccb->evbuf.blk_cnt - 1) * PAGE_SIZE;
 }
 
-static long __init sclp_hsa_copy_wait(struct sccb_header *sccb)
+static long __init sclp_early_hsa_copy_wait(struct sdias_sccb *sccb)
 {
 	memset(sccb, 0, PAGE_SIZE);
-	sccb->length = PAGE_SIZE;
-	if (sclp_cmd_early(SCLP_CMDW_READ_EVENT_DATA, sccb))
+	sccb->hdr.length = PAGE_SIZE;
+	if (sclp_early_cmd(SCLP_CMDW_READ_EVENT_DATA, sccb))
 		return -EIO;
-	if (((struct sdias_sccb *) sccb)->evbuf.blk_cnt == 0)
+	if ((sccb->hdr.response_code != 0x20) && (sccb->hdr.response_code != 0x220))
+		return -EIO;
+	if (sccb->evbuf.blk_cnt == 0)
 		return 0;
-	return (((struct sdias_sccb *) sccb)->evbuf.blk_cnt - 1) * PAGE_SIZE;
+	return (sccb->evbuf.blk_cnt - 1) * PAGE_SIZE;
 }
 
-static void __init sclp_hsa_size_detect(void *sccb)
+static void __init sclp_early_hsa_size_detect(void *sccb)
 {
-	long size;
+	unsigned long flags;
+	long size = -EIO;
 
-	/* First try synchronous interface (LPAR) */
-	if (sclp_set_event_mask(sccb, 0, 0x40000010))
-		return;
-	size = sclp_hsa_size_init(sccb);
-	if (size < 0)
-		return;
-	if (size != 0)
+	raw_local_irq_save(flags);
+	if (sclp_early_set_event_mask(sccb, EVTYP_SDIAS_MASK, EVTYP_SDIAS_MASK))
 		goto out;
-	/* Then try asynchronous interface (z/VM) */
-	if (sclp_set_event_mask(sccb, 0x00000010, 0x40000010))
-		return;
-	size = sclp_hsa_size_init(sccb);
-	if (size < 0)
-		return;
-	size = sclp_hsa_copy_wait(sccb);
-	if (size < 0)
-		return;
+	size = sclp_early_hsa_size_init(sccb);
+	/* First check for synchronous response (LPAR) */
+	if (size)
+		goto out_mask;
+	if (!(S390_lowcore.ext_params & 1))
+		sclp_early_wait_irq();
+	size = sclp_early_hsa_copy_wait(sccb);
+out_mask:
+	sclp_early_set_event_mask(sccb, 0, 0);
 out:
-	sclp.hsa_size = size;
+	raw_local_irq_restore(flags);
+	if (size > 0)
+		sclp.hsa_size = size;
 }
 
-static unsigned int __init sclp_con_check_linemode(struct init_sccb *sccb)
-{
-	if (!(sccb->sclp_send_mask & EVTYP_OPCMD_MASK))
-		return 0;
-	if (!(sccb->sclp_receive_mask & (EVTYP_MSG_MASK | EVTYP_PMSGCMD_MASK)))
-		return 0;
-	return 1;
-}
-
-static void __init sclp_console_detect(struct init_sccb *sccb)
+static void __init sclp_early_console_detect(struct init_sccb *sccb)
 {
 	if (sccb->header.response_code != 0x20)
 		return;
@@ -314,21 +246,22 @@ static void __init sclp_console_detect(struct init_sccb *sccb)
 	if (sccb->sclp_send_mask & EVTYP_VT220MSG_MASK)
 		sclp.has_vt220 = 1;
 
-	if (sclp_con_check_linemode(sccb))
+	if (sclp_early_con_check_linemode(sccb))
 		sclp.has_linemode = 1;
 }
 
 void __init sclp_early_detect(void)
 {
-	void *sccb = &sccb_early;
+	void *sccb = &sclp_early_sccb;
 
-	sclp_facilities_detect(sccb);
-	sclp_init_core_info_early(sccb);
-	sclp_hsa_size_detect(sccb);
+	sclp_early_facilities_detect(sccb);
+	sclp_early_init_core_info(sccb);
+	sclp_early_hsa_size_detect(sccb);
 
-	/* Turn off SCLP event notifications.  Also save remote masks in the
+	/*
+	 * Turn off SCLP event notifications.  Also save remote masks in the
 	 * sccb.  These are sufficient to detect sclp console capabilities.
 	 */
-	sclp_set_event_mask(sccb, 0, 0);
-	sclp_console_detect(sccb);
+	sclp_early_set_event_mask(sccb, 0, 0);
+	sclp_early_console_detect(sccb);
 }
