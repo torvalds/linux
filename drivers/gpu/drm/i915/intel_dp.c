@@ -4325,8 +4325,12 @@ intel_dp_short_pulse(struct intel_dp *intel_dp)
 static enum drm_connector_status
 intel_dp_detect_dpcd(struct intel_dp *intel_dp)
 {
+	struct intel_lspcon *lspcon = dp_to_lspcon(intel_dp);
 	uint8_t *dpcd = intel_dp->dpcd;
 	uint8_t type;
+
+	if (lspcon->active)
+		lspcon_resume(lspcon);
 
 	if (!intel_dp_get_dpcd(intel_dp))
 		return connector_status_disconnected;
