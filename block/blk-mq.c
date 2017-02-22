@@ -2256,8 +2256,7 @@ void blk_mq_release(struct request_queue *q)
 	queue_for_each_hw_ctx(q, hctx, i) {
 		if (!hctx)
 			continue;
-		kfree(hctx->ctxs);
-		kfree(hctx);
+		kobject_put(&hctx->kobj);
 	}
 
 	q->mq_map = NULL;
@@ -2336,8 +2335,6 @@ static void blk_mq_realloc_hw_ctxs(struct blk_mq_tag_set *set,
 			blk_mq_exit_hctx(q, set, hctx, j);
 			free_cpumask_var(hctx->cpumask);
 			kobject_put(&hctx->kobj);
-			kfree(hctx->ctxs);
-			kfree(hctx);
 			hctxs[j] = NULL;
 
 		}
