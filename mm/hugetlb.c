@@ -3973,7 +3973,7 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
 
 		ret = copy_huge_page_from_user(page,
 						(const void __user *) src_addr,
-						pages_per_huge_page(h));
+						pages_per_huge_page(h), false);
 
 		/* fallback to copy_from_user outside mmap_sem */
 		if (unlikely(ret)) {
