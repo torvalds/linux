@@ -554,8 +554,7 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 			case USB_CHG_STATE_DETECTED:
 				switch (rphy->chg_type) {
 				case POWER_SUPPLY_TYPE_USB:
-					dev_dbg(&rport->phy->dev,
-						"sdp cable is connecetd\n");
+					dev_dbg(&rport->phy->dev, "sdp cable is connected\n");
 					rockchip_usb2phy_power_on(rport->phy);
 					rport->state = OTG_STATE_B_PERIPHERAL;
 					notify_charger = true;
@@ -563,16 +562,14 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 					cable = EXTCON_CHG_USB_SDP;
 					break;
 				case POWER_SUPPLY_TYPE_USB_DCP:
-					dev_dbg(&rport->phy->dev,
-						"dcp cable is connecetd\n");
+					dev_dbg(&rport->phy->dev, "dcp cable is connected\n");
 					rockchip_usb2phy_power_off(rport->phy);
 					notify_charger = true;
 					sch_work = true;
 					cable = EXTCON_CHG_USB_DCP;
 					break;
 				case POWER_SUPPLY_TYPE_USB_CDP:
-					dev_dbg(&rport->phy->dev,
-						"cdp cable is connecetd\n");
+					dev_dbg(&rport->phy->dev, "cdp cable is connected\n");
 					rockchip_usb2phy_power_on(rport->phy);
 					rport->state = OTG_STATE_B_PERIPHERAL;
 					notify_charger = true;
