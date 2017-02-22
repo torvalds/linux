@@ -58,7 +58,7 @@ struct fuse_file *fuse_file_alloc(struct fuse_conn *fc)
 	}
 
 	INIT_LIST_HEAD(&ff->write_entry);
-	atomic_set(&ff->count, 0);
+	atomic_set(&ff->count, 1);
 	RB_CLEAR_NODE(&ff->polled_node);
 	init_waitqueue_head(&ff->poll_wait);
 
@@ -75,7 +75,7 @@ void fuse_file_free(struct fuse_file *ff)
 	kfree(ff);
 }
 
-struct fuse_file *fuse_file_get(struct fuse_file *ff)
+static struct fuse_file *fuse_file_get(struct fuse_file *ff)
 {
 	atomic_inc(&ff->count);
 	return ff;
@@ -147,7 +147,7 @@ int fuse_do_open(struct fuse_conn *fc, u64 nodeid, struct file *file,
 		ff->open_flags &= ~FOPEN_DIRECT_IO;
 
 	ff->nodeid = nodeid;
-	file->private_data = fuse_file_get(ff);
+	file->private_data = ff;
 
 	return 0;
 }
@@ -298,13 +298,13 @@ static int fuse_release(struct inode *inode, struct file *file)
 
 void fuse_sync_release(struct fuse_file *ff, int flags)
 {
-	WARN_ON(atomic_read(&ff->count) > 1);
+	WARN_ON(atomic_read(&ff->count) != 1);
 	fuse_prepare_release(ff, flags, FUSE_RELEASE);
-	__set_bit(FR_FORCE, &ff->reserved_req->flags);
-	__clear_bit(FR_BACKGROUND, &ff->reserved_req->flags);
-	fuse_request_send(ff->fc, ff->reserved_req);
-	fuse_put_request(ff->fc, ff->reserved_req);
-	kfree(ff);
+	/*
+	 * iput(NULL) is a no-op and since the refcount is 1 and everything's
+	 * synchronous, we are fine with not doing igrab() here"
+	 */
+	fuse_file_put(ff, true);
 }
 EXPORT_SYMBOL_GPL(fuse_sync_release);
 
