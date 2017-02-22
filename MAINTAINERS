@@ -1037,6 +1037,18 @@ S:	Maintained
 F:	drivers/amba/
 F:	include/linux/amba/bus.h
 
+ARM/ACTIONS SEMI ARCHITECTURE
+M:	Andreas Färber <afaerber@suse.de>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+N:	owl
+F:	arch/arm/mach-actions/
+F:	arch/arm/boot/dts/owl-*
+F:	arch/arm64/boot/dts/actions/
+F:	drivers/clocksource/owl-*
+F:	Documentation/devicetree/bindings/arm/actions.txt
+F:	Documentation/devicetree/bindings/timer/actions,owl-timer.txt
+
 ARM/ADS SPHERE MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
