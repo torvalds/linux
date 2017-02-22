@@ -52,7 +52,7 @@ name as necessary to disambiguate it from others is necessary.  Note that option
 		as the column header.
 .fi
 .PP
-\fB--cpu cpu-set\fP limit output to system summary plus the specified cpu-set.  cpu-set is a comma delimited list of cpu ranges. cpu ranges can be individual cpu numbers or start and end numbers, separated by ".." or '-'.  eg. 1,2,8,14..17,21-44
+\fB--cpu cpu-set\fP limit output to system summary plus the specified cpu-set.  If cpu-set is the string "core", then the system summary plus the first CPU in each core are printed -- eg. subsequent HT siblings are not printed.  Or if cpu-set is the string "package", then the system summary plus the first CPU in each package is printed.  Otherwise, the system summary plus the specified set of CPUs are printed.  The cpu-set is ordered from low to high, comma delimited with ".." and "-" permitted to denote a range. eg. 1,2,8,14..17,21-44
 .PP
 \fB--hide column\fP do not show the specified columns.  May be invoked multiple times, or with a comma-separated list of column names.  Use "--hide sysfs" to hide the sysfs statistics columns as a group.
 .PP
@@ -71,11 +71,7 @@ The file is truncated if it already exists, and it is created if it does not exi
 .PP
 \fB--Joules\fP displays energy in Joules, rather than dividing Joules by time to print power in Watts.
 .PP
-\fB--Package\fP limits output to the system summary plus the 1st thread in each Package.
-.PP
 \fB--list\fP display column header names available for use by --show and --hide, then exit.
-.PP
-\fB--processor\fP limits output to the system summary plus the 1st thread in each processor of each package.  Ie. it skips hyper-threaded siblings.
 .PP
 \fB--Summary\fP limits output to a 1-line System Summary for each interval.
 .PP

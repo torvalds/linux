@@ -4153,7 +4153,8 @@ void help()
 	"to print statistics, until interrupted.\n"
 	"--add		add a counter\n"
 	"		eg. --add msr0x10,u64,cpu,delta,MY_TSC\n"
-	"--cpu	cpu-set	limit output to summary plus cpu-set cpu-set\n"
+	"--cpu	cpu-set	limit output to summary plus cpu-set:\n"
+	"		{core | package | j,k,l..m,n-p }\n"
 	"--quiet	skip decoding system configuration header\n"
 	"--interval sec	Override default 5-second measurement interval\n"
 	"--help		print this help message\n"
@@ -4756,6 +4757,21 @@ void parse_cpu_command(char *optarg)
 	unsigned int start, end;
 	char *next;
 
+	if (!strcmp(optarg, "core")) {
+		if (cpu_subset)
+			goto error;
+		show_core_only++;
+		return;
+	}
+	if (!strcmp(optarg, "package")) {
+		if (cpu_subset)
+			goto error;
+		show_pkg_only++;
+		return;
+	}
+	if (show_core_only || show_pkg_only)
+		goto error;
+
 	cpu_subset = CPU_ALLOC(CPU_SUBSET_MAXCPUS);
 	if (cpu_subset == NULL)
 		err(3, "CPU_ALLOC");
@@ -4813,7 +4829,8 @@ void parse_cpu_command(char *optarg)
 	return;
 
 error:
-	fprintf(stderr, "'--cpu %s' malformed\n", optarg);
+	fprintf(stderr, "\"--cpu %s\" malformed\n", optarg);
+	help();
 	exit(-1);
 }
 
@@ -4867,8 +4884,6 @@ void cmdline(int argc, char **argv)
 		{"Joules",	no_argument,		0, 'J'},
 		{"list",	no_argument,		0, 'l'},
 		{"out",		required_argument,	0, 'o'},
-		{"Package",	no_argument,		0, 'p'},
-		{"processor",	no_argument,		0, 'p'},
 		{"quiet",	no_argument,		0, 'q'},
 		{"show",	required_argument,	0, 's'},
 		{"Summary",	no_argument,		0, 'S'},
@@ -4879,7 +4894,7 @@ void cmdline(int argc, char **argv)
 
 	progname = argv[0];
 
-	while ((opt = getopt_long_only(argc, argv, "+C:c:Ddhi:JM:m:o:PpqST:v",
+	while ((opt = getopt_long_only(argc, argv, "+C:c:Ddhi:JM:m:o:qST:v",
 				long_options, &option_index)) != -1) {
 		switch (opt) {
 		case 'a':
@@ -4924,12 +4939,6 @@ void cmdline(int argc, char **argv)
 			break;
 		case 'o':
 			outf = fopen_or_die(optarg, "w");
-			break;
-		case 'P':
-			show_pkg_only++;
-			break;
-		case 'p':
-			show_core_only++;
 			break;
 		case 'q':
 			quiet = 1;
