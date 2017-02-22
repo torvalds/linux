@@ -133,13 +133,13 @@ int host_task_stub(void *unused)
 
 void switch_to_host_task(struct task_struct *task)
 {
-	if (current == task)
-		return;
-
 	if (WARN_ON(!test_tsk_thread_flag(task, TIF_HOST_THREAD)))
 		return;
 
 	task_thread_info(task)->tid = lkl_ops->thread_self();
+
+	if (current == task)
+		return;
 
 	wake_up_process(task);
 	thread_sched_jb();
