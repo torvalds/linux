@@ -498,15 +498,6 @@ int blk_mq_sched_init(struct request_queue *q)
 {
 	int ret;
 
-#if defined(CONFIG_DEFAULT_SQ_NONE)
-	if (q->nr_hw_queues == 1)
-		return 0;
-#endif
-#if defined(CONFIG_DEFAULT_MQ_NONE)
-	if (q->nr_hw_queues > 1)
-		return 0;
-#endif
-
 	mutex_lock(&q->sysfs_lock);
 	ret = elevator_init(q, NULL);
 	mutex_unlock(&q->sysfs_lock);
