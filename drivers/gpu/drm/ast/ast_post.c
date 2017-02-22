@@ -374,8 +374,8 @@ void ast_post_gpu(struct drm_device *dev)
 	pci_write_config_dword(ast->dev->pdev, 0x04, reg);
 
 	ast_enable_vga(dev);
-	ast_enable_mmio(dev);
 	ast_open_key(ast);
+	ast_enable_mmio(dev);
 	ast_set_def_ext_reg(dev);
 
 	if (ast->config_mode == ast_use_p2a) {
