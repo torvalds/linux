@@ -242,14 +242,10 @@ static int blk_mq_register_hctx(struct blk_mq_hw_ctx *hctx)
 static void __blk_mq_unregister_dev(struct device *dev, struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
-	struct blk_mq_ctx *ctx;
-	int i, j;
+	int i;
 
 	queue_for_each_hw_ctx(q, hctx, i) {
 		blk_mq_unregister_hctx(hctx);
-
-		hctx_for_each_ctx(hctx, ctx, j)
-			kobject_put(&ctx->kobj);
 
 		kobject_put(&hctx->kobj);
 	}
@@ -258,8 +254,6 @@ static void __blk_mq_unregister_dev(struct device *dev, struct request_queue *q)
 
 	kobject_uevent(&q->mq_kobj, KOBJ_REMOVE);
 	kobject_del(&q->mq_kobj);
-	kobject_put(&q->mq_kobj);
-
 	kobject_put(&dev->kobj);
 
 	q->mq_sysfs_init_done = false;
@@ -275,6 +269,18 @@ void blk_mq_unregister_dev(struct device *dev, struct request_queue *q)
 void blk_mq_hctx_kobj_init(struct blk_mq_hw_ctx *hctx)
 {
 	kobject_init(&hctx->kobj, &blk_mq_hw_ktype);
+}
+
+void blk_mq_sysfs_deinit(struct request_queue *q)
+{
+	struct blk_mq_ctx *ctx;
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		ctx = per_cpu_ptr(q->queue_ctx, cpu);
+		kobject_put(&ctx->kobj);
+	}
+	kobject_put(&q->mq_kobj);
 }
 
 void blk_mq_sysfs_init(struct request_queue *q)
