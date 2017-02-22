@@ -1908,9 +1908,6 @@ static void aac_resolve_luns(struct aac_dev *dev)
 	for (bus = 0; bus < AAC_MAX_BUSES; bus++) {
 		for (target = 0; target < AAC_MAX_TARGETS; target++) {
 
-			if (aac_phys_to_logical(bus) == ENCLOSURE_CHANNEL)
-				continue;
-
 			if (bus == CONTAINER_CHANNEL)
 				channel = CONTAINER_CHANNEL;
 			else
@@ -1922,7 +1919,7 @@ static void aac_resolve_luns(struct aac_dev *dev)
 			sdev = scsi_device_lookup(dev->scsi_host_ptr, channel,
 					target, 0);
 
-			if (!sdev && devtype)
+			if (!sdev && new_devtype)
 				scsi_add_device(dev->scsi_host_ptr, channel,
 						target, 0);
 			else if (sdev && new_devtype != devtype)
