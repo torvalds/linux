@@ -311,8 +311,8 @@ int amdgpu_dm_init(struct amdgpu_device *adev)
 	/* TODO: Add_display_info? */
 
 	/* TODO use dynamic cursor width */
-	adev->ddev->mode_config.cursor_width = 128;
-	adev->ddev->mode_config.cursor_height = 128;
+	adev->ddev->mode_config.cursor_width = adev->dm.dc->caps.max_cursor_size;
+	adev->ddev->mode_config.cursor_height = adev->dm.dc->caps.max_cursor_size;
 
 	if (drm_vblank_init(adev->ddev, adev->dm.display_indexes_num)) {
 		DRM_ERROR(
