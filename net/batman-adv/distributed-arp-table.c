@@ -330,7 +330,7 @@ static void batadv_dat_entry_add(struct batadv_priv *bat_priv, __be32 ip,
 		batadv_dbg(BATADV_DBG_DAT, bat_priv,
 			   "Entry updated: %pI4 %pM (vid: %d)\n",
 			   &dat_entry->ip, dat_entry->mac_addr,
-			   BATADV_PRINT_VID(vid));
+			   batadv_print_vid(vid));
 		goto out;
 	}
 
@@ -356,7 +356,7 @@ static void batadv_dat_entry_add(struct batadv_priv *bat_priv, __be32 ip,
 	}
 
 	batadv_dbg(BATADV_DBG_DAT, bat_priv, "New entry added: %pI4 %pM (vid: %d)\n",
-		   &dat_entry->ip, dat_entry->mac_addr, BATADV_PRINT_VID(vid));
+		   &dat_entry->ip, dat_entry->mac_addr, batadv_print_vid(vid));
 
 out:
 	if (dat_entry)
@@ -835,7 +835,7 @@ int batadv_dat_cache_seq_print_text(struct seq_file *seq, void *offset)
 
 			seq_printf(seq, " * %15pI4 %14pM %4i %6i:%02i\n",
 				   &dat_entry->ip, dat_entry->mac_addr,
-				   BATADV_PRINT_VID(dat_entry->vid),
+				   batadv_print_vid(dat_entry->vid),
 				   last_seen_mins, last_seen_secs);
 		}
 		rcu_read_unlock();
