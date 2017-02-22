@@ -8233,6 +8233,14 @@ F:	drivers/media/platform/atmel/atmel-isc.c
 F:	drivers/media/platform/atmel/atmel-isc-regs.h
 F:	devicetree/bindings/media/atmel-isc.txt
 
+MICROCHIP USB251XB DRIVER
+M:	Richard Leitner <richard.leitner@skidata.com>
+L:	linux-usb@vger.kernel.org
+S:	Maintained
+F:	drivers/usb/misc/usb251xb.c
+F:	include/linux/platform_data/usb251xb.h
+F:	Documentation/devicetree/bindings/usb/usb251xb.txt
+
 MICROSOFT SURFACE PRO 3 BUTTON DRIVER
 M:	Chen Yu <yu.c.chen@intel.com>
 L:	platform-driver-x86@vger.kernel.org
