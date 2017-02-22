@@ -780,6 +780,9 @@ static void get_pixel_clock_parameters(
 	if (stream->public.timing.pixel_encoding == PIXEL_ENCODING_YCBCR422) {
 		pixel_clk_params->color_depth = COLOR_DEPTH_888;
 	}
+	if (stream->public.timing.pixel_encoding == PIXEL_ENCODING_YCBCR420) {
+		pixel_clk_params->requested_pix_clk  = pixel_clk_params->requested_pix_clk / 2;
+	}
 }
 
 void dce110_resource_build_bit_depth_reduction_params(
