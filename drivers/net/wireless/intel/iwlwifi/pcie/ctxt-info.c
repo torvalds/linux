@@ -251,6 +251,10 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 
 	iwl_enable_interrupts(trans);
 
+	/* Configure debug, if exists */
+	if (trans->dbg_dest_tlv)
+		iwl_pcie_apply_destination(trans);
+
 	/* kick FW self load */
 	iwl_write64(trans, CSR_CTXT_INFO_BA, trans_pcie->ctxt_info_dma_addr);
 	iwl_write_prph(trans, UREG_CPU_INIT_RUN, 1);
