@@ -31,6 +31,7 @@
 
 #define AXP20X_OFF	0x80
 
+#define AXP806_REG_ADDR_EXT_ADDR_MASTER_MODE	0
 #define AXP806_REG_ADDR_EXT_ADDR_SLAVE_MODE	BIT(4)
 
 static const char * const axp20x_model_names[] = {
@@ -877,15 +878,19 @@ int axp20x_device_probe(struct axp20x_dev *axp20x)
 	 * the these device addressing bits (in the upper 4 bits of the
 	 * registers) match.
 	 *
-	 * Since we only support an AXP806 chained to an AXP809 in slave
-	 * mode, and there isn't any existing hardware which uses AXP806
-	 * in master mode, or has 2 AXP806s in the same system, we can
-	 * just program the register address extension to the slave mode
-	 * address.
+	 * By default we support an AXP806 chained to an AXP809 in slave
+	 * mode. Boards which use an AXP806 in master mode can set the
+	 * property "x-powers,master-mode" to override the default.
 	 */
-	if (axp20x->variant == AXP806_ID)
-		regmap_write(axp20x->regmap, AXP806_REG_ADDR_EXT,
-			     AXP806_REG_ADDR_EXT_ADDR_SLAVE_MODE);
+	if (axp20x->variant == AXP806_ID) {
+		if (of_property_read_bool(axp20x->dev->of_node,
+					  "x-powers,master-mode"))
+			regmap_write(axp20x->regmap, AXP806_REG_ADDR_EXT,
+				     AXP806_REG_ADDR_EXT_ADDR_MASTER_MODE);
+		else
+			regmap_write(axp20x->regmap, AXP806_REG_ADDR_EXT,
+				     AXP806_REG_ADDR_EXT_ADDR_SLAVE_MODE);
+	}
 
 	ret = regmap_add_irq_chip(axp20x->regmap, axp20x->irq,
 			  IRQF_ONESHOT | IRQF_SHARED | axp20x->irq_flags,
