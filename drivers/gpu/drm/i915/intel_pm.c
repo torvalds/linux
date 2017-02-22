@@ -114,6 +114,16 @@ static void glk_init_clock_gating(struct drm_i915_private *dev_priv)
 	 */
 	I915_WRITE(GEN9_CLKGATE_DIS_0, I915_READ(GEN9_CLKGATE_DIS_0) |
 		   PWM1_GATING_DIS | PWM2_GATING_DIS);
+
+	/* WaDDIIOTimeout:glk */
+	if (IS_GLK_REVID(dev_priv, 0, GLK_REVID_A1)) {
+		u32 val = I915_READ(CHICKEN_MISC_2);
+		val &= ~(GLK_CL0_PWR_DOWN |
+			 GLK_CL1_PWR_DOWN |
+			 GLK_CL2_PWR_DOWN);
+		I915_WRITE(CHICKEN_MISC_2, val);
+	}
+
 }
 
 static void i915_pineview_get_mem_freq(struct drm_i915_private *dev_priv)

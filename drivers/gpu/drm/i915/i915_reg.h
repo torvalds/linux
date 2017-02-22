@@ -6479,6 +6479,11 @@ enum {
 #define CHICKEN_PAR2_1		_MMIO(0x42090)
 #define  KVM_CONFIG_CHANGE_NOTIFICATION_SELECT	(1 << 14)
 
+#define CHICKEN_MISC_2		_MMIO(0x42084)
+#define  GLK_CL0_PWR_DOWN	(1 << 10)
+#define  GLK_CL1_PWR_DOWN	(1 << 11)
+#define  GLK_CL2_PWR_DOWN	(1 << 12)
+
 #define _CHICKEN_PIPESL_1_A	0x420b0
 #define _CHICKEN_PIPESL_1_B	0x420b4
 #define  HSW_FBCQ_DIS			(1 << 22)
