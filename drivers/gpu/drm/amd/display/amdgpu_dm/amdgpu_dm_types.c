@@ -96,6 +96,8 @@ static void dm_set_cursor(
 	attributes.rotation_angle    = 0;
 	attributes.attribute_flags.value = 0;
 
+	attributes.pitch = attributes.width;
+
 	x = amdgpu_crtc->cursor_x;
 	y = amdgpu_crtc->cursor_y;
 
