@@ -46,8 +46,14 @@ struct nvkm_falcon {
 	struct nvkm_engine engine;
 };
 
+/* This constructor must be called from the owner's oneinit() hook and
+ * *not* its constructor.  This is to ensure that DEVINIT has been
+ * completed, and that the device is correctly enabled before we touch
+ * falcon registers.
+ */
 int nvkm_falcon_v1_new(struct nvkm_subdev *owner, const char *name, u32 addr,
 		       struct nvkm_falcon **);
+
 void nvkm_falcon_del(struct nvkm_falcon **);
 int nvkm_falcon_get(struct nvkm_falcon *, const struct nvkm_subdev *);
 void nvkm_falcon_put(struct nvkm_falcon *, const struct nvkm_subdev *);

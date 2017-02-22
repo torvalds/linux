@@ -137,6 +137,9 @@ nvkm_falcon_clear_interrupt(struct nvkm_falcon *falcon, u32 mask)
 void
 nvkm_falcon_put(struct nvkm_falcon *falcon, const struct nvkm_subdev *user)
 {
+	if (unlikely(!falcon))
+		return;
+
 	mutex_lock(&falcon->mutex);
 	if (falcon->user == user) {
 		nvkm_debug(falcon->user, "released %s falcon\n", falcon->name);
