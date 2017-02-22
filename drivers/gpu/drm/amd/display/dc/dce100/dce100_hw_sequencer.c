@@ -104,22 +104,18 @@ static bool dce100_enable_display_power_gating(
 		return false;
 }
 
-static void set_display_mark_for_pipe_if_needed(struct core_dc *dc,
-		struct pipe_ctx *pipe_ctx,
-		struct validate_context *context)
-{
-	/* Do nothing until we have proper bandwitdth calcs */
-}
-
 static void set_displaymarks(
 		const struct core_dc *dc, struct validate_context *context)
 {
 	/* Do nothing until we have proper bandwitdth calcs */
 }
 
-static void set_bandwidth(struct core_dc *dc)
+static void set_bandwidth(
+		struct core_dc *dc,
+		struct validate_context *context,
+		bool decrease_allowed)
 {
-	/* Do nothing until we have proper bandwitdth calcs */
+	dc->hwss.set_displaymarks(dc, context);
 }
 
 
@@ -132,7 +128,6 @@ bool dce100_hw_sequencer_construct(struct core_dc *dc)
 	/* TODO: dce80 is empty implementation at the moment*/
 	dc->hwss.enable_display_power_gating = dce100_enable_display_power_gating;
 	dc->hwss.set_displaymarks = set_displaymarks;
-	dc->hwss.increase_watermarks_for_pipe = set_display_mark_for_pipe_if_needed;
 	dc->hwss.set_bandwidth = set_bandwidth;
 
 	return true;

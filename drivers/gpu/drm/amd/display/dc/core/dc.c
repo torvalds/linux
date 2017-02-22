@@ -795,159 +795,6 @@ static bool streams_changed(
 	return false;
 }
 
-static void fill_display_configs(
-	const struct validate_context *context,
-	struct dm_pp_display_configuration *pp_display_cfg)
-{
-	int j;
-	int num_cfgs = 0;
-
-	for (j = 0; j < context->stream_count; j++) {
-		int k;
-
-		const struct core_stream *stream = context->streams[j];
-		struct dm_pp_single_disp_config *cfg =
-			&pp_display_cfg->disp_configs[num_cfgs];
-		const struct pipe_ctx *pipe_ctx = NULL;
-
-		for (k = 0; k < MAX_PIPES; k++)
-			if (stream == context->res_ctx.pipe_ctx[k].stream) {
-				pipe_ctx = &context->res_ctx.pipe_ctx[k];
-				break;
-			}
-
-		ASSERT(pipe_ctx != NULL);
-
-		num_cfgs++;
-		cfg->signal = pipe_ctx->stream->signal;
-		cfg->pipe_idx = pipe_ctx->pipe_idx;
-		cfg->src_height = stream->public.src.height;
-		cfg->src_width = stream->public.src.width;
-		cfg->ddi_channel_mapping =
-			stream->sink->link->ddi_channel_mapping.raw;
-		cfg->transmitter =
-			stream->sink->link->link_enc->transmitter;
-		cfg->link_settings.lane_count =
-			stream->sink->link->public.cur_link_settings.lane_count;
-		cfg->link_settings.link_rate =
-			stream->sink->link->public.cur_link_settings.link_rate;
-		cfg->link_settings.link_spread =
-			stream->sink->link->public.cur_link_settings.link_spread;
-		cfg->sym_clock = stream->phy_pix_clk;
-		/* Round v_refresh*/
-		cfg->v_refresh = stream->public.timing.pix_clk_khz * 1000;
-		cfg->v_refresh /= stream->public.timing.h_total;
-		cfg->v_refresh = (cfg->v_refresh + stream->public.timing.v_total / 2)
-							/ stream->public.timing.v_total;
-	}
-
-	pp_display_cfg->display_count = num_cfgs;
-}
-
-static uint32_t get_min_vblank_time_us(const struct validate_context *context)
-{
-	uint8_t j;
-	uint32_t min_vertical_blank_time = -1;
-
-		for (j = 0; j < context->stream_count; j++) {
-			const struct dc_stream *stream = &context->streams[j]->public;
-			uint32_t vertical_blank_in_pixels = 0;
-			uint32_t vertical_blank_time = 0;
-
-			vertical_blank_in_pixels = stream->timing.h_total *
-				(stream->timing.v_total
-					- stream->timing.v_addressable);
-
-			vertical_blank_time = vertical_blank_in_pixels
-				* 1000 / stream->timing.pix_clk_khz;
-
-			if (min_vertical_blank_time > vertical_blank_time)
-				min_vertical_blank_time = vertical_blank_time;
-		}
-
-	return min_vertical_blank_time;
-}
-
-static int determine_sclk_from_bounding_box(
-		const struct core_dc *dc,
-		int required_sclk)
-{
-	int i;
-
-	/*
-	 * Some asics do not give us sclk levels, so we just report the actual
-	 * required sclk
-	 */
-	if (dc->sclk_lvls.num_levels == 0)
-		return required_sclk;
-
-	for (i = 0; i < dc->sclk_lvls.num_levels; i++) {
-		if (dc->sclk_lvls.clocks_in_khz[i] >= required_sclk)
-			return dc->sclk_lvls.clocks_in_khz[i];
-	}
-	/*
-	 * even maximum level could not satisfy requirement, this
-	 * is unexpected at this stage, should have been caught at
-	 * validation time
-	 */
-	ASSERT(0);
-	return dc->sclk_lvls.clocks_in_khz[dc->sclk_lvls.num_levels - 1];
-}
-
-void pplib_apply_display_requirements(
-	struct core_dc *dc,
-	const struct validate_context *context,
-	struct dm_pp_display_configuration *pp_display_cfg)
-{
-	pp_display_cfg->all_displays_in_sync =
-		context->bw_results.all_displays_in_sync;
-	pp_display_cfg->nb_pstate_switch_disable =
-			context->bw_results.nbp_state_change_enable == false;
-	pp_display_cfg->cpu_cc6_disable =
-			context->bw_results.cpuc_state_change_enable == false;
-	pp_display_cfg->cpu_pstate_disable =
-			context->bw_results.cpup_state_change_enable == false;
-	pp_display_cfg->cpu_pstate_separation_time =
-			context->bw_results.blackout_recovery_time_us;
-
-	pp_display_cfg->min_memory_clock_khz = context->bw_results.required_yclk
-		/ MEMORY_TYPE_MULTIPLIER;
-
-	pp_display_cfg->min_engine_clock_khz = determine_sclk_from_bounding_box(
-			dc,
-			context->bw_results.required_sclk);
-
-	pp_display_cfg->min_engine_clock_deep_sleep_khz
-			= context->bw_results.required_sclk_deep_sleep;
-
-	pp_display_cfg->avail_mclk_switch_time_us =
-						get_min_vblank_time_us(context);
-	/* TODO: dce11.2*/
-	pp_display_cfg->avail_mclk_switch_time_in_disp_active_us = 0;
-
-	pp_display_cfg->disp_clk_khz = context->dispclk_khz;
-
-	fill_display_configs(context, pp_display_cfg);
-
-	/* TODO: is this still applicable?*/
-	if (pp_display_cfg->display_count == 1) {
-		const struct dc_crtc_timing *timing =
-			&context->streams[0]->public.timing;
-
-		pp_display_cfg->crtc_index =
-			pp_display_cfg->disp_configs[0].pipe_idx;
-		pp_display_cfg->line_time_in_us = timing->h_total * 1000
-							/ timing->pix_clk_khz;
-	}
-
-	if (memcmp(&dc->prev_display_config, pp_display_cfg, sizeof(
-			struct dm_pp_display_configuration)) !=  0)
-		dm_pp_apply_display_requirements(dc->ctx, pp_display_cfg);
-
-	dc->prev_display_config = *pp_display_cfg;
-
-}
-
 bool dc_commit_streams(
 	struct dc *dc,
 	const struct dc_stream *streams[],
@@ -1036,9 +883,6 @@ bool dc_commit_streams(
 				context->streams[i]->public.timing.pix_clk_khz);
 	}
 
-	pplib_apply_display_requirements(core_dc,
-			context, &context->pp_display_cfg);
-
 	resource_validate_ctx_destruct(core_dc->current_context);
 
 	if (core_dc->temp_flip_context != core_dc->current_context) {
@@ -1065,7 +909,6 @@ bool dc_pre_update_surfaces_to_stream(
 {
 	int i, j;
 	struct core_dc *core_dc = DC_TO_CORE(dc);
-	int prev_disp_clk = core_dc->current_context->dispclk_khz;
 	struct dc_stream_status *stream_status = NULL;
 	struct validate_context *context;
 	bool ret = true;
@@ -1150,16 +993,7 @@ bool dc_pre_update_surfaces_to_stream(
 		goto unexpected_fail;
 	}
 
-	if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)
-			&& prev_disp_clk < context->dispclk_khz) {
-		pplib_apply_display_requirements(core_dc, context,
-						&context->pp_display_cfg);
-		context->res_ctx.pool->display_clock->funcs->set_clock(
-				context->res_ctx.pool->display_clock,
-				context->dispclk_khz * 115 / 100);
-		core_dc->current_context->bw_results.dispclk_khz = context->dispclk_khz;
-		core_dc->current_context->dispclk_khz = context->dispclk_khz;
-	}
+	core_dc->hwss.set_bandwidth(core_dc, context, false);
 
 	for (i = 0; i < new_surface_count; i++)
 		for (j = 0; j < context->res_ctx.pool->pipe_count; j++) {
@@ -1206,10 +1040,7 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 		return false;
 	}
 
-	core_dc->hwss.set_bandwidth(core_dc);
-
-	/*TODO: dce specific*/
-	pplib_apply_display_requirements(core_dc, context, &context->pp_display_cfg);
+	core_dc->hwss.set_bandwidth(core_dc, context, true);
 
 	resource_validate_ctx_destruct(core_dc->current_context);
 	core_dc->current_context = context;
