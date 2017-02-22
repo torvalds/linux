@@ -3694,6 +3694,14 @@
 			last alloc / free. For more information see
 			Documentation/vm/slub.txt.
 
+	slub_memcg_sysfs=	[MM, SLUB]
+			Determines whether to enable sysfs directories for
+			memory cgroup sub-caches. 1 to enable, 0 to disable.
+			The default is determined by CONFIG_SLUB_MEMCG_SYSFS_ON.
+			Enabling this can lead to a very high number of	debug
+			directories and files being created under
+			/sys/kernel/slub.
+
 	slub_max_order= [MM, SLUB]
 			Determines the maximum allowed order for slabs.
 			A high setting may cause OOMs due to memory
