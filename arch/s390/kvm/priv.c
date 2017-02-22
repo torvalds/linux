@@ -311,7 +311,7 @@ static int handle_sske(struct kvm_vcpu *vcpu)
 		if (rc < 0)
 			return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 		start += PAGE_SIZE;
-	};
+	}
 
 	if (m3 & (SSKE_MC | SSKE_MR)) {
 		if (m3 & SSKE_MB) {

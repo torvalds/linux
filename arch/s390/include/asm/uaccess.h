@@ -38,13 +38,13 @@
 #define get_fs()        (current->thread.mm_segment)
 
 #define set_fs(x)							\
-{									\
+do {									\
 	unsigned long __pto;						\
 	current->thread.mm_segment = (x);				\
 	__pto = current->thread.mm_segment.ar4 ?			\
 		S390_lowcore.user_asce : S390_lowcore.kernel_asce;	\
 	__ctl_load(__pto, 7, 7);					\
-}
+} while (0)
 
 #define segment_eq(a,b) ((a).ar4 == (b).ar4)
 
@@ -177,7 +177,7 @@ static inline int __put_user_fn(void *x, void __user *ptr, unsigned long size)
 					(unsigned long *)x,
 					size, spec);
 		break;
-	};
+	}
 	return rc;
 }
 
@@ -207,7 +207,7 @@ static inline int __get_user_fn(void *x, const void __user *ptr, unsigned long s
 					(unsigned long __user *)ptr,
 					size, spec);
 		break;
-	};
+	}
 	return rc;
 }
 
