@@ -396,8 +396,11 @@ static int next(struct opal_dev *dev)
 			 * session. Therefore we shouldn't attempt to terminate
 			 * a session, as one has not yet been created.
 			 */
-			if (state > 1)
-				return end_opal_session_error(dev);
+			if (state > 1) {
+				end_opal_session_error(dev);
+				return error;
+			}
+
 		}
 		state++;
 	} while (!error);
