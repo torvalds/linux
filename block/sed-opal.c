@@ -1987,6 +1987,28 @@ static int check_opal_support(struct opal_dev *dev)
 	return ret;
 }
 
+static void clean_opal_dev(struct opal_dev *dev)
+{
+
+	struct opal_suspend_data *suspend, *next;
+
+	mutex_lock(&dev->dev_lock);
+	list_for_each_entry_safe(suspend, next, &dev->unlk_lst, node) {
+		list_del(&suspend->node);
+		kfree(suspend);
+	}
+	mutex_unlock(&dev->dev_lock);
+}
+
+void free_opal_dev(struct opal_dev *dev)
+{
+	if (!dev)
+		return;
+	clean_opal_dev(dev);
+	kfree(dev);
+}
+EXPORT_SYMBOL(free_opal_dev);
+
 struct opal_dev *init_opal_dev(void *data, sec_send_recv *send_recv)
 {
 	struct opal_dev *dev;
@@ -2141,6 +2163,14 @@ static int opal_reverttper(struct opal_dev *dev, struct opal_key *opal)
 	setup_opal_dev(dev, revert_steps);
 	ret = next(dev);
 	mutex_unlock(&dev->dev_lock);
+
+	/*
+	 * If we successfully reverted lets clean
+	 * any saved locking ranges.
+	 */
+	if (!ret)
+		clean_opal_dev(dev);
+
 	return ret;
 }
 
