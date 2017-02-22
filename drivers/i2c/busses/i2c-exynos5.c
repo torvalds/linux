@@ -502,8 +502,13 @@ static irqreturn_t exynos5_i2c_irq(int irqno, void *dev_id)
 		fifo_level = HSI2C_TX_FIFO_LVL(fifo_status);
 
 		len = i2c->variant->fifo_depth - fifo_level;
-		if (len > (i2c->msg->len - i2c->msg_ptr))
+		if (len > (i2c->msg->len - i2c->msg_ptr)) {
+			u32 int_en = readl(i2c->regs + HSI2C_INT_ENABLE);
+
+			int_en &= ~HSI2C_INT_TX_ALMOSTEMPTY_EN;
+			writel(int_en, i2c->regs + HSI2C_INT_ENABLE);
 			len = i2c->msg->len - i2c->msg_ptr;
+		}
 
 		while (len > 0) {
 			byte = i2c->msg->buf[i2c->msg_ptr++];
