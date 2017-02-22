@@ -328,6 +328,8 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length,
 bool mei_cl_bus_rx_event(struct mei_cl *cl);
 bool mei_cl_bus_notify_event(struct mei_cl *cl);
 void mei_cl_bus_remove_devices(struct mei_device *bus);
+bool mei_cl_bus_module_get(struct mei_cl *cl);
+void mei_cl_bus_module_put(struct mei_cl *cl);
 int mei_cl_bus_init(void);
 void mei_cl_bus_exit(void);
 
@@ -439,10 +441,10 @@ struct mei_device {
 	struct cdev cdev;
 	int minor;
 
-	struct mei_cl_cb write_list;
-	struct mei_cl_cb write_waiting_list;
-	struct mei_cl_cb ctrl_wr_list;
-	struct mei_cl_cb ctrl_rd_list;
+	struct list_head write_list;
+	struct list_head write_waiting_list;
+	struct list_head ctrl_wr_list;
+	struct list_head ctrl_rd_list;
 
 	struct list_head file_list;
 	long open_handle_count;
@@ -499,7 +501,7 @@ struct mei_device {
 	bool override_fixed_address;
 
 	/* amthif list for cmd waiting */
-	struct mei_cl_cb amthif_cmd_list;
+	struct list_head amthif_cmd_list;
 	struct mei_cl iamthif_cl;
 	long iamthif_open_count;
 	u32 iamthif_stall_timer;
@@ -571,10 +573,10 @@ void mei_cancel_work(struct mei_device *dev);
 void mei_timer(struct work_struct *work);
 void mei_schedule_stall_timer(struct mei_device *dev);
 int mei_irq_read_handler(struct mei_device *dev,
-		struct mei_cl_cb *cmpl_list, s32 *slots);
+			 struct list_head *cmpl_list, s32 *slots);
 
-int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list);
-void mei_irq_compl_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list);
+int mei_irq_write_handler(struct mei_device *dev, struct list_head *cmpl_list);
+void mei_irq_compl_handler(struct mei_device *dev, struct list_head *cmpl_list);
 
 /*
  * AMTHIF - AMT Host Interface Functions
@@ -590,12 +592,12 @@ int mei_amthif_release(struct mei_device *dev, struct file *file);
 int mei_amthif_write(struct mei_cl *cl, struct mei_cl_cb *cb);
 int mei_amthif_run_next_cmd(struct mei_device *dev);
 int mei_amthif_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
-			struct mei_cl_cb *cmpl_list);
+			 struct list_head *cmpl_list);
 
 void mei_amthif_complete(struct mei_cl *cl, struct mei_cl_cb *cb);
 int mei_amthif_irq_read_msg(struct mei_cl *cl,
 			    struct mei_msg_hdr *mei_hdr,
-			    struct mei_cl_cb *complete_list);
+			    struct list_head *cmpl_list);
 int mei_amthif_irq_read(struct mei_device *dev, s32 *slots);
 
 /*

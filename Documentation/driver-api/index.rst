@@ -30,6 +30,7 @@ available subsections can be seen below.
    miscellaneous
    vme
    80211/index
+   uio-howto
 
 .. only::  subproject and html
 
