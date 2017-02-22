@@ -380,6 +380,8 @@ struct iwl_mvm_vif {
 	bool associated;
 	u8 ap_assoc_sta_count;
 
+	u16 cab_queue;
+
 	bool uploaded;
 	bool ap_ibss_active;
 	bool pm_enabled;

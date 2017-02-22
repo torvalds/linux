@@ -2128,7 +2128,7 @@ int iwl_mvm_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 						    msta->sta_id,
 						    IWL_MAX_TID_COUNT,
 						    timeout);
-		vif->cab_queue = queue;
+		mvmvif->cab_queue = queue;
 	} else {
 		iwl_mvm_enable_txq(mvm, vif->cab_queue, vif->cab_queue, 0,
 				   &cfg, timeout);
@@ -2151,7 +2151,7 @@ int iwl_mvm_rm_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	if (!iwl_mvm_is_dqa_supported(mvm))
 		return 0;
 
-	iwl_mvm_disable_txq(mvm, vif->cab_queue, vif->cab_queue,
+	iwl_mvm_disable_txq(mvm, mvmvif->cab_queue, vif->cab_queue,
 			    IWL_MAX_TID_COUNT, 0);
 
 	ret = iwl_mvm_rm_sta_common(mvm, mvmvif->mcast_sta.sta_id);
