@@ -1191,13 +1191,15 @@ int amdgpu_set_clockgating_state(struct amdgpu_device *adev,
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_blocks[i].status.valid)
 			continue;
-		if (adev->ip_blocks[i].version->type == block_type) {
-			r = adev->ip_blocks[i].version->funcs->set_clockgating_state((void *)adev,
-										     state);
-			if (r)
-				return r;
-			break;
-		}
+		if (adev->ip_blocks[i].version->type != block_type)
+			continue;
+		if (!adev->ip_blocks[i].version->funcs->set_clockgating_state)
+			continue;
+		r = adev->ip_blocks[i].version->funcs->set_clockgating_state(
+			(void *)adev, state);
+		if (r)
+			DRM_ERROR("set_clockgating_state of IP block <%s> failed %d\n",
+				  adev->ip_blocks[i].version->funcs->name, r);
 	}
 	return r;
 }
@@ -1211,13 +1213,15 @@ int amdgpu_set_powergating_state(struct amdgpu_device *adev,
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_blocks[i].status.valid)
 			continue;
-		if (adev->ip_blocks[i].version->type == block_type) {
-			r = adev->ip_blocks[i].version->funcs->set_powergating_state((void *)adev,
-										     state);
-			if (r)
-				return r;
-			break;
-		}
+		if (adev->ip_blocks[i].version->type != block_type)
+			continue;
+		if (!adev->ip_blocks[i].version->funcs->set_powergating_state)
+			continue;
+		r = adev->ip_blocks[i].version->funcs->set_powergating_state(
+			(void *)adev, state);
+		if (r)
+			DRM_ERROR("set_powergating_state of IP block <%s> failed %d\n",
+				  adev->ip_blocks[i].version->funcs->name, r);
 	}
 	return r;
 }
