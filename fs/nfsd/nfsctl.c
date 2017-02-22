@@ -536,6 +536,19 @@ out_free:
 	return rv;
 }
 
+static ssize_t
+nfsd_print_version_support(char *buf, int remaining, const char *sep,
+		unsigned vers, unsigned minor)
+{
+	const char *format = (minor == 0) ? "%s%c%u" : "%s%c%u.%u";
+	bool supported = !!nfsd_vers(vers, NFSD_TEST);
+
+	if (vers == 4 && !nfsd_minorversion(minor, NFSD_TEST))
+		supported = false;
+	return snprintf(buf, remaining, format, sep,
+			supported ? '+' : '-', vers, minor);
+}
+
 static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 {
 	char *mesg = buf;
@@ -598,40 +611,23 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 	len = 0;
 	sep = "";
 	remaining = SIMPLE_TRANSACTION_LIMIT;
-	for (num=2 ; num <= 4 ; num++)
-		if (nfsd_vers(num, NFSD_AVAIL)) {
-			len = snprintf(buf, remaining, "%s%c%d", sep,
-				       nfsd_vers(num, NFSD_TEST)?'+':'-',
-				       num);
+	for (num=2 ; num <= 4 ; num++) {
+		if (!nfsd_vers(num, NFSD_AVAIL))
+			continue;
+		minor = 0;
+		do {
+			len = nfsd_print_version_support(buf, remaining,
+					sep, num, minor);
+			if (len >= remaining)
+				goto out;
+			remaining -= len;
+			buf += len;
+			tlen += len;
+			minor++;
 			sep = " ";
-
-			if (len >= remaining)
-				break;
-			remaining -= len;
-			buf += len;
-			tlen += len;
-		}
-	if (nfsd_vers(4, NFSD_AVAIL))
-		for (minor = 0; minor <= NFSD_SUPPORTED_MINOR_VERSION;
-		     minor++) {
-			if (minor == 0 && nfsd_minorversion(minor, NFSD_TEST))
-				/* for backward compatibility, don't report
-				 * +4.0
-				 */
-				continue;
-			len = snprintf(buf, remaining, " %c4.%u",
-					(nfsd_vers(4, NFSD_TEST) &&
-					 nfsd_minorversion(minor, NFSD_TEST)) ?
-						'+' : '-',
-					minor);
-
-			if (len >= remaining)
-				break;
-			remaining -= len;
-			buf += len;
-			tlen += len;
-		}
-
+		} while (num == 4 && minor <= NFSD_SUPPORTED_MINOR_VERSION);
+	}
+out:
 	len = snprintf(buf, remaining, "\n");
 	if (len >= remaining)
 		return -EINVAL;
