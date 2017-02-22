@@ -3144,8 +3144,7 @@ void ptlrpc_set_bulk_mbits(struct ptlrpc_request *req)
 	 * that server can infer the number of bulks that were prepared,
 	 * see LU-1431
 	 */
-	req->rq_mbits += ((bd->bd_iov_count + LNET_MAX_IOV - 1) /
-			  LNET_MAX_IOV) - 1;
+	req->rq_mbits += DIV_ROUND_UP(bd->bd_iov_count, LNET_MAX_IOV) - 1;
 }
 
 /**

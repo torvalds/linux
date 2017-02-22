@@ -2037,7 +2037,7 @@ static int kiblnd_create_tx_pool(struct kib_poolset *ps, int size,
 	tpo->tpo_tx_descs = NULL;
 	tpo->tpo_tx_pages = NULL;
 
-	npg = (size * IBLND_MSG_SIZE + PAGE_SIZE - 1) / PAGE_SIZE;
+	npg = DIV_ROUND_UP(size * IBLND_MSG_SIZE, PAGE_SIZE);
 	if (kiblnd_alloc_pages(&tpo->tpo_tx_pages, ps->ps_cpt, npg)) {
 		CERROR("Can't allocate tx pages: %d\n", npg);
 		LIBCFS_FREE(tpo, sizeof(*tpo));

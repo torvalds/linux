@@ -785,8 +785,7 @@ lstcon_bulkrpc_v0_prep(struct lst_test_bulk_param *param,
 	struct test_bulk_req *brq = &req->tsr_u.bulk_v0;
 
 	brq->blk_opc = param->blk_opc;
-	brq->blk_npg = (param->blk_size + PAGE_SIZE - 1) /
-			PAGE_SIZE;
+	brq->blk_npg = DIV_ROUND_UP(param->blk_size, PAGE_SIZE);
 	brq->blk_flags = param->blk_flags;
 
 	return 0;
@@ -833,11 +832,9 @@ lstcon_testrpc_prep(struct lstcon_node *nd, int transop, unsigned int feats,
 	trq = &(*crpc)->crp_rpc->crpc_reqstmsg.msg_body.tes_reqst;
 
 	if (transop == LST_TRANS_TSBSRVADD) {
-		int ndist = (sgrp->grp_nnode + test->tes_dist - 1) /
-			    test->tes_dist;
-		int nspan = (dgrp->grp_nnode + test->tes_span - 1) /
-			    test->tes_span;
-		int nmax = (ndist + nspan - 1) / nspan;
+		int ndist = DIV_ROUND_UP(sgrp->grp_nnode, test->tes_dist);
+		int nspan = DIV_ROUND_UP(dgrp->grp_nnode, test->tes_span);
+		int nmax = DIV_ROUND_UP(ndist, nspan);
 
 		trq->tsr_ndest = 0;
 		trq->tsr_loop = nmax * test->tes_dist * test->tes_concur;
