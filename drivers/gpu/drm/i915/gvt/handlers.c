@@ -1315,6 +1315,9 @@ static int mailbox_write(struct intel_vgpu *vgpu, unsigned int offset,
 		else
 			*data0 = 0x61514b3d;
 		break;
+	case SKL_PCODE_CDCLK_CONTROL:
+		*data0 = SKL_CDCLK_READY_FOR_CHANGE;
+		break;
 	case 0x5:
 		*data0 |= 0x1;
 		break;
@@ -1322,8 +1325,13 @@ static int mailbox_write(struct intel_vgpu *vgpu, unsigned int offset,
 
 	gvt_dbg_core("VM(%d) write %x to mailbox, return data0 %x\n",
 		     vgpu->id, value, *data0);
-
-	value &= ~(1 << 31);
+	/**
+	 * PCODE_READY clear means ready for pcode read/write,
+	 * PCODE_ERROR_MASK clear means no error happened. In GVT-g we
+	 * always emulate as pcode read/write success and ready for access
+	 * anytime, since we don't touch real physical registers here.
+	 */
+	value &= ~(GEN6_PCODE_READY | GEN6_PCODE_ERROR_MASK);
 	return intel_vgpu_default_mmio_write(vgpu, offset, &value, bytes);
 }
 
