@@ -161,42 +161,14 @@ Name            access            description
 disksize          RW    show and set the device's disk size
 initstate         RO    shows the initialization state of the device
 reset             WO    trigger device reset
-num_reads         RO    the number of reads
-failed_reads      RO    the number of failed reads
-num_write         RO    the number of writes
-failed_writes     RO    the number of failed writes
-invalid_io        RO    the number of non-page-size-aligned I/O requests
+mem_used_max      WO    reset the `mem_used_max' counter (see later)
+mem_limit         WO    specifies the maximum amount of memory ZRAM can use
+                        to store the compressed data
 max_comp_streams  RW    the number of possible concurrent compress operations
 comp_algorithm    RW    show and change the compression algorithm
-notify_free       RO    the number of notifications to free pages (either
-                        slot free notifications or REQ_DISCARD requests)
-zero_pages        RO    the number of zero filled pages written to this disk
-orig_data_size    RO    uncompressed size of data stored in this disk
-compr_data_size   RO    compressed size of data stored in this disk
-mem_used_total    RO    the amount of memory allocated for this disk
-mem_used_max      RW    the maximum amount of memory zram have consumed to
-                        store the data (to reset this counter to the actual
-                        current value, write 1 to this attribute)
-mem_limit         RW    the maximum amount of memory ZRAM can use to store
-                        the compressed data
-pages_compacted   RO    the number of pages freed during compaction
-                        (available only via zram<id>/mm_stat node)
 compact           WO    trigger memory compaction
 debug_stat        RO    this file is used for zram debugging purposes
 
-WARNING
-=======
-per-stat sysfs attributes are considered to be deprecated.
-The basic strategy is:
--- the existing RW nodes will be downgraded to WO nodes (in linux 4.11)
--- deprecated RO sysfs nodes will eventually be removed (in linux 4.11)
-
-The list of deprecated attributes can be found here:
-Documentation/ABI/obsolete/sysfs-block-zram
-
-Basically, every attribute that has its own read accessible sysfs node
-(e.g. num_reads) *AND* is accessible via one of the stat files (zram<id>/stat
-or zram<id>/io_stat or zram<id>/mm_stat) is considered to be deprecated.
 
 User space is advised to use the following files to read the device statistics.
 
@@ -211,22 +183,40 @@ The stat file represents device's I/O statistics not accounted by block
 layer and, thus, not available in zram<id>/stat file. It consists of a
 single line of text and contains the following stats separated by
 whitespace:
-	failed_reads
-	failed_writes
-	invalid_io
-	notify_free
+ failed_reads     the number of failed reads
+ failed_writes    the number of failed writes
+ invalid_io       the number of non-page-size-aligned I/O requests
+ notify_free      Depending on device usage scenario it may account
+                  a) the number of pages freed because of swap slot free
+                  notifications or b) the number of pages freed because of
+                  REQ_DISCARD requests sent by bio. The former ones are
+                  sent to a swap block device when a swap slot is freed,
+                  which implies that this disk is being used as a swap disk.
+                  The latter ones are sent by filesystem mounted with
+                  discard option, whenever some data blocks are getting
+                  discarded.
 
 File /sys/block/zram<id>/mm_stat
 
 The stat file represents device's mm statistics. It consists of a single
 line of text and contains the following stats separated by whitespace:
-	orig_data_size
-	compr_data_size
-	mem_used_total
-	mem_limit
-	mem_used_max
-	zero_pages
-	num_migrated
+ orig_data_size   uncompressed size of data stored in this disk.
+                  This excludes zero-filled pages (zero_pages) since no
+                  memory is allocated for them.
+                  Unit: bytes
+ compr_data_size  compressed size of data stored in this disk
+ mem_used_total   the amount of memory allocated for this disk. This
+                  includes allocator fragmentation and metadata overhead,
+                  allocated for this disk. So, allocator space efficiency
+                  can be calculated using compr_data_size and this statistic.
+                  Unit: bytes
+ mem_limit        the maximum amount of memory ZRAM can use to store
+                  the compressed data
+ mem_used_max     the maximum amount of memory zram have consumed to
+                  store the data
+ zero_pages       the number of zero filled pages written to this disk.
+                  No memory is allocated for such pages.
+ pages_compacted  the number of pages freed during compaction
 
 9) Deactivate:
 	swapoff /dev/zram0
