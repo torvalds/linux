@@ -1513,11 +1513,17 @@ static int __init rga2_init(void)
 {
 	int ret;
 	uint32_t *buf_p;
+	uint32_t *buf;
 
 	/* malloc pre scale mid buf mmu table */
 	buf_p = kmalloc(1024*256, GFP_KERNEL);
 	rga2_mmu_buf.buf_virtual = buf_p;
-	rga2_mmu_buf.buf = (uint32_t *)virt_to_phys((void *)((unsigned long)buf_p));
+#if (defined(CONFIG_ARM) && defined(CONFIG_ARM_LPAE))
+	buf = (uint32_t *)(uint32_t)virt_to_phys((void *)((unsigned long)buf_p));
+#else
+	buf = (uint32_t *)virt_to_phys((void *)((unsigned long)buf_p));
+#endif
+	rga2_mmu_buf.buf = buf;
 	rga2_mmu_buf.front = 0;
 	rga2_mmu_buf.back = 64*1024;
 	rga2_mmu_buf.size = 64*1024;
