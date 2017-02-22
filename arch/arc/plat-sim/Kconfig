@@ -8,7 +8,6 @@
 
 menuconfig ARC_PLAT_SIM
 	bool "ARC nSIM based simulation virtual platforms"
-	select ARC_HAS_COH_CACHES if SMP
 	help
 	  Support for nSIM based ARC simulation platforms
 	  This includes the standalone nSIM (uart only) vs. System C OSCI VP
