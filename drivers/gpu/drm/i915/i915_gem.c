@@ -3140,14 +3140,19 @@ void i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	 * to GPU, and we can ignore the cache flush because it'll happen
 	 * again at bind time.
 	 */
-	if (!obj->mm.pages)
+	if (!obj->mm.pages) {
+		GEM_BUG_ON(obj->base.write_domain != I915_GEM_DOMAIN_CPU);
 		return;
+	}
 
 	/*
 	 * Stolen memory is always coherent with the GPU as it is explicitly
 	 * marked as wc by the system, or the system is cache-coherent.
+	 * Similarly, we only access struct pages through the CPU cache, so
+	 * anything not backed by physical memory we consider to be always
+	 * coherent and not need clflushing.
 	 */
-	if (obj->stolen || obj->phys_handle)
+	if (!i915_gem_object_has_struct_page(obj))
 		return;
 
 	/* If the GPU is snooping the contents of the CPU cache,
