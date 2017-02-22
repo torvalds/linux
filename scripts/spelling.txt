@@ -40,7 +40,7 @@ achitecture||architecture
 acient||ancient
 acitions||actions
 acitve||active
-acknowldegement||acknowldegement
+acknowldegement||acknowledgment
 acknowledgement||acknowledgment
 ackowledge||acknowledge
 ackowledged||acknowledged
@@ -573,7 +573,7 @@ intrrupt||interrupt
 intterrupt||interrupt
 intuative||intuitive
 invaid||invalid
-invalde||invald
+invalde||invalid
 invalide||invalid
 invididual||individual
 invokation||invocation
@@ -1020,7 +1020,7 @@ tramsmitted||transmitted
 tramsmit||transmit
 tranfer||transfer
 transciever||transceiver
-transferd||transferrd
+transferd||transferred
 transfered||transferred
 transfering||transferring
 transision||transition
