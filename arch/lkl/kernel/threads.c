@@ -89,8 +89,6 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	struct thread_info *_prev = task_thread_info(prev);
 	struct thread_info *_next = task_thread_info(next);
 	unsigned long _prev_flags = _prev->flags;
-	bool wakeup_idle = test_bit(TIF_IDLE, &_next->flags) &&
-				lkl_cpu_idle_pending();
 	struct lkl_jmp_buf _prev_jb;
 
 	_current_thread_info = task_thread_info(next);
@@ -98,22 +96,15 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	abs_prev = prev;
 
 	BUG_ON(!_next->tid);
+	lkl_cpu_change_owner(_next->tid);
 
 	if (test_bit(TIF_SCHED_JB, &_prev_flags)) {
 		/* Atomic. Must be done before wakeup next */
 		clear_ti_thread_flag(_prev, TIF_SCHED_JB);
 		_prev_jb = _prev->sched_jb;
 	}
-	if (wakeup_idle)
-		schedule_tail(abs_prev);
-	lkl_cpu_change_owner(_next->tid);
 
-	/* No kernel code is allowed after wakeup next */
-	if (wakeup_idle)
-		lkl_cpu_wakeup_idle();
-	else
-		lkl_ops->sem_up(_next->sched_sem);
-
+	lkl_ops->sem_up(_next->sched_sem);
 	if (test_bit(TIF_SCHED_JB, &_prev_flags)) {
 		lkl_ops->jmp_buf_longjmp(&_prev_jb, 1);
 	} else {
