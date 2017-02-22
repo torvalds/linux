@@ -1119,7 +1119,7 @@ static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
 	drm_connector_helper_add(connector, &cdn_dp_connector_helper_funcs);
 
 #ifdef CONFIG_SWITCH
-	dp->switchdev.name = "hdmi";
+	dp->switchdev.name = "cdn-dp";
 	switch_dev_register(&dp->switchdev);
 #endif
 
