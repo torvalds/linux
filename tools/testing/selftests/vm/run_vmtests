@@ -103,6 +103,19 @@ else
 	echo "[PASS]"
 fi
 
+echo "----------------------------"
+echo "running userfaultfd_hugetlb"
+echo "----------------------------"
+# 258MB total huge pages == 128MB src and 128MB dst
+./userfaultfd_hugetlb 128 32 $mnt/ufd_test_file
+if [ $? -ne 0 ]; then
+	echo "[FAIL]"
+	exitcode=1
+else
+	echo "[PASS]"
+fi
+rm -f $mnt/ufd_test_file
+
 #cleanup
 umount $mnt
 rm -rf $mnt
