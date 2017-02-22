@@ -112,6 +112,7 @@ enum nvme_ctrl_state {
 
 struct nvme_ctrl {
 	enum nvme_ctrl_state state;
+	bool identified;
 	spinlock_t lock;
 	const struct nvme_ctrl_ops *ops;
 	struct request_queue *admin_q;

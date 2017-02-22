@@ -1252,6 +1252,50 @@ static void nvme_set_queue_limits(struct nvme_ctrl *ctrl,
 	blk_queue_write_cache(q, vwc, vwc);
 }
 
+struct nvme_core_quirk_entry {
+	/*
+	 * NVMe model and firmware strings are padded with spaces.  For
+	 * simplicity, strings in the quirk table are padded with NULLs
+	 * instead.
+	 */
+	u16 vid;
+	const char *mn;
+	const char *fr;
+	unsigned long quirks;
+};
+
+static const struct nvme_core_quirk_entry core_quirks[] = {
+};
+
+/* match is null-terminated but idstr is space-padded. */
+static bool string_matches(const char *idstr, const char *match, size_t len)
+{
+	size_t matchlen;
+
+	if (!match)
+		return true;
+
+	matchlen = strlen(match);
+	WARN_ON_ONCE(matchlen > len);
+
+	if (memcmp(idstr, match, matchlen))
+		return false;
+
+	for (; matchlen < len; matchlen++)
+		if (idstr[matchlen] != ' ')
+			return false;
+
+	return true;
+}
+
+static bool quirk_matches(const struct nvme_id_ctrl *id,
+			  const struct nvme_core_quirk_entry *q)
+{
+	return q->vid == le16_to_cpu(id->vid) &&
+		string_matches(id->mn, q->mn, sizeof(id->mn)) &&
+		string_matches(id->fr, q->fr, sizeof(id->fr));
+}
+
 /*
  * Initialize the cached copies of the Identify data and various controller
  * register in our nvme_ctrl structure.  This should be called as soon as
@@ -1284,6 +1328,24 @@ int nvme_init_identify(struct nvme_ctrl *ctrl)
 	if (ret) {
 		dev_err(ctrl->device, "Identify Controller failed (%d)\n", ret);
 		return -EIO;
+	}
+
+	if (!ctrl->identified) {
+		/*
+		 * Check for quirks.  Quirk can depend on firmware version,
+		 * so, in principle, the set of quirks present can change
+		 * across a reset.  As a possible future enhancement, we
+		 * could re-scan for quirks every time we reinitialize
+		 * the device, but we'd have to make sure that the driver
+		 * behaves intelligently if the quirks change.
+		 */
+
+		int i;
+
+		for (i = 0; i < ARRAY_SIZE(core_quirks); i++) {
+			if (quirk_matches(id, &core_quirks[i]))
+				ctrl->quirks |= core_quirks[i].quirks;
+		}
 	}
 
 	ctrl->oacs = le16_to_cpu(id->oacs);
@@ -1329,6 +1391,8 @@ int nvme_init_identify(struct nvme_ctrl *ctrl)
 	}
 
 	kfree(id);
+
+	ctrl->identified = true;
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nvme_init_identify);
