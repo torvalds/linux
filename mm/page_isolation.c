@@ -83,7 +83,7 @@ static void unset_migratetype_isolate(struct page *page, unsigned migratetype)
 	unsigned long flags, nr_pages;
 	bool isolated_page = false;
 	unsigned int order;
-	unsigned long page_idx, buddy_idx;
+	unsigned long pfn, buddy_pfn;
 	struct page *buddy;
 
 	zone = page_zone(page);
@@ -102,9 +102,9 @@ static void unset_migratetype_isolate(struct page *page, unsigned migratetype)
 	if (PageBuddy(page)) {
 		order = page_order(page);
 		if (order >= pageblock_order) {
-			page_idx = page_to_pfn(page) & ((1 << MAX_ORDER) - 1);
-			buddy_idx = __find_buddy_index(page_idx, order);
-			buddy = page + (buddy_idx - page_idx);
+			pfn = page_to_pfn(page);
+			buddy_pfn = __find_buddy_pfn(pfn, order);
+			buddy = page + (buddy_pfn - pfn);
 
 			if (pfn_valid_within(page_to_pfn(buddy)) &&
 			    !is_migrate_isolate_page(buddy)) {
