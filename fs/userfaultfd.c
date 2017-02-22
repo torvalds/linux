@@ -64,6 +64,12 @@ struct userfaultfd_ctx {
 	struct mm_struct *mm;
 };
 
+struct userfaultfd_fork_ctx {
+	struct userfaultfd_ctx *orig;
+	struct userfaultfd_ctx *new;
+	struct list_head list;
+};
+
 struct userfaultfd_wait_queue {
 	struct uffd_msg msg;
 	wait_queue_t wq;
@@ -465,9 +471,8 @@ out:
 	return ret;
 }
 
-static int __maybe_unused userfaultfd_event_wait_completion(
-		struct userfaultfd_ctx *ctx,
-		struct userfaultfd_wait_queue *ewq)
+static int userfaultfd_event_wait_completion(struct userfaultfd_ctx *ctx,
+					     struct userfaultfd_wait_queue *ewq)
 {
 	int ret = 0;
 
@@ -516,6 +521,79 @@ static void userfaultfd_event_complete(struct userfaultfd_ctx *ctx,
 	ewq->msg.event = 0;
 	wake_up_locked(&ctx->event_wqh);
 	__remove_wait_queue(&ctx->event_wqh, &ewq->wq);
+}
+
+int dup_userfaultfd(struct vm_area_struct *vma, struct list_head *fcs)
+{
+	struct userfaultfd_ctx *ctx = NULL, *octx;
+	struct userfaultfd_fork_ctx *fctx;
+
+	octx = vma->vm_userfaultfd_ctx.ctx;
+	if (!octx || !(octx->features & UFFD_FEATURE_EVENT_FORK)) {
+		vma->vm_userfaultfd_ctx = NULL_VM_UFFD_CTX;
+		vma->vm_flags &= ~(VM_UFFD_WP | VM_UFFD_MISSING);
+		return 0;
+	}
+
+	list_for_each_entry(fctx, fcs, list)
+		if (fctx->orig == octx) {
+			ctx = fctx->new;
+			break;
+		}
+
+	if (!ctx) {
+		fctx = kmalloc(sizeof(*fctx), GFP_KERNEL);
+		if (!fctx)
+			return -ENOMEM;
+
+		ctx = kmem_cache_alloc(userfaultfd_ctx_cachep, GFP_KERNEL);
+		if (!ctx) {
+			kfree(fctx);
+			return -ENOMEM;
+		}
+
+		atomic_set(&ctx->refcount, 1);
+		ctx->flags = octx->flags;
+		ctx->state = UFFD_STATE_RUNNING;
+		ctx->features = octx->features;
+		ctx->released = false;
+		ctx->mm = vma->vm_mm;
+		atomic_inc(&ctx->mm->mm_users);
+
+		userfaultfd_ctx_get(octx);
+		fctx->orig = octx;
+		fctx->new = ctx;
+		list_add_tail(&fctx->list, fcs);
+	}
+
+	vma->vm_userfaultfd_ctx.ctx = ctx;
+	return 0;
+}
+
+static int dup_fctx(struct userfaultfd_fork_ctx *fctx)
+{
+	struct userfaultfd_ctx *ctx = fctx->orig;
+	struct userfaultfd_wait_queue ewq;
+
+	msg_init(&ewq.msg);
+
+	ewq.msg.event = UFFD_EVENT_FORK;
+	ewq.msg.arg.reserved.reserved1 = (unsigned long)fctx->new;
+
+	return userfaultfd_event_wait_completion(ctx, &ewq);
+}
+
+void dup_userfaultfd_complete(struct list_head *fcs)
+{
+	int ret = 0;
+	struct userfaultfd_fork_ctx *fctx, *n;
+
+	list_for_each_entry_safe(fctx, n, fcs, list) {
+		if (!ret)
+			ret = dup_fctx(fctx);
+		list_del(&fctx->list);
+		kfree(fctx);
+	}
 }
 
 static int userfaultfd_release(struct inode *inode, struct file *file)
@@ -653,12 +731,49 @@ static unsigned int userfaultfd_poll(struct file *file, poll_table *wait)
 	}
 }
 
+static const struct file_operations userfaultfd_fops;
+
+static int resolve_userfault_fork(struct userfaultfd_ctx *ctx,
+				  struct userfaultfd_ctx *new,
+				  struct uffd_msg *msg)
+{
+	int fd;
+	struct file *file;
+	unsigned int flags = new->flags & UFFD_SHARED_FCNTL_FLAGS;
+
+	fd = get_unused_fd_flags(flags);
+	if (fd < 0)
+		return fd;
+
+	file = anon_inode_getfile("[userfaultfd]", &userfaultfd_fops, new,
+				  O_RDWR | flags);
+	if (IS_ERR(file)) {
+		put_unused_fd(fd);
+		return PTR_ERR(file);
+	}
+
+	fd_install(fd, file);
+	msg->arg.reserved.reserved1 = 0;
+	msg->arg.fork.ufd = fd;
+
+	return 0;
+}
+
 static ssize_t userfaultfd_ctx_read(struct userfaultfd_ctx *ctx, int no_wait,
 				    struct uffd_msg *msg)
 {
 	ssize_t ret;
 	DECLARE_WAITQUEUE(wait, current);
 	struct userfaultfd_wait_queue *uwq;
+	/*
+	 * Handling fork event requires sleeping operations, so
+	 * we drop the event_wqh lock, then do these ops, then
+	 * lock it back and wake up the waiter. While the lock is
+	 * dropped the ewq may go away so we keep track of it
+	 * carefully.
+	 */
+	LIST_HEAD(fork_event);
+	struct userfaultfd_ctx *fork_nctx = NULL;
 
 	/* always take the fd_wqh lock before the fault_pending_wqh lock */
 	spin_lock(&ctx->fd_wqh.lock);
@@ -716,6 +831,16 @@ static ssize_t userfaultfd_ctx_read(struct userfaultfd_ctx *ctx, int no_wait,
 		if (uwq) {
 			*msg = uwq->msg;
 
+			if (uwq->msg.event == UFFD_EVENT_FORK) {
+				fork_nctx = (struct userfaultfd_ctx *)
+					(unsigned long)
+					uwq->msg.arg.reserved.reserved1;
+				list_move(&uwq->wq.task_list, &fork_event);
+				spin_unlock(&ctx->event_wqh.lock);
+				ret = 0;
+				break;
+			}
+
 			userfaultfd_event_complete(ctx, uwq);
 			spin_unlock(&ctx->event_wqh.lock);
 			ret = 0;
@@ -738,6 +863,23 @@ static ssize_t userfaultfd_ctx_read(struct userfaultfd_ctx *ctx, int no_wait,
 	__remove_wait_queue(&ctx->fd_wqh, &wait);
 	__set_current_state(TASK_RUNNING);
 	spin_unlock(&ctx->fd_wqh.lock);
+
+	if (!ret && msg->event == UFFD_EVENT_FORK) {
+		ret = resolve_userfault_fork(ctx, fork_nctx, msg);
+
+		if (!ret) {
+			spin_lock(&ctx->event_wqh.lock);
+			if (!list_empty(&fork_event)) {
+				uwq = list_first_entry(&fork_event,
+						       typeof(*uwq),
+						       wq.task_list);
+				list_del(&uwq->wq.task_list);
+				__add_wait_queue(&ctx->event_wqh, &uwq->wq);
+				userfaultfd_event_complete(ctx, uwq);
+			}
+			spin_unlock(&ctx->event_wqh.lock);
+		}
+	}
 
 	return ret;
 }

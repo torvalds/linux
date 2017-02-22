@@ -52,6 +52,9 @@ static inline bool userfaultfd_armed(struct vm_area_struct *vma)
 	return vma->vm_flags & (VM_UFFD_MISSING | VM_UFFD_WP);
 }
 
+extern int dup_userfaultfd(struct vm_area_struct *, struct list_head *);
+extern void dup_userfaultfd_complete(struct list_head *);
+
 #else /* CONFIG_USERFAULTFD */
 
 /* mm helpers */
@@ -74,6 +77,16 @@ static inline bool userfaultfd_missing(struct vm_area_struct *vma)
 static inline bool userfaultfd_armed(struct vm_area_struct *vma)
 {
 	return false;
+}
+
+static inline int dup_userfaultfd(struct vm_area_struct *vma,
+				  struct list_head *l)
+{
+	return 0;
+}
+
+static inline void dup_userfaultfd_complete(struct list_head *l)
+{
 }
 
 #endif /* CONFIG_USERFAULTFD */
