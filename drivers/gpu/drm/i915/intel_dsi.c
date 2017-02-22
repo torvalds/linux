@@ -775,14 +775,13 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
-	enum intel_display_power_domain power_domain;
 	enum port port;
 	bool active = false;
 
 	DRM_DEBUG_KMS("\n");
 
-	power_domain = intel_display_port_power_domain(encoder);
-	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+	if (!intel_display_power_get_if_enabled(dev_priv,
+						encoder->power_domain))
 		return false;
 
 	/*
@@ -838,7 +837,7 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 	}
 
 out_put_power:
-	intel_display_power_put(dev_priv, power_domain);
+	intel_display_power_put(dev_priv, encoder->power_domain);
 
 	return active;
 }
@@ -1516,6 +1515,7 @@ void intel_dsi_init(struct drm_i915_private *dev_priv)
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
 
 	intel_encoder->port = port;
+
 	/*
 	 * On BYT/CHV, pipe A maps to MIPI DSI port A, pipe B maps to MIPI DSI
 	 * port C. BXT isn't limited like this.
@@ -1603,6 +1603,7 @@ void intel_dsi_init(struct drm_i915_private *dev_priv)
 	}
 
 	intel_encoder->type = INTEL_OUTPUT_DSI;
+	intel_encoder->power_domain = POWER_DOMAIN_PORT_DSI;
 	intel_encoder->cloneable = 0;
 	drm_connector_init(dev, connector, &intel_dsi_connector_funcs,
 			   DRM_MODE_CONNECTOR_DSI);

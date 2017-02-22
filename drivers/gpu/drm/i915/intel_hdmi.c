@@ -901,12 +901,11 @@ static bool intel_hdmi_get_hw_state(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
-	enum intel_display_power_domain power_domain;
 	u32 tmp;
 	bool ret;
 
-	power_domain = intel_display_port_power_domain(encoder);
-	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+	if (!intel_display_power_get_if_enabled(dev_priv,
+						encoder->power_domain))
 		return false;
 
 	ret = false;
@@ -926,7 +925,7 @@ static bool intel_hdmi_get_hw_state(struct intel_encoder *encoder,
 	ret = true;
 
 out:
-	intel_display_power_put(dev_priv, power_domain);
+	intel_display_power_put(dev_priv, encoder->power_domain);
 
 	return ret;
 }
@@ -1980,6 +1979,7 @@ void intel_hdmi_init(struct drm_i915_private *dev_priv,
 	}
 
 	intel_encoder->type = INTEL_OUTPUT_HDMI;
+	intel_encoder->power_domain = intel_port_to_power_domain(port);
 	intel_encoder->port = port;
 	if (IS_CHERRYVIEW(dev_priv)) {
 		if (port == PORT_D)

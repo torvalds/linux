@@ -249,6 +249,7 @@ struct intel_encoder {
 	void (*suspend)(struct intel_encoder *);
 	int crtc_mask;
 	enum hpd_pin hpd_pin;
+	enum intel_display_power_domain power_domain;
 	/* for communication with audio component; protected by av_mutex */
 	const struct drm_connector *audio_connector;
 };
@@ -1420,8 +1421,7 @@ int chv_calc_dpll_params(int refclk, struct dpll *pll_clock);
 bool intel_crtc_active(struct intel_crtc *crtc);
 void hsw_enable_ips(struct intel_crtc *crtc);
 void hsw_disable_ips(struct intel_crtc *crtc);
-enum intel_display_power_domain
-intel_display_port_power_domain(struct intel_encoder *intel_encoder);
+enum intel_display_power_domain intel_port_to_power_domain(enum port port);
 void intel_mode_from_pipe_config(struct drm_display_mode *mode,
 				 struct intel_crtc_state *pipe_config);
 

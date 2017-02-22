@@ -5568,7 +5568,7 @@ static void i9xx_pfit_enable(struct intel_crtc *crtc)
 	I915_WRITE(BCLRPAT(crtc->pipe), 0);
 }
 
-static enum intel_display_power_domain port_to_power_domain(enum port port)
+enum intel_display_power_domain intel_port_to_power_domain(enum port port)
 {
 	switch (port) {
 	case PORT_A:
@@ -5583,33 +5583,6 @@ static enum intel_display_power_domain port_to_power_domain(enum port port)
 		return POWER_DOMAIN_PORT_DDI_E_LANES;
 	default:
 		MISSING_CASE(port);
-		return POWER_DOMAIN_PORT_OTHER;
-	}
-}
-
-enum intel_display_power_domain
-intel_display_port_power_domain(struct intel_encoder *intel_encoder)
-{
-	struct drm_i915_private *dev_priv = to_i915(intel_encoder->base.dev);
-	struct intel_digital_port *intel_dig_port;
-
-	switch (intel_encoder->type) {
-	case INTEL_OUTPUT_UNKNOWN:
-		/* Only DDI platforms should ever use this output type */
-		WARN_ON_ONCE(!HAS_DDI(dev_priv));
-	case INTEL_OUTPUT_DP:
-	case INTEL_OUTPUT_HDMI:
-	case INTEL_OUTPUT_EDP:
-		intel_dig_port = enc_to_dig_port(&intel_encoder->base);
-		return port_to_power_domain(intel_dig_port->port);
-	case INTEL_OUTPUT_DP_MST:
-		intel_dig_port = enc_to_mst(&intel_encoder->base)->primary;
-		return port_to_power_domain(intel_dig_port->port);
-	case INTEL_OUTPUT_ANALOG:
-		return POWER_DOMAIN_PORT_CRT;
-	case INTEL_OUTPUT_DSI:
-		return POWER_DOMAIN_PORT_DSI;
-	default:
 		return POWER_DOMAIN_PORT_OTHER;
 	}
 }
@@ -5637,7 +5610,7 @@ static u64 get_crtc_power_domains(struct drm_crtc *crtc,
 	drm_for_each_encoder_mask(encoder, dev, crtc_state->base.encoder_mask) {
 		struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
 
-		mask |= BIT_ULL(intel_display_port_power_domain(intel_encoder));
+		mask |= BIT_ULL(intel_encoder->power_domain);
 	}
 
 	if (HAS_DDI(dev_priv) && crtc_state->has_audio)

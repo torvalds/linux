@@ -2496,12 +2496,11 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 	enum port port = dp_to_dig_port(intel_dp)->port;
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	enum intel_display_power_domain power_domain;
 	u32 tmp;
 	bool ret;
 
-	power_domain = intel_display_port_power_domain(encoder);
-	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+	if (!intel_display_power_get_if_enabled(dev_priv,
+						encoder->power_domain))
 		return false;
 
 	ret = false;
@@ -2537,7 +2536,7 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 	ret = true;
 
 out:
-	intel_display_power_put(dev_priv, power_domain);
+	intel_display_power_put(dev_priv, encoder->power_domain);
 
 	return ret;
 }
@@ -6097,6 +6096,7 @@ bool intel_dp_init(struct drm_i915_private *dev_priv,
 	intel_dig_port->max_lanes = 4;
 
 	intel_encoder->type = INTEL_OUTPUT_DP;
+	intel_encoder->power_domain = intel_port_to_power_domain(port);
 	if (IS_CHERRYVIEW(dev_priv)) {
 		if (port == PORT_D)
 			intel_encoder->crtc_mask = 1 << 2;

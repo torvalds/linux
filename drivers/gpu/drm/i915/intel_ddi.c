@@ -1349,12 +1349,11 @@ bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector)
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
 	enum pipe pipe = 0;
 	enum transcoder cpu_transcoder;
-	enum intel_display_power_domain power_domain;
 	uint32_t tmp;
 	bool ret;
 
-	power_domain = intel_display_port_power_domain(intel_encoder);
-	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+	if (!intel_display_power_get_if_enabled(dev_priv,
+						intel_encoder->power_domain))
 		return false;
 
 	if (!intel_encoder->get_hw_state(intel_encoder, &pipe)) {
@@ -1396,7 +1395,7 @@ bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector)
 	}
 
 out:
-	intel_display_power_put(dev_priv, power_domain);
+	intel_display_power_put(dev_priv, intel_encoder->power_domain);
 
 	return ret;
 }
@@ -1407,13 +1406,12 @@ bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum port port = intel_ddi_get_encoder_port(encoder);
-	enum intel_display_power_domain power_domain;
 	u32 tmp;
 	int i;
 	bool ret;
 
-	power_domain = intel_display_port_power_domain(encoder);
-	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+	if (!intel_display_power_get_if_enabled(dev_priv,
+						encoder->power_domain))
 		return false;
 
 	ret = false;
@@ -1470,7 +1468,7 @@ out:
 				  "(PHY_CTL %08x)\n", port_name(port), tmp);
 	}
 
-	intel_display_power_put(dev_priv, power_domain);
+	intel_display_power_put(dev_priv, encoder->power_domain);
 
 	return ret;
 }
@@ -2237,6 +2235,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	intel_dig_port->max_lanes = max_lanes;
 
 	intel_encoder->type = INTEL_OUTPUT_UNKNOWN;
+	intel_encoder->power_domain = intel_port_to_power_domain(port);
 	intel_encoder->port = port;
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
 	intel_encoder->cloneable = 0;
