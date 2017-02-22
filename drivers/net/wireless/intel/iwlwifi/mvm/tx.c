@@ -920,7 +920,7 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 	__le16 fc;
 	u16 seq_number = 0;
 	u8 tid = IWL_MAX_TID_COUNT;
-	u8 txq_id = info->hw_queue;
+	u16 txq_id = info->hw_queue;
 	bool is_ampdu = false;
 	int hdrlen;
 
@@ -990,11 +990,11 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 	WARN_ON_ONCE(info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM);
 
 	/* Check if TXQ needs to be allocated or re-activated */
-	if (unlikely(txq_id == IEEE80211_INVAL_HW_QUEUE ||
+	if (unlikely(txq_id == IWL_MVM_INVALID_QUEUE ||
 		     !mvmsta->tid_data[tid].is_tid_active) &&
 	    iwl_mvm_is_dqa_supported(mvm)) {
 		/* If TXQ needs to be allocated... */
-		if (txq_id == IEEE80211_INVAL_HW_QUEUE) {
+		if (txq_id == IWL_MVM_INVALID_QUEUE) {
 			iwl_mvm_tx_add_stream(mvm, mvmsta, tid, skb);
 
 			/*

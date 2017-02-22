@@ -1203,7 +1203,7 @@ static void iwl_mvm_remove_inactive_tids(struct iwl_mvm *mvm,
 	for_each_set_bit(tid, &tid_bitmap, IWL_MAX_TID_COUNT + 1) {
 		int mac_queue = mvmsta->vif->hw_queue[tid_to_mac80211_ac[tid]];
 
-		mvmsta->tid_data[tid].txq_id = IEEE80211_INVAL_HW_QUEUE;
+		mvmsta->tid_data[tid].txq_id = IWL_MVM_INVALID_QUEUE;
 		mvm->queue_info[queue].hw_queue_to_mac80211 &= ~BIT(mac_queue);
 		mvm->queue_info[queue].hw_queue_refcount--;
 		mvm->queue_info[queue].tid_bitmap &= ~BIT(tid);

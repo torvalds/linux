@@ -464,7 +464,7 @@ static int iwl_mvm_remove_sta_queue_marking(struct iwl_mvm *mvm, int queue)
 	for_each_set_bit(tid, &tid_bitmap, IWL_MAX_TID_COUNT + 1) {
 		if (mvmsta->tid_data[tid].state == IWL_AGG_ON)
 			disable_agg_tids |= BIT(tid);
-		mvmsta->tid_data[tid].txq_id = IEEE80211_INVAL_HW_QUEUE;
+		mvmsta->tid_data[tid].txq_id = IWL_MVM_INVALID_QUEUE;
 	}
 
 	mvmsta->tfd_queue_msk &= ~BIT(queue); /* Don't use this queue anymore */
@@ -1086,7 +1086,7 @@ static void iwl_mvm_tx_deferred_stream(struct iwl_mvm *mvm,
 	ac = iwl_mvm_tid_to_ac_queue(tid);
 	mac_queue = IEEE80211_SKB_CB(skb)->hw_queue;
 
-	if (tid_data->txq_id == IEEE80211_INVAL_HW_QUEUE &&
+	if (tid_data->txq_id == IWL_MVM_INVALID_QUEUE &&
 	    iwl_mvm_sta_alloc_queue(mvm, sta, ac, tid, hdr)) {
 		IWL_ERR(mvm,
 			"Can't alloc TXQ for sta %d tid %d - dropping frame\n",
@@ -1267,7 +1267,7 @@ static void iwl_mvm_realloc_queues_after_restart(struct iwl_mvm *mvm,
 		int ac;
 		u8 mac_queue;
 
-		if (txq_id == IEEE80211_INVAL_HW_QUEUE)
+		if (txq_id == IWL_MVM_INVALID_QUEUE)
 			continue;
 
 		skb_queue_head_init(&tid_data->deferred_tx_frames);
@@ -1375,7 +1375,7 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 		 * Mark all queues for this STA as unallocated and defer TX
 		 * frames until the queue is allocated
 		 */
-		mvm_sta->tid_data[i].txq_id = IEEE80211_INVAL_HW_QUEUE;
+		mvm_sta->tid_data[i].txq_id = IWL_MVM_INVALID_QUEUE;
 		skb_queue_head_init(&mvm_sta->tid_data[i].deferred_tx_frames);
 	}
 	mvm_sta->deferred_traffic_tid_map = 0;
@@ -1574,13 +1574,13 @@ static void iwl_mvm_disable_sta_queues(struct iwl_mvm *mvm,
 	lockdep_assert_held(&mvm->mutex);
 
 	for (i = 0; i < ARRAY_SIZE(mvm_sta->tid_data); i++) {
-		if (mvm_sta->tid_data[i].txq_id == IEEE80211_INVAL_HW_QUEUE)
+		if (mvm_sta->tid_data[i].txq_id == IWL_MVM_INVALID_QUEUE)
 			continue;
 
 		ac = iwl_mvm_tid_to_ac_queue(i);
 		iwl_mvm_disable_txq(mvm, mvm_sta->tid_data[i].txq_id,
 				    vif->hw_queue[ac], i, 0);
-		mvm_sta->tid_data[i].txq_id = IEEE80211_INVAL_HW_QUEUE;
+		mvm_sta->tid_data[i].txq_id = IWL_MVM_INVALID_QUEUE;
 	}
 }
 
