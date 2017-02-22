@@ -2253,12 +2253,13 @@ batadv_tt_global_del_roaming(struct batadv_priv *bat_priv,
 		/* its the last one, mark for roaming. */
 		tt_global_entry->common.flags |= BATADV_TT_CLIENT_ROAM;
 		tt_global_entry->roam_at = jiffies;
-	} else
+	} else {
 		/* there is another entry, we can simply delete this
 		 * one and can still use the other one.
 		 */
 		batadv_tt_global_del_orig_node(bat_priv, tt_global_entry,
 					       orig_node, message);
+	}
 }
 
 /**
@@ -2314,10 +2315,11 @@ static void batadv_tt_global_del(struct batadv_priv *bat_priv,
 		/* local entry exists, case 2: client roamed to us. */
 		batadv_tt_global_del_orig_list(tt_global_entry);
 		batadv_tt_global_free(bat_priv, tt_global_entry, message);
-	} else
+	} else {
 		/* no local entry exists, case 1: check for roaming */
 		batadv_tt_global_del_roaming(bat_priv, tt_global_entry,
 					     orig_node, message);
+	}
 
 out:
 	if (tt_global_entry)
