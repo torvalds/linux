@@ -52,7 +52,7 @@
 	compatible = "rockchip,rk3399-mid", "rockchip,rk3399";
 
 	edp_panel: edp-panel {
-		compatible = "simple-panel";
+		compatible = "auo,b125han03";
 		backlight = <&backlight>;
 		power-supply = <&vcc3v3_s0>;
 		enable-gpios = <&gpio3 GPIO_A0 GPIO_ACTIVE_HIGH>;
