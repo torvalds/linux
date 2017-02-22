@@ -129,7 +129,6 @@ static ssize_t chars_chartab_store(struct kobject *kobj,
 
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	while (cp < end) {
-
 		while ((cp < end) && (*cp == ' ' || *cp == '\t'))
 			cp++;
 

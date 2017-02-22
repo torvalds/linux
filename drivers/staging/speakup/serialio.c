@@ -97,7 +97,6 @@ static irqreturn_t synth_readbuf_handler(int irq, void *dev_id)
 
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	while (inb_p(speakup_info.port_tts + UART_LSR) & UART_LSR_DR) {
-
 		c = inb_p(speakup_info.port_tts+UART_RX);
 		synth->read_buff_add((u_char)c);
 	}
