@@ -64,6 +64,24 @@
 
 &i2c0 {
 	status = "okay";
+
+	gpio_exp: pca9555@22 {
+		compatible = "nxp,pca9555";
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		reg = <0x22>;
+		/*
+		 * IO0_0: PWR_EN_USB2	IO1_0: PWR_EN_VTT
+		 * IO0_1: PWR_EN_USB23	IO1_1: MPCIE_WDISABLE
+		 * IO0_2: PWR_EN_SATA	IO1_2: RGMII_DEV_RSTN
+		 * IO0_3: PWR_EN_PCIE	IO1_3: SGMII_DEV_RSTN
+		 * IO0_4: PWR_EN_SD
+		 * IO0_5: PWR_EN_EMMC
+		 * IO0_6: PWR_EN_RGMII	IO1_6: SATA_USB3.0_SEL
+		 * IO0_7: PWR_EN_SGMII	IO1_7: PWR_MCI_PS
+		 */
+	};
 };
 
 /* CON3 */
