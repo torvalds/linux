@@ -2248,6 +2248,7 @@ int shmem_mcopy_atomic_pte(struct mm_struct *dst_mm,
 	VM_BUG_ON(PageLocked(page) || PageSwapBacked(page));
 	__SetPageLocked(page);
 	__SetPageSwapBacked(page);
+	__SetPageUptodate(page);
 
 	ret = mem_cgroup_try_charge(page, dst_mm, gfp, &memcg, false);
 	if (ret)
@@ -2271,8 +2272,6 @@ int shmem_mcopy_atomic_pte(struct mm_struct *dst_mm,
 	dst_pte = pte_offset_map_lock(dst_mm, dst_pmd, dst_addr, &ptl);
 	if (!pte_none(*dst_pte))
 		goto out_release_uncharge_unlock;
-
-	__SetPageUptodate(page);
 
 	lru_cache_add_anon(page);
 
