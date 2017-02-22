@@ -3214,9 +3214,6 @@ i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj)
 	intel_fb_obj_flush(obj, false, write_origin(obj, I915_GEM_DOMAIN_GTT));
 
 	obj->base.write_domain = 0;
-	trace_i915_gem_object_change_domain(obj,
-					    obj->base.read_domains,
-					    I915_GEM_DOMAIN_GTT);
 }
 
 /** Flushes the CPU write domain for the object if it's dirty. */
@@ -3230,9 +3227,6 @@ i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj)
 	intel_fb_obj_flush(obj, false, ORIGIN_CPU);
 
 	obj->base.write_domain = 0;
-	trace_i915_gem_object_change_domain(obj,
-					    obj->base.read_domains,
-					    I915_GEM_DOMAIN_CPU);
 }
 
 /**
@@ -3246,7 +3240,6 @@ i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj)
 int
 i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 {
-	uint32_t old_write_domain, old_read_domains;
 	int ret;
 
 	lockdep_assert_held(&obj->base.dev->struct_mutex);
@@ -3284,9 +3277,6 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	if ((obj->base.read_domains & I915_GEM_DOMAIN_GTT) == 0)
 		mb();
 
-	old_write_domain = obj->base.write_domain;
-	old_read_domains = obj->base.read_domains;
-
 	/* It should now be out of any other write domains, and we can update
 	 * the domain values for our changes.
 	 */
@@ -3297,10 +3287,6 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 		obj->base.write_domain = I915_GEM_DOMAIN_GTT;
 		obj->mm.dirty = true;
 	}
-
-	trace_i915_gem_object_change_domain(obj,
-					    old_read_domains,
-					    old_write_domain);
 
 	i915_gem_object_unpin_pages(obj);
 	return 0;
@@ -3538,7 +3524,6 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     const struct i915_ggtt_view *view)
 {
 	struct i915_vma *vma;
-	u32 old_read_domains, old_write_domain;
 	int ret;
 
 	lockdep_assert_held(&obj->base.dev->struct_mutex);
@@ -3603,18 +3588,11 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 		intel_fb_obj_flush(obj, false, ORIGIN_DIRTYFB);
 	}
 
-	old_write_domain = obj->base.write_domain;
-	old_read_domains = obj->base.read_domains;
-
 	/* It should now be out of any other write domains, and we can update
 	 * the domain values for our changes.
 	 */
 	obj->base.write_domain = 0;
 	obj->base.read_domains |= I915_GEM_DOMAIN_GTT;
-
-	trace_i915_gem_object_change_domain(obj,
-					    old_read_domains,
-					    old_write_domain);
 
 	return vma;
 
@@ -3651,7 +3629,6 @@ i915_gem_object_unpin_from_display_plane(struct i915_vma *vma)
 int
 i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 {
-	uint32_t old_write_domain, old_read_domains;
 	int ret;
 
 	lockdep_assert_held(&obj->base.dev->struct_mutex);
@@ -3669,9 +3646,6 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 		return 0;
 
 	i915_gem_object_flush_gtt_write_domain(obj);
-
-	old_write_domain = obj->base.write_domain;
-	old_read_domains = obj->base.read_domains;
 
 	/* Flush the CPU cache if it's still invalid. */
 	if ((obj->base.read_domains & I915_GEM_DOMAIN_CPU) == 0) {
@@ -3692,10 +3666,6 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 		obj->base.read_domains = I915_GEM_DOMAIN_CPU;
 		obj->base.write_domain = I915_GEM_DOMAIN_CPU;
 	}
-
-	trace_i915_gem_object_change_domain(obj,
-					    old_read_domains,
-					    old_write_domain);
 
 	return 0;
 }

@@ -1317,8 +1317,6 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 
 	list_for_each_entry(vma, vmas, exec_list) {
 		struct drm_i915_gem_object *obj = vma->obj;
-		u32 old_read = obj->base.read_domains;
-		u32 old_write = obj->base.write_domain;
 
 		obj->base.write_domain = obj->base.pending_write_domain;
 		if (obj->base.write_domain)
@@ -1329,7 +1327,6 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 
 		i915_vma_move_to_active(vma, req, vma->exec_entry->flags);
 		eb_export_fence(obj, req, vma->exec_entry->flags);
-		trace_i915_gem_object_change_domain(obj, old_read, old_write);
 	}
 }
 

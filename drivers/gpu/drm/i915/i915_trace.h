@@ -175,30 +175,6 @@ TRACE_EVENT(i915_vma_unbind,
 		      __entry->obj, __entry->offset, __entry->size, __entry->vm)
 );
 
-TRACE_EVENT(i915_gem_object_change_domain,
-	    TP_PROTO(struct drm_i915_gem_object *obj, u32 old_read, u32 old_write),
-	    TP_ARGS(obj, old_read, old_write),
-
-	    TP_STRUCT__entry(
-			     __field(struct drm_i915_gem_object *, obj)
-			     __field(u32, read_domains)
-			     __field(u32, write_domain)
-			     ),
-
-	    TP_fast_assign(
-			   __entry->obj = obj;
-			   __entry->read_domains = obj->base.read_domains | (old_read << 16);
-			   __entry->write_domain = obj->base.write_domain | (old_write << 16);
-			   ),
-
-	    TP_printk("obj=%p, read=%02x=>%02x, write=%02x=>%02x",
-		      __entry->obj,
-		      __entry->read_domains >> 16,
-		      __entry->read_domains & 0xffff,
-		      __entry->write_domain >> 16,
-		      __entry->write_domain & 0xffff)
-);
-
 TRACE_EVENT(i915_gem_object_pwrite,
 	    TP_PROTO(struct drm_i915_gem_object *obj, u32 offset, u32 len),
 	    TP_ARGS(obj, offset, len),
