@@ -12,6 +12,7 @@ tools/arch/sparc/include/asm/barrier_32.h
 tools/arch/sparc/include/asm/barrier_64.h
 tools/arch/tile/include/asm/barrier.h
 tools/arch/x86/include/asm/barrier.h
+tools/arch/x86/include/asm/cmpxchg.h
 tools/arch/x86/include/asm/cpufeatures.h
 tools/arch/x86/include/asm/disabled-features.h
 tools/arch/x86/include/asm/required-features.h
