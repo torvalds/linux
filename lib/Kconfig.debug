@@ -1831,12 +1831,22 @@ config TEST_HASH
 	tristate "Perform selftest on hash functions"
 	default n
 	help
-	  Enable this option to test the kernel's integer (<linux/hash,h>)
-	  and string (<linux/stringhash.h>) hash functions on boot
-	  (or module load).
+	  Enable this option to test the kernel's integer (<linux/hash.h>),
+	  string (<linux/stringhash.h>), and siphash (<linux/siphash.h>)
+	  hash functions on boot (or module load).
 
 	  This is intended to help people writing architecture-specific
 	  optimized versions.  If unsure, say N.
+
+config TEST_PARMAN
+	tristate "Perform selftest on priority array manager"
+	default n
+	depends on PARMAN
+	help
+	  Enable this option to test priority array manager on boot
+	  (or module load).
+
+	  If unsure, say N.
 
 endmenu # runtime tests
 

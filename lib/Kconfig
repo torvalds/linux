@@ -550,4 +550,7 @@ config STACKDEPOT
 config SBITMAP
 	bool
 
+config PARMAN
+	tristate "parman"
+
 endmenu

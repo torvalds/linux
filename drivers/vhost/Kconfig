@@ -1,6 +1,6 @@
 config VHOST_NET
 	tristate "Host kernel accelerator for virtio net"
-	depends on NET && EVENTFD && (TUN || !TUN) && (MACVTAP || !MACVTAP)
+	depends on NET && EVENTFD && (TUN || !TUN) && (TAP || !TAP)
 	select VHOST
 	---help---
 	  This kernel module can be loaded in host kernel to accelerate

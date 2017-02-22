@@ -494,7 +494,7 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_eqe *eqe;
-	int cqn = -1;
+	int cqn;
 	int eqes_found = 0;
 	int set_ci = 0;
 	int port;
@@ -839,13 +839,6 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 	}
 
 	eq_set_ci(eq, 1);
-
-	/* cqn is 24bit wide but is initialized such that its higher bits
-	 * are ones too. Thus, if we got any event, cqn's high bits should be off
-	 * and we need to schedule the tasklet.
-	 */
-	if (!(cqn & ~0xffffff))
-		tasklet_schedule(&eq->tasklet_ctx.task);
 
 	return eqes_found;
 }

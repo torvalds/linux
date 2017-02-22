@@ -222,6 +222,10 @@ config GENERIC_SMP_IDLE_THREAD
 config GENERIC_IDLE_POLL_SETUP
        bool
 
+# Select if arch has all set_memory_ro/rw/x/nx() functions in asm/cacheflush.h
+config ARCH_HAS_SET_MEMORY
+	bool
+
 # Select if arch init_task initializer is different to init/init_task.c
 config ARCH_INIT_TASK
        bool
@@ -836,5 +840,8 @@ config STRICT_MODULE_RWX
 	  If this is set, module text and rodata memory will be made read-only,
 	  and non-text memory will be made non-executable. This provides
 	  protection against certain security exploits (e.g. writing to text)
+
+config ARCH_WANT_RELAX_ORDER
+	bool
 
 source "kernel/gcov/Kconfig"

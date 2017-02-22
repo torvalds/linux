@@ -23,6 +23,7 @@
 #endif /* CONFIG_XFRM */
 
 #include <linux/atomic.h>
+#include <net/sch_generic.h>
 
 #include <asm/octeon/octeon.h>
 
@@ -369,9 +370,7 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 
 #ifdef CONFIG_NET_SCHED
 	skb->tc_index = 0;
-#ifdef CONFIG_NET_CLS_ACT
-	skb->tc_verd = 0;
-#endif /* CONFIG_NET_CLS_ACT */
+	skb_reset_tc(skb);
 #endif /* CONFIG_NET_SCHED */
 #endif /* REUSE_SKBUFFS_WITHOUT_FREE */
 

@@ -437,6 +437,7 @@ struct iwl_mvm_sta {
 	bool disable_tx;
 	bool tlc_amsdu;
 	bool sleeping;
+	bool associated;
 	u8 agg_tids;
 	u8 sleep_tx_count;
 	u8 avg_energy;

@@ -14,6 +14,8 @@
 #ifndef _UAPI_LINUX_SEG6_H
 #define _UAPI_LINUX_SEG6_H
 
+#include <linux/types.h>
+
 /*
  * SRH
  */

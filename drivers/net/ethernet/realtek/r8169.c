@@ -7583,7 +7583,7 @@ static int rtl8169_poll(struct napi_struct *napi, int budget)
 	}
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 
 		rtl_irq_enable(tp, enable_mask);
 		mmiowb();
@@ -7755,7 +7755,7 @@ err_pm_runtime_put:
 	goto out;
 }
 
-static struct rtnl_link_stats64 *
+static void
 rtl8169_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
@@ -7809,8 +7809,6 @@ rtl8169_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 		le16_to_cpu(tp->tc_offset.tx_aborted);
 
 	pm_runtime_put_noidle(&pdev->dev);
-
-	return stats;
 }
 
 static void rtl8169_net_suspend(struct net_device *dev)

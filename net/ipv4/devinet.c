@@ -65,8 +65,6 @@
 #include <net/net_namespace.h>
 #include <net/addrconf.h>
 
-#include "fib_lookup.h"
-
 static struct ipv4_devconf ipv4_devconf = {
 	.data = {
 		[IPV4_DEVCONF_ACCEPT_REDIRECTS - 1] = 1,
