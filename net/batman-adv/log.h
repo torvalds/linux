@@ -73,9 +73,10 @@ __printf(2, 3);
 /* possibly ratelimited debug output */
 #define _batadv_dbg(type, bat_priv, ratelimited, fmt, arg...)		\
 	do {								\
-		if (atomic_read(&(bat_priv)->log_level) & (type) &&	\
+		struct batadv_priv *__batpriv = (bat_priv);		\
+		if (atomic_read(&__batpriv->log_level) & (type) &&	\
 		    (!(ratelimited) || net_ratelimit()))		\
-			batadv_debug_log(bat_priv, fmt, ## arg);	\
+			batadv_debug_log(__batpriv, fmt, ## arg);	\
 	}								\
 	while (0)
 #else /* !CONFIG_BATMAN_ADV_DEBUG */
