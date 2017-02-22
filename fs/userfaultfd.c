@@ -1302,6 +1302,19 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
 			start = vma->vm_start;
 		vma_end = min(end, vma->vm_end);
 
+		if (userfaultfd_missing(vma)) {
+			/*
+			 * Wake any concurrent pending userfault while
+			 * we unregister, so they will not hang
+			 * permanently and it avoids userland to call
+			 * UFFDIO_WAKE explicitly.
+			 */
+			struct userfaultfd_wake_range range;
+			range.start = start;
+			range.len = vma_end - start;
+			wake_userfault(vma->vm_userfaultfd_ctx.ctx, &range);
+		}
+
 		new_flags = vma->vm_flags & ~(VM_UFFD_MISSING | VM_UFFD_WP);
 		prev = vma_merge(mm, prev, start, vma_end, new_flags,
 				 vma->anon_vma, vma->vm_file, vma->vm_pgoff,
