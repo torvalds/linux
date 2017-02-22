@@ -1256,11 +1256,10 @@ EXPORT_SYMBOL_GPL(dax_iomap_fault);
  */
 #define PG_PMD_COLOUR	((PMD_SIZE >> PAGE_SHIFT) - 1)
 
-static int dax_pmd_insert_mapping(struct vm_area_struct *vma, pmd_t *pmd,
-		struct vm_fault *vmf, unsigned long address,
-		struct iomap *iomap, loff_t pos, bool write, void **entryp)
+static int dax_pmd_insert_mapping(struct vm_fault *vmf, struct iomap *iomap,
+		loff_t pos, void **entryp)
 {
-	struct address_space *mapping = vma->vm_file->f_mapping;
+	struct address_space *mapping = vmf->vma->vm_file->f_mapping;
 	struct block_device *bdev = iomap->bdev;
 	struct inode *inode = mapping->host;
 	struct blk_dax_ctl dax = {
@@ -1287,31 +1286,30 @@ static int dax_pmd_insert_mapping(struct vm_area_struct *vma, pmd_t *pmd,
 		goto fallback;
 	*entryp = ret;
 
-	trace_dax_pmd_insert_mapping(inode, vma, address, write, length,
-			dax.pfn, ret);
-	return vmf_insert_pfn_pmd(vma, address, pmd, dax.pfn, write);
+	trace_dax_pmd_insert_mapping(inode, vmf, length, dax.pfn, ret);
+	return vmf_insert_pfn_pmd(vmf->vma, vmf->address, vmf->pmd,
+			dax.pfn, vmf->flags & FAULT_FLAG_WRITE);
 
  unmap_fallback:
 	dax_unmap_atomic(bdev, &dax);
 fallback:
-	trace_dax_pmd_insert_mapping_fallback(inode, vma, address, write,
-			length, dax.pfn, ret);
+	trace_dax_pmd_insert_mapping_fallback(inode, vmf, length,
+			dax.pfn, ret);
 	return VM_FAULT_FALLBACK;
 }
 
-static int dax_pmd_load_hole(struct vm_area_struct *vma, pmd_t *pmd,
-		struct vm_fault *vmf, unsigned long address,
-		struct iomap *iomap, void **entryp)
+static int dax_pmd_load_hole(struct vm_fault *vmf, struct iomap *iomap,
+		void **entryp)
 {
-	struct address_space *mapping = vma->vm_file->f_mapping;
-	unsigned long pmd_addr = address & PMD_MASK;
+	struct address_space *mapping = vmf->vma->vm_file->f_mapping;
+	unsigned long pmd_addr = vmf->address & PMD_MASK;
 	struct inode *inode = mapping->host;
 	struct page *zero_page;
 	void *ret = NULL;
 	spinlock_t *ptl;
 	pmd_t pmd_entry;
 
-	zero_page = mm_get_huge_zero_page(vma->vm_mm);
+	zero_page = mm_get_huge_zero_page(vmf->vma->vm_mm);
 
 	if (unlikely(!zero_page))
 		goto fallback;
@@ -1322,27 +1320,27 @@ static int dax_pmd_load_hole(struct vm_area_struct *vma, pmd_t *pmd,
 		goto fallback;
 	*entryp = ret;
 
-	ptl = pmd_lock(vma->vm_mm, pmd);
-	if (!pmd_none(*pmd)) {
+	ptl = pmd_lock(vmf->vma->vm_mm, vmf->pmd);
+	if (!pmd_none(*(vmf->pmd))) {
 		spin_unlock(ptl);
 		goto fallback;
 	}
 
-	pmd_entry = mk_pmd(zero_page, vma->vm_page_prot);
+	pmd_entry = mk_pmd(zero_page, vmf->vma->vm_page_prot);
 	pmd_entry = pmd_mkhuge(pmd_entry);
-	set_pmd_at(vma->vm_mm, pmd_addr, pmd, pmd_entry);
+	set_pmd_at(vmf->vma->vm_mm, pmd_addr, vmf->pmd, pmd_entry);
 	spin_unlock(ptl);
-	trace_dax_pmd_load_hole(inode, vma, address, zero_page, ret);
+	trace_dax_pmd_load_hole(inode, vmf, zero_page, ret);
 	return VM_FAULT_NOPAGE;
 
 fallback:
-	trace_dax_pmd_load_hole_fallback(inode, vma, address, zero_page, ret);
+	trace_dax_pmd_load_hole_fallback(inode, vmf, zero_page, ret);
 	return VM_FAULT_FALLBACK;
 }
 
-int dax_iomap_pmd_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
-		struct iomap_ops *ops)
+int dax_iomap_pmd_fault(struct vm_fault *vmf, struct iomap_ops *ops)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	struct address_space *mapping = vma->vm_file->f_mapping;
 	unsigned long pmd_addr = vmf->address & PMD_MASK;
 	bool write = vmf->flags & FAULT_FLAG_WRITE;
@@ -1363,7 +1361,7 @@ int dax_iomap_pmd_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
 	pgoff = linear_page_index(vma, pmd_addr);
 	max_pgoff = (i_size_read(inode) - 1) >> PAGE_SHIFT;
 
-	trace_dax_pmd_fault(inode, vma, vmf, max_pgoff, 0);
+	trace_dax_pmd_fault(inode, vmf, max_pgoff, 0);
 
 	/* Fall back to PTEs if we're going to COW */
 	if (write && !(vma->vm_flags & VM_SHARED))
@@ -1409,15 +1407,13 @@ int dax_iomap_pmd_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
 
 	switch (iomap.type) {
 	case IOMAP_MAPPED:
-		result = dax_pmd_insert_mapping(vma, vmf->pmd, vmf,
-				vmf->address, &iomap, pos, write, &entry);
+		result = dax_pmd_insert_mapping(vmf, &iomap, pos, &entry);
 		break;
 	case IOMAP_UNWRITTEN:
 	case IOMAP_HOLE:
 		if (WARN_ON_ONCE(write))
 			goto unlock_entry;
-		result = dax_pmd_load_hole(vma, vmf->pmd, vmf, vmf->address,
-				&iomap, &entry);
+		result = dax_pmd_load_hole(vmf, &iomap, &entry);
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -1447,7 +1443,7 @@ int dax_iomap_pmd_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
 		count_vm_event(THP_FAULT_FALLBACK);
 	}
 out:
-	trace_dax_pmd_fault_done(inode, vma, vmf, max_pgoff, result);
+	trace_dax_pmd_fault_done(inode, vmf, max_pgoff, result);
 	return result;
 }
 EXPORT_SYMBOL_GPL(dax_iomap_pmd_fault);
