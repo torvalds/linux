@@ -277,7 +277,7 @@ void blk_mq_hctx_kobj_init(struct blk_mq_hw_ctx *hctx)
 	kobject_init(&hctx->kobj, &blk_mq_hw_ktype);
 }
 
-static void blk_mq_sysfs_init(struct request_queue *q)
+void blk_mq_sysfs_init(struct request_queue *q)
 {
 	struct blk_mq_ctx *ctx;
 	int cpu;
@@ -296,8 +296,6 @@ int blk_mq_register_dev(struct device *dev, struct request_queue *q)
 	int ret, i;
 
 	blk_mq_disable_hotplug();
-
-	blk_mq_sysfs_init(q);
 
 	ret = kobject_add(&q->mq_kobj, kobject_get(&dev->kobj), "%s", "mq");
 	if (ret < 0)
