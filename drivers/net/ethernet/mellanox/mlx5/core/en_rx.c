@@ -172,6 +172,7 @@ void mlx5e_modify_rx_cqe_compression_locked(struct mlx5e_priv *priv, bool val)
 		mlx5e_close_locked(priv->netdev);
 
 	MLX5E_SET_PFLAG(priv, MLX5E_PFLAG_RX_CQE_COMPRESS, val);
+	mlx5e_set_rq_type_params(priv, priv->params.rq_wq_type);
 
 	if (was_opened)
 		mlx5e_open_locked(priv->netdev);

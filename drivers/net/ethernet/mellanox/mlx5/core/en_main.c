@@ -79,7 +79,7 @@ static bool mlx5e_check_fragmented_striding_rq_cap(struct mlx5_core_dev *mdev)
 		MLX5_CAP_ETH(mdev, reg_umr_sq);
 }
 
-static void mlx5e_set_rq_type_params(struct mlx5e_priv *priv, u8 rq_type)
+void mlx5e_set_rq_type_params(struct mlx5e_priv *priv, u8 rq_type)
 {
 	priv->params.rq_wq_type = rq_type;
 	priv->params.lro_wqe_sz = MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ;
