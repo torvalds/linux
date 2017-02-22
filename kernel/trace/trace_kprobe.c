@@ -680,10 +680,6 @@ static int create_trace_kprobe(int argc, char **argv)
 		return -EINVAL;
 	}
 	if (isdigit(argv[1][0])) {
-		if (is_return) {
-			pr_info("Return probe point must be a symbol.\n");
-			return -EINVAL;
-		}
 		/* an address specified */
 		ret = kstrtoul(&argv[1][0], 0, (unsigned long *)&addr);
 		if (ret) {
@@ -698,10 +694,6 @@ static int create_trace_kprobe(int argc, char **argv)
 		if (ret) {
 			pr_info("Failed to parse symbol.\n");
 			return ret;
-		}
-		if (offset && is_return) {
-			pr_info("Return probe must be used without offset.\n");
-			return -EINVAL;
 		}
 	}
 	argc -= 2; argv += 2;
