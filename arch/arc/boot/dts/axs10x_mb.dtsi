@@ -51,7 +51,7 @@
 			pguclk: pguclk {
 				#clock-cells = <0>;
 				compatible = "fixed-clock";
-				clock-frequency = <74440000>;
+				clock-frequency = <74250000>;
 			};
 		};
 
