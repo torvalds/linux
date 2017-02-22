@@ -267,7 +267,7 @@ struct drm_mode_config_funcs {
 	 * passed-in &drm_atomic_state. This hook is called when the caller
 	 * encountered a &drm_modeset_lock deadlock and needs to drop all
 	 * already acquired locks as part of the deadlock avoidance dance
-	 * implemented in drm_modeset_lock_backoff().
+	 * implemented in drm_modeset_backoff().
 	 *
 	 * Any duplicated state must be invalidated since a concurrent atomic
 	 * update might change it, and the drm atomic interfaces always apply
@@ -285,8 +285,8 @@ struct drm_mode_config_funcs {
 	 * itself. Note that the core first calls drm_atomic_state_clear() to
 	 * avoid code duplicate between the clear and free hooks.
 	 *
-	 * Drivers that implement this must call drm_atomic_state_default_free()
-	 * to release common resources.
+	 * Drivers that implement this must call
+	 * drm_atomic_state_default_release() to release common resources.
 	 */
 	void (*atomic_state_free)(struct drm_atomic_state *state);
 };
