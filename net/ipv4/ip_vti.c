@@ -46,7 +46,7 @@
 
 static struct rtnl_link_ops vti_link_ops __read_mostly;
 
-static int vti_net_id __read_mostly;
+static unsigned int vti_net_id __read_mostly;
 static int vti_tunnel_init(struct net_device *dev);
 
 static int vti_input(struct sk_buff *skb, int nexthdr, __be32 spi,

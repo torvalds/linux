@@ -27,6 +27,7 @@
 #define    MAX_BGX_CHANS_PER_LMAC		16
 #define    MAX_DMAC_PER_LMAC			8
 #define    MAX_FRAME_SIZE			9216
+#define    DEFAULT_PAUSE_TIME			0xFFFF
 
 #define	   BGX_ID_MASK				0x3
 
@@ -126,7 +127,10 @@
 #define  SMU_RX_CTL_STATUS			(3ull << 0)
 #define BGX_SMUX_TX_APPEND		0x20100
 #define  SMU_TX_APPEND_FCS_D			BIT_ULL(2)
+#define BGX_SMUX_TX_PAUSE_PKT_TIME	0x20110
 #define BGX_SMUX_TX_MIN_PKT		0x20118
+#define BGX_SMUX_TX_PAUSE_PKT_INTERVAL	0x20120
+#define BGX_SMUX_TX_PAUSE_ZERO		0x20138
 #define BGX_SMUX_TX_INT			0x20140
 #define BGX_SMUX_TX_CTL			0x20178
 #define  SMU_TX_CTL_DIC_EN			BIT_ULL(0)
@@ -136,6 +140,11 @@
 #define BGX_SMUX_CTL			0x20200
 #define  SMU_CTL_RX_IDLE			BIT_ULL(0)
 #define  SMU_CTL_TX_IDLE			BIT_ULL(1)
+#define	BGX_SMUX_CBFC_CTL		0x20218
+#define	RX_EN					BIT_ULL(0)
+#define	TX_EN					BIT_ULL(1)
+#define	BCK_EN					BIT_ULL(2)
+#define	DRP_EN					BIT_ULL(3)
 
 #define BGX_GMP_PCS_MRX_CTL		0x30000
 #define	 PCS_MRX_CTL_RST_AN			BIT_ULL(9)
@@ -144,10 +153,15 @@
 #define	 PCS_MRX_CTL_LOOPBACK1			BIT_ULL(14)
 #define	 PCS_MRX_CTL_RESET			BIT_ULL(15)
 #define BGX_GMP_PCS_MRX_STATUS		0x30008
+#define	 PCS_MRX_STATUS_LINK			BIT_ULL(2)
 #define	 PCS_MRX_STATUS_AN_CPT			BIT_ULL(5)
+#define BGX_GMP_PCS_ANX_ADV		0x30010
 #define BGX_GMP_PCS_ANX_AN_RESULTS	0x30020
+#define BGX_GMP_PCS_LINKX_TIMER		0x30040
+#define PCS_LINKX_TIMER_COUNT			0x1E84
 #define BGX_GMP_PCS_SGM_AN_ADV		0x30068
 #define BGX_GMP_PCS_MISCX_CTL		0x30078
+#define  PCS_MISC_CTL_MODE			BIT_ULL(8)
 #define  PCS_MISC_CTL_DISP_EN			BIT_ULL(13)
 #define  PCS_MISC_CTL_GMX_ENO			BIT_ULL(11)
 #define  PCS_MISC_CTL_SAMP_PT_MASK	0x7Full
@@ -207,6 +221,9 @@ void bgx_set_lmac_mac(int node, int bgx_idx, int lmacid, const u8 *mac);
 void bgx_get_lmac_link_state(int node, int bgx_idx, int lmacid, void *status);
 void bgx_lmac_internal_loopback(int node, int bgx_idx,
 				int lmac_idx, bool enable);
+void bgx_lmac_get_pfc(int node, int bgx_idx, int lmacid, void *pause);
+void bgx_lmac_set_pfc(int node, int bgx_idx, int lmacid, void *pause);
+
 void xcv_init_hw(void);
 void xcv_setup_link(bool link_up, int link_speed);
 

@@ -121,7 +121,6 @@ nla_put_failure:
 	return -1;
 }
 
-static struct nft_expr_type nft_bitwise_type;
 static const struct nft_expr_ops nft_bitwise_ops = {
 	.type		= &nft_bitwise_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_bitwise)),
@@ -130,20 +129,10 @@ static const struct nft_expr_ops nft_bitwise_ops = {
 	.dump		= nft_bitwise_dump,
 };
 
-static struct nft_expr_type nft_bitwise_type __read_mostly = {
+struct nft_expr_type nft_bitwise_type __read_mostly = {
 	.name		= "bitwise",
 	.ops		= &nft_bitwise_ops,
 	.policy		= nft_bitwise_policy,
 	.maxattr	= NFTA_BITWISE_MAX,
 	.owner		= THIS_MODULE,
 };
-
-int __init nft_bitwise_module_init(void)
-{
-	return nft_register_expr(&nft_bitwise_type);
-}
-
-void nft_bitwise_module_exit(void)
-{
-	nft_unregister_expr(&nft_bitwise_type);
-}

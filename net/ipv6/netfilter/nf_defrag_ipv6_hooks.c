@@ -30,6 +30,8 @@
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 
+static DEFINE_MUTEX(defrag6_mutex);
+
 static enum ip6_defrag_users nf_ct6_defrag_user(unsigned int hooknum,
 						struct sk_buff *skb)
 {
@@ -87,6 +89,19 @@ static struct nf_hook_ops ipv6_defrag_ops[] = {
 	},
 };
 
+static void __net_exit defrag6_net_exit(struct net *net)
+{
+	if (net->nf.defrag_ipv6) {
+		nf_unregister_net_hooks(net, ipv6_defrag_ops,
+					ARRAY_SIZE(ipv6_defrag_ops));
+		net->nf.defrag_ipv6 = false;
+	}
+}
+
+static struct pernet_operations defrag6_net_ops = {
+	.exit = defrag6_net_exit,
+};
+
 static int __init nf_defrag_init(void)
 {
 	int ret = 0;
@@ -96,9 +111,9 @@ static int __init nf_defrag_init(void)
 		pr_err("nf_defrag_ipv6: can't initialize frag6.\n");
 		return ret;
 	}
-	ret = nf_register_hooks(ipv6_defrag_ops, ARRAY_SIZE(ipv6_defrag_ops));
+	ret = register_pernet_subsys(&defrag6_net_ops);
 	if (ret < 0) {
-		pr_err("nf_defrag_ipv6: can't register hooks\n");
+		pr_err("nf_defrag_ipv6: can't register pernet ops\n");
 		goto cleanup_frag6;
 	}
 	return ret;
@@ -111,12 +126,31 @@ cleanup_frag6:
 
 static void __exit nf_defrag_fini(void)
 {
-	nf_unregister_hooks(ipv6_defrag_ops, ARRAY_SIZE(ipv6_defrag_ops));
+	unregister_pernet_subsys(&defrag6_net_ops);
 	nf_ct_frag6_cleanup();
 }
 
-void nf_defrag_ipv6_enable(void)
+int nf_defrag_ipv6_enable(struct net *net)
 {
+	int err = 0;
+
+	might_sleep();
+
+	if (net->nf.defrag_ipv6)
+		return 0;
+
+	mutex_lock(&defrag6_mutex);
+	if (net->nf.defrag_ipv6)
+		goto out_unlock;
+
+	err = nf_register_net_hooks(net, ipv6_defrag_ops,
+				    ARRAY_SIZE(ipv6_defrag_ops));
+	if (err == 0)
+		net->nf.defrag_ipv6 = true;
+
+ out_unlock:
+	mutex_unlock(&defrag6_mutex);
+	return err;
 }
 EXPORT_SYMBOL_GPL(nf_defrag_ipv6_enable);
 

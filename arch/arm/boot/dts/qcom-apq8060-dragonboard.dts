@@ -51,6 +51,29 @@
 			regulator-boot-on;
 		};
 
+		/* GPIO controlled ethernet power regulator */
+		dragon_veth: xc622a331mrg {
+			compatible = "regulator-fixed";
+			regulator-name = "XC6222A331MR-G";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			vin-supply = <&vph>;
+			gpio = <&pm8058_gpio 40 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			pinctrl-names = "default";
+			pinctrl-0 = <&dragon_veth_gpios>;
+			regulator-always-on;
+		};
+
+		/* VDDvario fixed regulator */
+		dragon_vario: nds332p {
+			compatible = "regulator-fixed";
+			regulator-name = "NDS332P";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			vin-supply = <&pm8058_s3>;
+		};
+
 		/* This is a levelshifter for SDCC5 */
 		dragon_vio_txb: txb0104rgyr {
 			compatible = "regulator-fixed";
@@ -167,6 +190,36 @@
 					bias-pull-up;
 				};
 			};
+
+			dragon_ebi2_pins: ebi2 {
+				/*
+				 * Pins used by EBI2 on the Dragonboard, actually only
+				 * CS2 is used by a real peripheral. CS0 is just
+				 * routed to a test point.
+				 */
+				mux0 {
+					pins =
+					    /* "gpio39", CS1A_N this is not good to mux */
+					    "gpio40", /* CS2A_N */
+					    "gpio134"; /* CS0_N testpoint TP29 */
+					function = "ebi2cs";
+				};
+				mux1 {
+					pins =
+					    /* EBI2_ADDR_7 downto EBI2_ADDR_0 address bus */
+					    "gpio123", "gpio124", "gpio125", "gpio126",
+					    "gpio127", "gpio128", "gpio129", "gpio130",
+					    /* EBI2_DATA_15 downto EBI2_DATA_0 data bus */
+					    "gpio135", "gpio136", "gpio137", "gpio138",
+					    "gpio139", "gpio140", "gpio141", "gpio142",
+					    "gpio143", "gpio144", "gpio145", "gpio146",
+					    "gpio147", "gpio148", "gpio149", "gpio150",
+					    "gpio151", /* EBI2_OE_N */
+					    "gpio153", /* EBI2_ADV */
+					    "gpio157"; /* EBI2_WE_N */
+					function = "ebi2";
+				};
+			};
 		};
 
 		qcom,ssbi@500000 {
@@ -201,6 +254,15 @@
 				};
 
 				gpio@150 {
+					dragon_ethernet_gpios: ethernet-gpios {
+						pinconf {
+							pins = "gpio7";
+							function = "normal";
+							input-enable;
+							bias-disable;
+							power-source = <PM8058_GPIO_S3>;
+						};
+					};
 					dragon_bmp085_gpios: bmp085-gpios {
 						pinconf {
 							pins = "gpio16";
@@ -236,6 +298,14 @@
 							input-enable;
 							bias-disable;
 							power-source = <PM8058_GPIO_S3>;
+						};
+					};
+					dragon_veth_gpios: veth-gpios {
+						pinconf {
+							pins = "gpio40";
+							function = "normal";
+							bias-disable;
+							drive-push-pull;
 						};
 					};
 				};
@@ -319,6 +389,55 @@
 					vddd-supply = <&pm8058_lvs0>; // 1.8V
 					vdda-supply = <&pm8058_l14>; // 2.85V
 				};
+			};
+		};
+
+		external-bus@1a100000 {
+			/* The EBI2 will instantiate first, then populate its children */
+			status = "ok";
+			pinctrl-names = "default";
+			pinctrl-0 = <&dragon_ebi2_pins>;
+
+			/*
+			 * An on-board SMSC LAN9221 chip for "debug ethernet",
+			 * which is actually just an ordinary ethernet on the
+			 * EBI2. This has a 25MHz chrystal next to it, so no
+			 * clocking is needed.
+			 */
+			ethernet-ebi2@2,0 {
+				compatible = "smsc,lan9221", "smsc,lan9115";
+				reg = <2 0x0 0x100>;
+				/*
+				 * GPIO7 has interrupt 198 on the PM8058
+				 * The second interrupt is the PME interrupt
+				 * for network wakeup, connected to the TLMM.
+				 */
+				interrupts-extended = <&pmicintc 198 IRQ_TYPE_EDGE_FALLING>,
+						    <&tlmm 29 IRQ_TYPE_EDGE_RISING>;
+				reset-gpios = <&tlmm 30 GPIO_ACTIVE_LOW>;
+				vdd33a-supply = <&dragon_veth>;
+				vddvario-supply = <&dragon_vario>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&dragon_ethernet_gpios>;
+				phy-mode = "mii";
+				reg-io-width = <2>;
+				smsc,force-external-phy;
+				/* IRQ on edge falling = active low */
+				smsc,irq-active-low;
+				smsc,irq-push-pull;
+
+				/*
+				 * SLOW chipselect config
+				 * Delay 9 cycles (140ns@64MHz) between SMSC
+				 * LAN9221 Ethernet controller reads and writes
+				 * on CS2.
+				 */
+				qcom,xmem-recovery-cycles = <0>;
+				qcom,xmem-write-hold-cycles = <3>;
+				qcom,xmem-write-delta-cycles = <31>;
+				qcom,xmem-read-delta-cycles = <28>;
+				qcom,xmem-write-wait-cycles = <9>;
+				qcom,xmem-read-wait-cycles = <9>;
 			};
 		};
 

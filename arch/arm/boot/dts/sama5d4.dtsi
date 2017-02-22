@@ -1314,30 +1314,11 @@
 				status = "disabled";
 			};
 
-			sckc@fc068650 {
-				compatible = "atmel,at91sam9x5-sckc";
+			clk32k: sckc@fc068650 {
+				compatible = "atmel,sama5d4-sckc";
 				reg = <0xfc068650 0x4>;
-
-				slow_rc_osc: slow_rc_osc {
-					compatible = "atmel,at91sam9x5-clk-slow-rc-osc";
-					#clock-cells = <0>;
-					clock-frequency = <32768>;
-					clock-accuracy = <250000000>;
-					atmel,startup-time-usec = <75>;
-				};
-
-				slow_osc: slow_osc {
-					compatible = "atmel,at91sam9x5-clk-slow-osc";
-					#clock-cells = <0>;
-					clocks = <&slow_xtal>;
-					atmel,startup-time-usec = <1200000>;
-				};
-
-				clk32k: slowck {
-					compatible = "atmel,at91sam9x5-clk-slow";
-					#clock-cells = <0>;
-					clocks = <&slow_rc_osc &slow_osc>;
-				};
+				#clock-cells = <0>;
+				clocks = <&slow_xtal>;
 			};
 
 			rtc@fc0686b0 {
@@ -1461,8 +1442,8 @@
 				dbgu {
 					pinctrl_dbgu: dbgu-0 {
 						atmel,pins =
-							<AT91_PIOB 24 AT91_PERIPH_A AT91_PINCTRL_NONE>,     /* conflicts with D14 and TDI */
-							<AT91_PIOB 25 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;  /* conflicts with D15 and TDO */
+							<AT91_PIOB 24 AT91_PERIPH_A AT91_PINCTRL_PULL_UP	/* conflicts with D14 and TDI */
+							 AT91_PIOB 25 AT91_PERIPH_A AT91_PINCTRL_NONE>;		/* conflicts with D15 and TDO */
 					};
 				};
 

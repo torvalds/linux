@@ -782,6 +782,8 @@ struct snd_soc_component_driver {
 
 	int (*probe)(struct snd_soc_component *);
 	void (*remove)(struct snd_soc_component *);
+	int (*suspend)(struct snd_soc_component *);
+	int (*resume)(struct snd_soc_component *);
 
 	/* DT */
 	int (*of_xlate_dai_name)(struct snd_soc_component *component,
@@ -807,9 +809,12 @@ struct snd_soc_component {
 
 	unsigned int ignore_pmdown_time:1; /* pmdown_time is ignored at stop */
 	unsigned int registered_as_component:1;
+	unsigned int auxiliary:1; /* for auxiliary component of the card */
+	unsigned int suspended:1; /* is in suspend PM state */
 
 	struct list_head list;
-	struct list_head list_aux; /* for auxiliary component of the card */
+	struct list_head card_aux_list; /* for auxiliary bound components */
+	struct list_head card_list;
 
 	struct snd_soc_dai_driver *dai_drv;
 	int num_dai;
@@ -852,6 +857,8 @@ struct snd_soc_component {
 
 	int (*probe)(struct snd_soc_component *);
 	void (*remove)(struct snd_soc_component *);
+	int (*suspend)(struct snd_soc_component *);
+	int (*resume)(struct snd_soc_component *);
 
 	/* machine specific init */
 	int (*init)(struct snd_soc_component *component);
@@ -868,11 +875,9 @@ struct snd_soc_codec {
 	const struct snd_soc_codec_driver *driver;
 
 	struct list_head list;
-	struct list_head card_list;
 
 	/* runtime */
 	unsigned int cache_bypass:1; /* Suppress access to the cache */
-	unsigned int suspended:1; /* Codec is in suspend PM state */
 	unsigned int cache_init:1; /* codec cache has been initialized */
 
 	/* codec IO */
@@ -1025,12 +1030,12 @@ struct snd_soc_dai_link {
 	const struct snd_soc_ops *ops;
 	const struct snd_soc_compr_ops *compr_ops;
 
-	/* For unidirectional dai links */
-	bool playback_only;
-	bool capture_only;
-
 	/* Mark this pcm with non atomic ops */
 	bool nonatomic;
+
+	/* For unidirectional dai links */
+	unsigned int playback_only:1;
+	unsigned int capture_only:1;
 
 	/* Keep DAI active over suspend */
 	unsigned int ignore_suspend:1;
@@ -1170,7 +1175,7 @@ struct snd_soc_card {
 	struct work_struct deferred_resume_work;
 
 	/* lists of probed devices belonging to this card */
-	struct list_head codec_dev_list;
+	struct list_head component_dev_list;
 
 	struct list_head widgets;
 	struct list_head paths;
@@ -1203,14 +1208,11 @@ struct snd_soc_pcm_runtime {
 	enum snd_soc_pcm_subclass pcm_subclass;
 	struct snd_pcm_ops ops;
 
-	unsigned int dev_registered:1;
-
 	/* Dynamic PCM BE runtime data */
 	struct snd_soc_dpcm_runtime dpcm[2];
 	int fe_compr;
 
 	long pmdown_time;
-	unsigned char pop_wait:1;
 
 	/* runtime devices */
 	struct snd_pcm *pcm;
@@ -1219,7 +1221,6 @@ struct snd_soc_pcm_runtime {
 	struct snd_soc_platform *platform;
 	struct snd_soc_dai *codec_dai;
 	struct snd_soc_dai *cpu_dai;
-	struct snd_soc_component *component; /* Only valid for AUX dev rtds */
 
 	struct snd_soc_dai **codec_dais;
 	unsigned int num_codecs;
@@ -1232,6 +1233,10 @@ struct snd_soc_pcm_runtime {
 
 	unsigned int num; /* 0-based and monotonic increasing */
 	struct list_head list; /* rtd list of the soc card */
+
+	/* bit field */
+	unsigned int dev_registered:1;
+	unsigned int pop_wait:1;
 };
 
 /* mixer control */
@@ -1541,11 +1546,11 @@ static inline void *snd_soc_platform_get_drvdata(struct snd_soc_platform *platfo
 
 static inline void snd_soc_initialize_card_lists(struct snd_soc_card *card)
 {
-	INIT_LIST_HEAD(&card->codec_dev_list);
 	INIT_LIST_HEAD(&card->widgets);
 	INIT_LIST_HEAD(&card->paths);
 	INIT_LIST_HEAD(&card->dapm_list);
 	INIT_LIST_HEAD(&card->aux_comp_list);
+	INIT_LIST_HEAD(&card->component_dev_list);
 }
 
 static inline bool snd_soc_volsw_is_stereo(struct soc_mixer_control *mc)
@@ -1642,25 +1647,43 @@ static inline struct snd_soc_platform *snd_soc_kcontrol_platform(
 int snd_soc_util_init(void);
 void snd_soc_util_exit(void);
 
-int snd_soc_of_parse_card_name(struct snd_soc_card *card,
-			       const char *propname);
-int snd_soc_of_parse_audio_simple_widgets(struct snd_soc_card *card,
-					  const char *propname);
+#define snd_soc_of_parse_card_name(card, propname) \
+	snd_soc_of_parse_card_name_from_node(card, NULL, propname)
+int snd_soc_of_parse_card_name_from_node(struct snd_soc_card *card,
+					 struct device_node *np,
+					 const char *propname);
+#define snd_soc_of_parse_audio_simple_widgets(card, propname)\
+	snd_soc_of_parse_audio_simple_widgets_from_node(card, NULL, propname)
+int snd_soc_of_parse_audio_simple_widgets_from_node(struct snd_soc_card *card,
+						    struct device_node *np,
+						    const char *propname);
+
 int snd_soc_of_parse_tdm_slot(struct device_node *np,
 			      unsigned int *tx_mask,
 			      unsigned int *rx_mask,
 			      unsigned int *slots,
 			      unsigned int *slot_width);
-void snd_soc_of_parse_audio_prefix(struct snd_soc_card *card,
+#define snd_soc_of_parse_audio_prefix(card, codec_conf, of_node, propname) \
+	snd_soc_of_parse_audio_prefix_from_node(card, NULL, codec_conf, \
+						of_node, propname)
+void snd_soc_of_parse_audio_prefix_from_node(struct snd_soc_card *card,
+				   struct device_node *np,
 				   struct snd_soc_codec_conf *codec_conf,
 				   struct device_node *of_node,
 				   const char *propname);
-int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
-				   const char *propname);
+
+#define snd_soc_of_parse_audio_routing(card, propname) \
+	snd_soc_of_parse_audio_routing_from_node(card, NULL, propname)
+int snd_soc_of_parse_audio_routing_from_node(struct snd_soc_card *card,
+					     struct device_node *np,
+					     const char *propname);
+
 unsigned int snd_soc_of_parse_daifmt(struct device_node *np,
 				     const char *prefix,
 				     struct device_node **bitclkmaster,
 				     struct device_node **framemaster);
+int snd_soc_get_dai_name(struct of_phandle_args *args,
+			 const char **dai_name);
 int snd_soc_of_get_dai_name(struct device_node *of_node,
 			    const char **dai_name);
 int snd_soc_of_get_dai_link_codecs(struct device *dev,
@@ -1671,6 +1694,9 @@ int snd_soc_add_dai_link(struct snd_soc_card *card,
 				struct snd_soc_dai_link *dai_link);
 void snd_soc_remove_dai_link(struct snd_soc_card *card,
 			     struct snd_soc_dai_link *dai_link);
+struct snd_soc_dai_link *snd_soc_find_dai_link(struct snd_soc_card *card,
+					       int id, const char *name,
+					       const char *stream_name);
 
 int snd_soc_register_dai(struct snd_soc_component *component,
 	struct snd_soc_dai_driver *dai_drv);
@@ -1696,5 +1722,25 @@ static inline void snd_soc_dapm_mutex_unlock(struct snd_soc_dapm_context *dapm)
 {
 	mutex_unlock(&dapm->card->dapm_mutex);
 }
+
+int snd_soc_component_enable_pin(struct snd_soc_component *component,
+				 const char *pin);
+int snd_soc_component_enable_pin_unlocked(struct snd_soc_component *component,
+					  const char *pin);
+int snd_soc_component_disable_pin(struct snd_soc_component *component,
+				  const char *pin);
+int snd_soc_component_disable_pin_unlocked(struct snd_soc_component *component,
+					   const char *pin);
+int snd_soc_component_nc_pin(struct snd_soc_component *component,
+			     const char *pin);
+int snd_soc_component_nc_pin_unlocked(struct snd_soc_component *component,
+				      const char *pin);
+int snd_soc_component_get_pin_status(struct snd_soc_component *component,
+				     const char *pin);
+int snd_soc_component_force_enable_pin(struct snd_soc_component *component,
+				       const char *pin);
+int snd_soc_component_force_enable_pin_unlocked(
+					struct snd_soc_component *component,
+					const char *pin);
 
 #endif

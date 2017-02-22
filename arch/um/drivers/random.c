@@ -12,7 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/miscdevice.h>
 #include <linux/delay.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <irq_kern.h>
 #include <os.h>
 

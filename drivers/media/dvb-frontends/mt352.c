@@ -538,7 +538,7 @@ static void mt352_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops mt352_ops;
+static const struct dvb_frontend_ops mt352_ops;
 
 struct dvb_frontend* mt352_attach(const struct mt352_config* config,
 				  struct i2c_adapter* i2c)
@@ -566,7 +566,7 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops mt352_ops = {
+static const struct dvb_frontend_ops mt352_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "Zarlink MT352 DVB-T",

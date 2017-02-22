@@ -377,11 +377,10 @@ static int qt1010_init(struct dvb_frontend *fe)
 	return qt1010_set_params(fe);
 }
 
-static int qt1010_release(struct dvb_frontend *fe)
+static void qt1010_release(struct dvb_frontend *fe)
 {
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 static int qt1010_get_frequency(struct dvb_frontend *fe, u32 *frequency)

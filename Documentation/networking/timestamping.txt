@@ -182,6 +182,16 @@ SOF_TIMESTAMPING_OPT_TSONLY:
   the timestamp even if sysctl net.core.tstamp_allow_data is 0.
   This option disables SOF_TIMESTAMPING_OPT_CMSG.
 
+SOF_TIMESTAMPING_OPT_STATS:
+
+  Optional stats that are obtained along with the transmit timestamps.
+  It must be used together with SOF_TIMESTAMPING_OPT_TSONLY. When the
+  transmit timestamp is available, the stats are available in a
+  separate control message of type SCM_TIMESTAMPING_OPT_STATS, as a
+  list of TLVs (struct nlattr) of types. These stats allow the
+  application to associate various transport layer stats with
+  the transmit timestamps, such as how long a certain block of
+  data was limited by peer's receiver window.
 
 New applications are encouraged to pass SOF_TIMESTAMPING_OPT_ID to
 disambiguate timestamps and SOF_TIMESTAMPING_OPT_TSONLY to operate

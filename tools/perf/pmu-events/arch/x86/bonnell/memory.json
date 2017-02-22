@@ -1,0 +1,154 @@
+[
+    {
+        "EventCode": "0x5",
+        "Counter": "0,1",
+        "UMask": "0xf",
+        "EventName": "MISALIGN_MEM_REF.SPLIT",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Memory references that cross an 8-byte boundary."
+    },
+    {
+        "EventCode": "0x5",
+        "Counter": "0,1",
+        "UMask": "0x9",
+        "EventName": "MISALIGN_MEM_REF.LD_SPLIT",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Load splits"
+    },
+    {
+        "EventCode": "0x5",
+        "Counter": "0,1",
+        "UMask": "0xa",
+        "EventName": "MISALIGN_MEM_REF.ST_SPLIT",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Store splits"
+    },
+    {
+        "EventCode": "0x5",
+        "Counter": "0,1",
+        "UMask": "0x8f",
+        "EventName": "MISALIGN_MEM_REF.SPLIT.AR",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Memory references that cross an 8-byte boundary (At Retirement)"
+    },
+    {
+        "EventCode": "0x5",
+        "Counter": "0,1",
+        "UMask": "0x89",
+        "EventName": "MISALIGN_MEM_REF.LD_SPLIT.AR",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Load splits (At Retirement)"
+    },
+    {
+        "EventCode": "0x5",
+        "Counter": "0,1",
+        "UMask": "0x8a",
+        "EventName": "MISALIGN_MEM_REF.ST_SPLIT.AR",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Store splits (Ar Retirement)"
+    },
+    {
+        "EventCode": "0x5",
+        "Counter": "0,1",
+        "UMask": "0x8c",
+        "EventName": "MISALIGN_MEM_REF.RMW_SPLIT",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "ld-op-st splits"
+    },
+    {
+        "EventCode": "0x5",
+        "Counter": "0,1",
+        "UMask": "0x97",
+        "EventName": "MISALIGN_MEM_REF.BUBBLE",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Nonzero segbase 1 bubble"
+    },
+    {
+        "EventCode": "0x5",
+        "Counter": "0,1",
+        "UMask": "0x91",
+        "EventName": "MISALIGN_MEM_REF.LD_BUBBLE",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Nonzero segbase load 1 bubble"
+    },
+    {
+        "EventCode": "0x5",
+        "Counter": "0,1",
+        "UMask": "0x92",
+        "EventName": "MISALIGN_MEM_REF.ST_BUBBLE",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Nonzero segbase store 1 bubble"
+    },
+    {
+        "EventCode": "0x5",
+        "Counter": "0,1",
+        "UMask": "0x94",
+        "EventName": "MISALIGN_MEM_REF.RMW_BUBBLE",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Nonzero segbase ld-op-st 1 bubble"
+    },
+    {
+        "EventCode": "0x7",
+        "Counter": "0,1",
+        "UMask": "0x81",
+        "EventName": "PREFETCH.PREFETCHT0",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Streaming SIMD Extensions (SSE) PrefetchT0 instructions executed."
+    },
+    {
+        "EventCode": "0x7",
+        "Counter": "0,1",
+        "UMask": "0x82",
+        "EventName": "PREFETCH.PREFETCHT1",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Streaming SIMD Extensions (SSE) PrefetchT1 instructions executed."
+    },
+    {
+        "EventCode": "0x7",
+        "Counter": "0,1",
+        "UMask": "0x84",
+        "EventName": "PREFETCH.PREFETCHT2",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Streaming SIMD Extensions (SSE) PrefetchT2 instructions executed."
+    },
+    {
+        "EventCode": "0x7",
+        "Counter": "0,1",
+        "UMask": "0x86",
+        "EventName": "PREFETCH.SW_L2",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Streaming SIMD Extensions (SSE) PrefetchT1 and PrefetchT2 instructions executed"
+    },
+    {
+        "EventCode": "0x7",
+        "Counter": "0,1",
+        "UMask": "0x88",
+        "EventName": "PREFETCH.PREFETCHNTA",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Streaming SIMD Extensions (SSE) Prefetch NTA instructions executed"
+    },
+    {
+        "EventCode": "0x7",
+        "Counter": "0,1",
+        "UMask": "0x10",
+        "EventName": "PREFETCH.HW_PREFETCH",
+        "SampleAfterValue": "2000000",
+        "BriefDescription": "L1 hardware prefetch request"
+    },
+    {
+        "EventCode": "0x7",
+        "Counter": "0,1",
+        "UMask": "0xf",
+        "EventName": "PREFETCH.SOFTWARE_PREFETCH",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Any Software prefetch"
+    },
+    {
+        "EventCode": "0x7",
+        "Counter": "0,1",
+        "UMask": "0x8f",
+        "EventName": "PREFETCH.SOFTWARE_PREFETCH.AR",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Any Software prefetch"
+    }
+]

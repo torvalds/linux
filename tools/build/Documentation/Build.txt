@@ -135,8 +135,10 @@ CFLAGS
 
 It's possible to alter the standard object C flags in the following way:
 
-  CFLAGS_perf.o += '...' - alters CFLAGS for perf.o object
-  CFLAGS_gtk += '...'    - alters CFLAGS for gtk build object
+  CFLAGS_perf.o        += '...'  - adds CFLAGS for perf.o object
+  CFLAGS_gtk           += '...'  - adds CFLAGS for gtk build object
+  CFLAGS_REMOVE_perf.o += '...'  - removes CFLAGS for perf.o object
+  CFLAGS_REMOVE_gtk    += '...'  - removes CFLAGS for gtk build object
 
 This C flags changes has the scope of the Build makefile they are defined in.
 

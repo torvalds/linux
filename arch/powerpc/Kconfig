@@ -80,6 +80,7 @@ config ARCH_HAS_DMA_SET_COHERENT_MASK
 config PPC
 	bool
 	default y
+	select BUILDTIME_EXTABLE_SORT
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select BINFMT_ELF
@@ -160,6 +161,7 @@ config PPC
 	select HAVE_LIVEPATCH if HAVE_DYNAMIC_FTRACE_WITH_REGS
 	select GENERIC_CPU_AUTOPROBE
 	select HAVE_VIRT_CPU_ACCOUNTING
+	select ARCH_HAS_SCALED_CPUTIME if VIRT_CPU_ACCOUNTING_NATIVE
 	select HAVE_ARCH_HARDENED_USERCOPY
 	select HAVE_KERNEL_GZIP
 
@@ -395,6 +397,14 @@ config MPROFILE_KERNEL
 	depends on PPC64 && CPU_LITTLE_ENDIAN
 	def_bool !DISABLE_MPROFILE_KERNEL
 
+config USE_THIN_ARCHIVES
+	bool "Build the kernel using thin archives"
+	default n
+	select THIN_ARCHIVES
+	help
+	  Build the kernel using thin archives.
+	  If you're unsure say N.
+
 config IOMMU_HELPER
 	def_bool PPC64
 
@@ -455,10 +465,25 @@ config KEXEC
 	  interface is strongly in flux, so no good recommendation can be
 	  made.
 
+config KEXEC_FILE
+	bool "kexec file based system call"
+	select KEXEC_CORE
+	select HAVE_IMA_KEXEC
+	select BUILD_BIN2C
+	depends on PPC64
+	depends on CRYPTO=y
+	depends on CRYPTO_SHA256=y
+	help
+	  This is a new version of the kexec system call. This call is
+	  file based and takes in file descriptors as system call arguments
+	  for kernel and initramfs as opposed to a list of segments as is the
+	  case for the older kexec call.
+
 config RELOCATABLE
 	bool "Build a relocatable kernel"
 	depends on (PPC64 && !COMPILE_TEST) || (FLATMEM && (44x || FSL_BOOKE))
 	select NONSTATIC_KERNEL
+	select MODULE_REL_CRCS if MODVERSIONS
 	help
 	  This builds a kernel image that is capable of running at the
 	  location the kernel is loaded at. For ppc32, there is no any
@@ -478,6 +503,15 @@ config RELOCATABLE
 	  setting can still be useful to bootwrappers that need to know the
 	  load address of the kernel (eg. u-boot/mkimage).
 
+config RELOCATABLE_TEST
+	bool "Test relocatable kernel"
+	depends on (PPC64 && RELOCATABLE)
+	default n
+	help
+	  This runs the relocatable kernel at the address it was initially
+	  loaded at, which tends to be non-zero and therefore test the
+	  relocation code.
+
 config CRASH_DUMP
 	bool "Build a kdump crash kernel"
 	depends on PPC64 || 6xx || FSL_BOOKE || (44x && !SMP)
@@ -489,7 +523,7 @@ config CRASH_DUMP
 
 config FA_DUMP
 	bool "Firmware-assisted dump"
-	depends on PPC64 && PPC_RTAS && CRASH_DUMP && KEXEC
+	depends on PPC64 && PPC_RTAS && CRASH_DUMP && KEXEC_CORE
 	help
 	  A robust mechanism to get reliable kernel crash dump with
 	  assistance from firmware. This approach does not use kexec,
@@ -547,6 +581,13 @@ config ARCH_SPARSEMEM_DEFAULT
 
 config SYS_SUPPORTS_HUGETLBFS
 	bool
+
+config ILLEGAL_POINTER_VALUE
+	hex
+	# This is roughly half way between the top of user space and the bottom
+	# of kernel space, which seems about as good as we can get.
+	default 0x5deadbeef0000000 if PPC64
+	default 0
 
 source "mm/Kconfig"
 

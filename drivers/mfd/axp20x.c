@@ -98,6 +98,7 @@ static const struct regmap_range axp22x_volatile_ranges[] = {
 	regmap_reg_range(AXP20X_PWR_INPUT_STATUS, AXP20X_PWR_OP_MODE),
 	regmap_reg_range(AXP20X_IRQ1_EN, AXP20X_IRQ5_STATE),
 	regmap_reg_range(AXP22X_GPIO_STATE, AXP22X_GPIO_STATE),
+	regmap_reg_range(AXP22X_PMIC_ADC_H, AXP20X_IPSOUT_V_HIGH_L),
 	regmap_reg_range(AXP20X_FG_RES, AXP20X_FG_RES),
 };
 
@@ -135,6 +136,7 @@ static const struct regmap_range axp806_writeable_ranges[] = {
 	regmap_reg_range(AXP806_PWR_OUT_CTRL1, AXP806_CLDO3_V_CTRL),
 	regmap_reg_range(AXP20X_IRQ1_EN, AXP20X_IRQ2_EN),
 	regmap_reg_range(AXP20X_IRQ1_STATE, AXP20X_IRQ2_STATE),
+	regmap_reg_range(AXP806_REG_ADDR_EXT, AXP806_REG_ADDR_EXT),
 };
 
 static const struct regmap_range axp806_volatile_ranges[] = {
@@ -305,7 +307,7 @@ static const struct regmap_config axp806_regmap_config = {
 	.val_bits	= 8,
 	.wr_table	= &axp806_writeable_table,
 	.volatile_table	= &axp806_volatile_table,
-	.max_register	= AXP806_VREF_TEMP_WARN_L,
+	.max_register	= AXP806_REG_ADDR_EXT,
 	.cache_type	= REGCACHE_RBTREE,
 };
 

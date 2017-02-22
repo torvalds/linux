@@ -31,8 +31,8 @@ extern int xfs_reflink_reserve_cow(struct xfs_inode *ip,
 extern int xfs_reflink_allocate_cow_range(struct xfs_inode *ip,
 		xfs_off_t offset, xfs_off_t count);
 extern bool xfs_reflink_find_cow_mapping(struct xfs_inode *ip, xfs_off_t offset,
-		struct xfs_bmbt_irec *imap, bool *need_alloc);
-extern int xfs_reflink_trim_irec_to_next_cow(struct xfs_inode *ip,
+		struct xfs_bmbt_irec *imap);
+extern void xfs_reflink_trim_irec_to_next_cow(struct xfs_inode *ip,
 		xfs_fileoff_t offset_fsb, struct xfs_bmbt_irec *imap);
 
 extern int xfs_reflink_cancel_cow_blocks(struct xfs_inode *ip,
@@ -49,7 +49,5 @@ extern int xfs_reflink_clear_inode_flag(struct xfs_inode *ip,
 		struct xfs_trans **tpp);
 extern int xfs_reflink_unshare(struct xfs_inode *ip, xfs_off_t offset,
 		xfs_off_t len);
-
-extern bool xfs_reflink_has_real_cow_blocks(struct xfs_inode *ip);
 
 #endif /* __XFS_REFLINK_H */

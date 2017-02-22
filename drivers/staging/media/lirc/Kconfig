@@ -38,19 +38,6 @@ config LIRC_SASEM
 	help
 	  Driver for the Sasem OnAir Remocon-V or Dign HV5 HTPC IR/VFD Module
 
-config LIRC_SERIAL
-	tristate "Homebrew Serial Port Receiver"
-	depends on LIRC
-	help
-	  Driver for Homebrew Serial Port Receivers
-
-config LIRC_SERIAL_TRANSMITTER
-	bool "Serial Port Transmitter"
-	default y
-	depends on LIRC_SERIAL
-	help
-	  Serial Port Transmitter support
-
 config LIRC_SIR
 	tristate "Built-in SIR IrDA port"
 	depends on LIRC

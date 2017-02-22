@@ -1,0 +1,37 @@
+Qualcomm RPM Clock Controller Binding
+------------------------------------------------
+The RPM is a dedicated hardware engine for managing the shared
+SoC resources in order to keep the lowest power profile. It
+communicates with other hardware subsystems via shared memory
+and accepts clock requests, aggregates the requests and turns
+the clocks on/off or scales them on demand.
+
+Required properties :
+- compatible : shall contain only one of the following. The generic
+               compatible "qcom,rpmcc" should be also included.
+
+			"qcom,rpmcc-msm8916", "qcom,rpmcc"
+			"qcom,rpmcc-apq8064", "qcom,rpmcc"
+
+- #clock-cells : shall contain 1
+
+Example:
+	smd {
+		compatible = "qcom,smd";
+
+		rpm {
+			interrupts = <0 168 1>;
+			qcom,ipc = <&apcs 8 0>;
+			qcom,smd-edge = <15>;
+
+			rpm_requests {
+				compatible = "qcom,rpm-msm8916";
+				qcom,smd-channels = "rpm_requests";
+
+				rpmcc: clock-controller {
+					compatible = "qcom,rpmcc-msm8916", "qcom,rpmcc";
+					#clock-cells = <1>;
+				};
+			};
+		};
+	};

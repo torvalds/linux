@@ -48,7 +48,7 @@ unsigned long long sched_clock(void)
 	return lkl_ops->time() - boot_time;
 }
 
-static cycle_t clock_read(struct clocksource *cs)
+static u64 clock_read(struct clocksource *cs)
 {
 	return lkl_ops->time();
 }

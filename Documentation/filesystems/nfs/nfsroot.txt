@@ -11,7 +11,7 @@ Updated 2006 by Horms <horms@verge.net.au>
 In order to use a diskless system, such as an X-terminal or printer server
 for example, it is necessary for the root filesystem to be present on a
 non-disk device. This may be an initramfs (see Documentation/filesystems/
-ramfs-rootfs-initramfs.txt), a ramdisk (see Documentation/initrd.txt) or a
+ramfs-rootfs-initramfs.txt), a ramdisk (see Documentation/admin-guide/initrd.rst) or a
 filesystem mounted via NFS. The following text describes on how to use NFS
 for the root filesystem. For the rest of this text 'client' means the
 diskless system, and 'server' means the NFS server.
@@ -284,7 +284,7 @@ They depend on various facilities being available:
 	"kernel <relative-path-below /tftpboot>". The nfsroot parameters
 	are passed to the kernel by adding them to the "append" line.
 	It is common to use serial console in conjunction with pxeliunx,
-	see Documentation/serial-console.txt for more information.
+	see Documentation/admin-guide/serial-console.rst for more information.
 
 	For more information on isolinux, including how to create bootdisks
 	for prebuilt kernels, see http://syslinux.zytor.com/

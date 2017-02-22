@@ -351,8 +351,8 @@ static int si470x_get_scratch_page_versions(struct si470x_device *radio)
 	retval = si470x_get_report(radio, radio->usb_buf, SCRATCH_REPORT_SIZE);
 
 	if (retval < 0)
-		dev_warn(&radio->intf->dev, "si470x_get_scratch: "
-			"si470x_get_report returned %d\n", retval);
+		dev_warn(&radio->intf->dev, "si470x_get_scratch: si470x_get_report returned %d\n",
+			 retval);
 	else {
 		radio->software_version = radio->usb_buf[1];
 		radio->hardware_version = radio->usb_buf[2];
@@ -688,8 +688,8 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 			radio->registers[DEVICEID], radio->registers[SI_CHIPID]);
 	if ((radio->registers[SI_CHIPID] & SI_CHIPID_FIRMWARE) < RADIO_FW_VERSION) {
 		dev_warn(&intf->dev,
-			"This driver is known to work with "
-			"firmware version %hu,\n", RADIO_FW_VERSION);
+			"This driver is known to work with firmware version %hu,\n",
+			RADIO_FW_VERSION);
 		dev_warn(&intf->dev,
 			"but the device has firmware version %hu.\n",
 			radio->registers[SI_CHIPID] & SI_CHIPID_FIRMWARE);
@@ -705,8 +705,8 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 			radio->software_version, radio->hardware_version);
 	if (radio->hardware_version < RADIO_HW_VERSION) {
 		dev_warn(&intf->dev,
-			"This driver is known to work with "
-			"hardware version %hu,\n", RADIO_HW_VERSION);
+			"This driver is known to work with hardware version %hu,\n",
+			RADIO_HW_VERSION);
 		dev_warn(&intf->dev,
 			"but the device has hardware version %hu.\n",
 			radio->hardware_version);
@@ -718,8 +718,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 		dev_warn(&intf->dev,
 			"If you have some trouble using this driver,\n");
 		dev_warn(&intf->dev,
-			"please report to V4L ML at "
-			"linux-media@vger.kernel.org\n");
+			"please report to V4L ML at linux-media@vger.kernel.org\n");
 	}
 
 	/* set led to connect state */

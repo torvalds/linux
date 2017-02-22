@@ -45,9 +45,9 @@ OPTIONS
           param1 and param2 are defined as formats for the PMU in:
           /sys/bus/event_source/devices/<pmu>/format/*
 
-	  There are also some params which are not defined in .../<pmu>/format/*.
+	  There are also some parameters which are not defined in .../<pmu>/format/*.
 	  These params can be used to overload default config values per event.
-	  Here is a list of the params.
+	  Here are some common parameters:
 	  - 'period': Set event sampling period
 	  - 'freq': Set event sampling frequency
 	  - 'time': Disable/enable time stamping. Acceptable values are 1 for
@@ -57,8 +57,11 @@ OPTIONS
 			 FP mode, "dwarf" for DWARF mode, "lbr" for LBR mode and
 			 "no" for disable callgraph.
 	  - 'stack-size': user stack size for dwarf mode
+
+          See the linkperf:perf-list[1] man page for more parameters.
+
 	  Note: If user explicitly sets options which conflict with the params,
-	  the value set by the params will be overridden.
+	  the value set by the parameters will be overridden.
 
 	  Also not defined in .../<pmu>/format/* are PMU driver specific
 	  configuration parameters.  Any configuration parameter preceded by
@@ -427,6 +430,10 @@ that gets then processed, possibly via a perf script, to decide if that
 particular perf.data snapshot should be kept or not.
 
 Implies --timestamp-filename, --no-buildid and --no-buildid-cache.
+The reason for the latter two is to reduce the data file switching
+overhead. You can still switch them on with:
+
+  --switch-output --no-no-buildid  --no-no-buildid-cache
 
 --dry-run::
 Parse options then exit. --dry-run can be used to detect errors in cmdline

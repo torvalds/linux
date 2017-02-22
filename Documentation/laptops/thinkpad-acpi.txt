@@ -540,6 +540,7 @@ Events that are propagated by the driver to userspace:
 0x6022		ALARM: a sensor is extremely hot
 0x6030		System thermal table changed
 0x6040		Nvidia Optimus/AC adapter related (TO BE VERIFIED)
+0x60C0		X1 Yoga 2016, Tablet mode status changed
 
 Battery nearly empty alarms are a last resort attempt to get the
 operating system to hibernate or shutdown cleanly (0x2313), or shutdown

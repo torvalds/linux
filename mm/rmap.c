@@ -141,14 +141,15 @@ static void anon_vma_chain_link(struct vm_area_struct *vma,
 }
 
 /**
- * anon_vma_prepare - attach an anon_vma to a memory region
+ * __anon_vma_prepare - attach an anon_vma to a memory region
  * @vma: the memory region in question
  *
  * This makes sure the memory mapping described by 'vma' has
  * an 'anon_vma' attached to it, so that we can associate the
  * anonymous pages mapped into it with that anon_vma.
  *
- * The common case will be that we already have one, but if
+ * The common case will be that we already have one, which
+ * is handled inline by anon_vma_prepare(). But if
  * not we either need to find an adjacent mapping that we
  * can re-use the anon_vma from (very common when the only
  * reason for splitting a vma has been mprotect()), or we
@@ -167,48 +168,46 @@ static void anon_vma_chain_link(struct vm_area_struct *vma,
  *
  * This must be called with the mmap_sem held for reading.
  */
-int anon_vma_prepare(struct vm_area_struct *vma)
+int __anon_vma_prepare(struct vm_area_struct *vma)
 {
-	struct anon_vma *anon_vma = vma->anon_vma;
+	struct mm_struct *mm = vma->vm_mm;
+	struct anon_vma *anon_vma, *allocated;
 	struct anon_vma_chain *avc;
 
 	might_sleep();
-	if (unlikely(!anon_vma)) {
-		struct mm_struct *mm = vma->vm_mm;
-		struct anon_vma *allocated;
 
-		avc = anon_vma_chain_alloc(GFP_KERNEL);
-		if (!avc)
-			goto out_enomem;
+	avc = anon_vma_chain_alloc(GFP_KERNEL);
+	if (!avc)
+		goto out_enomem;
 
-		anon_vma = find_mergeable_anon_vma(vma);
-		allocated = NULL;
-		if (!anon_vma) {
-			anon_vma = anon_vma_alloc();
-			if (unlikely(!anon_vma))
-				goto out_enomem_free_avc;
-			allocated = anon_vma;
-		}
-
-		anon_vma_lock_write(anon_vma);
-		/* page_table_lock to protect against threads */
-		spin_lock(&mm->page_table_lock);
-		if (likely(!vma->anon_vma)) {
-			vma->anon_vma = anon_vma;
-			anon_vma_chain_link(vma, avc, anon_vma);
-			/* vma reference or self-parent link for new root */
-			anon_vma->degree++;
-			allocated = NULL;
-			avc = NULL;
-		}
-		spin_unlock(&mm->page_table_lock);
-		anon_vma_unlock_write(anon_vma);
-
-		if (unlikely(allocated))
-			put_anon_vma(allocated);
-		if (unlikely(avc))
-			anon_vma_chain_free(avc);
+	anon_vma = find_mergeable_anon_vma(vma);
+	allocated = NULL;
+	if (!anon_vma) {
+		anon_vma = anon_vma_alloc();
+		if (unlikely(!anon_vma))
+			goto out_enomem_free_avc;
+		allocated = anon_vma;
 	}
+
+	anon_vma_lock_write(anon_vma);
+	/* page_table_lock to protect against threads */
+	spin_lock(&mm->page_table_lock);
+	if (likely(!vma->anon_vma)) {
+		vma->anon_vma = anon_vma;
+		anon_vma_chain_link(vma, avc, anon_vma);
+		/* vma reference or self-parent link for new root */
+		anon_vma->degree++;
+		allocated = NULL;
+		avc = NULL;
+	}
+	spin_unlock(&mm->page_table_lock);
+	anon_vma_unlock_write(anon_vma);
+
+	if (unlikely(allocated))
+		put_anon_vma(allocated);
+	if (unlikely(avc))
+		anon_vma_chain_free(avc);
+
 	return 0;
 
  out_enomem_free_avc:

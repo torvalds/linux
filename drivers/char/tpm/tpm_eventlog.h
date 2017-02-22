@@ -73,20 +73,24 @@ enum tcpa_pc_event_ids {
 	HOST_TABLE_OF_DEVICES,
 };
 
-int read_log(struct tpm_bios_log *log);
-
-#if defined(CONFIG_TCG_IBMVTPM) || defined(CONFIG_TCG_IBMVTPM_MODULE) || \
-	defined(CONFIG_ACPI)
-extern struct dentry **tpm_bios_log_setup(const char *);
-extern void tpm_bios_log_teardown(struct dentry **);
+#if defined(CONFIG_ACPI)
+int tpm_read_log_acpi(struct tpm_chip *chip);
 #else
-static inline struct dentry **tpm_bios_log_setup(const char *name)
+static inline int tpm_read_log_acpi(struct tpm_chip *chip)
 {
-	return NULL;
-}
-static inline void tpm_bios_log_teardown(struct dentry **dir)
-{
+	return -ENODEV;
 }
 #endif
+#if defined(CONFIG_OF)
+int tpm_read_log_of(struct tpm_chip *chip);
+#else
+static inline int tpm_read_log_of(struct tpm_chip *chip)
+{
+	return -ENODEV;
+}
+#endif
+
+int tpm_bios_log_setup(struct tpm_chip *chip);
+void tpm_bios_log_teardown(struct tpm_chip *chip);
 
 #endif

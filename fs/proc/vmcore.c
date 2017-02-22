@@ -22,7 +22,7 @@
 #include <linux/list.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include "internal.h"
 

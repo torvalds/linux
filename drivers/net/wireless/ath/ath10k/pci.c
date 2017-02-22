@@ -2091,7 +2091,7 @@ int ath10k_pci_init_config(struct ath10k *ar)
 
 	ret = ath10k_pci_diag_read32(ar, ealloc_targ_addr, &ealloc_value);
 	if (ret != 0) {
-		ath10k_err(ar, "Faile to get early alloc val: %d\n", ret);
+		ath10k_err(ar, "Failed to get early alloc val: %d\n", ret);
 		return ret;
 	}
 

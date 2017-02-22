@@ -1483,7 +1483,7 @@ void mac_drv_clear_rx_queue(struct s_smc *smc)
 	r = queue->rx_curr_get ;
 	while (queue->rx_used) {
 		DRV_BUF_FLUSH(r,DDI_DMA_SYNC_FORCPU) ;
-		DB_RX("switch OWN bit of RxD 0x%x ",r,0,5) ;
+		DB_RX("switch OWN bit of RxD 0x%p ",r,0,5) ;
 		r->rxd_rbctrl &= ~cpu_to_le32(BMU_OWN) ;
 		frag_count = 1 ;
 		DRV_BUF_FLUSH(r,DDI_DMA_SYNC_FORDEV) ;
@@ -1645,7 +1645,7 @@ void hwm_tx_frag(struct s_smc *smc, char far *virt, u_long phys, int len,
 	DB_TX("hwm_tx_frag: len = %d, frame_status = %x ",len,frame_status,2) ;
 	if (frame_status & LAN_TX) {
 		/* '*t' is already defined */
-		DB_TX("LAN_TX: TxD = %x, virt = %x ",t,virt,3) ;
+		DB_TX("LAN_TX: TxD = %p, virt = %p ",t,virt,3) ;
 		t->txd_virt = virt ;
 		t->txd_txdscr = cpu_to_le32(smc->os.hwm.tx_descr) ;
 		t->txd_tbadr = cpu_to_le32(phys) ;
@@ -1819,7 +1819,7 @@ void smt_send_mbuf(struct s_smc *smc, SMbuf *mb, int fc)
 	__le32	tbctrl;
 
 	NDD_TRACE("THSB",mb,fc,0) ;
-	DB_TX("smt_send_mbuf: mb = 0x%x, fc = 0x%x",mb,fc,4) ;
+	DB_TX("smt_send_mbuf: mb = 0x%p, fc = 0x%x",mb,fc,4) ;
 
 	mb->sm_off-- ;	/* set to fc */
 	mb->sm_len++ ;	/* + fc */
@@ -1960,7 +1960,7 @@ static void mac_drv_clear_txd(struct s_smc *smc)
 
 			do {
 				DRV_BUF_FLUSH(t1,DDI_DMA_SYNC_FORCPU) ;
-				DB_TX("check OWN/EOF bit of TxD 0x%x",t1,0,5) ;
+				DB_TX("check OWN/EOF bit of TxD 0x%p",t1,0,5) ;
 				tbctrl = le32_to_cpu(CR_READ(t1->txd_tbctrl));
 
 				if (tbctrl & BMU_OWN || !queue->tx_used){
@@ -1988,7 +1988,7 @@ static void mac_drv_clear_txd(struct s_smc *smc)
 			}
 			else {
 #ifndef PASS_1ST_TXD_2_TX_COMP
-				DB_TX("mac_drv_tx_comp for TxD 0x%x",t2,0,4) ;
+				DB_TX("mac_drv_tx_comp for TxD 0x%p",t2,0,4) ;
 				mac_drv_tx_complete(smc,t2) ;
 #else
 				DB_TX("mac_drv_tx_comp for TxD 0x%x",
@@ -2052,7 +2052,7 @@ void mac_drv_clear_tx_queue(struct s_smc *smc)
 		tx_used = queue->tx_used ;
 		while (tx_used) {
 			DRV_BUF_FLUSH(t,DDI_DMA_SYNC_FORCPU) ;
-			DB_TX("switch OWN bit of TxD 0x%x ",t,0,5) ;
+			DB_TX("switch OWN bit of TxD 0x%p ",t,0,5) ;
 			t->txd_tbctrl &= ~cpu_to_le32(BMU_OWN) ;
 			DRV_BUF_FLUSH(t,DDI_DMA_SYNC_FORDEV) ;
 			t = t->txd_next ;

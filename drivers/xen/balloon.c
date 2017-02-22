@@ -180,7 +180,6 @@ static void __balloon_append(struct page *page)
 static void balloon_append(struct page *page)
 {
 	__balloon_append(page);
-	adjust_managed_page_count(page, -1);
 }
 
 /* balloon_retrieve: rescue a page from the balloon, if it is not empty. */
@@ -200,8 +199,6 @@ static struct page *balloon_retrieve(bool require_lowmem)
 		balloon_stats.balloon_high--;
 	else
 		balloon_stats.balloon_low--;
-
-	adjust_managed_page_count(page, 1);
 
 	return page;
 }
@@ -478,7 +475,7 @@ static enum bp_state increase_reservation(unsigned long nr_pages)
 #endif
 
 		/* Relinquish the page back to the allocator. */
-		__free_reserved_page(page);
+		free_reserved_page(page);
 	}
 
 	balloon_stats.current_pages += rc;
@@ -509,6 +506,7 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 			state = BP_EAGAIN;
 			break;
 		}
+		adjust_managed_page_count(page, -1);
 		scrub_page(page);
 		list_add(&page->lru, &pages);
 	}

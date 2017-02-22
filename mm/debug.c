@@ -59,6 +59,10 @@ void __dump_page(struct page *page, const char *reason)
 
 	pr_emerg("flags: %#lx(%pGp)\n", page->flags, &page->flags);
 
+	print_hex_dump(KERN_ALERT, "raw: ", DUMP_PREFIX_NONE, 32,
+			sizeof(unsigned long), page,
+			sizeof(struct page), false);
+
 	if (reason)
 		pr_alert("page dumped because: %s\n", reason);
 

@@ -66,6 +66,7 @@ struct amdgpu_mman {
 };
 
 extern const struct ttm_mem_type_manager_func amdgpu_gtt_mgr_func;
+extern const struct ttm_mem_type_manager_func amdgpu_vram_mgr_func;
 
 int amdgpu_gtt_mgr_alloc(struct ttm_mem_type_manager *man,
 			 struct ttm_buffer_object *tbo,
@@ -77,11 +78,11 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 		       uint64_t dst_offset,
 		       uint32_t byte_count,
 		       struct reservation_object *resv,
-		       struct fence **fence, bool direct_submit);
+		       struct dma_fence **fence, bool direct_submit);
 int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 			uint32_t src_data,
 			struct reservation_object *resv,
-			struct fence **fence);
+			struct dma_fence **fence);
 
 int amdgpu_mmap(struct file *filp, struct vm_area_struct *vma);
 bool amdgpu_ttm_is_bound(struct ttm_tt *ttm);

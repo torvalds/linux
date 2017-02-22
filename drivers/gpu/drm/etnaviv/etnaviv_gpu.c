@@ -15,7 +15,7 @@
  */
 
 #include <linux/component.h>
-#include <linux/fence.h>
+#include <linux/dma-fence.h>
 #include <linux/moduleparam.h>
 #include <linux/of_device.h>
 #include "etnaviv_dump.h"
@@ -639,6 +639,10 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 			gpu->memory_base = PHYS_OFFSET;
 		else
 			gpu->memory_base = dma_mask - SZ_2G + 1;
+	} else if (PHYS_OFFSET >= SZ_2G) {
+		dev_info(gpu->dev, "Need to move linear window on MC1.0, disabling TS\n");
+		gpu->memory_base = PHYS_OFFSET;
+		gpu->identity.features &= ~chipFeatures_FAST_CLEAR;
 	}
 
 	ret = etnaviv_hw_reset(gpu);
@@ -882,7 +886,7 @@ static void recover_worker(struct work_struct *work)
 	for (i = 0; i < ARRAY_SIZE(gpu->event); i++) {
 		if (!gpu->event[i].used)
 			continue;
-		fence_signal(gpu->event[i].fence);
+		dma_fence_signal(gpu->event[i].fence);
 		gpu->event[i].fence = NULL;
 		gpu->event[i].used = false;
 		complete(&gpu->event_free);
@@ -952,55 +956,55 @@ static void hangcheck_disable(struct etnaviv_gpu *gpu)
 /* fence object management */
 struct etnaviv_fence {
 	struct etnaviv_gpu *gpu;
-	struct fence base;
+	struct dma_fence base;
 };
 
-static inline struct etnaviv_fence *to_etnaviv_fence(struct fence *fence)
+static inline struct etnaviv_fence *to_etnaviv_fence(struct dma_fence *fence)
 {
 	return container_of(fence, struct etnaviv_fence, base);
 }
 
-static const char *etnaviv_fence_get_driver_name(struct fence *fence)
+static const char *etnaviv_fence_get_driver_name(struct dma_fence *fence)
 {
 	return "etnaviv";
 }
 
-static const char *etnaviv_fence_get_timeline_name(struct fence *fence)
+static const char *etnaviv_fence_get_timeline_name(struct dma_fence *fence)
 {
 	struct etnaviv_fence *f = to_etnaviv_fence(fence);
 
 	return dev_name(f->gpu->dev);
 }
 
-static bool etnaviv_fence_enable_signaling(struct fence *fence)
+static bool etnaviv_fence_enable_signaling(struct dma_fence *fence)
 {
 	return true;
 }
 
-static bool etnaviv_fence_signaled(struct fence *fence)
+static bool etnaviv_fence_signaled(struct dma_fence *fence)
 {
 	struct etnaviv_fence *f = to_etnaviv_fence(fence);
 
 	return fence_completed(f->gpu, f->base.seqno);
 }
 
-static void etnaviv_fence_release(struct fence *fence)
+static void etnaviv_fence_release(struct dma_fence *fence)
 {
 	struct etnaviv_fence *f = to_etnaviv_fence(fence);
 
 	kfree_rcu(f, base.rcu);
 }
 
-static const struct fence_ops etnaviv_fence_ops = {
+static const struct dma_fence_ops etnaviv_fence_ops = {
 	.get_driver_name = etnaviv_fence_get_driver_name,
 	.get_timeline_name = etnaviv_fence_get_timeline_name,
 	.enable_signaling = etnaviv_fence_enable_signaling,
 	.signaled = etnaviv_fence_signaled,
-	.wait = fence_default_wait,
+	.wait = dma_fence_default_wait,
 	.release = etnaviv_fence_release,
 };
 
-static struct fence *etnaviv_gpu_fence_alloc(struct etnaviv_gpu *gpu)
+static struct dma_fence *etnaviv_gpu_fence_alloc(struct etnaviv_gpu *gpu)
 {
 	struct etnaviv_fence *f;
 
@@ -1010,8 +1014,8 @@ static struct fence *etnaviv_gpu_fence_alloc(struct etnaviv_gpu *gpu)
 
 	f->gpu = gpu;
 
-	fence_init(&f->base, &etnaviv_fence_ops, &gpu->fence_spinlock,
-		   gpu->fence_context, ++gpu->next_fence);
+	dma_fence_init(&f->base, &etnaviv_fence_ops, &gpu->fence_spinlock,
+		       gpu->fence_context, ++gpu->next_fence);
 
 	return &f->base;
 }
@@ -1021,7 +1025,7 @@ int etnaviv_gpu_fence_sync_obj(struct etnaviv_gem_object *etnaviv_obj,
 {
 	struct reservation_object *robj = etnaviv_obj->resv;
 	struct reservation_object_list *fobj;
-	struct fence *fence;
+	struct dma_fence *fence;
 	int i, ret;
 
 	if (!exclusive) {
@@ -1039,7 +1043,7 @@ int etnaviv_gpu_fence_sync_obj(struct etnaviv_gem_object *etnaviv_obj,
 		/* Wait on any existing exclusive fence which isn't our own */
 		fence = reservation_object_get_excl(robj);
 		if (fence && fence->context != context) {
-			ret = fence_wait(fence, true);
+			ret = dma_fence_wait(fence, true);
 			if (ret)
 				return ret;
 		}
@@ -1052,7 +1056,7 @@ int etnaviv_gpu_fence_sync_obj(struct etnaviv_gem_object *etnaviv_obj,
 		fence = rcu_dereference_protected(fobj->shared[i],
 						reservation_object_held(robj));
 		if (fence->context != context) {
-			ret = fence_wait(fence, true);
+			ret = dma_fence_wait(fence, true);
 			if (ret)
 				return ret;
 		}
@@ -1158,11 +1162,11 @@ static void retire_worker(struct work_struct *work)
 
 	mutex_lock(&gpu->lock);
 	list_for_each_entry_safe(cmdbuf, tmp, &gpu->active_cmd_list, node) {
-		if (!fence_is_signaled(cmdbuf->fence))
+		if (!dma_fence_is_signaled(cmdbuf->fence))
 			break;
 
 		list_del(&cmdbuf->node);
-		fence_put(cmdbuf->fence);
+		dma_fence_put(cmdbuf->fence);
 
 		for (i = 0; i < cmdbuf->nr_bos; i++) {
 			struct etnaviv_vram_mapping *mapping = cmdbuf->bo_map[i];
@@ -1275,7 +1279,7 @@ void etnaviv_gpu_pm_put(struct etnaviv_gpu *gpu)
 int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 	struct etnaviv_gem_submit *submit, struct etnaviv_cmdbuf *cmdbuf)
 {
-	struct fence *fence;
+	struct dma_fence *fence;
 	unsigned int event, i;
 	int ret;
 
@@ -1391,7 +1395,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 		}
 
 		while ((event = ffs(intr)) != 0) {
-			struct fence *fence;
+			struct dma_fence *fence;
 
 			event -= 1;
 
@@ -1401,7 +1405,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 
 			fence = gpu->event[event].fence;
 			gpu->event[event].fence = NULL;
-			fence_signal(fence);
+			dma_fence_signal(fence);
 
 			/*
 			 * Events can be processed out of order.  Eg,
@@ -1553,7 +1557,7 @@ static int etnaviv_gpu_bind(struct device *dev, struct device *master,
 		return ret;
 
 	gpu->drm = drm;
-	gpu->fence_context = fence_context_alloc(1);
+	gpu->fence_context = dma_fence_context_alloc(1);
 	spin_lock_init(&gpu->fence_spinlock);
 
 	INIT_LIST_HEAD(&gpu->active_cmd_list);

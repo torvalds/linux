@@ -8,3 +8,17 @@ config OVERLAY_FS
 	  merged with the 'upper' object.
 
 	  For more information see Documentation/filesystems/overlayfs.txt
+
+config OVERLAY_FS_REDIRECT_DIR
+	bool "Overlayfs: turn on redirect dir feature by default"
+	depends on OVERLAY_FS
+	help
+	  If this config option is enabled then overlay filesystems will use
+	  redirects when renaming directories by default.  In this case it is
+	  still possible to turn off redirects globally with the
+	  "redirect_dir=off" module option or on a filesystem instance basis
+	  with the "redirect_dir=off" mount option.
+
+	  Note, that redirects are not backward compatible.  That is, mounting
+	  an overlay which has redirects on a kernel that doesn't support this
+	  feature will have unexpected results.

@@ -19,7 +19,7 @@
 
 #include <asm/traps.h>
 #include <asm/sections.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static DEFINE_SPINLOCK(die_lock);
 

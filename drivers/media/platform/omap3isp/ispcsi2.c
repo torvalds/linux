@@ -753,8 +753,8 @@ void omap3isp_csi2_isr(struct isp_csi2_device *csi2)
 						 ISPCSI2_PHY_IRQSTATUS);
 		isp_reg_writel(isp, cpxio1_irqstatus,
 			       csi2->regs1, ISPCSI2_PHY_IRQSTATUS);
-		dev_dbg(isp->dev, "CSI2: ComplexIO Error IRQ "
-			"%x\n", cpxio1_irqstatus);
+		dev_dbg(isp->dev, "CSI2: ComplexIO Error IRQ %x\n",
+			cpxio1_irqstatus);
 		pipe->error = true;
 	}
 
@@ -763,13 +763,8 @@ void omap3isp_csi2_isr(struct isp_csi2_device *csi2)
 			      ISPCSI2_IRQSTATUS_ECC_NO_CORRECTION_IRQ |
 			      ISPCSI2_IRQSTATUS_COMPLEXIO2_ERR_IRQ |
 			      ISPCSI2_IRQSTATUS_FIFO_OVF_IRQ)) {
-		dev_dbg(isp->dev, "CSI2 Err:"
-			" OCP:%d,"
-			" Short_pack:%d,"
-			" ECC:%d,"
-			" CPXIO2:%d,"
-			" FIFO_OVF:%d,"
-			"\n",
+		dev_dbg(isp->dev,
+			"CSI2 Err: OCP:%d, Short_pack:%d, ECC:%d, CPXIO2:%d, FIFO_OVF:%d,\n",
 			(csi2_irqstatus &
 			 ISPCSI2_IRQSTATUS_OCP_ERR_IRQ) ? 1 : 0,
 			(csi2_irqstatus &

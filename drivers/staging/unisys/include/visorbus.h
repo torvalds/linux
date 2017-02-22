@@ -166,6 +166,8 @@ struct visor_device {
 	struct controlvm_message_header *pending_msg_hdr;
 	void *vbus_hdr_info;
 	uuid_le partition_uuid;
+	struct dentry *debugfs_dir;
+	struct dentry *debugfs_client_bus_info;
 };
 
 #define to_visor_device(x) container_of(x, struct visor_device, device)

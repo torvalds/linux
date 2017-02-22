@@ -2451,6 +2451,9 @@ static int edma_pm_resume(struct device *dev)
 	int i;
 	s8 (*queue_priority_mapping)[2];
 
+	/* re initialize dummy slot to dummy param set */
+	edma_write_slot(ecc, ecc->dummy_slot, &dummy_paramset);
+
 	queue_priority_mapping = ecc->info->queue_priority_mapping;
 
 	/* Event queue priority mapping */

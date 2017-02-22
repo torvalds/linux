@@ -613,7 +613,7 @@ int fnic_fc_trace_set_data(u32 host_no, u8 frame_type,
 			fc_trace_entries.rd_idx = 0;
 	}
 
-	fc_buf->time_stamp = CURRENT_TIME;
+	ktime_get_real_ts64(&fc_buf->time_stamp);
 	fc_buf->host_no = host_no;
 	fc_buf->frame_type = frame_type;
 
@@ -740,7 +740,7 @@ void copy_and_format_trace_data(struct fc_trace_hdr *tdata,
 
 	len = *orig_len;
 
-	time_to_tm(tdata->time_stamp.tv_sec, 0, &tm);
+	time64_to_tm(tdata->time_stamp.tv_sec, 0, &tm);
 
 	fmt = "%02d:%02d:%04ld %02d:%02d:%02d.%09lu ns%8x       %c%8x\t";
 	len += snprintf(fnic_dbgfs_prt->buffer + len,

@@ -12,7 +12,6 @@
  *       names of any contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
- *
  * ALTERNATIVELY, this software may be distributed under the terms of the
  * GNU General Public License ("GPL") as published by the Free Software
  * Foundation, either version 2 of that License or (at your option) any
@@ -41,13 +40,14 @@
 #ifndef __FSL_DPMNG_CMD_H
 #define __FSL_DPMNG_CMD_H
 
-/* Command IDs */
-#define DPMNG_CMDID_GET_CONT_ID			0x830
-#define DPMNG_CMDID_GET_VERSION			0x831
+/* Command versioning */
+#define DPMNG_CMD_BASE_VERSION		1
+#define DPMNG_CMD_ID_OFFSET		4
 
-struct dpmng_rsp_get_container_id {
-	__le32 container_id;
-};
+#define DPMNG_CMD(id)	((id << DPMNG_CMD_ID_OFFSET) | DPMNG_CMD_BASE_VERSION)
+
+/* Command IDs */
+#define DPMNG_CMDID_GET_VERSION		DPMNG_CMD(0x831)
 
 struct dpmng_rsp_get_version {
 	__le32 revision;

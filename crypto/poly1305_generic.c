@@ -17,6 +17,7 @@
 #include <linux/crypto.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <asm/unaligned.h>
 
 static inline u64 mlt(u64 a, u64 b)
 {
@@ -31,11 +32,6 @@ static inline u32 sr(u64 v, u_char n)
 static inline u32 and(u32 v, u32 mask)
 {
 	return v & mask;
-}
-
-static inline u32 le32_to_cpuvp(const void *p)
-{
-	return le32_to_cpup(p);
 }
 
 int crypto_poly1305_init(struct shash_desc *desc)
@@ -65,19 +61,19 @@ EXPORT_SYMBOL_GPL(crypto_poly1305_setkey);
 static void poly1305_setrkey(struct poly1305_desc_ctx *dctx, const u8 *key)
 {
 	/* r &= 0xffffffc0ffffffc0ffffffc0fffffff */
-	dctx->r[0] = (le32_to_cpuvp(key +  0) >> 0) & 0x3ffffff;
-	dctx->r[1] = (le32_to_cpuvp(key +  3) >> 2) & 0x3ffff03;
-	dctx->r[2] = (le32_to_cpuvp(key +  6) >> 4) & 0x3ffc0ff;
-	dctx->r[3] = (le32_to_cpuvp(key +  9) >> 6) & 0x3f03fff;
-	dctx->r[4] = (le32_to_cpuvp(key + 12) >> 8) & 0x00fffff;
+	dctx->r[0] = (get_unaligned_le32(key +  0) >> 0) & 0x3ffffff;
+	dctx->r[1] = (get_unaligned_le32(key +  3) >> 2) & 0x3ffff03;
+	dctx->r[2] = (get_unaligned_le32(key +  6) >> 4) & 0x3ffc0ff;
+	dctx->r[3] = (get_unaligned_le32(key +  9) >> 6) & 0x3f03fff;
+	dctx->r[4] = (get_unaligned_le32(key + 12) >> 8) & 0x00fffff;
 }
 
 static void poly1305_setskey(struct poly1305_desc_ctx *dctx, const u8 *key)
 {
-	dctx->s[0] = le32_to_cpuvp(key +  0);
-	dctx->s[1] = le32_to_cpuvp(key +  4);
-	dctx->s[2] = le32_to_cpuvp(key +  8);
-	dctx->s[3] = le32_to_cpuvp(key + 12);
+	dctx->s[0] = get_unaligned_le32(key +  0);
+	dctx->s[1] = get_unaligned_le32(key +  4);
+	dctx->s[2] = get_unaligned_le32(key +  8);
+	dctx->s[3] = get_unaligned_le32(key + 12);
 }
 
 unsigned int crypto_poly1305_setdesckey(struct poly1305_desc_ctx *dctx,
@@ -137,11 +133,11 @@ static unsigned int poly1305_blocks(struct poly1305_desc_ctx *dctx,
 	while (likely(srclen >= POLY1305_BLOCK_SIZE)) {
 
 		/* h += m[i] */
-		h0 += (le32_to_cpuvp(src +  0) >> 0) & 0x3ffffff;
-		h1 += (le32_to_cpuvp(src +  3) >> 2) & 0x3ffffff;
-		h2 += (le32_to_cpuvp(src +  6) >> 4) & 0x3ffffff;
-		h3 += (le32_to_cpuvp(src +  9) >> 6) & 0x3ffffff;
-		h4 += (le32_to_cpuvp(src + 12) >> 8) | hibit;
+		h0 += (get_unaligned_le32(src +  0) >> 0) & 0x3ffffff;
+		h1 += (get_unaligned_le32(src +  3) >> 2) & 0x3ffffff;
+		h2 += (get_unaligned_le32(src +  6) >> 4) & 0x3ffffff;
+		h3 += (get_unaligned_le32(src +  9) >> 6) & 0x3ffffff;
+		h4 += (get_unaligned_le32(src + 12) >> 8) | hibit;
 
 		/* h *= r */
 		d0 = mlt(h0, r0) + mlt(h1, s4) + mlt(h2, s3) +

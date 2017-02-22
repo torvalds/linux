@@ -237,7 +237,7 @@ void arch_cpu_idle_prepare(void)
 	 * jump back to the beginning.
 	 */
 	while (1)
-		lkl_ops->jmp_buf_set(&cpu.idle_jb, cpu_idle_loop);
+		lkl_ops->jmp_buf_set(&cpu.idle_jb, do_idle);
 }
 
 void lkl_cpu_wakeup_idle(void)

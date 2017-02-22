@@ -1,5 +1,5 @@
 /*
- * simple-card-core.c
+ * simple-card-utils.c
  *
  * Copyright (c) 2016 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  *
@@ -195,9 +195,6 @@ EXPORT_SYMBOL_GPL(asoc_simple_card_init_dai);
 
 int asoc_simple_card_canonicalize_dailink(struct snd_soc_dai_link *dai_link)
 {
-	if (!dai_link->cpu_dai_name || !dai_link->codec_dai_name)
-		return -EINVAL;
-
 	/* Assumes platform == cpu */
 	if (!dai_link->platform_of_node)
 		dai_link->platform_of_node = dai_link->cpu_of_node;

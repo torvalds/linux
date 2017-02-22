@@ -1,0 +1,88 @@
+Devicetree bindings for the Axentia TSE-850 audio complex
+
+Required properties:
+  - compatible: "axentia,tse850-pcm5142"
+  - axentia,ssc-controller: The phandle of the atmel SSC controller used as
+    cpu dai.
+  - axentia,audio-codec: The phandle of the PCM5142 codec.
+  - axentia,add-gpios: gpio specifier that controls the mixer.
+  - axentia,loop1-gpios: gpio specifier that controls loop relays on channel 1.
+  - axentia,loop2-gpios: gpio specifier that controls loop relays on channel 2.
+  - axentia,ana-supply: Regulator that supplies the output amplifier. Must
+    support voltages in the 2V - 20V range, in 1V steps.
+
+The schematics explaining the gpios are as follows:
+
+               loop1 relays
+   IN1 +---o  +------------+  o---+ OUT1
+            \                /
+             +              +
+             |   /          |
+             +--o  +--.     |
+             |  add   |     |
+             |        V     |
+             |      .---.   |
+   DAC +----------->|Sum|---+
+             |      '---'   |
+             |              |
+             +              +
+
+   IN2 +---o--+------------+--o---+ OUT2
+               loop2 relays
+
+The 'loop1' gpio pin controlls two relays, which are either in loop position,
+meaning that input and output are directly connected, or they are in mixer
+position, meaning that the signal is passed through the 'Sum' mixer. Similarly
+for 'loop2'.
+
+In the above, the 'loop1' relays are inactive, thus feeding IN1 to the mixer
+(if 'add' is active) and feeding the mixer output to OUT1. The 'loop2' relays
+are active, short-cutting the TSE-850 from channel 2. IN1, IN2, OUT1 and OUT2
+are TSE-850 connectors and DAC is the PCB name of the (filtered) output from
+the PCM5142 codec.
+
+Example:
+
+	&i2c {
+		codec: pcm5142@4c {
+			compatible = "ti,pcm5142";
+
+			reg = <0x4c>;
+
+			AVDD-supply = <&reg_3v3>;
+			DVDD-supply = <&reg_3v3>;
+			CPVDD-supply = <&reg_3v3>;
+
+			clocks = <&sck>;
+
+			pll-in = <3>;
+			pll-out = <6>;
+		};
+	};
+
+	ana: ana-reg {
+		compatible = "pwm-regulator";
+
+		regulator-name = "ANA";
+
+		pwms = <&pwm0 2 1000 PWM_POLARITY_INVERTED>;
+		pwm-dutycycle-unit = <1000>;
+		pwm-dutycycle-range = <100 1000>;
+
+		regulator-min-microvolt = <2000000>;
+		regulator-max-microvolt = <20000000>;
+		regulator-ramp-delay = <1000>;
+	};
+
+	sound {
+		compatible = "axentia,tse850-pcm5142";
+
+		axentia,ssc-controller = <&ssc0>;
+		axentia,audio-codec = <&codec>;
+
+		axentia,add-gpios = <&pioA 8 GPIO_ACTIVE_LOW>;
+		axentia,loop1-gpios = <&pioA 10 GPIO_ACTIVE_LOW>;
+		axentia,loop2-gpios = <&pioA 11 GPIO_ACTIVE_LOW>;
+
+		axentia,ana-supply = <&ana>;
+	};

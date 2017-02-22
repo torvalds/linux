@@ -18,8 +18,8 @@
 #include "socfpga_cyclone5_mcv.dtsi"
 
 / {
-	model = "DENX MCV EVK";
-	compatible = "altr,socfpga-cyclone5", "altr,socfpga";
+	model = "Aries/DENX MCV EVK";
+	compatible = "denx,mcvevk", "altr,socfpga-cyclone5", "altr,socfpga";
 
 	aliases {
 		ethernet0 = &gmac0;

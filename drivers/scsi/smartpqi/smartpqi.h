@@ -929,8 +929,6 @@ struct pqi_ctrl_info {
 	int		max_msix_vectors;
 	int		num_msix_vectors_enabled;
 	int		num_msix_vectors_initialized;
-	u32		msix_vectors[PQI_MAX_MSIX_VECTORS];
-	void		*intr_data[PQI_MAX_MSIX_VECTORS];
 	int		event_irq;
 	struct Scsi_Host *scsi_host;
 

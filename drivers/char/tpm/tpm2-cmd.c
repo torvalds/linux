@@ -680,7 +680,7 @@ static int tpm2_unseal_cmd(struct tpm_chip *chip,
 }
 
 /**
- * tpm_unseal_trusted() - unseal the payload of a trusted key
+ * tpm2_unseal_trusted() - unseal the payload of a trusted key
  * @chip_num: TPM chip to use
  * @payload: the key data in clear and encrypted form
  * @options: authentication values and other options

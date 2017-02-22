@@ -2632,7 +2632,7 @@ static int qed_roce_ll2_start(struct qed_dev *cdev,
 {
 	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
 	struct qed_roce_ll2_info *roce_ll2;
-	struct qed_ll2_info ll2_params;
+	struct qed_ll2_conn ll2_params;
 	int rc;
 
 	if (!params) {
@@ -2658,7 +2658,6 @@ static int qed_roce_ll2_start(struct qed_dev *cdev,
 		DP_ERR(cdev, "qed roce ll2 start: failed memory allocation\n");
 		return -ENOMEM;
 	}
-	memset(roce_ll2, 0, sizeof(*roce_ll2));
 	roce_ll2->handle = QED_LL2_UNUSED_HANDLE;
 	roce_ll2->cbs = params->cbs;
 	roce_ll2->cb_cookie = params->cb_cookie;
@@ -2772,6 +2771,7 @@ static int qed_roce_ll2_tx(struct qed_dev *cdev,
 	/* Tx header */
 	rc = qed_ll2_prepare_tx_packet(QED_LEADING_HWFN(cdev), roce_ll2->handle,
 				       1 + pkt->n_seg, 0, flags, 0,
+				       QED_LL2_TX_DEST_NW,
 				       qed_roce_flavor, pkt->header.baddr,
 				       pkt->header.len, pkt, 1);
 	if (rc) {

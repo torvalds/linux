@@ -58,7 +58,7 @@ static struct ion_platform_heap dummy_heaps[] = {
 		},
 };
 
-static struct ion_platform_data dummy_ion_pdata = {
+static const struct ion_platform_data dummy_ion_pdata = {
 	.nr = ARRAY_SIZE(dummy_heaps),
 	.heaps = dummy_heaps,
 };

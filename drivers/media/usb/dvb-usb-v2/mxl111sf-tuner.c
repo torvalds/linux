@@ -455,13 +455,12 @@ static int mxl111sf_tuner_get_if_frequency(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int mxl111sf_tuner_release(struct dvb_frontend *fe)
+static void mxl111sf_tuner_release(struct dvb_frontend *fe)
 {
 	struct mxl111sf_tuner_state *state = fe->tuner_priv;
 	mxl_dbg("()");
 	kfree(state);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 /* ------------------------------------------------------------------------- */

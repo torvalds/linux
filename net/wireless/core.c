@@ -210,11 +210,11 @@ void cfg80211_stop_p2p_device(struct cfg80211_registered_device *rdev,
 	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_P2P_DEVICE))
 		return;
 
-	if (!wdev->p2p_started)
+	if (!wdev_running(wdev))
 		return;
 
 	rdev_stop_p2p_device(rdev, wdev);
-	wdev->p2p_started = false;
+	wdev->is_running = false;
 
 	rdev->opencount--;
 
@@ -233,11 +233,11 @@ void cfg80211_stop_nan(struct cfg80211_registered_device *rdev,
 	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_NAN))
 		return;
 
-	if (!wdev->nan_started)
+	if (!wdev_running(wdev))
 		return;
 
 	rdev_stop_nan(rdev, wdev);
-	wdev->nan_started = false;
+	wdev->is_running = false;
 
 	rdev->opencount--;
 }
@@ -562,6 +562,21 @@ static int wiphy_verify_combinations(struct wiphy *wiphy)
 				    c->limits[j].max > 1))
 				return -EINVAL;
 
+			/*
+			 * This isn't well-defined right now. If you have an
+			 * IBSS interface, then its beacon interval may change
+			 * by joining other networks, and nothing prevents it
+			 * from doing that.
+			 * So technically we probably shouldn't even allow AP
+			 * and IBSS in the same interface, but it seems that
+			 * some drivers support that, possibly only with fixed
+			 * beacon intervals for IBSS.
+			 */
+			if (WARN_ON(types & BIT(NL80211_IFTYPE_ADHOC) &&
+				    c->beacon_int_min_gcd)) {
+				return -EINVAL;
+			}
+
 			cnt += c->limits[j].max;
 			/*
 			 * Don't advertise an unsupported type
@@ -570,6 +585,11 @@ static int wiphy_verify_combinations(struct wiphy *wiphy)
 			if (WARN_ON((wiphy->interface_modes & types) != types))
 				return -EINVAL;
 		}
+
+#ifndef CONFIG_WIRELESS_WDS
+		if (WARN_ON(all_iftypes & BIT(NL80211_IFTYPE_WDS)))
+			return -EINVAL;
+#endif
 
 		/* You can't even choose that many! */
 		if (WARN_ON(cnt < c->max_interfaces))
@@ -608,6 +628,11 @@ int wiphy_register(struct wiphy *wiphy)
 		    (!rdev->ops->start_nan || !rdev->ops->stop_nan ||
 		     !rdev->ops->add_nan_func || !rdev->ops->del_nan_func)))
 		return -EINVAL;
+
+#ifndef CONFIG_WIRELESS_WDS
+	if (WARN_ON(wiphy->interface_modes & BIT(NL80211_IFTYPE_WDS)))
+		return -EINVAL;
+#endif
 
 	/*
 	 * if a wiphy has unsupported modes for regulatory channel enforcement,

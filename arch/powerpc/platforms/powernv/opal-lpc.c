@@ -21,7 +21,7 @@
 #include <asm/xics.h>
 #include <asm/opal.h>
 #include <asm/prom.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/debug.h>
 
 static int opal_lpc_chip_id = -1;

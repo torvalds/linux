@@ -28,23 +28,17 @@ static unsigned long exception_stack_sizes[N_EXCEPTION_STACKS] = {
 	[DEBUG_STACK - 1]			= DEBUG_STKSZ
 };
 
-void stack_type_str(enum stack_type type, const char **begin, const char **end)
+const char *stack_type_name(enum stack_type type)
 {
 	BUILD_BUG_ON(N_EXCEPTION_STACKS != 4);
 
-	switch (type) {
-	case STACK_TYPE_IRQ:
-		*begin = "IRQ";
-		*end   = "EOI";
-		break;
-	case STACK_TYPE_EXCEPTION ... STACK_TYPE_EXCEPTION_LAST:
-		*begin = exception_stack_names[type - STACK_TYPE_EXCEPTION];
-		*end   = "EOE";
-		break;
-	default:
-		*begin = NULL;
-		*end   = NULL;
-	}
+	if (type == STACK_TYPE_IRQ)
+		return "IRQ";
+
+	if (type >= STACK_TYPE_EXCEPTION && type <= STACK_TYPE_EXCEPTION_LAST)
+		return exception_stack_names[type - STACK_TYPE_EXCEPTION];
+
+	return NULL;
 }
 
 static bool in_exception_stack(unsigned long *stack, struct stack_info *info)
@@ -128,8 +122,10 @@ recursion_check:
 	 * just break out and report an unknown stack type.
 	 */
 	if (visit_mask) {
-		if (*visit_mask & (1UL << info->type))
+		if (*visit_mask & (1UL << info->type)) {
+			printk_deferred_once(KERN_WARNING "WARNING: stack recursion on stack type %d\n", info->type);
 			goto unknown;
+		}
 		*visit_mask |= 1UL << info->type;
 	}
 
@@ -138,56 +134,6 @@ recursion_check:
 unknown:
 	info->type = STACK_TYPE_UNKNOWN;
 	return -EINVAL;
-}
-
-void show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
-			unsigned long *sp, char *log_lvl)
-{
-	unsigned long *irq_stack_end;
-	unsigned long *irq_stack;
-	unsigned long *stack;
-	int i;
-
-	if (!try_get_task_stack(task))
-		return;
-
-	irq_stack_end = (unsigned long *)this_cpu_read(irq_stack_ptr);
-	irq_stack     = irq_stack_end - (IRQ_STACK_SIZE / sizeof(long));
-
-	sp = sp ? : get_stack_pointer(task, regs);
-
-	stack = sp;
-	for (i = 0; i < kstack_depth_to_print; i++) {
-		unsigned long word;
-
-		if (stack >= irq_stack && stack <= irq_stack_end) {
-			if (stack == irq_stack_end) {
-				stack = (unsigned long *) (irq_stack_end[-1]);
-				pr_cont(" <EOI> ");
-			}
-		} else {
-		if (kstack_end(stack))
-			break;
-		}
-
-		if (probe_kernel_address(stack, word))
-			break;
-
-		if ((i % STACKSLOTS_PER_LINE) == 0) {
-			if (i != 0)
-				pr_cont("\n");
-			printk("%s %016lx", log_lvl, word);
-		} else
-			pr_cont(" %016lx", word);
-
-		stack++;
-		touch_nmi_watchdog();
-	}
-
-	pr_cont("\n");
-	show_trace_log_lvl(task, regs, sp, log_lvl);
-
-	put_task_stack(task);
 }
 
 void show_regs(struct pt_regs *regs)
@@ -207,8 +153,7 @@ void show_regs(struct pt_regs *regs)
 		unsigned char c;
 		u8 *ip;
 
-		printk(KERN_DEFAULT "Stack:\n");
-		show_stack_log_lvl(current, regs, NULL, KERN_DEFAULT);
+		show_trace_log_lvl(current, regs, NULL, KERN_DEFAULT);
 
 		printk(KERN_DEFAULT "Code: ");
 

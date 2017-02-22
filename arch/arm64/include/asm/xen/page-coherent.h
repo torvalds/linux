@@ -1,1 +1,1 @@
-#include <../../arm/include/asm/xen/page-coherent.h>
+#include <xen/arm/page-coherent.h>

@@ -43,6 +43,13 @@ The edge is described by the following properties:
 	Definition: the identifier for the remote processor as known by the rest
 		    of the system.
 
+- label:
+	Usage: optional
+	Value type: <string>
+	Definition: name of the edge, used for debugging and identification
+		    purposes. The node name will be used if this is not
+		    present.
+
 = SMD DEVICES
 
 In turn, subnodes of the "edges" represent devices tied to SMD channels on that

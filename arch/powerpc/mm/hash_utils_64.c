@@ -42,7 +42,7 @@
 #include <asm/mmu_context.h>
 #include <asm/page.h>
 #include <asm/types.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/machdep.h>
 #include <asm/prom.h>
 #include <asm/tlbflush.h>
@@ -747,7 +747,7 @@ static unsigned long __init htab_get_table_size(void)
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
-int create_section_mapping(unsigned long start, unsigned long end)
+int hash__create_section_mapping(unsigned long start, unsigned long end)
 {
 	int rc = htab_bolt_mapping(start, end, __pa(start),
 				   pgprot_val(PAGE_KERNEL), mmu_linear_psize,
@@ -761,7 +761,7 @@ int create_section_mapping(unsigned long start, unsigned long end)
 	return rc;
 }
 
-int remove_section_mapping(unsigned long start, unsigned long end)
+int hash__remove_section_mapping(unsigned long start, unsigned long end)
 {
 	int rc = htab_remove_mapping(start, end, mmu_linear_psize,
 				     mmu_kernel_ssize);
@@ -796,37 +796,17 @@ static void update_hid_for_hash(void)
 static void __init hash_init_partition_table(phys_addr_t hash_table,
 					     unsigned long htab_size)
 {
-	unsigned long ps_field;
-	unsigned long patb_size = 1UL << PATB_SIZE_SHIFT;
+	mmu_partition_table_init();
 
 	/*
-	 * slb llp encoding for the page size used in VPM real mode.
-	 * We can ignore that for lpid 0
+	 * PS field (VRMA page size) is not used for LPID 0, hence set to 0.
+	 * For now, UPRT is 0 and we have no segment table.
 	 */
-	ps_field = 0;
 	htab_size =  __ilog2(htab_size) - 18;
-
-	BUILD_BUG_ON_MSG((PATB_SIZE_SHIFT > 24), "Partition table size too large.");
-	partition_tb = __va(memblock_alloc_base(patb_size, patb_size,
-						MEMBLOCK_ALLOC_ANYWHERE));
-
-	/* Initialize the Partition Table with no entries */
-	memset((void *)partition_tb, 0, patb_size);
-	partition_tb->patb0 = cpu_to_be64(ps_field | hash_table | htab_size);
-	/*
-	 * FIXME!! This should be done via update_partition table
-	 * For now UPRT is 0 for us.
-	 */
-	partition_tb->patb1 = 0;
+	mmu_partition_table_set_entry(0, hash_table | htab_size, 0);
 	pr_info("Partition table %p\n", partition_tb);
 	if (cpu_has_feature(CPU_FTR_POWER9_DD1))
 		update_hid_for_hash();
-	/*
-	 * update partition table control register,
-	 * 64 K size.
-	 */
-	mtspr(SPRN_PTCR, __pa(partition_tb) | (PATB_SIZE_SHIFT - 12));
-
 }
 
 static void __init htab_initialize(void)

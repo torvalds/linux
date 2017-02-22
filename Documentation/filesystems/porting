@@ -596,3 +596,7 @@ in your dentry operations instead.
 [mandatory]
 	->rename() has an added flags argument.  Any flags not handled by the
         filesystem should result in EINVAL being returned.
+--
+[recommended]
+	->readlink is optional for symlinks.  Don't set, unless filesystem needs
+	to fake something for readlink(2).

@@ -33,6 +33,9 @@ struct fjes_hw;
 #define EP_BUFFER_SUPPORT_VLAN_MAX 4
 #define EP_BUFFER_INFO_SIZE 4096
 
+#define FJES_DEBUG_PAGE_SIZE 4096
+#define FJES_DEBUG_BUFFER_SIZE	(16 * FJES_DEBUG_PAGE_SIZE)
+
 #define FJES_DEVICE_RESET_TIMEOUT  ((17 + 1) * 3 * 8) /* sec */
 #define FJES_COMMAND_REQ_TIMEOUT  ((5 + 1) * 3 * 8) /* sec */
 #define FJES_COMMAND_REQ_BUFF_TIMEOUT	(60 * 3) /* sec */
@@ -93,6 +96,12 @@ struct fjes_hw;
 	FJES_DEV_COMMAND_SHARE_BUFFER_REQ_LEN(EP_BUFFER_SIZE, EP_BUFFER_SIZE)
 #define FJES_DEV_RES_BUF_SIZE(maxep) \
 	FJES_DEV_COMMAND_INFO_RES_LEN(maxep)
+
+#define FJES_DEV_COMMAND_START_DBG_REQ_LEN(byte) \
+	(16 + (8 * (byte) / FJES_DEBUG_PAGE_SIZE))
+#define FJES_DEV_COMMAND_START_DBG_RES_LEN (8)
+#define FJES_DEV_COMMAND_STOP_DBG_REQ_LEN (4)
+#define FJES_DEV_COMMAND_STOP_DBG_RES_LEN (8)
 
 /* Frame & MTU */
 struct esmem_frame {
@@ -173,6 +182,8 @@ enum fjes_dev_command_request_type {
 	FJES_CMD_REQ_INFO		= 0x0001,
 	FJES_CMD_REQ_SHARE_BUFFER	= 0x0002,
 	FJES_CMD_REQ_UNSHARE_BUFFER	= 0x0004,
+	FJES_CMD_REQ_START_DEBUG	= 0x0100,
+	FJES_CMD_REQ_STOP_DEBUG		= 0x0200,
 };
 
 /* parameter for command control */
@@ -228,6 +239,24 @@ union ep_buffer_info {
 
 };
 
+/* statistics of EP */
+struct fjes_drv_ep_stats {
+	u64 com_regist_buf_exec;
+	u64 com_unregist_buf_exec;
+	u64 send_intr_rx;
+	u64 send_intr_unshare;
+	u64 send_intr_zoneupdate;
+	u64 recv_intr_rx;
+	u64 recv_intr_unshare;
+	u64 recv_intr_stop;
+	u64 recv_intr_zoneupdate;
+	u64 tx_buffer_full;
+	u64 tx_dropped_not_shared;
+	u64 tx_dropped_ver_mismatch;
+	u64 tx_dropped_buf_size_mismatch;
+	u64 tx_dropped_vlanid_mismatch;
+};
+
 /* buffer pair for Extended Partition */
 struct ep_share_mem_info {
 	struct epbuf_handler {
@@ -238,6 +267,7 @@ struct ep_share_mem_info {
 	} tx, rx;
 
 	struct rtnl_link_stats64 net_stats;
+	struct fjes_drv_ep_stats ep_stats;
 
 	u16 tx_status_work;
 
@@ -302,6 +332,8 @@ struct fjes_hw {
 	struct fjes_hw_info hw_info;
 
 	spinlock_t rx_status_lock; /* spinlock for rx_status */
+
+	u32 debug_mode;
 };
 
 int fjes_hw_init(struct fjes_hw *);
@@ -334,4 +366,6 @@ void *fjes_hw_epbuf_rx_curpkt_get_addr(struct epbuf_handler *, size_t *);
 void fjes_hw_epbuf_rx_curpkt_drop(struct epbuf_handler *);
 int fjes_hw_epbuf_tx_pkt_send(struct epbuf_handler *, void *, size_t);
 
+int fjes_hw_start_debug(struct fjes_hw *);
+int fjes_hw_stop_debug(struct fjes_hw *);
 #endif /* FJES_HW_H_ */

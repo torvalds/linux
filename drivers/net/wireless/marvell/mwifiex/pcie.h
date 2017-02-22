@@ -22,6 +22,7 @@
 #ifndef	_MWIFIEX_PCIE_H
 #define	_MWIFIEX_PCIE_H
 
+#include    <linux/completion.h>
 #include    <linux/pci.h>
 #include    <linux/interrupt.h>
 
@@ -345,6 +346,7 @@ struct pcie_service_card {
 	struct pci_dev *dev;
 	struct mwifiex_adapter *adapter;
 	struct mwifiex_pcie_device pcie;
+	struct completion fw_done;
 
 	u8 txbd_flush;
 	u32 txbd_wrptr;

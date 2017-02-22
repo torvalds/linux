@@ -903,6 +903,7 @@ lnet_create_rc_data_locked(lnet_peer_t *gateway)
 {
 	lnet_rc_data_t *rcd = NULL;
 	lnet_ping_info_t *pi;
+	lnet_md_t md;
 	int rc;
 	int i;
 
@@ -925,15 +926,15 @@ lnet_create_rc_data_locked(lnet_peer_t *gateway)
 	}
 	rcd->rcd_pinginfo = pi;
 
+	md.start = pi;
+	md.user_ptr = rcd;
+	md.length = LNET_PINGINFO_SIZE;
+	md.threshold = LNET_MD_THRESH_INF;
+	md.options = LNET_MD_TRUNCATE;
+	md.eq_handle = the_lnet.ln_rc_eqh;
+
 	LASSERT(!LNetHandleIsInvalid(the_lnet.ln_rc_eqh));
-	rc = LNetMDBind((lnet_md_t){.start     = pi,
-				    .user_ptr  = rcd,
-				    .length    = LNET_PINGINFO_SIZE,
-				    .threshold = LNET_MD_THRESH_INF,
-				    .options   = LNET_MD_TRUNCATE,
-				    .eq_handle = the_lnet.ln_rc_eqh},
-			LNET_UNLINK,
-			&rcd->rcd_mdh);
+	rc = LNetMDBind(md, LNET_UNLINK, &rcd->rcd_mdh);
 	if (rc < 0) {
 		CERROR("Can't bind MD: %d\n", rc);
 		goto out;

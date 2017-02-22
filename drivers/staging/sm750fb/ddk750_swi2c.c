@@ -1,21 +1,20 @@
-/*******************************************************************
-*
-*         Copyright (c) 2007 by Silicon Motion, Inc. (SMI)
-*
-*  All rights are reserved. Reproduction or in part is prohibited
-*  without the written consent of the copyright owner.
-*
-*  swi2c.c --- SM750/SM718 DDK
-*  This file contains the source code for I2C using software
-*  implementation.
-*
-*******************************************************************/
-#include "ddk750_help.h"
+/*
+ *         Copyright (c) 2007 by Silicon Motion, Inc. (SMI)
+ *
+ *  All rights are reserved. Reproduction or in part is prohibited
+ *  without the written consent of the copyright owner.
+ *
+ *  swi2c.c --- SM750/SM718 DDK
+ *  This file contains the source code for I2C using software
+ *  implementation.
+ */
+
+#include "ddk750_chip.h"
 #include "ddk750_reg.h"
 #include "ddk750_swi2c.h"
 #include "ddk750_power.h"
 
-/*******************************************************************
+/*
  * I2C Software Master Driver:
  * ===========================
  * Each i2c cycle is split into 4 sections. Each of these section marks
@@ -51,7 +50,7 @@
  *                            SCL | L |   | H |   |
  *                 ---------------+---+---+---+---+
  *
- ******************************************************************/
+ */
 
 /* GPIO pins used for this I2C. It ranges from 0 to 63. */
 static unsigned char sw_i2c_clk_gpio = DEFAULT_I2C_SCL;
@@ -429,7 +428,7 @@ long sm750_sw_i2c_init(
 	       PEEK32(sw_i2c_data_gpio_mux_reg) & ~(1 << sw_i2c_data_gpio));
 
 	/* Enable GPIO power */
-	enableGPIO(1);
+	sm750_enable_gpio(1);
 
 	/* Clear the i2c lines. */
 	for (i = 0; i < 9; i++)

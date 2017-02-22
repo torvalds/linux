@@ -32,6 +32,7 @@
 #define STORE_QUEUE_MINOR	155	/* unused */
 #define I2O_MINOR		166
 #define MICROCODE_MINOR		184
+#define IRNET_MINOR		187
 #define VFIO_MINOR		196
 #define TUN_MINOR		200
 #define CUSE_MINOR		203
@@ -70,6 +71,13 @@ struct miscdevice  {
 
 extern int misc_register(struct miscdevice *misc);
 extern void misc_deregister(struct miscdevice *misc);
+
+/*
+ * Helper macro for drivers that don't do anything special in the initcall.
+ * This helps in eleminating of boilerplate code.
+ */
+#define builtin_misc_device(__misc_device) \
+	builtin_driver(__misc_device, misc_register)
 
 /*
  * Helper macro for drivers that don't do anything special in module init / exit

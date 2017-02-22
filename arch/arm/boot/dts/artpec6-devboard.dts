@@ -46,6 +46,10 @@
 	status = "okay";
 };
 
+&pcie {
+	status = "okay";
+};
+
 &ethernet {
 	status = "okay";
 

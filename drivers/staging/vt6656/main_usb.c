@@ -85,7 +85,7 @@ MODULE_PARM_DESC(tx_buffers, "Number of receive usb tx buffers");
  * Static vars definitions
  */
 
-static struct usb_device_id vt6656_table[] = {
+static const struct usb_device_id vt6656_table[] = {
 	{USB_DEVICE(VNT_USB_VENDOR_ID, VNT_USB_PRODUCT_ID)},
 	{}
 };
@@ -326,9 +326,9 @@ static int vnt_init_registers(struct vnt_private *priv)
 		priv->current_net_addr);
 
 	/*
-	* set BB and packet type at the same time
-	* set Short Slot Time, xIFS, and RSPINF
-	*/
+	 * set BB and packet type at the same time
+	 * set Short Slot Time, xIFS, and RSPINF
+	 */
 	if (priv->bb_type == BB_TYPE_11A)
 		priv->short_slot_time = true;
 	else

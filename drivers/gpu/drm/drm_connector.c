@@ -225,6 +225,7 @@ int drm_connector_init(struct drm_device *dev,
 
 	INIT_LIST_HEAD(&connector->probed_modes);
 	INIT_LIST_HEAD(&connector->modes);
+	mutex_init(&connector->mutex);
 	connector->edid_blob_ptr = NULL;
 	connector->status = connector_status_unknown;
 
@@ -359,6 +360,8 @@ void drm_connector_cleanup(struct drm_connector *connector)
 		connector->funcs->atomic_destroy_state(connector,
 						       connector->state);
 
+	mutex_destroy(&connector->mutex);
+
 	memset(connector, 0, sizeof(*connector));
 }
 EXPORT_SYMBOL(drm_connector_cleanup);
@@ -374,14 +377,18 @@ EXPORT_SYMBOL(drm_connector_cleanup);
  */
 int drm_connector_register(struct drm_connector *connector)
 {
-	int ret;
+	int ret = 0;
 
-	if (connector->registered)
+	if (!connector->dev->registered)
 		return 0;
+
+	mutex_lock(&connector->mutex);
+	if (connector->registered)
+		goto unlock;
 
 	ret = drm_sysfs_connector_add(connector);
 	if (ret)
-		return ret;
+		goto unlock;
 
 	ret = drm_debugfs_connector_add(connector);
 	if (ret) {
@@ -397,12 +404,14 @@ int drm_connector_register(struct drm_connector *connector)
 	drm_mode_object_register(connector->dev, &connector->base);
 
 	connector->registered = true;
-	return 0;
+	goto unlock;
 
 err_debugfs:
 	drm_debugfs_connector_remove(connector);
 err_sysfs:
 	drm_sysfs_connector_remove(connector);
+unlock:
+	mutex_unlock(&connector->mutex);
 	return ret;
 }
 EXPORT_SYMBOL(drm_connector_register);
@@ -415,8 +424,11 @@ EXPORT_SYMBOL(drm_connector_register);
  */
 void drm_connector_unregister(struct drm_connector *connector)
 {
-	if (!connector->registered)
+	mutex_lock(&connector->mutex);
+	if (!connector->registered) {
+		mutex_unlock(&connector->mutex);
 		return;
+	}
 
 	if (connector->funcs->early_unregister)
 		connector->funcs->early_unregister(connector);
@@ -425,6 +437,7 @@ void drm_connector_unregister(struct drm_connector *connector)
 	drm_debugfs_connector_remove(connector);
 
 	connector->registered = false;
+	mutex_unlock(&connector->mutex);
 }
 EXPORT_SYMBOL(drm_connector_unregister);
 
@@ -587,6 +600,50 @@ static const struct drm_prop_enum_list drm_tv_subconnector_enum_list[] = {
 };
 DRM_ENUM_NAME_FN(drm_get_tv_subconnector_name,
 		 drm_tv_subconnector_enum_list)
+
+/**
+ * DOC: standard connector properties
+ *
+ * DRM connectors have a few standardized properties:
+ *
+ * EDID:
+ * 	Blob property which contains the current EDID read from the sink. This
+ * 	is useful to parse sink identification information like vendor, model
+ * 	and serial. Drivers should update this property by calling
+ * 	drm_mode_connector_update_edid_property(), usually after having parsed
+ * 	the EDID using drm_add_edid_modes(). Userspace cannot change this
+ * 	property.
+ * DPMS:
+ * 	Legacy property for setting the power state of the connector. For atomic
+ * 	drivers this is only provided for backwards compatibility with existing
+ * 	drivers, it remaps to controlling the "ACTIVE" property on the CRTC the
+ * 	connector is linked to. Drivers should never set this property directly,
+ * 	it is handled by the DRM core by calling the ->dpms() callback in
+ * 	&drm_connector_funcs. Atomic drivers should implement this hook using
+ * 	drm_atomic_helper_connector_dpms(). This is the only property standard
+ * 	connector property that userspace can change.
+ * PATH:
+ * 	Connector path property to identify how this sink is physically
+ * 	connected. Used by DP MST. This should be set by calling
+ * 	drm_mode_connector_set_path_property(), in the case of DP MST with the
+ * 	path property the MST manager created. Userspace cannot change this
+ * 	property.
+ * TILE:
+ * 	Connector tile group property to indicate how a set of DRM connector
+ * 	compose together into one logical screen. This is used by both high-res
+ * 	external screens (often only using a single cable, but exposing multiple
+ * 	DP MST sinks), or high-res integrated panels (like dual-link DSI) which
+ * 	are not gen-locked. Note that for tiled panels which are genlocked, like
+ * 	dual-link LVDS or dual-link DSI, the driver should try to not expose the
+ * 	tiling and virtualize both &drm_crtc and &drm_plane if needed. Drivers
+ * 	should update this value using drm_mode_connector_set_tile_property().
+ * 	Userspace cannot change this property.
+ *
+ * Connectors also have one standardized atomic property:
+ *
+ * CRTC_ID:
+ * 	Mode object ID of the &drm_crtc this connector should be connected to.
+ */
 
 int drm_connector_create_standard_properties(struct drm_device *dev)
 {
@@ -1121,3 +1178,107 @@ out_unlock:
 	return ret;
 }
 
+
+/**
+ * DOC: Tile group
+ *
+ * Tile groups are used to represent tiled monitors with a unique integer
+ * identifier. Tiled monitors using DisplayID v1.3 have a unique 8-byte handle,
+ * we store this in a tile group, so we have a common identifier for all tiles
+ * in a monitor group. The property is called "TILE". Drivers can manage tile
+ * groups using drm_mode_create_tile_group(), drm_mode_put_tile_group() and
+ * drm_mode_get_tile_group(). But this is only needed for internal panels where
+ * the tile group information is exposed through a non-standard way.
+ */
+
+static void drm_tile_group_free(struct kref *kref)
+{
+	struct drm_tile_group *tg = container_of(kref, struct drm_tile_group, refcount);
+	struct drm_device *dev = tg->dev;
+	mutex_lock(&dev->mode_config.idr_mutex);
+	idr_remove(&dev->mode_config.tile_idr, tg->id);
+	mutex_unlock(&dev->mode_config.idr_mutex);
+	kfree(tg);
+}
+
+/**
+ * drm_mode_put_tile_group - drop a reference to a tile group.
+ * @dev: DRM device
+ * @tg: tile group to drop reference to.
+ *
+ * drop reference to tile group and free if 0.
+ */
+void drm_mode_put_tile_group(struct drm_device *dev,
+			     struct drm_tile_group *tg)
+{
+	kref_put(&tg->refcount, drm_tile_group_free);
+}
+EXPORT_SYMBOL(drm_mode_put_tile_group);
+
+/**
+ * drm_mode_get_tile_group - get a reference to an existing tile group
+ * @dev: DRM device
+ * @topology: 8-bytes unique per monitor.
+ *
+ * Use the unique bytes to get a reference to an existing tile group.
+ *
+ * RETURNS:
+ * tile group or NULL if not found.
+ */
+struct drm_tile_group *drm_mode_get_tile_group(struct drm_device *dev,
+					       char topology[8])
+{
+	struct drm_tile_group *tg;
+	int id;
+	mutex_lock(&dev->mode_config.idr_mutex);
+	idr_for_each_entry(&dev->mode_config.tile_idr, tg, id) {
+		if (!memcmp(tg->group_data, topology, 8)) {
+			if (!kref_get_unless_zero(&tg->refcount))
+				tg = NULL;
+			mutex_unlock(&dev->mode_config.idr_mutex);
+			return tg;
+		}
+	}
+	mutex_unlock(&dev->mode_config.idr_mutex);
+	return NULL;
+}
+EXPORT_SYMBOL(drm_mode_get_tile_group);
+
+/**
+ * drm_mode_create_tile_group - create a tile group from a displayid description
+ * @dev: DRM device
+ * @topology: 8-bytes unique per monitor.
+ *
+ * Create a tile group for the unique monitor, and get a unique
+ * identifier for the tile group.
+ *
+ * RETURNS:
+ * new tile group or error.
+ */
+struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
+						  char topology[8])
+{
+	struct drm_tile_group *tg;
+	int ret;
+
+	tg = kzalloc(sizeof(*tg), GFP_KERNEL);
+	if (!tg)
+		return ERR_PTR(-ENOMEM);
+
+	kref_init(&tg->refcount);
+	memcpy(tg->group_data, topology, 8);
+	tg->dev = dev;
+
+	mutex_lock(&dev->mode_config.idr_mutex);
+	ret = idr_alloc(&dev->mode_config.tile_idr, tg, 1, 0, GFP_KERNEL);
+	if (ret >= 0) {
+		tg->id = ret;
+	} else {
+		kfree(tg);
+		tg = ERR_PTR(ret);
+	}
+
+	mutex_unlock(&dev->mode_config.idr_mutex);
+	return tg;
+}
+EXPORT_SYMBOL(drm_mode_create_tile_group);

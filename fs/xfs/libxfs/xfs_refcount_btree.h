@@ -66,7 +66,8 @@ extern void xfs_refcountbt_compute_maxlevels(struct xfs_mount *mp);
 
 extern xfs_extlen_t xfs_refcountbt_calc_size(struct xfs_mount *mp,
 		unsigned long long len);
-extern xfs_extlen_t xfs_refcountbt_max_size(struct xfs_mount *mp);
+extern xfs_extlen_t xfs_refcountbt_max_size(struct xfs_mount *mp,
+		xfs_agblock_t agblocks);
 
 extern int xfs_refcountbt_calc_reserves(struct xfs_mount *mp,
 		xfs_agnumber_t agno, xfs_extlen_t *ask, xfs_extlen_t *used);

@@ -51,9 +51,6 @@ xen_swiotlb_sync_sg_for_device(struct device *hwdev, struct scatterlist *sg,
 			       int nelems, enum dma_data_direction dir);
 
 extern int
-xen_swiotlb_dma_mapping_error(struct device *hwdev, dma_addr_t dma_addr);
-
-extern int
 xen_swiotlb_dma_supported(struct device *hwdev, u64 mask);
 
 extern int

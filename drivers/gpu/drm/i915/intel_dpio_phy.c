@@ -23,6 +23,565 @@
 
 #include "intel_drv.h"
 
+/**
+ * DOC: DPIO
+ *
+ * VLV, CHV and BXT have slightly peculiar display PHYs for driving DP/HDMI
+ * ports. DPIO is the name given to such a display PHY. These PHYs
+ * don't follow the standard programming model using direct MMIO
+ * registers, and instead their registers must be accessed trough IOSF
+ * sideband. VLV has one such PHY for driving ports B and C, and CHV
+ * adds another PHY for driving port D. Each PHY responds to specific
+ * IOSF-SB port.
+ *
+ * Each display PHY is made up of one or two channels. Each channel
+ * houses a common lane part which contains the PLL and other common
+ * logic. CH0 common lane also contains the IOSF-SB logic for the
+ * Common Register Interface (CRI) ie. the DPIO registers. CRI clock
+ * must be running when any DPIO registers are accessed.
+ *
+ * In addition to having their own registers, the PHYs are also
+ * controlled through some dedicated signals from the display
+ * controller. These include PLL reference clock enable, PLL enable,
+ * and CRI clock selection, for example.
+ *
+ * Eeach channel also has two splines (also called data lanes), and
+ * each spline is made up of one Physical Access Coding Sub-Layer
+ * (PCS) block and two TX lanes. So each channel has two PCS blocks
+ * and four TX lanes. The TX lanes are used as DP lanes or TMDS
+ * data/clock pairs depending on the output type.
+ *
+ * Additionally the PHY also contains an AUX lane with AUX blocks
+ * for each channel. This is used for DP AUX communication, but
+ * this fact isn't really relevant for the driver since AUX is
+ * controlled from the display controller side. No DPIO registers
+ * need to be accessed during AUX communication,
+ *
+ * Generally on VLV/CHV the common lane corresponds to the pipe and
+ * the spline (PCS/TX) corresponds to the port.
+ *
+ * For dual channel PHY (VLV/CHV):
+ *
+ *  pipe A == CMN/PLL/REF CH0
+ *
+ *  pipe B == CMN/PLL/REF CH1
+ *
+ *  port B == PCS/TX CH0
+ *
+ *  port C == PCS/TX CH1
+ *
+ * This is especially important when we cross the streams
+ * ie. drive port B with pipe B, or port C with pipe A.
+ *
+ * For single channel PHY (CHV):
+ *
+ *  pipe C == CMN/PLL/REF CH0
+ *
+ *  port D == PCS/TX CH0
+ *
+ * On BXT the entire PHY channel corresponds to the port. That means
+ * the PLL is also now associated with the port rather than the pipe,
+ * and so the clock needs to be routed to the appropriate transcoder.
+ * Port A PLL is directly connected to transcoder EDP and port B/C
+ * PLLs can be routed to any transcoder A/B/C.
+ *
+ * Note: DDI0 is digital port B, DD1 is digital port C, and DDI2 is
+ * digital port D (CHV) or port A (BXT). ::
+ *
+ *
+ *     Dual channel PHY (VLV/CHV/BXT)
+ *     ---------------------------------
+ *     |      CH0      |      CH1      |
+ *     |  CMN/PLL/REF  |  CMN/PLL/REF  |
+ *     |---------------|---------------| Display PHY
+ *     | PCS01 | PCS23 | PCS01 | PCS23 |
+ *     |-------|-------|-------|-------|
+ *     |TX0|TX1|TX2|TX3|TX0|TX1|TX2|TX3|
+ *     ---------------------------------
+ *     |     DDI0      |     DDI1      | DP/HDMI ports
+ *     ---------------------------------
+ *
+ *     Single channel PHY (CHV/BXT)
+ *     -----------------
+ *     |      CH0      |
+ *     |  CMN/PLL/REF  |
+ *     |---------------| Display PHY
+ *     | PCS01 | PCS23 |
+ *     |-------|-------|
+ *     |TX0|TX1|TX2|TX3|
+ *     -----------------
+ *     |     DDI2      | DP/HDMI port
+ *     -----------------
+ */
+
+/**
+ * struct bxt_ddi_phy_info - Hold info for a broxton DDI phy
+ */
+struct bxt_ddi_phy_info {
+	/**
+	 * @dual_channel: true if this phy has a second channel.
+	 */
+	bool dual_channel;
+
+	/**
+	 * @rcomp_phy: If -1, indicates this phy has its own rcomp resistor.
+	 * Otherwise the GRC value will be copied from the phy indicated by
+	 * this field.
+	 */
+	enum dpio_phy rcomp_phy;
+
+	/**
+	 * @channel: struct containing per channel information.
+	 */
+	struct {
+		/**
+		 * @port: which port maps to this channel.
+		 */
+		enum port port;
+	} channel[2];
+};
+
+static const struct bxt_ddi_phy_info bxt_ddi_phy_info[] = {
+	[DPIO_PHY0] = {
+		.dual_channel = true,
+		.rcomp_phy = DPIO_PHY1,
+
+		.channel = {
+			[DPIO_CH0] = { .port = PORT_B },
+			[DPIO_CH1] = { .port = PORT_C },
+		}
+	},
+	[DPIO_PHY1] = {
+		.dual_channel = false,
+		.rcomp_phy = -1,
+
+		.channel = {
+			[DPIO_CH0] = { .port = PORT_A },
+		}
+	},
+};
+
+static u32 bxt_phy_port_mask(const struct bxt_ddi_phy_info *phy_info)
+{
+	return (phy_info->dual_channel * BIT(phy_info->channel[DPIO_CH1].port)) |
+		BIT(phy_info->channel[DPIO_CH0].port);
+}
+
+void bxt_port_to_phy_channel(enum port port,
+			     enum dpio_phy *phy, enum dpio_channel *ch)
+{
+	const struct bxt_ddi_phy_info *phy_info;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(bxt_ddi_phy_info); i++) {
+		phy_info = &bxt_ddi_phy_info[i];
+
+		if (port == phy_info->channel[DPIO_CH0].port) {
+			*phy = i;
+			*ch = DPIO_CH0;
+			return;
+		}
+
+		if (phy_info->dual_channel &&
+		    port == phy_info->channel[DPIO_CH1].port) {
+			*phy = i;
+			*ch = DPIO_CH1;
+			return;
+		}
+	}
+
+	WARN(1, "PHY not found for PORT %c", port_name(port));
+	*phy = DPIO_PHY0;
+	*ch = DPIO_CH0;
+}
+
+void bxt_ddi_phy_set_signal_level(struct drm_i915_private *dev_priv,
+				  enum port port, u32 margin, u32 scale,
+				  u32 enable, u32 deemphasis)
+{
+	u32 val;
+	enum dpio_phy phy;
+	enum dpio_channel ch;
+
+	bxt_port_to_phy_channel(port, &phy, &ch);
+
+	/*
+	 * While we write to the group register to program all lanes at once we
+	 * can read only lane registers and we pick lanes 0/1 for that.
+	 */
+	val = I915_READ(BXT_PORT_PCS_DW10_LN01(phy, ch));
+	val &= ~(TX2_SWING_CALC_INIT | TX1_SWING_CALC_INIT);
+	I915_WRITE(BXT_PORT_PCS_DW10_GRP(phy, ch), val);
+
+	val = I915_READ(BXT_PORT_TX_DW2_LN0(phy, ch));
+	val &= ~(MARGIN_000 | UNIQ_TRANS_SCALE);
+	val |= margin << MARGIN_000_SHIFT | scale << UNIQ_TRANS_SCALE_SHIFT;
+	I915_WRITE(BXT_PORT_TX_DW2_GRP(phy, ch), val);
+
+	val = I915_READ(BXT_PORT_TX_DW3_LN0(phy, ch));
+	val &= ~SCALE_DCOMP_METHOD;
+	if (enable)
+		val |= SCALE_DCOMP_METHOD;
+
+	if ((val & UNIQUE_TRANGE_EN_METHOD) && !(val & SCALE_DCOMP_METHOD))
+		DRM_ERROR("Disabled scaling while ouniqetrangenmethod was set");
+
+	I915_WRITE(BXT_PORT_TX_DW3_GRP(phy, ch), val);
+
+	val = I915_READ(BXT_PORT_TX_DW4_LN0(phy, ch));
+	val &= ~DE_EMPHASIS;
+	val |= deemphasis << DEEMPH_SHIFT;
+	I915_WRITE(BXT_PORT_TX_DW4_GRP(phy, ch), val);
+
+	val = I915_READ(BXT_PORT_PCS_DW10_LN01(phy, ch));
+	val |= TX2_SWING_CALC_INIT | TX1_SWING_CALC_INIT;
+	I915_WRITE(BXT_PORT_PCS_DW10_GRP(phy, ch), val);
+}
+
+bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,
+			    enum dpio_phy phy)
+{
+	const struct bxt_ddi_phy_info *phy_info = &bxt_ddi_phy_info[phy];
+	enum port port;
+
+	if (!(I915_READ(BXT_P_CR_GT_DISP_PWRON) & GT_DISPLAY_POWER_ON(phy)))
+		return false;
+
+	if ((I915_READ(BXT_PORT_CL1CM_DW0(phy)) &
+	     (PHY_POWER_GOOD | PHY_RESERVED)) != PHY_POWER_GOOD) {
+		DRM_DEBUG_DRIVER("DDI PHY %d powered, but power hasn't settled\n",
+				 phy);
+
+		return false;
+	}
+
+	if (phy_info->rcomp_phy == -1 &&
+	    !(I915_READ(BXT_PORT_REF_DW3(phy)) & GRC_DONE)) {
+		DRM_DEBUG_DRIVER("DDI PHY %d powered, but GRC isn't done\n",
+				 phy);
+
+		return false;
+	}
+
+	if (!(I915_READ(BXT_PHY_CTL_FAMILY(phy)) & COMMON_RESET_DIS)) {
+		DRM_DEBUG_DRIVER("DDI PHY %d powered, but still in reset\n",
+				 phy);
+
+		return false;
+	}
+
+	for_each_port_masked(port, bxt_phy_port_mask(phy_info)) {
+		u32 tmp = I915_READ(BXT_PHY_CTL(port));
+
+		if (tmp & BXT_PHY_CMNLANE_POWERDOWN_ACK) {
+			DRM_DEBUG_DRIVER("DDI PHY %d powered, but common lane "
+					 "for port %c powered down "
+					 "(PHY_CTL %08x)\n",
+					 phy, port_name(port), tmp);
+
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static u32 bxt_get_grc(struct drm_i915_private *dev_priv, enum dpio_phy phy)
+{
+	u32 val = I915_READ(BXT_PORT_REF_DW6(phy));
+
+	return (val & GRC_CODE_MASK) >> GRC_CODE_SHIFT;
+}
+
+static void bxt_phy_wait_grc_done(struct drm_i915_private *dev_priv,
+				  enum dpio_phy phy)
+{
+	if (intel_wait_for_register(dev_priv,
+				    BXT_PORT_REF_DW3(phy),
+				    GRC_DONE, GRC_DONE,
+				    10))
+		DRM_ERROR("timeout waiting for PHY%d GRC\n", phy);
+}
+
+static void _bxt_ddi_phy_init(struct drm_i915_private *dev_priv,
+			      enum dpio_phy phy)
+{
+	const struct bxt_ddi_phy_info *phy_info = &bxt_ddi_phy_info[phy];
+	u32 val;
+
+	if (bxt_ddi_phy_is_enabled(dev_priv, phy)) {
+		/* Still read out the GRC value for state verification */
+		if (phy_info->rcomp_phy != -1)
+			dev_priv->bxt_phy_grc = bxt_get_grc(dev_priv, phy);
+
+		if (bxt_ddi_phy_verify_state(dev_priv, phy)) {
+			DRM_DEBUG_DRIVER("DDI PHY %d already enabled, "
+					 "won't reprogram it\n", phy);
+
+			return;
+		}
+
+		DRM_DEBUG_DRIVER("DDI PHY %d enabled with invalid state, "
+				 "force reprogramming it\n", phy);
+	}
+
+	val = I915_READ(BXT_P_CR_GT_DISP_PWRON);
+	val |= GT_DISPLAY_POWER_ON(phy);
+	I915_WRITE(BXT_P_CR_GT_DISP_PWRON, val);
+
+	/*
+	 * The PHY registers start out inaccessible and respond to reads with
+	 * all 1s.  Eventually they become accessible as they power up, then
+	 * the reserved bit will give the default 0.  Poll on the reserved bit
+	 * becoming 0 to find when the PHY is accessible.
+	 * HW team confirmed that the time to reach phypowergood status is
+	 * anywhere between 50 us and 100us.
+	 */
+	if (wait_for_us(((I915_READ(BXT_PORT_CL1CM_DW0(phy)) &
+		(PHY_RESERVED | PHY_POWER_GOOD)) == PHY_POWER_GOOD), 100)) {
+		DRM_ERROR("timeout during PHY%d power on\n", phy);
+	}
+
+	/* Program PLL Rcomp code offset */
+	val = I915_READ(BXT_PORT_CL1CM_DW9(phy));
+	val &= ~IREF0RC_OFFSET_MASK;
+	val |= 0xE4 << IREF0RC_OFFSET_SHIFT;
+	I915_WRITE(BXT_PORT_CL1CM_DW9(phy), val);
+
+	val = I915_READ(BXT_PORT_CL1CM_DW10(phy));
+	val &= ~IREF1RC_OFFSET_MASK;
+	val |= 0xE4 << IREF1RC_OFFSET_SHIFT;
+	I915_WRITE(BXT_PORT_CL1CM_DW10(phy), val);
+
+	/* Program power gating */
+	val = I915_READ(BXT_PORT_CL1CM_DW28(phy));
+	val |= OCL1_POWER_DOWN_EN | DW28_OLDO_DYN_PWR_DOWN_EN |
+		SUS_CLK_CONFIG;
+	I915_WRITE(BXT_PORT_CL1CM_DW28(phy), val);
+
+	if (phy_info->dual_channel) {
+		val = I915_READ(BXT_PORT_CL2CM_DW6(phy));
+		val |= DW6_OLDO_DYN_PWR_DOWN_EN;
+		I915_WRITE(BXT_PORT_CL2CM_DW6(phy), val);
+	}
+
+	if (phy_info->rcomp_phy != -1) {
+		uint32_t grc_code;
+		/*
+		 * PHY0 isn't connected to an RCOMP resistor so copy over
+		 * the corresponding calibrated value from PHY1, and disable
+		 * the automatic calibration on PHY0.
+		 */
+		val = dev_priv->bxt_phy_grc = bxt_get_grc(dev_priv,
+							  phy_info->rcomp_phy);
+		grc_code = val << GRC_CODE_FAST_SHIFT |
+			   val << GRC_CODE_SLOW_SHIFT |
+			   val;
+		I915_WRITE(BXT_PORT_REF_DW6(phy), grc_code);
+
+		val = I915_READ(BXT_PORT_REF_DW8(phy));
+		val |= GRC_DIS | GRC_RDY_OVRD;
+		I915_WRITE(BXT_PORT_REF_DW8(phy), val);
+	}
+
+	val = I915_READ(BXT_PHY_CTL_FAMILY(phy));
+	val |= COMMON_RESET_DIS;
+	I915_WRITE(BXT_PHY_CTL_FAMILY(phy), val);
+
+	if (phy_info->rcomp_phy == -1)
+		bxt_phy_wait_grc_done(dev_priv, phy);
+
+}
+
+void bxt_ddi_phy_uninit(struct drm_i915_private *dev_priv, enum dpio_phy phy)
+{
+	uint32_t val;
+
+	val = I915_READ(BXT_PHY_CTL_FAMILY(phy));
+	val &= ~COMMON_RESET_DIS;
+	I915_WRITE(BXT_PHY_CTL_FAMILY(phy), val);
+
+	val = I915_READ(BXT_P_CR_GT_DISP_PWRON);
+	val &= ~GT_DISPLAY_POWER_ON(phy);
+	I915_WRITE(BXT_P_CR_GT_DISP_PWRON, val);
+}
+
+void bxt_ddi_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy)
+{
+	const struct bxt_ddi_phy_info *phy_info = &bxt_ddi_phy_info[phy];
+	enum dpio_phy rcomp_phy = phy_info->rcomp_phy;
+	bool was_enabled;
+
+	lockdep_assert_held(&dev_priv->power_domains.lock);
+
+	if (rcomp_phy != -1) {
+		was_enabled = bxt_ddi_phy_is_enabled(dev_priv, rcomp_phy);
+
+		/*
+		 * We need to copy the GRC calibration value from rcomp_phy,
+		 * so make sure it's powered up.
+		 */
+		if (!was_enabled)
+			_bxt_ddi_phy_init(dev_priv, rcomp_phy);
+	}
+
+	_bxt_ddi_phy_init(dev_priv, phy);
+
+	if (rcomp_phy != -1 && !was_enabled)
+		bxt_ddi_phy_uninit(dev_priv, phy_info->rcomp_phy);
+}
+
+static bool __printf(6, 7)
+__phy_reg_verify_state(struct drm_i915_private *dev_priv, enum dpio_phy phy,
+		       i915_reg_t reg, u32 mask, u32 expected,
+		       const char *reg_fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+	u32 val;
+
+	val = I915_READ(reg);
+	if ((val & mask) == expected)
+		return true;
+
+	va_start(args, reg_fmt);
+	vaf.fmt = reg_fmt;
+	vaf.va = &args;
+
+	DRM_DEBUG_DRIVER("DDI PHY %d reg %pV [%08x] state mismatch: "
+			 "current %08x, expected %08x (mask %08x)\n",
+			 phy, &vaf, reg.reg, val, (val & ~mask) | expected,
+			 mask);
+
+	va_end(args);
+
+	return false;
+}
+
+bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
+			      enum dpio_phy phy)
+{
+	const struct bxt_ddi_phy_info *phy_info = &bxt_ddi_phy_info[phy];
+	uint32_t mask;
+	bool ok;
+
+#define _CHK(reg, mask, exp, fmt, ...)					\
+	__phy_reg_verify_state(dev_priv, phy, reg, mask, exp, fmt,	\
+			       ## __VA_ARGS__)
+
+	if (!bxt_ddi_phy_is_enabled(dev_priv, phy))
+		return false;
+
+	ok = true;
+
+	/* PLL Rcomp code offset */
+	ok &= _CHK(BXT_PORT_CL1CM_DW9(phy),
+		    IREF0RC_OFFSET_MASK, 0xe4 << IREF0RC_OFFSET_SHIFT,
+		    "BXT_PORT_CL1CM_DW9(%d)", phy);
+	ok &= _CHK(BXT_PORT_CL1CM_DW10(phy),
+		    IREF1RC_OFFSET_MASK, 0xe4 << IREF1RC_OFFSET_SHIFT,
+		    "BXT_PORT_CL1CM_DW10(%d)", phy);
+
+	/* Power gating */
+	mask = OCL1_POWER_DOWN_EN | DW28_OLDO_DYN_PWR_DOWN_EN | SUS_CLK_CONFIG;
+	ok &= _CHK(BXT_PORT_CL1CM_DW28(phy), mask, mask,
+		    "BXT_PORT_CL1CM_DW28(%d)", phy);
+
+	if (phy_info->dual_channel)
+		ok &= _CHK(BXT_PORT_CL2CM_DW6(phy),
+			   DW6_OLDO_DYN_PWR_DOWN_EN, DW6_OLDO_DYN_PWR_DOWN_EN,
+			   "BXT_PORT_CL2CM_DW6(%d)", phy);
+
+	if (phy_info->rcomp_phy != -1) {
+		u32 grc_code = dev_priv->bxt_phy_grc;
+
+		grc_code = grc_code << GRC_CODE_FAST_SHIFT |
+			   grc_code << GRC_CODE_SLOW_SHIFT |
+			   grc_code;
+		mask = GRC_CODE_FAST_MASK | GRC_CODE_SLOW_MASK |
+		       GRC_CODE_NOM_MASK;
+		ok &= _CHK(BXT_PORT_REF_DW6(phy), mask, grc_code,
+			   "BXT_PORT_REF_DW6(%d)", phy);
+
+		mask = GRC_DIS | GRC_RDY_OVRD;
+		ok &= _CHK(BXT_PORT_REF_DW8(phy), mask, mask,
+			    "BXT_PORT_REF_DW8(%d)", phy);
+	}
+
+	return ok;
+#undef _CHK
+}
+
+uint8_t
+bxt_ddi_phy_calc_lane_lat_optim_mask(struct intel_encoder *encoder,
+				     uint8_t lane_count)
+{
+	switch (lane_count) {
+	case 1:
+		return 0;
+	case 2:
+		return BIT(2) | BIT(0);
+	case 4:
+		return BIT(3) | BIT(2) | BIT(0);
+	default:
+		MISSING_CASE(lane_count);
+
+		return 0;
+	}
+}
+
+void bxt_ddi_phy_set_lane_optim_mask(struct intel_encoder *encoder,
+				     uint8_t lane_lat_optim_mask)
+{
+	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
+	struct drm_i915_private *dev_priv = to_i915(dport->base.base.dev);
+	enum port port = dport->port;
+	enum dpio_phy phy;
+	enum dpio_channel ch;
+	int lane;
+
+	bxt_port_to_phy_channel(port, &phy, &ch);
+
+	for (lane = 0; lane < 4; lane++) {
+		u32 val = I915_READ(BXT_PORT_TX_DW14_LN(phy, ch, lane));
+
+		/*
+		 * Note that on CHV this flag is called UPAR, but has
+		 * the same function.
+		 */
+		val &= ~LATENCY_OPTIM;
+		if (lane_lat_optim_mask & BIT(lane))
+			val |= LATENCY_OPTIM;
+
+		I915_WRITE(BXT_PORT_TX_DW14_LN(phy, ch, lane), val);
+	}
+}
+
+uint8_t
+bxt_ddi_phy_get_lane_lat_optim_mask(struct intel_encoder *encoder)
+{
+	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
+	struct drm_i915_private *dev_priv = to_i915(dport->base.base.dev);
+	enum port port = dport->port;
+	enum dpio_phy phy;
+	enum dpio_channel ch;
+	int lane;
+	uint8_t mask;
+
+	bxt_port_to_phy_channel(port, &phy, &ch);
+
+	mask = 0;
+	for (lane = 0; lane < 4; lane++) {
+		u32 val = I915_READ(BXT_PORT_TX_DW14_LN(phy, ch, lane));
+
+		if (val & LATENCY_OPTIM)
+			mask |= BIT(lane);
+	}
+
+	return mask;
+}
+
+
 void chv_set_phy_signal_level(struct intel_encoder *encoder,
 			      u32 deemph_reg_value, u32 margin_reg_value,
 			      bool uniq_trans_scale)

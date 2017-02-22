@@ -383,7 +383,6 @@ static int __format_metadata(struct dm_cache_metadata *cmd)
 		goto bad;
 
 	dm_disk_bitset_init(cmd->tm, &cmd->discard_info);
-
 	r = dm_bitset_empty(&cmd->discard_info, &cmd->discard_root);
 	if (r < 0)
 		goto bad;
@@ -789,7 +788,7 @@ static struct dm_cache_metadata *lookup_or_open(struct block_device *bdev,
 static bool same_params(struct dm_cache_metadata *cmd, sector_t data_block_size)
 {
 	if (cmd->data_block_size != data_block_size) {
-		DMERR("data_block_size (%llu) different from that in metadata (%llu)\n",
+		DMERR("data_block_size (%llu) different from that in metadata (%llu)",
 		      (unsigned long long) data_block_size,
 		      (unsigned long long) cmd->data_block_size);
 		return false;

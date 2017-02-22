@@ -69,6 +69,8 @@
 #define IRQ_STATUS_IRQ_BITS		1
 #define IRQ_STATUS_IRQ_MASK		((1 << IRQ_STATUS_IRQ_BITS) - 1)
 
+#define IRQ_DEBOUNCE_REG	0x218
+
 #define IRQ_MEM_SIZE		0x20
 
 #define IRQ_EDGE_RISING		0x00
@@ -109,7 +111,6 @@ struct sunxi_pinctrl_function {
 
 struct sunxi_pinctrl_group {
 	const char	*name;
-	unsigned long	config;
 	unsigned	pin;
 };
 
@@ -264,6 +265,11 @@ static inline u32 sunxi_irq_ctrl_offset(u16 irq)
 {
 	u32 irq_num = irq % IRQ_CTRL_IRQ_PER_REG;
 	return irq_num * IRQ_CTRL_IRQ_BITS;
+}
+
+static inline u32 sunxi_irq_debounce_reg_from_bank(u8 bank, unsigned bank_base)
+{
+	return IRQ_DEBOUNCE_REG + (bank_base + bank) * IRQ_MEM_SIZE;
 }
 
 static inline u32 sunxi_irq_status_reg_from_bank(u8 bank, unsigned bank_base)

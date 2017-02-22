@@ -156,7 +156,6 @@ int ib_agent_port_open(struct ib_device *device, int port_num)
 	/* Create new device info */
 	port_priv = kzalloc(sizeof *port_priv, GFP_KERNEL);
 	if (!port_priv) {
-		dev_err(&device->dev, "No memory for ib_agent_port_private\n");
 		ret = -ENOMEM;
 		goto error1;
 	}

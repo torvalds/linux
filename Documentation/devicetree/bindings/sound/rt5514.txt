@@ -13,6 +13,9 @@ Optional properties:
 - clocks: The phandle of the master clock to the CODEC
 - clock-names: Should be "mclk"
 
+- realtek,dmic-init-delay-ms
+  Set the DMIC initial delay (ms) to wait it ready.
+
 Pins on the device (for linking into audio routes) for RT5514:
 
   * DMIC1L

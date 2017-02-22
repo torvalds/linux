@@ -114,6 +114,11 @@ config USB_LAN78XX
 	help
 	  This option adds support for Microchip LAN78XX based USB 2
 	  & USB 3 10/100/1000 Ethernet adapters.
+	  LAN7800 : USB 3 to 10/100/1000 Ethernet adapter
+	  LAN7850 : USB 2 to 10/100/1000 Ethernet adapter
+	  LAN7801 : USB 3 to 10/100/1000 Ethernet adapter (MAC only)
+
+	  Proper PHY driver is required for LAN7801.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called lan78xx.

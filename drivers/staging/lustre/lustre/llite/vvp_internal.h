@@ -42,9 +42,7 @@
 
 enum obd_notify_event;
 struct inode;
-struct lov_stripe_md;
 struct lustre_md;
-struct obd_capa;
 struct obd_device;
 struct obd_export;
 struct page;
@@ -122,7 +120,6 @@ extern struct lu_context_key vvp_thread_key;
 
 extern struct kmem_cache *vvp_lock_kmem;
 extern struct kmem_cache *vvp_object_kmem;
-extern struct kmem_cache *vvp_req_kmem;
 
 struct vvp_thread_info {
 	struct cl_lock		vti_lock;
@@ -195,14 +192,6 @@ struct vvp_object {
 	struct inode           *vob_inode;
 
 	/**
-	 * A list of dirty pages pending IO in the cache. Used by
-	 * SOM. Protected by ll_inode_info::lli_lock.
-	 *
-	 * \see vvp_page::vpg_pending_linkage
-	 */
-	struct list_head	vob_pending_list;
-
-	/**
 	 * Number of transient pages.  This is no longer protected by i_sem,
 	 * and needs to be atomic.  This is not actually used for anything,
 	 * and can probably be removed.
@@ -235,15 +224,7 @@ struct vvp_object {
 struct vvp_page {
 	struct cl_page_slice vpg_cl;
 	unsigned int	vpg_defer_uptodate:1,
-			vpg_ra_used:1,
-			vpg_write_queued:1;
-	/**
-	 * Non-empty iff this page is already counted in
-	 * vvp_object::vob_pending_list. This list is only used as a flag,
-	 * that is, never iterated through, only checked for list_empty(), but
-	 * having a list is useful for debugging.
-	 */
-	struct list_head	   vpg_pending_linkage;
+			vpg_ra_used:1;
 	/** VM page */
 	struct page	  *vpg_page;
 };
@@ -260,16 +241,11 @@ static inline pgoff_t vvp_index(struct vvp_page *vvp)
 
 struct vvp_device {
 	struct cl_device    vdv_cl;
-	struct super_block *vdv_sb;
 	struct cl_device   *vdv_next;
 };
 
 struct vvp_lock {
 	struct cl_lock_slice vlk_cl;
-};
-
-struct vvp_req {
-	struct cl_req_slice  vrq_cl;
 };
 
 void *ccc_key_init(const struct lu_context *ctx,
@@ -325,20 +301,7 @@ static inline struct vvp_lock *cl2vvp_lock(const struct cl_lock_slice *slice)
 # define CLOBINVRNT(env, clob, expr)					\
 	((void)sizeof(env), (void)sizeof(clob), (void)sizeof(!!(expr)))
 
-/**
- * New interfaces to get and put lov_stripe_md from lov layer. This violates
- * layering because lov_stripe_md is supposed to be a private data in lov.
- *
- * NB: If you find you have to use these interfaces for your new code, please
- * think about it again. These interfaces may be removed in the future for
- * better layering.
- */
-struct lov_stripe_md *lov_lsm_get(struct cl_object *clobj);
-void lov_lsm_put(struct cl_object *clobj, struct lov_stripe_md *lsm);
 int lov_read_and_clear_async_rc(struct cl_object *clob);
-
-struct lov_stripe_md *ccc_inode_lsm_get(struct inode *inode);
-void ccc_inode_lsm_put(struct inode *inode, struct lov_stripe_md *lsm);
 
 int vvp_io_init(const struct lu_env *env, struct cl_object *obj,
 		struct cl_io *io);
@@ -347,8 +310,6 @@ int vvp_lock_init(const struct lu_env *env, struct cl_object *obj,
 		  struct cl_lock *lock, const struct cl_io *io);
 int vvp_page_init(const struct lu_env *env, struct cl_object *obj,
 		  struct cl_page *page, pgoff_t index);
-int vvp_req_init(const struct lu_env *env, struct cl_device *dev,
-		 struct cl_req *req);
 struct lu_object *vvp_object_alloc(const struct lu_env *env,
 				   const struct lu_object_header *hdr,
 				   struct lu_device *dev);

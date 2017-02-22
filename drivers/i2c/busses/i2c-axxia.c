@@ -489,7 +489,7 @@ static const struct i2c_algorithm axxia_i2c_algo = {
 	.functionality = axxia_i2c_func,
 };
 
-static struct i2c_adapter_quirks axxia_i2c_quirks = {
+static const struct i2c_adapter_quirks axxia_i2c_quirks = {
 	.max_read_len = 255,
 	.max_write_len = 255,
 };

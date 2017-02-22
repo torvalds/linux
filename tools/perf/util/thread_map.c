@@ -448,3 +448,25 @@ bool thread_map__has(struct thread_map *threads, pid_t pid)
 
 	return false;
 }
+
+int thread_map__remove(struct thread_map *threads, int idx)
+{
+	int i;
+
+	if (threads->nr < 1)
+		return -EINVAL;
+
+	if (idx >= threads->nr)
+		return -EINVAL;
+
+	/*
+	 * Free the 'idx' item and shift the rest up.
+	 */
+	free(threads->map[idx].comm);
+
+	for (i = idx; i < threads->nr - 1; i++)
+		threads->map[i] = threads->map[i + 1];
+
+	threads->nr--;
+	return 0;
+}

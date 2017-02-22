@@ -312,7 +312,7 @@ static int crypto_rfc3686_init_tfm(struct crypto_skcipher *tfm)
 	unsigned long align;
 	unsigned int reqsize;
 
-	cipher = crypto_spawn_skcipher2(spawn);
+	cipher = crypto_spawn_skcipher(spawn);
 	if (IS_ERR(cipher))
 		return PTR_ERR(cipher);
 
@@ -370,9 +370,9 @@ static int crypto_rfc3686_create(struct crypto_template *tmpl,
 	spawn = skcipher_instance_ctx(inst);
 
 	crypto_set_skcipher_spawn(spawn, skcipher_crypto_instance(inst));
-	err = crypto_grab_skcipher2(spawn, cipher_name, 0,
-				    crypto_requires_sync(algt->type,
-							 algt->mask));
+	err = crypto_grab_skcipher(spawn, cipher_name, 0,
+				   crypto_requires_sync(algt->type,
+							algt->mask));
 	if (err)
 		goto err_free_inst;
 

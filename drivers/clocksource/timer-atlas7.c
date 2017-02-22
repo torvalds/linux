@@ -85,7 +85,7 @@ static irqreturn_t sirfsoc_timer_interrupt(int irq, void *dev_id)
 }
 
 /* read 64-bit timer counter */
-static cycle_t sirfsoc_timer_read(struct clocksource *cs)
+static u64 sirfsoc_timer_read(struct clocksource *cs)
 {
 	u64 cycles;
 
@@ -221,7 +221,7 @@ static int __init sirfsoc_clockevent_init(void)
 
 	/* Install and invoke hotplug callbacks */
 	return cpuhp_setup_state(CPUHP_AP_MARCO_TIMER_STARTING,
-				 "AP_MARCO_TIMER_STARTING",
+				 "clockevents/marco:starting",
 				 sirfsoc_local_timer_starting_cpu,
 				 sirfsoc_local_timer_dying_cpu);
 }

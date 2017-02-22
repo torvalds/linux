@@ -1,11 +1,14 @@
 /*
+ * AB8500 system control driver
+ *
  * Copyright (C) ST-Ericsson SA 2010
  * Author: Mattias Nilsson <mattias.i.nilsson@stericsson.com> for ST Ericsson.
  * License terms: GNU General Public License (GPL) version 2
  */
 
 #include <linux/err.h>
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/export.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/reboot.h>
@@ -158,7 +161,3 @@ static int __init ab8500_sysctrl_init(void)
 	return platform_driver_register(&ab8500_sysctrl_driver);
 }
 arch_initcall(ab8500_sysctrl_init);
-
-MODULE_AUTHOR("Mattias Nilsson <mattias.i.nilsson@stericsson.com");
-MODULE_DESCRIPTION("AB8500 system control driver");
-MODULE_LICENSE("GPL v2");

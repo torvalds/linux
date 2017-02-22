@@ -712,7 +712,6 @@ static const struct net_device_ops hisi_femac_netdev_ops = {
 	.ndo_do_ioctl		= hisi_femac_net_ioctl,
 	.ndo_set_mac_address	= hisi_femac_set_mac_address,
 	.ndo_set_rx_mode	= hisi_femac_net_set_rx_mode,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static void hisi_femac_core_reset(struct hisi_femac_priv *priv)
@@ -806,6 +805,7 @@ static int hisi_femac_drv_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, ndev);
+	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	priv = netdev_priv(ndev);
 	priv->dev = dev;
@@ -883,7 +883,6 @@ static int hisi_femac_drv_probe(struct platform_device *pdev)
 	ndev->netdev_ops = &hisi_femac_netdev_ops;
 	ndev->ethtool_ops = &hisi_femac_ethtools_ops;
 	netif_napi_add(ndev, &priv->napi, hisi_femac_poll, FEMAC_POLL_WEIGHT);
-	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	hisi_femac_port_init(priv);
 

@@ -6678,11 +6678,6 @@ static int s2io_change_mtu(struct net_device *dev, int new_mtu)
 	struct s2io_nic *sp = netdev_priv(dev);
 	int ret = 0;
 
-	if ((new_mtu < MIN_MTU) || (new_mtu > S2IO_JUMBO_SIZE)) {
-		DBG_PRINT(ERR_DBG, "%s: MTU size is invalid.\n", dev->name);
-		return -EPERM;
-	}
-
 	dev->mtu = new_mtu;
 	if (netif_running(dev)) {
 		s2io_stop_all_tx_queue(sp);
@@ -8018,6 +8013,10 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		config->max_mac_addr = S2IO_HERC_MAX_MAC_ADDRESSES;
 		config->mc_start_offset = S2IO_HERC_MC_ADDR_START_OFFSET;
 	}
+
+	/* MTU range: 46 - 9600 */
+	dev->min_mtu = MIN_MTU;
+	dev->max_mtu = S2IO_JUMBO_SIZE;
 
 	/* store mac addresses from CAM to s2io_nic structure */
 	do_s2io_store_unicast_mc(sp);

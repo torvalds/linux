@@ -141,6 +141,23 @@
 			};
 		};
 
+		external-bus@1a100000 {
+			compatible = "qcom,msm8660-ebi2";
+			#address-cells = <2>;
+			#size-cells = <1>;
+			ranges = <0 0x0 0x1a800000 0x00800000>,
+				 <1 0x0 0x1b000000 0x00800000>,
+				 <2 0x0 0x1b800000 0x00800000>,
+				 <3 0x0 0x1d000000 0x08000000>,
+				 <4 0x0 0x1c800000 0x00800000>,
+				 <5 0x0 0x1c000000 0x00800000>;
+			reg = <0x1a100000 0x1000>, <0x1a110000 0x1000>;
+			reg-names = "ebi2", "xmem";
+			clocks = <&gcc EBI2_2X_CLK>, <&gcc EBI2_CLK>;
+			clock-names = "ebi2x", "ebi2";
+			status = "disabled";
+		};
+
 		qcom,ssbi@500000 {
 			compatible = "qcom,ssbi";
 			reg = <0x500000 0x1000>;

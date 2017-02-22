@@ -20,7 +20,7 @@
 
 #include "tda10071_priv.h"
 
-static struct dvb_frontend_ops tda10071_ops;
+static const struct dvb_frontend_ops tda10071_ops;
 
 /*
  * XXX: regmap_update_bits() does not fit our needs as it does not support
@@ -1102,7 +1102,7 @@ static int tda10071_get_tune_settings(struct dvb_frontend *fe,
 	return 0;
 }
 
-static struct dvb_frontend_ops tda10071_ops = {
+static const struct dvb_frontend_ops tda10071_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2 },
 	.info = {
 		.name = "NXP TDA10071",

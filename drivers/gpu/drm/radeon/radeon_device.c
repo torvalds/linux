@@ -1333,7 +1333,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	for (i = 0; i < RADEON_NUM_RINGS; i++) {
 		rdev->ring[i].idx = i;
 	}
-	rdev->fence_context = fence_context_alloc(RADEON_NUM_RINGS);
+	rdev->fence_context = dma_fence_context_alloc(RADEON_NUM_RINGS);
 
 	DRM_INFO("initializing kernel modesetting (%s 0x%04X:0x%04X 0x%04X:0x%04X 0x%02X).\n",
 		 radeon_family_name[rdev->family], pdev->vendor, pdev->device,
@@ -1664,7 +1664,10 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend,
 
 	radeon_suspend(rdev);
 	radeon_hpd_fini(rdev);
-	/* evict remaining vram memory */
+	/* evict remaining vram memory
+	 * This second call to evict vram is to evict the gart page table
+	 * using the CPU.
+	 */
 	radeon_bo_evict_vram(rdev);
 
 	radeon_agp_suspend(rdev);
@@ -1946,9 +1949,6 @@ int radeon_debugfs_add_files(struct radeon_device *rdev,
 	rdev->debugfs_count = i;
 #if defined(CONFIG_DEBUG_FS)
 	drm_debugfs_create_files(files, nfiles,
-				 rdev->ddev->control->debugfs_root,
-				 rdev->ddev->control);
-	drm_debugfs_create_files(files, nfiles,
 				 rdev->ddev->primary->debugfs_root,
 				 rdev->ddev->primary);
 #endif
@@ -1961,9 +1961,6 @@ static void radeon_debugfs_remove_files(struct radeon_device *rdev)
 	unsigned i;
 
 	for (i = 0; i < rdev->debugfs_count; i++) {
-		drm_debugfs_remove_files(rdev->debugfs[i].files,
-					 rdev->debugfs[i].num_files,
-					 rdev->ddev->control);
 		drm_debugfs_remove_files(rdev->debugfs[i].files,
 					 rdev->debugfs[i].num_files,
 					 rdev->ddev->primary);

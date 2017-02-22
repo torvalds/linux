@@ -479,9 +479,10 @@ config USB_OHCI_HCD_OMAP3
 	  OMAP3 and later chips.
 
 config USB_OHCI_HCD_DAVINCI
-	bool "OHCI support for TI DaVinci DA8xx"
+	tristate "OHCI support for TI DaVinci DA8xx"
 	depends on ARCH_DAVINCI_DA8XX
-	depends on USB_OHCI_HCD=y
+	depends on USB_OHCI_HCD
+	select PHY_DA8XX_USB
 	default y
 	help
 	  Enables support for the DaVinci DA8xx integrated OHCI

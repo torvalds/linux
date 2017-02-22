@@ -499,7 +499,6 @@ static int pcie_port_probe_service(struct device *dev)
 	if (status)
 		return status;
 
-	dev_printk(KERN_DEBUG, dev, "service driver %s loaded\n", driver->name);
 	get_device(dev);
 	return 0;
 }
@@ -524,8 +523,6 @@ static int pcie_port_remove_service(struct device *dev)
 	pciedev = to_pcie_device(dev);
 	driver = to_service_driver(dev->driver);
 	if (driver && driver->remove) {
-		dev_printk(KERN_DEBUG, dev, "unloading service driver %s\n",
-			driver->name);
 		driver->remove(pciedev);
 		put_device(dev);
 	}

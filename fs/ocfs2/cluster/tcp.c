@@ -62,7 +62,7 @@
 #include <linux/export.h>
 #include <net/tcp.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "heartbeat.h"
 #include "tcp.h"

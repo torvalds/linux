@@ -22,7 +22,7 @@
 #include <linux/swap.h>
 #include <linux/crc32.h>
 #include <linux/writeback.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/dlm.h>
 #include <linux/dlm_plock.h>
 #include <linux/delay.h>

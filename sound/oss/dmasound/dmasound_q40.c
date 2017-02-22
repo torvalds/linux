@@ -20,7 +20,7 @@
 #include <linux/soundcard.h>
 #include <linux/interrupt.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/q40ints.h>
 #include <asm/q40_master.h>
 

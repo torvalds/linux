@@ -20,7 +20,6 @@
 #ifdef CONFIG_VIDEO_VIVID_CEC
 struct cec_adapter *vivid_cec_alloc_adap(struct vivid_dev *dev,
 					 unsigned int idx,
-					 struct device *parent,
 					 bool is_source);
 void vivid_cec_bus_free_work(struct vivid_dev *dev);
 

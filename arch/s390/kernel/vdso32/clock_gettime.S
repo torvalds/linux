@@ -99,8 +99,27 @@ __kernel_clock_gettime:
 	tml	%r4,0x0001			/* pending update ? loop */
 	jnz	11b
 	stcke	0(%r15)				/* Store TOD clock */
-	lm	%r0,%r1,1(%r15)
-	s	%r0,__VDSO_XTIME_STAMP(%r5)	/* TOD - cycle_last */
+	lm	%r0,%r1,__VDSO_TS_END(%r5)	/* TOD steering end time */
+	s	%r0,1(%r15)			/* no - ts_steering_end */
+	sl	%r1,5(%r15)
+	brc	3,22f
+	ahi	%r0,-1
+22:	ltr	%r0,%r0				/* past end of steering? */
+	jm	24f
+	srdl	%r0,15				/* 1 per 2^16 */
+	tm	__VDSO_TS_DIR+3(%r5),0x01	/* steering direction? */
+	jz	23f
+	lcr	%r0,%r0				/* negative TOD offset */
+	lcr	%r1,%r1
+	je	23f
+	ahi	%r0,-1
+23:	a	%r0,1(%r15)			/* add TOD timestamp */
+	al	%r1,5(%r15)
+	brc	12,25f
+	ahi	%r0,1
+	j	25f
+24:	lm	%r0,%r1,1(%r15)			/* load TOD timestamp */
+25:	s	%r0,__VDSO_XTIME_STAMP(%r5)	/* TOD - cycle_last */
 	sl	%r1,__VDSO_XTIME_STAMP+4(%r5)
 	brc	3,12f
 	ahi	%r0,-1

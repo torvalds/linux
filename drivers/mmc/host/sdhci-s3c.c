@@ -121,7 +121,9 @@ static unsigned int sdhci_s3c_consider_clock(struct sdhci_s3c *ourhost,
 	 * speed possible with selected clock source and skip the division.
 	 */
 	if (ourhost->no_divider) {
+		spin_unlock_irq(&ourhost->host->lock);
 		rate = clk_round_rate(clksrc, wanted);
+		spin_lock_irq(&ourhost->host->lock);
 		return wanted - rate;
 	}
 

@@ -96,7 +96,7 @@ static ssize_t current_uuid_store(struct device *dev,
 	return -EINVAL;
 }
 
-static DEVICE_ATTR(current_uuid, 0644, current_uuid_show, current_uuid_store);
+static DEVICE_ATTR_RW(current_uuid);
 static DEVICE_ATTR_RO(available_uuids);
 static struct attribute *uuid_attrs[] = {
 	&dev_attr_available_uuids.attr,

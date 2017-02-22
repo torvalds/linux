@@ -1,7 +1,7 @@
 * Maxim DS3231 Real Time Clock
 
 Required properties:
-see: Documentation/devicetree/bindings/i2c/trivial-devices.txt
+see: Documentation/devicetree/bindings/i2c/trivial-admin-guide/devices.rst
 
 Optional property:
 - #clock-cells: Should be 1.

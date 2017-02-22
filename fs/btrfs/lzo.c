@@ -254,25 +254,21 @@ out:
 	return ret;
 }
 
-static int lzo_decompress_biovec(struct list_head *ws,
+static int lzo_decompress_bio(struct list_head *ws,
 				 struct page **pages_in,
 				 u64 disk_start,
-				 struct bio_vec *bvec,
-				 int vcnt,
+				 struct bio *orig_bio,
 				 size_t srclen)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	int ret = 0, ret2;
 	char *data_in;
 	unsigned long page_in_index = 0;
-	unsigned long page_out_index = 0;
 	unsigned long total_pages_in = DIV_ROUND_UP(srclen, PAGE_SIZE);
 	unsigned long buf_start;
 	unsigned long buf_offset = 0;
 	unsigned long bytes;
 	unsigned long working_bytes;
-	unsigned long pg_offset;
-
 	size_t in_len;
 	size_t out_len;
 	unsigned long in_offset;
@@ -292,7 +288,6 @@ static int lzo_decompress_biovec(struct list_head *ws,
 	in_page_bytes_left = PAGE_SIZE - LZO_LEN;
 
 	tot_out = 0;
-	pg_offset = 0;
 
 	while (tot_in < tot_len) {
 		in_len = read_compress_length(data_in + in_offset);
@@ -365,16 +360,14 @@ cont:
 		tot_out += out_len;
 
 		ret2 = btrfs_decompress_buf2page(workspace->buf, buf_start,
-						 tot_out, disk_start,
-						 bvec, vcnt,
-						 &page_out_index, &pg_offset);
+						 tot_out, disk_start, orig_bio);
 		if (ret2 == 0)
 			break;
 	}
 done:
 	kunmap(pages_in[page_in_index]);
 	if (!ret)
-		btrfs_clear_biovec_end(bvec, vcnt, page_out_index, pg_offset);
+		zero_fill_bio(orig_bio);
 	return ret;
 }
 
@@ -438,6 +431,6 @@ const struct btrfs_compress_op btrfs_lzo_compress = {
 	.alloc_workspace	= lzo_alloc_workspace,
 	.free_workspace		= lzo_free_workspace,
 	.compress_pages		= lzo_compress_pages,
-	.decompress_biovec	= lzo_decompress_biovec,
+	.decompress_bio		= lzo_decompress_bio,
 	.decompress		= lzo_decompress,
 };

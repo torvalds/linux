@@ -1285,7 +1285,6 @@ static const struct net_device_ops ks_netdev_ops = {
 	.ndo_start_xmit		= ks_start_xmit,
 	.ndo_set_mac_address	= ks_set_mac_address,
 	.ndo_set_rx_mode	= ks_set_rx_mode,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 };
 

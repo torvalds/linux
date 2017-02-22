@@ -15,7 +15,6 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/suspend.h>
@@ -34,7 +33,6 @@ struct exynos_ppmu {
 	unsigned int num_events;
 
 	struct device *dev;
-	struct mutex lock;
 
 	struct exynos_ppmu_data ppmu;
 };
@@ -90,8 +88,6 @@ struct __exynos_ppmu_events {
 	PPMU_EVENT(d1-cpu),
 	PPMU_EVENT(d1-general),
 	PPMU_EVENT(d1-rt),
-
-	{ /* sentinel */ },
 };
 
 static int exynos_ppmu_find_ppmu_id(struct devfreq_event_dev *edev)
@@ -351,6 +347,7 @@ static const struct of_device_id exynos_ppmu_id_match[] = {
 	},
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, exynos_ppmu_id_match);
 
 static struct devfreq_event_ops *exynos_bus_get_ops(struct device_node *np)
 {
@@ -463,7 +460,6 @@ static int exynos_ppmu_probe(struct platform_device *pdev)
 	if (!info)
 		return -ENOMEM;
 
-	mutex_init(&info->lock);
 	info->dev = &pdev->dev;
 
 	/* Parse dt data to get resource */

@@ -90,10 +90,10 @@ static int fanotify_get_response(struct fsnotify_group *group,
 static bool fanotify_should_send_event(struct fsnotify_mark *inode_mark,
 				       struct fsnotify_mark *vfsmnt_mark,
 				       u32 event_mask,
-				       void *data, int data_type)
+				       const void *data, int data_type)
 {
 	__u32 marks_mask, marks_ignored_mask;
-	struct path *path = data;
+	const struct path *path = data;
 
 	pr_debug("%s: inode_mark=%p vfsmnt_mark=%p mask=%x data=%p"
 		 " data_type=%d\n", __func__, inode_mark, vfsmnt_mark,
@@ -140,7 +140,7 @@ static bool fanotify_should_send_event(struct fsnotify_mark *inode_mark,
 }
 
 struct fanotify_event_info *fanotify_alloc_event(struct inode *inode, u32 mask,
-						 struct path *path)
+						 const struct path *path)
 {
 	struct fanotify_event_info *event;
 
@@ -177,7 +177,7 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 				 struct inode *inode,
 				 struct fsnotify_mark *inode_mark,
 				 struct fsnotify_mark *fanotify_mark,
-				 u32 mask, void *data, int data_type,
+				 u32 mask, const void *data, int data_type,
 				 const unsigned char *file_name, u32 cookie)
 {
 	int ret = 0;

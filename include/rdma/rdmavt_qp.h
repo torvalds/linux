@@ -51,6 +51,7 @@
 #include <rdma/rdma_vt.h>
 #include <rdma/ib_pack.h>
 #include <rdma/ib_verbs.h>
+#include <rdma/rdmavt_cq.h>
 /*
  * Atomic bit definitions for r_aflags.
  */
@@ -485,6 +486,23 @@ static inline void rvt_put_qp(struct rvt_qp *qp)
 }
 
 /**
+ * rvt_put_swqe - drop mr refs held by swqe
+ * @wqe - the send wqe
+ *
+ * This drops any mr references held by the swqe
+ */
+static inline void rvt_put_swqe(struct rvt_swqe *wqe)
+{
+	int i;
+
+	for (i = 0; i < wqe->wr.num_sge; i++) {
+		struct rvt_sge *sge = &wqe->sg_list[i];
+
+		rvt_put_mr(sge->mr);
+	}
+}
+
+/**
  * rvt_qp_wqe_reserve - reserve operation
  * @qp - the rvt qp
  * @wqe - the send wqe
@@ -525,6 +543,65 @@ static inline void rvt_qp_wqe_unreserve(
 		/* insure no compiler re-order up to s_last change */
 		smp_mb__after_atomic();
 	}
+}
+
+extern const enum ib_wc_opcode ib_rvt_wc_opcode[];
+
+/**
+ * rvt_qp_swqe_complete() - insert send completion
+ * @qp - the qp
+ * @wqe - the send wqe
+ * @status - completion status
+ *
+ * Insert a send completion into the completion
+ * queue if the qp indicates it should be done.
+ *
+ * See IBTA 10.7.3.1 for info on completion
+ * control.
+ */
+static inline void rvt_qp_swqe_complete(
+	struct rvt_qp *qp,
+	struct rvt_swqe *wqe,
+	enum ib_wc_status status)
+{
+	if (unlikely(wqe->wr.send_flags & RVT_SEND_RESERVE_USED))
+		return;
+	if (!(qp->s_flags & RVT_S_SIGNAL_REQ_WR) ||
+	    (wqe->wr.send_flags & IB_SEND_SIGNALED) ||
+	     status != IB_WC_SUCCESS) {
+		struct ib_wc wc;
+
+		memset(&wc, 0, sizeof(wc));
+		wc.wr_id = wqe->wr.wr_id;
+		wc.status = status;
+		wc.opcode = ib_rvt_wc_opcode[wqe->wr.opcode];
+		wc.qp = &qp->ibqp;
+		wc.byte_len = wqe->length;
+		rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.send_cq), &wc,
+			     status != IB_WC_SUCCESS);
+	}
+}
+
+/**
+ * @qp - the qp pair
+ * @len - the length
+ *
+ * Perform a shift based mtu round up divide
+ */
+static inline u32 rvt_div_round_up_mtu(struct rvt_qp *qp, u32 len)
+{
+	return (len + qp->pmtu - 1) >> qp->log_pmtu;
+}
+
+/**
+ * @qp - the qp pair
+ * @len - the length
+ *
+ * Perform a shift based mtu divide
+ */
+static inline u32 rvt_div_mtu(struct rvt_qp *qp, u32 len)
+{
+	return len >> qp->log_pmtu;
 }
 
 extern const int  ib_rvt_state_ops[];

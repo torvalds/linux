@@ -1,4 +1,5 @@
-/* Copyright 2013-2016 Freescale Semiconductor Inc.
+/*
+ * Copyright 2013-2016 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -10,7 +11,6 @@
  * * Neither the name of the above-listed copyright holders nor the
  * names of any contributors may be used to endorse or promote products
  * derived from this software without specific prior written permission.
- *
  *
  * ALTERNATIVELY, this software may be distributed under the terms of the
  * GNU General Public License ("GPL") as published by the Free Software
@@ -32,7 +32,8 @@
 #include "../include/mc-sys.h"
 #include "../include/mc-cmd.h"
 #include "../include/dpbp.h"
-#include "../include/dpbp-cmd.h"
+
+#include "dpbp-cmd.h"
 
 /**
  * dpbp_open() - Open a control session for the specified object.
@@ -107,28 +108,26 @@ EXPORT_SYMBOL(dpbp_close);
 /**
  * dpbp_create() - Create the DPBP object.
  * @mc_io:	Pointer to MC portal's I/O object
+ * @dprc_token:	Parent container token; '0' for default container
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @cfg:	Configuration structure
- * @token:	Returned token; use in subsequent API calls
+ * @obj_id:	Returned object id; use in subsequent API calls
  *
  * Create the DPBP object, allocate required resources and
  * perform required initialization.
  *
- * The object can be created either by declaring it in the
- * DPL file, or by calling this function.
- * This function returns a unique authentication token,
- * associated with the specific object ID and the specific MC
- * portal; this token must be used in all subsequent calls to
- * this specific object. For objects that are created using the
- * DPL file, call dpbp_open function to get an authentication
- * token first.
+ * This function accepts an authentication token of a parent
+ * container that this object should be assigned to and returns
+ * an object id. This object_id will be used in all subsequent calls to
+ * this specific object.
  *
  * Return:	'0' on Success; Error code otherwise.
  */
 int dpbp_create(struct fsl_mc_io *mc_io,
+		u16 dprc_token,
 		u32 cmd_flags,
 		const struct dpbp_cfg *cfg,
-		u16 *token)
+		u32 *obj_id)
 {
 	struct mc_command cmd = { 0 };
 	int err;
@@ -137,7 +136,7 @@ int dpbp_create(struct fsl_mc_io *mc_io,
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPBP_CMDID_CREATE,
-					  cmd_flags, 0);
+					  cmd_flags, dprc_token);
 
 	/* send command to mc*/
 	err = mc_send_command(mc_io, &cmd);
@@ -145,7 +144,7 @@ int dpbp_create(struct fsl_mc_io *mc_io,
 		return err;
 
 	/* retrieve response parameters */
-	*token = mc_cmd_hdr_read_token(&cmd);
+	*obj_id = mc_cmd_read_object_id(&cmd);
 
 	return 0;
 }
@@ -153,20 +152,25 @@ int dpbp_create(struct fsl_mc_io *mc_io,
 /**
  * dpbp_destroy() - Destroy the DPBP object and release all its resources.
  * @mc_io:	Pointer to MC portal's I/O object
+ * @dprc_token:	Parent container token; '0' for default container
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPBP object
+ * @obj_id:	ID of DPBP object
  *
  * Return:	'0' on Success; error code otherwise.
  */
 int dpbp_destroy(struct fsl_mc_io *mc_io,
+		 u16 dprc_token,
 		 u32 cmd_flags,
-		 u16 token)
+		 u32 obj_id)
 {
+	struct dpbp_cmd_destroy *cmd_params;
 	struct mc_command cmd = { 0 };
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPBP_CMDID_DESTROY,
-					  cmd_flags, token);
+					  cmd_flags, dprc_token);
+	cmd_params = (struct dpbp_cmd_destroy *)cmd.params;
+	cmd_params->object_id = cpu_to_le32(obj_id);
 
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
@@ -609,8 +613,6 @@ int dpbp_get_attributes(struct fsl_mc_io *mc_io,
 	rsp_params = (struct dpbp_rsp_get_attributes *)cmd.params;
 	attr->bpid = le16_to_cpu(rsp_params->bpid);
 	attr->id = le32_to_cpu(rsp_params->id);
-	attr->version.major = le16_to_cpu(rsp_params->version_major);
-	attr->version.minor = le16_to_cpu(rsp_params->version_minor);
 
 	return 0;
 }
@@ -686,6 +688,38 @@ int dpbp_get_notifications(struct fsl_mc_io *mc_io,
 	cfg->options = le16_to_cpu(rsp_params->options);
 	cfg->message_ctx = le64_to_cpu(rsp_params->message_ctx);
 	cfg->message_iova = le64_to_cpu(rsp_params->message_iova);
+
+	return 0;
+}
+
+/**
+ * dpbp_get_api_version - Get Data Path Buffer Pool API version
+ * @mc_io:	Pointer to Mc portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @major_ver:	Major version of Buffer Pool API
+ * @minor_ver:	Minor version of Buffer Pool API
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ */
+int dpbp_get_api_version(struct fsl_mc_io *mc_io,
+			 u32 cmd_flags,
+			 u16 *major_ver,
+			 u16 *minor_ver)
+{
+	struct mc_command cmd = { 0 };
+	int err;
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(DPBP_CMDID_GET_API_VERSION,
+					  cmd_flags, 0);
+
+	/* send command to mc */
+	err = mc_send_command(mc_io, &cmd);
+	if (err)
+		return err;
+
+	/* retrieve response parameters */
+	mc_cmd_read_api_version(&cmd, major_ver, minor_ver);
 
 	return 0;
 }

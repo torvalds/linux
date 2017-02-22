@@ -43,6 +43,17 @@
 		};
 	};
 
+	hdmi-out {
+		compatible = "hdmi-connector";
+		type = "d";
+
+		port {
+			hdmi_con: endpoint {
+				remote-endpoint = <&hdmi_out>;
+			};
+		};
+	};
+
 	soc {
 		pinctrl@800000 {
 			card_detect: card_detect {
@@ -62,6 +73,25 @@
 					pins = "gpio27";
 					drive-strength = <12>;
 					bias-disable;
+				};
+			};
+
+			hdmi_pinctrl: hdmi-pinctrl {
+				mux {
+					pins = "gpio70", "gpio71", "gpio72";
+					function = "hdmi";
+				};
+
+				pinconf_ddc {
+					pins = "gpio70", "gpio71";
+					bias-pull-up;
+					drive-strength = <2>;
+				};
+
+				pinconf_hpd {
+					pins = "gpio72";
+					bias-pull-down;
+					drive-strength = <16>;
 				};
 			};
 		};
@@ -327,6 +357,50 @@
 				vmmc-supply = <&ext_3p3v>;
 				vqmmc-supply = <&pm8921_lvs1>;
 				mmc-pwrseq = <&sdcc4_pwrseq>;
+			};
+		};
+
+		hdmi-tx@4a00000 {
+			status = "okay";
+
+			core-vdda-supply = <&pm8921_hdmi_switch>;
+			hdmi-mux-supply = <&ext_3p3v>;
+
+			hpd-gpios = <&tlmm_pinmux 72 GPIO_ACTIVE_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&hdmi_pinctrl>;
+
+			ports {
+				port@0 {
+					endpoint {
+						remote-endpoint = <&mdp_dtv_out>;
+					};
+				};
+
+				port@1 {
+					endpoint {
+						remote-endpoint = <&hdmi_con>;
+					};
+				};
+			};
+		};
+
+		hdmi-phy@4a00400 {
+			status = "okay";
+
+			core-vdda-supply = <&pm8921_hdmi_switch>;
+		};
+
+		mdp@5100000 {
+			status = "okay";
+
+			ports {
+				port@3 {
+					endpoint {
+						remote-endpoint = <&hdmi_in>;
+					};
+				};
 			};
 		};
 	};

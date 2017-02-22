@@ -14,6 +14,8 @@
 #include <linux/pci-ecam.h>
 #include <linux/platform_device.h>
 
+#if defined(CONFIG_PCI_HOST_THUNDER_ECAM) || (defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS))
+
 static void set_val(u32 v, int where, int size, u32 *val)
 {
 	int shift = (where & 3) * 8;
@@ -346,7 +348,7 @@ static int thunder_ecam_config_write(struct pci_bus *bus, unsigned int devfn,
 	return pci_generic_config_write(bus, devfn, where, size, val);
 }
 
-static struct pci_ecam_ops pci_thunder_ecam_ops = {
+struct pci_ecam_ops pci_thunder_ecam_ops = {
 	.bus_shift	= 20,
 	.pci_ops	= {
 		.map_bus        = pci_ecam_map_bus,
@@ -354,6 +356,8 @@ static struct pci_ecam_ops pci_thunder_ecam_ops = {
 		.write          = thunder_ecam_config_write,
 	}
 };
+
+#ifdef CONFIG_PCI_HOST_THUNDER_ECAM
 
 static const struct of_device_id thunder_ecam_of_match[] = {
 	{ .compatible = "cavium,pci-host-thunder-ecam" },
@@ -373,3 +377,6 @@ static struct platform_driver thunder_ecam_driver = {
 	.probe = thunder_ecam_probe,
 };
 builtin_platform_driver(thunder_ecam_driver);
+
+#endif
+#endif

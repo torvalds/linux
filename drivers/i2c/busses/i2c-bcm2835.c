@@ -50,20 +50,19 @@
 #define BCM2835_I2C_S_CLKT	BIT(9)
 #define BCM2835_I2C_S_LEN	BIT(10) /* Fake bit for SW error reporting */
 
-#define BCM2835_I2C_BITMSK_S	0x03FF
-
 #define BCM2835_I2C_CDIV_MIN	0x0002
 #define BCM2835_I2C_CDIV_MAX	0xFFFE
-
-#define BCM2835_I2C_TIMEOUT (msecs_to_jiffies(1000))
 
 struct bcm2835_i2c_dev {
 	struct device *dev;
 	void __iomem *regs;
 	struct clk *clk;
 	int irq;
+	u32 bus_clk_rate;
 	struct i2c_adapter adapter;
 	struct completion completion;
+	struct i2c_msg *curr_msg;
+	int num_msgs;
 	u32 msg_err;
 	u8 *msg_buf;
 	size_t msg_buf_remaining;
@@ -78,6 +77,30 @@ static inline void bcm2835_i2c_writel(struct bcm2835_i2c_dev *i2c_dev,
 static inline u32 bcm2835_i2c_readl(struct bcm2835_i2c_dev *i2c_dev, u32 reg)
 {
 	return readl(i2c_dev->regs + reg);
+}
+
+static int bcm2835_i2c_set_divider(struct bcm2835_i2c_dev *i2c_dev)
+{
+	u32 divider;
+
+	divider = DIV_ROUND_UP(clk_get_rate(i2c_dev->clk),
+			       i2c_dev->bus_clk_rate);
+	/*
+	 * Per the datasheet, the register is always interpreted as an even
+	 * number, by rounding down. In other words, the LSB is ignored. So,
+	 * if the LSB is set, increment the divider to avoid any issue.
+	 */
+	if (divider & 1)
+		divider++;
+	if ((divider < BCM2835_I2C_CDIV_MIN) ||
+	    (divider > BCM2835_I2C_CDIV_MAX)) {
+		dev_err_ratelimited(i2c_dev->dev, "Invalid clock-frequency\n");
+		return -EINVAL;
+	}
+
+	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_DIV, divider);
+
+	return 0;
 }
 
 static void bcm2835_fill_txfifo(struct bcm2835_i2c_dev *i2c_dev)
@@ -110,106 +133,159 @@ static void bcm2835_drain_rxfifo(struct bcm2835_i2c_dev *i2c_dev)
 	}
 }
 
+/*
+ * Repeated Start Condition (Sr)
+ * The BCM2835 ARM Peripherals datasheet mentions a way to trigger a Sr when it
+ * talks about reading from a slave with 10 bit address. This is achieved by
+ * issuing a write, poll the I2CS.TA flag and wait for it to be set, and then
+ * issue a read.
+ * A comment in https://github.com/raspberrypi/linux/issues/254 shows how the
+ * firmware actually does it using polling and says that it's a workaround for
+ * a problem in the state machine.
+ * It turns out that it is possible to use the TXW interrupt to know when the
+ * transfer is active, provided the FIFO has not been prefilled.
+ */
+
+static void bcm2835_i2c_start_transfer(struct bcm2835_i2c_dev *i2c_dev)
+{
+	u32 c = BCM2835_I2C_C_ST | BCM2835_I2C_C_I2CEN;
+	struct i2c_msg *msg = i2c_dev->curr_msg;
+	bool last_msg = (i2c_dev->num_msgs == 1);
+
+	if (!i2c_dev->num_msgs)
+		return;
+
+	i2c_dev->num_msgs--;
+	i2c_dev->msg_buf = msg->buf;
+	i2c_dev->msg_buf_remaining = msg->len;
+
+	if (msg->flags & I2C_M_RD)
+		c |= BCM2835_I2C_C_READ | BCM2835_I2C_C_INTR;
+	else
+		c |= BCM2835_I2C_C_INTT;
+
+	if (last_msg)
+		c |= BCM2835_I2C_C_INTD;
+
+	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_A, msg->addr);
+	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_DLEN, msg->len);
+	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_C, c);
+}
+
+/*
+ * Note about I2C_C_CLEAR on error:
+ * The I2C_C_CLEAR on errors will take some time to resolve -- if you were in
+ * non-idle state and I2C_C_READ, it sets an abort_rx flag and runs through
+ * the state machine to send a NACK and a STOP. Since we're setting CLEAR
+ * without I2CEN, that NACK will be hanging around queued up for next time
+ * we start the engine.
+ */
+
 static irqreturn_t bcm2835_i2c_isr(int this_irq, void *data)
 {
 	struct bcm2835_i2c_dev *i2c_dev = data;
 	u32 val, err;
 
 	val = bcm2835_i2c_readl(i2c_dev, BCM2835_I2C_S);
-	val &= BCM2835_I2C_BITMSK_S;
-	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_S, val);
 
 	err = val & (BCM2835_I2C_S_CLKT | BCM2835_I2C_S_ERR);
 	if (err) {
 		i2c_dev->msg_err = err;
-		complete(&i2c_dev->completion);
-		return IRQ_HANDLED;
-	}
-
-	if (val & BCM2835_I2C_S_RXD) {
-		bcm2835_drain_rxfifo(i2c_dev);
-		if (!(val & BCM2835_I2C_S_DONE))
-			return IRQ_HANDLED;
+		goto complete;
 	}
 
 	if (val & BCM2835_I2C_S_DONE) {
-		if (i2c_dev->msg_buf_remaining)
+		if (i2c_dev->curr_msg->flags & I2C_M_RD) {
+			bcm2835_drain_rxfifo(i2c_dev);
+			val = bcm2835_i2c_readl(i2c_dev, BCM2835_I2C_S);
+		}
+
+		if ((val & BCM2835_I2C_S_RXD) || i2c_dev->msg_buf_remaining)
 			i2c_dev->msg_err = BCM2835_I2C_S_LEN;
 		else
 			i2c_dev->msg_err = 0;
-		complete(&i2c_dev->completion);
+		goto complete;
+	}
+
+	if (val & BCM2835_I2C_S_TXW) {
+		if (!i2c_dev->msg_buf_remaining) {
+			i2c_dev->msg_err = val | BCM2835_I2C_S_LEN;
+			goto complete;
+		}
+
+		bcm2835_fill_txfifo(i2c_dev);
+
+		if (i2c_dev->num_msgs && !i2c_dev->msg_buf_remaining) {
+			i2c_dev->curr_msg++;
+			bcm2835_i2c_start_transfer(i2c_dev);
+		}
+
 		return IRQ_HANDLED;
 	}
 
-	if (val & BCM2835_I2C_S_TXD) {
-		bcm2835_fill_txfifo(i2c_dev);
+	if (val & BCM2835_I2C_S_RXR) {
+		if (!i2c_dev->msg_buf_remaining) {
+			i2c_dev->msg_err = val | BCM2835_I2C_S_LEN;
+			goto complete;
+		}
+
+		bcm2835_drain_rxfifo(i2c_dev);
 		return IRQ_HANDLED;
 	}
 
 	return IRQ_NONE;
-}
 
-static int bcm2835_i2c_xfer_msg(struct bcm2835_i2c_dev *i2c_dev,
-				struct i2c_msg *msg)
-{
-	u32 c;
-	unsigned long time_left;
-
-	i2c_dev->msg_buf = msg->buf;
-	i2c_dev->msg_buf_remaining = msg->len;
-	reinit_completion(&i2c_dev->completion);
-
+complete:
 	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_C, BCM2835_I2C_C_CLEAR);
+	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_S, BCM2835_I2C_S_CLKT |
+			   BCM2835_I2C_S_ERR | BCM2835_I2C_S_DONE);
+	complete(&i2c_dev->completion);
 
-	if (msg->flags & I2C_M_RD) {
-		c = BCM2835_I2C_C_READ | BCM2835_I2C_C_INTR;
-	} else {
-		c = BCM2835_I2C_C_INTT;
-		bcm2835_fill_txfifo(i2c_dev);
-	}
-	c |= BCM2835_I2C_C_ST | BCM2835_I2C_C_INTD | BCM2835_I2C_C_I2CEN;
-
-	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_A, msg->addr);
-	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_DLEN, msg->len);
-	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_C, c);
-
-	time_left = wait_for_completion_timeout(&i2c_dev->completion,
-						BCM2835_I2C_TIMEOUT);
-	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_C, BCM2835_I2C_C_CLEAR);
-	if (!time_left) {
-		dev_err(i2c_dev->dev, "i2c transfer timed out\n");
-		return -ETIMEDOUT;
-	}
-
-	if (likely(!i2c_dev->msg_err))
-		return 0;
-
-	if ((i2c_dev->msg_err & BCM2835_I2C_S_ERR) &&
-	    (msg->flags & I2C_M_IGNORE_NAK))
-		return 0;
-
-	dev_err(i2c_dev->dev, "i2c transfer failed: %x\n", i2c_dev->msg_err);
-
-	if (i2c_dev->msg_err & BCM2835_I2C_S_ERR)
-		return -EREMOTEIO;
-	else
-		return -EIO;
+	return IRQ_HANDLED;
 }
 
 static int bcm2835_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 			    int num)
 {
 	struct bcm2835_i2c_dev *i2c_dev = i2c_get_adapdata(adap);
-	int i;
-	int ret = 0;
+	unsigned long time_left;
+	int i, ret;
 
-	for (i = 0; i < num; i++) {
-		ret = bcm2835_i2c_xfer_msg(i2c_dev, &msgs[i]);
-		if (ret)
-			break;
+	for (i = 0; i < (num - 1); i++)
+		if (msgs[i].flags & I2C_M_RD) {
+			dev_warn_once(i2c_dev->dev,
+				      "only one read message supported, has to be last\n");
+			return -EOPNOTSUPP;
+		}
+
+	ret = bcm2835_i2c_set_divider(i2c_dev);
+	if (ret)
+		return ret;
+
+	i2c_dev->curr_msg = msgs;
+	i2c_dev->num_msgs = num;
+	reinit_completion(&i2c_dev->completion);
+
+	bcm2835_i2c_start_transfer(i2c_dev);
+
+	time_left = wait_for_completion_timeout(&i2c_dev->completion,
+						adap->timeout);
+	if (!time_left) {
+		bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_C,
+				   BCM2835_I2C_C_CLEAR);
+		dev_err(i2c_dev->dev, "i2c transfer timed out\n");
+		return -ETIMEDOUT;
 	}
 
-	return ret ?: i;
+	if (!i2c_dev->msg_err)
+		return num;
+
+	dev_dbg(i2c_dev->dev, "i2c transfer failed: %x\n", i2c_dev->msg_err);
+
+	if (i2c_dev->msg_err & BCM2835_I2C_S_ERR)
+		return -EREMOTEIO;
+
+	return -EIO;
 }
 
 static u32 bcm2835_i2c_func(struct i2c_adapter *adap)
@@ -235,7 +311,6 @@ static int bcm2835_i2c_probe(struct platform_device *pdev)
 {
 	struct bcm2835_i2c_dev *i2c_dev;
 	struct resource *mem, *irq;
-	u32 bus_clk_rate, divider;
 	int ret;
 	struct i2c_adapter *adap;
 
@@ -259,27 +334,12 @@ static int bcm2835_i2c_probe(struct platform_device *pdev)
 	}
 
 	ret = of_property_read_u32(pdev->dev.of_node, "clock-frequency",
-				   &bus_clk_rate);
+				   &i2c_dev->bus_clk_rate);
 	if (ret < 0) {
 		dev_warn(&pdev->dev,
 			 "Could not read clock-frequency property\n");
-		bus_clk_rate = 100000;
+		i2c_dev->bus_clk_rate = 100000;
 	}
-
-	divider = DIV_ROUND_UP(clk_get_rate(i2c_dev->clk), bus_clk_rate);
-	/*
-	 * Per the datasheet, the register is always interpreted as an even
-	 * number, by rounding down. In other words, the LSB is ignored. So,
-	 * if the LSB is set, increment the divider to avoid any issue.
-	 */
-	if (divider & 1)
-		divider++;
-	if ((divider < BCM2835_I2C_CDIV_MIN) ||
-	    (divider > BCM2835_I2C_CDIV_MAX)) {
-		dev_err(&pdev->dev, "Invalid clock-frequency\n");
-		return -ENODEV;
-	}
-	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_DIV, divider);
 
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq) {

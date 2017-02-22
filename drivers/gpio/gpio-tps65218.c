@@ -16,6 +16,7 @@
 #include <linux/errno.h>
 #include <linux/gpio/driver.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include <linux/mfd/tps65218.h>
 
 struct tps65218_gpio {
@@ -30,7 +31,7 @@ static int tps65218_gpio_get(struct gpio_chip *gc, unsigned offset)
 	unsigned int val;
 	int ret;
 
-	ret = tps65218_reg_read(tps65218, TPS65218_REG_ENABLE2, &val);
+	ret = regmap_read(tps65218->regmap, TPS65218_REG_ENABLE2, &val);
 	if (ret)
 		return ret;
 

@@ -25,6 +25,10 @@
  *
  * Send feedback to <greg@kroah.com>, <kristen.c.accardi@intel.com>
  *
+ * Authors:
+ *   Dan Zink <dan.zink@compaq.com>
+ *   Greg Kroah-Hartman <greg@kroah.com>
+ *   Dely Sy <dely.l.sy@intel.com>"
  */
 
 #include <linux/moduleparam.h>
@@ -41,10 +45,6 @@ bool pciehp_debug;
 bool pciehp_poll_mode;
 int pciehp_poll_time;
 static bool pciehp_force;
-
-#define DRIVER_VERSION	"0.4"
-#define DRIVER_AUTHOR	"Dan Zink <dan.zink@compaq.com>, Greg Kroah-Hartman <greg@kroah.com>, Dely Sy <dely.l.sy@intel.com>"
-#define DRIVER_DESC	"PCI Express Hot Plug Controller Driver"
 
 /*
  * not really modular, but the easiest way to keep compat with existing
@@ -333,7 +333,6 @@ static int __init pcied_init(void)
 
 	retval = pcie_port_service_register(&hpdriver_portdrv);
 	dbg("pcie_port_service_register = %d\n", retval);
-	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
 	if (retval)
 		dbg("Failure to register service\n");
 

@@ -63,8 +63,8 @@ static int s5h1432_writereg(struct s5h1432_state *state,
 	ret = i2c_transfer(state->i2c, &msg, 1);
 
 	if (ret != 1)
-		printk(KERN_ERR "%s: writereg error 0x%02x 0x%02x 0x%04x, "
-		       "ret == %i)\n", __func__, addr, reg, data, ret);
+		printk(KERN_ERR "%s: writereg error 0x%02x 0x%02x 0x%04x, ret == %i)\n",
+		       __func__, addr, reg, data, ret);
 
 	return (ret != 1) ? -1 : 0;
 }
@@ -341,7 +341,7 @@ static void s5h1432_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops s5h1432_ops;
+static const struct dvb_frontend_ops s5h1432_ops;
 
 struct dvb_frontend *s5h1432_attach(const struct s5h1432_config *config,
 				    struct i2c_adapter *i2c)
@@ -370,7 +370,7 @@ struct dvb_frontend *s5h1432_attach(const struct s5h1432_config *config,
 }
 EXPORT_SYMBOL(s5h1432_attach);
 
-static struct dvb_frontend_ops s5h1432_ops = {
+static const struct dvb_frontend_ops s5h1432_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		 .name = "Samsung s5h1432 DVB-T Frontend",

@@ -10,7 +10,7 @@ Required properties:
   See ../reset/reset.txt for details.
 - reset-names : Must include the following entries:
   - serial
-- dmas : Must contain an entry for each entry in clock-names.
+- dmas : Must contain an entry for each entry in dma-names.
   See ../dma/dma.txt for details.
 - dma-names : Must include the following entries:
   - rx

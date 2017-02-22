@@ -662,8 +662,8 @@ enum {
 	LED_BLK_OFF	= 1<<4,	/* Link LED Blinking Off */
 	LED_SYNC_ON	= 1<<3,	/* Use Sync Wire to switch LED */
 	LED_SYNC_OFF	= 1<<2,	/* Disable Sync Wire Input */
-	LED_ON	= 1<<1,	/* switch LED on */
-	LED_OFF	= 1<<0,	/* switch LED off */
+	LED_REG_ON	= 1<<1,	/* switch LED on */
+	LED_REG_OFF	= 1<<0,	/* switch LED off */
 };
 
 /* Receive GMAC FIFO (YUKON) */

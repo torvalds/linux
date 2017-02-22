@@ -44,27 +44,26 @@ static inline u64 btrfs_sb_offset(int mirror)
 struct btrfs_device;
 struct btrfs_fs_devices;
 
-struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
-				      u64 parent_transid);
-void readahead_tree_block(struct btrfs_root *root, u64 bytenr);
-int reada_tree_block_flagged(struct btrfs_root *root, u64 bytenr,
+struct extent_buffer *read_tree_block(struct btrfs_fs_info *fs_info,
+				      u64 bytenr, u64 parent_transid);
+void readahead_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr);
+int reada_tree_block_flagged(struct btrfs_fs_info *fs_info, u64 bytenr,
 			 int mirror_num, struct extent_buffer **eb);
-struct extent_buffer *btrfs_find_create_tree_block(struct btrfs_root *root,
-						   u64 bytenr);
+struct extent_buffer *btrfs_find_create_tree_block(
+						struct btrfs_fs_info *fs_info,
+						u64 bytenr);
 void clean_tree_block(struct btrfs_trans_handle *trans,
 		      struct btrfs_fs_info *fs_info, struct extent_buffer *buf);
 int open_ctree(struct super_block *sb,
 	       struct btrfs_fs_devices *fs_devices,
 	       char *options);
-void close_ctree(struct btrfs_root *root);
+void close_ctree(struct btrfs_fs_info *fs_info);
 int write_ctree_super(struct btrfs_trans_handle *trans,
-		      struct btrfs_root *root, int max_mirrors);
+		      struct btrfs_fs_info *fs_info, int max_mirrors);
 struct buffer_head *btrfs_read_dev_super(struct block_device *bdev);
 int btrfs_read_dev_one_super(struct block_device *bdev, int copy_num,
 			struct buffer_head **bh_ret);
-int btrfs_commit_super(struct btrfs_root *root);
-struct extent_buffer *btrfs_find_tree_block(struct btrfs_fs_info *fs_info,
-					    u64 bytenr);
+int btrfs_commit_super(struct btrfs_fs_info *fs_info);
 struct btrfs_root *btrfs_read_fs_root(struct btrfs_root *tree_root,
 				      struct btrfs_key *location);
 int btrfs_init_fs_root(struct btrfs_root *root);
@@ -85,15 +84,14 @@ btrfs_read_fs_root_no_name(struct btrfs_fs_info *fs_info,
 }
 
 int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info);
-void btrfs_btree_balance_dirty(struct btrfs_root *root);
-void btrfs_btree_balance_dirty_nodelay(struct btrfs_root *root);
+void btrfs_btree_balance_dirty(struct btrfs_fs_info *fs_info);
+void btrfs_btree_balance_dirty_nodelay(struct btrfs_fs_info *fs_info);
 void btrfs_drop_and_free_fs_root(struct btrfs_fs_info *fs_info,
 				 struct btrfs_root *root);
 void btrfs_free_fs_root(struct btrfs_root *root);
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
-struct btrfs_root *btrfs_alloc_dummy_root(struct btrfs_fs_info *fs_info,
-					  u32 sectorsize, u32 nodesize);
+struct btrfs_root *btrfs_alloc_dummy_root(struct btrfs_fs_info *fs_info);
 #endif
 
 /*
@@ -121,7 +119,7 @@ int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid,
 			  int atomic);
 int btrfs_read_buffer(struct extent_buffer *buf, u64 parent_transid);
 u32 btrfs_csum_data(char *data, u32 seed, size_t len);
-void btrfs_csum_final(u32 crc, char *result);
+void btrfs_csum_final(u32 crc, u8 *result);
 int btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
 			enum btrfs_wq_endio_type metadata);
 int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
@@ -137,9 +135,9 @@ int btrfs_init_log_root_tree(struct btrfs_trans_handle *trans,
 int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root);
 void btrfs_cleanup_dirty_bgs(struct btrfs_transaction *trans,
-			     struct btrfs_root *root);
+			     struct btrfs_fs_info *fs_info);
 void btrfs_cleanup_one_transaction(struct btrfs_transaction *trans,
-				  struct btrfs_root *root);
+				  struct btrfs_fs_info *fs_info);
 struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 				     struct btrfs_fs_info *fs_info,
 				     u64 objectid);

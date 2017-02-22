@@ -1367,7 +1367,7 @@ void run_tests_once(void)
 		tracing_off();
 		close_test_fds();
 
-		printf("test %2d PASSED (itertation %d)\n", test_nr, iteration_nr);
+		printf("test %2d PASSED (iteration %d)\n", test_nr, iteration_nr);
 		dprintf1("======================\n\n");
 	}
 	iteration_nr++;

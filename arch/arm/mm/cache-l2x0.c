@@ -683,7 +683,7 @@ static void __init l2c310_enable(void __iomem *base, unsigned num_lock)
 
 	if (aux & L310_AUX_CTRL_FULL_LINE_ZERO)
 		cpuhp_setup_state(CPUHP_AP_ARM_L2X0_STARTING,
-				  "AP_ARM_L2X0_STARTING", l2c310_starting_cpu,
+				  "arm/l2x0:starting", l2c310_starting_cpu,
 				  l2c310_dying_cpu);
 }
 

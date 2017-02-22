@@ -1141,7 +1141,7 @@ static int bq24190_battery_set_property(struct power_supply *psy,
 
 	dev_dbg(bdi->dev, "prop: %d\n", psp);
 
-	pm_runtime_put_sync(bdi->dev);
+	pm_runtime_get_sync(bdi->dev);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:

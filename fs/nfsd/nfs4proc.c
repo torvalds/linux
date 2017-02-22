@@ -96,33 +96,15 @@ check_attr_support(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 {
 	struct dentry *dentry = cstate->current_fh.fh_dentry;
 
-	/*
-	 * Check about attributes are supported by the NFSv4 server or not.
-	 * According to spec, unsupported attributes return ERR_ATTRNOTSUPP.
-	 */
-	if ((bmval[0] & ~nfsd_suppattrs0(cstate->minorversion)) ||
-	    (bmval[1] & ~nfsd_suppattrs1(cstate->minorversion)) ||
-	    (bmval[2] & ~nfsd_suppattrs2(cstate->minorversion)))
+	if (!nfsd_attrs_supported(cstate->minorversion, bmval))
 		return nfserr_attrnotsupp;
-
-	/*
-	 * Check FATTR4_WORD0_ACL can be supported
-	 * in current environment or not.
-	 */
-	if (bmval[0] & FATTR4_WORD0_ACL) {
-		if (!IS_POSIXACL(d_inode(dentry)))
-			return nfserr_attrnotsupp;
-	}
-
-	/*
-	 * According to spec, read-only attributes return ERR_INVAL.
-	 */
-	if (writable) {
-		if ((bmval[0] & ~writable[0]) || (bmval[1] & ~writable[1]) ||
-		    (bmval[2] & ~writable[2]))
-			return nfserr_inval;
-	}
-
+	if ((bmval[0] & FATTR4_WORD0_ACL) && !IS_POSIXACL(d_inode(dentry)))
+		return nfserr_attrnotsupp;
+	if (writable && !bmval_is_subset(bmval, writable))
+		return nfserr_inval;
+	if (writable && (bmval[2] & FATTR4_WORD2_MODE_UMASK) &&
+			(bmval[1] & FATTR4_WORD1_MODE))
+		return nfserr_inval;
 	return nfs_ok;
 }
 
@@ -695,9 +677,9 @@ nfsd4_getattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (getattr->ga_bmval[1] & NFSD_WRITEONLY_ATTRS_WORD1)
 		return nfserr_inval;
 
-	getattr->ga_bmval[0] &= nfsd_suppattrs0(cstate->minorversion);
-	getattr->ga_bmval[1] &= nfsd_suppattrs1(cstate->minorversion);
-	getattr->ga_bmval[2] &= nfsd_suppattrs2(cstate->minorversion);
+	getattr->ga_bmval[0] &= nfsd_suppattrs[cstate->minorversion][0];
+	getattr->ga_bmval[1] &= nfsd_suppattrs[cstate->minorversion][1];
+	getattr->ga_bmval[2] &= nfsd_suppattrs[cstate->minorversion][2];
 
 	getattr->ga_fhp = &cstate->current_fh;
 	return nfs_ok;
@@ -799,9 +781,9 @@ nfsd4_readdir(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (readdir->rd_bmval[1] & NFSD_WRITEONLY_ATTRS_WORD1)
 		return nfserr_inval;
 
-	readdir->rd_bmval[0] &= nfsd_suppattrs0(cstate->minorversion);
-	readdir->rd_bmval[1] &= nfsd_suppattrs1(cstate->minorversion);
-	readdir->rd_bmval[2] &= nfsd_suppattrs2(cstate->minorversion);
+	readdir->rd_bmval[0] &= nfsd_suppattrs[cstate->minorversion][0];
+	readdir->rd_bmval[1] &= nfsd_suppattrs[cstate->minorversion][1];
+	readdir->rd_bmval[2] &= nfsd_suppattrs[cstate->minorversion][2];
 
 	if ((cookie == 1) || (cookie == 2) ||
 	    (cookie == 0 && memcmp(readdir->rd_verf.data, zeroverf.data, NFS4_VERIFIER_SIZE)))

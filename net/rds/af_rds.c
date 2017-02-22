@@ -605,9 +605,13 @@ static void rds_exit(void)
 }
 module_exit(rds_exit);
 
+u32 rds_gen_num;
+
 static int rds_init(void)
 {
 	int ret;
+
+	net_get_random_once(&rds_gen_num, sizeof(rds_gen_num));
 
 	ret = rds_bind_lock_init();
 	if (ret)

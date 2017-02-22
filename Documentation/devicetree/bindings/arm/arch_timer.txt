@@ -38,6 +38,11 @@ to deliver its interrupts via SPIs.
   architecturally-defined reset values. Only supported for 32-bit
   systems which follow the ARMv7 architected reset values.
 
+- arm,no-tick-in-suspend : The main counter does not tick when the system is in
+  low-power system suspend on some SoCs. This behavior does not match the
+  Architecture Reference Manual's specification that the system counter "must
+  be implemented in an always-on power domain."
+
 
 Example:
 

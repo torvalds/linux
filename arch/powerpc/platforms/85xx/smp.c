@@ -349,13 +349,13 @@ struct smp_ops_t smp_85xx_ops = {
 	.cpu_disable	= generic_cpu_disable,
 	.cpu_die	= generic_cpu_die,
 #endif
-#if defined(CONFIG_KEXEC) && !defined(CONFIG_PPC64)
+#if defined(CONFIG_KEXEC_CORE) && !defined(CONFIG_PPC64)
 	.give_timebase	= smp_generic_give_timebase,
 	.take_timebase	= smp_generic_take_timebase,
 #endif
 };
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 #ifdef CONFIG_PPC32
 atomic_t kexec_down_cpus = ATOMIC_INIT(0);
 
@@ -458,7 +458,7 @@ static void mpc85xx_smp_machine_kexec(struct kimage *image)
 
 	default_machine_kexec(image);
 }
-#endif /* CONFIG_KEXEC */
+#endif /* CONFIG_KEXEC_CORE */
 
 static void smp_85xx_basic_setup(int cpu_nr)
 {
@@ -512,7 +512,7 @@ void __init mpc85xx_smp_init(void)
 #endif
 	smp_ops = &smp_85xx_ops;
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	ppc_md.kexec_cpu_down = mpc85xx_smp_kexec_cpu_down;
 	ppc_md.machine_kexec = mpc85xx_smp_machine_kexec;
 #endif

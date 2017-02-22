@@ -172,29 +172,31 @@ static struct phy_device *xlr_get_phydev(struct xlr_net_priv *priv)
 /*
  * Ethtool operation
  */
-static int xlr_get_settings(struct net_device *ndev, struct ethtool_cmd *ecmd)
+static int xlr_get_link_ksettings(struct net_device *ndev,
+				  struct ethtool_link_ksettings *ecmd)
 {
 	struct xlr_net_priv *priv = netdev_priv(ndev);
 	struct phy_device *phydev = xlr_get_phydev(priv);
 
 	if (!phydev)
 		return -ENODEV;
-	return phy_ethtool_gset(phydev, ecmd);
+	return phy_ethtool_ksettings_get(phydev, ecmd);
 }
 
-static int xlr_set_settings(struct net_device *ndev, struct ethtool_cmd *ecmd)
+static int xlr_set_link_ksettings(struct net_device *ndev,
+				  const struct ethtool_link_ksettings *ecmd)
 {
 	struct xlr_net_priv *priv = netdev_priv(ndev);
 	struct phy_device *phydev = xlr_get_phydev(priv);
 
 	if (!phydev)
 		return -ENODEV;
-	return phy_ethtool_sset(phydev, ecmd);
+	return phy_ethtool_ksettings_set(phydev, ecmd);
 }
 
 static const struct ethtool_ops xlr_ethtool_ops = {
-	.get_settings = xlr_get_settings,
-	.set_settings = xlr_set_settings,
+	.get_link_ksettings = xlr_get_link_ksettings,
+	.set_link_ksettings = xlr_set_link_ksettings,
 };
 
 /*
@@ -1005,10 +1007,8 @@ static int xlr_net_probe(struct platform_device *pdev)
 	 */
 	adapter = (struct xlr_adapter *)
 		devm_kzalloc(&pdev->dev, sizeof(*adapter), GFP_KERNEL);
-	if (!adapter) {
-		err = -ENOMEM;
-		return err;
-	}
+	if (!adapter)
+		return -ENOMEM;
 
 	/*
 	 * XLR and XLS have 1 and 2 NAE controller respectively

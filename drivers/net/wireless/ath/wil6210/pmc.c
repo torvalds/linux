@@ -54,12 +54,36 @@ void wil_pmc_alloc(struct wil6210_priv *wil,
 	struct pmc_ctx *pmc = &wil->pmc;
 	struct device *dev = wil_to_dev(wil);
 	struct wmi_pmc_cmd pmc_cmd = {0};
+	int last_cmd_err = -ENOMEM;
 
 	mutex_lock(&pmc->lock);
 
 	if (wil_is_pmc_allocated(pmc)) {
 		/* sanity check */
 		wil_err(wil, "%s: ERROR pmc is already allocated\n", __func__);
+		goto no_release_err;
+	}
+	if ((num_descriptors <= 0) || (descriptor_size <= 0)) {
+		wil_err(wil,
+			"Invalid params num_descriptors(%d), descriptor_size(%d)\n",
+			num_descriptors, descriptor_size);
+		last_cmd_err = -EINVAL;
+		goto no_release_err;
+	}
+
+	if (num_descriptors > (1 << WIL_RING_SIZE_ORDER_MAX)) {
+		wil_err(wil,
+			"num_descriptors(%d) exceeds max ring size %d\n",
+			num_descriptors, 1 << WIL_RING_SIZE_ORDER_MAX);
+		last_cmd_err = -EINVAL;
+		goto no_release_err;
+	}
+
+	if (num_descriptors > INT_MAX / descriptor_size) {
+		wil_err(wil,
+			"Overflow in num_descriptors(%d)*descriptor_size(%d)\n",
+			num_descriptors, descriptor_size);
+		last_cmd_err = -EINVAL;
 		goto no_release_err;
 	}
 
@@ -189,7 +213,7 @@ release_pmc_skb_list:
 	pmc->descriptors = NULL;
 
 no_release_err:
-	pmc->last_cmd_status = -ENOMEM;
+	pmc->last_cmd_status = last_cmd_err;
 	mutex_unlock(&pmc->lock);
 }
 
@@ -295,7 +319,7 @@ ssize_t wil_pmc_read(struct file *filp, char __user *buf, size_t count,
 	size_t retval = 0;
 	unsigned long long idx;
 	loff_t offset;
-	size_t pmc_size = pmc->descriptor_size * pmc->num_descriptors;
+	size_t pmc_size;
 
 	mutex_lock(&pmc->lock);
 
@@ -305,6 +329,8 @@ ssize_t wil_pmc_read(struct file *filp, char __user *buf, size_t count,
 		mutex_unlock(&pmc->lock);
 		return -EPERM;
 	}
+
+	pmc_size = pmc->descriptor_size * pmc->num_descriptors;
 
 	wil_dbg_misc(wil,
 		     "%s: size %u, pos %lld\n",
@@ -345,7 +371,18 @@ loff_t wil_pmc_llseek(struct file *filp, loff_t off, int whence)
 	loff_t newpos;
 	struct wil6210_priv *wil = filp->private_data;
 	struct pmc_ctx *pmc = &wil->pmc;
-	size_t pmc_size = pmc->descriptor_size * pmc->num_descriptors;
+	size_t pmc_size;
+
+	mutex_lock(&pmc->lock);
+
+	if (!wil_is_pmc_allocated(pmc)) {
+		wil_err(wil, "error, pmc is not allocated!\n");
+		pmc->last_cmd_status = -EPERM;
+		mutex_unlock(&pmc->lock);
+		return -EPERM;
+	}
+
+	pmc_size = pmc->descriptor_size * pmc->num_descriptors;
 
 	switch (whence) {
 	case 0: /* SEEK_SET */
@@ -361,15 +398,21 @@ loff_t wil_pmc_llseek(struct file *filp, loff_t off, int whence)
 		break;
 
 	default: /* can't happen */
-		return -EINVAL;
+		newpos = -EINVAL;
+		goto out;
 	}
 
-	if (newpos < 0)
-		return -EINVAL;
+	if (newpos < 0) {
+		newpos = -EINVAL;
+		goto out;
+	}
 	if (newpos > pmc_size)
 		newpos = pmc_size;
 
 	filp->f_pos = newpos;
+
+out:
+	mutex_unlock(&pmc->lock);
 
 	return newpos;
 }

@@ -73,7 +73,6 @@ struct hfi1_packet;
 #include "iowait.h"
 
 #define HFI1_MAX_RDMA_ATOMIC     16
-#define HFI1_GUIDS_PER_PORT	5
 
 /*
  * Increment this value if any changes that break userspace ABI
@@ -169,8 +168,6 @@ struct hfi1_ibport {
 	struct rvt_qp __rcu *qp[2];
 	struct rvt_ibport rvp;
 
-	__be64 guids[HFI1_GUIDS_PER_PORT	- 1];	/* writable GUIDs */
-
 	/* the first 16 entries are sl_to_vl for !OPA */
 	u8 sl_to_sc[32];
 	u8 sc_to_sl[32];
@@ -180,18 +177,19 @@ struct hfi1_ibdev {
 	struct rvt_dev_info rdi; /* Must be first */
 
 	/* QP numbers are shared by all IB ports */
-	/* protect wait lists */
-	seqlock_t iowait_lock;
+	/* protect txwait list */
+	seqlock_t txwait_lock ____cacheline_aligned_in_smp;
 	struct list_head txwait;        /* list for wait verbs_txreq */
 	struct list_head memwait;       /* list for wait kernel memory */
-	struct list_head txreq_free;
 	struct kmem_cache *verbs_txreq_cache;
-	struct timer_list mem_timer;
-
-	u64 n_piowait;
-	u64 n_piodrain;
 	u64 n_txwait;
 	u64 n_kmem_wait;
+
+	/* protect iowait lists */
+	seqlock_t iowait_lock ____cacheline_aligned_in_smp;
+	u64 n_piowait;
+	u64 n_piodrain;
+	struct timer_list mem_timer;
 
 #ifdef CONFIG_DEBUG_FS
 	/* per HFI debugfs */

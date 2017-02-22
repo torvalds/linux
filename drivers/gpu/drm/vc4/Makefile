@@ -11,6 +11,7 @@ vc4-y := \
 	vc4_kms.o \
 	vc4_gem.o \
 	vc4_hdmi.o \
+	vc4_vec.o \
 	vc4_hvs.o \
 	vc4_irq.o \
 	vc4_plane.o \

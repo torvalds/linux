@@ -35,12 +35,10 @@
 #define PCIE_STRFMR1		0x71c /* Symbol Timer & Filter Mask Register1 */
 #define PCIE_DBI_RO_WR_EN	0x8bc /* DBI Read-Only Write Enable Register */
 
-/* PEX LUT registers */
-#define PCIE_LUT_DBG		0x7FC /* PEX LUT Debug Register */
-
 struct ls_pcie_drvdata {
 	u32 lut_offset;
 	u32 ltssm_shift;
+	u32 lut_dbg;
 	struct pcie_host_ops *ops;
 };
 
@@ -134,7 +132,7 @@ static int ls_pcie_link_up(struct pcie_port *pp)
 	struct ls_pcie *pcie = to_ls_pcie(pp);
 	u32 state;
 
-	state = (ioread32(pcie->lut + PCIE_LUT_DBG) >>
+	state = (ioread32(pcie->lut + pcie->drvdata->lut_dbg) >>
 		 pcie->drvdata->ltssm_shift) &
 		 LTSSM_STATE_MASK;
 
@@ -196,18 +194,28 @@ static struct ls_pcie_drvdata ls1021_drvdata = {
 static struct ls_pcie_drvdata ls1043_drvdata = {
 	.lut_offset = 0x10000,
 	.ltssm_shift = 24,
+	.lut_dbg = 0x7fc,
+	.ops = &ls_pcie_host_ops,
+};
+
+static struct ls_pcie_drvdata ls1046_drvdata = {
+	.lut_offset = 0x80000,
+	.ltssm_shift = 24,
+	.lut_dbg = 0x407fc,
 	.ops = &ls_pcie_host_ops,
 };
 
 static struct ls_pcie_drvdata ls2080_drvdata = {
 	.lut_offset = 0x80000,
 	.ltssm_shift = 0,
+	.lut_dbg = 0x7fc,
 	.ops = &ls_pcie_host_ops,
 };
 
 static const struct of_device_id ls_pcie_of_match[] = {
 	{ .compatible = "fsl,ls1021a-pcie", .data = &ls1021_drvdata },
 	{ .compatible = "fsl,ls1043a-pcie", .data = &ls1043_drvdata },
+	{ .compatible = "fsl,ls1046a-pcie", .data = &ls1046_drvdata },
 	{ .compatible = "fsl,ls2080a-pcie", .data = &ls2080_drvdata },
 	{ .compatible = "fsl,ls2085a-pcie", .data = &ls2080_drvdata },
 	{ },
@@ -252,10 +260,8 @@ static int __init ls_pcie_probe(struct platform_device *pdev)
 
 	dbi_base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
 	pcie->pp.dbi_base = devm_ioremap_resource(dev, dbi_base);
-	if (IS_ERR(pcie->pp.dbi_base)) {
-		dev_err(dev, "missing *regs* space\n");
+	if (IS_ERR(pcie->pp.dbi_base))
 		return PTR_ERR(pcie->pp.dbi_base);
-	}
 
 	pcie->lut = pcie->pp.dbi_base + pcie->drvdata->lut_offset;
 

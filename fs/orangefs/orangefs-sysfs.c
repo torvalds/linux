@@ -609,15 +609,6 @@ static ssize_t sysfs_service_op_store(struct kobject *kobj,
 			new_op->upcall.req.param.u.value32[0] = val1;
 			new_op->upcall.req.param.u.value32[1] = val2;
 			goto value_set;
-		} else if (!strcmp(attr->attr.name,
-				   "perf_counter_reset")) {
-			if ((val > 0)) {
-				new_op->upcall.req.param.op =
-				ORANGEFS_PARAM_REQUEST_OP_READAHEAD_COUNT_SIZE;
-			} else {
-				rc = 0;
-				goto out;
-			}
 		}
 
 	} else if (!strcmp(kobj->name, ACACHE_KOBJ_ID)) {
