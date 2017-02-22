@@ -57,11 +57,11 @@
 #include <linux/miscdevice.h>
 #include <linux/init.h>
 
-#include "xenbus_comms.h"
-
 #include <xen/xenbus.h>
 #include <xen/xen.h>
 #include <asm/xen/hypervisor.h>
+
+#include "xenbus.h"
 
 /*
  * An element of a list of outstanding transactions, for which we're
@@ -113,6 +113,7 @@ struct xenbus_file_priv {
 	struct list_head read_buffers;
 	wait_queue_head_t read_waitq;
 
+	struct kref kref;
 };
 
 /* Read out any raw xenbus messages queued up. */
@@ -258,26 +259,23 @@ out_fail:
 }
 
 static void watch_fired(struct xenbus_watch *watch,
-			const char **vec,
-			unsigned int len)
+			const char *path,
+			const char *token)
 {
 	struct watch_adapter *adap;
 	struct xsd_sockmsg hdr;
-	const char *path, *token;
-	int path_len, tok_len, body_len, data_len = 0;
+	const char *token_caller;
+	int path_len, tok_len, body_len;
 	int ret;
 	LIST_HEAD(staging_q);
 
 	adap = container_of(watch, struct watch_adapter, watch);
 
-	path = vec[XS_WATCH_PATH];
-	token = adap->token;
+	token_caller = adap->token;
 
 	path_len = strlen(path) + 1;
-	tok_len = strlen(token) + 1;
-	if (len > 2)
-		data_len = vec[len] - vec[2] + 1;
-	body_len = path_len + tok_len + data_len;
+	tok_len = strlen(token_caller) + 1;
+	body_len = path_len + tok_len;
 
 	hdr.type = XS_WATCH_EVENT;
 	hdr.len = body_len;
@@ -288,9 +286,7 @@ static void watch_fired(struct xenbus_watch *watch,
 	if (!ret)
 		ret = queue_reply(&staging_q, path, path_len);
 	if (!ret)
-		ret = queue_reply(&staging_q, token, tok_len);
-	if (!ret && len > 2)
-		ret = queue_reply(&staging_q, vec[2], data_len);
+		ret = queue_reply(&staging_q, token_caller, tok_len);
 
 	if (!ret) {
 		/* success: pass reply list onto watcher */
@@ -300,6 +296,107 @@ static void watch_fired(struct xenbus_watch *watch,
 		queue_cleanup(&staging_q);
 
 	mutex_unlock(&adap->dev_data->reply_mutex);
+}
+
+static void xenbus_file_free(struct kref *kref)
+{
+	struct xenbus_file_priv *u;
+	struct xenbus_transaction_holder *trans, *tmp;
+	struct watch_adapter *watch, *tmp_watch;
+	struct read_buffer *rb, *tmp_rb;
+
+	u = container_of(kref, struct xenbus_file_priv, kref);
+
+	/*
+	 * No need for locking here because there are no other users,
+	 * by definition.
+	 */
+
+	list_for_each_entry_safe(trans, tmp, &u->transactions, list) {
+		xenbus_transaction_end(trans->handle, 1);
+		list_del(&trans->list);
+		kfree(trans);
+	}
+
+	list_for_each_entry_safe(watch, tmp_watch, &u->watches, list) {
+		unregister_xenbus_watch(&watch->watch);
+		list_del(&watch->list);
+		free_watch_adapter(watch);
+	}
+
+	list_for_each_entry_safe(rb, tmp_rb, &u->read_buffers, list) {
+		list_del(&rb->list);
+		kfree(rb);
+	}
+	kfree(u);
+}
+
+static struct xenbus_transaction_holder *xenbus_get_transaction(
+	struct xenbus_file_priv *u, uint32_t tx_id)
+{
+	struct xenbus_transaction_holder *trans;
+
+	list_for_each_entry(trans, &u->transactions, list)
+		if (trans->handle.id == tx_id)
+			return trans;
+
+	return NULL;
+}
+
+void xenbus_dev_queue_reply(struct xb_req_data *req)
+{
+	struct xenbus_file_priv *u = req->par;
+	struct xenbus_transaction_holder *trans = NULL;
+	int rc;
+	LIST_HEAD(staging_q);
+
+	xs_request_exit(req);
+
+	mutex_lock(&u->msgbuffer_mutex);
+
+	if (req->type == XS_TRANSACTION_START) {
+		trans = xenbus_get_transaction(u, 0);
+		if (WARN_ON(!trans))
+			goto out;
+		if (req->msg.type == XS_ERROR) {
+			list_del(&trans->list);
+			kfree(trans);
+		} else {
+			rc = kstrtou32(req->body, 10, &trans->handle.id);
+			if (WARN_ON(rc))
+				goto out;
+		}
+	} else if (req->msg.type == XS_TRANSACTION_END) {
+		trans = xenbus_get_transaction(u, req->msg.tx_id);
+		if (WARN_ON(!trans))
+			goto out;
+		list_del(&trans->list);
+		kfree(trans);
+	}
+
+	mutex_unlock(&u->msgbuffer_mutex);
+
+	mutex_lock(&u->reply_mutex);
+	rc = queue_reply(&staging_q, &req->msg, sizeof(req->msg));
+	if (!rc)
+		rc = queue_reply(&staging_q, req->body, req->msg.len);
+	if (!rc) {
+		list_splice_tail(&staging_q, &u->read_buffers);
+		wake_up(&u->read_waitq);
+	} else {
+		queue_cleanup(&staging_q);
+	}
+	mutex_unlock(&u->reply_mutex);
+
+	kfree(req->body);
+	kfree(req);
+
+	kref_put(&u->kref, xenbus_file_free);
+
+	return;
+
+ out:
+	mutex_unlock(&u->msgbuffer_mutex);
 }
 
 static int xenbus_command_reply(struct xenbus_file_priv *u,
@@ -322,6 +419,9 @@ static int xenbus_command_reply(struct xenbus_file_priv *u,
 	wake_up(&u->read_waitq);
 	mutex_unlock(&u->reply_mutex);
 
+	if (!rc)
+		kref_put(&u->kref, xenbus_file_free);
+
 	return rc;
 }
 
@@ -329,57 +429,22 @@ static int xenbus_write_transaction(unsigned msg_type,
 				    struct xenbus_file_priv *u)
 {
 	int rc;
-	void *reply;
 	struct xenbus_transaction_holder *trans = NULL;
-	LIST_HEAD(staging_q);
 
 	if (msg_type == XS_TRANSACTION_START) {
-		trans = kmalloc(sizeof(*trans), GFP_KERNEL);
+		trans = kzalloc(sizeof(*trans), GFP_KERNEL);
 		if (!trans) {
 			rc = -ENOMEM;
 			goto out;
 		}
-	} else if (u->u.msg.tx_id != 0) {
-		list_for_each_entry(trans, &u->transactions, list)
-			if (trans->handle.id == u->u.msg.tx_id)
-				break;
-		if (&trans->list == &u->transactions)
-			return xenbus_command_reply(u, XS_ERROR, "ENOENT");
-	}
+		list_add(&trans->list, &u->transactions);
+	} else if (u->u.msg.tx_id != 0 &&
+		   !xenbus_get_transaction(u, u->u.msg.tx_id))
+		return xenbus_command_reply(u, XS_ERROR, "ENOENT");
 
-	reply = xenbus_dev_request_and_reply(&u->u.msg);
-	if (IS_ERR(reply)) {
-		if (msg_type == XS_TRANSACTION_START)
-			kfree(trans);
-		rc = PTR_ERR(reply);
-		goto out;
-	}
-
-	if (msg_type == XS_TRANSACTION_START) {
-		if (u->u.msg.type == XS_ERROR)
-			kfree(trans);
-		else {
-			trans->handle.id = simple_strtoul(reply, NULL, 0);
-			list_add(&trans->list, &u->transactions);
-		}
-	} else if (u->u.msg.type == XS_TRANSACTION_END) {
-		list_del(&trans->list);
+	rc = xenbus_dev_request_and_reply(&u->u.msg, u);
+	if (rc)
 		kfree(trans);
-	}
-
-	mutex_lock(&u->reply_mutex);
-	rc = queue_reply(&staging_q, &u->u.msg, sizeof(u->u.msg));
-	if (!rc)
-		rc = queue_reply(&staging_q, reply, u->u.msg.len);
-	if (!rc) {
-		list_splice_tail(&staging_q, &u->read_buffers);
-		wake_up(&u->read_waitq);
-	} else {
-		queue_cleanup(&staging_q);
-	}
-	mutex_unlock(&u->reply_mutex);
-
-	kfree(reply);
 
 out:
 	return rc;
@@ -511,6 +576,8 @@ static ssize_t xenbus_file_write(struct file *filp,
 	 * OK, now we have a complete message.  Do something with it.
 	 */
 
+	kref_get(&u->kref);
+
 	msg_type = u->u.msg.type;
 
 	switch (msg_type) {
@@ -525,8 +592,10 @@ static ssize_t xenbus_file_write(struct file *filp,
 		ret = xenbus_write_transaction(msg_type, u);
 		break;
 	}
-	if (ret != 0)
+	if (ret != 0) {
 		rc = ret;
+		kref_put(&u->kref, xenbus_file_free);
+	}
 
 	/* Buffered message consumed */
 	u->len = 0;
@@ -551,6 +620,8 @@ static int xenbus_file_open(struct inode *inode, struct file *filp)
 	if (u == NULL)
 		return -ENOMEM;
 
+	kref_init(&u->kref);
+
 	INIT_LIST_HEAD(&u->transactions);
 	INIT_LIST_HEAD(&u->watches);
 	INIT_LIST_HEAD(&u->read_buffers);
@@ -567,32 +638,8 @@ static int xenbus_file_open(struct inode *inode, struct file *filp)
 static int xenbus_file_release(struct inode *inode, struct file *filp)
 {
 	struct xenbus_file_priv *u = filp->private_data;
-	struct xenbus_transaction_holder *trans, *tmp;
-	struct watch_adapter *watch, *tmp_watch;
-	struct read_buffer *rb, *tmp_rb;
 
-	/*
-	 * No need for locking here because there are no other users,
-	 * by definition.
-	 */
-
-	list_for_each_entry_safe(trans, tmp, &u->transactions, list) {
-		xenbus_transaction_end(trans->handle, 1);
-		list_del(&trans->list);
-		kfree(trans);
-	}
-
-	list_for_each_entry_safe(watch, tmp_watch, &u->watches, list) {
-		unregister_xenbus_watch(&watch->watch);
-		list_del(&watch->list);
-		free_watch_adapter(watch);
-	}
-
-	list_for_each_entry_safe(rb, tmp_rb, &u->read_buffers, list) {
-		list_del(&rb->list);
-		kfree(rb);
-	}
-	kfree(u);
+	kref_put(&u->kref, xenbus_file_free);
 
 	return 0;
 }

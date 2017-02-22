@@ -2095,7 +2095,7 @@ int fc_lport_bsg_request(struct bsg_job *job)
 
 	bsg_reply->reply_payload_rcv_len = 0;
 	if (rsp)
-		rsp->resid_len = job->reply_payload.payload_len;
+		scsi_req(rsp)->resid_len = job->reply_payload.payload_len;
 
 	mutex_lock(&lport->lp_mutex);
 

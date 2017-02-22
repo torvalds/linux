@@ -297,7 +297,7 @@ static int uniphier_conf_pin_config_get(struct pinctrl_dev *pctldev,
 
 static int uniphier_conf_pin_bias_set(struct pinctrl_dev *pctldev,
 				      const struct pin_desc *desc,
-				      enum pin_config_param param, u16 arg)
+				      enum pin_config_param param, u32 arg)
 {
 	struct uniphier_pinctrl_priv *priv = pinctrl_dev_get_drvdata(pctldev);
 	enum uniphier_pin_pull_dir pull_dir =
@@ -468,7 +468,7 @@ static int uniphier_conf_pin_config_set(struct pinctrl_dev *pctldev,
 	for (i = 0; i < num_configs; i++) {
 		enum pin_config_param param =
 					pinconf_to_config_param(configs[i]);
-		u16 arg = pinconf_to_config_argument(configs[i]);
+		u32 arg = pinconf_to_config_argument(configs[i]);
 
 		switch (param) {
 		case PIN_CONFIG_BIAS_DISABLE:

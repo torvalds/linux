@@ -46,96 +46,114 @@ enum audit_type {
 	AUDIT_APPARMOR_AUTO
 };
 
-extern const char *const op_table[];
-enum aa_ops {
-	OP_NULL,
+#define OP_NULL NULL
 
-	OP_SYSCTL,
-	OP_CAPABLE,
+#define OP_SYSCTL "sysctl"
+#define OP_CAPABLE "capable"
 
-	OP_UNLINK,
-	OP_MKDIR,
-	OP_RMDIR,
-	OP_MKNOD,
-	OP_TRUNC,
-	OP_LINK,
-	OP_SYMLINK,
-	OP_RENAME_SRC,
-	OP_RENAME_DEST,
-	OP_CHMOD,
-	OP_CHOWN,
-	OP_GETATTR,
-	OP_OPEN,
+#define OP_UNLINK "unlink"
+#define OP_MKDIR "mkdir"
+#define OP_RMDIR "rmdir"
+#define OP_MKNOD "mknod"
+#define OP_TRUNC "truncate"
+#define OP_LINK "link"
+#define OP_SYMLINK "symlink"
+#define OP_RENAME_SRC "rename_src"
+#define OP_RENAME_DEST "rename_dest"
+#define OP_CHMOD "chmod"
+#define OP_CHOWN "chown"
+#define OP_GETATTR "getattr"
+#define OP_OPEN "open"
 
-	OP_FPERM,
-	OP_FLOCK,
-	OP_FMMAP,
-	OP_FMPROT,
+#define OP_FPERM "file_perm"
+#define OP_FLOCK "file_lock"
+#define OP_FMMAP "file_mmap"
+#define OP_FMPROT "file_mprotect"
 
-	OP_CREATE,
-	OP_POST_CREATE,
-	OP_BIND,
-	OP_CONNECT,
-	OP_LISTEN,
-	OP_ACCEPT,
-	OP_SENDMSG,
-	OP_RECVMSG,
-	OP_GETSOCKNAME,
-	OP_GETPEERNAME,
-	OP_GETSOCKOPT,
-	OP_SETSOCKOPT,
-	OP_SOCK_SHUTDOWN,
+#define OP_CREATE "create"
+#define OP_POST_CREATE "post_create"
+#define OP_BIND "bind"
+#define OP_CONNECT "connect"
+#define OP_LISTEN "listen"
+#define OP_ACCEPT "accept"
+#define OP_SENDMSG "sendmsg"
+#define OP_RECVMSG "recvmsg"
+#define OP_GETSOCKNAME "getsockname"
+#define OP_GETPEERNAME "getpeername"
+#define OP_GETSOCKOPT "getsockopt"
+#define OP_SETSOCKOPT "setsockopt"
+#define OP_SHUTDOWN "socket_shutdown"
 
-	OP_PTRACE,
+#define OP_PTRACE "ptrace"
 
-	OP_EXEC,
-	OP_CHANGE_HAT,
-	OP_CHANGE_PROFILE,
-	OP_CHANGE_ONEXEC,
+#define OP_EXEC "exec"
 
-	OP_SETPROCATTR,
-	OP_SETRLIMIT,
+#define OP_CHANGE_HAT "change_hat"
+#define OP_CHANGE_PROFILE "change_profile"
+#define OP_CHANGE_ONEXEC "change_onexec"
 
-	OP_PROF_REPL,
-	OP_PROF_LOAD,
-	OP_PROF_RM,
-};
+#define OP_SETPROCATTR "setprocattr"
+#define OP_SETRLIMIT "setrlimit"
+
+#define OP_PROF_REPL "profile_replace"
+#define OP_PROF_LOAD "profile_load"
+#define OP_PROF_RM "profile_remove"
 
 
 struct apparmor_audit_data {
 	int error;
-	int op;
+	const char *op;
 	int type;
 	void *profile;
 	const char *name;
 	const char *info;
 	union {
-		void *target;
+		/* these entries require a custom callback fn */
 		struct {
+			struct aa_profile *peer;
+			struct {
+				const char *target;
+				u32 request;
+				u32 denied;
+				kuid_t ouid;
+			} fs;
+		};
+		struct {
+			const char *name;
 			long pos;
-			void *target;
+			const char *ns;
 		} iface;
 		struct {
 			int rlim;
 			unsigned long max;
 		} rlim;
-		struct {
-			const char *target;
-			u32 request;
-			u32 denied;
-			kuid_t ouid;
-		} fs;
 	};
 };
 
-/* define a short hand for apparmor_audit_data structure */
-#define aad apparmor_audit_data
+/* macros for dealing with  apparmor_audit_data structure */
+#define aad(SA) ((SA)->apparmor_audit_data)
+#define DEFINE_AUDIT_DATA(NAME, T, X)					\
+	/* TODO: cleanup audit init so we don't need _aad = {0,} */	\
+	struct apparmor_audit_data NAME ## _aad = { .op = (X), };	\
+	struct common_audit_data NAME =					\
+	{								\
+	.type = (T),							\
+	.u.tsk = NULL,							\
+	};								\
+	NAME.apparmor_audit_data = &(NAME ## _aad)
 
 void aa_audit_msg(int type, struct common_audit_data *sa,
 		  void (*cb) (struct audit_buffer *, void *));
-int aa_audit(int type, struct aa_profile *profile, gfp_t gfp,
-	     struct common_audit_data *sa,
+int aa_audit(int type, struct aa_profile *profile, struct common_audit_data *sa,
 	     void (*cb) (struct audit_buffer *, void *));
+
+#define aa_audit_error(ERROR, SA, CB)				\
+({								\
+	aad((SA))->error = (ERROR);				\
+	aa_audit_msg(AUDIT_APPARMOR_ERROR, (SA), (CB));		\
+	aad((SA))->error;					\
+})
+
 
 static inline int complain_error(int error)
 {

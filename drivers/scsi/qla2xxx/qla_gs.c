@@ -1939,15 +1939,15 @@ qla2x00_fdmiv2_rhba(scsi_qla_host_t *vha)
 	/* Vendor Identifier */
 	eiter = entries + size;
 	eiter->type = cpu_to_be16(FDMI_HBA_TYPE_VENDOR_IDENTIFIER);
-	snprintf(eiter->a.vendor_indentifer, sizeof(eiter->a.vendor_indentifer),
+	snprintf(eiter->a.vendor_identifier, sizeof(eiter->a.vendor_identifier),
 	    "%s", "QLGC");
-	alen = strlen(eiter->a.vendor_indentifer);
+	alen = strlen(eiter->a.vendor_identifier);
 	alen += 4 - (alen & 3);
 	eiter->len = cpu_to_be16(4 + alen);
 	size += 4 + alen;
 
 	ql_dbg(ql_dbg_disc, vha, 0x20b1,
-	    "Vendor Identifier = %s.\n", eiter->a.vendor_indentifer);
+	    "Vendor Identifier = %s.\n", eiter->a.vendor_identifier);
 
 	/* Update MS request size. */
 	qla2x00_update_ms_fdmi_iocb(vha, size + 16);

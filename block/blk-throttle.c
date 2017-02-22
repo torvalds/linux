@@ -866,10 +866,12 @@ static void tg_update_disptime(struct throtl_grp *tg)
 	unsigned long read_wait = -1, write_wait = -1, min_wait = -1, disptime;
 	struct bio *bio;
 
-	if ((bio = throtl_peek_queued(&sq->queued[READ])))
+	bio = throtl_peek_queued(&sq->queued[READ]);
+	if (bio)
 		tg_may_dispatch(tg, bio, &read_wait);
 
-	if ((bio = throtl_peek_queued(&sq->queued[WRITE])))
+	bio = throtl_peek_queued(&sq->queued[WRITE]);
+	if (bio)
 		tg_may_dispatch(tg, bio, &write_wait);
 
 	min_wait = min(read_wait, write_wait);

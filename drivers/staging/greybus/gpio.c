@@ -474,17 +474,20 @@ static void gb_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	gb_gpio_set_value_operation(ggc, (u8)offset, !!value);
 }
 
-static int gb_gpio_set_debounce(struct gpio_chip *chip, unsigned offset,
-					unsigned debounce)
+static int gb_gpio_set_config(struct gpio_chip *chip, unsigned offset,
+			      unsigned long config)
 {
 	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
-	u16 usec;
+	u32 debounce;
 
+	if (pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE)
+		return -ENOTSUPP;
+
+	debounce = pinconf_to_config_argument(config);
 	if (debounce > U16_MAX)
 		return -EINVAL;
-	usec = (u16)debounce;
 
-	return gb_gpio_set_debounce_operation(ggc, (u8)offset, usec);
+	return gb_gpio_set_debounce_operation(ggc, (u8)offset, (u16)debounce);
 }
 
 static int gb_gpio_controller_setup(struct gb_gpio_controller *ggc)
@@ -689,7 +692,7 @@ static int gb_gpio_probe(struct gbphy_device *gbphy_dev,
 	gpio->direction_output = gb_gpio_direction_output;
 	gpio->get = gb_gpio_get;
 	gpio->set = gb_gpio_set;
-	gpio->set_debounce = gb_gpio_set_debounce;
+	gpio->set_config = gb_gpio_set_config;
 	gpio->to_irq = gb_gpio_to_irq;
 	gpio->base = -1;		/* Allocate base dynamically */
 	gpio->ngpio = ggc->line_max + 1;

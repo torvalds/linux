@@ -484,15 +484,15 @@ static struct pwm_omap_dmtimer_pdata pwm_dmtimer_pdata = {
 };
 #endif
 
-static struct lirc_rx51_platform_data __maybe_unused rx51_lirc_data = {
+static struct ir_rx51_platform_data __maybe_unused rx51_ir_data = {
 	.set_max_mpu_wakeup_lat = omap_pm_set_max_mpu_wakeup_lat,
 };
 
-static struct platform_device __maybe_unused rx51_lirc_device = {
-	.name           = "lirc_rx51",
+static struct platform_device __maybe_unused rx51_ir_device = {
+	.name           = "ir_rx51",
 	.id             = -1,
 	.dev            = {
-		.platform_data = &rx51_lirc_data,
+		.platform_data = &rx51_ir_data,
 	},
 };
 
@@ -533,7 +533,7 @@ static struct of_dev_auxdata omap_auxdata_lookup[] __initdata = {
 		       &omap3_iommu_pdata),
 	OF_DEV_AUXDATA("ti,omap3-hsmmc", 0x4809c000, "4809c000.mmc", &mmc_pdata[0]),
 	OF_DEV_AUXDATA("ti,omap3-hsmmc", 0x480b4000, "480b4000.mmc", &mmc_pdata[1]),
-	OF_DEV_AUXDATA("nokia,n900-ir", 0, "n900-ir", &rx51_lirc_data),
+	OF_DEV_AUXDATA("nokia,n900-ir", 0, "n900-ir", &rx51_ir_data),
 	/* Only on am3517 */
 	OF_DEV_AUXDATA("ti,davinci_mdio", 0x5c030000, "davinci_mdio.0", NULL),
 	OF_DEV_AUXDATA("ti,am3517-emac", 0x5c000000, "davinci_emac.0",

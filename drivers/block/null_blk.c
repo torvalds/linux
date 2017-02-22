@@ -420,7 +420,8 @@ static void null_lnvm_end_io(struct request *rq, int error)
 {
 	struct nvm_rq *rqd = rq->end_io_data;
 
-	nvm_end_io(rqd, error);
+	rqd->error = error;
+	nvm_end_io(rqd);
 
 	blk_put_request(rq);
 }
@@ -431,11 +432,11 @@ static int null_lnvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 	struct request *rq;
 	struct bio *bio = rqd->bio;
 
-	rq = blk_mq_alloc_request(q, bio_data_dir(bio), 0);
+	rq = blk_mq_alloc_request(q,
+		op_is_write(bio_op(bio)) ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN, 0);
 	if (IS_ERR(rq))
 		return -ENOMEM;
 
-	rq->cmd_type = REQ_TYPE_DRV_PRIV;
 	rq->__sector = bio->bi_iter.bi_sector;
 	rq->ioprio = bio_prio(bio);
 
@@ -460,7 +461,6 @@ static int null_lnvm_id(struct nvm_dev *dev, struct nvm_id *id)
 
 	id->ver_id = 0x1;
 	id->vmnt = 0;
-	id->cgrps = 1;
 	id->cap = 0x2;
 	id->dom = 0x1;
 
@@ -479,7 +479,7 @@ static int null_lnvm_id(struct nvm_dev *dev, struct nvm_id *id)
 
 	sector_div(size, bs); /* convert size to pages */
 	size >>= 8; /* concert size to pgs pr blk */
-	grp = &id->groups[0];
+	grp = &id->grp;
 	grp->mtype = 0;
 	grp->fmtype = 0;
 	grp->num_ch = 1;

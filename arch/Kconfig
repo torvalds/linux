@@ -781,4 +781,38 @@ config VMAP_STACK
 	  the stack to map directly to the KASAN shadow map using a formula
 	  that is incorrect if the stack is in vmalloc space.
 
+config ARCH_OPTIONAL_KERNEL_RWX
+	def_bool n
+
+config ARCH_OPTIONAL_KERNEL_RWX_DEFAULT
+	def_bool n
+
+config ARCH_HAS_STRICT_KERNEL_RWX
+	def_bool n
+
+config STRICT_KERNEL_RWX
+	bool "Make kernel text and rodata read-only" if ARCH_OPTIONAL_KERNEL_RWX
+	depends on ARCH_HAS_STRICT_KERNEL_RWX
+	default !ARCH_OPTIONAL_KERNEL_RWX || ARCH_OPTIONAL_KERNEL_RWX_DEFAULT
+	help
+	  If this is set, kernel text and rodata memory will be made read-only,
+	  and non-text memory will be made non-executable. This provides
+	  protection against certain security exploits (e.g. executing the heap
+	  or modifying text)
+
+	  These features are considered standard security practice these days.
+	  You should say Y here in almost all cases.
+
+config ARCH_HAS_STRICT_MODULE_RWX
+	def_bool n
+
+config STRICT_MODULE_RWX
+	bool "Set loadable kernel module data as NX and text as RO" if ARCH_OPTIONAL_KERNEL_RWX
+	depends on ARCH_HAS_STRICT_MODULE_RWX && MODULES
+	default !ARCH_OPTIONAL_KERNEL_RWX || ARCH_OPTIONAL_KERNEL_RWX_DEFAULT
+	help
+	  If this is set, module text and rodata memory will be made read-only,
+	  and non-text memory will be made non-executable. This provides
+	  protection against certain security exploits (e.g. writing to text)
+
 source "kernel/gcov/Kconfig"
