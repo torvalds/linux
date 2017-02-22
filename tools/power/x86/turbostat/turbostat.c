@@ -4294,7 +4294,7 @@ void topology_probe()
 	if (debug > 1)
 		fprintf(outf, "max_package_id %d, sizing for %d packages\n",
 			max_package_id, topo.num_packages);
-	if (debug && !summary_only && topo.num_packages > 1)
+	if (!summary_only && topo.num_packages > 1)
 		BIC_PRESENT(BIC_Package);
 
 	topo.num_threads_per_core = max_siblings;
