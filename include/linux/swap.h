@@ -176,6 +176,12 @@ enum {
  * protected by swap_info_struct.lock.
  */
 struct swap_cluster_info {
+	spinlock_t lock;	/*
+				 * Protect swap_cluster_info fields
+				 * and swap_info_struct->swap_map
+				 * elements correspond to the swap
+				 * cluster
+				 */
 	unsigned int data:24;
 	unsigned int flags:8;
 };
