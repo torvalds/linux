@@ -473,10 +473,9 @@ static int dax_dev_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 }
 
 static int __dax_dev_pmd_fault(struct dax_dev *dax_dev,
-		struct vm_area_struct *vma, unsigned long addr, pmd_t *pmd,
-		unsigned int flags)
+		struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	unsigned long pmd_addr = addr & PMD_MASK;
+	unsigned long pmd_addr = vmf->address & PMD_MASK;
 	struct device *dev = &dax_dev->dev;
 	struct dax_region *dax_region;
 	phys_addr_t phys;
@@ -508,23 +507,22 @@ static int __dax_dev_pmd_fault(struct dax_dev *dax_dev,
 
 	pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
 
-	return vmf_insert_pfn_pmd(vma, addr, pmd, pfn,
-			flags & FAULT_FLAG_WRITE);
+	return vmf_insert_pfn_pmd(vma, vmf->address, vmf->pmd, pfn,
+			vmf->flags & FAULT_FLAG_WRITE);
 }
 
-static int dax_dev_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
-		pmd_t *pmd, unsigned int flags)
+static int dax_dev_pmd_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	int rc;
 	struct file *filp = vma->vm_file;
 	struct dax_dev *dax_dev = filp->private_data;
 
 	dev_dbg(&dax_dev->dev, "%s: %s: %s (%#lx - %#lx)\n", __func__,
-			current->comm, (flags & FAULT_FLAG_WRITE)
+			current->comm, (vmf->flags & FAULT_FLAG_WRITE)
 			? "write" : "read", vma->vm_start, vma->vm_end);
 
 	rcu_read_lock();
-	rc = __dax_dev_pmd_fault(dax_dev, vma, addr, pmd, flags);
+	rc = __dax_dev_pmd_fault(dax_dev, vma, vmf);
 	rcu_read_unlock();
 
 	return rc;
