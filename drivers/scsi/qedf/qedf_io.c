@@ -998,7 +998,7 @@ static void qedf_trace_io(struct qedf_rport *fcport, struct qedf_ioreq *io_req,
 	io_log->sg_count = scsi_sg_count(sc_cmd);
 	io_log->result = sc_cmd->result;
 	io_log->jiffies = jiffies;
-	io_log->refcount = atomic_read(&io_req->refcount.refcount);
+	io_log->refcount = kref_read(&io_req->refcount);
 
 	if (direction == QEDF_IO_TRACE_REQ) {
 		/* For requests we only care abot the submission CPU */
@@ -1340,7 +1340,7 @@ void qedf_scsi_completion(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 			/* Good I/O completion */
 			sc_cmd->result = DID_OK << 16;
 		} else {
-			refcount = atomic_read(&io_req->refcount.refcount);
+			refcount = kref_read(&io_req->refcount);
 			QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_IO,
 			    "%d:0:%d:%d xid=0x%0x op=0x%02x "
 			    "lba=%02x%02x%02x%02x cdb_status=%d "
@@ -1425,7 +1425,7 @@ void qedf_scsi_done(struct qedf_ctx *qedf, struct qedf_ioreq *io_req,
 	qedf_unmap_sg_list(qedf, io_req);
 
 	sc_cmd->result = result << 16;
-	refcount = atomic_read(&io_req->refcount.refcount);
+	refcount = kref_read(&io_req->refcount);
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_IO, "%d:0:%d:%d: Completing "
 	    "sc_cmd=%p result=0x%08x op=0x%02x lba=0x%02x%02x%02x%02x, "
 	    "allowed=%d retries=%d refcount=%d.\n",
@@ -1556,7 +1556,7 @@ static void qedf_flush_els_req(struct qedf_ctx *qedf,
 {
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_IO,
 	    "Flushing ELS request xid=0x%x refcount=%d.\n", els_req->xid,
-	    atomic_read(&els_req->refcount.refcount));
+	    kref_read(&els_req->refcount));
 
 	/*
 	 * Need to distinguish this from a timeout when calling the

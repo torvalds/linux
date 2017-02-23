@@ -183,7 +183,7 @@ static void qedf_rrq_compl(struct qedf_els_cb_arg *cb_arg)
 	    rrq_req->event != QEDF_IOREQ_EV_ELS_ERR_DETECT)
 		cancel_delayed_work_sync(&orig_io_req->timeout_work);
 
-	refcount = atomic_read(&orig_io_req->refcount.refcount);
+	refcount = kref_read(&orig_io_req->refcount);
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS, "rrq_compl: orig io = %p,"
 		   " orig xid = 0x%x, rrq_xid = 0x%x, refcount=%d\n",
 		   orig_io_req, orig_io_req->xid, rrq_req->xid, refcount);
@@ -474,7 +474,7 @@ static void qedf_srr_compl(struct qedf_els_cb_arg *cb_arg)
 	    srr_req->event != QEDF_IOREQ_EV_ELS_ERR_DETECT)
 		cancel_delayed_work_sync(&orig_io_req->timeout_work);
 
-	refcount = atomic_read(&orig_io_req->refcount.refcount);
+	refcount = kref_read(&orig_io_req->refcount);
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS, "Entered: orig_io=%p,"
 		   " orig_io_xid=0x%x, rec_xid=0x%x, refcount=%d\n",
 		   orig_io_req, orig_io_req->xid, srr_req->xid, refcount);
@@ -758,7 +758,7 @@ static void qedf_rec_compl(struct qedf_els_cb_arg *cb_arg)
 	    rec_req->event != QEDF_IOREQ_EV_ELS_ERR_DETECT)
 		cancel_delayed_work_sync(&orig_io_req->timeout_work);
 
-	refcount = atomic_read(&orig_io_req->refcount.refcount);
+	refcount = kref_read(&orig_io_req->refcount);
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS, "Entered: orig_io=%p,"
 		   " orig_io_xid=0x%x, rec_xid=0x%x, refcount=%d\n",
 		   orig_io_req, orig_io_req->xid, rec_req->xid, refcount);
