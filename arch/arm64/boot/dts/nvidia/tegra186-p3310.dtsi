@@ -6,6 +6,14 @@
 
 	aliases {
 		serial0 = &uarta;
+		i2c0 = "/bpmp/i2c";
+		i2c1 = "/i2c@3160000";
+		i2c2 = "/i2c@c240000";
+		i2c3 = "/i2c@3180000";
+		i2c4 = "/i2c@3190000";
+		i2c5 = "/i2c@31c0000";
+		i2c6 = "/i2c@c250000";
+		i2c7 = "/i2c@31e0000";
 	};
 
 	chosen {
@@ -22,7 +30,35 @@
 		status = "okay";
 	};
 
+	i2c@3160000 {
+		status = "okay";
+	};
+
+	i2c@3180000 {
+		status = "okay";
+	};
+
+	i2c@3190000 {
+		status = "okay";
+	};
+
+	i2c@31c0000 {
+		status = "okay";
+	};
+
+	i2c@31e0000 {
+		status = "okay";
+	};
+
 	hsp@3c00000 {
+		status = "okay";
+	};
+
+	i2c@c240000 {
+		status = "okay";
+	};
+
+	i2c@c250000 {
 		status = "okay";
 	};
 
@@ -57,7 +93,9 @@
 	};
 
 	bpmp {
-		status = "okay";
+		i2c {
+			status = "okay";
+		};
 	};
 
 	psci {
