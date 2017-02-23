@@ -56,7 +56,7 @@
 #include "pvrdma.h"
 
 #define DRV_NAME	"vmw_pvrdma"
-#define DRV_VERSION	"1.0.0.0-k"
+#define DRV_VERSION	"1.0.1.0-k"
 
 static DEFINE_MUTEX(pvrdma_device_list_lock);
 static LIST_HEAD(pvrdma_device_list);
@@ -660,7 +660,16 @@ static void pvrdma_netdevice_event_handle(struct pvrdma_dev *dev,
 		pvrdma_dispatch_event(dev, 1, IB_EVENT_PORT_ERR);
 		break;
 	case NETDEV_UP:
-		pvrdma_dispatch_event(dev, 1, IB_EVENT_PORT_ACTIVE);
+		pvrdma_write_reg(dev, PVRDMA_REG_CTL,
+				 PVRDMA_DEVICE_CTL_UNQUIESCE);
+
+		mb();
+
+		if (pvrdma_read_reg(dev, PVRDMA_REG_ERR))
+			dev_err(&dev->pdev->dev,
+				"failed to activate device during link up\n");
+		else
+			pvrdma_dispatch_event(dev, 1, IB_EVENT_PORT_ACTIVE);
 		break;
 	default:
 		dev_dbg(&dev->pdev->dev, "ignore netdevice event %ld on %s\n",
