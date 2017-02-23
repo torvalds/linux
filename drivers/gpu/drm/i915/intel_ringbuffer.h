@@ -582,10 +582,47 @@ static inline u32 intel_hws_seqno_address(struct intel_engine_cs *engine)
 /* intel_breadcrumbs.c -- user interrupt bottom-half for waiters */
 int intel_engine_init_breadcrumbs(struct intel_engine_cs *engine);
 
-static inline void intel_wait_init(struct intel_wait *wait, u32 seqno)
+static inline void intel_wait_init(struct intel_wait *wait)
+{
+	wait->tsk = current;
+}
+
+static inline void intel_wait_init_for_seqno(struct intel_wait *wait, u32 seqno)
 {
 	wait->tsk = current;
 	wait->seqno = seqno;
+}
+
+static inline bool intel_wait_has_seqno(const struct intel_wait *wait)
+{
+	return wait->seqno;
+}
+
+static inline bool
+intel_wait_update_seqno(struct intel_wait *wait, u32 seqno)
+{
+	wait->seqno = seqno;
+	return intel_wait_has_seqno(wait);
+}
+
+static inline bool
+intel_wait_update_request(struct intel_wait *wait,
+			  const struct drm_i915_gem_request *rq)
+{
+	return intel_wait_update_seqno(wait, i915_gem_request_global_seqno(rq));
+}
+
+static inline bool
+intel_wait_check_seqno(const struct intel_wait *wait, u32 seqno)
+{
+	return wait->seqno == seqno;
+}
+
+static inline bool
+intel_wait_check_request(const struct intel_wait *wait,
+			 const struct drm_i915_gem_request *rq)
+{
+	return intel_wait_check_seqno(wait, i915_gem_request_global_seqno(rq));
 }
 
 static inline bool intel_wait_complete(const struct intel_wait *wait)

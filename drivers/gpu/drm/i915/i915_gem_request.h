@@ -135,6 +135,11 @@ struct drm_i915_gem_request {
 	struct i915_priotree priotree;
 	struct i915_dependency dep;
 
+	/** GEM sequence number associated with this request on the
+	 * global execution timeline. It is zero when the request is not
+	 * on the HW queue (i.e. not on the engine timeline list).
+	 * Its value is guarded by the timeline spinlock.
+	 */
 	u32 global_seqno;
 
 	/** Position in the ring of the start of the request */
@@ -229,6 +234,30 @@ static inline void i915_gem_request_assign(struct drm_i915_gem_request **pdst,
 	*pdst = src;
 }
 
+/**
+ * i915_gem_request_global_seqno - report the current global seqno
+ * @request - the request
+ *
+ * A request is assigned a global seqno only when it is on the hardware
+ * execution queue. The global seqno can be used to maintain a list of
+ * requests on the same engine in retirement order, for example for
+ * constructing a priority queue for waiting. Prior to its execution, or
+ * if it is subsequently removed in the event of preemption, its global
+ * seqno is zero. As both insertion and removal from the execution queue
+ * may operate in IRQ context, it is not guarded by the usual struct_mutex
+ * BKL. Instead those relying on the global seqno must be prepared for its
+ * value to change between reads. Only when the request is complete can
+ * the global seqno be stable (due to the memory barriers on submitting
+ * the commands to the hardware to write the breadcrumb, if the HWS shows
+ * that it has passed the global seqno and the global seqno is unchanged
+ * after the read, it is indeed complete).
+ */
+static u32
+i915_gem_request_global_seqno(const struct drm_i915_gem_request *request)
+{
+	return READ_ONCE(request->global_seqno);
+}
+
 int
 i915_gem_request_await_object(struct drm_i915_gem_request *to,
 			      struct drm_i915_gem_object *obj,
@@ -269,46 +298,55 @@ static inline bool i915_seqno_passed(u32 seq1, u32 seq2)
 }
 
 static inline bool
-__i915_gem_request_started(const struct drm_i915_gem_request *req)
+__i915_gem_request_started(const struct drm_i915_gem_request *req, u32 seqno)
 {
-	GEM_BUG_ON(!req->global_seqno);
+	GEM_BUG_ON(!seqno);
 	return i915_seqno_passed(intel_engine_get_seqno(req->engine),
-				 req->global_seqno - 1);
+				 seqno - 1);
 }
 
 static inline bool
 i915_gem_request_started(const struct drm_i915_gem_request *req)
 {
-	if (!req->global_seqno)
+	u32 seqno;
+
+	seqno = i915_gem_request_global_seqno(req);
+	if (!seqno)
 		return false;
 
-	return __i915_gem_request_started(req);
+	return __i915_gem_request_started(req, seqno);
 }
 
 static inline bool
-__i915_gem_request_completed(const struct drm_i915_gem_request *req)
+__i915_gem_request_completed(const struct drm_i915_gem_request *req, u32 seqno)
 {
-	GEM_BUG_ON(!req->global_seqno);
-	return i915_seqno_passed(intel_engine_get_seqno(req->engine),
-				 req->global_seqno);
+	GEM_BUG_ON(!seqno);
+	return i915_seqno_passed(intel_engine_get_seqno(req->engine), seqno) &&
+		seqno == i915_gem_request_global_seqno(req);
 }
 
 static inline bool
 i915_gem_request_completed(const struct drm_i915_gem_request *req)
 {
-	if (!req->global_seqno)
+	u32 seqno;
+
+	seqno = i915_gem_request_global_seqno(req);
+	if (!seqno)
 		return false;
 
-	return __i915_gem_request_completed(req);
+	return __i915_gem_request_completed(req, seqno);
 }
 
 bool __i915_spin_request(const struct drm_i915_gem_request *request,
-			 int state, unsigned long timeout_us);
+			 u32 seqno, int state, unsigned long timeout_us);
 static inline bool i915_spin_request(const struct drm_i915_gem_request *request,
 				     int state, unsigned long timeout_us)
 {
-	return (__i915_gem_request_started(request) &&
-		__i915_spin_request(request, state, timeout_us));
+	u32 seqno;
+
+	seqno = i915_gem_request_global_seqno(request);
+	return (__i915_gem_request_started(request, seqno) &&
+		__i915_spin_request(request, seqno, state, timeout_us));
 }
 
 /* We treat requests as fences. This is not be to confused with our

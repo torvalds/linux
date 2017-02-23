@@ -545,6 +545,7 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 	struct rb_node *parent, **p;
 	bool first, wakeup;
+	u32 seqno;
 
 	/* Note that we may be called from an interrupt handler on another
 	 * device (e.g. nouveau signaling a fence completion causing us
@@ -555,11 +556,13 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 
 	/* locked by dma_fence_enable_sw_signaling() (irqsafe fence->lock) */
 	assert_spin_locked(&request->lock);
-	if (!request->global_seqno)
+
+	seqno = i915_gem_request_global_seqno(request);
+	if (!seqno)
 		return;
 
 	request->signaling.wait.tsk = b->signaler;
-	request->signaling.wait.seqno = request->global_seqno;
+	request->signaling.wait.seqno = seqno;
 	i915_gem_request_get(request);
 
 	spin_lock(&b->lock);
@@ -583,8 +586,8 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 	p = &b->signals.rb_node;
 	while (*p) {
 		parent = *p;
-		if (i915_seqno_passed(request->global_seqno,
-				      to_signaler(parent)->global_seqno)) {
+		if (i915_seqno_passed(seqno,
+				      to_signaler(parent)->signaling.wait.seqno)) {
 			p = &parent->rb_right;
 			first = false;
 		} else {

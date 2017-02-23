@@ -4009,9 +4009,10 @@ wait_remaining_ms_from_jiffies(unsigned long timestamp_jiffies, int to_wait_ms)
 }
 
 static inline bool
-__i915_request_irq_complete(struct drm_i915_gem_request *req)
+__i915_request_irq_complete(const struct drm_i915_gem_request *req)
 {
 	struct intel_engine_cs *engine = req->engine;
+	u32 seqno;
 
 	/* Note that the engine may have wrapped around the seqno, and
 	 * so our request->global_seqno will be ahead of the hardware,
@@ -4022,10 +4023,20 @@ __i915_request_irq_complete(struct drm_i915_gem_request *req)
 	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &req->fence.flags))
 		return true;
 
+	/* The request was dequeued before we were awoken. We check after
+	 * inspecting the hw to confirm that this was the same request
+	 * that generated the HWS update. The memory barriers within
+	 * the request execution are sufficient to ensure that a check
+	 * after reading the value from hw matches this request.
+	 */
+	seqno = i915_gem_request_global_seqno(req);
+	if (!seqno)
+		return false;
+
 	/* Before we do the heavier coherent read of the seqno,
 	 * check the value (hopefully) in the CPU cacheline.
 	 */
-	if (__i915_gem_request_completed(req))
+	if (__i915_gem_request_completed(req, seqno))
 		return true;
 
 	/* Ensure our read of the seqno is coherent so that we
@@ -4076,7 +4087,7 @@ __i915_request_irq_complete(struct drm_i915_gem_request *req)
 			wake_up_process(tsk);
 		rcu_read_unlock();
 
-		if (__i915_gem_request_completed(req))
+		if (__i915_gem_request_completed(req, seqno))
 			return true;
 	}
 

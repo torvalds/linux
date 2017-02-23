@@ -131,7 +131,7 @@ static int igt_random_insert_remove(void *arg)
 		goto out_bitmap;
 
 	for (n = 0; n < count; n++)
-		intel_wait_init(&waiters[n], seqno_bias + n);
+		intel_wait_init_for_seqno(&waiters[n], seqno_bias + n);
 
 	err = check_rbtree(engine, bitmap, waiters, count);
 	if (err)
@@ -197,7 +197,7 @@ static int igt_insert_complete(void *arg)
 		goto out_waiters;
 
 	for (n = 0; n < count; n++) {
-		intel_wait_init(&waiters[n], n + seqno_bias);
+		intel_wait_init_for_seqno(&waiters[n], n + seqno_bias);
 		intel_engine_add_wait(engine, &waiters[n]);
 		__set_bit(n, bitmap);
 	}
@@ -318,7 +318,7 @@ static int igt_wakeup_thread(void *arg)
 	while (wait_for_ready(w)) {
 		GEM_BUG_ON(kthread_should_stop());
 
-		intel_wait_init(&wait, w->seqno);
+		intel_wait_init_for_seqno(&wait, w->seqno);
 		intel_engine_add_wait(w->engine, &wait);
 		for (;;) {
 			set_current_state(TASK_UNINTERRUPTIBLE);

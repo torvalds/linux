@@ -397,7 +397,7 @@ out:
 	if (flags & I915_WAIT_LOCKED && i915_gem_request_completed(rq))
 		i915_gem_request_retire_upto(rq);
 
-	if (rps && rq->global_seqno == intel_engine_last_submit(rq->engine)) {
+	if (rps && i915_gem_request_global_seqno(rq) == intel_engine_last_submit(rq->engine)) {
 		/* The GPU is now idle and this client has stalled.
 		 * Since no other client has submitted a request in the
 		 * meantime, assume that this client is the only one
@@ -2608,7 +2608,8 @@ static void i915_gem_context_mark_innocent(struct i915_gem_context *ctx)
 struct drm_i915_gem_request *
 i915_gem_find_active_request(struct intel_engine_cs *engine)
 {
-	struct drm_i915_gem_request *request;
+	struct drm_i915_gem_request *request, *active = NULL;
+	unsigned long flags;
 
 	/* We are called by the error capture and reset at a random
 	 * point in time. In particular, note that neither is crucially
@@ -2618,17 +2619,22 @@ i915_gem_find_active_request(struct intel_engine_cs *engine)
 	 * extra delay for a recent interrupt is pointless. Hence, we do
 	 * not need an engine->irq_seqno_barrier() before the seqno reads.
 	 */
+	spin_lock_irqsave(&engine->timeline->lock, flags);
 	list_for_each_entry(request, &engine->timeline->requests, link) {
-		if (__i915_gem_request_completed(request))
+		if (__i915_gem_request_completed(request,
+						 request->global_seqno))
 			continue;
 
 		GEM_BUG_ON(request->engine != engine);
 		GEM_BUG_ON(test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
 				    &request->fence.flags));
-		return request;
-	}
 
-	return NULL;
+		active = request;
+		break;
+	}
+	spin_unlock_irqrestore(&engine->timeline->lock, flags);
+
+	return active;
 }
 
 static bool engine_stalled(struct intel_engine_cs *engine)
