@@ -1414,9 +1414,12 @@ write:
 		goto redirty_out;
 
 	err = -EAGAIN;
-	f2fs_lock_op(sbi);
-	if (f2fs_has_inline_data(inode))
+	if (f2fs_has_inline_data(inode)) {
 		err = f2fs_write_inline_data(inode, page);
+		if (!err)
+			goto out;
+	}
+	f2fs_lock_op(sbi);
 	if (err == -EAGAIN)
 		err = do_write_data_page(&fio);
 	if (F2FS_I(inode)->last_disk_size < psize)
