@@ -68,7 +68,7 @@ static void tsc2007_read_values(struct tsc2007 *tsc, struct ts_event *tc)
 	tsc2007_xfer(tsc, PWRDOWN);
 }
 
-u32 tsc2007_calculate_pressure(struct tsc2007 *tsc, struct ts_event *tc)
+u32 tsc2007_calculate_resistance(struct tsc2007 *tsc, struct ts_event *tc)
 {
 	u32 rt = 0;
 
@@ -77,7 +77,7 @@ u32 tsc2007_calculate_pressure(struct tsc2007 *tsc, struct ts_event *tc)
 		tc->x = 0;
 
 	if (likely(tc->x && tc->z1)) {
-		/* compute touch pressure resistance using equation #1 */
+		/* compute touch resistance using equation #1 */
 		rt = tc->z2 - tc->z1;
 		rt *= tc->x;
 		rt *= tsc->x_plate_ohms;
@@ -125,7 +125,7 @@ static irqreturn_t tsc2007_soft_irq(int irq, void *handle)
 		tsc2007_read_values(ts, &tc);
 		mutex_unlock(&ts->mlock);
 
-		rt = tsc2007_calculate_pressure(ts, &tc);
+		rt = tsc2007_calculate_resistance(ts, &tc);
 
 		if (!rt && !ts->get_pendown_state) {
 			/*
@@ -138,7 +138,7 @@ static irqreturn_t tsc2007_soft_irq(int irq, void *handle)
 
 		if (rt <= ts->max_rt) {
 			dev_dbg(&ts->client->dev,
-				"DOWN point(%4d,%4d), pressure (%4u)\n",
+				"DOWN point(%4d,%4d), resistance (%4u)\n",
 				tc.x, tc.y, rt);
 
 			input_report_key(input, BTN_TOUCH, 1);

@@ -85,8 +85,7 @@ struct tsc2007 {
 };
 
 int tsc2007_xfer(struct tsc2007 *tsc, u8 cmd);
-u32 tsc2007_calculate_pressure(struct tsc2007 *tsc,
-					struct ts_event *tc);
+u32 tsc2007_calculate_resistance(struct tsc2007 *tsc, struct ts_event *tc);
 bool tsc2007_is_pen_down(struct tsc2007 *ts);
 
 #if IS_ENABLED(CONFIG_TOUCHSCREEN_TSC2007_IIO)

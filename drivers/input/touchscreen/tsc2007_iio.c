@@ -76,7 +76,7 @@ static int tsc2007_read_raw(struct iio_dev *indio_dev,
 		tc.x = tsc2007_xfer(tsc, READ_X);
 		tc.z1 = tsc2007_xfer(tsc, READ_Z1);
 		tc.z2 = tsc2007_xfer(tsc, READ_Z2);
-		*val = tsc2007_calculate_pressure(tsc, &tc);
+		*val = tsc2007_calculate_resistance(tsc, &tc);
 		break;
 	}
 	case 6:
