@@ -8364,6 +8364,7 @@ F:	drivers/media/dvb-frontends/mn88473*
 MODULE SUPPORT
 M:	Jessica Yu <jeyu@redhat.com>
 M:	Rusty Russell <rusty@rustcorp.com.au>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jeyu/linux.git modules-next
 S:	Maintained
 F:	include/linux/module.h
 F:	kernel/module.c
