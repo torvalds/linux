@@ -535,7 +535,7 @@ static int cros_ec_keyb_register_matrix(struct cros_ec_keyb *ckdev)
 	const char *phys;
 	int err;
 
-	err = matrix_keypad_parse_of_params(dev, &ckdev->rows, &ckdev->cols);
+	err = matrix_keypad_parse_properties(dev, &ckdev->rows, &ckdev->cols);
 	if (err)
 		return err;
 

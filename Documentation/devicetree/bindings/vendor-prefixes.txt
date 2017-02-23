@@ -334,6 +334,7 @@ xes	Extreme Engineering Solutions (X-ES)
 xillybus	Xillybus Ltd.
 xlnx	Xilinx
 zarlink	Zarlink Semiconductor
+zeitec	ZEITEC Semiconductor Co., LTD.
 zii	Zodiac Inflight Innovations
 zte	ZTE Corp.
 zyxel	ZyXEL Communications Corp.
