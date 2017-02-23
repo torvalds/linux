@@ -1121,8 +1121,7 @@ done:
 	/* Timeouts occur when the device isn't connected, so they're
 	 * "normal" -- don't fill the kernel log with these */
 	if (status & DP_AUX_CH_CTL_TIME_OUT_ERROR) {
-		DRM_DEBUG_KMS_RATELIMITED("dp_aux_ch timeout status 0x%08x\n",
-					  status);
+		DRM_DEBUG_KMS("dp_aux_ch timeout status 0x%08x\n", status);
 		ret = -ETIMEDOUT;
 		goto out;
 	}
