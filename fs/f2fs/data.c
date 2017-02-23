@@ -867,7 +867,7 @@ next_block:
 			}
 			if (err)
 				goto sync_out;
-			map->m_flags = F2FS_MAP_NEW;
+			map->m_flags |= F2FS_MAP_NEW;
 			blkaddr = dn.data_blkaddr;
 		} else {
 			if (flag == F2FS_GET_BLOCK_BMAP) {
