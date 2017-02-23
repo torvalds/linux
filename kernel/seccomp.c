@@ -641,11 +641,12 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 		return 0;
 
 	case SECCOMP_RET_KILL:
-	default: {
-		siginfo_t info;
+	default:
 		audit_seccomp(this_syscall, SIGSYS, action);
 		/* Dump core only if this is the last remaining thread. */
 		if (get_nr_threads(current) == 1) {
+			siginfo_t info;
+
 			/* Show the original registers in the dump. */
 			syscall_rollback(current, task_pt_regs(current));
 			/* Trigger a manual coredump since do_exit skips it. */
@@ -653,7 +654,6 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 			do_coredump(&info);
 		}
 		do_exit(SIGSYS);
-	}
 	}
 
 	unreachable();
