@@ -78,7 +78,6 @@ struct pci_error_handlers
 {
 	int (*error_detected)(struct pci_dev *dev, enum pci_channel_state);
 	int (*mmio_enabled)(struct pci_dev *dev);
-	int (*link_reset)(struct pci_dev *dev);
 	int (*slot_reset)(struct pci_dev *dev);
 	void (*resume)(struct pci_dev *dev);
 };
@@ -104,8 +103,7 @@ if it implements any, it must implement error_detected(). If a callback
 is not implemented, the corresponding feature is considered unsupported.
 For example, if mmio_enabled() and resume() aren't there, then it
 is assumed that the driver is not doing any direct recovery and requires
-a slot reset. If link_reset() is not implemented, the card is assumed to
-not care about link resets. Typically a driver will want to know about
+a slot reset.  Typically a driver will want to know about
 a slot_reset().
 
 The actual steps taken by a platform to recover from a PCI error
@@ -232,25 +230,9 @@ proceeds to STEP 4 (Slot Reset)
 
 STEP 3: Link Reset
 ------------------
-The platform resets the link, and then calls the link_reset() callback
-on all affected device drivers.  This is a PCI-Express specific state
+The platform resets the link.  This is a PCI-Express specific step
 and is done whenever a non-fatal error has been detected that can be
-"solved" by resetting the link. This call informs the driver of the
-reset and the driver should check to see if the device appears to be
-in working condition.
-
-The driver is not supposed to restart normal driver I/O operations
-at this point.  It should limit itself to "probing" the device to
-check its recoverability status. If all is right, then the platform
-will call resume() once all drivers have ack'd link_reset().
-
-	Result codes:
-		(identical to STEP 3 (MMIO Enabled)
-
-The platform then proceeds to either STEP 4 (Slot Reset) or STEP 5
-(Resume Operations).
-
->>> The current powerpc implementation does not implement this callback.
+"solved" by resetting the link.
 
 STEP 4: Slot Reset
 ------------------

@@ -24,10 +24,10 @@
 #include <linux/regmap.h>
 #include "../pci.h"
 
-#if defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS)
+#if defined(CONFIG_PCI_HISI) || (defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS))
 
-static int hisi_pcie_acpi_rd_conf(struct pci_bus *bus, u32 devfn, int where,
-				  int size, u32 *val)
+static int hisi_pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
+			     int size, u32 *val)
 {
 	struct pci_config_window *cfg = bus->sysdata;
 	int dev = PCI_SLOT(devfn);
@@ -44,8 +44,8 @@ static int hisi_pcie_acpi_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 	return pci_generic_config_read(bus, devfn, where, size, val);
 }
 
-static int hisi_pcie_acpi_wr_conf(struct pci_bus *bus, u32 devfn,
-				  int where, int size, u32 val)
+static int hisi_pcie_wr_conf(struct pci_bus *bus, u32 devfn,
+			     int where, int size, u32 val)
 {
 	struct pci_config_window *cfg = bus->sysdata;
 	int dev = PCI_SLOT(devfn);
@@ -73,6 +73,8 @@ static void __iomem *hisi_pcie_map_bus(struct pci_bus *bus, unsigned int devfn,
 	else
 		return pci_ecam_map_bus(bus, devfn, where);
 }
+
+#if defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS)
 
 static int hisi_pcie_init(struct pci_config_window *cfg)
 {
@@ -110,8 +112,8 @@ struct pci_ecam_ops hisi_pcie_ops = {
 	.init         =  hisi_pcie_init,
 	.pci_ops      = {
 		.map_bus    = hisi_pcie_map_bus,
-		.read       = hisi_pcie_acpi_rd_conf,
-		.write      = hisi_pcie_acpi_wr_conf,
+		.read       = hisi_pcie_rd_conf,
+		.write      = hisi_pcie_wr_conf,
 	}
 };
 
@@ -127,7 +129,7 @@ struct pci_ecam_ops hisi_pcie_ops = {
 #define PCIE_LTSSM_LINKUP_STATE			0x11
 #define PCIE_LTSSM_STATE_MASK			0x3F
 
-#define to_hisi_pcie(x)	container_of(x, struct hisi_pcie, pp)
+#define to_hisi_pcie(x)	dev_get_drvdata((x)->dev)
 
 struct hisi_pcie;
 
@@ -136,10 +138,10 @@ struct pcie_soc_ops {
 };
 
 struct hisi_pcie {
-	struct pcie_port pp;		/* pp.dbi_base is DT rc_dbi */
+	struct dw_pcie *pci;
 	struct regmap *subctrl;
 	u32 port_id;
-	struct pcie_soc_ops *soc_ops;
+	const struct pcie_soc_ops *soc_ops;
 };
 
 /* HipXX PCIe host only supports 32-bit config access */
@@ -149,10 +151,11 @@ static int hisi_pcie_cfg_read(struct pcie_port *pp, int where, int size,
 	u32 reg;
 	u32 reg_val;
 	void *walker = &reg_val;
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 
 	walker += (where & 0x3);
 	reg = where & ~0x3;
-	reg_val = dw_pcie_readl_rc(pp, reg);
+	reg_val = dw_pcie_readl_dbi(pci, reg);
 
 	if (size == 1)
 		*val = *(u8 __force *) walker;
@@ -173,19 +176,20 @@ static int hisi_pcie_cfg_write(struct pcie_port *pp, int where, int  size,
 	u32 reg_val;
 	u32 reg;
 	void *walker = &reg_val;
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 
 	walker += (where & 0x3);
 	reg = where & ~0x3;
 	if (size == 4)
-		dw_pcie_writel_rc(pp, reg, val);
+		dw_pcie_writel_dbi(pci, reg, val);
 	else if (size == 2) {
-		reg_val = dw_pcie_readl_rc(pp, reg);
+		reg_val = dw_pcie_readl_dbi(pci, reg);
 		*(u16 __force *) walker = val;
-		dw_pcie_writel_rc(pp, reg, reg_val);
+		dw_pcie_writel_dbi(pci, reg, reg_val);
 	} else if (size == 1) {
-		reg_val = dw_pcie_readl_rc(pp, reg);
+		reg_val = dw_pcie_readl_dbi(pci, reg);
 		*(u8 __force *) walker = val;
-		dw_pcie_writel_rc(pp, reg, reg_val);
+		dw_pcie_writel_dbi(pci, reg, reg_val);
 	} else
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
@@ -204,32 +208,32 @@ static int hisi_pcie_link_up_hip05(struct hisi_pcie *hisi_pcie)
 
 static int hisi_pcie_link_up_hip06(struct hisi_pcie *hisi_pcie)
 {
-	struct pcie_port *pp = &hisi_pcie->pp;
+	struct dw_pcie *pci = hisi_pcie->pci;
 	u32 val;
 
-	val = dw_pcie_readl_rc(pp, PCIE_SYS_STATE4);
+	val = dw_pcie_readl_dbi(pci, PCIE_SYS_STATE4);
 
 	return ((val & PCIE_LTSSM_STATE_MASK) == PCIE_LTSSM_LINKUP_STATE);
 }
 
-static int hisi_pcie_link_up(struct pcie_port *pp)
+static int hisi_pcie_link_up(struct dw_pcie *pci)
 {
-	struct hisi_pcie *hisi_pcie = to_hisi_pcie(pp);
+	struct hisi_pcie *hisi_pcie = to_hisi_pcie(pci);
 
 	return hisi_pcie->soc_ops->hisi_pcie_link_up(hisi_pcie);
 }
 
-static struct pcie_host_ops hisi_pcie_host_ops = {
+static struct dw_pcie_host_ops hisi_pcie_host_ops = {
 	.rd_own_conf = hisi_pcie_cfg_read,
 	.wr_own_conf = hisi_pcie_cfg_write,
-	.link_up = hisi_pcie_link_up,
 };
 
 static int hisi_add_pcie_port(struct hisi_pcie *hisi_pcie,
 			      struct platform_device *pdev)
 {
-	struct pcie_port *pp = &hisi_pcie->pp;
-	struct device *dev = pp->dev;
+	struct dw_pcie *pci = hisi_pcie->pci;
+	struct pcie_port *pp = &pci->pp;
+	struct device *dev = &pdev->dev;
 	int ret;
 	u32 port_id;
 
@@ -254,12 +258,15 @@ static int hisi_add_pcie_port(struct hisi_pcie *hisi_pcie,
 	return 0;
 }
 
+static const struct dw_pcie_ops dw_pcie_ops = {
+	.link_up = hisi_pcie_link_up,
+};
+
 static int hisi_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct dw_pcie *pci;
 	struct hisi_pcie *hisi_pcie;
-	struct pcie_port *pp;
-	const struct of_device_id *match;
 	struct resource *reg;
 	struct device_driver *driver;
 	int ret;
@@ -268,24 +275,30 @@ static int hisi_pcie_probe(struct platform_device *pdev)
 	if (!hisi_pcie)
 		return -ENOMEM;
 
-	pp = &hisi_pcie->pp;
-	pp->dev = dev;
+	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
+	if (!pci)
+		return -ENOMEM;
+
+	pci->dev = dev;
+	pci->ops = &dw_pcie_ops;
+
 	driver = dev->driver;
 
-	match = of_match_device(driver->of_match_table, dev);
-	hisi_pcie->soc_ops = (struct pcie_soc_ops *) match->data;
+	hisi_pcie->soc_ops = of_device_get_match_data(dev);
 
 	hisi_pcie->subctrl =
-	syscon_regmap_lookup_by_compatible("hisilicon,pcie-sas-subctrl");
+	    syscon_regmap_lookup_by_compatible("hisilicon,pcie-sas-subctrl");
 	if (IS_ERR(hisi_pcie->subctrl)) {
 		dev_err(dev, "cannot get subctrl base\n");
 		return PTR_ERR(hisi_pcie->subctrl);
 	}
 
 	reg = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rc_dbi");
-	pp->dbi_base = devm_ioremap_resource(dev, reg);
-	if (IS_ERR(pp->dbi_base))
-		return PTR_ERR(pp->dbi_base);
+	pci->dbi_base = devm_ioremap_resource(dev, reg);
+	if (IS_ERR(pci->dbi_base))
+		return PTR_ERR(pci->dbi_base);
+
+	platform_set_drvdata(pdev, hisi_pcie);
 
 	ret = hisi_add_pcie_port(hisi_pcie, pdev);
 	if (ret)
@@ -323,4 +336,62 @@ static struct platform_driver hisi_pcie_driver = {
 };
 builtin_platform_driver(hisi_pcie_driver);
 
+static int hisi_pcie_almost_ecam_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct pci_ecam_ops *ops;
+
+	ops = (struct pci_ecam_ops *)of_device_get_match_data(dev);
+	return pci_host_common_probe(pdev, ops);
+}
+
+static int hisi_pcie_platform_init(struct pci_config_window *cfg)
+{
+	struct device *dev = cfg->parent;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct resource *res;
+	void __iomem *reg_base;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (!res) {
+		dev_err(dev, "missing \"reg[1]\"property\n");
+		return -EINVAL;
+	}
+
+	reg_base = devm_ioremap(dev, res->start, resource_size(res));
+	if (!reg_base)
+		return -ENOMEM;
+
+	cfg->priv = reg_base;
+	return 0;
+}
+
+struct pci_ecam_ops hisi_pcie_platform_ops = {
+	.bus_shift    = 20,
+	.init         =  hisi_pcie_platform_init,
+	.pci_ops      = {
+		.map_bus    = hisi_pcie_map_bus,
+		.read       = hisi_pcie_rd_conf,
+		.write      = hisi_pcie_wr_conf,
+	}
+};
+
+static const struct of_device_id hisi_pcie_almost_ecam_of_match[] = {
+	{
+		.compatible = "hisilicon,pcie-almost-ecam",
+		.data	    = (void *) &hisi_pcie_platform_ops,
+	},
+	{},
+};
+
+static struct platform_driver hisi_pcie_almost_ecam_driver = {
+	.probe  = hisi_pcie_almost_ecam_probe,
+	.driver = {
+		   .name = "hisi-pcie-almost-ecam",
+		   .of_match_table = hisi_pcie_almost_ecam_of_match,
+	},
+};
+builtin_platform_driver(hisi_pcie_almost_ecam_driver);
+
+#endif
 #endif
