@@ -52,12 +52,11 @@ static void sun4i_crtc_atomic_flush(struct drm_crtc *crtc,
 				    struct drm_crtc_state *old_state)
 {
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
-	struct sun4i_drv *drv = scrtc->drv;
 	struct drm_pending_vblank_event *event = crtc->state->event;
 
 	DRM_DEBUG_DRIVER("Committing plane changes\n");
 
-	sun4i_backend_commit(drv->backend);
+	sun4i_backend_commit(scrtc->backend);
 
 	if (event) {
 		crtc->state->event = NULL;
@@ -74,11 +73,10 @@ static void sun4i_crtc_atomic_flush(struct drm_crtc *crtc,
 static void sun4i_crtc_disable(struct drm_crtc *crtc)
 {
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
-	struct sun4i_drv *drv = scrtc->drv;
 
 	DRM_DEBUG_DRIVER("Disabling the CRTC\n");
 
-	sun4i_tcon_disable(drv->tcon);
+	sun4i_tcon_disable(scrtc->tcon);
 
 	if (crtc->state->event && !crtc->state->active) {
 		spin_lock_irq(&crtc->dev->event_lock);
@@ -92,11 +90,10 @@ static void sun4i_crtc_disable(struct drm_crtc *crtc)
 static void sun4i_crtc_enable(struct drm_crtc *crtc)
 {
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
-	struct sun4i_drv *drv = scrtc->drv;
 
 	DRM_DEBUG_DRIVER("Enabling the CRTC\n");
 
-	sun4i_tcon_enable(drv->tcon);
+	sun4i_tcon_enable(scrtc->tcon);
 }
 
 static const struct drm_crtc_helper_funcs sun4i_crtc_helper_funcs = {
@@ -109,11 +106,10 @@ static const struct drm_crtc_helper_funcs sun4i_crtc_helper_funcs = {
 static int sun4i_crtc_enable_vblank(struct drm_crtc *crtc)
 {
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
-	struct sun4i_drv *drv = scrtc->drv;
 
 	DRM_DEBUG_DRIVER("Enabling VBLANK on crtc %p\n", crtc);
 
-	sun4i_tcon_enable_vblank(drv->tcon, true);
+	sun4i_tcon_enable_vblank(scrtc->tcon, true);
 
 	return 0;
 }
@@ -121,11 +117,10 @@ static int sun4i_crtc_enable_vblank(struct drm_crtc *crtc)
 static void sun4i_crtc_disable_vblank(struct drm_crtc *crtc)
 {
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
-	struct sun4i_drv *drv = scrtc->drv;
 
 	DRM_DEBUG_DRIVER("Disabling VBLANK on crtc %p\n", crtc);
 
-	sun4i_tcon_enable_vblank(drv->tcon, false);
+	sun4i_tcon_enable_vblank(scrtc->tcon, false);
 }
 
 static const struct drm_crtc_funcs sun4i_crtc_funcs = {
@@ -149,7 +144,8 @@ struct sun4i_crtc *sun4i_crtc_init(struct drm_device *drm)
 	scrtc = devm_kzalloc(drm->dev, sizeof(*scrtc), GFP_KERNEL);
 	if (!scrtc)
 		return ERR_PTR(-ENOMEM);
-	scrtc->drv = drv;
+	scrtc->backend = drv->backend;
+	scrtc->tcon = drv->tcon;
 
 	/* Create our layers */
 	scrtc->layers = sun4i_layers_init(drm);

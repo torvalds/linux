@@ -17,7 +17,8 @@ struct sun4i_crtc {
 	struct drm_crtc			crtc;
 	struct drm_pending_vblank_event	*event;
 
-	struct sun4i_drv		*drv;
+	struct sun4i_backend		*backend;
+	struct sun4i_tcon		*tcon;
 	struct sun4i_layer		**layers;
 };
 
