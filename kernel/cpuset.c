@@ -92,7 +92,7 @@ struct cpuset {
 	 * and if it ends up empty, it will inherit the parent's mask.
 	 *
 	 *
-	 * On legacy hierachy:
+	 * On legacy hierarchy:
 	 *
 	 * The user-configured masks are always the same with effective masks.
 	 */
@@ -873,7 +873,7 @@ static void update_tasks_cpumask(struct cpuset *cs)
  * When congifured cpumask is changed, the effective cpumasks of this cpuset
  * and all its descendants need to be updated.
  *
- * On legacy hierachy, effective_cpus will be the same with cpu_allowed.
+ * On legacy hierarchy, effective_cpus will be the same with cpu_allowed.
  *
  * Called with cpuset_mutex held
  */
