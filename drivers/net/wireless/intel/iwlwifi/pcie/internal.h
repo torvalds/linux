@@ -414,9 +414,9 @@ struct iwl_trans_pcie {
 	struct iwl_dma_ptr kw;
 
 	struct iwl_txq *txq_memory;
-	struct iwl_txq *txq[IWL_MAX_HW_QUEUES];
-	unsigned long queue_used[BITS_TO_LONGS(IWL_MAX_HW_QUEUES)];
-	unsigned long queue_stopped[BITS_TO_LONGS(IWL_MAX_HW_QUEUES)];
+	struct iwl_txq *txq[IWL_MAX_TVQM_QUEUES];
+	unsigned long queue_used[BITS_TO_LONGS(IWL_MAX_TVQM_QUEUES)];
+	unsigned long queue_stopped[BITS_TO_LONGS(IWL_MAX_TVQM_QUEUES)];
 
 	/* PCI bus related data */
 	struct pci_dev *pci_dev;
