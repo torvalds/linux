@@ -3031,6 +3031,13 @@ W:     http://www.cavium.com
 S:     Supported
 F:     drivers/net/ethernet/cavium/liquidio/
 
+CAVIUM OCTEON-TX CRYPTO DRIVER
+M:	George Cherian <george.cherian@cavium.com>
+L:	linux-crypto@vger.kernel.org
+W:	http://www.cavium.com
+S:	Supported
+F:	drivers/crypto/cavium/cpt/
+
 CC2520 IEEE-802.15.4 RADIO DRIVER
 M:	Varka Bhadram <varkabhadram@gmail.com>
 L:	linux-wpan@vger.kernel.org
