@@ -1222,6 +1222,7 @@ static int tegra210_pll_fixed_mdiv_cfg(struct clk_hw *hw,
 	cfg->n = p_rate / cf;
 
 	cfg->sdm_data = 0;
+	cfg->output_rate = input_rate;
 	if (params->sdm_ctrl_reg) {
 		unsigned long rem = p_rate - cf * cfg->n;
 		/* If ssc is enabled SDM enabled as well, even for integer n */
@@ -1232,10 +1233,15 @@ static int tegra210_pll_fixed_mdiv_cfg(struct clk_hw *hw,
 			s -= PLL_SDM_COEFF / 2;
 			cfg->sdm_data = sdin_din_to_data(s);
 		}
+		cfg->output_rate *= cfg->n * PLL_SDM_COEFF + PLL_SDM_COEFF/2 +
+					sdin_data_to_din(cfg->sdm_data);
+		cfg->output_rate /= p * cfg->m * PLL_SDM_COEFF;
+	} else {
+		cfg->output_rate *= cfg->n;
+		cfg->output_rate /= p * cfg->m;
 	}
 
 	cfg->input_rate = input_rate;
-	cfg->output_rate = rate;
 
 	return 0;
 }
