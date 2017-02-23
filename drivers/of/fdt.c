@@ -9,7 +9,7 @@
  * version 2 as published by the Free Software Foundation.
  */
 
-#define pr_fmt(fmt)	"OF: fdt:" fmt
+#define pr_fmt(fmt)	"OF: fdt: " fmt
 
 #include <linux/crc32.h>
 #include <linux/kernel.h>

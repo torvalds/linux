@@ -13,7 +13,6 @@ struct device;
 #ifdef CONFIG_OF
 extern const struct of_device_id *of_match_device(
 	const struct of_device_id *matches, const struct device *dev);
-extern void of_device_make_bus_id(struct device *dev);
 
 /**
  * of_driver_match_device - Tell if a driver's of_match_table matches a device.
