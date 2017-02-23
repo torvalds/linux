@@ -1126,6 +1126,9 @@ restart:
 		 */
 		goto wakeup;
 
+	if (flags & I915_WAIT_LOCKED)
+		__i915_wait_request_check_and_reset(req);
+
 	for (;;) {
 		if (signal_pending_state(state, current)) {
 			timeout = -ERESTARTSYS;
