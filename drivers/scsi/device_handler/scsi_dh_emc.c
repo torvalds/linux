@@ -276,10 +276,9 @@ static int send_trespass_cmd(struct scsi_device *sdev,
 	BUG_ON((len > CLARIION_BUFFER_SIZE));
 	memcpy(csdev->buffer, page22, len);
 
-	err = scsi_execute_req_flags(sdev, cdb, DMA_TO_DEVICE,
-				     csdev->buffer, len, &sshdr,
-				     CLARIION_TIMEOUT * HZ, CLARIION_RETRIES,
-				     NULL, req_flags, 0);
+	err = scsi_execute(sdev, cdb, DMA_TO_DEVICE, csdev->buffer, len, NULL,
+			&sshdr, CLARIION_TIMEOUT * HZ, CLARIION_RETRIES,
+			req_flags, 0, NULL);
 	if (err) {
 		if (scsi_sense_valid(&sshdr))
 			res = trespass_endio(sdev, &sshdr);

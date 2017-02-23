@@ -289,17 +289,6 @@ int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 }
 EXPORT_SYMBOL(scsi_execute);
 
-int scsi_execute_req_flags(struct scsi_device *sdev, const unsigned char *cmd,
-		     int data_direction, void *buffer, unsigned bufflen,
-		     struct scsi_sense_hdr *sshdr, int timeout, int retries,
-		     int *resid, u64 flags, req_flags_t rq_flags)
-{
-	return scsi_execute(sdev, cmd, data_direction, buffer, bufflen,
-			      NULL, sshdr, timeout, retries, flags, rq_flags,
-			      resid);
-}
-EXPORT_SYMBOL(scsi_execute_req_flags);
-
 /*
  * Function:    scsi_init_cmd_errh()
  *
