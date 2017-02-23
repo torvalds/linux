@@ -77,7 +77,7 @@ static struct extent_tree *__grab_extent_tree(struct inode *inode)
 	struct extent_tree *et;
 	nid_t ino = inode->i_ino;
 
-	down_write(&sbi->extent_tree_lock);
+	mutex_lock(&sbi->extent_tree_lock);
 	et = radix_tree_lookup(&sbi->extent_tree_root, ino);
 	if (!et) {
 		et = f2fs_kmem_cache_alloc(extent_tree_slab, GFP_NOFS);
@@ -94,7 +94,7 @@ static struct extent_tree *__grab_extent_tree(struct inode *inode)
 		atomic_dec(&sbi->total_zombie_tree);
 		list_del_init(&et->list);
 	}
-	up_write(&sbi->extent_tree_lock);
+	mutex_unlock(&sbi->extent_tree_lock);
 
 	/* never died until evict_inode */
 	F2FS_I(inode)->extent_tree = et;
@@ -548,7 +548,7 @@ unsigned int f2fs_shrink_extent_tree(struct f2fs_sb_info *sbi, int nr_shrink)
 	if (!atomic_read(&sbi->total_zombie_tree))
 		goto free_node;
 
-	if (!down_write_trylock(&sbi->extent_tree_lock))
+	if (!mutex_trylock(&sbi->extent_tree_lock))
 		goto out;
 
 	/* 1. remove unreferenced extent tree */
@@ -570,11 +570,11 @@ unsigned int f2fs_shrink_extent_tree(struct f2fs_sb_info *sbi, int nr_shrink)
 			goto unlock_out;
 		cond_resched();
 	}
-	up_write(&sbi->extent_tree_lock);
+	mutex_unlock(&sbi->extent_tree_lock);
 
 free_node:
 	/* 2. remove LRU extent entries */
-	if (!down_write_trylock(&sbi->extent_tree_lock))
+	if (!mutex_trylock(&sbi->extent_tree_lock))
 		goto out;
 
 	remained = nr_shrink - (node_cnt + tree_cnt);
@@ -604,7 +604,7 @@ free_node:
 	spin_unlock(&sbi->extent_lock);
 
 unlock_out:
-	up_write(&sbi->extent_tree_lock);
+	mutex_unlock(&sbi->extent_tree_lock);
 out:
 	trace_f2fs_shrink_extent_tree(sbi, node_cnt, tree_cnt);
 
@@ -651,10 +651,10 @@ void f2fs_destroy_extent_tree(struct inode *inode)
 
 	if (inode->i_nlink && !is_bad_inode(inode) &&
 					atomic_read(&et->node_cnt)) {
-		down_write(&sbi->extent_tree_lock);
+		mutex_lock(&sbi->extent_tree_lock);
 		list_add_tail(&et->list, &sbi->zombie_list);
 		atomic_inc(&sbi->total_zombie_tree);
-		up_write(&sbi->extent_tree_lock);
+		mutex_unlock(&sbi->extent_tree_lock);
 		return;
 	}
 
@@ -662,12 +662,12 @@ void f2fs_destroy_extent_tree(struct inode *inode)
 	node_cnt = f2fs_destroy_extent_node(inode);
 
 	/* delete extent tree entry in radix tree */
-	down_write(&sbi->extent_tree_lock);
+	mutex_lock(&sbi->extent_tree_lock);
 	f2fs_bug_on(sbi, atomic_read(&et->node_cnt));
 	radix_tree_delete(&sbi->extent_tree_root, inode->i_ino);
 	kmem_cache_free(extent_tree_slab, et);
 	atomic_dec(&sbi->total_ext_tree);
-	up_write(&sbi->extent_tree_lock);
+	mutex_unlock(&sbi->extent_tree_lock);
 
 	F2FS_I(inode)->extent_tree = NULL;
 
@@ -714,7 +714,7 @@ void f2fs_update_extent_cache_range(struct dnode_of_data *dn,
 void init_extent_cache_info(struct f2fs_sb_info *sbi)
 {
 	INIT_RADIX_TREE(&sbi->extent_tree_root, GFP_NOIO);
-	init_rwsem(&sbi->extent_tree_lock);
+	mutex_init(&sbi->extent_tree_lock);
 	INIT_LIST_HEAD(&sbi->extent_list);
 	spin_lock_init(&sbi->extent_lock);
 	atomic_set(&sbi->total_ext_tree, 0);

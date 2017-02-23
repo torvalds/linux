@@ -844,7 +844,7 @@ struct f2fs_sb_info {
 
 	/* for extent tree cache */
 	struct radix_tree_root extent_tree_root;/* cache extent cache entries */
-	struct rw_semaphore extent_tree_lock;	/* locking extent radix tree */
+	struct mutex extent_tree_lock;	/* locking extent radix tree */
 	struct list_head extent_list;		/* lru list for shrinker */
 	spinlock_t extent_lock;			/* locking extent lru list */
 	atomic_t total_ext_tree;		/* extent tree count */
