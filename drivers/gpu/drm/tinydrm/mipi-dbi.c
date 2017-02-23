@@ -863,7 +863,7 @@ static ssize_t mipi_dbi_debugfs_command_write(struct file *file,
 {
 	struct seq_file *m = file->private_data;
 	struct mipi_dbi *mipi = m->private;
-	u8 val, cmd, parameters[64];
+	u8 val, cmd = 0, parameters[64];
 	char *buf, *pos, *token;
 	unsigned int i;
 	int ret;
