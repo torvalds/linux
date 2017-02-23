@@ -3098,9 +3098,8 @@ intel_dp_voltage_max(struct intel_dp *intel_dp)
 	if (IS_GEN9_LP(dev_priv))
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 	else if (INTEL_GEN(dev_priv) >= 9) {
-		if (dev_priv->vbt.edp.low_vswing && port == PORT_A)
-			return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
-		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
+		struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+		return intel_ddi_dp_voltage_max(encoder);
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 	else if (IS_GEN7(dev_priv) && port == PORT_A)

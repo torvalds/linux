@@ -1615,6 +1615,25 @@ static void bxt_ddi_vswing_sequence(struct drm_i915_private *dev_priv,
 				     ddi_translations[level].deemphasis);
 }
 
+u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	int n_entries;
+
+	if (encoder->type == INTEL_OUTPUT_EDP)
+		intel_ddi_get_buf_trans_edp(dev_priv, &n_entries);
+	else
+		intel_ddi_get_buf_trans_dp(dev_priv, &n_entries);
+
+	if (WARN_ON(n_entries < 1))
+		n_entries = 1;
+	if (WARN_ON(n_entries > ARRAY_SIZE(index_to_dp_signal_levels)))
+		n_entries = ARRAY_SIZE(index_to_dp_signal_levels);
+
+	return index_to_dp_signal_levels[n_entries - 1] &
+		DP_TRAIN_VOLTAGE_SWING_MASK;
+}
+
 static uint32_t translate_signal_level(int signal_levels)
 {
 	int i;

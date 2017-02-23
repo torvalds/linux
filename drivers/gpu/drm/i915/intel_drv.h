@@ -1233,6 +1233,8 @@ void intel_ddi_clock_get(struct intel_encoder *encoder,
 			 struct intel_crtc_state *pipe_config);
 void intel_ddi_set_vc_payload_alloc(struct drm_crtc *crtc, bool state);
 uint32_t ddi_signal_levels(struct intel_dp *intel_dp);
+u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder);
+
 unsigned int intel_fb_align_height(struct drm_i915_private *dev_priv,
 				   unsigned int height,
 				   uint32_t pixel_format,
