@@ -687,6 +687,18 @@ static inline unsigned long get_kernel_vsid(unsigned long ea, int ssize)
 
 unsigned htab_shift_for_mem_size(unsigned long mem_size);
 
+static inline void slb_power9_dd1_flush(void)
+{
+	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
+		uint64_t i;
+
+		for (i = 1; i < 32; i++)
+			asm volatile("slbmte  %0,%1" :
+				     : "r" (0), "r" (i)
+				     : "memory" );
+	}
+}
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_POWERPC_BOOK3S_64_MMU_HASH_H_ */

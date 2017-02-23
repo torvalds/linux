@@ -121,6 +121,7 @@ static void __slb_flush_and_rebolt(void)
 
 	/* We need to do this all in asm, so we're sure we don't touch
 	 * the stack between the slbia and rebolting it. */
+	slb_power9_dd1_flush();
 	asm volatile("isync\n"
 		     "slbia\n"
 		     /* Slot 1 - first VMALLOC segment */
@@ -206,6 +207,7 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 	hard_irq_disable();
 	offset = get_paca()->slb_cache_ptr;
 	if (!mmu_has_feature(MMU_FTR_NO_SLBIE_B) &&
+	    !cpu_has_feature(CPU_FTR_POWER9_DD1) &&
 	    offset <= SLB_CACHE_ENTRIES) {
 		int i;
 		asm volatile("isync" : : : "memory");
@@ -329,6 +331,7 @@ void slb_initialize(void)
 	/* Invalidate the entire SLB (even entry 0) & all the ERATS */
 	asm volatile("isync":::"memory");
 	asm volatile("slbmte  %0,%0"::"r" (0) : "memory");
+	slb_power9_dd1_flush();
 	asm volatile("isync; slbia; isync":::"memory");
 	create_shadowed_slbe(PAGE_OFFSET, mmu_kernel_ssize, lflags, LINEAR_INDEX);
 	create_shadowed_slbe(VMALLOC_START, mmu_kernel_ssize, vflags, VMALLOC_INDEX);

@@ -55,6 +55,15 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_LPAR)
 
 	/* Flush SLB */
 
+BEGIN_FTR_SECTION
+	li	r10,31
+	li	r11,0
+	mtctr	r10
+1:	slbmte	r11,r10
+	subi	r10,r10,1
+	bdnz	1b
+END_FTR_SECTION_IFSET(CPU_FTR_POWER9_DD1)
+
 	li	r10, 0
 	slbmte	r10, r10
 	slbia
@@ -113,6 +122,14 @@ slb_do_enter:
 
 	/* Remove all SLB entries that are in use. */
 
+BEGIN_FTR_SECTION
+	li	r10,31
+	li	r11,0
+	mtctr	r10
+1:	slbmte	r11,r10
+	subi	r10,r10,1
+	bdnz	1b
+END_FTR_SECTION_IFSET(CPU_FTR_POWER9_DD1)
 	li	r0, r0
 	slbmte	r0, r0
 	slbia

@@ -87,6 +87,7 @@ static void flush_and_reload_slb(void)
 	unsigned long i, n;
 
 	/* Invalidate all SLBs */
+	slb_power9_dd1_flush();
 	asm volatile("slbmte %0,%0; slbia" : : "r" (0));
 
 #ifdef CONFIG_KVM_BOOK3S_HANDLER

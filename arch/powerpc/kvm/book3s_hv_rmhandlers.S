@@ -589,6 +589,16 @@ kvmppc_hv_entry:
 
 	/* Clear out SLB if hash */
 	bne	cr7, 2f
+
+	/* Clear out SLB */
+BEGIN_FTR_SECTION
+	li	r5,31
+	li	r6,0
+	mtctr	r5
+1:	slbmte	r6,r5
+	subi	r5,r5,1
+	bdnz	1b
+END_FTR_SECTION_IFSET(CPU_FTR_POWER9_DD1)
 	li	r6,0
 	slbmte	r6,r6
 	slbia
@@ -1609,6 +1619,14 @@ END_FTR_SECTION_NESTED(CPU_FTR_ARCH_300, 0, 96)
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 22:
 	/* Clear out SLB */
+BEGIN_FTR_SECTION
+	li	r5,31
+	li	r6,0
+	mtctr	r5
+1:	slbmte	r6,r5
+	subi	r5,r5,1
+	bdnz	1b
+END_FTR_SECTION_IFSET(CPU_FTR_POWER9_DD1)
 	li	r5,0
 	slbmte	r5,r5
 	slbia

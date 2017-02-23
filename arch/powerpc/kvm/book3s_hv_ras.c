@@ -41,6 +41,7 @@ static void reload_slb(struct kvm_vcpu *vcpu)
 	unsigned long i, n;
 
 	/* First clear out SLB */
+	slb_power9_dd1_flush();
 	asm volatile("slbmte %0,%0; slbia" : : "r" (0));
 
 	/* Do they have an SLB shadow buffer registered? */

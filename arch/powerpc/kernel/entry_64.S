@@ -572,9 +572,21 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 	 * actually hit this code path.
 	 */
 
+BEGIN_FTR_SECTION
+	clrrdi	r11,r6,28
+	slbfee.	r10,r11
+	bne	1f
+	li	r10,(32 - SLB_NUM_BOLTED)
+	li	r11,0
+	mtctr	r10
+	li	r10,31
+0:	slbmte	r11,r10
+	subi	r10,r10,1
+	bdnz	0b
+END_FTR_SECTION_IFSET(CPU_FTR_POWER9_DD1)
 	slbie	r6
 	slbie	r6		/* Workaround POWER5 < DD2.1 issue */
-	slbmte	r7,r0
+1:	slbmte	r7,r0
 	isync
 2:
 #endif /* CONFIG_PPC_STD_MMU_64 */
