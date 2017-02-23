@@ -468,6 +468,59 @@ static int intel_ddi_hdmi_level(struct drm_i915_private *dev_priv, enum port por
 	return hdmi_level;
 }
 
+static const struct ddi_buf_trans *
+intel_ddi_get_buf_trans_dp(struct drm_i915_private *dev_priv,
+			   int *n_entries)
+{
+	if (IS_KABYLAKE(dev_priv)) {
+		return kbl_get_buf_trans_dp(dev_priv, n_entries);
+	} else if (IS_SKYLAKE(dev_priv)) {
+		return skl_get_buf_trans_dp(dev_priv, n_entries);
+	} else if (IS_BROADWELL(dev_priv)) {
+		*n_entries = ARRAY_SIZE(bdw_ddi_translations_dp);
+		return  bdw_ddi_translations_dp;
+	} else if (IS_HASWELL(dev_priv)) {
+		*n_entries = ARRAY_SIZE(hsw_ddi_translations_dp);
+		return hsw_ddi_translations_dp;
+	}
+
+	*n_entries = 0;
+	return NULL;
+}
+
+static const struct ddi_buf_trans *
+intel_ddi_get_buf_trans_edp(struct drm_i915_private *dev_priv,
+			    int *n_entries)
+{
+	if (IS_KABYLAKE(dev_priv) || IS_SKYLAKE(dev_priv)) {
+		return skl_get_buf_trans_edp(dev_priv, n_entries);
+	} else if (IS_BROADWELL(dev_priv)) {
+		return bdw_get_buf_trans_edp(dev_priv, n_entries);
+	} else if (IS_HASWELL(dev_priv)) {
+		*n_entries = ARRAY_SIZE(hsw_ddi_translations_dp);
+		return hsw_ddi_translations_dp;
+	}
+
+	*n_entries = 0;
+	return NULL;
+}
+
+static const struct ddi_buf_trans *
+intel_ddi_get_buf_trans_fdi(struct drm_i915_private *dev_priv,
+			    int *n_entries)
+{
+	if (IS_BROADWELL(dev_priv)) {
+		*n_entries = ARRAY_SIZE(hsw_ddi_translations_fdi);
+		return hsw_ddi_translations_fdi;
+	} else if (IS_HASWELL(dev_priv)) {
+		*n_entries = ARRAY_SIZE(hsw_ddi_translations_fdi);
+		return hsw_ddi_translations_fdi;
+	}
+
+	*n_entries = 0;
+	return NULL;
+}
+
 /*
  * Starting with Haswell, DDI port buffers must be programmed with correct
  * values in advance. This function programs the correct values for
@@ -477,45 +530,29 @@ void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 iboost_bit = 0;
-	int i, n_dp_entries, n_edp_entries, size;
+	int i, n_entries;
 	enum port port = intel_ddi_get_encoder_port(encoder);
-	const struct ddi_buf_trans *ddi_translations_fdi;
-	const struct ddi_buf_trans *ddi_translations_dp;
-	const struct ddi_buf_trans *ddi_translations_edp;
 	const struct ddi_buf_trans *ddi_translations;
 
 	if (IS_GEN9_LP(dev_priv))
 		return;
 
-	if (IS_KABYLAKE(dev_priv)) {
-		ddi_translations_fdi = NULL;
-		ddi_translations_dp =
-				kbl_get_buf_trans_dp(dev_priv, &n_dp_entries);
-		ddi_translations_edp =
-				skl_get_buf_trans_edp(dev_priv, &n_edp_entries);
-	} else if (IS_SKYLAKE(dev_priv)) {
-		ddi_translations_fdi = NULL;
-		ddi_translations_dp =
-				skl_get_buf_trans_dp(dev_priv, &n_dp_entries);
-		ddi_translations_edp =
-				skl_get_buf_trans_edp(dev_priv, &n_edp_entries);
-	} else if (IS_BROADWELL(dev_priv)) {
-		ddi_translations_fdi = bdw_ddi_translations_fdi;
-		ddi_translations_dp = bdw_ddi_translations_dp;
-		ddi_translations_edp = bdw_get_buf_trans_edp(dev_priv, &n_edp_entries);
-		n_dp_entries = ARRAY_SIZE(bdw_ddi_translations_dp);
-	} else if (IS_HASWELL(dev_priv)) {
-		ddi_translations_fdi = hsw_ddi_translations_fdi;
-		ddi_translations_dp = hsw_ddi_translations_dp;
-		ddi_translations_edp = hsw_ddi_translations_dp;
-		n_dp_entries = n_edp_entries = ARRAY_SIZE(hsw_ddi_translations_dp);
-	} else {
-		WARN(1, "ddi translation table missing\n");
-		ddi_translations_edp = bdw_ddi_translations_dp;
-		ddi_translations_fdi = bdw_ddi_translations_fdi;
-		ddi_translations_dp = bdw_ddi_translations_dp;
-		n_edp_entries = ARRAY_SIZE(bdw_ddi_translations_edp);
-		n_dp_entries = ARRAY_SIZE(bdw_ddi_translations_dp);
+	switch (encoder->type) {
+	case INTEL_OUTPUT_EDP:
+		ddi_translations = intel_ddi_get_buf_trans_edp(dev_priv,
+							       &n_entries);
+		break;
+	case INTEL_OUTPUT_DP:
+		ddi_translations = intel_ddi_get_buf_trans_dp(dev_priv,
+							      &n_entries);
+		break;
+	case INTEL_OUTPUT_ANALOG:
+		ddi_translations = intel_ddi_get_buf_trans_fdi(dev_priv,
+							       &n_entries);
+		break;
+	default:
+		MISSING_CASE(encoder->type);
+		return;
 	}
 
 	if (IS_GEN9_BC(dev_priv)) {
@@ -525,28 +562,11 @@ void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder)
 
 		if (WARN_ON(encoder->type == INTEL_OUTPUT_EDP &&
 			    port != PORT_A && port != PORT_E &&
-			    n_edp_entries > 9))
-			n_edp_entries = 9;
+			    n_entries > 9))
+			n_entries = 9;
 	}
 
-	switch (encoder->type) {
-	case INTEL_OUTPUT_EDP:
-		ddi_translations = ddi_translations_edp;
-		size = n_edp_entries;
-		break;
-	case INTEL_OUTPUT_DP:
-		ddi_translations = ddi_translations_dp;
-		size = n_dp_entries;
-		break;
-	case INTEL_OUTPUT_ANALOG:
-		ddi_translations = ddi_translations_fdi;
-		size = n_dp_entries;
-		break;
-	default:
-		BUG();
-	}
-
-	for (i = 0; i < size; i++) {
+	for (i = 0; i < n_entries; i++) {
 		I915_WRITE(DDI_BUF_TRANS_LO(port, i),
 			   ddi_translations[i].trans1 | iboost_bit);
 		I915_WRITE(DDI_BUF_TRANS_HI(port, i),
