@@ -100,9 +100,9 @@ static int int3496_probe(struct platform_device *pdev)
 	}
 
 	data->usb_id_irq = gpiod_to_irq(data->gpio_usb_id);
-	if (data->usb_id_irq <= 0) {
+	if (data->usb_id_irq < 0) {
 		dev_err(dev, "can't get USB ID IRQ: %d\n", data->usb_id_irq);
-		return -EINVAL;
+		return data->usb_id_irq;
 	}
 
 	data->gpio_vbus_en = devm_gpiod_get_index(dev, "vbus en",
