@@ -1086,32 +1086,29 @@ long i915_wait_request(struct drm_i915_gem_request *req,
 	intel_wait_init(&wait);
 
 restart:
-	if (!intel_wait_update_request(&wait, req)) {
-		do {
-			set_current_state(state);
+	do {
+		set_current_state(state);
+		if (intel_wait_update_request(&wait, req))
+			break;
 
-			if (intel_wait_update_request(&wait, req))
-				break;
+		if (flags & I915_WAIT_LOCKED &&
+		    __i915_wait_request_check_and_reset(req))
+			continue;
 
-			if (flags & I915_WAIT_LOCKED &&
-			    __i915_wait_request_check_and_reset(req))
-				continue;
+		if (signal_pending_state(state, current)) {
+			timeout = -ERESTARTSYS;
+			goto complete;
+		}
 
-			if (signal_pending_state(state, current)) {
-				timeout = -ERESTARTSYS;
-				goto complete;
-			}
+		if (!timeout) {
+			timeout = -ETIME;
+			goto complete;
+		}
 
-			if (!timeout) {
-				timeout = -ETIME;
-				goto complete;
-			}
+		timeout = io_schedule_timeout(timeout);
+	} while (1);
 
-			timeout = io_schedule_timeout(timeout);
-		} while (1);
-
-		GEM_BUG_ON(!intel_wait_has_seqno(&wait));
-	}
+	GEM_BUG_ON(!intel_wait_has_seqno(&wait));
 	GEM_BUG_ON(!i915_sw_fence_signaled(&req->submit));
 
 	/* Optimistic short spin before touching IRQs */
