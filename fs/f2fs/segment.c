@@ -676,8 +676,12 @@ void f2fs_wait_discard_bio(struct f2fs_sb_info *sbi, block_t blkaddr)
 	struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
 	struct list_head *wait_list = &(dcc->discard_cmd_list);
 	struct discard_cmd *dc, *tmp;
+	struct blk_plug plug;
 
 	mutex_lock(&dcc->cmd_lock);
+
+	blk_start_plug(&plug);
+
 	list_for_each_entry_safe(dc, tmp, wait_list, list) {
 
 		if (blkaddr == NULL_ADDR) {
@@ -686,9 +690,6 @@ void f2fs_wait_discard_bio(struct f2fs_sb_info *sbi, block_t blkaddr)
 				submit_bio(dc->bio);
 				atomic_inc(&dcc->submit_discard);
 			}
-			wait_for_completion_io(&dc->wait);
-
-			__remove_discard_cmd(sbi, dc);
 			continue;
 		}
 
@@ -697,6 +698,15 @@ void f2fs_wait_discard_bio(struct f2fs_sb_info *sbi, block_t blkaddr)
 				wait_for_completion_io(&dc->wait);
 			else
 				__remove_discard_cmd(sbi, dc);
+		}
+	}
+	blk_finish_plug(&plug);
+
+	/* this comes from f2fs_put_super */
+	if (blkaddr == NULL_ADDR) {
+		list_for_each_entry_safe(dc, tmp, wait_list, list) {
+			wait_for_completion_io(&dc->wait);
+			__remove_discard_cmd(sbi, dc);
 		}
 	}
 	mutex_unlock(&dcc->cmd_lock);
