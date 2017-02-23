@@ -2485,12 +2485,8 @@ static int mlx4_en_set_vf_mac(struct net_device *dev, int queue, u8 *mac)
 {
 	struct mlx4_en_priv *en_priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = en_priv->mdev;
-	u64 mac_u64 = mlx4_mac_to_u64(mac);
 
-	if (is_multicast_ether_addr(mac))
-		return -EINVAL;
-
-	return mlx4_set_vf_mac(mdev->dev, en_priv->port, queue, mac_u64);
+	return mlx4_set_vf_mac(mdev->dev, en_priv->port, queue, mac);
 }
 
 static int mlx4_en_set_vf_vlan(struct net_device *dev, int vf, u16 vlan, u8 qos,
