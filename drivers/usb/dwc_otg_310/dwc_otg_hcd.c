@@ -1080,7 +1080,8 @@ static int assign_and_init_hc(dwc_otg_hcd_t *hcd, dwc_otg_qh_t *qh)
 	hc->multi_count = 1;
 
 	if (hcd->core_if->dma_enable) {
-		hc->xfer_buff = (uint8_t *) urb->dma + urb->actual_length;
+		hc->xfer_buff = (uint8_t *)(uintptr_t)urb->dma +
+						      urb->actual_length;
 
 		/* For non-dword aligned case */
 		if (((unsigned long)hc->xfer_buff & 0x3)
@@ -1118,7 +1119,7 @@ static int assign_and_init_hc(dwc_otg_hcd_t *hcd, dwc_otg_qh_t *qh)
 			hc->ep_is_in = 0;
 			hc->data_pid_start = DWC_OTG_HC_PID_SETUP;
 			if (hcd->core_if->dma_enable)
-				hc->xfer_buff = (uint8_t *) urb->setup_dma;
+				hc->xfer_buff = (uint8_t *)(uintptr_t)urb->setup_dma;
 			else
 				hc->xfer_buff = (uint8_t *) urb->setup_packet;
 
@@ -1148,7 +1149,7 @@ static int assign_and_init_hc(dwc_otg_hcd_t *hcd, dwc_otg_qh_t *qh)
 
 			hc->xfer_len = 0;
 			if (hcd->core_if->dma_enable)
-				hc->xfer_buff = (uint8_t *) hcd->status_buf_dma;
+				hc->xfer_buff = (uint8_t *)(uintptr_t)hcd->status_buf_dma;
 			else
 				hc->xfer_buff = (uint8_t *) hcd->status_buf;
 
@@ -1176,7 +1177,7 @@ static int assign_and_init_hc(dwc_otg_hcd_t *hcd, dwc_otg_qh_t *qh)
 			frame_desc->status = 0;
 
 			if (hcd->core_if->dma_enable) {
-				hc->xfer_buff = (uint8_t *) urb->dma;
+				hc->xfer_buff = (uint8_t *)(uintptr_t)urb->dma;
 			} else {
 				hc->xfer_buff = (uint8_t *) urb->buf;
 			}

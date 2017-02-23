@@ -630,7 +630,8 @@ static void init_non_isoc_dma_desc(dwc_otg_hcd_t *hcd, dwc_otg_qh_t *qh)
 		if (n_desc) {
 			/* SG request - more than 1 QTDs */
 			hc->xfer_buff =
-			    (uint8_t *) qtd->urb->dma + qtd->urb->actual_length;
+			    (uint8_t *)(uintptr_t)qtd->urb->dma +
+						  qtd->urb->actual_length;
 			hc->xfer_len =
 			    qtd->urb->length - qtd->urb->actual_length;
 		}
