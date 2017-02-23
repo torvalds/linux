@@ -44,6 +44,7 @@
 
 #include "rk3399-excavator-sapphire.dtsi"
 #include "rk3399-android.dtsi"
+#include "rk3399-vop-clk-set.dtsi"
 
 / {
 	model = "Rockchip RK3399 Excavator Board edp (Android)";
@@ -65,9 +66,47 @@
 	test-power {
 		status = "okay";
 	};
+
+	rt5651 {
+		status = "okay";
+	};
 };
 
 &backlight {
+	status = "okay";
+	enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
+};
+
+&edp {
+	status = "okay";
+
+	ports {
+		edp_out: port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			edp_out_panel: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&panel_in_edp>;
+			};
+		};
+	};
+};
+
+&edp_in_vopl {
+	status = "disabled";
+};
+
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_in_vopb {
+	status = "disabled";
+};
+
+&hdmi_sound {
 	status = "okay";
 };
 
@@ -88,21 +127,18 @@
 	};
 };
 
-&edp {
+&vopb {
+	assigned-clocks = <&cru DCLK_VOP0_DIV>;
+	assigned-clock-parents = <&cru PLL_CPLL>;
+};
+
+&vopl {
+	assigned-clocks = <&cru DCLK_VOP1_DIV>;
+	assigned-clock-parents = <&cru PLL_VPLL>;
+};
+
+&route_edp {
 	status = "okay";
-
-	ports {
-		edp_out: port@1 {
-			reg = <1>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			edp_out_panel: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&panel_in_edp>;
-			};
-		};
-	};
 };
 
 &pinctrl {
@@ -113,10 +149,3 @@
 	};
 };
 
-&backlight{
-	enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
-};
-
-&route_edp {
-	status = "okay";
-};

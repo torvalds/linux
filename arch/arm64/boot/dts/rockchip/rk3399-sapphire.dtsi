@@ -111,7 +111,7 @@
 			sound-dai = <&i2s2>;
 		};
 		simple-audio-card,codec {
-			sound-dai = <&dw_hdmi_audio>;
+			sound-dai = <&hdmi>;
 		};
 	};
 
