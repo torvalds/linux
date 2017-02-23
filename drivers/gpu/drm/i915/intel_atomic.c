@@ -247,7 +247,9 @@ int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 		}
 
 		/* set scaler mode */
-		if (num_scalers_need == 1 && intel_crtc->pipe != PIPE_C) {
+		if (IS_GEMINILAKE(dev_priv)) {
+			scaler_state->scalers[*scaler_id].mode = 0;
+		} else if (num_scalers_need == 1 && intel_crtc->pipe != PIPE_C) {
 			/*
 			 * when only 1 scaler is in use on either pipe A or B,
 			 * scaler 0 operates in high quality (HQ) mode.
