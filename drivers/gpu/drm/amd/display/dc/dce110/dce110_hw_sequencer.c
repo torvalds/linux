@@ -233,6 +233,19 @@ static void build_prescale_params(struct ipp_prescale_params *prescale_params,
 	}
 }
 
+
+/* Only use LUT for 8 bit formats */
+static bool use_lut(const struct core_surface *surface)
+{
+	switch (surface->public.format) {
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB8888:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR8888:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static bool dce110_set_input_transfer_func(
 	struct pipe_ctx *pipe_ctx,
 	const struct core_surface *surface)
@@ -251,7 +264,7 @@ static bool dce110_set_input_transfer_func(
 	build_prescale_params(&prescale_params, surface);
 	ipp->funcs->ipp_program_prescale(ipp, &prescale_params);
 
-	if (surface->public.gamma_correction)
+	if (surface->public.gamma_correction && use_lut(surface))
 	    ipp->funcs->ipp_program_input_lut(ipp, surface->public.gamma_correction);
 
 	if (tf == NULL) {
