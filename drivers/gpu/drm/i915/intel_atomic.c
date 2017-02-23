@@ -121,7 +121,7 @@ intel_crtc_destroy_state(struct drm_crtc *crtc,
 
 /**
  * intel_atomic_setup_scalers() - setup scalers for crtc per staged requests
- * @dev: DRM device
+ * @dev_priv: i915 device
  * @crtc: intel crtc
  * @crtc_state: incoming crtc_state to validate and setup scalers
  *
@@ -136,9 +136,9 @@ intel_crtc_destroy_state(struct drm_crtc *crtc,
  *         0 - scalers were setup succesfully
  *         error code - otherwise
  */
-int intel_atomic_setup_scalers(struct drm_device *dev,
-	struct intel_crtc *intel_crtc,
-	struct intel_crtc_state *crtc_state)
+int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
+			       struct intel_crtc *intel_crtc,
+			       struct intel_crtc_state *crtc_state)
 {
 	struct drm_plane *plane = NULL;
 	struct intel_plane *intel_plane;
@@ -199,7 +199,7 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 			 */
 			if (!plane) {
 				struct drm_plane_state *state;
-				plane = drm_plane_from_index(dev, i);
+				plane = drm_plane_from_index(&dev_priv->drm, i);
 				state = drm_atomic_get_plane_state(drm_state, plane);
 				if (IS_ERR(state)) {
 					DRM_DEBUG_KMS("Failed to add [PLANE:%d] to drm_state\n",

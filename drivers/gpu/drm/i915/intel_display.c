@@ -11036,7 +11036,7 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 			ret = skl_update_scaler_crtc(pipe_config);
 
 		if (!ret)
-			ret = intel_atomic_setup_scalers(dev, intel_crtc,
+			ret = intel_atomic_setup_scalers(dev_priv, intel_crtc,
 							 pipe_config);
 	}
 
