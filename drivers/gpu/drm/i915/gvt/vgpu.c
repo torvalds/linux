@@ -64,6 +64,19 @@ void populate_pvinfo_page(struct intel_vgpu *vgpu)
 	WARN_ON(sizeof(struct vgt_if) != VGT_PVINFO_SIZE);
 }
 
+static struct {
+	unsigned int low_mm;
+	unsigned int high_mm;
+	unsigned int fence;
+	char *name;
+} vgpu_types[] = {
+/* Fixed vGPU type table */
+	{ MB_TO_BYTES(64), MB_TO_BYTES(512), 4, "8" },
+	{ MB_TO_BYTES(128), MB_TO_BYTES(512), 4, "4" },
+	{ MB_TO_BYTES(256), MB_TO_BYTES(1024), 4, "2" },
+	{ MB_TO_BYTES(512), MB_TO_BYTES(2048), 4, "1" },
+};
+
 /**
  * intel_gvt_init_vgpu_types - initialize vGPU type list
  * @gvt : GVT device
@@ -78,9 +91,8 @@ int intel_gvt_init_vgpu_types(struct intel_gvt *gvt)
 	unsigned int min_low;
 
 	/* vGPU type name is defined as GVTg_Vx_y which contains
-	 * physical GPU generation type and 'y' means maximum vGPU
-	 * instances user can create on one physical GPU for this
-	 * type.
+	 * physical GPU generation type (e.g V4 as BDW server, V5 as
+	 * SKL server).
 	 *
 	 * Depend on physical SKU resource, might see vGPU types like
 	 * GVTg_V4_8, GVTg_V4_4, GVTg_V4_2, etc. We can create
@@ -92,7 +104,7 @@ int intel_gvt_init_vgpu_types(struct intel_gvt *gvt)
 	 */
 	low_avail = gvt_aperture_sz(gvt) - HOST_LOW_GM_SIZE;
 	high_avail = gvt_hidden_sz(gvt) - HOST_HIGH_GM_SIZE;
-	num_types = 4;
+	num_types = sizeof(vgpu_types) / sizeof(vgpu_types[0]);
 
 	gvt->types = kzalloc(num_types * sizeof(struct intel_vgpu_type),
 			     GFP_KERNEL);
@@ -101,25 +113,24 @@ int intel_gvt_init_vgpu_types(struct intel_gvt *gvt)
 
 	min_low = MB_TO_BYTES(32);
 	for (i = 0; i < num_types; ++i) {
-		if (low_avail / min_low == 0)
+		if (low_avail / vgpu_types[i].low_mm == 0)
 			break;
-		gvt->types[i].low_gm_size = min_low;
-		gvt->types[i].high_gm_size = max((min_low<<3), MB_TO_BYTES(384U));
-		gvt->types[i].fence = 4;
-		gvt->types[i].max_instance = min(low_avail / min_low,
-						 high_avail / gvt->types[i].high_gm_size);
-		gvt->types[i].avail_instance = gvt->types[i].max_instance;
+
+		gvt->types[i].low_gm_size = vgpu_types[i].low_mm;
+		gvt->types[i].high_gm_size = vgpu_types[i].high_mm;
+		gvt->types[i].fence = vgpu_types[i].fence;
+		gvt->types[i].avail_instance = min(low_avail / vgpu_types[i].low_mm,
+						   high_avail / vgpu_types[i].high_mm);
 
 		if (IS_GEN8(gvt->dev_priv))
-			sprintf(gvt->types[i].name, "GVTg_V4_%u",
-						gvt->types[i].max_instance);
+			sprintf(gvt->types[i].name, "GVTg_V4_%s",
+						vgpu_types[i].name);
 		else if (IS_GEN9(gvt->dev_priv))
-			sprintf(gvt->types[i].name, "GVTg_V5_%u",
-						gvt->types[i].max_instance);
+			sprintf(gvt->types[i].name, "GVTg_V5_%s",
+						vgpu_types[i].name);
 
-		min_low <<= 1;
-		gvt_dbg_core("type[%d]: %s max %u avail %u low %u high %u fence %u\n",
-			     i, gvt->types[i].name, gvt->types[i].max_instance,
+		gvt_dbg_core("type[%d]: %s avail %u low %u high %u fence %u\n",
+			     i, gvt->types[i].name,
 			     gvt->types[i].avail_instance,
 			     gvt->types[i].low_gm_size,
 			     gvt->types[i].high_gm_size, gvt->types[i].fence);
@@ -138,7 +149,7 @@ static void intel_gvt_update_vgpu_types(struct intel_gvt *gvt)
 {
 	int i;
 	unsigned int low_gm_avail, high_gm_avail, fence_avail;
-	unsigned int low_gm_min, high_gm_min, fence_min, total_min;
+	unsigned int low_gm_min, high_gm_min, fence_min;
 
 	/* Need to depend on maxium hw resource size but keep on
 	 * static config for now.
@@ -154,12 +165,11 @@ static void intel_gvt_update_vgpu_types(struct intel_gvt *gvt)
 		low_gm_min = low_gm_avail / gvt->types[i].low_gm_size;
 		high_gm_min = high_gm_avail / gvt->types[i].high_gm_size;
 		fence_min = fence_avail / gvt->types[i].fence;
-		total_min = min(min(low_gm_min, high_gm_min), fence_min);
-		gvt->types[i].avail_instance = min(gvt->types[i].max_instance,
-						   total_min);
+		gvt->types[i].avail_instance = min(min(low_gm_min, high_gm_min),
+						   fence_min);
 
-		gvt_dbg_core("update type[%d]: %s max %u avail %u low %u high %u fence %u\n",
-		       i, gvt->types[i].name, gvt->types[i].max_instance,
+		gvt_dbg_core("update type[%d]: %s avail %u low %u high %u fence %u\n",
+		       i, gvt->types[i].name,
 		       gvt->types[i].avail_instance, gvt->types[i].low_gm_size,
 		       gvt->types[i].high_gm_size, gvt->types[i].fence);
 	}
