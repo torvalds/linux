@@ -80,13 +80,11 @@ gm200_secboot_run_blob(struct nvkm_secboot *sb, struct nvkm_gpuobj *blob,
 	if (ret)
 		goto end;
 
-	/* If mailbox register contains an error code, then ACR has failed */
+	/*
+	 * The mailbox register contains the (positive) error code - return this
+	 * to the caller
+	 */
 	ret = nvkm_falcon_rd32(falcon, 0x040);
-	if (ret) {
-		nvkm_error(subdev, "HS blob failed, ret 0x%08x", ret);
-		ret = -EINVAL;
-		goto end;
-	}
 
 end:
 	/* Reenable interrupts */

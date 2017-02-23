@@ -865,17 +865,26 @@ acr_r352_load(struct nvkm_acr *_acr, struct nvkm_falcon *falcon,
 static int
 acr_r352_shutdown(struct acr_r352 *acr, struct nvkm_secboot *sb)
 {
+	struct nvkm_subdev *subdev = &sb->subdev;
 	int i;
 
 	/* Run the unload blob to unprotect the WPR region */
 	if (acr->unload_blob && sb->wpr_set) {
 		int ret;
 
-		nvkm_debug(&sb->subdev, "running HS unload blob\n");
+		nvkm_debug(subdev, "running HS unload blob\n");
 		ret = sb->func->run_blob(sb, acr->unload_blob, sb->halt_falcon);
-		if (ret)
+		if (ret < 0)
 			return ret;
-		nvkm_debug(&sb->subdev, "HS unload blob completed\n");
+		/*
+		 * Unload blob will return this error code - it is not an error
+		 * and the expected behavior on RM as well
+		 */
+		if (ret && ret != 0x1d) {
+			nvkm_error(subdev, "HS unload failed, ret 0x%08x", ret);
+			return -EINVAL;
+		}
+		nvkm_debug(subdev, "HS unload blob completed\n");
 	}
 
 	for (i = 0; i < NVKM_SECBOOT_FALCON_END; i++)
@@ -938,11 +947,13 @@ acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
 	/* clear halt interrupt */
 	nvkm_falcon_clear_interrupt(sb->boot_falcon, 0x10);
 	sb->wpr_set = acr_r352_wpr_is_set(acr, sb);
-	if (ret)
+	if (ret < 0) {
 		return ret;
+	} else if (ret > 0) {
+		nvkm_error(subdev, "HS load failed, ret 0x%08x", ret);
+		return -EINVAL;
+	}
 	nvkm_debug(subdev, "HS load blob completed\n");
-	if (ret)
-		return ret;
 	/* WPR must be set at this point */
 	if (!sb->wpr_set) {
 		nvkm_error(subdev, "ACR blob completed but WPR not set!\n");
