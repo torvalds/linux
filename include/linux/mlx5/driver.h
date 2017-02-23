@@ -640,7 +640,12 @@ enum {
 
 typedef void (*mlx5_cmd_cbk_t)(int status, void *context);
 
+enum {
+	MLX5_CMD_ENT_STATE_PENDING_COMP,
+};
+
 struct mlx5_cmd_work_ent {
+	unsigned long		state;
 	struct mlx5_cmd_msg    *in;
 	struct mlx5_cmd_msg    *out;
 	void		       *uout;
@@ -838,7 +843,7 @@ void mlx5_eq_pagefault(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe);
 #endif
 void mlx5_srq_event(struct mlx5_core_dev *dev, u32 srqn, int event_type);
 struct mlx5_core_srq *mlx5_core_get_srq(struct mlx5_core_dev *dev, u32 srqn);
-void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec);
+void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec, bool forced);
 void mlx5_cq_event(struct mlx5_core_dev *dev, u32 cqn, int event_type);
 int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 		       int nent, u64 mask, const char *name, struct mlx5_uar *uar);
