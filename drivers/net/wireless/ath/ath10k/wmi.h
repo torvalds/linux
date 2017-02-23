@@ -6335,6 +6335,8 @@ struct wmi_svc_rdy_ev_arg {
 	__le32 num_rf_chains;
 	__le32 eeprom_rd;
 	__le32 num_mem_reqs;
+	__le32 low_5ghz_chan;
+	__le32 high_5ghz_chan;
 	const __le32 *service_map;
 	size_t service_map_len;
 	const struct wlan_host_mem_req *mem_reqs[WMI_MAX_MEM_REQS];
