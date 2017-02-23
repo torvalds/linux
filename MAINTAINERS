@@ -9997,6 +9997,14 @@ S:	Supported
 F:	Documentation/preempt-locking.txt
 F:	include/linux/preempt.h
 
+PRINTK
+M:	Petr Mladek <pmladek@suse.com>
+M:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+R:	Steven Rostedt <rostedt@goodmis.org>
+S:	Maintained
+F:	kernel/printk/
+F:	include/linux/printk.h
+
 PRISM54 WIRELESS DRIVER
 M:	"Luis R. Rodriguez" <mcgrof@gmail.com>
 L:	linux-wireless@vger.kernel.org
