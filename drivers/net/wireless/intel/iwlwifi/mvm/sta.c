@@ -644,7 +644,7 @@ int iwl_mvm_scd_queue_redirect(struct iwl_mvm *mvm, int queue, int tid,
 	cmd.sta_id = mvm->queue_info[queue].ra_sta_id;
 	cmd.tx_fifo = iwl_mvm_ac_to_tx_fifo[mvm->queue_info[queue].mac80211_ac];
 	cmd.tid = mvm->queue_info[queue].txq_tid;
-	mq = mvm->queue_info[queue].hw_queue_to_mac80211;
+	mq = mvm->hw_queue_to_mac80211[queue];
 	shared_queue = (mvm->queue_info[queue].hw_queue_refcount > 1);
 	spin_unlock_bh(&mvm->queue_info_lock);
 
@@ -731,10 +731,6 @@ static int iwl_mvm_sta_alloc_queue_tvqm(struct iwl_mvm *mvm,
 	mvmsta->tid_data[tid].is_tid_active = true;
 	mvmsta->tfd_queue_msk |= BIT(queue);
 	spin_unlock_bh(&mvmsta->lock);
-
-	spin_lock_bh(&mvm->queue_info_lock);
-	mvm->queue_info[queue].status = IWL_MVM_QUEUE_READY;
-	spin_unlock_bh(&mvm->queue_info_lock);
 
 	return 0;
 }
@@ -1131,8 +1127,12 @@ void iwl_mvm_add_new_dqa_stream_wk(struct work_struct *wk)
 
 	mutex_lock(&mvm->mutex);
 
+	/* No queue reconfiguration in TVQM mode */
+	if (iwl_mvm_has_new_tx_api(mvm))
+		goto alloc_queues;
+
 	/* Reconfigure queues requiring reconfiguation */
-	for (queue = 0; queue < IWL_MAX_HW_QUEUES; queue++) {
+	for (queue = 0; queue < ARRAY_SIZE(mvm->queue_info); queue++) {
 		bool reconfig;
 		bool change_owner;
 
@@ -1160,6 +1160,7 @@ void iwl_mvm_add_new_dqa_stream_wk(struct work_struct *wk)
 			iwl_mvm_change_queue_owner(mvm, queue);
 	}
 
+alloc_queues:
 	/* Go over all stations with deferred traffic */
 	for_each_set_bit(sta_id, mvm->sta_deferred_frames,
 			 IWL_MVM_STATION_COUNT) {
@@ -1298,9 +1299,8 @@ static void iwl_mvm_realloc_queues_after_restart(struct iwl_mvm *mvm,
 
 			iwl_mvm_enable_txq(mvm, txq_id, mac_queue, seq, &cfg,
 					   wdg_timeout);
+			mvm->queue_info[txq_id].status = IWL_MVM_QUEUE_READY;
 		}
-
-		mvm->queue_info[txq_id].status = IWL_MVM_QUEUE_READY;
 	}
 
 	atomic_set(&mvm->pending_frames[mvm_sta->sta_id], 0);
@@ -2492,10 +2492,18 @@ int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	 *	one and mark it as reserved
 	 *  3. In DQA mode, but no traffic yet on this TID: same treatment as in
 	 *	non-DQA mode, since the TXQ hasn't yet been allocated
+	 * Don't support case 3 for new TX path as it is not expected to happen
+	 * and aggregation will be offloaded soon anyway
 	 */
 	txq_id = mvmsta->tid_data[tid].txq_id;
-	if (iwl_mvm_is_dqa_supported(mvm) &&
-	    unlikely(mvm->queue_info[txq_id].status == IWL_MVM_QUEUE_SHARED)) {
+	if (iwl_mvm_has_new_tx_api(mvm)) {
+		if (txq_id == IWL_MVM_INVALID_QUEUE) {
+			ret = -ENXIO;
+			goto release_locks;
+		}
+	} else if (iwl_mvm_is_dqa_supported(mvm) &&
+		   unlikely(mvm->queue_info[txq_id].status ==
+			    IWL_MVM_QUEUE_SHARED)) {
 		ret = -ENXIO;
 		IWL_DEBUG_TX_QUEUES(mvm,
 				    "Can't start tid %d agg on shared queue!\n",
@@ -2591,6 +2599,20 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	tid_data->amsdu_in_ampdu_allowed = amsdu;
 	spin_unlock_bh(&mvmsta->lock);
 
+	if (iwl_mvm_has_new_tx_api(mvm)) {
+		/*
+		 * If no queue iwl_mvm_sta_tx_agg_start() would have failed so
+		 * no need to check queue's status
+		 */
+		if (buf_size < mvmsta->max_agg_bufsize)
+			return -ENOTSUPP;
+
+		ret = iwl_mvm_sta_tx_agg(mvm, sta, tid, queue, true);
+		if (ret)
+			return -EIO;
+		goto out;
+	}
+
 	cfg.fifo = iwl_mvm_ac_to_tx_fifo[tid_to_mac80211_ac[tid]];
 
 	spin_lock_bh(&mvm->queue_info_lock);
@@ -2608,13 +2630,6 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		 * changed from current (become smaller)
 		 */
 		if (!alloc_queue && buf_size < mvmsta->max_agg_bufsize) {
-			/*
-			 * On new TX API rs and BA manager are offloaded.
-			 * For now though, just don't support being reconfigured
-			 */
-			if (iwl_mvm_has_new_tx_api(mvm))
-				return -ENOTSUPP;
-
 			/*
 			 * If reconfiguring an existing queue, it first must be
 			 * drained
@@ -2655,6 +2670,7 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	mvm->queue_info[queue].status = IWL_MVM_QUEUE_READY;
 	spin_unlock_bh(&mvm->queue_info_lock);
 
+out:
 	/*
 	 * Even though in theory the peer could have different
 	 * aggregation reorder buffer sizes for different sessions,
@@ -2670,6 +2686,27 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		     sta->addr, tid);
 
 	return iwl_mvm_send_lq_cmd(mvm, &mvmsta->lq_sta.lq, false);
+}
+
+static void iwl_mvm_unreserve_agg_queue(struct iwl_mvm *mvm,
+					struct iwl_mvm_sta *mvmsta,
+					u16 txq_id)
+{
+	if (iwl_mvm_has_new_tx_api(mvm))
+		return;
+
+	spin_lock_bh(&mvm->queue_info_lock);
+	/*
+	 * The TXQ is marked as reserved only if no traffic came through yet
+	 * This means no traffic has been sent on this TID (agg'd or not), so
+	 * we no longer have use for the queue. Since it hasn't even been
+	 * allocated through iwl_mvm_enable_txq, so we can just mark it back as
+	 * free.
+	 */
+	if (mvm->queue_info[txq_id].status == IWL_MVM_QUEUE_RESERVED)
+		mvm->queue_info[txq_id].status = IWL_MVM_QUEUE_FREE;
+
+	spin_unlock_bh(&mvm->queue_info_lock);
 }
 
 int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
@@ -2698,18 +2735,7 @@ int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	mvmsta->agg_tids &= ~BIT(tid);
 
-	spin_lock_bh(&mvm->queue_info_lock);
-	/*
-	 * The TXQ is marked as reserved only if no traffic came through yet
-	 * This means no traffic has been sent on this TID (agg'd or not), so
-	 * we no longer have use for the queue. Since it hasn't even been
-	 * allocated through iwl_mvm_enable_txq, so we can just mark it back as
-	 * free.
-	 */
-	if (mvm->queue_info[txq_id].status == IWL_MVM_QUEUE_RESERVED)
-		mvm->queue_info[txq_id].status = IWL_MVM_QUEUE_FREE;
-
-	spin_unlock_bh(&mvm->queue_info_lock);
+	iwl_mvm_unreserve_agg_queue(mvm, mvmsta, txq_id);
 
 	switch (tid_data->state) {
 	case IWL_AGG_ON:
@@ -2789,17 +2815,7 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	mvmsta->agg_tids &= ~BIT(tid);
 	spin_unlock_bh(&mvmsta->lock);
 
-	spin_lock_bh(&mvm->queue_info_lock);
-	/*
-	 * The TXQ is marked as reserved only if no traffic came through yet
-	 * This means no traffic has been sent on this TID (agg'd or not), so
-	 * we no longer have use for the queue. Since it hasn't even been
-	 * allocated through iwl_mvm_enable_txq, so we can just mark it back as
-	 * free.
-	 */
-	if (mvm->queue_info[txq_id].status == IWL_MVM_QUEUE_RESERVED)
-		mvm->queue_info[txq_id].status = IWL_MVM_QUEUE_FREE;
-	spin_unlock_bh(&mvm->queue_info_lock);
+	iwl_mvm_unreserve_agg_queue(mvm, mvmsta, txq_id);
 
 	if (old_state >= IWL_AGG_ON) {
 		iwl_mvm_drain_sta(mvm, mvmsta, true);

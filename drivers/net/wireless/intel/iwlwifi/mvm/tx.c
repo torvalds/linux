@@ -1006,6 +1006,9 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 			return 0;
 		}
 
+		/* queue should always be active in new TX path */
+		WARN_ON(iwl_mvm_has_new_tx_api(mvm));
+
 		/* If we are here - TXQ exists and needs to be re-activated */
 		spin_lock(&mvm->queue_info_lock);
 		mvm->queue_info[txq_id].status = IWL_MVM_QUEUE_READY;
@@ -1016,7 +1019,7 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 				    txq_id);
 	}
 
-	if (iwl_mvm_is_dqa_supported(mvm)) {
+	if (iwl_mvm_is_dqa_supported(mvm) && !iwl_mvm_has_new_tx_api(mvm)) {
 		/* Keep track of the time of the last frame for this RA/TID */
 		mvm->queue_info[txq_id].last_frame_time[tid] = jiffies;
 

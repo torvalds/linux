@@ -788,9 +788,9 @@ struct iwl_mvm {
 		u64 on_time_scan;
 	} radio_stats, accu_radio_stats;
 
+	u8 hw_queue_to_mac80211[IWL_MAX_HW_QUEUES];
+
 	struct {
-		/* Map to HW queue */
-		u32 hw_queue_to_mac80211;
 		u8 hw_queue_refcount;
 		u8 ra_sta_id; /* The RA this queue is mapped to, if exists */
 		bool reserved; /* Is this the TXQ reserved for a STA */

@@ -1044,7 +1044,7 @@ static void iwl_mvm_stop_sw_queue(struct iwl_op_mode *op_mode, int hw_queue)
 	unsigned long mq;
 
 	spin_lock_bh(&mvm->queue_info_lock);
-	mq = mvm->queue_info[hw_queue].hw_queue_to_mac80211;
+	mq = mvm->hw_queue_to_mac80211[hw_queue];
 	spin_unlock_bh(&mvm->queue_info_lock);
 
 	iwl_mvm_stop_mac_queues(mvm, mq);
@@ -1074,7 +1074,7 @@ static void iwl_mvm_wake_sw_queue(struct iwl_op_mode *op_mode, int hw_queue)
 	unsigned long mq;
 
 	spin_lock_bh(&mvm->queue_info_lock);
-	mq = mvm->queue_info[hw_queue].hw_queue_to_mac80211;
+	mq = mvm->hw_queue_to_mac80211[hw_queue];
 	spin_unlock_bh(&mvm->queue_info_lock);
 
 	iwl_mvm_start_mac_queues(mvm, mq);
