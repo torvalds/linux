@@ -551,6 +551,6 @@ config SBITMAP
 	bool
 
 config PARMAN
-	tristate "parman"
+	tristate
 
 endmenu
