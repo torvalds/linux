@@ -2578,8 +2578,9 @@ intel_fill_fb_info(struct drm_i915_private *dev_priv,
 			 * We only keep the x/y offsets, so push all of the
 			 * gtt offset into the x/y offsets.
 			 */
-			_intel_adjust_tile_offset(&x, &y, tile_size,
-						  tile_width, tile_height, pitch_tiles,
+			_intel_adjust_tile_offset(&x, &y,
+						  tile_width, tile_height,
+						  tile_size, pitch_tiles,
 						  gtt_offset_rotated * tile_size, 0);
 
 			gtt_offset_rotated += rot_info->plane[i].width * rot_info->plane[i].height;
@@ -4252,10 +4253,10 @@ static void page_flip_completed(struct intel_crtc *intel_crtc)
 	drm_crtc_vblank_put(&intel_crtc->base);
 
 	wake_up_all(&dev_priv->pending_flip_queue);
-	queue_work(dev_priv->wq, &work->unpin_work);
-
 	trace_i915_flip_complete(intel_crtc->plane,
 				 work->pending_flip_obj);
+
+	queue_work(dev_priv->wq, &work->unpin_work);
 }
 
 static int intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
@@ -6881,6 +6882,12 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
 	}
 
 	state = drm_atomic_state_alloc(crtc->dev);
+	if (!state) {
+		DRM_DEBUG_KMS("failed to disable [CRTC:%d:%s], out of memory",
+			      crtc->base.id, crtc->name);
+		return;
+	}
+
 	state->acquire_ctx = crtc->dev->mode_config.acquire_ctx;
 
 	/* Everything's already locked, -EDEADLK can't happen. */
@@ -14562,8 +14569,14 @@ intel_atomic_commit_ready(struct i915_sw_fence *fence,
 		break;
 
 	case FENCE_FREE:
-		drm_atomic_state_put(&state->base);
-		break;
+		{
+			struct intel_atomic_helper *helper =
+				&to_i915(state->base.dev)->atomic_helper;
+
+			if (llist_add(&state->freed, &helper->free_list))
+				schedule_work(&helper->free_work);
+			break;
+		}
 	}
 
 	return NOTIFY_DONE;
@@ -16586,6 +16599,18 @@ fail:
 	drm_modeset_acquire_fini(&ctx);
 }
 
+static void intel_atomic_helper_free_state(struct work_struct *work)
+{
+	struct drm_i915_private *dev_priv =
+		container_of(work, typeof(*dev_priv), atomic_helper.free_work);
+	struct intel_atomic_state *state, *next;
+	struct llist_node *freed;
+
+	freed = llist_del_all(&dev_priv->atomic_helper.free_list);
+	llist_for_each_entry_safe(state, next, freed, freed)
+		drm_atomic_state_put(&state->base);
+}
+
 int intel_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -16604,6 +16629,9 @@ int intel_modeset_init(struct drm_device *dev)
 	dev->mode_config.allow_fb_modifiers = true;
 
 	dev->mode_config.funcs = &intel_mode_funcs;
+
+	INIT_WORK(&dev_priv->atomic_helper.free_work,
+		  intel_atomic_helper_free_state);
 
 	intel_init_quirks(dev);
 
@@ -17261,6 +17289,9 @@ void intel_connector_unregister(struct drm_connector *connector)
 void intel_modeset_cleanup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
+
+	flush_work(&dev_priv->atomic_helper.free_work);
+	WARN_ON(!llist_empty(&dev_priv->atomic_helper.free_list));
 
 	intel_disable_gt_powersave(dev_priv);
 

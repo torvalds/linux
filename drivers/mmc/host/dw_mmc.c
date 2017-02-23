@@ -3354,10 +3354,11 @@ int dw_mci_runtime_resume(struct device *dev)
 
 		if (!slot)
 			continue;
-		if (slot->mmc->pm_flags & MMC_PM_KEEP_POWER) {
+		if (slot->mmc->pm_flags & MMC_PM_KEEP_POWER)
 			dw_mci_set_ios(slot->mmc, &slot->mmc->ios);
-			dw_mci_setup_bus(slot, true);
-		}
+
+		/* Force setup bus to guarantee available clock output */
+		dw_mci_setup_bus(slot, true);
 	}
 
 	/* Now that slots are all setup, we can enable card detect */

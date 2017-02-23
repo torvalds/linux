@@ -46,6 +46,8 @@
 static struct microcode_ops	*microcode_ops;
 static bool dis_ucode_ldr = true;
 
+bool initrd_gone;
+
 LIST_HEAD(microcode_cache);
 
 /*
@@ -190,21 +192,24 @@ void load_ucode_ap(void)
 static int __init save_microcode_in_initrd(void)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
+	int ret = -EINVAL;
 
 	switch (c->x86_vendor) {
 	case X86_VENDOR_INTEL:
 		if (c->x86 >= 6)
-			return save_microcode_in_initrd_intel();
+			ret = save_microcode_in_initrd_intel();
 		break;
 	case X86_VENDOR_AMD:
 		if (c->x86 >= 0x10)
-			return save_microcode_in_initrd_amd(c->x86);
+			ret = save_microcode_in_initrd_amd(c->x86);
 		break;
 	default:
 		break;
 	}
 
-	return -EINVAL;
+	initrd_gone = true;
+
+	return ret;
 }
 
 struct cpio_data find_microcode_in_initrd(const char *path, bool use_pa)
@@ -247,9 +252,16 @@ struct cpio_data find_microcode_in_initrd(const char *path, bool use_pa)
 	 * has the virtual address of the beginning of the initrd. It also
 	 * possibly relocates the ramdisk. In either case, initrd_start contains
 	 * the updated address so use that instead.
+	 *
+	 * initrd_gone is for the hotplug case where we've thrown out initrd
+	 * already.
 	 */
-	if (!use_pa && initrd_start)
-		start = initrd_start;
+	if (!use_pa) {
+		if (initrd_gone)
+			return (struct cpio_data){ NULL, 0, "" };
+		if (initrd_start)
+			start = initrd_start;
+	}
 
 	return find_cpio_data(path, (void *)start, size, NULL);
 #else /* !CONFIG_BLK_DEV_INITRD */

@@ -25,7 +25,6 @@
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/mod_devicetable.h>
-#include <linux/phy_led_triggers.h>
 
 #include <linux/atomic.h>
 

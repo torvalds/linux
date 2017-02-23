@@ -158,7 +158,7 @@ int chcr_handle_resp(struct crypto_async_request *req, unsigned char *input,
 	case CRYPTO_ALG_TYPE_AEAD:
 		ctx_req.req.aead_req = (struct aead_request *)req;
 		ctx_req.ctx.reqctx = aead_request_ctx(ctx_req.req.aead_req);
-		dma_unmap_sg(&u_ctx->lldi.pdev->dev, ctx_req.req.aead_req->dst,
+		dma_unmap_sg(&u_ctx->lldi.pdev->dev, ctx_req.ctx.reqctx->dst,
 			     ctx_req.ctx.reqctx->dst_nents, DMA_FROM_DEVICE);
 		if (ctx_req.ctx.reqctx->skb) {
 			kfree_skb(ctx_req.ctx.reqctx->skb);
@@ -1362,8 +1362,7 @@ static struct sk_buff *create_authenc_wr(struct aead_request *req,
 	struct chcr_wr *chcr_req;
 	struct cpl_rx_phys_dsgl *phys_cpl;
 	struct phys_sge_parm sg_param;
-	struct scatterlist *src, *dst;
-	struct scatterlist src_sg[2], dst_sg[2];
+	struct scatterlist *src;
 	unsigned int frags = 0, transhdr_len;
 	unsigned int ivsize = crypto_aead_ivsize(tfm), dst_size = 0;
 	unsigned int   kctx_len = 0;
@@ -1383,19 +1382,21 @@ static struct sk_buff *create_authenc_wr(struct aead_request *req,
 
 	if (sg_nents_for_len(req->src, req->assoclen + req->cryptlen) < 0)
 		goto err;
-	src = scatterwalk_ffwd(src_sg, req->src, req->assoclen);
-	dst = src;
+	src = scatterwalk_ffwd(reqctx->srcffwd, req->src, req->assoclen);
+	reqctx->dst = src;
+
 	if (req->src != req->dst) {
 		err = chcr_copy_assoc(req, aeadctx);
 		if (err)
 			return ERR_PTR(err);
-		dst = scatterwalk_ffwd(dst_sg, req->dst, req->assoclen);
+		reqctx->dst = scatterwalk_ffwd(reqctx->dstffwd, req->dst,
+					       req->assoclen);
 	}
 	if (get_aead_subtype(tfm) == CRYPTO_ALG_SUB_TYPE_AEAD_NULL) {
 		null = 1;
 		assoclen = 0;
 	}
-	reqctx->dst_nents = sg_nents_for_len(dst, req->cryptlen +
+	reqctx->dst_nents = sg_nents_for_len(reqctx->dst, req->cryptlen +
 					     (op_type ? -authsize : authsize));
 	if (reqctx->dst_nents <= 0) {
 		pr_err("AUTHENC:Invalid Destination sg entries\n");
@@ -1460,7 +1461,7 @@ static struct sk_buff *create_authenc_wr(struct aead_request *req,
 	sg_param.obsize = req->cryptlen + (op_type ? -authsize : authsize);
 	sg_param.qid = qid;
 	sg_param.align = 0;
-	if (map_writesg_phys_cpl(&u_ctx->lldi.pdev->dev, phys_cpl, dst,
+	if (map_writesg_phys_cpl(&u_ctx->lldi.pdev->dev, phys_cpl, reqctx->dst,
 				  &sg_param))
 		goto dstmap_fail;
 
@@ -1711,8 +1712,7 @@ static struct sk_buff *create_aead_ccm_wr(struct aead_request *req,
 	struct chcr_wr *chcr_req;
 	struct cpl_rx_phys_dsgl *phys_cpl;
 	struct phys_sge_parm sg_param;
-	struct scatterlist *src, *dst;
-	struct scatterlist src_sg[2], dst_sg[2];
+	struct scatterlist *src;
 	unsigned int frags = 0, transhdr_len, ivsize = AES_BLOCK_SIZE;
 	unsigned int dst_size = 0, kctx_len;
 	unsigned int sub_type;
@@ -1728,17 +1728,19 @@ static struct sk_buff *create_aead_ccm_wr(struct aead_request *req,
 	if (sg_nents_for_len(req->src, req->assoclen + req->cryptlen) < 0)
 		goto err;
 	sub_type = get_aead_subtype(tfm);
-	src = scatterwalk_ffwd(src_sg, req->src, req->assoclen);
-	dst = src;
+	src = scatterwalk_ffwd(reqctx->srcffwd, req->src, req->assoclen);
+	reqctx->dst = src;
+
 	if (req->src != req->dst) {
 		err = chcr_copy_assoc(req, aeadctx);
 		if (err) {
 			pr_err("AAD copy to destination buffer fails\n");
 			return ERR_PTR(err);
 		}
-		dst = scatterwalk_ffwd(dst_sg, req->dst, req->assoclen);
+		reqctx->dst = scatterwalk_ffwd(reqctx->dstffwd, req->dst,
+					       req->assoclen);
 	}
-	reqctx->dst_nents = sg_nents_for_len(dst, req->cryptlen +
+	reqctx->dst_nents = sg_nents_for_len(reqctx->dst, req->cryptlen +
 					     (op_type ? -authsize : authsize));
 	if (reqctx->dst_nents <= 0) {
 		pr_err("CCM:Invalid Destination sg entries\n");
@@ -1777,7 +1779,7 @@ static struct sk_buff *create_aead_ccm_wr(struct aead_request *req,
 	sg_param.obsize = req->cryptlen + (op_type ? -authsize : authsize);
 	sg_param.qid = qid;
 	sg_param.align = 0;
-	if (map_writesg_phys_cpl(&u_ctx->lldi.pdev->dev, phys_cpl, dst,
+	if (map_writesg_phys_cpl(&u_ctx->lldi.pdev->dev, phys_cpl, reqctx->dst,
 				  &sg_param))
 		goto dstmap_fail;
 
@@ -1809,8 +1811,7 @@ static struct sk_buff *create_gcm_wr(struct aead_request *req,
 	struct chcr_wr *chcr_req;
 	struct cpl_rx_phys_dsgl *phys_cpl;
 	struct phys_sge_parm sg_param;
-	struct scatterlist *src, *dst;
-	struct scatterlist src_sg[2], dst_sg[2];
+	struct scatterlist *src;
 	unsigned int frags = 0, transhdr_len;
 	unsigned int ivsize = AES_BLOCK_SIZE;
 	unsigned int dst_size = 0, kctx_len;
@@ -1832,13 +1833,14 @@ static struct sk_buff *create_gcm_wr(struct aead_request *req,
 	if (sg_nents_for_len(req->src, req->assoclen + req->cryptlen) < 0)
 		goto err;
 
-	src = scatterwalk_ffwd(src_sg, req->src, req->assoclen);
-	dst = src;
+	src = scatterwalk_ffwd(reqctx->srcffwd, req->src, req->assoclen);
+	reqctx->dst = src;
 	if (req->src != req->dst) {
 		err = chcr_copy_assoc(req, aeadctx);
 		if (err)
 			return	ERR_PTR(err);
-		dst = scatterwalk_ffwd(dst_sg, req->dst, req->assoclen);
+		reqctx->dst = scatterwalk_ffwd(reqctx->dstffwd, req->dst,
+					       req->assoclen);
 	}
 
 	if (!req->cryptlen)
@@ -1848,7 +1850,7 @@ static struct sk_buff *create_gcm_wr(struct aead_request *req,
 		crypt_len = AES_BLOCK_SIZE;
 	else
 		crypt_len = req->cryptlen;
-	reqctx->dst_nents = sg_nents_for_len(dst, req->cryptlen +
+	reqctx->dst_nents = sg_nents_for_len(reqctx->dst, req->cryptlen +
 					     (op_type ? -authsize : authsize));
 	if (reqctx->dst_nents <= 0) {
 		pr_err("GCM:Invalid Destination sg entries\n");
@@ -1923,7 +1925,7 @@ static struct sk_buff *create_gcm_wr(struct aead_request *req,
 	sg_param.obsize = req->cryptlen + (op_type ? -authsize : authsize);
 	sg_param.qid = qid;
 	sg_param.align = 0;
-	if (map_writesg_phys_cpl(&u_ctx->lldi.pdev->dev, phys_cpl, dst,
+	if (map_writesg_phys_cpl(&u_ctx->lldi.pdev->dev, phys_cpl, reqctx->dst,
 				  &sg_param))
 		goto dstmap_fail;
 
@@ -1937,7 +1939,8 @@ static struct sk_buff *create_gcm_wr(struct aead_request *req,
 		write_sg_to_skb(skb, &frags, src, req->cryptlen);
 	} else {
 		aes_gcm_empty_pld_pad(req->dst, authsize - 1);
-		write_sg_to_skb(skb, &frags, dst, crypt_len);
+		write_sg_to_skb(skb, &frags, reqctx->dst, crypt_len);
+
 	}
 
 	create_wreq(ctx, chcr_req, req, skb, kctx_len, size, 1,
@@ -2189,8 +2192,8 @@ static int chcr_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 	unsigned int ck_size;
 	int ret = 0, key_ctx_size = 0;
 
-	if (get_aead_subtype(aead) ==
-	    CRYPTO_ALG_SUB_TYPE_AEAD_RFC4106) {
+	if (get_aead_subtype(aead) == CRYPTO_ALG_SUB_TYPE_AEAD_RFC4106 &&
+	    keylen > 3) {
 		keylen -= 4;  /* nonce/salt is present in the last 4 bytes */
 		memcpy(aeadctx->salt, key + keylen, 4);
 	}

@@ -137,7 +137,7 @@
 &gpio4 {
 	gpio-ranges = <&iomuxc  5 136 1>, <&iomuxc  6 145 1>, <&iomuxc  7 150 1>,
 		      <&iomuxc  8 146 1>, <&iomuxc  9 151 1>, <&iomuxc 10 147 1>,
-		      <&iomuxc 11 151 1>, <&iomuxc 12 148 1>, <&iomuxc 13 153 1>,
+		      <&iomuxc 11 152 1>, <&iomuxc 12 148 1>, <&iomuxc 13 153 1>,
 		      <&iomuxc 14 149 1>, <&iomuxc 15 154 1>, <&iomuxc 16  39 7>,
 		      <&iomuxc 23  56 1>, <&iomuxc 24  61 7>, <&iomuxc 31  46 1>;
 };

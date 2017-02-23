@@ -496,7 +496,7 @@ struct drm_mode_config {
 	/**
 	 * @prop_out_fence_ptr: Sync File fd pointer representing the
 	 * outgoing fences for a CRTC. Userspace should provide a pointer to a
-	 * value of type s64, and then cast that pointer to u64.
+	 * value of type s32, and then cast that pointer to u64.
 	 */
 	struct drm_property *prop_out_fence_ptr;
 	/**

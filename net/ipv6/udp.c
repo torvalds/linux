@@ -441,7 +441,7 @@ try_again:
 	return err;
 
 csum_copy_err:
-	if (!__sk_queue_drop_skb(sk, skb, flags)) {
+	if (!__sk_queue_drop_skb(sk, skb, flags, udp_skb_destructor)) {
 		if (is_udp4) {
 			UDP_INC_STATS(sock_net(sk),
 				      UDP_MIB_CSUMERRORS, is_udplite);

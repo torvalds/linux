@@ -184,6 +184,7 @@ struct irq_data {
  *
  * IRQD_TRIGGER_MASK		- Mask for the trigger type bits
  * IRQD_SETAFFINITY_PENDING	- Affinity setting is pending
+ * IRQD_ACTIVATED		- Interrupt has already been activated
  * IRQD_NO_BALANCING		- Balancing disabled for this IRQ
  * IRQD_PER_CPU			- Interrupt is per cpu
  * IRQD_AFFINITY_SET		- Interrupt affinity was set
@@ -202,6 +203,7 @@ struct irq_data {
 enum {
 	IRQD_TRIGGER_MASK		= 0xf,
 	IRQD_SETAFFINITY_PENDING	= (1 <<  8),
+	IRQD_ACTIVATED			= (1 <<  9),
 	IRQD_NO_BALANCING		= (1 << 10),
 	IRQD_PER_CPU			= (1 << 11),
 	IRQD_AFFINITY_SET		= (1 << 12),
@@ -310,6 +312,21 @@ static inline void irqd_clr_forwarded_to_vcpu(struct irq_data *d)
 static inline bool irqd_affinity_is_managed(struct irq_data *d)
 {
 	return __irqd_to_state(d) & IRQD_AFFINITY_MANAGED;
+}
+
+static inline bool irqd_is_activated(struct irq_data *d)
+{
+	return __irqd_to_state(d) & IRQD_ACTIVATED;
+}
+
+static inline void irqd_set_activated(struct irq_data *d)
+{
+	__irqd_to_state(d) |= IRQD_ACTIVATED;
+}
+
+static inline void irqd_clr_activated(struct irq_data *d)
+{
+	__irqd_to_state(d) &= ~IRQD_ACTIVATED;
 }
 
 #undef __irqd_to_state

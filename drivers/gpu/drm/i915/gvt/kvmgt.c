@@ -262,8 +262,8 @@ static struct intel_vgpu_type *intel_gvt_find_vgpu_type(struct intel_gvt *gvt,
 	return NULL;
 }
 
-static ssize_t available_instance_show(struct kobject *kobj, struct device *dev,
-		char *buf)
+static ssize_t available_instances_show(struct kobject *kobj,
+					struct device *dev, char *buf)
 {
 	struct intel_vgpu_type *type;
 	unsigned int num = 0;
@@ -301,12 +301,12 @@ static ssize_t description_show(struct kobject *kobj, struct device *dev,
 				type->fence);
 }
 
-static MDEV_TYPE_ATTR_RO(available_instance);
+static MDEV_TYPE_ATTR_RO(available_instances);
 static MDEV_TYPE_ATTR_RO(device_api);
 static MDEV_TYPE_ATTR_RO(description);
 
 static struct attribute *type_attrs[] = {
-	&mdev_type_attr_available_instance.attr,
+	&mdev_type_attr_available_instances.attr,
 	&mdev_type_attr_device_api.attr,
 	&mdev_type_attr_description.attr,
 	NULL,

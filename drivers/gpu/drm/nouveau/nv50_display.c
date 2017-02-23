@@ -4050,6 +4050,11 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 		}
 	}
 
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		if (crtc->state->event)
+			drm_crtc_vblank_get(crtc);
+	}
+
 	/* Update plane(s). */
 	for_each_plane_in_state(state, plane, plane_state, i) {
 		struct nv50_wndw_atom *asyw = nv50_wndw_atom(plane->state);
@@ -4099,6 +4104,7 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 			drm_crtc_send_vblank_event(crtc, crtc->state->event);
 			spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 			crtc->state->event = NULL;
+			drm_crtc_vblank_put(crtc);
 		}
 	}
 

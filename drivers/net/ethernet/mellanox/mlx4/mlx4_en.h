@@ -679,7 +679,8 @@ void mlx4_en_set_stats_bitmap(struct mlx4_dev *dev,
 
 int mlx4_en_try_alloc_resources(struct mlx4_en_priv *priv,
 				struct mlx4_en_priv *tmp,
-				struct mlx4_en_port_profile *prof);
+				struct mlx4_en_port_profile *prof,
+				bool carry_xdp_prog);
 void mlx4_en_safe_replace_resources(struct mlx4_en_priv *priv,
 				    struct mlx4_en_priv *tmp);
 

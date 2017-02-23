@@ -481,7 +481,6 @@ struct parser_exec_state {
 	(s->vgpu->gvt->device_info.gmadr_bytes_in_cmd >> 2)
 
 static unsigned long bypass_scan_mask = 0;
-static bool bypass_batch_buffer_scan = true;
 
 /* ring ALL, type = 0 */
 static struct sub_op_bits sub_op_mi[] = {
@@ -1542,9 +1541,6 @@ static int copy_gma_to_hva(struct intel_vgpu *vgpu, struct intel_vgpu_mm *mm,
 static int batch_buffer_needs_scan(struct parser_exec_state *s)
 {
 	struct intel_gvt *gvt = s->vgpu->gvt;
-
-	if (bypass_batch_buffer_scan)
-		return 0;
 
 	if (IS_BROADWELL(gvt->dev_priv) || IS_SKYLAKE(gvt->dev_priv)) {
 		/* BDW decides privilege based on address space */

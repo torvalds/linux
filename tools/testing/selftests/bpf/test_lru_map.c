@@ -67,21 +67,23 @@ static int map_equal(int lru_map, int expected)
 	return map_subset(lru_map, expected) && map_subset(expected, lru_map);
 }
 
-static int sched_next_online(int pid, int next_to_try)
+static int sched_next_online(int pid, int *next_to_try)
 {
 	cpu_set_t cpuset;
+	int next = *next_to_try;
+	int ret = -1;
 
-	if (next_to_try == nr_cpus)
-		return -1;
-
-	while (next_to_try < nr_cpus) {
+	while (next < nr_cpus) {
 		CPU_ZERO(&cpuset);
-		CPU_SET(next_to_try++, &cpuset);
-		if (!sched_setaffinity(pid, sizeof(cpuset), &cpuset))
+		CPU_SET(next++, &cpuset);
+		if (!sched_setaffinity(pid, sizeof(cpuset), &cpuset)) {
+			ret = 0;
 			break;
+		}
 	}
 
-	return next_to_try;
+	*next_to_try = next;
+	return ret;
 }
 
 /* Size of the LRU amp is 2
@@ -96,11 +98,12 @@ static void test_lru_sanity0(int map_type, int map_flags)
 {
 	unsigned long long key, value[nr_cpus];
 	int lru_map_fd, expected_map_fd;
+	int next_cpu = 0;
 
 	printf("%s (map_type:%d map_flags:0x%X): ", __func__, map_type,
 	       map_flags);
 
-	assert(sched_next_online(0, 0) != -1);
+	assert(sched_next_online(0, &next_cpu) != -1);
 
 	if (map_flags & BPF_F_NO_COMMON_LRU)
 		lru_map_fd = create_map(map_type, map_flags, 2 * nr_cpus);
@@ -183,6 +186,7 @@ static void test_lru_sanity1(int map_type, int map_flags, unsigned int tgt_free)
 	int lru_map_fd, expected_map_fd;
 	unsigned int batch_size;
 	unsigned int map_size;
+	int next_cpu = 0;
 
 	if (map_flags & BPF_F_NO_COMMON_LRU)
 		/* Ther percpu lru list (i.e each cpu has its own LRU
@@ -196,7 +200,7 @@ static void test_lru_sanity1(int map_type, int map_flags, unsigned int tgt_free)
 	printf("%s (map_type:%d map_flags:0x%X): ", __func__, map_type,
 	       map_flags);
 
-	assert(sched_next_online(0, 0) != -1);
+	assert(sched_next_online(0, &next_cpu) != -1);
 
 	batch_size = tgt_free / 2;
 	assert(batch_size * 2 == tgt_free);
@@ -262,6 +266,7 @@ static void test_lru_sanity2(int map_type, int map_flags, unsigned int tgt_free)
 	int lru_map_fd, expected_map_fd;
 	unsigned int batch_size;
 	unsigned int map_size;
+	int next_cpu = 0;
 
 	if (map_flags & BPF_F_NO_COMMON_LRU)
 		/* Ther percpu lru list (i.e each cpu has its own LRU
@@ -275,7 +280,7 @@ static void test_lru_sanity2(int map_type, int map_flags, unsigned int tgt_free)
 	printf("%s (map_type:%d map_flags:0x%X): ", __func__, map_type,
 	       map_flags);
 
-	assert(sched_next_online(0, 0) != -1);
+	assert(sched_next_online(0, &next_cpu) != -1);
 
 	batch_size = tgt_free / 2;
 	assert(batch_size * 2 == tgt_free);
@@ -370,11 +375,12 @@ static void test_lru_sanity3(int map_type, int map_flags, unsigned int tgt_free)
 	int lru_map_fd, expected_map_fd;
 	unsigned int batch_size;
 	unsigned int map_size;
+	int next_cpu = 0;
 
 	printf("%s (map_type:%d map_flags:0x%X): ", __func__, map_type,
 	       map_flags);
 
-	assert(sched_next_online(0, 0) != -1);
+	assert(sched_next_online(0, &next_cpu) != -1);
 
 	batch_size = tgt_free / 2;
 	assert(batch_size * 2 == tgt_free);
@@ -430,11 +436,12 @@ static void test_lru_sanity4(int map_type, int map_flags, unsigned int tgt_free)
 	int lru_map_fd, expected_map_fd;
 	unsigned long long key, value[nr_cpus];
 	unsigned long long end_key;
+	int next_cpu = 0;
 
 	printf("%s (map_type:%d map_flags:0x%X): ", __func__, map_type,
 	       map_flags);
 
-	assert(sched_next_online(0, 0) != -1);
+	assert(sched_next_online(0, &next_cpu) != -1);
 
 	if (map_flags & BPF_F_NO_COMMON_LRU)
 		lru_map_fd = create_map(map_type, map_flags,
@@ -502,9 +509,8 @@ static void do_test_lru_sanity5(unsigned long long last_key, int map_fd)
 static void test_lru_sanity5(int map_type, int map_flags)
 {
 	unsigned long long key, value[nr_cpus];
-	int next_sched_cpu = 0;
+	int next_cpu = 0;
 	int map_fd;
-	int i;
 
 	if (map_flags & BPF_F_NO_COMMON_LRU)
 		return;
@@ -519,26 +525,19 @@ static void test_lru_sanity5(int map_type, int map_flags)
 	key = 0;
 	assert(!bpf_map_update(map_fd, &key, value, BPF_NOEXIST));
 
-	for (i = 0; i < nr_cpus; i++) {
+	while (sched_next_online(0, &next_cpu) != -1) {
 		pid_t pid;
 
 		pid = fork();
 		if (pid == 0) {
-			next_sched_cpu = sched_next_online(0, next_sched_cpu);
-			if (next_sched_cpu != -1)
-				do_test_lru_sanity5(key, map_fd);
+			do_test_lru_sanity5(key, map_fd);
 			exit(0);
 		} else if (pid == -1) {
-			printf("couldn't spawn #%d process\n", i);
+			printf("couldn't spawn process to test key:%llu\n",
+			       key);
 			exit(1);
 		} else {
 			int status;
-
-			/* It is mostly redundant and just allow the parent
-			 * process to update next_shced_cpu for the next child
-			 * process
-			 */
-			next_sched_cpu = sched_next_online(pid, next_sched_cpu);
 
 			assert(waitpid(pid, &status, 0) == pid);
 			assert(status == 0);
@@ -547,6 +546,8 @@ static void test_lru_sanity5(int map_type, int map_flags)
 	}
 
 	close(map_fd);
+	/* At least one key should be tested */
+	assert(key > 0);
 
 	printf("Pass\n");
 }

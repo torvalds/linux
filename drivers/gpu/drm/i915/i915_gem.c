@@ -2009,8 +2009,16 @@ void i915_gem_runtime_suspend(struct drm_i915_private *dev_priv)
 	for (i = 0; i < dev_priv->num_fence_regs; i++) {
 		struct drm_i915_fence_reg *reg = &dev_priv->fence_regs[i];
 
-		if (WARN_ON(reg->pin_count))
-			continue;
+		/* Ideally we want to assert that the fence register is not
+		 * live at this point (i.e. that no piece of code will be
+		 * trying to write through fence + GTT, as that both violates
+		 * our tracking of activity and associated locking/barriers,
+		 * but also is illegal given that the hw is powered down).
+		 *
+		 * Previously we used reg->pin_count as a "liveness" indicator.
+		 * That is not sufficient, and we need a more fine-grained
+		 * tool if we want to have a sanity check here.
+		 */
 
 		if (!reg->vma)
 			continue;
@@ -3513,7 +3521,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	vma->display_alignment = max_t(u64, vma->display_alignment, alignment);
 
 	/* Treat this as an end-of-frame, like intel_user_framebuffer_dirty() */
-	if (obj->cache_dirty) {
+	if (obj->cache_dirty || obj->base.write_domain == I915_GEM_DOMAIN_CPU) {
 		i915_gem_clflush_object(obj, true);
 		intel_fb_obj_flush(obj, false, ORIGIN_DIRTYFB);
 	}
