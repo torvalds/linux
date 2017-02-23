@@ -539,7 +539,7 @@ static void core_tpg_lun_ref_release(struct percpu_ref *ref)
 {
 	struct se_lun *lun = container_of(ref, struct se_lun, lun_ref);
 
-	complete(&lun->lun_ref_comp);
+	complete(&lun->lun_shutdown_comp);
 }
 
 int core_tpg_register(
@@ -666,6 +666,7 @@ struct se_lun *core_tpg_alloc_lun(
 	lun->lun_link_magic = SE_LUN_LINK_MAGIC;
 	atomic_set(&lun->lun_acl_count, 0);
 	init_completion(&lun->lun_ref_comp);
+	init_completion(&lun->lun_shutdown_comp);
 	INIT_LIST_HEAD(&lun->lun_deve_list);
 	INIT_LIST_HEAD(&lun->lun_dev_link);
 	atomic_set(&lun->lun_tg_pt_secondary_offline, 0);
