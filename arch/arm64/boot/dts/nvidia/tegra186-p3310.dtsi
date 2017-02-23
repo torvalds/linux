@@ -56,6 +56,16 @@
 
 	i2c@3160000 {
 		status = "okay";
+
+		power-monitor@40 {
+			compatible = "ti,ina3221";
+			reg = <0x40>;
+		};
+
+		power-monitor@41 {
+			compatible = "ti,ina3221";
+			reg = <0x41>;
+		};
 	};
 
 	i2c@3180000 {
