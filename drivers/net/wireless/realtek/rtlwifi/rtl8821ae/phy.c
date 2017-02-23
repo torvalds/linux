@@ -1841,7 +1841,7 @@ static bool _rtl8821ae_phy_config_mac_with_headerfile(struct ieee80211_hw *hw)
 		arraylength = RTL8821AE_MAC_1T_ARRAYLEN;
 		ptrarray = RTL8821AE_MAC_REG_ARRAY;
 	} else {
-		arraylength = RTL8812AEMAC_1T_ARRAYLEN;
+		arraylength = RTL8812AE_MAC_1T_ARRAYLEN;
 		ptrarray = RTL8812AE_MAC_REG_ARRAY;
 	}
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
@@ -1861,7 +1861,7 @@ static bool _rtl8821ae_phy_config_bb_with_headerfile(struct ieee80211_hw *hw,
 
 	if (configtype == BASEBAND_CONFIG_PHY_REG) {
 		if (rtlhal->hw_type == HARDWARE_TYPE_RTL8812AE) {
-			arraylen = RTL8812AEPHY_REG_1TARRAYLEN;
+			arraylen = RTL8812AE_PHY_REG_1TARRAYLEN;
 			array_table = RTL8812AE_PHY_REG_ARRAY;
 		} else {
 			arraylen = RTL8821AE_PHY_REG_1TARRAYLEN;
@@ -1873,7 +1873,7 @@ static bool _rtl8821ae_phy_config_bb_with_headerfile(struct ieee80211_hw *hw,
 				_rtl8821ae_config_bb_reg);
 	} else if (configtype == BASEBAND_CONFIG_AGC_TAB) {
 		if (rtlhal->hw_type == HARDWARE_TYPE_RTL8812AE) {
-			arraylen = RTL8812AEAGCTAB_1TARRAYLEN;
+			arraylen = RTL8812AE_AGC_TAB_1TARRAYLEN;
 			array_table = RTL8812AE_AGC_TAB_ARRAY;
 		} else {
 			arraylen = RTL8821AE_AGC_TAB_1TARRAYLEN;
@@ -1940,7 +1940,7 @@ static bool _rtl8821ae_phy_config_bb_with_pgheaderfile(struct ieee80211_hw *hw,
 	u32 v1, v2, v3, v4, v5, v6;
 
 	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8812AE) {
-		arraylen = RTL8812AEPHY_REG_ARRAY_PGLEN;
+		arraylen = RTL8812AE_PHY_REG_ARRAY_PGLEN;
 		array = RTL8812AE_PHY_REG_ARRAY_PG;
 	} else {
 		arraylen = RTL8821AE_PHY_REG_ARRAY_PGLEN;
