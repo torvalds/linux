@@ -15,6 +15,7 @@
 #define _UAPI_LINUX_SEG6_H
 
 #include <linux/types.h>
+#include <linux/in6.h>		/* For struct in6_addr. */
 
 /*
  * SRH

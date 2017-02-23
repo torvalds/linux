@@ -2584,8 +2584,8 @@ BPF_CALL_5(bpf_xdp_event_output, struct xdp_buff *, xdp, struct bpf_map *, map,
 	if (unlikely(xdp_size > (unsigned long)(xdp->data_end - xdp->data)))
 		return -EFAULT;
 
-	return bpf_event_output(map, flags, meta, meta_size, xdp, xdp_size,
-				bpf_xdp_copy);
+	return bpf_event_output(map, flags, meta, meta_size, xdp->data,
+				xdp_size, bpf_xdp_copy);
 }
 
 static const struct bpf_func_proto bpf_xdp_event_output_proto = {

@@ -841,8 +841,6 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 		return -EINVAL;
 	}
 
-	mlx4_log_num_mgm_entry_size = hca_param.log_mc_entry_sz;
-
 	dev->caps.hca_core_clock = hca_param.hca_core_clock;
 
 	memset(&dev_cap, 0, sizeof(dev_cap));
@@ -1447,7 +1445,7 @@ int mlx4_port_map_set(struct mlx4_dev *dev, struct mlx4_port_map *v2p)
 	int err;
 
 	if (!(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_PORT_REMAP))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	mutex_lock(&priv->bond_mutex);
 
@@ -1884,7 +1882,7 @@ int mlx4_get_internal_clock_params(struct mlx4_dev *dev,
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
 	if (mlx4_is_slave(dev))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (!params)
 		return -EINVAL;
@@ -2384,7 +2382,7 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 
 	/* Query CONFIG_DEV parameters */
 	err = mlx4_config_dev_retrieval(dev, &params);
-	if (err && err != -ENOTSUPP) {
+	if (err && err != -EOPNOTSUPP) {
 		mlx4_err(dev, "Failed to query CONFIG_DEV parameters\n");
 	} else if (!err) {
 		dev->caps.rx_checksum_flags_port[1] = params.rx_csum_flags_port_1;
@@ -3503,6 +3501,8 @@ slave_start:
 			goto err_disable_msix;
 	}
 
+	mlx4_init_quotas(dev);
+
 	err = mlx4_setup_hca(dev);
 	if (err == -EBUSY && (dev->flags & MLX4_FLAG_MSI_X) &&
 	    !mlx4_is_mfunc(dev)) {
@@ -3515,7 +3515,6 @@ slave_start:
 	if (err)
 		goto err_steer;
 
-	mlx4_init_quotas(dev);
 	/* When PF resources are ready arm its comm channel to enable
 	 * getting commands
 	 */

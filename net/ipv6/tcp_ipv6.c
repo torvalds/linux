@@ -122,6 +122,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	struct flowi6 fl6;
 	struct dst_entry *dst;
 	int addr_type;
+	u32 seq;
 	int err;
 	struct inet_timewait_death_row *tcp_death_row = &sock_net(sk)->ipv4.tcp_death_row;
 
@@ -285,12 +286,15 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 
 	sk_set_txhash(sk);
 
-	if (!tp->write_seq && likely(!tp->repair))
-		tp->write_seq = secure_tcpv6_sequence_number(np->saddr.s6_addr32,
-							     sk->sk_v6_daddr.s6_addr32,
-							     inet->inet_sport,
-							     inet->inet_dport,
-							     &tp->tsoffset);
+	if (likely(!tp->repair)) {
+		seq = secure_tcpv6_sequence_number(np->saddr.s6_addr32,
+						   sk->sk_v6_daddr.s6_addr32,
+						   inet->inet_sport,
+						   inet->inet_dport,
+						   &tp->tsoffset);
+		if (!tp->write_seq)
+			tp->write_seq = seq;
+	}
 
 	if (tcp_fastopen_defer_connect(sk, &err))
 		return err;
