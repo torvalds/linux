@@ -116,7 +116,7 @@ struct tegra_clk_pll_freq_table {
 	unsigned long	input_rate;
 	unsigned long	output_rate;
 	u32		n;
-	u16		m;
+	u32		m;
 	u8		p;
 	u8		cpcon;
 	u16		sdm_data;
