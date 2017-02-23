@@ -209,12 +209,6 @@ static inline pgoff_t current_nat_addr(struct f2fs_sb_info *sbi, nid_t start)
 		(seg_off << sbi->log_blocks_per_seg << 1) +
 		(block_off & (sbi->blocks_per_seg - 1)));
 
-#ifdef CONFIG_F2FS_CHECK_FS
-	if (f2fs_test_bit(block_off, nm_i->nat_bitmap) !=
-			f2fs_test_bit(block_off, nm_i->nat_bitmap_mir))
-		f2fs_bug_on(sbi, 1);
-#endif
-
 	if (f2fs_test_bit(block_off, nm_i->nat_bitmap))
 		block_addr += sbi->blocks_per_seg;
 
