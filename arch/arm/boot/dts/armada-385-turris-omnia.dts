@@ -122,7 +122,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&ge0_rgmii_pins>;
 	status = "okay";
-	phy-mode = "rgmii-id";
+	phy-mode = "rgmii";
 
 	fixed-link {
 		speed = <1000>;
@@ -135,7 +135,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&ge1_rgmii_pins>;
 	status = "okay";
-	phy-mode = "rgmii-id";
+	phy-mode = "rgmii";
 
 	fixed-link {
 		speed = <1000>;
@@ -273,7 +273,59 @@
 		/* irq is connected to &pcawan pin 7 */
 	};
 
-	/* Switch MV88E7176 at address 0x10 */
+	/* Switch MV88E6176 at address 0x10 */
+	switch@10 {
+		compatible = "marvell,mv88e6085";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		dsa,member = <0 0>;
+
+		reg = <0x10>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ports@0 {
+				reg = <0>;
+				label = "lan0";
+			};
+
+			ports@1 {
+				reg = <1>;
+				label = "lan1";
+			};
+
+			ports@2 {
+				reg = <2>;
+				label = "lan2";
+			};
+
+			ports@3 {
+				reg = <3>;
+				label = "lan3";
+			};
+
+			ports@4 {
+				reg = <4>;
+				label = "lan4";
+			};
+
+			ports@5 {
+				reg = <5>;
+				label = "cpu";
+				ethernet = <&eth1>;
+				phy-mode = "rgmii-id";
+
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
+			};
+
+			/* port 6 is connected to eth0 */
+		};
+	};
 };
 
 &pinctrl {

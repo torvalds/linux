@@ -1,10 +1,10 @@
 /*
- * Samsung's Exynos4x12 SoCs pin-mux and pin-config device tree source
+ * Samsung's Exynos4412 SoCs pin-mux and pin-config device tree source
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * Samsung's Exynos4x12 SoCs pin-mux and pin-config optiosn are listed as device
+ * Samsung's Exynos4412 SoCs pin-mux and pin-config optiosn are listed as device
  * tree nodes are listed in this file.
  *
  * This program is free software; you can redistribute it and/or modify

@@ -17,7 +17,7 @@
 		mfc_left: region_mfc_left {
 			compatible = "shared-dma-pool";
 			no-map;
-			size = <0x1000000>;
+			size = <0x2400000>;
 			alignment = <0x100000>;
 		};
 
