@@ -184,32 +184,31 @@ static void tpg110_init(struct device *dev, struct device_node *np,
 {
 	dev_info(dev, "TPG110 display init\n");
 
-	grestb = devm_get_gpiod_from_child(dev, "grestb", &np->fwnode);
+	/* This asserts the GRESTB signal, putting the display into reset */
+	grestb = devm_fwnode_get_gpiod_from_child(dev, "grestb", &np->fwnode,
+						  GPIOD_OUT_HIGH, "grestb");
 	if (IS_ERR(grestb)) {
 		dev_err(dev, "no GRESTB GPIO\n");
 		return;
 	}
-	/* This asserts the GRESTB signal, putting the display into reset */
-	gpiod_direction_output(grestb, 1);
-
-	scen = devm_get_gpiod_from_child(dev, "scen", &np->fwnode);
+	scen = devm_fwnode_get_gpiod_from_child(dev, "scen", &np->fwnode,
+						GPIOD_OUT_LOW, "scen");
 	if (IS_ERR(scen)) {
 		dev_err(dev, "no SCEN GPIO\n");
 		return;
 	}
-	gpiod_direction_output(scen, 0);
-	scl = devm_get_gpiod_from_child(dev, "scl", &np->fwnode);
+	scl = devm_fwnode_get_gpiod_from_child(dev, "scl", &np->fwnode,
+					       GPIOD_OUT_LOW, "scl");
 	if (IS_ERR(scl)) {
 		dev_err(dev, "no SCL GPIO\n");
 		return;
 	}
-	gpiod_direction_output(scl, 0);
-	sda = devm_get_gpiod_from_child(dev, "sda", &np->fwnode);
+	sda = devm_fwnode_get_gpiod_from_child(dev, "sda", &np->fwnode,
+					       GPIOD_OUT_LOW, "sda");
 	if (IS_ERR(sda)) {
 		dev_err(dev, "no SDA GPIO\n");
 		return;
 	}
-	gpiod_direction_output(sda, 0);
 	board->enable = tpg110_enable;
 	board->disable = tpg110_disable;
 }
