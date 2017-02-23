@@ -1579,7 +1579,7 @@ static void gfx_v6_0_setup_spi(struct amdgpu_device *adev)
 
 static void gfx_v6_0_config_init(struct amdgpu_device *adev)
 {
-	adev->gfx.config.double_offchip_lds_buf = 1;
+	adev->gfx.config.double_offchip_lds_buf = 0;
 }
 
 static void gfx_v6_0_gpu_init(struct amdgpu_device *adev)
