@@ -8,6 +8,18 @@
 	model = "NVIDIA Tegra186 P2771-0000 Development Board";
 	compatible = "nvidia,p2771-0000", "nvidia,tegra186";
 
+	i2c@3160000 {
+		power-monitor@42 {
+			compatible = "ti,ina3221";
+			reg = <0x42>;
+		};
+
+		power-monitor@43 {
+			compatible = "ti,ina3221";
+			reg = <0x43>;
+		};
+	};
+
 	/* SDMMC1 (SD/MMC) */
 	sdhci@3400000 {
 		status = "okay";
