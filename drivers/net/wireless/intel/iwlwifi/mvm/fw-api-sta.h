@@ -214,20 +214,6 @@ enum iwl_sta_sleep_flag {
 	STA_SLEEP_STATE_MOREDATA	= BIT(2),
 };
 
-/* STA ID and color bits definitions */
-#define STA_ID_SEED		(0x0f)
-#define STA_ID_POS		(0)
-#define STA_ID_MSK		(STA_ID_SEED << STA_ID_POS)
-
-#define STA_COLOR_SEED		(0x7)
-#define STA_COLOR_POS		(4)
-#define STA_COLOR_MSK		(STA_COLOR_SEED << STA_COLOR_POS)
-
-#define STA_ID_N_COLOR_GET_COLOR(id_n_color) \
-	(((id_n_color) & STA_COLOR_MSK) >> STA_COLOR_POS)
-#define STA_ID_N_COLOR_GET_ID(id_n_color)    \
-	(((id_n_color) & STA_ID_MSK) >> STA_ID_POS)
-
 #define STA_KEY_MAX_NUM (16)
 #define STA_KEY_IDX_INVALID (0xff)
 #define STA_KEY_MAX_DATA_KEY_NUM (4)
