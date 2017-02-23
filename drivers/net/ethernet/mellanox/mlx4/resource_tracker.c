@@ -4297,7 +4297,7 @@ int mlx4_UPDATE_QP_wrapper(struct mlx4_dev *dev, int slave,
 		  MLX4_DEV_CAP_FLAG2_UPDATE_QP_SRC_CHECK_LB)) {
 		mlx4_warn(dev, "Src check LB for slave %d isn't supported\n",
 			  slave);
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	/* Just change the smac for the QP */

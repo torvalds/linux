@@ -1249,9 +1249,8 @@ int mlx4_init_eq_table(struct mlx4_dev *dev)
 					mlx4_warn(dev, "Failed adding irq rmap\n");
 			}
 #endif
-			err = mlx4_create_eq(dev, dev->caps.num_cqs -
-						  dev->caps.reserved_cqs +
-						  MLX4_NUM_SPARE_EQE,
+			err = mlx4_create_eq(dev, dev->quotas.cq +
+					     MLX4_NUM_SPARE_EQE,
 					     (dev->flags & MLX4_FLAG_MSI_X) ?
 					     i + 1 - !!(i > MLX4_EQ_ASYNC) : 0,
 					     eq);

@@ -2436,7 +2436,7 @@ int mlx4_config_dev_retrieval(struct mlx4_dev *dev,
 #define CONFIG_DEV_RX_CSUM_MODE_PORT2_BIT_OFFSET	4
 
 	if (!(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_CONFIG_DEV))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	err = mlx4_CONFIG_DEV_get(dev, &config_dev);
 	if (err)
