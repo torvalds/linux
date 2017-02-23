@@ -1097,6 +1097,9 @@ long i915_wait_request(struct drm_i915_gem_request *req,
 
 	trace_i915_gem_request_wait_begin(req, flags);
 
+	if (flags & I915_WAIT_LOCKED)
+		add_wait_queue(errq, &reset);
+
 	if (!i915_sw_fence_done(&req->execute)) {
 		timeout = __i915_request_wait_for_execute(req, flags, timeout);
 		if (timeout < 0)
@@ -1112,9 +1115,6 @@ long i915_wait_request(struct drm_i915_gem_request *req,
 		goto complete;
 
 	set_current_state(state);
-	if (flags & I915_WAIT_LOCKED)
-		add_wait_queue(errq, &reset);
-
 	intel_wait_init(&wait, req->global_seqno);
 	if (intel_engine_add_wait(req->engine, &wait))
 		/* In order to check that we haven't missed the interrupt
@@ -1174,11 +1174,11 @@ wakeup:
 	}
 
 	intel_engine_remove_wait(req->engine, &wait);
-	if (flags & I915_WAIT_LOCKED)
-		remove_wait_queue(errq, &reset);
 	__set_current_state(TASK_RUNNING);
 
 complete:
+	if (flags & I915_WAIT_LOCKED)
+		remove_wait_queue(errq, &reset);
 	trace_i915_gem_request_wait_end(req);
 
 	return timeout;
