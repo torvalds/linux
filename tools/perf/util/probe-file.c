@@ -70,7 +70,7 @@ static void print_both_open_warning(int kerr, int uerr)
 	}
 }
 
-static int open_probe_events(const char *trace_file, bool readwrite)
+int open_trace_file(const char *trace_file, bool readwrite)
 {
 	char buf[PATH_MAX];
 	int ret;
@@ -92,12 +92,12 @@ static int open_probe_events(const char *trace_file, bool readwrite)
 
 static int open_kprobe_events(bool readwrite)
 {
-	return open_probe_events("kprobe_events", readwrite);
+	return open_trace_file("kprobe_events", readwrite);
 }
 
 static int open_uprobe_events(bool readwrite)
 {
-	return open_probe_events("uprobe_events", readwrite);
+	return open_trace_file("uprobe_events", readwrite);
 }
 
 int probe_file__open(int flag)
@@ -899,6 +899,7 @@ bool probe_type_is_available(enum probe_type type)
 	size_t len = 0;
 	bool target_line = false;
 	bool ret = probe_type_table[type].avail;
+	int fd;
 
 	if (type >= PROBE_TYPE_END)
 		return false;
@@ -906,14 +907,16 @@ bool probe_type_is_available(enum probe_type type)
 	if (ret || probe_type_table[type].checked)
 		return ret;
 
-	if (asprintf(&buf, "%s/README", tracing_path) < 0)
+	fd = open_trace_file("README", false);
+	if (fd < 0)
 		return ret;
 
-	fp = fopen(buf, "r");
-	if (!fp)
-		goto end;
+	fp = fdopen(fd, "r");
+	if (!fp) {
+		close(fd);
+		return ret;
+	}
 
-	zfree(&buf);
 	while (getline(&buf, &len, fp) > 0 && !ret) {
 		if (!target_line) {
 			target_line = !!strstr(buf, " type: ");
@@ -928,7 +931,6 @@ bool probe_type_is_available(enum probe_type type)
 	probe_type_table[type].avail = ret;
 
 	fclose(fp);
-end:
 	free(buf);
 
 	return ret;
