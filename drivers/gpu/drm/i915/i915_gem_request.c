@@ -1023,6 +1023,16 @@ bool __i915_spin_request(const struct drm_i915_gem_request *req,
 	return false;
 }
 
+static bool __i915_wait_request_check_and_reset(struct drm_i915_gem_request *request)
+{
+	if (likely(!i915_reset_in_progress(&request->i915->gpu_error)))
+		return false;
+
+	__set_current_state(TASK_RUNNING);
+	i915_reset(request->i915);
+	return true;
+}
+
 /**
  * i915_wait_request - wait until execution of request has finished
  * @req: the request to wait upon
@@ -1084,11 +1094,8 @@ restart:
 				break;
 
 			if (flags & I915_WAIT_LOCKED &&
-			    i915_reset_in_progress(&req->i915->gpu_error)) {
-				__set_current_state(TASK_RUNNING);
-				i915_reset(req->i915);
+			    __i915_wait_request_check_and_reset(req))
 				continue;
-			}
 
 			if (signal_pending_state(state, current)) {
 				timeout = -ERESTARTSYS;
@@ -1158,11 +1165,8 @@ wakeup:
 		 * itself, or indirectly by recovering the GPU).
 		 */
 		if (flags & I915_WAIT_LOCKED &&
-		    i915_reset_in_progress(&req->i915->gpu_error)) {
-			__set_current_state(TASK_RUNNING);
-			i915_reset(req->i915);
+		    __i915_wait_request_check_and_reset(req))
 			continue;
-		}
 
 		/* Only spin if we know the GPU is processing this request */
 		if (i915_spin_request(req, state, 2))
