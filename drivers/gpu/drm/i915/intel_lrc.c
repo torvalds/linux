@@ -591,6 +591,7 @@ static void intel_lrc_irq_handler(unsigned long data)
 			GEM_BUG_ON(port[0].count == 0);
 			if (--port[0].count == 0) {
 				GEM_BUG_ON(status & GEN8_CTX_STATUS_PREEMPTED);
+				GEM_BUG_ON(!i915_gem_request_completed(port[0].request));
 				execlists_context_status_change(port[0].request,
 								INTEL_CONTEXT_SCHEDULE_OUT);
 
