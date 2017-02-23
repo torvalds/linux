@@ -67,7 +67,7 @@ static const s16 *initp;
 static int initp_num;
 
 /* default init sequences */
-static s16 st7735r_init[] = {
+static const s16 st7735r_init[] = {
 	-1, 0x01,
 	-2, 150,
 	-1, 0x11,
@@ -96,7 +96,7 @@ static s16 st7735r_init[] = {
 	-3
 };
 
-static s16 ssd1289_init[] = {
+static const s16 ssd1289_init[] = {
 	-1, 0x00, 0x0001,
 	-1, 0x03, 0xA8A4,
 	-1, 0x0C, 0x0000,
@@ -142,7 +142,7 @@ static s16 ssd1289_init[] = {
 	-3
 };
 
-static s16 hx8340bn_init[] = {
+static const s16 hx8340bn_init[] = {
 	-1, 0xC1, 0xFF, 0x83, 0x40,
 	-1, 0x11,
 	-2, 150,
@@ -162,7 +162,7 @@ static s16 hx8340bn_init[] = {
 	-3
 };
 
-static s16 ili9225_init[] = {
+static const s16 ili9225_init[] = {
 	-1, 0x0001, 0x011C,
 	-1, 0x0002, 0x0100,
 	-1, 0x0003, 0x1030,
@@ -204,7 +204,7 @@ static s16 ili9225_init[] = {
 	-3
 };
 
-static s16 ili9320_init[] = {
+static const s16 ili9320_init[] = {
 	-1, 0x00E5, 0x8000,
 	-1, 0x0000, 0x0001,
 	-1, 0x0001, 0x0100,
@@ -265,7 +265,7 @@ static s16 ili9320_init[] = {
 	-3
 };
 
-static s16 ili9325_init[] = {
+static const s16 ili9325_init[] = {
 	-1, 0x00E3, 0x3008,
 	-1, 0x00E7, 0x0012,
 	-1, 0x00EF, 0x1231,
@@ -324,7 +324,7 @@ static s16 ili9325_init[] = {
 	-3
 };
 
-static s16 ili9341_init[] = {
+static const s16 ili9341_init[] = {
 	-1, 0x28,
 	-2, 20,
 	-1, 0xCF, 0x00, 0x83, 0x30,
@@ -349,7 +349,7 @@ static s16 ili9341_init[] = {
 	-3
 };
 
-static s16 ssd1351_init[] = {
+static const s16 ssd1351_init[] = {
 	-1, 0xfd, 0x12,
 	-1, 0xfd, 0xb1,
 	-1, 0xae,
