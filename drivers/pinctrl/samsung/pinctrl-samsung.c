@@ -988,9 +988,16 @@ samsung_pinctrl_get_soc_data(struct samsung_pinctrl_drv_data *d,
 
 	for (i = 0; i < ctrl->nr_ext_resources + 1; i++) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
-		virt_base[i] = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(virt_base[i]))
-			return ERR_CAST(virt_base[i]);
+		if (!res) {
+			dev_err(&pdev->dev, "failed to get mem%d resource\n", i);
+			return ERR_PTR(-EINVAL);
+		}
+		virt_base[i] = devm_ioremap(&pdev->dev, res->start,
+						resource_size(res));
+		if (!virt_base[i]) {
+			dev_err(&pdev->dev, "failed to ioremap %pR\n", res);
+			return ERR_PTR(-EIO);
+		}
 	}
 
 	bank = d->pin_banks;
