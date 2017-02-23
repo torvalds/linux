@@ -19,6 +19,7 @@
 #include <linux/clk-provider.h>
 #include <linux/ioport.h>
 #include <linux/of_address.h>
+#include <linux/of_graph.h>
 #include <linux/of_irq.h>
 #include <linux/regmap.h>
 
@@ -159,6 +160,10 @@ struct sun4i_crtc *sun4i_crtc_init(struct drm_device *drm)
 	}
 
 	drm_crtc_helper_add(&scrtc->crtc, &sun4i_crtc_helper_funcs);
+
+	/* Set crtc.port to output port node of the tcon */
+	scrtc->crtc.port = of_graph_get_port_by_id(drv->tcon->dev->of_node,
+						   1);
 
 	return scrtc;
 }
