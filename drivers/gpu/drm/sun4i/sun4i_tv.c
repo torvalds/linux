@@ -19,6 +19,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 
 #include "sun4i_backend.h"
@@ -623,7 +624,12 @@ static int sun4i_tv_bind(struct device *dev, struct device *master,
 		goto err_disable_clk;
 	}
 
-	tv->encoder.possible_crtcs = BIT(0);
+	tv->encoder.possible_crtcs = drm_of_find_possible_crtcs(drm,
+								dev->of_node);
+	if (!tv->encoder.possible_crtcs) {
+		ret = -EPROBE_DEFER;
+		goto err_disable_clk;
+	}
 
 	drm_connector_helper_add(&tv->connector,
 				 &sun4i_tv_comp_connector_helper_funcs);
