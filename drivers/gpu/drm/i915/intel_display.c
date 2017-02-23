@@ -13291,16 +13291,22 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 int
 skl_max_scale(struct intel_crtc *intel_crtc, struct intel_crtc_state *crtc_state)
 {
+	struct drm_i915_private *dev_priv;
 	int max_scale;
-	int crtc_clock, cdclk;
+	int crtc_clock, max_dotclk;
 
 	if (!intel_crtc || !crtc_state->base.enable)
 		return DRM_PLANE_HELPER_NO_SCALING;
 
-	crtc_clock = crtc_state->base.adjusted_mode.crtc_clock;
-	cdclk = to_intel_atomic_state(crtc_state->base.state)->cdclk.logical.cdclk;
+	dev_priv = to_i915(intel_crtc->base.dev);
 
-	if (WARN_ON_ONCE(!crtc_clock || cdclk < crtc_clock))
+	crtc_clock = crtc_state->base.adjusted_mode.crtc_clock;
+	max_dotclk = to_intel_atomic_state(crtc_state->base.state)->cdclk.logical.cdclk;
+
+	if (IS_GEMINILAKE(dev_priv))
+		max_dotclk *= 2;
+
+	if (WARN_ON_ONCE(!crtc_clock || max_dotclk < crtc_clock))
 		return DRM_PLANE_HELPER_NO_SCALING;
 
 	/*
@@ -13309,7 +13315,8 @@ skl_max_scale(struct intel_crtc *intel_crtc, struct intel_crtc_state *crtc_state
 	 *            or
 	 *    cdclk/crtc_clock
 	 */
-	max_scale = min((1 << 16) * 3 - 1, (1 << 8) * ((cdclk << 8) / crtc_clock));
+	max_scale = min((1 << 16) * 3 - 1,
+			(1 << 8) * ((max_dotclk << 8) / crtc_clock));
 
 	return max_scale;
 }
