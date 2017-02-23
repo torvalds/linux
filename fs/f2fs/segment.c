@@ -769,7 +769,7 @@ static int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 			if (ret)
 				return ret;
 		}
-		bio = f2fs_bio_alloc(0);
+		bio = f2fs_bio_alloc(1);
 		bio->bi_iter.bi_sector = sector;
 		bio->bi_bdev = bdev;
 		bio_set_op_attrs(bio, op, 0);
