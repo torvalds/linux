@@ -511,6 +511,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_ONE_REG:
 	case KVM_CAP_IOEVENTFD:
 	case KVM_CAP_DEVICE_CTRL:
+	case KVM_CAP_IMMEDIATE_EXIT:
 		r = 1;
 		break;
 	case KVM_CAP_PPC_PAIRED_SINGLES:
@@ -611,6 +612,10 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		break;
 	case KVM_CAP_SPAPR_MULTITCE:
 		r = 1;
+		break;
+	case KVM_CAP_SPAPR_RESIZE_HPT:
+		/* Disable this on POWER9 until code handles new HPTE format */
+		r = !!hv_enabled && !cpu_has_feature(CPU_FTR_ARCH_300);
 		break;
 #endif
 	case KVM_CAP_PPC_HTM:
@@ -1114,7 +1119,10 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 #endif
 	}
 
-	r = kvmppc_vcpu_run(run, vcpu);
+	if (run->immediate_exit)
+		r = -EINTR;
+	else
+		r = kvmppc_vcpu_run(run, vcpu);
 
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &sigsaved, NULL);

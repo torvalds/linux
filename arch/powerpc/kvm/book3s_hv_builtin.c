@@ -52,19 +52,19 @@ static int __init early_parse_kvm_cma_resv(char *p)
 }
 early_param("kvm_cma_resv_ratio", early_parse_kvm_cma_resv);
 
-struct page *kvm_alloc_hpt(unsigned long nr_pages)
+struct page *kvm_alloc_hpt_cma(unsigned long nr_pages)
 {
 	VM_BUG_ON(order_base_2(nr_pages) < KVM_CMA_CHUNK_ORDER - PAGE_SHIFT);
 
 	return cma_alloc(kvm_cma, nr_pages, order_base_2(HPT_ALIGN_PAGES));
 }
-EXPORT_SYMBOL_GPL(kvm_alloc_hpt);
+EXPORT_SYMBOL_GPL(kvm_alloc_hpt_cma);
 
-void kvm_release_hpt(struct page *page, unsigned long nr_pages)
+void kvm_free_hpt_cma(struct page *page, unsigned long nr_pages)
 {
 	cma_release(kvm_cma, page, nr_pages);
 }
-EXPORT_SYMBOL_GPL(kvm_release_hpt);
+EXPORT_SYMBOL_GPL(kvm_free_hpt_cma);
 
 /**
  * kvm_cma_reserve() - reserve area for kvm hash pagetable

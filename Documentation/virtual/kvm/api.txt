@@ -2061,6 +2061,8 @@ registers, find a list below:
   MIPS  | KVM_REG_MIPS_LO               | 64
   MIPS  | KVM_REG_MIPS_PC               | 64
   MIPS  | KVM_REG_MIPS_CP0_INDEX        | 32
+  MIPS  | KVM_REG_MIPS_CP0_ENTRYLO0     | 64
+  MIPS  | KVM_REG_MIPS_CP0_ENTRYLO1     | 64
   MIPS  | KVM_REG_MIPS_CP0_CONTEXT      | 64
   MIPS  | KVM_REG_MIPS_CP0_USERLOCAL    | 64
   MIPS  | KVM_REG_MIPS_CP0_PAGEMASK     | 32
@@ -2071,9 +2073,11 @@ registers, find a list below:
   MIPS  | KVM_REG_MIPS_CP0_ENTRYHI      | 64
   MIPS  | KVM_REG_MIPS_CP0_COMPARE      | 32
   MIPS  | KVM_REG_MIPS_CP0_STATUS       | 32
+  MIPS  | KVM_REG_MIPS_CP0_INTCTL       | 32
   MIPS  | KVM_REG_MIPS_CP0_CAUSE        | 32
   MIPS  | KVM_REG_MIPS_CP0_EPC          | 64
   MIPS  | KVM_REG_MIPS_CP0_PRID         | 32
+  MIPS  | KVM_REG_MIPS_CP0_EBASE        | 64
   MIPS  | KVM_REG_MIPS_CP0_CONFIG       | 32
   MIPS  | KVM_REG_MIPS_CP0_CONFIG1      | 32
   MIPS  | KVM_REG_MIPS_CP0_CONFIG2      | 32
@@ -2147,6 +2151,12 @@ MIPS CP0 registers (see KVM_REG_MIPS_CP0_* above) have the following id bit
 patterns depending on whether they're 32-bit or 64-bit registers:
   0x7020 0000 0001 00 <reg:5> <sel:3>   (32-bit)
   0x7030 0000 0001 00 <reg:5> <sel:3>   (64-bit)
+
+Note: KVM_REG_MIPS_CP0_ENTRYLO0 and KVM_REG_MIPS_CP0_ENTRYLO1 are the MIPS64
+versions of the EntryLo registers regardless of the word size of the host
+hardware, host kernel, guest, and whether XPA is present in the guest, i.e.
+with the RI and XI bits (if they exist) in bits 63 and 62 respectively, and
+the PFNX field starting at bit 30.
 
 MIPS KVM control registers (see above) have the following id bit patterns:
   0x7030 0000 0002 <reg:16>
@@ -2443,18 +2453,20 @@ are, it will do nothing and return an EBUSY error.
 The parameter is a pointer to a 32-bit unsigned integer variable
 containing the order (log base 2) of the desired size of the hash
 table, which must be between 18 and 46.  On successful return from the
-ioctl, it will have been updated with the order of the hash table that
-was allocated.
+ioctl, the value will not be changed by the kernel.
 
 If no hash table has been allocated when any vcpu is asked to run
 (with the KVM_RUN ioctl), the host kernel will allocate a
 default-sized hash table (16 MB).
 
 If this ioctl is called when a hash table has already been allocated,
-the kernel will clear out the existing hash table (zero all HPTEs) and
-return the hash table order in the parameter.  (If the guest is using
-the virtualized real-mode area (VRMA) facility, the kernel will
-re-create the VMRA HPTEs on the next KVM_RUN of any vcpu.)
+with a different order from the existing hash table, the existing hash
+table will be freed and a new one allocated.  If this is ioctl is
+called when a hash table has already been allocated of the same order
+as specified, the kernel will clear out the existing hash table (zero
+all HPTEs).  In either case, if the guest is using the virtualized
+real-mode area (VRMA) facility, the kernel will re-create the VMRA
+HPTEs on the next KVM_RUN of any vcpu.
 
 4.77 KVM_S390_INTERRUPT
 
@@ -3177,7 +3189,7 @@ of IOMMU pages.
 
 The rest of functionality is identical to KVM_CREATE_SPAPR_TCE.
 
-4.98 KVM_REINJECT_CONTROL
+4.99 KVM_REINJECT_CONTROL
 
 Capability: KVM_CAP_REINJECT_CONTROL
 Architectures: x86
@@ -3201,7 +3213,7 @@ struct kvm_reinject_control {
 pit_reinject = 0 (!reinject mode) is recommended, unless running an old
 operating system that uses the PIT for timing (e.g. Linux 2.4.x).
 
-4.99 KVM_PPC_CONFIGURE_V3_MMU
+4.100 KVM_PPC_CONFIGURE_V3_MMU
 
 Capability: KVM_CAP_PPC_RADIX_MMU or KVM_CAP_PPC_HASH_MMU_V3
 Architectures: ppc
@@ -3232,7 +3244,7 @@ process table, which is in the guest's space.  This field is formatted
 as the second doubleword of the partition table entry, as defined in
 the Power ISA V3.00, Book III section 5.7.6.1.
 
-4.100 KVM_PPC_GET_RMMU_INFO
+4.101 KVM_PPC_GET_RMMU_INFO
 
 Capability: KVM_CAP_PPC_RADIX_MMU
 Architectures: ppc
@@ -3266,6 +3278,101 @@ The ap_encodings gives the supported page sizes and their AP field
 encodings, encoded with the AP value in the top 3 bits and the log
 base 2 of the page size in the bottom 6 bits.
 
+4.102 KVM_PPC_RESIZE_HPT_PREPARE
+
+Capability: KVM_CAP_SPAPR_RESIZE_HPT
+Architectures: powerpc
+Type: vm ioctl
+Parameters: struct kvm_ppc_resize_hpt (in)
+Returns: 0 on successful completion,
+	 >0 if a new HPT is being prepared, the value is an estimated
+             number of milliseconds until preparation is complete
+         -EFAULT if struct kvm_reinject_control cannot be read,
+	 -EINVAL if the supplied shift or flags are invalid
+	 -ENOMEM if unable to allocate the new HPT
+	 -ENOSPC if there was a hash collision when moving existing
+                  HPT entries to the new HPT
+	 -EIO on other error conditions
+
+Used to implement the PAPR extension for runtime resizing of a guest's
+Hashed Page Table (HPT).  Specifically this starts, stops or monitors
+the preparation of a new potential HPT for the guest, essentially
+implementing the H_RESIZE_HPT_PREPARE hypercall.
+
+If called with shift > 0 when there is no pending HPT for the guest,
+this begins preparation of a new pending HPT of size 2^(shift) bytes.
+It then returns a positive integer with the estimated number of
+milliseconds until preparation is complete.
+
+If called when there is a pending HPT whose size does not match that
+requested in the parameters, discards the existing pending HPT and
+creates a new one as above.
+
+If called when there is a pending HPT of the size requested, will:
+  * If preparation of the pending HPT is already complete, return 0
+  * If preparation of the pending HPT has failed, return an error
+    code, then discard the pending HPT.
+  * If preparation of the pending HPT is still in progress, return an
+    estimated number of milliseconds until preparation is complete.
+
+If called with shift == 0, discards any currently pending HPT and
+returns 0 (i.e. cancels any in-progress preparation).
+
+flags is reserved for future expansion, currently setting any bits in
+flags will result in an -EINVAL.
+
+Normally this will be called repeatedly with the same parameters until
+it returns <= 0.  The first call will initiate preparation, subsequent
+ones will monitor preparation until it completes or fails.
+
+struct kvm_ppc_resize_hpt {
+	__u64 flags;
+	__u32 shift;
+	__u32 pad;
+};
+
+4.103 KVM_PPC_RESIZE_HPT_COMMIT
+
+Capability: KVM_CAP_SPAPR_RESIZE_HPT
+Architectures: powerpc
+Type: vm ioctl
+Parameters: struct kvm_ppc_resize_hpt (in)
+Returns: 0 on successful completion,
+         -EFAULT if struct kvm_reinject_control cannot be read,
+	 -EINVAL if the supplied shift or flags are invalid
+	 -ENXIO is there is no pending HPT, or the pending HPT doesn't
+                 have the requested size
+	 -EBUSY if the pending HPT is not fully prepared
+	 -ENOSPC if there was a hash collision when moving existing
+                  HPT entries to the new HPT
+	 -EIO on other error conditions
+
+Used to implement the PAPR extension for runtime resizing of a guest's
+Hashed Page Table (HPT).  Specifically this requests that the guest be
+transferred to working with the new HPT, essentially implementing the
+H_RESIZE_HPT_COMMIT hypercall.
+
+This should only be called after KVM_PPC_RESIZE_HPT_PREPARE has
+returned 0 with the same parameters.  In other cases
+KVM_PPC_RESIZE_HPT_COMMIT will return an error (usually -ENXIO or
+-EBUSY, though others may be possible if the preparation was started,
+but failed).
+
+This will have undefined effects on the guest if it has not already
+placed itself in a quiescent state where no vcpu will make MMU enabled
+memory accesses.
+
+On succsful completion, the pending HPT will become the guest's active
+HPT and the previous HPT will be discarded.
+
+On failure, the guest will still be operating on its previous HPT.
+
+struct kvm_ppc_resize_hpt {
+	__u64 flags;
+	__u32 shift;
+	__u32 pad;
+};
+
 5. The kvm_run structure
 ------------------------
 
@@ -3282,7 +3389,18 @@ struct kvm_run {
 Request that KVM_RUN return when it becomes possible to inject external
 interrupts into the guest.  Useful in conjunction with KVM_INTERRUPT.
 
-	__u8 padding1[7];
+	__u8 immediate_exit;
+
+This field is polled once when KVM_RUN starts; if non-zero, KVM_RUN
+exits immediately, returning -EINTR.  In the common scenario where a
+signal is used to "kick" a VCPU out of KVM_RUN, this field can be used
+to avoid usage of KVM_SET_SIGNAL_MASK, which has worse scalability.
+Rather than blocking the signal outside KVM_RUN, userspace can set up
+a signal handler that sets run->immediate_exit to a non-zero value.
+
+This field is ignored if KVM_CAP_IMMEDIATE_EXIT is not available.
+
+	__u8 padding1[6];
 
 	/* out */
 	__u32 exit_reason;
