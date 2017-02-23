@@ -1169,6 +1169,27 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 			dev_dbg(&dev->dev, "unregistering interface %s\n",
 				dev_name(&interface->dev));
 			remove_intf_ep_devs(interface);
+
+			/*
+			 * Some special SoCs (e.g. rk322xh) USB 3.0 module
+			 * can't handle outstanding URBs by hardware when
+			 * when USB 3.0 device disconnect, so we need to
+			 * cancel all URBs pending on this device here.
+			 *
+			 * In addition, we just reuse the hub autosuspend
+			 * quirk but not add a new quirk for this issue.
+			 * Because it always occurs with autosuspend issue.
+			 */
+			if (hcd->self.root_hub->quirks &
+			    USB_QUIRK_AUTO_SUSPEND) {
+				for (i = skip_ep0; i < 16; ++i) {
+					usb_hcd_flush_endpoint(dev,
+							       dev->ep_out[i]);
+					usb_hcd_flush_endpoint(dev,
+							       dev->ep_in[i]);
+				}
+			}
+
 			device_del(&interface->dev);
 		}
 
