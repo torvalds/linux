@@ -38,9 +38,9 @@
 
 #include "iw_cxgb4.h"
 
-int use_dsgl = 0;
+int use_dsgl = 1;
 module_param(use_dsgl, int, 0644);
-MODULE_PARM_DESC(use_dsgl, "Use DSGL for PBL/FastReg (default=0)");
+MODULE_PARM_DESC(use_dsgl, "Use DSGL for PBL/FastReg (default=1) (DEPRECATED)");
 
 #define T4_ULPTX_MIN_IO 32
 #define C4IW_MAX_INLINE_SIZE 96
@@ -231,7 +231,7 @@ out:
 static int write_adapter_mem(struct c4iw_rdev *rdev, u32 addr, u32 len,
 			     void *data, struct sk_buff *skb)
 {
-	if (is_t5(rdev->lldi.adapter_type) && use_dsgl) {
+	if (rdev->lldi.ulptx_memwrite_dsgl && use_dsgl) {
 		if (len > inline_threshold) {
 			if (_c4iw_write_mem_dma(rdev, addr, len, data, skb)) {
 				pr_warn_ratelimited("%s: dma map failure (non fatal)\n",
