@@ -1781,12 +1781,6 @@ int rc_register_device(struct rc_dev *dev)
 		dev->input_name ?: "Unspecified device", path ?: "N/A");
 	kfree(path);
 
-	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
-		rc = rc_setup_rx_device(dev);
-		if (rc)
-			goto out_dev;
-	}
-
 	if (dev->driver_type == RC_DRIVER_IR_RAW ||
 	    dev->driver_type == RC_DRIVER_IR_RAW_TX) {
 		if (!raw_init) {
@@ -1795,7 +1789,13 @@ int rc_register_device(struct rc_dev *dev)
 		}
 		rc = ir_raw_event_register(dev);
 		if (rc < 0)
-			goto out_rx;
+			goto out_dev;
+	}
+
+	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
+		rc = rc_setup_rx_device(dev);
+		if (rc)
+			goto out_raw;
 	}
 
 	/* Allow the RC sysfs nodes to be accessible */
@@ -1807,8 +1807,8 @@ int rc_register_device(struct rc_dev *dev)
 
 	return 0;
 
-out_rx:
-	rc_free_rx_device(dev);
+out_raw:
+	ir_raw_event_unregister(dev);
 out_dev:
 	device_del(&dev->dev);
 out_unlock:
