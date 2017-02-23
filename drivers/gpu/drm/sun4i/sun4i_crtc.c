@@ -28,6 +28,7 @@
 #include "sun4i_backend.h"
 #include "sun4i_crtc.h"
 #include "sun4i_drv.h"
+#include "sun4i_layer.h"
 #include "sun4i_tcon.h"
 
 static void sun4i_crtc_atomic_begin(struct drm_crtc *crtc,
@@ -148,6 +149,13 @@ struct sun4i_crtc *sun4i_crtc_init(struct drm_device *drm)
 	if (!scrtc)
 		return ERR_PTR(-ENOMEM);
 	scrtc->drv = drv;
+
+	/* Create our layers */
+	scrtc->layers = sun4i_layers_init(drm);
+	if (IS_ERR(scrtc->layers)) {
+		dev_err(drm->dev, "Couldn't create the planes\n");
+		return ERR_CAST(scrtc->layers);
+	}
 
 	ret = drm_crtc_init_with_planes(drm, &scrtc->crtc,
 					drv->primary,

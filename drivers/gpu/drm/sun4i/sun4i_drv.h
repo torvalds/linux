@@ -23,8 +23,6 @@ struct sun4i_drv {
 
 	struct drm_plane	*primary;
 	struct drm_fbdev_cma	*fbdev;
-
-	struct sun4i_layer	**layers;
 };
 
 #endif /* _SUN4I_DRV_H_ */

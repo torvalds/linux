@@ -23,7 +23,7 @@
 #include "sun4i_crtc.h"
 #include "sun4i_drv.h"
 #include "sun4i_framebuffer.h"
-#include "sun4i_layer.h"
+#include "sun4i_tcon.h"
 
 static const struct file_operations sun4i_drv_fops = {
 	.owner		= THIS_MODULE,
@@ -112,14 +112,6 @@ static int sun4i_drv_bind(struct device *dev)
 	ret = component_bind_all(drm->dev, drm);
 	if (ret) {
 		dev_err(drm->dev, "Couldn't bind all pipelines components\n");
-		goto cleanup_mode_config;
-	}
-
-	/* Create our layers */
-	drv->layers = sun4i_layers_init(drm);
-	if (IS_ERR(drv->layers)) {
-		dev_err(drm->dev, "Couldn't create the planes\n");
-		ret = PTR_ERR(drv->layers);
 		goto cleanup_mode_config;
 	}
 
