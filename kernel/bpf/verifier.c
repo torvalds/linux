@@ -2776,7 +2776,7 @@ static int do_check(struct bpf_verifier_env *env)
 		class = BPF_CLASS(insn->code);
 
 		if (++insn_processed > BPF_COMPLEXITY_LIMIT_INSNS) {
-			verbose("BPF program is too large. Proccessed %d insn\n",
+			verbose("BPF program is too large. Processed %d insn\n",
 				insn_processed);
 			return -E2BIG;
 		}
