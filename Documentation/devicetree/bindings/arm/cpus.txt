@@ -158,6 +158,7 @@ nodes to be present and contain the properties described below.
 			    "arm,cortex-a53"
 			    "arm,cortex-a57"
 			    "arm,cortex-a72"
+			    "arm,cortex-a73"
 			    "arm,cortex-m0"
 			    "arm,cortex-m0+"
 			    "arm,cortex-m1"
