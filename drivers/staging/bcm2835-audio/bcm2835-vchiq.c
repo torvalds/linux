@@ -204,7 +204,6 @@ int bcm2835_audio_write(struct bcm2835_alsa_stream *alsa_stream,
 static void my_workqueue_init(struct bcm2835_alsa_stream *alsa_stream)
 {
 	alsa_stream->my_wq = alloc_workqueue("my_queue", WQ_HIGHPRI, 1);
-	return;
 }
 
 static void my_workqueue_quit(struct bcm2835_alsa_stream *alsa_stream)
@@ -214,7 +213,6 @@ static void my_workqueue_quit(struct bcm2835_alsa_stream *alsa_stream)
 		destroy_workqueue(alsa_stream->my_wq);
 		alsa_stream->my_wq = NULL;
 	}
-	return;
 }
 
 static void audio_vchi_callback(void *param,
@@ -887,7 +885,6 @@ void bcm2835_audio_flush_buffers(struct bcm2835_alsa_stream *alsa_stream)
 {
 	LOG_DBG(" .. IN\n");
 	LOG_DBG(" .. OUT\n");
-	return;
 }
 
 /**
