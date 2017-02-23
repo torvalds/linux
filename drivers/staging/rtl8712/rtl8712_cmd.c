@@ -314,7 +314,8 @@ void r8712_fw_cmd_data(struct _adapter *pAdapter, u32 *value, u8 flag)
 int r8712_cmd_thread(void *context)
 {
 	struct cmd_obj *pcmd;
-	unsigned int cmdsz, wr_sz, *pcmdbuf;
+	unsigned int cmdsz, wr_sz;
+	__le32 *pcmdbuf;
 	struct tx_desc *pdesc;
 	void (*pcmd_callback)(struct _adapter *dev, struct cmd_obj *pcmd);
 	struct _adapter *padapter = context;
@@ -334,7 +335,7 @@ _next:
 			r8712_unregister_cmd_alive(padapter);
 			continue;
 		}
-		pcmdbuf = (unsigned int *)pcmdpriv->cmd_buf;
+		pcmdbuf = (__le32 *)pcmdpriv->cmd_buf;
 		pdesc = (struct tx_desc *)pcmdbuf;
 		memset(pdesc, 0, TXDESC_SIZE);
 		pcmd = cmd_hdl_filter(padapter, pcmd);
@@ -424,7 +425,7 @@ _next:
 	thread_exit();
 }
 
-void r8712_event_handle(struct _adapter *padapter, uint *peventbuf)
+void r8712_event_handle(struct _adapter *padapter, __le32 *peventbuf)
 {
 	u8 evt_code, evt_seq;
 	u16 evt_sz;

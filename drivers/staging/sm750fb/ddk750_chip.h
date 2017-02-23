@@ -9,11 +9,18 @@
 #include <linux/ioport.h>
 #include <linux/uaccess.h>
 
-/* software control endianness */
-#define PEEK32(addr) readl(addr + mmio750)
-#define POKE32(addr, data) writel(data, addr + mmio750)
-
 extern void __iomem *mmio750;
+
+/* software control endianness */
+static inline u32 peek32(u32 addr)
+{
+	return readl(addr + mmio750);
+}
+
+static inline void poke32(u32 data, u32 addr)
+{
+	writel(data, addr + mmio750);
+}
 
 /* This is all the chips recognized by this library */
 typedef enum _logical_chip_type_t {

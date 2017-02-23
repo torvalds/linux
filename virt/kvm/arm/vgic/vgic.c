@@ -160,7 +160,7 @@ static struct kvm_vcpu *vgic_target_oracle(struct vgic_irq *irq)
 	 * If the distributor is disabled, pending interrupts shouldn't be
 	 * forwarded.
 	 */
-	if (irq->enabled && irq->pending) {
+	if (irq->enabled && irq_is_pending(irq)) {
 		if (unlikely(irq->target_vcpu &&
 			     !irq->target_vcpu->kvm->arch.vgic.enabled))
 			return NULL;
@@ -204,8 +204,8 @@ static int vgic_irq_cmp(void *priv, struct list_head *a, struct list_head *b)
 		goto out;
 	}
 
-	penda = irqa->enabled && irqa->pending;
-	pendb = irqb->enabled && irqb->pending;
+	penda = irqa->enabled && irq_is_pending(irqa);
+	pendb = irqb->enabled && irq_is_pending(irqb);
 
 	if (!penda || !pendb) {
 		ret = (int)pendb - (int)penda;
@@ -335,9 +335,22 @@ retry:
 	return true;
 }
 
-static int vgic_update_irq_pending(struct kvm *kvm, int cpuid,
-				   unsigned int intid, bool level,
-				   bool mapped_irq)
+/**
+ * kvm_vgic_inject_irq - Inject an IRQ from a device to the vgic
+ * @kvm:     The VM structure pointer
+ * @cpuid:   The CPU for PPIs
+ * @intid:   The INTID to inject a new state to.
+ * @level:   Edge-triggered:  true:  to trigger the interrupt
+ *			      false: to ignore the call
+ *	     Level-sensitive  true:  raise the input signal
+ *			      false: lower the input signal
+ *
+ * The VGIC is not concerned with devices being active-LOW or active-HIGH for
+ * level-sensitive interrupts.  You can think of the level parameter as 1
+ * being HIGH and 0 being LOW and all devices being active-HIGH.
+ */
+int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid, unsigned int intid,
+			bool level)
 {
 	struct kvm_vcpu *vcpu;
 	struct vgic_irq *irq;
@@ -357,11 +370,6 @@ static int vgic_update_irq_pending(struct kvm *kvm, int cpuid,
 	if (!irq)
 		return -EINVAL;
 
-	if (irq->hw != mapped_irq) {
-		vgic_put_irq(kvm, irq);
-		return -EINVAL;
-	}
-
 	spin_lock(&irq->irq_lock);
 
 	if (!vgic_validate_injection(irq, level)) {
@@ -371,43 +379,15 @@ static int vgic_update_irq_pending(struct kvm *kvm, int cpuid,
 		return 0;
 	}
 
-	if (irq->config == VGIC_CONFIG_LEVEL) {
+	if (irq->config == VGIC_CONFIG_LEVEL)
 		irq->line_level = level;
-		irq->pending = level || irq->soft_pending;
-	} else {
-		irq->pending = true;
-	}
+	else
+		irq->pending_latch = true;
 
 	vgic_queue_irq_unlock(kvm, irq);
 	vgic_put_irq(kvm, irq);
 
 	return 0;
-}
-
-/**
- * kvm_vgic_inject_irq - Inject an IRQ from a device to the vgic
- * @kvm:     The VM structure pointer
- * @cpuid:   The CPU for PPIs
- * @intid:   The INTID to inject a new state to.
- * @level:   Edge-triggered:  true:  to trigger the interrupt
- *			      false: to ignore the call
- *	     Level-sensitive  true:  raise the input signal
- *			      false: lower the input signal
- *
- * The VGIC is not concerned with devices being active-LOW or active-HIGH for
- * level-sensitive interrupts.  You can think of the level parameter as 1
- * being HIGH and 0 being LOW and all devices being active-HIGH.
- */
-int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid, unsigned int intid,
-			bool level)
-{
-	return vgic_update_irq_pending(kvm, cpuid, intid, level, false);
-}
-
-int kvm_vgic_inject_mapped_irq(struct kvm *kvm, int cpuid, unsigned int intid,
-			       bool level)
-{
-	return vgic_update_irq_pending(kvm, cpuid, intid, level, true);
 }
 
 int kvm_vgic_map_phys_irq(struct kvm_vcpu *vcpu, u32 virt_irq, u32 phys_irq)
@@ -689,7 +669,7 @@ int kvm_vgic_vcpu_pending_irq(struct kvm_vcpu *vcpu)
 
 	list_for_each_entry(irq, &vgic_cpu->ap_list_head, ap_list) {
 		spin_lock(&irq->irq_lock);
-		pending = irq->pending && irq->enabled;
+		pending = irq_is_pending(irq) && irq->enabled;
 		spin_unlock(&irq->irq_lock);
 
 		if (pending)

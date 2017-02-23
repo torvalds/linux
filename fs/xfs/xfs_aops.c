@@ -481,6 +481,12 @@ xfs_submit_ioend(
 	struct xfs_ioend	*ioend,
 	int			status)
 {
+	/* Convert CoW extents to regular */
+	if (!status && ioend->io_type == XFS_IO_COW) {
+		status = xfs_reflink_convert_cow(XFS_I(ioend->io_inode),
+				ioend->io_offset, ioend->io_size);
+	}
+
 	/* Reserve log space if we might write beyond the on-disk inode size. */
 	if (!status &&
 	    ioend->io_type != XFS_IO_UNWRITTEN &&

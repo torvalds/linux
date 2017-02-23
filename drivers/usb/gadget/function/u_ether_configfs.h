@@ -108,7 +108,7 @@
 		mutex_lock(&opts->lock);				\
 		qmult = gether_get_qmult(opts->net);			\
 		mutex_unlock(&opts->lock);				\
-		return sprintf(page, "%d", qmult);			\
+		return sprintf(page, "%d\n", qmult);			\
 	}								\
 									\
 	static ssize_t _f_##_opts_qmult_store(struct config_item *item, \

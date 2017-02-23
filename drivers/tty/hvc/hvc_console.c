@@ -29,7 +29,6 @@
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/list.h>
-#include <linux/init.h>
 #include <linux/major.h>
 #include <linux/atomic.h>
 #include <linux/sysrq.h>

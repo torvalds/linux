@@ -1662,7 +1662,7 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 	return area->addr;
 
 fail:
-	warn_alloc(gfp_mask,
+	warn_alloc(gfp_mask, NULL,
 			  "vmalloc: allocation failure, allocated %ld of %ld bytes",
 			  (area->nr_pages*PAGE_SIZE), area->size);
 	vfree(area->addr);
@@ -1724,7 +1724,7 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
 	return addr;
 
 fail:
-	warn_alloc(gfp_mask,
+	warn_alloc(gfp_mask, NULL,
 			  "vmalloc: allocation failure: %lu bytes", real_size);
 	return NULL;
 }
@@ -2309,7 +2309,7 @@ EXPORT_SYMBOL_GPL(free_vm_area);
 #ifdef CONFIG_SMP
 static struct vmap_area *node_to_va(struct rb_node *n)
 {
-	return n ? rb_entry(n, struct vmap_area, rb_node) : NULL;
+	return rb_entry_safe(n, struct vmap_area, rb_node);
 }
 
 /**

@@ -416,6 +416,16 @@ config MAGIC_SYSRQ_DEFAULT_ENABLE
 	  This may be set to 1 or 0 to enable or disable them all, or
 	  to a bitmask as described in Documentation/sysrq.txt.
 
+config MAGIC_SYSRQ_SERIAL
+	bool "Enable magic SysRq key over serial"
+	depends on MAGIC_SYSRQ
+	default y
+	help
+	  Many embedded boards have a disconnected TTL level serial which can
+	  generate some garbage that can lead to spurious false sysrq detects.
+	  This option allows you to decide whether you want to enable the
+	  magic SysRq key.
+
 config DEBUG_KERNEL
 	bool "Kernel debugging"
 	help

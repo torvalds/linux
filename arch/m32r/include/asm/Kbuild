@@ -1,5 +1,6 @@
 
 generic-y += clkdev.h
+generic-y += current.h
 generic-y += exec.h
 generic-y += irq_work.h
 generic-y += kvm_para.h

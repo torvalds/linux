@@ -641,7 +641,7 @@ lnet_post_send_locked(lnet_msg_t *msg, int do_send)
 			!list_empty(&lp->lp_txq));
 
 		msg->msg_peertxcredit = 1;
-		lp->lp_txqnob += msg->msg_len + sizeof(lnet_hdr_t);
+		lp->lp_txqnob += msg->msg_len + sizeof(struct lnet_hdr);
 		lp->lp_txcredits--;
 
 		if (lp->lp_txcredits < lp->lp_mintxcredits)
@@ -811,7 +811,7 @@ lnet_return_tx_credits_locked(lnet_msg_t *msg)
 		LASSERT((txpeer->lp_txcredits < 0) ==
 			!list_empty(&txpeer->lp_txq));
 
-		txpeer->lp_txqnob -= msg->msg_len + sizeof(lnet_hdr_t);
+		txpeer->lp_txqnob -= msg->msg_len + sizeof(struct lnet_hdr);
 		LASSERT(txpeer->lp_txqnob >= 0);
 
 		txpeer->lp_txcredits++;
@@ -1245,7 +1245,7 @@ lnet_drop_message(lnet_ni_t *ni, int cpt, void *private, unsigned int nob)
 static void
 lnet_recv_put(lnet_ni_t *ni, lnet_msg_t *msg)
 {
-	lnet_hdr_t *hdr = &msg->msg_hdr;
+	struct lnet_hdr *hdr = &msg->msg_hdr;
 
 	if (msg->msg_wanted)
 		lnet_setpayloadbuffer(msg);
@@ -1266,7 +1266,7 @@ lnet_recv_put(lnet_ni_t *ni, lnet_msg_t *msg)
 static int
 lnet_parse_put(lnet_ni_t *ni, lnet_msg_t *msg)
 {
-	lnet_hdr_t *hdr = &msg->msg_hdr;
+	struct lnet_hdr *hdr = &msg->msg_hdr;
 	struct lnet_match_info info;
 	bool ready_delay;
 	int rc;
@@ -1325,8 +1325,8 @@ static int
 lnet_parse_get(lnet_ni_t *ni, lnet_msg_t *msg, int rdma_get)
 {
 	struct lnet_match_info info;
-	lnet_hdr_t *hdr = &msg->msg_hdr;
-	lnet_handle_wire_t reply_wmd;
+	struct lnet_hdr *hdr = &msg->msg_hdr;
+	struct lnet_handle_wire reply_wmd;
 	int rc;
 
 	/* Convert get fields to host byte order */
@@ -1389,7 +1389,7 @@ static int
 lnet_parse_reply(lnet_ni_t *ni, lnet_msg_t *msg)
 {
 	void *private = msg->msg_private;
-	lnet_hdr_t *hdr = &msg->msg_hdr;
+	struct lnet_hdr *hdr = &msg->msg_hdr;
 	lnet_process_id_t src = {0};
 	lnet_libmd_t *md;
 	int rlength;
@@ -1453,7 +1453,7 @@ lnet_parse_reply(lnet_ni_t *ni, lnet_msg_t *msg)
 static int
 lnet_parse_ack(lnet_ni_t *ni, lnet_msg_t *msg)
 {
-	lnet_hdr_t *hdr = &msg->msg_hdr;
+	struct lnet_hdr *hdr = &msg->msg_hdr;
 	lnet_process_id_t src = {0};
 	lnet_libmd_t *md;
 	int cpt;
@@ -1576,7 +1576,7 @@ lnet_msgtyp2str(int type)
 }
 
 void
-lnet_print_hdr(lnet_hdr_t *hdr)
+lnet_print_hdr(struct lnet_hdr *hdr)
 {
 	lnet_process_id_t src = {0};
 	lnet_process_id_t dst = {0};
@@ -1634,7 +1634,7 @@ lnet_print_hdr(lnet_hdr_t *hdr)
 }
 
 int
-lnet_parse(lnet_ni_t *ni, lnet_hdr_t *hdr, lnet_nid_t from_nid,
+lnet_parse(lnet_ni_t *ni, struct lnet_hdr *hdr, lnet_nid_t from_nid,
 	   void *private, int rdma_req)
 {
 	int rc = 0;

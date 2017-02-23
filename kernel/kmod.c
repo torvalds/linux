@@ -516,7 +516,7 @@ static void helper_unlock(void)
  * Function must be runnable in either a process context or the
  * context in which call_usermodehelper_exec is called.
  */
-struct subprocess_info *call_usermodehelper_setup(char *path, char **argv,
+struct subprocess_info *call_usermodehelper_setup(const char *path, char **argv,
 		char **envp, gfp_t gfp_mask,
 		int (*init)(struct subprocess_info *info, struct cred *new),
 		void (*cleanup)(struct subprocess_info *info),
@@ -528,7 +528,12 @@ struct subprocess_info *call_usermodehelper_setup(char *path, char **argv,
 		goto out;
 
 	INIT_WORK(&sub_info->work, call_usermodehelper_exec_work);
+
+#ifdef CONFIG_STATIC_USERMODEHELPER
+	sub_info->path = CONFIG_STATIC_USERMODEHELPER_PATH;
+#else
 	sub_info->path = path;
+#endif
 	sub_info->argv = argv;
 	sub_info->envp = envp;
 
@@ -566,6 +571,15 @@ int call_usermodehelper_exec(struct subprocess_info *sub_info, int wait)
 		retval = -EBUSY;
 		goto out;
 	}
+
+	/*
+	 * If there is no binary for us to call, then just return and get out of
+	 * here.  This allows us to set STATIC_USERMODEHELPER_PATH to "" and
+	 * disable all call_usermodehelper() calls.
+	 */
+	if (strlen(sub_info->path) == 0)
+		goto out;
+
 	/*
 	 * Set the completion pointer only if there is a waiter.
 	 * This makes it possible to use umh_complete to free
@@ -613,7 +627,7 @@ EXPORT_SYMBOL(call_usermodehelper_exec);
  * This function is the equivalent to use call_usermodehelper_setup() and
  * call_usermodehelper_exec().
  */
-int call_usermodehelper(char *path, char **argv, char **envp, int wait)
+int call_usermodehelper(const char *path, char **argv, char **envp, int wait)
 {
 	struct subprocess_info *info;
 	gfp_t gfp_mask = (wait == UMH_NO_WAIT) ? GFP_ATOMIC : GFP_KERNEL;

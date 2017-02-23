@@ -41,7 +41,7 @@
  */
 loff_t
 iomap_apply(struct inode *inode, loff_t pos, loff_t length, unsigned flags,
-		struct iomap_ops *ops, void *data, iomap_actor_t actor)
+		const struct iomap_ops *ops, void *data, iomap_actor_t actor)
 {
 	struct iomap iomap = { 0 };
 	loff_t written = 0, ret;
@@ -235,7 +235,7 @@ again:
 
 ssize_t
 iomap_file_buffered_write(struct kiocb *iocb, struct iov_iter *iter,
-		struct iomap_ops *ops)
+		const struct iomap_ops *ops)
 {
 	struct inode *inode = iocb->ki_filp->f_mapping->host;
 	loff_t pos = iocb->ki_pos, ret = 0, written = 0;
@@ -318,7 +318,7 @@ iomap_dirty_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 
 int
 iomap_file_dirty(struct inode *inode, loff_t pos, loff_t len,
-		struct iomap_ops *ops)
+		const struct iomap_ops *ops)
 {
 	loff_t ret;
 
@@ -398,7 +398,7 @@ iomap_zero_range_actor(struct inode *inode, loff_t pos, loff_t count,
 
 int
 iomap_zero_range(struct inode *inode, loff_t pos, loff_t len, bool *did_zero,
-		struct iomap_ops *ops)
+		const struct iomap_ops *ops)
 {
 	loff_t ret;
 
@@ -418,7 +418,7 @@ EXPORT_SYMBOL_GPL(iomap_zero_range);
 
 int
 iomap_truncate_page(struct inode *inode, loff_t pos, bool *did_zero,
-		struct iomap_ops *ops)
+		const struct iomap_ops *ops)
 {
 	unsigned blocksize = (1 << inode->i_blkbits);
 	unsigned off = pos & (blocksize - 1);
@@ -446,7 +446,7 @@ iomap_page_mkwrite_actor(struct inode *inode, loff_t pos, loff_t length,
 }
 
 int iomap_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
-		struct iomap_ops *ops)
+		const struct iomap_ops *ops)
 {
 	struct page *page = vmf->page;
 	struct inode *inode = file_inode(vma->vm_file);
@@ -545,7 +545,7 @@ iomap_fiemap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 }
 
 int iomap_fiemap(struct inode *inode, struct fiemap_extent_info *fi,
-		loff_t start, loff_t len, struct iomap_ops *ops)
+		loff_t start, loff_t len, const struct iomap_ops *ops)
 {
 	struct fiemap_ctx ctx;
 	loff_t ret;
@@ -839,8 +839,8 @@ iomap_dio_actor(struct inode *inode, loff_t pos, loff_t length,
 }
 
 ssize_t
-iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter, struct iomap_ops *ops,
-		iomap_dio_end_io_t end_io)
+iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
+		const struct iomap_ops *ops, iomap_dio_end_io_t end_io)
 {
 	struct address_space *mapping = iocb->ki_filp->f_mapping;
 	struct inode *inode = file_inode(iocb->ki_filp);

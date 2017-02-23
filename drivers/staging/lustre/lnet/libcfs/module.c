@@ -488,10 +488,10 @@ static const struct file_operations lnet_debugfs_file_operations_wo = {
 
 static const struct file_operations *lnet_debugfs_fops_select(umode_t mode)
 {
-	if (!(mode & S_IWUGO))
+	if (!(mode & 0222))
 		return &lnet_debugfs_file_operations_ro;
 
-	if (!(mode & S_IRUGO))
+	if (!(mode & 0444))
 		return &lnet_debugfs_file_operations_wo;
 
 	return &lnet_debugfs_file_operations_rw;

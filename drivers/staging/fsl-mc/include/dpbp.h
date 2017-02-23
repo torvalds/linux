@@ -49,25 +49,6 @@ int dpbp_close(struct fsl_mc_io *mc_io,
 	       u32 cmd_flags,
 	       u16 token);
 
-/**
- * struct dpbp_cfg - Structure representing DPBP configuration
- * @options:	place holder
- */
-struct dpbp_cfg {
-	u32 options;
-};
-
-int dpbp_create(struct fsl_mc_io *mc_io,
-		u16 dprc_token,
-		u32 cmd_flags,
-		const struct dpbp_cfg *cfg,
-		u32 *obj_id);
-
-int dpbp_destroy(struct fsl_mc_io *mc_io,
-		 u16 dprc_token,
-		 u32 cmd_flags,
-		 u32 obj_id);
-
 int dpbp_enable(struct fsl_mc_io *mc_io,
 		u32 cmd_flags,
 		u16 token);
@@ -86,67 +67,6 @@ int dpbp_reset(struct fsl_mc_io *mc_io,
 	       u16 token);
 
 /**
- * struct dpbp_irq_cfg - IRQ configuration
- * @addr:	Address that must be written to signal a message-based interrupt
- * @val:	Value to write into irq_addr address
- * @irq_num: A user defined number associated with this IRQ
- */
-struct dpbp_irq_cfg {
-	     u64 addr;
-	     u32 val;
-	     int irq_num;
-};
-
-int dpbp_set_irq(struct fsl_mc_io *mc_io,
-		 u32 cmd_flags,
-		 u16 token,
-		 u8 irq_index,
-		 struct dpbp_irq_cfg *irq_cfg);
-
-int dpbp_get_irq(struct fsl_mc_io *mc_io,
-		 u32 cmd_flags,
-		 u16 token,
-		 u8 irq_index,
-		 int *type,
-		 struct dpbp_irq_cfg *irq_cfg);
-
-int dpbp_set_irq_enable(struct fsl_mc_io *mc_io,
-			u32 cmd_flags,
-			u16 token,
-			u8 irq_index,
-			u8 en);
-
-int dpbp_get_irq_enable(struct fsl_mc_io *mc_io,
-			u32 cmd_flags,
-			u16 token,
-			u8 irq_index,
-			u8 *en);
-
-int dpbp_set_irq_mask(struct fsl_mc_io	*mc_io,
-		      u32 cmd_flags,
-		      u16 token,
-		      u8 irq_index,
-		      u32 mask);
-
-int dpbp_get_irq_mask(struct fsl_mc_io	*mc_io,
-		      u32 cmd_flags,
-		      u16 token,
-		      u8 irq_index,
-		      u32 *mask);
-
-int dpbp_get_irq_status(struct fsl_mc_io *mc_io,
-			u32 cmd_flags,
-			u16 token,
-			u8 irq_index,
-			u32 *status);
-
-int dpbp_clear_irq_status(struct fsl_mc_io *mc_io,
-			  u32 cmd_flags,
-			  u16 token,
-			  u8 irq_index,
-			  u32 status);
-
-/**
  * struct dpbp_attr - Structure representing DPBP attributes
  * @id:		DPBP object ID
  * @bpid:	Hardware buffer pool ID; should be used as an argument in
@@ -162,58 +82,9 @@ int dpbp_get_attributes(struct fsl_mc_io *mc_io,
 			u16 token,
 			struct dpbp_attr *attr);
 
-/**
- *  DPBP notifications options
- */
-
-/**
- * BPSCN write will attempt to allocate into a cache (coherent write)
- */
-#define DPBP_NOTIF_OPT_COHERENT_WRITE	0x00000001
-
-/**
- * struct dpbp_notification_cfg - Structure representing DPBP notifications
- *	towards software
- * @depletion_entry: below this threshold the pool is "depleted";
- *	set it to '0' to disable it
- * @depletion_exit: greater than or equal to this threshold the pool exit its
- *	"depleted" state
- * @surplus_entry: above this threshold the pool is in "surplus" state;
- *	set it to '0' to disable it
- * @surplus_exit: less than or equal to this threshold the pool exit its
- *	"surplus" state
- * @message_iova: MUST be given if either 'depletion_entry' or 'surplus_entry'
- *	is not '0' (enable); I/O virtual address (must be in DMA-able memory),
- *	must be 16B aligned.
- * @message_ctx: The context that will be part of the BPSCN message and will
- *	be written to 'message_iova'
- * @options: Mask of available options; use 'DPBP_NOTIF_OPT_<X>' values
- */
-struct dpbp_notification_cfg {
-	u32 depletion_entry;
-	u32 depletion_exit;
-	u32 surplus_entry;
-	u32 surplus_exit;
-	u64 message_iova;
-	u64 message_ctx;
-	u16 options;
-};
-
-int dpbp_set_notifications(struct fsl_mc_io *mc_io,
-			   u32 cmd_flags,
-			   u16 token,
-			   struct dpbp_notification_cfg *cfg);
-
-int dpbp_get_notifications(struct fsl_mc_io *mc_io,
-			   u32 cmd_flags,
-			   u16 token,
-			   struct dpbp_notification_cfg *cfg);
-
 int dpbp_get_api_version(struct fsl_mc_io *mc_io,
 			 u32 cmd_flags,
 			 u16 *major_ver,
 			 u16 *minor_ver);
-
-/** @} */
 
 #endif /* __FSL_DPBP_H */

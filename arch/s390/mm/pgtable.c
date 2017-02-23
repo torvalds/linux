@@ -744,7 +744,7 @@ int reset_guest_reference_bit(struct mm_struct *mm, unsigned long addr)
 
 	pgste_set_unlock(ptep, new);
 	pte_unmap_unlock(ptep, ptl);
-	return 0;
+	return cc;
 }
 EXPORT_SYMBOL(reset_guest_reference_bit);
 

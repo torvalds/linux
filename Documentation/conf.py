@@ -58,7 +58,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'The Linux Kernel'
-copyright = '2016, The kernel development community'
+copyright = 'The kernel development community'
 author = 'The kernel development community'
 
 # The version info for the project you're documenting, acts as replacement for

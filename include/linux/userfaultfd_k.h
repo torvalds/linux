@@ -52,6 +52,20 @@ static inline bool userfaultfd_armed(struct vm_area_struct *vma)
 	return vma->vm_flags & (VM_UFFD_MISSING | VM_UFFD_WP);
 }
 
+extern int dup_userfaultfd(struct vm_area_struct *, struct list_head *);
+extern void dup_userfaultfd_complete(struct list_head *);
+
+extern void mremap_userfaultfd_prep(struct vm_area_struct *,
+				    struct vm_userfaultfd_ctx *);
+extern void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx *,
+					unsigned long from, unsigned long to,
+					unsigned long len);
+
+extern void madvise_userfault_dontneed(struct vm_area_struct *vma,
+				       struct vm_area_struct **prev,
+				       unsigned long start,
+				       unsigned long end);
+
 #else /* CONFIG_USERFAULTFD */
 
 /* mm helpers */
@@ -76,6 +90,34 @@ static inline bool userfaultfd_armed(struct vm_area_struct *vma)
 	return false;
 }
 
+static inline int dup_userfaultfd(struct vm_area_struct *vma,
+				  struct list_head *l)
+{
+	return 0;
+}
+
+static inline void dup_userfaultfd_complete(struct list_head *l)
+{
+}
+
+static inline void mremap_userfaultfd_prep(struct vm_area_struct *vma,
+					   struct vm_userfaultfd_ctx *ctx)
+{
+}
+
+static inline void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx *ctx,
+					       unsigned long from,
+					       unsigned long to,
+					       unsigned long len)
+{
+}
+
+static inline void madvise_userfault_dontneed(struct vm_area_struct *vma,
+					      struct vm_area_struct **prev,
+					      unsigned long start,
+					      unsigned long end)
+{
+}
 #endif /* CONFIG_USERFAULTFD */
 
 #endif /* _LINUX_USERFAULTFD_K_H */

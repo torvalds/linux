@@ -2811,6 +2811,8 @@ static int check_modinfo_livepatch(struct module *mod, struct load_info *info)
 	if (get_modinfo(info, "livepatch")) {
 		mod->klp = true;
 		add_taint_module(mod, TAINT_LIVEPATCH, LOCKDEP_STILL_OK);
+		pr_notice_once("%s: tainting kernel with TAINT_LIVEPATCH\n",
+			       mod->name);
 	}
 
 	return 0;
@@ -3723,6 +3725,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	mod_sysfs_teardown(mod);
  coming_cleanup:
 	mod->state = MODULE_STATE_GOING;
+	destroy_params(mod->kp, mod->num_kp);
 	blocking_notifier_call_chain(&module_notify_list,
 				     MODULE_STATE_GOING, mod);
 	klp_module_going(mod);
@@ -4169,22 +4172,23 @@ const struct exception_table_entry *search_module_extables(unsigned long addr)
 	struct module *mod;
 
 	preempt_disable();
-	list_for_each_entry_rcu(mod, &modules, list) {
-		if (mod->state == MODULE_STATE_UNFORMED)
-			continue;
-		if (mod->num_exentries == 0)
-			continue;
+	mod = __module_address(addr);
+	if (!mod)
+		goto out;
 
-		e = search_extable(mod->extable,
-				   mod->extable + mod->num_exentries - 1,
-				   addr);
-		if (e)
-			break;
-	}
+	if (!mod->num_exentries)
+		goto out;
+
+	e = search_extable(mod->extable,
+			   mod->extable + mod->num_exentries - 1,
+			   addr);
+out:
 	preempt_enable();
 
-	/* Now, if we found one, we are running inside it now, hence
-	   we cannot unload the module, hence no refcnt needed. */
+	/*
+	 * Now, if we found one, we are running inside it now, hence
+	 * we cannot unload the module, hence no refcnt needed.
+	 */
 	return e;
 }
 

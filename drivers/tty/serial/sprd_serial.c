@@ -498,7 +498,7 @@ static int sprd_verify_port(struct uart_port *port,
 	return 0;
 }
 
-static struct uart_ops serial_sprd_ops = {
+static const struct uart_ops serial_sprd_ops = {
 	.tx_empty = sprd_tx_empty,
 	.get_mctrl = sprd_get_mctrl,
 	.set_mctrl = sprd_set_mctrl,

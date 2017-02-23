@@ -527,6 +527,15 @@ xfs_file_dio_aio_write(
 	if ((iocb->ki_pos & mp->m_blockmask) ||
 	    ((iocb->ki_pos + count) & mp->m_blockmask)) {
 		unaligned_io = 1;
+
+		/*
+		 * We can't properly handle unaligned direct I/O to reflink
+		 * files yet, as we can't unshare a partial block.
+		 */
+		if (xfs_is_reflink_inode(ip)) {
+			trace_xfs_reflink_bounce_dio_write(ip, iocb->ki_pos, count);
+			return -EREMCHG;
+		}
 		iolock = XFS_IOLOCK_EXCL;
 	} else {
 		iolock = XFS_IOLOCK_SHARED;
@@ -552,14 +561,6 @@ xfs_file_dio_aio_write(
 	}
 
 	trace_xfs_file_direct_write(ip, count, iocb->ki_pos);
-
-	/* If this is a block-aligned directio CoW, remap immediately. */
-	if (xfs_is_reflink_inode(ip) && !unaligned_io) {
-		ret = xfs_reflink_allocate_cow_range(ip, iocb->ki_pos, count);
-		if (ret)
-			goto out;
-	}
-
 	ret = iomap_dio_rw(iocb, from, &xfs_iomap_ops, xfs_dio_write_end_io);
 out:
 	xfs_iunlock(ip, iolock);
@@ -614,8 +615,10 @@ xfs_file_buffered_aio_write(
 	struct xfs_inode	*ip = XFS_I(inode);
 	ssize_t			ret;
 	int			enospc = 0;
-	int			iolock = XFS_IOLOCK_EXCL;
+	int			iolock;
 
+write_retry:
+	iolock = XFS_IOLOCK_EXCL;
 	xfs_ilock(ip, iolock);
 
 	ret = xfs_file_aio_write_checks(iocb, from, &iolock);
@@ -625,7 +628,6 @@ xfs_file_buffered_aio_write(
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = inode_to_bdi(inode);
 
-write_retry:
 	trace_xfs_file_buffered_write(ip, iov_iter_count(from), iocb->ki_pos);
 	ret = iomap_file_buffered_write(iocb, from, &xfs_iomap_ops);
 	if (likely(ret >= 0))
@@ -641,18 +643,21 @@ write_retry:
 	 * running at the same time.
 	 */
 	if (ret == -EDQUOT && !enospc) {
+		xfs_iunlock(ip, iolock);
 		enospc = xfs_inode_free_quota_eofblocks(ip);
 		if (enospc)
 			goto write_retry;
 		enospc = xfs_inode_free_quota_cowblocks(ip);
 		if (enospc)
 			goto write_retry;
+		iolock = 0;
 	} else if (ret == -ENOSPC && !enospc) {
 		struct xfs_eofblocks eofb = {0};
 
 		enospc = 1;
 		xfs_flush_inodes(ip->i_mount);
-		eofb.eof_scan_owner = ip->i_ino; /* for locking */
+
+		xfs_iunlock(ip, iolock);
 		eofb.eof_flags = XFS_EOF_FLAGS_SYNC;
 		xfs_icache_free_eofblocks(ip->i_mount, &eofb);
 		goto write_retry;
@@ -660,7 +665,8 @@ write_retry:
 
 	current->backing_dev_info = NULL;
 out:
-	xfs_iunlock(ip, iolock);
+	if (iolock)
+		xfs_iunlock(ip, iolock);
 	return ret;
 }
 
@@ -908,9 +914,9 @@ xfs_dir_open(
 	 */
 	mode = xfs_ilock_data_map_shared(ip);
 	if (ip->i_d.di_nextents > 0)
-		xfs_dir3_data_readahead(ip, 0, -1);
+		error = xfs_dir3_data_readahead(ip, 0, -1);
 	xfs_iunlock(ip, mode);
-	return 0;
+	return error;
 }
 
 STATIC int
@@ -1431,12 +1437,9 @@ xfs_filemap_fault(
  */
 STATIC int
 xfs_filemap_pmd_fault(
-	struct vm_area_struct	*vma,
-	unsigned long		addr,
-	pmd_t			*pmd,
-	unsigned int		flags)
+	struct vm_fault		*vmf)
 {
-	struct inode		*inode = file_inode(vma->vm_file);
+	struct inode		*inode = file_inode(vmf->vma->vm_file);
 	struct xfs_inode	*ip = XFS_I(inode);
 	int			ret;
 
@@ -1445,16 +1448,16 @@ xfs_filemap_pmd_fault(
 
 	trace_xfs_filemap_pmd_fault(ip);
 
-	if (flags & FAULT_FLAG_WRITE) {
+	if (vmf->flags & FAULT_FLAG_WRITE) {
 		sb_start_pagefault(inode->i_sb);
-		file_update_time(vma->vm_file);
+		file_update_time(vmf->vma->vm_file);
 	}
 
 	xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
-	ret = dax_iomap_pmd_fault(vma, addr, pmd, flags, &xfs_iomap_ops);
+	ret = dax_iomap_pmd_fault(vmf, &xfs_iomap_ops);
 	xfs_iunlock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
 
-	if (flags & FAULT_FLAG_WRITE)
+	if (vmf->flags & FAULT_FLAG_WRITE)
 		sb_end_pagefault(inode->i_sb);
 
 	return ret;
