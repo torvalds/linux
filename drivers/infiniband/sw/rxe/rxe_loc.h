@@ -64,7 +64,7 @@ int rxe_cq_resize_queue(struct rxe_cq *cq, int new_cqe, struct ib_udata *udata);
 
 int rxe_cq_post(struct rxe_cq *cq, struct rxe_cqe *cqe, int solicited);
 
-void rxe_cq_cleanup(void *arg);
+void rxe_cq_cleanup(struct rxe_pool_entry *arg);
 
 /* rxe_mcast.c */
 int rxe_mcast_get_grp(struct rxe_dev *rxe, union ib_gid *mgid,
@@ -78,7 +78,7 @@ int rxe_mcast_drop_grp_elem(struct rxe_dev *rxe, struct rxe_qp *qp,
 
 void rxe_drop_all_mcast_groups(struct rxe_qp *qp);
 
-void rxe_mc_cleanup(void *arg);
+void rxe_mc_cleanup(struct rxe_pool_entry *arg);
 
 /* rxe_mmap.c */
 struct rxe_mmap_info {
@@ -137,9 +137,25 @@ int mem_check_range(struct rxe_mem *mem, u64 iova, size_t length);
 int rxe_mem_map_pages(struct rxe_dev *rxe, struct rxe_mem *mem,
 		      u64 *page, int num_pages, u64 iova);
 
-void rxe_mem_cleanup(void *arg);
+void rxe_mem_cleanup(struct rxe_pool_entry *arg);
 
 int advance_dma_data(struct rxe_dma_info *dma, unsigned int length);
+
+/* rxe_net.c */
+int rxe_loopback(struct sk_buff *skb);
+int rxe_send(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
+	     struct sk_buff *skb);
+__be64 rxe_port_guid(struct rxe_dev *rxe);
+struct sk_buff *rxe_init_packet(struct rxe_dev *rxe, struct rxe_av *av,
+				int paylen, struct rxe_pkt_info *pkt);
+int rxe_prepare(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
+		struct sk_buff *skb, u32 *crc);
+enum rdma_link_layer rxe_link_layer(struct rxe_dev *rxe, unsigned int port_num);
+const char *rxe_parent_name(struct rxe_dev *rxe, unsigned int port_num);
+struct device *rxe_dma_device(struct rxe_dev *rxe);
+__be64 rxe_node_guid(struct rxe_dev *rxe);
+int rxe_mcast_add(struct rxe_dev *rxe, union ib_gid *mgid);
+int rxe_mcast_delete(struct rxe_dev *rxe, union ib_gid *mgid);
 
 /* rxe_qp.c */
 int rxe_qp_chk_init(struct rxe_dev *rxe, struct ib_qp_init_attr *init);
@@ -162,7 +178,7 @@ void rxe_qp_error(struct rxe_qp *qp);
 
 void rxe_qp_destroy(struct rxe_qp *qp);
 
-void rxe_qp_cleanup(void *arg);
+void rxe_qp_cleanup(struct rxe_pool_entry *arg);
 
 static inline int qp_num(struct rxe_qp *qp)
 {
@@ -225,6 +241,7 @@ extern struct ib_dma_mapping_ops rxe_dma_mapping_ops;
 
 void rxe_release(struct kref *kref);
 
+void rxe_drain_req_pkts(struct rxe_qp *qp, bool notify);
 int rxe_completer(void *arg);
 int rxe_requester(void *arg);
 int rxe_responder(void *arg);
@@ -256,9 +273,9 @@ static inline int rxe_xmit_packet(struct rxe_dev *rxe, struct rxe_qp *qp,
 
 	if (pkt->mask & RXE_LOOPBACK_MASK) {
 		memcpy(SKB_TO_PKT(skb), pkt, sizeof(*pkt));
-		err = rxe->ifc_ops->loopback(skb);
+		err = rxe_loopback(skb);
 	} else {
-		err = rxe->ifc_ops->send(rxe, pkt, skb);
+		err = rxe_send(rxe, pkt, skb);
 	}
 
 	if (err) {
