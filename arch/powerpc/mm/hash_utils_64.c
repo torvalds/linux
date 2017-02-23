@@ -1011,6 +1011,8 @@ void __init hash__early_init_mmu(void)
 #ifdef CONFIG_SMP
 void hash__early_init_mmu_secondary(void)
 {
+	unsigned long lpcr;
+
 	/* Initialize hash table for that CPU */
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
 
@@ -1019,9 +1021,13 @@ void hash__early_init_mmu_secondary(void)
 
 		if (!cpu_has_feature(CPU_FTR_ARCH_300))
 			mtspr(SPRN_SDR1, _SDR1);
-		else
+		else {
+			lpcr = mfspr(SPRN_LPCR);
+			mtspr(SPRN_LPCR, lpcr & ~(LPCR_UPRT));
+
 			mtspr(SPRN_PTCR,
 			      __pa(partition_tb) | (PATB_SIZE_SHIFT - 12));
+		}
 	}
 	/* Initialize SLB */
 	slb_initialize();
