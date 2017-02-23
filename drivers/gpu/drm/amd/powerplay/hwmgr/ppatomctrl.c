@@ -1396,3 +1396,25 @@ int atomctrl_get_avfs_information(struct pp_hwmgr *hwmgr,
 
 	return 0;
 }
+
+int  atomctrl_get_svi2_info(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
+				uint8_t *svd_gpio_id, uint8_t *svc_gpio_id,
+				uint16_t *load_line)
+{
+	ATOM_VOLTAGE_OBJECT_INFO_V3_1 *voltage_info =
+		(ATOM_VOLTAGE_OBJECT_INFO_V3_1 *)get_voltage_info_table(hwmgr->device);
+
+	const ATOM_VOLTAGE_OBJECT_V3 *voltage_object;
+
+	PP_ASSERT_WITH_CODE((NULL != voltage_info),
+			"Could not find Voltage Table in BIOS.", return -EINVAL);
+
+	voltage_object = atomctrl_lookup_voltage_type_v3
+		(voltage_info, voltage_type,  VOLTAGE_OBJ_SVID2);
+
+	*svd_gpio_id = voltage_object->asSVID2Obj.ucSVDGpioId;
+	*svc_gpio_id = voltage_object->asSVID2Obj.ucSVCGpioId;
+	*load_line = voltage_object->asSVID2Obj.usLoadLine_PSI;
+
+	return 0;
+}

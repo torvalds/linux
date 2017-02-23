@@ -1176,6 +1176,7 @@ static int cik_gpu_pci_config_reset(struct amdgpu_device *adev)
 		if (RREG32(mmCONFIG_MEMSIZE) != 0xffffffff) {
 			/* enable BM */
 			pci_set_master(adev->pdev);
+			adev->has_hw_reset = true;
 			r = 0;
 			break;
 		}
