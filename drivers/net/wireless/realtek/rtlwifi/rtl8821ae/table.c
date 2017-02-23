@@ -449,6 +449,9 @@ u32 RTL8821AE_PHY_REG_ARRAY[] = {
 	0xCB8, 0x00508240,
 };
 
+u32 RTL8821AE_PHY_REG_1TARRAYLEN =
+	sizeof(RTL8821AE_PHY_REG_ARRAY) / sizeof(u32);
+
 u32 RTL8812AE_PHY_REG_ARRAY_PG[] = {
 	0, 0, 0, 0x00000c20, 0xffffffff, 0x34363840,
 	0, 0, 0, 0x00000c24, 0xffffffff, 0x42424444,
@@ -515,6 +518,9 @@ u32 RTL8821AE_PHY_REG_ARRAY_PG[] = {
 	1, 0, 0, 0x00000c40, 0xffffffff, 0x24262830,
 	1, 0, 0, 0x00000c44, 0x0000ffff, 0x00002022
 };
+
+u32 RTL8821AE_PHY_REG_ARRAY_PGLEN =
+		sizeof(RTL8821AE_PHY_REG_ARRAY_PG) / sizeof(u32);
 
 u32 RTL8812AE_RADIOA_ARRAY[] = {
 		0x000, 0x00010000,
@@ -2285,16 +2291,16 @@ u32 RTL8821AE_RADIOA_ARRAY[] = {
 		0x0EF, 0x00000000,
 		0x0EF, 0x00000100,
 		0x034, 0x0000ADF3,
-		0x034, 0x00009DEF,
-		0x034, 0x00008DEC,
-		0x034, 0x00007DE9,
-		0x034, 0x00006CED,
-		0x034, 0x00005CE9,
-		0x034, 0x000044E9,
-		0x034, 0x000034E6,
-		0x034, 0x0000246A,
-		0x034, 0x00001467,
-		0x034, 0x00000068,
+		0x034, 0x00009DF0,
+		0x034, 0x00008D70,
+		0x034, 0x00007D6D,
+		0x034, 0x00006CEE,
+		0x034, 0x00005CCC,
+		0x034, 0x000044EC,
+		0x034, 0x000034AC,
+		0x034, 0x0000246D,
+		0x034, 0x0000106F,
+		0x034, 0x0000006C,
 		0x0EF, 0x00000000,
 		0x0ED, 0x00000010,
 		0x044, 0x0000ADF2,
@@ -2365,7 +2371,10 @@ u32 RTL8821AE_RADIOA_ARRAY[] = {
 		0x0FE, 0x00000000,
 		0x0FE, 0x00000000,
 		0x018, 0x0001712A,
+
 };
+
+u32 RTL8821AE_RADIOA_1TARRAYLEN = sizeof(RTL8821AE_RADIOA_ARRAY) / sizeof(u32);
 
 u32 RTL8812AE_MAC_REG_ARRAY[] = {
 		0x010, 0x0000000C,
@@ -2577,6 +2586,8 @@ u32 RTL8821AE_MAC_REG_ARRAY[] = {
 		0x70B, 0x00000087,
 		0x718, 0x00000040,
 };
+
+u32 RTL8821AE_MAC_1T_ARRAYLEN = sizeof(RTL8821AE_MAC_REG_ARRAY) / sizeof(u32);
 
 u32 RTL8812AE_AGC_TAB_ARRAY[] = {
 	0xFF0F07D8, 0xABCD,
@@ -3430,8 +3441,10 @@ u32 RTL8821AE_AGC_TAB_ARRAY[] = {
 		0x81C, 0x017E0101,
 		0xC50, 0x00000022,
 		0xC50, 0x00000020,
-
 };
+
+u32 RTL8821AE_AGC_TAB_1TARRAYLEN =
+	sizeof(RTL8821AE_AGC_TAB_ARRAY) / sizeof(u32);
 
 /******************************************************************************
 *                           TXPWR_LMT.TXT
@@ -4284,9 +4297,9 @@ u8 *RTL8821AE_TXPWR_LMT[] = {
 	"FCC", "5G", "20M", "OFDM", "1T", "100", "32",
 	"ETSI", "5G", "20M", "OFDM", "1T", "100", "30",
 	"MKK", "5G", "20M", "OFDM", "1T", "100", "30",
-	"FCC", "5G", "20M", "OFDM", "1T", "114", "32",
-	"ETSI", "5G", "20M", "OFDM", "1T", "114", "30",
-	"MKK", "5G", "20M", "OFDM", "1T", "114", "30",
+	"FCC", "5G", "20M", "OFDM", "1T", "104", "32",
+	"ETSI", "5G", "20M", "OFDM", "1T", "104", "30",
+	"MKK", "5G", "20M", "OFDM", "1T", "104", "30",
 	"FCC", "5G", "20M", "OFDM", "1T", "108", "32",
 	"ETSI", "5G", "20M", "OFDM", "1T", "108", "30",
 	"MKK", "5G", "20M", "OFDM", "1T", "108", "30",
@@ -4356,9 +4369,9 @@ u8 *RTL8821AE_TXPWR_LMT[] = {
 	"FCC", "5G", "20M", "HT", "1T", "100", "32",
 	"ETSI", "5G", "20M", "HT", "1T", "100", "30",
 	"MKK", "5G", "20M", "HT", "1T", "100", "30",
-	"FCC", "5G", "20M", "HT", "1T", "114", "32",
-	"ETSI", "5G", "20M", "HT", "1T", "114", "30",
-	"MKK", "5G", "20M", "HT", "1T", "114", "30",
+	"FCC", "5G", "20M", "HT", "1T", "104", "32",
+	"ETSI", "5G", "20M", "HT", "1T", "104", "30",
+	"MKK", "5G", "20M", "HT", "1T", "104", "30",
 	"FCC", "5G", "20M", "HT", "1T", "108", "32",
 	"ETSI", "5G", "20M", "HT", "1T", "108", "30",
 	"MKK", "5G", "20M", "HT", "1T", "108", "30",
@@ -4428,9 +4441,9 @@ u8 *RTL8821AE_TXPWR_LMT[] = {
 	"FCC", "5G", "20M", "HT", "2T", "100", "28",
 	"ETSI", "5G", "20M", "HT", "2T", "100", "30",
 	"MKK", "5G", "20M", "HT", "2T", "100", "30",
-	"FCC", "5G", "20M", "HT", "2T", "114", "28",
-	"ETSI", "5G", "20M", "HT", "2T", "114", "30",
-	"MKK", "5G", "20M", "HT", "2T", "114", "30",
+	"FCC", "5G", "20M", "HT", "2T", "104", "28",
+	"ETSI", "5G", "20M", "HT", "2T", "104", "30",
+	"MKK", "5G", "20M", "HT", "2T", "104", "30",
 	"FCC", "5G", "20M", "HT", "2T", "108", "30",
 	"ETSI", "5G", "20M", "HT", "2T", "108", "30",
 	"MKK", "5G", "20M", "HT", "2T", "108", "30",
@@ -4570,3 +4583,5 @@ u8 *RTL8821AE_TXPWR_LMT[] = {
 	"ETSI", "5G", "80M", "VHT", "2T", "155", "30",
 	"MKK", "5G", "80M", "VHT", "2T", "155", "63"
 };
+
+u32 RTL8821AE_TXPWR_LMT_ARRAY_LEN = sizeof(RTL8821AE_TXPWR_LMT) / sizeof(u8 *);

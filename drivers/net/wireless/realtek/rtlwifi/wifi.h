@@ -1529,6 +1529,10 @@ struct rtl_hal {
 	u8 external_lna_2g;
 	u8 external_pa_5g;
 	u8 external_lna_5g;
+	u8 type_glna;
+	u8 type_gpa;
+	u8 type_alna;
+	u8 type_apa;
 	u8 rfe_type;
 
 	/*firmware */
@@ -2933,6 +2937,14 @@ static inline void rtl_write_byte(struct rtl_priv *rtlpriv, u32 addr, u8 val8)
 		rtlpriv->io.read8_sync(rtlpriv, addr);
 }
 
+static inline void rtl_write_byte_with_val32(struct ieee80211_hw *hw,
+					     u32 addr, u32 val8)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
+	rtl_write_byte(rtlpriv, addr, (u8)val8);
+}
+
 static inline void rtl_write_word(struct rtl_priv *rtlpriv, u32 addr, u16 val16)
 {
 	rtlpriv->io.write16_async(rtlpriv, addr, val16);
@@ -2964,6 +2976,12 @@ static inline void rtl_set_bbreg(struct ieee80211_hw *hw, u32 regaddr,
 	struct rtl_priv *rtlpriv = hw->priv;
 
 	rtlpriv->cfg->ops->set_bbreg(hw, regaddr, bitmask, data);
+}
+
+static inline void rtl_set_bbreg_with_dwmask(struct ieee80211_hw *hw,
+				 u32 regaddr, u32 data)
+{
+	rtl_set_bbreg(hw, regaddr, 0xffffffff, data);
 }
 
 static inline u32 rtl_get_rfreg(struct ieee80211_hw *hw,
