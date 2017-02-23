@@ -1232,9 +1232,17 @@ static struct mlx5_flow_handle *add_rule_fg(struct mlx5_flow_group *fg,
 	fs_for_each_fte(fte, fg) {
 		nested_lock_ref_node(&fte->node, FS_MUTEX_CHILD);
 		if (compare_match_value(&fg->mask, match_value, &fte->val) &&
-		    (flow_act->action & fte->action) &&
-		    flow_act->flow_tag == fte->flow_tag) {
+		    (flow_act->action & fte->action)) {
 			int old_action = fte->action;
+
+			if (fte->flow_tag != flow_act->flow_tag) {
+				mlx5_core_warn(get_dev(&fte->node),
+					       "FTE flow tag %u already exists with different flow tag %u\n",
+					       fte->flow_tag,
+					       flow_act->flow_tag);
+				handle = ERR_PTR(-EEXIST);
+				goto unlock_fte;
+			}
 
 			fte->action |= flow_act->action;
 			handle = add_rule_fte(fte, fg, dest, dest_num,

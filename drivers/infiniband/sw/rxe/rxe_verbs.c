@@ -86,6 +86,7 @@ static int rxe_query_port(struct ib_device *dev,
 
 	port = &rxe->port;
 
+	/* *attr being zeroed by the caller, avoid zeroing it here */
 	*attr = port->attr;
 
 	mutex_lock(&rxe->usdev_lock);
@@ -261,13 +262,14 @@ static int rxe_port_immutable(struct ib_device *dev, u8 port_num,
 	int err;
 	struct ib_port_attr attr;
 
-	err = rxe_query_port(dev, port_num, &attr);
+	immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE_UDP_ENCAP;
+
+	err = ib_query_port(dev, port_num, &attr);
 	if (err)
 		return err;
 
 	immutable->pkey_tbl_len = attr.pkey_tbl_len;
 	immutable->gid_tbl_len = attr.gid_tbl_len;
-	immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE_UDP_ENCAP;
 	immutable->max_mad_size = IB_MGMT_MAD_SIZE;
 
 	return 0;
