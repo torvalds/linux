@@ -17,6 +17,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_panel.h>
 
+#include "sun4i_crtc.h"
 #include "sun4i_drv.h"
 #include "sun4i_tcon.h"
 #include "sun4i_rgb.h"
@@ -238,7 +239,7 @@ int sun4i_rgb_init(struct drm_device *drm)
 	}
 
 	/* The RGB encoder can only work with the TCON channel 0 */
-	rgb->encoder.possible_crtcs = BIT(0);
+	rgb->encoder.possible_crtcs = BIT(drm_crtc_index(&tcon->crtc->crtc));
 
 	if (!IS_ERR(tcon->panel)) {
 		drm_connector_helper_add(&rgb->connector,

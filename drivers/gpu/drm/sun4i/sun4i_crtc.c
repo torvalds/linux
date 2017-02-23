@@ -190,5 +190,14 @@ struct sun4i_crtc *sun4i_crtc_init(struct drm_device *drm)
 	scrtc->crtc.port = of_graph_get_port_by_id(drv->tcon->dev->of_node,
 						   1);
 
+	/* Set possible_crtcs to this crtc for overlay planes */
+	for (i = 0; scrtc->layers[i]; i++) {
+		uint32_t possible_crtcs = BIT(drm_crtc_index(&scrtc->crtc));
+		struct sun4i_layer *layer = scrtc->layers[i];
+
+		if (layer->plane.type == DRM_PLANE_TYPE_OVERLAY)
+			layer->plane.possible_crtcs = possible_crtcs;
+	}
+
 	return scrtc;
 }

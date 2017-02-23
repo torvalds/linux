@@ -114,7 +114,8 @@ static struct sun4i_layer *sun4i_layer_init_one(struct drm_device *drm,
 	if (!layer)
 		return ERR_PTR(-ENOMEM);
 
-	ret = drm_universal_plane_init(drm, &layer->plane, BIT(0),
+	/* possible crtcs are set later */
+	ret = drm_universal_plane_init(drm, &layer->plane, 0,
 				       &sun4i_backend_layer_funcs,
 				       plane->formats, plane->nformats,
 				       plane->type, NULL);
