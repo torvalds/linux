@@ -974,8 +974,19 @@ static struct perf_mmap *perf_evlist__alloc_mmap(struct perf_evlist *evlist)
 	if (!map)
 		return NULL;
 
-	for (i = 0; i < evlist->nr_mmaps; i++)
+	for (i = 0; i < evlist->nr_mmaps; i++) {
 		map[i].fd = -1;
+		/*
+		 * When the perf_mmap() call is made we grab one refcount, plus
+		 * one extra to let perf_evlist__mmap_consume() get the last
+		 * events after all real references (perf_mmap__get()) are
+		 * dropped.
+		 *
+		 * Each PERF_EVENT_IOC_SET_OUTPUT points to this mmap and
+		 * thus does perf_mmap__get() on it.
+		 */
+		refcount_set(&map[i].refcnt, 0);
+	}
 	return map;
 }
 
