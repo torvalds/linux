@@ -496,7 +496,11 @@ static int intel_breadcrumbs_signaler(void *arg)
 		 * need to wait for a new interrupt from the GPU or for
 		 * a new client.
 		 */
-		request = READ_ONCE(b->first_signal);
+		rcu_read_lock();
+		request = rcu_dereference(b->first_signal);
+		if (request)
+			request = i915_gem_request_get_rcu(request);
+		rcu_read_unlock();
 		if (signal_complete(request)) {
 			local_bh_disable();
 			dma_fence_signal(&request->fence);
@@ -515,24 +519,28 @@ static int intel_breadcrumbs_signaler(void *arg)
 			 * the oldest before picking the next one.
 			 */
 			spin_lock_irq(&b->lock);
-			if (request == b->first_signal) {
+			if (request == rcu_access_pointer(b->first_signal)) {
 				struct rb_node *rb =
 					rb_next(&request->signaling.node);
-				b->first_signal = rb ? to_signaler(rb) : NULL;
+				rcu_assign_pointer(b->first_signal,
+						   rb ? to_signaler(rb) : NULL);
 			}
 			rb_erase(&request->signaling.node, &b->signals);
 			spin_unlock_irq(&b->lock);
 
 			i915_gem_request_put(request);
 		} else {
-			if (kthread_should_stop())
+			if (kthread_should_stop()) {
+				GEM_BUG_ON(request);
 				break;
+			}
 
 			schedule();
 
 			if (kthread_should_park())
 				kthread_parkme();
 		}
+		i915_gem_request_put(request);
 	} while (1);
 	__set_current_state(TASK_RUNNING);
 
@@ -597,7 +605,7 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 	rb_link_node(&request->signaling.node, parent, p);
 	rb_insert_color(&request->signaling.node, &b->signals);
 	if (first)
-		smp_store_mb(b->first_signal, request);
+		rcu_assign_pointer(b->first_signal, request);
 
 	spin_unlock(&b->lock);
 
@@ -670,7 +678,7 @@ void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine)
 	/* The engines should be idle and all requests accounted for! */
 	WARN_ON(READ_ONCE(b->first_wait));
 	WARN_ON(!RB_EMPTY_ROOT(&b->waiters));
-	WARN_ON(READ_ONCE(b->first_signal));
+	WARN_ON(rcu_access_pointer(b->first_signal));
 	WARN_ON(!RB_EMPTY_ROOT(&b->signals));
 
 	if (!IS_ERR_OR_NULL(b->signaler))
@@ -691,7 +699,7 @@ bool intel_breadcrumbs_busy(struct intel_engine_cs *engine)
 		busy |= intel_engine_flag(engine);
 	}
 
-	if (b->first_signal) {
+	if (rcu_access_pointer(b->first_signal)) {
 		wake_up_process(b->signaler);
 		busy |= intel_engine_flag(engine);
 	}

@@ -242,7 +242,7 @@ struct intel_engine_cs {
 		struct rb_root signals; /* sorted by retirement */
 		struct intel_wait *first_wait; /* oldest waiter by retirement */
 		struct task_struct *signaler; /* used for fence signalling */
-		struct drm_i915_gem_request *first_signal;
+		struct drm_i915_gem_request __rcu *first_signal;
 		struct timer_list fake_irq; /* used after a missed interrupt */
 		struct timer_list hangcheck; /* detect missed interrupts */
 
