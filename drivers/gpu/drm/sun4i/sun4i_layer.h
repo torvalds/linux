@@ -16,6 +16,7 @@
 struct sun4i_layer {
 	struct drm_plane	plane;
 	struct sun4i_drv	*drv;
+	struct sun4i_backend	*backend;
 	int			id;
 };
 

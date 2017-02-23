@@ -36,8 +36,7 @@ static void sun4i_backend_layer_atomic_disable(struct drm_plane *plane,
 					       struct drm_plane_state *old_state)
 {
 	struct sun4i_layer *layer = plane_to_sun4i_layer(plane);
-	struct sun4i_drv *drv = layer->drv;
-	struct sun4i_backend *backend = drv->backend;
+	struct sun4i_backend *backend = layer->backend;
 
 	sun4i_backend_layer_enable(backend, layer->id, false);
 }
@@ -46,8 +45,7 @@ static void sun4i_backend_layer_atomic_update(struct drm_plane *plane,
 					      struct drm_plane_state *old_state)
 {
 	struct sun4i_layer *layer = plane_to_sun4i_layer(plane);
-	struct sun4i_drv *drv = layer->drv;
-	struct sun4i_backend *backend = drv->backend;
+	struct sun4i_backend *backend = layer->backend;
 
 	sun4i_backend_update_layer_coord(backend, layer->id, plane);
 	sun4i_backend_update_layer_formats(backend, layer->id, plane);
@@ -126,7 +124,7 @@ static struct sun4i_layer *sun4i_layer_init_one(struct drm_device *drm,
 
 	drm_plane_helper_add(&layer->plane,
 			     &sun4i_backend_layer_helper_funcs);
-	layer->drv = drv;
+	layer->backend = drv->backend;
 
 	return layer;
 }
