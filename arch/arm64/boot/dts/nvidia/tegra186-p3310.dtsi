@@ -26,6 +26,26 @@
 		reg = <0x0 0x80000000 0x2 0x00000000>;
 	};
 
+	ethernet@2490000 {
+		status = "okay";
+
+		phy-reset-gpios = <&gpio TEGRA_MAIN_GPIO(M, 4) GPIO_ACTIVE_LOW>;
+		phy-handle = <&phy>;
+		phy-mode = "rgmii";
+
+		mdio {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			phy: phy@0 {
+				compatible = "ethernet-phy-ieee802.3-c22";
+				reg = <0x0>;
+				interrupt-parent = <&gpio>;
+				interrupts = <TEGRA_MAIN_GPIO(M, 5) IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+	};
+
 	serial@3100000 {
 		status = "okay";
 	};
