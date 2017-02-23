@@ -945,16 +945,6 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 	local_bh_enable(); /* Kick the execlists tasklet if just scheduled */
 }
 
-static void reset_wait_queue(wait_queue_head_t *q, wait_queue_t *wait)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&q->lock, flags);
-	if (list_empty(&wait->task_list))
-		__add_wait_queue(q, wait);
-	spin_unlock_irqrestore(&q->lock, flags);
-}
-
 static unsigned long local_clock_us(unsigned int *cpu)
 {
 	unsigned long t;
@@ -1059,8 +1049,8 @@ long i915_wait_request(struct drm_i915_gem_request *req,
 	const int state = flags & I915_WAIT_INTERRUPTIBLE ?
 		TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;
 	wait_queue_head_t *errq = &req->i915->gpu_error.wait_queue;
-	DEFINE_WAIT(reset);
-	DEFINE_WAIT(exec);
+	DEFINE_WAIT_FUNC(reset, default_wake_function);
+	DEFINE_WAIT_FUNC(exec, default_wake_function);
 	struct intel_wait wait;
 
 	might_sleep();
@@ -1079,13 +1069,13 @@ long i915_wait_request(struct drm_i915_gem_request *req,
 
 	trace_i915_gem_request_wait_begin(req, flags);
 
+	add_wait_queue(&req->execute, &exec);
 	if (flags & I915_WAIT_LOCKED)
 		add_wait_queue(errq, &reset);
 
 	intel_wait_init(&wait);
 
 restart:
-	reset_wait_queue(&req->execute, &exec);
 	if (!intel_wait_update_request(&wait, req)) {
 		do {
 			set_current_state(state);
@@ -1097,26 +1087,21 @@ restart:
 			    i915_reset_in_progress(&req->i915->gpu_error)) {
 				__set_current_state(TASK_RUNNING);
 				i915_reset(req->i915);
-				reset_wait_queue(errq, &reset);
 				continue;
 			}
 
 			if (signal_pending_state(state, current)) {
 				timeout = -ERESTARTSYS;
-				break;
+				goto complete;
 			}
 
 			if (!timeout) {
 				timeout = -ETIME;
-				break;
+				goto complete;
 			}
 
 			timeout = io_schedule_timeout(timeout);
 		} while (1);
-		finish_wait(&req->execute, &exec);
-
-		if (timeout < 0)
-			goto complete;
 
 		GEM_BUG_ON(!intel_wait_has_seqno(&wait));
 	}
@@ -1176,7 +1161,6 @@ wakeup:
 		    i915_reset_in_progress(&req->i915->gpu_error)) {
 			__set_current_state(TASK_RUNNING);
 			i915_reset(req->i915);
-			reset_wait_queue(errq, &reset);
 			continue;
 		}
 
@@ -1191,11 +1175,11 @@ wakeup:
 	}
 
 	intel_engine_remove_wait(req->engine, &wait);
-	__set_current_state(TASK_RUNNING);
-
 complete:
+	__set_current_state(TASK_RUNNING);
 	if (flags & I915_WAIT_LOCKED)
 		remove_wait_queue(errq, &reset);
+	remove_wait_queue(&req->execute, &exec);
 	trace_i915_gem_request_wait_end(req);
 
 	return timeout;
