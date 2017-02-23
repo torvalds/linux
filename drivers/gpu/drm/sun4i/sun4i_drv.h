@@ -20,7 +20,6 @@ struct sun4i_drv {
 	struct sun4i_backend	*backend;
 	struct sun4i_tcon	*tcon;
 
-	struct drm_plane	*primary;
 	struct drm_fbdev_cma	*fbdev;
 };
 

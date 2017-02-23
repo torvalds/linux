@@ -143,7 +143,8 @@ struct sun4i_crtc *sun4i_crtc_init(struct drm_device *drm)
 {
 	struct sun4i_drv *drv = drm->dev_private;
 	struct sun4i_crtc *scrtc;
-	int ret;
+	struct drm_plane *primary = NULL, *cursor = NULL;
+	int ret, i;
 
 	scrtc = devm_kzalloc(drm->dev, sizeof(*scrtc), GFP_KERNEL);
 	if (!scrtc)
@@ -154,12 +155,28 @@ struct sun4i_crtc *sun4i_crtc_init(struct drm_device *drm)
 	scrtc->layers = sun4i_layers_init(drm);
 	if (IS_ERR(scrtc->layers)) {
 		dev_err(drm->dev, "Couldn't create the planes\n");
-		return ERR_CAST(scrtc->layers);
+		return NULL;
+	}
+
+	/* find primary and cursor planes for drm_crtc_init_with_planes */
+	for (i = 0; scrtc->layers[i]; i++) {
+		struct sun4i_layer *layer = scrtc->layers[i];
+
+		switch (layer->plane.type) {
+		case DRM_PLANE_TYPE_PRIMARY:
+			primary = &layer->plane;
+			break;
+		case DRM_PLANE_TYPE_CURSOR:
+			cursor = &layer->plane;
+			break;
+		default:
+			break;
+		}
 	}
 
 	ret = drm_crtc_init_with_planes(drm, &scrtc->crtc,
-					drv->primary,
-					NULL,
+					primary,
+					cursor,
 					&sun4i_crtc_funcs,
 					NULL);
 	if (ret) {

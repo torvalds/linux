@@ -127,9 +127,6 @@ static struct sun4i_layer *sun4i_layer_init_one(struct drm_device *drm,
 			     &sun4i_backend_layer_helper_funcs);
 	layer->drv = drv;
 
-	if (plane->type == DRM_PLANE_TYPE_PRIMARY)
-		drv->primary = &layer->plane;
-
 	return layer;
 }
 
