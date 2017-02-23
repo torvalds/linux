@@ -109,6 +109,8 @@
 #define SPIDEF		0x4c
 #define SPIFMT0		0x50
 
+#define DMA_MIN_BYTES	16
+
 /* SPI Controller driver's private data. */
 struct davinci_spi {
 	struct spi_bitbang	bitbang;
@@ -479,7 +481,8 @@ static bool davinci_spi_can_dma(struct spi_master *master,
 	bool can_dma = false;
 
 	if (spicfg)
-		can_dma = spicfg->io_type == SPI_IO_TYPE_DMA;
+		can_dma = (spicfg->io_type == SPI_IO_TYPE_DMA) &&
+			(xfer->len >= DMA_MIN_BYTES);
 
 	return can_dma;
 }
@@ -620,10 +623,9 @@ static int davinci_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
 
 	reinit_completion(&dspi->done);
 
-	if (spicfg->io_type == SPI_IO_TYPE_INTR)
-		set_io_bits(dspi->base + SPIINT, SPIINT_MASKINT);
-
-	if (spicfg->io_type != SPI_IO_TYPE_DMA) {
+	if (!davinci_spi_can_dma(spi->master, spi, t)) {
+		if (spicfg->io_type != SPI_IO_TYPE_POLL)
+			set_io_bits(dspi->base + SPIINT, SPIINT_MASKINT);
 		/* start the transfer */
 		dspi->wcount--;
 		tx_data = dspi->get_tx(dspi);
@@ -698,7 +700,7 @@ static int davinci_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
 	}
 
 	clear_io_bits(dspi->base + SPIINT, SPIINT_MASKALL);
-	if (spicfg->io_type == SPI_IO_TYPE_DMA)
+	if (davinci_spi_can_dma(spi->master, spi, t))
 		clear_io_bits(dspi->base + SPIINT, SPIINT_DMA_REQ_EN);
 
 	clear_io_bits(dspi->base + SPIGCR1, SPIGCR1_SPIENA_MASK);
