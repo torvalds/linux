@@ -170,8 +170,9 @@ static int pvrdma_set_sq_size(struct pvrdma_dev *dev, struct ib_qp_cap *req_cap,
 					     sizeof(struct pvrdma_sge) *
 					     qp->sq.max_sg);
 	/* Note: one extra page for the header. */
-	qp->npages_send = 1 + (qp->sq.wqe_cnt * qp->sq.wqe_size +
-			       PAGE_SIZE - 1) / PAGE_SIZE;
+	qp->npages_send = PVRDMA_QP_NUM_HEADER_PAGES +
+			  (qp->sq.wqe_cnt * qp->sq.wqe_size + PAGE_SIZE - 1) /
+								PAGE_SIZE;
 
 	return 0;
 }
@@ -288,7 +289,7 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 			qp->npages = qp->npages_send + qp->npages_recv;
 
 			/* Skip header page. */
-			qp->sq.offset = PAGE_SIZE;
+			qp->sq.offset = PVRDMA_QP_NUM_HEADER_PAGES * PAGE_SIZE;
 
 			/* Recv queue pages are after send pages. */
 			qp->rq.offset = qp->npages_send * PAGE_SIZE;
@@ -341,7 +342,7 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 	cmd->qp_type = ib_qp_type_to_pvrdma(init_attr->qp_type);
 	cmd->access_flags = IB_ACCESS_LOCAL_WRITE;
 	cmd->total_chunks = qp->npages;
-	cmd->send_chunks = qp->npages_send - 1;
+	cmd->send_chunks = qp->npages_send - PVRDMA_QP_NUM_HEADER_PAGES;
 	cmd->pdir_dma = qp->pdir.dir_dma;
 
 	dev_dbg(&dev->pdev->dev, "create queuepair with %d, %d, %d, %d\n",

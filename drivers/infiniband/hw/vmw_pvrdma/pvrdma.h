@@ -70,6 +70,7 @@
 #define PCI_DEVICE_ID_VMWARE_PVRDMA	0x0820
 
 #define PVRDMA_NUM_RING_PAGES		4
+#define PVRDMA_QP_NUM_HEADER_PAGES	1
 
 struct pvrdma_dev;
 
