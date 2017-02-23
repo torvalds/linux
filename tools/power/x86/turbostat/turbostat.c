@@ -4525,6 +4525,7 @@ int fork_it(char **argv)
 	if (!child_pid) {
 		/* child */
 		execvp(argv[0], argv);
+		err(errno, "exec %s", argv[0]);
 	} else {
 
 		/* parent */
