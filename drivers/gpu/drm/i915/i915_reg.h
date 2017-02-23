@@ -2058,6 +2058,22 @@ enum skl_disp_power_wells {
 #define I915_ASLE_INTERRUPT				(1<<0)
 #define I915_BSD_USER_INTERRUPT				(1<<25)
 
+#define I915_HDMI_LPE_AUDIO_BASE	(VLV_DISPLAY_BASE + 0x65000)
+#define I915_HDMI_LPE_AUDIO_SIZE	0x1000
+
+/* DisplayPort Audio w/ LPE */
+#define VLV_AUD_CHICKEN_BIT_REG		_MMIO(VLV_DISPLAY_BASE + 0x62F38)
+#define VLV_CHICKEN_BIT_DBG_ENABLE	(1 << 0)
+
+#define _VLV_AUD_PORT_EN_B_DBG		(VLV_DISPLAY_BASE + 0x62F20)
+#define _VLV_AUD_PORT_EN_C_DBG		(VLV_DISPLAY_BASE + 0x62F30)
+#define _VLV_AUD_PORT_EN_D_DBG		(VLV_DISPLAY_BASE + 0x62F34)
+#define VLV_AUD_PORT_EN_DBG(port)	_MMIO_PORT3((port) - PORT_B,	   \
+						    _VLV_AUD_PORT_EN_B_DBG, \
+						    _VLV_AUD_PORT_EN_C_DBG, \
+						    _VLV_AUD_PORT_EN_D_DBG)
+#define VLV_AMP_MUTE		        (1 << 1)
+
 #define GEN6_BSD_RNCID			_MMIO(0x12198)
 
 #define GEN7_FF_THREAD_MODE		_MMIO(0x20a0)
