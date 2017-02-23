@@ -26,6 +26,7 @@
 
 #include "../i915_selftest.h"
 
+#include "mock_context.h"
 #include "mock_gem_device.h"
 
 static int igt_add_request(void *arg)
@@ -181,12 +182,75 @@ out_locked:
 	return err;
 }
 
+static int igt_request_rewind(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct drm_i915_gem_request *request, *vip;
+	struct i915_gem_context *ctx[2];
+	int err = -EINVAL;
+
+	mutex_lock(&i915->drm.struct_mutex);
+	ctx[0] = mock_context(i915, "A");
+	request = mock_request(i915->engine[RCS], ctx[0], 2 * HZ);
+	if (!request) {
+		err = -ENOMEM;
+		goto err_context_0;
+	}
+
+	i915_gem_request_get(request);
+	i915_add_request(request);
+
+	ctx[1] = mock_context(i915, "B");
+	vip = mock_request(i915->engine[RCS], ctx[1], 0);
+	if (!vip) {
+		err = -ENOMEM;
+		goto err_context_1;
+	}
+
+	/* Simulate preemption by manual reordering */
+	if (!mock_cancel_request(request)) {
+		pr_err("failed to cancel request (already executed)!\n");
+		i915_add_request(vip);
+		goto err_context_1;
+	}
+	i915_gem_request_get(vip);
+	i915_add_request(vip);
+	request->engine->submit_request(request);
+
+	mutex_unlock(&i915->drm.struct_mutex);
+
+	if (i915_wait_request(vip, 0, HZ) == -ETIME) {
+		pr_err("timed out waiting for high priority request, vip.seqno=%d, current seqno=%d\n",
+		       vip->global_seqno, intel_engine_get_seqno(i915->engine[RCS]));
+		goto err;
+	}
+
+	if (i915_gem_request_completed(request)) {
+		pr_err("low priority request already completed\n");
+		goto err;
+	}
+
+	err = 0;
+err:
+	i915_gem_request_put(vip);
+	mutex_lock(&i915->drm.struct_mutex);
+err_context_1:
+	mock_context_close(ctx[1]);
+	i915_gem_request_put(request);
+err_context_0:
+	mock_context_close(ctx[0]);
+	mock_device_flush(i915);
+	mutex_unlock(&i915->drm.struct_mutex);
+	return err;
+}
+
 int i915_gem_request_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_add_request),
 		SUBTEST(igt_wait_request),
 		SUBTEST(igt_fence_wait),
+		SUBTEST(igt_request_rewind),
 	};
 	struct drm_i915_private *i915;
 	int err;

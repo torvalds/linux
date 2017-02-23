@@ -41,4 +41,6 @@ mock_request(struct intel_engine_cs *engine,
 	     struct i915_gem_context *context,
 	     unsigned long delay);
 
+bool mock_cancel_request(struct drm_i915_gem_request *request);
+
 #endif /* !__MOCK_REQUEST__ */
