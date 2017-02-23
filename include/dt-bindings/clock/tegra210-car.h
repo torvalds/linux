@@ -39,7 +39,7 @@
 /* 20 (register bit affects vi and vi_sensor) */
 /* 21 */
 #define TEGRA210_CLK_USBD 22
-#define TEGRA210_CLK_ISP 23
+#define TEGRA210_CLK_ISPA 23
 /* 24 */
 /* 25 */
 #define TEGRA210_CLK_DISP2 26
@@ -349,7 +349,7 @@
 #define TEGRA210_CLK_PLL_RE_OUT1 319
 /* 320 */
 /* 321 */
-/* 322 */
+#define TEGRA210_CLK_ISP 322
 /* 323 */
 /* 324 */
 /* 325 */
