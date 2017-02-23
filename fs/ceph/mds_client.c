@@ -679,8 +679,9 @@ static void __unregister_request(struct ceph_mds_client *mdsc,
  * working with them. Once we hit a candidate dentry, we attempt to take a
  * reference to it, and return that as the result.
  */
-static struct inode *get_nonsnap_parent(struct dentry *dentry) { struct inode
-	*inode = NULL;
+static struct inode *get_nonsnap_parent(struct dentry *dentry)
+{
+	struct inode *inode = NULL;
 
 	while (dentry && !IS_ROOT(dentry)) {
 		inode = d_inode_rcu(dentry);
