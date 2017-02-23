@@ -227,9 +227,9 @@ static void audio_vchi_callback(void *param,
 	LOG_DBG(" .. IN instance=%p, handle=%p, alsa=%p, reason=%d, handle=%p\n",
 		instance, instance ? instance->vchi_handle[0] : NULL, instance ? instance->alsa_stream : NULL, reason, msg_handle);
 
-	if (reason != VCHI_CALLBACK_MSG_AVAILABLE) {
+	if (reason != VCHI_CALLBACK_MSG_AVAILABLE)
 		return;
-	}
+
 	if (!instance) {
 		LOG_ERR(" .. instance is null\n");
 		BUG();
@@ -818,9 +818,10 @@ static int bcm2835_audio_write_worker(struct bcm2835_alsa_stream *alsa_stream,
 	}
 	vchi_service_use(instance->vchi_handle[0]);
 
-	if (instance->peer_version == 0 && vchi_get_peer_version(instance->vchi_handle[0], &instance->peer_version) == 0) {
+	if (instance->peer_version == 0 &&
+			vchi_get_peer_version(instance->vchi_handle[0], &instance->peer_version) == 0)
 		LOG_DBG("%s: client version %d connected\n", __func__, instance->peer_version);
-	}
+
 	m.type = VC_AUDIO_MSG_TYPE_WRITE;
 	m.u.write.count = count;
 	// old version uses bulk, new version uses control
