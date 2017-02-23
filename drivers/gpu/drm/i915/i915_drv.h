@@ -4013,6 +4013,15 @@ __i915_request_irq_complete(struct drm_i915_gem_request *req)
 {
 	struct intel_engine_cs *engine = req->engine;
 
+	/* Note that the engine may have wrapped around the seqno, and
+	 * so our request->global_seqno will be ahead of the hardware,
+	 * even though it completed the request before wrapping. We catch
+	 * this by kicking all the waiters before resetting the seqno
+	 * in hardware, and also signal the fence.
+	 */
+	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &req->fence.flags))
+		return true;
+
 	/* Before we do the heavier coherent read of the seqno,
 	 * check the value (hopefully) in the CPU cacheline.
 	 */
