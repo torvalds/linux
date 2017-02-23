@@ -1324,17 +1324,6 @@ static void write_current_sum_page(struct f2fs_sb_info *sbi,
 	f2fs_put_page(page, 1);
 }
 
-static int is_next_segment_free(struct f2fs_sb_info *sbi, int type)
-{
-	struct curseg_info *curseg = CURSEG_I(sbi, type);
-	unsigned int segno = curseg->segno + 1;
-	struct free_segmap_info *free_i = FREE_I(sbi);
-
-	if (segno < MAIN_SEGS(sbi) && segno % sbi->segs_per_sec)
-		return !test_bit(segno, free_i->free_segmap);
-	return 0;
-}
-
 /*
  * Find a new segment from the free segments bitmap to right order
  * This function should be returned with success, otherwise BUG
@@ -1559,21 +1548,17 @@ static int get_ssr_segment(struct f2fs_sb_info *sbi, int type)
 static void allocate_segment_by_default(struct f2fs_sb_info *sbi,
 						int type, bool force)
 {
-	struct curseg_info *curseg = CURSEG_I(sbi, type);
-
 	if (force)
 		new_curseg(sbi, type, true);
 	else if (!is_set_ckpt_flags(sbi, CP_CRC_RECOVERY_FLAG) &&
 					type == CURSEG_WARM_NODE)
-		new_curseg(sbi, type, false);
-	else if (curseg->alloc_type == LFS && is_next_segment_free(sbi, type))
 		new_curseg(sbi, type, false);
 	else if (need_SSR(sbi) && get_ssr_segment(sbi, type))
 		change_curseg(sbi, type, true);
 	else
 		new_curseg(sbi, type, false);
 
-	stat_inc_seg_type(sbi, curseg);
+	stat_inc_seg_type(sbi, CURSEG_I(sbi, type));
 }
 
 void allocate_new_segments(struct f2fs_sb_info *sbi)
