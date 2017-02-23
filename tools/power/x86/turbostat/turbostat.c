@@ -834,7 +834,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
 		if (mp->format == FORMAT_RAW) {
 			if (mp->width == 32)
-				outp += sprintf(outp, "%s0x%08lx", (printed++ ? delim : ""), (unsigned long) t->counter[i]);
+				outp += sprintf(outp, "%s0x%08x", (printed++ ? delim : ""), (unsigned int) t->counter[i]);
 			else
 				outp += sprintf(outp, "%s0x%016llx", (printed++ ? delim : ""), t->counter[i]);
 		} else if (mp->format == FORMAT_DELTA) {
@@ -876,7 +876,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	for (i = 0, mp = sys.cp; mp; i++, mp = mp->next) {
 		if (mp->format == FORMAT_RAW) {
 			if (mp->width == 32)
-				outp += sprintf(outp, "%s0x%08lx", (printed++ ? delim : ""), (unsigned long) c->counter[i]);
+				outp += sprintf(outp, "%s0x%08x", (printed++ ? delim : ""), (unsigned int) c->counter[i]);
 			else
 				outp += sprintf(outp, "%s0x%016llx", (printed++ ? delim : ""), c->counter[i]);
 		} else if (mp->format == FORMAT_DELTA) {
@@ -967,7 +967,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	for (i = 0, mp = sys.pp; mp; i++, mp = mp->next) {
 		if (mp->format == FORMAT_RAW) {
 			if (mp->width == 32)
-				outp += sprintf(outp, "%s0x%08lx", (printed++ ? delim : ""), (unsigned long) p->counter[i]);
+				outp += sprintf(outp, "%s0x%08x", (printed++ ? delim : ""), (unsigned int) p->counter[i]);
 			else
 				outp += sprintf(outp, "%s0x%016llx", (printed++ ? delim : ""), p->counter[i]);
 		} else if (mp->format == FORMAT_DELTA) {
@@ -4732,22 +4732,10 @@ next:
 
 	/* generate default column header */
 	if (*name_buffer == '\0') {
-		if (format == FORMAT_RAW) {
-			if (width == 32)
-				sprintf(name_buffer, "msr%d", msr_num);
-			else
-				sprintf(name_buffer, "MSR%d", msr_num);
-		} else if (format == FORMAT_DELTA) {
-			if (width == 32)
-				sprintf(name_buffer, "cnt%d", msr_num);
-			else
-				sprintf(name_buffer, "CNT%d", msr_num);
-		} else if (format == FORMAT_PERCENT) {
-			if (width == 32)
-				sprintf(name_buffer, "msr%d%%", msr_num);
-			else
-				sprintf(name_buffer, "MSR%d%%", msr_num);
-		}
+		if (width == 32)
+			sprintf(name_buffer, "M0x%x%s", msr_num, format == FORMAT_PERCENT ? "%" : "");
+		else
+			sprintf(name_buffer, "M0X%x%s", msr_num, format == FORMAT_PERCENT ? "%" : "");
 	}
 
 	if (add_counter(msr_num, path, name_buffer, width, scope, type, format, 0))
