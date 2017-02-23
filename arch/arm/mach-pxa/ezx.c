@@ -696,32 +696,7 @@ static struct pxa27x_keypad_platform_data e2_keypad_platform_data = {
 };
 #endif /* CONFIG_MACH_EZX_E2 */
 
-#ifdef CONFIG_MACH_EZX_A780
-/* gpio_keys */
-static struct gpio_keys_button a780_buttons[] = {
-	[0] = {
-		.code       = SW_LID,
-		.gpio       = GPIO12_A780_FLIP_LID,
-		.active_low = 0,
-		.desc       = "A780 flip lid",
-		.type       = EV_SW,
-		.wakeup     = 1,
-	},
-};
-
-static struct gpio_keys_platform_data a780_gpio_keys_platform_data = {
-	.buttons  = a780_buttons,
-	.nbuttons = ARRAY_SIZE(a780_buttons),
-};
-
-static struct platform_device a780_gpio_keys = {
-	.name = "gpio-keys",
-	.id   = -1,
-	.dev  = {
-		.platform_data = &a780_gpio_keys_platform_data,
-	},
-};
-
+#if defined(CONFIG_MACH_EZX_A780) || defined(CONFIG_MACH_EZX_A910)
 /* camera */
 static struct regulator_consumer_supply camera_dummy_supplies[] = {
 	REGULATOR_SUPPLY("vdd", "0-005d"),
@@ -750,6 +725,35 @@ static struct platform_device camera_supply_dummy_device = {
 		.platform_data = &camera_dummy_config,
 	},
 };
+#endif
+
+#ifdef CONFIG_MACH_EZX_A780
+/* gpio_keys */
+static struct gpio_keys_button a780_buttons[] = {
+	[0] = {
+		.code       = SW_LID,
+		.gpio       = GPIO12_A780_FLIP_LID,
+		.active_low = 0,
+		.desc       = "A780 flip lid",
+		.type       = EV_SW,
+		.wakeup     = 1,
+	},
+};
+
+static struct gpio_keys_platform_data a780_gpio_keys_platform_data = {
+	.buttons  = a780_buttons,
+	.nbuttons = ARRAY_SIZE(a780_buttons),
+};
+
+static struct platform_device a780_gpio_keys = {
+	.name = "gpio-keys",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &a780_gpio_keys_platform_data,
+	},
+};
+
+/* camera */
 static int a780_camera_reset(struct device *dev)
 {
 	gpio_set_value(GPIO19_GEN1_CAM_RST, 0);
