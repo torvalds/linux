@@ -482,7 +482,9 @@ static bool davinci_spi_can_dma(struct spi_master *master,
 
 	if (spicfg)
 		can_dma = (spicfg->io_type == SPI_IO_TYPE_DMA) &&
-			(xfer->len >= DMA_MIN_BYTES);
+			(xfer->len >= DMA_MIN_BYTES) &&
+			!is_vmalloc_addr(xfer->rx_buf) &&
+			!is_vmalloc_addr(xfer->tx_buf);
 
 	return can_dma;
 }
