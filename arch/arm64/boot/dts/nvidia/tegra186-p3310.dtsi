@@ -26,6 +26,10 @@
 		status = "okay";
 	};
 
+	pmc@c360000 {
+		nvidia,invert-interrupt;
+	};
+
 	cpus {
 		cpu@0 {
 			enable-method = "psci";
