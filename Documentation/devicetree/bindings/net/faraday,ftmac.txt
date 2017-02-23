@@ -1,8 +1,11 @@
-MOXA ART Ethernet Controller
+Faraday Ethernet Controller
 
 Required properties:
 
-- compatible : Must be "moxa,moxart-mac"
+- compatible : Must contain "faraday,ftmac", as well as one of
+		the SoC specific identifiers:
+		"andestech,atmac100"
+		"moxa,moxart-mac"
 - reg : Should contain register location and length
 - interrupts : Should contain the mac interrupt number
 
