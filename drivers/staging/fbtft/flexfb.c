@@ -63,7 +63,7 @@ static bool latched;
 module_param(latched, bool, 0000);
 MODULE_PARM_DESC(latched, "Use with latched 16-bit databus");
 
-static s16 *initp;
+static const s16 *initp;
 static int initp_num;
 
 /* default init sequences */
@@ -390,7 +390,7 @@ struct flexfb_lcd_controller {
 	unsigned int height;
 	unsigned int setaddrwin;
 	unsigned int regwidth;
-	s16 *init_seq;
+	const s16 *init_seq;
 	int init_seq_sz;
 };
 

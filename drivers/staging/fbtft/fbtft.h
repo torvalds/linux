@@ -124,7 +124,7 @@ struct fbtft_display {
 	unsigned int bpp;
 	unsigned int fps;
 	int txbuflen;
-	s16 *init_sequence;
+	const s16 *init_sequence;
 	char *gamma;
 	int gamma_num;
 	int gamma_len;
@@ -228,7 +228,7 @@ struct fbtft_par {
 		int led[16];
 		int aux[16];
 	} gpio;
-	s16 *init_sequence;
+	const s16 *init_sequence;
 	struct {
 		struct mutex lock;
 		u32 *curves;
