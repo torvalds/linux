@@ -858,7 +858,7 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	dev->dsr->resp_slot_dma = (u64)slot_dma;
 
 	/* Async event ring */
-	dev->dsr->async_ring_pages.num_pages = 4;
+	dev->dsr->async_ring_pages.num_pages = PVRDMA_NUM_RING_PAGES;
 	ret = pvrdma_page_dir_init(dev, &dev->async_pdir,
 				   dev->dsr->async_ring_pages.num_pages, true);
 	if (ret)
@@ -867,7 +867,7 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	dev->dsr->async_ring_pages.pdir_dma = dev->async_pdir.dir_dma;
 
 	/* CQ notification ring */
-	dev->dsr->cq_ring_pages.num_pages = 4;
+	dev->dsr->cq_ring_pages.num_pages = PVRDMA_NUM_RING_PAGES;
 	ret = pvrdma_page_dir_init(dev, &dev->cq_pdir,
 				   dev->dsr->cq_ring_pages.num_pages, true);
 	if (ret)
