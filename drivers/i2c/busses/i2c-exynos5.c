@@ -292,9 +292,9 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, int mode)
 	unsigned int t_sr_release;
 	unsigned int t_ftl_cycle;
 	unsigned int clkin = clk_get_rate(i2c->clk);
-	unsigned int div, utemp0 = 0, utemp1 = 0, clk_cycle;
 	unsigned int op_clk = (mode == HSI2C_HIGH_SPD) ?
 				i2c->hs_clock : i2c->fs_clock;
+	int div, clk_cycle, temp;
 
 	/*
 	 * In case of HSI2C controller in Exynos5 series
@@ -305,33 +305,21 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, int mode)
 	 * FPCLK / FI2C =
 	 * (CLK_DIV + 1) * (TSCLK_L + TSCLK_H + 2) + 8 + FLT_CYCLE
 	 *
-	 * utemp0 = (CLK_DIV + 1) * (TSCLK_L + TSCLK_H + 2)
-	 * utemp1 = (TSCLK_L + TSCLK_H + 2)
+	 * clk_cycle := TSCLK_L + TSCLK_H
+	 * temp := (CLK_DIV + 1) * (clk_cycle + 2)
+	 *
+	 * Constraints: 4 <= temp, 0 <= CLK_DIV < 256, 2 <= clk_cycle <= 510
+	 *
 	 */
 	t_ftl_cycle = (readl(i2c->regs + HSI2C_CONF) >> 16) & 0x7;
-	utemp0 = (clkin / op_clk) - 8;
-
-	if (i2c->variant->hw == HSI2C_EXYNOS7)
-		utemp0 -= t_ftl_cycle;
-	else
-		utemp0 -= 2 * t_ftl_cycle;
-
-	/* CLK_DIV max is 256 */
-	for (div = 0; div < 256; div++) {
-		utemp1 = utemp0 / (div + 1);
-
-		/*
-		 * SCL_L and SCL_H each has max value of 255
-		 * Hence, For the clk_cycle to the have right value
-		 * utemp1 has to be less then 512 and more than 4.
-		 */
-		if ((utemp1 < 512) && (utemp1 > 4)) {
-			clk_cycle = utemp1 - 2;
-			break;
-		} else if (div == 255) {
-			dev_warn(i2c->dev, "Failed to calculate divisor");
-			return -EINVAL;
-		}
+	temp = clkin / op_clk - 8 - t_ftl_cycle;
+	if (i2c->variant->hw != HSI2C_EXYNOS7)
+		temp -= t_ftl_cycle;
+	div = temp / 512;
+	clk_cycle = temp / (div + 1) - 2;
+	if (temp < 4 || div >= 256 || clk_cycle < 2) {
+		dev_warn(i2c->dev, "Failed to calculate divisor");
+		return -EINVAL;
 	}
 
 	t_scl_l = clk_cycle / 2;
