@@ -34,6 +34,19 @@ struct ddi_buf_trans {
 	u8 i_boost;	/* SKL: I_boost; valid: 0x0, 0x1, 0x3, 0x7 */
 };
 
+static const u8 index_to_dp_signal_levels[] = {
+	[0] = DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_0,
+	[1] = DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_1,
+	[2] = DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_2,
+	[3] = DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_3,
+	[4] = DP_TRAIN_VOLTAGE_SWING_LEVEL_1 | DP_TRAIN_PRE_EMPH_LEVEL_0,
+	[5] = DP_TRAIN_VOLTAGE_SWING_LEVEL_1 | DP_TRAIN_PRE_EMPH_LEVEL_1,
+	[6] = DP_TRAIN_VOLTAGE_SWING_LEVEL_1 | DP_TRAIN_PRE_EMPH_LEVEL_2,
+	[7] = DP_TRAIN_VOLTAGE_SWING_LEVEL_2 | DP_TRAIN_PRE_EMPH_LEVEL_0,
+	[8] = DP_TRAIN_VOLTAGE_SWING_LEVEL_2 | DP_TRAIN_PRE_EMPH_LEVEL_1,
+	[9] = DP_TRAIN_VOLTAGE_SWING_LEVEL_3 | DP_TRAIN_PRE_EMPH_LEVEL_0,
+};
+
 /* HDMI/DVI modes ignore everything but the last 2 items. So we share
  * them for both DP and FDI transports, allowing those ports to
  * automatically adapt to HDMI connections as well
@@ -1604,48 +1617,17 @@ static void bxt_ddi_vswing_sequence(struct drm_i915_private *dev_priv,
 
 static uint32_t translate_signal_level(int signal_levels)
 {
-	uint32_t level;
+	int i;
 
-	switch (signal_levels) {
-	default:
-		DRM_DEBUG_KMS("Unsupported voltage swing/pre-emphasis level: 0x%x\n",
-			      signal_levels);
-	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_0:
-		level = 0;
-		break;
-	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_1:
-		level = 1;
-		break;
-	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_2:
-		level = 2;
-		break;
-	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_3:
-		level = 3;
-		break;
-
-	case DP_TRAIN_VOLTAGE_SWING_LEVEL_1 | DP_TRAIN_PRE_EMPH_LEVEL_0:
-		level = 4;
-		break;
-	case DP_TRAIN_VOLTAGE_SWING_LEVEL_1 | DP_TRAIN_PRE_EMPH_LEVEL_1:
-		level = 5;
-		break;
-	case DP_TRAIN_VOLTAGE_SWING_LEVEL_1 | DP_TRAIN_PRE_EMPH_LEVEL_2:
-		level = 6;
-		break;
-
-	case DP_TRAIN_VOLTAGE_SWING_LEVEL_2 | DP_TRAIN_PRE_EMPH_LEVEL_0:
-		level = 7;
-		break;
-	case DP_TRAIN_VOLTAGE_SWING_LEVEL_2 | DP_TRAIN_PRE_EMPH_LEVEL_1:
-		level = 8;
-		break;
-
-	case DP_TRAIN_VOLTAGE_SWING_LEVEL_3 | DP_TRAIN_PRE_EMPH_LEVEL_0:
-		level = 9;
-		break;
+	for (i = 0; i < ARRAY_SIZE(index_to_dp_signal_levels); i++) {
+		if (index_to_dp_signal_levels[i] == signal_levels)
+			return i;
 	}
 
-	return level;
+	WARN(1, "Unsupported voltage swing/pre-emphasis level: 0x%x\n",
+	     signal_levels);
+
+	return 0;
 }
 
 uint32_t ddi_signal_levels(struct intel_dp *intel_dp)
