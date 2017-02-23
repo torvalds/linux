@@ -119,18 +119,10 @@ struct drm_i915_gem_request {
 	 * The submit fence is used to await upon all of the request's
 	 * dependencies. When it is signaled, the request is ready to run.
 	 * It is used by the driver to then queue the request for execution.
-	 *
-	 * The execute fence is used to signal when the request has been
-	 * sent to hardware.
-	 *
-	 * It is illegal for the submit fence of one request to wait upon the
-	 * execute fence of an earlier request. It should be sufficient to
-	 * wait upon the submit fence of the earlier request.
 	 */
 	struct i915_sw_fence submit;
-	struct i915_sw_fence execute;
 	wait_queue_t submitq;
-	wait_queue_t execq;
+	wait_queue_head_t execute;
 
 	/* A list of everyone we wait upon, and everyone who waits upon us.
 	 * Even though we will not be submitted to the hardware before the

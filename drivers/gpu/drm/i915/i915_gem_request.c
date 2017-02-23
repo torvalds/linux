@@ -69,7 +69,6 @@ static void i915_fence_release(struct dma_fence *fence)
 	 * caught trying to reuse dead objects.
 	 */
 	i915_sw_fence_fini(&req->submit);
-	i915_sw_fence_fini(&req->execute);
 
 	kmem_cache_free(req->i915->requests, req);
 }
@@ -294,7 +293,6 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 
 	lockdep_assert_held(&request->i915->drm.struct_mutex);
 	GEM_BUG_ON(!i915_sw_fence_signaled(&request->submit));
-	GEM_BUG_ON(!i915_sw_fence_signaled(&request->execute));
 	GEM_BUG_ON(!i915_gem_request_completed(request));
 	GEM_BUG_ON(!request->i915->gt.active_requests);
 
@@ -402,6 +400,8 @@ void __i915_gem_request_submit(struct drm_i915_gem_request *request)
 	struct intel_timeline *timeline;
 	u32 seqno;
 
+	trace_i915_gem_request_execute(request);
+
 	/* Transfer from per-context onto the global per-engine timeline */
 	timeline = engine->timeline;
 	GEM_BUG_ON(timeline == request->timeline);
@@ -426,8 +426,7 @@ void __i915_gem_request_submit(struct drm_i915_gem_request *request)
 	list_move_tail(&request->link, &timeline->requests);
 	spin_unlock(&request->timeline->lock);
 
-	i915_sw_fence_commit(&request->execute);
-	trace_i915_gem_request_execute(request);
+	wake_up_all(&request->execute);
 }
 
 void i915_gem_request_submit(struct drm_i915_gem_request *request)
@@ -453,24 +452,6 @@ submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 	case FENCE_COMPLETE:
 		trace_i915_gem_request_submit(request);
 		request->engine->submit_request(request);
-		break;
-
-	case FENCE_FREE:
-		i915_gem_request_put(request);
-		break;
-	}
-
-	return NOTIFY_DONE;
-}
-
-static int __i915_sw_fence_call
-execute_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
-{
-	struct drm_i915_gem_request *request =
-		container_of(fence, typeof(*request), execute);
-
-	switch (state) {
-	case FENCE_COMPLETE:
 		break;
 
 	case FENCE_FREE:
@@ -573,13 +554,7 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 
 	/* We bump the ref for the fence chain */
 	i915_sw_fence_init(&i915_gem_request_get(req)->submit, submit_notify);
-	i915_sw_fence_init(&i915_gem_request_get(req)->execute, execute_notify);
-
-	/* Ensure that the execute fence completes after the submit fence -
-	 * as we complete the execute fence from within the submit fence
-	 * callback, its completion would otherwise be visible first.
-	 */
-	i915_sw_fence_await_sw_fence(&req->execute, &req->submit, &req->execq);
+	init_waitqueue_head(&req->execute);
 
 	i915_priotree_init(&req->priotree);
 
@@ -1031,6 +1006,7 @@ long i915_wait_request(struct drm_i915_gem_request *req,
 		TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;
 	wait_queue_head_t *errq = &req->i915->gpu_error.wait_queue;
 	DEFINE_WAIT(reset);
+	DEFINE_WAIT(exec);
 	struct intel_wait wait;
 
 	might_sleep();
@@ -1052,12 +1028,11 @@ long i915_wait_request(struct drm_i915_gem_request *req,
 	if (flags & I915_WAIT_LOCKED)
 		add_wait_queue(errq, &reset);
 
-	if (!i915_sw_fence_done(&req->execute)) {
-		DEFINE_WAIT(exec);
-
+	reset_wait_queue(&req->execute, &exec);
+	if (!req->global_seqno) {
 		do {
-			prepare_to_wait(&req->execute.wait, &exec, state);
-			if (i915_sw_fence_done(&req->execute))
+			set_current_state(state);
+			if (req->global_seqno)
 				break;
 
 			if (flags & I915_WAIT_LOCKED &&
@@ -1080,15 +1055,14 @@ long i915_wait_request(struct drm_i915_gem_request *req,
 
 			timeout = io_schedule_timeout(timeout);
 		} while (1);
-		finish_wait(&req->execute.wait, &exec);
+		finish_wait(&req->execute, &exec);
 
 		if (timeout < 0)
 			goto complete;
 
-		GEM_BUG_ON(!i915_sw_fence_done(&req->execute));
+		GEM_BUG_ON(!req->global_seqno);
 	}
-	GEM_BUG_ON(!i915_sw_fence_done(&req->submit));
-	GEM_BUG_ON(!req->global_seqno);
+	GEM_BUG_ON(!i915_sw_fence_signaled(&req->submit));
 
 	/* Optimistic short spin before touching IRQs */
 	if (i915_spin_request(req, state, 5))
