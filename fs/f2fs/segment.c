@@ -886,7 +886,8 @@ static void __add_discard_entry(struct f2fs_sb_info *sbi,
 	if (!list_empty(head)) {
 		last = list_last_entry(head, struct discard_entry, list);
 		if (START_BLOCK(sbi, cpc->trim_start) + start ==
-						last->blkaddr + last->len) {
+				last->blkaddr + last->len &&
+				last->len < MAX_DISCARD_BLOCKS(sbi)) {
 			last->len += end - start;
 			goto done;
 		}
