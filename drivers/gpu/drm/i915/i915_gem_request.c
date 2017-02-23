@@ -198,6 +198,12 @@ i915_priotree_init(struct i915_priotree *pt)
 	pt->priority = INT_MIN;
 }
 
+static void unreserve_seqno(struct intel_engine_cs *engine)
+{
+	GEM_BUG_ON(!engine->timeline->inflight_seqnos);
+	engine->timeline->inflight_seqnos--;
+}
+
 void i915_gem_retire_noop(struct i915_gem_active *active,
 			  struct drm_i915_gem_request *request)
 {
@@ -237,6 +243,7 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 				 &request->i915->gt.idle_work,
 				 msecs_to_jiffies(100));
 	}
+	unreserve_seqno(request->engine);
 
 	/* Walk through the active list, calling retire on each. This allows
 	 * objects to track their GPU activity and mark themselves as idle
@@ -307,7 +314,7 @@ void i915_gem_request_retire_upto(struct drm_i915_gem_request *req)
 	} while (tmp != req);
 }
 
-static int i915_gem_init_global_seqno(struct drm_i915_private *i915, u32 seqno)
+static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
 {
 	struct i915_gem_timeline *timeline = &i915->gt.global_timeline;
 	struct intel_engine_cs *engine;
@@ -325,15 +332,19 @@ static int i915_gem_init_global_seqno(struct drm_i915_private *i915, u32 seqno)
 	GEM_BUG_ON(i915->gt.active_requests > 1);
 
 	/* If the seqno wraps around, we need to clear the breadcrumb rbtree */
-	if (!i915_seqno_passed(seqno, atomic_read(&timeline->seqno))) {
-		while (intel_breadcrumbs_busy(i915))
-			cond_resched(); /* spin until threads are complete */
-	}
-	atomic_set(&timeline->seqno, seqno);
+	for_each_engine(engine, i915, id) {
+		struct intel_timeline *tl = &timeline->engine[id];
 
-	/* Finally reset hw state */
-	for_each_engine(engine, i915, id)
+		if (!i915_seqno_passed(seqno, tl->seqno)) {
+			/* spin until threads are complete */
+			while (intel_breadcrumbs_busy(engine))
+				cond_resched();
+		}
+
+		/* Finally reset hw state */
+		tl->seqno = seqno;
 		intel_engine_init_global_seqno(engine, seqno);
+	}
 
 	list_for_each_entry(timeline, &i915->gt.timelines, link) {
 		for_each_engine(engine, i915, id) {
@@ -358,37 +369,38 @@ int i915_gem_set_global_seqno(struct drm_device *dev, u32 seqno)
 	/* HWS page needs to be set less than what we
 	 * will inject to ring
 	 */
-	return i915_gem_init_global_seqno(dev_priv, seqno - 1);
+	return reset_all_global_seqno(dev_priv, seqno - 1);
 }
 
-static int reserve_global_seqno(struct drm_i915_private *i915)
+static int reserve_seqno(struct intel_engine_cs *engine)
 {
-	u32 active_requests = ++i915->gt.active_requests;
-	u32 seqno = atomic_read(&i915->gt.global_timeline.seqno);
+	u32 active = ++engine->timeline->inflight_seqnos;
+	u32 seqno = engine->timeline->seqno;
 	int ret;
 
 	/* Reservation is fine until we need to wrap around */
-	if (likely(seqno + active_requests > seqno))
+	if (likely(!add_overflows(seqno, active)))
 		return 0;
 
-	ret = i915_gem_init_global_seqno(i915, 0);
+	/* Even though we are tracking inflight seqno individually on each
+	 * engine, other engines may be observing us using hw semaphores and
+	 * so we need to idle all engines before wrapping around this engine.
+	 * As all engines are then idle, we can reset the seqno on all, so
+	 * we don't stall in quick succession if each engine is being
+	 * similarly utilized.
+	 */
+	ret = reset_all_global_seqno(engine->i915, 0);
 	if (ret) {
-		i915->gt.active_requests--;
+		engine->timeline->inflight_seqnos--;
 		return ret;
 	}
 
 	return 0;
 }
 
-static u32 __timeline_get_seqno(struct i915_gem_timeline *tl)
+static u32 timeline_get_seqno(struct intel_timeline *tl)
 {
-	/* seqno only incremented under a mutex */
-	return ++tl->seqno.counter;
-}
-
-static u32 timeline_get_seqno(struct i915_gem_timeline *tl)
-{
-	return atomic_inc_return(&tl->seqno);
+	return ++tl->seqno;
 }
 
 void __i915_gem_request_submit(struct drm_i915_gem_request *request)
@@ -402,13 +414,9 @@ void __i915_gem_request_submit(struct drm_i915_gem_request *request)
 	GEM_BUG_ON(timeline == request->timeline);
 	assert_spin_locked(&timeline->lock);
 
-	seqno = timeline_get_seqno(timeline->common);
+	seqno = timeline_get_seqno(timeline);
 	GEM_BUG_ON(!seqno);
 	GEM_BUG_ON(i915_seqno_passed(intel_engine_get_seqno(engine), seqno));
-
-	GEM_BUG_ON(i915_seqno_passed(timeline->last_submitted_seqno, seqno));
-	request->previous_seqno = timeline->last_submitted_seqno;
-	timeline->last_submitted_seqno = seqno;
 
 	/* We may be recursing from the signal callback of another i915 fence */
 	spin_lock_nested(&request->lock, SINGLE_DEPTH_NESTING);
@@ -516,7 +524,7 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = reserve_global_seqno(dev_priv);
+	ret = reserve_seqno(engine);
 	if (ret)
 		goto err_unpin;
 
@@ -568,7 +576,7 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 		       &i915_fence_ops,
 		       &req->lock,
 		       req->timeline->fence_context,
-		       __timeline_get_seqno(req->timeline->common));
+		       timeline_get_seqno(req->timeline));
 
 	/* We bump the ref for the fence chain */
 	i915_sw_fence_init(&i915_gem_request_get(req)->submit, submit_notify);
@@ -613,6 +621,8 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	 */
 	req->head = req->ring->tail;
 
+	/* Check that we didn't interrupt ourselves with a new request */
+	GEM_BUG_ON(req->timeline->seqno != req->fence.seqno);
 	return req;
 
 err_ctx:
@@ -623,7 +633,7 @@ err_ctx:
 
 	kmem_cache_free(dev_priv->requests, req);
 err_unreserve:
-	dev_priv->gt.active_requests--;
+	unreserve_seqno(engine);
 err_unpin:
 	engine->context_unpin(engine, ctx);
 	return ERR_PTR(ret);
@@ -836,8 +846,7 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 	 * our i915_gem_request_alloc() and called __i915_add_request() before
 	 * us, the timeline will hold its seqno which is later than ours.
 	 */
-	GEM_BUG_ON(i915_seqno_passed(timeline->last_submitted_seqno,
-				     request->fence.seqno));
+	GEM_BUG_ON(timeline->seqno != request->fence.seqno);
 
 	/*
 	 * To ensure that this call will not fail, space for its emissions
@@ -891,16 +900,14 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 	list_add_tail(&request->link, &timeline->requests);
 	spin_unlock_irq(&timeline->lock);
 
-	GEM_BUG_ON(i915_seqno_passed(timeline->last_submitted_seqno,
-				     request->fence.seqno));
-
-	timeline->last_submitted_seqno = request->fence.seqno;
+	GEM_BUG_ON(timeline->seqno != request->fence.seqno);
 	i915_gem_active_set(&timeline->last_request, request);
 
 	list_add_tail(&request->ring_link, &ring->request_list);
 	request->emitted_jiffies = jiffies;
 
-	i915_gem_mark_busy(engine);
+	if (!request->i915->gt.active_requests++)
+		i915_gem_mark_busy(engine);
 
 	/* Let the backend know a new request has arrived that may need
 	 * to adjust the existing execution schedule due to a high priority

@@ -145,12 +145,6 @@ struct drm_i915_gem_request {
 
 	u32 global_seqno;
 
-	/** GEM sequence number associated with the previous request,
-	 * when the HWS breadcrumb is equal to this the GPU is processing
-	 * this request.
-	 */
-	u32 previous_seqno;
-
 	/** Position in the ring of the start of the request */
 	u32 head;
 
@@ -287,7 +281,7 @@ __i915_gem_request_started(const struct drm_i915_gem_request *req)
 {
 	GEM_BUG_ON(!req->global_seqno);
 	return i915_seqno_passed(intel_engine_get_seqno(req->engine),
-				 req->previous_seqno);
+				 req->global_seqno - 1);
 }
 
 static inline bool

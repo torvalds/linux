@@ -556,7 +556,7 @@ static inline u32 intel_engine_last_submit(struct intel_engine_cs *engine)
 	 * wtih serialising this hint with anything, so document it as
 	 * a hint and nothing more.
 	 */
-	return READ_ONCE(engine->timeline->last_submitted_seqno);
+	return READ_ONCE(engine->timeline->seqno);
 }
 
 int init_workarounds_ring(struct intel_engine_cs *engine);
@@ -630,7 +630,7 @@ static inline bool intel_engine_wakeup(const struct intel_engine_cs *engine)
 
 void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine);
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
-unsigned int intel_breadcrumbs_busy(struct drm_i915_private *i915);
+bool intel_breadcrumbs_busy(struct intel_engine_cs *engine);
 
 static inline u32 *gen8_emit_pipe_control(u32 *batch, u32 flags, u32 offset)
 {

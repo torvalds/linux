@@ -252,8 +252,6 @@ void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno)
 		engine->irq_seqno_barrier(engine);
 
 	GEM_BUG_ON(i915_gem_active_isset(&engine->timeline->last_request));
-	engine->timeline->last_submitted_seqno = seqno;
-
 	engine->hangcheck.seqno = seqno;
 
 	/* After manually advancing the seqno, fake the interrupt in case

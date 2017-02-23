@@ -1080,15 +1080,6 @@ static const struct file_operations i915_error_state_fops = {
 #endif
 
 static int
-i915_next_seqno_get(void *data, u64 *val)
-{
-	struct drm_i915_private *dev_priv = data;
-
-	*val = 1 + atomic_read(&dev_priv->gt.global_timeline.seqno);
-	return 0;
-}
-
-static int
 i915_next_seqno_set(void *data, u64 val)
 {
 	struct drm_i915_private *dev_priv = data;
@@ -1106,7 +1097,7 @@ i915_next_seqno_set(void *data, u64 val)
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_next_seqno_fops,
-			i915_next_seqno_get, i915_next_seqno_set,
+			NULL, i915_next_seqno_set,
 			"0x%llx\n");
 
 static int i915_frequency_info(struct seq_file *m, void *unused)
