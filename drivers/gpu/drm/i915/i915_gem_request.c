@@ -1004,54 +1004,6 @@ bool __i915_spin_request(const struct drm_i915_gem_request *req,
 	return false;
 }
 
-static long
-__i915_request_wait_for_execute(struct drm_i915_gem_request *request,
-				unsigned int flags,
-				long timeout)
-{
-	const int state = flags & I915_WAIT_INTERRUPTIBLE ?
-		TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;
-	wait_queue_head_t *q = &request->i915->gpu_error.wait_queue;
-	DEFINE_WAIT(reset);
-	DEFINE_WAIT(wait);
-
-	if (flags & I915_WAIT_LOCKED)
-		add_wait_queue(q, &reset);
-
-	do {
-		prepare_to_wait(&request->execute.wait, &wait, state);
-
-		if (i915_sw_fence_done(&request->execute))
-			break;
-
-		if (flags & I915_WAIT_LOCKED &&
-		    i915_reset_in_progress(&request->i915->gpu_error)) {
-			__set_current_state(TASK_RUNNING);
-			i915_reset(request->i915);
-			reset_wait_queue(q, &reset);
-			continue;
-		}
-
-		if (signal_pending_state(state, current)) {
-			timeout = -ERESTARTSYS;
-			break;
-		}
-
-		if (!timeout) {
-			timeout = -ETIME;
-			break;
-		}
-
-		timeout = io_schedule_timeout(timeout);
-	} while (1);
-	finish_wait(&request->execute.wait, &wait);
-
-	if (flags & I915_WAIT_LOCKED)
-		remove_wait_queue(q, &reset);
-
-	return timeout;
-}
-
 /**
  * i915_wait_request - wait until execution of request has finished
  * @req: the request to wait upon
@@ -1101,7 +1053,35 @@ long i915_wait_request(struct drm_i915_gem_request *req,
 		add_wait_queue(errq, &reset);
 
 	if (!i915_sw_fence_done(&req->execute)) {
-		timeout = __i915_request_wait_for_execute(req, flags, timeout);
+		DEFINE_WAIT(exec);
+
+		do {
+			prepare_to_wait(&req->execute.wait, &exec, state);
+			if (i915_sw_fence_done(&req->execute))
+				break;
+
+			if (flags & I915_WAIT_LOCKED &&
+			    i915_reset_in_progress(&req->i915->gpu_error)) {
+				__set_current_state(TASK_RUNNING);
+				i915_reset(req->i915);
+				reset_wait_queue(errq, &reset);
+				continue;
+			}
+
+			if (signal_pending_state(state, current)) {
+				timeout = -ERESTARTSYS;
+				break;
+			}
+
+			if (!timeout) {
+				timeout = -ETIME;
+				break;
+			}
+
+			timeout = io_schedule_timeout(timeout);
+		} while (1);
+		finish_wait(&req->execute.wait, &exec);
+
 		if (timeout < 0)
 			goto complete;
 
