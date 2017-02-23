@@ -44,28 +44,9 @@ void tinydrm_xrgb8888_to_rgb565(u16 *dst, void *vaddr,
 				struct drm_framebuffer *fb,
 				struct drm_clip_rect *clip, bool swap);
 
-#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
 struct backlight_device *tinydrm_of_find_backlight(struct device *dev);
 int tinydrm_enable_backlight(struct backlight_device *backlight);
 int tinydrm_disable_backlight(struct backlight_device *backlight);
-#else
-static inline struct backlight_device *
-tinydrm_of_find_backlight(struct device *dev)
-{
-	return NULL;
-}
-
-static inline int tinydrm_enable_backlight(struct backlight_device *backlight)
-{
-	return 0;
-}
-
-static inline int
-tinydrm_disable_backlight(struct backlight_device *backlight)
-{
-	return 0;
-}
-#endif
 
 size_t tinydrm_spi_max_transfer_size(struct spi_device *spi, size_t max_len);
 bool tinydrm_spi_bpw_supported(struct spi_device *spi, u8 bpw);
