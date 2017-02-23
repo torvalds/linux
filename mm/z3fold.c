@@ -50,7 +50,7 @@
 #define ZHDR_SIZE_ALIGNED CHUNK_SIZE
 #define NCHUNKS		((PAGE_SIZE - ZHDR_SIZE_ALIGNED) >> CHUNK_SHIFT)
 
-#define BUDDY_MASK	((1 << NCHUNKS_ORDER) - 1)
+#define BUDDY_MASK	(0x3)
 
 struct z3fold_pool;
 struct z3fold_ops {
@@ -109,7 +109,7 @@ struct z3fold_header {
 	unsigned short middle_chunks;
 	unsigned short last_chunks;
 	unsigned short start_middle;
-	unsigned short first_num:NCHUNKS_ORDER;
+	unsigned short first_num:2;
 };
 
 /*
@@ -179,7 +179,11 @@ static struct z3fold_header *handle_to_z3fold_header(unsigned long handle)
 	return (struct z3fold_header *)(handle & PAGE_MASK);
 }
 
-/* Returns buddy number */
+/*
+ * (handle & BUDDY_MASK) < zhdr->first_num is possible in encode_handle
+ *  but that doesn't matter. because the masking will result in the
+ *  correct buddy number.
+ */
 static enum buddy handle_to_buddy(unsigned long handle)
 {
 	struct z3fold_header *zhdr = handle_to_z3fold_header(handle);

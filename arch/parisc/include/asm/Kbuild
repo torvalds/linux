@@ -2,6 +2,7 @@
 generic-y += auxvec.h
 generic-y += barrier.h
 generic-y += clkdev.h
+generic-y += current.h
 generic-y += device.h
 generic-y += div64.h
 generic-y += emergency-restart.h

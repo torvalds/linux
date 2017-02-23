@@ -110,6 +110,7 @@ MADV_HUGEPAGE region.
 
 echo always >/sys/kernel/mm/transparent_hugepage/defrag
 echo defer >/sys/kernel/mm/transparent_hugepage/defrag
+echo defer+madvise >/sys/kernel/mm/transparent_hugepage/defrag
 echo madvise >/sys/kernel/mm/transparent_hugepage/defrag
 echo never >/sys/kernel/mm/transparent_hugepage/defrag
 
@@ -120,9 +121,14 @@ that benefit heavily from THP use and are willing to delay the VM start
 to utilise them.
 
 "defer" means that an application will wake kswapd in the background
-to reclaim pages and wake kcompact to compact memory so that THP is
+to reclaim pages and wake kcompactd to compact memory so that THP is
 available in the near future. It's the responsibility of khugepaged
 to then install the THP pages later.
+
+"defer+madvise" will enter direct reclaim and compaction like "always", but
+only for regions that have used madvise(MADV_HUGEPAGE); all other regions
+will wake kswapd in the background to reclaim pages and wake kcompactd to
+compact memory so that THP is available in the near future.
 
 "madvise" will enter direct reclaim like "always" but only for regions
 that are have used madvise(MADV_HUGEPAGE). This is the default behaviour.
