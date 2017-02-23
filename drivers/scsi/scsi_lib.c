@@ -213,7 +213,26 @@ void scsi_queue_insert(struct scsi_cmnd *cmd, int reason)
 	__scsi_queue_insert(cmd, reason, 1);
 }
 
-static int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
+
+/**
+ * scsi_execute - insert request and wait for the result
+ * @sdev:	scsi device
+ * @cmd:	scsi command
+ * @data_direction: data direction
+ * @buffer:	data buffer
+ * @bufflen:	len of buffer
+ * @sense:	optional sense buffer
+ * @sshdr:	optional decoded sense header
+ * @timeout:	request timeout in seconds
+ * @retries:	number of times to retry request
+ * @flags:	flags for ->cmd_flags
+ * @rq_flags:	flags for ->rq_flags
+ * @resid:	optional residual length
+ *
+ * returns the req->errors value which is the scsi_cmnd result
+ * field.
+ */
+int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 		 int data_direction, void *buffer, unsigned bufflen,
 		 unsigned char *sense, struct scsi_sense_hdr *sshdr,
 		 int timeout, int retries, u64 flags, req_flags_t rq_flags,
@@ -268,31 +287,6 @@ static int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 
 	return ret;
 }
-
-/**
- * scsi_execute - insert request and wait for the result
- * @sdev:	scsi device
- * @cmd:	scsi command
- * @data_direction: data direction
- * @buffer:	data buffer
- * @bufflen:	len of buffer
- * @sense:	optional sense buffer
- * @timeout:	request timeout in seconds
- * @retries:	number of times to retry request
- * @flags:	or into request flags;
- * @resid:	optional residual length
- *
- * returns the req->errors value which is the scsi_cmnd result
- * field.
- */
-int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
-		 int data_direction, void *buffer, unsigned bufflen,
-		 unsigned char *sense, int timeout, int retries, u64 flags,
-		 int *resid)
-{
-	return __scsi_execute(sdev, cmd, data_direction, buffer, bufflen, sense,
-			NULL, timeout, retries, flags, 0, resid);
-}
 EXPORT_SYMBOL(scsi_execute);
 
 int scsi_execute_req_flags(struct scsi_device *sdev, const unsigned char *cmd,
@@ -300,7 +294,7 @@ int scsi_execute_req_flags(struct scsi_device *sdev, const unsigned char *cmd,
 		     struct scsi_sense_hdr *sshdr, int timeout, int retries,
 		     int *resid, u64 flags, req_flags_t rq_flags)
 {
-	return __scsi_execute(sdev, cmd, data_direction, buffer, bufflen,
+	return scsi_execute(sdev, cmd, data_direction, buffer, bufflen,
 			      NULL, sshdr, timeout, retries, flags, rq_flags,
 			      resid);
 }

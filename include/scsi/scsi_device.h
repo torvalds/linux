@@ -410,8 +410,9 @@ extern int scsi_is_target_device(const struct device *);
 extern void scsi_sanitize_inquiry_string(unsigned char *s, int len);
 extern int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 			int data_direction, void *buffer, unsigned bufflen,
-			unsigned char *sense, int timeout, int retries,
-			u64 flags, int *resid);
+			unsigned char *sense, struct scsi_sense_hdr *sshdr,
+			int timeout, int retries, u64 flags,
+			req_flags_t rq_flags, int *resid);
 extern int scsi_execute_req_flags(struct scsi_device *sdev,
 	const unsigned char *cmd, int data_direction, void *buffer,
 	unsigned bufflen, struct scsi_sense_hdr *sshdr, int timeout,

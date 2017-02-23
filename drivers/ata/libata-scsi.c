@@ -600,6 +600,7 @@ int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg)
 	u8 args[4], *argbuf = NULL, *sensebuf = NULL;
 	int argsize = 0;
 	enum dma_data_direction data_dir;
+	struct scsi_sense_hdr sshdr;
 	int cmd_result;
 
 	if (arg == NULL)
@@ -648,7 +649,7 @@ int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg)
 	/* Good values for timeout and retries?  Values below
 	   from scsi_ioctl_send_command() for default case... */
 	cmd_result = scsi_execute(scsidev, scsi_cmd, data_dir, argbuf, argsize,
-				  sensebuf, (10*HZ), 5, 0, NULL);
+				  sensebuf, &sshdr, (10*HZ), 5, 0, 0, NULL);
 
 	if (driver_byte(cmd_result) == DRIVER_SENSE) {/* sense data available */
 		u8 *desc = sensebuf + 8;
@@ -657,9 +658,6 @@ int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg)
 		/* If we set cc then ATA pass-through will cause a
 		 * check condition even if no error. Filter that. */
 		if (cmd_result & SAM_STAT_CHECK_CONDITION) {
-			struct scsi_sense_hdr sshdr;
-			scsi_normalize_sense(sensebuf, SCSI_SENSE_BUFFERSIZE,
-					     &sshdr);
 			if (sshdr.sense_key == RECOVERED_ERROR &&
 			    sshdr.asc == 0 && sshdr.ascq == 0x1d)
 				cmd_result &= ~SAM_STAT_CHECK_CONDITION;
@@ -707,6 +705,7 @@ int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 	int rc = 0;
 	u8 scsi_cmd[MAX_COMMAND_SIZE];
 	u8 args[7], *sensebuf = NULL;
+	struct scsi_sense_hdr sshdr;
 	int cmd_result;
 
 	if (arg == NULL)
@@ -734,7 +733,7 @@ int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 	/* Good values for timeout and retries?  Values below
 	   from scsi_ioctl_send_command() for default case... */
 	cmd_result = scsi_execute(scsidev, scsi_cmd, DMA_NONE, NULL, 0,
-				sensebuf, (10*HZ), 5, 0, NULL);
+				sensebuf, &sshdr, (10*HZ), 5, 0, 0, NULL);
 
 	if (driver_byte(cmd_result) == DRIVER_SENSE) {/* sense data available */
 		u8 *desc = sensebuf + 8;
@@ -743,9 +742,6 @@ int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 		/* If we set cc then ATA pass-through will cause a
 		 * check condition even if no error. Filter that. */
 		if (cmd_result & SAM_STAT_CHECK_CONDITION) {
-			struct scsi_sense_hdr sshdr;
-			scsi_normalize_sense(sensebuf, SCSI_SENSE_BUFFERSIZE,
-						&sshdr);
 			if (sshdr.sense_key == RECOVERED_ERROR &&
 			    sshdr.asc == 0 && sshdr.ascq == 0x1d)
 				cmd_result &= ~SAM_STAT_CHECK_CONDITION;
