@@ -198,6 +198,83 @@ i915_priotree_init(struct i915_priotree *pt)
 	pt->priority = INT_MIN;
 }
 
+static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
+{
+	struct i915_gem_timeline *timeline = &i915->gt.global_timeline;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	int ret;
+
+	/* Carefully retire all requests without writing to the rings */
+	ret = i915_gem_wait_for_idle(i915,
+				     I915_WAIT_INTERRUPTIBLE |
+				     I915_WAIT_LOCKED);
+	if (ret)
+		return ret;
+
+	i915_gem_retire_requests(i915);
+	GEM_BUG_ON(i915->gt.active_requests > 1);
+
+	/* If the seqno wraps around, we need to clear the breadcrumb rbtree */
+	for_each_engine(engine, i915, id) {
+		struct intel_timeline *tl = &timeline->engine[id];
+
+		if (!i915_seqno_passed(seqno, tl->seqno)) {
+			/* spin until threads are complete */
+			while (intel_breadcrumbs_busy(engine))
+				cond_resched();
+		}
+
+		/* Finally reset hw state */
+		tl->seqno = seqno;
+		intel_engine_init_global_seqno(engine, seqno);
+	}
+
+	list_for_each_entry(timeline, &i915->gt.timelines, link) {
+		for_each_engine(engine, i915, id) {
+			struct intel_timeline *tl = &timeline->engine[id];
+
+			memset(tl->sync_seqno, 0, sizeof(tl->sync_seqno));
+		}
+	}
+
+	return 0;
+}
+
+int i915_gem_set_global_seqno(struct drm_device *dev, u32 seqno)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
+
+	if (seqno == 0)
+		return -EINVAL;
+
+	/* HWS page needs to be set less than what we
+	 * will inject to ring
+	 */
+	return reset_all_global_seqno(dev_priv, seqno - 1);
+}
+
+static int reserve_seqno(struct intel_engine_cs *engine)
+{
+	u32 active = ++engine->timeline->inflight_seqnos;
+	u32 seqno = engine->timeline->seqno;
+	int ret;
+
+	/* Reservation is fine until we need to wrap around */
+	if (likely(!add_overflows(seqno, active)))
+		return 0;
+
+	ret = reset_all_global_seqno(engine->i915, 0);
+	if (ret) {
+		engine->timeline->inflight_seqnos--;
+		return ret;
+	}
+
+	return 0;
+}
+
 static void unreserve_seqno(struct intel_engine_cs *engine)
 {
 	GEM_BUG_ON(!engine->timeline->inflight_seqnos);
@@ -312,90 +389,6 @@ void i915_gem_request_retire_upto(struct drm_i915_gem_request *req)
 
 		i915_gem_request_retire(tmp);
 	} while (tmp != req);
-}
-
-static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
-{
-	struct i915_gem_timeline *timeline = &i915->gt.global_timeline;
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	int ret;
-
-	/* Carefully retire all requests without writing to the rings */
-	ret = i915_gem_wait_for_idle(i915,
-				     I915_WAIT_INTERRUPTIBLE |
-				     I915_WAIT_LOCKED);
-	if (ret)
-		return ret;
-
-	i915_gem_retire_requests(i915);
-	GEM_BUG_ON(i915->gt.active_requests > 1);
-
-	/* If the seqno wraps around, we need to clear the breadcrumb rbtree */
-	for_each_engine(engine, i915, id) {
-		struct intel_timeline *tl = &timeline->engine[id];
-
-		if (!i915_seqno_passed(seqno, tl->seqno)) {
-			/* spin until threads are complete */
-			while (intel_breadcrumbs_busy(engine))
-				cond_resched();
-		}
-
-		/* Finally reset hw state */
-		tl->seqno = seqno;
-		intel_engine_init_global_seqno(engine, seqno);
-	}
-
-	list_for_each_entry(timeline, &i915->gt.timelines, link) {
-		for_each_engine(engine, i915, id) {
-			struct intel_timeline *tl = &timeline->engine[id];
-
-			memset(tl->sync_seqno, 0, sizeof(tl->sync_seqno));
-		}
-	}
-
-	return 0;
-}
-
-int i915_gem_set_global_seqno(struct drm_device *dev, u32 seqno)
-{
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
-
-	if (seqno == 0)
-		return -EINVAL;
-
-	/* HWS page needs to be set less than what we
-	 * will inject to ring
-	 */
-	return reset_all_global_seqno(dev_priv, seqno - 1);
-}
-
-static int reserve_seqno(struct intel_engine_cs *engine)
-{
-	u32 active = ++engine->timeline->inflight_seqnos;
-	u32 seqno = engine->timeline->seqno;
-	int ret;
-
-	/* Reservation is fine until we need to wrap around */
-	if (likely(!add_overflows(seqno, active)))
-		return 0;
-
-	/* Even though we are tracking inflight seqno individually on each
-	 * engine, other engines may be observing us using hw semaphores and
-	 * so we need to idle all engines before wrapping around this engine.
-	 * As all engines are then idle, we can reset the seqno on all, so
-	 * we don't stall in quick succession if each engine is being
-	 * similarly utilized.
-	 */
-	ret = reset_all_global_seqno(engine->i915, 0);
-	if (ret) {
-		engine->timeline->inflight_seqnos--;
-		return ret;
-	}
-
-	return 0;
 }
 
 static u32 timeline_get_seqno(struct intel_timeline *tl)
