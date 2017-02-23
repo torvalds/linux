@@ -2438,6 +2438,9 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 		goto failed;
 	}
 
+	/* ieee80211_alloc_hw_nm may have used a default name */
+	param->hwname = wiphy_name(hw->wiphy);
+
 	if (info)
 		net = genl_info_net(info);
 	else
