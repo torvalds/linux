@@ -1,4 +1,5 @@
 obj-y += fuse/
 
 obj-y += common.o
-obj-y += pmc.o
+obj-$(CONFIG_SOC_TEGRA_PMC) += pmc.o
+obj-$(CONFIG_SOC_TEGRA_PMC_TEGRA186) += pmc-tegra186.o
