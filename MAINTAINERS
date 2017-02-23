@@ -8476,6 +8476,7 @@ S:	Supported
 F:	Documentation/devicetree/bindings/mfd/
 F:	drivers/mfd/
 F:	include/linux/mfd/
+F:	include/dt-bindings/mfd/
 
 MULTIMEDIA CARD (MMC), SECURE DIGITAL (SD) AND SDIO SUBSYSTEM
 M:	Ulf Hansson <ulf.hansson@linaro.org>
