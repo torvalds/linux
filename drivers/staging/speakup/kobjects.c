@@ -343,7 +343,7 @@ static ssize_t silent_store(struct kobject *kobj, struct kobj_attribute *attr,
 		return -EINVAL;
 	}
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
-	if (ch&2) {
+	if (ch & 2) {
 		shut = 1;
 		spk_do_flush();
 	} else {
@@ -478,7 +478,7 @@ static ssize_t punc_show(struct kobject *kobj, struct kobj_attribute *attr,
 	pb = (struct st_bits_data *) &spk_punc_info[var->value];
 	mask = pb->mask;
 	for (i = 33; i < 128; i++) {
-		if (!(spk_chartab[i]&mask))
+		if (!(spk_chartab[i] & mask))
 			continue;
 		*cp++ = (char)i;
 	}
