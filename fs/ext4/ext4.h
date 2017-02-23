@@ -3244,7 +3244,7 @@ static inline void ext4_clear_io_unwritten_flag(ext4_io_end_t *io_end)
 	}
 }
 
-extern struct iomap_ops ext4_iomap_ops;
+extern const struct iomap_ops ext4_iomap_ops;
 
 #endif	/* __KERNEL__ */
 
