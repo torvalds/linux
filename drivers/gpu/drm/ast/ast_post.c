@@ -1626,12 +1626,44 @@ static void ast_init_dram_2300(struct drm_device *dev)
 		temp |= 0x73;
 		ast_write32(ast, 0x12008, temp);
 
+		param.dram_freq = 396;
 		param.dram_type = AST_DDR3;
+		temp = ast_mindwm(ast, 0x1e6e2070);
 		if (temp & 0x01000000)
 			param.dram_type = AST_DDR2;
-		param.dram_chipid = ast->dram_type;
-		param.dram_freq = ast->mclk;
-		param.vram_size = ast->vram_size;
+                switch (temp & 0x18000000) {
+		case 0:
+			param.dram_chipid = AST_DRAM_512Mx16;
+			break;
+		default:
+		case 0x08000000:
+			param.dram_chipid = AST_DRAM_1Gx16;
+			break;
+		case 0x10000000:
+			param.dram_chipid = AST_DRAM_2Gx16;
+			break;
+		case 0x18000000:
+			param.dram_chipid = AST_DRAM_4Gx16;
+			break;
+		}
+                switch (temp & 0x0c) {
+                default:
+		case 0x00:
+			param.vram_size = AST_VIDMEM_SIZE_8M;
+			break;
+
+		case 0x04:
+			param.vram_size = AST_VIDMEM_SIZE_16M;
+			break;
+
+		case 0x08:
+			param.vram_size = AST_VIDMEM_SIZE_32M;
+			break;
+
+		case 0x0c:
+			param.vram_size = AST_VIDMEM_SIZE_64M;
+			break;
+		}
 
 		if (param.dram_type == AST_DDR3) {
 			get_ddr3_info(ast, &param);
