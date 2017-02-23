@@ -216,6 +216,7 @@ u32 intel_sbi_read(struct drm_i915_private *dev_priv, u16 reg,
 	}
 
 	I915_WRITE(SBI_ADDR, (reg << 16));
+	I915_WRITE(SBI_DATA, 0);
 
 	if (destination == SBI_ICLK)
 		value = SBI_CTL_DEST_ICLK | SBI_CTL_OP_CRRD;
@@ -225,10 +226,15 @@ u32 intel_sbi_read(struct drm_i915_private *dev_priv, u16 reg,
 
 	if (intel_wait_for_register(dev_priv,
 				    SBI_CTL_STAT,
-				    SBI_BUSY | SBI_RESPONSE_FAIL,
+				    SBI_BUSY,
 				    0,
 				    100)) {
-		DRM_ERROR("timeout waiting for SBI to complete read transaction\n");
+		DRM_ERROR("timeout waiting for SBI to complete read\n");
+		return 0;
+	}
+
+	if (I915_READ(SBI_CTL_STAT) & SBI_RESPONSE_FAIL) {
+		DRM_ERROR("error during SBI read of reg %x\n", reg);
 		return 0;
 	}
 
@@ -260,10 +266,16 @@ void intel_sbi_write(struct drm_i915_private *dev_priv, u16 reg, u32 value,
 
 	if (intel_wait_for_register(dev_priv,
 				    SBI_CTL_STAT,
-				    SBI_BUSY | SBI_RESPONSE_FAIL,
+				    SBI_BUSY,
 				    0,
 				    100)) {
-		DRM_ERROR("timeout waiting for SBI to complete write transaction\n");
+		DRM_ERROR("timeout waiting for SBI to complete write\n");
+		return;
+	}
+
+	if (I915_READ(SBI_CTL_STAT) & SBI_RESPONSE_FAIL) {
+		DRM_ERROR("error during SBI write of %x to reg %x\n",
+			  value, reg);
 		return;
 	}
 }
