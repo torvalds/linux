@@ -181,7 +181,7 @@ static bool assert_node(struct drm_mm_node *node, struct drm_mm *mm,
 	}
 
 	if (misalignment(node, alignment)) {
-		pr_err("node is misalinged, start %llx rem %llu, expected alignment %llu\n",
+		pr_err("node is misaligned, start %llx rem %llu, expected alignment %llu\n",
 		       node->start, misalignment(node, alignment), alignment);
 		ok = false;
 	}
