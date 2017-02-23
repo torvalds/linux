@@ -245,6 +245,15 @@
 			status = "disabled";
 		};
 
+		mailbox: mailbox@25000 {
+			compatible = "brcm,iproc-fa2-mbox";
+			reg = <0x25000 0x445>;
+			interrupts = <GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH>;
+			#mbox-cells = <1>;
+			brcm,rx-status-len = <32>;
+			brcm,use-bcm-hdr;
+		};
+
 		nand: nand@26000 {
 			compatible = "brcm,nand-iproc", "brcm,brcmnand-v6.1";
 			reg = <0x026000 0x600>,
