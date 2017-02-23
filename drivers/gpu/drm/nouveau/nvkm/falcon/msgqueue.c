@@ -396,6 +396,9 @@ msgqueue_handle_init_msg(struct nvkm_msgqueue *priv,
 	case NVKM_SUBDEV_PMU:
 		tail_reg = 0x4cc;
 		break;
+	case NVKM_ENGINE_SEC2:
+		tail_reg = 0xa34;
+		break;
 	default:
 		nvkm_error(subdev, "falcon %s unsupported for msgqueue!\n",
 			   nvkm_subdev_name[falcon->owner->index]);
