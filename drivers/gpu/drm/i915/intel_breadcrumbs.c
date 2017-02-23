@@ -453,7 +453,12 @@ void intel_engine_remove_wait(struct intel_engine_cs *engine,
 	spin_unlock_irq(&b->lock);
 }
 
-static bool signal_complete(struct drm_i915_gem_request *request)
+static bool signal_valid(const struct drm_i915_gem_request *request)
+{
+	return intel_wait_check_request(&request->signaling.wait, request);
+}
+
+static bool signal_complete(const struct drm_i915_gem_request *request)
 {
 	if (!request)
 		return false;
@@ -462,7 +467,7 @@ static bool signal_complete(struct drm_i915_gem_request *request)
 	 * signalled that this wait is already completed.
 	 */
 	if (intel_wait_complete(&request->signaling.wait))
-		return true;
+		return signal_valid(request);
 
 	/* Carefully check if the request is complete, giving time for the
 	 * seqno to be visible or if the GPU hung.
@@ -542,12 +547,20 @@ static int intel_breadcrumbs_signaler(void *arg)
 
 			i915_gem_request_put(request);
 		} else {
+			DEFINE_WAIT(exec);
+
 			if (kthread_should_stop()) {
 				GEM_BUG_ON(request);
 				break;
 			}
 
+			if (request)
+				add_wait_queue(&request->execute, &exec);
+
 			schedule();
+
+			if (request)
+				remove_wait_queue(&request->execute, &exec);
 
 			if (kthread_should_park())
 				kthread_parkme();

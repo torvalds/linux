@@ -441,6 +441,55 @@ void i915_gem_request_submit(struct drm_i915_gem_request *request)
 	spin_unlock_irqrestore(&engine->timeline->lock, flags);
 }
 
+void __i915_gem_request_unsubmit(struct drm_i915_gem_request *request)
+{
+	struct intel_engine_cs *engine = request->engine;
+	struct intel_timeline *timeline;
+
+	assert_spin_locked(&engine->timeline->lock);
+
+	/* Only unwind in reverse order, required so that the per-context list
+	 * is kept in seqno/ring order.
+	 */
+	GEM_BUG_ON(request->global_seqno != engine->timeline->seqno);
+	engine->timeline->seqno--;
+
+	/* We may be recursing from the signal callback of another i915 fence */
+	spin_lock_nested(&request->lock, SINGLE_DEPTH_NESTING);
+	request->global_seqno = 0;
+	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &request->fence.flags))
+		intel_engine_cancel_signaling(request);
+	spin_unlock(&request->lock);
+
+	/* Transfer back from the global per-engine timeline to per-context */
+	timeline = request->timeline;
+	GEM_BUG_ON(timeline == engine->timeline);
+
+	spin_lock(&timeline->lock);
+	list_move(&request->link, &timeline->requests);
+	spin_unlock(&timeline->lock);
+
+	/* We don't need to wake_up any waiters on request->execute, they
+	 * will get woken by any other event or us re-adding this request
+	 * to the engine timeline (__i915_gem_request_submit()). The waiters
+	 * should be quite adapt at finding that the request now has a new
+	 * global_seqno to the one they went to sleep on.
+	 */
+}
+
+void i915_gem_request_unsubmit(struct drm_i915_gem_request *request)
+{
+	struct intel_engine_cs *engine = request->engine;
+	unsigned long flags;
+
+	/* Will be called from irq-context when using foreign fences. */
+	spin_lock_irqsave(&engine->timeline->lock, flags);
+
+	__i915_gem_request_unsubmit(request);
+
+	spin_unlock_irqrestore(&engine->timeline->lock, flags);
+}
+
 static int __i915_sw_fence_call
 submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 {
@@ -1035,6 +1084,7 @@ long i915_wait_request(struct drm_i915_gem_request *req,
 
 	intel_wait_init(&wait);
 
+restart:
 	reset_wait_queue(&req->execute, &exec);
 	if (!intel_wait_update_request(&wait, req)) {
 		do {
@@ -1133,6 +1183,11 @@ wakeup:
 		/* Only spin if we know the GPU is processing this request */
 		if (i915_spin_request(req, state, 2))
 			break;
+
+		if (!intel_wait_check_request(&wait, req)) {
+			intel_engine_remove_wait(req->engine, &wait);
+			goto restart;
+		}
 	}
 
 	intel_engine_remove_wait(req->engine, &wait);
