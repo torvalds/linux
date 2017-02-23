@@ -290,8 +290,7 @@ static irqreturn_t sun4i_tcon_handler(int irq, void *private)
 {
 	struct sun4i_tcon *tcon = private;
 	struct drm_device *drm = tcon->drm;
-	struct sun4i_drv *drv = drm->dev_private;
-	struct sun4i_crtc *scrtc = drv->crtc;
+	struct sun4i_crtc *scrtc = tcon->crtc;
 	unsigned int status;
 
 	regmap_read(tcon->regs, SUN4I_TCON_GINT0_REG, &status);
@@ -521,6 +520,13 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 	ret = sun4i_tcon_init_irq(dev, tcon);
 	if (ret) {
 		dev_err(dev, "Couldn't init our TCON interrupts\n");
+		goto err_free_clocks;
+	}
+
+	tcon->crtc = sun4i_crtc_init(drm);
+	if (IS_ERR(tcon->crtc)) {
+		dev_err(dev, "Couldn't create our CRTC\n");
+		ret = PTR_ERR(tcon->crtc);
 		goto err_free_clocks;
 	}
 

@@ -20,7 +20,6 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_of.h>
 
-#include "sun4i_crtc.h"
 #include "sun4i_drv.h"
 #include "sun4i_framebuffer.h"
 #include "sun4i_tcon.h"
@@ -115,13 +114,6 @@ static int sun4i_drv_bind(struct device *dev)
 		goto cleanup_mode_config;
 	}
 
-	/* Create our CRTC */
-	drv->crtc = sun4i_crtc_init(drm);
-	if (IS_ERR(drv->crtc)) {
-		dev_err(drm->dev, "Couldn't create the CRTC\n");
-		ret = PTR_ERR(drv->crtc);
-		goto cleanup_mode_config;
-	}
 	drm->irq_enabled = true;
 
 	/* Remove early framebuffers (ie. simplefb) */

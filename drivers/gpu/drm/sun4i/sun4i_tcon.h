@@ -169,6 +169,9 @@ struct sun4i_tcon {
 
 	/* Platform adjustments */
 	const struct sun4i_tcon_quirks	*quirks;
+
+	/* Associated crtc */
+	struct sun4i_crtc		*crtc;
 };
 
 struct drm_bridge *sun4i_tcon_find_bridge(struct device_node *node);
