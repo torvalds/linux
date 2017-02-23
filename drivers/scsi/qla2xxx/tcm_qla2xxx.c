@@ -1738,7 +1738,7 @@ static struct se_wwn *tcm_qla2xxx_npiv_make_lport(
 
 	p = strchr(tmp, '@');
 	if (!p) {
-		pr_err("Unable to locate NPIV '@' seperator\n");
+		pr_err("Unable to locate NPIV '@' separator\n");
 		return ERR_PTR(-EINVAL);
 	}
 	*p++ = '\0';
