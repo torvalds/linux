@@ -2380,12 +2380,15 @@ S:	Maintained
 F:	drivers/net/wireless/broadcom/b43legacy/
 
 BACKLIGHT CLASS/SUBSYSTEM
-M:	Jingoo Han <jingoohan1@gmail.com>
 M:	Lee Jones <lee.jones@linaro.org>
+M:	Daniel Thompson <daniel.thompson@linaro.org>
+M:	Jingoo Han <jingoohan1@gmail.com>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lee/backlight.git
 S:	Maintained
 F:	drivers/video/backlight/
 F:	include/linux/backlight.h
+F:	include/linux/pwm_backlight.h
+F:	Documentation/devicetree/bindings/leds/backlight
 
 BATMAN ADVANCED
 M:	Marek Lindner <mareklindner@neomailbox.ch>
