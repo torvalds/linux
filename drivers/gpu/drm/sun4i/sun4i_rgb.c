@@ -18,7 +18,6 @@
 #include <drm/drm_panel.h>
 
 #include "sun4i_crtc.h"
-#include "sun4i_drv.h"
 #include "sun4i_tcon.h"
 #include "sun4i_rgb.h"
 
@@ -26,7 +25,7 @@ struct sun4i_rgb {
 	struct drm_connector	connector;
 	struct drm_encoder	encoder;
 
-	struct sun4i_drv	*drv;
+	struct sun4i_tcon	*tcon;
 };
 
 static inline struct sun4i_rgb *
@@ -47,8 +46,7 @@ static int sun4i_rgb_get_modes(struct drm_connector *connector)
 {
 	struct sun4i_rgb *rgb =
 		drm_connector_to_sun4i_rgb(connector);
-	struct sun4i_drv *drv = rgb->drv;
-	struct sun4i_tcon *tcon = drv->tcon;
+	struct sun4i_tcon *tcon = rgb->tcon;
 
 	return drm_panel_get_modes(tcon->panel);
 }
@@ -57,8 +55,7 @@ static int sun4i_rgb_mode_valid(struct drm_connector *connector,
 				struct drm_display_mode *mode)
 {
 	struct sun4i_rgb *rgb = drm_connector_to_sun4i_rgb(connector);
-	struct sun4i_drv *drv = rgb->drv;
-	struct sun4i_tcon *tcon = drv->tcon;
+	struct sun4i_tcon *tcon = rgb->tcon;
 	u32 hsync = mode->hsync_end - mode->hsync_start;
 	u32 vsync = mode->vsync_end - mode->vsync_start;
 	unsigned long rate = mode->clock * 1000;
@@ -115,8 +112,7 @@ static void
 sun4i_rgb_connector_destroy(struct drm_connector *connector)
 {
 	struct sun4i_rgb *rgb = drm_connector_to_sun4i_rgb(connector);
-	struct sun4i_drv *drv = rgb->drv;
-	struct sun4i_tcon *tcon = drv->tcon;
+	struct sun4i_tcon *tcon = rgb->tcon;
 
 	drm_panel_detach(tcon->panel);
 	drm_connector_cleanup(connector);
@@ -141,8 +137,7 @@ static int sun4i_rgb_atomic_check(struct drm_encoder *encoder,
 static void sun4i_rgb_encoder_enable(struct drm_encoder *encoder)
 {
 	struct sun4i_rgb *rgb = drm_encoder_to_sun4i_rgb(encoder);
-	struct sun4i_drv *drv = rgb->drv;
-	struct sun4i_tcon *tcon = drv->tcon;
+	struct sun4i_tcon *tcon = rgb->tcon;
 
 	DRM_DEBUG_DRIVER("Enabling RGB output\n");
 
@@ -158,8 +153,7 @@ static void sun4i_rgb_encoder_enable(struct drm_encoder *encoder)
 static void sun4i_rgb_encoder_disable(struct drm_encoder *encoder)
 {
 	struct sun4i_rgb *rgb = drm_encoder_to_sun4i_rgb(encoder);
-	struct sun4i_drv *drv = rgb->drv;
-	struct sun4i_tcon *tcon = drv->tcon;
+	struct sun4i_tcon *tcon = rgb->tcon;
 
 	DRM_DEBUG_DRIVER("Disabling RGB output\n");
 
@@ -177,8 +171,7 @@ static void sun4i_rgb_encoder_mode_set(struct drm_encoder *encoder,
 				       struct drm_display_mode *adjusted_mode)
 {
 	struct sun4i_rgb *rgb = drm_encoder_to_sun4i_rgb(encoder);
-	struct sun4i_drv *drv = rgb->drv;
-	struct sun4i_tcon *tcon = drv->tcon;
+	struct sun4i_tcon *tcon = rgb->tcon;
 
 	sun4i_tcon0_mode_set(tcon, mode);
 
@@ -204,10 +197,8 @@ static struct drm_encoder_funcs sun4i_rgb_enc_funcs = {
 	.destroy	= sun4i_rgb_enc_destroy,
 };
 
-int sun4i_rgb_init(struct drm_device *drm)
+int sun4i_rgb_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 {
-	struct sun4i_drv *drv = drm->dev_private;
-	struct sun4i_tcon *tcon = drv->tcon;
 	struct drm_encoder *encoder;
 	struct drm_bridge *bridge;
 	struct sun4i_rgb *rgb;
@@ -216,7 +207,7 @@ int sun4i_rgb_init(struct drm_device *drm)
 	rgb = devm_kzalloc(drm->dev, sizeof(*rgb), GFP_KERNEL);
 	if (!rgb)
 		return -ENOMEM;
-	rgb->drv = drv;
+	rgb->tcon = tcon;
 	encoder = &rgb->encoder;
 
 	tcon->panel = sun4i_tcon_find_panel(tcon->dev->of_node);
