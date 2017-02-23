@@ -407,9 +407,9 @@ static char *next_specifier(char *input)
 	int found = 0;
 	char *next_percent = input;
 
-	while ((next_percent != NULL) && !found) {
+	while (next_percent && !found) {
 		next_percent = strchr(next_percent, '%');
-		if (next_percent != NULL) {
+		if (next_percent) {
 			/* skip over doubled percent signs */
 			while ((next_percent[0] == '%')
 			       && (next_percent[1] == '%'))
