@@ -1077,6 +1077,7 @@ long i915_wait_request(struct drm_i915_gem_request *req,
 {
 	const int state = flags & I915_WAIT_INTERRUPTIBLE ?
 		TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;
+	wait_queue_head_t *errq = &req->i915->gpu_error.wait_queue;
 	DEFINE_WAIT(reset);
 	struct intel_wait wait;
 
@@ -1112,7 +1113,7 @@ long i915_wait_request(struct drm_i915_gem_request *req,
 
 	set_current_state(state);
 	if (flags & I915_WAIT_LOCKED)
-		add_wait_queue(&req->i915->gpu_error.wait_queue, &reset);
+		add_wait_queue(errq, &reset);
 
 	intel_wait_init(&wait, req->global_seqno);
 	if (intel_engine_add_wait(req->engine, &wait))
@@ -1163,8 +1164,7 @@ wakeup:
 		    i915_reset_in_progress(&req->i915->gpu_error)) {
 			__set_current_state(TASK_RUNNING);
 			i915_reset(req->i915);
-			reset_wait_queue(&req->i915->gpu_error.wait_queue,
-					 &reset);
+			reset_wait_queue(errq, &reset);
 			continue;
 		}
 
@@ -1175,7 +1175,7 @@ wakeup:
 
 	intel_engine_remove_wait(req->engine, &wait);
 	if (flags & I915_WAIT_LOCKED)
-		remove_wait_queue(&req->i915->gpu_error.wait_queue, &reset);
+		remove_wait_queue(errq, &reset);
 	__set_current_state(TASK_RUNNING);
 
 complete:
