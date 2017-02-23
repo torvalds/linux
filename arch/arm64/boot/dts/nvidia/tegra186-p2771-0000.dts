@@ -18,6 +18,28 @@
 			compatible = "ti,ina3221";
 			reg = <0x43>;
 		};
+
+		exp1: gpio@74 {
+			compatible = "ti,tca9539";
+			reg = <0x74>;
+
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_MAIN_GPIO(Y, 0) GPIO_ACTIVE_LOW>;
+
+			#gpio-cells = <2>;
+			gpio-controller;
+		};
+
+		exp2: gpio@77 {
+			compatible = "ti,tca9539";
+			reg = <0x77>;
+
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_MAIN_GPIO(Y, 6) GPIO_ACTIVE_LOW>;
+
+			#gpio-cells = <2>;
+			gpio-controller;
+		};
 	};
 
 	/* SDMMC1 (SD/MMC) */
