@@ -1608,9 +1608,6 @@ static int pxa_udc_pullup(struct usb_gadget *_gadget, int is_active)
 	return 0;
 }
 
-static void udc_enable(struct pxa_udc *udc);
-static void udc_disable(struct pxa_udc *udc);
-
 /**
  * pxa_udc_vbus_session - Called by external transceiver to enable/disable udc
  * @_gadget: usb gadget
