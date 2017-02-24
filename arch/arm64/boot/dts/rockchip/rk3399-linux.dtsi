@@ -41,6 +41,7 @@
  */
 
 #include <dt-bindings/display/drm_mipi_dsi.h>
+#include "rk3399-vop-clk-set.dtsi"
 
 / {
 	compatible = "rockchip,linux", "rockchip,rk3399";
