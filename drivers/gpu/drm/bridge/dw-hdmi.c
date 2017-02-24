@@ -898,7 +898,7 @@ static void hdmi_video_packetize(struct dw_hdmi *hdmi)
 		  HDMI_VP_STUFF_PR_STUFFING_MASK, HDMI_VP_STUFF);
 
 	/* Data from pixel repeater block */
-	if (hdmi_data->pix_repet_factor > 1) {
+	if (hdmi_data->pix_repet_factor > 0) {
 		vp_conf = HDMI_VP_CONF_PR_EN_ENABLE |
 			  HDMI_VP_CONF_BYPASS_SELECT_PIX_REPEATER;
 	} else { /* data from packetizer block */
@@ -1337,7 +1337,7 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 	int hblank, vblank, h_de_hs, v_de_vs, hsync_len, vsync_len;
 	unsigned int vdisplay;
 
-	vmode->mpixelclock = mode->clock * 1000;
+	vmode->mpixelclock = mode->crtc_clock * 1000;
 
 	dev_dbg(hdmi->dev, "final pixclk = %d\n", vmode->mpixelclock);
 
@@ -1463,6 +1463,12 @@ static void dw_hdmi_enable_video_path(struct dw_hdmi *hdmi)
 		clkdis &= ~HDMI_MC_CLKDIS_CSCCLK_DISABLE;
 		hdmi_writeb(hdmi, clkdis, HDMI_MC_CLKDIS);
 	}
+
+	/* Enable pixel repetition path */
+	if (hdmi->hdmi_data.video_mode.mpixelrepetitioninput) {
+		clkdis &= ~HDMI_MC_CLKDIS_PREPCLK_DISABLE;
+		hdmi_writeb(hdmi, clkdis, HDMI_MC_CLKDIS);
+	}
 }
 
 static void hdmi_enable_audio_clk(struct dw_hdmi *hdmi)
@@ -1523,16 +1529,27 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 	else
 		hdmi->hdmi_data.colorimetry = HDMI_COLORIMETRY_ITU_709;
 
-	hdmi->hdmi_data.video_mode.mpixelrepetitionoutput = 0;
-	hdmi->hdmi_data.video_mode.mpixelrepetitioninput = 0;
-
+	if (mode->flags & DRM_MODE_FLAG_DBLCLK) {
+		hdmi->hdmi_data.video_mode.mpixelrepetitionoutput = 1;
+		hdmi->hdmi_data.video_mode.mpixelrepetitioninput = 1;
+	} else {
+		hdmi->hdmi_data.video_mode.mpixelrepetitionoutput = 0;
+		hdmi->hdmi_data.video_mode.mpixelrepetitioninput = 0;
+	}
 	/* TODO: Get input format from IPU (via FB driver interface) */
 	hdmi->hdmi_data.enc_in_format = RGB;
 
 	hdmi->hdmi_data.enc_out_format = RGB;
 
 	hdmi->hdmi_data.enc_color_depth = 8;
-	hdmi->hdmi_data.pix_repet_factor = 0;
+	/*
+	 * According to the dw-hdmi specification 6.4.2
+	 * vp_pr_cd[3:0]:
+	 * 0000b: No pixel repetition (pixel sent only once)
+	 * 0001b: Pixel sent two times (pixel repeated once)
+	 */
+	hdmi->hdmi_data.pix_repet_factor =
+		(mode->flags & DRM_MODE_FLAG_DBLCLK) ? 1 : 0;
 	hdmi->hdmi_data.hdcp_enable = 0;
 	hdmi->hdmi_data.video_mode.mdataenablepolarity = true;
 
@@ -1781,10 +1798,6 @@ dw_hdmi_connector_mode_valid(struct drm_connector *connector,
 	struct dw_hdmi *hdmi = container_of(connector,
 					   struct dw_hdmi, connector);
 	enum drm_mode_status mode_status = MODE_OK;
-
-	/* We don't support double-clocked modes */
-	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
-		return MODE_BAD;
 
 	if (hdmi->plat_data->mode_valid)
 		mode_status = hdmi->plat_data->mode_valid(connector, mode);
