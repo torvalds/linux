@@ -928,7 +928,7 @@ static bool construct(
 {
 	uint8_t i;
 	struct gpio *hpd_gpio = NULL;
-	struct ddc_service_init_data ddc_service_init_data = { 0 };
+	struct ddc_service_init_data ddc_service_init_data = { { 0 } };
 	struct dc_context *dc_ctx = init_params->ctx;
 	struct encoder_init_data enc_init_data = { 0 };
 	struct integrated_info info = {{{ 0 }}};

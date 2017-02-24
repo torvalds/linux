@@ -393,8 +393,8 @@ static void dce_clock_read_integrated_info(struct dce_disp_clk *clk_dce)
 {
 	struct dc_debug *debug = &clk_dce->base.ctx->dc->debug;
 	struct dc_bios *bp = clk_dce->base.ctx->dc_bios;
-	struct integrated_info info = { 0 };
-	struct firmware_info fw_info = { 0 };
+	struct integrated_info info = { { { 0 } } };
+	struct firmware_info fw_info = { { 0 } };
 	int i;
 
 	if (bp->integrated_info)
@@ -456,7 +456,7 @@ static void dce_clock_read_ss_info(struct dce_disp_clk *clk_dce)
 			bp, AS_SIGNAL_TYPE_GPU_PLL);
 
 	if (ss_info_num) {
-		struct spread_spectrum_info info = { 0 };
+		struct spread_spectrum_info info = { { 0 } };
 		enum bp_result result = bp->funcs->get_spread_spectrum_info(
 				bp, AS_SIGNAL_TYPE_GPU_PLL, 0, &info);
 

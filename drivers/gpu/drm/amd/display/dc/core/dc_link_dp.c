@@ -1762,7 +1762,7 @@ bool dc_link_handle_hpd_rx_irq(const struct dc_link *dc_link)
 {
 	struct core_link *link = DC_LINK_TO_LINK(dc_link);
 	union hpd_irq_data hpd_irq_dpcd_data = {{{{0}}}};
-	union device_service_irq device_service_clear = {0};
+	union device_service_irq device_service_clear = { { 0 } };
 	enum dc_status result = DDC_RESULT_UNKNOWN;
 	bool status = false;
 	/* For use cases related to down stream connection status change,
