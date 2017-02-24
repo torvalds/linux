@@ -1178,7 +1178,6 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 
 	I915_WRITE(RING_HWSTAM(engine->mmio_base), 0xffffffff);
 	I915_WRITE(RING_MODE_GEN7(engine),
-		   _MASKED_BIT_DISABLE(GFX_REPLAY_MODE) |
 		   _MASKED_BIT_ENABLE(GFX_RUN_LIST_ENABLE));
 	I915_WRITE(RING_HWS_PGA(engine->mmio_base),
 		   engine->status_page.ggtt_offset);
