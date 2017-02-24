@@ -5,6 +5,8 @@
 #ifndef IOSF_MBI_SYMS_H
 #define IOSF_MBI_SYMS_H
 
+#include <linux/notifier.h>
+
 #define MBI_MCR_OFFSET		0xD0
 #define MBI_MDR_OFFSET		0xD4
 #define MBI_MCRX_OFFSET		0xD8
@@ -46,6 +48,10 @@
 #define QRK_MBI_UNIT_RMU	0x04
 #define QRK_MBI_UNIT_MM		0x05
 #define QRK_MBI_UNIT_SOC	0x31
+
+/* Action values for the pmic_bus_access_notifier functions */
+#define MBI_PMIC_BUS_ACCESS_BEGIN	1
+#define MBI_PMIC_BUS_ACCESS_END		2
 
 #if IS_ENABLED(CONFIG_IOSF_MBI)
 
@@ -115,6 +121,38 @@ void iosf_mbi_punit_acquire(void);
  */
 void iosf_mbi_punit_release(void);
 
+/**
+ * iosf_mbi_register_pmic_bus_access_notifier - Register PMIC bus notifier
+ *
+ * This function can be used by drivers which may need to acquire P-Unit
+ * managed resources from interrupt context, where iosf_mbi_punit_acquire()
+ * can not be used.
+ *
+ * This function allows a driver to register a notifier to get notified (in a
+ * process context) before other drivers start accessing the PMIC bus.
+ *
+ * This allows the driver to acquire any resources, which it may need during
+ * the window the other driver is accessing the PMIC, before hand.
+ *
+ * @nb: notifier_block to register
+ */
+int iosf_mbi_register_pmic_bus_access_notifier(struct notifier_block *nb);
+
+/**
+ * iosf_mbi_register_pmic_bus_access_notifier - Unregister PMIC bus notifier
+ *
+ * @nb: notifier_block to unregister
+ */
+int iosf_mbi_unregister_pmic_bus_access_notifier(struct notifier_block *nb);
+
+/**
+ * iosf_mbi_call_pmic_bus_access_notifier_chain - Call PMIC bus notifier chain
+ *
+ * @val: action to pass into listener's notifier_call function
+ * @v: data pointer to pass into listener's notifier_call function
+ */
+int iosf_mbi_call_pmic_bus_access_notifier_chain(unsigned long val, void *v);
+
 #else /* CONFIG_IOSF_MBI is not enabled */
 static inline
 bool iosf_mbi_available(void)
@@ -145,6 +183,24 @@ int iosf_mbi_modify(u8 port, u8 opcode, u32 offset, u32 mdr, u32 mask)
 
 static inline void iosf_mbi_punit_acquire(void) {}
 static inline void iosf_mbi_punit_release(void) {}
+
+static inline
+int iosf_mbi_register_pmic_bus_access_notifier(struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline
+int iosf_mbi_unregister_pmic_bus_access_notifier(struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline
+int iosf_mbi_call_pmic_bus_access_notifier_chain(unsigned long val, void *v)
+{
+	return 0;
+}
 
 #endif /* CONFIG_IOSF_MBI */
 
