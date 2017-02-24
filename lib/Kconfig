@@ -551,7 +551,7 @@ config SBITMAP
 	bool
 
 config PRIME_NUMBERS
-	tristate "Prime number generator"
+	tristate
 	default n
 	help
 	  Provides a helper module to generate prime numbers. Useful for writing
