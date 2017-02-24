@@ -228,9 +228,15 @@ static void ipu_plane_enable(struct ipu_plane *ipu_plane)
 
 void ipu_plane_disable(struct ipu_plane *ipu_plane, bool disable_dp_channel)
 {
+	int ret;
+
 	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
-	ipu_idmac_wait_busy(ipu_plane->ipu_ch, 50);
+	ret = ipu_idmac_wait_busy(ipu_plane->ipu_ch, 50);
+	if (ret == -ETIMEDOUT) {
+		DRM_ERROR("[PLANE:%d] IDMAC timeout\n",
+			  ipu_plane->base.base.id);
+	}
 
 	if (ipu_plane->dp && disable_dp_channel)
 		ipu_dp_disable_channel(ipu_plane->dp, false);
