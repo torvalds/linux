@@ -3401,7 +3401,7 @@ static int do_numa_page(struct vm_fault *vmf)
 	int target_nid;
 	bool migrated = false;
 	pte_t pte;
-	bool was_writable = pte_write(vmf->orig_pte);
+	bool was_writable = pte_savedwrite(vmf->orig_pte);
 	int flags = 0;
 
 	/*
