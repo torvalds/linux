@@ -108,8 +108,7 @@ s32 __dev_pm_qos_read_value(struct device *dev)
 {
 	lockdep_assert_held(&dev->power.lock);
 
-	return IS_ERR_OR_NULL(dev->power.qos) ?
-		0 : pm_qos_read_value(&dev->power.qos->resume_latency);
+	return dev_pm_qos_raw_read_value(dev);
 }
 
 /**
