@@ -9,6 +9,7 @@
 #include <linux/mm.h>
 #include <linux/rwsem.h>
 #include <linux/memcontrol.h>
+#include <linux/highmem.h>
 
 /*
  * The anon_vma heads a list of private "related" vmas, to scan if
@@ -231,6 +232,31 @@ static inline bool page_check_address_transhuge(struct page *page,
 	return !!*ptep;
 }
 #endif
+
+/* Avoid racy checks */
+#define PVMW_SYNC		(1 << 0)
+/* Look for migarion entries rather than present PTEs */
+#define PVMW_MIGRATION		(1 << 1)
+
+struct page_vma_mapped_walk {
+	struct page *page;
+	struct vm_area_struct *vma;
+	unsigned long address;
+	pmd_t *pmd;
+	pte_t *pte;
+	spinlock_t *ptl;
+	unsigned int flags;
+};
+
+static inline void page_vma_mapped_walk_done(struct page_vma_mapped_walk *pvmw)
+{
+	if (pvmw->pte)
+		pte_unmap(pvmw->pte);
+	if (pvmw->ptl)
+		spin_unlock(pvmw->ptl);
+}
+
+bool page_vma_mapped_walk(struct page_vma_mapped_walk *pvmw);
 
 /*
  * Used by swapoff to help locate where page is expected in vma.
