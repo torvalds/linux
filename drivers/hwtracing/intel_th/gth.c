@@ -285,16 +285,16 @@ gth_output_parm_get(struct gth_device *gth, int port, unsigned int parm)
  */
 static int intel_th_gth_reset(struct gth_device *gth)
 {
-	u32 scratchpad;
+	u32 reg;
 	int port, i;
 
-	scratchpad = ioread32(gth->base + REG_GTH_SCRPD0);
-	if (scratchpad & SCRPD_DEBUGGER_IN_USE)
+	reg = ioread32(gth->base + REG_GTH_SCRPD0);
+	if (reg & SCRPD_DEBUGGER_IN_USE)
 		return -EBUSY;
 
 	/* Always save/restore STH and TU registers in S0ix entry/exit */
-	scratchpad |= SCRPD_STH_IS_ENABLED | SCRPD_TRIGGER_IS_ENABLED;
-	iowrite32(scratchpad, gth->base + REG_GTH_SCRPD0);
+	reg |= SCRPD_STH_IS_ENABLED | SCRPD_TRIGGER_IS_ENABLED;
+	iowrite32(reg, gth->base + REG_GTH_SCRPD0);
 
 	/* output ports */
 	for (port = 0; port < 8; port++) {
@@ -512,6 +512,15 @@ static void intel_th_gth_disable(struct intel_th_device *thdev,
 	iowrite32(reg, gth->base + REG_GTH_SCRPD0);
 }
 
+static void gth_tscu_resync(struct gth_device *gth)
+{
+	u32 reg;
+
+	reg = ioread32(gth->base + REG_TSCU_TSUCTRL);
+	reg &= ~TSUCTRL_CTCRESYNC;
+	iowrite32(reg, gth->base + REG_TSCU_TSUCTRL);
+}
+
 /**
  * intel_th_gth_enable() - enable tracing to an output device
  * @thdev:	GTH device
@@ -524,6 +533,7 @@ static void intel_th_gth_enable(struct intel_th_device *thdev,
 				struct intel_th_output *output)
 {
 	struct gth_device *gth = dev_get_drvdata(&thdev->dev);
+	struct intel_th *th = to_intel_th(thdev);
 	u32 scr = 0xfc0000, scrpd;
 	int master;
 
@@ -538,6 +548,9 @@ static void intel_th_gth_enable(struct intel_th_device *thdev,
 
 	output->active = true;
 	spin_unlock(&gth->gth_lock);
+
+	if (INTEL_TH_CAP(th, tscu_enable))
+		gth_tscu_resync(gth);
 
 	scrpd = ioread32(gth->base + REG_GTH_SCRPD0);
 	scrpd |= output->scratchpad;

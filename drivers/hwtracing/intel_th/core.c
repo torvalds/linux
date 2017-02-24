@@ -436,8 +436,9 @@ static const struct intel_th_subdevice {
 		.nres	= 1,
 		.res	= {
 			{
+				/* Handle TSCU from GTH driver */
 				.start	= REG_GTH_OFFSET,
-				.end	= REG_GTH_OFFSET + REG_GTH_LENGTH - 1,
+				.end	= REG_TSCU_OFFSET + REG_TSCU_LENGTH - 1,
 				.flags	= IORESOURCE_MEM,
 			},
 		},
