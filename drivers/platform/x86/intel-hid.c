@@ -77,7 +77,7 @@ struct intel_hid_priv {
 	struct input_dev *array;
 };
 
-static int intel_hid_set_enable(struct device *device, int enable)
+static int intel_hid_set_enable(struct device *device, bool enable)
 {
 	acpi_status status;
 
@@ -118,7 +118,7 @@ static void intel_button_array_enable(struct device *device, bool enable)
 
 static int intel_hid_pl_suspend_handler(struct device *device)
 {
-	intel_hid_set_enable(device, 0);
+	intel_hid_set_enable(device, false);
 	intel_button_array_enable(device, false);
 
 	return 0;
@@ -126,7 +126,7 @@ static int intel_hid_pl_suspend_handler(struct device *device)
 
 static int intel_hid_pl_resume_handler(struct device *device)
 {
-	intel_hid_set_enable(device, 1);
+	intel_hid_set_enable(device, true);
 	intel_button_array_enable(device, true);
 
 	return 0;
@@ -275,7 +275,7 @@ static int intel_hid_probe(struct platform_device *device)
 		goto err_remove_input;
 	}
 
-	err = intel_hid_set_enable(&device->dev, 1);
+	err = intel_hid_set_enable(&device->dev, true);
 	if (err)
 		goto err_remove_notify;
 
@@ -306,7 +306,7 @@ static int intel_hid_remove(struct platform_device *device)
 
 	acpi_remove_notify_handler(handle, ACPI_DEVICE_NOTIFY, notify_handler);
 	intel_hid_input_destroy(device);
-	intel_hid_set_enable(&device->dev, 0);
+	intel_hid_set_enable(&device->dev, false);
 	intel_button_array_enable(&device->dev, false);
 
 	/*
