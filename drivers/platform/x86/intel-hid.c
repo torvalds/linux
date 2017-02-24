@@ -144,28 +144,20 @@ static int intel_hid_input_setup(struct platform_device *device)
 	struct intel_hid_priv *priv = dev_get_drvdata(&device->dev);
 	int ret;
 
-	priv->input_dev = input_allocate_device();
+	priv->input_dev = devm_input_allocate_device(&device->dev);
 	if (!priv->input_dev)
 		return -ENOMEM;
 
 	ret = sparse_keymap_setup(priv->input_dev, intel_hid_keymap, NULL);
 	if (ret)
-		goto err_free_device;
+		return ret;
 
 	priv->input_dev->dev.parent = &device->dev;
 	priv->input_dev->name = "Intel HID events";
 	priv->input_dev->id.bustype = BUS_HOST;
 	set_bit(KEY_RFKILL, priv->input_dev->keybit);
 
-	ret = input_register_device(priv->input_dev);
-	if (ret)
-		goto err_free_device;
-
-	return 0;
-
-err_free_device:
-	input_free_device(priv->input_dev);
-	return ret;
+	return input_register_device(priv->input_dev);
 }
 
 static int intel_button_array_input_setup(struct platform_device *device)
@@ -187,13 +179,6 @@ static int intel_button_array_input_setup(struct platform_device *device)
 	priv->array->id.bustype = BUS_HOST;
 
 	return input_register_device(priv->array);
-}
-
-static void intel_hid_input_destroy(struct platform_device *device)
-{
-	struct intel_hid_priv *priv = dev_get_drvdata(&device->dev);
-
-	input_unregister_device(priv->input_dev);
 }
 
 static void notify_handler(acpi_handle handle, u32 event, void *context)
@@ -270,10 +255,8 @@ static int intel_hid_probe(struct platform_device *device)
 					     ACPI_DEVICE_NOTIFY,
 					     notify_handler,
 					     device);
-	if (ACPI_FAILURE(status)) {
-		err = -EBUSY;
-		goto err_remove_input;
-	}
+	if (ACPI_FAILURE(status))
+		return -EBUSY;
 
 	err = intel_hid_set_enable(&device->dev, true);
 	if (err)
@@ -294,9 +277,6 @@ static int intel_hid_probe(struct platform_device *device)
 err_remove_notify:
 	acpi_remove_notify_handler(handle, ACPI_DEVICE_NOTIFY, notify_handler);
 
-err_remove_input:
-	intel_hid_input_destroy(device);
-
 	return err;
 }
 
@@ -305,7 +285,6 @@ static int intel_hid_remove(struct platform_device *device)
 	acpi_handle handle = ACPI_HANDLE(&device->dev);
 
 	acpi_remove_notify_handler(handle, ACPI_DEVICE_NOTIFY, notify_handler);
-	intel_hid_input_destroy(device);
 	intel_hid_set_enable(&device->dev, false);
 	intel_button_array_enable(&device->dev, false);
 
