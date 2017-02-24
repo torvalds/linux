@@ -199,6 +199,7 @@ int sctp_copy_local_addr_list(struct net *net, struct sctp_bind_addr *bp,
 			      sctp_scope_t scope, gfp_t gfp, int copy_flags)
 {
 	struct sctp_sockaddr_entry *addr;
+	union sctp_addr laddr;
 	int error = 0;
 
 	rcu_read_lock();
@@ -220,7 +221,10 @@ int sctp_copy_local_addr_list(struct net *net, struct sctp_bind_addr *bp,
 		     !(copy_flags & SCTP_ADDR6_PEERSUPP)))
 			continue;
 
-		if (sctp_bind_addr_state(bp, &addr->a) != -1)
+		laddr = addr->a;
+		/* also works for setting ipv6 address port */
+		laddr.v4.sin_port = htons(bp->port);
+		if (sctp_bind_addr_state(bp, &laddr) != -1)
 			continue;
 
 		error = sctp_add_bind_addr(bp, &addr->a, sizeof(addr->a),
