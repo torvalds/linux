@@ -1398,6 +1398,7 @@ vop_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode,
 {
 	struct vop *vop = to_vop(crtc);
 	const struct vop_data *vop_data = vop->data;
+	int request_clock = mode->clock;
 	int clock;
 
 	if (mode->hdisplay > vop_data->max_disably_output.width)
@@ -1405,13 +1406,16 @@ vop_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode,
 	if (mode->vdisplay > vop_data->max_disably_output.height)
 		return MODE_BAD_VVALUE;
 
-	clock = clk_round_rate(vop->dclk, mode->clock * 1000) / 1000;
+	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
+		request_clock *= 2;
+	clock = clk_round_rate(vop->dclk, request_clock * 1000) / 1000;
+
 	/*
 	 * Hdmi or DisplayPort request a Accurate clock.
 	 */
 	if (output_type == DRM_MODE_CONNECTOR_HDMIA ||
 	    output_type == DRM_MODE_CONNECTOR_DisplayPort)
-		if (clock != mode->clock)
+		if (clock != request_clock)
 			return MODE_CLOCK_RANGE;
 
 	return MODE_OK;
@@ -1433,13 +1437,16 @@ static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
 {
 	struct vop *vop = to_vop(crtc);
 	const struct vop_data *vop_data = vop->data;
+	int request_clock = mode->clock;
 
 	if (mode->hdisplay > vop_data->max_disably_output.width ||
 	    mode->vdisplay > vop_data->max_disably_output.height)
 		return false;
 
-	adjusted_mode->clock =
-		clk_round_rate(vop->dclk, mode->clock * 1000) / 1000;
+	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
+		request_clock *= 2;
+	adjusted_mode->crtc_clock =
+		clk_round_rate(vop->dclk, request_clock * 1000) / 1000;
 
 	return true;
 }
@@ -1549,7 +1556,10 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 		VOP_CTRL_SET(vop, p2i_en, 0);
 	}
 
-	clk_set_rate(vop->dclk, adjusted_mode->clock * 1000);
+	VOP_CTRL_SET(vop, core_dclk_div,
+		     !!(adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK));
+
+	clk_set_rate(vop->dclk, adjusted_mode->crtc_clock * 1000);
 
 	vop_cfg_done(vop);
 	/*
