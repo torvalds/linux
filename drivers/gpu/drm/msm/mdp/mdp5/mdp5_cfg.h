@@ -32,7 +32,7 @@ extern const struct mdp5_cfg_hw *mdp5_cfg;
 typedef DECLARE_BITMAP(mdp5_smp_state_t, MAX_SMP_BLOCKS);
 
 #define MDP5_SUB_BLOCK_DEFINITION \
-	int count; \
+	unsigned int count; \
 	uint32_t base[MAX_BASES]
 
 struct mdp5_sub_block {
@@ -85,6 +85,7 @@ struct mdp5_cfg_hw {
 	struct mdp5_pipe_block pipe_vig;
 	struct mdp5_pipe_block pipe_rgb;
 	struct mdp5_pipe_block pipe_dma;
+	struct mdp5_pipe_block pipe_cursor;
 	struct mdp5_lm_block  lm;
 	struct mdp5_sub_block dspp;
 	struct mdp5_sub_block ad;

@@ -2167,7 +2167,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_DFH(0x1217c, D_ALL, F_CMD_ACCESS, NULL, NULL);
 
 	MMIO_F(0x2290, 8, 0, 0, 0, D_HSW_PLUS, NULL, NULL);
-	MMIO_D(OACONTROL, D_HSW);
+	MMIO_D(GEN7_OACONTROL, D_HSW);
 	MMIO_D(0x2b00, D_BDW_PLUS);
 	MMIO_D(0x2360, D_BDW_PLUS);
 	MMIO_F(0x5200, 32, 0, 0, 0, D_ALL, NULL, NULL);

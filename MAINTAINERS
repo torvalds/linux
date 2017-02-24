@@ -4031,7 +4031,7 @@ F:	drivers/dma-buf/
 F:	include/linux/dma-buf*
 F:	include/linux/reservation.h
 F:	include/linux/*fence.h
-F:	Documentation/dma-buf-sharing.txt
+F:	Documentation/driver-api/dma-buf.rst
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 SYNC FILE FRAMEWORK
@@ -4041,6 +4041,7 @@ S:	Maintained
 L:	linux-media@vger.kernel.org
 L:	dri-devel@lists.freedesktop.org
 F:	drivers/dma-buf/sync_*
+F:	drivers/dma-buf/dma-fence*
 F:	drivers/dma-buf/sw_sync.c
 F:	include/linux/sync_file.h
 F:	include/uapi/linux/sync_file.h
@@ -4314,6 +4315,12 @@ L:	dri-devel@lists.freedesktop.org
 S:	Supported
 F:	drivers/gpu/drm/mediatek/
 F:	Documentation/devicetree/bindings/display/mediatek/
+
+DRM DRIVER FOR MI0283QT
+M:	Noralf Trønnes <noralf@tronnes.org>
+S:	Maintained
+F:	drivers/gpu/drm/tinydrm/mi0283qt.c
+F:	Documentation/devicetree/bindings/display/multi-inno,mi0283qt.txt
 
 DRM DRIVER FOR MSM ADRENO GPU
 M:	Rob Clark <robdclark@gmail.com>

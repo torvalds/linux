@@ -1253,7 +1253,7 @@ static int dsicm_probe(struct platform_device *pdev)
 	dsicm_hw_reset(ddata);
 
 	if (ddata->use_dsi_backlight) {
-		memset(&props, 0, sizeof(struct backlight_properties));
+		memset(&props, 0, sizeof(props));
 		props.max_brightness = 255;
 
 		props.type = BACKLIGHT_RAW;

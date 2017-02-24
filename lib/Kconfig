@@ -553,4 +553,7 @@ config SBITMAP
 config PARMAN
 	tristate
 
+config PRIME_NUMBERS
+	tristate
+
 endmenu

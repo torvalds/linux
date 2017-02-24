@@ -54,8 +54,7 @@ static struct page **get_pages_vram(struct drm_gem_object *obj,
 	if (!p)
 		return ERR_PTR(-ENOMEM);
 
-	ret = drm_mm_insert_node(&priv->vram.mm, msm_obj->vram_node,
-			npages, 0, DRM_MM_SEARCH_DEFAULT);
+	ret = drm_mm_insert_node(&priv->vram.mm, msm_obj->vram_node, npages);
 	if (ret) {
 		drm_free_large(p);
 		return ERR_PTR(ret);
