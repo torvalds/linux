@@ -130,6 +130,9 @@ TRACE_EVENT(amdgpu_sched_run_job,
 			     __field(struct amd_sched_job *, sched_job)
 			     __field(struct amdgpu_ib *, ib)
 			     __field(struct dma_fence *, fence)
+			     __string(timeline, job->base.s_fence->finished.ops->get_timeline_name(&job->base.s_fence->finished))
+			     __field(unsigned int, context)
+			     __field(unsigned int, seqno)
 			     __field(char *, ring_name)
 			     __field(u32, num_ibs)
 			     ),
@@ -139,12 +142,16 @@ TRACE_EVENT(amdgpu_sched_run_job,
 			   __entry->sched_job = &job->base;
 			   __entry->ib = job->ibs;
 			   __entry->fence = &job->base.s_fence->finished;
+			   __assign_str(timeline, job->base.s_fence->finished.ops->get_timeline_name(&job->base.s_fence->finished))
+			   __entry->context = job->base.s_fence->finished.context;
+			   __entry->seqno = job->base.s_fence->finished.seqno;
 			   __entry->ring_name = job->ring->name;
 			   __entry->num_ibs = job->num_ibs;
 			   ),
-	    TP_printk("adev=%p, sched_job=%p, first ib=%p, sched fence=%p, ring name=%s, num_ibs=%u",
+	    TP_printk("adev=%p, sched_job=%p, first ib=%p, sched fence=%p, timeline=%s, context=%u, seqno=%u, ring name=%s, num_ibs=%u",
 		      __entry->adev, __entry->sched_job, __entry->ib,
-		      __entry->fence, __entry->ring_name, __entry->num_ibs)
+		      __entry->fence, __get_str(timeline), __entry->context, __entry->seqno,
+		      __entry->ring_name, __entry->num_ibs)
 );
 
 
