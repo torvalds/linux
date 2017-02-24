@@ -3137,47 +3137,25 @@ static void gfx_v7_0_mqd_init(struct amdgpu_device *adev,
 
 int gfx_v7_0_mqd_commit(struct amdgpu_device *adev, struct cik_mqd *mqd)
 {
-	u32 tmp;
+	uint32_t tmp;
+	uint32_t mqd_reg;
+	uint32_t *mqd_data;
+
+	/* HQD registers extend from mmCP_MQD_BASE_ADDR to mmCP_MQD_CONTROL */
+	mqd_data = &mqd->cp_mqd_base_addr_lo;
 
 	/* disable wptr polling */
 	tmp = RREG32(mmCP_PQ_WPTR_POLL_CNTL);
 	tmp = REG_SET_FIELD(tmp, CP_PQ_WPTR_POLL_CNTL, EN, 0);
 	WREG32(mmCP_PQ_WPTR_POLL_CNTL, tmp);
 
-	/* program MQD field to HW */
-	WREG32(mmCP_MQD_BASE_ADDR, mqd->cp_mqd_base_addr_lo);
-	WREG32(mmCP_MQD_BASE_ADDR_HI, mqd->cp_mqd_base_addr_hi);
-	WREG32(mmCP_MQD_CONTROL, mqd->cp_mqd_control);
-	WREG32(mmCP_HQD_PQ_BASE, mqd->cp_hqd_pq_base_lo);
-	WREG32(mmCP_HQD_PQ_BASE_HI, mqd->cp_hqd_pq_base_hi);
-	WREG32(mmCP_HQD_PQ_CONTROL, mqd->cp_hqd_pq_control);
-	WREG32(mmCP_HQD_PQ_WPTR_POLL_ADDR, mqd->cp_hqd_pq_wptr_poll_addr_lo);
-	WREG32(mmCP_HQD_PQ_WPTR_POLL_ADDR_HI, mqd->cp_hqd_pq_wptr_poll_addr_hi);
-	WREG32(mmCP_HQD_PQ_RPTR_REPORT_ADDR, mqd->cp_hqd_pq_rptr_report_addr_lo);
-	WREG32(mmCP_HQD_PQ_RPTR_REPORT_ADDR_HI, mqd->cp_hqd_pq_rptr_report_addr_hi);
-	WREG32(mmCP_HQD_PQ_DOORBELL_CONTROL, mqd->cp_hqd_pq_doorbell_control);
-	WREG32(mmCP_HQD_PQ_WPTR, mqd->cp_hqd_pq_wptr);
-	WREG32(mmCP_HQD_VMID, mqd->cp_hqd_vmid);
-
-	WREG32(mmCP_HQD_IB_CONTROL, mqd->cp_hqd_ib_control);
-	WREG32(mmCP_HQD_IB_BASE_ADDR, mqd->cp_hqd_ib_base_addr_lo);
-	WREG32(mmCP_HQD_IB_BASE_ADDR_HI, mqd->cp_hqd_ib_base_addr_hi);
-	WREG32(mmCP_HQD_IB_RPTR, mqd->cp_hqd_ib_rptr);
-	WREG32(mmCP_HQD_PERSISTENT_STATE, mqd->cp_hqd_persistent_state);
-	WREG32(mmCP_HQD_SEMA_CMD, mqd->cp_hqd_sema_cmd);
-	WREG32(mmCP_HQD_MSG_TYPE, mqd->cp_hqd_msg_type);
-	WREG32(mmCP_HQD_ATOMIC0_PREOP_LO, mqd->cp_hqd_atomic0_preop_lo);
-	WREG32(mmCP_HQD_ATOMIC0_PREOP_HI, mqd->cp_hqd_atomic0_preop_hi);
-	WREG32(mmCP_HQD_ATOMIC1_PREOP_LO, mqd->cp_hqd_atomic1_preop_lo);
-	WREG32(mmCP_HQD_ATOMIC1_PREOP_HI, mqd->cp_hqd_atomic1_preop_hi);
-	WREG32(mmCP_HQD_PQ_RPTR, mqd->cp_hqd_pq_rptr);
-	WREG32(mmCP_HQD_QUANTUM, mqd->cp_hqd_quantum);
-	WREG32(mmCP_HQD_PIPE_PRIORITY, mqd->cp_hqd_pipe_priority);
-	WREG32(mmCP_HQD_QUEUE_PRIORITY, mqd->cp_hqd_queue_priority);
-	WREG32(mmCP_HQD_IQ_RPTR, mqd->cp_hqd_iq_rptr);
+	/* program all HQD registers */
+	for (mqd_reg = mmCP_HQD_VMID; mqd_reg <= mmCP_MQD_CONTROL; mqd_reg++)
+		WREG32(mqd_reg, mqd_data[mqd_reg - mmCP_MQD_BASE_ADDR]);
 
 	/* activate the HQD */
-	WREG32(mmCP_HQD_ACTIVE, mqd->cp_hqd_active);
+	for (mqd_reg = mmCP_MQD_BASE_ADDR; mqd_reg <= mmCP_HQD_ACTIVE; mqd_reg++)
+		WREG32(mqd_reg, mqd_data[mqd_reg - mmCP_MQD_BASE_ADDR]);
 
 	return 0;
 }

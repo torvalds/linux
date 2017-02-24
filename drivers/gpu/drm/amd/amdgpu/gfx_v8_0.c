@@ -5060,82 +5060,22 @@ static int gfx_v8_0_mqd_init(struct amdgpu_ring *ring)
 int gfx_v8_0_mqd_commit(struct amdgpu_device *adev,
 			struct vi_mqd *mqd)
 {
+	uint32_t mqd_reg;
+	uint32_t *mqd_data;
+
+	/* HQD registers extend from mmCP_MQD_BASE_ADDR to mmCP_HQD_ERROR */
+	mqd_data = &mqd->cp_mqd_base_addr_lo;
+
 	/* disable wptr polling */
 	WREG32_FIELD(CP_PQ_WPTR_POLL_CNTL, EN, 0);
 
-	WREG32(mmCP_HQD_EOP_BASE_ADDR, mqd->cp_hqd_eop_base_addr_lo);
-	WREG32(mmCP_HQD_EOP_BASE_ADDR_HI, mqd->cp_hqd_eop_base_addr_hi);
+	/* program all HQD registers */
+	for (mqd_reg = mmCP_HQD_VMID; mqd_reg <= mmCP_HQD_ERROR; mqd_reg++)
+		WREG32(mqd_reg, mqd_data[mqd_reg - mmCP_MQD_BASE_ADDR]);
 
-	/* set the EOP size, register value is 2^(EOP_SIZE+1) dwords */
-	WREG32(mmCP_HQD_EOP_CONTROL, mqd->cp_hqd_eop_control);
-
-	/* enable doorbell? */
-	WREG32(mmCP_HQD_PQ_DOORBELL_CONTROL, mqd->cp_hqd_pq_doorbell_control);
-
-	/* set pq read/write pointers */
-	WREG32(mmCP_HQD_DEQUEUE_REQUEST, mqd->cp_hqd_dequeue_request);
-	WREG32(mmCP_HQD_PQ_RPTR, mqd->cp_hqd_pq_rptr);
-	WREG32(mmCP_HQD_PQ_WPTR, mqd->cp_hqd_pq_wptr);
-
-	/* set the pointer to the MQD */
-	WREG32(mmCP_MQD_BASE_ADDR, mqd->cp_mqd_base_addr_lo);
-	WREG32(mmCP_MQD_BASE_ADDR_HI, mqd->cp_mqd_base_addr_hi);
-
-	/* set MQD vmid to 0 */
-	WREG32(mmCP_MQD_CONTROL, mqd->cp_mqd_control);
-
-	/* set the pointer to the HQD, this is similar CP_RB0_BASE/_HI */
-	WREG32(mmCP_HQD_PQ_BASE, mqd->cp_hqd_pq_base_lo);
-	WREG32(mmCP_HQD_PQ_BASE_HI, mqd->cp_hqd_pq_base_hi);
-
-	/* set up the HQD, this is similar to CP_RB0_CNTL */
-	WREG32(mmCP_HQD_PQ_CONTROL, mqd->cp_hqd_pq_control);
-
-	/* set the wb address whether it's enabled or not */
-	WREG32(mmCP_HQD_PQ_RPTR_REPORT_ADDR,
-				mqd->cp_hqd_pq_rptr_report_addr_lo);
-	WREG32(mmCP_HQD_PQ_RPTR_REPORT_ADDR_HI,
-				mqd->cp_hqd_pq_rptr_report_addr_hi);
-
-	/* only used if CP_PQ_WPTR_POLL_CNTL.CP_PQ_WPTR_POLL_CNTL__EN_MASK=1 */
-	WREG32(mmCP_HQD_PQ_WPTR_POLL_ADDR, mqd->cp_hqd_pq_wptr_poll_addr_lo);
-	WREG32(mmCP_HQD_PQ_WPTR_POLL_ADDR_HI, mqd->cp_hqd_pq_wptr_poll_addr_hi);
-
-	/* enable the doorbell if requested */
-	WREG32(mmCP_HQD_PQ_DOORBELL_CONTROL, mqd->cp_hqd_pq_doorbell_control);
-
-	/* reset read and write pointers, similar to CP_RB0_WPTR/_RPTR */
-	WREG32(mmCP_HQD_PQ_WPTR, mqd->cp_hqd_pq_wptr);
-	WREG32(mmCP_HQD_EOP_RPTR, mqd->cp_hqd_eop_rptr);
-	WREG32(mmCP_HQD_EOP_WPTR, mqd->cp_hqd_eop_wptr);
-
-	/* set the HQD priority */
-	WREG32(mmCP_HQD_PIPE_PRIORITY, mqd->cp_hqd_pipe_priority);
-	WREG32(mmCP_HQD_QUEUE_PRIORITY, mqd->cp_hqd_queue_priority);
-	WREG32(mmCP_HQD_QUANTUM, mqd->cp_hqd_quantum);
-
-	/* set cwsr save area */
-	WREG32(mmCP_HQD_CTX_SAVE_BASE_ADDR_LO, mqd->cp_hqd_ctx_save_base_addr_lo);
-	WREG32(mmCP_HQD_CTX_SAVE_BASE_ADDR_HI, mqd->cp_hqd_ctx_save_base_addr_hi);
-	WREG32(mmCP_HQD_CTX_SAVE_CONTROL, mqd->cp_hqd_ctx_save_control);
-	WREG32(mmCP_HQD_CNTL_STACK_OFFSET, mqd->cp_hqd_cntl_stack_offset);
-	WREG32(mmCP_HQD_CNTL_STACK_SIZE, mqd->cp_hqd_cntl_stack_size);
-	WREG32(mmCP_HQD_WG_STATE_OFFSET, mqd->cp_hqd_wg_state_offset);
-	WREG32(mmCP_HQD_CTX_SAVE_SIZE, mqd->cp_hqd_ctx_save_size);
-
-	WREG32(mmCP_HQD_IB_CONTROL, mqd->cp_hqd_ib_control);
-	WREG32(mmCP_HQD_EOP_EVENTS, mqd->cp_hqd_eop_done_events);
-	WREG32(mmCP_HQD_ERROR, mqd->cp_hqd_error);
-	WREG32(mmCP_HQD_EOP_WPTR_MEM, mqd->cp_hqd_eop_wptr_mem);
-	WREG32(mmCP_HQD_EOP_DONES, mqd->cp_hqd_eop_dones);
-
-	/* set the vmid for the queue */
-	WREG32(mmCP_HQD_VMID, mqd->cp_hqd_vmid);
-
-	WREG32(mmCP_HQD_PERSISTENT_STATE, mqd->cp_hqd_persistent_state);
-
-	/* activate the queue */
-	WREG32(mmCP_HQD_ACTIVE, mqd->cp_hqd_active);
+	/* activate the HQD */
+	for (mqd_reg = mmCP_MQD_BASE_ADDR; mqd_reg <= mmCP_HQD_ACTIVE; mqd_reg++)
+		WREG32(mqd_reg, mqd_data[mqd_reg - mmCP_MQD_BASE_ADDR]);
 
 	return 0;
 }
