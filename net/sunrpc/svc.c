@@ -976,6 +976,13 @@ int svc_register(const struct svc_serv *serv, struct net *net,
 			if (vers->vs_hidden)
 				continue;
 
+			/*
+			 * Don't register a UDP port if we need congestion
+			 * control.
+			 */
+			if (vers->vs_need_cong_ctrl && proto == IPPROTO_UDP)
+				continue;
+
 			error = __svc_register(net, progp->pg_name, progp->pg_prog,
 						i, family, proto, port);
 
