@@ -285,6 +285,11 @@ extern pgprot_t protection_map[16];
 #define FAULT_FLAG_REMOTE	0x80	/* faulting for non current tsk/mm */
 #define FAULT_FLAG_INSTRUCTION  0x100	/* The fault was during an instruction fetch */
 
+#define FAULT_FLAG_SIZE_MASK	0x7000	/* Support up to 8-level page tables */
+#define FAULT_FLAG_SIZE_PTE	0x0000	/* First level (eg 4k) */
+#define FAULT_FLAG_SIZE_PMD	0x1000	/* Second level (eg 2MB) */
+#define FAULT_FLAG_SIZE_PUD	0x2000	/* Third level (eg 1GB) */
+
 #define FAULT_FLAG_TRACE \
 	{ FAULT_FLAG_WRITE,		"WRITE" }, \
 	{ FAULT_FLAG_MKWRITE,		"MKWRITE" }, \
@@ -314,6 +319,9 @@ struct vm_fault {
 	unsigned long address;		/* Faulting virtual address */
 	pmd_t *pmd;			/* Pointer to pmd entry matching
 					 * the 'address' */
+	pud_t *pud;			/* Pointer to pud entry matching
+					 * the 'address'
+					 */
 	pte_t orig_pte;			/* Value of PTE at the time of fault */
 
 	struct page *cow_page;		/* Page handler may use for COW fault */
@@ -351,7 +359,7 @@ struct vm_operations_struct {
 	void (*close)(struct vm_area_struct * area);
 	int (*mremap)(struct vm_area_struct * area);
 	int (*fault)(struct vm_fault *vmf);
-	int (*pmd_fault)(struct vm_fault *vmf);
+	int (*huge_fault)(struct vm_fault *vmf);
 	void (*map_pages)(struct vm_fault *vmf,
 			pgoff_t start_pgoff, pgoff_t end_pgoff);
 
