@@ -1955,6 +1955,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 
 	info = skb_tunnel_info(skb);
 
+	rcu_read_lock();
 	if (rdst) {
 		dst_port = rdst->remote_port ? rdst->remote_port : vxlan->cfg.dst_port;
 		vni = rdst->remote_vni;
@@ -1985,7 +1986,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		if (did_rsc) {
 			/* short-circuited back to local bridge */
 			vxlan_encap_bypass(skb, vxlan, vxlan);
-			return;
+			goto out_unlock;
 		}
 		goto drop;
 	}
@@ -2054,7 +2055,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 			if (!dst_vxlan)
 				goto tx_error;
 			vxlan_encap_bypass(skb, vxlan, dst_vxlan);
-			return;
+			goto out_unlock;
 		}
 
 		if (!info)
@@ -2115,7 +2116,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 			if (!dst_vxlan)
 				goto tx_error;
 			vxlan_encap_bypass(skb, vxlan, dst_vxlan);
-			return;
+			goto out_unlock;
 		}
 
 		if (!info)
@@ -2129,7 +2130,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		if (err < 0) {
 			dst_release(ndst);
 			dev->stats.tx_errors++;
-			return;
+			goto out_unlock;
 		}
 		udp_tunnel6_xmit_skb(ndst, sk, skb, dev,
 				     &local_ip.sin6.sin6_addr,
@@ -2137,7 +2138,8 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 				     label, src_port, dst_port, !udp_sum);
 #endif
 	}
-
+out_unlock:
+	rcu_read_unlock();
 	return;
 
 drop:
@@ -2153,6 +2155,7 @@ tx_error:
 	dev->stats.tx_errors++;
 tx_free:
 	dev_kfree_skb(skb);
+	rcu_read_unlock();
 }
 
 /* Transmit local packets over Vxlan
