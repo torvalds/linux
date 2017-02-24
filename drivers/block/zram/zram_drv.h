@@ -106,9 +106,6 @@ struct zram {
 	unsigned long limit_pages;
 
 	struct zram_stats stats;
-	atomic_t refcount; /* refcount for zram_meta */
-	/* wait all IO under all of cpu are done */
-	wait_queue_head_t io_done;
 	/*
 	 * This is the limit on amount of *uncompressed* worth of data
 	 * we can store in a disk.
