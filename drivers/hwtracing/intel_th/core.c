@@ -218,8 +218,10 @@ static int intel_th_output_activate(struct intel_th_device *thdev)
 	else
 		intel_th_trace_enable(thdev);
 
-	if (ret)
+	if (ret) {
 		pm_runtime_put(&thdev->dev);
+		module_put(thdrv->driver.owner);
+	}
 
 	return ret;
 }
