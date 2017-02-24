@@ -5104,6 +5104,12 @@ sub process {
 			}
 		}
 
+# check for single line unbalanced braces
+		if ($sline =~ /.\s*\}\s*else\s*$/ ||
+		    $sline =~ /.\s*else\s*\{\s*$/) {
+			CHK("BRACES", "Unbalanced braces around else statement\n" . $herecurr);
+		}
+
 # check for unnecessary blank lines around braces
 		if (($line =~ /^.\s*}\s*$/ && $prevrawline =~ /^.\s*$/)) {
 			if (CHK("BRACES",
