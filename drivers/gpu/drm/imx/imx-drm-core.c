@@ -132,10 +132,6 @@ static void imx_drm_atomic_commit_tail(struct drm_atomic_state *state)
 	drm_atomic_helper_commit_modeset_enables(dev, state);
 
 	drm_atomic_helper_commit_hw_done(state);
-
-	drm_atomic_helper_wait_for_vblanks(dev, state);
-
-	drm_atomic_helper_cleanup_planes(dev, state);
 }
 
 static const struct drm_mode_config_helper_funcs imx_drm_mode_config_helpers = {
