@@ -2763,22 +2763,25 @@ static int iommu_pc_get_set_reg_val(struct amd_iommu *iommu,
 	if (WARN_ON((fxn > 0x28) || (fxn & 7)))
 		return -ENODEV;
 
-	offset = (u32)(((0x40|bank) << 12) | (cntr << 8) | fxn);
+	offset = (u32)(((0x40 | bank) << 12) | (cntr << 8) | fxn);
 
 	/* Limit the offset to the hw defined mmio region aperture */
-	max_offset_lim = (u32)(((0x40|iommu->max_banks) << 12) |
+	max_offset_lim = (u32)(((0x40 | iommu->max_banks) << 12) |
 				(iommu->max_counters << 8) | 0x28);
 	if ((offset < MMIO_CNTR_REG_OFFSET) ||
 	    (offset > max_offset_lim))
 		return -EINVAL;
 
 	if (is_write) {
-		writel((u32)*value, iommu->mmio_base + offset);
-		writel((*value >> 32), iommu->mmio_base + offset + 4);
+		u64 val = *value & GENMASK_ULL(47, 0);
+
+		writel((u32)val, iommu->mmio_base + offset);
+		writel((val >> 32), iommu->mmio_base + offset + 4);
 	} else {
 		*value = readl(iommu->mmio_base + offset + 4);
 		*value <<= 32;
-		*value = readl(iommu->mmio_base + offset);
+		*value |= readl(iommu->mmio_base + offset);
+		*value &= GENMASK_ULL(47, 0);
 	}
 
 	return 0;
