@@ -324,7 +324,7 @@ static int sti_platform_probe(struct platform_device *pdev)
 
 	dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
 
-	of_platform_populate(node, NULL, NULL, dev);
+	devm_of_platform_populate(dev);
 
 	child_np = of_get_next_available_child(node, NULL);
 
@@ -340,7 +340,6 @@ static int sti_platform_probe(struct platform_device *pdev)
 static int sti_platform_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &sti_ops);
-	of_platform_depopulate(&pdev->dev);
 
 	return 0;
 }
