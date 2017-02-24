@@ -1942,7 +1942,6 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 	const struct iphdr *old_iph;
 	union vxlan_addr *dst;
 	union vxlan_addr remote_ip, local_ip;
-	union vxlan_addr *src;
 	struct vxlan_metadata _md;
 	struct vxlan_metadata *md = &_md;
 	__be16 src_port = 0, dst_port;
@@ -1960,7 +1959,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		dst_port = rdst->remote_port ? rdst->remote_port : vxlan->cfg.dst_port;
 		vni = rdst->remote_vni;
 		dst = &rdst->remote_ip;
-		src = &vxlan->cfg.saddr;
+		local_ip = vxlan->cfg.saddr;
 		dst_cache = &rdst->dst_cache;
 	} else {
 		if (!info) {
@@ -1979,7 +1978,6 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 			local_ip.sin6.sin6_addr = info->key.u.ipv6.src;
 		}
 		dst = &remote_ip;
-		src = &local_ip;
 		dst_cache = &info->dst_cache;
 	}
 
@@ -2028,7 +2026,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		rt = vxlan_get_route(vxlan, skb,
 				     rdst ? rdst->remote_ifindex : 0, tos,
 				     dst->sin.sin_addr.s_addr,
-				     &src->sin.sin_addr.s_addr,
+				     &local_ip.sin.sin_addr.s_addr,
 				     dst_cache, info);
 		if (IS_ERR(rt)) {
 			netdev_dbg(dev, "no route to %pI4\n",
@@ -2071,7 +2069,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		if (err < 0)
 			goto xmit_tx_error;
 
-		udp_tunnel_xmit_skb(rt, sk, skb, src->sin.sin_addr.s_addr,
+		udp_tunnel_xmit_skb(rt, sk, skb, local_ip.sin.sin_addr.s_addr,
 				    dst->sin.sin_addr.s_addr, tos, ttl, df,
 				    src_port, dst_port, xnet, !udp_sum);
 #if IS_ENABLED(CONFIG_IPV6)
@@ -2087,7 +2085,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		ndst = vxlan6_get_route(vxlan, skb,
 					rdst ? rdst->remote_ifindex : 0, tos,
 					label, &dst->sin6.sin6_addr,
-					&src->sin6.sin6_addr,
+					&local_ip.sin6.sin6_addr,
 					dst_cache, info);
 		if (IS_ERR(ndst)) {
 			netdev_dbg(dev, "no route to %pI6\n",
@@ -2134,7 +2132,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 			return;
 		}
 		udp_tunnel6_xmit_skb(ndst, sk, skb, dev,
-				     &src->sin6.sin6_addr,
+				     &local_ip.sin6.sin6_addr,
 				     &dst->sin6.sin6_addr, tos, ttl,
 				     label, src_port, dst_port, !udp_sum);
 #endif
