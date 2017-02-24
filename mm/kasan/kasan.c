@@ -435,7 +435,7 @@ void kasan_cache_shrink(struct kmem_cache *cache)
 	quarantine_remove_cache(cache);
 }
 
-void kasan_cache_destroy(struct kmem_cache *cache)
+void kasan_cache_shutdown(struct kmem_cache *cache)
 {
 	quarantine_remove_cache(cache);
 }
