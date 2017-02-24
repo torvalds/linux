@@ -493,6 +493,7 @@ static const struct file_operations omapdriver_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_open,
 	.unlocked_ioctl = drm_ioctl,
+	.compat_ioctl = drm_compat_ioctl,
 	.release = drm_release,
 	.mmap = omap_gem_mmap,
 	.poll = drm_poll,
