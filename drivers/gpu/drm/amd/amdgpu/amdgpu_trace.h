@@ -142,7 +142,7 @@ TRACE_EVENT(amdgpu_sched_run_job,
 			   __entry->ring_name = job->ring->name;
 			   __entry->num_ibs = job->num_ibs;
 			   ),
-	    TP_printk("adev=%p, sched_job=%p, first ib=%p, sched fence=%p, ring name:%s, num_ibs:%u",
+	    TP_printk("adev=%p, sched_job=%p, first ib=%p, sched fence=%p, ring name=%s, num_ibs=%u",
 		      __entry->adev, __entry->sched_job, __entry->ib,
 		      __entry->fence, __entry->ring_name, __entry->num_ibs)
 );
@@ -359,7 +359,7 @@ TRACE_EVENT(amdgpu_ttm_bo_move,
 			__entry->new_placement = new_placement;
 			__entry->old_placement = old_placement;
 			),
-	    TP_printk("bo=%p from:%d to %d with size = %Ld",
+	    TP_printk("bo=%p, from=%d, to=%d, size=%Ld",
 			__entry->bo, __entry->old_placement,
 			__entry->new_placement, __entry->bo_size)
 );
