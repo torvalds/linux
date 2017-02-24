@@ -309,7 +309,7 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 
 	addr &= ~(size - 1);
 	orig = *ptep;
-	orig_shift = pte_none(orig) ? PAGE_SIZE : huge_tte_to_shift(orig);
+	orig_shift = pte_none(orig) ? PAGE_SHIFT : huge_tte_to_shift(orig);
 
 	for (i = 0; i < nptes; i++)
 		ptep[i] = __pte(pte_val(entry) + (i << shift));
@@ -335,7 +335,8 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 	else
 		nptes = size >> PAGE_SHIFT;
 
-	hugepage_shift = pte_none(entry) ? PAGE_SIZE : huge_tte_to_shift(entry);
+	hugepage_shift = pte_none(entry) ? PAGE_SHIFT :
+		huge_tte_to_shift(entry);
 
 	if (pte_present(entry))
 		mm->context.hugetlb_pte_count -= nptes;
