@@ -678,6 +678,16 @@ config PPC_256K_PAGES
 
 endchoice
 
+config THREAD_SHIFT
+	int "Thread shift" if EXPERT
+	range 13 15
+	default "15" if PPC_256K_PAGES
+	default "14" if PPC64
+	default "13"
+	help
+	  Used to define the stack size. The default is almost always what you
+	  want. Only change this if you know what you are doing.
+
 config FORCE_MAX_ZONEORDER
 	int "Maximum zone order"
 	range 8 9 if PPC64 && PPC_64K_PAGES
