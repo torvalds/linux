@@ -1739,6 +1739,14 @@ config TEST_LIST_SORT
 
 	  If unsure, say N.
 
+config TEST_SORT
+	bool "Array-based sort test"
+	depends on DEBUG_KERNEL
+	help
+	  This option enables the self-test function of 'sort()' at boot.
+
+	  If unsure, say N.
+
 config KPROBES_SANITY_TEST
 	bool "Kprobes sanity tests"
 	depends on DEBUG_KERNEL
