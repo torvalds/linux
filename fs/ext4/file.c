@@ -253,19 +253,19 @@ out:
 }
 
 #ifdef CONFIG_FS_DAX
-static int ext4_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int ext4_dax_fault(struct vm_fault *vmf)
 {
 	int result;
-	struct inode *inode = file_inode(vma->vm_file);
+	struct inode *inode = file_inode(vmf->vma->vm_file);
 	struct super_block *sb = inode->i_sb;
 	bool write = vmf->flags & FAULT_FLAG_WRITE;
 
 	if (write) {
 		sb_start_pagefault(sb);
-		file_update_time(vma->vm_file);
+		file_update_time(vmf->vma->vm_file);
 	}
 	down_read(&EXT4_I(inode)->i_mmap_sem);
-	result = dax_iomap_fault(vma, vmf, &ext4_iomap_ops);
+	result = dax_iomap_fault(vmf, &ext4_iomap_ops);
 	up_read(&EXT4_I(inode)->i_mmap_sem);
 	if (write)
 		sb_end_pagefault(sb);
@@ -303,22 +303,21 @@ ext4_dax_pmd_fault(struct vm_fault *vmf)
  * wp_pfn_shared() fails. Thus fault gets retried and things work out as
  * desired.
  */
-static int ext4_dax_pfn_mkwrite(struct vm_area_struct *vma,
-				struct vm_fault *vmf)
+static int ext4_dax_pfn_mkwrite(struct vm_fault *vmf)
 {
-	struct inode *inode = file_inode(vma->vm_file);
+	struct inode *inode = file_inode(vmf->vma->vm_file);
 	struct super_block *sb = inode->i_sb;
 	loff_t size;
 	int ret;
 
 	sb_start_pagefault(sb);
-	file_update_time(vma->vm_file);
+	file_update_time(vmf->vma->vm_file);
 	down_read(&EXT4_I(inode)->i_mmap_sem);
 	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	if (vmf->pgoff >= size)
 		ret = VM_FAULT_SIGBUS;
 	else
-		ret = dax_pfn_mkwrite(vma, vmf);
+		ret = dax_pfn_mkwrite(vmf);
 	up_read(&EXT4_I(inode)->i_mmap_sem);
 	sb_end_pagefault(sb);
 

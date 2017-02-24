@@ -925,12 +925,11 @@ static int dax_insert_mapping(struct address_space *mapping,
 
 /**
  * dax_pfn_mkwrite - handle first write to DAX page
- * @vma: The virtual memory area where the fault occurred
  * @vmf: The description of the fault
  */
-int dax_pfn_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+int dax_pfn_mkwrite(struct vm_fault *vmf)
 {
-	struct file *file = vma->vm_file;
+	struct file *file = vmf->vma->vm_file;
 	struct address_space *mapping = file->f_mapping;
 	void *entry, **slot;
 	pgoff_t index = vmf->pgoff;
@@ -1121,7 +1120,6 @@ static int dax_fault_return(int error)
 
 /**
  * dax_iomap_fault - handle a page fault on a DAX file
- * @vma: The virtual memory area where the fault occurred
  * @vmf: The description of the fault
  * @ops: iomap ops passed from the file system
  *
@@ -1129,10 +1127,9 @@ static int dax_fault_return(int error)
  * or mkwrite handler for DAX files. Assumes the caller has done all the
  * necessary locking for the page fault to proceed successfully.
  */
-int dax_iomap_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
-			const struct iomap_ops *ops)
+int dax_iomap_fault(struct vm_fault *vmf, const struct iomap_ops *ops)
 {
-	struct address_space *mapping = vma->vm_file->f_mapping;
+	struct address_space *mapping = vmf->vma->vm_file->f_mapping;
 	struct inode *inode = mapping->host;
 	unsigned long vaddr = vmf->address;
 	loff_t pos = (loff_t)vmf->pgoff << PAGE_SHIFT;
@@ -1205,11 +1202,11 @@ int dax_iomap_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
 	case IOMAP_MAPPED:
 		if (iomap.flags & IOMAP_F_NEW) {
 			count_vm_event(PGMAJFAULT);
-			mem_cgroup_count_vm_event(vma->vm_mm, PGMAJFAULT);
+			mem_cgroup_count_vm_event(vmf->vma->vm_mm, PGMAJFAULT);
 			major = VM_FAULT_MAJOR;
 		}
 		error = dax_insert_mapping(mapping, iomap.bdev, sector,
-				PAGE_SIZE, &entry, vma, vmf);
+				PAGE_SIZE, &entry, vmf->vma, vmf);
 		/* -EBUSY is fine, somebody else faulted on the same PTE */
 		if (error == -EBUSY)
 			error = 0;
