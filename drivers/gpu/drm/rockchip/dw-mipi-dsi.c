@@ -819,34 +819,8 @@ static void dw_mipi_dsi_encoder_mode_set(struct drm_encoder *encoder,
 					struct drm_display_mode *adjusted_mode)
 {
 	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
-	int ret;
 
 	dsi->mode = adjusted_mode;
-
-	ret = dw_mipi_dsi_get_lane_bps(dsi);
-	if (ret < 0)
-		return;
-
-	if (clk_prepare_enable(dsi->pclk)) {
-		dev_err(dsi->dev, "%s: Failed to enable pclk\n", __func__);
-		return;
-	}
-
-	dw_mipi_dsi_init(dsi);
-	dw_mipi_dsi_dpi_config(dsi, mode);
-	dw_mipi_dsi_packet_handler_config(dsi);
-	dw_mipi_dsi_video_mode_config(dsi);
-	dw_mipi_dsi_video_packet_config(dsi, mode);
-	dw_mipi_dsi_command_mode_config(dsi);
-	dw_mipi_dsi_line_timer_config(dsi);
-	dw_mipi_dsi_vertical_timing_config(dsi);
-	dw_mipi_dsi_dphy_timing_config(dsi);
-	dw_mipi_dsi_dphy_interface_config(dsi);
-	dw_mipi_dsi_clear_err(dsi);
-	if (drm_panel_prepare(dsi->panel))
-		dev_err(dsi->dev, "failed to prepare panel\n");
-
-	clk_disable_unprepare(dsi->pclk);
 }
 
 static void dw_mipi_dsi_encoder_disable(struct drm_encoder *encoder)
@@ -875,16 +849,35 @@ static void dw_mipi_dsi_encoder_disable(struct drm_encoder *encoder)
 	clk_disable_unprepare(dsi->pclk);
 }
 
-static void dw_mipi_dsi_encoder_commit(struct drm_encoder *encoder)
+static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
 {
 	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
 	int mux = drm_of_encoder_active_endpoint_id(dsi->dev->of_node, encoder);
 	u32 val;
+	int ret;
+
+	ret = dw_mipi_dsi_get_lane_bps(dsi);
+	if (ret < 0)
+		return;
 
 	if (clk_prepare_enable(dsi->pclk)) {
 		dev_err(dsi->dev, "%s: Failed to enable pclk\n", __func__);
 		return;
 	}
+
+	dw_mipi_dsi_init(dsi);
+	dw_mipi_dsi_dpi_config(dsi, dsi->mode);
+	dw_mipi_dsi_packet_handler_config(dsi);
+	dw_mipi_dsi_video_mode_config(dsi);
+	dw_mipi_dsi_video_packet_config(dsi, dsi->mode);
+	dw_mipi_dsi_command_mode_config(dsi);
+	dw_mipi_dsi_line_timer_config(dsi);
+	dw_mipi_dsi_vertical_timing_config(dsi);
+	dw_mipi_dsi_dphy_timing_config(dsi);
+	dw_mipi_dsi_dphy_interface_config(dsi);
+	dw_mipi_dsi_clear_err(dsi);
+	if (drm_panel_prepare(dsi->panel))
+		dev_err(dsi->dev, "failed to prepare panel\n");
 
 	dw_mipi_dsi_phy_init(dsi);
 	dw_mipi_dsi_wait_for_two_frames(dsi);
@@ -933,7 +926,7 @@ dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 
 static struct drm_encoder_helper_funcs
 dw_mipi_dsi_encoder_helper_funcs = {
-	.commit = dw_mipi_dsi_encoder_commit,
+	.enable = dw_mipi_dsi_encoder_enable,
 	.mode_set = dw_mipi_dsi_encoder_mode_set,
 	.disable = dw_mipi_dsi_encoder_disable,
 	.atomic_check = dw_mipi_dsi_encoder_atomic_check,
