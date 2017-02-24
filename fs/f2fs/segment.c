@@ -965,8 +965,7 @@ static void __add_discard_entry(struct f2fs_sb_info *sbi,
 	if (!list_empty(head)) {
 		last = list_last_entry(head, struct discard_entry, list);
 		if (START_BLOCK(sbi, cpc->trim_start) + start ==
-				last->blkaddr + last->len &&
-				last->len <= MAX_DISCARD_BLOCKS(sbi)) {
+						last->blkaddr + last->len) {
 			last->len += end - start;
 			goto done;
 		}
@@ -1706,25 +1705,36 @@ int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range)
 			"Found FS corruption, run fsck to fix.");
 		goto out;
 	}
-	if (sbi->discard_blks == 0)
-		goto out;
 
 	/* start/end segment number in main_area */
 	start_segno = (start <= MAIN_BLKADDR(sbi)) ? 0 : GET_SEGNO(sbi, start);
 	end_segno = (end >= MAX_BLKADDR(sbi)) ? MAIN_SEGS(sbi) - 1 :
 						GET_SEGNO(sbi, end);
-	/*
-	 * do checkpoint to issue discard commands safely since we now can
-	 * use async discard.
-	 */
 	cpc.reason = CP_DISCARD;
 	cpc.trim_minlen = max_t(__u64, 1, F2FS_BYTES_TO_BLK(range->minlen));
-	cpc.trim_start = start_segno;
-	cpc.trim_end = end_segno;
 
-	mutex_lock(&sbi->gc_mutex);
-	err = write_checkpoint(sbi, &cpc);
-	mutex_unlock(&sbi->gc_mutex);
+	/* do checkpoint to issue discard commands safely */
+	for (; start_segno <= end_segno; start_segno = cpc.trim_end + 1) {
+		cpc.trim_start = start_segno;
+
+		if (sbi->discard_blks == 0)
+			break;
+		else if (sbi->discard_blks < BATCHED_TRIM_BLOCKS(sbi))
+			cpc.trim_end = end_segno;
+		else
+			cpc.trim_end = min_t(unsigned int,
+				rounddown(start_segno +
+				BATCHED_TRIM_SEGMENTS(sbi),
+				sbi->segs_per_sec) - 1, end_segno);
+
+		mutex_lock(&sbi->gc_mutex);
+		err = write_checkpoint(sbi, &cpc);
+		mutex_unlock(&sbi->gc_mutex);
+		if (err)
+			break;
+
+		schedule();
+	}
 out:
 	range->len = F2FS_BLK_TO_BYTES(cpc.trimmed);
 	return err;
@@ -2884,6 +2894,8 @@ int build_segment_manager(struct f2fs_sb_info *sbi)
 		sm_info->ipu_policy = 1 << F2FS_IPU_FSYNC;
 	sm_info->min_ipu_util = DEF_MIN_IPU_UTIL;
 	sm_info->min_fsync_blocks = DEF_MIN_FSYNC_BLOCKS;
+
+	sm_info->trim_sections = DEF_BATCHED_TRIM_SECTIONS;
 
 	INIT_LIST_HEAD(&sm_info->sit_entry_set);
 
