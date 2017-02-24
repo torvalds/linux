@@ -71,9 +71,9 @@ enum connect_status {
 };
 
 struct rssi_history_buffer {
-	u8 u8Full;
-	u8 u8Index;
-	s8 as8RSSI[NUM_RSSI];
+	bool full;
+	u8 index;
+	s8 samples[NUM_RSSI];
 };
 
 struct network_info {
