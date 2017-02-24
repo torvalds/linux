@@ -738,6 +738,24 @@ void brcmf_remove_interface(struct brcmf_if *ifp, bool rtnl_locked)
 	brcmf_del_if(ifp->drvr, ifp->bsscfgidx, rtnl_locked);
 }
 
+static int brcmf_psm_watchdog_notify(struct brcmf_if *ifp,
+				     const struct brcmf_event_msg *evtmsg,
+				     void *data)
+{
+	int err;
+
+	brcmf_dbg(TRACE, "enter: bsscfgidx=%d\n", ifp->bsscfgidx);
+
+	brcmf_err("PSM's watchdog has fired!\n");
+
+	err = brcmf_debug_create_memdump(ifp->drvr->bus_if, data,
+					 evtmsg->datalen);
+	if (err)
+		brcmf_err("Failed to get memory dump, %d\n", err);
+
+	return err;
+}
+
 #ifdef CONFIG_INET
 #define ARPOL_MAX_ENTRIES	8
 static int brcmf_inetaddr_changed(struct notifier_block *nb,
@@ -916,6 +934,10 @@ int brcmf_attach(struct device *dev, struct brcmf_mp_device *settings)
 		brcmf_err("brcmf_prot_attach failed\n");
 		goto fail;
 	}
+
+	/* Attach to events important for core code */
+	brcmf_fweh_register(drvr, BRCMF_E_PSM_WATCHDOG,
+			    brcmf_psm_watchdog_notify);
 
 	/* attach firmware event handler */
 	brcmf_fweh_attach(drvr);
