@@ -426,6 +426,9 @@ int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu)
 	case ICPT_PARTEXEC:
 		rc = handle_partial_execution(vcpu);
 		break;
+	case ICPT_KSS:
+		rc = kvm_s390_skey_check_enable(vcpu);
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}

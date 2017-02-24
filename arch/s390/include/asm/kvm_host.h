@@ -122,6 +122,7 @@ struct esca_block {
 #define CPUSTAT_SLSR       0x00002000
 #define CPUSTAT_ZARCH      0x00000800
 #define CPUSTAT_MCDS       0x00000100
+#define CPUSTAT_KSS        0x00000200
 #define CPUSTAT_SM         0x00000080
 #define CPUSTAT_IBS        0x00000040
 #define CPUSTAT_GED2       0x00000010
@@ -185,6 +186,7 @@ struct kvm_s390_sie_block {
 #define ICPT_OPEREXC	0x2C
 #define ICPT_PARTEXEC	0x38
 #define ICPT_IOINST	0x40
+#define ICPT_KSS	0x5c
 	__u8	icptcode;		/* 0x0050 */
 	__u8	icptstatus;		/* 0x0051 */
 	__u16	ihcpu;			/* 0x0052 */

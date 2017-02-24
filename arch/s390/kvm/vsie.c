@@ -117,6 +117,8 @@ static int prepare_cpuflags(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		newflags |= cpuflags & CPUSTAT_SM;
 	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_IBS))
 		newflags |= cpuflags & CPUSTAT_IBS;
+	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_KSS))
+		newflags |= cpuflags & CPUSTAT_KSS;
 
 	atomic_set(&scb_s->cpuflags, newflags);
 	return 0;
@@ -289,7 +291,9 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	 * bits. Therefore we cannot provide interpretation and would later
 	 * have to provide own emulation handlers.
 	 */
-	scb_s->ictl |= ICTL_ISKE | ICTL_SSKE | ICTL_RRBE;
+	if (!(atomic_read(&scb_s->cpuflags) & CPUSTAT_KSS))
+		scb_s->ictl |= ICTL_ISKE | ICTL_SSKE | ICTL_RRBE;
+
 	scb_s->icpua = scb_o->icpua;
 
 	if (!(atomic_read(&scb_s->cpuflags) & CPUSTAT_SM))
