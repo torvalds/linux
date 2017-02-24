@@ -85,6 +85,12 @@ static const struct i2c_device_id stts751_id[] = {
 	{ }
 };
 
+static const struct of_device_id stts751_of_match[] = {
+	{ .compatible = "stts751" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, stts751_of_match);
+
 struct stts751_priv {
 	struct device *dev;
 	struct i2c_client *client;
@@ -819,6 +825,7 @@ static struct i2c_driver stts751_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= DEVNAME,
+		.of_match_table = of_match_ptr(stts751_of_match),
 	},
 	.probe		= stts751_probe,
 	.id_table	= stts751_id,
