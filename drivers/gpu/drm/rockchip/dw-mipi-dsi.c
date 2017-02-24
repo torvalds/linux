@@ -1189,12 +1189,27 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 		goto err_pllref;
 	}
 
-	dev_set_drvdata(dev, dsi);
-
 	dsi->dsi_host.ops = &dw_mipi_dsi_host_ops;
 	dsi->dsi_host.dev = dev;
-	return mipi_dsi_host_register(&dsi->dsi_host);
+	ret = mipi_dsi_host_register(&dsi->dsi_host);
+	if (ret) {
+		dev_err(dev, "Failed to register MIPI host: %d\n", ret);
+		goto err_cleanup;
+	}
 
+	if (!dsi->panel) {
+		ret = -EPROBE_DEFER;
+		goto err_mipi_dsi_host;
+	}
+
+	dev_set_drvdata(dev, dsi);
+	return 0;
+
+err_mipi_dsi_host:
+	mipi_dsi_host_unregister(&dsi->dsi_host);
+err_cleanup:
+	drm_encoder_cleanup(&dsi->encoder);
+	drm_connector_cleanup(&dsi->connector);
 err_pllref:
 	clk_disable_unprepare(dsi->pllref_clk);
 	return ret;
