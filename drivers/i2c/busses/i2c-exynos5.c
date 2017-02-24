@@ -309,7 +309,8 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, bool hs_timings)
 	div = temp / 512;
 	clk_cycle = temp / (div + 1) - 2;
 	if (temp < 4 || div >= 256 || clk_cycle < 2) {
-		dev_warn(i2c->dev, "Failed to calculate divisor");
+		dev_err(i2c->dev, "%s clock set-up failed\n",
+			hs_timings ? "HS" : "FS");
 		return -EINVAL;
 	}
 
@@ -351,24 +352,13 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, bool hs_timings)
 
 static int exynos5_hsi2c_clock_setup(struct exynos5_i2c *i2c)
 {
-	/*
-	 * Configure the Fast speed timing values
-	 * Even the High Speed mode initially starts with Fast mode
-	 */
-	if (exynos5_i2c_set_timing(i2c, false)) {
-		dev_err(i2c->dev, "HSI2C FS Clock set up failed\n");
-		return -EINVAL;
-	}
+	/* always set Fast Speed timings */
+	int ret = exynos5_i2c_set_timing(i2c, false);
 
-	/* configure the High speed timing values */
-	if (i2c->op_clock >= HSI2C_HS_TX_CLOCK) {
-		if (exynos5_i2c_set_timing(i2c, true)) {
-			dev_err(i2c->dev, "HSI2C HS Clock set up failed\n");
-			return -EINVAL;
-		}
-	}
+	if (ret < 0 || i2c->op_clock < HSI2C_HS_TX_CLOCK)
+		return ret;
 
-	return 0;
+	return exynos5_i2c_set_timing(i2c, true);
 }
 
 /*
