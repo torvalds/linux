@@ -1,8 +1,11 @@
 #include <linux/sort.h>
 #include <linux/slab.h>
-#include <linux/module.h>
+#include <linux/init.h>
 
-/* a simple boot-time regression test */
+/*
+ * A simple boot-time regression test
+ * License: GPL
+ */
 
 #define TEST_LEN 1000
 
@@ -38,6 +41,4 @@ exit:
 	kfree(a);
 	return err;
 }
-
-module_init(test_sort_init);
-MODULE_LICENSE("GPL");
+subsys_initcall(test_sort_init);
