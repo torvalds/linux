@@ -1790,9 +1790,10 @@ config PERCPU_TEST
 	  If unsure, say N.
 
 config ATOMIC64_SELFTEST
-	bool "Perform an atomic64_t self-test at boot"
+	tristate "Perform an atomic64_t self-test"
 	help
-	  Enable this option to test the atomic64_t functions at boot.
+	  Enable this option to test the atomic64_t functions at boot or
+	  at module load time.
 
 	  If unsure, say N.
 
