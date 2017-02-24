@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/spinlock.h>
 
@@ -201,7 +202,7 @@ struct exynos5_i2c {
 	unsigned int		op_clock;
 
 	/* Version of HS-I2C Hardware */
-	struct exynos_hsi2c_variant	*variant;
+	const struct exynos_hsi2c_variant *variant;
 };
 
 /**
@@ -246,15 +247,6 @@ static const struct of_device_id exynos5_i2c_match[] = {
 	}, {},
 };
 MODULE_DEVICE_TABLE(of, exynos5_i2c_match);
-
-static inline struct exynos_hsi2c_variant *exynos5_i2c_get_variant
-					(struct platform_device *pdev)
-{
-	const struct of_device_id *match;
-
-	match = of_match_node(exynos5_i2c_match, pdev->dev.of_node);
-	return (struct exynos_hsi2c_variant *)match->data;
-}
 
 static void exynos5_i2c_clr_pend_irq(struct exynos5_i2c *i2c)
 {
@@ -774,8 +766,7 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	/* Need to check the variant before setting up. */
-	i2c->variant = exynos5_i2c_get_variant(pdev);
+	i2c->variant = of_device_get_match_data(&pdev->dev);
 
 	ret = exynos5_hsi2c_clock_setup(i2c);
 	if (ret)
