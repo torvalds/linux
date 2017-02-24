@@ -34,6 +34,20 @@ OPTIONS
 --pid=::
 	Trace on existing process id (comma separated list).
 
+-a::
+--all-cpus::
+	Force system-wide collection.  Scripts run without a <command>
+	normally use -a by default, while scripts run with a <command>
+	normally don't - this option allows the latter to be run in
+	system-wide mode.
+
+-C::
+--cpu=::
+	Only trace for the list of CPUs provided.  Multiple CPUs can
+	be provided as a comma separated list with no space like: 0,1.
+	Ranges of CPUs are specified with -: 0-2.
+	Default is to trace on all online CPUs.
+
 
 SEE ALSO
 --------

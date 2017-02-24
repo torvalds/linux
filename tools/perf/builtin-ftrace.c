@@ -17,6 +17,7 @@
 #include <subcmd/parse-options.h>
 #include "evlist.h"
 #include "target.h"
+#include "cpumap.h"
 #include "thread_map.h"
 #include "util/config.h"
 
@@ -96,6 +97,8 @@ static int append_tracing_file(const char *name, const char *val)
 	return __write_tracing_file(name, val, true);
 }
 
+static int reset_tracing_cpu(void);
+
 static int reset_tracing_files(struct perf_ftrace *ftrace __maybe_unused)
 {
 	if (write_tracing_file("tracing_on", "0") < 0)
@@ -105,6 +108,9 @@ static int reset_tracing_files(struct perf_ftrace *ftrace __maybe_unused)
 		return -1;
 
 	if (write_tracing_file("set_ftrace_pid", " ") < 0)
+		return -1;
+
+	if (reset_tracing_cpu() < 0)
 		return -1;
 
 	return 0;
@@ -125,6 +131,51 @@ static int set_tracing_pid(struct perf_ftrace *ftrace)
 			return -1;
 	}
 	return 0;
+}
+
+static int set_tracing_cpumask(struct cpu_map *cpumap)
+{
+	char *cpumask;
+	size_t mask_size;
+	int ret;
+	int last_cpu;
+
+	last_cpu = cpu_map__cpu(cpumap, cpumap->nr - 1);
+	mask_size = (last_cpu + 3) / 4 + 1;
+	mask_size += last_cpu / 32; /* ',' is needed for every 32th cpus */
+
+	cpumask = malloc(mask_size);
+	if (cpumask == NULL) {
+		pr_debug("failed to allocate cpu mask\n");
+		return -1;
+	}
+
+	cpu_map__snprint_mask(cpumap, cpumask, mask_size);
+
+	ret = write_tracing_file("tracing_cpumask", cpumask);
+
+	free(cpumask);
+	return ret;
+}
+
+static int set_tracing_cpu(struct perf_ftrace *ftrace)
+{
+	struct cpu_map *cpumap = ftrace->evlist->cpus;
+
+	if (!target__has_cpu(&ftrace->target))
+		return 0;
+
+	return set_tracing_cpumask(cpumap);
+}
+
+static int reset_tracing_cpu(void)
+{
+	struct cpu_map *cpumap = cpu_map__new(NULL);
+	int ret;
+
+	ret = set_tracing_cpumask(cpumap);
+	cpu_map__put(cpumap);
+	return ret;
 }
 
 static int __cmd_ftrace(struct perf_ftrace *ftrace, int argc, const char **argv)
@@ -160,6 +211,11 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace, int argc, const char **argv)
 
 	if (set_tracing_pid(ftrace) < 0) {
 		pr_err("failed to set ftrace pid\n");
+		goto out_reset;
+	}
+
+	if (set_tracing_cpu(ftrace) < 0) {
+		pr_err("failed to set tracing cpumask\n");
 		goto out_reset;
 	}
 
@@ -264,6 +320,10 @@ int cmd_ftrace(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "trace on existing process id"),
 	OPT_INCR('v', "verbose", &verbose,
 		 "be more verbose"),
+	OPT_BOOLEAN('a', "all-cpus", &ftrace.target.system_wide,
+		    "system-wide collection from all CPUs"),
+	OPT_STRING('C', "cpu", &ftrace.target.cpu_list, "cpu",
+		    "list of cpus to monitor"),
 	OPT_END()
 	};
 
