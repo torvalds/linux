@@ -1304,21 +1304,24 @@ static int mailbox_write(struct intel_vgpu *vgpu, unsigned int offset,
 	u32 *data0 = &vgpu_vreg(vgpu, GEN6_PCODE_DATA);
 
 	switch (cmd) {
-	case 0x6:
-		/**
-		 * "Read memory latency" command on gen9.
-		 * Below memory latency values are read
-		 * from skylake platform.
-		 */
-		if (!*data0)
-			*data0 = 0x1e1a1100;
-		else
-			*data0 = 0x61514b3d;
+	case GEN9_PCODE_READ_MEM_LATENCY:
+		if (IS_SKYLAKE(vgpu->gvt->dev_priv)) {
+			/**
+			 * "Read memory latency" command on gen9.
+			 * Below memory latency values are read
+			 * from skylake platform.
+			 */
+			if (!*data0)
+				*data0 = 0x1e1a1100;
+			else
+				*data0 = 0x61514b3d;
+		}
 		break;
 	case SKL_PCODE_CDCLK_CONTROL:
-		*data0 = SKL_CDCLK_READY_FOR_CHANGE;
+		if (IS_SKYLAKE(vgpu->gvt->dev_priv))
+			*data0 = SKL_CDCLK_READY_FOR_CHANGE;
 		break;
-	case 0x5:
+	case GEN6_PCODE_READ_RC6VIDS:
 		*data0 |= 0x1;
 		break;
 	}
@@ -2202,7 +2205,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 
 	MMIO_F(0x4f000, 0x90, 0, 0, 0, D_ALL, NULL, NULL);
 
-	MMIO_D(GEN6_PCODE_MAILBOX, D_PRE_SKL);
+	MMIO_D(GEN6_PCODE_MAILBOX, D_PRE_BDW);
 	MMIO_D(GEN6_PCODE_DATA, D_ALL);
 	MMIO_D(0x13812c, D_ALL);
 	MMIO_DH(GEN7_ERR_INT, D_ALL, NULL, NULL);
@@ -2281,7 +2284,6 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(0x1a054, D_ALL);
 
 	MMIO_D(0x44070, D_ALL);
-
 	MMIO_D(0x215c, D_HSW_PLUS);
 	MMIO_DFH(0x2178, D_ALL, F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(0x217c, D_ALL, F_CMD_ACCESS, NULL, NULL);
@@ -2453,6 +2455,8 @@ static int init_broadwell_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(GEN7_MISCCPCTL, D_BDW_PLUS);
 	MMIO_D(0x1c054, D_BDW_PLUS);
 
+	MMIO_DH(GEN6_PCODE_MAILBOX, D_BDW_PLUS, NULL, mailbox_write);
+
 	MMIO_D(GEN8_PRIVATE_PAT_LO, D_BDW_PLUS);
 	MMIO_D(GEN8_PRIVATE_PAT_HI, D_BDW_PLUS);
 
@@ -2544,7 +2548,6 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(HSW_PWR_WELL_BIOS, D_SKL);
 	MMIO_DH(HSW_PWR_WELL_DRIVER, D_SKL, NULL, skl_power_well_ctl_write);
 
-	MMIO_DH(GEN6_PCODE_MAILBOX, D_SKL, NULL, mailbox_write);
 	MMIO_D(0xa210, D_SKL_PLUS);
 	MMIO_D(GEN9_MEDIA_PG_IDLE_HYSTERESIS, D_SKL_PLUS);
 	MMIO_D(GEN9_RENDER_PG_IDLE_HYSTERESIS, D_SKL_PLUS);
