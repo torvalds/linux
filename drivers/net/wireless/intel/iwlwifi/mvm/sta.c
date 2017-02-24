@@ -1895,7 +1895,7 @@ int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	struct iwl_mvm_int_sta *bsta = &mvmvif->bcast_sta;
 	static const u8 _baddr[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 	const u8 *baddr = _baddr;
-	int queue = 0;
+	int queue;
 	int ret;
 	unsigned int wdg_timeout =
 		iwl_mvm_get_wd_timeout(mvm, vif, false, false);
@@ -1940,10 +1940,11 @@ int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	 * to firmware so enable queue here - after the station was added
 	 */
 	if (iwl_mvm_has_new_tx_api(mvm)) {
-		int queue = iwl_mvm_tvqm_enable_txq(mvm, vif->hw_queue[0],
-						    bsta->sta_id,
-						    IWL_MAX_TID_COUNT,
-						    wdg_timeout);
+		queue = iwl_mvm_tvqm_enable_txq(mvm, vif->hw_queue[0],
+						bsta->sta_id,
+						IWL_MAX_TID_COUNT,
+						wdg_timeout);
+
 		if (vif->type == NL80211_IFTYPE_AP)
 			mvm->probe_queue = queue;
 		else if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
