@@ -398,12 +398,12 @@ static void *uffd_poll_thread(void *arg)
 			uffd = msg.arg.fork.ufd;
 			pollfd[0].fd = uffd;
 			break;
-		case UFFD_EVENT_MADVDONTNEED:
-			uffd_reg.range.start = msg.arg.madv_dn.start;
-			uffd_reg.range.len = msg.arg.madv_dn.end -
-				msg.arg.madv_dn.start;
+		case UFFD_EVENT_REMOVE:
+			uffd_reg.range.start = msg.arg.remove.start;
+			uffd_reg.range.len = msg.arg.remove.end -
+				msg.arg.remove.start;
 			if (ioctl(uffd, UFFDIO_UNREGISTER, &uffd_reg.range))
-				fprintf(stderr, "madv_dn failure\n"), exit(1);
+				fprintf(stderr, "remove failure\n"), exit(1);
 			break;
 		case UFFD_EVENT_REMAP:
 			area_dst = (char *)(unsigned long)msg.arg.remap.to;
@@ -570,7 +570,7 @@ static int userfaultfd_open(int features)
  * mremap, the entire monitored area is accessed in a single pass for
  * HUGETLB_TEST.
  * The release of the pages currently generates event only for
- * anonymous memory (UFFD_EVENT_MADVDONTNEED), hence it is not checked
+ * anonymous memory (UFFD_EVENT_REMOVE), hence it is not checked
  * for hugetlb and shmem.
  */
 static int faulting_process(void)
@@ -715,14 +715,14 @@ static int userfaultfd_events_test(void)
 	pid_t pid;
 	char c;
 
-	printf("testing events (fork, remap, madv_dn): ");
+	printf("testing events (fork, remap, remove): ");
 	fflush(stdout);
 
 	if (release_pages(area_dst))
 		return 1;
 
 	features = UFFD_FEATURE_EVENT_FORK | UFFD_FEATURE_EVENT_REMAP |
-		UFFD_FEATURE_EVENT_MADVDONTNEED;
+		UFFD_FEATURE_EVENT_REMOVE;
 	if (userfaultfd_open(features) < 0)
 		return 1;
 	fcntl(uffd, F_SETFL, uffd_flags | O_NONBLOCK);
