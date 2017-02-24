@@ -391,18 +391,6 @@ static DEVICE_ATTR_RO(io_stat);
 static DEVICE_ATTR_RO(mm_stat);
 static DEVICE_ATTR_RO(debug_stat);
 
-static inline bool zram_meta_get(struct zram *zram)
-{
-	if (atomic_inc_not_zero(&zram->refcount))
-		return true;
-	return false;
-}
-
-static inline void zram_meta_put(struct zram *zram)
-{
-	atomic_dec(&zram->refcount);
-}
-
 static void zram_meta_free(struct zram_meta *meta, u64 disksize)
 {
 	size_t num_pages = disksize >> PAGE_SHIFT;
@@ -859,22 +847,17 @@ static blk_qc_t zram_make_request(struct request_queue *queue, struct bio *bio)
 {
 	struct zram *zram = queue->queuedata;
 
-	if (unlikely(!zram_meta_get(zram)))
-		goto error;
-
 	blk_queue_split(queue, &bio, queue->bio_split);
 
 	if (!valid_io_request(zram, bio->bi_iter.bi_sector,
 					bio->bi_iter.bi_size)) {
 		atomic64_inc(&zram->stats.invalid_io);
-		goto put_zram;
+		goto error;
 	}
 
 	__zram_make_request(zram, bio);
-	zram_meta_put(zram);
 	return BLK_QC_T_NONE;
-put_zram:
-	zram_meta_put(zram);
+
 error:
 	bio_io_error(bio);
 	return BLK_QC_T_NONE;
@@ -904,13 +887,11 @@ static int zram_rw_page(struct block_device *bdev, sector_t sector,
 	struct bio_vec bv;
 
 	zram = bdev->bd_disk->private_data;
-	if (unlikely(!zram_meta_get(zram)))
-		goto out;
 
 	if (!valid_io_request(zram, sector, PAGE_SIZE)) {
 		atomic64_inc(&zram->stats.invalid_io);
 		err = -EINVAL;
-		goto put_zram;
+		goto out;
 	}
 
 	index = sector >> SECTORS_PER_PAGE_SHIFT;
@@ -921,8 +902,6 @@ static int zram_rw_page(struct block_device *bdev, sector_t sector,
 	bv.bv_offset = 0;
 
 	err = zram_bvec_rw(zram, &bv, index, offset, is_write);
-put_zram:
-	zram_meta_put(zram);
 out:
 	/*
 	 * If I/O fails, just return error(ie, non-zero) without
@@ -955,17 +934,6 @@ static void zram_reset_device(struct zram *zram)
 	meta = zram->meta;
 	comp = zram->comp;
 	disksize = zram->disksize;
-	/*
-	 * Refcount will go down to 0 eventually and r/w handler
-	 * cannot handle further I/O so it will bail out by
-	 * check zram_meta_get.
-	 */
-	zram_meta_put(zram);
-	/*
-	 * We want to free zram_meta in process context to avoid
-	 * deadlock between reclaim path and any other locks.
-	 */
-	wait_event(zram->io_done, atomic_read(&zram->refcount) == 0);
 
 	/* Reset stats */
 	memset(&zram->stats, 0, sizeof(zram->stats));
@@ -1013,8 +981,6 @@ static ssize_t disksize_store(struct device *dev,
 		goto out_destroy_comp;
 	}
 
-	init_waitqueue_head(&zram->io_done);
-	atomic_set(&zram->refcount, 1);
 	zram->meta = meta;
 	zram->comp = comp;
 	zram->disksize = disksize;
