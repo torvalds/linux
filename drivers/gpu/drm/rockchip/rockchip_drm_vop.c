@@ -932,10 +932,10 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	}
 
 	pin_pol = BIT(DCLK_INVERT);
-	pin_pol |= (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ?
-		   0 : BIT(HSYNC_POSITIVE);
-	pin_pol |= (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC) ?
-		   0 : BIT(VSYNC_POSITIVE);
+	pin_pol |= (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC) ?
+		   BIT(HSYNC_POSITIVE) : 0;
+	pin_pol |= (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC) ?
+		   BIT(VSYNC_POSITIVE) : 0;
 	VOP_CTRL_SET(vop, pin_pol, pin_pol);
 
 	switch (s->output_type) {
