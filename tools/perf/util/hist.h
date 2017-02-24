@@ -57,6 +57,7 @@ enum hist_column {
 	HISTC_SRCLINE_FROM,
 	HISTC_SRCLINE_TO,
 	HISTC_TRACE,
+	HISTC_SYM_SIZE,
 	HISTC_NR_COLS, /* Last entry */
 };
 
