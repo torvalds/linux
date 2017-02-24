@@ -7926,10 +7926,10 @@ static bool skl_pcode_try_request(struct drm_i915_private *dev_priv, u32 mbox,
  * @timeout_base_ms: timeout for polling with preemption enabled
  *
  * Keep resending the @request to @mbox until PCODE acknowledges it, PCODE
- * reports an error or an overall timeout of @timeout_base_ms+10 ms expires.
+ * reports an error or an overall timeout of @timeout_base_ms+50 ms expires.
  * The request is acknowledged once the PCODE reply dword equals @reply after
  * applying @reply_mask. Polling is first attempted with preemption enabled
- * for @timeout_base_ms and if this times out for another 10 ms with
+ * for @timeout_base_ms and if this times out for another 50 ms with
  * preemption disabled.
  *
  * Returns 0 on success, %-ETIMEDOUT in case of a timeout, <0 in case of some
@@ -7965,14 +7965,15 @@ int skl_pcode_request(struct drm_i915_private *dev_priv, u32 mbox, u32 request,
 	 * worst case) _and_ PCODE was busy for some reason even after a
 	 * (queued) request and @timeout_base_ms delay. As a workaround retry
 	 * the poll with preemption disabled to maximize the number of
-	 * requests. Increase the timeout from @timeout_base_ms to 10ms to
+	 * requests. Increase the timeout from @timeout_base_ms to 50ms to
 	 * account for interrupts that could reduce the number of these
-	 * requests.
+	 * requests, and for any quirks of the PCODE firmware that delays
+	 * the request completion.
 	 */
 	DRM_DEBUG_KMS("PCODE timeout, retrying with preemption disabled\n");
 	WARN_ON_ONCE(timeout_base_ms > 3);
 	preempt_disable();
-	ret = wait_for_atomic(COND, 10);
+	ret = wait_for_atomic(COND, 50);
 	preempt_enable();
 
 out:
