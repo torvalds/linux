@@ -678,9 +678,6 @@ struct pci_error_handlers {
 	/* MMIO has been re-enabled, but not DMA */
 	pci_ers_result_t (*mmio_enabled)(struct pci_dev *dev);
 
-	/* PCI Express link has been reset */
-	pci_ers_result_t (*link_reset)(struct pci_dev *dev);
-
 	/* PCI slot has been reset */
 	pci_ers_result_t (*slot_reset)(struct pci_dev *dev);
 
@@ -1308,14 +1305,7 @@ void pci_msix_shutdown(struct pci_dev *dev);
 void pci_disable_msix(struct pci_dev *dev);
 void pci_restore_msi_state(struct pci_dev *dev);
 int pci_msi_enabled(void);
-int pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec);
-static inline int pci_enable_msi_exact(struct pci_dev *dev, int nvec)
-{
-	int rc = pci_enable_msi_range(dev, nvec, nvec);
-	if (rc < 0)
-		return rc;
-	return 0;
-}
+int pci_enable_msi(struct pci_dev *dev);
 int pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries,
 			  int minvec, int maxvec);
 static inline int pci_enable_msix_exact(struct pci_dev *dev,
@@ -1346,10 +1336,7 @@ static inline void pci_msix_shutdown(struct pci_dev *dev) { }
 static inline void pci_disable_msix(struct pci_dev *dev) { }
 static inline void pci_restore_msi_state(struct pci_dev *dev) { }
 static inline int pci_msi_enabled(void) { return 0; }
-static inline int pci_enable_msi_range(struct pci_dev *dev, int minvec,
-				       int maxvec)
-{ return -ENOSYS; }
-static inline int pci_enable_msi_exact(struct pci_dev *dev, int nvec)
+static inline int pci_enable_msi(struct pci_dev *dev)
 { return -ENOSYS; }
 static inline int pci_enable_msix_range(struct pci_dev *dev,
 		      struct msix_entry *entries, int minvec, int maxvec)
@@ -1424,8 +1411,6 @@ void pcie_ecrc_get_policy(char *str);
 static inline void pcie_set_ecrc_checking(struct pci_dev *dev) { }
 static inline void pcie_ecrc_get_policy(char *str) { }
 #endif
-
-#define pci_enable_msi(pdev)	pci_enable_msi_exact(pdev, 1)
 
 #ifdef CONFIG_HT_IRQ
 /* The functions a driver should call */

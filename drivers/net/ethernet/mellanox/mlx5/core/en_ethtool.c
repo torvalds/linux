@@ -1487,6 +1487,7 @@ static int set_pflag_rx_cqe_compress(struct net_device *netdev,
 
 	mlx5e_modify_rx_cqe_compression_locked(priv, enable);
 	priv->params.rx_cqe_compress_def = enable;
+	mlx5e_set_rq_type_params(priv, priv->params.rq_wq_type);
 
 	return 0;
 }

@@ -32,7 +32,7 @@
 #define EXYNOS5420_USE_ARM_CORE_DOWN_STATE	BIT(29)
 #define EXYNOS5420_USE_L2_COMMON_UP_STATE	BIT(30)
 
-static void __iomem *ns_sram_base_addr;
+static void __iomem *ns_sram_base_addr __ro_after_init;
 
 /*
  * The common v7_exit_coherency_flush API could not be used because of the

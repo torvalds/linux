@@ -11,21 +11,11 @@
  * published by the Free Software Foundation.
  */
 
-#include "exynos5433-tm2.dts"
+#include "exynos5433-tm2-common.dtsi"
 
 / {
 	model = "Samsung TM2E board";
 	compatible = "samsung,tm2e", "samsung,exynos5433";
-};
-
-&ldo23_reg {
-	regulator-name = "CAM_SEN_CORE_1.025V_AP";
-	regulator-max-microvolt = <1050000>;
-};
-
-&ldo25_reg {
-	regulator-name = "UNUSED_LDO25";
-	regulator-always-off;
 };
 
 &ldo31_reg {

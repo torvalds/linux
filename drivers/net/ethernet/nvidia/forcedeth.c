@@ -3272,8 +3272,6 @@ static void nv_force_linkspeed(struct net_device *dev, int speed, int duplex)
 	pci_push(base);
 	writel(np->linkspeed, base + NvRegLinkSpeed);
 	pci_push(base);
-
-	return;
 }
 
 /**

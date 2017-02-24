@@ -914,6 +914,7 @@ static inline struct se_portal_group *param_to_tpg(struct config_item *item)
 
 struct se_wwn {
 	struct target_fabric_configfs *wwn_tf;
+	void			*priv;
 	struct config_group	wwn_group;
 	struct config_group	fabric_stat_group;
 };

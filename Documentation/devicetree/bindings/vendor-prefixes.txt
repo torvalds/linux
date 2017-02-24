@@ -164,11 +164,14 @@ kosagi	Sutajio Ko-Usagi PTE Ltd.
 kyo	Kyocera Corporation
 lacie	LaCie
 lantiq	Lantiq Semiconductor
+lego	LEGO Systems A/S
 lenovo	Lenovo Group Ltd.
 lg	LG Corporation
+licheepi	Lichee Pi
 linux	Linux-specific binding
 lltc	Linear Technology Corporation
 lsi	LSI Corp. (LSI Logic)
+lwn	Liebherr-Werk Nenzing GmbH
 macnica	Macnica Americas
 marvell	Marvell Technology Group Ltd.
 maxim	Maxim Integrated Products
@@ -192,6 +195,7 @@ mpl	MPL AG
 mqmaker	mqmaker Inc.
 msi	Micro-Star International Co. Ltd.
 mti	Imagination Technologies Ltd. (formerly MIPS Technologies Inc.)
+multi-inno	Multi-Inno Technology Co.,Ltd
 mundoreader	Mundo Reader S.L.
 murata	Murata Manufacturing Co., Ltd.
 mxicy	Macronix International Co., Ltd.
@@ -201,6 +205,7 @@ nec	NEC LCD Technologies, Ltd.
 neonode		Neonode Inc.
 netgear	NETGEAR
 netlogic	Broadcom Corporation (formerly NetLogic Microsystems)
+netron-dy	Netron DY
 netxeon		Shenzhen Netxeon Technology CO., LTD
 nexbox	Nexbox
 newhaven	Newhaven Display International
@@ -232,6 +237,7 @@ pine64	Pine64
 pixcir  PIXCIR MICROELECTRONICS Co., Ltd
 plathome	Plat'Home Co., Ltd.
 plda	PLDA
+poslab	Poslab Technology Co., Ltd.
 powervr	PowerVR (deprecated, use img)
 pulsedlight	PulsedLight, Inc
 qca	Qualcomm Atheros, Inc.
@@ -301,6 +307,7 @@ technologic	Technologic Systems
 terasic	Terasic Inc.
 thine	THine Electronics, Inc.
 ti	Texas Instruments
+tianma	Tianma Micro-electronics Co., Ltd.
 tlm	Trusted Logic Mobility
 topeet  Topeet
 toradex	Toradex AG
@@ -333,7 +340,9 @@ x-powers	X-Powers
 xes	Extreme Engineering Solutions (X-ES)
 xillybus	Xillybus Ltd.
 xlnx	Xilinx
+xunlong	Shenzhen Xunlong Software CO.,Limited
 zarlink	Zarlink Semiconductor
+zeitec	ZEITEC Semiconductor Co., LTD.
 zii	Zodiac Inflight Innovations
 zte	ZTE Corp.
 zyxel	ZyXEL Communications Corp.

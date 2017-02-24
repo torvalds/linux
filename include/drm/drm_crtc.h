@@ -39,7 +39,6 @@
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_connector.h>
-#include <drm/drm_encoder.h>
 #include <drm/drm_property.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_edid.h>
@@ -68,14 +67,12 @@ static inline uint64_t I642U64(int64_t val)
 }
 
 struct drm_crtc;
-struct drm_encoder;
 struct drm_pending_vblank_event;
 struct drm_plane;
 struct drm_bridge;
 struct drm_atomic_state;
 
 struct drm_crtc_helper_funcs;
-struct drm_encoder_helper_funcs;
 struct drm_plane_helper_funcs;
 
 /**
@@ -84,8 +81,8 @@ struct drm_plane_helper_funcs;
  * @enable: whether the CRTC should be enabled, gates all other state
  * @active: whether the CRTC is actively displaying (used for DPMS)
  * @planes_changed: planes on this crtc are updated
- * @mode_changed: crtc_state->mode or crtc_state->enable has been changed
- * @active_changed: crtc_state->active has been toggled.
+ * @mode_changed: @mode or @enable has been changed
+ * @active_changed: @active has been toggled.
  * @connectors_changed: connectors to this crtc have been updated
  * @zpos_changed: zpos values of planes on this crtc have been updated
  * @color_mgmt_changed: color management properties have changed (degamma or
@@ -93,8 +90,6 @@ struct drm_plane_helper_funcs;
  * @plane_mask: bitmask of (1 << drm_plane_index(plane)) of attached planes
  * @connector_mask: bitmask of (1 << drm_connector_index(connector)) of attached connectors
  * @encoder_mask: bitmask of (1 << drm_encoder_index(encoder)) of attached encoders
- * @last_vblank_count: for helpers and drivers to capture the vblank of the
- * 	update to ensure framebuffer cleanup isn't done too early
  * @adjusted_mode: for use by helpers and drivers to compute adjusted mode timings
  * @mode: current mode timings
  * @mode_blob: &drm_property_blob for @mode
@@ -107,9 +102,10 @@ struct drm_plane_helper_funcs;
  *
  * Note that the distinction between @enable and @active is rather subtile:
  * Flipping @active while @enable is set without changing anything else may
- * never return in a failure from the ->atomic_check callback. Userspace assumes
- * that a DPMS On will always succeed. In other words: @enable controls resource
- * assignment, @active controls the actual hardware state.
+ * never return in a failure from the &drm_mode_config_funcs.atomic_check
+ * callback. Userspace assumes that a DPMS On will always succeed. In other
+ * words: @enable controls resource assignment, @active controls the actual
+ * hardware state.
  *
  * The three booleans active_changed, connectors_changed and mode_changed are
  * intended to indicate whether a full modeset is needed, rather than strictly
@@ -140,9 +136,6 @@ struct drm_crtc_state {
 	u32 connector_mask;
 	u32 encoder_mask;
 
-	/* last_vblank_count: for vblank waits before cleanup */
-	u32 last_vblank_count;
-
 	/* adjusted_mode: for use by helpers and drivers */
 	struct drm_display_mode adjusted_mode;
 
@@ -155,6 +148,15 @@ struct drm_crtc_state {
 	struct drm_property_blob *degamma_lut;
 	struct drm_property_blob *ctm;
 	struct drm_property_blob *gamma_lut;
+
+	/**
+	 * @target_vblank:
+	 *
+	 * Target vertical blank period when a page flip
+	 * should take effect.
+	 */
+
+	u32 target_vblank;
 
 	/**
 	 * @event:
@@ -323,7 +325,7 @@ struct drm_crtc_funcs {
 	 *
 	 * This is the main legacy entry point to change the modeset state on a
 	 * CRTC. All the details of the desired configuration are passed in a
-	 * struct &drm_mode_set - see there for details.
+	 * &struct drm_mode_set - see there for details.
 	 *
 	 * Drivers implementing atomic modeset should use
 	 * drm_atomic_helper_set_config() to implement this hook.
@@ -345,8 +347,8 @@ struct drm_crtc_funcs {
 	 * through the DRM_MODE_PAGE_FLIP_ASYNC flag). When an application
 	 * requests a page flip the DRM core verifies that the new frame buffer
 	 * is large enough to be scanned out by the CRTC in the currently
-	 * configured mode and then calls the CRTC ->page_flip() operation with a
-	 * pointer to the new frame buffer.
+	 * configured mode and then calls this hook with a pointer to the new
+	 * frame buffer.
 	 *
 	 * The driver must wait for any pending rendering to the new framebuffer
 	 * to complete before executing the flip. It should also wait for any
@@ -354,7 +356,7 @@ struct drm_crtc_funcs {
 	 * shared dma-buf.
 	 *
 	 * An application can request to be notified when the page flip has
-	 * completed. The drm core will supply a struct &drm_event in the event
+	 * completed. The drm core will supply a &struct drm_event in the event
 	 * parameter in this case. This can be handled by the
 	 * drm_crtc_send_vblank_event() function, which the driver should call on
 	 * the provided event upon completion of the flip. Note that if
@@ -381,7 +383,7 @@ struct drm_crtc_funcs {
 	 * RETURNS:
 	 *
 	 * 0 on success or a negative error code on failure. Note that if a
-	 * ->page_flip() operation is already pending the callback should return
+	 * page flip operation is already pending the callback should return
 	 * -EBUSY. Pageflips on a disabled CRTC (either by setting a NULL mode
 	 * or just runtime disabled through DPMS respectively the new atomic
 	 * "ACTIVE" state) should result in an -EINVAL error code. Note that
@@ -433,19 +435,19 @@ struct drm_crtc_funcs {
 	 * @atomic_duplicate_state:
 	 *
 	 * Duplicate the current atomic state for this CRTC and return it.
-	 * The core and helpers gurantee that any atomic state duplicated with
+	 * The core and helpers guarantee that any atomic state duplicated with
 	 * this hook and still owned by the caller (i.e. not transferred to the
-	 * driver by calling ->atomic_commit() from struct
-	 * &drm_mode_config_funcs) will be cleaned up by calling the
-	 * @atomic_destroy_state hook in this structure.
+	 * driver by calling &drm_mode_config_funcs.atomic_commit) will be
+	 * cleaned up by calling the @atomic_destroy_state hook in this
+	 * structure.
 	 *
-	 * Atomic drivers which don't subclass struct &drm_crtc should use
+	 * Atomic drivers which don't subclass &struct drm_crtc_state should use
 	 * drm_atomic_helper_crtc_duplicate_state(). Drivers that subclass the
 	 * state structure to extend it with driver-private state should use
 	 * __drm_atomic_helper_crtc_duplicate_state() to make sure shared state is
 	 * duplicated in a consistent fashion across drivers.
 	 *
-	 * It is an error to call this hook before crtc->state has been
+	 * It is an error to call this hook before &drm_crtc.state has been
 	 * initialized correctly.
 	 *
 	 * NOTE:
@@ -558,7 +560,7 @@ struct drm_crtc_funcs {
 	 *
 	 * This optional hook should be used to unregister the additional
 	 * userspace interfaces attached to the crtc from
-	 * late_unregister(). It is called from drm_dev_unregister(),
+	 * @late_register. It is called from drm_dev_unregister(),
 	 * early in the driver unload sequence to disable userspace access
 	 * before data structures are torndown.
 	 */
@@ -591,7 +593,7 @@ struct drm_crtc_funcs {
 	/**
 	 * @atomic_print_state:
 	 *
-	 * If driver subclasses struct &drm_crtc_state, it should implement
+	 * If driver subclasses &struct drm_crtc_state, it should implement
 	 * this optional hook for printing additional driver specific state.
 	 *
 	 * Do not call this directly, use drm_atomic_crtc_print_state()
@@ -639,8 +641,8 @@ struct drm_crtc {
 	 *
 	 * This provides a read lock for the overall crtc state (mode, dpms
 	 * state, ...) and a write lock for everything which can be update
-	 * without a full modeset (fb, cursor data, crtc properties ...). Full
-	 * modeset also need to grab dev->mode_config.connection_mutex.
+	 * without a full modeset (fb, cursor data, crtc properties ...). A full
+	 * modeset also need to grab &drm_mode_config.connection_mutex.
 	 */
 	struct drm_modeset_lock mutex;
 
@@ -772,10 +774,8 @@ struct drm_crtc {
  * @connectors: array of connectors to drive with this CRTC if possible
  * @num_connectors: size of @connectors array
  *
- * Represents a single crtc the connectors that it drives with what mode
- * and from which framebuffer it scans out from.
- *
- * This is used to set modes.
+ * This represents a modeset configuration for the legacy SETCRTC ioctl and is
+ * also used internally. Atomic drivers instead use &drm_atomic_state.
  */
 struct drm_mode_set {
 	struct drm_framebuffer *fb;
@@ -824,14 +824,21 @@ static inline uint32_t drm_crtc_mask(const struct drm_crtc *crtc)
 	return 1 << drm_crtc_index(crtc);
 }
 
-void drm_crtc_get_hv_timing(const struct drm_display_mode *mode,
-			    int *hdisplay, int *vdisplay);
 int drm_crtc_force_disable(struct drm_crtc *crtc);
 int drm_crtc_force_disable_all(struct drm_device *dev);
 
 int drm_mode_set_config_internal(struct drm_mode_set *set);
+struct drm_crtc *drm_crtc_from_index(struct drm_device *dev, int idx);
 
-/* Helpers */
+/**
+ * drm_crtc_find - look up a CRTC object from its ID
+ * @dev: DRM device
+ * @id: &drm_mode_object ID
+ *
+ * This can be used to look up a CRTC from its userspace ID. Only used by
+ * drivers for legacy IOCTLs and interface, nowadays extensions to the KMS
+ * userspace interface should be done using &drm_property.
+ */
 static inline struct drm_crtc *drm_crtc_find(struct drm_device *dev,
 	uint32_t id)
 {
@@ -840,21 +847,14 @@ static inline struct drm_crtc *drm_crtc_find(struct drm_device *dev,
 	return mo ? obj_to_crtc(mo) : NULL;
 }
 
+/**
+ * drm_for_each_crtc - iterate over all CRTCs
+ * @crtc: a &struct drm_crtc as the loop cursor
+ * @dev: the &struct drm_device
+ *
+ * Iterate over all CRTCs of @dev.
+ */
 #define drm_for_each_crtc(crtc, dev) \
 	list_for_each_entry(crtc, &(dev)->mode_config.crtc_list, head)
-
-static inline void
-assert_drm_connector_list_read_locked(struct drm_mode_config *mode_config)
-{
-	/*
-	 * The connector hotadd/remove code currently grabs both locks when
-	 * updating lists. Hence readers need only hold either of them to be
-	 * safe and the check amounts to
-	 *
-	 * WARN_ON(not_holding(A) && not_holding(B)).
-	 */
-	WARN_ON(!mutex_is_locked(&mode_config->mutex) &&
-		!drm_modeset_is_locked(&mode_config->connection_mutex));
-}
 
 #endif /* __DRM_CRTC_H__ */

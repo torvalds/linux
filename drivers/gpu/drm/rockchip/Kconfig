@@ -21,6 +21,16 @@ config ROCKCHIP_ANALOGIX_DP
 	  for the Analogix Core DP driver. If you want to enable DP
 	  on RK3288 based SoC, you should selet this option.
 
+config ROCKCHIP_CDN_DP
+        tristate "Rockchip cdn DP"
+        depends on DRM_ROCKCHIP
+	select SND_SOC_HDMI_CODEC if SND_SOC
+        help
+	  This selects support for Rockchip SoC specific extensions
+	  for the cdn DP driver. If you want to enable Dp on
+	  RK3399 based SoC, you should select this
+	  option.
+
 config ROCKCHIP_DW_HDMI
         tristate "Rockchip specific extensions for Synopsys DW HDMI"
         depends on DRM_ROCKCHIP

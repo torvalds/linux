@@ -846,10 +846,6 @@ struct user_struct {
 	atomic_t __count;	/* reference count */
 	atomic_t processes;	/* How many processes does this user have? */
 	atomic_t sigpending;	/* How many pending signals does this user have? */
-#ifdef CONFIG_INOTIFY_USER
-	atomic_t inotify_watches; /* How many inotify watches does this user have? */
-	atomic_t inotify_devs;	/* How many inotify devs does this user have opened? */
-#endif
 #ifdef CONFIG_FANOTIFY
 	atomic_t fanotify_listeners;
 #endif
@@ -3050,6 +3046,9 @@ extern bool current_is_single_threaded(void);
 /* Careful: this is a double loop, 'break' won't work as expected. */
 #define for_each_process_thread(p, t)	\
 	for_each_process(p) for_each_thread(p, t)
+
+typedef int (*proc_visitor)(struct task_struct *p, void *data);
+void walk_process_tree(struct task_struct *top, proc_visitor, void *);
 
 static inline int get_nr_threads(struct task_struct *tsk)
 {

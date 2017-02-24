@@ -190,7 +190,7 @@ nouveau_fence_context_new(struct nouveau_channel *chan, struct nouveau_fence_cha
 		return;
 
 	ret = nvif_notify_init(&chan->user, nouveau_fence_wait_uevent_handler,
-			       false, G82_CHANNEL_DMA_V0_NTFY_UEVENT,
+			       false, NV826E_V0_NTFY_NON_STALL_INTERRUPT,
 			       &(struct nvif_notify_uevent_req) { },
 			       sizeof(struct nvif_notify_uevent_req),
 			       sizeof(struct nvif_notify_uevent_rep),

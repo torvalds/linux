@@ -551,6 +551,9 @@ config SBITMAP
 	bool
 
 config PARMAN
-	tristate "parman"
+	tristate
+
+config PRIME_NUMBERS
+	tristate
 
 endmenu

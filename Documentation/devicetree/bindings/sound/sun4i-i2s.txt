@@ -7,6 +7,7 @@ Required properties:
 
 - compatible: should be one of the followings
    - "allwinner,sun4i-a10-i2s"
+   - "allwinner,sun6i-a31-i2s"
 - reg: physical base address of the controller and length of memory mapped
   region.
 - interrupts: should contain the I2S interrupt.
@@ -18,6 +19,10 @@ Required properties:
    - "apb" : clock for the I2S bus interface
    - "mod" : module clock for the I2S controller
 - #sound-dai-cells : Must be equal to 0
+
+Required properties for the following compatibles:
+	- "allwinner,sun6i-a31-i2s"
+- resets: phandle to the reset line for this codec
 
 Example:
 

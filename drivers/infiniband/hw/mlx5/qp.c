@@ -905,7 +905,10 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev,
 	else
 		qp->bf.bfreg = &dev->bfreg;
 
-	qp->bf.buf_size = 1 << MLX5_CAP_GEN(dev->mdev, log_bf_reg_size);
+	/* We need to divide by two since each register is comprised of
+	 * two buffers of identical size, namely odd and even
+	 */
+	qp->bf.buf_size = (1 << MLX5_CAP_GEN(dev->mdev, log_bf_reg_size)) / 2;
 	uar_index = qp->bf.bfreg->index;
 
 	err = calc_sq_size(dev, init_attr, qp);
@@ -1141,7 +1144,8 @@ static int create_raw_packet_qp_rq(struct mlx5_ib_dev *dev,
 		return -ENOMEM;
 
 	rqc = MLX5_ADDR_OF(create_rq_in, in, ctx);
-	MLX5_SET(rqc, rqc, vsd, 1);
+	if (!(rq->flags & MLX5_IB_RQ_CVLAN_STRIPPING))
+		MLX5_SET(rqc, rqc, vsd, 1);
 	MLX5_SET(rqc, rqc, mem_rq_type, MLX5_RQC_MEM_RQ_TYPE_MEMORY_RQ_INLINE);
 	MLX5_SET(rqc, rqc, state, MLX5_RQC_STATE_RST);
 	MLX5_SET(rqc, rqc, flush_in_error_en, 1);
@@ -1238,6 +1242,8 @@ static int create_raw_packet_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	if (qp->rq.wqe_cnt) {
 		rq->base.container_mibqp = qp;
 
+		if (qp->flags & MLX5_IB_QP_CVLAN_STRIPPING)
+			rq->flags |= MLX5_IB_RQ_CVLAN_STRIPPING;
 		err = create_raw_packet_qp_rq(dev, rq, in);
 		if (err)
 			goto err_destroy_sq;
@@ -1558,6 +1564,14 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 
 	if (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR)
 		qp->sq_signal_bits = MLX5_WQE_CTRL_CQ_UPDATE;
+
+	if (init_attr->create_flags & IB_QP_CREATE_CVLAN_STRIPPING) {
+		if (!(MLX5_CAP_GEN(dev->mdev, eth_net_offloads) &&
+		      MLX5_CAP_ETH(dev->mdev, vlan_cap)) ||
+		    (init_attr->qp_type != IB_QPT_RAW_PACKET))
+			return -EOPNOTSUPP;
+		qp->flags |= MLX5_IB_QP_CVLAN_STRIPPING;
+	}
 
 	if (pd && pd->uobject) {
 		if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd))) {
@@ -2198,6 +2212,7 @@ static int mlx5_set_path(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 {
 	enum rdma_link_layer ll = rdma_port_get_link_layer(&dev->ib_dev, port);
 	int err;
+	enum ib_gid_type gid_type;
 
 	if (attr_mask & IB_QP_PKEY_INDEX)
 		path->pkey_index = cpu_to_be16(alt ? attr->alt_pkey_index :
@@ -2216,10 +2231,16 @@ static int mlx5_set_path(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	if (ll == IB_LINK_LAYER_ETHERNET) {
 		if (!(ah->ah_flags & IB_AH_GRH))
 			return -EINVAL;
+		err = mlx5_get_roce_gid_type(dev, port, ah->grh.sgid_index,
+					     &gid_type);
+		if (err)
+			return err;
 		memcpy(path->rmac, ah->dmac, sizeof(ah->dmac));
 		path->udp_sport = mlx5_get_roce_udp_sport(dev, port,
 							  ah->grh.sgid_index);
 		path->dci_cfi_prio_sl = (ah->sl & 0x7) << 4;
+		if (gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP)
+			path->ecn_dscp = (ah->grh.traffic_class >> 2) & 0x3f;
 	} else {
 		path->fl_free_ar = (path_flags & MLX5_PATH_FLAG_FL) ? 0x80 : 0;
 		path->fl_free_ar |=
@@ -2422,7 +2443,7 @@ static int modify_raw_packet_qp_rq(struct mlx5_ib_dev *dev,
 	if (raw_qp_param->set_mask & MLX5_RAW_QP_MOD_SET_RQ_Q_CTR_ID) {
 		if (MLX5_CAP_GEN(dev->mdev, modify_rq_counter_set_id)) {
 			MLX5_SET64(modify_rq_in, in, modify_bitmask,
-				   MLX5_MODIFY_RQ_IN_MODIFY_BITMASK_MODIFY_RQ_COUNTER_SET_ID);
+				   MLX5_MODIFY_RQ_IN_MODIFY_BITMASK_RQ_COUNTER_SET_ID);
 			MLX5_SET(rqc, rqc, counter_set_id, raw_qp_param->rq_q_ctr_id);
 		} else
 			pr_info_once("%s: RAW PACKET QP counters are not supported on current FW\n",
@@ -2777,7 +2798,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 			       qp->port) - 1;
 		mibport = &dev->port[port_num];
 		context->qp_counter_set_usr_page |=
-			cpu_to_be32((u32)(mibport->q_cnt_id) << 24);
+			cpu_to_be32((u32)(mibport->q_cnts.set_id) << 24);
 	}
 
 	if (!ibqp->uobject && cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT)
@@ -2805,7 +2826,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 
 		raw_qp_param.operation = op;
 		if (cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT) {
-			raw_qp_param.rq_q_ctr_id = mibport->q_cnt_id;
+			raw_qp_param.rq_q_ctr_id = mibport->q_cnts.set_id;
 			raw_qp_param.set_mask |= MLX5_RAW_QP_MOD_SET_RQ_Q_CTR_ID;
 		}
 
@@ -3637,8 +3658,9 @@ static int set_psv_wr(struct ib_sig_domain *domain,
 		psv_seg->ref_tag = cpu_to_be32(domain->sig.dif.ref_tag);
 		break;
 	default:
-		pr_err("Bad signature type given.\n");
-		return 1;
+		pr_err("Bad signature type (%d) is given.\n",
+		       domain->sig_type);
+		return -EINVAL;
 	}
 
 	*seg += sizeof(*psv_seg);
@@ -3978,6 +4000,12 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			break;
 
 		case IB_QPT_SMI:
+			if (unlikely(!mdev->port_caps[qp->port - 1].has_smi)) {
+				mlx5_ib_warn(dev, "Send SMP MADs is not allowed\n");
+				err = -EPERM;
+				*bad_wr = wr;
+				goto out;
+			}
 		case MLX5_IB_QPT_HW_GSI:
 			set_datagram_seg(seg, wr);
 			seg += sizeof(struct mlx5_wqe_datagram_seg);
@@ -4579,6 +4607,7 @@ static int  create_rq(struct mlx5_ib_rwq *rwq, struct ib_pd *pd,
 		      struct ib_wq_init_attr *init_attr)
 {
 	struct mlx5_ib_dev *dev;
+	int has_net_offloads;
 	__be64 *rq_pas0;
 	void *in;
 	void *rqc;
@@ -4610,9 +4639,28 @@ static int  create_rq(struct mlx5_ib_rwq *rwq, struct ib_pd *pd,
 	MLX5_SET(wq, wq, log_wq_pg_sz, rwq->log_page_size);
 	MLX5_SET(wq, wq, wq_signature, rwq->wq_sig);
 	MLX5_SET64(wq, wq, dbr_addr, rwq->db.dma);
+	has_net_offloads = MLX5_CAP_GEN(dev->mdev, eth_net_offloads);
+	if (init_attr->create_flags & IB_WQ_FLAGS_CVLAN_STRIPPING) {
+		if (!(has_net_offloads && MLX5_CAP_ETH(dev->mdev, vlan_cap))) {
+			mlx5_ib_dbg(dev, "VLAN offloads are not supported\n");
+			err = -EOPNOTSUPP;
+			goto out;
+		}
+	} else {
+		MLX5_SET(rqc, rqc, vsd, 1);
+	}
+	if (init_attr->create_flags & IB_WQ_FLAGS_SCATTER_FCS) {
+		if (!(has_net_offloads && MLX5_CAP_ETH(dev->mdev, scatter_fcs))) {
+			mlx5_ib_dbg(dev, "Scatter FCS is not supported\n");
+			err = -EOPNOTSUPP;
+			goto out;
+		}
+		MLX5_SET(rqc, rqc, scatter_fcs, 1);
+	}
 	rq_pas0 = (__be64 *)MLX5_ADDR_OF(wq, wq, pas);
 	mlx5_ib_populate_pas(dev, rwq->umem, rwq->page_shift, rq_pas0, 0);
 	err = mlx5_core_create_rq_tracked(dev->mdev, in, inlen, &rwq->core_qp);
+out:
 	kvfree(in);
 	return err;
 }
@@ -4896,10 +4944,37 @@ int mlx5_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 	MLX5_SET(modify_rq_in, in, rq_state, curr_wq_state);
 	MLX5_SET(rqc, rqc, state, wq_state);
 
+	if (wq_attr_mask & IB_WQ_FLAGS) {
+		if (wq_attr->flags_mask & IB_WQ_FLAGS_CVLAN_STRIPPING) {
+			if (!(MLX5_CAP_GEN(dev->mdev, eth_net_offloads) &&
+			      MLX5_CAP_ETH(dev->mdev, vlan_cap))) {
+				mlx5_ib_dbg(dev, "VLAN offloads are not "
+					    "supported\n");
+				err = -EOPNOTSUPP;
+				goto out;
+			}
+			MLX5_SET64(modify_rq_in, in, modify_bitmask,
+				   MLX5_MODIFY_RQ_IN_MODIFY_BITMASK_VSD);
+			MLX5_SET(rqc, rqc, vsd,
+				 (wq_attr->flags & IB_WQ_FLAGS_CVLAN_STRIPPING) ? 0 : 1);
+		}
+	}
+
+	if (curr_wq_state == IB_WQS_RESET && wq_state == IB_WQS_RDY) {
+		if (MLX5_CAP_GEN(dev->mdev, modify_rq_counter_set_id)) {
+			MLX5_SET64(modify_rq_in, in, modify_bitmask,
+				   MLX5_MODIFY_RQ_IN_MODIFY_BITMASK_RQ_COUNTER_SET_ID);
+			MLX5_SET(rqc, rqc, counter_set_id, dev->port->q_cnts.set_id);
+		} else
+			pr_info_once("%s: Receive WQ counters are not supported on current FW\n",
+				     dev->ib_dev.name);
+	}
+
 	err = mlx5_core_modify_rq(dev->mdev, rwq->core_qp.qpn, in, inlen);
-	kvfree(in);
 	if (!err)
 		rwq->ibwq.state = (wq_state == MLX5_RQC_STATE_ERR) ? IB_WQS_ERR : wq_state;
 
+out:
+	kvfree(in);
 	return err;
 }

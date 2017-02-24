@@ -42,7 +42,7 @@ static int kirin_drm_kms_cleanup(struct drm_device *dev)
 #endif
 	drm_kms_helper_poll_fini(dev);
 	drm_vblank_cleanup(dev);
-	dc_ops->cleanup(dev);
+	dc_ops->cleanup(to_platform_device(dev->dev));
 	drm_mode_config_cleanup(dev);
 	devm_kfree(dev->dev, priv);
 	dev->dev_private = NULL;
@@ -59,8 +59,7 @@ static void kirin_fbdev_output_poll_changed(struct drm_device *dev)
 		drm_fbdev_cma_hotplug_event(priv->fbdev);
 	} else {
 		priv->fbdev = drm_fbdev_cma_init(dev, 32,
-				dev->mode_config.num_crtc,
-				dev->mode_config.num_connector);
+						 dev->mode_config.num_connector);
 		if (IS_ERR(priv->fbdev))
 			priv->fbdev = NULL;
 	}
@@ -104,7 +103,7 @@ static int kirin_drm_kms_init(struct drm_device *dev)
 	kirin_drm_mode_config_init(dev);
 
 	/* display controller init */
-	ret = dc_ops->init(dev);
+	ret = dc_ops->init(to_platform_device(dev->dev));
 	if (ret)
 		goto err_mode_config_cleanup;
 
@@ -138,7 +137,7 @@ static int kirin_drm_kms_init(struct drm_device *dev)
 err_unbind_all:
 	component_unbind_all(dev->dev, dev);
 err_dc_cleanup:
-	dc_ops->cleanup(dev);
+	dc_ops->cleanup(to_platform_device(dev->dev));
 err_mode_config_cleanup:
 	drm_mode_config_cleanup(dev);
 	devm_kfree(dev->dev, priv);
@@ -209,8 +208,6 @@ static int kirin_drm_bind(struct device *dev)
 	if (IS_ERR(drm_dev))
 		return PTR_ERR(drm_dev);
 
-	drm_dev->platformdev = to_platform_device(dev);
-
 	ret = kirin_drm_kms_init(drm_dev);
 	if (ret)
 		goto err_drm_dev_unref;
@@ -218,10 +215,6 @@ static int kirin_drm_bind(struct device *dev)
 	ret = drm_dev_register(drm_dev, 0);
 	if (ret)
 		goto err_kms_cleanup;
-
-	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d\n",
-		 driver->name, driver->major, driver->minor, driver->patchlevel,
-		 driver->date, drm_dev->primary->index);
 
 	return 0;
 
