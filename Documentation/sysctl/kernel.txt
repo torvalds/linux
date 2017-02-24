@@ -85,7 +85,7 @@ show up in /proc/sys/kernel:
 - softlockup_all_cpu_backtrace
 - soft_watchdog
 - stop-a                      [ SPARC only ]
-- sysrq                       ==> Documentation/sysrq.txt
+- sysrq                       ==> Documentation/admin-guide/sysrq.rst
 - sysctl_writes_strict
 - tainted
 - threads-max
