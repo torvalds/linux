@@ -121,6 +121,10 @@
 	pmuio-supply = <&vcc_io>;
 };
 
+&tsadc {
+	status = "okay";
+};
+
 &u2phy {
 	otg-vbus-gpios = <&gpio0 27 GPIO_ACTIVE_HIGH>;
 	status = "okay";
