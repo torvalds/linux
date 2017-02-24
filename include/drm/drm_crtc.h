@@ -1416,6 +1416,7 @@ extern const char *drm_get_dvi_i_subconnector_name(int val);
 extern const char *drm_get_dvi_i_select_name(int val);
 extern const char *drm_get_tv_subconnector_name(int val);
 extern const char *drm_get_tv_select_name(int val);
+extern const char *drm_get_connector_name(int val);
 extern void drm_fb_release(struct drm_file *file_priv);
 extern void drm_property_destroy_user_blobs(struct drm_device *dev,
                                             struct drm_file *file_priv);
