@@ -183,9 +183,16 @@ static const struct i2c_device_id tmp103_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tmp103_id);
 
+static const struct of_device_id tmp103_of_match[] = {
+	{ .compatible = "ti,tmp103" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, tmp103_of_match);
+
 static struct i2c_driver tmp103_driver = {
 	.driver = {
 		.name	= "tmp103",
+		.of_match_table = of_match_ptr(tmp103_of_match),
 		.pm	= TMP103_DEV_PM_OPS,
 	},
 	.probe		= tmp103_probe,
