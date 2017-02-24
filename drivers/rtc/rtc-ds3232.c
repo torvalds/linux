@@ -363,6 +363,9 @@ static int ds3232_probe(struct device *dev, struct regmap *regmap, int irq,
 	if (ret)
 		return ret;
 
+	if (ds3232->irq > 0)
+		device_init_wakeup(dev, 1);
+
 	ds3232->rtc = devm_rtc_device_register(dev, name, &ds3232_rtc_ops,
 						THIS_MODULE);
 	if (IS_ERR(ds3232->rtc))
@@ -374,10 +377,10 @@ static int ds3232_probe(struct device *dev, struct regmap *regmap, int irq,
 						IRQF_SHARED | IRQF_ONESHOT,
 						name, dev);
 		if (ret) {
+			device_set_wakeup_capable(dev, 0);
 			ds3232->irq = 0;
 			dev_err(dev, "unable to request IRQ\n");
-		} else
-			device_init_wakeup(dev, 1);
+		}
 	}
 
 	return 0;
