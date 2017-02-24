@@ -51,15 +51,17 @@ int ipu_get_num(struct ipu_soc *ipu)
 }
 EXPORT_SYMBOL_GPL(ipu_get_num);
 
-void ipu_srm_dp_sync_update(struct ipu_soc *ipu)
+void ipu_srm_dp_update(struct ipu_soc *ipu, bool sync)
 {
 	u32 val;
 
 	val = ipu_cm_read(ipu, IPU_SRM_PRI2);
-	val |= 0x8;
+	val &= ~DP_S_SRM_MODE_MASK;
+	val |= sync ? DP_S_SRM_MODE_NEXT_FRAME :
+		      DP_S_SRM_MODE_NOW;
 	ipu_cm_write(ipu, val, IPU_SRM_PRI2);
 }
-EXPORT_SYMBOL_GPL(ipu_srm_dp_sync_update);
+EXPORT_SYMBOL_GPL(ipu_srm_dp_update);
 
 enum ipu_color_space ipu_drm_fourcc_to_colorspace(u32 drm_fourcc)
 {

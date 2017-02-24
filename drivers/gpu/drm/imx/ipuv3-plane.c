@@ -181,7 +181,7 @@ static int ipu_disable_plane(struct drm_plane *plane)
 	ipu_idmac_wait_busy(ipu_plane->ipu_ch, 50);
 
 	if (ipu_plane->dp)
-		ipu_dp_disable_channel(ipu_plane->dp);
+		ipu_dp_disable_channel(ipu_plane->dp, true);
 	ipu_idmac_disable_channel(ipu_plane->ipu_ch);
 	ipu_dmfc_disable_channel(ipu_plane->dmfc);
 	if (ipu_plane->dp)

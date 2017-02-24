@@ -75,6 +75,11 @@ struct ipu_soc;
 #define IPU_INT_CTRL(n)		IPU_CM_REG(0x003C + 4 * (n))
 #define IPU_INT_STAT(n)		IPU_CM_REG(0x0200 + 4 * (n))
 
+/* SRM_PRI2 */
+#define DP_S_SRM_MODE_MASK		(0x3 << 3)
+#define DP_S_SRM_MODE_NOW		(0x3 << 3)
+#define DP_S_SRM_MODE_NEXT_FRAME	(0x1 << 3)
+
 /* FS_PROC_FLOW1 */
 #define FS_PRPENC_ROT_SRC_SEL_MASK	(0xf << 0)
 #define FS_PRPENC_ROT_SRC_SEL_ENC		(0x7 << 0)
@@ -215,7 +220,7 @@ static inline void ipu_idmac_write(struct ipu_soc *ipu, u32 value,
 	writel(value, ipu->idmac_reg + offset);
 }
 
-void ipu_srm_dp_sync_update(struct ipu_soc *ipu);
+void ipu_srm_dp_update(struct ipu_soc *ipu, bool sync);
 
 int ipu_module_enable(struct ipu_soc *ipu, u32 mask);
 int ipu_module_disable(struct ipu_soc *ipu, u32 mask);

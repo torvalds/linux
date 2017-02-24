@@ -300,7 +300,7 @@ struct ipu_dp *ipu_dp_get(struct ipu_soc *ipu, unsigned int flow);
 void ipu_dp_put(struct ipu_dp *);
 int ipu_dp_enable(struct ipu_soc *ipu);
 int ipu_dp_enable_channel(struct ipu_dp *dp);
-void ipu_dp_disable_channel(struct ipu_dp *dp);
+void ipu_dp_disable_channel(struct ipu_dp *dp, bool sync);
 void ipu_dp_disable(struct ipu_soc *ipu);
 int ipu_dp_setup_channel(struct ipu_dp *dp,
 		enum ipu_color_space in, enum ipu_color_space out);
