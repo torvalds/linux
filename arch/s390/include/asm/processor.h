@@ -91,7 +91,8 @@ extern void execve_tail(void);
  * User space process size: 2GB for 31 bit, 4TB or 8PT for 64 bit.
  */
 
-#define TASK_SIZE_OF(tsk)	((tsk)->mm->context.asce_limit)
+#define TASK_SIZE_OF(tsk)	((tsk)->mm ? \
+				 (tsk)->mm->context.asce_limit : TASK_MAX_SIZE)
 #define TASK_UNMAPPED_BASE	(test_thread_flag(TIF_31BIT) ? \
 					(1UL << 30) : (1UL << 41))
 #define TASK_SIZE		TASK_SIZE_OF(current)
