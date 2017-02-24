@@ -64,8 +64,8 @@
 #define S3C2410_WTCON_PRESCALE_MASK	(0xff << 8)
 #define S3C2410_WTCON_PRESCALE_MAX	0xff
 
-#define CONFIG_S3C2410_WATCHDOG_ATBOOT		(0)
-#define CONFIG_S3C2410_WATCHDOG_DEFAULT_TIME	(15)
+#define S3C2410_WATCHDOG_ATBOOT		(0)
+#define S3C2410_WATCHDOG_DEFAULT_TIME	(15)
 
 #define EXYNOS5_RST_STAT_REG_OFFSET		0x0404
 #define EXYNOS5_WDT_DISABLE_REG_OFFSET		0x0408
@@ -79,7 +79,7 @@
 
 static bool nowayout	= WATCHDOG_NOWAYOUT;
 static int tmr_margin;
-static int tmr_atboot	= CONFIG_S3C2410_WATCHDOG_ATBOOT;
+static int tmr_atboot	= S3C2410_WATCHDOG_ATBOOT;
 static int soft_noboot;
 static int debug;
 
@@ -90,10 +90,10 @@ module_param(soft_noboot, int, 0);
 module_param(debug,	  int, 0);
 
 MODULE_PARM_DESC(tmr_margin, "Watchdog tmr_margin in seconds. (default="
-		__MODULE_STRING(CONFIG_S3C2410_WATCHDOG_DEFAULT_TIME) ")");
+		__MODULE_STRING(S3C2410_WATCHDOG_DEFAULT_TIME) ")");
 MODULE_PARM_DESC(tmr_atboot,
 		"Watchdog is started at boot time if set to 1, default="
-			__MODULE_STRING(CONFIG_S3C2410_WATCHDOG_ATBOOT));
+			__MODULE_STRING(S3C2410_WATCHDOG_ATBOOT));
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 			__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 MODULE_PARM_DESC(soft_noboot, "Watchdog action, set to 1 to ignore reboots, "
@@ -406,7 +406,7 @@ static const struct watchdog_ops s3c2410wdt_ops = {
 static struct watchdog_device s3c2410_wdd = {
 	.info = &s3c2410_wdt_ident,
 	.ops = &s3c2410wdt_ops,
-	.timeout = CONFIG_S3C2410_WATCHDOG_DEFAULT_TIME,
+	.timeout = S3C2410_WATCHDOG_DEFAULT_TIME,
 };
 
 /* interrupt handler code */
@@ -600,12 +600,12 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 					wdt->wdt_device.timeout);
 	if (ret) {
 		started = s3c2410wdt_set_heartbeat(&wdt->wdt_device,
-					CONFIG_S3C2410_WATCHDOG_DEFAULT_TIME);
+					S3C2410_WATCHDOG_DEFAULT_TIME);
 
 		if (started == 0)
 			dev_info(dev,
 			   "tmr_margin value out of range, default %d used\n",
-			       CONFIG_S3C2410_WATCHDOG_DEFAULT_TIME);
+			       S3C2410_WATCHDOG_DEFAULT_TIME);
 		else
 			dev_info(dev, "default timer value is out of range, "
 							"cannot start\n");
