@@ -216,6 +216,7 @@ struct intel_vgpu_type {
 	unsigned int low_gm_size;
 	unsigned int high_gm_size;
 	unsigned int fence;
+	enum intel_vgpu_edid resolution;
 };
 
 struct intel_gvt {
@@ -318,6 +319,7 @@ struct intel_vgpu_creation_params {
 	__u64 low_gm_sz;  /* in MB */
 	__u64 high_gm_sz; /* in MB */
 	__u64 fence_sz;
+	__u64 resolution;
 	__s32 primary;
 	__u64 vgpu_id;
 };

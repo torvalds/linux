@@ -68,13 +68,14 @@ static struct {
 	unsigned int low_mm;
 	unsigned int high_mm;
 	unsigned int fence;
+	enum intel_vgpu_edid edid;
 	char *name;
 } vgpu_types[] = {
 /* Fixed vGPU type table */
-	{ MB_TO_BYTES(64), MB_TO_BYTES(512), 4, "8" },
-	{ MB_TO_BYTES(128), MB_TO_BYTES(512), 4, "4" },
-	{ MB_TO_BYTES(256), MB_TO_BYTES(1024), 4, "2" },
-	{ MB_TO_BYTES(512), MB_TO_BYTES(2048), 4, "1" },
+	{ MB_TO_BYTES(64), MB_TO_BYTES(512), 4, GVT_EDID_1024_768, "8" },
+	{ MB_TO_BYTES(128), MB_TO_BYTES(512), 4, GVT_EDID_1920_1200, "4" },
+	{ MB_TO_BYTES(256), MB_TO_BYTES(1024), 4, GVT_EDID_1920_1200, "2" },
+	{ MB_TO_BYTES(512), MB_TO_BYTES(2048), 4, GVT_EDID_1920_1200, "1" },
 };
 
 /**
@@ -119,6 +120,7 @@ int intel_gvt_init_vgpu_types(struct intel_gvt *gvt)
 		gvt->types[i].low_gm_size = vgpu_types[i].low_mm;
 		gvt->types[i].high_gm_size = vgpu_types[i].high_mm;
 		gvt->types[i].fence = vgpu_types[i].fence;
+		gvt->types[i].resolution = vgpu_types[i].edid;
 		gvt->types[i].avail_instance = min(low_avail / vgpu_types[i].low_mm,
 						   high_avail / vgpu_types[i].high_mm);
 
@@ -129,11 +131,12 @@ int intel_gvt_init_vgpu_types(struct intel_gvt *gvt)
 			sprintf(gvt->types[i].name, "GVTg_V5_%s",
 						vgpu_types[i].name);
 
-		gvt_dbg_core("type[%d]: %s avail %u low %u high %u fence %u\n",
+		gvt_dbg_core("type[%d]: %s avail %u low %u high %u fence %u res %s\n",
 			     i, gvt->types[i].name,
 			     gvt->types[i].avail_instance,
 			     gvt->types[i].low_gm_size,
-			     gvt->types[i].high_gm_size, gvt->types[i].fence);
+			     gvt->types[i].high_gm_size, gvt->types[i].fence,
+			     vgpu_edid_str(gvt->types[i].resolution));
 	}
 
 	gvt->num_types = i;
@@ -258,7 +261,7 @@ static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 	if (ret)
 		goto out_detach_hypervisor_vgpu;
 
-	ret = intel_vgpu_init_display(vgpu);
+	ret = intel_vgpu_init_display(vgpu, param->resolution);
 	if (ret)
 		goto out_clean_gtt;
 
@@ -322,6 +325,7 @@ struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
 	param.low_gm_sz = type->low_gm_size;
 	param.high_gm_sz = type->high_gm_size;
 	param.fence_sz = type->fence;
+	param.resolution = type->resolution;
 
 	/* XXX current param based on MB */
 	param.low_gm_sz = BYTES_TO_MB(param.low_gm_sz);

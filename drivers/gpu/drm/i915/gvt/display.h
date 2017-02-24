@@ -160,10 +160,22 @@ enum intel_vgpu_edid {
 	GVT_EDID_NUM,
 };
 
+static inline char *vgpu_edid_str(enum intel_vgpu_edid id)
+{
+	switch (id) {
+	case GVT_EDID_1024_768:
+		return "1024x768";
+	case GVT_EDID_1920_1200:
+		return "1920x1200";
+	default:
+		return "";
+	}
+}
+
 void intel_gvt_emulate_vblank(struct intel_gvt *gvt);
 void intel_gvt_check_vblank_emulation(struct intel_gvt *gvt);
 
-int intel_vgpu_init_display(struct intel_vgpu *vgpu);
+int intel_vgpu_init_display(struct intel_vgpu *vgpu, u64 resolution);
 void intel_vgpu_reset_display(struct intel_vgpu *vgpu);
 void intel_vgpu_clean_display(struct intel_vgpu *vgpu);
 

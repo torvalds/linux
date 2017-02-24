@@ -211,9 +211,12 @@ static void clean_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num)
 }
 
 static int setup_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num,
-		int type)
+				    int type, unsigned int resolution)
 {
 	struct intel_vgpu_port *port = intel_vgpu_port(vgpu, port_num);
+
+	if (WARN_ON(resolution >= GVT_EDID_NUM))
+		return -EINVAL;
 
 	port->edid = kzalloc(sizeof(*(port->edid)), GFP_KERNEL);
 	if (!port->edid)
@@ -225,7 +228,7 @@ static int setup_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num,
 		return -ENOMEM;
 	}
 
-	memcpy(port->edid->edid_block, virtual_dp_monitor_edid[GVT_EDID_1920_1200],
+	memcpy(port->edid->edid_block, virtual_dp_monitor_edid[resolution],
 			EDID_SIZE);
 	port->edid->data_valid = true;
 
@@ -358,16 +361,18 @@ void intel_vgpu_clean_display(struct intel_vgpu *vgpu)
  * Zero on success, negative error code if failed.
  *
  */
-int intel_vgpu_init_display(struct intel_vgpu *vgpu)
+int intel_vgpu_init_display(struct intel_vgpu *vgpu, u64 resolution)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 
 	intel_vgpu_init_i2c_edid(vgpu);
 
 	if (IS_SKYLAKE(dev_priv))
-		return setup_virtual_dp_monitor(vgpu, PORT_D, GVT_DP_D);
+		return setup_virtual_dp_monitor(vgpu, PORT_D, GVT_DP_D,
+						resolution);
 	else
-		return setup_virtual_dp_monitor(vgpu, PORT_B, GVT_DP_B);
+		return setup_virtual_dp_monitor(vgpu, PORT_B, GVT_DP_B,
+						resolution);
 }
 
 /**
