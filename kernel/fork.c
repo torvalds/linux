@@ -1377,9 +1377,6 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 	sig->oom_score_adj = current->signal->oom_score_adj;
 	sig->oom_score_adj_min = current->signal->oom_score_adj_min;
 
-	sig->has_child_subreaper = current->signal->has_child_subreaper ||
-				   current->signal->is_child_subreaper;
-
 	mutex_init(&sig->cred_guard_mutex);
 
 	return 0;
@@ -1814,6 +1811,13 @@ static __latent_entropy struct task_struct *copy_process(
 
 			p->signal->leader_pid = pid;
 			p->signal->tty = tty_kref_get(current->signal->tty);
+			/*
+			 * Inherit has_child_subreaper flag under the same
+			 * tasklist_lock with adding child to the process tree
+			 * for propagate_has_child_subreaper optimization.
+			 */
+			p->signal->has_child_subreaper = p->real_parent->signal->has_child_subreaper ||
+							 p->real_parent->signal->is_child_subreaper;
 			list_add_tail(&p->sibling, &p->real_parent->children);
 			list_add_tail_rcu(&p->tasks, &init_task.tasks);
 			attach_pid(p, PIDTYPE_PGID);
@@ -2066,6 +2070,38 @@ SYSCALL_DEFINE5(clone, unsigned long, clone_flags, unsigned long, newsp,
 	return _do_fork(clone_flags, newsp, 0, parent_tidptr, child_tidptr, tls);
 }
 #endif
+
+void walk_process_tree(struct task_struct *top, proc_visitor visitor, void *data)
+{
+	struct task_struct *leader, *parent, *child;
+	int res;
+
+	read_lock(&tasklist_lock);
+	leader = top = top->group_leader;
+down:
+	for_each_thread(leader, parent) {
+		list_for_each_entry(child, &parent->children, sibling) {
+			res = visitor(child, data);
+			if (res) {
+				if (res < 0)
+					goto out;
+				leader = child;
+				goto down;
+			}
+up:
+			;
+		}
+	}
+
+	if (leader != top) {
+		child = leader;
+		parent = child->real_parent;
+		leader = parent->group_leader;
+		goto up;
+	}
+out:
+	read_unlock(&tasklist_lock);
+}
 
 #ifndef ARCH_MIN_MMSTRUCT_ALIGN
 #define ARCH_MIN_MMSTRUCT_ALIGN 0
