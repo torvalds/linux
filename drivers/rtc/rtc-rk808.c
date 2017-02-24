@@ -381,7 +381,7 @@ static int rk808_rtc_probe(struct platform_device *pdev)
 
 	switch (rk808->variant) {
 	case RK805_ID:
-		np = of_find_node_by_name(pdev->dev.parent->of_node, "rtc");
+		np = of_get_child_by_name(pdev->dev.parent->of_node, "rtc");
 		if (np && !of_device_is_available(np)) {
 			dev_info(&pdev->dev, "device is disabled\n");
 			return -EINVAL;

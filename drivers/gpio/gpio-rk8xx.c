@@ -181,7 +181,7 @@ static int rk8xx_gpio_probe(struct platform_device *pdev)
 	struct device_node *np;
 	int ret;
 
-	np = of_find_node_by_name(pdev->dev.parent->of_node, "gpio");
+	np = of_get_child_by_name(pdev->dev.parent->of_node, "gpio");
 	if (np) {
 		if (!of_device_is_available(np)) {
 			dev_info(&pdev->dev, "device is disabled\n");

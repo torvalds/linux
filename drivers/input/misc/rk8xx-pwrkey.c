@@ -59,7 +59,7 @@ static int rk8xx_pwrkey_probe(struct platform_device *pdev)
 	int fall_irq, rise_irq, err;
 	struct device_node *np;
 
-	np = of_find_node_by_name(pdev->dev.parent->of_node, "pwrkey");
+	np = of_get_child_by_name(pdev->dev.parent->of_node, "pwrkey");
 	if (np) {
 		if (!of_device_is_available(np)) {
 			dev_info(&pdev->dev, "device is disabled\n");
