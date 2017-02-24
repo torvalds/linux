@@ -383,6 +383,22 @@ static void dw_mipi_dsi_phy_write(struct dw_mipi_dsi *dsi, u8 test_code,
 	dsi_write(dsi, DSI_PHY_TST_CTRL0, PHY_TESTCLK | PHY_UNTESTCLR);
 }
 
+/**
+ * ns2bc - Nanoseconds to byte clock cycles
+ */
+static inline unsigned int ns2bc(struct dw_mipi_dsi *dsi, int ns)
+{
+	return DIV_ROUND_UP(ns * dsi->lane_mbps / 8, 1000);
+}
+
+/**
+ * ns2ui - Nanoseconds to UI time periods
+ */
+static inline unsigned int ns2ui(struct dw_mipi_dsi *dsi, int ns)
+{
+	return DIV_ROUND_UP(ns * dsi->lane_mbps, 1000);
+}
+
 static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 {
 	int ret, testdin, vco, val;
@@ -434,10 +450,21 @@ static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 					 SETRD_MAX | POWER_MANAGE |
 					 TER_RESISTORS_ON);
 
+	dw_mipi_dsi_phy_write(dsi, 0x60, TLP_PROGRAM_EN | ns2bc(dsi, 500));
+	dw_mipi_dsi_phy_write(dsi, 0x61, THS_PRE_PROGRAM_EN | ns2ui(dsi, 40));
+	dw_mipi_dsi_phy_write(dsi, 0x62, THS_ZERO_PROGRAM_EN | ns2bc(dsi, 300));
+	dw_mipi_dsi_phy_write(dsi, 0x63, THS_PRE_PROGRAM_EN | ns2ui(dsi, 100));
+	dw_mipi_dsi_phy_write(dsi, 0x64, BIT(5) | ns2bc(dsi, 100));
+	dw_mipi_dsi_phy_write(dsi, 0x65, BIT(5) | (ns2bc(dsi, 60) + 7));
 
-	dw_mipi_dsi_phy_write(dsi, 0x70, TLP_PROGRAM_EN | 0xf);
-	dw_mipi_dsi_phy_write(dsi, 0x71, THS_PRE_PROGRAM_EN | 0x55);
-	dw_mipi_dsi_phy_write(dsi, 0x72, THS_ZERO_PROGRAM_EN | 0xa);
+	dw_mipi_dsi_phy_write(dsi, 0x70, TLP_PROGRAM_EN | ns2bc(dsi, 500));
+	dw_mipi_dsi_phy_write(dsi, 0x71,
+			      THS_PRE_PROGRAM_EN | (ns2ui(dsi, 50) + 5));
+	dw_mipi_dsi_phy_write(dsi, 0x72,
+			      THS_ZERO_PROGRAM_EN | (ns2bc(dsi, 140) + 2));
+	dw_mipi_dsi_phy_write(dsi, 0x73,
+			      THS_PRE_PROGRAM_EN | (ns2ui(dsi, 60) + 8));
+	dw_mipi_dsi_phy_write(dsi, 0x74, BIT(5) | ns2bc(dsi, 100));
 
 	dsi_write(dsi, DSI_PHY_RSTZ, PHY_ENFORCEPLL | PHY_ENABLECLK |
 				     PHY_UNRSTZ | PHY_UNSHUTDOWNZ);
