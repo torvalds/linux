@@ -105,13 +105,13 @@ static int int3496_probe(struct platform_device *pdev)
 		return data->usb_id_irq;
 	}
 
-	data->gpio_vbus_en = devm_gpiod_get_index(dev, "vbus en",
+	data->gpio_vbus_en = devm_gpiod_get_index(dev, "vbus",
 						 INT3496_GPIO_VBUS_EN,
 						 GPIOD_ASIS);
 	if (IS_ERR(data->gpio_vbus_en))
 		dev_info(dev, "can't request VBUS EN GPIO\n");
 
-	data->gpio_usb_mux = devm_gpiod_get_index(dev, "usb mux",
+	data->gpio_usb_mux = devm_gpiod_get_index(dev, "mux",
 						 INT3496_GPIO_USB_MUX,
 						 GPIOD_ASIS);
 	if (IS_ERR(data->gpio_usb_mux))
