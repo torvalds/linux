@@ -48,6 +48,8 @@ struct mlx5e_neigh_update_table {
 	/* protect lookup/remove operations */
 	spinlock_t              encap_lock;
 	struct notifier_block   netevent_nb;
+	struct delayed_work     neigh_stats_work;
+	unsigned long           min_interval; /* jiffies */
 };
 
 struct mlx5e_rep_priv {
@@ -61,6 +63,7 @@ struct mlx5e_neigh {
 		__be32	v4;
 		struct in6_addr v6;
 	} dst_ip;
+	int family;
 };
 
 struct mlx5e_neigh_hash_entry {
@@ -87,6 +90,12 @@ struct mlx5e_neigh_hash_entry {
 	 * it's used by the neigh notification call.
 	 */
 	refcount_t refcnt;
+
+	/* Save the last reported time offloaded trafic pass over one of the
+	 * neigh hash entry flows. Use it to periodically update the neigh
+	 * 'used' value and avoid neigh deleting by the kernel.
+	 */
+	unsigned long reported_lastuse;
 };
 
 enum {
@@ -130,5 +139,7 @@ int mlx5e_rep_encap_entry_attach(struct mlx5e_priv *priv,
 				 struct mlx5e_encap_entry *e);
 void mlx5e_rep_encap_entry_detach(struct mlx5e_priv *priv,
 				  struct mlx5e_encap_entry *e);
+
+void mlx5e_rep_queue_neigh_stats_work(struct mlx5e_priv *priv);
 
 #endif /* __MLX5E_REP_H__ */

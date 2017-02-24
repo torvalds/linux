@@ -41,6 +41,7 @@
 #include "en.h"
 #include "en_rep.h"
 #include "en_tc.h"
+#include "fs_core.h"
 
 static const char mlx5e_rep_driver_name[] = "mlx5e_rep";
 
@@ -226,6 +227,51 @@ void mlx5e_remove_sqs_fwd_rules(struct mlx5e_priv *priv)
 	mlx5_eswitch_sqs2vport_stop(esw, rep);
 }
 
+static void mlx5e_rep_neigh_update_init_interval(struct mlx5e_rep_priv *rpriv)
+{
+#if IS_ENABLED(CONFIG_IPV6)
+	unsigned long ipv6_interval = NEIGH_VAR(&ipv6_stub->nd_tbl->parms,
+						DELAY_PROBE_TIME);
+#else
+	unsigned long ipv6_interval = ~0UL;
+#endif
+	unsigned long ipv4_interval = NEIGH_VAR(&arp_tbl.parms,
+						DELAY_PROBE_TIME);
+	struct net_device *netdev = rpriv->rep->netdev;
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	rpriv->neigh_update.min_interval = min_t(unsigned long, ipv6_interval, ipv4_interval);
+	mlx5_fc_update_sampling_interval(priv->mdev, rpriv->neigh_update.min_interval);
+}
+
+void mlx5e_rep_queue_neigh_stats_work(struct mlx5e_priv *priv)
+{
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
+	struct mlx5e_neigh_update_table *neigh_update = &rpriv->neigh_update;
+
+	mlx5_fc_queue_stats_work(priv->mdev,
+				 &neigh_update->neigh_stats_work,
+				 neigh_update->min_interval);
+}
+
+static void mlx5e_rep_neigh_stats_work(struct work_struct *work)
+{
+	struct mlx5e_rep_priv *rpriv = container_of(work, struct mlx5e_rep_priv,
+						    neigh_update.neigh_stats_work.work);
+	struct net_device *netdev = rpriv->rep->netdev;
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5e_neigh_hash_entry *nhe;
+
+	rtnl_lock();
+	if (!list_empty(&rpriv->neigh_update.neigh_list))
+		mlx5e_rep_queue_neigh_stats_work(priv);
+
+	list_for_each_entry(nhe, &rpriv->neigh_update.neigh_list, neigh_list)
+		mlx5e_tc_update_neigh_used_value(nhe);
+
+	rtnl_unlock();
+}
+
 static void mlx5e_rep_neigh_entry_hold(struct mlx5e_neigh_hash_entry *nhe)
 {
 	refcount_inc(&nhe->refcnt);
@@ -325,6 +371,7 @@ static int mlx5e_rep_netevent_event(struct notifier_block *nb,
 			return NOTIFY_DONE;
 
 		m_neigh.dev = n->dev;
+		m_neigh.family = n->ops->family;
 		memcpy(&m_neigh.dst_ip, n->primary_key, n->tbl->key_len);
 
 		/* We are in atomic context and can't take RTNL mutex, so use
@@ -378,6 +425,9 @@ static int mlx5e_rep_neigh_init(struct mlx5e_rep_priv *rpriv)
 
 	INIT_LIST_HEAD(&neigh_update->neigh_list);
 	spin_lock_init(&neigh_update->encap_lock);
+	INIT_DELAYED_WORK(&neigh_update->neigh_stats_work,
+			  mlx5e_rep_neigh_stats_work);
+	mlx5e_rep_neigh_update_init_interval(rpriv);
 
 	rpriv->neigh_update.netevent_nb.notifier_call = mlx5e_rep_netevent_event;
 	err = register_netevent_notifier(&rpriv->neigh_update.netevent_nb);
@@ -398,6 +448,8 @@ static void mlx5e_rep_neigh_cleanup(struct mlx5e_rep_priv *rpriv)
 	unregister_netevent_notifier(&neigh_update->netevent_nb);
 
 	flush_workqueue(priv->wq); /* flush neigh update works */
+
+	cancel_delayed_work_sync(&rpriv->neigh_update.neigh_stats_work);
 
 	rhashtable_destroy(&neigh_update->neigh_ht);
 }
