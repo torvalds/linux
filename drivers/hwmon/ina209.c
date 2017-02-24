@@ -608,11 +608,18 @@ static const struct i2c_device_id ina209_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ina209_id);
 
+static const struct of_device_id ina209_of_match[] = {
+	{ .compatible = "ti,ina209" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ina209_of_match);
+
 /* This is the driver that will be inserted */
 static struct i2c_driver ina209_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "ina209",
+		.of_match_table = of_match_ptr(ina209_of_match),
 	},
 	.probe		= ina209_probe,
 	.remove		= ina209_remove,
