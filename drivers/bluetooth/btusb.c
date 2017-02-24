@@ -26,6 +26,7 @@
 #include <linux/firmware.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
+#include <linux/suspend.h>
 #include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -2799,6 +2800,7 @@ static irqreturn_t btusb_oob_wake_handler(int irq, void *priv)
 	struct btusb_data *data = priv;
 
 	pm_wakeup_event(&data->udev->dev, 0);
+	pm_system_wakeup();
 
 	/* Disable only if not already disabled (keep it balanced) */
 	if (test_and_clear_bit(BTUSB_OOB_WAKE_ENABLED, &data->flags)) {
