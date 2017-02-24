@@ -155,7 +155,6 @@ static int intel_hid_input_setup(struct platform_device *device)
 	priv->input_dev->dev.parent = &device->dev;
 	priv->input_dev->name = "Intel HID events";
 	priv->input_dev->id.bustype = BUS_HOST;
-	set_bit(KEY_RFKILL, priv->input_dev->keybit);
 
 	return input_register_device(priv->input_dev);
 }
