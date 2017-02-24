@@ -397,7 +397,10 @@ static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 		return testdin;
 	}
 
-	dsi_write(dsi, DSI_PWR_UP, POWERUP);
+	/* Start by clearing PHY state */
+	dsi_write(dsi, DSI_PHY_TST_CTRL0, PHY_UNTESTCLR);
+	dsi_write(dsi, DSI_PHY_TST_CTRL0, PHY_TESTCLR);
+	dsi_write(dsi, DSI_PHY_TST_CTRL0, PHY_UNTESTCLR);
 
 	dw_mipi_dsi_phy_write(dsi, 0x10, BYPASS_VCO_RANGE |
 					 VCO_RANGE_CON_SEL(vco) |
