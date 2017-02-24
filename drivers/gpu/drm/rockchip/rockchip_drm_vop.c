@@ -1337,15 +1337,16 @@ static int vop_plane_info_dump(struct seq_file *s, struct drm_plane *plane)
 	struct drm_framebuffer *fb = state->fb;
 	int i;
 
-	seq_printf(s, "win%d-%d: status=%s\n", win->win_id, win->area_id,
-		   pstate->enable ? "active" : "disabled");
+	seq_printf(s, "    win%d-%d: %s\n", win->win_id, win->area_id,
+		   pstate->enable ? "ACTIVE" : "DISABLED");
 	if (!fb)
 		return 0;
 
 	src = &pstate->src;
 	dest = &pstate->dest;
 
-	seq_printf(s, "\tformat: %s\n", drm_get_format_name(fb->pixel_format));
+	seq_printf(s, "\tformat: %s%s\n", drm_get_format_name(fb->pixel_format),
+		   fb->modifier[0] == DRM_FORMAT_MOD_ARM_AFBC ? "[AFBC]" : "");
 	seq_printf(s, "\tzpos: %d\n", pstate->zpos);
 	seq_printf(s, "\tsrc: pos[%dx%d] rect[%dx%d]\n", src->x1 >> 16,
 		   src->y1 >> 16, drm_rect_width(src) >> 16,
@@ -1367,18 +1368,26 @@ static int vop_crtc_debugfs_dump(struct drm_crtc *crtc, struct seq_file *s)
 	struct vop *vop = to_vop(crtc);
 	struct drm_crtc_state *crtc_state = crtc->state;
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+	struct rockchip_crtc_state *state = to_rockchip_crtc_state(crtc->state);
+	bool interlaced = !!(mode->flags & DRM_MODE_FLAG_INTERLACE);
 	struct drm_plane *plane;
 	int i;
 
-	seq_printf(s, "vop name: %s status=%s\n", dev_name(vop->dev),
-		   crtc_state->active ? "active" : "disabled");
+	seq_printf(s, "VOP [%s]: %s\n", dev_name(vop->dev),
+		   crtc_state->active ? "ACTIVE" : "DISABLED");
 
 	if (!crtc_state->active)
 		return 0;
 
-	seq_printf(s, "Display mode: %s fps[%d] clk[%d] type[%d] flag[%x]\n",
-		   mode->name, drm_mode_vrefresh(mode), mode->clock,
-		   mode->type, mode->flags);
+	seq_printf(s, "    Connector: %s\n",
+		   drm_get_connector_name(state->output_type));
+	seq_printf(s, "\tbus_format[%x] output_mode[%x]\n",
+		   state->bus_format, state->output_mode);
+	seq_printf(s, "    Display mode: %dx%d%s%d\n",
+		   mode->hdisplay, mode->vdisplay, interlaced ? "i" : "p",
+		   drm_mode_vrefresh(mode));
+	seq_printf(s, "\tclk[%d] real_clk[%d] type[%x] flag[%x]\n",
+		   mode->clock, mode->crtc_clock, mode->type, mode->flags);
 	seq_printf(s, "\tH: %d %d %d %d\n", mode->hdisplay, mode->hsync_start,
 		   mode->hsync_end, mode->htotal);
 	seq_printf(s, "\tV: %d %d %d %d\n", mode->vdisplay, mode->vsync_start,
