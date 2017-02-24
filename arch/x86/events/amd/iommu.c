@@ -11,6 +11,8 @@
  * published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt)	"perf/amd_iommu: " fmt
+
 #include <linux/perf_event.h>
 #include <linux/init.h>
 #include <linux/cpumask.h>
@@ -298,7 +300,6 @@ static void perf_iommu_start(struct perf_event *event, int flags)
 {
 	struct hw_perf_event *hwc = &event->hw;
 
-	pr_debug("perf: amd_iommu:perf_iommu_start\n");
 	if (WARN_ON_ONCE(!(hwc->state & PERF_HES_STOPPED)))
 		return;
 
@@ -323,7 +324,6 @@ static void perf_iommu_read(struct perf_event *event)
 	u64 prev_raw_count = 0ULL;
 	u64 delta = 0ULL;
 	struct hw_perf_event *hwc = &event->hw;
-	pr_debug("perf: amd_iommu:perf_iommu_read\n");
 
 	amd_iommu_pc_get_set_reg_val(_GET_DEVID(event),
 				_GET_BANK(event), _GET_CNTR(event),
@@ -349,8 +349,6 @@ static void perf_iommu_stop(struct perf_event *event, int flags)
 	struct hw_perf_event *hwc = &event->hw;
 	u64 config;
 
-	pr_debug("perf: amd_iommu:perf_iommu_stop\n");
-
 	if (hwc->state & PERF_HES_UPTODATE)
 		return;
 
@@ -372,7 +370,6 @@ static int perf_iommu_add(struct perf_event *event, int flags)
 	struct perf_amd_iommu *perf_iommu =
 			container_of(event->pmu, struct perf_amd_iommu, pmu);
 
-	pr_debug("perf: amd_iommu:perf_iommu_add\n");
 	event->hw.state = PERF_HES_UPTODATE | PERF_HES_STOPPED;
 
 	/* request an iommu bank/counter */
@@ -393,7 +390,6 @@ static void perf_iommu_del(struct perf_event *event, int flags)
 	struct perf_amd_iommu *perf_iommu =
 			container_of(event->pmu, struct perf_amd_iommu, pmu);
 
-	pr_debug("perf: amd_iommu:perf_iommu_del\n");
 	perf_iommu_stop(event, PERF_EF_UPDATE);
 
 	/* clear the assigned iommu bank/counter */
@@ -444,27 +440,27 @@ static __init int _init_perf_amd_iommu(
 
 	raw_spin_lock_init(&perf_iommu->lock);
 
-	/* Init format attributes */
 	perf_iommu->format_group = &amd_iommu_format_group;
 
 	/* Init cpumask attributes to only core 0 */
 	cpumask_set_cpu(0, &iommu_cpumask);
 	perf_iommu->cpumask_group = &amd_iommu_cpumask_group;
 
-	/* Init events attributes */
-	if (_init_events_attrs(perf_iommu) != 0)
-		pr_err("perf: amd_iommu: Only support raw events.\n");
+	ret = _init_events_attrs(perf_iommu);
+	if (ret) {
+		pr_err("Error initializing AMD IOMMU perf events.\n");
+		return ret;
+	}
 
-	/* Init null attributes */
 	perf_iommu->null_group = NULL;
 	perf_iommu->pmu.attr_groups = perf_iommu->attr_groups;
 
 	ret = perf_pmu_register(&perf_iommu->pmu, name, -1);
 	if (ret) {
-		pr_err("perf: amd_iommu: Failed to initialized.\n");
+		pr_err("Error initializing AMD IOMMU perf counters.\n");
 		amd_iommu_pc_exit();
 	} else {
-		pr_info("perf: amd_iommu: Detected. (%d banks, %d counters/bank)\n",
+		pr_info("Detected AMD IOMMU (%d banks, %d counters/bank).\n",
 			amd_iommu_pc_get_max_banks(IOMMU_BASE_DEVID),
 			amd_iommu_pc_get_max_counters(IOMMU_BASE_DEVID));
 	}
