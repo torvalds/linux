@@ -962,7 +962,7 @@ static void decide_crtc_timing_for_drm_display_mode(
 }
 
 static struct dc_stream *create_stream_for_sink(
-		const struct amdgpu_connector *aconnector,
+		struct amdgpu_connector *aconnector,
 		const struct drm_display_mode *drm_mode,
 		const struct dm_connector_state *dm_state)
 {
