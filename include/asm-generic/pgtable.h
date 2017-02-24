@@ -233,12 +233,20 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addres
 #define pte_mk_savedwrite pte_mkwrite
 #endif
 
+#ifndef pte_clear_savedwrite
+#define pte_clear_savedwrite pte_wrprotect
+#endif
+
 #ifndef pmd_savedwrite
 #define pmd_savedwrite pmd_write
 #endif
 
 #ifndef pmd_mk_savedwrite
 #define pmd_mk_savedwrite pmd_mkwrite
+#endif
+
+#ifndef pmd_clear_savedwrite
+#define pmd_clear_savedwrite pmd_wrprotect
 #endif
 
 #ifndef __HAVE_ARCH_PMDP_SET_WRPROTECT
