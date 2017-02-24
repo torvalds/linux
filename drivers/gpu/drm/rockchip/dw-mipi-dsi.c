@@ -518,7 +518,18 @@ static int dw_mipi_dsi_get_lane_bps(struct dw_mipi_dsi *dsi,
 	pllref = DIV_ROUND_UP(clk_get_rate(dsi->pllref_clk), USEC_PER_SEC);
 	tmp = pllref;
 
-	for (i = 1; i < 6; i++) {
+	/*
+	 * The limits on the PLL divisor are:
+	 *
+	 *	5MHz <= (pllref / n) <= 40MHz
+	 *
+	 * we walk over these values in descreasing order so that if we hit
+	 * an exact match for target_mbps it is more likely that "m" will be
+	 * even.
+	 *
+	 * TODO: ensure that "m" is even after this loop.
+	 */
+	for (i = pllref / 5; i > (pllref / 40); i--) {
 		pre = pllref / i;
 		if ((tmp > (target_mbps % pre)) && (target_mbps / pre < 512)) {
 			tmp = target_mbps % pre;
