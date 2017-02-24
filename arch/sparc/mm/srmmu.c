@@ -1444,7 +1444,7 @@ static void poke_viking(void)
 	srmmu_set_mmureg(mreg);
 }
 
-static struct sparc32_cachetlb_ops viking_ops = {
+static struct sparc32_cachetlb_ops viking_ops __ro_after_init = {
 	.cache_all	= viking_flush_cache_all,
 	.cache_mm	= viking_flush_cache_mm,
 	.cache_page	= viking_flush_cache_page,
@@ -1475,7 +1475,7 @@ static struct sparc32_cachetlb_ops viking_ops = {
  * flushes going at once will require SMP locking anyways so there's
  * no real value in trying any harder than this.
  */
-static struct sparc32_cachetlb_ops viking_sun4d_smp_ops = {
+static struct sparc32_cachetlb_ops viking_sun4d_smp_ops __ro_after_init = {
 	.cache_all	= viking_flush_cache_all,
 	.cache_mm	= viking_flush_cache_mm,
 	.cache_page	= viking_flush_cache_page,
@@ -1759,7 +1759,7 @@ static void smp_flush_sig_insns(struct mm_struct *mm, unsigned long insn_addr)
 	local_ops->sig_insns(mm, insn_addr);
 }
 
-static struct sparc32_cachetlb_ops smp_cachetlb_ops = {
+static struct sparc32_cachetlb_ops smp_cachetlb_ops __ro_after_init = {
 	.cache_all	= smp_flush_cache_all,
 	.cache_mm	= smp_flush_cache_mm,
 	.cache_page	= smp_flush_cache_page,

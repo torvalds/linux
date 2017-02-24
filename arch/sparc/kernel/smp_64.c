@@ -1443,6 +1443,7 @@ void __irq_entry smp_receive_signal_client(int irq, struct pt_regs *regs)
 
 static void stop_this_cpu(void *dummy)
 {
+	set_cpu_online(smp_processor_id(), false);
 	prom_stopself();
 }
 
@@ -1451,9 +1452,15 @@ void smp_send_stop(void)
 	int cpu;
 
 	if (tlb_type == hypervisor) {
+		int this_cpu = smp_processor_id();
+#ifdef CONFIG_SERIAL_SUNHV
+		sunhv_migrate_hvcons_irq(this_cpu);
+#endif
 		for_each_online_cpu(cpu) {
-			if (cpu == smp_processor_id())
+			if (cpu == this_cpu)
 				continue;
+
+			set_cpu_online(cpu, false);
 #ifdef CONFIG_SUN_LDOMS
 			if (ldom_domaining_enabled) {
 				unsigned long hv_err;
