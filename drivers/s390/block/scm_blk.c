@@ -273,30 +273,36 @@ static void scm_request_start(struct scm_request *scmrq)
 	}
 }
 
+struct scm_queue {
+	struct scm_request *scmrq;
+	spinlock_t lock;
+};
+
 static int scm_blk_request(struct blk_mq_hw_ctx *hctx,
 			   const struct blk_mq_queue_data *qd)
 {
 	struct scm_device *scmdev = hctx->queue->queuedata;
 	struct scm_blk_dev *bdev = dev_get_drvdata(&scmdev->dev);
+	struct scm_queue *sq = hctx->driver_data;
 	struct request *req = qd->rq;
 	struct scm_request *scmrq;
 
-	spin_lock(&bdev->rq_lock);
+	spin_lock(&sq->lock);
 	if (!scm_permit_request(bdev, req)) {
-		spin_unlock(&bdev->rq_lock);
+		spin_unlock(&sq->lock);
 		return BLK_MQ_RQ_QUEUE_BUSY;
 	}
 
-	scmrq = hctx->driver_data;
+	scmrq = sq->scmrq;
 	if (!scmrq) {
 		scmrq = scm_request_fetch();
 		if (!scmrq) {
 			SCM_LOG(5, "no request");
-			spin_unlock(&bdev->rq_lock);
+			spin_unlock(&sq->lock);
 			return BLK_MQ_RQ_QUEUE_BUSY;
 		}
 		scm_request_init(bdev, scmrq);
-		hctx->driver_data = scmrq;
+		sq->scmrq = scmrq;
 	}
 	scm_request_set(scmrq, req);
 
@@ -307,18 +313,41 @@ static int scm_blk_request(struct blk_mq_hw_ctx *hctx,
 		if (scmrq->aob->request.msb_count)
 			scm_request_start(scmrq);
 
-		hctx->driver_data = NULL;
-		spin_unlock(&bdev->rq_lock);
+		sq->scmrq = NULL;
+		spin_unlock(&sq->lock);
 		return BLK_MQ_RQ_QUEUE_BUSY;
 	}
 	blk_mq_start_request(req);
 
 	if (qd->last || scmrq->aob->request.msb_count == nr_requests_per_io) {
 		scm_request_start(scmrq);
-		hctx->driver_data = NULL;
+		sq->scmrq = NULL;
 	}
-	spin_unlock(&bdev->rq_lock);
+	spin_unlock(&sq->lock);
 	return BLK_MQ_RQ_QUEUE_OK;
+}
+
+static int scm_blk_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
+			     unsigned int idx)
+{
+	struct scm_queue *qd = kzalloc(sizeof(*qd), GFP_KERNEL);
+
+	if (!qd)
+		return -ENOMEM;
+
+	spin_lock_init(&qd->lock);
+	hctx->driver_data = qd;
+
+	return 0;
+}
+
+static void scm_blk_exit_hctx(struct blk_mq_hw_ctx *hctx, unsigned int idx)
+{
+	struct scm_queue *qd = hctx->driver_data;
+
+	WARN_ON(qd->scmrq);
+	kfree(hctx->driver_data);
+	hctx->driver_data = NULL;
 }
 
 static void __scmrq_log_error(struct scm_request *scmrq)
@@ -396,6 +425,8 @@ static const struct block_device_operations scm_blk_devops = {
 static const struct blk_mq_ops scm_mq_ops = {
 	.queue_rq = scm_blk_request,
 	.complete = scm_blk_request_done,
+	.init_hctx = scm_blk_init_hctx,
+	.exit_hctx = scm_blk_exit_hctx,
 };
 
 int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
@@ -413,12 +444,11 @@ int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
 
 	bdev->scmdev = scmdev;
 	bdev->state = SCM_OPER;
-	spin_lock_init(&bdev->rq_lock);
 	spin_lock_init(&bdev->lock);
 	atomic_set(&bdev->queued_reqs, 0);
 
 	bdev->tag_set.ops = &scm_mq_ops;
-	bdev->tag_set.nr_hw_queues = 1;
+	bdev->tag_set.nr_hw_queues = nr_requests;
 	bdev->tag_set.queue_depth = nr_requests_per_io * nr_requests;
 	bdev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 
