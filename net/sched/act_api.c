@@ -613,8 +613,8 @@ struct tc_action *tcf_action_init_1(struct net *net, struct nlattr *nla,
 			goto err_mod;
 		}
 
-		err = nla_memdup_cookie(a, tb);
-		if (err < 0) {
+		if (nla_memdup_cookie(a, tb) < 0) {
+			err = -ENOMEM;
 			tcf_hash_release(a, bind);
 			goto err_mod;
 		}
