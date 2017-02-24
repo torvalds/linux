@@ -2339,19 +2339,21 @@ void drain_local_pages(struct zone *zone)
 		drain_pages(cpu);
 }
 
+static void drain_local_pages_wq(struct work_struct *work)
+{
+	drain_local_pages(NULL);
+}
+
 /*
  * Spill all the per-cpu pages from all CPUs back into the buddy allocator.
  *
  * When zone parameter is non-NULL, spill just the single zone's pages.
  *
- * Note that this code is protected against sending an IPI to an offline
- * CPU but does not guarantee sending an IPI to newly hotplugged CPUs:
- * on_each_cpu_mask() blocks hotplug and won't talk to offlined CPUs but
- * nothing keeps CPUs from showing up after we populated the cpumask and
- * before the call to on_each_cpu_mask().
+ * Note that this can be extremely slow as the draining happens in a workqueue.
  */
 void drain_all_pages(struct zone *zone)
 {
+	struct work_struct __percpu *works;
 	int cpu;
 
 	/*
@@ -2359,6 +2361,17 @@ void drain_all_pages(struct zone *zone)
 	 * direct reclaim path for CONFIG_CPUMASK_OFFSTACK=y
 	 */
 	static cpumask_t cpus_with_pcps;
+
+	/* Workqueues cannot recurse */
+	if (current->flags & PF_WQ_WORKER)
+		return;
+
+	/*
+	 * As this can be called from reclaim context, do not reenter reclaim.
+	 * An allocation failure can be handled, it's simply slower
+	 */
+	get_online_cpus();
+	works = alloc_percpu_gfp(struct work_struct, GFP_ATOMIC);
 
 	/*
 	 * We don't care about racing with CPU hotplug event
@@ -2390,8 +2403,25 @@ void drain_all_pages(struct zone *zone)
 		else
 			cpumask_clear_cpu(cpu, &cpus_with_pcps);
 	}
-	on_each_cpu_mask(&cpus_with_pcps, (smp_call_func_t) drain_local_pages,
-								zone, 1);
+
+	if (works) {
+		for_each_cpu(cpu, &cpus_with_pcps) {
+			struct work_struct *work = per_cpu_ptr(works, cpu);
+			INIT_WORK(work, drain_local_pages_wq);
+			schedule_work_on(cpu, work);
+		}
+		for_each_cpu(cpu, &cpus_with_pcps)
+			flush_work(per_cpu_ptr(works, cpu));
+	} else {
+		for_each_cpu(cpu, &cpus_with_pcps) {
+			struct work_struct work;
+
+			INIT_WORK(&work, drain_local_pages_wq);
+			schedule_work_on(cpu, &work);
+			flush_work(&work);
+		}
+	}
+	put_online_cpus();
 }
 
 #ifdef CONFIG_HIBERNATION
