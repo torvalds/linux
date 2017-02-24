@@ -24,7 +24,6 @@
  *
  * Usage of struct page flags:
  *	PG_private: identifies the first component page
- *	PG_private2: identifies the last component page
  *	PG_owner_priv_1: identifies the huge component page
  *
  */
@@ -938,7 +937,6 @@ static void reset_page(struct page *page)
 {
 	__ClearPageMovable(page);
 	ClearPagePrivate(page);
-	ClearPagePrivate2(page);
 	set_page_private(page, 0);
 	page_mapcount_reset(page);
 	ClearPageHugeObject(page);
@@ -1085,7 +1083,7 @@ static void create_page_chain(struct size_class *class, struct zspage *zspage,
 	 * 2. each sub-page point to zspage using page->private
 	 *
 	 * we set PG_private to identify the first page (i.e. no other sub-page
-	 * has this flag set) and PG_private_2 to identify the last page.
+	 * has this flag set).
 	 */
 	for (i = 0; i < nr_pages; i++) {
 		page = pages[i];
@@ -1100,8 +1098,6 @@ static void create_page_chain(struct size_class *class, struct zspage *zspage,
 		} else {
 			prev_page->freelist = page;
 		}
-		if (i == nr_pages - 1)
-			SetPagePrivate2(page);
 		prev_page = page;
 	}
 }
