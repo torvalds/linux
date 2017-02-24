@@ -2542,7 +2542,7 @@ struct svc_version	nfsd_version4 = {
 		.vs_proc	= nfsd_procedures4,
 		.vs_dispatch	= nfsd_dispatch,
 		.vs_xdrsize	= NFS4_SVC_XDRSIZE,
-		.vs_rpcb_optnl	= 1,
+		.vs_rpcb_optnl	= true,
 };
 
 /*
