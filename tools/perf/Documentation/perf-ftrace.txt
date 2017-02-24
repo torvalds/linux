@@ -30,6 +30,10 @@ OPTIONS
 --verbose=::
         Verbosity level.
 
+-p::
+--pid=::
+	Trace on existing process id (comma separated list).
+
 
 SEE ALSO
 --------
