@@ -107,7 +107,7 @@ static void *__dma_alloc_coherent(struct device *dev, size_t size,
 		void *addr;
 
 		page = dma_alloc_from_contiguous(dev, size >> PAGE_SHIFT,
-							get_order(size));
+						 get_order(size), flags);
 		if (!page)
 			return NULL;
 
@@ -390,7 +390,7 @@ static int __init atomic_pool_init(void)
 
 	if (dev_get_cma_area(NULL))
 		page = dma_alloc_from_contiguous(NULL, nr_pages,
-							pool_size_order);
+						 pool_size_order, GFP_KERNEL);
 	else
 		page = alloc_pages(GFP_DMA, pool_size_order);
 
