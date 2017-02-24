@@ -752,6 +752,8 @@ static int drm_atomic_plane_check(struct drm_plane *plane,
 				 state->src_h >> 16, ((state->src_h & 0xffff) * 15625) >> 10,
 				 state->src_x >> 16, ((state->src_x & 0xffff) * 15625) >> 10,
 				 state->src_y >> 16, ((state->src_y & 0xffff) * 15625) >> 10);
+		DRM_DEBUG_ATOMIC("framebuffer size[%dx%d]\n",
+				 fb_width >> 16, fb_height >> 16);
 		return -ENOSPC;
 	}
 
