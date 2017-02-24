@@ -3446,7 +3446,7 @@ void mm_drop_all_locks(struct mm_struct *mm)
 }
 
 /*
- * initialise the VMA slab
+ * initialise the percpu counter for VM
  */
 void __init mmap_init(void)
 {
