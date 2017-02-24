@@ -1121,7 +1121,19 @@ intel_attached_encoder(struct drm_connector *connector)
 static inline struct intel_digital_port *
 enc_to_dig_port(struct drm_encoder *encoder)
 {
-	return container_of(encoder, struct intel_digital_port, base.base);
+	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
+
+	switch (intel_encoder->type) {
+	case INTEL_OUTPUT_UNKNOWN:
+		WARN_ON(!HAS_DDI(to_i915(encoder->dev)));
+	case INTEL_OUTPUT_DP:
+	case INTEL_OUTPUT_EDP:
+	case INTEL_OUTPUT_HDMI:
+		return container_of(encoder, struct intel_digital_port,
+				    base.base);
+	default:
+		return NULL;
+	}
 }
 
 static inline struct intel_dp_mst_encoder *
