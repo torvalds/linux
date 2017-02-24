@@ -3096,6 +3096,7 @@ static bool zone_balanced(struct zone *zone, int order, int classzone_idx)
 	 */
 	clear_bit(PGDAT_CONGESTED, &zone->zone_pgdat->flags);
 	clear_bit(PGDAT_DIRTY, &zone->zone_pgdat->flags);
+	clear_bit(PGDAT_WRITEBACK, &zone->zone_pgdat->flags);
 
 	return true;
 }
