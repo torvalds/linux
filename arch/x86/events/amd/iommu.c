@@ -239,14 +239,6 @@ static int perf_iommu_event_init(struct perf_event *event)
 		return -EINVAL;
 	}
 
-	/* integrate with iommu base devid (0000), assume one iommu */
-	perf_iommu->max_banks =
-		amd_iommu_pc_get_max_banks(IOMMU_BASE_DEVID);
-	perf_iommu->max_counters =
-		amd_iommu_pc_get_max_counters(IOMMU_BASE_DEVID);
-	if ((perf_iommu->max_banks == 0) || (perf_iommu->max_counters == 0))
-		return -EINVAL;
-
 	/* update the hw_perf_event struct with the iommu config data */
 	hwc->config = config;
 	hwc->extra_reg.config = config1;
@@ -448,6 +440,11 @@ static __init int _init_perf_amd_iommu(
 		return ret;
 	}
 
+	perf_iommu->max_banks    = amd_iommu_pc_get_max_banks(0);
+	perf_iommu->max_counters = amd_iommu_pc_get_max_counters(0);
+	if (!perf_iommu->max_banks || !perf_iommu->max_counters)
+		return -EINVAL;
+
 	perf_iommu->null_group = NULL;
 	perf_iommu->pmu.attr_groups = perf_iommu->attr_groups;
 
@@ -457,8 +454,8 @@ static __init int _init_perf_amd_iommu(
 		amd_iommu_pc_exit();
 	} else {
 		pr_info("Detected AMD IOMMU (%d banks, %d counters/bank).\n",
-			amd_iommu_pc_get_max_banks(IOMMU_BASE_DEVID),
-			amd_iommu_pc_get_max_counters(IOMMU_BASE_DEVID));
+			amd_iommu_pc_get_max_banks(0),
+			amd_iommu_pc_get_max_counters(0));
 	}
 
 	return ret;
