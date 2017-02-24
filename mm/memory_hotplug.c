@@ -1337,7 +1337,7 @@ int zone_for_memory(int nid, u64 start, u64 size, int zone_default,
 
 static int online_memory_block(struct memory_block *mem, void *arg)
 {
-	return memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE);
+	return device_online(&mem->dev);
 }
 
 /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
