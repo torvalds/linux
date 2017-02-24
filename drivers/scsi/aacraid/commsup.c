@@ -2508,8 +2508,7 @@ int aac_command_thread(void *data)
 			 && (now.tv_usec > (1000000 / HZ)))
 				difference = (((1000000 - now.tv_usec) * HZ)
 				  + 500000) / 1000000;
-			else if (ret == 0) {
-
+			else {
 				if (now.tv_usec > 500000)
 					++now.tv_sec;
 
@@ -2520,9 +2519,6 @@ int aac_command_thread(void *data)
 					ret = aac_send_hosttime(dev, &now);
 
 				difference = (long)(unsigned)update_interval*HZ;
-			} else {
-				/* retry shortly */
-				difference = 10 * HZ;
 			}
 			next_jiffies = jiffies + difference;
 			if (time_before(next_check_jiffies,next_jiffies))
