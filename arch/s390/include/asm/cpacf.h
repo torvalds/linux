@@ -25,7 +25,7 @@
 #define CPACF_KMO		0xb92b		/* MSA4 */
 #define CPACF_PCC		0xb92c		/* MSA4 */
 #define CPACF_KMCTR		0xb92d		/* MSA4 */
-#define CPACF_PPNO		0xb93c		/* MSA5 */
+#define CPACF_PRNO		0xb93c		/* MSA5 */
 
 /*
  * En/decryption modifier bits
@@ -123,12 +123,12 @@
 #define CPACF_PCKMO_ENC_AES_256_KEY	0x14
 
 /*
- * Function codes for the PPNO (PERFORM PSEUDORANDOM NUMBER OPERATION)
+ * Function codes for the PRNO (PERFORM RANDOM NUMBER OPERATION)
  * instruction
  */
-#define CPACF_PPNO_QUERY		0x00
-#define CPACF_PPNO_SHA512_DRNG_GEN	0x03
-#define CPACF_PPNO_SHA512_DRNG_SEED	0x83
+#define CPACF_PRNO_QUERY		0x00
+#define CPACF_PRNO_SHA512_DRNG_GEN	0x03
+#define CPACF_PRNO_SHA512_DRNG_SEED	0x83
 
 typedef struct { unsigned char bytes[16]; } cpacf_mask_t;
 
@@ -173,7 +173,7 @@ static inline int __cpacf_check_opcode(unsigned int opcode)
 	case CPACF_PCC:
 	case CPACF_KMCTR:
 		return test_facility(77);	/* check for MSA4 */
-	case CPACF_PPNO:
+	case CPACF_PRNO:
 		return test_facility(57);	/* check for MSA5 */
 	default:
 		BUG();
@@ -373,16 +373,16 @@ static inline int cpacf_kmctr(unsigned long func, void *param, u8 *dest,
 }
 
 /**
- * cpacf_ppno() - executes the PPNO (PERFORM PSEUDORANDOM NUMBER OPERATION)
+ * cpacf_prno() - executes the PRNO (PERFORM RANDOM NUMBER OPERATION)
  *		  instruction
- * @func: the function code passed to PPNO; see CPACF_PPNO_xxx defines
+ * @func: the function code passed to PRNO; see CPACF_PRNO_xxx defines
  * @param: address of parameter block; see POP for details on each func
  * @dest: address of destination memory area
  * @dest_len: size of destination memory area in bytes
  * @seed: address of seed data
  * @seed_len: size of seed data in bytes
  */
-static inline void cpacf_ppno(unsigned long func, void *param,
+static inline void cpacf_prno(unsigned long func, void *param,
 			      u8 *dest, long dest_len,
 			      const u8 *seed, long seed_len)
 {
@@ -398,7 +398,7 @@ static inline void cpacf_ppno(unsigned long func, void *param,
 		"	brc	1,0b\n"	  /* handle partial completion */
 		: [dst] "+a" (r2), [dlen] "+d" (r3)
 		: [fc] "d" (r0), [pba] "a" (r1),
-		  [seed] "a" (r4), [slen] "d" (r5), [opc] "i" (CPACF_PPNO)
+		  [seed] "a" (r4), [slen] "d" (r5), [opc] "i" (CPACF_PRNO)
 		: "cc", "memory");
 }
 
