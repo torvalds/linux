@@ -1068,7 +1068,6 @@ bool dc_pre_update_surfaces_to_stream(
 	int prev_disp_clk = core_dc->current_context->dispclk_khz;
 	struct dc_stream_status *stream_status = NULL;
 	struct validate_context *context;
-	struct validate_context *temp_context;
 	bool ret = true;
 
 	pre_surface_trace(dc, new_surfaces, new_surface_count);
@@ -1425,7 +1424,6 @@ void dc_update_surfaces_for_stream(struct dc *dc,
 		if (update_type == UPDATE_TYPE_FULL) {
 			for (j = 0; j < context->res_ctx.pool->pipe_count; j++) {
 				struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
-				struct core_stream *stream = pipe_ctx->stream;
 
 				if (pipe_ctx->surface != surface)
 					continue;

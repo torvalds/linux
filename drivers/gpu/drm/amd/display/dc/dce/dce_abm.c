@@ -292,7 +292,6 @@ static void dce_abm_init(struct abm *abm)
 static bool dce_abm_set_level(struct abm *abm, uint32_t level)
 {
 	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
-	struct dc_context *ctx = abm_dce->base.ctx;
 
 	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0,
 			100, 800);

@@ -121,7 +121,7 @@ const struct dc_surface_status *dc_surface_get_status(
 		const struct dc_surface *dc_surface)
 {
 	struct dc_surface_status *surface_status;
-	struct core_surface *core_surface = DC_SURFACE_TO_CORE(dc_surface);;
+	struct core_surface *core_surface = DC_SURFACE_TO_CORE(dc_surface);
 	struct core_dc *core_dc;
 	int i;
 

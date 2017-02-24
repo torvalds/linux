@@ -74,7 +74,6 @@ static bool dce110_timing_generator_v_disable_crtc(struct timing_generator *tg)
 
 static void dce110_timing_generator_v_blank_crtc(struct timing_generator *tg)
 {
-	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
 	uint32_t addr = mmCRTCV_BLANK_CONTROL;
 	uint32_t value = dm_read_reg(tg->ctx, addr);
 
