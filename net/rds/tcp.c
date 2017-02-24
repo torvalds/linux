@@ -641,12 +641,12 @@ static int rds_tcp_init(void)
 	ret = register_netdevice_notifier(&rds_tcp_dev_notifier);
 	if (ret) {
 		pr_warn("could not register rds_tcp_dev_notifier\n");
-		goto out;
+		goto out_slab;
 	}
 
 	ret = register_pernet_subsys(&rds_tcp_net_ops);
 	if (ret)
-		goto out_slab;
+		goto out_notifier;
 
 	ret = rds_tcp_recv_init();
 	if (ret)
@@ -664,9 +664,10 @@ out_recv:
 	rds_tcp_recv_exit();
 out_pernet:
 	unregister_pernet_subsys(&rds_tcp_net_ops);
-out_slab:
+out_notifier:
 	if (unregister_netdevice_notifier(&rds_tcp_dev_notifier))
 		pr_warn("could not unregister rds_tcp_dev_notifier\n");
+out_slab:
 	kmem_cache_destroy(rds_tcp_conn_slab);
 out:
 	return ret;
