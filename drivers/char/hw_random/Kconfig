@@ -423,6 +423,20 @@ config HW_RANDOM_CAVIUM
 
          If unsure, say Y.
 
+config HW_RANDOM_S390
+	tristate "S390 True Random Number Generator support"
+	depends on S390
+	default HW_RANDOM
+	---help---
+	  This driver provides kernel-side support for the True
+	  Random Number Generator available as CPACF extension
+	  on modern s390 hardware platforms.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called s390-trng.
+
+	  If unsure, say Y.
+
 endif # HW_RANDOM
 
 config UML_RANDOM
