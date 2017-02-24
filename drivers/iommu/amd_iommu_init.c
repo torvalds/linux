@@ -167,7 +167,9 @@ LIST_HEAD(amd_iommu_list);		/* list of all AMD IOMMUs in the
 
 /* Array to assign indices to IOMMUs*/
 struct amd_iommu *amd_iommus[MAX_IOMMUS];
-int amd_iommus_present;
+
+/* Number of IOMMUs present in the system */
+static int amd_iommus_present;
 
 /* IOMMUs have a non-present cache? */
 bool amd_iommu_np_cache __read_mostly;
@@ -270,6 +272,11 @@ static inline unsigned long tbl_size(int entry_size)
 			 get_order(((int)amd_iommu_last_bdf + 1) * entry_size);
 
 	return 1UL << shift;
+}
+
+int amd_iommu_get_num_iommus(void)
+{
+	return amd_iommus_present;
 }
 
 /* Access to l1 and l2 indexed register spaces */
@@ -1336,7 +1343,7 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 
 	/* Add IOMMU to internal data structures */
 	list_add_tail(&iommu->list, &amd_iommu_list);
-	iommu->index             = amd_iommus_present++;
+	iommu->index = amd_iommus_present++;
 
 	if (unlikely(iommu->index >= MAX_IOMMUS)) {
 		WARN(1, "AMD-Vi: System has more IOMMUs than supported by this driver\n");

@@ -21,6 +21,7 @@
 
 #include "amd_iommu_types.h"
 
+extern int amd_iommu_get_num_iommus(void);
 extern int amd_iommu_init_dma_ops(void);
 extern int amd_iommu_init_passthrough(void);
 extern irqreturn_t amd_iommu_int_thread(int irq, void *data);

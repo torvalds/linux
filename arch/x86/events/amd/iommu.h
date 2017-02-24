@@ -28,6 +28,8 @@
 #define IOMMU_BASE_DEVID			0x0000
 
 /* amd_iommu_init.c external support functions */
+extern int amd_iommu_get_num_iommus(void);
+
 extern bool amd_iommu_pc_supported(void);
 
 extern u8 amd_iommu_pc_get_max_banks(u16 devid);
