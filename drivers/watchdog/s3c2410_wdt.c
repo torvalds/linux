@@ -23,8 +23,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -83,13 +81,11 @@ static bool nowayout	= WATCHDOG_NOWAYOUT;
 static int tmr_margin;
 static int tmr_atboot	= S3C2410_WATCHDOG_ATBOOT;
 static int soft_noboot;
-static int debug;
 
 module_param(tmr_margin,  int, 0);
 module_param(tmr_atboot,  int, 0);
 module_param(nowayout,   bool, 0);
 module_param(soft_noboot, int, 0);
-module_param(debug,	  int, 0);
 
 MODULE_PARM_DESC(tmr_margin, "Watchdog tmr_margin in seconds. (default="
 		__MODULE_STRING(S3C2410_WATCHDOG_DEFAULT_TIME) ")");
@@ -100,7 +96,6 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 			__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 MODULE_PARM_DESC(soft_noboot, "Watchdog action, set to 1 to ignore reboots, "
 			"0 to reboot (default 0)");
-MODULE_PARM_DESC(debug, "Watchdog debug, set to >1 for debug (default 0)");
 
 /**
  * struct s3c2410_wdt_variant - Per-variant config data
@@ -204,14 +199,6 @@ static const struct platform_device_id s3c2410_wdt_ids[] = {
 };
 MODULE_DEVICE_TABLE(platform, s3c2410_wdt_ids);
 
-/* watchdog control routines */
-
-#define DBG(fmt, ...)					\
-do {							\
-	if (debug)					\
-		pr_info(fmt, ##__VA_ARGS__);		\
-} while (0)
-
 /* functions */
 
 static inline unsigned int s3c2410wdt_max_timeout(struct clk *clock)
@@ -307,8 +294,8 @@ static int s3c2410wdt_start(struct watchdog_device *wdd)
 		wtcon |= S3C2410_WTCON_RSTEN;
 	}
 
-	DBG("%s: count=0x%08x, wtcon=%08lx\n",
-	    __func__, wdt->count, wtcon);
+	dev_dbg(wdt->dev, "Starting watchdog: count=0x%08x, wtcon=%08lx\n",
+		wdt->count, wtcon);
 
 	writel(wdt->count, wdt->reg_base + S3C2410_WTDAT);
 	writel(wdt->count, wdt->reg_base + S3C2410_WTCNT);
@@ -337,8 +324,8 @@ static int s3c2410wdt_set_heartbeat(struct watchdog_device *wdd, unsigned timeou
 	freq = DIV_ROUND_UP(freq, 128);
 	count = timeout * freq;
 
-	DBG("%s: count=%d, timeout=%d, freq=%lu\n",
-	    __func__, count, timeout, freq);
+	dev_dbg(wdt->dev, "Heartbeat: count=%d, timeout=%d, freq=%lu\n",
+		count, timeout, freq);
 
 	/* if the count is bigger than the watchdog register,
 	   then work out what we need to do (and if) we can
@@ -354,8 +341,8 @@ static int s3c2410wdt_set_heartbeat(struct watchdog_device *wdd, unsigned timeou
 		}
 	}
 
-	DBG("%s: timeout=%d, divisor=%d, count=%d (%08x)\n",
-	    __func__, timeout, divisor, count, DIV_ROUND_UP(count, divisor));
+	dev_dbg(wdt->dev, "Heartbeat: timeout=%d, divisor=%d, count=%d (%08x)\n",
+		timeout, divisor, count, DIV_ROUND_UP(count, divisor));
 
 	count = DIV_ROUND_UP(count, divisor);
 	wdt->count = count;
@@ -544,8 +531,6 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	int started = 0;
 	int ret;
 
-	DBG("%s: probe=%p\n", __func__, pdev);
-
 	dev = &pdev->dev;
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
@@ -580,8 +565,6 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 		ret = PTR_ERR(wdt->reg_base);
 		goto err;
 	}
-
-	DBG("probe: mapped reg_base=%p\n", wdt->reg_base);
 
 	wdt->clock = devm_clk_get(dev, "watchdog");
 	if (IS_ERR(wdt->clock)) {
