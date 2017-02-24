@@ -542,9 +542,10 @@ static int dw_mipi_dsi_host_detach(struct mipi_dsi_host *host,
 	return 0;
 }
 
-static int dw_mipi_dsi_gen_pkt_hdr_write(struct dw_mipi_dsi *dsi, u32 val)
+static int dw_mipi_dsi_gen_pkt_hdr_write(struct dw_mipi_dsi *dsi, u32 hdr_val)
 {
 	int ret;
+	u32 val;
 
 	ret = readx_poll_timeout(readl, dsi->base + DSI_CMD_PKT_STATUS,
 				 val, !(val & GEN_CMD_FULL), 1000,
@@ -554,7 +555,7 @@ static int dw_mipi_dsi_gen_pkt_hdr_write(struct dw_mipi_dsi *dsi, u32 val)
 		return ret;
 	}
 
-	dsi_write(dsi, DSI_GEN_HDR, val);
+	dsi_write(dsi, DSI_GEN_HDR, hdr_val);
 
 	ret = readx_poll_timeout(readl, dsi->base + DSI_CMD_PKT_STATUS,
 				 val, val & (GEN_CMD_EMPTY | GEN_PLD_W_EMPTY),
@@ -587,8 +588,9 @@ static int dw_mipi_dsi_dcs_long_write(struct dw_mipi_dsi *dsi,
 {
 	const u32 *tx_buf = msg->tx_buf;
 	int len = msg->tx_len, pld_data_bytes = sizeof(*tx_buf), ret;
-	u32 val = GEN_HDATA(msg->tx_len) | GEN_HTYPE(msg->type);
+	u32 hdr_val = GEN_HDATA(msg->tx_len) | GEN_HTYPE(msg->type);
 	u32 remainder = 0;
+	u32 val;
 
 	if (msg->tx_len < 3) {
 		dev_err(dsi->dev, "wrong tx buf length %zu for long write\n",
@@ -617,7 +619,7 @@ static int dw_mipi_dsi_dcs_long_write(struct dw_mipi_dsi *dsi,
 		}
 	}
 
-	return dw_mipi_dsi_gen_pkt_hdr_write(dsi, val);
+	return dw_mipi_dsi_gen_pkt_hdr_write(dsi, hdr_val);
 }
 
 static ssize_t dw_mipi_dsi_host_transfer(struct mipi_dsi_host *host,
