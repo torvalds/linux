@@ -1144,12 +1144,11 @@ bool dc_pre_update_surfaces_to_stream(
 			}
 		}
 
-	if (core_dc->res_pool->funcs->validate_bandwidth)
-		if (core_dc->res_pool->funcs->validate_bandwidth(core_dc, context) != DC_OK) {
-			BREAK_TO_DEBUGGER();
-			ret = false;
-			goto unexpected_fail;
-		}
+	if (!core_dc->res_pool->funcs->validate_bandwidth(core_dc, context)) {
+		BREAK_TO_DEBUGGER();
+		ret = false;
+		goto unexpected_fail;
+	}
 
 	if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)
 			&& prev_disp_clk < context->dispclk_khz) {
@@ -1184,28 +1183,36 @@ val_ctx_fail:
 
 bool dc_post_update_surfaces_to_stream(struct dc *dc)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
 	int i;
+	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct validate_context *context = dm_alloc(sizeof(struct validate_context));
+
+	if (!context) {
+		dm_error("%s: failed to create validate ctx\n", __func__);
+		return false;
+	}
+	resource_validate_ctx_copy_construct(core_dc->current_context, context);
 
 	post_surface_trace(dc);
 
-	for (i = 0; i < core_dc->current_context->res_ctx.pool->pipe_count; i++)
-		if (core_dc->current_context->res_ctx.pipe_ctx[i].stream == NULL) {
-			core_dc->current_context->res_ctx.pipe_ctx[i].pipe_idx = i;
+	for (i = 0; i < context->res_ctx.pool->pipe_count; i++)
+		if (context->res_ctx.pipe_ctx[i].stream == NULL) {
+			context->res_ctx.pipe_ctx[i].pipe_idx = i;
 			core_dc->hwss.power_down_front_end(
-					core_dc, &core_dc->current_context->res_ctx.pipe_ctx[i]);
+					core_dc, &context->res_ctx.pipe_ctx[i]);
 		}
-	if (core_dc->res_pool->funcs->validate_bandwidth)
-		if (core_dc->res_pool->funcs->validate_bandwidth(
-				core_dc, core_dc->current_context) != DC_OK) {
-			BREAK_TO_DEBUGGER();
-			return false;
-		}
+	if (!core_dc->res_pool->funcs->validate_bandwidth(core_dc, context)) {
+		BREAK_TO_DEBUGGER();
+		return false;
+	}
 
 	core_dc->hwss.set_bandwidth(core_dc);
 
-	pplib_apply_display_requirements(
-			core_dc, core_dc->current_context, &core_dc->current_context->pp_display_cfg);
+	/*TODO: dce specific*/
+	pplib_apply_display_requirements(core_dc, context, &context->pp_display_cfg);
+
+	resource_validate_ctx_destruct(core_dc->current_context);
+	core_dc->current_context = context;
 
 	return true;
 }
@@ -1472,6 +1479,11 @@ void dc_update_surfaces_for_stream(struct dc *dc,
 				*(updates[i].hdr_static_metadata);
 	}
 
+	if (update_type == UPDATE_TYPE_FULL &&
+			!core_dc->res_pool->funcs->validate_bandwidth(core_dc, context)) {
+		BREAK_TO_DEBUGGER();
+		return;
+	}
 
 	if (!surface_count)  /* reset */
 		core_dc->hwss.apply_ctx_for_surface(core_dc, NULL, context);

@@ -765,14 +765,14 @@ static enum dc_status validate_mapped_resource(
 	return DC_OK;
 }
 
-enum dc_status dce100_validate_bandwidth(
+bool dce100_validate_bandwidth(
 	const struct core_dc *dc,
 	struct validate_context *context)
 {
 	/* TODO implement when needed but for now hardcode max value*/
 	context->dispclk_khz = 681000;
 
-	return DC_OK;
+	return false;
 }
 
 static bool dce100_validate_surface_sets(
@@ -840,7 +840,8 @@ enum dc_status dce100_validate_with_context(
 		result = resource_build_scaling_params_for_context(dc, context);
 
 	if (result == DC_OK)
-		result = dce100_validate_bandwidth(dc, context);
+		if (!dce100_validate_bandwidth(dc, context))
+			result = DC_FAIL_BANDWIDTH_VALIDATE;
 
 	return result;
 }
@@ -873,7 +874,8 @@ enum dc_status dce100_validate_guaranteed(
 	}
 
 	if (result == DC_OK)
-		result = dce100_validate_bandwidth(dc, context);
+		if (!dce100_validate_bandwidth(dc, context))
+			result = DC_FAIL_BANDWIDTH_VALIDATE;
 
 	return result;
 }

@@ -207,11 +207,7 @@ struct resource_funcs {
 					const struct dc_stream *stream,
 					struct validate_context *context);
 
-	enum dc_status (*validate_bandwidth)(
-					const struct core_dc *dc,
-					struct validate_context *context);
-
-	struct validate_context *(*apply_clk_constraints)(
+	bool (*validate_bandwidth)(
 					const struct core_dc *dc,
 					struct validate_context *context);
 

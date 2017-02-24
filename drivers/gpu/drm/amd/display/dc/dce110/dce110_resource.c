@@ -912,30 +912,28 @@ static enum dc_status validate_mapped_resource(
 	return DC_OK;
 }
 
-enum dc_status dce110_validate_bandwidth(
+bool dce110_validate_bandwidth(
 	const struct core_dc *dc,
 	struct validate_context *context)
 {
-	enum dc_status result = DC_ERROR_UNEXPECTED;
+	bool result = false;
 
 	dm_logger_write(
 		dc->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"%s: start",
 		__func__);
 
-	if (!bw_calcs(
+	if (bw_calcs(
 			dc->ctx,
 			&dc->bw_dceip,
 			&dc->bw_vbios,
 			context->res_ctx.pipe_ctx,
 			context->res_ctx.pool->pipe_count,
 			&context->bw_results))
-		result =  DC_FAIL_BANDWIDTH_VALIDATE;
-	else
-		result =  DC_OK;
+		result =  true;
 	context->dispclk_khz = context->bw_results.dispclk_khz;
 
-	if (result == DC_FAIL_BANDWIDTH_VALIDATE)
+	if (!result)
 		dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_VALIDATION,
 			"%s: %dx%d@%d Bandwidth validation failed!\n",
 			__func__,
@@ -1073,7 +1071,8 @@ enum dc_status dce110_validate_with_context(
 		result = resource_build_scaling_params_for_context(dc, context);
 
 	if (result == DC_OK)
-		result = dce110_validate_bandwidth(dc, context);
+		if (!dce110_validate_bandwidth(dc, context))
+			result = DC_FAIL_BANDWIDTH_VALIDATE;
 
 	return result;
 }
@@ -1106,7 +1105,8 @@ enum dc_status dce110_validate_guaranteed(
 	}
 
 	if (result == DC_OK)
-		result = dce110_validate_bandwidth(dc, context);
+		if (!dce110_validate_bandwidth(dc, context))
+			result = DC_FAIL_BANDWIDTH_VALIDATE;
 
 	return result;
 }

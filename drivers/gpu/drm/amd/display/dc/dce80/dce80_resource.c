@@ -780,7 +780,7 @@ static enum dc_status validate_mapped_resource(
 	return DC_OK;
 }
 
-enum dc_status dce80_validate_bandwidth(
+bool dce80_validate_bandwidth(
 	const struct core_dc *dc,
 	struct validate_context *context)
 {
@@ -788,7 +788,7 @@ enum dc_status dce80_validate_bandwidth(
 	context->dispclk_khz = 681000;
 	context->bw_results.required_yclk = 250000 * MEMORY_TYPE_MULTIPLIER;
 
-	return DC_OK;
+	return true;
 }
 
 static bool dce80_validate_surface_sets(
