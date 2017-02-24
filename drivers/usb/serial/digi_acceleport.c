@@ -1492,7 +1492,7 @@ static int digi_read_oob_callback(struct urb *urb)
 		return -1;
 
 	/* handle each oob command */
-	for (i = 0; i < urb->actual_length - 4; i += 4) {
+	for (i = 0; i < urb->actual_length - 3; i += 4) {
 		opcode = buf[i];
 		line = buf[i + 1];
 		status = buf[i + 2];
