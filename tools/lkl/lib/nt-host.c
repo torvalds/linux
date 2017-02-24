@@ -288,88 +288,6 @@ struct lkl_host_operations lkl_host_ops = {
 	.jmp_buf_longjmp = jmp_buf_longjmp,
 };
 
-#ifdef PEX86_64
-
-static int fd_get_capacity(struct lkl_disk disk, unsigned long long *res)
-{
-	off_t off;
-
-	off = lseek(disk.fd, 0, SEEK_END);
-	if (off < 0)
-		return -1;
-
-	*res = off;
-	return 0;
-}
-
-static int do_rw(ssize_t (*fn)(), struct lkl_disk disk, struct lkl_blk_req *req)
-{
-	off_t off = req->sector * 512;
-	void *addr;
-	int len;
-	int i;
-	int ret = 0;
-
-	for (i = 0; i < req->count; i++) {
-
-		addr = req->buf[i].iov_base;
-		len = req->buf[i].iov_len;
-
-		do {
-			ret = fn(disk.fd, addr, len, off);
-
-			if (ret <= 0) {
-				ret = -1;
-				goto out;
-			}
-
-			addr += ret;
-			len -= ret;
-			off += ret;
-
-		} while (len);
-	}
-
-out:
-	return ret;
-}
-
-static int blk_request(struct lkl_disk disk, struct lkl_blk_req *req)
-{
-	int err = 0;
-
-	switch (req->type) {
-	case LKL_DEV_BLK_TYPE_READ:
-		err = do_rw(pread, disk, req);
-		break;
-	case LKL_DEV_BLK_TYPE_WRITE:
-		err = do_rw(pwrite, disk, req);
-		break;
-	case LKL_DEV_BLK_TYPE_FLUSH:
-	case LKL_DEV_BLK_TYPE_FLUSH_OUT:
-#ifdef __linux__
-		err = fdatasync(disk.fd);
-#else
-		err = fsync(disk.fd);
-#endif
-		break;
-	default:
-		return LKL_DEV_BLK_STATUS_UNSUP;
-	}
-
-	if (err < 0)
-		return LKL_DEV_BLK_STATUS_IOERR;
-
-	return LKL_DEV_BLK_STATUS_OK;
-}
-
-struct lkl_dev_blk_ops lkl_dev_blk_ops = {
-	.get_capacity = fd_get_capacity,
-	.request = blk_request,
-};
-
-#else
-
 int handle_get_capacity(struct lkl_disk disk, unsigned long long *res)
 {
 	LARGE_INTEGER tmp;
@@ -445,7 +363,6 @@ struct lkl_dev_blk_ops lkl_dev_blk_ops = {
 	.get_capacity = handle_get_capacity,
 	.request = blk_request,
 };
-#endif //
 
 /* Needed to resolve linker error on Win32. We don't really support
  * any network IO on Windows, anyway, so there's no loss here. */

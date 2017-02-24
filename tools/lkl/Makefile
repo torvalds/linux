@@ -75,7 +75,7 @@ else ifneq (,$(filter $(OUTPUT_FORMAT),pe-i386 pe-x86-64 ))
   export CONFIG_AUTO_LKL_NT_HOST=y
   CFLAGS += -DCONFIG_AUTO_LKL_NT_HOST
   ifneq (,$(filter $(OUTPUT_FORMAT),pe-x86-64))
-      CFLAGS += -DPEX86_64 -Wl,--enable-auto-image-base -Wl,--image-base -Wl,0x10000000 -Wl,--out-implib=$(OUTPUT)liblkl.dll.a -Wl,--export-all-symbols -Wl,--enable-auto-import
+      CFLAGS += -Wl,--enable-auto-image-base -Wl,--image-base -Wl,0x10000000 -Wl,--out-implib=$(OUTPUT)liblkl.dll.a -Wl,--export-all-symbols -Wl,--enable-auto-import
 	  LDFLAGS +=-Wl,--image-base -Wl,0x10000000 -Wl,--enable-auto-image-base -Wl,--out-implib=$(OUTPUT)liblkl.dll.a -Wl,--export-all-symbols -Wl,--enable-auto-import
   endif
 else
@@ -90,7 +90,7 @@ endif
 export OUTPUT
 
 ifneq (,$(filter $(OUTPUT_FORMAT),pe-i386 pe-x86-64 ))
-ALL_PROGRAMS := $(OUTPUT)cptofs$(EXESUF) $(OUTPUT)cpfromfs$(EXESUF) $(OUTPUT)fs2tar$(EXESUF)
+ALL_PROGRAMS := 
 ALL_LIBRARIES := $(OUTPUT)liblkl.a $(OUTPUT)liblkl$(SOSUF)
 else
 ALL_PROGRAMS := $(OUTPUT)lklfuse$(EXESUF) $(OUTPUT)cptofs$(EXESUF) $(OUTPUT)cpfromfs$(EXESUF) $(OUTPUT)fs2tar$(EXESUF)
@@ -118,7 +118,7 @@ ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64-freebsd pe-x86-64))
 endif
 
 $(OUTPUT)cptofs$(EXESUF): $(OUTPUT)cptofs-in.o $(OUTPUT)liblkl.a
-ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64-freebsd pe-x86-64))
+ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64-freebsd))
   $(OUTPUT)cptofs$(EXESUF): LDLIBS += -largp
 endif
 
@@ -171,9 +171,6 @@ clean:
 	$(call QUIET_CLEAN, "host libraries")$(RM) $(OUTPUT)/liblkl.a liblkl$(SOSUF)
 	$(call QUIET_CLEAN, "hijack library")$(RM) $(OUTPUT)/liblkl-hijack$(SOSUF)
 	$(call QUIET_CLEAN, programs)$(RM) $(ALL_PROGRAMS)
-ifneq (,$(filter $(OUTPUT_FORMAT),pe-i386 pe-x86-64 ))
-	$(call QUIET_CLEAN, programs)$(RM) $(ALL_LIBRARIES)
-endif
 	$(call QUIET_CLEAN, tests)$(RM) tests/boot tests/net-test
 
 $(TEST_TARGETS):
