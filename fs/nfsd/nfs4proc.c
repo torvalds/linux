@@ -2537,12 +2537,13 @@ static struct svc_procedure		nfsd_procedures4[2] = {
 };
 
 struct svc_version	nfsd_version4 = {
-		.vs_vers	= 4,
-		.vs_nproc	= 2,
-		.vs_proc	= nfsd_procedures4,
-		.vs_dispatch	= nfsd_dispatch,
-		.vs_xdrsize	= NFS4_SVC_XDRSIZE,
-		.vs_rpcb_optnl	= true,
+	.vs_vers		= 4,
+	.vs_nproc		= 2,
+	.vs_proc		= nfsd_procedures4,
+	.vs_dispatch		= nfsd_dispatch,
+	.vs_xdrsize		= NFS4_SVC_XDRSIZE,
+	.vs_rpcb_optnl		= true,
+	.vs_need_cong_ctrl	= true,
 };
 
 /*

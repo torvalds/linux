@@ -406,6 +406,9 @@ struct svc_version {
 	/* Don't care if the rpcbind registration fails */
 	bool			vs_rpcb_optnl;
 
+	/* Need xprt with congestion control */
+	bool			vs_need_cong_ctrl;
+
 	/* Override dispatch function (e.g. when caching replies).
 	 * A return value of 0 means drop the request. 
 	 * vs_dispatch == NULL means use default dispatcher.
