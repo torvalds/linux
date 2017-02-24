@@ -42,28 +42,6 @@
 
 #define NVME_RDMA_MAX_INLINE_SEGMENTS	1
 
-static const char *const nvme_rdma_cm_status_strs[] = {
-	[NVME_RDMA_CM_INVALID_LEN]	= "invalid length",
-	[NVME_RDMA_CM_INVALID_RECFMT]	= "invalid record format",
-	[NVME_RDMA_CM_INVALID_QID]	= "invalid queue ID",
-	[NVME_RDMA_CM_INVALID_HSQSIZE]	= "invalid host SQ size",
-	[NVME_RDMA_CM_INVALID_HRQSIZE]	= "invalid host RQ size",
-	[NVME_RDMA_CM_NO_RSC]		= "resource not found",
-	[NVME_RDMA_CM_INVALID_IRD]	= "invalid IRD",
-	[NVME_RDMA_CM_INVALID_ORD]	= "Invalid ORD",
-};
-
-static const char *nvme_rdma_cm_msg(enum nvme_rdma_cm_status status)
-{
-	size_t index = status;
-
-	if (index < ARRAY_SIZE(nvme_rdma_cm_status_strs) &&
-	    nvme_rdma_cm_status_strs[index])
-		return nvme_rdma_cm_status_strs[index];
-	else
-		return "unrecognized reason";
-};
-
 /*
  * We handle AEN commands ourselves and don't even let the
  * block layer know about them.
@@ -154,6 +132,10 @@ struct nvme_rdma_ctrl {
 	union {
 		struct sockaddr addr;
 		struct sockaddr_in addr_in;
+	};
+	union {
+		struct sockaddr src_addr;
+		struct sockaddr_in src_addr_in;
 	};
 
 	struct nvme_ctrl	ctrl;
@@ -567,6 +549,7 @@ static int nvme_rdma_init_queue(struct nvme_rdma_ctrl *ctrl,
 		int idx, size_t queue_size)
 {
 	struct nvme_rdma_queue *queue;
+	struct sockaddr *src_addr = NULL;
 	int ret;
 
 	queue = &ctrl->queues[idx];
@@ -589,7 +572,10 @@ static int nvme_rdma_init_queue(struct nvme_rdma_ctrl *ctrl,
 	}
 
 	queue->cm_error = -ETIMEDOUT;
-	ret = rdma_resolve_addr(queue->cm_id, NULL, &ctrl->addr,
+	if (ctrl->ctrl.opts->mask & NVMF_OPT_HOST_TRADDR)
+		src_addr = &ctrl->src_addr;
+
+	ret = rdma_resolve_addr(queue->cm_id, src_addr, &ctrl->addr,
 			NVME_RDMA_CONNECT_TIMEOUT_MS);
 	if (ret) {
 		dev_info(ctrl->ctrl.device,
@@ -1905,6 +1891,16 @@ static struct nvme_ctrl *nvme_rdma_create_ctrl(struct device *dev,
 		goto out_free_ctrl;
 	}
 
+	if (opts->mask & NVMF_OPT_HOST_TRADDR) {
+		ret = nvme_rdma_parse_ipaddr(&ctrl->src_addr_in,
+				opts->host_traddr);
+		if (ret) {
+			pr_err("malformed src IP address passed: %s\n",
+			       opts->host_traddr);
+			goto out_free_ctrl;
+		}
+	}
+
 	if (opts->mask & NVMF_OPT_TRSVCID) {
 		u16 port;
 
@@ -2016,7 +2012,8 @@ out_free_ctrl:
 static struct nvmf_transport_ops nvme_rdma_transport = {
 	.name		= "rdma",
 	.required_opts	= NVMF_OPT_TRADDR,
-	.allowed_opts	= NVMF_OPT_TRSVCID | NVMF_OPT_RECONNECT_DELAY,
+	.allowed_opts	= NVMF_OPT_TRSVCID | NVMF_OPT_RECONNECT_DELAY |
+			  NVMF_OPT_HOST_TRADDR,
 	.create_ctrl	= nvme_rdma_create_ctrl,
 };
 
@@ -2063,8 +2060,7 @@ static int __init nvme_rdma_init_module(void)
 		return ret;
 	}
 
-	nvmf_register_transport(&nvme_rdma_transport);
-	return 0;
+	return nvmf_register_transport(&nvme_rdma_transport);
 }
 
 static void __exit nvme_rdma_cleanup_module(void)

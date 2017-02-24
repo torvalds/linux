@@ -78,6 +78,11 @@ enum nvme_quirks {
 	 * readiness, which is done by reading the NVME_CSTS_RDY bit.
 	 */
 	NVME_QUIRK_DELAY_BEFORE_CHK_RDY		= (1 << 3),
+
+	/*
+	 * APST should not be used.
+	 */
+	NVME_QUIRK_NO_APST			= (1 << 4),
 };
 
 /*
@@ -112,6 +117,7 @@ enum nvme_ctrl_state {
 
 struct nvme_ctrl {
 	enum nvme_ctrl_state state;
+	bool identified;
 	spinlock_t lock;
 	const struct nvme_ctrl_ops *ops;
 	struct request_queue *admin_q;
@@ -147,12 +153,18 @@ struct nvme_ctrl {
 	u32 vs;
 	u32 sgls;
 	u16 kas;
+	u8 npss;
+	u8 apsta;
 	unsigned int kato;
 	bool subsystem;
 	unsigned long quirks;
+	struct nvme_id_power_state psd[32];
 	struct work_struct scan_work;
 	struct work_struct async_event_work;
 	struct delayed_work ka_work;
+
+	/* Power saving configuration */
+	u64 ps_max_latency_us;
 
 	/* Fabrics only */
 	u16 sqsize;

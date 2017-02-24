@@ -904,6 +904,44 @@ static bool reorder_tags_to_front(struct list_head *list)
 	return first != NULL;
 }
 
+static int blk_mq_dispatch_wake(wait_queue_t *wait, unsigned mode, int flags,
+				void *key)
+{
+	struct blk_mq_hw_ctx *hctx;
+
+	hctx = container_of(wait, struct blk_mq_hw_ctx, dispatch_wait);
+
+	list_del(&wait->task_list);
+	clear_bit_unlock(BLK_MQ_S_TAG_WAITING, &hctx->state);
+	blk_mq_run_hw_queue(hctx, true);
+	return 1;
+}
+
+static bool blk_mq_dispatch_wait_add(struct blk_mq_hw_ctx *hctx)
+{
+	struct sbq_wait_state *ws;
+
+	/*
+	 * The TAG_WAITING bit serves as a lock protecting hctx->dispatch_wait.
+	 * The thread which wins the race to grab this bit adds the hardware
+	 * queue to the wait queue.
+	 */
+	if (test_bit(BLK_MQ_S_TAG_WAITING, &hctx->state) ||
+	    test_and_set_bit_lock(BLK_MQ_S_TAG_WAITING, &hctx->state))
+		return false;
+
+	init_waitqueue_func_entry(&hctx->dispatch_wait, blk_mq_dispatch_wake);
+	ws = bt_wait_ptr(&hctx->tags->bitmap_tags, hctx);
+
+	/*
+	 * As soon as this returns, it's no longer safe to fiddle with
+	 * hctx->dispatch_wait, since a completion can wake up the wait queue
+	 * and unlock the bit.
+	 */
+	add_wait_queue(&ws->wait, &hctx->dispatch_wait);
+	return true;
+}
+
 bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list)
 {
 	struct request_queue *q = hctx->queue;
@@ -931,15 +969,22 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list)
 				continue;
 
 			/*
-			 * We failed getting a driver tag. Mark the queue(s)
-			 * as needing a restart. Retry getting a tag again,
-			 * in case the needed IO completed right before we
-			 * marked the queue as needing a restart.
+			 * The initial allocation attempt failed, so we need to
+			 * rerun the hardware queue when a tag is freed.
 			 */
-			blk_mq_sched_mark_restart(hctx);
-			if (!blk_mq_get_driver_tag(rq, &hctx, false))
+			if (blk_mq_dispatch_wait_add(hctx)) {
+				/*
+				 * It's possible that a tag was freed in the
+				 * window between the allocation failure and
+				 * adding the hardware queue to the wait queue.
+				 */
+				if (!blk_mq_get_driver_tag(rq, &hctx, false))
+					break;
+			} else {
 				break;
+			}
 		}
+
 		list_del_init(&rq->queuelist);
 
 		bd.rq = rq;
@@ -995,10 +1040,11 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list)
 		 *
 		 * blk_mq_run_hw_queue() already checks the STOPPED bit
 		 *
-		 * If RESTART is set, then let completion restart the queue
-		 * instead of potentially looping here.
+		 * If RESTART or TAG_WAITING is set, then let completion restart
+		 * the queue instead of potentially looping here.
 		 */
-		if (!blk_mq_sched_needs_restart(hctx))
+		if (!blk_mq_sched_needs_restart(hctx) &&
+		    !test_bit(BLK_MQ_S_TAG_WAITING, &hctx->state))
 			blk_mq_run_hw_queue(hctx, true);
 	}
 
