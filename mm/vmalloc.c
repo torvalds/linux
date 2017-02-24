@@ -2659,7 +2659,7 @@ static int s_show(struct seq_file *m, void *p)
 		seq_printf(m, " pages=%d", v->nr_pages);
 
 	if (v->phys_addr)
-		seq_printf(m, " phys=%llx", (unsigned long long)v->phys_addr);
+		seq_printf(m, " phys=%pa", &v->phys_addr);
 
 	if (v->flags & VM_IOREMAP)
 		seq_puts(m, " ioremap");
