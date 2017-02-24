@@ -90,7 +90,7 @@ endif
 export OUTPUT
 
 ifneq (,$(filter $(OUTPUT_FORMAT),pe-i386 pe-x86-64 ))
-ALL_PROGRAMS := 
+ALL_PROGRAMS :=
 ALL_LIBRARIES := $(OUTPUT)liblkl.a $(OUTPUT)liblkl$(SOSUF)
 else
 ALL_PROGRAMS := $(OUTPUT)lklfuse$(EXESUF) $(OUTPUT)cptofs$(EXESUF) $(OUTPUT)cpfromfs$(EXESUF) $(OUTPUT)fs2tar$(EXESUF)
