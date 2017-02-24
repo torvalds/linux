@@ -974,6 +974,7 @@ static int leave(struct mddev *mddev)
 	lockres_free(cinfo->bitmap_lockres);
 	unlock_all_bitmaps(mddev);
 	dlm_release_lockspace(cinfo->lockspace, 2);
+	kfree(cinfo);
 	return 0;
 }
 
