@@ -2680,15 +2680,8 @@ EXPORT_SYMBOL(vm_munmap);
 
 SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
 {
-	int ret;
-	struct mm_struct *mm = current->mm;
-
 	profile_munmap(addr);
-	if (down_write_killable(&mm->mmap_sem))
-		return -EINTR;
-	ret = do_munmap(mm, addr, len);
-	up_write(&mm->mmap_sem);
-	return ret;
+	return vm_munmap(addr, len);
 }
 
 
