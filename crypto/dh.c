@@ -79,7 +79,8 @@ static int dh_set_params(struct dh_ctx *ctx, struct dh *params)
 	return 0;
 }
 
-static int dh_set_secret(struct crypto_kpp *tfm, void *buf, unsigned int len)
+static int dh_set_secret(struct crypto_kpp *tfm, const void *buf,
+			 unsigned int len)
 {
 	struct dh_ctx *ctx = dh_get_ctx(tfm);
 	struct dh params;
