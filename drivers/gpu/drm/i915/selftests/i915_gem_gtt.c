@@ -237,18 +237,19 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 
 			GEM_BUG_ON(addr + BIT_ULL(size) > vm->total);
 
+			if (igt_timeout(end_time,
+					"%s timed out before %d/%d\n",
+					__func__, n, count)) {
+				hole_end = hole_start; /* quit */
+				break;
+			}
+
 			if (vm->allocate_va_range &&
 			    vm->allocate_va_range(vm, addr, BIT_ULL(size)))
 				break;
 
 			vm->insert_entries(vm, obj->mm.pages, addr,
 					   I915_CACHE_NONE, 0);
-			if (igt_timeout(end_time,
-					"%s timed out after %d/%d\n",
-					__func__, n, count)) {
-				hole_end = hole_start; /* quit */
-				break;
-			}
 		}
 		count = n;
 
