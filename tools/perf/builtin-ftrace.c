@@ -195,6 +195,7 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace, int argc, const char **argv)
 	signal(SIGINT, sig_handler);
 	signal(SIGUSR1, sig_handler);
 	signal(SIGCHLD, sig_handler);
+	signal(SIGPIPE, sig_handler);
 
 	if (reset_tracing_files(ftrace) < 0)
 		goto out;
@@ -246,6 +247,8 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace, int argc, const char **argv)
 		pr_err("can't enable tracing\n");
 		goto out_close_fd;
 	}
+
+	setup_pager();
 
 	perf_evlist__start_workload(ftrace->evlist);
 
