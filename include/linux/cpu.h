@@ -232,4 +232,11 @@ static inline int cpuhp_smt_disable(enum cpuhp_smt_control ctrlval) { return 0; 
 extern bool cpu_mitigations_off(void);
 extern bool cpu_mitigations_auto_nosmt(void);
 
+#define IDLE_START 1
+#define IDLE_END 2
+
+void idle_notifier_register(struct notifier_block *n);
+void idle_notifier_unregister(struct notifier_block *n);
+void idle_notifier_call_chain(unsigned long val);
+
 #endif /* _LINUX_CPU_H_ */
