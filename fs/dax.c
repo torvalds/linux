@@ -1452,12 +1452,13 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf, struct iomap_ops *ops)
  * has done all the necessary locking for page fault to proceed
  * successfully.
  */
-int dax_iomap_fault(struct vm_fault *vmf, const struct iomap_ops *ops)
+int dax_iomap_fault(struct vm_fault *vmf, enum page_entry_size pe_size,
+		    const struct iomap_ops *ops)
 {
-	switch (vmf->flags & FAULT_FLAG_SIZE_MASK) {
-	case FAULT_FLAG_SIZE_PTE:
+	switch (pe_size) {
+	case PE_SIZE_PTE:
 		return dax_iomap_pte_fault(vmf, ops);
-	case FAULT_FLAG_SIZE_PMD:
+	case PE_SIZE_PMD:
 		return dax_iomap_pmd_fault(vmf, ops);
 	default:
 		return VM_FAULT_FALLBACK;

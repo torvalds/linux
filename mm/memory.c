@@ -3489,7 +3489,7 @@ static int create_huge_pmd(struct vm_fault *vmf)
 	if (vma_is_anonymous(vmf->vma))
 		return do_huge_pmd_anonymous_page(vmf);
 	if (vmf->vma->vm_ops->huge_fault)
-		return vmf->vma->vm_ops->huge_fault(vmf);
+		return vmf->vma->vm_ops->huge_fault(vmf, PE_SIZE_PMD);
 	return VM_FAULT_FALLBACK;
 }
 
@@ -3498,7 +3498,7 @@ static int wp_huge_pmd(struct vm_fault *vmf, pmd_t orig_pmd)
 	if (vma_is_anonymous(vmf->vma))
 		return do_huge_pmd_wp_page(vmf, orig_pmd);
 	if (vmf->vma->vm_ops->huge_fault)
-		return vmf->vma->vm_ops->huge_fault(vmf);
+		return vmf->vma->vm_ops->huge_fault(vmf, PE_SIZE_PMD);
 
 	/* COW handled on pte level: split pmd */
 	VM_BUG_ON_VMA(vmf->vma->vm_flags & VM_SHARED, vmf->vma);
@@ -3519,7 +3519,7 @@ static int create_huge_pud(struct vm_fault *vmf)
 	if (vma_is_anonymous(vmf->vma))
 		return VM_FAULT_FALLBACK;
 	if (vmf->vma->vm_ops->huge_fault)
-		return vmf->vma->vm_ops->huge_fault(vmf);
+		return vmf->vma->vm_ops->huge_fault(vmf, PE_SIZE_PUD);
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 	return VM_FAULT_FALLBACK;
 }
@@ -3531,7 +3531,7 @@ static int wp_huge_pud(struct vm_fault *vmf, pud_t orig_pud)
 	if (vma_is_anonymous(vmf->vma))
 		return VM_FAULT_FALLBACK;
 	if (vmf->vma->vm_ops->huge_fault)
-		return vmf->vma->vm_ops->huge_fault(vmf);
+		return vmf->vma->vm_ops->huge_fault(vmf, PE_SIZE_PUD);
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 	return VM_FAULT_FALLBACK;
 }
@@ -3659,7 +3659,6 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 	if (!vmf.pud)
 		return VM_FAULT_OOM;
 	if (pud_none(*vmf.pud) && transparent_hugepage_enabled(vma)) {
-		vmf.flags |= FAULT_FLAG_SIZE_PUD;
 		ret = create_huge_pud(&vmf);
 		if (!(ret & VM_FAULT_FALLBACK))
 			return ret;
@@ -3669,8 +3668,6 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 		barrier();
 		if (pud_trans_huge(orig_pud) || pud_devmap(orig_pud)) {
 			unsigned int dirty = flags & FAULT_FLAG_WRITE;
-
-			vmf.flags |= FAULT_FLAG_SIZE_PUD;
 
 			/* NUMA case for anonymous PUDs would go here */
 
@@ -3689,18 +3686,14 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 	if (!vmf.pmd)
 		return VM_FAULT_OOM;
 	if (pmd_none(*vmf.pmd) && transparent_hugepage_enabled(vma)) {
-		vmf.flags |= FAULT_FLAG_SIZE_PMD;
 		ret = create_huge_pmd(&vmf);
 		if (!(ret & VM_FAULT_FALLBACK))
 			return ret;
-		/* fall through path, remove PMD flag */
-		vmf.flags &= ~FAULT_FLAG_SIZE_PMD;
 	} else {
 		pmd_t orig_pmd = *vmf.pmd;
 
 		barrier();
 		if (pmd_trans_huge(orig_pmd) || pmd_devmap(orig_pmd)) {
-			vmf.flags |= FAULT_FLAG_SIZE_PMD;
 			if (pmd_protnone(orig_pmd) && vma_is_accessible(vma))
 				return do_huge_pmd_numa_page(&vmf, orig_pmd);
 
@@ -3709,8 +3702,6 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 				ret = wp_huge_pmd(&vmf, orig_pmd);
 				if (!(ret & VM_FAULT_FALLBACK))
 					return ret;
-				/* fall through path, remove PUD flag */
-				vmf.flags &= ~FAULT_FLAG_SIZE_PUD;
 			} else {
 				huge_pmd_set_accessed(&vmf, orig_pmd);
 				return 0;
