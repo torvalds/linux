@@ -864,7 +864,6 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(__remove_pages);
 #endif /* CONFIG_MEMORY_HOTREMOVE */
 
 int set_online_page_callback(online_page_callback_t callback)
