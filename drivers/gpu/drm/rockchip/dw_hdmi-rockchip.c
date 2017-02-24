@@ -308,7 +308,9 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 
 	if (WARN_ON(!crtc || !crtc->state))
 		return;
-	clk_set_rate(hdmi->vpll_clk, crtc->state->adjusted_mode.clock * 1000);
+
+	clk_set_rate(hdmi->vpll_clk,
+		     crtc->state->adjusted_mode.crtc_clock * 1000);
 
 	if (hdmi->chip_data->lcdsel_grf_reg < 0)
 		return;
