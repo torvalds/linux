@@ -20,6 +20,7 @@
 
 #include <linux/firmware.h>
 #include <linux/slab.h>
+#include <linux/suspend.h>
 
 #include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/sdio_func.h>
@@ -60,13 +61,17 @@ static const struct of_device_id btmrvl_sdio_of_match_table[] = {
 
 static irqreturn_t btmrvl_wake_irq_bt(int irq, void *priv)
 {
-	struct btmrvl_plt_wake_cfg *cfg = priv;
+	struct btmrvl_sdio_card *card = priv;
+	struct btmrvl_plt_wake_cfg *cfg = card->plt_wake_cfg;
 
 	if (cfg->irq_bt >= 0) {
 		pr_info("%s: wake by bt", __func__);
 		cfg->wake_by_bt = true;
 		disable_irq_nosync(irq);
 	}
+
+	pm_wakeup_event(&card->func->dev, 0);
+	pm_system_wakeup();
 
 	return IRQ_HANDLED;
 }
@@ -101,7 +106,7 @@ static int btmrvl_sdio_probe_of(struct device *dev,
 		} else {
 			ret = devm_request_irq(dev, cfg->irq_bt,
 					       btmrvl_wake_irq_bt,
-					       0, "bt_wake", cfg);
+					       0, "bt_wake", card);
 			if (ret) {
 				dev_err(dev,
 					"Failed to request irq_bt %d (%d)\n",
