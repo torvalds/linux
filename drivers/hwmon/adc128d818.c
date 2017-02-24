@@ -546,10 +546,17 @@ static const struct i2c_device_id adc128_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, adc128_id);
 
+static const struct of_device_id adc128_of_match[] = {
+	{ .compatible = "ti,adc128d818" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, adc128_of_match);
+
 static struct i2c_driver adc128_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "adc128d818",
+		.of_match_table = of_match_ptr(adc128_of_match),
 	},
 	.probe		= adc128_probe,
 	.remove		= adc128_remove,
