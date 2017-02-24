@@ -93,6 +93,16 @@ intel_display_power_domain_str(enum intel_display_power_domain domain)
 		return "PORT_DDI_D_LANES";
 	case POWER_DOMAIN_PORT_DDI_E_LANES:
 		return "PORT_DDI_E_LANES";
+	case POWER_DOMAIN_PORT_DDI_A_IO:
+		return "PORT_DDI_A_IO";
+	case POWER_DOMAIN_PORT_DDI_B_IO:
+		return "PORT_DDI_B_IO";
+	case POWER_DOMAIN_PORT_DDI_C_IO:
+		return "PORT_DDI_C_IO";
+	case POWER_DOMAIN_PORT_DDI_D_IO:
+		return "PORT_DDI_D_IO";
+	case POWER_DOMAIN_PORT_DDI_E_IO:
+		return "PORT_DDI_E_IO";
 	case POWER_DOMAIN_PORT_DSI:
 		return "PORT_DSI";
 	case POWER_DOMAIN_PORT_CRT:
@@ -385,18 +395,18 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 	BIT_ULL(POWER_DOMAIN_AUDIO) |			\
 	BIT_ULL(POWER_DOMAIN_VGA) |				\
 	BIT_ULL(POWER_DOMAIN_INIT))
-#define SKL_DISPLAY_DDI_A_E_POWER_DOMAINS (		\
-	BIT_ULL(POWER_DOMAIN_PORT_DDI_A_LANES) |		\
-	BIT_ULL(POWER_DOMAIN_PORT_DDI_E_LANES) |		\
+#define SKL_DISPLAY_DDI_IO_A_E_POWER_DOMAINS (		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_A_IO) |		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_E_IO) |		\
 	BIT_ULL(POWER_DOMAIN_INIT))
-#define SKL_DISPLAY_DDI_B_POWER_DOMAINS (		\
-	BIT_ULL(POWER_DOMAIN_PORT_DDI_B_LANES) |		\
+#define SKL_DISPLAY_DDI_IO_B_POWER_DOMAINS (		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_B_IO) |		\
 	BIT_ULL(POWER_DOMAIN_INIT))
-#define SKL_DISPLAY_DDI_C_POWER_DOMAINS (		\
-	BIT_ULL(POWER_DOMAIN_PORT_DDI_C_LANES) |		\
+#define SKL_DISPLAY_DDI_IO_C_POWER_DOMAINS (		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_C_IO) |		\
 	BIT_ULL(POWER_DOMAIN_INIT))
-#define SKL_DISPLAY_DDI_D_POWER_DOMAINS (		\
-	BIT_ULL(POWER_DOMAIN_PORT_DDI_D_LANES) |		\
+#define SKL_DISPLAY_DDI_IO_D_POWER_DOMAINS (		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_D_IO) |		\
 	BIT_ULL(POWER_DOMAIN_INIT))
 #define SKL_DISPLAY_DC_OFF_POWER_DOMAINS (		\
 	SKL_DISPLAY_POWERWELL_2_POWER_DOMAINS |		\
@@ -451,12 +461,12 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 	BIT_ULL(POWER_DOMAIN_AUDIO) |			\
 	BIT_ULL(POWER_DOMAIN_VGA) |				\
 	BIT_ULL(POWER_DOMAIN_INIT))
-#define GLK_DISPLAY_DDI_A_POWER_DOMAINS (		\
-	BIT_ULL(POWER_DOMAIN_PORT_DDI_A_LANES))
-#define GLK_DISPLAY_DDI_B_POWER_DOMAINS (		\
-	BIT_ULL(POWER_DOMAIN_PORT_DDI_B_LANES))
-#define GLK_DISPLAY_DDI_C_POWER_DOMAINS (		\
-	BIT_ULL(POWER_DOMAIN_PORT_DDI_C_LANES))
+#define GLK_DISPLAY_DDI_IO_A_POWER_DOMAINS (		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_A_IO))
+#define GLK_DISPLAY_DDI_IO_B_POWER_DOMAINS (		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_B_IO))
+#define GLK_DISPLAY_DDI_IO_C_POWER_DOMAINS (		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_C_IO))
 #define GLK_DPIO_CMN_A_POWER_DOMAINS (			\
 	BIT_ULL(POWER_DOMAIN_PORT_DDI_A_LANES) |		\
 	BIT_ULL(POWER_DOMAIN_AUX_A) |			\
@@ -2114,26 +2124,26 @@ static struct i915_power_well skl_power_wells[] = {
 		.id = SKL_DISP_PW_2,
 	},
 	{
-		.name = "DDI A/E power well",
-		.domains = SKL_DISPLAY_DDI_A_E_POWER_DOMAINS,
+		.name = "DDI A/E IO power well",
+		.domains = SKL_DISPLAY_DDI_IO_A_E_POWER_DOMAINS,
 		.ops = &skl_power_well_ops,
 		.id = SKL_DISP_PW_DDI_A_E,
 	},
 	{
-		.name = "DDI B power well",
-		.domains = SKL_DISPLAY_DDI_B_POWER_DOMAINS,
+		.name = "DDI B IO power well",
+		.domains = SKL_DISPLAY_DDI_IO_B_POWER_DOMAINS,
 		.ops = &skl_power_well_ops,
 		.id = SKL_DISP_PW_DDI_B,
 	},
 	{
-		.name = "DDI C power well",
-		.domains = SKL_DISPLAY_DDI_C_POWER_DOMAINS,
+		.name = "DDI C IO power well",
+		.domains = SKL_DISPLAY_DDI_IO_C_POWER_DOMAINS,
 		.ops = &skl_power_well_ops,
 		.id = SKL_DISP_PW_DDI_C,
 	},
 	{
-		.name = "DDI D power well",
-		.domains = SKL_DISPLAY_DDI_D_POWER_DOMAINS,
+		.name = "DDI D IO power well",
+		.domains = SKL_DISPLAY_DDI_IO_D_POWER_DOMAINS,
 		.ops = &skl_power_well_ops,
 		.id = SKL_DISP_PW_DDI_D,
 	},
@@ -2246,20 +2256,20 @@ static struct i915_power_well glk_power_wells[] = {
 		.id = GLK_DISP_PW_AUX_C,
 	},
 	{
-		.name = "DDI A power well",
-		.domains = GLK_DISPLAY_DDI_A_POWER_DOMAINS,
+		.name = "DDI A IO power well",
+		.domains = GLK_DISPLAY_DDI_IO_A_POWER_DOMAINS,
 		.ops = &skl_power_well_ops,
 		.id = GLK_DISP_PW_DDI_A,
 	},
 	{
-		.name = "DDI B power well",
-		.domains = GLK_DISPLAY_DDI_B_POWER_DOMAINS,
+		.name = "DDI B IO power well",
+		.domains = GLK_DISPLAY_DDI_IO_B_POWER_DOMAINS,
 		.ops = &skl_power_well_ops,
 		.id = SKL_DISP_PW_DDI_B,
 	},
 	{
-		.name = "DDI C power well",
-		.domains = GLK_DISPLAY_DDI_C_POWER_DOMAINS,
+		.name = "DDI C IO power well",
+		.domains = GLK_DISPLAY_DDI_IO_C_POWER_DOMAINS,
 		.ops = &skl_power_well_ops,
 		.id = SKL_DISP_PW_DDI_C,
 	},

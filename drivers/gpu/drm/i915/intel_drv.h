@@ -241,6 +241,9 @@ struct intel_encoder {
 	 * be set correctly before calling this function. */
 	void (*get_config)(struct intel_encoder *,
 			   struct intel_crtc_state *pipe_config);
+	/* Returns a mask of power domains that need to be referenced as part
+	 * of the hardware state readout code. */
+	u64 (*get_power_domains)(struct intel_encoder *encoder);
 	/*
 	 * Called during system suspend after all pending requests for the
 	 * encoder are flushed (for example for DP AUX transactions) and
@@ -1027,6 +1030,7 @@ struct intel_digital_port {
 	enum irqreturn (*hpd_pulse)(struct intel_digital_port *, bool);
 	bool release_cl2_override;
 	uint8_t max_lanes;
+	enum intel_display_power_domain ddi_io_power_domain;
 };
 
 struct intel_dp_mst_encoder {

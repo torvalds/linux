@@ -15412,6 +15412,24 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 	}
 }
 
+static void
+get_encoder_power_domains(struct drm_i915_private *dev_priv)
+{
+	struct intel_encoder *encoder;
+
+	for_each_intel_encoder(&dev_priv->drm, encoder) {
+		u64 get_domains;
+		enum intel_display_power_domain domain;
+
+		if (!encoder->get_power_domains)
+			continue;
+
+		get_domains = encoder->get_power_domains(encoder);
+		for_each_power_domain(domain, get_domains)
+			intel_display_power_get(dev_priv, domain);
+	}
+}
+
 /* Scan out the current hw modeset state,
  * and sanitizes it to the current state
  */
@@ -15427,6 +15445,8 @@ intel_modeset_setup_hw_state(struct drm_device *dev)
 	intel_modeset_readout_hw_state(dev);
 
 	/* HW state is read out, now we need to sanitize this mess. */
+	get_encoder_power_domains(dev_priv);
+
 	for_each_intel_encoder(dev, encoder) {
 		intel_sanitize_encoder(encoder);
 	}

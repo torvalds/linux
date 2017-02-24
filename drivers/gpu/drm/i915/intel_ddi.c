@@ -1473,6 +1473,17 @@ out:
 	return ret;
 }
 
+static u64 intel_ddi_get_power_domains(struct intel_encoder *encoder)
+{
+	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
+	enum pipe pipe;
+
+	if (intel_ddi_get_hw_state(encoder, &pipe))
+		return BIT_ULL(dig_port->ddi_io_power_domain);
+
+	return 0;
+}
+
 void intel_ddi_enable_pipe_clock(struct intel_crtc *intel_crtc)
 {
 	struct drm_crtc *crtc = &intel_crtc->base;
@@ -1703,6 +1714,7 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = intel_ddi_get_encoder_port(encoder);
+	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
 
 	intel_dp_set_link_params(intel_dp, link_rate, lane_count,
 				 link_mst);
@@ -1710,6 +1722,9 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 		intel_edp_panel_on(intel_dp);
 
 	intel_ddi_clk_select(encoder, pll);
+
+	intel_display_power_get(dev_priv, dig_port->ddi_io_power_domain);
+
 	intel_prepare_dp_ddi_buffers(encoder);
 	intel_ddi_init_dp_buf_reg(encoder);
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
@@ -1729,9 +1744,13 @@ static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
 	struct drm_encoder *drm_encoder = &encoder->base;
 	enum port port = intel_ddi_get_encoder_port(encoder);
 	int level = intel_ddi_hdmi_level(dev_priv, port);
+	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
 
 	intel_dp_dual_mode_set_tmds_output(intel_hdmi, true);
 	intel_ddi_clk_select(encoder, pll);
+
+	intel_display_power_get(dev_priv, dig_port->ddi_io_power_domain);
+
 	intel_prepare_hdmi_ddi_buffers(encoder);
 	if (IS_GEN9_BC(dev_priv))
 		skl_ddi_set_iboost(encoder, level);
@@ -1775,6 +1794,7 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder,
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_i915_private *dev_priv = to_i915(encoder->dev);
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	int type = intel_encoder->type;
 	uint32_t val;
 	bool wait = false;
@@ -1802,6 +1822,9 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder,
 		intel_edp_panel_vdd_on(intel_dp);
 		intel_edp_panel_off(intel_dp);
 	}
+
+	if (dig_port)
+		intel_display_power_put(dev_priv, dig_port->ddi_io_power_domain);
 
 	if (IS_GEN9_BC(dev_priv))
 		I915_WRITE(DPLL_CTRL2, (I915_READ(DPLL_CTRL2) |
@@ -2211,11 +2234,37 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	intel_encoder->get_hw_state = intel_ddi_get_hw_state;
 	intel_encoder->get_config = intel_ddi_get_config;
 	intel_encoder->suspend = intel_dp_encoder_suspend;
+	intel_encoder->get_power_domains = intel_ddi_get_power_domains;
 
 	intel_dig_port->port = port;
 	intel_dig_port->saved_port_bits = I915_READ(DDI_BUF_CTL(port)) &
 					  (DDI_BUF_PORT_REVERSAL |
 					   DDI_A_4_LANES);
+
+	switch (port) {
+	case PORT_A:
+		intel_dig_port->ddi_io_power_domain =
+			POWER_DOMAIN_PORT_DDI_A_IO;
+		break;
+	case PORT_B:
+		intel_dig_port->ddi_io_power_domain =
+			POWER_DOMAIN_PORT_DDI_B_IO;
+		break;
+	case PORT_C:
+		intel_dig_port->ddi_io_power_domain =
+			POWER_DOMAIN_PORT_DDI_C_IO;
+		break;
+	case PORT_D:
+		intel_dig_port->ddi_io_power_domain =
+			POWER_DOMAIN_PORT_DDI_D_IO;
+		break;
+	case PORT_E:
+		intel_dig_port->ddi_io_power_domain =
+			POWER_DOMAIN_PORT_DDI_E_IO;
+		break;
+	default:
+		MISSING_CASE(port);
+	}
 
 	/*
 	 * Bspec says that DDI_A_4_LANES is the only supported configuration
