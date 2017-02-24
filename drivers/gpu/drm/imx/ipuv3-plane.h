@@ -23,6 +23,8 @@ struct ipu_plane {
 
 	int			dma;
 	int			dp_flow;
+
+	bool			disabling;
 };
 
 struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
@@ -41,5 +43,8 @@ int ipu_plane_get_resources(struct ipu_plane *plane);
 void ipu_plane_put_resources(struct ipu_plane *plane);
 
 int ipu_plane_irq(struct ipu_plane *plane);
+
+void ipu_plane_disable(struct ipu_plane *ipu_plane, bool disable_dp_channel);
+void ipu_plane_disable_deferred(struct drm_plane *plane);
 
 #endif

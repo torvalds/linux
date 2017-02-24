@@ -60,6 +60,26 @@ static void ipu_crtc_enable(struct drm_crtc *crtc)
 	ipu_di_enable(ipu_crtc->di);
 }
 
+static void ipu_crtc_disable_planes(struct ipu_crtc *ipu_crtc,
+				    struct drm_crtc_state *old_crtc_state)
+{
+	bool disable_partial = false;
+	bool disable_full = false;
+	struct drm_plane *plane;
+
+	drm_atomic_crtc_state_for_each_plane(plane, old_crtc_state) {
+		if (plane == &ipu_crtc->plane[0]->base)
+			disable_full = true;
+		if (&ipu_crtc->plane[1] && plane == &ipu_crtc->plane[1]->base)
+			disable_partial = true;
+	}
+
+	if (disable_partial)
+		ipu_plane_disable(ipu_crtc->plane[1], true);
+	if (disable_full)
+		ipu_plane_disable(ipu_crtc->plane[0], false);
+}
+
 static void ipu_crtc_atomic_disable(struct drm_crtc *crtc,
 				    struct drm_crtc_state *old_crtc_state)
 {
@@ -73,7 +93,7 @@ static void ipu_crtc_atomic_disable(struct drm_crtc *crtc,
 	 * attached IDMACs will be left in undefined state, possibly hanging
 	 * the IPU or even system.
 	 */
-	drm_atomic_helper_disable_planes_on_crtc(old_crtc_state, false);
+	ipu_crtc_disable_planes(ipu_crtc, old_crtc_state);
 	ipu_dc_disable(ipu);
 
 	spin_lock_irq(&crtc->dev->event_lock);

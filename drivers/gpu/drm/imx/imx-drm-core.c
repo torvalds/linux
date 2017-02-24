@@ -30,6 +30,7 @@
 #include <video/imx-ipu-v3.h>
 
 #include "imx-drm.h"
+#include "ipuv3-plane.h"
 
 #define MAX_CRTC	4
 
@@ -122,6 +123,10 @@ static const struct drm_mode_config_funcs imx_drm_mode_config_funcs = {
 static void imx_drm_atomic_commit_tail(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
+	struct drm_plane *plane;
+	struct drm_plane_state *old_plane_state;
+	bool plane_disabling = false;
+	int i;
 
 	drm_atomic_helper_commit_modeset_disables(dev, state);
 
@@ -130,6 +135,19 @@ static void imx_drm_atomic_commit_tail(struct drm_atomic_state *state)
 				DRM_PLANE_COMMIT_NO_DISABLE_AFTER_MODESET);
 
 	drm_atomic_helper_commit_modeset_enables(dev, state);
+
+	for_each_plane_in_state(state, plane, old_plane_state, i) {
+		if (drm_atomic_plane_disabling(old_plane_state, plane->state))
+			plane_disabling = true;
+	}
+
+	if (plane_disabling) {
+		drm_atomic_helper_wait_for_vblanks(dev, state);
+
+		for_each_plane_in_state(state, plane, old_plane_state, i)
+			ipu_plane_disable_deferred(plane);
+
+	}
 
 	drm_atomic_helper_commit_hw_done(state);
 }

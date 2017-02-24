@@ -172,23 +172,30 @@ static void ipu_plane_enable(struct ipu_plane *ipu_plane)
 		ipu_dp_enable_channel(ipu_plane->dp);
 }
 
-static int ipu_disable_plane(struct drm_plane *plane)
+void ipu_plane_disable(struct ipu_plane *ipu_plane, bool disable_dp_channel)
 {
-	struct ipu_plane *ipu_plane = to_ipu_plane(plane);
-
 	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
 	ipu_idmac_wait_busy(ipu_plane->ipu_ch, 50);
 
-	if (ipu_plane->dp)
-		ipu_dp_disable_channel(ipu_plane->dp, true);
+	if (ipu_plane->dp && disable_dp_channel)
+		ipu_dp_disable_channel(ipu_plane->dp, false);
 	ipu_idmac_disable_channel(ipu_plane->ipu_ch);
 	ipu_dmfc_disable_channel(ipu_plane->dmfc);
 	if (ipu_plane->dp)
 		ipu_dp_disable(ipu_plane->ipu);
-
-	return 0;
 }
+
+void ipu_plane_disable_deferred(struct drm_plane *plane)
+{
+	struct ipu_plane *ipu_plane = to_ipu_plane(plane);
+
+	if (ipu_plane->disabling) {
+		ipu_plane->disabling = false;
+		ipu_plane_disable(ipu_plane, false);
+	}
+}
+EXPORT_SYMBOL_GPL(ipu_plane_disable_deferred);
 
 static void ipu_plane_destroy(struct drm_plane *plane)
 {
@@ -356,7 +363,11 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 static void ipu_plane_atomic_disable(struct drm_plane *plane,
 				     struct drm_plane_state *old_state)
 {
-	ipu_disable_plane(plane);
+	struct ipu_plane *ipu_plane = to_ipu_plane(plane);
+
+	if (ipu_plane->dp)
+		ipu_dp_disable_channel(ipu_plane->dp, true);
+	ipu_plane->disabling = true;
 }
 
 static void ipu_plane_atomic_update(struct drm_plane *plane,
