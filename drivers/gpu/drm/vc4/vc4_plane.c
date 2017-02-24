@@ -20,6 +20,7 @@
 
 #include "vc4_drv.h"
 #include "vc4_regs.h"
+#include "drm_atomic.h"
 #include "drm_atomic_helper.h"
 #include "drm_fb_cma_helper.h"
 #include "drm_plane_helper.h"
@@ -769,18 +770,17 @@ vc4_update_plane(struct drm_plane *plane,
 	if (!plane_state)
 		goto out;
 
-	/* If we're changing the cursor contents, do that in the
-	 * normal vblank-synced atomic path.
-	 */
-	if (fb != plane_state->fb)
-		goto out;
-
 	/* No configuring new scaling in the fast path. */
 	if (crtc_w != plane_state->crtc_w ||
 	    crtc_h != plane_state->crtc_h ||
 	    src_w != plane_state->src_w ||
 	    src_h != plane_state->src_h) {
 		goto out;
+	}
+
+	if (fb != plane_state->fb) {
+		drm_atomic_set_fb_for_plane(plane->state, fb);
+		vc4_plane_async_set_fb(plane, fb);
 	}
 
 	/* Set the cursor's position on the screen.  This is the
