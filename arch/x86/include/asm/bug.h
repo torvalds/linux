@@ -76,7 +76,7 @@ do {								\
 	unreachable();						\
 } while (0)
 
-#define __WARN_TAINT(taint)	_BUG_FLAGS(ASM_UD0, BUGFLAG_TAINT(taint))
+#define __WARN_FLAGS(flags)	_BUG_FLAGS(ASM_UD0, BUGFLAG_WARNING|(flags))
 
 #include <asm-generic/bug.h>
 

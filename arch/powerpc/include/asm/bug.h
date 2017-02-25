@@ -85,12 +85,12 @@
 	}							\
 } while (0)
 
-#define __WARN_TAINT(taint) do {				\
+#define __WARN_FLAGS(flags) do {				\
 	__asm__ __volatile__(					\
 		"1:	twi 31,0,0\n"				\
 		_EMIT_BUG_ENTRY					\
 		: : "i" (__FILE__), "i" (__LINE__),		\
-		  "i" (BUGFLAG_TAINT(taint)),			\
+		  "i" (BUGFLAG_WARNING|(flags)),		\
 		  "i" (sizeof(struct bug_entry)));		\
 } while (0)
 
