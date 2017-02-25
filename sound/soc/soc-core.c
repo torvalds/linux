@@ -3139,7 +3139,7 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 	component->suspend = component->driver->suspend;
 	component->resume = component->driver->resume;
 	component->pcm_new = component->driver->pcm_new;
-	component->pcm_free= component->driver->pcm_free;
+	component->pcm_free = component->driver->pcm_free;
 
 	dapm = &component->dapm;
 	dapm->dev = dev;
