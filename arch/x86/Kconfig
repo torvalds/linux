@@ -2787,10 +2787,6 @@ config X86_DMA_REMAP
 	bool
 	depends on STA2X11
 
-config PMC_ATOM
-	def_bool y
-        depends on PCI
-
 source "net/Kconfig"
 
 source "drivers/Kconfig"

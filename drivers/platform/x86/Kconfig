@@ -1070,3 +1070,8 @@ config MLX_CPLD_PLATFORM
 	  cables and fans on the wide range Mellanox IB and Ethernet systems.
 
 endif # X86_PLATFORM_DEVICES
+
+config PMC_ATOM
+       def_bool y
+       depends on PCI
+       select COMMON_CLK
