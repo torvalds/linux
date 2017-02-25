@@ -496,13 +496,6 @@ static inline void set_extent_info(struct extent_info *ei, unsigned int fofs,
 	ei->len = len;
 }
 
-static inline bool __is_extent_same(struct extent_info *ei1,
-						struct extent_info *ei2)
-{
-	return (ei1->fofs == ei2->fofs && ei1->blk == ei2->blk &&
-						ei1->len == ei2->len);
-}
-
 static inline bool __is_extent_mergeable(struct extent_info *back,
 						struct extent_info *front)
 {
