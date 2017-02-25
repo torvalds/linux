@@ -5397,7 +5397,7 @@ static void s2io_ethtool_gdrvinfo(struct net_device *dev,
  *  s2io_nic structure.
  *  @regs : pointer to the structure with parameters given by ethtool for
  *  dumping the registers.
- *  @reg_space: The input argumnet into which all the registers are dumped.
+ *  @reg_space: The input argument into which all the registers are dumped.
  *  Description:
  *  Dumps the entire register space of xFrame NIC into the user given
  *  buffer area.
