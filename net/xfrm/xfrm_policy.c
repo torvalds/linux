@@ -2836,14 +2836,8 @@ static unsigned int xfrm_mtu(const struct dst_entry *dst)
 	return mtu ? : dst_mtu(dst->path);
 }
 
-static struct neighbour *xfrm_neigh_lookup(const struct dst_entry *dst,
-					   struct sk_buff *skb,
-					   const void *daddr)
-{
-	return dst->path->ops->neigh_lookup(dst, skb, daddr);
-}
-
-static void xfrm_confirm_neigh(const struct dst_entry *dst, const void *daddr)
+static const void *xfrm_get_dst_nexthop(const struct dst_entry *dst,
+					const void *daddr)
 {
 	const struct dst_entry *path = dst->path;
 
@@ -2857,6 +2851,25 @@ static void xfrm_confirm_neigh(const struct dst_entry *dst, const void *daddr)
 		else if (!(xfrm->type->flags & XFRM_TYPE_LOCAL_COADDR))
 			daddr = &xfrm->id.daddr;
 	}
+	return daddr;
+}
+
+static struct neighbour *xfrm_neigh_lookup(const struct dst_entry *dst,
+					   struct sk_buff *skb,
+					   const void *daddr)
+{
+	const struct dst_entry *path = dst->path;
+
+	if (!skb)
+		daddr = xfrm_get_dst_nexthop(dst, daddr);
+	return path->ops->neigh_lookup(path, skb, daddr);
+}
+
+static void xfrm_confirm_neigh(const struct dst_entry *dst, const void *daddr)
+{
+	const struct dst_entry *path = dst->path;
+
+	daddr = xfrm_get_dst_nexthop(dst, daddr);
 	path->ops->confirm_neigh(path, daddr);
 }
 
