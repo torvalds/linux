@@ -100,10 +100,10 @@ static inline void handle_pairwise_key(struct sta_info *psta,
 	memcpy(psta->x_UncstKey.skey, param->u.crypt.key,
 	       (param->u.crypt. key_len > 16 ? 16 : param->u.crypt.key_len));
 	if (strcmp(param->u.crypt.alg, "TKIP") == 0) { /* set mic key */
-		memcpy(psta->tkiptxmickey. skey, &(param->u.crypt.
-			key[16]), 8);
-		memcpy(psta->tkiprxmickey. skey, &(param->u.crypt.
-			key[24]), 8);
+		memcpy(psta->tkiptxmickey. skey,
+		       &(param->u.crypt.key[16]), 8);
+		memcpy(psta->tkiprxmickey. skey,
+		       &(param->u.crypt.key[24]), 8);
 		padapter->securitypriv. busetkipkey = false;
 		mod_timer(&padapter->securitypriv.tkip_timer,
 			  jiffies + msecs_to_jiffies(50));
