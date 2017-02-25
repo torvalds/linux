@@ -133,6 +133,7 @@ static int setup_pcm_framing(struct snd_soc_dai *dai, unsigned int rate,
 	struct ux500_msp_i2s_drvdata *drvdata = dev_get_drvdata(dai->dev);
 
 	u32 frame_length = MSP_FRAME_LEN_1;
+
 	prot_desc->frame_width = 0;
 
 	switch (drvdata->slots) {
