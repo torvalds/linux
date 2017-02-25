@@ -953,21 +953,22 @@ gc_more:
 		goto stop;
 	}
 
-	if (gc_type == BG_GC && has_not_enough_free_secs(sbi, sec_freed, 0)) {
-		gc_type = FG_GC;
+	if (gc_type == BG_GC && has_not_enough_free_secs(sbi, 0, 0)) {
 		/*
-		 * If there is no victim and no prefree segment but still not
-		 * enough free sections, we should flush dent/node blocks and do
-		 * garbage collections.
+		 * For example, if there are many prefree_segments below given
+		 * threshold, we can make them free by checkpoint. Then, we
+		 * secure free segments which doesn't need fggc any more.
 		 */
 		ret = write_checkpoint(sbi, &cpc);
 		if (ret)
 			goto stop;
-	} else if (gc_type == BG_GC && !background) {
-		/* f2fs_balance_fs doesn't need to do BG_GC in critical path. */
-		goto stop;
+		if (has_not_enough_free_secs(sbi, 0, 0))
+			gc_type = FG_GC;
 	}
 
+	/* f2fs_balance_fs doesn't need to do BG_GC in critical path. */
+	if (gc_type == BG_GC && !background)
+		goto stop;
 	if (!__get_victim(sbi, &segno, gc_type))
 		goto stop;
 	ret = 0;
