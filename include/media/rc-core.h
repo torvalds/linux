@@ -126,9 +126,12 @@ enum rc_filter_type {
  * @gap: true if we're in a gap
  * @send_timeout_reports: report timeouts in lirc raw IR.
  * @rawir: queue for incoming raw IR
+ * @scancodes: queue for incoming decoded scancodes
  * @wait_poll: poll struct for lirc device
  * @send_mode: lirc mode for sending, either LIRC_MODE_SCANCODE or
  *	LIRC_MODE_PULSE
+ * @rec_mode: lirc mode for receiving, either LIRC_MODE_SCANCODE or
+ *	LIRC_MODE_MODE2
  * @registered: set to true by rc_register_device(), false by
  *	rc_unregister_device
  * @change_protocol: allow changing the protocol used on hardware decoders
@@ -200,8 +203,10 @@ struct rc_dev {
 	bool				gap;
 	bool				send_timeout_reports;
 	DECLARE_KFIFO_PTR(rawir, unsigned int);
+	DECLARE_KFIFO_PTR(scancodes, struct lirc_scancode);
 	wait_queue_head_t		wait_poll;
 	u8				send_mode;
+	u8				rec_mode;
 #endif
 	bool				registered;
 	int				(*change_protocol)(struct rc_dev *dev, u64 *rc_proto);

@@ -215,6 +215,7 @@ static int ir_mce_kbd_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	struct mce_kbd_dec *data = &dev->raw->mce_kbd;
 	u32 scancode;
 	unsigned long delay;
+	struct lirc_scancode lsc = {};
 
 	if (!is_timing_event(ev)) {
 		if (ev.reset)
@@ -326,18 +327,22 @@ again:
 			mod_timer(&data->rx_timeout, jiffies + delay);
 			/* Pass data to keyboard buffer parser */
 			ir_mce_kbd_process_keyboard_data(data->idev, scancode);
+			lsc.rc_proto = RC_PROTO_MCIR2_KBD;
 			break;
 		case MCIR2_MOUSE_NBITS:
 			scancode = data->body & 0x1fffff;
 			IR_dprintk(1, "mouse data 0x%06x\n", scancode);
 			/* Pass data to mouse buffer parser */
 			ir_mce_kbd_process_mouse_data(data->idev, scancode);
+			lsc.rc_proto = RC_PROTO_MCIR2_MSE;
 			break;
 		default:
 			IR_dprintk(1, "not keyboard or mouse data\n");
 			goto out;
 		}
 
+		lsc.scancode = scancode;
+		ir_lirc_scancode_event(dev, &lsc);
 		data->state = STATE_INACTIVE;
 		input_event(data->idev, EV_MSC, MSC_SCAN, scancode);
 		input_sync(data->idev);
