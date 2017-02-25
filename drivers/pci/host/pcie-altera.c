@@ -65,7 +65,7 @@
     (((TLP_REQ_ID(pcie->root_bus_nr,  RP_DEVFN)) << 16) | (tag << 8) | (be))
 #define TLP_CFG_DW2(bus, devfn, offset)	\
 				(((bus) << 24) | ((devfn) << 16) | (offset))
-#define TLP_COMP_STATUS(s)		(((s) >> 12) & 7)
+#define TLP_COMP_STATUS(s)		(((s) >> 13) & 7)
 #define TLP_HDR_SIZE			3
 #define TLP_LOOP			500
 

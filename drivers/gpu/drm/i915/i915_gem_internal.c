@@ -46,16 +46,39 @@ static struct sg_table *
 i915_gem_object_get_pages_internal(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-	unsigned int npages = obj->base.size / PAGE_SIZE;
 	struct sg_table *st;
 	struct scatterlist *sg;
+	unsigned int npages;
 	int max_order;
 	gfp_t gfp;
 
+	max_order = MAX_ORDER;
+#ifdef CONFIG_SWIOTLB
+	if (swiotlb_nr_tbl()) {
+		unsigned int max_segment;
+
+		max_segment = swiotlb_max_segment();
+		if (max_segment) {
+			max_segment = max_t(unsigned int, max_segment,
+					    PAGE_SIZE) >> PAGE_SHIFT;
+			max_order = min(max_order, ilog2(max_segment));
+		}
+	}
+#endif
+
+	gfp = GFP_KERNEL | __GFP_HIGHMEM | __GFP_RECLAIMABLE;
+	if (IS_I965GM(i915) || IS_I965G(i915)) {
+		/* 965gm cannot relocate objects above 4GiB. */
+		gfp &= ~__GFP_HIGHMEM;
+		gfp |= __GFP_DMA32;
+	}
+
+create_st:
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
 	if (!st)
 		return ERR_PTR(-ENOMEM);
 
+	npages = obj->base.size / PAGE_SIZE;
 	if (sg_alloc_table(st, npages, GFP_KERNEL)) {
 		kfree(st);
 		return ERR_PTR(-ENOMEM);
@@ -63,19 +86,6 @@ i915_gem_object_get_pages_internal(struct drm_i915_gem_object *obj)
 
 	sg = st->sgl;
 	st->nents = 0;
-
-	max_order = MAX_ORDER;
-#ifdef CONFIG_SWIOTLB
-	if (swiotlb_nr_tbl()) /* minimum max swiotlb size is IO_TLB_SEGSIZE */
-		max_order = min(max_order, ilog2(IO_TLB_SEGPAGES));
-#endif
-
-	gfp = GFP_KERNEL | __GFP_HIGHMEM | __GFP_RECLAIMABLE;
-	if (IS_CRESTLINE(i915) || IS_BROADWATER(i915)) {
-		/* 965gm cannot relocate objects above 4GiB. */
-		gfp &= ~__GFP_HIGHMEM;
-		gfp |= __GFP_DMA32;
-	}
 
 	do {
 		int order = min(fls(npages) - 1, max_order);
@@ -104,8 +114,15 @@ i915_gem_object_get_pages_internal(struct drm_i915_gem_object *obj)
 		sg = __sg_next(sg);
 	} while (1);
 
-	if (i915_gem_gtt_prepare_pages(obj, st))
+	if (i915_gem_gtt_prepare_pages(obj, st)) {
+		/* Failed to dma-map try again with single page sg segments */
+		if (get_order(st->sgl->length)) {
+			internal_free_pages(st);
+			max_order = 0;
+			goto create_st;
+		}
 		goto err;
+	}
 
 	/* Mark the pages as dontneed whilst they are still pinned. As soon
 	 * as they are unpinned they are allowed to be reaped by the shrinker,
@@ -151,11 +168,17 @@ static const struct drm_i915_gem_object_ops i915_gem_object_internal_ops = {
  */
 struct drm_i915_gem_object *
 i915_gem_object_create_internal(struct drm_i915_private *i915,
-				unsigned int size)
+				phys_addr_t size)
 {
 	struct drm_i915_gem_object *obj;
 
-	obj = i915_gem_object_alloc(&i915->drm);
+	GEM_BUG_ON(!size);
+	GEM_BUG_ON(!IS_ALIGNED(size, PAGE_SIZE));
+
+	if (overflows_type(size, obj->base.size))
+		return ERR_PTR(-E2BIG);
+
+	obj = i915_gem_object_alloc(i915);
 	if (!obj)
 		return ERR_PTR(-ENOMEM);
 

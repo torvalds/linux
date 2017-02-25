@@ -20,6 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#include "pp_debug.h"
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -27,7 +28,6 @@
 #include "processpptables.h"
 #include <atom-types.h>
 #include <atombios.h>
-#include "pp_debug.h"
 #include "pptable.h"
 #include "power_state.h"
 #include "hwmgr.h"

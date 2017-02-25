@@ -213,6 +213,9 @@ static int get_value(struct parse_opt_ctx_t *p,
 		else
 			err = get_arg(p, opt, flags, (const char **)opt->value);
 
+		if (opt->set)
+			*(bool *)opt->set = true;
+
 		/* PARSE_OPT_NOEMPTY: Allow NULL but disallow empty string. */
 		if (opt->flags & PARSE_OPT_NOEMPTY) {
 			const char *val = *(const char **)opt->value;
@@ -267,6 +270,8 @@ static int get_value(struct parse_opt_ctx_t *p,
 		}
 		if (get_arg(p, opt, flags, &arg))
 			return -1;
+		if (arg[0] == '-')
+			return opterror(opt, "expects an unsigned numerical value", flags);
 		*(unsigned int *)opt->value = strtol(arg, (char **)&s, 10);
 		if (*s)
 			return opterror(opt, "expects a numerical value", flags);
@@ -299,6 +304,8 @@ static int get_value(struct parse_opt_ctx_t *p,
 		}
 		if (get_arg(p, opt, flags, &arg))
 			return -1;
+		if (arg[0] == '-')
+			return opterror(opt, "expects an unsigned numerical value", flags);
 		*(u64 *)opt->value = strtoull(arg, (char **)&s, 10);
 		if (*s)
 			return opterror(opt, "expects a numerical value", flags);

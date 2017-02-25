@@ -76,14 +76,8 @@ static int retu_pwrbutton_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int retu_pwrbutton_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver retu_pwrbutton_driver = {
 	.probe		= retu_pwrbutton_probe,
-	.remove		= retu_pwrbutton_remove,
 	.driver		= {
 		.name	= "retu-pwrbutton",
 	},

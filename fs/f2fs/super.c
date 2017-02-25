@@ -1156,12 +1156,6 @@ static int f2fs_get_context(struct inode *inode, void *ctx, size_t len)
 				ctx, len, NULL);
 }
 
-static int f2fs_key_prefix(struct inode *inode, u8 **key)
-{
-	*key = F2FS_I_SB(inode)->key_prefix;
-	return F2FS_I_SB(inode)->key_prefix_size;
-}
-
 static int f2fs_set_context(struct inode *inode, const void *ctx, size_t len,
 							void *fs_data)
 {
@@ -1176,16 +1170,16 @@ static unsigned f2fs_max_namelen(struct inode *inode)
 			inode->i_sb->s_blocksize : F2FS_NAME_LEN;
 }
 
-static struct fscrypt_operations f2fs_cryptops = {
+static const struct fscrypt_operations f2fs_cryptops = {
+	.key_prefix	= "f2fs:",
 	.get_context	= f2fs_get_context,
-	.key_prefix	= f2fs_key_prefix,
 	.set_context	= f2fs_set_context,
 	.is_encrypted	= f2fs_encrypted_inode,
 	.empty_dir	= f2fs_empty_dir,
 	.max_namelen	= f2fs_max_namelen,
 };
 #else
-static struct fscrypt_operations f2fs_cryptops = {
+static const struct fscrypt_operations f2fs_cryptops = {
 	.is_encrypted	= f2fs_encrypted_inode,
 };
 #endif
@@ -1518,12 +1512,6 @@ static void init_sb_info(struct f2fs_sb_info *sbi)
 	mutex_init(&sbi->wio_mutex[NODE]);
 	mutex_init(&sbi->wio_mutex[DATA]);
 	spin_lock_init(&sbi->cp_lock);
-
-#ifdef CONFIG_F2FS_FS_ENCRYPTION
-	memcpy(sbi->key_prefix, F2FS_KEY_DESC_PREFIX,
-				F2FS_KEY_DESC_PREFIX_SIZE);
-	sbi->key_prefix_size = F2FS_KEY_DESC_PREFIX_SIZE;
-#endif
 }
 
 static int init_percpu_info(struct f2fs_sb_info *sbi)
@@ -1553,16 +1541,16 @@ static int init_blkz_info(struct f2fs_sb_info *sbi, int devi)
 		return 0;
 
 	if (sbi->blocks_per_blkz && sbi->blocks_per_blkz !=
-				SECTOR_TO_BLOCK(bdev_zone_size(bdev)))
+				SECTOR_TO_BLOCK(bdev_zone_sectors(bdev)))
 		return -EINVAL;
-	sbi->blocks_per_blkz = SECTOR_TO_BLOCK(bdev_zone_size(bdev));
+	sbi->blocks_per_blkz = SECTOR_TO_BLOCK(bdev_zone_sectors(bdev));
 	if (sbi->log_blocks_per_blkz && sbi->log_blocks_per_blkz !=
 				__ilog2_u32(sbi->blocks_per_blkz))
 		return -EINVAL;
 	sbi->log_blocks_per_blkz = __ilog2_u32(sbi->blocks_per_blkz);
 	FDEV(devi).nr_blkz = SECTOR_TO_BLOCK(nr_sectors) >>
 					sbi->log_blocks_per_blkz;
-	if (nr_sectors & (bdev_zone_size(bdev) - 1))
+	if (nr_sectors & (bdev_zone_sectors(bdev) - 1))
 		FDEV(devi).nr_blkz++;
 
 	FDEV(devi).blkz_type = kmalloc(FDEV(devi).nr_blkz, GFP_KERNEL);

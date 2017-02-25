@@ -349,7 +349,8 @@ struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 
 found_service:
 	spin_lock(&rx->incoming_lock);
-	if (rx->sk.sk_state == RXRPC_CLOSE) {
+	if (rx->sk.sk_state == RXRPC_SERVER_LISTEN_DISABLED ||
+	    rx->sk.sk_state == RXRPC_CLOSE) {
 		trace_rxrpc_abort("CLS", sp->hdr.cid, sp->hdr.callNumber,
 				  sp->hdr.seq, RX_INVALID_OPERATION, ESHUTDOWN);
 		skb->mark = RXRPC_SKB_MARK_LOCAL_ABORT;

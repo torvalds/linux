@@ -1044,7 +1044,8 @@ static int iucv_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 {
 	struct sock *sk = sock->sk;
 	struct iucv_sock *iucv = iucv_sk(sk);
-	size_t headroom, linear;
+	size_t headroom = 0;
+	size_t linear;
 	struct sk_buff *skb;
 	struct iucv_message txmsg = {0};
 	struct cmsghdr *cmsg;
@@ -1122,18 +1123,20 @@ static int iucv_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 	 * this is fine for SOCK_SEQPACKET (unless we want to support
 	 * segmented records using the MSG_EOR flag), but
 	 * for SOCK_STREAM we might want to improve it in future */
-	headroom = (iucv->transport == AF_IUCV_TRANS_HIPER)
-		   ? sizeof(struct af_iucv_trans_hdr) + ETH_HLEN : 0;
-	if (headroom + len < PAGE_SIZE) {
+	if (iucv->transport == AF_IUCV_TRANS_HIPER) {
+		headroom = sizeof(struct af_iucv_trans_hdr) + ETH_HLEN;
 		linear = len;
 	} else {
-		/* In nonlinear "classic" iucv skb,
-		 * reserve space for iucv_array
-		 */
-		if (iucv->transport != AF_IUCV_TRANS_HIPER)
-			headroom += sizeof(struct iucv_array) *
-				    (MAX_SKB_FRAGS + 1);
-		linear = PAGE_SIZE - headroom;
+		if (len < PAGE_SIZE) {
+			linear = len;
+		} else {
+			/* In nonlinear "classic" iucv skb,
+			 * reserve space for iucv_array
+			 */
+			headroom = sizeof(struct iucv_array) *
+				   (MAX_SKB_FRAGS + 1);
+			linear = PAGE_SIZE - headroom;
+		}
 	}
 	skb = sock_alloc_send_pskb(sk, headroom + linear, len - linear,
 				   noblock, &err, 0);

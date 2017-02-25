@@ -44,10 +44,20 @@ struct patb_entry {
 };
 extern struct patb_entry *partition_tb;
 
+/* Bits in patb0 field */
 #define PATB_HR		(1UL << 63)
-#define PATB_GR		(1UL << 63)
 #define RPDB_MASK	0x0ffffffffffff00fUL
 #define RPDB_SHIFT	(1UL << 8)
+#define RTS1_SHIFT	61		/* top 2 bits of radix tree size */
+#define RTS1_MASK	(3UL << RTS1_SHIFT)
+#define RTS2_SHIFT	5		/* bottom 3 bits of radix tree size */
+#define RTS2_MASK	(7UL << RTS2_SHIFT)
+#define RPDS_MASK	0x1f		/* root page dir. size field */
+
+/* Bits in patb1 field */
+#define PATB_GR		(1UL << 63)	/* guest uses radix; must match HR */
+#define PRTS_MASK	0x1f		/* process table size field */
+
 /*
  * Limit process table to PAGE_SIZE table. This
  * also limit the max pid we can support.
@@ -137,6 +147,12 @@ static inline void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 
 extern int (*register_process_table)(unsigned long base, unsigned long page_size,
 				     unsigned long tbl_size);
+
+#ifdef CONFIG_PPC_PSERIES
+extern void radix_init_pseries(void);
+#else
+static inline void radix_init_pseries(void) { };
+#endif
 
 #endif /* __ASSEMBLY__ */
 #endif /* _ASM_POWERPC_BOOK3S_64_MMU_H_ */

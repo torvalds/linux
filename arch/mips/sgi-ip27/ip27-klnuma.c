@@ -82,7 +82,7 @@ static __init void copy_kernel(nasid_t dest_nasid)
 	memcpy((void *)dest_kern_start, (void *)source_start, kern_size);
 }
 
-void __init replicate_kernel_text()
+void __init replicate_kernel_text(void)
 {
 	cnodeid_t cnode;
 	nasid_t client_nasid;

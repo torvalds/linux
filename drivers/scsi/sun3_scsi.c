@@ -34,7 +34,6 @@
 #include <asm/dvma.h>
 
 #include <scsi/scsi_host.h>
-#include "sun3_scsi.h"
 
 /* minimum number of bytes to do dma on */
 #define DMA_MIN_SIZE                    129
@@ -56,11 +55,87 @@
 #define NCR5380_dma_send_setup          sun3scsi_dma_count
 #define NCR5380_dma_residual            sun3scsi_dma_residual
 
-#define NCR5380_acquire_dma_irq(instance)    (1)
-#define NCR5380_release_dma_irq(instance)
-
 #include "NCR5380.h"
 
+/* dma regs start at regbase + 8, directly after the NCR regs */
+struct sun3_dma_regs {
+	unsigned short dma_addr_hi; /* vme only */
+	unsigned short dma_addr_lo; /* vme only */
+	unsigned short dma_count_hi; /* vme only */
+	unsigned short dma_count_lo; /* vme only */
+	unsigned short udc_data; /* udc dma data reg (obio only) */
+	unsigned short udc_addr; /* uda dma addr reg (obio only) */
+	unsigned short fifo_data; /* fifo data reg,
+	                           * holds extra byte on odd dma reads
+	                           */
+	unsigned short fifo_count;
+	unsigned short csr; /* control/status reg */
+	unsigned short bpack_hi; /* vme only */
+	unsigned short bpack_lo; /* vme only */
+	unsigned short ivect; /* vme only */
+	unsigned short fifo_count_hi; /* vme only */
+};
+
+/* ucd chip specific regs - live in dvma space */
+struct sun3_udc_regs {
+	unsigned short rsel; /* select regs to load */
+	unsigned short addr_hi; /* high word of addr */
+	unsigned short addr_lo; /* low word */
+	unsigned short count; /* words to be xfer'd */
+	unsigned short mode_hi; /* high word of channel mode */
+	unsigned short mode_lo; /* low word of channel mode */
+};
+
+/* addresses of the udc registers */
+#define UDC_MODE 0x38
+#define UDC_CSR 0x2e /* command/status */
+#define UDC_CHN_HI 0x26 /* chain high word */
+#define UDC_CHN_LO 0x22 /* chain lo word */
+#define UDC_CURA_HI 0x1a /* cur reg A high */
+#define UDC_CURA_LO 0x0a /* cur reg A low */
+#define UDC_CURB_HI 0x12 /* cur reg B high */
+#define UDC_CURB_LO 0x02 /* cur reg B low */
+#define UDC_MODE_HI 0x56 /* mode reg high */
+#define UDC_MODE_LO 0x52 /* mode reg low */
+#define UDC_COUNT 0x32 /* words to xfer */
+
+/* some udc commands */
+#define UDC_RESET 0
+#define UDC_CHN_START 0xa0 /* start chain */
+#define UDC_INT_ENABLE 0x32 /* channel 1 int on */
+
+/* udc mode words */
+#define UDC_MODE_HIWORD 0x40
+#define UDC_MODE_LSEND 0xc2
+#define UDC_MODE_LRECV 0xd2
+
+/* udc reg selections */
+#define UDC_RSEL_SEND 0x282
+#define UDC_RSEL_RECV 0x182
+
+/* bits in csr reg */
+#define CSR_DMA_ACTIVE 0x8000
+#define CSR_DMA_CONFLICT 0x4000
+#define CSR_DMA_BUSERR 0x2000
+
+#define CSR_FIFO_EMPTY 0x400 /* fifo flushed? */
+#define CSR_SDB_INT 0x200 /* sbc interrupt pending */
+#define CSR_DMA_INT 0x100 /* dma interrupt pending */
+
+#define CSR_LEFT 0xc0
+#define CSR_LEFT_3 0xc0
+#define CSR_LEFT_2 0x80
+#define CSR_LEFT_1 0x40
+#define CSR_PACK_ENABLE 0x20
+
+#define CSR_DMA_ENABLE 0x10
+
+#define CSR_SEND 0x8 /* 1 = send  0 = recv */
+#define CSR_FIFO 0x2 /* reset fifo */
+#define CSR_INTR 0x4 /* interrupt enable */
+#define CSR_SCSI 0x1
+
+#define VME_DATA24 0x3d00
 
 extern int sun3_map_test(unsigned long, char *);
 
@@ -260,7 +335,7 @@ static int sun3scsi_dma_xfer_len(struct NCR5380_hostdata *hostdata,
 {
 	int wanted_len = cmd->SCp.this_residual;
 
-	if (wanted_len < DMA_MIN_SIZE || cmd->request->cmd_type != REQ_TYPE_FS)
+	if (wanted_len < DMA_MIN_SIZE || blk_rq_is_passthrough(cmd->request))
 		return 0;
 
 	return wanted_len;

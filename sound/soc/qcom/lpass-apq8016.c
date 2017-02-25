@@ -175,29 +175,28 @@ static int apq8016_lpass_init(struct platform_device *pdev)
 
 	drvdata->pcnoc_mport_clk = devm_clk_get(dev, "pcnoc-mport-clk");
 	if (IS_ERR(drvdata->pcnoc_mport_clk)) {
-		dev_err(&pdev->dev, "%s() error getting pcnoc-mport-clk: %ld\n",
-				__func__, PTR_ERR(drvdata->pcnoc_mport_clk));
+		dev_err(&pdev->dev, "error getting pcnoc-mport-clk: %ld\n",
+			PTR_ERR(drvdata->pcnoc_mport_clk));
 		return PTR_ERR(drvdata->pcnoc_mport_clk);
 	}
 
 	ret = clk_prepare_enable(drvdata->pcnoc_mport_clk);
 	if (ret) {
-		dev_err(&pdev->dev, "%s() Error enabling pcnoc-mport-clk: %d\n",
-				__func__, ret);
+		dev_err(&pdev->dev, "Error enabling pcnoc-mport-clk: %d\n",
+			ret);
 		return ret;
 	}
 
 	drvdata->pcnoc_sway_clk = devm_clk_get(dev, "pcnoc-sway-clk");
 	if (IS_ERR(drvdata->pcnoc_sway_clk)) {
-		dev_err(&pdev->dev, "%s() error getting pcnoc-sway-clk: %ld\n",
-				__func__, PTR_ERR(drvdata->pcnoc_sway_clk));
+		dev_err(&pdev->dev, "error getting pcnoc-sway-clk: %ld\n",
+			PTR_ERR(drvdata->pcnoc_sway_clk));
 		return PTR_ERR(drvdata->pcnoc_sway_clk);
 	}
 
 	ret = clk_prepare_enable(drvdata->pcnoc_sway_clk);
 	if (ret) {
-		dev_err(&pdev->dev, "%s() Error enabling pcnoc_sway_clk: %d\n",
-				__func__, ret);
+		dev_err(&pdev->dev, "Error enabling pcnoc_sway_clk: %d\n", ret);
 		return ret;
 	}
 

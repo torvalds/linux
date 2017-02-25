@@ -128,17 +128,16 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	clk_prepare_enable(exynos->clk);
 
 	exynos->susp_clk = devm_clk_get(dev, "usbdrd30_susp_clk");
-	if (IS_ERR(exynos->susp_clk)) {
-		dev_info(dev, "no suspend clk specified\n");
+	if (IS_ERR(exynos->susp_clk))
 		exynos->susp_clk = NULL;
-	}
 	clk_prepare_enable(exynos->susp_clk);
 
 	if (of_device_is_compatible(node, "samsung,exynos7-dwusb3")) {
 		exynos->axius_clk = devm_clk_get(dev, "usbdrd30_axius_clk");
 		if (IS_ERR(exynos->axius_clk)) {
 			dev_err(dev, "no AXI UpScaler clk specified\n");
-			return -ENODEV;
+			ret = -ENODEV;
+			goto axius_clk_err;
 		}
 		clk_prepare_enable(exynos->axius_clk);
 	} else {
@@ -196,6 +195,7 @@ err3:
 	regulator_disable(exynos->vdd33);
 err2:
 	clk_disable_unprepare(exynos->axius_clk);
+axius_clk_err:
 	clk_disable_unprepare(exynos->susp_clk);
 	clk_disable_unprepare(exynos->clk);
 	return ret;
@@ -288,7 +288,6 @@ static struct platform_driver dwc3_exynos_driver = {
 
 module_platform_driver(dwc3_exynos_driver);
 
-MODULE_ALIAS("platform:exynos-dwc3");
 MODULE_AUTHOR("Anton Tikhomirov <av.tikhomirov@samsung.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("DesignWare USB3 EXYNOS Glue Layer");

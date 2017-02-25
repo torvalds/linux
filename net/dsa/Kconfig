@@ -1,29 +1,19 @@
 config HAVE_NET_DSA
 	def_bool y
-	depends on NETDEVICES && !S390
+	depends on INET && NETDEVICES && !S390
 
 # Drivers must select NET_DSA and the appropriate tagging format
 
 config NET_DSA
 	tristate "Distributed Switch Architecture"
-	depends on HAVE_NET_DSA && NET_SWITCHDEV
+	depends on HAVE_NET_DSA
+	select NET_SWITCHDEV
 	select PHYLIB
 	---help---
 	  Say Y if you want to enable support for the hardware switches supported
 	  by the Distributed Switch Architecture.
 
 if NET_DSA
-
-config NET_DSA_HWMON
-	bool "Distributed Switch Architecture HWMON support"
-	default y
-	depends on HWMON && !(NET_DSA=y && HWMON=m)
-	---help---
-	  Say Y if you want to expose thermal sensor data on switches supported
-	  by the Distributed Switch Architecture.
-
-	  Some of those switches contain thermal sensors. This data is available
-	  via the hwmon sysfs interface and exposes the onboard sensors.
 
 # tagging formats
 config NET_DSA_TAG_BRCM

@@ -62,6 +62,15 @@ static void i915_fence_release(struct dma_fence *fence)
 {
 	struct drm_i915_gem_request *req = to_request(fence);
 
+	/* The request is put onto a RCU freelist (i.e. the address
+	 * is immediately reused), mark the fences as being freed now.
+	 * Otherwise the debugobjects for the fences are only marked as
+	 * freed when the slab cache itself is freed, and so we would get
+	 * caught trying to reuse dead objects.
+	 */
+	i915_sw_fence_fini(&req->submit);
+	i915_sw_fence_fini(&req->execute);
+
 	kmem_cache_free(req->i915->requests, req);
 }
 
@@ -197,6 +206,7 @@ void i915_gem_retire_noop(struct i915_gem_active *active,
 
 static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 {
+	struct intel_engine_cs *engine = request->engine;
 	struct i915_gem_active *active, *next;
 
 	lockdep_assert_held(&request->i915->drm.struct_mutex);
@@ -207,9 +217,9 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 
 	trace_i915_gem_request_retire(request);
 
-	spin_lock_irq(&request->engine->timeline->lock);
+	spin_lock_irq(&engine->timeline->lock);
 	list_del_init(&request->link);
-	spin_unlock_irq(&request->engine->timeline->lock);
+	spin_unlock_irq(&engine->timeline->lock);
 
 	/* We know the GPU must have read the request to have
 	 * sent us the seqno + interrupt, so use the position
@@ -257,13 +267,20 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 
 	i915_gem_request_remove_from_client(request);
 
-	if (request->previous_context) {
-		if (i915.enable_execlists)
-			intel_lr_context_unpin(request->previous_context,
-					       request->engine);
-	}
+	/* Retirement decays the ban score as it is a sign of ctx progress */
+	if (request->ctx->ban_score > 0)
+		request->ctx->ban_score--;
 
-	i915_gem_context_put(request->ctx);
+	/* The backing object for the context is done after switching to the
+	 * *next* context. Therefore we cannot retire the previous context until
+	 * the next context has already started running. However, since we
+	 * cannot take the required locks at i915_gem_request_submit() we
+	 * defer the unpinning of the active context to now, retirement of
+	 * the subsequent request.
+	 */
+	if (engine->last_retired_context)
+		engine->context_unpin(engine, engine->last_retired_context);
+	engine->last_retired_context = request->ctx;
 
 	dma_fence_signal(&request->fence);
 
@@ -277,6 +294,8 @@ void i915_gem_request_retire_upto(struct drm_i915_gem_request *req)
 	struct drm_i915_gem_request *tmp;
 
 	lockdep_assert_held(&req->i915->drm.struct_mutex);
+	GEM_BUG_ON(!i915_gem_request_completed(req));
+
 	if (list_empty(&req->link))
 		return;
 
@@ -286,26 +305,6 @@ void i915_gem_request_retire_upto(struct drm_i915_gem_request *req)
 
 		i915_gem_request_retire(tmp);
 	} while (tmp != req);
-}
-
-static int i915_gem_check_wedge(struct drm_i915_private *dev_priv)
-{
-	struct i915_gpu_error *error = &dev_priv->gpu_error;
-
-	if (i915_terminally_wedged(error))
-		return -EIO;
-
-	if (i915_reset_in_progress(error)) {
-		/* Non-interruptible callers can't handle -EAGAIN, hence return
-		 * -EIO unconditionally for these.
-		 */
-		if (!dev_priv->mm.interruptible)
-			return -EIO;
-
-		return -EAGAIN;
-	}
-
-	return 0;
 }
 
 static int i915_gem_init_global_seqno(struct drm_i915_private *i915, u32 seqno)
@@ -326,11 +325,11 @@ static int i915_gem_init_global_seqno(struct drm_i915_private *i915, u32 seqno)
 	GEM_BUG_ON(i915->gt.active_requests > 1);
 
 	/* If the seqno wraps around, we need to clear the breadcrumb rbtree */
-	if (!i915_seqno_passed(seqno, atomic_read(&timeline->next_seqno))) {
+	if (!i915_seqno_passed(seqno, atomic_read(&timeline->seqno))) {
 		while (intel_breadcrumbs_busy(i915))
 			cond_resched(); /* spin until threads are complete */
 	}
-	atomic_set(&timeline->next_seqno, seqno);
+	atomic_set(&timeline->seqno, seqno);
 
 	/* Finally reset hw state */
 	for_each_engine(engine, i915, id)
@@ -365,11 +364,11 @@ int i915_gem_set_global_seqno(struct drm_device *dev, u32 seqno)
 static int reserve_global_seqno(struct drm_i915_private *i915)
 {
 	u32 active_requests = ++i915->gt.active_requests;
-	u32 next_seqno = atomic_read(&i915->gt.global_timeline.next_seqno);
+	u32 seqno = atomic_read(&i915->gt.global_timeline.seqno);
 	int ret;
 
 	/* Reservation is fine until we need to wrap around */
-	if (likely(next_seqno + active_requests > next_seqno))
+	if (likely(seqno + active_requests > seqno))
 		return 0;
 
 	ret = i915_gem_init_global_seqno(i915, 0);
@@ -383,13 +382,13 @@ static int reserve_global_seqno(struct drm_i915_private *i915)
 
 static u32 __timeline_get_seqno(struct i915_gem_timeline *tl)
 {
-	/* next_seqno only incremented under a mutex */
-	return ++tl->next_seqno.counter;
+	/* seqno only incremented under a mutex */
+	return ++tl->seqno.counter;
 }
 
 static u32 timeline_get_seqno(struct i915_gem_timeline *tl)
 {
-	return atomic_inc_return(&tl->next_seqno);
+	return atomic_inc_return(&tl->seqno);
 }
 
 void __i915_gem_request_submit(struct drm_i915_gem_request *request)
@@ -502,16 +501,22 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
 	/* ABI: Before userspace accesses the GPU (e.g. execbuffer), report
-	 * EIO if the GPU is already wedged, or EAGAIN to drop the struct_mutex
-	 * and restart.
+	 * EIO if the GPU is already wedged.
 	 */
-	ret = i915_gem_check_wedge(dev_priv);
+	if (i915_terminally_wedged(&dev_priv->gpu_error))
+		return ERR_PTR(-EIO);
+
+	/* Pinning the contexts may generate requests in order to acquire
+	 * GGTT space, so do this first before we reserve a seqno for
+	 * ourselves.
+	 */
+	ret = engine->context_pin(engine, ctx);
 	if (ret)
 		return ERR_PTR(ret);
 
 	ret = reserve_global_seqno(dev_priv);
 	if (ret)
-		return ERR_PTR(ret);
+		goto err_unpin;
 
 	/* Move the oldest request to the slab-cache (if not in use!) */
 	req = list_first_entry_or_null(&engine->timeline->requests,
@@ -578,11 +583,10 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	INIT_LIST_HEAD(&req->active_list);
 	req->i915 = dev_priv;
 	req->engine = engine;
-	req->ctx = i915_gem_context_get(ctx);
+	req->ctx = ctx;
 
 	/* No zalloc, must clear what we need by hand */
 	req->global_seqno = 0;
-	req->previous_context = NULL;
 	req->file_priv = NULL;
 	req->batch = NULL;
 
@@ -596,10 +600,7 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	req->reserved_space = MIN_SPACE_FOR_ADD_REQUEST;
 	GEM_BUG_ON(req->reserved_space < engine->emit_breadcrumb_sz);
 
-	if (i915.enable_execlists)
-		ret = intel_logical_ring_alloc_request_extras(req);
-	else
-		ret = intel_ring_alloc_request_extras(req);
+	ret = engine->request_alloc(req);
 	if (ret)
 		goto err_ctx;
 
@@ -613,10 +614,16 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	return req;
 
 err_ctx:
-	i915_gem_context_put(ctx);
+	/* Make sure we didn't add ourselves to external state before freeing */
+	GEM_BUG_ON(!list_empty(&req->active_list));
+	GEM_BUG_ON(!list_empty(&req->priotree.signalers_list));
+	GEM_BUG_ON(!list_empty(&req->priotree.waiters_list));
+
 	kmem_cache_free(dev_priv->requests, req);
 err_unreserve:
 	dev_priv->gt.active_requests--;
+err_unpin:
+	engine->context_unpin(engine, ctx);
 	return ERR_PTR(ret);
 }
 
@@ -822,6 +829,13 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 	lockdep_assert_held(&request->i915->drm.struct_mutex);
 	trace_i915_gem_request_add(request);
 
+	/* Make sure that no request gazumped us - if it was allocated after
+	 * our i915_gem_request_alloc() and called __i915_add_request() before
+	 * us, the timeline will hold its seqno which is later than ours.
+	 */
+	GEM_BUG_ON(i915_seqno_passed(timeline->last_submitted_seqno,
+				     request->fence.seqno));
+
 	/*
 	 * To ensure that this call will not fail, space for its emissions
 	 * should already have been reserved in the ring buffer. Let the ring
@@ -1011,8 +1025,13 @@ __i915_request_wait_for_execute(struct drm_i915_gem_request *request,
 			break;
 		}
 
+		if (!timeout) {
+			timeout = -ETIME;
+			break;
+		}
+
 		timeout = io_schedule_timeout(timeout);
-	} while (timeout);
+	} while (1);
 	finish_wait(&request->execute.wait, &wait);
 
 	if (flags & I915_WAIT_LOCKED)

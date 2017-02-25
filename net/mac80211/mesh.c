@@ -279,10 +279,6 @@ int mesh_add_meshconf_ie(struct ieee80211_sub_if_data *sdata,
 	/* Mesh PS mode. See IEEE802.11-2012 8.4.2.100.8 */
 	*pos |= ifmsh->ps_peers_deep_sleep ?
 			IEEE80211_MESHCONF_CAPAB_POWER_SAVE_LEVEL : 0x00;
-	*pos++ |= ifmsh->adjusting_tbtt ?
-			IEEE80211_MESHCONF_CAPAB_TBTT_ADJUSTING : 0x00;
-	*pos++ = 0x00;
-
 	return 0;
 }
 
@@ -339,7 +335,7 @@ int mesh_add_vendor_ies(struct ieee80211_sub_if_data *sdata,
 	/* fast-forward to vendor IEs */
 	offset = ieee80211_ie_split_vendor(ifmsh->ie, ifmsh->ie_len, 0);
 
-	if (offset) {
+	if (offset < ifmsh->ie_len) {
 		len = ifmsh->ie_len - offset;
 		data = ifmsh->ie + offset;
 		if (skb_tailroom(skb) < len)
@@ -850,7 +846,6 @@ int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 	ifmsh->mesh_cc_id = 0;	/* Disabled */
 	/* register sync ops from extensible synchronization framework */
 	ifmsh->sync_ops = ieee80211_mesh_sync_ops_get(ifmsh->mesh_sp_id);
-	ifmsh->adjusting_tbtt = false;
 	ifmsh->sync_offset_clockdrift_max = 0;
 	set_bit(MESH_WORK_HOUSEKEEPING, &ifmsh->wrkq_flags);
 	ieee80211_mesh_root_setup(ifmsh);
@@ -1349,7 +1344,7 @@ void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata)
 		ieee80211_mesh_rootpath(sdata);
 
 	if (test_and_clear_bit(MESH_WORK_DRIFT_ADJUST, &ifmsh->wrkq_flags))
-		mesh_sync_adjust_tbtt(sdata);
+		mesh_sync_adjust_tsf(sdata);
 
 	if (test_and_clear_bit(MESH_WORK_MBSS_CHANGED, &ifmsh->wrkq_flags))
 		mesh_bss_info_changed(sdata);

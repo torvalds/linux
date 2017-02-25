@@ -238,6 +238,7 @@ struct ccp_dma_chan {
 	struct ccp_device *ccp;
 
 	spinlock_t lock;
+	struct list_head created;
 	struct list_head pending;
 	struct list_head active;
 	struct list_head complete;
@@ -466,6 +467,7 @@ struct ccp_aes_op {
 	enum ccp_aes_type type;
 	enum ccp_aes_mode mode;
 	enum ccp_aes_action action;
+	unsigned int size;
 };
 
 struct ccp_xts_aes_op {

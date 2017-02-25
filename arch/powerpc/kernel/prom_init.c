@@ -649,6 +649,7 @@ static void __init early_cmdline_parse(void)
 struct option_vector1 {
 	u8 byte1;
 	u8 arch_versions;
+	u8 arch_versions3;
 } __packed;
 
 struct option_vector2 {
@@ -691,6 +692,9 @@ struct option_vector5 {
 	u8 reserved2;
 	__be16 reserved3;
 	u8 subprocessors;
+	u8 byte22;
+	u8 intarch;
+	u8 mmu;
 } __packed;
 
 struct option_vector6 {
@@ -700,7 +704,7 @@ struct option_vector6 {
 } __packed;
 
 struct ibm_arch_vec {
-	struct { u32 mask, val; } pvrs[10];
+	struct { u32 mask, val; } pvrs[12];
 
 	u8 num_vectors;
 
@@ -750,6 +754,14 @@ struct ibm_arch_vec __cacheline_aligned ibm_architecture_vec = {
 			.val  = cpu_to_be32(0x004d0000),
 		},
 		{
+			.mask = cpu_to_be32(0xffff0000), /* POWER9 */
+			.val  = cpu_to_be32(0x004e0000),
+		},
+		{
+			.mask = cpu_to_be32(0xffffffff), /* all 3.00-compliant */
+			.val  = cpu_to_be32(0x0f000005),
+		},
+		{
 			.mask = cpu_to_be32(0xffffffff), /* all 2.07-compliant */
 			.val  = cpu_to_be32(0x0f000004),
 		},
@@ -774,6 +786,7 @@ struct ibm_arch_vec __cacheline_aligned ibm_architecture_vec = {
 		.byte1 = 0,
 		.arch_versions = OV1_PPC_2_00 | OV1_PPC_2_01 | OV1_PPC_2_02 | OV1_PPC_2_03 |
 				 OV1_PPC_2_04 | OV1_PPC_2_05 | OV1_PPC_2_06 | OV1_PPC_2_07,
+		.arch_versions3 = OV1_PPC_3_00,
 	},
 
 	.vec2_len = VECTOR_LENGTH(sizeof(struct option_vector2)),
@@ -826,7 +839,7 @@ struct ibm_arch_vec __cacheline_aligned ibm_architecture_vec = {
 		0,
 #endif
 		.associativity = OV5_FEAT(OV5_TYPE1_AFFINITY) | OV5_FEAT(OV5_PRRN),
-		.bin_opts = 0,
+		.bin_opts = OV5_FEAT(OV5_RESIZE_HPT),
 		.micro_checkpoint = 0,
 		.reserved0 = 0,
 		.max_cpus = cpu_to_be32(NR_CPUS),	/* number of cores supported */
@@ -836,6 +849,9 @@ struct ibm_arch_vec __cacheline_aligned ibm_architecture_vec = {
 		.reserved2 = 0,
 		.reserved3 = 0,
 		.subprocessors = 1,
+		.intarch = 0,
+		.mmu = OV5_FEAT(OV5_MMU_RADIX_300) | OV5_FEAT(OV5_MMU_HASH_300) |
+			OV5_FEAT(OV5_MMU_PROC_TBL) | OV5_FEAT(OV5_MMU_GTSE),
 	},
 
 	/* option vector 6: IBM PAPR hints */
@@ -2833,6 +2849,9 @@ static void __init prom_find_boot_cpu(void)
 	prom_cpu = be32_to_cpu(rval);
 
 	cpu_pkg = call_prom("instance-to-package", 1, 1, prom_cpu);
+
+	if (!PHANDLE_VALID(cpu_pkg))
+		return;
 
 	prom_getprop(cpu_pkg, "reg", &rval, sizeof(rval));
 	prom.cpu = be32_to_cpu(rval);

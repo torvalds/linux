@@ -111,6 +111,9 @@ static void rds_ib_dev_free(struct work_struct *work)
 		kfree(i_ipaddr);
 	}
 
+	if (rds_ibdev->vector_load)
+		kfree(rds_ibdev->vector_load);
+
 	kfree(rds_ibdev);
 }
 
@@ -158,6 +161,14 @@ static void rds_ib_add_one(struct ib_device *device)
 
 	rds_ibdev->max_initiator_depth = device->attrs.max_qp_init_rd_atom;
 	rds_ibdev->max_responder_resources = device->attrs.max_qp_rd_atom;
+
+	rds_ibdev->vector_load = kzalloc(sizeof(int) * device->num_comp_vectors,
+					 GFP_KERNEL);
+	if (!rds_ibdev->vector_load) {
+		pr_err("RDS/IB: %s failed to allocate vector memory\n",
+			__func__);
+		goto put_dev;
+	}
 
 	rds_ibdev->dev = device;
 	rds_ibdev->pd = ib_alloc_pd(device, 0);

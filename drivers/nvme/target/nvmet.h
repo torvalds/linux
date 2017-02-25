@@ -142,7 +142,6 @@ struct nvmet_subsys {
 	unsigned int		max_nsid;
 
 	struct list_head	ctrls;
-	struct ida		cntlid_ida;
 
 	struct list_head	hosts;
 	bool			allow_any_host;
@@ -282,6 +281,7 @@ void nvmet_ctrl_put(struct nvmet_ctrl *ctrl);
 struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 		enum nvme_subsys_type type);
 void nvmet_subsys_put(struct nvmet_subsys *subsys);
+void nvmet_subsys_del_ctrls(struct nvmet_subsys *subsys);
 
 struct nvmet_ns *nvmet_find_namespace(struct nvmet_ctrl *ctrl, __le32 nsid);
 void nvmet_put_namespace(struct nvmet_ns *ns);

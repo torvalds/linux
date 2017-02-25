@@ -148,8 +148,8 @@ armada_gem_linear_back(struct drm_device *dev, struct armada_gem_object *obj)
 			return -ENOSPC;
 
 		mutex_lock(&priv->linear_lock);
-		ret = drm_mm_insert_node(&priv->linear, node, size, align,
-					 DRM_MM_SEARCH_DEFAULT);
+		ret = drm_mm_insert_node_generic(&priv->linear, node,
+						 size, align, 0, 0);
 		mutex_unlock(&priv->linear_lock);
 		if (ret) {
 			kfree(node);

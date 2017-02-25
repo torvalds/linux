@@ -41,6 +41,8 @@ static const u64 __perf_magic2_sw = 0x50455246494c4532ULL;
 
 #define PERF_MAGIC	__perf_magic2
 
+const char perf_version_string[] = PERF_VERSION;
+
 struct perf_file_attr {
 	struct perf_event_attr	attr;
 	struct perf_file_section	ids;
@@ -2801,8 +2803,10 @@ static int perf_evsel__prepare_tracepoint_event(struct perf_evsel *evsel,
 	}
 
 	event = pevent_find_event(pevent, evsel->attr.config);
-	if (event == NULL)
+	if (event == NULL) {
+		pr_debug("cannot find event format for %d\n", (int)evsel->attr.config);
 		return -1;
+	}
 
 	if (!evsel->name) {
 		snprintf(bf, sizeof(bf), "%s:%s", event->system, event->name);
@@ -3201,6 +3205,7 @@ int perf_event__process_event_update(struct perf_tool *tool __maybe_unused,
 	case PERF_EVENT_UPDATE__SCALE:
 		ev_scale = (struct event_update_event_scale *) ev->data;
 		evsel->scale = ev_scale->scale;
+		break;
 	case PERF_EVENT_UPDATE__CPUS:
 		ev_cpus = (struct event_update_event_cpus *) ev->data;
 

@@ -20,9 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include <linux/firmware.h>
 #include <linux/slab.h>
-#include <linux/module.h>
 #include "drmP.h"
 #include "amdgpu.h"
 #include "amdgpu_atombios.h"
@@ -78,16 +76,7 @@
 #include "amdgpu_acp.h"
 #endif
 #include "dce_virtual.h"
-
-MODULE_FIRMWARE("amdgpu/topaz_smc.bin");
-MODULE_FIRMWARE("amdgpu/topaz_k_smc.bin");
-MODULE_FIRMWARE("amdgpu/tonga_smc.bin");
-MODULE_FIRMWARE("amdgpu/tonga_k_smc.bin");
-MODULE_FIRMWARE("amdgpu/fiji_smc.bin");
-MODULE_FIRMWARE("amdgpu/polaris10_smc.bin");
-MODULE_FIRMWARE("amdgpu/polaris10_smc_sk.bin");
-MODULE_FIRMWARE("amdgpu/polaris11_smc.bin");
-MODULE_FIRMWARE("amdgpu/polaris11_smc_sk.bin");
+#include "mxgpu_vi.h"
 
 /*
  * Indirect registers accessor
@@ -284,6 +273,12 @@ static void vi_init_golden_registers(struct amdgpu_device *adev)
 	/* Some of the registers might be dependent on GRBM_GFX_INDEX */
 	mutex_lock(&adev->grbm_idx_mutex);
 
+	if (amdgpu_sriov_vf(adev)) {
+		xgpu_vi_init_golden_registers(adev);
+		mutex_unlock(&adev->grbm_idx_mutex);
+		return;
+	}
+
 	switch (adev->asic_type) {
 	case CHIP_TOPAZ:
 		amdgpu_program_register_sequence(adev,
@@ -312,6 +307,7 @@ static void vi_init_golden_registers(struct amdgpu_device *adev)
 		break;
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS10:
+	case CHIP_POLARIS12:
 	default:
 		break;
 	}
@@ -456,14 +452,14 @@ static void vi_detect_hw_virtualization(struct amdgpu_device *adev)
 	/* bit0: 0 means pf and 1 means vf */
 	/* bit31: 0 means disable IOV and 1 means enable */
 	if (reg & 1)
-		adev->virtualization.virtual_caps |= AMDGPU_SRIOV_CAPS_IS_VF;
+		adev->virt.caps |= AMDGPU_SRIOV_CAPS_IS_VF;
 
 	if (reg & 0x80000000)
-		adev->virtualization.virtual_caps |= AMDGPU_SRIOV_CAPS_ENABLE_IOV;
+		adev->virt.caps |= AMDGPU_SRIOV_CAPS_ENABLE_IOV;
 
 	if (reg == 0) {
 		if (is_virtual_machine()) /* passthrough mode exclus sr-iov mode */
-			adev->virtualization.virtual_caps |= AMDGPU_PASSTHROUGH_MODE;
+			adev->virt.caps |= AMDGPU_PASSTHROUGH_MODE;
 	}
 }
 
@@ -671,6 +667,7 @@ static int vi_read_register(struct amdgpu_device *adev, u32 se_num,
 	case CHIP_TONGA:
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS10:
+	case CHIP_POLARIS12:
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
 		asic_register_table = cz_allowed_read_registers;
@@ -724,6 +721,7 @@ static int vi_gpu_pci_config_reset(struct amdgpu_device *adev)
 		if (RREG32(mmCONFIG_MEMSIZE) != 0xffffffff) {
 			/* enable BM */
 			pci_set_master(adev->pdev);
+			adev->has_hw_reset = true;
 			return 0;
 		}
 		udelay(1);
@@ -798,7 +796,37 @@ static int vi_set_uvd_clocks(struct amdgpu_device *adev, u32 vclk, u32 dclk)
 
 static int vi_set_vce_clocks(struct amdgpu_device *adev, u32 evclk, u32 ecclk)
 {
-	/* todo */
+	int r, i;
+	struct atom_clock_dividers dividers;
+	u32 tmp;
+
+	r = amdgpu_atombios_get_clock_dividers(adev,
+					       COMPUTE_GPUCLK_INPUT_FLAG_DEFAULT_GPUCLK,
+					       ecclk, false, &dividers);
+	if (r)
+		return r;
+
+	for (i = 0; i < 100; i++) {
+		if (RREG32_SMC(ixCG_ECLK_STATUS) & CG_ECLK_STATUS__ECLK_STATUS_MASK)
+			break;
+		mdelay(10);
+	}
+	if (i == 100)
+		return -ETIMEDOUT;
+
+	tmp = RREG32_SMC(ixCG_ECLK_CNTL);
+	tmp &= ~(CG_ECLK_CNTL__ECLK_DIR_CNTL_EN_MASK |
+		CG_ECLK_CNTL__ECLK_DIVIDER_MASK);
+	tmp |= dividers.post_divider;
+	WREG32_SMC(ixCG_ECLK_CNTL, tmp);
+
+	for (i = 0; i < 100; i++) {
+		if (RREG32_SMC(ixCG_ECLK_STATUS) & CG_ECLK_STATUS__ECLK_STATUS_MASK)
+			break;
+		mdelay(10);
+	}
+	if (i == 100)
+		return -ETIMEDOUT;
 
 	return 0;
 }
@@ -866,7 +894,6 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 {
 	.read_disabled_bios = &vi_read_disabled_bios,
 	.read_bios_from_rom = &vi_read_bios_from_rom,
-	.detect_hw_virtualization = vi_detect_hw_virtualization,
 	.read_register = &vi_read_register,
 	.reset = &vi_asic_reset,
 	.set_vga_state = &vi_vga_set_state,
@@ -901,6 +928,11 @@ static int vi_common_early_init(void *handle)
 	if (amdgpu_get_ip_block(adev, AMD_IP_BLOCK_TYPE_SMC) &&
 		(amdgpu_ip_block_mask & (1 << AMD_IP_BLOCK_TYPE_SMC)))
 		smc_enabled = true;
+
+	if (amdgpu_sriov_vf(adev)) {
+		amdgpu_virt_init_setting(adev);
+		xgpu_vi_mailbox_set_irq_funcs(adev);
+	}
 
 	adev->rev_id = vi_get_rev_id(adev);
 	adev->external_rev_id = 0xFF;
@@ -994,6 +1026,11 @@ static int vi_common_early_init(void *handle)
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x50;
 		break;
+	case CHIP_POLARIS12:
+		adev->cg_flags = AMD_CG_SUPPORT_UVD_MGCG;
+		adev->pg_flags = 0;
+		adev->external_rev_id = adev->rev_id + 0x64;
+		break;
 	case CHIP_CARRIZO:
 		adev->cg_flags = AMD_CG_SUPPORT_UVD_MGCG |
 			AMD_CG_SUPPORT_GFX_MGCG |
@@ -1053,10 +1090,6 @@ static int vi_common_early_init(void *handle)
 		return -EINVAL;
 	}
 
-	/* in early init stage, vbios code won't work */
-	if (adev->asic_funcs->detect_hw_virtualization)
-		amdgpu_asic_detect_hw_virtualization(adev);
-
 	if (amdgpu_smc_load_fw && smc_enabled)
 		adev->firmware.smu_load = true;
 
@@ -1065,8 +1098,23 @@ static int vi_common_early_init(void *handle)
 	return 0;
 }
 
+static int vi_common_late_init(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (amdgpu_sriov_vf(adev))
+		xgpu_vi_mailbox_get_irq(adev);
+
+	return 0;
+}
+
 static int vi_common_sw_init(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (amdgpu_sriov_vf(adev))
+		xgpu_vi_mailbox_add_irq_id(adev);
+
 	return 0;
 }
 
@@ -1097,6 +1145,9 @@ static int vi_common_hw_fini(void *handle)
 
 	/* enable the doorbell aperture */
 	vi_enable_doorbell_aperture(adev, false);
+
+	if (amdgpu_sriov_vf(adev))
+		xgpu_vi_mailbox_put_irq(adev);
 
 	return 0;
 }
@@ -1181,6 +1232,23 @@ static void vi_update_hdp_light_sleep(struct amdgpu_device *adev,
 	if (temp != data)
 		WREG32(mmHDP_MEM_POWER_LS, data);
 }
+
+static void vi_update_drm_light_sleep(struct amdgpu_device *adev,
+				      bool enable)
+{
+	uint32_t temp, data;
+
+	temp = data = RREG32(0x157a);
+
+	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_DRM_LS))
+		data |= 1;
+	else
+		data &= ~1;
+
+	if (temp != data)
+		WREG32(0x157a, data);
+}
+
 
 static void vi_update_rom_medium_grain_clock_gating(struct amdgpu_device *adev,
 						    bool enable)
@@ -1342,10 +1410,13 @@ static int vi_common_set_clockgating_state(void *handle,
 				state == AMD_CG_STATE_GATE ? true : false);
 		vi_update_hdp_light_sleep(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
+		vi_update_drm_light_sleep(adev,
+				state == AMD_CG_STATE_GATE ? true : false);
 		break;
 	case CHIP_TONGA:
 	case CHIP_POLARIS10:
 	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
 		vi_common_set_clockgating_state_by_smu(adev, state);
 	default:
 		break;
@@ -1359,10 +1430,36 @@ static int vi_common_set_powergating_state(void *handle,
 	return 0;
 }
 
+static void vi_common_get_clockgating_state(void *handle, u32 *flags)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int data;
+
+	/* AMD_CG_SUPPORT_BIF_LS */
+	data = RREG32_PCIE(ixPCIE_CNTL2);
+	if (data & PCIE_CNTL2__SLV_MEM_LS_EN_MASK)
+		*flags |= AMD_CG_SUPPORT_BIF_LS;
+
+	/* AMD_CG_SUPPORT_HDP_LS */
+	data = RREG32(mmHDP_MEM_POWER_LS);
+	if (data & HDP_MEM_POWER_LS__LS_ENABLE_MASK)
+		*flags |= AMD_CG_SUPPORT_HDP_LS;
+
+	/* AMD_CG_SUPPORT_HDP_MGCG */
+	data = RREG32(mmHDP_HOST_PATH_CNTL);
+	if (!(data & HDP_HOST_PATH_CNTL__CLOCK_GATING_DIS_MASK))
+		*flags |= AMD_CG_SUPPORT_HDP_MGCG;
+
+	/* AMD_CG_SUPPORT_ROM_MGCG */
+	data = RREG32_SMC(ixCGTT_ROM_CLK_CTRL0);
+	if (!(data & CGTT_ROM_CLK_CTRL0__SOFT_OVERRIDE0_MASK))
+		*flags |= AMD_CG_SUPPORT_ROM_MGCG;
+}
+
 static const struct amd_ip_funcs vi_common_ip_funcs = {
 	.name = "vi_common",
 	.early_init = vi_common_early_init,
-	.late_init = NULL,
+	.late_init = vi_common_late_init,
 	.sw_init = vi_common_sw_init,
 	.sw_fini = vi_common_sw_fini,
 	.hw_init = vi_common_hw_init,
@@ -1374,6 +1471,7 @@ static const struct amd_ip_funcs vi_common_ip_funcs = {
 	.soft_reset = vi_common_soft_reset,
 	.set_clockgating_state = vi_common_set_clockgating_state,
 	.set_powergating_state = vi_common_set_powergating_state,
+	.get_clockgating_state = vi_common_get_clockgating_state,
 };
 
 static const struct amdgpu_ip_block_version vi_common_ip_block =
@@ -1387,6 +1485,12 @@ static const struct amdgpu_ip_block_version vi_common_ip_block =
 
 int vi_set_ip_blocks(struct amdgpu_device *adev)
 {
+	/* in early init stage, vbios code won't work */
+	vi_detect_hw_virtualization(adev);
+
+	if (amdgpu_sriov_vf(adev))
+		adev->virt.ops = &xgpu_vi_virt_ops;
+
 	switch (adev->asic_type) {
 	case CHIP_TOPAZ:
 		/* topaz has no DCE, UVD, VCE */
@@ -1404,31 +1508,36 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_ip_block_add(adev, &gmc_v8_5_ip_block);
 		amdgpu_ip_block_add(adev, &tonga_ih_ip_block);
 		amdgpu_ip_block_add(adev, &amdgpu_pp_ip_block);
-		if (adev->enable_virtual_display)
+		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
 			amdgpu_ip_block_add(adev, &dce_virtual_ip_block);
 		else
 			amdgpu_ip_block_add(adev, &dce_v10_1_ip_block);
 		amdgpu_ip_block_add(adev, &gfx_v8_0_ip_block);
 		amdgpu_ip_block_add(adev, &sdma_v3_0_ip_block);
-		amdgpu_ip_block_add(adev, &uvd_v6_0_ip_block);
-		amdgpu_ip_block_add(adev, &vce_v3_0_ip_block);
+		if (!amdgpu_sriov_vf(adev)) {
+			amdgpu_ip_block_add(adev, &uvd_v6_0_ip_block);
+			amdgpu_ip_block_add(adev, &vce_v3_0_ip_block);
+		}
 		break;
 	case CHIP_TONGA:
 		amdgpu_ip_block_add(adev, &vi_common_ip_block);
 		amdgpu_ip_block_add(adev, &gmc_v8_0_ip_block);
 		amdgpu_ip_block_add(adev, &tonga_ih_ip_block);
 		amdgpu_ip_block_add(adev, &amdgpu_pp_ip_block);
-		if (adev->enable_virtual_display)
+		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
 			amdgpu_ip_block_add(adev, &dce_virtual_ip_block);
 		else
 			amdgpu_ip_block_add(adev, &dce_v10_0_ip_block);
 		amdgpu_ip_block_add(adev, &gfx_v8_0_ip_block);
 		amdgpu_ip_block_add(adev, &sdma_v3_0_ip_block);
-		amdgpu_ip_block_add(adev, &uvd_v5_0_ip_block);
-		amdgpu_ip_block_add(adev, &vce_v3_0_ip_block);
+		if (!amdgpu_sriov_vf(adev)) {
+			amdgpu_ip_block_add(adev, &uvd_v5_0_ip_block);
+			amdgpu_ip_block_add(adev, &vce_v3_0_ip_block);
+		}
 		break;
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS10:
+	case CHIP_POLARIS12:
 		amdgpu_ip_block_add(adev, &vi_common_ip_block);
 		amdgpu_ip_block_add(adev, &gmc_v8_1_ip_block);
 		amdgpu_ip_block_add(adev, &tonga_ih_ip_block);

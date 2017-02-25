@@ -238,7 +238,8 @@ struct ishtp_device {
 	uint64_t ishtp_host_dma_rx_buf_phys;
 
 	/* Dump to trace buffers if enabled*/
-	void (*print_log)(struct ishtp_device *dev, char *format, ...);
+	__printf(2, 3) void (*print_log)(struct ishtp_device *dev,
+					 const char *format, ...);
 
 	/* Debug stats */
 	unsigned int	ipc_rx_cnt;

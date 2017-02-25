@@ -19,6 +19,7 @@
 #include <linux/of_graph.h>
 #include <linux/clk.h>
 #include <linux/component.h>
+#include <linux/pm_runtime.h>
 #include <drm/drmP.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
@@ -269,35 +270,9 @@ static int parse_dt(struct exynos_mic *mic)
 		}
 		nodes[j++] = remote_node;
 
-		switch (i) {
-		case ENDPOINT_DECON_NODE:
-			/* decon node */
-			if (of_get_child_by_name(remote_node,
-						"i80-if-timings"))
-				mic->i80_mode = 1;
-
-			break;
-		case ENDPOINT_DSI_NODE:
-			/* panel node */
-			remote_node = get_remote_node(remote_node, 1);
-			if (!remote_node) {
-				ret = -EPIPE;
-				goto exit;
-			}
-			nodes[j++] = remote_node;
-
-			ret = of_get_videomode(remote_node,
-							&mic->vm, 0);
-			if (ret) {
-				DRM_ERROR("mic: failed to get videomode");
-				goto exit;
-			}
-
-			break;
-		default:
-			DRM_ERROR("mic: Unknown endpoint from MIC");
-			break;
-		}
+		if (i == ENDPOINT_DECON_NODE &&
+			of_get_child_by_name(remote_node, "i80-if-timings"))
+			mic->i80_mode = 1;
 	}
 
 exit:
@@ -312,7 +287,6 @@ static void mic_disable(struct drm_bridge *bridge) { }
 static void mic_post_disable(struct drm_bridge *bridge)
 {
 	struct exynos_mic *mic = bridge->driver_private;
-	int i;
 
 	mutex_lock(&mic_mutex);
 	if (!mic->enabled)
@@ -320,39 +294,43 @@ static void mic_post_disable(struct drm_bridge *bridge)
 
 	mic_set_path(mic, 0);
 
-	for (i = NUM_CLKS - 1; i > -1; i--)
-		clk_disable_unprepare(mic->clks[i]);
-
+	pm_runtime_put(mic->dev);
 	mic->enabled = 0;
 
 already_disabled:
 	mutex_unlock(&mic_mutex);
 }
 
+static void mic_mode_set(struct drm_bridge *bridge,
+			struct drm_display_mode *mode,
+			struct drm_display_mode *adjusted_mode)
+{
+	struct exynos_mic *mic = bridge->driver_private;
+
+	mutex_lock(&mic_mutex);
+	drm_display_mode_to_videomode(mode, &mic->vm);
+	mutex_unlock(&mic_mutex);
+}
+
 static void mic_pre_enable(struct drm_bridge *bridge)
 {
 	struct exynos_mic *mic = bridge->driver_private;
-	int ret, i;
+	int ret;
 
 	mutex_lock(&mic_mutex);
 	if (mic->enabled)
-		goto already_enabled;
+		goto unlock;
 
-	for (i = 0; i < NUM_CLKS; i++) {
-		ret = clk_prepare_enable(mic->clks[i]);
-		if (ret < 0) {
-			DRM_ERROR("Failed to enable clock (%s)\n",
-							clk_names[i]);
-			goto turn_off_clks;
-		}
-	}
+	ret = pm_runtime_get_sync(mic->dev);
+	if (ret < 0)
+		goto unlock;
 
 	mic_set_path(mic, 1);
 
 	ret = mic_sw_reset(mic);
 	if (ret) {
 		DRM_ERROR("Failed to reset\n");
-		goto turn_off_clks;
+		goto turn_off;
 	}
 
 	if (!mic->i80_mode)
@@ -365,10 +343,9 @@ static void mic_pre_enable(struct drm_bridge *bridge)
 
 	return;
 
-turn_off_clks:
-	while (--i > -1)
-		clk_disable_unprepare(mic->clks[i]);
-already_enabled:
+turn_off:
+	pm_runtime_put(mic->dev);
+unlock:
 	mutex_unlock(&mic_mutex);
 }
 
@@ -377,6 +354,7 @@ static void mic_enable(struct drm_bridge *bridge) { }
 static const struct drm_bridge_funcs mic_bridge_funcs = {
 	.disable = mic_disable,
 	.post_disable = mic_post_disable,
+	.mode_set = mic_mode_set,
 	.pre_enable = mic_pre_enable,
 	.enable = mic_enable,
 };
@@ -401,14 +379,12 @@ static void exynos_mic_unbind(struct device *dev, struct device *master,
 			      void *data)
 {
 	struct exynos_mic *mic = dev_get_drvdata(dev);
-	int i;
 
 	mutex_lock(&mic_mutex);
 	if (!mic->enabled)
 		goto already_disabled;
 
-	for (i = NUM_CLKS - 1; i > -1; i--)
-		clk_disable_unprepare(mic->clks[i]);
+	pm_runtime_put(mic->dev);
 
 already_disabled:
 	mutex_unlock(&mic_mutex);
@@ -419,6 +395,41 @@ already_disabled:
 static const struct component_ops exynos_mic_component_ops = {
 	.bind	= exynos_mic_bind,
 	.unbind	= exynos_mic_unbind,
+};
+
+#ifdef CONFIG_PM
+static int exynos_mic_suspend(struct device *dev)
+{
+	struct exynos_mic *mic = dev_get_drvdata(dev);
+	int i;
+
+	for (i = NUM_CLKS - 1; i > -1; i--)
+		clk_disable_unprepare(mic->clks[i]);
+
+	return 0;
+}
+
+static int exynos_mic_resume(struct device *dev)
+{
+	struct exynos_mic *mic = dev_get_drvdata(dev);
+	int ret, i;
+
+	for (i = 0; i < NUM_CLKS; i++) {
+		ret = clk_prepare_enable(mic->clks[i]);
+		if (ret < 0) {
+			DRM_ERROR("Failed to enable clock (%s)\n",
+							clk_names[i]);
+			while (--i > -1)
+				clk_disable_unprepare(mic->clks[i]);
+			return ret;
+		}
+	}
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops exynos_mic_pm_ops = {
+	SET_RUNTIME_PM_OPS(exynos_mic_suspend, exynos_mic_resume, NULL)
 };
 
 static int exynos_mic_probe(struct platform_device *pdev)
@@ -473,9 +484,18 @@ static int exynos_mic_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, mic);
 
-	DRM_DEBUG_KMS("MIC has been probed\n");
-	return component_add(dev, &exynos_mic_component_ops);
+	pm_runtime_enable(dev);
 
+	ret = component_add(dev, &exynos_mic_component_ops);
+	if (ret)
+		goto err_pm;
+
+	DRM_DEBUG_KMS("MIC has been probed\n");
+
+	return 0;
+
+err_pm:
+	pm_runtime_disable(dev);
 err:
 	return ret;
 }
@@ -483,6 +503,7 @@ err:
 static int exynos_mic_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &exynos_mic_component_ops);
+	pm_runtime_disable(&pdev->dev);
 	return 0;
 }
 
@@ -497,6 +518,7 @@ struct platform_driver mic_driver = {
 	.remove		= exynos_mic_remove,
 	.driver		= {
 		.name	= "exynos-mic",
+		.pm	= &exynos_mic_pm_ops,
 		.owner	= THIS_MODULE,
 		.of_match_table = exynos_mic_of_match,
 	},

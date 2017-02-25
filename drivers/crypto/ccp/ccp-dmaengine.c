@@ -63,6 +63,7 @@ static void ccp_free_chan_resources(struct dma_chan *dma_chan)
 	ccp_free_desc_resources(chan->ccp, &chan->complete);
 	ccp_free_desc_resources(chan->ccp, &chan->active);
 	ccp_free_desc_resources(chan->ccp, &chan->pending);
+	ccp_free_desc_resources(chan->ccp, &chan->created);
 
 	spin_unlock_irqrestore(&chan->lock, flags);
 }
@@ -273,6 +274,7 @@ static dma_cookie_t ccp_tx_submit(struct dma_async_tx_descriptor *tx_desc)
 	spin_lock_irqsave(&chan->lock, flags);
 
 	cookie = dma_cookie_assign(tx_desc);
+	list_del(&desc->entry);
 	list_add_tail(&desc->entry, &chan->pending);
 
 	spin_unlock_irqrestore(&chan->lock, flags);
@@ -426,7 +428,7 @@ static struct ccp_dma_desc *ccp_create_desc(struct dma_chan *dma_chan,
 
 	spin_lock_irqsave(&chan->lock, sflags);
 
-	list_add_tail(&desc->entry, &chan->pending);
+	list_add_tail(&desc->entry, &chan->created);
 
 	spin_unlock_irqrestore(&chan->lock, sflags);
 
@@ -610,6 +612,7 @@ static int ccp_terminate_all(struct dma_chan *dma_chan)
 	/*TODO: Purge the complete list? */
 	ccp_free_desc_resources(chan->ccp, &chan->active);
 	ccp_free_desc_resources(chan->ccp, &chan->pending);
+	ccp_free_desc_resources(chan->ccp, &chan->created);
 
 	spin_unlock_irqrestore(&chan->lock, flags);
 
@@ -679,6 +682,7 @@ int ccp_dmaengine_register(struct ccp_device *ccp)
 		chan->ccp = ccp;
 
 		spin_lock_init(&chan->lock);
+		INIT_LIST_HEAD(&chan->created);
 		INIT_LIST_HEAD(&chan->pending);
 		INIT_LIST_HEAD(&chan->active);
 		INIT_LIST_HEAD(&chan->complete);

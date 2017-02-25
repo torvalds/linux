@@ -16,6 +16,8 @@
 #include <linux/mmc/sdio_func.h>
 
 #include "sdio_ops.h"
+#include "core.h"
+#include "card.h"
 
 /**
  *	sdio_claim_host - exclusively claim a bus for a certain SDIO function

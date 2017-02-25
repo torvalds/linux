@@ -28,6 +28,7 @@
 #ifndef __AST_DRV_H__
 #define __AST_DRV_H__
 
+#include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
 
 #include <drm/ttm/ttm_bo_api.h>
@@ -113,6 +114,7 @@ struct ast_private {
 	struct ttm_bo_kmap_obj cache_kmap;
 	int next_cursor;
 	bool support_wide_screen;
+	bool DisableP2A;
 
 	enum ast_tx_chip tx_chip_type;
 	u8 dp501_maxclk;
@@ -121,7 +123,7 @@ struct ast_private {
 };
 
 int ast_driver_load(struct drm_device *dev, unsigned long flags);
-int ast_driver_unload(struct drm_device *dev);
+void ast_driver_unload(struct drm_device *dev);
 
 struct ast_gem_object;
 

@@ -265,6 +265,19 @@ static int rmi_irq_init(struct rmi_device *rmi_dev)
 	return 0;
 }
 
+struct rmi_function *rmi_find_function(struct rmi_device *rmi_dev, u8 number)
+{
+	struct rmi_driver_data *data = dev_get_drvdata(&rmi_dev->dev);
+	struct rmi_function *entry;
+
+	list_for_each_entry(entry, &data->function_list, node) {
+		if (entry->fd.function_number == number)
+			return entry;
+	}
+
+	return NULL;
+}
+
 static int suspend_one_function(struct rmi_function *fn)
 {
 	struct rmi_function_handler *fh;
@@ -364,7 +377,7 @@ static void rmi_driver_set_input_name(struct rmi_device *rmi_dev,
 				struct input_dev *input)
 {
 	struct rmi_driver_data *data = dev_get_drvdata(&rmi_dev->dev);
-	char *device_name = rmi_f01_get_product_ID(data->f01_container);
+	const char *device_name = rmi_f01_get_product_ID(data->f01_container);
 	char *name;
 
 	name = devm_kasprintf(&rmi_dev->dev, GFP_KERNEL,
@@ -836,7 +849,7 @@ static int rmi_create_function(struct rmi_device *rmi_dev,
 			       void *ctx, const struct pdt_entry *pdt)
 {
 	struct device *dev = &rmi_dev->dev;
-	struct rmi_driver_data *data = dev_get_drvdata(&rmi_dev->dev);
+	struct rmi_driver_data *data = dev_get_drvdata(dev);
 	int *current_irq_count = ctx;
 	struct rmi_function *fn;
 	int i;
@@ -901,7 +914,7 @@ void rmi_enable_irq(struct rmi_device *rmi_dev, bool clear_wake)
 	data->enabled = true;
 	if (clear_wake && device_may_wakeup(rmi_dev->xport->dev)) {
 		retval = disable_irq_wake(irq);
-		if (!retval)
+		if (retval)
 			dev_warn(&rmi_dev->dev,
 				 "Failed to disable irq for wake: %d\n",
 				 retval);
@@ -936,7 +949,7 @@ void rmi_disable_irq(struct rmi_device *rmi_dev, bool enable_wake)
 	disable_irq(irq);
 	if (enable_wake && device_may_wakeup(rmi_dev->xport->dev)) {
 		retval = enable_irq_wake(irq);
-		if (!retval)
+		if (retval)
 			dev_warn(&rmi_dev->dev,
 				 "Failed to enable irq for wake: %d\n",
 				 retval);
@@ -1040,7 +1053,7 @@ int rmi_probe_interrupts(struct rmi_driver_data *data)
 	}
 
 	if (data->bootloader_mode)
-		dev_warn(&rmi_dev->dev, "Device in bootloader mode.\n");
+		dev_warn(dev, "Device in bootloader mode.\n");
 
 	data->irq_count = irq_count;
 	data->num_of_irq_regs = (data->irq_count + 7) / 8;
@@ -1049,7 +1062,7 @@ int rmi_probe_interrupts(struct rmi_driver_data *data)
 	data->irq_memory = devm_kzalloc(dev, size * 4, GFP_KERNEL);
 	if (!data->irq_memory) {
 		dev_err(dev, "Failed to allocate memory for irq masks.\n");
-		return retval;
+		return -ENOMEM;
 	}
 
 	data->irq_status	= data->irq_memory + size * 0;

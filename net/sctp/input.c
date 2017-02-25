@@ -872,6 +872,8 @@ void sctp_transport_hashtable_destroy(void)
 
 int sctp_hash_transport(struct sctp_transport *t)
 {
+	struct sctp_transport *transport;
+	struct rhlist_head *tmp, *list;
 	struct sctp_hash_cmp_arg arg;
 	int err;
 
@@ -882,8 +884,19 @@ int sctp_hash_transport(struct sctp_transport *t)
 	arg.paddr = &t->ipaddr;
 	arg.lport = htons(t->asoc->base.bind_addr.port);
 
+	list = rhltable_lookup(&sctp_transport_hashtable, &arg,
+			       sctp_hash_params);
+
+	rhl_for_each_entry_rcu(transport, tmp, list, node)
+		if (transport->asoc->ep == t->asoc->ep) {
+			err = -EEXIST;
+			goto out;
+		}
+
 	err = rhltable_insert_key(&sctp_transport_hashtable, &arg,
 				  &t->node, sctp_hash_params);
+
+out:
 	if (err)
 		pr_err_once("insert transport fail, errno %d\n", err);
 
@@ -1229,13 +1242,26 @@ static struct sctp_association *__sctp_rcv_lookup(struct net *net,
 	struct sctp_association *asoc;
 
 	asoc = __sctp_lookup_association(net, laddr, paddr, transportp);
+	if (asoc)
+		goto out;
 
 	/* Further lookup for INIT/INIT-ACK packets.
 	 * SCTP Implementors Guide, 2.18 Handling of address
 	 * parameters within the INIT or INIT-ACK.
 	 */
-	if (!asoc)
-		asoc = __sctp_rcv_lookup_harder(net, skb, laddr, transportp);
+	asoc = __sctp_rcv_lookup_harder(net, skb, laddr, transportp);
+	if (asoc)
+		goto out;
 
+	if (paddr->sa.sa_family == AF_INET)
+		pr_debug("sctp: asoc not found for src:%pI4:%d dst:%pI4:%d\n",
+			 &laddr->v4.sin_addr, ntohs(laddr->v4.sin_port),
+			 &paddr->v4.sin_addr, ntohs(paddr->v4.sin_port));
+	else
+		pr_debug("sctp: asoc not found for src:%pI6:%d dst:%pI6:%d\n",
+			 &laddr->v6.sin6_addr, ntohs(laddr->v6.sin6_port),
+			 &paddr->v6.sin6_addr, ntohs(paddr->v6.sin6_port));
+
+out:
 	return asoc;
 }

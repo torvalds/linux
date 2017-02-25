@@ -16,6 +16,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/atomic.h>
+#include <linux/user_namespace.h>
 
 /*
  * IN_* from inotfy.h lines up EXACTLY with FS_*, this is so we can easily
@@ -170,7 +171,7 @@ struct fsnotify_group {
 		struct inotify_group_private_data {
 			spinlock_t	idr_lock;
 			struct idr      idr;
-			struct user_struct      *user;
+			struct ucounts *ucounts;
 		} inotify_data;
 #endif
 #ifdef CONFIG_FANOTIFY
@@ -323,8 +324,6 @@ extern void fsnotify_init_mark(struct fsnotify_mark *mark, void (*free_mark)(str
 extern struct fsnotify_mark *fsnotify_find_inode_mark(struct fsnotify_group *group, struct inode *inode);
 /* find (and take a reference) to a mark associated with group and vfsmount */
 extern struct fsnotify_mark *fsnotify_find_vfsmount_mark(struct fsnotify_group *group, struct vfsmount *mnt);
-/* copy the values from old into new */
-extern void fsnotify_duplicate_mark(struct fsnotify_mark *new, struct fsnotify_mark *old);
 /* set the ignored_mask of a mark */
 extern void fsnotify_set_mark_ignored_mask_locked(struct fsnotify_mark *mark, __u32 mask);
 /* set the mask of a mark (might pin the object into memory */

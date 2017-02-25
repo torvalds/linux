@@ -63,8 +63,8 @@ void speakup_remove_virtual_keyboard(void)
 }
 
 /*
-	 * Send a simulated down-arrow to the application.
-	 */
+ * Send a simulated down-arrow to the application.
+ */
 void speakup_fake_down_arrow(void)
 {
 	unsigned long flags;
@@ -87,9 +87,9 @@ void speakup_fake_down_arrow(void)
 }
 
 /*
-	 * Are we handling a simulated keypress on the current CPU?
-	 * Returns a boolean.
-	 */
+ * Are we handling a simulated keypress on the current CPU?
+ * Returns a boolean.
+ */
 bool speakup_fake_key_pressed(void)
 {
 	return this_cpu_read(reporting_keystroke);

@@ -371,7 +371,7 @@ static int tcm_qla2xxx_write_pending(struct se_cmd *se_cmd)
 		 */
 		pr_debug("write_pending aborted cmd[%p] refcount %d "
 			"transport_state %x, t_state %x, se_cmd_flags %x\n",
-			cmd,cmd->se_cmd.cmd_kref.refcount.counter,
+			cmd, kref_read(&cmd->se_cmd.cmd_kref),
 			cmd->se_cmd.transport_state,
 			cmd->se_cmd.t_state,
 			cmd->se_cmd.se_cmd_flags);
@@ -584,7 +584,7 @@ static int tcm_qla2xxx_queue_data_in(struct se_cmd *se_cmd)
 		 */
 		pr_debug("queue_data_in aborted cmd[%p] refcount %d "
 			"transport_state %x, t_state %x, se_cmd_flags %x\n",
-			cmd,cmd->se_cmd.cmd_kref.refcount.counter,
+			cmd, kref_read(&cmd->se_cmd.cmd_kref),
 			cmd->se_cmd.transport_state,
 			cmd->se_cmd.t_state,
 			cmd->se_cmd.se_cmd_flags);
@@ -1800,7 +1800,7 @@ static ssize_t tcm_qla2xxx_wwn_version_show(struct config_item *item,
 {
 	return sprintf(page,
 	    "TCM QLOGIC QLA2XXX NPIV capable fabric module %s on %s/%s on "
-	    UTS_RELEASE"\n", TCM_QLA2XXX_VERSION, utsname()->sysname,
+	    UTS_RELEASE"\n", QLA2XXX_VERSION, utsname()->sysname,
 	    utsname()->machine);
 }
 
@@ -1906,7 +1906,7 @@ static int tcm_qla2xxx_register_configfs(void)
 	int ret;
 
 	pr_debug("TCM QLOGIC QLA2XXX fabric module %s on %s/%s on "
-	    UTS_RELEASE"\n", TCM_QLA2XXX_VERSION, utsname()->sysname,
+	    UTS_RELEASE"\n", QLA2XXX_VERSION, utsname()->sysname,
 	    utsname()->machine);
 
 	ret = target_register_template(&tcm_qla2xxx_ops);

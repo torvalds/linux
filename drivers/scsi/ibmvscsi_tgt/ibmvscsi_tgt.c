@@ -46,6 +46,7 @@
 
 #define	INITIAL_SRP_LIMIT	800
 #define	DEFAULT_MAX_SECTORS	256
+#define MAX_TXU			1024 * 1024
 
 static uint max_vdma_size = MAX_H_COPY_RDMA;
 
@@ -1391,7 +1392,7 @@ static long ibmvscsis_adapter_info(struct scsi_info *vscsi,
 	}
 
 	info = dma_alloc_coherent(&vscsi->dma_dev->dev, sizeof(*info), &token,
-				  GFP_KERNEL);
+				  GFP_ATOMIC);
 	if (!info) {
 		dev_err(&vscsi->dev, "bad dma_alloc_coherent %p\n",
 			iue->target);
@@ -1443,7 +1444,7 @@ static long ibmvscsis_adapter_info(struct scsi_info *vscsi,
 	info->mad_version = cpu_to_be32(MAD_VERSION_1);
 	info->os_type = cpu_to_be32(LINUX);
 	memset(&info->port_max_txu[0], 0, sizeof(info->port_max_txu));
-	info->port_max_txu[0] = cpu_to_be32(128 * PAGE_SIZE);
+	info->port_max_txu[0] = cpu_to_be32(MAX_TXU);
 
 	dma_wmb();
 	rc = h_copy_rdma(sizeof(*info), vscsi->dds.window[LOCAL].liobn,
@@ -1509,7 +1510,7 @@ static int ibmvscsis_cap_mad(struct scsi_info *vscsi, struct iu_entry *iue)
 	}
 
 	cap = dma_alloc_coherent(&vscsi->dma_dev->dev, olen, &token,
-				 GFP_KERNEL);
+				 GFP_ATOMIC);
 	if (!cap) {
 		dev_err(&vscsi->dev, "bad dma_alloc_coherent %p\n",
 			iue->target);
@@ -3585,7 +3586,7 @@ static int ibmvscsis_write_pending(struct se_cmd *se_cmd)
 			       1, 1);
 	if (rc) {
 		pr_err("srp_transfer_data() failed: %d\n", rc);
-		return -EAGAIN;
+		return -EIO;
 	}
 	/*
 	 * We now tell TCM to add this WRITE CDB directly into the TCM storage
@@ -3815,6 +3816,7 @@ static struct configfs_attribute *ibmvscsis_tpg_attrs[] = {
 static const struct target_core_fabric_ops ibmvscsis_ops = {
 	.module				= THIS_MODULE,
 	.name				= "ibmvscsis",
+	.max_data_sg_nents		= MAX_TXU / PAGE_SIZE,
 	.get_fabric_name		= ibmvscsis_get_fabric_name,
 	.tpg_get_wwn			= ibmvscsis_get_fabric_wwn,
 	.tpg_get_tag			= ibmvscsis_get_tag,

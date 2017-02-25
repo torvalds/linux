@@ -159,6 +159,10 @@ struct osc_object {
 	/* Protect osc_lock this osc_object has */
 	spinlock_t		oo_ol_spin;
 	struct list_head	oo_ol_list;
+
+	/** number of active IOs of this object */
+	atomic_t		oo_nr_ios;
+	wait_queue_head_t	oo_io_waitq;
 };
 
 static inline void osc_object_lock(struct osc_object *obj)
@@ -399,10 +403,9 @@ int osc_flush_async_page(const struct lu_env *env, struct cl_io *io,
 			 struct osc_page *ops);
 int osc_queue_sync_pages(const struct lu_env *env, struct osc_object *obj,
 			 struct list_head *list, int cmd, int brw_flags);
-int osc_cache_truncate_start(const struct lu_env *env, struct osc_io *oio,
-			     struct osc_object *obj, __u64 size);
-void osc_cache_truncate_end(const struct lu_env *env, struct osc_io *oio,
-			    struct osc_object *obj);
+int osc_cache_truncate_start(const struct lu_env *env, struct osc_object *obj,
+			     u64 size, struct osc_extent **extp);
+void osc_cache_truncate_end(const struct lu_env *env, struct osc_extent *ext);
 int osc_cache_writeback_range(const struct lu_env *env, struct osc_object *obj,
 			      pgoff_t start, pgoff_t end, int hp, int discard);
 int osc_cache_wait_range(const struct lu_env *env, struct osc_object *obj,

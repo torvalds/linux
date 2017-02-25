@@ -85,11 +85,11 @@ static __read_mostly DEFINE_SPINLOCK(nf_conntrack_locks_all_lock);
 static __read_mostly bool nf_conntrack_locks_all;
 
 /* every gc cycle scans at most 1/GC_MAX_BUCKETS_DIV part of table */
-#define GC_MAX_BUCKETS_DIV	64u
-/* upper bound of scan intervals */
-#define GC_INTERVAL_MAX		(2 * HZ)
-/* maximum conntracks to evict per gc run */
-#define GC_MAX_EVICTS		256u
+#define GC_MAX_BUCKETS_DIV	128u
+/* upper bound of full table scan */
+#define GC_MAX_SCAN_JIFFIES	(16u * HZ)
+/* desired ratio of entries found to be expired */
+#define GC_EVICT_RATIO	50u
 
 static struct conntrack_gc_work conntrack_gc_work;
 
@@ -350,16 +350,31 @@ static void nf_ct_del_from_dying_or_unconfirmed_list(struct nf_conn *ct)
 	spin_unlock(&pcpu->lock);
 }
 
+#define NFCT_ALIGN(len)	(((len) + NFCT_INFOMASK) & ~NFCT_INFOMASK)
+
 /* Released via destroy_conntrack() */
 struct nf_conn *nf_ct_tmpl_alloc(struct net *net,
 				 const struct nf_conntrack_zone *zone,
 				 gfp_t flags)
 {
-	struct nf_conn *tmpl;
+	struct nf_conn *tmpl, *p;
 
-	tmpl = kzalloc(sizeof(*tmpl), flags);
-	if (tmpl == NULL)
-		return NULL;
+	if (ARCH_KMALLOC_MINALIGN <= NFCT_INFOMASK) {
+		tmpl = kzalloc(sizeof(*tmpl) + NFCT_INFOMASK, flags);
+		if (!tmpl)
+			return NULL;
+
+		p = tmpl;
+		tmpl = (struct nf_conn *)NFCT_ALIGN((unsigned long)p);
+		if (tmpl != p) {
+			tmpl = (struct nf_conn *)NFCT_ALIGN((unsigned long)p);
+			tmpl->proto.tmpl_padto = (char *)tmpl - (char *)p;
+		}
+	} else {
+		tmpl = kzalloc(sizeof(*tmpl), flags);
+		if (!tmpl)
+			return NULL;
+	}
 
 	tmpl->status = IPS_TEMPLATE;
 	write_pnet(&tmpl->ct_net, net);
@@ -374,7 +389,11 @@ void nf_ct_tmpl_free(struct nf_conn *tmpl)
 {
 	nf_ct_ext_destroy(tmpl);
 	nf_ct_ext_free(tmpl);
-	kfree(tmpl);
+
+	if (ARCH_KMALLOC_MINALIGN <= NFCT_INFOMASK)
+		kfree((char *)tmpl - tmpl->proto.tmpl_padto);
+	else
+		kfree(tmpl);
 }
 EXPORT_SYMBOL_GPL(nf_ct_tmpl_free);
 
@@ -686,12 +705,12 @@ static int nf_ct_resolve_clash(struct net *net, struct sk_buff *skb,
 	    !nfct_nat(ct) &&
 	    !nf_ct_is_dying(ct) &&
 	    atomic_inc_not_zero(&ct->ct_general.use)) {
-		nf_ct_acct_merge(ct, ctinfo, (struct nf_conn *)skb->nfct);
-		nf_conntrack_put(skb->nfct);
-		/* Assign conntrack already in hashes to this skbuff. Don't
-		 * modify skb->nfctinfo to ensure consistent stateful filtering.
-		 */
-		skb->nfct = &ct->ct_general;
+		enum ip_conntrack_info oldinfo;
+		struct nf_conn *loser_ct = nf_ct_get(skb, &oldinfo);
+
+		nf_ct_acct_merge(ct, ctinfo, loser_ct);
+		nf_conntrack_put(&loser_ct->ct_general);
+		nf_ct_set(skb, ct, oldinfo);
 		return NF_ACCEPT;
 	}
 	NF_CT_STAT_INC(net, drop);
@@ -938,6 +957,7 @@ static noinline int early_drop(struct net *net, unsigned int _hash)
 
 static void gc_worker(struct work_struct *work)
 {
+	unsigned int min_interval = max(HZ / GC_MAX_BUCKETS_DIV, 1u);
 	unsigned int i, goal, buckets = 0, expired_count = 0;
 	struct conntrack_gc_work *gc_work;
 	unsigned int ratio, scanned = 0;
@@ -979,8 +999,7 @@ static void gc_worker(struct work_struct *work)
 		 */
 		rcu_read_unlock();
 		cond_resched_rcu_qs();
-	} while (++buckets < goal &&
-		 expired_count < GC_MAX_EVICTS);
+	} while (++buckets < goal);
 
 	if (gc_work->exiting)
 		return;
@@ -997,27 +1016,25 @@ static void gc_worker(struct work_struct *work)
 	 * 1. Minimize time until we notice a stale entry
 	 * 2. Maximize scan intervals to not waste cycles
 	 *
-	 * Normally, expired_count will be 0, this increases the next_run time
-	 * to priorize 2) above.
+	 * Normally, expire ratio will be close to 0.
 	 *
-	 * As soon as a timed-out entry is found, move towards 1) and increase
-	 * the scan frequency.
-	 * In case we have lots of evictions next scan is done immediately.
+	 * As soon as a sizeable fraction of the entries have expired
+	 * increase scan frequency.
 	 */
 	ratio = scanned ? expired_count * 100 / scanned : 0;
-	if (ratio >= 90 || expired_count == GC_MAX_EVICTS) {
-		gc_work->next_gc_run = 0;
-		next_run = 0;
-	} else if (expired_count) {
-		gc_work->next_gc_run /= 2U;
-		next_run = msecs_to_jiffies(1);
+	if (ratio > GC_EVICT_RATIO) {
+		gc_work->next_gc_run = min_interval;
 	} else {
-		if (gc_work->next_gc_run < GC_INTERVAL_MAX)
-			gc_work->next_gc_run += msecs_to_jiffies(1);
+		unsigned int max = GC_MAX_SCAN_JIFFIES / GC_MAX_BUCKETS_DIV;
 
-		next_run = gc_work->next_gc_run;
+		BUILD_BUG_ON((GC_MAX_SCAN_JIFFIES / GC_MAX_BUCKETS_DIV) == 0);
+
+		gc_work->next_gc_run += min_interval;
+		if (gc_work->next_gc_run > max)
+			gc_work->next_gc_run = max;
 	}
 
+	next_run = gc_work->next_gc_run;
 	gc_work->last_bucket = i;
 	queue_delayed_work(system_long_wq, &gc_work->dwork, next_run);
 }
@@ -1025,7 +1042,7 @@ static void gc_worker(struct work_struct *work)
 static void conntrack_gc_work_init(struct conntrack_gc_work *gc_work)
 {
 	INIT_DELAYED_WORK(&gc_work->dwork, gc_worker);
-	gc_work->next_gc_run = GC_INTERVAL_MAX;
+	gc_work->next_gc_run = HZ;
 	gc_work->exiting = false;
 }
 
@@ -1220,7 +1237,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	return &ct->tuplehash[IP_CT_DIR_ORIGINAL];
 }
 
-/* On success, returns conntrack ptr, sets skb->nfct and ctinfo */
+/* On success, returns conntrack ptr, sets skb->_nfct | ctinfo */
 static inline struct nf_conn *
 resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 		  struct sk_buff *skb,
@@ -1279,8 +1296,7 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 		}
 		*set_reply = 0;
 	}
-	skb->nfct = &ct->ct_general;
-	skb->nfctinfo = *ctinfo;
+	nf_ct_set(skb, ct, *ctinfo);
 	return ct;
 }
 
@@ -1288,7 +1304,7 @@ unsigned int
 nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		struct sk_buff *skb)
 {
-	struct nf_conn *ct, *tmpl = NULL;
+	struct nf_conn *ct, *tmpl;
 	enum ip_conntrack_info ctinfo;
 	struct nf_conntrack_l3proto *l3proto;
 	struct nf_conntrack_l4proto *l4proto;
@@ -1298,14 +1314,14 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	int set_reply = 0;
 	int ret;
 
-	if (skb->nfct) {
+	tmpl = nf_ct_get(skb, &ctinfo);
+	if (tmpl) {
 		/* Previously seen (loopback or untracked)?  Ignore. */
-		tmpl = (struct nf_conn *)skb->nfct;
 		if (!nf_ct_is_template(tmpl)) {
 			NF_CT_STAT_INC_ATOMIC(net, ignore);
 			return NF_ACCEPT;
 		}
-		skb->nfct = NULL;
+		skb->_nfct = 0;
 	}
 
 	/* rcu_read_lock()ed by nf_hook_thresh */
@@ -1326,8 +1342,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	 * inverse of the return code tells to the netfilter
 	 * core what to do with the packet. */
 	if (l4proto->error != NULL) {
-		ret = l4proto->error(net, tmpl, skb, dataoff, &ctinfo,
-				     pf, hooknum);
+		ret = l4proto->error(net, tmpl, skb, dataoff, pf, hooknum);
 		if (ret <= 0) {
 			NF_CT_STAT_INC_ATOMIC(net, error);
 			NF_CT_STAT_INC_ATOMIC(net, invalid);
@@ -1335,7 +1350,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 			goto out;
 		}
 		/* ICMP[v6] protocol trackers may assign one conntrack. */
-		if (skb->nfct)
+		if (skb->_nfct)
 			goto out;
 	}
 repeat:
@@ -1355,7 +1370,7 @@ repeat:
 		goto out;
 	}
 
-	NF_CT_ASSERT(skb->nfct);
+	NF_CT_ASSERT(skb_nfct(skb));
 
 	/* Decide what timeout policy we want to apply to this flow. */
 	timeouts = nf_ct_timeout_lookup(net, ct, l4proto);
@@ -1365,8 +1380,8 @@ repeat:
 		/* Invalid: inverse of the return code tells
 		 * the netfilter core what to do */
 		pr_debug("nf_conntrack_in: Can't track with proto module\n");
-		nf_conntrack_put(skb->nfct);
-		skb->nfct = NULL;
+		nf_conntrack_put(&ct->ct_general);
+		skb->_nfct = 0;
 		NF_CT_STAT_INC_ATOMIC(net, invalid);
 		if (ret == -NF_DROP)
 			NF_CT_STAT_INC_ATOMIC(net, drop);
@@ -1524,9 +1539,8 @@ static void nf_conntrack_attach(struct sk_buff *nskb, const struct sk_buff *skb)
 		ctinfo = IP_CT_RELATED;
 
 	/* Attach to new skbuff, and increment count */
-	nskb->nfct = &ct->ct_general;
-	nskb->nfctinfo = ctinfo;
-	nf_conntrack_get(nskb->nfct);
+	nf_ct_set(nskb, ct, ctinfo);
+	nf_conntrack_get(skb_nfct(nskb));
 }
 
 /* Bring out ya dead! */
@@ -1862,7 +1876,8 @@ int nf_conntrack_init_start(void)
 	nf_conntrack_max = max_factor * nf_conntrack_htable_size;
 
 	nf_conntrack_cachep = kmem_cache_create("nf_conntrack",
-						sizeof(struct nf_conn), 0,
+						sizeof(struct nf_conn),
+						NFCT_INFOMASK + 1,
 						SLAB_DESTROY_BY_RCU | SLAB_HWCACHE_ALIGN, NULL);
 	if (!nf_conntrack_cachep)
 		goto err_cachep;
@@ -1917,7 +1932,7 @@ int nf_conntrack_init_start(void)
 	nf_ct_untracked_status_or(IPS_CONFIRMED | IPS_UNTRACKED);
 
 	conntrack_gc_work_init(&conntrack_gc_work);
-	queue_delayed_work(system_long_wq, &conntrack_gc_work.dwork, GC_INTERVAL_MAX);
+	queue_delayed_work(system_long_wq, &conntrack_gc_work.dwork, HZ);
 
 	return 0;
 

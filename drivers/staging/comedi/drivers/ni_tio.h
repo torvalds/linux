@@ -110,9 +110,9 @@ struct ni_gpct {
 
 struct ni_gpct_device {
 	struct comedi_device *dev;
-	void (*write)(struct ni_gpct *, unsigned int value,
+	void (*write)(struct ni_gpct *counter, unsigned int value,
 		      enum ni_gpct_register);
-	unsigned int (*read)(struct ni_gpct *, enum ni_gpct_register);
+	unsigned int (*read)(struct ni_gpct *counter, enum ni_gpct_register);
 	enum ni_gpct_variant variant;
 	struct ni_gpct *counters;
 	unsigned int num_counters;
@@ -121,28 +121,30 @@ struct ni_gpct_device {
 };
 
 struct ni_gpct_device *
-ni_gpct_device_construct(struct comedi_device *,
-			 void (*write)(struct ni_gpct *,
+ni_gpct_device_construct(struct comedi_device *dev,
+			 void (*write)(struct ni_gpct *counter,
 				       unsigned int value,
 				       enum ni_gpct_register),
-			 unsigned int (*read)(struct ni_gpct *,
+			 unsigned int (*read)(struct ni_gpct *counter,
 					      enum ni_gpct_register),
 			 enum ni_gpct_variant,
 			 unsigned int num_counters);
-void ni_gpct_device_destroy(struct ni_gpct_device *);
-void ni_tio_init_counter(struct ni_gpct *);
-int ni_tio_insn_read(struct comedi_device *, struct comedi_subdevice *,
-		     struct comedi_insn *, unsigned int *data);
-int ni_tio_insn_config(struct comedi_device *, struct comedi_subdevice *,
-		       struct comedi_insn *, unsigned int *data);
-int ni_tio_insn_write(struct comedi_device *, struct comedi_subdevice *,
-		      struct comedi_insn *, unsigned int *data);
-int ni_tio_cmd(struct comedi_device *, struct comedi_subdevice *);
-int ni_tio_cmdtest(struct comedi_device *, struct comedi_subdevice *,
-		   struct comedi_cmd *);
-int ni_tio_cancel(struct ni_gpct *);
-void ni_tio_handle_interrupt(struct ni_gpct *, struct comedi_subdevice *);
-void ni_tio_set_mite_channel(struct ni_gpct *, struct mite_channel *);
-void ni_tio_acknowledge(struct ni_gpct *);
+void ni_gpct_device_destroy(struct ni_gpct_device *counter_dev);
+void ni_tio_init_counter(struct ni_gpct *counter);
+int ni_tio_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+		     struct comedi_insn *insn, unsigned int *data);
+int ni_tio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+		       struct comedi_insn *insn, unsigned int *data);
+int ni_tio_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
+		      struct comedi_insn *insn, unsigned int *data);
+int ni_tio_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
+int ni_tio_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+		   struct comedi_cmd *cmd);
+int ni_tio_cancel(struct ni_gpct *counter);
+void ni_tio_handle_interrupt(struct ni_gpct *counter,
+			     struct comedi_subdevice *s);
+void ni_tio_set_mite_channel(struct ni_gpct *counter,
+			     struct mite_channel *mite_chan);
+void ni_tio_acknowledge(struct ni_gpct *counter);
 
 #endif /* _COMEDI_NI_TIO_H */

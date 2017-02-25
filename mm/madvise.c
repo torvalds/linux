@@ -10,6 +10,7 @@
 #include <linux/syscalls.h>
 #include <linux/mempolicy.h>
 #include <linux/page-isolation.h>
+#include <linux/userfaultfd_k.h>
 #include <linux/hugetlb.h>
 #include <linux/falloc.h>
 #include <linux/sched.h>
@@ -23,6 +24,8 @@
 #include <linux/mmu_notifier.h>
 
 #include <asm/tlb.h>
+
+#include "internal.h"
 
 /*
  * Any behaviour which results in changes to the vma->vm_flags needs to
@@ -473,10 +476,11 @@ static long madvise_dontneed(struct vm_area_struct *vma,
 			     unsigned long start, unsigned long end)
 {
 	*prev = vma;
-	if (vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP))
+	if (!can_madv_dontneed_vma(vma))
 		return -EINVAL;
 
-	zap_page_range(vma, start, end - start, NULL);
+	madvise_userfault_dontneed(vma, prev, start, end);
+	zap_page_range(vma, start, end - start);
 	return 0;
 }
 

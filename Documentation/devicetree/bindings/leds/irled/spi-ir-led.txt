@@ -1,0 +1,29 @@
+Device tree bindings for IR LED connected through SPI bus which is used as
+remote controller.
+
+The IR LED switch is connected to the MOSI line of the SPI device and the data
+are delivered thourgh that.
+
+Required properties:
+	- compatible: should be "ir-spi-led".
+
+Optional properties:
+	- duty-cycle: 8 bit balue that represents the percentage of one period
+	  in which the signal is active.  It can be 50, 60, 70, 75, 80 or 90.
+	- led-active-low: boolean value that specifies whether the output is
+	  negated with a NOT gate.
+	- power-supply: specifies the power source. It can either be a regulator
+	  or a gpio which enables a regulator, i.e. a regulator-fixed as
+	  described in
+	  Documentation/devicetree/bindings/regulator/fixed-regulator.txt
+
+Example:
+
+	irled@0 {
+		compatible = "ir-spi-led";
+		reg = <0x0>;
+		spi-max-frequency = <5000000>;
+		power-supply = <&vdd_led>;
+		led-active-low;
+		duty-cycle = /bits/ 8 <60>;
+	};

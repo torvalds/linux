@@ -481,6 +481,12 @@ xfs_submit_ioend(
 	struct xfs_ioend	*ioend,
 	int			status)
 {
+	/* Convert CoW extents to regular */
+	if (!status && ioend->io_type == XFS_IO_COW) {
+		status = xfs_reflink_convert_cow(XFS_I(ioend->io_inode),
+				ioend->io_offset, ioend->io_size);
+	}
+
 	/* Reserve log space if we might write beyond the on-disk inode size. */
 	if (!status &&
 	    ioend->io_type != XFS_IO_UNWRITTEN &&
@@ -1152,19 +1158,22 @@ xfs_vm_releasepage(
 	 * block_invalidatepage() can send pages that are still marked dirty
 	 * but otherwise have invalidated buffers.
 	 *
-	 * We've historically freed buffers on the latter. Instead, quietly
-	 * filter out all dirty pages to avoid spurious buffer state warnings.
-	 * This can likely be removed once shrink_active_list() is fixed.
+	 * We want to release the latter to avoid unnecessary buildup of the
+	 * LRU, skip the former and warn if we've left any lingering
+	 * delalloc/unwritten buffers on clean pages. Skip pages with delalloc
+	 * or unwritten buffers and warn if the page is not dirty. Otherwise
+	 * try to release the buffers.
 	 */
-	if (PageDirty(page))
-		return 0;
-
 	xfs_count_page_state(page, &delalloc, &unwritten);
 
-	if (WARN_ON_ONCE(delalloc))
+	if (delalloc) {
+		WARN_ON_ONCE(!PageDirty(page));
 		return 0;
-	if (WARN_ON_ONCE(unwritten))
+	}
+	if (unwritten) {
+		WARN_ON_ONCE(!PageDirty(page));
 		return 0;
+	}
 
 	return try_to_free_buffers(page);
 }

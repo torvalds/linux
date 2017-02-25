@@ -16,6 +16,7 @@
 #include <linux/syscalls.h>
 #include <linux/bitmap.h>
 #include <asm/syscalls.h>
+#include <asm/desc.h>
 
 /*
  * this changes the io permissions bitmap in the current task.
@@ -45,6 +46,10 @@ asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
 		memset(bitmap, 0xff, IO_BITMAP_BYTES);
 		t->io_bitmap_ptr = bitmap;
 		set_thread_flag(TIF_IO_BITMAP);
+
+		preempt_disable();
+		refresh_TR();
+		preempt_enable();
 	}
 
 	/*

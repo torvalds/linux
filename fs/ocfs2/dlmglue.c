@@ -532,6 +532,7 @@ void ocfs2_lock_res_init_once(struct ocfs2_lock_res *res)
 	init_waitqueue_head(&res->l_event);
 	INIT_LIST_HEAD(&res->l_blocked_list);
 	INIT_LIST_HEAD(&res->l_mask_waiters);
+	INIT_LIST_HEAD(&res->l_holders);
 }
 
 void ocfs2_inode_lock_res_init(struct ocfs2_lock_res *res,
@@ -747,6 +748,50 @@ void ocfs2_lock_res_free(struct ocfs2_lock_res *res)
 	memset(&res->l_lksb, 0, sizeof(res->l_lksb));
 
 	res->l_flags = 0UL;
+}
+
+/*
+ * Keep a list of processes who have interest in a lockres.
+ * Note: this is now only uesed for check recursive cluster locking.
+ */
+static inline void ocfs2_add_holder(struct ocfs2_lock_res *lockres,
+				   struct ocfs2_lock_holder *oh)
+{
+	INIT_LIST_HEAD(&oh->oh_list);
+	oh->oh_owner_pid = get_pid(task_pid(current));
+
+	spin_lock(&lockres->l_lock);
+	list_add_tail(&oh->oh_list, &lockres->l_holders);
+	spin_unlock(&lockres->l_lock);
+}
+
+static inline void ocfs2_remove_holder(struct ocfs2_lock_res *lockres,
+				       struct ocfs2_lock_holder *oh)
+{
+	spin_lock(&lockres->l_lock);
+	list_del(&oh->oh_list);
+	spin_unlock(&lockres->l_lock);
+
+	put_pid(oh->oh_owner_pid);
+}
+
+static inline int ocfs2_is_locked_by_me(struct ocfs2_lock_res *lockres)
+{
+	struct ocfs2_lock_holder *oh;
+	struct pid *pid;
+
+	/* look in the list of holders for one with the current task as owner */
+	spin_lock(&lockres->l_lock);
+	pid = task_pid(current);
+	list_for_each_entry(oh, &lockres->l_holders, oh_list) {
+		if (oh->oh_owner_pid == pid) {
+			spin_unlock(&lockres->l_lock);
+			return 1;
+		}
+	}
+	spin_unlock(&lockres->l_lock);
+
+	return 0;
 }
 
 static inline void ocfs2_inc_holders(struct ocfs2_lock_res *lockres,
@@ -2333,8 +2378,9 @@ int ocfs2_inode_lock_full_nested(struct inode *inode,
 		goto getbh;
 	}
 
-	if (ocfs2_mount_local(osb))
-		goto local;
+	if ((arg_flags & OCFS2_META_LOCK_GETBH) ||
+	    ocfs2_mount_local(osb))
+		goto update;
 
 	if (!(arg_flags & OCFS2_META_LOCK_RECOVERY))
 		ocfs2_wait_for_recovery(osb);
@@ -2363,7 +2409,7 @@ int ocfs2_inode_lock_full_nested(struct inode *inode,
 	if (!(arg_flags & OCFS2_META_LOCK_RECOVERY))
 		ocfs2_wait_for_recovery(osb);
 
-local:
+update:
 	/*
 	 * We only see this flag if we're being called from
 	 * ocfs2_read_locked_inode(). It means we're locking an inode
@@ -2495,6 +2541,59 @@ void ocfs2_inode_unlock(struct inode *inode,
 	if (!ocfs2_is_hard_readonly(OCFS2_SB(inode->i_sb)) &&
 	    !ocfs2_mount_local(osb))
 		ocfs2_cluster_unlock(OCFS2_SB(inode->i_sb), lockres, level);
+}
+
+/*
+ * This _tracker variantes are introduced to deal with the recursive cluster
+ * locking issue. The idea is to keep track of a lock holder on the stack of
+ * the current process. If there's a lock holder on the stack, we know the
+ * task context is already protected by cluster locking. Currently, they're
+ * used in some VFS entry routines.
+ *
+ * return < 0 on error, return == 0 if there's no lock holder on the stack
+ * before this call, return == 1 if this call would be a recursive locking.
+ */
+int ocfs2_inode_lock_tracker(struct inode *inode,
+			     struct buffer_head **ret_bh,
+			     int ex,
+			     struct ocfs2_lock_holder *oh)
+{
+	int status;
+	int arg_flags = 0, has_locked;
+	struct ocfs2_lock_res *lockres;
+
+	lockres = &OCFS2_I(inode)->ip_inode_lockres;
+	has_locked = ocfs2_is_locked_by_me(lockres);
+	/* Just get buffer head if the cluster lock has been taken */
+	if (has_locked)
+		arg_flags = OCFS2_META_LOCK_GETBH;
+
+	if (likely(!has_locked || ret_bh)) {
+		status = ocfs2_inode_lock_full(inode, ret_bh, ex, arg_flags);
+		if (status < 0) {
+			if (status != -ENOENT)
+				mlog_errno(status);
+			return status;
+		}
+	}
+	if (!has_locked)
+		ocfs2_add_holder(lockres, oh);
+
+	return has_locked;
+}
+
+void ocfs2_inode_unlock_tracker(struct inode *inode,
+				int ex,
+				struct ocfs2_lock_holder *oh,
+				int had_lock)
+{
+	struct ocfs2_lock_res *lockres;
+
+	lockres = &OCFS2_I(inode)->ip_inode_lockres;
+	if (!had_lock) {
+		ocfs2_remove_holder(lockres, oh);
+		ocfs2_inode_unlock(inode, ex);
+	}
 }
 
 int ocfs2_orphan_scan_lock(struct ocfs2_super *osb, u32 *seqno)
@@ -3302,6 +3401,16 @@ static int ocfs2_downconvert_lock(struct ocfs2_super *osb,
 
 	mlog(ML_BASTS, "lockres %s, level %d => %d\n", lockres->l_name,
 	     lockres->l_level, new_level);
+
+	/*
+	 * On DLM_LKF_VALBLK, fsdlm behaves differently with o2cb. It always
+	 * expects DLM_LKF_VALBLK being set if the LKB has LVB, so that
+	 * we can recover correctly from node failure. Otherwise, we may get
+	 * invalid LVB in LKB, but without DLM_SBF_VALNOTVALID being set.
+	 */
+	if (!ocfs2_is_o2cb_active() &&
+	    lockres->l_ops->flags & LOCK_TYPE_USES_LVB)
+		lvb = 1;
 
 	if (lvb)
 		dlm_flags |= DLM_LKF_VALBLK;

@@ -5452,7 +5452,9 @@ lpfc_slave_alloc(struct scsi_device *sdev)
 			device_data = lpfc_create_device_data(phba,
 							&vport->fc_portname,
 							&target_wwpn,
-							sdev->lun, true);
+							sdev->lun,
+							phba->cfg_XLanePriority,
+							true);
 			if (!device_data)
 				return -ENOMEM;
 			spin_lock_irqsave(&phba->devicelock, flags);
@@ -5587,7 +5589,7 @@ lpfc_slave_destroy(struct scsi_device *sdev)
 struct lpfc_device_data*
 lpfc_create_device_data(struct lpfc_hba *phba, struct lpfc_name *vport_wwpn,
 			struct lpfc_name *target_wwpn, uint64_t lun,
-			bool atomic_create)
+			uint32_t pri, bool atomic_create)
 {
 
 	struct lpfc_device_data *lun_info;
@@ -5614,7 +5616,7 @@ lpfc_create_device_data(struct lpfc_hba *phba, struct lpfc_name *vport_wwpn,
 	       sizeof(struct lpfc_name));
 	lun_info->device_id.lun = lun;
 	lun_info->oas_enabled = false;
-	lun_info->priority = phba->cfg_XLanePriority;
+	lun_info->priority = pri;
 	lun_info->available = false;
 	return lun_info;
 }
@@ -5716,7 +5718,8 @@ lpfc_find_next_oas_lun(struct lpfc_hba *phba, struct lpfc_name *vport_wwpn,
 		       struct lpfc_name *found_vport_wwpn,
 		       struct lpfc_name *found_target_wwpn,
 		       uint64_t *found_lun,
-		       uint32_t *found_lun_status)
+		       uint32_t *found_lun_status,
+		       uint32_t *found_lun_pri)
 {
 
 	unsigned long flags;
@@ -5763,6 +5766,7 @@ lpfc_find_next_oas_lun(struct lpfc_hba *phba, struct lpfc_name *vport_wwpn,
 						OAS_LUN_STATUS_EXISTS;
 				else
 					*found_lun_status = 0;
+				*found_lun_pri = lun_info->priority;
 				if (phba->cfg_oas_flags & OAS_FIND_ANY_VPORT)
 					memset(vport_wwpn, 0x0,
 					       sizeof(struct lpfc_name));
@@ -5824,13 +5828,14 @@ lpfc_enable_oas_lun(struct lpfc_hba *phba, struct lpfc_name *vport_wwpn,
 	if (lun_info) {
 		if (!lun_info->oas_enabled)
 			lun_info->oas_enabled = true;
+		lun_info->priority = pri;
 		spin_unlock_irqrestore(&phba->devicelock, flags);
 		return true;
 	}
 
 	/* Create an lun info structure and add to list of luns */
 	lun_info = lpfc_create_device_data(phba, vport_wwpn, target_wwpn, lun,
-					   false);
+					   pri, false);
 	if (lun_info) {
 		lun_info->oas_enabled = true;
 		lun_info->priority = pri;
@@ -5864,7 +5869,7 @@ lpfc_enable_oas_lun(struct lpfc_hba *phba, struct lpfc_name *vport_wwpn,
  **/
 bool
 lpfc_disable_oas_lun(struct lpfc_hba *phba, struct lpfc_name *vport_wwpn,
-		     struct lpfc_name *target_wwpn, uint64_t lun)
+		     struct lpfc_name *target_wwpn, uint64_t lun, uint8_t pri)
 {
 
 	struct lpfc_device_data *lun_info;
@@ -5882,6 +5887,7 @@ lpfc_disable_oas_lun(struct lpfc_hba *phba, struct lpfc_name *vport_wwpn,
 					  target_wwpn, lun);
 	if (lun_info) {
 		lun_info->oas_enabled = false;
+		lun_info->priority = pri;
 		if (!lun_info->available)
 			lpfc_delete_device_data(phba, lun_info);
 		spin_unlock_irqrestore(&phba->devicelock, flags);
@@ -5923,6 +5929,7 @@ struct scsi_host_template lpfc_template = {
 	.proc_name		= LPFC_DRIVER_NAME,
 	.info			= lpfc_info,
 	.queuecommand		= lpfc_queuecommand,
+	.eh_timed_out		= fc_eh_timed_out,
 	.eh_abort_handler	= lpfc_abort_handler,
 	.eh_device_reset_handler = lpfc_device_reset_handler,
 	.eh_target_reset_handler = lpfc_target_reset_handler,
@@ -5949,6 +5956,7 @@ struct scsi_host_template lpfc_vport_template = {
 	.proc_name		= LPFC_DRIVER_NAME,
 	.info			= lpfc_info,
 	.queuecommand		= lpfc_queuecommand,
+	.eh_timed_out		= fc_eh_timed_out,
 	.eh_abort_handler	= lpfc_abort_handler,
 	.eh_device_reset_handler = lpfc_device_reset_handler,
 	.eh_target_reset_handler = lpfc_target_reset_handler,

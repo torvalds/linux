@@ -151,7 +151,7 @@ static int bgmac_probe(struct platform_device *pdev)
 	struct resource *regs;
 	const u8 *mac_addr;
 
-	bgmac = devm_kzalloc(&pdev->dev, sizeof(*bgmac), GFP_KERNEL);
+	bgmac = bgmac_alloc(&pdev->dev);
 	if (!bgmac)
 		return -ENOMEM;
 
@@ -169,7 +169,7 @@ static int bgmac_probe(struct platform_device *pdev)
 
 	mac_addr = of_get_mac_address(np);
 	if (mac_addr)
-		ether_addr_copy(bgmac->mac_addr, mac_addr);
+		ether_addr_copy(bgmac->net_dev->dev_addr, mac_addr);
 	else
 		dev_warn(&pdev->dev, "MAC address not present in device tree\n");
 

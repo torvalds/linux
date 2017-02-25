@@ -10,6 +10,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/atmel_tc.h>
+#include <linux/sched_clock.h>
 
 
 /*
@@ -56,9 +57,14 @@ static u64 tc_get_cycles(struct clocksource *cs)
 	return (upper << 16) | lower;
 }
 
-static u64 tc_get_cycles32(struct clocksource *cs)
+static u32 tc_get_cv32(void)
 {
 	return __raw_readl(tcaddr + ATMEL_TC_REG(0, CV));
+}
+
+static u64 tc_get_cycles32(struct clocksource *cs)
+{
+	return tc_get_cv32();
 }
 
 static struct clocksource clksrc = {
@@ -68,6 +74,11 @@ static struct clocksource clksrc = {
 	.mask           = CLOCKSOURCE_MASK(32),
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
+
+static u64 notrace tc_read_sched_clock(void)
+{
+	return tc_get_cv32();
+}
 
 #ifdef CONFIG_GENERIC_CLOCKEVENTS
 
@@ -339,6 +350,9 @@ static int __init tcb_clksrc_init(void)
 		clksrc.read = tc_get_cycles32;
 		/* setup ony channel 0 */
 		tcb_setup_single_chan(tc, best_divisor_idx);
+
+		/* register sched_clock on chips with single 32 bit counter */
+		sched_clock_register(tc_read_sched_clock, 32, divided_rate);
 	} else {
 		/* tclib will give us three clocks no matter what the
 		 * underlying platform supports.

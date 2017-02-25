@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/dwc3-omap.h>
@@ -425,20 +426,20 @@ static int dwc3_omap_extcon_register(struct dwc3_omap *omap)
 		}
 
 		omap->vbus_nb.notifier_call = dwc3_omap_vbus_notifier;
-		ret = extcon_register_notifier(edev, EXTCON_USB,
-						&omap->vbus_nb);
+		ret = devm_extcon_register_notifier(omap->dev, edev,
+						EXTCON_USB, &omap->vbus_nb);
 		if (ret < 0)
 			dev_vdbg(omap->dev, "failed to register notifier for USB\n");
 
 		omap->id_nb.notifier_call = dwc3_omap_id_notifier;
-		ret = extcon_register_notifier(edev, EXTCON_USB_HOST,
-						&omap->id_nb);
+		ret = devm_extcon_register_notifier(omap->dev, edev,
+						EXTCON_USB_HOST, &omap->id_nb);
 		if (ret < 0)
 			dev_vdbg(omap->dev, "failed to register notifier for USB-HOST\n");
 
-		if (extcon_get_cable_state_(edev, EXTCON_USB) == true)
+		if (extcon_get_state(edev, EXTCON_USB) == true)
 			dwc3_omap_set_mailbox(omap, OMAP_DWC3_VBUS_VALID);
-		if (extcon_get_cable_state_(edev, EXTCON_USB_HOST) == true)
+		if (extcon_get_state(edev, EXTCON_USB_HOST) == true)
 			dwc3_omap_set_mailbox(omap, OMAP_DWC3_ID_GROUND);
 
 		omap->edev = edev;
@@ -510,7 +511,7 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 
 	/* check the DMA Status */
 	reg = dwc3_omap_readl(omap->base, USBOTGSS_SYSCONFIG);
-
+	irq_set_status_flags(omap->irq, IRQ_NOAUTOEN);
 	ret = devm_request_threaded_irq(dev, omap->irq, dwc3_omap_interrupt,
 					dwc3_omap_interrupt_thread, IRQF_SHARED,
 					"dwc3-omap", omap);
@@ -527,16 +528,12 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 	ret = of_platform_populate(node, NULL, NULL, dev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to create dwc3 core\n");
-		goto err2;
+		goto err1;
 	}
 
 	dwc3_omap_enable_irqs(omap);
-
+	enable_irq(omap->irq);
 	return 0;
-
-err2:
-	extcon_unregister_notifier(omap->edev, EXTCON_USB, &omap->vbus_nb);
-	extcon_unregister_notifier(omap->edev, EXTCON_USB_HOST, &omap->id_nb);
 
 err1:
 	pm_runtime_put_sync(dev);
@@ -549,9 +546,8 @@ static int dwc3_omap_remove(struct platform_device *pdev)
 {
 	struct dwc3_omap	*omap = platform_get_drvdata(pdev);
 
-	extcon_unregister_notifier(omap->edev, EXTCON_USB, &omap->vbus_nb);
-	extcon_unregister_notifier(omap->edev, EXTCON_USB_HOST, &omap->id_nb);
 	dwc3_omap_disable_irqs(omap);
+	disable_irq(omap->irq);
 	of_platform_depopulate(omap->dev);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);

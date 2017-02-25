@@ -18,6 +18,10 @@
 	model = "TI AM437x Industrial Development Kit";
 	compatible = "ti,am437x-idk-evm","ti,am4372","ti,am43";
 
+	chosen {
+		stdout-path = &uart0;
+	};
+
 	v24_0d: fixed-regulator-v24_0d {
 		compatible = "regulator-fixed";
 		regulator-name = "V24_0D";

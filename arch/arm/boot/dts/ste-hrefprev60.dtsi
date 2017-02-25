@@ -74,6 +74,7 @@
 		vmmci: regulator-gpio {
 			gpios = <&tc3589x_gpio 18 GPIO_ACTIVE_HIGH>;
 			enable-gpio = <&tc3589x_gpio 17 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
 		};
 
 		pinctrl {

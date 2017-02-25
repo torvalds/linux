@@ -433,9 +433,15 @@ static bool match_smt(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 		int cpu1 = c->cpu_index, cpu2 = o->cpu_index;
 
 		if (c->phys_proc_id == o->phys_proc_id &&
-		    per_cpu(cpu_llc_id, cpu1) == per_cpu(cpu_llc_id, cpu2) &&
-		    c->cpu_core_id == o->cpu_core_id)
-			return topology_sane(c, o, "smt");
+		    per_cpu(cpu_llc_id, cpu1) == per_cpu(cpu_llc_id, cpu2)) {
+			if (c->cpu_core_id == o->cpu_core_id)
+				return topology_sane(c, o, "smt");
+
+			if ((c->cu_id != 0xff) &&
+			    (o->cu_id != 0xff) &&
+			    (c->cu_id == o->cu_id))
+				return topology_sane(c, o, "smt");
+		}
 
 	} else if (c->phys_proc_id == o->phys_proc_id &&
 		   c->cpu_core_id == o->cpu_core_id) {
@@ -1341,8 +1347,7 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	pr_info("CPU0: ");
 	print_cpu_info(&cpu_data(0));
 
-	if (is_uv_system())
-		uv_system_init();
+	uv_system_init();
 
 	set_mtrr_aps_delayed_init();
 

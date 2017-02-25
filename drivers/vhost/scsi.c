@@ -843,7 +843,7 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 	struct iov_iter out_iter, in_iter, prot_iter, data_iter;
 	u64 tag;
 	u32 exp_data_len, data_direction;
-	unsigned out, in;
+	unsigned int out = 0, in = 0;
 	int head, ret, prot_bytes;
 	size_t req_size, rsp_size = sizeof(struct virtio_scsi_cmd_resp);
 	size_t out_size, in_size;
@@ -2087,7 +2087,7 @@ static struct configfs_attribute *vhost_scsi_wwn_attrs[] = {
 	NULL,
 };
 
-static struct target_core_fabric_ops vhost_scsi_ops = {
+static const struct target_core_fabric_ops vhost_scsi_ops = {
 	.module				= THIS_MODULE,
 	.name				= "vhost",
 	.get_fabric_name		= vhost_scsi_get_fabric_name,

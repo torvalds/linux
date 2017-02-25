@@ -255,7 +255,7 @@ static const struct attribute_group *connector_dev_groups[] = {
  * @connector: connector to add
  *
  * Create a connector device in sysfs, along with its associated connector
- * properties (so far, connection status, dpms, mode list & edid) and
+ * properties (so far, connection status, dpms, mode list and edid) and
  * generate a hotplug event so userspace knows there's a new connector
  * available.
  */

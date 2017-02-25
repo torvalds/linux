@@ -32,7 +32,7 @@ static bool machine_has_cpu_mhz;
 void __init cpu_detect_mhz_feature(void)
 {
 	if (test_facility(34) && __ecag(ECAG_CPU_ATTRIBUTE, 0) != -1UL)
-		machine_has_cpu_mhz = 1;
+		machine_has_cpu_mhz = true;
 }
 
 static void update_cpu_mhz(void *arg)
@@ -92,7 +92,7 @@ static void show_cpu_summary(struct seq_file *m, void *v)
 {
 	static const char *hwcap_str[] = {
 		"esan3", "zarch", "stfle", "msa", "ldisp", "eimm", "dfp",
-		"edat", "etf3eh", "highgprs", "te", "vx"
+		"edat", "etf3eh", "highgprs", "te", "vx", "vxd", "vxe"
 	};
 	static const char * const int_hwcap_str[] = {
 		"sie"

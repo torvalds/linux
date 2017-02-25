@@ -32,6 +32,7 @@
 #include <asm/mce.h>
 #include <asm/vm86.h>
 #include <asm/switch_to.h>
+#include <asm/desc.h>
 
 /*
  * per-CPU TSS segments. Threads are completely 'soft' on Linux,
@@ -63,6 +64,9 @@ __visible DEFINE_PER_CPU_SHARED_ALIGNED(struct tss_struct, cpu_tss) = {
 #endif
 };
 EXPORT_PER_CPU_SYMBOL(cpu_tss);
+
+DEFINE_PER_CPU(bool, need_tr_refresh);
+EXPORT_PER_CPU_SYMBOL_GPL(need_tr_refresh);
 
 /*
  * this gets called so that we can store lazy state into memory and copy the
@@ -209,6 +213,12 @@ void __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
 		 */
 		memcpy(tss->io_bitmap, next->io_bitmap_ptr,
 		       max(prev->io_bitmap_max, next->io_bitmap_max));
+
+		/*
+		 * Make sure that the TSS limit is correct for the CPU
+		 * to notice the IO bitmap.
+		 */
+		refresh_TR();
 	} else if (test_tsk_thread_flag(prev_p, TIF_IO_BITMAP)) {
 		/*
 		 * Clear any possible leftover bits:

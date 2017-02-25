@@ -121,7 +121,7 @@ u32		audit_sig_sid = 0;
    3) suppressed due to audit_rate_limit
    4) suppressed due to audit_backlog_limit
 */
-static atomic_t    audit_lost = ATOMIC_INIT(0);
+static atomic_t	audit_lost = ATOMIC_INIT(0);
 
 /* The netlink socket. */
 static struct sock *audit_sock;
@@ -1058,6 +1058,12 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			if (err < 0)
 				return err;
 		}
+		if (s.mask == AUDIT_STATUS_LOST) {
+			u32 lost = atomic_xchg(&audit_lost, 0);
+
+			audit_log_config_change("lost", 0, lost, 1);
+			return lost;
+		}
 		break;
 	}
 	case AUDIT_GET_FEATURE:
@@ -1349,7 +1355,9 @@ static int __init audit_init(void)
 		panic("audit: failed to start the kauditd thread (%d)\n", err);
 	}
 
-	audit_log(NULL, GFP_KERNEL, AUDIT_KERNEL, "initialized");
+	audit_log(NULL, GFP_KERNEL, AUDIT_KERNEL,
+		"state=initialized audit_enabled=%u res=1",
+		 audit_enabled);
 
 	return 0;
 }

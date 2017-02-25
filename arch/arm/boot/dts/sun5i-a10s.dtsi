@@ -200,61 +200,48 @@
 	compatible = "allwinner,sun5i-a10s-pinctrl";
 
 	uart0_pins_a: uart0@0 {
-		allwinner,pins = "PB19", "PB20";
-		allwinner,function = "uart0";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PB19", "PB20";
+		function = "uart0";
 	};
 
 	uart2_pins_a: uart2@0 {
-		allwinner,pins = "PC18", "PC19";
-		allwinner,function = "uart2";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PC18", "PC19";
+		function = "uart2";
 	};
 
 	emac_pins_a: emac0@0 {
-		allwinner,pins = "PA0", "PA1", "PA2",
+		pins = "PA0", "PA1", "PA2",
 				"PA3", "PA4", "PA5", "PA6",
 				"PA7", "PA8", "PA9", "PA10",
 				"PA11", "PA12", "PA13", "PA14",
 				"PA15", "PA16";
-		allwinner,function = "emac";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		function = "emac";
 	};
 
 	emac_pins_b: emac0@1 {
-		allwinner,pins = "PD6", "PD7", "PD10",
+		pins = "PD6", "PD7", "PD10",
 				"PD11", "PD12", "PD13", "PD14",
 				"PD15", "PD18", "PD19", "PD20",
 				"PD21", "PD22", "PD23", "PD24",
 				"PD25", "PD26", "PD27";
-		allwinner,function = "emac";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		function = "emac";
 	};
 
 	mmc1_pins_a: mmc1@0 {
-		allwinner,pins = "PG3", "PG4", "PG5",
+		pins = "PG3", "PG4", "PG5",
 				 "PG6", "PG7", "PG8";
-		allwinner,function = "mmc1";
-		allwinner,drive = <SUN4I_PINCTRL_30_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		function = "mmc1";
+		drive-strength = <30>;
 	};
 
 	spi2_pins_b: spi2@1 {
-		allwinner,pins = "PB12", "PB13", "PB14";
-		allwinner,function = "spi2";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PB12", "PB13", "PB14";
+		function = "spi2";
 	};
 
 	spi2_cs0_pins_b: spi2_cs0@1 {
-		allwinner,pins = "PB11";
-		allwinner,function = "spi2";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PB11";
+		function = "spi2";
 	};
 };
 

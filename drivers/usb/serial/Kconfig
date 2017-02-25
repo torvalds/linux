@@ -713,6 +713,15 @@ config USB_SERIAL_QT2
 	  To compile this driver as a module, choose M here: the
 	  module will be called quatech-serial.
 
+config USB_SERIAL_UPD78F0730
+	tristate "USB Renesas uPD78F0730 Single Port Serial Driver"
+	help
+	  Say Y here if you want to use the Renesas uPD78F0730
+	  serial driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called upd78f0730.
+
 config USB_SERIAL_DEBUG
 	tristate "USB Debugging Device"
 	help

@@ -1891,7 +1891,8 @@ static int create_qp(struct ib_uverbs_file *file,
 				IB_QP_CREATE_CROSS_CHANNEL |
 				IB_QP_CREATE_MANAGED_SEND |
 				IB_QP_CREATE_MANAGED_RECV |
-				IB_QP_CREATE_SCATTER_FCS)) {
+				IB_QP_CREATE_SCATTER_FCS |
+				IB_QP_CREATE_CVLAN_STRIPPING)) {
 		ret = -EINVAL;
 		goto err_put;
 	}
@@ -3143,6 +3144,25 @@ out_put:
 	return ret ? ret : in_len;
 }
 
+static int kern_spec_to_ib_spec_action(struct ib_uverbs_flow_spec *kern_spec,
+				       union ib_flow_spec *ib_spec)
+{
+	ib_spec->type = kern_spec->type;
+	switch (ib_spec->type) {
+	case IB_FLOW_SPEC_ACTION_TAG:
+		if (kern_spec->flow_tag.size !=
+		    sizeof(struct ib_uverbs_flow_spec_action_tag))
+			return -EINVAL;
+
+		ib_spec->flow_tag.size = sizeof(struct ib_flow_spec_action_tag);
+		ib_spec->flow_tag.tag_id = kern_spec->flow_tag.tag_id;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static size_t kern_spec_filter_sz(struct ib_uverbs_flow_spec_hdr *spec)
 {
 	/* Returns user space filter size, includes padding */
@@ -3167,8 +3187,8 @@ static ssize_t spec_filter_size(void *kern_spec_filter, u16 kern_filter_size,
 	return kern_filter_size;
 }
 
-static int kern_spec_to_ib_spec(struct ib_uverbs_flow_spec *kern_spec,
-				union ib_flow_spec *ib_spec)
+static int kern_spec_to_ib_spec_filter(struct ib_uverbs_flow_spec *kern_spec,
+				       union ib_flow_spec *ib_spec)
 {
 	ssize_t actual_filter_sz;
 	ssize_t kern_filter_sz;
@@ -3263,6 +3283,18 @@ static int kern_spec_to_ib_spec(struct ib_uverbs_flow_spec *kern_spec,
 	return 0;
 }
 
+static int kern_spec_to_ib_spec(struct ib_uverbs_flow_spec *kern_spec,
+				union ib_flow_spec *ib_spec)
+{
+	if (kern_spec->reserved)
+		return -EINVAL;
+
+	if (kern_spec->type >= IB_FLOW_SPEC_ACTION_TAG)
+		return kern_spec_to_ib_spec_action(kern_spec, ib_spec);
+	else
+		return kern_spec_to_ib_spec_filter(kern_spec, ib_spec);
+}
+
 int ib_uverbs_ex_create_wq(struct ib_uverbs_file *file,
 			   struct ib_device *ib_dev,
 			   struct ib_udata *ucore,
@@ -3325,6 +3357,9 @@ int ib_uverbs_ex_create_wq(struct ib_uverbs_file *file,
 	wq_init_attr.wq_context = file;
 	wq_init_attr.wq_type = cmd.wq_type;
 	wq_init_attr.event_handler = ib_uverbs_wq_event_handler;
+	if (ucore->inlen >= (offsetof(typeof(cmd), create_flags) +
+			     sizeof(cmd.create_flags)))
+		wq_init_attr.create_flags = cmd.create_flags;
 	obj->uevent.events_reported = 0;
 	INIT_LIST_HEAD(&obj->uevent.event_list);
 	wq = pd->device->create_wq(pd, &wq_init_attr, uhw);
@@ -3480,7 +3515,7 @@ int ib_uverbs_ex_modify_wq(struct ib_uverbs_file *file,
 	if (!cmd.attr_mask)
 		return -EINVAL;
 
-	if (cmd.attr_mask > (IB_WQ_STATE | IB_WQ_CUR_STATE))
+	if (cmd.attr_mask > (IB_WQ_STATE | IB_WQ_CUR_STATE | IB_WQ_FLAGS))
 		return -EINVAL;
 
 	wq = idr_read_wq(cmd.wq_handle, file->ucontext);
@@ -3489,6 +3524,10 @@ int ib_uverbs_ex_modify_wq(struct ib_uverbs_file *file,
 
 	wq_attr.curr_wq_state = cmd.curr_wq_state;
 	wq_attr.wq_state = cmd.wq_state;
+	if (cmd.attr_mask & IB_WQ_FLAGS) {
+		wq_attr.flags = cmd.flags;
+		wq_attr.flags_mask = cmd.flags_mask;
+	}
 	ret = wq->device->modify_wq(wq, &wq_attr, cmd.attr_mask, uhw);
 	put_wq_read(wq);
 	return ret;
@@ -4323,6 +4362,12 @@ int ib_uverbs_ex_query_device(struct ib_uverbs_file *file,
 
 	resp.max_wq_type_rq = attr.max_wq_type_rq;
 	resp.response_length += sizeof(resp.max_wq_type_rq);
+
+	if (ucore->outlen < resp.response_length + sizeof(resp.raw_packet_caps))
+		goto end;
+
+	resp.raw_packet_caps = attr.raw_packet_caps;
+	resp.response_length += sizeof(resp.raw_packet_caps);
 end:
 	err = ib_copy_to_udata(ucore, &resp, resp.response_length);
 	return err;

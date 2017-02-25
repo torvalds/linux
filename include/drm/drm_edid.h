@@ -24,6 +24,7 @@
 #define __DRM_EDID_H__
 
 #include <linux/types.h>
+#include <linux/hdmi.h>
 
 struct drm_device;
 struct i2c_adapter;
@@ -248,6 +249,7 @@ struct detailed_timing {
 # define DRM_ELD_AUD_SYNCH_DELAY_MAX	0xfa	/* 500 ms */
 
 #define DRM_ELD_SPEAKER			7
+# define DRM_ELD_SPEAKER_MASK		0x7f
 # define DRM_ELD_SPEAKER_RLRC		(1 << 6)
 # define DRM_ELD_SPEAKER_FLRC		(1 << 5)
 # define DRM_ELD_SPEAKER_RC		(1 << 4)
@@ -322,8 +324,6 @@ struct cea_sad {
 struct drm_encoder;
 struct drm_connector;
 struct drm_display_mode;
-struct hdmi_avi_infoframe;
-struct hdmi_vendor_infoframe;
 
 void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid);
 int drm_edid_to_sad(struct edid *edid, struct cea_sad **sads);
@@ -346,6 +346,11 @@ drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
 int
 drm_hdmi_vendor_infoframe_from_display_mode(struct hdmi_vendor_infoframe *frame,
 					    const struct drm_display_mode *mode);
+void
+drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
+				   const struct drm_display_mode *mode,
+				   enum hdmi_quantization_range rgb_quant_range,
+				   bool rgb_quant_range_selectable);
 
 /**
  * drm_eld_mnl - Get ELD monitor name length in bytes.
@@ -414,6 +419,18 @@ static inline int drm_eld_size(const uint8_t *eld)
 }
 
 /**
+ * drm_eld_get_spk_alloc - Get speaker allocation
+ * @eld: pointer to an ELD memory structure
+ *
+ * The returned value is the speakers mask. User has to use %DRM_ELD_SPEAKER
+ * field definitions to identify speakers.
+ */
+static inline u8 drm_eld_get_spk_alloc(const uint8_t *eld)
+{
+	return eld[DRM_ELD_SPEAKER] & DRM_ELD_SPEAKER_MASK;
+}
+
+/**
  * drm_eld_get_conn_type - Get device type hdmi/dp connected
  * @eld: pointer to an ELD memory structure
  *
@@ -442,6 +459,8 @@ enum hdmi_picture_aspect drm_get_cea_aspect_ratio(const u8 video_code);
 bool drm_detect_hdmi_monitor(struct edid *edid);
 bool drm_detect_monitor_audio(struct edid *edid);
 bool drm_rgb_quant_range_selectable(struct edid *edid);
+enum hdmi_quantization_range
+drm_default_rgb_quant_range(const struct drm_display_mode *mode);
 int drm_add_modes_noedid(struct drm_connector *connector,
 			 int hdisplay, int vdisplay);
 void drm_set_preferred_mode(struct drm_connector *connector,

@@ -23,6 +23,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/interrupt.h>
+#include <linux/soc/qcom/smem_state.h>
 #include "wcn36xx.h"
 #include "txrx.h"
 
@@ -151,9 +152,12 @@ int wcn36xx_dxe_alloc_ctl_blks(struct wcn36xx *wcn)
 		goto out_err;
 
 	/* Initialize SMSM state  Clear TX Enable RING EMPTY STATE */
-	ret = wcn->ctrl_ops->smsm_change_state(
-		WCN36XX_SMSM_WLAN_TX_ENABLE,
-		WCN36XX_SMSM_WLAN_TX_RINGS_EMPTY);
+	ret = qcom_smem_state_update_bits(wcn->tx_enable_state,
+					  WCN36XX_SMSM_WLAN_TX_ENABLE |
+					  WCN36XX_SMSM_WLAN_TX_RINGS_EMPTY,
+					  WCN36XX_SMSM_WLAN_TX_RINGS_EMPTY);
+	if (ret)
+		goto out_err;
 
 	return 0;
 
@@ -678,9 +682,9 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 	 * notify chip about new frame through SMSM bus.
 	 */
 	if (is_low &&  vif_priv->pw_state == WCN36XX_BMPS) {
-		wcn->ctrl_ops->smsm_change_state(
-				  0,
-				  WCN36XX_SMSM_WLAN_TX_ENABLE);
+		qcom_smem_state_update_bits(wcn->tx_rings_empty_state,
+					    WCN36XX_SMSM_WLAN_TX_ENABLE,
+					    WCN36XX_SMSM_WLAN_TX_ENABLE);
 	} else {
 		/* indicate End Of Packet and generate interrupt on descriptor
 		 * done.

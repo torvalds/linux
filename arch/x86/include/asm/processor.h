@@ -104,6 +104,7 @@ struct cpuinfo_x86 {
 	__u8			x86_phys_bits;
 	/* CPUID returned core id bits: */
 	__u8			x86_coreid_bits;
+	__u8			cu_id;
 	/* Max extended CPUID function supported: */
 	__u32			extended_cpuid_level;
 	/* Maximum supported CPUID level, -1=no CPUID: */
@@ -219,6 +220,24 @@ static inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
 	    : "memory");
 }
 
+#define native_cpuid_reg(reg)					\
+static inline unsigned int native_cpuid_##reg(unsigned int op)	\
+{								\
+	unsigned int eax = op, ebx, ecx = 0, edx;		\
+								\
+	native_cpuid(&eax, &ebx, &ecx, &edx);			\
+								\
+	return reg;						\
+}
+
+/*
+ * Native CPUID functions returning a single datum.
+ */
+native_cpuid_reg(eax)
+native_cpuid_reg(ebx)
+native_cpuid_reg(ecx)
+native_cpuid_reg(edx)
+
 static inline void load_cr3(pgd_t *pgdir)
 {
 	write_cr3(__pa(pgdir));
@@ -285,7 +304,7 @@ struct x86_hw_tss {
 	u16			reserved5;
 	u16			io_bitmap_base;
 
-} __attribute__((packed)) ____cacheline_aligned;
+} __attribute__((packed));
 #endif
 
 /*
@@ -322,6 +341,16 @@ struct tss_struct {
 } ____cacheline_aligned;
 
 DECLARE_PER_CPU_SHARED_ALIGNED(struct tss_struct, cpu_tss);
+
+/*
+ * sizeof(unsigned long) coming from an extra "long" at the end
+ * of the iobitmap.
+ *
+ * -1? seg base+limit should be pointing to the address of the
+ * last valid byte
+ */
+#define __KERNEL_TSS_LIMIT	\
+	(IO_BITMAP_OFFSET + IO_BITMAP_BYTES + sizeof(unsigned long) - 1)
 
 #ifdef CONFIG_X86_32
 DECLARE_PER_CPU(unsigned long, cpu_current_top_of_stack);

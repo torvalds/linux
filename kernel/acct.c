@@ -453,8 +453,8 @@ static void fill_ac(acct_t *ac)
 	spin_lock_irq(&current->sighand->siglock);
 	tty = current->signal->tty;	/* Safe as we hold the siglock */
 	ac->ac_tty = tty ? old_encode_dev(tty_devnum(tty)) : 0;
-	ac->ac_utime = encode_comp_t(jiffies_to_AHZ(cputime_to_jiffies(pacct->ac_utime)));
-	ac->ac_stime = encode_comp_t(jiffies_to_AHZ(cputime_to_jiffies(pacct->ac_stime)));
+	ac->ac_utime = encode_comp_t(nsec_to_AHZ(pacct->ac_utime));
+	ac->ac_stime = encode_comp_t(nsec_to_AHZ(pacct->ac_stime));
 	ac->ac_flag = pacct->ac_flag;
 	ac->ac_mem = encode_comp_t(pacct->ac_mem);
 	ac->ac_minflt = encode_comp_t(pacct->ac_minflt);
@@ -530,7 +530,7 @@ out:
 void acct_collect(long exitcode, int group_dead)
 {
 	struct pacct_struct *pacct = &current->signal->pacct;
-	cputime_t utime, stime;
+	u64 utime, stime;
 	unsigned long vsize = 0;
 
 	if (group_dead && current->mm) {
@@ -559,6 +559,7 @@ void acct_collect(long exitcode, int group_dead)
 		pacct->ac_flag |= ACORE;
 	if (current->flags & PF_SIGNALED)
 		pacct->ac_flag |= AXSIG;
+
 	task_cputime(current, &utime, &stime);
 	pacct->ac_utime += utime;
 	pacct->ac_stime += stime;

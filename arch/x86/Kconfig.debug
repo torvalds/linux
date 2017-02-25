@@ -109,25 +109,6 @@ config DEBUG_WX
 
 	  If in doubt, say "Y".
 
-config DEBUG_SET_MODULE_RONX
-	bool "Set loadable kernel module data as NX and text as RO"
-	depends on MODULES
-	---help---
-	  This option helps catch unintended modifications to loadable
-	  kernel module's text and read-only data. It also prevents execution
-	  of module data. Such protection may interfere with run-time code
-	  patching and dynamic kernel tracing - and they might also protect
-	  against certain classes of kernel exploits.
-	  If in doubt, say "N".
-
-config DEBUG_NX_TEST
-	tristate "Testcase for the NX non-executable stack feature"
-	depends on DEBUG_KERNEL && m
-	---help---
-	  This option enables a testcase for the CPU NX capability
-	  and the software setup of this feature.
-	  If in doubt, say "N"
-
 config DOUBLEFAULT
 	default y
 	bool "Enable doublefault exception handler" if EXPERT

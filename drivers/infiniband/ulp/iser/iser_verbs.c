@@ -597,7 +597,9 @@ static void iser_free_ib_conn_res(struct iser_conn *iser_conn,
 		  iser_conn, ib_conn->cma_id, ib_conn->qp);
 
 	if (ib_conn->qp != NULL) {
+		mutex_lock(&ig.connlist_mutex);
 		ib_conn->comp->active_qps--;
+		mutex_unlock(&ig.connlist_mutex);
 		rdma_destroy_qp(ib_conn->cma_id);
 		ib_conn->qp = NULL;
 	}
@@ -707,18 +709,7 @@ iser_calc_scsi_params(struct iser_conn *iser_conn,
 	sup_sg_tablesize = min_t(unsigned, ISCSI_ISER_MAX_SG_TABLESIZE,
 				 device->ib_device->attrs.max_fast_reg_page_list_len);
 
-	if (sg_tablesize > sup_sg_tablesize) {
-		sg_tablesize = sup_sg_tablesize;
-		iser_conn->scsi_max_sectors = sg_tablesize * SIZE_4K / 512;
-	} else {
-		iser_conn->scsi_max_sectors = max_sectors;
-	}
-
-	iser_conn->scsi_sg_tablesize = sg_tablesize;
-
-	iser_dbg("iser_conn %p, sg_tablesize %u, max_sectors %u\n",
-		 iser_conn, iser_conn->scsi_sg_tablesize,
-		 iser_conn->scsi_max_sectors);
+	iser_conn->scsi_sg_tablesize = min(sg_tablesize, sup_sg_tablesize);
 }
 
 /**

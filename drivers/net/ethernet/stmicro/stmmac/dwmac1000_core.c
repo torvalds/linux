@@ -16,10 +16,6 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
@@ -305,7 +301,11 @@ static int dwmac1000_irq_status(struct mac_device_info *hw,
 {
 	void __iomem *ioaddr = hw->pcsr;
 	u32 intr_status = readl(ioaddr + GMAC_INT_STATUS);
+	u32 intr_mask = readl(ioaddr + GMAC_INT_MASK);
 	int ret = 0;
+
+	/* Discard masked bits */
+	intr_status &= ~intr_mask;
 
 	/* Not used events (e.g. MMC interrupts) are not handled. */
 	if ((intr_status & GMAC_INT_STATUS_MMCTIS))
@@ -343,10 +343,13 @@ static int dwmac1000_irq_status(struct mac_device_info *hw,
 	return ret;
 }
 
-static void dwmac1000_set_eee_mode(struct mac_device_info *hw)
+static void dwmac1000_set_eee_mode(struct mac_device_info *hw,
+				   bool en_tx_lpi_clockgating)
 {
 	void __iomem *ioaddr = hw->pcsr;
 	u32 value;
+
+	/*TODO - en_tx_lpi_clockgating treatment */
 
 	/* Enable the link status receive on RGMII, SGMII ore SMII
 	 * receive path and instruct the transmit to enter in LPI

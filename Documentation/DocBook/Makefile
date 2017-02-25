@@ -11,9 +11,9 @@ DOCBOOKS := z8530book.xml  \
 	    writing_usb_driver.xml networking.xml \
 	    kernel-api.xml filesystems.xml lsm.xml kgdb.xml \
 	    gadget.xml libata.xml mtdnand.xml librs.xml rapidio.xml \
-	    genericirq.xml s390-drivers.xml uio-howto.xml scsi.xml \
+	    genericirq.xml s390-drivers.xml scsi.xml \
 	    sh.xml regulator.xml w1.xml \
-	    writing_musb_glue_layer.xml iio.xml
+	    writing_musb_glue_layer.xml
 
 ifeq ($(DOCBOOKS),)
 
@@ -71,6 +71,7 @@ installmandocs: mandocs
 # no-op for the DocBook toolchain
 epubdocs:
 latexdocs:
+linkcheckdocs:
 
 ###
 #External programs used
@@ -272,6 +273,6 @@ cleandocs:
 	$(Q)rm -rf $(call objectify, $(clean-dirs))
 
 # Declare the contents of the .PHONY variable as phony.  We keep that
-# information in a variable se we can use it in if_changed and friends.
+# information in a variable so we can use it in if_changed and friends.
 
 .PHONY: $(PHONY)

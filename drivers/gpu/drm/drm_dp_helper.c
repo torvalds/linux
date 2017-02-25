@@ -725,7 +725,7 @@ MODULE_PARM_DESC(dp_aux_i2c_speed_khz,
 /*
  * Transfer a single I2C-over-AUX message and handle various error conditions,
  * retrying the transaction as appropriate.  It is assumed that the
- * aux->transfer function does not modify anything in the msg other than the
+ * &drm_dp_aux.transfer function does not modify anything in the msg other than the
  * reply field.
  *
  * Returns bytes transferred on success, or a negative error code on failure.

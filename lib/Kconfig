@@ -550,4 +550,10 @@ config STACKDEPOT
 config SBITMAP
 	bool
 
+config PARMAN
+	tristate
+
+config PRIME_NUMBERS
+	tristate
+
 endmenu

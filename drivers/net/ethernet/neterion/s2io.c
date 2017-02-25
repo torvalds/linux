@@ -2783,7 +2783,7 @@ static int s2io_poll_msix(struct napi_struct *napi, int budget)
 	s2io_chk_rx_buffers(nic, ring);
 
 	if (pkts_processed < budget_org) {
-		napi_complete(napi);
+		napi_complete_done(napi, pkts_processed);
 		/*Re Enable MSI-Rx Vector*/
 		addr = (u8 __iomem *)&bar0->xmsi_mask_reg;
 		addr += 7 - ring->ring_no;
@@ -2817,7 +2817,7 @@ static int s2io_poll_inta(struct napi_struct *napi, int budget)
 			break;
 	}
 	if (pkts_processed < budget_org) {
-		napi_complete(napi);
+		napi_complete_done(napi, pkts_processed);
 		/* Re enable the Rx interrupts for the ring */
 		writeq(0, &bar0->rx_traffic_mask);
 		readl(&bar0->rx_traffic_mask);
@@ -5300,10 +5300,10 @@ static int do_s2io_prog_unicast(struct net_device *dev, u8 *addr)
 }
 
 /**
- * s2io_ethtool_sset - Sets different link parameters.
+ * s2io_ethtool_set_link_ksettings - Sets different link parameters.
  * @sp : private member of the device structure, which is a pointer to the
  * s2io_nic structure.
- * @info: pointer to the structure with parameters given by ethtool to set
+ * @cmd: pointer to the structure with parameters given by ethtool to set
  * link information.
  * Description:
  * The function sets different link parameters provided by the user onto
@@ -5312,13 +5312,14 @@ static int do_s2io_prog_unicast(struct net_device *dev, u8 *addr)
  * 0 on success.
  */
 
-static int s2io_ethtool_sset(struct net_device *dev,
-			     struct ethtool_cmd *info)
+static int
+s2io_ethtool_set_link_ksettings(struct net_device *dev,
+				const struct ethtool_link_ksettings *cmd)
 {
 	struct s2io_nic *sp = netdev_priv(dev);
-	if ((info->autoneg == AUTONEG_ENABLE) ||
-	    (ethtool_cmd_speed(info) != SPEED_10000) ||
-	    (info->duplex != DUPLEX_FULL))
+	if ((cmd->base.autoneg == AUTONEG_ENABLE) ||
+	    (cmd->base.speed != SPEED_10000) ||
+	    (cmd->base.duplex != DUPLEX_FULL))
 		return -EINVAL;
 	else {
 		s2io_close(sp->dev);
@@ -5329,10 +5330,10 @@ static int s2io_ethtool_sset(struct net_device *dev,
 }
 
 /**
- * s2io_ethtol_gset - Return link specific information.
+ * s2io_ethtol_get_link_ksettings - Return link specific information.
  * @sp : private member of the device structure, pointer to the
  *      s2io_nic structure.
- * @info : pointer to the structure with parameters given by ethtool
+ * @cmd : pointer to the structure with parameters given by ethtool
  * to return link information.
  * Description:
  * Returns link specific information like speed, duplex etc.. to ethtool.
@@ -5340,25 +5341,31 @@ static int s2io_ethtool_sset(struct net_device *dev,
  * return 0 on success.
  */
 
-static int s2io_ethtool_gset(struct net_device *dev, struct ethtool_cmd *info)
+static int
+s2io_ethtool_get_link_ksettings(struct net_device *dev,
+				struct ethtool_link_ksettings *cmd)
 {
 	struct s2io_nic *sp = netdev_priv(dev);
-	info->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE);
-	info->advertising = (SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE);
-	info->port = PORT_FIBRE;
 
-	/* info->transceiver */
-	info->transceiver = XCVR_EXTERNAL;
+	ethtool_link_ksettings_zero_link_mode(cmd, supported);
+	ethtool_link_ksettings_add_link_mode(cmd, supported, 10000baseT_Full);
+	ethtool_link_ksettings_add_link_mode(cmd, supported, FIBRE);
+
+	ethtool_link_ksettings_zero_link_mode(cmd, advertising);
+	ethtool_link_ksettings_add_link_mode(cmd, advertising, 10000baseT_Full);
+	ethtool_link_ksettings_add_link_mode(cmd, advertising, FIBRE);
+
+	cmd->base.port = PORT_FIBRE;
 
 	if (netif_carrier_ok(sp->dev)) {
-		ethtool_cmd_speed_set(info, SPEED_10000);
-		info->duplex = DUPLEX_FULL;
+		cmd->base.speed = SPEED_10000;
+		cmd->base.duplex = DUPLEX_FULL;
 	} else {
-		ethtool_cmd_speed_set(info, SPEED_UNKNOWN);
-		info->duplex = DUPLEX_UNKNOWN;
+		cmd->base.speed = SPEED_UNKNOWN;
+		cmd->base.duplex = DUPLEX_UNKNOWN;
 	}
 
-	info->autoneg = AUTONEG_DISABLE;
+	cmd->base.autoneg = AUTONEG_DISABLE;
 	return 0;
 }
 
@@ -6626,8 +6633,6 @@ static int s2io_set_features(struct net_device *dev, netdev_features_t features)
 }
 
 static const struct ethtool_ops netdev_ethtool_ops = {
-	.get_settings = s2io_ethtool_gset,
-	.set_settings = s2io_ethtool_sset,
 	.get_drvinfo = s2io_ethtool_gdrvinfo,
 	.get_regs_len = s2io_ethtool_get_regs_len,
 	.get_regs = s2io_ethtool_gregs,
@@ -6643,6 +6648,8 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 	.set_phys_id = s2io_ethtool_set_led,
 	.get_ethtool_stats = s2io_get_ethtool_stats,
 	.get_sset_count = s2io_get_sset_count,
+	.get_link_ksettings = s2io_ethtool_get_link_ksettings,
+	.set_link_ksettings = s2io_ethtool_set_link_ksettings,
 };
 
 /**

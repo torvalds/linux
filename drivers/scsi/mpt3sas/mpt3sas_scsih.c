@@ -51,6 +51,7 @@
 #include <linux/workqueue.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
+#include <linux/pci-aspm.h>
 #include <linux/interrupt.h>
 #include <linux/aer.h>
 #include <linux/raid_class.h>
@@ -1074,6 +1075,26 @@ _scsih_scsi_lookup_get(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 }
 
 /**
+ * __scsih_scsi_lookup_get_clear - returns scmd entry without
+ *						holding any lock.
+ * @ioc: per adapter object
+ * @smid: system request message index
+ *
+ * Returns the smid stored scmd pointer.
+ * Then will dereference the stored scmd pointer.
+ */
+static inline struct scsi_cmnd *
+__scsih_scsi_lookup_get_clear(struct MPT3SAS_ADAPTER *ioc,
+		u16 smid)
+{
+	struct scsi_cmnd *scmd = NULL;
+
+	swap(scmd, ioc->scsi_lookup[smid - 1].scmd);
+
+	return scmd;
+}
+
+/**
  * _scsih_scsi_lookup_get_clear - returns scmd entry
  * @ioc: per adapter object
  * @smid: system request message index
@@ -1088,8 +1109,7 @@ _scsih_scsi_lookup_get_clear(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 	struct scsi_cmnd *scmd;
 
 	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
-	scmd = ioc->scsi_lookup[smid - 1].scmd;
-	ioc->scsi_lookup[smid - 1].scmd = NULL;
+	scmd = __scsih_scsi_lookup_get_clear(ioc, smid);
 	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
 
 	return scmd;
@@ -3899,9 +3919,18 @@ _scsih_temp_threshold_events(struct MPT3SAS_ADAPTER *ioc,
 	}
 }
 
-static inline bool ata_12_16_cmd(struct scsi_cmnd *scmd)
+static int _scsih_set_satl_pending(struct scsi_cmnd *scmd, bool pending)
 {
-	return (scmd->cmnd[0] == ATA_12 || scmd->cmnd[0] == ATA_16);
+	struct MPT3SAS_DEVICE *priv = scmd->device->hostdata;
+
+	if (scmd->cmnd[0] != ATA_12 && scmd->cmnd[0] != ATA_16)
+		return 0;
+
+	if (pending)
+		return test_and_set_bit(0, &priv->ata_command_pending);
+
+	clear_bit(0, &priv->ata_command_pending);
+	return 0;
 }
 
 /**
@@ -3925,9 +3954,7 @@ _scsih_flush_running_cmds(struct MPT3SAS_ADAPTER *ioc)
 		if (!scmd)
 			continue;
 		count++;
-		if (ata_12_16_cmd(scmd))
-			scsi_internal_device_unblock(scmd->device,
-							SDEV_RUNNING);
+		_scsih_set_satl_pending(scmd, false);
 		mpt3sas_base_free_smid(ioc, smid);
 		scsi_dma_unmap(scmd);
 		if (ioc->pci_error_recovery)
@@ -4063,13 +4090,6 @@ scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 	if (ioc->logging_level & MPT_DEBUG_SCSI)
 		scsi_print_command(scmd);
 
-	/*
-	 * Lock the device for any subsequent command until command is
-	 * done.
-	 */
-	if (ata_12_16_cmd(scmd))
-		scsi_internal_device_block(scmd->device);
-
 	sas_device_priv_data = scmd->device->hostdata;
 	if (!sas_device_priv_data || !sas_device_priv_data->sas_target) {
 		scmd->result = DID_NO_CONNECT << 16;
@@ -4082,6 +4102,19 @@ scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 		scmd->scsi_done(scmd);
 		return 0;
 	}
+
+	/*
+	 * Bug work around for firmware SATL handling.  The loop
+	 * is based on atomic operations and ensures consistency
+	 * since we're lockless at this point
+	 */
+	do {
+		if (test_bit(0, &sas_device_priv_data->ata_command_pending)) {
+			scmd->result = SAM_STAT_BUSY;
+			scmd->scsi_done(scmd);
+			return 0;
+		}
+	} while (_scsih_set_satl_pending(scmd, true));
 
 	sas_target_priv_data = sas_device_priv_data->sas_target;
 
@@ -4644,14 +4677,20 @@ _scsih_io_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 	struct MPT3SAS_DEVICE *sas_device_priv_data;
 	u32 response_code = 0;
 	unsigned long flags;
+	unsigned int sector_sz;
 
 	mpi_reply = mpt3sas_base_get_reply_virt_addr(ioc, reply);
-	scmd = _scsih_scsi_lookup_get_clear(ioc, smid);
+
+	if (ioc->broadcast_aen_busy || ioc->pci_error_recovery ||
+			ioc->got_task_abort_from_ioctl)
+		scmd = _scsih_scsi_lookup_get_clear(ioc, smid);
+	else
+		scmd = __scsih_scsi_lookup_get_clear(ioc, smid);
+
 	if (scmd == NULL)
 		return 1;
 
-	if (ata_12_16_cmd(scmd))
-		scsi_internal_device_unblock(scmd->device, SDEV_RUNNING);
+	_scsih_set_satl_pending(scmd, false);
 
 	mpi_request = mpt3sas_base_get_msg_frame(ioc, smid);
 
@@ -4703,6 +4742,20 @@ _scsih_io_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 	}
 
 	xfer_cnt = le32_to_cpu(mpi_reply->TransferCount);
+
+	/* In case of bogus fw or device, we could end up having
+	 * unaligned partial completion. We can force alignment here,
+	 * then scsi-ml does not need to handle this misbehavior.
+	 */
+	sector_sz = scmd->device->sector_size;
+	if (unlikely(!blk_rq_is_passthrough(scmd->request) && sector_sz &&
+		     xfer_cnt % sector_sz)) {
+		sdev_printk(KERN_INFO, scmd->device,
+		    "unaligned partial completion avoided (xfer_cnt=%u, sector_sz=%u)\n",
+			    xfer_cnt, sector_sz);
+		xfer_cnt = round_down(xfer_cnt, sector_sz);
+	}
+
 	scsi_set_resid(scmd, scsi_bufflen(scmd) - xfer_cnt);
 	if (ioc_status & MPI2_IOCSTATUS_FLAG_LOG_INFO_AVAILABLE)
 		log_info =  le32_to_cpu(mpi_reply->IOCLogInfo);
@@ -8016,15 +8069,24 @@ mpt3sas_scsih_event_callback(struct MPT3SAS_ADAPTER *ioc, u8 msix_index,
 	case MPI2_EVENT_ACTIVE_CABLE_EXCEPTION:
 		ActiveCableEventData =
 		    (Mpi26EventDataActiveCableExcept_t *) mpi_reply->EventData;
-		if (ActiveCableEventData->ReasonCode ==
-				MPI26_EVENT_ACTIVE_CABLE_INSUFFICIENT_POWER) {
-			pr_info(MPT3SAS_FMT "Currently an active cable with ReceptacleID %d",
-			    ioc->name, ActiveCableEventData->ReceptacleID);
-			pr_info("cannot be powered and devices connected to this active cable");
-			pr_info("will not be seen. This active cable");
-			pr_info("requires %d mW of power",
-			    ActiveCableEventData->ActiveCablePowerRequirement);
+		switch (ActiveCableEventData->ReasonCode) {
+		case MPI26_EVENT_ACTIVE_CABLE_INSUFFICIENT_POWER:
+			pr_notice(MPT3SAS_FMT "Receptacle ID %d: This active cable"
+				  " requires %d mW of power\n", ioc->name,
+			     ActiveCableEventData->ReceptacleID,
+			     ActiveCableEventData->ActiveCablePowerRequirement);
+			pr_notice(MPT3SAS_FMT "Receptacle ID %d: Devices connected"
+				  " to this active cable will not be seen\n",
+			     ioc->name, ActiveCableEventData->ReceptacleID);
+			break;
+
+		case MPI26_EVENT_ACTIVE_CABLE_DEGRADED:
+			pr_notice(MPT3SAS_FMT "ReceptacleID %d: This cable",
+				ioc->name, ActiveCableEventData->ReceptacleID);
+			pr_notice(" is not running at an optimal speed(12 Gb/s)\n");
+			break;
 		}
+
 		break;
 
 	default: /* ignore the rest */
@@ -8734,6 +8796,8 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	switch (hba_mpi_version) {
 	case MPI2_VERSION:
+		pci_disable_link_state(pdev, PCIE_LINK_STATE_L0S |
+			PCIE_LINK_STATE_L1 | PCIE_LINK_STATE_CLKPM);
 		/* Use mpt2sas driver host template for SAS 2.0 HBA's */
 		shost = scsi_host_alloc(&mpt2sas_driver_template,
 		  sizeof(struct MPT3SAS_ADAPTER));

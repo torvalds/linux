@@ -57,7 +57,7 @@ static const u8 tuning_blk_pattern_8bit[] = {
 int mmc_send_status(struct mmc_card *card, u32 *status)
 {
 	int err;
-	struct mmc_command cmd = {0};
+	struct mmc_command cmd = {};
 
 	cmd.opcode = MMC_SEND_STATUS;
 	if (!mmc_host_is_spi(card->host))
@@ -79,7 +79,7 @@ int mmc_send_status(struct mmc_card *card, u32 *status)
 
 static int _mmc_select_card(struct mmc_host *host, struct mmc_card *card)
 {
-	struct mmc_command cmd = {0};
+	struct mmc_command cmd = {};
 
 	cmd.opcode = MMC_SELECT_CARD;
 
@@ -115,7 +115,7 @@ int mmc_deselect_cards(struct mmc_host *host)
  */
 int mmc_set_dsr(struct mmc_host *host)
 {
-	struct mmc_command cmd = {0};
+	struct mmc_command cmd = {};
 
 	cmd.opcode = MMC_SET_DSR;
 
@@ -128,7 +128,7 @@ int mmc_set_dsr(struct mmc_host *host)
 int mmc_go_idle(struct mmc_host *host)
 {
 	int err;
-	struct mmc_command cmd = {0};
+	struct mmc_command cmd = {};
 
 	/*
 	 * Non-SPI hosts need to prevent chipselect going active during
@@ -164,7 +164,7 @@ int mmc_go_idle(struct mmc_host *host)
 
 int mmc_send_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 {
-	struct mmc_command cmd = {0};
+	struct mmc_command cmd = {};
 	int i, err = 0;
 
 	cmd.opcode = MMC_SEND_OP_COND;
@@ -203,7 +203,7 @@ int mmc_send_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 int mmc_all_send_cid(struct mmc_host *host, u32 *cid)
 {
 	int err;
-	struct mmc_command cmd = {0};
+	struct mmc_command cmd = {};
 
 	cmd.opcode = MMC_ALL_SEND_CID;
 	cmd.arg = 0;
@@ -220,7 +220,7 @@ int mmc_all_send_cid(struct mmc_host *host, u32 *cid)
 
 int mmc_set_relative_addr(struct mmc_card *card)
 {
-	struct mmc_command cmd = {0};
+	struct mmc_command cmd = {};
 
 	cmd.opcode = MMC_SET_RELATIVE_ADDR;
 	cmd.arg = card->rca << 16;
@@ -233,7 +233,7 @@ static int
 mmc_send_cxd_native(struct mmc_host *host, u32 arg, u32 *cxd, int opcode)
 {
 	int err;
-	struct mmc_command cmd = {0};
+	struct mmc_command cmd = {};
 
 	cmd.opcode = opcode;
 	cmd.arg = arg;
@@ -256,9 +256,9 @@ static int
 mmc_send_cxd_data(struct mmc_card *card, struct mmc_host *host,
 		u32 opcode, void *buf, unsigned len)
 {
-	struct mmc_request mrq = {NULL};
-	struct mmc_command cmd = {0};
-	struct mmc_data data = {0};
+	struct mmc_request mrq = {};
+	struct mmc_command cmd = {};
+	struct mmc_data data = {};
 	struct scatterlist sg;
 
 	mrq.cmd = &cmd;
@@ -387,7 +387,7 @@ EXPORT_SYMBOL_GPL(mmc_get_ext_csd);
 
 int mmc_spi_read_ocr(struct mmc_host *host, int highcap, u32 *ocrp)
 {
-	struct mmc_command cmd = {0};
+	struct mmc_command cmd = {};
 	int err;
 
 	cmd.opcode = MMC_SPI_READ_OCR;
@@ -402,7 +402,7 @@ int mmc_spi_read_ocr(struct mmc_host *host, int highcap, u32 *ocrp)
 
 int mmc_spi_set_crc(struct mmc_host *host, int use_crc)
 {
-	struct mmc_command cmd = {0};
+	struct mmc_command cmd = {};
 	int err;
 
 	cmd.opcode = MMC_SPI_CRC_ON_OFF;
@@ -506,9 +506,6 @@ static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
 		}
 	} while (busy);
 
-	if (host->ops->card_busy && send_status)
-		return mmc_switch_status(card);
-
 	return 0;
 }
 
@@ -533,7 +530,7 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 {
 	struct mmc_host *host = card->host;
 	int err;
-	struct mmc_command cmd = {0};
+	struct mmc_command cmd = {};
 	bool use_r1b_resp = use_busy_signal;
 	unsigned char old_timing = host->ios.timing;
 
@@ -577,24 +574,26 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 	if (!use_busy_signal)
 		goto out;
 
-	/* Switch to new timing before poll and check switch status. */
-	if (timing)
-		mmc_set_timing(host, timing);
-
 	/*If SPI or used HW busy detection above, then we don't need to poll. */
 	if (((host->caps & MMC_CAP_WAIT_WHILE_BUSY) && use_r1b_resp) ||
-		mmc_host_is_spi(host)) {
-		if (send_status)
-			err = mmc_switch_status(card);
+		mmc_host_is_spi(host))
 		goto out_tim;
-	}
 
 	/* Let's try to poll to find out when the command is completed. */
 	err = mmc_poll_for_busy(card, timeout_ms, send_status, retry_crc_err);
+	if (err)
+		goto out;
 
 out_tim:
-	if (err && timing)
-		mmc_set_timing(host, old_timing);
+	/* Switch to new timing before check switch status. */
+	if (timing)
+		mmc_set_timing(host, timing);
+
+	if (send_status) {
+		err = mmc_switch_status(card);
+		if (err && timing)
+			mmc_set_timing(host, old_timing);
+	}
 out:
 	mmc_retune_release(host);
 
@@ -611,9 +610,9 @@ EXPORT_SYMBOL_GPL(mmc_switch);
 
 int mmc_send_tuning(struct mmc_host *host, u32 opcode, int *cmd_error)
 {
-	struct mmc_request mrq = {NULL};
-	struct mmc_command cmd = {0};
-	struct mmc_data data = {0};
+	struct mmc_request mrq = {};
+	struct mmc_command cmd = {};
+	struct mmc_data data = {};
 	struct scatterlist sg;
 	struct mmc_ios *ios = &host->ios;
 	const u8 *tuning_block_pattern;
@@ -680,7 +679,7 @@ EXPORT_SYMBOL_GPL(mmc_send_tuning);
 
 int mmc_abort_tuning(struct mmc_host *host, u32 opcode)
 {
-	struct mmc_command cmd = {0};
+	struct mmc_command cmd = {};
 
 	/*
 	 * eMMC specification specifies that CMD12 can be used to stop a tuning
@@ -707,9 +706,9 @@ static int
 mmc_send_bus_test(struct mmc_card *card, struct mmc_host *host, u8 opcode,
 		  u8 len)
 {
-	struct mmc_request mrq = {NULL};
-	struct mmc_command cmd = {0};
-	struct mmc_data data = {0};
+	struct mmc_request mrq = {};
+	struct mmc_command cmd = {};
+	struct mmc_data data = {};
 	struct scatterlist sg;
 	u8 *data_buf;
 	u8 *test_buf;
@@ -803,7 +802,7 @@ int mmc_bus_test(struct mmc_card *card, u8 bus_width)
 
 int mmc_send_hpi_cmd(struct mmc_card *card, u32 *status)
 {
-	struct mmc_command cmd = {0};
+	struct mmc_command cmd = {};
 	unsigned int opcode;
 	int err;
 

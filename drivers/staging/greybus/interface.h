@@ -72,11 +72,6 @@ int gb_interface_activate(struct gb_interface *intf);
 void gb_interface_deactivate(struct gb_interface *intf);
 int gb_interface_enable(struct gb_interface *intf);
 void gb_interface_disable(struct gb_interface *intf);
-int gb_interface_timesync_enable(struct gb_interface *intf, u8 count,
-				 u64 frame_time, u32 strobe_delay, u32 refclk);
-int gb_interface_timesync_authoritative(struct gb_interface *intf,
-					u64 *frame_time);
-int gb_interface_timesync_disable(struct gb_interface *intf);
 int gb_interface_add(struct gb_interface *intf);
 void gb_interface_del(struct gb_interface *intf);
 void gb_interface_put(struct gb_interface *intf);
