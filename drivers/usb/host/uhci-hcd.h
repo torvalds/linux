@@ -530,7 +530,7 @@ static inline void uhci_writeb(const struct uhci_hcd *uhci, u8 val, int reg)
 
 #else
 /* Support non-PCI host controllers */
-#ifdef CONFIG_PCI
+#ifdef CONFIG_USB_PCI
 /* Support PCI and non-PCI host controllers */
 #define uhci_has_pci_registers(u)	((u)->io_addr != 0)
 #else

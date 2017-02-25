@@ -837,7 +837,7 @@ static int uhci_count_ports(struct usb_hcd *hcd)
 
 static const char hcd_name[] = "uhci_hcd";
 
-#ifdef CONFIG_PCI
+#ifdef CONFIG_USB_PCI
 #include "uhci-pci.c"
 #define	PCI_DRIVER		uhci_pci_driver
 #endif

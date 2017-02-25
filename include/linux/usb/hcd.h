@@ -453,7 +453,7 @@ extern int usb_hcd_find_raw_port_number(struct usb_hcd *hcd, int port1);
 struct platform_device;
 extern void usb_hcd_platform_shutdown(struct platform_device *dev);
 
-#ifdef CONFIG_PCI
+#ifdef CONFIG_USB_PCI
 struct pci_dev;
 struct pci_device_id;
 extern int usb_hcd_pci_probe(struct pci_dev *dev,
@@ -466,7 +466,7 @@ extern int usb_hcd_amd_remote_wakeup_quirk(struct pci_dev *dev);
 #ifdef CONFIG_PM
 extern const struct dev_pm_ops usb_hcd_pci_pm_ops;
 #endif
-#endif /* CONFIG_PCI */
+#endif /* CONFIG_USB_PCI */
 
 /* pci-ish (pdev null is ok) buffer alloc/mapping support */
 void usb_init_pool_max(void);

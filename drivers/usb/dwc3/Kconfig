@@ -70,7 +70,7 @@ config USB_DWC3_EXYNOS
 
 config USB_DWC3_PCI
 	tristate "PCIe-based Platforms"
-	depends on PCI && ACPI
+	depends on USB_PCI && ACPI
 	default USB_DWC3
 	help
 	  If you're using the DesignWare Core IP with a PCIe, please say

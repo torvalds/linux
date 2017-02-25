@@ -277,7 +277,7 @@ source "drivers/usb/gadget/udc/bdc/Kconfig"
 
 config USB_AMD5536UDC
 	tristate "AMD5536 UDC"
-	depends on PCI
+	depends on USB_PCI
 	help
 	   The AMD5536 UDC is part of the AMD Geode CS5536, an x86 southbridge.
 	   It is a USB Highspeed DMA capable USB device controller. Beside ep0
@@ -327,7 +327,7 @@ config USB_NET2272_DMA
 
 config USB_NET2280
 	tristate "NetChip NET228x / PLX USB3x8x"
-	depends on PCI
+	depends on USB_PCI
 	help
 	   NetChip 2280 / 2282 is a PCI based USB peripheral controller which
 	   supports both full and high speed USB 2.0 data transfers.
@@ -352,7 +352,7 @@ config USB_NET2280
 
 config USB_GOKU
 	tristate "Toshiba TC86C001 'Goku-S'"
-	depends on PCI
+	depends on USB_PCI
 	help
 	   The Toshiba TC86C001 is a PCI device which includes controllers
 	   for full speed USB devices, IDE, I2C, SIO, plus a USB host (OHCI).
@@ -366,7 +366,7 @@ config USB_GOKU
 
 config USB_EG20T
 	tristate "Intel QUARK X1000/EG20T PCH/LAPIS Semiconductor IOH(ML7213/ML7831) UDC"
-	depends on PCI
+	depends on USB_PCI
 	help
 	  This is a USB device driver for EG20T PCH.
 	  EG20T PCH is the platform controller hub that is used in Intel's
