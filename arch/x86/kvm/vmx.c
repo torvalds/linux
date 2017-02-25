@@ -2053,7 +2053,6 @@ static bool update_transition_efer(struct vcpu_vmx *vmx, int efer_offset)
 static unsigned long segment_base(u16 selector)
 {
 	struct desc_ptr *gdt = this_cpu_ptr(&host_gdt);
-	struct desc_struct *d;
 	struct desc_struct *table;
 	unsigned long v;
 
