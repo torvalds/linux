@@ -1121,12 +1121,13 @@ struct rhash_head __rcu **rht_bucket_nested(const struct bucket_table *tbl,
 	union nested_table *ntbl;
 
 	ntbl = (union nested_table *)rcu_dereference_raw(tbl->buckets[0]);
-	ntbl = rht_dereference_bucket(ntbl[index].table, tbl, hash);
+	ntbl = rht_dereference_bucket_rcu(ntbl[index].table, tbl, hash);
 	subhash >>= tbl->nest;
 
 	while (ntbl && size > (1 << shift)) {
 		index = subhash & ((1 << shift) - 1);
-		ntbl = rht_dereference_bucket(ntbl[index].table, tbl, hash);
+		ntbl = rht_dereference_bucket_rcu(ntbl[index].table,
+						  tbl, hash);
 		size >>= shift;
 		subhash >>= shift;
 	}
