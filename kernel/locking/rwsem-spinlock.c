@@ -216,10 +216,8 @@ int __sched __down_write_common(struct rw_semaphore *sem, int state)
 		 */
 		if (sem->count == 0)
 			break;
-		if (signal_pending_state(state, current)) {
-			ret = -EINTR;
-			goto out;
-		}
+		if (signal_pending_state(state, current))
+			goto out_nolock;
 		set_task_state(tsk, state);
 		raw_spin_unlock_irqrestore(&sem->wait_lock, flags);
 		schedule();
@@ -227,12 +225,19 @@ int __sched __down_write_common(struct rw_semaphore *sem, int state)
 	}
 	/* got the lock */
 	sem->count = -1;
-out:
 	list_del(&waiter.list);
 
 	raw_spin_unlock_irqrestore(&sem->wait_lock, flags);
 
 	return ret;
+
+out_nolock:
+	list_del(&waiter.list);
+	if (!list_empty(&sem->wait_list))
+		__rwsem_do_wake(sem, 1);
+	raw_spin_unlock_irqrestore(&sem->wait_lock, flags);
+
+	return -EINTR;
 }
 
 void __sched __down_write(struct rw_semaphore *sem)
