@@ -34,9 +34,6 @@
 #ifndef VCHIQ_PAGELIST_H
 #define VCHIQ_PAGELIST_H
 
-#ifndef PAGE_SIZE
-#define PAGE_SIZE 4096
-#endif
 #define CACHE_LINE_SIZE 32
 #define PAGELIST_WRITE 0
 #define PAGELIST_READ 1
