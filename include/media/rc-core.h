@@ -309,6 +309,7 @@ int ir_raw_event_store_with_filter(struct rc_dev *dev,
 void ir_raw_event_set_idle(struct rc_dev *dev, bool idle);
 int ir_raw_encode_scancode(enum rc_proto protocol, u32 scancode,
 			   struct ir_raw_event *events, unsigned int max);
+int ir_raw_encode_carrier(enum rc_proto protocol);
 
 static inline void ir_raw_event_reset(struct rc_dev *dev)
 {

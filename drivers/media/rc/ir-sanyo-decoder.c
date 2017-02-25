@@ -209,6 +209,7 @@ static struct ir_raw_handler sanyo_handler = {
 	.protocols	= RC_PROTO_BIT_SANYO,
 	.decode		= ir_sanyo_decode,
 	.encode		= ir_sanyo_encode,
+	.carrier	= 38000,
 };
 
 static int __init ir_sanyo_decode_init(void)

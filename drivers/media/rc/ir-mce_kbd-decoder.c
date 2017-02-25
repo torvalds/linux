@@ -473,6 +473,7 @@ static struct ir_raw_handler mce_kbd_handler = {
 	.encode		= ir_mce_kbd_encode,
 	.raw_register	= ir_mce_kbd_register,
 	.raw_unregister	= ir_mce_kbd_unregister,
+	.carrier	= 36000,
 };
 
 static int __init ir_mce_kbd_decode_init(void)
