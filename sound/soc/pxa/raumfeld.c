@@ -228,14 +228,12 @@ static struct snd_soc_ops raumfeld_ak4104_ops = {
 	.codec_name	= "spi0.0",			\
 }
 
-static struct snd_soc_dai_link snd_soc_raumfeld_connector_dai[] =
-{
+static struct snd_soc_dai_link snd_soc_raumfeld_connector_dai[] = {
 	DAI_LINK_CS4270,
 	DAI_LINK_AK4104,
 };
 
-static struct snd_soc_dai_link snd_soc_raumfeld_speaker_dai[] =
-{
+static struct snd_soc_dai_link snd_soc_raumfeld_speaker_dai[] = {
 	DAI_LINK_CS4270,
 };
 
