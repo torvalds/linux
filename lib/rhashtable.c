@@ -146,9 +146,7 @@ static void bucket_table_free(const struct bucket_table *tbl)
 	if (tbl->nest)
 		nested_bucket_table_free(tbl);
 
-	if (tbl)
-		kvfree(tbl->locks);
-
+	kvfree(tbl->locks);
 	kvfree(tbl);
 }
 
