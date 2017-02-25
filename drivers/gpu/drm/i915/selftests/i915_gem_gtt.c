@@ -62,12 +62,14 @@ fake_get_pages(struct drm_i915_gem_object *obj)
 	for (sg = pages->sgl; sg; sg = sg_next(sg)) {
 		unsigned long len = min_t(typeof(rem), rem, BIT(31));
 
+		GEM_BUG_ON(!len);
 		sg_set_page(sg, pfn_to_page(PFN_BIAS), len, 0);
 		sg_dma_address(sg) = page_to_phys(sg_page(sg));
 		sg_dma_len(sg) = len;
 
 		rem -= len;
 	}
+	GEM_BUG_ON(rem);
 
 	obj->mm.madv = I915_MADV_DONTNEED;
 	return pages;
