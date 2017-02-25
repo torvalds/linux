@@ -227,27 +227,31 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 		return 0;
 	}
 
+	q = blk_alloc_queue(GFP_KERNEL);
+	if (!q)
+		return -ENOMEM;
+	q->cmd_size = sizeof(struct scsi_request);
+
 	if (rphy) {
-		q = blk_init_queue(sas_non_host_smp_request, NULL);
+		q->request_fn = sas_non_host_smp_request;
 		dev = &rphy->dev;
 		name = dev_name(dev);
 		release = NULL;
 	} else {
-		q = blk_init_queue(sas_host_smp_request, NULL);
+		q->request_fn = sas_host_smp_request;
 		dev = &shost->shost_gendev;
 		snprintf(namebuf, sizeof(namebuf),
 			 "sas_host%d", shost->host_no);
 		name = namebuf;
 		release = sas_host_release;
 	}
-	if (!q)
-		return -ENOMEM;
+	error = blk_init_allocated_queue(q);
+	if (error)
+		goto out_cleanup_queue;
 
 	error = bsg_register_queue(q, dev, name, release);
-	if (error) {
-		blk_cleanup_queue(q);
-		return -ENOMEM;
-	}
+	if (error)
+		goto out_cleanup_queue;
 
 	if (rphy)
 		rphy->q = q;
@@ -261,6 +265,10 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 
 	queue_flag_set_unlocked(QUEUE_FLAG_BIDI, q);
 	return 0;
+
+out_cleanup_queue:
+	blk_cleanup_queue(q);
+	return error;
 }
 
 static void sas_bsg_remove(struct Scsi_Host *shost, struct sas_rphy *rphy)

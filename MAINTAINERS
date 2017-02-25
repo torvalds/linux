@@ -9315,6 +9315,7 @@ OPENRISC ARCHITECTURE
 M:	Jonas Bonn <jonas@southpole.se>
 M:	Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>
 M:	Stafford Horne <shorne@gmail.com>
+T:	git git://github.com/openrisc/linux.git
 L:	openrisc@lists.librecores.org
 W:	http://openrisc.io
 S:	Maintained

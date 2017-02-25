@@ -96,6 +96,10 @@ static int max_part;
 static struct workqueue_struct *recv_workqueue;
 static int part_shift;
 
+static int nbd_dev_dbg_init(struct nbd_device *nbd);
+static void nbd_dev_dbg_close(struct nbd_device *nbd);
+
+
 static inline struct device *nbd_to_dev(struct nbd_device *nbd)
 {
 	return disk_to_dev(nbd->disk);
@@ -120,7 +124,7 @@ static const char *nbdcmd_to_ascii(int cmd)
 
 static int nbd_size_clear(struct nbd_device *nbd, struct block_device *bdev)
 {
-	bdev->bd_inode->i_size = 0;
+	bd_set_size(bdev, 0);
 	set_capacity(nbd->disk, 0);
 	kobject_uevent(&nbd_to_dev(nbd)->kobj, KOBJ_CHANGE);
 
@@ -129,29 +133,20 @@ static int nbd_size_clear(struct nbd_device *nbd, struct block_device *bdev)
 
 static void nbd_size_update(struct nbd_device *nbd, struct block_device *bdev)
 {
-	if (!nbd_is_connected(nbd))
-		return;
-
-	bdev->bd_inode->i_size = nbd->bytesize;
+	blk_queue_logical_block_size(nbd->disk->queue, nbd->blksize);
+	blk_queue_physical_block_size(nbd->disk->queue, nbd->blksize);
+	bd_set_size(bdev, nbd->bytesize);
 	set_capacity(nbd->disk, nbd->bytesize >> 9);
 	kobject_uevent(&nbd_to_dev(nbd)->kobj, KOBJ_CHANGE);
 }
 
-static int nbd_size_set(struct nbd_device *nbd, struct block_device *bdev,
+static void nbd_size_set(struct nbd_device *nbd, struct block_device *bdev,
 			loff_t blocksize, loff_t nr_blocks)
 {
-	int ret;
-
-	ret = set_blocksize(bdev, blocksize);
-	if (ret)
-		return ret;
-
 	nbd->blksize = blocksize;
 	nbd->bytesize = blocksize * nr_blocks;
-
-	nbd_size_update(nbd, bdev);
-
-	return 0;
+	if (nbd_is_connected(nbd))
+		nbd_size_update(nbd, bdev);
 }
 
 static void nbd_end_request(struct nbd_cmd *cmd)
@@ -571,10 +566,17 @@ static int nbd_queue_rq(struct blk_mq_hw_ctx *hctx,
 	return BLK_MQ_RQ_QUEUE_OK;
 }
 
-static int nbd_add_socket(struct nbd_device *nbd, struct socket *sock)
+static int nbd_add_socket(struct nbd_device *nbd, struct block_device *bdev,
+			  unsigned long arg)
 {
+	struct socket *sock;
 	struct nbd_sock **socks;
 	struct nbd_sock *nsock;
+	int err;
+
+	sock = sockfd_lookup(arg, &err);
+	if (!sock)
+		return err;
 
 	if (!nbd->task_setup)
 		nbd->task_setup = current;
@@ -598,26 +600,20 @@ static int nbd_add_socket(struct nbd_device *nbd, struct socket *sock)
 	nsock->sock = sock;
 	socks[nbd->num_connections++] = nsock;
 
+	if (max_part)
+		bdev->bd_invalidated = 1;
 	return 0;
 }
 
 /* Reset all properties of an NBD device */
 static void nbd_reset(struct nbd_device *nbd)
 {
-	int i;
-
-	for (i = 0; i < nbd->num_connections; i++)
-		kfree(nbd->socks[i]);
-	kfree(nbd->socks);
-	nbd->socks = NULL;
 	nbd->runtime_flags = 0;
 	nbd->blksize = 1024;
 	nbd->bytesize = 0;
 	set_capacity(nbd->disk, 0);
 	nbd->flags = 0;
 	nbd->tag_set.timeout = 0;
-	nbd->num_connections = 0;
-	nbd->task_setup = NULL;
 	queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, nbd->disk->queue);
 }
 
@@ -659,81 +655,143 @@ static void send_disconnects(struct nbd_device *nbd)
 	}
 }
 
-static int nbd_dev_dbg_init(struct nbd_device *nbd);
-static void nbd_dev_dbg_close(struct nbd_device *nbd);
+static int nbd_disconnect(struct nbd_device *nbd, struct block_device *bdev)
+{
+	dev_info(disk_to_dev(nbd->disk), "NBD_DISCONNECT\n");
+	if (!nbd->socks)
+		return -EINVAL;
+
+	mutex_unlock(&nbd->config_lock);
+	fsync_bdev(bdev);
+	mutex_lock(&nbd->config_lock);
+
+	/* Check again after getting mutex back.  */
+	if (!nbd->socks)
+		return -EINVAL;
+
+	if (!test_and_set_bit(NBD_DISCONNECT_REQUESTED,
+			      &nbd->runtime_flags))
+		send_disconnects(nbd);
+	return 0;
+}
+
+static int nbd_clear_sock(struct nbd_device *nbd, struct block_device *bdev)
+{
+	sock_shutdown(nbd);
+	nbd_clear_que(nbd);
+	kill_bdev(bdev);
+	nbd_bdev_reset(bdev);
+	/*
+	 * We want to give the run thread a chance to wait for everybody
+	 * to clean up and then do it's own cleanup.
+	 */
+	if (!test_bit(NBD_RUNNING, &nbd->runtime_flags) &&
+	    nbd->num_connections) {
+		int i;
+
+		for (i = 0; i < nbd->num_connections; i++)
+			kfree(nbd->socks[i]);
+		kfree(nbd->socks);
+		nbd->socks = NULL;
+		nbd->num_connections = 0;
+	}
+	nbd->task_setup = NULL;
+
+	return 0;
+}
+
+static int nbd_start_device(struct nbd_device *nbd, struct block_device *bdev)
+{
+	struct recv_thread_args *args;
+	int num_connections = nbd->num_connections;
+	int error = 0, i;
+
+	if (nbd->task_recv)
+		return -EBUSY;
+	if (!nbd->socks)
+		return -EINVAL;
+	if (num_connections > 1 &&
+	    !(nbd->flags & NBD_FLAG_CAN_MULTI_CONN)) {
+		dev_err(disk_to_dev(nbd->disk), "server does not support multiple connections per device.\n");
+		error = -EINVAL;
+		goto out_err;
+	}
+
+	set_bit(NBD_RUNNING, &nbd->runtime_flags);
+	blk_mq_update_nr_hw_queues(&nbd->tag_set, nbd->num_connections);
+	args = kcalloc(num_connections, sizeof(*args), GFP_KERNEL);
+	if (!args) {
+		error = -ENOMEM;
+		goto out_err;
+	}
+	nbd->task_recv = current;
+	mutex_unlock(&nbd->config_lock);
+
+	nbd_parse_flags(nbd, bdev);
+
+	error = device_create_file(disk_to_dev(nbd->disk), &pid_attr);
+	if (error) {
+		dev_err(disk_to_dev(nbd->disk), "device_create_file failed!\n");
+		goto out_recv;
+	}
+
+	nbd_size_update(nbd, bdev);
+
+	nbd_dev_dbg_init(nbd);
+	for (i = 0; i < num_connections; i++) {
+		sk_set_memalloc(nbd->socks[i]->sock->sk);
+		atomic_inc(&nbd->recv_threads);
+		INIT_WORK(&args[i].work, recv_work);
+		args[i].nbd = nbd;
+		args[i].index = i;
+		queue_work(recv_workqueue, &args[i].work);
+	}
+	wait_event_interruptible(nbd->recv_wq,
+				 atomic_read(&nbd->recv_threads) == 0);
+	for (i = 0; i < num_connections; i++)
+		flush_work(&args[i].work);
+	nbd_dev_dbg_close(nbd);
+	nbd_size_clear(nbd, bdev);
+	device_remove_file(disk_to_dev(nbd->disk), &pid_attr);
+out_recv:
+	mutex_lock(&nbd->config_lock);
+	nbd->task_recv = NULL;
+out_err:
+	clear_bit(NBD_RUNNING, &nbd->runtime_flags);
+	nbd_clear_sock(nbd, bdev);
+
+	/* user requested, ignore socket errors */
+	if (test_bit(NBD_DISCONNECT_REQUESTED, &nbd->runtime_flags))
+		error = 0;
+	if (test_bit(NBD_TIMEDOUT, &nbd->runtime_flags))
+		error = -ETIMEDOUT;
+
+	nbd_reset(nbd);
+	return error;
+}
 
 /* Must be called with config_lock held */
 static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		       unsigned int cmd, unsigned long arg)
 {
 	switch (cmd) {
-	case NBD_DISCONNECT: {
-		dev_info(disk_to_dev(nbd->disk), "NBD_DISCONNECT\n");
-		if (!nbd->socks)
-			return -EINVAL;
-
-		mutex_unlock(&nbd->config_lock);
-		fsync_bdev(bdev);
-		mutex_lock(&nbd->config_lock);
-
-		/* Check again after getting mutex back.  */
-		if (!nbd->socks)
-			return -EINVAL;
-
-		if (!test_and_set_bit(NBD_DISCONNECT_REQUESTED,
-				      &nbd->runtime_flags))
-			send_disconnects(nbd);
-		return 0;
-	}
-
+	case NBD_DISCONNECT:
+		return nbd_disconnect(nbd, bdev);
 	case NBD_CLEAR_SOCK:
-		sock_shutdown(nbd);
-		nbd_clear_que(nbd);
-		kill_bdev(bdev);
-		nbd_bdev_reset(bdev);
-		/*
-		 * We want to give the run thread a chance to wait for everybody
-		 * to clean up and then do it's own cleanup.
-		 */
-		if (!test_bit(NBD_RUNNING, &nbd->runtime_flags)) {
-			int i;
-
-			for (i = 0; i < nbd->num_connections; i++)
-				kfree(nbd->socks[i]);
-			kfree(nbd->socks);
-			nbd->socks = NULL;
-			nbd->num_connections = 0;
-			nbd->task_setup = NULL;
-		}
+		return nbd_clear_sock(nbd, bdev);
+	case NBD_SET_SOCK:
+		return nbd_add_socket(nbd, bdev, arg);
+	case NBD_SET_BLKSIZE:
+		nbd_size_set(nbd, bdev, arg,
+			     div_s64(nbd->bytesize, arg));
 		return 0;
-
-	case NBD_SET_SOCK: {
-		int err;
-		struct socket *sock = sockfd_lookup(arg, &err);
-
-		if (!sock)
-			return err;
-
-		err = nbd_add_socket(nbd, sock);
-		if (!err && max_part)
-			bdev->bd_invalidated = 1;
-
-		return err;
-	}
-
-	case NBD_SET_BLKSIZE: {
-		loff_t bsize = div_s64(nbd->bytesize, arg);
-
-		return nbd_size_set(nbd, bdev, arg, bsize);
-	}
-
 	case NBD_SET_SIZE:
-		return nbd_size_set(nbd, bdev, nbd->blksize,
-					div_s64(arg, nbd->blksize));
-
+		nbd_size_set(nbd, bdev, nbd->blksize,
+			     div_s64(arg, nbd->blksize));
+		return 0;
 	case NBD_SET_SIZE_BLOCKS:
-		return nbd_size_set(nbd, bdev, nbd->blksize, arg);
-
+		nbd_size_set(nbd, bdev, nbd->blksize, arg);
+		return 0;
 	case NBD_SET_TIMEOUT:
 		nbd->tag_set.timeout = arg * HZ;
 		return 0;
@@ -741,85 +799,14 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 	case NBD_SET_FLAGS:
 		nbd->flags = arg;
 		return 0;
-
-	case NBD_DO_IT: {
-		struct recv_thread_args *args;
-		int num_connections = nbd->num_connections;
-		int error = 0, i;
-
-		if (nbd->task_recv)
-			return -EBUSY;
-		if (!nbd->socks)
-			return -EINVAL;
-		if (num_connections > 1 &&
-		    !(nbd->flags & NBD_FLAG_CAN_MULTI_CONN)) {
-			dev_err(disk_to_dev(nbd->disk), "server does not support multiple connections per device.\n");
-			error = -EINVAL;
-			goto out_err;
-		}
-
-		set_bit(NBD_RUNNING, &nbd->runtime_flags);
-		blk_mq_update_nr_hw_queues(&nbd->tag_set, nbd->num_connections);
-		args = kcalloc(num_connections, sizeof(*args), GFP_KERNEL);
-		if (!args) {
-			error = -ENOMEM;
-			goto out_err;
-		}
-		nbd->task_recv = current;
-		mutex_unlock(&nbd->config_lock);
-
-		nbd_parse_flags(nbd, bdev);
-
-		error = device_create_file(disk_to_dev(nbd->disk), &pid_attr);
-		if (error) {
-			dev_err(disk_to_dev(nbd->disk), "device_create_file failed!\n");
-			goto out_recv;
-		}
-
-		nbd_size_update(nbd, bdev);
-
-		nbd_dev_dbg_init(nbd);
-		for (i = 0; i < num_connections; i++) {
-			sk_set_memalloc(nbd->socks[i]->sock->sk);
-			atomic_inc(&nbd->recv_threads);
-			INIT_WORK(&args[i].work, recv_work);
-			args[i].nbd = nbd;
-			args[i].index = i;
-			queue_work(recv_workqueue, &args[i].work);
-		}
-		wait_event_interruptible(nbd->recv_wq,
-					 atomic_read(&nbd->recv_threads) == 0);
-		for (i = 0; i < num_connections; i++)
-			flush_work(&args[i].work);
-		nbd_dev_dbg_close(nbd);
-		nbd_size_clear(nbd, bdev);
-		device_remove_file(disk_to_dev(nbd->disk), &pid_attr);
-out_recv:
-		mutex_lock(&nbd->config_lock);
-		nbd->task_recv = NULL;
-out_err:
-		sock_shutdown(nbd);
-		nbd_clear_que(nbd);
-		kill_bdev(bdev);
-		nbd_bdev_reset(bdev);
-
-		/* user requested, ignore socket errors */
-		if (test_bit(NBD_DISCONNECT_REQUESTED, &nbd->runtime_flags))
-			error = 0;
-		if (test_bit(NBD_TIMEDOUT, &nbd->runtime_flags))
-			error = -ETIMEDOUT;
-
-		nbd_reset(nbd);
-		return error;
-	}
-
+	case NBD_DO_IT:
+		return nbd_start_device(nbd, bdev);
 	case NBD_CLEAR_QUE:
 		/*
 		 * This is for compatibility only.  The queue is always cleared
 		 * by NBD_DO_IT or NBD_CLEAR_SOCK.
 		 */
 		return 0;
-
 	case NBD_PRINT_DEBUG:
 		/*
 		 * For compatibility only, we no longer keep a list of
@@ -1134,8 +1121,10 @@ static int __init nbd_init(void)
 	if (!recv_workqueue)
 		return -ENOMEM;
 
-	if (register_blkdev(NBD_MAJOR, "nbd"))
+	if (register_blkdev(NBD_MAJOR, "nbd")) {
+		destroy_workqueue(recv_workqueue);
 		return -EIO;
+	}
 
 	nbd_dbg_init();
 

@@ -205,7 +205,7 @@ void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 	 * needing a restart in that case.
 	 */
 	if (!list_empty(&rq_list)) {
-		blk_mq_sched_mark_restart(hctx);
+		blk_mq_sched_mark_restart_hctx(hctx);
 		did_work = blk_mq_dispatch_rq_list(hctx, &rq_list);
 	} else if (!has_sched_dispatch) {
 		blk_mq_flush_busy_ctxs(hctx, &rq_list);
@@ -331,20 +331,16 @@ static void blk_mq_sched_restart_hctx(struct blk_mq_hw_ctx *hctx)
 
 void blk_mq_sched_restart_queues(struct blk_mq_hw_ctx *hctx)
 {
+	struct request_queue *q = hctx->queue;
 	unsigned int i;
 
-	if (!(hctx->flags & BLK_MQ_F_TAG_SHARED))
+	if (test_bit(QUEUE_FLAG_RESTART, &q->queue_flags)) {
+		if (test_and_clear_bit(QUEUE_FLAG_RESTART, &q->queue_flags)) {
+			queue_for_each_hw_ctx(q, hctx, i)
+				blk_mq_sched_restart_hctx(hctx);
+		}
+	} else {
 		blk_mq_sched_restart_hctx(hctx);
-	else {
-		struct request_queue *q = hctx->queue;
-
-		if (!test_bit(QUEUE_FLAG_RESTART, &q->queue_flags))
-			return;
-
-		clear_bit(QUEUE_FLAG_RESTART, &q->queue_flags);
-
-		queue_for_each_hw_ctx(q, hctx, i)
-			blk_mq_sched_restart_hctx(hctx);
 	}
 }
 
@@ -497,15 +493,6 @@ void blk_mq_sched_teardown(struct request_queue *q)
 int blk_mq_sched_init(struct request_queue *q)
 {
 	int ret;
-
-#if defined(CONFIG_DEFAULT_SQ_NONE)
-	if (q->nr_hw_queues == 1)
-		return 0;
-#endif
-#if defined(CONFIG_DEFAULT_MQ_NONE)
-	if (q->nr_hw_queues > 1)
-		return 0;
-#endif
 
 	mutex_lock(&q->sysfs_lock);
 	ret = elevator_init(q, NULL);
