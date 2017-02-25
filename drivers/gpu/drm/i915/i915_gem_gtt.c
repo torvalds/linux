@@ -815,26 +815,41 @@ struct sgt_dma {
 	dma_addr_t dma, max;
 };
 
+struct gen8_insert_pte {
+	u16 pml4e;
+	u16 pdpe;
+	u16 pde;
+	u16 pte;
+};
+
+static __always_inline struct gen8_insert_pte gen8_insert_pte(u64 start)
+{
+	return (struct gen8_insert_pte) {
+		 gen8_pml4e_index(start),
+		 gen8_pdpe_index(start),
+		 gen8_pde_index(start),
+		 gen8_pte_index(start),
+	};
+}
+
 static __always_inline bool
 gen8_ppgtt_insert_pte_entries(struct i915_hw_ppgtt *ppgtt,
 			      struct i915_page_directory_pointer *pdp,
 			      struct sgt_dma *iter,
-			      u64 start,
+			      struct gen8_insert_pte *idx,
 			      enum i915_cache_level cache_level)
 {
-	unsigned int pdpe = gen8_pdpe_index(start);
-	unsigned int pde = gen8_pde_index(start);
-	unsigned int pte = gen8_pte_index(start);
 	struct i915_page_directory *pd;
 	const gen8_pte_t pte_encode = gen8_pte_encode(0, cache_level);
 	gen8_pte_t *vaddr;
 	bool ret;
 
-	GEM_BUG_ON(pdpe >= I915_PDPES_PER_PDP(vm));
-	pd = pdp->page_directory[pdpe];
-	vaddr = kmap_atomic_px(pd->page_table[pde]);
+	GEM_BUG_ON(idx->pdpe >= I915_PDPES_PER_PDP(vm));
+	pd = pdp->page_directory[idx->pdpe];
+	vaddr = kmap_atomic_px(pd->page_table[idx->pde]);
 	do {
-		vaddr[pte] = pte_encode | iter->dma;
+		vaddr[idx->pte] = pte_encode | iter->dma;
+
 		iter->dma += PAGE_SIZE;
 		if (iter->dma >= iter->max) {
 			iter->sg = __sg_next(iter->sg);
@@ -847,22 +862,25 @@ gen8_ppgtt_insert_pte_entries(struct i915_hw_ppgtt *ppgtt,
 			iter->max = iter->dma + iter->sg->length;
 		}
 
-		if (++pte == GEN8_PTES) {
-			if (++pde == I915_PDES) {
+		if (++idx->pte == GEN8_PTES) {
+			idx->pte = 0;
+
+			if (++idx->pde == I915_PDES) {
+				idx->pde = 0;
+
 				/* Limited by sg length for 3lvl */
-				if (++pdpe == GEN8_PML4ES_PER_PML4) {
+				if (++idx->pdpe == GEN8_PML4ES_PER_PML4) {
+					idx->pdpe = 0;
 					ret = true;
 					break;
 				}
 
-				GEM_BUG_ON(pdpe >= I915_PDPES_PER_PDP(vm));
-				pd = pdp->page_directory[pdpe];
-				pde = 0;
+				GEM_BUG_ON(idx->pdpe >= I915_PDPES_PER_PDP(vm));
+				pd = pdp->page_directory[idx->pdpe];
 			}
 
 			kunmap_atomic(vaddr);
-			vaddr = kmap_atomic_px(pd->page_table[pde]);
-			pte = 0;
+			vaddr = kmap_atomic_px(pd->page_table[idx->pde]);
 		}
 	} while (1);
 	kunmap_atomic(vaddr);
@@ -882,9 +900,10 @@ static void gen8_ppgtt_insert_3lvl(struct i915_address_space *vm,
 		.dma = sg_dma_address(iter.sg),
 		.max = iter.dma + iter.sg->length,
 	};
+	struct gen8_insert_pte idx = gen8_insert_pte(start);
 
-	gen8_ppgtt_insert_pte_entries(ppgtt, &ppgtt->pdp, &iter,
-				      start, cache_level);
+	gen8_ppgtt_insert_pte_entries(ppgtt, &ppgtt->pdp, &iter, &idx,
+				      cache_level);
 }
 
 static void gen8_ppgtt_insert_4lvl(struct i915_address_space *vm,
@@ -900,11 +919,11 @@ static void gen8_ppgtt_insert_4lvl(struct i915_address_space *vm,
 		.max = iter.dma + iter.sg->length,
 	};
 	struct i915_page_directory_pointer **pdps = ppgtt->pml4.pdps;
-	unsigned int pml4e = gen8_pml4e_index(start);
+	struct gen8_insert_pte idx = gen8_insert_pte(start);
 
-	while (gen8_ppgtt_insert_pte_entries(ppgtt, pdps[pml4e++], &iter,
-					     start, cache_level))
-		GEM_BUG_ON(pml4e >= GEN8_PML4ES_PER_PML4);
+	while (gen8_ppgtt_insert_pte_entries(ppgtt, pdps[idx.pml4e++], &iter,
+					     &idx, cache_level))
+		GEM_BUG_ON(idx.pml4e >= GEN8_PML4ES_PER_PML4);
 }
 
 static void gen8_free_page_tables(struct i915_address_space *vm,
