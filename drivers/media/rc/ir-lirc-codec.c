@@ -107,7 +107,8 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 {
 	struct lirc_codec *lirc;
 	struct rc_dev *dev;
-	unsigned int *txbuf; /* buffer with values to transmit */
+	unsigned int *txbuf = NULL;
+	struct ir_raw_event *raw = NULL;
 	ssize_t ret = -EINVAL;
 	size_t count;
 	ktime_t start;
@@ -121,16 +122,50 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 	if (!lirc)
 		return -EFAULT;
 
-	if (n < sizeof(unsigned) || n % sizeof(unsigned))
-		return -EINVAL;
+	if (lirc->send_mode == LIRC_MODE_SCANCODE) {
+		struct lirc_scancode scan;
 
-	count = n / sizeof(unsigned);
-	if (count > LIRCBUF_SIZE || count % 2 == 0)
-		return -EINVAL;
+		if (n != sizeof(scan))
+			return -EINVAL;
 
-	txbuf = memdup_user(buf, n);
-	if (IS_ERR(txbuf))
-		return PTR_ERR(txbuf);
+		if (copy_from_user(&scan, buf, sizeof(scan)))
+			return -EFAULT;
+
+		if (scan.flags || scan.keycode || scan.timestamp)
+			return -EINVAL;
+
+		raw = kmalloc_array(LIRCBUF_SIZE, sizeof(*raw), GFP_KERNEL);
+		if (!raw)
+			return -ENOMEM;
+
+		ret = ir_raw_encode_scancode(scan.rc_proto, scan.scancode,
+					     raw, LIRCBUF_SIZE);
+		if (ret < 0)
+			goto out;
+
+		count = ret;
+
+		txbuf = kmalloc_array(count, sizeof(unsigned int), GFP_KERNEL);
+		if (!txbuf) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		for (i = 0; i < count; i++)
+			/* Convert from NS to US */
+			txbuf[i] = DIV_ROUND_UP(raw[i].duration, 1000);
+	} else {
+		if (n < sizeof(unsigned int) || n % sizeof(unsigned int))
+			return -EINVAL;
+
+		count = n / sizeof(unsigned int);
+		if (count > LIRCBUF_SIZE || count % 2 == 0)
+			return -EINVAL;
+
+		txbuf = memdup_user(buf, n);
+		if (IS_ERR(txbuf))
+			return PTR_ERR(txbuf);
+	}
 
 	dev = lirc->dev;
 	if (!dev) {
@@ -156,24 +191,30 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 	if (ret < 0)
 		goto out;
 
-	for (duration = i = 0; i < ret; i++)
-		duration += txbuf[i];
+	if (lirc->send_mode == LIRC_MODE_SCANCODE) {
+		ret = n;
+	} else {
+		for (duration = i = 0; i < ret; i++)
+			duration += txbuf[i];
 
-	ret *= sizeof(unsigned int);
+		ret *= sizeof(unsigned int);
 
-	/*
-	 * The lircd gap calculation expects the write function to
-	 * wait for the actual IR signal to be transmitted before
-	 * returning.
-	 */
-	towait = ktime_us_delta(ktime_add_us(start, duration), ktime_get());
-	if (towait > 0) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(usecs_to_jiffies(towait));
+		/*
+		 * The lircd gap calculation expects the write function to
+		 * wait for the actual IR signal to be transmitted before
+		 * returning.
+		 */
+		towait = ktime_us_delta(ktime_add_us(start, duration),
+					ktime_get());
+		if (towait > 0) {
+			set_current_state(TASK_INTERRUPTIBLE);
+			schedule_timeout(usecs_to_jiffies(towait));
+		}
 	}
 
 out:
 	kfree(txbuf);
+	kfree(raw);
 	return ret;
 }
 
@@ -202,20 +243,22 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 
 	switch (cmd) {
 
-	/* legacy support */
+	/* mode support */
 	case LIRC_GET_SEND_MODE:
 		if (!dev->tx_ir)
 			return -ENOTTY;
 
-		val = LIRC_MODE_PULSE;
+		val = lirc->send_mode;
 		break;
 
 	case LIRC_SET_SEND_MODE:
 		if (!dev->tx_ir)
 			return -ENOTTY;
 
-		if (val != LIRC_MODE_PULSE)
+		if (!(val == LIRC_MODE_PULSE || val == LIRC_MODE_SCANCODE))
 			return -EINVAL;
+
+		lirc->send_mode = val;
 		return 0;
 
 	/* TX settings */
@@ -361,7 +404,7 @@ static int ir_lirc_register(struct rc_dev *dev)
 	}
 
 	if (dev->tx_ir) {
-		features |= LIRC_CAN_SEND_PULSE;
+		features |= LIRC_CAN_SEND_PULSE | LIRC_CAN_SEND_SCANCODE;
 		if (dev->s_tx_mask)
 			features |= LIRC_CAN_SET_TRANSMITTER_MASK;
 		if (dev->s_tx_carrier)
@@ -398,6 +441,8 @@ static int ir_lirc_register(struct rc_dev *dev)
 	rc = lirc_register_device(ldev);
 	if (rc < 0)
 		goto out;
+
+	dev->raw->lirc.send_mode = LIRC_MODE_PULSE;
 
 	dev->raw->lirc.ldev = ldev;
 	dev->raw->lirc.dev = dev;
