@@ -830,6 +830,7 @@ gen8_ppgtt_insert_pte_entries(struct i915_hw_ppgtt *ppgtt,
 	gen8_pte_t *vaddr;
 	bool ret;
 
+	GEM_BUG_ON(pdpe >= I915_PDPES_PER_PDP(vm));
 	pd = pdp->page_directory[pdpe];
 	vaddr = kmap_atomic_px(pd->page_table[pde]);
 	do {
@@ -854,8 +855,7 @@ gen8_ppgtt_insert_pte_entries(struct i915_hw_ppgtt *ppgtt,
 					break;
 				}
 
-				GEM_BUG_ON(!i915_vm_is_48bit(&ppgtt->base) &&
-					   pdpe >= GEN8_LEGACY_PDPES);
+				GEM_BUG_ON(pdpe >= I915_PDPES_PER_PDP(vm));
 				pd = pdp->page_directory[pdpe];
 				pde = 0;
 			}
@@ -904,7 +904,7 @@ static void gen8_ppgtt_insert_4lvl(struct i915_address_space *vm,
 
 	while (gen8_ppgtt_insert_pte_entries(ppgtt, pdps[pml4e++], &iter,
 					     start, cache_level))
-		;
+		GEM_BUG_ON(pml4e >= GEN8_PML4ES_PER_PML4);
 }
 
 static void gen8_free_page_tables(struct i915_address_space *vm,
