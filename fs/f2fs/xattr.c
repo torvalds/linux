@@ -545,6 +545,13 @@ cleanup:
 	return error;
 }
 
+static bool f2fs_xattr_value_same(struct f2fs_xattr_entry *entry,
+					const void *value, size_t size)
+{
+	void *pval = entry->e_name + entry->e_name_len;
+	return (entry->e_value_size == size) && !memcmp(pval, value, size);
+}
+
 static int __f2fs_setxattr(struct inode *inode, int index,
 			const char *name, const void *value, size_t size,
 			struct page *ipage, int flags)
@@ -579,11 +586,16 @@ static int __f2fs_setxattr(struct inode *inode, int index,
 
 	found = IS_XATTR_LAST_ENTRY(here) ? 0 : 1;
 
-	if ((flags & XATTR_REPLACE) && !found) {
+	if (found) {
+		if ((flags & XATTR_CREATE)) {
+			error = -EEXIST;
+			goto exit;
+		}
+
+		if (f2fs_xattr_value_same(here, value, size))
+			goto exit;
+	} else if ((flags & XATTR_REPLACE)) {
 		error = -ENODATA;
-		goto exit;
-	} else if ((flags & XATTR_CREATE) && found) {
-		error = -EEXIST;
 		goto exit;
 	}
 
