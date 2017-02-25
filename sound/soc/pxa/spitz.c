@@ -230,8 +230,8 @@ static const struct snd_soc_dapm_route spitz_audio_map[] = {
 	{"Headset Jack", NULL, "ROUT1"},
 
 	/* ext speaker connected to LOUT2, ROUT2  */
-	{"Ext Spk", NULL , "ROUT2"},
-	{"Ext Spk", NULL , "LOUT2"},
+	{"Ext Spk", NULL, "ROUT2"},
+	{"Ext Spk", NULL, "LOUT2"},
 
 	/* mic is connected to input 1 - with bias */
 	{"LINPUT1", NULL, "Mic Bias"},
