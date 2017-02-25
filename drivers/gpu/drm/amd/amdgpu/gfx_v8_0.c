@@ -5070,7 +5070,21 @@ int gfx_v8_0_mqd_commit(struct amdgpu_device *adev,
 	WREG32_FIELD(CP_PQ_WPTR_POLL_CNTL, EN, 0);
 
 	/* program all HQD registers */
-	for (mqd_reg = mmCP_HQD_VMID; mqd_reg <= mmCP_HQD_ERROR; mqd_reg++)
+	for (mqd_reg = mmCP_HQD_VMID; mqd_reg <= mmCP_HQD_EOP_CONTROL; mqd_reg++)
+		WREG32(mqd_reg, mqd_data[mqd_reg - mmCP_MQD_BASE_ADDR]);
+
+	/* Tonga errata: EOP RPTR/WPTR should be left unmodified.
+	 * This is safe since EOP RPTR==WPTR for any inactive HQD
+	 * on ASICs that do not support context-save.
+	 * EOP writes/reads can start anywhere in the ring.
+	 */
+	if (adev->asic_type != CHIP_TONGA) {
+		WREG32(mmCP_HQD_EOP_RPTR, mqd->cp_hqd_eop_rptr);
+		WREG32(mmCP_HQD_EOP_WPTR, mqd->cp_hqd_eop_wptr);
+		WREG32(mmCP_HQD_EOP_WPTR_MEM, mqd->cp_hqd_eop_wptr_mem);
+	}
+
+	for (mqd_reg = mmCP_HQD_EOP_EVENTS; mqd_reg <= mmCP_HQD_ERROR; mqd_reg++)
 		WREG32(mqd_reg, mqd_data[mqd_reg - mmCP_MQD_BASE_ADDR]);
 
 	/* activate the HQD */
