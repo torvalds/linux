@@ -588,9 +588,9 @@ static int r871x_set_wpa_ie(struct _adapter *padapter, char *pie,
 					netdev_info(padapter->pnetdev, "r8712u: SET WPS_IE, wps_phase==true\n");
 					cnt += buf[cnt + 1] + 2;
 					break;
-				} else {
-					cnt += buf[cnt + 1] + 2;
 				}
+
+				cnt += buf[cnt + 1] + 2;
 			}
 		}
 	}

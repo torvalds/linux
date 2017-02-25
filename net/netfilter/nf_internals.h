@@ -11,11 +11,6 @@
 #define NFDEBUG(format, args...)
 #endif
 
-
-/* core.c */
-unsigned int nf_iterate(struct sk_buff *skb, struct nf_hook_state *state,
-			struct nf_hook_entry **entryp);
-
 /* nf_queue.c */
 int nf_queue(struct sk_buff *skb, struct nf_hook_state *state,
 	     struct nf_hook_entry **entryp, unsigned int verdict);

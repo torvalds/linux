@@ -41,7 +41,7 @@
 #include <linux/delay.h> /* ssleep prototype */
 #include <linux/kthread.h>
 #include <linux/semaphore.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <scsi/scsi_host.h>
 
 #include "aacraid.h"

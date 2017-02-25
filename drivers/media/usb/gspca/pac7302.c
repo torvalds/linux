@@ -105,8 +105,7 @@
 #define PAC7302_EXPOSURE_DEFAULT	 66 /* 33 ms / 30 fps */
 #define PAC7302_EXPOSURE_KNEE		133 /* 66 ms / 15 fps */
 
-MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>, "
-		"Thomas Kaiser thomas@kaiser-linux.li");
+MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>, Thomas Kaiser thomas@kaiser-linux.li");
 MODULE_DESCRIPTION("Pixart PAC7302");
 MODULE_LICENSE("GPL");
 

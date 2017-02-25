@@ -39,8 +39,8 @@
  * - __le{16,32,64} for standard-compliant virtio devices
  */
 
-typedef __u16 __bitwise__ __virtio16;
-typedef __u32 __bitwise__ __virtio32;
-typedef __u64 __bitwise__ __virtio64;
+typedef __u16 __bitwise __virtio16;
+typedef __u32 __bitwise __virtio32;
+typedef __u64 __bitwise __virtio64;
 
 #endif /* _UAPI_LINUX_VIRTIO_TYPES_H */

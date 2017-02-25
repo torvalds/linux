@@ -310,7 +310,7 @@ void default_machine_kexec(struct kimage *image)
 	if (!kdump_in_progress())
 		kexec_prepare_cpus();
 
-	pr_debug("kexec: Starting switchover sequence.\n");
+	printk("kexec: Starting switchover sequence.\n");
 
 	/* switch to a staticly allocated stack.  Based on irq stack code.
 	 * We setup preempt_count to avoid using VMX in memcpy.

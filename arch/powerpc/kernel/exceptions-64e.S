@@ -923,10 +923,10 @@ kernel_dbg_exc:
 			        PROLOG_ADDITION_NONE)
 	EXCEPTION_COMMON(0x340)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	.save_nvgprs
+	bl	save_nvgprs
 	INTS_RESTORE_HARD
-	bl	.unknown_exception
-	b	.ret_from_except
+	bl	unknown_exception
+	b	ret_from_except
 
 /*
  * An interrupt came in while soft-disabled; We mark paca->irq_happened

@@ -623,9 +623,6 @@ static int get_serial_info(struct gb_tty *gb_tty,
 {
 	struct serial_struct tmp;
 
-	if (!info)
-		return -EINVAL;
-
 	memset(&tmp, 0, sizeof(tmp));
 	tmp.flags = ASYNC_LOW_LATENCY | ASYNC_SKIP_TEST;
 	tmp.type = PORT_16550A;
@@ -711,25 +708,20 @@ static int wait_serial_change(struct gb_tty *gb_tty, unsigned long arg)
 	return retval;
 }
 
-static int get_serial_usage(struct gb_tty *gb_tty,
-			    struct serial_icounter_struct __user *count)
+static int gb_tty_get_icount(struct tty_struct *tty,
+			     struct serial_icounter_struct *icount)
 {
-	struct serial_icounter_struct icount;
-	int retval = 0;
+	struct gb_tty *gb_tty = tty->driver_data;
 
-	memset(&icount, 0, sizeof(icount));
-	icount.dsr = gb_tty->iocount.dsr;
-	icount.rng = gb_tty->iocount.rng;
-	icount.dcd = gb_tty->iocount.dcd;
-	icount.frame = gb_tty->iocount.frame;
-	icount.overrun = gb_tty->iocount.overrun;
-	icount.parity = gb_tty->iocount.parity;
-	icount.brk = gb_tty->iocount.brk;
+	icount->dsr = gb_tty->iocount.dsr;
+	icount->rng = gb_tty->iocount.rng;
+	icount->dcd = gb_tty->iocount.dcd;
+	icount->frame = gb_tty->iocount.frame;
+	icount->overrun = gb_tty->iocount.overrun;
+	icount->parity = gb_tty->iocount.parity;
+	icount->brk = gb_tty->iocount.brk;
 
-	if (copy_to_user(count, &icount, sizeof(icount)) > 0)
-		retval = -EFAULT;
-
-	return retval;
+	return 0;
 }
 
 static int gb_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
@@ -746,9 +738,6 @@ static int gb_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 				       (struct serial_struct __user *)arg);
 	case TIOCMIWAIT:
 		return wait_serial_change(gb_tty, arg);
-	case TIOCGICOUNT:
-		return get_serial_usage(gb_tty,
-					(struct serial_icounter_struct __user *)arg);
 	}
 
 	return -ENOIOCTLCMD;
@@ -830,9 +819,10 @@ static const struct tty_operations gb_ops = {
 	.set_termios =		gb_tty_set_termios,
 	.tiocmget =		gb_tty_tiocmget,
 	.tiocmset =		gb_tty_tiocmset,
+	.get_icount =		gb_tty_get_icount,
 };
 
-static struct tty_port_operations gb_port_ops = {
+static const struct tty_port_operations gb_port_ops = {
 	.dtr_rts =		gb_tty_dtr_rts,
 	.activate =		gb_tty_port_activate,
 	.shutdown =		gb_tty_port_shutdown,

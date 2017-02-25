@@ -24,7 +24,7 @@
 #include <linux/fs.h>
 #include <linux/mount.h>
 #include <linux/file.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/switch_to.h>
 
 #include <init.h>

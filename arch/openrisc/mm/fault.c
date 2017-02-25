@@ -20,7 +20,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/siginfo.h>
 #include <asm/signal.h>
 

@@ -252,8 +252,10 @@ static inline void cmci_recheck(void) {}
 
 #ifdef CONFIG_X86_MCE_AMD
 void mce_amd_feature_init(struct cpuinfo_x86 *c);
+int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr);
 #else
 static inline void mce_amd_feature_init(struct cpuinfo_x86 *c) { }
+static inline int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr) { return -EINVAL; };
 #endif
 
 int mce_available(struct cpuinfo_x86 *c);
@@ -293,9 +295,7 @@ void do_machine_check(struct pt_regs *, long);
 /*
  * Threshold handler
  */
-
 extern void (*mce_threshold_vector)(void);
-extern void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
 
 /* Deferred error interrupt handler */
 extern void (*deferred_error_int_vector)(void);
@@ -356,27 +356,31 @@ enum smca_bank_types {
 	N_SMCA_BANK_TYPES
 };
 
-struct smca_bank_name {
-	const char *name;	/* Short name for sysfs */
-	const char *long_name;	/* Long name for pretty-printing */
-};
+#define HWID_MCATYPE(hwid, mcatype) (((hwid) << 16) | (mcatype))
 
-extern struct smca_bank_name smca_bank_names[N_SMCA_BANK_TYPES];
-
-#define HWID_MCATYPE(hwid, mcatype) ((hwid << 16) | mcatype)
-
-struct smca_hwid_mcatype {
+struct smca_hwid {
 	unsigned int bank_type;	/* Use with smca_bank_types for easy indexing. */
 	u32 hwid_mcatype;	/* (hwid,mcatype) tuple */
 	u32 xec_bitmap;		/* Bitmap of valid ExtErrorCodes; current max is 21. */
 };
 
-struct smca_bank_info {
-	struct smca_hwid_mcatype *type;
-	u32 type_instance;
+struct smca_bank {
+	struct smca_hwid *hwid;
+	/* Instance ID */
+	u32 id;
 };
 
-extern struct smca_bank_info smca_banks[MAX_NR_BANKS];
+extern struct smca_bank smca_banks[MAX_NR_BANKS];
+
+extern const char *smca_get_long_name(enum smca_bank_types t);
+
+extern int mce_threshold_create_device(unsigned int cpu);
+extern int mce_threshold_remove_device(unsigned int cpu);
+
+#else
+
+static inline int mce_threshold_create_device(unsigned int cpu) { return 0; };
+static inline int mce_threshold_remove_device(unsigned int cpu) { return 0; };
 
 #endif
 

@@ -61,7 +61,7 @@
 #include <net/ipconfig.h>
 #include <net/route.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <net/checksum.h>
 #include <asm/processor.h>
 

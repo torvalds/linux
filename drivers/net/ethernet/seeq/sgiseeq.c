@@ -714,7 +714,6 @@ static const struct net_device_ops sgiseeq_netdev_ops = {
 	.ndo_tx_timeout		= timeout,
 	.ndo_set_rx_mode	= sgiseeq_set_multicast,
 	.ndo_set_mac_address	= sgiseeq_set_mac_address,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 };
 

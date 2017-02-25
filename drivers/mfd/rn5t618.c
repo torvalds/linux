@@ -87,6 +87,7 @@ static int rn5t618_restart(struct notifier_block *this,
 static const struct of_device_id rn5t618_of_match[] = {
 	{ .compatible = "ricoh,rn5t567", .data = (void *)RN5T567 },
 	{ .compatible = "ricoh,rn5t618", .data = (void *)RN5T618 },
+	{ .compatible = "ricoh,rc5t619", .data = (void *)RC5T619 },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rn5t618_of_match);

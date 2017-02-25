@@ -25,9 +25,6 @@ bool hang_debug = false;
 MODULE_PARM_DESC(hang_debug, "Dump registers when hang is detected (can be slow!)");
 module_param_named(hang_debug, hang_debug, bool, 0600);
 
-struct msm_gpu *a3xx_gpu_init(struct drm_device *dev);
-struct msm_gpu *a4xx_gpu_init(struct drm_device *dev);
-
 static const struct adreno_info gpulist[] = {
 	{
 		.rev   = ADRENO_REV(3, 0, 5, ANY_ID),
@@ -77,6 +74,15 @@ static const struct adreno_info gpulist[] = {
 		.pfpfw = "a420_pfp.fw",
 		.gmem  = (SZ_1M + SZ_512K),
 		.init  = a4xx_gpu_init,
+	}, {
+		.rev = ADRENO_REV(5, 3, 0, ANY_ID),
+		.revn = 530,
+		.name = "A530",
+		.pm4fw = "a530_pm4.fw",
+		.pfpfw = "a530_pfp.fw",
+		.gmem = SZ_1M,
+		.init = a5xx_gpu_init,
+		.gpmufw = "a530v3_gpmu.fw2",
 	},
 };
 
@@ -86,6 +92,8 @@ MODULE_FIRMWARE("a330_pm4.fw");
 MODULE_FIRMWARE("a330_pfp.fw");
 MODULE_FIRMWARE("a420_pm4.fw");
 MODULE_FIRMWARE("a420_pfp.fw");
+MODULE_FIRMWARE("a530_fm4.fw");
+MODULE_FIRMWARE("a530_pfp.fw");
 
 static inline bool _rev_match(uint8_t entry, uint8_t id)
 {
@@ -148,12 +156,16 @@ struct msm_gpu *adreno_load_gpu(struct drm_device *dev)
 		mutex_lock(&dev->struct_mutex);
 		gpu->funcs->pm_resume(gpu);
 		mutex_unlock(&dev->struct_mutex);
+
+		disable_irq(gpu->irq);
+
 		ret = gpu->funcs->hw_init(gpu);
 		if (ret) {
 			dev_err(dev->dev, "gpu hw init failed: %d\n", ret);
 			gpu->funcs->destroy(gpu);
 			gpu = NULL;
 		} else {
+			enable_irq(gpu->irq);
 			/* give inactive pm a chance to kick in: */
 			msm_gpu_retire(gpu);
 		}
@@ -169,12 +181,20 @@ static void set_gpu_pdev(struct drm_device *dev,
 	priv->gpu_pdev = pdev;
 }
 
+static const struct {
+	const char *str;
+	uint32_t flag;
+} quirks[] = {
+	{ "qcom,gpu-quirk-two-pass-use-wfi", ADRENO_QUIRK_TWO_PASS_USE_WFI },
+	{ "qcom,gpu-quirk-fault-detect-mask", ADRENO_QUIRK_FAULT_DETECT_MASK },
+};
+
 static int adreno_bind(struct device *dev, struct device *master, void *data)
 {
 	static struct adreno_platform_config config = {};
 	struct device_node *child, *node = dev->of_node;
 	u32 val;
-	int ret;
+	int ret, i;
 
 	ret = of_property_read_u32(node, "qcom,chipid", &val);
 	if (ret) {
@@ -207,6 +227,10 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 		dev_err(dev, "could not find clk rates\n");
 		return -ENXIO;
 	}
+
+	for (i = 0; i < ARRAY_SIZE(quirks); i++)
+		if (of_property_read_bool(node, quirks[i].str))
+			config.quirks |= quirks[i].flag;
 
 	dev->platform_data = &config;
 	set_gpu_pdev(dev_get_drvdata(master), to_platform_device(dev));

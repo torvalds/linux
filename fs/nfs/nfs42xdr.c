@@ -181,8 +181,9 @@ static void encode_layoutstats(struct xdr_stream *xdr,
 			NFS4_DEVICEID4_SIZE);
 	/* Encode layoutupdate4 */
 	*p++ = cpu_to_be32(devinfo->layout_type);
-	if (devinfo->layoutstats_encode != NULL)
-		devinfo->layoutstats_encode(xdr, args, devinfo);
+	if (devinfo->ld_private.ops)
+		devinfo->ld_private.ops->encode(xdr, args,
+				&devinfo->ld_private);
 	else
 		encode_uint32(xdr, 0);
 }

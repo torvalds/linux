@@ -20,6 +20,7 @@
 #ifndef _MWIFIEX_MAIN_H_
 #define _MWIFIEX_MAIN_H_
 
+#include <linux/completion.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -315,6 +316,7 @@ struct mwifiex_tid_tbl {
 #define WMM_HIGHEST_PRIORITY		7
 #define HIGH_PRIO_TID				7
 #define LOW_PRIO_TID				0
+#define NO_PKT_PRIO_TID				-1
 #define MWIFIEX_WMM_DRV_DELAY_MAX 510
 
 struct mwifiex_wmm_desc {
@@ -856,6 +858,7 @@ struct mwifiex_adapter {
 	atomic_t rx_pending;
 	atomic_t tx_pending;
 	atomic_t cmd_pending;
+	atomic_t tx_hw_pending;
 	struct workqueue_struct *workqueue;
 	struct work_struct main_work;
 	struct workqueue_struct *rx_workqueue;
@@ -983,7 +986,10 @@ struct mwifiex_adapter {
 	u32 usr_dot_11ac_mcs_support;
 
 	atomic_t pending_bridged_pkts;
-	struct semaphore *card_sem;
+
+	/* For synchronizing FW initialization with device lifecycle. */
+	struct completion *fw_done;
+
 	bool ext_scan;
 	u8 fw_api_ver;
 	u8 key_api_major_ver, key_api_minor_ver;
@@ -1010,6 +1016,10 @@ struct mwifiex_adapter {
 	bool usb_mc_setup;
 	struct cfg80211_wowlan_nd_info *nd_info;
 	struct ieee80211_regdomain *regd;
+
+	/* Wake-on-WLAN (WoWLAN) */
+	int irq_wakeup;
+	bool wake_by_wifi;
 };
 
 void mwifiex_process_tx_queue(struct mwifiex_adapter *adapter);
@@ -1409,10 +1419,39 @@ static inline u8 mwifiex_is_tdls_link_setup(u8 status)
 	return false;
 }
 
+/* Disable platform specific wakeup interrupt */
+static inline void mwifiex_disable_wake(struct mwifiex_adapter *adapter)
+{
+	if (adapter->irq_wakeup >= 0) {
+		disable_irq_wake(adapter->irq_wakeup);
+		disable_irq(adapter->irq_wakeup);
+		if (adapter->wake_by_wifi)
+			/* Undo our disable, since interrupt handler already
+			 * did this.
+			 */
+			enable_irq(adapter->irq_wakeup);
+
+	}
+}
+
+/* Enable platform specific wakeup interrupt */
+static inline void mwifiex_enable_wake(struct mwifiex_adapter *adapter)
+{
+	/* Enable platform specific wakeup interrupt */
+	if (adapter->irq_wakeup >= 0) {
+		adapter->wake_by_wifi = false;
+		enable_irq(adapter->irq_wakeup);
+		enable_irq_wake(adapter->irq_wakeup);
+	}
+}
+
 int mwifiex_init_shutdown_fw(struct mwifiex_private *priv,
 			     u32 func_init_shutdown);
-int mwifiex_add_card(void *, struct semaphore *, struct mwifiex_if_ops *, u8);
-int mwifiex_remove_card(struct mwifiex_adapter *, struct semaphore *);
+
+int mwifiex_add_card(void *card, struct completion *fw_done,
+		     struct mwifiex_if_ops *if_ops, u8 iface_type,
+		     struct device *dev);
+int mwifiex_remove_card(struct mwifiex_adapter *adapter);
 
 void mwifiex_get_version(struct mwifiex_adapter *adapter, char *version,
 			 int maxlen);

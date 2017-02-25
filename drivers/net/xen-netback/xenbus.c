@@ -493,11 +493,22 @@ static int backend_create_xenvif(struct backend_info *be)
 static void backend_disconnect(struct backend_info *be)
 {
 	if (be->vif) {
+		unsigned int queue_index;
+
 		xen_unregister_watchers(be->vif);
 #ifdef CONFIG_DEBUG_FS
 		xenvif_debugfs_delif(be->vif);
 #endif /* CONFIG_DEBUG_FS */
 		xenvif_disconnect_data(be->vif);
+		for (queue_index = 0; queue_index < be->vif->num_queues; ++queue_index)
+			xenvif_deinit_queue(&be->vif->queues[queue_index]);
+
+		spin_lock(&be->vif->lock);
+		vfree(be->vif->queues);
+		be->vif->num_queues = 0;
+		be->vif->queues = NULL;
+		spin_unlock(&be->vif->lock);
+
 		xenvif_disconnect_ctrl(be->vif);
 	}
 }
@@ -785,12 +796,9 @@ static void xen_mcast_ctrl_changed(struct xenbus_watch *watch,
 	struct xenvif *vif = container_of(watch, struct xenvif,
 					  mcast_ctrl_watch);
 	struct xenbus_device *dev = xenvif_to_xenbus_device(vif);
-	int val;
 
-	if (xenbus_scanf(XBT_NIL, dev->otherend,
-			 "request-multicast-control", "%d", &val) < 0)
-		val = 0;
-	vif->multicast_control = !!val;
+	vif->multicast_control = !!xenbus_read_unsigned(dev->otherend,
+					"request-multicast-control", 0);
 }
 
 static int xen_register_mcast_ctrl_watch(struct xenbus_device *dev,
@@ -889,16 +897,16 @@ static int connect_ctrl_ring(struct backend_info *be)
 	unsigned int evtchn;
 	int err;
 
-	err = xenbus_gather(XBT_NIL, dev->otherend,
-			    "ctrl-ring-ref", "%u", &val, NULL);
-	if (err)
+	err = xenbus_scanf(XBT_NIL, dev->otherend,
+			   "ctrl-ring-ref", "%u", &val);
+	if (err < 0)
 		goto done; /* The frontend does not have a control ring */
 
 	ring_ref = val;
 
-	err = xenbus_gather(XBT_NIL, dev->otherend,
-			    "event-channel-ctrl", "%u", &val, NULL);
-	if (err) {
+	err = xenbus_scanf(XBT_NIL, dev->otherend,
+			   "event-channel-ctrl", "%u", &val);
+	if (err < 0) {
 		xenbus_dev_fatal(dev, err,
 				 "reading %s/event-channel-ctrl",
 				 dev->otherend);
@@ -934,14 +942,11 @@ static void connect(struct backend_info *be)
 	/* Check whether the frontend requested multiple queues
 	 * and read the number requested.
 	 */
-	err = xenbus_scanf(XBT_NIL, dev->otherend,
-			   "multi-queue-num-queues",
-			   "%u", &requested_num_queues);
-	if (err < 0) {
-		requested_num_queues = 1; /* Fall back to single queue */
-	} else if (requested_num_queues > xenvif_max_queues) {
+	requested_num_queues = xenbus_read_unsigned(dev->otherend,
+					"multi-queue-num-queues", 1);
+	if (requested_num_queues > xenvif_max_queues) {
 		/* buggy or malicious guest */
-		xenbus_dev_fatal(dev, err,
+		xenbus_dev_fatal(dev, -EINVAL,
 				 "guest requested %u queues, exceeding the maximum of %u.",
 				 requested_num_queues, xenvif_max_queues);
 		return;
@@ -1040,6 +1045,8 @@ static void connect(struct backend_info *be)
 err:
 	if (be->vif->num_queues > 0)
 		xenvif_disconnect_data(be->vif); /* Clean up existing queues */
+	for (queue_index = 0; queue_index < be->vif->num_queues; ++queue_index)
+		xenvif_deinit_queue(&be->vif->queues[queue_index]);
 	vfree(be->vif->queues);
 	be->vif->queues = NULL;
 	be->vif->num_queues = 0;
@@ -1134,7 +1141,7 @@ static int read_xenbus_vif_flags(struct backend_info *be)
 	struct xenvif *vif = be->vif;
 	struct xenbus_device *dev = be->dev;
 	unsigned int rx_copy;
-	int err, val;
+	int err;
 
 	err = xenbus_scanf(XBT_NIL, dev->otherend, "request-rx-copy", "%u",
 			   &rx_copy);
@@ -1150,10 +1157,7 @@ static int read_xenbus_vif_flags(struct backend_info *be)
 	if (!rx_copy)
 		return -EOPNOTSUPP;
 
-	if (xenbus_scanf(XBT_NIL, dev->otherend,
-			 "feature-rx-notify", "%d", &val) < 0)
-		val = 0;
-	if (!val) {
+	if (!xenbus_read_unsigned(dev->otherend, "feature-rx-notify", 0)) {
 		/* - Reduce drain timeout to poll more frequently for
 		 *   Rx requests.
 		 * - Disable Rx stall detection.
@@ -1162,34 +1166,21 @@ static int read_xenbus_vif_flags(struct backend_info *be)
 		be->vif->stall_timeout = 0;
 	}
 
-	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-sg",
-			 "%d", &val) < 0)
-		val = 0;
-	vif->can_sg = !!val;
+	vif->can_sg = !!xenbus_read_unsigned(dev->otherend, "feature-sg", 0);
 
 	vif->gso_mask = 0;
 
-	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-gso-tcpv4",
-			 "%d", &val) < 0)
-		val = 0;
-	if (val)
+	if (xenbus_read_unsigned(dev->otherend, "feature-gso-tcpv4", 0))
 		vif->gso_mask |= GSO_BIT(TCPV4);
 
-	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-gso-tcpv6",
-			 "%d", &val) < 0)
-		val = 0;
-	if (val)
+	if (xenbus_read_unsigned(dev->otherend, "feature-gso-tcpv6", 0))
 		vif->gso_mask |= GSO_BIT(TCPV6);
 
-	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-no-csum-offload",
-			 "%d", &val) < 0)
-		val = 0;
-	vif->ip_csum = !val;
+	vif->ip_csum = !xenbus_read_unsigned(dev->otherend,
+					     "feature-no-csum-offload", 0);
 
-	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-ipv6-csum-offload",
-			 "%d", &val) < 0)
-		val = 0;
-	vif->ipv6_csum = !!val;
+	vif->ipv6_csum = !!xenbus_read_unsigned(dev->otherend,
+						"feature-ipv6-csum-offload", 0);
 
 	return 0;
 }

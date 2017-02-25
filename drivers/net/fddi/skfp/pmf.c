@@ -284,7 +284,7 @@ void smt_pmf_received_pack(struct s_smc *smc, SMbuf *mb, int local)
 	SMbuf		*reply ;
 
 	sm = smtod(mb,struct smt_header *) ;
-	DB_SMT("SMT: processing PMF frame at %x len %d\n",sm,mb->sm_len) ;
+	DB_SMT("SMT: processing PMF frame at %p len %d\n",sm,mb->sm_len) ;
 #ifdef	DEBUG
 	dump_smt(smc,sm,"PMF Received") ;
 #endif

@@ -296,10 +296,11 @@ static int __init is_alive(u_short sock)
 	return 0;
 }
 
-static void add_pcc_socket(ulong base, int irq, ulong mapaddr,
-			   unsigned int ioaddr)
+static int add_pcc_socket(ulong base, int irq, ulong mapaddr,
+			  unsigned int ioaddr)
 {
   	pcc_socket_t *t = &socket[pcc_sockets];
+	int err;
 
 	/* add sockets */
 	t->ioaddr = ioaddr;
@@ -328,11 +329,16 @@ static void add_pcc_socket(ulong base, int irq, ulong mapaddr,
 	t->socket.irq_mask = 0;
 	t->socket.pci_irq = 2 + pcc_sockets; /* XXX */
 
-	request_irq(irq, pcc_interrupt, 0, "m32r-pcc", pcc_interrupt);
+	err = request_irq(irq, pcc_interrupt, 0, "m32r-pcc", pcc_interrupt);
+	if (err) {
+		if (t->base > 0)
+			release_region(t->base, 0x20);
+		return err;
+	}
 
 	pcc_sockets++;
 
-	return;
+	return 0;
 }
 
 
@@ -683,26 +689,29 @@ static int __init init_m32r_pcc(void)
 		return ret;
 
 	ret = platform_device_register(&pcc_device);
-	if (ret){
-		platform_driver_unregister(&pcc_driver);
-		return ret;
-	}
+	if (ret)
+		goto unreg_driv;
 
 	printk(KERN_INFO "m32r PCC probe:\n");
 
 	pcc_sockets = 0;
 
-	add_pcc_socket(M32R_PCC0_BASE, PCC0_IRQ, M32R_PCC0_MAPBASE, 0x1000);
+	ret = add_pcc_socket(M32R_PCC0_BASE, PCC0_IRQ, M32R_PCC0_MAPBASE,
+			     0x1000);
+	if (ret)
+		goto unreg_dev;
 
 #ifdef CONFIG_M32RPCC_SLOT2
-	add_pcc_socket(M32R_PCC1_BASE, PCC1_IRQ, M32R_PCC1_MAPBASE, 0x2000);
+	ret = add_pcc_socket(M32R_PCC1_BASE, PCC1_IRQ, M32R_PCC1_MAPBASE,
+			     0x2000);
+	if (ret)
+		goto unreg_dev;
 #endif
 
 	if (pcc_sockets == 0) {
 		printk("socket is not found.\n");
-		platform_device_unregister(&pcc_device);
-		platform_driver_unregister(&pcc_driver);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto unreg_dev;
 	}
 
 	/* Set up interrupt handler(s) */
@@ -728,6 +737,12 @@ static int __init init_m32r_pcc(void)
 	}
 
 	return 0;
+
+unreg_dev:
+	platform_device_unregister(&pcc_device);
+unreg_driv:
+	platform_driver_unregister(&pcc_driver);
+	return ret;
 } /* init_m32r_pcc */
 
 static void __exit exit_m32r_pcc(void)

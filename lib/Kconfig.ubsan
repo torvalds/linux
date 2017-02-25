@@ -10,7 +10,8 @@ config UBSAN
 	  This option enables undefined behaviour sanity checker
 	  Compile-time instrumentation is used to detect various undefined
 	  behaviours in runtime. Various types of checks may be enabled
-	  via boot parameter ubsan_handle (see: Documentation/ubsan.txt).
+	  via boot parameter ubsan_handle
+	  (see: Documentation/dev-tools/ubsan.rst).
 
 config UBSAN_SANITIZE_ALL
 	bool "Enable instrumentation for the entire kernel"

@@ -50,3 +50,14 @@ config UBIFS_ATIME_SUPPORT
 	  strictatime is the "heavy", relatime is "lighter", etc.
 
 	  If unsure, say 'N'
+
+config UBIFS_FS_ENCRYPTION
+	bool "UBIFS Encryption"
+	depends on UBIFS_FS && BLOCK
+	select FS_ENCRYPTION
+	default n
+	help
+	  Enable encryption of UBIFS files and directories. This
+	  feature is similar to ecryptfs, but it is more memory
+	  efficient since it avoids caching the encrypted and
+	  decrypted pages in the page cache.

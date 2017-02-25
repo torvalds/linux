@@ -341,15 +341,7 @@ static void devlink_nl_post_doit(const struct genl_ops *ops,
 	mutex_unlock(&devlink_mutex);
 }
 
-static struct genl_family devlink_nl_family = {
-	.id		= GENL_ID_GENERATE,
-	.name		= DEVLINK_GENL_NAME,
-	.version	= DEVLINK_GENL_VERSION,
-	.maxattr	= DEVLINK_ATTR_MAX,
-	.netnsok	= true,
-	.pre_doit	= devlink_nl_pre_doit,
-	.post_doit	= devlink_nl_post_doit,
-};
+static struct genl_family devlink_nl_family;
 
 enum devlink_multicast_groups {
 	DEVLINK_MCGRP_CONFIG,
@@ -608,6 +600,8 @@ static int devlink_port_type_set(struct devlink *devlink,
 	if (devlink->ops && devlink->ops->port_type_set) {
 		if (port_type == DEVLINK_PORT_TYPE_NOTSET)
 			return -EINVAL;
+		if (port_type == devlink_port->type)
+			return 0;
 		err = devlink->ops->port_type_set(devlink_port, port_type);
 		if (err)
 			return err;
@@ -1400,26 +1394,45 @@ static int devlink_nl_cmd_sb_occ_max_clear_doit(struct sk_buff *skb,
 
 static int devlink_eswitch_fill(struct sk_buff *msg, struct devlink *devlink,
 				enum devlink_command cmd, u32 portid,
-				u32 seq, int flags, u16 mode)
+				u32 seq, int flags)
 {
+	const struct devlink_ops *ops = devlink->ops;
 	void *hdr;
+	int err = 0;
+	u16 mode;
+	u8 inline_mode;
 
 	hdr = genlmsg_put(msg, portid, seq, &devlink_nl_family, flags, cmd);
 	if (!hdr)
 		return -EMSGSIZE;
 
-	if (devlink_nl_put_handle(msg, devlink))
-		goto nla_put_failure;
+	err = devlink_nl_put_handle(msg, devlink);
+	if (err)
+		goto out;
 
-	if (nla_put_u16(msg, DEVLINK_ATTR_ESWITCH_MODE, mode))
-		goto nla_put_failure;
+	err = ops->eswitch_mode_get(devlink, &mode);
+	if (err)
+		goto out;
+	err = nla_put_u16(msg, DEVLINK_ATTR_ESWITCH_MODE, mode);
+	if (err)
+		goto out;
+
+	if (ops->eswitch_inline_mode_get) {
+		err = ops->eswitch_inline_mode_get(devlink, &inline_mode);
+		if (err)
+			goto out;
+		err = nla_put_u8(msg, DEVLINK_ATTR_ESWITCH_INLINE_MODE,
+				 inline_mode);
+		if (err)
+			goto out;
+	}
 
 	genlmsg_end(msg, hdr);
 	return 0;
 
-nla_put_failure:
+out:
 	genlmsg_cancel(msg, hdr);
-	return -EMSGSIZE;
+	return err;
 }
 
 static int devlink_nl_cmd_eswitch_mode_get_doit(struct sk_buff *skb,
@@ -1428,22 +1441,17 @@ static int devlink_nl_cmd_eswitch_mode_get_doit(struct sk_buff *skb,
 	struct devlink *devlink = info->user_ptr[0];
 	const struct devlink_ops *ops = devlink->ops;
 	struct sk_buff *msg;
-	u16 mode;
 	int err;
 
 	if (!ops || !ops->eswitch_mode_get)
 		return -EOPNOTSUPP;
-
-	err = ops->eswitch_mode_get(devlink, &mode);
-	if (err)
-		return err;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
 		return -ENOMEM;
 
 	err = devlink_eswitch_fill(msg, devlink, DEVLINK_CMD_ESWITCH_MODE_GET,
-				   info->snd_portid, info->snd_seq, 0, mode);
+				   info->snd_portid, info->snd_seq, 0);
 
 	if (err) {
 		nlmsg_free(msg);
@@ -1459,15 +1467,32 @@ static int devlink_nl_cmd_eswitch_mode_set_doit(struct sk_buff *skb,
 	struct devlink *devlink = info->user_ptr[0];
 	const struct devlink_ops *ops = devlink->ops;
 	u16 mode;
+	u8 inline_mode;
+	int err = 0;
 
-	if (!info->attrs[DEVLINK_ATTR_ESWITCH_MODE])
-		return -EINVAL;
+	if (!ops)
+		return -EOPNOTSUPP;
 
-	mode = nla_get_u16(info->attrs[DEVLINK_ATTR_ESWITCH_MODE]);
+	if (info->attrs[DEVLINK_ATTR_ESWITCH_MODE]) {
+		if (!ops->eswitch_mode_set)
+			return -EOPNOTSUPP;
+		mode = nla_get_u16(info->attrs[DEVLINK_ATTR_ESWITCH_MODE]);
+		err = ops->eswitch_mode_set(devlink, mode);
+		if (err)
+			return err;
+	}
 
-	if (ops && ops->eswitch_mode_set)
-		return ops->eswitch_mode_set(devlink, mode);
-	return -EOPNOTSUPP;
+	if (info->attrs[DEVLINK_ATTR_ESWITCH_INLINE_MODE]) {
+		if (!ops->eswitch_inline_mode_set)
+			return -EOPNOTSUPP;
+		inline_mode = nla_get_u8(
+				info->attrs[DEVLINK_ATTR_ESWITCH_INLINE_MODE]);
+		err = ops->eswitch_inline_mode_set(devlink, inline_mode);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
@@ -1484,6 +1509,7 @@ static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_SB_THRESHOLD] = { .type = NLA_U32 },
 	[DEVLINK_ATTR_SB_TC_INDEX] = { .type = NLA_U16 },
 	[DEVLINK_ATTR_ESWITCH_MODE] = { .type = NLA_U16 },
+	[DEVLINK_ATTR_ESWITCH_INLINE_MODE] = { .type = NLA_U8 },
 };
 
 static const struct genl_ops devlink_nl_ops[] = {
@@ -1616,6 +1642,20 @@ static const struct genl_ops devlink_nl_ops[] = {
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
 	},
+};
+
+static struct genl_family devlink_nl_family __ro_after_init = {
+	.name		= DEVLINK_GENL_NAME,
+	.version	= DEVLINK_GENL_VERSION,
+	.maxattr	= DEVLINK_ATTR_MAX,
+	.netnsok	= true,
+	.pre_doit	= devlink_nl_pre_doit,
+	.post_doit	= devlink_nl_post_doit,
+	.module		= THIS_MODULE,
+	.ops		= devlink_nl_ops,
+	.n_ops		= ARRAY_SIZE(devlink_nl_ops),
+	.mcgrps		= devlink_nl_mcgrps,
+	.n_mcgrps	= ARRAY_SIZE(devlink_nl_mcgrps),
 };
 
 /**
@@ -1840,9 +1880,7 @@ EXPORT_SYMBOL_GPL(devlink_sb_unregister);
 
 static int __init devlink_module_init(void)
 {
-	return genl_register_family_with_ops_groups(&devlink_nl_family,
-						    devlink_nl_ops,
-						    devlink_nl_mcgrps);
+	return genl_register_family(&devlink_nl_family);
 }
 
 static void __exit devlink_module_exit(void)

@@ -21,7 +21,7 @@
 #include <linux/smp.h>
 #include <linux/ipc.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unistd.h>
 
 #include "systbls.h"

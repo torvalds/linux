@@ -609,8 +609,6 @@ static ssize_t qib_diagpkt_write(struct file *fp,
 
 	tmpbuf = vmalloc(plen);
 	if (!tmpbuf) {
-		qib_devinfo(dd->pcidev,
-			"Unable to allocate tmp buffer, failing\n");
 		ret = -ENOMEM;
 		goto bail;
 	}
@@ -702,10 +700,8 @@ int qib_register_observer(struct qib_devdata *dd,
 	if (!dd || !op)
 		return -EINVAL;
 	olp = vmalloc(sizeof(*olp));
-	if (!olp) {
-		pr_err("vmalloc for observer failed\n");
+	if (!olp)
 		return -ENOMEM;
-	}
 
 	spin_lock_irqsave(&dd->qib_diag_trans_lock, flags);
 	olp->op = op;

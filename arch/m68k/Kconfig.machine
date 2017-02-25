@@ -259,6 +259,12 @@ config M5407C3
 	help
 	  Support for the Motorola M5407C3 board.
 
+config AMCORE
+	bool "Sysam AMCORE board support"
+	depends on M5307
+	help
+	  Support for the Sysam AMCORE open-hardware generic board.
+
 config FIREBEE
 	bool "FireBee board support"
 	depends on M547x

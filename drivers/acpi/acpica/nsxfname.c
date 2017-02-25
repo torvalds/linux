@@ -158,8 +158,6 @@ acpi_status
 acpi_get_name(acpi_handle handle, u32 name_type, struct acpi_buffer *buffer)
 {
 	acpi_status status;
-	struct acpi_namespace_node *node;
-	const char *node_name;
 
 	/* Parameter validation */
 
@@ -168,6 +166,15 @@ acpi_get_name(acpi_handle handle, u32 name_type, struct acpi_buffer *buffer)
 	}
 
 	status = acpi_ut_validate_buffer(buffer);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
+
+	/*
+	 * Wants the single segment ACPI name.
+	 * Validate handle and convert to a namespace Node
+	 */
+	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
 		return (status);
 	}
@@ -181,39 +188,11 @@ acpi_get_name(acpi_handle handle, u32 name_type, struct acpi_buffer *buffer)
 						    name_type ==
 						    ACPI_FULL_PATHNAME ? FALSE :
 						    TRUE);
-		return (status);
+	} else {
+		/* Get the single name */
+
+		status = acpi_ns_handle_to_name(handle, buffer);
 	}
-
-	/*
-	 * Wants the single segment ACPI name.
-	 * Validate handle and convert to a namespace Node
-	 */
-	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
-	if (ACPI_FAILURE(status)) {
-		return (status);
-	}
-
-	node = acpi_ns_validate_handle(handle);
-	if (!node) {
-		status = AE_BAD_PARAMETER;
-		goto unlock_and_exit;
-	}
-
-	/* Validate/Allocate/Clear caller buffer */
-
-	status = acpi_ut_initialize_buffer(buffer, ACPI_PATH_SEGMENT_LENGTH);
-	if (ACPI_FAILURE(status)) {
-		goto unlock_and_exit;
-	}
-
-	/* Just copy the ACPI name from the Node and zero terminate it */
-
-	node_name = acpi_ut_get_node_name(node);
-	ACPI_MOVE_NAME(buffer->pointer, node_name);
-	((char *)buffer->pointer)[ACPI_NAME_SIZE] = 0;
-	status = AE_OK;
-
-unlock_and_exit:
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return (status);

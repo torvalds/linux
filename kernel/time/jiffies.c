@@ -59,9 +59,9 @@
 #define JIFFIES_SHIFT	8
 #endif
 
-static cycle_t jiffies_read(struct clocksource *cs)
+static u64 jiffies_read(struct clocksource *cs)
 {
-	return (cycle_t) jiffies;
+	return (u64) jiffies;
 }
 
 static struct clocksource clocksource_jiffies = {

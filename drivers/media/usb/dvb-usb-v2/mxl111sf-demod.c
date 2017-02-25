@@ -549,7 +549,7 @@ static void mxl111sf_demod_release(struct dvb_frontend *fe)
 	fe->demodulator_priv = NULL;
 }
 
-static struct dvb_frontend_ops mxl111sf_demod_ops = {
+static const struct dvb_frontend_ops mxl111sf_demod_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name               = "MaxLinear MxL111SF DVB-T demodulator",

@@ -58,7 +58,8 @@
 /**
  * struct ad9832_state - driver instance specific data
  * @spi:		spi_device
- * @reg:		supply regulator
+ * @avdd:		supply regulator for the analog section
+ * @dvdd:		supply regulator for the digital section
  * @mclk:		external master clock
  * @ctrl_fp:		cached frequency/phase control word
  * @ctrl_ss:		cached sync/selsrc control word
@@ -76,7 +77,8 @@
 
 struct ad9832_state {
 	struct spi_device		*spi;
-	struct regulator		*reg;
+	struct regulator		*avdd;
+	struct regulator		*dvdd;
 	unsigned long			mclk;
 	unsigned short			ctrl_fp;
 	unsigned short			ctrl_ss;

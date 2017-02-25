@@ -66,7 +66,7 @@ At mount time, the two directories given as mount options "lowerdir" and
 "upperdir" are combined into a merged directory:
 
   mount -t overlay overlay -olowerdir=/lower,upperdir=/upper,\
-workdir=/work /merged
+  workdir=/work /merged
 
 The "workdir" needs to be an empty directory on the same filesystem
 as upperdir.
@@ -118,6 +118,7 @@ programs.
 
 seek offsets are assigned sequentially when the directories are read.
 Thus if
+
   - read part of a directory
   - remember an offset, and close the directory
   - re-open the directory some time later
@@ -130,6 +131,23 @@ directory.
 Readdir on directories that are not merged is simply handled by the
 underlying directory (upper or lower).
 
+renaming directories
+--------------------
+
+When renaming a directory that is on the lower layer or merged (i.e. the
+directory was not created on the upper layer to start with) overlayfs can
+handle it in two different ways:
+
+1. return EXDEV error: this error is returned by rename(2) when trying to
+   move a file or directory across filesystem boundaries.  Hence
+   applications are usually prepared to hande this error (mv(1) for example
+   recursively copies the directory tree).  This is the default behavior.
+
+2. If the "redirect_dir" feature is enabled, then the directory will be
+   copied up (but not the contents).  Then the "trusted.overlay.redirect"
+   extended attribute is set to the path of the original location from the
+   root of the overlay.  Finally the directory is moved to the new
+   location.
 
 Non-directories
 ---------------
@@ -185,12 +203,12 @@ filesystem, so both st_dev and st_ino of the file may change.
 
 Any open files referring to this inode will access the old data.
 
-Any file locks (and leases) obtained before copy_up will not apply
-to the copied up file.
-
 If a file with multiple hard links is copied up, then this will
 "break" the link.  Changes will not be propagated to other names
 referring to the same inode.
+
+Unless "redirect_dir" feature is enabled, rename(2) on a lower or merged
+directory will fail with EXDEV.
 
 Changes to underlying filesystems
 ---------------------------------

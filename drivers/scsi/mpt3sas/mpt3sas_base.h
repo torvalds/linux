@@ -73,9 +73,9 @@
 #define MPT3SAS_DRIVER_NAME		"mpt3sas"
 #define MPT3SAS_AUTHOR "Avago Technologies <MPT-FusionLinux.pdl@avagotech.com>"
 #define MPT3SAS_DESCRIPTION	"LSI MPT Fusion SAS 3.0 Device Driver"
-#define MPT3SAS_DRIVER_VERSION		"13.100.00.00"
-#define MPT3SAS_MAJOR_VERSION		13
-#define MPT3SAS_MINOR_VERSION		100
+#define MPT3SAS_DRIVER_VERSION		"14.101.00.00"
+#define MPT3SAS_MAJOR_VERSION		14
+#define MPT3SAS_MINOR_VERSION		101
 #define MPT3SAS_BUILD_VERSION		0
 #define MPT3SAS_RELEASE_VERSION	00
 
@@ -300,8 +300,9 @@
  * There are twelve Supplemental Reply Post Host Index Registers
  * and each register is at offset 0x10 bytes from the previous one.
  */
-#define MPT3_SUP_REPLY_POST_HOST_INDEX_REG_COUNT 12
-#define MPT3_SUP_REPLY_POST_HOST_INDEX_REG_OFFSET (0x10)
+#define MPT3_SUP_REPLY_POST_HOST_INDEX_REG_COUNT_G3	12
+#define MPT3_SUP_REPLY_POST_HOST_INDEX_REG_COUNT_G35	16
+#define MPT3_SUP_REPLY_POST_HOST_INDEX_REG_OFFSET	(0x10)
 
 /* OEM Identifiers */
 #define MFG10_OEM_ID_INVALID                   (0x00000000)
@@ -375,7 +376,6 @@ struct MPT3SAS_TARGET {
  * per device private data
  */
 #define MPT_DEVICE_FLAGS_INIT		0x01
-#define MPT_DEVICE_TLR_ON		0x02
 
 #define MFG_PAGE10_HIDE_SSDS_MASK	(0x00000003)
 #define MFG_PAGE10_HIDE_ALL_DISKS	(0x00)
@@ -393,6 +393,7 @@ struct MPT3SAS_TARGET {
  * @eedp_enable: eedp support enable bit
  * @eedp_type: 0(type_1), 1(type_2), 2(type_3)
  * @eedp_block_length: block size
+ * @ata_command_pending: SATL passthrough outstanding for device
  */
 struct MPT3SAS_DEVICE {
 	struct MPT3SAS_TARGET *sas_target;
@@ -402,6 +403,20 @@ struct MPT3SAS_DEVICE {
 	u8	block;
 	u8	tlr_snoop_check;
 	u8	ignore_delay_remove;
+	/* Iopriority Command Handling */
+	u8	ncq_prio_enable;
+	/*
+	 * Bug workaround for SATL handling: the mpt2/3sas firmware
+	 * doesn't return BUSY or TASK_SET_FULL for subsequent
+	 * commands while a SATL pass through is in operation as the
+	 * spec requires, it simply does nothing with them until the
+	 * pass through completes, causing them possibly to timeout if
+	 * the passthrough is a long executing command (like format or
+	 * secure erase).  This variable allows us to do the right
+	 * thing while a SATL command is pending.
+	 */
+	unsigned long ata_command_pending;
+
 };
 
 #define MPT3_CMD_NOT_USED	0x8000	/* free */
@@ -736,7 +751,10 @@ typedef void (*MPT_BUILD_SG)(struct MPT3SAS_ADAPTER *ioc, void *psge,
 typedef void (*MPT_BUILD_ZERO_LEN_SGE)(struct MPT3SAS_ADAPTER *ioc,
 		void *paddr);
 
-
+/* To support atomic and non atomic descriptors*/
+typedef void (*PUT_SMID_IO_FP_HIP) (struct MPT3SAS_ADAPTER *ioc, u16 smid,
+	u16 funcdep);
+typedef void (*PUT_SMID_DEFAULT) (struct MPT3SAS_ADAPTER *ioc, u16 smid);
 
 /* IOC Facts and Port Facts converted from little endian to cpu */
 union mpi3_version_union {
@@ -1079,6 +1097,9 @@ struct MPT3SAS_ADAPTER {
 	void		*pd_handles;
 	u16		pd_handles_sz;
 
+	void		*pend_os_device_add;
+	u16		pend_os_device_add_sz;
+
 	/* config page */
 	u16		config_page_sz;
 	void		*config_page;
@@ -1156,7 +1177,8 @@ struct MPT3SAS_ADAPTER {
 	u8		reply_queue_count;
 	struct list_head reply_queue_list;
 
-	u8		msix96_vector;
+	u8		combined_reply_queue;
+	u8		combined_reply_index_count;
 	/* reply post register index */
 	resource_size_t	**replyPostRegisterIndex;
 
@@ -1187,6 +1209,15 @@ struct MPT3SAS_ADAPTER {
 	struct SL_WH_EVENT_TRIGGERS_T diag_trigger_event;
 	struct SL_WH_SCSI_TRIGGERS_T diag_trigger_scsi;
 	struct SL_WH_MPI_TRIGGERS_T diag_trigger_mpi;
+	void		*device_remove_in_progress;
+	u16		device_remove_in_progress_sz;
+	u8		is_gen35_ioc;
+	u8		atomic_desc_capable;
+	PUT_SMID_IO_FP_HIP put_smid_scsi_io;
+	PUT_SMID_IO_FP_HIP put_smid_fast_path;
+	PUT_SMID_IO_FP_HIP put_smid_hi_priority;
+	PUT_SMID_DEFAULT put_smid_default;
+
 };
 
 typedef u8 (*MPT_CALLBACK)(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
@@ -1232,13 +1263,6 @@ u16 mpt3sas_base_get_smid_scsiio(struct MPT3SAS_ADAPTER *ioc, u8 cb_idx,
 
 u16 mpt3sas_base_get_smid(struct MPT3SAS_ADAPTER *ioc, u8 cb_idx);
 void mpt3sas_base_free_smid(struct MPT3SAS_ADAPTER *ioc, u16 smid);
-void mpt3sas_base_put_smid_scsi_io(struct MPT3SAS_ADAPTER *ioc, u16 smid,
-	u16 handle);
-void mpt3sas_base_put_smid_fast_path(struct MPT3SAS_ADAPTER *ioc, u16 smid,
-	u16 handle);
-void mpt3sas_base_put_smid_hi_priority(struct MPT3SAS_ADAPTER *ioc,
-	u16 smid, u16 msix_task);
-void mpt3sas_base_put_smid_default(struct MPT3SAS_ADAPTER *ioc, u16 smid);
 void mpt3sas_base_initialize_callback_handler(void);
 u8 mpt3sas_base_register_callback_handler(MPT_CALLBACK cb_func);
 void mpt3sas_base_release_callback_handler(u8 cb_idx);
@@ -1448,5 +1472,8 @@ void
 mpt3sas_setup_direct_io(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 	struct _raid_device *raid_device, Mpi2SCSIIORequest_t *mpi_request,
 	u16 smid);
+
+/* NCQ Prio Handling Check */
+bool scsih_ncq_prio_supp(struct scsi_device *sdev);
 
 #endif /* MPT3SAS_BASE_H_INCLUDED */

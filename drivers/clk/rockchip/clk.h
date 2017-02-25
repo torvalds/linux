@@ -34,6 +34,21 @@ struct clk;
 #define HIWORD_UPDATE(val, mask, shift) \
 		((val) << (shift) | (mask) << ((shift) + 16))
 
+/* register positions shared by RK1108, RK2928, RK3036, RK3066, RK3188 and RK3228 */
+#define RK1108_PLL_CON(x)		((x) * 0x4)
+#define RK1108_CLKSEL_CON(x)		((x) * 0x4 + 0x60)
+#define RK1108_CLKGATE_CON(x)		((x) * 0x4 + 0x120)
+#define RK1108_SOFTRST_CON(x)		((x) * 0x4 + 0x180)
+#define RK1108_GLB_SRST_FST		0x1c0
+#define RK1108_GLB_SRST_SND		0x1c4
+#define RK1108_MISC_CON			0x1cc
+#define RK1108_SDMMC_CON0		0x1d8
+#define RK1108_SDMMC_CON1		0x1dc
+#define RK1108_SDIO_CON0		0x1e0
+#define RK1108_SDIO_CON1		0x1e4
+#define RK1108_EMMC_CON0		0x1e8
+#define RK1108_EMMC_CON1		0x1ec
+
 #define RK2928_PLL_CON(x)		((x) * 0x4)
 #define RK2928_MODE_CON		0x40
 #define RK2928_CLKSEL_CON(x)	((x) * 0x4 + 0x44)

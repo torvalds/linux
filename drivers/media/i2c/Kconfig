@@ -221,7 +221,7 @@ config VIDEO_ADV7604
 
 config VIDEO_ADV7604_CEC
 	bool "Enable Analog Devices ADV7604 CEC support"
-	depends on VIDEO_ADV7604 && MEDIA_CEC
+	depends on VIDEO_ADV7604 && MEDIA_CEC_SUPPORT
 	---help---
 	  When selected the adv7604 will support the optional
 	  HDMI CEC feature.
@@ -242,7 +242,7 @@ config VIDEO_ADV7842
 
 config VIDEO_ADV7842_CEC
 	bool "Enable Analog Devices ADV7842 CEC support"
-	depends on VIDEO_ADV7842 && MEDIA_CEC
+	depends on VIDEO_ADV7842 && MEDIA_CEC_SUPPORT
 	---help---
 	  When selected the adv7842 will support the optional
 	  HDMI CEC feature.
@@ -481,7 +481,7 @@ config VIDEO_ADV7511
 
 config VIDEO_ADV7511_CEC
 	bool "Enable Analog Devices ADV7511 CEC support"
-	depends on VIDEO_ADV7511 && MEDIA_CEC
+	depends on VIDEO_ADV7511 && MEDIA_CEC_SUPPORT
 	---help---
 	  When selected the adv7511 will support the optional
 	  HDMI CEC feature.
@@ -655,6 +655,7 @@ config VIDEO_S5K6A3
 config VIDEO_S5K4ECGX
         tristate "Samsung S5K4ECGX sensor support"
         depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	select CRC32
         ---help---
           This is a V4L2 sensor-level driver for Samsung S5K4ECGX 5M
           camera sensor with an embedded SoC image signal processor.

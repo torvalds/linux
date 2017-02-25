@@ -35,7 +35,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <asm/console.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/machvec.h>
 
 #define BASE_DIR	"srm_environment"	/* Subdir in /proc/		*/

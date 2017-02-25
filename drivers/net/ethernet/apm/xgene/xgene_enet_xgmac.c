@@ -101,6 +101,14 @@ static void xgene_enet_wr_pcs(struct xgene_enet_pdata *pdata,
 			   wr_addr);
 }
 
+static void xgene_enet_wr_axg_csr(struct xgene_enet_pdata *pdata,
+				  u32 offset, u32 val)
+{
+	void __iomem *addr = pdata->mcx_mac_csr_addr + offset;
+
+	iowrite32(val, addr);
+}
+
 static void xgene_enet_rd_csr(struct xgene_enet_pdata *pdata,
 			      u32 offset, u32 *val)
 {
@@ -172,6 +180,14 @@ static bool xgene_enet_rd_pcs(struct xgene_enet_pdata *pdata,
 			   rd_addr);
 
 	return success;
+}
+
+static void xgene_enet_rd_axg_csr(struct xgene_enet_pdata *pdata,
+				  u32 offset, u32 *val)
+{
+	void __iomem *addr = pdata->mcx_mac_csr_addr + offset;
+
+	*val = ioread32(addr);
 }
 
 static int xgene_enet_ecc_init(struct xgene_enet_pdata *pdata)
@@ -250,6 +266,12 @@ static void xgene_xgmac_set_mss(struct xgene_enet_pdata *pdata,
 	xgene_enet_wr_csr(pdata, XG_TSIF_MSS_REG0_ADDR + offset, data);
 }
 
+static void xgene_xgmac_set_frame_size(struct xgene_enet_pdata *pdata, int size)
+{
+	xgene_enet_wr_mac(pdata, HSTMAXFRAME_LENGTH_ADDR,
+			  ((((size + 2) >> 2) << 16) | size));
+}
+
 static u32 xgene_enet_link_status(struct xgene_enet_pdata *pdata)
 {
 	u32 data;
@@ -257,6 +279,51 @@ static u32 xgene_enet_link_status(struct xgene_enet_pdata *pdata)
 	xgene_enet_rd_csr(pdata, XG_LINK_STATUS_ADDR, &data);
 
 	return data;
+}
+
+static void xgene_xgmac_enable_tx_pause(struct xgene_enet_pdata *pdata,
+					bool enable)
+{
+	u32 data;
+
+	xgene_enet_rd_axg_csr(pdata, XGENET_CSR_ECM_CFG_0_ADDR, &data);
+
+	if (enable)
+		data |= MULTI_DPF_AUTOCTRL | PAUSE_XON_EN;
+	else
+		data &= ~(MULTI_DPF_AUTOCTRL | PAUSE_XON_EN);
+
+	xgene_enet_wr_axg_csr(pdata, XGENET_CSR_ECM_CFG_0_ADDR, data);
+}
+
+static void xgene_xgmac_flowctl_tx(struct xgene_enet_pdata *pdata, bool enable)
+{
+	u32 data;
+
+	xgene_enet_rd_mac(pdata, AXGMAC_CONFIG_1, &data);
+
+	if (enable)
+		data |= HSTTCTLEN;
+	else
+		data &= ~HSTTCTLEN;
+
+	xgene_enet_wr_mac(pdata, AXGMAC_CONFIG_1, data);
+
+	pdata->mac_ops->enable_tx_pause(pdata, enable);
+}
+
+static void xgene_xgmac_flowctl_rx(struct xgene_enet_pdata *pdata, bool enable)
+{
+	u32 data;
+
+	xgene_enet_rd_mac(pdata, AXGMAC_CONFIG_1, &data);
+
+	if (enable)
+		data |= HSTRCTLEN;
+	else
+		data &= ~HSTRCTLEN;
+
+	xgene_enet_wr_mac(pdata, AXGMAC_CONFIG_1, data);
 }
 
 static void xgene_xgmac_init(struct xgene_enet_pdata *pdata)
@@ -282,6 +349,23 @@ static void xgene_xgmac_init(struct xgene_enet_pdata *pdata)
 	xgene_enet_wr_csr(pdata, XG_ENET_SPARE_CFG_REG_1_ADDR, 0x82);
 	xgene_enet_wr_csr(pdata, XGENET_RX_DV_GATE_REG_0_ADDR, 0);
 	xgene_enet_wr_csr(pdata, XG_CFG_BYPASS_ADDR, RESUME_TX);
+
+	/* Configure HW pause frame generation */
+	xgene_enet_rd_axg_csr(pdata, XGENET_CSR_MULTI_DPF0_ADDR, &data);
+	data = (DEF_QUANTA << 16) | (data & 0xFFFF);
+	xgene_enet_wr_axg_csr(pdata, XGENET_CSR_MULTI_DPF0_ADDR, data);
+
+	if (pdata->enet_id != XGENE_ENET1) {
+		xgene_enet_rd_axg_csr(pdata, XGENET_CSR_MULTI_DPF1_ADDR, &data);
+		data = (NORM_PAUSE_OPCODE << 16) | (data & 0xFFFF);
+		xgene_enet_wr_axg_csr(pdata, XGENET_CSR_MULTI_DPF1_ADDR, data);
+	}
+
+	data = (XG_DEF_PAUSE_OFF_THRES << 16) | XG_DEF_PAUSE_THRES;
+	xgene_enet_wr_csr(pdata, XG_RXBUF_PAUSE_THRESH, data);
+
+	xgene_xgmac_flowctl_tx(pdata, pdata->tx_pause);
+	xgene_xgmac_flowctl_rx(pdata, pdata->rx_pause);
 }
 
 static void xgene_xgmac_rx_enable(struct xgene_enet_pdata *pdata)
@@ -350,44 +434,47 @@ static int xgene_enet_reset(struct xgene_enet_pdata *pdata)
 }
 
 static void xgene_enet_xgcle_bypass(struct xgene_enet_pdata *pdata,
-				    u32 dst_ring_num, u16 bufpool_id)
+				    u32 dst_ring_num, u16 bufpool_id,
+				    u16 nxtbufpool_id)
 {
-	u32 cb, fpsel;
+	u32 cb, fpsel, nxtfpsel;
 
 	xgene_enet_rd_csr(pdata, XCLE_BYPASS_REG0_ADDR, &cb);
 	cb |= CFG_CLE_BYPASS_EN0;
 	CFG_CLE_IP_PROTOCOL0_SET(&cb, 3);
 	xgene_enet_wr_csr(pdata, XCLE_BYPASS_REG0_ADDR, cb);
 
-	fpsel = xgene_enet_ring_bufnum(bufpool_id) - 0x20;
+	fpsel = xgene_enet_get_fpsel(bufpool_id);
+	nxtfpsel = xgene_enet_get_fpsel(nxtbufpool_id);
 	xgene_enet_rd_csr(pdata, XCLE_BYPASS_REG1_ADDR, &cb);
 	CFG_CLE_DSTQID0_SET(&cb, dst_ring_num);
 	CFG_CLE_FPSEL0_SET(&cb, fpsel);
+	CFG_CLE_NXTFPSEL0_SET(&cb, nxtfpsel);
 	xgene_enet_wr_csr(pdata, XCLE_BYPASS_REG1_ADDR, cb);
+	pr_info("+ cle_bypass: fpsel: %d nxtfpsel: %d\n", fpsel, nxtfpsel);
 }
 
 static void xgene_enet_shutdown(struct xgene_enet_pdata *pdata)
 {
 	struct device *dev = &pdata->pdev->dev;
 	struct xgene_enet_desc_ring *ring;
-	u32 pb, val;
+	u32 pb;
 	int i;
 
 	pb = 0;
 	for (i = 0; i < pdata->rxq_cnt; i++) {
 		ring = pdata->rx_ring[i]->buf_pool;
-
-		val = xgene_enet_ring_bufnum(ring->id);
-		pb |= BIT(val - 0x20);
+		pb |= BIT(xgene_enet_get_fpsel(ring->id));
+		ring = pdata->rx_ring[i]->page_pool;
+		if (ring)
+			pb |= BIT(xgene_enet_get_fpsel(ring->id));
 	}
 	xgene_enet_wr_ring_if(pdata, ENET_CFGSSQMIFPRESET_ADDR, pb);
 
 	pb = 0;
 	for (i = 0; i < pdata->txq_cnt; i++) {
 		ring = pdata->tx_ring[i];
-
-		val = xgene_enet_ring_bufnum(ring->id);
-		pb |= BIT(val);
+		pb |= BIT(xgene_enet_ring_bufnum(ring->id));
 	}
 	xgene_enet_wr_ring_if(pdata, ENET_CFGSSQMIWQRESET_ADDR, pb);
 
@@ -400,31 +487,44 @@ static void xgene_enet_shutdown(struct xgene_enet_pdata *pdata)
 static void xgene_enet_clear(struct xgene_enet_pdata *pdata,
 			     struct xgene_enet_desc_ring *ring)
 {
-	u32 addr, val, data;
-
-	val = xgene_enet_ring_bufnum(ring->id);
+	u32 addr, data;
 
 	if (xgene_enet_is_bufpool(ring->id)) {
 		addr = ENET_CFGSSQMIFPRESET_ADDR;
-		data = BIT(val - 0x20);
+		data = BIT(xgene_enet_get_fpsel(ring->id));
 	} else {
 		addr = ENET_CFGSSQMIWQRESET_ADDR;
-		data = BIT(val);
+		data = BIT(xgene_enet_ring_bufnum(ring->id));
 	}
 
 	xgene_enet_wr_ring_if(pdata, addr, data);
+}
+
+static int xgene_enet_gpio_lookup(struct xgene_enet_pdata *pdata)
+{
+	struct device *dev = &pdata->pdev->dev;
+
+	pdata->sfp_rdy = gpiod_get(dev, "rxlos", GPIOD_IN);
+	if (IS_ERR(pdata->sfp_rdy))
+		pdata->sfp_rdy = gpiod_get(dev, "sfp", GPIOD_IN);
+
+	if (IS_ERR(pdata->sfp_rdy))
+		return -ENODEV;
+
+	return 0;
 }
 
 static void xgene_enet_link_state(struct work_struct *work)
 {
 	struct xgene_enet_pdata *pdata = container_of(to_delayed_work(work),
 					 struct xgene_enet_pdata, link_work);
-	struct gpio_desc *sfp_rdy = pdata->sfp_rdy;
 	struct net_device *ndev = pdata->ndev;
 	u32 link_status, poll_interval;
 
 	link_status = xgene_enet_link_status(pdata);
-	if (link_status && !IS_ERR(sfp_rdy) && !gpiod_get_value(sfp_rdy))
+	if (pdata->sfp_gpio_en && link_status &&
+	    (!IS_ERR(pdata->sfp_rdy) || !xgene_enet_gpio_lookup(pdata)) &&
+	    !gpiod_get_value(pdata->sfp_rdy))
 		link_status = 0;
 
 	if (link_status) {
@@ -458,8 +558,12 @@ const struct xgene_mac_ops xgene_xgmac_ops = {
 	.rx_disable = xgene_xgmac_rx_disable,
 	.tx_disable = xgene_xgmac_tx_disable,
 	.set_mac_addr = xgene_xgmac_set_mac_addr,
+	.set_framesize = xgene_xgmac_set_frame_size,
 	.set_mss = xgene_xgmac_set_mss,
-	.link_state = xgene_enet_link_state
+	.link_state = xgene_enet_link_state,
+	.enable_tx_pause = xgene_xgmac_enable_tx_pause,
+	.flowctl_rx = xgene_xgmac_flowctl_rx,
+	.flowctl_tx = xgene_xgmac_flowctl_tx
 };
 
 const struct xgene_port_ops xgene_xgport_ops = {

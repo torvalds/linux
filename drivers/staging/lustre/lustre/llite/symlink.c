@@ -149,7 +149,6 @@ static const char *ll_get_link(struct dentry *dentry,
 }
 
 const struct inode_operations ll_fast_symlink_inode_operations = {
-	.readlink	= generic_readlink,
 	.setattr	= ll_setattr,
 	.get_link	= ll_get_link,
 	.getattr	= ll_getattr,

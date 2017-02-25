@@ -1991,10 +1991,9 @@ void __init ipl_update_parameters(void)
 		diag308_set_works = 1;
 }
 
-void __init ipl_save_parameters(void)
+void __init ipl_verify_parameters(void)
 {
 	struct cio_iplinfo iplinfo;
-	void *src, *dst;
 
 	if (cio_get_iplinfo(&iplinfo))
 		return;
@@ -2005,10 +2004,6 @@ void __init ipl_save_parameters(void)
 	if (!iplinfo.is_qdio)
 		return;
 	ipl_flags |= IPL_PARMBLOCK_VALID;
-	src = (void *)(unsigned long)S390_lowcore.ipl_parmblock_ptr;
-	dst = (void *)IPL_PARMBLOCK_ORIGIN;
-	memmove(dst, src, PAGE_SIZE);
-	S390_lowcore.ipl_parmblock_ptr = IPL_PARMBLOCK_ORIGIN;
 }
 
 static LIST_HEAD(rcall);

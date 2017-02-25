@@ -232,10 +232,7 @@
 };
 
 &weim {
-	#address-cells = <2>;
-	#size-cells = <1>;
 	ranges = <0 0 0x08000000 0x08000000>;
-	fsl,weim-cs-gpr = <&gpr>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_weimfpga &pinctrl_weimcs>;
 	status = "okay";

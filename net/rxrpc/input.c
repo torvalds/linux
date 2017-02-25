@@ -1053,7 +1053,7 @@ void rxrpc_data_ready(struct sock *udp_sk)
 
 	ASSERT(!irqs_disabled());
 
-	skb = skb_recv_datagram(udp_sk, 0, 1, &ret);
+	skb = skb_recv_udp(udp_sk, 0, 1, &ret);
 	if (!skb) {
 		if (ret == -EAGAIN)
 			return;
@@ -1075,10 +1075,9 @@ void rxrpc_data_ready(struct sock *udp_sk)
 
 	__UDP_INC_STATS(&init_net, UDP_MIB_INDATAGRAMS, 0);
 
-	/* The socket buffer we have is owned by UDP, with UDP's data all over
-	 * it, but we really want our own data there.
+	/* The UDP protocol already released all skb resources;
+	 * we are free to add our own data there.
 	 */
-	skb_orphan(skb);
 	sp = rxrpc_skb(skb);
 
 	/* dig out the RxRPC connection details */

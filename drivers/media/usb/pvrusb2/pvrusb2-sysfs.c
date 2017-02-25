@@ -116,7 +116,6 @@ static ssize_t show_type(struct device *class_dev,
 	}
 	pvr2_sysfs_trace("pvr2_sysfs(%p) show_type(cid=%d) is %s",
 			 cip->chptr, cip->ctl_id, name);
-	if (!name) return -EINVAL;
 	return scnprintf(buf, PAGE_SIZE, "%s\n", name);
 }
 

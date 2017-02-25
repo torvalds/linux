@@ -26,7 +26,7 @@
 
 #include <linux/types.h>
 
-typedef unsigned int __bitwise__ samsung_gpio_pull_t;
+typedef unsigned int __bitwise samsung_gpio_pull_t;
 
 /* forward declaration if gpio-core.h hasn't been included */
 struct samsung_gpio_chip;

@@ -259,8 +259,9 @@ restart:
 			 * connection.
 			 * Therefore, we never retransmit messages with RDMA ops.
 			 */
-			if (rm->rdma.op_active &&
-			    test_bit(RDS_MSG_RETRANSMITTED, &rm->m_flags)) {
+			if (test_bit(RDS_MSG_FLUSH, &rm->m_flags) ||
+			    (rm->rdma.op_active &&
+			    test_bit(RDS_MSG_RETRANSMITTED, &rm->m_flags))) {
 				spin_lock_irqsave(&cp->cp_lock, flags);
 				if (test_and_clear_bit(RDS_MSG_ON_CONN, &rm->m_flags))
 					list_move(&rm->m_conn_item, &to_be_dropped);
@@ -1209,6 +1210,10 @@ rds_send_probe(struct rds_conn_path *cp, __be16 sport,
 		rds_message_add_extension(&rm->m_inc.i_hdr,
 					  RDS_EXTHDR_NPATHS, &npaths,
 					  sizeof(npaths));
+		rds_message_add_extension(&rm->m_inc.i_hdr,
+					  RDS_EXTHDR_GEN_NUM,
+					  &cp->cp_conn->c_my_gen_num,
+					  sizeof(u32));
 	}
 	spin_unlock_irqrestore(&cp->cp_lock, flags);
 

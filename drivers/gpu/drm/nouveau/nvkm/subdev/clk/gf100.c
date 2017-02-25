@@ -457,7 +457,7 @@ gf100_clk = {
 		{ nv_clk_src_hubk06 , 0x00 },
 		{ nv_clk_src_hubk01 , 0x01 },
 		{ nv_clk_src_copy   , 0x02 },
-		{ nv_clk_src_gpc    , 0x03, 0, "core", 2000 },
+		{ nv_clk_src_gpc    , 0x03, NVKM_CLK_DOM_FLAG_VPSTATE, "core", 2000 },
 		{ nv_clk_src_rop    , 0x04 },
 		{ nv_clk_src_mem    , 0x05, 0, "memory", 1000 },
 		{ nv_clk_src_vdec   , 0x06 },

@@ -389,16 +389,19 @@ static int util_probe(struct hv_device *dev,
 		ts_srv_version = TS_VERSION_1;
 		hb_srv_version = HB_VERSION_1;
 		break;
-	case(VERSION_WIN10):
-		util_fw_version = UTIL_FW_VERSION;
-		sd_srv_version = SD_VERSION;
-		ts_srv_version = TS_VERSION;
-		hb_srv_version = HB_VERSION;
-		break;
-	default:
+	case VERSION_WIN7:
+	case VERSION_WIN8:
+	case VERSION_WIN8_1:
 		util_fw_version = UTIL_FW_VERSION;
 		sd_srv_version = SD_VERSION;
 		ts_srv_version = TS_VERSION_3;
+		hb_srv_version = HB_VERSION;
+		break;
+	case VERSION_WIN10:
+	default:
+		util_fw_version = UTIL_FW_VERSION;
+		sd_srv_version = SD_VERSION;
+		ts_srv_version = TS_VERSION;
 		hb_srv_version = HB_VERSION;
 	}
 

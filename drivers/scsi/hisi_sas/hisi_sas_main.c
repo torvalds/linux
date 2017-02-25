@@ -162,8 +162,8 @@ out:
 	hisi_sas_slot_task_free(hisi_hba, task, abort_slot);
 	if (task->task_done)
 		task->task_done(task);
-	if (sas_dev && sas_dev->running_req)
-		sas_dev->running_req--;
+	if (sas_dev)
+		atomic64_dec(&sas_dev->running_req);
 }
 
 static int hisi_sas_task_prep(struct sas_task *task, struct hisi_hba *hisi_hba,
@@ -232,8 +232,8 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_hba *hisi_hba,
 		rc = hisi_sas_slot_index_alloc(hisi_hba, &slot_idx);
 	if (rc)
 		goto err_out;
-	rc = hisi_hba->hw->get_free_slot(hisi_hba, &dlvry_queue,
-					 &dlvry_queue_slot);
+	rc = hisi_hba->hw->get_free_slot(hisi_hba, sas_dev->device_id,
+					&dlvry_queue, &dlvry_queue_slot);
 	if (rc)
 		goto err_out_tag;
 
@@ -303,7 +303,7 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_hba *hisi_hba,
 
 	hisi_hba->slot_prep = slot;
 
-	sas_dev->running_req++;
+	atomic64_inc(&sas_dev->running_req);
 	++(*pass);
 
 	return 0;
@@ -369,9 +369,14 @@ static void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int phy_no)
 		struct sas_phy *sphy = sas_phy->phy;
 
 		sphy->negotiated_linkrate = sas_phy->linkrate;
-		sphy->minimum_linkrate = phy->minimum_linkrate;
 		sphy->minimum_linkrate_hw = SAS_LINK_RATE_1_5_GBPS;
-		sphy->maximum_linkrate = phy->maximum_linkrate;
+		sphy->maximum_linkrate_hw =
+			hisi_hba->hw->phy_get_max_linkrate();
+		if (sphy->minimum_linkrate == SAS_LINK_RATE_UNKNOWN)
+			sphy->minimum_linkrate = phy->minimum_linkrate;
+
+		if (sphy->maximum_linkrate == SAS_LINK_RATE_UNKNOWN)
+			sphy->maximum_linkrate = phy->maximum_linkrate;
 	}
 
 	if (phy->phy_type & PORT_TYPE_SAS) {
@@ -537,7 +542,7 @@ static void hisi_sas_port_notify_formed(struct asd_sas_phy *sas_phy)
 	struct hisi_hba *hisi_hba = sas_ha->lldd_ha;
 	struct hisi_sas_phy *phy = sas_phy->lldd_phy;
 	struct asd_sas_port *sas_port = sas_phy->port;
-	struct hisi_sas_port *port = &hisi_hba->port[sas_phy->id];
+	struct hisi_sas_port *port = &hisi_hba->port[phy->port_id];
 	unsigned long flags;
 
 	if (!sas_port)
@@ -645,6 +650,9 @@ static int hisi_sas_control_phy(struct asd_sas_phy *sas_phy, enum phy_func func,
 		break;
 
 	case PHY_FUNC_SET_LINK_RATE:
+		hisi_hba->hw->phy_set_linkrate(hisi_hba, phy_no, funcdata);
+		break;
+
 	case PHY_FUNC_RELEASE_SPINUP_HOLD:
 	default:
 		return -EOPNOTSUPP;
@@ -764,7 +772,8 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 		task = NULL;
 	}
 ex_err:
-	WARN_ON(retry == TASK_RETRY);
+	if (retry == TASK_RETRY)
+		dev_warn(dev, "abort tmf: executing internal task failed!\n");
 	sas_free_task(task);
 	return res;
 }
@@ -960,6 +969,9 @@ static int hisi_sas_query_task(struct sas_task *task)
 		case TMF_RESP_FUNC_FAILED:
 		case TMF_RESP_FUNC_COMPLETE:
 			break;
+		default:
+			rc = TMF_RESP_FUNC_FAILED;
+			break;
 		}
 	}
 	return rc;
@@ -987,8 +999,8 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, u64 device_id,
 	rc = hisi_sas_slot_index_alloc(hisi_hba, &slot_idx);
 	if (rc)
 		goto err_out;
-	rc = hisi_hba->hw->get_free_slot(hisi_hba, &dlvry_queue,
-					 &dlvry_queue_slot);
+	rc = hisi_hba->hw->get_free_slot(hisi_hba, sas_dev->device_id,
+					&dlvry_queue, &dlvry_queue_slot);
 	if (rc)
 		goto err_out_tag;
 
@@ -1023,7 +1035,8 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, u64 device_id,
 
 	hisi_hba->slot_prep = slot;
 
-	sas_dev->running_req++;
+	atomic64_inc(&sas_dev->running_req);
+
 	/* send abort command to our chip */
 	hisi_hba->hw->start_delivery(hisi_hba);
 
@@ -1396,10 +1409,13 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 	struct hisi_hba *hisi_hba;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = pdev->dev.of_node;
+	struct clk *refclk;
 
 	shost = scsi_host_alloc(&hisi_sas_sht, sizeof(*hisi_hba));
-	if (!shost)
-		goto err_out;
+	if (!shost) {
+		dev_err(dev, "scsi host alloc failed\n");
+		return NULL;
+	}
 	hisi_hba = shost_priv(shost);
 
 	hisi_hba->hw = hw;
@@ -1432,6 +1448,12 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 			goto err_out;
 	}
 
+	refclk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(refclk))
+		dev_info(dev, "no ref clk property\n");
+	else
+		hisi_hba->refclk_frequency_mhz = clk_get_rate(refclk) / 1000000;
+
 	if (device_property_read_u32(dev, "phy-count", &hisi_hba->n_phy))
 		goto err_out;
 
@@ -1457,6 +1479,7 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 
 	return shost;
 err_out:
+	kfree(shost);
 	dev_err(dev, "shost alloc failed\n");
 	return NULL;
 }
@@ -1483,10 +1506,8 @@ int hisi_sas_probe(struct platform_device *pdev,
 	int rc, phy_nr, port_nr, i;
 
 	shost = hisi_sas_shost_alloc(pdev, hw);
-	if (!shost) {
-		rc = -ENOMEM;
-		goto err_out_ha;
-	}
+	if (!shost)
+		return -ENOMEM;
 
 	sha = SHOST_TO_SAS_HA(shost);
 	hisi_hba = shost_priv(shost);
@@ -1496,12 +1517,13 @@ int hisi_sas_probe(struct platform_device *pdev,
 
 	arr_phy = devm_kcalloc(dev, phy_nr, sizeof(void *), GFP_KERNEL);
 	arr_port = devm_kcalloc(dev, port_nr, sizeof(void *), GFP_KERNEL);
-	if (!arr_phy || !arr_port)
-		return -ENOMEM;
+	if (!arr_phy || !arr_port) {
+		rc = -ENOMEM;
+		goto err_out_ha;
+	}
 
 	sha->sas_phy = arr_phy;
 	sha->sas_port = arr_port;
-	sha->core.shost = shost;
 	sha->lldd_ha = hisi_hba;
 
 	shost->transportt = hisi_sas_stt;
@@ -1546,6 +1568,7 @@ int hisi_sas_probe(struct platform_device *pdev,
 err_out_register_ha:
 	scsi_remove_host(shost);
 err_out_ha:
+	hisi_sas_free(hisi_hba);
 	kfree(shost);
 	return rc;
 }
@@ -1555,12 +1578,14 @@ int hisi_sas_remove(struct platform_device *pdev)
 {
 	struct sas_ha_struct *sha = platform_get_drvdata(pdev);
 	struct hisi_hba *hisi_hba = sha->lldd_ha;
+	struct Scsi_Host *shost = sha->core.shost;
 
 	scsi_remove_host(sha->core.shost);
 	sas_unregister_ha(sha);
 	sas_remove_host(sha->core.shost);
 
 	hisi_sas_free(hisi_hba);
+	kfree(shost);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(hisi_sas_remove);

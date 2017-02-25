@@ -47,6 +47,7 @@ enum {
 	PERF_EVSEL__CONFIG_TERM_MAX_STACK,
 	PERF_EVSEL__CONFIG_TERM_OVERWRITE,
 	PERF_EVSEL__CONFIG_TERM_DRV_CFG,
+	PERF_EVSEL__CONFIG_TERM_BRANCH,
 	PERF_EVSEL__CONFIG_TERM_MAX,
 };
 
@@ -63,6 +64,7 @@ struct perf_evsel_config_term {
 		int	max_stack;
 		bool	inherit;
 		bool	overwrite;
+		char	*branch;
 	} val;
 };
 
@@ -118,6 +120,7 @@ struct perf_evsel {
 	bool			tracking;
 	bool			per_pkg;
 	bool			precise_max;
+	bool			ignore_missing_thread;
 	/* parse modifier helper */
 	int			exclude_GH;
 	int			nr_members;
@@ -389,6 +392,8 @@ int perf_evsel__fprintf(struct perf_evsel *evsel,
 #define EVSEL__PRINT_ONELINE		(1<<4)
 #define EVSEL__PRINT_SRCLINE		(1<<5)
 #define EVSEL__PRINT_UNKNOWN_AS_ADDR	(1<<6)
+#define EVSEL__PRINT_CALLCHAIN_ARROW	(1<<7)
+#define EVSEL__PRINT_SKIP_IGNORED	(1<<8)
 
 struct callchain_cursor;
 

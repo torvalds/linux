@@ -221,6 +221,7 @@ static void  nicvf_handle_mbx_intr(struct nicvf *nic)
 		nic->link_up = mbx.link_status.link_up;
 		nic->duplex = mbx.link_status.duplex;
 		nic->speed = mbx.link_status.speed;
+		nic->mac_type = mbx.link_status.mac_type;
 		if (nic->link_up) {
 			netdev_info(nic->netdev, "%s: Link is Up %d Mbps %s\n",
 				    nic->netdev->name, nic->speed,
@@ -253,6 +254,12 @@ static void  nicvf_handle_mbx_intr(struct nicvf *nic)
 		 * to primary VF's netdev.
 		 */
 		nic->pnicvf = (struct nicvf *)mbx.nicvf.nicvf;
+		nic->pf_acked = true;
+		break;
+	case NIC_MBOX_MSG_PFC:
+		nic->pfc.autoneg = mbx.pfc.autoneg;
+		nic->pfc.fc_rx = mbx.pfc.fc_rx;
+		nic->pfc.fc_tx = mbx.pfc.fc_tx;
 		nic->pf_acked = true;
 		break;
 	default:
@@ -637,6 +644,7 @@ static int nicvf_cq_intr_handler(struct net_device *netdev, u8 cq_idx,
 	struct cmp_queue *cq = &qs->cq[cq_idx];
 	struct cqe_rx_t *cq_desc;
 	struct netdev_queue *txq;
+	struct snd_queue *sq;
 	unsigned int tx_pkts = 0, tx_bytes = 0;
 
 	spin_lock_bh(&cq->lock);
@@ -702,16 +710,20 @@ loop:
 
 done:
 	/* Wakeup TXQ if its stopped earlier due to SQ full */
-	if (tx_done) {
+	sq = &nic->qs->sq[cq_idx];
+	if (tx_done ||
+	    (atomic_read(&sq->free_cnt) >= MIN_SQ_DESC_PER_PKT_XMIT)) {
 		netdev = nic->pnicvf->netdev;
 		txq = netdev_get_tx_queue(netdev,
 					  nicvf_netdev_qidx(nic, cq_idx));
 		if (tx_pkts)
 			netdev_tx_completed_queue(txq, tx_pkts, tx_bytes);
 
-		nic = nic->pnicvf;
+		/* To read updated queue and carrier status */
+		smp_mb();
 		if (netif_tx_queue_stopped(txq) && netif_carrier_ok(netdev)) {
-			netif_tx_start_queue(txq);
+			netif_tx_wake_queue(txq);
+			nic = nic->pnicvf;
 			this_cpu_inc(nic->drv_stats->txq_wake);
 			if (netif_msg_tx_err(nic))
 				netdev_warn(netdev,
@@ -1047,6 +1059,9 @@ static netdev_tx_t nicvf_xmit(struct sk_buff *skb, struct net_device *netdev)
 	struct nicvf *nic = netdev_priv(netdev);
 	int qid = skb_get_queue_mapping(skb);
 	struct netdev_queue *txq = netdev_get_tx_queue(netdev, qid);
+	struct nicvf *snic;
+	struct snd_queue *sq;
+	int tmp;
 
 	/* Check for minimum packet length */
 	if (skb->len <= ETH_HLEN) {
@@ -1054,13 +1069,39 @@ static netdev_tx_t nicvf_xmit(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_OK;
 	}
 
-	if (!netif_tx_queue_stopped(txq) && !nicvf_sq_append_skb(nic, skb)) {
+	snic = nic;
+	/* Get secondary Qset's SQ structure */
+	if (qid >= MAX_SND_QUEUES_PER_QS) {
+		tmp = qid / MAX_SND_QUEUES_PER_QS;
+		snic = (struct nicvf *)nic->snicvf[tmp - 1];
+		if (!snic) {
+			netdev_warn(nic->netdev,
+				    "Secondary Qset#%d's ptr not initialized\n",
+				    tmp - 1);
+			dev_kfree_skb(skb);
+			return NETDEV_TX_OK;
+		}
+		qid = qid % MAX_SND_QUEUES_PER_QS;
+	}
+
+	sq = &snic->qs->sq[qid];
+	if (!netif_tx_queue_stopped(txq) &&
+	    !nicvf_sq_append_skb(snic, sq, skb, qid)) {
 		netif_tx_stop_queue(txq);
-		this_cpu_inc(nic->drv_stats->txq_stop);
-		if (netif_msg_tx_err(nic))
-			netdev_warn(netdev,
-				    "%s: Transmit ring full, stopping SQ%d\n",
-				    netdev->name, qid);
+
+		/* Barrier, so that stop_queue visible to other cpus */
+		smp_mb();
+
+		/* Check again, incase another cpu freed descriptors */
+		if (atomic_read(&sq->free_cnt) > MIN_SQ_DESC_PER_PKT_XMIT) {
+			netif_tx_wake_queue(txq);
+		} else {
+			this_cpu_inc(nic->drv_stats->txq_stop);
+			if (netif_msg_tx_err(nic))
+				netdev_warn(netdev,
+					    "%s: Transmit ring full, stopping SQ%d\n",
+					    netdev->name, qid);
+		}
 		return NETDEV_TX_BUSY;
 	}
 
@@ -1291,20 +1332,17 @@ napi_del:
 static int nicvf_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct nicvf *nic = netdev_priv(netdev);
-
-	if (new_mtu > NIC_HW_MAX_FRS)
-		return -EINVAL;
-
-	if (new_mtu < NIC_HW_MIN_FRS)
-		return -EINVAL;
+	int orig_mtu = netdev->mtu;
 
 	netdev->mtu = new_mtu;
 
 	if (!netif_running(netdev))
 		return 0;
 
-	if (nicvf_update_hw_max_frs(nic, new_mtu))
+	if (nicvf_update_hw_max_frs(nic, new_mtu)) {
+		netdev->mtu = orig_mtu;
 		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -1630,6 +1668,10 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	netdev->netdev_ops = &nicvf_netdev_ops;
 	netdev->watchdog_timeo = NICVF_TX_TIMEOUT;
+
+	/* MTU range: 64 - 9200 */
+	netdev->min_mtu = NIC_HW_MIN_FRS;
+	netdev->max_mtu = NIC_HW_MAX_FRS;
 
 	INIT_WORK(&nic->reset_task, nicvf_reset_task);
 

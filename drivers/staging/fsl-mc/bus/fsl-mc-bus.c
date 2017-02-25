@@ -1,13 +1,15 @@
 /*
  * Freescale Management Complex (MC) bus driver
  *
- * Copyright (C) 2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2014-2016 Freescale Semiconductor, Inc.
  * Author: German Rivera <German.Rivera@freescale.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
+
+#define pr_fmt(fmt) "fsl-mc: " fmt
 
 #include <linux/module.h>
 #include <linux/of_device.h>
@@ -34,7 +36,7 @@ static struct kmem_cache *mc_dev_cache;
 
 /**
  * struct fsl_mc - Private data of a "fsl,qoriq-mc" platform device
- * @root_mc_bus_dev: MC object device representing the root DPRC
+ * @root_mc_bus_dev: fsl-mc device representing the root DPRC
  * @num_translation_ranges: number of entries in addr_translation_ranges
  * @translation_ranges: array of bus to system address translation ranges
  */
@@ -62,8 +64,8 @@ struct fsl_mc_addr_translation_range {
 
 /**
  * fsl_mc_bus_match - device to driver matching callback
- * @dev: the MC object device structure to match against
- * @drv: the device driver to search for matching MC object device id
+ * @dev: the fsl-mc device to match against
+ * @drv: the device driver to search for matching fsl-mc object type
  * structures
  *
  * Returns 1 on success, 0 otherwise.
@@ -91,7 +93,7 @@ static int fsl_mc_bus_match(struct device *dev, struct device_driver *drv)
 
 	/*
 	 * Traverse the match_id table of the given driver, trying to find
-	 * a matching for the given MC object device.
+	 * a matching for the given device.
 	 */
 	for (id = mc_drv->match_id_table; id->vendor != 0x0; id++) {
 		if (id->vendor == mc_dev->obj_desc.vendor &&
@@ -164,8 +166,7 @@ static int fsl_mc_driver_probe(struct device *dev)
 
 	error = mc_drv->probe(mc_dev);
 	if (error < 0) {
-		dev_err(dev, "MC object device probe callback failed: %d\n",
-			error);
+		dev_err(dev, "%s failed: %d\n", __func__, error);
 		return error;
 	}
 
@@ -183,9 +184,7 @@ static int fsl_mc_driver_remove(struct device *dev)
 
 	error = mc_drv->remove(mc_dev);
 	if (error < 0) {
-		dev_err(dev,
-			"MC object device remove callback failed: %d\n",
-			error);
+		dev_err(dev, "%s failed: %d\n", __func__, error);
 		return error;
 	}
 
@@ -232,8 +231,6 @@ int __fsl_mc_driver_register(struct fsl_mc_driver *mc_driver,
 		return error;
 	}
 
-	pr_info("MC object device driver %s registered\n",
-		mc_driver->driver.name);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(__fsl_mc_driver_register);
@@ -311,21 +308,6 @@ static int get_dprc_icid(struct fsl_mc_io *mc_io,
 	error = get_dprc_attr(mc_io, container_id, &attr);
 	if (error == 0)
 		*icid = attr.icid;
-
-	return error;
-}
-
-static int get_dprc_version(struct fsl_mc_io *mc_io,
-			    int container_id, u16 *major, u16 *minor)
-{
-	struct dprc_attributes attr;
-	int error;
-
-	error = get_dprc_attr(mc_io, container_id, &attr);
-	if (error == 0) {
-		*major = attr.version.major;
-		*minor = attr.version.minor;
-	}
 
 	return error;
 }
@@ -452,7 +434,7 @@ bool fsl_mc_is_root_dprc(struct device *dev)
 }
 
 /**
- * Add a newly discovered MC object device to be visible in Linux
+ * Add a newly discovered fsl-mc device to be visible in Linux
  */
 int fsl_mc_device_add(struct dprc_obj_desc *obj_desc,
 		      struct fsl_mc_io *mc_io,
@@ -533,8 +515,8 @@ int fsl_mc_device_add(struct dprc_obj_desc *obj_desc,
 			goto error_cleanup_dev;
 	} else {
 		/*
-		 * A non-DPRC MC object device has to be a child of another
-		 * MC object (specifically a DPRC object)
+		 * A non-DPRC object has to be a child of a DPRC, use the
+		 * parent's ICID and interrupt domain.
 		 */
 		mc_dev->icid = parent_mc_dev->icid;
 		mc_dev->dma_mask = FSL_MC_DEFAULT_DMA_MASK;
@@ -572,8 +554,7 @@ int fsl_mc_device_add(struct dprc_obj_desc *obj_desc,
 	}
 
 	(void)get_device(&mc_dev->dev);
-	dev_dbg(parent_dev, "Added MC object device %s\n",
-		dev_name(&mc_dev->dev));
+	dev_dbg(parent_dev, "added %s\n", dev_name(&mc_dev->dev));
 
 	*new_mc_dev = mc_dev;
 	return 0;
@@ -590,10 +571,10 @@ error_cleanup_dev:
 EXPORT_SYMBOL_GPL(fsl_mc_device_add);
 
 /**
- * fsl_mc_device_remove - Remove a MC object device from being visible to
+ * fsl_mc_device_remove - Remove an fsl-mc device from being visible to
  * Linux
  *
- * @mc_dev: Pointer to a MC object device object
+ * @mc_dev: Pointer to an fsl-mc device
  */
 void fsl_mc_device_remove(struct fsl_mc_device *mc_dev)
 {
@@ -749,8 +730,6 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	struct mc_version mc_version;
 	struct resource res;
 
-	dev_info(&pdev->dev, "Root MC bus device probed");
-
 	mc = devm_kzalloc(&pdev->dev, sizeof(*mc), GFP_KERNEL);
 	if (!mc)
 		return -ENOMEM;
@@ -783,8 +762,7 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 		goto error_cleanup_mc_io;
 	}
 
-	dev_info(&pdev->dev,
-		 "Freescale Management Complex Firmware version: %u.%u.%u\n",
+	dev_info(&pdev->dev, "MC firmware version: %u.%u.%u\n",
 		 mc_version.major, mc_version.minor, mc_version.revision);
 
 	error = get_mc_addr_translation_ranges(&pdev->dev,
@@ -793,7 +771,7 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	if (error < 0)
 		goto error_cleanup_mc_io;
 
-	error = dpmng_get_container_id(mc_io, 0, &container_id);
+	error = dprc_get_container_id(mc_io, 0, &container_id);
 	if (error < 0) {
 		dev_err(&pdev->dev,
 			"dpmng_get_container_id() failed: %d\n", error);
@@ -801,8 +779,9 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	}
 
 	memset(&obj_desc, 0, sizeof(struct dprc_obj_desc));
-	error = get_dprc_version(mc_io, container_id,
-				 &obj_desc.ver_major, &obj_desc.ver_minor);
+	error = dprc_get_api_version(mc_io, 0,
+				     &obj_desc.ver_major,
+				     &obj_desc.ver_minor);
 	if (error < 0)
 		goto error_cleanup_mc_io;
 
@@ -840,7 +819,6 @@ static int fsl_mc_bus_remove(struct platform_device *pdev)
 	fsl_destroy_mc_io(mc->root_mc_bus_dev->mc_io);
 	mc->root_mc_bus_dev->mc_io = NULL;
 
-	dev_info(&pdev->dev, "Root MC bus device removed");
 	return 0;
 }
 
@@ -875,11 +853,9 @@ static int __init fsl_mc_bus_driver_init(void)
 
 	error = bus_register(&fsl_mc_bus_type);
 	if (error < 0) {
-		pr_err("fsl-mc bus type registration failed: %d\n", error);
+		pr_err("bus type registration failed: %d\n", error);
 		goto error_cleanup_cache;
 	}
-
-	pr_info("fsl-mc bus type registered\n");
 
 	error = platform_driver_register(&fsl_mc_bus_driver);
 	if (error < 0) {

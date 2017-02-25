@@ -255,6 +255,16 @@ config USB_SERIAL_F81232
 	  To compile this driver as a module, choose M here: the
 	  module will be called f81232.
 
+config USB_SERIAL_F8153X
+	tristate "USB Fintek F81532/534 Multi-Ports Serial Driver"
+	help
+	  Say Y here if you want to use the Fintek F81532/534 Multi-Ports
+	  USB to serial adapter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called f81534.
+
+
 config USB_SERIAL_GARMIN
        tristate "USB Garmin GPS driver"
        help

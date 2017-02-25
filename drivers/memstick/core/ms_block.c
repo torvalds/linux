@@ -2006,7 +2006,7 @@ static int msb_prepare_req(struct request_queue *q, struct request *req)
 		blk_dump_rq_flags(req, "MS unsupported request");
 		return BLKPREP_KILL;
 	}
-	req->cmd_flags |= REQ_DONTPREP;
+	req->rq_flags |= RQF_DONTPREP;
 	return BLKPREP_OK;
 }
 

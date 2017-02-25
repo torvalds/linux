@@ -31,7 +31,6 @@
 
 #include "common.h"
 #include "common-board-devices.h"
-#include "dss-common.h"
 #include "control.h"
 #include "omap_device.h"
 #include "omap-pm.h"
@@ -162,7 +161,7 @@ static struct ti_st_plat_data wilink7_pdata = {
 	.nshutdown_gpio = 162,
 	.dev_name = "/dev/ttyO1",
 	.flow_cntrl = 1,
-	.baud_rate = 300000,
+	.baud_rate = 3000000,
 };
 
 static struct platform_device wl128x_device = {

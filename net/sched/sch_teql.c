@@ -418,9 +418,6 @@ static int teql_master_mtu(struct net_device *dev, int new_mtu)
 	struct teql_master *m = netdev_priv(dev);
 	struct Qdisc *q;
 
-	if (new_mtu < 68)
-		return -EINVAL;
-
 	q = m->slaves;
 	if (q) {
 		do {
@@ -460,6 +457,8 @@ static __init void teql_master_setup(struct net_device *dev)
 	dev->netdev_ops =       &teql_netdev_ops;
 	dev->type		= ARPHRD_VOID;
 	dev->mtu		= 1500;
+	dev->min_mtu		= 68;
+	dev->max_mtu		= 65535;
 	dev->tx_queue_len	= 100;
 	dev->flags		= IFF_NOARP;
 	dev->hard_header_len	= LL_MAX_HEADER;

@@ -235,7 +235,7 @@ static void freeque(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
 {
 	struct msg_msg *msg, *t;
 	struct msg_queue *msq = container_of(ipcp, struct msg_queue, q_perm);
-	WAKE_Q(wake_q);
+	DEFINE_WAKE_Q(wake_q);
 
 	expunge_all(msq, -EIDRM, &wake_q);
 	ss_wakeup(msq, &wake_q, true);
@@ -397,7 +397,7 @@ static int msgctl_down(struct ipc_namespace *ns, int msqid, int cmd,
 		goto out_up;
 	case IPC_SET:
 	{
-		WAKE_Q(wake_q);
+		DEFINE_WAKE_Q(wake_q);
 
 		if (msqid64.msg_qbytes > ns->msg_ctlmnb &&
 		    !capable(CAP_SYS_RESOURCE)) {
@@ -634,7 +634,7 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
 	struct msg_msg *msg;
 	int err;
 	struct ipc_namespace *ns;
-	WAKE_Q(wake_q);
+	DEFINE_WAKE_Q(wake_q);
 
 	ns = current->nsproxy->ipc_ns;
 
@@ -763,7 +763,10 @@ static inline int convert_mode(long *msgtyp, int msgflg)
 	if (*msgtyp == 0)
 		return SEARCH_ANY;
 	if (*msgtyp < 0) {
-		*msgtyp = -*msgtyp;
+		if (*msgtyp == LONG_MIN) /* -LONG_MIN is undefined */
+			*msgtyp = LONG_MAX;
+		else
+			*msgtyp = -*msgtyp;
 		return SEARCH_LESSEQUAL;
 	}
 	if (msgflg & MSG_EXCEPT)
@@ -850,7 +853,7 @@ long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp, int msgfl
 	struct msg_queue *msq;
 	struct ipc_namespace *ns;
 	struct msg_msg *msg, *copy = NULL;
-	WAKE_Q(wake_q);
+	DEFINE_WAKE_Q(wake_q);
 
 	ns = current->nsproxy->ipc_ns;
 

@@ -674,7 +674,7 @@ left in runtime suspend.  If that happens, the PM core will not execute any
 system suspend and resume callbacks for all of those devices, except for the
 complete callback, which is then entirely responsible for handling the device
 as appropriate.  This only applies to system suspend transitions that are not
-related to hibernation (see Documentation/power/devices.txt for more
+related to hibernation (see Documentation/power/admin-guide/devices.rst for more
 information).
 
 The PM core does its best to reduce the probability of race conditions between

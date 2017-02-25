@@ -1914,6 +1914,7 @@ enum {
 #define RT5670_IF1_ADC1_IN2_SFT			11
 #define RT5670_IF1_ADC2_IN1_SEL			(0x1 << 10)
 #define RT5670_IF1_ADC2_IN1_SFT			10
+#define RT5670_MCLK_DET				(0x1 << 3)
 
 /* General Control2 (0xfb) */
 #define RT5670_RXDC_SRC_MASK			(0x1 << 7)

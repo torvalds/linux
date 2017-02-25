@@ -1253,14 +1253,14 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 	case BLKIF_OP_WRITE:
 		ring->st_wr_req++;
 		operation = REQ_OP_WRITE;
-		operation_flags = WRITE_ODIRECT;
+		operation_flags = REQ_SYNC | REQ_IDLE;
 		break;
 	case BLKIF_OP_WRITE_BARRIER:
 		drain = true;
 	case BLKIF_OP_FLUSH_DISKCACHE:
 		ring->st_f_req++;
 		operation = REQ_OP_WRITE;
-		operation_flags = WRITE_FLUSH;
+		operation_flags = REQ_PREFLUSH;
 		break;
 	default:
 		operation = 0; /* make gcc happy */
@@ -1272,7 +1272,7 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 	nseg = req->operation == BLKIF_OP_INDIRECT ?
 	       req->u.indirect.nr_segments : req->u.rw.nr_segments;
 
-	if (unlikely(nseg == 0 && operation_flags != WRITE_FLUSH) ||
+	if (unlikely(nseg == 0 && operation_flags != REQ_PREFLUSH) ||
 	    unlikely((req->operation != BLKIF_OP_INDIRECT) &&
 		     (nseg > BLKIF_MAX_SEGMENTS_PER_REQUEST)) ||
 	    unlikely((req->operation == BLKIF_OP_INDIRECT) &&
@@ -1334,7 +1334,7 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 	}
 
 	/* Wait on all outstanding I/O's and once that has been completed
-	 * issue the WRITE_FLUSH.
+	 * issue the flush.
 	 */
 	if (drain)
 		xen_blk_drain_io(pending_req->ring);
@@ -1380,7 +1380,7 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 
 	/* This will be hit if the operation was a flush or discard. */
 	if (!bio) {
-		BUG_ON(operation_flags != WRITE_FLUSH);
+		BUG_ON(operation_flags != REQ_PREFLUSH);
 
 		bio = bio_alloc(GFP_KERNEL, 0);
 		if (unlikely(bio == NULL))

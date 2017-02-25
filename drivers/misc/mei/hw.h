@@ -76,6 +76,12 @@
 #define HBM_MINOR_VERSION_FA               0
 #define HBM_MAJOR_VERSION_FA               2
 
+/*
+ * MEI version with OS ver message support
+ */
+#define HBM_MINOR_VERSION_OS               0
+#define HBM_MAJOR_VERSION_OS               2
+
 /* Host bus message command opcode */
 #define MEI_HBM_CMD_OP_MSK                  0x7f
 /* Host bus message command RESPONSE */

@@ -651,6 +651,9 @@ struct kvm_enable_cap {
 };
 
 /* for KVM_PPC_GET_PVINFO */
+
+#define KVM_PPC_PVINFO_FLAGS_EV_IDLE   (1<<0)
+
 struct kvm_ppc_pvinfo {
 	/* out */
 	__u32 flags;
@@ -681,8 +684,6 @@ struct kvm_ppc_smmu_info {
 	__u32 pad;
 	struct kvm_ppc_one_seg_page_size sps[KVM_PPC_PAGE_SIZES_MAX_SZ];
 };
-
-#define KVM_PPC_PVINFO_FLAGS_EV_IDLE   (1<<0)
 
 #define KVMIO 0xAE
 

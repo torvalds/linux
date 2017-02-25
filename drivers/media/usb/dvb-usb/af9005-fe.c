@@ -1430,7 +1430,7 @@ static void af9005_fe_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops af9005_fe_ops;
+static const struct dvb_frontend_ops af9005_fe_ops;
 
 struct dvb_frontend *af9005_fe_attach(struct dvb_usb_device *d)
 {
@@ -1455,7 +1455,7 @@ struct dvb_frontend *af9005_fe_attach(struct dvb_usb_device *d)
 	return NULL;
 }
 
-static struct dvb_frontend_ops af9005_fe_ops = {
+static const struct dvb_frontend_ops af9005_fe_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		 .name = "AF9005 USB DVB-T",

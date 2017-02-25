@@ -18,7 +18,7 @@
 #include <linux/ratelimit.h>
 
 #include <asm/gentrap.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unaligned.h>
 #include <asm/sysinfo.h>
 #include <asm/hwrpb.h>

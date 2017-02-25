@@ -1,7 +1,7 @@
 /*
    3w-sas.c -- LSI 3ware SAS/SATA-RAID Controller device driver for Linux.
 
-   Written By: Adam Radford <linuxraid@lsi.com>
+   Written By: Adam Radford <aradford@gmail.com>
 
    Copyright (C) 2009 LSI Corporation.
 
@@ -43,10 +43,7 @@
    LSI 3ware 9750 6Gb/s SAS/SATA-RAID
 
    Bugs/Comments/Suggestions should be mailed to:
-   linuxraid@lsi.com
-
-   For more information, goto:
-   http://www.lsi.com
+   aradford@gmail.com
 
    History
    -------
@@ -67,7 +64,7 @@
 #include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_tcq.h>

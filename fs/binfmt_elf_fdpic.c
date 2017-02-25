@@ -37,7 +37,7 @@
 #include <linux/coredump.h>
 #include <linux/dax.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/param.h>
 #include <asm/pgalloc.h>
 

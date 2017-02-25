@@ -105,9 +105,18 @@ __faddr2line() {
 	# In rare cases there might be duplicates.
 	while read symbol; do
 		local fields=($symbol)
-		local sym_base=0x${fields[1]}
-		local sym_size=${fields[2]}
-		local sym_type=${fields[3]}
+		local sym_base=0x${fields[0]}
+		local sym_type=${fields[1]}
+		local sym_end=0x${fields[3]}
+
+		# calculate the size
+		local sym_size=$(($sym_end - $sym_base))
+		if [[ -z $sym_size ]] || [[ $sym_size -le 0 ]]; then
+			warn "bad symbol size: base: $sym_base end: $sym_end"
+			DONE=1
+			return
+		fi
+		sym_size=0x$(printf %x $sym_size)
 
 		# calculate the address
 		local addr=$(($sym_base + $offset))
@@ -116,26 +125,26 @@ __faddr2line() {
 			DONE=1
 			return
 		fi
-		local hexaddr=0x$(printf %x $addr)
+		addr=0x$(printf %x $addr)
 
 		# weed out non-function symbols
-		if [[ $sym_type != "FUNC" ]]; then
+		if [[ $sym_type != t ]] && [[ $sym_type != T ]]; then
 			[[ $print_warnings = 1 ]] &&
-				echo "skipping $func address at $hexaddr due to non-function symbol"
+				echo "skipping $func address at $addr due to non-function symbol of type '$sym_type'"
 			continue
 		fi
 
 		# if the user provided a size, make sure it matches the symbol's size
 		if [[ -n $size ]] && [[ $size -ne $sym_size ]]; then
 			[[ $print_warnings = 1 ]] &&
-				echo "skipping $func address at $hexaddr due to size mismatch ($size != $sym_size)"
+				echo "skipping $func address at $addr due to size mismatch ($size != $sym_size)"
 			continue;
 		fi
 
 		# make sure the provided offset is within the symbol's range
 		if [[ $offset -gt $sym_size ]]; then
 			[[ $print_warnings = 1 ]] &&
-				echo "skipping $func address at $hexaddr due to size mismatch ($offset > $sym_size)"
+				echo "skipping $func address at $addr due to size mismatch ($offset > $sym_size)"
 			continue
 		fi
 
@@ -143,12 +152,12 @@ __faddr2line() {
 		[[ $FIRST = 0 ]] && echo
 		FIRST=0
 
-		local hexsize=0x$(printf %x $sym_size)
-		echo "$func+$offset/$hexsize:"
-		addr2line -fpie $objfile $hexaddr | sed "s; $dir_prefix\(\./\)*; ;"
+		# pass real address to addr2line
+		echo "$func+$offset/$sym_size:"
+		addr2line -fpie $objfile $addr | sed "s; $dir_prefix\(\./\)*; ;"
 		DONE=1
 
-	done < <(readelf -sW $objfile | awk -v f=$func '$8 == f {print}')
+	done < <(nm -n $objfile | awk -v fn=$func '$3 == fn { found=1; line=$0; start=$1; next } found == 1 { found=0; print line, $1 }')
 }
 
 [[ $# -lt 2 ]] && usage

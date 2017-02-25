@@ -71,6 +71,9 @@ struct rpmsg_endpoint *rpmsg_create_ept(struct rpmsg_device *rpdev,
 					rpmsg_rx_cb_t cb, void *priv,
 					struct rpmsg_channel_info chinfo)
 {
+	if (WARN_ON(!rpdev))
+		return ERR_PTR(-EINVAL);
+
 	return rpdev->ops->create_ept(rpdev, cb, priv, chinfo);
 }
 EXPORT_SYMBOL(rpmsg_create_ept);
@@ -80,11 +83,13 @@ EXPORT_SYMBOL(rpmsg_create_ept);
  * @ept: endpoing to destroy
  *
  * Should be used by drivers to destroy an rpmsg endpoint previously
- * created with rpmsg_create_ept().
+ * created with rpmsg_create_ept(). As with other types of "free" NULL
+ * is a valid parameter.
  */
 void rpmsg_destroy_ept(struct rpmsg_endpoint *ept)
 {
-	ept->ops->destroy_ept(ept);
+	if (ept)
+		ept->ops->destroy_ept(ept);
 }
 EXPORT_SYMBOL(rpmsg_destroy_ept);
 
@@ -108,6 +113,11 @@ EXPORT_SYMBOL(rpmsg_destroy_ept);
  */
 int rpmsg_send(struct rpmsg_endpoint *ept, void *data, int len)
 {
+	if (WARN_ON(!ept))
+		return -EINVAL;
+	if (!ept->ops->send)
+		return -ENXIO;
+
 	return ept->ops->send(ept, data, len);
 }
 EXPORT_SYMBOL(rpmsg_send);
@@ -132,6 +142,11 @@ EXPORT_SYMBOL(rpmsg_send);
  */
 int rpmsg_sendto(struct rpmsg_endpoint *ept, void *data, int len, u32 dst)
 {
+	if (WARN_ON(!ept))
+		return -EINVAL;
+	if (!ept->ops->sendto)
+		return -ENXIO;
+
 	return ept->ops->sendto(ept, data, len, dst);
 }
 EXPORT_SYMBOL(rpmsg_sendto);
@@ -159,6 +174,11 @@ EXPORT_SYMBOL(rpmsg_sendto);
 int rpmsg_send_offchannel(struct rpmsg_endpoint *ept, u32 src, u32 dst,
 			  void *data, int len)
 {
+	if (WARN_ON(!ept))
+		return -EINVAL;
+	if (!ept->ops->send_offchannel)
+		return -ENXIO;
+
 	return ept->ops->send_offchannel(ept, src, dst, data, len);
 }
 EXPORT_SYMBOL(rpmsg_send_offchannel);
@@ -182,6 +202,11 @@ EXPORT_SYMBOL(rpmsg_send_offchannel);
  */
 int rpmsg_trysend(struct rpmsg_endpoint *ept, void *data, int len)
 {
+	if (WARN_ON(!ept))
+		return -EINVAL;
+	if (!ept->ops->trysend)
+		return -ENXIO;
+
 	return ept->ops->trysend(ept, data, len);
 }
 EXPORT_SYMBOL(rpmsg_trysend);
@@ -205,6 +230,11 @@ EXPORT_SYMBOL(rpmsg_trysend);
  */
 int rpmsg_trysendto(struct rpmsg_endpoint *ept, void *data, int len, u32 dst)
 {
+	if (WARN_ON(!ept))
+		return -EINVAL;
+	if (!ept->ops->trysendto)
+		return -ENXIO;
+
 	return ept->ops->trysendto(ept, data, len, dst);
 }
 EXPORT_SYMBOL(rpmsg_trysendto);
@@ -231,6 +261,11 @@ EXPORT_SYMBOL(rpmsg_trysendto);
 int rpmsg_trysend_offchannel(struct rpmsg_endpoint *ept, u32 src, u32 dst,
 			     void *data, int len)
 {
+	if (WARN_ON(!ept))
+		return -EINVAL;
+	if (!ept->ops->trysend_offchannel)
+		return -ENXIO;
+
 	return ept->ops->trysend_offchannel(ept, src, dst, data, len);
 }
 EXPORT_SYMBOL(rpmsg_trysend_offchannel);
@@ -315,6 +350,9 @@ static int rpmsg_dev_match(struct device *dev, struct device_driver *drv)
 	const struct rpmsg_device_id *ids = rpdrv->id_table;
 	unsigned int i;
 
+	if (rpdev->driver_override)
+		return !strcmp(rpdev->driver_override, drv->name);
+
 	if (ids)
 		for (i = 0; ids[i].name[0]; i++)
 			if (rpmsg_id_match(rpdev, &ids[i]))
@@ -344,27 +382,30 @@ static int rpmsg_dev_probe(struct device *dev)
 	struct rpmsg_device *rpdev = to_rpmsg_device(dev);
 	struct rpmsg_driver *rpdrv = to_rpmsg_driver(rpdev->dev.driver);
 	struct rpmsg_channel_info chinfo = {};
-	struct rpmsg_endpoint *ept;
+	struct rpmsg_endpoint *ept = NULL;
 	int err;
 
-	strncpy(chinfo.name, rpdev->id.name, RPMSG_NAME_SIZE);
-	chinfo.src = rpdev->src;
-	chinfo.dst = RPMSG_ADDR_ANY;
+	if (rpdrv->callback) {
+		strncpy(chinfo.name, rpdev->id.name, RPMSG_NAME_SIZE);
+		chinfo.src = rpdev->src;
+		chinfo.dst = RPMSG_ADDR_ANY;
 
-	ept = rpmsg_create_ept(rpdev, rpdrv->callback, NULL, chinfo);
-	if (!ept) {
-		dev_err(dev, "failed to create endpoint\n");
-		err = -ENOMEM;
-		goto out;
+		ept = rpmsg_create_ept(rpdev, rpdrv->callback, NULL, chinfo);
+		if (!ept) {
+			dev_err(dev, "failed to create endpoint\n");
+			err = -ENOMEM;
+			goto out;
+		}
+
+		rpdev->ept = ept;
+		rpdev->src = ept->addr;
 	}
-
-	rpdev->ept = ept;
-	rpdev->src = ept->addr;
 
 	err = rpdrv->probe(rpdev);
 	if (err) {
 		dev_err(dev, "%s: failed: %d\n", __func__, err);
-		rpmsg_destroy_ept(ept);
+		if (ept)
+			rpmsg_destroy_ept(ept);
 		goto out;
 	}
 
@@ -385,7 +426,8 @@ static int rpmsg_dev_remove(struct device *dev)
 
 	rpdrv->remove(rpdev);
 
-	rpmsg_destroy_ept(rpdev->ept);
+	if (rpdev->ept)
+		rpmsg_destroy_ept(rpdev->ept);
 
 	return err;
 }
@@ -411,8 +453,8 @@ int rpmsg_register_device(struct rpmsg_device *rpdev)
 	struct device *dev = &rpdev->dev;
 	int ret;
 
-	dev_set_name(&rpdev->dev, "%s:%s",
-		     dev_name(dev->parent), rpdev->id.name);
+	dev_set_name(&rpdev->dev, "%s.%s.%d.%d", dev_name(dev->parent),
+		     rpdev->id.name, rpdev->src, rpdev->dst);
 
 	rpdev->dev.bus = &rpmsg_bus;
 	rpdev->dev.release = rpmsg_release_device;

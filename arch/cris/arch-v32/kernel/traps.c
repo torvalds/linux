@@ -4,7 +4,7 @@
 
 #include <linux/ptrace.h>
 #include <linux/module.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <hwregs/supp_reg.h>
 #include <hwregs/intr_vect_defs.h>
 #include <asm/irq.h>

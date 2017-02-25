@@ -1,5 +1,5 @@
 NOTE: this document is outdated and will eventually be removed.  See
-Documentation/kernel-documentation.rst for current information.
+Documentation/doc-guide/ for current information.
 
 kernel-doc nano-HOWTO
 =====================

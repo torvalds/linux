@@ -51,20 +51,8 @@ static int find_num_contig(struct mm_struct *mm, unsigned long addr,
 	*pgsize = PAGE_SIZE;
 	if (!pte_cont(pte))
 		return 1;
-	if (!pgd_present(*pgd)) {
-		VM_BUG_ON(!pgd_present(*pgd));
-		return 1;
-	}
 	pud = pud_offset(pgd, addr);
-	if (!pud_present(*pud)) {
-		VM_BUG_ON(!pud_present(*pud));
-		return 1;
-	}
 	pmd = pmd_offset(pud, addr);
-	if (!pmd_present(*pmd)) {
-		VM_BUG_ON(!pmd_present(*pmd));
-		return 1;
-	}
 	if ((pte_t *)pmd == ptep) {
 		*pgsize = PMD_SIZE;
 		return CONT_PMDS;
@@ -212,7 +200,7 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
 		ncontig = find_num_contig(mm, addr, cpte, *cpte, &pgsize);
 		/* save the 1st pte to return */
 		pte = ptep_get_and_clear(mm, addr, cpte);
-		for (i = 1; i < ncontig; ++i) {
+		for (i = 1, addr += pgsize; i < ncontig; ++i, addr += pgsize) {
 			/*
 			 * If HW_AFDBM is enabled, then the HW could
 			 * turn on the dirty bit for any of the page
@@ -250,8 +238,8 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 		pfn = pte_pfn(*cpte);
 		ncontig = find_num_contig(vma->vm_mm, addr, cpte,
 					  *cpte, &pgsize);
-		for (i = 0; i < ncontig; ++i, ++cpte) {
-			changed = ptep_set_access_flags(vma, addr, cpte,
+		for (i = 0; i < ncontig; ++i, ++cpte, addr += pgsize) {
+			changed |= ptep_set_access_flags(vma, addr, cpte,
 							pfn_pte(pfn,
 								hugeprot),
 							dirty);
@@ -273,7 +261,7 @@ void huge_ptep_set_wrprotect(struct mm_struct *mm,
 
 		cpte = huge_pte_offset(mm, addr);
 		ncontig = find_num_contig(mm, addr, cpte, *cpte, &pgsize);
-		for (i = 0; i < ncontig; ++i, ++cpte)
+		for (i = 0; i < ncontig; ++i, ++cpte, addr += pgsize)
 			ptep_set_wrprotect(mm, addr, cpte);
 	} else {
 		ptep_set_wrprotect(mm, addr, ptep);
@@ -291,7 +279,7 @@ void huge_ptep_clear_flush(struct vm_area_struct *vma,
 		cpte = huge_pte_offset(vma->vm_mm, addr);
 		ncontig = find_num_contig(vma->vm_mm, addr, cpte,
 					  *cpte, &pgsize);
-		for (i = 0; i < ncontig; ++i, ++cpte)
+		for (i = 0; i < ncontig; ++i, ++cpte, addr += pgsize)
 			ptep_clear_flush(vma, addr, cpte);
 	} else {
 		ptep_clear_flush(vma, addr, ptep);
@@ -323,7 +311,7 @@ __setup("hugepagesz=", setup_hugepagesz);
 static __init int add_default_hugepagesz(void)
 {
 	if (size_to_hstate(CONT_PTES * PAGE_SIZE) == NULL)
-		hugetlb_add_hstate(CONT_PMD_SHIFT);
+		hugetlb_add_hstate(CONT_PTE_SHIFT);
 	return 0;
 }
 arch_initcall(add_default_hugepagesz);

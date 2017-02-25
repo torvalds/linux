@@ -29,6 +29,8 @@
 #include "amd_shared.h"
 #include "cgs_common.h"
 
+extern int amdgpu_dpm;
+
 enum amd_pp_sensors {
 	AMDGPU_PP_SENSOR_GFX_SCLK = 0,
 	AMDGPU_PP_SENSOR_VDDNB,
@@ -349,6 +351,7 @@ struct amd_powerplay_funcs {
 	int (*get_fan_control_mode)(void *handle);
 	int (*set_fan_speed_percent)(void *handle, uint32_t percent);
 	int (*get_fan_speed_percent)(void *handle, uint32_t *speed);
+	int (*get_fan_speed_rpm)(void *handle, uint32_t *rpm);
 	int (*get_pp_num_states)(void *handle, struct pp_states_info *data);
 	int (*get_pp_table)(void *handle, char **table);
 	int (*set_pp_table)(void *handle, const char *buf, size_t size);
@@ -359,6 +362,7 @@ struct amd_powerplay_funcs {
 	int (*get_mclk_od)(void *handle);
 	int (*set_mclk_od)(void *handle, uint32_t value);
 	int (*read_sensor)(void *handle, int idx, int32_t *value);
+	struct amd_vce_state* (*get_vce_clock_state)(void *handle, unsigned idx);
 };
 
 struct amd_powerplay {

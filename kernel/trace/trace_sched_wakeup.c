@@ -239,6 +239,18 @@ static int wakeup_graph_entry(struct ftrace_graph_ent *trace)
 	unsigned long flags;
 	int pc, ret = 0;
 
+	if (ftrace_graph_ignore_func(trace))
+		return 0;
+	/*
+	 * Do not trace a function if it's filtered by set_graph_notrace.
+	 * Make the index of ret stack negative to indicate that it should
+	 * ignore further functions.  But it needs its own ret stack entry
+	 * to recover the original index in order to continue tracing after
+	 * returning from the function.
+	 */
+	if (ftrace_graph_notrace_addr(trace->func))
+		return 1;
+
 	if (!func_prolog_preempt_disable(tr, &data, &pc))
 		return 0;
 
@@ -346,7 +358,7 @@ static void wakeup_print_header(struct seq_file *s)
 /*
  * Should this new latency be reported/recorded?
  */
-static bool report_latency(struct trace_array *tr, cycle_t delta)
+static bool report_latency(struct trace_array *tr, u64 delta)
 {
 	if (tracing_thresh) {
 		if (delta < tracing_thresh)
@@ -428,7 +440,7 @@ probe_wakeup_sched_switch(void *ignore, bool preempt,
 			  struct task_struct *prev, struct task_struct *next)
 {
 	struct trace_array_cpu *data;
-	cycle_t T0, T1, delta;
+	u64 T0, T1, delta;
 	unsigned long flags;
 	long disabled;
 	int cpu;
@@ -790,6 +802,7 @@ static struct tracer wakeup_dl_tracer __read_mostly =
 #endif
 	.open		= wakeup_trace_open,
 	.close		= wakeup_trace_close,
+	.allow_instances = true,
 	.use_max_tr	= true,
 };
 

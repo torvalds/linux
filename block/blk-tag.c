@@ -270,7 +270,7 @@ void blk_queue_end_tag(struct request_queue *q, struct request *rq)
 	BUG_ON(tag >= bqt->real_max_depth);
 
 	list_del_init(&rq->queuelist);
-	rq->cmd_flags &= ~REQ_QUEUED;
+	rq->rq_flags &= ~RQF_QUEUED;
 	rq->tag = -1;
 
 	if (unlikely(bqt->tag_index[tag] == NULL))
@@ -316,7 +316,7 @@ int blk_queue_start_tag(struct request_queue *q, struct request *rq)
 	unsigned max_depth;
 	int tag;
 
-	if (unlikely((rq->cmd_flags & REQ_QUEUED))) {
+	if (unlikely((rq->rq_flags & RQF_QUEUED))) {
 		printk(KERN_ERR
 		       "%s: request %p for device [%s] already tagged %d",
 		       __func__, rq,
@@ -371,7 +371,7 @@ int blk_queue_start_tag(struct request_queue *q, struct request *rq)
 	 */
 
 	bqt->next_tag = (tag + 1) % bqt->max_depth;
-	rq->cmd_flags |= REQ_QUEUED;
+	rq->rq_flags |= RQF_QUEUED;
 	rq->tag = tag;
 	bqt->tag_index[tag] = rq;
 	blk_start_request(rq);

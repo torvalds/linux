@@ -1,49 +1,49 @@
 /* src/p80211/p80211wep.c
-*
-* WEP encode/decode for P80211.
-*
-* Copyright (C) 2002 AbsoluteValue Systems, Inc.  All Rights Reserved.
-* --------------------------------------------------------------------
-*
-* linux-wlan
-*
-*   The contents of this file are subject to the Mozilla Public
-*   License Version 1.1 (the "License"); you may not use this file
-*   except in compliance with the License. You may obtain a copy of
-*   the License at http://www.mozilla.org/MPL/
-*
-*   Software distributed under the License is distributed on an "AS
-*   IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
-*   implied. See the License for the specific language governing
-*   rights and limitations under the License.
-*
-*   Alternatively, the contents of this file may be used under the
-*   terms of the GNU Public License version 2 (the "GPL"), in which
-*   case the provisions of the GPL are applicable instead of the
-*   above.  If you wish to allow the use of your version of this file
-*   only under the terms of the GPL and not to allow others to use
-*   your version of this file under the MPL, indicate your decision
-*   by deleting the provisions above and replace them with the notice
-*   and other provisions required by the GPL.  If you do not delete
-*   the provisions above, a recipient may use your version of this
-*   file under either the MPL or the GPL.
-*
-* --------------------------------------------------------------------
-*
-* Inquiries regarding the linux-wlan Open Source project can be
-* made directly to:
-*
-* AbsoluteValue Systems Inc.
-* info@linux-wlan.com
-* http://www.linux-wlan.com
-*
-* --------------------------------------------------------------------
-*
-* Portions of the development of this software were funded by
-* Intersil Corporation as part of PRISM(R) chipset product development.
-*
-* --------------------------------------------------------------------
-*/
+ *
+ * WEP encode/decode for P80211.
+ *
+ * Copyright (C) 2002 AbsoluteValue Systems, Inc.  All Rights Reserved.
+ * --------------------------------------------------------------------
+ *
+ * linux-wlan
+ *
+ *   The contents of this file are subject to the Mozilla Public
+ *   License Version 1.1 (the "License"); you may not use this file
+ *   except in compliance with the License. You may obtain a copy of
+ *   the License at http://www.mozilla.org/MPL/
+ *
+ *   Software distributed under the License is distributed on an "AS
+ *   IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ *   implied. See the License for the specific language governing
+ *   rights and limitations under the License.
+ *
+ *   Alternatively, the contents of this file may be used under the
+ *   terms of the GNU Public License version 2 (the "GPL"), in which
+ *   case the provisions of the GPL are applicable instead of the
+ *   above.  If you wish to allow the use of your version of this file
+ *   only under the terms of the GPL and not to allow others to use
+ *   your version of this file under the MPL, indicate your decision
+ *   by deleting the provisions above and replace them with the notice
+ *   and other provisions required by the GPL.  If you do not delete
+ *   the provisions above, a recipient may use your version of this
+ *   file under either the MPL or the GPL.
+ *
+ * --------------------------------------------------------------------
+ *
+ * Inquiries regarding the linux-wlan Open Source project can be
+ * made directly to:
+ *
+ * AbsoluteValue Systems Inc.
+ * info@linux-wlan.com
+ * http://www.linux-wlan.com
+ *
+ * --------------------------------------------------------------------
+ *
+ * Portions of the development of this software were funded by
+ * Intersil Corporation as part of PRISM(R) chipset product development.
+ *
+ * --------------------------------------------------------------------
+ */
 
 /*================================================================*/
 /* System Includes */
@@ -52,8 +52,6 @@
 #include <linux/wireless.h>
 #include <linux/random.h>
 #include <linux/kernel.h>
-
-
 #include "p80211hdr.h"
 #include "p80211types.h"
 #include "p80211msg.h"
@@ -125,13 +123,12 @@ int wep_change_key(struct wlandevice *wlandev, int keynum, u8 *key, int keylen)
 		return -1;
 	if (keylen >= MAX_KEYLEN)
 		return -1;
-	if (key == NULL)
+	if (!key)
 		return -1;
 	if (keynum < 0)
 		return -1;
 	if (keynum >= NUM_WEPKEYS)
 		return -1;
-
 
 	wlandev->wep_keylens[keynum] = keylen;
 	memcpy(wlandev->wep_keys[keynum], key, keylen);
@@ -176,7 +173,6 @@ int wep_decrypt(struct wlandevice *wlandev, u8 *buf, u32 len, int key_override,
 
 	keylen += 3;		/* add in IV bytes */
 
-
 	/* set up the RC4 state */
 	for (i = 0; i < 256; i++)
 		s[i] = i;
@@ -217,8 +213,8 @@ int wep_decrypt(struct wlandevice *wlandev, u8 *buf, u32 len, int key_override,
 }
 
 /* encrypts in-place. */
-int wep_encrypt(struct wlandevice *wlandev, u8 *buf, u8 *dst, u32 len, int keynum,
-		u8 *iv, u8 *icv)
+int wep_encrypt(struct wlandevice *wlandev, u8 *buf,
+		u8 *dst, u32 len, int keynum, u8 *iv, u8 *icv)
 {
 	u32 i, j, k, crc, keylen;
 	u8 s[256], key[64];

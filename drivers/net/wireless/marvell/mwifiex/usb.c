@@ -24,7 +24,6 @@
 
 static u8 user_rmmod;
 static struct mwifiex_if_ops usb_ops;
-static struct semaphore add_remove_card_sem;
 
 static struct usb_device_id mwifiex_usb_table[] = {
 	/* 8766 */
@@ -380,16 +379,17 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 	struct usb_endpoint_descriptor *epd;
 	int ret, i;
 	struct usb_card_rec *card;
-	u16 id_vendor, id_product, bcd_device, bcd_usb;
+	u16 id_vendor, id_product, bcd_device;
 
-	card = kzalloc(sizeof(struct usb_card_rec), GFP_KERNEL);
+	card = devm_kzalloc(&intf->dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
 		return -ENOMEM;
+
+	init_completion(&card->fw_done);
 
 	id_vendor = le16_to_cpu(udev->descriptor.idVendor);
 	id_product = le16_to_cpu(udev->descriptor.idProduct);
 	bcd_device = le16_to_cpu(udev->descriptor.bcdDevice);
-	bcd_usb = le16_to_cpu(udev->descriptor.bcdUSB);
 	pr_debug("info: VID/PID = %X/%X, Boot2 version = %X\n",
 		 id_vendor, id_product, bcd_device);
 
@@ -475,12 +475,11 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 
 	usb_set_intfdata(intf, card);
 
-	ret = mwifiex_add_card(card, &add_remove_card_sem, &usb_ops,
-			       MWIFIEX_USB);
+	ret = mwifiex_add_card(card, &card->fw_done, &usb_ops,
+			       MWIFIEX_USB, &card->udev->dev);
 	if (ret) {
 		pr_err("%s: mwifiex_add_card failed: %d\n", __func__, ret);
 		usb_reset_device(udev);
-		kfree(card);
 		return ret;
 	}
 
@@ -503,17 +502,27 @@ static int mwifiex_usb_suspend(struct usb_interface *intf, pm_message_t message)
 	struct usb_tx_data_port *port;
 	int i, j;
 
-	if (!card || !card->adapter) {
-		pr_err("%s: card or card->adapter is NULL\n", __func__);
+	/* Might still be loading firmware */
+	wait_for_completion(&card->fw_done);
+
+	adapter = card->adapter;
+	if (!adapter) {
+		dev_err(&intf->dev, "card is not valid\n");
 		return 0;
 	}
-	adapter = card->adapter;
 
 	if (unlikely(adapter->is_suspended))
 		mwifiex_dbg(adapter, WARN,
 			    "Device already suspended\n");
 
-	mwifiex_enable_hs(adapter);
+	/* Enable the Host Sleep */
+	if (!mwifiex_enable_hs(adapter)) {
+		mwifiex_dbg(adapter, ERROR,
+			    "cmd: failed to suspend\n");
+		adapter->hs_enabling = false;
+		return -EFAULT;
+	}
+
 
 	/* 'is_suspended' flag indicates device is suspended.
 	 * It must be set here before the usb_kill_urb() calls. Reason
@@ -559,8 +568,9 @@ static int mwifiex_usb_resume(struct usb_interface *intf)
 	struct mwifiex_adapter *adapter;
 	int i;
 
-	if (!card || !card->adapter) {
-		pr_err("%s: card or card->adapter is NULL\n", __func__);
+	if (!card->adapter) {
+		dev_err(&intf->dev, "%s: card->adapter is NULL\n",
+			__func__);
 		return 0;
 	}
 	adapter = card->adapter;
@@ -602,21 +612,13 @@ static void mwifiex_usb_disconnect(struct usb_interface *intf)
 	struct usb_card_rec *card = usb_get_intfdata(intf);
 	struct mwifiex_adapter *adapter;
 
-	if (!card || !card->adapter) {
-		pr_err("%s: card or card->adapter is NULL\n", __func__);
-		return;
-	}
+	wait_for_completion(&card->fw_done);
 
 	adapter = card->adapter;
-	if (!adapter->priv_num)
+	if (!adapter || !adapter->priv_num)
 		return;
 
 	if (user_rmmod && !adapter->mfg_mode) {
-#ifdef CONFIG_PM
-		if (adapter->is_suspended)
-			mwifiex_usb_resume(intf);
-#endif
-
 		mwifiex_deauthenticate_all(adapter);
 
 		mwifiex_init_shutdown_fw(mwifiex_get_priv(adapter,
@@ -628,13 +630,9 @@ static void mwifiex_usb_disconnect(struct usb_interface *intf)
 
 	mwifiex_dbg(adapter, FATAL,
 		    "%s: removing card\n", __func__);
-	mwifiex_remove_card(adapter, &add_remove_card_sem);
+	mwifiex_remove_card(adapter);
 
-	usb_set_intfdata(intf, NULL);
 	usb_put_dev(interface_to_usbdev(intf));
-	kfree(card);
-
-	return;
 }
 
 static struct usb_driver mwifiex_usb_driver = {
@@ -932,7 +930,6 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 	struct usb_card_rec *card = (struct usb_card_rec *)adapter->card;
 
 	card->adapter = adapter;
-	adapter->dev = &card->udev->dev;
 
 	switch (le16_to_cpu(card->udev->descriptor.idProduct)) {
 	case USB8997_PID_1:
@@ -1206,16 +1203,13 @@ static struct mwifiex_if_ops usb_ops = {
 
 /* This function initializes the USB driver module.
  *
- * This initiates the semaphore and registers the device with
- * USB bus.
+ * This registers the device with USB bus.
  */
 static int mwifiex_usb_init_module(void)
 {
 	int ret;
 
 	pr_debug("Marvell USB8797 Driver\n");
-
-	sema_init(&add_remove_card_sem, 1);
 
 	ret = usb_register(&mwifiex_usb_driver);
 	if (ret)
@@ -1236,9 +1230,6 @@ static int mwifiex_usb_init_module(void)
  */
 static void mwifiex_usb_cleanup_module(void)
 {
-	if (!down_interruptible(&add_remove_card_sem))
-		up(&add_remove_card_sem);
-
 	/* set the flag as user is removing this module */
 	user_rmmod = 1;
 

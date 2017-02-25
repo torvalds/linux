@@ -284,7 +284,10 @@ static inline u32 solo_reg_read(struct solo_dev *solo_dev, int reg)
 static inline void solo_reg_write(struct solo_dev *solo_dev, int reg,
 				  u32 data)
 {
+	u16 val;
+
 	writel(data, solo_dev->reg_base + reg);
+	pci_read_config_word(solo_dev->pdev, PCI_STATUS, &val);
 }
 
 static inline void solo_irq_on(struct solo_dev *dev, u32 mask)

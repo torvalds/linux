@@ -33,5 +33,5 @@ gt215_disp_oimm_oclass = {
 	.base.maxver = 0,
 	.ctor = nv50_disp_oimm_new,
 	.func = &nv50_disp_pioc_func,
-	.chid = 5,
+	.chid = { 5, 5 },
 };

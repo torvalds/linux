@@ -52,13 +52,15 @@
  *     drm_modeset_drop_locks(&ctx);
  *     drm_modeset_acquire_fini(&ctx);
  *
- *  On top of of these per-object locks using &ww_mutex there's also an overall
- *  dev->mode_config.lock, for protecting everything else. Mostly this means
- *  probe state of connectors, and preventing hotplug add/removal of connectors.
+ * On top of of these per-object locks using &ww_mutex there's also an overall
+ * dev->mode_config.lock, for protecting everything else. Mostly this means
+ * probe state of connectors, and preventing hotplug add/removal of connectors.
  *
- *  Finally there's a bunch of dedicated locks to protect drm core internal
- *  lists and lookup data structures.
+ * Finally there's a bunch of dedicated locks to protect drm core internal
+ * lists and lookup data structures.
  */
+
+static DEFINE_WW_CLASS(crtc_ww_class);
 
 /**
  * drm_modeset_lock_all - take all modeset locks
@@ -396,6 +398,17 @@ int drm_modeset_backoff_interruptible(struct drm_modeset_acquire_ctx *ctx)
 	return modeset_backoff(ctx, true);
 }
 EXPORT_SYMBOL(drm_modeset_backoff_interruptible);
+
+/**
+ * drm_modeset_lock_init - initialize lock
+ * @lock: lock to init
+ */
+void drm_modeset_lock_init(struct drm_modeset_lock *lock)
+{
+	ww_mutex_init(&lock->mutex, &crtc_ww_class);
+	INIT_LIST_HEAD(&lock->head);
+}
+EXPORT_SYMBOL(drm_modeset_lock_init);
 
 /**
  * drm_modeset_lock - take modeset lock

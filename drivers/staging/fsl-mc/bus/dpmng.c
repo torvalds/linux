@@ -1,4 +1,5 @@
-/* Copyright 2013-2016 Freescale Semiconductor Inc.
+/*
+ * Copyright 2013-2016 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -10,7 +11,6 @@
  * * Neither the name of the above-listed copyright holders nor the
  * names of any contributors may be used to endorse or promote products
  * derived from this software without specific prior written permission.
- *
  *
  * ALTERNATIVELY, this software may be distributed under the terms of the
  * GNU General Public License ("GPL") as published by the Free Software
@@ -71,37 +71,4 @@ int mc_get_version(struct fsl_mc_io *mc_io,
 	return 0;
 }
 EXPORT_SYMBOL(mc_get_version);
-
-/**
- * dpmng_get_container_id() - Get container ID associated with a given portal.
- * @mc_io:		Pointer to MC portal's I/O object
- * @cmd_flags:		Command flags; one or more of 'MC_CMD_FLAG_'
- * @container_id:	Requested container ID
- *
- * Return:	'0' on Success; Error code otherwise.
- */
-int dpmng_get_container_id(struct fsl_mc_io *mc_io,
-			   u32 cmd_flags,
-			   int *container_id)
-{
-	struct mc_command cmd = { 0 };
-	struct dpmng_rsp_get_container_id *rsp_params;
-	int err;
-
-	/* prepare command */
-	cmd.header = mc_encode_cmd_header(DPMNG_CMDID_GET_CONT_ID,
-					  cmd_flags,
-					  0);
-
-	/* send command to mc*/
-	err = mc_send_command(mc_io, &cmd);
-	if (err)
-		return err;
-
-	/* retrieve response parameters */
-	rsp_params = (struct dpmng_rsp_get_container_id *)cmd.params;
-	*container_id = le32_to_cpu(rsp_params->container_id);
-
-	return 0;
-}
 

@@ -991,7 +991,7 @@ config CACHE_TAUROS2
 config CACHE_UNIPHIER
 	bool "Enable the UniPhier outer cache controller"
 	depends on ARCH_UNIPHIER
-	default y
+	select ARM_L1_CACHE_SHIFT_7
 	select OUTER_CACHE
 	select OUTER_CACHE_SYNC
 	help
@@ -1012,8 +1012,14 @@ config ARM_L1_CACHE_SHIFT_6
 	help
 	  Setting ARM L1 cache line size to 64 Bytes.
 
+config ARM_L1_CACHE_SHIFT_7
+	bool
+	help
+	  Setting ARM L1 cache line size to 128 Bytes.
+
 config ARM_L1_CACHE_SHIFT
 	int
+	default 7 if ARM_L1_CACHE_SHIFT_7
 	default 6 if ARM_L1_CACHE_SHIFT_6
 	default 5
 

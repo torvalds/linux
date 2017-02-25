@@ -65,7 +65,7 @@ static int tegra_alc5632_asoc_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops tegra_alc5632_asoc_ops = {
+static const struct snd_soc_ops tegra_alc5632_asoc_ops = {
 	.hw_params = tegra_alc5632_asoc_hw_params,
 };
 

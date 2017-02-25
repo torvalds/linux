@@ -104,6 +104,68 @@ static struct drm_mm_node *drm_mm_search_free_in_range_generic(const struct drm_
 						u64 end,
 						enum drm_mm_search_flags flags);
 
+#ifdef CONFIG_DRM_DEBUG_MM
+#include <linux/stackdepot.h>
+
+#define STACKDEPTH 32
+#define BUFSZ 4096
+
+static noinline void save_stack(struct drm_mm_node *node)
+{
+	unsigned long entries[STACKDEPTH];
+	struct stack_trace trace = {
+		.entries = entries,
+		.max_entries = STACKDEPTH,
+		.skip = 1
+	};
+
+	save_stack_trace(&trace);
+	if (trace.nr_entries != 0 &&
+	    trace.entries[trace.nr_entries-1] == ULONG_MAX)
+		trace.nr_entries--;
+
+	/* May be called under spinlock, so avoid sleeping */
+	node->stack = depot_save_stack(&trace, GFP_NOWAIT);
+}
+
+static void show_leaks(struct drm_mm *mm)
+{
+	struct drm_mm_node *node;
+	unsigned long entries[STACKDEPTH];
+	char *buf;
+
+	buf = kmalloc(BUFSZ, GFP_KERNEL);
+	if (!buf)
+		return;
+
+	list_for_each_entry(node, &mm->head_node.node_list, node_list) {
+		struct stack_trace trace = {
+			.entries = entries,
+			.max_entries = STACKDEPTH
+		};
+
+		if (!node->stack) {
+			DRM_ERROR("node [%08llx + %08llx]: unknown owner\n",
+				  node->start, node->size);
+			continue;
+		}
+
+		depot_fetch_stack(node->stack, &trace);
+		snprint_stack_trace(buf, BUFSZ, &trace, 0);
+		DRM_ERROR("node [%08llx + %08llx]: inserted at\n%s",
+			  node->start, node->size, buf);
+	}
+
+	kfree(buf);
+}
+
+#undef STACKDEPTH
+#undef BUFSZ
+#else
+static void save_stack(struct drm_mm_node *node) { }
+static void show_leaks(struct drm_mm *mm) { }
+#endif
+
 #define START(node) ((node)->start)
 #define LAST(node)  ((node)->start + (node)->size - 1)
 
@@ -112,19 +174,12 @@ INTERVAL_TREE_DEFINE(struct drm_mm_node, rb,
 		     START, LAST, static inline, drm_mm_interval_tree)
 
 struct drm_mm_node *
-drm_mm_interval_first(struct drm_mm *mm, u64 start, u64 last)
+__drm_mm_interval_first(struct drm_mm *mm, u64 start, u64 last)
 {
 	return drm_mm_interval_tree_iter_first(&mm->interval_tree,
 					       start, last);
 }
-EXPORT_SYMBOL(drm_mm_interval_first);
-
-struct drm_mm_node *
-drm_mm_interval_next(struct drm_mm_node *node, u64 start, u64 last)
-{
-	return drm_mm_interval_tree_iter_next(node, start, last);
-}
-EXPORT_SYMBOL(drm_mm_interval_next);
+EXPORT_SYMBOL(__drm_mm_interval_first);
 
 static void drm_mm_interval_tree_add_node(struct drm_mm_node *hole_node,
 					  struct drm_mm_node *node)
@@ -228,6 +283,8 @@ static void drm_mm_insert_helper(struct drm_mm_node *hole_node,
 		list_add(&node->hole_stack, &mm->hole_stack);
 		node->hole_follows = 1;
 	}
+
+	save_stack(node);
 }
 
 /**
@@ -249,6 +306,7 @@ int drm_mm_reserve_node(struct drm_mm *mm, struct drm_mm_node *node)
 	u64 end = node->start + node->size;
 	struct drm_mm_node *hole;
 	u64 hole_start, hole_end;
+	u64 adj_start, adj_end;
 
 	if (WARN_ON(node->size == 0))
 		return -EINVAL;
@@ -270,9 +328,13 @@ int drm_mm_reserve_node(struct drm_mm *mm, struct drm_mm_node *node)
 	if (!hole->hole_follows)
 		return -ENOSPC;
 
-	hole_start = __drm_mm_hole_node_start(hole);
-	hole_end = __drm_mm_hole_node_end(hole);
-	if (hole_start > node->start || hole_end < end)
+	adj_start = hole_start = __drm_mm_hole_node_start(hole);
+	adj_end = hole_end = __drm_mm_hole_node_end(hole);
+
+	if (mm->color_adjust)
+		mm->color_adjust(hole, node->color, &adj_start, &adj_end);
+
+	if (adj_start > node->start || adj_end < end)
 		return -ENOSPC;
 
 	node->mm = mm;
@@ -292,6 +354,8 @@ int drm_mm_reserve_node(struct drm_mm *mm, struct drm_mm_node *node)
 		list_add(&node->hole_stack, &mm->hole_stack);
 		node->hole_follows = 1;
 	}
+
+	save_stack(node);
 
 	return 0;
 }
@@ -397,6 +461,8 @@ static void drm_mm_insert_helper_range(struct drm_mm_node *hole_node,
 		list_add(&node->hole_stack, &mm->hole_stack);
 		node->hole_follows = 1;
 	}
+
+	save_stack(node);
 }
 
 /**
@@ -839,6 +905,7 @@ void drm_mm_init(struct drm_mm * mm, u64 start, u64 size)
 
 	/* Clever trick to avoid a special case in the free hole tracking. */
 	INIT_LIST_HEAD(&mm->head_node.node_list);
+	mm->head_node.allocated = 0;
 	mm->head_node.hole_follows = 1;
 	mm->head_node.scanned_block = 0;
 	mm->head_node.scanned_prev_free = 0;
@@ -861,10 +928,12 @@ EXPORT_SYMBOL(drm_mm_init);
  * Note that it is a bug to call this function on an allocator which is not
  * clean.
  */
-void drm_mm_takedown(struct drm_mm * mm)
+void drm_mm_takedown(struct drm_mm *mm)
 {
-	WARN(!list_empty(&mm->head_node.node_list),
-	     "Memory manager not clean during takedown.\n");
+	if (WARN(!list_empty(&mm->head_node.node_list),
+		 "Memory manager not clean during takedown.\n"))
+		show_leaks(mm);
+
 }
 EXPORT_SYMBOL(drm_mm_takedown);
 

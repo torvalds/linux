@@ -1209,9 +1209,6 @@ static int pxa168_eth_change_mtu(struct net_device *dev, int mtu)
 	int retval;
 	struct pxa168_eth_private *pep = netdev_priv(dev);
 
-	if ((mtu > 9500) || (mtu < 68))
-		return -EINVAL;
-
 	dev->mtu = mtu;
 	retval = set_port_config_ext(pep);
 
@@ -1396,6 +1393,7 @@ static void pxa168_get_drvinfo(struct net_device *dev,
 
 static const struct ethtool_ops pxa168_ethtool_ops = {
 	.get_drvinfo	= pxa168_get_drvinfo,
+	.nway_reset	= phy_ethtool_nway_reset,
 	.get_link	= ethtool_op_get_link,
 	.get_ts_info	= ethtool_op_get_ts_info,
 	.get_link_ksettings = pxa168_get_link_ksettings,
@@ -1458,6 +1456,10 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	dev->watchdog_timeo = 2 * HZ;
 	dev->base_addr = 0;
 	dev->ethtool_ops = &pxa168_ethtool_ops;
+
+	/* MTU range: 68 - 9500 */
+	dev->min_mtu = ETH_MIN_MTU;
+	dev->max_mtu = 9500;
 
 	INIT_WORK(&pep->tx_timeout_task, pxa168_eth_tx_timeout_task);
 

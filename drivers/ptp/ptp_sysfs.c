@@ -28,7 +28,7 @@ static ssize_t clock_name_show(struct device *dev,
 	struct ptp_clock *ptp = dev_get_drvdata(dev);
 	return snprintf(page, PAGE_SIZE-1, "%s\n", ptp->info->name);
 }
-static DEVICE_ATTR(clock_name, 0444, clock_name_show, NULL);
+static DEVICE_ATTR_RO(clock_name);
 
 #define PTP_SHOW_INT(name, var)						\
 static ssize_t var##_show(struct device *dev,				\

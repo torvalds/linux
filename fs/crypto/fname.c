@@ -12,7 +12,7 @@
 
 #include <linux/scatterlist.h>
 #include <linux/ratelimit.h>
-#include <linux/fscrypto.h>
+#include "fscrypt_private.h"
 
 /**
  * fname_crypt_complete() - completion callback for filename crypto
@@ -209,7 +209,7 @@ static int digest_decode(const char *src, int len, char *dst)
 	return cp - dst;
 }
 
-u32 fscrypt_fname_encrypted_size(struct inode *inode, u32 ilen)
+u32 fscrypt_fname_encrypted_size(const struct inode *inode, u32 ilen)
 {
 	int padding = 32;
 	struct fscrypt_info *ci = inode->i_crypt_info;
@@ -227,7 +227,7 @@ EXPORT_SYMBOL(fscrypt_fname_encrypted_size);
  * Allocates an output buffer that is sufficient for the crypto operation
  * specified by the context and the direction.
  */
-int fscrypt_fname_alloc_buffer(struct inode *inode,
+int fscrypt_fname_alloc_buffer(const struct inode *inode,
 				u32 ilen, struct fscrypt_str *crypto_str)
 {
 	unsigned int olen = fscrypt_fname_encrypted_size(inode, ilen);
@@ -350,7 +350,7 @@ int fscrypt_setup_filename(struct inode *dir, const struct qstr *iname,
 		fname->disk_name.len = iname->len;
 		return 0;
 	}
-	ret = get_crypt_info(dir);
+	ret = fscrypt_get_crypt_info(dir);
 	if (ret && ret != -EOPNOTSUPP)
 		return ret;
 

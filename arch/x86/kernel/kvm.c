@@ -42,7 +42,6 @@
 #include <asm/traps.h>
 #include <asm/desc.h>
 #include <asm/tlbflush.h>
-#include <asm/idle.h>
 #include <asm/apic.h>
 #include <asm/apicdef.h>
 #include <asm/hypervisor.h>
@@ -267,13 +266,11 @@ do_async_page_fault(struct pt_regs *regs, unsigned long error_code)
 	case KVM_PV_REASON_PAGE_NOT_PRESENT:
 		/* page is swapped out by the host. */
 		prev_state = exception_enter();
-		exit_idle();
 		kvm_async_pf_task_wait((u32)read_cr2());
 		exception_exit(prev_state);
 		break;
 	case KVM_PV_REASON_PAGE_READY:
 		rcu_irq_enter();
-		exit_idle();
 		kvm_async_pf_task_wake((u32)read_cr2());
 		rcu_irq_exit();
 		break;
@@ -308,7 +305,7 @@ static void kvm_register_steal_time(void)
 
 static DEFINE_PER_CPU(unsigned long, kvm_apic_eoi) = KVM_PV_EOI_DISABLED;
 
-static void kvm_guest_apic_eoi_write(u32 reg, u32 val)
+static notrace void kvm_guest_apic_eoi_write(u32 reg, u32 val)
 {
 	/**
 	 * This relies on __test_and_clear_bit to modify the memory
@@ -319,7 +316,7 @@ static void kvm_guest_apic_eoi_write(u32 reg, u32 val)
 	 */
 	if (__test_and_clear_bit(KVM_PV_EOI_BIT, this_cpu_ptr(&kvm_apic_eoi)))
 		return;
-	apic_write(APIC_EOI, APIC_EOI_ACK);
+	apic->native_eoi_write(APIC_EOI, APIC_EOI_ACK);
 }
 
 static void kvm_guest_cpu_init(void)
@@ -592,6 +589,14 @@ out:
 	local_irq_restore(flags);
 }
 
+__visible bool __kvm_vcpu_is_preempted(int cpu)
+{
+	struct kvm_steal_time *src = &per_cpu(steal_time, cpu);
+
+	return !!src->preempted;
+}
+PV_CALLEE_SAVE_REGS_THUNK(__kvm_vcpu_is_preempted);
+
 /*
  * Setup pv_lock_ops to exploit KVM_FEATURE_PV_UNHALT if present.
  */
@@ -608,6 +613,11 @@ void __init kvm_spinlock_init(void)
 	pv_lock_ops.queued_spin_unlock = PV_CALLEE_SAVE(__pv_queued_spin_unlock);
 	pv_lock_ops.wait = kvm_wait;
 	pv_lock_ops.kick = kvm_kick_cpu;
+
+	if (kvm_para_has_feature(KVM_FEATURE_STEAL_TIME)) {
+		pv_lock_ops.vcpu_is_preempted =
+			PV_CALLEE_SAVE(__kvm_vcpu_is_preempted);
+	}
 }
 
 static __init int kvm_spinlock_init_jump(void)

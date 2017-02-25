@@ -29,7 +29,7 @@
 #include <net/rawv6.h>
 #include <net/transp_v6.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define FL_MIN_LINGER	6	/* Minimal linger. It is set to 6sec specified
 				   in old IPv6 RFC. Well, it was reasonable value.

@@ -1656,8 +1656,8 @@ static int usbvision_set_video_format(struct usb_usbvision *usbvision, int forma
 			     (__u16) USBVISION_FILT_CONT, value, 2, HZ);
 
 	if (rc < 0) {
-		printk(KERN_ERR "%s: ERROR=%d. USBVISION stopped - "
-		       "reconnect or reload driver.\n", proc, rc);
+		printk(KERN_ERR "%s: ERROR=%d. USBVISION stopped - reconnect or reload driver.\n",
+		       proc, rc);
 	}
 	usbvision->isoc_mode = format;
 	return rc;
@@ -1890,8 +1890,8 @@ static int usbvision_set_compress_params(struct usb_usbvision *usbvision)
 			     (__u16) USBVISION_INTRA_CYC, value, 5, HZ);
 
 	if (rc < 0) {
-		printk(KERN_ERR "%sERROR=%d. USBVISION stopped - "
-		       "reconnect or reload driver.\n", proc, rc);
+		printk(KERN_ERR "%sERROR=%d. USBVISION stopped - reconnect or reload driver.\n",
+		       proc, rc);
 		return rc;
 	}
 
@@ -1921,8 +1921,8 @@ static int usbvision_set_compress_params(struct usb_usbvision *usbvision)
 			     (__u16) USBVISION_PCM_THR1, value, 6, HZ);
 
 	if (rc < 0) {
-		printk(KERN_ERR "%sERROR=%d. USBVISION stopped - "
-		       "reconnect or reload driver.\n", proc, rc);
+		printk(KERN_ERR "%sERROR=%d. USBVISION stopped - reconnect or reload driver.\n",
+		       proc, rc);
 	}
 	return rc;
 }
@@ -1960,8 +1960,8 @@ int usbvision_set_input(struct usb_usbvision *usbvision)
 
 	rc = usbvision_write_reg(usbvision, USBVISION_VIN_REG1, value[0]);
 	if (rc < 0) {
-		printk(KERN_ERR "%sERROR=%d. USBVISION stopped - "
-		       "reconnect or reload driver.\n", proc, rc);
+		printk(KERN_ERR "%sERROR=%d. USBVISION stopped - reconnect or reload driver.\n",
+		       proc, rc);
 		return rc;
 	}
 
@@ -2026,8 +2026,8 @@ int usbvision_set_input(struct usb_usbvision *usbvision)
 			     USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_ENDPOINT, 0,
 			     (__u16) USBVISION_LXSIZE_I, value, 8, HZ);
 	if (rc < 0) {
-		printk(KERN_ERR "%sERROR=%d. USBVISION stopped - "
-		       "reconnect or reload driver.\n", proc, rc);
+		printk(KERN_ERR "%sERROR=%d. USBVISION stopped - reconnect or reload driver.\n",
+		       proc, rc);
 		return rc;
 	}
 

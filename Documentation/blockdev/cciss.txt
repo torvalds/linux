@@ -184,7 +184,7 @@ infrequently used and the primary purpose of Smart Array controllers is to
 act as a RAID controller for disk drives, so the vast majority of commands
 are allocated for disk devices.  However, if you have more than a few tape
 drives attached to a smart array, the default number of commands may not be
-enought (for example, if you have 8 tape drives, you could only rewind 6
+enough (for example, if you have 8 tape drives, you could only rewind 6
 at one time with the default number of commands.)  The cciss_tape_cmds module
 parameter allows more commands (up to 16 more) to be allocated for use by
 tape drives.  For example:

@@ -13,20 +13,15 @@
 #ifndef __DIB3000MB_PRIV_H_INCLUDED__
 #define __DIB3000MB_PRIV_H_INCLUDED__
 
-/* info and err, taken from usb.h, if there is anything available like by default. */
-#define err(format, arg...)  printk(KERN_ERR     "dib3000: " format "\n" , ## arg)
-#define info(format, arg...) printk(KERN_INFO    "dib3000: " format "\n" , ## arg)
-#define warn(format, arg...) printk(KERN_WARNING "dib3000: " format "\n" , ## arg)
-
 /* handy shortcuts */
 #define rd(reg) dib3000_read_reg(state,reg)
 
 #define wr(reg,val) if (dib3000_write_reg(state,reg,val)) \
-	{ err("while sending 0x%04x to 0x%04x.",val,reg); return -EREMOTEIO; }
+	{ pr_err("while sending 0x%04x to 0x%04x.", val, reg); return -EREMOTEIO; }
 
 #define wr_foreach(a,v) { int i; \
 	if (sizeof(a) != sizeof(v)) \
-		err("sizeof: %zu %zu is different",sizeof(a),sizeof(v));\
+		pr_err("sizeof: %zu %zu is different", sizeof(a), sizeof(v));\
 	for (i=0; i < sizeof(a)/sizeof(u16); i++) \
 		wr(a[i],v[i]); \
 	}
@@ -37,8 +32,11 @@
 
 /* debug */
 
-#define dprintk(level,args...) \
-    do { if ((debug & level)) { printk(args); } } while (0)
+#define dprintk(level, fmt, arg...) do {				\
+	if (debug & level)						\
+		printk(KERN_DEBUG pr_fmt("%s: " fmt),			\
+		       __func__, ##arg);				\
+} while (0)
 
 /* mask for enabling a specific pid for the pid_filter */
 #define DIB3000_ACTIVATE_PID_FILTERING	(0x2000)

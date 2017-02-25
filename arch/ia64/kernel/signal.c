@@ -22,7 +22,7 @@
 #include <linux/wait.h>
 
 #include <asm/intrinsics.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/rse.h>
 #include <asm/sigcontext.h>
 

@@ -152,12 +152,12 @@ static inline void gic_map_to_vpe(unsigned int intr, unsigned int vpe)
 }
 
 #ifdef CONFIG_CLKSRC_MIPS_GIC
-cycle_t gic_read_count(void)
+u64 gic_read_count(void)
 {
 	unsigned int hi, hi2, lo;
 
 	if (mips_cm_is64)
-		return (cycle_t)gic_read(GIC_REG(SHARED, GIC_SH_COUNTER));
+		return (u64)gic_read(GIC_REG(SHARED, GIC_SH_COUNTER));
 
 	do {
 		hi = gic_read32(GIC_REG(SHARED, GIC_SH_COUNTER_63_32));
@@ -165,7 +165,7 @@ cycle_t gic_read_count(void)
 		hi2 = gic_read32(GIC_REG(SHARED, GIC_SH_COUNTER_63_32));
 	} while (hi2 != hi);
 
-	return (((cycle_t) hi) << 32) + lo;
+	return (((u64) hi) << 32) + lo;
 }
 
 unsigned int gic_get_count_width(void)
@@ -179,7 +179,7 @@ unsigned int gic_get_count_width(void)
 	return bits;
 }
 
-void gic_write_compare(cycle_t cnt)
+void gic_write_compare(u64 cnt)
 {
 	if (mips_cm_is64) {
 		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_COMPARE), cnt);
@@ -191,7 +191,7 @@ void gic_write_compare(cycle_t cnt)
 	}
 }
 
-void gic_write_cpu_compare(cycle_t cnt, int cpu)
+void gic_write_cpu_compare(u64 cnt, int cpu)
 {
 	unsigned long flags;
 
@@ -211,17 +211,17 @@ void gic_write_cpu_compare(cycle_t cnt, int cpu)
 	local_irq_restore(flags);
 }
 
-cycle_t gic_read_compare(void)
+u64 gic_read_compare(void)
 {
 	unsigned int hi, lo;
 
 	if (mips_cm_is64)
-		return (cycle_t)gic_read(GIC_REG(VPE_LOCAL, GIC_VPE_COMPARE));
+		return (u64)gic_read(GIC_REG(VPE_LOCAL, GIC_VPE_COMPARE));
 
 	hi = gic_read32(GIC_REG(VPE_LOCAL, GIC_VPE_COMPARE_HI));
 	lo = gic_read32(GIC_REG(VPE_LOCAL, GIC_VPE_COMPARE_LO));
 
-	return (((cycle_t) hi) << 32) + lo;
+	return (((u64) hi) << 32) + lo;
 }
 
 void gic_start_count(void)

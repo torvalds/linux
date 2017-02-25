@@ -59,8 +59,9 @@ Optional properties:
   is specified and the ciu clock is specified then we'll try to set the ciu
   clock to this at probe time.
 
-* clock-freq-min-max: Minimum and Maximum clock frequency for card output
+* clock-freq-min-max (DEPRECATED): Minimum and Maximum clock frequency for card output
   clock(cclk_out). If it's not specified, max is 200MHZ and min is 400KHz by default.
+	  (Use the "max-frequency" instead of "clock-freq-min-max".)
 
 * num-slots: specifies the number of slots supported by the controller.
   The number of physical slots actually used could be equal or less than the
@@ -73,11 +74,6 @@ Optional properties:
 
 * card-detect-delay: Delay in milli-seconds before detecting card after card
   insert event. The default value is 0.
-
-* supports-highspeed (DEPRECATED): Enables support for high speed cards (up to 50MHz)
-			   (use "cap-mmc-highspeed" or "cap-sd-highspeed" instead)
-
-* broken-cd: as documented in mmc core bindings.
 
 * vmmc-supply: The phandle to the regulator to use for vmmc.  If this is
   specified we'll defer probe until we can find this regulator.

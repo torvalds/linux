@@ -30,8 +30,8 @@ struct ccu_nk {
 	u32			enable;
 	u32			lock;
 
-	struct _ccu_mult	n;
-	struct _ccu_mult	k;
+	struct ccu_mult_internal	n;
+	struct ccu_mult_internal	k;
 
 	unsigned int		fixed_post_div;
 

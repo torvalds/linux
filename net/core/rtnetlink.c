@@ -40,7 +40,7 @@
 #include <linux/pci.h>
 #include <linux/etherdevice.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/inet.h>
 #include <linux/netdevice.h>
@@ -1505,6 +1505,7 @@ static const struct nla_policy ifla_port_policy[IFLA_PORT_MAX+1] = {
 static const struct nla_policy ifla_xdp_policy[IFLA_XDP_MAX + 1] = {
 	[IFLA_XDP_FD]		= { .type = NLA_S32 },
 	[IFLA_XDP_ATTACHED]	= { .type = NLA_U8 },
+	[IFLA_XDP_FLAGS]	= { .type = NLA_U32 },
 };
 
 static const struct rtnl_link_ops *linkinfo_to_kind_ops(const struct nlattr *nla)
@@ -2164,6 +2165,7 @@ static int do_setlink(const struct sk_buff *skb,
 
 	if (tb[IFLA_XDP]) {
 		struct nlattr *xdp[IFLA_XDP_MAX + 1];
+		u32 xdp_flags = 0;
 
 		err = nla_parse_nested(xdp, IFLA_XDP_MAX, tb[IFLA_XDP],
 				       ifla_xdp_policy);
@@ -2174,9 +2176,19 @@ static int do_setlink(const struct sk_buff *skb,
 			err = -EINVAL;
 			goto errout;
 		}
+
+		if (xdp[IFLA_XDP_FLAGS]) {
+			xdp_flags = nla_get_u32(xdp[IFLA_XDP_FLAGS]);
+			if (xdp_flags & ~XDP_FLAGS_MASK) {
+				err = -EINVAL;
+				goto errout;
+			}
+		}
+
 		if (xdp[IFLA_XDP_FD]) {
 			err = dev_change_xdp_fd(dev,
-						nla_get_s32(xdp[IFLA_XDP_FD]));
+						nla_get_s32(xdp[IFLA_XDP_FD]),
+						xdp_flags);
 			if (err)
 				goto errout;
 			status |= DO_SETLINK_NOTIFY;
@@ -3165,7 +3177,7 @@ int ndo_dflt_fdb_dump(struct sk_buff *skb,
 	err = nlmsg_populate_fdb(skb, cb, dev, idx, &dev->uc);
 	if (err)
 		goto out;
-	nlmsg_populate_fdb(skb, cb, dev, idx, &dev->mc);
+	err = nlmsg_populate_fdb(skb, cb, dev, idx, &dev->mc);
 out:
 	netif_addr_unlock_bh(dev);
 	return err;
@@ -3671,7 +3683,7 @@ static int rtnl_get_offload_stats(struct sk_buff *skb, struct net_device *dev,
 		if (!size)
 			continue;
 
-		if (!dev->netdev_ops->ndo_has_offload_stats(attr_id))
+		if (!dev->netdev_ops->ndo_has_offload_stats(dev, attr_id))
 			continue;
 
 		attr = nla_reserve_64bit(skb, attr_id, size,
@@ -3712,7 +3724,7 @@ static int rtnl_get_offload_stats_size(const struct net_device *dev)
 
 	for (attr_id = IFLA_OFFLOAD_XSTATS_FIRST;
 	     attr_id <= IFLA_OFFLOAD_XSTATS_MAX; attr_id++) {
-		if (!dev->netdev_ops->ndo_has_offload_stats(attr_id))
+		if (!dev->netdev_ops->ndo_has_offload_stats(dev, attr_id))
 			continue;
 		size = rtnl_get_offload_stats_attr_size(attr_id);
 		nla_size += nla_total_size_64bit(size);
@@ -3886,6 +3898,9 @@ static int rtnl_stats_get(struct sk_buff *skb, struct nlmsghdr *nlh)
 	u32 filter_mask;
 	int err;
 
+	if (nlmsg_len(nlh) < sizeof(*ifsm))
+		return -EINVAL;
+
 	ifsm = nlmsg_data(nlh);
 	if (ifsm->ifindex > 0)
 		dev = __dev_get_by_index(net, ifsm->ifindex);
@@ -3934,6 +3949,9 @@ static int rtnl_stats_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	s_prividx = cb->args[3];
 
 	cb->seq = net->dev_base_seq;
+
+	if (nlmsg_len(cb->nlh) < sizeof(*ifsm))
+		return -EINVAL;
 
 	ifsm = nlmsg_data(cb->nlh);
 	filter_mask = ifsm->filter_mask;

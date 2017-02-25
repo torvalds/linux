@@ -64,6 +64,14 @@
 	aliases {
 		serial0 = &usart3;
 	};
+
+	soc {
+		dma-ranges = <0xc0000000 0x0 0x10000000>;
+	};
+};
+
+&rcc {
+	compatible = "st,stm32f469-rcc", "st,stm32f42xx-rcc", "st,stm32-rcc";
 };
 
 &clk_hse {

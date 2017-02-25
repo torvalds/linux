@@ -247,3 +247,10 @@ MODULE_DESCRIPTION("CPUFreq driver based on the ACPI CPPC v5.0+ spec");
 MODULE_LICENSE("GPL");
 
 late_initcall(cppc_cpufreq_init);
+
+static const struct acpi_device_id cppc_acpi_ids[] = {
+	{ACPI_PROCESSOR_DEVICE_HID, },
+	{}
+};
+
+MODULE_DEVICE_TABLE(acpi, cppc_acpi_ids);

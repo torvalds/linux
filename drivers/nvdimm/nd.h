@@ -238,6 +238,7 @@ int nvdimm_set_config_data(struct nvdimm_drvdata *ndd, size_t offset,
 		void *buf, size_t len);
 long nvdimm_clear_poison(struct device *dev, phys_addr_t phys,
 		unsigned int len);
+void nvdimm_set_aliasing(struct device *dev);
 struct nd_btt *to_nd_btt(struct device *dev);
 
 struct nd_gen_sb {
@@ -377,10 +378,17 @@ static inline bool nd_iostat_start(struct bio *bio, unsigned long *start)
 	if (!blk_queue_io_stat(disk->queue))
 		return false;
 
-	__nd_iostat_start(bio, start);
+	*start = jiffies;
+	generic_start_io_acct(bio_data_dir(bio),
+			      bio_sectors(bio), &disk->part0);
 	return true;
 }
-void nd_iostat_end(struct bio *bio, unsigned long start);
+static inline void nd_iostat_end(struct bio *bio, unsigned long start)
+{
+	struct gendisk *disk = bio->bi_bdev->bd_disk;
+
+	generic_end_io_acct(bio_data_dir(bio), &disk->part0, start);
+}
 static inline bool is_bad_pmem(struct badblocks *bb, sector_t sector,
 		unsigned int len)
 {

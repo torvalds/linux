@@ -12264,7 +12264,7 @@ static void drx39xxj_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops drx39xxj_ops;
+static const struct dvb_frontend_ops drx39xxj_ops;
 
 struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 {
@@ -12363,7 +12363,7 @@ error:
 }
 EXPORT_SYMBOL(drx39xxj_attach);
 
-static struct dvb_frontend_ops drx39xxj_ops = {
+static const struct dvb_frontend_ops drx39xxj_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		 .name = "Micronas DRX39xxj family Frontend",

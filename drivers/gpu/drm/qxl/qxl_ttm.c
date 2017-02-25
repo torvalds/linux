@@ -387,6 +387,7 @@ static struct ttm_bo_driver qxl_bo_driver = {
 	.ttm_tt_unpopulate = &qxl_ttm_tt_unpopulate,
 	.invalidate_caches = &qxl_invalidate_caches,
 	.init_mem_type = &qxl_init_mem_type,
+	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = &qxl_evict_flags,
 	.move = &qxl_bo_move,
 	.verify_access = &qxl_verify_access,

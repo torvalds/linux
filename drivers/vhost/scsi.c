@@ -843,7 +843,7 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 	struct iov_iter out_iter, in_iter, prot_iter, data_iter;
 	u64 tag;
 	u32 exp_data_len, data_direction;
-	unsigned out, in;
+	unsigned int out = 0, in = 0;
 	int head, ret, prot_bytes;
 	size_t req_size, rsp_size = sizeof(struct virtio_scsi_cmd_resp);
 	size_t out_size, in_size;
@@ -922,8 +922,7 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 		 */
 		iov_iter_init(&out_iter, WRITE, vq->iov, out, out_size);
 
-		ret = copy_from_iter(req, req_size, &out_iter);
-		if (unlikely(ret != req_size)) {
+		if (unlikely(!copy_from_iter_full(req, req_size, &out_iter))) {
 			vq_err(vq, "Faulted on copy_from_iter\n");
 			vhost_scsi_send_bad_target(vs, vq, head, out);
 			continue;
@@ -1749,7 +1748,6 @@ out:
 static int vhost_scsi_make_nexus(struct vhost_scsi_tpg *tpg,
 				const char *name)
 {
-	struct se_portal_group *se_tpg;
 	struct vhost_scsi_nexus *tv_nexus;
 
 	mutex_lock(&tpg->tv_tpg_mutex);
@@ -1758,7 +1756,6 @@ static int vhost_scsi_make_nexus(struct vhost_scsi_tpg *tpg,
 		pr_debug("tpg->tpg_nexus already exists\n");
 		return -EEXIST;
 	}
-	se_tpg = &tpg->se_tpg;
 
 	tv_nexus = kzalloc(sizeof(struct vhost_scsi_nexus), GFP_KERNEL);
 	if (!tv_nexus) {
@@ -2090,7 +2087,7 @@ static struct configfs_attribute *vhost_scsi_wwn_attrs[] = {
 	NULL,
 };
 
-static struct target_core_fabric_ops vhost_scsi_ops = {
+static const struct target_core_fabric_ops vhost_scsi_ops = {
 	.module				= THIS_MODULE,
 	.name				= "vhost",
 	.get_fabric_name		= vhost_scsi_get_fabric_name,

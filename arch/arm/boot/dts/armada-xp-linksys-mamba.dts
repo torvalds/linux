@@ -62,7 +62,7 @@
 		stdout-path = &uart0;
 	};
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x00000000 0x00000000 0x00000000 0x10000000>; /* 256MB */
 	};
@@ -72,28 +72,6 @@
 			  MBUS_ID(0x01, 0x1d) 0 0 0xfff00000 0x100000
 			  MBUS_ID(0x09, 0x09) 0 0 0xf1100000 0x10000
 			  MBUS_ID(0x09, 0x05) 0 0 0xf1110000 0x10000>;
-
-		pcie-controller {
-			status = "okay";
-
-			/* Etron EJ168 USB 3.0 controller */
-			pcie@1,0 {
-				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-
-			/* First mini-PCIe port */
-			pcie@2,0 {
-				/* Port 0, Lane 1 */
-				status = "okay";
-			};
-
-			/* Second mini-PCIe port */
-			pcie@3,0 {
-				/* Port 0, Lane 3 */
-				status = "okay";
-			};
-		};
 
 		internal-regs {
 
@@ -289,13 +267,13 @@
 		pinctrl-0 = <&keys_pin>;
 		pinctrl-names = "default";
 
-		button@1 {
+		wps {
 			label = "WPS";
 			linux,code = <KEY_WPS_BUTTON>;
 			gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;
 		};
 
-		button@2 {
+		reset {
 			label = "Factory Reset Button";
 			linux,code = <KEY_RESTART>;
 			gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
@@ -323,7 +301,7 @@
 				      4500 1>;
 	};
 
-	dsa@0 {
+	dsa {
 		compatible = "marvell,dsa";
 		#address-cells = <2>;
 		#size-cells = <0>;
@@ -366,6 +344,28 @@
 				label = "cpu";
 			};
 		};
+	};
+};
+
+&pciec {
+	status = "okay";
+
+	/* Etron EJ168 USB 3.0 controller */
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
+	};
+
+	/* First mini-PCIe port */
+	pcie@2,0 {
+		/* Port 0, Lane 1 */
+		status = "okay";
+	};
+
+	/* Second mini-PCIe port */
+	pcie@3,0 {
+		/* Port 0, Lane 3 */
+		status = "okay";
 	};
 };
 

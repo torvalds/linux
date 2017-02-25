@@ -439,6 +439,16 @@ config SERIAL_8250_MOXA
 	  This driver can also be built as a module. The module will be called
 	  8250_moxa. If you want to do that, say M here.
 
+config SERIAL_8250_PXA
+	tristate "PXA serial port support"
+	depends on SERIAL_8250
+	depends on ARCH_PXA || ARCH_MMP
+	help
+	  If you have a machine based on an Intel XScale PXA2xx CPU you can
+	  enable its onboard serial ports by enabling this option. The option is
+	  applicable to both devicetree and legacy boards, and early console is
+	  part of its support.
+
 config SERIAL_OF_PLATFORM
 	tristate "Devicetree based probing for 8250 ports"
 	depends on SERIAL_8250 && OF

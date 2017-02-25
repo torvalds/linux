@@ -292,6 +292,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 	if (of_device_is_compatible(np, "snps,dwmac-4.00") ||
 	    of_device_is_compatible(np, "snps,dwmac-4.10a")) {
 		plat->has_gmac4 = 1;
+		plat->has_gmac = 0;
 		plat->pmt = 1;
 		plat->tso_en = of_property_read_bool(np, "snps,tso");
 	}
@@ -303,21 +304,25 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 		plat->force_sf_dma_mode = 1;
 	}
 
-	if (of_find_property(np, "snps,pbl", NULL)) {
-		dma_cfg = devm_kzalloc(&pdev->dev, sizeof(*dma_cfg),
-				       GFP_KERNEL);
-		if (!dma_cfg) {
-			stmmac_remove_config_dt(pdev, plat);
-			return ERR_PTR(-ENOMEM);
-		}
-		plat->dma_cfg = dma_cfg;
-		of_property_read_u32(np, "snps,pbl", &dma_cfg->pbl);
-		dma_cfg->aal = of_property_read_bool(np, "snps,aal");
-		dma_cfg->fixed_burst =
-			of_property_read_bool(np, "snps,fixed-burst");
-		dma_cfg->mixed_burst =
-			of_property_read_bool(np, "snps,mixed-burst");
+	dma_cfg = devm_kzalloc(&pdev->dev, sizeof(*dma_cfg),
+			       GFP_KERNEL);
+	if (!dma_cfg) {
+		stmmac_remove_config_dt(pdev, plat);
+		return ERR_PTR(-ENOMEM);
 	}
+	plat->dma_cfg = dma_cfg;
+
+	of_property_read_u32(np, "snps,pbl", &dma_cfg->pbl);
+	if (!dma_cfg->pbl)
+		dma_cfg->pbl = DEFAULT_DMA_PBL;
+	of_property_read_u32(np, "snps,txpbl", &dma_cfg->txpbl);
+	of_property_read_u32(np, "snps,rxpbl", &dma_cfg->rxpbl);
+	dma_cfg->pblx8 = !of_property_read_bool(np, "snps,no-pbl-x8");
+
+	dma_cfg->aal = of_property_read_bool(np, "snps,aal");
+	dma_cfg->fixed_burst = of_property_read_bool(np, "snps,fixed-burst");
+	dma_cfg->mixed_burst = of_property_read_bool(np, "snps,mixed-burst");
+
 	plat->force_thresh_dma_mode = of_property_read_bool(np, "snps,force_thresh_dma_mode");
 	if (plat->force_thresh_dma_mode) {
 		plat->force_sf_dma_mode = 0;
@@ -346,6 +351,7 @@ void stmmac_remove_config_dt(struct platform_device *pdev,
 	if (of_phy_is_fixed_link(np))
 		of_phy_deregister_fixed_link(np);
 	of_node_put(plat->phy_node);
+	of_node_put(plat->mdio_node);
 }
 #else
 struct plat_stmmacenet_data *
@@ -444,9 +450,7 @@ static int stmmac_pltfr_suspend(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 
 	ret = stmmac_suspend(dev);
-	if (priv->plat->suspend)
-		priv->plat->suspend(pdev, priv->plat->bsp_priv);
-	else if (priv->plat->exit)
+	if (priv->plat->exit)
 		priv->plat->exit(pdev, priv->plat->bsp_priv);
 
 	return ret;
@@ -465,9 +469,7 @@ static int stmmac_pltfr_resume(struct device *dev)
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	struct platform_device *pdev = to_platform_device(dev);
 
-	if (priv->plat->resume)
-		priv->plat->resume(pdev, priv->plat->bsp_priv);
-	else if (priv->plat->init)
+	if (priv->plat->init)
 		priv->plat->init(pdev, priv->plat->bsp_priv);
 
 	return stmmac_resume(dev);

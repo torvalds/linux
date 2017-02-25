@@ -421,7 +421,7 @@ read_rio(struct file *file, char __user *buffer, size_t count, loff_t * ppos)
 		} else if (result != -EREMOTEIO) {
 			mutex_unlock(&(rio->lock));
 			dev_err(&rio->rio_dev->dev,
-				"Read Whoops - result:%u partial:%u this_read:%u\n",
+				"Read Whoops - result:%d partial:%u this_read:%u\n",
 				result, partial, this_read);
 			return -EIO;
 		} else {

@@ -836,6 +836,9 @@ static void i40evf_print_link_message(struct i40evf_adapter *adapter)
 	case I40E_LINK_SPEED_40GB:
 		speed = "40 G";
 		break;
+	case I40E_LINK_SPEED_25GB:
+		speed = "25 G";
+		break;
 	case I40E_LINK_SPEED_20GB:
 		speed = "20 G";
 		break;

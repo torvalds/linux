@@ -68,7 +68,7 @@ static int mxs_sgtl5000_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops mxs_sgtl5000_hifi_ops = {
+static const struct snd_soc_ops mxs_sgtl5000_hifi_ops = {
 	.hw_params = mxs_sgtl5000_hw_params,
 };
 

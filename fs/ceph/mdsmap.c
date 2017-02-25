@@ -42,6 +42,60 @@ int ceph_mdsmap_get_random_mds(struct ceph_mdsmap *m)
 	return i;
 }
 
+#define __decode_and_drop_type(p, end, type, bad)		\
+	do {							\
+		if (*p + sizeof(type) > end)			\
+			goto bad;				\
+		*p += sizeof(type);				\
+	} while (0)
+
+#define __decode_and_drop_set(p, end, type, bad)		\
+	do {							\
+		u32 n;						\
+		size_t need;					\
+		ceph_decode_32_safe(p, end, n, bad);		\
+		need = sizeof(type) * n;			\
+		ceph_decode_need(p, end, need, bad);		\
+		*p += need;					\
+	} while (0)
+
+#define __decode_and_drop_map(p, end, ktype, vtype, bad)	\
+	do {							\
+		u32 n;						\
+		size_t need;					\
+		ceph_decode_32_safe(p, end, n, bad);		\
+		need = (sizeof(ktype) + sizeof(vtype)) * n;	\
+		ceph_decode_need(p, end, need, bad);		\
+		*p += need;					\
+	} while (0)
+
+
+static int __decode_and_drop_compat_set(void **p, void* end)
+{
+	int i;
+	/* compat, ro_compat, incompat*/
+	for (i = 0; i < 3; i++) {
+		u32 n;
+		ceph_decode_need(p, end, sizeof(u64) + sizeof(u32), bad);
+		/* mask */
+		*p += sizeof(u64);
+		/* names (map<u64, string>) */
+		n = ceph_decode_32(p);
+		while (n-- > 0) {
+			u32 len;
+			ceph_decode_need(p, end, sizeof(u64) + sizeof(u32),
+					 bad);
+			*p += sizeof(u64);
+			len = ceph_decode_32(p);
+			ceph_decode_need(p, end, len, bad);
+			*p += len;
+		}
+	}
+	return 0;
+bad:
+	return -1;
+}
+
 /*
  * Decode an MDS map
  *
@@ -55,6 +109,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 	int i, j, n;
 	int err = -EINVAL;
 	u8 mdsmap_v, mdsmap_cv;
+	u16 mdsmap_ev;
 
 	m = kzalloc(sizeof(*m), GFP_NOFS);
 	if (m == NULL)
@@ -83,7 +138,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 
 	m->m_info = kcalloc(m->m_max_mds, sizeof(*m->m_info), GFP_NOFS);
 	if (m->m_info == NULL)
-		goto badmem;
+		goto nomem;
 
 	/* pick out active nodes from mds_info (state > 0) */
 	n = ceph_decode_32(p);
@@ -166,7 +221,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 			info->export_targets = kcalloc(num_export_targets,
 						       sizeof(u32), GFP_NOFS);
 			if (info->export_targets == NULL)
-				goto badmem;
+				goto nomem;
 			for (j = 0; j < num_export_targets; j++)
 				info->export_targets[j] =
 				       ceph_decode_32(&pexport_targets);
@@ -180,24 +235,104 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 	m->m_num_data_pg_pools = n;
 	m->m_data_pg_pools = kcalloc(n, sizeof(u64), GFP_NOFS);
 	if (!m->m_data_pg_pools)
-		goto badmem;
+		goto nomem;
 	ceph_decode_need(p, end, sizeof(u64)*(n+1), bad);
 	for (i = 0; i < n; i++)
 		m->m_data_pg_pools[i] = ceph_decode_64(p);
 	m->m_cas_pg_pool = ceph_decode_64(p);
+	m->m_enabled = m->m_epoch > 1;
 
-	/* ok, we don't care about the rest. */
+	mdsmap_ev = 1;
+	if (mdsmap_v >= 2) {
+		ceph_decode_16_safe(p, end, mdsmap_ev, bad_ext);
+	}
+	if (mdsmap_ev >= 3) {
+		if (__decode_and_drop_compat_set(p, end) < 0)
+			goto bad_ext;
+	}
+	/* metadata_pool */
+	if (mdsmap_ev < 5) {
+		__decode_and_drop_type(p, end, u32, bad_ext);
+	} else {
+		__decode_and_drop_type(p, end, u64, bad_ext);
+	}
+
+	/* created + modified + tableserver */
+	__decode_and_drop_type(p, end, struct ceph_timespec, bad_ext);
+	__decode_and_drop_type(p, end, struct ceph_timespec, bad_ext);
+	__decode_and_drop_type(p, end, u32, bad_ext);
+
+	/* in */
+	{
+		int num_laggy = 0;
+		ceph_decode_32_safe(p, end, n, bad_ext);
+		ceph_decode_need(p, end, sizeof(u32) * n, bad_ext);
+
+		for (i = 0; i < n; i++) {
+			s32 mds = ceph_decode_32(p);
+			if (mds >= 0 && mds < m->m_max_mds) {
+				if (m->m_info[mds].laggy)
+					num_laggy++;
+			}
+		}
+		m->m_num_laggy = num_laggy;
+	}
+
+	/* inc */
+	__decode_and_drop_map(p, end, u32, u32, bad_ext);
+	/* up */
+	__decode_and_drop_map(p, end, u32, u64, bad_ext);
+	/* failed */
+	__decode_and_drop_set(p, end, u32, bad_ext);
+	/* stopped */
+	__decode_and_drop_set(p, end, u32, bad_ext);
+
+	if (mdsmap_ev >= 4) {
+		/* last_failure_osd_epoch */
+		__decode_and_drop_type(p, end, u32, bad_ext);
+	}
+	if (mdsmap_ev >= 6) {
+		/* ever_allowed_snaps */
+		__decode_and_drop_type(p, end, u8, bad_ext);
+		/* explicitly_allowed_snaps */
+		__decode_and_drop_type(p, end, u8, bad_ext);
+	}
+	if (mdsmap_ev >= 7) {
+		/* inline_data_enabled */
+		__decode_and_drop_type(p, end, u8, bad_ext);
+	}
+	if (mdsmap_ev >= 8) {
+		u32 name_len;
+		/* enabled */
+		ceph_decode_8_safe(p, end, m->m_enabled, bad_ext);
+		ceph_decode_32_safe(p, end, name_len, bad_ext);
+		ceph_decode_need(p, end, name_len, bad_ext);
+		*p += name_len;
+	}
+	/* damaged */
+	if (mdsmap_ev >= 9) {
+		size_t need;
+		ceph_decode_32_safe(p, end, n, bad_ext);
+		need = sizeof(u32) * n;
+		ceph_decode_need(p, end, need, bad_ext);
+		*p += need;
+		m->m_damaged = n > 0;
+	} else {
+		m->m_damaged = false;
+	}
+bad_ext:
 	*p = end;
 	dout("mdsmap_decode success epoch %u\n", m->m_epoch);
 	return m;
-
-badmem:
+nomem:
 	err = -ENOMEM;
+	goto out_err;
 bad:
 	pr_err("corrupt mdsmap\n");
 	print_hex_dump(KERN_DEBUG, "mdsmap: ",
 		       DUMP_PREFIX_OFFSET, 16, 1,
 		       start, end - start, true);
+out_err:
 	ceph_mdsmap_destroy(m);
 	return ERR_PTR(err);
 }
@@ -211,4 +346,20 @@ void ceph_mdsmap_destroy(struct ceph_mdsmap *m)
 	kfree(m->m_info);
 	kfree(m->m_data_pg_pools);
 	kfree(m);
+}
+
+bool ceph_mdsmap_is_cluster_available(struct ceph_mdsmap *m)
+{
+	int i, nr_active = 0;
+	if (!m->m_enabled)
+		return false;
+	if (m->m_damaged)
+		return false;
+	if (m->m_num_laggy > 0)
+		return false;
+	for (i = 0; i < m->m_max_mds; i++) {
+		if (m->m_info[i].state == CEPH_MDS_STATE_ACTIVE)
+			nr_active++;
+	}
+	return nr_active > 0;
 }

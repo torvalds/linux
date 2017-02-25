@@ -114,6 +114,6 @@ extern int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
 
 extern void ttm_eu_fence_buffer_objects(struct ww_acquire_ctx *ticket,
 					struct list_head *list,
-					struct fence *fence);
+					struct dma_fence *fence);
 
 #endif

@@ -216,7 +216,7 @@ static int cdce925_pll_prepare(struct clk_hw *hw)
 		nn = n * BIT(p);
 		/* q = int(nn/m) */
 		q = nn / m;
-		if ((q < 16) || (1 > 64)) {
+		if ((q < 16) || (q > 63)) {
 			pr_debug("%s invalid q=%d\n", __func__, q);
 			return -EINVAL;
 		}

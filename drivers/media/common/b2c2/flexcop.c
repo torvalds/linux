@@ -46,8 +46,7 @@ int b2c2_flexcop_debug;
 EXPORT_SYMBOL_GPL(b2c2_flexcop_debug);
 module_param_named(debug, b2c2_flexcop_debug,  int, 0644);
 MODULE_PARM_DESC(debug,
-		"set debug level (1=info,2=tuner,4=i2c,8=ts,"
-		"16=sram,32=reg (|-able))."
+		"set debug level (1=info,2=tuner,4=i2c,8=ts,16=sram,32=reg (|-able))."
 		DEBSTATUS);
 #undef DEBSTATUS
 

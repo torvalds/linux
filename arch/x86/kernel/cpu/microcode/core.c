@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2000-2006 Tigran Aivazian <tigran@aivazian.fsnet.co.uk>
  *	      2006	Shaohua Li <shaohua.li@intel.com>
- *	      2013-2015	Borislav Petkov <bp@alien8.de>
+ *	      2013-2016	Borislav Petkov <bp@alien8.de>
  *
  * X86 CPU microcode early update for Linux:
  *
@@ -39,11 +39,16 @@
 #include <asm/microcode.h>
 #include <asm/processor.h>
 #include <asm/cmdline.h>
+#include <asm/setup.h>
 
-#define MICROCODE_VERSION	"2.01"
+#define DRIVER_VERSION	"2.2"
 
 static struct microcode_ops	*microcode_ops;
-static bool dis_ucode_ldr;
+static bool dis_ucode_ldr = true;
+
+bool initrd_gone;
+
+LIST_HEAD(microcode_cache);
 
 /*
  * Synchronization.
@@ -73,6 +78,7 @@ struct cpu_info_ctx {
 static bool __init check_loader_disabled_bsp(void)
 {
 	static const char *__dis_opt_str = "dis_ucode_ldr";
+	u32 a, b, c, d;
 
 #ifdef CONFIG_X86_32
 	const char *cmdline = (const char *)__pa_nodebug(boot_command_line);
@@ -85,8 +91,23 @@ static bool __init check_loader_disabled_bsp(void)
 	bool *res = &dis_ucode_ldr;
 #endif
 
-	if (cmdline_find_option_bool(cmdline, option))
-		*res = true;
+	if (!have_cpuid_p())
+		return *res;
+
+	a = 1;
+	c = 0;
+	native_cpuid(&a, &b, &c, &d);
+
+	/*
+	 * CPUID(1).ECX[31]: reserved for hypervisor use. This is still not
+	 * completely accurate as xen pv guests don't see that CPUID bit set but
+	 * that's good enough as they don't land on the BSP path anyway.
+	 */
+	if (c & BIT(31))
+		return *res;
+
+	if (cmdline_find_option_bool(cmdline, option) <= 0)
+		*res = false;
 
 	return *res;
 }
@@ -116,9 +137,6 @@ void __init load_ucode_bsp(void)
 	unsigned int family;
 
 	if (check_loader_disabled_bsp())
-		return;
-
-	if (!have_cpuid_p())
 		return;
 
 	vendor = x86_cpuid_vendor();
@@ -154,9 +172,6 @@ void load_ucode_ap(void)
 	if (check_loader_disabled_ap())
 		return;
 
-	if (!have_cpuid_p())
-		return;
-
 	vendor = x86_cpuid_vendor();
 	family = x86_cpuid_family();
 
@@ -167,7 +182,7 @@ void load_ucode_ap(void)
 		break;
 	case X86_VENDOR_AMD:
 		if (family >= 0x10)
-			load_ucode_amd_ap();
+			load_ucode_amd_ap(family);
 		break;
 	default:
 		break;
@@ -177,21 +192,81 @@ void load_ucode_ap(void)
 static int __init save_microcode_in_initrd(void)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
+	int ret = -EINVAL;
 
 	switch (c->x86_vendor) {
 	case X86_VENDOR_INTEL:
 		if (c->x86 >= 6)
-			return save_microcode_in_initrd_intel();
+			ret = save_microcode_in_initrd_intel();
 		break;
 	case X86_VENDOR_AMD:
 		if (c->x86 >= 0x10)
-			return save_microcode_in_initrd_amd();
+			ret = save_microcode_in_initrd_amd(c->x86);
 		break;
 	default:
 		break;
 	}
 
-	return -EINVAL;
+	initrd_gone = true;
+
+	return ret;
+}
+
+struct cpio_data find_microcode_in_initrd(const char *path, bool use_pa)
+{
+#ifdef CONFIG_BLK_DEV_INITRD
+	unsigned long start = 0;
+	size_t size;
+
+#ifdef CONFIG_X86_32
+	struct boot_params *params;
+
+	if (use_pa)
+		params = (struct boot_params *)__pa_nodebug(&boot_params);
+	else
+		params = &boot_params;
+
+	size = params->hdr.ramdisk_size;
+
+	/*
+	 * Set start only if we have an initrd image. We cannot use initrd_start
+	 * because it is not set that early yet.
+	 */
+	if (size)
+		start = params->hdr.ramdisk_image;
+
+# else /* CONFIG_X86_64 */
+	size  = (unsigned long)boot_params.ext_ramdisk_size << 32;
+	size |= boot_params.hdr.ramdisk_size;
+
+	if (size) {
+		start  = (unsigned long)boot_params.ext_ramdisk_image << 32;
+		start |= boot_params.hdr.ramdisk_image;
+
+		start += PAGE_OFFSET;
+	}
+# endif
+
+	/*
+	 * Fixup the start address: after reserve_initrd() runs, initrd_start
+	 * has the virtual address of the beginning of the initrd. It also
+	 * possibly relocates the ramdisk. In either case, initrd_start contains
+	 * the updated address so use that instead.
+	 *
+	 * initrd_gone is for the hotplug case where we've thrown out initrd
+	 * already.
+	 */
+	if (!use_pa) {
+		if (initrd_gone)
+			return (struct cpio_data){ NULL, 0, "" };
+		if (initrd_start)
+			start = initrd_start;
+	}
+
+	return find_cpio_data(path, (void *)start, size, NULL);
+#else /* !CONFIG_BLK_DEV_INITRD */
+	return (struct cpio_data){ NULL, 0, "" };
+#endif
 }
 
 void reload_early_microcode(void)
@@ -453,15 +528,16 @@ static struct attribute_group mc_attr_group = {
 
 static void microcode_fini_cpu(int cpu)
 {
-	microcode_ops->microcode_fini_cpu(cpu);
+	if (microcode_ops->microcode_fini_cpu)
+		microcode_ops->microcode_fini_cpu(cpu);
 }
 
 static enum ucode_state microcode_resume_cpu(int cpu)
 {
-	pr_debug("CPU%d updated upon resume\n", cpu);
-
 	if (apply_microcode_on_target(cpu))
 		return UCODE_ERROR;
+
+	pr_debug("CPU%d updated upon resume\n", cpu);
 
 	return UCODE_OK;
 }
@@ -495,6 +571,9 @@ static enum ucode_state microcode_init_cpu(int cpu, bool refresh_fw)
 static enum ucode_state microcode_update_cpu(int cpu)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
+
+	/* Refresh CPU microcode revision after resume. */
+	collect_cpu_info(cpu);
 
 	if (uci->valid)
 		return microcode_resume_cpu(cpu);
@@ -579,12 +658,7 @@ static int mc_cpu_down_prep(unsigned int cpu)
 	/* Suspend is in progress, only remove the interface */
 	sysfs_remove_group(&dev->kobj, &mc_attr_group);
 	pr_debug("CPU%d removed\n", cpu);
-	/*
-	 * When a CPU goes offline, don't free up or invalidate the copy of
-	 * the microcode in kernel memory, so that we can reuse it when the
-	 * CPU comes back online without unnecessarily requesting the userspace
-	 * for it again.
-	 */
+
 	return 0;
 }
 
@@ -649,8 +723,7 @@ int __init microcode_init(void)
 	cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "x86/microcode:online",
 				  mc_cpu_online, mc_cpu_down_prep);
 
-	pr_info("Microcode Update Driver: v" MICROCODE_VERSION
-		" <tigran@aivazian.fsnet.co.uk>, Peter Oruba\n");
+	pr_info("Microcode Update Driver: v%s.", DRIVER_VERSION);
 
 	return 0;
 

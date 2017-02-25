@@ -460,7 +460,7 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 
 static DEVICE_ATTR(gt_act_freq_mhz, S_IRUGO, gt_act_freq_mhz_show, NULL);
 static DEVICE_ATTR(gt_cur_freq_mhz, S_IRUGO, gt_cur_freq_mhz_show, NULL);
-static DEVICE_ATTR(gt_boost_freq_mhz, S_IRUGO, gt_boost_freq_mhz_show, gt_boost_freq_mhz_store);
+static DEVICE_ATTR(gt_boost_freq_mhz, S_IRUGO | S_IWUSR, gt_boost_freq_mhz_show, gt_boost_freq_mhz_store);
 static DEVICE_ATTR(gt_max_freq_mhz, S_IRUGO | S_IWUSR, gt_max_freq_mhz_show, gt_max_freq_mhz_store);
 static DEVICE_ATTR(gt_min_freq_mhz, S_IRUGO | S_IWUSR, gt_min_freq_mhz_show, gt_min_freq_mhz_store);
 
@@ -513,6 +513,8 @@ static const struct attribute *vlv_attrs[] = {
 	&dev_attr_vlv_rpe_freq_mhz.attr,
 	NULL,
 };
+
+#if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 
 static ssize_t error_state_read(struct file *filp, struct kobject *kobj,
 				struct bin_attribute *attr, char *buf,
@@ -571,6 +573,21 @@ static struct bin_attribute error_state_attr = {
 	.write = error_state_write,
 };
 
+static void i915_setup_error_capture(struct device *kdev)
+{
+	if (sysfs_create_bin_file(&kdev->kobj, &error_state_attr))
+		DRM_ERROR("error_state sysfs setup failed\n");
+}
+
+static void i915_teardown_error_capture(struct device *kdev)
+{
+	sysfs_remove_bin_file(&kdev->kobj, &error_state_attr);
+}
+#else
+static void i915_setup_error_capture(struct device *kdev) {}
+static void i915_teardown_error_capture(struct device *kdev) {}
+#endif
+
 void i915_setup_sysfs(struct drm_i915_private *dev_priv)
 {
 	struct device *kdev = dev_priv->drm.primary->kdev;
@@ -617,17 +634,15 @@ void i915_setup_sysfs(struct drm_i915_private *dev_priv)
 	if (ret)
 		DRM_ERROR("RPS sysfs setup failed\n");
 
-	ret = sysfs_create_bin_file(&kdev->kobj,
-				    &error_state_attr);
-	if (ret)
-		DRM_ERROR("error_state sysfs setup failed\n");
+	i915_setup_error_capture(kdev);
 }
 
 void i915_teardown_sysfs(struct drm_i915_private *dev_priv)
 {
 	struct device *kdev = dev_priv->drm.primary->kdev;
 
-	sysfs_remove_bin_file(&kdev->kobj, &error_state_attr);
+	i915_teardown_error_capture(kdev);
+
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		sysfs_remove_files(&kdev->kobj, vlv_attrs);
 	else

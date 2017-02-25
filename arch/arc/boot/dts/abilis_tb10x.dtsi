@@ -129,6 +129,7 @@
 			data-width = <4>;
 			clocks = <&ahb_clk>;
 			clock-names = "hclk";
+			multi-block = <1 1 1 1 1 1>;
 		};
 
 		i2c0: i2c@FF120000 {

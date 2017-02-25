@@ -21,8 +21,12 @@ extern int budget_debug;
 #undef dprintk
 #endif
 
-#define dprintk(level,args...) \
-	    do { if ((budget_debug & level)) { printk("%s: %s(): ", KBUILD_MODNAME, __func__); printk(args); } } while (0)
+#define dprintk(level, fmt, arg...) do {				\
+	if (level & budget_debug)					\
+		printk(KERN_DEBUG KBUILD_MODNAME ": %s(): " fmt,	\
+		       __func__, ##arg);				\
+} while (0)
+
 
 struct budget_info {
 	char *name;

@@ -175,6 +175,7 @@ static const struct of_device_id at91_reset_of_match[] = {
 	{ .compatible = "atmel,sama5d3-rstc", .data = sama5d3_restart },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, at91_reset_of_match);
 
 static struct notifier_block at91_restart_nb = {
 	.priority = 192,
@@ -242,6 +243,7 @@ static const struct platform_device_id at91_reset_plat_match[] = {
 	{ "at91-sam9g45-reset", (unsigned long)at91sam9g45_restart },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(platform, at91_reset_plat_match);
 
 static struct platform_driver at91_reset_driver = {
 	.remove = __exit_p(at91_reset_remove),

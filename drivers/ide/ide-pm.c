@@ -53,7 +53,7 @@ static int ide_pm_execute_rq(struct request *rq)
 
 	spin_lock_irq(q->queue_lock);
 	if (unlikely(blk_queue_dying(q))) {
-		rq->cmd_flags |= REQ_QUIET;
+		rq->rq_flags |= RQF_QUIET;
 		rq->errors = -ENXIO;
 		__blk_end_request_all(rq, rq->errors);
 		spin_unlock_irq(q->queue_lock);
@@ -90,7 +90,7 @@ int generic_ide_resume(struct device *dev)
 	memset(&rqpm, 0, sizeof(rqpm));
 	rq = blk_get_request(drive->queue, READ, __GFP_RECLAIM);
 	rq->cmd_type = REQ_TYPE_ATA_PM_RESUME;
-	rq->cmd_flags |= REQ_PREEMPT;
+	rq->rq_flags |= RQF_PREEMPT;
 	rq->special = &rqpm;
 	rqpm.pm_step = IDE_PM_START_RESUME;
 	rqpm.pm_state = PM_EVENT_ON;

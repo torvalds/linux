@@ -164,6 +164,7 @@ static struct s3c2410_platform_nand __initdata rx3715_nand_info = {
 	.twrph1		= 15,
 	.nr_sets	= ARRAY_SIZE(rx3715_nand_sets),
 	.sets		= rx3715_nand_sets,
+	.ecc_mode       = NAND_ECC_SOFT,
 };
 
 static struct platform_device *rx3715_devices[] __initdata = {

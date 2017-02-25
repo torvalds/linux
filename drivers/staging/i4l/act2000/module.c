@@ -19,8 +19,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 
-static unsigned short act2000_isa_ports[] =
-{
+static unsigned short act2000_isa_ports[] = {
 	0x0200, 0x0240, 0x0280, 0x02c0, 0x0300, 0x0340, 0x0380,
 	0xcfe0, 0xcfa0, 0xcf60, 0xcf20, 0xcee0, 0xcea0, 0xce60,
 };
@@ -95,7 +94,7 @@ act2000_find_msn(act2000_card *card, char *msn, int ia5)
 		p = p->next;
 	}
 	if (!ia5)
-		return (1 << (eaz - '0'));
+		return 1 << (eaz - '0');
 	else
 		return eaz;
 }
@@ -111,10 +110,10 @@ act2000_find_eaz(act2000_card *card, char eaz)
 
 	while (p) {
 		if (p->eaz == eaz)
-			return (p->msn);
+			return p->msn;
 		p = p->next;
 	}
-	return ("\0");
+	return "\0";
 }
 
 /*
@@ -293,7 +292,7 @@ act2000_command(act2000_card *card, isdn_ctrl *c)
 			if (ret)
 				return ret;
 			if (card->flags & ACT2000_FLAGS_RUNNING)
-				return (actcapi_manufacturer_req_msn(card));
+				return actcapi_manufacturer_req_msn(card);
 			return 0;
 		case ACT2000_IOCTL_ADDCARD:
 			if (copy_from_user(&cdef, arg,
@@ -377,6 +376,7 @@ act2000_command(act2000_card *card, isdn_ctrl *c)
 			}
 			if (card->ptype == ISDN_PTYPE_1TR6) {
 				int i;
+
 				chan->eazmask = 0;
 				for (i = 0; i < strlen(c->parm.num); i++)
 					if (isdigit(c->parm.num[i]))
@@ -512,7 +512,7 @@ if_command(isdn_ctrl *c)
 	act2000_card *card = act2000_findcard(c->driver);
 
 	if (card)
-		return (act2000_command(card, c));
+		return act2000_command(card, c);
 	printk(KERN_ERR
 	       "act2000: if_command %d called with invalid driverId %d!\n",
 	       c->command, c->driver);
@@ -527,7 +527,7 @@ if_writecmd(const u_char __user *buf, int len, int id, int channel)
 	if (card) {
 		if (!(card->flags & ACT2000_FLAGS_RUNNING))
 			return -ENODEV;
-		return (len);
+		return len;
 	}
 	printk(KERN_ERR
 	       "act2000: if_writecmd called with invalid driverId!\n");
@@ -542,7 +542,7 @@ if_readstatus(u_char __user *buf, int len, int id, int channel)
 	if (card) {
 		if (!(card->flags & ACT2000_FLAGS_RUNNING))
 			return -ENODEV;
-		return (act2000_readstatus(buf, len, card));
+		return act2000_readstatus(buf, len, card);
 	}
 	printk(KERN_ERR
 	       "act2000: if_readstatus called with invalid driverId!\n");
@@ -557,7 +557,7 @@ if_sendbuf(int id, int channel, int ack, struct sk_buff *skb)
 	if (card) {
 		if (!(card->flags & ACT2000_FLAGS_RUNNING))
 			return -ENODEV;
-		return (act2000_sendbuf(card, channel, ack, skb));
+		return act2000_sendbuf(card, channel, ack, skb);
 	}
 	printk(KERN_ERR
 	       "act2000: if_sendbuf called with invalid driverId!\n");
@@ -574,6 +574,7 @@ act2000_alloccard(int bus, int port, int irq, char *id)
 {
 	int i;
 	act2000_card *card;
+
 	if (!(card = kzalloc(sizeof(act2000_card), GFP_KERNEL))) {
 		printk(KERN_WARNING
 		       "act2000: (%s) Could not allocate card-struct.\n", id);
@@ -776,7 +777,7 @@ act2000_addcard(int bus, int port, int irq, char *id)
 			failed++;
 		}
 	}
-	return (added - failed);
+	return added - failed;
 }
 
 #define DRIVERNAME "IBM Active 2000 ISDN driver"
@@ -795,6 +796,7 @@ static void __exit act2000_exit(void)
 {
 	act2000_card *card = cards;
 	act2000_card *last;
+
 	while (card) {
 		unregister_card(card);
 		del_timer_sync(&card->ptimer);

@@ -20,6 +20,7 @@
 #include <sys/resource.h>
 #include "libbpf.h"
 #include "bpf_load.h"
+#include "perf-sys.h"
 
 #define SAMPLE_FREQ 50
 
@@ -61,14 +62,14 @@ static void print_stack(struct key_t *key, __u64 count)
 	int i;
 
 	printf("%3lld %s;", count, key->comm);
-	if (bpf_lookup_elem(map_fd[1], &key->kernstack, ip) != 0) {
+	if (bpf_map_lookup_elem(map_fd[1], &key->kernstack, ip) != 0) {
 		printf("---;");
 	} else {
 		for (i = PERF_MAX_STACK_DEPTH - 1; i >= 0; i--)
 			print_ksym(ip[i]);
 	}
 	printf("-;");
-	if (bpf_lookup_elem(map_fd[1], &key->userstack, ip) != 0) {
+	if (bpf_map_lookup_elem(map_fd[1], &key->userstack, ip) != 0) {
 		printf("---;");
 	} else {
 		for (i = PERF_MAX_STACK_DEPTH - 1; i >= 0; i--)
@@ -98,10 +99,10 @@ static void print_stacks(void)
 	int fd = map_fd[0], stack_map = map_fd[1];
 
 	sys_read_seen = sys_write_seen = false;
-	while (bpf_get_next_key(fd, &key, &next_key) == 0) {
-		bpf_lookup_elem(fd, &next_key, &value);
+	while (bpf_map_get_next_key(fd, &key, &next_key) == 0) {
+		bpf_map_lookup_elem(fd, &next_key, &value);
 		print_stack(&next_key, value);
-		bpf_delete_elem(fd, &next_key);
+		bpf_map_delete_elem(fd, &next_key);
 		key = next_key;
 	}
 
@@ -111,8 +112,8 @@ static void print_stacks(void)
 	}
 
 	/* clear stack map */
-	while (bpf_get_next_key(stack_map, &stackid, &next_id) == 0) {
-		bpf_delete_elem(stack_map, &next_id);
+	while (bpf_map_get_next_key(stack_map, &stackid, &next_id) == 0) {
+		bpf_map_delete_elem(stack_map, &next_id);
 		stackid = next_id;
 	}
 }
@@ -125,9 +126,9 @@ static void test_perf_event_all_cpu(struct perf_event_attr *attr)
 
 	/* open perf_event on all cpus */
 	for (i = 0; i < nr_cpus; i++) {
-		pmu_fd[i] = perf_event_open(attr, -1, i, -1, 0);
+		pmu_fd[i] = sys_perf_event_open(attr, -1, i, -1, 0);
 		if (pmu_fd[i] < 0) {
-			printf("perf_event_open failed\n");
+			printf("sys_perf_event_open failed\n");
 			goto all_cpu_err;
 		}
 		assert(ioctl(pmu_fd[i], PERF_EVENT_IOC_SET_BPF, prog_fd[0]) == 0);
@@ -146,9 +147,9 @@ static void test_perf_event_task(struct perf_event_attr *attr)
 	int pmu_fd;
 
 	/* open task bound event */
-	pmu_fd = perf_event_open(attr, 0, -1, -1, 0);
+	pmu_fd = sys_perf_event_open(attr, 0, -1, -1, 0);
 	if (pmu_fd < 0) {
-		printf("perf_event_open failed\n");
+		printf("sys_perf_event_open failed\n");
 		return;
 	}
 	assert(ioctl(pmu_fd, PERF_EVENT_IOC_SET_BPF, prog_fd[0]) == 0);

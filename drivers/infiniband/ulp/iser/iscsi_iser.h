@@ -496,7 +496,6 @@ struct ib_conn {
  * @rx_descs:         rx buffers array (cyclic buffer)
  * @num_rx_descs:     number of rx descriptors
  * @scsi_sg_tablesize: scsi host sg_tablesize
- * @scsi_max_sectors: scsi host max sectors
  */
 struct iser_conn {
 	struct ib_conn		     ib_conn;
@@ -519,7 +518,6 @@ struct iser_conn {
 	struct iser_rx_desc	     *rx_descs;
 	u32                          num_rx_descs;
 	unsigned short               scsi_sg_tablesize;
-	unsigned int                 scsi_max_sectors;
 	bool			     snd_w_inv;
 };
 

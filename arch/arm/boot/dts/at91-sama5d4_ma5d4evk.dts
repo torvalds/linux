@@ -13,8 +13,8 @@
 #include "at91-sama5d4_ma5d4.dtsi"
 
 / {
-	model = "DENX MA5D4EVK";
-	compatible = "denx,ma5d4evk", "atmel,sama5d4", "atmel,sama5";
+	model = "Aries/DENX MA5D4EVK";
+	compatible = "aries,ma5d4evk", "denx,ma5d4evk", "atmel,sama5d4", "atmel,sama5";
 
 	chosen {
 		stdout-path = "serial3:115200n8";

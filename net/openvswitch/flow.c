@@ -312,7 +312,8 @@ static bool icmp6hdr_ok(struct sk_buff *skb)
  * Returns 0 if it encounters a non-vlan or incomplete packet.
  * Returns 1 after successfully parsing vlan tag.
  */
-static int parse_vlan_tag(struct sk_buff *skb, struct vlan_head *key_vh)
+static int parse_vlan_tag(struct sk_buff *skb, struct vlan_head *key_vh,
+			  bool untag_vlan)
 {
 	struct vlan_head *vh = (struct vlan_head *)skb->data;
 
@@ -330,31 +331,47 @@ static int parse_vlan_tag(struct sk_buff *skb, struct vlan_head *key_vh)
 	key_vh->tci = vh->tci | htons(VLAN_TAG_PRESENT);
 	key_vh->tpid = vh->tpid;
 
-	__skb_pull(skb, sizeof(struct vlan_head));
+	if (unlikely(untag_vlan)) {
+		int offset = skb->data - skb_mac_header(skb);
+		u16 tci;
+		int err;
+
+		__skb_push(skb, offset);
+		err = __skb_vlan_pop(skb, &tci);
+		__skb_pull(skb, offset);
+		if (err)
+			return err;
+		__vlan_hwaccel_put_tag(skb, key_vh->tpid, tci);
+	} else {
+		__skb_pull(skb, sizeof(struct vlan_head));
+	}
 	return 1;
+}
+
+static void clear_vlan(struct sw_flow_key *key)
+{
+	key->eth.vlan.tci = 0;
+	key->eth.vlan.tpid = 0;
+	key->eth.cvlan.tci = 0;
+	key->eth.cvlan.tpid = 0;
 }
 
 static int parse_vlan(struct sk_buff *skb, struct sw_flow_key *key)
 {
 	int res;
 
-	key->eth.vlan.tci = 0;
-	key->eth.vlan.tpid = 0;
-	key->eth.cvlan.tci = 0;
-	key->eth.cvlan.tpid = 0;
-
 	if (skb_vlan_tag_present(skb)) {
 		key->eth.vlan.tci = htons(skb->vlan_tci);
 		key->eth.vlan.tpid = skb->vlan_proto;
 	} else {
 		/* Parse outer vlan tag in the non-accelerated case. */
-		res = parse_vlan_tag(skb, &key->eth.vlan);
+		res = parse_vlan_tag(skb, &key->eth.vlan, true);
 		if (res <= 0)
 			return res;
 	}
 
 	/* Parse inner vlan tag. */
-	res = parse_vlan_tag(skb, &key->eth.cvlan);
+	res = parse_vlan_tag(skb, &key->eth.cvlan, false);
 	if (res <= 0)
 		return res;
 
@@ -483,17 +500,20 @@ invalid:
  *
  * Returns 0 if successful, otherwise a negative errno value.
  *
- * Initializes @skb header pointers as follows:
+ * Initializes @skb header fields as follows:
  *
- *    - skb->mac_header: the Ethernet header.
+ *    - skb->mac_header: the L2 header.
  *
- *    - skb->network_header: just past the Ethernet header, or just past the
- *      VLAN header, to the first byte of the Ethernet payload.
+ *    - skb->network_header: just past the L2 header, or just past the
+ *      VLAN header, to the first byte of the L2 payload.
  *
  *    - skb->transport_header: If key->eth.type is ETH_P_IP or ETH_P_IPV6
  *      on output, then just past the IP header, if one is present and
  *      of a correct length, otherwise the same as skb->network_header.
  *      For other key->eth.type values it is left untouched.
+ *
+ *    - skb->protocol: the type of the data starting at skb->network_header.
+ *      Equals to key->eth.type.
  */
 static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 {
@@ -505,28 +525,35 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 
 	skb_reset_mac_header(skb);
 
-	/* Link layer.  We are guaranteed to have at least the 14 byte Ethernet
-	 * header in the linear data area.
-	 */
-	eth = eth_hdr(skb);
-	ether_addr_copy(key->eth.src, eth->h_source);
-	ether_addr_copy(key->eth.dst, eth->h_dest);
+	/* Link layer. */
+	clear_vlan(key);
+	if (key->mac_proto == MAC_PROTO_NONE) {
+		if (unlikely(eth_type_vlan(skb->protocol)))
+			return -EINVAL;
 
-	__skb_pull(skb, 2 * ETH_ALEN);
-	/* We are going to push all headers that we pull, so no need to
-	 * update skb->csum here.
-	 */
+		skb_reset_network_header(skb);
+	} else {
+		eth = eth_hdr(skb);
+		ether_addr_copy(key->eth.src, eth->h_source);
+		ether_addr_copy(key->eth.dst, eth->h_dest);
 
-	if (unlikely(parse_vlan(skb, key)))
-		return -ENOMEM;
+		__skb_pull(skb, 2 * ETH_ALEN);
+		/* We are going to push all headers that we pull, so no need to
+		* update skb->csum here.
+		*/
 
-	key->eth.type = parse_ethertype(skb);
-	if (unlikely(key->eth.type == htons(0)))
-		return -ENOMEM;
+		if (unlikely(parse_vlan(skb, key)))
+			return -ENOMEM;
 
-	skb_reset_network_header(skb);
+		skb->protocol = parse_ethertype(skb);
+		if (unlikely(skb->protocol == htons(0)))
+			return -ENOMEM;
+
+		skb_reset_network_header(skb);
+		__skb_push(skb, skb->data - skb_mac_header(skb));
+	}
 	skb_reset_mac_len(skb);
-	__skb_push(skb, skb->data - skb_mac_header(skb));
+	key->eth.type = skb->protocol;
 
 	/* Network layer. */
 	if (key->eth.type == htons(ETH_P_IP)) {
@@ -721,9 +748,25 @@ int ovs_flow_key_update(struct sk_buff *skb, struct sw_flow_key *key)
 	return key_extract(skb, key);
 }
 
+static int key_extract_mac_proto(struct sk_buff *skb)
+{
+	switch (skb->dev->type) {
+	case ARPHRD_ETHER:
+		return MAC_PROTO_ETHERNET;
+	case ARPHRD_NONE:
+		if (skb->protocol == htons(ETH_P_TEB))
+			return MAC_PROTO_ETHERNET;
+		return MAC_PROTO_NONE;
+	}
+	WARN_ON_ONCE(1);
+	return -EINVAL;
+}
+
 int ovs_flow_key_extract(const struct ip_tunnel_info *tun_info,
 			 struct sk_buff *skb, struct sw_flow_key *key)
 {
+	int res;
+
 	/* Extract metadata from packet. */
 	if (tun_info) {
 		key->tun_proto = ip_tunnel_info_af(tun_info);
@@ -751,6 +794,10 @@ int ovs_flow_key_extract(const struct ip_tunnel_info *tun_info,
 	key->phy.skb_mark = skb->mark;
 	ovs_ct_fill_key(skb, key);
 	key->ovs_flow_hash = 0;
+	res = key_extract_mac_proto(skb);
+	if (res < 0)
+		return res;
+	key->mac_proto = res;
 	key->recirc_id = 0;
 
 	return key_extract(skb, key);
@@ -767,5 +814,15 @@ int ovs_flow_key_extract_userspace(struct net *net, const struct nlattr *attr,
 	if (err)
 		return err;
 
+	/* key_extract assumes that skb->protocol is set-up for
+	 * layer 3 packets which is the case for other callers,
+	 * in particular packets received from the network stack.
+	 * Here the correct value can be set from the metadata
+	 * extracted above.
+	 * For L2 packet key eth type would be zero. skb protocol
+	 * would be set to correct value later during key-extact.
+	 */
+
+	skb->protocol = key->eth.type;
 	return key_extract(skb, key);
 }

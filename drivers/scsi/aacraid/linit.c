@@ -160,7 +160,6 @@ static const struct pci_device_id aac_pci_tbl[] = {
 	{ 0x9005, 0x028b, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 62 }, /* Adaptec PMC Series 6 (Tupelo) */
 	{ 0x9005, 0x028c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 63 }, /* Adaptec PMC Series 7 (Denali) */
 	{ 0x9005, 0x028d, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 64 }, /* Adaptec PMC Series 8 */
-	{ 0x9005, 0x028f, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 65 }, /* Adaptec PMC Series 9 */
 	{ 0,}
 };
 MODULE_DEVICE_TABLE(pci, aac_pci_tbl);
@@ -239,7 +238,6 @@ static struct aac_driver_ident aac_drivers[] = {
 	{ aac_src_init, "aacraid", "ADAPTEC ", "RAID            ", 2, AAC_QUIRK_SRC }, /* Adaptec PMC Series 6 (Tupelo) */
 	{ aac_srcv_init, "aacraid", "ADAPTEC ", "RAID            ", 2, AAC_QUIRK_SRC }, /* Adaptec PMC Series 7 (Denali) */
 	{ aac_srcv_init, "aacraid", "ADAPTEC ", "RAID            ", 2, AAC_QUIRK_SRC }, /* Adaptec PMC Series 8 */
-	{ aac_srcv_init, "aacraid", "ADAPTEC ", "RAID            ", 2, AAC_QUIRK_SRC } /* Adaptec PMC Series 9 */
 };
 
 /**
@@ -1071,7 +1069,6 @@ static struct scsi_host_template aac_driver_template = {
 static void __aac_shutdown(struct aac_dev * aac)
 {
 	int i;
-	int cpu;
 
 	aac_send_shutdown(aac);
 
@@ -1087,24 +1084,13 @@ static void __aac_shutdown(struct aac_dev * aac)
 		kthread_stop(aac->thread);
 	}
 	aac_adapter_disable_int(aac);
-	cpu = cpumask_first(cpu_online_mask);
 	if (aac->pdev->device == PMC_DEVICE_S6 ||
 	    aac->pdev->device == PMC_DEVICE_S7 ||
 	    aac->pdev->device == PMC_DEVICE_S8 ||
 	    aac->pdev->device == PMC_DEVICE_S9) {
 		if (aac->max_msix > 1) {
 			for (i = 0; i < aac->max_msix; i++) {
-				if (irq_set_affinity_hint(
-				    aac->msixentry[i].vector,
-				    NULL)) {
-					printk(KERN_ERR "%s%d: Failed to reset IRQ affinity for cpu %d\n",
-						aac->name,
-						aac->id,
-						cpu);
-				}
-				cpu = cpumask_next(cpu,
-						cpu_online_mask);
-				free_irq(aac->msixentry[i].vector,
+				free_irq(pci_irq_vector(aac->pdev, i),
 					 &(aac->aac_msix[i]));
 			}
 		} else {
@@ -1350,7 +1336,7 @@ static void aac_release_resources(struct aac_dev *aac)
 	    aac->pdev->device == PMC_DEVICE_S9) {
 		if (aac->max_msix > 1) {
 			for (i = 0; i < aac->max_msix; i++)
-				free_irq(aac->msixentry[i].vector,
+				free_irq(pci_irq_vector(aac->pdev, i),
 					&(aac->aac_msix[i]));
 		} else {
 			free_irq(aac->pdev->irq, &(aac->aac_msix[0]));
@@ -1396,13 +1382,13 @@ static int aac_acquire_resources(struct aac_dev *dev)
 			dev->aac_msix[i].vector_no = i;
 			dev->aac_msix[i].dev = dev;
 
-			if (request_irq(dev->msixentry[i].vector,
+			if (request_irq(pci_irq_vector(dev->pdev, i),
 					dev->a_ops.adapter_intr,
 					0, "aacraid", &(dev->aac_msix[i]))) {
 				printk(KERN_ERR "%s%d: Failed to register IRQ for vector %d.\n",
 						name, instance, i);
 				for (j = 0 ; j < i ; j++)
-					free_irq(dev->msixentry[j].vector,
+					free_irq(pci_irq_vector(dev->pdev, j),
 						 &(dev->aac_msix[j]));
 				pci_disable_msix(dev->pdev);
 				goto error_iounmap;

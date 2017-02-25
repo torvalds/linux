@@ -925,6 +925,8 @@ static struct platform_driver serial_pxa_driver = {
 	},
 };
 
+
+/* 8250 driver for PXA serial ports should be used */
 static int __init serial_pxa_init(void)
 {
 	int ret;

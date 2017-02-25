@@ -4,6 +4,10 @@
 #define DECIMAL         0
 #define HEX             1
 
+struct iscsi_conn;
+struct iscsi_login;
+struct iscsi_np;
+
 extern void convert_null_to_semi(char *, int);
 extern int extract_param(const char *, const char *, unsigned int, char *,
 		unsigned char *);

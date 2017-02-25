@@ -22,13 +22,6 @@
 
 #include "clock.h"
 
-/*
- * DPLL5_FREQ_FOR_USBHOST: USBHOST and USBTLL are the only clocks
- * that are sourced by DPLL5, and both of these require this clock
- * to be at 120 MHz for proper operation.
- */
-#define DPLL5_FREQ_FOR_USBHOST		120000000
-
 #define OMAP3430ES2_ST_DSS_IDLE_SHIFT			1
 #define OMAP3430ES2_ST_HSOTGUSB_IDLE_SHIFT		5
 #define OMAP3430ES2_ST_SSI_IDLE_SHIFT			8
@@ -546,14 +539,21 @@ void __init omap3_clk_lock_dpll5(void)
 	struct clk *dpll5_clk;
 	struct clk *dpll5_m2_clk;
 
+	/*
+	 * Errata sprz319f advisory 2.1 documents a USB host clock drift issue
+	 * that can be worked around using specially crafted dpll5 settings
+	 * with a dpll5_m2 divider set to 8. Set the dpll5 rate to 8x the USB
+	 * host clock rate, its .set_rate handler() will detect that frequency
+	 * and use the errata settings.
+	 */
 	dpll5_clk = clk_get(NULL, "dpll5_ck");
-	clk_set_rate(dpll5_clk, DPLL5_FREQ_FOR_USBHOST);
+	clk_set_rate(dpll5_clk, OMAP3_DPLL5_FREQ_FOR_USBHOST * 8);
 	clk_prepare_enable(dpll5_clk);
 
-	/* Program dpll5_m2_clk divider for no division */
+	/* Program dpll5_m2_clk divider */
 	dpll5_m2_clk = clk_get(NULL, "dpll5_m2_ck");
 	clk_prepare_enable(dpll5_m2_clk);
-	clk_set_rate(dpll5_m2_clk, DPLL5_FREQ_FOR_USBHOST);
+	clk_set_rate(dpll5_m2_clk, OMAP3_DPLL5_FREQ_FOR_USBHOST);
 
 	clk_disable_unprepare(dpll5_m2_clk);
 	clk_disable_unprepare(dpll5_clk);

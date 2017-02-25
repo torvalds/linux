@@ -434,6 +434,7 @@ static ssize_t orangefs_debug_write(struct file *file,
 	char *debug_string;
 	struct orangefs_kernel_op_s *new_op = NULL;
 	struct client_debug_mask c_mask = { NULL, 0, 0 };
+	char *s;
 
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG,
 		"orangefs_debug_write: %pD\n",
@@ -521,8 +522,9 @@ static ssize_t orangefs_debug_write(struct file *file,
 	}
 
 	mutex_lock(&orangefs_debug_lock);
-	memset(file->f_inode->i_private, 0, ORANGEFS_MAX_DEBUG_STRING_LEN);
-	sprintf((char *)file->f_inode->i_private, "%s\n", debug_string);
+	s = file_inode(file)->i_private;
+	memset(s, 0, ORANGEFS_MAX_DEBUG_STRING_LEN);
+	sprintf(s, "%s\n", debug_string);
 	mutex_unlock(&orangefs_debug_lock);
 
 	*ppos += count;

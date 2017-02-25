@@ -223,7 +223,8 @@ radeon_dp_mst_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-struct drm_encoder *radeon_mst_best_encoder(struct drm_connector *connector)
+static struct
+drm_encoder *radeon_mst_best_encoder(struct drm_connector *connector)
 {
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 
@@ -341,7 +342,8 @@ const struct drm_dp_mst_topology_cbs mst_cbs = {
 	.hotplug = radeon_dp_mst_hotplug,
 };
 
-struct radeon_connector *radeon_mst_find_connector(struct drm_encoder *encoder)
+static struct
+radeon_connector *radeon_mst_find_connector(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_connector *connector;
@@ -597,7 +599,7 @@ static const struct drm_encoder_helper_funcs radeon_mst_helper_funcs = {
 	.commit = radeon_mst_encoder_commit,
 };
 
-void radeon_dp_mst_encoder_destroy(struct drm_encoder *encoder)
+static void radeon_dp_mst_encoder_destroy(struct drm_encoder *encoder)
 {
 	drm_encoder_cleanup(encoder);
 	kfree(encoder);

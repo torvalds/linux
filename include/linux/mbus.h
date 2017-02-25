@@ -82,6 +82,7 @@ static inline int mvebu_mbus_get_io_win_info(phys_addr_t phyaddr, u32 *size,
 }
 #endif
 
+#ifdef CONFIG_MVEBU_MBUS
 int mvebu_mbus_save_cpu_target(u32 __iomem *store_addr);
 void mvebu_mbus_get_pcie_mem_aperture(struct resource *res);
 void mvebu_mbus_get_pcie_io_aperture(struct resource *res);
@@ -97,5 +98,12 @@ int mvebu_mbus_init(const char *soc, phys_addr_t mbus_phys_base,
 		    size_t mbus_size, phys_addr_t sdram_phys_base,
 		    size_t sdram_size);
 int mvebu_mbus_dt_init(bool is_coherent);
+#else
+static inline int mvebu_mbus_get_dram_win_info(phys_addr_t phyaddr, u8 *target,
+					       u8 *attr)
+{
+	return -EINVAL;
+}
+#endif /* CONFIG_MVEBU_MBUS */
 
 #endif /* __LINUX_MBUS_H */

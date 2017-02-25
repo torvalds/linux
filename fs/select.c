@@ -31,7 +31,7 @@
 #include <net/busy_poll.h>
 #include <linux/vmalloc.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 
 /*

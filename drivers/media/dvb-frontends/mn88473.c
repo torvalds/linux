@@ -239,67 +239,215 @@ static int mn88473_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	struct i2c_client *client = fe->demodulator_priv;
 	struct mn88473_dev *dev = i2c_get_clientdata(client);
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	int ret;
-	unsigned int uitmp;
+	int ret, i, stmp;
+	unsigned int utmp, utmp1, utmp2;
+	u8 buf[5];
 
 	if (!dev->active) {
 		ret = -EAGAIN;
 		goto err;
 	}
 
-	*status = 0;
-
+	/* Lock detection */
 	switch (c->delivery_system) {
 	case SYS_DVBT:
-		ret = regmap_read(dev->regmap[0], 0x62, &uitmp);
+		ret = regmap_read(dev->regmap[0], 0x62, &utmp);
 		if (ret)
 			goto err;
 
-		if (!(uitmp & 0xa0)) {
-			if ((uitmp & 0x0f) >= 0x09)
+		if (!(utmp & 0xa0)) {
+			if ((utmp & 0x0f) >= 0x09)
 				*status = FE_HAS_SIGNAL | FE_HAS_CARRIER |
 					  FE_HAS_VITERBI | FE_HAS_SYNC |
 					  FE_HAS_LOCK;
-			else if ((uitmp & 0x0f) >= 0x03)
+			else if ((utmp & 0x0f) >= 0x03)
 				*status = FE_HAS_SIGNAL | FE_HAS_CARRIER;
+		} else {
+			*status = 0;
 		}
 		break;
 	case SYS_DVBT2:
-		ret = regmap_read(dev->regmap[2], 0x8b, &uitmp);
+		ret = regmap_read(dev->regmap[2], 0x8b, &utmp);
 		if (ret)
 			goto err;
 
-		if (!(uitmp & 0x40)) {
-			if ((uitmp & 0x0f) >= 0x0d)
+		if (!(utmp & 0x40)) {
+			if ((utmp & 0x0f) >= 0x0d)
 				*status = FE_HAS_SIGNAL | FE_HAS_CARRIER |
 					  FE_HAS_VITERBI | FE_HAS_SYNC |
 					  FE_HAS_LOCK;
-			else if ((uitmp & 0x0f) >= 0x0a)
+			else if ((utmp & 0x0f) >= 0x0a)
 				*status = FE_HAS_SIGNAL | FE_HAS_CARRIER |
 					  FE_HAS_VITERBI;
-			else if ((uitmp & 0x0f) >= 0x07)
+			else if ((utmp & 0x0f) >= 0x07)
 				*status = FE_HAS_SIGNAL | FE_HAS_CARRIER;
+		} else {
+			*status = 0;
 		}
 		break;
 	case SYS_DVBC_ANNEX_A:
-		ret = regmap_read(dev->regmap[1], 0x85, &uitmp);
+		ret = regmap_read(dev->regmap[1], 0x85, &utmp);
 		if (ret)
 			goto err;
 
-		if (!(uitmp & 0x40)) {
-			ret = regmap_read(dev->regmap[1], 0x89, &uitmp);
+		if (!(utmp & 0x40)) {
+			ret = regmap_read(dev->regmap[1], 0x89, &utmp);
 			if (ret)
 				goto err;
 
-			if (uitmp & 0x01)
+			if (utmp & 0x01)
 				*status = FE_HAS_SIGNAL | FE_HAS_CARRIER |
-					  FE_HAS_VITERBI | FE_HAS_SYNC |
-					  FE_HAS_LOCK;
+						FE_HAS_VITERBI | FE_HAS_SYNC |
+						FE_HAS_LOCK;
+		} else {
+			*status = 0;
 		}
 		break;
 	default:
 		ret = -EINVAL;
 		goto err;
+	}
+
+	/* Signal strength */
+	if (*status & FE_HAS_SIGNAL) {
+		for (i = 0; i < 2; i++) {
+			ret = regmap_bulk_read(dev->regmap[2], 0x86 + i,
+					       &buf[i], 1);
+			if (ret)
+				goto err;
+		}
+
+		/* AGCRD[15:6] gives us a 10bit value ([5:0] are always 0) */
+		utmp1 = buf[0] << 8 | buf[1] << 0 | buf[0] >> 2;
+		dev_dbg(&client->dev, "strength=%u\n", utmp1);
+
+		c->strength.stat[0].scale = FE_SCALE_RELATIVE;
+		c->strength.stat[0].uvalue = utmp1;
+	} else {
+		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
+
+	/* CNR */
+	if (*status & FE_HAS_VITERBI && c->delivery_system == SYS_DVBT) {
+		/* DVB-T CNR */
+		ret = regmap_bulk_read(dev->regmap[0], 0x8f, buf, 2);
+		if (ret)
+			goto err;
+
+		utmp = buf[0] << 8 | buf[1] << 0;
+		if (utmp) {
+			/* CNR[dB]: 10 * (log10(65536 / value) + 0.2) */
+			/* log10(65536) = 80807124, 0.2 = 3355443 */
+			stmp = div_u64(((u64)80807124 - intlog10(utmp)
+					+ 3355443) * 10000, 1 << 24);
+			dev_dbg(&client->dev, "cnr=%d value=%u\n", stmp, utmp);
+		} else {
+			stmp = 0;
+		}
+
+		c->cnr.stat[0].svalue = stmp;
+		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+	} else if (*status & FE_HAS_VITERBI &&
+		   c->delivery_system == SYS_DVBT2) {
+		/* DVB-T2 CNR */
+		for (i = 0; i < 3; i++) {
+			ret = regmap_bulk_read(dev->regmap[2], 0xb7 + i,
+					       &buf[i], 1);
+			if (ret)
+				goto err;
+		}
+
+		utmp = buf[1] << 8 | buf[2] << 0;
+		utmp1 = (buf[0] >> 2) & 0x01; /* 0=SISO, 1=MISO */
+		if (utmp) {
+			if (utmp1) {
+				/* CNR[dB]: 10 * (log10(16384 / value) - 0.6) */
+				/* log10(16384) = 70706234, 0.6 = 10066330 */
+				stmp = div_u64(((u64)70706234 - intlog10(utmp)
+						- 10066330) * 10000, 1 << 24);
+				dev_dbg(&client->dev, "cnr=%d value=%u MISO\n",
+					stmp, utmp);
+			} else {
+				/* CNR[dB]: 10 * (log10(65536 / value) + 0.2) */
+				/* log10(65536) = 80807124, 0.2 = 3355443 */
+				stmp = div_u64(((u64)80807124 - intlog10(utmp)
+						+ 3355443) * 10000, 1 << 24);
+				dev_dbg(&client->dev, "cnr=%d value=%u SISO\n",
+					stmp, utmp);
+			}
+		} else {
+			stmp = 0;
+		}
+
+		c->cnr.stat[0].svalue = stmp;
+		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+	} else if (*status & FE_HAS_VITERBI &&
+		   c->delivery_system == SYS_DVBC_ANNEX_A) {
+		/* DVB-C CNR */
+		ret = regmap_bulk_read(dev->regmap[1], 0xa1, buf, 4);
+		if (ret)
+			goto err;
+
+		utmp1 = buf[0] << 8 | buf[1] << 0; /* signal */
+		utmp2 = buf[2] << 8 | buf[3] << 0; /* noise */
+		if (utmp1 && utmp2) {
+			/* CNR[dB]: 10 * log10(8 * (signal / noise)) */
+			/* log10(8) = 15151336 */
+			stmp = div_u64(((u64)15151336 + intlog10(utmp1)
+					- intlog10(utmp2)) * 10000, 1 << 24);
+			dev_dbg(&client->dev, "cnr=%d signal=%u noise=%u\n",
+				stmp, utmp1, utmp2);
+		} else {
+			stmp = 0;
+		}
+
+		c->cnr.stat[0].svalue = stmp;
+		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+	} else {
+		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
+
+	/* BER */
+	if (*status & FE_HAS_LOCK && (c->delivery_system == SYS_DVBT ||
+				      c->delivery_system == SYS_DVBC_ANNEX_A)) {
+		/* DVB-T & DVB-C BER */
+		ret = regmap_bulk_read(dev->regmap[0], 0x92, buf, 5);
+		if (ret)
+			goto err;
+
+		utmp1 = buf[0] << 16 | buf[1] << 8 | buf[2] << 0;
+		utmp2 = buf[3] << 8 | buf[4] << 0;
+		utmp2 = utmp2 * 8 * 204;
+		dev_dbg(&client->dev, "post_bit_error=%u post_bit_count=%u\n",
+			utmp1, utmp2);
+
+		c->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+		c->post_bit_error.stat[0].uvalue += utmp1;
+		c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
+		c->post_bit_count.stat[0].uvalue += utmp2;
+	} else {
+		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
+
+	/* PER */
+	if (*status & FE_HAS_LOCK) {
+		ret = regmap_bulk_read(dev->regmap[0], 0xdd, buf, 4);
+		if (ret)
+			goto err;
+
+		utmp1 = buf[0] << 8 | buf[1] << 0;
+		utmp2 = buf[2] << 8 | buf[3] << 0;
+		dev_dbg(&client->dev, "block_error=%u block_count=%u\n",
+			utmp1, utmp2);
+
+		c->block_error.stat[0].scale = FE_SCALE_COUNTER;
+		c->block_error.stat[0].uvalue += utmp1;
+		c->block_count.stat[0].scale = FE_SCALE_COUNTER;
+		c->block_count.stat[0].uvalue += utmp2;
+	} else {
+		c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	}
 
 	return 0;
@@ -312,6 +460,7 @@ static int mn88473_init(struct dvb_frontend *fe)
 {
 	struct i2c_client *client = fe->demodulator_priv;
 	struct mn88473_dev *dev = i2c_get_clientdata(client);
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret, len, remain;
 	unsigned int uitmp;
 	const struct firmware *fw;
@@ -377,6 +526,20 @@ warm:
 		goto err;
 
 	dev->active = true;
+
+	/* init stats here to indicate which stats are supported */
+	c->strength.len = 1;
+	c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->cnr.len = 1;
+	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_error.len = 1;
+	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_count.len = 1;
+	c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->block_error.len = 1;
+	c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->block_count.len = 1;
+	c->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 
 	return 0;
 err_release_firmware:
@@ -485,18 +648,6 @@ static int mn88473_probe(struct i2c_client *client,
 		goto err_kfree;
 	}
 
-	/* Check demod answers with correct chip id */
-	ret = regmap_read(dev->regmap[0], 0xff, &uitmp);
-	if (ret)
-		goto err_regmap_0_regmap_exit;
-
-	dev_dbg(&client->dev, "chip id=%02x\n", uitmp);
-
-	if (uitmp != 0x03) {
-		ret = -ENODEV;
-		goto err_regmap_0_regmap_exit;
-	}
-
 	/*
 	 * Chip has three I2C addresses for different register banks. Used
 	 * addresses are 0x18, 0x1a and 0x1c. We register two dummy clients,
@@ -532,6 +683,18 @@ static int mn88473_probe(struct i2c_client *client,
 		goto err_client_2_i2c_unregister_device;
 	}
 	i2c_set_clientdata(dev->client[2], dev);
+
+	/* Check demod answers with correct chip id */
+	ret = regmap_read(dev->regmap[2], 0xff, &uitmp);
+	if (ret)
+		goto err_regmap_2_regmap_exit;
+
+	dev_dbg(&client->dev, "chip id=%02x\n", uitmp);
+
+	if (uitmp != 0x03) {
+		ret = -ENODEV;
+		goto err_regmap_2_regmap_exit;
+	}
 
 	/* Sleep because chip is active by default */
 	ret = regmap_write(dev->regmap[2], 0x05, 0x3e);

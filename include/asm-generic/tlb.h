@@ -107,11 +107,6 @@ struct mmu_gather {
 	struct mmu_gather_batch	local;
 	struct page		*__pages[MMU_GATHER_BUNDLE];
 	unsigned int		batch_count;
-	/*
-	 * __tlb_adjust_range  will track the new addr here,
-	 * that that we can adjust the range after the flush
-	 */
-	unsigned long addr;
 	int page_size;
 };
 
@@ -125,16 +120,11 @@ extern bool __tlb_remove_page_size(struct mmu_gather *tlb, struct page *page,
 				   int page_size);
 
 static inline void __tlb_adjust_range(struct mmu_gather *tlb,
-				      unsigned long address)
+				      unsigned long address,
+				      unsigned int range_size)
 {
 	tlb->start = min(tlb->start, address);
-	tlb->end = max(tlb->end, address + PAGE_SIZE);
-	/*
-	 * Track the last address with which we adjusted the range. This
-	 * will be used later to adjust again after a mmu_flush due to
-	 * failed __tlb_remove_page
-	 */
-	tlb->addr = address;
+	tlb->end = max(tlb->end, address + range_size);
 }
 
 static inline void __tlb_reset_range(struct mmu_gather *tlb)
@@ -150,15 +140,11 @@ static inline void __tlb_reset_range(struct mmu_gather *tlb)
 static inline void tlb_remove_page_size(struct mmu_gather *tlb,
 					struct page *page, int page_size)
 {
-	if (__tlb_remove_page_size(tlb, page, page_size)) {
+	if (__tlb_remove_page_size(tlb, page, page_size))
 		tlb_flush_mmu(tlb);
-		tlb->page_size = page_size;
-		__tlb_adjust_range(tlb, tlb->addr);
-		__tlb_remove_page_size(tlb, page, page_size);
-	}
 }
 
-static bool __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
+static inline bool __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
 {
 	return __tlb_remove_page_size(tlb, page, PAGE_SIZE);
 }
@@ -172,14 +158,21 @@ static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page)
 	return tlb_remove_page_size(tlb, page, PAGE_SIZE);
 }
 
-static inline bool __tlb_remove_pte_page(struct mmu_gather *tlb, struct page *page)
+#ifndef tlb_remove_check_page_size_change
+#define tlb_remove_check_page_size_change tlb_remove_check_page_size_change
+static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
+						     unsigned int page_size)
 {
-	/* active->nr should be zero when we call this */
-	VM_BUG_ON_PAGE(tlb->active->nr, page);
-	tlb->page_size = PAGE_SIZE;
-	__tlb_adjust_range(tlb, tlb->addr);
-	return __tlb_remove_page(tlb, page);
+	/*
+	 * We don't care about page size change, just update
+	 * mmu_gather page size here so that debug checks
+	 * doesn't throw false warning.
+	 */
+#ifdef CONFIG_DEBUG_VM
+	tlb->page_size = page_size;
+#endif
 }
+#endif
 
 /*
  * In the case of tlb vma handling, we can optimise these away in the
@@ -215,8 +208,14 @@ static inline bool __tlb_remove_pte_page(struct mmu_gather *tlb, struct page *pa
  */
 #define tlb_remove_tlb_entry(tlb, ptep, address)		\
 	do {							\
-		__tlb_adjust_range(tlb, address);		\
+		__tlb_adjust_range(tlb, address, PAGE_SIZE);	\
 		__tlb_remove_tlb_entry(tlb, ptep, address);	\
+	} while (0)
+
+#define tlb_remove_huge_tlb_entry(h, tlb, ptep, address)	     \
+	do {							     \
+		__tlb_adjust_range(tlb, address, huge_page_size(h)); \
+		__tlb_remove_tlb_entry(tlb, ptep, address);	     \
 	} while (0)
 
 /**
@@ -227,29 +226,47 @@ static inline bool __tlb_remove_pte_page(struct mmu_gather *tlb, struct page *pa
 #define __tlb_remove_pmd_tlb_entry(tlb, pmdp, address) do {} while (0)
 #endif
 
-#define tlb_remove_pmd_tlb_entry(tlb, pmdp, address)		\
-	do {							\
-		__tlb_adjust_range(tlb, address);		\
-		__tlb_remove_pmd_tlb_entry(tlb, pmdp, address);	\
+#define tlb_remove_pmd_tlb_entry(tlb, pmdp, address)			\
+	do {								\
+		__tlb_adjust_range(tlb, address, HPAGE_PMD_SIZE);	\
+		__tlb_remove_pmd_tlb_entry(tlb, pmdp, address);		\
 	} while (0)
+
+/*
+ * For things like page tables caches (ie caching addresses "inside" the
+ * page tables, like x86 does), for legacy reasons, flushing an
+ * individual page had better flush the page table caches behind it. This
+ * is definitely how x86 works, for example. And if you have an
+ * architected non-legacy page table cache (which I'm not aware of
+ * anybody actually doing), you're going to have some architecturally
+ * explicit flushing for that, likely *separate* from a regular TLB entry
+ * flush, and thus you'd need more than just some range expansion..
+ *
+ * So if we ever find an architecture
+ * that would want something that odd, I think it is up to that
+ * architecture to do its own odd thing, not cause pain for others
+ * http://lkml.kernel.org/r/CA+55aFzBggoXtNXQeng5d_mRoDnaMBE5Y+URs+PHR67nUpMtaw@mail.gmail.com
+ *
+ * For now w.r.t page table cache, mark the range_size as PAGE_SIZE
+ */
 
 #define pte_free_tlb(tlb, ptep, address)			\
 	do {							\
-		__tlb_adjust_range(tlb, address);		\
+		__tlb_adjust_range(tlb, address, PAGE_SIZE);	\
 		__pte_free_tlb(tlb, ptep, address);		\
 	} while (0)
 
 #ifndef __ARCH_HAS_4LEVEL_HACK
 #define pud_free_tlb(tlb, pudp, address)			\
 	do {							\
-		__tlb_adjust_range(tlb, address);		\
+		__tlb_adjust_range(tlb, address, PAGE_SIZE);	\
 		__pud_free_tlb(tlb, pudp, address);		\
 	} while (0)
 #endif
 
 #define pmd_free_tlb(tlb, pmdp, address)			\
 	do {							\
-		__tlb_adjust_range(tlb, address);		\
+		__tlb_adjust_range(tlb, address, PAGE_SIZE);	\
 		__pmd_free_tlb(tlb, pmdp, address);		\
 	} while (0)
 

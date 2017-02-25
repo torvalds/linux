@@ -80,6 +80,11 @@ static inline bool is_kernel_in_hyp_mode(void)
 	return false;
 }
 
+static inline bool has_vhe(void)
+{
+	return false;
+}
+
 /* The section containing the hypervisor idmap text */
 extern char __hyp_idmap_text_start[];
 extern char __hyp_idmap_text_end[];

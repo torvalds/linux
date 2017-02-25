@@ -89,6 +89,10 @@
 #define PMA8084_GPIO_S4			2
 #define PMA8084_GPIO_L6			3
 
+#define PM8994_GPIO_VPH			0
+#define PM8994_GPIO_S4			2
+#define PM8994_GPIO_L12			3
+
 /* To be used with "function" */
 #define PMIC_GPIO_FUNC_NORMAL		"normal"
 #define PMIC_GPIO_FUNC_PAIRED		"paired"

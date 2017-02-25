@@ -2295,8 +2295,13 @@ static int coda_probe(struct platform_device *pdev)
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
-	return coda_firmware_request(dev);
+	ret = coda_firmware_request(dev);
+	if (ret)
+		goto err_alloc_workqueue;
+	return 0;
 
+err_alloc_workqueue:
+	destroy_workqueue(dev->workqueue);
 err_v4l2_register:
 	v4l2_device_unregister(&dev->v4l2_dev);
 	return ret;

@@ -120,7 +120,7 @@ static int panel_simple_get_fixed_modes(struct panel_simple *panel)
 
 		mode->type |= DRM_MODE_TYPE_DRIVER;
 
-		if (panel->desc->num_modes == 1)
+		if (panel->desc->num_timings == 1)
 			mode->type |= DRM_MODE_TYPE_PREFERRED;
 
 		drm_mode_probed_add(connector, mode);
@@ -555,6 +555,91 @@ static const struct panel_desc auo_b133htn01 = {
 	},
 };
 
+static const struct display_timing auo_g133han01_timings = {
+	.pixelclock = { 134000000, 141200000, 149000000 },
+	.hactive = { 1920, 1920, 1920 },
+	.hfront_porch = { 39, 58, 77 },
+	.hback_porch = { 59, 88, 117 },
+	.hsync_len = { 28, 42, 56 },
+	.vactive = { 1080, 1080, 1080 },
+	.vfront_porch = { 3, 8, 11 },
+	.vback_porch = { 5, 14, 19 },
+	.vsync_len = { 4, 14, 19 },
+};
+
+static const struct panel_desc auo_g133han01 = {
+	.timings = &auo_g133han01_timings,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 293,
+		.height = 165,
+	},
+	.delay = {
+		.prepare = 200,
+		.enable = 50,
+		.disable = 50,
+		.unprepare = 1000,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA,
+};
+
+static const struct display_timing auo_g185han01_timings = {
+	.pixelclock = { 120000000, 144000000, 175000000 },
+	.hactive = { 1920, 1920, 1920 },
+	.hfront_porch = { 18, 60, 74 },
+	.hback_porch = { 12, 44, 54 },
+	.hsync_len = { 10, 24, 32 },
+	.vactive = { 1080, 1080, 1080 },
+	.vfront_porch = { 6, 10, 40 },
+	.vback_porch = { 2, 5, 20 },
+	.vsync_len = { 2, 5, 20 },
+};
+
+static const struct panel_desc auo_g185han01 = {
+	.timings = &auo_g185han01_timings,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 409,
+		.height = 230,
+	},
+	.delay = {
+		.prepare = 50,
+		.enable = 200,
+		.disable = 110,
+		.unprepare = 1000,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+};
+
+static const struct drm_display_mode auo_t215hvn01_mode = {
+	.clock = 148800,
+	.hdisplay = 1920,
+	.hsync_start = 1920 + 88,
+	.hsync_end = 1920 + 88 + 44,
+	.htotal = 1920 + 88 + 44 + 148,
+	.vdisplay = 1080,
+	.vsync_start = 1080 + 4,
+	.vsync_end = 1080 + 4 + 5,
+	.vtotal = 1080 + 4 + 5 + 36,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc auo_t215hvn01 = {
+	.modes = &auo_t215hvn01_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 430,
+		.height = 270,
+	},
+	.delay = {
+		.disable = 5,
+		.unprepare = 1000,
+	}
+};
+
 static const struct drm_display_mode avic_tm070ddh03_mode = {
 	.clock = 51200,
 	.hdisplay = 1024,
@@ -580,6 +665,30 @@ static const struct panel_desc avic_tm070ddh03 = {
 		.prepare = 20,
 		.enable = 200,
 		.disable = 200,
+	},
+};
+
+static const struct drm_display_mode chunghwa_claa070wp03xg_mode = {
+	.clock = 66770,
+	.hdisplay = 800,
+	.hsync_start = 800 + 49,
+	.hsync_end = 800 + 49 + 33,
+	.htotal = 800 + 49 + 33 + 17,
+	.vdisplay = 1280,
+	.vsync_start = 1280 + 1,
+	.vsync_end = 1280 + 1 + 7,
+	.vtotal = 1280 + 1 + 7 + 15,
+	.vrefresh = 60,
+	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
+};
+
+static const struct panel_desc chunghwa_claa070wp03xg = {
+	.modes = &chunghwa_claa070wp03xg_mode,
+	.num_modes = 1,
+	.bpc = 6,
+	.size = {
+		.width = 94,
+		.height = 150,
 	},
 };
 
@@ -877,27 +986,31 @@ static const struct panel_desc innolux_g101ice_l01 = {
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
 };
 
-static const struct drm_display_mode innolux_g121i1_l01_mode = {
-	.clock = 71000,
-	.hdisplay = 1280,
-	.hsync_start = 1280 + 64,
-	.hsync_end = 1280 + 64 + 32,
-	.htotal = 1280 + 64 + 32 + 64,
-	.vdisplay = 800,
-	.vsync_start = 800 + 9,
-	.vsync_end = 800 + 9 + 6,
-	.vtotal = 800 + 9 + 6 + 9,
-	.vrefresh = 60,
+static const struct display_timing innolux_g121i1_l01_timing = {
+	.pixelclock = { 67450000, 71000000, 74550000 },
+	.hactive = { 1280, 1280, 1280 },
+	.hfront_porch = { 40, 80, 160 },
+	.hback_porch = { 39, 79, 159 },
+	.hsync_len = { 1, 1, 1 },
+	.vactive = { 800, 800, 800 },
+	.vfront_porch = { 5, 11, 100 },
+	.vback_porch = { 4, 11, 99 },
+	.vsync_len = { 1, 1, 1 },
 };
 
 static const struct panel_desc innolux_g121i1_l01 = {
-	.modes = &innolux_g121i1_l01_mode,
-	.num_modes = 1,
+	.timings = &innolux_g121i1_l01_timing,
+	.num_timings = 1,
 	.bpc = 6,
 	.size = {
 		.width = 261,
 		.height = 163,
 	},
+	.delay = {
+		.enable = 200,
+		.disable = 20,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
 };
 
 static const struct drm_display_mode innolux_g121x1_l03_mode = {
@@ -1164,6 +1277,29 @@ static const struct panel_desc nec_nl4827hc19_05b = {
 	.bus_flags = DRM_BUS_FLAG_PIXDATA_POSEDGE,
 };
 
+static const struct drm_display_mode nvd_9128_mode = {
+	.clock = 29500,
+	.hdisplay = 800,
+	.hsync_start = 800 + 130,
+	.hsync_end = 800 + 130 + 98,
+	.htotal = 800 + 0 + 130 + 98,
+	.vdisplay = 480,
+	.vsync_start = 480 + 10,
+	.vsync_end = 480 + 10 + 50,
+	.vtotal = 480 + 0 + 10 + 50,
+};
+
+static const struct panel_desc nvd_9128 = {
+	.modes = &nvd_9128_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 156,
+		.height = 88,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+};
+
 static const struct display_timing okaya_rs800480t_7x0gp_timing = {
 	.pixelclock = { 30000000, 30000000, 40000000 },
 	.hactive = { 800, 800, 800 },
@@ -1409,6 +1545,7 @@ static const struct drm_display_mode sharp_lq123p1jx31_mode = {
 static const struct panel_desc sharp_lq123p1jx31 = {
 	.modes = &sharp_lq123p1jx31_mode,
 	.num_modes = 1,
+	.bpc = 8,
 	.size = {
 		.width = 259,
 		.height = 173,
@@ -1418,6 +1555,30 @@ static const struct panel_desc sharp_lq123p1jx31 = {
 		.enable = 50,
 		.unprepare = 550,
 	},
+};
+
+static const struct drm_display_mode sharp_lq150x1lg11_mode = {
+	.clock = 71100,
+	.hdisplay = 1024,
+	.hsync_start = 1024 + 168,
+	.hsync_end = 1024 + 168 + 64,
+	.htotal = 1024 + 168 + 64 + 88,
+	.vdisplay = 768,
+	.vsync_start = 768 + 37,
+	.vsync_end = 768 + 37 + 2,
+	.vtotal = 768 + 37 + 2 + 8,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc sharp_lq150x1lg11 = {
+	.modes = &sharp_lq150x1lg11_mode,
+	.num_modes = 1,
+	.bpc = 6,
+	.size = {
+		.width = 304,
+		.height = 228,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB565_1X16,
 };
 
 static const struct drm_display_mode shelly_sca07010_bfn_lnn_mode = {
@@ -1575,8 +1736,20 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "auo,b133xtn01",
 		.data = &auo_b133xtn01,
 	}, {
+		.compatible = "auo,g133han01",
+		.data = &auo_g133han01,
+	}, {
+		.compatible = "auo,g185han01",
+		.data = &auo_g185han01,
+	}, {
+		.compatible = "auo,t215hvn01",
+		.data = &auo_t215hvn01,
+	}, {
 		.compatible = "avic,tm070ddh03",
 		.data = &avic_tm070ddh03,
+	}, {
+		.compatible = "chunghwa,claa070wp03xg",
+		.data = &chunghwa_claa070wp03xg,
 	}, {
 		.compatible = "chunghwa,claa101wa01a",
 		.data = &chunghwa_claa101wa01a
@@ -1653,6 +1826,9 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "nec,nl4827hc19-05b",
 		.data = &nec_nl4827hc19_05b,
 	}, {
+		.compatible = "nvd,9128",
+		.data = &nvd_9128,
+	}, {
 		.compatible = "okaya,rs800480t-7x0gp",
 		.data = &okaya_rs800480t_7x0gp,
 	}, {
@@ -1682,6 +1858,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "sharp,lq123p1jx31",
 		.data = &sharp_lq123p1jx31,
+	}, {
+		.compatible = "sharp,lq150x1lg11",
+		.data = &sharp_lq150x1lg11,
 	}, {
 		.compatible = "shelly,sca07010-bfn-lnn",
 		.data = &shelly_sca07010_bfn_lnn,

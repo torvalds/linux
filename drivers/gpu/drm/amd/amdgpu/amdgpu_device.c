@@ -73,6 +73,7 @@ static const char *amdgpu_asic_name[] = {
 	"STONEY",
 	"POLARIS10",
 	"POLARIS11",
+	"POLARIS12",
 	"LAST",
 };
 
@@ -264,7 +265,8 @@ static int amdgpu_vram_scratch_init(struct amdgpu_device *adev)
 	if (adev->vram_scratch.robj == NULL) {
 		r = amdgpu_bo_create(adev, AMDGPU_GPU_PAGE_SIZE,
 				     PAGE_SIZE, true, AMDGPU_GEM_DOMAIN_VRAM,
-				     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
+				     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
+				     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
 				     NULL, NULL, &adev->vram_scratch.robj);
 		if (r) {
 			return r;
@@ -442,13 +444,9 @@ void amdgpu_doorbell_get_kfd_info(struct amdgpu_device *adev,
 static void amdgpu_wb_fini(struct amdgpu_device *adev)
 {
 	if (adev->wb.wb_obj) {
-		if (!amdgpu_bo_reserve(adev->wb.wb_obj, false)) {
-			amdgpu_bo_kunmap(adev->wb.wb_obj);
-			amdgpu_bo_unpin(adev->wb.wb_obj);
-			amdgpu_bo_unreserve(adev->wb.wb_obj);
-		}
-		amdgpu_bo_unref(&adev->wb.wb_obj);
-		adev->wb.wb = NULL;
+		amdgpu_bo_free_kernel(&adev->wb.wb_obj,
+				      &adev->wb.gpu_addr,
+				      (void **)&adev->wb.wb);
 		adev->wb.wb_obj = NULL;
 	}
 }
@@ -467,31 +465,12 @@ static int amdgpu_wb_init(struct amdgpu_device *adev)
 	int r;
 
 	if (adev->wb.wb_obj == NULL) {
-		r = amdgpu_bo_create(adev, AMDGPU_MAX_WB * 4, PAGE_SIZE, true,
-				     AMDGPU_GEM_DOMAIN_GTT, 0,  NULL, NULL,
-				     &adev->wb.wb_obj);
+		r = amdgpu_bo_create_kernel(adev, AMDGPU_MAX_WB * 4,
+					    PAGE_SIZE, AMDGPU_GEM_DOMAIN_GTT,
+					    &adev->wb.wb_obj, &adev->wb.gpu_addr,
+					    (void **)&adev->wb.wb);
 		if (r) {
 			dev_warn(adev->dev, "(%d) create WB bo failed\n", r);
-			return r;
-		}
-		r = amdgpu_bo_reserve(adev->wb.wb_obj, false);
-		if (unlikely(r != 0)) {
-			amdgpu_wb_fini(adev);
-			return r;
-		}
-		r = amdgpu_bo_pin(adev->wb.wb_obj, AMDGPU_GEM_DOMAIN_GTT,
-				&adev->wb.gpu_addr);
-		if (r) {
-			amdgpu_bo_unreserve(adev->wb.wb_obj);
-			dev_warn(adev->dev, "(%d) pin WB bo failed\n", r);
-			amdgpu_wb_fini(adev);
-			return r;
-		}
-		r = amdgpu_bo_kmap(adev->wb.wb_obj, (void **)&adev->wb.wb);
-		amdgpu_bo_unreserve(adev->wb.wb_obj);
-		if (r) {
-			dev_warn(adev->dev, "(%d) map WB bo failed\n", r);
-			amdgpu_wb_fini(adev);
 			return r;
 		}
 
@@ -1038,6 +1017,13 @@ static void amdgpu_check_arguments(struct amdgpu_device *adev)
 			 amdgpu_vm_block_size);
 		amdgpu_vm_block_size = 9;
 	}
+
+	if (amdgpu_vram_page_split != -1 && (amdgpu_vram_page_split < 16 ||
+	    !amdgpu_check_pot_argument(amdgpu_vram_page_split))) {
+		dev_warn(adev->dev, "invalid VRAM page split (%d)\n",
+			 amdgpu_vram_page_split);
+		amdgpu_vram_page_split = 1024;
+	}
 }
 
 /**
@@ -1112,11 +1098,11 @@ int amdgpu_set_clockgating_state(struct amdgpu_device *adev,
 	int i, r = 0;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_block_status[i].valid)
+		if (!adev->ip_blocks[i].status.valid)
 			continue;
-		if (adev->ip_blocks[i].type == block_type) {
-			r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
-									    state);
+		if (adev->ip_blocks[i].version->type == block_type) {
+			r = adev->ip_blocks[i].version->funcs->set_clockgating_state((void *)adev,
+										     state);
 			if (r)
 				return r;
 			break;
@@ -1132,11 +1118,11 @@ int amdgpu_set_powergating_state(struct amdgpu_device *adev,
 	int i, r = 0;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_block_status[i].valid)
+		if (!adev->ip_blocks[i].status.valid)
 			continue;
-		if (adev->ip_blocks[i].type == block_type) {
-			r = adev->ip_blocks[i].funcs->set_powergating_state((void *)adev,
-									    state);
+		if (adev->ip_blocks[i].version->type == block_type) {
+			r = adev->ip_blocks[i].version->funcs->set_powergating_state((void *)adev,
+										     state);
 			if (r)
 				return r;
 			break;
@@ -1151,10 +1137,10 @@ int amdgpu_wait_for_idle(struct amdgpu_device *adev,
 	int i, r;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_block_status[i].valid)
+		if (!adev->ip_blocks[i].status.valid)
 			continue;
-		if (adev->ip_blocks[i].type == block_type) {
-			r = adev->ip_blocks[i].funcs->wait_for_idle((void *)adev);
+		if (adev->ip_blocks[i].version->type == block_type) {
+			r = adev->ip_blocks[i].version->funcs->wait_for_idle((void *)adev);
 			if (r)
 				return r;
 			break;
@@ -1170,23 +1156,22 @@ bool amdgpu_is_idle(struct amdgpu_device *adev,
 	int i;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_block_status[i].valid)
+		if (!adev->ip_blocks[i].status.valid)
 			continue;
-		if (adev->ip_blocks[i].type == block_type)
-			return adev->ip_blocks[i].funcs->is_idle((void *)adev);
+		if (adev->ip_blocks[i].version->type == block_type)
+			return adev->ip_blocks[i].version->funcs->is_idle((void *)adev);
 	}
 	return true;
 
 }
 
-const struct amdgpu_ip_block_version * amdgpu_get_ip_block(
-					struct amdgpu_device *adev,
-					enum amd_ip_block_type type)
+struct amdgpu_ip_block * amdgpu_get_ip_block(struct amdgpu_device *adev,
+					     enum amd_ip_block_type type)
 {
 	int i;
 
 	for (i = 0; i < adev->num_ip_blocks; i++)
-		if (adev->ip_blocks[i].type == type)
+		if (adev->ip_blocks[i].version->type == type)
 			return &adev->ip_blocks[i];
 
 	return NULL;
@@ -1207,38 +1192,75 @@ int amdgpu_ip_block_version_cmp(struct amdgpu_device *adev,
 				enum amd_ip_block_type type,
 				u32 major, u32 minor)
 {
-	const struct amdgpu_ip_block_version *ip_block;
-	ip_block = amdgpu_get_ip_block(adev, type);
+	struct amdgpu_ip_block *ip_block = amdgpu_get_ip_block(adev, type);
 
-	if (ip_block && ((ip_block->major > major) ||
-			((ip_block->major == major) &&
-			(ip_block->minor >= minor))))
+	if (ip_block && ((ip_block->version->major > major) ||
+			((ip_block->version->major == major) &&
+			(ip_block->version->minor >= minor))))
 		return 0;
 
 	return 1;
 }
 
-static void amdgpu_whether_enable_virtual_display(struct amdgpu_device *adev)
+/**
+ * amdgpu_ip_block_add
+ *
+ * @adev: amdgpu_device pointer
+ * @ip_block_version: pointer to the IP to add
+ *
+ * Adds the IP block driver information to the collection of IPs
+ * on the asic.
+ */
+int amdgpu_ip_block_add(struct amdgpu_device *adev,
+			const struct amdgpu_ip_block_version *ip_block_version)
+{
+	if (!ip_block_version)
+		return -EINVAL;
+
+	adev->ip_blocks[adev->num_ip_blocks++].version = ip_block_version;
+
+	return 0;
+}
+
+static void amdgpu_device_enable_virtual_display(struct amdgpu_device *adev)
 {
 	adev->enable_virtual_display = false;
 
 	if (amdgpu_virtual_display) {
 		struct drm_device *ddev = adev->ddev;
 		const char *pci_address_name = pci_name(ddev->pdev);
-		char *pciaddstr, *pciaddstr_tmp, *pciaddname;
+		char *pciaddstr, *pciaddstr_tmp, *pciaddname_tmp, *pciaddname;
 
 		pciaddstr = kstrdup(amdgpu_virtual_display, GFP_KERNEL);
 		pciaddstr_tmp = pciaddstr;
-		while ((pciaddname = strsep(&pciaddstr_tmp, ";"))) {
+		while ((pciaddname_tmp = strsep(&pciaddstr_tmp, ";"))) {
+			pciaddname = strsep(&pciaddname_tmp, ",");
 			if (!strcmp(pci_address_name, pciaddname)) {
+				long num_crtc;
+				int res = -1;
+
 				adev->enable_virtual_display = true;
+
+				if (pciaddname_tmp)
+					res = kstrtol(pciaddname_tmp, 10,
+						      &num_crtc);
+
+				if (!res) {
+					if (num_crtc < 1)
+						num_crtc = 1;
+					if (num_crtc > 6)
+						num_crtc = 6;
+					adev->mode_info.num_crtc = num_crtc;
+				} else {
+					adev->mode_info.num_crtc = 1;
+				}
 				break;
 			}
 		}
 
-		DRM_INFO("virtual display string:%s, %s:virtual_display:%d\n",
-				 amdgpu_virtual_display, pci_address_name,
-				 adev->enable_virtual_display);
+		DRM_INFO("virtual display string:%s, %s:virtual_display:%d, num_crtc:%d\n",
+			 amdgpu_virtual_display, pci_address_name,
+			 adev->enable_virtual_display, adev->mode_info.num_crtc);
 
 		kfree(pciaddstr);
 	}
@@ -1248,7 +1270,7 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 {
 	int i, r;
 
-	amdgpu_whether_enable_virtual_display(adev);
+	amdgpu_device_enable_virtual_display(adev);
 
 	switch (adev->asic_type) {
 	case CHIP_TOPAZ:
@@ -1256,6 +1278,7 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 	case CHIP_FIJI:
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS10:
+	case CHIP_POLARIS12:
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
 		if (adev->asic_type == CHIP_CARRIZO || adev->asic_type == CHIP_STONEY)
@@ -1300,33 +1323,24 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
-	adev->ip_block_status = kcalloc(adev->num_ip_blocks,
-					sizeof(struct amdgpu_ip_block_status), GFP_KERNEL);
-	if (adev->ip_block_status == NULL)
-		return -ENOMEM;
-
-	if (adev->ip_blocks == NULL) {
-		DRM_ERROR("No IP blocks found!\n");
-		return r;
-	}
-
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if ((amdgpu_ip_block_mask & (1 << i)) == 0) {
 			DRM_ERROR("disabled ip block: %d\n", i);
-			adev->ip_block_status[i].valid = false;
+			adev->ip_blocks[i].status.valid = false;
 		} else {
-			if (adev->ip_blocks[i].funcs->early_init) {
-				r = adev->ip_blocks[i].funcs->early_init((void *)adev);
+			if (adev->ip_blocks[i].version->funcs->early_init) {
+				r = adev->ip_blocks[i].version->funcs->early_init((void *)adev);
 				if (r == -ENOENT) {
-					adev->ip_block_status[i].valid = false;
+					adev->ip_blocks[i].status.valid = false;
 				} else if (r) {
-					DRM_ERROR("early_init of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
+					DRM_ERROR("early_init of IP block <%s> failed %d\n",
+						  adev->ip_blocks[i].version->funcs->name, r);
 					return r;
 				} else {
-					adev->ip_block_status[i].valid = true;
+					adev->ip_blocks[i].status.valid = true;
 				}
 			} else {
-				adev->ip_block_status[i].valid = true;
+				adev->ip_blocks[i].status.valid = true;
 			}
 		}
 	}
@@ -1342,22 +1356,23 @@ static int amdgpu_init(struct amdgpu_device *adev)
 	int i, r;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_block_status[i].valid)
+		if (!adev->ip_blocks[i].status.valid)
 			continue;
-		r = adev->ip_blocks[i].funcs->sw_init((void *)adev);
+		r = adev->ip_blocks[i].version->funcs->sw_init((void *)adev);
 		if (r) {
-			DRM_ERROR("sw_init of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
+			DRM_ERROR("sw_init of IP block <%s> failed %d\n",
+				  adev->ip_blocks[i].version->funcs->name, r);
 			return r;
 		}
-		adev->ip_block_status[i].sw = true;
+		adev->ip_blocks[i].status.sw = true;
 		/* need to do gmc hw init early so we can allocate gpu mem */
-		if (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_GMC) {
+		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GMC) {
 			r = amdgpu_vram_scratch_init(adev);
 			if (r) {
 				DRM_ERROR("amdgpu_vram_scratch_init failed %d\n", r);
 				return r;
 			}
-			r = adev->ip_blocks[i].funcs->hw_init((void *)adev);
+			r = adev->ip_blocks[i].version->funcs->hw_init((void *)adev);
 			if (r) {
 				DRM_ERROR("hw_init %d failed %d\n", i, r);
 				return r;
@@ -1367,22 +1382,23 @@ static int amdgpu_init(struct amdgpu_device *adev)
 				DRM_ERROR("amdgpu_wb_init failed %d\n", r);
 				return r;
 			}
-			adev->ip_block_status[i].hw = true;
+			adev->ip_blocks[i].status.hw = true;
 		}
 	}
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_block_status[i].sw)
+		if (!adev->ip_blocks[i].status.sw)
 			continue;
 		/* gmc hw init is done early */
-		if (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_GMC)
+		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GMC)
 			continue;
-		r = adev->ip_blocks[i].funcs->hw_init((void *)adev);
+		r = adev->ip_blocks[i].version->funcs->hw_init((void *)adev);
 		if (r) {
-			DRM_ERROR("hw_init of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
+			DRM_ERROR("hw_init of IP block <%s> failed %d\n",
+				  adev->ip_blocks[i].version->funcs->name, r);
 			return r;
 		}
-		adev->ip_block_status[i].hw = true;
+		adev->ip_blocks[i].status.hw = true;
 	}
 
 	return 0;
@@ -1393,25 +1409,26 @@ static int amdgpu_late_init(struct amdgpu_device *adev)
 	int i = 0, r;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_block_status[i].valid)
+		if (!adev->ip_blocks[i].status.valid)
 			continue;
-		if (adev->ip_blocks[i].funcs->late_init) {
-			r = adev->ip_blocks[i].funcs->late_init((void *)adev);
+		if (adev->ip_blocks[i].version->funcs->late_init) {
+			r = adev->ip_blocks[i].version->funcs->late_init((void *)adev);
 			if (r) {
-				DRM_ERROR("late_init of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
+				DRM_ERROR("late_init of IP block <%s> failed %d\n",
+					  adev->ip_blocks[i].version->funcs->name, r);
 				return r;
 			}
-			adev->ip_block_status[i].late_initialized = true;
+			adev->ip_blocks[i].status.late_initialized = true;
 		}
 		/* skip CG for VCE/UVD, it's handled specially */
-		if (adev->ip_blocks[i].type != AMD_IP_BLOCK_TYPE_UVD &&
-		    adev->ip_blocks[i].type != AMD_IP_BLOCK_TYPE_VCE) {
+		if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_UVD &&
+		    adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_VCE) {
 			/* enable clockgating to save power */
-			r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
-									    AMD_CG_STATE_GATE);
+			r = adev->ip_blocks[i].version->funcs->set_clockgating_state((void *)adev,
+										     AMD_CG_STATE_GATE);
 			if (r) {
 				DRM_ERROR("set_clockgating_state(gate) of IP block <%s> failed %d\n",
-					  adev->ip_blocks[i].funcs->name, r);
+					  adev->ip_blocks[i].version->funcs->name, r);
 				return r;
 			}
 		}
@@ -1426,68 +1443,77 @@ static int amdgpu_fini(struct amdgpu_device *adev)
 
 	/* need to disable SMC first */
 	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_block_status[i].hw)
+		if (!adev->ip_blocks[i].status.hw)
 			continue;
-		if (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_SMC) {
+		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SMC) {
 			/* ungate blocks before hw fini so that we can shutdown the blocks safely */
-			r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
-									    AMD_CG_STATE_UNGATE);
+			r = adev->ip_blocks[i].version->funcs->set_clockgating_state((void *)adev,
+										     AMD_CG_STATE_UNGATE);
 			if (r) {
 				DRM_ERROR("set_clockgating_state(ungate) of IP block <%s> failed %d\n",
-					  adev->ip_blocks[i].funcs->name, r);
+					  adev->ip_blocks[i].version->funcs->name, r);
 				return r;
 			}
-			r = adev->ip_blocks[i].funcs->hw_fini((void *)adev);
+			r = adev->ip_blocks[i].version->funcs->hw_fini((void *)adev);
 			/* XXX handle errors */
 			if (r) {
 				DRM_DEBUG("hw_fini of IP block <%s> failed %d\n",
-					  adev->ip_blocks[i].funcs->name, r);
+					  adev->ip_blocks[i].version->funcs->name, r);
 			}
-			adev->ip_block_status[i].hw = false;
+			adev->ip_blocks[i].status.hw = false;
 			break;
 		}
 	}
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
-		if (!adev->ip_block_status[i].hw)
+		if (!adev->ip_blocks[i].status.hw)
 			continue;
-		if (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_GMC) {
+		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GMC) {
 			amdgpu_wb_fini(adev);
 			amdgpu_vram_scratch_fini(adev);
 		}
-		/* ungate blocks before hw fini so that we can shutdown the blocks safely */
-		r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
-								    AMD_CG_STATE_UNGATE);
-		if (r) {
-			DRM_ERROR("set_clockgating_state(ungate) of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
-			return r;
+
+		if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_UVD &&
+			adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_VCE) {
+			/* ungate blocks before hw fini so that we can shutdown the blocks safely */
+			r = adev->ip_blocks[i].version->funcs->set_clockgating_state((void *)adev,
+										     AMD_CG_STATE_UNGATE);
+			if (r) {
+				DRM_ERROR("set_clockgating_state(ungate) of IP block <%s> failed %d\n",
+					  adev->ip_blocks[i].version->funcs->name, r);
+				return r;
+			}
 		}
-		r = adev->ip_blocks[i].funcs->hw_fini((void *)adev);
+
+		r = adev->ip_blocks[i].version->funcs->hw_fini((void *)adev);
 		/* XXX handle errors */
 		if (r) {
-			DRM_DEBUG("hw_fini of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
+			DRM_DEBUG("hw_fini of IP block <%s> failed %d\n",
+				  adev->ip_blocks[i].version->funcs->name, r);
 		}
-		adev->ip_block_status[i].hw = false;
+
+		adev->ip_blocks[i].status.hw = false;
 	}
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
-		if (!adev->ip_block_status[i].sw)
+		if (!adev->ip_blocks[i].status.sw)
 			continue;
-		r = adev->ip_blocks[i].funcs->sw_fini((void *)adev);
+		r = adev->ip_blocks[i].version->funcs->sw_fini((void *)adev);
 		/* XXX handle errors */
 		if (r) {
-			DRM_DEBUG("sw_fini of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
+			DRM_DEBUG("sw_fini of IP block <%s> failed %d\n",
+				  adev->ip_blocks[i].version->funcs->name, r);
 		}
-		adev->ip_block_status[i].sw = false;
-		adev->ip_block_status[i].valid = false;
+		adev->ip_blocks[i].status.sw = false;
+		adev->ip_blocks[i].status.valid = false;
 	}
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
-		if (!adev->ip_block_status[i].late_initialized)
+		if (!adev->ip_blocks[i].status.late_initialized)
 			continue;
-		if (adev->ip_blocks[i].funcs->late_fini)
-			adev->ip_blocks[i].funcs->late_fini((void *)adev);
-		adev->ip_block_status[i].late_initialized = false;
+		if (adev->ip_blocks[i].version->funcs->late_fini)
+			adev->ip_blocks[i].version->funcs->late_fini((void *)adev);
+		adev->ip_blocks[i].status.late_initialized = false;
 	}
 
 	return 0;
@@ -1505,21 +1531,23 @@ int amdgpu_suspend(struct amdgpu_device *adev)
 	}
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
-		if (!adev->ip_block_status[i].valid)
+		if (!adev->ip_blocks[i].status.valid)
 			continue;
 		/* ungate blocks so that suspend can properly shut them down */
 		if (i != AMD_IP_BLOCK_TYPE_SMC) {
-			r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
-									    AMD_CG_STATE_UNGATE);
+			r = adev->ip_blocks[i].version->funcs->set_clockgating_state((void *)adev,
+										     AMD_CG_STATE_UNGATE);
 			if (r) {
-				DRM_ERROR("set_clockgating_state(ungate) of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
+				DRM_ERROR("set_clockgating_state(ungate) of IP block <%s> failed %d\n",
+					  adev->ip_blocks[i].version->funcs->name, r);
 			}
 		}
 		/* XXX handle errors */
-		r = adev->ip_blocks[i].funcs->suspend(adev);
+		r = adev->ip_blocks[i].version->funcs->suspend(adev);
 		/* XXX handle errors */
 		if (r) {
-			DRM_ERROR("suspend of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
+			DRM_ERROR("suspend of IP block <%s> failed %d\n",
+				  adev->ip_blocks[i].version->funcs->name, r);
 		}
 	}
 
@@ -1531,11 +1559,12 @@ static int amdgpu_resume(struct amdgpu_device *adev)
 	int i, r;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_block_status[i].valid)
+		if (!adev->ip_blocks[i].status.valid)
 			continue;
-		r = adev->ip_blocks[i].funcs->resume(adev);
+		r = adev->ip_blocks[i].version->funcs->resume(adev);
 		if (r) {
-			DRM_ERROR("resume of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
+			DRM_ERROR("resume of IP block <%s> failed %d\n",
+				  adev->ip_blocks[i].version->funcs->name, r);
 			return r;
 		}
 	}
@@ -1586,7 +1615,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	adev->vm_manager.vm_pte_funcs = NULL;
 	adev->vm_manager.vm_pte_num_rings = 0;
 	adev->gart.gart_funcs = NULL;
-	adev->fence_context = fence_context_alloc(AMDGPU_MAX_RINGS);
+	adev->fence_context = dma_fence_context_alloc(AMDGPU_MAX_RINGS);
 
 	adev->smc_rreg = &amdgpu_invalid_rreg;
 	adev->smc_wreg = &amdgpu_invalid_wreg;
@@ -1846,8 +1875,6 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	amdgpu_fence_driver_fini(adev);
 	amdgpu_fbdev_fini(adev);
 	r = amdgpu_fini(adev);
-	kfree(adev->ip_block_status);
-	adev->ip_block_status = NULL;
 	adev->accel_working = false;
 	/* free i2c buses */
 	amdgpu_i2c_fini(adev);
@@ -1943,7 +1970,10 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 
 	r = amdgpu_suspend(adev);
 
-	/* evict remaining vram memory */
+	/* evict remaining vram memory
+	 * This second call to evict vram is to evict the gart page table
+	 * using the CPU.
+	 */
 	amdgpu_bo_evict_vram(adev);
 
 	amdgpu_atombios_scratch_regs_save(adev);
@@ -2085,13 +2115,13 @@ static bool amdgpu_check_soft_reset(struct amdgpu_device *adev)
 	bool asic_hang = false;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_block_status[i].valid)
+		if (!adev->ip_blocks[i].status.valid)
 			continue;
-		if (adev->ip_blocks[i].funcs->check_soft_reset)
-			adev->ip_block_status[i].hang =
-				adev->ip_blocks[i].funcs->check_soft_reset(adev);
-		if (adev->ip_block_status[i].hang) {
-			DRM_INFO("IP block:%d is hang!\n", i);
+		if (adev->ip_blocks[i].version->funcs->check_soft_reset)
+			adev->ip_blocks[i].status.hang =
+				adev->ip_blocks[i].version->funcs->check_soft_reset(adev);
+		if (adev->ip_blocks[i].status.hang) {
+			DRM_INFO("IP block:%s is hung!\n", adev->ip_blocks[i].version->funcs->name);
 			asic_hang = true;
 		}
 	}
@@ -2103,11 +2133,11 @@ static int amdgpu_pre_soft_reset(struct amdgpu_device *adev)
 	int i, r = 0;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_block_status[i].valid)
+		if (!adev->ip_blocks[i].status.valid)
 			continue;
-		if (adev->ip_block_status[i].hang &&
-		    adev->ip_blocks[i].funcs->pre_soft_reset) {
-			r = adev->ip_blocks[i].funcs->pre_soft_reset(adev);
+		if (adev->ip_blocks[i].status.hang &&
+		    adev->ip_blocks[i].version->funcs->pre_soft_reset) {
+			r = adev->ip_blocks[i].version->funcs->pre_soft_reset(adev);
 			if (r)
 				return r;
 		}
@@ -2121,13 +2151,13 @@ static bool amdgpu_need_full_reset(struct amdgpu_device *adev)
 	int i;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_block_status[i].valid)
+		if (!adev->ip_blocks[i].status.valid)
 			continue;
-		if ((adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_GMC) ||
-		    (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_SMC) ||
-		    (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_ACP) ||
-		    (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_DCE)) {
-			if (adev->ip_block_status[i].hang) {
+		if ((adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GMC) ||
+		    (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SMC) ||
+		    (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_ACP) ||
+		    (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_DCE)) {
+			if (adev->ip_blocks[i].status.hang) {
 				DRM_INFO("Some block need full reset!\n");
 				return true;
 			}
@@ -2141,11 +2171,11 @@ static int amdgpu_soft_reset(struct amdgpu_device *adev)
 	int i, r = 0;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_block_status[i].valid)
+		if (!adev->ip_blocks[i].status.valid)
 			continue;
-		if (adev->ip_block_status[i].hang &&
-		    adev->ip_blocks[i].funcs->soft_reset) {
-			r = adev->ip_blocks[i].funcs->soft_reset(adev);
+		if (adev->ip_blocks[i].status.hang &&
+		    adev->ip_blocks[i].version->funcs->soft_reset) {
+			r = adev->ip_blocks[i].version->funcs->soft_reset(adev);
 			if (r)
 				return r;
 		}
@@ -2159,11 +2189,11 @@ static int amdgpu_post_soft_reset(struct amdgpu_device *adev)
 	int i, r = 0;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_block_status[i].valid)
+		if (!adev->ip_blocks[i].status.valid)
 			continue;
-		if (adev->ip_block_status[i].hang &&
-		    adev->ip_blocks[i].funcs->post_soft_reset)
-			r = adev->ip_blocks[i].funcs->post_soft_reset(adev);
+		if (adev->ip_blocks[i].status.hang &&
+		    adev->ip_blocks[i].version->funcs->post_soft_reset)
+			r = adev->ip_blocks[i].version->funcs->post_soft_reset(adev);
 		if (r)
 			return r;
 	}
@@ -2182,7 +2212,7 @@ bool amdgpu_need_backup(struct amdgpu_device *adev)
 static int amdgpu_recover_vram_from_shadow(struct amdgpu_device *adev,
 					   struct amdgpu_ring *ring,
 					   struct amdgpu_bo *bo,
-					   struct fence **fence)
+					   struct dma_fence **fence)
 {
 	uint32_t domain;
 	int r;
@@ -2298,30 +2328,30 @@ retry:
 		if (need_full_reset && amdgpu_need_backup(adev)) {
 			struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
 			struct amdgpu_bo *bo, *tmp;
-			struct fence *fence = NULL, *next = NULL;
+			struct dma_fence *fence = NULL, *next = NULL;
 
 			DRM_INFO("recover vram bo from shadow\n");
 			mutex_lock(&adev->shadow_list_lock);
 			list_for_each_entry_safe(bo, tmp, &adev->shadow_list, shadow_list) {
 				amdgpu_recover_vram_from_shadow(adev, ring, bo, &next);
 				if (fence) {
-					r = fence_wait(fence, false);
+					r = dma_fence_wait(fence, false);
 					if (r) {
 						WARN(r, "recovery from shadow isn't comleted\n");
 						break;
 					}
 				}
 
-				fence_put(fence);
+				dma_fence_put(fence);
 				fence = next;
 			}
 			mutex_unlock(&adev->shadow_list_lock);
 			if (fence) {
-				r = fence_wait(fence, false);
+				r = dma_fence_wait(fence, false);
 				if (r)
 					WARN(r, "recovery from shadow isn't comleted\n");
 			}
-			fence_put(fence);
+			dma_fence_put(fence);
 		}
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 			struct amdgpu_ring *ring = adev->rings[i];
@@ -2471,9 +2501,6 @@ int amdgpu_debugfs_add_files(struct amdgpu_device *adev,
 	adev->debugfs_count = i;
 #if defined(CONFIG_DEBUG_FS)
 	drm_debugfs_create_files(files, nfiles,
-				 adev->ddev->control->debugfs_root,
-				 adev->ddev->control);
-	drm_debugfs_create_files(files, nfiles,
 				 adev->ddev->primary->debugfs_root,
 				 adev->ddev->primary);
 #endif
@@ -2488,9 +2515,6 @@ static void amdgpu_debugfs_remove_files(struct amdgpu_device *adev)
 	for (i = 0; i < adev->debugfs_count; i++) {
 		drm_debugfs_remove_files(adev->debugfs[i].files,
 					 adev->debugfs[i].num_files,
-					 adev->ddev->control);
-		drm_debugfs_remove_files(adev->debugfs[i].files,
-					 adev->debugfs[i].num_files,
 					 adev->ddev->primary);
 	}
 #endif
@@ -2501,7 +2525,7 @@ static void amdgpu_debugfs_remove_files(struct amdgpu_device *adev)
 static ssize_t amdgpu_debugfs_regs_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = f->f_inode->i_private;
+	struct amdgpu_device *adev = file_inode(f)->i_private;
 	ssize_t result = 0;
 	int r;
 	bool pm_pg_lock, use_bank;
@@ -2517,6 +2541,13 @@ static ssize_t amdgpu_debugfs_regs_read(struct file *f, char __user *buf,
 		se_bank = (*pos >> 24) & 0x3FF;
 		sh_bank = (*pos >> 34) & 0x3FF;
 		instance_bank = (*pos >> 44) & 0x3FF;
+
+		if (se_bank == 0x3FF)
+			se_bank = 0xFFFFFFFF;
+		if (sh_bank == 0x3FF)
+			sh_bank = 0xFFFFFFFF;
+		if (instance_bank == 0x3FF)
+			instance_bank = 0xFFFFFFFF;
 		use_bank = 1;
 	} else {
 		use_bank = 0;
@@ -2525,8 +2556,8 @@ static ssize_t amdgpu_debugfs_regs_read(struct file *f, char __user *buf,
 	*pos &= 0x3FFFF;
 
 	if (use_bank) {
-		if (sh_bank >= adev->gfx.config.max_sh_per_se ||
-		    se_bank >= adev->gfx.config.max_shader_engines)
+		if ((sh_bank != 0xFFFFFFFF && sh_bank >= adev->gfx.config.max_sh_per_se) ||
+		    (se_bank != 0xFFFFFFFF && se_bank >= adev->gfx.config.max_shader_engines))
 			return -EINVAL;
 		mutex_lock(&adev->grbm_idx_mutex);
 		amdgpu_gfx_select_se_sh(adev, se_bank,
@@ -2570,12 +2601,47 @@ end:
 static ssize_t amdgpu_debugfs_regs_write(struct file *f, const char __user *buf,
 					 size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = f->f_inode->i_private;
+	struct amdgpu_device *adev = file_inode(f)->i_private;
 	ssize_t result = 0;
 	int r;
+	bool pm_pg_lock, use_bank;
+	unsigned instance_bank, sh_bank, se_bank;
 
 	if (size & 0x3 || *pos & 0x3)
 		return -EINVAL;
+
+	/* are we reading registers for which a PG lock is necessary? */
+	pm_pg_lock = (*pos >> 23) & 1;
+
+	if (*pos & (1ULL << 62)) {
+		se_bank = (*pos >> 24) & 0x3FF;
+		sh_bank = (*pos >> 34) & 0x3FF;
+		instance_bank = (*pos >> 44) & 0x3FF;
+
+		if (se_bank == 0x3FF)
+			se_bank = 0xFFFFFFFF;
+		if (sh_bank == 0x3FF)
+			sh_bank = 0xFFFFFFFF;
+		if (instance_bank == 0x3FF)
+			instance_bank = 0xFFFFFFFF;
+		use_bank = 1;
+	} else {
+		use_bank = 0;
+	}
+
+	*pos &= 0x3FFFF;
+
+	if (use_bank) {
+		if ((sh_bank != 0xFFFFFFFF && sh_bank >= adev->gfx.config.max_sh_per_se) ||
+		    (se_bank != 0xFFFFFFFF && se_bank >= adev->gfx.config.max_shader_engines))
+			return -EINVAL;
+		mutex_lock(&adev->grbm_idx_mutex);
+		amdgpu_gfx_select_se_sh(adev, se_bank,
+					sh_bank, instance_bank);
+	}
+
+	if (pm_pg_lock)
+		mutex_lock(&adev->pm.mutex);
 
 	while (size) {
 		uint32_t value;
@@ -2595,13 +2661,21 @@ static ssize_t amdgpu_debugfs_regs_write(struct file *f, const char __user *buf,
 		size -= 4;
 	}
 
+	if (use_bank) {
+		amdgpu_gfx_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+		mutex_unlock(&adev->grbm_idx_mutex);
+	}
+
+	if (pm_pg_lock)
+		mutex_unlock(&adev->pm.mutex);
+
 	return result;
 }
 
 static ssize_t amdgpu_debugfs_regs_pcie_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = f->f_inode->i_private;
+	struct amdgpu_device *adev = file_inode(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -2628,7 +2702,7 @@ static ssize_t amdgpu_debugfs_regs_pcie_read(struct file *f, char __user *buf,
 static ssize_t amdgpu_debugfs_regs_pcie_write(struct file *f, const char __user *buf,
 					 size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = f->f_inode->i_private;
+	struct amdgpu_device *adev = file_inode(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -2656,7 +2730,7 @@ static ssize_t amdgpu_debugfs_regs_pcie_write(struct file *f, const char __user 
 static ssize_t amdgpu_debugfs_regs_didt_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = f->f_inode->i_private;
+	struct amdgpu_device *adev = file_inode(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -2683,7 +2757,7 @@ static ssize_t amdgpu_debugfs_regs_didt_read(struct file *f, char __user *buf,
 static ssize_t amdgpu_debugfs_regs_didt_write(struct file *f, const char __user *buf,
 					 size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = f->f_inode->i_private;
+	struct amdgpu_device *adev = file_inode(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -2711,7 +2785,7 @@ static ssize_t amdgpu_debugfs_regs_didt_write(struct file *f, const char __user 
 static ssize_t amdgpu_debugfs_regs_smc_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = f->f_inode->i_private;
+	struct amdgpu_device *adev = file_inode(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -2738,7 +2812,7 @@ static ssize_t amdgpu_debugfs_regs_smc_read(struct file *f, char __user *buf,
 static ssize_t amdgpu_debugfs_regs_smc_write(struct file *f, const char __user *buf,
 					 size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = f->f_inode->i_private;
+	struct amdgpu_device *adev = file_inode(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -2766,7 +2840,7 @@ static ssize_t amdgpu_debugfs_regs_smc_write(struct file *f, const char __user *
 static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = f->f_inode->i_private;
+	struct amdgpu_device *adev = file_inode(f)->i_private;
 	ssize_t result = 0;
 	int r;
 	uint32_t *config, no_regs = 0;
@@ -2836,7 +2910,7 @@ static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
 static ssize_t amdgpu_debugfs_sensor_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = f->f_inode->i_private;
+	struct amdgpu_device *adev = file_inode(f)->i_private;
 	int idx, r;
 	int32_t value;
 
@@ -2855,6 +2929,116 @@ static ssize_t amdgpu_debugfs_sensor_read(struct file *f, char __user *buf,
 		r = put_user(value, (int32_t *)buf);
 
 	return !r ? 4 : r;
+}
+
+static ssize_t amdgpu_debugfs_wave_read(struct file *f, char __user *buf,
+					size_t size, loff_t *pos)
+{
+	struct amdgpu_device *adev = f->f_inode->i_private;
+	int r, x;
+	ssize_t result=0;
+	uint32_t offset, se, sh, cu, wave, simd, data[32];
+
+	if (size & 3 || *pos & 3)
+		return -EINVAL;
+
+	/* decode offset */
+	offset = (*pos & 0x7F);
+	se = ((*pos >> 7) & 0xFF);
+	sh = ((*pos >> 15) & 0xFF);
+	cu = ((*pos >> 23) & 0xFF);
+	wave = ((*pos >> 31) & 0xFF);
+	simd = ((*pos >> 37) & 0xFF);
+
+	/* switch to the specific se/sh/cu */
+	mutex_lock(&adev->grbm_idx_mutex);
+	amdgpu_gfx_select_se_sh(adev, se, sh, cu);
+
+	x = 0;
+	if (adev->gfx.funcs->read_wave_data)
+		adev->gfx.funcs->read_wave_data(adev, simd, wave, data, &x);
+
+	amdgpu_gfx_select_se_sh(adev, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF);
+	mutex_unlock(&adev->grbm_idx_mutex);
+
+	if (!x)
+		return -EINVAL;
+
+	while (size && (offset < x * 4)) {
+		uint32_t value;
+
+		value = data[offset >> 2];
+		r = put_user(value, (uint32_t *)buf);
+		if (r)
+			return r;
+
+		result += 4;
+		buf += 4;
+		offset += 4;
+		size -= 4;
+	}
+
+	return result;
+}
+
+static ssize_t amdgpu_debugfs_gpr_read(struct file *f, char __user *buf,
+					size_t size, loff_t *pos)
+{
+	struct amdgpu_device *adev = f->f_inode->i_private;
+	int r;
+	ssize_t result = 0;
+	uint32_t offset, se, sh, cu, wave, simd, thread, bank, *data;
+
+	if (size & 3 || *pos & 3)
+		return -EINVAL;
+
+	/* decode offset */
+	offset = (*pos & 0xFFF);       /* in dwords */
+	se = ((*pos >> 12) & 0xFF);
+	sh = ((*pos >> 20) & 0xFF);
+	cu = ((*pos >> 28) & 0xFF);
+	wave = ((*pos >> 36) & 0xFF);
+	simd = ((*pos >> 44) & 0xFF);
+	thread = ((*pos >> 52) & 0xFF);
+	bank = ((*pos >> 60) & 1);
+
+	data = kmalloc_array(1024, sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	/* switch to the specific se/sh/cu */
+	mutex_lock(&adev->grbm_idx_mutex);
+	amdgpu_gfx_select_se_sh(adev, se, sh, cu);
+
+	if (bank == 0) {
+		if (adev->gfx.funcs->read_wave_vgprs)
+			adev->gfx.funcs->read_wave_vgprs(adev, simd, wave, thread, offset, size>>2, data);
+	} else {
+		if (adev->gfx.funcs->read_wave_sgprs)
+			adev->gfx.funcs->read_wave_sgprs(adev, simd, wave, offset, size>>2, data);
+	}
+
+	amdgpu_gfx_select_se_sh(adev, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF);
+	mutex_unlock(&adev->grbm_idx_mutex);
+
+	while (size) {
+		uint32_t value;
+
+		value = data[offset++];
+		r = put_user(value, (uint32_t *)buf);
+		if (r) {
+			result = r;
+			goto err;
+		}
+
+		result += 4;
+		buf += 4;
+		size -= 4;
+	}
+
+err:
+	kfree(data);
+	return result;
 }
 
 static const struct file_operations amdgpu_debugfs_regs_fops = {
@@ -2894,6 +3078,17 @@ static const struct file_operations amdgpu_debugfs_sensors_fops = {
 	.llseek = default_llseek
 };
 
+static const struct file_operations amdgpu_debugfs_wave_fops = {
+	.owner = THIS_MODULE,
+	.read = amdgpu_debugfs_wave_read,
+	.llseek = default_llseek
+};
+static const struct file_operations amdgpu_debugfs_gpr_fops = {
+	.owner = THIS_MODULE,
+	.read = amdgpu_debugfs_gpr_read,
+	.llseek = default_llseek
+};
+
 static const struct file_operations *debugfs_regs[] = {
 	&amdgpu_debugfs_regs_fops,
 	&amdgpu_debugfs_regs_didt_fops,
@@ -2901,6 +3096,8 @@ static const struct file_operations *debugfs_regs[] = {
 	&amdgpu_debugfs_regs_smc_fops,
 	&amdgpu_debugfs_gca_config_fops,
 	&amdgpu_debugfs_sensors_fops,
+	&amdgpu_debugfs_wave_fops,
+	&amdgpu_debugfs_gpr_fops,
 };
 
 static const char *debugfs_regs_names[] = {
@@ -2910,6 +3107,8 @@ static const char *debugfs_regs_names[] = {
 	"amdgpu_regs_smc",
 	"amdgpu_gca_config",
 	"amdgpu_sensors",
+	"amdgpu_wave",
+	"amdgpu_gpr",
 };
 
 static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)

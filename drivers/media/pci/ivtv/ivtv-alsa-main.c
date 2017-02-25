@@ -177,8 +177,8 @@ static int snd_ivtv_init(struct v4l2_device *v4l2_dev)
 #if 0
 	ret = snd_ivtv_mixer_create(itvsc);
 	if (ret) {
-		IVTV_ALSA_WARN("%s: snd_ivtv_mixer_create() failed with err %d:"
-			       " proceeding anyway\n", __func__, ret);
+		IVTV_ALSA_WARN("%s: snd_ivtv_mixer_create() failed with err %d: proceeding anyway\n",
+			       __func__, ret);
 	}
 #endif
 
@@ -235,8 +235,8 @@ static int ivtv_alsa_load(struct ivtv *itv)
 
 	s = &itv->streams[IVTV_ENC_STREAM_TYPE_PCM];
 	if (s->vdev.v4l2_dev == NULL) {
-		IVTV_DEBUG_ALSA_INFO("%s: PCM stream for card is disabled - "
-				     "skipping\n", __func__);
+		IVTV_DEBUG_ALSA_INFO("%s: PCM stream for card is disabled - skipping\n",
+				     __func__);
 		return 0;
 	}
 
@@ -250,8 +250,8 @@ static int ivtv_alsa_load(struct ivtv *itv)
 		IVTV_ALSA_ERR("%s: failed to create struct snd_ivtv_card\n",
 			      __func__);
 	} else {
-		IVTV_DEBUG_ALSA_INFO("%s: created ivtv ALSA interface instance "
-				     "\n", __func__);
+		IVTV_DEBUG_ALSA_INFO("%s: created ivtv ALSA interface instance \n",
+				     __func__);
 	}
 	return 0;
 }

@@ -52,7 +52,7 @@
 		interrupt-parent = <&gic>;
 		ranges;
 
-		config-space {
+		config-space@f4000000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "simple-bus";
@@ -163,6 +163,14 @@
 				interrupts = <GIC_SPI 311 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&cps_syscon0 1 21>;
 				status = "disabled";
+			};
+
+			cps_trng: trng@760000 {
+				compatible = "marvell,armada-8k-rng", "inside-secure,safexcel-eip76";
+				reg = <0x760000 0x7d>;
+				interrupts = <GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&cps_syscon0 1 25>;
+				status = "okay";
 			};
 		};
 

@@ -50,9 +50,11 @@
  */
 
 #include "armada-370-xp.dtsi"
-/include/ "skeleton.dtsi"
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
 	model = "Marvell Armada 370 family SoC";
 	compatible = "marvell,armada370", "marvell,armada-370-xp";
 
@@ -70,7 +72,7 @@
 			reg = <MBUS_ID(0x01, 0xe0) 0 0x100000>;
 		};
 
-		pcie-controller {
+		pciec: pcie-controller@82000000 {
 			compatible = "marvell,armada-370-pcie";
 			status = "disabled";
 			device_type = "pci";
@@ -89,7 +91,7 @@
 				0x82000000 0x2 0     MBUS_ID(0x08, 0xe8) 0       1 0 /* Port 1.0 MEM */
 				0x81000000 0x2 0     MBUS_ID(0x08, 0xe0) 0       1 0 /* Port 1.0 IO  */>;
 
-			pcie@1,0 {
+			pcie0: pcie@1,0 {
 				device_type = "pci";
 				assigned-addresses = <0x82000800 0 0x40000 0 0x2000>;
 				reg = <0x0800 0 0 0 0>;
@@ -106,7 +108,7 @@
 				status = "disabled";
 			};
 
-			pcie@2,0 {
+			pcie2: pcie@2,0 {
 				device_type = "pci";
 				assigned-addresses = <0x82002800 0 0x80000 0 0x2000>;
 				reg = <0x1000 0 0 0 0>;
@@ -125,21 +127,13 @@
 		};
 
 		internal-regs {
-			L2: l2-cache {
+			L2: l2-cache@8000 {
 				compatible = "marvell,aurora-outer-cache";
 				reg = <0x08000 0x1000>;
 				cache-id-part = <0x100>;
 				cache-level = <2>;
 				cache-unified;
 				wt-override;
-			};
-
-			i2c0: i2c@11000 {
-				reg = <0x11000 0x20>;
-			};
-
-			i2c1: i2c@11100 {
-				reg = <0x11100 0x20>;
 			};
 
 			gpio0: gpio@18100 {
@@ -175,22 +169,8 @@
 				interrupts = <91>;
 			};
 
-			/*
-			 * Default UART pinctrl setting without RTS/CTS, can
-			 * be overwritten on board level if a different
-			 * configuration is used.
-			 */
-			uart0: serial@12000 {
-				pinctrl-0 = <&uart0_pins>;
-				pinctrl-names = "default";
-			};
 
-			uart1: serial@12100 {
-				pinctrl-0 = <&uart1_pins>;
-				pinctrl-names = "default";
-			};
-
-			system-controller@18200 {
+			systemc: system-controller@18200 {
 				compatible = "marvell,armada-370-xp-system-controller";
 				reg = <0x18200 0x100>;
 			};
@@ -208,37 +188,18 @@
 				#clock-cells = <1>;
 			};
 
-			thermal@18300 {
+			thermal: thermal@18300 {
 				compatible = "marvell,armada370-thermal";
 				reg = <0x18300 0x4
 					0x18304 0x4>;
 				status = "okay";
 			};
 
-			sscg@18330 {
+			sscg: sscg@18330 {
 				reg = <0x18330 0x4>;
 			};
 
-			interrupt-controller@20a00 {
-				reg = <0x20a00 0x1d0>, <0x21870 0x58>;
-			};
-
-			timer@20300 {
-				compatible = "marvell,armada-370-timer";
-				clocks = <&coreclk 2>;
-			};
-
-			watchdog@20300 {
-				compatible = "marvell,armada-370-wdt";
-				clocks = <&coreclk 2>;
-			};
-
-			cpurst@20800 {
-				compatible = "marvell,armada-370-cpu-reset";
-				reg = <0x20800 0x8>;
-			};
-
-			cpu-config@21000 {
+			cpuconf: cpu-config@21000 {
 				compatible = "marvell,armada-370-cpu-config";
 				reg = <0x21000 0x8>;
 			};
@@ -253,15 +214,7 @@
 				status = "disabled";
 			};
 
-			usb@50000 {
-				clocks = <&coreclk 0>;
-			};
-
-			usb@51000 {
-				clocks = <&coreclk 0>;
-			};
-
-			xor@60800 {
+			xor0: xor@60800 {
 				compatible = "marvell,orion-xor";
 				reg = <0x60800 0x100
 				       0x60A00 0x100>;
@@ -280,7 +233,7 @@
 				};
 			};
 
-			xor@60900 {
+			xor1: xor@60900 {
 				compatible = "marvell,orion-xor";
 				reg = <0x60900 0x100
 				       0x60b00 0x100>;
@@ -299,15 +252,7 @@
 				};
 			};
 
-			ethernet@70000 {
-				compatible = "marvell,armada-370-neta";
-			};
-
-			ethernet@74000 {
-				compatible = "marvell,armada-370-neta";
-			};
-
-			crypto@90000 {
+			cesa: crypto@90000 {
 				compatible = "marvell,armada-370-crypto";
 				reg = <0x90000 0x10000>;
 				reg-names = "regs";
@@ -340,6 +285,59 @@
 			};
 		};
 	};
+};
+
+/*
+ * Default UART pinctrl setting without RTS/CTS, can be overwritten on
+ * board level if a different configuration is used.
+ */
+
+&uart0 {
+	pinctrl-0 = <&uart0_pins>;
+	pinctrl-names = "default";
+};
+
+&uart1 {
+	pinctrl-0 = <&uart1_pins>;
+	pinctrl-names = "default";
+};
+
+&i2c0 {
+	reg = <0x11000 0x20>;
+};
+
+&i2c1 {
+	reg = <0x11100 0x20>;
+};
+
+&mpic {
+	reg = <0x20a00 0x1d0>, <0x21870 0x58>;
+};
+
+&timer {
+	compatible = "marvell,armada-370-timer";
+	clocks = <&coreclk 2>;
+};
+
+&watchdog {
+	compatible = "marvell,armada-370-wdt";
+	clocks = <&coreclk 2>;
+};
+
+&usb0 {
+	clocks = <&coreclk 0>;
+};
+
+&usb1 {
+	clocks = <&coreclk 0>;
+};
+
+&eth0 {
+	compatible = "marvell,armada-370-neta";
+};
+
+&eth1 {
+	compatible = "marvell,armada-370-neta";
 };
 
 &pinctrl {

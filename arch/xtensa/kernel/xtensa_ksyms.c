@@ -19,7 +19,7 @@
 #include <asm/irq.h>
 #include <linux/in6.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cacheflush.h>
 #include <asm/checksum.h>
 #include <asm/dma.h>

@@ -15,8 +15,6 @@
 #include <linux/platform_device.h>
 #include <linux/bcma/bcma.h>
 
-static void bcma_chipco_serial_init(struct bcma_drv_cc *cc);
-
 static inline u32 bcma_cc_write32_masked(struct bcma_drv_cc *cc, u16 offset,
 					 u32 mask, u32 value)
 {
@@ -185,9 +183,6 @@ void bcma_core_chipcommon_early_init(struct bcma_drv_cc *cc)
 
 	if (cc->capabilities & BCMA_CC_CAP_PMU)
 		bcma_pmu_early_init(cc);
-
-	if (IS_BUILTIN(CONFIG_BCM47XX) && bus->hosttype == BCMA_HOSTTYPE_SOC)
-		bcma_chipco_serial_init(cc);
 
 	if (bus->hosttype == BCMA_HOSTTYPE_SOC)
 		bcma_core_chipcommon_flash_detect(cc);
@@ -378,9 +373,9 @@ u32 bcma_chipco_gpio_pulldown(struct bcma_drv_cc *cc, u32 mask, u32 value)
 	return res;
 }
 
-static void bcma_chipco_serial_init(struct bcma_drv_cc *cc)
+#ifdef CONFIG_BCMA_DRIVER_MIPS
+void bcma_chipco_serial_init(struct bcma_drv_cc *cc)
 {
-#if IS_BUILTIN(CONFIG_BCM47XX)
 	unsigned int irq;
 	u32 baud_base;
 	u32 i;
@@ -422,5 +417,5 @@ static void bcma_chipco_serial_init(struct bcma_drv_cc *cc)
 		ports[i].baud_base = baud_base;
 		ports[i].reg_shift = 0;
 	}
-#endif /* CONFIG_BCM47XX */
 }
+#endif /* CONFIG_BCMA_DRIVER_MIPS */

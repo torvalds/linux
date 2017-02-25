@@ -2260,16 +2260,10 @@ static int pch_gbe_set_mac(struct net_device *netdev, void *addr)
 static int pch_gbe_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
-	int max_frame;
+	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
 	unsigned long old_rx_buffer_len = adapter->rx_buffer_len;
 	int err;
 
-	max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
-	if ((max_frame < ETH_ZLEN + ETH_FCS_LEN) ||
-		(max_frame > PCH_GBE_MAX_JUMBO_FRAME_SIZE)) {
-		netdev_err(netdev, "Invalid MTU setting\n");
-		return -EINVAL;
-	}
 	if (max_frame <= PCH_GBE_FRAME_SIZE_2048)
 		adapter->rx_buffer_len = PCH_GBE_FRAME_SIZE_2048;
 	else if (max_frame <= PCH_GBE_FRAME_SIZE_4096)
@@ -2632,6 +2626,11 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 	netdev->features = netdev->hw_features;
 	pch_gbe_set_ethtool_ops(netdev);
+
+	/* MTU range: 46 - 10300 */
+	netdev->min_mtu = ETH_ZLEN - ETH_HLEN;
+	netdev->max_mtu = PCH_GBE_MAX_JUMBO_FRAME_SIZE -
+			  (ETH_HLEN + ETH_FCS_LEN);
 
 	pch_gbe_mac_load_mac_addr(&adapter->hw);
 	pch_gbe_mac_reset_hw(&adapter->hw);

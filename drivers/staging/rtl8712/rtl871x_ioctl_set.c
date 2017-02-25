@@ -139,9 +139,10 @@ u8 r8712_set_802_11_bssid(struct _adapter *padapter, u8 *bssid)
 		if (!memcmp(&pmlmepriv->cur_network.network.MacAddress, bssid,
 		    ETH_ALEN)) {
 			if (!check_fwstate(pmlmepriv, WIFI_STATION_STATE))
-				goto _Abort_Set_BSSID; /* driver is in
-						* WIFI_ADHOC_MASTER_STATE
-						*/
+				/* driver is in
+				 * WIFI_ADHOC_MASTER_STATE
+				 */
+				goto _Abort_Set_BSSID;
 		} else {
 			r8712_disassoc_cmd(padapter);
 			if (check_fwstate(pmlmepriv, _FW_LINKED))
@@ -203,9 +204,10 @@ void r8712_set_802_11_ssid(struct _adapter *padapter,
 							    WIFI_ADHOC_STATE);
 					}
 				} else {
-					goto _Abort_Set_SSID; /* driver is in
-						* WIFI_ADHOC_MASTER_STATE
-						*/
+					/* driver is in
+					 * WIFI_ADHOC_MASTER_STATE
+					 */
+					goto _Abort_Set_SSID;
 				}
 			}
 		} else {

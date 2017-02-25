@@ -12,8 +12,8 @@
 #include <asm/neon.h>
 #include <asm/hwcap.h>
 #include <crypto/aes.h>
-#include <crypto/ablk_helper.h>
-#include <crypto/algapi.h>
+#include <crypto/internal/simd.h>
+#include <crypto/internal/skcipher.h>
 #include <linux/module.h>
 #include <crypto/xts.h>
 
@@ -88,8 +88,13 @@ static int ce_aes_expandkey(struct crypto_aes_ctx *ctx, const u8 *in_key,
 		u32 *rki = ctx->key_enc + (i * kwords);
 		u32 *rko = rki + kwords;
 
+#ifndef CONFIG_CPU_BIG_ENDIAN
 		rko[0] = ror32(ce_aes_sub(rki[kwords - 1]), 8);
 		rko[0] = rko[0] ^ rki[0] ^ rcon[i];
+#else
+		rko[0] = rol32(ce_aes_sub(rki[kwords - 1]), 8);
+		rko[0] = rko[0] ^ rki[0] ^ (rcon[i] << 24);
+#endif
 		rko[1] = rko[0] ^ rki[1];
 		rko[2] = rko[1] ^ rki[2];
 		rko[3] = rko[2] ^ rki[3];
@@ -128,17 +133,17 @@ static int ce_aes_expandkey(struct crypto_aes_ctx *ctx, const u8 *in_key,
 	return 0;
 }
 
-static int ce_aes_setkey(struct crypto_tfm *tfm, const u8 *in_key,
+static int ce_aes_setkey(struct crypto_skcipher *tfm, const u8 *in_key,
 			 unsigned int key_len)
 {
-	struct crypto_aes_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct crypto_aes_ctx *ctx = crypto_skcipher_ctx(tfm);
 	int ret;
 
 	ret = ce_aes_expandkey(ctx, in_key, key_len);
 	if (!ret)
 		return 0;
 
-	tfm->crt_flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
+	crypto_skcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 	return -EINVAL;
 }
 
@@ -147,13 +152,13 @@ struct crypto_aes_xts_ctx {
 	struct crypto_aes_ctx __aligned(8) key2;
 };
 
-static int xts_set_key(struct crypto_tfm *tfm, const u8 *in_key,
+static int xts_set_key(struct crypto_skcipher *tfm, const u8 *in_key,
 		       unsigned int key_len)
 {
-	struct crypto_aes_xts_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct crypto_aes_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
 	int ret;
 
-	ret = xts_check_key(tfm, in_key, key_len);
+	ret = xts_verify_key(tfm, in_key, key_len);
 	if (ret)
 		return ret;
 
@@ -164,130 +169,113 @@ static int xts_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 	if (!ret)
 		return 0;
 
-	tfm->crt_flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
+	crypto_skcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 	return -EINVAL;
 }
 
-static int ecb_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int ecb_encrypt(struct skcipher_request *req)
 {
-	struct crypto_aes_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	struct blkcipher_walk walk;
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct crypto_aes_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct skcipher_walk walk;
 	unsigned int blocks;
 	int err;
 
-	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
-	blkcipher_walk_init(&walk, dst, src, nbytes);
-	err = blkcipher_walk_virt(desc, &walk);
+	err = skcipher_walk_virt(&walk, req, true);
 
 	kernel_neon_begin();
 	while ((blocks = (walk.nbytes / AES_BLOCK_SIZE))) {
 		ce_aes_ecb_encrypt(walk.dst.virt.addr, walk.src.virt.addr,
 				   (u8 *)ctx->key_enc, num_rounds(ctx), blocks);
-		err = blkcipher_walk_done(desc, &walk,
-					  walk.nbytes % AES_BLOCK_SIZE);
+		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
 	kernel_neon_end();
 	return err;
 }
 
-static int ecb_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int ecb_decrypt(struct skcipher_request *req)
 {
-	struct crypto_aes_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	struct blkcipher_walk walk;
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct crypto_aes_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct skcipher_walk walk;
 	unsigned int blocks;
 	int err;
 
-	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
-	blkcipher_walk_init(&walk, dst, src, nbytes);
-	err = blkcipher_walk_virt(desc, &walk);
+	err = skcipher_walk_virt(&walk, req, true);
 
 	kernel_neon_begin();
 	while ((blocks = (walk.nbytes / AES_BLOCK_SIZE))) {
 		ce_aes_ecb_decrypt(walk.dst.virt.addr, walk.src.virt.addr,
 				   (u8 *)ctx->key_dec, num_rounds(ctx), blocks);
-		err = blkcipher_walk_done(desc, &walk,
-					  walk.nbytes % AES_BLOCK_SIZE);
+		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
 	kernel_neon_end();
 	return err;
 }
 
-static int cbc_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int cbc_encrypt(struct skcipher_request *req)
 {
-	struct crypto_aes_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	struct blkcipher_walk walk;
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct crypto_aes_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct skcipher_walk walk;
 	unsigned int blocks;
 	int err;
 
-	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
-	blkcipher_walk_init(&walk, dst, src, nbytes);
-	err = blkcipher_walk_virt(desc, &walk);
+	err = skcipher_walk_virt(&walk, req, true);
 
 	kernel_neon_begin();
 	while ((blocks = (walk.nbytes / AES_BLOCK_SIZE))) {
 		ce_aes_cbc_encrypt(walk.dst.virt.addr, walk.src.virt.addr,
 				   (u8 *)ctx->key_enc, num_rounds(ctx), blocks,
 				   walk.iv);
-		err = blkcipher_walk_done(desc, &walk,
-					  walk.nbytes % AES_BLOCK_SIZE);
+		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
 	kernel_neon_end();
 	return err;
 }
 
-static int cbc_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int cbc_decrypt(struct skcipher_request *req)
 {
-	struct crypto_aes_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	struct blkcipher_walk walk;
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct crypto_aes_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct skcipher_walk walk;
 	unsigned int blocks;
 	int err;
 
-	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
-	blkcipher_walk_init(&walk, dst, src, nbytes);
-	err = blkcipher_walk_virt(desc, &walk);
+	err = skcipher_walk_virt(&walk, req, true);
 
 	kernel_neon_begin();
 	while ((blocks = (walk.nbytes / AES_BLOCK_SIZE))) {
 		ce_aes_cbc_decrypt(walk.dst.virt.addr, walk.src.virt.addr,
 				   (u8 *)ctx->key_dec, num_rounds(ctx), blocks,
 				   walk.iv);
-		err = blkcipher_walk_done(desc, &walk,
-					  walk.nbytes % AES_BLOCK_SIZE);
+		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
 	kernel_neon_end();
 	return err;
 }
 
-static int ctr_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int ctr_encrypt(struct skcipher_request *req)
 {
-	struct crypto_aes_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	struct blkcipher_walk walk;
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct crypto_aes_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct skcipher_walk walk;
 	int err, blocks;
 
-	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
-	blkcipher_walk_init(&walk, dst, src, nbytes);
-	err = blkcipher_walk_virt_block(desc, &walk, AES_BLOCK_SIZE);
+	err = skcipher_walk_virt(&walk, req, true);
 
 	kernel_neon_begin();
 	while ((blocks = (walk.nbytes / AES_BLOCK_SIZE))) {
 		ce_aes_ctr_encrypt(walk.dst.virt.addr, walk.src.virt.addr,
 				   (u8 *)ctx->key_enc, num_rounds(ctx), blocks,
 				   walk.iv);
-		nbytes -= blocks * AES_BLOCK_SIZE;
-		if (nbytes && nbytes == walk.nbytes % AES_BLOCK_SIZE)
-			break;
-		err = blkcipher_walk_done(desc, &walk,
-					  walk.nbytes % AES_BLOCK_SIZE);
+		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
-	if (walk.nbytes % AES_BLOCK_SIZE) {
-		u8 *tdst = walk.dst.virt.addr + blocks * AES_BLOCK_SIZE;
-		u8 *tsrc = walk.src.virt.addr + blocks * AES_BLOCK_SIZE;
+	if (walk.nbytes) {
 		u8 __aligned(8) tail[AES_BLOCK_SIZE];
+		unsigned int nbytes = walk.nbytes;
+		u8 *tdst = walk.dst.virt.addr;
+		u8 *tsrc = walk.src.virt.addr;
 
 		/*
 		 * Minimum alignment is 8 bytes, so if nbytes is <= 8, we need
@@ -298,231 +286,172 @@ static int ctr_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 		ce_aes_ctr_encrypt(tail, tsrc, (u8 *)ctx->key_enc,
 				   num_rounds(ctx), blocks, walk.iv);
 		memcpy(tdst, tail, nbytes);
-		err = blkcipher_walk_done(desc, &walk, 0);
+		err = skcipher_walk_done(&walk, 0);
 	}
 	kernel_neon_end();
 
 	return err;
 }
 
-static int xts_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int xts_encrypt(struct skcipher_request *req)
 {
-	struct crypto_aes_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct crypto_aes_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
 	int err, first, rounds = num_rounds(&ctx->key1);
-	struct blkcipher_walk walk;
+	struct skcipher_walk walk;
 	unsigned int blocks;
 
-	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
-	blkcipher_walk_init(&walk, dst, src, nbytes);
-	err = blkcipher_walk_virt(desc, &walk);
+	err = skcipher_walk_virt(&walk, req, true);
 
 	kernel_neon_begin();
 	for (first = 1; (blocks = (walk.nbytes / AES_BLOCK_SIZE)); first = 0) {
 		ce_aes_xts_encrypt(walk.dst.virt.addr, walk.src.virt.addr,
 				   (u8 *)ctx->key1.key_enc, rounds, blocks,
 				   walk.iv, (u8 *)ctx->key2.key_enc, first);
-		err = blkcipher_walk_done(desc, &walk,
-					  walk.nbytes % AES_BLOCK_SIZE);
+		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
 	kernel_neon_end();
 
 	return err;
 }
 
-static int xts_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int xts_decrypt(struct skcipher_request *req)
 {
-	struct crypto_aes_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct crypto_aes_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
 	int err, first, rounds = num_rounds(&ctx->key1);
-	struct blkcipher_walk walk;
+	struct skcipher_walk walk;
 	unsigned int blocks;
 
-	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
-	blkcipher_walk_init(&walk, dst, src, nbytes);
-	err = blkcipher_walk_virt(desc, &walk);
+	err = skcipher_walk_virt(&walk, req, true);
 
 	kernel_neon_begin();
 	for (first = 1; (blocks = (walk.nbytes / AES_BLOCK_SIZE)); first = 0) {
 		ce_aes_xts_decrypt(walk.dst.virt.addr, walk.src.virt.addr,
 				   (u8 *)ctx->key1.key_dec, rounds, blocks,
 				   walk.iv, (u8 *)ctx->key2.key_enc, first);
-		err = blkcipher_walk_done(desc, &walk,
-					  walk.nbytes % AES_BLOCK_SIZE);
+		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
 	kernel_neon_end();
 
 	return err;
 }
 
-static struct crypto_alg aes_algs[] = { {
-	.cra_name		= "__ecb-aes-ce",
-	.cra_driver_name	= "__driver-ecb-aes-ce",
-	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
-				  CRYPTO_ALG_INTERNAL,
-	.cra_blocksize		= AES_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct crypto_aes_ctx),
-	.cra_alignmask		= 7,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_blkcipher = {
-		.min_keysize	= AES_MIN_KEY_SIZE,
-		.max_keysize	= AES_MAX_KEY_SIZE,
-		.ivsize		= 0,
-		.setkey		= ce_aes_setkey,
-		.encrypt	= ecb_encrypt,
-		.decrypt	= ecb_decrypt,
+static struct skcipher_alg aes_algs[] = { {
+	.base = {
+		.cra_name		= "__ecb(aes)",
+		.cra_driver_name	= "__ecb-aes-ce",
+		.cra_priority		= 300,
+		.cra_flags		= CRYPTO_ALG_INTERNAL,
+		.cra_blocksize		= AES_BLOCK_SIZE,
+		.cra_ctxsize		= sizeof(struct crypto_aes_ctx),
+		.cra_alignmask		= 7,
+		.cra_module		= THIS_MODULE,
 	},
+	.min_keysize	= AES_MIN_KEY_SIZE,
+	.max_keysize	= AES_MAX_KEY_SIZE,
+	.setkey		= ce_aes_setkey,
+	.encrypt	= ecb_encrypt,
+	.decrypt	= ecb_decrypt,
 }, {
-	.cra_name		= "__cbc-aes-ce",
-	.cra_driver_name	= "__driver-cbc-aes-ce",
-	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
-				  CRYPTO_ALG_INTERNAL,
-	.cra_blocksize		= AES_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct crypto_aes_ctx),
-	.cra_alignmask		= 7,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_blkcipher = {
-		.min_keysize	= AES_MIN_KEY_SIZE,
-		.max_keysize	= AES_MAX_KEY_SIZE,
-		.ivsize		= AES_BLOCK_SIZE,
-		.setkey		= ce_aes_setkey,
-		.encrypt	= cbc_encrypt,
-		.decrypt	= cbc_decrypt,
+	.base = {
+		.cra_name		= "__cbc(aes)",
+		.cra_driver_name	= "__cbc-aes-ce",
+		.cra_priority		= 300,
+		.cra_flags		= CRYPTO_ALG_INTERNAL,
+		.cra_blocksize		= AES_BLOCK_SIZE,
+		.cra_ctxsize		= sizeof(struct crypto_aes_ctx),
+		.cra_alignmask		= 7,
+		.cra_module		= THIS_MODULE,
 	},
+	.min_keysize	= AES_MIN_KEY_SIZE,
+	.max_keysize	= AES_MAX_KEY_SIZE,
+	.ivsize		= AES_BLOCK_SIZE,
+	.setkey		= ce_aes_setkey,
+	.encrypt	= cbc_encrypt,
+	.decrypt	= cbc_decrypt,
 }, {
-	.cra_name		= "__ctr-aes-ce",
-	.cra_driver_name	= "__driver-ctr-aes-ce",
-	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
-				  CRYPTO_ALG_INTERNAL,
-	.cra_blocksize		= 1,
-	.cra_ctxsize		= sizeof(struct crypto_aes_ctx),
-	.cra_alignmask		= 7,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_blkcipher = {
-		.min_keysize	= AES_MIN_KEY_SIZE,
-		.max_keysize	= AES_MAX_KEY_SIZE,
-		.ivsize		= AES_BLOCK_SIZE,
-		.setkey		= ce_aes_setkey,
-		.encrypt	= ctr_encrypt,
-		.decrypt	= ctr_encrypt,
+	.base = {
+		.cra_name		= "__ctr(aes)",
+		.cra_driver_name	= "__ctr-aes-ce",
+		.cra_priority		= 300,
+		.cra_flags		= CRYPTO_ALG_INTERNAL,
+		.cra_blocksize		= 1,
+		.cra_ctxsize		= sizeof(struct crypto_aes_ctx),
+		.cra_alignmask		= 7,
+		.cra_module		= THIS_MODULE,
 	},
+	.min_keysize	= AES_MIN_KEY_SIZE,
+	.max_keysize	= AES_MAX_KEY_SIZE,
+	.ivsize		= AES_BLOCK_SIZE,
+	.chunksize	= AES_BLOCK_SIZE,
+	.setkey		= ce_aes_setkey,
+	.encrypt	= ctr_encrypt,
+	.decrypt	= ctr_encrypt,
 }, {
-	.cra_name		= "__xts-aes-ce",
-	.cra_driver_name	= "__driver-xts-aes-ce",
-	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
-				  CRYPTO_ALG_INTERNAL,
-	.cra_blocksize		= AES_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct crypto_aes_xts_ctx),
-	.cra_alignmask		= 7,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_blkcipher = {
-		.min_keysize	= 2 * AES_MIN_KEY_SIZE,
-		.max_keysize	= 2 * AES_MAX_KEY_SIZE,
-		.ivsize		= AES_BLOCK_SIZE,
-		.setkey		= xts_set_key,
-		.encrypt	= xts_encrypt,
-		.decrypt	= xts_decrypt,
+	.base = {
+		.cra_name		= "__xts(aes)",
+		.cra_driver_name	= "__xts-aes-ce",
+		.cra_priority		= 300,
+		.cra_flags		= CRYPTO_ALG_INTERNAL,
+		.cra_blocksize		= AES_BLOCK_SIZE,
+		.cra_ctxsize		= sizeof(struct crypto_aes_xts_ctx),
+		.cra_alignmask		= 7,
+		.cra_module		= THIS_MODULE,
 	},
-}, {
-	.cra_name		= "ecb(aes)",
-	.cra_driver_name	= "ecb-aes-ce",
-	.cra_priority		= 300,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER|CRYPTO_ALG_ASYNC,
-	.cra_blocksize		= AES_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct async_helper_ctx),
-	.cra_alignmask		= 7,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_init		= ablk_init,
-	.cra_exit		= ablk_exit,
-	.cra_ablkcipher = {
-		.min_keysize	= AES_MIN_KEY_SIZE,
-		.max_keysize	= AES_MAX_KEY_SIZE,
-		.ivsize		= 0,
-		.setkey		= ablk_set_key,
-		.encrypt	= ablk_encrypt,
-		.decrypt	= ablk_decrypt,
-	}
-}, {
-	.cra_name		= "cbc(aes)",
-	.cra_driver_name	= "cbc-aes-ce",
-	.cra_priority		= 300,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER|CRYPTO_ALG_ASYNC,
-	.cra_blocksize		= AES_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct async_helper_ctx),
-	.cra_alignmask		= 7,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_init		= ablk_init,
-	.cra_exit		= ablk_exit,
-	.cra_ablkcipher = {
-		.min_keysize	= AES_MIN_KEY_SIZE,
-		.max_keysize	= AES_MAX_KEY_SIZE,
-		.ivsize		= AES_BLOCK_SIZE,
-		.setkey		= ablk_set_key,
-		.encrypt	= ablk_encrypt,
-		.decrypt	= ablk_decrypt,
-	}
-}, {
-	.cra_name		= "ctr(aes)",
-	.cra_driver_name	= "ctr-aes-ce",
-	.cra_priority		= 300,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER|CRYPTO_ALG_ASYNC,
-	.cra_blocksize		= 1,
-	.cra_ctxsize		= sizeof(struct async_helper_ctx),
-	.cra_alignmask		= 7,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_init		= ablk_init,
-	.cra_exit		= ablk_exit,
-	.cra_ablkcipher = {
-		.min_keysize	= AES_MIN_KEY_SIZE,
-		.max_keysize	= AES_MAX_KEY_SIZE,
-		.ivsize		= AES_BLOCK_SIZE,
-		.setkey		= ablk_set_key,
-		.encrypt	= ablk_encrypt,
-		.decrypt	= ablk_decrypt,
-	}
-}, {
-	.cra_name		= "xts(aes)",
-	.cra_driver_name	= "xts-aes-ce",
-	.cra_priority		= 300,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER|CRYPTO_ALG_ASYNC,
-	.cra_blocksize		= AES_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct async_helper_ctx),
-	.cra_alignmask		= 7,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_init		= ablk_init,
-	.cra_exit		= ablk_exit,
-	.cra_ablkcipher = {
-		.min_keysize	= 2 * AES_MIN_KEY_SIZE,
-		.max_keysize	= 2 * AES_MAX_KEY_SIZE,
-		.ivsize		= AES_BLOCK_SIZE,
-		.setkey		= ablk_set_key,
-		.encrypt	= ablk_encrypt,
-		.decrypt	= ablk_decrypt,
-	}
+	.min_keysize	= 2 * AES_MIN_KEY_SIZE,
+	.max_keysize	= 2 * AES_MAX_KEY_SIZE,
+	.ivsize		= AES_BLOCK_SIZE,
+	.setkey		= xts_set_key,
+	.encrypt	= xts_encrypt,
+	.decrypt	= xts_decrypt,
 } };
+
+static struct simd_skcipher_alg *aes_simd_algs[ARRAY_SIZE(aes_algs)];
+
+static void aes_exit(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(aes_simd_algs) && aes_simd_algs[i]; i++)
+		simd_skcipher_free(aes_simd_algs[i]);
+
+	crypto_unregister_skciphers(aes_algs, ARRAY_SIZE(aes_algs));
+}
 
 static int __init aes_init(void)
 {
+	struct simd_skcipher_alg *simd;
+	const char *basename;
+	const char *algname;
+	const char *drvname;
+	int err;
+	int i;
+
 	if (!(elf_hwcap2 & HWCAP2_AES))
 		return -ENODEV;
-	return crypto_register_algs(aes_algs, ARRAY_SIZE(aes_algs));
-}
 
-static void __exit aes_exit(void)
-{
-	crypto_unregister_algs(aes_algs, ARRAY_SIZE(aes_algs));
+	err = crypto_register_skciphers(aes_algs, ARRAY_SIZE(aes_algs));
+	if (err)
+		return err;
+
+	for (i = 0; i < ARRAY_SIZE(aes_algs); i++) {
+		algname = aes_algs[i].base.cra_name + 2;
+		drvname = aes_algs[i].base.cra_driver_name + 2;
+		basename = aes_algs[i].base.cra_driver_name;
+		simd = simd_skcipher_create_compat(algname, drvname, basename);
+		err = PTR_ERR(simd);
+		if (IS_ERR(simd))
+			goto unregister_simds;
+
+		aes_simd_algs[i] = simd;
+	}
+
+	return 0;
+
+unregister_simds:
+	aes_exit();
+	return err;
 }
 
 module_init(aes_init);

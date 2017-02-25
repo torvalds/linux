@@ -40,7 +40,7 @@
 #include <asm/dma.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <net/ax25.h>
 #include "z8530.h"
 

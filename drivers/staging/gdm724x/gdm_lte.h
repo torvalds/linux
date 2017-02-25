@@ -47,15 +47,15 @@ struct phy_dev {
 	void	*priv_dev;
 	struct net_device *dev[MAX_NIC_TYPE];
 	int	(*send_hci_func)(void *priv_dev, void *data, int len,
-			void (*cb)(void *cb_data), void *cb_data);
+				 void (*cb)(void *cb_data), void *cb_data);
 	int	(*send_sdu_func)(void *priv_dev, void *data, int len,
-			unsigned int dftEpsId, unsigned int epsId,
-			void (*cb)(void *cb_data), void *cb_data,
-			int dev_idx, int nic_type);
+				 unsigned int dftEpsId, unsigned int epsId,
+				 void (*cb)(void *cb_data), void *cb_data,
+				 int dev_idx, int nic_type);
 	int	(*rcv_func)(void *priv_dev,
-			int (*cb)(void *cb_data, void *data, int len,
-				  int context),
-			void *cb_data, int context);
+			    int (*cb)(void *cb_data, void *data, int len,
+				      int context),
+			    void *cb_data, int context);
 	struct gdm_endian * (*get_endian)(void *priv_dev);
 };
 

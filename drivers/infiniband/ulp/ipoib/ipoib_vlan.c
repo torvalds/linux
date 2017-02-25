@@ -35,7 +35,7 @@
 #include <linux/init.h>
 #include <linux/seq_file.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "ipoib.h"
 

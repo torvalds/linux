@@ -118,7 +118,7 @@ static int polaris10_perform_btc(struct pp_smumgr *smumgr)
 }
 
 
-int polaris10_setup_graphics_level_structure(struct pp_smumgr *smumgr)
+static int polaris10_setup_graphics_level_structure(struct pp_smumgr *smumgr)
 {
 	uint32_t vr_config;
 	uint32_t dpm_table_start;
@@ -172,7 +172,8 @@ int polaris10_setup_graphics_level_structure(struct pp_smumgr *smumgr)
 	return 0;
 }
 
-int polaris10_avfs_event_mgr(struct pp_smumgr *smumgr, bool SMU_VFT_INTACT)
+static int
+polaris10_avfs_event_mgr(struct pp_smumgr *smumgr, bool SMU_VFT_INTACT)
 {
 	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(smumgr->backend);
 

@@ -53,4 +53,4 @@ r8188eu-y :=				\
 
 obj-$(CONFIG_R8188EU)	:= r8188eu.o
 
-ccflags-y += -D__CHECK_ENDIAN__ -I$(srctree)/$(src)/include
+ccflags-y += -I$(srctree)/$(src)/include
