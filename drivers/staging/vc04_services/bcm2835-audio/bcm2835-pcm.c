@@ -56,8 +56,7 @@ static struct snd_pcm_hardware snd_bcm2835_playback_spdif_hw = {
 static void snd_bcm2835_playback_free(struct snd_pcm_runtime *runtime)
 {
 	audio_info("Freeing up alsa stream here ..\n");
-	if (runtime->private_data)
-		kfree(runtime->private_data);
+	kfree(runtime->private_data);
 	runtime->private_data = NULL;
 }
 
