@@ -11,6 +11,7 @@
 #include "hi3660.dtsi"
 #include "hikey960-pinctrl.dtsi"
 #include "hi3660-drm.dtsi"
+#include "hi3660-gpu.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
