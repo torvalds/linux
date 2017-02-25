@@ -42,6 +42,8 @@ static void lirc_release_device(struct device *ld)
 
 	if (rcdev->driver_type == RC_DRIVER_IR_RAW)
 		kfifo_free(&rcdev->rawir);
+	if (rcdev->driver_type != RC_DRIVER_IR_RAW_TX)
+		kfifo_free(&rcdev->scancodes);
 
 	put_device(&rcdev->dev);
 }
@@ -55,9 +57,18 @@ int ir_lirc_register(struct rc_dev *dev)
 	dev->lirc_dev.release = lirc_release_device;
 	dev->send_mode = LIRC_MODE_PULSE;
 
+	dev->rec_mode = LIRC_MODE_MODE2;
+
 	if (dev->driver_type == RC_DRIVER_IR_RAW) {
 		if (kfifo_alloc(&dev->rawir, MAX_IR_EVENT_SIZE, GFP_KERNEL))
 			return -ENOMEM;
+	}
+
+	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
+		if (kfifo_alloc(&dev->scancodes, 32, GFP_KERNEL)) {
+			kfifo_free(&dev->rawir);
+			return -ENOMEM;
+		}
 	}
 
 	init_waitqueue_head(&dev->wait_poll);
@@ -90,6 +101,8 @@ out_ida:
 out_kfifo:
 	if (dev->driver_type == RC_DRIVER_IR_RAW)
 		kfifo_free(&dev->rawir);
+	if (dev->driver_type != RC_DRIVER_IR_RAW_TX)
+		kfifo_free(&dev->scancodes);
 	return err;
 }
 

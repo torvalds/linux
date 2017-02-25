@@ -697,6 +697,13 @@ static void ir_do_keydown(struct rc_dev *dev, enum rc_proto protocol,
 			  dev->last_protocol != protocol ||
 			  dev->last_scancode != scancode ||
 			  dev->last_toggle   != toggle);
+	struct lirc_scancode sc = {
+		.scancode = scancode, .rc_proto = protocol,
+		.flags = toggle ? LIRC_SCANCODE_FLAG_TOGGLE : 0,
+		.keycode = keycode
+	};
+
+	ir_lirc_scancode_event(dev, &sc);
 
 	if (new_event && dev->keypressed)
 		ir_do_keyup(dev, false);

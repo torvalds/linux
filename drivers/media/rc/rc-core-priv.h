@@ -276,6 +276,7 @@ void ir_raw_init(void);
 int lirc_dev_init(void);
 void lirc_dev_exit(void);
 void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev);
+void ir_lirc_scancode_event(struct rc_dev *dev, struct lirc_scancode *lsc);
 int ir_lirc_register(struct rc_dev *dev);
 void ir_lirc_unregister(struct rc_dev *dev);
 
@@ -285,6 +286,8 @@ static inline int lirc_dev_init(void) { return 0; }
 static inline void lirc_dev_exit(void) {}
 static inline void ir_lirc_raw_event(struct rc_dev *dev,
 				     struct ir_raw_event ev) { }
+static inline void ir_lirc_scancode_event(struct rc_dev *dev,
+					  struct lirc_scancode *lsc) { }
 static inline int ir_lirc_register(struct rc_dev *dev) { return 0; }
 static inline void ir_lirc_unregister(struct rc_dev *dev) { }
 #endif
