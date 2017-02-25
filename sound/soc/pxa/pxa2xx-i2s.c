@@ -119,7 +119,7 @@ static int pxa_i2s_wait(void)
 	int i;
 
 	/* flush the Rx FIFO */
-	for(i = 0; i < 16; i++)
+	for (i = 0; i < 16; i++)
 		SADR;
 	return 0;
 }
