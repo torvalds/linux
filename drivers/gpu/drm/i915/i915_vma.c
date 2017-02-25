@@ -241,7 +241,15 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 	u32 vma_flags;
 	int ret;
 
-	if (WARN_ON(flags == 0))
+	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+	GEM_BUG_ON(vma->size > vma->node.size);
+
+	if (GEM_WARN_ON(range_overflows(vma->node.start,
+					vma->node.size,
+					vma->vm->total)))
+		return -ENODEV;
+
+	if (GEM_WARN_ON(!flags))
 		return -EINVAL;
 
 	bind_flags = 0;
@@ -257,11 +265,6 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 		bind_flags &= ~vma_flags;
 	if (bind_flags == 0)
 		return 0;
-
-	if (GEM_WARN_ON(range_overflows(vma->node.start,
-					vma->node.size,
-					vma->vm->total)))
-		return -ENODEV;
 
 	trace_i915_vma_bind(vma, bind_flags);
 	ret = vma->vm->bind_vma(vma, cache_level, bind_flags);
