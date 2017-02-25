@@ -82,8 +82,8 @@ int vnt_control_in(struct vnt_private *priv, u8 request, u16 value,
 	mutex_lock(&priv->usb_lock);
 
 	status = usb_control_msg(priv->usb,
-		                usb_rcvctrlpipe(priv->usb, 0), request, 0xc0, value,
-			        index, buffer, length, USB_CTL_WAIT);
+				usb_rcvctrlpipe(priv->usb, 0), request, 0xc0,
+				value, index, buffer, length, USB_CTL_WAIT);
 
 	mutex_unlock(&priv->usb_lock);
 
