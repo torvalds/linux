@@ -122,6 +122,17 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 	if (!lirc)
 		return -EFAULT;
 
+	dev = lirc->dev;
+	if (!dev) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	if (!dev->tx_ir) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	if (lirc->send_mode == LIRC_MODE_SCANCODE) {
 		struct lirc_scancode scan;
 
@@ -154,6 +165,13 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 		for (i = 0; i < count; i++)
 			/* Convert from NS to US */
 			txbuf[i] = DIV_ROUND_UP(raw[i].duration, 1000);
+
+		if (dev->s_tx_carrier) {
+			int carrier = ir_raw_encode_carrier(scan.rc_proto);
+
+			if (carrier > 0)
+				dev->s_tx_carrier(dev, carrier);
+		}
 	} else {
 		if (n < sizeof(unsigned int) || n % sizeof(unsigned int))
 			return -EINVAL;
@@ -165,17 +183,6 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 		txbuf = memdup_user(buf, n);
 		if (IS_ERR(txbuf))
 			return PTR_ERR(txbuf);
-	}
-
-	dev = lirc->dev;
-	if (!dev) {
-		ret = -EFAULT;
-		goto out;
-	}
-
-	if (!dev->tx_ir) {
-		ret = -EINVAL;
-		goto out;
 	}
 
 	for (i = 0; i < count; i++) {

@@ -212,6 +212,7 @@ static struct ir_raw_handler jvc_handler = {
 	.protocols	= RC_PROTO_BIT_JVC,
 	.decode		= ir_jvc_decode,
 	.encode		= ir_jvc_encode,
+	.carrier	= 38000,
 };
 
 static int __init ir_jvc_decode_init(void)

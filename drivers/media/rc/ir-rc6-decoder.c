@@ -408,6 +408,7 @@ static struct ir_raw_handler rc6_handler = {
 			  RC_PROTO_BIT_RC6_MCE,
 	.decode		= ir_rc6_decode,
 	.encode		= ir_rc6_encode,
+	.carrier	= 36000,
 };
 
 static int __init ir_rc6_decode_init(void)

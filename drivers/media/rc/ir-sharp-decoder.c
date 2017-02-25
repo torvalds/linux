@@ -226,6 +226,7 @@ static struct ir_raw_handler sharp_handler = {
 	.protocols	= RC_PROTO_BIT_SHARP,
 	.decode		= ir_sharp_decode,
 	.encode		= ir_sharp_encode,
+	.carrier	= 38000,
 };
 
 static int __init ir_sharp_decode_init(void)
