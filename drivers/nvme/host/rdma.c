@@ -1251,7 +1251,7 @@ static int nvme_rdma_addr_resolved(struct nvme_rdma_queue *queue)
 
 	dev = nvme_rdma_find_get_device(queue->cm_id);
 	if (!dev) {
-		dev_err(queue->cm_id->device->dma_device,
+		dev_err(queue->cm_id->device->dev.parent,
 			"no client data found!\n");
 		return -ECONNREFUSED;
 	}

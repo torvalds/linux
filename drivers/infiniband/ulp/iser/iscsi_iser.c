@@ -652,7 +652,7 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 		}
 
 		if (iscsi_host_add(shost,
-				   ib_conn->device->ib_device->dma_device)) {
+				   ib_conn->device->ib_device->dev.parent)) {
 			mutex_unlock(&iser_conn->state_mutex);
 			goto free_host;
 		}

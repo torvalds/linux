@@ -333,6 +333,15 @@ int ib_register_device(struct ib_device *device,
 	int ret;
 	struct ib_client *client;
 	struct ib_udata uhw = {.outlen = 0, .inlen = 0};
+	struct device *parent = device->dev.parent;
+
+	WARN_ON_ONCE(!parent);
+	if (!device->dev.dma_ops)
+		device->dev.dma_ops = parent->dma_ops;
+	if (!device->dev.dma_mask)
+		device->dev.dma_mask = parent->dma_mask;
+	if (!device->dev.coherent_dma_mask)
+		device->dev.coherent_dma_mask = parent->coherent_dma_mask;
 
 	mutex_lock(&device_mutex);
 

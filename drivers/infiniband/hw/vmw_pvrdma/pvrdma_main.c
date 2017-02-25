@@ -173,7 +173,7 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 	dev->flags = 0;
 	dev->ib_dev.owner = THIS_MODULE;
 	dev->ib_dev.num_comp_vectors = 1;
-	dev->ib_dev.dma_device = &dev->pdev->dev;
+	dev->ib_dev.dev.parent = &dev->pdev->dev;
 	dev->ib_dev.uverbs_abi_ver = PVRDMA_UVERBS_ABI_VERSION;
 	dev->ib_dev.uverbs_cmd_mask =
 		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT)		|

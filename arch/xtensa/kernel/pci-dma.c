@@ -250,7 +250,7 @@ int xtensa_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 	return 0;
 }
 
-struct dma_map_ops xtensa_dma_map_ops = {
+const struct dma_map_ops xtensa_dma_map_ops = {
 	.alloc = xtensa_dma_alloc,
 	.free = xtensa_dma_free,
 	.map_page = xtensa_map_page,
