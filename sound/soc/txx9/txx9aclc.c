@@ -392,6 +392,7 @@ static int txx9aclc_pcm_remove(struct snd_soc_platform *platform)
 	for (i = 0; i < 2; i++) {
 		struct txx9aclc_dmadata *dmadata = &dev->dmadata[i];
 		struct dma_chan *chan = dmadata->dma_chan;
+
 		if (chan) {
 			dmadata->frag_count = -1;
 			dmaengine_terminate_all(chan);
