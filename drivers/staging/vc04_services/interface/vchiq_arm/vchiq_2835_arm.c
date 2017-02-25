@@ -40,6 +40,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
+#include <linux/mm.h>
 #include <linux/of.h>
 #include <soc/bcm2835/raspberrypi-firmware.h>
 
