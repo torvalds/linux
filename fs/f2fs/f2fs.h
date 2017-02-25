@@ -952,6 +952,10 @@ struct f2fs_sb_info {
 };
 
 #ifdef CONFIG_F2FS_FAULT_INJECTION
+#define f2fs_show_injection_info(type)				\
+	printk("%sF2FS-fs : inject %s in %s of %pF\n",		\
+		KERN_INFO, fault_name[type],			\
+		__func__, __builtin_return_address(0))
 static inline bool time_to_inject(struct f2fs_sb_info *sbi, int type)
 {
 	struct f2fs_fault_info *ffi = &sbi->fault_info;
@@ -965,10 +969,6 @@ static inline bool time_to_inject(struct f2fs_sb_info *sbi, int type)
 	atomic_inc(&ffi->inject_ops);
 	if (atomic_read(&ffi->inject_ops) >= ffi->inject_rate) {
 		atomic_set(&ffi->inject_ops, 0);
-		printk("%sF2FS-fs : inject %s in %pF\n",
-				KERN_INFO,
-				fault_name[type],
-				__builtin_return_address(0));
 		return true;
 	}
 	return false;
@@ -1277,8 +1277,10 @@ static inline bool inc_valid_block_count(struct f2fs_sb_info *sbi,
 	blkcnt_t diff;
 
 #ifdef CONFIG_F2FS_FAULT_INJECTION
-	if (time_to_inject(sbi, FAULT_BLOCK))
+	if (time_to_inject(sbi, FAULT_BLOCK)) {
+		f2fs_show_injection_info(FAULT_BLOCK);
 		return false;
+	}
 #endif
 	/*
 	 * let's increase this in prior to actual block count change in order
@@ -1518,8 +1520,10 @@ static inline struct page *f2fs_grab_cache_page(struct address_space *mapping,
 	if (page)
 		return page;
 
-	if (time_to_inject(F2FS_M_SB(mapping), FAULT_PAGE_ALLOC))
+	if (time_to_inject(F2FS_M_SB(mapping), FAULT_PAGE_ALLOC)) {
+		f2fs_show_injection_info(FAULT_PAGE_ALLOC);
 		return NULL;
+	}
 #endif
 	if (!for_write)
 		return grab_cache_page(mapping, index);
@@ -1995,8 +1999,10 @@ static inline void *f2fs_kmalloc(struct f2fs_sb_info *sbi,
 					size_t size, gfp_t flags)
 {
 #ifdef CONFIG_F2FS_FAULT_INJECTION
-	if (time_to_inject(sbi, FAULT_KMALLOC))
+	if (time_to_inject(sbi, FAULT_KMALLOC)) {
+		f2fs_show_injection_info(FAULT_KMALLOC);
 		return NULL;
+	}
 #endif
 	return kmalloc(size, flags);
 }
