@@ -2600,6 +2600,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM28178_BOARD_TERRATEC_T2_STICK_HD },
 	{ USB_DEVICE(0x3275, 0x0085),
 			.driver_info = EM28178_BOARD_PLEX_PX_BCUD },
+	{ USB_DEVICE(0xeb1a, 0x5051), /* Ion Video 2 PC MKII / Startech svid2usb23 / Raygo R12-41373 */
+			.driver_info = EM2860_BOARD_TVP5150_REFERENCE_DESIGN },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, em28xx_id_table);
