@@ -41,6 +41,7 @@ static inline void tegra30_apbif_write(u32 reg, u32 val)
 static inline u32 tegra30_apbif_read(u32 reg)
 {
 	u32 val;
+
 	regmap_read(ahub->regmap_apbif, reg, &val);
 	return val;
 }

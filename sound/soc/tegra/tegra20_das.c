@@ -41,6 +41,7 @@ static inline void tegra20_das_write(u32 reg, u32 val)
 static inline u32 tegra20_das_read(u32 reg)
 {
 	u32 val;
+
 	regmap_read(das->regmap, reg, &val);
 	return val;
 }
