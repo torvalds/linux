@@ -29,7 +29,7 @@
 #define PCIBIOS_MIN_MEM		0x10000000
 
 #ifdef CONFIG_PPC_POWERNV
-#define PCIBIOS_DEFAULT_ALIGNMENT	PAGE_SIZE
+#define PCIBIOS_DEFAULT_ALIGNMENT	(machine_is(powernv) ? PAGE_SIZE : 0)
 #endif
 
 struct pci_dev;

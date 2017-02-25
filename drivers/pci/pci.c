@@ -4971,13 +4971,6 @@ static resource_size_t pci_specified_resource_alignment(struct pci_dev *dev,
 #endif
 	spin_lock(&resource_alignment_lock);
 	p = resource_alignment_param;
-	if (!*p)
-		goto out;
-	if (pci_has_flag(PCI_PROBE_ONLY)) {
-		pr_info_once("PCI: Ignoring requested alignments (PCI_PROBE_ONLY)\n");
-		goto out;
-	}
-
 	while (*p) {
 		count = 0;
 		if (sscanf(p, "%d%n", &align_order, &count) == 1 &&
@@ -5044,8 +5037,11 @@ static resource_size_t pci_specified_resource_alignment(struct pci_dev *dev,
 		}
 		p++;
 	}
-out:
 	spin_unlock(&resource_alignment_lock);
+	if (align && pci_has_flag(PCI_PROBE_ONLY)) {
+		pr_info_once("PCI: Ignoring requested alignments (PCI_PROBE_ONLY)\n");
+		align = 0;
+	}
 	return align;
 }
 
