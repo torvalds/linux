@@ -467,7 +467,6 @@ int f2fs_getxattr(struct inode *inode, int index, const char *name,
 	struct f2fs_xattr_entry *entry = NULL;
 	int error = 0;
 	unsigned int size, len;
-	char *pval;
 	void *base_addr = NULL;
 
 	if (name == NULL)
@@ -488,8 +487,6 @@ int f2fs_getxattr(struct inode *inode, int index, const char *name,
 		error = -ERANGE;
 		goto out;
 	}
-
-	pval = entry->e_name + entry->e_name_len;
 
 	if (buffer) {
 		char *pval = entry->e_name + entry->e_name_len;
