@@ -103,7 +103,7 @@ struct ir_raw_event_ctrl {
 		u64 gap_duration;
 		bool gap;
 		bool send_timeout_reports;
-
+		u8 send_mode;
 	} lirc;
 	struct xmp_dec {
 		int state;
