@@ -52,7 +52,7 @@
 	model = "UniPhier LD11 Reference Board";
 	compatible = "socionext,uniphier-ld11-ref", "socionext,uniphier-ld11";
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0 0x80000000 0 0x40000000>;
 	};
