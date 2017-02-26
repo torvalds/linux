@@ -83,7 +83,6 @@ int amdgpu_map_static_csa(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 		DRM_ERROR("failed to do bo_map on static CSA, err=%d\n", r);
 		amdgpu_vm_bo_rmv(adev, bo_va);
 		ttm_eu_backoff_reservation(&ticket, &list);
-		kfree(bo_va);
 		return r;
 	}
 

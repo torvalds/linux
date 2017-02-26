@@ -784,8 +784,19 @@ static int brcm_avs_target_index(struct cpufreq_policy *policy,
 static int brcm_avs_suspend(struct cpufreq_policy *policy)
 {
 	struct private_data *priv = policy->driver_data;
+	int ret;
 
-	return brcm_avs_get_pmap(priv, &priv->pmap);
+	ret = brcm_avs_get_pmap(priv, &priv->pmap);
+	if (ret)
+		return ret;
+
+	/*
+	 * We can't use the P-state returned by brcm_avs_get_pmap(), since
+	 * that's the initial P-state from when the P-map was downloaded to the
+	 * AVS co-processor, not necessarily the P-state we are running at now.
+	 * So, we get the current P-state explicitly.
+	 */
+	return brcm_avs_get_pstate(priv, &priv->pmap.state);
 }
 
 static int brcm_avs_resume(struct cpufreq_policy *policy)
@@ -954,9 +965,9 @@ static ssize_t show_brcm_avs_pmap(struct cpufreq_policy *policy, char *buf)
 	brcm_avs_parse_p1(pmap.p1, &mdiv_p0, &pdiv, &ndiv);
 	brcm_avs_parse_p2(pmap.p2, &mdiv_p1, &mdiv_p2, &mdiv_p3, &mdiv_p4);
 
-	return sprintf(buf, "0x%08x 0x%08x %u %u %u %u %u %u %u\n",
+	return sprintf(buf, "0x%08x 0x%08x %u %u %u %u %u %u %u %u %u\n",
 		pmap.p1, pmap.p2, ndiv, pdiv, mdiv_p0, mdiv_p1, mdiv_p2,
-		mdiv_p3, mdiv_p4);
+		mdiv_p3, mdiv_p4, pmap.mode, pmap.state);
 }
 
 static ssize_t show_brcm_avs_voltage(struct cpufreq_policy *policy, char *buf)

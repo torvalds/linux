@@ -83,6 +83,13 @@ int amdgpu_cs_get_ring(struct amdgpu_device *adev, u32 ip_type,
 		}
 		break;
 	}
+
+	if (!(*out_ring && (*out_ring)->adev)) {
+		DRM_ERROR("Ring %d is not initialized on IP %d\n",
+			  ring, ip_type);
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -344,8 +351,7 @@ static u64 amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev)
  * submission. This can result in a debt that can stop buffer migrations
  * temporarily.
  */
-static void amdgpu_cs_report_moved_bytes(struct amdgpu_device *adev,
-					 u64 num_bytes)
+void amdgpu_cs_report_moved_bytes(struct amdgpu_device *adev, u64 num_bytes)
 {
 	spin_lock(&adev->mm_stats.lock);
 	adev->mm_stats.accum_us -= bytes_to_us(adev, num_bytes);

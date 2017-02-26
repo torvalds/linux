@@ -288,15 +288,15 @@ drm_atomic_get_crtc_state(struct drm_atomic_state *state,
 EXPORT_SYMBOL(drm_atomic_get_crtc_state);
 
 static void set_out_fence_for_crtc(struct drm_atomic_state *state,
-				   struct drm_crtc *crtc, s64 __user *fence_ptr)
+				   struct drm_crtc *crtc, s32 __user *fence_ptr)
 {
 	state->crtcs[drm_crtc_index(crtc)].out_fence_ptr = fence_ptr;
 }
 
-static s64 __user *get_out_fence_for_crtc(struct drm_atomic_state *state,
+static s32 __user *get_out_fence_for_crtc(struct drm_atomic_state *state,
 					  struct drm_crtc *crtc)
 {
-	s64 __user *fence_ptr;
+	s32 __user *fence_ptr;
 
 	fence_ptr = state->crtcs[drm_crtc_index(crtc)].out_fence_ptr;
 	state->crtcs[drm_crtc_index(crtc)].out_fence_ptr = NULL;
@@ -507,7 +507,7 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 		state->color_mgmt_changed |= replaced;
 		return ret;
 	} else if (property == config->prop_out_fence_ptr) {
-		s64 __user *fence_ptr = u64_to_user_ptr(val);
+		s32 __user *fence_ptr = u64_to_user_ptr(val);
 
 		if (!fence_ptr)
 			return 0;
@@ -1914,7 +1914,7 @@ EXPORT_SYMBOL(drm_atomic_clean_old_fb);
  */
 
 struct drm_out_fence_state {
-	s64 __user *out_fence_ptr;
+	s32 __user *out_fence_ptr;
 	struct sync_file *sync_file;
 	int fd;
 };
@@ -1951,7 +1951,7 @@ static int prepare_crtc_signaling(struct drm_device *dev,
 		return 0;
 
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
-		u64 __user *fence_ptr;
+		s32 __user *fence_ptr;
 
 		fence_ptr = get_out_fence_for_crtc(crtc_state->state, crtc);
 
@@ -2031,13 +2031,16 @@ static void complete_crtc_signaling(struct drm_device *dev,
 	}
 
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
+		struct drm_pending_vblank_event *event = crtc_state->event;
 		/*
-		 * TEST_ONLY and PAGE_FLIP_EVENT are mutually
-		 * exclusive, if they weren't, this code should be
-		 * called on success for TEST_ONLY too.
+		 * Free the allocated event. drm_atomic_helper_setup_commit
+		 * can allocate an event too, so only free it if it's ours
+		 * to prevent a double free in drm_atomic_state_clear.
 		 */
-		if (crtc_state->event)
-			drm_event_cancel_free(dev, &crtc_state->event->base);
+		if (event && (event->base.fence || event->base.file_priv)) {
+			drm_event_cancel_free(dev, &event->base);
+			crtc_state->event = NULL;
+		}
 	}
 
 	if (!fence_state)

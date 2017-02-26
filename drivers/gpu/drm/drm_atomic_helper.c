@@ -370,7 +370,7 @@ mode_fixup(struct drm_atomic_state *state)
 	struct drm_connector *connector;
 	struct drm_connector_state *conn_state;
 	int i;
-	bool ret;
+	int ret;
 
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		if (!crtc_state->mode_changed &&

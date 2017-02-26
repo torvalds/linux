@@ -3898,6 +3898,14 @@ static void gfx_v8_0_gpu_init(struct amdgpu_device *adev)
 			PA_SC_FIFO_SIZE__SC_HIZ_TILE_FIFO_SIZE__SHIFT) |
 		   (adev->gfx.config.sc_earlyz_tile_fifo_size <<
 			PA_SC_FIFO_SIZE__SC_EARLYZ_TILE_FIFO_SIZE__SHIFT));
+
+	tmp = RREG32(mmSPI_ARB_PRIORITY);
+	tmp = REG_SET_FIELD(tmp, SPI_ARB_PRIORITY, PIPE_ORDER_TS0, 2);
+	tmp = REG_SET_FIELD(tmp, SPI_ARB_PRIORITY, PIPE_ORDER_TS1, 2);
+	tmp = REG_SET_FIELD(tmp, SPI_ARB_PRIORITY, PIPE_ORDER_TS2, 2);
+	tmp = REG_SET_FIELD(tmp, SPI_ARB_PRIORITY, PIPE_ORDER_TS3, 2);
+	WREG32(mmSPI_ARB_PRIORITY, tmp);
+
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 }
@@ -7260,7 +7268,7 @@ static void gfx_v8_0_ring_emit_ce_meta_init(struct amdgpu_ring *ring, uint64_t c
 	static union {
 		struct amdgpu_ce_ib_state regular;
 		struct amdgpu_ce_ib_state_chained_ib chained;
-	} ce_payload = {0};
+	} ce_payload = {};
 
 	if (ring->adev->virt.chained_ib_support) {
 		ce_payload_addr = csa_addr + offsetof(struct amdgpu_gfx_meta_data_chained_ib, ce_payload);
@@ -7287,7 +7295,7 @@ static void gfx_v8_0_ring_emit_de_meta_init(struct amdgpu_ring *ring, uint64_t c
 	static union {
 		struct amdgpu_de_ib_state regular;
 		struct amdgpu_de_ib_state_chained_ib chained;
-	} de_payload = {0};
+	} de_payload = {};
 
 	gds_addr = csa_addr + 4096;
 	if (ring->adev->virt.chained_ib_support) {

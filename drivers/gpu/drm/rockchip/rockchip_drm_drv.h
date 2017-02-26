@@ -30,6 +30,7 @@
 
 struct drm_device;
 struct drm_connector;
+struct iommu_domain;
 
 struct rockchip_crtc_state {
 	struct drm_crtc_state base;
@@ -49,7 +50,10 @@ struct rockchip_drm_private {
 	struct drm_fb_helper fbdev_helper;
 	struct drm_gem_object *fbdev_bo;
 	struct drm_atomic_state *state;
-
+	struct iommu_domain *domain;
+	/* protect drm_mm on multi-threads */
+	struct mutex mm_lock;
+	struct drm_mm mm;
 	struct list_head psr_list;
 	spinlock_t psr_list_lock;
 };

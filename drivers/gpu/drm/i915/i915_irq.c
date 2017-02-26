@@ -3123,24 +3123,33 @@ static void ibx_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	I915_WRITE(PCH_PORT_HOTPLUG, hotplug);
 }
 
+static void spt_hpd_detection_setup(struct drm_i915_private *dev_priv)
+{
+	u32 hotplug;
+
+	/* Enable digital hotplug on the PCH */
+	hotplug = I915_READ(PCH_PORT_HOTPLUG);
+	hotplug |= PORTA_HOTPLUG_ENABLE |
+		   PORTB_HOTPLUG_ENABLE |
+		   PORTC_HOTPLUG_ENABLE |
+		   PORTD_HOTPLUG_ENABLE;
+	I915_WRITE(PCH_PORT_HOTPLUG, hotplug);
+
+	hotplug = I915_READ(PCH_PORT_HOTPLUG2);
+	hotplug |= PORTE_HOTPLUG_ENABLE;
+	I915_WRITE(PCH_PORT_HOTPLUG2, hotplug);
+}
+
 static void spt_hpd_irq_setup(struct drm_i915_private *dev_priv)
 {
-	u32 hotplug_irqs, hotplug, enabled_irqs;
+	u32 hotplug_irqs, enabled_irqs;
 
 	hotplug_irqs = SDE_HOTPLUG_MASK_SPT;
 	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, hpd_spt);
 
 	ibx_display_interrupt_update(dev_priv, hotplug_irqs, enabled_irqs);
 
-	/* Enable digital hotplug on the PCH */
-	hotplug = I915_READ(PCH_PORT_HOTPLUG);
-	hotplug |= PORTD_HOTPLUG_ENABLE | PORTC_HOTPLUG_ENABLE |
-		PORTB_HOTPLUG_ENABLE | PORTA_HOTPLUG_ENABLE;
-	I915_WRITE(PCH_PORT_HOTPLUG, hotplug);
-
-	hotplug = I915_READ(PCH_PORT_HOTPLUG2);
-	hotplug |= PORTE_HOTPLUG_ENABLE;
-	I915_WRITE(PCH_PORT_HOTPLUG2, hotplug);
+	spt_hpd_detection_setup(dev_priv);
 }
 
 static void ilk_hpd_irq_setup(struct drm_i915_private *dev_priv)
@@ -3177,18 +3186,15 @@ static void ilk_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	ibx_hpd_irq_setup(dev_priv);
 }
 
-static void bxt_hpd_irq_setup(struct drm_i915_private *dev_priv)
+static void __bxt_hpd_detection_setup(struct drm_i915_private *dev_priv,
+				      u32 enabled_irqs)
 {
-	u32 hotplug_irqs, hotplug, enabled_irqs;
-
-	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, hpd_bxt);
-	hotplug_irqs = BXT_DE_PORT_HOTPLUG_MASK;
-
-	bdw_update_port_irq(dev_priv, hotplug_irqs, enabled_irqs);
+	u32 hotplug;
 
 	hotplug = I915_READ(PCH_PORT_HOTPLUG);
-	hotplug |= PORTC_HOTPLUG_ENABLE | PORTB_HOTPLUG_ENABLE |
-		PORTA_HOTPLUG_ENABLE;
+	hotplug |= PORTA_HOTPLUG_ENABLE |
+		   PORTB_HOTPLUG_ENABLE |
+		   PORTC_HOTPLUG_ENABLE;
 
 	DRM_DEBUG_KMS("Invert bit setting: hp_ctl:%x hp_port:%x\n",
 		      hotplug, enabled_irqs);
@@ -3198,7 +3204,6 @@ static void bxt_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	 * For BXT invert bit has to be set based on AOB design
 	 * for HPD detection logic, update it based on VBT fields.
 	 */
-
 	if ((enabled_irqs & BXT_DE_PORT_HP_DDIA) &&
 	    intel_bios_is_port_hpd_inverted(dev_priv, PORT_A))
 		hotplug |= BXT_DDIA_HPD_INVERT;
@@ -3210,6 +3215,23 @@ static void bxt_hpd_irq_setup(struct drm_i915_private *dev_priv)
 		hotplug |= BXT_DDIC_HPD_INVERT;
 
 	I915_WRITE(PCH_PORT_HOTPLUG, hotplug);
+}
+
+static void bxt_hpd_detection_setup(struct drm_i915_private *dev_priv)
+{
+	__bxt_hpd_detection_setup(dev_priv, BXT_DE_PORT_HOTPLUG_MASK);
+}
+
+static void bxt_hpd_irq_setup(struct drm_i915_private *dev_priv)
+{
+	u32 hotplug_irqs, enabled_irqs;
+
+	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, hpd_bxt);
+	hotplug_irqs = BXT_DE_PORT_HOTPLUG_MASK;
+
+	bdw_update_port_irq(dev_priv, hotplug_irqs, enabled_irqs);
+
+	__bxt_hpd_detection_setup(dev_priv, enabled_irqs);
 }
 
 static void ibx_irq_postinstall(struct drm_device *dev)
@@ -3227,6 +3249,12 @@ static void ibx_irq_postinstall(struct drm_device *dev)
 
 	gen5_assert_iir_is_zero(dev_priv, SDEIIR);
 	I915_WRITE(SDEIMR, ~mask);
+
+	if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv) ||
+	    HAS_PCH_LPT(dev_priv))
+		; /* TODO: Enable HPD detection on older PCH platforms too */
+	else
+		spt_hpd_detection_setup(dev_priv);
 }
 
 static void gen5_gt_irq_postinstall(struct drm_device *dev)
@@ -3438,6 +3466,9 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	GEN5_IRQ_INIT(GEN8_DE_PORT_, ~de_port_masked, de_port_enables);
 	GEN5_IRQ_INIT(GEN8_DE_MISC_, ~de_misc_masked, de_misc_masked);
+
+	if (IS_GEN9_LP(dev_priv))
+		bxt_hpd_detection_setup(dev_priv);
 }
 
 static int gen8_irq_postinstall(struct drm_device *dev)

@@ -3307,8 +3307,10 @@ enum skl_disp_power_wells {
 /*
  * Logical Context regs
  */
-#define CCID			_MMIO(0x2180)
-#define   CCID_EN		(1<<0)
+#define CCID				_MMIO(0x2180)
+#define   CCID_EN			BIT(0)
+#define   CCID_EXTENDED_STATE_RESTORE	BIT(2)
+#define   CCID_EXTENDED_STATE_SAVE	BIT(3)
 /*
  * Notes on SNB/IVB/VLV context size:
  * - Power context is saved elsewhere (LLC or stolen)

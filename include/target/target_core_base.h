@@ -538,6 +538,7 @@ struct se_node_acl {
 	char			initiatorname[TRANSPORT_IQN_LEN];
 	/* Used to signal demo mode created ACL, disabled by default */
 	bool			dynamic_node_acl;
+	bool			dynamic_stop;
 	u32			queue_depth;
 	u32			acl_index;
 	enum target_prot_type	saved_prot_type;

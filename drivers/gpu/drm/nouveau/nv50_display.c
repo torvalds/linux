@@ -447,18 +447,18 @@ nv50_dmac_ctxdma_new(struct nv50_dmac *dmac, struct nouveau_framebuffer *fb)
 	args.base.target = NV_DMA_V0_TARGET_VRAM;
 	args.base.access = NV_DMA_V0_ACCESS_RDWR;
 	args.base.start  = 0;
-	args.base.limit  = drm->device.info.ram_user - 1;
+	args.base.limit  = drm->client.device.info.ram_user - 1;
 
-	if (drm->device.info.chipset < 0x80) {
+	if (drm->client.device.info.chipset < 0x80) {
 		args.nv50.part = NV50_DMA_V0_PART_256;
 		argc += sizeof(args.nv50);
 	} else
-	if (drm->device.info.chipset < 0xc0) {
+	if (drm->client.device.info.chipset < 0xc0) {
 		args.nv50.part = NV50_DMA_V0_PART_256;
 		args.nv50.kind = kind;
 		argc += sizeof(args.nv50);
 	} else
-	if (drm->device.info.chipset < 0xd0) {
+	if (drm->client.device.info.chipset < 0xd0) {
 		args.gf100.kind = kind;
 		argc += sizeof(args.gf100);
 	} else {
@@ -852,7 +852,7 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw,
 
 	if (asyw->image.kind) {
 		asyw->image.layout = 0;
-		if (drm->device.info.chipset >= 0xc0)
+		if (drm->client.device.info.chipset >= 0xc0)
 			asyw->image.block = fb->nvbo->tile_mode >> 4;
 		else
 			asyw->image.block = fb->nvbo->tile_mode;
@@ -1404,7 +1404,7 @@ nv50_base_ntfy_wait_begun(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
 	struct nouveau_drm *drm = nouveau_drm(wndw->plane.dev);
 	struct nv50_disp *disp = nv50_disp(wndw->plane.dev);
-	if (nvif_msec(&drm->device, 2000ULL,
+	if (nvif_msec(&drm->client.device, 2000ULL,
 		u32 data = nouveau_bo_rd32(disp->sync, asyw->ntfy.offset / 4);
 		if ((data & 0xc0000000) == 0x40000000)
 			break;
@@ -1529,7 +1529,7 @@ nv50_base_new(struct nouveau_drm *drm, struct nv50_head *head,
 		return ret;
 	}
 
-	ret = nv50_base_create(&drm->device, disp->disp, base->id,
+	ret = nv50_base_create(&drm->client.device, disp->disp, base->id,
 			       disp->sync->bo.offset, &base->chan);
 	if (ret)
 		return ret;
@@ -2330,7 +2330,7 @@ static int
 nv50_head_create(struct drm_device *dev, int index)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvif_device *device = &drm->device;
+	struct nvif_device *device = &drm->client.device;
 	struct nv50_disp *disp = nv50_disp(dev);
 	struct nv50_head *head;
 	struct nv50_base *base;
@@ -2364,7 +2364,7 @@ nv50_head_create(struct drm_device *dev, int index)
 	drm_crtc_helper_add(crtc, &nv50_head_help);
 	drm_mode_crtc_set_gamma_size(crtc, 256);
 
-	ret = nouveau_bo_new(dev, 8192, 0x100, TTM_PL_FLAG_VRAM,
+	ret = nouveau_bo_new(&drm->client, 8192, 0x100, TTM_PL_FLAG_VRAM,
 			     0, 0x0000, NULL, NULL, &head->base.lut.nvbo);
 	if (!ret) {
 		ret = nouveau_bo_pin(head->base.lut.nvbo, TTM_PL_FLAG_VRAM, true);
@@ -2603,7 +2603,7 @@ static int
 nv50_dac_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
-	struct nvkm_i2c *i2c = nvxx_i2c(&drm->device);
+	struct nvkm_i2c *i2c = nvxx_i2c(&drm->client.device);
 	struct nvkm_i2c_bus *bus;
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
@@ -3559,7 +3559,7 @@ nv50_sor_enable(struct drm_encoder *encoder)
 		nv50_audio_enable(encoder, mode);
 		break;
 	default:
-		BUG_ON(1);
+		BUG();
 		break;
 	}
 
@@ -3593,7 +3593,7 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
-	struct nvkm_i2c *i2c = nvxx_i2c(&drm->device);
+	struct nvkm_i2c *i2c = nvxx_i2c(&drm->client.device);
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
 	int type, ret;
@@ -3732,7 +3732,7 @@ nv50_pior_enable(struct drm_encoder *encoder)
 		proto = 0x0;
 		break;
 	default:
-		BUG_ON(1);
+		BUG();
 		break;
 	}
 
@@ -3778,7 +3778,7 @@ static int
 nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
-	struct nvkm_i2c *i2c = nvxx_i2c(&drm->device);
+	struct nvkm_i2c *i2c = nvxx_i2c(&drm->client.device);
 	struct nvkm_i2c_bus *bus = NULL;
 	struct nvkm_i2c_aux *aux = NULL;
 	struct i2c_adapter *ddc;
@@ -3851,7 +3851,7 @@ nv50_disp_atomic_commit_core(struct nouveau_drm *drm, u32 interlock)
 		evo_data(push, 0x00000000);
 		nouveau_bo_wr32(disp->sync, 0, 0x00000000);
 		evo_kick(push, core);
-		if (nvif_msec(&drm->device, 2000ULL,
+		if (nvif_msec(&drm->client.device, 2000ULL,
 			if (nouveau_bo_rd32(disp->sync, 0))
 				break;
 			usleep_range(1, 2);
@@ -3986,6 +3986,11 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 		}
 	}
 
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		if (crtc->state->event)
+			drm_crtc_vblank_get(crtc);
+	}
+
 	/* Update plane(s). */
 	for_each_plane_in_state(state, plane, plane_state, i) {
 		struct nv50_wndw_atom *asyw = nv50_wndw_atom(plane->state);
@@ -4035,6 +4040,7 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 			drm_crtc_send_vblank_event(crtc, crtc->state->event);
 			spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 			crtc->state->event = NULL;
+			drm_crtc_vblank_put(crtc);
 		}
 	}
 
@@ -4363,7 +4369,7 @@ module_param_named(atomic, nouveau_atomic, int, 0400);
 int
 nv50_display_create(struct drm_device *dev)
 {
-	struct nvif_device *device = &nouveau_drm(dev)->device;
+	struct nvif_device *device = &nouveau_drm(dev)->client.device;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct dcb_table *dcb = &drm->vbios.dcb;
 	struct drm_connector *connector, *tmp;
@@ -4387,7 +4393,7 @@ nv50_display_create(struct drm_device *dev)
 		dev->driver->driver_features |= DRIVER_ATOMIC;
 
 	/* small shared memory area we use for notifiers and semaphores */
-	ret = nouveau_bo_new(dev, 4096, 0x1000, TTM_PL_FLAG_VRAM,
+	ret = nouveau_bo_new(&drm->client, 4096, 0x1000, TTM_PL_FLAG_VRAM,
 			     0, 0x0000, NULL, NULL, &disp->sync);
 	if (!ret) {
 		ret = nouveau_bo_pin(disp->sync, TTM_PL_FLAG_VRAM, true);

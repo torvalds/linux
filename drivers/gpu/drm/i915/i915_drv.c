@@ -213,7 +213,8 @@ static void intel_detect_pch(struct drm_i915_private *dev_priv)
 			} else if (id == INTEL_PCH_KBP_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_KBP;
 				DRM_DEBUG_KMS("Found KabyPoint PCH\n");
-				WARN_ON(!IS_KABYLAKE(dev_priv));
+				WARN_ON(!IS_SKYLAKE(dev_priv) &&
+					!IS_KABYLAKE(dev_priv));
 			} else if ((id == INTEL_PCH_P2X_DEVICE_ID_TYPE) ||
 				   (id == INTEL_PCH_P3X_DEVICE_ID_TYPE) ||
 				   ((id == INTEL_PCH_QEMU_DEVICE_ID_TYPE) &&
@@ -824,10 +825,6 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 	if (ret < 0)
 		return ret;
 
-	ret = intel_gvt_init(dev_priv);
-	if (ret < 0)
-		goto err_workqueues;
-
 	/* This must be called before any calls to HAS_PCH_* */
 	intel_detect_pch(dev_priv);
 
@@ -841,7 +838,7 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 	intel_init_audio_hooks(dev_priv);
 	ret = i915_gem_load_init(dev_priv);
 	if (ret < 0)
-		goto err_gvt;
+		goto err_workqueues;
 
 	intel_display_crc_init(dev_priv);
 
@@ -853,8 +850,6 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 
 	return 0;
 
-err_gvt:
-	intel_gvt_cleanup(dev_priv);
 err_workqueues:
 	i915_workqueues_cleanup(dev_priv);
 	return ret;
@@ -1077,6 +1072,10 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 			DRM_DEBUG_DRIVER("can't enable MSI");
 	}
 
+	ret = intel_gvt_init(dev_priv);
+	if (ret)
+		goto out_ggtt;
+
 	return 0;
 
 out_ggtt:
@@ -1289,6 +1288,8 @@ void i915_driver_unload(struct drm_device *dev)
 		DRM_ERROR("failed to idle hardware; continuing to unload!\n");
 
 	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
+
+	intel_gvt_cleanup(dev_priv);
 
 	i915_driver_unregister(dev_priv);
 
@@ -2377,7 +2378,7 @@ static int intel_runtime_suspend(struct device *kdev)
 
 	assert_forcewakes_inactive(dev_priv);
 
-	if (!IS_VALLEYVIEW(dev_priv) || !IS_CHERRYVIEW(dev_priv))
+	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
 		intel_hpd_poll_init(dev_priv);
 
 	DRM_DEBUG_KMS("Device suspended\n");
@@ -2426,6 +2427,7 @@ static int intel_runtime_resume(struct device *kdev)
 	 * we can do is to hope that things will still work (and disable RPM).
 	 */
 	i915_gem_init_swizzling(dev_priv);
+	i915_gem_restore_fences(dev_priv);
 
 	intel_runtime_pm_enable_interrupts(dev_priv);
 

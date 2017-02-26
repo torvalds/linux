@@ -109,6 +109,7 @@ header-y += dlm_netlink.h
 header-y += dlm_plock.h
 header-y += dm-ioctl.h
 header-y += dm-log-userspace.h
+header-y += dma-buf.h
 header-y += dn.h
 header-y += dqblk_xfs.h
 header-y += edd.h

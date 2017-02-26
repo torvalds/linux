@@ -2210,7 +2210,6 @@ static void ci_clear_vc(struct amdgpu_device *adev)
 
 static int ci_upload_firmware(struct amdgpu_device *adev)
 {
-	struct ci_power_info *pi = ci_get_pi(adev);
 	int i, ret;
 
 	if (amdgpu_ci_is_smc_running(adev)) {
@@ -2227,7 +2226,7 @@ static int ci_upload_firmware(struct amdgpu_device *adev)
 	amdgpu_ci_stop_smc_clock(adev);
 	amdgpu_ci_reset_smc(adev);
 
-	ret = amdgpu_ci_load_smc_ucode(adev, pi->sram_end);
+	ret = amdgpu_ci_load_smc_ucode(adev, SMC_RAM_END);
 
 	return ret;
 
@@ -4257,12 +4256,6 @@ static int ci_update_vce_dpm(struct amdgpu_device *adev,
 
 	if (amdgpu_current_state->evclk != amdgpu_new_state->evclk) {
 		if (amdgpu_new_state->evclk) {
-			/* turn the clocks on when encoding */
-			ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
-							    AMD_CG_STATE_UNGATE);
-			if (ret)
-				return ret;
-
 			pi->smc_state_table.VceBootLevel = ci_get_vce_boot_level(adev);
 			tmp = RREG32_SMC(ixDPM_TABLE_475);
 			tmp &= ~DPM_TABLE_475__VceBootLevel_MASK;
@@ -4274,9 +4267,6 @@ static int ci_update_vce_dpm(struct amdgpu_device *adev,
 			ret = ci_enable_vce_dpm(adev, false);
 			if (ret)
 				return ret;
-			/* turn the clocks off when not encoding */
-			ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
-							    AMD_CG_STATE_GATE);
 		}
 	}
 	return ret;
@@ -6278,12 +6268,12 @@ static int ci_dpm_sw_init(void *handle)
 	adev->pm.current_mclk = adev->clock.default_mclk;
 	adev->pm.int_thermal_type = THERMAL_TYPE_NONE;
 
-	if (amdgpu_dpm == 0)
-		return 0;
-
 	ret = ci_dpm_init_microcode(adev);
 	if (ret)
 		return ret;
+
+	if (amdgpu_dpm == 0)
+		return 0;
 
 	INIT_WORK(&adev->pm.dpm.thermal.work, amdgpu_dpm_thermal_work_handler);
 	mutex_lock(&adev->pm.mutex);
@@ -6328,8 +6318,15 @@ static int ci_dpm_hw_init(void *handle)
 
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (!amdgpu_dpm)
+	if (!amdgpu_dpm) {
+		ret = ci_upload_firmware(adev);
+		if (ret) {
+			DRM_ERROR("ci_upload_firmware failed\n");
+			return ret;
+		}
+		ci_dpm_start_smc(adev);
 		return 0;
+	}
 
 	mutex_lock(&adev->pm.mutex);
 	ci_dpm_setup_asic(adev);
@@ -6351,6 +6348,8 @@ static int ci_dpm_hw_fini(void *handle)
 		mutex_lock(&adev->pm.mutex);
 		ci_dpm_disable(adev);
 		mutex_unlock(&adev->pm.mutex);
+	} else {
+		ci_dpm_stop_smc(adev);
 	}
 
 	return 0;

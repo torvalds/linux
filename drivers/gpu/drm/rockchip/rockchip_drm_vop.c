@@ -531,6 +531,8 @@ static int vop_enable(struct drm_crtc *crtc)
 	}
 
 	memcpy(vop->regs, vop->regsbak, vop->len);
+	vop_cfg_done(vop);
+
 	/*
 	 * At here, vop clock & iommu is enable, R/W vop regs would be safe.
 	 */
@@ -581,6 +583,8 @@ static void vop_crtc_disable(struct drm_crtc *crtc)
 		VOP_WIN_SET(vop, win, enable, 0);
 		spin_unlock(&vop->reg_lock);
 	}
+
+	vop_cfg_done(vop);
 
 	drm_crtc_vblank_off(crtc);
 
@@ -927,9 +931,11 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 		vop_dsp_hold_valid_irq_disable(vop);
 	}
 
-	pin_pol = 0x8;
-	pin_pol |= (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ? 0 : 1;
-	pin_pol |= (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC) ? 0 : (1 << 1);
+	pin_pol = BIT(DCLK_INVERT);
+	pin_pol |= (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ?
+		   0 : BIT(HSYNC_POSITIVE);
+	pin_pol |= (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC) ?
+		   0 : BIT(VSYNC_POSITIVE);
 	VOP_CTRL_SET(vop, pin_pol, pin_pol);
 
 	switch (s->output_type) {
@@ -948,6 +954,11 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	case DRM_MODE_CONNECTOR_DSI:
 		VOP_CTRL_SET(vop, mipi_pin_pol, pin_pol);
 		VOP_CTRL_SET(vop, mipi_en, 1);
+		break;
+	case DRM_MODE_CONNECTOR_DisplayPort:
+		pin_pol &= ~BIT(DCLK_INVERT);
+		VOP_CTRL_SET(vop, dp_pin_pol, pin_pol);
+		VOP_CTRL_SET(vop, dp_en, 1);
 		break;
 	default:
 		DRM_DEV_ERROR(vop->dev, "unsupported connector_type [%d]\n",

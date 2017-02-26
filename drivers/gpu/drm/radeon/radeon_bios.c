@@ -638,10 +638,8 @@ static bool radeon_acpi_vfct_bios(struct radeon_device *rdev)
 					     vhdr->ImageLength,
 					     GFP_KERNEL);
 
-			if (!rdev->bios) {
-				kfree(rdev->bios);
+			if (!rdev->bios)
 				return false;
-			}
 			return true;
 		}
 	}

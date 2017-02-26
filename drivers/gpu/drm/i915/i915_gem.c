@@ -440,7 +440,7 @@ i915_gem_object_wait_reservation(struct reservation_object *resv,
 			timeout = i915_gem_object_wait_fence(shared[i],
 							     flags, timeout,
 							     rps);
-			if (timeout <= 0)
+			if (timeout < 0)
 				break;
 
 			dma_fence_put(shared[i]);
@@ -453,7 +453,7 @@ i915_gem_object_wait_reservation(struct reservation_object *resv,
 		excl = reservation_object_get_excl_rcu(resv);
 	}
 
-	if (excl && timeout > 0)
+	if (excl && timeout >= 0)
 		timeout = i915_gem_object_wait_fence(excl, flags, timeout, rps);
 
 	dma_fence_put(excl);
@@ -2009,8 +2009,16 @@ void i915_gem_runtime_suspend(struct drm_i915_private *dev_priv)
 	for (i = 0; i < dev_priv->num_fence_regs; i++) {
 		struct drm_i915_fence_reg *reg = &dev_priv->fence_regs[i];
 
-		if (WARN_ON(reg->pin_count))
-			continue;
+		/* Ideally we want to assert that the fence register is not
+		 * live at this point (i.e. that no piece of code will be
+		 * trying to write through fence + GTT, as that both violates
+		 * our tracking of activity and associated locking/barriers,
+		 * but also is illegal given that the hw is powered down).
+		 *
+		 * Previously we used reg->pin_count as a "liveness" indicator.
+		 * That is not sufficient, and we need a more fine-grained
+		 * tool if we want to have a sanity check here.
+		 */
 
 		if (!reg->vma)
 			continue;
@@ -2735,21 +2743,17 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 		engine->irq_seqno_barrier(engine);
 
 	request = i915_gem_find_active_request(engine);
-	if (!request)
-		return;
+	if (request && i915_gem_reset_request(request)) {
+		DRM_DEBUG_DRIVER("resetting %s to restart from tail of request 0x%x\n",
+				 engine->name, request->global_seqno);
 
-	if (!i915_gem_reset_request(request))
-		return;
-
-	DRM_DEBUG_DRIVER("resetting %s to restart from tail of request 0x%x\n",
-			 engine->name, request->global_seqno);
+		/* If this context is now banned, skip all pending requests. */
+		if (i915_gem_context_is_banned(request->ctx))
+			engine_skip_context(request);
+	}
 
 	/* Setup the CS to resume from the breadcrumb of the hung request */
 	engine->reset_hw(engine, request);
-
-	/* If this context is now banned, skip all of its pending requests. */
-	if (i915_gem_context_is_banned(request->ctx))
-		engine_skip_context(request);
 }
 
 void i915_gem_reset_finish(struct drm_i915_private *dev_priv)
@@ -3517,7 +3521,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	vma->display_alignment = max_t(u64, vma->display_alignment, alignment);
 
 	/* Treat this as an end-of-frame, like intel_user_framebuffer_dirty() */
-	if (obj->cache_dirty) {
+	if (obj->cache_dirty || obj->base.write_domain == I915_GEM_DOMAIN_CPU) {
 		i915_gem_clflush_object(obj, true);
 		intel_fb_obj_flush(obj, false, ORIGIN_DIRTYFB);
 	}

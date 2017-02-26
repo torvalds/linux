@@ -313,6 +313,7 @@ static const struct lwtunnel_encap_ops ip_tun_lwt_ops = {
 	.fill_encap = ip_tun_fill_encap_info,
 	.get_encap_size = ip_tun_encap_nlsize,
 	.cmp_encap = ip_tun_cmp_encap,
+	.owner = THIS_MODULE,
 };
 
 static const struct nla_policy ip6_tun_policy[LWTUNNEL_IP6_MAX + 1] = {
@@ -403,6 +404,7 @@ static const struct lwtunnel_encap_ops ip6_tun_lwt_ops = {
 	.fill_encap = ip6_tun_fill_encap_info,
 	.get_encap_size = ip6_tun_encap_nlsize,
 	.cmp_encap = ip_tun_cmp_encap,
+	.owner = THIS_MODULE,
 };
 
 void __init ip_tunnel_core_init(void)

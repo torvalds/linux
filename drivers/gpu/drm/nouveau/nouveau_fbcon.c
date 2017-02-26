@@ -60,7 +60,7 @@ nouveau_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
 	struct nouveau_fbdev *fbcon = info->par;
 	struct nouveau_drm *drm = nouveau_drm(fbcon->helper.dev);
-	struct nvif_device *device = &drm->device;
+	struct nvif_device *device = &drm->client.device;
 	int ret;
 
 	if (info->state != FBINFO_STATE_RUNNING)
@@ -92,7 +92,7 @@ nouveau_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *image)
 {
 	struct nouveau_fbdev *fbcon = info->par;
 	struct nouveau_drm *drm = nouveau_drm(fbcon->helper.dev);
-	struct nvif_device *device = &drm->device;
+	struct nvif_device *device = &drm->client.device;
 	int ret;
 
 	if (info->state != FBINFO_STATE_RUNNING)
@@ -124,7 +124,7 @@ nouveau_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 {
 	struct nouveau_fbdev *fbcon = info->par;
 	struct nouveau_drm *drm = nouveau_drm(fbcon->helper.dev);
-	struct nvif_device *device = &drm->device;
+	struct nvif_device *device = &drm->client.device;
 	int ret;
 
 	if (info->state != FBINFO_STATE_RUNNING)
@@ -266,10 +266,10 @@ nouveau_fbcon_accel_init(struct drm_device *dev)
 	struct fb_info *info = fbcon->helper.fbdev;
 	int ret;
 
-	if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA)
+	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA)
 		ret = nv04_fbcon_accel_init(info);
 	else
-	if (drm->device.info.family < NV_DEVICE_INFO_V0_FERMI)
+	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_FERMI)
 		ret = nv50_fbcon_accel_init(info);
 	else
 		ret = nvc0_fbcon_accel_init(info);
@@ -324,7 +324,7 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 		container_of(helper, struct nouveau_fbdev, helper);
 	struct drm_device *dev = fbcon->helper.dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvif_device *device = &drm->device;
+	struct nvif_device *device = &drm->client.device;
 	struct fb_info *info;
 	struct nouveau_framebuffer *fb;
 	struct nouveau_channel *chan;
@@ -341,8 +341,9 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
 							  sizes->surface_depth);
 
-	ret = nouveau_gem_new(dev, mode_cmd.pitches[0] * mode_cmd.height,
-			      0, NOUVEAU_GEM_DOMAIN_VRAM, 0, 0x0000, &nvbo);
+	ret = nouveau_gem_new(&drm->client, mode_cmd.pitches[0] *
+			      mode_cmd.height, 0, NOUVEAU_GEM_DOMAIN_VRAM,
+			      0, 0x0000, &nvbo);
 	if (ret) {
 		NV_ERROR(drm, "failed to allocate framebuffer\n");
 		goto out;
@@ -471,19 +472,43 @@ static const struct drm_fb_helper_funcs nouveau_fbcon_helper_funcs = {
 	.fb_probe = nouveau_fbcon_create,
 };
 
+static void
+nouveau_fbcon_set_suspend_work(struct work_struct *work)
+{
+	struct nouveau_drm *drm = container_of(work, typeof(*drm), fbcon_work);
+	int state = READ_ONCE(drm->fbcon_new_state);
+
+	if (state == FBINFO_STATE_RUNNING)
+		pm_runtime_get_sync(drm->dev->dev);
+
+	console_lock();
+	if (state == FBINFO_STATE_RUNNING)
+		nouveau_fbcon_accel_restore(drm->dev);
+	drm_fb_helper_set_suspend(&drm->fbcon->helper, state);
+	if (state != FBINFO_STATE_RUNNING)
+		nouveau_fbcon_accel_save_disable(drm->dev);
+	console_unlock();
+
+	if (state == FBINFO_STATE_RUNNING) {
+		pm_runtime_mark_last_busy(drm->dev->dev);
+		pm_runtime_put_sync(drm->dev->dev);
+	}
+}
+
 void
 nouveau_fbcon_set_suspend(struct drm_device *dev, int state)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	if (drm->fbcon) {
-		console_lock();
-		if (state == FBINFO_STATE_RUNNING)
-			nouveau_fbcon_accel_restore(dev);
-		drm_fb_helper_set_suspend(&drm->fbcon->helper, state);
-		if (state != FBINFO_STATE_RUNNING)
-			nouveau_fbcon_accel_save_disable(dev);
-		console_unlock();
-	}
+
+	if (!drm->fbcon)
+		return;
+
+	drm->fbcon_new_state = state;
+	/* Since runtime resume can happen as a result of a sysfs operation,
+	 * it's possible we already have the console locked. So handle fbcon
+	 * init/deinit from a seperate work thread
+	 */
+	schedule_work(&drm->fbcon_work);
 }
 
 int
@@ -503,6 +528,7 @@ nouveau_fbcon_init(struct drm_device *dev)
 		return -ENOMEM;
 
 	drm->fbcon = fbcon;
+	INIT_WORK(&drm->fbcon_work, nouveau_fbcon_set_suspend_work);
 
 	drm_fb_helper_prepare(dev, &fbcon->helper, &nouveau_fbcon_helper_funcs);
 
@@ -514,10 +540,10 @@ nouveau_fbcon_init(struct drm_device *dev)
 	if (ret)
 		goto fini;
 
-	if (drm->device.info.ram_size <= 32 * 1024 * 1024)
+	if (drm->client.device.info.ram_size <= 32 * 1024 * 1024)
 		preferred_bpp = 8;
 	else
-	if (drm->device.info.ram_size <= 64 * 1024 * 1024)
+	if (drm->client.device.info.ram_size <= 64 * 1024 * 1024)
 		preferred_bpp = 16;
 	else
 		preferred_bpp = 32;

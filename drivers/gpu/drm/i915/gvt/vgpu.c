@@ -74,7 +74,7 @@ void populate_pvinfo_page(struct intel_vgpu *vgpu)
 int intel_gvt_init_vgpu_types(struct intel_gvt *gvt)
 {
 	unsigned int num_types;
-	unsigned int i, low_avail;
+	unsigned int i, low_avail, high_avail;
 	unsigned int min_low;
 
 	/* vGPU type name is defined as GVTg_Vx_y which contains
@@ -89,9 +89,9 @@ int intel_gvt_init_vgpu_types(struct intel_gvt *gvt)
 	 * to indicate how many vGPU instance can be created for this
 	 * type.
 	 *
-	 * Currently use static size here as we init type earlier..
 	 */
-	low_avail = MB_TO_BYTES(256) - HOST_LOW_GM_SIZE;
+	low_avail = gvt_aperture_sz(gvt) - HOST_LOW_GM_SIZE;
+	high_avail = gvt_hidden_sz(gvt) - HOST_HIGH_GM_SIZE;
 	num_types = 4;
 
 	gvt->types = kzalloc(num_types * sizeof(struct intel_vgpu_type),
@@ -106,7 +106,8 @@ int intel_gvt_init_vgpu_types(struct intel_gvt *gvt)
 		gvt->types[i].low_gm_size = min_low;
 		gvt->types[i].high_gm_size = max((min_low<<3), MB_TO_BYTES(384U));
 		gvt->types[i].fence = 4;
-		gvt->types[i].max_instance = low_avail / min_low;
+		gvt->types[i].max_instance = min(low_avail / min_low,
+						 high_avail / gvt->types[i].high_gm_size);
 		gvt->types[i].avail_instance = gvt->types[i].max_instance;
 
 		if (IS_GEN8(gvt->dev_priv))
@@ -142,9 +143,9 @@ static void intel_gvt_update_vgpu_types(struct intel_gvt *gvt)
 	/* Need to depend on maxium hw resource size but keep on
 	 * static config for now.
 	 */
-	low_gm_avail = MB_TO_BYTES(256) - HOST_LOW_GM_SIZE -
+	low_gm_avail = gvt_aperture_sz(gvt) - HOST_LOW_GM_SIZE -
 		gvt->gm.vgpu_allocated_low_gm_size;
-	high_gm_avail = MB_TO_BYTES(256) * 8UL - HOST_HIGH_GM_SIZE -
+	high_gm_avail = gvt_hidden_sz(gvt) - HOST_HIGH_GM_SIZE -
 		gvt->gm.vgpu_allocated_high_gm_size;
 	fence_avail = gvt_fence_sz(gvt) - HOST_FENCE -
 		gvt->fence.vgpu_allocated_fence_num;
@@ -384,6 +385,7 @@ void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
 		intel_vgpu_reset_resource(vgpu);
 		intel_vgpu_reset_mmio(vgpu);
 		populate_pvinfo_page(vgpu);
+		intel_vgpu_reset_display(vgpu);
 
 		if (dmlr)
 			intel_vgpu_reset_cfg_space(vgpu);

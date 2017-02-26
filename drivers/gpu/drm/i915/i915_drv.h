@@ -2242,6 +2242,11 @@ struct drm_i915_private {
 
 	struct i915_frontbuffer_tracking fb_tracking;
 
+	struct intel_atomic_helper {
+		struct llist_head free_list;
+		struct work_struct free_work;
+	} atomic_helper;
+
 	u16 orig_clock;
 
 	bool mchbar_need_disable;

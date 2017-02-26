@@ -51,6 +51,7 @@
 #include <linux/workqueue.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
+#include <linux/pci-aspm.h>
 #include <linux/interrupt.h>
 #include <linux/aer.h>
 #include <linux/raid_class.h>
@@ -4657,6 +4658,7 @@ _scsih_io_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 	struct MPT3SAS_DEVICE *sas_device_priv_data;
 	u32 response_code = 0;
 	unsigned long flags;
+	unsigned int sector_sz;
 
 	mpi_reply = mpt3sas_base_get_reply_virt_addr(ioc, reply);
 	scmd = _scsih_scsi_lookup_get_clear(ioc, smid);
@@ -4715,6 +4717,20 @@ _scsih_io_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 	}
 
 	xfer_cnt = le32_to_cpu(mpi_reply->TransferCount);
+
+	/* In case of bogus fw or device, we could end up having
+	 * unaligned partial completion. We can force alignment here,
+	 * then scsi-ml does not need to handle this misbehavior.
+	 */
+	sector_sz = scmd->device->sector_size;
+	if (unlikely(scmd->request->cmd_type == REQ_TYPE_FS && sector_sz &&
+		     xfer_cnt % sector_sz)) {
+		sdev_printk(KERN_INFO, scmd->device,
+		    "unaligned partial completion avoided (xfer_cnt=%u, sector_sz=%u)\n",
+			    xfer_cnt, sector_sz);
+		xfer_cnt = round_down(xfer_cnt, sector_sz);
+	}
+
 	scsi_set_resid(scmd, scsi_bufflen(scmd) - xfer_cnt);
 	if (ioc_status & MPI2_IOCSTATUS_FLAG_LOG_INFO_AVAILABLE)
 		log_info =  le32_to_cpu(mpi_reply->IOCLogInfo);
@@ -8746,6 +8762,8 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	switch (hba_mpi_version) {
 	case MPI2_VERSION:
+		pci_disable_link_state(pdev, PCIE_LINK_STATE_L0S |
+			PCIE_LINK_STATE_L1 | PCIE_LINK_STATE_CLKPM);
 		/* Use mpt2sas driver host template for SAS 2.0 HBA's */
 		shost = scsi_host_alloc(&mpt2sas_driver_template,
 		  sizeof(struct MPT3SAS_ADAPTER));

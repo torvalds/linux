@@ -323,6 +323,7 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 	struct amdgpu_bo *bo;
 	enum ttm_bo_type type;
 	unsigned long page_align;
+	u64 initial_bytes_moved;
 	size_t acc_size;
 	int r;
 
@@ -374,8 +375,10 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 	 * See https://bugs.freedesktop.org/show_bug.cgi?id=88758
 	 */
 
+#ifndef CONFIG_COMPILE_TEST
 #warning Please enable CONFIG_MTRR and CONFIG_X86_PAT for better performance \
 	 thanks to write-combining
+#endif
 
 	if (bo->flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC)
 		DRM_INFO_ONCE("Please enable CONFIG_MTRR and CONFIG_X86_PAT for "
@@ -399,12 +402,20 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 		locked = ww_mutex_trylock(&bo->tbo.ttm_resv.lock);
 		WARN_ON(!locked);
 	}
+
+	initial_bytes_moved = atomic64_read(&adev->num_bytes_moved);
 	r = ttm_bo_init(&adev->mman.bdev, &bo->tbo, size, type,
 			&bo->placement, page_align, !kernel, NULL,
 			acc_size, sg, resv ? resv : &bo->tbo.ttm_resv,
 			&amdgpu_ttm_bo_destroy);
-	if (unlikely(r != 0))
+	amdgpu_cs_report_moved_bytes(adev,
+		atomic64_read(&adev->num_bytes_moved) - initial_bytes_moved);
+
+	if (unlikely(r != 0)) {
+		if (!resv)
+			ww_mutex_unlock(&bo->tbo.resv->lock);
 		return r;
+	}
 
 	bo->tbo.priority = ilog2(bo->tbo.num_pages);
 	if (kernel)

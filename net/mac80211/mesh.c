@@ -339,7 +339,7 @@ int mesh_add_vendor_ies(struct ieee80211_sub_if_data *sdata,
 	/* fast-forward to vendor IEs */
 	offset = ieee80211_ie_split_vendor(ifmsh->ie, ifmsh->ie_len, 0);
 
-	if (offset) {
+	if (offset < ifmsh->ie_len) {
 		len = ifmsh->ie_len - offset;
 		data = ifmsh->ie + offset;
 		if (skb_tailroom(skb) < len)

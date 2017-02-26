@@ -44,6 +44,8 @@ struct lwtunnel_encap_ops {
 	int (*get_encap_size)(struct lwtunnel_state *lwtstate);
 	int (*cmp_encap)(struct lwtunnel_state *a, struct lwtunnel_state *b);
 	int (*xmit)(struct sk_buff *skb);
+
+	struct module *owner;
 };
 
 #ifdef CONFIG_LWTUNNEL
@@ -105,6 +107,8 @@ int lwtunnel_encap_add_ops(const struct lwtunnel_encap_ops *op,
 			   unsigned int num);
 int lwtunnel_encap_del_ops(const struct lwtunnel_encap_ops *op,
 			   unsigned int num);
+int lwtunnel_valid_encap_type(u16 encap_type);
+int lwtunnel_valid_encap_type_attr(struct nlattr *attr, int len);
 int lwtunnel_build_state(struct net_device *dev, u16 encap_type,
 			 struct nlattr *encap,
 			 unsigned int family, const void *cfg,
@@ -166,6 +170,18 @@ static inline int lwtunnel_encap_del_ops(const struct lwtunnel_encap_ops *op,
 					 unsigned int num)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline int lwtunnel_valid_encap_type(u16 encap_type)
+{
+	return -EOPNOTSUPP;
+}
+static inline int lwtunnel_valid_encap_type_attr(struct nlattr *attr, int len)
+{
+	/* return 0 since we are not walking attr looking for
+	 * RTA_ENCAP_TYPE attribute on nexthops.
+	 */
+	return 0;
 }
 
 static inline int lwtunnel_build_state(struct net_device *dev, u16 encap_type,

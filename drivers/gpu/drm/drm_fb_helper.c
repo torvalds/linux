@@ -858,6 +858,9 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 	}
 	fb_helper->fbdev = NULL;
 
+	cancel_work_sync(&fb_helper->resume_work);
+	cancel_work_sync(&fb_helper->dirty_work);
+
 	mutex_lock(&kernel_fb_helper_lock);
 	if (!list_empty(&fb_helper->kernel_fb_list)) {
 		list_del(&fb_helper->kernel_fb_list);
