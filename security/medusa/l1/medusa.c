@@ -235,8 +235,8 @@ static int medusa_l1_inode_link(struct dentry *old_dentry, struct inode *inode,
 
 static int medusa_l1_inode_unlink(struct inode *inode, struct dentry *dentry)
 {
-	if (medusa_unlink(dentry) == MED_NO)
-		return -EPERM;
+	// if (medusa_unlink(dentry) == MED_NO)
+	// 	return -EPERM;
 	return 0;
 }
 
@@ -252,8 +252,8 @@ static int medusa_l1_inode_symlink(struct inode *inode, struct dentry *dentry,
 static int medusa_l1_inode_mkdir(struct inode *inode, struct dentry *dentry,
 				umode_t mask)
 {
-	if(medusa_mkdir(dentry, mask) == MED_NO)
-		return -EPERM;
+	// if(medusa_mkdir(dentry, mask) == MED_NO)
+	// 	return -EPERM;
 	return 0;
 }
 
@@ -357,6 +357,8 @@ static int medusa_l1_path_mknod(const struct path *dir, struct dentry *dentry, u
 
 static int medusa_l1_path_mkdir(const struct path *dir, struct dentry *dentry, umode_t mode)
 {
+	if(medusa_mkdir(dir, dentry, mode) == MED_NO)
+		return -EPERM;
 	return 0;
 }
 
@@ -367,6 +369,8 @@ static int medusa_l1_path_rmdir(const struct path *dir, struct dentry *dentry)
 
 static int medusa_l1_path_unlink(const struct path *dir, struct dentry *dentry)
 {
+	if (medusa_unlink(dentry) == MED_NO)
+		return -EPERM;
 	return 0;
 }
 

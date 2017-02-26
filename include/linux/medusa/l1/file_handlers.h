@@ -17,7 +17,7 @@ extern medusa_answer_t medusa_exec(struct dentry ** dentryp);
 extern medusa_answer_t medusa_create(struct dentry * dentry, int mode);
 extern medusa_answer_t medusa_lookup(struct inode *dir, struct dentry **dentry);
 extern medusa_answer_t medusa_truncate(struct dentry *dentry, unsigned long length);
-extern medusa_answer_t medusa_mkdir(struct dentry *dentry, int mode);
+extern medusa_answer_t medusa_mkdir(const struct path *parent, struct dentry *dentry, int mode);
 extern medusa_answer_t medusa_mknod(struct dentry *dentry, dev_t dev, int mode);
 extern medusa_answer_t medusa_permission(struct inode * inode, int mask);
 extern medusa_answer_t medusa_rmdir(struct dentry *dentry);
