@@ -86,7 +86,8 @@ static int vsp1_rwpf_set_format(struct v4l2_subdev *subdev,
 	format = vsp1_entity_get_pad_format(&rwpf->entity, config, fmt->pad);
 
 	if (fmt->pad == RWPF_PAD_SOURCE) {
-		/* The RWPF performs format conversion but can't scale, only the
+		/*
+		 * The RWPF performs format conversion but can't scale, only the
 		 * format code can be changed on the source pad.
 		 */
 		format->code = fmt->format.code;
@@ -205,7 +206,8 @@ static int vsp1_rwpf_set_selection(struct v4l2_subdev *subdev,
 	format = vsp1_entity_get_pad_format(&rwpf->entity, config,
 					    RWPF_PAD_SINK);
 
-	/* Restrict the crop rectangle coordinates to multiples of 2 to avoid
+	/*
+	 * Restrict the crop rectangle coordinates to multiples of 2 to avoid
 	 * shifting the color plane.
 	 */
 	if (format->code == MEDIA_BUS_FMT_AYUV8_1X32) {

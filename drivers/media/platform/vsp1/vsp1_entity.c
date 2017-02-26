@@ -199,7 +199,8 @@ int vsp1_subdev_enum_mbus_code(struct v4l2_subdev *subdev,
 		struct v4l2_subdev_pad_config *config;
 		struct v4l2_mbus_framefmt *format;
 
-		/* The entity can't perform format conversion, the sink format
+		/*
+		 * The entity can't perform format conversion, the sink format
 		 * is always identical to the source format.
 		 */
 		if (code->index)
@@ -263,7 +264,8 @@ int vsp1_subdev_enum_frame_size(struct v4l2_subdev *subdev,
 		fse->min_height = min_height;
 		fse->max_height = max_height;
 	} else {
-		/* The size on the source pad are fixed and always identical to
+		/*
+		 * The size on the source pad are fixed and always identical to
 		 * the size on the sink pad.
 		 */
 		fse->min_width = format->width;
@@ -407,7 +409,8 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 
 	vsp1_entity_init_cfg(subdev, NULL);
 
-	/* Allocate the pad configuration to store formats and selection
+	/*
+	 * Allocate the pad configuration to store formats and selection
 	 * rectangles.
 	 */
 	entity->config = v4l2_subdev_alloc_pad_config(&entity->subdev);

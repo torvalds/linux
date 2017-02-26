@@ -195,7 +195,8 @@ static void rpf_configure(struct vsp1_entity *entity,
 		       (left << VI6_RPF_LOC_HCOORD_SHIFT) |
 		       (top << VI6_RPF_LOC_VCOORD_SHIFT));
 
-	/* On Gen2 use the alpha channel (extended to 8 bits) when available or
+	/*
+	 * On Gen2 use the alpha channel (extended to 8 bits) when available or
 	 * a fixed alpha value set through the V4L2_CID_ALPHA_COMPONENT control
 	 * otherwise.
 	 *
@@ -225,7 +226,8 @@ static void rpf_configure(struct vsp1_entity *entity,
 		u32 mult;
 
 		if (fmtinfo->alpha) {
-			/* When the input contains an alpha channel enable the
+			/*
+			 * When the input contains an alpha channel enable the
 			 * alpha multiplier. If the input is premultiplied we
 			 * need to multiply both the alpha channel and the pixel
 			 * components by the global alpha value to keep them
@@ -240,7 +242,8 @@ static void rpf_configure(struct vsp1_entity *entity,
 				VI6_RPF_MULT_ALPHA_P_MMD_RATIO :
 				VI6_RPF_MULT_ALPHA_P_MMD_NONE);
 		} else {
-			/* When the input doesn't contain an alpha channel the
+			/*
+			 * When the input doesn't contain an alpha channel the
 			 * global alpha value is applied in the unpacking unit,
 			 * the alpha multiplier isn't needed and must be
 			 * disabled.

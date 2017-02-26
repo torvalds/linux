@@ -251,7 +251,8 @@ int vsp1_pipeline_stop(struct vsp1_pipeline *pipe)
 	int ret;
 
 	if (pipe->lif) {
-		/* When using display lists in continuous frame mode the only
+		/*
+		 * When using display lists in continuous frame mode the only
 		 * way to stop the pipeline is to reset the hardware.
 		 */
 		ret = vsp1_reset_wpf(pipe->output->entity.vsp1,
@@ -322,7 +323,8 @@ void vsp1_pipeline_propagate_alpha(struct vsp1_pipeline *pipe,
 	if (!pipe->uds)
 		return;
 
-	/* The BRU background color has a fixed alpha value set to 255, the
+	/*
+	 * The BRU background color has a fixed alpha value set to 255, the
 	 * output alpha value is thus always equal to 255.
 	 */
 	if (pipe->uds_input->type == VSP1_ENTITY_BRU)
@@ -337,7 +339,8 @@ void vsp1_pipelines_suspend(struct vsp1_device *vsp1)
 	unsigned int i;
 	int ret;
 
-	/* To avoid increasing the system suspend time needlessly, loop over the
+	/*
+	 * To avoid increasing the system suspend time needlessly, loop over the
 	 * pipelines twice, first to set them all to the stopping state, and
 	 * then to wait for the stop to complete.
 	 */

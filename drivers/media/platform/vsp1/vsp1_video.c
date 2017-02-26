@@ -103,7 +103,8 @@ static int __vsp1_video_try_format(struct vsp1_video *video,
 	unsigned int height = pix->height;
 	unsigned int i;
 
-	/* Backward compatibility: replace deprecated RGB formats by their XRGB
+	/*
+	 * Backward compatibility: replace deprecated RGB formats by their XRGB
 	 * equivalent. This selects the format older userspace applications want
 	 * while still exposing the new format.
 	 */
@@ -114,7 +115,8 @@ static int __vsp1_video_try_format(struct vsp1_video *video,
 		}
 	}
 
-	/* Retrieve format information and select the default format if the
+	/*
+	 * Retrieve format information and select the default format if the
 	 * requested format isn't supported.
 	 */
 	info = vsp1_get_format_info(video->vsp1, pix->pixelformat);
@@ -140,7 +142,8 @@ static int __vsp1_video_try_format(struct vsp1_video *video,
 	pix->height = clamp(height, VSP1_VIDEO_MIN_HEIGHT,
 			    VSP1_VIDEO_MAX_HEIGHT);
 
-	/* Compute and clamp the stride and image size. While not documented in
+	/*
+	 * Compute and clamp the stride and image size. While not documented in
 	 * the datasheet, strides not aligned to a multiple of 128 bytes result
 	 * in image corruption.
 	 */
@@ -449,7 +452,8 @@ static void vsp1_video_pipeline_frame_end(struct vsp1_pipeline *pipe)
 	state = pipe->state;
 	pipe->state = VSP1_PIPELINE_STOPPED;
 
-	/* If a stop has been requested, mark the pipeline as stopped and
+	/*
+	 * If a stop has been requested, mark the pipeline as stopped and
 	 * return. Otherwise restart the pipeline if ready.
 	 */
 	if (state == VSP1_PIPELINE_STOPPING)
@@ -491,7 +495,8 @@ static int vsp1_video_pipeline_build_branch(struct vsp1_pipeline *pipe,
 		entity = to_vsp1_entity(
 			media_entity_to_v4l2_subdev(pad->entity));
 
-		/* A BRU is present in the pipeline, store the BRU input pad
+		/*
+		 * A BRU is present in the pipeline, store the BRU input pad
 		 * number in the input RPF for use when configuring the RPF.
 		 */
 		if (entity->type == VSP1_ENTITY_BRU) {
@@ -526,7 +531,8 @@ static int vsp1_video_pipeline_build_branch(struct vsp1_pipeline *pipe,
 					: &input->entity;
 		}
 
-		/* Follow the source link. The link setup operations ensure
+		/*
+		 * Follow the source link. The link setup operations ensure
 		 * that the output fan-out can't be more than one, there is thus
 		 * no need to verify here that only a single source link is
 		 * activated.
@@ -596,7 +602,8 @@ static int vsp1_video_pipeline_build(struct vsp1_pipeline *pipe,
 	if (pipe->num_inputs == 0 || !pipe->output)
 		return -EPIPE;
 
-	/* Follow links downstream for each input and make sure the graph
+	/*
+	 * Follow links downstream for each input and make sure the graph
 	 * contains no loop and that all branches end at the output WPF.
 	 */
 	for (i = 0; i < video->vsp1->info->rpf_count; ++i) {
@@ -627,7 +634,8 @@ static struct vsp1_pipeline *vsp1_video_pipeline_get(struct vsp1_video *video)
 	struct vsp1_pipeline *pipe;
 	int ret;
 
-	/* Get a pipeline object for the video node. If a pipeline has already
+	/*
+	 * Get a pipeline object for the video node. If a pipeline has already
 	 * been allocated just increment its reference count and return it.
 	 * Otherwise allocate a new pipeline and initialize it, it will be freed
 	 * when the last reference is released.
@@ -767,7 +775,8 @@ static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 	if (pipe->uds) {
 		struct vsp1_uds *uds = to_uds(&pipe->uds->subdev);
 
-		/* If a BRU is present in the pipeline before the UDS, the alpha
+		/*
+		 * If a BRU is present in the pipeline before the UDS, the alpha
 		 * component doesn't need to be scaled as the BRU output alpha
 		 * value is fixed to 255. Otherwise we need to scale the alpha
 		 * component only when available at the input RPF.
@@ -981,7 +990,8 @@ vsp1_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	if (video->queue.owner && video->queue.owner != file->private_data)
 		return -EBUSY;
 
-	/* Get a pipeline for the video node and start streaming on it. No link
+	/*
+	 * Get a pipeline for the video node and start streaming on it. No link
 	 * touching an entity in the pipeline can be activated or deactivated
 	 * once streaming is started.
 	 */
@@ -1001,7 +1011,8 @@ vsp1_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 
 	mutex_unlock(&mdev->graph_mutex);
 
-	/* Verify that the configured format matches the output of the connected
+	/*
+	 * Verify that the configured format matches the output of the connected
 	 * subdev.
 	 */
 	ret = vsp1_video_verify_format(video);

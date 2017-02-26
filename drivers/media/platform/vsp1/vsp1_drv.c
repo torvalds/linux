@@ -170,7 +170,8 @@ static int vsp1_uapi_create_links(struct vsp1_device *vsp1)
 	}
 
 	for (i = 0; i < vsp1->info->wpf_count; ++i) {
-		/* Connect the video device to the WPF. All connections are
+		/*
+		 * Connect the video device to the WPF. All connections are
 		 * immutable.
 		 */
 		struct vsp1_rwpf *wpf = vsp1->wpf[i];
@@ -227,7 +228,8 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	media_device_init(mdev);
 
 	vsp1->media_ops.link_setup = vsp1_entity_link_setup;
-	/* Don't perform link validation when the userspace API is disabled as
+	/*
+	 * Don't perform link validation when the userspace API is disabled as
 	 * the pipeline is configured internally by the driver in that case, and
 	 * its configuration can thus be trusted.
 	 */
@@ -279,7 +281,8 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 
 	list_add_tail(&vsp1->hst->entity.list_dev, &vsp1->entities);
 
-	/* The LIF is only supported when used in conjunction with the DU, in
+	/*
+	 * The LIF is only supported when used in conjunction with the DU, in
 	 * which case the userspace API is disabled. If the userspace API is
 	 * enabled skip the LIF, even when present.
 	 */
@@ -391,7 +394,8 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	if (ret < 0)
 		goto done;
 
-	/* Register subdev nodes if the userspace API is enabled or initialize
+	/*
+	 * Register subdev nodes if the userspace API is enabled or initialize
 	 * the DRM pipeline otherwise.
 	 */
 	if (vsp1->info->uapi) {

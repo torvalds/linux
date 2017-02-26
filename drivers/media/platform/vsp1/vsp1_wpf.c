@@ -88,12 +88,14 @@ static int wpf_init_controls(struct vsp1_rwpf *wpf)
 		/* Only WPF0 supports flipping. */
 		num_flip_ctrls = 0;
 	} else if (vsp1->info->features & VSP1_HAS_WPF_HFLIP) {
-		/* When horizontal flip is supported the WPF implements two
+		/*
+		 * When horizontal flip is supported the WPF implements two
 		 * controls (horizontal flip and vertical flip).
 		 */
 		num_flip_ctrls = 2;
 	} else if (vsp1->info->features & VSP1_HAS_WPF_VFLIP) {
-		/* When only vertical flip is supported the WPF implements a
+		/*
+		 * When only vertical flip is supported the WPF implements a
 		 * single control (vertical flip).
 		 */
 		num_flip_ctrls = 1;
@@ -139,7 +141,8 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	if (enable)
 		return 0;
 
-	/* Write to registers directly when stopping the stream as there will be
+	/*
+	 * Write to registers directly when stopping the stream as there will be
 	 * no pipeline run to apply the display list.
 	 */
 	vsp1_write(vsp1, VI6_WPF_IRQ_ENB(wpf->entity.index), 0);
@@ -336,7 +339,8 @@ static void wpf_configure(struct vsp1_entity *entity,
 
 	vsp1_dl_list_write(dl, VI6_WPF_WRBCK_CTRL, 0);
 
-	/* Sources. If the pipeline has a single input and BRU is not used,
+	/*
+	 * Sources. If the pipeline has a single input and BRU is not used,
 	 * configure it as the master layer. Otherwise configure all
 	 * inputs as sub-layers and select the virtual RPF as the master
 	 * layer.
