@@ -17,6 +17,9 @@
 #include <time.h>
 #include "test.h"
 
+#define for_each_index(i, base, order) \
+	        for (i = base; i < base + (1 << order); i++)
+
 #define NSEC_PER_SEC	1000000000L
 
 static long long benchmark_iter(struct radix_tree_root *root, bool tagged)
@@ -57,22 +60,87 @@ again:
 	return nsec;
 }
 
+static void benchmark_insert(struct radix_tree_root *root,
+			     unsigned long size, unsigned long step, int order)
+{
+	struct timespec start, finish;
+	unsigned long index;
+	long long nsec;
+
+	clock_gettime(CLOCK_MONOTONIC, &start);
+
+	for (index = 0 ; index < size ; index += step)
+		item_insert_order(root, index, order);
+
+	clock_gettime(CLOCK_MONOTONIC, &finish);
+
+	nsec = (finish.tv_sec - start.tv_sec) * NSEC_PER_SEC +
+	       (finish.tv_nsec - start.tv_nsec);
+
+	printv(2, "Size: %8ld, step: %8ld, order: %d, insertion: %15lld ns\n",
+		size, step, order, nsec);
+}
+
+static void benchmark_tagging(struct radix_tree_root *root,
+			     unsigned long size, unsigned long step, int order)
+{
+	struct timespec start, finish;
+	unsigned long index;
+	long long nsec;
+
+	clock_gettime(CLOCK_MONOTONIC, &start);
+
+	for (index = 0 ; index < size ; index += step)
+		radix_tree_tag_set(root, index, 0);
+
+	clock_gettime(CLOCK_MONOTONIC, &finish);
+
+	nsec = (finish.tv_sec - start.tv_sec) * NSEC_PER_SEC +
+	       (finish.tv_nsec - start.tv_nsec);
+
+	printv(2, "Size: %8ld, step: %8ld, order: %d, tagging: %17lld ns\n",
+		size, step, order, nsec);
+}
+
+static void benchmark_delete(struct radix_tree_root *root,
+			     unsigned long size, unsigned long step, int order)
+{
+	struct timespec start, finish;
+	unsigned long index, i;
+	long long nsec;
+
+	clock_gettime(CLOCK_MONOTONIC, &start);
+
+	for (index = 0 ; index < size ; index += step)
+		for_each_index(i, index, order)
+			item_delete(root, i);
+
+	clock_gettime(CLOCK_MONOTONIC, &finish);
+
+	nsec = (finish.tv_sec - start.tv_sec) * NSEC_PER_SEC +
+	       (finish.tv_nsec - start.tv_nsec);
+
+	printv(2, "Size: %8ld, step: %8ld, order: %d, deletion: %16lld ns\n",
+		size, step, order, nsec);
+}
+
 static void benchmark_size(unsigned long size, unsigned long step, int order)
 {
 	RADIX_TREE(tree, GFP_KERNEL);
 	long long normal, tagged;
-	unsigned long index;
 
-	for (index = 0 ; index < size ; index += step) {
-		item_insert_order(&tree, index, order);
-		radix_tree_tag_set(&tree, index, 0);
-	}
+	benchmark_insert(&tree, size, step, order);
+	benchmark_tagging(&tree, size, step, order);
 
 	tagged = benchmark_iter(&tree, true);
 	normal = benchmark_iter(&tree, false);
 
-	printv(2, "Size %ld, step %6ld, order %d tagged %10lld ns, normal %10lld ns\n",
-		size, step, order, tagged, normal);
+	printv(2, "Size: %8ld, step: %8ld, order: %d, tagged iteration: %8lld ns\n",
+		size, step, order, tagged);
+	printv(2, "Size: %8ld, step: %8ld, order: %d, normal iteration: %8lld ns\n",
+		size, step, order, normal);
+
+	benchmark_delete(&tree, size, step, order);
 
 	item_kill_tree(&tree);
 	rcu_barrier();
