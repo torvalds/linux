@@ -75,6 +75,17 @@ helpers.
 
 Contact: Ville Syrjälä, Daniel Vetter, driver maintainers
 
+Implement deferred fbdev setup in the helper
+--------------------------------------------
+
+Many (especially embedded drivers) want to delay fbdev setup until there's a
+real screen plugged in. This is to avoid the dreaded fallback to the low-res
+fbdev default. Many drivers have a hacked-up (and often broken) version of this,
+better to do it once in the shared helpers. Thierry has a patch series, but that
+one needs to be rebased and final polish applied.
+
+Contact: Thierry Reding, Daniel Vetter, driver maintainers
+
 Convert early atomic drivers to async commit helpers
 ----------------------------------------------------
 
