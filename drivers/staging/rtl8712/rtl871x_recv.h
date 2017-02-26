@@ -74,12 +74,12 @@ struct rx_pkt_attrib {
 };
 
 /*
-accesser of recv_priv: recv_entry(dispatch / passive level);
-recv_thread(passive) ; returnpkt(dispatch)
-; halt(passive) ;
-
-using enter_critical section to protect
-*/
+ * accesser of recv_priv: recv_entry(dispatch / passive level);
+ * recv_thread(passive) ; returnpkt(dispatch)
+ * ; halt(passive) ;
+ *
+ * using enter_critical section to protect
+ */
 struct recv_priv {
 	spinlock_t lock;
 	struct  __queue	free_recv_queue;
