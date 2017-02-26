@@ -258,7 +258,7 @@ static int nft_bitmap_init(const struct nft_set *set,
 {
 	struct nft_bitmap *priv = nft_set_priv(set);
 
-	priv->bitmap_size = nft_bitmap_total_size(set->klen);
+	priv->bitmap_size = nft_bitmap_size(set->klen);
 
 	return 0;
 }
