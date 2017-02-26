@@ -330,6 +330,34 @@ static void single_check(void)
 	item_kill_tree(&tree);
 }
 
+void radix_tree_clear_tags_test(void)
+{
+	unsigned long index;
+	struct radix_tree_node *node;
+	struct radix_tree_iter iter;
+	void **slot;
+
+	RADIX_TREE(tree, GFP_KERNEL);
+
+	item_insert(&tree, 0);
+	item_tag_set(&tree, 0, 0);
+	__radix_tree_lookup(&tree, 0, &node, &slot);
+	radix_tree_clear_tags(&tree, node, slot);
+	assert(item_tag_get(&tree, 0, 0) == 0);
+
+	for (index = 0; index < 1000; index++) {
+		item_insert(&tree, index);
+		item_tag_set(&tree, index, 0);
+	}
+
+	radix_tree_for_each_slot(slot, &tree, &iter, 0) {
+		radix_tree_clear_tags(&tree, iter.node, slot);
+		assert(item_tag_get(&tree, iter.index, 0) == 0);
+	}
+
+	item_kill_tree(&tree);
+}
+
 void tag_check(void)
 {
 	single_check();
@@ -347,4 +375,5 @@ void tag_check(void)
 	thrash_tags();
 	rcu_barrier();
 	printv(2, "after thrash_tags: %d allocated\n", nr_allocated);
+	radix_tree_clear_tags_test();
 }
