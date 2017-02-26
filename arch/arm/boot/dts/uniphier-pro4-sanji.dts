@@ -50,7 +50,7 @@
 	model = "UniPhier Pro4 Sanji Board";
 	compatible = "socionext,uniphier-pro4-sanji", "socionext,uniphier-pro4";
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x80000000>;
 	};

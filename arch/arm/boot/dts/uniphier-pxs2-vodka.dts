@@ -50,7 +50,7 @@
 	model = "UniPhier PXs2 Vodka Board";
 	compatible = "socionext,uniphier-pxs2-vodka", "socionext,uniphier-pxs2";
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x80000000>;
 	};

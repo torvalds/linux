@@ -52,7 +52,7 @@
 	model = "UniPhier sLD3 Reference Board";
 	compatible = "socionext,uniphier-sld3-ref", "socionext,uniphier-sld3";
 
-	memory {
+	memory@8000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x20000000
 		       0xc0000000 0x20000000>;

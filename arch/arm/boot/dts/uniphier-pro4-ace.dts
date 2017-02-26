@@ -50,7 +50,7 @@
 	model = "UniPhier Pro4 Ace Board";
 	compatible = "socionext,uniphier-pro4-ace", "socionext,uniphier-pro4";
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x40000000>;
 	};
