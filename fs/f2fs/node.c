@@ -1871,7 +1871,6 @@ static void scan_free_nid_bits(struct f2fs_sb_info *sbi)
 	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_HOT_DATA);
 	struct f2fs_journal *journal = curseg->journal;
 	unsigned int i, idx;
-	unsigned int target = FREE_NID_PAGES * NAT_ENTRY_PER_BLOCK;
 
 	down_read(&nm_i->nat_tree_lock);
 
@@ -1887,7 +1886,7 @@ static void scan_free_nid_bits(struct f2fs_sb_info *sbi)
 			nid = i * NAT_ENTRY_PER_BLOCK + idx;
 			add_free_nid(sbi, nid, true);
 
-			if (nm_i->nid_cnt[FREE_NID_LIST] >= target)
+			if (nm_i->nid_cnt[FREE_NID_LIST] >= MAX_FREE_NIDS)
 				goto out;
 		}
 	}
@@ -1913,7 +1912,6 @@ static int scan_nat_bits(struct f2fs_sb_info *sbi)
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct page *page;
 	unsigned int i = 0;
-	nid_t target = FREE_NID_PAGES * NAT_ENTRY_PER_BLOCK;
 	nid_t nid;
 
 	if (!enabled_nat_bits(sbi, NULL))
@@ -1934,7 +1932,7 @@ check_empty:
 		add_free_nid(sbi, nid, true);
 	}
 
-	if (nm_i->nid_cnt[FREE_NID_LIST] >= target)
+	if (nm_i->nid_cnt[FREE_NID_LIST] >= MAX_FREE_NIDS)
 		goto out;
 	i++;
 	goto check_empty;
@@ -1952,7 +1950,7 @@ check_partial:
 	scan_nat_page(sbi, page, nid);
 	f2fs_put_page(page, 1);
 
-	if (nm_i->nid_cnt[FREE_NID_LIST] < target) {
+	if (nm_i->nid_cnt[FREE_NID_LIST] < MAX_FREE_NIDS) {
 		i++;
 		goto check_partial;
 	}
