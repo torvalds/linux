@@ -433,10 +433,9 @@ static int rx51_soc_probe(struct platform_device *pdev)
 	}
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-	if (pdata == NULL) {
-		dev_err(card->dev, "failed to create private data\n");
+	if (pdata == NULL)
 		return -ENOMEM;
-	}
+
 	snd_soc_card_set_drvdata(card, pdata);
 
 	pdata->tvout_selection_gpio = devm_gpiod_get(card->dev,
