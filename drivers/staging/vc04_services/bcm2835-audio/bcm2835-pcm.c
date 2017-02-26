@@ -90,7 +90,7 @@ void bcm2835_playback_fifo(struct bcm2835_alsa_stream *alsa_stream)
 		frames_to_bytes(alsa_stream->substream->runtime, alsa_stream->substream->runtime->status->hw_ptr),
 		new_period);
 	if (alsa_stream->buffer_size) {
-		alsa_stream->pos += consumed &~(1 << 30);
+		alsa_stream->pos += consumed & ~(1 << 30);
 		alsa_stream->pos %= alsa_stream->buffer_size;
 	}
 
