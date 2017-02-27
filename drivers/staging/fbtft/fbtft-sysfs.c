@@ -196,7 +196,7 @@ static ssize_t show_debug(struct device *device,
 	return snprintf(buf, PAGE_SIZE, "%lu\n", par->debug);
 }
 
-static struct device_attribute debug_device_attr = \
+static struct device_attribute debug_device_attr =
 	__ATTR(debug, 0660, show_debug, store_debug);
 
 void fbtft_sysfs_init(struct fbtft_par *par)
