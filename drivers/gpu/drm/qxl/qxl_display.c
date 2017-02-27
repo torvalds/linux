@@ -31,6 +31,7 @@
 #include "drm_crtc_helper.h"
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_atomic.h>
 
 static bool qxl_head_enabled(struct qxl_head *head)
 {
@@ -299,7 +300,8 @@ static int qxl_crtc_page_flip(struct drm_crtc *crtc,
 	int one_clip_rect = 1;
 	int ret = 0;
 
-	crtc->primary->fb = fb;
+	drm_atomic_set_fb_for_plane(crtc->primary->state, fb);
+
 	bo_old->is_primary = false;
 	bo->is_primary = true;
 
