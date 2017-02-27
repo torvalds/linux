@@ -425,7 +425,7 @@ struct lnet_rtrbuf {
 /* # different router buffer pools */
 #define LNET_NRBPOOLS		(LNET_LARGE_BUF_IDX + 1)
 
-enum {
+enum lnet_match_flags {
 	/* Didn't match anything */
 	LNET_MATCHMD_NONE	= (1 << 0),
 	/* Matched OK */
