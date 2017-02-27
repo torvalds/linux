@@ -266,24 +266,13 @@ out:
 static struct cpumask save_cpumask;
 static bool disable_migrate;
 
-static void move_to_next_cpu(bool initmask)
+static void move_to_next_cpu(void)
 {
-	static struct cpumask *current_mask;
+	struct cpumask *current_mask = &save_cpumask;
 	int next_cpu;
 
 	if (disable_migrate)
 		return;
-
-	/* Just pick the first CPU on first iteration */
-	if (initmask) {
-		current_mask = &save_cpumask;
-		get_online_cpus();
-		cpumask_and(current_mask, cpu_online_mask, tracing_buffer_mask);
-		put_online_cpus();
-		next_cpu = cpumask_first(current_mask);
-		goto set_affinity;
-	}
-
 	/*
 	 * If for some reason the user modifies the CPU affinity
 	 * of this thread, than stop migrating for the duration
@@ -300,7 +289,6 @@ static void move_to_next_cpu(bool initmask)
 	if (next_cpu >= nr_cpu_ids)
 		next_cpu = cpumask_first(current_mask);
 
- set_affinity:
 	if (next_cpu >= nr_cpu_ids) /* Shouldn't happen! */
 		goto disable;
 
@@ -327,12 +315,10 @@ static void move_to_next_cpu(bool initmask)
 static int kthread_fn(void *data)
 {
 	u64 interval;
-	bool initmask = true;
 
 	while (!kthread_should_stop()) {
 
-		move_to_next_cpu(initmask);
-		initmask = false;
+		move_to_next_cpu();
 
 		local_irq_disable();
 		get_sample();
@@ -363,13 +349,27 @@ static int kthread_fn(void *data)
  */
 static int start_kthread(struct trace_array *tr)
 {
+	struct cpumask *current_mask = &save_cpumask;
 	struct task_struct *kthread;
+	int next_cpu;
+
+	/* Just pick the first CPU on first iteration */
+	current_mask = &save_cpumask;
+	get_online_cpus();
+	cpumask_and(current_mask, cpu_online_mask, tracing_buffer_mask);
+	put_online_cpus();
+	next_cpu = cpumask_first(current_mask);
 
 	kthread = kthread_create(kthread_fn, NULL, "hwlatd");
 	if (IS_ERR(kthread)) {
 		pr_err(BANNER "could not start sampling thread\n");
 		return -ENOMEM;
 	}
+
+	cpumask_clear(current_mask);
+	cpumask_set_cpu(next_cpu, current_mask);
+	sched_setaffinity(kthread->pid, current_mask);
+
 	hwlat_kthread = kthread;
 	wake_up_process(kthread);
 
