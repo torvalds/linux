@@ -75,17 +75,6 @@ static void intel_breadcrumbs_hangcheck(unsigned long data)
 	DRM_DEBUG("Hangcheck timer elapsed... %s idle\n", engine->name);
 	set_bit(engine->id, &engine->i915->gpu_error.missed_irq_rings);
 	mod_timer(&engine->breadcrumbs.fake_irq, jiffies + 1);
-
-	/* Ensure that even if the GPU hangs, we get woken up.
-	 *
-	 * However, note that if no one is waiting, we never notice
-	 * a gpu hang. Eventually, we will have to wait for a resource
-	 * held by the GPU and so trigger a hangcheck. In the most
-	 * pathological case, this will be upon memory starvation! To
-	 * prevent this, we also queue the hangcheck from the retire
-	 * worker.
-	 */
-	i915_queue_hangcheck(engine->i915);
 }
 
 static void intel_breadcrumbs_fake_irq(unsigned long data)
@@ -99,8 +88,21 @@ static void intel_breadcrumbs_fake_irq(unsigned long data)
 	 * every jiffie in order to kick the oldest waiter to do the
 	 * coherent seqno check.
 	 */
-	if (intel_engine_wakeup(engine))
-		mod_timer(&engine->breadcrumbs.fake_irq, jiffies + 1);
+	if (!intel_engine_wakeup(engine))
+		return;
+
+	mod_timer(&engine->breadcrumbs.fake_irq, jiffies + 1);
+
+	/* Ensure that even if the GPU hangs, we get woken up.
+	 *
+	 * However, note that if no one is waiting, we never notice
+	 * a gpu hang. Eventually, we will have to wait for a resource
+	 * held by the GPU and so trigger a hangcheck. In the most
+	 * pathological case, this will be upon memory starvation! To
+	 * prevent this, we also queue the hangcheck from the retire
+	 * worker.
+	 */
+	i915_queue_hangcheck(engine->i915);
 }
 
 static void irq_enable(struct intel_engine_cs *engine)
@@ -179,13 +181,11 @@ static void __intel_breadcrumbs_enable_irq(struct intel_breadcrumbs *b)
 		b->irq_enabled = true;
 	}
 
-	if (!b->irq_enabled || use_fake_irq(b)) {
+	/* Ensure we never sleep indefinitely */
+	if (!b->irq_enabled || use_fake_irq(b))
 		mod_timer(&b->fake_irq, jiffies + 1);
-		i915_queue_hangcheck(i915);
-	} else {
-		/* Ensure we never sleep indefinitely */
+	else
 		mod_timer(&b->hangcheck, wait_timeout());
-	}
 }
 
 static void __intel_breadcrumbs_disable_irq(struct intel_breadcrumbs *b)
