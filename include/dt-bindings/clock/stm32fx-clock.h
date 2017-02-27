@@ -36,4 +36,24 @@
 
 #define END_PRIMARY_CLK		14
 
+#define CLK_HSI			14
+#define CLK_SYSCLK		15
+#define CLK_HDMI_CEC		16
+#define CLK_SPDIF		17
+#define CLK_USART1		18
+#define CLK_USART2		19
+#define CLK_USART3		20
+#define CLK_UART4		21
+#define CLK_UART5		22
+#define CLK_USART6		23
+#define CLK_UART7		24
+#define CLK_UART8		25
+#define CLK_I2C1		26
+#define CLK_I2C2		27
+#define CLK_I2C3		28
+#define CLK_I2C4		29
+#define CLK_LPTIMER		30
+
+#define END_PRIMARY_CLK_F7	31
+
 #endif

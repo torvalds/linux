@@ -424,10 +424,9 @@ out:
 	return ret;
 }
 
-static int sel_mmap_policy_fault(struct vm_area_struct *vma,
-				 struct vm_fault *vmf)
+static int sel_mmap_policy_fault(struct vm_fault *vmf)
 {
-	struct policy_load_memory *plm = vma->vm_file->private_data;
+	struct policy_load_memory *plm = vmf->vma->vm_file->private_data;
 	unsigned long offset;
 	struct page *page;
 

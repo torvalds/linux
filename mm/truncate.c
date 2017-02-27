@@ -20,6 +20,7 @@
 #include <linux/task_io_accounting_ops.h>
 #include <linux/buffer_head.h>	/* grr. try_to_release_page,
 				   do_invalidatepage */
+#include <linux/shmem_fs.h>
 #include <linux/cleancache.h>
 #include <linux/rmap.h>
 #include "internal.h"

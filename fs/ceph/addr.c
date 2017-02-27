@@ -1386,8 +1386,9 @@ static void ceph_restore_sigs(sigset_t *oldset)
 /*
  * vm ops
  */
-static int ceph_filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int ceph_filemap_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	struct inode *inode = file_inode(vma->vm_file);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_file_info *fi = vma->vm_file->private_data;
@@ -1416,7 +1417,7 @@ static int ceph_filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if ((got & (CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO)) ||
 	    ci->i_inline_version == CEPH_INLINE_NONE) {
 		current->journal_info = vma->vm_file;
-		ret = filemap_fault(vma, vmf);
+		ret = filemap_fault(vmf);
 		current->journal_info = NULL;
 	} else
 		ret = -EAGAIN;
@@ -1477,8 +1478,9 @@ out_restore:
 /*
  * Reuse write_begin here for simplicity.
  */
-static int ceph_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int ceph_page_mkwrite(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	struct inode *inode = file_inode(vma->vm_file);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_file_info *fi = vma->vm_file->private_data;

@@ -201,8 +201,8 @@ File /sys/block/zram<id>/mm_stat
 The stat file represents device's mm statistics. It consists of a single
 line of text and contains the following stats separated by whitespace:
  orig_data_size   uncompressed size of data stored in this disk.
-                  This excludes zero-filled pages (zero_pages) since no
-                  memory is allocated for them.
+		  This excludes same-element-filled pages (same_pages) since
+		  no memory is allocated for them.
                   Unit: bytes
  compr_data_size  compressed size of data stored in this disk
  mem_used_total   the amount of memory allocated for this disk. This
@@ -214,7 +214,7 @@ line of text and contains the following stats separated by whitespace:
                   the compressed data
  mem_used_max     the maximum amount of memory zram have consumed to
                   store the data
- zero_pages       the number of zero filled pages written to this disk.
+ same_pages       the number of same element filled pages written to this disk.
                   No memory is allocated for such pages.
  pages_compacted  the number of pages freed during compaction
 

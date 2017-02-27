@@ -422,7 +422,7 @@ static int kempld_wdt_probe_stages(struct watchdog_device *wdd)
 	return 0;
 }
 
-static struct watchdog_info kempld_wdt_info = {
+static const struct watchdog_info kempld_wdt_info = {
 	.identity	= "KEMPLD Watchdog",
 	.options	= WDIOF_SETTIMEOUT |
 			WDIOF_KEEPALIVEPING |

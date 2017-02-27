@@ -31,6 +31,7 @@
  * SOFTWARE.
  */
 
+#include <linux/dma-mapping.h>
 #include "rxe.h"
 #include "rxe_loc.h"
 #include "rxe_queue.h"
@@ -169,7 +170,7 @@ static int rxe_query_pkey(struct ib_device *device,
 	struct rxe_port *port;
 
 	if (unlikely(port_num != 1)) {
-		dev_warn(device->dma_device, "invalid port_num = %d\n",
+		dev_warn(device->dev.parent, "invalid port_num = %d\n",
 			 port_num);
 		goto err1;
 	}
@@ -177,7 +178,7 @@ static int rxe_query_pkey(struct ib_device *device,
 	port = &rxe->port;
 
 	if (unlikely(index >= port->attr.pkey_tbl_len)) {
-		dev_warn(device->dma_device, "invalid index = %d\n",
+		dev_warn(device->dev.parent, "invalid index = %d\n",
 			 index);
 		goto err1;
 	}
@@ -1234,10 +1235,10 @@ int rxe_register_device(struct rxe_dev *rxe)
 	dev->node_type = RDMA_NODE_IB_CA;
 	dev->phys_port_cnt = 1;
 	dev->num_comp_vectors = RXE_NUM_COMP_VECTORS;
-	dev->dma_device = rxe_dma_device(rxe);
+	dev->dev.parent = rxe_dma_device(rxe);
 	dev->local_dma_lkey = 0;
 	dev->node_guid = rxe_node_guid(rxe);
-	dev->dma_ops = &rxe_dma_mapping_ops;
+	dev->dev.dma_ops = &dma_virt_ops;
 
 	dev->uverbs_abi_ver = RXE_UVERBS_ABI_VERSION;
 	dev->uverbs_cmd_mask = BIT_ULL(IB_USER_VERBS_CMD_GET_CONTEXT)

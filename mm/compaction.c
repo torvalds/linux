@@ -802,7 +802,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 					locked = false;
 				}
 
-				if (isolate_movable_page(page, isolate_mode))
+				if (!isolate_movable_page(page, isolate_mode))
 					goto isolate_success;
 			}
 

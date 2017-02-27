@@ -50,8 +50,9 @@ static void vgem_gem_free_object(struct drm_gem_object *obj)
 	kfree(vgem_obj);
 }
 
-static int vgem_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int vgem_gem_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	struct drm_vgem_gem_object *obj = vma->vm_private_data;
 	/* We don't use vmf->pgoff since that has the fake offset */
 	unsigned long vaddr = vmf->address;

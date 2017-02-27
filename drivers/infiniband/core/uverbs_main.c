@@ -1174,7 +1174,7 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	if (cdev_add(&uverbs_dev->cdev, base, 1))
 		goto err_cdev;
 
-	uverbs_dev->dev = device_create(uverbs_class, device->dma_device,
+	uverbs_dev->dev = device_create(uverbs_class, device->dev.parent,
 					uverbs_dev->cdev.dev, uverbs_dev,
 					"uverbs%d", uverbs_dev->devnum);
 	if (IS_ERR(uverbs_dev->dev))

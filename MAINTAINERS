@@ -3452,6 +3452,7 @@ B:	https://bugzilla.kernel.org
 F:	Documentation/cpu-freq/
 F:	drivers/cpufreq/
 F:	include/linux/cpufreq.h
+F:	tools/testing/selftests/cpufreq/
 
 CPU FREQUENCY DRIVERS - ARM BIG LITTLE
 M:	Viresh Kumar <viresh.kumar@linaro.org>
@@ -6269,6 +6270,11 @@ M:	Peter Tyser <ptyser@xes-inc.com>
 S:	Maintained
 F:	drivers/mfd/lpc_ich.c
 F:	drivers/gpio/gpio-ich.c
+
+IDT VersaClock 5 CLOCK DRIVER
+M:	Marek Vasut <marek.vasut@gmail.com>
+S:	Maintained
+F:	drivers/clk/clk-versaclock5.c
 
 IDE SUBSYSTEM
 M:	"David S. Miller" <davem@davemloft.net>
@@ -11450,6 +11456,14 @@ F:	drivers/media/common/siano/
 F:	drivers/media/usb/siano/
 F:	drivers/media/usb/siano/
 F:	drivers/media/mmc/siano/
+
+SILEAD TOUCHSCREEN DRIVER
+M:	Hans de Goede <hdegoede@redhat.com>
+L:	linux-input@vger.kernel.org
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	drivers/input/touchscreen/silead.c
+F:	drivers/platform/x86/silead_dmi.c
 
 SIMPLEFB FB DRIVER
 M:	Hans de Goede <hdegoede@redhat.com>

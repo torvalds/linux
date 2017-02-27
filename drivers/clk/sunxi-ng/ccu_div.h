@@ -41,6 +41,7 @@ struct ccu_div_internal {
 	u8			width;
 
 	u32			max;
+	u32			offset;
 
 	u32			flags;
 
@@ -58,19 +59,26 @@ struct ccu_div_internal {
 #define _SUNXI_CCU_DIV_TABLE(_shift, _width, _table)			\
 	_SUNXI_CCU_DIV_TABLE_FLAGS(_shift, _width, _table, 0)
 
-#define _SUNXI_CCU_DIV_MAX_FLAGS(_shift, _width, _max, _flags) \
+#define _SUNXI_CCU_DIV_OFFSET_MAX_FLAGS(_shift, _width, _off, _max, _flags) \
 	{								\
 		.shift	= _shift,					\
 		.width	= _width,					\
 		.flags	= _flags,					\
 		.max	= _max,						\
+		.offset	= _off,						\
 	}
+
+#define _SUNXI_CCU_DIV_MAX_FLAGS(_shift, _width, _max, _flags)		\
+	_SUNXI_CCU_DIV_OFFSET_MAX_FLAGS(_shift, _width, 1, _max, _flags)
 
 #define _SUNXI_CCU_DIV_FLAGS(_shift, _width, _flags)			\
 	_SUNXI_CCU_DIV_MAX_FLAGS(_shift, _width, 0, _flags)
 
 #define _SUNXI_CCU_DIV_MAX(_shift, _width, _max)			\
 	_SUNXI_CCU_DIV_MAX_FLAGS(_shift, _width, _max, 0)
+
+#define _SUNXI_CCU_DIV_OFFSET(_shift, _width, _offset)			\
+	_SUNXI_CCU_DIV_OFFSET_MAX_FLAGS(_shift, _width, _offset, 0, 0)
 
 #define _SUNXI_CCU_DIV(_shift, _width)					\
 	_SUNXI_CCU_DIV_FLAGS(_shift, _width, 0)

@@ -95,3 +95,15 @@ In general, the rules for selftests are
 
  * Don't cause the top-level "make run_tests" to fail if your feature is
    unconfigured.
+
+Contributing new tests(details)
+===============================
+
+ * Use TEST_GEN_XXX if such binaries or files are generated during
+   compiling.
+   TEST_PROGS, TEST_GEN_PROGS mean it is the excutable tested by
+   default.
+   TEST_PROGS_EXTENDED, TEST_GEN_PROGS_EXTENDED mean it is the
+   executable which is not tested by default.
+   TEST_FILES, TEST_GEN_FILES mean it is the file which is used by
+   test.

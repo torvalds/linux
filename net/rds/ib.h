@@ -136,7 +136,7 @@ struct rds_ib_connection {
 	struct rds_ib_work_ring	i_send_ring;
 	struct rm_data_op	*i_data_op;
 	struct rds_header	*i_send_hdrs;
-	u64			i_send_hdrs_dma;
+	dma_addr_t		i_send_hdrs_dma;
 	struct rds_ib_send_work *i_sends;
 	atomic_t		i_signaled_sends;
 
@@ -146,7 +146,7 @@ struct rds_ib_connection {
 	struct rds_ib_incoming	*i_ibinc;
 	u32			i_recv_data_rem;
 	struct rds_header	*i_recv_hdrs;
-	u64			i_recv_hdrs_dma;
+	dma_addr_t		i_recv_hdrs_dma;
 	struct rds_ib_recv_work *i_recvs;
 	u64			i_ack_recv;	/* last ACK received */
 	struct rds_ib_refill_cache i_cache_incs;
@@ -164,7 +164,7 @@ struct rds_ib_connection {
 	struct rds_header	*i_ack;
 	struct ib_send_wr	i_ack_wr;
 	struct ib_sge		i_ack_sge;
-	u64			i_ack_dma;
+	dma_addr_t		i_ack_dma;
 	unsigned long		i_ack_queued;
 
 	/* Flow control related information
@@ -235,7 +235,7 @@ struct rds_ib_device {
 	int			*vector_load;
 };
 
-#define ibdev_to_node(ibdev) dev_to_node(ibdev->dma_device)
+#define ibdev_to_node(ibdev) dev_to_node((ibdev)->dev.parent)
 #define rdsibdev_to_node(rdsibdev) ibdev_to_node(rdsibdev->dev)
 
 /* bits for i_ack_flags */
