@@ -146,6 +146,46 @@ static void benchmark_size(unsigned long size, unsigned long step, int order)
 	rcu_barrier();
 }
 
+static long long  __benchmark_split(unsigned long index,
+				    int old_order, int new_order)
+{
+	struct timespec start, finish;
+	long long nsec;
+	RADIX_TREE(tree, GFP_ATOMIC);
+
+	item_insert_order(&tree, index, old_order);
+
+	clock_gettime(CLOCK_MONOTONIC, &start);
+	radix_tree_split(&tree, index, new_order);
+	clock_gettime(CLOCK_MONOTONIC, &finish);
+	nsec = (finish.tv_sec - start.tv_sec) * NSEC_PER_SEC +
+	       (finish.tv_nsec - start.tv_nsec);
+
+	item_kill_tree(&tree);
+
+	return nsec;
+
+}
+
+static void benchmark_split(unsigned long size, unsigned long step)
+{
+	int i, j, idx;
+	long long nsec = 0;
+
+
+	for (idx = 0; idx < size; idx += step) {
+		for (i = 3; i < 11; i++) {
+			for (j = 0; j < i; j++) {
+				nsec += __benchmark_split(idx, i, j);
+			}
+		}
+	}
+
+	printv(2, "Size %8ld, step %8ld, split time %10lld ns\n",
+			size, step, nsec);
+
+}
+
 void benchmark(void)
 {
 	unsigned long size[] = {1 << 10, 1 << 20, 0};
@@ -163,4 +203,8 @@ void benchmark(void)
 	for (c = 0; size[c]; c++)
 		for (s = 0; step[s]; s++)
 			benchmark_size(size[c], step[s] << 9, 9);
+
+	for (c = 0; size[c]; c++)
+		for (s = 0; step[s]; s++)
+			benchmark_split(size[c], step[s]);
 }
