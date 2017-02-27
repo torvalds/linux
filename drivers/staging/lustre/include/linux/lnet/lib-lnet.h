@@ -496,7 +496,7 @@ void lnet_prep_send(struct lnet_msg *msg, int type, lnet_process_id_t target,
 int lnet_send(lnet_nid_t nid, struct lnet_msg *msg, lnet_nid_t rtr_nid);
 void lnet_return_tx_credits_locked(struct lnet_msg *msg);
 void lnet_return_rx_credits_locked(struct lnet_msg *msg);
-void lnet_schedule_blocked_locked(lnet_rtrbufpool_t *rbp);
+void lnet_schedule_blocked_locked(struct lnet_rtrbufpool *rbp);
 void lnet_drop_routed_msgs_locked(struct list_head *list, int cpt);
 
 /* portals functions */

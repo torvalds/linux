@@ -396,7 +396,7 @@ struct lnet_remotenet {
 /** lnet message is waiting for credit */
 #define LNET_CREDIT_WAIT	1
 
-typedef struct {
+struct lnet_rtrbufpool {
 	struct list_head	rbp_bufs;	/* my free buffer pool */
 	struct list_head	rbp_msgs;	/* messages blocking
 						   for a buffer */
@@ -408,11 +408,11 @@ typedef struct {
 	int			rbp_credits;	/* # free buffers /
 						     blocked messages */
 	int			rbp_mincredits;	/* low water mark */
-} lnet_rtrbufpool_t;
+};
 
 typedef struct {
 	struct list_head	 rb_list;	/* chain on rbp_bufs */
-	lnet_rtrbufpool_t	*rb_pool;	/* owning pool */
+	struct lnet_rtrbufpool	*rb_pool;	/* owning pool */
 	lnet_kiov_t		 rb_kiov[0];	/* the buffer space */
 } lnet_rtrbuf_t;
 
@@ -596,7 +596,7 @@ typedef struct {
 	/* validity stamp */
 	__u64				  ln_routers_version;
 	/* percpt router buffer pools */
-	lnet_rtrbufpool_t		**ln_rtrpools;
+	struct lnet_rtrbufpool		**ln_rtrpools;
 
 	struct lnet_handle_md		  ln_ping_target_md;
 	struct lnet_handle_eq		  ln_ping_target_eq;

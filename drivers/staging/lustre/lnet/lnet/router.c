@@ -558,7 +558,7 @@ int lnet_get_rtr_pool_cfg(int idx, struct lnet_ioctl_pool_cfg *pool_cfg)
 		return rc;
 
 	for (i = 0; i < LNET_NRBPOOLS; i++) {
-		lnet_rtrbufpool_t *rbp;
+		struct lnet_rtrbufpool *rbp;
 
 		lnet_net_lock(LNET_LOCK_EX);
 		cfs_percpt_for_each(rbp, j, the_lnet.ln_rtrpools) {
@@ -1316,7 +1316,7 @@ lnet_destroy_rtrbuf(lnet_rtrbuf_t *rb, int npages)
 }
 
 static lnet_rtrbuf_t *
-lnet_new_rtrbuf(lnet_rtrbufpool_t *rbp, int cpt)
+lnet_new_rtrbuf(struct lnet_rtrbufpool *rbp, int cpt)
 {
 	int npages = rbp->rbp_npages;
 	int sz = offsetof(lnet_rtrbuf_t, rb_kiov[npages]);
@@ -1351,7 +1351,7 @@ lnet_new_rtrbuf(lnet_rtrbufpool_t *rbp, int cpt)
 }
 
 static void
-lnet_rtrpool_free_bufs(lnet_rtrbufpool_t *rbp, int cpt)
+lnet_rtrpool_free_bufs(struct lnet_rtrbufpool *rbp, int cpt)
 {
 	int npages = rbp->rbp_npages;
 	struct list_head tmp;
@@ -1380,7 +1380,7 @@ lnet_rtrpool_free_bufs(lnet_rtrbufpool_t *rbp, int cpt)
 }
 
 static int
-lnet_rtrpool_adjust_bufs(lnet_rtrbufpool_t *rbp, int nbufs, int cpt)
+lnet_rtrpool_adjust_bufs(struct lnet_rtrbufpool *rbp, int nbufs, int cpt)
 {
 	struct list_head rb_list;
 	lnet_rtrbuf_t *rb;
@@ -1467,7 +1467,7 @@ failed:
 }
 
 static void
-lnet_rtrpool_init(lnet_rtrbufpool_t *rbp, int npages)
+lnet_rtrpool_init(struct lnet_rtrbufpool *rbp, int npages)
 {
 	INIT_LIST_HEAD(&rbp->rbp_msgs);
 	INIT_LIST_HEAD(&rbp->rbp_bufs);
@@ -1480,7 +1480,7 @@ lnet_rtrpool_init(lnet_rtrbufpool_t *rbp, int npages)
 void
 lnet_rtrpools_free(int keep_pools)
 {
-	lnet_rtrbufpool_t *rtrp;
+	struct lnet_rtrbufpool *rtrp;
 	int i;
 
 	if (!the_lnet.ln_rtrpools) /* uninitialized or freed */
@@ -1558,7 +1558,7 @@ lnet_nrb_large_calculate(void)
 int
 lnet_rtrpools_alloc(int im_a_router)
 {
-	lnet_rtrbufpool_t *rtrp;
+	struct lnet_rtrbufpool *rtrp;
 	int nrb_tiny;
 	int nrb_small;
 	int nrb_large;
@@ -1593,7 +1593,7 @@ lnet_rtrpools_alloc(int im_a_router)
 
 	the_lnet.ln_rtrpools = cfs_percpt_alloc(lnet_cpt_table(),
 						LNET_NRBPOOLS *
-						sizeof(lnet_rtrbufpool_t));
+						sizeof(struct lnet_rtrbufpool));
 	if (!the_lnet.ln_rtrpools) {
 		LCONSOLE_ERROR_MSG(0x10c,
 				   "Failed to initialize router buffe pool\n");
@@ -1639,7 +1639,7 @@ lnet_rtrpools_adjust_helper(int tiny, int small, int large)
 	int nrb = 0;
 	int rc = 0;
 	int i;
-	lnet_rtrbufpool_t *rtrp;
+	struct lnet_rtrbufpool *rtrp;
 
 	/*
 	 * If the provided values for each buffer pool are different than the

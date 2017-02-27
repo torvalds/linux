@@ -680,10 +680,10 @@ lnet_post_send_locked(struct lnet_msg *msg, int do_send)
 	return LNET_CREDIT_OK;
 }
 
-static lnet_rtrbufpool_t *
+static struct lnet_rtrbufpool *
 lnet_msg2bufpool(struct lnet_msg *msg)
 {
-	lnet_rtrbufpool_t *rbp;
+	struct lnet_rtrbufpool *rbp;
 	int cpt;
 
 	LASSERT(msg->msg_rx_committed);
@@ -710,7 +710,7 @@ lnet_post_routed_recv_locked(struct lnet_msg *msg, int do_recv)
 	 * received or OK to receive
 	 */
 	struct lnet_peer *lp = msg->msg_rxpeer;
-	lnet_rtrbufpool_t *rbp;
+	struct lnet_rtrbufpool *rbp;
 	lnet_rtrbuf_t *rb;
 
 	LASSERT(!msg->msg_iov);
@@ -835,7 +835,7 @@ lnet_return_tx_credits_locked(struct lnet_msg *msg)
 }
 
 void
-lnet_schedule_blocked_locked(lnet_rtrbufpool_t *rbp)
+lnet_schedule_blocked_locked(struct lnet_rtrbufpool *rbp)
 {
 	struct lnet_msg *msg;
 
@@ -880,7 +880,7 @@ lnet_return_rx_credits_locked(struct lnet_msg *msg)
 	if (msg->msg_rtrcredit) {
 		/* give back global router credits */
 		lnet_rtrbuf_t *rb;
-		lnet_rtrbufpool_t *rbp;
+		struct lnet_rtrbufpool *rbp;
 
 		/*
 		 * NB If a msg ever blocks for a buffer in rbp_msgs, it stays
