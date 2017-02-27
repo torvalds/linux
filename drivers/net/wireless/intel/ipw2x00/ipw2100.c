@@ -5652,7 +5652,7 @@ static void shim__set_security(struct net_device *dev,
 
 /* As a temporary work around to enable WPA until we figure out why
  * wpa_supplicant toggles the security capability of the driver, which
- * forces a disassocation with force_update...
+ * forces a disassociation with force_update...
  *
  *	if (force_update || !(priv->status & STATUS_ASSOCIATED))*/
 	if (!(priv->status & (STATUS_ASSOCIATED | STATUS_ASSOCIATING)))

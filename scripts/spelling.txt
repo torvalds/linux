@@ -364,6 +364,7 @@ differrence||difference
 difinition||definition
 diplay||display
 direectly||directly
+disassocation||disassociation
 disapear||disappear
 disapeared||disappeared
 disappared||disappeared
