@@ -227,8 +227,7 @@ static int _ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 				DPRINTK(4,
 					"PMG SET!! : GCR_B=%02X\n",
 					rw_data);
-				atomic_set(&priv->psstatus.
-					status, PS_SNOOZE);
+				atomic_set(&priv->psstatus.status, PS_SNOOZE);
 				DPRINTK(3,
 					"psstatus.status=PS_SNOOZE\n");
 			} else {
@@ -236,8 +235,7 @@ static int _ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 						&priv->ks_wlan_hw.rw_wq, 1);
 			}
 		} else {
-			queue_delayed_work(priv->ks_wlan_hw.
-					ks7010sdio_wq,
+			queue_delayed_work(priv->ks_wlan_hw.ks7010sdio_wq,
 					&priv->ks_wlan_hw.rw_wq,
 					0);
 		}
