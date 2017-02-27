@@ -510,9 +510,6 @@ struct lnet_md {
 /** Infinite threshold on MD operations. See lnet_md::threshold */
 #define LNET_MD_THRESH_INF	(-1)
 
-/* NB lustre portals uses struct iovec internally! */
-typedef struct iovec lnet_md_iovec_t;
-
 typedef struct bio_vec lnet_kiov_t;
 /** @} lnet_md */
 
