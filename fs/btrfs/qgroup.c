@@ -1919,6 +1919,35 @@ static int qgroup_update_counters(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
+/*
+ * Check if the @roots potentially is a list of fs tree roots
+ *
+ * Return 0 for definitely not a fs/subvol tree roots ulist
+ * Return 1 for possible fs/subvol tree roots in the list (considering an empty
+ *          one as well)
+ */
+static int maybe_fs_roots(struct ulist *roots)
+{
+	struct ulist_node *unode;
+	struct ulist_iterator uiter;
+
+	/* Empty one, still possible for fs roots */
+	if (!roots || roots->nnodes == 0)
+		return 1;
+
+	ULIST_ITER_INIT(&uiter);
+	unode = ulist_next(roots, &uiter);
+	if (!unode)
+		return 1;
+
+	/*
+	 * If it contains fs tree roots, then it must belong to fs/subvol
+	 * trees.
+	 * If it contains a non-fs tree, it won't be shared with fs/subvol trees.
+	 */
+	return is_fstree(unode->val);
+}
+
 int
 btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans,
 			    struct btrfs_fs_info *fs_info,
@@ -1935,10 +1964,20 @@ btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans,
 	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags))
 		return 0;
 
-	if (new_roots)
+	if (new_roots) {
+		if (!maybe_fs_roots(new_roots))
+			goto out_free;
 		nr_new_roots = new_roots->nnodes;
-	if (old_roots)
+	}
+	if (old_roots) {
+		if (!maybe_fs_roots(old_roots))
+			goto out_free;
 		nr_old_roots = old_roots->nnodes;
+	}
+
+	/* Quick exit, either not fs tree roots, or won't affect any qgroup */
+	if (nr_old_roots == 0 && nr_new_roots == 0)
+		goto out_free;
 
 	BUG_ON(!fs_info->quota_root);
 
