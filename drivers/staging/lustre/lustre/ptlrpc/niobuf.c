@@ -49,7 +49,7 @@ static int ptl_send_buf(struct lnet_handle_md *mdh, void *base, int len,
 			unsigned int offset)
 {
 	int rc;
-	lnet_md_t md;
+	struct lnet_md md;
 
 	LASSERT(portal != 0);
 	CDEBUG(D_INFO, "conn=%p id %s\n", conn, libcfs_id2str(conn->c_peer));
@@ -116,7 +116,7 @@ static int ptlrpc_register_bulk(struct ptlrpc_request *req)
 	int total_md;
 	u64 mbits;
 	struct lnet_handle_me me_h;
-	lnet_md_t md;
+	struct lnet_md md;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_BULK_GET_NET))
 		return 0;
@@ -473,7 +473,7 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 	int mpflag = 0;
 	struct ptlrpc_connection *connection;
 	struct lnet_handle_me reply_me_h;
-	lnet_md_t reply_md;
+	struct lnet_md reply_md;
 	struct obd_import *imp = request->rq_import;
 	struct obd_device *obd = imp->imp_obd;
 
@@ -721,7 +721,7 @@ int ptlrpc_register_rqbd(struct ptlrpc_request_buffer_desc *rqbd)
 	struct ptlrpc_service *service = rqbd->rqbd_svcpt->scp_service;
 	static lnet_process_id_t match_id = {LNET_NID_ANY, LNET_PID_ANY};
 	int rc;
-	lnet_md_t md;
+	struct lnet_md md;
 	struct lnet_handle_me me_h;
 
 	CDEBUG(D_NET, "LNetMEAttach: portal %d\n",

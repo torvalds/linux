@@ -905,7 +905,7 @@ lnet_create_rc_data_locked(struct lnet_peer *gateway)
 {
 	struct lnet_rc_data *rcd = NULL;
 	struct lnet_ping_info *pi;
-	lnet_md_t md;
+	struct lnet_md md;
 	int rc;
 	int i;
 

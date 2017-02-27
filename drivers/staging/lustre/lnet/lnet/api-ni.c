@@ -903,7 +903,7 @@ lnet_ping_info_setup(struct lnet_ping_info **ppinfo,
 {
 	lnet_process_id_t id = {LNET_NID_ANY, LNET_PID_ANY};
 	struct lnet_handle_me me_handle;
-	lnet_md_t md = { NULL };
+	struct lnet_md md = { NULL };
 	int rc, rc2;
 
 	if (set_eq) {
@@ -2134,7 +2134,7 @@ static int lnet_ping(lnet_process_id_t id, int timeout_ms,
 	struct lnet_handle_eq eqh;
 	struct lnet_handle_md mdh;
 	lnet_event_t event;
-	lnet_md_t md = { NULL };
+	struct lnet_md md = { NULL };
 	int which;
 	int unlinked = 0;
 	int replied = 0;

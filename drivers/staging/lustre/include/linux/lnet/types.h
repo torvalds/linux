@@ -377,7 +377,7 @@ typedef enum {
  * Defines the visible parts of a memory descriptor. Values of this type
  * are used to initialize memory descriptors.
  */
-typedef struct {
+struct lnet_md {
 	/**
 	 * Specify the memory region associated with the memory descriptor.
 	 * If the options field has:
@@ -471,7 +471,7 @@ typedef struct {
 	 * descriptor are not logged.
 	 */
 	struct lnet_handle_eq eq_handle;
-} lnet_md_t;
+};
 
 /*
  * Max Transfer Unit (minimum supported everywhere).
@@ -485,29 +485,29 @@ typedef struct {
 #define LNET_MAX_IOV	256
 
 /**
- * Options for the MD structure. See lnet_md_t::options.
+ * Options for the MD structure. See lnet_md::options.
  */
 #define LNET_MD_OP_PUT		(1 << 0)
-/** See lnet_md_t::options. */
+/** See lnet_md::options. */
 #define LNET_MD_OP_GET		(1 << 1)
-/** See lnet_md_t::options. */
+/** See lnet_md::options. */
 #define LNET_MD_MANAGE_REMOTE	(1 << 2)
 /* unused			(1 << 3) */
-/** See lnet_md_t::options. */
+/** See lnet_md::options. */
 #define LNET_MD_TRUNCATE	(1 << 4)
-/** See lnet_md_t::options. */
+/** See lnet_md::options. */
 #define LNET_MD_ACK_DISABLE	(1 << 5)
-/** See lnet_md_t::options. */
+/** See lnet_md::options. */
 #define LNET_MD_IOVEC		(1 << 6)
-/** See lnet_md_t::options. */
+/** See lnet_md::options. */
 #define LNET_MD_MAX_SIZE	(1 << 7)
-/** See lnet_md_t::options. */
+/** See lnet_md::options. */
 #define LNET_MD_KIOV		(1 << 8)
 
 /* For compatibility with Cray Portals */
 #define LNET_MD_PHYS		0
 
-/** Infinite threshold on MD operations. See lnet_md_t::threshold */
+/** Infinite threshold on MD operations. See lnet_md::threshold */
 #define LNET_MD_THRESH_INF	(-1)
 
 /* NB lustre portals uses struct iovec internally! */
@@ -591,7 +591,7 @@ typedef struct {
 	 * The length (in bytes) of the data that was manipulated by the
 	 * operation. For truncated operations, the manipulated length will be
 	 * the number of bytes specified by the MD (possibly with an offset,
-	 * see lnet_md_t). For all other operations, the manipulated length
+	 * see lnet_md). For all other operations, the manipulated length
 	 * will be the length of the requested operation, i.e. rlength.
 	 */
 	unsigned int		mlength;
@@ -605,7 +605,7 @@ typedef struct {
 	 * been processed. In particular, the threshold field in md will
 	 * reflect the value of the threshold after the operation occurred.
 	 */
-	lnet_md_t		md;
+	struct lnet_md		md;
 	/**
 	 * 64 bits of out-of-band user data. Only valid for LNET_EVENT_PUT.
 	 * \see LNetPut
@@ -627,7 +627,7 @@ typedef struct {
 	 * The displacement (in bytes) into the memory region that the
 	 * operation used. The offset can be determined by the operation for
 	 * a remote managed MD or by the local MD.
-	 * \see lnet_md_t::options
+	 * \see lnet_md::options
 	 */
 	unsigned int		offset;
 	/**
@@ -660,7 +660,7 @@ typedef void (*lnet_eq_handler_t)(lnet_event_t *event);
  * operation completes (i.e., when the data has been written to a MD of the
  * target process).
  *
- * \see lnet_md_t::options for the discussion on LNET_MD_ACK_DISABLE by which
+ * \see lnet_md::options for the discussion on LNET_MD_ACK_DISABLE by which
  * acknowledgments can be disabled for a MD.
  */
 typedef enum {

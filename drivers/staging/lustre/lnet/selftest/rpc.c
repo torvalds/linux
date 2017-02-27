@@ -359,7 +359,7 @@ srpc_post_passive_rdma(int portal, int local, __u64 matchbits, void *buf,
 		       struct lnet_handle_md *mdh, struct srpc_event *ev)
 {
 	int rc;
-	lnet_md_t md;
+	struct lnet_md md;
 	struct lnet_handle_me meh;
 
 	rc = LNetMEAttach(portal, peer, matchbits, 0, LNET_UNLINK,
@@ -398,7 +398,7 @@ srpc_post_active_rdma(int portal, __u64 matchbits, void *buf, int len,
 		      struct lnet_handle_md *mdh, struct srpc_event *ev)
 {
 	int rc;
-	lnet_md_t md;
+	struct lnet_md md;
 
 	md.user_ptr = ev;
 	md.start = buf;

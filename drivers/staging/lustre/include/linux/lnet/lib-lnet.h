@@ -194,7 +194,7 @@ lnet_eq_free(struct lnet_eq *eq)
 }
 
 static inline struct lnet_libmd *
-lnet_md_alloc(lnet_md_t *umd)
+lnet_md_alloc(struct lnet_md *umd)
 {
 	struct lnet_libmd *md;
 	unsigned int size;
@@ -626,7 +626,7 @@ void lnet_copy_kiov2iter(struct iov_iter *to,
 void lnet_me_unlink(struct lnet_me *me);
 
 void lnet_md_unlink(struct lnet_libmd *md);
-void lnet_md_deconstruct(struct lnet_libmd *lmd, lnet_md_t *umd);
+void lnet_md_deconstruct(struct lnet_libmd *lmd, struct lnet_md *umd);
 
 void lnet_register_lnd(struct lnet_lnd *lnd);
 void lnet_unregister_lnd(struct lnet_lnd *lnd);

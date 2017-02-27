@@ -125,11 +125,11 @@ int LNetMEUnlink(struct lnet_handle_me current_in);
  * @{
  */
 int LNetMDAttach(struct lnet_handle_me current_in,
-		 lnet_md_t	   md_in,
+		 struct lnet_md md_in,
 		 lnet_unlink_t     unlink_in,
 		 struct lnet_handle_md *md_handle_out);
 
-int LNetMDBind(lnet_md_t	   md_in,
+int LNetMDBind(struct lnet_md md_in,
 	       lnet_unlink_t       unlink_in,
 	       struct lnet_handle_md *md_handle_out);
 

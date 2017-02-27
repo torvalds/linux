@@ -84,7 +84,7 @@ lnet_md_unlink(struct lnet_libmd *md)
 }
 
 static int
-lnet_md_build(struct lnet_libmd *lmd, lnet_md_t *umd, int unlink)
+lnet_md_build(struct lnet_libmd *lmd, struct lnet_md *umd, int unlink)
 {
 	int i;
 	unsigned int niov;
@@ -204,7 +204,7 @@ lnet_md_link(struct lnet_libmd *md, struct lnet_handle_eq eq_handle, int cpt)
 
 /* must be called with lnet_res_lock held */
 void
-lnet_md_deconstruct(struct lnet_libmd *lmd, lnet_md_t *umd)
+lnet_md_deconstruct(struct lnet_libmd *lmd, struct lnet_md *umd)
 {
 	/* NB this doesn't copy out all the iov entries so when a
 	 * discontiguous MD is copied out, the target gets to know the
@@ -223,7 +223,7 @@ lnet_md_deconstruct(struct lnet_libmd *lmd, lnet_md_t *umd)
 }
 
 static int
-lnet_md_validate(lnet_md_t *umd)
+lnet_md_validate(struct lnet_md *umd)
 {
 	if (!umd->start && umd->length) {
 		CERROR("MD start pointer can not be NULL with length %u\n",
@@ -267,7 +267,7 @@ lnet_md_validate(lnet_md_t *umd)
  * a MD.
  */
 int
-LNetMDAttach(struct lnet_handle_me meh, lnet_md_t umd,
+LNetMDAttach(struct lnet_handle_me meh, struct lnet_md umd,
 	     lnet_unlink_t unlink, struct lnet_handle_md *handle)
 {
 	LIST_HEAD(matches);
@@ -350,7 +350,7 @@ EXPORT_SYMBOL(LNetMDAttach);
  * LNetInvalidateHandle() on it.
  */
 int
-LNetMDBind(lnet_md_t umd, lnet_unlink_t unlink,
+LNetMDBind(struct lnet_md umd, lnet_unlink_t unlink,
 	   struct lnet_handle_md *handle)
 {
 	struct lnet_libmd *md;
