@@ -120,11 +120,3 @@
 &route_edp {
 	status = "okay";
 };
-
-&vpu {
-	status = "okay";
-};
-
-&rkvdec {
-	status = "okay";
-};

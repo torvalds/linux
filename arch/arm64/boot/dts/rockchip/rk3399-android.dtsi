@@ -305,8 +305,16 @@
 	#sound-dai-cells = <0>;
 };
 
+&rkvdec {
+	status = "okay";
+};
+
 &usbdrd_dwc3_0 {
 	dr_mode = "otg";
+};
+
+&vpu {
+	status = "okay";
 };
 
 &pinctrl {

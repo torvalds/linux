@@ -519,10 +519,6 @@
 	mali-supply = <&vdd_gpu>;
 };
 
-&rga {
-	status = "okay";
-};
-
 &threshold {
 	temperature = <85000>;
 };
@@ -824,14 +820,6 @@
 &pmu_io_domains {
 	status = "okay";
 	pmu1830-supply = <&vcc_1v8>;
-};
-
-&vpu {
-	status = "okay";
-};
-
-&rkvdec {
-	status = "okay";
 };
 
 &rockchip_suspend {

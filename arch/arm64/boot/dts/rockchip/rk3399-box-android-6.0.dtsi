@@ -525,10 +525,6 @@
 	mali-supply = <&vdd_gpu>;
 };
 
-&rga {
-	status = "okay";
-};
-
 &threshold {
 	temperature = <85000>;
 };

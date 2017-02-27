@@ -770,14 +770,6 @@
 	status = "okay";
 };
 
-&vpu {
-	status = "okay";
-};
-
-&rkvdec {
-	status = "okay";
-};
-
 &cpu_l0 {
 	cpu-supply = <&vdd_cpu_l>;
 };
@@ -805,10 +797,6 @@
 &gpu {
 	status = "okay";
 	mali-supply = <&vdd_gpu>;
-};
-
-&rga {
-	status = "okay";
 };
 
 &spi1 {

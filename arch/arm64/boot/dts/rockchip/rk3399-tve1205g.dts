@@ -859,17 +859,9 @@
 	status = "okay";
 };
 
-&rkvdec {
-	status = "okay";
-};
-
 &route_edp {
 	status = "okay";
 	logo,mode = "center";
-};
-
-&rga {
-	status = "okay";
 };
 
 &saradc {
@@ -1014,10 +1006,6 @@
 };
 
 &usbdrd_dwc3_1 {
-	status = "okay";
-};
-
-&vpu {
 	status = "okay";
 };
 

@@ -778,10 +778,6 @@
 	mali-supply = <&vdd_gpu>;
 };
 
-&rga {
-	status = "okay";
-};
-
 &spi1 {
 	status = "disabled";
 	max-freq = <50000000>;

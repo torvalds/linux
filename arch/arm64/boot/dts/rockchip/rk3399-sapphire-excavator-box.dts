@@ -162,11 +162,3 @@
 			<0xb5	KEY_BACKSPACE>;
 	};
 };
-
-&vpu {
-	status = "okay";
-};
-
-&rkvdec {
-	status = "okay";
-};
