@@ -56,7 +56,7 @@ it is guaranteed that the state did change in between the two events.
     * - __u16
       - ``phys_addr``
       - The current physical address. This is ``CEC_PHYS_ADDR_INVALID`` if no
-          valid physical address is set.
+        valid physical address is set.
     * - __u16
       - ``log_addr_mask``
       - The current set of claimed logical addresses. This is 0 if no logical

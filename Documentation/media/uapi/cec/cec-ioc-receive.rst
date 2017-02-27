@@ -51,13 +51,13 @@ A received message can be:
    be non-zero).
 
 To send a CEC message the application has to fill in the struct
-:c:type:` cec_msg` and pass it to :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>`.
+:c:type:`cec_msg` and pass it to :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>`.
 The :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` is only available if
 ``CEC_CAP_TRANSMIT`` is set. If there is no more room in the transmit
 queue, then it will return -1 and set errno to the ``EBUSY`` error code.
 The transmit queue has enough room for 18 messages (about 1 second worth
 of 2-byte messages). Note that the CEC kernel framework will also reply
-to core messages (see :ref:cec-core-processing), so it is not a good
+to core messages (see :ref:`cec-core-processing`), so it is not a good
 idea to fully fill up the transmit queue.
 
 If the file descriptor is in non-blocking mode then the transmit will
