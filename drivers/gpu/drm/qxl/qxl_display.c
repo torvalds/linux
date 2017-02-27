@@ -763,8 +763,8 @@ static const struct drm_plane_helper_funcs qxl_cursor_helper_funcs = {
 };
 
 static const struct drm_plane_funcs qxl_cursor_plane_funcs = {
-	.update_plane	= drm_plane_helper_update,
-	.disable_plane	= drm_plane_helper_disable,
+	.update_plane	= drm_atomic_helper_update_plane,
+	.disable_plane	= drm_atomic_helper_disable_plane,
 	.destroy	= drm_primary_helper_destroy,
 	.reset		= drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
@@ -785,8 +785,8 @@ static const struct drm_plane_helper_funcs primary_helper_funcs = {
 };
 
 static const struct drm_plane_funcs qxl_primary_plane_funcs = {
-	.update_plane	= drm_plane_helper_update,
-	.disable_plane	= drm_primary_helper_disable,
+	.update_plane	= drm_atomic_helper_update_plane,
+	.disable_plane	= drm_atomic_helper_disable_plane,
 	.destroy	= drm_primary_helper_destroy,
 	.reset		= drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
@@ -1161,6 +1161,8 @@ qxl_user_framebuffer_create(struct drm_device *dev,
 
 static const struct drm_mode_config_funcs qxl_mode_funcs = {
 	.fb_create = qxl_user_framebuffer_create,
+	.atomic_check = drm_atomic_helper_check,
+	.atomic_commit = drm_atomic_helper_commit,
 };
 
 int qxl_create_monitors_object(struct qxl_device *qdev)
