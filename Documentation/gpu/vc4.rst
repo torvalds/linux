@@ -2,6 +2,9 @@
  drm/vc4 Broadcom VC4 Graphics Driver
 =====================================
 
+.. kernel-doc:: drivers/gpu/drm/vc4/vc4_drv.c
+   :doc: Broadcom VC4 Graphics Driver
+
 Display Hardware Handling
 =========================
 
