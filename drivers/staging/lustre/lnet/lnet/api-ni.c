@@ -483,12 +483,12 @@ lnet_res_containers_create(int type)
 	return recs;
 }
 
-lnet_libhandle_t *
+struct lnet_libhandle *
 lnet_res_lh_lookup(struct lnet_res_container *rec, __u64 cookie)
 {
 	/* ALWAYS called with lnet_res_lock held */
 	struct list_head *head;
-	lnet_libhandle_t *lh;
+	struct lnet_libhandle *lh;
 	unsigned int hash;
 
 	if ((cookie & LNET_COOKIE_MASK) != rec->rec_type)
@@ -506,7 +506,8 @@ lnet_res_lh_lookup(struct lnet_res_container *rec, __u64 cookie)
 }
 
 void
-lnet_res_lh_initialize(struct lnet_res_container *rec, lnet_libhandle_t *lh)
+lnet_res_lh_initialize(struct lnet_res_container *rec,
+		       struct lnet_libhandle *lh)
 {
 	/* ALWAYS called with lnet_res_lock held */
 	unsigned int ibits = LNET_COOKIE_TYPE_BITS + LNET_CPT_BITS;

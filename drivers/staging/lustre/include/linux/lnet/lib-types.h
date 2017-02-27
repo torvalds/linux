@@ -108,17 +108,17 @@ struct lnet_msg {
 	struct lnet_hdr		 msg_hdr;
 };
 
-typedef struct lnet_libhandle {
+struct lnet_libhandle {
 	struct list_head	lh_hash_chain;
 	__u64			lh_cookie;
-} lnet_libhandle_t;
+};
 
 #define lh_entry(ptr, type, member) \
 	((type *)((char *)(ptr) - (char *)(&((type *)0)->member)))
 
 typedef struct lnet_eq {
 	struct list_head	  eq_list;
-	lnet_libhandle_t	  eq_lh;
+	struct lnet_libhandle	  eq_lh;
 	lnet_seq_t		  eq_enq_seq;
 	lnet_seq_t		  eq_deq_seq;
 	unsigned int		  eq_size;
@@ -129,7 +129,7 @@ typedef struct lnet_eq {
 
 typedef struct lnet_me {
 	struct list_head	 me_list;
-	lnet_libhandle_t	 me_lh;
+	struct lnet_libhandle	 me_lh;
 	lnet_process_id_t	 me_match_id;
 	unsigned int		 me_portal;
 	unsigned int		 me_pos;	/* hash offset in mt_hash */
@@ -141,7 +141,7 @@ typedef struct lnet_me {
 
 typedef struct lnet_libmd {
 	struct list_head	 md_list;
-	lnet_libhandle_t	 md_lh;
+	struct lnet_libhandle	 md_lh;
 	lnet_me_t		*md_me;
 	char			*md_start;
 	unsigned int		 md_offset;

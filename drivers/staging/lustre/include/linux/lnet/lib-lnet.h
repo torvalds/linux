@@ -266,12 +266,12 @@ lnet_msg_free(struct lnet_msg *msg)
 	LIBCFS_FREE(msg, sizeof(*msg));
 }
 
-lnet_libhandle_t *lnet_res_lh_lookup(struct lnet_res_container *rec,
-				     __u64 cookie);
+struct lnet_libhandle *lnet_res_lh_lookup(struct lnet_res_container *rec,
+					  __u64 cookie);
 void lnet_res_lh_initialize(struct lnet_res_container *rec,
-			    lnet_libhandle_t *lh);
+			    struct lnet_libhandle *lh);
 static inline void
-lnet_res_lh_invalidate(lnet_libhandle_t *lh)
+lnet_res_lh_invalidate(struct lnet_libhandle *lh)
 {
 	/* NB: cookie is still useful, don't reset it */
 	list_del(&lh->lh_hash_chain);
@@ -291,7 +291,7 @@ lnet_eq2handle(struct lnet_handle_eq *handle, lnet_eq_t *eq)
 static inline lnet_eq_t *
 lnet_handle2eq(struct lnet_handle_eq *handle)
 {
-	lnet_libhandle_t *lh;
+	struct lnet_libhandle *lh;
 
 	lh = lnet_res_lh_lookup(&the_lnet.ln_eq_container, handle->cookie);
 	if (!lh)
@@ -310,7 +310,7 @@ static inline lnet_libmd_t *
 lnet_handle2md(struct lnet_handle_md *handle)
 {
 	/* ALWAYS called with resource lock held */
-	lnet_libhandle_t *lh;
+	struct lnet_libhandle *lh;
 	int cpt;
 
 	cpt = lnet_cpt_of_cookie(handle->cookie);
@@ -326,7 +326,7 @@ static inline lnet_libmd_t *
 lnet_wire_handle2md(struct lnet_handle_wire *wh)
 {
 	/* ALWAYS called with resource lock held */
-	lnet_libhandle_t *lh;
+	struct lnet_libhandle *lh;
 	int cpt;
 
 	if (wh->wh_interface_cookie != the_lnet.ln_interface_cookie)
@@ -351,7 +351,7 @@ static inline lnet_me_t *
 lnet_handle2me(struct lnet_handle_me *handle)
 {
 	/* ALWAYS called with resource lock held */
-	lnet_libhandle_t *lh;
+	struct lnet_libhandle *lh;
 	int cpt;
 
 	cpt = lnet_cpt_of_cookie(handle->cookie);
