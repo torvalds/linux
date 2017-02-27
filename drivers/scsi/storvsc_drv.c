@@ -280,7 +280,7 @@ static const struct vmstor_protocol vmstor_protocols[] = {
 
 
 /*
- * This structure is sent during the intialization phase to get the different
+ * This structure is sent during the initialization phase to get the different
  * properties of the channel.
  */
 
