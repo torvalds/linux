@@ -288,9 +288,9 @@ static struct blk_mq_ops nvme_loop_admin_mq_ops = {
 
 static void nvme_loop_destroy_admin_queue(struct nvme_loop_ctrl *ctrl)
 {
+	nvmet_sq_destroy(&ctrl->queues[0].nvme_sq);
 	blk_cleanup_queue(ctrl->ctrl.admin_q);
 	blk_mq_free_tag_set(&ctrl->admin_tag_set);
-	nvmet_sq_destroy(&ctrl->queues[0].nvme_sq);
 }
 
 static void nvme_loop_free_ctrl(struct nvme_ctrl *nctrl)
