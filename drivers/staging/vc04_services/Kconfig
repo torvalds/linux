@@ -1,4 +1,4 @@
-config BCM2835_VCHIQ
+menuconfig BCM2835_VCHIQ
 	tristate "Videocore VCHIQ"
 	depends on HAS_DMA
 	depends on RASPBERRYPI_FIRMWARE || (COMPILE_TEST && !RASPBERRYPI_FIRMWARE)
@@ -8,3 +8,10 @@ config BCM2835_VCHIQ
 		BCM2835 family of products.
 		Defaults to Y when the Broadcom Videocore services
 		are included in the build, N otherwise.
+
+if BCM2835_VCHIQ
+
+source "drivers/staging/vc04_services/bcm2835-audio/Kconfig"
+
+endif
+
