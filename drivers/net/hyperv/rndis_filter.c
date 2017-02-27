@@ -1012,6 +1012,8 @@ static void netvsc_sc_open(struct vmbus_channel *new_sc)
 	if (ret == 0)
 		nvscdev->chan_table[chn_index].channel = new_sc;
 
+	napi_enable(&nvscdev->chan_table[chn_index].napi);
+
 	spin_lock_irqsave(&nvscdev->sc_lock, flags);
 	nvscdev->num_sc_offered--;
 	spin_unlock_irqrestore(&nvscdev->sc_lock, flags);
