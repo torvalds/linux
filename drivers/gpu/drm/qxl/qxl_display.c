@@ -325,6 +325,9 @@ static const struct drm_crtc_funcs qxl_crtc_funcs = {
 	.set_config = drm_crtc_helper_set_config,
 	.destroy = qxl_crtc_destroy,
 	.page_flip = qxl_crtc_page_flip,
+	.reset = drm_atomic_helper_crtc_reset,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 };
 
 void qxl_user_framebuffer_destroy(struct drm_framebuffer *fb)
@@ -761,6 +764,9 @@ static const struct drm_plane_funcs qxl_cursor_plane_funcs = {
 	.update_plane	= drm_plane_helper_update,
 	.disable_plane	= drm_plane_helper_disable,
 	.destroy	= drm_primary_helper_destroy,
+	.reset		= drm_atomic_helper_plane_reset,
+	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 };
 
 static const uint32_t qxl_primary_plane_formats[] = {
@@ -780,6 +786,9 @@ static const struct drm_plane_funcs qxl_primary_plane_funcs = {
 	.update_plane	= drm_plane_helper_update,
 	.disable_plane	= drm_primary_helper_disable,
 	.destroy	= drm_primary_helper_destroy,
+	.reset		= drm_atomic_helper_plane_reset,
+	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 };
 
 static struct drm_plane *qxl_create_plane(struct qxl_device *qdev,
@@ -1057,6 +1066,9 @@ static const struct drm_connector_funcs qxl_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = qxl_conn_set_property,
 	.destroy = qxl_conn_destroy,
+	.reset = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static void qxl_enc_destroy(struct drm_encoder *encoder)
@@ -1227,6 +1239,8 @@ int qxl_modeset_init(struct qxl_device *qdev)
 	}
 
 	qdev->mode_info.mode_config_initialized = true;
+
+	drm_mode_config_reset(&qdev->ddev);
 
 	/* primary surface must be created by this point, to allow
 	 * issuing command queue commands and having them read by
