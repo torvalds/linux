@@ -286,11 +286,7 @@ static int qxl_crtc_page_flip(struct drm_crtc *crtc,
 	bo_old->is_primary = false;
 	bo->is_primary = true;
 
-	ret = qxl_bo_reserve(bo, false);
-	if (ret)
-		return ret;
 	ret = qxl_bo_pin(bo, bo->type, NULL);
-	qxl_bo_unreserve(bo);
 	if (ret)
 		return ret;
 
@@ -306,11 +302,7 @@ static int qxl_crtc_page_flip(struct drm_crtc *crtc,
 	}
 	drm_crtc_vblank_put(crtc);
 
-	ret = qxl_bo_reserve(bo, false);
-	if (!ret) {
-		qxl_bo_unpin(bo);
-		qxl_bo_unreserve(bo);
-	}
+	qxl_bo_unpin(bo);
 
 	return 0;
 }
@@ -417,12 +409,7 @@ static int qxl_crtc_cursor_set2(struct drm_crtc *crtc,
 
 	user_bo = gem_to_qxl_bo(obj);
 
-	ret = qxl_bo_reserve(user_bo, false);
-	if (ret)
-		goto out_unref;
-
 	ret = qxl_bo_pin(user_bo, QXL_GEM_DOMAIN_CPU, NULL);
-	qxl_bo_unreserve(user_bo);
 	if (ret)
 		goto out_unref;
 
@@ -485,11 +472,8 @@ static int qxl_crtc_cursor_set2(struct drm_crtc *crtc,
 	qxl_release_fence_buffer_objects(release);
 
 	/* finish with the userspace bo */
-	ret = qxl_bo_reserve(user_bo, false);
-	if (!ret) {
-		qxl_bo_unpin(user_bo);
-		qxl_bo_unreserve(user_bo);
-	}
+	qxl_bo_unpin(user_bo);
+
 	drm_gem_object_unreference_unlocked(obj);
 
 	qxl_bo_unref (&qcrtc->cursor_bo);
@@ -747,15 +731,10 @@ static int qxl_crtc_mode_set(struct drm_crtc *crtc,
 		return -EINVAL;
         }
 
-	ret = qxl_bo_reserve(bo, false);
-	if (ret != 0)
-		return ret;
 	ret = qxl_bo_pin(bo, bo->type, NULL);
-	if (ret != 0) {
-		qxl_bo_unreserve(bo);
+	if (ret != 0)
 		return -EINVAL;
-	}
-	qxl_bo_unreserve(bo);
+
 	if (recreate_primary) {
 		qxl_io_destroy_primary(qdev);
 		qxl_io_log(qdev,
@@ -781,9 +760,7 @@ static int qxl_crtc_mode_set(struct drm_crtc *crtc,
 
 	if (old_bo && old_bo != bo) {
 		old_bo->is_primary = false;
-		ret = qxl_bo_reserve(old_bo, false);
 		qxl_bo_unpin(old_bo);
-		qxl_bo_unreserve(old_bo);
 	}
 
 	qxl_monitors_config_set(qdev, qcrtc->index, x, y,
@@ -812,10 +789,8 @@ static void qxl_crtc_disable(struct drm_crtc *crtc)
 	if (crtc->primary->fb) {
 		struct qxl_framebuffer *qfb = to_qxl_framebuffer(crtc->primary->fb);
 		struct qxl_bo *bo = gem_to_qxl_bo(qfb->obj);
-		int ret;
-		ret = qxl_bo_reserve(bo, false);
+
 		qxl_bo_unpin(bo);
-		qxl_bo_unreserve(bo);
 		crtc->primary->fb = NULL;
 	}
 
@@ -1144,17 +1119,9 @@ int qxl_create_monitors_object(struct qxl_device *qdev)
 	}
 	qdev->monitors_config_bo = gem_to_qxl_bo(gobj);
 
-	ret = qxl_bo_reserve(qdev->monitors_config_bo, false);
+	ret = qxl_bo_pin(qdev->monitors_config_bo, QXL_GEM_DOMAIN_VRAM, NULL);
 	if (ret)
 		return ret;
-
-	ret = qxl_bo_pin(qdev->monitors_config_bo, QXL_GEM_DOMAIN_VRAM, NULL);
-	if (ret) {
-		qxl_bo_unreserve(qdev->monitors_config_bo);
-		return ret;
-	}
-
-	qxl_bo_unreserve(qdev->monitors_config_bo);
 
 	qxl_bo_kmap(qdev->monitors_config_bo, NULL);
 
@@ -1175,12 +1142,9 @@ int qxl_destroy_monitors_object(struct qxl_device *qdev)
 	qdev->ram_header->monitors_config = 0;
 
 	qxl_bo_kunmap(qdev->monitors_config_bo);
-	ret = qxl_bo_reserve(qdev->monitors_config_bo, false);
+	ret = qxl_bo_unpin(qdev->monitors_config_bo);
 	if (ret)
 		return ret;
-
-	qxl_bo_unpin(qdev->monitors_config_bo);
-	qxl_bo_unreserve(qdev->monitors_config_bo);
 
 	qxl_bo_unref(&qdev->monitors_config_bo);
 	return 0;

@@ -90,14 +90,10 @@ static struct fb_ops qxlfb_ops = {
 static void qxlfb_destroy_pinned_object(struct drm_gem_object *gobj)
 {
 	struct qxl_bo *qbo = gem_to_qxl_bo(gobj);
-	int ret;
 
-	ret = qxl_bo_reserve(qbo, false);
-	if (likely(ret == 0)) {
-		qxl_bo_kunmap(qbo);
-		qxl_bo_unpin(qbo);
-		qxl_bo_unreserve(qbo);
-	}
+	qxl_bo_kunmap(qbo);
+	qxl_bo_unpin(qbo);
+
 	drm_gem_object_unreference_unlocked(gobj);
 }
 
@@ -148,16 +144,13 @@ static int qxlfb_create_pinned_object(struct qxl_fbdev *qfbdev,
 	qbo->surf.height = mode_cmd->height;
 	qbo->surf.stride = mode_cmd->pitches[0];
 	qbo->surf.format = SPICE_SURFACE_FMT_32_xRGB;
-	ret = qxl_bo_reserve(qbo, false);
-	if (unlikely(ret != 0))
-		goto out_unref;
+
 	ret = qxl_bo_pin(qbo, QXL_GEM_DOMAIN_SURFACE, NULL);
 	if (ret) {
-		qxl_bo_unreserve(qbo);
 		goto out_unref;
 	}
 	ret = qxl_bo_kmap(qbo, NULL);
-	qxl_bo_unreserve(qbo); /* unreserve, will be mmaped */
+
 	if (ret)
 		goto out_unref;
 
@@ -322,12 +315,8 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 
 out_unref:
 	if (qbo) {
-		ret = qxl_bo_reserve(qbo, false);
-		if (likely(ret == 0)) {
-			qxl_bo_kunmap(qbo);
-			qxl_bo_unpin(qbo);
-			qxl_bo_unreserve(qbo);
-		}
+		qxl_bo_kunmap(qbo);
+		qxl_bo_unpin(qbo);
 	}
 	if (fb && ret) {
 		drm_gem_object_unreference_unlocked(gobj);
