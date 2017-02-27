@@ -164,12 +164,12 @@ struct lnet_libmd {
 #define LNET_MD_FLAG_AUTO_UNLINK	(1 << 1)
 #define LNET_MD_FLAG_ABORTED		(1 << 2)
 
-typedef struct {
+struct lnet_test_peer {
 	/* info about peers we are trying to fail */
 	struct list_head	tp_list;	/* ln_test_peers */
 	lnet_nid_t		tp_nid;		/* matching nid */
 	unsigned int		tp_threshold;	/* # failures to simulate */
-} lnet_test_peer_t;
+};
 
 #define LNET_COOKIE_TYPE_MD	1
 #define LNET_COOKIE_TYPE_ME	2

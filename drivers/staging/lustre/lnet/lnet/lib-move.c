@@ -47,8 +47,8 @@ MODULE_PARM_DESC(local_nid_dist_zero, "Reserved");
 int
 lnet_fail_nid(lnet_nid_t nid, unsigned int threshold)
 {
-	lnet_test_peer_t *tp;
-	lnet_test_peer_t *temp;
+	struct lnet_test_peer *tp;
+	struct lnet_test_peer *temp;
 	struct list_head *el;
 	struct list_head *next;
 	struct list_head cull;
@@ -75,7 +75,7 @@ lnet_fail_nid(lnet_nid_t nid, unsigned int threshold)
 	lnet_net_lock(0);
 
 	list_for_each_safe(el, next, &the_lnet.ln_test_peers) {
-		tp = list_entry(el, lnet_test_peer_t, tp_list);
+		tp = list_entry(el, struct lnet_test_peer, tp_list);
 
 		if (!tp->tp_threshold ||    /* needs culling anyway */
 		    nid == LNET_NID_ANY ||       /* removing all entries */
@@ -97,8 +97,8 @@ lnet_fail_nid(lnet_nid_t nid, unsigned int threshold)
 static int
 fail_peer(lnet_nid_t nid, int outgoing)
 {
-	lnet_test_peer_t *tp;
-	lnet_test_peer_t *temp;
+	struct lnet_test_peer *tp;
+	struct lnet_test_peer *temp;
 	struct list_head *el;
 	struct list_head *next;
 	struct list_head cull;
@@ -110,7 +110,7 @@ fail_peer(lnet_nid_t nid, int outgoing)
 	lnet_net_lock(0);
 
 	list_for_each_safe(el, next, &the_lnet.ln_test_peers) {
-		tp = list_entry(el, lnet_test_peer_t, tp_list);
+		tp = list_entry(el, struct lnet_test_peer, tp_list);
 
 		if (!tp->tp_threshold) {
 			/* zombie entry */
