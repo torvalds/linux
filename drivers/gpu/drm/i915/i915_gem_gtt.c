@@ -2312,7 +2312,7 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 							     vma->node.start,
 							     vma->node.size);
 			if (ret)
-				return ret;
+				goto err_pages;
 		}
 
 		appgtt->base.insert_entries(&appgtt->base,
@@ -2329,6 +2329,17 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 	}
 
 	return 0;
+
+err_pages:
+	if (!(vma->flags & (I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND))) {
+		if (vma->pages != vma->obj->mm.pages) {
+			GEM_BUG_ON(!vma->pages);
+			sg_free_table(vma->pages);
+			kfree(vma->pages);
+		}
+		vma->pages = NULL;
+	}
+	return ret;
 }
 
 static void aliasing_gtt_unbind_vma(struct i915_vma *vma)
