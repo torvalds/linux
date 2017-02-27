@@ -2842,7 +2842,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 		if (!ret)
 			ret = btrfs_prealloc_file_range(inode, mode,
 					range->start,
-					range->len, 1 << inode->i_blkbits,
+					range->len, i_blocksize(inode),
 					offset + len, &alloc_hint);
 		else
 			btrfs_free_reserved_data_space(inode, range->start,

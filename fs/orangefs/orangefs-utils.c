@@ -306,7 +306,7 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass)
 		break;
 	case S_IFDIR:
 		inode->i_size = PAGE_SIZE;
-		orangefs_inode->blksize = (1 << inode->i_blkbits);
+		orangefs_inode->blksize = i_blocksize(inode);
 		spin_lock(&inode->i_lock);
 		inode_set_bytes(inode, inode->i_size);
 		spin_unlock(&inode->i_lock);
@@ -316,7 +316,7 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass)
 		if (new) {
 			inode->i_size = (loff_t)strlen(new_op->
 			    downcall.resp.getattr.link_target);
-			orangefs_inode->blksize = (1 << inode->i_blkbits);
+			orangefs_inode->blksize = i_blocksize(inode);
 			ret = strscpy(orangefs_inode->link_target,
 			    new_op->downcall.resp.getattr.link_target,
 			    ORANGEFS_NAME_MAX);

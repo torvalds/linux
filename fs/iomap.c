@@ -419,8 +419,8 @@ int
 iomap_truncate_page(struct inode *inode, loff_t pos, bool *did_zero,
 		struct iomap_ops *ops)
 {
-	unsigned blocksize = (1 << inode->i_blkbits);
-	unsigned off = pos & (blocksize - 1);
+	unsigned int blocksize = i_blocksize(inode);
+	unsigned int off = pos & (blocksize - 1);
 
 	/* Block boundary? Nothing to do */
 	if (!off)
