@@ -607,17 +607,6 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 		0;
 	int len;
 
-	/* w/a: If Flush TLB Invalidation Mode is enabled, driver must do a TLB
-	 * invalidation prior to MI_SET_CONTEXT. On GEN6 we don't set the value
-	 * explicitly, so we rely on the value at ring init, stored in
-	 * itlb_before_ctx_switch.
-	 */
-	if (IS_GEN6(dev_priv)) {
-		int ret = engine->emit_flush(req, EMIT_INVALIDATE);
-		if (ret)
-			return ret;
-	}
-
 	/* These flags are for resource streamer on HSW+ */
 	if (IS_HASWELL(dev_priv) || INTEL_GEN(dev_priv) >= 8)
 		flags |= (HSW_MI_RS_SAVE_STATE_EN | HSW_MI_RS_RESTORE_STATE_EN);
