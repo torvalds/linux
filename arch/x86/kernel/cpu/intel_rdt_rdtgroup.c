@@ -27,7 +27,6 @@
 #include <linux/seq_file.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/cpu.h>
 #include <linux/task_work.h>
 
 #include <uapi/linux/magic.h>
