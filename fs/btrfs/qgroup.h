@@ -134,8 +134,7 @@ int btrfs_limit_qgroup(struct btrfs_trans_handle *trans,
 int btrfs_read_qgroup_config(struct btrfs_fs_info *fs_info);
 void btrfs_free_qgroup_config(struct btrfs_fs_info *fs_info);
 struct btrfs_delayed_extent_op;
-int btrfs_qgroup_prepare_account_extents(struct btrfs_trans_handle *trans,
-					 struct btrfs_fs_info *fs_info);
+
 /*
  * Inform qgroup to trace one dirty extent, its info is recorded in @record.
  * So qgroup can account it at transaction committing time.

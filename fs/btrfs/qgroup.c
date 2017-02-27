@@ -1406,38 +1406,6 @@ out:
 	return ret;
 }
 
-int btrfs_qgroup_prepare_account_extents(struct btrfs_trans_handle *trans,
-					 struct btrfs_fs_info *fs_info)
-{
-	struct btrfs_qgroup_extent_record *record;
-	struct btrfs_delayed_ref_root *delayed_refs;
-	struct rb_node *node;
-	u64 qgroup_to_skip;
-	int ret = 0;
-
-	delayed_refs = &trans->transaction->delayed_refs;
-	qgroup_to_skip = delayed_refs->qgroup_to_skip;
-
-	/*
-	 * No need to do lock, since this function will only be called in
-	 * btrfs_commit_transaction().
-	 */
-	node = rb_first(&delayed_refs->dirty_extent_root);
-	while (node) {
-		record = rb_entry(node, struct btrfs_qgroup_extent_record,
-				  node);
-		if (WARN_ON(!record->old_roots))
-			ret = btrfs_find_all_roots(NULL, fs_info,
-					record->bytenr, 0, &record->old_roots);
-		if (ret < 0)
-			break;
-		if (qgroup_to_skip)
-			ulist_del(record->old_roots, qgroup_to_skip, 0);
-		node = rb_next(node);
-	}
-	return ret;
-}
-
 int btrfs_qgroup_trace_extent_nolock(struct btrfs_fs_info *fs_info,
 				struct btrfs_delayed_ref_root *delayed_refs,
 				struct btrfs_qgroup_extent_record *record)
@@ -2057,6 +2025,19 @@ int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans,
 
 		if (!ret) {
 			/*
+			 * Old roots should be searched when inserting qgroup
+			 * extent record
+			 */
+			if (WARN_ON(!record->old_roots)) {
+				/* Search commit root to find old_roots */
+				ret = btrfs_find_all_roots(NULL, fs_info,
+						record->bytenr, 0,
+						&record->old_roots);
+				if (ret < 0)
+					goto cleanup;
+			}
+
+			/*
 			 * Use SEQ_LAST as time_seq to do special search, which
 			 * doesn't lock tree or delayed_refs and search current
 			 * root. It's safe inside commit_transaction().
@@ -2065,8 +2046,11 @@ int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans,
 					record->bytenr, SEQ_LAST, &new_roots);
 			if (ret < 0)
 				goto cleanup;
-			if (qgroup_to_skip)
+			if (qgroup_to_skip) {
 				ulist_del(new_roots, qgroup_to_skip, 0);
+				ulist_del(record->old_roots, qgroup_to_skip,
+					  0);
+			}
 			ret = btrfs_qgroup_account_extent(trans, fs_info,
 					record->bytenr, record->num_bytes,
 					record->old_roots, new_roots);
