@@ -70,8 +70,8 @@ static inline void report_invalid_psscr_val(u64 psscr_val, int err)
 	std	r0,0(r1);					\
 	ptesync;						\
 	ld	r0,0(r1);					\
-1:	cmpd	cr0,r0,r0;					\
-	bne	1b;						\
+236:	cmpd	cr0,r0,r0;					\
+	bne	236b;						\
 	IDLE_INST;						\
 
 #define	IDLE_STATE_ENTER_SEQ_NORET(IDLE_INST)			\
