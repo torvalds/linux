@@ -284,7 +284,7 @@ struct ksock_tx {			   /* transmit packet */
 	unsigned short    tx_nonblk:1;     /* it's a non-blocking ACK */
 	lnet_kiov_t       *tx_kiov;        /* packet page frags */
 	struct ksock_conn *tx_conn;        /* owning conn */
-	lnet_msg_t        *tx_lnetmsg;     /* lnet message for lnet_finalize()
+	struct lnet_msg        *tx_lnetmsg;     /* lnet message for lnet_finalize()
 					    */
 	unsigned long     tx_deadline;     /* when (in jiffies) tx times out */
 	struct ksock_msg       tx_msg;          /* socklnd message buffer */
@@ -650,8 +650,8 @@ ksocknal_peer_decref(struct ksock_peer *peer)
 int ksocknal_startup(lnet_ni_t *ni);
 void ksocknal_shutdown(lnet_ni_t *ni);
 int ksocknal_ctl(lnet_ni_t *ni, unsigned int cmd, void *arg);
-int ksocknal_send(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg);
-int ksocknal_recv(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg,
+int ksocknal_send(lnet_ni_t *ni, void *private, struct lnet_msg *lntmsg);
+int ksocknal_recv(lnet_ni_t *ni, void *private, struct lnet_msg *lntmsg,
 		  int delayed, struct iov_iter *to, unsigned int rlen);
 int ksocknal_accept(lnet_ni_t *ni, struct socket *sock);
 

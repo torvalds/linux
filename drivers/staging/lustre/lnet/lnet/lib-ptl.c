@@ -657,8 +657,8 @@ lnet_ptl_attach_md(lnet_me_t *me, lnet_libmd_t *md,
 	struct lnet_portal *ptl = the_lnet.ln_portals[me->me_portal];
 	struct lnet_match_table	*mtable;
 	struct list_head *head;
-	lnet_msg_t *tmp;
-	lnet_msg_t *msg;
+	struct lnet_msg *tmp;
+	struct lnet_msg *msg;
 	int exhausted = 0;
 	int cpt;
 

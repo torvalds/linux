@@ -490,7 +490,7 @@ struct kib_tx {					/* transmit message */
 	int                   tx_status;      /* LNET completion status */
 	unsigned long         tx_deadline;    /* completion deadline */
 	__u64                 tx_cookie;      /* completion cookie */
-	lnet_msg_t *tx_lntmsg[2]; /* lnet msgs to finalize on completion */
+	struct lnet_msg		*tx_lntmsg[2];	/* lnet msgs to finalize on completion */
 	struct kib_msg	      *tx_msg;        /* message buffer (host vaddr) */
 	__u64                 tx_msgaddr;     /* message buffer (I/O addr) */
 	DECLARE_PCI_UNMAP_ADDR(tx_msgunmap);  /* for dma_unmap_single() */
@@ -1032,6 +1032,6 @@ void kiblnd_pack_msg(lnet_ni_t *ni, struct kib_msg *msg, int version,
 int  kiblnd_unpack_msg(struct kib_msg *msg, int nob);
 int  kiblnd_post_rx(struct kib_rx *rx, int credit);
 
-int  kiblnd_send(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg);
-int  kiblnd_recv(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg, int delayed,
-		 struct iov_iter *to, unsigned int rlen);
+int kiblnd_send(lnet_ni_t *ni, void *private, struct lnet_msg *lntmsg);
+int kiblnd_recv(lnet_ni_t *ni, void *private, struct lnet_msg *lntmsg,
+		int delayed, struct iov_iter *to, unsigned int rlen);

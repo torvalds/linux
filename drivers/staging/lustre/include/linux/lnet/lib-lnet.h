@@ -248,10 +248,10 @@ lnet_me_free(lnet_me_t *me)
 	LIBCFS_FREE(me, sizeof(*me));
 }
 
-static inline lnet_msg_t *
+static inline struct lnet_msg *
 lnet_msg_alloc(void)
 {
-	lnet_msg_t *msg;
+	struct lnet_msg *msg;
 
 	LIBCFS_ALLOC(msg, sizeof(*msg));
 
@@ -260,7 +260,7 @@ lnet_msg_alloc(void)
 }
 
 static inline void
-lnet_msg_free(lnet_msg_t *msg)
+lnet_msg_free(struct lnet_msg *msg)
 {
 	LASSERT(!msg->msg_onactivelist);
 	LIBCFS_FREE(msg, sizeof(*msg));
@@ -482,20 +482,20 @@ int lnet_clear_lazy_portal(struct lnet_ni *ni, int portal, char *reason);
 int lnet_islocalnid(lnet_nid_t nid);
 int lnet_islocalnet(__u32 net);
 
-void lnet_msg_attach_md(lnet_msg_t *msg, lnet_libmd_t *md,
+void lnet_msg_attach_md(struct lnet_msg *msg, lnet_libmd_t *md,
 			unsigned int offset, unsigned int mlen);
-void lnet_msg_detach_md(lnet_msg_t *msg, int status);
+void lnet_msg_detach_md(struct lnet_msg *msg, int status);
 void lnet_build_unlink_event(lnet_libmd_t *md, lnet_event_t *ev);
-void lnet_build_msg_event(lnet_msg_t *msg, lnet_event_kind_t ev_type);
-void lnet_msg_commit(lnet_msg_t *msg, int cpt);
-void lnet_msg_decommit(lnet_msg_t *msg, int cpt, int status);
+void lnet_build_msg_event(struct lnet_msg *msg, lnet_event_kind_t ev_type);
+void lnet_msg_commit(struct lnet_msg *msg, int cpt);
+void lnet_msg_decommit(struct lnet_msg *msg, int cpt, int status);
 
 void lnet_eq_enqueue_event(lnet_eq_t *eq, lnet_event_t *ev);
-void lnet_prep_send(lnet_msg_t *msg, int type, lnet_process_id_t target,
+void lnet_prep_send(struct lnet_msg *msg, int type, lnet_process_id_t target,
 		    unsigned int offset, unsigned int len);
-int lnet_send(lnet_nid_t nid, lnet_msg_t *msg, lnet_nid_t rtr_nid);
-void lnet_return_tx_credits_locked(lnet_msg_t *msg);
-void lnet_return_rx_credits_locked(lnet_msg_t *msg);
+int lnet_send(lnet_nid_t nid, struct lnet_msg *msg, lnet_nid_t rtr_nid);
+void lnet_return_tx_credits_locked(struct lnet_msg *msg);
+void lnet_return_rx_credits_locked(struct lnet_msg *msg);
 void lnet_schedule_blocked_locked(lnet_rtrbufpool_t *rbp);
 void lnet_drop_routed_msgs_locked(struct list_head *list, int cpt);
 
@@ -554,19 +554,22 @@ void lnet_portals_destroy(void);
 /* message functions */
 int lnet_parse(lnet_ni_t *ni, struct lnet_hdr *hdr,
 	       lnet_nid_t fromnid, void *private, int rdma_req);
-int lnet_parse_local(lnet_ni_t *ni, lnet_msg_t *msg);
-int lnet_parse_forward_locked(lnet_ni_t *ni, lnet_msg_t *msg);
+int lnet_parse_local(lnet_ni_t *ni, struct lnet_msg *msg);
+int lnet_parse_forward_locked(lnet_ni_t *ni, struct lnet_msg *msg);
 
-void lnet_recv(lnet_ni_t *ni, void *private, lnet_msg_t *msg, int delayed,
-	       unsigned int offset, unsigned int mlen, unsigned int rlen);
-void lnet_ni_recv(lnet_ni_t *ni, void *private, lnet_msg_t *msg,
+void lnet_recv(lnet_ni_t *ni, void *private, struct lnet_msg *msg,
+	       int delayed, unsigned int offset, unsigned int mlen,
+	       unsigned int rlen);
+void lnet_ni_recv(lnet_ni_t *ni, void *private, struct lnet_msg *msg,
 		  int delayed, unsigned int offset,
 		  unsigned int mlen, unsigned int rlen);
 
-lnet_msg_t *lnet_create_reply_msg(lnet_ni_t *ni, lnet_msg_t *get_msg);
-void lnet_set_reply_msg_len(lnet_ni_t *ni, lnet_msg_t *msg, unsigned int len);
+struct lnet_msg *lnet_create_reply_msg(lnet_ni_t *ni,
+				       struct lnet_msg *get_msg);
+void lnet_set_reply_msg_len(lnet_ni_t *ni, struct lnet_msg *msg,
+			    unsigned int len);
 
-void lnet_finalize(lnet_ni_t *ni, lnet_msg_t *msg, int rc);
+void lnet_finalize(lnet_ni_t *ni, struct lnet_msg *msg, int rc);
 
 void lnet_drop_message(lnet_ni_t *ni, int cpt, void *private,
 		       unsigned int nob);

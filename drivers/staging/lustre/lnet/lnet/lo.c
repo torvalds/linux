@@ -32,7 +32,7 @@
 #include "../../include/linux/lnet/lib-lnet.h"
 
 static int
-lolnd_send(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg)
+lolnd_send(lnet_ni_t *ni, void *private, struct lnet_msg *lntmsg)
 {
 	LASSERT(!lntmsg->msg_routing);
 	LASSERT(!lntmsg->msg_target_is_router);
@@ -41,10 +41,10 @@ lolnd_send(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg)
 }
 
 static int
-lolnd_recv(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg,
+lolnd_recv(lnet_ni_t *ni, void *private, struct lnet_msg *lntmsg,
 	   int delayed, struct iov_iter *to, unsigned int rlen)
 {
-	lnet_msg_t *sendmsg = private;
+	struct lnet_msg *sendmsg = private;
 
 	if (lntmsg) {		   /* not discarding */
 		if (sendmsg->msg_iov)
