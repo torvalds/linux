@@ -105,6 +105,7 @@ appearence||appearance
 applicaion||application
 appliction||application
 applictions||applications
+applys||applies
 appplications||applications
 appropiate||appropriate
 appropriatly||appropriately
