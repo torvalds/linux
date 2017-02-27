@@ -132,13 +132,13 @@ struct lnet_handle_wire {
 	__u64	wh_object_cookie;
 } WIRE_ATTR;
 
-typedef enum {
+enum lnet_msg_type {
 	LNET_MSG_ACK = 0,
 	LNET_MSG_PUT,
 	LNET_MSG_GET,
 	LNET_MSG_REPLY,
 	LNET_MSG_HELLO,
-} lnet_msg_type_t;
+};
 
 /*
  * The variant fields of the portals message header are aligned on an 8
@@ -182,7 +182,7 @@ struct lnet_hdr {
 	lnet_nid_t	src_nid;
 	lnet_pid_t	dest_pid;
 	lnet_pid_t	src_pid;
-	__u32		type;		/* lnet_msg_type_t */
+	__u32		type;		/* enum lnet_msg_type */
 	__u32		payload_length;	/* payload data to follow */
 	/*<------__u64 aligned------->*/
 	union {
