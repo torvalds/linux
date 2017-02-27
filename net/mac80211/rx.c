@@ -4092,14 +4092,16 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 		     ieee80211_is_beacon(hdr->frame_control)))
 		ieee80211_scan_rx(local, skb);
 
-	if (pubsta) {
-		rx.sta = container_of(pubsta, struct sta_info, sta);
-		rx.sdata = rx.sta->sdata;
-		if (ieee80211_prepare_and_rx_handle(&rx, skb, true))
-			return;
-		goto out;
-	} else if (ieee80211_is_data(fc)) {
+	if (ieee80211_is_data(fc)) {
 		struct sta_info *sta, *prev_sta;
+
+		if (pubsta) {
+			rx.sta = container_of(pubsta, struct sta_info, sta);
+			rx.sdata = rx.sta->sdata;
+			if (ieee80211_prepare_and_rx_handle(&rx, skb, true))
+				return;
+			goto out;
+		}
 
 		prev_sta = NULL;
 
