@@ -10,6 +10,10 @@ ifndef SHIFT
 	SHIFT=3
 endif
 
+ifeq ($(BUILD), 32)
+	CFLAGS += -m32
+endif
+
 targets: mapshift $(TARGETS)
 
 main:	$(OFILES)
