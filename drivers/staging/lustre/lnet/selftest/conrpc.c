@@ -699,7 +699,7 @@ lstcon_statrpc_prep(struct lstcon_node *nd, unsigned int feats,
 }
 
 static struct lnet_process_id_packed *
-lstcon_next_id(int idx, int nkiov, lnet_kiov_t *kiov)
+lstcon_next_id(int idx, int nkiov, struct bio_vec *kiov)
 {
 	struct lnet_process_id_packed *pid;
 	int i;
@@ -715,7 +715,7 @@ lstcon_next_id(int idx, int nkiov, lnet_kiov_t *kiov)
 
 static int
 lstcon_dstnodes_prep(struct lstcon_group *grp, int idx,
-		     int dist, int span, int nkiov, lnet_kiov_t *kiov)
+		     int dist, int span, int nkiov, struct bio_vec *kiov)
 {
 	struct lnet_process_id_packed *pid;
 	struct lstcon_ndlink *ndl;

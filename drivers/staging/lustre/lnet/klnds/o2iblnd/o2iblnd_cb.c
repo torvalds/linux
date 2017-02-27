@@ -699,7 +699,7 @@ kiblnd_setup_rd_iov(struct lnet_ni *ni, struct kib_tx *tx,
 static int
 kiblnd_setup_rd_kiov(struct lnet_ni *ni, struct kib_tx *tx,
 		     struct kib_rdma_desc *rd, int nkiov,
-		     const lnet_kiov_t *kiov, int offset, int nob)
+		     const struct bio_vec *kiov, int offset, int nob)
 {
 	struct kib_net *net = ni->ni_data;
 	struct scatterlist *sg;
@@ -1487,7 +1487,7 @@ kiblnd_send(struct lnet_ni *ni, void *private, struct lnet_msg *lntmsg)
 	int routing = lntmsg->msg_routing;
 	unsigned int payload_niov = lntmsg->msg_niov;
 	struct kvec *payload_iov = lntmsg->msg_iov;
-	lnet_kiov_t *payload_kiov = lntmsg->msg_kiov;
+	struct bio_vec *payload_kiov = lntmsg->msg_kiov;
 	unsigned int payload_offset = lntmsg->msg_offset;
 	unsigned int payload_nob = lntmsg->msg_len;
 	struct iov_iter from;
@@ -1656,7 +1656,7 @@ kiblnd_reply(struct lnet_ni *ni, struct kib_rx *rx, struct lnet_msg *lntmsg)
 	struct lnet_process_id target = lntmsg->msg_target;
 	unsigned int niov = lntmsg->msg_niov;
 	struct kvec *iov = lntmsg->msg_iov;
-	lnet_kiov_t *kiov = lntmsg->msg_kiov;
+	struct bio_vec *kiov = lntmsg->msg_kiov;
 	unsigned int offset = lntmsg->msg_offset;
 	unsigned int nob = lntmsg->msg_len;
 	struct kib_tx *tx;

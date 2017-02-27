@@ -212,7 +212,7 @@ EXPORT_SYMBOL(lnet_copy_iov2iter);
 
 void
 lnet_copy_kiov2iter(struct iov_iter *to,
-		    unsigned int nsiov, const lnet_kiov_t *siov,
+		    unsigned int nsiov, const struct bio_vec *siov,
 		    unsigned int soffset, unsigned int nob)
 {
 	if (!nob)
@@ -298,7 +298,7 @@ lnet_extract_iov(int dst_niov, struct kvec *dst,
 EXPORT_SYMBOL(lnet_extract_iov);
 
 unsigned int
-lnet_kiov_nob(unsigned int niov, lnet_kiov_t *kiov)
+lnet_kiov_nob(unsigned int niov, struct bio_vec *kiov)
 {
 	unsigned int nob = 0;
 
@@ -311,8 +311,8 @@ lnet_kiov_nob(unsigned int niov, lnet_kiov_t *kiov)
 EXPORT_SYMBOL(lnet_kiov_nob);
 
 int
-lnet_extract_kiov(int dst_niov, lnet_kiov_t *dst,
-		  int src_niov, const lnet_kiov_t *src,
+lnet_extract_kiov(int dst_niov, struct bio_vec *dst,
+		  int src_niov, const struct bio_vec *src,
 		  unsigned int offset, unsigned int len)
 {
 	/*
@@ -370,7 +370,7 @@ lnet_ni_recv(struct lnet_ni *ni, void *private, struct lnet_msg *msg,
 {
 	unsigned int niov = 0;
 	struct kvec *iov = NULL;
-	lnet_kiov_t *kiov = NULL;
+	struct bio_vec *kiov = NULL;
 	struct iov_iter to;
 	int rc;
 

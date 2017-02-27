@@ -145,7 +145,7 @@ ksocknal_send_iov(struct ksock_conn *conn, struct ksock_tx *tx)
 static int
 ksocknal_send_kiov(struct ksock_conn *conn, struct ksock_tx *tx)
 {
-	lnet_kiov_t *kiov = tx->tx_kiov;
+	struct bio_vec *kiov = tx->tx_kiov;
 	int nob;
 	int rc;
 
@@ -298,7 +298,7 @@ ksocknal_recv_iov(struct ksock_conn *conn)
 static int
 ksocknal_recv_kiov(struct ksock_conn *conn)
 {
-	lnet_kiov_t *kiov = conn->ksnc_rx_kiov;
+	struct bio_vec *kiov = conn->ksnc_rx_kiov;
 	int nob;
 	int rc;
 
@@ -946,7 +946,7 @@ ksocknal_send(struct lnet_ni *ni, void *private, struct lnet_msg *lntmsg)
 	struct lnet_process_id target = lntmsg->msg_target;
 	unsigned int payload_niov = lntmsg->msg_niov;
 	struct kvec *payload_iov = lntmsg->msg_iov;
-	lnet_kiov_t *payload_kiov = lntmsg->msg_kiov;
+	struct bio_vec *payload_kiov = lntmsg->msg_kiov;
 	unsigned int payload_offset = lntmsg->msg_offset;
 	unsigned int payload_nob = lntmsg->msg_len;
 	struct ksock_tx *tx;

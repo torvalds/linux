@@ -612,16 +612,16 @@ int lnet_extract_iov(int dst_niov, struct kvec *dst,
 		     int src_niov, const struct kvec *src,
 		      unsigned int offset, unsigned int len);
 
-unsigned int lnet_kiov_nob(unsigned int niov, lnet_kiov_t *iov);
-int lnet_extract_kiov(int dst_niov, lnet_kiov_t *dst,
-		      int src_niov, const lnet_kiov_t *src,
+unsigned int lnet_kiov_nob(unsigned int niov, struct bio_vec *iov);
+int lnet_extract_kiov(int dst_niov, struct bio_vec *dst,
+		      int src_niov, const struct bio_vec *src,
 		      unsigned int offset, unsigned int len);
 
 void lnet_copy_iov2iter(struct iov_iter *to,
 			unsigned int nsiov, const struct kvec *siov,
 			unsigned int soffset, unsigned int nob);
 void lnet_copy_kiov2iter(struct iov_iter *to,
-			 unsigned int nkiov, const lnet_kiov_t *kiov,
+			 unsigned int nkiov, const struct bio_vec *kiov,
 			 unsigned int kiovoffset, unsigned int nob);
 
 void lnet_me_unlink(struct lnet_me *me);

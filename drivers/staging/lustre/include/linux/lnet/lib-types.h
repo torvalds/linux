@@ -102,7 +102,7 @@ struct lnet_msg {
 	unsigned int		 msg_offset;
 	unsigned int		 msg_niov;
 	struct kvec		*msg_iov;
-	lnet_kiov_t		*msg_kiov;
+	struct bio_vec		*msg_kiov;
 
 	struct lnet_event	 msg_ev;
 	struct lnet_hdr		 msg_hdr;
@@ -156,7 +156,7 @@ struct lnet_libmd {
 	unsigned int		 md_niov;	/* # frags */
 	union {
 		struct kvec	iov[LNET_MAX_IOV];
-		lnet_kiov_t	kiov[LNET_MAX_IOV];
+		struct bio_vec	kiov[LNET_MAX_IOV];
 	} md_iov;
 };
 
@@ -413,7 +413,7 @@ struct lnet_rtrbufpool {
 struct lnet_rtrbuf {
 	struct list_head	 rb_list;	/* chain on rbp_bufs */
 	struct lnet_rtrbufpool	*rb_pool;	/* owning pool */
-	lnet_kiov_t		 rb_kiov[0];	/* the buffer space */
+	struct bio_vec		 rb_kiov[0];	/* the buffer space */
 };
 
 #define LNET_PEER_HASHSIZE	503	/* prime! */
