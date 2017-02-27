@@ -44,7 +44,7 @@ lnet_md_unlink(lnet_libmd_t *md)
 {
 	if (!(md->md_flags & LNET_MD_FLAG_ZOMBIE)) {
 		/* first unlink attempt... */
-		lnet_me_t *me = md->md_me;
+		struct lnet_me *me = md->md_me;
 
 		md->md_flags |= LNET_MD_FLAG_ZOMBIE;
 

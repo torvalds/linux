@@ -222,7 +222,7 @@ EXPORT_SYMBOL(LNetMEInsert);
 int
 LNetMEUnlink(struct lnet_handle_me meh)
 {
-	lnet_me_t *me;
+	struct lnet_me *me;
 	lnet_libmd_t *md;
 	lnet_event_t ev;
 	int cpt;
@@ -256,7 +256,7 @@ EXPORT_SYMBOL(LNetMEUnlink);
 
 /* call with lnet_res_lock please */
 void
-lnet_me_unlink(lnet_me_t *me)
+lnet_me_unlink(struct lnet_me *me)
 {
 	list_del(&me->me_list);
 

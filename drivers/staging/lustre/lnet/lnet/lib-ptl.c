@@ -140,7 +140,7 @@ lnet_try_match_md(lnet_libmd_t *md,
 	 */
 	unsigned int offset;
 	unsigned int mlength;
-	lnet_me_t *me = md->md_me;
+	struct lnet_me *me = md->md_me;
 
 	/* MD exhausted */
 	if (lnet_md_exhausted(md))
@@ -376,8 +376,8 @@ lnet_mt_match_md(struct lnet_match_table *mtable,
 		 struct lnet_match_info *info, struct lnet_msg *msg)
 {
 	struct list_head *head;
-	lnet_me_t *me;
-	lnet_me_t *tmp;
+	struct lnet_me *me;
+	struct lnet_me *tmp;
 	int exhausted = 0;
 	int rc;
 
@@ -641,7 +641,7 @@ lnet_ptl_match_md(struct lnet_match_info *info, struct lnet_msg *msg)
 }
 
 void
-lnet_ptl_detach_md(lnet_me_t *me, lnet_libmd_t *md)
+lnet_ptl_detach_md(struct lnet_me *me, lnet_libmd_t *md)
 {
 	LASSERT(me->me_md == md && md->md_me == me);
 
@@ -651,7 +651,7 @@ lnet_ptl_detach_md(lnet_me_t *me, lnet_libmd_t *md)
 
 /* called with lnet_res_lock held */
 void
-lnet_ptl_attach_md(lnet_me_t *me, lnet_libmd_t *md,
+lnet_ptl_attach_md(struct lnet_me *me, lnet_libmd_t *md,
 		   struct list_head *matches, struct list_head *drops)
 {
 	struct lnet_portal *ptl = the_lnet.ln_portals[me->me_portal];
@@ -756,7 +756,7 @@ lnet_ptl_cleanup(struct lnet_portal *ptl)
 	LASSERT(list_empty(&ptl->ptl_msg_stealing));
 	cfs_percpt_for_each(mtable, i, ptl->ptl_mtables) {
 		struct list_head *mhash;
-		lnet_me_t *me;
+		struct lnet_me *me;
 		int j;
 
 		if (!mtable->mt_mhash) /* uninitialized match-table */
@@ -767,7 +767,7 @@ lnet_ptl_cleanup(struct lnet_portal *ptl)
 		for (j = 0; j < LNET_MT_HASH_SIZE + 1; j++) {
 			while (!list_empty(&mhash[j])) {
 				me = list_entry(mhash[j].next,
-						lnet_me_t, me_list);
+						struct lnet_me, me_list);
 				CERROR("Active ME %p on exit\n", me);
 				list_del(&me->me_list);
 				lnet_me_free(me);

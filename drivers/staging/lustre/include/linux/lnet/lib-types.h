@@ -127,7 +127,7 @@ struct lnet_eq {
 	int			**eq_refs;	/* percpt refcount for EQ */
 };
 
-typedef struct lnet_me {
+struct lnet_me {
 	struct list_head	 me_list;
 	struct lnet_libhandle	 me_lh;
 	lnet_process_id_t	 me_match_id;
@@ -137,12 +137,12 @@ typedef struct lnet_me {
 	__u64			 me_ignore_bits;
 	lnet_unlink_t		 me_unlink;
 	struct lnet_libmd	*me_md;
-} lnet_me_t;
+};
 
 typedef struct lnet_libmd {
 	struct list_head	 md_list;
 	struct lnet_libhandle	 md_lh;
-	lnet_me_t		*md_me;
+	struct lnet_me		*md_me;
 	char			*md_start;
 	unsigned int		 md_offset;
 	unsigned int		 md_length;

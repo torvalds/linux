@@ -233,17 +233,17 @@ lnet_md_free(lnet_libmd_t *md)
 	LIBCFS_FREE(md, size);
 }
 
-static inline lnet_me_t *
+static inline struct lnet_me *
 lnet_me_alloc(void)
 {
-	lnet_me_t *me;
+	struct lnet_me *me;
 
 	LIBCFS_ALLOC(me, sizeof(*me));
 	return me;
 }
 
 static inline void
-lnet_me_free(lnet_me_t *me)
+lnet_me_free(struct lnet_me *me)
 {
 	LIBCFS_FREE(me, sizeof(*me));
 }
@@ -342,12 +342,12 @@ lnet_wire_handle2md(struct lnet_handle_wire *wh)
 }
 
 static inline void
-lnet_me2handle(struct lnet_handle_me *handle, lnet_me_t *me)
+lnet_me2handle(struct lnet_handle_me *handle, struct lnet_me *me)
 {
 	handle->cookie = me->me_lh.lh_cookie;
 }
 
-static inline lnet_me_t *
+static inline struct lnet_me *
 lnet_handle2me(struct lnet_handle_me *handle)
 {
 	/* ALWAYS called with resource lock held */
@@ -360,7 +360,7 @@ lnet_handle2me(struct lnet_handle_me *handle)
 	if (!lh)
 		return NULL;
 
-	return lh_entry(lh, lnet_me_t, me_lh);
+	return lh_entry(lh, struct lnet_me, me_lh);
 }
 
 static inline void
@@ -542,9 +542,9 @@ int lnet_mt_match_md(struct lnet_match_table *mtable,
 		     struct lnet_match_info *info, struct lnet_msg *msg);
 
 /* portals match/attach functions */
-void lnet_ptl_attach_md(lnet_me_t *me, lnet_libmd_t *md,
+void lnet_ptl_attach_md(struct lnet_me *me, lnet_libmd_t *md,
 			struct list_head *matches, struct list_head *drops);
-void lnet_ptl_detach_md(lnet_me_t *me, lnet_libmd_t *md);
+void lnet_ptl_detach_md(struct lnet_me *me, lnet_libmd_t *md);
 int lnet_ptl_match_md(struct lnet_match_info *info, struct lnet_msg *msg);
 
 /* initialized and finalize portals */
@@ -623,7 +623,7 @@ void lnet_copy_kiov2iter(struct iov_iter *to,
 			 unsigned int nkiov, const lnet_kiov_t *kiov,
 			 unsigned int kiovoffset, unsigned int nob);
 
-void lnet_me_unlink(lnet_me_t *me);
+void lnet_me_unlink(struct lnet_me *me);
 
 void lnet_md_unlink(lnet_libmd_t *md);
 void lnet_md_deconstruct(lnet_libmd_t *lmd, lnet_md_t *umd);
