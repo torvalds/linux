@@ -491,15 +491,7 @@ static void qxl_crtc_commit(struct drm_crtc *crtc)
 static void qxl_crtc_disable(struct drm_crtc *crtc)
 {
 	struct qxl_crtc *qcrtc = to_qxl_crtc(crtc);
-	struct drm_device *dev = crtc->dev;
-	struct qxl_device *qdev = dev->dev_private;
-	if (crtc->primary->fb) {
-		struct qxl_framebuffer *qfb = to_qxl_framebuffer(crtc->primary->fb);
-		struct qxl_bo *bo = gem_to_qxl_bo(qfb->obj);
-
-		qxl_bo_unpin(bo);
-		crtc->primary->fb = NULL;
-	}
+	struct qxl_device *qdev = crtc->dev->dev_private;
 
 	qxl_monitors_config_set(qdev, qcrtc->index, 0, 0, 0, 0, 0);
 
