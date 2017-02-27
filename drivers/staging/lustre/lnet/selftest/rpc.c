@@ -360,7 +360,7 @@ srpc_post_passive_rdma(int portal, int local, __u64 matchbits, void *buf,
 {
 	int rc;
 	lnet_md_t md;
-	lnet_handle_me_t meh;
+	struct lnet_handle_me meh;
 
 	rc = LNetMEAttach(portal, peer, matchbits, 0, LNET_UNLINK,
 			  local ? LNET_INS_LOCAL : LNET_INS_AFTER, &meh);

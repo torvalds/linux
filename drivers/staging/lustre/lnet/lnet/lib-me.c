@@ -73,7 +73,7 @@ LNetMEAttach(unsigned int portal,
 	     lnet_process_id_t match_id,
 	     __u64 match_bits, __u64 ignore_bits,
 	     lnet_unlink_t unlink, lnet_ins_pos_t pos,
-	     lnet_handle_me_t *handle)
+	     struct lnet_handle_me *handle)
 {
 	struct lnet_match_table *mtable;
 	struct lnet_me *me;
@@ -140,11 +140,11 @@ EXPORT_SYMBOL(LNetMEAttach);
  * \retval -ENOENT If \a current_meh does not point to a valid match entry.
  */
 int
-LNetMEInsert(lnet_handle_me_t current_meh,
+LNetMEInsert(struct lnet_handle_me current_meh,
 	     lnet_process_id_t match_id,
 	     __u64 match_bits, __u64 ignore_bits,
 	     lnet_unlink_t unlink, lnet_ins_pos_t pos,
-	     lnet_handle_me_t *handle)
+	     struct lnet_handle_me *handle)
 {
 	struct lnet_me *current_me;
 	struct lnet_me *new_me;
@@ -220,7 +220,7 @@ EXPORT_SYMBOL(LNetMEInsert);
  * \see LNetMDUnlink() for the discussion on delivering unlink event.
  */
 int
-LNetMEUnlink(lnet_handle_me_t meh)
+LNetMEUnlink(struct lnet_handle_me meh)
 {
 	lnet_me_t *me;
 	lnet_libmd_t *md;

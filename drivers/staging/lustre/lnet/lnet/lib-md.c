@@ -267,7 +267,7 @@ lnet_md_validate(lnet_md_t *umd)
  * a MD.
  */
 int
-LNetMDAttach(lnet_handle_me_t meh, lnet_md_t umd,
+LNetMDAttach(struct lnet_handle_me meh, lnet_md_t umd,
 	     lnet_unlink_t unlink, struct lnet_handle_md *handle)
 {
 	LIST_HEAD(matches);

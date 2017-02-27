@@ -115,7 +115,7 @@ static int ptlrpc_register_bulk(struct ptlrpc_request *req)
 	int posted_md;
 	int total_md;
 	u64 mbits;
-	lnet_handle_me_t me_h;
+	struct lnet_handle_me me_h;
 	lnet_md_t md;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_BULK_GET_NET))
@@ -472,7 +472,7 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 	int rc2;
 	int mpflag = 0;
 	struct ptlrpc_connection *connection;
-	lnet_handle_me_t reply_me_h;
+	struct lnet_handle_me reply_me_h;
 	lnet_md_t reply_md;
 	struct obd_import *imp = request->rq_import;
 	struct obd_device *obd = imp->imp_obd;
@@ -722,7 +722,7 @@ int ptlrpc_register_rqbd(struct ptlrpc_request_buffer_desc *rqbd)
 	static lnet_process_id_t match_id = {LNET_NID_ANY, LNET_PID_ANY};
 	int rc;
 	lnet_md_t md;
-	lnet_handle_me_t me_h;
+	struct lnet_handle_me me_h;
 
 	CDEBUG(D_NET, "LNetMEAttach: portal %d\n",
 	       service->srv_req_portal);

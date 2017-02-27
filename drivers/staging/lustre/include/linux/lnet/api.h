@@ -99,17 +99,17 @@ int LNetMEAttach(unsigned int      portal,
 		 __u64		   ignore_bits_in,
 		 lnet_unlink_t     unlink_in,
 		 lnet_ins_pos_t    pos_in,
-		 lnet_handle_me_t *handle_out);
+		 struct lnet_handle_me *handle_out);
 
-int LNetMEInsert(lnet_handle_me_t  current_in,
+int LNetMEInsert(struct lnet_handle_me current_in,
 		 lnet_process_id_t match_id_in,
 		 __u64		   match_bits_in,
 		 __u64		   ignore_bits_in,
 		 lnet_unlink_t     unlink_in,
 		 lnet_ins_pos_t    position_in,
-		 lnet_handle_me_t *handle_out);
+		 struct lnet_handle_me *handle_out);
 
-int LNetMEUnlink(lnet_handle_me_t current_in);
+int LNetMEUnlink(struct lnet_handle_me current_in);
 /** @} lnet_me */
 
 /** \defgroup lnet_md Memory descriptors
@@ -125,7 +125,7 @@ int LNetMEUnlink(lnet_handle_me_t current_in);
  * associated with a MD: LNetMDUnlink().
  * @{
  */
-int LNetMDAttach(lnet_handle_me_t  current_in,
+int LNetMDAttach(struct lnet_handle_me current_in,
 		 lnet_md_t	   md_in,
 		 lnet_unlink_t     unlink_in,
 		 struct lnet_handle_md *md_handle_out);

@@ -342,13 +342,13 @@ lnet_wire_handle2md(struct lnet_handle_wire *wh)
 }
 
 static inline void
-lnet_me2handle(lnet_handle_me_t *handle, lnet_me_t *me)
+lnet_me2handle(struct lnet_handle_me *handle, lnet_me_t *me)
 {
 	handle->cookie = me->me_lh.lh_cookie;
 }
 
 static inline lnet_me_t *
-lnet_handle2me(lnet_handle_me_t *handle)
+lnet_handle2me(struct lnet_handle_me *handle)
 {
 	/* ALWAYS called with resource lock held */
 	lnet_libhandle_t *lh;

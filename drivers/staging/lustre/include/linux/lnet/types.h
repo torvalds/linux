@@ -284,8 +284,6 @@ typedef struct {
 	__u64	 cookie;
 } lnet_handle_any_t;
 
-typedef lnet_handle_any_t lnet_handle_me_t;
-
 #define LNET_WIRE_HANDLE_COOKIE_NONE   (-1)
 
 /**
@@ -359,6 +357,10 @@ static inline int LNetMDHandleIsInvalid(struct lnet_handle_md h)
 {
 	return (LNET_WIRE_HANDLE_COOKIE_NONE == h.cookie);
 }
+
+struct lnet_handle_me {
+	u64	cookie;
+};
 
 /**
  * Global process ID.
