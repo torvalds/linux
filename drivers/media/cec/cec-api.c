@@ -202,7 +202,7 @@ static long cec_transmit(struct cec_adapter *adap, struct cec_fh *fh,
 		err = -EPERM;
 	else if (adap->is_configuring)
 		err = -ENONET;
-	else if (!adap->is_configured && (msg.msg[0] != 0xf0 || msg.reply))
+	else if (!adap->is_configured && msg.msg[0] != 0xf0)
 		err = -ENONET;
 	else if (cec_is_busy(adap, fh))
 		err = -EBUSY;

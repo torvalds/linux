@@ -646,12 +646,21 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 			__func__, cec_msg_initiator(msg));
 		return -EINVAL;
 	}
-	if (!adap->is_configured && !adap->is_configuring &&
-	    (msg->msg[0] != 0xf0 || msg->reply))
-		return -ENONET;
+	if (!adap->is_configured && !adap->is_configuring) {
+		if (msg->msg[0] != 0xf0) {
+			dprintk(1, "%s: adapter is unconfigured\n", __func__);
+			return -ENONET;
+		}
+		if (msg->reply) {
+			dprintk(1, "%s: invalid msg->reply\n", __func__);
+			return -EINVAL;
+		}
+	}
 
-	if (adap->transmit_queue_sz >= CEC_MAX_MSG_TX_QUEUE_SZ)
+	if (adap->transmit_queue_sz >= CEC_MAX_MSG_TX_QUEUE_SZ) {
+		dprintk(1, "%s: transmit queue full\n", __func__);
 		return -EBUSY;
+	}
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
