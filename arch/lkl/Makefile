@@ -4,8 +4,10 @@ KBUILD_CFLAGS += -fno-builtin
 
 ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64 elf64-x86-64-freebsd elf32-littlearm ))
 KBUILD_CFLAGS += -fPIC
-else ifeq ($(OUTPUT_FORMAT),pe-i386)
+else ifneq (,$(filter $(OUTPUT_FORMAT),pe-i386 pe-x86-64 ))
+ifneq ($(OUTPUT_FORMAT),pe-x86-64)
 prefix=_
+endif
 # workaround for #include_next<stdarg.h> errors
 LINUXINCLUDE := -isystem arch/lkl/include/system $(LINUXINCLUDE)
 # workaround for https://gcc.gnu.org/bugzilla/show_bug.cgi?id=52991

@@ -67,13 +67,17 @@ ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64 elf32-i386 elf64-x86-64-freebsd e
     CFLAGS     += -DCONFIG_AUTO_LKL_VIRTIO_NET_VDE
     LDLIBS     += $(shell pkg-config --libs vdeplug)
   endif
-else ifneq (,$(filter $(OUTPUT_FORMAT),pe-i386))
+else ifneq (,$(filter $(OUTPUT_FORMAT),pe-i386 pe-x86-64 ))
   KOPT      = "KALLSYMS_EXTRA_PASS=1"
   LDLIBS   += -lws2_32
   EXESUF   := .exe
   SOSUF    := .dll
   export CONFIG_AUTO_LKL_NT_HOST=y
   CFLAGS += -DCONFIG_AUTO_LKL_NT_HOST
+  ifneq (,$(filter $(OUTPUT_FORMAT),pe-x86-64))
+      CFLAGS += -Wl,--enable-auto-image-base -Wl,--image-base -Wl,0x10000000 -Wl,--out-implib=$(OUTPUT)liblkl.dll.a -Wl,--export-all-symbols -Wl,--enable-auto-import
+	  LDFLAGS +=-Wl,--image-base -Wl,0x10000000 -Wl,--enable-auto-image-base -Wl,--out-implib=$(OUTPUT)liblkl.dll.a -Wl,--export-all-symbols -Wl,--enable-auto-import
+  endif
 else
   $(error Unrecognized platform: $(OUTPUT_FORMAT))
 endif
@@ -85,8 +89,13 @@ OUTPUT := $(CURDIR)/
 endif
 export OUTPUT
 
+ifneq (,$(filter $(OUTPUT_FORMAT),pe-i386 pe-x86-64 ))
+ALL_PROGRAMS :=
+ALL_LIBRARIES := $(OUTPUT)liblkl.a $(OUTPUT)liblkl$(SOSUF)
+else
 ALL_PROGRAMS := $(OUTPUT)lklfuse$(EXESUF) $(OUTPUT)cptofs$(EXESUF) $(OUTPUT)cpfromfs$(EXESUF) $(OUTPUT)fs2tar$(EXESUF)
 ALL_LIBRARIES := $(OUTPUT)liblkl.a $(OUTPUT)liblkl$(SOSUF) $(OUTPUT)liblkl-hijack$(SOSUF)
+endif
 
 static: $(OUTPUT)liblkl.a
 shared: $(OUTPUT)liblkl$(SOSUF)
@@ -104,7 +113,7 @@ $(OUTPUT)lklfuse$(EXESUF): LDLIBS += -lfuse
 
 $(OUTPUT)fs2tar$(EXESUF): $(OUTPUT)fs2tar-in.o $(OUTPUT)liblkl.a
 $(OUTPUT)fs2tar$(EXESUF): LDLIBS += -larchive
-ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64-freebsd))
+ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64-freebsd pe-x86-64))
   $(OUTPUT)fs2tar$(EXESUF): LDLIBS += -largp
 endif
 

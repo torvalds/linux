@@ -15,6 +15,7 @@ config LKL
        select HAS_DMA
        select PHYS_ADDR_T_64BIT if 64BIT
        select 64BIT if OUTPUT_FORMAT = "elf64-x86-64"
+	   select 64BIT if OUTPUT_FORMAT = "pe-x86-64"
        select HAVE_UNDERSCORE_SYMBOL_PREFIX if OUTPUT_FORMAT = "pe-i386"
        select 64BIT if OUTPUT_FORMAT = "elf64-x86-64-freebsd"
        select IP_PNP
