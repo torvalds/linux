@@ -324,7 +324,7 @@ static int qxl_crtc_page_flip(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_funcs qxl_crtc_funcs = {
-	.set_config = drm_crtc_helper_set_config,
+	.set_config = drm_atomic_helper_set_config,
 	.destroy = qxl_crtc_destroy,
 	.page_flip = qxl_crtc_page_flip,
 	.reset = drm_atomic_helper_crtc_reset,
@@ -467,13 +467,6 @@ static void qxl_monitors_config_set(struct qxl_device *qdev,
 
 }
 
-static void qxl_crtc_prepare(struct drm_crtc *crtc)
-{
-	DRM_DEBUG("current: %dx%d+%d+%d (%d).\n",
-		  crtc->mode.hdisplay, crtc->mode.vdisplay,
-		  crtc->x, crtc->y, crtc->enabled);
-}
-
 void qxl_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct qxl_device *qdev = crtc->dev->dev_private;
@@ -507,9 +500,7 @@ static const struct drm_crtc_helper_funcs qxl_crtc_helper_funcs = {
 	.dpms = qxl_crtc_dpms,
 	.disable = qxl_crtc_disable,
 	.mode_fixup = qxl_crtc_mode_fixup,
-	.mode_set = drm_helper_crtc_mode_set,
 	.mode_set_nofb = qxl_mode_set_nofb,
-	.prepare = qxl_crtc_prepare,
 	.commit = qxl_crtc_commit,
 	.atomic_flush = qxl_crtc_atomic_flush,
 };
