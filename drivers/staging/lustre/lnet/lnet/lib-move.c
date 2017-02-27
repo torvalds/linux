@@ -998,7 +998,7 @@ static struct lnet_peer *
 lnet_find_route_locked(struct lnet_ni *ni, lnet_nid_t target,
 		       lnet_nid_t rtr_nid)
 {
-	lnet_remotenet_t *rnet;
+	struct lnet_remotenet *rnet;
 	struct lnet_route *route;
 	struct lnet_route *best_route;
 	struct lnet_route *last_route;
@@ -2291,7 +2291,7 @@ LNetDist(lnet_nid_t dstnid, lnet_nid_t *srcnidp, __u32 *orderp)
 {
 	struct list_head *e;
 	struct lnet_ni *ni;
-	lnet_remotenet_t *rnet;
+	struct lnet_remotenet *rnet;
 	__u32 dstnet = LNET_NIDNET(dstnid);
 	int hops;
 	int cpt;
@@ -2348,7 +2348,7 @@ LNetDist(lnet_nid_t dstnid, lnet_nid_t *srcnidp, __u32 *orderp)
 
 	rn_list = lnet_net2rnethash(dstnet);
 	list_for_each(e, rn_list) {
-		rnet = list_entry(e, lnet_remotenet_t, lrn_list);
+		rnet = list_entry(e, struct lnet_remotenet, lrn_list);
 
 		if (rnet->lrn_net == dstnet) {
 			struct lnet_route *route;

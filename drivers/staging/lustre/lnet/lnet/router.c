@@ -217,10 +217,10 @@ lnet_rtr_decref_locked(struct lnet_peer *lp)
 	}
 }
 
-lnet_remotenet_t *
+struct lnet_remotenet *
 lnet_find_net_locked(__u32 net)
 {
-	lnet_remotenet_t *rnet;
+	struct lnet_remotenet *rnet;
 	struct list_head *tmp;
 	struct list_head *rn_list;
 
@@ -228,7 +228,7 @@ lnet_find_net_locked(__u32 net)
 
 	rn_list = lnet_net2rnethash(net);
 	list_for_each(tmp, rn_list) {
-		rnet = list_entry(tmp, lnet_remotenet_t, lrn_list);
+		rnet = list_entry(tmp, struct lnet_remotenet, lrn_list);
 
 		if (rnet->lrn_net == net)
 			return rnet;
@@ -268,7 +268,7 @@ static void lnet_shuffle_seed(void)
 
 /* NB expects LNET_LOCK held */
 static void
-lnet_add_route_to_rnet(lnet_remotenet_t *rnet, struct lnet_route *route)
+lnet_add_route_to_rnet(struct lnet_remotenet *rnet, struct lnet_route *route)
 {
 	unsigned int len = 0;
 	unsigned int offset = 0;
@@ -299,8 +299,8 @@ lnet_add_route(__u32 net, __u32 hops, lnet_nid_t gateway,
 	       unsigned int priority)
 {
 	struct list_head *e;
-	lnet_remotenet_t *rnet;
-	lnet_remotenet_t *rnet2;
+	struct lnet_remotenet *rnet;
+	struct lnet_remotenet *rnet2;
 	struct lnet_route *route;
 	struct lnet_ni *ni;
 	int add_route;
@@ -416,7 +416,7 @@ lnet_add_route(__u32 net, __u32 hops, lnet_nid_t gateway,
 int
 lnet_check_routes(void)
 {
-	lnet_remotenet_t *rnet;
+	struct lnet_remotenet *rnet;
 	struct lnet_route *route;
 	struct lnet_route *route2;
 	struct list_head *e1;
@@ -430,7 +430,7 @@ lnet_check_routes(void)
 	for (i = 0; i < LNET_REMOTE_NETS_HASH_SIZE; i++) {
 		rn_list = &the_lnet.ln_remote_nets_hash[i];
 		list_for_each(e1, rn_list) {
-			rnet = list_entry(e1, lnet_remotenet_t, lrn_list);
+			rnet = list_entry(e1, struct lnet_remotenet, lrn_list);
 
 			route2 = NULL;
 			list_for_each(e2, &rnet->lrn_routes) {
@@ -472,7 +472,7 @@ int
 lnet_del_route(__u32 net, lnet_nid_t gw_nid)
 {
 	struct lnet_peer *gateway;
-	lnet_remotenet_t *rnet;
+	struct lnet_remotenet *rnet;
 	struct lnet_route *route;
 	struct list_head *e1;
 	struct list_head *e2;
@@ -495,7 +495,7 @@ lnet_del_route(__u32 net, lnet_nid_t gw_nid)
 
  again:
 	list_for_each(e1, rn_list) {
-		rnet = list_entry(e1, lnet_remotenet_t, lrn_list);
+		rnet = list_entry(e1, struct lnet_remotenet, lrn_list);
 
 		if (!(net == LNET_NIDNET(LNET_NID_ANY) ||
 		      net == rnet->lrn_net))
@@ -588,7 +588,7 @@ lnet_get_route(int idx, __u32 *net, __u32 *hops,
 {
 	struct list_head *e1;
 	struct list_head *e2;
-	lnet_remotenet_t *rnet;
+	struct lnet_remotenet *rnet;
 	struct lnet_route *route;
 	int cpt;
 	int i;
@@ -599,7 +599,7 @@ lnet_get_route(int idx, __u32 *net, __u32 *hops,
 	for (i = 0; i < LNET_REMOTE_NETS_HASH_SIZE; i++) {
 		rn_list = &the_lnet.ln_remote_nets_hash[i];
 		list_for_each(e1, rn_list) {
-			rnet = list_entry(e1, lnet_remotenet_t, lrn_list);
+			rnet = list_entry(e1, struct lnet_remotenet, lrn_list);
 
 			list_for_each(e2, &rnet->lrn_routes) {
 				route = list_entry(e2, struct lnet_route,

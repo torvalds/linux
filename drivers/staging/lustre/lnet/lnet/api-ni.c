@@ -1762,7 +1762,7 @@ lnet_dyn_add_ni(lnet_pid_t requested_pid, struct lnet_ioctl_config_data *conf)
 	struct lnet_handle_md md_handle;
 	struct lnet_ni *ni;
 	struct list_head net_head;
-	lnet_remotenet_t *rnet;
+	struct lnet_remotenet *rnet;
 	int rc;
 
 	INIT_LIST_HEAD(&net_head);

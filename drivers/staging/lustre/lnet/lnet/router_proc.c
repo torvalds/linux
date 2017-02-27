@@ -172,7 +172,7 @@ static int proc_lnet_routes(struct ctl_table *table, int write,
 		struct list_head *n;
 		struct list_head *r;
 		struct lnet_route *route = NULL;
-		lnet_remotenet_t *rnet  = NULL;
+		struct lnet_remotenet *rnet  = NULL;
 		int skip  = off - 1;
 		struct list_head *rn_list;
 		int i;
@@ -191,7 +191,7 @@ static int proc_lnet_routes(struct ctl_table *table, int write,
 			n = rn_list->next;
 
 			while (n != rn_list && !route) {
-				rnet = list_entry(n, lnet_remotenet_t,
+				rnet = list_entry(n, struct lnet_remotenet,
 						  lrn_list);
 
 				r = rnet->lrn_routes.next;

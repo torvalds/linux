@@ -384,12 +384,12 @@ struct lnet_route {
 #define LNET_REMOTE_NETS_HASH_MAX	(1U << 16)
 #define LNET_REMOTE_NETS_HASH_SIZE	(1 << the_lnet.ln_remote_nets_hbits)
 
-typedef struct {
+struct lnet_remotenet {
 	struct list_head	lrn_list;	/* chain on
 						   ln_remote_nets_hash */
 	struct list_head	lrn_routes;	/* routes to me */
 	__u32			lrn_net;	/* my net number */
-} lnet_remotenet_t;
+};
 
 /** lnet message has credit and can be submitted to lnd for send/receive */
 #define LNET_CREDIT_OK		0
