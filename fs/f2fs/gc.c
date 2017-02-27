@@ -1009,6 +1009,6 @@ void build_gc_manager(struct f2fs_sb_info *sbi)
 	ovp_count = SM_I(sbi)->ovp_segments << sbi->log_blocks_per_seg;
 	blocks_per_sec = sbi->blocks_per_seg * sbi->segs_per_sec;
 
-	sbi->fggc_threshold = div_u64((main_count - ovp_count) * blocks_per_sec,
+	sbi->fggc_threshold = div64_u64((main_count - ovp_count) * blocks_per_sec,
 					(main_count - resv_count));
 }
