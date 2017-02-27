@@ -1041,6 +1041,7 @@ targetting||targeting
 teh||the
 temorary||temporary
 temproarily||temporarily
+therfore||therefore
 thier||their
 threds||threads
 threshhold||threshold
