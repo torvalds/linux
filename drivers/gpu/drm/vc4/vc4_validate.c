@@ -22,7 +22,7 @@
  */
 
 /**
- * Command list validator for VC4.
+ * DOC: Command list validator for VC4.
  *
  * The VC4 has no IOMMU between it and system memory.  So, a user with
  * access to execute command lists could escalate privilege by
@@ -84,8 +84,12 @@ utile_height(int cpp)
 }
 
 /**
- * The texture unit decides what tiling format a particular miplevel is using
- * this function, so we lay out our miptrees accordingly.
+ * size_is_lt() - Returns whether a miplevel of the given size will
+ * use the lineartile (LT) tiling layout rather than the normal T
+ * tiling layout.
+ * @width: Width in pixels of the miplevel
+ * @height: Height in pixels of the miplevel
+ * @cpp: Bytes per pixel of the pixel format
  */
 static bool
 size_is_lt(uint32_t width, uint32_t height, int cpp)

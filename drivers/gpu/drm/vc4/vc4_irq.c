@@ -21,7 +21,8 @@
  * IN THE SOFTWARE.
  */
 
-/** DOC: Interrupt management for the V3D engine.
+/**
+ * DOC: Interrupt management for the V3D engine
  *
  * We have an interrupt status register (V3D_INTCTL) which reports
  * interrupts, and where writing 1 bits clears those interrupts.

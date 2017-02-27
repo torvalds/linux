@@ -6,7 +6,8 @@
  * published by the Free Software Foundation.
  */
 
-/* DOC: VC4 GEM BO management support.
+/**
+ * DOC: VC4 GEM BO management support
  *
  * The VC4 GPU architecture (both scanout and rendering) has direct
  * access to system memory with no MMU in between.  To support it, we
@@ -186,6 +187,8 @@ out:
 
 /**
  * vc4_gem_create_object - Implementation of driver->gem_create_object.
+ * @dev: DRM device
+ * @size: Size in bytes of the memory the object will reference
  *
  * This lets the CMA helpers allocate object structs for us, and keep
  * our BO stats correct.

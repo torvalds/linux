@@ -511,9 +511,18 @@ vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec)
 }
 
 /**
- * Looks up a bunch of GEM handles for BOs and stores the array for
- * use in the command validator that actually writes relocated
- * addresses pointing to them.
+ * vc4_cl_lookup_bos() - Sets up exec->bo[] with the GEM objects
+ * referenced by the job.
+ * @dev: DRM device
+ * @file_priv: DRM file for this fd
+ * @exec: V3D job being set up
+ *
+ * The command validator needs to reference BOs by their index within
+ * the submitted job's BO list.  This does the validation of the job's
+ * BO list and reference counting for the lifetime of the job.
+ *
+ * Note that this function doesn't need to unreference the BOs on
+ * failure, because that will happen at vc4_complete_exec() time.
  */
 static int
 vc4_cl_lookup_bos(struct drm_device *dev,
@@ -846,9 +855,16 @@ vc4_wait_bo_ioctl(struct drm_device *dev, void *data,
 }
 
 /**
- * Submits a command list to the VC4.
+ * vc4_submit_cl_ioctl() - Submits a job (frame) to the VC4.
+ * @dev: DRM device
+ * @data: ioctl argument
+ * @file_priv: DRM file for this fd
  *
- * This is what is called batchbuffer emitting on other hardware.
+ * This is the main entrypoint for userspace to submit a 3D frame to
+ * the GPU.  Userspace provides the binner command list (if
+ * applicable), and the kernel sets up the render command list to draw
+ * to the framebuffer described in the ioctl, using the command lists
+ * that the 3D engine's binner will produce.
  */
 int
 vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
