@@ -502,31 +502,31 @@ void lnet_drop_routed_msgs_locked(struct list_head *list, int cpt);
 /* portals functions */
 /* portals attributes */
 static inline int
-lnet_ptl_is_lazy(lnet_portal_t *ptl)
+lnet_ptl_is_lazy(struct lnet_portal *ptl)
 {
 	return !!(ptl->ptl_options & LNET_PTL_LAZY);
 }
 
 static inline int
-lnet_ptl_is_unique(lnet_portal_t *ptl)
+lnet_ptl_is_unique(struct lnet_portal *ptl)
 {
 	return !!(ptl->ptl_options & LNET_PTL_MATCH_UNIQUE);
 }
 
 static inline int
-lnet_ptl_is_wildcard(lnet_portal_t *ptl)
+lnet_ptl_is_wildcard(struct lnet_portal *ptl)
 {
 	return !!(ptl->ptl_options & LNET_PTL_MATCH_WILDCARD);
 }
 
 static inline void
-lnet_ptl_setopt(lnet_portal_t *ptl, int opt)
+lnet_ptl_setopt(struct lnet_portal *ptl, int opt)
 {
 	ptl->ptl_options |= opt;
 }
 
 static inline void
-lnet_ptl_unsetopt(lnet_portal_t *ptl, int opt)
+lnet_ptl_unsetopt(struct lnet_portal *ptl, int opt)
 {
 	ptl->ptl_options &= ~opt;
 }

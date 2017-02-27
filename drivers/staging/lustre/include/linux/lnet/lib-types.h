@@ -438,7 +438,7 @@ enum {
 	LNET_MATCHMD_FINISH	= (LNET_MATCHMD_OK | LNET_MATCHMD_DROP),
 };
 
-/* Options for lnet_portal_t::ptl_options */
+/* Options for lnet_portal::ptl_options */
 #define LNET_PTL_LAZY		(1 << 0)
 #define LNET_PTL_MATCH_UNIQUE	(1 << 1)	/* unique match, for RDMA */
 #define LNET_PTL_MATCH_WILDCARD	(1 << 2)	/* wildcard match,
@@ -497,7 +497,7 @@ struct lnet_match_table {
 /* dispatch routed PUT message by hashing source NID for wildcard portals */
 #define	LNET_PTL_ROTOR_HASH_RT	3
 
-typedef struct lnet_portal {
+struct lnet_portal {
 	spinlock_t		  ptl_lock;
 	unsigned int		  ptl_index;	/* portal ID, reserved */
 	/* flags on this portal: lazy, unique... */
@@ -514,7 +514,7 @@ typedef struct lnet_portal {
 	int			  ptl_mt_nmaps;
 	/* array of active entries' cpu-partition-id */
 	int			  ptl_mt_maps[0];
-} lnet_portal_t;
+};
 
 #define LNET_LH_HASH_BITS	12
 #define LNET_LH_HASH_SIZE	(1ULL << LNET_LH_HASH_BITS)
@@ -557,7 +557,7 @@ typedef struct {
 	/* # portals */
 	int				  ln_nportals;
 	/* the vector of portals */
-	lnet_portal_t			**ln_portals;
+	struct lnet_portal		**ln_portals;
 	/* percpt ME containers */
 	struct lnet_res_container	**ln_me_containers;
 	/* percpt MD container */
