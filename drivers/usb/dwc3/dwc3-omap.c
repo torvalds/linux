@@ -392,7 +392,7 @@ static void dwc3_omap_set_utmi_mode(struct dwc3_omap *omap)
 {
 	u32			reg;
 	struct device_node	*node = omap->dev->of_node;
-	int			utmi_mode = 0;
+	u32			utmi_mode = 0;
 
 	reg = dwc3_omap_read_utmi_ctrl(omap);
 
