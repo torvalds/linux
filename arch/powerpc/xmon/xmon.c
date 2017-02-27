@@ -2713,7 +2713,12 @@ static void dump_by_size(unsigned long addr, long count, int size)
 
 			printf("%0*llx", size * 2, val);
 		}
-		printf("\n");
+		printf("  |");
+		for (j = 0; j < 16; ++j) {
+			val = temp[j];
+			putchar(' ' <= val && val <= '~' ? val : '.');
+		}
+		printf("|\n");
 	}
 }
 
