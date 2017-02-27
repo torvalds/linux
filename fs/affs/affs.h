@@ -178,7 +178,6 @@ extern int	affs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 /* inode.c */
 
-extern unsigned long		 affs_parent_ino(struct inode *dir);
 extern struct inode		*affs_new_inode(struct inode *dir);
 extern int			 affs_notify_change(struct dentry *dentry, struct iattr *attr);
 extern void			 affs_evict_inode(struct inode *inode);
