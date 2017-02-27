@@ -144,7 +144,7 @@ enum srpc_event_type {
 /* RPC event */
 struct srpc_event {
 	enum srpc_event_type	ev_type;	/* what's up */
-	lnet_event_kind_t ev_lnet;   /* LNet event type */
+	enum lnet_event_kind	ev_lnet;	/* LNet event type */
 	int		  ev_fired;  /* LNet event fired? */
 	int		  ev_status; /* LNet event status */
 	void		  *ev_data;  /* owning server/client RPC */

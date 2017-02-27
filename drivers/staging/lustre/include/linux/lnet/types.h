@@ -523,7 +523,7 @@ typedef struct bio_vec lnet_kiov_t;
 /**
  * Six types of events can be logged in an event queue.
  */
-typedef enum {
+enum lnet_event_kind {
 	/** An incoming GET operation has completed on the MD. */
 	LNET_EVENT_GET		= 1,
 	/**
@@ -559,7 +559,7 @@ typedef enum {
 	 * \see LNetMDUnlink
 	 */
 	LNET_EVENT_UNLINK,
-} lnet_event_kind_t;
+};
 
 #define LNET_SEQ_BASETYPE	long
 typedef unsigned LNET_SEQ_BASETYPE lnet_seq_t;
@@ -580,7 +580,7 @@ struct lnet_event {
 	 */
 	lnet_nid_t		sender;
 	/** Indicates the type of the event. */
-	lnet_event_kind_t	type;
+	enum lnet_event_kind	type;
 	/** The portal table index specified in the request */
 	unsigned int		pt_index;
 	/** A copy of the match bits specified in the request. */

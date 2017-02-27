@@ -147,7 +147,7 @@ int LNetMDUnlink(struct lnet_handle_md md_in);
  * event that is deposited into the EQ.
  *
  * In addition to the lnet_handle_eq, the LNet API defines two types
- * associated with events: The ::lnet_event_kind_t defines the kinds of events
+ * associated with events: The ::lnet_event_kind defines the kinds of events
  * that can be stored in an EQ. The lnet_event defines a structure that
  * holds the information about with an event.
  *

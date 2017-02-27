@@ -54,7 +54,7 @@ lnet_build_unlink_event(struct lnet_libmd *md, struct lnet_event *ev)
  * Don't need any lock, must be called after lnet_commit_md
  */
 void
-lnet_build_msg_event(struct lnet_msg *msg, lnet_event_kind_t ev_type)
+lnet_build_msg_event(struct lnet_msg *msg, enum lnet_event_kind ev_type)
 {
 	struct lnet_hdr *hdr = &msg->msg_hdr;
 	struct lnet_event *ev  = &msg->msg_ev;
