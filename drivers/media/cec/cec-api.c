@@ -198,7 +198,9 @@ static long cec_transmit(struct cec_adapter *adap, struct cec_fh *fh,
 		return -EINVAL;
 
 	mutex_lock(&adap->lock);
-	if (adap->is_configuring)
+	if (adap->log_addrs.num_log_addrs == 0)
+		err = -EPERM;
+	else if (adap->is_configuring)
 		err = -ENONET;
 	else if (!adap->is_configured && (msg.msg[0] != 0xf0 || msg.reply))
 		err = -ENONET;
