@@ -509,10 +509,36 @@ err_unpin:
 	return ret;
 }
 
+static void
+i915_vma_remove(struct i915_vma *vma)
+{
+	struct drm_i915_gem_object *obj = vma->obj;
+
+	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+	GEM_BUG_ON(vma->flags & (I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND));
+
+	drm_mm_remove_node(&vma->node);
+	list_move_tail(&vma->vm_link, &vma->vm->unbound_list);
+
+	/* Since the unbound list is global, only move to that list if
+	 * no more VMAs exist.
+	 */
+	if (--obj->bind_count == 0)
+		list_move_tail(&obj->global_link,
+			       &to_i915(obj->base.dev)->mm.unbound_list);
+
+	/* And finally now the object is completely decoupled from this vma,
+	 * we can drop its hold on the backing storage and allow it to be
+	 * reaped by the shrinker.
+	 */
+	i915_gem_object_unpin_pages(obj);
+	GEM_BUG_ON(atomic_read(&obj->mm.pages_pin_count) < obj->bind_count);
+}
+
 int __i915_vma_do_pin(struct i915_vma *vma,
 		      u64 size, u64 alignment, u64 flags)
 {
-	unsigned int bound = vma->flags;
+	const unsigned int bound = vma->flags;
 	int ret;
 
 	lockdep_assert_held(&vma->vm->i915->drm.struct_mutex);
@@ -521,18 +547,18 @@ int __i915_vma_do_pin(struct i915_vma *vma,
 
 	if (WARN_ON(bound & I915_VMA_PIN_OVERFLOW)) {
 		ret = -EBUSY;
-		goto err;
+		goto err_unpin;
 	}
 
 	if ((bound & I915_VMA_BIND_MASK) == 0) {
 		ret = i915_vma_insert(vma, size, alignment, flags);
 		if (ret)
-			goto err;
+			goto err_unpin;
 	}
 
 	ret = i915_vma_bind(vma, vma->obj->cache_level, flags);
 	if (ret)
-		goto err;
+		goto err_remove;
 
 	if ((bound ^ vma->flags) & I915_VMA_GLOBAL_BIND)
 		__i915_vma_set_map_and_fenceable(vma);
@@ -541,7 +567,12 @@ int __i915_vma_do_pin(struct i915_vma *vma,
 	GEM_BUG_ON(i915_vma_misplaced(vma, size, alignment, flags));
 	return 0;
 
-err:
+err_remove:
+	if ((bound & I915_VMA_BIND_MASK) == 0) {
+		GEM_BUG_ON(vma->pages);
+		i915_vma_remove(vma);
+	}
+err_unpin:
 	__i915_vma_unpin(vma);
 	return ret;
 }
@@ -654,9 +685,6 @@ int i915_vma_unbind(struct i915_vma *vma)
 	}
 	vma->flags &= ~(I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND);
 
-	drm_mm_remove_node(&vma->node);
-	list_move_tail(&vma->vm_link, &vma->vm->unbound_list);
-
 	if (vma->pages != obj->mm.pages) {
 		GEM_BUG_ON(!vma->pages);
 		sg_free_table(vma->pages);
@@ -664,18 +692,7 @@ int i915_vma_unbind(struct i915_vma *vma)
 	}
 	vma->pages = NULL;
 
-	/* Since the unbound list is global, only move to that list if
-	 * no more VMAs exist. */
-	if (--obj->bind_count == 0)
-		list_move_tail(&obj->global_link,
-			       &to_i915(obj->base.dev)->mm.unbound_list);
-
-	/* And finally now the object is completely decoupled from this vma,
-	 * we can drop its hold on the backing storage and allow it to be
-	 * reaped by the shrinker.
-	 */
-	i915_gem_object_unpin_pages(obj);
-	GEM_BUG_ON(atomic_read(&obj->mm.pages_pin_count) < obj->bind_count);
+	i915_vma_remove(vma);
 
 destroy:
 	if (unlikely(i915_vma_is_closed(vma)))
