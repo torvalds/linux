@@ -69,6 +69,18 @@ The ``sequence`` field is filled in for every transmit and this can be
 checked against the received messages to find the corresponding transmit
 result.
 
+Normally calling :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` when the physical
+address is invalid (due to e.g. a disconnect) will return ``ENONET``.
+
+However, the CEC specification allows sending messages from 'Unregistered' to
+'TV' when the physical address is invalid since some TVs pull the hotplug detect
+pin of the HDMI connector low when they go into standby, or when switching to
+another input.
+
+When the hotplug detect pin goes low the EDID disappears, and thus the
+physical address, but the cable is still connected and CEC still works.
+In order to detect/wake up the device it is allowed to send poll and 'Image/Text
+View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
 
 .. tabularcolumns:: |p{1.0cm}|p{3.5cm}|p{13.0cm}|
 
@@ -315,6 +327,8 @@ EPERM
 ENONET
     The CEC adapter is not configured, i.e. :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
     was called, but the physical address is invalid so no logical address was claimed.
+    An exception is made in this case for transmits from initiator 0xf ('Unregistered')
+    to destination 0 ('TV'). In that case the transmit will proceed as usual.
 
 EBUSY
     Another filehandle is in exclusive follower or initiator mode, or the filehandle
