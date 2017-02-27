@@ -4389,7 +4389,8 @@ void btrfs_free_reserved_data_space_noquota(struct inode *inode, u64 start,
  * This one will handle the per-inode data rsv map for accurate reserved
  * space framework.
  */
-void btrfs_free_reserved_data_space(struct inode *inode, u64 start, u64 len)
+void btrfs_free_reserved_data_space(struct inode *inode,
+			struct extent_changeset *reserved, u64 start, u64 len)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 
@@ -4399,7 +4400,7 @@ void btrfs_free_reserved_data_space(struct inode *inode, u64 start, u64 len)
 	start = round_down(start, root->fs_info->sectorsize);
 
 	btrfs_free_reserved_data_space_noquota(inode, start, len);
-	btrfs_qgroup_free_data(inode, start, len);
+	btrfs_qgroup_free_data(inode, reserved, start, len);
 }
 
 static void force_metadata_allocation(struct btrfs_fs_info *info)
@@ -6204,7 +6205,7 @@ int btrfs_delalloc_reserve_space(struct inode *inode,
 		return ret;
 	ret = btrfs_delalloc_reserve_metadata(BTRFS_I(inode), len);
 	if (ret < 0)
-		btrfs_free_reserved_data_space(inode, start, len);
+		btrfs_free_reserved_data_space(inode, *reserved, start, len);
 	return ret;
 }
 
@@ -6223,10 +6224,11 @@ int btrfs_delalloc_reserve_space(struct inode *inode,
  * list if there are no delalloc bytes left.
  * Also it will handle the qgroup reserved space.
  */
-void btrfs_delalloc_release_space(struct inode *inode, u64 start, u64 len)
+void btrfs_delalloc_release_space(struct inode *inode,
+			struct extent_changeset *reserved, u64 start, u64 len)
 {
 	btrfs_delalloc_release_metadata(BTRFS_I(inode), len);
-	btrfs_free_reserved_data_space(inode, start, len);
+	btrfs_free_reserved_data_space(inode, reserved, start, len);
 }
 
 static int update_block_group(struct btrfs_trans_handle *trans,
