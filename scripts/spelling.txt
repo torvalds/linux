@@ -71,6 +71,7 @@ algoritm||algorithm
 algoritms||algorithms
 algorrithm||algorithm
 algorritm||algorithm
+aligment||alignment
 allign||align
 allocatrd||allocated
 allocte||allocate

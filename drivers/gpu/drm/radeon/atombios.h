@@ -181,7 +181,7 @@
 #define HW_ASSISTED_I2C_STATUS_FAILURE          2
 #define HW_ASSISTED_I2C_STATUS_SUCCESS          1
 
-#pragma pack(1)                                       /* BIOS data must use byte aligment */
+#pragma pack(1)                                       /* BIOS data must use byte alignment */
 
 /*  Define offset to location of ROM header. */
 
@@ -7909,7 +7909,7 @@ typedef struct  _ATOM_POWERPLAY_INFO_V3
 
 /*********************************************************************************/
 
-#pragma pack() // BIOS data must use byte aligment
+#pragma pack() // BIOS data must use byte alignment
 
 //
 // AMD ACPI Table
