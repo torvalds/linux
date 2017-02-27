@@ -252,7 +252,7 @@ struct lnet_tx_queue {
 	struct list_head	tq_delayed;	/* delayed TXs */
 };
 
-typedef struct lnet_ni {
+struct lnet_ni {
 	spinlock_t		  ni_lock;
 	struct list_head	  ni_list;	/* chain on ln_nis */
 	struct list_head	  ni_cptlist;	/* chain on ln_nis_cpt */
@@ -278,7 +278,7 @@ typedef struct lnet_ni {
 	char			 *ni_interfaces[LNET_MAX_INTERFACES];
 	/* original net namespace */
 	struct net		 *ni_net_ns;
-} lnet_ni_t;
+};
 
 #define LNET_PROTO_PING_MATCHBITS	0x8000000000000000LL
 
@@ -336,7 +336,7 @@ typedef struct lnet_peer {
 	unsigned long		 lp_last_alive;	/* when I was last alive */
 	unsigned long		 lp_last_query;	/* when lp_ni was queried
 						   last time */
-	lnet_ni_t		*lp_ni;		/* interface peer is on */
+	struct lnet_ni		*lp_ni;		/* interface peer is on */
 	lnet_nid_t		 lp_nid;	/* peer's NID */
 	int			 lp_refcount;	/* # refs */
 	int			 lp_cpt;	/* CPT this peer attached on */
@@ -364,7 +364,7 @@ struct lnet_peer_table {
 
 /*
  * peer aliveness is enabled only on routers for peers in a network where the
- * lnet_ni_t::ni_peertimeout has been set to a positive value
+ * lnet_ni::ni_peertimeout has been set to a positive value
  */
 #define lnet_peer_aliveness_enabled(lp) (the_lnet.ln_routing && \
 					 (lp)->lp_ni->ni_peertimeout > 0)
@@ -585,7 +585,7 @@ typedef struct {
 	struct list_head		  ln_nis_cpt;
 	/* dying LND instances */
 	struct list_head		  ln_nis_zombie;
-	lnet_ni_t			 *ln_loni;	/* the loopback NI */
+	struct lnet_ni			 *ln_loni;	/* the loopback NI */
 
 	/* remote networks with routes to them */
 	struct list_head		 *ln_remote_nets_hash;

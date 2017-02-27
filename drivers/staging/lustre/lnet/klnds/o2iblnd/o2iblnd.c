@@ -174,7 +174,7 @@ static int kiblnd_unpack_rd(struct kib_msg *msg, int flip)
 	return 0;
 }
 
-void kiblnd_pack_msg(lnet_ni_t *ni, struct kib_msg *msg, int version,
+void kiblnd_pack_msg(struct lnet_ni *ni, struct kib_msg *msg, int version,
 		     int credits, lnet_nid_t dstnid, __u64 dststamp)
 {
 	struct kib_net *net = ni->ni_data;
@@ -313,7 +313,8 @@ int kiblnd_unpack_msg(struct kib_msg *msg, int nob)
 	return 0;
 }
 
-int kiblnd_create_peer(lnet_ni_t *ni, struct kib_peer **peerp, lnet_nid_t nid)
+int kiblnd_create_peer(struct lnet_ni *ni, struct kib_peer **peerp,
+		       lnet_nid_t nid)
 {
 	struct kib_peer *peer;
 	struct kib_net *net = ni->ni_data;
@@ -412,7 +413,7 @@ void kiblnd_unlink_peer_locked(struct kib_peer *peer)
 	kiblnd_peer_decref(peer);
 }
 
-static int kiblnd_get_peer_info(lnet_ni_t *ni, int index,
+static int kiblnd_get_peer_info(struct lnet_ni *ni, int index,
 				lnet_nid_t *nidp, int *count)
 {
 	struct kib_peer *peer;
@@ -468,7 +469,7 @@ static void kiblnd_del_peer_locked(struct kib_peer *peer)
 	 */
 }
 
-static int kiblnd_del_peer(lnet_ni_t *ni, lnet_nid_t nid)
+static int kiblnd_del_peer(struct lnet_ni *ni, lnet_nid_t nid)
 {
 	LIST_HEAD(zombies);
 	struct list_head *ptmp;
@@ -520,7 +521,7 @@ static int kiblnd_del_peer(lnet_ni_t *ni, lnet_nid_t nid)
 	return rc;
 }
 
-static struct kib_conn *kiblnd_get_conn_by_idx(lnet_ni_t *ni, int index)
+static struct kib_conn *kiblnd_get_conn_by_idx(struct lnet_ni *ni, int index)
 {
 	struct kib_peer *peer;
 	struct list_head *ptmp;
@@ -947,7 +948,7 @@ int kiblnd_close_stale_conns_locked(struct kib_peer *peer,
 	return count;
 }
 
-static int kiblnd_close_matching_conns(lnet_ni_t *ni, lnet_nid_t nid)
+static int kiblnd_close_matching_conns(struct lnet_ni *ni, lnet_nid_t nid)
 {
 	struct kib_peer *peer;
 	struct list_head *ptmp;
@@ -992,7 +993,7 @@ static int kiblnd_close_matching_conns(lnet_ni_t *ni, lnet_nid_t nid)
 	return !count ? -ENOENT : 0;
 }
 
-static int kiblnd_ctl(lnet_ni_t *ni, unsigned int cmd, void *arg)
+static int kiblnd_ctl(struct lnet_ni *ni, unsigned int cmd, void *arg)
 {
 	struct libcfs_ioctl_data *data = arg;
 	int rc = -EINVAL;
@@ -1045,7 +1046,8 @@ static int kiblnd_ctl(lnet_ni_t *ni, unsigned int cmd, void *arg)
 	return rc;
 }
 
-static void kiblnd_query(lnet_ni_t *ni, lnet_nid_t nid, unsigned long *when)
+static void kiblnd_query(struct lnet_ni *ni, lnet_nid_t nid,
+			 unsigned long *when)
 {
 	unsigned long last_alive = 0;
 	unsigned long now = cfs_time_current();
@@ -2143,8 +2145,8 @@ static void kiblnd_net_fini_pools(struct kib_net *net)
 	}
 }
 
-static int kiblnd_net_init_pools(struct kib_net *net, lnet_ni_t *ni, __u32 *cpts,
-				 int ncpts)
+static int kiblnd_net_init_pools(struct kib_net *net, struct lnet_ni *ni,
+				 __u32 *cpts, int ncpts)
 {
 	struct lnet_ioctl_config_o2iblnd_tunables *tunables;
 	int cpt;
@@ -2587,7 +2589,7 @@ static void kiblnd_base_shutdown(void)
 	module_put(THIS_MODULE);
 }
 
-static void kiblnd_shutdown(lnet_ni_t *ni)
+static void kiblnd_shutdown(struct lnet_ni *ni)
 {
 	struct kib_net *net = ni->ni_data;
 	rwlock_t *g_lock = &kiblnd_data.kib_global_lock;
@@ -2844,7 +2846,7 @@ static struct kib_dev *kiblnd_dev_search(char *ifname)
 	return alias;
 }
 
-static int kiblnd_startup(lnet_ni_t *ni)
+static int kiblnd_startup(struct lnet_ni *ni)
 {
 	char *ifname;
 	struct kib_dev *ibdev = NULL;

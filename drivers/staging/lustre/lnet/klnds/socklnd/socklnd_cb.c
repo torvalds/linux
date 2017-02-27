@@ -393,7 +393,7 @@ ksocknal_receive(struct ksock_conn *conn)
 }
 
 void
-ksocknal_tx_done(lnet_ni_t *ni, struct ksock_tx *tx)
+ksocknal_tx_done(struct lnet_ni *ni, struct ksock_tx *tx)
 {
 	struct lnet_msg *lnetmsg = tx->tx_lnetmsg;
 	int rc = (!tx->tx_resid && !tx->tx_zc_aborted) ? 0 : -EIO;
@@ -412,7 +412,7 @@ ksocknal_tx_done(lnet_ni_t *ni, struct ksock_tx *tx)
 }
 
 void
-ksocknal_txlist_done(lnet_ni_t *ni, struct list_head *txlist, int error)
+ksocknal_txlist_done(struct lnet_ni *ni, struct list_head *txlist, int error)
 {
 	struct ksock_tx *tx;
 
@@ -845,7 +845,8 @@ ksocknal_find_connecting_route_locked(struct ksock_peer *peer)
 }
 
 int
-ksocknal_launch_packet(lnet_ni_t *ni, struct ksock_tx *tx, lnet_process_id_t id)
+ksocknal_launch_packet(struct lnet_ni *ni, struct ksock_tx *tx,
+		       lnet_process_id_t id)
 {
 	struct ksock_peer *peer;
 	struct ksock_conn *conn;
@@ -938,7 +939,7 @@ ksocknal_launch_packet(lnet_ni_t *ni, struct ksock_tx *tx, lnet_process_id_t id)
 }
 
 int
-ksocknal_send(lnet_ni_t *ni, void *private, struct lnet_msg *lntmsg)
+ksocknal_send(struct lnet_ni *ni, void *private, struct lnet_msg *lntmsg)
 {
 	int mpflag = 1;
 	int type = lntmsg->msg_type;
@@ -1333,7 +1334,7 @@ ksocknal_process_receive(struct ksock_conn *conn)
 }
 
 int
-ksocknal_recv(lnet_ni_t *ni, void *private, struct lnet_msg *msg,
+ksocknal_recv(struct lnet_ni *ni, void *private, struct lnet_msg *msg,
 	      int delayed, struct iov_iter *to, unsigned int rlen)
 {
 	struct ksock_conn *conn = private;
@@ -1675,7 +1676,7 @@ ksocknal_parse_proto_version(struct ksock_hello_msg *hello)
 }
 
 int
-ksocknal_send_hello(lnet_ni_t *ni, struct ksock_conn *conn,
+ksocknal_send_hello(struct lnet_ni *ni, struct ksock_conn *conn,
 		    lnet_nid_t peer_nid, struct ksock_hello_msg *hello)
 {
 	/* CAVEAT EMPTOR: this byte flips 'ipaddrs' */
@@ -1713,7 +1714,7 @@ ksocknal_invert_type(int type)
 }
 
 int
-ksocknal_recv_hello(lnet_ni_t *ni, struct ksock_conn *conn,
+ksocknal_recv_hello(struct lnet_ni *ni, struct ksock_conn *conn,
 		    struct ksock_hello_msg *hello, lnet_process_id_t *peerid,
 		    __u64 *incarnation)
 {

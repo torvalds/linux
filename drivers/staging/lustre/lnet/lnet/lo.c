@@ -32,7 +32,7 @@
 #include "../../include/linux/lnet/lib-lnet.h"
 
 static int
-lolnd_send(lnet_ni_t *ni, void *private, struct lnet_msg *lntmsg)
+lolnd_send(struct lnet_ni *ni, void *private, struct lnet_msg *lntmsg)
 {
 	LASSERT(!lntmsg->msg_routing);
 	LASSERT(!lntmsg->msg_target_is_router);
@@ -41,7 +41,7 @@ lolnd_send(lnet_ni_t *ni, void *private, struct lnet_msg *lntmsg)
 }
 
 static int
-lolnd_recv(lnet_ni_t *ni, void *private, struct lnet_msg *lntmsg,
+lolnd_recv(struct lnet_ni *ni, void *private, struct lnet_msg *lntmsg,
 	   int delayed, struct iov_iter *to, unsigned int rlen)
 {
 	struct lnet_msg *sendmsg = private;
@@ -70,7 +70,7 @@ lolnd_recv(lnet_ni_t *ni, void *private, struct lnet_msg *lntmsg,
 static int lolnd_instanced;
 
 static void
-lolnd_shutdown(lnet_ni_t *ni)
+lolnd_shutdown(struct lnet_ni *ni)
 {
 	CDEBUG(D_NET, "shutdown\n");
 	LASSERT(lolnd_instanced);
@@ -79,7 +79,7 @@ lolnd_shutdown(lnet_ni_t *ni)
 }
 
 static int
-lolnd_startup(lnet_ni_t *ni)
+lolnd_startup(struct lnet_ni *ni)
 {
 	LASSERT(ni->ni_lnd == &the_lolnd);
 	LASSERT(!lolnd_instanced);

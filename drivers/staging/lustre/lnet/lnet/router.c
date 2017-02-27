@@ -53,7 +53,7 @@ module_param(auto_down, int, 0444);
 MODULE_PARM_DESC(auto_down, "Automatically mark peers down on comms error");
 
 int
-lnet_peer_buffer_credits(lnet_ni_t *ni)
+lnet_peer_buffer_credits(struct lnet_ni *ni)
 {
 	/* NI option overrides LNet default */
 	if (ni->ni_peerrtrcredits > 0)
@@ -128,7 +128,7 @@ lnet_notify_locked(lnet_peer_t *lp, int notifylnd, int alive,
 }
 
 static void
-lnet_ni_notify_locked(lnet_ni_t *ni, lnet_peer_t *lp)
+lnet_ni_notify_locked(struct lnet_ni *ni, lnet_peer_t *lp)
 {
 	int alive;
 	int notifylnd;
@@ -241,7 +241,7 @@ static void lnet_shuffle_seed(void)
 	static int seeded;
 	__u32 lnd_type, seed[2];
 	struct timespec64 ts;
-	lnet_ni_t *ni;
+	struct lnet_ni *ni;
 	struct list_head *tmp;
 
 	if (seeded)
@@ -254,7 +254,7 @@ static void lnet_shuffle_seed(void)
 	 * the NID for this node gives the most entropy in the low bits
 	 */
 	list_for_each(tmp, &the_lnet.ln_nis) {
-		ni = list_entry(tmp, lnet_ni_t, ni_list);
+		ni = list_entry(tmp, struct lnet_ni, ni_list);
 		lnd_type = LNET_NETTYP(LNET_NIDNET(ni->ni_nid));
 
 		if (lnd_type != LOLND)
@@ -302,7 +302,7 @@ lnet_add_route(__u32 net, __u32 hops, lnet_nid_t gateway,
 	lnet_remotenet_t *rnet;
 	lnet_remotenet_t *rnet2;
 	lnet_route_t *route;
-	lnet_ni_t *ni;
+	struct lnet_ni *ni;
 	int add_route;
 	int rc;
 
@@ -838,7 +838,7 @@ lnet_router_ni_update_locked(lnet_peer_t *gw, __u32 net)
 static void
 lnet_update_ni_status_locked(void)
 {
-	lnet_ni_t *ni;
+	struct lnet_ni *ni;
 	time64_t now;
 	int timeout;
 
@@ -1740,7 +1740,7 @@ lnet_rtrpools_disable(void)
 }
 
 int
-lnet_notify(lnet_ni_t *ni, lnet_nid_t nid, int alive, unsigned long when)
+lnet_notify(struct lnet_ni *ni, lnet_nid_t nid, int alive, unsigned long when)
 {
 	struct lnet_peer *lp = NULL;
 	unsigned long now = cfs_time_current();

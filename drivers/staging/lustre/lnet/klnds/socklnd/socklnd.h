@@ -447,7 +447,7 @@ struct ksock_peer {
 						 * ACK
 						 */
 	unsigned long      ksnp_send_keepalive; /* time to send keepalive */
-	lnet_ni_t          *ksnp_ni;            /* which network */
+	struct lnet_ni	   *ksnp_ni;		/* which network */
 	int                ksnp_n_passive_ips;  /* # of... */
 
 	/* preferred local interfaces */
@@ -456,7 +456,7 @@ struct ksock_peer {
 
 struct ksock_connreq {
 	struct list_head ksncr_list;  /* stash on ksnd_connd_connreqs */
-	lnet_ni_t        *ksncr_ni;   /* chosen NI */
+	struct lnet_ni	 *ksncr_ni;	/* chosen NI */
 	struct socket    *ksncr_sock; /* accepted socket */
 };
 
@@ -603,7 +603,7 @@ ksocknal_tx_addref(struct ksock_tx *tx)
 }
 
 void ksocknal_tx_prep(struct ksock_conn *, struct ksock_tx *tx);
-void ksocknal_tx_done(lnet_ni_t *ni, struct ksock_tx *tx);
+void ksocknal_tx_done(struct lnet_ni *ni, struct ksock_tx *tx);
 
 static inline void
 ksocknal_tx_decref(struct ksock_tx *tx)
@@ -647,19 +647,22 @@ ksocknal_peer_decref(struct ksock_peer *peer)
 		ksocknal_destroy_peer(peer);
 }
 
-int ksocknal_startup(lnet_ni_t *ni);
-void ksocknal_shutdown(lnet_ni_t *ni);
-int ksocknal_ctl(lnet_ni_t *ni, unsigned int cmd, void *arg);
-int ksocknal_send(lnet_ni_t *ni, void *private, struct lnet_msg *lntmsg);
-int ksocknal_recv(lnet_ni_t *ni, void *private, struct lnet_msg *lntmsg,
+int ksocknal_startup(struct lnet_ni *ni);
+void ksocknal_shutdown(struct lnet_ni *ni);
+int ksocknal_ctl(struct lnet_ni *ni, unsigned int cmd, void *arg);
+int ksocknal_send(struct lnet_ni *ni, void *private, struct lnet_msg *lntmsg);
+int ksocknal_recv(struct lnet_ni *ni, void *private, struct lnet_msg *lntmsg,
 		  int delayed, struct iov_iter *to, unsigned int rlen);
-int ksocknal_accept(lnet_ni_t *ni, struct socket *sock);
+int ksocknal_accept(struct lnet_ni *ni, struct socket *sock);
 
-int ksocknal_add_peer(lnet_ni_t *ni, lnet_process_id_t id, __u32 ip, int port);
-struct ksock_peer *ksocknal_find_peer_locked(lnet_ni_t *ni, lnet_process_id_t id);
-struct ksock_peer *ksocknal_find_peer(lnet_ni_t *ni, lnet_process_id_t id);
+int ksocknal_add_peer(struct lnet_ni *ni, lnet_process_id_t id, __u32 ip,
+		      int port);
+struct ksock_peer *ksocknal_find_peer_locked(struct lnet_ni *ni,
+					     lnet_process_id_t id);
+struct ksock_peer *ksocknal_find_peer(struct lnet_ni *ni,
+				      lnet_process_id_t id);
 void ksocknal_peer_failed(struct ksock_peer *peer);
-int ksocknal_create_conn(lnet_ni_t *ni, struct ksock_route *route,
+int ksocknal_create_conn(struct lnet_ni *ni, struct ksock_route *route,
 			 struct socket *sock, int type);
 void ksocknal_close_conn_locked(struct ksock_conn *conn, int why);
 void ksocknal_terminate_conn(struct ksock_conn *conn);
@@ -671,15 +674,15 @@ int ksocknal_close_matching_conns(lnet_process_id_t id, __u32 ipaddr);
 struct ksock_conn *ksocknal_find_conn_locked(struct ksock_peer *peer,
 					     struct ksock_tx *tx, int nonblk);
 
-int  ksocknal_launch_packet(lnet_ni_t *ni, struct ksock_tx *tx,
+int  ksocknal_launch_packet(struct lnet_ni *ni, struct ksock_tx *tx,
 			    lnet_process_id_t id);
 struct ksock_tx *ksocknal_alloc_tx(int type, int size);
 void ksocknal_free_tx(struct ksock_tx *tx);
 struct ksock_tx *ksocknal_alloc_tx_noop(__u64 cookie, int nonblk);
 void ksocknal_next_tx_carrier(struct ksock_conn *conn);
 void ksocknal_queue_tx_locked(struct ksock_tx *tx, struct ksock_conn *conn);
-void ksocknal_txlist_done(lnet_ni_t *ni, struct list_head *txlist, int error);
-void ksocknal_notify(lnet_ni_t *ni, lnet_nid_t gw_nid, int alive);
+void ksocknal_txlist_done(struct lnet_ni *ni, struct list_head *txlist, int error);
+void ksocknal_notify(struct lnet_ni *ni, lnet_nid_t gw_nid, int alive);
 void ksocknal_query(struct lnet_ni *ni, lnet_nid_t nid, unsigned long *when);
 int ksocknal_thread_start(int (*fn)(void *arg), void *arg, char *name);
 void ksocknal_thread_fini(void);
@@ -690,9 +693,9 @@ int ksocknal_new_packet(struct ksock_conn *conn, int skip);
 int ksocknal_scheduler(void *arg);
 int ksocknal_connd(void *arg);
 int ksocknal_reaper(void *arg);
-int ksocknal_send_hello(lnet_ni_t *ni, struct ksock_conn *conn,
+int ksocknal_send_hello(struct lnet_ni *ni, struct ksock_conn *conn,
 			lnet_nid_t peer_nid, struct ksock_hello_msg *hello);
-int ksocknal_recv_hello(lnet_ni_t *ni, struct ksock_conn *conn,
+int ksocknal_recv_hello(struct lnet_ni *ni, struct ksock_conn *conn,
 			struct ksock_hello_msg *hello, lnet_process_id_t *id,
 			__u64 *incarnation);
 void ksocknal_read_callback(struct ksock_conn *conn);

@@ -101,7 +101,8 @@ lnet_peer_tables_destroy(void)
 }
 
 static void
-lnet_peer_table_cleanup_locked(lnet_ni_t *ni, struct lnet_peer_table *ptable)
+lnet_peer_table_cleanup_locked(struct lnet_ni *ni,
+			       struct lnet_peer_table *ptable)
 {
 	int i;
 	lnet_peer_t *lp;
@@ -141,7 +142,8 @@ lnet_peer_table_deathrow_wait_locked(struct lnet_peer_table *ptable,
 }
 
 static void
-lnet_peer_table_del_rtrs_locked(lnet_ni_t *ni, struct lnet_peer_table *ptable,
+lnet_peer_table_del_rtrs_locked(struct lnet_ni *ni,
+				struct lnet_peer_table *ptable,
 				int cpt_locked)
 {
 	lnet_peer_t *lp;
@@ -168,7 +170,7 @@ lnet_peer_table_del_rtrs_locked(lnet_ni_t *ni, struct lnet_peer_table *ptable,
 }
 
 void
-lnet_peer_tables_cleanup(lnet_ni_t *ni)
+lnet_peer_tables_cleanup(struct lnet_ni *ni)
 {
 	struct lnet_peer_table *ptable;
 	struct list_head deathrow;

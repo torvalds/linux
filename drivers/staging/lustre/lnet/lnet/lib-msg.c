@@ -437,7 +437,7 @@ lnet_complete_msg_locked(struct lnet_msg *msg, int cpt)
 }
 
 void
-lnet_finalize(lnet_ni_t *ni, struct lnet_msg *msg, int status)
+lnet_finalize(struct lnet_ni *ni, struct lnet_msg *msg, int status)
 {
 	struct lnet_msg_container *container;
 	int my_slot;

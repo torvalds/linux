@@ -652,7 +652,7 @@ static int proc_lnet_nis(struct ctl_table *table, int write,
 		LASSERT(tmpstr + tmpsiz - s > 0);
 	} else {
 		struct list_head *n;
-		lnet_ni_t *ni   = NULL;
+		struct lnet_ni *ni = NULL;
 		int skip = *ppos - 1;
 
 		lnet_net_lock(0);
@@ -660,8 +660,9 @@ static int proc_lnet_nis(struct ctl_table *table, int write,
 		n = the_lnet.ln_nis.next;
 
 		while (n != &the_lnet.ln_nis) {
-			lnet_ni_t *a_ni = list_entry(n, lnet_ni_t, ni_list);
+			struct lnet_ni *a_ni;
 
+			a_ni = list_entry(n, struct lnet_ni, ni_list);
 			if (!skip) {
 				ni = a_ni;
 				break;
