@@ -1807,17 +1807,17 @@ static void init_once_userfaultfd_ctx(void *mem)
 }
 
 /**
- * userfaultfd_file_create - Creates an userfaultfd file pointer.
+ * userfaultfd_file_create - Creates a userfaultfd file pointer.
  * @flags: Flags for the userfaultfd file.
  *
- * This function creates an userfaultfd file pointer, w/out installing
+ * This function creates a userfaultfd file pointer, w/out installing
  * it into the fd table. This is useful when the userfaultfd file is
  * used during the initialization of data structures that require
  * extra setup after the userfaultfd creation. So the userfaultfd
  * creation is split into the file pointer creation phase, and the
  * file descriptor installation phase.  In this way races with
  * userspace closing the newly installed file descriptor can be
- * avoided.  Returns an userfaultfd file pointer, or a proper error
+ * avoided.  Returns a userfaultfd file pointer, or a proper error
  * pointer.
  */
 static struct file *userfaultfd_file_create(int flags)
