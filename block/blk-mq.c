@@ -234,6 +234,7 @@ struct request *__blk_mq_alloc_request(struct blk_mq_alloc_data *data,
 			}
 			rq->tag = tag;
 			rq->internal_tag = -1;
+			data->hctx->tags->rqs[rq->tag] = rq;
 		}
 
 		blk_mq_rq_ctx_init(data->q, data->ctx, rq, op);
