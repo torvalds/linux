@@ -23,8 +23,6 @@
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
 
-#include "setup.h"
-
 #include "db8500-regs.h"
 
 /* Magic triggers in backup RAM */
@@ -89,6 +87,13 @@ static int ux500_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	arch_send_wakeup_ipi_mask(cpumask_of(cpu));
 	return 0;
 }
+
+#ifdef CONFIG_HOTPLUG_CPU
+void ux500_cpu_die(unsigned int cpu)
+{
+	wfi();
+}
+#endif
 
 static const struct smp_operations ux500_smp_ops __initconst = {
 	.smp_prepare_cpus	= ux500_smp_prepare_cpus,
