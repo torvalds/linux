@@ -307,9 +307,9 @@ static int proc_lnet_routers(struct ctl_table *table, int write,
 		r = the_lnet.ln_routers.next;
 
 		while (r != &the_lnet.ln_routers) {
-			lnet_peer_t *lp = list_entry(r, lnet_peer_t,
-						     lp_rtr_list);
+			struct lnet_peer *lp;
 
+			lp = list_entry(r, struct lnet_peer, lp_rtr_list);
 			if (!skip) {
 				peer = lp;
 				break;
@@ -454,8 +454,10 @@ static int proc_lnet_peers(struct ctl_table *table, int write,
 				p = ptable->pt_hash[hash].next;
 
 			while (p != &ptable->pt_hash[hash]) {
-				lnet_peer_t *lp = list_entry(p, lnet_peer_t,
-							     lp_hashlist);
+				struct lnet_peer *lp;
+
+				lp = list_entry(p, struct lnet_peer,
+						lp_hashlist);
 				if (!skip) {
 					peer = lp;
 

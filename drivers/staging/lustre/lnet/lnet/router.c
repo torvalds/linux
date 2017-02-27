@@ -98,7 +98,7 @@ lnet_peers_start_down(void)
 }
 
 void
-lnet_notify_locked(lnet_peer_t *lp, int notifylnd, int alive,
+lnet_notify_locked(struct lnet_peer *lp, int notifylnd, int alive,
 		   unsigned long when)
 {
 	if (time_before(when, lp->lp_timestamp)) { /* out of date information */
@@ -128,7 +128,7 @@ lnet_notify_locked(lnet_peer_t *lp, int notifylnd, int alive,
 }
 
 static void
-lnet_ni_notify_locked(struct lnet_ni *ni, lnet_peer_t *lp)
+lnet_ni_notify_locked(struct lnet_ni *ni, struct lnet_peer *lp)
 {
 	int alive;
 	int notifylnd;
@@ -167,7 +167,7 @@ lnet_ni_notify_locked(struct lnet_ni *ni, lnet_peer_t *lp)
 }
 
 static void
-lnet_rtr_addref_locked(lnet_peer_t *lp)
+lnet_rtr_addref_locked(struct lnet_peer *lp)
 {
 	LASSERT(lp->lp_refcount > 0);
 	LASSERT(lp->lp_rtr_refcount >= 0);
@@ -179,9 +179,9 @@ lnet_rtr_addref_locked(lnet_peer_t *lp)
 
 		/* a simple insertion sort */
 		list_for_each_prev(pos, &the_lnet.ln_routers) {
-			lnet_peer_t *rtr = list_entry(pos, lnet_peer_t,
-						      lp_rtr_list);
+			struct lnet_peer *rtr;
 
+			rtr = list_entry(pos, struct lnet_peer, lp_rtr_list);
 			if (rtr->lp_nid < lp->lp_nid)
 				break;
 		}
@@ -194,7 +194,7 @@ lnet_rtr_addref_locked(lnet_peer_t *lp)
 }
 
 static void
-lnet_rtr_decref_locked(lnet_peer_t *lp)
+lnet_rtr_decref_locked(struct lnet_peer *lp)
 {
 	LASSERT(lp->lp_refcount > 0);
 	LASSERT(lp->lp_rtr_refcount > 0);
@@ -791,7 +791,7 @@ lnet_router_checker_event(lnet_event_t *event)
 static void
 lnet_wait_known_routerstate(void)
 {
-	lnet_peer_t *rtr;
+	struct lnet_peer *rtr;
 	struct list_head *entry;
 	int all_known;
 
@@ -802,7 +802,7 @@ lnet_wait_known_routerstate(void)
 
 		all_known = 1;
 		list_for_each(entry, &the_lnet.ln_routers) {
-			rtr = list_entry(entry, lnet_peer_t, lp_rtr_list);
+			rtr = list_entry(entry,struct lnet_peer, lp_rtr_list);
 
 			if (!rtr->lp_alive_count) {
 				all_known = 0;
@@ -821,7 +821,7 @@ lnet_wait_known_routerstate(void)
 }
 
 void
-lnet_router_ni_update_locked(lnet_peer_t *gw, __u32 net)
+lnet_router_ni_update_locked(struct lnet_peer *gw, __u32 net)
 {
 	lnet_route_t *rte;
 
@@ -899,7 +899,7 @@ lnet_destroy_rc_data(struct lnet_rc_data *rcd)
 }
 
 static struct lnet_rc_data *
-lnet_create_rc_data_locked(lnet_peer_t *gateway)
+lnet_create_rc_data_locked(struct lnet_peer *gateway)
 {
 	struct lnet_rc_data *rcd = NULL;
 	struct lnet_ping_info *pi;
@@ -969,7 +969,7 @@ lnet_create_rc_data_locked(lnet_peer_t *gateway)
 }
 
 static int
-lnet_router_check_interval(lnet_peer_t *rtr)
+lnet_router_check_interval(struct lnet_peer *rtr)
 {
 	int secs;
 
@@ -982,7 +982,7 @@ lnet_router_check_interval(lnet_peer_t *rtr)
 }
 
 static void
-lnet_ping_router_locked(lnet_peer_t *rtr)
+lnet_ping_router_locked(struct lnet_peer *rtr)
 {
 	struct lnet_rc_data *rcd = NULL;
 	unsigned long now = cfs_time_current();
@@ -1126,7 +1126,7 @@ lnet_prune_rc_data(int wait_unlink)
 {
 	struct lnet_rc_data *rcd;
 	struct lnet_rc_data *tmp;
-	lnet_peer_t *lp;
+	struct lnet_peer *lp;
 	struct list_head head;
 	int i = 2;
 
@@ -1232,7 +1232,7 @@ lnet_router_checker_active(void)
 static int
 lnet_router_checker(void *arg)
 {
-	lnet_peer_t *rtr;
+	struct lnet_peer *rtr;
 	struct list_head *entry;
 
 	cfs_block_allsigs();
@@ -1247,7 +1247,7 @@ rescan:
 		version = the_lnet.ln_routers_version;
 
 		list_for_each(entry, &the_lnet.ln_routers) {
-			rtr = list_entry(entry, lnet_peer_t, lp_rtr_list);
+			rtr = list_entry(entry, struct lnet_peer, lp_rtr_list);
 
 			cpt2 = lnet_cpt_of_nid_locked(rtr->lp_nid);
 			if (cpt != cpt2) {
