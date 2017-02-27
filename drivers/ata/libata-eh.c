@@ -2034,7 +2034,7 @@ static int speed_down_verdict_cb(struct ata_ering_entry *ent, void *void_arg)
  *	This is to expedite speed down decisions right after device is
  *	initially configured.
  *
- *	The followings are speed down rules.  #1 and #2 deal with
+ *	The following are speed down rules.  #1 and #2 deal with
  *	DUBIOUS errors.
  *
  *	1. If more than one DUBIOUS_ATA_BUS or DUBIOUS_TOUT_HSM errors

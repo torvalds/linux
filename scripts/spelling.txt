@@ -464,6 +464,7 @@ finsih||finish
 flusing||flushing
 folloing||following
 followign||following
+followings||following
 follwing||following
 forseeable||foreseeable
 forse||force
