@@ -2145,6 +2145,7 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
 	struct btrfs_key ins;
+	u64 qg_released;
 	int extent_inserted = 0;
 	int ret;
 
@@ -2200,13 +2201,17 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 	ins.objectid = disk_bytenr;
 	ins.offset = disk_num_bytes;
 	ins.type = BTRFS_EXTENT_ITEM_KEY;
-	ret = btrfs_alloc_reserved_file_extent(trans, root->root_key.objectid,
-			btrfs_ino(BTRFS_I(inode)), file_pos, ram_bytes, &ins);
+
 	/*
 	 * Release the reserved range from inode dirty range map, as it is
 	 * already moved into delayed_ref_head
 	 */
-	btrfs_qgroup_release_data(inode, file_pos, ram_bytes);
+	ret = btrfs_qgroup_release_data(inode, file_pos, ram_bytes);
+	if (ret < 0)
+		goto out;
+	qg_released = ret;
+	ret = btrfs_alloc_reserved_file_extent(trans, root->root_key.objectid,
+			btrfs_ino(BTRFS_I(inode)), file_pos, qg_released, &ins);
 out:
 	btrfs_free_path(path);
 
