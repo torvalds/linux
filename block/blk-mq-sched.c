@@ -454,7 +454,8 @@ int blk_mq_sched_setup(struct request_queue *q)
 	 */
 	ret = 0;
 	queue_for_each_hw_ctx(q, hctx, i) {
-		hctx->sched_tags = blk_mq_alloc_rq_map(set, i, q->nr_requests, 0);
+		hctx->sched_tags = blk_mq_alloc_rq_map(set, i,
+				q->nr_requests, set->reserved_tags);
 		if (!hctx->sched_tags) {
 			ret = -ENOMEM;
 			break;
