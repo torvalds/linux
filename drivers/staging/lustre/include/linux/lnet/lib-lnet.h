@@ -485,12 +485,12 @@ int lnet_islocalnet(__u32 net);
 void lnet_msg_attach_md(struct lnet_msg *msg, struct lnet_libmd *md,
 			unsigned int offset, unsigned int mlen);
 void lnet_msg_detach_md(struct lnet_msg *msg, int status);
-void lnet_build_unlink_event(struct lnet_libmd *md, lnet_event_t *ev);
+void lnet_build_unlink_event(struct lnet_libmd *md, struct lnet_event *ev);
 void lnet_build_msg_event(struct lnet_msg *msg, lnet_event_kind_t ev_type);
 void lnet_msg_commit(struct lnet_msg *msg, int cpt);
 void lnet_msg_decommit(struct lnet_msg *msg, int cpt, int status);
 
-void lnet_eq_enqueue_event(struct lnet_eq *eq, lnet_event_t *ev);
+void lnet_eq_enqueue_event(struct lnet_eq *eq, struct lnet_event *ev);
 void lnet_prep_send(struct lnet_msg *msg, int type, lnet_process_id_t target,
 		    unsigned int offset, unsigned int len);
 int lnet_send(lnet_nid_t nid, struct lnet_msg *msg, lnet_nid_t rtr_nid);

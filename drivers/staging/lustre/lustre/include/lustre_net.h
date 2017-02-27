@@ -400,7 +400,7 @@ struct ptlrpc_service;
  * ptlrpc callback & work item stuff
  */
 struct ptlrpc_cb_id {
-	void   (*cbid_fn)(lnet_event_t *ev);     /* specific callback fn */
+	void   (*cbid_fn)(struct lnet_event *ev); /* specific callback fn */
 	void    *cbid_arg;		      /* additional arg */
 };
 
@@ -1757,11 +1757,11 @@ int ptlrpc_uuid_to_peer(struct obd_uuid *uuid,
  * underlying buffer
  * @{
  */
-void request_out_callback(lnet_event_t *ev);
-void reply_in_callback(lnet_event_t *ev);
-void client_bulk_callback(lnet_event_t *ev);
-void request_in_callback(lnet_event_t *ev);
-void reply_out_callback(lnet_event_t *ev);
+void request_out_callback(struct lnet_event *ev);
+void reply_in_callback(struct lnet_event *ev);
+void client_bulk_callback(struct lnet_event *ev);
+void request_in_callback(struct lnet_event *ev);
+void reply_out_callback(struct lnet_event *ev);
 /** @} */
 
 /* ptlrpc/connection.c */

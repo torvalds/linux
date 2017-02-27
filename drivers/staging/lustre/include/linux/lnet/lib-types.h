@@ -104,7 +104,7 @@ struct lnet_msg {
 	struct kvec		*msg_iov;
 	lnet_kiov_t		*msg_kiov;
 
-	lnet_event_t		 msg_ev;
+	struct lnet_event	 msg_ev;
 	struct lnet_hdr		 msg_hdr;
 };
 
@@ -123,7 +123,7 @@ struct lnet_eq {
 	lnet_seq_t		  eq_deq_seq;
 	unsigned int		  eq_size;
 	lnet_eq_handler_t	  eq_callback;
-	lnet_event_t		 *eq_events;
+	struct lnet_event	 *eq_events;
 	int			**eq_refs;	/* percpt refcount for EQ */
 };
 

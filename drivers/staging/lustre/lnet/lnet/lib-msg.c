@@ -39,7 +39,7 @@
 #include "../../include/linux/lnet/lib-lnet.h"
 
 void
-lnet_build_unlink_event(struct lnet_libmd *md, lnet_event_t *ev)
+lnet_build_unlink_event(struct lnet_libmd *md, struct lnet_event *ev)
 {
 	memset(ev, 0, sizeof(*ev));
 
@@ -57,7 +57,7 @@ void
 lnet_build_msg_event(struct lnet_msg *msg, lnet_event_kind_t ev_type)
 {
 	struct lnet_hdr *hdr = &msg->msg_hdr;
-	lnet_event_t *ev  = &msg->msg_ev;
+	struct lnet_event *ev  = &msg->msg_ev;
 
 	LASSERT(!msg->msg_routing);
 
@@ -165,7 +165,7 @@ static void
 lnet_msg_decommit_tx(struct lnet_msg *msg, int status)
 {
 	struct lnet_counters	*counters;
-	lnet_event_t *ev = &msg->msg_ev;
+	struct lnet_event *ev = &msg->msg_ev;
 
 	LASSERT(msg->msg_tx_committed);
 	if (status)
@@ -217,7 +217,7 @@ static void
 lnet_msg_decommit_rx(struct lnet_msg *msg, int status)
 {
 	struct lnet_counters *counters;
-	lnet_event_t *ev = &msg->msg_ev;
+	struct lnet_event *ev = &msg->msg_ev;
 
 	LASSERT(!msg->msg_tx_committed); /* decommitted or never committed */
 	LASSERT(msg->msg_rx_committed);

@@ -93,7 +93,7 @@ LNetEQAlloc(unsigned int count, lnet_eq_handler_t callback,
 		return -ENOMEM;
 
 	if (count) {
-		LIBCFS_ALLOC(eq->eq_events, count * sizeof(lnet_event_t));
+		LIBCFS_ALLOC(eq->eq_events, count * sizeof(struct lnet_event));
 		if (!eq->eq_events)
 			goto failed;
 		/*
@@ -131,7 +131,7 @@ LNetEQAlloc(unsigned int count, lnet_eq_handler_t callback,
 
 failed:
 	if (eq->eq_events)
-		LIBCFS_FREE(eq->eq_events, count * sizeof(lnet_event_t));
+		LIBCFS_FREE(eq->eq_events, count * sizeof(struct lnet_event));
 
 	if (eq->eq_refs)
 		cfs_percpt_free(eq->eq_refs);
@@ -155,7 +155,7 @@ int
 LNetEQFree(struct lnet_handle_eq eqh)
 {
 	struct lnet_eq *eq;
-	lnet_event_t *events = NULL;
+	struct lnet_event *events = NULL;
 	int **refs = NULL;
 	int *ref;
 	int rc = 0;
@@ -201,7 +201,7 @@ LNetEQFree(struct lnet_handle_eq eqh)
 	lnet_res_unlock(LNET_LOCK_EX);
 
 	if (events)
-		LIBCFS_FREE(events, size * sizeof(lnet_event_t));
+		LIBCFS_FREE(events, size * sizeof(struct lnet_event));
 	if (refs)
 		cfs_percpt_free(refs);
 
@@ -210,7 +210,7 @@ LNetEQFree(struct lnet_handle_eq eqh)
 EXPORT_SYMBOL(LNetEQFree);
 
 void
-lnet_eq_enqueue_event(struct lnet_eq *eq, lnet_event_t *ev)
+lnet_eq_enqueue_event(struct lnet_eq *eq, struct lnet_event *ev)
 {
 	/* MUST called with resource lock hold but w/o lnet_eq_wait_lock */
 	int index;
@@ -239,10 +239,10 @@ lnet_eq_enqueue_event(struct lnet_eq *eq, lnet_event_t *ev)
 }
 
 static int
-lnet_eq_dequeue_event(struct lnet_eq *eq, lnet_event_t *ev)
+lnet_eq_dequeue_event(struct lnet_eq *eq, struct lnet_event *ev)
 {
 	int new_index = eq->eq_deq_seq & (eq->eq_size - 1);
-	lnet_event_t *new_event = &eq->eq_events[new_index];
+	struct lnet_event *new_event = &eq->eq_events[new_index];
 	int rc;
 
 	/* must called with lnet_eq_wait_lock hold */
@@ -371,7 +371,7 @@ __must_hold(&the_lnet.ln_eq_wait_lock)
  */
 int
 LNetEQPoll(struct lnet_handle_eq *eventqs, int neq, int timeout_ms,
-	   lnet_event_t *event, int *which)
+	   struct lnet_event *event, int *which)
 {
 	int wait = 1;
 	int rc;

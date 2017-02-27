@@ -224,7 +224,7 @@ LNetMEUnlink(struct lnet_handle_me meh)
 {
 	struct lnet_me *me;
 	struct lnet_libmd *md;
-	lnet_event_t ev;
+	struct lnet_event ev;
 	int cpt;
 
 	LASSERT(the_lnet.ln_refcount > 0);

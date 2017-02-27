@@ -733,7 +733,7 @@ lnet_parse_rc_info(struct lnet_rc_data *rcd)
 }
 
 static void
-lnet_router_checker_event(lnet_event_t *event)
+lnet_router_checker_event(struct lnet_event *event)
 {
 	struct lnet_rc_data *rcd = event->md.user_ptr;
 	struct lnet_peer *lp;

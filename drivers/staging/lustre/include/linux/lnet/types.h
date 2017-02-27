@@ -568,7 +568,7 @@ typedef unsigned LNET_SEQ_BASETYPE lnet_seq_t;
 /**
  * Information about an event on a MD.
  */
-typedef struct {
+struct lnet_event {
 	/** The identifier (nid, pid) of the target. */
 	lnet_process_id_t	target;
 	/** The identifier (nid, pid) of the initiator. */
@@ -635,7 +635,7 @@ typedef struct {
 	 * to each event.
 	 */
 	volatile lnet_seq_t	sequence;
-} lnet_event_t;
+};
 
 /**
  * Event queue handler function type.
@@ -647,7 +647,7 @@ typedef struct {
  * The handler must not block, must be reentrant, and must not call any LNet
  * API functions. It should return as quickly as possible.
  */
-typedef void (*lnet_eq_handler_t)(lnet_event_t *event);
+typedef void (*lnet_eq_handler_t)(struct lnet_event *event);
 #define LNET_EQ_HANDLER_NONE NULL
 /** @} lnet_eq */
 

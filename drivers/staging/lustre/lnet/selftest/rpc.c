@@ -1408,7 +1408,7 @@ srpc_send_reply(struct srpc_server_rpc *rpc)
 
 /* when in kernel always called with LNET_LOCK() held, and in thread context */
 static void
-srpc_lnet_ev_handler(lnet_event_t *ev)
+srpc_lnet_ev_handler(struct lnet_event *ev)
 {
 	struct srpc_service_cd *scd;
 	struct srpc_event *rpcev = ev->md.user_ptr;

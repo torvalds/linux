@@ -148,7 +148,7 @@ int LNetMDUnlink(struct lnet_handle_md md_in);
  *
  * In addition to the lnet_handle_eq, the LNet API defines two types
  * associated with events: The ::lnet_event_kind_t defines the kinds of events
- * that can be stored in an EQ. The lnet_event_t defines a structure that
+ * that can be stored in an EQ. The lnet_event defines a structure that
  * holds the information about with an event.
  *
  * There are five functions for dealing with EQs: LNetEQAlloc() is used to
@@ -168,7 +168,7 @@ int LNetEQFree(struct lnet_handle_eq eventq_in);
 int LNetEQPoll(struct lnet_handle_eq *eventqs_in,
 	       int		 neq_in,
 	       int		 timeout_ms,
-	       lnet_event_t     *event_out,
+	       struct lnet_event *event_out,
 	       int		*which_eq_out);
 /** @} lnet_eq */
 

@@ -1987,7 +1987,7 @@ lnet_recv_delayed_msg_list(struct list_head *head)
  * \retval -ENOMEM Memory allocation failure.
  * \retval -ENOENT Invalid MD object.
  *
- * \see lnet_event_t::hdr_data and lnet_event_kind_t.
+ * \see lnet_event::hdr_data and lnet_event_kind_t.
  */
 int
 LNetPut(lnet_nid_t self, struct lnet_handle_md mdh, lnet_ack_req_t ack,

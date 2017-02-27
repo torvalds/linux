@@ -888,7 +888,7 @@ lnet_ping_info_destroy(void)
 }
 
 static void
-lnet_ping_event_handler(lnet_event_t *event)
+lnet_ping_event_handler(struct lnet_event *event)
 {
 	struct lnet_ping_info *pinfo = event->md.user_ptr;
 
@@ -2133,7 +2133,7 @@ static int lnet_ping(lnet_process_id_t id, int timeout_ms,
 {
 	struct lnet_handle_eq eqh;
 	struct lnet_handle_md mdh;
-	lnet_event_t event;
+	struct lnet_event event;
 	struct lnet_md md = { NULL };
 	int which;
 	int unlinked = 0;

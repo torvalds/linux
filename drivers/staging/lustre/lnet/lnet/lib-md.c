@@ -428,7 +428,7 @@ EXPORT_SYMBOL(LNetMDBind);
 int
 LNetMDUnlink(struct lnet_handle_md mdh)
 {
-	lnet_event_t ev;
+	struct lnet_event ev;
 	struct lnet_libmd *md;
 	int cpt;
 
