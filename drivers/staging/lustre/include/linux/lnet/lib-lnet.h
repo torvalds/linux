@@ -41,7 +41,7 @@
 #include "lib-types.h"
 #include "lib-dlc.h"
 
-extern lnet_t	the_lnet;	/* THE network */
+extern struct lnet the_lnet;	/* THE network */
 
 #if (BITS_PER_LONG == 32)
 /* 2 CPTs, allowing more CPTs might make us under memory pressure */

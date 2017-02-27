@@ -545,7 +545,7 @@ struct lnet_msg_container {
 #define LNET_RC_STATE_RUNNING		1	/* started up OK */
 #define LNET_RC_STATE_STOPPING		2	/* telling thread to stop */
 
-typedef struct {
+struct lnet {
 	/* CPU partition table of LNet */
 	struct cfs_cpt_table		 *ln_cpt_table;
 	/* number of CPTs in ln_cpt_table */
@@ -648,6 +648,6 @@ typedef struct {
 	 */
 	wait_queue_head_t		  ln_rc_waitq;
 
-} lnet_t;
+};
 
 #endif

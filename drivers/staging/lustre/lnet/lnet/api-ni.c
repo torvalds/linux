@@ -39,7 +39,7 @@
 
 #define D_LNI D_CONSOLE
 
-lnet_t the_lnet;			   /* THE state of the network */
+struct lnet the_lnet;		/* THE state of the network */
 EXPORT_SYMBOL(the_lnet);
 
 static char *ip2nets = "";
