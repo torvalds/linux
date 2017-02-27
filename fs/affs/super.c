@@ -507,6 +507,7 @@ got_root:
 		return -ENOMEM;
 	}
 
+	sb->s_export_op = &affs_export_ops;
 	pr_debug("s_flags=%lX\n", sb->s_flags);
 	return 0;
 }
