@@ -9740,6 +9740,11 @@ void btrfs_put_block_group_cache(struct btrfs_fs_info *info)
 	}
 }
 
+/*
+ * Must be called only after stopping all workers, since we could have block
+ * group caching kthreads running, and therefore they could race with us if we
+ * freed the block groups before stopping them.
+ */
 int btrfs_free_block_groups(struct btrfs_fs_info *info)
 {
 	struct btrfs_block_group_cache *block_group;
@@ -9779,9 +9784,6 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 		list_del(&block_group->list);
 		up_write(&block_group->space_info->groups_sem);
 
-		if (block_group->cached == BTRFS_CACHE_STARTED)
-			wait_block_group_cache_done(block_group);
-
 		/*
 		 * We haven't cached this block group, which means we could
 		 * possibly have excluded extents on this block group.
@@ -9791,6 +9793,7 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 			free_excluded_extents(info, block_group);
 
 		btrfs_remove_free_space_cache(block_group);
+		ASSERT(block_group->cached != BTRFS_CACHE_STARTED);
 		ASSERT(list_empty(&block_group->dirty_list));
 		ASSERT(list_empty(&block_group->io_list));
 		ASSERT(list_empty(&block_group->bg_list));
