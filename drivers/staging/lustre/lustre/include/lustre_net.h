@@ -457,7 +457,7 @@ struct ptlrpc_reply_state {
 	struct obd_export     *rs_export;
 	struct ptlrpc_service_part *rs_svcpt;
 	/** Lnet metadata handle for the reply */
-	lnet_handle_md_t       rs_md_h;
+	struct lnet_handle_md		rs_md_h;
 
 	/** Context for the service thread */
 	struct ptlrpc_svc_ctx *rs_svc_ctx;
@@ -586,11 +586,11 @@ struct ptlrpc_cli_req {
 	/** Link back to the request set */
 	struct ptlrpc_request_set	*cr_set;
 	/** outgoing request MD handle */
-	lnet_handle_md_t		 cr_req_md_h;
+	struct lnet_handle_md		 cr_req_md_h;
 	/** request-out callback parameter */
 	struct ptlrpc_cb_id		 cr_req_cbid;
 	/** incoming reply MD handle */
-	lnet_handle_md_t		 cr_reply_md_h;
+	struct lnet_handle_md		 cr_reply_md_h;
 	wait_queue_head_t		 cr_reply_waitq;
 	/** reply callback parameter */
 	struct ptlrpc_cb_id		 cr_reply_cbid;
@@ -1225,7 +1225,7 @@ struct ptlrpc_bulk_desc {
 	int			bd_md_count;	/* # valid entries in bd_mds */
 	int			bd_md_max_brw;	/* max entries in bd_mds */
 	/** array of associated MDs */
-	lnet_handle_md_t	bd_mds[PTLRPC_BULK_OPS_COUNT];
+	struct lnet_handle_md	bd_mds[PTLRPC_BULK_OPS_COUNT];
 
 	union {
 		struct {
@@ -1376,7 +1376,7 @@ struct ptlrpc_request_buffer_desc {
 	/** Back pointer to service for which this buffer is registered */
 	struct ptlrpc_service_part *rqbd_svcpt;
 	/** LNet descriptor */
-	lnet_handle_md_t       rqbd_md_h;
+	struct lnet_handle_md		rqbd_md_h;
 	int		    rqbd_refcount;
 	/** The buffer itself */
 	char		  *rqbd_buffer;

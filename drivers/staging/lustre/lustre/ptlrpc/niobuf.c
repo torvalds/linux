@@ -43,7 +43,7 @@
  * over \a conn connection to portal \a portal.
  * Returns 0 on success or error code.
  */
-static int ptl_send_buf(lnet_handle_md_t *mdh, void *base, int len,
+static int ptl_send_buf(struct lnet_handle_md *mdh, void *base, int len,
 			lnet_ack_req_t ack, struct ptlrpc_cb_id *cbid,
 			struct ptlrpc_connection *conn, int portal, __u64 xid,
 			unsigned int offset)
@@ -94,7 +94,7 @@ static int ptl_send_buf(lnet_handle_md_t *mdh, void *base, int len,
 	return 0;
 }
 
-static void mdunlink_iterate_helper(lnet_handle_md_t *bd_mds, int count)
+static void mdunlink_iterate_helper(struct lnet_handle_md *bd_mds, int count)
 {
 	int i;
 

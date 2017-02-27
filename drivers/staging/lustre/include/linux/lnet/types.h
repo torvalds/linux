@@ -284,7 +284,6 @@ typedef struct {
 	__u64	 cookie;
 } lnet_handle_any_t;
 
-typedef lnet_handle_any_t lnet_handle_md_t;
 typedef lnet_handle_any_t lnet_handle_me_t;
 
 #define LNET_WIRE_HANDLE_COOKIE_NONE   (-1)
@@ -335,6 +334,28 @@ static inline void LNetInvalidateEQHandle(struct lnet_handle_eq *h)
  * @return 1 if handle is invalid, 0 if valid.
  */
 static inline int LNetEQHandleIsInvalid(struct lnet_handle_eq h)
+{
+	return (LNET_WIRE_HANDLE_COOKIE_NONE == h.cookie);
+}
+
+struct lnet_handle_md {
+	u64	cookie;
+};
+
+/**
+ * Invalidate md handle @h.
+ */
+static inline void LNetInvalidateMDHandle(struct lnet_handle_md *h)
+{
+	h->cookie = LNET_WIRE_HANDLE_COOKIE_NONE;
+}
+
+/**
+ * Check whether eq handle @h is invalid.
+ *
+ * @return 1 if handle is invalid, 0 if valid.
+ */
+static inline int LNetMDHandleIsInvalid(struct lnet_handle_md h)
 {
 	return (LNET_WIRE_HANDLE_COOKIE_NONE == h.cookie);
 }
@@ -611,7 +632,7 @@ typedef struct {
 	 * The handle to the MD associated with the event. The handle may be
 	 * invalid if the MD has been unlinked.
 	 */
-	lnet_handle_md_t	md_handle;
+	struct lnet_handle_md	md_handle;
 	/**
 	 * A snapshot of the state of the MD immediately after the event has
 	 * been processed. In particular, the threshold field in md will

@@ -739,7 +739,7 @@ lnet_router_checker_event(lnet_event_t *event)
 	LASSERT(rcd);
 
 	if (event->unlinked) {
-		LNetInvalidateHandle(&rcd->rcd_mdh);
+		LNetInvalidateMDHandle(&rcd->rcd_mdh);
 		return;
 	}
 
@@ -882,7 +882,7 @@ lnet_destroy_rc_data(lnet_rc_data_t *rcd)
 {
 	LASSERT(list_empty(&rcd->rcd_list));
 	/* detached from network */
-	LASSERT(LNetHandleIsInvalid(rcd->rcd_mdh));
+	LASSERT(LNetMDHandleIsInvalid(rcd->rcd_mdh));
 
 	if (rcd->rcd_gateway) {
 		int cpt = rcd->rcd_gateway->lp_cpt;
@@ -913,7 +913,7 @@ lnet_create_rc_data_locked(lnet_peer_t *gateway)
 	if (!rcd)
 		goto out;
 
-	LNetInvalidateHandle(&rcd->rcd_mdh);
+	LNetInvalidateMDHandle(&rcd->rcd_mdh);
 	INIT_LIST_HEAD(&rcd->rcd_list);
 
 	LIBCFS_ALLOC(pi, LNET_PINGINFO_SIZE);
@@ -957,7 +957,7 @@ lnet_create_rc_data_locked(lnet_peer_t *gateway)
 
  out:
 	if (rcd) {
-		if (!LNetHandleIsInvalid(rcd->rcd_mdh)) {
+		if (!LNetMDHandleIsInvalid(rcd->rcd_mdh)) {
 			rc = LNetMDUnlink(rcd->rcd_mdh);
 			LASSERT(!rc);
 		}
@@ -1023,7 +1023,7 @@ lnet_ping_router_locked(lnet_peer_t *rtr)
 					     cfs_time_seconds(secs)))) {
 		int rc;
 		lnet_process_id_t id;
-		lnet_handle_md_t mdh;
+		struct lnet_handle_md mdh;
 
 		id.nid = rtr->lp_nid;
 		id.pid = LNET_PID_LUSTRE;
@@ -1171,7 +1171,7 @@ lnet_prune_rc_data(int wait_unlink)
 	while (!list_empty(&the_lnet.ln_rcd_zombie)) {
 		list_for_each_entry_safe(rcd, tmp, &the_lnet.ln_rcd_zombie,
 					 rcd_list) {
-			if (LNetHandleIsInvalid(rcd->rcd_mdh))
+			if (LNetMDHandleIsInvalid(rcd->rcd_mdh))
 				list_move(&rcd->rcd_list, &head);
 		}
 

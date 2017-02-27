@@ -185,7 +185,7 @@ srpc_init_server_rpc(struct srpc_server_rpc *rpc,
 	rpc->srpc_reqstbuf = buffer;
 	rpc->srpc_peer = buffer->buf_peer;
 	rpc->srpc_self = buffer->buf_self;
-	LNetInvalidateHandle(&rpc->srpc_replymdh);
+	LNetInvalidateMDHandle(&rpc->srpc_replymdh);
 }
 
 static void
@@ -356,7 +356,7 @@ srpc_remove_service(struct srpc_service *sv)
 static int
 srpc_post_passive_rdma(int portal, int local, __u64 matchbits, void *buf,
 		       int len, int options, lnet_process_id_t peer,
-		       lnet_handle_md_t *mdh, struct srpc_event *ev)
+		       struct lnet_handle_md *mdh, struct srpc_event *ev)
 {
 	int rc;
 	lnet_md_t md;
@@ -395,7 +395,7 @@ srpc_post_passive_rdma(int portal, int local, __u64 matchbits, void *buf,
 static int
 srpc_post_active_rdma(int portal, __u64 matchbits, void *buf, int len,
 		      int options, lnet_process_id_t peer, lnet_nid_t self,
-		      lnet_handle_md_t *mdh, struct srpc_event *ev)
+		      struct lnet_handle_md *mdh, struct srpc_event *ev)
 {
 	int rc;
 	lnet_md_t md;
@@ -448,7 +448,7 @@ srpc_post_active_rdma(int portal, __u64 matchbits, void *buf, int len,
 
 static int
 srpc_post_passive_rqtbuf(int service, int local, void *buf, int len,
-			 lnet_handle_md_t *mdh, struct srpc_event *ev)
+			 struct lnet_handle_md *mdh, struct srpc_event *ev)
 {
 	lnet_process_id_t any = { 0 };
 
@@ -468,7 +468,7 @@ __must_hold(&scd->scd_lock)
 	struct srpc_msg	*msg = &buf->buf_msg;
 	int rc;
 
-	LNetInvalidateHandle(&buf->buf_mdh);
+	LNetInvalidateMDHandle(&buf->buf_mdh);
 	list_add(&buf->buf_list, &scd->scd_buf_posted);
 	scd->scd_buf_nposted++;
 	spin_unlock(&scd->scd_lock);

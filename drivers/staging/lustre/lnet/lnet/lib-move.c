@@ -1988,7 +1988,7 @@ lnet_recv_delayed_msg_list(struct list_head *head)
  * \see lnet_event_t::hdr_data and lnet_event_kind_t.
  */
 int
-LNetPut(lnet_nid_t self, lnet_handle_md_t mdh, lnet_ack_req_t ack,
+LNetPut(lnet_nid_t self, struct lnet_handle_md mdh, lnet_ack_req_t ack,
 	lnet_process_id_t target, unsigned int portal,
 	__u64 match_bits, unsigned int offset,
 	__u64 hdr_data)
@@ -2193,7 +2193,7 @@ EXPORT_SYMBOL(lnet_set_reply_msg_len);
  * \retval -ENOENT Invalid MD object.
  */
 int
-LNetGet(lnet_nid_t self, lnet_handle_md_t mdh,
+LNetGet(lnet_nid_t self, struct lnet_handle_md mdh,
 	lnet_process_id_t target, unsigned int portal,
 	__u64 match_bits, unsigned int offset)
 {

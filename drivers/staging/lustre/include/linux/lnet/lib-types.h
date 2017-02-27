@@ -299,7 +299,7 @@ typedef struct lnet_ni {
 typedef struct {
 	/* chain on the_lnet.ln_zombie_rcd or ln_deathrow_rcd */
 	struct list_head	 rcd_list;
-	lnet_handle_md_t	 rcd_mdh;	/* ping buffer MD */
+	struct lnet_handle_md	 rcd_mdh;	/* ping buffer MD */
 	struct lnet_peer	*rcd_gateway;	/* reference to gateway */
 	struct lnet_ping_info	*rcd_pinginfo;	/* ping buffer */
 } lnet_rc_data_t;
@@ -597,7 +597,7 @@ typedef struct {
 	/* percpt router buffer pools */
 	lnet_rtrbufpool_t		**ln_rtrpools;
 
-	lnet_handle_md_t		  ln_ping_target_md;
+	struct lnet_handle_md		  ln_ping_target_md;
 	struct lnet_handle_eq		  ln_ping_target_eq;
 	struct lnet_ping_info		 *ln_ping_info;
 

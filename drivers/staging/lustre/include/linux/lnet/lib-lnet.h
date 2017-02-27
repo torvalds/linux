@@ -301,13 +301,13 @@ lnet_handle2eq(struct lnet_handle_eq *handle)
 }
 
 static inline void
-lnet_md2handle(lnet_handle_md_t *handle, lnet_libmd_t *md)
+lnet_md2handle(struct lnet_handle_md *handle, lnet_libmd_t *md)
 {
 	handle->cookie = md->md_lh.lh_cookie;
 }
 
 static inline lnet_libmd_t *
-lnet_handle2md(lnet_handle_md_t *handle)
+lnet_handle2md(struct lnet_handle_md *handle)
 {
 	/* ALWAYS called with resource lock held */
 	lnet_libhandle_t *lh;

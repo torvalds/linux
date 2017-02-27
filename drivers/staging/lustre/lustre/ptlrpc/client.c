@@ -151,7 +151,7 @@ struct ptlrpc_bulk_desc *ptlrpc_new_bulk(unsigned int nfrags,
 	 * node. Negotiated ocd_brw_size will always be <= this number.
 	 */
 	for (i = 0; i < PTLRPC_BULK_OPS_COUNT; i++)
-		LNetInvalidateHandle(&desc->bd_mds[i]);
+		LNetInvalidateMDHandle(&desc->bd_mds[i]);
 
 	return desc;
 free_desc:

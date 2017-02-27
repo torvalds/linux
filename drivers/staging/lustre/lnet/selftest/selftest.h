@@ -153,7 +153,7 @@ struct srpc_event {
 /* bulk descriptor */
 struct srpc_bulk {
 	int		 bk_len;     /* len of bulk data */
-	lnet_handle_md_t bk_mdh;
+	struct lnet_handle_md	bk_mdh;
 	int		 bk_sink;    /* sink/source */
 	int		 bk_niov;    /* # iov in bk_iovs */
 	lnet_kiov_t	 bk_iovs[0];
@@ -163,7 +163,7 @@ struct srpc_bulk {
 struct srpc_buffer {
 	struct list_head  buf_list; /* chain on srpc_service::*_msgq */
 	struct srpc_msg	  buf_msg;
-	lnet_handle_md_t  buf_mdh;
+	struct lnet_handle_md	buf_mdh;
 	lnet_nid_t	  buf_self;
 	lnet_process_id_t buf_peer;
 };
@@ -188,7 +188,7 @@ struct srpc_server_rpc {
 	lnet_nid_t	       srpc_self;
 	lnet_process_id_t      srpc_peer;
 	struct srpc_msg		srpc_replymsg;
-	lnet_handle_md_t       srpc_replymdh;
+	struct lnet_handle_md	srpc_replymdh;
 	struct srpc_buffer	*srpc_reqstbuf;
 	struct srpc_bulk	*srpc_bulk;
 
@@ -225,8 +225,8 @@ struct srpc_client_rpc {
 	/* bulk, request(reqst), and reply exchanged on wire */
 	struct srpc_msg		crpc_reqstmsg;
 	struct srpc_msg		crpc_replymsg;
-	lnet_handle_md_t  crpc_reqstmdh;
-	lnet_handle_md_t  crpc_replymdh;
+	struct lnet_handle_md	crpc_reqstmdh;
+	struct lnet_handle_md	crpc_replymdh;
 	struct srpc_bulk	crpc_bulk;
 };
 
@@ -545,9 +545,9 @@ srpc_init_client_rpc(struct srpc_client_rpc *rpc, lnet_process_id_t peer,
 	rpc->crpc_bulk.bk_niov = nbulkiov;
 	rpc->crpc_done = rpc_done;
 	rpc->crpc_fini = rpc_fini;
-	LNetInvalidateHandle(&rpc->crpc_reqstmdh);
-	LNetInvalidateHandle(&rpc->crpc_replymdh);
-	LNetInvalidateHandle(&rpc->crpc_bulk.bk_mdh);
+	LNetInvalidateMDHandle(&rpc->crpc_reqstmdh);
+	LNetInvalidateMDHandle(&rpc->crpc_replymdh);
+	LNetInvalidateMDHandle(&rpc->crpc_bulk.bk_mdh);
 
 	/* no event is expected at this point */
 	rpc->crpc_bulkev.ev_fired = 1;

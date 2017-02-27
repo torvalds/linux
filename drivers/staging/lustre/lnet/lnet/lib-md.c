@@ -268,7 +268,7 @@ lnet_md_validate(lnet_md_t *umd)
  */
 int
 LNetMDAttach(lnet_handle_me_t meh, lnet_md_t umd,
-	     lnet_unlink_t unlink, lnet_handle_md_t *handle)
+	     lnet_unlink_t unlink, struct lnet_handle_md *handle)
 {
 	LIST_HEAD(matches);
 	LIST_HEAD(drops);
@@ -350,7 +350,8 @@ EXPORT_SYMBOL(LNetMDAttach);
  * LNetInvalidateHandle() on it.
  */
 int
-LNetMDBind(lnet_md_t umd, lnet_unlink_t unlink, lnet_handle_md_t *handle)
+LNetMDBind(lnet_md_t umd, lnet_unlink_t unlink,
+	   struct lnet_handle_md *handle)
 {
 	lnet_libmd_t *md;
 	int cpt;
@@ -425,7 +426,7 @@ EXPORT_SYMBOL(LNetMDBind);
  * \retval -ENOENT If \a mdh does not point to a valid MD object.
  */
 int
-LNetMDUnlink(lnet_handle_md_t mdh)
+LNetMDUnlink(struct lnet_handle_md mdh)
 {
 	lnet_event_t ev;
 	lnet_libmd_t *md;

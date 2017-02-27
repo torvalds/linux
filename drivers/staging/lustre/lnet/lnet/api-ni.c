@@ -896,7 +896,8 @@ lnet_ping_event_handler(lnet_event_t *event)
 }
 
 static int
-lnet_ping_info_setup(struct lnet_ping_info **ppinfo, lnet_handle_md_t *md_handle,
+lnet_ping_info_setup(struct lnet_ping_info **ppinfo,
+		     struct lnet_handle_md *md_handle,
 		     int ni_count, bool set_eq)
 {
 	lnet_process_id_t id = {LNET_NID_ANY, LNET_PID_ANY};
@@ -961,12 +962,13 @@ failed_0:
 }
 
 static void
-lnet_ping_md_unlink(struct lnet_ping_info *pinfo, lnet_handle_md_t *md_handle)
+lnet_ping_md_unlink(struct lnet_ping_info *pinfo,
+		    struct lnet_handle_md *md_handle)
 {
 	sigset_t blocked = cfs_block_allsigs();
 
 	LNetMDUnlink(*md_handle);
-	LNetInvalidateHandle(md_handle);
+	LNetInvalidateMDHandle(md_handle);
 
 	/* NB md could be busy; this just starts the unlink */
 	while (pinfo->pi_features != LNET_PING_FEAT_INVAL) {
@@ -1003,10 +1005,11 @@ lnet_ping_info_install_locked(struct lnet_ping_info *ping_info)
 }
 
 static void
-lnet_ping_target_update(struct lnet_ping_info *pinfo, lnet_handle_md_t md_handle)
+lnet_ping_target_update(struct lnet_ping_info *pinfo,
+			struct lnet_handle_md md_handle)
 {
 	struct lnet_ping_info *old_pinfo = NULL;
-	lnet_handle_md_t old_md;
+	struct lnet_handle_md old_md;
 
 	/* switch the NIs to point to the new ping info created */
 	lnet_net_lock(LNET_LOCK_EX);
@@ -1497,7 +1500,7 @@ LNetNIInit(lnet_pid_t requested_pid)
 	int rc;
 	int ni_count;
 	struct lnet_ping_info *pinfo;
-	lnet_handle_md_t md_handle;
+	struct lnet_handle_md md_handle;
 	struct list_head net_head;
 
 	INIT_LIST_HEAD(&net_head);
@@ -1755,7 +1758,7 @@ lnet_dyn_add_ni(lnet_pid_t requested_pid, struct lnet_ioctl_config_data *conf)
 {
 	char *nets = conf->cfg_config_u.cfg_net.net_intf;
 	struct lnet_ping_info *pinfo;
-	lnet_handle_md_t md_handle;
+	struct lnet_handle_md md_handle;
 	struct lnet_ni *ni;
 	struct list_head net_head;
 	lnet_remotenet_t *rnet;
@@ -1835,7 +1838,7 @@ lnet_dyn_del_ni(__u32 net)
 {
 	lnet_ni_t *ni;
 	struct lnet_ping_info *pinfo;
-	lnet_handle_md_t md_handle;
+	struct lnet_handle_md md_handle;
 	int rc;
 
 	/* don't allow userspace to shutdown the LOLND */
@@ -2139,7 +2142,7 @@ static int lnet_ping(lnet_process_id_t id, int timeout_ms,
 		     lnet_process_id_t __user *ids, int n_ids)
 {
 	struct lnet_handle_eq eqh;
-	lnet_handle_md_t mdh;
+	struct lnet_handle_md mdh;
 	lnet_event_t event;
 	lnet_md_t md = { NULL };
 	int which;

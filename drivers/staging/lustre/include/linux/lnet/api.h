@@ -128,13 +128,13 @@ int LNetMEUnlink(lnet_handle_me_t current_in);
 int LNetMDAttach(lnet_handle_me_t  current_in,
 		 lnet_md_t	   md_in,
 		 lnet_unlink_t     unlink_in,
-		 lnet_handle_md_t *handle_out);
+		 struct lnet_handle_md *md_handle_out);
 
 int LNetMDBind(lnet_md_t	   md_in,
 	       lnet_unlink_t       unlink_in,
-	       lnet_handle_md_t   *handle_out);
+	       struct lnet_handle_md *md_handle_out);
 
-int LNetMDUnlink(lnet_handle_md_t md_in);
+int LNetMDUnlink(struct lnet_handle_md md_in);
 /** @} lnet_md */
 
 /** \defgroup lnet_eq Events and event queues
@@ -180,7 +180,7 @@ int LNetEQPoll(struct lnet_handle_eq *eventqs_in,
  * @{
  */
 int LNetPut(lnet_nid_t	      self,
-	    lnet_handle_md_t  md_in,
+	    struct lnet_handle_md md_in,
 	    lnet_ack_req_t    ack_req_in,
 	    lnet_process_id_t target_in,
 	    unsigned int      portal_in,
@@ -189,7 +189,7 @@ int LNetPut(lnet_nid_t	      self,
 	    __u64	      hdr_data_in);
 
 int LNetGet(lnet_nid_t	      self,
-	    lnet_handle_md_t  md_in,
+	    struct lnet_handle_md md_in,
 	    lnet_process_id_t target_in,
 	    unsigned int      portal_in,
 	    __u64	      match_bits_in,
