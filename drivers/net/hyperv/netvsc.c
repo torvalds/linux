@@ -647,13 +647,10 @@ static void netvsc_send_tx_complete(struct netvsc_device *net_device,
 static void netvsc_send_completion(struct netvsc_device *net_device,
 				   struct vmbus_channel *incoming_channel,
 				   struct hv_device *device,
-				   struct vmpacket_descriptor *packet)
+				   const struct vmpacket_descriptor *desc)
 {
-	struct nvsp_message *nvsp_packet;
+	struct nvsp_message *nvsp_packet = hv_pkt_data(desc);
 	struct net_device *ndev = hv_get_drvdata(device);
-
-	nvsp_packet = (struct nvsp_message *)((unsigned long)packet +
-					      (packet->offset8 << 3));
 
 	switch (nvsp_packet->hdr.msg_type) {
 	case NVSP_MSG_TYPE_INIT_COMPLETE:
@@ -668,7 +665,7 @@ static void netvsc_send_completion(struct netvsc_device *net_device,
 
 	case NVSP_MSG1_TYPE_SEND_RNDIS_PKT_COMPLETE:
 		netvsc_send_tx_complete(net_device, incoming_channel,
-					device, packet);
+					device, desc);
 		break;
 
 	default:
@@ -1071,9 +1068,11 @@ static void netvsc_receive(struct net_device *ndev,
 		   struct net_device_context *net_device_ctx,
 		   struct hv_device *device,
 		   struct vmbus_channel *channel,
-		   struct vmtransfer_page_packet_header *vmxferpage_packet,
+		   const struct vmpacket_descriptor *desc,
 		   struct nvsp_message *nvsp)
 {
+	const struct vmtransfer_page_packet_header *vmxferpage_packet
+		= container_of(desc, const struct vmtransfer_page_packet_header, d);
 	char *recv_buf = net_device->recv_buf;
 	u32 status = NVSP_STAT_SUCCESS;
 	int i;
@@ -1185,12 +1184,10 @@ static void netvsc_process_raw_pkt(struct hv_device *device,
 				   struct netvsc_device *net_device,
 				   struct net_device *ndev,
 				   u64 request_id,
-				   struct vmpacket_descriptor *desc)
+				   const struct vmpacket_descriptor *desc)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(ndev);
-	struct nvsp_message *nvmsg
-		= (struct nvsp_message *)((unsigned long)desc
-					  + (desc->offset8 << 3));
+	struct nvsp_message *nvmsg = hv_pkt_data(desc);
 
 	switch (desc->type) {
 	case VM_PKT_COMP:
@@ -1199,9 +1196,7 @@ static void netvsc_process_raw_pkt(struct hv_device *device,
 
 	case VM_PKT_DATA_USING_XFER_PAGES:
 		netvsc_receive(ndev, net_device, net_device_ctx,
-			       device, channel,
-			       (struct vmtransfer_page_packet_header *)desc,
-			       nvmsg);
+			       device, channel, desc, nvmsg);
 		break;
 
 	case VM_PKT_DATA_INBAND:
@@ -1223,7 +1218,6 @@ void netvsc_channel_cb(void *context)
 	struct netvsc_device *net_device;
 	struct vmpacket_descriptor *desc;
 	struct net_device *ndev;
-	bool need_to_commit = false;
 
 	if (channel->primary_channel != NULL)
 		device = channel->primary_channel->device_obj;
@@ -1239,19 +1233,11 @@ void netvsc_channel_cb(void *context)
 	    netvsc_channel_idle(net_device, q_idx))
 		return;
 
-	/* commit_rd_index() -> hv_signal_on_read() needs this. */
-	init_cached_read_index(channel);
-
-	while ((desc = get_next_pkt_raw(channel)) != NULL) {
+	foreach_vmbus_pkt(desc, channel) {
 		netvsc_process_raw_pkt(device, channel, net_device,
 				       ndev, desc->trans_id, desc);
 
-		put_pkt_raw(channel, desc);
-		need_to_commit = true;
 	}
-
-	if (need_to_commit)
-		commit_rd_index(channel);
 
 	netvsc_chk_recv_comp(net_device, channel, q_idx);
 }
