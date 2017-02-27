@@ -404,6 +404,9 @@ int handle_sthyi(struct kvm_vcpu *vcpu)
 	u64 code, addr, cc = 0;
 	struct sthyi_sctns *sctns = NULL;
 
+	if (!test_kvm_facility(vcpu->kvm, 74))
+		return kvm_s390_inject_program_int(vcpu, PGM_OPERATION);
+
 	/*
 	 * STHYI requires extensive locking in the higher hypervisors
 	 * and is very computational/memory expensive. Therefore we

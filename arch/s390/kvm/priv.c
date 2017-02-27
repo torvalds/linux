@@ -760,6 +760,7 @@ static const intercept_handler_t b2_handlers[256] = {
 	[0x3b] = handle_io_inst,
 	[0x3c] = handle_io_inst,
 	[0x50] = handle_ipte_interlock,
+	[0x56] = handle_sthyi,
 	[0x5f] = handle_io_inst,
 	[0x74] = handle_io_inst,
 	[0x76] = handle_io_inst,
