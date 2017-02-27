@@ -243,7 +243,6 @@ struct qxl_device;
 
 struct qxl_device {
 	struct drm_device ddev;
-	unsigned long flags;
 
 	resource_size_t vram_base, vram_size;
 	resource_size_t surfaceram_base, surfaceram_size;
@@ -335,7 +334,7 @@ extern const struct drm_ioctl_desc qxl_ioctls[];
 extern int qxl_max_ioctl;
 
 int qxl_device_init(struct qxl_device *qdev, struct drm_driver *drv,
-		    struct pci_dev *pdev, unsigned long flags);
+		    struct pci_dev *pdev);
 void qxl_device_fini(struct qxl_device *qdev);
 
 int qxl_modeset_init(struct qxl_device *qdev);
