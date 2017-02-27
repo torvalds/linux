@@ -26,6 +26,32 @@
 
 #include "i915_drv.h"
 
+unsigned int intel_engine_wakeup(struct intel_engine_cs *engine)
+{
+	unsigned int result = 0;
+
+	/* Note that for this not to dangerously chase a dangling pointer,
+	 * we must hold the rcu_read_lock here.
+	 *
+	 * Also note that tsk is likely to be in !TASK_RUNNING state so an
+	 * early test for tsk->state != TASK_RUNNING before wake_up_process()
+	 * is unlikely to be beneficial.
+	 */
+	if (intel_engine_has_waiter(engine)) {
+		struct task_struct *tsk;
+
+		result = ENGINE_WAKEUP_WAITER;
+
+		rcu_read_lock();
+		tsk = rcu_dereference(engine->breadcrumbs.irq_seqno_bh);
+		if (tsk && !wake_up_process(tsk))
+			result |= ENGINE_WAKEUP_ACTIVE;
+		rcu_read_unlock();
+	}
+
+	return result;
+}
+
 static unsigned long wait_timeout(void)
 {
 	return round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES);
@@ -49,7 +75,7 @@ static void intel_breadcrumbs_hangcheck(unsigned long data)
 	 * to process the pending interrupt (e.g, low priority task on a loaded
 	 * system) and wait until it sleeps before declaring a missed interrupt.
 	 */
-	if (!intel_engine_wakeup(engine)) {
+	if (intel_engine_wakeup(engine) & ENGINE_WAKEUP_ACTIVE) {
 		mod_timer(&b->hangcheck, wait_timeout());
 		return;
 	}

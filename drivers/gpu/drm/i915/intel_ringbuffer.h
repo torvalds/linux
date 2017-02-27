@@ -642,29 +642,9 @@ static inline bool intel_engine_has_waiter(const struct intel_engine_cs *engine)
 	return rcu_access_pointer(engine->breadcrumbs.irq_seqno_bh);
 }
 
-static inline bool intel_engine_wakeup(const struct intel_engine_cs *engine)
-{
-	bool wakeup = false;
-
-	/* Note that for this not to dangerously chase a dangling pointer,
-	 * we must hold the rcu_read_lock here.
-	 *
-	 * Also note that tsk is likely to be in !TASK_RUNNING state so an
-	 * early test for tsk->state != TASK_RUNNING before wake_up_process()
-	 * is unlikely to be beneficial.
-	 */
-	if (intel_engine_has_waiter(engine)) {
-		struct task_struct *tsk;
-
-		rcu_read_lock();
-		tsk = rcu_dereference(engine->breadcrumbs.irq_seqno_bh);
-		if (tsk)
-			wakeup = wake_up_process(tsk);
-		rcu_read_unlock();
-	}
-
-	return wakeup;
-}
+unsigned int intel_engine_wakeup(struct intel_engine_cs *engine);
+#define ENGINE_WAKEUP_WAITER BIT(0)
+#define ENGINE_WAKEUP_ACTIVE BIT(1)
 
 void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine);
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
