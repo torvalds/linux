@@ -32,10 +32,12 @@
 
 struct drm_file;
 struct drm_i915_gem_object;
+struct drm_i915_gem_request;
 
 struct intel_wait {
 	struct rb_node node;
 	struct task_struct *tsk;
+	struct drm_i915_gem_request *request;
 	u32 seqno;
 };
 

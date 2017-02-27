@@ -28,26 +28,18 @@
 
 unsigned int intel_engine_wakeup(struct intel_engine_cs *engine)
 {
+	struct intel_wait *wait;
+	unsigned long flags;
 	unsigned int result = 0;
 
-	/* Note that for this not to dangerously chase a dangling pointer,
-	 * we must hold the rcu_read_lock here.
-	 *
-	 * Also note that tsk is likely to be in !TASK_RUNNING state so an
-	 * early test for tsk->state != TASK_RUNNING before wake_up_process()
-	 * is unlikely to be beneficial.
-	 */
-	if (intel_engine_has_waiter(engine)) {
-		struct task_struct *tsk;
-
+	spin_lock_irqsave(&engine->breadcrumbs.lock, flags);
+	wait = engine->breadcrumbs.first_wait;
+	if (wait) {
 		result = ENGINE_WAKEUP_WAITER;
-
-		rcu_read_lock();
-		tsk = rcu_dereference(engine->breadcrumbs.irq_seqno_bh);
-		if (tsk && !wake_up_process(tsk))
+		if (!wake_up_process(wait->tsk))
 			result |= ENGINE_WAKEUP_ACTIVE;
-		rcu_read_unlock();
 	}
+	spin_unlock_irqrestore(&engine->breadcrumbs.lock, flags);
 
 	return result;
 }
@@ -301,7 +293,6 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 	}
 	rb_link_node(&wait->node, parent, p);
 	rb_insert_color(&wait->node, &b->waiters);
-	GEM_BUG_ON(!first && !rcu_access_pointer(b->irq_seqno_bh));
 
 	if (completed) {
 		struct rb_node *next = rb_next(completed);
@@ -310,7 +301,6 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 		if (next && next != &wait->node) {
 			GEM_BUG_ON(first);
 			b->first_wait = to_wait(next);
-			rcu_assign_pointer(b->irq_seqno_bh, b->first_wait->tsk);
 			/* As there is a delay between reading the current
 			 * seqno, processing the completed tasks and selecting
 			 * the next waiter, we may have missed the interrupt
@@ -337,7 +327,6 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 	if (first) {
 		GEM_BUG_ON(rb_first(&b->waiters) != &wait->node);
 		b->first_wait = wait;
-		rcu_assign_pointer(b->irq_seqno_bh, wait->tsk);
 		/* After assigning ourselves as the new bottom-half, we must
 		 * perform a cursory check to prevent a missed interrupt.
 		 * Either we miss the interrupt whilst programming the hardware,
@@ -348,7 +337,6 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 		 */
 		__intel_breadcrumbs_enable_irq(b);
 	}
-	GEM_BUG_ON(!rcu_access_pointer(b->irq_seqno_bh));
 	GEM_BUG_ON(!b->first_wait);
 	GEM_BUG_ON(rb_first(&b->waiters) != &b->first_wait->node);
 
@@ -396,8 +384,6 @@ static void __intel_engine_remove_wait(struct intel_engine_cs *engine,
 		const int priority = wakeup_priority(b, wait->tsk);
 		struct rb_node *next;
 
-		GEM_BUG_ON(rcu_access_pointer(b->irq_seqno_bh) != wait->tsk);
-
 		/* We are the current bottom-half. Find the next candidate,
 		 * the first waiter in the queue on the remaining oldest
 		 * request. As multiple seqnos may complete in the time it
@@ -439,13 +425,11 @@ static void __intel_engine_remove_wait(struct intel_engine_cs *engine,
 			 * exception rather than a seqno completion.
 			 */
 			b->first_wait = to_wait(next);
-			rcu_assign_pointer(b->irq_seqno_bh, b->first_wait->tsk);
 			if (b->first_wait->seqno != wait->seqno)
 				__intel_breadcrumbs_enable_irq(b);
 			wake_up_process(b->first_wait->tsk);
 		} else {
 			b->first_wait = NULL;
-			rcu_assign_pointer(b->irq_seqno_bh, NULL);
 			__intel_breadcrumbs_disable_irq(b);
 		}
 	} else {
@@ -459,7 +443,6 @@ out:
 	GEM_BUG_ON(b->first_wait == wait);
 	GEM_BUG_ON(rb_first(&b->waiters) !=
 		   (b->first_wait ? &b->first_wait->node : NULL));
-	GEM_BUG_ON(!rcu_access_pointer(b->irq_seqno_bh) ^ RB_EMPTY_ROOT(&b->waiters));
 }
 
 void intel_engine_remove_wait(struct intel_engine_cs *engine,
@@ -621,6 +604,7 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 		return;
 
 	request->signaling.wait.tsk = b->signaler;
+	request->signaling.wait.request = request;
 	request->signaling.wait.seqno = seqno;
 	i915_gem_request_get(request);
 

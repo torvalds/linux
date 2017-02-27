@@ -1083,7 +1083,7 @@ long i915_wait_request(struct drm_i915_gem_request *req,
 	if (flags & I915_WAIT_LOCKED)
 		add_wait_queue(errq, &reset);
 
-	intel_wait_init(&wait);
+	intel_wait_init(&wait, req);
 
 restart:
 	do {

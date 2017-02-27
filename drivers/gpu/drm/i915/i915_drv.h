@@ -4060,9 +4060,9 @@ __i915_request_irq_complete(const struct drm_i915_gem_request *req)
 	 * is woken.
 	 */
 	if (engine->irq_seqno_barrier &&
-	    rcu_access_pointer(engine->breadcrumbs.irq_seqno_bh) == current &&
 	    test_and_clear_bit(ENGINE_IRQ_BREADCRUMB, &engine->irq_posted)) {
-		struct task_struct *tsk;
+		struct intel_breadcrumbs *b = &engine->breadcrumbs;
+		unsigned long flags;
 
 		/* The ordering of irq_posted versus applying the barrier
 		 * is crucial. The clearing of the current irq_posted must
@@ -4084,17 +4084,16 @@ __i915_request_irq_complete(const struct drm_i915_gem_request *req)
 		 * the seqno before we believe it coherent since they see
 		 * irq_posted == false but we are still running).
 		 */
-		rcu_read_lock();
-		tsk = rcu_dereference(engine->breadcrumbs.irq_seqno_bh);
-		if (tsk && tsk != current)
+		spin_lock_irqsave(&b->lock, flags);
+		if (b->first_wait && b->first_wait->tsk != current)
 			/* Note that if the bottom-half is changed as we
 			 * are sending the wake-up, the new bottom-half will
 			 * be woken by whomever made the change. We only have
 			 * to worry about when we steal the irq-posted for
 			 * ourself.
 			 */
-			wake_up_process(tsk);
-		rcu_read_unlock();
+			wake_up_process(b->first_wait->tsk);
+		spin_unlock_irqrestore(&b->lock, flags);
 
 		if (__i915_gem_request_completed(req, seqno))
 			return true;

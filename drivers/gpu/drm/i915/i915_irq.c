@@ -1033,12 +1033,42 @@ static void ironlake_rps_change_irq_handler(struct drm_i915_private *dev_priv)
 
 static void notify_ring(struct intel_engine_cs *engine)
 {
-	bool waiters;
+	struct drm_i915_gem_request *rq = NULL;
+	struct intel_wait *wait;
 
 	atomic_inc(&engine->irq_count);
 	set_bit(ENGINE_IRQ_BREADCRUMB, &engine->irq_posted);
-	waiters = intel_engine_wakeup(engine);
-	trace_intel_engine_notify(engine, waiters);
+
+	rcu_read_lock();
+
+	spin_lock(&engine->breadcrumbs.lock);
+	wait = engine->breadcrumbs.first_wait;
+	if (wait) {
+		/* We use a callback from the dma-fence to submit
+		 * requests after waiting on our own requests. To
+		 * ensure minimum delay in queuing the next request to
+		 * hardware, signal the fence now rather than wait for
+		 * the signaler to be woken up. We still wake up the
+		 * waiter in order to handle the irq-seqno coherency
+		 * issues (we may receive the interrupt before the
+		 * seqno is written, see __i915_request_irq_complete())
+		 * and to handle coalescing of multiple seqno updates
+		 * and many waiters.
+		 */
+		if (i915_seqno_passed(intel_engine_get_seqno(engine),
+				      wait->seqno))
+			rq = wait->request;
+
+		wake_up_process(wait->tsk);
+	}
+	spin_unlock(&engine->breadcrumbs.lock);
+
+	if (rq)
+		dma_fence_signal(&rq->fence);
+
+	rcu_read_unlock();
+
+	trace_intel_engine_notify(engine, wait);
 }
 
 static void vlv_c0_read(struct drm_i915_private *dev_priv,

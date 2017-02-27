@@ -235,8 +235,6 @@ struct intel_engine_cs {
 	 * the overhead of waking that client is much preferred.
 	 */
 	struct intel_breadcrumbs {
-		struct task_struct __rcu *irq_seqno_bh; /* bh for interrupts */
-
 		spinlock_t lock; /* protects the lists of requests; irqsafe */
 		struct rb_root waiters; /* sorted by retirement, priority */
 		struct rb_root signals; /* sorted by retirement */
@@ -582,9 +580,11 @@ static inline u32 intel_hws_seqno_address(struct intel_engine_cs *engine)
 /* intel_breadcrumbs.c -- user interrupt bottom-half for waiters */
 int intel_engine_init_breadcrumbs(struct intel_engine_cs *engine);
 
-static inline void intel_wait_init(struct intel_wait *wait)
+static inline void intel_wait_init(struct intel_wait *wait,
+				   struct drm_i915_gem_request *rq)
 {
 	wait->tsk = current;
+	wait->request = rq;
 }
 
 static inline void intel_wait_init_for_seqno(struct intel_wait *wait, u32 seqno)
@@ -639,7 +639,7 @@ void intel_engine_cancel_signaling(struct drm_i915_gem_request *request);
 
 static inline bool intel_engine_has_waiter(const struct intel_engine_cs *engine)
 {
-	return rcu_access_pointer(engine->breadcrumbs.irq_seqno_bh);
+	return READ_ONCE(engine->breadcrumbs.first_wait);
 }
 
 unsigned int intel_engine_wakeup(struct intel_engine_cs *engine);
