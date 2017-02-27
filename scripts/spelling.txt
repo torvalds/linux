@@ -244,6 +244,9 @@ commited||committed
 commiting||committing
 committ||commit
 commoditiy||commodity
+comsume||consume
+comsumer||consumer
+comsuming||consuming
 compability||compatibility
 compaibility||compatibility
 compatability||compatibility
