@@ -457,11 +457,11 @@ lpfc_nvme_ls_req(struct nvme_fc_local_port *pnvme_lport,
 	/* Expand print to include key fields. */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
 			 "6051 ENTER.  lport %p, rport %p lsreq%p rqstlen:%d "
-			 "rsplen:%d %llux %llux\n",
+			 "rsplen:%d %pad %pad\n",
 			 pnvme_lport, pnvme_rport,
 			 pnvme_lsreq, pnvme_lsreq->rqstlen,
-			 pnvme_lsreq->rsplen, pnvme_lsreq->rqstdma,
-			 pnvme_lsreq->rspdma);
+			 pnvme_lsreq->rsplen, &pnvme_lsreq->rqstdma,
+			 &pnvme_lsreq->rspdma);
 
 	vport->phba->fc4NvmeLsRequests++;
 
@@ -527,11 +527,11 @@ lpfc_nvme_ls_abort(struct nvme_fc_local_port *pnvme_lport,
 	/* Expand print to include key fields. */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_ABTS,
 			 "6040 ENTER.  lport %p, rport %p lsreq %p rqstlen:%d "
-			 "rsplen:%d %llux %llux\n",
+			 "rsplen:%d %pad %pad\n",
 			 pnvme_lport, pnvme_rport,
 			 pnvme_lsreq, pnvme_lsreq->rqstlen,
-			 pnvme_lsreq->rsplen, pnvme_lsreq->rqstdma,
-			 pnvme_lsreq->rspdma);
+			 pnvme_lsreq->rsplen, &pnvme_lsreq->rqstdma,
+			 &pnvme_lsreq->rspdma);
 
 	/*
 	 * Lock the ELS ring txcmplq and build a local list of all ELS IOs
