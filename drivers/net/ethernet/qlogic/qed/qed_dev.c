@@ -3198,7 +3198,8 @@ int qed_configure_vport_wfq(struct qed_dev *cdev, u16 vp_id, u32 rate)
 }
 
 /* API to configure WFQ from mcp link change */
-void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev, u32 min_pf_rate)
+void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev,
+					 struct qed_ptt *p_ptt, u32 min_pf_rate)
 {
 	int i;
 
@@ -3212,8 +3213,7 @@ void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev, u32 min_pf_rate)
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 
-		__qed_configure_vp_wfq_on_link_change(p_hwfn,
-						      p_hwfn->p_dpc_ptt,
+		__qed_configure_vp_wfq_on_link_change(p_hwfn, p_ptt,
 						      min_pf_rate);
 	}
 }
