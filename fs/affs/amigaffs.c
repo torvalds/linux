@@ -367,7 +367,7 @@ affs_fix_checksum(struct super_block *sb, struct buffer_head *bh)
 }
 
 void
-secs_to_datestamp(time64_t secs, struct affs_date *ds)
+affs_secs_to_datestamp(time64_t secs, struct affs_date *ds)
 {
 	u32	 days;
 	u32	 minute;
@@ -386,7 +386,7 @@ secs_to_datestamp(time64_t secs, struct affs_date *ds)
 }
 
 umode_t
-prot_to_mode(u32 prot)
+affs_prot_to_mode(u32 prot)
 {
 	umode_t mode = 0;
 
@@ -413,7 +413,7 @@ prot_to_mode(u32 prot)
 }
 
 void
-mode_to_prot(struct inode *inode)
+affs_mode_to_prot(struct inode *inode)
 {
 	u32 prot = AFFS_I(inode)->i_protect;
 	umode_t mode = inode->i_mode;
