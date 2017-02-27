@@ -18,7 +18,8 @@
  * DOC: VC4 DPI module
  *
  * The VC4 DPI hardware supports MIPI DPI type 4 and Nokia ViSSI
- * signals, which are routed out to GPIO0-27 with the ALT2 function.
+ * signals.  On BCM2835, these can be routed out to GPIO0-27 with the
+ * ALT2 function.
  */
 
 #include "drm_atomic_helper.h"

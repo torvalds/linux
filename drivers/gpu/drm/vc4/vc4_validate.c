@@ -24,19 +24,23 @@
 /**
  * DOC: Command list validator for VC4.
  *
- * The VC4 has no IOMMU between it and system memory.  So, a user with
- * access to execute command lists could escalate privilege by
+ * Since the VC4 has no IOMMU between it and system memory, a user
+ * with access to execute command lists could escalate privilege by
  * overwriting system memory (drawing to it as a framebuffer) or
- * reading system memory it shouldn't (reading it as a texture, or
- * uniform data, or vertex data).
+ * reading system memory it shouldn't (reading it as a vertex buffer
+ * or index buffer)
  *
- * This validates command lists to ensure that all accesses are within
- * the bounds of the GEM objects referenced.  It explicitly whitelists
- * packets, and looks at the offsets in any address fields to make
- * sure they're constrained within the BOs they reference.
+ * We validate binner command lists to ensure that all accesses are
+ * within the bounds of the GEM objects referenced by the submitted
+ * job.  It explicitly whitelists packets, and looks at the offsets in
+ * any address fields to make sure they're contained within the BOs
+ * they reference.
  *
- * Note that because of the validation that's happening anyway, this
- * is where GEM relocation processing happens.
+ * Note that because CL validation is already reading the
+ * user-submitted CL and writing the validated copy out to the memory
+ * that the GPU will actually read, this is also where GEM relocation
+ * processing (turning BO references into actual addresses for the GPU
+ * to use) happens.
  */
 
 #include "uapi/drm/vc4_drm.h"

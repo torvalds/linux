@@ -11,12 +11,13 @@
  *
  * In VC4, the Pixel Valve is what most closely corresponds to the
  * DRM's concept of a CRTC.  The PV generates video timings from the
- * output's clock plus its configuration.  It pulls scaled pixels from
+ * encoder's clock plus its configuration.  It pulls scaled pixels from
  * the HVS at that timing, and feeds it to the encoder.
  *
  * However, the DRM CRTC also collects the configuration of all the
- * DRM planes attached to it.  As a result, this file also manages
- * setup of the VC4 HVS's display elements on the CRTC.
+ * DRM planes attached to it.  As a result, the CRTC is also
+ * responsible for writing the display list for the HVS channel that
+ * the CRTC will use.
  *
  * The 2835 has 3 different pixel valves.  pv0 in the audio power
  * domain feeds DSI0 or DPI, while pv1 feeds DS1 or SMI.  pv2 in the
