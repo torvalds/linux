@@ -97,6 +97,12 @@ struct cfg80211_registered_device {
 
 	struct work_struct sched_scan_stop_wk;
 
+	struct cfg80211_chan_def radar_chandef;
+	struct work_struct propagate_radar_detect_wk;
+
+	struct cfg80211_chan_def cac_done_chandef;
+	struct work_struct propagate_cac_done_wk;
+
 	/* must be last because of the way we do wiphy_priv(),
 	 * and it should at least be aligned to NETDEV_ALIGN */
 	struct wiphy wiphy __aligned(NETDEV_ALIGN);

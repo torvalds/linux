@@ -357,6 +357,38 @@ static void cfg80211_sched_scan_stop_wk(struct work_struct *work)
 	rtnl_unlock();
 }
 
+static void cfg80211_propagate_radar_detect_wk(struct work_struct *work)
+{
+	struct cfg80211_registered_device *rdev;
+
+	rdev = container_of(work, struct cfg80211_registered_device,
+			    propagate_radar_detect_wk);
+
+	rtnl_lock();
+
+	regulatory_propagate_dfs_state(&rdev->wiphy, &rdev->radar_chandef,
+				       NL80211_DFS_UNAVAILABLE,
+				       NL80211_RADAR_DETECTED);
+
+	rtnl_unlock();
+}
+
+static void cfg80211_propagate_cac_done_wk(struct work_struct *work)
+{
+	struct cfg80211_registered_device *rdev;
+
+	rdev = container_of(work, struct cfg80211_registered_device,
+			    propagate_cac_done_wk);
+
+	rtnl_lock();
+
+	regulatory_propagate_dfs_state(&rdev->wiphy, &rdev->cac_done_chandef,
+				       NL80211_DFS_AVAILABLE,
+				       NL80211_RADAR_CAC_FINISHED);
+
+	rtnl_unlock();
+}
+
 /* exported functions */
 
 struct wiphy *wiphy_new_nm(const struct cfg80211_ops *ops, int sizeof_priv,
@@ -456,6 +488,9 @@ use_default_name:
 	spin_lock_init(&rdev->destroy_list_lock);
 	INIT_WORK(&rdev->destroy_work, cfg80211_destroy_iface_wk);
 	INIT_WORK(&rdev->sched_scan_stop_wk, cfg80211_sched_scan_stop_wk);
+	INIT_WORK(&rdev->propagate_radar_detect_wk,
+		  cfg80211_propagate_radar_detect_wk);
+	INIT_WORK(&rdev->propagate_cac_done_wk, cfg80211_propagate_cac_done_wk);
 
 #ifdef CONFIG_CFG80211_DEFAULT_PS
 	rdev->wiphy.flags |= WIPHY_FLAG_PS_ON_BY_DEFAULT;
@@ -915,6 +950,8 @@ void wiphy_unregister(struct wiphy *wiphy)
 	flush_work(&rdev->destroy_work);
 	flush_work(&rdev->sched_scan_stop_wk);
 	flush_work(&rdev->mlme_unreg_wk);
+	flush_work(&rdev->propagate_radar_detect_wk);
+	flush_work(&rdev->propagate_cac_done_wk);
 
 #ifdef CONFIG_PM
 	if (rdev->wiphy.wowlan_config && rdev->ops->set_wakeup)

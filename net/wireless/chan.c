@@ -531,15 +531,10 @@ bool cfg80211_beaconing_iface_active(struct wireless_dev *wdev)
 	return active;
 }
 
-bool cfg80211_any_wiphy_oper_chan(struct wiphy *wiphy,
-				  struct ieee80211_channel *chan)
+static bool cfg80211_is_wiphy_oper_chan(struct wiphy *wiphy,
+					struct ieee80211_channel *chan)
 {
 	struct wireless_dev *wdev;
-
-	ASSERT_RTNL();
-
-	if (!(chan->flags & IEEE80211_CHAN_RADAR))
-		return false;
 
 	list_for_each_entry(wdev, &wiphy->wdev_list, list) {
 		wdev_lock(wdev);
@@ -553,6 +548,27 @@ bool cfg80211_any_wiphy_oper_chan(struct wiphy *wiphy,
 			return true;
 		}
 		wdev_unlock(wdev);
+	}
+
+	return false;
+}
+
+bool cfg80211_any_wiphy_oper_chan(struct wiphy *wiphy,
+				  struct ieee80211_channel *chan)
+{
+	struct cfg80211_registered_device *rdev;
+
+	ASSERT_RTNL();
+
+	if (!(chan->flags & IEEE80211_CHAN_RADAR))
+		return false;
+
+	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+		if (!reg_dfs_domain_same(wiphy, &rdev->wiphy))
+			continue;
+
+		if (cfg80211_is_wiphy_oper_chan(&rdev->wiphy, chan))
+			return true;
 	}
 
 	return false;

@@ -810,6 +810,10 @@ void cfg80211_dfs_channels_update_work(struct work_struct *work)
 				nl80211_radar_notify(rdev, &chandef,
 						     radar_event, NULL,
 						     GFP_ATOMIC);
+
+				regulatory_propagate_dfs_state(wiphy, &chandef,
+							       c->dfs_state,
+							       radar_event);
 				continue;
 			}
 
@@ -846,6 +850,9 @@ void cfg80211_radar_event(struct wiphy *wiphy,
 	cfg80211_sched_dfs_chan_update(rdev);
 
 	nl80211_radar_notify(rdev, chandef, NL80211_RADAR_DETECTED, NULL, gfp);
+
+	memcpy(&rdev->radar_chandef, chandef, sizeof(struct cfg80211_chan_def));
+	queue_work(cfg80211_wq, &rdev->propagate_radar_detect_wk);
 }
 EXPORT_SYMBOL(cfg80211_radar_event);
 
@@ -872,6 +879,9 @@ void cfg80211_cac_event(struct net_device *netdev,
 			  msecs_to_jiffies(wdev->cac_time_ms);
 		WARN_ON(!time_after_eq(jiffies, timeout));
 		cfg80211_set_dfs_state(wiphy, chandef, NL80211_DFS_AVAILABLE);
+		memcpy(&rdev->cac_done_chandef, chandef,
+		       sizeof(struct cfg80211_chan_def));
+		queue_work(cfg80211_wq, &rdev->propagate_cac_done_wk);
 		cfg80211_sched_dfs_chan_update(rdev);
 		break;
 	case NL80211_RADAR_CAC_ABORTED:
