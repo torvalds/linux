@@ -678,7 +678,7 @@
 			status = "disabled";
 		};
 
-		eccmgr: eccmgr@ffd08140 {
+		eccmgr: eccmgr {
 			compatible = "altr,socfpga-ecc-manager";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -879,7 +879,7 @@
 			dma-names = "tx", "rx";
 		};
 
-		usbphy0: usbphy@0 {
+		usbphy0: usbphy {
 			#phy-cells = <0>;
 			compatible = "usb-nop-xceiv";
 			status = "okay";

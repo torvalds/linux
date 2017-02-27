@@ -649,7 +649,7 @@
 			reg = <0xffe00000 0x40000>;
 		};
 
-		eccmgr: eccmgr@ffd06000 {
+		eccmgr: eccmgr {
 			compatible = "altr,socfpga-a10-ecc-manager";
 			altr,sysmgr-syscon = <&sysmgr>;
 			#address-cells = <1>;
@@ -806,7 +806,7 @@
 			status = "disabled";
 		};
 
-		usbphy0: usbphy@0 {
+		usbphy0: usbphy {
 			#phy-cells = <0>;
 			compatible = "usb-nop-xceiv";
 			status = "okay";
