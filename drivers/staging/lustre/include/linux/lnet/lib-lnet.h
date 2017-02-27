@@ -468,7 +468,7 @@ int lnet_get_rtr_pool_cfg(int idx, struct lnet_ioctl_pool_cfg *pool_cfg);
 void lnet_router_debugfs_init(void);
 void lnet_router_debugfs_fini(void);
 int  lnet_rtrpools_alloc(int im_a_router);
-void lnet_destroy_rtrbuf(lnet_rtrbuf_t *rb, int npages);
+void lnet_destroy_rtrbuf(struct lnet_rtrbuf *rb, int npages);
 int lnet_rtrpools_adjust(int tiny, int small, int large);
 int lnet_rtrpools_enable(void);
 void lnet_rtrpools_disable(void);

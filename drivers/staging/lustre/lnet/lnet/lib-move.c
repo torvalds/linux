@@ -711,7 +711,7 @@ lnet_post_routed_recv_locked(struct lnet_msg *msg, int do_recv)
 	 */
 	struct lnet_peer *lp = msg->msg_rxpeer;
 	struct lnet_rtrbufpool *rbp;
-	lnet_rtrbuf_t *rb;
+	struct lnet_rtrbuf *rb;
 
 	LASSERT(!msg->msg_iov);
 	LASSERT(!msg->msg_kiov);
@@ -759,7 +759,7 @@ lnet_post_routed_recv_locked(struct lnet_msg *msg, int do_recv)
 	}
 
 	LASSERT(!list_empty(&rbp->rbp_bufs));
-	rb = list_entry(rbp->rbp_bufs.next, lnet_rtrbuf_t, rb_list);
+	rb = list_entry(rbp->rbp_bufs.next, struct lnet_rtrbuf, rb_list);
 	list_del(&rb->rb_list);
 
 	msg->msg_niov = rbp->rbp_npages;
@@ -879,7 +879,7 @@ lnet_return_rx_credits_locked(struct lnet_msg *msg)
 
 	if (msg->msg_rtrcredit) {
 		/* give back global router credits */
-		lnet_rtrbuf_t *rb;
+		struct lnet_rtrbuf *rb;
 		struct lnet_rtrbufpool *rbp;
 
 		/*
@@ -889,7 +889,7 @@ lnet_return_rx_credits_locked(struct lnet_msg *msg)
 		 */
 		LASSERT(msg->msg_kiov);
 
-		rb = list_entry(msg->msg_kiov, lnet_rtrbuf_t, rb_kiov[0]);
+		rb = list_entry(msg->msg_kiov, struct lnet_rtrbuf, rb_kiov[0]);
 		rbp = rb->rb_pool;
 
 		msg->msg_kiov = NULL;

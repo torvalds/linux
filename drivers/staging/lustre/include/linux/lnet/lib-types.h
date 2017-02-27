@@ -410,11 +410,11 @@ struct lnet_rtrbufpool {
 	int			rbp_mincredits;	/* low water mark */
 };
 
-typedef struct {
+struct lnet_rtrbuf {
 	struct list_head	 rb_list;	/* chain on rbp_bufs */
 	struct lnet_rtrbufpool	*rb_pool;	/* owning pool */
 	lnet_kiov_t		 rb_kiov[0];	/* the buffer space */
-} lnet_rtrbuf_t;
+};
 
 #define LNET_PEER_HASHSIZE	503	/* prime! */
 

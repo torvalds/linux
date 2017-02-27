@@ -1305,9 +1305,9 @@ rescan:
 }
 
 void
-lnet_destroy_rtrbuf(lnet_rtrbuf_t *rb, int npages)
+lnet_destroy_rtrbuf(struct lnet_rtrbuf *rb, int npages)
 {
-	int sz = offsetof(lnet_rtrbuf_t, rb_kiov[npages]);
+	int sz = offsetof(struct lnet_rtrbuf, rb_kiov[npages]);
 
 	while (--npages >= 0)
 		__free_page(rb->rb_kiov[npages].bv_page);
@@ -1315,13 +1315,13 @@ lnet_destroy_rtrbuf(lnet_rtrbuf_t *rb, int npages)
 	LIBCFS_FREE(rb, sz);
 }
 
-static lnet_rtrbuf_t *
+static struct lnet_rtrbuf *
 lnet_new_rtrbuf(struct lnet_rtrbufpool *rbp, int cpt)
 {
 	int npages = rbp->rbp_npages;
-	int sz = offsetof(lnet_rtrbuf_t, rb_kiov[npages]);
+	int sz = offsetof(struct lnet_rtrbuf, rb_kiov[npages]);
 	struct page *page;
-	lnet_rtrbuf_t *rb;
+	struct lnet_rtrbuf *rb;
 	int i;
 
 	LIBCFS_CPT_ALLOC(rb, lnet_cpt_table(), cpt, sz);
@@ -1355,8 +1355,8 @@ lnet_rtrpool_free_bufs(struct lnet_rtrbufpool *rbp, int cpt)
 {
 	int npages = rbp->rbp_npages;
 	struct list_head tmp;
-	lnet_rtrbuf_t *rb;
-	lnet_rtrbuf_t *temp;
+	struct lnet_rtrbuf *rb;
+	struct lnet_rtrbuf *temp;
 
 	if (!rbp->rbp_nbuffers) /* not initialized or already freed */
 		return;
@@ -1383,7 +1383,7 @@ static int
 lnet_rtrpool_adjust_bufs(struct lnet_rtrbufpool *rbp, int nbufs, int cpt)
 {
 	struct list_head rb_list;
-	lnet_rtrbuf_t *rb;
+	struct lnet_rtrbuf *rb;
 	int num_rb;
 	int num_buffers = 0;
 	int old_req_nbufs;
@@ -1458,7 +1458,7 @@ lnet_rtrpool_adjust_bufs(struct lnet_rtrbufpool *rbp, int nbufs, int cpt)
 
 failed:
 	while (!list_empty(&rb_list)) {
-		rb = list_entry(rb_list.next, lnet_rtrbuf_t, rb_list);
+		rb = list_entry(rb_list.next, struct lnet_rtrbuf, rb_list);
 		list_del(&rb->rb_list);
 		lnet_destroy_rtrbuf(rb, npages);
 	}
