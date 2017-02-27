@@ -1,5 +1,5 @@
 config VIDEO_BCM2835
-	tristate "Broadcom BCM2835 camera driver"
+	tristate "BCM2835 Camera"
 	depends on MEDIA_SUPPORT
 	depends on VIDEO_V4L2 && (ARCH_BCM2835 || COMPILE_TEST)
 	depends on BCM2835_VCHIQ
