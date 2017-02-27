@@ -140,8 +140,6 @@ struct i915_gem_context {
 	 */
 	int priority;
 
-	/** ggtt_alignment: alignment restriction for context objects */
-	u32 ggtt_alignment;
 	/** ggtt_offset_bias: placement restriction for context objects */
 	u32 ggtt_offset_bias;
 

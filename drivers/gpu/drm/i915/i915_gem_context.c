@@ -92,21 +92,6 @@
 
 #define ALL_L3_SLICES(dev) (1 << NUM_L3_SLICES(dev)) - 1
 
-/* This is a HW constraint. The value below is the largest known requirement
- * I've seen in a spec to date, and that was a workaround for a non-shipping
- * part. It should be safe to decrease this, but it's more future proof as is.
- */
-#define GEN6_CONTEXT_ALIGN (64<<10)
-#define GEN7_CONTEXT_ALIGN I915_GTT_MIN_ALIGNMENT
-
-static size_t get_context_alignment(struct drm_i915_private *dev_priv)
-{
-	if (IS_GEN6(dev_priv))
-		return GEN6_CONTEXT_ALIGN;
-
-	return GEN7_CONTEXT_ALIGN;
-}
-
 static int get_context_size(struct drm_i915_private *dev_priv)
 {
 	int ret;
@@ -280,8 +265,6 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	kref_init(&ctx->ref);
 	list_add_tail(&ctx->link, &dev_priv->context_list);
 	ctx->i915 = dev_priv;
-
-	ctx->ggtt_alignment = get_context_alignment(dev_priv);
 
 	if (dev_priv->hw_context_size) {
 		struct drm_i915_gem_object *obj;

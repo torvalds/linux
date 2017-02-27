@@ -1431,7 +1431,8 @@ static int context_pin(struct i915_gem_context *ctx)
 			return ret;
 	}
 
-	return i915_vma_pin(vma, 0, ctx->ggtt_alignment, PIN_GLOBAL | PIN_HIGH);
+	return i915_vma_pin(vma, 0, I915_GTT_MIN_ALIGNMENT,
+			    PIN_GLOBAL | PIN_HIGH);
 }
 
 static int intel_ring_context_pin(struct intel_engine_cs *engine,
