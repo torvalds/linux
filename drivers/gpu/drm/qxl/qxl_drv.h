@@ -134,11 +134,6 @@ struct qxl_bo_list {
 struct qxl_crtc {
 	struct drm_crtc base;
 	int index;
-	int cur_x;
-	int cur_y;
-	int hot_spot_x;
-	int hot_spot_y;
-	struct qxl_bo *cursor_bo;
 };
 
 struct qxl_output {
