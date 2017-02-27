@@ -818,7 +818,7 @@ static void f2fs_put_super(struct super_block *sb)
 	kfree(sbi->raw_super);
 
 	destroy_device_list(sbi);
-
+	mempool_destroy(sbi->write_io_dummy);
 	destroy_percpu_info(sbi);
 	kfree(sbi);
 }
