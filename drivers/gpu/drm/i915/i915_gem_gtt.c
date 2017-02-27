@@ -1464,13 +1464,8 @@ static int hsw_mm_switch(struct i915_hw_ppgtt *ppgtt,
 {
 	struct intel_engine_cs *engine = req->engine;
 	u32 *cs;
-	int ret;
 
 	/* NB: TLBs must be flushed and invalidated before a switch */
-	ret = engine->emit_flush(req, EMIT_INVALIDATE | EMIT_FLUSH);
-	if (ret)
-		return ret;
-
 	cs = intel_ring_begin(req, 6);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
@@ -1491,13 +1486,8 @@ static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
 {
 	struct intel_engine_cs *engine = req->engine;
 	u32 *cs;
-	int ret;
 
 	/* NB: TLBs must be flushed and invalidated before a switch */
-	ret = engine->emit_flush(req, EMIT_INVALIDATE | EMIT_FLUSH);
-	if (ret)
-		return ret;
-
 	cs = intel_ring_begin(req, 6);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
@@ -1509,13 +1499,6 @@ static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
 	*cs++ = get_pd_offset(ppgtt);
 	*cs++ = MI_NOOP;
 	intel_ring_advance(req, cs);
-
-	/* XXX: RCS is the only one to auto invalidate the TLBs? */
-	if (engine->id != RCS) {
-		ret = engine->emit_flush(req, EMIT_INVALIDATE | EMIT_FLUSH);
-		if (ret)
-			return ret;
-	}
 
 	return 0;
 }
