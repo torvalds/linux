@@ -315,6 +315,13 @@ DEFINE_EVENT(f2fs__inode_exit, f2fs_unlink_exit,
 	TP_ARGS(inode, ret)
 );
 
+DEFINE_EVENT(f2fs__inode_exit, f2fs_drop_inode,
+
+	TP_PROTO(struct inode *inode, int ret),
+
+	TP_ARGS(inode, ret)
+);
+
 DEFINE_EVENT(f2fs__inode, f2fs_truncate,
 
 	TP_PROTO(struct inode *inode),
