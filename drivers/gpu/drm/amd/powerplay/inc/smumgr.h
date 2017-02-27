@@ -137,6 +137,7 @@ struct pp_smumgr {
 	uint32_t usec_timeout;
 	bool reload_fw;
 	const struct pp_smumgr_func *smumgr_funcs;
+	bool is_kicker;
 };
 
 extern int smum_early_init(struct pp_instance *handle);

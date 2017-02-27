@@ -414,7 +414,8 @@ nouveau_display_init(struct drm_device *dev)
 		return ret;
 
 	/* enable polling for external displays */
-	drm_kms_helper_poll_enable(dev);
+	if (!dev->mode_config.poll_enabled)
+		drm_kms_helper_poll_enable(dev);
 
 	/* enable hotplug interrupts */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
@@ -495,7 +496,7 @@ int
 nouveau_display_create(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvkm_device *device = nvxx_device(&drm->device);
+	struct nvkm_device *device = nvxx_device(&drm->client.device);
 	struct nouveau_display *disp;
 	int ret;
 
@@ -512,15 +513,15 @@ nouveau_display_create(struct drm_device *dev)
 
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
-	if (drm->device.info.family < NV_DEVICE_INFO_V0_CELSIUS) {
+	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_CELSIUS) {
 		dev->mode_config.max_width = 2048;
 		dev->mode_config.max_height = 2048;
 	} else
-	if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA) {
+	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA) {
 		dev->mode_config.max_width = 4096;
 		dev->mode_config.max_height = 4096;
 	} else
-	if (drm->device.info.family < NV_DEVICE_INFO_V0_FERMI) {
+	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_FERMI) {
 		dev->mode_config.max_width = 8192;
 		dev->mode_config.max_height = 8192;
 	} else {
@@ -531,7 +532,7 @@ nouveau_display_create(struct drm_device *dev)
 	dev->mode_config.preferred_depth = 24;
 	dev->mode_config.prefer_shadow = 1;
 
-	if (drm->device.info.chipset < 0x11)
+	if (drm->client.device.info.chipset < 0x11)
 		dev->mode_config.async_page_flip = false;
 	else
 		dev->mode_config.async_page_flip = true;
@@ -558,7 +559,7 @@ nouveau_display_create(struct drm_device *dev)
 		int i;
 
 		for (i = 0, ret = -ENODEV; ret && i < ARRAY_SIZE(oclass); i++) {
-			ret = nvif_object_init(&drm->device.object, 0,
+			ret = nvif_object_init(&drm->client.device.object, 0,
 					       oclass[i], NULL, 0, &disp->disp);
 		}
 
@@ -1057,6 +1058,7 @@ int
 nouveau_display_dumb_create(struct drm_file *file_priv, struct drm_device *dev,
 			    struct drm_mode_create_dumb *args)
 {
+	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct nouveau_bo *bo;
 	uint32_t domain;
 	int ret;
@@ -1066,12 +1068,12 @@ nouveau_display_dumb_create(struct drm_file *file_priv, struct drm_device *dev,
 	args->size = roundup(args->size, PAGE_SIZE);
 
 	/* Use VRAM if there is any ; otherwise fallback to system memory */
-	if (nouveau_drm(dev)->device.info.ram_size != 0)
+	if (nouveau_drm(dev)->client.device.info.ram_size != 0)
 		domain = NOUVEAU_GEM_DOMAIN_VRAM;
 	else
 		domain = NOUVEAU_GEM_DOMAIN_GART;
 
-	ret = nouveau_gem_new(dev, args->size, 0, domain, 0, 0, &bo);
+	ret = nouveau_gem_new(cli, args->size, 0, domain, 0, 0, &bo);
 	if (ret)
 		return ret;
 

@@ -2506,6 +2506,25 @@ static int dispc_ovl_calc_scaling_44xx(unsigned long pclk, unsigned long lclk,
 		return -EINVAL;
 	}
 
+	if (*decim_x > 4 && color_mode != OMAP_DSS_COLOR_NV12) {
+		/*
+		 * Let's disable all scaling that requires horizontal
+		 * decimation with higher factor than 4, until we have
+		 * better estimates of what we can and can not
+		 * do. However, NV12 color format appears to work Ok
+		 * with all decimation factors.
+		 *
+		 * When decimating horizontally by more that 4 the dss
+		 * is not able to fetch the data in burst mode. When
+		 * this happens it is hard to tell if there enough
+		 * bandwidth. Despite what theory says this appears to
+		 * be true also for 16-bit color formats.
+		 */
+		DSSERR("Not enough bandwidth, too much downscaling (x-decimation factor %d > 4)", *decim_x);
+
+		return -EINVAL;
+	}
+
 	*core_clk = dispc.feat->calc_core_clk(pclk, in_width, in_height,
 				out_width, out_height, mem_to_mem);
 	return 0;

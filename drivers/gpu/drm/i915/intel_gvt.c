@@ -67,6 +67,11 @@ int intel_gvt_init(struct drm_i915_private *dev_priv)
 		return 0;
 	}
 
+	if (intel_vgpu_active(dev_priv)) {
+		DRM_DEBUG_DRIVER("GVT-g is disabled for guest\n");
+		goto bail;
+	}
+
 	if (!is_supported_device(dev_priv)) {
 		DRM_DEBUG_DRIVER("Unsupported device. GVT-g is disabled\n");
 		goto bail;

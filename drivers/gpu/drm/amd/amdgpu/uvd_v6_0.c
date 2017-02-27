@@ -1051,12 +1051,10 @@ static int uvd_v6_0_set_powergating_state(void *handle,
 
 	if (state == AMD_PG_STATE_GATE) {
 		uvd_v6_0_stop(adev);
-		adev->uvd.is_powergated = true;
 	} else {
 		ret = uvd_v6_0_start(adev);
 		if (ret)
 			goto out;
-		adev->uvd.is_powergated = false;
 	}
 
 out:
@@ -1070,7 +1068,8 @@ static void uvd_v6_0_get_clockgating_state(void *handle, u32 *flags)
 
 	mutex_lock(&adev->pm.mutex);
 
-	if (adev->uvd.is_powergated) {
+	if (RREG32_SMC(ixCURRENT_PG_STATUS) &
+				CURRENT_PG_STATUS__UVD_PG_STATUS_MASK) {
 		DRM_INFO("Cannot get clockgating state when UVD is powergated.\n");
 		goto out;
 	}

@@ -1023,7 +1023,12 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 		if (!host->busy_status && busy_resp &&
 		    !(status & (MCI_CMDCRCFAIL|MCI_CMDTIMEOUT)) &&
 		    (readl(base + MMCISTATUS) & host->variant->busy_detect_flag)) {
-			/* Unmask the busy IRQ */
+
+			/* Clear the busy start IRQ */
+			writel(host->variant->busy_detect_mask,
+			       host->base + MMCICLEAR);
+
+			/* Unmask the busy end IRQ */
 			writel(readl(base + MMCIMASK0) |
 			       host->variant->busy_detect_mask,
 			       base + MMCIMASK0);
@@ -1038,10 +1043,14 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 
 		/*
 		 * At this point we are not busy with a command, we have
-		 * not received a new busy request, mask the busy IRQ and
-		 * fall through to process the IRQ.
+		 * not received a new busy request, clear and mask the busy
+		 * end IRQ and fall through to process the IRQ.
 		 */
 		if (host->busy_status) {
+
+			writel(host->variant->busy_detect_mask,
+			       host->base + MMCICLEAR);
+
 			writel(readl(base + MMCIMASK0) &
 			       ~host->variant->busy_detect_mask,
 			       base + MMCIMASK0);
@@ -1283,12 +1292,21 @@ static irqreturn_t mmci_irq(int irq, void *dev_id)
 		}
 
 		/*
-		 * We intentionally clear the MCI_ST_CARDBUSY IRQ here (if it's
-		 * enabled) since the HW seems to be triggering the IRQ on both
-		 * edges while monitoring DAT0 for busy completion.
+		 * We intentionally clear the MCI_ST_CARDBUSY IRQ (if it's
+		 * enabled) in mmci_cmd_irq() function where ST Micro busy
+		 * detection variant is handled. Considering the HW seems to be
+		 * triggering the IRQ on both edges while monitoring DAT0 for
+		 * busy completion and that same status bit is used to monitor
+		 * start and end of busy detection, special care must be taken
+		 * to make sure that both start and end interrupts are always
+		 * cleared one after the other.
 		 */
 		status &= readl(host->base + MMCIMASK0);
-		writel(status, host->base + MMCICLEAR);
+		if (host->variant->busy_detect)
+			writel(status & ~host->variant->busy_detect_mask,
+			       host->base + MMCICLEAR);
+		else
+			writel(status, host->base + MMCICLEAR);
 
 		dev_dbg(mmc_dev(host->mmc), "irq0 (data+cmd) %08x\n", status);
 

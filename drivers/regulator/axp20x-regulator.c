@@ -272,7 +272,7 @@ static const struct regulator_desc axp806_regulators[] = {
 			64, AXP806_DCDCD_V_CTRL, 0x3f, AXP806_PWR_OUT_CTRL1,
 			BIT(3)),
 	AXP_DESC(AXP806, DCDCE, "dcdce", "vine", 1100, 3400, 100,
-		 AXP806_DCDCB_V_CTRL, 0x1f, AXP806_PWR_OUT_CTRL1, BIT(4)),
+		 AXP806_DCDCE_V_CTRL, 0x1f, AXP806_PWR_OUT_CTRL1, BIT(4)),
 	AXP_DESC(AXP806, ALDO1, "aldo1", "aldoin", 700, 3300, 100,
 		 AXP806_ALDO1_V_CTRL, 0x1f, AXP806_PWR_OUT_CTRL1, BIT(5)),
 	AXP_DESC(AXP806, ALDO2, "aldo2", "aldoin", 700, 3400, 100,

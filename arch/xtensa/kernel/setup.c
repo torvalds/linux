@@ -419,7 +419,7 @@ subsys_initcall(topology_init);
 
 void cpu_reset(void)
 {
-#if XCHAL_HAVE_PTP_MMU
+#if XCHAL_HAVE_PTP_MMU && IS_ENABLED(CONFIG_MMU)
 	local_irq_disable();
 	/*
 	 * We have full MMU: all autoload ways, ways 7, 8 and 9 of DTLB must

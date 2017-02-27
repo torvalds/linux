@@ -19,10 +19,6 @@ CFLAGS_init.o += $(DISABLE_LATENT_ENTROPY_PLUGIN)
 CFLAGS_btext.o += $(DISABLE_LATENT_ENTROPY_PLUGIN)
 CFLAGS_prom.o += $(DISABLE_LATENT_ENTROPY_PLUGIN)
 
-# -fstack-protector triggers protection checks in this code,
-# but it is being used too early to link to meaningful stack_chk logic.
-CFLAGS_prom_init.o += $(call cc-option, -fno-stack-protector)
-
 ifdef CONFIG_FUNCTION_TRACER
 # Do not trace early boot code
 CFLAGS_REMOVE_cputable.o = -mno-sched-epilog $(CC_FLAGS_FTRACE)

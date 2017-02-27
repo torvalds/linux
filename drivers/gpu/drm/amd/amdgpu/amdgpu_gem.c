@@ -504,13 +504,7 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 	list_for_each_entry(entry, list, head) {
 		struct amdgpu_bo *bo =
 			container_of(entry->bo, struct amdgpu_bo, tbo);
-
-		/* if anything is swapped out don't swap it in here,
-		   just abort and wait for the next CS */
-		if (!amdgpu_bo_gpu_accessible(bo))
-			goto error;
-
-		if (bo->shadow && !amdgpu_bo_gpu_accessible(bo->shadow))
+		if (amdgpu_gem_va_check(NULL, bo))
 			goto error;
 	}
 

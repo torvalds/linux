@@ -187,6 +187,7 @@ mpl	MPL AG
 mqmaker	mqmaker Inc.
 msi	Micro-Star International Co. Ltd.
 mti	Imagination Technologies Ltd. (formerly MIPS Technologies Inc.)
+multi-inno	Multi-Inno Technology Co.,Ltd
 mundoreader	Mundo Reader S.L.
 murata	Murata Manufacturing Co., Ltd.
 mxicy	Macronix International Co., Ltd.
@@ -196,6 +197,7 @@ nec	NEC LCD Technologies, Ltd.
 neonode		Neonode Inc.
 netgear	NETGEAR
 netlogic	Broadcom Corporation (formerly NetLogic Microsystems)
+netron-dy	Netron DY
 netxeon		Shenzhen Netxeon Technology CO., LTD
 nexbox	Nexbox
 newhaven	Newhaven Display International
@@ -296,6 +298,7 @@ technologic	Technologic Systems
 terasic	Terasic Inc.
 thine	THine Electronics, Inc.
 ti	Texas Instruments
+tianma	Tianma Micro-electronics Co., Ltd.
 tlm	Trusted Logic Mobility
 topeet  Topeet
 toradex	Toradex AG

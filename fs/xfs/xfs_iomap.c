@@ -681,7 +681,7 @@ xfs_iomap_write_allocate(
 	xfs_trans_t	*tp;
 	int		nimaps;
 	int		error = 0;
-	int		flags = 0;
+	int		flags = XFS_BMAPI_DELALLOC;
 	int		nres;
 
 	if (whichfork == XFS_COW_FORK)
