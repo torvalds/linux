@@ -252,6 +252,23 @@ static int qxl_add_common_modes(struct drm_connector *connector,
 	return i - 1;
 }
 
+static void qxl_crtc_atomic_flush(struct drm_crtc *crtc,
+				  struct drm_crtc_state *old_crtc_state)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_pending_vblank_event *event;
+	unsigned long flags;
+
+	if (crtc->state && crtc->state->event) {
+		event = crtc->state->event;
+		crtc->state->event = NULL;
+
+		spin_lock_irqsave(&dev->event_lock, flags);
+		drm_crtc_send_vblank_event(crtc, event);
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+	}
+}
+
 static void qxl_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct qxl_crtc *qxl_crtc = to_qxl_crtc(crtc);
@@ -553,7 +570,80 @@ static const struct drm_crtc_helper_funcs qxl_crtc_helper_funcs = {
 	.mode_set = qxl_crtc_mode_set,
 	.prepare = qxl_crtc_prepare,
 	.commit = qxl_crtc_commit,
+	.atomic_flush = qxl_crtc_atomic_flush,
 };
+
+int qxl_primary_atomic_check(struct drm_plane *plane,
+			     struct drm_plane_state *state)
+{
+	struct qxl_device *qdev = plane->dev->dev_private;
+	struct qxl_framebuffer *qfb;
+	struct qxl_bo *bo;
+
+	if (!state->crtc || !state->fb)
+		return 0;
+
+	qfb = to_qxl_framebuffer(state->fb);
+	bo = gem_to_qxl_bo(qfb->obj);
+
+	if (bo->surf.stride * bo->surf.height > qdev->vram_size) {
+		DRM_ERROR("Mode doesn't fit in vram size (vgamem)");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void qxl_primary_atomic_update(struct drm_plane *plane,
+				      struct drm_plane_state *old_state)
+{
+	struct qxl_device *qdev = plane->dev->dev_private;
+	struct qxl_framebuffer *qfb =
+		to_qxl_framebuffer(plane->state->fb);
+	struct qxl_framebuffer *qfb_old;
+	struct qxl_bo *bo = gem_to_qxl_bo(qfb->obj);
+	struct qxl_bo *bo_old;
+	struct drm_clip_rect norect = {
+	    .x1 = 0,
+	    .y1 = 0,
+	    .x2 = qfb->base.width,
+	    .y2 = qfb->base.height
+	};
+
+	if (!old_state->fb) {
+		qxl_io_log(qdev,
+			   "create primary fb: %dx%d,%d,%d\n",
+			   bo->surf.width, bo->surf.height,
+			   bo->surf.stride, bo->surf.format);
+
+		qxl_io_create_primary(qdev, 0, bo);
+		bo->is_primary = true;
+		return;
+
+	} else {
+		qfb_old = to_qxl_framebuffer(old_state->fb);
+		bo_old = gem_to_qxl_bo(qfb_old->obj);
+		bo_old->is_primary = false;
+	}
+
+	bo->is_primary = true;
+	qxl_draw_dirty_fb(qdev, qfb, bo, 0, 0, &norect, 1, 1);
+}
+
+static void qxl_primary_atomic_disable(struct drm_plane *plane,
+				       struct drm_plane_state *old_state)
+{
+	struct qxl_device *qdev = plane->dev->dev_private;
+
+	if (old_state->fb)
+	{	struct qxl_framebuffer *qfb =
+			to_qxl_framebuffer(old_state->fb);
+		struct qxl_bo *bo = gem_to_qxl_bo(qfb->obj);
+
+		qxl_io_destroy_primary(qdev);
+		bo->is_primary = false;
+	}
+}
 
 int qxl_plane_atomic_check(struct drm_plane *plane,
 			   struct drm_plane_state *state)
@@ -742,8 +832,16 @@ static const uint32_t qxl_primary_plane_formats[] = {
 	DRM_FORMAT_ARGB8888,
 };
 
+static const struct drm_plane_helper_funcs primary_helper_funcs = {
+	.atomic_check = qxl_primary_atomic_check,
+	.atomic_update = qxl_primary_atomic_update,
+	.atomic_disable = qxl_primary_atomic_disable,
+	.prepare_fb = qxl_plane_prepare_fb,
+	.cleanup_fb = qxl_plane_cleanup_fb,
+};
+
 static const struct drm_plane_funcs qxl_primary_plane_funcs = {
-	.update_plane	= drm_primary_helper_update,
+	.update_plane	= drm_plane_helper_update,
 	.disable_plane	= drm_primary_helper_disable,
 	.destroy	= drm_primary_helper_destroy,
 };
@@ -763,6 +861,7 @@ static struct drm_plane *qxl_create_plane(struct qxl_device *qdev,
 		funcs = &qxl_primary_plane_funcs;
 		formats = qxl_primary_plane_formats;
 		num_formats = ARRAY_SIZE(qxl_primary_plane_formats);
+		helper_funcs = &primary_helper_funcs;
 	} else if (type == DRM_PLANE_TYPE_CURSOR) {
 		funcs = &qxl_cursor_plane_funcs;
 		formats = qxl_cursor_plane_formats;
