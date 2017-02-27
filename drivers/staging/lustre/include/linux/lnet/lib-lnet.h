@@ -603,7 +603,7 @@ bool lnet_delay_rule_match_locked(struct lnet_hdr *hdr, struct lnet_msg *msg);
 
 /** @} lnet_fault_simulation */
 
-void lnet_counters_get(lnet_counters_t *counters);
+void lnet_counters_get(struct lnet_counters *counters);
 void lnet_counters_reset(void);
 
 unsigned int lnet_iov_nob(unsigned int niov, struct kvec *iov);

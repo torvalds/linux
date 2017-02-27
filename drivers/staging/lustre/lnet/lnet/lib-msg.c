@@ -132,7 +132,7 @@ void
 lnet_msg_commit(struct lnet_msg *msg, int cpt)
 {
 	struct lnet_msg_container *container = the_lnet.ln_msg_containers[cpt];
-	lnet_counters_t *counters  = the_lnet.ln_counters[cpt];
+	struct lnet_counters *counters  = the_lnet.ln_counters[cpt];
 
 	/* routed message can be committed for both receiving and sending */
 	LASSERT(!msg->msg_tx_committed);
@@ -164,7 +164,7 @@ lnet_msg_commit(struct lnet_msg *msg, int cpt)
 static void
 lnet_msg_decommit_tx(struct lnet_msg *msg, int status)
 {
-	lnet_counters_t	*counters;
+	struct lnet_counters	*counters;
 	lnet_event_t *ev = &msg->msg_ev;
 
 	LASSERT(msg->msg_tx_committed);
@@ -216,7 +216,7 @@ lnet_msg_decommit_tx(struct lnet_msg *msg, int status)
 static void
 lnet_msg_decommit_rx(struct lnet_msg *msg, int status)
 {
-	lnet_counters_t *counters;
+	struct lnet_counters *counters;
 	lnet_event_t *ev = &msg->msg_ev;
 
 	LASSERT(!msg->msg_tx_committed); /* decommitted or never committed */

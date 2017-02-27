@@ -250,7 +250,7 @@ struct lnet_ping_info {
 	struct lnet_ni_status	pi_ni[0];
 } WIRE_ATTR;
 
-typedef struct lnet_counters {
+struct lnet_counters {
 	__u32	msgs_alloc;
 	__u32	msgs_max;
 	__u32	errors;
@@ -262,7 +262,7 @@ typedef struct lnet_counters {
 	__u64	recv_length;
 	__u64	route_length;
 	__u64	drop_length;
-} WIRE_ATTR lnet_counters_t;
+} WIRE_ATTR;
 
 #define LNET_NI_STATUS_UP      0x15aac0de
 #define LNET_NI_STATUS_DOWN    0xdeadface

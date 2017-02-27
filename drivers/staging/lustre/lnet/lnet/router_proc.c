@@ -77,7 +77,7 @@ static int __proc_lnet_stats(void *data, int write,
 			     loff_t pos, void __user *buffer, int nob)
 {
 	int rc;
-	lnet_counters_t *ctrs;
+	struct lnet_counters *ctrs;
 	int len;
 	char *tmpstr;
 	const int tmpsiz = 256; /* 7 %u and 4 %llu */

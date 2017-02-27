@@ -315,9 +315,9 @@ lnet_unregister_lnd(struct lnet_lnd *lnd)
 EXPORT_SYMBOL(lnet_unregister_lnd);
 
 void
-lnet_counters_get(lnet_counters_t *counters)
+lnet_counters_get(struct lnet_counters *counters)
 {
-	lnet_counters_t *ctr;
+	struct lnet_counters *ctr;
 	int i;
 
 	memset(counters, 0, sizeof(*counters));
@@ -344,13 +344,13 @@ EXPORT_SYMBOL(lnet_counters_get);
 void
 lnet_counters_reset(void)
 {
-	lnet_counters_t *counters;
+	struct lnet_counters *counters;
 	int i;
 
 	lnet_net_lock(LNET_LOCK_EX);
 
 	cfs_percpt_for_each(counters, i, the_lnet.ln_counters)
-		memset(counters, 0, sizeof(lnet_counters_t));
+		memset(counters, 0, sizeof(struct lnet_counters));
 
 	lnet_net_unlock(LNET_LOCK_EX);
 }
@@ -560,7 +560,7 @@ lnet_prepare(lnet_pid_t requested_pid)
 	the_lnet.ln_interface_cookie = ktime_get_ns();
 
 	the_lnet.ln_counters = cfs_percpt_alloc(lnet_cpt_table(),
-						sizeof(lnet_counters_t));
+						sizeof(struct lnet_counters));
 	if (!the_lnet.ln_counters) {
 		CERROR("Failed to allocate counters for LNet\n");
 		rc = -ENOMEM;

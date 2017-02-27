@@ -163,7 +163,7 @@ struct srpc_stat_reply {
 	struct lst_sid	   str_sid;
 	struct sfw_counters	str_fw;
 	struct srpc_counters	str_rpc;
-	lnet_counters_t    str_lnet;
+	struct lnet_counters    str_lnet;
 } WIRE_ATTR;
 
 struct test_bulk_req {

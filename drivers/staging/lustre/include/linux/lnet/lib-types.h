@@ -573,7 +573,7 @@ struct lnet {
 	struct cfs_percpt_lock		 *ln_net_lock;
 	/* percpt message containers for active/finalizing/freed message */
 	struct lnet_msg_container	**ln_msg_containers;
-	lnet_counters_t			**ln_counters;
+	struct lnet_counters		**ln_counters;
 	struct lnet_peer_table		**ln_peer_tables;
 	/* failure simulation */
 	struct list_head		  ln_test_peers;
