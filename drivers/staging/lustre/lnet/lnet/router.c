@@ -933,7 +933,7 @@ lnet_create_rc_data_locked(lnet_peer_t *gateway)
 	md.options = LNET_MD_TRUNCATE;
 	md.eq_handle = the_lnet.ln_rc_eqh;
 
-	LASSERT(!LNetHandleIsInvalid(the_lnet.ln_rc_eqh));
+	LASSERT(!LNetEQHandleIsInvalid(the_lnet.ln_rc_eqh));
 	rc = LNetMDBind(md, LNET_UNLINK, &rcd->rcd_mdh);
 	if (rc < 0) {
 		CERROR("Can't bind MD: %d\n", rc);

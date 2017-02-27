@@ -165,7 +165,7 @@ lnet_md_build(lnet_libmd_t *lmd, lnet_md_t *umd, int unlink)
 
 /* must be called with resource lock held */
 static int
-lnet_md_link(lnet_libmd_t *md, lnet_handle_eq_t eq_handle, int cpt)
+lnet_md_link(lnet_libmd_t *md, struct lnet_handle_eq eq_handle, int cpt)
 {
 	struct lnet_res_container *container = the_lnet.ln_md_containers[cpt];
 
@@ -185,7 +185,7 @@ lnet_md_link(lnet_libmd_t *md, lnet_handle_eq_t eq_handle, int cpt)
 	 * maybe there we shouldn't even allow LNET_EQ_NONE!)
 	 * LASSERT(!eq);
 	 */
-	if (!LNetHandleIsInvalid(eq_handle)) {
+	if (!LNetEQHandleIsInvalid(eq_handle)) {
 		md->md_eq = lnet_handle2eq(&eq_handle);
 
 		if (!md->md_eq)

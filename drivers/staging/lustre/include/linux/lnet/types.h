@@ -284,7 +284,6 @@ typedef struct {
 	__u64	 cookie;
 } lnet_handle_any_t;
 
-typedef lnet_handle_any_t lnet_handle_eq_t;
 typedef lnet_handle_any_t lnet_handle_md_t;
 typedef lnet_handle_any_t lnet_handle_me_t;
 
@@ -316,6 +315,28 @@ static inline int LNetHandleIsEqual(lnet_handle_any_t h1, lnet_handle_any_t h2)
 static inline int LNetHandleIsInvalid(lnet_handle_any_t h)
 {
 	return h.cookie == LNET_WIRE_HANDLE_COOKIE_NONE;
+}
+
+struct lnet_handle_eq {
+	u64	cookie;
+};
+
+/**
+ * Invalidate eq handle @h.
+ */
+static inline void LNetInvalidateEQHandle(struct lnet_handle_eq *h)
+{
+	h->cookie = LNET_WIRE_HANDLE_COOKIE_NONE;
+}
+
+/**
+ * Check whether eq handle @h is invalid.
+ *
+ * @return 1 if handle is invalid, 0 if valid.
+ */
+static inline int LNetEQHandleIsInvalid(struct lnet_handle_eq h)
+{
+	return (LNET_WIRE_HANDLE_COOKIE_NONE == h.cookie);
 }
 
 /**
@@ -461,7 +482,7 @@ typedef struct {
 	 * by LNetInvalidateHandle()), operations performed on this memory
 	 * descriptor are not logged.
 	 */
-	lnet_handle_eq_t eq_handle;
+	struct lnet_handle_eq eq_handle;
 } lnet_md_t;
 
 /*

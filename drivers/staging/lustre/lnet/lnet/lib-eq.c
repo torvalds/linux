@@ -64,7 +64,7 @@
  */
 int
 LNetEQAlloc(unsigned int count, lnet_eq_handler_t callback,
-	    lnet_handle_eq_t *handle)
+	    struct lnet_handle_eq *handle)
 {
 	lnet_eq_t *eq;
 
@@ -152,7 +152,7 @@ EXPORT_SYMBOL(LNetEQAlloc);
  * \retval -EBUSY  If the EQ is still in use by some MDs.
  */
 int
-LNetEQFree(lnet_handle_eq_t eqh)
+LNetEQFree(struct lnet_handle_eq eqh)
 {
 	struct lnet_eq *eq;
 	lnet_event_t *events = NULL;
@@ -370,7 +370,7 @@ __must_hold(&the_lnet.ln_eq_wait_lock)
  * \retval -ENOENT    If there's an invalid handle in \a eventqs.
  */
 int
-LNetEQPoll(lnet_handle_eq_t *eventqs, int neq, int timeout_ms,
+LNetEQPoll(struct lnet_handle_eq *eventqs, int neq, int timeout_ms,
 	   lnet_event_t *event, int *which)
 {
 	int wait = 1;

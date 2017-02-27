@@ -278,10 +278,10 @@ lnet_res_lh_invalidate(lnet_libhandle_t *lh)
 }
 
 static inline void
-lnet_eq2handle(lnet_handle_eq_t *handle, lnet_eq_t *eq)
+lnet_eq2handle(struct lnet_handle_eq *handle, lnet_eq_t *eq)
 {
 	if (!eq) {
-		LNetInvalidateHandle(handle);
+		LNetInvalidateEQHandle(handle);
 		return;
 	}
 
@@ -289,7 +289,7 @@ lnet_eq2handle(lnet_handle_eq_t *handle, lnet_eq_t *eq)
 }
 
 static inline lnet_eq_t *
-lnet_handle2eq(lnet_handle_eq_t *handle)
+lnet_handle2eq(struct lnet_handle_eq *handle)
 {
 	lnet_libhandle_t *lh;
 

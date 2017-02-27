@@ -53,7 +53,7 @@ enum srpc_state {
 static struct smoketest_rpc {
 	spinlock_t	 rpc_glock;	/* global lock */
 	struct srpc_service	*rpc_services[SRPC_SERVICE_MAX_ID + 1];
-	lnet_handle_eq_t rpc_lnet_eq;	/* _the_ LNet event queue */
+	struct lnet_handle_eq	 rpc_lnet_eq;	/* _the_ LNet event queue */
 	enum srpc_state	 rpc_state;
 	struct srpc_counters	 rpc_counters;
 	__u64		 rpc_matchbits;	/* matchbits counter */
@@ -1622,7 +1622,7 @@ srpc_startup(void)
 
 	srpc_data.rpc_state = SRPC_STATE_NI_INIT;
 
-	LNetInvalidateHandle(&srpc_data.rpc_lnet_eq);
+	LNetInvalidateEQHandle(&srpc_data.rpc_lnet_eq);
 	rc = LNetEQAlloc(0, srpc_lnet_ev_handler, &srpc_data.rpc_lnet_eq);
 	if (rc) {
 		CERROR("LNetEQAlloc() has failed: %d\n", rc);

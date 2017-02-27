@@ -598,13 +598,13 @@ typedef struct {
 	lnet_rtrbufpool_t		**ln_rtrpools;
 
 	lnet_handle_md_t		  ln_ping_target_md;
-	lnet_handle_eq_t		  ln_ping_target_eq;
+	struct lnet_handle_eq		  ln_ping_target_eq;
 	struct lnet_ping_info		 *ln_ping_info;
 
 	/* router checker startup/shutdown state */
 	int				  ln_rc_state;
 	/* router checker's event queue */
-	lnet_handle_eq_t		  ln_rc_eqh;
+	struct lnet_handle_eq		  ln_rc_eqh;
 	/* rcd still pending on net */
 	struct list_head		  ln_rcd_deathrow;
 	/* rcd ready for free */

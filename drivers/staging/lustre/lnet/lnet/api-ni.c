@@ -1433,7 +1433,7 @@ int lnet_lib_init(void)
 	}
 
 	the_lnet.ln_refcount = 0;
-	LNetInvalidateHandle(&the_lnet.ln_rc_eqh);
+	LNetInvalidateEQHandle(&the_lnet.ln_rc_eqh);
 	INIT_LIST_HEAD(&the_lnet.ln_lnds);
 	INIT_LIST_HEAD(&the_lnet.ln_rcd_zombie);
 	INIT_LIST_HEAD(&the_lnet.ln_rcd_deathrow);
@@ -2138,7 +2138,7 @@ EXPORT_SYMBOL(LNetSnprintHandle);
 static int lnet_ping(lnet_process_id_t id, int timeout_ms,
 		     lnet_process_id_t __user *ids, int n_ids)
 {
-	lnet_handle_eq_t eqh;
+	struct lnet_handle_eq eqh;
 	lnet_handle_md_t mdh;
 	lnet_event_t event;
 	lnet_md_t md = { NULL };

@@ -42,7 +42,7 @@
 #include "../include/lustre_sec.h"
 #include "ptlrpc_internal.h"
 
-lnet_handle_eq_t   ptlrpc_eq_h;
+struct lnet_handle_eq ptlrpc_eq_h;
 
 /*
  *  Client's outgoing request callback
