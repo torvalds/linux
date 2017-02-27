@@ -2847,7 +2847,7 @@ context_switch(struct rq *rq, struct task_struct *prev,
 
 	if (!mm) {
 		next->active_mm = oldmm;
-		atomic_inc(&oldmm->mm_count);
+		mmgrab(oldmm);
 		enter_lazy_tlb(oldmm, next);
 	} else
 		switch_mm_irqs_off(oldmm, mm, next);
@@ -6098,7 +6098,7 @@ void __init sched_init(void)
 	/*
 	 * The boot idle thread does lazy MMU switching as well:
 	 */
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	enter_lazy_tlb(&init_mm, current);
 
 	/*

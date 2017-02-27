@@ -140,7 +140,7 @@ void start_kernel_secondary(void)
 	setup_processor();
 
 	atomic_inc(&mm->mm_users);
-	atomic_inc(&mm->mm_count);
+	mmgrab(mm);
 	current->active_mm = mm;
 	cpumask_set_cpu(cpu, mm_cpumask(mm));
 

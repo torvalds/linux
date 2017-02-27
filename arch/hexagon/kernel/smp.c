@@ -162,7 +162,7 @@ void start_secondary(void)
 	);
 
 	/*  Set the memory struct  */
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 
 	cpu = smp_processor_id();

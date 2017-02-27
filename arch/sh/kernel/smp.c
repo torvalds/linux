@@ -178,7 +178,7 @@ asmlinkage void start_secondary(void)
 	struct mm_struct *mm = &init_mm;
 
 	enable_mmu();
-	atomic_inc(&mm->mm_count);
+	mmgrab(mm);
 	atomic_inc(&mm->mm_users);
 	current->active_mm = mm;
 #ifdef CONFIG_MMU

@@ -448,7 +448,7 @@ void trap_init(void)
 		thread_info_offsets_are_bolixed_pete();
 
 	/* Attach to the address space of init_task. */
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 
 	/* NOTE: Other cpus have this done as they are started
