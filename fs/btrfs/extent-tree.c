@@ -4347,7 +4347,7 @@ int btrfs_check_data_free_space(struct inode *inode, u64 start, u64 len)
 
 	/* Use new btrfs_qgroup_reserve_data to reserve precious data space. */
 	ret = btrfs_qgroup_reserve_data(inode, start, len);
-	if (ret)
+	if (ret < 0)
 		btrfs_free_reserved_data_space_noquota(inode, start, len);
 	return ret;
 }
