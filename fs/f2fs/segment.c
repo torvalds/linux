@@ -1036,6 +1036,8 @@ next:
 		start = start_segno + sbi->segs_per_sec;
 		if (start < end)
 			goto next;
+		else
+			end = start - 1;
 	}
 	mutex_unlock(&dirty_i->seglist_lock);
 
