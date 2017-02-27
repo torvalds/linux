@@ -346,10 +346,10 @@ struct lnet_process_id {
  * Specifies whether the match entry or memory descriptor should be unlinked
  * automatically (LNET_UNLINK) or not (LNET_RETAIN).
  */
-typedef enum {
+enum lnet_unlink {
 	LNET_RETAIN = 0,
 	LNET_UNLINK
-} lnet_unlink_t;
+};
 
 /**
  * Values of the type lnet_ins_pos_t are used to control where a new match

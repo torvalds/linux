@@ -72,7 +72,7 @@ int
 LNetMEAttach(unsigned int portal,
 	     struct lnet_process_id match_id,
 	     __u64 match_bits, __u64 ignore_bits,
-	     lnet_unlink_t unlink, lnet_ins_pos_t pos,
+	     enum lnet_unlink unlink, lnet_ins_pos_t pos,
 	     struct lnet_handle_me *handle)
 {
 	struct lnet_match_table *mtable;
@@ -143,7 +143,7 @@ int
 LNetMEInsert(struct lnet_handle_me current_meh,
 	     struct lnet_process_id match_id,
 	     __u64 match_bits, __u64 ignore_bits,
-	     lnet_unlink_t unlink, lnet_ins_pos_t pos,
+	     enum lnet_unlink unlink, lnet_ins_pos_t pos,
 	     struct lnet_handle_me *handle)
 {
 	struct lnet_me *current_me;

@@ -135,7 +135,7 @@ struct lnet_me {
 	unsigned int		 me_pos;	/* hash offset in mt_hash */
 	__u64			 me_match_bits;
 	__u64			 me_ignore_bits;
-	lnet_unlink_t		 me_unlink;
+	enum lnet_unlink	 me_unlink;
 	struct lnet_libmd	*me_md;
 };
 

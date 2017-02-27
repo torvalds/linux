@@ -268,7 +268,7 @@ lnet_md_validate(struct lnet_md *umd)
  */
 int
 LNetMDAttach(struct lnet_handle_me meh, struct lnet_md umd,
-	     lnet_unlink_t unlink, struct lnet_handle_md *handle)
+	     enum lnet_unlink unlink, struct lnet_handle_md *handle)
 {
 	LIST_HEAD(matches);
 	LIST_HEAD(drops);
@@ -350,7 +350,7 @@ EXPORT_SYMBOL(LNetMDAttach);
  * LNetInvalidateHandle() on it.
  */
 int
-LNetMDBind(struct lnet_md umd, lnet_unlink_t unlink,
+LNetMDBind(struct lnet_md umd, enum lnet_unlink unlink,
 	   struct lnet_handle_md *handle)
 {
 	struct lnet_libmd *md;
