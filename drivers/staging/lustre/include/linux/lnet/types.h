@@ -352,20 +352,20 @@ enum lnet_unlink {
 };
 
 /**
- * Values of the type lnet_ins_pos_t are used to control where a new match
+ * Values of the type lnet_ins_pos are used to control where a new match
  * entry is inserted. The value LNET_INS_BEFORE is used to insert the new
  * entry before the current entry or before the head of the list. The value
  * LNET_INS_AFTER is used to insert the new entry after the current entry
  * or after the last item in the list.
  */
-typedef enum {
+enum lnet_ins_pos {
 	/** insert ME before current position or head of the list */
 	LNET_INS_BEFORE,
 	/** insert ME after current position or tail of the list */
 	LNET_INS_AFTER,
 	/** attach ME at tail of local CPU partition ME list */
 	LNET_INS_LOCAL
-} lnet_ins_pos_t;
+};
 
 /** @} lnet_me */
 

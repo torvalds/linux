@@ -224,7 +224,7 @@ lnet_match2mt(struct lnet_portal *ptl, struct lnet_process_id id, __u64 mbits)
 
 struct lnet_match_table *
 lnet_mt_of_attach(unsigned int index, struct lnet_process_id id,
-		  __u64 mbits, __u64 ignore_bits, lnet_ins_pos_t pos)
+		  __u64 mbits, __u64 ignore_bits, enum lnet_ins_pos pos)
 {
 	struct lnet_portal *ptl;
 	struct lnet_match_table	*mtable;

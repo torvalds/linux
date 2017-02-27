@@ -538,7 +538,7 @@ struct list_head *lnet_mt_match_head(struct lnet_match_table *mtable,
 struct lnet_match_table *lnet_mt_of_attach(unsigned int index,
 					   struct lnet_process_id id,
 					   __u64 mbits, __u64 ignore_bits,
-					   lnet_ins_pos_t pos);
+					   enum lnet_ins_pos pos);
 int lnet_mt_match_md(struct lnet_match_table *mtable,
 		     struct lnet_match_info *info, struct lnet_msg *msg);
 

@@ -97,7 +97,7 @@ int LNetMEAttach(unsigned int      portal,
 		 __u64		   match_bits_in,
 		 __u64		   ignore_bits_in,
 		 enum lnet_unlink unlink_in,
-		 lnet_ins_pos_t    pos_in,
+		 enum lnet_ins_pos pos_in,
 		 struct lnet_handle_me *handle_out);
 
 int LNetMEInsert(struct lnet_handle_me current_in,
@@ -105,7 +105,7 @@ int LNetMEInsert(struct lnet_handle_me current_in,
 		 __u64		   match_bits_in,
 		 __u64		   ignore_bits_in,
 		 enum lnet_unlink unlink_in,
-		 lnet_ins_pos_t    position_in,
+		 enum lnet_ins_pos position_in,
 		 struct lnet_handle_me *handle_out);
 
 int LNetMEUnlink(struct lnet_handle_me current_in);
