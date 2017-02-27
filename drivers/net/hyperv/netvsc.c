@@ -600,9 +600,9 @@ static inline void netvsc_free_send_slot(struct netvsc_device *net_device,
 static void netvsc_send_tx_complete(struct netvsc_device *net_device,
 				    struct vmbus_channel *incoming_channel,
 				    struct hv_device *device,
-				    struct vmpacket_descriptor *packet)
+				    const struct vmpacket_descriptor *desc)
 {
-	struct sk_buff *skb = (struct sk_buff *)(unsigned long)packet->trans_id;
+	struct sk_buff *skb = (struct sk_buff *)(unsigned long)desc->trans_id;
 	struct net_device *ndev = hv_get_drvdata(device);
 	struct net_device_context *net_device_ctx = netdev_priv(ndev);
 	struct vmbus_channel *channel = device->channel;
