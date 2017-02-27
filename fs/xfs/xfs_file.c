@@ -947,7 +947,7 @@ xfs_file_fallocate(
 		if (error)
 			goto out_unlock;
 	} else if (mode & FALLOC_FL_COLLAPSE_RANGE) {
-		unsigned blksize_mask = (1 << inode->i_blkbits) - 1;
+		unsigned int blksize_mask = i_blocksize(inode) - 1;
 
 		if (offset & blksize_mask || len & blksize_mask) {
 			error = -EINVAL;
@@ -969,7 +969,7 @@ xfs_file_fallocate(
 		if (error)
 			goto out_unlock;
 	} else if (mode & FALLOC_FL_INSERT_RANGE) {
-		unsigned blksize_mask = (1 << inode->i_blkbits) - 1;
+		unsigned int blksize_mask = i_blocksize(inode) - 1;
 
 		new_size = i_size_read(inode) + len;
 		if (offset & blksize_mask || len & blksize_mask) {
