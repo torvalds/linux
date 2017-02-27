@@ -381,6 +381,7 @@ easilly||easily
 ecspecially||especially
 edditable||editable
 editting||editing
+efective||effective
 efficently||efficiently
 ehther||ether
 eigth||eight
