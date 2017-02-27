@@ -84,14 +84,14 @@ static inline int lnet_is_wire_handle_none(struct lnet_handle_wire *wh)
 		wh->wh_object_cookie == LNET_WIRE_HANDLE_COOKIE_NONE);
 }
 
-static inline int lnet_md_exhausted(lnet_libmd_t *md)
+static inline int lnet_md_exhausted(struct lnet_libmd *md)
 {
 	return (!md->md_threshold ||
 		((md->md_options & LNET_MD_MAX_SIZE) &&
 		 md->md_offset + md->md_max_size > md->md_length));
 }
 
-static inline int lnet_md_unlinkable(lnet_libmd_t *md)
+static inline int lnet_md_unlinkable(struct lnet_libmd *md)
 {
 	/*
 	 * Should unlink md when its refcount is 0 and either:
@@ -193,19 +193,19 @@ lnet_eq_free(struct lnet_eq *eq)
 	LIBCFS_FREE(eq, sizeof(*eq));
 }
 
-static inline lnet_libmd_t *
+static inline struct lnet_libmd *
 lnet_md_alloc(lnet_md_t *umd)
 {
-	lnet_libmd_t *md;
+	struct lnet_libmd *md;
 	unsigned int size;
 	unsigned int niov;
 
 	if (umd->options & LNET_MD_KIOV) {
 		niov = umd->length;
-		size = offsetof(lnet_libmd_t, md_iov.kiov[niov]);
+		size = offsetof(struct lnet_libmd, md_iov.kiov[niov]);
 	} else {
 		niov = umd->options & LNET_MD_IOVEC ? umd->length : 1;
-		size = offsetof(lnet_libmd_t, md_iov.iov[niov]);
+		size = offsetof(struct lnet_libmd, md_iov.iov[niov]);
 	}
 
 	LIBCFS_ALLOC(md, size);
@@ -221,14 +221,14 @@ lnet_md_alloc(lnet_md_t *umd)
 }
 
 static inline void
-lnet_md_free(lnet_libmd_t *md)
+lnet_md_free(struct lnet_libmd *md)
 {
 	unsigned int size;
 
 	if (md->md_options & LNET_MD_KIOV)
-		size = offsetof(lnet_libmd_t, md_iov.kiov[md->md_niov]);
+		size = offsetof(struct lnet_libmd, md_iov.kiov[md->md_niov]);
 	else
-		size = offsetof(lnet_libmd_t, md_iov.iov[md->md_niov]);
+		size = offsetof(struct lnet_libmd, md_iov.iov[md->md_niov]);
 
 	LIBCFS_FREE(md, size);
 }
@@ -301,12 +301,12 @@ lnet_handle2eq(struct lnet_handle_eq *handle)
 }
 
 static inline void
-lnet_md2handle(struct lnet_handle_md *handle, lnet_libmd_t *md)
+lnet_md2handle(struct lnet_handle_md *handle, struct lnet_libmd *md)
 {
 	handle->cookie = md->md_lh.lh_cookie;
 }
 
-static inline lnet_libmd_t *
+static inline struct lnet_libmd *
 lnet_handle2md(struct lnet_handle_md *handle)
 {
 	/* ALWAYS called with resource lock held */
@@ -319,10 +319,10 @@ lnet_handle2md(struct lnet_handle_md *handle)
 	if (!lh)
 		return NULL;
 
-	return lh_entry(lh, lnet_libmd_t, md_lh);
+	return lh_entry(lh, struct lnet_libmd, md_lh);
 }
 
-static inline lnet_libmd_t *
+static inline struct lnet_libmd *
 lnet_wire_handle2md(struct lnet_handle_wire *wh)
 {
 	/* ALWAYS called with resource lock held */
@@ -338,7 +338,7 @@ lnet_wire_handle2md(struct lnet_handle_wire *wh)
 	if (!lh)
 		return NULL;
 
-	return lh_entry(lh, lnet_libmd_t, md_lh);
+	return lh_entry(lh, struct lnet_libmd, md_lh);
 }
 
 static inline void
@@ -482,10 +482,10 @@ int lnet_clear_lazy_portal(struct lnet_ni *ni, int portal, char *reason);
 int lnet_islocalnid(lnet_nid_t nid);
 int lnet_islocalnet(__u32 net);
 
-void lnet_msg_attach_md(struct lnet_msg *msg, lnet_libmd_t *md,
+void lnet_msg_attach_md(struct lnet_msg *msg, struct lnet_libmd *md,
 			unsigned int offset, unsigned int mlen);
 void lnet_msg_detach_md(struct lnet_msg *msg, int status);
-void lnet_build_unlink_event(lnet_libmd_t *md, lnet_event_t *ev);
+void lnet_build_unlink_event(struct lnet_libmd *md, lnet_event_t *ev);
 void lnet_build_msg_event(struct lnet_msg *msg, lnet_event_kind_t ev_type);
 void lnet_msg_commit(struct lnet_msg *msg, int cpt);
 void lnet_msg_decommit(struct lnet_msg *msg, int cpt, int status);
@@ -542,9 +542,9 @@ int lnet_mt_match_md(struct lnet_match_table *mtable,
 		     struct lnet_match_info *info, struct lnet_msg *msg);
 
 /* portals match/attach functions */
-void lnet_ptl_attach_md(struct lnet_me *me, lnet_libmd_t *md,
+void lnet_ptl_attach_md(struct lnet_me *me, struct lnet_libmd *md,
 			struct list_head *matches, struct list_head *drops);
-void lnet_ptl_detach_md(struct lnet_me *me, lnet_libmd_t *md);
+void lnet_ptl_detach_md(struct lnet_me *me, struct lnet_libmd *md);
 int lnet_ptl_match_md(struct lnet_match_info *info, struct lnet_msg *msg);
 
 /* initialized and finalize portals */
@@ -625,8 +625,8 @@ void lnet_copy_kiov2iter(struct iov_iter *to,
 
 void lnet_me_unlink(struct lnet_me *me);
 
-void lnet_md_unlink(lnet_libmd_t *md);
-void lnet_md_deconstruct(lnet_libmd_t *lmd, lnet_md_t *umd);
+void lnet_md_unlink(struct lnet_libmd *md);
+void lnet_md_deconstruct(struct lnet_libmd *lmd, lnet_md_t *umd);
 
 void lnet_register_lnd(lnd_t *lnd);
 void lnet_unregister_lnd(lnd_t *lnd);

@@ -39,7 +39,7 @@
 #include "../../include/linux/lnet/lib-lnet.h"
 
 void
-lnet_build_unlink_event(lnet_libmd_t *md, lnet_event_t *ev)
+lnet_build_unlink_event(struct lnet_libmd *md, lnet_event_t *ev)
 {
 	memset(ev, 0, sizeof(*ev));
 
@@ -306,7 +306,7 @@ lnet_msg_decommit(struct lnet_msg *msg, int cpt, int status)
 }
 
 void
-lnet_msg_attach_md(struct lnet_msg *msg, lnet_libmd_t *md,
+lnet_msg_attach_md(struct lnet_msg *msg, struct lnet_libmd *md,
 		   unsigned int offset, unsigned int mlen)
 {
 	/* NB: @offset and @len are only useful for receiving */
@@ -338,7 +338,7 @@ lnet_msg_attach_md(struct lnet_msg *msg, lnet_libmd_t *md,
 void
 lnet_msg_detach_md(struct lnet_msg *msg, int status)
 {
-	lnet_libmd_t *md = msg->msg_md;
+	struct lnet_libmd *md = msg->msg_md;
 	int unlink;
 
 	/* Now it's safe to drop my caller's ref */

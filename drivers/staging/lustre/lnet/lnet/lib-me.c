@@ -223,7 +223,7 @@ int
 LNetMEUnlink(struct lnet_handle_me meh)
 {
 	struct lnet_me *me;
-	lnet_libmd_t *md;
+	struct lnet_libmd *md;
 	lnet_event_t ev;
 	int cpt;
 
@@ -261,7 +261,7 @@ lnet_me_unlink(struct lnet_me *me)
 	list_del(&me->me_list);
 
 	if (me->me_md) {
-		lnet_libmd_t *md = me->me_md;
+		struct lnet_libmd *md = me->me_md;
 
 		/* detach MD from portal of this ME */
 		lnet_ptl_detach_md(me, md);

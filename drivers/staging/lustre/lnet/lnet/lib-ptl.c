@@ -131,7 +131,7 @@ lnet_ptl_disable_mt(struct lnet_portal *ptl, int cpt)
 }
 
 static int
-lnet_try_match_md(lnet_libmd_t *md,
+lnet_try_match_md(struct lnet_libmd *md,
 		  struct lnet_match_info *info, struct lnet_msg *msg)
 {
 	/*
@@ -641,7 +641,7 @@ lnet_ptl_match_md(struct lnet_match_info *info, struct lnet_msg *msg)
 }
 
 void
-lnet_ptl_detach_md(struct lnet_me *me, lnet_libmd_t *md)
+lnet_ptl_detach_md(struct lnet_me *me, struct lnet_libmd *md)
 {
 	LASSERT(me->me_md == md && md->md_me == me);
 
@@ -651,7 +651,7 @@ lnet_ptl_detach_md(struct lnet_me *me, lnet_libmd_t *md)
 
 /* called with lnet_res_lock held */
 void
-lnet_ptl_attach_md(struct lnet_me *me, lnet_libmd_t *md,
+lnet_ptl_attach_md(struct lnet_me *me, struct lnet_libmd *md,
 		   struct list_head *matches, struct list_head *drops)
 {
 	struct lnet_portal *ptl = the_lnet.ln_portals[me->me_portal];

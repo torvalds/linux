@@ -412,7 +412,7 @@ lnet_ni_recv(lnet_ni_t *ni, void *private, struct lnet_msg *msg,
 static void
 lnet_setpayloadbuffer(struct lnet_msg *msg)
 {
-	lnet_libmd_t *md = msg->msg_md;
+	struct lnet_libmd *md = msg->msg_md;
 
 	LASSERT(msg->msg_len > 0);
 	LASSERT(!msg->msg_routing);
@@ -1392,7 +1392,7 @@ lnet_parse_reply(lnet_ni_t *ni, struct lnet_msg *msg)
 	void *private = msg->msg_private;
 	struct lnet_hdr *hdr = &msg->msg_hdr;
 	lnet_process_id_t src = {0};
-	lnet_libmd_t *md;
+	struct lnet_libmd *md;
 	int rlength;
 	int mlength;
 	int cpt;
@@ -1456,7 +1456,7 @@ lnet_parse_ack(lnet_ni_t *ni, struct lnet_msg *msg)
 {
 	struct lnet_hdr *hdr = &msg->msg_hdr;
 	lnet_process_id_t src = {0};
-	lnet_libmd_t *md;
+	struct lnet_libmd *md;
 	int cpt;
 
 	src.nid = hdr->src_nid;

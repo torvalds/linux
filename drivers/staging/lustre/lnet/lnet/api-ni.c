@@ -386,7 +386,7 @@ lnet_res_container_cleanup(struct lnet_res_container *rec)
 			lnet_eq_free(list_entry(e, struct lnet_eq, eq_list));
 
 		} else if (rec->rec_type == LNET_COOKIE_TYPE_MD) {
-			lnet_md_free(list_entry(e, lnet_libmd_t, md_list));
+			lnet_md_free(list_entry(e, struct lnet_libmd, md_list));
 
 		} else { /* NB: Active MEs should be attached on portals */
 			LBUG();

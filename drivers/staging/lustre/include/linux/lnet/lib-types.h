@@ -139,7 +139,7 @@ struct lnet_me {
 	struct lnet_libmd	*me_md;
 };
 
-typedef struct lnet_libmd {
+struct lnet_libmd {
 	struct list_head	 md_list;
 	struct lnet_libhandle	 md_lh;
 	struct lnet_me		*md_me;
@@ -158,7 +158,7 @@ typedef struct lnet_libmd {
 		struct kvec	iov[LNET_MAX_IOV];
 		lnet_kiov_t	kiov[LNET_MAX_IOV];
 	} md_iov;
-} lnet_libmd_t;
+};
 
 #define LNET_MD_FLAG_ZOMBIE		(1 << 0)
 #define LNET_MD_FLAG_AUTO_UNLINK	(1 << 1)
