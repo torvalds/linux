@@ -74,6 +74,7 @@ algoritms||algorithms
 algorrithm||algorithm
 algorritm||algorithm
 aligment||alignment
+alignement||alignment
 allign||align
 allocatrd||allocated
 allocte||allocate
@@ -746,6 +747,7 @@ pakage||package
 pallette||palette
 paln||plan
 paramameters||parameters
+paramaters||parameters
 paramater||parameter
 parametes||parameters
 parametised||parametrised
@@ -990,6 +992,7 @@ straming||streaming
 struc||struct
 structres||structures
 stuct||struct
+strucuture||structure
 stucture||structure
 sturcture||structure
 subdirectoires||subdirectories
