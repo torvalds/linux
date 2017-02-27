@@ -663,12 +663,12 @@ typedef void (*lnet_eq_handler_t)(struct lnet_event *event);
  * \see lnet_md::options for the discussion on LNET_MD_ACK_DISABLE by which
  * acknowledgments can be disabled for a MD.
  */
-typedef enum {
+enum lnet_ack_req {
 	/** Request an acknowledgment */
 	LNET_ACK_REQ,
 	/** Request that no acknowledgment should be generated. */
 	LNET_NOACK_REQ
-} lnet_ack_req_t;
+};
 /** @} lnet_data */
 
 /** @} lnet */

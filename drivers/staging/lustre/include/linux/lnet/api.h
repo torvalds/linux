@@ -180,7 +180,7 @@ int LNetEQPoll(struct lnet_handle_eq *eventqs_in,
  */
 int LNetPut(lnet_nid_t	      self,
 	    struct lnet_handle_md md_in,
-	    lnet_ack_req_t    ack_req_in,
+	    enum lnet_ack_req ack_req_in,
 	    struct lnet_process_id target_in,
 	    unsigned int      portal_in,
 	    __u64	      match_bits_in,

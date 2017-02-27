@@ -44,7 +44,7 @@
  * Returns 0 on success or error code.
  */
 static int ptl_send_buf(struct lnet_handle_md *mdh, void *base, int len,
-			lnet_ack_req_t ack, struct ptlrpc_cb_id *cbid,
+			enum lnet_ack_req ack, struct ptlrpc_cb_id *cbid,
 			struct ptlrpc_connection *conn, int portal, __u64 xid,
 			unsigned int offset)
 {

@@ -1990,7 +1990,7 @@ lnet_recv_delayed_msg_list(struct list_head *head)
  * \see lnet_event::hdr_data and lnet_event_kind.
  */
 int
-LNetPut(lnet_nid_t self, struct lnet_handle_md mdh, lnet_ack_req_t ack,
+LNetPut(lnet_nid_t self, struct lnet_handle_md mdh, enum lnet_ack_req ack,
 	struct lnet_process_id target, unsigned int portal,
 	__u64 match_bits, unsigned int offset,
 	__u64 hdr_data)
