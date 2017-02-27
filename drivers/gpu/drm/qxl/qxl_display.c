@@ -788,18 +788,87 @@ static const struct drm_crtc_helper_funcs qxl_crtc_helper_funcs = {
 	.commit = qxl_crtc_commit,
 };
 
+static const uint32_t qxl_primary_plane_formats[] = {
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
+};
+
+static const struct drm_plane_funcs qxl_primary_plane_funcs = {
+	.update_plane	= drm_primary_helper_update,
+	.disable_plane	= drm_primary_helper_disable,
+	.destroy	= drm_primary_helper_destroy,
+};
+
+static struct drm_plane *qxl_create_plane(struct qxl_device *qdev,
+					  unsigned int possible_crtcs,
+					  enum drm_plane_type type)
+{
+	const struct drm_plane_helper_funcs *helper_funcs = NULL;
+	struct drm_plane *plane;
+	const struct drm_plane_funcs *funcs;
+	const uint32_t *formats;
+	int num_formats;
+	int err;
+
+	if (type == DRM_PLANE_TYPE_PRIMARY) {
+		funcs = &qxl_primary_plane_funcs;
+		formats = qxl_primary_plane_formats;
+		num_formats = ARRAY_SIZE(qxl_primary_plane_formats);
+	} else {
+		return ERR_PTR(-EINVAL);
+	}
+
+	plane = kzalloc(sizeof(*plane), GFP_KERNEL);
+	if (!plane)
+		return ERR_PTR(-ENOMEM);
+
+	err = drm_universal_plane_init(&qdev->ddev, plane, possible_crtcs,
+				       funcs, formats, num_formats,
+				       type, NULL);
+	if (err)
+		goto free_plane;
+
+	drm_plane_helper_add(plane, helper_funcs);
+
+	return plane;
+
+free_plane:
+	kfree(plane);
+	return ERR_PTR(-EINVAL);
+}
+
 static int qdev_crtc_init(struct drm_device *dev, int crtc_id)
 {
 	struct qxl_crtc *qxl_crtc;
+	struct drm_plane *primary;
+	struct qxl_device *qdev = dev->dev_private;
+	int r;
 
 	qxl_crtc = kzalloc(sizeof(struct qxl_crtc), GFP_KERNEL);
 	if (!qxl_crtc)
 		return -ENOMEM;
 
-	drm_crtc_init(dev, &qxl_crtc->base, &qxl_crtc_funcs);
+	primary = qxl_create_plane(qdev, 1 << crtc_id, DRM_PLANE_TYPE_PRIMARY);
+	if (IS_ERR(primary)) {
+		r = -ENOMEM;
+		goto free_mem;
+	}
+
+	r = drm_crtc_init_with_planes(dev, &qxl_crtc->base, primary, NULL,
+				      &qxl_crtc_funcs, NULL);
+	if (r)
+		goto clean_primary;
+
 	qxl_crtc->index = crtc_id;
 	drm_crtc_helper_add(&qxl_crtc->base, &qxl_crtc_helper_funcs);
 	return 0;
+
+clean_primary:
+	drm_plane_cleanup(primary);
+	kfree(primary);
+free_mem:
+	kfree(qxl_crtc);
+	return r;
 }
 
 static void qxl_enc_dpms(struct drm_encoder *encoder, int mode)
