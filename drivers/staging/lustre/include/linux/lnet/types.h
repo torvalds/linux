@@ -272,47 +272,12 @@ typedef struct lnet_counters {
 
 /**
  * Objects maintained by the LNet are accessed through handles. Handle types
- * have names of the form lnet_handle_xx_t, where xx is one of the two letter
+ * have names of the form lnet_handle_xx, where xx is one of the two letter
  * object type codes ('eq' for event queue, 'md' for memory descriptor, and
- * 'me' for match entry).
- * Each type of object is given a unique handle type to enhance type checking.
- * The type lnet_handle_any_t can be used when a generic handle is needed.
- * Every handle value can be converted into a value of type lnet_handle_any_t
- * without loss of information.
+ * 'me' for match entry). Each type of object is given a unique handle type
+ * to enhance type checking.
  */
-typedef struct {
-	__u64	 cookie;
-} lnet_handle_any_t;
-
 #define LNET_WIRE_HANDLE_COOKIE_NONE   (-1)
-
-/**
- * Invalidate handle \a h.
- */
-static inline void LNetInvalidateHandle(lnet_handle_any_t *h)
-{
-	h->cookie = LNET_WIRE_HANDLE_COOKIE_NONE;
-}
-
-/**
- * Compare handles \a h1 and \a h2.
- *
- * \return 1 if handles are equal, 0 if otherwise.
- */
-static inline int LNetHandleIsEqual(lnet_handle_any_t h1, lnet_handle_any_t h2)
-{
-	return h1.cookie == h2.cookie;
-}
-
-/**
- * Check whether handle \a h is invalid.
- *
- * \return 1 if handle is invalid, 0 if valid.
- */
-static inline int LNetHandleIsInvalid(lnet_handle_any_t h)
-{
-	return h.cookie == LNET_WIRE_HANDLE_COOKIE_NONE;
-}
 
 struct lnet_handle_eq {
 	u64	cookie;

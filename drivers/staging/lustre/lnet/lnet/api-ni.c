@@ -2127,17 +2127,6 @@ LNetGetId(unsigned int index, lnet_process_id_t *id)
 }
 EXPORT_SYMBOL(LNetGetId);
 
-/**
- * Print a string representation of handle \a h into buffer \a str of
- * \a len bytes.
- */
-void
-LNetSnprintHandle(char *str, int len, lnet_handle_any_t h)
-{
-	snprintf(str, len, "%#llx", h.cookie);
-}
-EXPORT_SYMBOL(LNetSnprintHandle);
-
 static int lnet_ping(lnet_process_id_t id, int timeout_ms,
 		     lnet_process_id_t __user *ids, int n_ids)
 {

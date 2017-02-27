@@ -76,7 +76,6 @@ int LNetNIFini(void);
  */
 int LNetGetId(unsigned int index, lnet_process_id_t *id);
 int LNetDist(lnet_nid_t nid, lnet_nid_t *srcnid, __u32 *order);
-void LNetSnprintHandle(char *str, int str_len, lnet_handle_any_t handle);
 
 /** @} lnet_addr */
 
