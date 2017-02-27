@@ -83,13 +83,9 @@ qxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		goto disable_pci;
 
-	ret = drm_vblank_init(&qdev->ddev, 1);
-	if (ret)
-		goto unload;
-
 	ret = qxl_modeset_init(qdev);
 	if (ret)
-		goto vblank_cleanup;
+		goto unload;
 
 	drm_kms_helper_poll_init(&qdev->ddev);
 
@@ -102,8 +98,6 @@ qxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 modeset_cleanup:
 	qxl_modeset_fini(qdev);
-vblank_cleanup:
-	drm_vblank_cleanup(&qdev->ddev);
 unload:
 	qxl_device_fini(qdev);
 disable_pci:

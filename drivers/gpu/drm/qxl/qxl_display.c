@@ -293,14 +293,11 @@ static int qxl_crtc_page_flip(struct drm_crtc *crtc,
 	qxl_draw_dirty_fb(qdev, qfb_src, bo, 0, 0,
 			  &norect, one_clip_rect, inc);
 
-	drm_crtc_vblank_get(crtc);
-
 	if (event) {
 		spin_lock_irqsave(&dev->event_lock, flags);
 		drm_crtc_send_vblank_event(crtc, event);
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
-	drm_crtc_vblank_put(crtc);
 
 	qxl_bo_unpin(bo);
 
@@ -532,29 +529,12 @@ static int qxl_crtc_cursor_move(struct drm_crtc *crtc,
 	return 0;
 }
 
-static u32 qxl_noop_get_vblank_counter(struct drm_crtc *crtc)
-{
-	return 0;
-}
-
-static int qxl_noop_enable_vblank(struct drm_crtc *crtc)
-{
-	return 0;
-}
-
-static void qxl_noop_disable_vblank(struct drm_crtc *crtc)
-{
-}
-
 static const struct drm_crtc_funcs qxl_crtc_funcs = {
 	.cursor_set2 = qxl_crtc_cursor_set2,
 	.cursor_move = qxl_crtc_cursor_move,
 	.set_config = drm_crtc_helper_set_config,
 	.destroy = qxl_crtc_destroy,
 	.page_flip = qxl_crtc_page_flip,
-	.get_vblank_counter = qxl_noop_get_vblank_counter,
-	.enable_vblank = qxl_noop_enable_vblank,
-	.disable_vblank = qxl_noop_disable_vblank,
 };
 
 void qxl_user_framebuffer_destroy(struct drm_framebuffer *fb)
