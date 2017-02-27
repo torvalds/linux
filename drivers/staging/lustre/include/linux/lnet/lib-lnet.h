@@ -65,7 +65,7 @@ extern lnet_t	the_lnet;	/* THE network */
 /** exclusive lock */
 #define LNET_LOCK_EX		CFS_PERCPT_LOCK_EX
 
-static inline int lnet_is_route_alive(lnet_route_t *route)
+static inline int lnet_is_route_alive(struct lnet_route *route)
 {
 	/* gateway is down */
 	if (!route->lr_gateway->lp_alive)

@@ -957,7 +957,7 @@ routing_off:
 }
 
 static int
-lnet_compare_routes(lnet_route_t *r1, lnet_route_t *r2)
+lnet_compare_routes(struct lnet_route *r1, struct lnet_route *r2)
 {
 	struct lnet_peer *p1 = r1->lr_gateway;
 	struct lnet_peer *p2 = r2->lr_gateway;
@@ -999,9 +999,9 @@ lnet_find_route_locked(struct lnet_ni *ni, lnet_nid_t target,
 		       lnet_nid_t rtr_nid)
 {
 	lnet_remotenet_t *rnet;
-	lnet_route_t *route;
-	lnet_route_t *best_route;
-	lnet_route_t *last_route;
+	struct lnet_route *route;
+	struct lnet_route *best_route;
+	struct lnet_route *last_route;
 	struct lnet_peer *lp_best;
 	struct lnet_peer *lp;
 	int rc;
@@ -2351,8 +2351,8 @@ LNetDist(lnet_nid_t dstnid, lnet_nid_t *srcnidp, __u32 *orderp)
 		rnet = list_entry(e, lnet_remotenet_t, lrn_list);
 
 		if (rnet->lrn_net == dstnet) {
-			lnet_route_t *route;
-			lnet_route_t *shortest = NULL;
+			struct lnet_route *route;
+			struct lnet_route *shortest = NULL;
 			__u32 shortest_hops = LNET_UNDEFINED_HOPS;
 			__u32 route_hops;
 

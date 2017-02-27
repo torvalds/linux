@@ -340,7 +340,7 @@ struct lnet_peer {
 	lnet_nid_t		 lp_nid;	/* peer's NID */
 	int			 lp_refcount;	/* # refs */
 	int			 lp_cpt;	/* CPT this peer attached on */
-	/* # refs from lnet_route_t::lr_gateway */
+	/* # refs from lnet_route::lr_gateway */
 	int			 lp_rtr_refcount;
 	/* returned RC ping features */
 	unsigned int		 lp_ping_feats;
@@ -369,7 +369,7 @@ struct lnet_peer_table {
 #define lnet_peer_aliveness_enabled(lp) (the_lnet.ln_routing && \
 					 (lp)->lp_ni->ni_peertimeout > 0)
 
-typedef struct {
+struct lnet_route {
 	struct list_head	 lr_list;	/* chain on net */
 	struct list_head	 lr_gwlist;	/* chain on gateway */
 	struct lnet_peer	*lr_gateway;	/* router node */
@@ -378,7 +378,7 @@ typedef struct {
 	unsigned int		 lr_downis;	/* number of down NIs */
 	__u32			 lr_hops;	/* how far I am */
 	unsigned int             lr_priority;	/* route priority */
-} lnet_route_t;
+};
 
 #define LNET_REMOTE_NETS_HASH_DEFAULT	(1U << 7)
 #define LNET_REMOTE_NETS_HASH_MAX	(1U << 16)

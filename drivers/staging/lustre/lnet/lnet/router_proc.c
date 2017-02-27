@@ -171,7 +171,7 @@ static int proc_lnet_routes(struct ctl_table *table, int write,
 	} else {
 		struct list_head *n;
 		struct list_head *r;
-		lnet_route_t *route = NULL;
+		struct lnet_route *route = NULL;
 		lnet_remotenet_t *rnet  = NULL;
 		int skip  = off - 1;
 		struct list_head *rn_list;
@@ -197,9 +197,10 @@ static int proc_lnet_routes(struct ctl_table *table, int write,
 				r = rnet->lrn_routes.next;
 
 				while (r != &rnet->lrn_routes) {
-					lnet_route_t *re =
-						list_entry(r, lnet_route_t,
-							   lr_list);
+					struct lnet_route *re;
+
+					re = list_entry(r, struct lnet_route,
+							lr_list);
 					if (!skip) {
 						route = re;
 						break;
@@ -331,7 +332,7 @@ static int proc_lnet_routers(struct ctl_table *table, int write,
 			int last_ping = cfs_duration_sec(cfs_time_sub(now,
 						     peer->lp_ping_timestamp));
 			int down_ni = 0;
-			lnet_route_t *rtr;
+			struct lnet_route *rtr;
 
 			if ((peer->lp_ping_feats &
 			     LNET_PING_FEAT_NI_STATUS)) {
