@@ -94,7 +94,7 @@ static int fsl_dcu_load(struct drm_device *dev, unsigned long flags)
 			"Invalid legacyfb_depth.  Defaulting to 24bpp\n");
 		legacyfb_depth = 24;
 	}
-	fsl_dev->fbdev = drm_fbdev_cma_init(dev, legacyfb_depth, 1, 1);
+	fsl_dev->fbdev = drm_fbdev_cma_init(dev, legacyfb_depth, 1);
 	if (IS_ERR(fsl_dev->fbdev)) {
 		ret = PTR_ERR(fsl_dev->fbdev);
 		fsl_dev->fbdev = NULL;
@@ -116,7 +116,7 @@ done:
 	return ret;
 }
 
-static int fsl_dcu_unload(struct drm_device *dev)
+static void fsl_dcu_unload(struct drm_device *dev)
 {
 	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
 
@@ -131,8 +131,6 @@ static int fsl_dcu_unload(struct drm_device *dev)
 	drm_irq_uninstall(dev);
 
 	dev->dev_private = NULL;
-
-	return 0;
 }
 
 static irqreturn_t fsl_dcu_drm_irq(int irq, void *arg)
@@ -415,10 +413,6 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto unref;
 
-	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d\n", driver->name,
-		 driver->major, driver->minor, driver->patchlevel,
-		 driver->date, drm->primary->index);
-
 	return 0;
 
 unref:
@@ -434,7 +428,8 @@ static int fsl_dcu_drm_remove(struct platform_device *pdev)
 {
 	struct fsl_dcu_drm_device *fsl_dev = platform_get_drvdata(pdev);
 
-	drm_put_dev(fsl_dev->drm);
+	drm_dev_unregister(fsl_dev->drm);
+	drm_dev_unref(fsl_dev->drm);
 	clk_disable_unprepare(fsl_dev->clk);
 	clk_unregister(fsl_dev->pix_clk);
 

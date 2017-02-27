@@ -64,8 +64,7 @@
 static const struct extent_io_ops btree_extent_io_ops;
 static void end_workqueue_fn(struct btrfs_work *work);
 static void free_fs_root(struct btrfs_root *root);
-static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
-				    int read_only);
+static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info);
 static void btrfs_destroy_ordered_extents(struct btrfs_root *root);
 static int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 				      struct btrfs_fs_info *fs_info);
@@ -1005,7 +1004,7 @@ static int __btree_submit_bio_done(struct inode *inode, struct bio *bio,
 	return ret;
 }
 
-static int check_async_write(struct inode *inode, unsigned long bio_flags)
+static int check_async_write(unsigned long bio_flags)
 {
 	if (bio_flags & EXTENT_BIO_TREE_LOG)
 		return 0;
@@ -1021,7 +1020,7 @@ static int btree_submit_bio_hook(struct inode *inode, struct bio *bio,
 				 u64 bio_offset)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	int async = check_async_write(inode, bio_flags);
+	int async = check_async_write(bio_flags);
 	int ret;
 
 	if (bio_op(bio) != REQ_OP_WRITE) {
@@ -1248,8 +1247,7 @@ struct extent_buffer *read_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr,
 
 }
 
-void clean_tree_block(struct btrfs_trans_handle *trans,
-		      struct btrfs_fs_info *fs_info,
+void clean_tree_block(struct btrfs_fs_info *fs_info,
 		      struct extent_buffer *buf)
 {
 	if (btrfs_header_generation(buf) ==
@@ -1800,7 +1798,7 @@ static int btrfs_congested_fn(void *congested_data, int bdi_bits)
 	list_for_each_entry_rcu(device, &info->fs_devices->devices, dev_list) {
 		if (!device->bdev)
 			continue;
-		bdi = blk_get_backing_dev_info(device->bdev);
+		bdi = device->bdev->bd_bdi;
 		if (bdi_congested(bdi, bdi_bits)) {
 			ret = 1;
 			break;
@@ -2802,7 +2800,7 @@ int open_ctree(struct super_block *sb,
 
 	memcpy(fs_info->fsid, fs_info->super_copy->fsid, BTRFS_FSID_SIZE);
 
-	ret = btrfs_check_super_valid(fs_info, sb->s_flags & MS_RDONLY);
+	ret = btrfs_check_super_valid(fs_info);
 	if (ret) {
 		btrfs_err(fs_info, "superblock contains fatal errors");
 		err = -EINVAL;
@@ -3411,7 +3409,7 @@ struct buffer_head *btrfs_read_dev_super(struct block_device *bdev)
  */
 static int write_dev_supers(struct btrfs_device *device,
 			    struct btrfs_super_block *sb,
-			    int do_barriers, int wait, int max_mirrors)
+			    int wait, int max_mirrors)
 {
 	struct buffer_head *bh;
 	int i;
@@ -3696,7 +3694,7 @@ int btrfs_calc_num_tolerated_disk_barrier_failures(
 	return num_tolerated_disk_barrier_failures;
 }
 
-static int write_all_supers(struct btrfs_fs_info *fs_info, int max_mirrors)
+int write_all_supers(struct btrfs_fs_info *fs_info, int max_mirrors)
 {
 	struct list_head *head;
 	struct btrfs_device *dev;
@@ -3753,7 +3751,7 @@ static int write_all_supers(struct btrfs_fs_info *fs_info, int max_mirrors)
 		flags = btrfs_super_flags(sb);
 		btrfs_set_super_flags(sb, flags | BTRFS_HEADER_FLAG_WRITTEN);
 
-		ret = write_dev_supers(dev, sb, do_barriers, 0, max_mirrors);
+		ret = write_dev_supers(dev, sb, 0, max_mirrors);
 		if (ret)
 			total_errors++;
 	}
@@ -3776,7 +3774,7 @@ static int write_all_supers(struct btrfs_fs_info *fs_info, int max_mirrors)
 		if (!dev->in_fs_metadata || !dev->writeable)
 			continue;
 
-		ret = write_dev_supers(dev, sb, do_barriers, 1, max_mirrors);
+		ret = write_dev_supers(dev, sb, 1, max_mirrors);
 		if (ret)
 			total_errors++;
 	}
@@ -3788,12 +3786,6 @@ static int write_all_supers(struct btrfs_fs_info *fs_info, int max_mirrors)
 		return -EIO;
 	}
 	return 0;
-}
-
-int write_ctree_super(struct btrfs_trans_handle *trans,
-		      struct btrfs_fs_info *fs_info, int max_mirrors)
-{
-	return write_all_supers(fs_info, max_mirrors);
 }
 
 /* Drop a fs root from the radix tree and free it. */
@@ -4122,8 +4114,7 @@ int btrfs_read_buffer(struct extent_buffer *buf, u64 parent_transid)
 	return btree_read_extent_buffer_pages(fs_info, buf, parent_transid);
 }
 
-static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
-			      int read_only)
+static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_super_block *sb = fs_info->super_copy;
 	u64 nodesize = btrfs_super_nodesize(sb);

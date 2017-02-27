@@ -1,9 +1,33 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #include <linux/types.h>
@@ -25,6 +49,7 @@
 #include "qed_cxt.h"
 #include "qed_dcbx.h"
 #include "qed_dev_api.h"
+#include "qed_fcoe.h"
 #include "qed_hsi.h"
 #include "qed_hw.h"
 #include "qed_init_ops.h"
@@ -148,6 +173,9 @@ void qed_resc_free(struct qed_dev *cdev)
 #ifdef CONFIG_QED_LL2
 		qed_ll2_free(p_hwfn, p_hwfn->p_ll2_info);
 #endif
+		if (p_hwfn->hw_info.personality == QED_PCI_FCOE)
+			qed_fcoe_free(p_hwfn, p_hwfn->p_fcoe_info);
+
 		if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
 			qed_iscsi_free(p_hwfn, p_hwfn->p_iscsi_info);
 			qed_ooo_free(p_hwfn, p_hwfn->p_ooo_info);
@@ -409,6 +437,7 @@ int qed_qm_reconf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 int qed_resc_alloc(struct qed_dev *cdev)
 {
 	struct qed_iscsi_info *p_iscsi_info;
+	struct qed_fcoe_info *p_fcoe_info;
 	struct qed_ooo_info *p_ooo_info;
 #ifdef CONFIG_QED_LL2
 	struct qed_ll2_info *p_ll2_info;
@@ -515,6 +544,14 @@ int qed_resc_alloc(struct qed_dev *cdev)
 			p_hwfn->p_ll2_info = p_ll2_info;
 		}
 #endif
+
+		if (p_hwfn->hw_info.personality == QED_PCI_FCOE) {
+			p_fcoe_info = qed_fcoe_alloc(p_hwfn);
+			if (!p_fcoe_info)
+				goto alloc_no_mem;
+			p_hwfn->p_fcoe_info = p_fcoe_info;
+		}
+
 		if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
 			p_iscsi_info = qed_iscsi_alloc(p_hwfn);
 			if (!p_iscsi_info)
@@ -578,6 +615,9 @@ void qed_resc_setup(struct qed_dev *cdev)
 		if (p_hwfn->using_ll2)
 			qed_ll2_setup(p_hwfn, p_hwfn->p_ll2_info);
 #endif
+		if (p_hwfn->hw_info.personality == QED_PCI_FCOE)
+			qed_fcoe_setup(p_hwfn, p_hwfn->p_fcoe_info);
+
 		if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
 			qed_iscsi_setup(p_hwfn, p_hwfn->p_iscsi_info);
 			qed_ooo_setup(p_hwfn, p_hwfn->p_ooo_info);
@@ -873,7 +913,7 @@ qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		/* Either EDPM is mandatory, or we are attempting to allocate a
 		 * WID per CPU.
 		 */
-		n_cpus = num_active_cpus();
+		n_cpus = num_present_cpus();
 		rc = qed_hw_init_dpi_size(p_hwfn, p_ptt, pwm_regsize, n_cpus);
 	}
 
@@ -970,7 +1010,8 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 	/* Protocl Configuration  */
 	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_TCP_RT_OFFSET,
 		     (p_hwfn->hw_info.personality == QED_PCI_ISCSI) ? 1 : 0);
-	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_FCOE_RT_OFFSET, 0);
+	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_FCOE_RT_OFFSET,
+		     (p_hwfn->hw_info.personality == QED_PCI_FCOE) ? 1 : 0);
 	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_ROCE_RT_OFFSET, 0);
 
 	/* Cleanup chip from previous driver if such remains exist */
@@ -1002,8 +1043,16 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 		/* send function start command */
 		rc = qed_sp_pf_start(p_hwfn, p_tunn, p_hwfn->cdev->mf_mode,
 				     allow_npar_tx_switch);
-		if (rc)
+		if (rc) {
 			DP_NOTICE(p_hwfn, "Function start ramrod failed\n");
+			return rc;
+		}
+		if (p_hwfn->hw_info.personality == QED_PCI_FCOE) {
+			qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_TAG1, BIT(2));
+			qed_wr(p_hwfn, p_ptt,
+			       PRS_REG_PKT_LEN_STAT_TAGS_NOT_COUNTED_FIRST,
+			       0x100);
+		}
 	}
 	return rc;
 }
@@ -1763,8 +1812,8 @@ static int qed_hw_get_resc(struct qed_hwfn *p_hwfn)
 
 static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
-	u32 nvm_cfg1_offset, mf_mode, addr, generic_cont0, core_cfg;
 	u32 port_cfg_addr, link_temp, nvm_cfg_addr, device_capabilities;
+	u32 nvm_cfg1_offset, mf_mode, addr, generic_cont0, core_cfg;
 	struct qed_mcp_link_params *link;
 
 	/* Read global nvm_cfg address */
@@ -1909,6 +1958,9 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	device_capabilities = qed_rd(p_hwfn, p_ptt, addr);
 	if (device_capabilities & NVM_CFG1_GLOB_DEVICE_CAPABILITIES_ETHERNET)
 		__set_bit(QED_DEV_CAP_ETH,
+			  &p_hwfn->hw_info.device_capabilities);
+	if (device_capabilities & NVM_CFG1_GLOB_DEVICE_CAPABILITIES_FCOE)
+		__set_bit(QED_DEV_CAP_FCOE,
 			  &p_hwfn->hw_info.device_capabilities);
 	if (device_capabilities & NVM_CFG1_GLOB_DEVICE_CAPABILITIES_ISCSI)
 		__set_bit(QED_DEV_CAP_ISCSI,
@@ -2643,6 +2695,177 @@ void qed_llh_remove_mac_filter(struct qed_hwfn *p_hwfn,
 			   p_filter, i);
 		break;
 	}
+	if (i >= NIG_REG_LLH_FUNC_FILTER_EN_SIZE)
+		DP_NOTICE(p_hwfn, "Tried to remove a non-configured filter\n");
+}
+
+int
+qed_llh_add_protocol_filter(struct qed_hwfn *p_hwfn,
+			    struct qed_ptt *p_ptt,
+			    u16 source_port_or_eth_type,
+			    u16 dest_port, enum qed_llh_port_filter_type_t type)
+{
+	u32 high = 0, low = 0, en;
+	int i;
+
+	if (!(IS_MF_SI(p_hwfn) || IS_MF_DEFAULT(p_hwfn)))
+		return 0;
+
+	switch (type) {
+	case QED_LLH_FILTER_ETHERTYPE:
+		high = source_port_or_eth_type;
+		break;
+	case QED_LLH_FILTER_TCP_SRC_PORT:
+	case QED_LLH_FILTER_UDP_SRC_PORT:
+		low = source_port_or_eth_type << 16;
+		break;
+	case QED_LLH_FILTER_TCP_DEST_PORT:
+	case QED_LLH_FILTER_UDP_DEST_PORT:
+		low = dest_port;
+		break;
+	case QED_LLH_FILTER_TCP_SRC_AND_DEST_PORT:
+	case QED_LLH_FILTER_UDP_SRC_AND_DEST_PORT:
+		low = (source_port_or_eth_type << 16) | dest_port;
+		break;
+	default:
+		DP_NOTICE(p_hwfn,
+			  "Non valid LLH protocol filter type %d\n", type);
+		return -EINVAL;
+	}
+	/* Find a free entry and utilize it */
+	for (i = 0; i < NIG_REG_LLH_FUNC_FILTER_EN_SIZE; i++) {
+		en = qed_rd(p_hwfn, p_ptt,
+			    NIG_REG_LLH_FUNC_FILTER_EN + i * sizeof(u32));
+		if (en)
+			continue;
+		qed_wr(p_hwfn, p_ptt,
+		       NIG_REG_LLH_FUNC_FILTER_VALUE +
+		       2 * i * sizeof(u32), low);
+		qed_wr(p_hwfn, p_ptt,
+		       NIG_REG_LLH_FUNC_FILTER_VALUE +
+		       (2 * i + 1) * sizeof(u32), high);
+		qed_wr(p_hwfn, p_ptt,
+		       NIG_REG_LLH_FUNC_FILTER_MODE + i * sizeof(u32), 1);
+		qed_wr(p_hwfn, p_ptt,
+		       NIG_REG_LLH_FUNC_FILTER_PROTOCOL_TYPE +
+		       i * sizeof(u32), 1 << type);
+		qed_wr(p_hwfn, p_ptt,
+		       NIG_REG_LLH_FUNC_FILTER_EN + i * sizeof(u32), 1);
+		break;
+	}
+	if (i >= NIG_REG_LLH_FUNC_FILTER_EN_SIZE) {
+		DP_NOTICE(p_hwfn,
+			  "Failed to find an empty LLH filter to utilize\n");
+		return -EINVAL;
+	}
+	switch (type) {
+	case QED_LLH_FILTER_ETHERTYPE:
+		DP_VERBOSE(p_hwfn, NETIF_MSG_HW,
+			   "ETH type %x is added at %d\n",
+			   source_port_or_eth_type, i);
+		break;
+	case QED_LLH_FILTER_TCP_SRC_PORT:
+		DP_VERBOSE(p_hwfn, NETIF_MSG_HW,
+			   "TCP src port %x is added at %d\n",
+			   source_port_or_eth_type, i);
+		break;
+	case QED_LLH_FILTER_UDP_SRC_PORT:
+		DP_VERBOSE(p_hwfn, NETIF_MSG_HW,
+			   "UDP src port %x is added at %d\n",
+			   source_port_or_eth_type, i);
+		break;
+	case QED_LLH_FILTER_TCP_DEST_PORT:
+		DP_VERBOSE(p_hwfn, NETIF_MSG_HW,
+			   "TCP dst port %x is added at %d\n", dest_port, i);
+		break;
+	case QED_LLH_FILTER_UDP_DEST_PORT:
+		DP_VERBOSE(p_hwfn, NETIF_MSG_HW,
+			   "UDP dst port %x is added at %d\n", dest_port, i);
+		break;
+	case QED_LLH_FILTER_TCP_SRC_AND_DEST_PORT:
+		DP_VERBOSE(p_hwfn, NETIF_MSG_HW,
+			   "TCP src/dst ports %x/%x are added at %d\n",
+			   source_port_or_eth_type, dest_port, i);
+		break;
+	case QED_LLH_FILTER_UDP_SRC_AND_DEST_PORT:
+		DP_VERBOSE(p_hwfn, NETIF_MSG_HW,
+			   "UDP src/dst ports %x/%x are added at %d\n",
+			   source_port_or_eth_type, dest_port, i);
+		break;
+	}
+	return 0;
+}
+
+void
+qed_llh_remove_protocol_filter(struct qed_hwfn *p_hwfn,
+			       struct qed_ptt *p_ptt,
+			       u16 source_port_or_eth_type,
+			       u16 dest_port,
+			       enum qed_llh_port_filter_type_t type)
+{
+	u32 high = 0, low = 0;
+	int i;
+
+	if (!(IS_MF_SI(p_hwfn) || IS_MF_DEFAULT(p_hwfn)))
+		return;
+
+	switch (type) {
+	case QED_LLH_FILTER_ETHERTYPE:
+		high = source_port_or_eth_type;
+		break;
+	case QED_LLH_FILTER_TCP_SRC_PORT:
+	case QED_LLH_FILTER_UDP_SRC_PORT:
+		low = source_port_or_eth_type << 16;
+		break;
+	case QED_LLH_FILTER_TCP_DEST_PORT:
+	case QED_LLH_FILTER_UDP_DEST_PORT:
+		low = dest_port;
+		break;
+	case QED_LLH_FILTER_TCP_SRC_AND_DEST_PORT:
+	case QED_LLH_FILTER_UDP_SRC_AND_DEST_PORT:
+		low = (source_port_or_eth_type << 16) | dest_port;
+		break;
+	default:
+		DP_NOTICE(p_hwfn,
+			  "Non valid LLH protocol filter type %d\n", type);
+		return;
+	}
+
+	for (i = 0; i < NIG_REG_LLH_FUNC_FILTER_EN_SIZE; i++) {
+		if (!qed_rd(p_hwfn, p_ptt,
+			    NIG_REG_LLH_FUNC_FILTER_EN + i * sizeof(u32)))
+			continue;
+		if (!qed_rd(p_hwfn, p_ptt,
+			    NIG_REG_LLH_FUNC_FILTER_MODE + i * sizeof(u32)))
+			continue;
+		if (!(qed_rd(p_hwfn, p_ptt,
+			     NIG_REG_LLH_FUNC_FILTER_PROTOCOL_TYPE +
+			     i * sizeof(u32)) & BIT(type)))
+			continue;
+		if (qed_rd(p_hwfn, p_ptt,
+			   NIG_REG_LLH_FUNC_FILTER_VALUE +
+			   2 * i * sizeof(u32)) != low)
+			continue;
+		if (qed_rd(p_hwfn, p_ptt,
+			   NIG_REG_LLH_FUNC_FILTER_VALUE +
+			   (2 * i + 1) * sizeof(u32)) != high)
+			continue;
+
+		qed_wr(p_hwfn, p_ptt,
+		       NIG_REG_LLH_FUNC_FILTER_EN + i * sizeof(u32), 0);
+		qed_wr(p_hwfn, p_ptt,
+		       NIG_REG_LLH_FUNC_FILTER_MODE + i * sizeof(u32), 0);
+		qed_wr(p_hwfn, p_ptt,
+		       NIG_REG_LLH_FUNC_FILTER_PROTOCOL_TYPE +
+		       i * sizeof(u32), 0);
+		qed_wr(p_hwfn, p_ptt,
+		       NIG_REG_LLH_FUNC_FILTER_VALUE + 2 * i * sizeof(u32), 0);
+		qed_wr(p_hwfn, p_ptt,
+		       NIG_REG_LLH_FUNC_FILTER_VALUE +
+		       (2 * i + 1) * sizeof(u32), 0);
+		break;
+	}
+
 	if (i >= NIG_REG_LLH_FUNC_FILTER_EN_SIZE)
 		DP_NOTICE(p_hwfn, "Tried to remove a non-configured filter\n");
 }

@@ -226,11 +226,12 @@ int mantis_dvb_init(struct mantis_pci *mantis)
 			goto err5;
 		} else {
 			if (mantis->fe == NULL) {
+				result = -ENOMEM;
 				dprintk(MANTIS_ERROR, 1, "FE <NULL>");
 				goto err5;
 			}
-
-			if (dvb_register_frontend(&mantis->dvb_adapter, mantis->fe)) {
+			result = dvb_register_frontend(&mantis->dvb_adapter, mantis->fe);
+			if (result) {
 				dprintk(MANTIS_ERROR, 1, "ERROR: Frontend registration failed");
 
 				if (mantis->fe->ops.release)

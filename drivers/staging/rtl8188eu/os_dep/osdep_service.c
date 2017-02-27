@@ -21,18 +21,6 @@
 #include <linux/vmalloc.h>
 #include <rtw_ioctl_set.h>
 
-/*
- * Translate the OS dependent @param error_code to OS independent
- * RTW_STATUS_CODE
- * @return: one of RTW_STATUS_CODE
- */
-inline int RTW_STATUS_CODE(int error_code)
-{
-	if (error_code >= 0)
-		return _SUCCESS;
-	return _FAIL;
-}
-
 u8 *_rtw_malloc(u32 sz)
 {
 	return kmalloc(sz, in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
@@ -41,8 +29,8 @@ u8 *_rtw_malloc(u32 sz)
 void *rtw_malloc2d(int h, int w, int size)
 {
 	int j;
-
 	void **a = kzalloc(h * sizeof(void *) + h * w * size, GFP_KERNEL);
+
 	if (!a)
 		goto out;
 

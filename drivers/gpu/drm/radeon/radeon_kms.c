@@ -53,12 +53,12 @@ static inline bool radeon_has_atpx(void) { return false; }
  * the rest of the device (CP, writeback, etc.).
  * Returns 0 on success.
  */
-int radeon_driver_unload_kms(struct drm_device *dev)
+void radeon_driver_unload_kms(struct drm_device *dev)
 {
 	struct radeon_device *rdev = dev->dev_private;
 
 	if (rdev == NULL)
-		return 0;
+		return;
 
 	if (rdev->rmmio == NULL)
 		goto done_free;
@@ -78,7 +78,6 @@ int radeon_driver_unload_kms(struct drm_device *dev)
 done_free:
 	kfree(rdev);
 	dev->dev_private = NULL;
-	return 0;
 }
 
 /**
@@ -106,7 +105,7 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	dev->dev_private = (void *)rdev;
 
 	/* update BUS flag */
-	if (drm_pci_device_is_agp(dev)) {
+	if (pci_find_capability(dev->pdev, PCI_CAP_ID_AGP)) {
 		flags |= RADEON_IS_AGP;
 	} else if (pci_is_pcie(dev->pdev)) {
 		flags |= RADEON_IS_PCIE;

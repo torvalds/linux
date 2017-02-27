@@ -66,7 +66,7 @@ static unsigned long free_mem_end_ptr;
 
 static int puts(const char *s)
 {
-	_sclp_print_early(s);
+	sclp_early_printk(s);
 	return 0;
 }
 

@@ -6498,15 +6498,16 @@ static __init int cgroup_namespaces_init(void)
 subsys_initcall(cgroup_namespaces_init);
 
 #ifdef CONFIG_CGROUP_BPF
-void cgroup_bpf_update(struct cgroup *cgrp,
-		       struct bpf_prog *prog,
-		       enum bpf_attach_type type)
+int cgroup_bpf_update(struct cgroup *cgrp, struct bpf_prog *prog,
+		      enum bpf_attach_type type, bool overridable)
 {
 	struct cgroup *parent = cgroup_parent(cgrp);
+	int ret;
 
 	mutex_lock(&cgroup_mutex);
-	__cgroup_bpf_update(cgrp, parent, prog, type);
+	ret = __cgroup_bpf_update(cgrp, parent, prog, type, overridable);
 	mutex_unlock(&cgroup_mutex);
+	return ret;
 }
 #endif /* CONFIG_CGROUP_BPF */
 

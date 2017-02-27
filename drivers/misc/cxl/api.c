@@ -11,7 +11,6 @@
 #include <linux/slab.h>
 #include <linux/file.h>
 #include <misc/cxl.h>
-#include <asm/pnv-pci.h>
 #include <linux/msi.h>
 #include <linux/module.h>
 #include <linux/mount.h>

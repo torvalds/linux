@@ -35,7 +35,9 @@
 #include <linux/memblock.h>
 #include <linux/context_tracking.h>
 #include <linux/libfdt.h>
+#include <linux/debugfs.h>
 
+#include <asm/debug.h>
 #include <asm/processor.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
@@ -747,6 +749,35 @@ static unsigned long __init htab_get_table_size(void)
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
+void resize_hpt_for_hotplug(unsigned long new_mem_size)
+{
+	unsigned target_hpt_shift;
+
+	if (!mmu_hash_ops.resize_hpt)
+		return;
+
+	target_hpt_shift = htab_shift_for_mem_size(new_mem_size);
+
+	/*
+	 * To avoid lots of HPT resizes if memory size is fluctuating
+	 * across a boundary, we deliberately have some hysterisis
+	 * here: we immediately increase the HPT size if the target
+	 * shift exceeds the current shift, but we won't attempt to
+	 * reduce unless the target shift is at least 2 below the
+	 * current shift
+	 */
+	if ((target_hpt_shift > ppc64_pft_size)
+	    || (target_hpt_shift < (ppc64_pft_size - 1))) {
+		int rc;
+
+		rc = mmu_hash_ops.resize_hpt(target_hpt_shift);
+		if (rc)
+			printk(KERN_WARNING
+			       "Unable to resize hash page table to target order %d: %d\n",
+			       target_hpt_shift, rc);
+	}
+}
+
 int hash__create_section_mapping(unsigned long start, unsigned long end)
 {
 	int rc = htab_bolt_mapping(start, end, __pa(start),
@@ -1795,3 +1826,34 @@ void hash__setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	/* Finally limit subsequent allocations */
 	memblock_set_current_limit(ppc64_rma_size);
 }
+
+#ifdef CONFIG_DEBUG_FS
+
+static int hpt_order_get(void *data, u64 *val)
+{
+	*val = ppc64_pft_size;
+	return 0;
+}
+
+static int hpt_order_set(void *data, u64 val)
+{
+	if (!mmu_hash_ops.resize_hpt)
+		return -ENODEV;
+
+	return mmu_hash_ops.resize_hpt(val);
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(fops_hpt_order, hpt_order_get, hpt_order_set, "%llu\n");
+
+static int __init hash64_debugfs(void)
+{
+	if (!debugfs_create_file("hpt_order", 0600, powerpc_debugfs_root,
+				 NULL, &fops_hpt_order)) {
+		pr_err("lpar: unable to create hpt_order debugsfs file\n");
+	}
+
+	return 0;
+}
+machine_device_initcall(pseries, hash64_debugfs);
+
+#endif /* CONFIG_DEBUG_FS */

@@ -83,15 +83,14 @@
 };
 
 &mmc1_pins_a {
-	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	bias-pull-up;
 };
 
 &r_pio {
 	wifi_pwrseq_pin_q8: wifi_pwrseq_pin@0 {
-		allwinner,pins = "PL6", "PL7", "PL11";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PL6", "PL7", "PL11";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 };
 

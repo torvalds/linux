@@ -55,8 +55,8 @@ static const struct nla_policy seg6_iptunnel_policy[SEG6_IPTUNNEL_MAX + 1] = {
 	[SEG6_IPTUNNEL_SRH]	= { .type = NLA_BINARY },
 };
 
-int nla_put_srh(struct sk_buff *skb, int attrtype,
-		struct seg6_iptunnel_encap *tuninfo)
+static int nla_put_srh(struct sk_buff *skb, int attrtype,
+		       struct seg6_iptunnel_encap *tuninfo)
 {
 	struct seg6_iptunnel_encap *data;
 	struct nlattr *nla;
@@ -235,7 +235,7 @@ static int seg6_do_srh(struct sk_buff *skb)
 	return 0;
 }
 
-int seg6_input(struct sk_buff *skb)
+static int seg6_input(struct sk_buff *skb)
 {
 	int err;
 
@@ -251,7 +251,7 @@ int seg6_input(struct sk_buff *skb)
 	return dst_input(skb);
 }
 
-int seg6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
+static int seg6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct dst_entry *orig_dst = skb_dst(skb);
 	struct dst_entry *dst = NULL;
@@ -303,7 +303,7 @@ drop:
 	return err;
 }
 
-static int seg6_build_state(struct net_device *dev, struct nlattr *nla,
+static int seg6_build_state(struct nlattr *nla,
 			    unsigned int family, const void *cfg,
 			    struct lwtunnel_state **ts)
 {

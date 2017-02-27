@@ -2159,7 +2159,9 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 
 	addr_filters__init(&pt->filts);
 
-	perf_config(intel_pt_perf_config, pt);
+	err = perf_config(intel_pt_perf_config, pt);
+	if (err)
+		goto err_free;
 
 	err = auxtrace_queues__init(&pt->queues);
 	if (err)

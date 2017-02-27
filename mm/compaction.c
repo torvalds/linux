@@ -548,7 +548,7 @@ isolate_fail:
 	if (blockpfn == end_pfn)
 		update_pageblock_skip(cc, valid_page, total_isolated, false);
 
-	count_compact_events(COMPACTFREE_SCANNED, nr_scanned);
+	cc->total_free_scanned += nr_scanned;
 	if (total_isolated)
 		count_compact_events(COMPACTISOLATED, total_isolated);
 	return total_isolated;
@@ -802,7 +802,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 					locked = false;
 				}
 
-				if (isolate_movable_page(page, isolate_mode))
+				if (!isolate_movable_page(page, isolate_mode))
 					goto isolate_success;
 			}
 
@@ -931,7 +931,7 @@ isolate_fail:
 	trace_mm_compaction_isolate_migratepages(start_pfn, low_pfn,
 						nr_scanned, nr_isolated);
 
-	count_compact_events(COMPACTMIGRATE_SCANNED, nr_scanned);
+	cc->total_migrate_scanned += nr_scanned;
 	if (nr_isolated)
 		count_compact_events(COMPACTISOLATED, nr_isolated);
 
@@ -1631,6 +1631,9 @@ out:
 			zone->compact_cached_free_pfn = free_pfn;
 	}
 
+	count_compact_events(COMPACTMIGRATE_SCANNED, cc->total_migrate_scanned);
+	count_compact_events(COMPACTFREE_SCANNED, cc->total_free_scanned);
+
 	trace_mm_compaction_end(start_pfn, cc->migrate_pfn,
 				cc->free_pfn, end_pfn, sync, ret);
 
@@ -1645,6 +1648,8 @@ static enum compact_result compact_zone_order(struct zone *zone, int order,
 	struct compact_control cc = {
 		.nr_freepages = 0,
 		.nr_migratepages = 0,
+		.total_migrate_scanned = 0,
+		.total_free_scanned = 0,
 		.order = order,
 		.gfp_mask = gfp_mask,
 		.zone = zone,
@@ -1757,6 +1762,8 @@ static void compact_node(int nid)
 	struct zone *zone;
 	struct compact_control cc = {
 		.order = -1,
+		.total_migrate_scanned = 0,
+		.total_free_scanned = 0,
 		.mode = MIGRATE_SYNC,
 		.ignore_skip_hint = true,
 		.whole_zone = true,
@@ -1883,6 +1890,8 @@ static void kcompactd_do_work(pg_data_t *pgdat)
 	struct zone *zone;
 	struct compact_control cc = {
 		.order = pgdat->kcompactd_max_order,
+		.total_migrate_scanned = 0,
+		.total_free_scanned = 0,
 		.classzone_idx = pgdat->kcompactd_classzone_idx,
 		.mode = MIGRATE_SYNC_LIGHT,
 		.ignore_skip_hint = true,
@@ -1891,7 +1900,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
 	};
 	trace_mm_compaction_kcompactd_wake(pgdat->node_id, cc.order,
 							cc.classzone_idx);
-	count_vm_event(KCOMPACTD_WAKE);
+	count_compact_event(KCOMPACTD_WAKE);
 
 	for (zoneid = 0; zoneid <= cc.classzone_idx; zoneid++) {
 		int status;
@@ -1909,6 +1918,8 @@ static void kcompactd_do_work(pg_data_t *pgdat)
 
 		cc.nr_freepages = 0;
 		cc.nr_migratepages = 0;
+		cc.total_migrate_scanned = 0;
+		cc.total_free_scanned = 0;
 		cc.zone = zone;
 		INIT_LIST_HEAD(&cc.freepages);
 		INIT_LIST_HEAD(&cc.migratepages);
@@ -1926,6 +1937,11 @@ static void kcompactd_do_work(pg_data_t *pgdat)
 			 */
 			defer_compaction(zone, cc.order);
 		}
+
+		count_compact_events(KCOMPACTD_MIGRATE_SCANNED,
+				     cc.total_migrate_scanned);
+		count_compact_events(KCOMPACTD_FREE_SCANNED,
+				     cc.total_free_scanned);
 
 		VM_BUG_ON(!list_empty(&cc.freepages));
 		VM_BUG_ON(!list_empty(&cc.migratepages));
@@ -1949,6 +1965,13 @@ void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_idx)
 
 	if (pgdat->kcompactd_max_order < order)
 		pgdat->kcompactd_max_order = order;
+
+	/*
+	 * Pairs with implicit barrier in wait_event_freezable()
+	 * such that wakeups are not missed in the lockless
+	 * waitqueue_active() call.
+	 */
+	smp_acquire__after_ctrl_dep();
 
 	if (pgdat->kcompactd_classzone_idx > classzone_idx)
 		pgdat->kcompactd_classzone_idx = classzone_idx;

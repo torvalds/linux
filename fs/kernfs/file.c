@@ -348,9 +348,9 @@ static void kernfs_vma_open(struct vm_area_struct *vma)
 	kernfs_put_active(of->kn);
 }
 
-static int kernfs_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int kernfs_vma_fault(struct vm_fault *vmf)
 {
-	struct file *file = vma->vm_file;
+	struct file *file = vmf->vma->vm_file;
 	struct kernfs_open_file *of = kernfs_of(file);
 	int ret;
 
@@ -362,16 +362,15 @@ static int kernfs_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	ret = VM_FAULT_SIGBUS;
 	if (of->vm_ops->fault)
-		ret = of->vm_ops->fault(vma, vmf);
+		ret = of->vm_ops->fault(vmf);
 
 	kernfs_put_active(of->kn);
 	return ret;
 }
 
-static int kernfs_vma_page_mkwrite(struct vm_area_struct *vma,
-				   struct vm_fault *vmf)
+static int kernfs_vma_page_mkwrite(struct vm_fault *vmf)
 {
-	struct file *file = vma->vm_file;
+	struct file *file = vmf->vma->vm_file;
 	struct kernfs_open_file *of = kernfs_of(file);
 	int ret;
 
@@ -383,7 +382,7 @@ static int kernfs_vma_page_mkwrite(struct vm_area_struct *vma,
 
 	ret = 0;
 	if (of->vm_ops->page_mkwrite)
-		ret = of->vm_ops->page_mkwrite(vma, vmf);
+		ret = of->vm_ops->page_mkwrite(vmf);
 	else
 		file_update_time(file);
 

@@ -87,11 +87,13 @@ static int softdog_ping(struct watchdog_device *w)
 	if (!mod_timer(&softdog_ticktock, jiffies + (w->timeout * HZ)))
 		__module_get(THIS_MODULE);
 
-	if (w->pretimeout)
-		mod_timer(&softdog_preticktock, jiffies +
-			  (w->timeout - w->pretimeout) * HZ);
-	else
-		del_timer(&softdog_preticktock);
+	if (IS_ENABLED(CONFIG_SOFT_WATCHDOG_PRETIMEOUT)) {
+		if (w->pretimeout)
+			mod_timer(&softdog_preticktock, jiffies +
+				  (w->timeout - w->pretimeout) * HZ);
+		else
+			del_timer(&softdog_preticktock);
+	}
 
 	return 0;
 }
@@ -101,15 +103,15 @@ static int softdog_stop(struct watchdog_device *w)
 	if (del_timer(&softdog_ticktock))
 		module_put(THIS_MODULE);
 
-	del_timer(&softdog_preticktock);
+	if (IS_ENABLED(CONFIG_SOFT_WATCHDOG_PRETIMEOUT))
+		del_timer(&softdog_preticktock);
 
 	return 0;
 }
 
 static struct watchdog_info softdog_info = {
 	.identity = "Software Watchdog",
-	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE |
-		   WDIOF_PRETIMEOUT,
+	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 };
 
 static const struct watchdog_ops softdog_ops = {
@@ -133,6 +135,9 @@ static int __init softdog_init(void)
 	watchdog_init_timeout(&softdog_dev, soft_margin, NULL);
 	watchdog_set_nowayout(&softdog_dev, nowayout);
 	watchdog_stop_on_reboot(&softdog_dev);
+
+	if (IS_ENABLED(CONFIG_SOFT_WATCHDOG_PRETIMEOUT))
+		softdog_info.options |= WDIOF_PRETIMEOUT;
 
 	ret = watchdog_register_device(&softdog_dev);
 	if (ret)

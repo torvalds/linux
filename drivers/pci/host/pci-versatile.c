@@ -124,7 +124,7 @@ static int versatile_pci_probe(struct platform_device *pdev)
 	int ret, i, myslot = -1;
 	u32 val;
 	void __iomem *local_pci_cfg_base;
-	struct pci_bus *bus;
+	struct pci_bus *bus, *child;
 	LIST_HEAD(pci_res);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -204,6 +204,8 @@ static int versatile_pci_probe(struct platform_device *pdev)
 
 	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
 	pci_assign_unassigned_bus_resources(bus);
+	list_for_each_entry(child, &bus->children, node)
+		pcie_bus_configure_settings(child);
 	pci_bus_add_devices(bus);
 
 	return 0;

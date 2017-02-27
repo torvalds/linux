@@ -91,12 +91,18 @@ static struct linux_binfmt elf_format = {
 
 #define BAD_ADDR(x) ((unsigned long)(x) >= TASK_SIZE)
 
-static int set_brk(unsigned long start, unsigned long end)
+static int set_brk(unsigned long start, unsigned long end, int prot)
 {
 	start = ELF_PAGEALIGN(start);
 	end = ELF_PAGEALIGN(end);
 	if (end > start) {
-		int error = vm_brk(start, end - start);
+		/*
+		 * Map the last of the bss segment.
+		 * If the header is requesting these pages to be
+		 * executable, honour that (ppc32 needs this).
+		 */
+		int error = vm_brk_flags(start, end - start,
+				prot & PROT_EXEC ? VM_EXEC : 0);
 		if (error)
 			return error;
 	}
@@ -524,6 +530,7 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
 	unsigned long load_addr = 0;
 	int load_addr_set = 0;
 	unsigned long last_bss = 0, elf_bss = 0;
+	int bss_prot = 0;
 	unsigned long error = ~0UL;
 	unsigned long total_size;
 	int i;
@@ -606,8 +613,10 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
 			 * elf_bss and last_bss is the bss section.
 			 */
 			k = load_addr + eppnt->p_vaddr + eppnt->p_memsz;
-			if (k > last_bss)
+			if (k > last_bss) {
 				last_bss = k;
+				bss_prot = elf_prot;
+			}
 		}
 	}
 
@@ -623,13 +632,14 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
 	/*
 	 * Next, align both the file and mem bss up to the page size,
 	 * since this is where elf_bss was just zeroed up to, and where
-	 * last_bss will end after the vm_brk() below.
+	 * last_bss will end after the vm_brk_flags() below.
 	 */
 	elf_bss = ELF_PAGEALIGN(elf_bss);
 	last_bss = ELF_PAGEALIGN(last_bss);
 	/* Finally, if there is still more bss to allocate, do it. */
 	if (last_bss > elf_bss) {
-		error = vm_brk(elf_bss, last_bss - elf_bss);
+		error = vm_brk_flags(elf_bss, last_bss - elf_bss,
+				bss_prot & PROT_EXEC ? VM_EXEC : 0);
 		if (error)
 			goto out;
 	}
@@ -674,6 +684,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	unsigned long error;
 	struct elf_phdr *elf_ppnt, *elf_phdata, *interp_elf_phdata = NULL;
 	unsigned long elf_bss, elf_brk;
+	int bss_prot = 0;
 	int retval, i;
 	unsigned long elf_entry;
 	unsigned long interp_load_addr = 0;
@@ -882,7 +893,8 @@ static int load_elf_binary(struct linux_binprm *bprm)
 			   before this one. Map anonymous pages, if needed,
 			   and clear the area.  */
 			retval = set_brk(elf_bss + load_bias,
-					 elf_brk + load_bias);
+					 elf_brk + load_bias,
+					 bss_prot);
 			if (retval)
 				goto out_free_dentry;
 			nbyte = ELF_PAGEOFFSET(elf_bss);
@@ -976,8 +988,10 @@ static int load_elf_binary(struct linux_binprm *bprm)
 		if (end_data < k)
 			end_data = k;
 		k = elf_ppnt->p_vaddr + elf_ppnt->p_memsz;
-		if (k > elf_brk)
+		if (k > elf_brk) {
+			bss_prot = elf_prot;
 			elf_brk = k;
+		}
 	}
 
 	loc->elf_ex.e_entry += load_bias;
@@ -993,7 +1007,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	 * mapping in the interpreter, to make sure it doesn't wind
 	 * up getting placed where the bss needs to go.
 	 */
-	retval = set_brk(elf_bss, elf_brk);
+	retval = set_brk(elf_bss, elf_brk, bss_prot);
 	if (retval)
 		goto out_free_dentry;
 	if (likely(elf_bss != elf_brk) && unlikely(padzero(elf_bss))) {
@@ -1428,17 +1442,18 @@ static void fill_prstatus(struct elf_prstatus *prstatus,
 		 * group-wide total, not its individual thread total.
 		 */
 		thread_group_cputime(p, &cputime);
-		cputime_to_timeval(cputime.utime, &prstatus->pr_utime);
-		cputime_to_timeval(cputime.stime, &prstatus->pr_stime);
+		prstatus->pr_utime = ns_to_timeval(cputime.utime);
+		prstatus->pr_stime = ns_to_timeval(cputime.stime);
 	} else {
-		cputime_t utime, stime;
+		u64 utime, stime;
 
 		task_cputime(p, &utime, &stime);
-		cputime_to_timeval(utime, &prstatus->pr_utime);
-		cputime_to_timeval(stime, &prstatus->pr_stime);
+		prstatus->pr_utime = ns_to_timeval(utime);
+		prstatus->pr_stime = ns_to_timeval(stime);
 	}
-	cputime_to_timeval(p->signal->cutime, &prstatus->pr_cutime);
-	cputime_to_timeval(p->signal->cstime, &prstatus->pr_cstime);
+
+	prstatus->pr_cutime = ns_to_timeval(p->signal->cutime);
+	prstatus->pr_cstime = ns_to_timeval(p->signal->cstime);
 }
 
 static int fill_psinfo(struct elf_prpsinfo *psinfo, struct task_struct *p,

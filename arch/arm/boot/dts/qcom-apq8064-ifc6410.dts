@@ -75,25 +75,6 @@
 					bias-disable;
 				};
 			};
-
-			hdmi_pinctrl: hdmi-pinctrl {
-				mux {
-					pins = "gpio70", "gpio71", "gpio72";
-					function = "hdmi";
-				};
-
-				pinconf_ddc {
-					pins = "gpio70", "gpio71";
-					bias-pull-up;
-					drive-strength = <2>;
-				};
-
-				pinconf_hpd {
-					pins = "gpio72";
-					bias-pull-down;
-					drive-strength = <16>;
-				};
-			};
 		};
 
 		rpm@108000 {
@@ -367,9 +348,6 @@
 			hdmi-mux-supply = <&ext_3p3v>;
 
 			hpd-gpios = <&tlmm_pinmux 72 GPIO_ACTIVE_HIGH>;
-
-			pinctrl-names = "default";
-			pinctrl-0 = <&hdmi_pinctrl>;
 
 			ports {
 				port@0 {

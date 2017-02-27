@@ -161,6 +161,15 @@ The target is named "raid" and it accepts the following parameters:
 		the RAID type (i.e. the allocation algorithm) as well, e.g.
 		changing from raid5_ls to raid5_n.
 
+	[journal_dev <dev>]
+		This option adds a journal device to raid4/5/6 raid sets and
+		uses it to close the 'write hole' caused by the non-atomic updates
+		to the component devices which can cause data loss during recovery.
+		The journal device is used as writethrough thus causing writes to
+		be throttled versus non-journaled raid4/5/6 sets.
+		Takeover/reshape is not possible with a raid4/5/6 journal device;
+		it has to be deconfigured before requesting these.
+
 <#raid_devs>: The number of devices composing the array.
 	Each device consists of two entries.  The first is the device
 	containing the metadata (if any); the second is the one containing the
@@ -245,6 +254,9 @@ recovery.  Here is a fuller description of the individual fields:
 	<data_offset>   The current data offset to the start of the user data on
 			each component device of a raid set (see the respective
 			raid parameter to support out-of-place reshaping).
+	<journal_char>	'A' - active raid4/5/6 journal device.
+			'D' - dead journal device.
+			'-' - no journal device.
 
 
 Message Interface
@@ -314,3 +326,8 @@ Version History
 1.9.0   Add support for RAID level takeover/reshape/region size
 	and set size reduction.
 1.9.1   Fix activation of existing RAID 4/10 mapped devices
+1.9.2   Don't emit '- -' on the status table line in case the constructor
+	fails reading a superblock. Correctly emit 'maj:min1 maj:min2' and
+	'D' on the status line.  If '- -' is passed into the constructor, emit
+	'- -' on the table line and '-' as the status line health character.
+1.10.0  Add support for raid4/5/6 journal device

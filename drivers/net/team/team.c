@@ -1798,7 +1798,7 @@ unwind:
 	return err;
 }
 
-static struct rtnl_link_stats64 *
+static void
 team_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	struct team *team = netdev_priv(dev);
@@ -1835,7 +1835,6 @@ team_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	stats->rx_dropped	= rx_dropped;
 	stats->tx_dropped	= tx_dropped;
 	stats->rx_nohandler	= rx_nohandler;
-	return stats;
 }
 
 static int team_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
@@ -2002,8 +2001,6 @@ static const struct net_device_ops team_netdev_ops = {
 	.ndo_add_slave		= team_add_slave,
 	.ndo_del_slave		= team_del_slave,
 	.ndo_fix_features	= team_fix_features,
-	.ndo_neigh_construct	= netdev_default_l2upper_neigh_construct,
-	.ndo_neigh_destroy	= netdev_default_l2upper_neigh_destroy,
 	.ndo_change_carrier     = team_change_carrier,
 	.ndo_bridge_setlink	= switchdev_port_bridge_setlink,
 	.ndo_bridge_getlink	= switchdev_port_bridge_getlink,

@@ -1191,7 +1191,7 @@ static int
 	u64 sample_type = evsel->attr.sample_type;
 	u64 read_format = evsel->attr.read_format;
 
-	/* Standard sample delievery. */
+	/* Standard sample delivery. */
 	if (!(sample_type & PERF_SAMPLE_READ))
 		return tool->sample(tool, event, sample, evsel, machine);
 
@@ -1901,7 +1901,7 @@ int maps__set_kallsyms_ref_reloc_sym(struct map **maps,
 				     const char *symbol_name, u64 addr)
 {
 	char *bracket;
-	enum map_type i;
+	int i;
 	struct ref_reloc_sym *ref;
 
 	ref = zalloc(sizeof(struct ref_reloc_sym));

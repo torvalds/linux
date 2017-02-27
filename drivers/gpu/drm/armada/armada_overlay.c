@@ -186,9 +186,9 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 
 		armada_drm_plane_calc_addrs(addrs, fb, src_x, src_y);
 
-		pixel_format = fb->pixel_format;
+		pixel_format = fb->format->format;
 		hsub = drm_format_horz_chroma_subsampling(pixel_format);
-		num_planes = drm_format_num_planes(pixel_format);
+		num_planes = fb->format->num_planes;
 
 		/*
 		 * Annoyingly, shifting a YUYV-format image by one pixel

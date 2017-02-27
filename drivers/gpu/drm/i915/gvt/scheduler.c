@@ -169,7 +169,8 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 	gvt_dbg_sched("ring id %d prepare to dispatch workload %p\n",
 		ring_id, workload);
 
-	shadow_ctx->desc_template = workload->ctx_desc.addressing_mode <<
+	shadow_ctx->desc_template &= ~(0x3 << GEN8_CTX_ADDRESSING_MODE_SHIFT);
+	shadow_ctx->desc_template |= workload->ctx_desc.addressing_mode <<
 				    GEN8_CTX_ADDRESSING_MODE_SHIFT;
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
@@ -456,7 +457,7 @@ static int workload_thread(void *priv)
 		}
 
 complete:
-		gvt_dbg_sched("will complete workload %p\n, status: %d\n",
+		gvt_dbg_sched("will complete workload %p, status: %d\n",
 				workload, workload->status);
 
 		if (workload->req)
@@ -549,18 +550,10 @@ err:
 
 void intel_vgpu_clean_gvt_context(struct intel_vgpu *vgpu)
 {
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
-
 	atomic_notifier_chain_unregister(&vgpu->shadow_ctx->status_notifier,
 			&vgpu->shadow_ctx_notifier_block);
 
-	mutex_lock(&dev_priv->drm.struct_mutex);
-
-	/* a little hacky to mark as ctx closed */
-	vgpu->shadow_ctx->closed = true;
-	i915_gem_context_put(vgpu->shadow_ctx);
-
-	mutex_unlock(&dev_priv->drm.struct_mutex);
+	i915_gem_context_put_unlocked(vgpu->shadow_ctx);
 }
 
 int intel_vgpu_init_gvt_context(struct intel_vgpu *vgpu)

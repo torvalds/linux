@@ -333,6 +333,15 @@ int ib_register_device(struct ib_device *device,
 	int ret;
 	struct ib_client *client;
 	struct ib_udata uhw = {.outlen = 0, .inlen = 0};
+	struct device *parent = device->dev.parent;
+
+	WARN_ON_ONCE(!parent);
+	if (!device->dev.dma_ops)
+		device->dev.dma_ops = parent->dma_ops;
+	if (!device->dev.dma_mask)
+		device->dev.dma_mask = parent->dma_mask;
+	if (!device->dev.coherent_dma_mask)
+		device->dev.coherent_dma_mask = parent->coherent_dma_mask;
 
 	mutex_lock(&device_mutex);
 
@@ -659,7 +668,7 @@ int ib_query_port(struct ib_device *device,
 	union ib_gid gid;
 	int err;
 
-	if (port_num < rdma_start_port(device) || port_num > rdma_end_port(device))
+	if (!rdma_is_port_valid(device, port_num))
 		return -EINVAL;
 
 	memset(port_attr, 0, sizeof(*port_attr));
@@ -825,7 +834,7 @@ int ib_modify_port(struct ib_device *device,
 	if (!device->modify_port)
 		return -ENOSYS;
 
-	if (port_num < rdma_start_port(device) || port_num > rdma_end_port(device))
+	if (!rdma_is_port_valid(device, port_num))
 		return -EINVAL;
 
 	return device->modify_port(device, port_num, port_modify_mask,

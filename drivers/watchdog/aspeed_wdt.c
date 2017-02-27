@@ -136,15 +136,6 @@ static const struct watchdog_info aspeed_wdt_info = {
 	.identity	= KBUILD_MODNAME,
 };
 
-static int aspeed_wdt_remove(struct platform_device *pdev)
-{
-	struct aspeed_wdt *wdt = platform_get_drvdata(pdev);
-
-	watchdog_unregister_device(&wdt->wdd);
-
-	return 0;
-}
-
 static int aspeed_wdt_probe(struct platform_device *pdev)
 {
 	struct aspeed_wdt *wdt;
@@ -187,20 +178,17 @@ static int aspeed_wdt_probe(struct platform_device *pdev)
 		set_bit(WDOG_HW_RUNNING, &wdt->wdd.status);
 	}
 
-	ret = watchdog_register_device(&wdt->wdd);
+	ret = devm_watchdog_register_device(&pdev->dev, &wdt->wdd);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register\n");
 		return ret;
 	}
-
-	platform_set_drvdata(pdev, wdt);
 
 	return 0;
 }
 
 static struct platform_driver aspeed_watchdog_driver = {
 	.probe = aspeed_wdt_probe,
-	.remove = aspeed_wdt_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.of_match_table = of_match_ptr(aspeed_wdt_of_table),

@@ -432,7 +432,7 @@ out:
 }
 
 /* Needs to either be called under a log transaction or the log_mutex */
-void btrfs_get_logged_extents(struct inode *inode,
+void btrfs_get_logged_extents(struct btrfs_inode *inode,
 			      struct list_head *logged_list,
 			      const loff_t start,
 			      const loff_t end)
@@ -442,7 +442,7 @@ void btrfs_get_logged_extents(struct inode *inode,
 	struct rb_node *n;
 	struct rb_node *prev;
 
-	tree = &BTRFS_I(inode)->ordered_tree;
+	tree = &inode->ordered_tree;
 	spin_lock_irq(&tree->lock);
 	n = __tree_search(&tree->tree, end, &prev);
 	if (!n)
@@ -984,8 +984,18 @@ int btrfs_ordered_update_i_size(struct inode *inode, u64 offset,
 	}
 	disk_i_size = BTRFS_I(inode)->disk_i_size;
 
-	/* truncate file */
-	if (disk_i_size > i_size) {
+	/*
+	 * truncate file.
+	 * If ordered is not NULL, then this is called from endio and
+	 * disk_i_size will be updated by either truncate itself or any
+	 * in-flight IOs which are inside the disk_i_size.
+	 *
+	 * Because btrfs_setsize() may set i_size with disk_i_size if truncate
+	 * fails somehow, we need to make sure we have a precise disk_i_size by
+	 * updating it as usual.
+	 *
+	 */
+	if (!ordered && disk_i_size > i_size) {
 		BTRFS_I(inode)->disk_i_size = orig_offset;
 		ret = 0;
 		goto out;
@@ -1032,25 +1042,22 @@ int btrfs_ordered_update_i_size(struct inode *inode, u64 offset,
 		/* We treat this entry as if it doesn't exist */
 		if (test_bit(BTRFS_ORDERED_UPDATED_ISIZE, &test->flags))
 			continue;
-		if (test->file_offset + test->len <= disk_i_size)
+
+		if (entry_end(test) <= disk_i_size)
 			break;
 		if (test->file_offset >= i_size)
 			break;
-		if (entry_end(test) > disk_i_size) {
-			/*
-			 * we don't update disk_i_size now, so record this
-			 * undealt i_size. Or we will not know the real
-			 * i_size.
-			 */
-			if (test->outstanding_isize < offset)
-				test->outstanding_isize = offset;
-			if (ordered &&
-			    ordered->outstanding_isize >
-			    test->outstanding_isize)
-				test->outstanding_isize =
-						ordered->outstanding_isize;
-			goto out;
-		}
+
+		/*
+		 * We don't update disk_i_size now, so record this undealt
+		 * i_size. Or we will not know the real i_size.
+		 */
+		if (test->outstanding_isize < offset)
+			test->outstanding_isize = offset;
+		if (ordered &&
+		    ordered->outstanding_isize > test->outstanding_isize)
+			test->outstanding_isize = ordered->outstanding_isize;
+		goto out;
 	}
 	new_i_size = min_t(u64, offset, i_size);
 

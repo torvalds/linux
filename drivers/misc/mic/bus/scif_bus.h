@@ -113,7 +113,7 @@ int scif_register_driver(struct scif_driver *driver);
 void scif_unregister_driver(struct scif_driver *driver);
 struct scif_hw_dev *
 scif_register_device(struct device *pdev, int id,
-		     struct dma_map_ops *dma_ops,
+		     const struct dma_map_ops *dma_ops,
 		     struct scif_hw_ops *hw_ops, u8 dnode, u8 snode,
 		     struct mic_mw *mmio, struct mic_mw *aper,
 		     void *dp, void __iomem *rdp,

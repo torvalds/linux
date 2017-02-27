@@ -58,7 +58,8 @@ int proc_parse_options(char *options, struct pid_namespace *pid)
 		case Opt_hidepid:
 			if (match_int(&args[0], &option))
 				return 0;
-			if (option < 0 || option > 2) {
+			if (option < HIDEPID_OFF ||
+			    option > HIDEPID_INVISIBLE) {
 				pr_err("proc: hidepid value must be between 0 and 2.\n");
 				return 0;
 			}

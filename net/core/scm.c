@@ -71,7 +71,7 @@ static int scm_fp_copy(struct cmsghdr *cmsg, struct scm_fp_list **fplp)
 	struct file **fpp;
 	int i, num;
 
-	num = (cmsg->cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr)))/sizeof(int);
+	num = (cmsg->cmsg_len - sizeof(struct cmsghdr))/sizeof(int);
 
 	if (num <= 0)
 		return 0;

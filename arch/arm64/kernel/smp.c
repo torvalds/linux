@@ -603,9 +603,9 @@ acpi_parse_gic_cpu_interface(struct acpi_subtable_header *header,
  */
 static void __init of_parse_and_init_cpus(void)
 {
-	struct device_node *dn = NULL;
+	struct device_node *dn;
 
-	while ((dn = of_find_node_by_type(dn, "cpu"))) {
+	for_each_node_by_type(dn, "cpu") {
 		u64 hwid = of_get_cpu_mpidr(dn);
 
 		if (hwid == INVALID_HWID)

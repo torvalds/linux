@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Netronome Systems, Inc.
+ * Copyright (C) 2015-2017 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -42,6 +42,7 @@
  */
 
 #include <linux/bpf.h>
+#include <linux/bpf_trace.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -280,72 +281,76 @@ static void nfp_net_irq_unmask(struct nfp_net *nn, unsigned int entry_nr)
 }
 
 /**
- * nfp_net_msix_alloc() - Try to allocate MSI-X irqs
- * @nn:       NFP Network structure
- * @nr_vecs:  Number of MSI-X vectors to allocate
- *
- * For MSI-X we want at least NFP_NET_NON_Q_VECTORS + 1 vectors.
- *
- * Return: Number of MSI-X vectors obtained or 0 on error.
- */
-static int nfp_net_msix_alloc(struct nfp_net *nn, int nr_vecs)
-{
-	struct pci_dev *pdev = nn->pdev;
-	int nvecs;
-	int i;
-
-	for (i = 0; i < nr_vecs; i++)
-		nn->irq_entries[i].entry = i;
-
-	nvecs = pci_enable_msix_range(pdev, nn->irq_entries,
-				      NFP_NET_NON_Q_VECTORS + 1, nr_vecs);
-	if (nvecs < 0) {
-		nn_warn(nn, "Failed to enable MSI-X. Wanted %d-%d (err=%d)\n",
-			NFP_NET_NON_Q_VECTORS + 1, nr_vecs, nvecs);
-		return 0;
-	}
-
-	return nvecs;
-}
-
-/**
  * nfp_net_irqs_alloc() - allocates MSI-X irqs
- * @nn:       NFP Network structure
+ * @pdev:        PCI device structure
+ * @irq_entries: Array to be initialized and used to hold the irq entries
+ * @min_irqs:    Minimal acceptable number of interrupts
+ * @wanted_irqs: Target number of interrupts to allocate
  *
  * Return: Number of irqs obtained or 0 on error.
  */
-int nfp_net_irqs_alloc(struct nfp_net *nn)
+unsigned int
+nfp_net_irqs_alloc(struct pci_dev *pdev, struct msix_entry *irq_entries,
+		   unsigned int min_irqs, unsigned int wanted_irqs)
 {
-	int wanted_irqs;
-	unsigned int n;
+	unsigned int i;
+	int got_irqs;
 
-	wanted_irqs = nn->num_r_vecs + NFP_NET_NON_Q_VECTORS;
+	for (i = 0; i < wanted_irqs; i++)
+		irq_entries[i].entry = i;
 
-	n = nfp_net_msix_alloc(nn, wanted_irqs);
-	if (n == 0) {
-		nn_err(nn, "Failed to allocate MSI-X IRQs\n");
+	got_irqs = pci_enable_msix_range(pdev, irq_entries,
+					 min_irqs, wanted_irqs);
+	if (got_irqs < 0) {
+		dev_err(&pdev->dev, "Failed to enable %d-%d MSI-X (err=%d)\n",
+			min_irqs, wanted_irqs, got_irqs);
 		return 0;
 	}
 
+	if (got_irqs < wanted_irqs)
+		dev_warn(&pdev->dev, "Unable to allocate %d IRQs got only %d\n",
+			 wanted_irqs, got_irqs);
+
+	return got_irqs;
+}
+
+/**
+ * nfp_net_irqs_assign() - Assign interrupts allocated externally to netdev
+ * @nn:		 NFP Network structure
+ * @irq_entries: Table of allocated interrupts
+ * @n:		 Size of @irq_entries (number of entries to grab)
+ *
+ * After interrupts are allocated with nfp_net_irqs_alloc() this function
+ * should be called to assign them to a specific netdev (port).
+ */
+void
+nfp_net_irqs_assign(struct nfp_net *nn, struct msix_entry *irq_entries,
+		    unsigned int n)
+{
 	nn->max_r_vecs = n - NFP_NET_NON_Q_VECTORS;
 	nn->num_r_vecs = nn->max_r_vecs;
 
-	if (n < wanted_irqs)
-		nn_warn(nn, "Unable to allocate %d vectors. Got %d instead\n",
-			wanted_irqs, n);
+	memcpy(nn->irq_entries, irq_entries, sizeof(*irq_entries) * n);
 
-	return n;
+	if (nn->num_rx_rings > nn->num_r_vecs ||
+	    nn->num_tx_rings > nn->num_r_vecs)
+		nn_warn(nn, "More rings (%d,%d) than vectors (%d).\n",
+			nn->num_rx_rings, nn->num_tx_rings, nn->num_r_vecs);
+
+	nn->num_rx_rings = min(nn->num_r_vecs, nn->num_rx_rings);
+	nn->num_tx_rings = min(nn->num_r_vecs, nn->num_tx_rings);
+	nn->num_stack_tx_rings = nn->num_tx_rings;
 }
 
 /**
  * nfp_net_irqs_disable() - Disable interrupts
- * @nn:       NFP Network structure
+ * @pdev:        PCI device structure
  *
  * Undoes what @nfp_net_irqs_alloc() does.
  */
-void nfp_net_irqs_disable(struct nfp_net *nn)
+void nfp_net_irqs_disable(struct pci_dev *pdev)
 {
-	pci_disable_msix(nn->pdev);
+	pci_disable_msix(pdev);
 }
 
 /**
@@ -409,10 +414,13 @@ out:
 static irqreturn_t nfp_net_irq_lsc(int irq, void *data)
 {
 	struct nfp_net *nn = data;
+	struct msix_entry *entry;
+
+	entry = &nn->irq_entries[NFP_NET_IRQ_LSC_IDX];
 
 	nfp_net_read_link_status(nn);
 
-	nfp_net_irq_unmask(nn, NFP_NET_IRQ_LSC_IDX);
+	nfp_net_irq_unmask(nn, entry->entry);
 
 	return IRQ_HANDLED;
 }
@@ -475,32 +483,28 @@ nfp_net_rx_ring_init(struct nfp_net_rx_ring *rx_ring,
 }
 
 /**
- * nfp_net_irqs_assign() - Assign IRQs and setup rvecs.
+ * nfp_net_vecs_init() - Assign IRQs and setup rvecs.
  * @netdev:   netdev structure
  */
-static void nfp_net_irqs_assign(struct net_device *netdev)
+static void nfp_net_vecs_init(struct net_device *netdev)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 	struct nfp_net_r_vector *r_vec;
 	int r;
 
-	if (nn->num_rx_rings > nn->num_r_vecs ||
-	    nn->num_tx_rings > nn->num_r_vecs)
-		nn_warn(nn, "More rings (%d,%d) than vectors (%d).\n",
-			nn->num_rx_rings, nn->num_tx_rings, nn->num_r_vecs);
-
-	nn->num_rx_rings = min(nn->num_r_vecs, nn->num_rx_rings);
-	nn->num_tx_rings = min(nn->num_r_vecs, nn->num_tx_rings);
-	nn->num_stack_tx_rings = nn->num_tx_rings;
-
 	nn->lsc_handler = nfp_net_irq_lsc;
 	nn->exn_handler = nfp_net_irq_exn;
 
 	for (r = 0; r < nn->max_r_vecs; r++) {
+		struct msix_entry *entry;
+
+		entry = &nn->irq_entries[NFP_NET_NON_Q_VECTORS + r];
+
 		r_vec = &nn->r_vecs[r];
 		r_vec->nfp_net = nn;
 		r_vec->handler = nfp_net_irq_rxtx;
-		r_vec->irq_idx = NFP_NET_NON_Q_VECTORS + r;
+		r_vec->irq_entry = entry->entry;
+		r_vec->irq_vector = entry->vector;
 
 		cpumask_set_cpu(r, &r_vec->affinity_mask);
 	}
@@ -533,7 +537,7 @@ nfp_net_aux_irq_request(struct nfp_net *nn, u32 ctrl_offset,
 		       entry->vector, err);
 		return err;
 	}
-	nn_writeb(nn, ctrl_offset, vector_idx);
+	nn_writeb(nn, ctrl_offset, entry->entry);
 
 	return 0;
 }
@@ -1459,7 +1463,7 @@ nfp_net_rx_drop(struct nfp_net_r_vector *r_vec, struct nfp_net_rx_ring *rx_ring,
 		dev_kfree_skb_any(skb);
 }
 
-static void
+static bool
 nfp_net_tx_xdp_buf(struct nfp_net *nn, struct nfp_net_rx_ring *rx_ring,
 		   struct nfp_net_tx_ring *tx_ring,
 		   struct nfp_net_rx_buf *rxbuf, unsigned int pkt_off,
@@ -1473,13 +1477,13 @@ nfp_net_tx_xdp_buf(struct nfp_net *nn, struct nfp_net_rx_ring *rx_ring,
 
 	if (unlikely(nfp_net_tx_full(tx_ring, 1))) {
 		nfp_net_rx_drop(rx_ring->r_vec, rx_ring, rxbuf, NULL);
-		return;
+		return false;
 	}
 
 	new_frag = nfp_net_napi_alloc_one(nn, DMA_BIDIRECTIONAL, &new_dma_addr);
 	if (unlikely(!new_frag)) {
 		nfp_net_rx_drop(rx_ring->r_vec, rx_ring, rxbuf, NULL);
-		return;
+		return false;
 	}
 	nfp_net_rx_give_one(rx_ring, new_frag, new_dma_addr);
 
@@ -1509,6 +1513,7 @@ nfp_net_tx_xdp_buf(struct nfp_net *nn, struct nfp_net_rx_ring *rx_ring,
 
 	tx_ring->wr_p++;
 	tx_ring->wr_ptr_add++;
+	return true;
 }
 
 static int nfp_net_run_xdp(struct bpf_prog *prog, void *data, unsigned int len)
@@ -1613,12 +1618,15 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 			case XDP_PASS:
 				break;
 			case XDP_TX:
-				nfp_net_tx_xdp_buf(nn, rx_ring, tx_ring, rxbuf,
-						   pkt_off, pkt_len);
+				if (unlikely(!nfp_net_tx_xdp_buf(nn, rx_ring,
+								 tx_ring, rxbuf,
+								 pkt_off, pkt_len)))
+					trace_xdp_exception(nn->netdev, xdp_prog, act);
 				continue;
 			default:
 				bpf_warn_invalid_xdp_action(act);
 			case XDP_ABORTED:
+				trace_xdp_exception(nn->netdev, xdp_prog, act);
 			case XDP_DROP:
 				nfp_net_rx_give_one(rx_ring, rxbuf->frag,
 						    rxbuf->dma_addr);
@@ -1701,7 +1709,7 @@ static int nfp_net_poll(struct napi_struct *napi, int budget)
 
 	if (pkts_polled < budget) {
 		napi_complete_done(napi, pkts_polled);
-		nfp_net_irq_unmask(r_vec->nfp_net, r_vec->irq_idx);
+		nfp_net_irq_unmask(r_vec->nfp_net, r_vec->irq_entry);
 	}
 
 	return pkts_polled;
@@ -1983,7 +1991,6 @@ static int
 nfp_net_prepare_vector(struct nfp_net *nn, struct nfp_net_r_vector *r_vec,
 		       int idx)
 {
-	struct msix_entry *entry = &nn->irq_entries[r_vec->irq_idx];
 	int err;
 
 	/* Setup NAPI */
@@ -1992,17 +1999,19 @@ nfp_net_prepare_vector(struct nfp_net *nn, struct nfp_net_r_vector *r_vec,
 
 	snprintf(r_vec->name, sizeof(r_vec->name),
 		 "%s-rxtx-%d", nn->netdev->name, idx);
-	err = request_irq(entry->vector, r_vec->handler, 0, r_vec->name, r_vec);
+	err = request_irq(r_vec->irq_vector, r_vec->handler, 0, r_vec->name,
+			  r_vec);
 	if (err) {
 		netif_napi_del(&r_vec->napi);
-		nn_err(nn, "Error requesting IRQ %d\n", entry->vector);
+		nn_err(nn, "Error requesting IRQ %d\n", r_vec->irq_vector);
 		return err;
 	}
-	disable_irq(entry->vector);
+	disable_irq(r_vec->irq_vector);
 
-	irq_set_affinity_hint(entry->vector, &r_vec->affinity_mask);
+	irq_set_affinity_hint(r_vec->irq_vector, &r_vec->affinity_mask);
 
-	nn_dbg(nn, "RV%02d: irq=%03d/%03d\n", idx, entry->vector, entry->entry);
+	nn_dbg(nn, "RV%02d: irq=%03d/%03d\n", idx, r_vec->irq_vector,
+	       r_vec->irq_entry);
 
 	return 0;
 }
@@ -2010,11 +2019,9 @@ nfp_net_prepare_vector(struct nfp_net *nn, struct nfp_net_r_vector *r_vec,
 static void
 nfp_net_cleanup_vector(struct nfp_net *nn, struct nfp_net_r_vector *r_vec)
 {
-	struct msix_entry *entry = &nn->irq_entries[r_vec->irq_idx];
-
-	irq_set_affinity_hint(entry->vector, NULL);
+	irq_set_affinity_hint(r_vec->irq_vector, NULL);
 	netif_napi_del(&r_vec->napi);
-	free_irq(entry->vector, r_vec);
+	free_irq(r_vec->irq_vector, r_vec);
 }
 
 /**
@@ -2143,7 +2150,7 @@ nfp_net_rx_ring_hw_cfg_write(struct nfp_net *nn,
 	/* Write the DMA address, size and MSI-X info to the device */
 	nn_writeq(nn, NFP_NET_CFG_RXR_ADDR(idx), rx_ring->dma);
 	nn_writeb(nn, NFP_NET_CFG_RXR_SZ(idx), ilog2(rx_ring->cnt));
-	nn_writeb(nn, NFP_NET_CFG_RXR_VEC(idx), rx_ring->r_vec->irq_idx);
+	nn_writeb(nn, NFP_NET_CFG_RXR_VEC(idx), rx_ring->r_vec->irq_entry);
 }
 
 static void
@@ -2152,7 +2159,7 @@ nfp_net_tx_ring_hw_cfg_write(struct nfp_net *nn,
 {
 	nn_writeq(nn, NFP_NET_CFG_TXR_ADDR(idx), tx_ring->dma);
 	nn_writeb(nn, NFP_NET_CFG_TXR_SZ(idx), ilog2(tx_ring->cnt));
-	nn_writeb(nn, NFP_NET_CFG_TXR_VEC(idx), tx_ring->r_vec->irq_idx);
+	nn_writeb(nn, NFP_NET_CFG_TXR_VEC(idx), tx_ring->r_vec->irq_entry);
 }
 
 static int __nfp_net_set_config_and_enable(struct nfp_net *nn)
@@ -2246,7 +2253,7 @@ static void nfp_net_open_stack(struct nfp_net *nn)
 
 	for (r = 0; r < nn->num_r_vecs; r++) {
 		napi_enable(&nn->r_vecs[r].napi);
-		enable_irq(nn->irq_entries[nn->r_vecs[r].irq_idx].vector);
+		enable_irq(nn->r_vecs[r].irq_vector);
 	}
 
 	netif_tx_wake_all_queues(nn->netdev);
@@ -2370,7 +2377,7 @@ static void nfp_net_close_stack(struct nfp_net *nn)
 	nn->link_up = false;
 
 	for (r = 0; r < nn->num_r_vecs; r++) {
-		disable_irq(nn->irq_entries[nn->r_vecs[r].irq_idx].vector);
+		disable_irq(nn->r_vecs[r].irq_vector);
 		napi_disable(&nn->r_vecs[r].napi);
 	}
 
@@ -2638,8 +2645,8 @@ static int nfp_net_change_mtu(struct net_device *netdev, int new_mtu)
 	return nfp_net_ring_reconfig(nn, &nn->xdp_prog, &rx, NULL);
 }
 
-static struct rtnl_link_stats64 *nfp_net_stat64(struct net_device *netdev,
-						struct rtnl_link_stats64 *stats)
+static void nfp_net_stat64(struct net_device *netdev,
+			   struct rtnl_link_stats64 *stats)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 	int r;
@@ -2669,8 +2676,6 @@ static struct rtnl_link_stats64 *nfp_net_stat64(struct net_device *netdev,
 		stats->tx_bytes += data[1];
 		stats->tx_errors += data[2];
 	}
-
-	return stats;
 }
 
 static bool nfp_net_ebpf_capable(struct nfp_net *nn)
@@ -3256,7 +3261,7 @@ int nfp_net_netdev_init(struct net_device *netdev)
 	netif_carrier_off(netdev);
 
 	nfp_net_set_ethtool_ops(netdev);
-	nfp_net_irqs_assign(netdev);
+	nfp_net_vecs_init(netdev);
 
 	return register_netdev(netdev);
 }

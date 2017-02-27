@@ -2,6 +2,7 @@
 #include <linux/interrupt.h>
 #include <linux/device.h>
 #include <linux/gfp.h>
+#include <linux/irq.h>
 
 /*
  * Device resource management aware IRQ request/free implementation.
@@ -33,7 +34,7 @@ static int devm_irq_match(struct device *dev, void *res, void *data)
  *	@thread_fn: function to be called in a threaded interrupt context. NULL
  *		    for devices which handle everything in @handler
  *	@irqflags: Interrupt type flags
- *	@devname: An ascii name for the claiming device
+ *	@devname: An ascii name for the claiming device, dev_name(dev) if NULL
  *	@dev_id: A cookie passed back to the handler function
  *
  *	Except for the extra @dev argument, this function takes the
@@ -56,6 +57,9 @@ int devm_request_threaded_irq(struct device *dev, unsigned int irq,
 			  GFP_KERNEL);
 	if (!dr)
 		return -ENOMEM;
+
+	if (!devname)
+		devname = dev_name(dev);
 
 	rc = request_threaded_irq(irq, handler, thread_fn, irqflags, devname,
 				  dev_id);
@@ -80,7 +84,7 @@ EXPORT_SYMBOL(devm_request_threaded_irq);
  *	@thread_fn: function to be called in a threaded interrupt context. NULL
  *		    for devices which handle everything in @handler
  *	@irqflags: Interrupt type flags
- *	@devname: An ascii name for the claiming device
+ *	@devname: An ascii name for the claiming device, dev_name(dev) if NULL
  *	@dev_id: A cookie passed back to the handler function
  *
  *	Except for the extra @dev argument, this function takes the
@@ -102,6 +106,9 @@ int devm_request_any_context_irq(struct device *dev, unsigned int irq,
 			  GFP_KERNEL);
 	if (!dr)
 		return -ENOMEM;
+
+	if (!devname)
+		devname = dev_name(dev);
 
 	rc = request_any_context_irq(irq, handler, irqflags, devname, dev_id);
 	if (rc < 0) {
@@ -137,3 +144,57 @@ void devm_free_irq(struct device *dev, unsigned int irq, void *dev_id)
 	free_irq(irq, dev_id);
 }
 EXPORT_SYMBOL(devm_free_irq);
+
+struct irq_desc_devres {
+	unsigned int from;
+	unsigned int cnt;
+};
+
+static void devm_irq_desc_release(struct device *dev, void *res)
+{
+	struct irq_desc_devres *this = res;
+
+	irq_free_descs(this->from, this->cnt);
+}
+
+/**
+ * __devm_irq_alloc_descs - Allocate and initialize a range of irq descriptors
+ *			    for a managed device
+ * @dev:	Device to allocate the descriptors for
+ * @irq:	Allocate for specific irq number if irq >= 0
+ * @from:	Start the search from this irq number
+ * @cnt:	Number of consecutive irqs to allocate
+ * @node:	Preferred node on which the irq descriptor should be allocated
+ * @owner:	Owning module (can be NULL)
+ * @affinity:	Optional pointer to an affinity mask array of size @cnt
+ *		which hints where the irq descriptors should be allocated
+ *		and which default affinities to use
+ *
+ * Returns the first irq number or error code.
+ *
+ * Note: Use the provided wrappers (devm_irq_alloc_desc*) for simplicity.
+ */
+int __devm_irq_alloc_descs(struct device *dev, int irq, unsigned int from,
+			   unsigned int cnt, int node, struct module *owner,
+			   const struct cpumask *affinity)
+{
+	struct irq_desc_devres *dr;
+	int base;
+
+	dr = devres_alloc(devm_irq_desc_release, sizeof(*dr), GFP_KERNEL);
+	if (!dr)
+		return -ENOMEM;
+
+	base = __irq_alloc_descs(irq, from, cnt, node, owner, affinity);
+	if (base < 0) {
+		devres_free(dr);
+		return base;
+	}
+
+	dr->from = base;
+	dr->cnt = cnt;
+	devres_add(dev, dr);
+
+	return base;
+}
+EXPORT_SYMBOL_GPL(__devm_irq_alloc_descs);

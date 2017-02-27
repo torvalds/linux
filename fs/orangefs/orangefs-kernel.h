@@ -529,7 +529,6 @@ extern spinlock_t orangefs_htable_ops_in_progress_lock;
 extern int hash_table_size;
 
 extern const struct address_space_operations orangefs_address_operations;
-extern struct backing_dev_info orangefs_backing_dev_info;
 extern const struct inode_operations orangefs_file_inode_operations;
 extern const struct file_operations orangefs_file_operations;
 extern const struct inode_operations orangefs_symlink_inode_operations;

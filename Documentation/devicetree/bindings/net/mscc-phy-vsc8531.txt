@@ -27,6 +27,14 @@ Optional properties:
 			  'vddmac'.
 			  Default value is 0%.
 			  Ref: Table:1 - Edge rate change (below).
+- vsc8531,led-0-mode	: LED mode. Specify how the LED[0] should behave.
+			  Allowed values are define in
+			  "include/dt-bindings/net/mscc-phy-vsc8531.h".
+			  Default value is VSC8531_LINK_1000_ACTIVITY (1).
+- vsc8531,led-1-mode	: LED mode. Specify how the LED[1] should behave.
+			  Allowed values are define in
+			  "include/dt-bindings/net/mscc-phy-vsc8531.h".
+			  Default value is VSC8531_LINK_100_ACTIVITY (2).
 
 Table: 1 - Edge rate change
 ----------------------------------------------------------------|
@@ -60,4 +68,6 @@ Example:
                 compatible = "ethernet-phy-id0007.0570";
                 vsc8531,vddmac		= <3300>;
                 vsc8531,edge-slowdown	= <7>;
+                vsc8531,led-0-mode	= <LINK_1000_ACTIVITY>;
+                vsc8531,led-1-mode	= <LINK_100_ACTIVITY>;
         };

@@ -2073,6 +2073,13 @@ lpfc_soft_wwn_enable_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	phba->soft_wwn_enable = 1;
+
+	dev_printk(KERN_WARNING, &phba->pcidev->dev,
+		   "lpfc%d: soft_wwpn assignment has been enabled.\n",
+		   phba->brd_no);
+	dev_printk(KERN_WARNING, &phba->pcidev->dev,
+		   "  The soft_wwpn feature is not supported by Broadcom.");
+
 	return count;
 }
 static DEVICE_ATTR(lpfc_soft_wwn_enable, S_IWUSR, NULL,
@@ -2143,7 +2150,7 @@ lpfc_soft_wwpn_store(struct device *dev, struct device_attribute *attr,
 	phba->soft_wwn_enable = 0;
 
 	rc = lpfc_wwn_set(buf, cnt, wwpn);
-	if (!rc) {
+	if (rc) {
 		/* not able to set wwpn, unlock it */
 		phba->soft_wwn_enable = 1;
 		return rc;
@@ -2224,7 +2231,7 @@ lpfc_soft_wwnn_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	rc = lpfc_wwn_set(buf, cnt, wwnn);
-	if (!rc) {
+	if (rc) {
 		/* Allow wwnn to be set many times, as long as the enable
 		 * is set. However, once the wwpn is set, everything locks.
 		 */
@@ -2435,7 +2442,8 @@ lpfc_oas_vpt_store(struct device *dev, struct device_attribute *attr,
 	else
 		phba->cfg_oas_flags &= ~OAS_FIND_ANY_VPORT;
 	phba->cfg_oas_flags &= ~OAS_LUN_VALID;
-	phba->cfg_oas_priority = phba->cfg_XLanePriority;
+	if (phba->cfg_oas_priority == 0)
+		phba->cfg_oas_priority = phba->cfg_XLanePriority;
 	phba->sli4_hba.oas_next_lun = FIND_FIRST_OAS_LUN;
 	return count;
 }
@@ -2561,7 +2569,7 @@ lpfc_oas_lun_state_set(struct lpfc_hba *phba, uint8_t vpt_wwpn[],
 			rc = -ENOMEM;
 	} else {
 		lpfc_disable_oas_lun(phba, (struct lpfc_name *)vpt_wwpn,
-				     (struct lpfc_name *)tgt_wwpn, lun);
+				     (struct lpfc_name *)tgt_wwpn, lun, pri);
 	}
 	return rc;
 
@@ -2585,7 +2593,8 @@ lpfc_oas_lun_state_set(struct lpfc_hba *phba, uint8_t vpt_wwpn[],
  */
 static uint64_t
 lpfc_oas_lun_get_next(struct lpfc_hba *phba, uint8_t vpt_wwpn[],
-		      uint8_t tgt_wwpn[], uint32_t *lun_status)
+		      uint8_t tgt_wwpn[], uint32_t *lun_status,
+		      uint32_t *lun_pri)
 {
 	uint64_t found_lun;
 
@@ -2598,7 +2607,7 @@ lpfc_oas_lun_get_next(struct lpfc_hba *phba, uint8_t vpt_wwpn[],
 				   &phba->sli4_hba.oas_next_lun,
 				   (struct lpfc_name *)vpt_wwpn,
 				   (struct lpfc_name *)tgt_wwpn,
-				   &found_lun, lun_status))
+				   &found_lun, lun_status, lun_pri))
 		return found_lun;
 	else
 		return NOT_OAS_ENABLED_LUN;
@@ -2670,7 +2679,8 @@ lpfc_oas_lun_show(struct device *dev, struct device_attribute *attr,
 
 	oas_lun = lpfc_oas_lun_get_next(phba, phba->cfg_oas_vpt_wwpn,
 					phba->cfg_oas_tgt_wwpn,
-					&phba->cfg_oas_lun_status);
+					&phba->cfg_oas_lun_status,
+					&phba->cfg_oas_priority);
 	if (oas_lun != NOT_OAS_ENABLED_LUN)
 		phba->cfg_oas_flags |= OAS_LUN_VALID;
 
@@ -2701,6 +2711,7 @@ lpfc_oas_lun_store(struct device *dev, struct device_attribute *attr,
 	struct Scsi_Host *shost = class_to_shost(dev);
 	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
 	uint64_t scsi_lun;
+	uint32_t pri;
 	ssize_t rc;
 
 	if (!phba->cfg_fof)
@@ -2718,17 +2729,20 @@ lpfc_oas_lun_store(struct device *dev, struct device_attribute *attr,
 	if (sscanf(buf, "0x%llx", &scsi_lun) != 1)
 		return -EINVAL;
 
+	pri = phba->cfg_oas_priority;
+	if (pri == 0)
+		pri = phba->cfg_XLanePriority;
+
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 			"3372 Try to set vport 0x%llx target 0x%llx lun:0x%llx "
 			"priority 0x%x with oas state %d\n",
 			wwn_to_u64(phba->cfg_oas_vpt_wwpn),
 			wwn_to_u64(phba->cfg_oas_tgt_wwpn), scsi_lun,
-			phba->cfg_oas_priority, phba->cfg_oas_lun_state);
+			pri, phba->cfg_oas_lun_state);
 
 	rc = lpfc_oas_lun_state_change(phba, phba->cfg_oas_vpt_wwpn,
 				       phba->cfg_oas_tgt_wwpn, scsi_lun,
-				       phba->cfg_oas_lun_state,
-				       phba->cfg_oas_priority);
+				       phba->cfg_oas_lun_state, pri);
 	if (rc)
 		return rc;
 
@@ -4670,14 +4684,6 @@ LPFC_ATTR_R(sg_seg_cnt, LPFC_DEFAULT_SG_SEG_CNT, LPFC_DEFAULT_SG_SEG_CNT,
 	    LPFC_MAX_SG_SEG_CNT, "Max Scatter Gather Segment Count");
 
 /*
- * This parameter will be depricated, the driver cannot limit the
- * protection data s/g list.
- */
-LPFC_ATTR_R(prot_sg_seg_cnt, LPFC_DEFAULT_SG_SEG_CNT,
-	    LPFC_DEFAULT_SG_SEG_CNT, LPFC_MAX_SG_SEG_CNT,
-	    "Max Protection Scatter Gather Segment Count");
-
-/*
  * lpfc_enable_mds_diags: Enable MDS Diagnostics
  *       0  = MDS Diagnostics disabled (default)
  *       1  = MDS Diagnostics enabled
@@ -4766,7 +4772,6 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_sg_seg_cnt,
 	&dev_attr_lpfc_max_scsicmpl_time,
 	&dev_attr_lpfc_stat_data_ctrl,
-	&dev_attr_lpfc_prot_sg_seg_cnt,
 	&dev_attr_lpfc_aer_support,
 	&dev_attr_lpfc_aer_state_cleanup,
 	&dev_attr_lpfc_sriov_nr_virtfn,
@@ -5059,6 +5064,19 @@ lpfc_free_sysfs_attr(struct lpfc_vport *vport)
 /*
  * Dynamic FC Host Attributes Support
  */
+
+/**
+ * lpfc_get_host_symbolic_name - Copy symbolic name into the scsi host
+ * @shost: kernel scsi host pointer.
+ **/
+static void
+lpfc_get_host_symbolic_name(struct Scsi_Host *shost)
+{
+	struct lpfc_vport *vport = (struct lpfc_vport *)shost->hostdata;
+
+	lpfc_vport_symbolic_node_name(vport, fc_host_symbolic_name(shost),
+				      sizeof fc_host_symbolic_name(shost));
+}
 
 /**
  * lpfc_get_host_port_id - Copy the vport DID into the scsi host port id
@@ -5597,6 +5615,8 @@ struct fc_function_template lpfc_transport_functions = {
 	.show_host_supported_fc4s = 1,
 	.show_host_supported_speeds = 1,
 	.show_host_maxframe_size = 1,
+
+	.get_host_symbolic_name = lpfc_get_host_symbolic_name,
 	.show_host_symbolic_name = 1,
 
 	/* dynamic attributes the driver supports */
@@ -5664,6 +5684,8 @@ struct fc_function_template lpfc_vport_transport_functions = {
 	.show_host_supported_fc4s = 1,
 	.show_host_supported_speeds = 1,
 	.show_host_maxframe_size = 1,
+
+	.get_host_symbolic_name = lpfc_get_host_symbolic_name,
 	.show_host_symbolic_name = 1,
 
 	/* dynamic attributes the driver supports */
@@ -5768,7 +5790,6 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	phba->cfg_soft_wwnn = 0L;
 	phba->cfg_soft_wwpn = 0L;
 	lpfc_sg_seg_cnt_init(phba, lpfc_sg_seg_cnt);
-	lpfc_prot_sg_seg_cnt_init(phba, lpfc_prot_sg_seg_cnt);
 	lpfc_hba_queue_depth_init(phba, lpfc_hba_queue_depth);
 	lpfc_hba_log_verbose_init(phba, lpfc_log_verbose);
 	lpfc_aer_support_init(phba, lpfc_aer_support);

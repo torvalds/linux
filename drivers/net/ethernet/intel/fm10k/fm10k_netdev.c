@@ -1118,8 +1118,8 @@ void fm10k_reset_rx_state(struct fm10k_intfc *interface)
  * Returns 64bit statistics, for use in the ndo_get_stats64 callback. This
  * function replaces fm10k_get_stats for kernels which support it.
  */
-static struct rtnl_link_stats64 *fm10k_get_stats64(struct net_device *netdev,
-						   struct rtnl_link_stats64 *stats)
+static void fm10k_get_stats64(struct net_device *netdev,
+			      struct rtnl_link_stats64 *stats)
 {
 	struct fm10k_intfc *interface = netdev_priv(netdev);
 	struct fm10k_ring *ring;
@@ -1164,8 +1164,6 @@ static struct rtnl_link_stats64 *fm10k_get_stats64(struct net_device *netdev,
 
 	/* following stats updated by fm10k_service_task() */
 	stats->rx_missed_errors	= netdev->stats.rx_missed_errors;
-
-	return stats;
 }
 
 int fm10k_setup_tc(struct net_device *dev, u8 tc)

@@ -389,10 +389,6 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 			dev->secondary_head += (amount - i);
 			bytes_read += (amount - i);
 			bytes_to_read -= (amount - i);
-			if (i) {
-				retval = bytes_read ? bytes_read : -EFAULT;
-				goto exit;
-			}
 		} else {
 			/* we check the primary buffer */
 			spin_lock_irqsave (&dev->buflock, flags);

@@ -6,6 +6,7 @@
 
 #include <linux/memcontrol.h>
 #include <linux/writeback.h>
+#include <linux/shmem_fs.h>
 #include <linux/pagemap.h>
 #include <linux/atomic.h>
 #include <linux/module.h>
@@ -267,7 +268,7 @@ bool workingset_refault(void *shadow)
 	}
 	lruvec = mem_cgroup_lruvec(pgdat, memcg);
 	refault = atomic_long_read(&lruvec->inactive_age);
-	active_file = lruvec_lru_size(lruvec, LRU_ACTIVE_FILE);
+	active_file = lruvec_lru_size(lruvec, LRU_ACTIVE_FILE, MAX_NR_ZONES);
 	rcu_read_unlock();
 
 	/*

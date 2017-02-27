@@ -380,7 +380,7 @@ static void snp_config_port(struct uart_port *port, int flags)
 
 /* Associate the uart functions above - given to serial core */
 
-static struct uart_ops sn_console_ops = {
+static const struct uart_ops sn_console_ops = {
 	.tx_empty = snp_tx_empty,
 	.set_mctrl = snp_set_mctrl,
 	.get_mctrl = snp_get_mctrl,

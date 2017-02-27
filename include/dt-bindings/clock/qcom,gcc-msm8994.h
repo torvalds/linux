@@ -133,5 +133,6 @@
 #define GCC_USB30_MOCK_UTMI_CLK			115
 #define GCC_USB3_PHY_AUX_CLK			116
 #define GCC_USB_HS_SYSTEM_CLK			117
+#define GCC_SDCC1_AHB_CLK			118
 
 #endif

@@ -54,12 +54,45 @@ Values :
 	1 - enable JIT hardening for unprivileged users only
 	2 - enable JIT hardening for all users
 
+bpf_jit_kallsyms
+----------------
+
+When Berkeley Packet Filter Just in Time compiler is enabled, then compiled
+images are unknown addresses to the kernel, meaning they neither show up in
+traces nor in /proc/kallsyms. This enables export of these addresses, which
+can be used for debugging/tracing. If bpf_jit_harden is enabled, this feature
+is disabled.
+Values :
+	0 - disable JIT kallsyms export (default value)
+	1 - enable JIT kallsyms export for privileged users only
+
 dev_weight
 --------------
 
 The maximum number of packets that kernel can handle on a NAPI interrupt,
 it's a Per-CPU variable.
 Default: 64
+
+dev_weight_rx_bias
+--------------
+
+RPS (e.g. RFS, aRFS) processing is competing with the registered NAPI poll function
+of the driver for the per softirq cycle netdev_budget. This parameter influences
+the proportion of the configured netdev_budget that is spent on RPS based packet
+processing during RX softirq cycles. It is further meant for making current
+dev_weight adaptable for asymmetric CPU needs on RX/TX side of the network stack.
+(see dev_weight_tx_bias) It is effective on a per CPU basis. Determination is based
+on dev_weight and is calculated multiplicative (dev_weight * dev_weight_rx_bias).
+Default: 1
+
+dev_weight_tx_bias
+--------------
+
+Scales the maximum number of packets that can be processed during a TX softirq cycle.
+Effective on a per CPU basis. Allows scaling of current dev_weight for asymmetric
+net stack processing needs. Be careful to avoid making TX softirq processing a CPU hog.
+Calculation is based on dev_weight (dev_weight * dev_weight_tx_bias).
+Default: 1
 
 default_qdisc
 --------------

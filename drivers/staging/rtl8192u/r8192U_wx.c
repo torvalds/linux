@@ -562,7 +562,7 @@ static int r8192_wx_set_enc(struct net_device *dev,
 		}
 
 		if (wrqu->encoding.length == 0x5) {
-				ieee->pairwise_key_type = KEY_TYPE_WEP40;
+			ieee->pairwise_key_type = KEY_TYPE_WEP40;
 			EnableHWSecurityConfig8192(dev);
 
 			setKey(dev,
@@ -576,8 +576,8 @@ static int r8192_wx_set_enc(struct net_device *dev,
 		}
 
 		else if (wrqu->encoding.length == 0xd) {
-				ieee->pairwise_key_type = KEY_TYPE_WEP104;
-				EnableHWSecurityConfig8192(dev);
+			ieee->pairwise_key_type = KEY_TYPE_WEP104;
+			EnableHWSecurityConfig8192(dev);
 
 			setKey(dev,
 				key_idx,                /* EntryNo */
