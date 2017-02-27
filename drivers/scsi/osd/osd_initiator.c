@@ -1290,7 +1290,7 @@ int osd_req_add_get_attr_list(struct osd_request *or,
 	or->enc_get_attr.total_bytes = total_bytes;
 
 	OSD_DEBUG(
-	       "get_attr.total_bytes=%u(%u) enc_get_attr.total_bytes=%u(%Zu)\n",
+	       "get_attr.total_bytes=%u(%u) enc_get_attr.total_bytes=%u(%zu)\n",
 	       or->get_attr.total_bytes,
 	       or->get_attr.total_bytes - _osd_req_sizeof_alist_header(or),
 	       or->enc_get_attr.total_bytes,
