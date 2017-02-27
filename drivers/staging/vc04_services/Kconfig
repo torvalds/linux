@@ -13,5 +13,7 @@ if BCM2835_VCHIQ
 
 source "drivers/staging/vc04_services/bcm2835-audio/Kconfig"
 
+source "drivers/staging/vc04_services/bcm2835-camera/Kconfig"
+
 endif
 
