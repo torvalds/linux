@@ -846,7 +846,7 @@ ksocknal_find_connecting_route_locked(struct ksock_peer *peer)
 
 int
 ksocknal_launch_packet(struct lnet_ni *ni, struct ksock_tx *tx,
-		       lnet_process_id_t id)
+		       struct lnet_process_id id)
 {
 	struct ksock_peer *peer;
 	struct ksock_conn *conn;
@@ -943,7 +943,7 @@ ksocknal_send(struct lnet_ni *ni, void *private, struct lnet_msg *lntmsg)
 {
 	int mpflag = 1;
 	int type = lntmsg->msg_type;
-	lnet_process_id_t target = lntmsg->msg_target;
+	struct lnet_process_id target = lntmsg->msg_target;
 	unsigned int payload_niov = lntmsg->msg_niov;
 	struct kvec *payload_iov = lntmsg->msg_iov;
 	lnet_kiov_t *payload_kiov = lntmsg->msg_kiov;
@@ -1133,7 +1133,7 @@ static int
 ksocknal_process_receive(struct ksock_conn *conn)
 {
 	struct lnet_hdr *lhdr;
-	lnet_process_id_t *id;
+	struct lnet_process_id *id;
 	int rc;
 
 	LASSERT(atomic_read(&conn->ksnc_conn_refcount) > 0);
@@ -1715,7 +1715,8 @@ ksocknal_invert_type(int type)
 
 int
 ksocknal_recv_hello(struct lnet_ni *ni, struct ksock_conn *conn,
-		    struct ksock_hello_msg *hello, lnet_process_id_t *peerid,
+		    struct ksock_hello_msg *hello,
+		    struct lnet_process_id *peerid,
 		    __u64 *incarnation)
 {
 	/* Return < 0	fatal error
@@ -1729,7 +1730,7 @@ ksocknal_recv_hello(struct lnet_ni *ni, struct ksock_conn *conn,
 	int proto_match;
 	int rc;
 	struct ksock_proto *proto;
-	lnet_process_id_t recv_id;
+	struct lnet_process_id recv_id;
 
 	/* socket type set on active connections - not set on passive */
 	LASSERT(!active == !(conn->ksnc_type != SOCKLND_CONN_NONE));

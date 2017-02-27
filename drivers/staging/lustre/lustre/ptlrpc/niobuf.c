@@ -109,7 +109,7 @@ static void mdunlink_iterate_helper(struct lnet_handle_md *bd_mds, int count)
 static int ptlrpc_register_bulk(struct ptlrpc_request *req)
 {
 	struct ptlrpc_bulk_desc *desc = req->rq_bulk;
-	lnet_process_id_t peer;
+	struct lnet_process_id peer;
 	int rc = 0;
 	int rc2;
 	int posted_md;
@@ -719,7 +719,7 @@ EXPORT_SYMBOL(ptl_send_rpc);
 int ptlrpc_register_rqbd(struct ptlrpc_request_buffer_desc *rqbd)
 {
 	struct ptlrpc_service *service = rqbd->rqbd_svcpt->scp_service;
-	static lnet_process_id_t match_id = {LNET_NID_ANY, LNET_PID_ANY};
+	static struct lnet_process_id match_id = {LNET_NID_ANY, LNET_PID_ANY};
 	int rc;
 	struct lnet_md md;
 	struct lnet_handle_me me_h;

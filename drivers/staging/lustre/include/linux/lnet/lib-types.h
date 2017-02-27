@@ -58,7 +58,7 @@ struct lnet_msg {
 	struct list_head	msg_activelist;
 	struct list_head	msg_list;	   /* Q for credits/MD */
 
-	lnet_process_id_t	msg_target;
+	struct lnet_process_id	msg_target;
 	/* where is it from, it's only for building event */
 	lnet_nid_t		msg_from;
 	__u32			msg_type;
@@ -130,7 +130,7 @@ struct lnet_eq {
 struct lnet_me {
 	struct list_head	 me_list;
 	struct lnet_libhandle	 me_lh;
-	lnet_process_id_t	 me_match_id;
+	struct lnet_process_id	 me_match_id;
 	unsigned int		 me_portal;
 	unsigned int		 me_pos;	/* hash offset in mt_hash */
 	__u64			 me_match_bits;
@@ -447,7 +447,7 @@ enum lnet_match_flags {
 /* parameter for matching operations (GET, PUT) */
 struct lnet_match_info {
 	__u64			mi_mbits;
-	lnet_process_id_t	mi_id;
+	struct lnet_process_id	mi_id;
 	unsigned int		mi_opc;
 	unsigned int		mi_portal;
 	unsigned int		mi_rlength;

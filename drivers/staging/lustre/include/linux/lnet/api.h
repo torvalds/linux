@@ -74,7 +74,7 @@ int LNetNIFini(void);
  * \see LNetMEAttach
  * @{
  */
-int LNetGetId(unsigned int index, lnet_process_id_t *id);
+int LNetGetId(unsigned int index, struct lnet_process_id *id);
 int LNetDist(lnet_nid_t nid, lnet_nid_t *srcnid, __u32 *order);
 
 /** @} lnet_addr */
@@ -93,7 +93,7 @@ int LNetDist(lnet_nid_t nid, lnet_nid_t *srcnid, __u32 *order);
  * @{
  */
 int LNetMEAttach(unsigned int      portal,
-		 lnet_process_id_t match_id_in,
+		 struct lnet_process_id match_id_in,
 		 __u64		   match_bits_in,
 		 __u64		   ignore_bits_in,
 		 lnet_unlink_t     unlink_in,
@@ -101,7 +101,7 @@ int LNetMEAttach(unsigned int      portal,
 		 struct lnet_handle_me *handle_out);
 
 int LNetMEInsert(struct lnet_handle_me current_in,
-		 lnet_process_id_t match_id_in,
+		 struct lnet_process_id match_id_in,
 		 __u64		   match_bits_in,
 		 __u64		   ignore_bits_in,
 		 lnet_unlink_t     unlink_in,
@@ -181,7 +181,7 @@ int LNetEQPoll(struct lnet_handle_eq *eventqs_in,
 int LNetPut(lnet_nid_t	      self,
 	    struct lnet_handle_md md_in,
 	    lnet_ack_req_t    ack_req_in,
-	    lnet_process_id_t target_in,
+	    struct lnet_process_id target_in,
 	    unsigned int      portal_in,
 	    __u64	      match_bits_in,
 	    unsigned int      offset_in,
@@ -189,7 +189,7 @@ int LNetPut(lnet_nid_t	      self,
 
 int LNetGet(lnet_nid_t	      self,
 	    struct lnet_handle_md md_in,
-	    lnet_process_id_t target_in,
+	    struct lnet_process_id target_in,
 	    unsigned int      portal_in,
 	    __u64	      match_bits_in,
 	    unsigned int      offset_in);
@@ -202,7 +202,7 @@ int LNetGet(lnet_nid_t	      self,
 int LNetSetLazyPortal(int portal);
 int LNetClearLazyPortal(int portal);
 int LNetCtl(unsigned int cmd, void *arg);
-void LNetDebugPeer(lnet_process_id_t id);
+void LNetDebugPeer(struct lnet_process_id id);
 
 /** @} lnet_misc */
 

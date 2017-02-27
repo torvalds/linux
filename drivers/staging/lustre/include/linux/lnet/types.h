@@ -64,7 +64,7 @@
 typedef __u64 lnet_nid_t;
 /**
  * ID of a process in a node. Shortened as PID to distinguish from
- * lnet_process_id_t, the global process ID.
+ * lnet_process_id, the global process ID.
  */
 typedef __u32 lnet_pid_t;
 
@@ -114,7 +114,7 @@ static inline __u32 LNET_MKNET(__u32 type, __u32 num)
 
 #define WIRE_ATTR	__packed
 
-/* Packed version of lnet_process_id_t to transfer via network */
+/* Packed version of lnet_process_id to transfer via network */
 struct lnet_process_id_packed {
 	/* node id / process id */
 	lnet_nid_t	nid;
@@ -330,12 +330,12 @@ struct lnet_handle_me {
 /**
  * Global process ID.
  */
-typedef struct {
+struct lnet_process_id {
 	/** node id */
 	lnet_nid_t nid;
 	/** process id */
 	lnet_pid_t pid;
-} lnet_process_id_t;
+};
 /** @} lnet_addr */
 
 /** \addtogroup lnet_me
@@ -570,9 +570,9 @@ typedef unsigned LNET_SEQ_BASETYPE lnet_seq_t;
  */
 struct lnet_event {
 	/** The identifier (nid, pid) of the target. */
-	lnet_process_id_t	target;
+	struct lnet_process_id	target;
 	/** The identifier (nid, pid) of the initiator. */
-	lnet_process_id_t	initiator;
+	struct lnet_process_id	initiator;
 	/**
 	 * The NID of the immediate sender. If the request has been forwarded
 	 * by routers, this is the NID of the last hop; otherwise it's the

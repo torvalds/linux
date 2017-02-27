@@ -491,8 +491,9 @@ void lnet_msg_commit(struct lnet_msg *msg, int cpt);
 void lnet_msg_decommit(struct lnet_msg *msg, int cpt, int status);
 
 void lnet_eq_enqueue_event(struct lnet_eq *eq, struct lnet_event *ev);
-void lnet_prep_send(struct lnet_msg *msg, int type, lnet_process_id_t target,
-		    unsigned int offset, unsigned int len);
+void lnet_prep_send(struct lnet_msg *msg, int type,
+		    struct lnet_process_id target, unsigned int offset,
+		    unsigned int len);
 int lnet_send(lnet_nid_t nid, struct lnet_msg *msg, lnet_nid_t rtr_nid);
 void lnet_return_tx_credits_locked(struct lnet_msg *msg);
 void lnet_return_rx_credits_locked(struct lnet_msg *msg);
@@ -533,10 +534,10 @@ lnet_ptl_unsetopt(struct lnet_portal *ptl, int opt)
 
 /* match-table functions */
 struct list_head *lnet_mt_match_head(struct lnet_match_table *mtable,
-				     lnet_process_id_t id, __u64 mbits);
+				     struct lnet_process_id id, __u64 mbits);
 struct lnet_match_table *lnet_mt_of_attach(unsigned int index,
-					   lnet_process_id_t id, __u64 mbits,
-					   __u64 ignore_bits,
+					   struct lnet_process_id id,
+					   __u64 mbits, __u64 ignore_bits,
 					   lnet_ins_pos_t pos);
 int lnet_mt_match_md(struct lnet_match_table *mtable,
 		     struct lnet_match_info *info, struct lnet_msg *msg);

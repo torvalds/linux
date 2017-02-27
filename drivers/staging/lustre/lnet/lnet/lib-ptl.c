@@ -39,7 +39,7 @@ module_param(portal_rotor, int, 0644);
 MODULE_PARM_DESC(portal_rotor, "redirect PUTs to different cpu-partitions");
 
 static int
-lnet_ptl_match_type(unsigned int index, lnet_process_id_t match_id,
+lnet_ptl_match_type(unsigned int index, struct lnet_process_id match_id,
 		    __u64 mbits, __u64 ignore_bits)
 {
 	struct lnet_portal *ptl = the_lnet.ln_portals[index];
@@ -212,7 +212,7 @@ lnet_try_match_md(struct lnet_libmd *md,
 }
 
 static struct lnet_match_table *
-lnet_match2mt(struct lnet_portal *ptl, lnet_process_id_t id, __u64 mbits)
+lnet_match2mt(struct lnet_portal *ptl, struct lnet_process_id id, __u64 mbits)
 {
 	if (LNET_CPT_NUMBER == 1)
 		return ptl->ptl_mtables[0]; /* the only one */
@@ -223,7 +223,7 @@ lnet_match2mt(struct lnet_portal *ptl, lnet_process_id_t id, __u64 mbits)
 }
 
 struct lnet_match_table *
-lnet_mt_of_attach(unsigned int index, lnet_process_id_t id,
+lnet_mt_of_attach(unsigned int index, struct lnet_process_id id,
 		  __u64 mbits, __u64 ignore_bits, lnet_ins_pos_t pos)
 {
 	struct lnet_portal *ptl;
@@ -357,7 +357,7 @@ lnet_mt_set_exhausted(struct lnet_match_table *mtable, int pos, int exhausted)
 
 struct list_head *
 lnet_mt_match_head(struct lnet_match_table *mtable,
-		   lnet_process_id_t id, __u64 mbits)
+		   struct lnet_process_id id, __u64 mbits)
 {
 	struct lnet_portal *ptl = the_lnet.ln_portals[mtable->mt_portal];
 	unsigned long hash = mbits;

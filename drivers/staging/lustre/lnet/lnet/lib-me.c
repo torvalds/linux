@@ -46,7 +46,7 @@
  * \param portal The portal table index where the ME should be attached.
  * \param match_id Specifies the match criteria for the process ID of
  * the requester. The constants LNET_PID_ANY and LNET_NID_ANY can be
- * used to wildcard either of the identifiers in the lnet_process_id_t
+ * used to wildcard either of the identifiers in the lnet_process_id
  * structure.
  * \param match_bits,ignore_bits Specify the match criteria to apply
  * to the match bits in the incoming request. The ignore bits are used
@@ -70,7 +70,7 @@
  */
 int
 LNetMEAttach(unsigned int portal,
-	     lnet_process_id_t match_id,
+	     struct lnet_process_id match_id,
 	     __u64 match_bits, __u64 ignore_bits,
 	     lnet_unlink_t unlink, lnet_ins_pos_t pos,
 	     struct lnet_handle_me *handle)
@@ -141,7 +141,7 @@ EXPORT_SYMBOL(LNetMEAttach);
  */
 int
 LNetMEInsert(struct lnet_handle_me current_meh,
-	     lnet_process_id_t match_id,
+	     struct lnet_process_id match_id,
 	     __u64 match_bits, __u64 ignore_bits,
 	     lnet_unlink_t unlink, lnet_ins_pos_t pos,
 	     struct lnet_handle_me *handle)

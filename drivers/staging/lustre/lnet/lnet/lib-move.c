@@ -429,7 +429,7 @@ lnet_setpayloadbuffer(struct lnet_msg *msg)
 }
 
 void
-lnet_prep_send(struct lnet_msg *msg, int type, lnet_process_id_t target,
+lnet_prep_send(struct lnet_msg *msg, int type, struct lnet_process_id target,
 	       unsigned int offset, unsigned int len)
 {
 	msg->msg_type = type;
@@ -1392,7 +1392,7 @@ lnet_parse_reply(struct lnet_ni *ni, struct lnet_msg *msg)
 {
 	void *private = msg->msg_private;
 	struct lnet_hdr *hdr = &msg->msg_hdr;
-	lnet_process_id_t src = {0};
+	struct lnet_process_id src = {0};
 	struct lnet_libmd *md;
 	int rlength;
 	int mlength;
@@ -1456,7 +1456,7 @@ static int
 lnet_parse_ack(struct lnet_ni *ni, struct lnet_msg *msg)
 {
 	struct lnet_hdr *hdr = &msg->msg_hdr;
-	lnet_process_id_t src = {0};
+	struct lnet_process_id src = {0};
 	struct lnet_libmd *md;
 	int cpt;
 
@@ -1580,8 +1580,8 @@ lnet_msgtyp2str(int type)
 void
 lnet_print_hdr(struct lnet_hdr *hdr)
 {
-	lnet_process_id_t src = {0};
-	lnet_process_id_t dst = {0};
+	struct lnet_process_id src = {0};
+	struct lnet_process_id dst = {0};
 	char *type_str = lnet_msgtyp2str(hdr->type);
 
 	src.nid = hdr->src_nid;
@@ -1875,7 +1875,7 @@ void
 lnet_drop_delayed_msg_list(struct list_head *head, char *reason)
 {
 	while (!list_empty(head)) {
-		lnet_process_id_t id = {0};
+		struct lnet_process_id id = {0};
 		struct lnet_msg *msg;
 
 		msg = list_entry(head->next, struct lnet_msg, msg_list);
@@ -1918,7 +1918,7 @@ lnet_recv_delayed_msg_list(struct list_head *head)
 {
 	while (!list_empty(head)) {
 		struct lnet_msg *msg;
-		lnet_process_id_t id;
+		struct lnet_process_id id;
 
 		msg = list_entry(head->next, struct lnet_msg, msg_list);
 		list_del(&msg->msg_list);
@@ -1991,7 +1991,7 @@ lnet_recv_delayed_msg_list(struct list_head *head)
  */
 int
 LNetPut(lnet_nid_t self, struct lnet_handle_md mdh, lnet_ack_req_t ack,
-	lnet_process_id_t target, unsigned int portal,
+	struct lnet_process_id target, unsigned int portal,
 	__u64 match_bits, unsigned int offset,
 	__u64 hdr_data)
 {
@@ -2087,7 +2087,7 @@ lnet_create_reply_msg(struct lnet_ni *ni, struct lnet_msg *getmsg)
 	 */
 	struct lnet_msg *msg = lnet_msg_alloc();
 	struct lnet_libmd *getmd = getmsg->msg_md;
-	lnet_process_id_t peer_id = getmsg->msg_target;
+	struct lnet_process_id peer_id = getmsg->msg_target;
 	int cpt;
 
 	LASSERT(!getmsg->msg_target_is_router);
@@ -2197,7 +2197,7 @@ EXPORT_SYMBOL(lnet_set_reply_msg_len);
  */
 int
 LNetGet(lnet_nid_t self, struct lnet_handle_md mdh,
-	lnet_process_id_t target, unsigned int portal,
+	struct lnet_process_id target, unsigned int portal,
 	__u64 match_bits, unsigned int offset)
 {
 	struct lnet_msg *msg;

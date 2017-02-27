@@ -2512,7 +2512,7 @@ no_kbuf:
 void ll_compute_rootsquash_state(struct ll_sb_info *sbi)
 {
 	struct root_squash_info *squash = &sbi->ll_squash;
-	lnet_process_id_t id;
+	struct lnet_process_id id;
 	bool matched;
 	int i;
 

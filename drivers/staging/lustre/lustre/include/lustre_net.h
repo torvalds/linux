@@ -288,7 +288,7 @@ struct ptlrpc_connection {
 	/** Our own lnet nid for this connection */
 	lnet_nid_t	      c_self;
 	/** Remote side nid for this connection */
-	lnet_process_id_t       c_peer;
+	struct lnet_process_id	c_peer;
 	/** UUID of the other side */
 	struct obd_uuid	 c_remote_uuid;
 	/** reference counter for this connection */
@@ -876,7 +876,7 @@ struct ptlrpc_request {
 	/** our LNet NID */
 	lnet_nid_t	   rq_self;
 	/** Peer description (the other side) */
-	lnet_process_id_t    rq_peer;
+	struct lnet_process_id	rq_peer;
 	/**
 	 * service time estimate (secs)
 	 * If the request is not served by this time, it is marked as timed out.
@@ -1751,7 +1751,7 @@ static inline bool nrs_policy_compat_one(const struct ptlrpc_service *svc,
 /* ptlrpc/events.c */
 extern struct lnet_handle_eq ptlrpc_eq_h;
 int ptlrpc_uuid_to_peer(struct obd_uuid *uuid,
-			lnet_process_id_t *peer, lnet_nid_t *self);
+			struct lnet_process_id *peer, lnet_nid_t *self);
 /**
  * These callbacks are invoked by LNet when something happened to
  * underlying buffer
@@ -1765,7 +1765,7 @@ void reply_out_callback(struct lnet_event *ev);
 /** @} */
 
 /* ptlrpc/connection.c */
-struct ptlrpc_connection *ptlrpc_connection_get(lnet_process_id_t peer,
+struct ptlrpc_connection *ptlrpc_connection_get(struct lnet_process_id peer,
 						lnet_nid_t self,
 						struct obd_uuid *uuid);
 int ptlrpc_connection_put(struct ptlrpc_connection *c);

@@ -82,7 +82,7 @@ ping_client_fini(struct sfw_test_instance *tsi)
 }
 
 static int
-ping_client_prep_rpc(struct sfw_test_unit *tsu, lnet_process_id_t dest,
+ping_client_prep_rpc(struct sfw_test_unit *tsu, struct lnet_process_id dest,
 		     struct srpc_client_rpc **rpc)
 {
 	struct srpc_ping_reqst *req;

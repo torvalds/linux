@@ -78,7 +78,7 @@ struct ptlrpc_connection *ptlrpc_uuid_to_connection(struct obd_uuid *uuid)
 {
 	struct ptlrpc_connection *c;
 	lnet_nid_t self;
-	lnet_process_id_t peer;
+	struct lnet_process_id peer;
 	int err;
 
 	/*

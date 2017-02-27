@@ -97,7 +97,7 @@ ksocknal_destroy_route(struct ksock_route *route)
 
 static int
 ksocknal_create_peer(struct ksock_peer **peerp, struct lnet_ni *ni,
-		     lnet_process_id_t id)
+		     struct lnet_process_id id)
 {
 	int cpt = lnet_cpt_of_nid(id.nid);
 	struct ksock_net *net = ni->ni_data;
@@ -173,7 +173,7 @@ ksocknal_destroy_peer(struct ksock_peer *peer)
 }
 
 struct ksock_peer *
-ksocknal_find_peer_locked(struct lnet_ni *ni, lnet_process_id_t id)
+ksocknal_find_peer_locked(struct lnet_ni *ni, struct lnet_process_id id)
 {
 	struct list_head *peer_list = ksocknal_nid2peerlist(id.nid);
 	struct list_head *tmp;
@@ -200,7 +200,7 @@ ksocknal_find_peer_locked(struct lnet_ni *ni, lnet_process_id_t id)
 }
 
 struct ksock_peer *
-ksocknal_find_peer(struct lnet_ni *ni, lnet_process_id_t id)
+ksocknal_find_peer(struct lnet_ni *ni, struct lnet_process_id id)
 {
 	struct ksock_peer *peer;
 
@@ -247,7 +247,7 @@ ksocknal_unlink_peer_locked(struct ksock_peer *peer)
 
 static int
 ksocknal_get_peer_info(struct lnet_ni *ni, int index,
-		       lnet_process_id_t *id, __u32 *myip, __u32 *peer_ip,
+		       struct lnet_process_id *id, __u32 *myip, __u32 *peer_ip,
 		       int *port, int *conn_count, int *share_count)
 {
 	struct ksock_peer *peer;
@@ -450,7 +450,7 @@ ksocknal_del_route_locked(struct ksock_route *route)
 }
 
 int
-ksocknal_add_peer(struct lnet_ni *ni, lnet_process_id_t id, __u32 ipaddr,
+ksocknal_add_peer(struct lnet_ni *ni, struct lnet_process_id id, __u32 ipaddr,
 		  int port)
 {
 	struct list_head *tmp;
@@ -569,7 +569,7 @@ ksocknal_del_peer_locked(struct ksock_peer *peer, __u32 ip)
 }
 
 static int
-ksocknal_del_peer(struct lnet_ni *ni, lnet_process_id_t id, __u32 ip)
+ksocknal_del_peer(struct lnet_ni *ni, struct lnet_process_id id, __u32 ip)
 {
 	LIST_HEAD(zombies);
 	struct list_head *ptmp;
@@ -1031,7 +1031,7 @@ ksocknal_create_conn(struct lnet_ni *ni, struct ksock_route *route,
 {
 	rwlock_t *global_lock = &ksocknal_data.ksnd_global_lock;
 	LIST_HEAD(zombies);
-	lnet_process_id_t peerid;
+	struct lnet_process_id peerid;
 	struct list_head *tmp;
 	__u64 incarnation;
 	struct ksock_conn *conn;
@@ -1764,7 +1764,7 @@ ksocknal_close_conn_and_siblings(struct ksock_conn *conn, int why)
 }
 
 int
-ksocknal_close_matching_conns(lnet_process_id_t id, __u32 ipaddr)
+ksocknal_close_matching_conns(struct lnet_process_id id, __u32 ipaddr)
 {
 	struct ksock_peer *peer;
 	struct list_head *ptmp;
@@ -1817,7 +1817,7 @@ ksocknal_notify(struct lnet_ni *ni, lnet_nid_t gw_nid, int alive)
 	 * The router is telling me she's been notified of a change in
 	 * gateway state....
 	 */
-	lnet_process_id_t id = {0};
+	struct lnet_process_id id = {0};
 
 	id.nid = gw_nid;
 	id.pid = LNET_PID_ANY;
@@ -1845,7 +1845,7 @@ ksocknal_query(struct lnet_ni *ni, lnet_nid_t nid, unsigned long *when)
 	unsigned long now = cfs_time_current();
 	struct ksock_peer *peer = NULL;
 	rwlock_t *glock = &ksocknal_data.ksnd_global_lock;
-	lnet_process_id_t id = {
+	struct lnet_process_id id = {
 		.nid = nid,
 		.pid = LNET_PID_LUSTRE,
 	};
@@ -1933,7 +1933,7 @@ ksocknal_push_peer(struct ksock_peer *peer)
 	}
 }
 
-static int ksocknal_push(struct lnet_ni *ni, lnet_process_id_t id)
+static int ksocknal_push(struct lnet_ni *ni, struct lnet_process_id id)
 {
 	struct list_head *start;
 	struct list_head *end;
@@ -2135,7 +2135,7 @@ ksocknal_del_interface(struct lnet_ni *ni, __u32 ipaddress)
 int
 ksocknal_ctl(struct lnet_ni *ni, unsigned int cmd, void *arg)
 {
-	lnet_process_id_t id = {0};
+	struct lnet_process_id id = {0};
 	struct libcfs_ioctl_data *data = arg;
 	int rc;
 
@@ -2592,7 +2592,7 @@ ksocknal_shutdown(struct lnet_ni *ni)
 {
 	struct ksock_net *net = ni->ni_data;
 	int i;
-	lnet_process_id_t anyid = {0};
+	struct lnet_process_id anyid = {0};
 
 	anyid.nid = LNET_NID_ANY;
 	anyid.pid = LNET_PID_ANY;

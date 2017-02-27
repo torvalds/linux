@@ -1024,7 +1024,7 @@ lnet_ping_router_locked(struct lnet_peer *rtr)
 	    cfs_time_after(now, cfs_time_add(rtr->lp_ping_timestamp,
 					     cfs_time_seconds(secs)))) {
 		int rc;
-		lnet_process_id_t id;
+		struct lnet_process_id id;
 		struct lnet_handle_md mdh;
 
 		id.nid = rtr->lp_nid;

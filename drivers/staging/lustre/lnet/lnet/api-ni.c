@@ -58,8 +58,8 @@ static int rnet_htable_size = LNET_REMOTE_NETS_HASH_DEFAULT;
 module_param(rnet_htable_size, int, 0444);
 MODULE_PARM_DESC(rnet_htable_size, "size of remote network hash table");
 
-static int lnet_ping(lnet_process_id_t id, int timeout_ms,
-		     lnet_process_id_t __user *ids, int n_ids);
+static int lnet_ping(struct lnet_process_id id, int timeout_ms,
+		     struct lnet_process_id __user *ids, int n_ids);
 
 static char *
 lnet_get_routes(void)
@@ -901,7 +901,7 @@ lnet_ping_info_setup(struct lnet_ping_info **ppinfo,
 		     struct lnet_handle_md *md_handle,
 		     int ni_count, bool set_eq)
 {
-	lnet_process_id_t id = {LNET_NID_ANY, LNET_PID_ANY};
+	struct lnet_process_id id = {LNET_NID_ANY, LNET_PID_ANY};
 	struct lnet_handle_me me_handle;
 	struct lnet_md md = { NULL };
 	int rc, rc2;
@@ -1887,7 +1887,7 @@ LNetCtl(unsigned int cmd, void *arg)
 {
 	struct libcfs_ioctl_data *data = arg;
 	struct lnet_ioctl_config_data *config;
-	lnet_process_id_t id = {0};
+	struct lnet_process_id id = {0};
 	struct lnet_ni *ni;
 	int rc;
 	unsigned long secs_passed;
@@ -2059,7 +2059,7 @@ LNetCtl(unsigned int cmd, void *arg)
 		id.pid = data->ioc_u32[0];
 		rc = lnet_ping(id, data->ioc_u32[1], /* timeout */
 			       data->ioc_pbuf1,
-			       data->ioc_plen1 / sizeof(lnet_process_id_t));
+			       data->ioc_plen1 / sizeof(struct lnet_process_id));
 		if (rc < 0)
 			return rc;
 		data->ioc_count = rc;
@@ -2082,25 +2082,25 @@ LNetCtl(unsigned int cmd, void *arg)
 }
 EXPORT_SYMBOL(LNetCtl);
 
-void LNetDebugPeer(lnet_process_id_t id)
+void LNetDebugPeer(struct lnet_process_id id)
 {
 	lnet_debug_peer(id.nid);
 }
 EXPORT_SYMBOL(LNetDebugPeer);
 
 /**
- * Retrieve the lnet_process_id_t ID of LNet interface at \a index. Note that
+ * Retrieve the lnet_process_id ID of LNet interface at \a index. Note that
  * all interfaces share a same PID, as requested by LNetNIInit().
  *
  * \param index Index of the interface to look up.
  * \param id On successful return, this location will hold the
- * lnet_process_id_t ID of the interface.
+ * lnet_process_id ID of the interface.
  *
  * \retval 0 If an interface exists at \a index.
  * \retval -ENOENT If no interface has been found.
  */
 int
-LNetGetId(unsigned int index, lnet_process_id_t *id)
+LNetGetId(unsigned int index, struct lnet_process_id *id)
 {
 	struct lnet_ni *ni;
 	struct list_head *tmp;
@@ -2128,8 +2128,8 @@ LNetGetId(unsigned int index, lnet_process_id_t *id)
 }
 EXPORT_SYMBOL(LNetGetId);
 
-static int lnet_ping(lnet_process_id_t id, int timeout_ms,
-		     lnet_process_id_t __user *ids, int n_ids)
+static int lnet_ping(struct lnet_process_id id, int timeout_ms,
+		     struct lnet_process_id __user *ids, int n_ids)
 {
 	struct lnet_handle_eq eqh;
 	struct lnet_handle_md mdh;
@@ -2141,7 +2141,7 @@ static int lnet_ping(lnet_process_id_t id, int timeout_ms,
 	const int a_long_time = 60000; /* mS */
 	int infosz;
 	struct lnet_ping_info *info;
-	lnet_process_id_t tmpid;
+	struct lnet_process_id tmpid;
 	int i;
 	int nob;
 	int rc;

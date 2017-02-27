@@ -446,7 +446,7 @@ static void ptlrpc_master_callback(struct lnet_event *ev)
 }
 
 int ptlrpc_uuid_to_peer(struct obd_uuid *uuid,
-			lnet_process_id_t *peer, lnet_nid_t *self)
+			struct lnet_process_id *peer, lnet_nid_t *self)
 {
 	int best_dist = 0;
 	__u32 best_order = 0;

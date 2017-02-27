@@ -355,7 +355,7 @@ srpc_remove_service(struct srpc_service *sv)
 
 static int
 srpc_post_passive_rdma(int portal, int local, __u64 matchbits, void *buf,
-		       int len, int options, lnet_process_id_t peer,
+		       int len, int options, struct lnet_process_id peer,
 		       struct lnet_handle_md *mdh, struct srpc_event *ev)
 {
 	int rc;
@@ -394,8 +394,9 @@ srpc_post_passive_rdma(int portal, int local, __u64 matchbits, void *buf,
 
 static int
 srpc_post_active_rdma(int portal, __u64 matchbits, void *buf, int len,
-		      int options, lnet_process_id_t peer, lnet_nid_t self,
-		      struct lnet_handle_md *mdh, struct srpc_event *ev)
+		      int options, struct lnet_process_id peer,
+		      lnet_nid_t self, struct lnet_handle_md *mdh,
+		      struct srpc_event *ev)
 {
 	int rc;
 	struct lnet_md md;
@@ -450,7 +451,7 @@ static int
 srpc_post_passive_rqtbuf(int service, int local, void *buf, int len,
 			 struct lnet_handle_md *mdh, struct srpc_event *ev)
 {
-	lnet_process_id_t any = { 0 };
+	struct lnet_process_id any = { 0 };
 
 	any.nid = LNET_NID_ANY;
 	any.pid = LNET_PID_ANY;
@@ -1310,7 +1311,7 @@ abort:
 }
 
 struct srpc_client_rpc *
-srpc_create_client_rpc(lnet_process_id_t peer, int service,
+srpc_create_client_rpc(struct lnet_process_id peer, int service,
 		       int nbulkiov, int bulklen,
 		       void (*rpc_done)(struct srpc_client_rpc *),
 		       void (*rpc_fini)(struct srpc_client_rpc *), void *priv)

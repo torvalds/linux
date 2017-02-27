@@ -1482,7 +1482,7 @@ kiblnd_send(struct lnet_ni *ni, void *private, struct lnet_msg *lntmsg)
 {
 	struct lnet_hdr *hdr = &lntmsg->msg_hdr;
 	int type = lntmsg->msg_type;
-	lnet_process_id_t target = lntmsg->msg_target;
+	struct lnet_process_id target = lntmsg->msg_target;
 	int target_is_router = lntmsg->msg_target_is_router;
 	int routing = lntmsg->msg_routing;
 	unsigned int payload_niov = lntmsg->msg_niov;
@@ -1653,7 +1653,7 @@ kiblnd_send(struct lnet_ni *ni, void *private, struct lnet_msg *lntmsg)
 static void
 kiblnd_reply(struct lnet_ni *ni, struct kib_rx *rx, struct lnet_msg *lntmsg)
 {
-	lnet_process_id_t target = lntmsg->msg_target;
+	struct lnet_process_id target = lntmsg->msg_target;
 	unsigned int niov = lntmsg->msg_niov;
 	struct kvec *iov = lntmsg->msg_iov;
 	lnet_kiov_t *kiov = lntmsg->msg_kiov;
