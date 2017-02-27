@@ -119,8 +119,8 @@ struct lnet_libhandle {
 struct lnet_eq {
 	struct list_head	  eq_list;
 	struct lnet_libhandle	  eq_lh;
-	lnet_seq_t		  eq_enq_seq;
-	lnet_seq_t		  eq_deq_seq;
+	unsigned long		  eq_enq_seq;
+	unsigned long		  eq_deq_seq;
 	unsigned int		  eq_size;
 	lnet_eq_handler_t	  eq_callback;
 	struct lnet_event	 *eq_events;

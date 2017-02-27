@@ -561,9 +561,7 @@ enum lnet_event_kind {
 	LNET_EVENT_UNLINK,
 };
 
-#define LNET_SEQ_BASETYPE	long
-typedef unsigned LNET_SEQ_BASETYPE lnet_seq_t;
-#define LNET_SEQ_GT(a, b)	(((signed LNET_SEQ_BASETYPE)((a) - (b))) > 0)
+#define LNET_SEQ_GT(a, b)      (((signed long)((a) - (b))) > 0)
 
 /**
  * Information about an event on a MD.
@@ -634,7 +632,7 @@ struct lnet_event {
 	 * The sequence number for this event. Sequence numbers are unique
 	 * to each event.
 	 */
-	volatile lnet_seq_t	sequence;
+	volatile unsigned long	sequence;
 };
 
 /**
