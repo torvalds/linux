@@ -993,6 +993,9 @@ swaping||swapping
 switchs||switches
 swith||switch
 swithable||switchable
+swithc||switch
+swithced||switched
+swithcing||switching
 swithed||switched
 swithing||switching
 symetric||symmetric
