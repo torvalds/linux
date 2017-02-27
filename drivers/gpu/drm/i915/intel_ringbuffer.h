@@ -246,8 +246,8 @@ struct intel_engine_cs {
 
 		unsigned int hangcheck_interrupts;
 
+		bool irq_armed : 1;
 		bool irq_enabled : 1;
-		bool rpm_wakelock : 1;
 		I915_SELFTEST_DECLARE(bool mock : 1);
 	} breadcrumbs;
 
@@ -644,7 +644,10 @@ static inline bool intel_engine_has_waiter(const struct intel_engine_cs *engine)
 
 unsigned int intel_engine_wakeup(struct intel_engine_cs *engine);
 #define ENGINE_WAKEUP_WAITER BIT(0)
-#define ENGINE_WAKEUP_ACTIVE BIT(1)
+#define ENGINE_WAKEUP_ASLEEP BIT(1)
+
+void __intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine);
+void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine);
 
 void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine);
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);

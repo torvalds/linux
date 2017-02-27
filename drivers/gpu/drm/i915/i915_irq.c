@@ -1060,6 +1060,8 @@ static void notify_ring(struct intel_engine_cs *engine)
 			rq = wait->request;
 
 		wake_up_process(wait->tsk);
+	} else {
+		__intel_engine_disarm_breadcrumbs(engine);
 	}
 	spin_unlock(&engine->breadcrumbs.lock);
 
