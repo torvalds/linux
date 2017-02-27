@@ -71,8 +71,6 @@ static unsigned long displayControlAdjust_SM750LE(mode_parameter_t *pModeParam, 
 	return dispControl;
 }
 
-
-
 /* only timing related registers will be  programed */
 static int programModeRegisters(mode_parameter_t *pModeParam,
 						struct pll_value *pll)
@@ -111,7 +109,6 @@ static int programModeRegisters(mode_parameter_t *pModeParam,
 				CRT_VERTICAL_SYNC_HEIGHT_MASK) |
 			((pModeParam->vertical_sync_start - 1) &
 				CRT_VERTICAL_SYNC_START_MASK));
-
 
 		tmp = DISPLAY_CTRL_TIMING | DISPLAY_CTRL_PLANE;
 		if (pModeParam->vertical_sync_polarity)
@@ -219,5 +216,3 @@ int ddk750_setModeTiming(mode_parameter_t *parm, clock_type_t clock)
 	programModeRegisters(parm, &pll);
 	return 0;
 }
-
-

@@ -38,5 +38,4 @@ void sm750_enable_gpio(unsigned int enable);
  */
 void sm750_enable_i2c(unsigned int enable);
 
-
 #endif
