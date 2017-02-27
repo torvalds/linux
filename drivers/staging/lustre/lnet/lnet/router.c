@@ -642,7 +642,7 @@ lnet_swap_pinginfo(struct lnet_ping_info *info)
  * networks on that router.
  */
 static void
-lnet_parse_rc_info(lnet_rc_data_t *rcd)
+lnet_parse_rc_info(struct lnet_rc_data *rcd)
 {
 	struct lnet_ping_info *info = rcd->rcd_pinginfo;
 	struct lnet_peer *gw = rcd->rcd_gateway;
@@ -733,7 +733,7 @@ lnet_parse_rc_info(lnet_rc_data_t *rcd)
 static void
 lnet_router_checker_event(lnet_event_t *event)
 {
-	lnet_rc_data_t *rcd = event->md.user_ptr;
+	struct lnet_rc_data *rcd = event->md.user_ptr;
 	struct lnet_peer *lp;
 
 	LASSERT(rcd);
@@ -878,7 +878,7 @@ lnet_update_ni_status_locked(void)
 }
 
 static void
-lnet_destroy_rc_data(lnet_rc_data_t *rcd)
+lnet_destroy_rc_data(struct lnet_rc_data *rcd)
 {
 	LASSERT(list_empty(&rcd->rcd_list));
 	/* detached from network */
@@ -898,10 +898,10 @@ lnet_destroy_rc_data(lnet_rc_data_t *rcd)
 	LIBCFS_FREE(rcd, sizeof(*rcd));
 }
 
-static lnet_rc_data_t *
+static struct lnet_rc_data *
 lnet_create_rc_data_locked(lnet_peer_t *gateway)
 {
-	lnet_rc_data_t *rcd = NULL;
+	struct lnet_rc_data *rcd = NULL;
 	struct lnet_ping_info *pi;
 	lnet_md_t md;
 	int rc;
@@ -984,7 +984,7 @@ lnet_router_check_interval(lnet_peer_t *rtr)
 static void
 lnet_ping_router_locked(lnet_peer_t *rtr)
 {
-	lnet_rc_data_t *rcd = NULL;
+	struct lnet_rc_data *rcd = NULL;
 	unsigned long now = cfs_time_current();
 	int secs;
 
@@ -1124,8 +1124,8 @@ lnet_router_checker_stop(void)
 static void
 lnet_prune_rc_data(int wait_unlink)
 {
-	lnet_rc_data_t *rcd;
-	lnet_rc_data_t *tmp;
+	struct lnet_rc_data *rcd;
+	struct lnet_rc_data *tmp;
 	lnet_peer_t *lp;
 	struct list_head head;
 	int i = 2;
@@ -1182,7 +1182,7 @@ lnet_prune_rc_data(int wait_unlink)
 
 		while (!list_empty(&head)) {
 			rcd = list_entry(head.next,
-					 lnet_rc_data_t, rcd_list);
+					 struct lnet_rc_data, rcd_list);
 			list_del_init(&rcd->rcd_list);
 			lnet_destroy_rc_data(rcd);
 		}
