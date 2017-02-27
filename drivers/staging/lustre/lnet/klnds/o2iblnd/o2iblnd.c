@@ -38,7 +38,7 @@
 #include <asm/page.h>
 #include "o2iblnd.h"
 
-static lnd_t the_o2iblnd;
+static struct lnet_lnd the_o2iblnd;
 
 struct kib_data kiblnd_data;
 
@@ -2938,7 +2938,7 @@ net_failed:
 	return -ENETDOWN;
 }
 
-static lnd_t the_o2iblnd = {
+static struct lnet_lnd the_o2iblnd = {
 	.lnd_type	= O2IBLND,
 	.lnd_startup	= kiblnd_startup,
 	.lnd_shutdown	= kiblnd_shutdown,

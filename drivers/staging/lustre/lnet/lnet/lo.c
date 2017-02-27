@@ -88,7 +88,7 @@ lolnd_startup(lnet_ni_t *ni)
 	return 0;
 }
 
-lnd_t the_lolnd = {
+struct lnet_lnd the_lolnd = {
 	/* .lnd_list       = */ {&the_lolnd.lnd_list, &the_lolnd.lnd_list},
 	/* .lnd_refcount   = */ 0,
 	/* .lnd_type       = */ LOLND,

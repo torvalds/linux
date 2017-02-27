@@ -39,7 +39,7 @@
 
 #include "socklnd.h"
 
-static lnd_t the_ksocklnd;
+static struct lnet_lnd the_ksocklnd;
 struct ksock_nal_data ksocknal_data;
 
 static struct ksock_interface *
