@@ -265,7 +265,8 @@
 	INTEL_VGA_DEVICE(0x1923, info), /* ULT GT3 */ \
 	INTEL_VGA_DEVICE(0x1926, info), /* ULT GT3 */ \
 	INTEL_VGA_DEVICE(0x1927, info), /* ULT GT3 */ \
-	INTEL_VGA_DEVICE(0x192B, info)  /* Halo GT3 */ \
+	INTEL_VGA_DEVICE(0x192B, info), /* Halo GT3 */ \
+	INTEL_VGA_DEVICE(0x192D, info)  /* SRV GT3 */
 
 #define INTEL_SKL_GT4_IDS(info) \
 	INTEL_VGA_DEVICE(0x1932, info), /* DT GT4 */ \
