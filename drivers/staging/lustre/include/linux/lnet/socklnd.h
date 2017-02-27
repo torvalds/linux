@@ -45,7 +45,7 @@
 
 #define SOCKLND_CONN_ACK	SOCKLND_CONN_BULK_IN
 
-typedef struct {
+struct ksock_hello_msg {
 	__u32		kshm_magic;	/* magic number of socklnd message */
 	__u32		kshm_version;	/* version of socklnd message */
 	lnet_nid_t      kshm_src_nid;	/* sender's nid */
@@ -57,9 +57,9 @@ typedef struct {
 	__u32		kshm_ctype;	/* connection type */
 	__u32		kshm_nips;	/* # IP addrs */
 	__u32		kshm_ips[0];	/* IP addrs */
-} WIRE_ATTR ksock_hello_msg_t;
+} WIRE_ATTR;
 
-typedef struct {
+struct ksock_lnet_msg {
 	struct lnet_hdr	ksnm_hdr;	/* lnet hdr */
 
 	/*
@@ -68,17 +68,17 @@ typedef struct {
 	 * structure definitions. lnet payload will be stored just after
 	 * the body of structure ksock_lnet_msg_t
 	 */
-} WIRE_ATTR ksock_lnet_msg_t;
+} WIRE_ATTR;
 
-typedef struct {
+struct ksock_msg {
 	__u32	ksm_type;		/* type of socklnd message */
 	__u32	ksm_csum;		/* checksum if != 0 */
 	__u64	ksm_zc_cookies[2];	/* Zero-Copy request/ACK cookie */
 	union {
-		ksock_lnet_msg_t lnetmsg;/* lnet message, it's empty if
+		struct ksock_lnet_msg lnetmsg; /* lnet message, it's empty if
 					  * it's NOOP */
 	} WIRE_ATTR ksm_u;
-} WIRE_ATTR ksock_msg_t;
+} WIRE_ATTR;
 
 #define KSOCK_MSG_NOOP	0xC0	/* ksm_u empty */
 #define KSOCK_MSG_LNET	0xC1	/* lnet msg */

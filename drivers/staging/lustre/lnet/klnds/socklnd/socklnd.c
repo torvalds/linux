@@ -1038,7 +1038,7 @@ ksocknal_create_conn(lnet_ni_t *ni, struct ksock_route *route,
 	struct ksock_peer *peer = NULL;
 	struct ksock_peer *peer2;
 	struct ksock_sched *sched;
-	ksock_hello_msg_t *hello;
+	struct ksock_hello_msg *hello;
 	int cpt;
 	struct ksock_tx *tx;
 	struct ksock_tx *txtmp;
@@ -1077,7 +1077,7 @@ ksocknal_create_conn(lnet_ni_t *ni, struct ksock_route *route,
 	conn->ksnc_tx_carrier = NULL;
 	atomic_set(&conn->ksnc_tx_nob, 0);
 
-	LIBCFS_ALLOC(hello, offsetof(ksock_hello_msg_t,
+	LIBCFS_ALLOC(hello, offsetof(struct ksock_hello_msg,
 				     kshm_ips[LNET_MAX_INTERFACES]));
 	if (!hello) {
 		rc = -ENOMEM;
@@ -1341,7 +1341,7 @@ ksocknal_create_conn(lnet_ni_t *ni, struct ksock_route *route,
 		rc = ksocknal_send_hello(ni, conn, peerid.nid, hello);
 	}
 
-	LIBCFS_FREE(hello, offsetof(ksock_hello_msg_t,
+	LIBCFS_FREE(hello, offsetof(struct ksock_hello_msg,
 				    kshm_ips[LNET_MAX_INTERFACES]));
 
 	/*
@@ -1423,7 +1423,7 @@ ksocknal_create_conn(lnet_ni_t *ni, struct ksock_route *route,
 
 failed_1:
 	if (hello)
-		LIBCFS_FREE(hello, offsetof(ksock_hello_msg_t,
+		LIBCFS_FREE(hello, offsetof(struct ksock_hello_msg,
 					    kshm_ips[LNET_MAX_INTERFACES]));
 
 	LIBCFS_FREE(conn, sizeof(*conn));

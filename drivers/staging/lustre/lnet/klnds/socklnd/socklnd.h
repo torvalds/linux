@@ -287,7 +287,7 @@ struct ksock_tx {			   /* transmit packet */
 	lnet_msg_t        *tx_lnetmsg;     /* lnet message for lnet_finalize()
 					    */
 	unsigned long     tx_deadline;     /* when (in jiffies) tx times out */
-	ksock_msg_t       tx_msg;          /* socklnd message buffer */
+	struct ksock_msg       tx_msg;          /* socklnd message buffer */
 	int               tx_desc_size;    /* size of this descriptor */
 	union {
 		struct {
@@ -369,7 +369,7 @@ struct ksock_conn {
 					       */
 	void               *ksnc_cookie;      /* rx lnet_finalize passthru arg
 					       */
-	ksock_msg_t        ksnc_msg;          /* incoming message buffer:
+	struct ksock_msg        ksnc_msg;          /* incoming message buffer:
 					       * V2.x message takes the
 					       * whole struct
 					       * V1.x message is a bare
@@ -474,16 +474,16 @@ struct ksock_proto {
 	int        pro_version;
 
 	/* handshake function */
-	int        (*pro_send_hello)(struct ksock_conn *, ksock_hello_msg_t *);
+	int        (*pro_send_hello)(struct ksock_conn *, struct ksock_hello_msg *);
 
 	/* handshake function */
-	int        (*pro_recv_hello)(struct ksock_conn *, ksock_hello_msg_t *, int);
+	int        (*pro_recv_hello)(struct ksock_conn *, struct ksock_hello_msg *, int);
 
 	/* message pack */
 	void       (*pro_pack)(struct ksock_tx *);
 
 	/* message unpack */
-	void       (*pro_unpack)(ksock_msg_t *);
+	void       (*pro_unpack)(struct ksock_msg *);
 
 	/* queue tx on the connection */
 	struct ksock_tx *(*pro_queue_tx_msg)(struct ksock_conn *, struct ksock_tx *);
@@ -691,9 +691,9 @@ int ksocknal_scheduler(void *arg);
 int ksocknal_connd(void *arg);
 int ksocknal_reaper(void *arg);
 int ksocknal_send_hello(lnet_ni_t *ni, struct ksock_conn *conn,
-			lnet_nid_t peer_nid, ksock_hello_msg_t *hello);
+			lnet_nid_t peer_nid, struct ksock_hello_msg *hello);
 int ksocknal_recv_hello(lnet_ni_t *ni, struct ksock_conn *conn,
-			ksock_hello_msg_t *hello, lnet_process_id_t *id,
+			struct ksock_hello_msg *hello, lnet_process_id_t *id,
 			__u64 *incarnation);
 void ksocknal_read_callback(struct ksock_conn *conn);
 void ksocknal_write_callback(struct ksock_conn *conn);
