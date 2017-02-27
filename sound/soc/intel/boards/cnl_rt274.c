@@ -124,30 +124,6 @@ static int cnl_rt274_init(struct snd_soc_pcm_runtime *runtime)
 	return 0;
 }
 
-static unsigned int rates_supported[] = {
-	48000,
-	32000,
-	24000,
-	16000,
-	8000,
-};
-
-static struct snd_pcm_hw_constraint_list rate_constraints = {
-	.count = ARRAY_SIZE(rates_supported),
-	.list  = rates_supported,
-};
-
-static int cnl_fe_startup(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_hw_constraint_list(substream->runtime, 0,
-			SNDRV_PCM_HW_PARAM_RATE,
-			&rate_constraints);
-}
-
-static struct snd_soc_ops cnl_fe_ops = {
-	.startup = cnl_fe_startup,
-};
-
 static int cnl_be_fixup(struct snd_soc_pcm_runtime *rtd,
 			    struct snd_pcm_hw_params *params)
 {
@@ -204,45 +180,6 @@ static const char cname[] = "i2c-INT34C2:00";
 #endif
 
 static struct snd_soc_dai_link cnl_rt274_msic_dailink[] = {
-	{
-		.name = "CNL Audio Port",
-		.stream_name = "Audio",
-		.cpu_dai_name = "System Pin",
-		.codec_name = "snd-soc-dummy",
-		.codec_dai_name = "snd-soc-dummy-dai",
-		.platform_name = pname,
-		.ignore_suspend = 1,
-		.nonatomic = 1,
-		.dynamic = 1,
-		.dpcm_playback = 1,
-		.dpcm_capture = 1,
-		.ops = &cnl_fe_ops,
-	},
-	{
-		.name = "CNL Deepbuffer Port",
-		.stream_name = "Deep Buffer Audio",
-		.cpu_dai_name = "Deepbuffer Pin",
-		.codec_name = "snd-soc-dummy",
-		.codec_dai_name = "snd-soc-dummy-dai",
-		.platform_name = pname,
-		.dpcm_playback = 1,
-		.ignore_suspend = 1,
-		.nonatomic = 1,
-		.dynamic = 1,
-		.ops = &cnl_fe_ops,
-	},
-	{
-		.name = "CNL Reference Port",
-		.stream_name = "Reference Capture",
-		.cpu_dai_name = "Reference Pin",
-		.codec_name = "snd-soc-dummy",
-		.codec_dai_name = "snd-soc-dummy-dai",
-		.platform_name = pname,
-		.dpcm_capture = 1,
-		.ignore_suspend = 1,
-		.nonatomic = 1,
-		.dynamic = 1,
-	},
 	/* Trace Buffer DAI links */
 	{
 		.name = "CNL Trace Buffer0",
@@ -351,6 +288,15 @@ static struct snd_soc_dai_link cnl_rt274_msic_dailink[] = {
 	},
 };
 
+static int
+cnl_add_dai_link(struct snd_soc_card *card, struct snd_soc_dai_link *link)
+{
+       link->platform_name = pname;
+       link->nonatomic = 1;
+
+       return 0;
+}
+
 /* SoC card */
 static struct snd_soc_card snd_soc_card_cnl = {
 	.name = "cnl-audio",
@@ -362,6 +308,7 @@ static struct snd_soc_card snd_soc_card_cnl = {
 	.num_dapm_routes = ARRAY_SIZE(cnl_map),
 	.controls = cnl_controls,
 	.num_controls = ARRAY_SIZE(cnl_controls),
+	.add_dai_link = cnl_add_dai_link,
 };
 
 static int snd_cnl_rt274_mc_probe(struct platform_device *pdev)
