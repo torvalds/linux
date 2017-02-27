@@ -66,7 +66,7 @@ int
 LNetEQAlloc(unsigned int count, lnet_eq_handler_t callback,
 	    struct lnet_handle_eq *handle)
 {
-	lnet_eq_t *eq;
+	struct lnet_eq *eq;
 
 	LASSERT(the_lnet.ln_refcount > 0);
 
@@ -210,7 +210,7 @@ LNetEQFree(struct lnet_handle_eq eqh)
 EXPORT_SYMBOL(LNetEQFree);
 
 void
-lnet_eq_enqueue_event(lnet_eq_t *eq, lnet_event_t *ev)
+lnet_eq_enqueue_event(struct lnet_eq *eq, lnet_event_t *ev)
 {
 	/* MUST called with resource lock hold but w/o lnet_eq_wait_lock */
 	int index;
@@ -239,7 +239,7 @@ lnet_eq_enqueue_event(lnet_eq_t *eq, lnet_event_t *ev)
 }
 
 static int
-lnet_eq_dequeue_event(lnet_eq_t *eq, lnet_event_t *ev)
+lnet_eq_dequeue_event(struct lnet_eq *eq, lnet_event_t *ev)
 {
 	int new_index = eq->eq_deq_seq & (eq->eq_size - 1);
 	lnet_event_t *new_event = &eq->eq_events[new_index];
@@ -386,7 +386,7 @@ LNetEQPoll(struct lnet_handle_eq *eventqs, int neq, int timeout_ms,
 
 	for (;;) {
 		for (i = 0; i < neq; i++) {
-			lnet_eq_t *eq = lnet_handle2eq(&eventqs[i]);
+			struct lnet_eq *eq = lnet_handle2eq(&eventqs[i]);
 
 			if (!eq) {
 				lnet_eq_wait_unlock();

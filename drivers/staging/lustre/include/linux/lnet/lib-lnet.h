@@ -178,17 +178,17 @@ lnet_net_lock_current(void)
 
 #define MAX_PORTALS		64
 
-static inline lnet_eq_t *
+static inline struct lnet_eq *
 lnet_eq_alloc(void)
 {
-	lnet_eq_t *eq;
+	struct lnet_eq *eq;
 
 	LIBCFS_ALLOC(eq, sizeof(*eq));
 	return eq;
 }
 
 static inline void
-lnet_eq_free(lnet_eq_t *eq)
+lnet_eq_free(struct lnet_eq *eq)
 {
 	LIBCFS_FREE(eq, sizeof(*eq));
 }
@@ -278,7 +278,7 @@ lnet_res_lh_invalidate(struct lnet_libhandle *lh)
 }
 
 static inline void
-lnet_eq2handle(struct lnet_handle_eq *handle, lnet_eq_t *eq)
+lnet_eq2handle(struct lnet_handle_eq *handle, struct lnet_eq *eq)
 {
 	if (!eq) {
 		LNetInvalidateEQHandle(handle);
@@ -288,7 +288,7 @@ lnet_eq2handle(struct lnet_handle_eq *handle, lnet_eq_t *eq)
 	handle->cookie = eq->eq_lh.lh_cookie;
 }
 
-static inline lnet_eq_t *
+static inline struct lnet_eq *
 lnet_handle2eq(struct lnet_handle_eq *handle)
 {
 	struct lnet_libhandle *lh;
@@ -297,7 +297,7 @@ lnet_handle2eq(struct lnet_handle_eq *handle)
 	if (!lh)
 		return NULL;
 
-	return lh_entry(lh, lnet_eq_t, eq_lh);
+	return lh_entry(lh, struct lnet_eq, eq_lh);
 }
 
 static inline void
@@ -490,7 +490,7 @@ void lnet_build_msg_event(struct lnet_msg *msg, lnet_event_kind_t ev_type);
 void lnet_msg_commit(struct lnet_msg *msg, int cpt);
 void lnet_msg_decommit(struct lnet_msg *msg, int cpt, int status);
 
-void lnet_eq_enqueue_event(lnet_eq_t *eq, lnet_event_t *ev);
+void lnet_eq_enqueue_event(struct lnet_eq *eq, lnet_event_t *ev);
 void lnet_prep_send(struct lnet_msg *msg, int type, lnet_process_id_t target,
 		    unsigned int offset, unsigned int len);
 int lnet_send(lnet_nid_t nid, struct lnet_msg *msg, lnet_nid_t rtr_nid);

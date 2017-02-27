@@ -116,7 +116,7 @@ struct lnet_libhandle {
 #define lh_entry(ptr, type, member) \
 	((type *)((char *)(ptr) - (char *)(&((type *)0)->member)))
 
-typedef struct lnet_eq {
+struct lnet_eq {
 	struct list_head	  eq_list;
 	struct lnet_libhandle	  eq_lh;
 	lnet_seq_t		  eq_enq_seq;
@@ -125,7 +125,7 @@ typedef struct lnet_eq {
 	lnet_eq_handler_t	  eq_callback;
 	lnet_event_t		 *eq_events;
 	int			**eq_refs;	/* percpt refcount for EQ */
-} lnet_eq_t;
+};
 
 typedef struct lnet_me {
 	struct list_head	 me_list;
@@ -152,7 +152,7 @@ typedef struct lnet_libmd {
 	unsigned int		 md_options;
 	unsigned int		 md_flags;
 	void			*md_user_ptr;
-	lnet_eq_t		*md_eq;
+	struct lnet_eq		*md_eq;
 	unsigned int		 md_niov;	/* # frags */
 	union {
 		struct kvec	iov[LNET_MAX_IOV];
