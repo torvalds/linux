@@ -27,7 +27,7 @@ static DEFINE_IDA(fpga_bridge_ida);
 static struct class *fpga_bridge_class;
 
 /* Lock for adding/removing bridges to linked lists*/
-spinlock_t bridge_list_lock;
+static spinlock_t bridge_list_lock;
 
 static int fpga_bridge_of_node_match(struct device *dev, const void *data)
 {
