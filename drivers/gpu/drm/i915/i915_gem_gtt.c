@@ -716,10 +716,13 @@ static bool gen8_ppgtt_clear_pd(struct i915_address_space *vm,
 	u32 pde;
 
 	gen8_for_each_pde(pt, pd, start, length, pde) {
+		GEM_BUG_ON(pt == vm->scratch_pt);
+
 		if (!gen8_ppgtt_clear_pt(vm, pt, start, length))
 			continue;
 
 		gen8_ppgtt_set_pde(vm, pd, vm->scratch_pt, pde);
+		GEM_BUG_ON(!pd->used_pdes);
 		pd->used_pdes--;
 
 		free_pt(vm, pt);
@@ -755,10 +758,13 @@ static bool gen8_ppgtt_clear_pdp(struct i915_address_space *vm,
 	unsigned int pdpe;
 
 	gen8_for_each_pdpe(pd, pdp, start, length, pdpe) {
+		GEM_BUG_ON(pd == vm->scratch_pd);
+
 		if (!gen8_ppgtt_clear_pd(vm, pd, start, length))
 			continue;
 
 		gen8_ppgtt_set_pdpe(vm, pdp, vm->scratch_pd, pdpe);
+		GEM_BUG_ON(!pdp->used_pdpes);
 		pdp->used_pdpes--;
 
 		free_pd(vm, pd);
@@ -801,6 +807,8 @@ static void gen8_ppgtt_clear_4lvl(struct i915_address_space *vm,
 	GEM_BUG_ON(!USES_FULL_48BIT_PPGTT(vm->i915));
 
 	gen8_for_each_pml4e(pdp, pml4, start, length, pml4e) {
+		GEM_BUG_ON(pdp == vm->scratch_pdp);
+
 		if (!gen8_ppgtt_clear_pdp(vm, pdp, start, length))
 			continue;
 
@@ -1089,6 +1097,7 @@ static int gen8_ppgtt_alloc_pd(struct i915_address_space *vm,
 
 			gen8_ppgtt_set_pde(vm, pd, pt, pde);
 			pd->used_pdes++;
+			GEM_BUG_ON(pd->used_pdes > I915_PDES);
 		}
 
 		pt->used_ptes += gen8_pte_count(start, length);
@@ -1118,21 +1127,25 @@ static int gen8_ppgtt_alloc_pdp(struct i915_address_space *vm,
 			gen8_initialize_pd(vm, pd);
 			gen8_ppgtt_set_pdpe(vm, pdp, pd, pdpe);
 			pdp->used_pdpes++;
+			GEM_BUG_ON(pdp->used_pdpes > I915_PDPES_PER_PDP(vm));
 
 			mark_tlbs_dirty(i915_vm_to_ppgtt(vm));
 		}
 
 		ret = gen8_ppgtt_alloc_pd(vm, pd, start, length);
-		if (unlikely(ret)) {
-			gen8_ppgtt_set_pdpe(vm, pdp, vm->scratch_pd, pdpe);
-			pdp->used_pdpes--;
-			free_pd(vm, pd);
-			goto unwind;
-		}
+		if (unlikely(ret))
+			goto unwind_pd;
 	}
 
 	return 0;
 
+unwind_pd:
+	if (!pd->used_pdes) {
+		gen8_ppgtt_set_pdpe(vm, pdp, vm->scratch_pd, pdpe);
+		GEM_BUG_ON(!pdp->used_pdpes);
+		pdp->used_pdpes--;
+		free_pd(vm, pd);
+	}
 unwind:
 	gen8_ppgtt_clear_pdp(vm, pdp, from, start - from);
 	return -ENOMEM;
@@ -1166,15 +1179,17 @@ static int gen8_ppgtt_alloc_4lvl(struct i915_address_space *vm,
 		}
 
 		ret = gen8_ppgtt_alloc_pdp(vm, pdp, start, length);
-		if (unlikely(ret)) {
-			gen8_ppgtt_set_pml4e(pml4, vm->scratch_pdp, pml4e);
-			free_pdp(vm, pdp);
-			goto unwind;
-		}
+		if (unlikely(ret))
+			goto unwind_pdp;
 	}
 
 	return 0;
 
+unwind_pdp:
+	if (!pdp->used_pdpes) {
+		gen8_ppgtt_set_pml4e(pml4, vm->scratch_pdp, pml4e);
+		free_pdp(vm, pdp);
+	}
 unwind:
 	gen8_ppgtt_clear_4lvl(vm, from, start - from);
 	return -ENOMEM;
