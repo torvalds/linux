@@ -316,8 +316,9 @@ __add_event(struct list_head *list, int *idx,
 		return NULL;
 
 	(*idx)++;
-	evsel->cpus     = cpu_map__get(cpus);
-	evsel->own_cpus = cpu_map__get(cpus);
+	evsel->cpus        = cpu_map__get(cpus);
+	evsel->own_cpus    = cpu_map__get(cpus);
+	evsel->system_wide = !!cpus;
 
 	if (name)
 		evsel->name = strdup(name);

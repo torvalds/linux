@@ -2350,6 +2350,35 @@ static int __cmd_report(int argc, const char **argv)
 	return 0;
 }
 
+static void setup_system_wide(int forks)
+{
+	/*
+	 * Make system wide (-a) the default target if
+	 * no target was specified and one of following
+	 * conditions is met:
+	 *
+	 *   - there's no workload specified
+	 *   - there is workload specified but all requested
+	 *     events are system wide events
+	 */
+	if (!target__none(&target))
+		return;
+
+	if (!forks)
+		target.system_wide = true;
+	else {
+		struct perf_evsel *counter;
+
+		evlist__for_each_entry(evsel_list, counter) {
+			if (!counter->system_wide)
+				return;
+		}
+
+		if (evsel_list->nr_entries)
+			target.system_wide = true;
+	}
+}
+
 int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	const char * const stat_usage[] = {
@@ -2456,9 +2485,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 	} else if (big_num_opt == 0) /* User passed --no-big-num */
 		big_num = false;
 
-	/* Make system wide (-a) the default target. */
-	if (!argc && target__none(&target))
-		target.system_wide = true;
+	setup_system_wide(argc);
 
 	if (run_count < 0) {
 		pr_err("Run count must be a positive number\n");
