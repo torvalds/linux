@@ -65,6 +65,7 @@ afecting||affecting
 agaist||against
 albumns||albums
 alegorical||allegorical
+algined||aligned
 algorith||algorithm
 algorithmical||algorithmically
 algoritm||algorithm
