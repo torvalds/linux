@@ -186,6 +186,7 @@ Optional properties:
 	otherwise full reconfiguration is done.
 - external-fpga-config : boolean, set if the FPGA has already been configured
 	prior to OS boot up.
+- encrypted-fpga-config : boolean, set if the bitstream is encrypted
 - region-unfreeze-timeout-us : The maximum time in microseconds to wait for
 	bridges to successfully become enabled after the region has been
 	programmed.
