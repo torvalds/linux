@@ -462,82 +462,25 @@ static void qxl_monitors_config_set(struct qxl_device *qdev,
 
 }
 
-static int qxl_crtc_mode_set(struct drm_crtc *crtc,
-			       struct drm_display_mode *mode,
-			       struct drm_display_mode *adjusted_mode,
-			       int x, int y,
-			       struct drm_framebuffer *old_fb)
-{
-	struct drm_device *dev = crtc->dev;
-	struct qxl_device *qdev = dev->dev_private;
-	struct qxl_framebuffer *qfb;
-	struct qxl_bo *bo, *old_bo = NULL;
-	struct qxl_crtc *qcrtc = to_qxl_crtc(crtc);
-	bool recreate_primary = false;
-	int ret;
-	int surf_id;
-	if (!crtc->primary->fb) {
-		DRM_DEBUG_KMS("No FB bound\n");
-		return 0;
-	}
-
-	if (old_fb) {
-		qfb = to_qxl_framebuffer(old_fb);
-		old_bo = gem_to_qxl_bo(qfb->obj);
-	}
-	qfb = to_qxl_framebuffer(crtc->primary->fb);
-	bo = gem_to_qxl_bo(qfb->obj);
-	DRM_DEBUG("+%d+%d (%d,%d) => (%d,%d)\n",
-		  x, y,
-		  mode->hdisplay, mode->vdisplay,
-		  adjusted_mode->hdisplay,
-		  adjusted_mode->vdisplay);
-
-	if (bo->is_primary == false)
-		recreate_primary = true;
-
-	if (bo->surf.stride * bo->surf.height > qdev->vram_size) {
-		DRM_ERROR("Mode doesn't fit in vram size (vgamem)");
-		return -EINVAL;
-        }
-
-	ret = qxl_bo_pin(bo, bo->type, NULL);
-	if (ret != 0)
-		return -EINVAL;
-
-	if (recreate_primary) {
-		qxl_io_destroy_primary(qdev);
-		qxl_io_log(qdev,
-			   "recreate primary: %dx%d,%d,%d\n",
-			   bo->surf.width, bo->surf.height,
-			   bo->surf.stride, bo->surf.format);
-		qxl_io_create_primary(qdev, 0, bo);
-		bo->is_primary = true;
-	}
-
-	if (bo->is_primary) {
-		DRM_DEBUG_KMS("setting surface_id to 0 for primary surface %d on crtc %d\n", bo->surface_id, qcrtc->index);
-		surf_id = 0;
-	} else {
-		surf_id = bo->surface_id;
-	}
-
-	if (old_bo && old_bo != bo) {
-		old_bo->is_primary = false;
-		qxl_bo_unpin(old_bo);
-	}
-
-	qxl_monitors_config_set(qdev, qcrtc->index, x, y,
-				mode->hdisplay,
-				mode->vdisplay, surf_id);
-	return 0;
-}
-
 static void qxl_crtc_prepare(struct drm_crtc *crtc)
 {
 	DRM_DEBUG("current: %dx%d+%d+%d (%d).\n",
 		  crtc->mode.hdisplay, crtc->mode.vdisplay,
 		  crtc->x, crtc->y, crtc->enabled);
+}
+
+void qxl_mode_set_nofb(struct drm_crtc *crtc)
+{
+	struct qxl_device *qdev = crtc->dev->dev_private;
+	struct qxl_crtc *qcrtc = to_qxl_crtc(crtc);
+	struct drm_display_mode *mode = &crtc->mode;
+
+	DRM_DEBUG("Mode set (%d,%d)\n",
+		  mode->hdisplay, mode->vdisplay);
+
+	qxl_monitors_config_set(qdev, qcrtc->index, 0, 0,
+				mode->hdisplay,	mode->vdisplay, 0);
+
 }
 
 static void qxl_crtc_commit(struct drm_crtc *crtc)
@@ -567,7 +510,8 @@ static const struct drm_crtc_helper_funcs qxl_crtc_helper_funcs = {
 	.dpms = qxl_crtc_dpms,
 	.disable = qxl_crtc_disable,
 	.mode_fixup = qxl_crtc_mode_fixup,
-	.mode_set = qxl_crtc_mode_set,
+	.mode_set = drm_helper_crtc_mode_set,
+	.mode_set_nofb = qxl_mode_set_nofb,
 	.prepare = qxl_crtc_prepare,
 	.commit = qxl_crtc_commit,
 	.atomic_flush = qxl_crtc_atomic_flush,
