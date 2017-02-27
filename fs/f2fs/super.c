@@ -1929,7 +1929,7 @@ try_onemore:
 
 	if (F2FS_IO_SIZE(sbi) > 1) {
 		sbi->write_io_dummy =
-			mempool_create_page_pool(F2FS_IO_SIZE(sbi) - 1, 0);
+			mempool_create_page_pool(2 * (F2FS_IO_SIZE(sbi) - 1), 0);
 		if (!sbi->write_io_dummy)
 			goto free_options;
 	}
