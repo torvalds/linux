@@ -1581,6 +1581,7 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct page **pages = NULL;
 	struct extent_state *cached_state = NULL;
+	struct extent_changeset *data_reserved = NULL;
 	u64 release_bytes = 0;
 	u64 lockstart;
 	u64 lockend;
@@ -1628,7 +1629,9 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 		reserve_bytes = round_up(write_bytes + sector_offset,
 				fs_info->sectorsize);
 
-		ret = btrfs_check_data_free_space(inode, pos, write_bytes);
+		extent_changeset_release(data_reserved);
+		ret = btrfs_check_data_free_space(inode, &data_reserved, pos,
+						  write_bytes);
 		if (ret < 0) {
 			if ((BTRFS_I(inode)->flags & (BTRFS_INODE_NODATACOW |
 						      BTRFS_INODE_PREALLOC)) &&
@@ -1802,6 +1805,7 @@ again:
 		}
 	}
 
+	extent_changeset_free(data_reserved);
 	return num_written ? num_written : ret;
 }
 
@@ -2772,6 +2776,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 {
 	struct inode *inode = file_inode(file);
 	struct extent_state *cached_state = NULL;
+	struct extent_changeset *data_reserved = NULL;
 	struct falloc_range *range;
 	struct falloc_range *tmp;
 	struct list_head reserve_list;
@@ -2901,8 +2906,8 @@ static long btrfs_fallocate(struct file *file, int mode,
 				free_extent_map(em);
 				break;
 			}
-			ret = btrfs_qgroup_reserve_data(inode, cur_offset,
-					last_byte - cur_offset);
+			ret = btrfs_qgroup_reserve_data(inode, &data_reserved,
+					cur_offset, last_byte - cur_offset);
 			if (ret < 0) {
 				free_extent_map(em);
 				break;
@@ -2974,6 +2979,7 @@ out:
 	if (ret != 0)
 		btrfs_free_reserved_data_space(inode, alloc_start,
 				       alloc_end - cur_offset);
+	extent_changeset_free(data_reserved);
 	return ret;
 }
 
