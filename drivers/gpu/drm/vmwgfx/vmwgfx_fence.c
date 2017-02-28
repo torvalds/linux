@@ -728,8 +728,7 @@ int vmw_fence_obj_wait_ioctl(struct drm_device *dev, void *data,
 
 	base = ttm_base_object_lookup(tfile, arg->handle);
 	if (unlikely(base == NULL)) {
-		printk(KERN_ERR "Wait invalid fence object handle "
-		       "0x%08lx.\n",
+		pr_err("Wait invalid fence object handle 0x%08lx\n",
 		       (unsigned long)arg->handle);
 		return -EINVAL;
 	}
@@ -773,8 +772,7 @@ int vmw_fence_obj_signaled_ioctl(struct drm_device *dev, void *data,
 
 	base = ttm_base_object_lookup(tfile, arg->handle);
 	if (unlikely(base == NULL)) {
-		printk(KERN_ERR "Fence signaled invalid fence object handle "
-		       "0x%08lx.\n",
+		pr_err("Fence signaled invalid fence object handle 0x%08lx\n",
 		       (unsigned long)arg->handle);
 		return -EINVAL;
 	}

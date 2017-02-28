@@ -195,7 +195,7 @@ static int mga_g200se_set_plls(struct mga_device *mdev, long clock)
 	}
 
 	if (delta > permitteddelta) {
-		printk(KERN_WARNING "PLL delta too large\n");
+		pr_warn("PLL delta too large\n");
 		return 1;
 	}
 

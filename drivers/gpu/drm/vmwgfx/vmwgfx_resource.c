@@ -736,14 +736,14 @@ int vmw_user_dmabuf_lookup(struct ttm_object_file *tfile,
 
 	base = ttm_base_object_lookup(tfile, handle);
 	if (unlikely(base == NULL)) {
-		printk(KERN_ERR "Invalid buffer object handle 0x%08lx.\n",
+		pr_err("Invalid buffer object handle 0x%08lx\n",
 		       (unsigned long)handle);
 		return -ESRCH;
 	}
 
 	if (unlikely(ttm_base_object_type(base) != ttm_buffer_type)) {
 		ttm_base_object_unref(&base);
-		printk(KERN_ERR "Invalid buffer object handle 0x%08lx.\n",
+		pr_err("Invalid buffer object handle 0x%08lx\n",
 		       (unsigned long)handle);
 		return -EINVAL;
 	}

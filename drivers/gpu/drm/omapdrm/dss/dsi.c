@@ -582,15 +582,14 @@ static void dsi_perf_show(struct platform_device *dsidev, const char *name)
 
 	total_bytes = dsi->update_bytes;
 
-	printk(KERN_INFO "DSI(%s): %u us + %u us = %u us (%uHz), "
-			"%u bytes, %u kbytes/sec\n",
-			name,
-			setup_us,
-			trans_us,
-			total_us,
-			1000*1000 / total_us,
-			total_bytes,
-			total_bytes * 1000 / total_us);
+	pr_info("DSI(%s): %u us + %u us = %u us (%uHz), %u bytes, %u kbytes/sec\n",
+		name,
+		setup_us,
+		trans_us,
+		total_us,
+		1000 * 1000 / total_us,
+		total_bytes,
+		total_bytes * 1000 / total_us);
 }
 #else
 static inline void dsi_perf_mark_setup(struct platform_device *dsidev)

@@ -1008,7 +1008,7 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 	}
 
 	if (!type_found) {
-		printk(KERN_ERR TTM_PFX "No compatible memory type found.\n");
+		pr_err(TTM_PFX "No compatible memory type found\n");
 		return -EINVAL;
 	}
 

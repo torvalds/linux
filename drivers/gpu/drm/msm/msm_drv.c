@@ -152,7 +152,7 @@ u32 msm_readl(const void __iomem *addr)
 {
 	u32 val = readl(addr);
 	if (reglog)
-		printk(KERN_ERR "IO:R %p %08x\n", addr, val);
+		pr_err("IO:R %p %08x\n", addr, val);
 	return val;
 }
 
