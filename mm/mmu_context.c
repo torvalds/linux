@@ -25,7 +25,7 @@ void use_mm(struct mm_struct *mm)
 	task_lock(tsk);
 	active_mm = tsk->active_mm;
 	if (active_mm != mm) {
-		atomic_inc(&mm->mm_count);
+		mmgrab(mm);
 		tsk->active_mm = mm;
 	}
 	tsk->mm = mm;

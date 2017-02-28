@@ -3329,7 +3329,7 @@ static DEVICE_ATTR(lpfc_static_vport, S_IRUGO,
  * @buf: Data buffer.
  * @count: Size of the data buffer.
  *
- * This function get called when an user write to the lpfc_stat_data_ctrl
+ * This function get called when a user write to the lpfc_stat_data_ctrl
  * sysfs file. This function parse the command written to the sysfs file
  * and take appropriate action. These commands are used for controlling
  * driver statistical data collection.

@@ -681,7 +681,7 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 		   2 + /* NULL SSID */
 		   /* Channel Switch Announcement */
 		   2 + sizeof(struct ieee80211_channel_sw_ie) +
-		   /* Mesh Channel Swith Parameters */
+		   /* Mesh Channel Switch Parameters */
 		   2 + sizeof(struct ieee80211_mesh_chansw_params_ie) +
 		   2 + 8 + /* supported rates */
 		   2 + 3; /* DS params */

@@ -93,7 +93,7 @@ void sun4d_cpu_pre_online(void *arg)
 	show_leds(cpuid);
 
 	/* Attach to the address space of init_task. */
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 
 	local_ops->cache_all();

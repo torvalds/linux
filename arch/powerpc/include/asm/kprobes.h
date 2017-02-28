@@ -1,5 +1,8 @@
 #ifndef _ASM_POWERPC_KPROBES_H
 #define _ASM_POWERPC_KPROBES_H
+
+#include <asm-generic/kprobes.h>
+
 #ifdef __KERNEL__
 /*
  *  Kernel Probes (KProbes)
