@@ -38,6 +38,7 @@ struct drr_params {
 	/* defines the maximum possible vertical dimension of display timing
 	 * for CRTC as supported by the panel */
 	uint32_t vertical_total_max;
+    bool immediate_flip;
 };
 
 #endif

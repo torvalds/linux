@@ -38,10 +38,22 @@ enum pipe_lock_control {
 	PIPE_LOCK_CONTROL_GRAPHICS = 1 << 0,
 	PIPE_LOCK_CONTROL_BLENDER = 1 << 1,
 	PIPE_LOCK_CONTROL_SCL = 1 << 2,
-	PIPE_LOCK_CONTROL_MODE = 1 << 3
+	PIPE_LOCK_CONTROL_MODE = 1 << 3,
+	PIPE_LOCK_CONTROL_MPCC_ADDR = 1 << 4
 };
 
-struct dce_hwseq;
+struct dce_hwseq_wa {
+	bool blnd_crtc_trigger;
+};
+
+struct dce_hwseq {
+	struct dc_context *ctx;
+	const struct dce_hwseq_registers *regs;
+	const struct dce_hwseq_shift *shifts;
+	const struct dce_hwseq_mask *masks;
+	struct dce_hwseq_wa wa;
+};
+
 
 struct hw_sequencer_funcs {
 
@@ -115,8 +127,8 @@ struct hw_sequencer_funcs {
 			struct dc_link_settings *link_settings);
 
 	void (*pipe_control_lock)(
-				struct dce_hwseq *hwseq,
-				unsigned int blnd_inst,
+				struct core_dc *dc,
+				struct pipe_ctx *pipe,
 				enum pipe_lock_control control_mask,
 				bool lock);
 

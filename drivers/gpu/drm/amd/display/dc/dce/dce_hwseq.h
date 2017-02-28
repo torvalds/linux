@@ -212,17 +212,6 @@ struct dce_hwseq_mask {
 	HWSEQ_REG_FIED_LIST(uint32_t)
 };
 
-struct dce_hwseq_wa {
-	bool blnd_crtc_trigger;
-};
-
-struct dce_hwseq {
-	struct dc_context *ctx;
-	const struct dce_hwseq_registers *regs;
-	const struct dce_hwseq_shift *shifts;
-	const struct dce_hwseq_mask *masks;
-	struct dce_hwseq_wa wa;
-};
 
 enum blnd_mode {
 	BLND_MODE_CURRENT_PIPE = 0,/* Data from current pipe only */
@@ -233,8 +222,8 @@ enum blnd_mode {
 void dce_enable_fe_clock(struct dce_hwseq *hwss,
 		unsigned int inst, bool enable);
 
-void dce_pipe_control_lock(struct dce_hwseq *hws,
-		unsigned int blnd_inst,
+void dce_pipe_control_lock(struct core_dc *dc,
+		struct pipe_ctx *pipe,
 		enum pipe_lock_control control_mask,
 		bool lock);
 

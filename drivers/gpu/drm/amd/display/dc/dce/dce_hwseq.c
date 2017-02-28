@@ -26,6 +26,7 @@
 #include "dce_hwseq.h"
 #include "reg_helper.h"
 #include "hw_sequencer.h"
+#include "core_dc.h"
 
 #define CTX \
 	hws->ctx
@@ -43,15 +44,17 @@ void dce_enable_fe_clock(struct dce_hwseq *hws,
 			DCFE_CLOCK_ENABLE, enable);
 }
 
-void dce_pipe_control_lock(struct dce_hwseq *hws,
-		unsigned int blnd_inst,
+void dce_pipe_control_lock(struct core_dc *dc,
+		struct pipe_ctx *pipe,
 		enum pipe_lock_control control_mask,
 		bool lock)
 {
 	uint32_t lock_val = lock ? 1 : 0;
-	uint32_t dcp_grph, scl, blnd, update_lock_mode;
-
-	uint32_t val = REG_GET_4(BLND_V_UPDATE_LOCK[blnd_inst],
+	uint32_t dcp_grph, scl, blnd, update_lock_mode, val;
+	struct dce_hwseq *hws = dc->hwseq;
+	if (control_mask & PIPE_LOCK_CONTROL_MPCC_ADDR)
+		return;
+	val = REG_GET_4(BLND_V_UPDATE_LOCK[pipe->pipe_idx],
 			BLND_DCP_GRPH_V_UPDATE_LOCK, &dcp_grph,
 			BLND_SCL_V_UPDATE_LOCK, &scl,
 			BLND_BLND_V_UPDATE_LOCK, &blnd,
@@ -70,19 +73,19 @@ void dce_pipe_control_lock(struct dce_hwseq *hws,
 		update_lock_mode = lock_val;
 
 
-	REG_SET_2(BLND_V_UPDATE_LOCK[blnd_inst], val,
+	REG_SET_2(BLND_V_UPDATE_LOCK[pipe->pipe_idx], val,
 			BLND_DCP_GRPH_V_UPDATE_LOCK, dcp_grph,
 			BLND_SCL_V_UPDATE_LOCK, scl);
 
 	if (hws->masks->BLND_BLND_V_UPDATE_LOCK != 0)
-		REG_SET_2(BLND_V_UPDATE_LOCK[blnd_inst], val,
+		REG_SET_2(BLND_V_UPDATE_LOCK[pipe->pipe_idx], val,
 				BLND_BLND_V_UPDATE_LOCK, blnd,
 				BLND_V_UPDATE_LOCK_MODE, update_lock_mode);
 
 	if (hws->wa.blnd_crtc_trigger) {
 		if (!lock && (control_mask & PIPE_LOCK_CONTROL_BLENDER)) {
-			uint32_t value = REG_READ(CRTC_H_BLANK_START_END[blnd_inst]);
-			REG_WRITE(CRTC_H_BLANK_START_END[blnd_inst], value);
+			uint32_t value = REG_READ(CRTC_H_BLANK_START_END[pipe->pipe_idx]);
+			REG_WRITE(CRTC_H_BLANK_START_END[pipe->pipe_idx], value);
 		}
 	}
 }

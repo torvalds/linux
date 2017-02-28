@@ -1178,6 +1178,7 @@ void dc_update_surfaces_for_stream(struct dc *dc,
 
 	enum surface_update_type update_type;
 	const struct dc_stream_status *stream_status;
+	unsigned int lock_mask = 0;
 
 	stream_status = dc_stream_get_status(dc_stream);
 	ASSERT(stream_status);
@@ -1315,21 +1316,38 @@ void dc_update_surfaces_for_stream(struct dc *dc,
 
 		for (j = 0; j < context->res_ctx.pool->pipe_count; j++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
+			if (pipe_ctx->surface != surface)
+				continue;
+			/*lock all the MCPP if blnd is enable for DRR*/
+			if ((update_type == UPDATE_TYPE_FAST &&
+					(dc_stream->freesync_ctx.enabled == true &&
+							surface_count != context->res_ctx.pool->pipe_count)) &&
+					!pipe_ctx->tg->funcs->is_blanked(pipe_ctx->tg)) {
+				lock_mask = PIPE_LOCK_CONTROL_MPCC_ADDR;
+				core_dc->hwss.pipe_control_lock(
+						core_dc,
+						pipe_ctx,
+						lock_mask,
+						true);
+				}
+			}
+		for (j = 0; j < context->res_ctx.pool->pipe_count; j++) {
+			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 			struct pipe_ctx *cur_pipe_ctx;
 			bool is_new_pipe_surface = true;
 
 			if (pipe_ctx->surface != surface)
 				continue;
-
 			if (update_type != UPDATE_TYPE_FAST &&
 				!pipe_ctx->tg->funcs->is_blanked(pipe_ctx->tg)) {
-				core_dc->hwss.pipe_control_lock(
-						core_dc->hwseq,
-						pipe_ctx->pipe_idx,
-						PIPE_LOCK_CONTROL_GRAPHICS |
+				lock_mask = PIPE_LOCK_CONTROL_GRAPHICS |
 						PIPE_LOCK_CONTROL_SCL |
 						PIPE_LOCK_CONTROL_BLENDER |
-						PIPE_LOCK_CONTROL_MODE,
+						PIPE_LOCK_CONTROL_MODE;
+				core_dc->hwss.pipe_control_lock(
+						core_dc,
+						pipe_ctx,
+						lock_mask,
 						true);
 			}
 
@@ -1371,7 +1389,7 @@ void dc_update_surfaces_for_stream(struct dc *dc,
 		}
 	}
 
-	if (update_type == UPDATE_TYPE_FAST)
+	if (update_type == UPDATE_TYPE_FAST && (lock_mask == 0))
 		return;
 
 	for (i = context->res_ctx.pool->pipe_count - 1; i >= 0; i--) {
@@ -1381,11 +1399,9 @@ void dc_update_surfaces_for_stream(struct dc *dc,
 			if (updates[j].surface == &pipe_ctx->surface->public) {
 				if (!pipe_ctx->tg->funcs->is_blanked(pipe_ctx->tg)) {
 					core_dc->hwss.pipe_control_lock(
-							core_dc->hwseq,
-							pipe_ctx->pipe_idx,
-							PIPE_LOCK_CONTROL_GRAPHICS |
-							PIPE_LOCK_CONTROL_SCL |
-							PIPE_LOCK_CONTROL_BLENDER,
+							core_dc,
+							pipe_ctx,
+							lock_mask,
 							false);
 				}
 				break;
