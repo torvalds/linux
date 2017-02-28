@@ -1181,6 +1181,18 @@ config MFD_LP8788
 	  TI LP8788 PMU supports regulators, battery charger, RTC,
 	  ADC, backlight driver and current sinks.
 
+config MFD_TI_LMU
+	tristate "TI Lighting Management Unit driver"
+	depends on I2C
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  Say yes here to enable support for TI LMU chips.
+
+	  TI LMU MFD supports LM3532, LM3631, LM3632, LM3633, LM3695 and LM3697.
+	  It consists of backlight, LED and regulator driver.
+	  It provides consistent device controls for lighting functions.
+
 config MFD_OMAP_USB_HOST
 	bool "TI OMAP USBHS core and TLL driver"
 	depends on USB_EHCI_HCD_OMAP || USB_OHCI_HCD_OMAP3

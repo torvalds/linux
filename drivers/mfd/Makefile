@@ -127,6 +127,8 @@ obj-$(CONFIG_MFD_AXP20X_RSB)	+= axp20x-rsb.o
 obj-$(CONFIG_MFD_LP3943)	+= lp3943.o
 obj-$(CONFIG_MFD_LP8788)	+= lp8788.o lp8788-irq.o
 
+obj-$(CONFIG_MFD_TI_LMU)	+= ti-lmu.o
+
 da9055-objs			:= da9055-core.o da9055-i2c.o
 obj-$(CONFIG_MFD_DA9055)	+= da9055.o
 obj-$(CONFIG_MFD_DA9062)	+= da9062-core.o
