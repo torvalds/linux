@@ -700,7 +700,7 @@ static int qdisc_add(int cmd, int flags, int ifindex,
 	struct {
 		struct lkl_nlmsghdr n;
 		struct lkl_tcmsg tc;
-		char buf[64*1024];
+		char buf[2*1024];
 	} req = {
 		.n.nlmsg_len = LKL_NLMSG_LENGTH(sizeof(struct lkl_tcmsg)),
 		.n.nlmsg_flags = LKL_NLM_F_REQUEST|flags,
