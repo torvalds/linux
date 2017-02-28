@@ -10959,5 +10959,11 @@ struct cgroup_subsys perf_event_cgrp_subsys = {
 	.css_alloc	= perf_cgroup_css_alloc,
 	.css_free	= perf_cgroup_css_free,
 	.attach		= perf_cgroup_attach,
+	/*
+	 * Implicitly enable on dfl hierarchy so that perf events can
+	 * always be filtered by cgroup2 path as long as perf_event
+	 * controller is not mounted on a legacy hierarchy.
+	 */
+	.implicit_on_dfl = true,
 };
 #endif /* CONFIG_CGROUP_PERF */
