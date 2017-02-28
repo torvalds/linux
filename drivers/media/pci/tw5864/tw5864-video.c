@@ -716,6 +716,8 @@ static void tw5864_frame_interval_set(struct tw5864_input *input)
 static int tw5864_frameinterval_get(struct tw5864_input *input,
 				    struct v4l2_fract *frameinterval)
 {
+	struct tw5864_dev *dev = input->root;
+
 	switch (input->std) {
 	case STD_NTSC:
 		frameinterval->numerator = 1001;
@@ -727,8 +729,8 @@ static int tw5864_frameinterval_get(struct tw5864_input *input,
 		frameinterval->denominator = 25;
 		break;
 	default:
-		WARN(1, "tw5864_frameinterval_get requested for unknown std %d\n",
-		     input->std);
+	        dev_warn(&dev->pci->dev, "tw5864_frameinterval_get requested for unknown std %d\n",
+			 input->std);
 		return -EINVAL;
 	}
 
