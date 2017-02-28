@@ -245,9 +245,7 @@ static int gmc_v8_0_init_microcode(struct amdgpu_device *adev)
 
 out:
 	if (err) {
-		printk(KERN_ERR
-		       "mc: Failed to load firmware \"%s\"\n",
-		       fw_name);
+		pr_err("mc: Failed to load firmware \"%s\"\n", fw_name);
 		release_firmware(adev->mc.fw);
 		adev->mc.fw = NULL;
 	}
@@ -1006,12 +1004,12 @@ static int gmc_v8_0_sw_init(void *handle)
 	if (r) {
 		adev->need_dma32 = true;
 		dma_bits = 32;
-		printk(KERN_WARNING "amdgpu: No suitable DMA available.\n");
+		pr_warn("amdgpu: No suitable DMA available\n");
 	}
 	r = pci_set_consistent_dma_mask(adev->pdev, DMA_BIT_MASK(dma_bits));
 	if (r) {
 		pci_set_consistent_dma_mask(adev->pdev, DMA_BIT_MASK(32));
-		printk(KERN_WARNING "amdgpu: No coherent DMA available.\n");
+		pr_warn("amdgpu: No coherent DMA available\n");
 	}
 
 	r = gmc_v8_0_init_microcode(adev);

@@ -378,9 +378,7 @@ static int gfx_v6_0_init_microcode(struct amdgpu_device *adev)
 
 out:
 	if (err) {
-		printk(KERN_ERR
-		       "gfx6: Failed to load firmware \"%s\"\n",
-		       fw_name);
+		pr_err("gfx6: Failed to load firmware \"%s\"\n", fw_name);
 		release_firmware(adev->gfx.pfp_fw);
 		adev->gfx.pfp_fw = NULL;
 		release_firmware(adev->gfx.me_fw);

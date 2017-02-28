@@ -111,7 +111,7 @@ static bool radeon_read_clocks_OF(struct drm_device *dev)
 		return false;
 	val = of_get_property(dp, "ATY,RefCLK", NULL);
 	if (!val || !*val) {
-		printk(KERN_WARNING "radeonfb: No ATY,RefCLK property !\n");
+		pr_warn("radeonfb: No ATY,RefCLK property !\n");
 		return false;
 	}
 	p1pll->reference_freq = p2pll->reference_freq = (*val) / 10;

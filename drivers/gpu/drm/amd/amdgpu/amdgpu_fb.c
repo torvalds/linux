@@ -151,8 +151,7 @@ static int amdgpufb_create_pinned_object(struct amdgpu_fbdev *rfbdev,
 				       AMDGPU_GEM_CREATE_VRAM_CLEARED,
 				       true, &gobj);
 	if (ret) {
-		printk(KERN_ERR "failed to allocate framebuffer (%d)\n",
-		       aligned_size);
+		pr_err("failed to allocate framebuffer (%d)\n", aligned_size);
 		return -ENOMEM;
 	}
 	abo = gem_to_amdgpu_bo(gobj);

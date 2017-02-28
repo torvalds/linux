@@ -228,7 +228,7 @@ out_unref:
 out_cleanup:
 	kfree(gtt_obj);
 	if (r) {
-		printk(KERN_WARNING "Error while testing BO move.\n");
+		pr_warn("Error while testing BO move\n");
 	}
 }
 
