@@ -3925,6 +3925,8 @@ int selinux_task_prlimit(const struct cred *cred, const struct cred *tcred,
 {
 	u32 av = 0;
 
+	if (!flags)
+		return 0;
 	if (flags & LSM_PRLIMIT_WRITE)
 		av |= PROCESS__SETRLIMIT;
 	if (flags & LSM_PRLIMIT_READ)
