@@ -65,6 +65,8 @@ int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
 			    1000 * adjusted_mode->crtc_htotal);
 }
 
+#define VBLANK_EVASION_TIME_US 100
+
 /**
  * intel_pipe_update_start() - start update of a set of display registers
  * @crtc: the crtc of which the registers are going to be updated
@@ -92,7 +94,8 @@ void intel_pipe_update_start(struct intel_crtc *crtc)
 		vblank_start = DIV_ROUND_UP(vblank_start, 2);
 
 	/* FIXME needs to be calibrated sensibly */
-	min = vblank_start - intel_usecs_to_scanlines(adjusted_mode, 100);
+	min = vblank_start - intel_usecs_to_scanlines(adjusted_mode,
+						      VBLANK_EVASION_TIME_US);
 	max = vblank_start - 1;
 
 	local_irq_disable();
@@ -191,7 +194,12 @@ void intel_pipe_update_end(struct intel_crtc *crtc, struct intel_flip_work *work
 			  ktime_us_delta(end_vbl_time, crtc->debug.start_vbl_time),
 			  crtc->debug.min_vbl, crtc->debug.max_vbl,
 			  crtc->debug.scanline_start, scanline_end);
-	}
+	} else if (ktime_us_delta(end_vbl_time, crtc->debug.start_vbl_time) >
+		   VBLANK_EVASION_TIME_US)
+		DRM_WARN("Atomic update on pipe (%c) took %lld us, max time under evasion is %u us\n",
+			 pipe_name(pipe),
+			 ktime_us_delta(end_vbl_time, crtc->debug.start_vbl_time),
+			 VBLANK_EVASION_TIME_US);
 }
 
 static void
