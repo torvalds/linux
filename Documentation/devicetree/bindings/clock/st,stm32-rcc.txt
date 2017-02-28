@@ -10,6 +10,7 @@ Required properties:
 - compatible: Should be:
   "st,stm32f42xx-rcc"
   "st,stm32f469-rcc"
+  "st,stm32f746-rcc"
 - reg: should be register base and length as documented in the
   datasheet
 - #reset-cells: 1, see below
@@ -83,6 +84,25 @@ The secondary index is bound with the following magic numbers:
 	11	CLK_SAI2
 	12	CLK_I2SQ_PDIV	(post divisor of pll i2s q divisor)
 	13	CLK_SAIQ_PDIV	(post divisor of pll sai q divisor)
+
+	14	CLK_HSI		(Internal ocscillator clock)
+	15	CLK_SYSCLK	(System Clock)
+	16	CLK_HDMI_CEC	(HDMI-CEC clock)
+	17	CLK_SPDIF	(SPDIF-Rx clock)
+	18	CLK_USART1	(U(s)arts clocks)
+	19	CLK_USART2
+	20	CLK_USART3
+	21	CLK_UART4
+	22	CLK_UART5
+	23	CLK_USART6
+	24	CLK_UART7
+	25	CLK_UART8
+	26	CLK_I2C1	(I2S clocks)
+	27	CLK_I2C2
+	28	CLK_I2C3
+	29	CLK_I2C4
+	30	CLK_LPTIMER	(LPTimer1 clock)
+)
 
 Example:
 

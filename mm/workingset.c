@@ -6,6 +6,7 @@
 
 #include <linux/memcontrol.h>
 #include <linux/writeback.h>
+#include <linux/shmem_fs.h>
 #include <linux/pagemap.h>
 #include <linux/atomic.h>
 #include <linux/module.h>

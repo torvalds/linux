@@ -187,7 +187,7 @@ mext_page_mkuptodate(struct page *page, unsigned from, unsigned to)
 	if (PageUptodate(page))
 		return 0;
 
-	blocksize = 1 << inode->i_blkbits;
+	blocksize = i_blocksize(inode);
 	if (!page_has_buffers(page))
 		create_empty_buffers(page, blocksize, 0);
 

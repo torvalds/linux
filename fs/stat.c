@@ -31,7 +31,7 @@ void generic_fillattr(struct inode *inode, struct kstat *stat)
 	stat->atime = inode->i_atime;
 	stat->mtime = inode->i_mtime;
 	stat->ctime = inode->i_ctime;
-	stat->blksize = (1 << inode->i_blkbits);
+	stat->blksize = i_blocksize(inode);
 	stat->blocks = inode->i_blocks;
 }
 

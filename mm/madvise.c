@@ -21,6 +21,7 @@
 #include <linux/backing-dev.h>
 #include <linux/swap.h>
 #include <linux/swapops.h>
+#include <linux/shmem_fs.h>
 #include <linux/mmu_notifier.h>
 
 #include <asm/tlb.h>
@@ -92,14 +93,28 @@ static long madvise_behavior(struct vm_area_struct *vma,
 	case MADV_MERGEABLE:
 	case MADV_UNMERGEABLE:
 		error = ksm_madvise(vma, start, end, behavior, &new_flags);
-		if (error)
+		if (error) {
+			/*
+			 * madvise() returns EAGAIN if kernel resources, such as
+			 * slab, are temporarily unavailable.
+			 */
+			if (error == -ENOMEM)
+				error = -EAGAIN;
 			goto out;
+		}
 		break;
 	case MADV_HUGEPAGE:
 	case MADV_NOHUGEPAGE:
 		error = hugepage_madvise(vma, &new_flags, behavior);
-		if (error)
+		if (error) {
+			/*
+			 * madvise() returns EAGAIN if kernel resources, such as
+			 * slab, are temporarily unavailable.
+			 */
+			if (error == -ENOMEM)
+				error = -EAGAIN;
 			goto out;
+		}
 		break;
 	}
 
@@ -120,15 +135,37 @@ static long madvise_behavior(struct vm_area_struct *vma,
 	*prev = vma;
 
 	if (start != vma->vm_start) {
-		error = split_vma(mm, vma, start, 1);
-		if (error)
+		if (unlikely(mm->map_count >= sysctl_max_map_count)) {
+			error = -ENOMEM;
 			goto out;
+		}
+		error = __split_vma(mm, vma, start, 1);
+		if (error) {
+			/*
+			 * madvise() returns EAGAIN if kernel resources, such as
+			 * slab, are temporarily unavailable.
+			 */
+			if (error == -ENOMEM)
+				error = -EAGAIN;
+			goto out;
+		}
 	}
 
 	if (end != vma->vm_end) {
-		error = split_vma(mm, vma, end, 0);
-		if (error)
+		if (unlikely(mm->map_count >= sysctl_max_map_count)) {
+			error = -ENOMEM;
 			goto out;
+		}
+		error = __split_vma(mm, vma, end, 0);
+		if (error) {
+			/*
+			 * madvise() returns EAGAIN if kernel resources, such as
+			 * slab, are temporarily unavailable.
+			 */
+			if (error == -ENOMEM)
+				error = -EAGAIN;
+			goto out;
+		}
 	}
 
 success:
@@ -136,10 +173,7 @@ success:
 	 * vm_flags is protected by the mmap_sem held in write mode.
 	 */
 	vma->vm_flags = new_flags;
-
 out:
-	if (error == -ENOMEM)
-		error = -EAGAIN;
 	return error;
 }
 
@@ -479,7 +513,7 @@ static long madvise_dontneed(struct vm_area_struct *vma,
 	if (!can_madv_dontneed_vma(vma))
 		return -EINVAL;
 
-	madvise_userfault_dontneed(vma, prev, start, end);
+	userfaultfd_remove(vma, prev, start, end);
 	zap_page_range(vma, start, end - start);
 	return 0;
 }
@@ -520,6 +554,7 @@ static long madvise_remove(struct vm_area_struct *vma,
 	 * mmap_sem.
 	 */
 	get_file(f);
+	userfaultfd_remove(vma, prev, start, end);
 	up_read(&current->mm->mmap_sem);
 	error = vfs_fallocate(f,
 				FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,

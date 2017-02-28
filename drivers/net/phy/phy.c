@@ -146,7 +146,7 @@ static int phy_config_interrupt(struct phy_device *phydev, u32 interrupts)
  */
 int phy_aneg_done(struct phy_device *phydev)
 {
-	if (phydev->drv->aneg_done)
+	if (phydev->drv && phydev->drv->aneg_done)
 		return phydev->drv->aneg_done(phydev);
 
 	return genphy_aneg_done(phydev);

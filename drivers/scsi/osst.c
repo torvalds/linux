@@ -3435,7 +3435,7 @@ static ssize_t osst_write(struct file * filp, const char __user * buf, size_t co
 
 	/* Write must be integral number of blocks */
 	if (STp->block_size != 0 && (count % STp->block_size) != 0) {
-		printk(KERN_ERR "%s:E: Write (%Zd bytes) not multiple of tape block size (%d%c).\n",
+		printk(KERN_ERR "%s:E: Write (%zd bytes) not multiple of tape block size (%d%c).\n",
 				       name, count, STp->block_size<1024?
 				       STp->block_size:STp->block_size/1024, STp->block_size<1024?'b':'k');
 		retval = (-EINVAL);
@@ -3756,7 +3756,7 @@ static ssize_t osst_read(struct file * filp, char __user * buf, size_t count, lo
 
 	if ((count % STp->block_size) != 0) {
 		printk(KERN_WARNING
-		    "%s:W: Read (%Zd bytes) not multiple of tape block size (%d%c).\n", name, count,
+		    "%s:W: Read (%zd bytes) not multiple of tape block size (%d%c).\n", name, count,
 		    STp->block_size<1024?STp->block_size:STp->block_size/1024, STp->block_size<1024?'b':'k');
 	}
 
@@ -3815,7 +3815,7 @@ static ssize_t osst_read(struct file * filp, char __user * buf, size_t count, lo
 
 			if (transfer == 0) {
 				printk(KERN_WARNING
-				  "%s:W: Nothing can be transferred, requested %Zd, tape block size (%d%c).\n",
+				  "%s:W: Nothing can be transferred, requested %zd, tape block size (%d%c).\n",
 			   		name, count, STp->block_size < 1024?
 					STp->block_size:STp->block_size/1024,
 				       	STp->block_size<1024?'b':'k');

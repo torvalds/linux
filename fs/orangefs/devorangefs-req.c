@@ -400,8 +400,9 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 	/* remove the op from the in progress hash table */
 	op = orangefs_devreq_remove_op(head.tag);
 	if (!op) {
-		gossip_err("WARNING: No one's waiting for tag %llu\n",
-			   llu(head.tag));
+		gossip_debug(GOSSIP_DEV_DEBUG,
+			     "%s: No one's waiting for tag %llu\n",
+			     __func__, llu(head.tag));
 		return ret;
 	}
 

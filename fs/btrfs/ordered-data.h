@@ -75,6 +75,8 @@ struct btrfs_ordered_sum {
 				 * in the logging code. */
 #define BTRFS_ORDERED_PENDING 11 /* We are waiting for this ordered extent to
 				  * complete in the current transaction. */
+#define BTRFS_ORDERED_REGULAR 12 /* Regular IO for COW */
+
 struct btrfs_ordered_extent {
 	/* logical offset in the file */
 	u64 file_offset;
@@ -201,7 +203,7 @@ int btrfs_wait_ordered_extents(struct btrfs_root *root, int nr,
 			       const u64 range_start, const u64 range_len);
 int btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, int nr,
 			      const u64 range_start, const u64 range_len);
-void btrfs_get_logged_extents(struct inode *inode,
+void btrfs_get_logged_extents(struct btrfs_inode *inode,
 			      struct list_head *logged_list,
 			      const loff_t start,
 			      const loff_t end);

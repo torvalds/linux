@@ -293,35 +293,28 @@ static int xgene_enet_tx_completion(struct xgene_enet_desc_ring *cp_ring,
 static int xgene_enet_setup_mss(struct net_device *ndev, u32 mss)
 {
 	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
-	bool mss_index_found = false;
-	int mss_index;
+	int mss_index = -EBUSY;
 	int i;
 
 	spin_lock(&pdata->mss_lock);
 
 	/* Reuse the slot if MSS matches */
-	for (i = 0; !mss_index_found && i < NUM_MSS_REG; i++) {
+	for (i = 0; mss_index < 0 && i < NUM_MSS_REG; i++) {
 		if (pdata->mss[i] == mss) {
 			pdata->mss_refcnt[i]++;
 			mss_index = i;
-			mss_index_found = true;
 		}
 	}
 
 	/* Overwrite the slot with ref_count = 0 */
-	for (i = 0; !mss_index_found && i < NUM_MSS_REG; i++) {
+	for (i = 0; mss_index < 0 && i < NUM_MSS_REG; i++) {
 		if (!pdata->mss_refcnt[i]) {
 			pdata->mss_refcnt[i]++;
 			pdata->mac_ops->set_mss(pdata, mss, i);
 			pdata->mss[i] = mss;
 			mss_index = i;
-			mss_index_found = true;
 		}
 	}
-
-	/* No slots with ref_count = 0 available, return busy */
-	if (!mss_index_found)
-		mss_index = -EBUSY;
 
 	spin_unlock(&pdata->mss_lock);
 

@@ -558,6 +558,7 @@ static void wq_add(struct mqueue_inode_info *info, int sr,
  */
 static int wq_sleep(struct mqueue_inode_info *info, int sr,
 		    ktime_t *timeout, struct ext_wait_queue *ewp)
+	__releases(&info->lock)
 {
 	int retval;
 	signed long time;

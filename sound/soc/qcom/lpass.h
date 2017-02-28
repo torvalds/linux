@@ -82,7 +82,7 @@ struct lpass_variant {
 	 **/
 	u32	dmactl_audif_start;
 	u32	wrdma_channel_start;
-	/* SOC specific intialization like clocks */
+	/* SOC specific initialization like clocks */
 	int (*init)(struct platform_device *pdev);
 	int (*exit)(struct platform_device *pdev);
 	int (*alloc_dma_channel)(struct lpass_data *data, int direction);

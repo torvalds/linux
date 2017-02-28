@@ -111,8 +111,7 @@ static void rds_ib_dev_free(struct work_struct *work)
 		kfree(i_ipaddr);
 	}
 
-	if (rds_ibdev->vector_load)
-		kfree(rds_ibdev->vector_load);
+	kfree(rds_ibdev->vector_load);
 
 	kfree(rds_ibdev);
 }

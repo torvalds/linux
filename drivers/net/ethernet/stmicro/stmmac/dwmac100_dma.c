@@ -66,19 +66,18 @@ static void dwmac100_dma_operation_mode(void __iomem *ioaddr, int txmode,
 	writel(csr6, ioaddr + DMA_CONTROL);
 }
 
-static void dwmac100_dump_dma_regs(void __iomem *ioaddr)
+static void dwmac100_dump_dma_regs(void __iomem *ioaddr, u32 *reg_space)
 {
 	int i;
 
-	pr_debug("DWMAC 100 DMA CSR\n");
 	for (i = 0; i < 9; i++)
-		pr_debug("\t CSR%d (offset 0x%x): 0x%08x\n", i,
-			 (DMA_BUS_MODE + i * 4),
-			 readl(ioaddr + DMA_BUS_MODE + i * 4));
+		reg_space[DMA_BUS_MODE / 4 + i] =
+			readl(ioaddr + DMA_BUS_MODE + i * 4);
 
-	pr_debug("\tCSR20 (0x%x): 0x%08x, CSR21 (0x%x): 0x%08x\n",
-		 DMA_CUR_TX_BUF_ADDR, readl(ioaddr + DMA_CUR_TX_BUF_ADDR),
-		 DMA_CUR_RX_BUF_ADDR, readl(ioaddr + DMA_CUR_RX_BUF_ADDR));
+	reg_space[DMA_CUR_TX_BUF_ADDR / 4] =
+		readl(ioaddr + DMA_CUR_TX_BUF_ADDR);
+	reg_space[DMA_CUR_RX_BUF_ADDR / 4] =
+		readl(ioaddr + DMA_CUR_RX_BUF_ADDR);
 }
 
 /* DMA controller has two counters to track the number of the missed frames. */

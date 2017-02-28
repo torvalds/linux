@@ -528,6 +528,7 @@ static int nft_ct_set_init(const struct nft_ctx *ctx,
 		if (!nft_ct_tmpl_alloc_pcpu())
 			return -ENOMEM;
 		nft_ct_pcpu_template_refcnt++;
+		len = sizeof(u16);
 		break;
 #endif
 	default:

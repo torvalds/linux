@@ -420,8 +420,8 @@ int
 iomap_truncate_page(struct inode *inode, loff_t pos, bool *did_zero,
 		const struct iomap_ops *ops)
 {
-	unsigned blocksize = (1 << inode->i_blkbits);
-	unsigned off = pos & (blocksize - 1);
+	unsigned int blocksize = i_blocksize(inode);
+	unsigned int off = pos & (blocksize - 1);
 
 	/* Block boundary? Nothing to do */
 	if (!off)
@@ -445,11 +445,10 @@ iomap_page_mkwrite_actor(struct inode *inode, loff_t pos, loff_t length,
 	return length;
 }
 
-int iomap_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
-		const struct iomap_ops *ops)
+int iomap_page_mkwrite(struct vm_fault *vmf, const struct iomap_ops *ops)
 {
 	struct page *page = vmf->page;
-	struct inode *inode = file_inode(vma->vm_file);
+	struct inode *inode = file_inode(vmf->vma->vm_file);
 	unsigned long length;
 	loff_t offset, size;
 	ssize_t ret;
@@ -736,9 +735,9 @@ iomap_dio_actor(struct inode *inode, loff_t pos, loff_t length,
 		void *data, struct iomap *iomap)
 {
 	struct iomap_dio *dio = data;
-	unsigned blkbits = blksize_bits(bdev_logical_block_size(iomap->bdev));
-	unsigned fs_block_size = (1 << inode->i_blkbits), pad;
-	unsigned align = iov_iter_alignment(dio->submit.iter);
+	unsigned int blkbits = blksize_bits(bdev_logical_block_size(iomap->bdev));
+	unsigned int fs_block_size = i_blocksize(inode), pad;
+	unsigned int align = iov_iter_alignment(dio->submit.iter);
 	struct iov_iter iter;
 	struct bio *bio;
 	bool need_zeroout = false;

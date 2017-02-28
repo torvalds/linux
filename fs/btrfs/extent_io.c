@@ -98,7 +98,7 @@ static inline void __btrfs_debug_check_extent_io_range(const char *caller,
 	if (end >= PAGE_SIZE && (end % 2) == 0 && end != isize - 1) {
 		btrfs_debug_rl(BTRFS_I(inode)->root->fs_info,
 		    "%s: ino %llu isize %llu odd range [%llu,%llu]",
-				caller, btrfs_ino(inode), isize, start, end);
+			caller, btrfs_ino(BTRFS_I(inode)), isize, start, end);
 	}
 }
 #else
@@ -144,7 +144,7 @@ static void add_extent_changeset(struct extent_state *state, unsigned bits,
 	if (!set && (state->state & bits) == 0)
 		return;
 	changeset->bytes_changed += state->end - state->start + 1;
-	ret = ulist_add(changeset->range_changed, state->start, state->end,
+	ret = ulist_add(&changeset->range_changed, state->start, state->end,
 			GFP_ATOMIC);
 	/* ENOMEM */
 	BUG_ON(ret < 0);
@@ -226,6 +226,11 @@ static struct extent_state *alloc_extent_state(gfp_t mask)
 {
 	struct extent_state *state;
 
+	/*
+	 * The given mask might be not appropriate for the slab allocator,
+	 * drop the unsupported bits
+	 */
+	mask &= ~(__GFP_DMA32|__GFP_HIGHMEM);
 	state = kmem_cache_alloc(extent_state_cache, mask);
 	if (!state)
 		return state;
@@ -1549,33 +1554,24 @@ out:
 	return found;
 }
 
+static int __process_pages_contig(struct address_space *mapping,
+				  struct page *locked_page,
+				  pgoff_t start_index, pgoff_t end_index,
+				  unsigned long page_ops, pgoff_t *index_ret);
+
 static noinline void __unlock_for_delalloc(struct inode *inode,
 					   struct page *locked_page,
 					   u64 start, u64 end)
 {
-	int ret;
-	struct page *pages[16];
 	unsigned long index = start >> PAGE_SHIFT;
 	unsigned long end_index = end >> PAGE_SHIFT;
-	unsigned long nr_pages = end_index - index + 1;
-	int i;
 
+	ASSERT(locked_page);
 	if (index == locked_page->index && end_index == index)
 		return;
 
-	while (nr_pages > 0) {
-		ret = find_get_pages_contig(inode->i_mapping, index,
-				     min_t(unsigned long, nr_pages,
-				     ARRAY_SIZE(pages)), pages);
-		for (i = 0; i < ret; i++) {
-			if (pages[i] != locked_page)
-				unlock_page(pages[i]);
-			put_page(pages[i]);
-		}
-		nr_pages -= ret;
-		index += ret;
-		cond_resched();
-	}
+	__process_pages_contig(inode->i_mapping, locked_page, index, end_index,
+			       PAGE_UNLOCK, NULL);
 }
 
 static noinline int lock_delalloc_pages(struct inode *inode,
@@ -1584,59 +1580,19 @@ static noinline int lock_delalloc_pages(struct inode *inode,
 					u64 delalloc_end)
 {
 	unsigned long index = delalloc_start >> PAGE_SHIFT;
-	unsigned long start_index = index;
+	unsigned long index_ret = index;
 	unsigned long end_index = delalloc_end >> PAGE_SHIFT;
-	unsigned long pages_locked = 0;
-	struct page *pages[16];
-	unsigned long nrpages;
 	int ret;
-	int i;
 
-	/* the caller is responsible for locking the start index */
+	ASSERT(locked_page);
 	if (index == locked_page->index && index == end_index)
 		return 0;
 
-	/* skip the page at the start index */
-	nrpages = end_index - index + 1;
-	while (nrpages > 0) {
-		ret = find_get_pages_contig(inode->i_mapping, index,
-				     min_t(unsigned long,
-				     nrpages, ARRAY_SIZE(pages)), pages);
-		if (ret == 0) {
-			ret = -EAGAIN;
-			goto done;
-		}
-		/* now we have an array of pages, lock them all */
-		for (i = 0; i < ret; i++) {
-			/*
-			 * the caller is taking responsibility for
-			 * locked_page
-			 */
-			if (pages[i] != locked_page) {
-				lock_page(pages[i]);
-				if (!PageDirty(pages[i]) ||
-				    pages[i]->mapping != inode->i_mapping) {
-					ret = -EAGAIN;
-					unlock_page(pages[i]);
-					put_page(pages[i]);
-					goto done;
-				}
-			}
-			put_page(pages[i]);
-			pages_locked++;
-		}
-		nrpages -= ret;
-		index += ret;
-		cond_resched();
-	}
-	ret = 0;
-done:
-	if (ret && pages_locked) {
-		__unlock_for_delalloc(inode, locked_page,
-			      delalloc_start,
-			      ((u64)(start_index + pages_locked - 1)) <<
-			      PAGE_SHIFT);
-	}
+	ret = __process_pages_contig(inode->i_mapping, locked_page, index,
+				     end_index, PAGE_LOCK, &index_ret);
+	if (ret == -EAGAIN)
+		__unlock_for_delalloc(inode, locked_page, delalloc_start,
+				      (u64)index_ret << PAGE_SHIFT);
 	return ret;
 }
 
@@ -1726,37 +1682,47 @@ out_failed:
 	return found;
 }
 
-void extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
-				 u64 delalloc_end, struct page *locked_page,
-				 unsigned clear_bits,
-				 unsigned long page_ops)
+static int __process_pages_contig(struct address_space *mapping,
+				  struct page *locked_page,
+				  pgoff_t start_index, pgoff_t end_index,
+				  unsigned long page_ops, pgoff_t *index_ret)
 {
-	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
-	int ret;
+	unsigned long nr_pages = end_index - start_index + 1;
+	unsigned long pages_locked = 0;
+	pgoff_t index = start_index;
 	struct page *pages[16];
-	unsigned long index = start >> PAGE_SHIFT;
-	unsigned long end_index = end >> PAGE_SHIFT;
-	unsigned long nr_pages = end_index - index + 1;
+	unsigned ret;
+	int err = 0;
 	int i;
 
-	clear_extent_bit(tree, start, end, clear_bits, 1, 0, NULL, GFP_NOFS);
-	if (page_ops == 0)
-		return;
+	if (page_ops & PAGE_LOCK) {
+		ASSERT(page_ops == PAGE_LOCK);
+		ASSERT(index_ret && *index_ret == start_index);
+	}
 
 	if ((page_ops & PAGE_SET_ERROR) && nr_pages > 0)
-		mapping_set_error(inode->i_mapping, -EIO);
+		mapping_set_error(mapping, -EIO);
 
 	while (nr_pages > 0) {
-		ret = find_get_pages_contig(inode->i_mapping, index,
+		ret = find_get_pages_contig(mapping, index,
 				     min_t(unsigned long,
 				     nr_pages, ARRAY_SIZE(pages)), pages);
-		for (i = 0; i < ret; i++) {
+		if (ret == 0) {
+			/*
+			 * Only if we're going to lock these pages,
+			 * can we find nothing at @index.
+			 */
+			ASSERT(page_ops & PAGE_LOCK);
+			return ret;
+		}
 
+		for (i = 0; i < ret; i++) {
 			if (page_ops & PAGE_SET_PRIVATE2)
 				SetPagePrivate2(pages[i]);
 
 			if (pages[i] == locked_page) {
 				put_page(pages[i]);
+				pages_locked++;
 				continue;
 			}
 			if (page_ops & PAGE_CLEAR_DIRTY)
@@ -1769,12 +1735,40 @@ void extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
 				end_page_writeback(pages[i]);
 			if (page_ops & PAGE_UNLOCK)
 				unlock_page(pages[i]);
+			if (page_ops & PAGE_LOCK) {
+				lock_page(pages[i]);
+				if (!PageDirty(pages[i]) ||
+				    pages[i]->mapping != mapping) {
+					unlock_page(pages[i]);
+					put_page(pages[i]);
+					err = -EAGAIN;
+					goto out;
+				}
+			}
 			put_page(pages[i]);
+			pages_locked++;
 		}
 		nr_pages -= ret;
 		index += ret;
 		cond_resched();
 	}
+out:
+	if (err && index_ret)
+		*index_ret = start_index + pages_locked - 1;
+	return err;
+}
+
+void extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
+				 u64 delalloc_end, struct page *locked_page,
+				 unsigned clear_bits,
+				 unsigned long page_ops)
+{
+	clear_extent_bit(&BTRFS_I(inode)->io_tree, start, end, clear_bits, 1, 0,
+			 NULL, GFP_NOFS);
+
+	__process_pages_contig(inode->i_mapping, locked_page,
+			       start >> PAGE_SHIFT, end >> PAGE_SHIFT,
+			       page_ops, NULL);
 }
 
 /*
@@ -2060,7 +2054,7 @@ int repair_io_failure(struct inode *inode, u64 start, u64 length, u64 logical,
 
 	btrfs_info_rl_in_rcu(fs_info,
 		"read error corrected: ino %llu off %llu (dev %s sector %llu)",
-				  btrfs_ino(inode), start,
+				  btrfs_ino(BTRFS_I(inode)), start,
 				  rcu_str_deref(dev->name), sector);
 	btrfs_bio_counter_dec(fs_info);
 	bio_put(bio);
@@ -2765,7 +2759,6 @@ static int submit_extent_page(int op, int op_flags, struct extent_io_tree *tree,
 			      size_t size, unsigned long offset,
 			      struct block_device *bdev,
 			      struct bio **bio_ret,
-			      unsigned long max_pages,
 			      bio_end_io_t end_io_func,
 			      int mirror_num,
 			      unsigned long prev_bio_flags,
@@ -2931,7 +2924,6 @@ static int __do_readpage(struct extent_io_tree *tree,
 		}
 	}
 	while (cur <= end) {
-		unsigned long pnr = (last_byte >> PAGE_SHIFT) + 1;
 		bool force_bio_submit = false;
 
 		if (cur >= last_byte) {
@@ -3066,10 +3058,9 @@ static int __do_readpage(struct extent_io_tree *tree,
 			continue;
 		}
 
-		pnr -= page->index;
 		ret = submit_extent_page(REQ_OP_READ, read_flags, tree, NULL,
 					 page, sector, disk_io_size, pg_offset,
-					 bdev, bio, pnr,
+					 bdev, bio,
 					 end_bio_extent_readpage, mirror_num,
 					 *bio_flags,
 					 this_bio_flag,
@@ -3210,7 +3201,7 @@ int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
 	return ret;
 }
 
-static void update_nr_written(struct page *page, struct writeback_control *wbc,
+static void update_nr_written(struct writeback_control *wbc,
 			      unsigned long nr_written)
 {
 	wbc->nr_to_write -= nr_written;
@@ -3330,7 +3321,6 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 	u64 block_start;
 	u64 iosize;
 	sector_t sector;
-	struct extent_state *cached_state = NULL;
 	struct extent_map *em;
 	struct block_device *bdev;
 	size_t pg_offset = 0;
@@ -3349,10 +3339,9 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 			else
 				redirty_page_for_writepage(wbc, page);
 
-			update_nr_written(page, wbc, nr_written);
+			update_nr_written(wbc, nr_written);
 			unlock_page(page);
-			ret = 1;
-			goto done_unlocked;
+			return 1;
 		}
 	}
 
@@ -3360,7 +3349,7 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 	 * we don't want to touch the inode after unlocking the page,
 	 * so we update the mapping writeback index now
 	 */
-	update_nr_written(page, wbc, nr_written + 1);
+	update_nr_written(wbc, nr_written + 1);
 
 	end = page_end;
 	if (i_size <= start) {
@@ -3374,7 +3363,6 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 
 	while (cur <= end) {
 		u64 em_end;
-		unsigned long max_nr;
 
 		if (cur >= i_size) {
 			if (tree->ops && tree->ops->writepage_end_io_hook)
@@ -3431,8 +3419,6 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 			continue;
 		}
 
-		max_nr = (i_size >> PAGE_SHIFT) + 1;
-
 		set_range_writeback(tree, cur, cur + iosize - 1);
 		if (!PageWriteback(page)) {
 			btrfs_err(BTRFS_I(inode)->root->fs_info,
@@ -3442,11 +3428,14 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 
 		ret = submit_extent_page(REQ_OP_WRITE, write_flags, tree, wbc,
 					 page, sector, iosize, pg_offset,
-					 bdev, &epd->bio, max_nr,
+					 bdev, &epd->bio,
 					 end_bio_extent_writepage,
 					 0, 0, 0, false);
-		if (ret)
+		if (ret) {
 			SetPageError(page);
+			if (PageWriteback(page))
+				end_page_writeback(page);
+		}
 
 		cur = cur + iosize;
 		pg_offset += iosize;
@@ -3454,11 +3443,6 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 	}
 done:
 	*nr_ret = nr;
-
-done_unlocked:
-
-	/* drop our reference on any cached states */
-	free_extent_state(cached_state);
 	return ret;
 }
 
@@ -3761,20 +3745,21 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 		set_page_writeback(p);
 		ret = submit_extent_page(REQ_OP_WRITE, write_flags, tree, wbc,
 					 p, offset >> 9, PAGE_SIZE, 0, bdev,
-					 &epd->bio, -1,
+					 &epd->bio,
 					 end_bio_extent_buffer_writepage,
 					 0, epd->bio_flags, bio_flags, false);
 		epd->bio_flags = bio_flags;
 		if (ret) {
 			set_btree_ioerr(p);
-			end_page_writeback(p);
+			if (PageWriteback(p))
+				end_page_writeback(p);
 			if (atomic_sub_and_test(num_pages - i, &eb->io_pages))
 				end_extent_buffer_writeback(eb);
 			ret = -EIO;
 			break;
 		}
 		offset += PAGE_SIZE;
-		update_nr_written(p, wbc, 1);
+		update_nr_written(wbc, 1);
 		unlock_page(p);
 	}
 
@@ -3926,8 +3911,7 @@ retry:
  * WB_SYNC_ALL then we were called for data integrity and we must wait for
  * existing IO to complete.
  */
-static int extent_write_cache_pages(struct extent_io_tree *tree,
-			     struct address_space *mapping,
+static int extent_write_cache_pages(struct address_space *mapping,
 			     struct writeback_control *wbc,
 			     writepage_t writepage, void *data,
 			     void (*flush_fn)(void *))
@@ -4168,8 +4152,7 @@ int extent_writepages(struct extent_io_tree *tree,
 		.bio_flags = 0,
 	};
 
-	ret = extent_write_cache_pages(tree, mapping, wbc,
-				       __extent_writepage, &epd,
+	ret = extent_write_cache_pages(mapping, wbc, __extent_writepage, &epd,
 				       flush_write_bio);
 	flush_epd_write_bio(&epd);
 	return ret;
@@ -4264,8 +4247,6 @@ static int try_release_extent_state(struct extent_map_tree *map,
 			   EXTENT_IOBITS, 0, NULL))
 		ret = 0;
 	else {
-		if ((mask & GFP_NOFS) == GFP_NOFS)
-			mask = GFP_NOFS;
 		/*
 		 * at this point we can safely clear everything except the
 		 * locked bit and the nodatasum bit
@@ -4410,8 +4391,8 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	 * lookup the last file extent.  We're not using i_size here
 	 * because there might be preallocation past i_size
 	 */
-	ret = btrfs_lookup_file_extent(NULL, root, path, btrfs_ino(inode), -1,
-				       0);
+	ret = btrfs_lookup_file_extent(NULL, root, path,
+			btrfs_ino(BTRFS_I(inode)), -1, 0);
 	if (ret < 0) {
 		btrfs_free_path(path);
 		return ret;
@@ -4426,7 +4407,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	found_type = found_key.type;
 
 	/* No extents, but there might be delalloc bits */
-	if (found_key.objectid != btrfs_ino(inode) ||
+	if (found_key.objectid != btrfs_ino(BTRFS_I(inode)) ||
 	    found_type != BTRFS_EXTENT_DATA_KEY) {
 		/* have to trust i_size as the end */
 		last = (u64)-1;
@@ -4535,8 +4516,8 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			 * lookup stuff.
 			 */
 			ret = btrfs_check_shared(trans, root->fs_info,
-						 root->objectid,
-						 btrfs_ino(inode), bytenr);
+					root->objectid,
+					btrfs_ino(BTRFS_I(inode)), bytenr);
 			if (trans)
 				btrfs_end_transaction(trans);
 			if (ret < 0)

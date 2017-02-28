@@ -321,7 +321,7 @@ out:
 	return fault_ret;
 }
 
-static int ll_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int ll_fault(struct vm_fault *vmf)
 {
 	int count = 0;
 	bool printed = false;
@@ -335,7 +335,7 @@ static int ll_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	set = cfs_block_sigsinv(sigmask(SIGKILL) | sigmask(SIGTERM));
 
 restart:
-	result = ll_fault0(vma, vmf);
+	result = ll_fault0(vmf->vma, vmf);
 	LASSERT(!(result & VM_FAULT_LOCKED));
 	if (result == 0) {
 		struct page *vmpage = vmf->page;
@@ -362,8 +362,9 @@ restart:
 	return result;
 }
 
-static int ll_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int ll_page_mkwrite(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	int count = 0;
 	bool printed = false;
 	bool retry;

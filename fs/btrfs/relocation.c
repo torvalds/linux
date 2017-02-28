@@ -1548,9 +1548,9 @@ again:
 		prev = node;
 		entry = rb_entry(node, struct btrfs_inode, rb_node);
 
-		if (objectid < btrfs_ino(&entry->vfs_inode))
+		if (objectid < btrfs_ino(entry))
 			node = node->rb_left;
-		else if (objectid > btrfs_ino(&entry->vfs_inode))
+		else if (objectid > btrfs_ino(entry))
 			node = node->rb_right;
 		else
 			break;
@@ -1558,7 +1558,7 @@ again:
 	if (!node) {
 		while (prev) {
 			entry = rb_entry(prev, struct btrfs_inode, rb_node);
-			if (objectid <= btrfs_ino(&entry->vfs_inode)) {
+			if (objectid <= btrfs_ino(entry)) {
 				node = prev;
 				break;
 			}
@@ -1573,7 +1573,7 @@ again:
 			return inode;
 		}
 
-		objectid = btrfs_ino(&entry->vfs_inode) + 1;
+		objectid = btrfs_ino(entry) + 1;
 		if (cond_resched_lock(&root->inode_lock))
 			goto again;
 
@@ -1609,8 +1609,8 @@ static int get_new_location(struct inode *reloc_inode, u64 *new_bytenr,
 		return -ENOMEM;
 
 	bytenr -= BTRFS_I(reloc_inode)->index_cnt;
-	ret = btrfs_lookup_file_extent(NULL, root, path, btrfs_ino(reloc_inode),
-				       bytenr, 0);
+	ret = btrfs_lookup_file_extent(NULL, root, path,
+			btrfs_ino(BTRFS_I(reloc_inode)), bytenr, 0);
 	if (ret < 0)
 		goto out;
 	if (ret > 0) {
@@ -1698,11 +1698,11 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 			if (first) {
 				inode = find_next_inode(root, key.objectid);
 				first = 0;
-			} else if (inode && btrfs_ino(inode) < key.objectid) {
+			} else if (inode && btrfs_ino(BTRFS_I(inode)) < key.objectid) {
 				btrfs_add_delayed_iput(inode);
 				inode = find_next_inode(root, key.objectid);
 			}
-			if (inode && btrfs_ino(inode) == key.objectid) {
+			if (inode && btrfs_ino(BTRFS_I(inode)) == key.objectid) {
 				end = key.offset +
 				      btrfs_file_extent_num_bytes(leaf, fi);
 				WARN_ON(!IS_ALIGNED(key.offset,
@@ -2088,7 +2088,7 @@ static int invalidate_extent_cache(struct btrfs_root *root,
 		inode = find_next_inode(root, objectid);
 		if (!inode)
 			break;
-		ino = btrfs_ino(inode);
+		ino = btrfs_ino(BTRFS_I(inode));
 
 		if (ino > max_key->objectid) {
 			iput(inode);
@@ -3543,7 +3543,7 @@ truncate:
 		goto out;
 	}
 
-	ret = btrfs_truncate_free_space_cache(root, trans, block_group, inode);
+	ret = btrfs_truncate_free_space_cache(trans, block_group, inode);
 
 	btrfs_end_transaction(trans);
 	btrfs_btree_balance_dirty(fs_info);
@@ -4334,7 +4334,7 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start)
 	rc->block_group = btrfs_lookup_block_group(fs_info, group_start);
 	BUG_ON(!rc->block_group);
 
-	ret = btrfs_inc_block_group_ro(extent_root, rc->block_group);
+	ret = btrfs_inc_block_group_ro(fs_info, rc->block_group);
 	if (ret) {
 		err = ret;
 		goto out;
@@ -4347,8 +4347,7 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start)
 		goto out;
 	}
 
-	inode = lookup_free_space_inode(fs_info->tree_root, rc->block_group,
-					path);
+	inode = lookup_free_space_inode(fs_info, rc->block_group, path);
 	btrfs_free_path(path);
 
 	if (!IS_ERR(inode))
