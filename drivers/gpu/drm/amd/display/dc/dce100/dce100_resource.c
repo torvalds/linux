@@ -772,7 +772,7 @@ bool dce100_validate_bandwidth(
 	/* TODO implement when needed but for now hardcode max value*/
 	context->dispclk_khz = 681000;
 
-	return false;
+	return true;
 }
 
 static bool dce100_validate_surface_sets(
