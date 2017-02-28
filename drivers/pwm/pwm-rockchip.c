@@ -148,7 +148,7 @@ static void rockchip_pwm_get_state(struct pwm_chip *chip,
 	u64 tmp;
 	int ret;
 
-	ret = clk_enable(pc->clk);
+	ret = clk_enable(pc->pclk);
 	if (ret)
 		return;
 
@@ -164,7 +164,7 @@ static void rockchip_pwm_get_state(struct pwm_chip *chip,
 
 	pc->data->get_state(chip, pwm, state);
 
-	clk_disable(pc->clk);
+	clk_disable(pc->pclk);
 }
 
 static int rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -203,6 +203,28 @@ static int rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	return 0;
 }
 
+static int rockchip_pwm_enable(struct pwm_chip *chip,
+			 struct pwm_device *pwm,
+			 bool enable,
+			 enum pwm_polarity polarity)
+{
+	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
+	int ret;
+
+	if (enable) {
+		ret = clk_enable(pc->clk);
+		if (ret)
+			return ret;
+	}
+
+	pc->data->set_enable(chip, pwm, enable, polarity);
+
+	if (!enable)
+		clk_disable(pc->clk);
+
+	return 0;
+}
+
 static int rockchip_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			      struct pwm_state *state)
 {
@@ -218,27 +240,27 @@ static int rockchip_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (ret)
 		return ret;
 
-	ret = clk_enable(pc->clk);
-	if (ret)
-		return ret;
-
 	if (state->polarity != curstate.polarity && enabled) {
-		pc->data->set_enable(chip, pwm, false, state->polarity);
+		ret = rockchip_pwm_enable(chip, pwm, false, state->polarity);
+		if (ret)
+			goto out;
 		enabled = false;
 	}
 
 	ret = rockchip_pwm_config(chip, pwm, state->duty_cycle, state->period);
 	if (ret) {
 		if (enabled != curstate.enabled)
-			pc->data->set_enable(chip, pwm, !enabled,
-					     state->polarity);
-
+			rockchip_pwm_enable(chip, pwm, !enabled,
+				      state->polarity);
 		goto out;
 	}
 
-	if (state->enabled != enabled)
-		pc->data->set_enable(chip, pwm, state->enabled,
-				     state->polarity);
+	if (state->enabled != enabled) {
+		ret = rockchip_pwm_enable(chip, pwm, state->enabled,
+				    state->polarity);
+		if (ret)
+			goto out;
+	}
 
 	/*
 	 * Update the state with the real hardware, which can differ a bit
@@ -247,7 +269,6 @@ static int rockchip_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	rockchip_pwm_get_state(chip, pwm, state);
 
 out:
-	clk_disable(pc->clk);
 	clk_disable(pc->pclk);
 
 	return ret;
@@ -360,11 +381,11 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(pc->clk);
 	if (ret) {
-		dev_err(&pdev->dev, "Can't prepare bus clk: %d\n", ret);
+		dev_err(&pdev->dev, "Can't prepare enable bus clk: %d\n", ret);
 		return ret;
 	}
 
-	ret = clk_prepare_enable(pc->pclk);
+	ret = clk_prepare(pc->pclk);
 	if (ret) {
 		dev_err(&pdev->dev, "Can't prepare periph clk: %d\n", ret);
 		goto err_clk;
@@ -391,17 +412,15 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	}
 
 	/* Keep the PWM clk enabled if the PWM appears to be up and running. */
-	if (!pwm_is_enabled(pc->chip.pwms)) {
-		clk_disable(pc->pclk);
+	if (!pwm_is_enabled(pc->chip.pwms))
 		clk_disable(pc->clk);
-	}
 
 	return 0;
 
 err_pclk:
 	clk_unprepare(pc->pclk);
 err_clk:
-	clk_unprepare(pc->clk);
+	clk_disable_unprepare(pc->clk);
 
 	return ret;
 }
@@ -421,10 +440,8 @@ static int rockchip_pwm_remove(struct platform_device *pdev)
 	 * clk_unprepare() after pwmchip_remove().
 	 *
 	 */
-	if (pwm_is_enabled(pc->chip.pwms)) {
-		clk_disable(pc->pclk);
+	if (pwm_is_enabled(pc->chip.pwms))
 		clk_disable(pc->clk);
-	}
 
 	clk_unprepare(pc->pclk);
 	clk_unprepare(pc->clk);
