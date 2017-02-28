@@ -152,6 +152,7 @@ gm200_i2c_aux_xfer(struct nvkm_i2c_aux *obj, bool retry,
 			AUX_TRACE(&aux->base, "rd %08x", xbuf[i / 4]);
 		}
 		memcpy(data, xbuf, *size);
+		*size = stat & 0x0000001f;
 	}
 
 out:
