@@ -214,7 +214,7 @@ static int __btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio,
 	 * read from the commit root and sidestep a nasty deadlock
 	 * between reading the free space cache and updating the csum tree.
 	 */
-	if (btrfs_is_free_space_inode(inode)) {
+	if (btrfs_is_free_space_inode(BTRFS_I(inode))) {
 		path->search_commit_root = 1;
 		path->skip_locking = 1;
 	}
@@ -930,14 +930,14 @@ fail_unlock:
 	goto out;
 }
 
-void btrfs_extent_item_to_extent_map(struct inode *inode,
+void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 				     const struct btrfs_path *path,
 				     struct btrfs_file_extent_item *fi,
 				     const bool new_inline,
 				     struct extent_map *em)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
+	struct btrfs_root *root = inode->root;
 	struct extent_buffer *leaf = path->nodes[0];
 	const int slot = path->slots[0];
 	struct btrfs_key key;
@@ -1002,8 +1002,8 @@ void btrfs_extent_item_to_extent_map(struct inode *inode,
 		}
 	} else {
 		btrfs_err(fs_info,
-			  "unknown file extent item type %d, inode %llu, offset %llu, root %llu",
-			  type, btrfs_ino(BTRFS_I(inode)), extent_start,
+			  "unknown file extent item type %d, inode %llu, offset %llu, "
+			  "root %llu", type, btrfs_ino(inode), extent_start,
 			  root->root_key.objectid);
 	}
 }

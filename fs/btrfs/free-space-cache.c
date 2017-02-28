@@ -260,7 +260,7 @@ int btrfs_truncate_free_space_cache(struct btrfs_trans_handle *trans,
 		btrfs_free_path(path);
 	}
 
-	btrfs_i_size_write(inode, 0);
+	btrfs_i_size_write(BTRFS_I(inode), 0);
 	truncate_pagecache(inode, 0);
 
 	/*
@@ -3545,7 +3545,8 @@ int btrfs_write_out_ino_cache(struct btrfs_root *root,
 
 	if (ret) {
 		if (release_metadata)
-			btrfs_delalloc_release_metadata(inode, inode->i_size);
+			btrfs_delalloc_release_metadata(BTRFS_I(inode),
+					inode->i_size);
 #ifdef DEBUG
 		btrfs_err(fs_info,
 			  "failed to write free ino cache for root %llu",

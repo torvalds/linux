@@ -219,12 +219,12 @@ void btrfs_set_buffer_lockdep_class(u64 objectid, struct extent_buffer *eb,
  * extents on the btree inode are pretty simple, there's one extent
  * that covers the entire device
  */
-static struct extent_map *btree_get_extent(struct inode *inode,
+static struct extent_map *btree_get_extent(struct btrfs_inode *inode,
 		struct page *page, size_t pg_offset, u64 start, u64 len,
 		int create)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
+	struct extent_map_tree *em_tree = &inode->extent_tree;
 	struct extent_map *em;
 	int ret;
 
@@ -265,7 +265,7 @@ out:
 	return em;
 }
 
-u32 btrfs_csum_data(char *data, u32 seed, size_t len)
+u32 btrfs_csum_data(const char *data, u32 seed, size_t len)
 {
 	return btrfs_crc32c(seed, data, len);
 }
@@ -3453,7 +3453,7 @@ static int write_dev_supers(struct btrfs_device *device,
 			btrfs_set_super_bytenr(sb, bytenr);
 
 			crc = ~(u32)0;
-			crc = btrfs_csum_data((char *)sb +
+			crc = btrfs_csum_data((const char *)sb +
 					      BTRFS_CSUM_SIZE, crc,
 					      BTRFS_SUPER_INFO_SIZE -
 					      BTRFS_CSUM_SIZE);
@@ -4658,9 +4658,12 @@ static int btrfs_cleanup_transaction(struct btrfs_fs_info *fs_info)
 }
 
 static const struct extent_io_ops btree_extent_io_ops = {
-	.readpage_end_io_hook = btree_readpage_end_io_hook,
-	.readpage_io_failed_hook = btree_io_failed_hook,
+	/* mandatory callbacks */
 	.submit_bio_hook = btree_submit_bio_hook,
+	.readpage_end_io_hook = btree_readpage_end_io_hook,
 	/* note we're sharing with inode.c for the merge bio hook */
 	.merge_bio_hook = btrfs_merge_bio_hook,
+	.readpage_io_failed_hook = btree_io_failed_hook,
+
+	/* optional callbacks */
 };
