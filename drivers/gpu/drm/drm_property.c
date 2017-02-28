@@ -587,19 +587,19 @@ drm_property_create_blob(struct drm_device *dev, size_t length,
 EXPORT_SYMBOL(drm_property_create_blob);
 
 /**
- * drm_property_unreference_blob - Unreference a blob property
- * @blob: Pointer to blob property
+ * drm_property_blob_put - release a blob property reference
+ * @blob: DRM blob property
  *
- * Drop a reference on a blob property. May free the object.
+ * Releases a reference to a blob property. May free the object.
  */
-void drm_property_unreference_blob(struct drm_property_blob *blob)
+void drm_property_blob_put(struct drm_property_blob *blob)
 {
 	if (!blob)
 		return;
 
 	drm_mode_object_put(&blob->base);
 }
-EXPORT_SYMBOL(drm_property_unreference_blob);
+EXPORT_SYMBOL(drm_property_blob_put);
 
 void drm_property_destroy_user_blobs(struct drm_device *dev,
 				     struct drm_file *file_priv)
@@ -612,23 +612,23 @@ void drm_property_destroy_user_blobs(struct drm_device *dev,
 	 */
 	list_for_each_entry_safe(blob, bt, &file_priv->blobs, head_file) {
 		list_del_init(&blob->head_file);
-		drm_property_unreference_blob(blob);
+		drm_property_blob_put(blob);
 	}
 }
 
 /**
- * drm_property_reference_blob - Take a reference on an existing property
- * @blob: Pointer to blob property
+ * drm_property_blob_get - acquire blob property reference
+ * @blob: DRM blob property
  *
- * Take a new reference on an existing blob property. Returns @blob, which
+ * Acquires a reference to an existing blob property. Returns @blob, which
  * allows this to be used as a shorthand in assignments.
  */
-struct drm_property_blob *drm_property_reference_blob(struct drm_property_blob *blob)
+struct drm_property_blob *drm_property_blob_get(struct drm_property_blob *blob)
 {
 	drm_mode_object_get(&blob->base);
 	return blob;
 }
-EXPORT_SYMBOL(drm_property_reference_blob);
+EXPORT_SYMBOL(drm_property_blob_get);
 
 /**
  * drm_property_lookup_blob - look up a blob property and take a reference
@@ -637,7 +637,7 @@ EXPORT_SYMBOL(drm_property_reference_blob);
  *
  * If successful, this takes an additional reference to the blob property.
  * callers need to make sure to eventually unreference the returned property
- * again, using @drm_property_unreference_blob.
+ * again, using drm_property_blob_put().
  *
  * Return:
  * NULL on failure, pointer to the blob on success.
@@ -712,13 +712,13 @@ int drm_property_replace_global_blob(struct drm_device *dev,
 			goto err_created;
 	}
 
-	drm_property_unreference_blob(old_blob);
+	drm_property_blob_put(old_blob);
 	*replace = new_blob;
 
 	return 0;
 
 err_created:
-	drm_property_unreference_blob(new_blob);
+	drm_property_blob_put(new_blob);
 	return ret;
 }
 EXPORT_SYMBOL(drm_property_replace_global_blob);
@@ -747,7 +747,7 @@ int drm_mode_getblob_ioctl(struct drm_device *dev,
 	}
 	out_resp->length = blob->length;
 unref:
-	drm_property_unreference_blob(blob);
+	drm_property_blob_put(blob);
 
 	return ret;
 }
@@ -784,7 +784,7 @@ int drm_mode_createblob_ioctl(struct drm_device *dev,
 	return 0;
 
 out_blob:
-	drm_property_unreference_blob(blob);
+	drm_property_blob_put(blob);
 	return ret;
 }
 
@@ -823,14 +823,14 @@ int drm_mode_destroyblob_ioctl(struct drm_device *dev,
 	mutex_unlock(&dev->mode_config.blob_lock);
 
 	/* One reference from lookup, and one from the filp. */
-	drm_property_unreference_blob(blob);
-	drm_property_unreference_blob(blob);
+	drm_property_blob_put(blob);
+	drm_property_blob_put(blob);
 
 	return 0;
 
 err:
 	mutex_unlock(&dev->mode_config.blob_lock);
-	drm_property_unreference_blob(blob);
+	drm_property_blob_put(blob);
 
 	return ret;
 }
@@ -908,5 +908,5 @@ void drm_property_change_valid_put(struct drm_property *property,
 	if (drm_property_type_is(property, DRM_MODE_PROP_OBJECT)) {
 		drm_mode_object_put(ref);
 	} else if (drm_property_type_is(property, DRM_MODE_PROP_BLOB))
-		drm_property_unreference_blob(obj_to_blob(ref));
+		drm_property_blob_put(obj_to_blob(ref));
 }

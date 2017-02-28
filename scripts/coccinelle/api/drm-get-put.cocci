@@ -44,6 +44,12 @@ expression object;
 |
 - drm_gem_object_unreference_unlocked(object)
 + drm_gem_object_put_unlocked(object)
+|
+- drm_property_reference_blob(object)
++ drm_property_blob_get(object)
+|
+- drm_property_unreference_blob(object)
++ drm_property_blob_put(object)
 )
 
 @r depends on report@
@@ -71,6 +77,10 @@ drm_gem_object_reference@p(object)
 __drm_gem_object_unreference(object)
 |
 drm_gem_object_unreference_unlocked(object)
+|
+drm_property_unreference_blob@p(object)
+|
+drm_property_reference_blob@p(object)
 )
 
 @script:python depends on report@

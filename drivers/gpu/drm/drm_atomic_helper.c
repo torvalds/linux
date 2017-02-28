@@ -3120,13 +3120,13 @@ void __drm_atomic_helper_crtc_duplicate_state(struct drm_crtc *crtc,
 	memcpy(state, crtc->state, sizeof(*state));
 
 	if (state->mode_blob)
-		drm_property_reference_blob(state->mode_blob);
+		drm_property_blob_get(state->mode_blob);
 	if (state->degamma_lut)
-		drm_property_reference_blob(state->degamma_lut);
+		drm_property_blob_get(state->degamma_lut);
 	if (state->ctm)
-		drm_property_reference_blob(state->ctm);
+		drm_property_blob_get(state->ctm);
 	if (state->gamma_lut)
-		drm_property_reference_blob(state->gamma_lut);
+		drm_property_blob_get(state->gamma_lut);
 	state->mode_changed = false;
 	state->active_changed = false;
 	state->planes_changed = false;
@@ -3171,10 +3171,10 @@ EXPORT_SYMBOL(drm_atomic_helper_crtc_duplicate_state);
  */
 void __drm_atomic_helper_crtc_destroy_state(struct drm_crtc_state *state)
 {
-	drm_property_unreference_blob(state->mode_blob);
-	drm_property_unreference_blob(state->degamma_lut);
-	drm_property_unreference_blob(state->ctm);
-	drm_property_unreference_blob(state->gamma_lut);
+	drm_property_blob_put(state->mode_blob);
+	drm_property_blob_put(state->degamma_lut);
+	drm_property_blob_put(state->ctm);
+	drm_property_blob_put(state->gamma_lut);
 }
 EXPORT_SYMBOL(__drm_atomic_helper_crtc_destroy_state);
 
@@ -3572,7 +3572,7 @@ fail:
 		goto backoff;
 
 	drm_atomic_state_put(state);
-	drm_property_unreference_blob(blob);
+	drm_property_blob_put(blob);
 	return ret;
 
 backoff:

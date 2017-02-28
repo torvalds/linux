@@ -444,7 +444,7 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 
 	list_for_each_entry_safe(blob, bt, &dev->mode_config.property_blob_list,
 				 head_global) {
-		drm_property_unreference_blob(blob);
+		drm_property_blob_put(blob);
 	}
 
 	/*

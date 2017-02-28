@@ -324,7 +324,7 @@ int drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
 	if (mode && memcmp(&state->mode, mode, sizeof(*mode)) == 0)
 		return 0;
 
-	drm_property_unreference_blob(state->mode_blob);
+	drm_property_blob_put(state->mode_blob);
 	state->mode_blob = NULL;
 
 	if (mode) {
@@ -370,7 +370,7 @@ int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
 	if (blob == state->mode_blob)
 		return 0;
 
-	drm_property_unreference_blob(state->mode_blob);
+	drm_property_blob_put(state->mode_blob);
 	state->mode_blob = NULL;
 
 	memset(&state->mode, 0, sizeof(state->mode));
@@ -382,7 +382,7 @@ int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
 		                            blob->data))
 			return -EINVAL;
 
-		state->mode_blob = drm_property_reference_blob(blob);
+		state->mode_blob = drm_property_blob_get(blob);
 		state->enable = true;
 		DRM_DEBUG_ATOMIC("Set [MODE:%s] for CRTC state %p\n",
 				 state->mode.name, state);
@@ -415,9 +415,9 @@ drm_atomic_replace_property_blob(struct drm_property_blob **blob,
 	if (old_blob == new_blob)
 		return;
 
-	drm_property_unreference_blob(old_blob);
+	drm_property_blob_put(old_blob);
 	if (new_blob)
-		drm_property_reference_blob(new_blob);
+		drm_property_blob_get(new_blob);
 	*blob = new_blob;
 	*replaced = true;
 
@@ -439,13 +439,13 @@ drm_atomic_replace_property_blob_from_id(struct drm_crtc *crtc,
 			return -EINVAL;
 
 		if (expected_size > 0 && expected_size != new_blob->length) {
-			drm_property_unreference_blob(new_blob);
+			drm_property_blob_put(new_blob);
 			return -EINVAL;
 		}
 	}
 
 	drm_atomic_replace_property_blob(blob, new_blob, replaced);
-	drm_property_unreference_blob(new_blob);
+	drm_property_blob_put(new_blob);
 
 	return 0;
 }
@@ -480,7 +480,7 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 		struct drm_property_blob *mode =
 			drm_property_lookup_blob(dev, val);
 		ret = drm_atomic_set_mode_prop_for_crtc(state, mode);
-		drm_property_unreference_blob(mode);
+		drm_property_blob_put(mode);
 		return ret;
 	} else if (property == config->degamma_lut_property) {
 		ret = drm_atomic_replace_property_blob_from_id(crtc,
