@@ -2222,6 +2222,7 @@ static struct tegra_clk tegra210_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_apb2ape] = { .dt_id = TEGRA210_CLK_APB2APE, .present = true },
 	[tegra_clk_pll_a1] = { .dt_id = TEGRA210_CLK_PLL_A1, .present = true },
 	[tegra_clk_ispa] = { .dt_id = TEGRA210_CLK_ISPA, .present = true },
+	[tegra_clk_cec] = { .dt_id = TEGRA210_CLK_CEC, .present = true },
 };
 
 static struct tegra_devclk devclks[] __initdata = {
