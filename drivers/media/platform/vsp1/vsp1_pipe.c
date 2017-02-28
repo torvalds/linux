@@ -157,9 +157,15 @@ const struct vsp1_format_info *vsp1_get_format_info(struct vsp1_device *vsp1,
 {
 	unsigned int i;
 
-	/* Special case, the VYUY format is supported on Gen2 only. */
-	if (vsp1->info->gen != 2 && fourcc == V4L2_PIX_FMT_VYUY)
-		return NULL;
+	/* Special case, the VYUY and HSV formats are supported on Gen2 only. */
+	if (vsp1->info->gen != 2) {
+		switch (fourcc) {
+		case V4L2_PIX_FMT_VYUY:
+		case V4L2_PIX_FMT_HSV24:
+		case V4L2_PIX_FMT_HSV32:
+			return NULL;
+		}
+	}
 
 	for (i = 0; i < ARRAY_SIZE(vsp1_video_formats); ++i) {
 		const struct vsp1_format_info *info = &vsp1_video_formats[i];
