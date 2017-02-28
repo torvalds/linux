@@ -1928,6 +1928,8 @@ static s32 Handle_Get_InActiveTime(struct wilc_vif *vif,
 	wid.type = WID_STR;
 	wid.size = ETH_ALEN;
 	wid.val = kmalloc(wid.size, GFP_KERNEL);
+	if (!wid.val)
+		return -ENOMEM;
 
 	stamac = wid.val;
 	ether_addr_copy(stamac, strHostIfStaInactiveT->mac);
