@@ -1265,7 +1265,7 @@ static int intel_logical_ring_emit_pdps(struct drm_i915_gem_request *req)
 {
 	struct i915_hw_ppgtt *ppgtt = req->ctx->ppgtt;
 	struct intel_engine_cs *engine = req->engine;
-	const int num_lri_cmds = GEN8_LEGACY_PDPES * 2;
+	const int num_lri_cmds = GEN8_3LVL_PDPES * 2;
 	u32 *cs;
 	int i;
 
@@ -1274,7 +1274,7 @@ static int intel_logical_ring_emit_pdps(struct drm_i915_gem_request *req)
 		return PTR_ERR(cs);
 
 	*cs++ = MI_LOAD_REGISTER_IMM(num_lri_cmds);
-	for (i = GEN8_LEGACY_PDPES - 1; i >= 0; i--) {
+	for (i = GEN8_3LVL_PDPES - 1; i >= 0; i--) {
 		const dma_addr_t pd_daddr = i915_page_dir_dma_addr(ppgtt, i);
 
 		*cs++ = i915_mmio_reg_offset(GEN8_RING_PDP_UDW(engine, i));

@@ -101,13 +101,20 @@ typedef u64 gen8_ppgtt_pml4e_t;
 #define HSW_GTT_ADDR_ENCODE(addr)	((addr) | (((addr) >> 28) & 0x7f0))
 #define HSW_PTE_ADDR_ENCODE(addr)	HSW_GTT_ADDR_ENCODE(addr)
 
-/* GEN8 legacy style address is defined as a 3 level page table:
+/* GEN8 32b style address is defined as a 3 level page table:
  * 31:30 | 29:21 | 20:12 |  11:0
  * PDPE  |  PDE  |  PTE  | offset
  * The difference as compared to normal x86 3 level page table is the PDPEs are
  * programmed via register.
- *
- * GEN8 48b legacy style address is defined as a 4 level page table:
+ */
+#define GEN8_3LVL_PDPES			4
+#define GEN8_PDE_SHIFT			21
+#define GEN8_PDE_MASK			0x1ff
+#define GEN8_PTE_SHIFT			12
+#define GEN8_PTE_MASK			0x1ff
+#define GEN8_PTES			I915_PTES(sizeof(gen8_pte_t))
+
+/* GEN8 48b style address is defined as a 4 level page table:
  * 47:39 | 38:30 | 29:21 | 20:12 |  11:0
  * PML4E | PDPE  |  PDE  |  PTE  | offset
  */
@@ -118,12 +125,6 @@ typedef u64 gen8_ppgtt_pml4e_t;
 /* NB: GEN8_PDPE_MASK is untrue for 32b platforms, but it has no impact on 32b page
  * tables */
 #define GEN8_PDPE_MASK			0x1ff
-#define GEN8_PDE_SHIFT			21
-#define GEN8_PDE_MASK			0x1ff
-#define GEN8_PTE_SHIFT			12
-#define GEN8_PTE_MASK			0x1ff
-#define GEN8_LEGACY_PDPES		4
-#define GEN8_PTES			I915_PTES(sizeof(gen8_pte_t))
 
 #define PPAT_UNCACHED_INDEX		(_PAGE_PWT | _PAGE_PCD)
 #define PPAT_CACHED_PDE_INDEX		0 /* WB LLC */
@@ -466,7 +467,7 @@ i915_pdpes_per_pdp(const struct i915_address_space *vm)
 	if (i915_vm_is_48bit(vm))
 		return GEN8_PML4ES_PER_PML4;
 
-	return GEN8_LEGACY_PDPES;
+	return GEN8_3LVL_PDPES;
 }
 
 /* Equivalent to the gen6 version, For each pde iterates over every pde

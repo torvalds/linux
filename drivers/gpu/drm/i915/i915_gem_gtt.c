@@ -641,12 +641,12 @@ static int gen8_write_pdp(struct drm_i915_gem_request *req,
 	return 0;
 }
 
-static int gen8_legacy_mm_switch(struct i915_hw_ppgtt *ppgtt,
-				 struct drm_i915_gem_request *req)
+static int gen8_mm_switch_3lvl(struct i915_hw_ppgtt *ppgtt,
+			       struct drm_i915_gem_request *req)
 {
 	int i, ret;
 
-	for (i = GEN8_LEGACY_PDPES - 1; i >= 0; i--) {
+	for (i = GEN8_3LVL_PDPES - 1; i >= 0; i--) {
 		const dma_addr_t pd_daddr = i915_page_dir_dma_addr(ppgtt, i);
 
 		ret = gen8_write_pdp(req, i, pd_daddr);
@@ -657,8 +657,8 @@ static int gen8_legacy_mm_switch(struct i915_hw_ppgtt *ppgtt,
 	return 0;
 }
 
-static int gen8_48b_mm_switch(struct i915_hw_ppgtt *ppgtt,
-			      struct drm_i915_gem_request *req)
+static int gen8_mm_switch_4lvl(struct i915_hw_ppgtt *ppgtt,
+			       struct drm_i915_gem_request *req)
 {
 	return gen8_write_pdp(req, 0, px_dma(&ppgtt->pml4));
 }
@@ -1016,7 +1016,7 @@ static int gen8_ppgtt_notify_vgt(struct i915_hw_ppgtt *ppgtt, bool create)
 		msg = (create ? VGT_G2V_PPGTT_L4_PAGE_TABLE_CREATE :
 				VGT_G2V_PPGTT_L4_PAGE_TABLE_DESTROY);
 	} else {
-		for (i = 0; i < GEN8_LEGACY_PDPES; i++) {
+		for (i = 0; i < GEN8_3LVL_PDPES; i++) {
 			const u64 daddr = i915_page_dir_dma_addr(ppgtt, i);
 
 			I915_WRITE(vgtif_reg(pdp[i].lo), lower_32_bits(daddr));
@@ -1356,8 +1356,7 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 
 		gen8_initialize_pml4(&ppgtt->base, &ppgtt->pml4);
 
-		ppgtt->switch_mm = gen8_48b_mm_switch;
-
+		ppgtt->switch_mm = gen8_mm_switch_4lvl;
 		ppgtt->base.allocate_va_range = gen8_ppgtt_alloc_4lvl;
 		ppgtt->base.insert_entries = gen8_ppgtt_insert_4lvl;
 		ppgtt->base.clear_range = gen8_ppgtt_clear_4lvl;
@@ -1365,8 +1364,6 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 		ret = __pdp_init(&ppgtt->base, &ppgtt->pdp);
 		if (ret)
 			goto free_scratch;
-
-		ppgtt->switch_mm = gen8_legacy_mm_switch;
 
 		if (intel_vgpu_active(dev_priv)) {
 			ret = gen8_preallocate_top_level_pdp(ppgtt);
@@ -1376,6 +1373,7 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 			}
 		}
 
+		ppgtt->switch_mm = gen8_mm_switch_3lvl;
 		ppgtt->base.allocate_va_range = gen8_ppgtt_alloc_3lvl;
 		ppgtt->base.insert_entries = gen8_ppgtt_insert_3lvl;
 		ppgtt->base.clear_range = gen8_ppgtt_clear_3lvl;
