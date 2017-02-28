@@ -250,7 +250,7 @@ static int queue_setup(struct vb2_queue *vq,
 	unsigned long size;
 
 	/* refuse queue setup if port is not configured */
-	if (dev->capture.port == NULL) {
+	if (!dev->capture.port) {
 		v4l2_err(&dev->v4l2_dev,
 			 "%s: capture port not configured\n", __func__);
 		return -EINVAL;
@@ -289,8 +289,8 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev, "%s: dev:%p\n",
 		 __func__, dev);
 
-	BUG_ON(dev->capture.port == NULL);
-	BUG_ON(dev->capture.fmt == NULL);
+	BUG_ON(!dev->capture.port);
+	BUG_ON(!dev->capture.fmt);
 
 	size = dev->capture.stride * dev->capture.height;
 	if (vb2_plane_size(vb, 0) < size) {
@@ -324,14 +324,14 @@ static void buffer_cb(struct vchiq_mmal_instance *instance,
 
 	if (status != 0) {
 		/* error in transfer */
-		if (buf != NULL) {
+		if (buf) {
 			/* there was a buffer with the error so return it */
 			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 		}
 		return;
 	} else if (length == 0) {
 		/* stream ended */
-		if (buf != NULL) {
+		if (buf) {
 			/* this should only ever happen if the port is
 			 * disabled and there are buffers still queued
 			 */
@@ -513,7 +513,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 		 __func__, dev);
 
 	/* ensure a format has actually been set */
-	if (dev->capture.port == NULL)
+	if (!dev->capture.port)
 		return -EINVAL;
 
 	if (enable_camera(dev) < 0) {
@@ -604,7 +604,7 @@ static void stop_streaming(struct vb2_queue *vq)
 	dev->capture.frame_count = 0;
 
 	/* ensure a format has actually been set */
-	if (dev->capture.port == NULL) {
+	if (!dev->capture.port) {
 		v4l2_err(&dev->v4l2_dev,
 			 "no capture port - stream not started?\n");
 		return;

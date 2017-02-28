@@ -909,9 +909,7 @@ static int bm2835_mmal_s_ctrl(struct v4l2_ctrl *ctrl)
 	const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl = ctrl->priv;
 	int ret;
 
-	if ((mmal_ctrl == NULL) ||
-	    (mmal_ctrl->id != ctrl->id) ||
-	    (mmal_ctrl->setter == NULL)) {
+	if (!mmal_ctrl || mmal_ctrl->id != ctrl->id || !mmal_ctrl->setter) {
 		pr_warn("mmal_ctrl:%p ctrl id:%d\n", mmal_ctrl, ctrl->id);
 		return -EINVAL;
 	}

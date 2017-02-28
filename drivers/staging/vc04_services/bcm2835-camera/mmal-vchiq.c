@@ -657,7 +657,7 @@ static void service_callback(void *param,
 			 * should be verified the address lies in the kernel
 			 * address space.
 			 */
-			if (msg->h.context == NULL) {
+			if (!msg->h.context) {
 				pr_err("received message context was null!\n");
 				vchi_held_msg_release(&msg_handle);
 				break;
@@ -1387,7 +1387,7 @@ static int port_enable(struct vchiq_mmal_instance *instance,
 		return 0;
 
 	/* ensure there are enough buffers queued to cover the buffer headers */
-	if (port->buffer_cb != NULL) {
+	if (port->buffer_cb) {
 		hdr_count = 0;
 		list_for_each(buf_head, &port->buffers) {
 			hdr_count++;
@@ -1547,7 +1547,7 @@ int vchiq_mmal_port_connect_tunnel(struct vchiq_mmal_instance *instance,
 		return -EINTR;
 
 	/* disconnect ports if connected */
-	if (src->connected != NULL) {
+	if (src->connected) {
 		ret = port_disable(instance, src);
 		if (ret) {
 			pr_err("failed disabling src port(%d)\n", ret);
@@ -1570,7 +1570,7 @@ int vchiq_mmal_port_connect_tunnel(struct vchiq_mmal_instance *instance,
 		src->connected = NULL;
 	}
 
-	if (dst == NULL) {
+	if (!dst) {
 		/* do not make new connection */
 		ret = 0;
 		pr_debug("not making new connection\n");
@@ -1817,7 +1817,7 @@ int vchiq_mmal_finalise(struct vchiq_mmal_instance *instance)
 {
 	int status = 0;
 
-	if (instance == NULL)
+	if (!instance)
 		return -EINVAL;
 
 	if (mutex_lock_interruptible(&instance->vchiq_mutex))
