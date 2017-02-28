@@ -229,13 +229,10 @@ static struct mmal_fmt *get_format(struct v4l2_format *f)
 	for (k = 0; k < ARRAY_SIZE(formats); k++) {
 		fmt = &formats[k];
 		if (fmt->fourcc == f->fmt.pix.pixelformat)
-			break;
+			return fmt;
 	}
 
-	if (k == ARRAY_SIZE(formats))
-		return NULL;
-
-	return &formats[k];
+	return NULL;
 }
 
 /* ------------------------------------------------------------------
