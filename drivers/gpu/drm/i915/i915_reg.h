@@ -8248,7 +8248,7 @@ enum {
 
 /* MIPI DSI registers */
 
-#define _MIPI_PORT(port, a, c)	_PORT3(port, a, 0, c)	/* ports A and C only */
+#define _MIPI_PORT(port, a, c)	((port) ? c : a)	/* ports A and C only */
 #define _MMIO_MIPI(port, a, c)	_MMIO(_MIPI_PORT(port, a, c))
 
 #define MIPIO_TXESC_CLK_DIV1			_MMIO(0x160004)
