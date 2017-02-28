@@ -1494,7 +1494,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	 * or hangs loading.
 	 */
 	if (load_module) {
-		err = request_module("%s", op->name);
+		request_module("%s", op->name);
 #ifdef CONFIG_IWLWIFI_OPMODE_MODULAR
 		if (err)
 			IWL_ERR(drv,
