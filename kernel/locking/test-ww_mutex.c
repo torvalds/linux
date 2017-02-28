@@ -50,7 +50,7 @@ static void test_mutex_work(struct work_struct *work)
 
 	if (mtx->flags & TEST_MTX_TRY) {
 		while (!ww_mutex_trylock(&mtx->mutex))
-			cpu_relax();
+			cond_resched();
 	} else {
 		ww_mutex_lock(&mtx->mutex, NULL);
 	}
@@ -88,7 +88,7 @@ static int __test_mutex(unsigned int flags)
 				ret = -EINVAL;
 				break;
 			}
-			cpu_relax();
+			cond_resched();
 		} while (time_before(jiffies, timeout));
 	} else {
 		ret = wait_for_completion_timeout(&mtx.done, TIMEOUT);
