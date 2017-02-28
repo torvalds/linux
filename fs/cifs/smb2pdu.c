@@ -620,6 +620,7 @@ int smb3_validate_negotiate(const unsigned int xid, struct cifs_tcon *tcon)
 
 	rc = SMB2_ioctl(xid, tcon, NO_FILE_ID, NO_FILE_ID,
 		FSCTL_VALIDATE_NEGOTIATE_INFO, true /* is_fsctl */,
+		false /* use_ipc */,
 		(char *)&vneg_inbuf, sizeof(struct validate_negotiate_info_req),
 		(char **)&pneg_rsp, &rsplen);
 
@@ -1683,8 +1684,9 @@ creat_exit:
  */
 int
 SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
-	   u64 volatile_fid, u32 opcode, bool is_fsctl, char *in_data,
-	   u32 indatalen, char **out_data, u32 *plen /* returned data len */)
+	   u64 volatile_fid, u32 opcode, bool is_fsctl, bool use_ipc,
+	   char *in_data, u32 indatalen,
+	   char **out_data, u32 *plen /* returned data len */)
 {
 	struct smb2_ioctl_req *req;
 	struct smb2_ioctl_rsp *rsp;
@@ -1721,6 +1723,16 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	if (rc)
 		return rc;
 
+	if (use_ipc) {
+		if (ses->ipc_tid == 0) {
+			cifs_small_buf_release(req);
+			return -ENOTCONN;
+		}
+
+		cifs_dbg(FYI, "replacing tid 0x%x with IPC tid 0x%x\n",
+			 req->hdr.sync_hdr.TreeId, ses->ipc_tid);
+		req->hdr.sync_hdr.TreeId = ses->ipc_tid;
+	}
 	if (encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
 
@@ -1843,6 +1855,7 @@ SMB2_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
 
 	rc = SMB2_ioctl(xid, tcon, persistent_fid, volatile_fid,
 			FSCTL_SET_COMPRESSION, true /* is_fsctl */,
+			false /* use_ipc */,
 			(char *)&fsctl_input /* data input */,
 			2 /* in data len */, &ret_data /* out data */, NULL);
 
