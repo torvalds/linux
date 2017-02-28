@@ -283,6 +283,7 @@ static int gmc_v6_0_mc_init(struct amdgpu_device *adev)
 
 	u32 tmp;
 	int chansize, numchan;
+	int r;
 
 	tmp = RREG32(mmMC_ARB_RAMCFG);
 	if (tmp & (1 << 11)) {
@@ -324,12 +325,17 @@ static int gmc_v6_0_mc_init(struct amdgpu_device *adev)
 		break;
 	}
 	adev->mc.vram_width = numchan * chansize;
-	/* Could aper size report 0 ? */
-	adev->mc.aper_base = pci_resource_start(adev->pdev, 0);
-	adev->mc.aper_size = pci_resource_len(adev->pdev, 0);
 	/* size in MB on si */
 	adev->mc.mc_vram_size = RREG32(mmCONFIG_MEMSIZE) * 1024ULL * 1024ULL;
 	adev->mc.real_vram_size = RREG32(mmCONFIG_MEMSIZE) * 1024ULL * 1024ULL;
+
+	if (!(adev->flags & AMD_IS_APU)) {
+		r = amdgpu_device_resize_fb_bar(adev);
+		if (r)
+			return r;
+	}
+	adev->mc.aper_base = pci_resource_start(adev->pdev, 0);
+	adev->mc.aper_size = pci_resource_len(adev->pdev, 0);
 	adev->mc.visible_vram_size = adev->mc.aper_size;
 
 	/* set the gart size */

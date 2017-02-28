@@ -449,6 +449,7 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 {
 	u32 tmp;
 	int chansize, numchan;
+	int r;
 
 	adev->mc.vram_width = amdgpu_atomfirmware_get_vram_width(adev);
 	if (!adev->mc.vram_width) {
@@ -491,17 +492,22 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 		adev->mc.vram_width = numchan * chansize;
 	}
 
-	/* Could aper size report 0 ? */
-	adev->mc.aper_base = pci_resource_start(adev->pdev, 0);
-	adev->mc.aper_size = pci_resource_len(adev->pdev, 0);
 	/* size in MB on si */
 	adev->mc.mc_vram_size =
 		((adev->flags & AMD_IS_APU) ? nbio_v7_0_get_memsize(adev) :
 		 nbio_v6_1_get_memsize(adev)) * 1024ULL * 1024ULL;
 	adev->mc.real_vram_size = adev->mc.mc_vram_size;
-	adev->mc.visible_vram_size = adev->mc.aper_size;
+
+	if (!(adev->flags & AMD_IS_APU)) {
+		r = amdgpu_device_resize_fb_bar(adev);
+		if (r)
+			return r;
+	}
+	adev->mc.aper_base = pci_resource_start(adev->pdev, 0);
+	adev->mc.aper_size = pci_resource_len(adev->pdev, 0);
 
 	/* In case the PCI BAR is larger than the actual amount of vram */
+	adev->mc.visible_vram_size = adev->mc.aper_size;
 	if (adev->mc.visible_vram_size > adev->mc.real_vram_size)
 		adev->mc.visible_vram_size = adev->mc.real_vram_size;
 
