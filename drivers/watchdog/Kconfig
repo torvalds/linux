@@ -176,7 +176,7 @@ config WDAT_WDT
 
 config WM831X_WATCHDOG
 	tristate "WM831x watchdog"
-	depends on MFD_WM831X || COMPILE_TEST
+	depends on MFD_WM831X
 	select WATCHDOG_CORE
 	help
 	  Support for the watchdog in the WM831x AudioPlus PMICs.  When
