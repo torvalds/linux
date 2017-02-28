@@ -2308,6 +2308,11 @@ static struct tegra_audio_clk_info tegra210_audio_plls[] = {
 
 static struct clk **clks;
 
+static const char * const aclk_parents[] = {
+	"pll_a1", "pll_c", "pll_p", "pll_a_out0", "pll_c2", "pll_c3",
+	"clk_m"
+};
+
 static __init void tegra210_periph_clk_init(void __iomem *clk_base,
 					    void __iomem *pmc_base)
 {
@@ -2368,6 +2373,11 @@ static __init void tegra210_periph_clk_init(void __iomem *clk_base,
 				1, 0, &pll_e_lock);
 	clk_register_clkdev(clk, "cml1", NULL);
 	clks[TEGRA210_CLK_CML1] = clk;
+
+	clk = tegra_clk_register_super_clk("aclk", aclk_parents,
+				ARRAY_SIZE(aclk_parents), 0, clk_base + 0x6e0,
+				0, NULL);
+	clks[TEGRA210_CLK_ACLK] = clk;
 
 	tegra_periph_clk_init(clk_base, pmc_base, tegra210_clks, &pll_p_params);
 }
