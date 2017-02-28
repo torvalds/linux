@@ -281,6 +281,9 @@ long __machine_check_early_realmode_p7(struct pt_regs *regs)
 	long handled = 1;
 	struct mce_error_info mce_error_info = { 0 };
 
+	mce_error_info.severity = MCE_SEV_ERROR_SYNC;
+	mce_error_info.initiator = MCE_INITIATOR_CPU;
+
 	srr1 = regs->msr;
 	nip = regs->nip;
 
@@ -351,6 +354,9 @@ long __machine_check_early_realmode_p8(struct pt_regs *regs)
 	uint64_t srr1, nip, addr;
 	long handled = 1;
 	struct mce_error_info mce_error_info = { 0 };
+
+	mce_error_info.severity = MCE_SEV_ERROR_SYNC;
+	mce_error_info.initiator = MCE_INITIATOR_CPU;
 
 	srr1 = regs->msr;
 	nip = regs->nip;

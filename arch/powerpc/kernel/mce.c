@@ -90,13 +90,14 @@ void save_mce_event(struct pt_regs *regs, long handled,
 	mce->gpr3 = regs->gpr[3];
 	mce->in_use = 1;
 
-	mce->initiator = MCE_INITIATOR_CPU;
 	/* Mark it recovered if we have handled it and MSR(RI=1). */
 	if (handled && (regs->msr & MSR_RI))
 		mce->disposition = MCE_DISPOSITION_RECOVERED;
 	else
 		mce->disposition = MCE_DISPOSITION_NOT_RECOVERED;
-	mce->severity = MCE_SEV_ERROR_SYNC;
+
+	mce->initiator = mce_err->initiator;
+	mce->severity = mce_err->severity;
 
 	/*
 	 * Populate the mce error_type and type-specific error_type.

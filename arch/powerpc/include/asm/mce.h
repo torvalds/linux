@@ -177,7 +177,8 @@ struct mce_error_info {
 		enum MCE_EratErrorType erat_error_type:8;
 		enum MCE_TlbErrorType tlb_error_type:8;
 	} u;
-	uint8_t		reserved[2];
+	enum MCE_Severity	severity:8;
+	enum MCE_Initiator	initiator:8;
 };
 
 #define MAX_MC_EVT	100
