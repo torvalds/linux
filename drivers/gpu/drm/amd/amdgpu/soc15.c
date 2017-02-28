@@ -494,9 +494,10 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_ip_block_add(adev, &mmhub_v1_0_ip_block);
 		amdgpu_ip_block_add(adev, &gmc_v9_0_ip_block);
 		amdgpu_ip_block_add(adev, &vega10_ih_ip_block);
-		if (!amdgpu_sriov_vf(adev))
+		if (!amdgpu_sriov_vf(adev)) {
 			amdgpu_ip_block_add(adev, &psp_v3_1_ip_block);
-		amdgpu_ip_block_add(adev, &amdgpu_pp_ip_block);
+			amdgpu_ip_block_add(adev, &amdgpu_pp_ip_block);
+		}
 		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
 			amdgpu_ip_block_add(adev, &dce_virtual_ip_block);
 		amdgpu_ip_block_add(adev, &gfx_v9_0_ip_block);
