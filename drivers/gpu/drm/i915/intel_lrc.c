@@ -1291,9 +1291,8 @@ static int intel_logical_ring_emit_pdps(struct drm_i915_gem_request *req)
 
 static int gen8_emit_bb_start(struct drm_i915_gem_request *req,
 			      u64 offset, u32 len,
-			      unsigned int dispatch_flags)
+			      const unsigned int flags)
 {
-	bool ppgtt = !(dispatch_flags & I915_DISPATCH_SECURE);
 	u32 *cs;
 	int ret;
 
@@ -1304,13 +1303,12 @@ static int gen8_emit_bb_start(struct drm_i915_gem_request *req,
 	 * not idle). PML4 is allocated during ppgtt init so this is
 	 * not needed in 48-bit.*/
 	if (req->ctx->ppgtt &&
-	    (intel_engine_flag(req->engine) & req->ctx->ppgtt->pd_dirty_rings)) {
-		if (!i915_vm_is_48bit(&req->ctx->ppgtt->base) &&
-		    !intel_vgpu_active(req->i915)) {
-			ret = intel_logical_ring_emit_pdps(req);
-			if (ret)
-				return ret;
-		}
+	    (intel_engine_flag(req->engine) & req->ctx->ppgtt->pd_dirty_rings) &&
+	    !i915_vm_is_48bit(&req->ctx->ppgtt->base) &&
+	    !intel_vgpu_active(req->i915)) {
+		ret = intel_logical_ring_emit_pdps(req);
+		if (ret)
+			return ret;
 
 		req->ctx->ppgtt->pd_dirty_rings &= ~intel_engine_flag(req->engine);
 	}
@@ -1320,8 +1318,9 @@ static int gen8_emit_bb_start(struct drm_i915_gem_request *req,
 		return PTR_ERR(cs);
 
 	/* FIXME(BDW): Address space and security selectors. */
-	*cs++ = MI_BATCH_BUFFER_START_GEN8 | (ppgtt << 8) | (dispatch_flags &
-		I915_DISPATCH_RS ? MI_BATCH_RESOURCE_STREAMER : 0);
+	*cs++ = MI_BATCH_BUFFER_START_GEN8 |
+		(flags & I915_DISPATCH_SECURE ? 0 : BIT(8)) |
+		(flags & I915_DISPATCH_RS ? MI_BATCH_RESOURCE_STREAMER : 0);
 	*cs++ = lower_32_bits(offset);
 	*cs++ = upper_32_bits(offset);
 	*cs++ = MI_NOOP;
