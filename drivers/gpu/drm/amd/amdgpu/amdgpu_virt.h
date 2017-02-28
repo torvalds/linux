@@ -30,6 +30,12 @@
 #define AMDGPU_PASSTHROUGH_MODE        (1 << 3) /* thw whole GPU is pass through for VM */
 #define AMDGPU_SRIOV_CAPS_RUNTIME      (1 << 4) /* is out of full access mode */
 
+struct amdgpu_mm_table {
+	struct amdgpu_bo	*bo;
+	uint32_t		*cpu_addr;
+	uint64_t		gpu_addr;
+};
+
 /**
  * struct amdgpu_virt_ops - amdgpu device virt operations
  */
@@ -51,6 +57,7 @@ struct amdgpu_virt {
 	struct amdgpu_irq_src		ack_irq;
 	struct amdgpu_irq_src		rcv_irq;
 	struct work_struct		flr_work;
+	struct amdgpu_mm_table		mm_table;
 	const struct amdgpu_virt_ops	*ops;
 };
 
