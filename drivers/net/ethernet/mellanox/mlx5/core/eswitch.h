@@ -212,6 +212,13 @@ struct mlx5_esw_offload {
 	u8 encap;
 };
 
+/* E-Switch MC FDB table hash node */
+struct esw_mc_addr { /* SRIOV only */
+	struct l2addr_node     node;
+	struct mlx5_flow_handle *uplink_rule; /* Forward to uplink rule */
+	u32                    refcnt;
+};
+
 struct mlx5_eswitch {
 	struct mlx5_core_dev    *dev;
 	struct mlx5_l2_table    l2_table;
@@ -225,7 +232,7 @@ struct mlx5_eswitch {
 	 * and async SRIOV admin state changes
 	 */
 	struct mutex            state_lock;
-	struct esw_mc_addr      *mc_promisc;
+	struct esw_mc_addr	mc_promisc;
 
 	struct {
 		bool            enabled;
