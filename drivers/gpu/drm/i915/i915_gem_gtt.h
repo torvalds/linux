@@ -125,9 +125,6 @@ typedef u64 gen8_ppgtt_pml4e_t;
 #define GEN8_LEGACY_PDPES		4
 #define GEN8_PTES			I915_PTES(sizeof(gen8_pte_t))
 
-#define I915_PDPES_PER_PDP(dev_priv)	(USES_FULL_48BIT_PPGTT(dev_priv) ?\
-					GEN8_PML4ES_PER_PML4 : GEN8_LEGACY_PDPES)
-
 #define PPAT_UNCACHED_INDEX		(_PAGE_PWT | _PAGE_PCD)
 #define PPAT_CACHED_PDE_INDEX		0 /* WB LLC */
 #define PPAT_CACHED_INDEX		_PAGE_PAT /* WB LLCeLLC */
@@ -332,6 +329,12 @@ struct i915_address_space {
 
 #define i915_is_ggtt(V) (!(V)->file)
 
+static inline bool
+i915_vm_is_48bit(const struct i915_address_space *vm)
+{
+	return (vm->total - 1) >> 32;
+}
+
 /* The Graphics Translation Table is the way in which GEN hardware translates a
  * Graphics Virtual Address into a Physical Address. In addition to the normal
  * collateral associated with any va->pa translations GEN hardware also has a
@@ -457,6 +460,15 @@ static inline u32 gen6_pde_index(u32 addr)
 	return i915_pde_index(addr, GEN6_PDE_SHIFT);
 }
 
+static inline unsigned int
+i915_pdpes_per_pdp(const struct i915_address_space *vm)
+{
+	if (i915_vm_is_48bit(vm))
+		return GEN8_PML4ES_PER_PML4;
+
+	return GEN8_LEGACY_PDPES;
+}
+
 /* Equivalent to the gen6 version, For each pde iterates over every pde
  * between from start until start + length. On gen8+ it simply iterates
  * over every page directory entry in a page directory.
@@ -471,7 +483,7 @@ static inline u32 gen6_pde_index(u32 addr)
 
 #define gen8_for_each_pdpe(pd, pdp, start, length, iter)		\
 	for (iter = gen8_pdpe_index(start);				\
-	     length > 0 && iter < I915_PDPES_PER_PDP(dev) &&		\
+	     length > 0 && iter < i915_pdpes_per_pdp(vm) &&		\
 		(pd = (pdp)->page_directory[iter], true);		\
 	     ({ u64 temp = ALIGN(start+1, 1 << GEN8_PDPE_SHIFT);	\
 		    temp = min(temp - start, length);			\
@@ -521,12 +533,6 @@ i915_vm_to_ggtt(struct i915_address_space *vm)
 {
 	GEM_BUG_ON(!i915_is_ggtt(vm));
 	return container_of(vm, struct i915_ggtt, base);
-}
-
-static inline bool
-i915_vm_is_48bit(const struct i915_address_space *vm)
-{
-	return (vm->total - 1) >> 32;
 }
 
 int i915_gem_init_aliasing_ppgtt(struct drm_i915_private *i915);

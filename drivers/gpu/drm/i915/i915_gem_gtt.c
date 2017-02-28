@@ -528,7 +528,7 @@ static void gen8_initialize_pd(struct i915_address_space *vm,
 static int __pdp_init(struct i915_address_space *vm,
 		      struct i915_page_directory_pointer *pdp)
 {
-	const unsigned int pdpes = I915_PDPES_PER_PDP(vm->i915);
+	const unsigned int pdpes = i915_pdpes_per_pdp(vm);
 	unsigned int i;
 
 	pdp->page_directory = kmalloc_array(pdpes, sizeof(*pdp->page_directory),
@@ -852,7 +852,7 @@ gen8_ppgtt_insert_pte_entries(struct i915_hw_ppgtt *ppgtt,
 	gen8_pte_t *vaddr;
 	bool ret;
 
-	GEM_BUG_ON(idx->pdpe >= I915_PDPES_PER_PDP(vm));
+	GEM_BUG_ON(idx->pdpe >= i915_pdpes_per_pdp(&ppgtt->base));
 	pd = pdp->page_directory[idx->pdpe];
 	vaddr = kmap_atomic_px(pd->page_table[idx->pde]);
 	do {
@@ -883,7 +883,7 @@ gen8_ppgtt_insert_pte_entries(struct i915_hw_ppgtt *ppgtt,
 					break;
 				}
 
-				GEM_BUG_ON(idx->pdpe >= I915_PDPES_PER_PDP(vm));
+				GEM_BUG_ON(idx->pdpe >= i915_pdpes_per_pdp(&ppgtt->base));
 				pd = pdp->page_directory[idx->pdpe];
 			}
 
@@ -1036,9 +1036,10 @@ static void gen8_free_scratch(struct i915_address_space *vm)
 static void gen8_ppgtt_cleanup_3lvl(struct i915_address_space *vm,
 				    struct i915_page_directory_pointer *pdp)
 {
+	const unsigned int pdpes = i915_pdpes_per_pdp(vm);
 	int i;
 
-	for (i = 0; i < I915_PDPES_PER_PDP(vm->i915); i++) {
+	for (i = 0; i < pdpes; i++) {
 		if (pdp->page_directory[i] == vm->scratch_pd)
 			continue;
 
@@ -1127,7 +1128,7 @@ static int gen8_ppgtt_alloc_pdp(struct i915_address_space *vm,
 			gen8_initialize_pd(vm, pd);
 			gen8_ppgtt_set_pdpe(vm, pdp, pd, pdpe);
 			pdp->used_pdpes++;
-			GEM_BUG_ON(pdp->used_pdpes > I915_PDPES_PER_PDP(vm));
+			GEM_BUG_ON(pdp->used_pdpes > i915_pdpes_per_pdp(vm));
 
 			mark_tlbs_dirty(i915_vm_to_ppgtt(vm));
 		}
@@ -1201,6 +1202,7 @@ static void gen8_dump_pdp(struct i915_hw_ppgtt *ppgtt,
 			  gen8_pte_t scratch_pte,
 			  struct seq_file *m)
 {
+	struct i915_address_space *vm = &ppgtt->base;
 	struct i915_page_directory *pd;
 	u32 pdpe;
 
