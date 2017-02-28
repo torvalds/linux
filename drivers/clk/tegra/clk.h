@@ -586,7 +586,7 @@ struct tegra_clk_periph {
 
 extern const struct clk_ops tegra_clk_periph_ops;
 struct clk *tegra_clk_register_periph(const char *name,
-		const char **parent_names, int num_parents,
+		const char * const *parent_names, int num_parents,
 		struct tegra_clk_periph *periph, void __iomem *clk_base,
 		u32 offset, unsigned long flags);
 struct clk *tegra_clk_register_periph_nodiv(const char *name,
@@ -626,7 +626,7 @@ struct tegra_periph_init_data {
 	const char *name;
 	int clk_id;
 	union {
-		const char **parent_names;
+		const char *const *parent_names;
 		const char *parent_name;
 	} p;
 	int num_parents;
