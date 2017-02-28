@@ -348,7 +348,7 @@ int i915_guc_wq_reserve(struct drm_i915_gem_request *request)
 	u32 freespace;
 	int ret;
 
-	spin_lock(&client->wq_lock);
+	spin_lock_irq(&client->wq_lock);
 	freespace = CIRC_SPACE(client->wq_tail, desc->head, client->wq_size);
 	freespace -= client->wq_rsvd;
 	if (likely(freespace >= wqi_size)) {
@@ -358,21 +358,27 @@ int i915_guc_wq_reserve(struct drm_i915_gem_request *request)
 		client->no_wq_space++;
 		ret = -EAGAIN;
 	}
-	spin_unlock(&client->wq_lock);
+	spin_unlock_irq(&client->wq_lock);
 
 	return ret;
 }
 
+static void guc_client_update_wq_rsvd(struct i915_guc_client *client, int size)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&client->wq_lock, flags);
+	client->wq_rsvd += size;
+	spin_unlock_irqrestore(&client->wq_lock, flags);
+}
+
 void i915_guc_wq_unreserve(struct drm_i915_gem_request *request)
 {
-	const size_t wqi_size = sizeof(struct guc_wq_item);
+	const int wqi_size = sizeof(struct guc_wq_item);
 	struct i915_guc_client *client = request->i915->guc.execbuf_client;
 
 	GEM_BUG_ON(READ_ONCE(client->wq_rsvd) < wqi_size);
-
-	spin_lock(&client->wq_lock);
-	client->wq_rsvd -= wqi_size;
-	spin_unlock(&client->wq_lock);
+	guc_client_update_wq_rsvd(client, -wqi_size);
 }
 
 /* Construct a Work Item and append it to the GuC's Work Queue */
@@ -510,6 +516,9 @@ static void __i915_guc_submit(struct drm_i915_gem_request *rq)
 	struct intel_guc *guc = &rq->i915->guc;
 	struct i915_guc_client *client = guc->execbuf_client;
 	int b_ret;
+
+	/* We are always called with irqs disabled */
+	GEM_BUG_ON(!irqs_disabled());
 
 	spin_lock(&client->wq_lock);
 	guc_wq_item_append(client, rq);
@@ -945,16 +954,19 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 
 	/* Take over from manual control of ELSP (execlists) */
 	for_each_engine(engine, dev_priv, id) {
+		const int wqi_size = sizeof(struct guc_wq_item);
 		struct drm_i915_gem_request *rq;
 
 		engine->submit_request = i915_guc_submit;
 		engine->schedule = NULL;
 
 		/* Replay the current set of previously submitted requests */
+		spin_lock_irq(&engine->timeline->lock);
 		list_for_each_entry(rq, &engine->timeline->requests, link) {
-			client->wq_rsvd += sizeof(struct guc_wq_item);
+			guc_client_update_wq_rsvd(client, wqi_size);
 			__i915_guc_submit(rq);
 		}
+		spin_unlock_irq(&engine->timeline->lock);
 	}
 
 	return 0;
