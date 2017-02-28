@@ -177,18 +177,12 @@ static void __set_nat_cache_dirty(struct f2fs_nm_info *nm_i,
 }
 
 static void __clear_nat_cache_dirty(struct f2fs_nm_info *nm_i,
-						struct nat_entry *ne)
+		struct nat_entry_set *set, struct nat_entry *ne)
 {
-	nid_t set = NAT_BLOCK_OFFSET(ne->ni.nid);
-	struct nat_entry_set *head;
-
-	head = radix_tree_lookup(&nm_i->nat_set_root, set);
-	if (head) {
-		list_move_tail(&ne->list, &nm_i->nat_entries);
-		set_nat_flag(ne, IS_DIRTY, false);
-		head->entry_cnt--;
-		nm_i->dirty_nat_cnt--;
-	}
+	list_move_tail(&ne->list, &nm_i->nat_entries);
+	set_nat_flag(ne, IS_DIRTY, false);
+	set->entry_cnt--;
+	nm_i->dirty_nat_cnt--;
 }
 
 static unsigned int __gang_lookup_nat_set(struct f2fs_nm_info *nm_i,
@@ -2410,7 +2404,7 @@ static void __flush_nat_entry_set(struct f2fs_sb_info *sbi,
 		}
 		raw_nat_from_node_info(raw_ne, &ne->ni);
 		nat_reset_flag(ne);
-		__clear_nat_cache_dirty(NM_I(sbi), ne);
+		__clear_nat_cache_dirty(NM_I(sbi), set, ne);
 		if (nat_get_blkaddr(ne) == NULL_ADDR) {
 			add_free_nid(sbi, nid, false);
 			spin_lock(&NM_I(sbi)->nid_list_lock);
