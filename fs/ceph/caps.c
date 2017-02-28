@@ -867,7 +867,7 @@ int __ceph_caps_file_wanted(struct ceph_inode_info *ci)
 /*
  * Return caps we have registered with the MDS(s) as 'wanted'.
  */
-int __ceph_caps_mds_wanted(struct ceph_inode_info *ci)
+int __ceph_caps_mds_wanted(struct ceph_inode_info *ci, bool check)
 {
 	struct ceph_cap *cap;
 	struct rb_node *p;
@@ -875,7 +875,7 @@ int __ceph_caps_mds_wanted(struct ceph_inode_info *ci)
 
 	for (p = rb_first(&ci->i_caps); p; p = rb_next(p)) {
 		cap = rb_entry(p, struct ceph_cap, ci_node);
-		if (!__cap_is_valid(cap))
+		if (check && !__cap_is_valid(cap))
 			continue;
 		if (cap == ci->i_auth_cap)
 			mds_wanted |= cap->mds_wanted;
@@ -1184,6 +1184,13 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 		delayed = 1;
 	}
 	ci->i_ceph_flags &= ~(CEPH_I_NODELAY | CEPH_I_FLUSH);
+	if (want & ~cap->mds_wanted) {
+		/* user space may open/close single file frequently.
+		 * This avoids droping mds_wanted immediately after
+		 * requesting new mds_wanted.
+		 */
+		__cap_set_timeouts(mdsc, ci);
+	}
 
 	cap->issued &= retain;  /* drop bits we don't want */
 	if (cap->implemented & ~cap->issued) {
@@ -2084,8 +2091,6 @@ int ceph_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 
 	dout("fsync %p%s\n", inode, datasync ? " datasync" : "");
 
-	ceph_sync_write_wait(inode);
-
 	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
 	if (ret < 0)
 		goto out;
@@ -2477,23 +2482,22 @@ again:
 
 		if (ci->i_ceph_flags & CEPH_I_CAP_DROPPED) {
 			int mds_wanted;
-			if (ACCESS_ONCE(mdsc->fsc->mount_state) ==
+			if (READ_ONCE(mdsc->fsc->mount_state) ==
 			    CEPH_MOUNT_SHUTDOWN) {
 				dout("get_cap_refs %p forced umount\n", inode);
 				*err = -EIO;
 				ret = 1;
 				goto out_unlock;
 			}
-			mds_wanted = __ceph_caps_mds_wanted(ci);
-			if ((mds_wanted & need) != need) {
+			mds_wanted = __ceph_caps_mds_wanted(ci, false);
+			if (need & ~(mds_wanted & need)) {
 				dout("get_cap_refs %p caps were dropped"
 				     " (session killed?)\n", inode);
 				*err = -ESTALE;
 				ret = 1;
 				goto out_unlock;
 			}
-			if ((mds_wanted & file_wanted) ==
-			    (file_wanted & (CEPH_CAP_FILE_RD|CEPH_CAP_FILE_WR)))
+			if (!(file_wanted & ~mds_wanted))
 				ci->i_ceph_flags &= ~CEPH_I_CAP_DROPPED;
 		}
 
@@ -3404,6 +3408,7 @@ retry:
 			tcap->implemented |= issued;
 			if (cap == ci->i_auth_cap)
 				ci->i_auth_cap = tcap;
+
 			if (!list_empty(&ci->i_cap_flush_list) &&
 			    ci->i_auth_cap == tcap) {
 				spin_lock(&mdsc->cap_dirty_lock);
@@ -3417,8 +3422,17 @@ retry:
 	} else if (tsession) {
 		/* add placeholder for the export tagert */
 		int flag = (cap == ci->i_auth_cap) ? CEPH_CAP_FLAG_AUTH : 0;
+		tcap = new_cap;
 		ceph_add_cap(inode, tsession, t_cap_id, -1, issued, 0,
 			     t_seq - 1, t_mseq, (u64)-1, flag, &new_cap);
+
+		if (!list_empty(&ci->i_cap_flush_list) &&
+		    ci->i_auth_cap == tcap) {
+			spin_lock(&mdsc->cap_dirty_lock);
+			list_move_tail(&ci->i_flushing_item,
+				       &tcap->session->s_cap_flushing);
+			spin_unlock(&mdsc->cap_dirty_lock);
+		}
 
 		__ceph_remove_cap(cap, false);
 		goto out_unlock;
@@ -3924,9 +3938,10 @@ int ceph_encode_inode_release(void **p, struct inode *inode,
 }
 
 int ceph_encode_dentry_release(void **p, struct dentry *dentry,
+			       struct inode *dir,
 			       int mds, int drop, int unless)
 {
-	struct inode *dir = d_inode(dentry->d_parent);
+	struct dentry *parent = NULL;
 	struct ceph_mds_request_release *rel = *p;
 	struct ceph_dentry_info *di = ceph_dentry(dentry);
 	int force = 0;
@@ -3941,9 +3956,14 @@ int ceph_encode_dentry_release(void **p, struct dentry *dentry,
 	spin_lock(&dentry->d_lock);
 	if (di->lease_session && di->lease_session->s_mds == mds)
 		force = 1;
+	if (!dir) {
+		parent = dget(dentry->d_parent);
+		dir = d_inode(parent);
+	}
 	spin_unlock(&dentry->d_lock);
 
 	ret = ceph_encode_inode_release(p, dir, mds, drop, unless, force);
+	dput(parent);
 
 	spin_lock(&dentry->d_lock);
 	if (ret && di->lease_session && di->lease_session->s_mds == mds) {
