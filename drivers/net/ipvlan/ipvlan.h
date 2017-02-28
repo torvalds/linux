@@ -99,6 +99,11 @@ struct ipvl_port {
 	int			count;
 };
 
+struct ipvl_skb_cb {
+	bool tx_pkt;
+};
+#define IPVL_SKB_CB(_skb) ((struct ipvl_skb_cb *)&((_skb)->cb[0]))
+
 static inline struct ipvl_port *ipvlan_port_get_rcu(const struct net_device *d)
 {
 	return rcu_dereference(d->rx_handler_data);
