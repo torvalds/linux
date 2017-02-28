@@ -590,13 +590,7 @@ int ad7879_probe(struct device *dev, struct regmap *regmap,
 
 	input_set_drvdata(input_dev, ts);
 
-	__set_bit(EV_ABS, input_dev->evbit);
-	__set_bit(ABS_X, input_dev->absbit);
-	__set_bit(ABS_Y, input_dev->absbit);
-	__set_bit(ABS_PRESSURE, input_dev->absbit);
-
-	__set_bit(EV_KEY, input_dev->evbit);
-	__set_bit(BTN_TOUCH, input_dev->keybit);
+	input_set_capability(input_dev, EV_KEY, BTN_TOUCH);
 
 	if (pdata) {
 		input_set_abs_params(input_dev, ABS_X,
@@ -614,6 +608,7 @@ int ad7879_probe(struct device *dev, struct regmap *regmap,
 	} else {
 		input_set_abs_params(input_dev, ABS_X, 0, MAX_12BIT, 0, 0);
 		input_set_abs_params(input_dev, ABS_Y, 0, MAX_12BIT, 0, 0);
+		input_set_capability(input_dev, EV_ABS, ABS_PRESSURE);
 		touchscreen_parse_properties(input_dev, false, NULL);
 		if (!input_abs_get_max(input_dev, ABS_PRESSURE)) {
 			dev_err(dev, "Touchscreen pressure is not specified\n");
