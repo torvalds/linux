@@ -1194,10 +1194,6 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 
 	tcf_exts_to_list(exts, &actions);
 	list_for_each_entry(a, &actions, list) {
-		/* Only support a single action per rule */
-		if (attr->action)
-			return -EINVAL;
-
 		if (is_tcf_gact_shot(a)) {
 			attr->action |= MLX5_FLOW_CONTEXT_ACTION_DROP;
 			if (MLX5_CAP_FLOWTABLE(priv->mdev,
