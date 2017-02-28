@@ -27,7 +27,7 @@
 #include "bpf.h"
 
 /*
- * When building perf, unistd.h is overrided. __NR_bpf is
+ * When building perf, unistd.h is overridden. __NR_bpf is
  * required to be defined explicitly.
  */
 #ifndef __NR_bpf

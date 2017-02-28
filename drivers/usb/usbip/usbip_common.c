@@ -707,7 +707,7 @@ void usbip_pad_iso(struct usbip_device *ud, struct urb *urb)
 		return;
 
 	/*
-	 * loop over all packets from last to first (to prevent overwritting
+	 * loop over all packets from last to first (to prevent overwriting
 	 * memory when padding) and move them into the proper place
 	 */
 	for (i = np-1; i > 0; i--) {

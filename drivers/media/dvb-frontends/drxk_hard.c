@@ -1626,7 +1626,7 @@ static int ctrl_power_mode(struct drxk_state *state, enum drx_power_mode *mode)
 	}
 
 	if (*mode == DRX_POWER_UP) {
-		/* Restore analog & pin configuartion */
+		/* Restore analog & pin configuration */
 	} else {
 		/* Power down to requested mode */
 		/* Backup some register settings */

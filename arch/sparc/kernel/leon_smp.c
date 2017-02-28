@@ -93,7 +93,7 @@ void leon_cpu_pre_online(void *arg)
 			     : "memory" /* paranoid */);
 
 	/* Attach to the address space of init_task. */
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 
 	while (!cpumask_test_cpu(cpuid, &smp_commenced_mask))

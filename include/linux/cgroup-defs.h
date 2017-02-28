@@ -148,14 +148,18 @@ struct cgroup_subsys_state {
  * set for a task.
  */
 struct css_set {
-	/* Reference count */
+	/*
+	 * Set of subsystem states, one for each subsystem. This array is
+	 * immutable after creation apart from the init_css_set during
+	 * subsystem registration (at boot time).
+	 */
+	struct cgroup_subsys_state *subsys[CGROUP_SUBSYS_COUNT];
+
+	/* reference count */
 	atomic_t refcount;
 
-	/*
-	 * List running through all cgroup groups in the same hash
-	 * slot. Protected by css_set_lock
-	 */
-	struct hlist_node hlist;
+	/* the default cgroup associated with this css_set */
+	struct cgroup *dfl_cgrp;
 
 	/*
 	 * Lists running through all tasks using this cgroup group.
@@ -167,21 +171,29 @@ struct css_set {
 	struct list_head tasks;
 	struct list_head mg_tasks;
 
+	/* all css_task_iters currently walking this cset */
+	struct list_head task_iters;
+
+	/*
+	 * On the default hierarhcy, ->subsys[ssid] may point to a css
+	 * attached to an ancestor instead of the cgroup this css_set is
+	 * associated with.  The following node is anchored at
+	 * ->subsys[ssid]->cgroup->e_csets[ssid] and provides a way to
+	 * iterate through all css's attached to a given cgroup.
+	 */
+	struct list_head e_cset_node[CGROUP_SUBSYS_COUNT];
+
+	/*
+	 * List running through all cgroup groups in the same hash
+	 * slot. Protected by css_set_lock
+	 */
+	struct hlist_node hlist;
+
 	/*
 	 * List of cgrp_cset_links pointing at cgroups referenced from this
 	 * css_set.  Protected by css_set_lock.
 	 */
 	struct list_head cgrp_links;
-
-	/* the default cgroup associated with this css_set */
-	struct cgroup *dfl_cgrp;
-
-	/*
-	 * Set of subsystem states, one for each subsystem. This array is
-	 * immutable after creation apart from the init_css_set during
-	 * subsystem registration (at boot time).
-	 */
-	struct cgroup_subsys_state *subsys[CGROUP_SUBSYS_COUNT];
 
 	/*
 	 * List of csets participating in the on-going migration either as
@@ -200,18 +212,6 @@ struct css_set {
 	struct cgroup *mg_src_cgrp;
 	struct cgroup *mg_dst_cgrp;
 	struct css_set *mg_dst_cset;
-
-	/*
-	 * On the default hierarhcy, ->subsys[ssid] may point to a css
-	 * attached to an ancestor instead of the cgroup this css_set is
-	 * associated with.  The following node is anchored at
-	 * ->subsys[ssid]->cgroup->e_csets[ssid] and provides a way to
-	 * iterate through all css's attached to a given cgroup.
-	 */
-	struct list_head e_cset_node[CGROUP_SUBSYS_COUNT];
-
-	/* all css_task_iters currently walking this cset */
-	struct list_head task_iters;
 
 	/* dead and being drained, ignore for migration */
 	bool dead;
@@ -387,6 +387,9 @@ struct cftype {
 	struct cgroup_subsys *ss;	/* NULL for cgroup core files */
 	struct list_head node;		/* anchored at ss->cfts */
 	struct kernfs_ops *kf_ops;
+
+	int (*open)(struct kernfs_open_file *of);
+	void (*release)(struct kernfs_open_file *of);
 
 	/*
 	 * read_u64() is a shortcut for the common case of returning a

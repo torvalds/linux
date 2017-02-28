@@ -121,7 +121,8 @@ static inline void native_pmd_clear(pmd_t *pmd)
 	*(tmp + 1) = 0;
 }
 
-#ifndef CONFIG_SMP
+#if !defined(CONFIG_SMP) || (defined(CONFIG_HIGHMEM64G) && \
+		defined(CONFIG_PARAVIRT))
 static inline void native_pud_clear(pud_t *pudp)
 {
 }
