@@ -35,6 +35,7 @@
 #include "vega10/MMHUB/mmhub_1_0_offset.h"
 #include "vega10/MMHUB/mmhub_1_0_sh_mask.h"
 #include "vega10/HDP/hdp_4_0_offset.h"
+#include "raven1/SDMA0/sdma0_4_1_default.h"
 
 #include "soc15_common.h"
 #include "soc15.h"
@@ -43,6 +44,9 @@
 MODULE_FIRMWARE("amdgpu/vega10_sdma.bin");
 MODULE_FIRMWARE("amdgpu/vega10_sdma1.bin");
 MODULE_FIRMWARE("amdgpu/raven_sdma.bin");
+
+#define SDMA0_POWER_CNTL__ON_OFF_CONDITION_HOLD_TIME_MASK  0x000000F8L
+#define SDMA0_POWER_CNTL__ON_OFF_STATUS_DURATION_TIME_MASK 0xFC000000L
 
 static void sdma_v4_0_set_ring_funcs(struct amdgpu_device *adev);
 static void sdma_v4_0_set_buffer_funcs(struct amdgpu_device *adev);
@@ -665,6 +669,47 @@ static int sdma_v4_0_gfx_resume(struct amdgpu_device *adev)
 	return 0;
 }
 
+static void sdma_v4_1_init_power_gating(struct amdgpu_device *adev)
+{
+	uint32_t def, data;
+
+	/* Enable HW based PG. */
+	def = data = RREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_POWER_CNTL));
+	data |= SDMA0_POWER_CNTL__PG_CNTL_ENABLE_MASK;
+	if (data != def)
+		WREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_POWER_CNTL), data);
+
+	/* enable interrupt */
+	def = data = RREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_CNTL));
+	data |= SDMA0_CNTL__CTXEMPTY_INT_ENABLE_MASK;
+	if (data != def)
+		WREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_CNTL), data);
+
+	/* Configure hold time to filter in-valid power on/off request. Use default right now */
+	def = data = RREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_POWER_CNTL));
+	data &= ~SDMA0_POWER_CNTL__ON_OFF_CONDITION_HOLD_TIME_MASK;
+	data |= (mmSDMA0_POWER_CNTL_DEFAULT & SDMA0_POWER_CNTL__ON_OFF_CONDITION_HOLD_TIME_MASK);
+	/* Configure switch time for hysteresis purpose. Use default right now */
+	data &= ~SDMA0_POWER_CNTL__ON_OFF_STATUS_DURATION_TIME_MASK;
+	data |= (mmSDMA0_POWER_CNTL_DEFAULT & SDMA0_POWER_CNTL__ON_OFF_STATUS_DURATION_TIME_MASK);
+	if(data != def)
+		WREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_POWER_CNTL), data);
+}
+
+static void sdma_v4_0_init_pg(struct amdgpu_device *adev)
+{
+	if (!(adev->pg_flags & AMD_PG_SUPPORT_SDMA))
+		return;
+
+	switch (adev->asic_type) {
+	case CHIP_RAVEN:
+		sdma_v4_1_init_power_gating(adev);
+		break;
+	default:
+		break;
+	}
+}
+
 /**
  * sdma_v4_0_rlc_resume - setup and start the async dma engines
  *
@@ -675,7 +720,8 @@ static int sdma_v4_0_gfx_resume(struct amdgpu_device *adev)
  */
 static int sdma_v4_0_rlc_resume(struct amdgpu_device *adev)
 {
-	/* XXX todo */
+	sdma_v4_0_init_pg(adev);
+
 	return 0;
 }
 
