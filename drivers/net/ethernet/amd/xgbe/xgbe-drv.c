@@ -1131,11 +1131,11 @@ static void xgbe_stop(struct xgbe_prv_data *pdata)
 	hw_if->disable_tx(pdata);
 	hw_if->disable_rx(pdata);
 
+	phy_if->phy_stop(pdata);
+
 	xgbe_free_irqs(pdata);
 
 	xgbe_napi_disable(pdata, 1);
-
-	phy_if->phy_stop(pdata);
 
 	hw_if->exit(pdata);
 
