@@ -197,11 +197,11 @@ static void gmc_v9_0_gart_flush_gpu_tlb(struct amdgpu_device *adev,
 		struct amdgpu_vmhub *hub = &adev->vmhub[i];
 		u32 tmp = hub->get_invalidate_req(vmid);
 
-		WREG32(hub->vm_inv_eng0_req + eng, tmp);
+		WREG32_NO_KIQ(hub->vm_inv_eng0_req + eng, tmp);
 
 		/* Busy wait for ACK.*/
 		for (j = 0; j < 100; j++) {
-			tmp = RREG32(hub->vm_inv_eng0_ack + eng);
+			tmp = RREG32_NO_KIQ(hub->vm_inv_eng0_ack + eng);
 			tmp &= 1 << vmid;
 			if (tmp)
 				break;
@@ -212,7 +212,7 @@ static void gmc_v9_0_gart_flush_gpu_tlb(struct amdgpu_device *adev,
 
 		/* Wait for ACK with a delay.*/
 		for (j = 0; j < adev->usec_timeout; j++) {
-			tmp = RREG32(hub->vm_inv_eng0_ack + eng);
+			tmp = RREG32_NO_KIQ(hub->vm_inv_eng0_ack + eng);
 			tmp &= 1 << vmid;
 			if (tmp)
 				break;
