@@ -973,11 +973,20 @@ static int intel_pstate_resume(struct cpufreq_policy *policy)
 }
 
 static void intel_pstate_update_policies(void)
+	__releases(&intel_pstate_limits_lock)
+	__acquires(&intel_pstate_limits_lock)
 {
+	struct perf_limits *saved_limits = limits;
 	int cpu;
+
+	mutex_unlock(&intel_pstate_limits_lock);
 
 	for_each_possible_cpu(cpu)
 		cpufreq_update_policy(cpu);
+
+	mutex_lock(&intel_pstate_limits_lock);
+
+	limits = saved_limits;
 }
 
 /************************** debugfs begin ************************/
@@ -1185,9 +1194,9 @@ static ssize_t store_no_turbo(struct kobject *a, struct attribute *b,
 
 	limits->no_turbo = clamp_t(int, input, 0, 1);
 
-	mutex_unlock(&intel_pstate_limits_lock);
-
 	intel_pstate_update_policies();
+
+	mutex_unlock(&intel_pstate_limits_lock);
 
 	mutex_unlock(&intel_pstate_driver_lock);
 
@@ -1222,9 +1231,9 @@ static ssize_t store_max_perf_pct(struct kobject *a, struct attribute *b,
 				   limits->max_perf_pct);
 	limits->max_perf = div_ext_fp(limits->max_perf_pct, 100);
 
-	mutex_unlock(&intel_pstate_limits_lock);
-
 	intel_pstate_update_policies();
+
+	mutex_unlock(&intel_pstate_limits_lock);
 
 	mutex_unlock(&intel_pstate_driver_lock);
 
@@ -1259,9 +1268,9 @@ static ssize_t store_min_perf_pct(struct kobject *a, struct attribute *b,
 				   limits->min_perf_pct);
 	limits->min_perf = div_ext_fp(limits->min_perf_pct, 100);
 
-	mutex_unlock(&intel_pstate_limits_lock);
-
 	intel_pstate_update_policies();
+
+	mutex_unlock(&intel_pstate_limits_lock);
 
 	mutex_unlock(&intel_pstate_driver_lock);
 
