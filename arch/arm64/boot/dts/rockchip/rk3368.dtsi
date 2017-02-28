@@ -1237,6 +1237,28 @@
 			};
 		};
 
+		pwm0 {
+			pwm0_pin: pwm0-pin {
+				rockchip,pins = <3 8 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			vop_pwm_pin: vop-pwm {
+				rockchip,pins = <3 8 RK_FUNC_3 &pcfg_pull_none>;
+			};
+		};
+
+		pwm1 {
+			pwm1_pin: pwm1-pin {
+				rockchip,pins = <0 8 RK_FUNC_2 &pcfg_pull_none>;
+			};
+		};
+
+		pwm3 {
+			pwm3_pin: pwm3-pin {
+				rockchip,pins = <3 29 RK_FUNC_3 &pcfg_pull_none>;
+			};
+		};
+
 		sdio0 {
 			sdio0_bus1: sdio0-bus1 {
 				rockchip,pins = <2 28 RK_FUNC_1 &pcfg_pull_up>;
@@ -1429,28 +1451,6 @@
 
 			uart4_rts: uart4-rts {
 				rockchip,pins = <0 25 RK_FUNC_3 &pcfg_pull_none>;
-			};
-		};
-
-		pwm0 {
-			pwm0_pin: pwm0-pin {
-				rockchip,pins = <3 8 RK_FUNC_2 &pcfg_pull_none>;
-			};
-
-			vop_pwm_pin: vop-pwm {
-				rockchip,pins = <3 8 RK_FUNC_3 &pcfg_pull_none>;
-			};
-		};
-
-		pwm1 {
-			pwm1_pin: pwm1-pin {
-				rockchip,pins = <0 8 RK_FUNC_2 &pcfg_pull_none>;
-			};
-		};
-
-		pwm3 {
-			pwm3_pin: pwm3-pin {
-				rockchip,pins = <3 29 RK_FUNC_3 &pcfg_pull_none>;
 			};
 		};
 
