@@ -2080,7 +2080,7 @@ static int isp_fwnode_parse(struct device *dev, struct fwnode_handle *fwnode,
 	default:
 		dev_warn(dev, "%s: invalid interface %u\n",
 			 to_of_node(fwnode)->full_name, vep.base.port);
-		break;
+		return -EINVAL;
 	}
 
 	return 0;
