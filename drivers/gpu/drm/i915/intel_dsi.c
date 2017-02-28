@@ -505,32 +505,6 @@ static void intel_dsi_port_disable(struct intel_encoder *encoder)
 	}
 }
 
-static void intel_dsi_enable(struct intel_encoder *encoder)
-{
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
-	enum port port;
-
-	DRM_DEBUG_KMS("\n");
-
-	if (is_cmd_mode(intel_dsi)) {
-		for_each_dsi_port(port, intel_dsi->ports)
-			I915_WRITE(MIPI_MAX_RETURN_PKT_SIZE(port), 8 * 4);
-	} else {
-		msleep(20); /* XXX */
-		for_each_dsi_port(port, intel_dsi->ports)
-			dpi_send_cmd(intel_dsi, TURN_ON, false, port);
-		msleep(100);
-
-		drm_panel_enable(intel_dsi->panel);
-
-		intel_dsi_port_enable(encoder);
-	}
-
-	intel_panel_enable_backlight(intel_dsi->attached_connector);
-}
-
 static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 			      struct intel_crtc_state *pipe_config);
 
@@ -540,6 +514,7 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	enum port port;
 	u32 val;
 
 	DRM_DEBUG_KMS("\n");
@@ -586,7 +561,21 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 
 	/* Enable port in pre-enable phase itself because as per hw team
 	 * recommendation, port should be enabled befor plane & pipe */
-	intel_dsi_enable(encoder);
+	if (is_cmd_mode(intel_dsi)) {
+		for_each_dsi_port(port, intel_dsi->ports)
+			I915_WRITE(MIPI_MAX_RETURN_PKT_SIZE(port), 8 * 4);
+	} else {
+		msleep(20); /* XXX */
+		for_each_dsi_port(port, intel_dsi->ports)
+			dpi_send_cmd(intel_dsi, TURN_ON, false, port);
+		msleep(100);
+
+		drm_panel_enable(intel_dsi->panel);
+
+		intel_dsi_port_enable(encoder);
+	}
+
+	intel_panel_enable_backlight(intel_dsi->attached_connector);
 }
 
 static void intel_dsi_enable_nop(struct intel_encoder *encoder,
@@ -629,42 +618,6 @@ static void intel_dsi_pre_disable(struct intel_encoder *encoder,
 			dpi_send_cmd(intel_dsi, SHUTDOWN, false, port);
 		msleep(10);
 	}
-}
-
-static void intel_dsi_disable(struct intel_encoder *encoder)
-{
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
-	enum port port;
-	u32 temp;
-
-	DRM_DEBUG_KMS("\n");
-
-	if (is_vid_mode(intel_dsi)) {
-		for_each_dsi_port(port, intel_dsi->ports)
-			wait_for_dsi_fifo_empty(intel_dsi, port);
-
-		intel_dsi_port_disable(encoder);
-		msleep(2);
-	}
-
-	for_each_dsi_port(port, intel_dsi->ports) {
-		/* Panel commands can be sent when clock is in LP11 */
-		I915_WRITE(MIPI_DEVICE_READY(port), 0x0);
-
-		intel_dsi_reset_clocks(encoder, port);
-		I915_WRITE(MIPI_EOT_DISABLE(port), CLOCKSTOP);
-
-		temp = I915_READ(MIPI_DSI_FUNC_PRG(port));
-		temp &= ~VID_MODE_FORMAT_MASK;
-		I915_WRITE(MIPI_DSI_FUNC_PRG(port), temp);
-
-		I915_WRITE(MIPI_DEVICE_READY(port), 0x1);
-	}
-	/* if disable packets are sent before sending shutdown packet then in
-	 * some next enable sequence send turn on packet error is observed */
-	drm_panel_disable(intel_dsi->panel);
 }
 
 static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
@@ -716,11 +669,38 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	enum port port;
 	u32 val;
 
 	DRM_DEBUG_KMS("\n");
 
-	intel_dsi_disable(encoder);
+	if (is_vid_mode(intel_dsi)) {
+		for_each_dsi_port(port, intel_dsi->ports)
+			wait_for_dsi_fifo_empty(intel_dsi, port);
+
+		intel_dsi_port_disable(encoder);
+		usleep_range(2000, 5000);
+	}
+
+	for_each_dsi_port(port, intel_dsi->ports) {
+		/* Panel commands can be sent when clock is in LP11 */
+		I915_WRITE(MIPI_DEVICE_READY(port), 0x0);
+
+		intel_dsi_reset_clocks(encoder, port);
+		I915_WRITE(MIPI_EOT_DISABLE(port), CLOCKSTOP);
+
+		val = I915_READ(MIPI_DSI_FUNC_PRG(port));
+		val &= ~VID_MODE_FORMAT_MASK;
+		I915_WRITE(MIPI_DSI_FUNC_PRG(port), val);
+
+		I915_WRITE(MIPI_DEVICE_READY(port), 0x1);
+	}
+
+	/*
+	 * if disable packets are sent before sending shutdown packet then in
+	 * some next enable sequence send turn on packet error is observed
+	 */
+	drm_panel_disable(intel_dsi->panel);
 
 	intel_dsi_clear_device_ready(encoder);
 
