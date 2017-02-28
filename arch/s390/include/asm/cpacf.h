@@ -129,6 +129,8 @@
 #define CPACF_PRNO_QUERY		0x00
 #define CPACF_PRNO_SHA512_DRNG_GEN	0x03
 #define CPACF_PRNO_SHA512_DRNG_SEED	0x83
+#define CPACF_PRNO_TRNG_Q_R2C_RATIO	0x70
+#define CPACF_PRNO_TRNG			0x72
 
 typedef struct { unsigned char bytes[16]; } cpacf_mask_t;
 
@@ -383,8 +385,8 @@ static inline int cpacf_kmctr(unsigned long func, void *param, u8 *dest,
  * @seed_len: size of seed data in bytes
  */
 static inline void cpacf_prno(unsigned long func, void *param,
-			      u8 *dest, long dest_len,
-			      const u8 *seed, long seed_len)
+			      u8 *dest, unsigned long dest_len,
+			      const u8 *seed, unsigned long seed_len)
 {
 	register unsigned long r0 asm("0") = (unsigned long) func;
 	register unsigned long r1 asm("1") = (unsigned long) param;
@@ -399,6 +401,31 @@ static inline void cpacf_prno(unsigned long func, void *param,
 		: [dst] "+a" (r2), [dlen] "+d" (r3)
 		: [fc] "d" (r0), [pba] "a" (r1),
 		  [seed] "a" (r4), [slen] "d" (r5), [opc] "i" (CPACF_PRNO)
+		: "cc", "memory");
+}
+
+/**
+ * cpacf_trng() - executes the TRNG subfunction of the PRNO instruction
+ * @ucbuf: buffer for unconditioned data
+ * @ucbuf_len: amount of unconditioned data to fetch in bytes
+ * @cbuf: buffer for conditioned data
+ * @cbuf_len: amount of conditioned data to fetch in bytes
+ */
+static inline void cpacf_trng(u8 *ucbuf, unsigned long ucbuf_len,
+			      u8 *cbuf, unsigned long cbuf_len)
+{
+	register unsigned long r0 asm("0") = (unsigned long) CPACF_PRNO_TRNG;
+	register unsigned long r2 asm("2") = (unsigned long) ucbuf;
+	register unsigned long r3 asm("3") = (unsigned long) ucbuf_len;
+	register unsigned long r4 asm("4") = (unsigned long) cbuf;
+	register unsigned long r5 asm("5") = (unsigned long) cbuf_len;
+
+	asm volatile (
+		"0:	.insn	rre,%[opc] << 16,%[ucbuf],%[cbuf]\n"
+		"	brc	1,0b\n"	  /* handle partial completion */
+		: [ucbuf] "+a" (r2), [ucbuflen] "+d" (r3),
+		  [cbuf] "+a" (r4), [cbuflen] "+d" (r5)
+		: [fc] "d" (r0), [opc] "i" (CPACF_PRNO)
 		: "cc", "memory");
 }
 
