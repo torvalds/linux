@@ -1496,7 +1496,7 @@ config BCM63XX_WDT
 
 config BCM2835_WDT
 	tristate "Broadcom BCM2835 hardware watchdog"
-	depends on ARCH_BCM2835 || COMPILE_TEST
+	depends on ARCH_BCM2835 || (OF && COMPILE_TEST)
 	select WATCHDOG_CORE
 	help
 	  Watchdog driver for the built in watchdog hardware in Broadcom
