@@ -686,6 +686,8 @@ struct tegra_periph_init_data {
 struct tegra_clk_super_mux {
 	struct clk_hw	hw;
 	void __iomem	*reg;
+	struct tegra_clk_frac_div frac_div;
+	const struct clk_ops	*div_ops;
 	u8		width;
 	u8		flags;
 	u8		div2_index;
@@ -702,7 +704,10 @@ struct clk *tegra_clk_register_super_mux(const char *name,
 		const char **parent_names, u8 num_parents,
 		unsigned long flags, void __iomem *reg, u8 clk_super_flags,
 		u8 width, u8 pllx_index, u8 div2_index, spinlock_t *lock);
-
+struct clk *tegra_clk_register_super_clk(const char *name,
+		const char * const *parent_names, u8 num_parents,
+		unsigned long flags, void __iomem *reg, u8 clk_super_flags,
+		spinlock_t *lock);
 /**
  * struct clk_init_table - clock initialization table
  * @clk_id:	clock id as mentioned in device tree bindings
