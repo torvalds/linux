@@ -1477,7 +1477,25 @@ static void make_request(struct mddev *mddev, struct bio *bio)
 			split = bio;
 		}
 
+		/*
+		 * If a bio is splitted, the first part of bio will pass
+		 * barrier but the bio is queued in current->bio_list (see
+		 * generic_make_request). If there is a raise_barrier() called
+		 * here, the second part of bio can't pass barrier. But since
+		 * the first part bio isn't dispatched to underlaying disks
+		 * yet, the barrier is never released, hence raise_barrier will
+		 * alays wait. We have a deadlock.
+		 * Note, this only happens in read path. For write path, the
+		 * first part of bio is dispatched in a schedule() call
+		 * (because of blk plug) or offloaded to raid10d.
+		 * Quitting from the function immediately can change the bio
+		 * order queued in bio_list and avoid the deadlock.
+		 */
 		__make_request(mddev, split);
+		if (split != bio && bio_data_dir(bio) == READ) {
+			generic_make_request(bio);
+			break;
+		}
 	} while (split != bio);
 
 	/* In case raid10d snuck in to freeze_array */
