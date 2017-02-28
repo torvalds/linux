@@ -483,5 +483,5 @@ static struct pci_driver exar_pci_driver = {
 module_pci_driver(exar_pci_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Exar Serial Dricer");
+MODULE_DESCRIPTION("Exar Serial Driver");
 MODULE_AUTHOR("Sudip Mukherjee <sudip.mukherjee@codethink.co.uk>");
