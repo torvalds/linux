@@ -592,11 +592,11 @@ kvmppc_hv_entry:
 
 	/* Clear out SLB */
 BEGIN_FTR_SECTION
-	li	r5,31
+	li	r7,31
 	li	r6,0
-	mtctr	r5
-1:	slbmte	r6,r5
-	subi	r5,r5,1
+	mtctr	r7
+1:	slbmte	r6,r7
+	subi	r7,r7,1
 	bdnz	1b
 END_FTR_SECTION_IFSET(CPU_FTR_POWER9_DD1)
 	li	r6,0
