@@ -42,6 +42,7 @@
 
 #include <dt-bindings/pwm/pwm.h>
 #include "rk3368.dtsi"
+#include "rk3368-android.dtsi"
 
 / {
 	compatible = "rockchip,tb", "rockchip,rk3368";
