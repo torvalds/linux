@@ -500,30 +500,40 @@ static int
 mlxsw_sp_vr_lpm_tree_check(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_vr *vr,
 			   struct mlxsw_sp_prefix_usage *req_prefix_usage)
 {
-	struct mlxsw_sp_lpm_tree *lpm_tree;
+	struct mlxsw_sp_lpm_tree *lpm_tree = vr->lpm_tree;
+	struct mlxsw_sp_lpm_tree *new_tree;
+	int err;
 
-	if (mlxsw_sp_prefix_usage_eq(req_prefix_usage,
-				     &vr->lpm_tree->prefix_usage))
+	if (mlxsw_sp_prefix_usage_eq(req_prefix_usage, &lpm_tree->prefix_usage))
 		return 0;
 
-	lpm_tree = mlxsw_sp_lpm_tree_get(mlxsw_sp, req_prefix_usage,
+	new_tree = mlxsw_sp_lpm_tree_get(mlxsw_sp, req_prefix_usage,
 					 vr->proto, false);
-	if (IS_ERR(lpm_tree)) {
+	if (IS_ERR(new_tree)) {
 		/* We failed to get a tree according to the required
 		 * prefix usage. However, the current tree might be still good
 		 * for us if our requirement is subset of the prefixes used
 		 * in the tree.
 		 */
 		if (mlxsw_sp_prefix_usage_subset(req_prefix_usage,
-						 &vr->lpm_tree->prefix_usage))
+						 &lpm_tree->prefix_usage))
 			return 0;
-		return PTR_ERR(lpm_tree);
+		return PTR_ERR(new_tree);
 	}
 
-	mlxsw_sp_vr_lpm_tree_unbind(mlxsw_sp, vr);
-	mlxsw_sp_lpm_tree_put(mlxsw_sp, vr->lpm_tree);
+	/* Prevent packet loss by overwriting existing binding */
+	vr->lpm_tree = new_tree;
+	err = mlxsw_sp_vr_lpm_tree_bind(mlxsw_sp, vr);
+	if (err)
+		goto err_tree_bind;
+	mlxsw_sp_lpm_tree_put(mlxsw_sp, lpm_tree);
+
+	return 0;
+
+err_tree_bind:
 	vr->lpm_tree = lpm_tree;
-	return mlxsw_sp_vr_lpm_tree_bind(mlxsw_sp, vr);
+	mlxsw_sp_lpm_tree_put(mlxsw_sp, new_tree);
+	return err;
 }
 
 static struct mlxsw_sp_vr *mlxsw_sp_vr_get(struct mlxsw_sp *mlxsw_sp,
