@@ -4884,6 +4884,39 @@ void __napi_schedule(struct napi_struct *n)
 EXPORT_SYMBOL(__napi_schedule);
 
 /**
+ *	napi_schedule_prep - check if napi can be scheduled
+ *	@n: napi context
+ *
+ * Test if NAPI routine is already running, and if not mark
+ * it as running.  This is used as a condition variable
+ * insure only one NAPI poll instance runs.  We also make
+ * sure there is no pending NAPI disable.
+ */
+bool napi_schedule_prep(struct napi_struct *n)
+{
+	unsigned long val, new;
+
+	do {
+		val = READ_ONCE(n->state);
+		if (unlikely(val & NAPIF_STATE_DISABLE))
+			return false;
+		new = val | NAPIF_STATE_SCHED;
+
+		/* Sets STATE_MISSED bit if STATE_SCHED was already set
+		 * This was suggested by Alexander Duyck, as compiler
+		 * emits better code than :
+		 * if (val & NAPIF_STATE_SCHED)
+		 *     new |= NAPIF_STATE_MISSED;
+		 */
+		new |= (val & NAPIF_STATE_SCHED) / NAPIF_STATE_SCHED *
+						   NAPIF_STATE_MISSED;
+	} while (cmpxchg(&n->state, val, new) != val);
+
+	return !(val & NAPIF_STATE_SCHED);
+}
+EXPORT_SYMBOL(napi_schedule_prep);
+
+/**
  * __napi_schedule_irqoff - schedule for receive
  * @n: entry to schedule
  *
@@ -4897,7 +4930,7 @@ EXPORT_SYMBOL(__napi_schedule_irqoff);
 
 bool napi_complete_done(struct napi_struct *n, int work_done)
 {
-	unsigned long flags;
+	unsigned long flags, val, new;
 
 	/*
 	 * 1) Don't let napi dequeue from the cpu poll list
@@ -4927,7 +4960,27 @@ bool napi_complete_done(struct napi_struct *n, int work_done)
 		list_del_init(&n->poll_list);
 		local_irq_restore(flags);
 	}
-	WARN_ON_ONCE(!test_and_clear_bit(NAPI_STATE_SCHED, &n->state));
+
+	do {
+		val = READ_ONCE(n->state);
+
+		WARN_ON_ONCE(!(val & NAPIF_STATE_SCHED));
+
+		new = val & ~(NAPIF_STATE_MISSED | NAPIF_STATE_SCHED);
+
+		/* If STATE_MISSED was set, leave STATE_SCHED set,
+		 * because we will call napi->poll() one more time.
+		 * This C code was suggested by Alexander Duyck to help gcc.
+		 */
+		new |= (val & NAPIF_STATE_MISSED) / NAPIF_STATE_MISSED *
+						    NAPIF_STATE_SCHED;
+	} while (cmpxchg(&n->state, val, new) != val);
+
+	if (unlikely(val & NAPIF_STATE_MISSED)) {
+		__napi_schedule(n);
+		return false;
+	}
+
 	return true;
 }
 EXPORT_SYMBOL(napi_complete_done);
@@ -4953,6 +5006,16 @@ static void busy_poll_stop(struct napi_struct *napi, void *have_poll_lock)
 {
 	int rc;
 
+	/* Busy polling means there is a high chance device driver hard irq
+	 * could not grab NAPI_STATE_SCHED, and that NAPI_STATE_MISSED was
+	 * set in napi_schedule_prep().
+	 * Since we are about to call napi->poll() once more, we can safely
+	 * clear NAPI_STATE_MISSED.
+	 *
+	 * Note: x86 could use a single "lock and ..." instruction
+	 * to perform these two clear_bit()
+	 */
+	clear_bit(NAPI_STATE_MISSED, &napi->state);
 	clear_bit(NAPI_STATE_IN_BUSY_POLL, &napi->state);
 
 	local_bh_disable();
@@ -5088,8 +5151,13 @@ static enum hrtimer_restart napi_watchdog(struct hrtimer *timer)
 	struct napi_struct *napi;
 
 	napi = container_of(timer, struct napi_struct, timer);
-	if (napi->gro_list)
-		napi_schedule_irqoff(napi);
+
+	/* Note : we use a relaxed variant of napi_schedule_prep() not setting
+	 * NAPI_STATE_MISSED, since we do not react to a device IRQ.
+	 */
+	if (napi->gro_list && !napi_disable_pending(napi) &&
+	    !test_and_set_bit(NAPI_STATE_SCHED, &napi->state))
+		__napi_schedule_irqoff(napi);
 
 	return HRTIMER_NORESTART;
 }
