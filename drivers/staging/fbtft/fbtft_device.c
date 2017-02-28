@@ -1448,11 +1448,10 @@ static int __init fbtft_device_init(void)
 	if (fbtft_device_param_gpios[0].name[0])
 		gpio = fbtft_device_param_gpios;
 
-	if (verbose > 2)
+	if (verbose > 2) {
 		pr_spi_devices(); /* print list of registered SPI devices */
-
-	if (verbose > 2)
 		pr_p_devices(); /* print list of 'fb' platform devices */
+	}
 
 	pr_debug("name='%s', busnum=%d, cs=%d\n", name, busnum, cs);
 
