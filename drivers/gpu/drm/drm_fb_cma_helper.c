@@ -102,7 +102,7 @@ void drm_fb_cma_destroy(struct drm_framebuffer *fb)
 
 	for (i = 0; i < 4; i++) {
 		if (fb_cma->obj[i])
-			drm_gem_object_unreference_unlocked(&fb_cma->obj[i]->base);
+			drm_gem_object_put_unlocked(&fb_cma->obj[i]->base);
 	}
 
 	drm_framebuffer_cleanup(fb);
@@ -190,7 +190,7 @@ struct drm_framebuffer *drm_fb_cma_create_with_funcs(struct drm_device *dev,
 		if (!obj) {
 			dev_err(dev->dev, "Failed to lookup GEM object\n");
 			ret = -ENXIO;
-			goto err_gem_object_unreference;
+			goto err_gem_object_put;
 		}
 
 		min_size = (height - 1) * mode_cmd->pitches[i]
@@ -198,9 +198,9 @@ struct drm_framebuffer *drm_fb_cma_create_with_funcs(struct drm_device *dev,
 			 + mode_cmd->offsets[i];
 
 		if (obj->size < min_size) {
-			drm_gem_object_unreference_unlocked(obj);
+			drm_gem_object_put_unlocked(obj);
 			ret = -EINVAL;
-			goto err_gem_object_unreference;
+			goto err_gem_object_put;
 		}
 		objs[i] = to_drm_gem_cma_obj(obj);
 	}
@@ -208,14 +208,14 @@ struct drm_framebuffer *drm_fb_cma_create_with_funcs(struct drm_device *dev,
 	fb_cma = drm_fb_cma_alloc(dev, mode_cmd, objs, i, funcs);
 	if (IS_ERR(fb_cma)) {
 		ret = PTR_ERR(fb_cma);
-		goto err_gem_object_unreference;
+		goto err_gem_object_put;
 	}
 
 	return &fb_cma->fb;
 
-err_gem_object_unreference:
+err_gem_object_put:
 	for (i--; i >= 0; i--)
-		drm_gem_object_unreference_unlocked(&objs[i]->base);
+		drm_gem_object_put_unlocked(&objs[i]->base);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(drm_fb_cma_create_with_funcs);
@@ -477,7 +477,7 @@ err_cma_destroy:
 err_fb_info_destroy:
 	drm_fb_helper_fini(helper);
 err_gem_free_object:
-	drm_gem_object_unreference_unlocked(&obj->base);
+	drm_gem_object_put_unlocked(&obj->base);
 	return ret;
 }
 
