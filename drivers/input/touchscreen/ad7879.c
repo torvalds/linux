@@ -560,11 +560,10 @@ int ad7879_probe(struct device *dev, struct regmap *regmap,
 		ts->averaging = pdata->averaging;
 		ts->pen_down_acc_interval = pdata->pen_down_acc_interval;
 		ts->median = pdata->median;
-	} else if (dev->of_node) {
-		ad7879_parse_dt(dev, ts);
 	} else {
-		dev_err(dev, "No platform data\n");
-		return -EINVAL;
+		err = ad7879_parse_dt(dev, ts);
+		if (err)
+			return err;
 	}
 
 	input_dev = devm_input_allocate_device(dev);
