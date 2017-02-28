@@ -171,6 +171,7 @@ static struct drm_conn_prop_enum_list drm_connector_enum_list[] = {
 };
 
 DRM_ENUM_NAME_FN(drm_get_connector_name, drm_connector_enum_list)
+EXPORT_SYMBOL(drm_get_connector_name);
 
 static const struct drm_prop_enum_list drm_encoder_enum_list[] = {
 	{ DRM_MODE_ENCODER_NONE, "None" },
