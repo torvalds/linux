@@ -669,6 +669,27 @@ static int sdma_v4_0_gfx_resume(struct amdgpu_device *adev)
 	return 0;
 }
 
+static void
+sdma_v4_1_update_power_gating(struct amdgpu_device *adev, bool enable)
+{
+	uint32_t def, data;
+
+	if (enable && (adev->pg_flags & AMD_PG_SUPPORT_SDMA)) {
+		/* disable idle interrupt */
+		def = data = RREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_CNTL));
+		data |= SDMA0_CNTL__CTXEMPTY_INT_ENABLE_MASK;
+
+		if (data != def)
+			WREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_CNTL), data);
+	} else {
+		/* disable idle interrupt */
+		def = data = RREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_CNTL));
+		data &= ~SDMA0_CNTL__CTXEMPTY_INT_ENABLE_MASK;
+		if (data != def)
+			WREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_CNTL), data);
+	}
+}
+
 static void sdma_v4_1_init_power_gating(struct amdgpu_device *adev)
 {
 	uint32_t def, data;
@@ -704,6 +725,7 @@ static void sdma_v4_0_init_pg(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
 		sdma_v4_1_init_power_gating(adev);
+		sdma_v4_1_update_power_gating(adev, true);
 		break;
 	default:
 		break;
@@ -1502,6 +1524,17 @@ static int sdma_v4_0_set_clockgating_state(void *handle,
 static int sdma_v4_0_set_powergating_state(void *handle,
 					  enum amd_powergating_state state)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	switch (adev->asic_type) {
+	case CHIP_RAVEN:
+		sdma_v4_1_update_power_gating(adev,
+				state == AMD_PG_STATE_GATE ? true : false);
+		break;
+	default:
+		break;
+	}
+
 	return 0;
 }
 
