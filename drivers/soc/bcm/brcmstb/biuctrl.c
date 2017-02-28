@@ -49,17 +49,23 @@ static inline void cbc_writel(u32 val, int reg)
 
 enum cpubiuctrl_regs {
 	CPU_CREDIT_REG = 0,
+	CPU_MCP_FLOW_REG,
+	CPU_WRITEBACK_CTRL_REG
 };
 
 static const int b15_cpubiuctrl_regs[] = {
 	[CPU_CREDIT_REG] = 0x184,
+	[CPU_MCP_FLOW_REG] = -1,
+	[CPU_WRITEBACK_CTRL_REG] = -1,
 };
 
 static const int b53_cpubiuctrl_regs[] = {
 	[CPU_CREDIT_REG] = 0x0b0,
+	[CPU_MCP_FLOW_REG] = 0x0b4,
+	[CPU_WRITEBACK_CTRL_REG] = 0x22c,
 };
 
-#define NUM_CPU_BIUCTRL_REGS	1
+#define NUM_CPU_BIUCTRL_REGS	3
 
 static int __init mcp_write_pairing_set(void)
 {
