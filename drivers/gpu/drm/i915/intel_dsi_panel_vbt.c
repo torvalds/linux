@@ -426,10 +426,9 @@ static const char *sequence_name(enum mipi_seq seq_id)
 		return "(unknown)";
 }
 
-static void generic_exec_sequence(struct drm_panel *panel, enum mipi_seq seq_id)
+void intel_dsi_exec_vbt_sequence(struct intel_dsi *intel_dsi,
+				 enum mipi_seq seq_id)
 {
-	struct vbt_panel *vbt_panel = to_vbt_panel(panel);
-	struct intel_dsi *intel_dsi = vbt_panel->intel_dsi;
 	struct drm_i915_private *dev_priv = to_i915(intel_dsi->base.base.dev);
 	const u8 *data;
 	fn_mipi_elem_exec mipi_elem_exec;
@@ -493,40 +492,6 @@ static void generic_exec_sequence(struct drm_panel *panel, enum mipi_seq seq_id)
 	}
 }
 
-static int vbt_panel_prepare(struct drm_panel *panel)
-{
-	generic_exec_sequence(panel, MIPI_SEQ_ASSERT_RESET);
-	generic_exec_sequence(panel, MIPI_SEQ_POWER_ON);
-	generic_exec_sequence(panel, MIPI_SEQ_DEASSERT_RESET);
-	generic_exec_sequence(panel, MIPI_SEQ_INIT_OTP);
-
-	return 0;
-}
-
-static int vbt_panel_unprepare(struct drm_panel *panel)
-{
-	generic_exec_sequence(panel, MIPI_SEQ_ASSERT_RESET);
-	generic_exec_sequence(panel, MIPI_SEQ_POWER_OFF);
-
-	return 0;
-}
-
-static int vbt_panel_enable(struct drm_panel *panel)
-{
-	generic_exec_sequence(panel, MIPI_SEQ_DISPLAY_ON);
-	generic_exec_sequence(panel, MIPI_SEQ_BACKLIGHT_ON);
-
-	return 0;
-}
-
-static int vbt_panel_disable(struct drm_panel *panel)
-{
-	generic_exec_sequence(panel, MIPI_SEQ_BACKLIGHT_OFF);
-	generic_exec_sequence(panel, MIPI_SEQ_DISPLAY_OFF);
-
-	return 0;
-}
-
 static int vbt_panel_get_modes(struct drm_panel *panel)
 {
 	struct vbt_panel *vbt_panel = to_vbt_panel(panel);
@@ -550,10 +515,6 @@ static int vbt_panel_get_modes(struct drm_panel *panel)
 }
 
 static const struct drm_panel_funcs vbt_panel_funcs = {
-	.disable = vbt_panel_disable,
-	.unprepare = vbt_panel_unprepare,
-	.prepare = vbt_panel_prepare,
-	.enable = vbt_panel_enable,
 	.get_modes = vbt_panel_get_modes,
 };
 

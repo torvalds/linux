@@ -132,6 +132,9 @@ static inline struct intel_dsi *enc_to_intel_dsi(struct drm_encoder *encoder)
 
 void wait_for_dsi_fifo_empty(struct intel_dsi *intel_dsi, enum port port);
 
+void intel_dsi_exec_vbt_sequence(struct intel_dsi *intel_dsi,
+				 enum mipi_seq seq_id);
+
 bool intel_dsi_pll_is_enabled(struct drm_i915_private *dev_priv);
 int intel_compute_dsi_pll(struct intel_encoder *encoder,
 			  struct intel_crtc_state *config);
