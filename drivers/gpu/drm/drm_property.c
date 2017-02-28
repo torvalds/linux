@@ -597,7 +597,7 @@ void drm_property_unreference_blob(struct drm_property_blob *blob)
 	if (!blob)
 		return;
 
-	drm_mode_object_unreference(&blob->base);
+	drm_mode_object_put(&blob->base);
 }
 EXPORT_SYMBOL(drm_property_unreference_blob);
 
@@ -625,7 +625,7 @@ void drm_property_destroy_user_blobs(struct drm_device *dev,
  */
 struct drm_property_blob *drm_property_reference_blob(struct drm_property_blob *blob)
 {
-	drm_mode_object_reference(&blob->base);
+	drm_mode_object_get(&blob->base);
 	return blob;
 }
 EXPORT_SYMBOL(drm_property_reference_blob);
@@ -906,7 +906,7 @@ void drm_property_change_valid_put(struct drm_property *property,
 		return;
 
 	if (drm_property_type_is(property, DRM_MODE_PROP_OBJECT)) {
-		drm_mode_object_unreference(ref);
+		drm_mode_object_put(ref);
 	} else if (drm_property_type_is(property, DRM_MODE_PROP_BLOB))
 		drm_property_unreference_blob(obj_to_blob(ref));
 }

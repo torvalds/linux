@@ -2238,13 +2238,13 @@ retry:
 		}
 
 		if (!obj->properties) {
-			drm_mode_object_unreference(obj);
+			drm_mode_object_put(obj);
 			ret = -ENOENT;
 			goto out;
 		}
 
 		if (get_user(count_props, count_props_ptr + copied_objs)) {
-			drm_mode_object_unreference(obj);
+			drm_mode_object_put(obj);
 			ret = -EFAULT;
 			goto out;
 		}
@@ -2257,14 +2257,14 @@ retry:
 			struct drm_property *prop;
 
 			if (get_user(prop_id, props_ptr + copied_props)) {
-				drm_mode_object_unreference(obj);
+				drm_mode_object_put(obj);
 				ret = -EFAULT;
 				goto out;
 			}
 
 			prop = drm_mode_obj_find_prop_id(obj, prop_id);
 			if (!prop) {
-				drm_mode_object_unreference(obj);
+				drm_mode_object_put(obj);
 				ret = -ENOENT;
 				goto out;
 			}
@@ -2272,14 +2272,14 @@ retry:
 			if (copy_from_user(&prop_value,
 					   prop_values_ptr + copied_props,
 					   sizeof(prop_value))) {
-				drm_mode_object_unreference(obj);
+				drm_mode_object_put(obj);
 				ret = -EFAULT;
 				goto out;
 			}
 
 			ret = atomic_set_prop(state, obj, prop, prop_value);
 			if (ret) {
-				drm_mode_object_unreference(obj);
+				drm_mode_object_put(obj);
 				goto out;
 			}
 
@@ -2292,7 +2292,7 @@ retry:
 			plane_mask |= (1 << drm_plane_index(plane));
 			plane->old_fb = plane->fb;
 		}
-		drm_mode_object_unreference(obj);
+		drm_mode_object_put(obj);
 	}
 
 	ret = prepare_crtc_signaling(dev, state, arg, file_priv, &fence_state,
