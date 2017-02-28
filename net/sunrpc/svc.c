@@ -385,7 +385,7 @@ static int svc_uses_rpcbind(struct svc_serv *serv)
 		for (i = 0; i < progp->pg_nvers; i++) {
 			if (progp->pg_vers[i] == NULL)
 				continue;
-			if (progp->pg_vers[i]->vs_hidden == 0)
+			if (!progp->pg_vers[i]->vs_hidden)
 				return 1;
 		}
 	}
@@ -976,6 +976,13 @@ int svc_register(const struct svc_serv *serv, struct net *net,
 			if (vers->vs_hidden)
 				continue;
 
+			/*
+			 * Don't register a UDP port if we need congestion
+			 * control.
+			 */
+			if (vers->vs_need_cong_ctrl && proto == IPPROTO_UDP)
+				continue;
+
 			error = __svc_register(net, progp->pg_name, progp->pg_prog,
 						i, family, proto, port);
 
@@ -1167,6 +1174,21 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 
 	if (vers >= progp->pg_nvers ||
 	  !(versp = progp->pg_vers[vers]))
+		goto err_bad_vers;
+
+	/*
+	 * Some protocol versions (namely NFSv4) require some form of
+	 * congestion control.  (See RFC 7530 section 3.1 paragraph 2)
+	 * In other words, UDP is not allowed. We mark those when setting
+	 * up the svc_xprt, and verify that here.
+	 *
+	 * The spec is not very clear about what error should be returned
+	 * when someone tries to access a server that is listening on UDP
+	 * for lower versions. RPC_PROG_MISMATCH seems to be the closest
+	 * fit.
+	 */
+	if (versp->vs_need_cong_ctrl &&
+	    !test_bit(XPT_CONG_CTRL, &rqstp->rq_xprt->xpt_flags))
 		goto err_bad_vers;
 
 	procp = versp->vs_proc + proc;
