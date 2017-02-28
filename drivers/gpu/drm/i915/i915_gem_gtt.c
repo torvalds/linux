@@ -1338,11 +1338,6 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 		return ret;
 	}
 
-	ppgtt->base.cleanup = gen8_ppgtt_cleanup;
-	ppgtt->base.unbind_vma = ppgtt_unbind_vma;
-	ppgtt->base.bind_vma = ppgtt_bind_vma;
-	ppgtt->debug_dump = gen8_dump_ppgtt;
-
 	/* There are only few exceptions for gen >=6. chv and bxt.
 	 * And we are not sure about the latter so play safe for now.
 	 */
@@ -1381,6 +1376,11 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 
 	if (intel_vgpu_active(dev_priv))
 		gen8_ppgtt_notify_vgt(ppgtt, true);
+
+	ppgtt->base.cleanup = gen8_ppgtt_cleanup;
+	ppgtt->base.unbind_vma = ppgtt_unbind_vma;
+	ppgtt->base.bind_vma = ppgtt_bind_vma;
+	ppgtt->debug_dump = gen8_dump_ppgtt;
 
 	return 0;
 
@@ -1808,13 +1808,7 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	if (ret)
 		return ret;
 
-	ppgtt->base.clear_range = gen6_ppgtt_clear_range;
-	ppgtt->base.insert_entries = gen6_ppgtt_insert_entries;
-	ppgtt->base.unbind_vma = ppgtt_unbind_vma;
-	ppgtt->base.bind_vma = ppgtt_bind_vma;
-	ppgtt->base.cleanup = gen6_ppgtt_cleanup;
 	ppgtt->base.total = I915_PDES * GEN6_PTES * PAGE_SIZE;
-	ppgtt->debug_dump = gen6_dump_ppgtt;
 
 	gen6_scratch_va_range(ppgtt, 0, ppgtt->base.total);
 	gen6_write_page_range(ppgtt, 0, ppgtt->base.total);
@@ -1824,6 +1818,13 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 		gen6_ppgtt_cleanup(&ppgtt->base);
 		return ret;
 	}
+
+	ppgtt->base.clear_range = gen6_ppgtt_clear_range;
+	ppgtt->base.insert_entries = gen6_ppgtt_insert_entries;
+	ppgtt->base.unbind_vma = ppgtt_unbind_vma;
+	ppgtt->base.bind_vma = ppgtt_bind_vma;
+	ppgtt->base.cleanup = gen6_ppgtt_cleanup;
+	ppgtt->debug_dump = gen6_dump_ppgtt;
 
 	DRM_DEBUG_DRIVER("Allocated pde space (%lldM) at GTT entry: %llx\n",
 			 ppgtt->node.size >> 20,
