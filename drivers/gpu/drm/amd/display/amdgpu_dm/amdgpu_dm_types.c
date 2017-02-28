@@ -1429,80 +1429,6 @@ static const struct drm_plane_funcs dm_plane_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state
 };
 
-static void clear_unrelated_fields(struct drm_plane_state *state)
-{
-	state->crtc = NULL;
-	state->fb = NULL;
-	state->state = NULL;
-	state->fence = NULL;
-}
-
-/*TODO update because event is always present now */
-static bool page_flip_needed(
-	const struct drm_plane_state *new_state,
-	const struct drm_plane_state *old_state,
-	struct drm_pending_vblank_event *event,
-	bool commit_surface_required)
-{
-	struct drm_plane_state old_state_tmp;
-	struct drm_plane_state new_state_tmp;
-
-	struct amdgpu_framebuffer *amdgpu_fb_old;
-	struct amdgpu_framebuffer *amdgpu_fb_new;
-	struct amdgpu_crtc *acrtc_new;
-
-	uint64_t old_tiling_flags;
-	uint64_t new_tiling_flags;
-
-	bool page_flip_required;
-
-	if (!old_state)
-		return false;
-
-	if (!old_state->fb)
-		return false;
-
-	if (!new_state)
-		return false;
-
-	if (!new_state->fb)
-		return false;
-
-	old_state_tmp = *old_state;
-	new_state_tmp = *new_state;
-
-	if (!event)
-		return false;
-
-	amdgpu_fb_old = to_amdgpu_framebuffer(old_state->fb);
-	amdgpu_fb_new = to_amdgpu_framebuffer(new_state->fb);
-
-	if (!get_fb_info(amdgpu_fb_old, &old_tiling_flags, NULL))
-		return false;
-
-	if (!get_fb_info(amdgpu_fb_new, &new_tiling_flags, NULL))
-		return false;
-
-	if (commit_surface_required == true &&
-	    old_tiling_flags != new_tiling_flags)
-		return false;
-
-	clear_unrelated_fields(&old_state_tmp);
-	clear_unrelated_fields(&new_state_tmp);
-
-	page_flip_required = memcmp(&old_state_tmp,
-				    &new_state_tmp,
-				    sizeof(old_state_tmp)) == 0 ? true:false;
-
-	if (new_state->crtc && page_flip_required == false) {
-		acrtc_new = to_amdgpu_crtc(new_state->crtc);
-		if (acrtc_new->flip_flags & DRM_MODE_PAGE_FLIP_ASYNC)
-			page_flip_required = true;
-	}
-
-	return page_flip_required;
-}
-
 static int dm_plane_helper_prepare_fb(
 	struct drm_plane *plane,
 	struct drm_plane_state *new_state)
@@ -2477,11 +2403,7 @@ void amdgpu_dm_atomic_commit_tail(
 		 * 1. This commit is not a page flip.
 		 * 2. This commit is a page flip, and streams are created.
 		 */
-		pflip_needed = !state->allow_modeset &&
-				page_flip_needed(
-				plane_state,
-				old_plane_state,
-				crtc->state->event, true);
+		pflip_needed = !state->allow_modeset;
 		if (!pflip_needed ||
 		     action == DM_COMMIT_ACTION_DPMS_ON ||
 		     action == DM_COMMIT_ACTION_SET) {
@@ -2540,12 +2462,7 @@ void amdgpu_dm_atomic_commit_tail(
 		if (!fb || !crtc || !crtc->state->planes_changed ||
 			!crtc->state->active)
 			continue;
-		pflip_needed = !state->allow_modeset &&
-				page_flip_needed(
-				plane_state,
-				old_plane_state,
-				crtc->state->event,
-				false);
+		pflip_needed = !state->allow_modeset;
 
 		if (pflip_needed) {
 			amdgpu_dm_do_flip(
@@ -2927,7 +2844,6 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 
 	for (i = 0; i < set_count; i++) {
 		for_each_plane_in_state(state, plane, plane_state, j) {
-			struct drm_plane_state *old_plane_state = plane->state;
 			struct drm_crtc *crtc = plane_state->crtc;
 			struct drm_framebuffer *fb = plane_state->fb;
 			struct drm_connector *connector;
@@ -2948,9 +2864,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 			 * 2. This commit is a page flip, and streams are created.
 			 */
 			crtc_state = drm_atomic_get_crtc_state(state, crtc);
-			pflip_needed = !state->allow_modeset &&
-					page_flip_needed(plane_state, old_plane_state,
-					crtc_state->event, true);
+			pflip_needed = !state->allow_modeset;
 			if (!pflip_needed ||
 				action == DM_COMMIT_ACTION_DPMS_ON ||
 				action == DM_COMMIT_ACTION_SET) {
