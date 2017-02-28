@@ -56,6 +56,8 @@ static const char * const platform_names[] = {
 
 const char *intel_platform_name(enum intel_platform platform)
 {
+	BUILD_BUG_ON(ARRAY_SIZE(platform_names) != INTEL_MAX_PLATFORMS);
+
 	if (WARN_ON_ONCE(platform >= ARRAY_SIZE(platform_names) ||
 			 platform_names[platform] == NULL))
 		return "<unknown>";
