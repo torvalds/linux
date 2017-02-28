@@ -2111,10 +2111,12 @@ static int isp_fwnodes_parse(struct device *dev,
 		if (!isd)
 			goto error;
 
-		notifier->subdevs[notifier->num_subdevs] = &isd->asd;
+		if (isp_fwnode_parse(dev, fwnode, isd)) {
+			devm_kfree(dev, isd);
+			continue;
+		}
 
-		if (isp_fwnode_parse(dev, fwnode, isd))
-			goto error;
+		notifier->subdevs[notifier->num_subdevs] = &isd->asd;
 
 		isd->asd.match.fwnode.fwnode =
 			fwnode_graph_get_remote_port_parent(fwnode);
