@@ -2993,6 +2993,11 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 */
 	prom_check_initrd(r3, r4);
 
+	/*
+	 * Do early parsing of command line
+	 */
+	early_cmdline_parse();
+
 #if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV)
 	/*
 	 * On pSeries, inform the firmware about our capabilities
@@ -3007,11 +3012,6 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 */
 	if (of_platform != PLATFORM_POWERMAC)
 		copy_and_flush(0, kbase, 0x100, 0);
-
-	/*
-	 * Do early parsing of command line
-	 */
-	early_cmdline_parse();
 
 	/*
 	 * Initialize memory management within prom_init
