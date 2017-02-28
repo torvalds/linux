@@ -49,8 +49,6 @@ static int ad7879_spi_probe(struct spi_device *spi)
 	if (IS_ERR(ts))
 		return PTR_ERR(ts);
 
-	spi_set_drvdata(spi, ts);
-
 	return 0;
 }
 

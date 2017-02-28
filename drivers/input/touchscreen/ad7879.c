@@ -680,6 +680,8 @@ struct ad7879 *ad7879_probe(struct device *dev, struct regmap *regmap,
 	if (err)
 		return ERR_PTR(err);
 
+	dev_set_drvdata(dev, ts);
+
 	return 0;
 }
 EXPORT_SYMBOL(ad7879_probe);
