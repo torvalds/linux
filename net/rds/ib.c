@@ -45,8 +45,8 @@
 #include "ib.h"
 #include "ib_mr.h"
 
-unsigned int rds_ib_mr_1m_pool_size = RDS_MR_1M_POOL_SIZE;
-unsigned int rds_ib_mr_8k_pool_size = RDS_MR_8K_POOL_SIZE;
+static unsigned int rds_ib_mr_1m_pool_size = RDS_MR_1M_POOL_SIZE;
+static unsigned int rds_ib_mr_8k_pool_size = RDS_MR_8K_POOL_SIZE;
 unsigned int rds_ib_retry_count = RDS_IB_DEFAULT_RETRY_COUNT;
 
 module_param(rds_ib_mr_1m_pool_size, int, 0444);
