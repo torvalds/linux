@@ -517,18 +517,18 @@ static void __i915_guc_submit(struct drm_i915_gem_request *rq)
 	struct i915_guc_client *client = guc->execbuf_client;
 	int b_ret;
 
-	/* We are always called with irqs disabled */
-	GEM_BUG_ON(!irqs_disabled());
-
-	spin_lock(&client->wq_lock);
-	guc_wq_item_append(client, rq);
-
 	/* WA to flush out the pending GMADR writes to ring buffer. */
 	if (i915_vma_is_map_and_fenceable(rq->ring->vma))
 		POSTING_READ_FW(GUC_STATUS);
 
 	trace_i915_gem_request_in(rq, 0);
 
+	/* We are always called with irqs disabled */
+	GEM_BUG_ON(!irqs_disabled());
+
+	spin_lock(&client->wq_lock);
+
+	guc_wq_item_append(client, rq);
 	b_ret = guc_ring_doorbell(client);
 
 	client->submissions[engine_id] += 1;
@@ -538,6 +538,7 @@ static void __i915_guc_submit(struct drm_i915_gem_request *rq)
 
 	guc->submissions[engine_id] += 1;
 	guc->last_seqno[engine_id] = rq->global_seqno;
+
 	spin_unlock(&client->wq_lock);
 }
 
