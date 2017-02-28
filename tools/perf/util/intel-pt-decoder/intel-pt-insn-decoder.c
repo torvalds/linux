@@ -39,6 +39,8 @@ static void intel_pt_insn_decoder(struct insn *insn,
 	enum intel_pt_insn_branch branch = INTEL_PT_BR_NO_BRANCH;
 	int ext;
 
+	intel_pt_insn->rel = 0;
+
 	if (insn_is_avx(insn)) {
 		intel_pt_insn->op = INTEL_PT_OP_OTHER;
 		intel_pt_insn->branch = INTEL_PT_BR_NO_BRANCH;
