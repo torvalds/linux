@@ -851,7 +851,7 @@ config SP5100_TCO
 
 config GEODE_WDT
 	tristate "AMD Geode CS5535/CS5536 Watchdog"
-	depends on CS5535_MFGPT || (X86 && COMPILE_TEST)
+	depends on CS5535_MFGPT
 	help
 	  This driver enables a watchdog capability built into the
 	  CS5535/CS5536 companion chips for the AMD Geode GX and LX
