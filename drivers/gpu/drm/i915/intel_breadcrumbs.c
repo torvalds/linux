@@ -59,6 +59,16 @@ static unsigned long wait_timeout(void)
 	return round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES);
 }
 
+static noinline void missed_breadcrumb(struct intel_engine_cs *engine)
+{
+	DRM_DEBUG_DRIVER("%s missed breadcrumb at %pF, irq posted? %s\n",
+			 engine->name, __builtin_return_address(0),
+			 yesno(test_bit(ENGINE_IRQ_BREADCRUMB,
+					&engine->irq_posted)));
+
+	set_bit(engine->id, &engine->i915->gpu_error.missed_irq_rings);
+}
+
 static void intel_breadcrumbs_hangcheck(unsigned long data)
 {
 	struct intel_engine_cs *engine = (struct intel_engine_cs *)data;
@@ -86,8 +96,7 @@ static void intel_breadcrumbs_hangcheck(unsigned long data)
 	 * DRM_I915_HANGCHECK_JIFFIES [1.5s]!
 	 */
 	if (intel_engine_wakeup(engine) & ENGINE_WAKEUP_ASLEEP) {
-		DRM_DEBUG("Hangcheck timer elapsed... %s idle\n", engine->name);
-		set_bit(engine->id, &engine->i915->gpu_error.missed_irq_rings);
+		missed_breadcrumb(engine);
 		mod_timer(&engine->breadcrumbs.fake_irq, jiffies + 1);
 	} else {
 		mod_timer(&b->hangcheck, wait_timeout());
@@ -180,7 +189,7 @@ void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine)
 	 * completion.
 	 */
 	if (__intel_breadcrumbs_wakeup(b) & ENGINE_WAKEUP_ASLEEP)
-		set_bit(engine->id, &engine->i915->gpu_error.missed_irq_rings);
+		missed_breadcrumb(engine);
 
 	__intel_engine_disarm_breadcrumbs(engine);
 
