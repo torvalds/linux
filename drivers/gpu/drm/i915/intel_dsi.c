@@ -507,6 +507,7 @@ static void intel_dsi_port_disable(struct intel_encoder *encoder)
 
 static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 			      struct intel_crtc_state *pipe_config);
+static void intel_dsi_unprepare(struct intel_encoder *encoder);
 
 static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 				 struct intel_crtc_state *pipe_config,
@@ -682,19 +683,7 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder,
 		usleep_range(2000, 5000);
 	}
 
-	for_each_dsi_port(port, intel_dsi->ports) {
-		/* Panel commands can be sent when clock is in LP11 */
-		I915_WRITE(MIPI_DEVICE_READY(port), 0x0);
-
-		intel_dsi_reset_clocks(encoder, port);
-		I915_WRITE(MIPI_EOT_DISABLE(port), CLOCKSTOP);
-
-		val = I915_READ(MIPI_DSI_FUNC_PRG(port));
-		val &= ~VID_MODE_FORMAT_MASK;
-		I915_WRITE(MIPI_DSI_FUNC_PRG(port), val);
-
-		I915_WRITE(MIPI_DEVICE_READY(port), 0x1);
-	}
+	intel_dsi_unprepare(encoder);
 
 	/*
 	 * if disable packets are sent before sending shutdown packet then in
@@ -1307,6 +1296,28 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 				intel_dsi->video_mode_format |
 				IP_TG_CONFIG |
 				RANDOM_DPI_DISPLAY_RESOLUTION);
+	}
+}
+
+static void intel_dsi_unprepare(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	enum port port;
+	u32 val;
+
+	for_each_dsi_port(port, intel_dsi->ports) {
+		/* Panel commands can be sent when clock is in LP11 */
+		I915_WRITE(MIPI_DEVICE_READY(port), 0x0);
+
+		intel_dsi_reset_clocks(encoder, port);
+		I915_WRITE(MIPI_EOT_DISABLE(port), CLOCKSTOP);
+
+		val = I915_READ(MIPI_DSI_FUNC_PRG(port));
+		val &= ~VID_MODE_FORMAT_MASK;
+		I915_WRITE(MIPI_DSI_FUNC_PRG(port), val);
+
+		I915_WRITE(MIPI_DEVICE_READY(port), 0x1);
 	}
 }
 
