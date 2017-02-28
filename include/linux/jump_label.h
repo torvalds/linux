@@ -166,10 +166,10 @@ extern void static_key_disable(struct static_key *key);
  */
 #define STATIC_KEY_INIT_TRUE					\
 	{ .enabled = { 1 },					\
-	  .entries = (void *)JUMP_TYPE_TRUE }
+	  { .entries = (void *)JUMP_TYPE_TRUE } }
 #define STATIC_KEY_INIT_FALSE					\
 	{ .enabled = { 0 },					\
-	  .entries = (void *)JUMP_TYPE_FALSE }
+	  { .entries = (void *)JUMP_TYPE_FALSE } }
 
 #else  /* !HAVE_JUMP_LABEL */
 
