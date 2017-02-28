@@ -31,11 +31,9 @@
  * Internal function to assign a slot in the object idr and optionally
  * register the object into the idr.
  */
-int drm_mode_object_get_reg(struct drm_device *dev,
-			    struct drm_mode_object *obj,
-			    uint32_t obj_type,
-			    bool register_obj,
-			    void (*obj_free_cb)(struct kref *kref))
+int __drm_mode_object_add(struct drm_device *dev, struct drm_mode_object *obj,
+			  uint32_t obj_type, bool register_obj,
+			  void (*obj_free_cb)(struct kref *kref))
 {
 	int ret;
 
@@ -59,23 +57,21 @@ int drm_mode_object_get_reg(struct drm_device *dev,
 }
 
 /**
- * drm_mode_object_get - allocate a new modeset identifier
+ * drm_mode_object_add - allocate a new modeset identifier
  * @dev: DRM device
  * @obj: object pointer, used to generate unique ID
  * @obj_type: object type
  *
  * Create a unique identifier based on @ptr in @dev's identifier space.  Used
- * for tracking modes, CRTCs and connectors. Note that despite the _get postfix
- * modeset identifiers are _not_ reference counted. Hence don't use this for
- * reference counted modeset objects like framebuffers.
+ * for tracking modes, CRTCs and connectors.
  *
  * Returns:
  * Zero on success, error code on failure.
  */
-int drm_mode_object_get(struct drm_device *dev,
+int drm_mode_object_add(struct drm_device *dev,
 			struct drm_mode_object *obj, uint32_t obj_type)
 {
-	return drm_mode_object_get_reg(dev, obj, obj_type, true, NULL);
+	return __drm_mode_object_add(dev, obj, obj_type, true, NULL);
 }
 
 void drm_mode_object_register(struct drm_device *dev,

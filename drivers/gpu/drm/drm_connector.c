@@ -175,9 +175,9 @@ int drm_connector_init(struct drm_device *dev,
 	struct ida *connector_ida =
 		&drm_connector_enum_list[connector_type].ida;
 
-	ret = drm_mode_object_get_reg(dev, &connector->base,
-				      DRM_MODE_OBJECT_CONNECTOR,
-				      false, drm_connector_free);
+	ret = __drm_mode_object_add(dev, &connector->base,
+				    DRM_MODE_OBJECT_CONNECTOR,
+				    false, drm_connector_free);
 	if (ret)
 		return ret;
 

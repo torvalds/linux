@@ -91,7 +91,7 @@ struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 			goto fail;
 	}
 
-	ret = drm_mode_object_get(dev, &property->base, DRM_MODE_OBJECT_PROPERTY);
+	ret = drm_mode_object_add(dev, &property->base, DRM_MODE_OBJECT_PROPERTY);
 	if (ret)
 		goto fail;
 
@@ -570,8 +570,8 @@ drm_property_create_blob(struct drm_device *dev, size_t length,
 	if (data)
 		memcpy(blob->data, data, length);
 
-	ret = drm_mode_object_get_reg(dev, &blob->base, DRM_MODE_OBJECT_BLOB,
-				      true, drm_property_free_blob);
+	ret = __drm_mode_object_add(dev, &blob->base, DRM_MODE_OBJECT_BLOB,
+				    true, drm_property_free_blob);
 	if (ret) {
 		kfree(blob);
 		return ERR_PTR(-EINVAL);

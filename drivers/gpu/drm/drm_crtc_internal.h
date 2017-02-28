@@ -98,15 +98,13 @@ int drm_mode_destroyblob_ioctl(struct drm_device *dev,
 			       void *data, struct drm_file *file_priv);
 
 /* drm_mode_object.c */
-int drm_mode_object_get_reg(struct drm_device *dev,
-			    struct drm_mode_object *obj,
-			    uint32_t obj_type,
-			    bool register_obj,
-			    void (*obj_free_cb)(struct kref *kref));
+int __drm_mode_object_add(struct drm_device *dev, struct drm_mode_object *obj,
+			  uint32_t obj_type, bool register_obj,
+			  void (*obj_free_cb)(struct kref *kref));
+int drm_mode_object_add(struct drm_device *dev, struct drm_mode_object *obj,
+			uint32_t obj_type);
 void drm_mode_object_register(struct drm_device *dev,
 			      struct drm_mode_object *obj);
-int drm_mode_object_get(struct drm_device *dev,
-			struct drm_mode_object *obj, uint32_t obj_type);
 struct drm_mode_object *__drm_mode_object_find(struct drm_device *dev,
 					       uint32_t id, uint32_t type);
 void drm_mode_object_unregister(struct drm_device *dev,

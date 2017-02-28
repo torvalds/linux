@@ -638,8 +638,8 @@ int drm_framebuffer_init(struct drm_device *dev, struct drm_framebuffer *fb,
 
 	fb->funcs = funcs;
 
-	ret = drm_mode_object_get_reg(dev, &fb->base, DRM_MODE_OBJECT_FB,
-				      false, drm_framebuffer_free);
+	ret = __drm_mode_object_add(dev, &fb->base, DRM_MODE_OBJECT_FB,
+				    false, drm_framebuffer_free);
 	if (ret)
 		goto out;
 

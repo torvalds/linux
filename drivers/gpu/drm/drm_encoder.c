@@ -110,7 +110,7 @@ int drm_encoder_init(struct drm_device *dev,
 {
 	int ret;
 
-	ret = drm_mode_object_get(dev, &encoder->base, DRM_MODE_OBJECT_ENCODER);
+	ret = drm_mode_object_add(dev, &encoder->base, DRM_MODE_OBJECT_ENCODER);
 	if (ret)
 		return ret;
 
