@@ -1505,19 +1505,21 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b)
 {
 	struct sk_buff_head xmitq;
 	struct tipc_node *n;
-	struct tipc_msg *hdr = buf_msg(skb);
-	int usr = msg_user(hdr);
+	struct tipc_msg *hdr;
 	int bearer_id = b->identity;
 	struct tipc_link_entry *le;
-	u16 bc_ack = msg_bcast_ack(hdr);
 	u32 self = tipc_own_addr(net);
-	int rc = 0;
+	int usr, rc = 0;
+	u16 bc_ack;
 
 	__skb_queue_head_init(&xmitq);
 
-	/* Ensure message is well-formed */
+	/* Ensure message is well-formed before touching the header */
 	if (unlikely(!tipc_msg_validate(skb)))
 		goto discard;
+	hdr = buf_msg(skb);
+	usr = msg_user(hdr);
+	bc_ack = msg_bcast_ack(hdr);
 
 	/* Handle arrival of discovery or broadcast packet */
 	if (unlikely(msg_non_seq(hdr))) {
