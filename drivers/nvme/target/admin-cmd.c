@@ -487,13 +487,13 @@ int nvmet_parse_admin_cmd(struct nvmet_req *req)
 	req->ns = NULL;
 
 	if (unlikely(!(req->sq->ctrl->cc & NVME_CC_ENABLE))) {
-		pr_err("nvmet: got admin cmd %d while CC.EN == 0\n",
-				cmd->common.opcode);
+		pr_err("got admin cmd %d while CC.EN == 0\n",
+		       cmd->common.opcode);
 		return NVME_SC_CMD_SEQ_ERROR | NVME_SC_DNR;
 	}
 	if (unlikely(!(req->sq->ctrl->csts & NVME_CSTS_RDY))) {
-		pr_err("nvmet: got admin cmd %d while CSTS.RDY == 0\n",
-				cmd->common.opcode);
+		pr_err("got admin cmd %d while CSTS.RDY == 0\n",
+		       cmd->common.opcode);
 		return NVME_SC_CMD_SEQ_ERROR | NVME_SC_DNR;
 	}
 
@@ -545,6 +545,6 @@ int nvmet_parse_admin_cmd(struct nvmet_req *req)
 		return 0;
 	}
 
-	pr_err("nvmet: unhandled cmd %d\n", cmd->common.opcode);
+	pr_err("unhandled cmd %d\n", cmd->common.opcode);
 	return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 }
