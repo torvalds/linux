@@ -458,10 +458,12 @@ static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
 							ULPS_STATE_ENTER);
 		usleep_range(2000, 2500);
 
-		/* Wait till Clock lanes are in LP-00 state for MIPI Port A
-		 * only. MIPI Port C has no similar bit for checking
+		/*
+		 * On VLV/CHV, wait till Clock lanes are in LP-00 state for MIPI
+		 * Port A only. MIPI Port C has no similar bit for checking.
 		 */
-		if (intel_wait_for_register(dev_priv,
+		if ((IS_GEN9_LP(dev_priv) || port == PORT_A) &&
+		    intel_wait_for_register(dev_priv,
 					    port_ctrl, AFE_LATCHOUT, 0,
 					    30))
 			DRM_ERROR("DSI LP not going Low\n");
