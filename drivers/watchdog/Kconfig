@@ -218,7 +218,7 @@ config ZIIRAVE_WATCHDOG
 
 config ARM_SP805_WATCHDOG
 	tristate "ARM SP805 Watchdog"
-	depends on (ARM || ARM64) && (ARM_AMBA || COMPILE_TEST)
+	depends on (ARM || ARM64 || COMPILE_TEST) && ARM_AMBA
 	select WATCHDOG_CORE
 	help
 	  ARM Primecell SP805 Watchdog timer. This will reboot your system when
