@@ -159,7 +159,7 @@ out:
 	nvmet_req_complete(req, status);
 }
 
-int nvmet_parse_discovery_cmd(struct nvmet_req *req)
+u16 nvmet_parse_discovery_cmd(struct nvmet_req *req)
 {
 	struct nvme_command *cmd = req->cmd;
 
