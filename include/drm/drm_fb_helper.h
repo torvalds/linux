@@ -230,7 +230,8 @@ struct drm_fb_helper {
 	.fb_blank	= drm_fb_helper_blank, \
 	.fb_pan_display	= drm_fb_helper_pan_display, \
 	.fb_debug_enter = drm_fb_helper_debug_enter, \
-	.fb_debug_leave = drm_fb_helper_debug_leave
+	.fb_debug_leave = drm_fb_helper_debug_leave, \
+	.fb_ioctl	= drm_fb_helper_ioctl
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 void drm_fb_helper_prepare(struct drm_device *dev, struct drm_fb_helper *helper,
@@ -283,6 +284,9 @@ void drm_fb_helper_set_suspend_unlocked(struct drm_fb_helper *fb_helper,
 					bool suspend);
 
 int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info);
+
+int drm_fb_helper_ioctl(struct fb_info *info, unsigned int cmd,
+			unsigned long arg);
 
 int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper);
 int drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel);
@@ -367,6 +371,12 @@ static inline void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
 
 static inline int drm_fb_helper_setcmap(struct fb_cmap *cmap,
 					struct fb_info *info)
+{
+	return 0;
+}
+
+static inline int drm_fb_helper_ioctl(struct fb_info *info, unsigned int cmd,
+				      unsigned long arg)
 {
 	return 0;
 }

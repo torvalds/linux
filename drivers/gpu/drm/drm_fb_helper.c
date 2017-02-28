@@ -1245,6 +1245,74 @@ int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 EXPORT_SYMBOL(drm_fb_helper_setcmap);
 
 /**
+ * drm_fb_helper_ioctl - legacy ioctl implementation
+ * @info: fbdev registered by the helper
+ * @cmd: ioctl command
+ * @arg: ioctl argument
+ *
+ * A helper to implement the standard fbdev ioctl. Only
+ * FBIO_WAITFORVSYNC is implemented for now.
+ */
+int drm_fb_helper_ioctl(struct fb_info *info, unsigned int cmd,
+			unsigned long arg)
+{
+	struct drm_fb_helper *fb_helper = info->par;
+	struct drm_device *dev = fb_helper->dev;
+	struct drm_mode_set *mode_set;
+	struct drm_crtc *crtc;
+	int ret = 0;
+
+	mutex_lock(&dev->mode_config.mutex);
+	if (!drm_fb_helper_is_bound(fb_helper)) {
+		ret = -EBUSY;
+		goto unlock;
+	}
+
+	switch (cmd) {
+	case FBIO_WAITFORVSYNC:
+		/*
+		 * Only consider the first CRTC.
+		 *
+		 * This ioctl is supposed to take the CRTC number as
+		 * an argument, but in fbdev times, what that number
+		 * was supposed to be was quite unclear, different
+		 * drivers were passing that argument differently
+		 * (some by reference, some by value), and most of the
+		 * userspace applications were just hardcoding 0 as an
+		 * argument.
+		 *
+		 * The first CRTC should be the integrated panel on
+		 * most drivers, so this is the best choice we can
+		 * make. If we're not smart enough here, one should
+		 * just consider switch the userspace to KMS.
+		 */
+		mode_set = &fb_helper->crtc_info[0].mode_set;
+		crtc = mode_set->crtc;
+
+		/*
+		 * Only wait for a vblank event if the CRTC is
+		 * enabled, otherwise just don't do anythintg,
+		 * not even report an error.
+		 */
+		ret = drm_crtc_vblank_get(crtc);
+		if (!ret) {
+			drm_crtc_wait_one_vblank(crtc);
+			drm_crtc_vblank_put(crtc);
+		}
+
+		ret = 0;
+		goto unlock;
+	default:
+		ret = -ENOTTY;
+	}
+
+unlock:
+	mutex_unlock(&dev->mode_config.mutex);
+	return ret;
+}
+EXPORT_SYMBOL(drm_fb_helper_ioctl);
+
+/**
  * drm_fb_helper_check_var - implementation for &fb_ops.fb_check_var
  * @var: screeninfo to check
  * @info: fbdev registered by the helper
