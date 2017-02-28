@@ -203,14 +203,21 @@ static const struct file_operations uid_remove_fops = {
 	.write		= uid_remove_write,
 };
 
+static u64 compute_write_bytes(struct task_struct *task)
+{
+	if (task->ioac.write_bytes <= task->ioac.cancelled_write_bytes)
+		return 0;
+
+	return task->ioac.write_bytes - task->ioac.cancelled_write_bytes;
+}
+
 static void add_uid_io_curr_stats(struct uid_entry *uid_entry,
 			struct task_struct *task)
 {
 	struct io_stats *io_curr = &uid_entry->io[UID_STATE_TOTAL_CURR];
 
 	io_curr->read_bytes += task->ioac.read_bytes;
-	io_curr->write_bytes +=
-		task->ioac.write_bytes - task->ioac.cancelled_write_bytes;
+	io_curr->write_bytes += compute_write_bytes(task);
 	io_curr->rchar += task->ioac.rchar;
 	io_curr->wchar += task->ioac.wchar;
 }
@@ -221,8 +228,7 @@ static void clean_uid_io_last_stats(struct uid_entry *uid_entry,
 	struct io_stats *io_last = &uid_entry->io[UID_STATE_TOTAL_LAST];
 
 	io_last->read_bytes -= task->ioac.read_bytes;
-	io_last->write_bytes -=
-		task->ioac.write_bytes - task->ioac.cancelled_write_bytes;
+	io_last->write_bytes -= compute_write_bytes(task);
 	io_last->rchar -= task->ioac.rchar;
 	io_last->wchar -= task->ioac.wchar;
 }
