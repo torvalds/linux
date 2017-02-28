@@ -359,7 +359,8 @@ struct wpa_key_t {
 	u8 rx_seq[IW_ENCODE_SEQ_MAX_SIZE];	/* LSB first */
 	struct sockaddr addr;	/* ff:ff:ff:ff:ff:ff for broadcast/multicast
 				 * (group) keys or unicast address for
-				 * individual keys */
+				 * individual keys
+				 */
 	u16 alg;
 	u16 key_len;	/* WEP: 5 or 13, TKIP: 32, CCMP: 16 */
 	u8 key_val[IW_ENCODING_TOKEN_MAX];
