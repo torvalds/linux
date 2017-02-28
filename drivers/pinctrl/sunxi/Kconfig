@@ -4,6 +4,7 @@ config PINCTRL_SUNXI
 	bool
 	select PINMUX
 	select GENERIC_PINCONF
+	select GPIOLIB
 
 config PINCTRL_SUN4I_A10
 	def_bool MACH_SUN4I
