@@ -142,6 +142,7 @@ config GPIO_WATCHDOG_ARCH_INITCALL
 config MENF21BMC_WATCHDOG
 	tristate "MEN 14F021P00 BMC Watchdog"
 	depends on MFD_MENF21BMC || COMPILE_TEST
+	depends on I2C
 	select WATCHDOG_CORE
 	help
 	  Say Y here to include support for the MEN 14F021P00 BMC Watchdog.
