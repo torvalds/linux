@@ -11,13 +11,12 @@
 
 #include <linux/types.h>
 
-struct ad7879;
 struct device;
 struct regmap;
 
 extern const struct dev_pm_ops ad7879_pm_ops;
 
-struct ad7879 *ad7879_probe(struct device *dev, struct regmap *regmap,
-			    int irq, u16 bustype, u8 devid);
+int ad7879_probe(struct device *dev, struct regmap *regmap,
+		 int irq, u16 bustype, u8 devid);
 
 #endif

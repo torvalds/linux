@@ -27,7 +27,6 @@ static const struct regmap_config ad7879_i2c_regmap_config = {
 static int ad7879_i2c_probe(struct i2c_client *client,
 				      const struct i2c_device_id *id)
 {
-	struct ad7879 *ts;
 	struct regmap *regmap;
 
 	if (!i2c_check_functionality(client->adapter,
@@ -40,12 +39,8 @@ static int ad7879_i2c_probe(struct i2c_client *client,
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	ts = ad7879_probe(&client->dev, regmap, client->irq,
-			  BUS_I2C, AD7879_DEVID);
-	if (IS_ERR(ts))
-		return PTR_ERR(ts);
-
-	return 0;
+	return ad7879_probe(&client->dev, regmap, client->irq,
+			    BUS_I2C, AD7879_DEVID);
 }
 
 static const struct i2c_device_id ad7879_id[] = {

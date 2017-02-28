@@ -32,7 +32,6 @@ static const struct regmap_config ad7879_spi_regmap_config = {
 
 static int ad7879_spi_probe(struct spi_device *spi)
 {
-	struct ad7879 *ts;
 	struct regmap *regmap;
 
 	/* don't exceed max specified SPI CLK frequency */
@@ -45,11 +44,7 @@ static int ad7879_spi_probe(struct spi_device *spi)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	ts = ad7879_probe(&spi->dev, regmap, spi->irq, BUS_SPI, AD7879_DEVID);
-	if (IS_ERR(ts))
-		return PTR_ERR(ts);
-
-	return 0;
+	return ad7879_probe(&spi->dev, regmap, spi->irq, BUS_SPI, AD7879_DEVID);
 }
 
 #ifdef CONFIG_OF

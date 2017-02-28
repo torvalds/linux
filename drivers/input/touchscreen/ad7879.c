@@ -531,8 +531,8 @@ static void ad7879_cleanup_sysfs(void *_ts)
 	sysfs_remove_group(&ts->dev->kobj, &ad7879_attr_group);
 }
 
-struct ad7879 *ad7879_probe(struct device *dev, struct regmap *regmap,
-			    int irq, u16 bustype, u8 devid)
+int ad7879_probe(struct device *dev, struct regmap *regmap,
+		 int irq, u16 bustype, u8 devid)
 {
 	struct ad7879_platform_data *pdata = dev_get_platdata(dev);
 	struct ad7879 *ts;
@@ -542,12 +542,12 @@ struct ad7879 *ad7879_probe(struct device *dev, struct regmap *regmap,
 
 	if (irq <= 0) {
 		dev_err(dev, "No IRQ specified\n");
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
 
 	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	if (pdata) {
 		/* Platform data use swapped axis (backward compatibility) */
@@ -564,13 +564,13 @@ struct ad7879 *ad7879_probe(struct device *dev, struct regmap *regmap,
 		ad7879_parse_dt(dev, ts);
 	} else {
 		dev_err(dev, "No platform data\n");
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
 
 	input_dev = devm_input_allocate_device(dev);
 	if (!input_dev) {
 		dev_err(dev, "Failed to allocate input device\n");
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	ts->dev = dev;
@@ -618,14 +618,14 @@ struct ad7879 *ad7879_probe(struct device *dev, struct regmap *regmap,
 		touchscreen_parse_properties(input_dev, false, NULL);
 		if (!input_abs_get_max(input_dev, ABS_PRESSURE)) {
 			dev_err(dev, "Touchscreen pressure is not specified\n");
-			return ERR_PTR(-EINVAL);
+			return -EINVAL;
 		}
 	}
 
 	err = ad7879_write(ts, AD7879_REG_CTRL2, AD7879_RESET);
 	if (err < 0) {
 		dev_err(dev, "Failed to write %s\n", input_dev->name);
-		return ERR_PTR(err);
+		return err;
 	}
 
 	revid = ad7879_read(ts, AD7879_REG_REVID);
@@ -634,7 +634,7 @@ struct ad7879 *ad7879_probe(struct device *dev, struct regmap *regmap,
 	if (input_dev->id.product != devid) {
 		dev_err(dev, "Failed to probe %s (%x vs %x)\n",
 			input_dev->name, devid, revid);
-		return ERR_PTR(-ENODEV);
+		return -ENODEV;
 	}
 
 	ts->cmd_crtl3 = AD7879_YPLUS_BIT |
@@ -659,26 +659,26 @@ struct ad7879 *ad7879_probe(struct device *dev, struct regmap *regmap,
 					dev_name(dev), ts);
 	if (err) {
 		dev_err(dev, "Failed to request IRQ: %d\n", err);
-		return ERR_PTR(err);
+		return err;
 	}
 
 	__ad7879_disable(ts);
 
 	err = sysfs_create_group(&dev->kobj, &ad7879_attr_group);
 	if (err)
-		return ERR_PTR(err);
+		return err;
 
 	err = devm_add_action_or_reset(dev, ad7879_cleanup_sysfs, ts);
 	if (err)
-		return ERR_PTR(err);
+		return err;
 
 	err = ad7879_gpio_add(ts, pdata);
 	if (err)
-		return ERR_PTR(err);
+		return err;
 
 	err = input_register_device(input_dev);
 	if (err)
-		return ERR_PTR(err);
+		return err;
 
 	dev_set_drvdata(dev, ts);
 
