@@ -156,6 +156,7 @@
 					esata@4 {
 						label = "mamba:white:esata";
 						reg = <0x4>;
+						linux,default-trigger = "disk-activity";
 					};
 
 					usb2@5 {
