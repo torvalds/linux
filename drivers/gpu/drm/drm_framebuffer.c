@@ -52,13 +52,13 @@
  * metadata fields.
  *
  * The lifetime of a drm framebuffer is controlled with a reference count,
- * drivers can grab additional references with drm_framebuffer_reference() and
- * drop them again with drm_framebuffer_unreference(). For driver-private
- * framebuffers for which the last reference is never dropped (e.g. for the
- * fbdev framebuffer when the struct &struct drm_framebuffer is embedded into
- * the fbdev helper struct) drivers can manually clean up a framebuffer at
- * module unload time with drm_framebuffer_unregister_private(). But doing this
- * is not recommended, and it's better to have a normal free-standing &struct
+ * drivers can grab additional references with drm_framebuffer_get() and drop
+ * them again with drm_framebuffer_put(). For driver-private framebuffers for
+ * which the last reference is never dropped (e.g. for the fbdev framebuffer
+ * when the struct &struct drm_framebuffer is embedded into the fbdev helper
+ * struct) drivers can manually clean up a framebuffer at module unload time
+ * with drm_framebuffer_unregister_private(). But doing this is not
+ * recommended, and it's better to have a normal free-standing &struct
  * drm_framebuffer.
  */
 
@@ -374,7 +374,7 @@ int drm_mode_rmfb(struct drm_device *dev,
 	mutex_unlock(&file_priv->fbs_lock);
 
 	/* drop the reference we picked up in framebuffer lookup */
-	drm_framebuffer_unreference(fb);
+	drm_framebuffer_put(fb);
 
 	/*
 	 * we now own the reference that was stored in the fbs list
@@ -394,12 +394,12 @@ int drm_mode_rmfb(struct drm_device *dev,
 		flush_work(&arg.work);
 		destroy_work_on_stack(&arg.work);
 	} else
-		drm_framebuffer_unreference(fb);
+		drm_framebuffer_put(fb);
 
 	return 0;
 
 fail_unref:
-	drm_framebuffer_unreference(fb);
+	drm_framebuffer_put(fb);
 	return -ENOENT;
 }
 
@@ -453,7 +453,7 @@ int drm_mode_getfb(struct drm_device *dev,
 		ret = -ENODEV;
 	}
 
-	drm_framebuffer_unreference(fb);
+	drm_framebuffer_put(fb);
 
 	return ret;
 }
@@ -540,7 +540,7 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 out_err2:
 	kfree(clips);
 out_err1:
-	drm_framebuffer_unreference(fb);
+	drm_framebuffer_put(fb);
 
 	return ret;
 }
@@ -580,7 +580,7 @@ void drm_fb_release(struct drm_file *priv)
 			list_del_init(&fb->filp_head);
 
 			/* This drops the fpriv->fbs reference. */
-			drm_framebuffer_unreference(fb);
+			drm_framebuffer_put(fb);
 		}
 	}
 
@@ -661,7 +661,7 @@ EXPORT_SYMBOL(drm_framebuffer_init);
  *
  * If successful, this grabs an additional reference to the framebuffer -
  * callers need to make sure to eventually unreference the returned framebuffer
- * again, using @drm_framebuffer_unreference.
+ * again, using drm_framebuffer_put().
  */
 struct drm_framebuffer *drm_framebuffer_lookup(struct drm_device *dev,
 					       uint32_t id)
@@ -687,8 +687,8 @@ EXPORT_SYMBOL(drm_framebuffer_lookup);
  *
  * NOTE: This function is deprecated. For driver-private framebuffers it is not
  * recommended to embed a framebuffer struct info fbdev struct, instead, a
- * framebuffer pointer is preferred and drm_framebuffer_unreference() should be
- * called when the framebuffer is to be cleaned up.
+ * framebuffer pointer is preferred and drm_framebuffer_put() should be called
+ * when the framebuffer is to be cleaned up.
  */
 void drm_framebuffer_unregister_private(struct drm_framebuffer *fb)
 {
@@ -797,7 +797,7 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 	}
 
 out:
-	drm_framebuffer_unreference(fb);
+	drm_framebuffer_put(fb);
 }
 EXPORT_SYMBOL(drm_framebuffer_remove);
 

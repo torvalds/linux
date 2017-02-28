@@ -26,6 +26,12 @@ expression object;
 |
 - drm_connector_unreference(object)
 + drm_connector_put(object)
+|
+- drm_framebuffer_reference(object)
++ drm_framebuffer_get(object)
+|
+- drm_framebuffer_unreference(object)
++ drm_framebuffer_put(object)
 )
 
 @r depends on report@
@@ -41,6 +47,10 @@ drm_mode_object_reference@p(object)
 drm_connector_unreference@p(object)
 |
 drm_connector_reference@p(object)
+|
+drm_framebuffer_unreference@p(object)
+|
+drm_framebuffer_reference@p(object)
 )
 
 @script:python depends on report@

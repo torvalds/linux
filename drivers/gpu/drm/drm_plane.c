@@ -293,7 +293,7 @@ void drm_plane_force_disable(struct drm_plane *plane)
 		return;
 	}
 	/* disconnect the plane from the fb and crtc: */
-	drm_framebuffer_unreference(plane->old_fb);
+	drm_framebuffer_put(plane->old_fb);
 	plane->old_fb = NULL;
 	plane->fb = NULL;
 	plane->crtc = NULL;
@@ -520,9 +520,9 @@ static int __setplane_internal(struct drm_plane *plane,
 
 out:
 	if (fb)
-		drm_framebuffer_unreference(fb);
+		drm_framebuffer_put(fb);
 	if (plane->old_fb)
-		drm_framebuffer_unreference(plane->old_fb);
+		drm_framebuffer_put(plane->old_fb);
 	plane->old_fb = NULL;
 
 	return ret;
@@ -638,7 +638,7 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 	} else {
 		fb = crtc->cursor->fb;
 		if (fb)
-			drm_framebuffer_reference(fb);
+			drm_framebuffer_get(fb);
 	}
 
 	if (req->flags & DRM_MODE_CURSOR_MOVE) {
@@ -902,9 +902,9 @@ out:
 	if (ret && crtc->funcs->page_flip_target)
 		drm_crtc_vblank_put(crtc);
 	if (fb)
-		drm_framebuffer_unreference(fb);
+		drm_framebuffer_put(fb);
 	if (crtc->primary->old_fb)
-		drm_framebuffer_unreference(crtc->primary->old_fb);
+		drm_framebuffer_put(crtc->primary->old_fb);
 	crtc->primary->old_fb = NULL;
 	drm_modeset_unlock_crtc(crtc);
 

@@ -471,9 +471,9 @@ int drm_mode_set_config_internal(struct drm_mode_set *set)
 
 	drm_for_each_crtc(tmp, crtc->dev) {
 		if (tmp->primary->fb)
-			drm_framebuffer_reference(tmp->primary->fb);
+			drm_framebuffer_get(tmp->primary->fb);
 		if (tmp->primary->old_fb)
-			drm_framebuffer_unreference(tmp->primary->old_fb);
+			drm_framebuffer_put(tmp->primary->old_fb);
 		tmp->primary->old_fb = NULL;
 	}
 
@@ -567,7 +567,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 			}
 			fb = crtc->primary->fb;
 			/* Make refcounting symmetric with the lookup path. */
-			drm_framebuffer_reference(fb);
+			drm_framebuffer_get(fb);
 		} else {
 			fb = drm_framebuffer_lookup(dev, crtc_req->fb_id);
 			if (!fb) {
@@ -680,7 +680,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 
 out:
 	if (fb)
-		drm_framebuffer_unreference(fb);
+		drm_framebuffer_put(fb);
 
 	if (connector_set) {
 		for (i = 0; i < crtc_req->count_connectors; i++) {

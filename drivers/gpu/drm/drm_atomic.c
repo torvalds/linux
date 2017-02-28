@@ -737,7 +737,7 @@ int drm_atomic_plane_set_property(struct drm_plane *plane,
 		struct drm_framebuffer *fb = drm_framebuffer_lookup(dev, val);
 		drm_atomic_set_fb_for_plane(state, fb);
 		if (fb)
-			drm_framebuffer_unreference(fb);
+			drm_framebuffer_put(fb);
 	} else if (property == config->prop_in_fence_fd) {
 		if (state->fence)
 			return -EINVAL;
@@ -1865,12 +1865,12 @@ void drm_atomic_clean_old_fb(struct drm_device *dev,
 		if (ret == 0) {
 			struct drm_framebuffer *new_fb = plane->state->fb;
 			if (new_fb)
-				drm_framebuffer_reference(new_fb);
+				drm_framebuffer_get(new_fb);
 			plane->fb = new_fb;
 			plane->crtc = plane->state->crtc;
 
 			if (plane->old_fb)
-				drm_framebuffer_unreference(plane->old_fb);
+				drm_framebuffer_put(plane->old_fb);
 		}
 		plane->old_fb = NULL;
 	}
