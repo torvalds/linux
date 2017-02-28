@@ -80,7 +80,7 @@ enum mipi_dsi_pixel_format pixel_format_from_register_bits(u32 fmt)
 	}
 }
 
-static void wait_for_dsi_fifo_empty(struct intel_dsi *intel_dsi, enum port port)
+void wait_for_dsi_fifo_empty(struct intel_dsi *intel_dsi, enum port port)
 {
 	struct drm_encoder *encoder = &intel_dsi->base.base;
 	struct drm_device *dev = encoder->dev;
@@ -525,9 +525,6 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 
 		drm_panel_enable(intel_dsi->panel);
 
-		for_each_dsi_port(port, intel_dsi->ports)
-			wait_for_dsi_fifo_empty(intel_dsi, port);
-
 		intel_dsi_port_enable(encoder);
 	}
 
@@ -543,7 +540,6 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
-	enum port port;
 	u32 val;
 
 	DRM_DEBUG_KMS("\n");
@@ -587,9 +583,6 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 	intel_dsi_device_ready(encoder);
 
 	drm_panel_prepare(intel_dsi->panel);
-
-	for_each_dsi_port(port, intel_dsi->ports)
-		wait_for_dsi_fifo_empty(intel_dsi, port);
 
 	/* Enable port in pre-enable phase itself because as per hw team
 	 * recommendation, port should be enabled befor plane & pipe */
@@ -672,9 +665,6 @@ static void intel_dsi_disable(struct intel_encoder *encoder)
 	/* if disable packets are sent before sending shutdown packet then in
 	 * some next enable sequence send turn on packet error is observed */
 	drm_panel_disable(intel_dsi->panel);
-
-	for_each_dsi_port(port, intel_dsi->ports)
-		wait_for_dsi_fifo_empty(intel_dsi, port);
 }
 
 static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
