@@ -2212,9 +2212,9 @@ static int intel_pstate_verify_policy(struct cpufreq_policy *policy)
 		unsigned int max_freq, min_freq;
 
 		max_freq = policy->cpuinfo.max_freq *
-						limits->max_sysfs_pct / 100;
+					perf_limits->max_sysfs_pct / 100;
 		min_freq = policy->cpuinfo.max_freq *
-						limits->min_sysfs_pct / 100;
+					perf_limits->min_sysfs_pct / 100;
 		cpufreq_verify_within_limits(policy, min_freq, max_freq);
 	}
 
