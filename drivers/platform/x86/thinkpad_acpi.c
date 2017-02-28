@@ -1922,7 +1922,9 @@ enum {	/* hot key scan codes (derived from ACPI DSDT) */
 	TP_ACPI_HOTKEYSCAN_UNK7,
 	TP_ACPI_HOTKEYSCAN_UNK8,
 
-	TP_ACPI_HOTKEYSCAN_MUTE2,
+	/* Adaptive keyboard keycodes */
+	TP_ACPI_HOTKEYSCAN_ADAPTIVE_START,
+	TP_ACPI_HOTKEYSCAN_MUTE2        = TP_ACPI_HOTKEYSCAN_ADAPTIVE_START,
 	TP_ACPI_HOTKEYSCAN_BRIGHTNESS_ZERO,
 	TP_ACPI_HOTKEYSCAN_CLIPPING_TOOL,
 	TP_ACPI_HOTKEYSCAN_CLOUD,
@@ -3656,7 +3658,6 @@ static const int adaptive_keyboard_modes[] = {
 #define DFR_CHANGE_ROW			0x101
 #define DFR_SHOW_QUICKVIEW_ROW		0x102
 #define FIRST_ADAPTIVE_KEY		0x103
-#define ADAPTIVE_KEY_OFFSET		0x020
 
 /* press Fn key a while second, it will switch to Function Mode. Then
  * release Fn key, previous mode be restored.
@@ -3747,12 +3748,13 @@ static bool adaptive_keyboard_hotkey_notify_hotkey(unsigned int scancode)
 	default:
 		if (scancode < FIRST_ADAPTIVE_KEY ||
 		    scancode >= FIRST_ADAPTIVE_KEY + TPACPI_HOTKEY_MAP_LEN -
-				ADAPTIVE_KEY_OFFSET) {
+				TP_ACPI_HOTKEYSCAN_ADAPTIVE_START) {
 			pr_info("Unhandled adaptive keyboard key: 0x%x\n",
 					scancode);
 			return false;
 		}
-		keycode = hotkey_keycode_map[scancode - FIRST_ADAPTIVE_KEY + ADAPTIVE_KEY_OFFSET];
+		keycode = hotkey_keycode_map[scancode - FIRST_ADAPTIVE_KEY +
+					     TP_ACPI_HOTKEYSCAN_ADAPTIVE_START];
 		if (keycode != KEY_RESERVED) {
 			mutex_lock(&tpacpi_inputdev_send_mutex);
 
@@ -3778,7 +3780,7 @@ static bool hotkey_notify_hotkey(const u32 hkey,
 	*ignore_acpi_ev = false;
 
 	/* HKEY event 0x1001 is scancode 0x00 */
-	if (scancode > 0 && scancode <= TPACPI_HOTKEY_MAP_LEN) {
+	if (scancode > 0 && scancode <= TP_ACPI_HOTKEYSCAN_ADAPTIVE_START) {
 		scancode--;
 		if (!(hotkey_source_mask & (1 << scancode))) {
 			tpacpi_input_send_key_masked(scancode);
