@@ -2712,6 +2712,8 @@ add_detailed_modes(struct drm_connector *connector, struct edid *edid,
 #define VENDOR_BLOCK    0x03
 #define SPEAKER_BLOCK	0x04
 #define VIDEO_CAPABILITY_BLOCK	0x07
+#define VIDEO_DATA_BLOCK_420	0x0E
+#define VIDEO_CAP_BLOCK_420	0x0F
 #define EDID_BASIC_AUDIO	(1 << 6)
 #define EDID_CEA_YCRCB444	(1 << 5)
 #define EDID_CEA_YCRCB422	(1 << 4)
@@ -3171,6 +3173,99 @@ static int add_3d_struct_modes(struct drm_connector *connector, u16 structure,
 	return modes;
 }
 
+static int add_420_mode(struct drm_connector *connector, u8 vic)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_display_mode *newmode;
+
+	if (!drm_valid_cea_vic(vic))
+		return 0;
+
+	newmode = drm_mode_duplicate(dev, &edid_cea_modes[vic]);
+	if (!newmode)
+		return 0;
+
+	newmode->flags |= DRM_MODE_FLAG_420_ONLY;
+	drm_mode_probed_add(connector, newmode);
+
+	return 1;
+}
+
+static int add_420_vdb_modes(struct drm_connector *connector, const u8 *svds,
+		u8 svds_len)
+{
+	int modes = 0, i;
+
+	for (i = 0; i < svds_len; i++)
+		modes += add_420_mode(connector, svds[i]);
+
+	return modes;
+}
+
+static int add_420_vcb_modes(struct drm_connector *connector, const u8 *svds,
+		u8 svds_len, const u8 *video_db, u8 video_len)
+{
+	struct drm_display_mode *newmode = NULL;
+	int modes = 0, i, j;
+
+	for (i = 0; i < svds_len; i++) {
+		u8 mask = svds[i];
+
+		for (j = 0; j < 8; j++) {
+			if (mask & (1 << j)) {
+				newmode = drm_display_mode_from_vic_index(
+						connector, video_db, video_len,
+						i * 8 + j);
+				if (newmode) {
+					newmode->flags |= DRM_MODE_FLAG_420;
+					drm_mode_probed_add(connector, newmode);
+					modes++;
+				}
+			}
+		}
+	}
+
+	return modes;
+}
+
+static int add_420_vcb_modes_all(struct drm_connector *connector,
+		const u8 *video_db, u8 video_len)
+{
+	struct drm_display_mode *newmode = NULL;
+	int modes = 0, i;
+
+	for (i = 0; i < video_len; i++) {
+		newmode = drm_display_mode_from_vic_index(connector, video_db,
+				video_len, i);
+		if (newmode) {
+			newmode->flags |= DRM_MODE_FLAG_420;
+			drm_mode_probed_add(connector, newmode);
+			modes++;
+		}
+	}
+
+	return modes;
+}
+
+static int do_hdmi_420_modes(struct drm_connector *connector, const u8 *vdb,
+		u8 vdb_len, const u8 *vcb, u8 vcb_len, const u8 *video_db,
+		u8 video_len)
+{
+	int modes = 0;
+
+	if (vdb && (vdb_len > 1)) /* Add 4:2:0 modes present in EDID */
+		modes += add_420_vdb_modes(connector, &vdb[2], vdb_len - 1);
+
+	if (vcb && (vcb_len > 1)) /* Parse bit mask of supported modes */
+		modes += add_420_vcb_modes(connector, &vcb[2], vcb_len - 1,
+				video_db, video_len);
+	else if (vcb) /* All modes support 4:2:0 mode */
+		modes += add_420_vcb_modes_all(connector, video_db, video_len);
+
+	DRM_DEBUG("added %d 4:2:0 modes\n", modes);
+	return modes;
+}
+
 /*
  * do_hdmi_vsdb_modes - Parse the HDMI Vendor Specific data block
  * @connector: connector corresponding to the HDMI sink
@@ -3327,6 +3422,12 @@ cea_db_tag(const u8 *db)
 }
 
 static int
+cea_db_extended_tag(const u8 *db)
+{
+	return db[1];
+}
+
+static int
 cea_revision(const u8 *cea)
 {
 	return cea[1];
@@ -3375,6 +3476,28 @@ static bool cea_db_is_hdmi_hf_vsdb(const u8 *db)
 	return hdmi_id == HDMI_IEEE_OUI_HF;
 }
 
+static bool cea_db_is_hdmi_vdb420(const u8 *db)
+{
+	if (cea_db_tag(db) != VIDEO_CAPABILITY_BLOCK)
+		return false;
+
+	if (cea_db_extended_tag(db) != VIDEO_DATA_BLOCK_420)
+		return false;
+
+	return true;
+}
+
+static bool cea_db_is_hdmi_vcb420(const u8 *db)
+{
+	if (cea_db_tag(db) != VIDEO_CAPABILITY_BLOCK)
+		return false;
+
+	if (cea_db_extended_tag(db) != VIDEO_CAP_BLOCK_420)
+		return false;
+
+	return true;
+}
+
 #define for_each_cea_db(cea, i, start, end) \
 	for ((i) = (start); (i) < (end) && (i) + cea_db_payload_len(&(cea)[(i)]) < (end); (i) += cea_db_payload_len(&(cea)[(i)]) + 1)
 
@@ -3382,8 +3505,9 @@ static int
 add_cea_modes(struct drm_connector *connector, struct edid *edid)
 {
 	const u8 *cea = drm_find_cea_extension(edid);
-	const u8 *db, *hdmi = NULL, *video = NULL;
-	u8 dbl, hdmi_len, video_len = 0;
+	const u8 *db, *hdmi = NULL, *video = NULL, *vdb420 = NULL,
+	      *vcb420 = NULL;
+	u8 dbl, hdmi_len, video_len = 0, vdb420_len = 0, vcb420_len = 0;
 	int modes = 0;
 
 	if (cea && cea_revision(cea) >= 3) {
@@ -3404,6 +3528,12 @@ add_cea_modes(struct drm_connector *connector, struct edid *edid)
 			else if (cea_db_is_hdmi_vsdb(db)) {
 				hdmi = db;
 				hdmi_len = dbl;
+			} else if (cea_db_is_hdmi_vdb420(db)) {
+				vdb420 = db;
+				vdb420_len = dbl;
+			} else if (cea_db_is_hdmi_vcb420(db)) {
+				vcb420 = db;
+				vcb420_len = dbl;
 			}
 		}
 	}
@@ -3415,6 +3545,10 @@ add_cea_modes(struct drm_connector *connector, struct edid *edid)
 	if (hdmi)
 		modes += do_hdmi_vsdb_modes(connector, hdmi, hdmi_len, video,
 					    video_len);
+
+	if (vdb420 || vcb420)
+		modes += do_hdmi_420_modes(connector, vdb420, vdb420_len,
+				vcb420, vcb420_len, video, video_len);
 
 	return modes;
 }

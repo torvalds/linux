@@ -72,6 +72,12 @@
 #define  DRM_MODE_FLAG_3D_L_DEPTH_GFX_GFX_DEPTH	(6<<14)
 #define  DRM_MODE_FLAG_3D_TOP_AND_BOTTOM	(7<<14)
 #define  DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF	(8<<14)
+/*
+ * HDMI 2.0
+ */
+#define DRM_MODE_FLAG_420_MASK			(0x03<<19)
+#define  DRM_MODE_FLAG_420			(1<<19)
+#define  DRM_MODE_FLAG_420_ONLY			(1<<20)
 
 
 /* DPMS flags */

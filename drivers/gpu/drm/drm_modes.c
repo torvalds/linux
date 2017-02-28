@@ -938,6 +938,10 @@ bool drm_mode_equal_no_clocks(const struct drm_display_mode *mode1, const struct
 	    (mode2->flags & DRM_MODE_FLAG_3D_MASK))
 		return false;
 
+	if ((mode1->flags & DRM_MODE_FLAG_420_MASK) !=
+	    (mode2->flags & DRM_MODE_FLAG_420_MASK))
+		return false;
+
 	return drm_mode_equal_no_clocks_no_stereo(mode1, mode2);
 }
 EXPORT_SYMBOL(drm_mode_equal_no_clocks);
@@ -956,6 +960,9 @@ EXPORT_SYMBOL(drm_mode_equal_no_clocks);
 bool drm_mode_equal_no_clocks_no_stereo(const struct drm_display_mode *mode1,
 					const struct drm_display_mode *mode2)
 {
+	unsigned int flags_mask =
+		~(DRM_MODE_FLAG_3D_MASK | DRM_MODE_FLAG_420_MASK);
+
 	if (mode1->hdisplay == mode2->hdisplay &&
 	    mode1->hsync_start == mode2->hsync_start &&
 	    mode1->hsync_end == mode2->hsync_end &&
@@ -966,8 +973,7 @@ bool drm_mode_equal_no_clocks_no_stereo(const struct drm_display_mode *mode1,
 	    mode1->vsync_end == mode2->vsync_end &&
 	    mode1->vtotal == mode2->vtotal &&
 	    mode1->vscan == mode2->vscan &&
-	    (mode1->flags & ~DRM_MODE_FLAG_3D_MASK) ==
-	     (mode2->flags & ~DRM_MODE_FLAG_3D_MASK))
+	    (mode1->flags & flags_mask) == (mode2->flags & flags_mask))
 		return true;
 
 	return false;
