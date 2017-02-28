@@ -18,10 +18,10 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-#include <linux/spinlock.h>	/* spinlock_t                                   */
-#include <linux/sched.h>	/* wait_queue_head_t                            */
-#include <linux/types.h>	/* pid_t                                        */
-#include <linux/netdevice.h>	/* struct net_device_stats,  struct sk_buff     */
+#include <linux/spinlock.h>	/* spinlock_t */
+#include <linux/sched.h>	/* wait_queue_head_t */
+#include <linux/types.h>	/* pid_t */
+#include <linux/netdevice.h>	/* struct net_device_stats,  struct sk_buff */
 #include <linux/etherdevice.h>
 #include <linux/wireless.h>
 #include <linux/atomic.h>	/* struct atomic_t */
@@ -36,7 +36,8 @@
 
 #ifdef KS_WLAN_DEBUG
 #define DPRINTK(n, fmt, args...) \
-                 if (KS_WLAN_DEBUG > (n)) printk(KERN_NOTICE "%s: "fmt, __FUNCTION__, ## args)
+                 if (KS_WLAN_DEBUG > (n)) \
+			printk(KERN_NOTICE "%s: "fmt, __FUNCTION__, ## args)
 #else
 #define DPRINTK(n, fmt, args...)
 #endif
