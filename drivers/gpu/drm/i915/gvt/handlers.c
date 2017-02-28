@@ -2749,7 +2749,7 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_F(0xb020, 0x80, F_CMD_ACCESS, 0, 0, D_SKL, NULL, NULL);
 
 	MMIO_D(0xd08, D_SKL);
-	MMIO_D(0x20e0, D_SKL);
+	MMIO_DFH(0x20e0, D_SKL, F_MODE_MASK, NULL, NULL);
 	MMIO_DFH(0x20ec, D_SKL, F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
 
 	/* TRTT */
