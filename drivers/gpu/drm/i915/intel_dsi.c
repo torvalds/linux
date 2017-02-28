@@ -433,6 +433,49 @@ static void intel_dsi_device_ready(struct intel_encoder *encoder)
 		bxt_dsi_device_ready(encoder);
 }
 
+static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	enum port port;
+
+	DRM_DEBUG_KMS("\n");
+	for_each_dsi_port(port, intel_dsi->ports) {
+		/* Common bit for both MIPI Port A & MIPI Port C on VLV/CHV */
+		i915_reg_t port_ctrl = IS_GEN9_LP(dev_priv) ?
+			BXT_MIPI_PORT_CTRL(port) : MIPI_PORT_CTRL(PORT_A);
+		u32 val;
+
+		I915_WRITE(MIPI_DEVICE_READY(port), DEVICE_READY |
+							ULPS_STATE_ENTER);
+		usleep_range(2000, 2500);
+
+		I915_WRITE(MIPI_DEVICE_READY(port), DEVICE_READY |
+							ULPS_STATE_EXIT);
+		usleep_range(2000, 2500);
+
+		I915_WRITE(MIPI_DEVICE_READY(port), DEVICE_READY |
+							ULPS_STATE_ENTER);
+		usleep_range(2000, 2500);
+
+		/* Wait till Clock lanes are in LP-00 state for MIPI Port A
+		 * only. MIPI Port C has no similar bit for checking
+		 */
+		if (intel_wait_for_register(dev_priv,
+					    port_ctrl, AFE_LATCHOUT, 0,
+					    30))
+			DRM_ERROR("DSI LP not going Low\n");
+
+		/* Disable MIPI PHY transparent latch */
+		val = I915_READ(port_ctrl);
+		I915_WRITE(port_ctrl, val & ~LP_OUTPUT_HOLD);
+		usleep_range(1000, 1500);
+
+		I915_WRITE(MIPI_DEVICE_READY(port), 0x00);
+		usleep_range(2000, 2500);
+	}
+}
+
 static void intel_dsi_port_enable(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
@@ -618,49 +661,6 @@ static void intel_dsi_pre_disable(struct intel_encoder *encoder,
 		for_each_dsi_port(port, intel_dsi->ports)
 			dpi_send_cmd(intel_dsi, SHUTDOWN, false, port);
 		msleep(10);
-	}
-}
-
-static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
-	enum port port;
-
-	DRM_DEBUG_KMS("\n");
-	for_each_dsi_port(port, intel_dsi->ports) {
-		/* Common bit for both MIPI Port A & MIPI Port C on VLV/CHV */
-		i915_reg_t port_ctrl = IS_GEN9_LP(dev_priv) ?
-			BXT_MIPI_PORT_CTRL(port) : MIPI_PORT_CTRL(PORT_A);
-		u32 val;
-
-		I915_WRITE(MIPI_DEVICE_READY(port), DEVICE_READY |
-							ULPS_STATE_ENTER);
-		usleep_range(2000, 2500);
-
-		I915_WRITE(MIPI_DEVICE_READY(port), DEVICE_READY |
-							ULPS_STATE_EXIT);
-		usleep_range(2000, 2500);
-
-		I915_WRITE(MIPI_DEVICE_READY(port), DEVICE_READY |
-							ULPS_STATE_ENTER);
-		usleep_range(2000, 2500);
-
-		/* Wait till Clock lanes are in LP-00 state for MIPI Port A
-		 * only. MIPI Port C has no similar bit for checking
-		 */
-		if (intel_wait_for_register(dev_priv,
-					    port_ctrl, AFE_LATCHOUT, 0,
-					    30))
-			DRM_ERROR("DSI LP not going Low\n");
-
-		/* Disable MIPI PHY transparent latch */
-		val = I915_READ(port_ctrl);
-		I915_WRITE(port_ctrl, val & ~LP_OUTPUT_HOLD);
-		usleep_range(1000, 1500);
-
-		I915_WRITE(MIPI_DEVICE_READY(port), 0x00);
-		usleep_range(2000, 2500);
 	}
 }
 
