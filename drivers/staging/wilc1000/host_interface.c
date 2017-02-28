@@ -3348,10 +3348,6 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	init_completion(&hif_drv->comp_inactive_time);
 
 	if (clients_count == 0)	{
-		if (result < 0) {
-			netdev_err(vif->ndev, "Failed to creat MQ\n");
-			goto _fail_;
-		}
 		hif_workqueue = create_singlethread_workqueue("WILC_wq");
 		if (!hif_workqueue) {
 			netdev_err(vif->ndev, "Failed to create workqueue\n");
