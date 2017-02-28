@@ -13343,16 +13343,18 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc,
 		to_intel_atomic_state(old_crtc_state->state);
 	bool modeset = needs_modeset(crtc->state);
 
+	if (!modeset &&
+	    (intel_cstate->base.color_mgmt_changed ||
+	     intel_cstate->update_pipe)) {
+		intel_color_set_csc(crtc->state);
+		intel_color_load_luts(crtc->state);
+	}
+
 	/* Perform vblank evasion around commit operation */
 	intel_pipe_update_start(intel_crtc);
 
 	if (modeset)
 		goto out;
-
-	if (crtc->state->color_mgmt_changed || to_intel_crtc_state(crtc->state)->update_pipe) {
-		intel_color_set_csc(crtc->state);
-		intel_color_load_luts(crtc->state);
-	}
 
 	if (intel_cstate->update_pipe)
 		intel_update_pipe_config(intel_crtc, old_intel_cstate);
