@@ -309,6 +309,12 @@ enum clk_id {
 	tegra_clk_sor_safe,
 	tegra_clk_ispa,
 	tegra_clk_cec,
+	tegra_clk_dmic1_sync_clk,
+	tegra_clk_dmic2_sync_clk,
+	tegra_clk_dmic3_sync_clk,
+	tegra_clk_dmic1_sync_clk_mux,
+	tegra_clk_dmic2_sync_clk_mux,
+	tegra_clk_dmic3_sync_clk_mux,
 	tegra_clk_max,
 };
 
