@@ -138,6 +138,9 @@
 #define CLK_SOURCE_TSECB 0x6d8
 #define CLK_SOURCE_MAUD 0x6d4
 #define CLK_SOURCE_USB2_HSIC_TRK 0x6cc
+#define CLK_SOURCE_DMIC1 0x64c
+#define CLK_SOURCE_DMIC2 0x650
+#define CLK_SOURCE_DMIC3 0x6bc
 
 #define MASK(x) (BIT(x) - 1)
 
@@ -625,6 +628,21 @@ static const char *mux_clkm_plldp_sor0lvds[] = {
 };
 #define mux_clkm_plldp_sor0lvds_idx NULL
 
+static const char * const mux_dmic1[] = {
+	"pll_a_out0", "dmic1_sync_clk", "pll_p", "clk_m"
+};
+#define mux_dmic1_idx NULL
+
+static const char * const mux_dmic2[] = {
+	"pll_a_out0", "dmic2_sync_clk", "pll_p", "clk_m"
+};
+#define mux_dmic2_idx NULL
+
+static const char * const mux_dmic3[] = {
+	"pll_a_out0", "dmic3_sync_clk", "pll_p", "clk_m"
+};
+#define mux_dmic3_idx NULL
+
 static struct tegra_periph_init_data periph_clks[] = {
 	AUDIO("d_audio", CLK_SOURCE_D_AUDIO, 106, TEGRA_PERIPH_ON_APB, tegra_clk_d_audio),
 	AUDIO("dam0", CLK_SOURCE_DAM0, 108, TEGRA_PERIPH_ON_APB, tegra_clk_dam0),
@@ -794,6 +812,9 @@ static struct tegra_periph_init_data periph_clks[] = {
 	MUX("uartape", mux_pllp_pllc_clkm, CLK_SOURCE_UARTAPE, 212, TEGRA_PERIPH_ON_APB | TEGRA_PERIPH_NO_RESET, tegra_clk_uartape),
 	MUX8("tsecb", mux_pllp_pllc2_c_c3_clkm, CLK_SOURCE_TSECB, 206, 0, tegra_clk_tsecb),
 	MUX8("maud", mux_pllp_pllp_out3_clkm_clk32k_plla, CLK_SOURCE_MAUD, 202, TEGRA_PERIPH_ON_APB | TEGRA_PERIPH_NO_RESET, tegra_clk_maud),
+	MUX8("dmic1", mux_dmic1, CLK_SOURCE_DMIC1, 161, TEGRA_PERIPH_ON_APB | TEGRA_PERIPH_NO_RESET, tegra_clk_dmic1),
+	MUX8("dmic2", mux_dmic2, CLK_SOURCE_DMIC2, 162, TEGRA_PERIPH_ON_APB | TEGRA_PERIPH_NO_RESET, tegra_clk_dmic2),
+	MUX8("dmic3", mux_dmic3, CLK_SOURCE_DMIC3, 197, TEGRA_PERIPH_ON_APB | TEGRA_PERIPH_NO_RESET, tegra_clk_dmic3),
 };
 
 static struct tegra_periph_init_data gate_clks[] = {
