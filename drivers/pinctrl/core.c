@@ -1062,7 +1062,7 @@ static struct pinctrl *create_pinctrl(struct device *dev,
 	mutex_unlock(&pinctrl_maps_mutex);
 
 	if (ret < 0) {
-		/* If some other error than deferral occured, return here */
+		/* If some other error than deferral occurred, return here */
 		pinctrl_free(p, false);
 		return ERR_PTR(ret);
 	}
