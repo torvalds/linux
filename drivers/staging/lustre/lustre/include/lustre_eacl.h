@@ -49,17 +49,17 @@
 #include <linux/fs.h>
 #include <linux/posix_acl_xattr.h>
 
-typedef struct {
+struct ext_acl_xattr_entry {
 	__u16		   e_tag;
 	__u16		   e_perm;
 	__u32		   e_id;
 	__u32		   e_stat;
-} ext_acl_xattr_entry;
+};
 
-typedef struct {
-	__u32		   a_count;
-	ext_acl_xattr_entry     a_entries[0];
-} ext_acl_xattr_header;
+struct ext_acl_xattr_header {
+	__u32 a_count;
+	struct ext_acl_xattr_entry a_entries[0];
+};
 
 #define CFS_ACL_XATTR_SIZE(count, prefix) \
 	(sizeof(prefix ## _header) + (count) * sizeof(prefix ## _entry))
