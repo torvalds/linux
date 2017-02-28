@@ -716,6 +716,8 @@ static void xgbe_phy_sfp_phy_settings(struct xgbe_prv_data *pdata)
 		pdata->phy.duplex = DUPLEX_UNKNOWN;
 		pdata->phy.autoneg = AUTONEG_ENABLE;
 		pdata->phy.advertising = pdata->phy.supported;
+
+		return;
 	}
 
 	pdata->phy.advertising &= ~ADVERTISED_Autoneg;
