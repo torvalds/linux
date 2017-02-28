@@ -1167,9 +1167,9 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
 bad:
 	if (print_bad_edid) {
 		if (drm_edid_is_zero(raw_edid, EDID_LENGTH)) {
-			printk(KERN_NOTICE "EDID block is all zeroes\n");
+			pr_notice("EDID block is all zeroes\n");
 		} else {
-			printk(KERN_NOTICE "Raw EDID:\n");
+			pr_notice("Raw EDID:\n");
 			print_hex_dump(KERN_NOTICE,
 				       " \t", DUMP_PREFIX_NONE, 16, 1,
 				       raw_edid, EDID_LENGTH, false);
