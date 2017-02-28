@@ -139,19 +139,19 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	}
 	card_res->count_encoders = count;
 
-	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_connector_list_iter_begin(dev, &conn_iter);
 	count = 0;
 	connector_id = u64_to_user_ptr(card_res->connector_id_ptr);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (count < card_res->count_connectors &&
 		    put_user(connector->base.id, connector_id + count)) {
-			drm_connector_list_iter_put(&conn_iter);
+			drm_connector_list_iter_end(&conn_iter);
 			return -EFAULT;
 		}
 		count++;
 	}
 	card_res->count_connectors = count;
-	drm_connector_list_iter_put(&conn_iter);
+	drm_connector_list_iter_end(&conn_iter);
 
 	return ret;
 }
@@ -184,11 +184,11 @@ void drm_mode_config_reset(struct drm_device *dev)
 		if (encoder->funcs->reset)
 			encoder->funcs->reset(encoder);
 
-	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter)
 		if (connector->funcs->reset)
 			connector->funcs->reset(connector);
-	drm_connector_list_iter_put(&conn_iter);
+	drm_connector_list_iter_end(&conn_iter);
 }
 EXPORT_SYMBOL(drm_mode_config_reset);
 
@@ -412,7 +412,7 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 		encoder->funcs->destroy(encoder);
 	}
 
-	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		/* drm_connector_list_iter holds an full reference to the
 		 * current connector itself, which means it is inherently safe
@@ -420,12 +420,12 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 		 * deleting it right away. */
 		drm_connector_put(connector);
 	}
-	drm_connector_list_iter_put(&conn_iter);
+	drm_connector_list_iter_end(&conn_iter);
 	if (WARN_ON(!list_empty(&dev->mode_config.connector_list))) {
-		drm_connector_list_iter_get(dev, &conn_iter);
+		drm_connector_list_iter_begin(dev, &conn_iter);
 		drm_for_each_connector_iter(connector, &conn_iter)
 			DRM_ERROR("connector %s leaked!\n", connector->name);
-		drm_connector_list_iter_put(&conn_iter);
+		drm_connector_list_iter_end(&conn_iter);
 	}
 
 	list_for_each_entry_safe(property, pt, &dev->mode_config.property_list,

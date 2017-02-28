@@ -435,10 +435,10 @@ void drm_connector_unregister_all(struct drm_device *dev)
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 
-	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter)
 		drm_connector_unregister(connector);
-	drm_connector_list_iter_put(&conn_iter);
+	drm_connector_list_iter_end(&conn_iter);
 }
 
 int drm_connector_register_all(struct drm_device *dev)
@@ -447,13 +447,13 @@ int drm_connector_register_all(struct drm_device *dev)
 	struct drm_connector_list_iter conn_iter;
 	int ret = 0;
 
-	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		ret = drm_connector_register(connector);
 		if (ret)
 			break;
 	}
-	drm_connector_list_iter_put(&conn_iter);
+	drm_connector_list_iter_end(&conn_iter);
 
 	if (ret)
 		drm_connector_unregister_all(dev);
@@ -507,23 +507,23 @@ static struct lockdep_map connector_list_iter_dep_map = {
 #endif
 
 /**
- * drm_connector_list_iter_get - initialize a connector_list iterator
+ * drm_connector_list_iter_begin - initialize a connector_list iterator
  * @dev: DRM device
  * @iter: connector_list iterator
  *
  * Sets @iter up to walk the &drm_mode_config.connector_list of @dev. @iter
- * must always be cleaned up again by calling drm_connector_list_iter_put().
+ * must always be cleaned up again by calling drm_connector_list_iter_end().
  * Iteration itself happens using drm_connector_list_iter_next() or
  * drm_for_each_connector_iter().
  */
-void drm_connector_list_iter_get(struct drm_device *dev,
-				 struct drm_connector_list_iter *iter)
+void drm_connector_list_iter_begin(struct drm_device *dev,
+				   struct drm_connector_list_iter *iter)
 {
 	iter->dev = dev;
 	iter->conn = NULL;
 	lock_acquire_shared_recursive(&connector_list_iter_dep_map, 0, 1, NULL, _RET_IP_);
 }
-EXPORT_SYMBOL(drm_connector_list_iter_get);
+EXPORT_SYMBOL(drm_connector_list_iter_begin);
 
 /**
  * drm_connector_list_iter_next - return next connector
@@ -564,7 +564,7 @@ drm_connector_list_iter_next(struct drm_connector_list_iter *iter)
 EXPORT_SYMBOL(drm_connector_list_iter_next);
 
 /**
- * drm_connector_list_iter_put - tear down a connector_list iterator
+ * drm_connector_list_iter_end - tear down a connector_list iterator
  * @iter: connector_list iterator
  *
  * Tears down @iter and releases any resources (like &drm_connector references)
@@ -572,14 +572,14 @@ EXPORT_SYMBOL(drm_connector_list_iter_next);
  * iteration completes fully or when it was aborted without walking the entire
  * list.
  */
-void drm_connector_list_iter_put(struct drm_connector_list_iter *iter)
+void drm_connector_list_iter_end(struct drm_connector_list_iter *iter)
 {
 	iter->dev = NULL;
 	if (iter->conn)
 		drm_connector_put(iter->conn);
 	lock_release(&connector_list_iter_dep_map, 0, _RET_IP_);
 }
-EXPORT_SYMBOL(drm_connector_list_iter_put);
+EXPORT_SYMBOL(drm_connector_list_iter_end);
 
 static const struct drm_prop_enum_list drm_subpixel_enum_list[] = {
 	{ SubPixelUnknown, "Unknown" },

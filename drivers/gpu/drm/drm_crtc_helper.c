@@ -102,14 +102,14 @@ bool drm_helper_encoder_in_use(struct drm_encoder *encoder)
 	}
 
 
-	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (connector->encoder == encoder) {
-			drm_connector_list_iter_put(&conn_iter);
+			drm_connector_list_iter_end(&conn_iter);
 			return true;
 		}
 	}
-	drm_connector_list_iter_put(&conn_iter);
+	drm_connector_list_iter_end(&conn_iter);
 	return false;
 }
 EXPORT_SYMBOL(drm_helper_encoder_in_use);
@@ -449,7 +449,7 @@ drm_crtc_helper_disable(struct drm_crtc *crtc)
 		if (encoder->crtc != crtc)
 			continue;
 
-		drm_connector_list_iter_get(dev, &conn_iter);
+		drm_connector_list_iter_begin(dev, &conn_iter);
 		drm_for_each_connector_iter(connector, &conn_iter) {
 			if (connector->encoder != encoder)
 				continue;
@@ -467,7 +467,7 @@ drm_crtc_helper_disable(struct drm_crtc *crtc)
 			/* we keep a reference while the encoder is bound */
 			drm_connector_put(connector);
 		}
-		drm_connector_list_iter_put(&conn_iter);
+		drm_connector_list_iter_end(&conn_iter);
 	}
 
 	__drm_helper_disable_unused_functions(dev);
@@ -583,10 +583,10 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	}
 
 	count = 0;
-	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter)
 		save_connector_encoders[count++] = connector->encoder;
-	drm_connector_list_iter_put(&conn_iter);
+	drm_connector_list_iter_end(&conn_iter);
 
 	save_set.crtc = set->crtc;
 	save_set.mode = &set->crtc->mode;
@@ -628,7 +628,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 
 	/* a) traverse passed in connector list and get encoders for them */
 	count = 0;
-	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		const struct drm_connector_helper_funcs *connector_funcs =
 			connector->helper_private;
@@ -662,7 +662,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 			connector->encoder = new_encoder;
 		}
 	}
-	drm_connector_list_iter_put(&conn_iter);
+	drm_connector_list_iter_end(&conn_iter);
 
 	if (fail) {
 		ret = -EINVAL;
@@ -670,7 +670,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	}
 
 	count = 0;
-	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (!connector->encoder)
 			continue;
@@ -689,7 +689,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		if (new_crtc &&
 		    !drm_encoder_crtc_ok(connector->encoder, new_crtc)) {
 			ret = -EINVAL;
-			drm_connector_list_iter_put(&conn_iter);
+			drm_connector_list_iter_end(&conn_iter);
 			goto fail;
 		}
 		if (new_crtc != connector->encoder->crtc) {
@@ -706,7 +706,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 				      connector->base.id, connector->name);
 		}
 	}
-	drm_connector_list_iter_put(&conn_iter);
+	drm_connector_list_iter_end(&conn_iter);
 
 	/* mode_set_base is not a required function */
 	if (fb_changed && !crtc_funcs->mode_set_base)
@@ -761,10 +761,10 @@ fail:
 	}
 
 	count = 0;
-	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter)
 		connector->encoder = save_connector_encoders[count++];
-	drm_connector_list_iter_put(&conn_iter);
+	drm_connector_list_iter_end(&conn_iter);
 
 	/* after fail drop reference on all unbound connectors in set, let
 	 * bound connectors keep their reference
@@ -794,12 +794,12 @@ static int drm_helper_choose_encoder_dpms(struct drm_encoder *encoder)
 	struct drm_connector_list_iter conn_iter;
 	struct drm_device *dev = encoder->dev;
 
-	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter)
 		if (connector->encoder == encoder)
 			if (connector->dpms < dpms)
 				dpms = connector->dpms;
-	drm_connector_list_iter_put(&conn_iter);
+	drm_connector_list_iter_end(&conn_iter);
 
 	return dpms;
 }
@@ -835,12 +835,12 @@ static int drm_helper_choose_crtc_dpms(struct drm_crtc *crtc)
 	struct drm_connector_list_iter conn_iter;
 	struct drm_device *dev = crtc->dev;
 
-	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter)
 		if (connector->encoder && connector->encoder->crtc == crtc)
 			if (connector->dpms < dpms)
 				dpms = connector->dpms;
-	drm_connector_list_iter_put(&conn_iter);
+	drm_connector_list_iter_end(&conn_iter);
 
 	return dpms;
 }

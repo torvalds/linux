@@ -926,7 +926,7 @@ void drm_mode_put_tile_group(struct drm_device *dev,
  *
  * This iterator tracks state needed to be able to walk the connector_list
  * within struct drm_mode_config. Only use together with
- * drm_connector_list_iter_get(), drm_connector_list_iter_put() and
+ * drm_connector_list_iter_begin(), drm_connector_list_iter_end() and
  * drm_connector_list_iter_next() respectively the convenience macro
  * drm_for_each_connector_iter().
  */
@@ -936,11 +936,11 @@ struct drm_connector_list_iter {
 	struct drm_connector *conn;
 };
 
-void drm_connector_list_iter_get(struct drm_device *dev,
-				 struct drm_connector_list_iter *iter);
+void drm_connector_list_iter_begin(struct drm_device *dev,
+				   struct drm_connector_list_iter *iter);
 struct drm_connector *
 drm_connector_list_iter_next(struct drm_connector_list_iter *iter);
-void drm_connector_list_iter_put(struct drm_connector_list_iter *iter);
+void drm_connector_list_iter_end(struct drm_connector_list_iter *iter);
 
 /**
  * drm_for_each_connector_iter - connector_list iterator macro
@@ -948,8 +948,8 @@ void drm_connector_list_iter_put(struct drm_connector_list_iter *iter);
  * @iter: &struct drm_connector_list_iter
  *
  * Note that @connector is only valid within the list body, if you want to use
- * @connector after calling drm_connector_list_iter_put() then you need to grab
- * your own reference first using drm_connector_get().
+ * @connector after calling drm_connector_list_iter_end() then you need to grab
+ * your own reference first using drm_connector_begin().
  */
 #define drm_for_each_connector_iter(connector, iter) \
 	while ((connector = drm_connector_list_iter_next(iter)))

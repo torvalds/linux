@@ -145,7 +145,7 @@ static int handle_conflicting_encoders(struct drm_atomic_state *state,
 	 * and the crtc is disabled if no encoder is left. This preserves
 	 * compatibility with the legacy set_config behavior.
 	 */
-	drm_connector_list_iter_get(state->dev, &conn_iter);
+	drm_connector_list_iter_begin(state->dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		struct drm_crtc_state *crtc_state;
 
@@ -193,7 +193,7 @@ static int handle_conflicting_encoders(struct drm_atomic_state *state,
 		}
 	}
 out:
-	drm_connector_list_iter_put(&conn_iter);
+	drm_connector_list_iter_end(&conn_iter);
 
 	return ret;
 }
@@ -3018,7 +3018,7 @@ retry:
 
 	WARN_ON(!drm_modeset_is_locked(&config->connection_mutex));
 
-	drm_connector_list_iter_get(connector->dev, &conn_iter);
+	drm_connector_list_iter_begin(connector->dev, &conn_iter);
 	drm_for_each_connector_iter(tmp_connector, &conn_iter) {
 		if (tmp_connector->state->crtc != crtc)
 			continue;
@@ -3028,7 +3028,7 @@ retry:
 			break;
 		}
 	}
-	drm_connector_list_iter_put(&conn_iter);
+	drm_connector_list_iter_end(&conn_iter);
 	crtc_state->active = active;
 
 	ret = drm_atomic_commit(state);
@@ -3439,18 +3439,18 @@ drm_atomic_helper_duplicate_state(struct drm_device *dev,
 		}
 	}
 
-	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(conn, &conn_iter) {
 		struct drm_connector_state *conn_state;
 
 		conn_state = drm_atomic_get_connector_state(state, conn);
 		if (IS_ERR(conn_state)) {
 			err = PTR_ERR(conn_state);
-			drm_connector_list_iter_put(&conn_iter);
+			drm_connector_list_iter_end(&conn_iter);
 			goto free;
 		}
 	}
-	drm_connector_list_iter_put(&conn_iter);
+	drm_connector_list_iter_end(&conn_iter);
 
 	/* clear the acquire context so that it isn't accidentally reused */
 	state->acquire_ctx = NULL;
