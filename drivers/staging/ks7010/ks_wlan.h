@@ -38,7 +38,7 @@
 #define DPRINTK(n, fmt, args...) \
 	do { \
 		if (KS_WLAN_DEBUG > (n)) \
-			printk(KERN_NOTICE "%s: "fmt, __FUNCTION__, ## args); \
+			pr_notice("%s: "fmt, __FUNCTION__, ## args); \
 	} while (0)
 #else
 #define DPRINTK(n, fmt, args...)
