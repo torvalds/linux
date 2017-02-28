@@ -246,6 +246,9 @@ void iwl_force_nmi(struct iwl_trans *trans)
 			       DEVICE_SET_NMI_VAL_DRV);
 		iwl_write_prph(trans, DEVICE_SET_NMI_REG,
 			       DEVICE_SET_NMI_VAL_HW);
+	} else if (trans->cfg->gen2) {
+		iwl_write_prph(trans, UREG_NIC_SET_NMI_DRIVER,
+			       DEVICE_SET_NMI_8000_VAL);
 	} else {
 		iwl_write_prph(trans, DEVICE_SET_NMI_8000_REG,
 			       DEVICE_SET_NMI_8000_VAL);

@@ -114,6 +114,7 @@
 #define DEVICE_SET_NMI_VAL_DRV BIT(7)
 #define DEVICE_SET_NMI_8000_REG 0x00a01c24
 #define DEVICE_SET_NMI_8000_VAL 0x1000000
+#define UREG_NIC_SET_NMI_DRIVER 0x00a05c10
 
 /* Shared registers (0x0..0x3ff, via target indirect or periphery */
 #define SHR_BASE	0x00a10000
