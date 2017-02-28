@@ -3351,7 +3351,7 @@ __drm_atomic_helper_connector_duplicate_state(struct drm_connector *connector,
 {
 	memcpy(state, connector->state, sizeof(*state));
 	if (state->crtc)
-		drm_connector_reference(connector);
+		drm_connector_get(connector);
 }
 EXPORT_SYMBOL(__drm_atomic_helper_connector_duplicate_state);
 
@@ -3477,7 +3477,7 @@ void
 __drm_atomic_helper_connector_destroy_state(struct drm_connector_state *state)
 {
 	if (state->crtc)
-		drm_connector_unreference(state->connector);
+		drm_connector_put(state->connector);
 }
 EXPORT_SYMBOL(__drm_atomic_helper_connector_destroy_state);
 

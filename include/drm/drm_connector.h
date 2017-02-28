@@ -812,25 +812,50 @@ static inline struct drm_connector *drm_connector_lookup(struct drm_device *dev,
 }
 
 /**
- * drm_connector_reference - incr the connector refcnt
- * @connector: connector
+ * drm_connector_get - acquire a connector reference
+ * @connector: DRM connector
  *
  * This function increments the connector's refcount.
  */
-static inline void drm_connector_reference(struct drm_connector *connector)
+static inline void drm_connector_get(struct drm_connector *connector)
 {
-	drm_mode_object_reference(&connector->base);
+	drm_mode_object_get(&connector->base);
 }
 
 /**
- * drm_connector_unreference - unref a connector
- * @connector: connector to unref
+ * drm_connector_put - release a connector reference
+ * @connector: DRM connector
  *
- * This function decrements the connector's refcount and frees it if it drops to zero.
+ * This function decrements the connector's reference count and frees the
+ * object if the reference count drops to zero.
+ */
+static inline void drm_connector_put(struct drm_connector *connector)
+{
+	drm_mode_object_put(&connector->base);
+}
+
+/**
+ * drm_connector_reference - acquire a connector reference
+ * @connector: DRM connector
+ *
+ * This is a compatibility alias for drm_connector_get() and should not be
+ * used by new code.
+ */
+static inline void drm_connector_reference(struct drm_connector *connector)
+{
+	drm_connector_get(connector);
+}
+
+/**
+ * drm_connector_unreference - release a connector reference
+ * @connector: DRM connector
+ *
+ * This is a compatibility alias for drm_connector_put() and should not be
+ * used by new code.
  */
 static inline void drm_connector_unreference(struct drm_connector *connector)
 {
-	drm_mode_object_unreference(&connector->base);
+	drm_connector_put(connector);
 }
 
 const char *drm_get_connector_status_name(enum drm_connector_status status);
@@ -924,7 +949,7 @@ void drm_connector_list_iter_put(struct drm_connector_list_iter *iter);
  *
  * Note that @connector is only valid within the list body, if you want to use
  * @connector after calling drm_connector_list_iter_put() then you need to grab
- * your own reference first using drm_connector_reference().
+ * your own reference first using drm_connector_get().
  */
 #define drm_for_each_connector_iter(connector, iter) \
 	while ((connector = drm_connector_list_iter_next(iter)))

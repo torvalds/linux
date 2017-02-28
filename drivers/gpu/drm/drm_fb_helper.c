@@ -148,7 +148,7 @@ fail:
 		struct drm_fb_helper_connector *fb_helper_connector =
 			fb_helper->connector_info[i];
 
-		drm_connector_unreference(fb_helper_connector->connector);
+		drm_connector_put(fb_helper_connector->connector);
 
 		kfree(fb_helper_connector);
 		fb_helper->connector_info[i] = NULL;
@@ -185,7 +185,7 @@ int drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper, struct drm_
 	if (!fb_helper_connector)
 		return -ENOMEM;
 
-	drm_connector_reference(connector);
+	drm_connector_get(connector);
 	fb_helper_connector->connector = connector;
 	fb_helper->connector_info[fb_helper->connector_count++] = fb_helper_connector;
 	return 0;
@@ -211,7 +211,7 @@ int drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
 	if (i == fb_helper->connector_count)
 		return -EINVAL;
 	fb_helper_connector = fb_helper->connector_info[i];
-	drm_connector_unreference(fb_helper_connector->connector);
+	drm_connector_put(fb_helper_connector->connector);
 
 	for (j = i + 1; j < fb_helper->connector_count; j++) {
 		fb_helper->connector_info[j - 1] = fb_helper->connector_info[j];
@@ -633,7 +633,7 @@ static void drm_fb_helper_modeset_release(struct drm_fb_helper *helper,
 	int i;
 
 	for (i = 0; i < modeset->num_connectors; i++) {
-		drm_connector_unreference(modeset->connectors[i]);
+		drm_connector_put(modeset->connectors[i]);
 		modeset->connectors[i] = NULL;
 	}
 	modeset->num_connectors = 0;
@@ -650,7 +650,7 @@ static void drm_fb_helper_crtc_free(struct drm_fb_helper *helper)
 	int i;
 
 	for (i = 0; i < helper->connector_count; i++) {
-		drm_connector_unreference(helper->connector_info[i]->connector);
+		drm_connector_put(helper->connector_info[i]->connector);
 		kfree(helper->connector_info[i]);
 	}
 	kfree(helper->connector_info);
@@ -2192,7 +2192,7 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
 			fb_crtc->y = offset->y;
 			modeset->mode = drm_mode_duplicate(dev,
 							   fb_crtc->desired_mode);
-			drm_connector_reference(connector);
+			drm_connector_get(connector);
 			modeset->connectors[modeset->num_connectors++] = connector;
 			modeset->fb = fb_helper->fb;
 			modeset->x = offset->x;

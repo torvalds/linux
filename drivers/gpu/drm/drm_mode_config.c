@@ -418,7 +418,7 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 		 * current connector itself, which means it is inherently safe
 		 * against unreferencing the current connector - but not against
 		 * deleting it right away. */
-		drm_connector_unreference(connector);
+		drm_connector_put(connector);
 	}
 	drm_connector_list_iter_put(&conn_iter);
 	if (WARN_ON(!list_empty(&dev->mode_config.connector_list))) {

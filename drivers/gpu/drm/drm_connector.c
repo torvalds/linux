@@ -35,8 +35,8 @@
  * als fixed panels or anything else that can display pixels in some form. As
  * opposed to all other KMS objects representing hardware (like CRTC, encoder or
  * plane abstractions) connectors can be hotplugged and unplugged at runtime.
- * Hence they are reference-counted using drm_connector_reference() and
- * drm_connector_unreference().
+ * Hence they are reference-counted using drm_connector_get() and
+ * drm_connector_put().
  *
  * KMS driver must create, initialize, register and attach at a &struct
  * drm_connector for each such sink. The instance is created as other KMS
@@ -557,7 +557,7 @@ drm_connector_list_iter_next(struct drm_connector_list_iter *iter)
 	spin_unlock_irqrestore(&config->connector_list_lock, flags);
 
 	if (old_conn)
-		drm_connector_unreference(old_conn);
+		drm_connector_put(old_conn);
 
 	return iter->conn;
 }
@@ -576,7 +576,7 @@ void drm_connector_list_iter_put(struct drm_connector_list_iter *iter)
 {
 	iter->dev = NULL;
 	if (iter->conn)
-		drm_connector_unreference(iter->conn);
+		drm_connector_put(iter->conn);
 	lock_release(&connector_list_iter_dep_map, 0, _RET_IP_);
 }
 EXPORT_SYMBOL(drm_connector_list_iter_put);
@@ -1309,7 +1309,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 out:
 	mutex_unlock(&dev->mode_config.mutex);
 out_unref:
-	drm_connector_unreference(connector);
+	drm_connector_put(connector);
 
 	return ret;
 }

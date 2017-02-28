@@ -685,7 +685,7 @@ out:
 	if (connector_set) {
 		for (i = 0; i < crtc_req->count_connectors; i++) {
 			if (connector_set[i])
-				drm_connector_unreference(connector_set[i]);
+				drm_connector_put(connector_set[i]);
 		}
 	}
 	kfree(connector_set);
