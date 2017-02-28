@@ -390,9 +390,8 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 	dout("crush decode tunable chooseleaf_stable = %d\n",
 	     c->chooseleaf_stable);
 
-	crush_finalize(c);
-
 done:
+	crush_finalize(c);
 	dout("crush_decode success\n");
 	return c;
 
