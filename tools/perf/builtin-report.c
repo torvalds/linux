@@ -320,6 +320,9 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 	size_t size = sizeof(buf);
 	int socked_id = hists->socket_filter;
 
+	if (quiet)
+		return 0;
+
 	if (symbol_conf.filter_relative) {
 		nr_samples = hists->stats.nr_non_filtered_samples;
 		nr_events = hists->stats.total_non_filtered_period;
@@ -372,7 +375,11 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 {
 	struct perf_evsel *pos;
 
-	fprintf(stdout, "#\n# Total Lost Samples: %" PRIu64 "\n#\n", evlist->stats.total_lost_samples);
+	if (!quiet) {
+		fprintf(stdout, "#\n# Total Lost Samples: %" PRIu64 "\n#\n",
+			evlist->stats.total_lost_samples);
+	}
+
 	evlist__for_each_entry(evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
 		const char *evname = perf_evsel__name(pos);
@@ -382,7 +389,7 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 			continue;
 
 		hists__fprintf_nr_sample_events(hists, rep, evname, stdout);
-		hists__fprintf(hists, true, 0, 0, rep->min_percent, stdout,
+		hists__fprintf(hists, !quiet, 0, 0, rep->min_percent, stdout,
 			       symbol_conf.use_callchain);
 		fprintf(stdout, "\n\n");
 	}
@@ -716,6 +723,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "input file name"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
+	OPT_BOOLEAN('q', "quiet", &quiet, "Do not show any message"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
@@ -863,6 +871,9 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		report.symbol_filter_str = argv[0];
 	}
 
+	if (quiet)
+		perf_quiet_option();
+
 	if (symbol_conf.vmlinux_name &&
 	    access(symbol_conf.vmlinux_name, R_OK)) {
 		pr_err("Invalid file: %s\n", symbol_conf.vmlinux_name);
@@ -983,14 +994,14 @@ repeat:
 		goto error;
 	}
 
-	if (report.header || report.header_only) {
+	if ((report.header || report.header_only) && !quiet) {
 		perf_session__fprintf_info(session, stdout,
 					   report.show_full_info);
 		if (report.header_only) {
 			ret = 0;
 			goto error;
 		}
-	} else if (use_browser == 0) {
+	} else if (use_browser == 0 && !quiet) {
 		fputs("# To display the perf.data header info, please use --header/--header-only options.\n#\n",
 		      stdout);
 	}
@@ -1009,7 +1020,7 @@ repeat:
  		 * providing it only in verbose mode not to bloat too
  		 * much struct symbol.
  		 */
-		if (verbose) {
+		if (verbose > 0) {
 			/*
 			 * XXX: Need to provide a less kludgy way to ask for
 			 * more space per symbol, the u32 is for the index on
