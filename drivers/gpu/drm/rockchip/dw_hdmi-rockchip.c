@@ -354,8 +354,15 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 				      struct drm_connector_state *conn_state)
 {
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+	struct drm_display_info *info = &conn_state->connector->display_info;
 
-	s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
+	if (drm_mode_is_420(info, &crtc_state->mode)) {
+		s->output_mode = ROCKCHIP_OUT_MODE_YUV420;
+		s->bus_format = MEDIA_BUS_FMT_YUV8_1X24;
+	} else {
+		s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
+		s->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+	}
 	s->output_type = DRM_MODE_CONNECTOR_HDMIA;
 
 	return 0;
