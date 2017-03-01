@@ -313,6 +313,14 @@ void vc4_free_object(struct drm_gem_object *gem_bo)
 		goto out;
 	}
 
+	/* If this object was partially constructed but CMA allocation
+	 * had failed, just free it.
+	 */
+	if (!bo->base.vaddr) {
+		vc4_bo_destroy(bo);
+		goto out;
+	}
+
 	cache_list = vc4_get_cache_list_for_size(dev, gem_bo->size);
 	if (!cache_list) {
 		vc4_bo_destroy(bo);
