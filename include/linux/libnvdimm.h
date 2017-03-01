@@ -83,6 +83,8 @@ struct nd_cmd_desc {
 
 struct nd_interleave_set {
 	u64 cookie;
+	/* compatibility with initial buggy Linux implementation */
+	u64 altcookie;
 };
 
 struct nd_region_desc {
