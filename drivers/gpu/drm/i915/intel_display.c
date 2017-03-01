@@ -13889,15 +13889,14 @@ fail:
 
 enum pipe intel_get_pipe_from_connector(struct intel_connector *connector)
 {
-	struct drm_encoder *encoder = connector->base.encoder;
 	struct drm_device *dev = connector->base.dev;
 
 	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 
-	if (!encoder || WARN_ON(!encoder->crtc))
+	if (!connector->base.state->crtc)
 		return INVALID_PIPE;
 
-	return to_intel_crtc(encoder->crtc)->pipe;
+	return to_intel_crtc(connector->base.state->crtc)->pipe;
 }
 
 int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
