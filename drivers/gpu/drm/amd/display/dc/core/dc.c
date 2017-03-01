@@ -1321,28 +1321,6 @@ void dc_update_surfaces_for_stream(struct dc *dc,
 
 			if (pipe_ctx->surface != surface)
 				continue;
-			/*lock all the MCPP if blnd is enable for DRR*/
-			if ((update_type == UPDATE_TYPE_FAST &&
-					(dc_stream->freesync_ctx.enabled == true &&
-							surface_count != context->res_ctx.pool->pipe_count)) &&
-					!pipe_ctx->tg->funcs->is_blanked(pipe_ctx->tg)) {
-				lock_mask = PIPE_LOCK_CONTROL_MPCC_ADDR;
-			}
-
-			if (update_type != UPDATE_TYPE_FAST &&
-				!pipe_ctx->tg->funcs->is_blanked(pipe_ctx->tg)) {
-				lock_mask = PIPE_LOCK_CONTROL_GRAPHICS |
-						PIPE_LOCK_CONTROL_SCL |
-						PIPE_LOCK_CONTROL_BLENDER |
-						PIPE_LOCK_CONTROL_MODE;
-			}
-			if (lock_mask != 0) {
-				core_dc->hwss.pipe_control_lock(
-						core_dc,
-						pipe_ctx,
-						lock_mask,
-						true);
-			}
 
 			if (update_type == UPDATE_TYPE_FULL) {
 				/* only apply for top pipe */
@@ -1351,6 +1329,19 @@ void dc_update_surfaces_for_stream(struct dc *dc,
 							 surface, context);
 					context_timing_trace(dc, &context->res_ctx);
 				}
+			}
+
+			if (!pipe_ctx->tg->funcs->is_blanked(pipe_ctx->tg)) {
+				lock_mask = PIPE_LOCK_CONTROL_GRAPHICS |
+						PIPE_LOCK_CONTROL_SCL |
+						PIPE_LOCK_CONTROL_BLENDER |
+						PIPE_LOCK_CONTROL_MODE;
+
+				core_dc->hwss.pipe_control_lock(
+						core_dc,
+						pipe_ctx,
+						lock_mask,
+						true);
 			}
 
 			if (updates[i].flip_addr)
@@ -1381,9 +1372,6 @@ void dc_update_surfaces_for_stream(struct dc *dc,
 			}
 		}
 	}
-
-	if ((update_type == UPDATE_TYPE_FAST) && lock_mask == 0)
-		return;
 
 	for (i = context->res_ctx.pool->pipe_count - 1; i >= 0; i--) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];

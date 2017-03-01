@@ -39,7 +39,6 @@ enum pipe_lock_control {
 	PIPE_LOCK_CONTROL_BLENDER = 1 << 1,
 	PIPE_LOCK_CONTROL_SCL = 1 << 2,
 	PIPE_LOCK_CONTROL_MODE = 1 << 3,
-	PIPE_LOCK_CONTROL_MPCC_ADDR = 1 << 4
 };
 
 struct dce_hwseq_wa {

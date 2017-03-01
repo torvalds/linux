@@ -52,8 +52,7 @@ void dce_pipe_control_lock(struct core_dc *dc,
 	uint32_t lock_val = lock ? 1 : 0;
 	uint32_t dcp_grph, scl, blnd, update_lock_mode, val;
 	struct dce_hwseq *hws = dc->hwseq;
-	if (control_mask & PIPE_LOCK_CONTROL_MPCC_ADDR)
-		return;
+
 	val = REG_GET_4(BLND_V_UPDATE_LOCK[pipe->pipe_idx],
 			BLND_DCP_GRPH_V_UPDATE_LOCK, &dcp_grph,
 			BLND_SCL_V_UPDATE_LOCK, &scl,
