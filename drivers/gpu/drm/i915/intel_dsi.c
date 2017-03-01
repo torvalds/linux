@@ -872,6 +872,11 @@ static void intel_dsi_pre_disable(struct intel_encoder *encoder,
 			I915_WRITE(MIPI_DEVICE_READY(port), 0);
 	}
 
+	/*
+	 * According to the spec we should send SHUTDOWN before
+	 * MIPI_SEQ_DISPLAY_OFF only for v3+ VBTs, but field testing
+	 * has shown that the v3 sequence works for v2 VBTs too
+	 */
 	if (is_vid_mode(intel_dsi)) {
 		/* Send Shutdown command to the panel in LP mode */
 		for_each_dsi_port(port, intel_dsi->ports)
