@@ -1997,7 +1997,7 @@ static int hdac_hdmi_dev_remove(struct hdac_ext_device *edev)
 	struct hdac_hdmi_pin *pin, *pin_next;
 	struct hdac_hdmi_cvt *cvt, *cvt_next;
 	struct hdac_hdmi_pcm *pcm, *pcm_next;
-	struct hdac_hdmi_port *port;
+	struct hdac_hdmi_port *port, *port_next;
 	int i;
 
 	snd_soc_unregister_codec(&edev->hdac.dev);
@@ -2007,8 +2007,9 @@ static int hdac_hdmi_dev_remove(struct hdac_ext_device *edev)
 		if (list_empty(&pcm->port_list))
 			continue;
 
-		list_for_each_entry(port, &pcm->port_list, head)
-			port = NULL;
+		list_for_each_entry_safe(port, port_next,
+					&pcm->port_list, head)
+			list_del(&port->head);
 
 		list_del(&pcm->head);
 		kfree(pcm);
