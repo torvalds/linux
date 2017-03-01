@@ -1009,30 +1009,32 @@ static int glk_init_workarounds(struct intel_engine_cs *engine)
 int init_workarounds_ring(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
+	int err;
 
 	WARN_ON(engine->id != RCS);
 
 	dev_priv->workarounds.count = 0;
-	dev_priv->workarounds.hw_whitelist_count[RCS] = 0;
+	dev_priv->workarounds.hw_whitelist_count[engine->id] = 0;
 
 	if (IS_BROADWELL(dev_priv))
-		return bdw_init_workarounds(engine);
+		err = bdw_init_workarounds(engine);
+	else if (IS_CHERRYVIEW(dev_priv))
+		err = chv_init_workarounds(engine);
+	else if (IS_SKYLAKE(dev_priv))
+		err =  skl_init_workarounds(engine);
+	else if (IS_BROXTON(dev_priv))
+		err = bxt_init_workarounds(engine);
+	else if (IS_KABYLAKE(dev_priv))
+		err = kbl_init_workarounds(engine);
+	else if (IS_GEMINILAKE(dev_priv))
+		err =  glk_init_workarounds(engine);
+	else
+		err = 0;
+	if (err)
+		return err;
 
-	if (IS_CHERRYVIEW(dev_priv))
-		return chv_init_workarounds(engine);
-
-	if (IS_SKYLAKE(dev_priv))
-		return skl_init_workarounds(engine);
-
-	if (IS_BROXTON(dev_priv))
-		return bxt_init_workarounds(engine);
-
-	if (IS_KABYLAKE(dev_priv))
-		return kbl_init_workarounds(engine);
-
-	if (IS_GEMINILAKE(dev_priv))
-		return glk_init_workarounds(engine);
-
+	DRM_DEBUG_DRIVER("%s: Number of context specific w/a: %d\n",
+			 engine->name, dev_priv->workarounds.count);
 	return 0;
 }
 
@@ -1065,8 +1067,6 @@ int intel_ring_workarounds_emit(struct drm_i915_gem_request *req)
 	ret = req->engine->emit_flush(req, EMIT_BARRIER);
 	if (ret)
 		return ret;
-
-	DRM_DEBUG_DRIVER("Number of Workarounds emitted: %d\n", w->count);
 
 	return 0;
 }
