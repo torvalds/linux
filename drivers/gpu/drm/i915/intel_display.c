@@ -10979,8 +10979,10 @@ static const struct drm_crtc_helper_funcs intel_helper_funcs = {
 static void intel_modeset_update_connector_atomic_state(struct drm_device *dev)
 {
 	struct intel_connector *connector;
+	struct drm_connector_list_iter conn_iter;
 
-	for_each_intel_connector(dev, connector) {
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	for_each_intel_connector_iter(connector, &conn_iter) {
 		if (connector->base.state->crtc)
 			drm_connector_unreference(&connector->base);
 
@@ -10996,6 +10998,7 @@ static void intel_modeset_update_connector_atomic_state(struct drm_device *dev)
 			connector->base.state->crtc = NULL;
 		}
 	}
+	drm_connector_list_iter_end(&conn_iter);
 }
 
 static void
@@ -11908,6 +11911,7 @@ verify_encoder_state(struct drm_device *dev)
 {
 	struct intel_encoder *encoder;
 	struct intel_connector *connector;
+	struct drm_connector_list_iter conn_iter;
 
 	for_each_intel_encoder(dev, encoder) {
 		bool enabled = false;
@@ -11917,7 +11921,8 @@ verify_encoder_state(struct drm_device *dev)
 			      encoder->base.base.id,
 			      encoder->base.name);
 
-		for_each_intel_connector(dev, connector) {
+		drm_connector_list_iter_begin(dev, &conn_iter);
+		for_each_intel_connector_iter(connector, &conn_iter) {
 			if (connector->base.state->best_encoder != &encoder->base)
 				continue;
 			enabled = true;
@@ -11926,6 +11931,7 @@ verify_encoder_state(struct drm_device *dev)
 					encoder->base.crtc,
 			     "connector's crtc doesn't match encoder crtc\n");
 		}
+		drm_connector_list_iter_end(&conn_iter);
 
 		I915_STATE_WARN(!!encoder->base.crtc != enabled,
 		     "encoder's enabled state mismatch "
@@ -15030,6 +15036,7 @@ int intel_modeset_init(struct drm_device *dev)
 static void intel_enable_pipe_a(struct drm_device *dev)
 {
 	struct intel_connector *connector;
+	struct drm_connector_list_iter conn_iter;
 	struct drm_connector *crt = NULL;
 	struct intel_load_detect_pipe load_detect_temp;
 	struct drm_modeset_acquire_ctx *ctx = dev->mode_config.acquire_ctx;
@@ -15037,12 +15044,14 @@ static void intel_enable_pipe_a(struct drm_device *dev)
 	/* We can't just switch on the pipe A, we need to set things up with a
 	 * proper mode and output configuration. As a gross hack, enable pipe A
 	 * by enabling the load detect pipe once. */
-	for_each_intel_connector(dev, connector) {
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	for_each_intel_connector_iter(connector, &conn_iter) {
 		if (connector->encoder->type == INTEL_OUTPUT_ANALOG) {
 			crt = &connector->base;
 			break;
 		}
 	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	if (!crt)
 		return;
@@ -15288,6 +15297,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 	struct intel_crtc *crtc;
 	struct intel_encoder *encoder;
 	struct intel_connector *connector;
+	struct drm_connector_list_iter conn_iter;
 	int i;
 
 	dev_priv->active_crtcs = 0;
@@ -15358,7 +15368,8 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			      pipe_name(pipe));
 	}
 
-	for_each_intel_connector(dev, connector) {
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	for_each_intel_connector_iter(connector, &conn_iter) {
 		if (connector->get_hw_state(connector)) {
 			connector->base.dpms = DRM_MODE_DPMS_ON;
 
@@ -15386,6 +15397,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			      connector->base.base.id, connector->base.name,
 			      enableddisabled(connector->base.encoder));
 	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	for_each_intel_crtc(dev, crtc) {
 		struct intel_crtc_state *crtc_state =
