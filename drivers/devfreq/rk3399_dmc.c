@@ -467,6 +467,10 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 		return PTR_ERR(data->devfreq);
 	devm_devfreq_register_opp_notifier(dev, data->devfreq);
 
+	data->devfreq->min_freq = devp->freq_table[0];
+	data->devfreq->max_freq =
+		devp->freq_table[devp->max_state ? devp->max_state - 1 : 0];
+
 	data->dev = dev;
 	platform_set_drvdata(pdev, data);
 
