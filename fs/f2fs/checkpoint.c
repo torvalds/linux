@@ -276,10 +276,11 @@ static int f2fs_write_meta_pages(struct address_space *mapping,
 		get_pages(sbi, F2FS_DIRTY_META) < nr_pages_to_skip(sbi, META))
 		goto skip_write;
 
-	trace_f2fs_writepages(mapping->host, wbc, META);
+	/* if locked failed, cp will flush dirty pages instead */
+	if (!mutex_trylock(&sbi->cp_mutex))
+		goto skip_write;
 
-	/* if mounting is failed, skip writing node pages */
-	mutex_lock(&sbi->cp_mutex);
+	trace_f2fs_writepages(mapping->host, wbc, META);
 	diff = nr_pages_to_write(sbi, META, wbc);
 	written = sync_meta_pages(sbi, META, wbc->nr_to_write);
 	mutex_unlock(&sbi->cp_mutex);
