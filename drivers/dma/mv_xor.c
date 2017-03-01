@@ -1580,11 +1580,6 @@ static int mv_xor_probe(struct platform_device *pdev)
 			int irq;
 
 			cd = &pdata->channels[i];
-			if (!cd) {
-				ret = -ENODEV;
-				goto err_channel_add;
-			}
-
 			irq = platform_get_irq(pdev, i);
 			if (irq < 0) {
 				ret = irq;
