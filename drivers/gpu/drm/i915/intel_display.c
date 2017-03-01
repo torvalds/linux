@@ -14313,7 +14313,7 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	if (INTEL_INFO(dev_priv)->gen < 4 &&
 	    tiling != intel_fb_modifier_to_tiling(mode_cmd->modifier[0])) {
 		DRM_DEBUG("tiling_mode must match fb modifier exactly on gen2/3\n");
-		return -EINVAL;
+		goto err;
 	}
 
 	stride_alignment = intel_fb_stride_alignment(dev_priv,
@@ -14358,7 +14358,7 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 		if (INTEL_GEN(dev_priv) > 3) {
 			DRM_DEBUG("unsupported pixel format: %s\n",
 			          drm_get_format_name(mode_cmd->pixel_format, &format_name));
-			return -EINVAL;
+			goto err;
 		}
 		break;
 	case DRM_FORMAT_ABGR8888:
@@ -14366,7 +14366,7 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 		    INTEL_GEN(dev_priv) < 9) {
 			DRM_DEBUG("unsupported pixel format: %s\n",
 			          drm_get_format_name(mode_cmd->pixel_format, &format_name));
-			return -EINVAL;
+			goto err;
 		}
 		break;
 	case DRM_FORMAT_XBGR8888:
@@ -14375,14 +14375,14 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 		if (INTEL_GEN(dev_priv) < 4) {
 			DRM_DEBUG("unsupported pixel format: %s\n",
 			          drm_get_format_name(mode_cmd->pixel_format, &format_name));
-			return -EINVAL;
+			goto err;
 		}
 		break;
 	case DRM_FORMAT_ABGR2101010:
 		if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv)) {
 			DRM_DEBUG("unsupported pixel format: %s\n",
 			          drm_get_format_name(mode_cmd->pixel_format, &format_name));
-			return -EINVAL;
+			goto err;
 		}
 		break;
 	case DRM_FORMAT_YUYV:
@@ -14392,13 +14392,13 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 		if (INTEL_GEN(dev_priv) < 5) {
 			DRM_DEBUG("unsupported pixel format: %s\n",
 			          drm_get_format_name(mode_cmd->pixel_format, &format_name));
-			return -EINVAL;
+			goto err;
 		}
 		break;
 	default:
 		DRM_DEBUG("unsupported pixel format: %s\n",
 		          drm_get_format_name(mode_cmd->pixel_format, &format_name));
-		return -EINVAL;
+		goto err;
 	}
 
 	/* FIXME need to adjust LINOFF/TILEOFF accordingly. */
@@ -14411,7 +14411,7 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 
 	ret = intel_fill_fb_info(dev_priv, &intel_fb->base);
 	if (ret)
-		return ret;
+		goto err;
 
 	ret = drm_framebuffer_init(obj->base.dev,
 				   &intel_fb->base,
