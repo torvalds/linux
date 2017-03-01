@@ -574,7 +574,7 @@ config IMX2_WDT
 
 config UX500_WATCHDOG
 	tristate "ST-Ericsson Ux500 watchdog"
-	depends on MFD_DB8500_PRCMU || (ARM && COMPILE_TEST)
+	depends on MFD_DB8500_PRCMU
 	select WATCHDOG_CORE
 	default y
 	help
