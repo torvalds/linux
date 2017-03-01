@@ -494,6 +494,9 @@ struct i915_hotplug {
 			    &(dev)->mode_config.connector_list,	\
 			    base.head)
 
+#define for_each_intel_connector_iter(intel_connector, iter) \
+	while ((intel_connector = to_intel_connector(drm_connector_list_iter_next(iter))))
+
 #define for_each_encoder_on_crtc(dev, __crtc, intel_encoder) \
 	list_for_each_entry((intel_encoder), &(dev)->mode_config.encoder_list, base.head) \
 		for_each_if ((intel_encoder)->base.crtc == (__crtc))
