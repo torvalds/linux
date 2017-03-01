@@ -369,10 +369,10 @@ static PyObject *python_process_callchain(struct perf_sample *sample,
 		if (node->map) {
 			struct map *map = node->map;
 			const char *dsoname = "[unknown]";
-			if (map && map->dso && (map->dso->name || map->dso->long_name)) {
+			if (map && map->dso) {
 				if (symbol_conf.show_kernel_path && map->dso->long_name)
 					dsoname = map->dso->long_name;
-				else if (map->dso->name)
+				else
 					dsoname = map->dso->name;
 			}
 			pydict_set_item_string_decref(pyelem, "dso",

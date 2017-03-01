@@ -320,8 +320,10 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 
 	/* Barriers against rxrpc_input_data(). */
 	hard_ack = call->rx_hard_ack;
-	top = smp_load_acquire(&call->rx_top);
-	for (seq = hard_ack + 1; before_eq(seq, top); seq++) {
+	seq = hard_ack + 1;
+	while (top = smp_load_acquire(&call->rx_top),
+	       before_eq(seq, top)
+	       ) {
 		ix = seq & RXRPC_RXTX_BUFF_MASK;
 		skb = call->rxtx_buffer[ix];
 		if (!skb) {
@@ -394,6 +396,8 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 			ret = 1;
 			goto out;
 		}
+
+		seq++;
 	}
 
 out:

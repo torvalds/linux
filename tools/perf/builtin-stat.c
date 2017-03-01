@@ -573,7 +573,7 @@ try_again:
 			if (errno == EINVAL || errno == ENOSYS ||
 			    errno == ENOENT || errno == EOPNOTSUPP ||
 			    errno == ENXIO) {
-				if (verbose)
+				if (verbose > 0)
 					ui__warning("%s event is not supported by the kernel.\n",
 						    perf_evsel__name(counter));
 				counter->supported = false;
@@ -582,7 +582,7 @@ try_again:
 				    !(counter->leader->nr_members > 1))
 					continue;
 			} else if (perf_evsel__fallback(counter, errno, msg, sizeof(msg))) {
-                                if (verbose)
+                                if (verbose > 0)
                                         ui__warning("%s\n", msg);
                                 goto try_again;
                         }
@@ -1765,7 +1765,7 @@ static inline int perf_env__get_cpu(struct perf_env *env, struct cpu_map *map, i
 
 	cpu = map->map[idx];
 
-	if (cpu >= env->nr_cpus_online)
+	if (cpu >= env->nr_cpus_avail)
 		return -1;
 
 	return cpu;
@@ -2445,8 +2445,9 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 	} else if (big_num_opt == 0) /* User passed --no-big-num */
 		big_num = false;
 
+	/* Make system wide (-a) the default target. */
 	if (!argc && target__none(&target))
-		usage_with_options(stat_usage, stat_options);
+		target.system_wide = true;
 
 	if (run_count < 0) {
 		pr_err("Run count must be a positive number\n");
@@ -2538,7 +2539,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	status = 0;
 	for (run_idx = 0; forever || run_idx < run_count; run_idx++) {
-		if (run_count != 1 && verbose)
+		if (run_count != 1 && verbose > 0)
 			fprintf(output, "[ perf stat: executing run #%d ... ]\n",
 				run_idx + 1);
 

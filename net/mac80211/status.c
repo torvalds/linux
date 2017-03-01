@@ -462,9 +462,7 @@ static void ieee80211_report_ack_skb(struct ieee80211_local *local,
 	unsigned long flags;
 
 	spin_lock_irqsave(&local->ack_status_lock, flags);
-	skb = idr_find(&local->ack_status_frames, info->ack_frame_id);
-	if (skb)
-		idr_remove(&local->ack_status_frames, info->ack_frame_id);
+	skb = idr_remove(&local->ack_status_frames, info->ack_frame_id);
 	spin_unlock_irqrestore(&local->ack_status_lock, flags);
 
 	if (!skb)
