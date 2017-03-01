@@ -90,6 +90,18 @@ int i2c_register_board_info(int busnum, struct i2c_board_info const *info, unsig
 			}
 		}
 
+		if (info->resources) {
+			devinfo->board_info.resources =
+				kmemdup(info->resources,
+					info->num_resources *
+						sizeof(*info->resources),
+					GFP_KERNEL);
+			if (!devinfo->board_info.resources) {
+				status = -ENOMEM;
+				break;
+			}
+		}
+
 		list_add_tail(&devinfo->list, &__i2c_board_list);
 	}
 

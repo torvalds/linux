@@ -1278,6 +1278,32 @@ static void i2c_dev_set_name(struct i2c_adapter *adap,
 		     i2c_encode_flags_to_addr(client));
 }
 
+static int i2c_dev_irq_from_resources(const struct resource *resources,
+				      unsigned int num_resources)
+{
+	struct irq_data *irqd;
+	int i;
+
+	for (i = 0; i < num_resources; i++) {
+		const struct resource *r = &resources[i];
+
+		if (resource_type(r) != IORESOURCE_IRQ)
+			continue;
+
+		if (r->flags & IORESOURCE_BITS) {
+			irqd = irq_get_irq_data(r->start);
+			if (!irqd)
+				break;
+
+			irqd_set_trigger_type(irqd, r->flags & IORESOURCE_BITS);
+		}
+
+		return r->start;
+	}
+
+	return 0;
+}
+
 /**
  * i2c_new_device - instantiate an i2c device
  * @adap: the adapter managing the device
@@ -1313,7 +1339,11 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 
 	client->flags = info->flags;
 	client->addr = info->addr;
+
 	client->irq = info->irq;
+	if (!client->irq)
+		client->irq = i2c_dev_irq_from_resources(info->resources,
+							 info->num_resources);
 
 	strlcpy(client->name, info->type, sizeof(client->name));
 
