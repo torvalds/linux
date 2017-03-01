@@ -395,6 +395,7 @@ endchoice
 config SCHED_WALT
         bool "Support window based load tracking"
         depends on SMP
+        depends on FAIR_GROUP_SCHED
         help
         This feature will allow the scheduler to maintain a tunable window
 	based set of metrics for tasks and runqueues. These metrics can be

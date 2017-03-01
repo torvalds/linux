@@ -18,6 +18,10 @@
 #ifndef __ASM_UACCESS_H
 #define __ASM_UACCESS_H
 
+#include <asm/alternative.h>
+#include <asm/kernel-pgtable.h>
+#include <asm/sysreg.h>
+
 #ifndef __ASSEMBLY__
 
 /*
@@ -26,11 +30,8 @@
 #include <linux/string.h>
 #include <linux/thread_info.h>
 
-#include <asm/alternative.h>
 #include <asm/cpufeature.h>
-#include <asm/kernel-pgtable.h>
 #include <asm/ptrace.h>
-#include <asm/sysreg.h>
 #include <asm/errno.h>
 #include <asm/memory.h>
 #include <asm/compiler.h>
@@ -130,7 +131,7 @@ static inline void set_fs(mm_segment_t fs)
  * User access enabling/disabling.
  */
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
-static inline void uaccess_ttbr0_disable(void)
+static inline void __uaccess_ttbr0_disable(void)
 {
 	unsigned long ttbr;
 
@@ -140,7 +141,7 @@ static inline void uaccess_ttbr0_disable(void)
 	isb();
 }
 
-static inline void uaccess_ttbr0_enable(void)
+static inline void __uaccess_ttbr0_enable(void)
 {
 	unsigned long flags;
 
@@ -154,30 +155,44 @@ static inline void uaccess_ttbr0_enable(void)
 	isb();
 	local_irq_restore(flags);
 }
-#else
-static inline void uaccess_ttbr0_disable(void)
+
+static inline bool uaccess_ttbr0_disable(void)
 {
+	if (!system_uses_ttbr0_pan())
+		return false;
+	__uaccess_ttbr0_disable();
+	return true;
 }
 
-static inline void uaccess_ttbr0_enable(void)
+static inline bool uaccess_ttbr0_enable(void)
 {
+	if (!system_uses_ttbr0_pan())
+		return false;
+	__uaccess_ttbr0_enable();
+	return true;
+}
+#else
+static inline bool uaccess_ttbr0_disable(void)
+{
+	return false;
+}
+
+static inline bool uaccess_ttbr0_enable(void)
+{
+	return false;
 }
 #endif
 
 #define __uaccess_disable(alt)						\
 do {									\
-	if (system_uses_ttbr0_pan())					\
-		uaccess_ttbr0_disable();				\
-	else								\
+	if (!uaccess_ttbr0_disable())					\
 		asm(ALTERNATIVE("nop", SET_PSTATE_PAN(1), alt,		\
 				CONFIG_ARM64_PAN));			\
 } while (0)
 
 #define __uaccess_enable(alt)						\
 do {									\
-	if (system_uses_ttbr0_pan())					\
-		uaccess_ttbr0_enable();					\
-	else								\
+	if (!uaccess_ttbr0_enable())					\
 		asm(ALTERNATIVE("nop", SET_PSTATE_PAN(0), alt,		\
 				CONFIG_ARM64_PAN));			\
 } while (0)
@@ -407,69 +422,62 @@ extern __must_check long strnlen_user(const char __user *str, long n);
 
 #else	/* __ASSEMBLY__ */
 
-#include <asm/alternative.h>
 #include <asm/assembler.h>
-#include <asm/kernel-pgtable.h>
 
 /*
  * User access enabling/disabling macros.
  */
-	.macro	uaccess_ttbr0_disable, tmp1
+#ifdef CONFIG_ARM64_SW_TTBR0_PAN
+	.macro	__uaccess_ttbr0_disable, tmp1
 	mrs	\tmp1, ttbr1_el1		// swapper_pg_dir
 	add	\tmp1, \tmp1, #SWAPPER_DIR_SIZE	// reserved_ttbr0 at the end of swapper_pg_dir
 	msr	ttbr0_el1, \tmp1		// set reserved TTBR0_EL1
 	isb
 	.endm
 
-	.macro	uaccess_ttbr0_enable, tmp1
+	.macro	__uaccess_ttbr0_enable, tmp1
 	get_thread_info \tmp1
-	ldr	\tmp1, [\tmp1, #TI_TTBR0]	// load saved TTBR0_EL1
+	ldr	\tmp1, [\tmp1, #TSK_TI_TTBR0]	// load saved TTBR0_EL1
 	msr	ttbr0_el1, \tmp1		// set the non-PAN TTBR0_EL1
 	isb
 	.endm
+
+	.macro	uaccess_ttbr0_disable, tmp1
+alternative_if_not ARM64_HAS_PAN
+	__uaccess_ttbr0_disable \tmp1
+alternative_else_nop_endif
+	.endm
+
+	.macro	uaccess_ttbr0_enable, tmp1, tmp2
+alternative_if_not ARM64_HAS_PAN
+	save_and_disable_irq \tmp2		// avoid preemption
+	__uaccess_ttbr0_enable \tmp1
+	restore_irq \tmp2
+alternative_else_nop_endif
+	.endm
+#else
+	.macro	uaccess_ttbr0_disable, tmp1
+	.endm
+
+	.macro	uaccess_ttbr0_enable, tmp1, tmp2
+	.endm
+#endif
 
 /*
  * These macros are no-ops when UAO is present.
  */
 	.macro	uaccess_disable_not_uao, tmp1
-#ifdef CONFIG_ARM64_SW_TTBR0_PAN
-alternative_if_not ARM64_HAS_PAN
 	uaccess_ttbr0_disable \tmp1
-alternative_else
-	nop
-	nop
-	nop
-	nop
-alternative_endif
-#endif
-alternative_if_not ARM64_ALT_PAN_NOT_UAO
-	nop
-alternative_else
+alternative_if ARM64_ALT_PAN_NOT_UAO
 	SET_PSTATE_PAN(1)
-alternative_endif
+alternative_else_nop_endif
 	.endm
 
 	.macro	uaccess_enable_not_uao, tmp1, tmp2
-#ifdef CONFIG_ARM64_SW_TTBR0_PAN
-alternative_if_not ARM64_HAS_PAN
-	save_and_disable_irq \tmp2		// avoid preemption
-	uaccess_ttbr0_enable \tmp1
-	restore_irq \tmp2
-alternative_else
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-alternative_endif
-#endif
-alternative_if_not ARM64_ALT_PAN_NOT_UAO
-	nop
-alternative_else
+	uaccess_ttbr0_enable \tmp1, \tmp2
+alternative_if ARM64_ALT_PAN_NOT_UAO
 	SET_PSTATE_PAN(0)
-alternative_endif
+alternative_else_nop_endif
 	.endm
 
 #endif	/* __ASSEMBLY__ */

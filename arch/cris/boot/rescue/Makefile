@@ -10,6 +10,9 @@
 
 asflags-y += $(LINUXINCLUDE)
 ccflags-y += -O2 $(LINUXINCLUDE)
+
+ifdef CONFIG_ETRAX_AXISFLASHMAP
+
 arch-$(CONFIG_ETRAX_ARCH_V10) = v10
 arch-$(CONFIG_ETRAX_ARCH_V32) = v32
 
@@ -27,6 +30,11 @@ $(obj)/rescue.o: $(OBJECTS) FORCE
 $(obj)/rescue.bin: $(obj)/rescue.o FORCE
 	$(call if_changed,objcopy)
 	cp -p $(obj)/rescue.bin $(objtree)
+
+else
+$(obj)/rescue.bin:
+
+endif
 
 $(obj)/testrescue.bin: $(obj)/testrescue.o
 	$(OBJCOPY) $(OBJCOPYFLAGS) $(obj)/testrescue.o tr.bin

@@ -146,6 +146,9 @@ static int radeon_cursor_move_locked(struct drm_crtc *crtc, int x, int y)
 	int xorigin = 0, yorigin = 0;
 	int w = radeon_crtc->cursor_width;
 
+	radeon_crtc->cursor_x = x;
+	radeon_crtc->cursor_y = y;
+
 	if (ASIC_IS_AVIVO(rdev)) {
 		/* avivo cursor are offset into the total surface */
 		x += crtc->x;
@@ -202,8 +205,8 @@ static int radeon_cursor_move_locked(struct drm_crtc *crtc, int x, int y)
 	}
 
 	if (x <= (crtc->x - w) || y <= (crtc->y - radeon_crtc->cursor_height) ||
-	    x >= (crtc->x + crtc->mode.crtc_hdisplay) ||
-	    y >= (crtc->y + crtc->mode.crtc_vdisplay))
+	    x >= (crtc->x + crtc->mode.hdisplay) ||
+	    y >= (crtc->y + crtc->mode.vdisplay))
 		goto out_of_bounds;
 
 	x += xorigin;
@@ -239,9 +242,6 @@ static int radeon_cursor_move_locked(struct drm_crtc *crtc, int x, int y)
 		       radeon_crtc->cursor_addr - radeon_crtc->legacy_display_base_addr +
 		       yorigin * 256);
 	}
-
-	radeon_crtc->cursor_x = x;
-	radeon_crtc->cursor_y = y;
 
 	if (radeon_crtc->cursor_out_of_bounds) {
 		radeon_crtc->cursor_out_of_bounds = false;

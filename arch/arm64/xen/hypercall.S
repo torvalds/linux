@@ -90,7 +90,6 @@ ENTRY(privcmd_call)
 	mov x2, x3
 	mov x3, x4
 	mov x4, x5
-#ifdef CONFIG_ARM64_SW_TTBR0_PAN
 	/*
 	 * Privcmd calls are issued by the userspace. The kernel needs to
 	 * enable access to TTBR0_EL1 as the hypervisor would issue stage 1
@@ -99,15 +98,12 @@ ENTRY(privcmd_call)
 	 * need the explicit uaccess_enable/disable if the TTBR0 PAN emulation
 	 * is enabled (it implies that hardware UAO and PAN disabled).
 	 */
-	uaccess_enable_not_uao x6, x7
-#endif
+	uaccess_ttbr0_enable x6, x7
 	hvc XEN_IMM
 
-#ifdef CONFIG_ARM64_SW_TTBR0_PAN
 	/*
 	 * Disable userspace access from kernel once the hyp call completed.
 	 */
-	uaccess_disable_not_uao x6
-#endif
+	uaccess_ttbr0_disable x6
 	ret
 ENDPROC(privcmd_call);

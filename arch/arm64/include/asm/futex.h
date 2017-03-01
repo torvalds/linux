@@ -21,10 +21,7 @@
 #include <linux/futex.h>
 #include <linux/uaccess.h>
 
-#include <asm/alternative.h>
-#include <asm/cpufeature.h>
 #include <asm/errno.h>
-#include <asm/sysreg.h>
 
 #define __futex_atomic_op(insn, ret, oldval, uaddr, tmp, oparg)		\
 do {									\

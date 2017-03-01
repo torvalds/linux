@@ -469,6 +469,7 @@ static const struct musb_platform_ops bfin_ops = {
 	.init		= bfin_musb_init,
 	.exit		= bfin_musb_exit,
 
+	.fifo_offset	= bfin_fifo_offset,
 	.readb		= bfin_readb,
 	.writeb		= bfin_writeb,
 	.readw		= bfin_readw,

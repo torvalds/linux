@@ -720,7 +720,7 @@ config SETEND_EMULATION
 endif
 
 config ARM64_SW_TTBR0_PAN
-	bool "Emulate Priviledged Access Never using TTBR0_EL1 switching"
+	bool "Emulate Privileged Access Never using TTBR0_EL1 switching"
 	help
 	  Enabling this option prevents the kernel from accessing
 	  user-space memory directly by pointing TTBR0_EL1 to a reserved

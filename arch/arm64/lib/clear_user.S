@@ -17,9 +17,6 @@
  */
 #include <linux/linkage.h>
 
-#include <asm/assembler.h>
-#include <asm/cpufeature.h>
-#include <asm/sysreg.h>
 #include <asm/uaccess.h>
 
 	.text
