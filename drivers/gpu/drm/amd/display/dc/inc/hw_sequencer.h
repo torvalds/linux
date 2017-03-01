@@ -34,13 +34,6 @@ enum pipe_gating_control {
 	PIPE_GATING_CONTROL_INIT
 };
 
-enum pipe_lock_control {
-	PIPE_LOCK_CONTROL_GRAPHICS = 1 << 0,
-	PIPE_LOCK_CONTROL_BLENDER = 1 << 1,
-	PIPE_LOCK_CONTROL_SCL = 1 << 2,
-	PIPE_LOCK_CONTROL_MODE = 1 << 3,
-};
-
 struct dce_hwseq_wa {
 	bool blnd_crtc_trigger;
 };
@@ -128,7 +121,6 @@ struct hw_sequencer_funcs {
 	void (*pipe_control_lock)(
 				struct core_dc *dc,
 				struct pipe_ctx *pipe,
-				enum pipe_lock_control control_mask,
 				bool lock);
 
 	void (*set_displaymarks)(

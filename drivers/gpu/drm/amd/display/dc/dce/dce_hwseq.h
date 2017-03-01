@@ -224,7 +224,6 @@ void dce_enable_fe_clock(struct dce_hwseq *hwss,
 
 void dce_pipe_control_lock(struct core_dc *dc,
 		struct pipe_ctx *pipe,
-		enum pipe_lock_control control_mask,
 		bool lock);
 
 void dce_set_blender_mode(struct dce_hwseq *hws,

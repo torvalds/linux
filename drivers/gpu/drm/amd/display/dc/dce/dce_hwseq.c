@@ -46,7 +46,6 @@ void dce_enable_fe_clock(struct dce_hwseq *hws,
 
 void dce_pipe_control_lock(struct core_dc *dc,
 		struct pipe_ctx *pipe,
-		enum pipe_lock_control control_mask,
 		bool lock)
 {
 	uint32_t lock_val = lock ? 1 : 0;
@@ -59,18 +58,10 @@ void dce_pipe_control_lock(struct core_dc *dc,
 			BLND_BLND_V_UPDATE_LOCK, &blnd,
 			BLND_V_UPDATE_LOCK_MODE, &update_lock_mode);
 
-	if (control_mask & PIPE_LOCK_CONTROL_GRAPHICS)
-		dcp_grph = lock_val;
-
-	if (control_mask & PIPE_LOCK_CONTROL_SCL)
-		scl = lock_val;
-
-	if (control_mask & PIPE_LOCK_CONTROL_BLENDER)
-		blnd = lock_val;
-
-	if (control_mask & PIPE_LOCK_CONTROL_MODE)
-		update_lock_mode = lock_val;
-
+	dcp_grph = lock_val;
+	scl = lock_val;
+	blnd = lock_val;
+	update_lock_mode = lock_val;
 
 	REG_SET_2(BLND_V_UPDATE_LOCK[pipe->pipe_idx], val,
 			BLND_DCP_GRPH_V_UPDATE_LOCK, dcp_grph,
@@ -82,7 +73,7 @@ void dce_pipe_control_lock(struct core_dc *dc,
 				BLND_V_UPDATE_LOCK_MODE, update_lock_mode);
 
 	if (hws->wa.blnd_crtc_trigger) {
-		if (!lock && (control_mask & PIPE_LOCK_CONTROL_BLENDER)) {
+		if (!lock) {
 			uint32_t value = REG_READ(CRTC_H_BLANK_START_END[pipe->pipe_idx]);
 			REG_WRITE(CRTC_H_BLANK_START_END[pipe->pipe_idx], value);
 		}

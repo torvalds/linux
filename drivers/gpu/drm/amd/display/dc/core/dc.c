@@ -1178,7 +1178,6 @@ void dc_update_surfaces_for_stream(struct dc *dc,
 
 	enum surface_update_type update_type;
 	const struct dc_stream_status *stream_status;
-	unsigned int lock_mask = 0;
 
 	stream_status = dc_stream_get_status(dc_stream);
 	ASSERT(stream_status);
@@ -1332,15 +1331,9 @@ void dc_update_surfaces_for_stream(struct dc *dc,
 			}
 
 			if (!pipe_ctx->tg->funcs->is_blanked(pipe_ctx->tg)) {
-				lock_mask = PIPE_LOCK_CONTROL_GRAPHICS |
-						PIPE_LOCK_CONTROL_SCL |
-						PIPE_LOCK_CONTROL_BLENDER |
-						PIPE_LOCK_CONTROL_MODE;
-
 				core_dc->hwss.pipe_control_lock(
 						core_dc,
 						pipe_ctx,
-						lock_mask,
 						true);
 			}
 
@@ -1382,7 +1375,6 @@ void dc_update_surfaces_for_stream(struct dc *dc,
 					core_dc->hwss.pipe_control_lock(
 							core_dc,
 							pipe_ctx,
-							lock_mask,
 							false);
 				}
 				break;
