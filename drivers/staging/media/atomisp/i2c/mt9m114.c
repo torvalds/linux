@@ -1943,7 +1943,6 @@ MODULE_DEVICE_TABLE(acpi, mt9m114_acpi_match);
 
 static struct i2c_driver mt9m114_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "mt9m114",
 		.acpi_match_table = ACPI_PTR(mt9m114_acpi_match),
 	},
