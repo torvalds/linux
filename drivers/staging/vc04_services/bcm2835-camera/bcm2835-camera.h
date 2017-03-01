@@ -59,7 +59,7 @@ struct bm2835_mmal_dev {
 	unsigned int		  manual_shutter_speed;
 	bool			  exp_auto_priority;
 	bool manual_iso_enabled;
-	uint32_t iso;
+	u32 iso;
 
 	/* allocated mmal instance and components */
 	struct vchiq_mmal_instance   *instance;
