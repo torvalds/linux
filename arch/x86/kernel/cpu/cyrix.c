@@ -184,7 +184,6 @@ static void early_init_cyrix(struct cpuinfo_x86 *c)
 		set_cpu_cap(c, X86_FEATURE_CYRIX_ARR);
 		break;
 	}
-	clear_sched_clock_stable();
 }
 
 static void init_cyrix(struct cpuinfo_x86 *c)

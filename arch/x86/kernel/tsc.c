@@ -326,9 +326,16 @@ unsigned long long sched_clock(void)
 {
 	return paravirt_sched_clock();
 }
+
+static inline bool using_native_sched_clock(void)
+{
+	return pv_time_ops.sched_clock == native_sched_clock;
+}
 #else
 unsigned long long
 sched_clock(void) __attribute__((alias("native_sched_clock")));
+
+static inline bool using_native_sched_clock(void) { return true; }
 #endif
 
 int check_tsc_unstable(void)
@@ -1111,8 +1118,10 @@ static void tsc_cs_mark_unstable(struct clocksource *cs)
 {
 	if (tsc_unstable)
 		return;
+
 	tsc_unstable = 1;
-	clear_sched_clock_stable();
+	if (using_native_sched_clock())
+		clear_sched_clock_stable();
 	disable_sched_clock_irqtime();
 	pr_info("Marking TSC unstable due to clocksource watchdog\n");
 }
@@ -1134,18 +1143,20 @@ static struct clocksource clocksource_tsc = {
 
 void mark_tsc_unstable(char *reason)
 {
-	if (!tsc_unstable) {
-		tsc_unstable = 1;
+	if (tsc_unstable)
+		return;
+
+	tsc_unstable = 1;
+	if (using_native_sched_clock())
 		clear_sched_clock_stable();
-		disable_sched_clock_irqtime();
-		pr_info("Marking TSC unstable due to %s\n", reason);
-		/* Change only the rating, when not registered */
-		if (clocksource_tsc.mult)
-			clocksource_mark_unstable(&clocksource_tsc);
-		else {
-			clocksource_tsc.flags |= CLOCK_SOURCE_UNSTABLE;
-			clocksource_tsc.rating = 0;
-		}
+	disable_sched_clock_irqtime();
+	pr_info("Marking TSC unstable due to %s\n", reason);
+	/* Change only the rating, when not registered */
+	if (clocksource_tsc.mult) {
+		clocksource_mark_unstable(&clocksource_tsc);
+	} else {
+		clocksource_tsc.flags |= CLOCK_SOURCE_UNSTABLE;
+		clocksource_tsc.rating = 0;
 	}
 }
 
