@@ -95,7 +95,6 @@
 /** Implicitly delineated NAL units without emulation prevention */
 #define MMAL_ENCODING_VARIANT_H264_RAW       MMAL_FOURCC('R', 'A', 'W', ' ')
 
-
 /** \defgroup MmalColorSpace List of pre-defined video color spaces
  * This defines a list of common color spaces. This list isn't exhaustive and
  * is only provided as a convenience to avoid clients having to use FourCC

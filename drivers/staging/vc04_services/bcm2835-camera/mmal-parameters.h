@@ -191,7 +191,6 @@ struct mmal_parameter_fps_range {
 	struct mmal_parameter_rational	fps_high;
 };
 
-
 /* camera configuration parameter */
 struct mmal_parameter_camera_config {
 	/* Parameters for setting up the image pools */
@@ -222,7 +221,6 @@ struct mmal_parameter_camera_config {
 	 */
 	s32 use_stc_timestamp;
 };
-
 
 enum mmal_parameter_exposuremode {
 	MMAL_PARAM_EXPOSUREMODE_OFF,

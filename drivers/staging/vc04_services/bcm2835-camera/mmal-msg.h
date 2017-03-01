@@ -126,7 +126,6 @@ struct mmal_msg_component_destroy_reply {
 	u32 status; /** The component destruction status */
 };
 
-
 /* request and reply to VC to enable a component */
 struct mmal_msg_component_enable {
 	u32 component_handle;
@@ -135,7 +134,6 @@ struct mmal_msg_component_enable {
 struct mmal_msg_component_enable_reply {
 	u32 status; /** The component enable status */
 };
-
 
 /* request and reply to VC to disable a component */
 struct mmal_msg_component_disable {
@@ -192,7 +190,6 @@ struct mmal_msg_port_info_set_reply {
 	u8 extradata[MMAL_FORMAT_EXTRADATA_MAX_SIZE];
 };
 
-
 /* port action requests that take a mmal_port as a parameter */
 struct mmal_msg_port_action_port {
 	u32 component_handle;
@@ -213,9 +210,6 @@ struct mmal_msg_port_action_handle {
 struct mmal_msg_port_action_reply {
 	u32 status; /** The port action operation status */
 };
-
-
-
 
 /* MMAL buffer transfer */
 
@@ -306,7 +300,6 @@ struct mmal_msg_buffer_from_host {
 	u32 payload_in_message;
 	u8 short_data[MMAL_VC_SHORT_DATA];
 };
-
 
 /* port parameter setting */
 

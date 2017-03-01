@@ -104,7 +104,6 @@ struct vchiq_mmal_component {
 	struct vchiq_mmal_port clock[MAX_PORT_COUNT]; /* clock ports */
 };
 
-
 int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance);
 int vchiq_mmal_finalise(struct vchiq_mmal_instance *instance);
 
@@ -128,8 +127,6 @@ int vchiq_mmal_component_disable(
 		struct vchiq_mmal_instance *instance,
 		struct vchiq_mmal_component *component);
 
-
-
 /* enable a mmal port
  *
  * enables a port and if a buffer callback provided enque buffer
@@ -146,7 +143,6 @@ int vchiq_mmal_port_enable(
  */
 int vchiq_mmal_port_disable(struct vchiq_mmal_instance *instance,
 			   struct vchiq_mmal_port *port);
-
 
 int vchiq_mmal_port_parameter_set(struct vchiq_mmal_instance *instance,
 				  struct vchiq_mmal_port *port,

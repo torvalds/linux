@@ -20,7 +20,6 @@
 
 /* MMAL_ES_FORMAT_T */
 
-
 struct mmal_audio_format {
 	u32 channels;           /**< Number of audio channels */
 	u32 sample_rate;        /**< Sample rate */
