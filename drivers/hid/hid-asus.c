@@ -199,6 +199,8 @@ static int asus_input_configured(struct hid_device *hdev, struct hid_input *hi)
 	return 0;
 }
 
+#define rog_map_key_clear(c)	hid_map_usage_clear(hi, usage, bit, \
+						    max, EV_KEY, (c))
 static int asus_input_mapping(struct hid_device *hdev,
 		struct hid_input *hi, struct hid_field *field,
 		struct hid_usage *usage, unsigned long **bit,
@@ -211,6 +213,38 @@ static int asus_input_mapping(struct hid_device *hdev,
 		 * We do it all manually in asus_input_configured
 		 */
 		return -1;
+	}
+
+	/* ASUS Republic of Gamers laptop keyboard hotkeys */
+	if ((usage->hid & HID_USAGE_PAGE) == 0xff310000) {
+		set_bit(EV_REP, hi->input->evbit);
+		switch (usage->hid & HID_USAGE) {
+		case 0x10: rog_map_key_clear(KEY_BRIGHTNESSDOWN);	break;
+		case 0x20: rog_map_key_clear(KEY_BRIGHTNESSUP);		break;
+		case 0x35: rog_map_key_clear(KEY_DISPLAY_OFF);		break;
+		case 0x6c: rog_map_key_clear(KEY_SLEEP);		break;
+		case 0x82: rog_map_key_clear(KEY_CAMERA);		break;
+		case 0x88: rog_map_key_clear(KEY_WLAN);			break;
+		case 0xb5: rog_map_key_clear(KEY_CALC);			break;
+		case 0xc4: rog_map_key_clear(KEY_KBDILLUMUP);		break;
+		case 0xc5: rog_map_key_clear(KEY_KBDILLUMDOWN);		break;
+
+		/* ASUS touchpad toggle */
+		case 0x6b: rog_map_key_clear(KEY_F21);			break;
+
+		/* ROG key */
+		case 0x38: rog_map_key_clear(KEY_PROG1);		break;
+
+		/* Fn+C ASUS Splendid */
+		case 0xba: rog_map_key_clear(KEY_PROG2);		break;
+
+		/* Fn+Space Power4Gear Hybrid */
+		case 0x5c: rog_map_key_clear(KEY_PROG3);		break;
+
+		default:
+			return 0;
+		}
+		return 1;
 	}
 
 	return 0;
@@ -323,6 +357,10 @@ static const struct hid_device_id asus_devices[] = {
 		 USB_DEVICE_ID_ASUSTEK_NOTEBOOK_KEYBOARD), KEYBOARD_QUIRKS},
 	{ HID_I2C_DEVICE(USB_VENDOR_ID_ASUSTEK,
 			 USB_DEVICE_ID_ASUSTEK_TOUCHPAD), TOUCHPAD_QUIRKS },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
+		USB_DEVICE_ID_ASUSTEK_ROG_KEYBOARD1) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
+		USB_DEVICE_ID_ASUSTEK_ROG_KEYBOARD2) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, asus_devices);
