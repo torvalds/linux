@@ -111,7 +111,7 @@ static inline u64 scale_vtime(u64 vtime)
 }
 
 static void account_system_index_scaled(struct task_struct *p,
-					cputime_t cputime, cputime_t scaled,
+					u64 cputime, u64 scaled,
 					enum cpu_usage_stat index)
 {
 	p->stimescaled += cputime_to_nsecs(scaled);
