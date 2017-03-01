@@ -822,6 +822,8 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 	if (is_cmd_mode(intel_dsi)) {
 		for_each_dsi_port(port, intel_dsi->ports)
 			I915_WRITE(MIPI_MAX_RETURN_PKT_SIZE(port), 8 * 4);
+		intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_TEAR_ON);
+		intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_DISPLAY_ON);
 	} else {
 		msleep(20); /* XXX */
 		for_each_dsi_port(port, intel_dsi->ports)
