@@ -119,7 +119,7 @@ config SUN8I_H3_CCU
 	select SUNXI_CCU_NM
 	select SUNXI_CCU_MP
 	select SUNXI_CCU_PHASE
-	default MACH_SUN8I
+	default MACH_SUN8I || (ARM64 && ARCH_SUNXI)
 
 config SUN8I_V3S_CCU
 	bool "Support for the Allwinner V3s CCU"
