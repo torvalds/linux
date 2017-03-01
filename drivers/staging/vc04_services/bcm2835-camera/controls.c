@@ -1271,11 +1271,11 @@ int bm2835_mmal_init_controls(struct bm2835_mmal_dev *dev,
 				 * mismatches.
 				 */
 				int i;
-				mask = 1<<V4L2_SCENE_MODE_NONE;
+				mask = 1 << V4L2_SCENE_MODE_NONE;
 				for (i = 0;
 				     i < ARRAY_SIZE(scene_configs);
 				     i++) {
-					mask |= 1<<scene_configs[i].v4l2_scene;
+					mask |= 1 << scene_configs[i].v4l2_scene;
 				}
 				mask = ~mask;
 			}
