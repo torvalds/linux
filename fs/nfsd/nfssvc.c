@@ -153,6 +153,18 @@ int nfsd_vers(int vers, enum vers_op change)
 	return 0;
 }
 
+static void
+nfsd_adjust_nfsd_versions4(void)
+{
+	unsigned i;
+
+	for (i = 0; i <= NFSD_SUPPORTED_MINOR_VERSION; i++) {
+		if (nfsd_supported_minorversions[i])
+			return;
+	}
+	nfsd_vers(4, NFSD_CLEAR);
+}
+
 int nfsd_minorversion(u32 minorversion, enum vers_op change)
 {
 	if (minorversion > NFSD_SUPPORTED_MINOR_VERSION)
@@ -160,9 +172,11 @@ int nfsd_minorversion(u32 minorversion, enum vers_op change)
 	switch(change) {
 	case NFSD_SET:
 		nfsd_supported_minorversions[minorversion] = true;
+		nfsd_vers(4, NFSD_SET);
 		break;
 	case NFSD_CLEAR:
 		nfsd_supported_minorversions[minorversion] = false;
+		nfsd_adjust_nfsd_versions4();
 		break;
 	case NFSD_TEST:
 		return nfsd_supported_minorversions[minorversion];
@@ -354,6 +368,8 @@ static int nfsd_inet6addr_event(struct notifier_block *this,
 		dprintk("nfsd_inet6addr_event: removed %pI6\n", &ifa->addr);
 		sin6.sin6_family = AF_INET6;
 		sin6.sin6_addr = ifa->addr;
+		if (ipv6_addr_type(&sin6.sin6_addr) & IPV6_ADDR_LINKLOCAL)
+			sin6.sin6_scope_id = ifa->idev->dev->ifindex;
 		svc_age_temp_xprts_now(nn->nfsd_serv, (struct sockaddr *)&sin6);
 	}
 

@@ -1,29 +1,47 @@
 
-CFLAGS += -I. -I../../include -g -O2 -Wall -D_LGPL_SOURCE
+CFLAGS += -I. -I../../include -g -O2 -Wall -D_LGPL_SOURCE -fsanitize=address
 LDFLAGS += -lpthread -lurcu
-TARGETS = main
-OFILES = main.o radix-tree.o linux.o test.o tag_check.o find_next_bit.o \
-	 regression1.o regression2.o regression3.o multiorder.o \
-	 iteration_check.o benchmark.o
+TARGETS = main idr-test multiorder
+CORE_OFILES := radix-tree.o idr.o linux.o test.o find_bit.o
+OFILES = main.o $(CORE_OFILES) regression1.o regression2.o regression3.o \
+	 tag_check.o multiorder.o idr-test.o iteration_check.o benchmark.o
 
-ifdef BENCHMARK
-	CFLAGS += -DBENCHMARK=1
+ifndef SHIFT
+	SHIFT=3
 endif
 
-targets: $(TARGETS)
+targets: mapshift $(TARGETS)
 
 main:	$(OFILES)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(OFILES) -o main
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o main
+
+idr-test: idr-test.o $(CORE_OFILES)
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o idr-test
+
+multiorder: multiorder.o $(CORE_OFILES)
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o multiorder
 
 clean:
-	$(RM) -f $(TARGETS) *.o radix-tree.c
+	$(RM) $(TARGETS) *.o radix-tree.c idr.c generated/map-shift.h
 
-find_next_bit.o: ../../lib/find_bit.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+vpath %.c ../../lib
 
-$(OFILES): *.h */*.h \
+$(OFILES): *.h */*.h generated/map-shift.h \
 	../../include/linux/*.h \
-	../../../include/linux/radix-tree.h
+	../../include/asm/*.h \
+	../../../include/linux/radix-tree.h \
+	../../../include/linux/idr.h
 
 radix-tree.c: ../../../lib/radix-tree.c
 	sed -e 's/^static //' -e 's/__always_inline //' -e 's/inline //' < $< > $@
+
+idr.c: ../../../lib/idr.c
+	sed -e 's/^static //' -e 's/__always_inline //' -e 's/inline //' < $< > $@
+
+.PHONY: mapshift
+
+mapshift:
+	@if ! grep -qw $(SHIFT) generated/map-shift.h; then		\
+		echo "#define RADIX_TREE_MAP_SHIFT $(SHIFT)" >		\
+				generated/map-shift.h;			\
+	fi
