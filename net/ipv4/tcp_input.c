@@ -5916,9 +5916,15 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb)
 		if (th->syn) {
 			if (th->fin)
 				goto discard;
-			if (icsk->icsk_af_ops->conn_request(sk, skb) < 0)
-				return 1;
+			/* It is possible that we process SYN packets from backlog,
+			 * so we need to make sure to disable BH right there.
+			 */
+			local_bh_disable();
+			acceptable = icsk->icsk_af_ops->conn_request(sk, skb) >= 0;
+			local_bh_enable();
 
+			if (!acceptable)
+				return 1;
 			consume_skb(skb);
 			return 0;
 		}
