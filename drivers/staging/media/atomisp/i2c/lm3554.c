@@ -983,7 +983,6 @@ MODULE_DEVICE_TABLE(acpi, lm3554_acpi_match);
 
 static struct i2c_driver lm3554_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = LM3554_NAME,
 		.pm   = &lm3554_pm_ops,
 		.acpi_match_table = ACPI_PTR(lm3554_acpi_match),
