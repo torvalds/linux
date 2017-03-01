@@ -1609,3 +1609,17 @@ Description:
 		provides an absolute positional reference (e.g. a pulse once per
 		revolution) which may be used to home positional systems as
 		required.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_count_count_direction_available
+KernelVersion:	4.12
+Contact:	linux-iio@vger.kernel.org
+Description:
+		A list of possible counting directions which are:
+		- "up"	: counter device is increasing.
+		- "down": counter device is decreasing.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_countY_count_direction
+KernelVersion:	4.12
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw counter device counters direction for channel Y.
