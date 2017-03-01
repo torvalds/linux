@@ -1091,6 +1091,66 @@ static void metadata_update_cancel(struct mddev *mddev)
 	unlock_comm(cinfo);
 }
 
+/*
+ * return 0 if all the bitmaps have the same sync_size
+ */
+int cluster_check_sync_size(struct mddev *mddev)
+{
+	int i, rv;
+	bitmap_super_t *sb;
+	unsigned long my_sync_size, sync_size = 0;
+	int node_num = mddev->bitmap_info.nodes;
+	int current_slot = md_cluster_ops->slot_number(mddev);
+	struct bitmap *bitmap = mddev->bitmap;
+	char str[64];
+	struct dlm_lock_resource *bm_lockres;
+
+	sb = kmap_atomic(bitmap->storage.sb_page);
+	my_sync_size = sb->sync_size;
+	kunmap_atomic(sb);
+
+	for (i = 0; i < node_num; i++) {
+		if (i == current_slot)
+			continue;
+
+		bitmap = get_bitmap_from_slot(mddev, i);
+		if (IS_ERR(bitmap)) {
+			pr_err("can't get bitmap from slot %d\n", i);
+			return -1;
+		}
+
+		/*
+		 * If we can hold the bitmap lock of one node then
+		 * the slot is not occupied, update the sb.
+		 */
+		snprintf(str, 64, "bitmap%04d", i);
+		bm_lockres = lockres_init(mddev, str, NULL, 1);
+		if (!bm_lockres) {
+			pr_err("md-cluster: Cannot initialize %s\n", str);
+			lockres_free(bm_lockres);
+			return -1;
+		}
+		bm_lockres->flags |= DLM_LKF_NOQUEUE;
+		rv = dlm_lock_sync(bm_lockres, DLM_LOCK_PW);
+		if (!rv)
+			bitmap_update_sb(bitmap);
+		lockres_free(bm_lockres);
+
+		sb = kmap_atomic(bitmap->storage.sb_page);
+		if (sync_size == 0)
+			sync_size = sb->sync_size;
+		else if (sync_size != sb->sync_size) {
+			kunmap_atomic(sb);
+			bitmap_free(bitmap);
+			return -1;
+		}
+		kunmap_atomic(sb);
+		bitmap_free(bitmap);
+	}
+
+	return (my_sync_size == sync_size) ? 0 : -1;
+}
+
 static int resync_start(struct mddev *mddev)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;

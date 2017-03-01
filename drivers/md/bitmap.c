@@ -471,6 +471,7 @@ void bitmap_update_sb(struct bitmap *bitmap)
 	kunmap_atomic(sb);
 	write_page(bitmap, bitmap->storage.sb_page, 1);
 }
+EXPORT_SYMBOL(bitmap_update_sb);
 
 /* print out the bitmap file superblock */
 void bitmap_print_sb(struct bitmap *bitmap)
@@ -1727,7 +1728,7 @@ void bitmap_flush(struct mddev *mddev)
 /*
  * free memory that was allocated
  */
-static void bitmap_free(struct bitmap *bitmap)
+void bitmap_free(struct bitmap *bitmap)
 {
 	unsigned long k, pages;
 	struct bitmap_page *bp;
@@ -1761,6 +1762,7 @@ static void bitmap_free(struct bitmap *bitmap)
 	kfree(bp);
 	kfree(bitmap);
 }
+EXPORT_SYMBOL(bitmap_free);
 
 void bitmap_destroy(struct mddev *mddev)
 {
@@ -1920,6 +1922,27 @@ out:
 }
 EXPORT_SYMBOL_GPL(bitmap_load);
 
+struct bitmap *get_bitmap_from_slot(struct mddev *mddev, int slot)
+{
+	int rv = 0;
+	struct bitmap *bitmap;
+
+	bitmap = bitmap_create(mddev, slot);
+	if (IS_ERR(bitmap)) {
+		rv = PTR_ERR(bitmap);
+		return ERR_PTR(rv);
+	}
+
+	rv = bitmap_init_from_disk(bitmap, 0);
+	if (rv) {
+		bitmap_free(bitmap);
+		return ERR_PTR(rv);
+	}
+
+	return bitmap;
+}
+EXPORT_SYMBOL(get_bitmap_from_slot);
+
 /* Loads the bitmap associated with slot and copies the resync information
  * to our bitmap
  */
@@ -1929,14 +1952,13 @@ int bitmap_copy_from_slot(struct mddev *mddev, int slot,
 	int rv = 0, i, j;
 	sector_t block, lo = 0, hi = 0;
 	struct bitmap_counts *counts;
-	struct bitmap *bitmap = bitmap_create(mddev, slot);
+	struct bitmap *bitmap;
 
-	if (IS_ERR(bitmap))
-		return PTR_ERR(bitmap);
-
-	rv = bitmap_init_from_disk(bitmap, 0);
-	if (rv)
-		goto err;
+	bitmap = get_bitmap_from_slot(mddev, slot);
+	if (IS_ERR(bitmap)) {
+		pr_err("%s can't get bitmap from slot %d\n", __func__, slot);
+		return -1;
+	}
 
 	counts = &bitmap->counts;
 	for (j = 0; j < counts->chunks; j++) {
@@ -1963,8 +1985,7 @@ int bitmap_copy_from_slot(struct mddev *mddev, int slot,
 	bitmap_unplug(mddev->bitmap);
 	*low = lo;
 	*high = hi;
-err:
-	bitmap_free(bitmap);
+
 	return rv;
 }
 EXPORT_SYMBOL_GPL(bitmap_copy_from_slot);
