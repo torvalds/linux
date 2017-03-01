@@ -357,6 +357,109 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 	return true;
 }
 
+static void glk_dsi_device_ready(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	enum port port;
+	u32 tmp, val;
+
+	/* Set the MIPI mode
+	 * If MIPI_Mode is off, then writing to LP_Wake bit is not reflecting.
+	 * Power ON MIPI IO first and then write into IO reset and LP wake bits
+	 */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		tmp = I915_READ(MIPI_CTRL(port));
+		I915_WRITE(MIPI_CTRL(port), tmp | GLK_MIPIIO_ENABLE);
+	}
+
+	/* Put the IO into reset */
+	tmp = I915_READ(MIPI_CTRL(PORT_A));
+	tmp &= ~GLK_MIPIIO_RESET_RELEASED;
+	I915_WRITE(MIPI_CTRL(PORT_A), tmp);
+
+	/* Program LP Wake */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		tmp = I915_READ(MIPI_CTRL(port));
+		tmp |= GLK_LP_WAKE;
+		I915_WRITE(MIPI_CTRL(port), tmp);
+	}
+
+	/* Wait for Pwr ACK */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		if (intel_wait_for_register(dev_priv,
+				MIPI_CTRL(port), GLK_MIPIIO_PORT_POWERED,
+				GLK_MIPIIO_PORT_POWERED, 20))
+			DRM_ERROR("MIPIO port is powergated\n");
+	}
+
+	/* Wait for MIPI PHY status bit to set */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		if (intel_wait_for_register(dev_priv,
+				MIPI_CTRL(port), GLK_PHY_STATUS_PORT_READY,
+				GLK_PHY_STATUS_PORT_READY, 20))
+			DRM_ERROR("PHY is not ON\n");
+	}
+
+	/* Get IO out of reset */
+	tmp = I915_READ(MIPI_CTRL(PORT_A));
+	I915_WRITE(MIPI_CTRL(PORT_A), tmp | GLK_MIPIIO_RESET_RELEASED);
+
+	/* Get IO out of Low power state*/
+	for_each_dsi_port(port, intel_dsi->ports) {
+		if (!(I915_READ(MIPI_DEVICE_READY(port)) & DEVICE_READY)) {
+			val = I915_READ(MIPI_DEVICE_READY(port));
+			val &= ~ULPS_STATE_MASK;
+			val |= DEVICE_READY;
+			I915_WRITE(MIPI_DEVICE_READY(port), val);
+			usleep_range(10, 15);
+		}
+
+		/* Enter ULPS */
+		val = I915_READ(MIPI_DEVICE_READY(port));
+		val &= ~ULPS_STATE_MASK;
+		val |= (ULPS_STATE_ENTER | DEVICE_READY);
+		I915_WRITE(MIPI_DEVICE_READY(port), val);
+
+		/* Wait for ULPS Not active */
+		if (intel_wait_for_register(dev_priv,
+				MIPI_CTRL(port), GLK_ULPS_NOT_ACTIVE,
+				GLK_ULPS_NOT_ACTIVE, 20))
+
+		/* Exit ULPS */
+		val = I915_READ(MIPI_DEVICE_READY(port));
+		val &= ~ULPS_STATE_MASK;
+		val |= (ULPS_STATE_EXIT | DEVICE_READY);
+		I915_WRITE(MIPI_DEVICE_READY(port), val);
+
+		/* Enter Normal Mode */
+		val = I915_READ(MIPI_DEVICE_READY(port));
+		val &= ~ULPS_STATE_MASK;
+		val |= (ULPS_STATE_NORMAL_OPERATION | DEVICE_READY);
+		I915_WRITE(MIPI_DEVICE_READY(port), val);
+
+		tmp = I915_READ(MIPI_CTRL(port));
+		tmp &= ~GLK_LP_WAKE;
+		I915_WRITE(MIPI_CTRL(port), tmp);
+	}
+
+	/* Wait for Stop state */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		if (intel_wait_for_register(dev_priv,
+				MIPI_CTRL(port), GLK_DATA_LANE_STOP_STATE,
+				GLK_DATA_LANE_STOP_STATE, 20))
+			DRM_ERROR("Date lane not in STOP state\n");
+	}
+
+	/* Wait for AFE LATCH */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		if (intel_wait_for_register(dev_priv,
+				BXT_MIPI_PORT_CTRL(port), AFE_LATCHOUT,
+				AFE_LATCHOUT, 20))
+			DRM_ERROR("D-PHY not entering LP-11 state\n");
+	}
+}
+
 static void bxt_dsi_device_ready(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
@@ -429,11 +532,79 @@ static void intel_dsi_device_ready(struct intel_encoder *encoder)
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		vlv_dsi_device_ready(encoder);
-	else if (IS_GEN9_LP(dev_priv))
+	else if (IS_BROXTON(dev_priv))
 		bxt_dsi_device_ready(encoder);
+	else if (IS_GEMINILAKE(dev_priv))
+		glk_dsi_device_ready(encoder);
 }
 
-static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
+static void glk_dsi_enter_low_power_mode(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	enum port port;
+	u32 val;
+
+	/* Enter ULPS */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		val = I915_READ(MIPI_DEVICE_READY(port));
+		val &= ~ULPS_STATE_MASK;
+		val |= (ULPS_STATE_ENTER | DEVICE_READY);
+		I915_WRITE(MIPI_DEVICE_READY(port), val);
+	}
+
+	/* Wait for MIPI PHY status bit to unset */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		if (intel_wait_for_register(dev_priv,
+					    MIPI_CTRL(port),
+					    GLK_PHY_STATUS_PORT_READY, 0, 20))
+			DRM_ERROR("PHY is not turning OFF\n");
+	}
+
+	/* Wait for Pwr ACK bit to unset */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		if (intel_wait_for_register(dev_priv,
+					    MIPI_CTRL(port),
+					    GLK_MIPIIO_PORT_POWERED, 0, 20))
+			DRM_ERROR("MIPI IO Port is not powergated\n");
+	}
+}
+
+static void glk_dsi_disable_mipi_io(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	enum port port;
+	u32 tmp;
+
+	/* Put the IO into reset */
+	tmp = I915_READ(MIPI_CTRL(PORT_A));
+	tmp &= ~GLK_MIPIIO_RESET_RELEASED;
+	I915_WRITE(MIPI_CTRL(PORT_A), tmp);
+
+	/* Wait for MIPI PHY status bit to unset */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		if (intel_wait_for_register(dev_priv,
+					    MIPI_CTRL(port),
+					    GLK_PHY_STATUS_PORT_READY, 0, 20))
+			DRM_ERROR("PHY is not turning OFF\n");
+	}
+
+	/* Clear MIPI mode */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		tmp = I915_READ(MIPI_CTRL(port));
+		tmp &= ~GLK_MIPIIO_ENABLE;
+		I915_WRITE(MIPI_CTRL(port), tmp);
+	}
+}
+
+static void glk_dsi_clear_device_ready(struct intel_encoder *encoder)
+{
+	glk_dsi_enter_low_power_mode(encoder);
+	glk_dsi_disable_mipi_io(encoder);
+}
+
+static void vlv_dsi_clear_device_ready(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
@@ -668,6 +839,17 @@ static void intel_dsi_pre_disable(struct intel_encoder *encoder,
 			dpi_send_cmd(intel_dsi, SHUTDOWN, false, port);
 		msleep(10);
 	}
+}
+
+static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv) ||
+	    IS_BROXTON(dev_priv))
+		vlv_dsi_clear_device_ready(encoder);
+	else if (IS_GEMINILAKE(dev_priv))
+		glk_dsi_clear_device_ready(encoder);
 }
 
 static void intel_dsi_post_disable(struct intel_encoder *encoder,
@@ -1314,18 +1496,20 @@ static void intel_dsi_unprepare(struct intel_encoder *encoder)
 	enum port port;
 	u32 val;
 
-	for_each_dsi_port(port, intel_dsi->ports) {
-		/* Panel commands can be sent when clock is in LP11 */
-		I915_WRITE(MIPI_DEVICE_READY(port), 0x0);
+	if (!IS_GEMINILAKE(dev_priv)) {
+		for_each_dsi_port(port, intel_dsi->ports) {
+			/* Panel commands can be sent when clock is in LP11 */
+			I915_WRITE(MIPI_DEVICE_READY(port), 0x0);
 
-		intel_dsi_reset_clocks(encoder, port);
-		I915_WRITE(MIPI_EOT_DISABLE(port), CLOCKSTOP);
+			intel_dsi_reset_clocks(encoder, port);
+			I915_WRITE(MIPI_EOT_DISABLE(port), CLOCKSTOP);
 
-		val = I915_READ(MIPI_DSI_FUNC_PRG(port));
-		val &= ~VID_MODE_FORMAT_MASK;
-		I915_WRITE(MIPI_DSI_FUNC_PRG(port), val);
+			val = I915_READ(MIPI_DSI_FUNC_PRG(port));
+			val &= ~VID_MODE_FORMAT_MASK;
+			I915_WRITE(MIPI_DSI_FUNC_PRG(port), val);
 
-		I915_WRITE(MIPI_DEVICE_READY(port), 0x1);
+			I915_WRITE(MIPI_DEVICE_READY(port), 0x1);
+		}
 	}
 }
 
