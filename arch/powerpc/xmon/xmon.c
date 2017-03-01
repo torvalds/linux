@@ -212,6 +212,10 @@ Commands:\n\
   "\
   C	checksum\n\
   d	dump bytes\n\
+  d1	dump 1 byte values\n\
+  d2	dump 2 byte values\n\
+  d4	dump 4 byte values\n\
+  d8	dump 8 byte values\n\
   di	dump instructions\n\
   df	dump float values\n\
   dd	dump double values\n\
@@ -2334,9 +2338,42 @@ static void dump_pacas(void)
 }
 #endif
 
+static void dump_by_size(unsigned long addr, long count, int size)
+{
+	unsigned char temp[16];
+	int i, j;
+	u64 val;
+
+	count = ALIGN(count, 16);
+
+	for (i = 0; i < count; i += 16, addr += 16) {
+		printf(REG, addr);
+
+		if (mread(addr, temp, 16) != 16) {
+			printf("\nFaulted reading %d bytes from 0x"REG"\n", 16, addr);
+			return;
+		}
+
+		for (j = 0; j < 16; j += size) {
+			putchar(' ');
+			switch (size) {
+			case 1: val = temp[j]; break;
+			case 2: val = *(u16 *)&temp[j]; break;
+			case 4: val = *(u32 *)&temp[j]; break;
+			case 8: val = *(u64 *)&temp[j]; break;
+			default: val = 0;
+			}
+
+			printf("%0*lx", size * 2, val);
+		}
+		printf("\n");
+	}
+}
+
 static void
 dump(void)
 {
+	static char last[] = { "d?\n" };
 	int c;
 
 	c = inchar();
@@ -2350,8 +2387,9 @@ dump(void)
 	}
 #endif
 
-	if ((isxdigit(c) && c != 'f' && c != 'd') || c == '\n')
+	if (c == '\n')
 		termch = c;
+
 	scanhex((void *)&adrs);
 	if (termch != '\n')
 		termch = 0;
@@ -2383,9 +2421,23 @@ dump(void)
 			ndump = 64;
 		else if (ndump > MAX_DUMP)
 			ndump = MAX_DUMP;
-		prdump(adrs, ndump);
+
+		switch (c) {
+		case '8':
+		case '4':
+		case '2':
+		case '1':
+			ndump = ALIGN(ndump, 16);
+			dump_by_size(adrs, ndump, c - '0');
+			last[1] = c;
+			last_cmd = last;
+			break;
+		default:
+			prdump(adrs, ndump);
+			last_cmd = "d\n";
+		}
+
 		adrs += ndump;
-		last_cmd = "d\n";
 	}
 }
 
