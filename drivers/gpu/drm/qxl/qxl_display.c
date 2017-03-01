@@ -81,6 +81,10 @@ static int qxl_display_copy_rom_client_monitors_config(struct qxl_device *qdev)
 			   qdev->rom->client_monitors_config_crc);
 		return MONITORS_CONFIG_BAD_CRC;
 	}
+	if (!num_monitors) {
+		DRM_DEBUG_KMS("no client monitors configured\n");
+		return status;
+	}
 	if (num_monitors > qdev->monitors_config->max_allowed) {
 		DRM_DEBUG_KMS("client monitors list will be truncated: %d < %d\n",
 			      qdev->monitors_config->max_allowed, num_monitors);
@@ -1192,6 +1196,7 @@ int qxl_modeset_init(struct qxl_device *qdev)
 		qdev_output_init(&qdev->ddev, i);
 	}
 
+	qxl_display_read_client_monitors_config(qdev);
 	qdev->mode_info.mode_config_initialized = true;
 
 	drm_mode_config_reset(&qdev->ddev);
