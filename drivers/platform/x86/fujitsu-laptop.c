@@ -795,40 +795,42 @@ static void acpi_fujitsu_bl_notify(struct acpi_device *device, u32 event)
 
 	input = fujitsu_bl->input;
 
-	switch (event) {
-	case ACPI_FUJITSU_NOTIFY_CODE1:
-		keycode = 0;
-		oldb = fujitsu_bl->brightness_level;
-		get_lcd_level();
-		newb = fujitsu_bl->brightness_level;
-
-		vdbg_printk(FUJLAPTOP_DBG_TRACE,
-			    "brightness button event [%i -> %i (%i)]\n",
-			    oldb, newb, fujitsu_bl->brightness_changed);
-
-		if (oldb < newb) {
-			if (disable_brightness_adjust != 1) {
-				if (use_alt_lcd_levels)
-					set_lcd_level_alt(newb);
-				else
-					set_lcd_level(newb);
-			}
-			keycode = KEY_BRIGHTNESSUP;
-		} else if (oldb > newb) {
-			if (disable_brightness_adjust != 1) {
-				if (use_alt_lcd_levels)
-					set_lcd_level_alt(newb);
-				else
-					set_lcd_level(newb);
-			}
-			keycode = KEY_BRIGHTNESSDOWN;
-		}
-		break;
-	default:
+	if (event != ACPI_FUJITSU_NOTIFY_CODE1) {
 		keycode = KEY_UNKNOWN;
 		vdbg_printk(FUJLAPTOP_DBG_WARN,
 			    "unsupported event [0x%x]\n", event);
-		break;
+		input_report_key(input, keycode, 1);
+		input_sync(input);
+		input_report_key(input, keycode, 0);
+		input_sync(input);
+		return;
+	}
+
+	keycode = 0;
+	oldb = fujitsu_bl->brightness_level;
+	get_lcd_level();
+	newb = fujitsu_bl->brightness_level;
+
+	vdbg_printk(FUJLAPTOP_DBG_TRACE,
+		    "brightness button event [%i -> %i (%i)]\n",
+		    oldb, newb, fujitsu_bl->brightness_changed);
+
+	if (oldb < newb) {
+		if (disable_brightness_adjust != 1) {
+			if (use_alt_lcd_levels)
+				set_lcd_level_alt(newb);
+			else
+				set_lcd_level(newb);
+		}
+		keycode = KEY_BRIGHTNESSUP;
+	} else if (oldb > newb) {
+		if (disable_brightness_adjust != 1) {
+			if (use_alt_lcd_levels)
+				set_lcd_level_alt(newb);
+			else
+				set_lcd_level(newb);
+		}
+		keycode = KEY_BRIGHTNESSDOWN;
 	}
 
 	if (keycode != 0) {
