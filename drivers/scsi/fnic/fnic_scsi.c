@@ -823,6 +823,7 @@ static void fnic_fcpio_icmnd_cmpl_handler(struct fnic *fnic,
 	spinlock_t *io_lock;
 	u64 cmd_trace;
 	unsigned long start_time;
+	unsigned long io_duration_time;
 
 	/* Decode the cmpl description to get the io_req id */
 	fcpio_header_dec(&desc->hdr, &type, &hdr_status, &tag);
@@ -1015,6 +1016,28 @@ static void fnic_fcpio_icmnd_cmpl_handler(struct fnic *fnic,
 		atomic64_dec(&fnic->io_cmpl_skip);
 	else
 		atomic64_inc(&fnic_stats->io_stats.io_completions);
+
+
+	io_duration_time = jiffies_to_msecs(jiffies) - jiffies_to_msecs(io_req->start_time);
+
+	if(io_duration_time <= 10)
+		atomic64_inc(&fnic_stats->io_stats.io_btw_0_to_10_msec);
+	else if(io_duration_time <= 100)
+		atomic64_inc(&fnic_stats->io_stats.io_btw_10_to_100_msec);
+	else if(io_duration_time <= 500)
+		atomic64_inc(&fnic_stats->io_stats.io_btw_100_to_500_msec);
+	else if(io_duration_time <= 5000)
+		atomic64_inc(&fnic_stats->io_stats.io_btw_500_to_5000_msec);
+	else if(io_duration_time <= 10000)
+		atomic64_inc(&fnic_stats->io_stats.io_btw_5000_to_10000_msec);
+	else if(io_duration_time <= 30000)
+		atomic64_inc(&fnic_stats->io_stats.io_btw_10000_to_30000_msec);
+	else {
+		atomic64_inc(&fnic_stats->io_stats.io_greater_than_30000_msec);
+
+		if(io_duration_time > atomic64_read(&fnic_stats->io_stats.current_max_io_time))
+			atomic64_set(&fnic_stats->io_stats.current_max_io_time, io_duration_time);
+	}
 
 	/* Call SCSI completion function to complete the IO */
 	if (sc->scsi_done)
@@ -1790,6 +1813,7 @@ int fnic_abort_cmd(struct scsi_cmnd *sc)
 	struct terminate_stats *term_stats;
 	enum fnic_ioreq_state old_ioreq_state;
 	int tag;
+	unsigned long abt_issued_time;
 	DECLARE_COMPLETION_ONSTACK(tm_done);
 
 	/* Wait for rport to unblock */
@@ -1843,6 +1867,25 @@ int fnic_abort_cmd(struct scsi_cmnd *sc)
 		spin_unlock_irqrestore(io_lock, flags);
 		goto wait_pending;
 	}
+
+	abt_issued_time = jiffies_to_msecs(jiffies) - jiffies_to_msecs(io_req->start_time);
+	if (abt_issued_time <= 6000)
+		atomic64_inc(&abts_stats->abort_issued_btw_0_to_6_sec);
+	else if (abt_issued_time > 6000 && abt_issued_time <= 20000)
+		atomic64_inc(&abts_stats->abort_issued_btw_6_to_20_sec);
+	else if (abt_issued_time > 20000 && abt_issued_time <= 30000)
+		atomic64_inc(&abts_stats->abort_issued_btw_20_to_30_sec);
+	else if (abt_issued_time > 30000 && abt_issued_time <= 40000)
+		atomic64_inc(&abts_stats->abort_issued_btw_30_to_40_sec);
+	else if (abt_issued_time > 40000 && abt_issued_time <= 50000)
+		atomic64_inc(&abts_stats->abort_issued_btw_40_to_50_sec);
+	else if (abt_issued_time > 50000 && abt_issued_time <= 60000)
+		atomic64_inc(&abts_stats->abort_issued_btw_50_to_60_sec);
+	else
+		atomic64_inc(&abts_stats->abort_issued_greater_than_60_sec);
+
+	FNIC_SCSI_DBG(KERN_INFO, fnic->lport->host,
+		"CBD Opcode: %02x Abort issued time: %lu msec\n", sc->cmnd[0], abt_issued_time);
 	/*
 	 * Command is still pending, need to abort it
 	 * If the firmware completes the command after this point,
