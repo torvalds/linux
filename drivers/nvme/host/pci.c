@@ -1675,21 +1675,34 @@ static void nvme_pci_disable(struct nvme_dev *dev)
 static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 {
 	int i, queues;
-	u32 csts = -1;
+	bool dead = true;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
 	del_timer_sync(&dev->watchdog_timer);
 
 	mutex_lock(&dev->shutdown_lock);
-	if (pci_is_enabled(to_pci_dev(dev->dev))) {
-		nvme_stop_queues(&dev->ctrl);
-		csts = readl(dev->bar + NVME_REG_CSTS);
+	if (pci_is_enabled(pdev)) {
+		u32 csts = readl(dev->bar + NVME_REG_CSTS);
+
+		if (dev->ctrl.state == NVME_CTRL_LIVE)
+			nvme_start_freeze(&dev->ctrl);
+		dead = !!((csts & NVME_CSTS_CFS) || !(csts & NVME_CSTS_RDY) ||
+			pdev->error_state  != pci_channel_io_normal);
 	}
+
+	/*
+	 * Give the controller a chance to complete all entered requests if
+	 * doing a safe shutdown.
+	 */
+	if (!dead && shutdown)
+		nvme_wait_freeze_timeout(&dev->ctrl, NVME_IO_TIMEOUT);
+	nvme_stop_queues(&dev->ctrl);
 
 	queues = dev->online_queues - 1;
 	for (i = dev->queue_count - 1; i > 0; i--)
 		nvme_suspend_queue(dev->queues[i]);
 
-	if (csts & NVME_CSTS_CFS || !(csts & NVME_CSTS_RDY)) {
+	if (dead) {
 		/* A device might become IO incapable very soon during
 		 * probe, before the admin queue is configured. Thus,
 		 * queue_count can be 0 here.
@@ -1704,6 +1717,14 @@ static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 
 	blk_mq_tagset_busy_iter(&dev->tagset, nvme_cancel_request, &dev->ctrl);
 	blk_mq_tagset_busy_iter(&dev->admin_tagset, nvme_cancel_request, &dev->ctrl);
+
+	/*
+	 * The driver will not be starting up queues again if shutting down so
+	 * must flush all entered requests to their failed completion to avoid
+	 * deadlocking blk-mq hot-cpu notifier.
+	 */
+	if (shutdown)
+		nvme_start_queues(&dev->ctrl);
 	mutex_unlock(&dev->shutdown_lock);
 }
 
@@ -1826,7 +1847,9 @@ static void nvme_reset_work(struct work_struct *work)
 		nvme_remove_namespaces(&dev->ctrl);
 	} else {
 		nvme_start_queues(&dev->ctrl);
+		nvme_wait_freeze(&dev->ctrl);
 		nvme_dev_add(dev);
+		nvme_unfreeze(&dev->ctrl);
 	}
 
 	if (!nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_LIVE)) {
