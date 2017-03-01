@@ -4619,6 +4619,25 @@ static int smu7_set_power_profile_state(struct pp_hwmgr *hwmgr,
 	return result;
 }
 
+static int smu7_avfs_control(struct pp_hwmgr *hwmgr, bool enable)
+{
+	if (enable) {
+		if (!PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
+				CGS_IND_REG__SMC, FEATURE_STATUS, AVS_ON))
+			PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(
+					hwmgr->smumgr, PPSMC_MSG_EnableAvfs),
+					"Failed to enable AVFS!",
+					return -EINVAL);
+	} else if (PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
+			CGS_IND_REG__SMC, FEATURE_STATUS, AVS_ON))
+		PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(
+				hwmgr->smumgr, PPSMC_MSG_DisableAvfs),
+				"Failed to disable AVFS!",
+				return -EINVAL);
+
+	return 0;
+}
+
 static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.backend_init = &smu7_hwmgr_backend_init,
 	.backend_fini = &smu7_hwmgr_backend_fini,
@@ -4669,6 +4688,7 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.request_firmware = smu7_request_firmware,
 	.release_firmware = smu7_release_firmware,
 	.set_power_profile_state = smu7_set_power_profile_state,
+	.avfs_control = smu7_avfs_control,
 };
 
 uint8_t smu7_get_sleep_divider_id_from_clock(uint32_t clock,
