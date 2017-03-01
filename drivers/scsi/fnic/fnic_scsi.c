@@ -915,6 +915,9 @@ static void fnic_fcpio_icmnd_cmpl_handler(struct fnic *fnic,
 		if (icmnd_cmpl->flags & FCPIO_ICMND_CMPL_RESID_UNDER)
 			xfer_len -= icmnd_cmpl->residual;
 
+		if (icmnd_cmpl->scsi_status == SAM_STAT_CHECK_CONDITION)
+			atomic64_inc(&fnic_stats->misc_stats.check_condition);
+
 		if (icmnd_cmpl->scsi_status == SAM_STAT_TASK_SET_FULL)
 			atomic64_inc(&fnic_stats->misc_stats.queue_fulls);
 		break;

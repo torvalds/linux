@@ -357,6 +357,7 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  "Number of Copy WQ Alloc Failures for Device Reset: %lld\n"
 		  "Number of Copy WQ Alloc Failures for IOs: %lld\n"
 		  "Number of no icmnd itmf Completions: %lld\n"
+		  "Number of Check Conditions encountered: %lld\n"
 		  "Number of QUEUE Fulls: %lld\n"
 		  "Number of rport not ready: %lld\n"
 		  "Number of receive frame errors: %lld\n",
@@ -377,6 +378,7 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 			  &stats->misc_stats.devrst_cpwq_alloc_failures),
 		  (u64)atomic64_read(&stats->misc_stats.io_cpwq_alloc_failures),
 		  (u64)atomic64_read(&stats->misc_stats.no_icmnd_itmf_cmpls),
+		  (u64)atomic64_read(&stats->misc_stats.check_condition),
 		  (u64)atomic64_read(&stats->misc_stats.queue_fulls),
 		  (u64)atomic64_read(&stats->misc_stats.rport_not_ready),
 		  (u64)atomic64_read(&stats->misc_stats.frame_errors));

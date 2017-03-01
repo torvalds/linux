@@ -88,6 +88,7 @@ struct misc_stats {
 	atomic64_t devrst_cpwq_alloc_failures;
 	atomic64_t io_cpwq_alloc_failures;
 	atomic64_t no_icmnd_itmf_cmpls;
+	atomic64_t check_condition;
 	atomic64_t queue_fulls;
 	atomic64_t rport_not_ready;
 	atomic64_t frame_errors;
