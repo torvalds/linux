@@ -81,6 +81,15 @@ void blk_mq_freeze_queue_wait(struct request_queue *q)
 }
 EXPORT_SYMBOL_GPL(blk_mq_freeze_queue_wait);
 
+int blk_mq_freeze_queue_wait_timeout(struct request_queue *q,
+				     unsigned long timeout)
+{
+	return wait_event_timeout(q->mq_freeze_wq,
+					percpu_ref_is_zero(&q->q_usage_counter),
+					timeout);
+}
+EXPORT_SYMBOL_GPL(blk_mq_freeze_queue_wait_timeout);
+
 /*
  * Guarantee no request is in use, so we can change any data structure of
  * the queue afterward.
