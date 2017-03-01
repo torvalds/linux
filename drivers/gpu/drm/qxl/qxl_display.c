@@ -157,19 +157,23 @@ static void qxl_update_offset_props(struct qxl_device *qdev)
 
 void qxl_display_read_client_monitors_config(struct qxl_device *qdev)
 {
-
 	struct drm_device *dev = &qdev->ddev;
-	int status;
+	int status, retries;
 
-	status = qxl_display_copy_rom_client_monitors_config(qdev);
-	while (status == MONITORS_CONFIG_BAD_CRC) {
-		qxl_io_log(qdev, "failed crc check for client_monitors_config,"
-				 " retrying\n");
+	for (retries = 0; retries < 10; retries++) {
 		status = qxl_display_copy_rom_client_monitors_config(qdev);
+		if (status != MONITORS_CONFIG_BAD_CRC)
+			break;
+		udelay(5);
+	}
+	if (status == MONITORS_CONFIG_BAD_CRC) {
+		qxl_io_log(qdev, "config: bad crc\n");
+		DRM_DEBUG_KMS("ignoring client monitors config: bad crc");
+		return;
 	}
 	if (status == MONITORS_CONFIG_UNCHANGED) {
-		qxl_io_log(qdev, "config unchanged\n");
-		DRM_DEBUG("ignoring unchanged client monitors config");
+		qxl_io_log(qdev, "config: unchanged\n");
+		DRM_DEBUG_KMS("ignoring client monitors config: unchanged");
 		return;
 	}
 
