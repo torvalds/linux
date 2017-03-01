@@ -557,8 +557,6 @@ const struct atomisp_format_bridge *atomisp_get_format_bridge_from_mbus(u32
 static int atomisp_querycap(struct file *file, void *fh,
 			    struct v4l2_capability *cap)
 {
-	int ret = 0;
-
 	memset(cap, 0, sizeof(struct v4l2_capability));
 
 	WARN_ON(sizeof(DRIVER) > sizeof(cap->driver) ||
@@ -574,7 +572,7 @@ static int atomisp_querycap(struct file *file, void *fh,
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE |
 	    V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_OUTPUT;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
-	return ret;
+	return 0;
 }
 
 /*
