@@ -586,7 +586,7 @@ config UX500_WATCHDOG
 
 config RETU_WATCHDOG
 	tristate "Retu watchdog"
-	depends on MFD_RETU || COMPILE_TEST
+	depends on MFD_RETU
 	select WATCHDOG_CORE
 	help
 	  Retu watchdog driver for Nokia Internet Tablets (770, N800,
