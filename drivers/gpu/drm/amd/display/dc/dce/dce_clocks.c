@@ -387,6 +387,7 @@ static void dce112_set_clock(
 					CLOCK_SOURCE_COMBO_DISPLAY_PLL0);
 
 	bp->funcs->set_dce_clock(bp, &dce_clk_params);
+
 }
 
 static void dce_clock_read_integrated_info(struct dce_disp_clk *clk_dce)

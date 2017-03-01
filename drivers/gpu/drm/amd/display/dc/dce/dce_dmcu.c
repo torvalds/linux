@@ -57,19 +57,13 @@ bool dce_dmcu_load_iram(struct dmcu *dmcu,
 {
 	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);
 	unsigned int count = 0;
-	uint32_t status;
 
 	/* Enable write access to IRAM */
 	REG_UPDATE_2(DMCU_RAM_ACCESS_CTRL,
 			IRAM_HOST_ACCESS_EN, 1,
 			IRAM_WR_ADDR_AUTO_INC, 1);
 
-	do {
-		dm_delay_in_microseconds(dmcu->ctx, 2);
-		REG_GET(DCI_MEM_PWR_STATUS, DMCU_IRAM_MEM_PWR_STATE, &status);
-		count++;
-	} while
-	((status & dmcu_dce->dmcu_mask->DMCU_IRAM_MEM_PWR_STATE) && count < 10);
+	REG_WAIT(DCI_MEM_PWR_STATUS, DMCU_IRAM_MEM_PWR_STATE, 0, 2, 10);
 
 	REG_WRITE(DMCU_IRAM_WR_CTRL, start_offset);
 
@@ -88,21 +82,12 @@ static void dce_get_dmcu_psr_state(struct dmcu *dmcu, uint32_t *psr_state)
 {
 	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);
 
-	uint32_t count = 0;
 	uint32_t psrStateOffset = 0xf0;
-	uint32_t value = -1;
 
 	/* Enable write access to IRAM */
 	REG_UPDATE(DMCU_RAM_ACCESS_CTRL, IRAM_HOST_ACCESS_EN, 1);
 
-	while (REG(DCI_MEM_PWR_STATUS) && value != 0 && count++ < 10) {
-		dm_delay_in_microseconds(dmcu->ctx, 2);
-		REG_GET(DCI_MEM_PWR_STATUS, DMCU_IRAM_MEM_PWR_STATE, &value);
-	}
-	while (REG(DMU_MEM_PWR_CNTL) && value != 0 && count++ < 10) {
-		dm_delay_in_microseconds(dmcu->ctx, 2);
-		REG_GET(DMU_MEM_PWR_CNTL, DMCU_IRAM_MEM_PWR_STATE, &value);
-	}
+	REG_WAIT(DCI_MEM_PWR_STATUS, DMCU_IRAM_MEM_PWR_STATE, 0, 2, 10);
 
 	/* Write address to IRAM_RD_ADDR in DMCU_IRAM_RD_CTRL */
 	REG_WRITE(DMCU_IRAM_RD_CTRL, psrStateOffset);
@@ -122,21 +107,13 @@ static void dce_dmcu_set_psr_enable(struct dmcu *dmcu, bool enable)
 	unsigned int dmcu_max_retry_on_wait_reg_ready = 801;
 	unsigned int dmcu_wait_reg_ready_interval = 100;
 
-	unsigned int regValue;
-
 	unsigned int retryCount;
 	uint32_t psr_state = 0;
 
 	/* waitDMCUReadyForCmd */
-	do {
-		dm_delay_in_microseconds(dmcu->ctx,
-				dmcu_wait_reg_ready_interval);
-		regValue = REG_READ(MASTER_COMM_CNTL_REG);
-		dmcu_max_retry_on_wait_reg_ready--;
-	} while
-	/* expected value is 0, loop while not 0*/
-	((MASTER_COMM_CNTL_REG__MASTER_COMM_INTERRUPT_MASK & regValue) &&
-		dmcu_max_retry_on_wait_reg_ready > 0);
+	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0,
+				dmcu_wait_reg_ready_interval,
+				dmcu_max_retry_on_wait_reg_ready);
 
 	/* setDMCUParam_Cmd */
 	if (enable)
@@ -170,7 +147,6 @@ static void dce_dmcu_setup_psr(struct dmcu *dmcu,
 
 	unsigned int dmcu_max_retry_on_wait_reg_ready = 801;
 	unsigned int dmcu_wait_reg_ready_interval = 100;
-	unsigned int regValue;
 
 	union dce_dmcu_psr_config_data_reg1 masterCmdData1;
 	union dce_dmcu_psr_config_data_reg2 masterCmdData2;
@@ -231,15 +207,9 @@ static void dce_dmcu_setup_psr(struct dmcu *dmcu,
 		REG_UPDATE(SMU_INTERRUPT_CONTROL, DC_SMU_INT_ENABLE, 1);
 
 	/* waitDMCUReadyForCmd */
-	do {
-		dm_delay_in_microseconds(dmcu->ctx,
-				dmcu_wait_reg_ready_interval);
-		regValue = REG_READ(MASTER_COMM_CNTL_REG);
-		dmcu_max_retry_on_wait_reg_ready--;
-	} while
-	/* expected value is 0, loop while not 0*/
-	((MASTER_COMM_CNTL_REG__MASTER_COMM_INTERRUPT_MASK & regValue) &&
-		dmcu_max_retry_on_wait_reg_ready > 0);
+	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0,
+					dmcu_wait_reg_ready_interval,
+					dmcu_max_retry_on_wait_reg_ready);
 
 	/* setDMCUParam_PSRHostConfigData */
 	masterCmdData1.u32All = 0;
