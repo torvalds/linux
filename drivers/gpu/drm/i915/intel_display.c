@@ -11907,31 +11907,37 @@ verify_connector_state(struct drm_device *dev,
 }
 
 static void
-verify_encoder_state(struct drm_device *dev)
+verify_encoder_state(struct drm_device *dev, struct drm_atomic_state *state)
 {
 	struct intel_encoder *encoder;
-	struct intel_connector *connector;
-	struct drm_connector_list_iter conn_iter;
+	struct drm_connector *connector;
+	struct drm_connector_state *old_conn_state, *new_conn_state;
+	int i;
 
 	for_each_intel_encoder(dev, encoder) {
-		bool enabled = false;
+		bool enabled = false, found = false;
 		enum pipe pipe;
 
 		DRM_DEBUG_KMS("[ENCODER:%d:%s]\n",
 			      encoder->base.base.id,
 			      encoder->base.name);
 
-		drm_connector_list_iter_begin(dev, &conn_iter);
-		for_each_intel_connector_iter(connector, &conn_iter) {
-			if (connector->base.state->best_encoder != &encoder->base)
-				continue;
-			enabled = true;
+		for_each_oldnew_connector_in_state(state, connector, old_conn_state,
+						   new_conn_state, i) {
+			if (old_conn_state->best_encoder == &encoder->base)
+				found = true;
 
-			I915_STATE_WARN(connector->base.state->crtc !=
+			if (new_conn_state->best_encoder != &encoder->base)
+				continue;
+			found = enabled = true;
+
+			I915_STATE_WARN(new_conn_state->crtc !=
 					encoder->base.crtc,
 			     "connector's crtc doesn't match encoder crtc\n");
 		}
-		drm_connector_list_iter_end(&conn_iter);
+
+		if (!found)
+			continue;
 
 		I915_STATE_WARN(!!encoder->base.crtc != enabled,
 		     "encoder's enabled state mismatch "
@@ -12133,7 +12139,7 @@ static void
 intel_modeset_verify_disabled(struct drm_device *dev,
 			      struct drm_atomic_state *state)
 {
-	verify_encoder_state(dev);
+	verify_encoder_state(dev, state);
 	verify_connector_state(dev, state, NULL);
 	verify_disabled_dpll_state(dev);
 }
