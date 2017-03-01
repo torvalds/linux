@@ -122,6 +122,7 @@ struct sock *dccp_create_openreq_child(const struct sock *sk,
 			/* It is still raw copy of parent, so invalidate
 			 * destructor and make plain sk_free() */
 			newsk->sk_destruct = NULL;
+			bh_unlock_sock(newsk);
 			sk_free(newsk);
 			return NULL;
 		}
