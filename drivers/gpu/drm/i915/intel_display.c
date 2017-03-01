@@ -14185,7 +14185,10 @@ static void intel_user_framebuffer_destroy(struct drm_framebuffer *fb)
 
 	drm_framebuffer_cleanup(fb);
 
-	WARN_ON(atomic_dec_return(&intel_fb->obj->framebuffer_references) < 0);
+	i915_gem_object_lock(intel_fb->obj);
+	WARN_ON(!intel_fb->obj->framebuffer_references--);
+	i915_gem_object_unlock(intel_fb->obj);
+
 	i915_gem_object_put(intel_fb->obj);
 
 	kfree(intel_fb);
@@ -14262,12 +14265,16 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 				  struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
-	unsigned int tiling = i915_gem_object_get_tiling(obj);
-	u32 pitch_limit, stride_alignment;
 	struct drm_format_name_buf format_name;
+	u32 pitch_limit, stride_alignment;
+	unsigned int tiling, stride;
 	int ret = -EINVAL;
 
-	atomic_inc(&obj->framebuffer_references);
+	i915_gem_object_lock(obj);
+	obj->framebuffer_references++;
+	tiling = i915_gem_object_get_tiling(obj);
+	stride = i915_gem_object_get_stride(obj);
+	i915_gem_object_unlock(obj);
 
 	if (mode_cmd->flags & DRM_MODE_FB_MODIFIERS) {
 		/*
@@ -14339,11 +14346,9 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	 * If there's a fence, enforce that
 	 * the fb pitch and fence stride match.
 	 */
-	if (tiling != I915_TILING_NONE &&
-	    mode_cmd->pitches[0] != i915_gem_object_get_stride(obj)) {
+	if (tiling != I915_TILING_NONE && mode_cmd->pitches[0] !=  stride) {
 		DRM_DEBUG("pitch (%d) must match tiling stride (%d)\n",
-			  mode_cmd->pitches[0],
-			  i915_gem_object_get_stride(obj));
+			  mode_cmd->pitches[0], stride);
 		goto err;
 	}
 
@@ -14424,7 +14429,9 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	return 0;
 
 err:
-	atomic_dec(&obj->framebuffer_references);
+	i915_gem_object_lock(obj);
+	obj->framebuffer_references--;
+	i915_gem_object_unlock(obj);
 	return ret;
 }
 

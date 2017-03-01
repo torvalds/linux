@@ -238,7 +238,7 @@ i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
 	if ((tiling | stride) == obj->tiling_and_stride)
 		return 0;
 
-	if (atomic_read(&obj->framebuffer_references))
+	if (i915_gem_object_is_framebuffer(obj))
 		return -EBUSY;
 
 	/* We need to rebind the object if its current allocation
@@ -257,6 +257,12 @@ i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
 	err = i915_gem_object_fence_prepare(obj, tiling, stride);
 	if (err)
 		return err;
+
+	i915_gem_object_lock(obj);
+	if (i915_gem_object_is_framebuffer(obj)) {
+		i915_gem_object_unlock(obj);
+		return -EBUSY;
+	}
 
 	/* If the memory has unknown (i.e. varying) swizzling, we pin the
 	 * pages to prevent them being swapped out and causing corruption
@@ -294,6 +300,7 @@ i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
 	}
 
 	obj->tiling_and_stride = tiling | stride;
+	i915_gem_object_unlock(obj);
 
 	/* Force the fence to be reacquired for GTT access */
 	i915_gem_release_mmap(obj);

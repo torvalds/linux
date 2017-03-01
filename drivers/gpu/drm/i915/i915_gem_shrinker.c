@@ -207,7 +207,7 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 
 			if (!(flags & I915_SHRINK_ACTIVE) &&
 			    (i915_gem_object_is_active(obj) ||
-			     atomic_read(&obj->framebuffer_references)))
+			     i915_gem_object_is_framebuffer(obj)))
 				continue;
 
 			if (!can_release_pages(obj))

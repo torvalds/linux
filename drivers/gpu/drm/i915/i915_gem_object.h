@@ -165,7 +165,7 @@ struct drm_i915_gem_object {
 	struct reservation_object *resv;
 
 	/** References from framebuffers, locks out tiling changes. */
-	atomic_t framebuffer_references;
+	unsigned int framebuffer_references;
 
 	/** Record of address bit 17 of each page at last unbind. */
 	unsigned long *bit_17;
@@ -260,6 +260,16 @@ extern void drm_gem_object_unreference(struct drm_gem_object *);
 __deprecated
 extern void drm_gem_object_unreference_unlocked(struct drm_gem_object *);
 
+static inline void i915_gem_object_lock(struct drm_i915_gem_object *obj)
+{
+	reservation_object_lock(obj->resv, NULL);
+}
+
+static inline void i915_gem_object_unlock(struct drm_i915_gem_object *obj)
+{
+	reservation_object_unlock(obj->resv);
+}
+
 static inline bool
 i915_gem_object_is_dead(const struct drm_i915_gem_object *obj)
 {
@@ -305,6 +315,12 @@ i915_gem_object_clear_active_reference(struct drm_i915_gem_object *obj)
 }
 
 void __i915_gem_object_release_unless_active(struct drm_i915_gem_object *obj);
+
+static inline bool
+i915_gem_object_is_framebuffer(const struct drm_i915_gem_object *obj)
+{
+	return READ_ONCE(obj->framebuffer_references);
+}
 
 static inline unsigned int
 i915_gem_object_get_tiling(struct drm_i915_gem_object *obj)
