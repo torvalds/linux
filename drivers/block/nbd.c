@@ -689,8 +689,10 @@ static int nbd_clear_sock(struct nbd_device *nbd, struct block_device *bdev)
 	    nbd->num_connections) {
 		int i;
 
-		for (i = 0; i < nbd->num_connections; i++)
+		for (i = 0; i < nbd->num_connections; i++) {
+			sockfd_put(nbd->socks[i]->sock);
 			kfree(nbd->socks[i]);
+		}
 		kfree(nbd->socks);
 		nbd->socks = NULL;
 		nbd->num_connections = 0;
