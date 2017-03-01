@@ -45,6 +45,7 @@
 #define YCBCR422_16BITS		2
 #define YCBCR422_8BITS		3
 #define XVYCC444		4
+#define YCBCR420		5
 
 enum hdmi_datamap {
 	RGB444_8B = 0x01,
@@ -706,7 +707,8 @@ static void hdmi_video_sample(struct dw_hdmi *hdmi)
 			color_format = 0x07;
 		else
 			return;
-	} else if (hdmi->hdmi_data.enc_in_format == YCBCR444) {
+	} else if (hdmi->hdmi_data.enc_in_format == YCBCR444 ||
+		   hdmi->hdmi_data.enc_in_format == YCBCR420) {
 		if (hdmi->hdmi_data.enc_color_depth == 8)
 			color_format = 0x09;
 		else if (hdmi->hdmi_data.enc_color_depth == 10)
@@ -857,7 +859,8 @@ static void hdmi_video_packetize(struct dw_hdmi *hdmi)
 	u8 val, vp_conf;
 
 	if (hdmi_data->enc_out_format == RGB ||
-	    hdmi_data->enc_out_format == YCBCR444) {
+	    hdmi_data->enc_out_format == YCBCR444 ||
+	    hdmi_data->enc_out_format == YCBCR420) {
 		if (!hdmi_data->enc_color_depth) {
 			output_select = HDMI_VP_CONF_OUTPUT_SELECTOR_BYPASS;
 		} else if (hdmi_data->enc_color_depth == 8) {
@@ -1148,8 +1151,17 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi, unsigned char prep,
 	hdmi_writeb(hdmi, HDMI_PHY_I2CM_SLAVE_ADDR_PHY_GEN2,
 		    HDMI_PHY_I2CM_SLAVE_ADDR);
 	hdmi_phy_test_clear(hdmi, 0);
-
-	hdmi_phy_i2c_write(hdmi, mpll_config->res[res_idx].cpce, 0x06);
+	/*
+	 * RK3399 mpll clock source is vpll, also is vop clock source.
+	 * vpll rate is twice of mpixelclock in YCBCR420 mode, we need
+	 * to enable mpll pre-divider.
+	 */
+	if (hdmi->hdmi_data.enc_in_format == YCBCR420 &&
+	    hdmi->dev_type == RK3399_HDMI)
+		hdmi_phy_i2c_write(hdmi, mpll_config->res[res_idx].cpce | 4,
+				   0x06);
+	else
+		hdmi_phy_i2c_write(hdmi, mpll_config->res[res_idx].cpce, 0x06);
 	hdmi_phy_i2c_write(hdmi, mpll_config->res[res_idx].gmp, 0x15);
 
 	/* CURRCTRL */
@@ -1259,6 +1271,8 @@ static void hdmi_config_AVI(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 		frame.colorspace = HDMI_COLORSPACE_YUV444;
 	else if (hdmi->hdmi_data.enc_out_format == YCBCR422_8BITS)
 		frame.colorspace = HDMI_COLORSPACE_YUV422;
+	else if (hdmi->hdmi_data.enc_out_format == YCBCR420)
+		frame.colorspace = HDMI_COLORSPACE_YUV420;
 	else
 		frame.colorspace = HDMI_COLORSPACE_RGB;
 
@@ -1352,10 +1366,11 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 	u8 inv_val, bytes;
 	struct hdmi_vmode *vmode = &hdmi->hdmi_data.video_mode;
 	int hblank, vblank, h_de_hs, v_de_vs, hsync_len, vsync_len;
-	unsigned int vdisplay;
+	unsigned int hdisplay, vdisplay;
 
 	vmode->mpixelclock = mode->crtc_clock * 1000;
-
+	if (mode->flags & DRM_MODE_FLAG_420_MASK)
+		vmode->mpixelclock /= 2;
 	dev_dbg(hdmi->dev, "final pixclk = %d\n", vmode->mpixelclock);
 
 	/* Set up HDMI_FC_INVIDCONF
@@ -1397,6 +1412,22 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 
 	hdmi_writeb(hdmi, inv_val, HDMI_FC_INVIDCONF);
 
+	hdisplay = mode->hdisplay;
+	hblank = mode->htotal - mode->hdisplay;
+	h_de_hs = mode->hsync_start - mode->hdisplay;
+	hsync_len = mode->hsync_end - mode->hsync_start;
+
+	/*
+	 * When we're setting a YCbCr420 mode, we need
+	 * to adjust the horizontal timing to suit.
+	 */
+	if (mode->flags & DRM_MODE_FLAG_420_MASK) {
+		hdisplay /= 2;
+		hblank /= 2;
+		h_de_hs /= 2;
+		hsync_len /= 2;
+	}
+
 	vdisplay = mode->vdisplay;
 	vblank = mode->vtotal - mode->vdisplay;
 	v_de_vs = mode->vsync_start - mode->vdisplay;
@@ -1434,15 +1465,14 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 	}
 
 	/* Set up horizontal active pixel width */
-	hdmi_writeb(hdmi, mode->hdisplay >> 8, HDMI_FC_INHACTV1);
-	hdmi_writeb(hdmi, mode->hdisplay, HDMI_FC_INHACTV0);
+	hdmi_writeb(hdmi, hdisplay >> 8, HDMI_FC_INHACTV1);
+	hdmi_writeb(hdmi, hdisplay, HDMI_FC_INHACTV0);
 
 	/* Set up vertical active lines */
 	hdmi_writeb(hdmi, vdisplay >> 8, HDMI_FC_INVACTV1);
 	hdmi_writeb(hdmi, vdisplay, HDMI_FC_INVACTV0);
 
 	/* Set up horizontal blanking pixel region width */
-	hblank = mode->htotal - mode->hdisplay;
 	hdmi_writeb(hdmi, hblank >> 8, HDMI_FC_INHBLANK1);
 	hdmi_writeb(hdmi, hblank, HDMI_FC_INHBLANK0);
 
@@ -1450,7 +1480,6 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 	hdmi_writeb(hdmi, vblank, HDMI_FC_INVBLANK);
 
 	/* Set up HSYNC active edge delay width (in pixel clks) */
-	h_de_hs = mode->hsync_start - mode->hdisplay;
 	hdmi_writeb(hdmi, h_de_hs >> 8, HDMI_FC_HSYNCINDELAY1);
 	hdmi_writeb(hdmi, h_de_hs, HDMI_FC_HSYNCINDELAY0);
 
@@ -1458,7 +1487,6 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 	hdmi_writeb(hdmi, v_de_vs, HDMI_FC_VSYNCINDELAY);
 
 	/* Set up HSYNC active pulse width (in pixel clks) */
-	hsync_len = mode->hsync_end - mode->hsync_start;
 	hdmi_writeb(hdmi, hsync_len >> 8, HDMI_FC_HSYNCINWIDTH1);
 	hdmi_writeb(hdmi, hsync_len, HDMI_FC_HSYNCINWIDTH0);
 
@@ -1579,10 +1607,13 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 		hdmi->hdmi_data.video_mode.mpixelrepetitioninput = 0;
 	}
 	/* TODO: Get input format from IPU (via FB driver interface) */
-	hdmi->hdmi_data.enc_in_format = RGB;
-
-	hdmi->hdmi_data.enc_out_format = RGB;
-
+	if (mode->flags & DRM_MODE_FLAG_420_MASK) {
+		hdmi->hdmi_data.enc_in_format = YCBCR420;
+		hdmi->hdmi_data.enc_out_format = YCBCR420;
+	} else {
+		hdmi->hdmi_data.enc_in_format = RGB;
+		hdmi->hdmi_data.enc_out_format = RGB;
+	}
 	hdmi->hdmi_data.enc_color_depth = 8;
 	/*
 	 * According to the dw-hdmi specification 6.4.2
