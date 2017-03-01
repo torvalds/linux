@@ -627,7 +627,7 @@ static int __init test_ww_mutex_init(void)
 	if (ret)
 		return ret;
 
-	ret = stress(4096, hweight32(STRESS_ALL)*ncpus, 1<<12, STRESS_ALL);
+	ret = stress(4095, hweight32(STRESS_ALL)*ncpus, 1<<12, STRESS_ALL);
 	if (ret)
 		return ret;
 
