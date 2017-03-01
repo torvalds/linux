@@ -103,7 +103,7 @@ static int validate_user_key(struct fscrypt_info *crypt_info,
 		goto out;
 	}
 	down_read(&keyring_key->sem);
-	ukp = user_key_payload(keyring_key);
+	ukp = user_key_payload_locked(keyring_key);
 	if (ukp->datalen != sizeof(struct fscrypt_key)) {
 		res = -EINVAL;
 		up_read(&keyring_key->sem);
