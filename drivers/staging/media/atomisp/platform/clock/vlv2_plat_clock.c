@@ -245,7 +245,6 @@ static struct platform_driver vlv2_plat_clk_driver = {
 	.driver = {
 		.name = "vlv2_plat_clk",
 		.pm = &vlv2_pm_ops,
-		.owner = THIS_MODULE,
 	},
 };
 
