@@ -94,6 +94,11 @@ enum subpixel_order {
  *
  * This enum is used as the connector's link status property value.
  * It is set to the values defined in uapi.
+ *
+ * @DRM_LINK_STATUS_GOOD: DP Link is Good as a result of successful
+ *                        link training
+ * @DRM_LINK_STATUS_BAD: DP Link is BAD as a result of link training
+ *                       failure
  */
 enum drm_link_status {
 	DRM_LINK_STATUS_GOOD = DRM_MODE_LINK_STATUS_GOOD,
