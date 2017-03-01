@@ -2063,7 +2063,6 @@ MODULE_DEVICE_TABLE(acpi, ov5693_acpi_match);
 
 static struct i2c_driver ov5693_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = OV5693_NAME,
 		.acpi_match_table = ACPI_PTR(ov5693_acpi_match),
 	},
