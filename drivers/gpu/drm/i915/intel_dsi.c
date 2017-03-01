@@ -793,10 +793,10 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 
 	intel_dsi_prepare(encoder, pipe_config);
 
-	/* Panel Enable over CRC PMIC */
+	/* Power on, try both CRC pmic gpio and VBT */
 	if (intel_dsi->gpio_panel)
 		gpiod_set_value_cansleep(intel_dsi->gpio_panel, 1);
-
+	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_POWER_ON);
 	msleep(intel_dsi->panel_on_delay);
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
@@ -811,7 +811,6 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 	/* put device in ready state */
 	intel_dsi_device_ready(encoder);
 
-	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_POWER_ON);
 	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_DEASSERT_RESET);
 	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_INIT_OTP);
 
@@ -940,11 +939,10 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder,
 	}
 
 	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_ASSERT_RESET);
-	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_POWER_OFF);
 
+	/* Power off, try both CRC pmic gpio and VBT */
 	msleep(intel_dsi->panel_off_delay);
-
-	/* Panel Disable over CRC PMIC */
+	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_POWER_OFF);
 	if (intel_dsi->gpio_panel)
 		gpiod_set_value_cansleep(intel_dsi->gpio_panel, 0);
 
