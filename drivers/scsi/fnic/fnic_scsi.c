@@ -876,32 +876,28 @@ static void fnic_fcpio_icmnd_cmpl_handler(struct fnic *fnic,
 
 	/*
 	 *  if SCSI-ML has already issued abort on this command,
-	 * ignore completion of the IO. The abts path will clean it up
+	 *  set completion of the IO. The abts path will clean it up
 	 */
 	if (CMD_STATE(sc) == FNIC_IOREQ_ABTS_PENDING) {
-		spin_unlock_irqrestore(io_lock, flags);
+
+		/*
+		 * set the FNIC_IO_DONE so that this doesn't get
+		 * flagged as 'out of order' if it was not aborted
+		 */
+		CMD_FLAGS(sc) |= FNIC_IO_DONE;
 		CMD_FLAGS(sc) |= FNIC_IO_ABTS_PENDING;
-		switch (hdr_status) {
-		case FCPIO_SUCCESS:
-			CMD_FLAGS(sc) |= FNIC_IO_DONE;
-			FNIC_SCSI_DBG(KERN_INFO, fnic->lport->host,
-				  "icmnd_cmpl ABTS pending hdr status = %s "
-				  "sc  0x%p scsi_status %x  residual %d\n",
-				  fnic_fcpio_status_to_str(hdr_status), sc,
-				  icmnd_cmpl->scsi_status,
-				  icmnd_cmpl->residual);
-			break;
-		case FCPIO_ABORTED:
+		spin_unlock_irqrestore(io_lock, flags);
+		if(FCPIO_ABORTED == hdr_status)
 			CMD_FLAGS(sc) |= FNIC_IO_ABORTED;
-			break;
-		default:
-			FNIC_SCSI_DBG(KERN_INFO, fnic->lport->host,
-					  "icmnd_cmpl abts pending "
-					  "hdr status = %s tag = 0x%x sc = 0x%p\n",
-					  fnic_fcpio_status_to_str(hdr_status),
-					  id, sc);
-			break;
-		}
+
+		FNIC_SCSI_DBG(KERN_INFO, fnic->lport->host,
+			"icmnd_cmpl abts pending "
+			  "hdr status = %s tag = 0x%x sc = 0x%p"
+			  "scsi_status = %x residual = %d\n",
+			  fnic_fcpio_status_to_str(hdr_status),
+			  id, sc,
+			  icmnd_cmpl->scsi_status,
+			  icmnd_cmpl->residual);
 		return;
 	}
 
