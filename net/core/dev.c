@@ -1698,27 +1698,54 @@ EXPORT_SYMBOL_GPL(net_dec_egress_queue);
 static struct static_key netstamp_needed __read_mostly;
 #ifdef HAVE_JUMP_LABEL
 static atomic_t netstamp_needed_deferred;
+static atomic_t netstamp_wanted;
 static void netstamp_clear(struct work_struct *work)
 {
 	int deferred = atomic_xchg(&netstamp_needed_deferred, 0);
+	int wanted;
 
-	while (deferred--)
-		static_key_slow_dec(&netstamp_needed);
+	wanted = atomic_add_return(deferred, &netstamp_wanted);
+	if (wanted > 0)
+		static_key_enable(&netstamp_needed);
+	else
+		static_key_disable(&netstamp_needed);
 }
 static DECLARE_WORK(netstamp_work, netstamp_clear);
 #endif
 
 void net_enable_timestamp(void)
 {
+#ifdef HAVE_JUMP_LABEL
+	int wanted;
+
+	while (1) {
+		wanted = atomic_read(&netstamp_wanted);
+		if (wanted <= 0)
+			break;
+		if (atomic_cmpxchg(&netstamp_wanted, wanted, wanted + 1) == wanted)
+			return;
+	}
+	atomic_inc(&netstamp_needed_deferred);
+	schedule_work(&netstamp_work);
+#else
 	static_key_slow_inc(&netstamp_needed);
+#endif
 }
 EXPORT_SYMBOL(net_enable_timestamp);
 
 void net_disable_timestamp(void)
 {
 #ifdef HAVE_JUMP_LABEL
-	/* net_disable_timestamp() can be called from non process context */
-	atomic_inc(&netstamp_needed_deferred);
+	int wanted;
+
+	while (1) {
+		wanted = atomic_read(&netstamp_wanted);
+		if (wanted <= 1)
+			break;
+		if (atomic_cmpxchg(&netstamp_wanted, wanted, wanted - 1) == wanted)
+			return;
+	}
+	atomic_dec(&netstamp_needed_deferred);
 	schedule_work(&netstamp_work);
 #else
 	static_key_slow_dec(&netstamp_needed);
