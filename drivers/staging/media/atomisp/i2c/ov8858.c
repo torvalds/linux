@@ -2196,7 +2196,6 @@ static struct acpi_device_id ov8858_acpi_match[] = {
 
 static struct i2c_driver ov8858_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = OV8858_NAME,
 		.acpi_match_table = ACPI_PTR(ov8858_acpi_match),
 	},
