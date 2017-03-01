@@ -158,9 +158,7 @@ uint16_t atomisp_subdev_source_pad(struct video_device * vdev)
 static long isp_subdev_ioctl(struct v4l2_subdev *sd,
 	unsigned int cmd, void *arg)
 {
-	int ret = 0;
-
-	return ret;
+	return 0;
 }
 
 /*
