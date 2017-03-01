@@ -808,10 +808,13 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_POWER_ON);
 	msleep(intel_dsi->panel_on_delay);
 
-	/* put device in ready state */
+	/* Deassert reset */
+	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_DEASSERT_RESET);
+
+	/* Put device in ready state (LP-11) */
 	intel_dsi_device_ready(encoder);
 
-	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_DEASSERT_RESET);
+	/* Send initialization commands in LP mode */
 	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_INIT_OTP);
 
 	/* Enable port in pre-enable phase itself because as per hw team
@@ -915,6 +918,7 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder,
 	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_OFF);
 	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_DISPLAY_OFF);
 
+	/* Transition to LP-00 */
 	intel_dsi_clear_device_ready(encoder);
 
 	if (IS_BROXTON(dev_priv)) {
@@ -938,6 +942,7 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder,
 		I915_WRITE(DSPCLK_GATE_D, val);
 	}
 
+	/* Assert reset */
 	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_ASSERT_RESET);
 
 	/* Power off, try both CRC pmic gpio and VBT */
