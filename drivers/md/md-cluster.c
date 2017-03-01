@@ -1151,6 +1151,81 @@ int cluster_check_sync_size(struct mddev *mddev)
 	return (my_sync_size == sync_size) ? 0 : -1;
 }
 
+/*
+ * Update the size for cluster raid is a little more complex, we perform it
+ * by the steps:
+ * 1. hold token lock and update superblock in initiator node.
+ * 2. send METADATA_UPDATED msg to other nodes.
+ * 3. The initiator node continues to check each bitmap's sync_size, if all
+ *    bitmaps have the same value of sync_size, then we can set capacity and
+ *    let other nodes to perform it. If one node can't update sync_size
+ *    accordingly, we need to revert to previous value.
+ */
+static void update_size(struct mddev *mddev, sector_t old_dev_sectors)
+{
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+	struct cluster_msg cmsg;
+	struct md_rdev *rdev;
+	int ret = 0;
+	int raid_slot = -1;
+
+	md_update_sb(mddev, 1);
+	lock_comm(cinfo, 1);
+
+	memset(&cmsg, 0, sizeof(cmsg));
+	cmsg.type = cpu_to_le32(METADATA_UPDATED);
+	rdev_for_each(rdev, mddev)
+		if (rdev->raid_disk >= 0 && !test_bit(Faulty, &rdev->flags)) {
+			raid_slot = rdev->desc_nr;
+			break;
+		}
+	if (raid_slot >= 0) {
+		cmsg.raid_slot = cpu_to_le32(raid_slot);
+		/*
+		 * We can only change capiticy after all the nodes can do it,
+		 * so need to wait after other nodes already received the msg
+		 * and handled the change
+		 */
+		ret = __sendmsg(cinfo, &cmsg);
+		if (ret) {
+			pr_err("%s:%d: failed to send METADATA_UPDATED msg\n",
+			       __func__, __LINE__);
+			unlock_comm(cinfo);
+			return;
+		}
+	} else {
+		pr_err("md-cluster: No good device id found to send\n");
+		unlock_comm(cinfo);
+		return;
+	}
+
+	/*
+	 * check the sync_size from other node's bitmap, if sync_size
+	 * have already updated in other nodes as expected, send an
+	 * empty metadata msg to permit the change of capacity
+	 */
+	if (cluster_check_sync_size(mddev) == 0) {
+		memset(&cmsg, 0, sizeof(cmsg));
+		cmsg.type = cpu_to_le32(CHANGE_CAPACITY);
+		ret = __sendmsg(cinfo, &cmsg);
+		if (ret)
+			pr_err("%s:%d: failed to send CHANGE_CAPACITY msg\n",
+			       __func__, __LINE__);
+		set_capacity(mddev->gendisk, mddev->array_sectors);
+		revalidate_disk(mddev->gendisk);
+	} else {
+		/* revert to previous sectors */
+		ret = mddev->pers->resize(mddev, old_dev_sectors);
+		if (!ret)
+			revalidate_disk(mddev->gendisk);
+		ret = __sendmsg(cinfo, &cmsg);
+		if (ret)
+			pr_err("%s:%d: failed to send METADATA_UPDATED msg\n",
+			       __func__, __LINE__);
+	}
+	unlock_comm(cinfo);
+}
+
 static int resync_start(struct mddev *mddev)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
@@ -1396,6 +1471,7 @@ static struct md_cluster_operations cluster_ops = {
 	.gather_bitmaps = gather_bitmaps,
 	.lock_all_bitmaps = lock_all_bitmaps,
 	.unlock_all_bitmaps = unlock_all_bitmaps,
+	.update_size = update_size,
 };
 
 static int __init cluster_init(void)

@@ -6493,10 +6493,7 @@ static int update_size(struct mddev *mddev, sector_t num_sectors)
 	struct md_rdev *rdev;
 	int rv;
 	int fit = (num_sectors == 0);
-
-	/* cluster raid doesn't support update size */
-	if (mddev_is_clustered(mddev))
-		return -EINVAL;
+	sector_t old_dev_sectors = mddev->dev_sectors;
 
 	if (mddev->pers->resize == NULL)
 		return -EINVAL;
@@ -6525,7 +6522,9 @@ static int update_size(struct mddev *mddev, sector_t num_sectors)
 	}
 	rv = mddev->pers->resize(mddev, num_sectors);
 	if (!rv) {
-		if (mddev->queue) {
+		if (mddev_is_clustered(mddev))
+			md_cluster_ops->update_size(mddev, old_dev_sectors);
+		else if (mddev->queue) {
 			set_capacity(mddev->gendisk, mddev->array_sectors);
 			revalidate_disk(mddev->gendisk);
 		}
@@ -8742,6 +8741,18 @@ static void check_sb_changes(struct mddev *mddev, struct md_rdev *rdev)
 	struct md_rdev *rdev2;
 	int role, ret;
 	char b[BDEVNAME_SIZE];
+
+	/*
+	 * If size is changed in another node then we need to
+	 * do resize as well.
+	 */
+	if (mddev->dev_sectors != le64_to_cpu(sb->size)) {
+		ret = mddev->pers->resize(mddev, le64_to_cpu(sb->size));
+		if (ret)
+			pr_info("md-cluster: resize failed\n");
+		else
+			bitmap_update_sb(mddev->bitmap);
+	}
 
 	/* Check for change of roles in the active devices */
 	rdev_for_each(rdev2, mddev) {
