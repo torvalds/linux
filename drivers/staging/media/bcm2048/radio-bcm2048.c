@@ -2642,7 +2642,7 @@ exit:
 	return err;
 }
 
-static int __exit bcm2048_i2c_driver_remove(struct i2c_client *client)
+static int bcm2048_i2c_driver_remove(struct i2c_client *client)
 {
 	struct bcm2048_device *bdev = i2c_get_clientdata(client);
 
@@ -2681,7 +2681,7 @@ static struct i2c_driver bcm2048_i2c_driver = {
 		.name	= BCM2048_DRIVER_NAME,
 	},
 	.probe		= bcm2048_i2c_driver_probe,
-	.remove		= __exit_p(bcm2048_i2c_driver_remove),
+	.remove		= bcm2048_i2c_driver_remove,
 	.id_table	= bcm2048_id,
 };
 
