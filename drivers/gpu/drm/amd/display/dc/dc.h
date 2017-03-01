@@ -379,6 +379,12 @@ bool dc_post_update_surfaces_to_stream(
 void dc_update_surfaces_for_stream(struct dc *dc, struct dc_surface_update *updates,
 		int surface_count, const struct dc_stream *stream);
 
+enum surface_update_type {
+	UPDATE_TYPE_FAST, /* super fast, safe to execute in isr */
+	UPDATE_TYPE_MED,  /* a lot of programming needed.  may need to alloc */
+	UPDATE_TYPE_FULL, /* may need to shuffle resources */
+};
+
 /*******************************************************************************
  * Stream Interfaces
  ******************************************************************************/
@@ -497,6 +503,12 @@ struct dc_stream_status {
 
 const struct dc_stream_status *dc_stream_get_status(
 	const struct dc_stream *dc_stream);
+
+enum surface_update_type dc_check_update_surfaces_for_stream(
+		struct dc *dc,
+		struct dc_surface_update *updates,
+		int surface_count,
+		const struct dc_stream_status *stream_status);
 
 /*******************************************************************************
  * Link Interfaces

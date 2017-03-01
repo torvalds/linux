@@ -1110,42 +1110,149 @@ static bool is_surface_in_context(
 	return false;
 }
 
-enum surface_update_type {
-	UPDATE_TYPE_FAST, /* super fast, safe to execute in isr */
-	UPDATE_TYPE_MED,  /* a lot of programming needed.  may need to alloc */
-	UPDATE_TYPE_FULL, /* may need to shuffle resources */
-};
+static unsigned int pixel_format_to_bpp(enum surface_pixel_format format)
+{
+	switch (format) {
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB1555:
+	case SURFACE_PIXEL_FORMAT_GRPH_RGB565:
+		return 16;
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB8888:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR8888:
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB2101010:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010:
+		return 32;
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F:
+		return 64;
+	default:
+		ASSERT_CRITICAL(false);
+		return -1;
+	}
+}
+
+static enum surface_update_type get_plane_info_update_type(
+		const struct dc_surface_update *u)
+{
+	struct dc_plane_info temp_plane_info = { { { { 0 } } } };
+
+	if (!u->plane_info)
+		return UPDATE_TYPE_FAST;
+
+	/* Copy all parameters that will cause a full update
+	 * from current surface, the rest of the parameters
+	 * from provided plane configuration.
+	 * Perform memory compare and special validation
+	 * for those that can cause fast/medium updates
+	 */
+
+	/* Full update parameters */
+	temp_plane_info.color_space = u->surface->color_space;
+	temp_plane_info.dcc = u->surface->dcc;
+	temp_plane_info.horizontal_mirror = u->surface->horizontal_mirror;
+	temp_plane_info.plane_size = u->surface->plane_size;
+	temp_plane_info.rotation = u->surface->rotation;
+	temp_plane_info.stereo_format = u->surface->stereo_format;
+	temp_plane_info.tiling_info = u->surface->tiling_info;
+	temp_plane_info.visible = u->surface->visible;
+
+	/* Special Validation parameters */
+	temp_plane_info.format = u->plane_info->format;
+
+	if (memcmp(u->plane_info, &temp_plane_info,
+			sizeof(struct dc_plane_info)) != 0)
+		return UPDATE_TYPE_FULL;
+
+	if (pixel_format_to_bpp(u->plane_info->format) !=
+			pixel_format_to_bpp(u->surface->format)) {
+		return UPDATE_TYPE_FULL;
+	} else {
+		return UPDATE_TYPE_MED;
+	}
+}
+
+static enum surface_update_type  get_scaling_info_update_type(
+		const struct dc_surface_update *u)
+{
+	struct dc_scaling_info temp_scaling_info = { { 0 } };
+
+	if (!u->scaling_info)
+		return UPDATE_TYPE_FAST;
+
+	/* Copy all parameters that will cause a full update
+	 * from current surface, the rest of the parameters
+	 * from provided plane configuration.
+	 * Perform memory compare and special validation
+	 * for those that can cause fast/medium updates
+	 */
+
+	/* Full Update Parameters */
+	temp_scaling_info.dst_rect = u->surface->dst_rect;
+	temp_scaling_info.src_rect = u->surface->src_rect;
+	temp_scaling_info.scaling_quality = u->surface->scaling_quality;
+
+	/* Special validation required */
+	temp_scaling_info.clip_rect = u->scaling_info->clip_rect;
+
+	if (memcmp(u->scaling_info, &temp_scaling_info,
+			sizeof(struct dc_scaling_info)) != 0)
+		return UPDATE_TYPE_FULL;
+
+	/* Check Clip rectangles if not equal
+	 * difference is in offsets == > UPDATE_TYPE_FAST
+	 * difference is in dimensions == > UPDATE_TYPE_FULL
+	 */
+	if (memcmp(&u->scaling_info->clip_rect,
+			&u->surface->clip_rect, sizeof(struct rect)) != 0) {
+		if ((u->scaling_info->clip_rect.height ==
+			u->surface->clip_rect.height) &&
+			(u->scaling_info->clip_rect.width ==
+			u->surface->clip_rect.width)) {
+			return UPDATE_TYPE_FAST;
+		} else {
+			return UPDATE_TYPE_FULL;
+		}
+	}
+
+	return UPDATE_TYPE_FAST;
+}
 
 static enum surface_update_type det_surface_update(
 		const struct core_dc *dc,
 		const struct dc_surface_update *u)
 {
 	const struct validate_context *context = dc->current_context;
-
-	if (u->scaling_info || u->plane_info)
-		/* todo: not all scale and plane_info update need full update
-		 * ie. check if following is the same
-		 * scale ratio, view port, surface bpp etc
-		 */
-		return UPDATE_TYPE_FULL; /* may need bandwidth update */
+	enum surface_update_type type = UPDATE_TYPE_FAST;
+	enum surface_update_type overall_type = UPDATE_TYPE_FAST;
 
 	if (!is_surface_in_context(context, u->surface))
 		return UPDATE_TYPE_FULL;
 
+	type = get_plane_info_update_type(u);
+	if (overall_type < type)
+		overall_type = type;
+
+	type = get_scaling_info_update_type(u);
+	if (overall_type < type)
+		overall_type = type;
+
 	if (u->in_transfer_func ||
 		u->out_transfer_func ||
-		u->hdr_static_metadata)
-		return UPDATE_TYPE_MED;
+		u->hdr_static_metadata) {
+		if (overall_type < UPDATE_TYPE_MED)
+			overall_type = UPDATE_TYPE_MED;
+	}
 
-	return UPDATE_TYPE_FAST;
+	return overall_type;
 }
 
-static enum surface_update_type check_update_surfaces_for_stream(
-		struct core_dc *dc,
+enum surface_update_type dc_check_update_surfaces_for_stream(
+		struct dc *dc,
 		struct dc_surface_update *updates,
 		int surface_count,
 		const struct dc_stream_status *stream_status)
 {
+	struct core_dc *core_dc = DC_TO_CORE(dc);
 	int i;
 	enum surface_update_type overall_type = UPDATE_TYPE_FAST;
 
@@ -1154,7 +1261,7 @@ static enum surface_update_type check_update_surfaces_for_stream(
 
 	for (i = 0 ; i < surface_count; i++) {
 		enum surface_update_type type =
-				det_surface_update(dc, &updates[i]);
+				det_surface_update(core_dc, &updates[i]);
 
 		if (type == UPDATE_TYPE_FULL)
 			return type;
@@ -1184,8 +1291,8 @@ void dc_update_surfaces_for_stream(struct dc *dc,
 	if (!stream_status)
 		return; /* Cannot commit surface to stream that is not committed */
 
-	update_type = check_update_surfaces_for_stream(
-			core_dc, updates, surface_count, stream_status);
+	update_type = dc_check_update_surfaces_for_stream(
+			dc, updates, surface_count, stream_status);
 
 	if (update_type >= update_surface_trace_level)
 		update_surface_trace(dc, updates, surface_count);
@@ -1321,7 +1428,7 @@ void dc_update_surfaces_for_stream(struct dc *dc,
 			if (pipe_ctx->surface != surface)
 				continue;
 
-			if (update_type == UPDATE_TYPE_FULL) {
+			if (update_type >= UPDATE_TYPE_MED) {
 				/* only apply for top pipe */
 				if (!pipe_ctx->top_pipe) {
 					core_dc->hwss.apply_ctx_for_surface(core_dc,
