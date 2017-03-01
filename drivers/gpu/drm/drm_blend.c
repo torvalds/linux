@@ -387,8 +387,7 @@ int drm_atomic_normalize_zpos(struct drm_device *dev,
 		if (!crtc)
 			continue;
 		if (plane->state->zpos != plane_state->zpos) {
-			crtc_state =
-				drm_atomic_get_existing_crtc_state(state, crtc);
+			crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 			crtc_state->zpos_changed = true;
 		}
 	}

@@ -86,8 +86,8 @@ static int drm_simple_kms_plane_atomic_check(struct drm_plane *plane,
 	int ret;
 
 	pipe = container_of(plane, struct drm_simple_display_pipe, plane);
-	crtc_state = drm_atomic_get_existing_crtc_state(plane_state->state,
-							&pipe->crtc);
+	crtc_state = drm_atomic_get_new_crtc_state(plane_state->state,
+						   &pipe->crtc);
 	if (crtc_state->enable != !!plane_state->crtc)
 		return -EINVAL; /* plane must match crtc enable state */
 

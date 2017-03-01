@@ -1374,8 +1374,8 @@ drm_atomic_set_crtc_for_connector(struct drm_connector_state *conn_state,
 		return 0;
 
 	if (conn_state->crtc) {
-		crtc_state = drm_atomic_get_existing_crtc_state(conn_state->state,
-								conn_state->crtc);
+		crtc_state = drm_atomic_get_new_crtc_state(conn_state->state,
+							   conn_state->crtc);
 
 		crtc_state->connector_mask &=
 			~(1 << drm_connector_index(conn_state->connector));
@@ -1492,7 +1492,7 @@ drm_atomic_add_affected_planes(struct drm_atomic_state *state,
 {
 	struct drm_plane *plane;
 
-	WARN_ON(!drm_atomic_get_existing_crtc_state(state, crtc));
+	WARN_ON(!drm_atomic_get_new_crtc_state(state, crtc));
 
 	drm_for_each_plane_mask(plane, state->dev, crtc->state->plane_mask) {
 		struct drm_plane_state *plane_state =
