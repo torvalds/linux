@@ -462,7 +462,7 @@ int atomisp_mrfld_power_down(struct atomisp_device *isp)
 		}
 		/* FIXME: experienced value for delay */
 		usleep_range(100, 150);
-	};
+	}
 }
 
 
@@ -508,7 +508,7 @@ int atomisp_mrfld_power_up(struct atomisp_device *isp)
 		}
 		/* FIXME: experienced value for delay */
 		usleep_range(100, 150);
-	};
+	}
 }
 
 int atomisp_runtime_suspend(struct device *dev)
