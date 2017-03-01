@@ -5790,29 +5790,6 @@ out_vdd_off:
 	return false;
 }
 
-static void intel_dp_modeset_retry_work_fn(struct work_struct *work)
-{
-	struct intel_connector *intel_connector;
-	struct drm_connector *connector;
-
-	intel_connector = container_of(work, typeof(*intel_connector),
-				       modeset_retry_work);
-	connector = &intel_connector->base;
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n", connector->base.id,
-		      connector->name);
-
-	/* Grab the locks before changing connector property*/
-	mutex_lock(&connector->dev->mode_config.mutex);
-	/* Set connector link status to BAD and send a Uevent to notify
-	 * userspace to do a modeset.
-	 */
-	drm_mode_connector_set_link_status_property(connector,
-						    DRM_MODE_LINK_STATUS_BAD);
-	mutex_unlock(&connector->dev->mode_config.mutex);
-	/* Send Hotplug uevent so userspace can reprobe */
-	drm_kms_helper_hotplug_event(connector->dev);
-}
-
 bool
 intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 			struct intel_connector *intel_connector)
@@ -5824,10 +5801,6 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum port port = intel_dig_port->port;
 	int type;
-
-	/* Initialize the work for modeset in case of link train failure */
-	INIT_WORK(&intel_connector->modeset_retry_work,
-		  intel_dp_modeset_retry_work_fn);
 
 	if (WARN(intel_dig_port->max_lanes < 1,
 		 "Not enough lanes (%d) for DP on port %c\n",
