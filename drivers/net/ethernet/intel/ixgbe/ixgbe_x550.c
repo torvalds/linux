@@ -2526,6 +2526,9 @@ static s32 ixgbe_setup_kr_x550em(struct ixgbe_hw *hw)
 	if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_2_5GB_FULL)
 		return 0;
 
+	if (ixgbe_check_reset_blocked(hw))
+		return 0;
+
 	return ixgbe_setup_kr_speed_x550em(hw, hw->phy.autoneg_advertised);
 }
 
