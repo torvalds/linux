@@ -136,7 +136,6 @@ config HID_APPLEIR
 
 config HID_ASUS
 	tristate "Asus"
-	depends on I2C_HID
 	---help---
 	Support for Asus notebook built-in keyboard and touchpad via i2c.
 
