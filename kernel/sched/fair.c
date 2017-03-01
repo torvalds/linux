@@ -5797,7 +5797,7 @@ static int select_idle_cpu(struct task_struct *p, struct sched_domain *sd, int t
 	 * Due to large variance we need a large fuzz factor; hackbench in
 	 * particularly is sensitive here.
 	 */
-	if ((avg_idle / 512) < avg_cost)
+	if (sched_feat(SIS_AVG_CPU) && (avg_idle / 512) < avg_cost)
 		return -1;
 
 	time = local_clock();
