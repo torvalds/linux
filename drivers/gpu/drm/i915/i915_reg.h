@@ -77,7 +77,13 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define _MASKED_BIT_ENABLE(a)	({ typeof(a) _a = (a); _MASKED_FIELD(_a, _a); })
 #define _MASKED_BIT_DISABLE(a)	(_MASKED_FIELD((a), 0))
 
+/* Engine ID */
 
+#define RCS_HW		0
+#define VCS_HW		1
+#define BCS_HW		2
+#define VECS_HW		3
+#define VCS2_HW		4
 
 /* PCI config space */
 

@@ -186,26 +186,26 @@ struct i915_ctx_workarounds {
 struct drm_i915_gem_request;
 struct intel_render_state;
 
+/*
+ * Engine IDs definitions.
+ * Keep instances of the same type engine together.
+ */
+enum intel_engine_id {
+	RCS = 0,
+	BCS,
+	VCS,
+	VCS2,
+#define _VCS(n) (VCS + (n))
+	VECS
+};
+
 struct intel_engine_cs {
 	struct drm_i915_private *i915;
 	const char	*name;
-	enum intel_engine_id {
-		RCS = 0,
-		BCS,
-		VCS,
-		VCS2,	/* Keep instances of the same type engine together. */
-		VECS
-	} id;
-#define _VCS(n) (VCS + (n))
+	enum intel_engine_id id;
 	unsigned int exec_id;
-	enum intel_engine_hw_id {
-		RCS_HW = 0,
-		VCS_HW,
-		BCS_HW,
-		VECS_HW,
-		VCS2_HW
-	} hw_id;
-	enum intel_engine_hw_id guc_id; /* XXX same as hw_id? */
+	unsigned int hw_id;
+	unsigned int guc_id;
 	u32		mmio_base;
 	unsigned int irq_shift;
 	struct intel_ring *buffer;
