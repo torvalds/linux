@@ -2483,7 +2483,6 @@ MODULE_DEVICE_TABLE(i2c, imx_ids);
 
 static struct i2c_driver imx_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = IMX_DRIVER,
 	},
 	.probe = imx_probe,
