@@ -31,6 +31,22 @@
 	};
 };
 
+&fmc {
+	status = "okay";
+	flash@0 {
+		status = "okay";
+		label = "bmc";
+	};
+};
+
+&spi {
+	status = "okay";
+	flash@0 {
+		status = "okay";
+		label = "pnor";
+	};
+};
+
 &uart5 {
 	status = "okay";
 };
