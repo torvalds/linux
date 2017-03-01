@@ -258,9 +258,10 @@ static int rmi_f30_map_gpios(struct rmi_function *fn,
 
 	/*
 	 * Buttonpad could be also inferred from f30->has_mech_mouse_btns,
-	 * but I am not sure, so use only the pdata info.
+	 * but I am not sure, so use only the pdata info and the number of
+	 * mapped buttons.
 	 */
-	if (pdata->f30_data.buttonpad)
+	if (pdata->f30_data.buttonpad || (button - BTN_LEFT == 1))
 		__set_bit(INPUT_PROP_BUTTONPAD, input->propbit);
 
 	return 0;
