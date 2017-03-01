@@ -547,7 +547,6 @@ EXPORT_SYMBOL_GPL(drm_fbdev_cma_init_with_funcs);
  * drm_fbdev_cma_init() - Allocate and initializes a drm_fbdev_cma struct
  * @dev: DRM device
  * @preferred_bpp: Preferred bits per pixel for the device
- * @num_crtc: Number of CRTCs
  * @max_conn_count: Maximum number of connectors
  *
  * Returns a newly allocated drm_fbdev_cma struct or a ERR_PTR.
