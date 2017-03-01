@@ -725,6 +725,17 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 			      struct intel_crtc_state *pipe_config);
 static void intel_dsi_unprepare(struct intel_encoder *encoder);
 
+static void intel_dsi_msleep(struct intel_dsi *intel_dsi, int msec)
+{
+	struct drm_i915_private *dev_priv = to_i915(intel_dsi->base.base.dev);
+
+	/* For v3 VBTs in vid-mode the delays are part of the VBT sequences */
+	if (is_vid_mode(intel_dsi) && dev_priv->vbt.dsi.seq_version >= 3)
+		return;
+
+	msleep(msec);
+}
+
 /*
  * Panel enable/disable sequences from the VBT spec.
  *
@@ -806,7 +817,7 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 	if (intel_dsi->gpio_panel)
 		gpiod_set_value_cansleep(intel_dsi->gpio_panel, 1);
 	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_POWER_ON);
-	msleep(intel_dsi->panel_on_delay);
+	intel_dsi_msleep(intel_dsi, intel_dsi->panel_on_delay);
 
 	/* Deassert reset */
 	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_DEASSERT_RESET);
@@ -828,7 +839,7 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 		msleep(20); /* XXX */
 		for_each_dsi_port(port, intel_dsi->ports)
 			dpi_send_cmd(intel_dsi, TURN_ON, false, port);
-		msleep(100);
+		intel_dsi_msleep(intel_dsi, 100);
 
 		intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_DISPLAY_ON);
 
@@ -955,7 +966,7 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder,
 	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_ASSERT_RESET);
 
 	/* Power off, try both CRC pmic gpio and VBT */
-	msleep(intel_dsi->panel_off_delay);
+	intel_dsi_msleep(intel_dsi, intel_dsi->panel_off_delay);
 	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_POWER_OFF);
 	if (intel_dsi->gpio_panel)
 		gpiod_set_value_cansleep(intel_dsi->gpio_panel, 0);
@@ -964,7 +975,7 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder,
 	 * FIXME As we do with eDP, just make a note of the time here
 	 * and perform the wait before the next panel power on.
 	 */
-	msleep(intel_dsi->panel_pwr_cycle_delay);
+	intel_dsi_msleep(intel_dsi, intel_dsi->panel_pwr_cycle_delay);
 }
 
 static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
