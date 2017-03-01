@@ -219,9 +219,6 @@ enum mddev_flags {
 				 * it then */
 	MD_JOURNAL_CLEAN,	/* A raid with journal is already clean */
 	MD_HAS_JOURNAL,		/* The raid array has journal feature set */
-	MD_RELOAD_SB,		/* Reload the superblock because another node
-				 * updated it.
-				 */
 	MD_CLUSTER_RESYNC_LOCKED, /* cluster raid only, which means node
 				   * already took resync lock, need to
 				   * release the lock */
