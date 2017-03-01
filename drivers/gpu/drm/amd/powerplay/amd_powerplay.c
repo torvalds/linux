@@ -750,7 +750,17 @@ static int pp_dpm_set_pp_table(void *handle, const char *buf, size_t size)
 
 	hwmgr->soft_pp_table = hwmgr->hardcode_pp_table;
 
-	return amd_powerplay_reset(handle);
+	ret = amd_powerplay_reset(handle);
+	if (ret)
+		return ret;
+
+	if (hwmgr->hwmgr_func->avfs_control) {
+		ret = hwmgr->hwmgr_func->avfs_control(hwmgr, false);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int pp_dpm_force_clock_level(void *handle,
