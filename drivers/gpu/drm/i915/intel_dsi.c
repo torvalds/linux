@@ -921,6 +921,8 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder,
 	 * if disable packets are sent before sending shutdown packet then in
 	 * some next enable sequence send turn on packet error is observed
 	 */
+	if (is_cmd_mode(intel_dsi))
+		intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_TEAR_OFF);
 	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_DISPLAY_OFF);
 
 	/* Transition to LP-00 */
