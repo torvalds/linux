@@ -642,9 +642,7 @@ static unsigned int tcmu_handle_completions(struct tcmu_dev *udev)
 		WARN_ON(tcmu_hdr_get_op(entry->hdr.len_op) != TCMU_OP_CMD);
 
 		spin_lock(&udev->commands_lock);
-		cmd = idr_find(&udev->commands, entry->hdr.cmd_id);
-		if (cmd)
-			idr_remove(&udev->commands, cmd->cmd_id);
+		cmd = idr_remove(&udev->commands, entry->hdr.cmd_id);
 		spin_unlock(&udev->commands_lock);
 
 		if (!cmd) {
