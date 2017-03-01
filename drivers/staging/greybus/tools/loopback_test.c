@@ -476,7 +476,7 @@ int format_output(struct loopback_test *t,
 			r->gbphy_firmware_latency_jitter);
 
 	} else {
-		len += snprintf(&buf[len], buf_len- len, ",%s,%s,%u,%u,%u",
+		len += snprintf(&buf[len], buf_len - len, ",%s,%s,%u,%u,%u",
 			t->test_name, dev_name, t->size, t->iteration_max,
 			r->error);
 
