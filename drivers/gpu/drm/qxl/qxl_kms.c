@@ -31,19 +31,9 @@
 
 int qxl_log_level;
 
-static void qxl_dump_mode(struct qxl_device *qdev, void *p)
-{
-	struct qxl_mode *m = p;
-	DRM_DEBUG_KMS("%d: %dx%d %d bits, stride %d, %dmm x %dmm, orientation %d\n",
-		      m->id, m->x_res, m->y_res, m->bits, m->stride, m->x_mili,
-		      m->y_mili, m->orientation);
-}
-
 static bool qxl_check_device(struct qxl_device *qdev)
 {
 	struct qxl_rom *rom = qdev->rom;
-	int mode_offset;
-	int i;
 
 	if (rom->magic != 0x4f525851) {
 		DRM_ERROR("bad rom signature %x\n", rom->magic);
@@ -53,8 +43,6 @@ static bool qxl_check_device(struct qxl_device *qdev)
 	DRM_INFO("Device Version %d.%d\n", rom->id, rom->update_id);
 	DRM_INFO("Compression level %d log level %d\n", rom->compression_level,
 		 rom->log_level);
-	DRM_INFO("Currently using mode #%d, list at 0x%x\n",
-		 rom->mode, rom->modes_offset);
 	DRM_INFO("%d io pages at offset 0x%x\n",
 		 rom->num_io_pages, rom->pages_offset);
 	DRM_INFO("%d byte draw area at offset 0x%x\n",
@@ -62,14 +50,6 @@ static bool qxl_check_device(struct qxl_device *qdev)
 
 	qdev->vram_size = rom->surface0_area_size;
 	DRM_INFO("RAM header offset: 0x%x\n", rom->ram_header_offset);
-
-	mode_offset = rom->modes_offset / 4;
-	qdev->mode_info.num_modes = ((u32 *)rom)[mode_offset];
-	DRM_INFO("rom modes offset 0x%x for %d modes\n", rom->modes_offset,
-		 qdev->mode_info.num_modes);
-	qdev->mode_info.modes = (void *)((uint32_t *)rom + mode_offset + 1);
-	for (i = 0; i < qdev->mode_info.num_modes; i++)
-		qxl_dump_mode(qdev, qdev->mode_info.modes + i);
 	return true;
 }
 
@@ -282,7 +262,5 @@ void qxl_device_fini(struct qxl_device *qdev)
 	iounmap(qdev->ram_header);
 	iounmap(qdev->rom);
 	qdev->rom = NULL;
-	qdev->mode_info.modes = NULL;
-	qdev->mode_info.num_modes = 0;
 	qxl_debugfs_remove_files(qdev);
 }

@@ -160,8 +160,6 @@ struct qxl_mman {
 };
 
 struct qxl_mode_info {
-	int num_modes;
-	struct qxl_mode *modes;
 	bool mode_config_initialized;
 
 	/* pointer to fbdev info structure */
