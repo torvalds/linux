@@ -337,8 +337,8 @@ err:
 	return timing;
 }
 
-static int of_get_opp_table(struct device *dev,
-			    struct devfreq_dev_profile *devp)
+static int rk3399_dmcfreq_init_freq_table(struct device *dev,
+					  struct devfreq_dev_profile *devp)
 {
 	int count;
 	int i = 0;
@@ -448,7 +448,7 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (of_get_opp_table(dev, devp))
+	if (rk3399_dmcfreq_init_freq_table(dev, devp))
 		return -EFAULT;
 
 	of_property_read_u32(np, "upthreshold",
