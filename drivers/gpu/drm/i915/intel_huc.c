@@ -181,11 +181,13 @@ void intel_huc_init(struct drm_i915_private *dev_priv)
 	}
 
 	huc_fw->path = fw_path;
+
+	if (huc_fw->path == NULL)
+		return;
+
 	huc_fw->fetch_status = INTEL_UC_FIRMWARE_PENDING;
 
 	DRM_DEBUG_DRIVER("HuC firmware pending, path %s\n", fw_path);
-
-	WARN(huc_fw->path == NULL, "HuC present but no fw path\n");
 
 	intel_uc_fw_fetch(dev_priv, huc_fw);
 }
