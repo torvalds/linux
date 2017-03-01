@@ -1467,7 +1467,6 @@ MODULE_DEVICE_TABLE(acpi, gc0310_acpi_match);
 MODULE_DEVICE_TABLE(i2c, gc0310_id);
 static struct i2c_driver gc0310_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = GC0310_NAME,
 		.acpi_match_table = ACPI_PTR(gc0310_acpi_match),
 	},
