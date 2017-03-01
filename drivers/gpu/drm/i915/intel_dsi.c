@@ -725,6 +725,43 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 			      struct intel_crtc_state *pipe_config);
 static void intel_dsi_unprepare(struct intel_encoder *encoder);
 
+/*
+ * Panel enable/disable sequences from the VBT spec.
+ *
+ * Note the spec has AssertReset / DeassertReset swapped from their
+ * usual naming. We use the normal names to avoid confusion (so below
+ * they are swapped compared to the spec).
+ *
+ * Steps starting with MIPI refer to VBT sequences, note that for v2
+ * VBTs several steps which have a VBT in v2 are expected to be handled
+ * directly by the driver, by directly driving gpios for example.
+ *
+ * v2 video mode seq         v3 video mode seq         command mode seq
+ * - power on                - MIPIPanelPowerOn        - power on
+ * - wait t1+t2                                        - wait t1+t2
+ * - MIPIDeassertResetPin    - MIPIDeassertResetPin    - MIPIDeassertResetPin
+ * - io lines to lp-11       - io lines to lp-11       - io lines to lp-11
+ * - MIPISendInitialDcsCmds  - MIPISendInitialDcsCmds  - MIPISendInitialDcsCmds
+ *                                                     - MIPITearOn
+ *                                                     - MIPIDisplayOn
+ * - turn on DPI             - turn on DPI             - set pipe to dsr mode
+ * - MIPIDisplayOn           - MIPIDisplayOn
+ * - wait t5                                           - wait t5
+ * - backlight on            - MIPIBacklightOn         - backlight on
+ * ...                       ...                       ... issue mem cmds ...
+ * - backlight off           - MIPIBacklightOff        - backlight off
+ * - wait t6                                           - wait t6
+ * - MIPIDisplayOff
+ * - turn off DPI            - turn off DPI            - disable pipe dsr mode
+ *                                                     - MIPITearOff
+ *                           - MIPIDisplayOff          - MIPIDisplayOff
+ * - io lines to lp-00       - io lines to lp-00       - io lines to lp-00
+ * - MIPIAssertResetPin      - MIPIAssertResetPin      - MIPIAssertResetPin
+ * - wait t3                                           - wait t3
+ * - power off               - MIPIPanelPowerOff       - power off
+ * - wait t4                                           - wait t4
+ */
+
 static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 				 struct intel_crtc_state *pipe_config,
 				 struct drm_connector_state *conn_state)
