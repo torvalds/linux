@@ -905,7 +905,6 @@ void mod_freesync_notify_mode_change(struct mod_freesync *mod_freesync,
 	core_freesync = MOD_FREESYNC_TO_CORE(mod_freesync);
 
 	for (stream_index = 0; stream_index < num_streams; stream_index++) {
-
 		map_index = map_index_from_stream(core_freesync,
 				streams[stream_index]);
 
@@ -913,11 +912,12 @@ void mod_freesync_notify_mode_change(struct mod_freesync *mod_freesync,
 
 		if (core_freesync->map[map_index].caps->supported) {
 			/* Update the field rate for new timing */
-			state->nominal_refresh_rate_in_micro_hz = 1000000 *
-				div64_u64(div64_u64((streams[stream_index]->
-				timing.pix_clk_khz * 1000),
-				streams[stream_index]->timing.v_total),
-				streams[stream_index]->timing.h_total);
+			unsigned long long temp;
+			temp = streams[stream_index]->timing.pix_clk_khz;
+			temp *= 1000ULL * 1000ULL * 1000ULL;
+			temp = div_u64(temp, streams[stream_index]->timing.h_total);
+			temp = div_u64(temp, streams[stream_index]->timing.v_total);
+			state->nominal_refresh_rate_in_micro_hz = (unsigned int) temp;
 
 			/* Update the stream */
 			update_stream(core_freesync, streams[stream_index]);
