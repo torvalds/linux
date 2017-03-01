@@ -450,6 +450,13 @@ static void __init rk3036_clk_init(struct device_node *np)
 		return;
 	}
 
+	/*
+	 * Make uart_pll_clk a child of the gpll, as all other sources are
+	 * not that usable / stable.
+	 */
+	writel_relaxed(HIWORD_UPDATE(0x2, 0x3, 10),
+		       reg_base + RK2928_CLKSEL_CON(13));
+
 	ctx = rockchip_clk_init(np, reg_base, CLK_NR_CLKS);
 	if (IS_ERR(ctx)) {
 		pr_err("%s: rockchip clk init failed\n", __func__);
