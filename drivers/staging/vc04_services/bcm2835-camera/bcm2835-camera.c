@@ -1908,7 +1908,7 @@ static int __init bm2835_mmal_init(void)
 		num_cameras = MAX_BCM2835_CAMERAS;
 
 	for (camera = 0; camera < num_cameras; camera++) {
-		dev = kzalloc(sizeof(struct bm2835_mmal_dev), GFP_KERNEL);
+		dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 		if (!dev) {
 			ret = -ENOMEM;
 			goto cleanup_gdev;
