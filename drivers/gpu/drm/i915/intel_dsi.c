@@ -811,7 +811,6 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 	/* put device in ready state */
 	intel_dsi_device_ready(encoder);
 
-	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_ASSERT_RESET);
 	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_POWER_ON);
 	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_DEASSERT_RESET);
 	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_INIT_OTP);
