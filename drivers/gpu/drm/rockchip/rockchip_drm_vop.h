@@ -92,6 +92,7 @@ struct vop_ctrl {
 	struct vop_reg dsp_layer_sel;
 	struct vop_reg overlay_mode;
 	struct vop_reg core_dclk_div;
+	struct vop_reg dclk_ddr;
 	struct vop_reg p2i_en;
 	struct vop_reg rgb_en;
 	struct vop_reg edp_en;
@@ -206,6 +207,11 @@ enum {
 	VOP_CSC_R2Y_BT2020,
 	VOP_CSC_R2R_BT2020_TO_BT709,
 	VOP_CSC_R2R_BT709_TO_2020,
+};
+
+enum _vop_overlay_mode {
+	VOP_RGB_DOMAIN,
+	VOP_YUV_DOMAIN
 };
 
 struct vop_win_phy {
@@ -323,11 +329,12 @@ struct vop_data {
 /*
  * display output interface supported by rockchip lcdc
  */
-#define ROCKCHIP_OUT_MODE_P888	0
-#define ROCKCHIP_OUT_MODE_P666	1
-#define ROCKCHIP_OUT_MODE_P565	2
+#define ROCKCHIP_OUT_MODE_P888		0
+#define ROCKCHIP_OUT_MODE_P666		1
+#define ROCKCHIP_OUT_MODE_P565		2
+#define ROCKCHIP_OUT_MODE_YUV420	14
 /* for use special outface */
-#define ROCKCHIP_OUT_MODE_AAAA	15
+#define ROCKCHIP_OUT_MODE_AAAA		15
 
 #define ROCKCHIP_OUT_MODE_TYPE(x)	((x) >> 16)
 #define ROCKCHIP_OUT_MODE(x)		((x) & 0xffff)

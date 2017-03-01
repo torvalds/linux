@@ -359,6 +359,17 @@ static enum vop_data_format vop_convert_format(uint32_t format)
 	}
 }
 
+static bool is_yuv_output(uint32_t bus_format)
+{
+	switch (bus_format) {
+	case MEDIA_BUS_FMT_YUV8_1X24:
+	case MEDIA_BUS_FMT_YUV10_1X30:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static bool is_yuv_support(uint32_t format)
 {
 	switch (format) {
@@ -628,14 +639,17 @@ static int vop_csc_atomic_check(struct drm_crtc *crtc,
 {
 	struct vop *vop = to_vop(crtc);
 	struct drm_atomic_state *state = crtc_state->state;
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
 	const struct vop_csc_table *csc_table = vop->data->csc_table;
 	struct drm_plane_state *pstate;
 	struct drm_plane *plane;
-	bool is_yuv;
+	bool is_input_yuv, is_output_yuv;
 	int ret;
 
 	if (!csc_table)
 		return 0;
+
+	is_output_yuv = is_yuv_output(s->bus_format);
 
 	drm_atomic_crtc_state_for_each_plane(plane, crtc_state) {
 		struct vop_plane_state *vop_plane_state;
@@ -647,12 +661,12 @@ static int vop_csc_atomic_check(struct drm_crtc *crtc,
 
 		if (!pstate->fb)
 			continue;
-		is_yuv = is_yuv_support(pstate->fb->pixel_format);
+		is_input_yuv = is_yuv_support(pstate->fb->pixel_format);
 
 		/*
 		 * TODO: force set input and output csc mode.
 		 */
-		ret = vop_csc_setup(csc_table, is_yuv, false,
+		ret = vop_csc_setup(csc_table, is_input_yuv, is_output_yuv,
 				    CSC_BT709, CSC_BT709,
 				    &vop_plane_state->y2r_table,
 				    &vop_plane_state->r2r_table,
@@ -1525,18 +1539,27 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	case MEDIA_BUS_FMT_RGB666_1X24_CPADHI:
 		val = DITHER_DOWN_EN(1) | DITHER_DOWN_MODE(RGB888_TO_RGB666);
 		break;
+	case MEDIA_BUS_FMT_YUV8_1X24:
+		val = DITHER_DOWN_EN(0) | PRE_DITHER_DOWN_EN(1);
+		break;
+	case MEDIA_BUS_FMT_YUV10_1X30:
+		val = DITHER_DOWN_EN(0) | PRE_DITHER_DOWN_EN(0);
+		break;
 	case MEDIA_BUS_FMT_RGB888_1X24:
 	default:
 		val = DITHER_DOWN_EN(0) | PRE_DITHER_DOWN_EN(0);
 		break;
 	}
+
 	if (s->output_mode == ROCKCHIP_OUT_MODE_AAAA)
 		val |= PRE_DITHER_DOWN_EN(0);
 	else
 		val |= PRE_DITHER_DOWN_EN(1);
 	val |= DITHER_DOWN_MODE_SEL(DITHER_DOWN_ALLEGRO);
 	VOP_CTRL_SET(vop, dither_down, val);
-
+	VOP_CTRL_SET(vop, dclk_ddr,
+		     s->output_mode == ROCKCHIP_OUT_MODE_YUV420 ? 1 : 0);
+	VOP_CTRL_SET(vop, overlay_mode, is_yuv_output(s->bus_format));
 	VOP_CTRL_SET(vop, htotal_pw, (htotal << 16) | hsync_len);
 	val = hact_st << 16;
 	val |= hact_end;
