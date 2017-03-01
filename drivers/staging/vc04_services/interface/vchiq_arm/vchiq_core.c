@@ -755,9 +755,7 @@ memcpy_copy_callback(
 	void *context, void *dest,
 	size_t offset, size_t maxsize)
 {
-	void *src = context;
-
-	memcpy(dest + offset, src + offset, maxsize);
+	memcpy(dest + offset, context + offset, maxsize);
 	return maxsize;
 }
 
