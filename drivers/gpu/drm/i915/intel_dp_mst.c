@@ -163,6 +163,9 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 		intel_ddi_clk_select(&intel_dig_port->base,
 				     pipe_config->shared_dpll);
 
+		intel_display_power_get(dev_priv,
+					intel_dig_port->ddi_io_power_domain);
+
 		intel_prepare_dp_ddi_buffers(&intel_dig_port->base);
 		intel_dp_set_link_params(intel_dp,
 					 pipe_config->port_clock,
