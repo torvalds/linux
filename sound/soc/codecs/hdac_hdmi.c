@@ -1534,21 +1534,20 @@ static void hdac_hdmi_eld_notify_cb(void *aptr, int port, int pipe)
 			pin->mst_capable = false;
 			/* if not MST, default is port[0] */
 			hport = &pin->ports[0];
-			goto out;
 		} else {
 			for (i = 0; i < pin->num_ports; i++) {
 				pin->mst_capable = true;
 				if (pin->ports[i].id == pipe) {
 					hport = &pin->ports[i];
-					goto out;
+					break;
 				}
 			}
 		}
+
+		if (hport)
+			hdac_hdmi_present_sense(pin, hport);
 	}
 
-out:
-	if (pin && hport)
-		hdac_hdmi_present_sense(pin, hport);
 }
 
 static struct i915_audio_component_audio_ops aops = {
