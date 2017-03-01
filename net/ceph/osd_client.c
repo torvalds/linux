@@ -438,7 +438,7 @@ static void ceph_osdc_release_request(struct kref *kref)
 void ceph_osdc_get_request(struct ceph_osd_request *req)
 {
 	dout("%s %p (was %d)\n", __func__, req,
-	     atomic_read(&req->r_kref.refcount));
+	     kref_read(&req->r_kref));
 	kref_get(&req->r_kref);
 }
 EXPORT_SYMBOL(ceph_osdc_get_request);
@@ -447,7 +447,7 @@ void ceph_osdc_put_request(struct ceph_osd_request *req)
 {
 	if (req) {
 		dout("%s %p (was %d)\n", __func__, req,
-		     atomic_read(&req->r_kref.refcount));
+		     kref_read(&req->r_kref));
 		kref_put(&req->r_kref, ceph_osdc_release_request);
 	}
 }
@@ -460,7 +460,6 @@ static void request_init(struct ceph_osd_request *req)
 
 	kref_init(&req->r_kref);
 	init_completion(&req->r_completion);
-	init_completion(&req->r_done_completion);
 	RB_CLEAR_NODE(&req->r_node);
 	RB_CLEAR_NODE(&req->r_mc_node);
 	INIT_LIST_HEAD(&req->r_unsafe_item);
@@ -487,11 +486,11 @@ static void request_reinit(struct ceph_osd_request *req)
 	struct ceph_msg *reply_msg = req->r_reply;
 
 	dout("%s req %p\n", __func__, req);
-	WARN_ON(atomic_read(&req->r_kref.refcount) != 1);
+	WARN_ON(kref_read(&req->r_kref) != 1);
 	request_release_checks(req);
 
-	WARN_ON(atomic_read(&request_msg->kref.refcount) != 1);
-	WARN_ON(atomic_read(&reply_msg->kref.refcount) != 1);
+	WARN_ON(kref_read(&request_msg->kref) != 1);
+	WARN_ON(kref_read(&reply_msg->kref) != 1);
 	target_destroy(&req->r_t);
 
 	request_init(req);
@@ -672,7 +671,8 @@ void osd_req_op_extent_update(struct ceph_osd_request *osd_req,
 	BUG_ON(length > previous);
 
 	op->extent.length = length;
-	op->indata_len -= previous - length;
+	if (op->op == CEPH_OSD_OP_WRITE || op->op == CEPH_OSD_OP_WRITEFULL)
+		op->indata_len -= previous - length;
 }
 EXPORT_SYMBOL(osd_req_op_extent_update);
 
@@ -1636,7 +1636,7 @@ static void __submit_request(struct ceph_osd_request *req, bool wrlocked)
 	bool need_send = false;
 	bool promoted = false;
 
-	WARN_ON(req->r_tid || req->r_got_reply);
+	WARN_ON(req->r_tid);
 	dout("%s req %p wrlocked %d\n", __func__, req, wrlocked);
 
 again:
@@ -1704,17 +1704,10 @@ promote:
 
 static void account_request(struct ceph_osd_request *req)
 {
-	unsigned int mask = CEPH_OSD_FLAG_ACK | CEPH_OSD_FLAG_ONDISK;
+	WARN_ON(req->r_flags & (CEPH_OSD_FLAG_ACK | CEPH_OSD_FLAG_ONDISK));
+	WARN_ON(!(req->r_flags & (CEPH_OSD_FLAG_READ | CEPH_OSD_FLAG_WRITE)));
 
-	if (req->r_flags & CEPH_OSD_FLAG_READ) {
-		WARN_ON(req->r_flags & mask);
-		req->r_flags |= CEPH_OSD_FLAG_ACK;
-	} else if (req->r_flags & CEPH_OSD_FLAG_WRITE)
-		WARN_ON(!(req->r_flags & mask));
-	else
-		WARN_ON(1);
-
-	WARN_ON(req->r_unsafe_callback && (req->r_flags & mask) != mask);
+	req->r_flags |= CEPH_OSD_FLAG_ONDISK;
 	atomic_inc(&req->r_osdc->num_requests);
 }
 
@@ -1749,15 +1742,15 @@ static void finish_request(struct ceph_osd_request *req)
 
 static void __complete_request(struct ceph_osd_request *req)
 {
-	if (req->r_callback)
+	if (req->r_callback) {
+		dout("%s req %p tid %llu cb %pf result %d\n", __func__, req,
+		     req->r_tid, req->r_callback, req->r_result);
 		req->r_callback(req);
-	else
-		complete_all(&req->r_completion);
+	}
 }
 
 /*
- * Note that this is open-coded in handle_reply(), which has to deal
- * with ack vs commit, dup acks, etc.
+ * This is open-coded in handle_reply().
  */
 static void complete_request(struct ceph_osd_request *req, int err)
 {
@@ -1766,7 +1759,7 @@ static void complete_request(struct ceph_osd_request *req, int err)
 	req->r_result = err;
 	finish_request(req);
 	__complete_request(req);
-	complete_all(&req->r_done_completion);
+	complete_all(&req->r_completion);
 	ceph_osdc_put_request(req);
 }
 
@@ -1792,7 +1785,7 @@ static void cancel_request(struct ceph_osd_request *req)
 
 	cancel_map_check(req);
 	finish_request(req);
-	complete_all(&req->r_done_completion);
+	complete_all(&req->r_completion);
 	ceph_osdc_put_request(req);
 }
 
@@ -2169,7 +2162,6 @@ static void linger_commit_cb(struct ceph_osd_request *req)
 	mutex_lock(&lreq->lock);
 	dout("%s lreq %p linger_id %llu result %d\n", __func__, lreq,
 	     lreq->linger_id, req->r_result);
-	WARN_ON(!__linger_registered(lreq));
 	linger_reg_commit_complete(lreq, req->r_result);
 	lreq->committed = true;
 
@@ -2785,31 +2777,8 @@ e_inval:
 }
 
 /*
- * We are done with @req if
- *   - @m is a safe reply, or
- *   - @m is an unsafe reply and we didn't want a safe one
- */
-static bool done_request(const struct ceph_osd_request *req,
-			 const struct MOSDOpReply *m)
-{
-	return (m->result < 0 ||
-		(m->flags & CEPH_OSD_FLAG_ONDISK) ||
-		!(req->r_flags & CEPH_OSD_FLAG_ONDISK));
-}
-
-/*
- * handle osd op reply.  either call the callback if it is specified,
- * or do the completion to wake up the waiting thread.
- *
- * ->r_unsafe_callback is set?	yes			no
- *
- * first reply is OK (needed	r_cb/r_completion,	r_cb/r_completion,
- * any or needed/got safe)	r_done_completion	r_done_completion
- *
- * first reply is unsafe	r_unsafe_cb(true)	(nothing)
- *
- * when we get the safe reply	r_unsafe_cb(false),	r_cb/r_completion,
- *				r_done_completion	r_done_completion
+ * Handle MOSDOpReply.  Set ->r_result and call the callback if it is
+ * specified.
  */
 static void handle_reply(struct ceph_osd *osd, struct ceph_msg *msg)
 {
@@ -2818,7 +2787,6 @@ static void handle_reply(struct ceph_osd *osd, struct ceph_msg *msg)
 	struct MOSDOpReply m;
 	u64 tid = le64_to_cpu(msg->hdr.tid);
 	u32 data_len = 0;
-	bool already_acked;
 	int ret;
 	int i;
 
@@ -2897,50 +2865,22 @@ static void handle_reply(struct ceph_osd *osd, struct ceph_msg *msg)
 		       le32_to_cpu(msg->hdr.data_len), req->r_tid);
 		goto fail_request;
 	}
-	dout("%s req %p tid %llu acked %d result %d data_len %u\n", __func__,
-	     req, req->r_tid, req->r_got_reply, m.result, data_len);
+	dout("%s req %p tid %llu result %d data_len %u\n", __func__,
+	     req, req->r_tid, m.result, data_len);
 
-	already_acked = req->r_got_reply;
-	if (!already_acked) {
-		req->r_result = m.result ?: data_len;
-		req->r_replay_version = m.replay_version; /* struct */
-		req->r_got_reply = true;
-	} else if (!(m.flags & CEPH_OSD_FLAG_ONDISK)) {
-		dout("req %p tid %llu dup ack\n", req, req->r_tid);
-		goto out_unlock_session;
-	}
-
-	if (done_request(req, &m)) {
-		finish_request(req);
-		if (req->r_linger) {
-			WARN_ON(req->r_unsafe_callback);
-			dout("req %p tid %llu cb (locked)\n", req, req->r_tid);
-			__complete_request(req);
-		}
-	}
-
+	/*
+	 * Since we only ever request ONDISK, we should only ever get
+	 * one (type of) reply back.
+	 */
+	WARN_ON(!(m.flags & CEPH_OSD_FLAG_ONDISK));
+	req->r_result = m.result ?: data_len;
+	finish_request(req);
 	mutex_unlock(&osd->lock);
 	up_read(&osdc->lock);
 
-	if (done_request(req, &m)) {
-		if (already_acked && req->r_unsafe_callback) {
-			dout("req %p tid %llu safe-cb\n", req, req->r_tid);
-			req->r_unsafe_callback(req, false);
-		} else if (!req->r_linger) {
-			dout("req %p tid %llu cb\n", req, req->r_tid);
-			__complete_request(req);
-		}
-		complete_all(&req->r_done_completion);
-		ceph_osdc_put_request(req);
-	} else {
-		if (req->r_unsafe_callback) {
-			dout("req %p tid %llu unsafe-cb\n", req, req->r_tid);
-			req->r_unsafe_callback(req, true);
-		} else {
-			WARN_ON(1);
-		}
-	}
-
+	__complete_request(req);
+	complete_all(&req->r_completion);
+	ceph_osdc_put_request(req);
 	return;
 
 fail_request:
@@ -3540,7 +3480,7 @@ again:
 			up_read(&osdc->lock);
 			dout("%s waiting on req %p tid %llu last_tid %llu\n",
 			     __func__, req, req->r_tid, last_tid);
-			wait_for_completion(&req->r_done_completion);
+			wait_for_completion(&req->r_completion);
 			ceph_osdc_put_request(req);
 			goto again;
 		}
@@ -3599,7 +3539,7 @@ ceph_osdc_watch(struct ceph_osd_client *osdc,
 
 	ceph_oid_copy(&lreq->t.base_oid, oid);
 	ceph_oloc_copy(&lreq->t.base_oloc, oloc);
-	lreq->t.flags = CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK;
+	lreq->t.flags = CEPH_OSD_FLAG_WRITE;
 	lreq->mtime = CURRENT_TIME;
 
 	lreq->reg_req = alloc_linger_request(lreq);
@@ -3657,7 +3597,7 @@ int ceph_osdc_unwatch(struct ceph_osd_client *osdc,
 
 	ceph_oid_copy(&req->r_base_oid, &lreq->t.base_oid);
 	ceph_oloc_copy(&req->r_base_oloc, &lreq->t.base_oloc);
-	req->r_flags = CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK;
+	req->r_flags = CEPH_OSD_FLAG_WRITE;
 	req->r_mtime = CURRENT_TIME;
 	osd_req_op_watch_init(req, 0, lreq->linger_id,
 			      CEPH_OSD_WATCH_OP_UNWATCH);
@@ -4022,7 +3962,7 @@ EXPORT_SYMBOL(ceph_osdc_maybe_request_map);
  * Execute an OSD class method on an object.
  *
  * @flags: CEPH_OSD_FLAG_*
- * @resp_len: out param for reply length
+ * @resp_len: in/out param for reply length
  */
 int ceph_osdc_call(struct ceph_osd_client *osdc,
 		   struct ceph_object_id *oid,
@@ -4034,6 +3974,9 @@ int ceph_osdc_call(struct ceph_osd_client *osdc,
 {
 	struct ceph_osd_request *req;
 	int ret;
+
+	if (req_len > PAGE_SIZE || (resp_page && *resp_len > PAGE_SIZE))
+		return -E2BIG;
 
 	req = ceph_osdc_alloc_request(osdc, NULL, 1, false, GFP_NOIO);
 	if (!req)
@@ -4053,7 +3996,7 @@ int ceph_osdc_call(struct ceph_osd_client *osdc,
 						  0, false, false);
 	if (resp_page)
 		osd_req_op_cls_response_data_pages(req, 0, &resp_page,
-						   PAGE_SIZE, 0, false, false);
+						   *resp_len, 0, false, false);
 
 	ceph_osdc_start_request(osdc, req, false);
 	ret = ceph_osdc_wait_request(osdc, req);
@@ -4220,8 +4163,7 @@ int ceph_osdc_writepages(struct ceph_osd_client *osdc, struct ceph_vino vino,
 	int page_align = off & ~PAGE_MASK;
 
 	req = ceph_osdc_new_request(osdc, layout, vino, off, &len, 0, 1,
-				    CEPH_OSD_OP_WRITE,
-				    CEPH_OSD_FLAG_ONDISK | CEPH_OSD_FLAG_WRITE,
+				    CEPH_OSD_OP_WRITE, CEPH_OSD_FLAG_WRITE,
 				    snapc, truncate_seq, truncate_size,
 				    true);
 	if (IS_ERR(req))

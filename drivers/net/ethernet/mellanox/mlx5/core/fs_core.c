@@ -1232,9 +1232,17 @@ static struct mlx5_flow_handle *add_rule_fg(struct mlx5_flow_group *fg,
 	fs_for_each_fte(fte, fg) {
 		nested_lock_ref_node(&fte->node, FS_MUTEX_CHILD);
 		if (compare_match_value(&fg->mask, match_value, &fte->val) &&
-		    (flow_act->action & fte->action) &&
-		    flow_act->flow_tag == fte->flow_tag) {
+		    (flow_act->action & fte->action)) {
 			int old_action = fte->action;
+
+			if (fte->flow_tag != flow_act->flow_tag) {
+				mlx5_core_warn(get_dev(&fte->node),
+					       "FTE flow tag %u already exists with different flow tag %u\n",
+					       fte->flow_tag,
+					       flow_act->flow_tag);
+				handle = ERR_PTR(-EEXIST);
+				goto unlock_fte;
+			}
 
 			fte->action |= flow_act->action;
 			handle = add_rule_fte(fte, fg, dest, dest_num,
@@ -1665,7 +1673,7 @@ static int create_leaf_prios(struct mlx5_flow_namespace *ns, int prio,
 
 #define FLOW_TABLE_BIT_SZ 1
 #define GET_FLOW_TABLE_CAP(dev, offset) \
-	((be32_to_cpu(*((__be32 *)(dev->hca_caps_cur[MLX5_CAP_FLOW_TABLE]) +	\
+	((be32_to_cpu(*((__be32 *)(dev->caps.hca_cur[MLX5_CAP_FLOW_TABLE]) +	\
 			offset / 32)) >>					\
 	  (32 - FLOW_TABLE_BIT_SZ - (offset & 0x1f))) & FLOW_TABLE_BIT_SZ)
 static bool has_required_caps(struct mlx5_core_dev *dev, struct node_caps *caps)
@@ -1822,7 +1830,7 @@ static int create_anchor_flow_table(struct mlx5_flow_steering *steering)
 	struct mlx5_flow_table *ft;
 
 	ns = mlx5_get_flow_namespace(steering->dev, MLX5_FLOW_NAMESPACE_ANCHOR);
-	if (!ns)
+	if (WARN_ON(!ns))
 		return -EINVAL;
 	ft = mlx5_create_flow_table(ns, ANCHOR_PRIO, ANCHOR_SIZE, ANCHOR_LEVEL, 0);
 	if (IS_ERR(ft)) {

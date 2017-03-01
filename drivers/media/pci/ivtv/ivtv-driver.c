@@ -1452,7 +1452,7 @@ static void ivtv_remove(struct pci_dev *pdev)
 	for (i = 0; i < IVTV_VBI_FRAMES; i++)
 		kfree(itv->vbi.sliced_mpeg_data[i]);
 
-	printk(KERN_INFO "ivtv: Removed %s\n", itv->card_name);
+	pr_info("Removed %s\n", itv->card_name);
 
 	v4l2_device_unregister(&itv->v4l2_dev);
 	kfree(itv);
@@ -1468,25 +1468,25 @@ static struct pci_driver ivtv_pci_driver = {
 
 static int __init module_start(void)
 {
-	printk(KERN_INFO "ivtv: Start initialization, version %s\n", IVTV_VERSION);
+	pr_info("Start initialization, version %s\n", IVTV_VERSION);
 
 	/* Validate parameters */
 	if (ivtv_first_minor < 0 || ivtv_first_minor >= IVTV_MAX_CARDS) {
-		printk(KERN_ERR "ivtv: Exiting, ivtv_first_minor must be between 0 and %d\n",
+		pr_err("Exiting, ivtv_first_minor must be between 0 and %d\n",
 		     IVTV_MAX_CARDS - 1);
 		return -1;
 	}
 
 	if (ivtv_debug < 0 || ivtv_debug > 2047) {
 		ivtv_debug = 0;
-		printk(KERN_INFO "ivtv: Debug value must be >= 0 and <= 2047\n");
+		pr_info("Debug value must be >= 0 and <= 2047\n");
 	}
 
 	if (pci_register_driver(&ivtv_pci_driver)) {
-		printk(KERN_ERR "ivtv: Error detecting PCI card\n");
+		pr_err("Error detecting PCI card\n");
 		return -ENODEV;
 	}
-	printk(KERN_INFO "ivtv: End initialization\n");
+	pr_info("End initialization\n");
 	return 0;
 }
 

@@ -7,18 +7,17 @@
 
 #define native_rdmsr(msr, val1, val2)			\
 do {							\
-	u64 __val = native_read_msr((msr));		\
+	u64 __val = __rdmsr((msr));			\
 	(void)((val1) = (u32)__val);			\
 	(void)((val2) = (u32)(__val >> 32));		\
 } while (0)
 
 #define native_wrmsr(msr, low, high)			\
-	native_write_msr(msr, low, high)
+	__wrmsr(msr, low, high)
 
 #define native_wrmsrl(msr, val)				\
-	native_write_msr((msr),				\
-			 (u32)((u64)(val)),		\
-			 (u32)((u64)(val) >> 32))
+	__wrmsr((msr), (u32)((u64)(val)),		\
+		       (u32)((u64)(val) >> 32))
 
 struct ucode_patch {
 	struct list_head plist;
@@ -140,6 +139,7 @@ extern void __init load_ucode_bsp(void);
 extern void load_ucode_ap(void);
 void reload_early_microcode(void);
 extern bool get_builtin_firmware(struct cpio_data *cd, const char *name);
+extern bool initrd_gone;
 #else
 static inline int __init microcode_init(void)			{ return 0; };
 static inline void __init load_ucode_bsp(void)			{ }

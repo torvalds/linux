@@ -428,7 +428,7 @@ static int wmt_pinconf_set(struct pinctrl_dev *pctldev, unsigned pin,
 {
 	struct wmt_pinctrl_data *data = pinctrl_dev_get_drvdata(pctldev);
 	enum pin_config_param param;
-	u16 arg;
+	u32 arg;
 	u32 bank = WMT_BANK_FROM_PIN(pin);
 	u32 bit = WMT_BIT_FROM_PIN(pin);
 	u32 reg_pull_en = data->banks[bank].reg_pull_en;

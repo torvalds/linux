@@ -55,6 +55,7 @@
 #include <linux/rmap.h>
 #include <linux/ksm.h>
 #include <linux/acct.h>
+#include <linux/userfaultfd_k.h>
 #include <linux/tsacct_kern.h>
 #include <linux/cn_proc.h>
 #include <linux/freezer.h>
@@ -432,11 +433,13 @@ void __init fork_init(void)
 	int i;
 #ifndef CONFIG_ARCH_TASK_STRUCT_ALLOCATOR
 #ifndef ARCH_MIN_TASKALIGN
-#define ARCH_MIN_TASKALIGN	L1_CACHE_BYTES
+#define ARCH_MIN_TASKALIGN	0
 #endif
+	int align = max_t(int, L1_CACHE_BYTES, ARCH_MIN_TASKALIGN);
+
 	/* create a slab on which task_structs can be allocated */
 	task_struct_cachep = kmem_cache_create("task_struct",
-			arch_task_struct_size, ARCH_MIN_TASKALIGN,
+			arch_task_struct_size, align,
 			SLAB_PANIC|SLAB_NOTRACK|SLAB_ACCOUNT, NULL);
 #endif
 
@@ -559,6 +562,7 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
 	struct rb_node **rb_link, *rb_parent;
 	int retval;
 	unsigned long charge;
+	LIST_HEAD(uf);
 
 	uprobe_start_dup_mmap();
 	if (down_write_killable(&oldmm->mmap_sem)) {
@@ -615,12 +619,13 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
 		if (retval)
 			goto fail_nomem_policy;
 		tmp->vm_mm = mm;
+		retval = dup_userfaultfd(tmp, &uf);
+		if (retval)
+			goto fail_nomem_anon_vma_fork;
 		if (anon_vma_fork(tmp, mpnt))
 			goto fail_nomem_anon_vma_fork;
-		tmp->vm_flags &=
-			~(VM_LOCKED|VM_LOCKONFAULT|VM_UFFD_MISSING|VM_UFFD_WP);
+		tmp->vm_flags &= ~(VM_LOCKED | VM_LOCKONFAULT);
 		tmp->vm_next = tmp->vm_prev = NULL;
-		tmp->vm_userfaultfd_ctx = NULL_VM_UFFD_CTX;
 		file = tmp->vm_file;
 		if (file) {
 			struct inode *inode = file_inode(file);
@@ -676,6 +681,7 @@ out:
 	up_write(&mm->mmap_sem);
 	flush_tlb_mm(oldmm);
 	up_write(&oldmm->mmap_sem);
+	dup_userfaultfd_complete(&uf);
 fail_uprobe_end:
 	uprobe_end_dup_mmap();
 	return retval;
@@ -994,7 +1000,7 @@ struct mm_struct *get_task_mm(struct task_struct *task)
 		if (task->flags & PF_KTHREAD)
 			mm = NULL;
 		else
-			atomic_inc(&mm->mm_users);
+			mmget(mm);
 	}
 	task_unlock(task);
 	return mm;
@@ -1182,7 +1188,7 @@ static int copy_mm(unsigned long clone_flags, struct task_struct *tsk)
 	vmacache_flush(tsk);
 
 	if (clone_flags & CLONE_VM) {
-		atomic_inc(&oldmm->mm_users);
+		mmget(oldmm);
 		mm = oldmm;
 		goto good_mm;
 	}
@@ -1304,6 +1310,7 @@ void __cleanup_sighand(struct sighand_struct *sighand)
 	}
 }
 
+#ifdef CONFIG_POSIX_TIMERS
 /*
  * Initialize POSIX timer handling for a thread group.
  */
@@ -1313,7 +1320,7 @@ static void posix_cpu_timers_init_group(struct signal_struct *sig)
 
 	cpu_limit = READ_ONCE(sig->rlim[RLIMIT_CPU].rlim_cur);
 	if (cpu_limit != RLIM_INFINITY) {
-		sig->cputime_expires.prof_exp = secs_to_cputime(cpu_limit);
+		sig->cputime_expires.prof_exp = cpu_limit * NSEC_PER_SEC;
 		sig->cputimer.running = true;
 	}
 
@@ -1322,6 +1329,9 @@ static void posix_cpu_timers_init_group(struct signal_struct *sig)
 	INIT_LIST_HEAD(&sig->cpu_timers[1]);
 	INIT_LIST_HEAD(&sig->cpu_timers[2]);
 }
+#else
+static inline void posix_cpu_timers_init_group(struct signal_struct *sig) { }
+#endif
 
 static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 {
@@ -1346,11 +1356,11 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 	init_waitqueue_head(&sig->wait_chldexit);
 	sig->curr_target = tsk;
 	init_sigpending(&sig->shared_pending);
-	INIT_LIST_HEAD(&sig->posix_timers);
 	seqlock_init(&sig->stats_lock);
 	prev_cputime_init(&sig->prev_cputime);
 
 #ifdef CONFIG_POSIX_TIMERS
+	INIT_LIST_HEAD(&sig->posix_timers);
 	hrtimer_init(&sig->real_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	sig->real_timer.function = it_real_fn;
 #endif
@@ -1366,9 +1376,6 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 
 	sig->oom_score_adj = current->signal->oom_score_adj;
 	sig->oom_score_adj_min = current->signal->oom_score_adj_min;
-
-	sig->has_child_subreaper = current->signal->has_child_subreaper ||
-				   current->signal->is_child_subreaper;
 
 	mutex_init(&sig->cred_guard_mutex);
 
@@ -1425,6 +1432,7 @@ static void rt_mutex_init_task(struct task_struct *p)
 #endif
 }
 
+#ifdef CONFIG_POSIX_TIMERS
 /*
  * Initialize POSIX timer handling for a single task.
  */
@@ -1437,6 +1445,9 @@ static void posix_cpu_timers_init(struct task_struct *tsk)
 	INIT_LIST_HEAD(&tsk->cpu_timers[1]);
 	INIT_LIST_HEAD(&tsk->cpu_timers[2]);
 }
+#else
+static inline void posix_cpu_timers_init(struct task_struct *tsk) { }
+#endif
 
 static inline void
 init_task_pid(struct task_struct *task, enum pid_type type, struct pid *pid)
@@ -1800,6 +1811,13 @@ static __latent_entropy struct task_struct *copy_process(
 
 			p->signal->leader_pid = pid;
 			p->signal->tty = tty_kref_get(current->signal->tty);
+			/*
+			 * Inherit has_child_subreaper flag under the same
+			 * tasklist_lock with adding child to the process tree
+			 * for propagate_has_child_subreaper optimization.
+			 */
+			p->signal->has_child_subreaper = p->real_parent->signal->has_child_subreaper ||
+							 p->real_parent->signal->is_child_subreaper;
 			list_add_tail(&p->sibling, &p->real_parent->children);
 			list_add_tail_rcu(&p->tasks, &init_task.tasks);
 			attach_pid(p, PIDTYPE_PGID);
@@ -2052,6 +2070,38 @@ SYSCALL_DEFINE5(clone, unsigned long, clone_flags, unsigned long, newsp,
 	return _do_fork(clone_flags, newsp, 0, parent_tidptr, child_tidptr, tls);
 }
 #endif
+
+void walk_process_tree(struct task_struct *top, proc_visitor visitor, void *data)
+{
+	struct task_struct *leader, *parent, *child;
+	int res;
+
+	read_lock(&tasklist_lock);
+	leader = top = top->group_leader;
+down:
+	for_each_thread(leader, parent) {
+		list_for_each_entry(child, &parent->children, sibling) {
+			res = visitor(child, data);
+			if (res) {
+				if (res < 0)
+					goto out;
+				leader = child;
+				goto down;
+			}
+up:
+			;
+		}
+	}
+
+	if (leader != top) {
+		child = leader;
+		parent = child->real_parent;
+		leader = parent->group_leader;
+		goto up;
+	}
+out:
+	read_unlock(&tasklist_lock);
+}
 
 #ifndef ARCH_MIN_MMSTRUCT_ALIGN
 #define ARCH_MIN_MMSTRUCT_ALIGN 0

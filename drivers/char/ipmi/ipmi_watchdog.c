@@ -985,7 +985,7 @@ static void ipmi_wdog_pretimeout_handler(void *handler_data)
 	pretimeout_since_last_heartbeat = 1;
 }
 
-static struct ipmi_user_hndl ipmi_hndlrs = {
+static const struct ipmi_user_hndl ipmi_hndlrs = {
 	.ipmi_recv_hndl           = ipmi_wdog_msg_handler,
 	.ipmi_watchdog_pretimeout = ipmi_wdog_pretimeout_handler
 };

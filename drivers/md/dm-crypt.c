@@ -1210,14 +1210,14 @@ continue_locked:
 		spin_unlock_irq(&cc->write_thread_wait.lock);
 
 		if (unlikely(kthread_should_stop())) {
-			set_task_state(current, TASK_RUNNING);
+			set_current_state(TASK_RUNNING);
 			remove_wait_queue(&cc->write_thread_wait, &wait);
 			break;
 		}
 
 		schedule();
 
-		set_task_state(current, TASK_RUNNING);
+		set_current_state(TASK_RUNNING);
 		spin_lock_irq(&cc->write_thread_wait.lock);
 		__remove_wait_queue(&cc->write_thread_wait, &wait);
 		goto continue_locked;
@@ -1534,18 +1534,18 @@ static int crypt_set_keyring_key(struct crypt_config *cc, const char *key_string
 		return PTR_ERR(key);
 	}
 
-	rcu_read_lock();
+	down_read(&key->sem);
 
 	ukp = user_key_payload(key);
 	if (!ukp) {
-		rcu_read_unlock();
+		up_read(&key->sem);
 		key_put(key);
 		kzfree(new_key_string);
 		return -EKEYREVOKED;
 	}
 
 	if (cc->key_size != ukp->datalen) {
-		rcu_read_unlock();
+		up_read(&key->sem);
 		key_put(key);
 		kzfree(new_key_string);
 		return -EINVAL;
@@ -1553,7 +1553,7 @@ static int crypt_set_keyring_key(struct crypt_config *cc, const char *key_string
 
 	memcpy(cc->key, ukp->data, cc->key_size);
 
-	rcu_read_unlock();
+	up_read(&key->sem);
 	key_put(key);
 
 	/* clear the flag since following operations may invalidate previously valid key */

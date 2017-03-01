@@ -27,6 +27,7 @@
 #include <asm/cp15.h>
 #include <asm/mach-types.h>
 #include <asm/memblock.h>
+#include <asm/memory.h>
 #include <asm/prom.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
@@ -227,41 +228,59 @@ phys_addr_t __init arm_memblock_steal(phys_addr_t size, phys_addr_t align)
 	return phys;
 }
 
-void __init arm_memblock_init(const struct machine_desc *mdesc)
+static void __init arm_initrd_init(void)
 {
-	/* Register the kernel text, kernel data and initrd with memblock. */
-#ifdef CONFIG_XIP_KERNEL
-	memblock_reserve(__pa(_sdata), _end - _sdata);
-#else
-	memblock_reserve(__pa(_stext), _end - _stext);
-#endif
 #ifdef CONFIG_BLK_DEV_INITRD
+	phys_addr_t start;
+	unsigned long size;
+
 	/* FDT scan will populate initrd_start */
 	if (initrd_start && !phys_initrd_size) {
 		phys_initrd_start = __virt_to_phys(initrd_start);
 		phys_initrd_size = initrd_end - initrd_start;
 	}
-	initrd_start = initrd_end = 0;
-	if (phys_initrd_size &&
-	    !memblock_is_region_memory(phys_initrd_start, phys_initrd_size)) {
-		pr_err("INITRD: 0x%08llx+0x%08lx is not a memory region - disabling initrd\n",
-		       (u64)phys_initrd_start, phys_initrd_size);
-		phys_initrd_start = phys_initrd_size = 0;
-	}
-	if (phys_initrd_size &&
-	    memblock_is_region_reserved(phys_initrd_start, phys_initrd_size)) {
-		pr_err("INITRD: 0x%08llx+0x%08lx overlaps in-use memory region - disabling initrd\n",
-		       (u64)phys_initrd_start, phys_initrd_size);
-		phys_initrd_start = phys_initrd_size = 0;
-	}
-	if (phys_initrd_size) {
-		memblock_reserve(phys_initrd_start, phys_initrd_size);
 
-		/* Now convert initrd to virtual addresses */
-		initrd_start = __phys_to_virt(phys_initrd_start);
-		initrd_end = initrd_start + phys_initrd_size;
+	initrd_start = initrd_end = 0;
+
+	if (!phys_initrd_size)
+		return;
+
+	/*
+	 * Round the memory region to page boundaries as per free_initrd_mem()
+	 * This allows us to detect whether the pages overlapping the initrd
+	 * are in use, but more importantly, reserves the entire set of pages
+	 * as we don't want these pages allocated for other purposes.
+	 */
+	start = round_down(phys_initrd_start, PAGE_SIZE);
+	size = phys_initrd_size + (phys_initrd_start - start);
+	size = round_up(size, PAGE_SIZE);
+
+	if (!memblock_is_region_memory(start, size)) {
+		pr_err("INITRD: 0x%08llx+0x%08lx is not a memory region - disabling initrd\n",
+		       (u64)start, size);
+		return;
 	}
+
+	if (memblock_is_region_reserved(start, size)) {
+		pr_err("INITRD: 0x%08llx+0x%08lx overlaps in-use memory region - disabling initrd\n",
+		       (u64)start, size);
+		return;
+	}
+
+	memblock_reserve(start, size);
+
+	/* Now convert initrd to virtual addresses */
+	initrd_start = __phys_to_virt(phys_initrd_start);
+	initrd_end = initrd_start + phys_initrd_size;
 #endif
+}
+
+void __init arm_memblock_init(const struct machine_desc *mdesc)
+{
+	/* Register the kernel text, kernel data and initrd with memblock. */
+	memblock_reserve(__pa(KERNEL_START), KERNEL_END - KERNEL_START);
+
+	arm_initrd_init();
 
 	arm_mm_memblock_reserve();
 
@@ -521,8 +540,7 @@ void __init mem_init(void)
 			"      .data : 0x%p" " - 0x%p" "   (%4td kB)\n"
 			"       .bss : 0x%p" " - 0x%p" "   (%4td kB)\n",
 
-			MLK(UL(CONFIG_VECTORS_BASE), UL(CONFIG_VECTORS_BASE) +
-				(PAGE_SIZE)),
+			MLK(VECTORS_BASE, VECTORS_BASE + PAGE_SIZE),
 #ifdef CONFIG_HAVE_TCM
 			MLK(DTCM_OFFSET, (unsigned long) dtcm_end),
 			MLK(ITCM_OFFSET, (unsigned long) itcm_end),
@@ -572,7 +590,7 @@ void __init mem_init(void)
 	}
 }
 
-#ifdef CONFIG_DEBUG_RODATA
+#ifdef CONFIG_STRICT_KERNEL_RWX
 struct section_perm {
 	const char *name;
 	unsigned long start;
@@ -741,7 +759,7 @@ void set_kernel_text_ro(void)
 
 #else
 static inline void fix_kernmem_perms(void) { }
-#endif /* CONFIG_DEBUG_RODATA */
+#endif /* CONFIG_STRICT_KERNEL_RWX */
 
 void free_tcmmem(void)
 {

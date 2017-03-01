@@ -3816,6 +3816,7 @@ static struct configfs_attribute *ibmvscsis_tpg_attrs[] = {
 static const struct target_core_fabric_ops ibmvscsis_ops = {
 	.module				= THIS_MODULE,
 	.name				= "ibmvscsis",
+	.max_data_sg_nents		= MAX_TXU / PAGE_SIZE,
 	.get_fabric_name		= ibmvscsis_get_fabric_name,
 	.tpg_get_wwn			= ibmvscsis_get_fabric_wwn,
 	.tpg_get_tag			= ibmvscsis_get_tag,

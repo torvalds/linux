@@ -97,12 +97,13 @@
  *   2.46.0 - Add PFP_SYNC_ME support on evergreen
  *   2.47.0 - Add UVD_NO_OP register support
  *   2.48.0 - TA_CS_BC_BASE_ADDR allowed on SI
+ *   2.49.0 - DRM_RADEON_GEM_INFO ioctl returns correct vram_size/visible values
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	48
+#define KMS_DRIVER_MINOR	49
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
-int radeon_driver_unload_kms(struct drm_device *dev);
+void radeon_driver_unload_kms(struct drm_device *dev);
 void radeon_driver_lastclose_kms(struct drm_device *dev);
 int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv);
 void radeon_driver_postclose_kms(struct drm_device *dev,

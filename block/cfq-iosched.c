@@ -2528,7 +2528,7 @@ static void cfq_remove_request(struct request *rq)
 	}
 }
 
-static int cfq_merge(struct request_queue *q, struct request **req,
+static enum elv_merge cfq_merge(struct request_queue *q, struct request **req,
 		     struct bio *bio)
 {
 	struct cfq_data *cfqd = q->elevator->elevator_data;
@@ -2544,7 +2544,7 @@ static int cfq_merge(struct request_queue *q, struct request **req,
 }
 
 static void cfq_merged_request(struct request_queue *q, struct request *req,
-			       int type)
+			       enum elv_merge type)
 {
 	if (type == ELEVATOR_FRONT_MERGE) {
 		struct cfq_queue *cfqq = RQ_CFQQ(req);
@@ -2749,9 +2749,11 @@ static struct cfq_queue *cfq_get_next_queue_forced(struct cfq_data *cfqd)
 	if (!cfqg)
 		return NULL;
 
-	for_each_cfqg_st(cfqg, i, j, st)
-		if ((cfqq = cfq_rb_first(st)) != NULL)
+	for_each_cfqg_st(cfqg, i, j, st) {
+		cfqq = cfq_rb_first(st);
+		if (cfqq)
 			return cfqq;
+	}
 	return NULL;
 }
 
@@ -3758,7 +3760,7 @@ static void cfq_init_cfqq(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 }
 
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
-static void check_blkcg_changed(struct cfq_io_cq *cic, struct bio *bio)
+static bool check_blkcg_changed(struct cfq_io_cq *cic, struct bio *bio)
 {
 	struct cfq_data *cfqd = cic_to_cfqd(cic);
 	struct cfq_queue *cfqq;
@@ -3775,15 +3777,7 @@ static void check_blkcg_changed(struct cfq_io_cq *cic, struct bio *bio)
 	 * spuriously on a newly created cic but there's no harm.
 	 */
 	if (unlikely(!cfqd) || likely(cic->blkcg_serial_nr == serial_nr))
-		return;
-
-	/*
-	 * If we have a non-root cgroup, we can depend on that to
-	 * do proper throttling of writes. Turn off wbt for that
-	 * case, if it was enabled by default.
-	 */
-	if (nonroot_cg)
-		wbt_disable_default(cfqd->queue);
+		return nonroot_cg;
 
 	/*
 	 * Drop reference to queues.  New queues will be assigned in new
@@ -3804,9 +3798,13 @@ static void check_blkcg_changed(struct cfq_io_cq *cic, struct bio *bio)
 	}
 
 	cic->blkcg_serial_nr = serial_nr;
+	return nonroot_cg;
 }
 #else
-static inline void check_blkcg_changed(struct cfq_io_cq *cic, struct bio *bio) { }
+static inline bool check_blkcg_changed(struct cfq_io_cq *cic, struct bio *bio)
+{
+	return false;
+}
 #endif  /* CONFIG_CFQ_GROUP_IOSCHED */
 
 static struct cfq_queue **
@@ -3864,6 +3862,8 @@ cfq_get_queue(struct cfq_data *cfqd, bool is_sync, struct cfq_io_cq *cic,
 		goto out;
 	}
 
+	/* cfq_init_cfqq() assumes cfqq->ioprio_class is initialized. */
+	cfqq->ioprio_class = IOPRIO_CLASS_NONE;
 	cfq_init_cfqq(cfqd, cfqq, current->pid, is_sync);
 	cfq_init_prio_data(cfqq, cic);
 	cfq_link_cfqq_cfqg(cfqq, cfqg);
@@ -4448,11 +4448,12 @@ cfq_set_request(struct request_queue *q, struct request *rq, struct bio *bio,
 	const int rw = rq_data_dir(rq);
 	const bool is_sync = rq_is_sync(rq);
 	struct cfq_queue *cfqq;
+	bool disable_wbt;
 
 	spin_lock_irq(q->queue_lock);
 
 	check_ioprio_changed(cic, bio);
-	check_blkcg_changed(cic, bio);
+	disable_wbt = check_blkcg_changed(cic, bio);
 new_queue:
 	cfqq = cic_to_cfqq(cic, is_sync);
 	if (!cfqq || cfqq == &cfqd->oom_cfqq) {
@@ -4488,6 +4489,10 @@ new_queue:
 	rq->elv.priv[0] = cfqq;
 	rq->elv.priv[1] = cfqq->cfqg;
 	spin_unlock_irq(q->queue_lock);
+
+	if (disable_wbt)
+		wbt_disable_default(q);
+
 	return 0;
 }
 
@@ -4837,7 +4842,7 @@ static struct elv_fs_entry cfq_attrs[] = {
 };
 
 static struct elevator_type iosched_cfq = {
-	.ops = {
+	.ops.sq = {
 		.elevator_merge_fn = 		cfq_merge,
 		.elevator_merged_fn =		cfq_merged_request,
 		.elevator_merge_req_fn =	cfq_merged_requests,

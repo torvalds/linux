@@ -198,14 +198,17 @@ static inline struct cache_head  *cache_get(struct cache_head *h)
 
 static inline void cache_put(struct cache_head *h, struct cache_detail *cd)
 {
-	if (atomic_read(&h->ref.refcount) <= 2 &&
+	if (kref_read(&h->ref) <= 2 &&
 	    h->expiry_time < cd->nextcheck)
 		cd->nextcheck = h->expiry_time;
 	kref_put(&h->ref, cd->cache_put);
 }
 
-static inline int cache_is_expired(struct cache_detail *detail, struct cache_head *h)
+static inline bool cache_is_expired(struct cache_detail *detail, struct cache_head *h)
 {
+	if (!test_bit(CACHE_VALID, &h->flags))
+		return false;
+
 	return  (h->expiry_time < seconds_since_boot()) ||
 		(detail->flush_time >= h->last_refresh);
 }
@@ -227,6 +230,7 @@ extern void sunrpc_destroy_cache_detail(struct cache_detail *cd);
 extern int sunrpc_cache_register_pipefs(struct dentry *parent, const char *,
 					umode_t, struct cache_detail *);
 extern void sunrpc_cache_unregister_pipefs(struct cache_detail *);
+extern void sunrpc_cache_unhash(struct cache_detail *, struct cache_head *);
 
 /* Must store cache_detail in seq_file->private if using next three functions */
 extern void *cache_seq_start(struct seq_file *file, loff_t *pos);

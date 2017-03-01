@@ -42,8 +42,8 @@
  * create dumb buffers suitable for scanout, which can then be used to create
  * KMS frame buffers.
  *
- * To support dumb objects drivers must implement the dumb_create,
- * dumb_destroy and dumb_map_offset operations from struct &drm_driver. See
+ * To support dumb objects drivers must implement the &drm_driver.dumb_create,
+ * &drm_driver.dumb_destroy and &drm_driver.dumb_map_offset operations. See
  * there for further details.
  *
  * Note that dumb objects may not be used for gpu acceleration, as has been

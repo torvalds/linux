@@ -6,7 +6,8 @@
  * Adaptec aacraid device driver for Linux.
  *
  * Copyright (c) 2000-2010 Adaptec, Inc.
- *               2010 PMC-Sierra, Inc. (aacraid@pmc-sierra.com)
+ *               2010-2015 PMC-Sierra, Inc. (aacraid@pmc-sierra.com)
+ *               2016-2017 Microsemi Corp. (aacraid@microsemi.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,9 +51,13 @@ struct aac_common aac_config = {
 
 static inline int aac_is_msix_mode(struct aac_dev *dev)
 {
-	u32 status;
+	u32 status = 0;
 
-	status = src_readl(dev, MUnit.OMR);
+	if (dev->pdev->device == PMC_DEVICE_S6 ||
+		dev->pdev->device == PMC_DEVICE_S7 ||
+		dev->pdev->device == PMC_DEVICE_S8) {
+		status = src_readl(dev, MUnit.OMR);
+	}
 	return (status & AAC_INT_MODE_MSIX);
 }
 
@@ -68,104 +73,175 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 	unsigned long size, align;
 	const unsigned long fibsize = dev->max_fib_size;
 	const unsigned long printfbufsiz = 256;
-	unsigned long host_rrq_size = 0;
-	struct aac_init *init;
+	unsigned long host_rrq_size, aac_init_size;
+	union aac_init *init;
 	dma_addr_t phys;
 	unsigned long aac_max_hostphysmempages;
 
-	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE1 ||
-	    dev->comm_interface == AAC_COMM_MESSAGE_TYPE2)
+	if ((dev->comm_interface == AAC_COMM_MESSAGE_TYPE1) ||
+		(dev->comm_interface == AAC_COMM_MESSAGE_TYPE2) ||
+		(dev->comm_interface == AAC_COMM_MESSAGE_TYPE3 &&
+		!dev->sa_firmware)) {
+		host_rrq_size =
+			(dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB)
+				* sizeof(u32);
+		aac_init_size = sizeof(union aac_init);
+	} else if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE3 &&
+		dev->sa_firmware) {
 		host_rrq_size = (dev->scsi_host_ptr->can_queue
-			+ AAC_NUM_MGT_FIB) * sizeof(u32);
-	size = fibsize + sizeof(struct aac_init) + commsize +
-			commalign + printfbufsiz + host_rrq_size;
- 
+			+ AAC_NUM_MGT_FIB) * sizeof(u32)  * AAC_MAX_MSIX;
+		aac_init_size = sizeof(union aac_init) +
+			(AAC_MAX_HRRQ - 1) * sizeof(struct _rrq);
+	} else {
+		host_rrq_size = 0;
+		aac_init_size = sizeof(union aac_init);
+	}
+	size = fibsize + aac_init_size + commsize + commalign +
+			printfbufsiz + host_rrq_size;
+
 	base = pci_alloc_consistent(dev->pdev, size, &phys);
 
-	if(base == NULL)
-	{
+	if (base == NULL) {
 		printk(KERN_ERR "aacraid: unable to create mapping.\n");
 		return 0;
 	}
+
 	dev->comm_addr = (void *)base;
 	dev->comm_phys = phys;
 	dev->comm_size = size;
-	
-	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE1 ||
-	    dev->comm_interface == AAC_COMM_MESSAGE_TYPE2) {
+
+	if ((dev->comm_interface == AAC_COMM_MESSAGE_TYPE1) ||
+	    (dev->comm_interface == AAC_COMM_MESSAGE_TYPE2) ||
+	    (dev->comm_interface == AAC_COMM_MESSAGE_TYPE3)) {
 		dev->host_rrq = (u32 *)(base + fibsize);
 		dev->host_rrq_pa = phys + fibsize;
 		memset(dev->host_rrq, 0, host_rrq_size);
 	}
 
-	dev->init = (struct aac_init *)(base + fibsize + host_rrq_size);
+	dev->init = (union aac_init *)(base + fibsize + host_rrq_size);
 	dev->init_pa = phys + fibsize + host_rrq_size;
 
 	init = dev->init;
 
-	init->InitStructRevision = cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION);
-	if (dev->max_fib_size != sizeof(struct hw_fib))
-		init->InitStructRevision = cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION_4);
-	init->Sa_MSIXVectors = cpu_to_le32(SA_INIT_NUM_MSIXVECTORS);
-	init->fsrev = cpu_to_le32(dev->fsrev);
+	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE3) {
+		int i;
+		u64 addr;
 
-	/*
-	 *	Adapter Fibs are the first thing allocated so that they
-	 *	start page aligned
-	 */
-	dev->aif_base_va = (struct hw_fib *)base;
-	
-	init->AdapterFibsVirtualAddress = 0;
-	init->AdapterFibsPhysicalAddress = cpu_to_le32((u32)phys);
-	init->AdapterFibsSize = cpu_to_le32(fibsize);
-	init->AdapterFibAlign = cpu_to_le32(sizeof(struct hw_fib));
-	/*
-	 * number of 4k pages of host physical memory. The aacraid fw needs
-	 * this number to be less than 4gb worth of pages. New firmware doesn't
-	 * have any issues with the mapping system, but older Firmware did, and
-	 * had *troubles* dealing with the math overloading past 32 bits, thus
-	 * we must limit this field.
-	 */
-	aac_max_hostphysmempages = dma_get_required_mask(&dev->pdev->dev) >> 12;
-	if (aac_max_hostphysmempages < AAC_MAX_HOSTPHYSMEMPAGES)
-		init->HostPhysMemPages = cpu_to_le32(aac_max_hostphysmempages);
-	else
-		init->HostPhysMemPages = cpu_to_le32(AAC_MAX_HOSTPHYSMEMPAGES);
+		init->r8.init_struct_revision =
+			cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION_8);
+		init->r8.init_flags = cpu_to_le32(INITFLAGS_NEW_COMM_SUPPORTED |
+					INITFLAGS_DRIVER_USES_UTC_TIME |
+					INITFLAGS_DRIVER_SUPPORTS_PM);
+		init->r8.init_flags |=
+				cpu_to_le32(INITFLAGS_DRIVER_SUPPORTS_HBA_MODE);
+		init->r8.rr_queue_count = cpu_to_le32(dev->max_msix);
+		init->r8.max_io_size =
+			cpu_to_le32(dev->scsi_host_ptr->max_sectors << 9);
+		init->r8.max_num_aif = init->r8.reserved1 =
+			init->r8.reserved2 = 0;
 
-	init->InitFlags = cpu_to_le32(INITFLAGS_DRIVER_USES_UTC_TIME |
-		INITFLAGS_DRIVER_SUPPORTS_PM);
-	init->MaxIoCommands = cpu_to_le32(dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB);
-	init->MaxIoSize = cpu_to_le32(dev->scsi_host_ptr->max_sectors << 9);
-	init->MaxFibSize = cpu_to_le32(dev->max_fib_size);
-	init->MaxNumAif = cpu_to_le32(dev->max_num_aif);
+		for (i = 0; i < dev->max_msix; i++) {
+			addr = (u64)dev->host_rrq_pa + dev->vector_cap * i *
+					sizeof(u32);
+			init->r8.rrq[i].host_addr_high = cpu_to_le32(
+						upper_32_bits(addr));
+			init->r8.rrq[i].host_addr_low = cpu_to_le32(
+						lower_32_bits(addr));
+			init->r8.rrq[i].msix_id = i;
+			init->r8.rrq[i].element_count = cpu_to_le16(
+					(u16)dev->vector_cap);
+			init->r8.rrq[i].comp_thresh =
+					init->r8.rrq[i].unused = 0;
+		}
 
-	if (dev->comm_interface == AAC_COMM_MESSAGE) {
-		init->InitFlags |= cpu_to_le32(INITFLAGS_NEW_COMM_SUPPORTED);
-		dprintk((KERN_WARNING"aacraid: New Comm Interface enabled\n"));
-	} else if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE1) {
-		init->InitStructRevision = cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION_6);
-		init->InitFlags |= cpu_to_le32(INITFLAGS_NEW_COMM_SUPPORTED |
-			INITFLAGS_NEW_COMM_TYPE1_SUPPORTED | INITFLAGS_FAST_JBOD_SUPPORTED);
-		init->HostRRQ_AddrHigh = cpu_to_le32((u32)((u64)dev->host_rrq_pa >> 32));
-		init->HostRRQ_AddrLow = cpu_to_le32((u32)(dev->host_rrq_pa & 0xffffffff));
-		dprintk((KERN_WARNING"aacraid: New Comm Interface type1 enabled\n"));
-	} else if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE2) {
-		init->InitStructRevision = cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION_7);
-		init->InitFlags |= cpu_to_le32(INITFLAGS_NEW_COMM_SUPPORTED |
-			INITFLAGS_NEW_COMM_TYPE2_SUPPORTED | INITFLAGS_FAST_JBOD_SUPPORTED);
-		init->HostRRQ_AddrHigh = cpu_to_le32((u32)((u64)dev->host_rrq_pa >> 32));
-		init->HostRRQ_AddrLow = cpu_to_le32((u32)(dev->host_rrq_pa & 0xffffffff));
-		/* number of MSI-X */
-		init->Sa_MSIXVectors = cpu_to_le32(dev->max_msix);
-		dprintk((KERN_WARNING"aacraid: New Comm Interface type2 enabled\n"));
+		pr_warn("aacraid: Comm Interface type3 enabled\n");
+	} else {
+		init->r7.init_struct_revision =
+			cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION);
+		if (dev->max_fib_size != sizeof(struct hw_fib))
+			init->r7.init_struct_revision =
+				cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION_4);
+		init->r7.no_of_msix_vectors = cpu_to_le32(SA_MINIPORT_REVISION);
+		init->r7.fsrev = cpu_to_le32(dev->fsrev);
+
+		/*
+		 *	Adapter Fibs are the first thing allocated so that they
+		 *	start page aligned
+		 */
+		dev->aif_base_va = (struct hw_fib *)base;
+
+		init->r7.adapter_fibs_virtual_address = 0;
+		init->r7.adapter_fibs_physical_address = cpu_to_le32((u32)phys);
+		init->r7.adapter_fibs_size = cpu_to_le32(fibsize);
+		init->r7.adapter_fib_align = cpu_to_le32(sizeof(struct hw_fib));
+
+		/*
+		 * number of 4k pages of host physical memory. The aacraid fw
+		 * needs this number to be less than 4gb worth of pages. New
+		 * firmware doesn't have any issues with the mapping system, but
+		 * older Firmware did, and had *troubles* dealing with the math
+		 * overloading past 32 bits, thus we must limit this field.
+		 */
+		aac_max_hostphysmempages =
+				dma_get_required_mask(&dev->pdev->dev) >> 12;
+		if (aac_max_hostphysmempages < AAC_MAX_HOSTPHYSMEMPAGES)
+			init->r7.host_phys_mem_pages =
+					cpu_to_le32(aac_max_hostphysmempages);
+		else
+			init->r7.host_phys_mem_pages =
+					cpu_to_le32(AAC_MAX_HOSTPHYSMEMPAGES);
+
+		init->r7.init_flags =
+			cpu_to_le32(INITFLAGS_DRIVER_USES_UTC_TIME |
+			INITFLAGS_DRIVER_SUPPORTS_PM);
+		init->r7.max_io_commands =
+			cpu_to_le32(dev->scsi_host_ptr->can_queue +
+					AAC_NUM_MGT_FIB);
+		init->r7.max_io_size =
+			cpu_to_le32(dev->scsi_host_ptr->max_sectors << 9);
+		init->r7.max_fib_size = cpu_to_le32(dev->max_fib_size);
+		init->r7.max_num_aif = cpu_to_le32(dev->max_num_aif);
+
+		if (dev->comm_interface == AAC_COMM_MESSAGE) {
+			init->r7.init_flags |=
+				cpu_to_le32(INITFLAGS_NEW_COMM_SUPPORTED);
+			pr_warn("aacraid: Comm Interface enabled\n");
+		} else if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE1) {
+			init->r7.init_struct_revision =
+				cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION_6);
+			init->r7.init_flags |=
+				cpu_to_le32(INITFLAGS_NEW_COMM_SUPPORTED |
+				INITFLAGS_NEW_COMM_TYPE1_SUPPORTED |
+				INITFLAGS_FAST_JBOD_SUPPORTED);
+			init->r7.host_rrq_addr_high =
+				cpu_to_le32(upper_32_bits(dev->host_rrq_pa));
+			init->r7.host_rrq_addr_low =
+				cpu_to_le32(lower_32_bits(dev->host_rrq_pa));
+			pr_warn("aacraid: Comm Interface type1 enabled\n");
+		} else if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE2) {
+			init->r7.init_struct_revision =
+				cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION_7);
+			init->r7.init_flags |=
+				cpu_to_le32(INITFLAGS_NEW_COMM_SUPPORTED |
+				INITFLAGS_NEW_COMM_TYPE2_SUPPORTED |
+				INITFLAGS_FAST_JBOD_SUPPORTED);
+			init->r7.host_rrq_addr_high =
+				cpu_to_le32(upper_32_bits(dev->host_rrq_pa));
+			init->r7.host_rrq_addr_low =
+				cpu_to_le32(lower_32_bits(dev->host_rrq_pa));
+			init->r7.no_of_msix_vectors =
+				cpu_to_le32(dev->max_msix);
+			/* must be the COMM_PREFERRED_SETTINGS values */
+			pr_warn("aacraid: Comm Interface type2 enabled\n");
+		}
 	}
 
 	/*
 	 * Increment the base address by the amount already used
 	 */
-	base = base + fibsize + host_rrq_size + sizeof(struct aac_init);
+	base = base + fibsize + host_rrq_size + aac_init_size;
 	phys = (dma_addr_t)((ulong)phys + fibsize + host_rrq_size +
-		sizeof(struct aac_init));
+			aac_init_size);
 
 	/*
 	 *	Align the beginning of Headers to commalign
@@ -177,7 +253,8 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 	 *	Fill in addresses of the Comm Area Headers and Queues
 	 */
 	*commaddr = base;
-	init->CommHeaderAddress = cpu_to_le32((u32)phys);
+	if (dev->comm_interface != AAC_COMM_MESSAGE_TYPE3)
+		init->r7.comm_header_address = cpu_to_le32((u32)phys);
 	/*
 	 *	Increment the base address by the size of the CommArea
 	 */
@@ -187,12 +264,14 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 	 *	 Place the Printf buffer area after the Fast I/O comm area.
 	 */
 	dev->printfbuf = (void *)base;
-	init->printfbuf = cpu_to_le32(phys);
-	init->printfbufsiz = cpu_to_le32(printfbufsiz);
+	if (dev->comm_interface != AAC_COMM_MESSAGE_TYPE3) {
+		init->r7.printfbuf = cpu_to_le32(phys);
+		init->r7.printfbufsiz = cpu_to_le32(printfbufsiz);
+	}
 	memset(base, 0, printfbufsiz);
 	return 1;
 }
-    
+
 static void aac_queue_init(struct aac_dev * dev, struct aac_queue * q, u32 *mem, int qsize)
 {
 	atomic_set(&q->numpending, 0);
@@ -400,9 +479,13 @@ void aac_define_int_mode(struct aac_dev *dev)
 		if (dev->max_msix > msi_count)
 			dev->max_msix = msi_count;
 	}
-	dev->vector_cap =
-		(dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB) /
-		msi_count;
+	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE3 && dev->sa_firmware)
+		dev->vector_cap = dev->scsi_host_ptr->can_queue +
+				AAC_NUM_MGT_FIB;
+	else
+		dev->vector_cap = (dev->scsi_host_ptr->can_queue +
+				AAC_NUM_MGT_FIB) / msi_count;
+
 }
 struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 {
@@ -436,30 +519,37 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 
 	if ((!aac_adapter_sync_cmd(dev, GET_ADAPTER_PROPERTIES,
 		0, 0, 0, 0, 0, 0,
-		status+0, status+1, status+2, status+3, NULL)) &&
-	 		(status[0] == 0x00000001)) {
+		status+0, status+1, status+2, status+3, status+4)) &&
+		(status[0] == 0x00000001)) {
 		dev->doorbell_mask = status[3];
-		if (status[1] & le32_to_cpu(AAC_OPT_NEW_COMM_64))
+		if (status[1] & AAC_OPT_NEW_COMM_64)
 			dev->raw_io_64 = 1;
 		dev->sync_mode = aac_sync_mode;
 		if (dev->a_ops.adapter_comm &&
-			(status[1] & le32_to_cpu(AAC_OPT_NEW_COMM))) {
+			(status[1] & AAC_OPT_NEW_COMM)) {
 				dev->comm_interface = AAC_COMM_MESSAGE;
 				dev->raw_io_interface = 1;
-			if ((status[1] & le32_to_cpu(AAC_OPT_NEW_COMM_TYPE1))) {
+			if ((status[1] & AAC_OPT_NEW_COMM_TYPE1)) {
 				/* driver supports TYPE1 (Tupelo) */
 				dev->comm_interface = AAC_COMM_MESSAGE_TYPE1;
-			} else if ((status[1] & le32_to_cpu(AAC_OPT_NEW_COMM_TYPE2))) {
-				/* driver supports TYPE2 (Denali) */
+			} else if (status[1] & AAC_OPT_NEW_COMM_TYPE2) {
+				/* driver supports TYPE2 (Denali, Yosemite) */
 				dev->comm_interface = AAC_COMM_MESSAGE_TYPE2;
-			} else if ((status[1] & le32_to_cpu(AAC_OPT_NEW_COMM_TYPE4)) ||
-				  (status[1] & le32_to_cpu(AAC_OPT_NEW_COMM_TYPE3))) {
-				/* driver doesn't TYPE3 and TYPE4 */
-				/* switch to sync. mode */
+			} else if (status[1] & AAC_OPT_NEW_COMM_TYPE3) {
+				/* driver supports TYPE3 (Yosemite, Thor) */
+				dev->comm_interface = AAC_COMM_MESSAGE_TYPE3;
+			} else if (status[1] & AAC_OPT_NEW_COMM_TYPE4) {
+				/* not supported TYPE - switch to sync. mode */
 				dev->comm_interface = AAC_COMM_MESSAGE_TYPE2;
 				dev->sync_mode = 1;
 			}
 		}
+		if ((status[1] & le32_to_cpu(AAC_OPT_EXTENDED)) &&
+			(status[4] & le32_to_cpu(AAC_EXTOPT_SA_FIRMWARE)))
+			dev->sa_firmware = 1;
+		else
+			dev->sa_firmware = 0;
+
 		if ((dev->comm_interface == AAC_COMM_MESSAGE) &&
 		    (status[2] > dev->base_size)) {
 			aac_adapter_ioremap(dev, 0);
@@ -496,60 +586,24 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 		dev->sg_tablesize = status[2] & 0xFFFF;
 		if (dev->pdev->device == PMC_DEVICE_S7 ||
 		    dev->pdev->device == PMC_DEVICE_S8 ||
-		    dev->pdev->device == PMC_DEVICE_S9)
-			host->can_queue = ((status[3] >> 16) ? (status[3] >> 16) :
-				(status[3] & 0xFFFF)) - AAC_NUM_MGT_FIB;
-		else
-			host->can_queue = (status[3] & 0xFFFF) - AAC_NUM_MGT_FIB;
+		    dev->pdev->device == PMC_DEVICE_S9) {
+			if (host->can_queue > (status[3] >> 16) -
+					AAC_NUM_MGT_FIB)
+				host->can_queue = (status[3] >> 16) -
+					AAC_NUM_MGT_FIB;
+		} else if (host->can_queue > (status[3] & 0xFFFF) -
+				AAC_NUM_MGT_FIB)
+			host->can_queue = (status[3] & 0xFFFF) -
+				AAC_NUM_MGT_FIB;
+
 		dev->max_num_aif = status[4] & 0xFFFF;
-		/*
-		 *	NOTE:
-		 *	All these overrides are based on a fixed internal
-		 *	knowledge and understanding of existing adapters,
-		 *	acbsize should be set with caution.
-		 */
-		if (acbsize == 512) {
-			host->max_sectors = AAC_MAX_32BIT_SGBCOUNT;
-			dev->max_fib_size = 512;
-			dev->sg_tablesize = host->sg_tablesize
-			  = (512 - sizeof(struct aac_fibhdr)
-			    - sizeof(struct aac_write) + sizeof(struct sgentry))
-			     / sizeof(struct sgentry);
-			host->can_queue = AAC_NUM_IO_FIB;
-		} else if (acbsize == 2048) {
-			host->max_sectors = 512;
-			dev->max_fib_size = 2048;
-			host->sg_tablesize = 65;
-			dev->sg_tablesize = 81;
-			host->can_queue = 512 - AAC_NUM_MGT_FIB;
-		} else if (acbsize == 4096) {
-			host->max_sectors = 1024;
-			dev->max_fib_size = 4096;
-			host->sg_tablesize = 129;
-			dev->sg_tablesize = 166;
-			host->can_queue = 256 - AAC_NUM_MGT_FIB;
-		} else if (acbsize == 8192) {
-			host->max_sectors = 2048;
-			dev->max_fib_size = 8192;
-			host->sg_tablesize = 257;
-			dev->sg_tablesize = 337;
-			host->can_queue = 128 - AAC_NUM_MGT_FIB;
-		} else if (acbsize > 0) {
-			printk("Illegal acbsize=%d ignored\n", acbsize);
-		}
 	}
-	{
-
-		if (numacb > 0) {
-			if (numacb < host->can_queue)
-				host->can_queue = numacb;
-			else
-				printk("numacb=%d ignored\n", numacb);
-		}
+	if (numacb > 0) {
+		if (numacb < host->can_queue)
+			host->can_queue = numacb;
+		else
+			pr_warn("numacb=%d ignored\n", numacb);
 	}
-
-	if (host->can_queue > AAC_NUM_IO_FIB)
-		host->can_queue = AAC_NUM_IO_FIB;
 
 	if (dev->pdev->device == PMC_DEVICE_S6 ||
 	    dev->pdev->device == PMC_DEVICE_S7 ||

@@ -552,7 +552,9 @@ static void __init reserve_crashkernel(void)
 	/* 0 means: find the address automatically */
 	if (crash_base <= 0) {
 		/*
-		 *  kexec want bzImage is below CRASH_KERNEL_ADDR_MAX
+		 * Set CRASH_ADDR_LOW_MAX upper bound for crash memory,
+		 * as old kexec-tools loads bzImage below that, unless
+		 * "crashkernel=size[KMG],high" is specified.
 		 */
 		crash_base = memblock_find_in_range(CRASH_ALIGN,
 						    high ? CRASH_ADDR_HIGH_MAX
@@ -1151,6 +1153,20 @@ void __init setup_arch(char **cmdline_p)
 #endif
 	/* Allocate bigger log buffer */
 	setup_log_buf(1);
+
+	if (efi_enabled(EFI_BOOT)) {
+		switch (boot_params.secure_boot) {
+		case efi_secureboot_mode_disabled:
+			pr_info("Secure boot disabled\n");
+			break;
+		case efi_secureboot_mode_enabled:
+			pr_info("Secure boot enabled\n");
+			break;
+		default:
+			pr_info("Secure boot could not be determined\n");
+			break;
+		}
+	}
 
 	reserve_initrd();
 

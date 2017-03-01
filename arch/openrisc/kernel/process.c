@@ -75,6 +75,17 @@ void machine_power_off(void)
 	__asm__("l.nop 1");
 }
 
+/*
+ * Send the doze signal to the cpu if available.
+ * Make sure, that all interrupts are enabled
+ */
+void arch_cpu_idle(void)
+{
+	local_irq_enable();
+	if (mfspr(SPR_UPR) & SPR_UPR_PMP)
+		mtspr(SPR_PMR, mfspr(SPR_PMR) | SPR_PMR_DME);
+}
+
 void (*pm_power_off) (void) = machine_power_off;
 
 /*
@@ -226,6 +237,7 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t * fpu)
 
 extern struct thread_info *_switch(struct thread_info *old_ti,
 				   struct thread_info *new_ti);
+extern int lwa_flag;
 
 struct task_struct *__switch_to(struct task_struct *old,
 				struct task_struct *new)
@@ -242,6 +254,8 @@ struct task_struct *__switch_to(struct task_struct *old,
 	 */
 	new_ti = new->stack;
 	old_ti = old->stack;
+
+	lwa_flag = 0;
 
 	current_thread_info_set[smp_processor_id()] = new_ti;
 	last = (_switch(old_ti, new_ti))->task;

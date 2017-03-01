@@ -61,9 +61,7 @@ int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 	priv->parent = ppriv->dev;
 	set_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags);
 
-	result = ipoib_set_dev_features(priv, ppriv->ca);
-	if (result)
-		goto err;
+	ipoib_set_dev_features(priv, ppriv->ca);
 
 	priv->pkey = pkey;
 
@@ -168,10 +166,10 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 out:
 	up_write(&ppriv->vlan_rwsem);
 
+	rtnl_unlock();
+
 	if (result)
 		free_netdev(priv->dev);
-
-	rtnl_unlock();
 
 	return result;
 }
@@ -196,13 +194,17 @@ int ipoib_vlan_delete(struct net_device *pdev, unsigned short pkey)
 	list_for_each_entry_safe(priv, tpriv, &ppriv->child_intfs, list) {
 		if (priv->pkey == pkey &&
 		    priv->child_type == IPOIB_LEGACY_CHILD) {
-			unregister_netdevice(priv->dev);
 			list_del(&priv->list);
 			dev = priv->dev;
 			break;
 		}
 	}
 	up_write(&ppriv->vlan_rwsem);
+
+	if (dev) {
+		ipoib_dbg(ppriv, "delete child vlan %s\n", dev->name);
+		unregister_netdevice(dev);
+	}
 
 	rtnl_unlock();
 

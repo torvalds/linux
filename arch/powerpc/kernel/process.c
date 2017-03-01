@@ -64,12 +64,6 @@
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
 
-#ifdef CONFIG_CC_STACKPROTECTOR
-#include <linux/stackprotector.h>
-unsigned long __stack_chk_guard __read_mostly;
-EXPORT_SYMBOL(__stack_chk_guard);
-#endif
-
 /* Transactional Memory debug */
 #ifdef TM_DEBUG_SW
 #define TM_DEBUG(x...) printk(KERN_INFO x)

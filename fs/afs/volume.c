@@ -106,6 +106,7 @@ struct afs_volume *afs_volume_lookup(struct afs_mount_params *params)
 	volume->cell		= params->cell;
 	volume->vid		= vlocation->vldb.vid[params->type];
 
+	volume->bdi.ra_pages	= VM_MAX_READAHEAD*1024/PAGE_SIZE; 
 	ret = bdi_setup_and_register(&volume->bdi, "afs");
 	if (ret)
 		goto error_bdi;

@@ -190,7 +190,7 @@ nouveau_fence_context_new(struct nouveau_channel *chan, struct nouveau_fence_cha
 		return;
 
 	ret = nvif_notify_init(&chan->user, nouveau_fence_wait_uevent_handler,
-			       false, G82_CHANNEL_DMA_V0_NTFY_UEVENT,
+			       false, NV826E_V0_NTFY_NON_STALL_INTERRUPT,
 			       &(struct nvif_notify_uevent_req) { },
 			       sizeof(struct nvif_notify_uevent_req),
 			       sizeof(struct nvif_notify_uevent_rep),
@@ -527,7 +527,7 @@ static bool nouveau_fence_no_signaling(struct dma_fence *f)
 	 * caller should have a reference on the fence,
 	 * else fence could get freed here
 	 */
-	WARN_ON(atomic_read(&fence->base.refcount.refcount) <= 1);
+	WARN_ON(kref_read(&fence->base.refcount) <= 1);
 
 	/*
 	 * This needs uevents to work correctly, but dma_fence_add_callback relies on

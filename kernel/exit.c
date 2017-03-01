@@ -14,7 +14,6 @@
 #include <linux/tty.h>
 #include <linux/iocontext.h>
 #include <linux/key.h>
-#include <linux/security.h>
 #include <linux/cpu.h>
 #include <linux/acct.h>
 #include <linux/tsacct_kern.h>
@@ -46,6 +45,7 @@
 #include <linux/task_io_accounting_ops.h>
 #include <linux/tracehook.h>
 #include <linux/fs_struct.h>
+#include <linux/userfaultfd_k.h>
 #include <linux/init_task.h>
 #include <linux/perf_event.h>
 #include <trace/events/sched.h>
@@ -55,6 +55,7 @@
 #include <linux/shm.h>
 #include <linux/kcov.h>
 #include <linux/random.h>
+#include <linux/rcuwait.h>
 
 #include <linux/uaccess.h>
 #include <asm/unistd.h>
@@ -86,7 +87,7 @@ static void __exit_signal(struct task_struct *tsk)
 	bool group_dead = thread_group_leader(tsk);
 	struct sighand_struct *sighand;
 	struct tty_struct *uninitialized_var(tty);
-	cputime_t utime, stime;
+	u64 utime, stime;
 
 	sighand = rcu_dereference_check(tsk->sighand,
 					lockdep_tasklist_lock_is_held());
@@ -282,6 +283,35 @@ retry:
 	return task;
 }
 
+void rcuwait_wake_up(struct rcuwait *w)
+{
+	struct task_struct *task;
+
+	rcu_read_lock();
+
+	/*
+	 * Order condition vs @task, such that everything prior to the load
+	 * of @task is visible. This is the condition as to why the user called
+	 * rcuwait_trywake() in the first place. Pairs with set_current_state()
+	 * barrier (A) in rcuwait_wait_event().
+	 *
+	 *    WAIT                WAKE
+	 *    [S] tsk = current	  [S] cond = true
+	 *        MB (A)	      MB (B)
+	 *    [L] cond		  [L] tsk
+	 */
+	smp_rmb(); /* (B) */
+
+	/*
+	 * Avoid using task_rcu_dereference() magic as long as we are careful,
+	 * see comment in rcuwait_wait_event() regarding ->exit_state.
+	 */
+	task = rcu_dereference(w->task);
+	if (task)
+		wake_up_process(task);
+	rcu_read_unlock();
+}
+
 struct task_struct *try_get_task_struct(struct task_struct **ptask)
 {
 	struct task_struct *task;
@@ -468,12 +498,12 @@ assign_new_owner:
  * Turn us into a lazy TLB process if we
  * aren't already..
  */
-static void exit_mm(struct task_struct *tsk)
+static void exit_mm(void)
 {
-	struct mm_struct *mm = tsk->mm;
+	struct mm_struct *mm = current->mm;
 	struct core_state *core_state;
 
-	mm_release(tsk, mm);
+	mm_release(current, mm);
 	if (!mm)
 		return;
 	sync_mm_rss(mm);
@@ -491,7 +521,7 @@ static void exit_mm(struct task_struct *tsk)
 
 		up_read(&mm->mmap_sem);
 
-		self.task = tsk;
+		self.task = current;
 		self.next = xchg(&core_state->dumper.next, &self);
 		/*
 		 * Implies mb(), the result of xchg() must be visible
@@ -501,23 +531,24 @@ static void exit_mm(struct task_struct *tsk)
 			complete(&core_state->startup);
 
 		for (;;) {
-			set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+			set_current_state(TASK_UNINTERRUPTIBLE);
 			if (!self.task) /* see coredump_finish() */
 				break;
 			freezable_schedule();
 		}
-		__set_task_state(tsk, TASK_RUNNING);
+		__set_current_state(TASK_RUNNING);
 		down_read(&mm->mmap_sem);
 	}
-	atomic_inc(&mm->mm_count);
-	BUG_ON(mm != tsk->active_mm);
+	mmgrab(mm);
+	BUG_ON(mm != current->active_mm);
 	/* more a memory barrier than a real lock */
-	task_lock(tsk);
-	tsk->mm = NULL;
+	task_lock(current);
+	current->mm = NULL;
 	up_read(&mm->mmap_sem);
 	enter_lazy_tlb(mm, current);
-	task_unlock(tsk);
+	task_unlock(current);
 	mm_update_next_owner(mm);
+	userfaultfd_exit(mm);
 	mmput(mm);
 	if (test_thread_flag(TIF_MEMDIE))
 		exit_oom_victim();
@@ -578,15 +609,18 @@ static struct task_struct *find_new_reaper(struct task_struct *father,
 		return thread;
 
 	if (father->signal->has_child_subreaper) {
+		unsigned int ns_level = task_pid(father)->level;
 		/*
 		 * Find the first ->is_child_subreaper ancestor in our pid_ns.
-		 * We start from father to ensure we can not look into another
-		 * namespace, this is safe because all its threads are dead.
+		 * We can't check reaper != child_reaper to ensure we do not
+		 * cross the namespaces, the exiting parent could be injected
+		 * by setns() + fork().
+		 * We check pid->level, this is slightly more efficient than
+		 * task_active_pid_ns(reaper) != task_active_pid_ns(father).
 		 */
-		for (reaper = father;
-		     !same_thread_group(reaper, child_reaper);
+		for (reaper = father->real_parent;
+		     task_pid(reaper)->level == ns_level;
 		     reaper = reaper->real_parent) {
-			/* call_usermodehelper() descendants need this check */
 			if (reaper == &init_task)
 				break;
 			if (!reaper->signal->is_child_subreaper)
@@ -823,7 +857,7 @@ void __noreturn do_exit(long code)
 	tsk->exit_code = code;
 	taskstats_exit(tsk, group_dead);
 
-	exit_mm(tsk);
+	exit_mm();
 
 	if (group_dead)
 		acct_process();
@@ -1091,7 +1125,7 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 		struct signal_struct *sig = p->signal;
 		struct signal_struct *psig = current->signal;
 		unsigned long maxrss;
-		cputime_t tgutime, tgstime;
+		u64 tgutime, tgstime;
 
 		/*
 		 * The resource counters for the group leader are in its
@@ -1360,7 +1394,7 @@ static int wait_task_continued(struct wait_opts *wo, struct task_struct *p)
  * Returns nonzero for a final return, when we have unlocked tasklist_lock.
  * Returns zero if the search for a child should continue;
  * then ->notask_error is 0 if @p is an eligible child,
- * or another error from security_task_wait(), or still -ECHILD.
+ * or still -ECHILD.
  */
 static int wait_consider_task(struct wait_opts *wo, int ptrace,
 				struct task_struct *p)
@@ -1379,20 +1413,6 @@ static int wait_consider_task(struct wait_opts *wo, int ptrace,
 	ret = eligible_child(wo, ptrace, p);
 	if (!ret)
 		return ret;
-
-	ret = security_task_wait(p);
-	if (unlikely(ret < 0)) {
-		/*
-		 * If we have not yet seen any eligible child,
-		 * then let this error code replace -ECHILD.
-		 * A permission error will give the user a clue
-		 * to look for security policy problems, rather
-		 * than for mysterious wait bugs.
-		 */
-		if (wo->notask_error)
-			wo->notask_error = ret;
-		return 0;
-	}
 
 	if (unlikely(exit_state == EXIT_TRACE)) {
 		/*
@@ -1486,7 +1506,7 @@ static int wait_consider_task(struct wait_opts *wo, int ptrace,
  * Returns nonzero for a final return, when we have unlocked tasklist_lock.
  * Returns zero if the search for a child should continue; then
  * ->notask_error is 0 if there were any eligible children,
- * or another error from security_task_wait(), or still -ECHILD.
+ * or still -ECHILD.
  */
 static int do_wait_thread(struct wait_opts *wo, struct task_struct *tsk)
 {

@@ -3920,6 +3920,14 @@
 #define mmDP4_DP_DPHY_PRBS_CNTL                                                 0x48d4
 #define mmDP5_DP_DPHY_PRBS_CNTL                                                 0x4bd4
 #define mmDP6_DP_DPHY_PRBS_CNTL                                                 0x4ed4
+#define mmDP_DPHY_SCRAM_CNTL                                                    0x1cd5
+#define mmDP0_DP_DPHY_SCRAM_CNTL                                                0x1cd5
+#define mmDP1_DP_DPHY_SCRAM_CNTL                                                0x1fd5
+#define mmDP2_DP_DPHY_SCRAM_CNTL                                                0x42d5
+#define mmDP3_DP_DPHY_SCRAM_CNTL                                                0x45d5
+#define mmDP4_DP_DPHY_SCRAM_CNTL                                                0x48d5
+#define mmDP5_DP_DPHY_SCRAM_CNTL                                                0x4bd5
+#define mmDP6_DP_DPHY_SCRAM_CNTL                                                0x4ed5
 #define mmDP_DPHY_CRC_EN                                                        0x1cd6
 #define mmDP0_DP_DPHY_CRC_EN                                                    0x1cd6
 #define mmDP1_DP_DPHY_CRC_EN                                                    0x1fd6

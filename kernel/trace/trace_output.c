@@ -124,6 +124,44 @@ EXPORT_SYMBOL(trace_print_symbols_seq);
 
 #if BITS_PER_LONG == 32
 const char *
+trace_print_flags_seq_u64(struct trace_seq *p, const char *delim,
+		      unsigned long long flags,
+		      const struct trace_print_flags_u64 *flag_array)
+{
+	unsigned long long mask;
+	const char *str;
+	const char *ret = trace_seq_buffer_ptr(p);
+	int i, first = 1;
+
+	for (i = 0;  flag_array[i].name && flags; i++) {
+
+		mask = flag_array[i].mask;
+		if ((flags & mask) != mask)
+			continue;
+
+		str = flag_array[i].name;
+		flags &= ~mask;
+		if (!first && delim)
+			trace_seq_puts(p, delim);
+		else
+			first = 0;
+		trace_seq_puts(p, str);
+	}
+
+	/* check for left over flags */
+	if (flags) {
+		if (!first && delim)
+			trace_seq_puts(p, delim);
+		trace_seq_printf(p, "0x%llx", flags);
+	}
+
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+EXPORT_SYMBOL(trace_print_flags_seq_u64);
+
+const char *
 trace_print_symbols_seq_u64(struct trace_seq *p, unsigned long long val,
 			 const struct trace_print_flags_u64 *symbol_array)
 {
@@ -162,15 +200,27 @@ trace_print_bitmask_seq(struct trace_seq *p, void *bitmask_ptr,
 }
 EXPORT_SYMBOL_GPL(trace_print_bitmask_seq);
 
+/**
+ * trace_print_hex_seq - print buffer as hex sequence
+ * @p: trace seq struct to write to
+ * @buf: The buffer to print
+ * @buf_len: Length of @buf in bytes
+ * @concatenate: Print @buf as single hex string or with spacing
+ *
+ * Prints the passed buffer as a hex sequence either as a whole,
+ * single hex string if @concatenate is true or with spacing after
+ * each byte in case @concatenate is false.
+ */
 const char *
-trace_print_hex_seq(struct trace_seq *p, const unsigned char *buf, int buf_len)
+trace_print_hex_seq(struct trace_seq *p, const unsigned char *buf, int buf_len,
+		    bool concatenate)
 {
 	int i;
 	const char *ret = trace_seq_buffer_ptr(p);
 
 	for (i = 0; i < buf_len; i++)
-		trace_seq_printf(p, "%s%2.2x", i == 0 ? "" : " ", buf[i]);
-
+		trace_seq_printf(p, "%s%2.2x", concatenate || i == 0 ? "" : " ",
+				 buf[i]);
 	trace_seq_putc(p, 0);
 
 	return ret;

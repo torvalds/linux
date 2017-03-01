@@ -619,6 +619,8 @@ setup_arch (char **cmdline_p)
 	check_sal_cache_flush();
 #endif
 	paging_init();
+
+	clear_sched_clock_stable();
 }
 
 /*
@@ -992,7 +994,7 @@ cpu_init (void)
 	 */
 	ia64_setreg(_IA64_REG_CR_DCR,  (  IA64_DCR_DP | IA64_DCR_DK | IA64_DCR_DX | IA64_DCR_DR
 					| IA64_DCR_DA | IA64_DCR_DD | IA64_DCR_LC));
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 	BUG_ON(current->mm);
 

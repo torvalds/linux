@@ -93,7 +93,7 @@ to_mp(struct kobject *kobject)
 #ifdef DEBUG
 
 STATIC ssize_t
-fail_writes_store(
+drop_writes_store(
 	struct kobject		*kobject,
 	const char		*buf,
 	size_t			count)
@@ -107,9 +107,9 @@ fail_writes_store(
 		return ret;
 
 	if (val == 1)
-		mp->m_fail_writes = true;
+		mp->m_drop_writes = true;
 	else if (val == 0)
-		mp->m_fail_writes = false;
+		mp->m_drop_writes = false;
 	else
 		return -EINVAL;
 
@@ -117,21 +117,21 @@ fail_writes_store(
 }
 
 STATIC ssize_t
-fail_writes_show(
+drop_writes_show(
 	struct kobject		*kobject,
 	char			*buf)
 {
 	struct xfs_mount	*mp = to_mp(kobject);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", mp->m_fail_writes ? 1 : 0);
+	return snprintf(buf, PAGE_SIZE, "%d\n", mp->m_drop_writes ? 1 : 0);
 }
-XFS_SYSFS_ATTR_RW(fail_writes);
+XFS_SYSFS_ATTR_RW(drop_writes);
 
 #endif /* DEBUG */
 
 static struct attribute *xfs_mp_attrs[] = {
 #ifdef DEBUG
-	ATTR_LIST(fail_writes),
+	ATTR_LIST(drop_writes),
 #endif
 	NULL,
 };

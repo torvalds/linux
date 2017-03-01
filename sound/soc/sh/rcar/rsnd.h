@@ -374,10 +374,10 @@ struct rsnd_mod *rsnd_mod_next(int *iterator,
 			       int array_size);
 #define for_each_rsnd_mod(iterator, pos, io)				\
 	for (iterator = 0;						\
-	     (pos = rsnd_mod_next(&iterator, io, NULL, 0));)
+	     (pos = rsnd_mod_next(&iterator, io, NULL, 0)); iterator++)
 #define for_each_rsnd_mod_arrays(iterator, pos, io, array, size)	\
 	for (iterator = 0;						\
-	     (pos = rsnd_mod_next(&iterator, io, array, size));)
+	     (pos = rsnd_mod_next(&iterator, io, array, size)); iterator++)
 #define for_each_rsnd_mod_array(iterator, pos, io, array)		\
 	for_each_rsnd_mod_arrays(iterator, pos, io, array, ARRAY_SIZE(array))
 

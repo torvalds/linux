@@ -1,5 +1,5 @@
-#include <linux/bitops.h>
-#include <linux/kernel.h>
+
+#include <linux/sched.h>
 
 #include <asm/cpufeature.h>
 #include <asm/e820/api.h>
@@ -104,6 +104,8 @@ static void early_init_centaur(struct cpuinfo_x86 *c)
 #ifdef CONFIG_X86_64
 	set_cpu_cap(c, X86_FEATURE_SYSENTER32);
 #endif
+
+	clear_sched_clock_stable();
 }
 
 static void init_centaur(struct cpuinfo_x86 *c)

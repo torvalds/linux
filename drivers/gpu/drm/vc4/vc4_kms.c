@@ -231,7 +231,6 @@ int vc4_kms_load(struct drm_device *dev)
 	drm_mode_config_reset(dev);
 
 	vc4->fbdev = drm_fbdev_cma_init(dev, 32,
-					dev->mode_config.num_crtc,
 					dev->mode_config.num_connector);
 	if (IS_ERR(vc4->fbdev))
 		vc4->fbdev = NULL;

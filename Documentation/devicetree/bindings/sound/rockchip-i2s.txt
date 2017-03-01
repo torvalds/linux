@@ -5,7 +5,7 @@ audio data transfer between devices in the system.
 
 Required properties:
 
-- compatible: should be one of the followings
+- compatible: should be one of the following:
    - "rockchip,rk3066-i2s": for rk3066
    - "rockchip,rk3188-i2s", "rockchip,rk3066-i2s": for rk3188
    - "rockchip,rk3288-i2s", "rockchip,rk3066-i2s": for rk3288
@@ -17,7 +17,7 @@ Required properties:
 	Documentation/devicetree/bindings/dma/dma.txt
 - dma-names: should include "tx" and "rx".
 - clocks: a list of phandle + clock-specifer pairs, one for each entry in clock-names.
-- clock-names: should contain followings:
+- clock-names: should contain the following:
    - "i2s_hclk": clock for I2S BUS
    - "i2s_clk" : clock for I2S controller
 - rockchip,playback-channels: max playback channels, if not set, 8 channels default.

@@ -1133,7 +1133,7 @@ static int iwch_query_port(struct ib_device *ibdev,
 	dev = to_iwch_dev(ibdev);
 	netdev = dev->rdev.port_info.lldevs[port-1];
 
-	memset(props, 0, sizeof(struct ib_port_attr));
+	/* props being zeroed by the caller, avoid zeroing it here */
 	props->max_mtu = IB_MTU_4096;
 	props->active_mtu = ib_mtu_int_to_enum(netdev->mtu);
 
@@ -1329,13 +1329,14 @@ static int iwch_port_immutable(struct ib_device *ibdev, u8 port_num,
 	struct ib_port_attr attr;
 	int err;
 
-	err = iwch_query_port(ibdev, port_num, &attr);
+	immutable->core_cap_flags = RDMA_CORE_PORT_IWARP;
+
+	err = ib_query_port(ibdev, port_num, &attr);
 	if (err)
 		return err;
 
 	immutable->pkey_tbl_len = attr.pkey_tbl_len;
 	immutable->gid_tbl_len = attr.gid_tbl_len;
-	immutable->core_cap_flags = RDMA_CORE_PORT_IWARP;
 
 	return 0;
 }
@@ -1392,7 +1393,7 @@ int iwch_register_device(struct iwch_dev *dev)
 	memcpy(dev->ibdev.node_desc, IWCH_NODE_DESC, sizeof(IWCH_NODE_DESC));
 	dev->ibdev.phys_port_cnt = dev->rdev.port_info.nports;
 	dev->ibdev.num_comp_vectors = 1;
-	dev->ibdev.dma_device = &(dev->rdev.rnic_info.pdev->dev);
+	dev->ibdev.dev.parent = &dev->rdev.rnic_info.pdev->dev;
 	dev->ibdev.query_device = iwch_query_device;
 	dev->ibdev.query_port = iwch_query_port;
 	dev->ibdev.query_pkey = iwch_query_pkey;

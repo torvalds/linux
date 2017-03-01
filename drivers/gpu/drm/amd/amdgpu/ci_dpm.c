@@ -889,7 +889,16 @@ static void ci_dpm_powergate_uvd(struct amdgpu_device *adev, bool gate)
 
 	pi->uvd_power_gated = gate;
 
-	ci_update_uvd_dpm(adev, gate);
+	if (gate) {
+		/* stop the UVD block */
+		amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
+							AMD_PG_STATE_GATE);
+		ci_update_uvd_dpm(adev, gate);
+	} else {
+		amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
+							AMD_PG_STATE_UNGATE);
+		ci_update_uvd_dpm(adev, gate);
+	}
 }
 
 static bool ci_dpm_vblank_too_short(struct amdgpu_device *adev)
@@ -2201,7 +2210,6 @@ static void ci_clear_vc(struct amdgpu_device *adev)
 
 static int ci_upload_firmware(struct amdgpu_device *adev)
 {
-	struct ci_power_info *pi = ci_get_pi(adev);
 	int i, ret;
 
 	if (amdgpu_ci_is_smc_running(adev)) {
@@ -2218,7 +2226,7 @@ static int ci_upload_firmware(struct amdgpu_device *adev)
 	amdgpu_ci_stop_smc_clock(adev);
 	amdgpu_ci_reset_smc(adev);
 
-	ret = amdgpu_ci_load_smc_ucode(adev, pi->sram_end);
+	ret = amdgpu_ci_load_smc_ucode(adev, SMC_RAM_END);
 
 	return ret;
 
@@ -4248,12 +4256,6 @@ static int ci_update_vce_dpm(struct amdgpu_device *adev,
 
 	if (amdgpu_current_state->evclk != amdgpu_new_state->evclk) {
 		if (amdgpu_new_state->evclk) {
-			/* turn the clocks on when encoding */
-			ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
-							    AMD_CG_STATE_UNGATE);
-			if (ret)
-				return ret;
-
 			pi->smc_state_table.VceBootLevel = ci_get_vce_boot_level(adev);
 			tmp = RREG32_SMC(ixDPM_TABLE_475);
 			tmp &= ~DPM_TABLE_475__VceBootLevel_MASK;
@@ -4265,9 +4267,6 @@ static int ci_update_vce_dpm(struct amdgpu_device *adev,
 			ret = ci_enable_vce_dpm(adev, false);
 			if (ret)
 				return ret;
-			/* turn the clocks off when not encoding */
-			ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
-							    AMD_CG_STATE_GATE);
 		}
 	}
 	return ret;
@@ -4336,13 +4335,13 @@ static u32 ci_get_lowest_enabled_level(struct amdgpu_device *adev,
 
 
 static int ci_dpm_force_performance_level(struct amdgpu_device *adev,
-					  enum amdgpu_dpm_forced_level level)
+					  enum amd_dpm_forced_level level)
 {
 	struct ci_power_info *pi = ci_get_pi(adev);
 	u32 tmp, levels, i;
 	int ret;
 
-	if (level == AMDGPU_DPM_FORCED_LEVEL_HIGH) {
+	if (level == AMD_DPM_FORCED_LEVEL_HIGH) {
 		if ((!pi->pcie_dpm_key_disabled) &&
 		    pi->dpm_level_enable_mask.pcie_dpm_enable_mask) {
 			levels = 0;
@@ -4403,7 +4402,7 @@ static int ci_dpm_force_performance_level(struct amdgpu_device *adev,
 				}
 			}
 		}
-	} else if (level == AMDGPU_DPM_FORCED_LEVEL_LOW) {
+	} else if (level == AMD_DPM_FORCED_LEVEL_LOW) {
 		if ((!pi->sclk_dpm_key_disabled) &&
 		    pi->dpm_level_enable_mask.sclk_dpm_enable_mask) {
 			levels = ci_get_lowest_enabled_level(adev,
@@ -4452,7 +4451,7 @@ static int ci_dpm_force_performance_level(struct amdgpu_device *adev,
 				udelay(1);
 			}
 		}
-	} else if (level == AMDGPU_DPM_FORCED_LEVEL_AUTO) {
+	} else if (level == AMD_DPM_FORCED_LEVEL_AUTO) {
 		if (!pi->pcie_dpm_key_disabled) {
 			PPSMC_Result smc_result;
 
@@ -6262,19 +6261,19 @@ static int ci_dpm_sw_init(void *handle)
 	/* default to balanced state */
 	adev->pm.dpm.state = POWER_STATE_TYPE_BALANCED;
 	adev->pm.dpm.user_state = POWER_STATE_TYPE_BALANCED;
-	adev->pm.dpm.forced_level = AMDGPU_DPM_FORCED_LEVEL_AUTO;
+	adev->pm.dpm.forced_level = AMD_DPM_FORCED_LEVEL_AUTO;
 	adev->pm.default_sclk = adev->clock.default_sclk;
 	adev->pm.default_mclk = adev->clock.default_mclk;
 	adev->pm.current_sclk = adev->clock.default_sclk;
 	adev->pm.current_mclk = adev->clock.default_mclk;
 	adev->pm.int_thermal_type = THERMAL_TYPE_NONE;
 
-	if (amdgpu_dpm == 0)
-		return 0;
-
 	ret = ci_dpm_init_microcode(adev);
 	if (ret)
 		return ret;
+
+	if (amdgpu_dpm == 0)
+		return 0;
 
 	INIT_WORK(&adev->pm.dpm.thermal.work, amdgpu_dpm_thermal_work_handler);
 	mutex_lock(&adev->pm.mutex);
@@ -6319,8 +6318,15 @@ static int ci_dpm_hw_init(void *handle)
 
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (!amdgpu_dpm)
+	if (!amdgpu_dpm) {
+		ret = ci_upload_firmware(adev);
+		if (ret) {
+			DRM_ERROR("ci_upload_firmware failed\n");
+			return ret;
+		}
+		ci_dpm_start_smc(adev);
 		return 0;
+	}
 
 	mutex_lock(&adev->pm.mutex);
 	ci_dpm_setup_asic(adev);
@@ -6342,6 +6348,8 @@ static int ci_dpm_hw_fini(void *handle)
 		mutex_lock(&adev->pm.mutex);
 		ci_dpm_disable(adev);
 		mutex_unlock(&adev->pm.mutex);
+	} else {
+		ci_dpm_stop_smc(adev);
 	}
 
 	return 0;
@@ -6571,8 +6579,9 @@ static int ci_dpm_force_clock_level(struct amdgpu_device *adev,
 {
 	struct ci_power_info *pi = ci_get_pi(adev);
 
-	if (adev->pm.dpm.forced_level
-			!= AMDGPU_DPM_FORCED_LEVEL_MANUAL)
+	if (adev->pm.dpm.forced_level & (AMD_DPM_FORCED_LEVEL_AUTO |
+				AMD_DPM_FORCED_LEVEL_LOW |
+				AMD_DPM_FORCED_LEVEL_HIGH))
 		return -EINVAL;
 
 	switch (type) {
@@ -6739,12 +6748,3 @@ static void ci_dpm_set_irq_funcs(struct amdgpu_device *adev)
 	adev->pm.dpm.thermal.irq.num_types = AMDGPU_THERMAL_IRQ_LAST;
 	adev->pm.dpm.thermal.irq.funcs = &ci_dpm_irq_funcs;
 }
-
-const struct amdgpu_ip_block_version ci_dpm_ip_block =
-{
-	.type = AMD_IP_BLOCK_TYPE_SMC,
-	.major = 7,
-	.minor = 0,
-	.rev = 0,
-	.funcs = &ci_dpm_ip_funcs,
-};

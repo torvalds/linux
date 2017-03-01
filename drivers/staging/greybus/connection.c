@@ -357,6 +357,9 @@ static int gb_connection_hd_cport_quiesce(struct gb_connection *connection)
 	size_t peer_space;
 	int ret;
 
+	if (!hd->driver->cport_quiesce)
+		return 0;
+
 	peer_space = sizeof(struct gb_operation_msg_hdr) +
 			sizeof(struct gb_cport_shutdown_request);
 
@@ -379,6 +382,9 @@ static int gb_connection_hd_cport_clear(struct gb_connection *connection)
 {
 	struct gb_host_device *hd = connection->hd;
 	int ret;
+
+	if (!hd->driver->cport_clear)
+		return 0;
 
 	ret = hd->driver->cport_clear(hd, connection->hd_cport_id);
 	if (ret) {

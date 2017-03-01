@@ -46,7 +46,7 @@
 #define WMI_READY_TIMEOUT (5 * HZ)
 #define ATH10K_FLUSH_TIMEOUT_HZ (5 * HZ)
 #define ATH10K_CONNECTION_LOSS_HZ (3 * HZ)
-#define ATH10K_NUM_CHANS 39
+#define ATH10K_NUM_CHANS 40
 
 /* Antenna noise floor */
 #define ATH10K_DEFAULT_NOISE_FLOOR -95
@@ -314,6 +314,7 @@ struct ath10k_peer {
 	struct ieee80211_vif *vif;
 	struct ieee80211_sta *sta;
 
+	bool removed;
 	int vdev_id;
 	u8 addr[ETH_ALEN];
 	DECLARE_BITMAP(peer_ids, ATH10K_MAX_NUM_PEER_IDS);
@@ -419,6 +420,21 @@ struct ath10k_vif_iter {
 	struct ath10k_vif *arvif;
 };
 
+/* Copy Engine register dump, protected by ce-lock */
+struct ath10k_ce_crash_data {
+	__le32 base_addr;
+	__le32 src_wr_idx;
+	__le32 src_r_idx;
+	__le32 dst_wr_idx;
+	__le32 dst_r_idx;
+};
+
+struct ath10k_ce_crash_hdr {
+	__le32 ce_count;
+	__le32 reserved[3]; /* for future use */
+	struct ath10k_ce_crash_data entries[];
+};
+
 /* used for crash-dump storage, protected by data-lock */
 struct ath10k_fw_crash_data {
 	bool crashed_since_read;
@@ -426,6 +442,7 @@ struct ath10k_fw_crash_data {
 	uuid_le uuid;
 	struct timespec timestamp;
 	__le32 registers[REG_DUMP_COUNT_QCA988X];
+	struct ath10k_ce_crash_data ce_crash_data[CE_COUNT_MAX];
 };
 
 struct ath10k_debug {

@@ -57,7 +57,7 @@ static struct ctl_table_root set_root = {
 
 static int zero = 0;
 static int int_max = INT_MAX;
-#define UCOUNT_ENTRY(name) 				\
+#define UCOUNT_ENTRY(name)				\
 	{						\
 		.procname	= name,			\
 		.maxlen		= sizeof(int),		\
@@ -74,6 +74,10 @@ static struct ctl_table user_table[] = {
 	UCOUNT_ENTRY("max_net_namespaces"),
 	UCOUNT_ENTRY("max_mnt_namespaces"),
 	UCOUNT_ENTRY("max_cgroup_namespaces"),
+#ifdef CONFIG_INOTIFY_USER
+	UCOUNT_ENTRY("max_inotify_instances"),
+	UCOUNT_ENTRY("max_inotify_watches"),
+#endif
 	{ }
 };
 #endif /* CONFIG_SYSCTL */
@@ -227,11 +231,10 @@ static __init int user_namespace_sysctl_init(void)
 	 * properly.
 	 */
 	user_header = register_sysctl("user", empty);
+	kmemleak_ignore(user_header);
 	BUG_ON(!user_header);
 	BUG_ON(!setup_userns_sysctls(&init_user_ns));
 #endif
 	return 0;
 }
 subsys_initcall(user_namespace_sysctl_init);
-
-

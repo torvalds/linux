@@ -151,6 +151,13 @@ static const char ixgbe_gstrings_test[][ETH_GSTRING_LEN] = {
 };
 #define IXGBE_TEST_LEN sizeof(ixgbe_gstrings_test) / ETH_GSTRING_LEN
 
+static const char ixgbe_priv_flags_strings[][ETH_GSTRING_LEN] = {
+#define IXGBE_PRIV_FLAGS_LEGACY_RX	BIT(0)
+	"legacy-rx",
+};
+
+#define IXGBE_PRIV_FLAGS_STR_LEN ARRAY_SIZE(ixgbe_priv_flags_strings)
+
 /* currently supported speeds for 10G */
 #define ADVRTSD_MSK_10G (SUPPORTED_10000baseT_Full | \
 			 SUPPORTED_10000baseKX4_Full | \
@@ -197,15 +204,17 @@ static int ixgbe_get_settings(struct net_device *netdev,
 				   SUPPORTED_1000baseKX_Full :
 				   SUPPORTED_1000baseT_Full;
 	if (supported_link & IXGBE_LINK_SPEED_100_FULL)
-		ecmd->supported |= ixgbe_isbackplane(hw->phy.media_type) ?
-				   SUPPORTED_1000baseKX_Full :
-				   SUPPORTED_1000baseT_Full;
+		ecmd->supported |= SUPPORTED_100baseT_Full;
+	if (supported_link & IXGBE_LINK_SPEED_10_FULL)
+		ecmd->supported |= SUPPORTED_10baseT_Full;
 
 	/* default advertised speed if phy.autoneg_advertised isn't set */
 	ecmd->advertising = ecmd->supported;
 	/* set the advertised speeds */
 	if (hw->phy.autoneg_advertised) {
 		ecmd->advertising = 0;
+		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_10_FULL)
+			ecmd->advertising |= ADVERTISED_10baseT_Full;
 		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_100_FULL)
 			ecmd->advertising |= ADVERTISED_100baseT_Full;
 		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_10GB_FULL)
@@ -237,6 +246,7 @@ static int ixgbe_get_settings(struct net_device *netdev,
 	case ixgbe_phy_tn:
 	case ixgbe_phy_aq:
 	case ixgbe_phy_x550em_ext_t:
+	case ixgbe_phy_fw:
 	case ixgbe_phy_cu_unknown:
 		ecmd->supported |= SUPPORTED_TP;
 		ecmd->advertising |= ADVERTISED_TP;
@@ -337,6 +347,9 @@ static int ixgbe_get_settings(struct net_device *netdev,
 		case IXGBE_LINK_SPEED_10GB_FULL:
 			ethtool_cmd_speed_set(ecmd, SPEED_10000);
 			break;
+		case IXGBE_LINK_SPEED_5GB_FULL:
+			ethtool_cmd_speed_set(ecmd, SPEED_5000);
+			break;
 		case IXGBE_LINK_SPEED_2_5GB_FULL:
 			ethtool_cmd_speed_set(ecmd, SPEED_2500);
 			break;
@@ -345,6 +358,9 @@ static int ixgbe_get_settings(struct net_device *netdev,
 			break;
 		case IXGBE_LINK_SPEED_100_FULL:
 			ethtool_cmd_speed_set(ecmd, SPEED_100);
+			break;
+		case IXGBE_LINK_SPEED_10_FULL:
+			ethtool_cmd_speed_set(ecmd, SPEED_10);
 			break;
 		default:
 			break;
@@ -393,6 +409,9 @@ static int ixgbe_set_settings(struct net_device *netdev,
 
 		if (ecmd->advertising & ADVERTISED_100baseT_Full)
 			advertised |= IXGBE_LINK_SPEED_100_FULL;
+
+		if (ecmd->advertising & ADVERTISED_10baseT_Full)
+			advertised |= IXGBE_LINK_SPEED_10_FULL;
 
 		if (old == advertised)
 			return err;
@@ -989,6 +1008,8 @@ static void ixgbe_get_drvinfo(struct net_device *netdev,
 
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
+
+	drvinfo->n_priv_flags = IXGBE_PRIV_FLAGS_STR_LEN;
 }
 
 static void ixgbe_get_ringparam(struct net_device *netdev,
@@ -1128,6 +1149,8 @@ static int ixgbe_get_sset_count(struct net_device *netdev, int sset)
 		return IXGBE_TEST_LEN;
 	case ETH_SS_STATS:
 		return IXGBE_STATS_LEN;
+	case ETH_SS_PRIV_FLAGS:
+		return IXGBE_PRIV_FLAGS_STR_LEN;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1170,12 +1193,6 @@ static void ixgbe_get_ethtool_stats(struct net_device *netdev,
 			data[i] = 0;
 			data[i+1] = 0;
 			i += 2;
-#ifdef BP_EXTENDED_STATS
-			data[i] = 0;
-			data[i+1] = 0;
-			data[i+2] = 0;
-			i += 3;
-#endif
 			continue;
 		}
 
@@ -1185,12 +1202,6 @@ static void ixgbe_get_ethtool_stats(struct net_device *netdev,
 			data[i+1] = ring->stats.bytes;
 		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
 		i += 2;
-#ifdef BP_EXTENDED_STATS
-		data[i] = ring->stats.yields;
-		data[i+1] = ring->stats.misses;
-		data[i+2] = ring->stats.cleaned;
-		i += 3;
-#endif
 	}
 	for (j = 0; j < IXGBE_NUM_RX_QUEUES; j++) {
 		ring = adapter->rx_ring[j];
@@ -1198,12 +1209,6 @@ static void ixgbe_get_ethtool_stats(struct net_device *netdev,
 			data[i] = 0;
 			data[i+1] = 0;
 			i += 2;
-#ifdef BP_EXTENDED_STATS
-			data[i] = 0;
-			data[i+1] = 0;
-			data[i+2] = 0;
-			i += 3;
-#endif
 			continue;
 		}
 
@@ -1213,12 +1218,6 @@ static void ixgbe_get_ethtool_stats(struct net_device *netdev,
 			data[i+1] = ring->stats.bytes;
 		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
 		i += 2;
-#ifdef BP_EXTENDED_STATS
-		data[i] = ring->stats.yields;
-		data[i+1] = ring->stats.misses;
-		data[i+2] = ring->stats.cleaned;
-		i += 3;
-#endif
 	}
 
 	for (j = 0; j < IXGBE_MAX_PACKET_BUFFERS; j++) {
@@ -1255,28 +1254,12 @@ static void ixgbe_get_strings(struct net_device *netdev, u32 stringset,
 			p += ETH_GSTRING_LEN;
 			sprintf(p, "tx_queue_%u_bytes", i);
 			p += ETH_GSTRING_LEN;
-#ifdef BP_EXTENDED_STATS
-			sprintf(p, "tx_queue_%u_bp_napi_yield", i);
-			p += ETH_GSTRING_LEN;
-			sprintf(p, "tx_queue_%u_bp_misses", i);
-			p += ETH_GSTRING_LEN;
-			sprintf(p, "tx_queue_%u_bp_cleaned", i);
-			p += ETH_GSTRING_LEN;
-#endif /* BP_EXTENDED_STATS */
 		}
 		for (i = 0; i < IXGBE_NUM_RX_QUEUES; i++) {
 			sprintf(p, "rx_queue_%u_packets", i);
 			p += ETH_GSTRING_LEN;
 			sprintf(p, "rx_queue_%u_bytes", i);
 			p += ETH_GSTRING_LEN;
-#ifdef BP_EXTENDED_STATS
-			sprintf(p, "rx_queue_%u_bp_poll_yield", i);
-			p += ETH_GSTRING_LEN;
-			sprintf(p, "rx_queue_%u_bp_misses", i);
-			p += ETH_GSTRING_LEN;
-			sprintf(p, "rx_queue_%u_bp_cleaned", i);
-			p += ETH_GSTRING_LEN;
-#endif /* BP_EXTENDED_STATS */
 		}
 		for (i = 0; i < IXGBE_MAX_PACKET_BUFFERS; i++) {
 			sprintf(p, "tx_pb_%u_pxon", i);
@@ -1292,6 +1275,9 @@ static void ixgbe_get_strings(struct net_device *netdev, u32 stringset,
 		}
 		/* BUG_ON(p - data != IXGBE_STATS_LEN * ETH_GSTRING_LEN); */
 		break;
+	case ETH_SS_PRIV_FLAGS:
+		memcpy(data, ixgbe_priv_flags_strings,
+		       IXGBE_PRIV_FLAGS_STR_LEN * ETH_GSTRING_LEN);
 	}
 }
 
@@ -1896,7 +1882,7 @@ static u16 ixgbe_clean_test_rings(struct ixgbe_ring *rx_ring,
 	tx_ntc = tx_ring->next_to_clean;
 	rx_desc = IXGBE_RX_DESC(rx_ring, rx_ntc);
 
-	while (ixgbe_test_staterr(rx_desc, IXGBE_RXD_STAT_DD)) {
+	while (rx_desc->wb.upper.length) {
 		/* check Rx buffer */
 		rx_buffer = &rx_ring->rx_buffer_info[rx_ntc];
 
@@ -1918,7 +1904,16 @@ static u16 ixgbe_clean_test_rings(struct ixgbe_ring *rx_ring,
 
 		/* unmap buffer on Tx side */
 		tx_buffer = &tx_ring->tx_buffer_info[tx_ntc];
-		ixgbe_unmap_and_free_tx_resource(tx_ring, tx_buffer);
+
+		/* Free all the Tx ring sk_buffs */
+		dev_kfree_skb_any(tx_buffer->skb);
+
+		/* unmap skb header data */
+		dma_unmap_single(tx_ring->dev,
+				 dma_unmap_addr(tx_buffer, dma),
+				 dma_unmap_len(tx_buffer, len),
+				 DMA_TO_DEVICE);
+		dma_unmap_len_set(tx_buffer, len, 0);
 
 		/* increment Rx/Tx next to clean counters */
 		rx_ntc++;
@@ -3173,6 +3168,9 @@ static int ixgbe_get_module_info(struct net_device *dev,
 	u8 sff8472_rev, addr_mode;
 	bool page_swap = false;
 
+	if (hw->phy.type == ixgbe_phy_fw)
+		return -ENXIO;
+
 	/* Check whether we support SFF-8472 or not */
 	status = hw->phy.ops.read_i2c_eeprom(hw,
 					     IXGBE_SFF_SFF_8472_COMP,
@@ -3218,6 +3216,9 @@ static int ixgbe_get_module_eeprom(struct net_device *dev,
 	if (ee->len == 0)
 		return -EINVAL;
 
+	if (hw->phy.type == ixgbe_phy_fw)
+		return -ENXIO;
+
 	for (i = ee->offset; i < ee->offset + ee->len; i++) {
 		/* I2C reads can take long time */
 		if (test_bit(__IXGBE_IN_SFP_INIT, &adapter->state))
@@ -3232,6 +3233,167 @@ static int ixgbe_get_module_eeprom(struct net_device *dev,
 			return -EIO;
 
 		data[i - ee->offset] = databyte;
+	}
+
+	return 0;
+}
+
+static const struct {
+	ixgbe_link_speed mac_speed;
+	u32 supported;
+} ixgbe_ls_map[] = {
+	{ IXGBE_LINK_SPEED_10_FULL, SUPPORTED_10baseT_Full },
+	{ IXGBE_LINK_SPEED_100_FULL, SUPPORTED_100baseT_Full },
+	{ IXGBE_LINK_SPEED_1GB_FULL, SUPPORTED_1000baseT_Full },
+	{ IXGBE_LINK_SPEED_2_5GB_FULL, SUPPORTED_2500baseX_Full },
+	{ IXGBE_LINK_SPEED_10GB_FULL, SUPPORTED_10000baseT_Full },
+};
+
+static const struct {
+	u32 lp_advertised;
+	u32 mac_speed;
+} ixgbe_lp_map[] = {
+	{ FW_PHY_ACT_UD_2_100M_TX_EEE, SUPPORTED_100baseT_Full },
+	{ FW_PHY_ACT_UD_2_1G_T_EEE, SUPPORTED_1000baseT_Full },
+	{ FW_PHY_ACT_UD_2_10G_T_EEE, SUPPORTED_10000baseT_Full },
+	{ FW_PHY_ACT_UD_2_1G_KX_EEE, SUPPORTED_1000baseKX_Full },
+	{ FW_PHY_ACT_UD_2_10G_KX4_EEE, SUPPORTED_10000baseKX4_Full },
+	{ FW_PHY_ACT_UD_2_10G_KR_EEE, SUPPORTED_10000baseKR_Full},
+};
+
+static int
+ixgbe_get_eee_fw(struct ixgbe_adapter *adapter, struct ethtool_eee *edata)
+{
+	u32 info[FW_PHY_ACT_DATA_COUNT] = { 0 };
+	struct ixgbe_hw *hw = &adapter->hw;
+	s32 rc;
+	u16 i;
+
+	rc = ixgbe_fw_phy_activity(hw, FW_PHY_ACT_UD_2, &info);
+	if (rc)
+		return rc;
+
+	edata->lp_advertised = 0;
+	for (i = 0; i < ARRAY_SIZE(ixgbe_lp_map); ++i) {
+		if (info[0] & ixgbe_lp_map[i].lp_advertised)
+			edata->lp_advertised |= ixgbe_lp_map[i].mac_speed;
+	}
+
+	edata->supported = 0;
+	for (i = 0; i < ARRAY_SIZE(ixgbe_ls_map); ++i) {
+		if (hw->phy.eee_speeds_supported & ixgbe_ls_map[i].mac_speed)
+			edata->supported |= ixgbe_ls_map[i].supported;
+	}
+
+	edata->advertised = 0;
+	for (i = 0; i < ARRAY_SIZE(ixgbe_ls_map); ++i) {
+		if (hw->phy.eee_speeds_advertised & ixgbe_ls_map[i].mac_speed)
+			edata->advertised |= ixgbe_ls_map[i].supported;
+	}
+
+	edata->eee_enabled = !!edata->advertised;
+	edata->tx_lpi_enabled = edata->eee_enabled;
+	if (edata->advertised & edata->lp_advertised)
+		edata->eee_active = true;
+
+	return 0;
+}
+
+static int ixgbe_get_eee(struct net_device *netdev, struct ethtool_eee *edata)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_hw *hw = &adapter->hw;
+
+	if (!(adapter->flags2 & IXGBE_FLAG2_EEE_CAPABLE))
+		return -EOPNOTSUPP;
+
+	if (hw->phy.eee_speeds_supported && hw->phy.type == ixgbe_phy_fw)
+		return ixgbe_get_eee_fw(adapter, edata);
+
+	return -EOPNOTSUPP;
+}
+
+static int ixgbe_set_eee(struct net_device *netdev, struct ethtool_eee *edata)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_hw *hw = &adapter->hw;
+	struct ethtool_eee eee_data;
+	s32 ret_val;
+
+	if (!(adapter->flags2 & IXGBE_FLAG2_EEE_CAPABLE))
+		return -EOPNOTSUPP;
+
+	memset(&eee_data, 0, sizeof(struct ethtool_eee));
+
+	ret_val = ixgbe_get_eee(netdev, &eee_data);
+	if (ret_val)
+		return ret_val;
+
+	if (eee_data.eee_enabled && !edata->eee_enabled) {
+		if (eee_data.tx_lpi_enabled != edata->tx_lpi_enabled) {
+			e_err(drv, "Setting EEE tx-lpi is not supported\n");
+			return -EINVAL;
+		}
+
+		if (eee_data.tx_lpi_timer != edata->tx_lpi_timer) {
+			e_err(drv,
+			      "Setting EEE Tx LPI timer is not supported\n");
+			return -EINVAL;
+		}
+
+		if (eee_data.advertised != edata->advertised) {
+			e_err(drv,
+			      "Setting EEE advertised speeds is not supported\n");
+			return -EINVAL;
+		}
+	}
+
+	if (eee_data.eee_enabled != edata->eee_enabled) {
+		if (edata->eee_enabled) {
+			adapter->flags2 |= IXGBE_FLAG2_EEE_ENABLED;
+			hw->phy.eee_speeds_advertised =
+						   hw->phy.eee_speeds_supported;
+		} else {
+			adapter->flags2 &= ~IXGBE_FLAG2_EEE_ENABLED;
+			hw->phy.eee_speeds_advertised = 0;
+		}
+
+		/* reset link */
+		if (netif_running(netdev))
+			ixgbe_reinit_locked(adapter);
+		else
+			ixgbe_reset(adapter);
+	}
+
+	return 0;
+}
+
+static u32 ixgbe_get_priv_flags(struct net_device *netdev)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	u32 priv_flags = 0;
+
+	if (adapter->flags2 & IXGBE_FLAG2_RX_LEGACY)
+		priv_flags |= IXGBE_PRIV_FLAGS_LEGACY_RX;
+
+	return priv_flags;
+}
+
+static int ixgbe_set_priv_flags(struct net_device *netdev, u32 priv_flags)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	unsigned int flags2 = adapter->flags2;
+
+	flags2 &= ~IXGBE_FLAG2_RX_LEGACY;
+	if (priv_flags & IXGBE_PRIV_FLAGS_LEGACY_RX)
+		flags2 |= IXGBE_FLAG2_RX_LEGACY;
+
+	if (flags2 != adapter->flags2) {
+		adapter->flags2 = flags2;
+
+		/* reset interface to repopulate queues */
+		if (netif_running(netdev))
+			ixgbe_reinit_locked(adapter);
 	}
 
 	return 0;
@@ -3269,8 +3431,12 @@ static const struct ethtool_ops ixgbe_ethtool_ops = {
 	.get_rxfh_key_size	= ixgbe_get_rxfh_key_size,
 	.get_rxfh		= ixgbe_get_rxfh,
 	.set_rxfh		= ixgbe_set_rxfh,
+	.get_eee		= ixgbe_get_eee,
+	.set_eee		= ixgbe_set_eee,
 	.get_channels		= ixgbe_get_channels,
 	.set_channels		= ixgbe_set_channels,
+	.get_priv_flags		= ixgbe_get_priv_flags,
+	.set_priv_flags		= ixgbe_set_priv_flags,
 	.get_ts_info		= ixgbe_get_ts_info,
 	.get_module_info	= ixgbe_get_module_info,
 	.get_module_eeprom	= ixgbe_get_module_eeprom,

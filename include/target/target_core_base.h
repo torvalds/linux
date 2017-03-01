@@ -538,6 +538,7 @@ struct se_node_acl {
 	char			initiatorname[TRANSPORT_IQN_LEN];
 	/* Used to signal demo mode created ACL, disabled by default */
 	bool			dynamic_node_acl;
+	bool			dynamic_stop;
 	u32			queue_depth;
 	u32			acl_index;
 	enum target_prot_type	saved_prot_type;
@@ -913,6 +914,7 @@ static inline struct se_portal_group *param_to_tpg(struct config_item *item)
 
 struct se_wwn {
 	struct target_fabric_configfs *wwn_tf;
+	void			*priv;
 	struct config_group	wwn_group;
 	struct config_group	fabric_stat_group;
 };

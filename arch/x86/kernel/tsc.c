@@ -1107,6 +1107,16 @@ static u64 read_tsc(struct clocksource *cs)
 	return (u64)rdtsc_ordered();
 }
 
+static void tsc_cs_mark_unstable(struct clocksource *cs)
+{
+	if (tsc_unstable)
+		return;
+	tsc_unstable = 1;
+	clear_sched_clock_stable();
+	disable_sched_clock_irqtime();
+	pr_info("Marking TSC unstable due to clocksource watchdog\n");
+}
+
 /*
  * .mask MUST be CLOCKSOURCE_MASK(64). See comment above read_tsc()
  */
@@ -1119,6 +1129,7 @@ static struct clocksource clocksource_tsc = {
 				  CLOCK_SOURCE_MUST_VERIFY,
 	.archdata               = { .vclock_mode = VCLOCK_TSC },
 	.resume			= tsc_resume,
+	.mark_unstable		= tsc_cs_mark_unstable,
 };
 
 void mark_tsc_unstable(char *reason)
@@ -1356,6 +1367,9 @@ void __init tsc_init(void)
 		(unsigned long)cpu_khz / 1000,
 		(unsigned long)cpu_khz % 1000);
 
+	/* Sanitize TSC ADJUST before cyc2ns gets initialized */
+	tsc_store_and_check_tsc_adjust(true);
+
 	/*
 	 * Secondary CPUs do not run through tsc_init(), so set up
 	 * all the scale factors for all CPUs, assuming the same
@@ -1386,8 +1400,6 @@ void __init tsc_init(void)
 
 	if (unsynchronized_tsc())
 		mark_tsc_unstable("TSCs unsynchronized");
-	else
-		tsc_store_and_check_tsc_adjust(true);
 
 	check_system_tsc_reliable();
 

@@ -28,14 +28,14 @@ int __init tx4939_report_pciclk(void)
 		pciclk = txx9_master_clock * 20 / 6;
 		if (!(__raw_readq(&tx4939_ccfgptr->ccfg) & TX4939_CCFG_PCI66))
 			pciclk /= 2;
-		printk(KERN_CONT "Internal(%u.%uMHz)",
-		       (pciclk + 50000) / 1000000,
-		       ((pciclk + 50000) / 100000) % 10);
+		pr_cont("Internal(%u.%uMHz)",
+			(pciclk + 50000) / 1000000,
+			((pciclk + 50000) / 100000) % 10);
 	} else {
-		printk(KERN_CONT "External");
+		pr_cont("External");
 		pciclk = -1;
 	}
-	printk(KERN_CONT "\n");
+	pr_cont("\n");
 	return pciclk;
 }
 

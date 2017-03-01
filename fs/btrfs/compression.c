@@ -124,10 +124,8 @@ static int check_compressed_csum(struct inode *inode,
 		kunmap_atomic(kaddr);
 
 		if (csum != *cb_sum) {
-			btrfs_info(BTRFS_I(inode)->root->fs_info,
-			   "csum failed ino %llu extent %llu csum %u wanted %u mirror %d",
-			   btrfs_ino(inode), disk_start, csum, *cb_sum,
-			   cb->mirror_num);
+			btrfs_print_data_csum_error(inode, disk_start, csum,
+						    *cb_sum, cb->mirror_num);
 			ret = -EIO;
 			goto fail;
 		}
@@ -1024,6 +1022,7 @@ int btrfs_decompress_buf2page(char *buf, unsigned long buf_start,
 	unsigned long buf_offset;
 	unsigned long current_buf_start;
 	unsigned long start_byte;
+	unsigned long prev_start_byte;
 	unsigned long working_bytes = total_out - buf_start;
 	unsigned long bytes;
 	char *kaddr;
@@ -1071,26 +1070,34 @@ int btrfs_decompress_buf2page(char *buf, unsigned long buf_start,
 		if (!bio->bi_iter.bi_size)
 			return 0;
 		bvec = bio_iter_iovec(bio, bio->bi_iter);
-
+		prev_start_byte = start_byte;
 		start_byte = page_offset(bvec.bv_page) - disk_start;
 
 		/*
-		 * make sure our new page is covered by this
-		 * working buffer
+		 * We need to make sure we're only adjusting
+		 * our offset into compression working buffer when
+		 * we're switching pages.  Otherwise we can incorrectly
+		 * keep copying when we were actually done.
 		 */
-		if (total_out <= start_byte)
-			return 1;
+		if (start_byte != prev_start_byte) {
+			/*
+			 * make sure our new page is covered by this
+			 * working buffer
+			 */
+			if (total_out <= start_byte)
+				return 1;
 
-		/*
-		 * the next page in the biovec might not be adjacent
-		 * to the last page, but it might still be found
-		 * inside this working buffer. bump our offset pointer
-		 */
-		if (total_out > start_byte &&
-		    current_buf_start < start_byte) {
-			buf_offset = start_byte - buf_start;
-			working_bytes = total_out - start_byte;
-			current_buf_start = buf_start + buf_offset;
+			/*
+			 * the next page in the biovec might not be adjacent
+			 * to the last page, but it might still be found
+			 * inside this working buffer. bump our offset pointer
+			 */
+			if (total_out > start_byte &&
+			    current_buf_start < start_byte) {
+				buf_offset = start_byte - buf_start;
+				working_bytes = total_out - start_byte;
+				current_buf_start = buf_start + buf_offset;
+			}
 		}
 	}
 

@@ -2462,7 +2462,7 @@ static int drbd_congested(void *congested_data, int bdi_bits)
 
 	if (get_ldev(device)) {
 		q = bdev_get_queue(device->ldev->backing_bdev);
-		r = bdi_congested(&q->backing_dev_info, bdi_bits);
+		r = bdi_congested(q->backing_dev_info, bdi_bits);
 		put_ldev(device);
 		if (r)
 			reason = 'b';
@@ -2834,8 +2834,8 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
 	/* we have no partitions. we contain only ourselves. */
 	device->this_bdev->bd_contains = device->this_bdev;
 
-	q->backing_dev_info.congested_fn = drbd_congested;
-	q->backing_dev_info.congested_data = device;
+	q->backing_dev_info->congested_fn = drbd_congested;
+	q->backing_dev_info->congested_data = device;
 
 	blk_queue_make_request(q, drbd_make_request);
 	blk_queue_write_cache(q, true, true);
@@ -2915,11 +2915,9 @@ out_idr_remove_vol:
 	idr_remove(&connection->peer_devices, vnr);
 out_idr_remove_from_resource:
 	for_each_connection(connection, resource) {
-		peer_device = idr_find(&connection->peer_devices, vnr);
-		if (peer_device) {
-			idr_remove(&connection->peer_devices, vnr);
+		peer_device = idr_remove(&connection->peer_devices, vnr);
+		if (peer_device)
 			kref_put(&connection->kref, drbd_destroy_connection);
-		}
 	}
 	for_each_peer_device_safe(peer_device, tmp_peer_device, device) {
 		list_del(&peer_device->peer_devices);
@@ -2948,7 +2946,6 @@ void drbd_delete_device(struct drbd_device *device)
 	struct drbd_resource *resource = device->resource;
 	struct drbd_connection *connection;
 	struct drbd_peer_device *peer_device;
-	int refs = 3;
 
 	/* move to free_peer_device() */
 	for_each_peer_device(peer_device, device)
@@ -2956,13 +2953,15 @@ void drbd_delete_device(struct drbd_device *device)
 	drbd_debugfs_device_cleanup(device);
 	for_each_connection(connection, resource) {
 		idr_remove(&connection->peer_devices, device->vnr);
-		refs++;
+		kref_put(&device->kref, drbd_destroy_device);
 	}
 	idr_remove(&resource->devices, device->vnr);
+	kref_put(&device->kref, drbd_destroy_device);
 	idr_remove(&drbd_devices, device_to_minor(device));
+	kref_put(&device->kref, drbd_destroy_device);
 	del_gendisk(device->vdisk);
 	synchronize_rcu();
-	kref_sub(&device->kref, refs, drbd_destroy_device);
+	kref_put(&device->kref, drbd_destroy_device);
 }
 
 static int __init drbd_init(void)

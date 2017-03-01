@@ -34,159 +34,12 @@ static void setup_boot_services##bits(struct efi_config *c)		\
 									\
 	table = (typeof(table))sys_table;				\
 									\
+	c->runtime_services = table->runtime;				\
 	c->boot_services = table->boottime;				\
 	c->text_output = table->con_out;				\
 }
 BOOT_SERVICES(32);
 BOOT_SERVICES(64);
-
-void efi_char16_printk(efi_system_table_t *, efi_char16_t *);
-
-static efi_status_t
-__file_size32(void *__fh, efi_char16_t *filename_16,
-	      void **handle, u64 *file_sz)
-{
-	efi_file_handle_32_t *h, *fh = __fh;
-	efi_file_info_t *info;
-	efi_status_t status;
-	efi_guid_t info_guid = EFI_FILE_INFO_ID;
-	u32 info_sz;
-
-	status = efi_early->call((unsigned long)fh->open, fh, &h, filename_16,
-				 EFI_FILE_MODE_READ, (u64)0);
-	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table, "Failed to open file: ");
-		efi_char16_printk(sys_table, filename_16);
-		efi_printk(sys_table, "\n");
-		return status;
-	}
-
-	*handle = h;
-
-	info_sz = 0;
-	status = efi_early->call((unsigned long)h->get_info, h, &info_guid,
-				 &info_sz, NULL);
-	if (status != EFI_BUFFER_TOO_SMALL) {
-		efi_printk(sys_table, "Failed to get file info size\n");
-		return status;
-	}
-
-grow:
-	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
-				info_sz, (void **)&info);
-	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table, "Failed to alloc mem for file info\n");
-		return status;
-	}
-
-	status = efi_early->call((unsigned long)h->get_info, h, &info_guid,
-				 &info_sz, info);
-	if (status == EFI_BUFFER_TOO_SMALL) {
-		efi_call_early(free_pool, info);
-		goto grow;
-	}
-
-	*file_sz = info->file_size;
-	efi_call_early(free_pool, info);
-
-	if (status != EFI_SUCCESS)
-		efi_printk(sys_table, "Failed to get initrd info\n");
-
-	return status;
-}
-
-static efi_status_t
-__file_size64(void *__fh, efi_char16_t *filename_16,
-	      void **handle, u64 *file_sz)
-{
-	efi_file_handle_64_t *h, *fh = __fh;
-	efi_file_info_t *info;
-	efi_status_t status;
-	efi_guid_t info_guid = EFI_FILE_INFO_ID;
-	u64 info_sz;
-
-	status = efi_early->call((unsigned long)fh->open, fh, &h, filename_16,
-				 EFI_FILE_MODE_READ, (u64)0);
-	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table, "Failed to open file: ");
-		efi_char16_printk(sys_table, filename_16);
-		efi_printk(sys_table, "\n");
-		return status;
-	}
-
-	*handle = h;
-
-	info_sz = 0;
-	status = efi_early->call((unsigned long)h->get_info, h, &info_guid,
-				 &info_sz, NULL);
-	if (status != EFI_BUFFER_TOO_SMALL) {
-		efi_printk(sys_table, "Failed to get file info size\n");
-		return status;
-	}
-
-grow:
-	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
-				info_sz, (void **)&info);
-	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table, "Failed to alloc mem for file info\n");
-		return status;
-	}
-
-	status = efi_early->call((unsigned long)h->get_info, h, &info_guid,
-				 &info_sz, info);
-	if (status == EFI_BUFFER_TOO_SMALL) {
-		efi_call_early(free_pool, info);
-		goto grow;
-	}
-
-	*file_sz = info->file_size;
-	efi_call_early(free_pool, info);
-
-	if (status != EFI_SUCCESS)
-		efi_printk(sys_table, "Failed to get initrd info\n");
-
-	return status;
-}
-efi_status_t
-efi_file_size(efi_system_table_t *sys_table, void *__fh,
-	      efi_char16_t *filename_16, void **handle, u64 *file_sz)
-{
-	if (efi_early->is64)
-		return __file_size64(__fh, filename_16, handle, file_sz);
-
-	return __file_size32(__fh, filename_16, handle, file_sz);
-}
-
-efi_status_t
-efi_file_read(void *handle, unsigned long *size, void *addr)
-{
-	unsigned long func;
-
-	if (efi_early->is64) {
-		efi_file_handle_64_t *fh = handle;
-
-		func = (unsigned long)fh->read;
-		return efi_early->call(func, handle, size, addr);
-	} else {
-		efi_file_handle_32_t *fh = handle;
-
-		func = (unsigned long)fh->read;
-		return efi_early->call(func, handle, size, addr);
-	}
-}
-
-efi_status_t efi_file_close(void *handle)
-{
-	if (efi_early->is64) {
-		efi_file_handle_64_t *fh = handle;
-
-		return efi_early->call((unsigned long)fh->close, handle);
-	} else {
-		efi_file_handle_32_t *fh = handle;
-
-		return efi_early->call((unsigned long)fh->close, handle);
-	}
-}
 
 static inline efi_status_t __open_volume32(void *__image, void **__fh)
 {
@@ -251,30 +104,8 @@ efi_open_volume(efi_system_table_t *sys_table, void *__image, void **__fh)
 
 void efi_char16_printk(efi_system_table_t *table, efi_char16_t *str)
 {
-	unsigned long output_string;
-	size_t offset;
-
-	if (efi_early->is64) {
-		struct efi_simple_text_output_protocol_64 *out;
-		u64 *func;
-
-		offset = offsetof(typeof(*out), output_string);
-		output_string = efi_early->text_output + offset;
-		out = (typeof(out))(unsigned long)efi_early->text_output;
-		func = (u64 *)output_string;
-
-		efi_early->call(*func, out, str);
-	} else {
-		struct efi_simple_text_output_protocol_32 *out;
-		u32 *func;
-
-		offset = offsetof(typeof(*out), output_string);
-		output_string = efi_early->text_output + offset;
-		out = (typeof(out))(unsigned long)efi_early->text_output;
-		func = (u32 *)output_string;
-
-		efi_early->call(*func, out, str);
-	}
+	efi_call_proto(efi_simple_text_output_protocol, output_string,
+		       efi_early->text_output, str);
 }
 
 static efi_status_t
@@ -1158,6 +989,13 @@ struct boot_params *efi_main(struct efi_config *c,
 		setup_boot_services64(efi_early);
 	else
 		setup_boot_services32(efi_early);
+
+	/*
+	 * If the boot loader gave us a value for secure_boot then we use that,
+	 * otherwise we ask the BIOS.
+	 */
+	if (boot_params->secure_boot == efi_secureboot_mode_unset)
+		boot_params->secure_boot = efi_get_secureboot(sys_table);
 
 	setup_graphics(boot_params);
 

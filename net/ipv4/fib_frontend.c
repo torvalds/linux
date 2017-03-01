@@ -319,7 +319,7 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 	int ret, no_addr;
 	struct fib_result res;
 	struct flowi4 fl4;
-	struct net *net;
+	struct net *net = dev_net(dev);
 	bool dev_match;
 
 	fl4.flowi4_oif = 0;
@@ -332,6 +332,7 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 	fl4.flowi4_scope = RT_SCOPE_UNIVERSE;
 	fl4.flowi4_tun_key.tun_id = 0;
 	fl4.flowi4_flags = 0;
+	fl4.flowi4_uid = sock_net_uid(net, NULL);
 
 	no_addr = idev->ifa_list == NULL;
 
@@ -339,13 +340,12 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 
 	trace_fib_validate_source(dev, &fl4);
 
-	net = dev_net(dev);
 	if (fib_lookup(net, &fl4, &res, 0))
 		goto last_resort;
 	if (res.type != RTN_UNICAST &&
 	    (res.type != RTN_LOCAL || !IN_DEV_ACCEPT_LOCAL(idev)))
 		goto e_inval;
-	if (!rpf && !fib_num_tclassid_users(dev_net(dev)) &&
+	if (!rpf && !fib_num_tclassid_users(net) &&
 	    (dev->ifindex != oif || !IN_DEV_TX_REDIRECTS(idev)))
 		goto last_resort;
 	fib_combine_itag(itag, &res);

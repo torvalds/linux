@@ -3,6 +3,7 @@
 
 #include <linux/err.h>
 #include <linux/scatterlist.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <crypto/aes.h>
 #include <crypto/skcipher.h>

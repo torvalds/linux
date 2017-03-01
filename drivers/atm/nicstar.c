@@ -1980,13 +1980,12 @@ static void dequeue_rx(ns_dev * card, ns_rsqe * rsqe)
 	card->lbfqc = ns_stat_lfbqc_get(stat);
 
 	id = le32_to_cpu(rsqe->buffer_handle);
-	skb = idr_find(&card->idr, id);
+	skb = idr_remove(&card->idr, id);
 	if (!skb) {
 		RXPRINTK(KERN_ERR
-			 "nicstar%d: idr_find() failed!\n", card->index);
+			 "nicstar%d: skb not found!\n", card->index);
 		return;
 	}
-	idr_remove(&card->idr, id);
 	dma_sync_single_for_cpu(&card->pcidev->dev,
 				NS_PRV_DMA(skb),
 				(NS_PRV_BUFTYPE(skb) == BUF_SM

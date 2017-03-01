@@ -2010,8 +2010,8 @@ static void free_skb_rx_queue(struct gfar_priv_rx_q *rx_queue)
 		if (!rxb->page)
 			continue;
 
-		dma_unmap_single(rx_queue->dev, rxb->dma,
-				 PAGE_SIZE, DMA_FROM_DEVICE);
+		dma_unmap_page(rx_queue->dev, rxb->dma,
+			       PAGE_SIZE, DMA_FROM_DEVICE);
 		__free_page(rxb->page);
 
 		rxb->page = NULL;
@@ -3183,7 +3183,7 @@ static int gfar_poll_rx_sq(struct napi_struct *napi, int budget)
 
 	if (work_done < budget) {
 		u32 imask;
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		/* Clear the halt bit in RSTAT */
 		gfar_write(&regs->rstat, gfargrp->rstat);
 
@@ -3272,7 +3272,7 @@ static int gfar_poll_rx(struct napi_struct *napi, int budget)
 
 	if (!num_act_queues) {
 		u32 imask;
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 
 		/* Clear the halt bit in RSTAT */
 		gfar_write(&regs->rstat, gfargrp->rstat);

@@ -93,12 +93,14 @@ config PPC
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS if MPROFILE_KERNEL
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_GCC_PLUGINS
 	select SYSCTL_EXCEPTION_TRACE
 	select VIRT_TO_BUS if !PPC64
 	select HAVE_IDE
 	select HAVE_IOREMAP_PROT
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS if !(CPU_LITTLE_ENDIAN && POWER7_CPU)
 	select HAVE_KPROBES
+	select HAVE_OPTPROBES if PPC64
 	select HAVE_ARCH_KGDB
 	select HAVE_KRETPROBES
 	select HAVE_ARCH_TRACEHOOK
@@ -164,10 +166,10 @@ config PPC
 	select ARCH_HAS_SCALED_CPUTIME if VIRT_CPU_ACCOUNTING_NATIVE
 	select HAVE_ARCH_HARDENED_USERCOPY
 	select HAVE_KERNEL_GZIP
-	select HAVE_CC_STACKPROTECTOR
+	select HAVE_CONTEXT_TRACKING if PPC64
 
 config GENERIC_CSUM
-	def_bool CPU_LITTLE_ENDIAN
+	def_bool n
 
 config EARLY_PRINTK
 	bool
@@ -391,8 +393,8 @@ config DISABLE_MPROFILE_KERNEL
 	  be disabled also.
 
 	  If you have a toolchain which supports mprofile-kernel, then you can
-	  enable this. Otherwise leave it disabled. If you're not sure, say
-	  "N".
+	  disable this. Otherwise leave it enabled. If you're not sure, say
+	  "Y".
 
 config MPROFILE_KERNEL
 	depends on PPC64 && CPU_LITTLE_ENDIAN
@@ -484,6 +486,7 @@ config RELOCATABLE
 	bool "Build a relocatable kernel"
 	depends on (PPC64 && !COMPILE_TEST) || (FLATMEM && (44x || FSL_BOOKE))
 	select NONSTATIC_KERNEL
+	select MODULE_REL_CRCS if MODVERSIONS
 	help
 	  This builds a kernel image that is capable of running at the
 	  location the kernel is loaded at. For ppc32, there is no any

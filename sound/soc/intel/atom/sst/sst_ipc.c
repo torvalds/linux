@@ -260,10 +260,8 @@ static void process_fw_async_msg(struct intel_sst_drv *sst_drv_ctx,
 	u32 data_size, i;
 	void *data_offset;
 	struct stream_info *stream;
-	union ipc_header_high msg_high;
 	u32 msg_low, pipe_id;
 
-	msg_high = msg->mrfld_header.p.header_high;
 	msg_low = msg->mrfld_header.p.header_low_payload;
 	msg_id = ((struct ipc_dsp_hdr *)msg->mailbox_data)->cmd_id;
 	data_offset = (msg->mailbox_data + sizeof(struct ipc_dsp_hdr));

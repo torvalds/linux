@@ -1391,7 +1391,7 @@ EXPORT_SYMBOL(ieee80211_sta_pspoll);
 void ieee80211_sta_uapsd_trigger(struct ieee80211_sta *pubsta, u8 tid)
 {
 	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
-	u8 ac = ieee802_1d_to_ac[tid & 7];
+	int ac = ieee80211_ac_from_tid(tid);
 
 	/*
 	 * If this AC is not trigger-enabled do nothing unless the
@@ -1908,7 +1908,6 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 	unsigned int frag, seq;
 	struct ieee80211_fragment_entry *entry;
 	struct sk_buff *skb;
-	struct ieee80211_rx_status *status;
 
 	hdr = (struct ieee80211_hdr *)rx->skb->data;
 	fc = hdr->frame_control;
@@ -2033,9 +2032,6 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 		memcpy(skb_put(rx->skb, skb->len), skb->data, skb->len);
 		dev_kfree_skb(skb);
 	}
-
-	/* Complete frame has been reassembled - process it now */
-	status = IEEE80211_SKB_RXCB(rx->skb);
 
  out:
 	ieee80211_led_rx(rx->local);

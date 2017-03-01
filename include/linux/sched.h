@@ -29,7 +29,6 @@ struct sched_param {
 
 #include <asm/page.h>
 #include <asm/ptrace.h>
-#include <linux/cputime.h>
 
 #include <linux/smp.h>
 #include <linux/sem.h>
@@ -227,7 +226,7 @@ extern void proc_sched_set_task(struct task_struct *p);
 extern char ___assert_task_state[1 - 2*!!(
 		sizeof(TASK_STATE_TO_CHAR_STR)-1 != ilog2(TASK_STATE_MAX)+1)];
 
-/* Convenience macros for the sake of set_task_state */
+/* Convenience macros for the sake of set_current_state */
 #define TASK_KILLABLE		(TASK_WAKEKILL | TASK_UNINTERRUPTIBLE)
 #define TASK_STOPPED		(TASK_WAKEKILL | __TASK_STOPPED)
 #define TASK_TRACED		(TASK_WAKEKILL | __TASK_TRACED)
@@ -254,17 +253,6 @@ extern char ___assert_task_state[1 - 2*!!(
 
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
 
-#define __set_task_state(tsk, state_value)			\
-	do {							\
-		(tsk)->task_state_change = _THIS_IP_;		\
-		(tsk)->state = (state_value);			\
-	} while (0)
-#define set_task_state(tsk, state_value)			\
-	do {							\
-		(tsk)->task_state_change = _THIS_IP_;		\
-		smp_store_mb((tsk)->state, (state_value));	\
-	} while (0)
-
 #define __set_current_state(state_value)			\
 	do {							\
 		current->task_state_change = _THIS_IP_;		\
@@ -277,20 +265,6 @@ extern char ___assert_task_state[1 - 2*!!(
 	} while (0)
 
 #else
-
-/*
- * @tsk had better be current, or you get to keep the pieces.
- *
- * The only reason is that computing current can be more expensive than
- * using a pointer that's already available.
- *
- * Therefore, see set_current_state().
- */
-#define __set_task_state(tsk, state_value)		\
-	do { (tsk)->state = (state_value); } while (0)
-#define set_task_state(tsk, state_value)		\
-	smp_store_mb((tsk)->state, (state_value))
-
 /*
  * set_current_state() includes a barrier so that the write of current->state
  * is correctly serialised wrt the caller's subsequent test of whether to
@@ -461,12 +435,10 @@ extern signed long schedule_timeout_idle(signed long timeout);
 asmlinkage void schedule(void);
 extern void schedule_preempt_disabled(void);
 
+extern int __must_check io_schedule_prepare(void);
+extern void io_schedule_finish(int token);
 extern long io_schedule_timeout(long timeout);
-
-static inline void io_schedule(void)
-{
-	io_schedule_timeout(MAX_SCHEDULE_TIMEOUT);
-}
+extern void io_schedule(void);
 
 void __noreturn do_task_dead(void);
 
@@ -565,15 +537,13 @@ struct pacct_struct {
 	int			ac_flag;
 	long			ac_exitcode;
 	unsigned long		ac_mem;
-	cputime_t		ac_utime, ac_stime;
+	u64			ac_utime, ac_stime;
 	unsigned long		ac_minflt, ac_majflt;
 };
 
 struct cpu_itimer {
-	cputime_t expires;
-	cputime_t incr;
-	u32 error;
-	u32 incr_error;
+	u64 expires;
+	u64 incr;
 };
 
 /**
@@ -587,8 +557,8 @@ struct cpu_itimer {
  */
 struct prev_cputime {
 #ifndef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
-	cputime_t utime;
-	cputime_t stime;
+	u64 utime;
+	u64 stime;
 	raw_spinlock_t lock;
 #endif
 };
@@ -603,8 +573,8 @@ static inline void prev_cputime_init(struct prev_cputime *prev)
 
 /**
  * struct task_cputime - collected CPU time counts
- * @utime:		time spent in user mode, in &cputime_t units
- * @stime:		time spent in kernel mode, in &cputime_t units
+ * @utime:		time spent in user mode, in nanoseconds
+ * @stime:		time spent in kernel mode, in nanoseconds
  * @sum_exec_runtime:	total time spent on the CPU, in nanoseconds
  *
  * This structure groups together three kinds of CPU time that are tracked for
@@ -612,8 +582,8 @@ static inline void prev_cputime_init(struct prev_cputime *prev)
  * these counts together and treat all three of them in parallel.
  */
 struct task_cputime {
-	cputime_t utime;
-	cputime_t stime;
+	u64 utime;
+	u64 stime;
 	unsigned long long sum_exec_runtime;
 };
 
@@ -621,13 +591,6 @@ struct task_cputime {
 #define virt_exp	utime
 #define prof_exp	stime
 #define sched_exp	sum_exec_runtime
-
-#define INIT_CPUTIME	\
-	(struct task_cputime) {					\
-		.utime = 0,					\
-		.stime = 0,					\
-		.sum_exec_runtime = 0,				\
-	}
 
 /*
  * This is the atomic variant of task_cputime, which can be used for
@@ -734,13 +697,14 @@ struct signal_struct {
 	unsigned int		is_child_subreaper:1;
 	unsigned int		has_child_subreaper:1;
 
+#ifdef CONFIG_POSIX_TIMERS
+
 	/* POSIX.1b Interval Timers */
 	int			posix_timer_id;
 	struct list_head	posix_timers;
 
 	/* ITIMER_REAL timer for the process */
 	struct hrtimer real_timer;
-	struct pid *leader_pid;
 	ktime_t it_real_incr;
 
 	/*
@@ -759,11 +723,15 @@ struct signal_struct {
 	/* Earliest-expiration cache. */
 	struct task_cputime cputime_expires;
 
+	struct list_head cpu_timers[3];
+
+#endif
+
+	struct pid *leader_pid;
+
 #ifdef CONFIG_NO_HZ_FULL
 	atomic_t tick_dep_mask;
 #endif
-
-	struct list_head cpu_timers[3];
 
 	struct pid *tty_old_pgrp;
 
@@ -782,9 +750,9 @@ struct signal_struct {
 	 * in __exit_signal, except for the group leader.
 	 */
 	seqlock_t stats_lock;
-	cputime_t utime, stime, cutime, cstime;
-	cputime_t gtime;
-	cputime_t cgtime;
+	u64 utime, stime, cutime, cstime;
+	u64 gtime;
+	u64 cgtime;
 	struct prev_cputime prev_cputime;
 	unsigned long nvcsw, nivcsw, cnvcsw, cnivcsw;
 	unsigned long min_flt, maj_flt, cmin_flt, cmaj_flt;
@@ -878,10 +846,6 @@ struct user_struct {
 	atomic_t __count;	/* reference count */
 	atomic_t processes;	/* How many processes does this user have? */
 	atomic_t sigpending;	/* How many pending signals does this user have? */
-#ifdef CONFIG_INOTIFY_USER
-	atomic_t inotify_watches; /* How many inotify watches does this user have? */
-	atomic_t inotify_devs;	/* How many inotify devs does this user have opened? */
-#endif
 #ifdef CONFIG_FANOTIFY
 	atomic_t fanotify_listeners;
 #endif
@@ -1025,8 +989,8 @@ enum cpu_idle_type {
  *
  * The DEFINE_WAKE_Q macro declares and initializes the list head.
  * wake_up_q() does NOT reinitialize the list; it's expected to be
- * called near the end of a function, where the fact that the queue is
- * not used again will be easy to see by inspection.
+ * called near the end of a function. Otherwise, the list can be
+ * re-initialized for later re-use by wake_q_init().
  *
  * Note that this can cause spurious wakeups. schedule() callers
  * must ensure the call is done inside a loop, confirming that the
@@ -1045,6 +1009,12 @@ struct wake_q_head {
 
 #define DEFINE_WAKE_Q(name)				\
 	struct wake_q_head name = { WAKE_Q_TAIL, &name.first }
+
+static inline void wake_q_init(struct wake_q_head *head)
+{
+	head->first = WAKE_Q_TAIL;
+	head->lastp = &head->first;
+}
 
 extern void wake_q_add(struct wake_q_head *head,
 		       struct task_struct *task);
@@ -1663,11 +1633,11 @@ struct task_struct {
 	int __user *set_child_tid;		/* CLONE_CHILD_SETTID */
 	int __user *clear_child_tid;		/* CLONE_CHILD_CLEARTID */
 
-	cputime_t utime, stime;
+	u64 utime, stime;
 #ifdef CONFIG_ARCH_HAS_SCALED_CPUTIME
-	cputime_t utimescaled, stimescaled;
+	u64 utimescaled, stimescaled;
 #endif
-	cputime_t gtime;
+	u64 gtime;
 	struct prev_cputime prev_cputime;
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
 	seqcount_t vtime_seqcount;
@@ -1691,8 +1661,10 @@ struct task_struct {
 /* mm fault and swap info: this can arguably be seen as either mm-specific or thread-specific */
 	unsigned long min_flt, maj_flt;
 
+#ifdef CONFIG_POSIX_TIMERS
 	struct task_cputime cputime_expires;
 	struct list_head cpu_timers[3];
+#endif
 
 /* process credentials */
 	const struct cred __rcu *ptracer_cred; /* Tracer's credentials at attach */
@@ -1817,7 +1789,7 @@ struct task_struct {
 #if defined(CONFIG_TASK_XACCT)
 	u64 acct_rss_mem1;	/* accumulated rss usage */
 	u64 acct_vm_mem1;	/* accumulated virtual memory usage */
-	cputime_t acct_timexpd;	/* stime + utime since last update */
+	u64 acct_timexpd;	/* stime + utime since last update */
 #endif
 #ifdef CONFIG_CPUSETS
 	nodemask_t mems_allowed;	/* Protected by alloc_lock */
@@ -2262,17 +2234,17 @@ struct task_struct *try_get_task_struct(struct task_struct **ptask);
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
 extern void task_cputime(struct task_struct *t,
-			 cputime_t *utime, cputime_t *stime);
-extern cputime_t task_gtime(struct task_struct *t);
+			 u64 *utime, u64 *stime);
+extern u64 task_gtime(struct task_struct *t);
 #else
 static inline void task_cputime(struct task_struct *t,
-				cputime_t *utime, cputime_t *stime)
+				u64 *utime, u64 *stime)
 {
 	*utime = t->utime;
 	*stime = t->stime;
 }
 
-static inline cputime_t task_gtime(struct task_struct *t)
+static inline u64 task_gtime(struct task_struct *t)
 {
 	return t->gtime;
 }
@@ -2280,23 +2252,23 @@ static inline cputime_t task_gtime(struct task_struct *t)
 
 #ifdef CONFIG_ARCH_HAS_SCALED_CPUTIME
 static inline void task_cputime_scaled(struct task_struct *t,
-				       cputime_t *utimescaled,
-				       cputime_t *stimescaled)
+				       u64 *utimescaled,
+				       u64 *stimescaled)
 {
 	*utimescaled = t->utimescaled;
 	*stimescaled = t->stimescaled;
 }
 #else
 static inline void task_cputime_scaled(struct task_struct *t,
-				       cputime_t *utimescaled,
-				       cputime_t *stimescaled)
+				       u64 *utimescaled,
+				       u64 *stimescaled)
 {
 	task_cputime(t, utimescaled, stimescaled);
 }
 #endif
 
-extern void task_cputime_adjusted(struct task_struct *p, cputime_t *ut, cputime_t *st);
-extern void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut, cputime_t *st);
+extern void task_cputime_adjusted(struct task_struct *p, u64 *ut, u64 *st);
+extern void thread_group_cputime_adjusted(struct task_struct *p, u64 *ut, u64 *st);
 
 /*
  * Per process flags
@@ -2515,7 +2487,15 @@ extern u64 sched_clock_cpu(int cpu);
 extern void sched_clock_init(void);
 
 #ifndef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
+static inline void sched_clock_init_late(void)
+{
+}
+
 static inline void sched_clock_tick(void)
+{
+}
+
+static inline void clear_sched_clock_stable(void)
 {
 }
 
@@ -2537,6 +2517,7 @@ static inline u64 local_clock(void)
 	return sched_clock();
 }
 #else
+extern void sched_clock_init_late(void);
 /*
  * Architectures can set this to 1 if they have specified
  * CONFIG_HAVE_UNSTABLE_SCHED_CLOCK in their arch Kconfig,
@@ -2544,7 +2525,6 @@ static inline u64 local_clock(void)
  * is reliable after all:
  */
 extern int sched_clock_stable(void);
-extern void set_sched_clock_stable(void);
 extern void clear_sched_clock_stable(void);
 
 extern void sched_clock_tick(void);
@@ -2924,6 +2904,28 @@ static inline unsigned long sigsp(unsigned long sp, struct ksignal *ksig)
  */
 extern struct mm_struct * mm_alloc(void);
 
+/**
+ * mmgrab() - Pin a &struct mm_struct.
+ * @mm: The &struct mm_struct to pin.
+ *
+ * Make sure that @mm will not get freed even after the owning task
+ * exits. This doesn't guarantee that the associated address space
+ * will still exist later on and mmget_not_zero() has to be used before
+ * accessing it.
+ *
+ * This is a preferred way to to pin @mm for a longer/unbounded amount
+ * of time.
+ *
+ * Use mmdrop() to release the reference acquired by mmgrab().
+ *
+ * See also <Documentation/vm/active_mm.txt> for an in-depth explanation
+ * of &mm_struct.mm_count vs &mm_struct.mm_users.
+ */
+static inline void mmgrab(struct mm_struct *mm)
+{
+	atomic_inc(&mm->mm_count);
+}
+
 /* mmdrop drops the mm and the page tables */
 extern void __mmdrop(struct mm_struct *);
 static inline void mmdrop(struct mm_struct *mm)
@@ -2944,6 +2946,27 @@ static inline void mmdrop_async(struct mm_struct *mm)
 		INIT_WORK(&mm->async_put_work, mmdrop_async_fn);
 		schedule_work(&mm->async_put_work);
 	}
+}
+
+/**
+ * mmget() - Pin the address space associated with a &struct mm_struct.
+ * @mm: The address space to pin.
+ *
+ * Make sure that the address space of the given &struct mm_struct doesn't
+ * go away. This does not protect against parts of the address space being
+ * modified or freed, however.
+ *
+ * Never use this function to pin this address space for an
+ * unbounded/indefinite amount of time.
+ *
+ * Use mmput() to release the reference acquired by mmget().
+ *
+ * See also <Documentation/vm/active_mm.txt> for an in-depth explanation
+ * of &mm_struct.mm_count vs &mm_struct.mm_users.
+ */
+static inline void mmget(struct mm_struct *mm)
+{
+	atomic_inc(&mm->mm_users);
 }
 
 static inline bool mmget_not_zero(struct mm_struct *mm)
@@ -3066,6 +3089,9 @@ extern bool current_is_single_threaded(void);
 /* Careful: this is a double loop, 'break' won't work as expected. */
 #define for_each_process_thread(p, t)	\
 	for_each_process(p) for_each_thread(p, t)
+
+typedef int (*proc_visitor)(struct task_struct *p, void *data);
+void walk_process_tree(struct task_struct *top, proc_visitor, void *);
 
 static inline int get_nr_threads(struct task_struct *tsk)
 {

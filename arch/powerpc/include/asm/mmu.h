@@ -136,6 +136,7 @@ enum {
 		MMU_FTR_NO_SLBIE_B | MMU_FTR_16M_PAGE | MMU_FTR_TLBIEL |
 		MMU_FTR_LOCKLESS_TLBIE | MMU_FTR_CI_LARGE_PAGE |
 		MMU_FTR_1T_SEGMENT | MMU_FTR_TLBIE_CROP_VA |
+		MMU_FTR_KERNEL_RO |
 #ifdef CONFIG_PPC_RADIX_MMU
 		MMU_FTR_TYPE_RADIX |
 #endif
@@ -160,7 +161,9 @@ static __always_inline bool mmu_has_feature(unsigned long feature)
 {
 	int i;
 
+#ifndef __clang__ /* clang can't cope with this */
 	BUILD_BUG_ON(!__builtin_constant_p(feature));
+#endif
 
 #ifdef CONFIG_JUMP_LABEL_FEATURE_CHECK_DEBUG
 	if (!static_key_initialized) {

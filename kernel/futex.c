@@ -338,7 +338,7 @@ static inline bool should_fail_futex(bool fshared)
 
 static inline void futex_get_mm(union futex_key *key)
 {
-	atomic_inc(&key->private.mm->mm_count);
+	mmgrab(key->private.mm);
 	/*
 	 * Ensure futex_get_mm() implies a full barrier such that
 	 * get_futex_key() implies a full barrier. This is relied upon
@@ -3323,4 +3323,4 @@ static int __init futex_init(void)
 
 	return 0;
 }
-__initcall(futex_init);
+core_initcall(futex_init);

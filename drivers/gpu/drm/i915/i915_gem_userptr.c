@@ -334,7 +334,7 @@ i915_gem_userptr_init__mm_struct(struct drm_i915_gem_object *obj)
 		mm->i915 = to_i915(obj->base.dev);
 
 		mm->mm = current->mm;
-		atomic_inc(&current->mm->mm_count);
+		mmgrab(current->mm);
 
 		mm->mn = NULL;
 
@@ -507,7 +507,7 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 			flags |= FOLL_WRITE;
 
 		ret = -EFAULT;
-		if (atomic_inc_not_zero(&mm->mm_users)) {
+		if (mmget_not_zero(mm)) {
 			down_read(&mm->mmap_sem);
 			while (pinned < npages) {
 				ret = get_user_pages_remote
@@ -784,7 +784,7 @@ i915_gem_userptr_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 		return -ENODEV;
 	}
 
-	obj = i915_gem_object_alloc(dev);
+	obj = i915_gem_object_alloc(dev_priv);
 	if (obj == NULL)
 		return -ENOMEM;
 

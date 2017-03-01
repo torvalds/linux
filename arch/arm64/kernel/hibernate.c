@@ -50,9 +50,6 @@
  */
 extern int in_suspend;
 
-/* Find a symbols alias in the linear map */
-#define LMADDR(x)	phys_to_virt(virt_to_phys(x))
-
 /* Do we need to reset el2? */
 #define el2_reset_needed() (is_hyp_mode_available() && !is_kernel_in_hyp_mode())
 
@@ -102,8 +99,8 @@ static inline void arch_hdr_invariants(struct arch_hibernate_hdr_invariants *i)
 
 int pfn_is_nosave(unsigned long pfn)
 {
-	unsigned long nosave_begin_pfn = virt_to_pfn(&__nosave_begin);
-	unsigned long nosave_end_pfn = virt_to_pfn(&__nosave_end - 1);
+	unsigned long nosave_begin_pfn = sym_to_pfn(&__nosave_begin);
+	unsigned long nosave_end_pfn = sym_to_pfn(&__nosave_end - 1);
 
 	return (pfn >= nosave_begin_pfn) && (pfn <= nosave_end_pfn);
 }
@@ -125,12 +122,12 @@ int arch_hibernation_header_save(void *addr, unsigned int max_size)
 		return -EOVERFLOW;
 
 	arch_hdr_invariants(&hdr->invariants);
-	hdr->ttbr1_el1		= virt_to_phys(swapper_pg_dir);
+	hdr->ttbr1_el1		= __pa_symbol(swapper_pg_dir);
 	hdr->reenter_kernel	= _cpu_resume;
 
 	/* We can't use __hyp_get_vectors() because kvm may still be loaded */
 	if (el2_reset_needed())
-		hdr->__hyp_stub_vectors = virt_to_phys(__hyp_stub_vectors);
+		hdr->__hyp_stub_vectors = __pa_symbol(__hyp_stub_vectors);
 	else
 		hdr->__hyp_stub_vectors = 0;
 
@@ -460,7 +457,6 @@ int swsusp_arch_resume(void)
 	void *zero_page;
 	size_t exit_size;
 	pgd_t *tmp_pg_dir;
-	void *lm_restore_pblist;
 	phys_addr_t phys_hibernate_exit;
 	void __noreturn (*hibernate_exit)(phys_addr_t, phys_addr_t, void *,
 					  void *, phys_addr_t, phys_addr_t);
@@ -472,7 +468,7 @@ int swsusp_arch_resume(void)
 	 */
 	tmp_pg_dir = (pgd_t *)get_safe_page(GFP_ATOMIC);
 	if (!tmp_pg_dir) {
-		pr_err("Failed to allocate memory for temporary page tables.");
+		pr_err("Failed to allocate memory for temporary page tables.\n");
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -481,18 +477,12 @@ int swsusp_arch_resume(void)
 		goto out;
 
 	/*
-	 * Since we only copied the linear map, we need to find restore_pblist's
-	 * linear map address.
-	 */
-	lm_restore_pblist = LMADDR(restore_pblist);
-
-	/*
 	 * We need a zero page that is zero before & after resume in order to
 	 * to break before make on the ttbr1 page tables.
 	 */
 	zero_page = (void *)get_safe_page(GFP_ATOMIC);
 	if (!zero_page) {
-		pr_err("Failed to allocate zero page.");
+		pr_err("Failed to allocate zero page.\n");
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -512,7 +502,7 @@ int swsusp_arch_resume(void)
 				   &phys_hibernate_exit,
 				   (void *)get_safe_page, GFP_ATOMIC);
 	if (rc) {
-		pr_err("Failed to create safe executable page for hibernate_exit code.");
+		pr_err("Failed to create safe executable page for hibernate_exit code.\n");
 		goto out;
 	}
 
@@ -537,7 +527,7 @@ int swsusp_arch_resume(void)
 	}
 
 	hibernate_exit(virt_to_phys(tmp_pg_dir), resume_hdr.ttbr1_el1,
-		       resume_hdr.reenter_kernel, lm_restore_pblist,
+		       resume_hdr.reenter_kernel, restore_pblist,
 		       resume_hdr.__hyp_stub_vectors, virt_to_phys(zero_page));
 
 out:

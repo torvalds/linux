@@ -133,7 +133,7 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 	struct btrfs_disk_key disk_key;
 	u32 data_size;
 
-	key.objectid = btrfs_ino(dir);
+	key.objectid = btrfs_ino(BTRFS_I(dir));
 	key.type = BTRFS_DIR_ITEM_KEY;
 	key.offset = btrfs_name_hash(name, name_len);
 
@@ -174,8 +174,7 @@ second_insert:
 	btrfs_release_path(path);
 
 	ret2 = btrfs_insert_delayed_dir_index(trans, root->fs_info, name,
-					      name_len, dir, &disk_key, type,
-					      index);
+			name_len, BTRFS_I(dir), &disk_key, type, index);
 out_free:
 	btrfs_free_path(path);
 	if (ret)

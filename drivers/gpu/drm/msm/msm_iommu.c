@@ -24,9 +24,12 @@ struct msm_iommu {
 };
 #define to_msm_iommu(x) container_of(x, struct msm_iommu, base)
 
-static int msm_fault_handler(struct iommu_domain *iommu, struct device *dev,
+static int msm_fault_handler(struct iommu_domain *domain, struct device *dev,
 		unsigned long iova, int flags, void *arg)
 {
+	struct msm_iommu *iommu = arg;
+	if (iommu->base.handler)
+		return iommu->base.handler(iommu->base.arg, iova, flags);
 	pr_warn_ratelimited("*** fault: iova=%08lx, flags=%d\n", iova, flags);
 	return 0;
 }
@@ -136,7 +139,7 @@ struct msm_mmu *msm_iommu_new(struct device *dev, struct iommu_domain *domain)
 
 	iommu->domain = domain;
 	msm_mmu_init(&iommu->base, dev, &funcs);
-	iommu_set_fault_handler(domain, msm_fault_handler, dev);
+	iommu_set_fault_handler(domain, msm_fault_handler, iommu);
 
 	return &iommu->base;
 }

@@ -160,7 +160,7 @@ static void start_secondary(void)
 	__this_cpu_write(current_asid, min_asid);
 
 	/* Set up this thread as another owner of the init_mm */
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 	if (current->mm)
 		BUG();

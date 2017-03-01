@@ -190,12 +190,12 @@ int vgem_fence_attach_ioctl(struct drm_device *dev,
 
 	/* Expose the fence via the dma-buf */
 	ret = 0;
-	ww_mutex_lock(&resv->lock, NULL);
+	reservation_object_lock(resv, NULL);
 	if (arg->flags & VGEM_FENCE_WRITE)
 		reservation_object_add_excl_fence(resv, fence);
 	else if ((ret = reservation_object_reserve_shared(resv)) == 0)
 		reservation_object_add_shared_fence(resv, fence);
-	ww_mutex_unlock(&resv->lock);
+	reservation_object_unlock(resv);
 
 	/* Record the fence in our idr for later signaling */
 	if (ret == 0) {

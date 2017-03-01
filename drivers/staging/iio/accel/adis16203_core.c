@@ -1,7 +1,7 @@
 /*
- * ADIS16203 Programmable Digital Vibration Sensor driver
+ * ADIS16203 Programmable 360 Degrees Inclinometer
  *
- * Copyright 2030 Analog Devices Inc.
+ * Copyright 2010 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later.
  */
@@ -211,6 +211,6 @@ static struct spi_driver adis16203_driver = {
 module_spi_driver(adis16203_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
-MODULE_DESCRIPTION("Analog Devices ADIS16203 Programmable Digital Vibration Sensor driver");
+MODULE_DESCRIPTION("Analog Devices ADIS16203 Programmable 360 Degrees Inclinometer");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("spi:adis16203");

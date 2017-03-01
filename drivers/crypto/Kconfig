@@ -62,19 +62,32 @@ config CRYPTO_DEV_GEODE
 	  will be called geode-aes.
 
 config ZCRYPT
-	tristate "Support for PCI-attached cryptographic adapters"
+	tristate "Support for s390 cryptographic adapters"
 	depends on S390
 	select HW_RANDOM
 	help
-	  Select this option if you want to use a PCI-attached cryptographic
-	  adapter like:
-	  + PCI Cryptographic Accelerator (PCICA)
-	  + PCI Cryptographic Coprocessor (PCICC)
+	  Select this option if you want to enable support for
+	  s390 cryptographic adapters like:
 	  + PCI-X Cryptographic Coprocessor (PCIXCC)
-	  + Crypto Express2 Coprocessor (CEX2C)
-	  + Crypto Express2 Accelerator (CEX2A)
-	  + Crypto Express3 Coprocessor (CEX3C)
-	  + Crypto Express3 Accelerator (CEX3A)
+	  + Crypto Express 2,3,4 or 5 Coprocessor (CEXxC)
+	  + Crypto Express 2,3,4 or 5 Accelerator (CEXxA)
+	  + Crypto Express 4 or 5 EP11 Coprocessor (CEXxP)
+
+config PKEY
+	tristate "Kernel API for protected key handling"
+	depends on S390
+	depends on ZCRYPT
+	help
+	  With this option enabled the pkey kernel module provides an API
+	  for creation and handling of protected keys. Other parts of the
+	  kernel or userspace applications may use these functions.
+
+	  Select this option if you want to enable the kernel and userspace
+	  API for proteced key handling.
+
+	  Please note that creation of protected keys from secure keys
+	  requires to have at least one CEX card in coprocessor mode
+	  available at runtime.
 
 config CRYPTO_SHA1_S390
 	tristate "SHA1 digest algorithm"
@@ -124,6 +137,7 @@ config CRYPTO_AES_S390
 	depends on S390
 	select CRYPTO_ALGAPI
 	select CRYPTO_BLKCIPHER
+	select PKEY
 	help
 	  This is the s390 hardware accelerated implementation of the
 	  AES cipher algorithms (FIPS-197).
@@ -339,7 +353,7 @@ config CRYPTO_DEV_OMAP_DES
 
 config CRYPTO_DEV_PICOXCELL
 	tristate "Support for picoXcell IPSEC and Layer2 crypto engines"
-	depends on ARCH_PICOXCELL && HAVE_CLK
+	depends on (ARCH_PICOXCELL || COMPILE_TEST) && HAVE_CLK
 	select CRYPTO_AEAD
 	select CRYPTO_AES
 	select CRYPTO_AUTHENC
@@ -415,10 +429,23 @@ config CRYPTO_DEV_BFIN_CRC
 	  Newer Blackfin processors have CRC hardware. Select this if you
 	  want to use the Blackfin CRC module.
 
+config CRYPTO_DEV_ATMEL_AUTHENC
+	tristate "Support for Atmel IPSEC/SSL hw accelerator"
+	depends on HAS_DMA
+	depends on ARCH_AT91 || COMPILE_TEST
+	select CRYPTO_AUTHENC
+	select CRYPTO_DEV_ATMEL_AES
+	select CRYPTO_DEV_ATMEL_SHA
+	help
+	  Some Atmel processors can combine the AES and SHA hw accelerators
+	  to enhance support of IPSEC/SSL.
+	  Select this if you want to use the Atmel modules for
+	  authenc(hmac(shaX),Y(cbc)) algorithms.
+
 config CRYPTO_DEV_ATMEL_AES
 	tristate "Support for Atmel AES hw accelerator"
 	depends on HAS_DMA
-	depends on AT_XDMAC || AT_HDMAC || COMPILE_TEST
+	depends on ARCH_AT91 || COMPILE_TEST
 	select CRYPTO_AES
 	select CRYPTO_AEAD
 	select CRYPTO_BLKCIPHER
@@ -432,7 +459,7 @@ config CRYPTO_DEV_ATMEL_AES
 
 config CRYPTO_DEV_ATMEL_TDES
 	tristate "Support for Atmel DES/TDES hw accelerator"
-	depends on ARCH_AT91
+	depends on ARCH_AT91 || COMPILE_TEST
 	select CRYPTO_DES
 	select CRYPTO_BLKCIPHER
 	help
@@ -445,7 +472,7 @@ config CRYPTO_DEV_ATMEL_TDES
 
 config CRYPTO_DEV_ATMEL_SHA
 	tristate "Support for Atmel SHA hw accelerator"
-	depends on ARCH_AT91
+	depends on ARCH_AT91 || COMPILE_TEST
 	select CRYPTO_HASH
 	help
 	  Some Atmel processors have SHA1/SHA224/SHA256/SHA384/SHA512
@@ -484,6 +511,7 @@ config CRYPTO_DEV_MXS_DCP
 	  will be called mxs-dcp.
 
 source "drivers/crypto/qat/Kconfig"
+source "drivers/crypto/cavium/cpt/Kconfig"
 
 config CRYPTO_DEV_QCE
 	tristate "Qualcomm crypto engine accelerator"
@@ -553,8 +581,39 @@ config CRYPTO_DEV_ROCKCHIP
 	  This driver interfaces with the hardware crypto accelerator.
 	  Supporting cbc/ecb chainmode, and aes/des/des3_ede cipher mode.
 
+config CRYPTO_DEV_MEDIATEK
+	tristate "MediaTek's EIP97 Cryptographic Engine driver"
+	depends on (ARM && ARCH_MEDIATEK) || COMPILE_TEST
+	select CRYPTO_AES
+	select CRYPTO_AEAD
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_CTR
+	select CRYPTO_SHA1
+	select CRYPTO_SHA256
+	select CRYPTO_SHA512
+	select CRYPTO_HMAC
+	help
+	  This driver allows you to utilize the hardware crypto accelerator
+	  EIP97 which can be found on the MT7623 MT2701, MT8521p, etc ....
+	  Select this if you want to use it for AES/SHA1/SHA2 algorithms.
+
 source "drivers/crypto/chelsio/Kconfig"
 
 source "drivers/crypto/virtio/Kconfig"
+
+config CRYPTO_DEV_BCM_SPU
+	tristate "Broadcom symmetric crypto/hash acceleration support"
+	depends on ARCH_BCM_IPROC
+	depends on BCM_PDC_MBOX
+	default m
+	select CRYPTO_DES
+	select CRYPTO_MD5
+	select CRYPTO_SHA1
+	select CRYPTO_SHA256
+	select CRYPTO_SHA512
+	help
+	  This driver provides support for Broadcom crypto acceleration using the
+	  Secure Processing Unit (SPU). The SPU driver registers ablkcipher,
+	  ahash, and aead algorithms with the kernel cryptographic API.
 
 endif # CRYPTO_HW

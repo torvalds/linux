@@ -67,7 +67,7 @@ static void nlm_dma_free_coherent(struct device *dev, size_t size,
 	swiotlb_free_coherent(dev, size, vaddr, dma_handle);
 }
 
-struct dma_map_ops nlm_swiotlb_dma_ops = {
+const struct dma_map_ops nlm_swiotlb_dma_ops = {
 	.alloc = nlm_dma_alloc_coherent,
 	.free = nlm_dma_free_coherent,
 	.map_page = swiotlb_map_page,

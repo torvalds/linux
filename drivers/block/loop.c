@@ -186,7 +186,7 @@ static void __loop_update_dio(struct loop_device *lo, bool dio)
 	 *
 	 * TODO: the above condition may be loosed in the future, and
 	 * direct I/O may be switched runtime at that time because most
-	 * of requests in sane appplications should be PAGE_SIZE algined
+	 * of requests in sane applications should be PAGE_SIZE aligned
 	 */
 	if (dio) {
 		if (queue_logical_block_size(lo->lo_queue) >= sb_bsize &&
@@ -1097,9 +1097,12 @@ loop_set_status(struct loop_device *lo, const struct loop_info64 *info)
 	if ((unsigned int) info->lo_encrypt_key_size > LO_KEY_SIZE)
 		return -EINVAL;
 
+	/* I/O need to be drained during transfer transition */
+	blk_mq_freeze_queue(lo->lo_queue);
+
 	err = loop_release_xfer(lo);
 	if (err)
-		return err;
+		goto exit;
 
 	if (info->lo_encrypt_type) {
 		unsigned int type = info->lo_encrypt_type;
@@ -1114,12 +1117,14 @@ loop_set_status(struct loop_device *lo, const struct loop_info64 *info)
 
 	err = loop_init_xfer(lo, xfer, info);
 	if (err)
-		return err;
+		goto exit;
 
 	if (lo->lo_offset != info->lo_offset ||
 	    lo->lo_sizelimit != info->lo_sizelimit)
-		if (figure_loop_size(lo, info->lo_offset, info->lo_sizelimit))
-			return -EFBIG;
+		if (figure_loop_size(lo, info->lo_offset, info->lo_sizelimit)) {
+			err = -EFBIG;
+			goto exit;
+		}
 
 	loop_config_discard(lo);
 
@@ -1156,7 +1161,9 @@ loop_set_status(struct loop_device *lo, const struct loop_info64 *info)
 	/* update dio if lo_offset or transfer is changed */
 	__loop_update_dio(lo, lo->use_dio);
 
-	return 0;
+ exit:
+	blk_mq_unfreeze_queue(lo->lo_queue);
+	return err;
 }
 
 static int

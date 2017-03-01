@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016 MediaTek Inc.
- * Author: John Crispin <blogic@openwrt.org>
+ * Author: John Crispin <john@phrozen.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -104,7 +104,7 @@
 		#interrupt-cells = <3>;
 		interrupt-parent = <&gic>;
 		reg = <0 0x10211000 0 0x1000>,
-		      <0 0x10212000 0 0x1000>,
+		      <0 0x10212000 0 0x2000>,
 		      <0 0x10214000 0 0x2000>,
 		      <0 0x10216000 0 0x2000>;
 	};

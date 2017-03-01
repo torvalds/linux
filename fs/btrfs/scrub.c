@@ -282,9 +282,7 @@ static void scrub_remap_extent(struct btrfs_fs_info *fs_info,
 			       u64 *extent_physical,
 			       struct btrfs_device **extent_dev,
 			       int *extent_mirror_num);
-static int scrub_setup_wr_ctx(struct scrub_ctx *sctx,
-			      struct scrub_wr_ctx *wr_ctx,
-			      struct btrfs_fs_info *fs_info,
+static int scrub_setup_wr_ctx(struct scrub_wr_ctx *wr_ctx,
 			      struct btrfs_device *dev,
 			      int is_dev_replace);
 static void scrub_free_wr_ctx(struct scrub_wr_ctx *wr_ctx);
@@ -501,7 +499,7 @@ struct scrub_ctx *scrub_setup_ctx(struct btrfs_device *dev, int is_dev_replace)
 	spin_lock_init(&sctx->stat_lock);
 	init_waitqueue_head(&sctx->list_wait);
 
-	ret = scrub_setup_wr_ctx(sctx, &sctx->wr_ctx, fs_info,
+	ret = scrub_setup_wr_ctx(&sctx->wr_ctx,
 				 fs_info->dev_replace.tgtdev, is_dev_replace);
 	if (ret) {
 		scrub_free_ctx(sctx);
@@ -3584,7 +3582,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		 * -> btrfs_scrub_pause()
 		 */
 		scrub_pause_on(fs_info);
-		ret = btrfs_inc_block_group_ro(root, cache);
+		ret = btrfs_inc_block_group_ro(fs_info, cache);
 		if (!ret && is_dev_replace) {
 			/*
 			 * If we are doing a device replace wait for any tasks
@@ -4084,9 +4082,7 @@ static void scrub_remap_extent(struct btrfs_fs_info *fs_info,
 	btrfs_put_bbio(bbio);
 }
 
-static int scrub_setup_wr_ctx(struct scrub_ctx *sctx,
-			      struct scrub_wr_ctx *wr_ctx,
-			      struct btrfs_fs_info *fs_info,
+static int scrub_setup_wr_ctx(struct scrub_wr_ctx *wr_ctx,
 			      struct btrfs_device *dev,
 			      int is_dev_replace)
 {

@@ -221,7 +221,6 @@ static int mcs5000_ts_probe(struct i2c_client *client,
 	input_set_abs_params(input_dev, ABS_X, 0, MCS5000_MAX_XC, 0, 0);
 	input_set_abs_params(input_dev, ABS_Y, 0, MCS5000_MAX_YC, 0, 0);
 
-	input_set_drvdata(input_dev, data);
 	data->input_dev = input_dev;
 
 	if (pdata->cfg_pin)

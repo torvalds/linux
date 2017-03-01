@@ -33,10 +33,6 @@ struct napi_struct;
 extern unsigned int sysctl_net_busy_read __read_mostly;
 extern unsigned int sysctl_net_busy_poll __read_mostly;
 
-/* return values from ndo_ll_poll */
-#define LL_FLUSH_FAILED		-1
-#define LL_FLUSH_BUSY		-2
-
 static inline bool net_busy_loop_on(void)
 {
 	return sysctl_net_busy_poll;

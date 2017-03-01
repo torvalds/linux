@@ -678,5 +678,6 @@
 		compatible = "fsl,t2080-l2-cache-controller";
 		reg = <0xc20000 0x40000>;
 		next-level-cache = <&cpc>;
+		interrupts = <16 2 1 9>;
 	};
 };

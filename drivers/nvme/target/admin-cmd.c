@@ -41,7 +41,7 @@ static u16 nvmet_get_smart_log_nsid(struct nvmet_req *req,
 	ns = nvmet_find_namespace(req->sq->ctrl, req->cmd->get_log_page.nsid);
 	if (!ns) {
 		status = NVME_SC_INVALID_NS;
-		pr_err("nvmet : Counld not find namespace id : %d\n",
+		pr_err("nvmet : Could not find namespace id : %d\n",
 				le32_to_cpu(req->cmd->get_log_page.nsid));
 		goto out;
 	}
@@ -509,7 +509,7 @@ int nvmet_parse_admin_cmd(struct nvmet_req *req)
 		break;
 	case nvme_admin_identify:
 		req->data_len = 4096;
-		switch (le32_to_cpu(cmd->identify.cns)) {
+		switch (cmd->identify.cns) {
 		case NVME_ID_CNS_NS:
 			req->execute = nvmet_execute_identify_ns;
 			return 0;

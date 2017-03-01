@@ -1,9 +1,33 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #include <linux/types.h>
@@ -66,12 +90,14 @@ union conn_context {
 	struct core_conn_context core_ctx;
 	struct eth_conn_context eth_ctx;
 	struct iscsi_conn_context iscsi_ctx;
+	struct fcoe_conn_context fcoe_ctx;
 	struct roce_conn_context roce_ctx;
 };
 
-/* TYPE-0 task context - iSCSI */
+/* TYPE-0 task context - iSCSI, FCOE */
 union type0_task_context {
 	struct iscsi_task_context iscsi_ctx;
+	struct fcoe_task_context fcoe_ctx;
 };
 
 /* TYPE-1 task context - ROCE */
@@ -216,13 +242,20 @@ struct qed_cxt_mngr {
 static bool src_proto(enum protocol_type type)
 {
 	return type == PROTOCOLID_ISCSI ||
+	       type == PROTOCOLID_FCOE ||
 	       type == PROTOCOLID_ROCE;
 }
 
 static bool tm_cid_proto(enum protocol_type type)
 {
 	return type == PROTOCOLID_ISCSI ||
+	       type == PROTOCOLID_FCOE ||
 	       type == PROTOCOLID_ROCE;
+}
+
+static bool tm_tid_proto(enum protocol_type type)
+{
+	return type == PROTOCOLID_FCOE;
 }
 
 /* counts the iids for the CDU/CDUC ILT client configuration */
@@ -282,6 +315,22 @@ static void qed_cxt_tm_iids(struct qed_cxt_mngr *p_mngr,
 		if (tm_cid_proto(i)) {
 			iids->pf_cids += p_cfg->cid_count;
 			iids->per_vf_cids += p_cfg->cids_per_vf;
+		}
+
+		if (tm_tid_proto(i)) {
+			struct qed_tid_seg *segs = p_cfg->tid_seg;
+
+			/* for each segment there is at most one
+			 * protocol for which count is not 0.
+			 */
+			for (j = 0; j < NUM_TASK_PF_SEGMENTS; j++)
+				iids->pf_tids[j] += segs[j].count;
+
+			/* The last array elelment is for the VFs. As for PF
+			 * segments there can be only one protocol for
+			 * which this value is not 0.
+			 */
+			iids->per_vf_tids += segs[NUM_TASK_PF_SEGMENTS].count;
 		}
 	}
 
@@ -1670,9 +1719,42 @@ static void qed_tm_init_pf(struct qed_hwfn *p_hwfn)
 	/* @@@TBD how to enable the scan for the VFs */
 }
 
+static void qed_prs_init_common(struct qed_hwfn *p_hwfn)
+{
+	if ((p_hwfn->hw_info.personality == QED_PCI_FCOE) &&
+	    p_hwfn->pf_params.fcoe_pf_params.is_target)
+		STORE_RT_REG(p_hwfn,
+			     PRS_REG_SEARCH_RESP_INITIATOR_TYPE_RT_OFFSET, 0);
+}
+
+static void qed_prs_init_pf(struct qed_hwfn *p_hwfn)
+{
+	struct qed_cxt_mngr *p_mngr = p_hwfn->p_cxt_mngr;
+	struct qed_conn_type_cfg *p_fcoe;
+	struct qed_tid_seg *p_tid;
+
+	p_fcoe = &p_mngr->conn_cfg[PROTOCOLID_FCOE];
+
+	/* If FCoE is active set the MAX OX_ID (tid) in the Parser */
+	if (!p_fcoe->cid_count)
+		return;
+
+	p_tid = &p_fcoe->tid_seg[QED_CXT_FCOE_TID_SEG];
+	if (p_hwfn->pf_params.fcoe_pf_params.is_target) {
+		STORE_RT_REG_AGG(p_hwfn,
+				 PRS_REG_TASK_ID_MAX_TARGET_PF_RT_OFFSET,
+				 p_tid->count);
+	} else {
+		STORE_RT_REG_AGG(p_hwfn,
+				 PRS_REG_TASK_ID_MAX_INITIATOR_PF_RT_OFFSET,
+				 p_tid->count);
+	}
+}
+
 void qed_cxt_hw_init_common(struct qed_hwfn *p_hwfn)
 {
 	qed_cdu_init_common(p_hwfn);
+	qed_prs_init_common(p_hwfn);
 }
 
 void qed_cxt_hw_init_pf(struct qed_hwfn *p_hwfn)
@@ -1684,6 +1766,7 @@ void qed_cxt_hw_init_pf(struct qed_hwfn *p_hwfn)
 	qed_ilt_init_pf(p_hwfn);
 	qed_src_init_pf(p_hwfn);
 	qed_tm_init_pf(p_hwfn);
+	qed_prs_init_pf(p_hwfn);
 }
 
 int qed_cxt_acquire_cid(struct qed_hwfn *p_hwfn,
@@ -1861,6 +1944,27 @@ int qed_cxt_set_pf_params(struct qed_hwfn *p_hwfn)
 					    p_params->num_cons, 1);
 		break;
 	}
+	case QED_PCI_FCOE:
+	{
+		struct qed_fcoe_pf_params *p_params;
+
+		p_params = &p_hwfn->pf_params.fcoe_pf_params;
+
+		if (p_params->num_cons && p_params->num_tasks) {
+			qed_cxt_set_proto_cid_count(p_hwfn,
+						    PROTOCOLID_FCOE,
+						    p_params->num_cons,
+						    0);
+
+			qed_cxt_set_proto_tid_count(p_hwfn, PROTOCOLID_FCOE,
+						    QED_CXT_FCOE_TID_SEG, 0,
+						    p_params->num_tasks, true);
+		} else {
+			DP_INFO(p_hwfn->cdev,
+				"Fcoe personality used without setting params!\n");
+		}
+		break;
+	}
 	case QED_PCI_ISCSI:
 	{
 		struct qed_iscsi_pf_params *p_params;
@@ -1903,6 +2007,10 @@ int qed_cxt_get_tid_mem_info(struct qed_hwfn *p_hwfn,
 
 	/* Verify the personality */
 	switch (p_hwfn->hw_info.personality) {
+	case QED_PCI_FCOE:
+		proto = PROTOCOLID_FCOE;
+		seg = QED_CXT_FCOE_TID_SEG;
+		break;
 	case QED_PCI_ISCSI:
 		proto = PROTOCOLID_ISCSI;
 		seg = QED_CXT_ISCSI_TID_SEG;
@@ -2191,15 +2299,19 @@ int qed_cxt_get_task_ctx(struct qed_hwfn *p_hwfn,
 {
 	struct qed_cxt_mngr *p_mngr = p_hwfn->p_cxt_mngr;
 	struct qed_ilt_client_cfg *p_cli;
-	struct qed_ilt_cli_blk *p_seg;
 	struct qed_tid_seg *p_seg_info;
-	u32 proto, seg;
-	u32 total_lines;
-	u32 tid_size, ilt_idx;
+	struct qed_ilt_cli_blk *p_seg;
 	u32 num_tids_per_block;
+	u32 tid_size, ilt_idx;
+	u32 total_lines;
+	u32 proto, seg;
 
 	/* Verify the personality */
 	switch (p_hwfn->hw_info.personality) {
+	case QED_PCI_FCOE:
+		proto = PROTOCOLID_FCOE;
+		seg = QED_CXT_FCOE_TID_SEG;
+		break;
 	case QED_PCI_ISCSI:
 		proto = PROTOCOLID_ISCSI;
 		seg = QED_CXT_ISCSI_TID_SEG;

@@ -31,6 +31,9 @@ static const u8 MAX_PGPKT_SIZE = 9;
 static const u8 PGPKT_DATA_SIZE = 8;
 static const int EFUSE_MAX_SIZE = 512;
 
+#define START_ADDRESS		0x1000
+#define REG_MCUFWDL		0x0080
+
 static const struct efuse_map RTL8712_SDIO_EFUSE_TABLE[] = {
 	{0, 0, 0, 2},
 	{0, 1, 0, 2},
@@ -70,8 +73,6 @@ static void efuse_word_enable_data_read(u8 word_en, u8 *sourdata,
 					u8 *targetdata);
 static u8 enable_efuse_data_write(struct ieee80211_hw *hw,
 				  u16 efuse_addr, u8 word_en, u8 *data);
-static void efuse_power_switch(struct ieee80211_hw *hw, u8 write,
-			       u8 pwrstate);
 static u16 efuse_get_current_size(struct ieee80211_hw *hw);
 static u8 efuse_calculate_word_cnts(u8 word_en);
 
@@ -1121,7 +1122,7 @@ static u8 enable_efuse_data_write(struct ieee80211_hw *hw,
 	return badworden;
 }
 
-static void efuse_power_switch(struct ieee80211_hw *hw, u8 write, u8 pwrstate)
+void efuse_power_switch(struct ieee80211_hw *hw, u8 write, u8 pwrstate)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
@@ -1207,6 +1208,7 @@ static void efuse_power_switch(struct ieee80211_hw *hw, u8 write, u8 pwrstate)
 		}
 	}
 }
+EXPORT_SYMBOL(efuse_power_switch);
 
 static u16 efuse_get_current_size(struct ieee80211_hw *hw)
 {
@@ -1259,8 +1261,7 @@ int rtl_get_hwinfo(struct ieee80211_hw *hw, struct rtl_priv *rtlpriv,
 		break;
 
 	case EEPROM_93C46:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "RTL8XXX did not boot from eeprom, check it !!\n");
+		pr_err("RTL8XXX did not boot from eeprom, check it !!\n");
 		return 1;
 
 	default:
@@ -1321,3 +1322,45 @@ int rtl_get_hwinfo(struct ieee80211_hw *hw, struct rtl_priv *rtlpriv,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rtl_get_hwinfo);
+
+void rtl_fw_block_write(struct ieee80211_hw *hw, const u8 *buffer, u32 size)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	u8 *pu4byteptr = (u8 *)buffer;
+	u32 i;
+
+	for (i = 0; i < size; i++)
+		rtl_write_byte(rtlpriv, (START_ADDRESS + i), *(pu4byteptr + i));
+}
+EXPORT_SYMBOL_GPL(rtl_fw_block_write);
+
+void rtl_fw_page_write(struct ieee80211_hw *hw, u32 page, const u8 *buffer,
+		       u32 size)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	u8 value8;
+	u8 u8page = (u8)(page & 0x07);
+
+	value8 = (rtl_read_byte(rtlpriv, REG_MCUFWDL + 2) & 0xF8) | u8page;
+
+	rtl_write_byte(rtlpriv, (REG_MCUFWDL + 2), value8);
+	rtl_fw_block_write(hw, buffer, size);
+}
+EXPORT_SYMBOL_GPL(rtl_fw_page_write);
+
+void rtl_fill_dummy(u8 *pfwbuf, u32 *pfwlen)
+{
+	u32 fwlen = *pfwlen;
+	u8 remain = (u8)(fwlen % 4);
+
+	remain = (remain == 0) ? 0 : (4 - remain);
+
+	while (remain > 0) {
+		pfwbuf[fwlen] = 0;
+		fwlen++;
+		remain--;
+	}
+
+	*pfwlen = fwlen;
+}
+EXPORT_SYMBOL_GPL(rtl_fill_dummy);

@@ -487,6 +487,7 @@ struct mlx4_slave_state {
 	bool vst_qinq_supported;
 	u8 function;
 	dma_addr_t vhcr_dma;
+	u16 user_mtu[MLX4_MAX_PORTS + 1];
 	u16 mtu[MLX4_MAX_PORTS + 1];
 	__be32 ib_cap_mask[MLX4_MAX_PORTS + 1];
 	struct mlx4_slave_eqe eq[MLX4_MFUNC_MAX_EQES];
@@ -590,6 +591,7 @@ struct mlx4_mfunc_master_ctx {
 	struct mlx4_master_qp0_state qp0_state[MLX4_MAX_PORTS + 1];
 	int			init_port_ref[MLX4_MAX_PORTS + 1];
 	u16			max_mtu[MLX4_MAX_PORTS + 1];
+	u16			max_user_mtu[MLX4_MAX_PORTS + 1];
 	u8			pptx;
 	u8			pprx;
 	int			disable_mcast_ref[MLX4_MAX_PORTS + 1];
@@ -774,7 +776,9 @@ struct mlx4_vlan_table {
 	int			max;
 };
 
-#define SET_PORT_GEN_ALL_VALID		0x7
+#define SET_PORT_GEN_ALL_VALID	(MLX4_FLAG_V_MTU_MASK	| \
+				 MLX4_FLAG_V_PPRX_MASK	| \
+				 MLX4_FLAG_V_PPTX_MASK)
 #define SET_PORT_PROMISC_SHIFT		31
 #define SET_PORT_MC_PROMISC_SHIFT	30
 
@@ -787,7 +791,7 @@ enum {
 
 struct mlx4_set_port_general_context {
 	u16 reserved1;
-	u8 v_ignore_fcs;
+	u8 flags2;
 	u8 flags;
 	union {
 		u8 ignore_fcs;
@@ -803,7 +807,8 @@ struct mlx4_set_port_general_context {
 	u16 reserved4;
 	u32 reserved5;
 	u8 phv_en;
-	u8 reserved6[3];
+	u8 reserved6[5];
+	__be16 user_mtu;
 };
 
 struct mlx4_set_port_rqp_calc_context {
@@ -1220,6 +1225,7 @@ void mlx4_qp_event(struct mlx4_dev *dev, u32 qpn, int event_type);
 void mlx4_srq_event(struct mlx4_dev *dev, u32 srqn, int event_type);
 
 void mlx4_enter_error_state(struct mlx4_dev_persistent *persist);
+int mlx4_comm_internal_err(u32 slave_read);
 
 int mlx4_SENSE_PORT(struct mlx4_dev *dev, int port,
 		    enum mlx4_port_type *type);

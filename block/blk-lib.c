@@ -306,11 +306,6 @@ int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 	if (ret == 0 || (ret && ret != -EOPNOTSUPP))
 		goto out;
 
-	ret = __blkdev_issue_write_same(bdev, sector, nr_sects, gfp_mask,
-			ZERO_PAGE(0), biop);
-	if (ret == 0 || (ret && ret != -EOPNOTSUPP))
-		goto out;
-
 	ret = 0;
 	while (nr_sects != 0) {
 		bio = next_bio(bio, min(nr_sects, (sector_t)BIO_MAX_PAGES),
@@ -368,6 +363,10 @@ int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 				BLKDEV_DISCARD_ZERO))
 			return 0;
 	}
+
+	if (!blkdev_issue_write_same(bdev, sector, nr_sects, gfp_mask,
+			ZERO_PAGE(0)))
+		return 0;
 
 	blk_start_plug(&plug);
 	ret = __blkdev_issue_zeroout(bdev, sector, nr_sects, gfp_mask,

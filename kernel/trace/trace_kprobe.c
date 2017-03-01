@@ -16,6 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#define pr_fmt(fmt)	"trace_kprobe: " fmt
 
 #include <linux/module.h>
 #include <linux/uaccess.h>
@@ -1372,7 +1373,7 @@ kprobe_trace_selftest_target(int a1, int a2, int a3, int a4, int a5, int a6)
 	return a1 + a2 + a3 + a4 + a5 + a6;
 }
 
-static struct __init trace_event_file *
+static __init struct trace_event_file *
 find_trace_probe_file(struct trace_kprobe *tk, struct trace_array *tr)
 {
 	struct trace_event_file *file;

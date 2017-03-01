@@ -156,12 +156,12 @@ struct ieee80211_regdomain mydriver_jp_regdom = {
 	//.alpha2 =  "99", /* If I have no alpha2 to map it to */
 	.reg_rules = {
 		/* IEEE 802.11b/g, channels 1..14 */
-		REG_RULE(2412-20, 2484+20, 40, 6, 20, 0),
+		REG_RULE(2412-10, 2484+10, 40, 6, 20, 0),
 		/* IEEE 802.11a, channels 34..48 */
-		REG_RULE(5170-20, 5240+20, 40, 6, 20,
+		REG_RULE(5170-10, 5240+10, 40, 6, 20,
 			NL80211_RRF_NO_IR),
 		/* IEEE 802.11a, channels 52..64 */
-		REG_RULE(5260-20, 5320+20, 40, 6, 20,
+		REG_RULE(5260-10, 5320+10, 40, 6, 20,
 			NL80211_RRF_NO_IR|
 			NL80211_RRF_DFS),
 	}
@@ -205,7 +205,7 @@ the data in regdb.c as an alternative to using CRDA.
 The file net/wireless/db.txt should be kept up-to-date with the db.txt
 file available in the git repository here:
 
-    git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-regdb.git
+    git://git.kernel.org/pub/scm/linux/kernel/git/sforshee/wireless-regdb.git
 
 Again, most users in most situations should be using the CRDA package
 provided with their distribution, and in most other situations users
