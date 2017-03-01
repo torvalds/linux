@@ -1205,7 +1205,6 @@ MODULE_DEVICE_TABLE(acpi, gc2235_acpi_match);
 MODULE_DEVICE_TABLE(i2c, gc2235_id);
 static struct i2c_driver gc2235_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = GC2235_NAME,
 		.acpi_match_table = ACPI_PTR(gc2235_acpi_match),
 	},
