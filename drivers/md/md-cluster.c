@@ -104,6 +104,7 @@ enum msg_type {
 	REMOVE,
 	RE_ADD,
 	BITMAP_NEEDS_SYNC,
+	CHANGE_CAPACITY,
 };
 
 struct cluster_msg {
@@ -578,6 +579,10 @@ static int process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 	switch (le32_to_cpu(msg->type)) {
 	case METADATA_UPDATED:
 		process_metadata_update(mddev, msg);
+		break;
+	case CHANGE_CAPACITY:
+		set_capacity(mddev->gendisk, mddev->array_sectors);
+		revalidate_disk(mddev->gendisk);
 		break;
 	case RESYNCING:
 		process_suspend_info(mddev, le32_to_cpu(msg->slot),
