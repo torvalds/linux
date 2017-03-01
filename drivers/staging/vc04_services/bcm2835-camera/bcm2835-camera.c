@@ -671,7 +671,6 @@ static struct vb2_ops bm2835_mmal_video_qops = {
 static int set_overlay_params(struct bm2835_mmal_dev *dev,
 			      struct vchiq_mmal_port *port)
 {
-	int ret;
 	struct mmal_parameter_displayregion prev_config = {
 	.set = MMAL_DISPLAY_SET_LAYER | MMAL_DISPLAY_SET_ALPHA |
 	    MMAL_DISPLAY_SET_DEST_RECT | MMAL_DISPLAY_SET_FULLSCREEN,
@@ -685,11 +684,9 @@ static int set_overlay_params(struct bm2835_mmal_dev *dev,
 		      .height = dev->overlay.w.height,
 		      },
 	};
-	ret = vchiq_mmal_port_parameter_set(dev->instance, port,
-					    MMAL_PARAMETER_DISPLAYREGION,
-					    &prev_config, sizeof(prev_config));
-
-	return ret;
+	return vchiq_mmal_port_parameter_set(dev->instance, port,
+					     MMAL_PARAMETER_DISPLAYREGION,
+					     &prev_config, sizeof(prev_config));
 }
 
 /* overlay ioctl */
