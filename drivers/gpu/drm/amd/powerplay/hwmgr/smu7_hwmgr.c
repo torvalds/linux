@@ -89,6 +89,7 @@ enum DPM_EVENT_SRC {
 	DPM_EVENT_SRC_DIGITAL_OR_EXTERNAL = 4
 };
 
+static int smu7_avfs_control(struct pp_hwmgr *hwmgr, bool enable);
 static const unsigned long PhwVIslands_Magic = (unsigned long)(PHM_VIslands_Magic);
 static int smu7_force_clock_level(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, uint32_t mask);
@@ -1309,11 +1310,9 @@ int smu7_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE((tmp_result == 0),
 			"Failed to disable thermal auto throttle!", result = tmp_result);
 
-	if (1 == PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, FEATURE_STATUS, AVS_ON)) {
-		PP_ASSERT_WITH_CODE((0 == smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_DisableAvfs)),
-					"Failed to disable AVFS!",
-					return -EINVAL);
-	}
+	tmp_result = smu7_avfs_control(hwmgr, false);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to disable AVFS!", result = tmp_result);
 
 	tmp_result = smu7_stop_dpm(hwmgr);
 	PP_ASSERT_WITH_CODE((tmp_result == 0),
