@@ -971,8 +971,7 @@ bool dc_pre_update_surfaces_to_stream(
 					DC_SURFACE_TO_CORE(new_surfaces[i]))
 				continue;
 
-			resource_build_scaling_params(
-				new_surfaces[i], &context->res_ctx.pipe_ctx[j]);
+			resource_build_scaling_params(&context->res_ctx.pipe_ctx[j]);
 		}
 
 	if (!core_dc->res_pool->funcs->validate_bandwidth(core_dc, context)) {
@@ -1364,7 +1363,7 @@ void dc_update_surfaces_for_stream(struct dc *dc,
 				if (pipe_ctx->surface != surface)
 					continue;
 
-				resource_build_scaling_params(updates[i].surface, pipe_ctx);
+				resource_build_scaling_params(pipe_ctx);
 			}
 		}
 

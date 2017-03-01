@@ -927,6 +927,7 @@ static void get_surface_visual_confirm_color(const struct pipe_ctx *pipe_ctx,
 		color->color_b_cb = color_value;
 		break;
 	case PIXEL_FORMAT_420BPP12:
+	case PIXEL_FORMAT_420BPP15:
 		/* set boarder color to green */
 		color->color_g_y = color_value;
 		break;

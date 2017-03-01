@@ -82,9 +82,7 @@ enum dc_status resource_map_pool_resources(
 		const struct core_dc *dc,
 		struct validate_context *context);
 
-bool resource_build_scaling_params(
-		const struct dc_surface *surface,
-		struct pipe_ctx *pipe_ctx);
+bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx);
 
 enum dc_status resource_build_scaling_params_for_context(
 		const struct core_dc *dc,

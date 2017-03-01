@@ -147,13 +147,24 @@ struct line_buffer_params {
 	enum lb_pixel_depth depth;
 };
 
+struct scl_inits {
+	struct fixed31_32 h;
+	struct fixed31_32 h_c;
+	struct fixed31_32 v;
+	struct fixed31_32 v_bot;
+	struct fixed31_32 v_c;
+	struct fixed31_32 v_c_bot;
+};
+
 struct scaler_data {
 	int h_active;
 	int v_active;
 	struct scaling_taps taps;
 	struct rect viewport;
+	struct rect viewport_c;
 	struct rect recout;
 	struct scaling_ratios ratios;
+	struct scl_inits inits;
 	struct sharpness_adj sharpness;
 	enum pixel_format format;
 	struct line_buffer_params lb_params;
