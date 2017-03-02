@@ -221,16 +221,8 @@ static int pl2303_probe(struct usb_serial *serial,
 static int pl2303_startup(struct usb_serial *serial)
 {
 	struct pl2303_serial_private *spriv;
-	unsigned char num_ports = serial->num_ports;
 	enum pl2303_type type = TYPE_01;
 	unsigned char *buf;
-
-	if (serial->num_bulk_in < num_ports ||
-			serial->num_bulk_out < num_ports ||
-			serial->num_interrupt_in < num_ports) {
-		dev_err(&serial->interface->dev, "missing endpoints\n");
-		return -ENODEV;
-	}
 
 	spriv = kzalloc(sizeof(*spriv), GFP_KERNEL);
 	if (!spriv)
@@ -939,6 +931,9 @@ static struct usb_serial_driver pl2303_device = {
 	},
 	.id_table =		id_table,
 	.num_ports =		1,
+	.num_bulk_in =		1,
+	.num_bulk_out =		1,
+	.num_interrupt_in =	1,
 	.bulk_in_size =		256,
 	.bulk_out_size =	256,
 	.open =			pl2303_open,
