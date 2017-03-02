@@ -152,8 +152,8 @@ static int write_pccard(struct cxd *ci, u16 address, u8 *data, u8 n)
 	if (!status) {
 		u8 buf[256] = {3};
 
-		memcpy(buf+1, data, n);
-		status = i2c_write(ci->i2c, ci->cfg.adr, buf, n+1);
+		memcpy(buf + 1, data, n);
+		status = i2c_write(ci->i2c, ci->cfg.adr, buf, n + 1);
 	}
 	return status;
 }
@@ -202,7 +202,7 @@ static int write_io_data(struct cxd *ci, u8 *data, u8 n)
 	if (!status) {
 		u8 buf[256] = {3};
 
-		memcpy(buf+1, data, n);
+		memcpy(buf + 1, data, n);
 		status = i2c_write(ci->i2c, ci->cfg.adr, buf, n + 1);
 	}
 	return 0;
@@ -531,7 +531,7 @@ static int slot_reset(struct dvb_ca_en50221 *ca, int slot)
 #if 0
 			read_reg(ci, 0x06, &val);
 			dev_info(&ci->i2c->dev, "%d:%02x\n", i, val);
-			if (!(val&0x10))
+			if (!(val & 0x10))
 				break;
 #else
 			if (ci->ready)
@@ -582,18 +582,18 @@ static int campoll(struct cxd *ci)
 		return 0;
 	write_reg(ci, 0x05, istat);
 
-	if (istat&0x40) {
+	if (istat & 0x40) {
 		ci->dr = 1;
 		dev_info(&ci->i2c->dev, "DR\n");
 	}
-	if (istat&0x20)
+	if (istat & 0x20)
 		dev_info(&ci->i2c->dev, "WC\n");
 
-	if (istat&2) {
+	if (istat & 2) {
 		u8 slotstat;
 
 		read_reg(ci, 0x01, &slotstat);
-		if (!(2&slotstat)) {
+		if (!(2 & slotstat)) {
 			if (!ci->slot_stat) {
 				ci->slot_stat = DVB_CA_EN50221_POLL_CAM_PRESENT;
 				write_regm(ci, 0x03, 0x08, 0x08);
@@ -607,7 +607,7 @@ static int campoll(struct cxd *ci)
 				ci->ready = 0;
 			}
 		}
-		if (istat&8 &&
+		if (istat & 8 &&
 		    ci->slot_stat == DVB_CA_EN50221_POLL_CAM_PRESENT) {
 			ci->ready = 1;
 			ci->slot_stat |= DVB_CA_EN50221_POLL_CAM_READY;
@@ -648,7 +648,7 @@ static int read_data(struct dvb_ca_en50221 *ca, int slot, u8 *ebuf, int ecount)
 	mutex_lock(&ci->lock);
 	read_reg(ci, 0x0f, &msb);
 	read_reg(ci, 0x10, &lsb);
-	len = (msb<<8)|lsb;
+	len = (msb << 8) | lsb;
 	read_block(ci, 0x12, ebuf, len);
 	ci->dr = 0;
 	mutex_unlock(&ci->lock);
@@ -662,8 +662,8 @@ static int write_data(struct dvb_ca_en50221 *ca, int slot, u8 *ebuf, int ecount)
 
 	mutex_lock(&ci->lock);
 	dev_info(&ci->i2c->dev, "write_data %d\n", ecount);
-	write_reg(ci, 0x0d, ecount>>8);
-	write_reg(ci, 0x0e, ecount&0xff);
+	write_reg(ci, 0x0d, ecount >> 8);
+	write_reg(ci, 0x0e, ecount & 0xff);
 	write_block(ci, 0x11, ebuf, ecount);
 	mutex_unlock(&ci->lock);
 	return ecount;
