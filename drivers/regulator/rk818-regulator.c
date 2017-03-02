@@ -32,6 +32,7 @@
 #define RK818_BUCK4_VSEL_MASK	0x1f
 #define RK818_LDO_VSEL_MASK	0x1f
 #define RK818_LDO3_VSEL_MASK	0x0f
+#define RK818_BOOST_ON_VSEL_MASK	0xe0
 
 /* Ramp rate definitions for buck1 / buck2 only */
 #define RK818_RAMP_RATE_OFFSET		3
@@ -106,6 +107,10 @@ static const struct regulator_linear_range rk818_ldo3_voltage_ranges[] = {
 
 static const struct regulator_linear_range rk818_ldo6_voltage_ranges[] = {
 	REGULATOR_LINEAR_RANGE(800000, 0, 17, 100000),
+};
+
+static const struct regulator_linear_range rk818_boost_voltage_ranges[] = {
+	REGULATOR_LINEAR_RANGE(4700000, 0, 7, 100000),
 };
 
 static int rk818_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
@@ -399,6 +404,21 @@ static const struct regulator_desc rk818_desc[] = {
 		.enable_mask = BIT(3),
 		.owner = THIS_MODULE,
 	}, {
+		.name = "DCDC_BOOST",
+		.supply_name = "boost",
+		.id = RK818_ID_BOOST,
+		.ops = &rk818_reg_ops,
+		.type = REGULATOR_VOLTAGE,
+		.n_voltages = 8,
+		.linear_ranges = rk818_boost_voltage_ranges,
+		.n_linear_ranges = ARRAY_SIZE(rk818_boost_voltage_ranges),
+		.vsel_reg = RK818_BOOST_LDO9_ON_VSEL_REG,
+		.vsel_mask = RK818_BOOST_ON_VSEL_MASK,
+		.enable_reg = RK818_DCDC_EN_REG,
+		.enable_mask = BIT(4),
+		.enable_time = 0,
+		.owner = THIS_MODULE,
+	}, {
 		.name = "LDO_REG1",
 		.supply_name = "vcc6",
 		.id = RK818_ID_LDO1,
@@ -550,6 +570,7 @@ static struct of_regulator_match rk818_reg_matches[] = {
 	[RK818_ID_DCDC2]	= { .name = "DCDC_REG2" },
 	[RK818_ID_DCDC3]	= { .name = "DCDC_REG3" },
 	[RK818_ID_DCDC4]	= { .name = "DCDC_REG4" },
+	[RK818_ID_BOOST]	= { .name = "DCDC_BOOST" },
 	[RK818_ID_LDO1]		= { .name = "LDO_REG1" },
 	[RK818_ID_LDO2]		= { .name = "LDO_REG2" },
 	[RK818_ID_LDO3]		= { .name = "LDO_REG3" },
@@ -729,7 +750,7 @@ static int rk818_regulator_probe(struct platform_device *pdev)
 	case RK818_ID:
 		reg_desc = rk818_desc;
 		reg_matches = rk818_reg_matches;
-		reg_nr = RK818_NUM_REGULATORS;
+		reg_nr = ARRAY_SIZE(rk818_reg_matches);
 		break;
 	case RK805_ID:
 		reg_desc = rk805_desc;
