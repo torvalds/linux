@@ -653,9 +653,9 @@ static int reada_pick_zone(struct btrfs_device *dev)
 	return 1;
 }
 
-static int reada_start_machine_dev(struct btrfs_fs_info *fs_info,
-				   struct btrfs_device *dev)
+static int reada_start_machine_dev(struct btrfs_device *dev)
 {
+	struct btrfs_fs_info *fs_info = dev->fs_info;
 	struct reada_extent *re = NULL;
 	int mirror_num = 0;
 	struct extent_buffer *eb = NULL;
@@ -768,8 +768,7 @@ static void __reada_start_machine(struct btrfs_fs_info *fs_info)
 		list_for_each_entry(device, &fs_devices->devices, dev_list) {
 			if (atomic_read(&device->reada_in_flight) <
 			    MAX_IN_FLIGHT)
-				enqueued += reada_start_machine_dev(fs_info,
-								    device);
+				enqueued += reada_start_machine_dev(device);
 		}
 		mutex_unlock(&fs_devices->device_list_mutex);
 		total += enqueued;
