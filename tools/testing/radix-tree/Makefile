@@ -1,6 +1,7 @@
 
 CFLAGS += -I. -I../../include -g -O2 -Wall -D_LGPL_SOURCE -fsanitize=address
-LDFLAGS += -lpthread -lurcu
+LDFLAGS += -fsanitize=address
+LDLIBS+= -lpthread -lurcu
 TARGETS = main idr-test multiorder
 CORE_OFILES := radix-tree.o idr.o linux.o test.o find_bit.o
 OFILES = main.o $(CORE_OFILES) regression1.o regression2.o regression3.o \
@@ -17,13 +18,10 @@ endif
 targets: mapshift $(TARGETS)
 
 main:	$(OFILES)
-	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o main
 
 idr-test: idr-test.o $(CORE_OFILES)
-	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o idr-test
 
 multiorder: multiorder.o $(CORE_OFILES)
-	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o multiorder
 
 clean:
 	$(RM) $(TARGETS) *.o radix-tree.c idr.c generated/map-shift.h
