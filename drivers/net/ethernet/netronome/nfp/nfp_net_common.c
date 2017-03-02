@@ -2198,7 +2198,8 @@ static int __nfp_net_set_config_and_enable(struct nfp_net *nn)
 	nfp_net_write_mac_addr(nn);
 
 	nn_writel(nn, NFP_NET_CFG_MTU, nn->netdev->mtu);
-	nn_writel(nn, NFP_NET_CFG_FLBUFSZ, nn->fl_bufsz);
+	nn_writel(nn, NFP_NET_CFG_FLBUFSZ,
+		  nn->fl_bufsz - NFP_NET_RX_BUF_NON_DATA);
 
 	/* Enable device */
 	new_ctrl |= NFP_NET_CFG_CTRL_ENABLE;
