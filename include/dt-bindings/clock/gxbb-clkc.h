@@ -19,6 +19,7 @@
 #define CLKID_SPI		34
 #define CLKID_ETH		36
 #define CLKID_AIU_GLUE		38
+#define CLKID_IEC958		39
 #define CLKID_I2S_OUT		40
 #define CLKID_MIXER_IFACE	44
 #define CLKID_AIU		47
@@ -31,6 +32,7 @@
 #define CLKID_SANA		69
 #define CLKID_GCLK_VENCI_INT0	77
 #define CLKID_AOCLK_GATE	80
+#define CLKID_IEC958_GATE	81
 #define CLKID_AO_I2C		93
 #define CLKID_SD_EMMC_A		94
 #define CLKID_SD_EMMC_B		95

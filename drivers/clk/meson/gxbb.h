@@ -209,7 +209,7 @@
 /* CLKID_ETH */
 #define CLKID_DEMUX		  37
 /* CLKID_AIU_GLUE */
-#define CLKID_IEC958		  39
+/* CLKID_IEC958 */
 /* CLKID_I2S_OUT */
 #define CLKID_AMCLK		  41
 #define CLKID_AIFIFO2		  42
@@ -251,7 +251,7 @@
 #define CLKID_GCLK_VENCI_INT	  78
 #define CLKID_DAC_CLK		  79
 /* CLKID_AOCLK_GATE */
-#define CLKID_IEC958_GATE	  81
+/* CLKID_IEC958_GATE */
 #define CLKID_ENC480P		  82
 #define CLKID_RNG1		  83
 #define CLKID_GCLK_VENCI_INT1	  84
