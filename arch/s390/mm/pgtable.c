@@ -606,12 +606,29 @@ void ptep_zap_key(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 bool test_and_clear_guest_dirty(struct mm_struct *mm, unsigned long addr)
 {
 	spinlock_t *ptl;
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
 	pgste_t pgste;
 	pte_t *ptep;
 	pte_t pte;
 	bool dirty;
 
-	ptep = get_locked_pte(mm, addr, &ptl);
+	pgd = pgd_offset(mm, addr);
+	pud = pud_alloc(mm, pgd, addr);
+	if (!pud)
+		return false;
+	pmd = pmd_alloc(mm, pud, addr);
+	if (!pmd)
+		return false;
+	/* We can't run guests backed by huge pages, but userspace can
+	 * still set them up and then try to migrate them without any
+	 * migration support.
+	 */
+	if (pmd_large(*pmd))
+		return true;
+
+	ptep = pte_alloc_map_lock(mm, pmd, addr, &ptl);
 	if (unlikely(!ptep))
 		return false;
 
