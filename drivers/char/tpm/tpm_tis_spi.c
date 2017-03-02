@@ -112,6 +112,7 @@ static int tpm_tis_spi_transfer(struct tpm_tis_data *data, u32 addr, u16 len,
 
 		spi_xfer.cs_change = 0;
 		spi_xfer.len = transfer_len;
+		spi_xfer.delay_usecs = 5;
 
 		if (direction) {
 			spi_xfer.tx_buf = NULL;
