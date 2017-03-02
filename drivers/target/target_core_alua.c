@@ -1149,6 +1149,9 @@ int core_alua_do_port_transition(
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
 	int primary, valid_states, rc = 0;
 
+	if (l_dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_ALUA)
+		return -ENODEV;
+
 	valid_states = l_tg_pt_gp->tg_pt_gp_alua_supported_states;
 	if (core_alua_check_transition(new_state, valid_states, &primary) != 0)
 		return -EINVAL;
