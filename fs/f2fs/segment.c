@@ -838,6 +838,25 @@ static int __queue_discard_cmd(struct f2fs_sb_info *sbi,
 	return 0;
 }
 
+static void __punch_discard_cmd(struct f2fs_sb_info *sbi,
+				struct discard_cmd *dc, block_t blkaddr)
+{
+	block_t end_block = START_BLOCK(sbi, GET_SEGNO(sbi, blkaddr) + 1);
+
+	if (dc->state == D_DONE || dc->lstart + dc->len <= end_block) {
+		__remove_discard_cmd(sbi, dc);
+		return;
+	}
+
+	if (blkaddr - dc->lstart < dc->lstart + dc->len - end_block) {
+		dc->start += (end_block - dc->lstart);
+		dc->len -= (end_block - dc->lstart);
+		dc->lstart = end_block;
+	} else {
+		dc->len = blkaddr - dc->lstart;
+	}
+}
+
 /* This should be covered by global mutex, &sit_i->sentry_lock */
 void f2fs_wait_discard_bio(struct f2fs_sb_info *sbi, block_t blkaddr)
 {
@@ -860,8 +879,7 @@ void f2fs_wait_discard_bio(struct f2fs_sb_info *sbi, block_t blkaddr)
 		if (dc->lstart <= blkaddr && blkaddr < dc->lstart + dc->len) {
 			if (dc->state == D_SUBMIT)
 				wait_for_completion_io(&dc->wait);
-			else
-				__remove_discard_cmd(sbi, dc);
+			__punch_discard_cmd(sbi, dc, blkaddr);
 		}
 	}
 	blk_finish_plug(&plug);
