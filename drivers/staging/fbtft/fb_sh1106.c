@@ -27,17 +27,6 @@
 #define WIDTH		128
 #define HEIGHT		64
 
-/*
- * write_reg() caveat:
- *
- * This doesn't work because D/C has to be LOW for both values:
- * write_reg(par, val1, val2);
- *
- * Do it like this:
- * write_reg(par, val1);
- * write_reg(par, val2);
- */
-
 /* Init sequence based on the Adafruit SSD1306 Arduino library */
 static int init_display(struct fbtft_par *par)
 {
@@ -59,16 +48,13 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, 0xAE);
 
 	/* Set Display Clock Divide Ratio/ Oscillator Frequency */
-	write_reg(par, 0xD5);
-	write_reg(par, 0x80);
+	write_reg(par, 0xD5, 0x80);
 
 	/* Set Multiplex Ratio */
-	write_reg(par, 0xA8);
-	write_reg(par, par->info->var.yres - 1);
+	write_reg(par, 0xA8, par->info->var.yres - 1);
 
 	/* Set Display Offset */
-	write_reg(par, 0xD3);
-	write_reg(par, 0x0);
+	write_reg(par, 0xD3, 0x00);
 
 	/* Set Display Start Line */
 	write_reg(par, 0x40 | 0x0);
@@ -82,24 +68,21 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, 0xC8);
 
 	/* Set COM Pins Hardware Configuration */
-	write_reg(par, 0xDA);
 	if (par->info->var.yres == 64)
 		/* A[4]=1b, Alternative COM pin configuration */
-		write_reg(par, 0x12);
+		write_reg(par, 0xDA, 0x12);
 	else if (par->info->var.yres == 48)
 		/* A[4]=1b, Alternative COM pin configuration */
-		write_reg(par, 0x12);
+		write_reg(par, 0xDA, 0x12);
 	else
 		/* A[4]=0b, Sequential COM pin configuration */
-		write_reg(par, 0x02);
+		write_reg(par, 0xDA, 0x02);
 
 	/* Set Pre-charge Period */
-	write_reg(par, 0xD9);
-	write_reg(par, 0xF1);
+	write_reg(par, 0xD9, 0xF1);
 
 	/* Set VCOMH Deselect Level */
-	write_reg(par, 0xDB);
-	write_reg(par, 0x40);
+	write_reg(par, 0xDB, 0x40);
 
 	/* Set Display ON */
 	write_reg(par, 0xAF);
@@ -130,8 +113,7 @@ static int set_gamma(struct fbtft_par *par, u32 *curves)
 	curves[0] &= 0xFF;
 
 	/* Set Contrast Control for BANK0 */
-	write_reg(par, 0x81);
-	write_reg(par, curves[0]);
+	write_reg(par, 0x81, curves[0]);
 
 	return 0;
 }
@@ -148,11 +130,8 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 	page_end = DIV_ROUND_UP(offset + len, 8 * 2 * xres);
 
 	for (page = page_start; page < page_end; page++) {
-		/* set page */
-		write_reg(par, 0xb0 | page);
-		/* set column to 2 to compensate for vidmem width 132 */
-		write_reg(par, 0x00 | 2);
-		write_reg(par, 0x10 | 0);
+		/* set page and set column to 2 because of vidmem width 132 */
+		write_reg(par, 0xb0 | page, 0x00 | 2, 0x10 | 0);
 
 		memset(buf, 0, xres);
 		for (x = 0; x < xres; x++)
@@ -173,6 +152,27 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 	return 0;
 }
 
+static void write_register(struct fbtft_par *par, int len, ...)
+{
+	va_list args;
+	int i, ret;
+
+	va_start(args, len);
+
+	for (i = 0; i < len; i++)
+		par->buf[i] = va_arg(args, unsigned int);
+
+	/* keep DC low for all command bytes to transfer */
+	gpio_set_value(par->gpio.dc, 0);
+
+	ret = par->fbtftops.write(par, par->buf, len);
+	if (ret < 0)
+		dev_err(par->info->device,
+			"write() failed and returned %d\n", ret);
+
+	va_end(args);
+}
+
 static struct fbtft_display display = {
 	.regwidth = 8,
 	.width = WIDTH,
@@ -184,6 +184,7 @@ static struct fbtft_display display = {
 	.gamma = "cd",
 	.fbtftops = {
 		.write_vmem = write_vmem,
+		.write_register = write_register,
 		.init_display = init_display,
 		.set_addr_win = set_addr_win,
 		.blank = blank,
