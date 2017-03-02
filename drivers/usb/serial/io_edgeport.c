@@ -2848,11 +2848,6 @@ static int edge_startup(struct usb_serial *serial)
 					EDGE_COMPATIBILITY_MASK1,
 					EDGE_COMPATIBILITY_MASK2 };
 
-	if (serial->num_bulk_in < 1 || serial->num_interrupt_in < 1) {
-		dev_err(&serial->interface->dev, "missing endpoints\n");
-		return -ENODEV;
-	}
-
 	dev = serial->dev;
 
 	/* create our private serial structure */
@@ -3120,6 +3115,9 @@ static struct usb_serial_driver edgeport_2port_device = {
 	.description		= "Edgeport 2 port adapter",
 	.id_table		= edgeport_2port_id_table,
 	.num_ports		= 2,
+	.num_bulk_in		= 1,
+	.num_bulk_out		= 1,
+	.num_interrupt_in	= 1,
 	.open			= edge_open,
 	.close			= edge_close,
 	.throttle		= edge_throttle,
@@ -3152,6 +3150,9 @@ static struct usb_serial_driver edgeport_4port_device = {
 	.description		= "Edgeport 4 port adapter",
 	.id_table		= edgeport_4port_id_table,
 	.num_ports		= 4,
+	.num_bulk_in		= 1,
+	.num_bulk_out		= 1,
+	.num_interrupt_in	= 1,
 	.open			= edge_open,
 	.close			= edge_close,
 	.throttle		= edge_throttle,
@@ -3184,6 +3185,9 @@ static struct usb_serial_driver edgeport_8port_device = {
 	.description		= "Edgeport 8 port adapter",
 	.id_table		= edgeport_8port_id_table,
 	.num_ports		= 8,
+	.num_bulk_in		= 1,
+	.num_bulk_out		= 1,
+	.num_interrupt_in	= 1,
 	.open			= edge_open,
 	.close			= edge_close,
 	.throttle		= edge_throttle,
@@ -3216,6 +3220,9 @@ static struct usb_serial_driver epic_device = {
 	.description		= "EPiC device",
 	.id_table		= Epic_port_id_table,
 	.num_ports		= 1,
+	.num_bulk_in		= 1,
+	.num_bulk_out		= 1,
+	.num_interrupt_in	= 1,
 	.open			= edge_open,
 	.close			= edge_close,
 	.throttle		= edge_throttle,
