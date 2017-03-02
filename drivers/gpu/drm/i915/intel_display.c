@@ -3646,12 +3646,11 @@ static void intel_update_pipe_config(struct intel_crtc *crtc,
 	}
 }
 
-static void intel_fdi_normal_train(struct drm_crtc *crtc)
+static void intel_fdi_normal_train(struct intel_crtc *crtc)
 {
-	struct drm_device *dev = crtc->dev;
+	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
+	int pipe = crtc->pipe;
 	i915_reg_t reg;
 	u32 temp;
 
@@ -3689,12 +3688,11 @@ static void intel_fdi_normal_train(struct drm_crtc *crtc)
 }
 
 /* The FDI link training functions for ILK/Ibexpeak. */
-static void ironlake_fdi_link_train(struct drm_crtc *crtc)
+static void ironlake_fdi_link_train(struct intel_crtc *crtc)
 {
-	struct drm_device *dev = crtc->dev;
+	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
+	int pipe = crtc->pipe;
 	i915_reg_t reg;
 	u32 temp, tries;
 
@@ -3715,7 +3713,7 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 	reg = FDI_TX_CTL(pipe);
 	temp = I915_READ(reg);
 	temp &= ~FDI_DP_PORT_WIDTH_MASK;
-	temp |= FDI_DP_PORT_WIDTH(intel_crtc->config->fdi_lanes);
+	temp |= FDI_DP_PORT_WIDTH(crtc->config->fdi_lanes);
 	temp &= ~FDI_LINK_TRAIN_NONE;
 	temp |= FDI_LINK_TRAIN_PATTERN_1;
 	I915_WRITE(reg, temp | FDI_TX_ENABLE);
@@ -3790,12 +3788,11 @@ static const int snb_b_fdi_train_param[] = {
 };
 
 /* The FDI link training functions for SNB/Cougarpoint. */
-static void gen6_fdi_link_train(struct drm_crtc *crtc)
+static void gen6_fdi_link_train(struct intel_crtc *crtc)
 {
-	struct drm_device *dev = crtc->dev;
+	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
+	int pipe = crtc->pipe;
 	i915_reg_t reg;
 	u32 temp, i, retry;
 
@@ -3814,7 +3811,7 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 	reg = FDI_TX_CTL(pipe);
 	temp = I915_READ(reg);
 	temp &= ~FDI_DP_PORT_WIDTH_MASK;
-	temp |= FDI_DP_PORT_WIDTH(intel_crtc->config->fdi_lanes);
+	temp |= FDI_DP_PORT_WIDTH(crtc->config->fdi_lanes);
 	temp &= ~FDI_LINK_TRAIN_NONE;
 	temp |= FDI_LINK_TRAIN_PATTERN_1;
 	temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
@@ -3923,12 +3920,11 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 }
 
 /* Manual link training for Ivy Bridge A0 parts */
-static void ivb_manual_fdi_link_train(struct drm_crtc *crtc)
+static void ivb_manual_fdi_link_train(struct intel_crtc *crtc)
 {
-	struct drm_device *dev = crtc->dev;
+	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
+	int pipe = crtc->pipe;
 	i915_reg_t reg;
 	u32 temp, i, j;
 
@@ -3966,7 +3962,7 @@ static void ivb_manual_fdi_link_train(struct drm_crtc *crtc)
 		reg = FDI_TX_CTL(pipe);
 		temp = I915_READ(reg);
 		temp &= ~FDI_DP_PORT_WIDTH_MASK;
-		temp |= FDI_DP_PORT_WIDTH(intel_crtc->config->fdi_lanes);
+		temp |= FDI_DP_PORT_WIDTH(crtc->config->fdi_lanes);
 		temp |= FDI_LINK_TRAIN_PATTERN_1_IVB;
 		temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
 		temp |= snb_b_fdi_train_param[j/2];
@@ -4437,12 +4433,12 @@ static void ivybridge_update_fdi_bc_bifurcation(struct intel_crtc *intel_crtc)
 
 /* Return which DP Port should be selected for Transcoder DP control */
 static enum port
-intel_trans_dp_port_sel(struct drm_crtc *crtc)
+intel_trans_dp_port_sel(struct intel_crtc *crtc)
 {
-	struct drm_device *dev = crtc->dev;
+	struct drm_device *dev = crtc->base.dev;
 	struct intel_encoder *encoder;
 
-	for_each_encoder_on_crtc(dev, crtc, encoder) {
+	for_each_encoder_on_crtc(dev, &crtc->base, encoder) {
 		if (encoder->type == INTEL_OUTPUT_DP ||
 		    encoder->type == INTEL_OUTPUT_EDP)
 			return enc_to_dig_port(&encoder->base)->port;
@@ -4459,18 +4455,17 @@ intel_trans_dp_port_sel(struct drm_crtc *crtc)
  *   - DP transcoding bits
  *   - transcoder
  */
-static void ironlake_pch_enable(struct drm_crtc *crtc)
+static void ironlake_pch_enable(struct intel_crtc *crtc)
 {
-	struct drm_device *dev = crtc->dev;
+	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
+	int pipe = crtc->pipe;
 	u32 temp;
 
 	assert_pch_transcoder_disabled(dev_priv, pipe);
 
 	if (IS_IVYBRIDGE(dev_priv))
-		ivybridge_update_fdi_bc_bifurcation(intel_crtc);
+		ivybridge_update_fdi_bc_bifurcation(crtc);
 
 	/* Write the TU size bits before fdi link training, so that error
 	 * detection works. */
@@ -4488,7 +4483,7 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 		temp = I915_READ(PCH_DPLL_SEL);
 		temp |= TRANS_DPLL_ENABLE(pipe);
 		sel = TRANS_DPLLB_SEL(pipe);
-		if (intel_crtc->config->shared_dpll ==
+		if (crtc->config->shared_dpll ==
 		    intel_get_shared_dpll_by_id(dev_priv, DPLL_ID_PCH_PLL_B))
 			temp |= sel;
 		else
@@ -4503,19 +4498,19 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 	 * Note that enable_shared_dpll tries to do the right thing, but
 	 * get_shared_dpll unconditionally resets the pll - we need that to have
 	 * the right LVDS enable sequence. */
-	intel_enable_shared_dpll(intel_crtc);
+	intel_enable_shared_dpll(crtc);
 
 	/* set transcoder timing, panel must allow it */
 	assert_panel_unlocked(dev_priv, pipe);
-	ironlake_pch_transcoder_set_timings(intel_crtc, pipe);
+	ironlake_pch_transcoder_set_timings(crtc, pipe);
 
 	intel_fdi_normal_train(crtc);
 
 	/* For PCH DP, enable TRANS_DP_CTL */
 	if (HAS_PCH_CPT(dev_priv) &&
-	    intel_crtc_has_dp_encoder(intel_crtc->config)) {
+	    intel_crtc_has_dp_encoder(crtc->config)) {
 		const struct drm_display_mode *adjusted_mode =
-			&intel_crtc->config->base.adjusted_mode;
+			&crtc->config->base.adjusted_mode;
 		u32 bpc = (I915_READ(PIPECONF(pipe)) & PIPECONF_BPC_MASK) >> 5;
 		i915_reg_t reg = TRANS_DP_CTL(pipe);
 		temp = I915_READ(reg);
@@ -5289,7 +5284,7 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 	intel_enable_pipe(intel_crtc);
 
 	if (intel_crtc->config->has_pch_encoder)
-		ironlake_pch_enable(crtc);
+		ironlake_pch_enable(intel_crtc);
 
 	assert_vblank_disabled(crtc);
 	drm_crtc_vblank_on(crtc);
@@ -5371,7 +5366,7 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	intel_encoders_pre_enable(crtc, pipe_config, old_state);
 
 	if (intel_crtc->config->has_pch_encoder)
-		dev_priv->display.fdi_link_train(crtc);
+		dev_priv->display.fdi_link_train(intel_crtc);
 
 	if (!transcoder_is_dsi(cpu_transcoder))
 		intel_ddi_enable_pipe_clock(intel_crtc);
