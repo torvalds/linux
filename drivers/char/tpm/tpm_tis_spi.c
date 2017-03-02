@@ -61,66 +61,75 @@ static int tpm_tis_spi_transfer(struct tpm_tis_data *data, u32 addr, u16 len,
 				u8 *buffer, u8 direction)
 {
 	struct tpm_tis_spi_phy *phy = to_tpm_tis_spi_phy(data);
-	int ret, i;
+	int ret = 0;
+	int i;
 	struct spi_message m;
-	struct spi_transfer spi_xfer = {
-		.tx_buf = phy->tx_buf,
-		.rx_buf = phy->rx_buf,
-		.len = 4,
-		.cs_change = 1,
-	};
-
-	if (len > MAX_SPI_FRAMESIZE)
-		return -ENOMEM;
-
-	phy->tx_buf[0] = direction | (len - 1);
-	phy->tx_buf[1] = 0xd4;
-	phy->tx_buf[2] = addr >> 8;
-	phy->tx_buf[3] = addr;
-
-	spi_message_init(&m);
-	spi_message_add_tail(&spi_xfer, &m);
+	struct spi_transfer spi_xfer;
+	u8 transfer_len;
 
 	spi_bus_lock(phy->spi_device->master);
-	ret = spi_sync_locked(phy->spi_device, &m);
-	if (ret < 0)
-		goto exit;
 
-	if ((phy->rx_buf[3] & 0x01) == 0) {
-		// handle SPI wait states
-		phy->tx_buf[0] = 0;
+	while (len) {
+		transfer_len = min_t(u16, len, MAX_SPI_FRAMESIZE);
 
-		for (i = 0; i < TPM_RETRY; i++) {
-			spi_xfer.len = 1;
-			spi_message_init(&m);
-			spi_message_add_tail(&spi_xfer, &m);
-			ret = spi_sync_locked(phy->spi_device, &m);
-			if (ret < 0)
-				goto exit;
-			if (phy->rx_buf[0] & 0x01)
-				break;
-		}
+		phy->tx_buf[0] = direction | (transfer_len - 1);
+		phy->tx_buf[1] = 0xd4;
+		phy->tx_buf[2] = addr >> 8;
+		phy->tx_buf[3] = addr;
 
-		if (i == TPM_RETRY) {
-			ret = -ETIMEDOUT;
+		memset(&spi_xfer, 0, sizeof(spi_xfer));
+		spi_xfer.tx_buf = phy->tx_buf;
+		spi_xfer.rx_buf = phy->rx_buf;
+		spi_xfer.len = 4;
+		spi_xfer.cs_change = 1;
+
+		spi_message_init(&m);
+		spi_message_add_tail(&spi_xfer, &m);
+		ret = spi_sync_locked(phy->spi_device, &m);
+		if (ret < 0)
 			goto exit;
+
+		if ((phy->rx_buf[3] & 0x01) == 0) {
+			// handle SPI wait states
+			phy->tx_buf[0] = 0;
+
+			for (i = 0; i < TPM_RETRY; i++) {
+				spi_xfer.len = 1;
+				spi_message_init(&m);
+				spi_message_add_tail(&spi_xfer, &m);
+				ret = spi_sync_locked(phy->spi_device, &m);
+				if (ret < 0)
+					goto exit;
+				if (phy->rx_buf[0] & 0x01)
+					break;
+			}
+
+			if (i == TPM_RETRY) {
+				ret = -ETIMEDOUT;
+				goto exit;
+			}
 		}
+
+		spi_xfer.cs_change = 0;
+		spi_xfer.len = transfer_len;
+
+		if (direction) {
+			spi_xfer.tx_buf = NULL;
+			spi_xfer.rx_buf = buffer;
+		} else {
+			spi_xfer.tx_buf = buffer;
+			spi_xfer.rx_buf = NULL;
+		}
+
+		spi_message_init(&m);
+		spi_message_add_tail(&spi_xfer, &m);
+		ret = spi_sync_locked(phy->spi_device, &m);
+		if (ret < 0)
+			goto exit;
+
+		len -= transfer_len;
+		buffer += transfer_len;
 	}
-
-	spi_xfer.cs_change = 0;
-	spi_xfer.len = len;
-
-	if (direction) {
-		spi_xfer.tx_buf = NULL;
-		spi_xfer.rx_buf = buffer;
-	} else {
-		spi_xfer.tx_buf = buffer;
-		spi_xfer.rx_buf = NULL;
-	}
-
-	spi_message_init(&m);
-	spi_message_add_tail(&spi_xfer, &m);
-	ret = spi_sync_locked(phy->spi_device, &m);
 
 exit:
 	spi_bus_unlock(phy->spi_device->master);
