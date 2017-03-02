@@ -15,7 +15,139 @@ be setup by initializing the following fields.
 -  struct drm_mode_config_funcs \*funcs;
    Mode setting functions.
 
-Mode Configuration
+Overview
+========
+
+.. kernel-render:: DOT
+   :alt: KMS Display Pipeline
+   :caption: KMS Display Pipeline Overview
+
+   digraph "KMS" {
+      node [shape=box]
+
+      subgraph cluster_static {
+          style=dashed
+          label="Static Objects"
+
+          node [bgcolor=grey style=filled]
+          "drm_plane A" -> "drm_crtc"
+          "drm_plane B" -> "drm_crtc"
+          "drm_crtc" -> "drm_encoder A"
+          "drm_crtc" -> "drm_encoder B"
+      }
+
+      subgraph cluster_user_created {
+          style=dashed
+          label="Userspace-Created"
+
+          node [shape=oval]
+          "drm_framebuffer 1" -> "drm_plane A"
+          "drm_framebuffer 2" -> "drm_plane B"
+      }
+
+      subgraph cluster_connector {
+          style=dashed
+          label="Hotpluggable"
+
+          "drm_encoder A" -> "drm_connector A"
+          "drm_encoder B" -> "drm_connector B"
+      }
+   }
+
+The basic object structure KMS presents to userspace is fairly simple.
+Framebuffers (represented by :c:type:`struct drm_framebuffer <drm_framebuffer>`,
+see `Frame Buffer Abstraction`_) feed into planes. One or more (or even no)
+planes feed their pixel data into a CRTC (represented by :c:type:`struct
+drm_crtc <drm_crtc>`, see `CRTC Abstraction`_) for blending. The precise
+blending step is explained in more detail in `Plane Composition Properties`_ and
+related chapters.
+
+For the output routing the first step is encoders (represented by
+:c:type:`struct drm_encoder <drm_encoder>`, see `Encoder Abstraction`_). Those
+are really just internal artifacts of the helper libraries used to implement KMS
+drivers. Besides that they make it unecessarily more complicated for userspace
+to figure out which connections between a CRTC and a connector are possible, and
+what kind of cloning is supported, they serve no purpose in the userspace API.
+Unfortunately encoders have been exposed to userspace, hence can't remove them
+at this point.  Futhermore the exposed restrictions are often wrongly set by
+drivers, and in many cases not powerful enough to express the real restrictions.
+A CRTC can be connected to multiple encoders, and for an active CRTC there must
+be at least one encoder.
+
+The final, and real, endpoint in the display chain is the connector (represented
+by :c:type:`struct drm_connector <drm_connector>`, see `Connector
+Abstraction`_). Connectors can have different possible encoders, but the kernel
+driver selects which encoder to use for each connector. The use case is DVI,
+which could switch between an analog and a digital encoder. Encoders can also
+drive multiple different connectors. There is exactly one active connector for
+every active encoder.
+
+Internally the output pipeline is a bit more complex and matches today's
+hardware more closely:
+
+.. kernel-render:: DOT
+   :alt: KMS Output Pipeline
+   :caption: KMS Output Pipeline
+
+   digraph "Output Pipeline" {
+      node [shape=box]
+
+      subgraph {
+          "drm_crtc" [bgcolor=grey style=filled]
+      }
+
+      subgraph cluster_internal {
+          style=dashed
+          label="Internal Pipeline"
+          {
+              node [bgcolor=grey style=filled]
+              "drm_encoder A";
+              "drm_encoder B";
+              "drm_encoder C";
+          }
+
+          {
+              node [bgcolor=grey style=filled]
+              "drm_encoder B" -> "drm_bridge B"
+              "drm_encoder C" -> "drm_bridge C1"
+              "drm_bridge C1" -> "drm_bridge C2";
+          }
+      }
+
+      "drm_crtc" -> "drm_encoder A"
+      "drm_crtc" -> "drm_encoder B"
+      "drm_crtc" -> "drm_encoder C"
+
+
+      subgraph cluster_output {
+          style=dashed
+          label="Outputs"
+
+          "drm_encoder A" -> "drm_connector A";
+          "drm_bridge B" -> "drm_connector B";
+          "drm_bridge C2" -> "drm_connector C";
+
+          "drm_panel"
+      }
+   }
+
+Internally two additional helper objects come into play. First, to be able to
+share code for encoders (sometimes on the same SoC, sometimes off-chip) one or
+more :ref:`drm_bridges` (represented by :c:type:`struct drm_bridge
+<drm_bridge>`) can be linked to an encoder. This link is static and cannot be
+changed, which means the cross-bar (if there is any) needs to be mapped between
+the CRTC and any encoders. Often for drivers with bridges there's no code left
+at the encoder level. Atomic drivers can leave out all the encoder callbacks to
+essentially only leave a dummy routing object behind, which is needed for
+backwards compatibility since encoders are exposed to userspace.
+
+The second object is for panels, represented by :c:type:`struct drm_panel
+<drm_panel>`, see :ref:`drm_panel_helper`. Panels do not have a fixed binding
+point, but are generally linked to the driver private structure that embeds
+:c:type:`struct drm_connector <drm_connector>`.
+
+Note that currently the bridge chaining and interactions with connectors and
+panels are still in-flux and not really fully sorted out yet.
 
 KMS Core Structures and Functions
 =================================
