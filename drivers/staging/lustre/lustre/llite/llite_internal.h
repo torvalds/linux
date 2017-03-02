@@ -35,7 +35,6 @@
 #include "../include/lustre_debug.h"
 #include "../include/lustre_ver.h"
 #include "../include/lustre_disk.h"	/* for s2sbi */
-#include "../include/lustre_eacl.h"
 #include "../include/lustre_linkea.h"
 
 /* for struct cl_lock_descr and struct cl_io */
