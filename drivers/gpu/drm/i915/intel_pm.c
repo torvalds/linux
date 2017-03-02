@@ -1401,6 +1401,45 @@ static void vlv_atomic_update_fifo(struct intel_atomic_state *state,
 
 #undef VLV_FIFO
 
+static int vlv_compute_intermediate_wm(struct drm_device *dev,
+				       struct intel_crtc *crtc,
+				       struct intel_crtc_state *crtc_state)
+{
+	struct vlv_wm_state *intermediate = &crtc_state->wm.vlv.intermediate;
+	const struct vlv_wm_state *optimal = &crtc_state->wm.vlv.optimal;
+	const struct vlv_wm_state *active = &crtc->wm.active.vlv;
+	int level;
+
+	intermediate->num_levels = min(optimal->num_levels, active->num_levels);
+	intermediate->cxsr = optimal->cxsr & active->cxsr;
+
+	for (level = 0; level < intermediate->num_levels; level++) {
+		enum plane_id plane_id;
+
+		for_each_plane_id_on_crtc(crtc, plane_id) {
+			intermediate->wm[level].plane[plane_id] =
+				min(optimal->wm[level].plane[plane_id],
+				    active->wm[level].plane[plane_id]);
+		}
+
+		intermediate->sr[level].plane = min(optimal->sr[level].plane,
+						    active->sr[level].plane);
+		intermediate->sr[level].cursor = min(optimal->sr[level].cursor,
+						     active->sr[level].cursor);
+	}
+
+	vlv_invalidate_wms(crtc, intermediate, level);
+
+	/*
+	 * If our intermediate WM are identical to the final WM, then we can
+	 * omit the post-vblank programming; only update if it's different.
+	 */
+	if (memcmp(intermediate, optimal, sizeof(*intermediate)) == 0)
+		crtc_state->wm.need_postvbl_update = false;
+
+	return 0;
+}
+
 static void vlv_merge_wm(struct drm_i915_private *dev_priv,
 			 struct vlv_wm_values *wm)
 {
@@ -1494,7 +1533,22 @@ static void vlv_initial_watermarks(struct intel_atomic_state *state,
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 
 	mutex_lock(&dev_priv->wm.wm_mutex);
-	crtc->wm.active.vlv = crtc_state->wm.vlv.optimal;
+	crtc->wm.active.vlv = crtc_state->wm.vlv.intermediate;
+	vlv_program_watermarks(dev_priv);
+	mutex_unlock(&dev_priv->wm.wm_mutex);
+}
+
+static void vlv_optimize_watermarks(struct intel_atomic_state *state,
+				    struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
+
+	if (!crtc_state->wm.need_postvbl_update)
+		return;
+
+	mutex_lock(&dev_priv->wm.wm_mutex);
+	intel_crtc->wm.active.vlv = crtc_state->wm.vlv.optimal;
 	vlv_program_watermarks(dev_priv);
 	mutex_unlock(&dev_priv->wm.wm_mutex);
 }
@@ -4695,6 +4749,7 @@ void vlv_wm_get_hw_state(struct drm_device *dev)
 		vlv_invalidate_wms(crtc, active, level);
 
 		crtc_state->wm.vlv.optimal = *active;
+		crtc_state->wm.vlv.intermediate = *active;
 
 		DRM_DEBUG_KMS("Initial watermarks: pipe %c, plane=%d, cursor=%d, sprite0=%d, sprite1=%d\n",
 			      pipe_name(pipe),
@@ -7861,7 +7916,9 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		vlv_setup_wm_latency(dev_priv);
 		dev_priv->display.compute_pipe_wm = vlv_compute_pipe_wm;
+		dev_priv->display.compute_intermediate_wm = vlv_compute_intermediate_wm;
 		dev_priv->display.initial_watermarks = vlv_initial_watermarks;
+		dev_priv->display.optimize_watermarks = vlv_optimize_watermarks;
 		dev_priv->display.atomic_update_watermarks = vlv_atomic_update_fifo;
 	} else if (IS_PINEVIEW(dev_priv)) {
 		if (!intel_get_cxsr_latency(IS_PINEVIEW_G(dev_priv),

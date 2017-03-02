@@ -538,6 +538,8 @@ struct intel_crtc_wm_state {
 		struct {
 			/* "raw" watermarks (not inverted) */
 			struct vlv_pipe_wm raw[NUM_VLV_WM_LEVELS];
+			/* intermediate watermarks (inverted) */
+			struct vlv_wm_state intermediate;
 			/* optimal watermarks (inverted) */
 			struct vlv_wm_state optimal;
 			/* display FIFO split */
