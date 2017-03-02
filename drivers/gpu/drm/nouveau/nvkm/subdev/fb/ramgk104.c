@@ -1524,7 +1524,7 @@ gk104_ram_dtor(struct nvkm_ram *base)
 
 int
 gk104_ram_new_(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
-	       struct nvkm_ram **pram, u32 maskaddr)
+	       struct nvkm_ram **pram)
 {
 	struct nvkm_subdev *subdev = &fb->subdev;
 	struct nvkm_device *device = subdev->device;
@@ -1539,7 +1539,7 @@ gk104_ram_new_(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 		return -ENOMEM;
 	*pram = &ram->base;
 
-	ret = gf100_ram_ctor(func, fb, maskaddr, &ram->base);
+	ret = gf100_ram_ctor(func, fb, &ram->base);
 	if (ret)
 		return ret;
 
@@ -1703,6 +1703,10 @@ gk104_ram_new_(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 
 static const struct nvkm_ram_func
 gk104_ram = {
+	.upper = 0x0200000000,
+	.probe_fbp = gf100_ram_probe_fbp,
+	.probe_fbp_amount = gf108_ram_probe_fbp_amount,
+	.probe_fbpa_amount = gf100_ram_probe_fbpa_amount,
 	.dtor = gk104_ram_dtor,
 	.init = gk104_ram_init,
 	.get = gf100_ram_get,
@@ -1715,5 +1719,5 @@ gk104_ram = {
 int
 gk104_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 {
-	return gk104_ram_new_(&gk104_ram, fb, pram, 0x022554);
+	return gk104_ram_new_(&gk104_ram, fb, pram);
 }

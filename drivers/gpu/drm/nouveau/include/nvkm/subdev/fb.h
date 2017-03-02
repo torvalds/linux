@@ -147,6 +147,12 @@ struct nvkm_ram {
 };
 
 struct nvkm_ram_func {
+	u64 upper;
+	u32 (*probe_fbp)(const struct nvkm_ram_func *, struct nvkm_device *,
+			 int fbp, int *pltcs);
+	u32 (*probe_fbp_amount)(const struct nvkm_ram_func *, u32 fbpao,
+				struct nvkm_device *, int fbp, int *pltcs);
+	u32 (*probe_fbpa_amount)(struct nvkm_device *, int fbpa);
 	void *(*dtor)(struct nvkm_ram *);
 	int (*init)(struct nvkm_ram *);
 
