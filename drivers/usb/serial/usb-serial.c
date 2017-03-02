@@ -752,8 +752,8 @@ static int usb_serial_probe(struct usb_interface *interface,
 
 	serial = create_serial(dev, interface, type);
 	if (!serial) {
-		module_put(type->driver.owner);
-		return -ENOMEM;
+		retval = -ENOMEM;
+		goto err_put_module;
 	}
 
 	/* if this device type has a probe function, call it */
@@ -765,9 +765,7 @@ static int usb_serial_probe(struct usb_interface *interface,
 
 		if (retval) {
 			dev_dbg(ddev, "sub driver rejected device\n");
-			usb_serial_put(serial);
-			module_put(type->driver.owner);
-			return retval;
+			goto err_put_serial;
 		}
 	}
 
@@ -849,9 +847,8 @@ static int usb_serial_probe(struct usb_interface *interface,
 		 */
 		if (num_bulk_in == 0 || num_bulk_out == 0) {
 			dev_info(ddev, "PL-2303 hack: descriptors matched but endpoints did not\n");
-			usb_serial_put(serial);
-			module_put(type->driver.owner);
-			return -ENODEV;
+			retval = -ENODEV;
+			goto err_put_serial;
 		}
 	}
 	/* END HORRIBLE HACK FOR PL2303 */
@@ -862,9 +859,8 @@ static int usb_serial_probe(struct usb_interface *interface,
 		num_ports = num_bulk_out;
 		if (num_ports == 0) {
 			dev_err(ddev, "Generic device with no bulk out, not allowed.\n");
-			usb_serial_put(serial);
-			module_put(type->driver.owner);
-			return -EIO;
+			retval = -EIO;
+			goto err_put_serial;
 		}
 		dev_info(ddev, "The \"generic\" usb-serial driver is only for testing and one-off prototypes.\n");
 		dev_info(ddev, "Tell linux-usb@vger.kernel.org to add your device to a proper driver.\n");
@@ -1085,9 +1081,13 @@ exit:
 	return 0;
 
 probe_error:
+	retval = -EIO;
+err_put_serial:
 	usb_serial_put(serial);
+err_put_module:
 	module_put(type->driver.owner);
-	return -EIO;
+
+	return retval;
 }
 
 static void usb_serial_disconnect(struct usb_interface *interface)
