@@ -124,7 +124,7 @@ gf100_ram_train(struct gf100_ramfuc *fuc, u32 magic)
 	}
 }
 
-static int
+int
 gf100_ram_calc(struct nvkm_ram *base, u32 freq)
 {
 	struct gf100_ram *ram = gf100_ram(base);
@@ -404,7 +404,7 @@ gf100_ram_calc(struct nvkm_ram *base, u32 freq)
 	return 0;
 }
 
-static int
+int
 gf100_ram_prog(struct nvkm_ram *base)
 {
 	struct gf100_ram *ram = gf100_ram(base);
@@ -413,7 +413,7 @@ gf100_ram_prog(struct nvkm_ram *base)
 	return 0;
 }
 
-static void
+void
 gf100_ram_tidy(struct nvkm_ram *base)
 {
 	struct gf100_ram *ram = gf100_ram(base);
@@ -500,7 +500,7 @@ gf100_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
 	return 0;
 }
 
-static int
+int
 gf100_ram_init(struct nvkm_ram *base)
 {
 	static const u8  train0[] = {
@@ -542,16 +542,6 @@ gf100_ram_init(struct nvkm_ram *base)
 
 	return 0;
 }
-
-static const struct nvkm_ram_func
-gf100_ram_func = {
-	.init = gf100_ram_init,
-	.get = gf100_ram_get,
-	.put = gf100_ram_put,
-	.calc = gf100_ram_calc,
-	.prog = gf100_ram_prog,
-	.tidy = gf100_ram_tidy,
-};
 
 int
 gf100_ram_ctor(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
@@ -624,7 +614,8 @@ gf100_ram_ctor(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 }
 
 int
-gf100_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
+gf100_ram_new_(const struct nvkm_ram_func *func,
+	       struct nvkm_fb *fb, struct nvkm_ram **pram)
 {
 	struct nvkm_subdev *subdev = &fb->subdev;
 	struct nvkm_bios *bios = subdev->device->bios;
@@ -635,7 +626,7 @@ gf100_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 		return -ENOMEM;
 	*pram = &ram->base;
 
-	ret = gf100_ram_ctor(&gf100_ram_func, fb, 0x022554, &ram->base);
+	ret = gf100_ram_ctor(func, fb, 0x022554, &ram->base);
 	if (ret)
 		return ret;
 
@@ -710,4 +701,20 @@ gf100_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 
 	ram->fuc.r_0x13d8f4 = ramfuc_reg(0x13d8f4);
 	return 0;
+}
+
+static const struct nvkm_ram_func
+gf100_ram = {
+	.init = gf100_ram_init,
+	.get = gf100_ram_get,
+	.put = gf100_ram_put,
+	.calc = gf100_ram_calc,
+	.prog = gf100_ram_prog,
+	.tidy = gf100_ram_tidy,
+};
+
+int
+gf100_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
+{
+	return gf100_ram_new_(&gf100_ram, fb, pram);
 }

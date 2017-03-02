@@ -19,13 +19,24 @@ int  nv50_ram_get(struct nvkm_ram *, u64, u32, u32, u32, struct nvkm_mem **);
 void nv50_ram_put(struct nvkm_ram *, struct nvkm_mem **);
 void __nv50_ram_put(struct nvkm_ram *, struct nvkm_mem *);
 
+int gf100_ram_new_(const struct nvkm_ram_func *, struct nvkm_fb *,
+		   struct nvkm_ram **);
 int  gf100_ram_ctor(const struct nvkm_ram_func *, struct nvkm_fb *,
 		    u32, struct nvkm_ram *);
 int  gf100_ram_get(struct nvkm_ram *, u64, u32, u32, u32, struct nvkm_mem **);
 void gf100_ram_put(struct nvkm_ram *, struct nvkm_mem **);
+int gf100_ram_init(struct nvkm_ram *);
+int gf100_ram_calc(struct nvkm_ram *, u32);
+int gf100_ram_prog(struct nvkm_ram *);
+void gf100_ram_tidy(struct nvkm_ram *);
 
-int  gk104_ram_ctor(struct nvkm_fb *, struct nvkm_ram **, u32);
-int  gk104_ram_init(struct nvkm_ram *ram);
+int gk104_ram_new_(const struct nvkm_ram_func *, struct nvkm_fb *,
+		   struct nvkm_ram **, u32);
+void *gk104_ram_dtor(struct nvkm_ram *);
+int gk104_ram_init(struct nvkm_ram *);
+int gk104_ram_calc(struct nvkm_ram *, u32);
+int gk104_ram_prog(struct nvkm_ram *);
+void gk104_ram_tidy(struct nvkm_ram *);
 
 /* RAM type-specific MR calculation routines */
 int nvkm_sddr2_calc(struct nvkm_ram *);
