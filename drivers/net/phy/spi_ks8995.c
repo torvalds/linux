@@ -491,8 +491,8 @@ static int ks8995_probe(struct spi_device *spi)
 	if (err)
 		return err;
 
-	ks->regs_attr.size = ks->chip->regs_size;
 	memcpy(&ks->regs_attr, &ks8995_registers_attr, sizeof(ks->regs_attr));
+	ks->regs_attr.size = ks->chip->regs_size;
 
 	err = ks8995_reset(ks);
 	if (err)
