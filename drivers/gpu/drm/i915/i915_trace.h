@@ -16,6 +16,49 @@
 
 /* watermark/fifo updates */
 
+TRACE_EVENT(intel_cpu_fifo_underrun,
+	    TP_PROTO(struct drm_i915_private *dev_priv, enum pipe pipe),
+	    TP_ARGS(dev_priv, pipe),
+
+	    TP_STRUCT__entry(
+			     __field(enum pipe, pipe)
+			     __field(u32, frame)
+			     __field(u32, scanline)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->pipe = pipe;
+			   __entry->frame = dev_priv->drm.driver->get_vblank_counter(&dev_priv->drm, pipe);
+			   __entry->scanline = intel_get_crtc_scanline(intel_get_crtc_for_pipe(dev_priv, pipe));
+			   ),
+
+	    TP_printk("pipe %c, frame=%u, scanline=%u",
+		      pipe_name(__entry->pipe),
+		      __entry->frame, __entry->scanline)
+);
+
+TRACE_EVENT(intel_pch_fifo_underrun,
+	    TP_PROTO(struct drm_i915_private *dev_priv, enum transcoder pch_transcoder),
+	    TP_ARGS(dev_priv, pch_transcoder),
+
+	    TP_STRUCT__entry(
+			     __field(enum pipe, pipe)
+			     __field(u32, frame)
+			     __field(u32, scanline)
+			     ),
+
+	    TP_fast_assign(
+			   enum pipe pipe = (enum pipe)pch_transcoder;
+			   __entry->pipe = pipe;
+			   __entry->frame = dev_priv->drm.driver->get_vblank_counter(&dev_priv->drm, pipe);
+			   __entry->scanline = intel_get_crtc_scanline(intel_get_crtc_for_pipe(dev_priv, pipe));
+			   ),
+
+	    TP_printk("pch transcoder %c, frame=%u, scanline=%u",
+		      pipe_name(__entry->pipe),
+		      __entry->frame, __entry->scanline)
+);
+
 TRACE_EVENT(intel_memory_cxsr,
 	    TP_PROTO(struct drm_i915_private *dev_priv, bool old, bool new),
 	    TP_ARGS(dev_priv, old, new),
