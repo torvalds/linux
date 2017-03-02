@@ -1288,10 +1288,10 @@ static void hdmi_config_AVI(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 	 */
 
 	/*
-	 * AVI data byte 1 differences: Colorspace in bits 4,5 rather than 5,6,
-	 * active aspect present in bit 6 rather than 4.
+	 * AVI data byte 1 differences: Colorspace in bits 0,1,7 rather than
+	 * 5,6,7, active aspect present in bit 6 rather than 4.
 	 */
-	val = (frame.colorspace & 3) << 4 | (frame.scan_mode & 0x3);
+	val = (frame.scan_mode & 3) << 4 | (frame.colorspace & 0x3);
 	if (frame.active_aspect & 15)
 		val |= HDMI_FC_AVICONF0_ACTIVE_FMT_INFO_PRESENT;
 	if (frame.top_bar || frame.bottom_bar)
