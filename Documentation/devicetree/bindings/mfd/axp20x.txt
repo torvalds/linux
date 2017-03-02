@@ -37,6 +37,9 @@ Supported common regulator properties, see regulator.txt for more information:
 - regulator-ramp-delay: sets the ramp up delay in uV/us
 			AXP20x/DCDC2: 1600, 800
 			AXP20x/LDO3:  1600, 800
+- regulator-soft-start:	enable the output at the lowest possible voltage and
+			only then set the desired voltage
+			AXP20x/LDO3
 
 Optional properties:
 - x-powers,dcdc-freq: defines the work frequency of DC-DC in KHz
