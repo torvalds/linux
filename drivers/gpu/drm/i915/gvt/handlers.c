@@ -121,6 +121,7 @@ static int new_mmio_info(struct intel_gvt *gvt,
 		info->size = size;
 		info->length = (i + 4) < end ? 4 : (end - i);
 		info->addr_mask = addr_mask;
+		info->ro_mask = ro_mask;
 		info->device = device;
 		info->read = read ? read : intel_vgpu_default_mmio_read;
 		info->write = write ? write : intel_vgpu_default_mmio_write;
