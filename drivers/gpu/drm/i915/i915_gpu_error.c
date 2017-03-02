@@ -633,6 +633,8 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	}
 
 	err_printf(m, "GT awake: %s\n", yesno(error->awake));
+	err_printf(m, "RPM wakelock: %s\n", yesno(error->wakelock));
+	err_printf(m, "PM suspended: %s\n", yesno(error->suspended));
 	err_printf(m, "EIR: 0x%08x\n", error->eir);
 	err_printf(m, "IER: 0x%08x\n", error->ier);
 	for (i = 0; i < error->ngtier; i++)
@@ -1617,6 +1619,8 @@ static void i915_capture_gen_state(struct drm_i915_private *dev_priv,
 				   struct i915_gpu_state *error)
 {
 	error->awake = dev_priv->gt.awake;
+	error->wakelock = atomic_read(&dev_priv->pm.wakeref_count);
+	error->suspended = dev_priv->pm.suspended;
 
 	error->iommu = -1;
 #ifdef CONFIG_INTEL_IOMMU

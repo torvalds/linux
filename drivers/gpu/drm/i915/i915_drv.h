@@ -935,6 +935,8 @@ struct i915_gpu_state {
 	char error_msg[128];
 	bool simulated;
 	bool awake;
+	bool wakelock;
+	bool suspended;
 	int iommu;
 	u32 reset_count;
 	u32 suspend_count;
