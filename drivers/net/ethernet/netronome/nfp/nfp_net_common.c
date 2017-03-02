@@ -1498,7 +1498,7 @@ nfp_net_tx_xdp_buf(struct nfp_net *nn, struct nfp_net_rx_ring *rx_ring,
 	txbuf->real_len = pkt_len;
 
 	dma_sync_single_for_device(&nn->pdev->dev, rxbuf->dma_addr + pkt_off,
-				   pkt_len, DMA_TO_DEVICE);
+				   pkt_len, DMA_BIDIRECTIONAL);
 
 	/* Build TX descriptor */
 	txd = &tx_ring->txds[wr_idx];
@@ -1611,7 +1611,7 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 
 			dma_sync_single_for_cpu(&nn->pdev->dev,
 						rxbuf->dma_addr + pkt_off,
-						pkt_len, DMA_FROM_DEVICE);
+						pkt_len, DMA_BIDIRECTIONAL);
 			act = nfp_net_run_xdp(xdp_prog, rxbuf->frag + data_off,
 					      pkt_len);
 			switch (act) {
