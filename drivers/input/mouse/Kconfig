@@ -171,6 +171,10 @@ config MOUSE_PS2_VMMOUSE
 
 	  If unsure, say N.
 
+config MOUSE_PS2_SMBUS
+	bool
+	depends on MOUSE_PS2
+
 config MOUSE_SERIAL
 	tristate "Serial mouse"
 	select SERIO

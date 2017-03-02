@@ -1999,16 +1999,27 @@ static int __init psmouse_init(void)
 	synaptics_module_init();
 	hgpk_module_init();
 
+	err = psmouse_smbus_module_init();
+	if (err)
+		return err;
+
 	kpsmoused_wq = alloc_ordered_workqueue("kpsmoused", 0);
 	if (!kpsmoused_wq) {
 		pr_err("failed to create kpsmoused workqueue\n");
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto err_smbus_exit;
 	}
 
 	err = serio_register_driver(&psmouse_drv);
 	if (err)
-		destroy_workqueue(kpsmoused_wq);
+		goto err_destroy_wq;
 
+	return 0;
+
+err_destroy_wq:
+	destroy_workqueue(kpsmoused_wq);
+err_smbus_exit:
+	psmouse_smbus_module_exit();
 	return err;
 }
 
@@ -2016,6 +2027,7 @@ static void __exit psmouse_exit(void)
 {
 	serio_unregister_driver(&psmouse_drv);
 	destroy_workqueue(kpsmoused_wq);
+	psmouse_smbus_module_exit();
 }
 
 module_init(psmouse_init);

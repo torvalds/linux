@@ -209,5 +209,34 @@ static struct psmouse_attribute psmouse_attr_##_name = {			\
 		   &(psmouse)->ps2dev.serio->dev,	\
 		   psmouse_fmt(format), ##__VA_ARGS__)
 
+#ifdef CONFIG_MOUSE_PS2_SMBUS
+
+int psmouse_smbus_module_init(void);
+void psmouse_smbus_module_exit(void);
+
+struct i2c_board_info;
+
+int psmouse_smbus_init(struct psmouse *psmouse,
+		       const struct i2c_board_info *board,
+		       const void *pdata, size_t pdata_size,
+		       bool leave_breadcrumbs);
+void psmouse_smbus_cleanup(struct psmouse *psmouse);
+
+#else /* !CONFIG_MOUSE_PS2_SMBUS */
+
+static inline int psmouse_smbus_module_init(void)
+{
+	return 0;
+}
+
+static inline void psmouse_smbus_module_exit(void)
+{
+}
+
+static inline void psmouse_smbus_cleanup(struct psmouse *psmouse)
+{
+}
+
+#endif /* CONFIG_MOUSE_PS2_SMBUS */
 
 #endif /* _PSMOUSE_H */
