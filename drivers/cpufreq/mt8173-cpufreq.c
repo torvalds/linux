@@ -573,7 +573,7 @@ static struct platform_driver mt8173_cpufreq_platdrv = {
 	.probe		= mt8173_cpufreq_probe,
 };
 
-static int mt8173_cpufreq_driver_init(void)
+static int __init mt8173_cpufreq_driver_init(void)
 {
 	struct platform_device *pdev;
 	int err;
