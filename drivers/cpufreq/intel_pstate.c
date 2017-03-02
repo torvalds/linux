@@ -382,6 +382,7 @@ static void intel_pstate_set_performance_limits(struct perf_limits *limits)
 	intel_pstate_init_limits(limits);
 	limits->min_perf_pct = 100;
 	limits->min_perf = int_ext_tofp(1);
+	limits->min_sysfs_pct = 100;
 }
 
 static DEFINE_MUTEX(intel_pstate_driver_lock);
@@ -2146,15 +2147,10 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 	mutex_lock(&intel_pstate_limits_lock);
 
 	if (policy->policy == CPUFREQ_POLICY_PERFORMANCE) {
+		pr_debug("set performance\n");
 		if (!perf_limits) {
 			limits = &performance_limits;
 			perf_limits = limits;
-		}
-		if (policy->max >= policy->cpuinfo.max_freq &&
-		    !limits->no_turbo) {
-			pr_debug("set performance\n");
-			intel_pstate_set_performance_limits(perf_limits);
-			goto out;
 		}
 	} else {
 		pr_debug("set powersave\n");
@@ -2166,7 +2162,7 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 	}
 
 	intel_pstate_update_perf_limits(policy, perf_limits);
- out:
+
 	if (cpu->policy == CPUFREQ_POLICY_PERFORMANCE) {
 		/*
 		 * NOHZ_FULL CPUs need this as the governor callback may not
@@ -2257,13 +2253,8 @@ static int __intel_pstate_cpu_init(struct cpufreq_policy *policy)
 
 	cpu = all_cpu_data[policy->cpu];
 
-	/*
-	 * We need sane value in the cpu->perf_limits, so inherit from global
-	 * perf_limits limits, which are seeded with values based on the
-	 * CONFIG_CPU_FREQ_DEFAULT_GOV_*, during boot up.
-	 */
 	if (per_cpu_limits)
-		memcpy(cpu->perf_limits, limits, sizeof(struct perf_limits));
+		intel_pstate_init_limits(cpu->perf_limits);
 
 	policy->min = cpu->pstate.min_pstate * cpu->pstate.scaling;
 	policy->max = cpu->pstate.turbo_pstate * cpu->pstate.scaling;
