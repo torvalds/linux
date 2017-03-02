@@ -139,10 +139,8 @@ static int snd_bcm2835_ctl_put(struct snd_kcontrol *kcontrol,
 		}
 	}
 
-	if (changed) {
-		if (bcm2835_audio_set_ctls(chip))
-			printk(KERN_ERR "Failed to set ALSA controls..\n");
-	}
+	if (changed && bcm2835_audio_set_ctls(chip))
+		dev_err(chip->card->dev, "Failed to set ALSA controls..\n");
 
 unlock:
 	mutex_unlock(&chip->audio_mutex);
