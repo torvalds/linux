@@ -6,6 +6,7 @@
  * Licensed under GPLv2.
  */
 
+#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -29,6 +30,7 @@ struct sama5d4_wdt {
 	struct watchdog_device	wdd;
 	void __iomem		*reg_base;
 	u32			mr;
+	unsigned long		last_ping;
 };
 
 static int wdt_timeout = WDT_DEFAULT_TIMEOUT;
@@ -49,8 +51,29 @@ MODULE_PARM_DESC(nowayout,
 #define wdt_read(wdt, field) \
 	readl_relaxed((wdt)->reg_base + (field))
 
-#define wdt_write(wtd, field, val) \
-	writel_relaxed((val), (wdt)->reg_base + (field))
+/* 4 slow clock periods is 4/32768 = 122.07µs*/
+#define WDT_DELAY	usecs_to_jiffies(123)
+
+static void wdt_write(struct sama5d4_wdt *wdt, u32 field, u32 val)
+{
+	/*
+	 * WDT_CR and WDT_MR must not be modified within three slow clock
+	 * periods following a restart of the watchdog performed by a write
+	 * access in WDT_CR.
+	 */
+	while (time_before(jiffies, wdt->last_ping + WDT_DELAY))
+		usleep_range(30, 125);
+	writel_relaxed(val, wdt->reg_base + field);
+	wdt->last_ping = jiffies;
+}
+
+static void wdt_write_nosleep(struct sama5d4_wdt *wdt, u32 field, u32 val)
+{
+	if (time_before(jiffies, wdt->last_ping + WDT_DELAY))
+		udelay(123);
+	writel_relaxed(val, wdt->reg_base + field);
+	wdt->last_ping = jiffies;
+}
 
 static int sama5d4_wdt_start(struct watchdog_device *wdd)
 {
@@ -164,11 +187,12 @@ static int sama5d4_wdt_init(struct sama5d4_wdt *wdt)
 	 * Else, we have to disable it properly.
 	 */
 	if (wdt_enabled) {
-		wdt_write(wdt, AT91_WDT_MR, wdt->mr);
+		wdt_write_nosleep(wdt, AT91_WDT_MR, wdt->mr);
 	} else {
 		reg = wdt_read(wdt, AT91_WDT_MR);
 		if (!(reg & AT91_WDT_WDDIS))
-			wdt_write(wdt, AT91_WDT_MR, reg | AT91_WDT_WDDIS);
+			wdt_write_nosleep(wdt, AT91_WDT_MR,
+					  reg | AT91_WDT_WDDIS);
 	}
 	return 0;
 }
@@ -193,6 +217,7 @@ static int sama5d4_wdt_probe(struct platform_device *pdev)
 	wdd->ops = &sama5d4_wdt_ops;
 	wdd->min_timeout = MIN_WDT_TIMEOUT;
 	wdd->max_timeout = MAX_WDT_TIMEOUT;
+	wdt->last_ping = jiffies;
 
 	watchdog_set_drvdata(wdd, wdt);
 
