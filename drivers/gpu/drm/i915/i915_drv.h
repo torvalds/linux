@@ -526,6 +526,14 @@ struct i915_hotplug {
 	for_each_power_well_rev(__dev_priv, __power_well)		        \
 		for_each_if ((__power_well)->domains & (__domain_mask))
 
+#define for_each_intel_plane_in_state(__state, plane, plane_state, __i) \
+	for ((__i) = 0; \
+	     (__i) < (__state)->base.dev->mode_config.num_total_plane && \
+		     ((plane) = to_intel_plane((__state)->base.planes[__i].ptr), \
+		      (plane_state) = to_intel_plane_state((__state)->base.planes[__i].state), 1); \
+	     (__i)++) \
+		for_each_if (plane_state)
+
 struct drm_i915_private;
 struct i915_mm_struct;
 struct i915_mmu_object;

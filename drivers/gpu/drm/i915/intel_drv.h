@@ -502,9 +502,7 @@ enum vlv_wm_level {
 struct vlv_wm_state {
 	struct vlv_pipe_wm wm[NUM_VLV_WM_LEVELS];
 	struct vlv_sr_wm sr[NUM_VLV_WM_LEVELS];
-	uint8_t num_active_planes;
 	uint8_t num_levels;
-	uint8_t level;
 	bool cxsr;
 };
 
