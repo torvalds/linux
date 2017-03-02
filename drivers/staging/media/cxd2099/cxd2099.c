@@ -180,34 +180,6 @@ static int write_io(struct cxd *ci, u16 address, u8 val)
 	return status;
 }
 
-#if 0
-static int read_io_data(struct cxd *ci, u8 *data, u8 n)
-{
-	int status;
-	u8 addr[3] = { 2, 0, 0 };
-
-	status = i2c_write(ci->i2c, ci->cfg.adr, addr, 3);
-	if (!status)
-		status = i2c_read(ci->i2c, ci->cfg.adr, 3, data, n);
-	return 0;
-}
-
-static int write_io_data(struct cxd *ci, u8 *data, u8 n)
-{
-	int status;
-	u8 addr[3] = {2, 0, 0};
-
-	status = i2c_write(ci->i2c, ci->cfg.adr, addr, 3);
-	if (!status) {
-		u8 buf[256] = {3};
-
-		memcpy(buf + 1, data, n);
-		status = i2c_write(ci->i2c, ci->cfg.adr, buf, n + 1);
-	}
-	return 0;
-}
-#endif
-
 static int write_regm(struct cxd *ci, u8 reg, u8 val, u8 mask)
 {
 	int status;
@@ -326,12 +298,6 @@ static int init(struct cxd *ci)
 		if (status < 0)
 			break;
 
-#if 0
-		/* Input Mode C, BYPass Serial, TIVAL = low, MSB */
-		status = write_reg(ci, 0x09, 0x4D);
-		if (status < 0)
-			break;
-#endif
 		/* TOSTRT = 8, Mode B (gated clock), falling Edge,
 		 * Serial, POL=HIGH, MSB
 		 */
@@ -429,23 +395,6 @@ static int read_attribute_mem(struct dvb_ca_en50221 *ca,
 			      int slot, int address)
 {
 	struct cxd *ci = ca->data;
-#if 0
-	if (ci->amem_read) {
-		if (address <= 0 || address > 1024)
-			return -EIO;
-		return ci->amem[address];
-	}
-
-	mutex_lock(&ci->lock);
-	write_regm(ci, 0x06, 0x00, 0x05);
-	read_pccard(ci, 0, &ci->amem[0], 128);
-	read_pccard(ci, 128, &ci->amem[0], 128);
-	read_pccard(ci, 256, &ci->amem[0], 128);
-	read_pccard(ci, 384, &ci->amem[0], 128);
-	write_regm(ci, 0x06, 0x05, 0x05);
-	mutex_unlock(&ci->lock);
-	return ci->amem[address];
-#else
 	u8 val;
 
 	mutex_lock(&ci->lock);
@@ -454,7 +403,6 @@ static int read_attribute_mem(struct dvb_ca_en50221 *ca,
 	mutex_unlock(&ci->lock);
 	/* printk(KERN_INFO "%02x:%02x\n", address,val); */
 	return val;
-#endif
 }
 
 static int write_attribute_mem(struct dvb_ca_en50221 *ca, int slot,
@@ -499,15 +447,6 @@ static int slot_reset(struct dvb_ca_en50221 *ca, int slot)
 	struct cxd *ci = ca->data;
 
 	mutex_lock(&ci->lock);
-#if 0
-	write_reg(ci, 0x00, 0x21);
-	write_reg(ci, 0x06, 0x1F);
-	write_reg(ci, 0x00, 0x31);
-#else
-#if 0
-	write_reg(ci, 0x06, 0x1F);
-	write_reg(ci, 0x06, 0x2F);
-#else
 	cam_mode(ci, 0);
 	write_reg(ci, 0x00, 0x21);
 	write_reg(ci, 0x06, 0x1F);
@@ -515,25 +454,14 @@ static int slot_reset(struct dvb_ca_en50221 *ca, int slot)
 	write_regm(ci, 0x20, 0x80, 0x80);
 	write_reg(ci, 0x03, 0x02);
 	ci->ready = 0;
-#endif
-#endif
 	ci->mode = -1;
 	{
 		int i;
-#if 0
-		u8 val;
-#endif
+
 		for (i = 0; i < 100; i++) {
 			usleep_range(10000, 11000);
-#if 0
-			read_reg(ci, 0x06, &val);
-			dev_info(&ci->i2c->dev, "%d:%02x\n", i, val);
-			if (!(val & 0x10))
-				break;
-#else
 			if (ci->ready)
 				break;
-#endif
 		}
 	}
 	mutex_unlock(&ci->lock);
