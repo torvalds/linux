@@ -1,15 +1,22 @@
-menuconfig BCM2835_VCHIQ
-	tristate "Videocore VCHIQ"
+menuconfig BCM_VIDEOCORE
+	bool "Broadcom VideoCore support"
 	depends on HAS_DMA
 	depends on RASPBERRYPI_FIRMWARE || (COMPILE_TEST && !RASPBERRYPI_FIRMWARE)
 	default y
+	help
+		Support for Broadcom VideoCore services including
+		the BCM2835 family of products which is used
+		by the Raspberry PI.
+
+if BCM_VIDEOCORE
+
+config BCM2835_VCHIQ
+	tristate "BCM2835 VCHIQ"
 	help
 		Kernel to VideoCore communication interface for the
 		BCM2835 family of products.
 		Defaults to Y when the Broadcom Videocore services
 		are included in the build, N otherwise.
-
-if BCM2835_VCHIQ
 
 source "drivers/staging/vc04_services/bcm2835-audio/Kconfig"
 
