@@ -140,13 +140,9 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 					buf[x] |= BIT(i);
 
 		/* Write data */
-		gpio_set_value(par->gpio.dc, 1);
-		ret = par->fbtftops.write(par, buf, xres);
-		if (ret < 0) {
-			dev_err(par->info->device,
-				"write failed and returned: %d\n", ret);
+		ret = fbtft_write_buf_dc(par, buf, xres, 1);
+		if (ret < 0)
 			return ret;
-		}
 	}
 
 	return 0;
@@ -155,7 +151,7 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 static void write_register(struct fbtft_par *par, int len, ...)
 {
 	va_list args;
-	int i, ret;
+	int i;
 
 	va_start(args, len);
 
@@ -163,12 +159,7 @@ static void write_register(struct fbtft_par *par, int len, ...)
 		par->buf[i] = va_arg(args, unsigned int);
 
 	/* keep DC low for all command bytes to transfer */
-	gpio_set_value(par->gpio.dc, 0);
-
-	ret = par->fbtftops.write(par, par->buf, len);
-	if (ret < 0)
-		dev_err(par->info->device,
-			"write() failed and returned %d\n", ret);
+	fbtft_write_buf_dc(par, par->buf, len, 0);
 
 	va_end(args);
 }
