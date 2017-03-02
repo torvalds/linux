@@ -287,7 +287,6 @@ static int wilc_enqueue_cmd(struct host_if_msg *msg)
 	return 0;
 }
 
-
 /* The u8IfIdx starts from 0 to NUM_CONCURRENT_IFC -1, but 0 index used as
  * special purpose in wilc device, so we add 1 to the index to starts from 1.
  * As a result, the returned index will be 1 to NUM_CONCURRENT_IFC.
