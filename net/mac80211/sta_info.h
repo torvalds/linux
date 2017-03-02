@@ -372,7 +372,7 @@ struct mesh_sta {
 	unsigned int fail_avg;
 };
 
-DECLARE_EWMA(signal, 1024, 8)
+DECLARE_EWMA(signal, 10, 8)
 
 struct ieee80211_sta_rx_stats {
 	unsigned long packets;
