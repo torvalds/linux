@@ -1077,7 +1077,7 @@ static struct dma_fence *etnaviv_gpu_fence_alloc(struct etnaviv_gpu *gpu)
 }
 
 int etnaviv_gpu_fence_sync_obj(struct etnaviv_gem_object *etnaviv_obj,
-	unsigned int context, bool exclusive)
+	unsigned int context, bool exclusive, bool explicit)
 {
 	struct reservation_object *robj = etnaviv_obj->resv;
 	struct reservation_object_list *fobj;
@@ -1089,6 +1089,9 @@ int etnaviv_gpu_fence_sync_obj(struct etnaviv_gem_object *etnaviv_obj,
 		if (ret)
 			return ret;
 	}
+
+	if (explicit)
+		return 0;
 
 	/*
 	 * If we have any shared fences, then the exclusive fence

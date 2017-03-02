@@ -107,6 +107,7 @@ struct etnaviv_gem_submit {
 	u32 fence;
 	unsigned int nr_bos;
 	struct etnaviv_gem_submit_bo bos[0];
+	u32 flags;
 };
 
 int etnaviv_gem_wait_bo(struct etnaviv_gpu *gpu, struct drm_gem_object *obj,
