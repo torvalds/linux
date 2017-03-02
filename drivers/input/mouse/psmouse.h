@@ -76,6 +76,7 @@ struct psmouse_protocol {
 	bool maxproto;
 	bool ignore_parity; /* Protocol should ignore parity errors from KBC */
 	bool try_passthru; /* Try protocol also on passthrough ports */
+	bool smbus_companion; /* "Protocol" is a stub, device is on SMBus */
 	const char *name;
 	const char *alias;
 	int (*detect)(struct psmouse *, bool);
