@@ -960,7 +960,8 @@ static int tcmu_configure_device(struct se_device *dev)
 	if (dev->dev_attrib.hw_block_size == 0)
 		dev->dev_attrib.hw_block_size = 512;
 	/* Other attributes can be configured in userspace */
-	dev->dev_attrib.hw_max_sectors = 128;
+	if (!dev->dev_attrib.hw_max_sectors)
+		dev->dev_attrib.hw_max_sectors = 128;
 	dev->dev_attrib.hw_queue_depth = 128;
 
 	ret = tcmu_netlink_event(TCMU_CMD_ADDED_DEVICE, udev->uio_info.name,
@@ -1031,15 +1032,41 @@ static void tcmu_free_device(struct se_device *dev)
 }
 
 enum {
-	Opt_dev_config, Opt_dev_size, Opt_hw_block_size, Opt_err,
+	Opt_dev_config, Opt_dev_size, Opt_hw_block_size, Opt_hw_max_sectors,
+	Opt_err,
 };
 
 static match_table_t tokens = {
 	{Opt_dev_config, "dev_config=%s"},
 	{Opt_dev_size, "dev_size=%u"},
 	{Opt_hw_block_size, "hw_block_size=%u"},
+	{Opt_hw_max_sectors, "hw_max_sectors=%u"},
 	{Opt_err, NULL}
 };
+
+static int tcmu_set_dev_attrib(substring_t *arg, u32 *dev_attrib)
+{
+	unsigned long tmp_ul;
+	char *arg_p;
+	int ret;
+
+	arg_p = match_strdup(arg);
+	if (!arg_p)
+		return -ENOMEM;
+
+	ret = kstrtoul(arg_p, 0, &tmp_ul);
+	kfree(arg_p);
+	if (ret < 0) {
+		pr_err("kstrtoul() failed for dev attrib\n");
+		return ret;
+	}
+	if (!tmp_ul) {
+		pr_err("dev attrib must be nonzero\n");
+		return -EINVAL;
+	}
+	*dev_attrib = tmp_ul;
+	return 0;
+}
 
 static ssize_t tcmu_set_configfs_dev_params(struct se_device *dev,
 		const char *page, ssize_t count)
@@ -1048,7 +1075,6 @@ static ssize_t tcmu_set_configfs_dev_params(struct se_device *dev,
 	char *orig, *ptr, *opts, *arg_p;
 	substring_t args[MAX_OPT_ARGS];
 	int ret = 0, token;
-	unsigned long tmp_ul;
 
 	opts = kstrdup(page, GFP_KERNEL);
 	if (!opts)
@@ -1082,22 +1108,12 @@ static ssize_t tcmu_set_configfs_dev_params(struct se_device *dev,
 				pr_err("kstrtoul() failed for dev_size=\n");
 			break;
 		case Opt_hw_block_size:
-			arg_p = match_strdup(&args[0]);
-			if (!arg_p) {
-				ret = -ENOMEM;
-				break;
-			}
-			ret = kstrtoul(arg_p, 0, &tmp_ul);
-			kfree(arg_p);
-			if (ret < 0) {
-				pr_err("kstrtoul() failed for hw_block_size=\n");
-				break;
-			}
-			if (!tmp_ul) {
-				pr_err("hw_block_size must be nonzero\n");
-				break;
-			}
-			dev->dev_attrib.hw_block_size = tmp_ul;
+			ret = tcmu_set_dev_attrib(&args[0],
+					&(dev->dev_attrib.hw_block_size));
+			break;
+		case Opt_hw_max_sectors:
+			ret = tcmu_set_dev_attrib(&args[0],
+					&(dev->dev_attrib.hw_max_sectors));
 			break;
 		default:
 			break;
