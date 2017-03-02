@@ -86,25 +86,25 @@ static int tpm_tis_spi_transfer(struct tpm_tis_data *data, u32 addr, u16 len,
 	if (ret < 0)
 		goto exit;
 
-	phy->tx_buf[0] = 0;
+	if ((phy->rx_buf[3] & 0x01) == 0) {
+		// handle SPI wait states
+		phy->tx_buf[0] = 0;
 
-	/* According to TCG PTP specification, if there is no TPM present at
-	 * all, then the design has a weak pull-up on MISO. If a TPM is not
-	 * present, a pull-up on MISO means that the SB controller sees a 1,
-	 * and will latch in 0xFF on the read.
-	 */
-	for (i = 0; (phy->rx_buf[0] & 0x01) == 0 && i < TPM_RETRY; i++) {
-		spi_xfer.len = 1;
-		spi_message_init(&m);
-		spi_message_add_tail(&spi_xfer, &m);
-		ret = spi_sync_locked(phy->spi_device, &m);
-		if (ret < 0)
+		for (i = 0; i < TPM_RETRY; i++) {
+			spi_xfer.len = 1;
+			spi_message_init(&m);
+			spi_message_add_tail(&spi_xfer, &m);
+			ret = spi_sync_locked(phy->spi_device, &m);
+			if (ret < 0)
+				goto exit;
+			if (phy->rx_buf[0] & 0x01)
+				break;
+		}
+
+		if (i == TPM_RETRY) {
+			ret = -ETIMEDOUT;
 			goto exit;
-	}
-
-	if (i == TPM_RETRY) {
-		ret = -ETIMEDOUT;
-		goto exit;
+		}
 	}
 
 	spi_xfer.cs_change = 0;
