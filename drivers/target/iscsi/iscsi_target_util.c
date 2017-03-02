@@ -417,6 +417,7 @@ struct iscsi_cmd *iscsit_find_cmd_from_itt_or_dump(
 
 	return NULL;
 }
+EXPORT_SYMBOL(iscsit_find_cmd_from_itt_or_dump);
 
 struct iscsi_cmd *iscsit_find_cmd_from_ttt(
 	struct iscsi_conn *conn,
@@ -1377,33 +1378,6 @@ int tx_data(
 	return iscsit_do_tx_data(conn, &c);
 }
 
-static bool sockaddr_equal(struct sockaddr_storage *x, struct sockaddr_storage *y)
-{
-	switch (x->ss_family) {
-	case AF_INET: {
-		struct sockaddr_in *sinx = (struct sockaddr_in *)x;
-		struct sockaddr_in *siny = (struct sockaddr_in *)y;
-		if (sinx->sin_addr.s_addr != siny->sin_addr.s_addr)
-			return false;
-		if (sinx->sin_port != siny->sin_port)
-			return false;
-		break;
-	}
-	case AF_INET6: {
-		struct sockaddr_in6 *sinx = (struct sockaddr_in6 *)x;
-		struct sockaddr_in6 *siny = (struct sockaddr_in6 *)y;
-		if (!ipv6_addr_equal(&sinx->sin6_addr, &siny->sin6_addr))
-			return false;
-		if (sinx->sin6_port != siny->sin6_port)
-			return false;
-		break;
-	}
-	default:
-		return false;
-	}
-	return true;
-}
-
 void iscsit_collect_login_stats(
 	struct iscsi_conn *conn,
 	u8 status_class,
@@ -1420,13 +1394,6 @@ void iscsit_collect_login_stats(
 	ls = &tiqn->login_stats;
 
 	spin_lock(&ls->lock);
-	if (sockaddr_equal(&conn->login_sockaddr, &ls->last_intr_fail_sockaddr) &&
-	    ((get_jiffies_64() - ls->last_fail_time) < 10)) {
-		/* We already have the failure info for this login */
-		spin_unlock(&ls->lock);
-		return;
-	}
-
 	if (status_class == ISCSI_STATUS_CLS_SUCCESS)
 		ls->accepts++;
 	else if (status_class == ISCSI_STATUS_CLS_REDIRECT) {
@@ -1471,10 +1438,10 @@ struct iscsi_tiqn *iscsit_snmp_get_tiqn(struct iscsi_conn *conn)
 {
 	struct iscsi_portal_group *tpg;
 
-	if (!conn || !conn->sess)
+	if (!conn)
 		return NULL;
 
-	tpg = conn->sess->tpg;
+	tpg = conn->tpg;
 	if (!tpg)
 		return NULL;
 

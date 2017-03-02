@@ -1249,16 +1249,16 @@ int iscsi_target_start_negotiation(
 {
 	int ret;
 
-       if (conn->sock) {
-               struct sock *sk = conn->sock->sk;
+	if (conn->sock) {
+		struct sock *sk = conn->sock->sk;
 
-               write_lock_bh(&sk->sk_callback_lock);
-               set_bit(LOGIN_FLAGS_READY, &conn->login_flags);
-               write_unlock_bh(&sk->sk_callback_lock);
-       }
+		write_lock_bh(&sk->sk_callback_lock);
+		set_bit(LOGIN_FLAGS_READY, &conn->login_flags);
+		write_unlock_bh(&sk->sk_callback_lock);
+	}
 
-       ret = iscsi_target_do_login(conn, login);
-       if (ret < 0) {
+	ret = iscsi_target_do_login(conn, login);
+	if (ret < 0) {
 		cancel_delayed_work_sync(&conn->login_work);
 		cancel_delayed_work_sync(&conn->login_cleanup_work);
 		iscsi_target_restore_sock_callbacks(conn);
