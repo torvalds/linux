@@ -956,7 +956,7 @@ int fbtft_register_framebuffer(struct fb_info *fb_info)
 
 	fbtft_sysfs_init(par);
 
-	if (par->txbuf.buf)
+	if (par->txbuf.buf && par->txbuf.len >= 1024)
 		sprintf(text1, ", %zu KiB buffer memory", par->txbuf.len >> 10);
 	if (spi)
 		sprintf(text2, ", spi%d.%d at %d MHz", spi->master->bus_num,
