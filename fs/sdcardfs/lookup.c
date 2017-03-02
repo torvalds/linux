@@ -206,6 +206,28 @@ out:
 	return err;
 }
 
+struct sdcardfs_name_data {
+	struct dir_context ctx;
+	const struct qstr *to_find;
+	char *name;
+	bool found;
+};
+
+static int sdcardfs_name_match(struct dir_context *ctx, const char *name, int namelen,
+		loff_t offset, u64 ino, unsigned int d_type)
+{
+	struct sdcardfs_name_data *buf = container_of(ctx, struct sdcardfs_name_data, ctx);
+	struct qstr candidate = QSTR_INIT(name, namelen);
+
+	if (qstr_case_eq(buf->to_find, &candidate)) {
+		memcpy(buf->name, name, namelen);
+		buf->name[namelen] = 0;
+		buf->found = true;
+		return 1;
+	}
+	return 0;
+}
+
 /*
  * Main driver function for sdcardfs's lookup.
  *
@@ -242,27 +264,39 @@ static struct dentry *__sdcardfs_lookup(struct dentry *dentry,
 				&lower_path);
 	/* check for other cases */
 	if (err == -ENOENT) {
-		struct dentry *child;
-		struct dentry *match = NULL;
-		mutex_lock(&d_inode(lower_dir_dentry)->i_mutex);
-		spin_lock(&lower_dir_dentry->d_lock);
-		list_for_each_entry(child, &lower_dir_dentry->d_subdirs, d_child) {
-			if (child && d_inode(child)) {
-				if (qstr_case_eq(&child->d_name, name)) {
-					match = dget(child);
-					break;
-				}
-			}
+		struct file *file;
+		const struct cred *cred = current_cred();
+
+		struct sdcardfs_name_data buffer = {
+			.ctx.actor = sdcardfs_name_match,
+			.to_find = name,
+			.name = __getname(),
+			.found = false,
+		};
+
+		if (!buffer.name) {
+			err = -ENOMEM;
+			goto out;
 		}
-		spin_unlock(&lower_dir_dentry->d_lock);
-		mutex_unlock(&d_inode(lower_dir_dentry)->i_mutex);
-		if (match) {
+		file = dentry_open(lower_parent_path, O_RDONLY, cred);
+		if (IS_ERR(file)) {
+			err = PTR_ERR(file);
+			goto put_name;
+		}
+		err = iterate_dir(file, &buffer.ctx);
+		fput(file);
+		if (err)
+			goto put_name;
+
+		if (buffer.found)
 			err = vfs_path_lookup(lower_dir_dentry,
 						lower_dir_mnt,
-						match->d_name.name, 0,
+						buffer.name, 0,
 						&lower_path);
-			dput(match);
-		}
+		else
+			err = -ENOENT;
+put_name:
+		__putname(buffer.name);
 	}
 
 	/* no error: handle positive dentries */
