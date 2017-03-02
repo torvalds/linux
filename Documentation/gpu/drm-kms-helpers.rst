@@ -42,6 +42,8 @@ Modeset Helper Reference for Common Vtables
 .. kernel-doc:: include/drm/drm_modeset_helper_vtables.h
    :internal:
 
+.. _drm_atomic_helper:
+
 Atomic Modeset Helper Functions Reference
 =========================================
 

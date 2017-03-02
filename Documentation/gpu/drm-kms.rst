@@ -189,8 +189,90 @@ multiple times to different objects using :c:func:`drm_object_attach_property()
 .. kernel-doc:: drivers/gpu/drm/drm_mode_object.c
    :export:
 
+Atomic Mode Setting
+===================
+
+
+.. kernel-render:: DOT
+   :alt: Mode Objects and Properties
+   :caption: Mode Objects and Properties
+
+   digraph {
+      node [shape=box]
+
+      subgraph cluster_state {
+          style=dashed
+          label="Free-standing state"
+
+          "drm_atomic_state" -> "duplicated drm_plane_state A"
+          "drm_atomic_state" -> "duplicated drm_plane_state B"
+          "drm_atomic_state" -> "duplicated drm_crtc_state"
+          "drm_atomic_state" -> "duplicated drm_connector_state"
+          "drm_atomic_state" -> "duplicated driver private state"
+      }
+
+      subgraph cluster_current {
+          style=dashed
+          label="Current state"
+
+          "drm_device" -> "drm_plane A"
+          "drm_device" -> "drm_plane B"
+          "drm_device" -> "drm_crtc"
+          "drm_device" -> "drm_connector"
+          "drm_device" -> "driver private object"
+
+          "drm_plane A" -> "drm_plane_state A"
+          "drm_plane B" -> "drm_plane_state B"
+          "drm_crtc" -> "drm_crtc_state"
+          "drm_connector" -> "drm_connector_state"
+          "driver private object" -> "driver private state"
+      }
+
+      "drm_atomic_state" -> "drm_device" [label="atomic_commit"]
+      "duplicated drm_plane_state A" -> "drm_device"[style=invis]
+   }
+
+Atomic provides transactional modeset (including planes) updates, but a
+bit differently from the usual transactional approach of try-commit and
+rollback:
+
+- Firstly, no hardware changes are allowed when the commit would fail. This
+  allows us to implement the DRM_MODE_ATOMIC_TEST_ONLY mode, which allows
+  userspace to explore whether certain configurations would work or not.
+
+- This would still allow setting and rollback of just the software state,
+  simplifying conversion of existing drivers. But auditing drivers for
+  correctness of the atomic_check code becomes really hard with that: Rolling
+  back changes in data structures all over the place is hard to get right.
+
+- Lastly, for backwards compatibility and to support all use-cases, atomic
+  updates need to be incremental and be able to execute in parallel. Hardware
+  doesn't always allow it, but where possible plane updates on different CRTCs
+  should not interfere, and not get stalled due to output routing changing on
+  different CRTCs.
+
+Taken all together there's two consequences for the atomic design:
+
+- The overall state is split up into per-object state structures:
+  :c:type:`struct drm_plane_state <drm_plane_state>` for planes, :c:type:`struct
+  drm_crtc_state <drm_crtc_state>` for CRTCs and :c:type:`struct
+  drm_connector_state <drm_connector_state>` for connectors. These are the only
+  objects with userspace-visible and settable state. For internal state drivers
+  can subclass these structures through embeddeding, or add entirely new state
+  structures for their globally shared hardware functions.
+
+- An atomic update is assembled and validated as an entirely free-standing pile
+  of structures within the :c:type:`drm_atomic_state <drm_atomic_state>`
+  container. Again drivers can subclass that container for their own state
+  structure tracking needs. Only when a state is committed is it applied to the
+  driver and modeset objects. This way rolling back an update boils down to
+  releasing memory and unreferencing objects like framebuffers.
+
+Read on in this chapter, and also in :ref:`drm_atomic_helper` for more detailed
+coverage of specific topics.
+
 Atomic Mode Setting Function Reference
-======================================
+--------------------------------------
 
 .. kernel-doc:: include/drm/drm_atomic.h
    :internal:
