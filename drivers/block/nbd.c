@@ -201,13 +201,12 @@ static enum blk_eh_timer_return nbd_xmit_timeout(struct request *req,
 /*
  *  Send or receive packet.
  */
-static int sock_xmit(struct nbd_device *nbd, int index, int send, void *buf,
-		     int size, int msg_flags)
+static int sock_xmit(struct nbd_device *nbd, int index, int send,
+		     struct iov_iter *iter, int msg_flags)
 {
 	struct socket *sock = nbd->socks[index]->sock;
 	int result;
 	struct msghdr msg;
-	struct kvec iov;
 	unsigned long pflags = current->flags;
 
 	if (unlikely(!sock)) {
@@ -217,11 +216,11 @@ static int sock_xmit(struct nbd_device *nbd, int index, int send, void *buf,
 		return -EINVAL;
 	}
 
+	msg.msg_iter = *iter;
+
 	current->flags |= PF_MEMALLOC;
 	do {
 		sock->sk->sk_allocation = GFP_NOIO | __GFP_MEMALLOC;
-		iov.iov_base = buf;
-		iov.iov_len = size;
 		msg.msg_name = NULL;
 		msg.msg_namelen = 0;
 		msg.msg_control = NULL;
@@ -229,33 +228,19 @@ static int sock_xmit(struct nbd_device *nbd, int index, int send, void *buf,
 		msg.msg_flags = msg_flags | MSG_NOSIGNAL;
 
 		if (send)
-			result = kernel_sendmsg(sock, &msg, &iov, 1, size);
+			result = sock_sendmsg(sock, &msg);
 		else
-			result = kernel_recvmsg(sock, &msg, &iov, 1, size,
-						msg.msg_flags);
+			result = sock_recvmsg(sock, &msg, msg.msg_flags);
 
 		if (result <= 0) {
 			if (result == 0)
 				result = -EPIPE; /* short read */
 			break;
 		}
-		size -= result;
-		buf += result;
-	} while (size > 0);
+	} while (msg_data_left(&msg));
 
 	tsk_restore_flags(current, pflags, PF_MEMALLOC);
 
-	return result;
-}
-
-static inline int sock_send_bvec(struct nbd_device *nbd, int index,
-				 struct bio_vec *bvec, int flags)
-{
-	int result;
-	void *kaddr = kmap(bvec->bv_page);
-	result = sock_xmit(nbd, index, 1, kaddr + bvec->bv_offset,
-			   bvec->bv_len, flags);
-	kunmap(bvec->bv_page);
 	return result;
 }
 
@@ -264,11 +249,15 @@ static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 {
 	struct request *req = blk_mq_rq_from_pdu(cmd);
 	int result;
-	struct nbd_request request;
+	struct nbd_request request = {.magic = htonl(NBD_REQUEST_MAGIC)};
+	struct kvec iov = {.iov_base = &request, .iov_len = sizeof(request)};
+	struct iov_iter from;
 	unsigned long size = blk_rq_bytes(req);
 	struct bio *bio;
 	u32 type;
 	u32 tag = blk_mq_unique_tag(req);
+
+	iov_iter_kvec(&from, WRITE | ITER_KVEC, &iov, 1, sizeof(request));
 
 	switch (req_op(req)) {
 	case REQ_OP_DISCARD:
@@ -294,8 +283,6 @@ static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 		return -EIO;
 	}
 
-	memset(&request, 0, sizeof(request));
-	request.magic = htonl(NBD_REQUEST_MAGIC);
 	request.type = htonl(type);
 	if (type != NBD_CMD_FLUSH) {
 		request.from = cpu_to_be64((u64)blk_rq_pos(req) << 9);
@@ -306,7 +293,7 @@ static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 	dev_dbg(nbd_to_dev(nbd), "request %p: sending control (%s@%llu,%uB)\n",
 		cmd, nbdcmd_to_ascii(type),
 		(unsigned long long)blk_rq_pos(req) << 9, blk_rq_bytes(req));
-	result = sock_xmit(nbd, index, 1, &request, sizeof(request),
+	result = sock_xmit(nbd, index, 1, &from,
 			(type == NBD_CMD_WRITE) ? MSG_MORE : 0);
 	if (result <= 0) {
 		dev_err_ratelimited(disk_to_dev(nbd->disk),
@@ -329,7 +316,9 @@ static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 
 			dev_dbg(nbd_to_dev(nbd), "request %p: sending %d bytes data\n",
 				cmd, bvec.bv_len);
-			result = sock_send_bvec(nbd, index, &bvec, flags);
+			iov_iter_bvec(&from, ITER_BVEC | WRITE,
+				      &bvec, 1, bvec.bv_len);
+			result = sock_xmit(nbd, index, 1, &from, flags);
 			if (result <= 0) {
 				dev_err(disk_to_dev(nbd->disk),
 					"Send data failed (result %d)\n",
@@ -350,17 +339,6 @@ static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 	return 0;
 }
 
-static inline int sock_recv_bvec(struct nbd_device *nbd, int index,
-				 struct bio_vec *bvec)
-{
-	int result;
-	void *kaddr = kmap(bvec->bv_page);
-	result = sock_xmit(nbd, index, 0, kaddr + bvec->bv_offset,
-			   bvec->bv_len, MSG_WAITALL);
-	kunmap(bvec->bv_page);
-	return result;
-}
-
 /* NULL returned = something went wrong, inform userspace */
 static struct nbd_cmd *nbd_read_stat(struct nbd_device *nbd, int index)
 {
@@ -370,9 +348,12 @@ static struct nbd_cmd *nbd_read_stat(struct nbd_device *nbd, int index)
 	struct request *req = NULL;
 	u16 hwq;
 	u32 tag;
+	struct kvec iov = {.iov_base = &reply, .iov_len = sizeof(reply)};
+	struct iov_iter to;
 
 	reply.magic = 0;
-	result = sock_xmit(nbd, index, 0, &reply, sizeof(reply), MSG_WAITALL);
+	iov_iter_kvec(&to, READ | ITER_KVEC, &iov, 1, sizeof(reply));
+	result = sock_xmit(nbd, index, 0, &to, MSG_WAITALL);
 	if (result <= 0) {
 		if (!test_bit(NBD_DISCONNECTED, &nbd->runtime_flags) &&
 		    !test_bit(NBD_DISCONNECT_REQUESTED, &nbd->runtime_flags))
@@ -412,7 +393,9 @@ static struct nbd_cmd *nbd_read_stat(struct nbd_device *nbd, int index)
 		struct bio_vec bvec;
 
 		rq_for_each_segment(bvec, req, iter) {
-			result = sock_recv_bvec(nbd, index, &bvec);
+			iov_iter_bvec(&to, ITER_BVEC | READ,
+				      &bvec, 1, bvec.bv_len);
+			result = sock_xmit(nbd, index, 0, &to, MSG_WAITALL);
 			if (result <= 0) {
 				dev_err(disk_to_dev(nbd->disk), "Receive data failed (result %d)\n",
 					result);
@@ -641,14 +624,17 @@ static void nbd_parse_flags(struct nbd_device *nbd, struct block_device *bdev)
 
 static void send_disconnects(struct nbd_device *nbd)
 {
-	struct nbd_request request = {};
+	struct nbd_request request = {
+		.magic = htonl(NBD_REQUEST_MAGIC),
+		.type = htonl(NBD_CMD_DISC),
+	};
+	struct kvec iov = {.iov_base = &request, .iov_len = sizeof(request)};
+	struct iov_iter from;
 	int i, ret;
 
-	request.magic = htonl(NBD_REQUEST_MAGIC);
-	request.type = htonl(NBD_CMD_DISC);
-
 	for (i = 0; i < nbd->num_connections; i++) {
-		ret = sock_xmit(nbd, i, 1, &request, sizeof(request), 0);
+		iov_iter_kvec(&from, WRITE | ITER_KVEC, &iov, 1, sizeof(request));
+		ret = sock_xmit(nbd, i, 1, &from, 0);
 		if (ret <= 0)
 			dev_err(disk_to_dev(nbd->disk),
 				"Send disconnect failed %d\n", ret);

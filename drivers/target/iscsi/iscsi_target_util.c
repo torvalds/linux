@@ -1305,39 +1305,6 @@ static int iscsit_do_rx_data(
 	return total_rx;
 }
 
-static int iscsit_do_tx_data(
-	struct iscsi_conn *conn,
-	struct iscsi_data_count *count)
-{
-	int ret, iov_len;
-	struct kvec *iov_p;
-	struct msghdr msg;
-
-	if (!conn || !conn->sock || !conn->conn_ops)
-		return -1;
-
-	if (count->data_length <= 0) {
-		pr_err("Data length is: %d\n", count->data_length);
-		return -1;
-	}
-
-	memset(&msg, 0, sizeof(struct msghdr));
-
-	iov_p = count->iov;
-	iov_len = count->iov_count;
-
-	ret = kernel_sendmsg(conn->sock, &msg, iov_p, iov_len,
-			     count->data_length);
-	if (ret != count->data_length) {
-		pr_err("Unexpected ret: %d send data %d\n",
-		       ret, count->data_length);
-		return -EPIPE;
-	}
-	pr_debug("ret: %d, sent data: %d\n", ret, count->data_length);
-
-	return ret;
-}
-
 int rx_data(
 	struct iscsi_conn *conn,
 	struct kvec *iov,
@@ -1364,18 +1331,35 @@ int tx_data(
 	int iov_count,
 	int data)
 {
-	struct iscsi_data_count c;
+	struct msghdr msg;
+	int total_tx = 0;
 
 	if (!conn || !conn->sock || !conn->conn_ops)
 		return -1;
 
-	memset(&c, 0, sizeof(struct iscsi_data_count));
-	c.iov = iov;
-	c.iov_count = iov_count;
-	c.data_length = data;
-	c.type = ISCSI_TX_DATA;
+	if (data <= 0) {
+		pr_err("Data length is: %d\n", data);
+		return -1;
+	}
 
-	return iscsit_do_tx_data(conn, &c);
+	memset(&msg, 0, sizeof(struct msghdr));
+
+	iov_iter_kvec(&msg.msg_iter, WRITE | ITER_KVEC,
+		      iov, iov_count, data);
+
+	while (msg_data_left(&msg)) {
+		int tx_loop = sock_sendmsg(conn->sock, &msg);
+		if (tx_loop <= 0) {
+			pr_debug("tx_loop: %d total_tx %d\n",
+				tx_loop, total_tx);
+			return tx_loop;
+		}
+		total_tx += tx_loop;
+		pr_debug("tx_loop: %d, total_tx: %d, data: %d\n",
+					tx_loop, total_tx, data);
+	}
+
+	return total_tx;
 }
 
 void iscsit_collect_login_stats(

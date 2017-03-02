@@ -1846,7 +1846,7 @@ int drbd_send_out_of_sync(struct drbd_peer_device *peer_device, struct drbd_requ
 int drbd_send(struct drbd_connection *connection, struct socket *sock,
 	      void *buf, size_t size, unsigned msg_flags)
 {
-	struct kvec iov;
+	struct kvec iov = {.iov_base = buf, .iov_len = size};
 	struct msghdr msg;
 	int rv, sent = 0;
 
@@ -1855,14 +1855,13 @@ int drbd_send(struct drbd_connection *connection, struct socket *sock,
 
 	/* THINK  if (signal_pending) return ... ? */
 
-	iov.iov_base = buf;
-	iov.iov_len  = size;
-
 	msg.msg_name       = NULL;
 	msg.msg_namelen    = 0;
 	msg.msg_control    = NULL;
 	msg.msg_controllen = 0;
 	msg.msg_flags      = msg_flags | MSG_NOSIGNAL;
+
+	iov_iter_kvec(&msg.msg_iter, WRITE | ITER_KVEC, &iov, 1, size);
 
 	if (sock == connection->data.socket) {
 		rcu_read_lock();
@@ -1871,7 +1870,7 @@ int drbd_send(struct drbd_connection *connection, struct socket *sock,
 		drbd_update_congested(connection);
 	}
 	do {
-		rv = kernel_sendmsg(sock, &msg, &iov, 1, iov.iov_len);
+		rv = sock_sendmsg(sock, &msg);
 		if (rv == -EAGAIN) {
 			if (we_should_drop_the_connection(connection, sock))
 				break;
@@ -1885,8 +1884,6 @@ int drbd_send(struct drbd_connection *connection, struct socket *sock,
 		if (rv < 0)
 			break;
 		sent += rv;
-		iov.iov_base += rv;
-		iov.iov_len  -= rv;
 	} while (sent < size);
 
 	if (sock == connection->data.socket)

@@ -798,13 +798,6 @@ static inline int rds_message_verify_checksum(const struct rds_header *hdr)
 /* page.c */
 int rds_page_remainder_alloc(struct scatterlist *scat, unsigned long bytes,
 			     gfp_t gfp);
-int rds_page_copy_user(struct page *page, unsigned long offset,
-		       void __user *ptr, unsigned long bytes,
-		       int to_user);
-#define rds_page_copy_to_user(page, offset, ptr, bytes) \
-	rds_page_copy_user(page, offset, ptr, bytes, 1)
-#define rds_page_copy_from_user(page, offset, ptr, bytes) \
-	rds_page_copy_user(page, offset, ptr, bytes, 0)
 void rds_page_exit(void);
 
 /* recv.c */
