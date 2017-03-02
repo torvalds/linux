@@ -48,6 +48,54 @@
 		lcdc = &lcdc;
 	};
 
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff690000 swiotlb=1";
+	};
+
+	fiq_debugger: fiq-debugger {
+		compatible = "rockchip,fiq-debugger";
+		rockchip,serial-id = <2>;
+		rockchip,signal-irq = <186>;
+		rockchip,wake-irq = <0>;
+		rockchip,irq-mode-enable = <1>;  /* If enable uart uses irq instead of fiq */
+		rockchip,baudrate = <115200>;  /* Only 115200 and 1500000 */
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart2_xfer>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/* global autoconfigured region for contiguous allocations */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x8000000>;
+			linux,cma-default;
+		};
+
+		/* reg = <0x0 0x0 0x0 0x0> will be updated by uboot */
+		rockchip_logo: rockchip-logo@00000000 {
+			compatible = "rockchip,fb-logo";
+			reg = <0x0 0x0 0x0 0x0>;
+		};
+	};
+
+	ion {
+		compatible = "rockchip,ion";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cma-heap {
+			reg = <0x00000000 0x02000000>;
+		};
+
+		system-heap {
+		};
+	};
+
 	isp: isp@ff910000 {
 		compatible = "rockchip,rk3368-isp", "rockchip,isp";
 		reg = <0x0 0xff910000 0x0 0x10000>;

@@ -47,37 +47,6 @@
 / {
 	compatible = "rockchip,tb", "rockchip,rk3368";
 
-	chosen {
-		bootargs = "console=uart,mmio32,0xff690000";
-	};
-
-	reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-
-		/* global autoconfigured region for contiguous allocations */
-		linux,cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x0 0x8000000>;
-			linux,cma-default;
-		};
-	};
-
-	ion {
-		compatible = "rockchip,ion";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		cma-heap {
-			reg = <0x00000000 0x02000000>;
-		};
-
-		system-heap {
-		};
-	};
-
 	sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
@@ -196,26 +165,6 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <3800000>;
 		regulator-max-microvolt = <3800000>;
-	};
-
-	io-domains {
-		compatible = "rockchip,rk3368-io-voltage-domain";
-		rockchip,grf = <&grf>;
-
-		dvp-supply = <&vcc_18>;
-		audio-supply = <&vcc_io>;
-		gpio30-supply = <&vcc_io>;
-		gpio1830-supply = <&vcc_io>;
-		sdcard-supply = <&vccio_sd>;
-		wifi-supply = <&vccio_wl>;
-	};
-
-	pmu-io-domains {
-		compatible = "rockchip,rk3368-pmu-io-voltage-domain";
-		rockchip,grf = <&pmugrf>;
-
-		pmu-supply = <&vcc_io>;
-		vop-supply = <&vcc_io>;
 	};
 };
 
@@ -616,6 +565,24 @@
 	rockchip,playback-channels = <8>;
 	rockchip,capture-channels = <2>;
 	#sound-dai-cells = <0>;
+};
+
+&io_domains {
+	status = "okay";
+
+	dvp-supply = <&vcc_18>;
+	audio-supply = <&vcc_io>;
+	gpio30-supply = <&vcc_io>;
+	gpio1830-supply = <&vcc_io>;
+	sdcard-supply = <&vccio_sd>;
+	wifi-supply = <&vccio_wl>;
+};
+
+&pmu_io_domains {
+	status = "okay";
+
+	pmu-supply = <&vcc_io>;
+	vop-supply = <&vcc_io>;
 };
 
 &pwm0 {
