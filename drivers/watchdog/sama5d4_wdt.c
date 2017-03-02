@@ -300,6 +300,11 @@ static int sama5d4_wdt_resume(struct device *dev)
 {
 	struct sama5d4_wdt *wdt = dev_get_drvdata(dev);
 
+	/*
+	 * FIXME: writing MR also pings the watchdog which may not be desired.
+	 * This should only be done when the registers are lost on suspend but
+	 * there is no way to get this information right now.
+	 */
 	sama5d4_wdt_init(wdt);
 
 	return 0;
