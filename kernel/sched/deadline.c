@@ -505,10 +505,15 @@ static void update_dl_entity(struct sched_dl_entity *dl_se,
 	}
 }
 
+static inline u64 dl_next_period(struct sched_dl_entity *dl_se)
+{
+	return dl_se->deadline - dl_se->dl_deadline + dl_se->dl_period;
+}
+
 /*
  * If the entity depleted all its runtime, and if we want it to sleep
  * while waiting for some new execution time to become available, we
- * set the bandwidth enforcement timer to the replenishment instant
+ * set the bandwidth replenishment timer to the replenishment instant
  * and try to activate it.
  *
  * Notice that it is important for the caller to know if the timer
@@ -530,7 +535,7 @@ static int start_dl_timer(struct task_struct *p)
 	 * that it is actually coming from rq->clock and not from
 	 * hrtimer's time base reading.
 	 */
-	act = ns_to_ktime(dl_se->deadline);
+	act = ns_to_ktime(dl_next_period(dl_se));
 	now = hrtimer_cb_get_time(timer);
 	delta = ktime_to_ns(now) - rq_clock(rq);
 	act = ktime_add_ns(act, delta);
