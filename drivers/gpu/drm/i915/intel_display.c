@@ -5385,9 +5385,9 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	 */
 	intel_color_load_luts(&pipe_config->base);
 
-	intel_ddi_set_pipe_settings(crtc);
+	intel_ddi_set_pipe_settings(intel_crtc);
 	if (!transcoder_is_dsi(cpu_transcoder))
-		intel_ddi_enable_transcoder_func(crtc);
+		intel_ddi_enable_transcoder_func(intel_crtc);
 
 	if (dev_priv->display.initial_watermarks != NULL)
 		dev_priv->display.initial_watermarks(old_intel_state, pipe_config);
@@ -5400,7 +5400,7 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 		lpt_pch_enable(pipe_config);
 
 	if (intel_crtc_has_type(intel_crtc->config, INTEL_OUTPUT_DP_MST))
-		intel_ddi_set_vc_payload_alloc(crtc, true);
+		intel_ddi_set_vc_payload_alloc(intel_crtc, true);
 
 	assert_vblank_disabled(crtc);
 	drm_crtc_vblank_on(crtc);
@@ -5522,7 +5522,7 @@ static void haswell_crtc_disable(struct intel_crtc_state *old_crtc_state,
 		intel_disable_pipe(intel_crtc);
 
 	if (intel_crtc_has_type(intel_crtc->config, INTEL_OUTPUT_DP_MST))
-		intel_ddi_set_vc_payload_alloc(crtc, false);
+		intel_ddi_set_vc_payload_alloc(intel_crtc, false);
 
 	if (!transcoder_is_dsi(cpu_transcoder))
 		intel_ddi_disable_transcoder_func(dev_priv, cpu_transcoder);
