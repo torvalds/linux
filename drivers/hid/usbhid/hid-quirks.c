@@ -237,10 +237,8 @@ static int usbhid_modify_dquirk(const u16 idVendor, const u16 idProduct,
 	}
 
 	q_new = kmalloc(sizeof(struct quirks_list_struct), GFP_KERNEL);
-	if (!q_new) {
-		dbg_hid("Could not allocate quirks_list_struct\n");
+	if (!q_new)
 		return -ENOMEM;
-	}
 
 	q_new->hid_bl_item.idVendor = idVendor;
 	q_new->hid_bl_item.idProduct = idProduct;
@@ -306,10 +304,9 @@ int usbhid_quirks_init(char **quirks_param)
 				&idVendor, &idProduct, &quirks);
 
 		if (m != 3 ||
-				usbhid_modify_dquirk(idVendor, idProduct, quirks) != 0) {
-			printk(KERN_WARNING
-					"Could not parse HID quirk module param %s\n",
-					quirks_param[n]);
+		    usbhid_modify_dquirk(idVendor, idProduct, quirks) != 0) {
+			pr_warn("Could not parse HID quirk module param %s\n",
+				quirks_param[n]);
 		}
 	}
 
