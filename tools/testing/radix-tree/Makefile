@@ -28,7 +28,7 @@ clean:
 
 vpath %.c ../../lib
 
-$(OFILES): *.h */*.h generated/map-shift.h \
+$(OFILES): Makefile *.h */*.h generated/map-shift.h \
 	../../include/linux/*.h \
 	../../include/asm/*.h \
 	../../../include/linux/radix-tree.h \
@@ -43,7 +43,7 @@ idr.c: ../../../lib/idr.c
 .PHONY: mapshift
 
 mapshift:
-	@if ! grep -qw $(SHIFT) generated/map-shift.h; then		\
+	@if ! grep -qws $(SHIFT) generated/map-shift.h; then		\
 		echo "#define RADIX_TREE_MAP_SHIFT $(SHIFT)" >		\
 				generated/map-shift.h;			\
 	fi
