@@ -102,6 +102,11 @@ static int tpm_tis_spi_transfer(struct tpm_tis_data *data, u32 addr, u16 len,
 			goto exit;
 	}
 
+	if (i == TPM_RETRY) {
+		ret = -ETIMEDOUT;
+		goto exit;
+	}
+
 	spi_xfer.cs_change = 0;
 	spi_xfer.len = len;
 
