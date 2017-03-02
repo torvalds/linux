@@ -1355,13 +1355,11 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 					} else {
 						strConnectInfo.status = pstrConnectRespInfo->status;
 
-						if (strConnectInfo.status == SUCCESSFUL_STATUSCODE) {
-							if (pstrConnectRespInfo->ies) {
-								strConnectInfo.resp_ies_len = pstrConnectRespInfo->ies_len;
-								strConnectInfo.resp_ies = kmalloc(pstrConnectRespInfo->ies_len, GFP_KERNEL);
-								memcpy(strConnectInfo.resp_ies, pstrConnectRespInfo->ies,
-								       pstrConnectRespInfo->ies_len);
-							}
+						if (strConnectInfo.status == SUCCESSFUL_STATUSCODE && pstrConnectRespInfo->ies) {
+							strConnectInfo.resp_ies_len = pstrConnectRespInfo->ies_len;
+							strConnectInfo.resp_ies = kmalloc(pstrConnectRespInfo->ies_len, GFP_KERNEL);
+							memcpy(strConnectInfo.resp_ies, pstrConnectRespInfo->ies,
+							       pstrConnectRespInfo->ies_len);
 						}
 
 						if (pstrConnectRespInfo) {
