@@ -3632,6 +3632,12 @@ static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh)
 		rt = (struct rt6_info *)ip6_route_output(net, NULL, &fl6);
 	}
 
+	if (rt == net->ipv6.ip6_null_entry) {
+		err = rt->dst.error;
+		ip6_rt_put(rt);
+		goto errout;
+	}
+
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb) {
 		ip6_rt_put(rt);
