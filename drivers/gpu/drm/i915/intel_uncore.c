@@ -506,7 +506,7 @@ void intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,
 void intel_uncore_forcewake_get__locked(struct drm_i915_private *dev_priv,
 					enum forcewake_domains fw_domains)
 {
-	assert_spin_locked(&dev_priv->uncore.lock);
+	lockdep_assert_held(&dev_priv->uncore.lock);
 
 	if (!dev_priv->uncore.funcs.force_wake_get)
 		return;
@@ -564,7 +564,7 @@ void intel_uncore_forcewake_put(struct drm_i915_private *dev_priv,
 void intel_uncore_forcewake_put__locked(struct drm_i915_private *dev_priv,
 					enum forcewake_domains fw_domains)
 {
-	assert_spin_locked(&dev_priv->uncore.lock);
+	lockdep_assert_held(&dev_priv->uncore.lock);
 
 	if (!dev_priv->uncore.funcs.force_wake_put)
 		return;

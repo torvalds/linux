@@ -164,7 +164,7 @@ void __intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine)
 {
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 
-	assert_spin_locked(&b->lock);
+	lockdep_assert_held(&b->lock);
 
 	if (b->irq_enabled) {
 		irq_disable(engine);
@@ -228,7 +228,7 @@ static void __intel_breadcrumbs_enable_irq(struct intel_breadcrumbs *b)
 		container_of(b, struct intel_engine_cs, breadcrumbs);
 	struct drm_i915_private *i915 = engine->i915;
 
-	assert_spin_locked(&b->lock);
+	lockdep_assert_held(&b->lock);
 	if (b->irq_armed)
 		return;
 
@@ -276,7 +276,7 @@ static inline struct intel_wait *to_wait(struct rb_node *node)
 static inline void __intel_breadcrumbs_finish(struct intel_breadcrumbs *b,
 					      struct intel_wait *wait)
 {
-	assert_spin_locked(&b->lock);
+	lockdep_assert_held(&b->lock);
 
 	/* This request is completed, so remove it from the tree, mark it as
 	 * complete, and *then* wake up the associated task.
@@ -432,7 +432,7 @@ static void __intel_engine_remove_wait(struct intel_engine_cs *engine,
 {
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 
-	assert_spin_locked(&b->lock);
+	lockdep_assert_held(&b->lock);
 
 	if (RB_EMPTY_NODE(&wait->node))
 		goto out;
@@ -654,7 +654,7 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 
 	/* locked by dma_fence_enable_sw_signaling() (irqsafe fence->lock) */
 	GEM_BUG_ON(!irqs_disabled());
-	assert_spin_locked(&request->lock);
+	lockdep_assert_held(&request->lock);
 
 	seqno = i915_gem_request_global_seqno(request);
 	if (!seqno)
@@ -711,7 +711,7 @@ void intel_engine_cancel_signaling(struct drm_i915_gem_request *request)
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 
 	GEM_BUG_ON(!irqs_disabled());
-	assert_spin_locked(&request->lock);
+	lockdep_assert_held(&request->lock);
 	GEM_BUG_ON(!request->signaling.wait.seqno);
 
 	spin_lock(&b->lock);

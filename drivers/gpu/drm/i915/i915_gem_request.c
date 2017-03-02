@@ -401,7 +401,7 @@ void __i915_gem_request_submit(struct drm_i915_gem_request *request)
 	u32 seqno;
 
 	GEM_BUG_ON(!irqs_disabled());
-	assert_spin_locked(&engine->timeline->lock);
+	lockdep_assert_held(&engine->timeline->lock);
 
 	trace_i915_gem_request_execute(request);
 
@@ -449,7 +449,7 @@ void __i915_gem_request_unsubmit(struct drm_i915_gem_request *request)
 	struct intel_timeline *timeline;
 
 	GEM_BUG_ON(!irqs_disabled());
-	assert_spin_locked(&engine->timeline->lock);
+	lockdep_assert_held(&engine->timeline->lock);
 
 	/* Only unwind in reverse order, required so that the per-context list
 	 * is kept in seqno/ring order.

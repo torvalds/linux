@@ -157,7 +157,7 @@ static void intel_hpd_irq_storm_disable(struct drm_i915_private *dev_priv)
 	enum hpd_pin pin;
 	bool hpd_disabled = false;
 
-	assert_spin_locked(&dev_priv->irq_lock);
+	lockdep_assert_held(&dev_priv->irq_lock);
 
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
 		if (connector->polled != DRM_CONNECTOR_POLL_HPD)

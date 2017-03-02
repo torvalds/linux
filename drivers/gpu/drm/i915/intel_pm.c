@@ -4672,7 +4672,7 @@ bool ironlake_set_drps(struct drm_i915_private *dev_priv, u8 val)
 {
 	u16 rgvswctl;
 
-	assert_spin_locked(&mchdev_lock);
+	lockdep_assert_held(&mchdev_lock);
 
 	rgvswctl = I915_READ16(MEMSWCTL);
 	if (rgvswctl & MEMCTL_CMD_STS) {
@@ -6203,7 +6203,7 @@ static unsigned long __i915_chipset_val(struct drm_i915_private *dev_priv)
 	unsigned long now = jiffies_to_msecs(jiffies), diff1;
 	int i;
 
-	assert_spin_locked(&mchdev_lock);
+	lockdep_assert_held(&mchdev_lock);
 
 	diff1 = now - dev_priv->ips.last_time1;
 
@@ -6308,7 +6308,7 @@ static void __i915_update_gfx_val(struct drm_i915_private *dev_priv)
 	u64 now, diff, diffms;
 	u32 count;
 
-	assert_spin_locked(&mchdev_lock);
+	lockdep_assert_held(&mchdev_lock);
 
 	now = ktime_get_raw_ns();
 	diffms = now - dev_priv->ips.last_time2;
@@ -6353,7 +6353,7 @@ static unsigned long __i915_gfx_val(struct drm_i915_private *dev_priv)
 	unsigned long t, corr, state1, corr2, state2;
 	u32 pxvid, ext_v;
 
-	assert_spin_locked(&mchdev_lock);
+	lockdep_assert_held(&mchdev_lock);
 
 	pxvid = I915_READ(PXVFREQ(dev_priv->rps.cur_freq));
 	pxvid = (pxvid >> 24) & 0x7f;

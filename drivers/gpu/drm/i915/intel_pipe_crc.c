@@ -105,7 +105,7 @@ static int i915_pipe_crc_release(struct inode *inode, struct file *filep)
 
 static int pipe_crc_data_count(struct intel_pipe_crc *pipe_crc)
 {
-	assert_spin_locked(&pipe_crc->lock);
+	lockdep_assert_held(&pipe_crc->lock);
 	return CIRC_CNT(pipe_crc->head, pipe_crc->tail,
 			INTEL_PIPE_CRC_ENTRIES_NR);
 }
