@@ -14,6 +14,77 @@
 #define TRACE_SYSTEM i915
 #define TRACE_INCLUDE_FILE i915_trace
 
+/* watermark/fifo updates */
+
+TRACE_EVENT(vlv_wm,
+	    TP_PROTO(struct intel_crtc *crtc, const struct vlv_wm_values *wm),
+	    TP_ARGS(crtc, wm),
+
+	    TP_STRUCT__entry(
+			     __field(enum pipe, pipe)
+			     __field(u32, frame)
+			     __field(u32, scanline)
+			     __field(u32, level)
+			     __field(u32, cxsr)
+			     __field(u32, primary)
+			     __field(u32, sprite0)
+			     __field(u32, sprite1)
+			     __field(u32, cursor)
+			     __field(u32, sr_plane)
+			     __field(u32, sr_cursor)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->pipe = crtc->pipe;
+			   __entry->frame = crtc->base.dev->driver->get_vblank_counter(crtc->base.dev,
+										       crtc->pipe);
+			   __entry->scanline = intel_get_crtc_scanline(crtc);
+			   __entry->level = wm->level;
+			   __entry->cxsr = wm->cxsr;
+			   __entry->primary = wm->pipe[crtc->pipe].plane[PLANE_PRIMARY];
+			   __entry->sprite0 = wm->pipe[crtc->pipe].plane[PLANE_SPRITE0];
+			   __entry->sprite1 = wm->pipe[crtc->pipe].plane[PLANE_SPRITE1];
+			   __entry->cursor = wm->pipe[crtc->pipe].plane[PLANE_CURSOR];
+			   __entry->sr_plane = wm->sr.plane;
+			   __entry->sr_cursor = wm->sr.cursor;
+			   ),
+
+	    TP_printk("pipe %c, frame=%u, scanline=%u, level=%d, cxsr=%d, wm %d/%d/%d/%d, sr %d/%d",
+		      pipe_name(__entry->pipe), __entry->frame,
+		      __entry->scanline, __entry->level, __entry->cxsr,
+		      __entry->primary, __entry->sprite0, __entry->sprite1, __entry->cursor,
+		      __entry->sr_plane, __entry->sr_cursor)
+);
+
+TRACE_EVENT(vlv_fifo_size,
+	    TP_PROTO(struct intel_crtc *crtc, u32 sprite0_start, u32 sprite1_start, u32 fifo_size),
+	    TP_ARGS(crtc, sprite0_start, sprite1_start, fifo_size),
+
+	    TP_STRUCT__entry(
+			     __field(enum pipe, pipe)
+			     __field(u32, frame)
+			     __field(u32, scanline)
+			     __field(u32, sprite0_start)
+			     __field(u32, sprite1_start)
+			     __field(u32, fifo_size)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->pipe = crtc->pipe;
+			   __entry->frame = crtc->base.dev->driver->get_vblank_counter(crtc->base.dev,
+										       crtc->pipe);
+			   __entry->scanline = intel_get_crtc_scanline(crtc);
+			   __entry->sprite0_start = sprite0_start;
+			   __entry->sprite1_start = sprite1_start;
+			   __entry->fifo_size = fifo_size;
+			   ),
+
+	    TP_printk("pipe %c, frame=%u, scanline=%u, %d/%d/%d",
+		      pipe_name(__entry->pipe), __entry->frame,
+		      __entry->scanline, __entry->sprite0_start,
+		      __entry->sprite1_start, __entry->fifo_size)
+);
+
 /* plane updates */
 
 TRACE_EVENT(intel_update_plane,

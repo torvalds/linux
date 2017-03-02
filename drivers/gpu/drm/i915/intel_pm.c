@@ -888,6 +888,8 @@ static void vlv_write_wm_values(struct drm_i915_private *dev_priv,
 	enum pipe pipe;
 
 	for_each_pipe(dev_priv, pipe) {
+		trace_vlv_wm(intel_get_crtc_for_pipe(dev_priv, pipe), wm);
+
 		I915_WRITE(VLV_DDL(pipe),
 			   (wm->ddl[pipe].plane[PLANE_CURSOR] << DDL_CURSOR_SHIFT) |
 			   (wm->ddl[pipe].plane[PLANE_SPRITE1] << DDL_SPRITE_SHIFT(1)) |
@@ -1351,6 +1353,8 @@ static void vlv_atomic_update_fifo(struct intel_atomic_state *state,
 
 	WARN_ON(fifo_state->plane[PLANE_CURSOR] != 63);
 	WARN_ON(fifo_size != 511);
+
+	trace_vlv_fifo_size(crtc, sprite0_start, sprite1_start, fifo_size);
 
 	spin_lock(&dev_priv->wm.dsparb_lock);
 
