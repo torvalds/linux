@@ -23,9 +23,6 @@
 #include <linux/uaccess.h>
 #include <asm/unistd.h>
 
-typedef ssize_t (*io_fn_t)(struct file *, char __user *, size_t, loff_t *);
-typedef ssize_t (*iter_fn_t)(struct kiocb *, struct iov_iter *);
-
 const struct file_operations generic_ro_fops = {
 	.llseek		= generic_file_llseek,
 	.read_iter	= generic_file_read_iter,
@@ -370,7 +367,7 @@ ssize_t vfs_iter_read(struct file *file, struct iov_iter *iter, loff_t *ppos)
 	kiocb.ki_pos = *ppos;
 
 	iter->type |= READ;
-	ret = file->f_op->read_iter(&kiocb, iter);
+	ret = call_read_iter(file, &kiocb, iter);
 	BUG_ON(ret == -EIOCBQUEUED);
 	if (ret > 0)
 		*ppos = kiocb.ki_pos;
@@ -390,7 +387,7 @@ ssize_t vfs_iter_write(struct file *file, struct iov_iter *iter, loff_t *ppos)
 	kiocb.ki_pos = *ppos;
 
 	iter->type |= WRITE;
-	ret = file->f_op->write_iter(&kiocb, iter);
+	ret = call_write_iter(file, &kiocb, iter);
 	BUG_ON(ret == -EIOCBQUEUED);
 	if (ret > 0)
 		*ppos = kiocb.ki_pos;
@@ -439,7 +436,7 @@ static ssize_t new_sync_read(struct file *filp, char __user *buf, size_t len, lo
 	kiocb.ki_pos = *ppos;
 	iov_iter_init(&iter, READ, &iov, 1, len);
 
-	ret = filp->f_op->read_iter(&kiocb, &iter);
+	ret = call_read_iter(filp, &kiocb, &iter);
 	BUG_ON(ret == -EIOCBQUEUED);
 	*ppos = kiocb.ki_pos;
 	return ret;
@@ -496,7 +493,7 @@ static ssize_t new_sync_write(struct file *filp, const char __user *buf, size_t 
 	kiocb.ki_pos = *ppos;
 	iov_iter_init(&iter, WRITE, &iov, 1, len);
 
-	ret = filp->f_op->write_iter(&kiocb, &iter);
+	ret = call_write_iter(filp, &kiocb, &iter);
 	BUG_ON(ret == -EIOCBQUEUED);
 	if (ret > 0)
 		*ppos = kiocb.ki_pos;
@@ -675,7 +672,7 @@ unsigned long iov_shorten(struct iovec *iov, unsigned long nr_segs, size_t to)
 EXPORT_SYMBOL(iov_shorten);
 
 static ssize_t do_iter_readv_writev(struct file *filp, struct iov_iter *iter,
-		loff_t *ppos, iter_fn_t fn, int flags)
+		loff_t *ppos, int type, int flags)
 {
 	struct kiocb kiocb;
 	ssize_t ret;
@@ -692,7 +689,10 @@ static ssize_t do_iter_readv_writev(struct file *filp, struct iov_iter *iter,
 		kiocb.ki_flags |= (IOCB_DSYNC | IOCB_SYNC);
 	kiocb.ki_pos = *ppos;
 
-	ret = fn(&kiocb, iter);
+	if (type == READ)
+		ret = call_read_iter(filp, &kiocb, iter);
+	else
+		ret = call_write_iter(filp, &kiocb, iter);
 	BUG_ON(ret == -EIOCBQUEUED);
 	*ppos = kiocb.ki_pos;
 	return ret;
@@ -700,7 +700,7 @@ static ssize_t do_iter_readv_writev(struct file *filp, struct iov_iter *iter,
 
 /* Do it by hand, with file-ops */
 static ssize_t do_loop_readv_writev(struct file *filp, struct iov_iter *iter,
-		loff_t *ppos, io_fn_t fn, int flags)
+		loff_t *ppos, int type, int flags)
 {
 	ssize_t ret = 0;
 
@@ -711,7 +711,13 @@ static ssize_t do_loop_readv_writev(struct file *filp, struct iov_iter *iter,
 		struct iovec iovec = iov_iter_iovec(iter);
 		ssize_t nr;
 
-		nr = fn(filp, iovec.iov_base, iovec.iov_len, ppos);
+		if (type == READ) {
+			nr = filp->f_op->read(filp, iovec.iov_base,
+					      iovec.iov_len, ppos);
+		} else {
+			nr = filp->f_op->write(filp, iovec.iov_base,
+					       iovec.iov_len, ppos);
+		}
 
 		if (nr < 0) {
 			if (!ret)
@@ -834,56 +840,59 @@ out:
 	return ret;
 }
 
-static ssize_t do_readv_writev(int type, struct file *file,
-			       const struct iovec __user * uvector,
-			       unsigned long nr_segs, loff_t *pos,
-			       int flags)
+static ssize_t __do_readv_writev(int type, struct file *file,
+				 struct iov_iter *iter, loff_t *pos, int flags)
 {
 	size_t tot_len;
-	struct iovec iovstack[UIO_FASTIOV];
-	struct iovec *iov = iovstack;
-	struct iov_iter iter;
-	ssize_t ret;
-	io_fn_t fn;
-	iter_fn_t iter_fn;
+	ssize_t ret = 0;
 
-	ret = import_iovec(type, uvector, nr_segs,
-			   ARRAY_SIZE(iovstack), &iov, &iter);
-	if (ret < 0)
-		return ret;
-
-	tot_len = iov_iter_count(&iter);
+	tot_len = iov_iter_count(iter);
 	if (!tot_len)
 		goto out;
 	ret = rw_verify_area(type, file, pos, tot_len);
 	if (ret < 0)
 		goto out;
 
-	if (type == READ) {
-		fn = file->f_op->read;
-		iter_fn = file->f_op->read_iter;
-	} else {
-		fn = (io_fn_t)file->f_op->write;
-		iter_fn = file->f_op->write_iter;
+	if (type != READ)
 		file_start_write(file);
-	}
 
-	if (iter_fn)
-		ret = do_iter_readv_writev(file, &iter, pos, iter_fn, flags);
+	if ((type == READ && file->f_op->read_iter) ||
+	    (type == WRITE && file->f_op->write_iter))
+		ret = do_iter_readv_writev(file, iter, pos, type, flags);
 	else
-		ret = do_loop_readv_writev(file, &iter, pos, fn, flags);
+		ret = do_loop_readv_writev(file, iter, pos, type, flags);
 
 	if (type != READ)
 		file_end_write(file);
 
 out:
-	kfree(iov);
 	if ((ret + (type == READ)) > 0) {
 		if (type == READ)
 			fsnotify_access(file);
 		else
 			fsnotify_modify(file);
 	}
+	return ret;
+}
+
+static ssize_t do_readv_writev(int type, struct file *file,
+			       const struct iovec __user *uvector,
+			       unsigned long nr_segs, loff_t *pos,
+			       int flags)
+{
+	struct iovec iovstack[UIO_FASTIOV];
+	struct iovec *iov = iovstack;
+	struct iov_iter iter;
+	ssize_t ret;
+
+	ret = import_iovec(type, uvector, nr_segs,
+			   ARRAY_SIZE(iovstack), &iov, &iter);
+	if (ret < 0)
+		return ret;
+
+	ret = __do_readv_writev(type, file, &iter, pos, flags);
+	kfree(iov);
+
 	return ret;
 }
 
@@ -1064,51 +1073,19 @@ static ssize_t compat_do_readv_writev(int type, struct file *file,
 			       unsigned long nr_segs, loff_t *pos,
 			       int flags)
 {
-	compat_ssize_t tot_len;
 	struct iovec iovstack[UIO_FASTIOV];
 	struct iovec *iov = iovstack;
 	struct iov_iter iter;
 	ssize_t ret;
-	io_fn_t fn;
-	iter_fn_t iter_fn;
 
 	ret = compat_import_iovec(type, uvector, nr_segs,
 				  UIO_FASTIOV, &iov, &iter);
 	if (ret < 0)
 		return ret;
 
-	tot_len = iov_iter_count(&iter);
-	if (!tot_len)
-		goto out;
-	ret = rw_verify_area(type, file, pos, tot_len);
-	if (ret < 0)
-		goto out;
-
-	if (type == READ) {
-		fn = file->f_op->read;
-		iter_fn = file->f_op->read_iter;
-	} else {
-		fn = (io_fn_t)file->f_op->write;
-		iter_fn = file->f_op->write_iter;
-		file_start_write(file);
-	}
-
-	if (iter_fn)
-		ret = do_iter_readv_writev(file, &iter, pos, iter_fn, flags);
-	else
-		ret = do_loop_readv_writev(file, &iter, pos, fn, flags);
-
-	if (type != READ)
-		file_end_write(file);
-
-out:
+	ret = __do_readv_writev(type, file, &iter, pos, flags);
 	kfree(iov);
-	if ((ret + (type == READ)) > 0) {
-		if (type == READ)
-			fsnotify_access(file);
-		else
-			fsnotify_modify(file);
-	}
+
 	return ret;
 }
 
@@ -1518,6 +1495,11 @@ ssize_t vfs_copy_file_range(struct file *file_in, loff_t pos_in,
 	if (flags != 0)
 		return -EINVAL;
 
+	if (S_ISDIR(inode_in->i_mode) || S_ISDIR(inode_out->i_mode))
+		return -EISDIR;
+	if (!S_ISREG(inode_in->i_mode) || !S_ISREG(inode_out->i_mode))
+		return -EINVAL;
+
 	ret = rw_verify_area(READ, file_in, &pos_in, len);
 	if (unlikely(ret))
 		return ret;
@@ -1538,7 +1520,7 @@ ssize_t vfs_copy_file_range(struct file *file_in, loff_t pos_in,
 	if (len == 0)
 		return 0;
 
-	sb_start_write(inode_out->i_sb);
+	file_start_write(file_out);
 
 	/*
 	 * Try cloning first, this is supported by more file systems, and
@@ -1574,7 +1556,7 @@ done:
 	inc_syscr(current);
 	inc_syscw(current);
 
-	sb_end_write(inode_out->i_sb);
+	file_end_write(file_out);
 
 	return ret;
 }
