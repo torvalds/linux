@@ -4725,7 +4725,6 @@ void vlv_wm_get_hw_state(struct drm_device *dev)
 		active->num_levels = wm->level + 1;
 		active->cxsr = wm->cxsr;
 
-		/* FIXME sanitize things more */
 		for (level = 0; level < active->num_levels; level++) {
 			struct vlv_pipe_wm *raw =
 				&crtc_state->wm.vlv.raw[level];
@@ -4761,6 +4760,55 @@ void vlv_wm_get_hw_state(struct drm_device *dev)
 
 	DRM_DEBUG_KMS("Initial watermarks: SR plane=%d, SR cursor=%d level=%d cxsr=%d\n",
 		      wm->sr.plane, wm->sr.cursor, wm->level, wm->cxsr);
+}
+
+void vlv_wm_sanitize(struct drm_i915_private *dev_priv)
+{
+	struct intel_plane *plane;
+	struct intel_crtc *crtc;
+
+	mutex_lock(&dev_priv->wm.wm_mutex);
+
+	for_each_intel_plane(&dev_priv->drm, plane) {
+		struct intel_crtc *crtc =
+			intel_get_crtc_for_pipe(dev_priv, plane->pipe);
+		struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
+		struct intel_plane_state *plane_state =
+			to_intel_plane_state(plane->base.state);
+		struct vlv_wm_state *wm_state = &crtc_state->wm.vlv.optimal;
+		const struct vlv_fifo_state *fifo_state =
+			&crtc_state->wm.vlv.fifo_state;
+		enum plane_id plane_id = plane->id;
+		int level;
+
+		if (plane_state->base.visible)
+			continue;
+
+		for (level = 0; level < wm_state->num_levels; level++) {
+			struct vlv_pipe_wm *raw =
+				&crtc_state->wm.vlv.raw[level];
+
+			raw->plane[plane_id] = 0;
+
+			wm_state->wm[level].plane[plane_id] =
+				vlv_invert_wm_value(raw->plane[plane_id],
+						    fifo_state->plane[plane_id]);
+		}
+	}
+
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
+		struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
+
+		crtc_state->wm.vlv.intermediate =
+			crtc_state->wm.vlv.optimal;
+		crtc->wm.active.vlv = crtc_state->wm.vlv.optimal;
+	}
+
+	vlv_program_watermarks(dev_priv);
+
+	mutex_unlock(&dev_priv->wm.wm_mutex);
 }
 
 void ilk_wm_get_hw_state(struct drm_device *dev)
