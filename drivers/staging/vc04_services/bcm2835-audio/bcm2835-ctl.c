@@ -122,8 +122,7 @@ static int snd_bcm2835_ctl_put(struct snd_kcontrol *kcontrol,
 			changed = 1; /* should return 0 to signify no change but the mixer takes this as the opposite sign (no idea why) */
 			goto unlock;
 		}
-		if (changed
-			|| (ucontrol->value.integer.value[0] != chip2alsa(chip->volume))) {
+		if (changed || (ucontrol->value.integer.value[0] != chip2alsa(chip->volume))) {
 
 			chip->volume = alsa2chip(ucontrol->value.integer.value[0]);
 			changed = 1;
