@@ -231,12 +231,19 @@ static void intel_plane_atomic_update(struct drm_plane *plane,
 		to_intel_plane_state(plane->state);
 	struct drm_crtc *crtc = plane->state->crtc ?: old_state->crtc;
 
-	if (intel_state->base.visible)
+	if (intel_state->base.visible) {
+		trace_intel_update_plane(plane,
+					 to_intel_crtc(crtc));
+
 		intel_plane->update_plane(plane,
 					  to_intel_crtc_state(crtc->state),
 					  intel_state);
-	else
+	} else {
+		trace_intel_disable_plane(plane,
+					  to_intel_crtc(crtc));
+
 		intel_plane->disable_plane(plane, crtc);
+	}
 }
 
 const struct drm_plane_helper_funcs intel_plane_helper_funcs = {

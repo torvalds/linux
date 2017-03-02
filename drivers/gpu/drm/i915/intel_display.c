@@ -2754,6 +2754,7 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 				to_intel_plane_state(plane_state),
 				false);
 	intel_pre_disable_primary_noatomic(&intel_crtc->base);
+	trace_intel_disable_plane(primary, intel_crtc);
 	intel_plane->disable_plane(primary, &intel_crtc->base);
 
 	return;
@@ -3447,10 +3448,14 @@ static void intel_update_primary_planes(struct drm_device *dev)
 		struct intel_plane_state *plane_state =
 			to_intel_plane_state(plane->base.state);
 
-		if (plane_state->base.visible)
+		if (plane_state->base.visible) {
+			trace_intel_update_plane(&plane->base,
+						 to_intel_crtc(crtc));
+
 			plane->update_plane(&plane->base,
 					    to_intel_crtc_state(crtc->state),
 					    plane_state);
+		}
 	}
 }
 
@@ -13491,12 +13496,15 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 	new_plane_state->fb = old_fb;
 	to_intel_plane_state(new_plane_state)->vma = old_vma;
 
-	if (plane->state->visible)
+	if (plane->state->visible) {
+		trace_intel_update_plane(plane, to_intel_crtc(crtc));
 		intel_plane->update_plane(plane,
 					  to_intel_crtc_state(crtc->state),
 					  to_intel_plane_state(plane->state));
-	else
+	} else {
+		trace_intel_disable_plane(plane, to_intel_crtc(crtc));
 		intel_plane->disable_plane(plane, crtc);
+	}
 
 	intel_cleanup_plane_fb(plane, new_plane_state);
 
@@ -15145,6 +15153,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 			if (plane->base.type == DRM_PLANE_TYPE_PRIMARY)
 				continue;
 
+			trace_intel_disable_plane(&plane->base, crtc);
 			plane->disable_plane(&plane->base, &crtc->base);
 		}
 	}

@@ -14,6 +14,62 @@
 #define TRACE_SYSTEM i915
 #define TRACE_INCLUDE_FILE i915_trace
 
+/* plane updates */
+
+TRACE_EVENT(intel_update_plane,
+	    TP_PROTO(struct drm_plane *plane, struct intel_crtc *crtc),
+	    TP_ARGS(plane, crtc),
+
+	    TP_STRUCT__entry(
+			     __field(enum pipe, pipe)
+			     __field(const char *, name)
+			     __field(u32, frame)
+			     __field(u32, scanline)
+			     __array(int, src, 4)
+			     __array(int, dst, 4)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->pipe = crtc->pipe;
+			   __entry->name = plane->name;
+			   __entry->frame = crtc->base.dev->driver->get_vblank_counter(crtc->base.dev,
+										       crtc->pipe);
+			   __entry->scanline = intel_get_crtc_scanline(crtc);
+			   memcpy(__entry->src, &plane->state->src, sizeof(__entry->src));
+			   memcpy(__entry->dst, &plane->state->dst, sizeof(__entry->dst));
+			   ),
+
+	    TP_printk("pipe %c, plane %s, frame=%u, scanline=%u, " DRM_RECT_FP_FMT " -> " DRM_RECT_FMT,
+		      pipe_name(__entry->pipe), __entry->name,
+		      __entry->frame, __entry->scanline,
+		      DRM_RECT_FP_ARG((const struct drm_rect *)__entry->src),
+		      DRM_RECT_ARG((const struct drm_rect *)__entry->dst))
+);
+
+TRACE_EVENT(intel_disable_plane,
+	    TP_PROTO(struct drm_plane *plane, struct intel_crtc *crtc),
+	    TP_ARGS(plane, crtc),
+
+	    TP_STRUCT__entry(
+			     __field(enum pipe, pipe)
+			     __field(const char *, name)
+			     __field(u32, frame)
+			     __field(u32, scanline)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->pipe = crtc->pipe;
+			   __entry->name = plane->name;
+			   __entry->frame = crtc->base.dev->driver->get_vblank_counter(crtc->base.dev,
+										       crtc->pipe);
+			   __entry->scanline = intel_get_crtc_scanline(crtc);
+			   ),
+
+	    TP_printk("pipe %c, plane %s, frame=%u, scanline=%u",
+		      pipe_name(__entry->pipe), __entry->name,
+		      __entry->frame, __entry->scanline)
+);
+
 /* pipe updates */
 
 TRACE_EVENT(i915_pipe_update_start,

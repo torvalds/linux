@@ -783,6 +783,9 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	enum pipe pipe = crtc->pipe;
 	int position, vtotal;
 
+	if (!crtc->active)
+		return -1;
+
 	vtotal = mode->crtc_vtotal;
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 		vtotal /= 2;
