@@ -228,15 +228,13 @@ static int sama5d4_wdt_probe(struct platform_device *pdev)
 
 	wdt->reg_base = regs;
 
-	if (pdev->dev.of_node) {
-		irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
-		if (!irq)
-			dev_warn(&pdev->dev, "failed to get IRQ from DT\n");
+	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	if (!irq)
+		dev_warn(&pdev->dev, "failed to get IRQ from DT\n");
 
-		ret = of_sama5d4_wdt_init(pdev->dev.of_node, wdt);
-		if (ret)
-			return ret;
-	}
+	ret = of_sama5d4_wdt_init(pdev->dev.of_node, wdt);
+	if (ret)
+		return ret;
 
 	if ((wdt->mr & AT91_WDT_WDFIEN) && irq) {
 		ret = devm_request_irq(&pdev->dev, irq, sama5d4_wdt_irq_handler,
