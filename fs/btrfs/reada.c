@@ -393,6 +393,10 @@ static struct reada_extent *reada_find_extent(struct btrfs_fs_info *fs_info,
 		goto error;
 	}
 
+	ret = radix_tree_preload(GFP_KERNEL);
+	if (ret)
+		goto error;
+
 	/* insert extent in reada_tree + all per-device trees, all or nothing */
 	btrfs_dev_replace_lock(&fs_info->dev_replace, 0);
 	spin_lock(&fs_info->reada_lock);
@@ -402,13 +406,16 @@ static struct reada_extent *reada_find_extent(struct btrfs_fs_info *fs_info,
 		re_exist->refcnt++;
 		spin_unlock(&fs_info->reada_lock);
 		btrfs_dev_replace_unlock(&fs_info->dev_replace, 0);
+		radix_tree_preload_end();
 		goto error;
 	}
 	if (ret) {
 		spin_unlock(&fs_info->reada_lock);
 		btrfs_dev_replace_unlock(&fs_info->dev_replace, 0);
+		radix_tree_preload_end();
 		goto error;
 	}
+	radix_tree_preload_end();
 	prev_dev = NULL;
 	dev_replace_is_ongoing = btrfs_dev_replace_is_ongoing(
 			&fs_info->dev_replace);
