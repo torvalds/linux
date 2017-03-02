@@ -1028,73 +1028,70 @@ static uint16_t vlv_compute_wm_level(const struct intel_crtc_state *crtc_state,
 	return min_t(int, wm, USHRT_MAX);
 }
 
-static void vlv_compute_fifo(struct intel_crtc_state *crtc_state)
+static int vlv_compute_fifo(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
-	struct vlv_wm_state *wm_state = &crtc_state->wm.vlv.optimal;
+	const struct vlv_pipe_wm *raw =
+		&crtc_state->wm.vlv.raw[VLV_WM_LEVEL_PM2];
 	struct vlv_fifo_state *fifo_state = &crtc_state->wm.vlv.fifo_state;
-	struct drm_device *dev = crtc->base.dev;
-	struct intel_plane *plane;
-	unsigned int total_rate = 0;
-	const int fifo_size = 512 - 1;
+	unsigned int active_planes = crtc_state->active_planes & ~BIT(PLANE_CURSOR);
+	int num_active_planes = hweight32(active_planes);
+	const int fifo_size = 511;
 	int fifo_extra, fifo_left = fifo_size;
+	unsigned int total_rate;
+	enum plane_id plane_id;
 
-	for_each_intel_plane_on_crtc(dev, crtc, plane) {
-		struct intel_plane_state *state =
-			to_intel_plane_state(plane->base.state);
+	total_rate = raw->plane[PLANE_PRIMARY] +
+		raw->plane[PLANE_SPRITE0] +
+		raw->plane[PLANE_SPRITE1];
 
-		if (plane->id == PLANE_CURSOR)
-			continue;
+	if (total_rate > fifo_size)
+		return -EINVAL;
 
-		if (state->base.visible) {
-			wm_state->num_active_planes++;
-			total_rate += state->base.fb->format->cpp[0];
-		}
-	}
+	if (total_rate == 0)
+		total_rate = 1;
 
-	for_each_intel_plane_on_crtc(dev, crtc, plane) {
-		struct intel_plane_state *state =
-			to_intel_plane_state(plane->base.state);
+	for_each_plane_id_on_crtc(crtc, plane_id) {
 		unsigned int rate;
 
-		if (plane->id == PLANE_CURSOR) {
-			fifo_state->plane[plane->id] = 63;
+		if ((active_planes & BIT(plane_id)) == 0) {
+			fifo_state->plane[plane_id] = 0;
 			continue;
 		}
 
-		if (!state->base.visible) {
-			fifo_state->plane[plane->id] = 0;
-			continue;
-		}
-
-		rate = state->base.fb->format->cpp[0];
-		fifo_state->plane[plane->id] = fifo_size * rate / total_rate;
-		fifo_left -= fifo_state->plane[plane->id];
+		rate = raw->plane[plane_id];
+		fifo_state->plane[plane_id] = fifo_size * rate / total_rate;
+		fifo_left -= fifo_state->plane[plane_id];
 	}
 
-	fifo_extra = DIV_ROUND_UP(fifo_left, wm_state->num_active_planes ?: 1);
+	fifo_state->plane[PLANE_CURSOR] = 63;
+
+	fifo_extra = DIV_ROUND_UP(fifo_left, num_active_planes ?: 1);
 
 	/* spread the remainder evenly */
-	for_each_intel_plane_on_crtc(dev, crtc, plane) {
+	for_each_plane_id_on_crtc(crtc, plane_id) {
 		int plane_extra;
 
 		if (fifo_left == 0)
 			break;
 
-		if (plane->id == PLANE_CURSOR)
-			continue;
-
-		/* give it all to the first plane if none are active */
-		if (fifo_state->plane[plane->id] == 0 &&
-		    wm_state->num_active_planes)
+		if ((active_planes & BIT(plane_id)) == 0)
 			continue;
 
 		plane_extra = min(fifo_extra, fifo_left);
-		fifo_state->plane[plane->id] += plane_extra;
+		fifo_state->plane[plane_id] += plane_extra;
 		fifo_left -= plane_extra;
 	}
 
-	WARN_ON(fifo_left != 0);
+	WARN_ON(active_planes != 0 && fifo_left != 0);
+
+	/* give it all to the first plane if none are active */
+	if (active_planes == 0) {
+		WARN_ON(fifo_left != fifo_size);
+		fifo_state->plane[PLANE_PRIMARY] = fifo_left;
+	}
+
+	return 0;
 }
 
 static u16 vlv_invert_wm_value(u16 wm, u16 fifo_size)
@@ -1139,19 +1136,16 @@ static void vlv_compute_wm(struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct vlv_wm_state *wm_state = &crtc_state->wm.vlv.optimal;
-	const struct vlv_fifo_state *fifo_state =
-		&crtc_state->wm.vlv.fifo_state;
 	struct intel_plane *plane;
 	int level;
 
 	memset(wm_state, 0, sizeof(*wm_state));
+	memset(&crtc_state->wm.vlv.raw, 0, sizeof(crtc_state->wm.vlv.raw));
 
 	wm_state->cxsr = crtc->pipe != PIPE_C && crtc->wm.cxsr_allowed;
 	wm_state->num_levels = dev_priv->wm.max_level + 1;
 
 	wm_state->num_active_planes = 0;
-
-	vlv_compute_fifo(crtc_state);
 
 	if (wm_state->num_active_planes != 1)
 		wm_state->cxsr = false;
@@ -1159,15 +1153,14 @@ static void vlv_compute_wm(struct intel_crtc_state *crtc_state)
 	for_each_intel_plane_on_crtc(&dev_priv->drm, crtc, plane) {
 		struct intel_plane_state *state =
 			to_intel_plane_state(plane->base.state);
-		int level;
 
 		if (!state->base.visible)
 			continue;
 
-		/* normal watermarks */
 		for (level = 0; level < wm_state->num_levels; level++) {
+			struct vlv_pipe_wm *raw = &crtc_state->wm.vlv.raw[level];
 			int wm = vlv_compute_wm_level(crtc_state, state, level);
-			int max_wm = fifo_state->plane[plane->id];
+			int max_wm = plane->id == PLANE_CURSOR ? 63 : 511;
 
 			/* hack */
 			if (WARN_ON(level == 0 && wm > max_wm))
@@ -1176,25 +1169,23 @@ static void vlv_compute_wm(struct intel_crtc_state *crtc_state)
 			if (wm > max_wm)
 				break;
 
-			wm_state->wm[level].plane[plane->id] = wm;
+			raw->plane[plane->id] = wm;
 		}
 
 		wm_state->num_levels = level;
+	}
 
-		if (!wm_state->cxsr)
-			continue;
+	vlv_compute_fifo(crtc_state);
 
-		/* maxfifo watermarks */
-		if (plane->id == PLANE_CURSOR) {
-			for (level = 0; level < wm_state->num_levels; level++)
-				wm_state->sr[level].cursor =
-					wm_state->wm[level].plane[PLANE_CURSOR];
-		} else {
-			for (level = 0; level < wm_state->num_levels; level++)
-				wm_state->sr[level].plane =
-					max(wm_state->sr[level].plane,
-					    wm_state->wm[level].plane[plane->id]);
-		}
+	for (level = 0; level < wm_state->num_levels; level++) {
+		struct vlv_pipe_wm *raw = &crtc_state->wm.vlv.raw[level];
+
+		wm_state->wm[level] = *raw;
+
+		wm_state->sr[level].plane = max3(raw->plane[PLANE_PRIMARY],
+						 raw->plane[PLANE_SPRITE0],
+						 raw->plane[PLANE_SPRITE1]);
+		wm_state->sr[level].cursor = raw->plane[PLANE_CURSOR];
 	}
 
 	/* clear any (partially) filled invalid levels */
