@@ -517,13 +517,6 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		ret = -EBADSLT;
 		if (cmd != RXRPC_CMD_SEND_DATA)
 			goto error_release_sock;
-		ret = -EBUSY;
-		if (call->state == RXRPC_CALL_UNINITIALISED ||
-		    call->state == RXRPC_CALL_CLIENT_AWAIT_CONN ||
-		    call->state == RXRPC_CALL_SERVER_PREALLOC ||
-		    call->state == RXRPC_CALL_SERVER_SECURING ||
-		    call->state == RXRPC_CALL_SERVER_ACCEPTING)
-			goto error_release_sock;
 		call = rxrpc_new_client_call_for_sendmsg(rx, msg, user_call_ID,
 							 exclusive);
 		/* The socket is now unlocked... */
@@ -531,6 +524,14 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 			return PTR_ERR(call);
 		/* ... and we have the call lock. */
 	} else {
+		ret = -EBUSY;
+		if (call->state == RXRPC_CALL_UNINITIALISED ||
+		    call->state == RXRPC_CALL_CLIENT_AWAIT_CONN ||
+		    call->state == RXRPC_CALL_SERVER_PREALLOC ||
+		    call->state == RXRPC_CALL_SERVER_SECURING ||
+		    call->state == RXRPC_CALL_SERVER_ACCEPTING)
+			goto error_release_sock;
+
 		ret = mutex_lock_interruptible(&call->user_mutex);
 		release_sock(&rx->sk);
 		if (ret < 0) {
