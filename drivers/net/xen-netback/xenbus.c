@@ -496,6 +496,7 @@ static void backend_disconnect(struct backend_info *be)
 
 	if (vif) {
 		unsigned int queue_index;
+		struct xenvif_queue *queues;
 
 		xen_unregister_watchers(vif);
 #ifdef CONFIG_DEBUG_FS
@@ -508,10 +509,12 @@ static void backend_disconnect(struct backend_info *be)
 			xenvif_deinit_queue(&vif->queues[queue_index]);
 
 		spin_lock(&vif->lock);
-		vfree(vif->queues);
+		queues = vif->queues;
 		vif->num_queues = 0;
 		vif->queues = NULL;
 		spin_unlock(&vif->lock);
+
+		vfree(queues);
 
 		xenvif_disconnect_ctrl(vif);
 	}
