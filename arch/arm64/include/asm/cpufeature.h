@@ -184,16 +184,22 @@ static inline u64 arm64_ftr_reg_user_value(const struct arm64_ftr_reg *reg)
 }
 
 static inline int __attribute_const__
-cpuid_feature_extract_field(u64 features, int field, bool sign)
+cpuid_feature_extract_field_width(u64 features, int field, int width, bool sign)
 {
 	return (sign) ?
-		cpuid_feature_extract_signed_field(features, field) :
-		cpuid_feature_extract_unsigned_field(features, field);
+		cpuid_feature_extract_signed_field_width(features, field, width) :
+		cpuid_feature_extract_unsigned_field_width(features, field, width);
+}
+
+static inline int __attribute_const__
+cpuid_feature_extract_field(u64 features, int field, bool sign)
+{
+	return cpuid_feature_extract_field_width(features, field, 4, sign);
 }
 
 static inline s64 arm64_ftr_value(const struct arm64_ftr_bits *ftrp, u64 val)
 {
-	return (s64)cpuid_feature_extract_field(val, ftrp->shift, ftrp->sign);
+	return (s64)cpuid_feature_extract_field_width(val, ftrp->shift, ftrp->width, ftrp->sign);
 }
 
 static inline bool id_aa64mmfr0_mixed_endian_el0(u64 mmfr0)

@@ -464,8 +464,10 @@ rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
 		 * Note that the cred_unused list must be time-ordered.
 		 */
 		if (time_in_range(cred->cr_expire, expired, jiffies) &&
-		    test_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags) != 0)
+		    test_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags) != 0) {
+			freed = SHRINK_STOP;
 			break;
+		}
 
 		list_del_init(&cred->cr_lru);
 		number_cred_unused--;
@@ -520,7 +522,7 @@ static unsigned long
 rpcauth_cache_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
 
 {
-	return (number_cred_unused / 100) * sysctl_vfs_cache_pressure;
+	return number_cred_unused * sysctl_vfs_cache_pressure / 100;
 }
 
 static void
@@ -646,9 +648,6 @@ rpcauth_init_cred(struct rpc_cred *cred, const struct auth_cred *acred,
 	cred->cr_auth = auth;
 	cred->cr_ops = ops;
 	cred->cr_expire = jiffies;
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-	cred->cr_magic = RPCAUTH_CRED_MAGIC;
-#endif
 	cred->cr_uid = acred->uid;
 }
 EXPORT_SYMBOL_GPL(rpcauth_init_cred);
@@ -876,8 +875,12 @@ int __init rpcauth_init_module(void)
 	err = rpc_init_generic_auth();
 	if (err < 0)
 		goto out2;
-	register_shrinker(&rpc_cred_shrinker);
+	err = register_shrinker(&rpc_cred_shrinker);
+	if (err < 0)
+		goto out3;
 	return 0;
+out3:
+	rpc_destroy_generic_auth();
 out2:
 	rpc_destroy_authunix();
 out1:
