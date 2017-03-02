@@ -60,5 +60,6 @@ int gf100_ram_new(struct nvkm_fb *, struct nvkm_ram **);
 int gf108_ram_new(struct nvkm_fb *, struct nvkm_ram **);
 int gk104_ram_new(struct nvkm_fb *, struct nvkm_ram **);
 int gm107_ram_new(struct nvkm_fb *, struct nvkm_ram **);
+int gm200_ram_new(struct nvkm_fb *, struct nvkm_ram **);
 int gp100_ram_new(struct nvkm_fb *, struct nvkm_ram **);
 #endif
