@@ -4421,10 +4421,9 @@ static void __init set_ftrace_early_graph(char *buf, int enable)
 	char *func;
 	struct ftrace_hash *hash;
 
-	if (enable)
-		hash = ftrace_graph_hash;
-	else
-		hash = ftrace_graph_notrace_hash;
+	hash = alloc_ftrace_hash(FTRACE_HASH_DEFAULT_BITS);
+	if (WARN_ON(!hash))
+		return;
 
 	while (buf) {
 		func = strsep(&buf, ",");
@@ -4434,6 +4433,11 @@ static void __init set_ftrace_early_graph(char *buf, int enable)
 			printk(KERN_DEBUG "ftrace: function %s not "
 					  "traceable\n", func);
 	}
+
+	if (enable)
+		ftrace_graph_hash = hash;
+	else
+		ftrace_graph_notrace_hash = hash;
 }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
