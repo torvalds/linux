@@ -188,6 +188,10 @@ static inline void usb_set_serial_data(struct usb_serial *serial, void *data)
  * @id_table: pointer to a list of usb_device_id structures that define all
  *	of the devices this structure can support.
  * @num_ports: the number of different ports this device will have.
+ * @num_bulk_in: minimum number of bulk-in endpoints
+ * @num_bulk_out: minimum number of bulk-out endpoints
+ * @num_interrupt_in: minimum number of interrupt-in endpoints
+ * @num_interrupt_out: minimum number of interrupt-out endpoints
  * @bulk_in_size: minimum number of bytes to allocate for bulk-in buffer
  *	(0 = end-point size)
  * @bulk_out_size: bytes to allocate for bulk-out buffer (0 = end-point size)
@@ -234,6 +238,11 @@ struct usb_serial_driver {
 	struct usb_dynids	dynids;
 
 	unsigned char		num_ports;
+
+	unsigned char		num_bulk_in;
+	unsigned char		num_bulk_out;
+	unsigned char		num_interrupt_in;
+	unsigned char		num_interrupt_out;
 
 	size_t			bulk_in_size;
 	size_t			bulk_out_size;

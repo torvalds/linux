@@ -848,21 +848,26 @@ static int usb_serial_probe(struct usb_interface *interface,
 		if (epds->num_bulk_in == 0 || epds->num_bulk_out == 0) {
 			dev_info(ddev, "PL-2303 hack: descriptors matched but endpoints did not\n");
 			retval = -ENODEV;
-			kfree(epds);
-			goto err_put_serial;
+			goto err_free_epds;
 		}
 	}
 	/* END HORRIBLE HACK FOR PL2303 */
 #endif
-
+	if (epds->num_bulk_in < type->num_bulk_in ||
+			epds->num_bulk_out < type->num_bulk_out ||
+			epds->num_interrupt_in < type->num_interrupt_in ||
+			epds->num_interrupt_out < type->num_interrupt_out) {
+		dev_err(ddev, "required endpoints missing\n");
+		retval = -ENODEV;
+		goto err_free_epds;
+	}
 #ifdef CONFIG_USB_SERIAL_GENERIC
 	if (type == &usb_serial_generic_device) {
 		num_ports = epds->num_bulk_out;
 		if (num_ports == 0) {
 			dev_err(ddev, "Generic device with no bulk out, not allowed.\n");
 			retval = -EIO;
-			kfree(epds);
-			goto err_put_serial;
+			goto err_free_epds;
 		}
 		dev_info(ddev, "The \"generic\" usb-serial driver is only for testing and one-off prototypes.\n");
 		dev_info(ddev, "Tell linux-usb@vger.kernel.org to add your device to a proper driver.\n");
@@ -1085,6 +1090,8 @@ exit:
 
 probe_error:
 	retval = -EIO;
+err_free_epds:
+	kfree(epds);
 err_put_serial:
 	usb_serial_put(serial);
 err_put_module:
