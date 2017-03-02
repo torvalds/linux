@@ -152,11 +152,11 @@ panels are still in-flux and not really fully sorted out yet.
 KMS Core Structures and Functions
 =================================
 
-.. kernel-doc:: drivers/gpu/drm/drm_mode_config.c
-   :export:
-
 .. kernel-doc:: include/drm/drm_mode_config.h
    :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_mode_config.c
+   :export:
 
 Modeset Base Object Abstraction
 ===============================
@@ -170,11 +170,11 @@ Modeset Base Object Abstraction
 Atomic Mode Setting Function Reference
 ======================================
 
-.. kernel-doc:: drivers/gpu/drm/drm_atomic.c
-   :export:
-
 .. kernel-doc:: include/drm/drm_atomic.h
    :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_atomic.c
+   :export:
 
 CRTC Abstraction
 ================
@@ -200,11 +200,11 @@ Frame Buffer Abstraction
 Frame Buffer Functions Reference
 --------------------------------
 
-.. kernel-doc:: drivers/gpu/drm/drm_framebuffer.c
-   :export:
-
 .. kernel-doc:: include/drm/drm_framebuffer.h
    :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_framebuffer.c
+   :export:
 
 DRM Format Handling
 ===================
@@ -508,8 +508,8 @@ operation handler.
 Vertical Blanking and Interrupt Handling Functions Reference
 ------------------------------------------------------------
 
-.. kernel-doc:: drivers/gpu/drm/drm_irq.c
-   :export:
-
 .. kernel-doc:: include/drm/drm_irq.h
    :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_irq.c
+   :export:

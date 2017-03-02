@@ -140,11 +140,11 @@ Device Instance and Driver Handling
 .. kernel-doc:: drivers/gpu/drm/drm_drv.c
    :doc: driver instance overview
 
-.. kernel-doc:: drivers/gpu/drm/drm_drv.c
-   :export:
-
 .. kernel-doc:: include/drm/drm_drv.h
    :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_drv.c
+   :export:
 
 Driver Load
 -----------

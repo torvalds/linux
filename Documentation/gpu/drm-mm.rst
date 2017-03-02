@@ -365,11 +365,11 @@ from the client in libdrm.
 GEM Function Reference
 ----------------------
 
-.. kernel-doc:: drivers/gpu/drm/drm_gem.c
-   :export:
-
 .. kernel-doc:: include/drm/drm_gem.h
    :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_gem.c
+   :export:
 
 GEM CMA Helper Functions Reference
 ----------------------------------
@@ -377,11 +377,11 @@ GEM CMA Helper Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_gem_cma_helper.c
    :doc: cma helpers
 
-.. kernel-doc:: drivers/gpu/drm/drm_gem_cma_helper.c
-   :export:
-
 .. kernel-doc:: include/drm/drm_gem_cma_helper.h
    :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_gem_cma_helper.c
+   :export:
 
 VMA Offset Manager
 ==================
@@ -389,11 +389,11 @@ VMA Offset Manager
 .. kernel-doc:: drivers/gpu/drm/drm_vma_manager.c
    :doc: vma offset manager
 
-.. kernel-doc:: drivers/gpu/drm/drm_vma_manager.c
-   :export:
-
 .. kernel-doc:: include/drm/drm_vma_manager.h
    :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_vma_manager.c
+   :export:
 
 PRIME Buffer Sharing
 ====================
@@ -473,11 +473,11 @@ LRU Scan/Eviction Support
 DRM MM Range Allocator Function References
 ------------------------------------------
 
-.. kernel-doc:: drivers/gpu/drm/drm_mm.c
-   :export:
-
 .. kernel-doc:: include/drm/drm_mm.h
    :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_mm.c
+   :export:
 
 DRM Cache Handling
 ==================
