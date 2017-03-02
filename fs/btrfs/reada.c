@@ -209,9 +209,9 @@ cleanup:
 	return;
 }
 
-int btree_readahead_hook(struct btrfs_fs_info *fs_info,
-			 struct extent_buffer *eb, int err)
+int btree_readahead_hook(struct extent_buffer *eb, int err)
 {
+	struct btrfs_fs_info *fs_info = eb->fs_info;
 	int ret = 0;
 	struct reada_extent *re;
 
