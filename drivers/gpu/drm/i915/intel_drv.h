@@ -695,6 +695,9 @@ struct intel_crtc_state {
 
 	/* Gamma mode programmed on the pipe */
 	uint32_t gamma_mode;
+
+	/* bitmask of visible planes (enum plane_id) */
+	u8 active_planes;
 };
 
 struct vlv_wm_state {

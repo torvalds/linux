@@ -2671,6 +2671,29 @@ update_state_fb(struct drm_plane *plane)
 }
 
 static void
+intel_set_plane_visible(struct intel_crtc_state *crtc_state,
+			struct intel_plane_state *plane_state,
+			bool visible)
+{
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+
+	plane_state->base.visible = visible;
+
+	/* FIXME pre-g4x don't work like this */
+	if (visible) {
+		crtc_state->base.plane_mask |= BIT(drm_plane_index(&plane->base));
+		crtc_state->active_planes |= BIT(plane->id);
+	} else {
+		crtc_state->base.plane_mask &= ~BIT(drm_plane_index(&plane->base));
+		crtc_state->active_planes &= ~BIT(plane->id);
+	}
+
+	DRM_DEBUG_KMS("%s active planes 0x%x\n",
+		      crtc_state->base.crtc->name,
+		      crtc_state->active_planes);
+}
+
+static void
 intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 			     struct intel_initial_plane_config *plane_config)
 {
@@ -2727,8 +2750,9 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 	 * simplest solution is to just disable the primary plane now and
 	 * pretend the BIOS never had it enabled.
 	 */
-	plane_state->visible = false;
-	crtc_state->plane_mask &= ~(1 << drm_plane_index(primary));
+	intel_set_plane_visible(to_intel_crtc_state(crtc_state),
+				to_intel_plane_state(plane_state),
+				false);
 	intel_pre_disable_primary_noatomic(&intel_crtc->base);
 	intel_plane->disable_plane(primary, &intel_crtc->base);
 
@@ -2768,7 +2792,11 @@ valid_fb:
 	drm_framebuffer_reference(fb);
 	primary->fb = primary->state->fb = fb;
 	primary->crtc = primary->state->crtc = &intel_crtc->base;
-	intel_crtc->base.state->plane_mask |= (1 << drm_plane_index(primary));
+
+	intel_set_plane_visible(to_intel_crtc_state(crtc_state),
+				to_intel_plane_state(plane_state),
+				true);
+
 	atomic_or(to_intel_plane(primary)->frontbuffer_bit,
 		  &obj->frontbuffer_bits);
 }
@@ -10756,11 +10784,11 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 	struct intel_crtc_state *pipe_config = to_intel_crtc_state(crtc_state);
 	struct drm_crtc *crtc = crtc_state->crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_plane *plane = plane_state->plane;
+	struct intel_plane *plane = to_intel_plane(plane_state->plane);
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane_state *old_plane_state =
-		to_intel_plane_state(plane->state);
+		to_intel_plane_state(plane->base.state);
 	bool mode_changed = needs_modeset(crtc_state);
 	bool was_crtc_enabled = crtc->state->active;
 	bool is_crtc_enabled = crtc_state->active;
@@ -10768,7 +10796,7 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 	struct drm_framebuffer *fb = plane_state->fb;
 	int ret;
 
-	if (INTEL_GEN(dev_priv) >= 9 && plane->type != DRM_PLANE_TYPE_CURSOR) {
+	if (INTEL_GEN(dev_priv) >= 9 && plane->id != PLANE_CURSOR) {
 		ret = skl_update_scaler_plane(
 			to_intel_crtc_state(crtc_state),
 			to_intel_plane_state(plane_state));
@@ -10792,8 +10820,10 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 	 * per-plane wm computation to the .check_plane() hook, and
 	 * only combine the results from all planes in the current place?
 	 */
-	if (!is_crtc_enabled)
+	if (!is_crtc_enabled) {
 		plane_state->visible = visible = false;
+		to_intel_crtc_state(crtc_state)->active_planes &= ~BIT(plane->id);
+	}
 
 	if (!was_visible && !visible)
 		return 0;
@@ -10805,13 +10835,12 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 	turn_on = visible && (!was_visible || mode_changed);
 
 	DRM_DEBUG_ATOMIC("[CRTC:%d:%s] has [PLANE:%d:%s] with fb %i\n",
-			 intel_crtc->base.base.id,
-			 intel_crtc->base.name,
-			 plane->base.id, plane->name,
+			 intel_crtc->base.base.id, intel_crtc->base.name,
+			 plane->base.base.id, plane->base.name,
 			 fb ? fb->base.id : -1);
 
 	DRM_DEBUG_ATOMIC("[PLANE:%d:%s] visible %i -> %i, off %i, on %i, ms %i\n",
-			 plane->base.id, plane->name,
+			 plane->base.base.id, plane->base.name,
 			 was_visible, visible,
 			 turn_off, turn_on, mode_changed);
 
@@ -10819,15 +10848,15 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 		pipe_config->update_wm_pre = true;
 
 		/* must disable cxsr around plane enable/disable */
-		if (plane->type != DRM_PLANE_TYPE_CURSOR)
+		if (plane->id != PLANE_CURSOR)
 			pipe_config->disable_cxsr = true;
 	} else if (turn_off) {
 		pipe_config->update_wm_post = true;
 
 		/* must disable cxsr around plane enable/disable */
-		if (plane->type != DRM_PLANE_TYPE_CURSOR)
+		if (plane->id != PLANE_CURSOR)
 			pipe_config->disable_cxsr = true;
-	} else if (intel_wm_need_update(plane, plane_state)) {
+	} else if (intel_wm_need_update(&plane->base, plane_state)) {
 		/* FIXME bollocks */
 		pipe_config->update_wm_pre = true;
 		pipe_config->update_wm_post = true;
@@ -10839,7 +10868,7 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 		to_intel_crtc_state(crtc_state)->wm.need_postvbl_update = true;
 
 	if (visible || was_visible)
-		pipe_config->fb_bits |= to_intel_plane(plane)->frontbuffer_bit;
+		pipe_config->fb_bits |= plane->frontbuffer_bit;
 
 	/*
 	 * WaCxSRDisabledForSpriteScaling:ivb
@@ -10847,7 +10876,7 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 	 * cstate->update_wm was already set above, so this flag will
 	 * take effect when we commit and program watermarks.
 	 */
-	if (plane->type == DRM_PLANE_TYPE_OVERLAY && IS_IVYBRIDGE(dev_priv) &&
+	if (plane->id == PLANE_SPRITE0 && IS_IVYBRIDGE(dev_priv) &&
 	    needs_scaling(to_intel_plane_state(plane_state)) &&
 	    !needs_scaling(old_plane_state))
 		pipe_config->disable_lp_wm = true;
@@ -15260,15 +15289,14 @@ static bool primary_get_hw_state(struct intel_plane *plane)
 /* FIXME read out full plane state for all planes */
 static void readout_plane_state(struct intel_crtc *crtc)
 {
-	struct drm_plane *primary = crtc->base.primary;
-	struct intel_plane_state *plane_state =
-		to_intel_plane_state(primary->state);
+	struct intel_plane *primary = to_intel_plane(crtc->base.primary);
+	bool visible;
 
-	plane_state->base.visible = crtc->active &&
-		primary_get_hw_state(to_intel_plane(primary));
+	visible = crtc->active && primary_get_hw_state(primary);
 
-	if (plane_state->base.visible)
-		crtc->base.state->plane_mask |= 1 << drm_plane_index(primary);
+	intel_set_plane_visible(to_intel_crtc_state(crtc->base.state),
+				to_intel_plane_state(primary->base.state),
+				visible);
 }
 
 static void intel_modeset_readout_hw_state(struct drm_device *dev)
