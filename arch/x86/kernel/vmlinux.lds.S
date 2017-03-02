@@ -345,8 +345,6 @@ SECTIONS
 	DISCARDS
 	/DISCARD/ : {
 		*(.eh_frame)
-		*(__func_stack_frame_non_standard)
-		*(__unreachable)
 	}
 }
 
