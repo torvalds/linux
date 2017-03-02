@@ -248,6 +248,7 @@ struct fbtft_par {
 	par->fbtftops.write_register(par, NUMARGS(__VA_ARGS__), __VA_ARGS__)
 
 /* fbtft-core.c */
+int fbtft_write_buf_dc(struct fbtft_par *par, void *buf, size_t len, int dc);
 void fbtft_dbg_hex(const struct device *dev, int groupsize,
 		   void *buf, size_t len, const char *fmt, ...);
 struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,

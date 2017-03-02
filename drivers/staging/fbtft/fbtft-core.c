@@ -43,6 +43,21 @@ static unsigned long debug;
 module_param(debug, ulong, 0000);
 MODULE_PARM_DESC(debug, "override device debug level");
 
+int fbtft_write_buf_dc(struct fbtft_par *par, void *buf, size_t len, int dc)
+{
+	int ret;
+
+	if (gpio_is_valid(par->gpio.dc))
+		gpio_set_value(par->gpio.dc, dc);
+
+	ret = par->fbtftops.write(par, buf, len);
+	if (ret < 0)
+		dev_err(par->info->device,
+			"write() failed and returned %d\n", ret);
+	return ret;
+}
+EXPORT_SYMBOL(fbtft_write_buf_dc);
+
 void fbtft_dbg_hex(const struct device *dev, int groupsize,
 		   void *buf, size_t len, const char *fmt, ...)
 {
