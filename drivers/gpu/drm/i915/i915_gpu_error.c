@@ -632,6 +632,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			   CSR_VERSION_MINOR(csr->version));
 	}
 
+	err_printf(m, "GT awake: %s\n", yesno(error->awake));
 	err_printf(m, "EIR: 0x%08x\n", error->eir);
 	err_printf(m, "IER: 0x%08x\n", error->ier);
 	for (i = 0; i < error->ngtier; i++)
@@ -1615,6 +1616,8 @@ static void i915_error_capture_msg(struct drm_i915_private *dev_priv,
 static void i915_capture_gen_state(struct drm_i915_private *dev_priv,
 				   struct i915_gpu_state *error)
 {
+	error->awake = dev_priv->gt.awake;
+
 	error->iommu = -1;
 #ifdef CONFIG_INTEL_IOMMU
 	error->iommu = intel_iommu_gfx_mapped;

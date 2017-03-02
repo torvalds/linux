@@ -1361,14 +1361,17 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 	} else
 		seq_printf(m, "Hangcheck inactive\n");
 
+	seq_printf(m, "GT active? %s\n", yesno(dev_priv->gt.awake));
+
 	for_each_engine(engine, dev_priv, id) {
 		struct intel_breadcrumbs *b = &engine->breadcrumbs;
 		struct rb_node *rb;
 
 		seq_printf(m, "%s:\n", engine->name);
-		seq_printf(m, "\tseqno = %x [current %x, last %x]\n",
+		seq_printf(m, "\tseqno = %x [current %x, last %x], inflight %d\n",
 			   engine->hangcheck.seqno, seqno[id],
-			   intel_engine_last_submit(engine));
+			   intel_engine_last_submit(engine),
+			   engine->timeline->inflight_seqnos);
 		seq_printf(m, "\twaiters? %s, fake irq active? %s, stalled? %s\n",
 			   yesno(intel_engine_has_waiter(engine)),
 			   yesno(test_bit(engine->id,
@@ -3253,6 +3256,11 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 
 	intel_runtime_pm_get(dev_priv);
 
+	seq_printf(m, "GT awake? %s\n",
+		   yesno(dev_priv->gt.awake));
+	seq_printf(m, "Global active requests: %d\n",
+		   dev_priv->gt.active_requests);
+
 	for_each_engine(engine, dev_priv, id) {
 		struct intel_breadcrumbs *b = &engine->breadcrumbs;
 		struct drm_i915_gem_request *rq;
@@ -3260,11 +3268,12 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 		u64 addr;
 
 		seq_printf(m, "%s\n", engine->name);
-		seq_printf(m, "\tcurrent seqno %x, last %x, hangcheck %x [%d ms]\n",
+		seq_printf(m, "\tcurrent seqno %x, last %x, hangcheck %x [%d ms], inflight %d\n",
 			   intel_engine_get_seqno(engine),
 			   intel_engine_last_submit(engine),
 			   engine->hangcheck.seqno,
-			   jiffies_to_msecs(jiffies - engine->hangcheck.action_timestamp));
+			   jiffies_to_msecs(jiffies - engine->hangcheck.action_timestamp),
+			   engine->timeline->inflight_seqnos);
 
 		rcu_read_lock();
 
