@@ -876,12 +876,9 @@ done:
 	return false;
 }
 
-static void blk_mq_put_driver_tag(struct blk_mq_hw_ctx *hctx,
-				  struct request *rq)
+static void __blk_mq_put_driver_tag(struct blk_mq_hw_ctx *hctx,
+				    struct request *rq)
 {
-	if (rq->tag == -1 || rq->internal_tag == -1)
-		return;
-
 	blk_mq_put_tag(hctx, hctx->tags, rq->mq_ctx, rq->tag);
 	rq->tag = -1;
 
@@ -889,6 +886,26 @@ static void blk_mq_put_driver_tag(struct blk_mq_hw_ctx *hctx,
 		rq->rq_flags &= ~RQF_MQ_INFLIGHT;
 		atomic_dec(&hctx->nr_active);
 	}
+}
+
+static void blk_mq_put_driver_tag_hctx(struct blk_mq_hw_ctx *hctx,
+				       struct request *rq)
+{
+	if (rq->tag == -1 || rq->internal_tag == -1)
+		return;
+
+	__blk_mq_put_driver_tag(hctx, rq);
+}
+
+static void blk_mq_put_driver_tag(struct request *rq)
+{
+	struct blk_mq_hw_ctx *hctx;
+
+	if (rq->tag == -1 || rq->internal_tag == -1)
+		return;
+
+	hctx = blk_mq_map_queue(rq->q, rq->mq_ctx->cpu);
+	__blk_mq_put_driver_tag(hctx, rq);
 }
 
 /*
@@ -1000,7 +1017,19 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list)
 
 		bd.rq = rq;
 		bd.list = dptr;
-		bd.last = list_empty(list);
+
+		/*
+		 * Flag last if we have no more requests, or if we have more
+		 * but can't assign a driver tag to it.
+		 */
+		if (list_empty(list))
+			bd.last = true;
+		else {
+			struct request *nxt;
+
+			nxt = list_first_entry(list, struct request, queuelist);
+			bd.last = !blk_mq_get_driver_tag(nxt, NULL, false);
+		}
 
 		ret = q->mq_ops->queue_rq(hctx, &bd);
 		switch (ret) {
@@ -1008,7 +1037,7 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list)
 			queued++;
 			break;
 		case BLK_MQ_RQ_QUEUE_BUSY:
-			blk_mq_put_driver_tag(hctx, rq);
+			blk_mq_put_driver_tag_hctx(hctx, rq);
 			list_add(&rq->queuelist, list);
 			__blk_mq_requeue_request(rq);
 			break;
@@ -1038,6 +1067,13 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list)
 	 * that is where we will continue on next queue run.
 	 */
 	if (!list_empty(list)) {
+		/*
+		 * If we got a driver tag for the next request already,
+		 * free it again.
+		 */
+		rq = list_first_entry(list, struct request, queuelist);
+		blk_mq_put_driver_tag(rq);
+
 		spin_lock(&hctx->lock);
 		list_splice_init(list, &hctx->dispatch);
 		spin_unlock(&hctx->lock);
