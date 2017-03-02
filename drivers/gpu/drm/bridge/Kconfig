@@ -24,6 +24,15 @@ config DRM_DUMB_VGA_DAC
 	help
 	  Support for RGB to VGA DAC based bridges
 
+config DRM_LVDS_ENCODER
+	tristate "Transparent parallel to LVDS encoder support"
+	depends on OF
+	select DRM_KMS_HELPER
+	select DRM_PANEL
+	help
+	  Support for transparent parallel to LVDS encoders that don't require
+	  any configuration.
+
 config DRM_DW_HDMI
 	tristate
 	select DRM_KMS_HELPER
