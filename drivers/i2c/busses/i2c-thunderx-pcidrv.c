@@ -85,16 +85,22 @@ static void thunder_i2c_clock_enable(struct device *dev, struct octeon_i2c *i2c)
 {
 	int ret;
 
-	i2c->clk = clk_get(dev, NULL);
-	if (IS_ERR(i2c->clk)) {
-		i2c->clk = NULL;
-		goto skip;
-	}
+	if (acpi_disabled) {
+		/* DT */
+		i2c->clk = clk_get(dev, NULL);
+		if (IS_ERR(i2c->clk)) {
+			i2c->clk = NULL;
+			goto skip;
+		}
 
-	ret = clk_prepare_enable(i2c->clk);
-	if (ret)
-		goto skip;
-	i2c->sys_freq = clk_get_rate(i2c->clk);
+		ret = clk_prepare_enable(i2c->clk);
+		if (ret)
+			goto skip;
+		i2c->sys_freq = clk_get_rate(i2c->clk);
+	} else {
+		/* ACPI */
+		device_property_read_u32(dev, "sclk", &i2c->sys_freq);
+	}
 
 skip:
 	if (!i2c->sys_freq)
