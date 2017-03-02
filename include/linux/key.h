@@ -219,7 +219,8 @@ struct key {
 	/* This is set on a keyring to restrict the addition of a link to a key
 	 * to it.  If this structure isn't provided then it is assumed that the
 	 * keyring is open to any addition.  It is ignored for non-keyring
-	 * keys.
+	 * keys. Only set this value using keyring_restrict(), keyring_alloc(),
+	 * or key_alloc().
 	 *
 	 * This is intended for use with rings of trusted keys whereby addition
 	 * to the keyring needs to be controlled.  KEY_ALLOC_BYPASS_RESTRICTION
@@ -327,6 +328,9 @@ extern key_ref_t keyring_search(key_ref_t keyring,
 
 extern int keyring_add_key(struct key *keyring,
 			   struct key *key);
+
+extern int keyring_restrict(key_ref_t keyring, const char *type,
+			    const char *restriction);
 
 extern struct key *key_lookup(key_serial_t id);
 

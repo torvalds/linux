@@ -252,6 +252,9 @@ struct iov_iter;
 extern long keyctl_instantiate_key_common(key_serial_t,
 					  struct iov_iter *,
 					  key_serial_t);
+extern long keyctl_restrict_keyring(key_serial_t id,
+				    const char __user *_type,
+				    const char __user *_restriction);
 #ifdef CONFIG_PERSISTENT_KEYRINGS
 extern long keyctl_get_persistent(uid_t, key_serial_t);
 extern unsigned persistent_keyring_expiry;

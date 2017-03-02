@@ -947,6 +947,111 @@ key_ref_t keyring_search(key_ref_t keyring,
 }
 EXPORT_SYMBOL(keyring_search);
 
+static struct key_restriction *keyring_restriction_alloc(
+	key_restrict_link_func_t check)
+{
+	struct key_restriction *keyres =
+		kzalloc(sizeof(struct key_restriction), GFP_KERNEL);
+
+	if (!keyres)
+		return ERR_PTR(-ENOMEM);
+
+	keyres->check = check;
+
+	return keyres;
+}
+
+/*
+ * Semaphore to serialise restriction setup to prevent reference count
+ * cycles through restriction key pointers.
+ */
+static DECLARE_RWSEM(keyring_serialise_restrict_sem);
+
+/*
+ * Check for restriction cycles that would prevent keyring garbage collection.
+ * keyring_serialise_restrict_sem must be held.
+ */
+static bool keyring_detect_restriction_cycle(const struct key *dest_keyring,
+					     struct key_restriction *keyres)
+{
+	while (keyres && keyres->key &&
+	       keyres->key->type == &key_type_keyring) {
+		if (keyres->key == dest_keyring)
+			return true;
+
+		keyres = keyres->key->restrict_link;
+	}
+
+	return false;
+}
+
+/**
+ * keyring_restrict - Look up and apply a restriction to a keyring
+ *
+ * @keyring: The keyring to be restricted
+ * @restriction: The restriction options to apply to the keyring
+ */
+int keyring_restrict(key_ref_t keyring_ref, const char *type,
+		     const char *restriction)
+{
+	struct key *keyring;
+	struct key_type *restrict_type = NULL;
+	struct key_restriction *restrict_link;
+	int ret = 0;
+
+	keyring = key_ref_to_ptr(keyring_ref);
+	key_check(keyring);
+
+	if (keyring->type != &key_type_keyring)
+		return -ENOTDIR;
+
+	if (!type) {
+		restrict_link = keyring_restriction_alloc(restrict_link_reject);
+	} else {
+		restrict_type = key_type_lookup(type);
+
+		if (IS_ERR(restrict_type))
+			return PTR_ERR(restrict_type);
+
+		if (!restrict_type->lookup_restriction) {
+			ret = -ENOENT;
+			goto error;
+		}
+
+		restrict_link = restrict_type->lookup_restriction(restriction);
+	}
+
+	if (IS_ERR(restrict_link)) {
+		ret = PTR_ERR(restrict_link);
+		goto error;
+	}
+
+	down_write(&keyring->sem);
+	down_write(&keyring_serialise_restrict_sem);
+
+	if (keyring->restrict_link)
+		ret = -EEXIST;
+	else if (keyring_detect_restriction_cycle(keyring, restrict_link))
+		ret = -EDEADLK;
+	else
+		keyring->restrict_link = restrict_link;
+
+	up_write(&keyring_serialise_restrict_sem);
+	up_write(&keyring->sem);
+
+	if (ret < 0) {
+		key_put(restrict_link->key);
+		kfree(restrict_link);
+	}
+
+error:
+	if (restrict_type)
+		key_type_put(restrict_type);
+
+	return ret;
+}
+EXPORT_SYMBOL(keyring_restrict);
+
 /*
  * Search the given keyring for a key that might be updated.
  *

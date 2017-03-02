@@ -857,6 +857,31 @@ The keyctl syscall functions are:
      supported, error ENOKEY if the key could not be found, or error
      EACCES if the key is not readable by the caller.
 
+ (*) Restrict keyring linkage
+
+       long keyctl(KEYCTL_RESTRICT_KEYRING, key_serial_t keyring,
+		   const char *type, const char *restriction);
+
+     An existing keyring can restrict linkage of additional keys by evaluating
+     the contents of the key according to a restriction scheme.
+
+     "keyring" is the key ID for an existing keyring to apply a restriction
+     to. It may be empty or may already have keys linked. Existing linked keys
+     will remain in the keyring even if the new restriction would reject them.
+
+     "type" is a registered key type.
+
+     "restriction" is a string describing how key linkage is to be restricted.
+     The format varies depending on the key type, and the string is passed to
+     the lookup_restriction() function for the requested type.  It may specify
+     a method and relevant data for the restriction such as signature
+     verification or constraints on key payload. If the requested key type is
+     later unregistered, no keys may be added to the keyring after the key type
+     is removed.
+
+     To apply a keyring restriction the process must have Set Attribute
+     permission and the keyring must not be previously restricted.
+
 ===============
 KERNEL SERVICES
 ===============
