@@ -1035,7 +1035,7 @@ static uint16_t vlv_compute_wm_level(const struct intel_crtc_state *crtc_state,
 
 static void vlv_compute_fifo(struct intel_crtc *crtc)
 {
-	struct vlv_wm_state *wm_state = &crtc->wm_state;
+	struct vlv_wm_state *wm_state = &crtc->wm.active.vlv;
 	struct vlv_fifo_state *fifo_state = &crtc->wm.fifo_state;
 	struct drm_device *dev = crtc->base.dev;
 	struct intel_plane *plane;
@@ -1111,7 +1111,7 @@ static u16 vlv_invert_wm_value(u16 wm, u16 fifo_size)
 
 static void vlv_invert_wms(struct intel_crtc *crtc)
 {
-	struct vlv_wm_state *wm_state = &crtc->wm_state;
+	struct vlv_wm_state *wm_state = &crtc->wm.active.vlv;
 	int level;
 
 	for (level = 0; level < wm_state->num_levels; level++) {
@@ -1139,7 +1139,7 @@ static void vlv_invert_wms(struct intel_crtc *crtc)
 static void vlv_compute_wm(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct vlv_wm_state *wm_state = &crtc->wm_state;
+	struct vlv_wm_state *wm_state = &crtc->wm.active.vlv;
 	const struct vlv_fifo_state *fifo_state = &crtc->wm.fifo_state;
 	struct intel_plane *plane;
 	int level;
@@ -1302,7 +1302,7 @@ static void vlv_merge_wm(struct drm_i915_private *dev_priv,
 	wm->cxsr = true;
 
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
-		const struct vlv_wm_state *wm_state = &crtc->wm_state;
+		const struct vlv_wm_state *wm_state = &crtc->wm.active.vlv;
 
 		if (!crtc->active)
 			continue;
@@ -1321,7 +1321,7 @@ static void vlv_merge_wm(struct drm_i915_private *dev_priv,
 		wm->level = VLV_WM_LEVEL_PM2;
 
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
-		struct vlv_wm_state *wm_state = &crtc->wm_state;
+		const struct vlv_wm_state *wm_state = &crtc->wm.active.vlv;
 		enum pipe pipe = crtc->pipe;
 
 		if (!crtc->active)
