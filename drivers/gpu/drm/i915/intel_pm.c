@@ -1128,30 +1128,35 @@ static u16 vlv_invert_wm_value(u16 wm, u16 fifo_size)
  * Starting from 'level' set all higher
  * levels to 'value' in the "raw" watermarks.
  */
-static void vlv_raw_plane_wm_set(struct intel_crtc_state *crtc_state,
+static bool vlv_raw_plane_wm_set(struct intel_crtc_state *crtc_state,
 				 int level, enum plane_id plane_id, u16 value)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
 	int num_levels = vlv_num_wm_levels(dev_priv);
+	bool dirty = false;
 
 	for (; level < num_levels; level++) {
 		struct vlv_pipe_wm *raw = &crtc_state->wm.vlv.raw[level];
 
+		dirty |= raw->plane[plane_id] != value;
 		raw->plane[plane_id] = value;
 	}
+
+	return dirty;
 }
 
-static void vlv_plane_wm_compute(struct intel_crtc_state *crtc_state,
+static bool vlv_plane_wm_compute(struct intel_crtc_state *crtc_state,
 				 const struct intel_plane_state *plane_state)
 {
 	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
 	enum plane_id plane_id = plane->id;
 	int num_levels = vlv_num_wm_levels(to_i915(plane->base.dev));
 	int level;
+	bool dirty = false;
 
 	if (!plane_state->base.visible) {
-		vlv_raw_plane_wm_set(crtc_state, 0, plane_id, 0);
-		return;
+		dirty |= vlv_raw_plane_wm_set(crtc_state, 0, plane_id, 0);
+		goto out;
 	}
 
 	for (level = 0; level < num_levels; level++) {
@@ -1166,17 +1171,22 @@ static void vlv_plane_wm_compute(struct intel_crtc_state *crtc_state,
 		if (wm > max_wm)
 			break;
 
+		dirty |= raw->plane[plane_id] != wm;
 		raw->plane[plane_id] = wm;
 	}
 
 	/* mark all higher levels as invalid */
-	vlv_raw_plane_wm_set(crtc_state, level, plane_id, USHRT_MAX);
+	dirty |= vlv_raw_plane_wm_set(crtc_state, level, plane_id, USHRT_MAX);
 
-	DRM_DEBUG_KMS("%s wms: [0]=%d,[1]=%d,[2]=%d\n",
-		      plane->base.name,
-		      crtc_state->wm.vlv.raw[VLV_WM_LEVEL_PM2].plane[plane_id],
-		      crtc_state->wm.vlv.raw[VLV_WM_LEVEL_PM5].plane[plane_id],
-		      crtc_state->wm.vlv.raw[VLV_WM_LEVEL_DDR_DVFS].plane[plane_id]);
+out:
+	if (dirty)
+		DRM_DEBUG_KMS("%s wms: [0]=%d,[1]=%d,[2]=%d\n",
+			      plane->base.name,
+			      crtc_state->wm.vlv.raw[VLV_WM_LEVEL_PM2].plane[plane_id],
+			      crtc_state->wm.vlv.raw[VLV_WM_LEVEL_PM5].plane[plane_id],
+			      crtc_state->wm.vlv.raw[VLV_WM_LEVEL_DDR_DVFS].plane[plane_id]);
+
+	return dirty;
 }
 
 static bool vlv_plane_wm_is_valid(const struct intel_crtc_state *crtc_state,
@@ -1209,10 +1219,12 @@ static int vlv_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 		&crtc_state->wm.vlv.fifo_state;
 	int num_active_planes = hweight32(crtc_state->active_planes &
 					  ~BIT(PLANE_CURSOR));
+	bool needs_modeset = drm_atomic_crtc_needs_modeset(&crtc_state->base);
 	struct intel_plane_state *plane_state;
 	struct intel_plane *plane;
 	enum plane_id plane_id;
 	int level, ret, i;
+	unsigned int dirty = 0;
 
 	for_each_intel_plane_in_state(state, plane, plane_state, i) {
 		const struct intel_plane_state *old_plane_state =
@@ -1222,7 +1234,37 @@ static int vlv_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 		    old_plane_state->base.crtc != &crtc->base)
 			continue;
 
-		vlv_plane_wm_compute(crtc_state, plane_state);
+		if (vlv_plane_wm_compute(crtc_state, plane_state))
+			dirty |= BIT(plane->id);
+	}
+
+	/*
+	 * DSPARB registers may have been reset due to the
+	 * power well being turned off. Make sure we restore
+	 * them to a consistent state even if no primary/sprite
+	 * planes are initially active.
+	 */
+	if (needs_modeset)
+		crtc_state->fifo_changed = true;
+
+	if (!dirty)
+		return 0;
+
+	/* cursor changes don't warrant a FIFO recompute */
+	if (dirty & ~BIT(PLANE_CURSOR)) {
+		const struct intel_crtc_state *old_crtc_state =
+			to_intel_crtc_state(crtc->base.state);
+		const struct vlv_fifo_state *old_fifo_state =
+			&old_crtc_state->wm.vlv.fifo_state;
+
+		ret = vlv_compute_fifo(crtc_state);
+		if (ret)
+			return ret;
+
+		if (needs_modeset ||
+		    memcmp(old_fifo_state, fifo_state,
+			   sizeof(*fifo_state)) != 0)
+			crtc_state->fifo_changed = true;
 	}
 
 	/* initially allow all levels */
@@ -1234,10 +1276,6 @@ static int vlv_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 	 */
 	wm_state->cxsr = crtc->pipe != PIPE_C &&
 		crtc->wm.cxsr_allowed && num_active_planes == 1;
-
-	ret = vlv_compute_fifo(crtc_state);
-	if (ret)
-		return ret;
 
 	for (level = 0; level < wm_state->num_levels; level++) {
 		const struct vlv_pipe_wm *raw = &crtc_state->wm.vlv.raw[level];
@@ -1286,6 +1324,9 @@ static void vlv_atomic_update_fifo(struct intel_atomic_state *state,
 	const struct vlv_fifo_state *fifo_state =
 		&crtc_state->wm.vlv.fifo_state;
 	int sprite0_start, sprite1_start, fifo_size;
+
+	if (!crtc_state->fifo_changed)
+		return;
 
 	sprite0_start = fifo_state->plane[PLANE_PRIMARY];
 	sprite1_start = fifo_state->plane[PLANE_SPRITE0] + sprite0_start;

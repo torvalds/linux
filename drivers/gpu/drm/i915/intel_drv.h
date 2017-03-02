@@ -573,6 +573,7 @@ struct intel_crtc_state {
 	bool disable_cxsr;
 	bool update_wm_pre, update_wm_post; /* watermarks are updated */
 	bool fb_changed; /* fb on any of the planes is changed */
+	bool fifo_changed; /* FIFO split is changed */
 
 	/* Pipe source size (ie. panel fitter input size)
 	 * All planes will be positioned inside this space,
