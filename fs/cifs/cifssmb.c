@@ -4886,7 +4886,7 @@ getDFSRetry:
 				 le16_to_cpu(pSMBr->t2.DataCount),
 				 num_of_nodes, target_nodes, nls_codepage,
 				 remap, search_name,
-				 pSMBr->hdr.Flags2 & SMBFLG2_UNICODE);
+				 (pSMBr->hdr.Flags2 & SMBFLG2_UNICODE) != 0);
 
 GetDFSRefExit:
 	cifs_buf_release(pSMB);
