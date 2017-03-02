@@ -1713,6 +1713,8 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	enum port port = intel_ddi_get_encoder_port(encoder);
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
 
+	WARN_ON(link_mst && (port == PORT_A || port == PORT_E));
+
 	intel_dp_set_link_params(intel_dp, link_rate, lane_count,
 				 link_mst);
 	if (encoder->type == INTEL_OUTPUT_EDP)

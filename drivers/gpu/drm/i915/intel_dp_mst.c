@@ -159,26 +159,9 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 
 	DRM_DEBUG_KMS("%d\n", intel_dp->active_mst_links);
 
-	if (intel_dp->active_mst_links == 0) {
-		intel_ddi_clk_select(&intel_dig_port->base,
-				     pipe_config->shared_dpll);
-
-		intel_display_power_get(dev_priv,
-					intel_dig_port->ddi_io_power_domain);
-
-		intel_prepare_dp_ddi_buffers(&intel_dig_port->base);
-		intel_dp_set_link_params(intel_dp,
-					 pipe_config->port_clock,
-					 pipe_config->lane_count,
-					 true);
-
-		intel_ddi_init_dp_buf_reg(&intel_dig_port->base);
-
-		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
-
-		intel_dp_start_link_train(intel_dp);
-		intel_dp_stop_link_train(intel_dp);
-	}
+	if (intel_dp->active_mst_links == 0)
+		intel_dig_port->base.pre_enable(&intel_dig_port->base,
+						pipe_config, NULL);
 
 	ret = drm_dp_mst_allocate_vcpi(&intel_dp->mst_mgr,
 				       connector->port,
