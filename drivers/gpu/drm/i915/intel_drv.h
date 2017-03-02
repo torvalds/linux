@@ -709,6 +709,10 @@ struct vlv_wm_state {
 	bool cxsr;
 };
 
+struct vlv_fifo_state {
+	uint16_t plane[I915_MAX_PLANES];
+};
+
 struct intel_crtc {
 	struct drm_crtc base;
 	enum pipe pipe;
@@ -758,6 +762,8 @@ struct intel_crtc {
 
 		/* allow CxSR on this pipe */
 		bool cxsr_allowed;
+
+		struct vlv_fifo_state fifo_state;
 	} wm;
 
 	int scanline_offset;
@@ -775,25 +781,6 @@ struct intel_crtc {
 	struct vlv_wm_state wm_state;
 };
 
-struct intel_plane_wm_parameters {
-	uint32_t horiz_pixels;
-	uint32_t vert_pixels;
-	/*
-	 *   For packed pixel formats:
-	 *     bytes_per_pixel - holds bytes per pixel
-	 *   For planar pixel formats:
-	 *     bytes_per_pixel - holds bytes per pixel for uv-plane
-	 *     y_bytes_per_pixel - holds bytes per pixel for y-plane
-	 */
-	uint8_t bytes_per_pixel;
-	uint8_t y_bytes_per_pixel;
-	bool enabled;
-	bool scaled;
-	u64 tiling;
-	unsigned int rotation;
-	uint16_t fifo_size;
-};
-
 struct intel_plane {
 	struct drm_plane base;
 	u8 plane;
@@ -802,13 +789,6 @@ struct intel_plane {
 	bool can_scale;
 	int max_downscale;
 	uint32_t frontbuffer_bit;
-
-	/* Since we need to change the watermarks before/after
-	 * enabling/disabling the planes, we need to store the parameters here
-	 * as the other pieces of the struct may not reflect the values we want
-	 * for the watermark calculations. Currently only Haswell uses this.
-	 */
-	struct intel_plane_wm_parameters wm;
 
 	/*
 	 * NOTE: Do not place new plane state fields here (e.g., when adding
