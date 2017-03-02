@@ -1186,10 +1186,6 @@ static bool vlv_plane_wm_compute(struct intel_crtc_state *crtc_state,
 		int wm = vlv_compute_wm_level(crtc_state, plane_state, level);
 		int max_wm = plane_id == PLANE_CURSOR ? 63 : 511;
 
-		/* FIXME just bail */
-		if (WARN_ON(level == 0 && wm > max_wm))
-			wm = max_wm;
-
 		if (wm > max_wm)
 			break;
 
