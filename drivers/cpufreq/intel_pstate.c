@@ -2306,22 +2306,12 @@ static struct cpufreq_driver intel_pstate = {
 static int intel_cpufreq_verify_policy(struct cpufreq_policy *policy)
 {
 	struct cpudata *cpu = all_cpu_data[policy->cpu];
-	struct perf_limits *perf_limits = limits;
 
 	update_turbo_state();
 	policy->cpuinfo.max_freq = limits->turbo_disabled ?
 			cpu->pstate.max_freq : cpu->pstate.turbo_freq;
 
 	cpufreq_verify_within_cpu_limits(policy);
-
-	if (per_cpu_limits)
-		perf_limits = cpu->perf_limits;
-
-	mutex_lock(&intel_pstate_limits_lock);
-
-	intel_pstate_update_perf_limits(policy, perf_limits);
-
-	mutex_unlock(&intel_pstate_limits_lock);
 
 	return 0;
 }
