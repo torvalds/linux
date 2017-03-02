@@ -71,6 +71,10 @@ static int disable_vdoa;
 module_param(disable_vdoa, int, 0644);
 MODULE_PARM_DESC(disable_vdoa, "Disable Video Data Order Adapter tiled to raster-scan conversion");
 
+static int enable_bwb = 0;
+module_param(enable_bwb, int, 0644);
+MODULE_PARM_DESC(enable_bwb, "Enable BWB unit, may crash on certain streams");
+
 void coda_write(struct coda_dev *dev, u32 data, u32 reg)
 {
 	v4l2_dbg(2, coda_debug, &dev->v4l2_dev,
@@ -1879,7 +1883,8 @@ static int coda_open(struct file *file)
 	ctx->idx = idx;
 	switch (dev->devtype->product) {
 	case CODA_960:
-		ctx->frame_mem_ctrl = 1 << 12;
+		if (enable_bwb)
+			ctx->frame_mem_ctrl = CODA9_FRAME_ENABLE_BWB;
 		/* fallthrough */
 	case CODA_7541:
 		ctx->reg_idx = 0;
