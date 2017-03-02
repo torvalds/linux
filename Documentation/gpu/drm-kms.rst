@@ -161,6 +161,28 @@ KMS Core Structures and Functions
 Modeset Base Object Abstraction
 ===============================
 
+.. kernel-render:: DOT
+   :alt: Mode Objects and Properties
+   :caption: Mode Objects and Properties
+
+   digraph {
+      node [shape=box]
+
+      "drm_property A" -> "drm_mode_object A"
+      "drm_property A" -> "drm_mode_object B"
+      "drm_property B" -> "drm_mode_object A"
+   }
+
+The base structure for all KMS objects is :c:type:`struct drm_mode_object
+<drm_mode_object>`. One of the base services it provides is tracking properties,
+which are especially important for the atomic IOCTL (see `Atomic Mode
+Setting`_). The somewhat surprising part here is that properties are not
+directly instantiated on each object, but free-standing mode objects themselves,
+represented by :c:type:`struct drm_property <drm_property>`, which only specify
+the type and value range of a property. Any given property can be attached
+multiple times to different objects using :c:func:`drm_object_attach_property()
+<drm_object_attach_property>`.
+
 .. kernel-doc:: include/drm/drm_mode_object.h
    :internal:
 
