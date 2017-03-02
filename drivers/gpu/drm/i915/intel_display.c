@@ -10845,21 +10845,25 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 			 turn_off, turn_on, mode_changed);
 
 	if (turn_on) {
-		pipe_config->update_wm_pre = true;
+		if (INTEL_GEN(dev_priv) < 5)
+			pipe_config->update_wm_pre = true;
 
 		/* must disable cxsr around plane enable/disable */
 		if (plane->id != PLANE_CURSOR)
 			pipe_config->disable_cxsr = true;
 	} else if (turn_off) {
-		pipe_config->update_wm_post = true;
+		if (INTEL_GEN(dev_priv) < 5)
+			pipe_config->update_wm_post = true;
 
 		/* must disable cxsr around plane enable/disable */
 		if (plane->id != PLANE_CURSOR)
 			pipe_config->disable_cxsr = true;
 	} else if (intel_wm_need_update(&plane->base, plane_state)) {
-		/* FIXME bollocks */
-		pipe_config->update_wm_pre = true;
-		pipe_config->update_wm_post = true;
+		if (INTEL_GEN(dev_priv) < 5) {
+			/* FIXME bollocks */
+			pipe_config->update_wm_pre = true;
+			pipe_config->update_wm_post = true;
+		}
 	}
 
 	if (visible || was_visible)
