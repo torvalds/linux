@@ -36,8 +36,8 @@ static void icq_free_icq_rcu(struct rcu_head *head)
 }
 
 /*
- * Exit an icq. Called with both ioc and q locked for sq, only ioc locked for
- * mq.
+ * Exit an icq. Called with ioc locked for blk-mq, and with both ioc
+ * and queue locked for legacy.
  */
 static void ioc_exit_icq(struct io_cq *icq)
 {
@@ -54,7 +54,10 @@ static void ioc_exit_icq(struct io_cq *icq)
 	icq->flags |= ICQ_EXITED;
 }
 
-/* Release an icq.  Called with both ioc and q locked. */
+/*
+ * Release an icq. Called with ioc locked for blk-mq, and with both ioc
+ * and queue locked for legacy.
+ */
 static void ioc_destroy_icq(struct io_cq *icq)
 {
 	struct io_context *ioc = icq->ioc;
@@ -62,7 +65,6 @@ static void ioc_destroy_icq(struct io_cq *icq)
 	struct elevator_type *et = q->elevator->type;
 
 	lockdep_assert_held(&ioc->lock);
-	lockdep_assert_held(q->queue_lock);
 
 	radix_tree_delete(&ioc->icq_tree, icq->q->id);
 	hlist_del_init(&icq->ioc_node);
@@ -222,24 +224,40 @@ void exit_io_context(struct task_struct *task)
 	put_io_context_active(ioc);
 }
 
+static void __ioc_clear_queue(struct list_head *icq_list)
+{
+	unsigned long flags;
+
+	while (!list_empty(icq_list)) {
+		struct io_cq *icq = list_entry(icq_list->next,
+					       struct io_cq, q_node);
+		struct io_context *ioc = icq->ioc;
+
+		spin_lock_irqsave(&ioc->lock, flags);
+		ioc_destroy_icq(icq);
+		spin_unlock_irqrestore(&ioc->lock, flags);
+	}
+}
+
 /**
  * ioc_clear_queue - break any ioc association with the specified queue
  * @q: request_queue being cleared
  *
- * Walk @q->icq_list and exit all io_cq's.  Must be called with @q locked.
+ * Walk @q->icq_list and exit all io_cq's.
  */
 void ioc_clear_queue(struct request_queue *q)
 {
-	lockdep_assert_held(q->queue_lock);
+	LIST_HEAD(icq_list);
 
-	while (!list_empty(&q->icq_list)) {
-		struct io_cq *icq = list_entry(q->icq_list.next,
-					       struct io_cq, q_node);
-		struct io_context *ioc = icq->ioc;
+	spin_lock_irq(q->queue_lock);
+	list_splice_init(&q->icq_list, &icq_list);
 
-		spin_lock(&ioc->lock);
-		ioc_destroy_icq(icq);
-		spin_unlock(&ioc->lock);
+	if (q->mq_ops) {
+		spin_unlock_irq(q->queue_lock);
+		__ioc_clear_queue(&icq_list);
+	} else {
+		__ioc_clear_queue(&icq_list);
+		spin_unlock_irq(q->queue_lock);
 	}
 }
 
