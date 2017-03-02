@@ -693,7 +693,7 @@ struct dvb_ca_en50221 *cxd2099_attach(struct cxd2099_cfg *cfg,
 		return NULL;
 	}
 
-	ci = kzalloc(sizeof(struct cxd), GFP_KERNEL);
+	ci = kzalloc(sizeof(*ci), GFP_KERNEL);
 	if (!ci)
 		return NULL;
 
