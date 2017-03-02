@@ -308,6 +308,9 @@ struct rockchip_pin_ctrl {
 				    int *reg, u8 *bit);
 	void	(*iomux_recalc)(u8 bank_num, int pin, int *reg,
 				u8 *bit, int *mask);
+	int	(*schmitt_calc_reg)(struct rockchip_pin_bank *bank,
+				    int pin_num, struct regmap **regmap,
+				    int *reg, u8 *bit);
 };
 
 struct rockchip_pin_config {
@@ -1355,6 +1358,57 @@ static int rockchip_set_pull(struct rockchip_pin_bank *bank,
 	return ret;
 }
 
+static int rockchip_get_schmitt(struct rockchip_pin_bank *bank, int pin_num)
+{
+	struct rockchip_pinctrl *info = bank->drvdata;
+	struct rockchip_pin_ctrl *ctrl = info->ctrl;
+	struct regmap *regmap;
+	int reg, ret;
+	u8 bit;
+	u32 data;
+
+	ret = ctrl->schmitt_calc_reg(bank, pin_num, &regmap, &reg, &bit);
+	if (ret)
+		return ret;
+
+	ret = regmap_read(regmap, reg, &data);
+	if (ret)
+		return ret;
+
+	data >>= bit;
+	return data & 0x1;
+}
+
+static int rockchip_set_schmitt(struct rockchip_pin_bank *bank,
+				int pin_num, int enable)
+{
+	struct rockchip_pinctrl *info = bank->drvdata;
+	struct rockchip_pin_ctrl *ctrl = info->ctrl;
+	struct regmap *regmap;
+	int reg, ret;
+	unsigned long flags;
+	u8 bit;
+	u32 data, rmask;
+
+	dev_dbg(info->dev, "setting input schmitt of GPIO%d-%d to %d\n",
+		bank->bank_num, pin_num, enable);
+
+	ret = ctrl->schmitt_calc_reg(bank, pin_num, &regmap, &reg, &bit);
+	if (ret)
+		return ret;
+
+	spin_lock_irqsave(&bank->slock, flags);
+
+	/* enable the write to the equivalent lower bits */
+	data = BIT(bit + 16) | (enable << bit);
+	rmask = BIT(bit + 16) | BIT(bit);
+
+	ret = regmap_update_bits(regmap, reg, rmask, data);
+	spin_unlock_irqrestore(&bank->slock, flags);
+
+	return ret;
+}
+
 /*
  * Pinmux_ops handling
  */
@@ -1574,6 +1628,15 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			if (rc < 0)
 				return rc;
 			break;
+		case PIN_CONFIG_INPUT_SCHMITT_ENABLE:
+			if (!info->ctrl->schmitt_calc_reg)
+				return -ENOTSUPP;
+
+			rc = rockchip_set_schmitt(bank,
+						  pin - bank->pin_base, arg);
+			if (rc < 0)
+				return rc;
+			break;
 		default:
 			return -ENOTSUPP;
 			break;
@@ -1629,6 +1692,16 @@ static int rockchip_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 			return -ENOTSUPP;
 
 		rc = rockchip_get_drive_perpin(bank, pin - bank->pin_base);
+		if (rc < 0)
+			return rc;
+
+		arg = rc;
+		break;
+	case PIN_CONFIG_INPUT_SCHMITT_ENABLE:
+		if (!info->ctrl->schmitt_calc_reg)
+			return -ENOTSUPP;
+
+		rc = rockchip_get_schmitt(bank, pin - bank->pin_base);
 		if (rc < 0)
 			return rc;
 
