@@ -1027,6 +1027,23 @@ static int hdmi_phy_i2c_write(struct dw_hdmi *hdmi, unsigned short data,
 	return 0;
 }
 
+static int hdmi_phy_i2c_read(struct dw_hdmi *hdmi, unsigned char addr)
+{
+	int val;
+
+	hdmi_writeb(hdmi, 0xFF, HDMI_IH_I2CMPHY_STAT0);
+	hdmi_writeb(hdmi, addr, HDMI_PHY_I2CM_ADDRESS_ADDR);
+	hdmi_writeb(hdmi, 0, HDMI_PHY_I2CM_DATAI_1_ADDR);
+	hdmi_writeb(hdmi, 0, HDMI_PHY_I2CM_DATAI_0_ADDR);
+	hdmi_writeb(hdmi, HDMI_PHY_I2CM_OPERATION_ADDR_READ,
+		    HDMI_PHY_I2CM_OPERATION_ADDR);
+	hdmi_phy_wait_i2c_done(hdmi, 1000);
+	val = hdmi_readb(hdmi, HDMI_PHY_I2CM_DATAI_1_ADDR);
+	val = (val & 0xff) << 8;
+	val += hdmi_readb(hdmi, HDMI_PHY_I2CM_DATAI_0_ADDR) & 0xff;
+	return val;
+}
+
 static void dw_hdmi_phy_enable_powerdown(struct dw_hdmi *hdmi, bool enable)
 {
 	hdmi_mask_writeb(hdmi, !enable, HDMI_PHY_CONF0,
@@ -2162,6 +2179,158 @@ static int dw_hdmi_register(struct drm_device *drm, struct dw_hdmi *hdmi)
 	return 0;
 }
 
+#include <linux/fs.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
+
+struct dw_hdmi_reg_table {
+	int reg_base;
+	int reg_end;
+};
+
+static const struct dw_hdmi_reg_table hdmi_reg_table[] = {
+	{HDMI_DESIGN_ID, HDMI_CONFIG3_ID},
+	{HDMI_IH_FC_STAT0, HDMI_IH_MUTE},
+	{HDMI_TX_INVID0, HDMI_TX_BCBDATA1},
+	{HDMI_VP_STATUS, HDMI_VP_POL},
+	{HDMI_FC_INVIDCONF, HDMI_FC_DBGTMDS2},
+	{HDMI_PHY_CONF0, HDMI_PHY_POL0},
+	{HDMI_PHY_I2CM_SLAVE_ADDR, HDMI_PHY_I2CM_FS_SCL_LCNT_0_ADDR},
+	{HDMI_AUD_CONF0, 0x3624},
+	{HDMI_MC_SFRDIV, HDMI_MC_HEACPHY_RST},
+	{HDMI_CSC_CFG, HDMI_CSC_COEF_C4_LSB},
+	{HDMI_A_HDCPCFG0, 0x52bb},
+	{0x7800, 0x7818},
+	{0x7900, 0x790e},
+	{HDMI_CEC_CTRL, HDMI_CEC_WKUPCTRL},
+	{HDMI_I2CM_SLAVE, 0x7e31},
+};
+
+static int dw_hdmi_ctrl_show(struct seq_file *s, void *v)
+{
+	struct dw_hdmi *hdmi = s->private;
+	u32 i = 0, j = 0, val = 0;
+
+	seq_puts(s, "\n>>>hdmi_ctl reg ");
+	for (i = 0; i < 16; i++)
+		seq_printf(s, " %2x", i);
+	seq_puts(s, "\n---------------------------------------------------");
+
+	for (i = 0; i < ARRAY_SIZE(hdmi_reg_table); i++) {
+		for (j = hdmi_reg_table[i].reg_base;
+		     j <= hdmi_reg_table[i].reg_end; j++) {
+			val = hdmi_readb(hdmi, j);
+			if ((j - hdmi_reg_table[i].reg_base) % 16 == 0)
+				seq_printf(s, "\n>>>hdmi_ctl %04x:", j);
+			seq_printf(s, " %02x", val);
+		}
+	}
+	seq_puts(s, "\n---------------------------------------------------\n");
+
+	return 0;
+}
+
+static int dw_hdmi_ctrl_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dw_hdmi_ctrl_show, inode->i_private);
+}
+
+static ssize_t
+dw_hdmi_ctrl_write(struct file *file, const char __user *buf,
+		   size_t count, loff_t *ppos)
+{
+	struct dw_hdmi *hdmi =
+		((struct seq_file *)file->private_data)->private;
+	u32 reg, val;
+	char kbuf[25];
+
+	if (copy_from_user(kbuf, buf, count))
+		return -EFAULT;
+	if (sscanf(kbuf, "%x%x", &reg, &val) == -1)
+		return -EFAULT;
+	if ((reg < 0) || (reg > HDMI_I2CM_FS_SCL_LCNT_0_ADDR)) {
+		dev_err(hdmi->dev, "it is no a hdmi register\n");
+		return count;
+	}
+	dev_info(hdmi->dev, "/**********hdmi register config******/");
+	dev_info(hdmi->dev, "\n reg=%x val=%x\n", reg, val);
+	hdmi_writeb(hdmi, val, reg);
+	return count;
+}
+
+static const struct file_operations dw_hdmi_ctrl_fops = {
+	.owner = THIS_MODULE,
+	.open = dw_hdmi_ctrl_open,
+	.read = seq_read,
+	.write = dw_hdmi_ctrl_write,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int dw_hdmi_phy_show(struct seq_file *s, void *v)
+{
+	struct dw_hdmi *hdmi = s->private;
+	u32 i;
+
+	seq_puts(s, "\n>>>hdmi_phy reg ");
+	for (i = 0; i < 0x28; i++)
+		seq_printf(s, "regs %02x val %04x\n",
+			   i, hdmi_phy_i2c_read(hdmi, i));
+	return 0;
+}
+
+static int dw_hdmi_phy_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dw_hdmi_phy_show, inode->i_private);
+}
+
+static ssize_t
+dw_hdmi_phy_write(struct file *file, const char __user *buf,
+		  size_t count, loff_t *ppos)
+{
+	struct dw_hdmi *hdmi =
+		((struct seq_file *)file->private_data)->private;
+	u32 reg, val;
+	char kbuf[25];
+
+	if (copy_from_user(kbuf, buf, count))
+		return -EFAULT;
+	if (sscanf(kbuf, "%x%x", &reg, &val) == -1)
+		return -EFAULT;
+	if ((reg < 0) || (reg > 0x28)) {
+		dev_err(hdmi->dev, "it is not a hdmi phy register\n");
+		return count;
+	}
+	dev_info(hdmi->dev, "/*******hdmi phy register config******/");
+	dev_info(hdmi->dev, "\n reg=%x val=%x\n", reg, val);
+	hdmi_phy_i2c_write(hdmi, val, reg);
+	return count;
+}
+
+static const struct file_operations dw_hdmi_phy_fops = {
+	.owner = THIS_MODULE,
+	.open = dw_hdmi_phy_open,
+	.read = seq_read,
+	.write = dw_hdmi_phy_write,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static void dw_hdmi_register_debugfs(struct device *dev, struct dw_hdmi *hdmi)
+{
+	struct dentry *debugfs_dir;
+
+	debugfs_dir = debugfs_create_dir("dw-hdmi", NULL);
+	if (IS_ERR(debugfs_dir)) {
+		dev_err(dev, "failed to create debugfs dir!\n");
+		return;
+	}
+	debugfs_create_file("ctrl", 0400, debugfs_dir,
+			    hdmi, &dw_hdmi_ctrl_fops);
+	debugfs_create_file("phy", 0400, debugfs_dir,
+			    hdmi, &dw_hdmi_phy_fops);
+}
+
 int dw_hdmi_bind(struct device *dev, struct device *master,
 		 void *data, struct drm_encoder *encoder,
 		 struct resource *iores, int irq,
@@ -2351,6 +2520,8 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 	}
 
 	dev_set_drvdata(dev, hdmi);
+
+	dw_hdmi_register_debugfs(dev, hdmi);
 
 	return 0;
 
