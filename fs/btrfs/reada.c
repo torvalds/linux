@@ -235,10 +235,10 @@ start_machine:
 	return ret;
 }
 
-static struct reada_zone *reada_find_zone(struct btrfs_fs_info *fs_info,
-					  struct btrfs_device *dev, u64 logical,
+static struct reada_zone *reada_find_zone(struct btrfs_device *dev, u64 logical,
 					  struct btrfs_bio *bbio)
 {
+	struct btrfs_fs_info *fs_info = dev->fs_info;
 	int ret;
 	struct reada_zone *zone;
 	struct btrfs_block_group_cache *cache = NULL;
@@ -374,7 +374,7 @@ static struct reada_extent *reada_find_extent(struct btrfs_fs_info *fs_info,
 		 if (!dev->bdev)
 			continue;
 
-		zone = reada_find_zone(fs_info, dev, logical, bbio);
+		zone = reada_find_zone(dev, logical, bbio);
 		if (!zone)
 			continue;
 
