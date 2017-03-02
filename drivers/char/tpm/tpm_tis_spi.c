@@ -48,8 +48,8 @@ struct tpm_tis_spi_phy {
 	struct tpm_tis_data priv;
 	struct spi_device *spi_device;
 
-	u8 tx_buf[MAX_SPI_FRAMESIZE + 4];
-	u8 rx_buf[MAX_SPI_FRAMESIZE + 4];
+	u8 tx_buf[4];
+	u8 rx_buf[4];
 };
 
 static inline struct tpm_tis_spi_phy *to_tpm_tis_spi_phy(struct tpm_tis_data *data)
@@ -57,8 +57,8 @@ static inline struct tpm_tis_spi_phy *to_tpm_tis_spi_phy(struct tpm_tis_data *da
 	return container_of(data, struct tpm_tis_spi_phy, priv);
 }
 
-static int tpm_tis_spi_read_bytes(struct tpm_tis_data *data, u32 addr,
-				  u16 len, u8 *result)
+static int tpm_tis_spi_transfer(struct tpm_tis_data *data, u32 addr, u16 len,
+				u8 *buffer, u8 direction)
 {
 	struct tpm_tis_spi_phy *phy = to_tpm_tis_spi_phy(data);
 	int ret, i;
@@ -67,17 +67,17 @@ static int tpm_tis_spi_read_bytes(struct tpm_tis_data *data, u32 addr,
 		.tx_buf = phy->tx_buf,
 		.rx_buf = phy->rx_buf,
 		.len = 4,
+		.cs_change = 1,
 	};
 
 	if (len > MAX_SPI_FRAMESIZE)
 		return -ENOMEM;
 
-	phy->tx_buf[0] = 0x80 | (len - 1);
+	phy->tx_buf[0] = direction | (len - 1);
 	phy->tx_buf[1] = 0xd4;
-	phy->tx_buf[2] = (addr >> 8)  & 0xFF;
-	phy->tx_buf[3] = addr	      & 0xFF;
+	phy->tx_buf[2] = addr >> 8;
+	phy->tx_buf[3] = addr;
 
-	spi_xfer.cs_change = 1;
 	spi_message_init(&m);
 	spi_message_add_tail(&spi_xfer, &m);
 
@@ -86,7 +86,7 @@ static int tpm_tis_spi_read_bytes(struct tpm_tis_data *data, u32 addr,
 	if (ret < 0)
 		goto exit;
 
-	memset(phy->tx_buf, 0, len);
+	phy->tx_buf[0] = 0;
 
 	/* According to TCG PTP specification, if there is no TPM present at
 	 * all, then the design has a weak pull-up on MISO. If a TPM is not
@@ -104,7 +104,14 @@ static int tpm_tis_spi_read_bytes(struct tpm_tis_data *data, u32 addr,
 
 	spi_xfer.cs_change = 0;
 	spi_xfer.len = len;
-	spi_xfer.rx_buf = result;
+
+	if (direction) {
+		spi_xfer.tx_buf = NULL;
+		spi_xfer.rx_buf = buffer;
+	} else {
+		spi_xfer.tx_buf = buffer;
+		spi_xfer.rx_buf = NULL;
+	}
 
 	spi_message_init(&m);
 	spi_message_add_tail(&spi_xfer, &m);
@@ -115,62 +122,16 @@ exit:
 	return ret;
 }
 
+static int tpm_tis_spi_read_bytes(struct tpm_tis_data *data, u32 addr,
+				  u16 len, u8 *result)
+{
+	return tpm_tis_spi_transfer(data, addr, len, result, 0x80);
+}
+
 static int tpm_tis_spi_write_bytes(struct tpm_tis_data *data, u32 addr,
 				   u16 len, u8 *value)
 {
-	struct tpm_tis_spi_phy *phy = to_tpm_tis_spi_phy(data);
-	int ret, i;
-	struct spi_message m;
-	struct spi_transfer spi_xfer = {
-		.tx_buf = phy->tx_buf,
-		.rx_buf = phy->rx_buf,
-		.len = 4,
-	};
-
-	if (len > MAX_SPI_FRAMESIZE)
-		return -ENOMEM;
-
-	phy->tx_buf[0] = len - 1;
-	phy->tx_buf[1] = 0xd4;
-	phy->tx_buf[2] = (addr >> 8)  & 0xFF;
-	phy->tx_buf[3] = addr         & 0xFF;
-
-	spi_xfer.cs_change = 1;
-	spi_message_init(&m);
-	spi_message_add_tail(&spi_xfer, &m);
-
-	spi_bus_lock(phy->spi_device->master);
-	ret = spi_sync_locked(phy->spi_device, &m);
-	if (ret < 0)
-		goto exit;
-
-	memset(phy->tx_buf, 0, len);
-
-	/* According to TCG PTP specification, if there is no TPM present at
-	 * all, then the design has a weak pull-up on MISO. If a TPM is not
-	 * present, a pull-up on MISO means that the SB controller sees a 1,
-	 * and will latch in 0xFF on the read.
-	 */
-	for (i = 0; (phy->rx_buf[0] & 0x01) == 0 && i < TPM_RETRY; i++) {
-		spi_xfer.len = 1;
-		spi_message_init(&m);
-		spi_message_add_tail(&spi_xfer, &m);
-		ret = spi_sync_locked(phy->spi_device, &m);
-		if (ret < 0)
-			goto exit;
-	}
-
-	spi_xfer.len = len;
-	spi_xfer.tx_buf = value;
-	spi_xfer.cs_change = 0;
-	spi_xfer.tx_buf = value;
-	spi_message_init(&m);
-	spi_message_add_tail(&spi_xfer, &m);
-	ret = spi_sync_locked(phy->spi_device, &m);
-
-exit:
-	spi_bus_unlock(phy->spi_device->master);
-	return ret;
+	return tpm_tis_spi_transfer(data, addr, len, value, 0);
 }
 
 static int tpm_tis_spi_read16(struct tpm_tis_data *data, u32 addr, u16 *result)
