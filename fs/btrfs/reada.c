@@ -270,6 +270,12 @@ static struct reada_zone *reada_find_zone(struct btrfs_fs_info *fs_info,
 	if (!zone)
 		return NULL;
 
+	ret = radix_tree_preload(GFP_KERNEL);
+	if (ret) {
+		kfree(zone);
+		return NULL;
+	}
+
 	zone->start = start;
 	zone->end = end;
 	INIT_LIST_HEAD(&zone->list);
@@ -299,6 +305,7 @@ static struct reada_zone *reada_find_zone(struct btrfs_fs_info *fs_info,
 			zone = NULL;
 	}
 	spin_unlock(&fs_info->reada_lock);
+	radix_tree_preload_end();
 
 	return zone;
 }
