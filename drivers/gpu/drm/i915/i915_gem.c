@@ -4244,6 +4244,7 @@ int i915_gem_suspend(struct drm_i915_private *dev_priv)
 	struct drm_device *dev = &dev_priv->drm;
 	int ret;
 
+	intel_runtime_pm_get(dev_priv);
 	intel_suspend_gt_powersave(dev_priv);
 
 	mutex_lock(&dev->struct_mutex);
@@ -4258,13 +4259,13 @@ int i915_gem_suspend(struct drm_i915_private *dev_priv)
 	 */
 	ret = i915_gem_switch_to_kernel_context(dev_priv);
 	if (ret)
-		goto err;
+		goto err_unlock;
 
 	ret = i915_gem_wait_for_idle(dev_priv,
 				     I915_WAIT_INTERRUPTIBLE |
 				     I915_WAIT_LOCKED);
 	if (ret)
-		goto err;
+		goto err_unlock;
 
 	i915_gem_retire_requests(dev_priv);
 	GEM_BUG_ON(dev_priv->gt.active_requests);
@@ -4310,11 +4311,12 @@ int i915_gem_suspend(struct drm_i915_private *dev_priv)
 	 * machine in an unusable condition.
 	 */
 	i915_gem_sanitize(dev_priv);
+	goto out_rpm_put;
 
-	return 0;
-
-err:
+err_unlock:
 	mutex_unlock(&dev->struct_mutex);
+out_rpm_put:
+	intel_runtime_pm_put(dev_priv);
 	return ret;
 }
 
