@@ -400,12 +400,14 @@ void __i915_gem_request_submit(struct drm_i915_gem_request *request)
 	struct intel_timeline *timeline;
 	u32 seqno;
 
+	GEM_BUG_ON(!irqs_disabled());
+	assert_spin_locked(&engine->timeline->lock);
+
 	trace_i915_gem_request_execute(request);
 
 	/* Transfer from per-context onto the global per-engine timeline */
 	timeline = engine->timeline;
 	GEM_BUG_ON(timeline == request->timeline);
-	assert_spin_locked(&timeline->lock);
 
 	seqno = timeline_get_seqno(timeline);
 	GEM_BUG_ON(!seqno);
@@ -446,6 +448,7 @@ void __i915_gem_request_unsubmit(struct drm_i915_gem_request *request)
 	struct intel_engine_cs *engine = request->engine;
 	struct intel_timeline *timeline;
 
+	GEM_BUG_ON(!irqs_disabled());
 	assert_spin_locked(&engine->timeline->lock);
 
 	/* Only unwind in reverse order, required so that the per-context list

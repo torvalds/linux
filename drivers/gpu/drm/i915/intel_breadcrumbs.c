@@ -653,6 +653,7 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 	 */
 
 	/* locked by dma_fence_enable_sw_signaling() (irqsafe fence->lock) */
+	GEM_BUG_ON(!irqs_disabled());
 	assert_spin_locked(&request->lock);
 
 	seqno = i915_gem_request_global_seqno(request);
@@ -709,6 +710,7 @@ void intel_engine_cancel_signaling(struct drm_i915_gem_request *request)
 	struct intel_engine_cs *engine = request->engine;
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 
+	GEM_BUG_ON(!irqs_disabled());
 	assert_spin_locked(&request->lock);
 	GEM_BUG_ON(!request->signaling.wait.seqno);
 
