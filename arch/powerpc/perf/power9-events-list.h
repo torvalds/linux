@@ -53,3 +53,6 @@ EVENT(PM_ITLB_MISS,				0x400fc)
 EVENT(PM_RUN_INST_CMPL,				0x500fa)
 /* Run_cycles */
 EVENT(PM_RUN_CYC,				0x600f4)
+/* Instruction Dispatched */
+EVENT(PM_INST_DISP,				0x200f2)
+EVENT(PM_INST_DISP_ALT,				0x300f2)

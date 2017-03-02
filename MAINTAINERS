@@ -7483,18 +7483,24 @@ L:	linuxppc-dev@lists.ozlabs.org
 Q:	http://patchwork.ozlabs.org/project/linuxppc-dev/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/powerpc/linux.git
 S:	Supported
+F:	Documentation/ABI/stable/sysfs-firmware-opal-*
+F:	Documentation/devicetree/bindings/powerpc/opal/
+F:	Documentation/devicetree/bindings/rtc/rtc-opal.txt
+F:	Documentation/devicetree/bindings/i2c/i2c-opal.txt
 F:	Documentation/powerpc/
 F:	arch/powerpc/
 F:	drivers/char/tpm/tpm_ibmvtpm*
 F:	drivers/crypto/nx/
 F:	drivers/crypto/vmx/
+F:	drivers/i2c/busses/i2c-opal.c
 F:	drivers/net/ethernet/ibm/ibmveth.*
 F:	drivers/net/ethernet/ibm/ibmvnic.*
 F:	drivers/pci/hotplug/pnv_php.c
 F:	drivers/pci/hotplug/rpa*
+F:	drivers/rtc/rtc-opal.c
 F:	drivers/scsi/ibmvscsi/
+F:	drivers/tty/hvc/hvc_opal.c
 F:	tools/testing/selftests/powerpc
-N:	opal
 N:	/pmac
 N:	powermac
 N:	powernv
