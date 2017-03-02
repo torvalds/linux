@@ -159,10 +159,10 @@ struct usb_serial {
 	unsigned char			minors_reserved:1;
 	unsigned char			num_ports;
 	unsigned char			num_port_pointers;
-	char				num_interrupt_in;
-	char				num_interrupt_out;
-	char				num_bulk_in;
-	char				num_bulk_out;
+	unsigned char			num_interrupt_in;
+	unsigned char			num_interrupt_out;
+	unsigned char			num_bulk_in;
+	unsigned char			num_bulk_out;
 	struct usb_serial_port		*port[MAX_NUM_PORTS];
 	struct kref			kref;
 	struct mutex			disc_mutex;
@@ -227,12 +227,13 @@ static inline void usb_set_serial_data(struct usb_serial *serial, void *data)
 struct usb_serial_driver {
 	const char *description;
 	const struct usb_device_id *id_table;
-	char	num_ports;
 
 	struct list_head	driver_list;
 	struct device_driver	driver;
 	struct usb_driver	*usb_driver;
 	struct usb_dynids	dynids;
+
+	unsigned char		num_ports;
 
 	size_t			bulk_in_size;
 	size_t			bulk_out_size;

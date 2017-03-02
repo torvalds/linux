@@ -728,12 +728,12 @@ static int usb_serial_probe(struct usb_interface *interface,
 	int buffer_size;
 	int i;
 	int j;
-	int num_interrupt_in = 0;
-	int num_interrupt_out = 0;
-	int num_bulk_in = 0;
-	int num_bulk_out = 0;
+	unsigned char num_interrupt_in = 0;
+	unsigned char num_interrupt_out = 0;
+	unsigned char num_bulk_in = 0;
+	unsigned char num_bulk_out = 0;
 	int num_ports = 0;
-	int max_endpoints;
+	unsigned char max_endpoints;
 
 	mutex_lock(&table_lock);
 	type = search_serial_device(interface);
@@ -879,7 +879,7 @@ static int usb_serial_probe(struct usb_interface *interface,
 		num_ports = MAX_NUM_PORTS;
 	}
 
-	serial->num_ports = num_ports;
+	serial->num_ports = (unsigned char)num_ports;
 	serial->num_bulk_in = num_bulk_in;
 	serial->num_bulk_out = num_bulk_out;
 	serial->num_interrupt_in = num_interrupt_in;
@@ -894,7 +894,7 @@ static int usb_serial_probe(struct usb_interface *interface,
 	max_endpoints = max(num_bulk_in, num_bulk_out);
 	max_endpoints = max(max_endpoints, num_interrupt_in);
 	max_endpoints = max(max_endpoints, num_interrupt_out);
-	max_endpoints = max(max_endpoints, (int)serial->num_ports);
+	max_endpoints = max(max_endpoints, serial->num_ports);
 	serial->num_port_pointers = max_endpoints;
 
 	dev_dbg(ddev, "setting up %d port structure(s)\n", max_endpoints);
