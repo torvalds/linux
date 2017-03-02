@@ -16,6 +16,36 @@
 
 /* watermark/fifo updates */
 
+TRACE_EVENT(intel_memory_cxsr,
+	    TP_PROTO(struct drm_i915_private *dev_priv, bool old, bool new),
+	    TP_ARGS(dev_priv, old, new),
+
+	    TP_STRUCT__entry(
+			     __array(u32, frame, 3)
+			     __array(u32, scanline, 3)
+			     __field(bool, old)
+			     __field(bool, new)
+			     ),
+
+	    TP_fast_assign(
+			   enum pipe pipe;
+			   for_each_pipe(dev_priv, pipe) {
+				   __entry->frame[pipe] =
+					   dev_priv->drm.driver->get_vblank_counter(&dev_priv->drm, pipe);
+				   __entry->scanline[pipe] =
+					   intel_get_crtc_scanline(intel_get_crtc_for_pipe(dev_priv, pipe));
+			   }
+			   __entry->old = old;
+			   __entry->new = new;
+			   ),
+
+	    TP_printk("%s->%s, pipe A: frame=%u, scanline=%u, pipe B: frame=%u, scanline=%u, pipe C: frame=%u, scanline=%u",
+		      onoff(__entry->old), onoff(__entry->new),
+		      __entry->frame[PIPE_A], __entry->scanline[PIPE_A],
+		      __entry->frame[PIPE_B], __entry->scanline[PIPE_B],
+		      __entry->frame[PIPE_C], __entry->scanline[PIPE_C])
+);
+
 TRACE_EVENT(vlv_wm,
 	    TP_PROTO(struct intel_crtc *crtc, const struct vlv_wm_values *wm),
 	    TP_ARGS(crtc, wm),

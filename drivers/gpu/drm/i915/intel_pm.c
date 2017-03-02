@@ -377,6 +377,8 @@ static bool _intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enabl
 		return false;
 	}
 
+	trace_intel_memory_cxsr(dev_priv, was_enabled, enable);
+
 	DRM_DEBUG_KMS("memory self-refresh is %s (was %s)\n",
 		      enableddisabled(enable),
 		      enableddisabled(was_enabled));
