@@ -249,6 +249,7 @@ static void add_uid_tasks_io_stats(struct uid_entry *uid_entry,
 	task_io_slot->write_bytes += compute_write_bytes(task);
 	task_io_slot->rchar += task->ioac.rchar;
 	task_io_slot->wchar += task->ioac.wchar;
+	task_io_slot->fsync += task->ioac.syscfs;
 }
 
 static void compute_io_uid_tasks(struct uid_entry *uid_entry)
@@ -452,6 +453,7 @@ static void add_uid_io_stats(struct uid_entry *uid_entry,
 	io_slot->write_bytes += compute_write_bytes(task);
 	io_slot->rchar += task->ioac.rchar;
 	io_slot->wchar += task->ioac.wchar;
+	io_slot->fsync += task->ioac.syscfs;
 
 	add_uid_tasks_io_stats(uid_entry, task, slot);
 }
