@@ -1028,6 +1028,12 @@ static uint16_t vlv_compute_wm_level(const struct intel_crtc_state *crtc_state,
 	return min_t(int, wm, USHRT_MAX);
 }
 
+static bool vlv_need_sprite0_fifo_workaround(unsigned int active_planes)
+{
+	return (active_planes & (BIT(PLANE_SPRITE0) |
+				 BIT(PLANE_SPRITE1))) == BIT(PLANE_SPRITE1);
+}
+
 static int vlv_compute_fifo(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
@@ -1038,12 +1044,25 @@ static int vlv_compute_fifo(struct intel_crtc_state *crtc_state)
 	int num_active_planes = hweight32(active_planes);
 	const int fifo_size = 511;
 	int fifo_extra, fifo_left = fifo_size;
+	int sprite0_fifo_extra = 0;
 	unsigned int total_rate;
 	enum plane_id plane_id;
 
+	/*
+	 * When enabling sprite0 after sprite1 has already been enabled
+	 * we tend to get an underrun unless sprite0 already has some
+	 * FIFO space allcoated. Hence we always allocate at least one
+	 * cacheline for sprite0 whenever sprite1 is enabled.
+	 *
+	 * All other plane enable sequences appear immune to this problem.
+	 */
+	if (vlv_need_sprite0_fifo_workaround(active_planes))
+		sprite0_fifo_extra = 1;
+
 	total_rate = raw->plane[PLANE_PRIMARY] +
 		raw->plane[PLANE_SPRITE0] +
-		raw->plane[PLANE_SPRITE1];
+		raw->plane[PLANE_SPRITE1] +
+		sprite0_fifo_extra;
 
 	if (total_rate > fifo_size)
 		return -EINVAL;
@@ -1063,6 +1082,9 @@ static int vlv_compute_fifo(struct intel_crtc_state *crtc_state)
 		fifo_state->plane[plane_id] = fifo_size * rate / total_rate;
 		fifo_left -= fifo_state->plane[plane_id];
 	}
+
+	fifo_state->plane[PLANE_SPRITE0] += sprite0_fifo_extra;
+	fifo_left -= sprite0_fifo_extra;
 
 	fifo_state->plane[PLANE_CURSOR] = 63;
 
