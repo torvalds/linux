@@ -73,7 +73,16 @@ Specific guidelines for the kernel documentation
 
 Here are some specific guidelines for the kernel documentation:
 
-* Please don't go overboard with reStructuredText markup. Keep it simple.
+* Please don't go overboard with reStructuredText markup. Keep it
+  simple. For the most part the documentation should be plain text with
+  just enough consistency in formatting that it can be converted to
+  other formats.
+
+* Please keep the formatting changes minimal when converting existing
+  documentation to reStructuredText.
+
+* Also update the content, not just the formatting, when converting
+  documentation.
 
 * Please stick to this order of heading adornments:
 
@@ -102,6 +111,12 @@ Here are some specific guidelines for the kernel documentation:
   number and order of section title adornment styles, the order enforced will be
   the order as encountered."), having the higher levels the same overall makes
   it easier to follow the documents.
+
+* For inserting fixed width text blocks (for code examples, use case
+  examples, etc.), use ``::`` for anything that doesn't really benefit
+  from syntax highlighting, especially short snippets. Use
+  ``.. code-block:: <language>`` for longer code blocks that benefit
+  from highlighting.
 
 
 the C domain
