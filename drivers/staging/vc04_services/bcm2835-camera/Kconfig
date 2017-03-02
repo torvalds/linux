@@ -2,8 +2,8 @@ config VIDEO_BCM2835
 	tristate "BCM2835 Camera"
 	depends on MEDIA_SUPPORT
 	depends on VIDEO_V4L2 && (ARCH_BCM2835 || COMPILE_TEST)
-	depends on BCM2835_VCHIQ
 	depends on ARM
+	select BCM2835_VCHIQ
 	select VIDEOBUF2_VMALLOC
 	help
 	  Say Y here to enable camera host interface devices for
