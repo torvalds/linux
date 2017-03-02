@@ -415,10 +415,11 @@ static const int pessimal_latency_ns = 5000;
 #define VLV_FIFO_START(dsparb, dsparb2, lo_shift, hi_shift) \
 	((((dsparb) >> (lo_shift)) & 0xff) | ((((dsparb2) >> (hi_shift)) & 0x1) << 8))
 
-static void vlv_get_fifo_size(struct intel_crtc *crtc)
+static void vlv_get_fifo_size(struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct vlv_fifo_state *fifo_state = &crtc->wm.fifo_state;
+	struct vlv_fifo_state *fifo_state = &crtc_state->wm.vlv.fifo_state;
 	enum pipe pipe = crtc->pipe;
 	int sprite0_start, sprite1_start;
 
@@ -1031,7 +1032,7 @@ static void vlv_compute_fifo(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct vlv_wm_state *wm_state = &crtc_state->wm.vlv.optimal;
-	struct vlv_fifo_state *fifo_state = &crtc->wm.fifo_state;
+	struct vlv_fifo_state *fifo_state = &crtc_state->wm.vlv.fifo_state;
 	struct drm_device *dev = crtc->base.dev;
 	struct intel_plane *plane;
 	unsigned int total_rate = 0;
@@ -1108,11 +1109,12 @@ static void vlv_invert_wms(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct vlv_wm_state *wm_state = &crtc_state->wm.vlv.optimal;
+	const struct vlv_fifo_state *fifo_state =
+		&crtc_state->wm.vlv.fifo_state;
 	int level;
 
 	for (level = 0; level < wm_state->num_levels; level++) {
 		struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-		const struct vlv_fifo_state *fifo_state = &crtc->wm.fifo_state;
 		const int sr_fifo_size =
 			INTEL_INFO(dev_priv)->num_pipes * 512 - 1;
 		enum plane_id plane_id;
@@ -1137,7 +1139,8 @@ static void vlv_compute_wm(struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct vlv_wm_state *wm_state = &crtc_state->wm.vlv.optimal;
-	const struct vlv_fifo_state *fifo_state = &crtc->wm.fifo_state;
+	const struct vlv_fifo_state *fifo_state =
+		&crtc_state->wm.vlv.fifo_state;
 	struct intel_plane *plane;
 	int level;
 
@@ -1206,10 +1209,12 @@ static void vlv_compute_wm(struct intel_crtc_state *crtc_state)
 #define VLV_FIFO(plane, value) \
 	(((value) << DSPARB_ ## plane ## _SHIFT_VLV) & DSPARB_ ## plane ## _MASK_VLV)
 
-static void vlv_pipe_set_fifo_size(struct intel_crtc *crtc)
+static void vlv_pipe_set_fifo_size(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	const struct vlv_fifo_state *fifo_state = &crtc->wm.fifo_state;
+	const struct vlv_fifo_state *fifo_state =
+		&crtc_state->wm.vlv.fifo_state;
 	int sprite0_start, sprite1_start, fifo_size;
 
 	sprite0_start = fifo_state->plane[PLANE_PRIMARY];
@@ -1360,8 +1365,7 @@ static void vlv_update_wm(struct intel_crtc *crtc)
 
 	if (memcmp(old_wm, &new_wm, sizeof(new_wm)) == 0) {
 		/* FIXME should be part of crtc atomic commit */
-		vlv_pipe_set_fifo_size(crtc);
-
+		vlv_pipe_set_fifo_size(crtc_state);
 		return;
 	}
 
@@ -1375,7 +1379,7 @@ static void vlv_update_wm(struct intel_crtc *crtc)
 		_intel_set_memory_cxsr(dev_priv, false);
 
 	/* FIXME should be part of crtc atomic commit */
-	vlv_pipe_set_fifo_size(crtc);
+	vlv_pipe_set_fifo_size(crtc_state);
 
 	vlv_write_wm_values(dev_priv, &new_wm);
 
@@ -4519,7 +4523,7 @@ void vlv_wm_get_hw_state(struct drm_device *dev)
 	vlv_read_wm_values(dev_priv, wm);
 
 	for_each_intel_crtc(dev, crtc)
-		vlv_get_fifo_size(crtc);
+		vlv_get_fifo_size(to_intel_crtc_state(crtc->base.state));
 
 	wm->cxsr = I915_READ(FW_BLC_SELF_VLV) & FW_CSPWRDWNEN;
 	wm->level = VLV_WM_LEVEL_PM2;
