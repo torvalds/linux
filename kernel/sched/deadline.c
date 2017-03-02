@@ -445,13 +445,13 @@ static void replenish_dl_entity(struct sched_dl_entity *dl_se,
  *
  * This function returns true if:
  *
- *   runtime / (deadline - t) > dl_runtime / dl_period ,
+ *   runtime / (deadline - t) > dl_runtime / dl_deadline ,
  *
  * IOW we can't recycle current parameters.
  *
- * Notice that the bandwidth check is done against the period. For
+ * Notice that the bandwidth check is done against the deadline. For
  * task with deadline equal to period this is the same of using
- * dl_deadline instead of dl_period in the equation above.
+ * dl_period instead of dl_deadline in the equation above.
  */
 static bool dl_entity_overflow(struct sched_dl_entity *dl_se,
 			       struct sched_dl_entity *pi_se, u64 t)
@@ -476,7 +476,7 @@ static bool dl_entity_overflow(struct sched_dl_entity *dl_se,
 	 * of anything below microseconds resolution is actually fiction
 	 * (but still we want to give the user that illusion >;).
 	 */
-	left = (pi_se->dl_period >> DL_SCALE) * (dl_se->runtime >> DL_SCALE);
+	left = (pi_se->dl_deadline >> DL_SCALE) * (dl_se->runtime >> DL_SCALE);
 	right = ((dl_se->deadline - t) >> DL_SCALE) *
 		(pi_se->dl_runtime >> DL_SCALE);
 
