@@ -515,6 +515,7 @@ static void __i915_guc_submit(struct drm_i915_gem_request *rq)
 	unsigned int engine_id = engine->id;
 	struct intel_guc *guc = &rq->i915->guc;
 	struct i915_guc_client *client = guc->execbuf_client;
+	unsigned long flags;
 	int b_ret;
 
 	/* WA to flush out the pending GMADR writes to ring buffer. */
@@ -523,10 +524,7 @@ static void __i915_guc_submit(struct drm_i915_gem_request *rq)
 
 	trace_i915_gem_request_in(rq, 0);
 
-	/* We are always called with irqs disabled */
-	GEM_BUG_ON(!irqs_disabled());
-
-	spin_lock(&client->wq_lock);
+	spin_lock_irqsave(&client->wq_lock, flags);
 
 	guc_wq_item_append(client, rq);
 	b_ret = guc_ring_doorbell(client);
@@ -539,7 +537,7 @@ static void __i915_guc_submit(struct drm_i915_gem_request *rq)
 	guc->submissions[engine_id] += 1;
 	guc->last_seqno[engine_id] = rq->global_seqno;
 
-	spin_unlock(&client->wq_lock);
+	spin_unlock_irqrestore(&client->wq_lock, flags);
 }
 
 static void i915_guc_submit(struct drm_i915_gem_request *rq)
