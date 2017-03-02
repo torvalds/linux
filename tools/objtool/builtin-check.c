@@ -757,11 +757,20 @@ static struct rela *find_switch_table(struct objtool_file *file,
 		     insn->jump_dest->offset > orig_insn->offset))
 		    break;
 
+		/* look for a relocation which references .rodata */
 		text_rela = find_rela_by_dest_range(insn->sec, insn->offset,
 						    insn->len);
-		if (text_rela && text_rela->sym == file->rodata->sym)
-			return find_rela_by_dest(file->rodata,
-						 text_rela->addend);
+		if (!text_rela || text_rela->sym != file->rodata->sym)
+			continue;
+
+		/*
+		 * Make sure the .rodata address isn't associated with a
+		 * symbol.  gcc jump tables are anonymous data.
+		 */
+		if (find_symbol_containing(file->rodata, text_rela->addend))
+			continue;
+
+		return find_rela_by_dest(file->rodata, text_rela->addend);
 	}
 
 	return NULL;
