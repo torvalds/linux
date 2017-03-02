@@ -2442,8 +2442,11 @@ static int intel_pstate_register_driver(void)
 
 	intel_pstate_init_limits(&powersave_limits);
 	intel_pstate_set_performance_limits(&performance_limits);
-	limits = IS_ENABLED(CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE) ?
-			&performance_limits : &powersave_limits;
+	if (IS_ENABLED(CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE) &&
+	    intel_pstate_driver == &intel_pstate)
+		limits = &performance_limits;
+	else
+		limits = &powersave_limits;
 
 	ret = cpufreq_register_driver(intel_pstate_driver);
 	if (ret) {
