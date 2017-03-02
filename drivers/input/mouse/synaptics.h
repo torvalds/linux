@@ -90,6 +90,7 @@
 #define SYN_CAP_ADV_GESTURE(ex0c)	((ex0c) & 0x080000)
 #define SYN_CAP_REDUCED_FILTERING(ex0c)	((ex0c) & 0x000400)
 #define SYN_CAP_IMAGE_SENSOR(ex0c)	((ex0c) & 0x000800)
+#define SYN_CAP_INTERTOUCH(ex0c)	((ex0c) & 0x004000)
 
 /*
  * The following descibes response for the 0x10 query.
@@ -204,8 +205,10 @@ struct synaptics_data {
 
 void synaptics_module_init(void);
 int synaptics_detect(struct psmouse *psmouse, bool set_properties);
-int synaptics_init(struct psmouse *psmouse);
+int synaptics_init_absolute(struct psmouse *psmouse);
 int synaptics_init_relative(struct psmouse *psmouse);
+int synaptics_init_smbus(struct psmouse *psmouse);
+int synaptics_init(struct psmouse *psmouse);
 void synaptics_reset(struct psmouse *psmouse);
 
 #endif /* _SYNAPTICS_H */
