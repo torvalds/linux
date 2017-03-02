@@ -492,6 +492,22 @@ struct skl_pipe_wm {
 	uint32_t linetime;
 };
 
+enum vlv_wm_level {
+	VLV_WM_LEVEL_PM2,
+	VLV_WM_LEVEL_PM5,
+	VLV_WM_LEVEL_DDR_DVFS,
+	NUM_VLV_WM_LEVELS,
+};
+
+struct vlv_wm_state {
+	struct vlv_pipe_wm wm[NUM_VLV_WM_LEVELS];
+	struct vlv_sr_wm sr[NUM_VLV_WM_LEVELS];
+	uint8_t num_active_planes;
+	uint8_t num_levels;
+	uint8_t level;
+	bool cxsr;
+};
+
 struct intel_crtc_wm_state {
 	union {
 		struct {
@@ -516,6 +532,11 @@ struct intel_crtc_wm_state {
 			struct skl_pipe_wm optimal;
 			struct skl_ddb_entry ddb;
 		} skl;
+
+		struct {
+			/* optimal watermarks (inverted) */
+			struct vlv_wm_state optimal;
+		} vlv;
 	};
 
 	/*
@@ -698,15 +719,6 @@ struct intel_crtc_state {
 
 	/* bitmask of visible planes (enum plane_id) */
 	u8 active_planes;
-};
-
-struct vlv_wm_state {
-	struct vlv_pipe_wm wm[3];
-	struct vlv_sr_wm sr[3];
-	uint8_t num_active_planes;
-	uint8_t num_levels;
-	uint8_t level;
-	bool cxsr;
 };
 
 struct vlv_fifo_state {

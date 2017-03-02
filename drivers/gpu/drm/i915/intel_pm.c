@@ -957,12 +957,6 @@ static void vlv_write_wm_values(struct drm_i915_private *dev_priv,
 
 #undef FW_WM_VLV
 
-enum vlv_wm_level {
-	VLV_WM_LEVEL_PM2,
-	VLV_WM_LEVEL_PM5,
-	VLV_WM_LEVEL_DDR_DVFS,
-};
-
 /* latency must be in 0.1us units. */
 static unsigned int vlv_wm_method2(unsigned int pixel_rate,
 				   unsigned int pipe_htotal,
@@ -1033,9 +1027,10 @@ static uint16_t vlv_compute_wm_level(const struct intel_crtc_state *crtc_state,
 	return min_t(int, wm, USHRT_MAX);
 }
 
-static void vlv_compute_fifo(struct intel_crtc *crtc)
+static void vlv_compute_fifo(struct intel_crtc_state *crtc_state)
 {
-	struct vlv_wm_state *wm_state = &crtc->wm.active.vlv;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct vlv_wm_state *wm_state = &crtc_state->wm.vlv.optimal;
 	struct vlv_fifo_state *fifo_state = &crtc->wm.fifo_state;
 	struct drm_device *dev = crtc->base.dev;
 	struct intel_plane *plane;
@@ -1109,9 +1104,10 @@ static u16 vlv_invert_wm_value(u16 wm, u16 fifo_size)
 		return fifo_size - wm;
 }
 
-static void vlv_invert_wms(struct intel_crtc *crtc)
+static void vlv_invert_wms(struct intel_crtc_state *crtc_state)
 {
-	struct vlv_wm_state *wm_state = &crtc->wm.active.vlv;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct vlv_wm_state *wm_state = &crtc_state->wm.vlv.optimal;
 	int level;
 
 	for (level = 0; level < wm_state->num_levels; level++) {
@@ -1136,10 +1132,11 @@ static void vlv_invert_wms(struct intel_crtc *crtc)
 	}
 }
 
-static void vlv_compute_wm(struct intel_crtc *crtc)
+static void vlv_compute_wm(struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct vlv_wm_state *wm_state = &crtc->wm.active.vlv;
+	struct vlv_wm_state *wm_state = &crtc_state->wm.vlv.optimal;
 	const struct vlv_fifo_state *fifo_state = &crtc->wm.fifo_state;
 	struct intel_plane *plane;
 	int level;
@@ -1151,7 +1148,7 @@ static void vlv_compute_wm(struct intel_crtc *crtc)
 
 	wm_state->num_active_planes = 0;
 
-	vlv_compute_fifo(crtc);
+	vlv_compute_fifo(crtc_state);
 
 	if (wm_state->num_active_planes != 1)
 		wm_state->cxsr = false;
@@ -1166,7 +1163,7 @@ static void vlv_compute_wm(struct intel_crtc *crtc)
 
 		/* normal watermarks */
 		for (level = 0; level < wm_state->num_levels; level++) {
-			int wm = vlv_compute_wm_level(crtc->config, state, level);
+			int wm = vlv_compute_wm_level(crtc_state, state, level);
 			int max_wm = fifo_state->plane[plane->id];
 
 			/* hack */
@@ -1203,7 +1200,7 @@ static void vlv_compute_wm(struct intel_crtc *crtc)
 		memset(&wm_state->sr[level], 0, sizeof(wm_state->sr[level]));
 	}
 
-	vlv_invert_wms(crtc);
+	vlv_invert_wms(crtc_state);
 }
 
 #define VLV_FIFO(plane, value) \
@@ -1351,11 +1348,14 @@ static bool is_enabling(int old, int new, int threshold)
 static void vlv_update_wm(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_crtc_state *crtc_state =
+		to_intel_crtc_state(crtc->base.state);
 	enum pipe pipe = crtc->pipe;
 	struct vlv_wm_values *old_wm = &dev_priv->wm.vlv;
 	struct vlv_wm_values new_wm = {};
 
-	vlv_compute_wm(crtc);
+	vlv_compute_wm(crtc_state);
+	crtc->wm.active.vlv = crtc_state->wm.vlv.optimal;
 	vlv_merge_wm(dev_priv, &new_wm);
 
 	if (memcmp(old_wm, &new_wm, sizeof(new_wm)) == 0) {
