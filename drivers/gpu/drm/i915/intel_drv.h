@@ -777,9 +777,6 @@ struct intel_crtc {
 			struct intel_pipe_wm ilk;
 			struct vlv_wm_state vlv;
 		} active;
-
-		/* allow CxSR on this pipe */
-		bool cxsr_allowed;
 	} wm;
 
 	int scanline_offset;

@@ -4997,8 +4997,6 @@ static void intel_post_plane_update(struct intel_crtc_state *old_crtc_state)
 
 	intel_frontbuffer_flip(to_i915(crtc->base.dev), pipe_config->fb_bits);
 
-	crtc->wm.cxsr_allowed = true;
-
 	if (pipe_config->update_wm_post && pipe_config->base.active)
 		intel_update_watermarks(crtc);
 
@@ -5045,22 +5043,18 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state)
 			intel_pre_disable_primary(&crtc->base);
 	}
 
-	if (pipe_config->disable_cxsr && HAS_GMCH_DISPLAY(dev_priv)) {
-		crtc->wm.cxsr_allowed = false;
-
-		/*
-		 * Vblank time updates from the shadow to live plane control register
-		 * are blocked if the memory self-refresh mode is active at that
-		 * moment. So to make sure the plane gets truly disabled, disable
-		 * first the self-refresh mode. The self-refresh enable bit in turn
-		 * will be checked/applied by the HW only at the next frame start
-		 * event which is after the vblank start event, so we need to have a
-		 * wait-for-vblank between disabling the plane and the pipe.
-		 */
-		if (old_crtc_state->base.active &&
-		    intel_set_memory_cxsr(dev_priv, false))
-			intel_wait_for_vblank(dev_priv, crtc->pipe);
-	}
+	/*
+	 * Vblank time updates from the shadow to live plane control register
+	 * are blocked if the memory self-refresh mode is active at that
+	 * moment. So to make sure the plane gets truly disabled, disable
+	 * first the self-refresh mode. The self-refresh enable bit in turn
+	 * will be checked/applied by the HW only at the next frame start
+	 * event which is after the vblank start event, so we need to have a
+	 * wait-for-vblank between disabling the plane and the pipe.
+	 */
+	if (HAS_GMCH_DISPLAY(dev_priv) && old_crtc_state->base.active &&
+	    pipe_config->disable_cxsr && intel_set_memory_cxsr(dev_priv, false))
+		intel_wait_for_vblank(dev_priv, crtc->pipe);
 
 	/*
 	 * IVB workaround: must disable low power watermarks for at least
@@ -10868,11 +10862,6 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 		pipe_config->update_wm_post = true;
 	}
 
-	/* Pre-gen9 platforms need two-step watermark updates */
-	if ((pipe_config->update_wm_pre || pipe_config->update_wm_post) &&
-	    INTEL_GEN(dev_priv) < 9 && dev_priv->display.optimize_watermarks)
-		to_intel_crtc_state(crtc_state)->wm.need_postvbl_update = true;
-
 	if (visible || was_visible)
 		pipe_config->fb_bits |= plane->frontbuffer_bit;
 
@@ -12616,12 +12605,7 @@ static bool needs_vblank_wait(struct intel_crtc_state *crtc_state)
 	if (crtc_state->update_wm_post)
 		return true;
 
-	/*
-	 * cxsr is re-enabled after vblank.
-	 * This is already handled by crtc_state->update_wm_post,
-	 * but added for clarity.
-	 */
-	if (crtc_state->disable_cxsr)
+	if (crtc_state->wm.need_postvbl_update)
 		return true;
 
 	return false;
@@ -13889,8 +13873,6 @@ static int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 	intel_crtc->cursor_base = ~0;
 	intel_crtc->cursor_cntl = ~0;
 	intel_crtc->cursor_size = ~0;
-
-	intel_crtc->wm.cxsr_allowed = true;
 
 	/* initialize shared scalers */
 	intel_crtc_init_scalers(intel_crtc, crtc_state);

@@ -1274,8 +1274,7 @@ static int vlv_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 	 * enabled can wedge the pipe. Hence we only allow cxsr
 	 * with exactly one enabled primary/sprite plane.
 	 */
-	wm_state->cxsr = crtc->pipe != PIPE_C &&
-		crtc->wm.cxsr_allowed && num_active_planes == 1;
+	wm_state->cxsr = crtc->pipe != PIPE_C && num_active_planes == 1;
 
 	for (level = 0; level < wm_state->num_levels; level++) {
 		const struct vlv_pipe_wm *raw = &crtc_state->wm.vlv.raw[level];
@@ -1411,7 +1410,8 @@ static int vlv_compute_intermediate_wm(struct drm_device *dev,
 	int level;
 
 	intermediate->num_levels = min(optimal->num_levels, active->num_levels);
-	intermediate->cxsr = optimal->cxsr & active->cxsr;
+	intermediate->cxsr = optimal->cxsr && active->cxsr &&
+		!crtc_state->disable_cxsr;
 
 	for (level = 0; level < intermediate->num_levels; level++) {
 		enum plane_id plane_id;
@@ -1434,8 +1434,8 @@ static int vlv_compute_intermediate_wm(struct drm_device *dev,
 	 * If our intermediate WM are identical to the final WM, then we can
 	 * omit the post-vblank programming; only update if it's different.
 	 */
-	if (memcmp(intermediate, optimal, sizeof(*intermediate)) == 0)
-		crtc_state->wm.need_postvbl_update = false;
+	if (memcmp(intermediate, optimal, sizeof(*intermediate)) != 0)
+		crtc_state->wm.need_postvbl_update = true;
 
 	return 0;
 }
@@ -2628,8 +2628,8 @@ static int ilk_compute_intermediate_wm(struct drm_device *dev,
 	 * If our intermediate WM are identical to the final WM, then we can
 	 * omit the post-vblank programming; only update if it's different.
 	 */
-	if (memcmp(a, &newstate->wm.ilk.optimal, sizeof(*a)) == 0)
-		newstate->wm.need_postvbl_update = false;
+	if (memcmp(a, &newstate->wm.ilk.optimal, sizeof(*a)) != 0)
+		newstate->wm.need_postvbl_update = true;
 
 	return 0;
 }
