@@ -180,7 +180,7 @@ struct drm_i915_gem_request {
 
 	struct drm_i915_file_private *file_priv;
 	/** file_priv list entry for this request */
-	struct list_head client_list;
+	struct list_head client_link;
 };
 
 extern const struct dma_fence_ops i915_fence_ops;
@@ -193,8 +193,6 @@ static inline bool dma_fence_is_i915(const struct dma_fence *fence)
 struct drm_i915_gem_request * __must_check
 i915_gem_request_alloc(struct intel_engine_cs *engine,
 		       struct i915_gem_context *ctx);
-int i915_gem_request_add_to_client(struct drm_i915_gem_request *req,
-				   struct drm_file *file);
 void i915_gem_request_retire_upto(struct drm_i915_gem_request *req);
 
 static inline struct drm_i915_gem_request *

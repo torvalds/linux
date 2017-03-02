@@ -3666,16 +3666,14 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 		return -EIO;
 
 	spin_lock(&file_priv->mm.lock);
-	list_for_each_entry(request, &file_priv->mm.request_list, client_list) {
+	list_for_each_entry(request, &file_priv->mm.request_list, client_link) {
 		if (time_after_eq(request->emitted_jiffies, recent_enough))
 			break;
 
-		/*
-		 * Note that the request might not have been submitted yet.
-		 * In which case emitted_jiffies will be zero.
-		 */
-		if (!request->emitted_jiffies)
-			continue;
+		if (target) {
+			list_del(&target->client_link);
+			target->file_priv = NULL;
+		}
 
 		target = request;
 	}
@@ -4734,7 +4732,7 @@ void i915_gem_release(struct drm_device *dev, struct drm_file *file)
 	 * file_priv.
 	 */
 	spin_lock(&file_priv->mm.lock);
-	list_for_each_entry(request, &file_priv->mm.request_list, client_list)
+	list_for_each_entry(request, &file_priv->mm.request_list, client_link)
 		request->file_priv = NULL;
 	spin_unlock(&file_priv->mm.lock);
 

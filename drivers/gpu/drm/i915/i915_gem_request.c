@@ -82,42 +82,20 @@ const struct dma_fence_ops i915_fence_ops = {
 	.release = i915_fence_release,
 };
 
-int i915_gem_request_add_to_client(struct drm_i915_gem_request *req,
-				   struct drm_file *file)
-{
-	struct drm_i915_private *dev_private;
-	struct drm_i915_file_private *file_priv;
-
-	WARN_ON(!req || !file || req->file_priv);
-
-	if (!req || !file)
-		return -EINVAL;
-
-	if (req->file_priv)
-		return -EINVAL;
-
-	dev_private = req->i915;
-	file_priv = file->driver_priv;
-
-	spin_lock(&file_priv->mm.lock);
-	req->file_priv = file_priv;
-	list_add_tail(&req->client_list, &file_priv->mm.request_list);
-	spin_unlock(&file_priv->mm.lock);
-
-	return 0;
-}
-
 static inline void
 i915_gem_request_remove_from_client(struct drm_i915_gem_request *request)
 {
-	struct drm_i915_file_private *file_priv = request->file_priv;
+	struct drm_i915_file_private *file_priv;
 
+	file_priv = request->file_priv;
 	if (!file_priv)
 		return;
 
 	spin_lock(&file_priv->mm.lock);
-	list_del(&request->client_list);
-	request->file_priv = NULL;
+	if (request->file_priv) {
+		list_del(&request->client_link);
+		request->file_priv = NULL;
+	}
 	spin_unlock(&file_priv->mm.lock);
 }
 

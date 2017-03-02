@@ -506,7 +506,7 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 		mutex_lock(&dev->struct_mutex);
 		request = list_first_entry_or_null(&file_priv->mm.request_list,
 						   struct drm_i915_gem_request,
-						   client_list);
+						   client_link);
 		rcu_read_lock();
 		task = pid_task(request && request->ctx->pid ?
 				request->ctx->pid : file->pid,

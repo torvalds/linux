@@ -1407,6 +1407,14 @@ out:
 	return vma;
 }
 
+static void
+add_to_client(struct drm_i915_gem_request *req,
+	      struct drm_file *file)
+{
+	req->file_priv = file->driver_priv;
+	list_add_tail(&req->client_link, &req->file_priv->mm.request_list);
+}
+
 static int
 execbuf_submit(struct i915_execbuffer_params *params,
 	       struct drm_i915_gem_execbuffer2 *args,
@@ -1772,10 +1780,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	 */
 	params->request->batch = params->batch;
 
-	ret = i915_gem_request_add_to_client(params->request, file);
-	if (ret)
-		goto err_request;
-
 	/*
 	 * Save assorted stuff away to pass through to *_submission().
 	 * NB: This data should be 'persistent' and not local as it will
@@ -1793,6 +1797,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	ret = execbuf_submit(params, args, &eb->vmas);
 err_request:
 	__i915_add_request(params->request, ret == 0);
+	add_to_client(params->request, file);
+
 	if (out_fence) {
 		if (ret == 0) {
 			fd_install(out_fence_fd, out_fence->file);
