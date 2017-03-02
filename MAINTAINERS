@@ -9661,6 +9661,7 @@ M:	Stephen Bates <stephen.bates@microsemi.com>
 M:	Logan Gunthorpe <logang@deltatee.com>
 L:	linux-pci@vger.kernel.org
 S:	Maintained
+F:	Documentation/switchtec.txt
 F:	drivers/pci/switch/switchtec*
 
 PCI DRIVER FOR NVIDIA TEGRA
