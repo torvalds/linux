@@ -1731,6 +1731,13 @@ config RTC_DRV_STM32
 	   This driver can also be built as a module, if so, the module
 	   will be called "rtc-stm32".
 
+config RTC_DRV_CPCAP
+	depends on MFD_CPCAP
+	tristate "Motorola CPCAP RTC"
+	help
+	   Say y here for CPCAP rtc found on some Motorola phones
+	   and tablets such as Droid 4.
+
 comment "HID Sensor RTC drivers"
 
 config RTC_DRV_HID_SENSOR_TIME
