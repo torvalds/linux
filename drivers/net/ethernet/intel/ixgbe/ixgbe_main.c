@@ -3813,7 +3813,7 @@ void ixgbe_configure_rx_ring(struct ixgbe_adapter *adapter,
 		/* Limit the maximum frame size so we don't overrun the skb */
 		if (ring_uses_build_skb(ring) &&
 		    !test_bit(__IXGBE_RX_3K_BUFFER, &ring->state))
-			rxdctl |= IXGBE_MAX_FRAME_BUILD_SKB |
+			rxdctl |= IXGBE_MAX_2K_FRAME_BUILD_SKB |
 				  IXGBE_RXDCTL_RLPML_EN;
 #endif
 	}
@@ -3983,8 +3983,8 @@ static void ixgbe_set_rx_buffer_len(struct ixgbe_adapter *adapter)
 		if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED)
 			set_bit(__IXGBE_RX_3K_BUFFER, &rx_ring->state);
 
-		if ((max_frame > (ETH_FRAME_LEN + ETH_FCS_LEN)) ||
-		    (max_frame > IXGBE_MAX_FRAME_BUILD_SKB))
+		if (IXGBE_2K_TOO_SMALL_WITH_PADDING ||
+		    (max_frame > (ETH_FRAME_LEN + ETH_FCS_LEN)))
 			set_bit(__IXGBE_RX_3K_BUFFER, &rx_ring->state);
 #endif
 	}
