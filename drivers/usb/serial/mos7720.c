@@ -1900,11 +1900,6 @@ static int mos7720_startup(struct usb_serial *serial)
 	u16 product;
 	int ret_val;
 
-	if (serial->num_bulk_in < 2 || serial->num_bulk_out < 2) {
-		dev_err(&serial->interface->dev, "missing bulk endpoints\n");
-		return -ENODEV;
-	}
-
 	product = le16_to_cpu(serial->dev->descriptor.idProduct);
 	dev = serial->dev;
 
@@ -2039,6 +2034,8 @@ static struct usb_serial_driver moschip7720_2port_driver = {
 	},
 	.description		= "Moschip 2 port adapter",
 	.id_table		= id_table,
+	.num_bulk_in		= 2,
+	.num_bulk_out		= 2,
 	.calc_num_ports		= mos77xx_calc_num_ports,
 	.open			= mos7720_open,
 	.close			= mos7720_close,
