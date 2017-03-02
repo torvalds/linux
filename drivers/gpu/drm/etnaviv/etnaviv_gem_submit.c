@@ -309,6 +309,8 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	struct etnaviv_cmdbuf *cmdbuf;
 	struct etnaviv_gpu *gpu;
 	struct dma_fence *in_fence = NULL;
+	struct sync_file *sync_file = NULL;
+	int out_fence_fd = -1;
 	void *stream;
 	int ret;
 
@@ -376,6 +378,14 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 		goto err_submit_cmds;
 	}
 
+	if (args->flags & ETNA_SUBMIT_FENCE_FD_OUT) {
+		out_fence_fd = get_unused_fd_flags(O_CLOEXEC);
+		if (out_fence_fd < 0) {
+			ret = out_fence_fd;
+			goto err_submit_cmds;
+		}
+	}
+
 	submit = submit_create(dev, gpu, args->nr_bos);
 	if (!submit) {
 		ret = -ENOMEM;
@@ -436,6 +446,22 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (ret == 0)
 		cmdbuf = NULL;
 
+	if (args->flags & ETNA_SUBMIT_FENCE_FD_OUT) {
+		/*
+		 * This can be improved: ideally we want to allocate the sync
+		 * file before kicking off the GPU job and just attach the
+		 * fence to the sync file here, eliminating the ENOMEM
+		 * possibility at this stage.
+		 */
+		sync_file = sync_file_create(submit->fence);
+		if (!sync_file) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		fd_install(out_fence_fd, sync_file->file);
+	}
+
+	args->fence_fd = out_fence_fd;
 	args->fence = submit->fence->seqno;
 
 out:
@@ -455,6 +481,8 @@ err_submit_objects:
 	submit_cleanup(submit);
 
 err_submit_cmds:
+	if (ret && (out_fence_fd >= 0))
+		put_unused_fd(out_fence_fd);
 	/* if we still own the cmdbuf */
 	if (cmdbuf)
 		etnaviv_cmdbuf_free(cmdbuf);
