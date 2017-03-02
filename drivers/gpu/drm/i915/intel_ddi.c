@@ -674,7 +674,8 @@ static uint32_t hsw_pll_to_ddi_pll_sel(struct intel_shared_dpll *pll)
  * DDI A (which is used for eDP)
  */
 
-void hsw_fdi_link_train(struct intel_crtc *crtc)
+void hsw_fdi_link_train(struct intel_crtc *crtc,
+			const struct intel_crtc_state *crtc_state)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -700,7 +701,7 @@ void hsw_fdi_link_train(struct intel_crtc *crtc)
 	/* Enable the PCH Receiver FDI PLL */
 	rx_ctl_val = dev_priv->fdi_rx_config | FDI_RX_ENHANCE_FRAME_ENABLE |
 		     FDI_RX_PLL_ENABLE |
-		     FDI_DP_PORT_WIDTH(crtc->config->fdi_lanes);
+		     FDI_DP_PORT_WIDTH(crtc_state->fdi_lanes);
 	I915_WRITE(FDI_RX_CTL(PIPE_A), rx_ctl_val);
 	POSTING_READ(FDI_RX_CTL(PIPE_A));
 	udelay(220);
@@ -710,7 +711,7 @@ void hsw_fdi_link_train(struct intel_crtc *crtc)
 	I915_WRITE(FDI_RX_CTL(PIPE_A), rx_ctl_val);
 
 	/* Configure Port Clock Select */
-	ddi_pll_sel = hsw_pll_to_ddi_pll_sel(crtc->config->shared_dpll);
+	ddi_pll_sel = hsw_pll_to_ddi_pll_sel(crtc_state->shared_dpll);
 	I915_WRITE(PORT_CLK_SEL(PORT_E), ddi_pll_sel);
 	WARN_ON(ddi_pll_sel != PORT_CLK_SEL_SPLL);
 
@@ -730,7 +731,7 @@ void hsw_fdi_link_train(struct intel_crtc *crtc)
 		 * port reversal bit */
 		I915_WRITE(DDI_BUF_CTL(PORT_E),
 			   DDI_BUF_CTL_ENABLE |
-			   ((crtc->config->fdi_lanes - 1) << 1) |
+			   ((crtc_state->fdi_lanes - 1) << 1) |
 			   DDI_BUF_TRANS_SELECT(i / 2));
 		POSTING_READ(DDI_BUF_CTL(PORT_E));
 

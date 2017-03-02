@@ -1225,7 +1225,8 @@ void intel_ddi_fdi_post_disable(struct intel_encoder *intel_encoder,
 				struct intel_crtc_state *old_crtc_state,
 				struct drm_connector_state *old_conn_state);
 void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder);
-void hsw_fdi_link_train(struct intel_crtc *crtc);
+void hsw_fdi_link_train(struct intel_crtc *crtc,
+			const struct intel_crtc_state *crtc_state);
 void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port);
 enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder);
 bool intel_ddi_get_hw_state(struct intel_encoder *encoder, enum pipe *pipe);

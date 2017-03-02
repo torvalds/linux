@@ -3688,7 +3688,8 @@ static void intel_fdi_normal_train(struct intel_crtc *crtc)
 }
 
 /* The FDI link training functions for ILK/Ibexpeak. */
-static void ironlake_fdi_link_train(struct intel_crtc *crtc)
+static void ironlake_fdi_link_train(struct intel_crtc *crtc,
+				    const struct intel_crtc_state *crtc_state)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -3713,7 +3714,7 @@ static void ironlake_fdi_link_train(struct intel_crtc *crtc)
 	reg = FDI_TX_CTL(pipe);
 	temp = I915_READ(reg);
 	temp &= ~FDI_DP_PORT_WIDTH_MASK;
-	temp |= FDI_DP_PORT_WIDTH(crtc->config->fdi_lanes);
+	temp |= FDI_DP_PORT_WIDTH(crtc_state->fdi_lanes);
 	temp &= ~FDI_LINK_TRAIN_NONE;
 	temp |= FDI_LINK_TRAIN_PATTERN_1;
 	I915_WRITE(reg, temp | FDI_TX_ENABLE);
@@ -3788,7 +3789,8 @@ static const int snb_b_fdi_train_param[] = {
 };
 
 /* The FDI link training functions for SNB/Cougarpoint. */
-static void gen6_fdi_link_train(struct intel_crtc *crtc)
+static void gen6_fdi_link_train(struct intel_crtc *crtc,
+				const struct intel_crtc_state *crtc_state)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -3811,7 +3813,7 @@ static void gen6_fdi_link_train(struct intel_crtc *crtc)
 	reg = FDI_TX_CTL(pipe);
 	temp = I915_READ(reg);
 	temp &= ~FDI_DP_PORT_WIDTH_MASK;
-	temp |= FDI_DP_PORT_WIDTH(crtc->config->fdi_lanes);
+	temp |= FDI_DP_PORT_WIDTH(crtc_state->fdi_lanes);
 	temp &= ~FDI_LINK_TRAIN_NONE;
 	temp |= FDI_LINK_TRAIN_PATTERN_1;
 	temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
@@ -3920,7 +3922,8 @@ static void gen6_fdi_link_train(struct intel_crtc *crtc)
 }
 
 /* Manual link training for Ivy Bridge A0 parts */
-static void ivb_manual_fdi_link_train(struct intel_crtc *crtc)
+static void ivb_manual_fdi_link_train(struct intel_crtc *crtc,
+				      const struct intel_crtc_state *crtc_state)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -3962,7 +3965,7 @@ static void ivb_manual_fdi_link_train(struct intel_crtc *crtc)
 		reg = FDI_TX_CTL(pipe);
 		temp = I915_READ(reg);
 		temp &= ~FDI_DP_PORT_WIDTH_MASK;
-		temp |= FDI_DP_PORT_WIDTH(crtc->config->fdi_lanes);
+		temp |= FDI_DP_PORT_WIDTH(crtc_state->fdi_lanes);
 		temp |= FDI_LINK_TRAIN_PATTERN_1_IVB;
 		temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
 		temp |= snb_b_fdi_train_param[j/2];
@@ -4474,7 +4477,7 @@ static void ironlake_pch_enable(const struct intel_crtc_state *crtc_state)
 		   I915_READ(PIPE_DATA_M1(pipe)) & TU_SIZE_MASK);
 
 	/* For PCH output, training FDI link */
-	dev_priv->display.fdi_link_train(crtc);
+	dev_priv->display.fdi_link_train(crtc, crtc_state);
 
 	/* We need to program the right clock selection before writing the pixel
 	 * mutliplier into the DPLL. */
@@ -5366,7 +5369,7 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	intel_encoders_pre_enable(crtc, pipe_config, old_state);
 
 	if (intel_crtc->config->has_pch_encoder)
-		dev_priv->display.fdi_link_train(intel_crtc);
+		dev_priv->display.fdi_link_train(intel_crtc, pipe_config);
 
 	if (!transcoder_is_dsi(cpu_transcoder))
 		intel_ddi_enable_pipe_clock(intel_crtc);
