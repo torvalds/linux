@@ -64,7 +64,11 @@ static int rsnd_ssiu_init(struct rsnd_mod *mod,
 	mask1 = (1 << 4) | (1 << 20);	/* mask sync bit */
 	mask2 = (1 << 4);		/* mask sync bit */
 	val1  = val2  = 0;
-	if (rsnd_ssi_is_pin_sharing(io)) {
+	if (id == 8) {
+		/*
+		 * SSI8 pin is sharing with SSI7, nothing to do.
+		 */
+	} else if (rsnd_ssi_is_pin_sharing(io)) {
 		int shift = -1;
 
 		switch (id) {
