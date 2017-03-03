@@ -201,9 +201,6 @@ static void bcma_of_fill_device(struct device *parent,
 {
 	struct device_node *node;
 
-	if (!IS_ENABLED(CONFIG_OF_IRQ))
-		return;
-
 	node = bcma_of_find_child_device(parent, core);
 	if (node)
 		core->dev.of_node = node;
