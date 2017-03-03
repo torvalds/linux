@@ -1291,8 +1291,8 @@ static void dw_hdmi_enable_video_path(struct dw_hdmi *hdmi)
 		hdmi_writeb(hdmi, clkdis, HDMI_MC_CLKDIS);
 	}
 
-	/* Enable color space conversion if needed (for HDMI sinks only). */
-	if (hdmi->sink_is_hdmi && is_color_space_conversion(hdmi))
+	/* Enable color space conversion if needed */
+	if (is_color_space_conversion(hdmi))
 		hdmi_writeb(hdmi, HDMI_MC_FLOWCTRL_FEED_THROUGH_OFF_CSC_IN_PATH,
 			    HDMI_MC_FLOWCTRL);
 	else
