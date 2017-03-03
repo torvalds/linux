@@ -149,7 +149,7 @@ struct btrfs_raid_bio {
 
 	int generic_bio_cnt;
 
-	atomic_t refs;
+	refcount_t refs;
 
 	atomic_t stripes_pending;
 
@@ -389,7 +389,7 @@ static void __remove_rbio_from_cache(struct btrfs_raid_bio *rbio)
 		if (bio_list_empty(&rbio->bio_list)) {
 			if (!list_empty(&rbio->hash_list)) {
 				list_del_init(&rbio->hash_list);
-				atomic_dec(&rbio->refs);
+				refcount_dec(&rbio->refs);
 				BUG_ON(!list_empty(&rbio->plug_list));
 			}
 		}
@@ -480,7 +480,7 @@ static void cache_rbio(struct btrfs_raid_bio *rbio)
 
 	/* bump our ref if we were not in the list before */
 	if (!test_and_set_bit(RBIO_CACHE_BIT, &rbio->flags))
-		atomic_inc(&rbio->refs);
+		refcount_inc(&rbio->refs);
 
 	if (!list_empty(&rbio->stripe_cache)){
 		list_move(&rbio->stripe_cache, &table->stripe_cache);
@@ -689,7 +689,7 @@ static noinline int lock_stripe_add(struct btrfs_raid_bio *rbio)
 			    test_bit(RBIO_CACHE_BIT, &cur->flags) &&
 			    !test_bit(RBIO_RMW_LOCKED_BIT, &cur->flags)) {
 				list_del_init(&cur->hash_list);
-				atomic_dec(&cur->refs);
+				refcount_dec(&cur->refs);
 
 				steal_rbio(cur, rbio);
 				cache_drop = cur;
@@ -738,7 +738,7 @@ static noinline int lock_stripe_add(struct btrfs_raid_bio *rbio)
 		}
 	}
 lockit:
-	atomic_inc(&rbio->refs);
+	refcount_inc(&rbio->refs);
 	list_add(&rbio->hash_list, &h->hash_list);
 out:
 	spin_unlock_irqrestore(&h->lock, flags);
@@ -784,7 +784,7 @@ static noinline void unlock_stripe(struct btrfs_raid_bio *rbio)
 		}
 
 		list_del_init(&rbio->hash_list);
-		atomic_dec(&rbio->refs);
+		refcount_dec(&rbio->refs);
 
 		/*
 		 * we use the plug list to hold all the rbios
@@ -801,7 +801,7 @@ static noinline void unlock_stripe(struct btrfs_raid_bio *rbio)
 			list_del_init(&rbio->plug_list);
 
 			list_add(&next->hash_list, &h->hash_list);
-			atomic_inc(&next->refs);
+			refcount_inc(&next->refs);
 			spin_unlock(&rbio->bio_list_lock);
 			spin_unlock_irqrestore(&h->lock, flags);
 
@@ -843,8 +843,7 @@ static void __free_raid_bio(struct btrfs_raid_bio *rbio)
 {
 	int i;
 
-	WARN_ON(atomic_read(&rbio->refs) < 0);
-	if (!atomic_dec_and_test(&rbio->refs))
+	if (!refcount_dec_and_test(&rbio->refs))
 		return;
 
 	WARN_ON(!list_empty(&rbio->stripe_cache));
@@ -997,7 +996,7 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 	rbio->stripe_npages = stripe_npages;
 	rbio->faila = -1;
 	rbio->failb = -1;
-	atomic_set(&rbio->refs, 1);
+	refcount_set(&rbio->refs, 1);
 	atomic_set(&rbio->error, 0);
 	atomic_set(&rbio->stripes_pending, 0);
 
