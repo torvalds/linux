@@ -64,7 +64,7 @@ struct scrub_ctx;
 #define SCRUB_MAX_PAGES_PER_BLOCK	16	/* 64k per node/leaf/sector */
 
 struct scrub_recover {
-	atomic_t		refs;
+	refcount_t		refs;
 	struct btrfs_bio	*bbio;
 	u64			map_length;
 };
@@ -857,12 +857,12 @@ out:
 
 static inline void scrub_get_recover(struct scrub_recover *recover)
 {
-	atomic_inc(&recover->refs);
+	refcount_inc(&recover->refs);
 }
 
 static inline void scrub_put_recover(struct scrub_recover *recover)
 {
-	if (atomic_dec_and_test(&recover->refs)) {
+	if (refcount_dec_and_test(&recover->refs)) {
 		btrfs_put_bbio(recover->bbio);
 		kfree(recover);
 	}
@@ -1343,7 +1343,7 @@ static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 			return -ENOMEM;
 		}
 
-		atomic_set(&recover->refs, 1);
+		refcount_set(&recover->refs, 1);
 		recover->bbio = bbio;
 		recover->map_length = mapped_length;
 
