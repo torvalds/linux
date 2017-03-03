@@ -50,6 +50,14 @@ struct smc_firmware_header_v1_0 {
 };
 
 /* version_major=1, version_minor=0 */
+struct psp_firmware_header_v1_0 {
+	struct common_firmware_header header;
+	uint32_t ucode_feature_version;
+	uint32_t sos_offset_bytes;
+	uint32_t sos_size_bytes;
+};
+
+/* version_major=1, version_minor=0 */
 struct gfx_firmware_header_v1_0 {
 	struct common_firmware_header header;
 	uint32_t ucode_feature_version;
@@ -110,6 +118,7 @@ union amdgpu_firmware_header {
 	struct common_firmware_header common;
 	struct mc_firmware_header_v1_0 mc;
 	struct smc_firmware_header_v1_0 smc;
+	struct psp_firmware_header_v1_0 psp;
 	struct gfx_firmware_header_v1_0 gfx;
 	struct rlc_firmware_header_v1_0 rlc;
 	struct rlc_firmware_header_v2_0 rlc_v2_0;
