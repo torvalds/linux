@@ -60,8 +60,8 @@ static const unsigned int btrfs_blocked_trans_types[TRANS_STATE_MAX] = {
 
 void btrfs_put_transaction(struct btrfs_transaction *transaction)
 {
-	WARN_ON(atomic_read(&transaction->use_count) == 0);
-	if (atomic_dec_and_test(&transaction->use_count)) {
+	WARN_ON(refcount_read(&transaction->use_count) == 0);
+	if (refcount_dec_and_test(&transaction->use_count)) {
 		BUG_ON(!list_empty(&transaction->list));
 		WARN_ON(!RB_EMPTY_ROOT(&transaction->delayed_refs.href_root));
 		if (transaction->delayed_refs.pending_csums)
@@ -207,7 +207,7 @@ loop:
 			spin_unlock(&fs_info->trans_lock);
 			return -EBUSY;
 		}
-		atomic_inc(&cur_trans->use_count);
+		refcount_inc(&cur_trans->use_count);
 		atomic_inc(&cur_trans->num_writers);
 		extwriter_counter_inc(cur_trans, type);
 		spin_unlock(&fs_info->trans_lock);
@@ -257,7 +257,7 @@ loop:
 	 * One for this trans handle, one so it will live on until we
 	 * commit the transaction.
 	 */
-	atomic_set(&cur_trans->use_count, 2);
+	refcount_set(&cur_trans->use_count, 2);
 	atomic_set(&cur_trans->pending_ordered, 0);
 	cur_trans->flags = 0;
 	cur_trans->start_time = get_seconds();
@@ -432,7 +432,7 @@ static void wait_current_trans(struct btrfs_fs_info *fs_info)
 	spin_lock(&fs_info->trans_lock);
 	cur_trans = fs_info->running_transaction;
 	if (cur_trans && is_transaction_blocked(cur_trans)) {
-		atomic_inc(&cur_trans->use_count);
+		refcount_inc(&cur_trans->use_count);
 		spin_unlock(&fs_info->trans_lock);
 
 		wait_event(fs_info->transaction_wait,
@@ -744,7 +744,7 @@ int btrfs_wait_for_commit(struct btrfs_fs_info *fs_info, u64 transid)
 		list_for_each_entry(t, &fs_info->trans_list, list) {
 			if (t->transid == transid) {
 				cur_trans = t;
-				atomic_inc(&cur_trans->use_count);
+				refcount_inc(&cur_trans->use_count);
 				ret = 0;
 				break;
 			}
@@ -773,7 +773,7 @@ int btrfs_wait_for_commit(struct btrfs_fs_info *fs_info, u64 transid)
 				if (t->state == TRANS_STATE_COMPLETED)
 					break;
 				cur_trans = t;
-				atomic_inc(&cur_trans->use_count);
+				refcount_inc(&cur_trans->use_count);
 				break;
 			}
 		}
@@ -1839,7 +1839,7 @@ int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans,
 
 	/* take transaction reference */
 	cur_trans = trans->transaction;
-	atomic_inc(&cur_trans->use_count);
+	refcount_inc(&cur_trans->use_count);
 
 	btrfs_end_transaction(trans);
 
@@ -2015,7 +2015,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	spin_lock(&fs_info->trans_lock);
 	if (cur_trans->state >= TRANS_STATE_COMMIT_START) {
 		spin_unlock(&fs_info->trans_lock);
-		atomic_inc(&cur_trans->use_count);
+		refcount_inc(&cur_trans->use_count);
 		ret = btrfs_end_transaction(trans);
 
 		wait_for_commit(cur_trans);
@@ -2035,7 +2035,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 		prev_trans = list_entry(cur_trans->list.prev,
 					struct btrfs_transaction, list);
 		if (prev_trans->state != TRANS_STATE_COMPLETED) {
-			atomic_inc(&prev_trans->use_count);
+			refcount_inc(&prev_trans->use_count);
 			spin_unlock(&fs_info->trans_lock);
 
 			wait_for_commit(prev_trans);

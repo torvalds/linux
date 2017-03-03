@@ -4615,7 +4615,7 @@ static int btrfs_cleanup_transaction(struct btrfs_fs_info *fs_info)
 		t = list_first_entry(&fs_info->trans_list,
 				     struct btrfs_transaction, list);
 		if (t->state >= TRANS_STATE_COMMIT_START) {
-			atomic_inc(&t->use_count);
+			refcount_inc(&t->use_count);
 			spin_unlock(&fs_info->trans_lock);
 			btrfs_wait_for_commit(fs_info, t->transid);
 			btrfs_put_transaction(t);

@@ -10850,7 +10850,7 @@ static int btrfs_trim_free_extents(struct btrfs_device *device,
 		spin_lock(&fs_info->trans_lock);
 		trans = fs_info->running_transaction;
 		if (trans)
-			atomic_inc(&trans->use_count);
+			refcount_inc(&trans->use_count);
 		spin_unlock(&fs_info->trans_lock);
 
 		ret = find_free_dev_extent_start(trans, device, minlen, start,

@@ -623,7 +623,7 @@ void btrfs_remove_ordered_extent(struct inode *inode,
 		spin_lock(&fs_info->trans_lock);
 		trans = fs_info->running_transaction;
 		if (trans)
-			atomic_inc(&trans->use_count);
+			refcount_inc(&trans->use_count);
 		spin_unlock(&fs_info->trans_lock);
 
 		ASSERT(trans);
