@@ -4415,6 +4415,15 @@ static int __init set_graph_notrace_function(char *str)
 }
 __setup("ftrace_graph_notrace=", set_graph_notrace_function);
 
+static int __init set_graph_max_depth_function(char *str)
+{
+	if (!str)
+		return 0;
+	fgraph_max_depth = simple_strtoul(str, NULL, 0);
+	return 1;
+}
+__setup("ftrace_graph_max_depth=", set_graph_max_depth_function);
+
 static void __init set_ftrace_early_graph(char *buf, int enable)
 {
 	int ret;

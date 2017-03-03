@@ -1173,6 +1173,12 @@
 			functions that can be changed at run time by the
 			set_graph_notrace file in the debugfs tracing directory.
 
+	ftrace_graph_max_depth=<uint>
+			[FTRACE] Used with the function graph tracer. This is
+			the max depth it will trace into a function. This value
+			can be changed at run time by the max_graph_depth file
+			in the tracefs tracing directory. default: 0 (no limit)
+
 	gamecon.map[2|3]=
 			[HW,JOY] Multisystem joystick and NES/SNES/PSX pad
 			support via parallel port (up to 5 devices per port)
