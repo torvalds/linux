@@ -16,6 +16,7 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/rtc/ds1307.h>
 #include <linux/rtc.h>
 #include <linux/slab.h>
@@ -191,6 +192,65 @@ static const struct i2c_device_id ds1307_id[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ds1307_id);
+
+#ifdef CONFIG_OF
+static const struct of_device_id ds1307_of_match[] = {
+	{
+		.compatible = "dallas,ds1307",
+		.data = (void *)ds_1307
+	},
+	{
+		.compatible = "dallas,ds1337",
+		.data = (void *)ds_1337
+	},
+	{
+		.compatible = "dallas,ds1338",
+		.data = (void *)ds_1338
+	},
+	{
+		.compatible = "dallas,ds1339",
+		.data = (void *)ds_1339
+	},
+	{
+		.compatible = "dallas,ds1388",
+		.data = (void *)ds_1388
+	},
+	{
+		.compatible = "dallas,ds1340",
+		.data = (void *)ds_1340
+	},
+	{
+		.compatible = "maxim,ds3231",
+		.data = (void *)ds_3231
+	},
+	{
+		.compatible = "st,m41t00",
+		.data = (void *)m41t00
+	},
+	{
+		.compatible = "microchip,mcp7940x",
+		.data = (void *)mcp794xx
+	},
+	{
+		.compatible = "microchip,mcp7941x",
+		.data = (void *)mcp794xx
+	},
+	{
+		.compatible = "pericom,pt7c4338",
+		.data = (void *)ds_1307
+	},
+	{
+		.compatible = "epson,rx8025",
+		.data = (void *)rx_8025
+	},
+	{
+		.compatible = "isil,isl12057",
+		.data = (void *)ds_1337
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ds1307_of_match);
+#endif
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id ds1307_acpi_ids[] = {
@@ -1318,7 +1378,12 @@ static int ds1307_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, ds1307);
 
 	ds1307->client	= client;
-	if (id) {
+
+	if (client->dev.of_node) {
+		ds1307->type = (enum ds_type)
+			of_device_get_match_data(&client->dev);
+		chip = &chips[ds1307->type];
+	} else if (id) {
 		chip = &chips[id->driver_data];
 		ds1307->type = id->driver_data;
 	} else {
@@ -1711,6 +1776,7 @@ static int ds1307_remove(struct i2c_client *client)
 static struct i2c_driver ds1307_driver = {
 	.driver = {
 		.name	= "rtc-ds1307",
+		.of_match_table = of_match_ptr(ds1307_of_match),
 		.acpi_match_table = ACPI_PTR(ds1307_acpi_ids),
 	},
 	.probe		= ds1307_probe,
