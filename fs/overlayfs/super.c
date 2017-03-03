@@ -161,6 +161,25 @@ static void ovl_put_super(struct super_block *sb)
 	kfree(ufs);
 }
 
+static int ovl_sync_fs(struct super_block *sb, int wait)
+{
+	struct ovl_fs *ufs = sb->s_fs_info;
+	struct super_block *upper_sb;
+	int ret;
+
+	if (!ufs->upper_mnt)
+		return 0;
+	upper_sb = ufs->upper_mnt->mnt_sb;
+	if (!upper_sb->s_op->sync_fs)
+		return 0;
+
+	/* real inodes have already been synced by sync_filesystem(ovl_sb) */
+	down_read(&upper_sb->s_umount);
+	ret = upper_sb->s_op->sync_fs(upper_sb, wait);
+	up_read(&upper_sb->s_umount);
+	return ret;
+}
+
 /**
  * ovl_statfs
  * @sb: The overlayfs super block
@@ -223,6 +242,7 @@ static int ovl_remount(struct super_block *sb, int *flags, char *data)
 
 static const struct super_operations ovl_super_operations = {
 	.put_super	= ovl_put_super,
+	.sync_fs	= ovl_sync_fs,
 	.statfs		= ovl_statfs,
 	.show_options	= ovl_show_options,
 	.remount_fs	= ovl_remount,
@@ -702,6 +722,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	unsigned int stacklen = 0;
 	unsigned int i;
 	bool remote = false;
+	struct cred *cred;
 	int err;
 
 	err = -ENOMEM;
@@ -709,6 +730,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	if (!ufs)
 		goto out;
 
+	init_waitqueue_head(&ufs->copyup_wq);
 	ufs->config.redirect_dir = ovl_redirect_dir_def;
 	err = ovl_parse_opt((char *) data, &ufs->config);
 	if (err)
@@ -826,6 +848,8 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		 * creation of workdir in previous step.
 		 */
 		if (ufs->workdir) {
+			struct dentry *temp;
+
 			err = ovl_check_d_type_supported(&workpath);
 			if (err < 0)
 				goto out_put_workdir;
@@ -837,6 +861,14 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 			 */
 			if (!err)
 				pr_warn("overlayfs: upper fs needs to support d_type.\n");
+
+			/* Check if upper/work fs supports O_TMPFILE */
+			temp = ovl_do_tmpfile(ufs->workdir, S_IFREG | 0);
+			ufs->tmpfile = !IS_ERR(temp);
+			if (ufs->tmpfile)
+				dput(temp);
+			else
+				pr_warn("overlayfs: upper fs does not support tmpfile.\n");
 		}
 	}
 
@@ -871,9 +903,12 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	else
 		sb->s_d_op = &ovl_dentry_operations;
 
-	ufs->creator_cred = prepare_creds();
-	if (!ufs->creator_cred)
+	ufs->creator_cred = cred = prepare_creds();
+	if (!cred)
 		goto out_put_lower_mnt;
+
+	/* Never override disk quota limits or use reserved space */
+	cap_lower(cred->cap_effective, CAP_SYS_RESOURCE);
 
 	err = -ENOMEM;
 	oe = ovl_alloc_entry(numlower);

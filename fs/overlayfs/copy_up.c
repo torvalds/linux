@@ -21,6 +21,7 @@
 #include <linux/fdtable.h>
 #include <linux/ratelimit.h>
 #include "overlayfs.h"
+#include "ovl_entry.h"
 
 #define OVL_COPY_UP_CHUNK_SIZE (1 << 20)
 
@@ -233,12 +234,14 @@ int ovl_set_attr(struct dentry *upperdentry, struct kstat *stat)
 
 static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 			      struct dentry *dentry, struct path *lowerpath,
-			      struct kstat *stat, const char *link)
+			      struct kstat *stat, const char *link,
+			      struct kstat *pstat, bool tmpfile)
 {
 	struct inode *wdir = workdir->d_inode;
 	struct inode *udir = upperdir->d_inode;
 	struct dentry *newdentry = NULL;
 	struct dentry *upper = NULL;
+	struct dentry *temp = NULL;
 	int err;
 	const struct cred *old_creds = NULL;
 	struct cred *new_creds = NULL;
@@ -249,25 +252,30 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 		.link = link
 	};
 
-	newdentry = ovl_lookup_temp(workdir, dentry);
-	err = PTR_ERR(newdentry);
-	if (IS_ERR(newdentry))
-		goto out;
-
 	upper = lookup_one_len(dentry->d_name.name, upperdir,
 			       dentry->d_name.len);
 	err = PTR_ERR(upper);
 	if (IS_ERR(upper))
-		goto out1;
+		goto out;
 
 	err = security_inode_copy_up(dentry, &new_creds);
 	if (err < 0)
-		goto out2;
+		goto out1;
 
 	if (new_creds)
 		old_creds = override_creds(new_creds);
 
-	err = ovl_create_real(wdir, newdentry, &cattr, NULL, true);
+	if (tmpfile)
+		temp = ovl_do_tmpfile(upperdir, stat->mode);
+	else
+		temp = ovl_lookup_temp(workdir, dentry);
+	err = PTR_ERR(temp);
+	if (IS_ERR(temp))
+		goto out1;
+
+	err = 0;
+	if (!tmpfile)
+		err = ovl_create_real(wdir, temp, &cattr, NULL, true);
 
 	if (new_creds) {
 		revert_creds(old_creds);
@@ -282,39 +290,55 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 
 		ovl_path_upper(dentry, &upperpath);
 		BUG_ON(upperpath.dentry != NULL);
-		upperpath.dentry = newdentry;
+		upperpath.dentry = temp;
 
-		err = ovl_copy_up_data(lowerpath, &upperpath, stat->size);
+		if (tmpfile) {
+			inode_unlock(udir);
+			err = ovl_copy_up_data(lowerpath, &upperpath,
+					       stat->size);
+			inode_lock_nested(udir, I_MUTEX_PARENT);
+		} else {
+			err = ovl_copy_up_data(lowerpath, &upperpath,
+					       stat->size);
+		}
+
 		if (err)
 			goto out_cleanup;
 	}
 
-	err = ovl_copy_xattr(lowerpath->dentry, newdentry);
+	err = ovl_copy_xattr(lowerpath->dentry, temp);
 	if (err)
 		goto out_cleanup;
 
-	inode_lock(newdentry->d_inode);
-	err = ovl_set_attr(newdentry, stat);
-	inode_unlock(newdentry->d_inode);
+	inode_lock(temp->d_inode);
+	err = ovl_set_attr(temp, stat);
+	inode_unlock(temp->d_inode);
 	if (err)
 		goto out_cleanup;
 
-	err = ovl_do_rename(wdir, newdentry, udir, upper, 0);
+	if (tmpfile)
+		err = ovl_do_link(temp, udir, upper, true);
+	else
+		err = ovl_do_rename(wdir, temp, udir, upper, 0);
 	if (err)
 		goto out_cleanup;
 
+	newdentry = dget(tmpfile ? upper : temp);
 	ovl_dentry_update(dentry, newdentry);
 	ovl_inode_update(d_inode(dentry), d_inode(newdentry));
-	newdentry = NULL;
+
+	/* Restore timestamps on parent (best effort) */
+	ovl_set_timestamps(upperdir, pstat);
 out2:
-	dput(upper);
+	dput(temp);
 out1:
-	dput(newdentry);
+	dput(upper);
 out:
 	return err;
 
 out_cleanup:
-	ovl_cleanup(wdir, newdentry);
+	if (!tmpfile)
+		ovl_cleanup(wdir, temp);
 	goto out2;
 }
 
@@ -338,6 +362,7 @@ static int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 	struct dentry *lowerdentry = lowerpath->dentry;
 	struct dentry *upperdir;
 	const char *link = NULL;
+	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
 
 	if (WARN_ON(!workdir))
 		return -EROFS;
@@ -358,6 +383,25 @@ static int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 			return PTR_ERR(link);
 	}
 
+	/* Should we copyup with O_TMPFILE or with workdir? */
+	if (S_ISREG(stat->mode) && ofs->tmpfile) {
+		err = ovl_copy_up_start(dentry);
+		/* err < 0: interrupted, err > 0: raced with another copy-up */
+		if (unlikely(err)) {
+			pr_debug("ovl_copy_up_start(%pd2) = %i\n", dentry, err);
+			if (err > 0)
+				err = 0;
+			goto out_done;
+		}
+
+		inode_lock_nested(upperdir->d_inode, I_MUTEX_PARENT);
+		err = ovl_copy_up_locked(workdir, upperdir, dentry, lowerpath,
+					 stat, link, &pstat, true);
+		inode_unlock(upperdir->d_inode);
+		ovl_copy_up_end(dentry);
+		goto out_done;
+	}
+
 	err = -EIO;
 	if (lock_rename(workdir, upperdir) != NULL) {
 		pr_err("overlayfs: failed to lock workdir+upperdir\n");
@@ -370,13 +414,10 @@ static int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 	}
 
 	err = ovl_copy_up_locked(workdir, upperdir, dentry, lowerpath,
-				 stat, link);
-	if (!err) {
-		/* Restore timestamps on parent (best effort) */
-		ovl_set_timestamps(upperdir, &pstat);
-	}
+				 stat, link, &pstat, false);
 out_unlock:
 	unlock_rename(workdir, upperdir);
+out_done:
 	do_delayed_call(&done);
 
 	return err;
