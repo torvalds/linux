@@ -316,7 +316,8 @@ vc_vchi_audio_init(VCHI_INSTANCE_T vchi_instance,
 
 		LOG_DBG("%s: about to open %i\n", __func__, i);
 		status = vchi_service_open(vchi_instance, &params,
-			&instance->vchi_handle[i]);
+					   &instance->vchi_handle[i]);
+
 		LOG_DBG("%s: opened %i: %p=%d\n", __func__, i, instance->vchi_handle[i], status);
 		if (status) {
 			LOG_ERR("%s: failed to open VCHI service connection (status=%d)\n",
@@ -598,7 +599,7 @@ int bcm2835_audio_set_params(struct bcm2835_alsa_stream *alsa_stream,
 	LOG_DBG(" .. IN\n");
 
 	LOG_INFO(" Setting ALSA channels(%d), samplerate(%d), bits-per-sample(%d)\n",
-		channels, samplerate, bps);
+		 channels, samplerate, bps);
 
 	/* resend ctls - alsa_stream may not have been open when first send */
 	ret = bcm2835_audio_set_ctls_chan(alsa_stream, alsa_stream->chip);
@@ -822,7 +823,7 @@ static int bcm2835_audio_write_worker(struct bcm2835_alsa_stream *alsa_stream,
 	vchi_service_use(instance->vchi_handle[0]);
 
 	if (instance->peer_version == 0 &&
-			vchi_get_peer_version(instance->vchi_handle[0], &instance->peer_version) == 0)
+	    vchi_get_peer_version(instance->vchi_handle[0], &instance->peer_version) == 0)
 		LOG_DBG("%s: client version %d connected\n", __func__, instance->peer_version);
 
 	m.type = VC_AUDIO_MSG_TYPE_WRITE;
@@ -848,13 +849,11 @@ static int bcm2835_audio_write_worker(struct bcm2835_alsa_stream *alsa_stream,
 		if (!m.u.write.max_packet) {
 			/* Send the message to the videocore */
 			status = vchi_bulk_queue_transmit(instance->vchi_handle[0],
-				src, count,
-				0 *
-				VCHI_FLAGS_BLOCK_UNTIL_QUEUED
-				+
-				1 *
-				VCHI_FLAGS_BLOCK_UNTIL_DATA_READ,
-				NULL);
+							  src, count,
+							  0 * VCHI_FLAGS_BLOCK_UNTIL_QUEUED
+							  +
+							  1 * VCHI_FLAGS_BLOCK_UNTIL_DATA_READ,
+							  NULL);
 		} else {
 			while (count > 0) {
 				int bytes = min((int)m.u.write.max_packet, (int)count);
