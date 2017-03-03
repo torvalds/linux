@@ -48,7 +48,8 @@ amdgpu-y += \
 	amdgpu_ih.o \
 	iceland_ih.o \
 	tonga_ih.o \
-	cz_ih.o
+	cz_ih.o \
+	vega10_ih.o
 
 # add SMC block
 amdgpu-y += \
