@@ -5387,13 +5387,13 @@ err_out:
 	return error;
 }
 
-int ext4_getattr(struct vfsmount *mnt, struct dentry *dentry,
-		 struct kstat *stat)
+int ext4_getattr(const struct path *path, struct kstat *stat,
+		 u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode;
 	unsigned long long delalloc_blocks;
 
-	inode = d_inode(dentry);
+	inode = d_inode(path->dentry);
 	generic_fillattr(inode, stat);
 
 	/*

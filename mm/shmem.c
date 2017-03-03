@@ -959,10 +959,10 @@ void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
 }
 EXPORT_SYMBOL_GPL(shmem_truncate_range);
 
-static int shmem_getattr(struct vfsmount *mnt, struct dentry *dentry,
-			 struct kstat *stat)
+static int shmem_getattr(const struct path *path, struct kstat *stat,
+			 u32 request_mask, unsigned int query_flags)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = path->dentry->d_inode;
 	struct shmem_inode_info *info = SHMEM_I(inode);
 
 	if (info->alloced - info->swapped != inode->i_mapping->nrpages) {

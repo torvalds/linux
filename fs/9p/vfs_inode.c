@@ -1047,16 +1047,18 @@ done:
 
 /**
  * v9fs_vfs_getattr - retrieve file metadata
- * @mnt: mount information
- * @dentry: file to get attributes on
+ * @path: Object to query
  * @stat: metadata structure to populate
+ * @request_mask: Mask of STATX_xxx flags indicating the caller's interests
+ * @flags: AT_STATX_xxx setting
  *
  */
 
 static int
-v9fs_vfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
-		 struct kstat *stat)
+v9fs_vfs_getattr(const struct path *path, struct kstat *stat,
+		 u32 request_mask, unsigned int flags)
 {
+	struct dentry *dentry = path->dentry;
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid;
 	struct p9_wstat *st;

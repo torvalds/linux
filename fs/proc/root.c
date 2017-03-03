@@ -151,10 +151,10 @@ void __init proc_root_init(void)
 	proc_sys_init();
 }
 
-static int proc_root_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat
-)
+static int proc_root_getattr(const struct path *path, struct kstat *stat,
+			     u32 request_mask, unsigned int query_flags)
 {
-	generic_fillattr(d_inode(dentry), stat);
+	generic_fillattr(d_inode(path->dentry), stat);
 	stat->nlink = proc_root.nlink + nr_processes();
 	return 0;
 }

@@ -9413,11 +9413,11 @@ fail:
 	return -ENOMEM;
 }
 
-static int btrfs_getattr(struct vfsmount *mnt,
-			 struct dentry *dentry, struct kstat *stat)
+static int btrfs_getattr(const struct path *path, struct kstat *stat,
+			 u32 request_mask, unsigned int flags)
 {
 	u64 delalloc_bytes;
-	struct inode *inode = d_inode(dentry);
+	struct inode *inode = d_inode(path->dentry);
 	u32 blocksize = inode->i_sb->s_blocksize;
 
 	generic_fillattr(inode, stat);
