@@ -100,7 +100,7 @@ struct tveeprom {
  *			contain 256 bytes filled with the contents of the
  *			eeprom read from the Hauppauge device.
  */
-void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
+void tveeprom_hauppauge_analog(struct tveeprom *tvee,
 			       unsigned char *eeprom_data);
 
 /**

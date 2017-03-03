@@ -938,8 +938,8 @@ static int mxl111sf_init(struct dvb_usb_device *d)
 	ret = i2c_transfer(&d->i2c_adap, msg, 2);
 	if (mxl_fail(ret))
 		return 0;
-	tveeprom_hauppauge_analog(NULL, &state->tv, (0x84 == eeprom[0xa0]) ?
-			eeprom + 0xa0 : eeprom + 0x80);
+	tveeprom_hauppauge_analog(&state->tv, (0x84 == eeprom[0xa0]) ?
+				  eeprom + 0xa0 : eeprom + 0x80);
 #if 0
 	switch (state->tv.model) {
 	case 117001:

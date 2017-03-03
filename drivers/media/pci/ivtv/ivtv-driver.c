@@ -408,7 +408,7 @@ void ivtv_read_eeprom(struct ivtv *itv, struct tveeprom *tv)
 
 	itv->i2c_client.addr = 0xA0 >> 1;
 	tveeprom_read(&itv->i2c_client, eedata, sizeof(eedata));
-	tveeprom_hauppauge_analog(&itv->i2c_client, tv, eedata);
+	tveeprom_hauppauge_analog(tv, eedata);
 }
 
 static void ivtv_process_eeprom(struct ivtv *itv)

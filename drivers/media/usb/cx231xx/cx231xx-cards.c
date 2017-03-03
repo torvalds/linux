@@ -1165,8 +1165,7 @@ void cx231xx_card_setup(struct cx231xx *dev)
 			e->client.addr = 0xa0 >> 1;
 
 			read_eeprom(dev, &e->client, e->eeprom, sizeof(e->eeprom));
-			tveeprom_hauppauge_analog(&e->client,
-						&e->tvee, e->eeprom + 0xc0);
+			tveeprom_hauppauge_analog(&e->tvee, e->eeprom + 0xc0);
 			kfree(e);
 			break;
 		}
