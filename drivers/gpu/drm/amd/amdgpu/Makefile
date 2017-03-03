@@ -69,7 +69,8 @@ amdgpu-y += \
 # add async DMA block
 amdgpu-y += \
 	sdma_v2_4.o \
-	sdma_v3_0.o
+	sdma_v3_0.o \
+	sdma_v4_0.o
 
 # add UVD block
 amdgpu-y += \
