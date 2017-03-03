@@ -51,6 +51,11 @@ amdgpu-y += \
 	cz_ih.o \
 	vega10_ih.o
 
+# add PSP block
+amdgpu-y += \
+	amdgpu_psp.o \
+	psp_v3_1.o
+
 # add SMC block
 amdgpu-y += \
 	amdgpu_dpm.o \

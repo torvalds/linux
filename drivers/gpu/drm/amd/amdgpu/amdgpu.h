@@ -52,6 +52,7 @@
 #include "amdgpu_irq.h"
 #include "amdgpu_ucode.h"
 #include "amdgpu_ttm.h"
+#include "amdgpu_psp.h"
 #include "amdgpu_gds.h"
 #include "amdgpu_sync.h"
 #include "amdgpu_ring.h"
@@ -1213,6 +1214,10 @@ struct amdgpu_firmware {
 	struct amdgpu_bo *fw_buf;
 	unsigned int fw_size;
 	unsigned int max_ucodes;
+	/* firmwares are loaded by psp instead of smu from vega10 */
+	const struct amdgpu_psp_funcs *funcs;
+	struct amdgpu_bo *rbuf;
+	struct mutex mutex;
 };
 
 /*
@@ -1571,6 +1576,9 @@ struct amdgpu_device {
 	/* firmwares */
 	struct amdgpu_firmware		firmware;
 
+	/* PSP */
+	struct psp_context		psp;
+
 	/* GDS */
 	struct amdgpu_gds		gds;
 
@@ -1825,6 +1833,7 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_gfx_get_gpu_clock_counter(adev) (adev)->gfx.funcs->get_gpu_clock_counter((adev))
 #define amdgpu_gfx_select_se_sh(adev, se, sh, instance) (adev)->gfx.funcs->select_se_sh((adev), (se), (sh), (instance))
 #define amdgpu_gds_switch(adev, r, v, d, w, a) (adev)->gds.funcs->patch_gds_switch((r), (v), (d), (w), (a))
+#define amdgpu_psp_check_fw_loading_status(adev, i) (adev)->firmware.funcs->check_fw_loading_status((adev), (i))
 
 /* Common functions */
 int amdgpu_gpu_reset(struct amdgpu_device *adev);
