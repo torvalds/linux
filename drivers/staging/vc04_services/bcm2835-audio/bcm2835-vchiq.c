@@ -125,7 +125,7 @@ static void my_wq_function(struct work_struct *work)
 		LOG_ERR(" Unexpected work: %p:%d\n", w->alsa_stream, w->cmd);
 		break;
 	}
-	kfree((void *) work);
+	kfree((void *)work);
 	LOG_DBG(" .. OUT %d\n", ret);
 }
 
@@ -854,7 +854,7 @@ static int bcm2835_audio_write_worker(struct bcm2835_alsa_stream *alsa_stream,
 				NULL);
 		} else {
 			while (count > 0) {
-				int bytes = min((int) m.u.write.max_packet, (int) count);
+				int bytes = min((int)m.u.write.max_packet, (int)count);
 
 				status = bcm2835_vchi_msg_queue(instance->vchi_handle[0],
 								src, bytes);
