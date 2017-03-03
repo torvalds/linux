@@ -8036,6 +8036,9 @@ __init static int tracer_alloc_buffers(void)
 
 	register_tracer(&nop_trace);
 
+	/* Function tracing may start here (via kernel command line) */
+	init_function_trace();
+
 	/* All seems OK, enable tracing */
 	tracing_disabled = 0;
 
