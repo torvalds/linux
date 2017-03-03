@@ -914,7 +914,7 @@ static void dw_hdmi_phy_sel_interface_control(struct dw_hdmi *hdmi, u8 enable)
 			 HDMI_PHY_CONF0_SELDIPIF_MASK);
 }
 
-static int hdmi_phy_configure(struct dw_hdmi *hdmi, int cscon)
+static int hdmi_phy_configure(struct dw_hdmi *hdmi)
 {
 	u8 val, msec;
 	const struct dw_hdmi_plat_data *pdata = hdmi->plat_data;
@@ -945,14 +945,6 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi, int cscon)
 			hdmi->hdmi_data.video_mode.mpixelclock);
 		return -EINVAL;
 	}
-
-	/* Enable csc path */
-	if (cscon)
-		val = HDMI_MC_FLOWCTRL_FEED_THROUGH_OFF_CSC_IN_PATH;
-	else
-		val = HDMI_MC_FLOWCTRL_FEED_THROUGH_OFF_CSC_BYPASS;
-
-	hdmi_writeb(hdmi, val, HDMI_MC_FLOWCTRL);
 
 	/* gen2 tx power off */
 	dw_hdmi_phy_gen2_txpwron(hdmi, 0);
@@ -1028,10 +1020,6 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi, int cscon)
 static int dw_hdmi_phy_init(struct dw_hdmi *hdmi)
 {
 	int i, ret;
-	bool cscon;
-
-	/*check csc whether needed activated in HDMI mode */
-	cscon = hdmi->sink_is_hdmi && is_color_space_conversion(hdmi);
 
 	/* HDMI Phy spec says to do the phy initialization sequence twice */
 	for (i = 0; i < 2; i++) {
@@ -1040,8 +1028,7 @@ static int dw_hdmi_phy_init(struct dw_hdmi *hdmi)
 		dw_hdmi_phy_enable_tmds(hdmi, 0);
 		dw_hdmi_phy_enable_powerdown(hdmi, true);
 
-		/* Enable CSC */
-		ret = hdmi_phy_configure(hdmi, cscon);
+		ret = hdmi_phy_configure(hdmi);
 		if (ret)
 			return ret;
 	}
@@ -1303,6 +1290,14 @@ static void dw_hdmi_enable_video_path(struct dw_hdmi *hdmi)
 		clkdis &= ~HDMI_MC_CLKDIS_CSCCLK_DISABLE;
 		hdmi_writeb(hdmi, clkdis, HDMI_MC_CLKDIS);
 	}
+
+	/* Enable color space conversion if needed (for HDMI sinks only). */
+	if (hdmi->sink_is_hdmi && is_color_space_conversion(hdmi))
+		hdmi_writeb(hdmi, HDMI_MC_FLOWCTRL_FEED_THROUGH_OFF_CSC_IN_PATH,
+			    HDMI_MC_FLOWCTRL);
+	else
+		hdmi_writeb(hdmi, HDMI_MC_FLOWCTRL_FEED_THROUGH_OFF_CSC_BYPASS,
+			    HDMI_MC_FLOWCTRL);
 }
 
 static void hdmi_enable_audio_clk(struct dw_hdmi *hdmi)
