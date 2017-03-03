@@ -806,7 +806,7 @@ bool dc_commit_streams(
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	struct validate_context *context;
 	struct dc_validation_set set[MAX_STREAMS] = { {0, {0} } };
-	int i, j, k;
+	int i, j;
 
 	if (false == streams_changed(core_dc, streams, stream_count))
 		return DC_OK;
@@ -862,18 +862,10 @@ bool dc_commit_streams(
 		const struct core_sink *sink = context->streams[i]->sink;
 
 		for (j = 0; j < context->stream_status[i].surface_count; j++) {
-			const struct dc_surface *dc_surface =
-					context->stream_status[i].surfaces[j];
+			struct core_surface *surface =
+					DC_SURFACE_TO_CORE(context->stream_status[i].surfaces[j]);
 
-			for (k = 0; k < context->res_ctx.pool->pipe_count; k++) {
-				struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[k];
-
-				if (dc_surface != &pipe->surface->public
-						|| !dc_surface->visible)
-					continue;
-
-				pipe->tg->funcs->set_blank(pipe->tg, false);
-			}
+			core_dc->hwss.apply_ctx_for_surface(core_dc, surface, context);
 		}
 
 		CONN_MSG_MODE(sink->link, "{%dx%d, %dx%d@%dKhz}",
