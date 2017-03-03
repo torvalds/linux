@@ -260,10 +260,12 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 	return AMDGPU_FW_LOAD_DIRECT;
 }
 
-static int amdgpu_ucode_init_single_fw(struct amdgpu_firmware_info *ucode,
-				uint64_t mc_addr, void *kptr)
+static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
+				       struct amdgpu_firmware_info *ucode,
+				       uint64_t mc_addr, void *kptr)
 {
 	const struct common_firmware_header *header = NULL;
+	const struct gfx_firmware_header_v1_0 *cp_hdr = NULL;
 
 	if (NULL == ucode->fw)
 		return 0;
@@ -276,11 +278,35 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_firmware_info *ucode,
 
 	header = (const struct common_firmware_header *)ucode->fw->data;
 
-	ucode->ucode_size = le32_to_cpu(header->ucode_size_bytes);
+	cp_hdr = (const struct gfx_firmware_header_v1_0 *)ucode->fw->data;
 
-	memcpy(ucode->kaddr, (void *)((uint8_t *)ucode->fw->data +
-	       le32_to_cpu(header->ucode_array_offset_bytes)),
-	       ucode->ucode_size);
+	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP ||
+	    (ucode->ucode_id != AMDGPU_UCODE_ID_CP_MEC1 &&
+	     ucode->ucode_id != AMDGPU_UCODE_ID_CP_MEC2 &&
+	     ucode->ucode_id != AMDGPU_UCODE_ID_CP_MEC1_JT &&
+	     ucode->ucode_id != AMDGPU_UCODE_ID_CP_MEC2_JT)) {
+		ucode->ucode_size = le32_to_cpu(header->ucode_size_bytes);
+
+		memcpy(ucode->kaddr, (void *)((uint8_t *)ucode->fw->data +
+					      le32_to_cpu(header->ucode_array_offset_bytes)),
+		       ucode->ucode_size);
+	} else if (ucode->ucode_id == AMDGPU_UCODE_ID_CP_MEC1 ||
+		   ucode->ucode_id == AMDGPU_UCODE_ID_CP_MEC2) {
+		ucode->ucode_size = le32_to_cpu(header->ucode_size_bytes) -
+			le32_to_cpu(cp_hdr->jt_size) * 4;
+
+		memcpy(ucode->kaddr, (void *)((uint8_t *)ucode->fw->data +
+					      le32_to_cpu(header->ucode_array_offset_bytes)),
+		       ucode->ucode_size);
+	} else if (ucode->ucode_id == AMDGPU_UCODE_ID_CP_MEC1_JT ||
+		   ucode->ucode_id == AMDGPU_UCODE_ID_CP_MEC2_JT) {
+		ucode->ucode_size = le32_to_cpu(cp_hdr->jt_size) * 4;
+
+		memcpy(ucode->kaddr, (void *)((uint8_t *)ucode->fw->data +
+					      le32_to_cpu(header->ucode_array_offset_bytes) +
+					      le32_to_cpu(cp_hdr->jt_offset) * 4),
+		       ucode->ucode_size);
+	}
 
 	return 0;
 }
@@ -306,9 +332,10 @@ static int amdgpu_ucode_patch_jt(struct amdgpu_firmware_info *ucode,
 			   (le32_to_cpu(header->jt_offset) * 4);
 	memcpy(dst_addr, src_addr, le32_to_cpu(header->jt_size) * 4);
 
+	ucode->ucode_size += le32_to_cpu(header->jt_size) * 4;
+
 	return 0;
 }
-
 
 int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 {
@@ -316,7 +343,7 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 	uint64_t fw_mc_addr;
 	void *fw_buf_ptr = NULL;
 	uint64_t fw_offset = 0;
-	int i, err, max;
+	int i, err;
 	struct amdgpu_firmware_info *ucode = NULL;
 	const struct common_firmware_header *header = NULL;
 
@@ -349,29 +376,32 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 
 	amdgpu_bo_unreserve(*bo);
 
+	memset(fw_buf_ptr, 0, adev->firmware.fw_size);
+
 	/*
 	 * if SMU loaded firmware, it needn't add SMC, UVD, and VCE
 	 * ucode info here
 	 */
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
-		max = AMDGPU_UCODE_ID_MAXIMUM - 3;
+		adev->firmware.max_ucodes = AMDGPU_UCODE_ID_MAXIMUM - 4;
 	else
-		max = AMDGPU_UCODE_ID_MAXIMUM;
+		adev->firmware.max_ucodes = AMDGPU_UCODE_ID_MAXIMUM;
 
-	for (i = 0; i < max; i++) {
+	for (i = 0; i < adev->firmware.max_ucodes; i++) {
 		ucode = &adev->firmware.ucode[i];
 		if (ucode->fw) {
 			header = (const struct common_firmware_header *)ucode->fw->data;
-			amdgpu_ucode_init_single_fw(ucode, fw_mc_addr + fw_offset,
-						    fw_buf_ptr + fw_offset);
-			if (i == AMDGPU_UCODE_ID_CP_MEC1) {
+			amdgpu_ucode_init_single_fw(adev, ucode, fw_mc_addr + fw_offset,
+						    (void *)((uint8_t *)fw_buf_ptr + fw_offset));
+			if (i == AMDGPU_UCODE_ID_CP_MEC1 &&
+			    adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
 				const struct gfx_firmware_header_v1_0 *cp_hdr;
 				cp_hdr = (const struct gfx_firmware_header_v1_0 *)ucode->fw->data;
 				amdgpu_ucode_patch_jt(ucode, fw_mc_addr + fw_offset,
 						    fw_buf_ptr + fw_offset);
 				fw_offset += ALIGN(le32_to_cpu(cp_hdr->jt_size) << 2, PAGE_SIZE);
 			}
-			fw_offset += ALIGN(le32_to_cpu(header->ucode_size_bytes), PAGE_SIZE);
+			fw_offset += ALIGN(ucode->ucode_size, PAGE_SIZE);
 		}
 	}
 	return 0;
@@ -393,14 +423,8 @@ int amdgpu_ucode_fini_bo(struct amdgpu_device *adev)
 {
 	int i;
 	struct amdgpu_firmware_info *ucode = NULL;
-	int max;
 
-	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
-		max = AMDGPU_UCODE_ID_MAXIMUM - 3;
-	else
-		max = AMDGPU_UCODE_ID_MAXIMUM;
-
-	for (i = 0; i < max; i++) {
+	for (i = 0; i < adev->firmware.max_ucodes; i++) {
 		ucode = &adev->firmware.ucode[i];
 		if (ucode->fw) {
 			ucode->mc_addr = 0;

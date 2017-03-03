@@ -1181,6 +1181,7 @@ struct amdgpu_firmware {
 	enum amdgpu_firmware_load_type load_type;
 	struct amdgpu_bo *fw_buf;
 	unsigned int fw_size;
+	unsigned int max_ucodes;
 };
 
 /*
