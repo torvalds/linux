@@ -449,6 +449,8 @@ __acquires(&gl->gl_lockref.lock)
 	unsigned int lck_flags = (unsigned int)(gh ? gh->gh_flags : 0);
 	int ret;
 
+	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		return;
 	lck_flags &= (LM_FLAG_TRY | LM_FLAG_TRY_1CB | LM_FLAG_NOEXP |
 		      LM_FLAG_PRIORITY);
 	GLOCK_BUG_ON(gl, gl->gl_state == target);

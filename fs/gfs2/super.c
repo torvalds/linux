@@ -793,7 +793,8 @@ static void gfs2_dirty_inode(struct inode *inode, int flags)
 
 	if (!(flags & (I_DIRTY_DATASYNC|I_DIRTY_SYNC)))
 		return;
-
+	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		return;
 	if (!gfs2_glock_is_locked_by_me(ip->i_gl)) {
 		ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 		if (ret) {
