@@ -309,7 +309,7 @@ vc_vchi_audio_init(VCHI_INSTANCE_T vchi_instance,
 			0, // tx fifo size (unused)
 			audio_vchi_callback, // service callback
 			instance, // service callback parameter
-			1, //TODO: remove VCOS_FALSE,   // unaligned bulk recieves
+			1, //TODO: remove VCOS_FALSE,   // unaligned bulk receives
 			1, //TODO: remove VCOS_FALSE,   // unaligned bulk transmits
 			0 // want crc check on bulk transfers
 		};
