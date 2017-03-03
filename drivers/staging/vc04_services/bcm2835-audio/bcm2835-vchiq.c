@@ -145,8 +145,9 @@ int bcm2835_audio_start(struct bcm2835_alsa_stream *alsa_stream)
 			work->cmd = BCM2835_AUDIO_START;
 			if (queue_work(alsa_stream->my_wq, &work->my_work))
 				ret = 0;
-		} else
+		} else {
 			LOG_ERR(" .. Error: NULL work kmalloc\n");
+		}
 	}
 	LOG_DBG(" .. OUT %d\n", ret);
 	return ret;
@@ -168,8 +169,9 @@ int bcm2835_audio_stop(struct bcm2835_alsa_stream *alsa_stream)
 			work->cmd = BCM2835_AUDIO_STOP;
 			if (queue_work(alsa_stream->my_wq, &work->my_work))
 				ret = 0;
-		} else
+		} else {
 			LOG_ERR(" .. Error: NULL work kmalloc\n");
+		}
 	}
 	LOG_DBG(" .. OUT %d\n", ret);
 	return ret;
@@ -194,8 +196,9 @@ int bcm2835_audio_write(struct bcm2835_alsa_stream *alsa_stream,
 			work->count = count;
 			if (queue_work(alsa_stream->my_wq, &work->my_work))
 				ret = 0;
-		} else
+		} else {
 			LOG_ERR(" .. Error: NULL work kmalloc\n");
+		}
 	}
 	LOG_DBG(" .. OUT %d\n", ret);
 	return ret;
