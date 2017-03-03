@@ -239,17 +239,16 @@ void bcma_prepare_core(struct bcma_bus *bus, struct bcma_device *core)
 	core->dev.release = bcma_release_core_dev;
 	core->dev.bus = &bcma_bus_type;
 	dev_set_name(&core->dev, "bcma%d:%d", bus->num, core->core_index);
+	core->dev.parent = bcma_bus_get_host_dev(bus);
 
 	switch (bus->hosttype) {
 	case BCMA_HOSTTYPE_PCI:
-		core->dev.parent = &bus->host_pci->dev;
 		core->dma_dev = &bus->host_pci->dev;
 		core->irq = bus->host_pci->irq;
 		break;
 	case BCMA_HOSTTYPE_SOC:
 		if (IS_ENABLED(CONFIG_OF) && bus->host_pdev) {
 			core->dma_dev = &bus->host_pdev->dev;
-			core->dev.parent = &bus->host_pdev->dev;
 			if (core->dev.parent)
 				bcma_of_fill_device(core->dev.parent, core);
 		} else {
