@@ -892,7 +892,7 @@ search_again:
 	head = btrfs_find_delayed_ref_head(delayed_refs, bytenr);
 	if (head) {
 		if (!mutex_trylock(&head->mutex)) {
-			atomic_inc(&head->node.refs);
+			refcount_inc(&head->node.refs);
 			spin_unlock(&delayed_refs->lock);
 
 			btrfs_release_path(path);
@@ -2980,7 +2980,7 @@ again:
 				struct btrfs_delayed_ref_node *ref;
 
 				ref = &head->node;
-				atomic_inc(&ref->refs);
+				refcount_inc(&ref->refs);
 
 				spin_unlock(&delayed_refs->lock);
 				/*
@@ -3057,7 +3057,7 @@ static noinline int check_delayed_ref(struct btrfs_root *root,
 	}
 
 	if (!mutex_trylock(&head->mutex)) {
-		atomic_inc(&head->node.refs);
+		refcount_inc(&head->node.refs);
 		spin_unlock(&delayed_refs->lock);
 
 		btrfs_release_path(path);

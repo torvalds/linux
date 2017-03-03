@@ -4343,7 +4343,7 @@ static int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 		head = rb_entry(node, struct btrfs_delayed_ref_head,
 				href_node);
 		if (!mutex_trylock(&head->mutex)) {
-			atomic_inc(&head->node.refs);
+			refcount_inc(&head->node.refs);
 			spin_unlock(&delayed_refs->lock);
 
 			mutex_lock(&head->mutex);
