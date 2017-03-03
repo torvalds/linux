@@ -77,10 +77,20 @@ void blk_mq_freeze_queue_start(struct request_queue *q)
 }
 EXPORT_SYMBOL_GPL(blk_mq_freeze_queue_start);
 
-static void blk_mq_freeze_queue_wait(struct request_queue *q)
+void blk_mq_freeze_queue_wait(struct request_queue *q)
 {
 	wait_event(q->mq_freeze_wq, percpu_ref_is_zero(&q->q_usage_counter));
 }
+EXPORT_SYMBOL_GPL(blk_mq_freeze_queue_wait);
+
+int blk_mq_freeze_queue_wait_timeout(struct request_queue *q,
+				     unsigned long timeout)
+{
+	return wait_event_timeout(q->mq_freeze_wq,
+					percpu_ref_is_zero(&q->q_usage_counter),
+					timeout);
+}
+EXPORT_SYMBOL_GPL(blk_mq_freeze_queue_wait_timeout);
 
 /*
  * Guarantee no request is in use, so we can change any data structure of
@@ -236,6 +246,7 @@ struct request *__blk_mq_alloc_request(struct blk_mq_alloc_data *data,
 			}
 			rq->tag = tag;
 			rq->internal_tag = -1;
+			data->hctx->tags->rqs[rq->tag] = rq;
 		}
 
 		blk_mq_rq_ctx_init(data->q, data->ctx, rq, op);
@@ -275,10 +286,9 @@ EXPORT_SYMBOL(blk_mq_alloc_request);
 struct request *blk_mq_alloc_request_hctx(struct request_queue *q, int rw,
 		unsigned int flags, unsigned int hctx_idx)
 {
-	struct blk_mq_hw_ctx *hctx;
-	struct blk_mq_ctx *ctx;
+	struct blk_mq_alloc_data alloc_data = { .flags = flags };
 	struct request *rq;
-	struct blk_mq_alloc_data alloc_data;
+	unsigned int cpu;
 	int ret;
 
 	/*
@@ -301,25 +311,23 @@ struct request *blk_mq_alloc_request_hctx(struct request_queue *q, int rw,
 	 * Check if the hardware context is actually mapped to anything.
 	 * If not tell the caller that it should skip this queue.
 	 */
-	hctx = q->queue_hw_ctx[hctx_idx];
-	if (!blk_mq_hw_queue_mapped(hctx)) {
-		ret = -EXDEV;
-		goto out_queue_exit;
+	alloc_data.hctx = q->queue_hw_ctx[hctx_idx];
+	if (!blk_mq_hw_queue_mapped(alloc_data.hctx)) {
+		blk_queue_exit(q);
+		return ERR_PTR(-EXDEV);
 	}
-	ctx = __blk_mq_get_ctx(q, cpumask_first(hctx->cpumask));
+	cpu = cpumask_first(alloc_data.hctx->cpumask);
+	alloc_data.ctx = __blk_mq_get_ctx(q, cpu);
 
-	blk_mq_set_alloc_data(&alloc_data, q, flags, ctx, hctx);
-	rq = __blk_mq_alloc_request(&alloc_data, rw);
-	if (!rq) {
-		ret = -EWOULDBLOCK;
-		goto out_queue_exit;
-	}
+	rq = blk_mq_sched_get_request(q, NULL, rw, &alloc_data);
+
+	blk_mq_put_ctx(alloc_data.ctx);
+	blk_queue_exit(q);
+
+	if (!rq)
+		return ERR_PTR(-EWOULDBLOCK);
 
 	return rq;
-
-out_queue_exit:
-	blk_queue_exit(q);
-	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(blk_mq_alloc_request_hctx);
 
@@ -854,6 +862,9 @@ done:
 		return true;
 	}
 
+	if (blk_mq_tag_is_reserved(data.hctx->sched_tags, rq->internal_tag))
+		data.flags |= BLK_MQ_REQ_RESERVED;
+
 	rq->tag = blk_mq_get_tag(&data);
 	if (rq->tag >= 0) {
 		if (blk_mq_tag_busy(data.hctx)) {
@@ -867,12 +878,9 @@ done:
 	return false;
 }
 
-static void blk_mq_put_driver_tag(struct blk_mq_hw_ctx *hctx,
-				  struct request *rq)
+static void __blk_mq_put_driver_tag(struct blk_mq_hw_ctx *hctx,
+				    struct request *rq)
 {
-	if (rq->tag == -1 || rq->internal_tag == -1)
-		return;
-
 	blk_mq_put_tag(hctx, hctx->tags, rq->mq_ctx, rq->tag);
 	rq->tag = -1;
 
@@ -880,6 +888,26 @@ static void blk_mq_put_driver_tag(struct blk_mq_hw_ctx *hctx,
 		rq->rq_flags &= ~RQF_MQ_INFLIGHT;
 		atomic_dec(&hctx->nr_active);
 	}
+}
+
+static void blk_mq_put_driver_tag_hctx(struct blk_mq_hw_ctx *hctx,
+				       struct request *rq)
+{
+	if (rq->tag == -1 || rq->internal_tag == -1)
+		return;
+
+	__blk_mq_put_driver_tag(hctx, rq);
+}
+
+static void blk_mq_put_driver_tag(struct request *rq)
+{
+	struct blk_mq_hw_ctx *hctx;
+
+	if (rq->tag == -1 || rq->internal_tag == -1)
+		return;
+
+	hctx = blk_mq_map_queue(rq->q, rq->mq_ctx->cpu);
+	__blk_mq_put_driver_tag(hctx, rq);
 }
 
 /*
@@ -991,7 +1019,19 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list)
 
 		bd.rq = rq;
 		bd.list = dptr;
-		bd.last = list_empty(list);
+
+		/*
+		 * Flag last if we have no more requests, or if we have more
+		 * but can't assign a driver tag to it.
+		 */
+		if (list_empty(list))
+			bd.last = true;
+		else {
+			struct request *nxt;
+
+			nxt = list_first_entry(list, struct request, queuelist);
+			bd.last = !blk_mq_get_driver_tag(nxt, NULL, false);
+		}
 
 		ret = q->mq_ops->queue_rq(hctx, &bd);
 		switch (ret) {
@@ -999,7 +1039,7 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list)
 			queued++;
 			break;
 		case BLK_MQ_RQ_QUEUE_BUSY:
-			blk_mq_put_driver_tag(hctx, rq);
+			blk_mq_put_driver_tag_hctx(hctx, rq);
 			list_add(&rq->queuelist, list);
 			__blk_mq_requeue_request(rq);
 			break;
@@ -1029,6 +1069,13 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list)
 	 * that is where we will continue on next queue run.
 	 */
 	if (!list_empty(list)) {
+		/*
+		 * If we got a driver tag for the next request already,
+		 * free it again.
+		 */
+		rq = list_first_entry(list, struct request, queuelist);
+		blk_mq_put_driver_tag(rq);
+
 		spin_lock(&hctx->lock);
 		list_splice_init(list, &hctx->dispatch);
 		spin_unlock(&hctx->lock);
@@ -1715,16 +1762,20 @@ struct blk_mq_tags *blk_mq_alloc_rq_map(struct blk_mq_tag_set *set,
 					unsigned int reserved_tags)
 {
 	struct blk_mq_tags *tags;
+	int node;
 
-	tags = blk_mq_init_tags(nr_tags, reserved_tags,
-				set->numa_node,
+	node = blk_mq_hw_queue_to_node(set->mq_map, hctx_idx);
+	if (node == NUMA_NO_NODE)
+		node = set->numa_node;
+
+	tags = blk_mq_init_tags(nr_tags, reserved_tags, node,
 				BLK_MQ_FLAG_TO_ALLOC_POLICY(set->flags));
 	if (!tags)
 		return NULL;
 
 	tags->rqs = kzalloc_node(nr_tags * sizeof(struct request *),
 				 GFP_NOIO | __GFP_NOWARN | __GFP_NORETRY,
-				 set->numa_node);
+				 node);
 	if (!tags->rqs) {
 		blk_mq_free_tags(tags);
 		return NULL;
@@ -1732,7 +1783,7 @@ struct blk_mq_tags *blk_mq_alloc_rq_map(struct blk_mq_tag_set *set,
 
 	tags->static_rqs = kzalloc_node(nr_tags * sizeof(struct request *),
 				 GFP_NOIO | __GFP_NOWARN | __GFP_NORETRY,
-				 set->numa_node);
+				 node);
 	if (!tags->static_rqs) {
 		kfree(tags->rqs);
 		blk_mq_free_tags(tags);
@@ -1752,6 +1803,11 @@ int blk_mq_alloc_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
 {
 	unsigned int i, j, entries_per_page, max_order = 4;
 	size_t rq_size, left;
+	int node;
+
+	node = blk_mq_hw_queue_to_node(set->mq_map, hctx_idx);
+	if (node == NUMA_NO_NODE)
+		node = set->numa_node;
 
 	INIT_LIST_HEAD(&tags->page_list);
 
@@ -1773,7 +1829,7 @@ int blk_mq_alloc_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
 			this_order--;
 
 		do {
-			page = alloc_pages_node(set->numa_node,
+			page = alloc_pages_node(node,
 				GFP_NOIO | __GFP_NOWARN | __GFP_NORETRY | __GFP_ZERO,
 				this_order);
 			if (page)
@@ -1806,7 +1862,7 @@ int blk_mq_alloc_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
 			if (set->ops->init_request) {
 				if (set->ops->init_request(set->driver_data,
 						rq, hctx_idx, i,
-						set->numa_node)) {
+						node)) {
 					tags->static_rqs[i] = NULL;
 					goto fail;
 				}
