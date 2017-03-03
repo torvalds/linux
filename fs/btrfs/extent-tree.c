@@ -4135,10 +4135,10 @@ static u64 btrfs_space_info_used(struct btrfs_space_info *s_info,
 		(may_use_included ? s_info->bytes_may_use : 0);
 }
 
-int btrfs_alloc_data_chunk_ondemand(struct inode *inode, u64 bytes)
+int btrfs_alloc_data_chunk_ondemand(struct btrfs_inode *inode, u64 bytes)
 {
 	struct btrfs_space_info *data_sinfo;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	u64 used;
 	int ret = 0;
@@ -4281,7 +4281,7 @@ int btrfs_check_data_free_space(struct inode *inode, u64 start, u64 len)
 	      round_down(start, fs_info->sectorsize);
 	start = round_down(start, fs_info->sectorsize);
 
-	ret = btrfs_alloc_data_chunk_ondemand(inode, len);
+	ret = btrfs_alloc_data_chunk_ondemand(BTRFS_I(inode), len);
 	if (ret < 0)
 		return ret;
 
@@ -5742,10 +5742,10 @@ void btrfs_trans_release_chunk_metadata(struct btrfs_trans_handle *trans)
 
 /* Can only return 0 or -ENOSPC */
 int btrfs_orphan_reserve_metadata(struct btrfs_trans_handle *trans,
-				  struct inode *inode)
+				  struct btrfs_inode *inode)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
+	struct btrfs_root *root = inode->root;
 	/*
 	 * We always use trans->block_rsv here as we will have reserved space
 	 * for our orphan when starting the transaction, using get_block_rsv()
@@ -5762,19 +5762,19 @@ int btrfs_orphan_reserve_metadata(struct btrfs_trans_handle *trans,
 	 */
 	u64 num_bytes = btrfs_calc_trans_metadata_size(fs_info, 1);
 
-	trace_btrfs_space_reservation(fs_info, "orphan",
-				      btrfs_ino(BTRFS_I(inode)), num_bytes, 1);
+	trace_btrfs_space_reservation(fs_info, "orphan", btrfs_ino(inode), 
+			num_bytes, 1);
 	return btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes, 1);
 }
 
-void btrfs_orphan_release_metadata(struct inode *inode)
+void btrfs_orphan_release_metadata(struct btrfs_inode *inode)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
+	struct btrfs_root *root = inode->root;
 	u64 num_bytes = btrfs_calc_trans_metadata_size(fs_info, 1);
 
-	trace_btrfs_space_reservation(fs_info, "orphan",
-				      btrfs_ino(BTRFS_I(inode)), num_bytes, 0);
+	trace_btrfs_space_reservation(fs_info, "orphan", btrfs_ino(inode),
+			num_bytes, 0);
 	btrfs_block_rsv_release(fs_info, root->orphan_block_rsv, num_bytes);
 }
 
@@ -5846,7 +5846,8 @@ void btrfs_subvolume_release_metadata(struct btrfs_fs_info *fs_info,
  * reserved extents that need to be freed.  This must be called with
  * BTRFS_I(inode)->lock held.
  */
-static unsigned drop_outstanding_extent(struct inode *inode, u64 num_bytes)
+static unsigned drop_outstanding_extent(struct btrfs_inode *inode,
+		u64 num_bytes)
 {
 	unsigned drop_inode_space = 0;
 	unsigned dropped_extents = 0;
@@ -5854,25 +5855,23 @@ static unsigned drop_outstanding_extent(struct inode *inode, u64 num_bytes)
 
 	num_extents = count_max_extents(num_bytes);
 	ASSERT(num_extents);
-	ASSERT(BTRFS_I(inode)->outstanding_extents >= num_extents);
-	BTRFS_I(inode)->outstanding_extents -= num_extents;
+	ASSERT(inode->outstanding_extents >= num_extents);
+	inode->outstanding_extents -= num_extents;
 
-	if (BTRFS_I(inode)->outstanding_extents == 0 &&
+	if (inode->outstanding_extents == 0 &&
 	    test_and_clear_bit(BTRFS_INODE_DELALLOC_META_RESERVED,
-			       &BTRFS_I(inode)->runtime_flags))
+			       &inode->runtime_flags))
 		drop_inode_space = 1;
 
 	/*
 	 * If we have more or the same amount of outstanding extents than we have
 	 * reserved then we need to leave the reserved extents count alone.
 	 */
-	if (BTRFS_I(inode)->outstanding_extents >=
-	    BTRFS_I(inode)->reserved_extents)
+	if (inode->outstanding_extents >= inode->reserved_extents)
 		return drop_inode_space;
 
-	dropped_extents = BTRFS_I(inode)->reserved_extents -
-		BTRFS_I(inode)->outstanding_extents;
-	BTRFS_I(inode)->reserved_extents -= dropped_extents;
+	dropped_extents = inode->reserved_extents - inode->outstanding_extents;
+	inode->reserved_extents -= dropped_extents;
 	return dropped_extents + drop_inode_space;
 }
 
@@ -5894,24 +5893,21 @@ static unsigned drop_outstanding_extent(struct inode *inode, u64 num_bytes)
  *
  * This must be called with BTRFS_I(inode)->lock held.
  */
-static u64 calc_csum_metadata_size(struct inode *inode, u64 num_bytes,
+static u64 calc_csum_metadata_size(struct btrfs_inode *inode, u64 num_bytes,
 				   int reserve)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
 	u64 old_csums, num_csums;
 
-	if (BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM &&
-	    BTRFS_I(inode)->csum_bytes == 0)
+	if (inode->flags & BTRFS_INODE_NODATASUM && inode->csum_bytes == 0)
 		return 0;
 
-	old_csums = btrfs_csum_bytes_to_leaves(fs_info,
-					       BTRFS_I(inode)->csum_bytes);
+	old_csums = btrfs_csum_bytes_to_leaves(fs_info, inode->csum_bytes);
 	if (reserve)
-		BTRFS_I(inode)->csum_bytes += num_bytes;
+		inode->csum_bytes += num_bytes;
 	else
-		BTRFS_I(inode)->csum_bytes -= num_bytes;
-	num_csums = btrfs_csum_bytes_to_leaves(fs_info,
-					       BTRFS_I(inode)->csum_bytes);
+		inode->csum_bytes -= num_bytes;
+	num_csums = btrfs_csum_bytes_to_leaves(fs_info, inode->csum_bytes);
 
 	/* No change, no need to reserve more */
 	if (old_csums == num_csums)
@@ -5924,10 +5920,10 @@ static u64 calc_csum_metadata_size(struct inode *inode, u64 num_bytes,
 	return btrfs_calc_trans_metadata_size(fs_info, old_csums - num_csums);
 }
 
-int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
+int btrfs_delalloc_reserve_metadata(struct btrfs_inode *inode, u64 num_bytes)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
+	struct btrfs_root *root = inode->root;
 	struct btrfs_block_rsv *block_rsv = &fs_info->delalloc_block_rsv;
 	u64 to_reserve = 0;
 	u64 csum_bytes;
@@ -5959,25 +5955,24 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 		schedule_timeout(1);
 
 	if (delalloc_lock)
-		mutex_lock(&BTRFS_I(inode)->delalloc_mutex);
+		mutex_lock(&inode->delalloc_mutex);
 
 	num_bytes = ALIGN(num_bytes, fs_info->sectorsize);
 
-	spin_lock(&BTRFS_I(inode)->lock);
+	spin_lock(&inode->lock);
 	nr_extents = count_max_extents(num_bytes);
-	BTRFS_I(inode)->outstanding_extents += nr_extents;
+	inode->outstanding_extents += nr_extents;
 
 	nr_extents = 0;
-	if (BTRFS_I(inode)->outstanding_extents >
-	    BTRFS_I(inode)->reserved_extents)
-		nr_extents += BTRFS_I(inode)->outstanding_extents -
-			BTRFS_I(inode)->reserved_extents;
+	if (inode->outstanding_extents > inode->reserved_extents)
+		nr_extents += inode->outstanding_extents -
+			inode->reserved_extents;
 
 	/* We always want to reserve a slot for updating the inode. */
 	to_reserve = btrfs_calc_trans_metadata_size(fs_info, nr_extents + 1);
 	to_reserve += calc_csum_metadata_size(inode, num_bytes, 1);
-	csum_bytes = BTRFS_I(inode)->csum_bytes;
-	spin_unlock(&BTRFS_I(inode)->lock);
+	csum_bytes = inode->csum_bytes;
+	spin_unlock(&inode->lock);
 
 	if (test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags)) {
 		ret = btrfs_qgroup_reserve_meta(root,
@@ -5993,38 +5988,38 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 		goto out_fail;
 	}
 
-	spin_lock(&BTRFS_I(inode)->lock);
+	spin_lock(&inode->lock);
 	if (test_and_set_bit(BTRFS_INODE_DELALLOC_META_RESERVED,
-			     &BTRFS_I(inode)->runtime_flags)) {
+			     &inode->runtime_flags)) {
 		to_reserve -= btrfs_calc_trans_metadata_size(fs_info, 1);
 		release_extra = true;
 	}
-	BTRFS_I(inode)->reserved_extents += nr_extents;
-	spin_unlock(&BTRFS_I(inode)->lock);
+	inode->reserved_extents += nr_extents;
+	spin_unlock(&inode->lock);
 
 	if (delalloc_lock)
-		mutex_unlock(&BTRFS_I(inode)->delalloc_mutex);
+		mutex_unlock(&inode->delalloc_mutex);
 
 	if (to_reserve)
 		trace_btrfs_space_reservation(fs_info, "delalloc",
-				      btrfs_ino(BTRFS_I(inode)), to_reserve, 1);
+					      btrfs_ino(inode), to_reserve, 1);
 	if (release_extra)
 		btrfs_block_rsv_release(fs_info, block_rsv,
 				btrfs_calc_trans_metadata_size(fs_info, 1));
 	return 0;
 
 out_fail:
-	spin_lock(&BTRFS_I(inode)->lock);
+	spin_lock(&inode->lock);
 	dropped = drop_outstanding_extent(inode, num_bytes);
 	/*
 	 * If the inodes csum_bytes is the same as the original
 	 * csum_bytes then we know we haven't raced with any free()ers
 	 * so we can just reduce our inodes csum bytes and carry on.
 	 */
-	if (BTRFS_I(inode)->csum_bytes == csum_bytes) {
+	if (inode->csum_bytes == csum_bytes) {
 		calc_csum_metadata_size(inode, num_bytes, 0);
 	} else {
-		u64 orig_csum_bytes = BTRFS_I(inode)->csum_bytes;
+		u64 orig_csum_bytes = inode->csum_bytes;
 		u64 bytes;
 
 		/*
@@ -6035,8 +6030,8 @@ out_fail:
 		 * number of bytes that were freed while we were trying our
 		 * reservation.
 		 */
-		bytes = csum_bytes - BTRFS_I(inode)->csum_bytes;
-		BTRFS_I(inode)->csum_bytes = csum_bytes;
+		bytes = csum_bytes - inode->csum_bytes;
+		inode->csum_bytes = csum_bytes;
 		to_free = calc_csum_metadata_size(inode, bytes, 0);
 
 
@@ -6045,7 +6040,7 @@ out_fail:
 		 * been making this reservation and our ->csum_bytes were not
 		 * artificially inflated.
 		 */
-		BTRFS_I(inode)->csum_bytes = csum_bytes - num_bytes;
+		inode->csum_bytes = csum_bytes - num_bytes;
 		bytes = csum_bytes - orig_csum_bytes;
 		bytes = calc_csum_metadata_size(inode, bytes, 0);
 
@@ -6057,23 +6052,23 @@ out_fail:
 		 * need to do anything, the other free-ers did the correct
 		 * thing.
 		 */
-		BTRFS_I(inode)->csum_bytes = orig_csum_bytes - num_bytes;
+		inode->csum_bytes = orig_csum_bytes - num_bytes;
 		if (bytes > to_free)
 			to_free = bytes - to_free;
 		else
 			to_free = 0;
 	}
-	spin_unlock(&BTRFS_I(inode)->lock);
+	spin_unlock(&inode->lock);
 	if (dropped)
 		to_free += btrfs_calc_trans_metadata_size(fs_info, dropped);
 
 	if (to_free) {
 		btrfs_block_rsv_release(fs_info, block_rsv, to_free);
 		trace_btrfs_space_reservation(fs_info, "delalloc",
-				      btrfs_ino(BTRFS_I(inode)), to_free, 0);
+					      btrfs_ino(inode), to_free, 0);
 	}
 	if (delalloc_lock)
-		mutex_unlock(&BTRFS_I(inode)->delalloc_mutex);
+		mutex_unlock(&inode->delalloc_mutex);
 	return ret;
 }
 
@@ -6086,27 +6081,27 @@ out_fail:
  * once we complete IO for a given set of bytes to release their metadata
  * reservations.
  */
-void btrfs_delalloc_release_metadata(struct inode *inode, u64 num_bytes)
+void btrfs_delalloc_release_metadata(struct btrfs_inode *inode, u64 num_bytes)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
 	u64 to_free = 0;
 	unsigned dropped;
 
 	num_bytes = ALIGN(num_bytes, fs_info->sectorsize);
-	spin_lock(&BTRFS_I(inode)->lock);
+	spin_lock(&inode->lock);
 	dropped = drop_outstanding_extent(inode, num_bytes);
 
 	if (num_bytes)
 		to_free = calc_csum_metadata_size(inode, num_bytes, 0);
-	spin_unlock(&BTRFS_I(inode)->lock);
+	spin_unlock(&inode->lock);
 	if (dropped > 0)
 		to_free += btrfs_calc_trans_metadata_size(fs_info, dropped);
 
 	if (btrfs_is_testing(fs_info))
 		return;
 
-	trace_btrfs_space_reservation(fs_info, "delalloc",
-				      btrfs_ino(BTRFS_I(inode)), to_free, 0);
+	trace_btrfs_space_reservation(fs_info, "delalloc", btrfs_ino(inode),
+				      to_free, 0);
 
 	btrfs_block_rsv_release(fs_info, &fs_info->delalloc_block_rsv, to_free);
 }
@@ -6141,7 +6136,7 @@ int btrfs_delalloc_reserve_space(struct inode *inode, u64 start, u64 len)
 	ret = btrfs_check_data_free_space(inode, start, len);
 	if (ret < 0)
 		return ret;
-	ret = btrfs_delalloc_reserve_metadata(inode, len);
+	ret = btrfs_delalloc_reserve_metadata(BTRFS_I(inode), len);
 	if (ret < 0)
 		btrfs_free_reserved_data_space(inode, start, len);
 	return ret;
@@ -6164,7 +6159,7 @@ int btrfs_delalloc_reserve_space(struct inode *inode, u64 start, u64 len)
  */
 void btrfs_delalloc_release_space(struct inode *inode, u64 start, u64 len)
 {
-	btrfs_delalloc_release_metadata(inode, len);
+	btrfs_delalloc_release_metadata(BTRFS_I(inode), len);
 	btrfs_free_reserved_data_space(inode, start, len);
 }
 
@@ -9740,6 +9735,11 @@ void btrfs_put_block_group_cache(struct btrfs_fs_info *info)
 	}
 }
 
+/*
+ * Must be called only after stopping all workers, since we could have block
+ * group caching kthreads running, and therefore they could race with us if we
+ * freed the block groups before stopping them.
+ */
 int btrfs_free_block_groups(struct btrfs_fs_info *info)
 {
 	struct btrfs_block_group_cache *block_group;
@@ -9779,9 +9779,6 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 		list_del(&block_group->list);
 		up_write(&block_group->space_info->groups_sem);
 
-		if (block_group->cached == BTRFS_CACHE_STARTED)
-			wait_block_group_cache_done(block_group);
-
 		/*
 		 * We haven't cached this block group, which means we could
 		 * possibly have excluded extents on this block group.
@@ -9791,6 +9788,7 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 			free_excluded_extents(info, block_group);
 
 		btrfs_remove_free_space_cache(block_group);
+		ASSERT(block_group->cached != BTRFS_CACHE_STARTED);
 		ASSERT(list_empty(&block_group->dirty_list));
 		ASSERT(list_empty(&block_group->io_list));
 		ASSERT(list_empty(&block_group->bg_list));
@@ -10342,7 +10340,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	mutex_unlock(&trans->transaction->cache_write_mutex);
 
 	if (!IS_ERR(inode)) {
-		ret = btrfs_orphan_add(trans, inode);
+		ret = btrfs_orphan_add(trans, BTRFS_I(inode));
 		if (ret) {
 			btrfs_add_delayed_iput(inode);
 			goto out;
