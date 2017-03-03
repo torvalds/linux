@@ -545,6 +545,9 @@ asmlinkage __visible void __init start_kernel(void)
 	trap_init();
 	mm_init();
 
+	/* trace_printk can be enabled here */
+	early_trace_init();
+
 	/*
 	 * Set up the scheduler prior starting any interrupts (such as the
 	 * timer interrupt). Full topology setup happens at smp_init()
@@ -570,7 +573,7 @@ asmlinkage __visible void __init start_kernel(void)
 
 	rcu_init();
 
-	/* trace_printk() and trace points may be used after this */
+	/* Trace events are available after this */
 	trace_init();
 
 	context_tracking_init();

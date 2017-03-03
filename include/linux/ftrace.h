@@ -42,8 +42,10 @@
 /* Main tracing buffer and events set up */
 #ifdef CONFIG_TRACING
 void trace_init(void);
+void early_trace_init(void);
 #else
 static inline void trace_init(void) { }
+static inline void early_trace_init(void) { }
 #endif
 
 struct module;
