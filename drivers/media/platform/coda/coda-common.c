@@ -1378,7 +1378,7 @@ static void coda_buf_queue(struct vb2_buffer *vb)
 		v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, vbuf);
 		if (vb2_is_streaming(vb->vb2_queue))
 			/* This set buf->sequence = ctx->qsequence++ */
-			coda_fill_bitstream(ctx, true);
+			coda_fill_bitstream(ctx, NULL);
 		mutex_unlock(&ctx->bitstream_mutex);
 	} else {
 		if (ctx->inst_type == CODA_INST_ENCODER &&
@@ -1433,18 +1433,22 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 	struct coda_ctx *ctx = vb2_get_drv_priv(q);
 	struct v4l2_device *v4l2_dev = &ctx->dev->v4l2_dev;
 	struct coda_q_data *q_data_src, *q_data_dst;
+	struct v4l2_m2m_buffer *m2m_buf, *tmp;
 	struct vb2_v4l2_buffer *buf;
+	struct list_head list;
 	int ret = 0;
 
 	if (count < 1)
 		return -EINVAL;
+
+	INIT_LIST_HEAD(&list);
 
 	q_data_src = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
 	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
 		if (ctx->inst_type == CODA_INST_DECODER && ctx->use_bit) {
 			/* copy the buffers that were queued before streamon */
 			mutex_lock(&ctx->bitstream_mutex);
-			coda_fill_bitstream(ctx, false);
+			coda_fill_bitstream(ctx, &list);
 			mutex_unlock(&ctx->bitstream_mutex);
 
 			if (coda_get_bitstream_payload(ctx) < 512) {
@@ -1460,7 +1464,7 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 
 	/* Don't start the coda unless both queues are on */
 	if (!(ctx->streamon_out && ctx->streamon_cap))
-		return 0;
+		goto out;
 
 	q_data_dst = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
 	if ((q_data_src->width != q_data_dst->width &&
@@ -1495,15 +1499,26 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 	ret = ctx->ops->start_streaming(ctx);
 	if (ctx->inst_type == CODA_INST_DECODER) {
 		if (ret == -EAGAIN)
-			return 0;
-		else if (ret < 0)
-			goto err;
+			goto out;
 	}
+	if (ret < 0)
+		goto err;
 
-	return ret;
+out:
+	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
+		list_for_each_entry_safe(m2m_buf, tmp, &list, list) {
+			list_del(&m2m_buf->list);
+			v4l2_m2m_buf_done(&m2m_buf->vb, VB2_BUF_STATE_DONE);
+		}
+	}
+	return 0;
 
 err:
 	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
+		list_for_each_entry_safe(m2m_buf, tmp, &list, list) {
+			list_del(&m2m_buf->list);
+			v4l2_m2m_buf_done(&m2m_buf->vb, VB2_BUF_STATE_QUEUED);
+		}
 		while ((buf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx)))
 			v4l2_m2m_buf_done(buf, VB2_BUF_STATE_QUEUED);
 	} else {

@@ -224,7 +224,7 @@ static bool coda_bitstream_try_queue(struct coda_ctx *ctx,
 	return true;
 }
 
-void coda_fill_bitstream(struct coda_ctx *ctx, bool streaming)
+void coda_fill_bitstream(struct coda_ctx *ctx, struct list_head *buffer_list)
 {
 	struct vb2_v4l2_buffer *src_buf;
 	struct coda_buffer_meta *meta;
@@ -252,9 +252,16 @@ void coda_fill_bitstream(struct coda_ctx *ctx, bool streaming)
 				 "dropping invalid JPEG frame %d\n",
 				 ctx->qsequence);
 			src_buf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
-			v4l2_m2m_buf_done(src_buf, streaming ?
-					  VB2_BUF_STATE_ERROR :
-					  VB2_BUF_STATE_QUEUED);
+			if (buffer_list) {
+				struct v4l2_m2m_buffer *m2m_buf;
+
+				m2m_buf = container_of(src_buf,
+						       struct v4l2_m2m_buffer,
+						       vb);
+				list_add_tail(&m2m_buf->list, buffer_list);
+			} else {
+				v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_ERROR);
+			}
 			continue;
 		}
 
@@ -295,7 +302,16 @@ void coda_fill_bitstream(struct coda_ctx *ctx, bool streaming)
 				trace_coda_bit_queue(ctx, src_buf, meta);
 			}
 
-			v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
+			if (buffer_list) {
+				struct v4l2_m2m_buffer *m2m_buf;
+
+				m2m_buf = container_of(src_buf,
+						       struct v4l2_m2m_buffer,
+						       vb);
+				list_add_tail(&m2m_buf->list, buffer_list);
+			} else {
+				v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
+			}
 		} else {
 			break;
 		}
@@ -1747,7 +1763,7 @@ static int coda_prepare_decode(struct coda_ctx *ctx)
 
 	/* Try to copy source buffer contents into the bitstream ringbuffer */
 	mutex_lock(&ctx->bitstream_mutex);
-	coda_fill_bitstream(ctx, true);
+	coda_fill_bitstream(ctx, NULL);
 	mutex_unlock(&ctx->bitstream_mutex);
 
 	if (coda_get_bitstream_payload(ctx) < 512 &&

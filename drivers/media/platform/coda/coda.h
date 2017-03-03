@@ -259,7 +259,7 @@ int coda_decoder_queue_init(void *priv, struct vb2_queue *src_vq,
 
 int coda_hw_reset(struct coda_ctx *ctx);
 
-void coda_fill_bitstream(struct coda_ctx *ctx, bool streaming);
+void coda_fill_bitstream(struct coda_ctx *ctx, struct list_head *buffer_list);
 
 void coda_set_gdi_regs(struct coda_ctx *ctx);
 
