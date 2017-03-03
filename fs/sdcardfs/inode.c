@@ -20,6 +20,7 @@
 
 #include "sdcardfs.h"
 #include <linux/fs_struct.h>
+#include <linux/ratelimit.h>
 
 /* Do not directly use this function. Use OVERRIDE_CRED() instead. */
 const struct cred * override_fsids(struct sdcardfs_sb_info* sbi, struct sdcardfs_inode_info *info)
@@ -599,7 +600,7 @@ static const char *sdcardfs_follow_link(struct dentry *dentry, void **cookie)
 
 static int sdcardfs_permission_wrn(struct inode *inode, int mask)
 {
-	WARN(1, "sdcardfs does not support permission. Use permission2.\n");
+	WARN_RATELIMIT(1, "sdcardfs does not support permission. Use permission2.\n");
 	return -EINVAL;
 }
 
@@ -684,7 +685,7 @@ static int sdcardfs_permission(struct vfsmount *mnt, struct inode *inode, int ma
 
 static int sdcardfs_setattr_wrn(struct dentry *dentry, struct iattr *ia)
 {
-	WARN(1, "sdcardfs does not support setattr. User setattr2.\n");
+	WARN_RATELIMIT(1, "sdcardfs does not support setattr. User setattr2.\n");
 	return -EINVAL;
 }
 
