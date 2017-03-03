@@ -1046,6 +1046,9 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 	core_dc->hwss.set_bandwidth(core_dc, context, true);
 
 	resource_validate_ctx_destruct(core_dc->current_context);
+	if (core_dc->current_context)
+		dm_free(core_dc->current_context);
+
 	core_dc->current_context = context;
 
 	return true;
