@@ -280,6 +280,13 @@ static int acpi_processor_get_info(struct acpi_device *device)
 		pr->acpi_id = value;
 	}
 
+	if (acpi_duplicate_processor_id(pr->acpi_id)) {
+		dev_err(&device->dev,
+			"Failed to get unique processor _UID (0x%x)\n",
+			pr->acpi_id);
+		return -ENODEV;
+	}
+
 	pr->phys_id = acpi_get_phys_id(pr->handle, device_declaration,
 					pr->acpi_id);
 	if (invalid_phys_cpuid(pr->phys_id))
@@ -580,7 +587,7 @@ static struct acpi_scan_handler processor_container_handler = {
 static int nr_unique_ids __initdata;
 
 /* The number of the duplicate processor IDs */
-static int nr_duplicate_ids __initdata;
+static int nr_duplicate_ids;
 
 /* Used to store the unique processor IDs */
 static int unique_processor_ids[] __initdata = {
@@ -588,7 +595,7 @@ static int unique_processor_ids[] __initdata = {
 };
 
 /* Used to store the duplicate processor IDs */
-static int duplicate_processor_ids[] __initdata = {
+static int duplicate_processor_ids[] = {
 	[0 ... NR_CPUS - 1] = -1,
 };
 
@@ -679,7 +686,7 @@ void __init acpi_processor_check_duplicates(void)
 						NULL, NULL);
 }
 
-bool __init acpi_processor_validate_proc_id(int proc_id)
+bool acpi_duplicate_processor_id(int proc_id)
 {
 	int i;
 

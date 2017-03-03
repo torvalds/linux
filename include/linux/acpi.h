@@ -287,7 +287,7 @@ static inline bool invalid_phys_cpuid(phys_cpuid_t phys_id)
 }
 
 /* Validate the processor object's proc_id */
-bool acpi_processor_validate_proc_id(int proc_id);
+bool acpi_duplicate_processor_id(int proc_id);
 
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
 /* Arch dependent functions for cpu hotplug support */
