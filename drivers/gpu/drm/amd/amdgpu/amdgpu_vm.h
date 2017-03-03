@@ -67,6 +67,10 @@ struct amdgpu_bo_list_entry;
 
 #define AMDGPU_PTE_PRT		(1ULL << 63)
 
+/* VEGA10 only */
+#define AMDGPU_PTE_MTYPE(a)    ((uint64_t)a << 57)
+#define AMDGPU_PTE_MTYPE_MASK	AMDGPU_PTE_MTYPE(3ULL)
+
 /* How to programm VM fault handling */
 #define AMDGPU_VM_FAULT_STOP_NEVER	0
 #define AMDGPU_VM_FAULT_STOP_FIRST	1
