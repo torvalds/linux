@@ -249,7 +249,8 @@ void tcp_delack_timer_handler(struct sock *sk)
 
 	sk_mem_reclaim_partial(sk);
 
-	if (sk->sk_state == TCP_CLOSE || !(icsk->icsk_ack.pending & ICSK_ACK_TIMER))
+	if (((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_LISTEN)) ||
+	    !(icsk->icsk_ack.pending & ICSK_ACK_TIMER))
 		goto out;
 
 	if (time_after(icsk->icsk_ack.timeout, jiffies)) {
@@ -552,7 +553,8 @@ void tcp_write_timer_handler(struct sock *sk)
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	int event;
 
-	if (sk->sk_state == TCP_CLOSE || !icsk->icsk_pending)
+	if (((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_LISTEN)) ||
+	    !icsk->icsk_pending)
 		goto out;
 
 	if (time_after(icsk->icsk_timeout, jiffies)) {
