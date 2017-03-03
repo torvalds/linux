@@ -196,6 +196,9 @@ static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
 	for_each_engine(engine, i915, id) {
 		struct intel_timeline *tl = &timeline->engine[id];
 
+		if (wait_for(intel_engine_is_idle(engine), 50))
+			return -EBUSY;
+
 		if (!i915_seqno_passed(seqno, tl->seqno)) {
 			/* spin until threads are complete */
 			while (intel_breadcrumbs_busy(engine))

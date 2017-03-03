@@ -1071,6 +1071,37 @@ int intel_ring_workarounds_emit(struct drm_i915_gem_request *req)
 	return 0;
 }
 
+/**
+ * intel_engine_is_idle() - Report if the engine has finished process all work
+ * @engine: the intel_engine_cs
+ *
+ * Return true if there are no requests pending, nothing left to be submitted
+ * to hardware, and that the engine is idle.
+ */
+bool intel_engine_is_idle(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+
+	/* Any inflight/incomplete requests? */
+	if (!i915_seqno_passed(intel_engine_get_seqno(engine),
+			       intel_engine_last_submit(engine)))
+		return false;
+
+	/* Interrupt/tasklet pending? */
+	if (test_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted))
+		return false;
+
+	/* Both ports drained, no more ELSP submission? */
+	if (engine->execlist_port[0].request)
+		return false;
+
+	/* Ring stopped? */
+	if (INTEL_GEN(dev_priv) > 2 && !(I915_READ_MODE(engine) & MODE_IDLE))
+		return false;
+
+	return true;
+}
+
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 #include "selftests/mock_engine.c"
 #endif

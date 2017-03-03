@@ -664,4 +664,6 @@ static inline u32 *gen8_emit_pipe_control(u32 *batch, u32 flags, u32 offset)
 	return batch + 6;
 }
 
+bool intel_engine_is_idle(struct intel_engine_cs *engine);
+
 #endif /* _INTEL_RINGBUFFER_H_ */
