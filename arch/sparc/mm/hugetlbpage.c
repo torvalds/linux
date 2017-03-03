@@ -261,7 +261,7 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 		if (!pmd)
 			return NULL;
 
-		if (sz == PMD_SHIFT)
+		if (sz >= PMD_SIZE)
 			pte = (pte_t *)pmd;
 		else
 			pte = pte_alloc_map(mm, pmd, addr);
