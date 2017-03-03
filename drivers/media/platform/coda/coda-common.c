@@ -1459,7 +1459,7 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 	}
 
 	/* Don't start the coda unless both queues are on */
-	if (!(ctx->streamon_out & ctx->streamon_cap))
+	if (!(ctx->streamon_out && ctx->streamon_cap))
 		return 0;
 
 	q_data_dst = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
