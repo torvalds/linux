@@ -316,14 +316,14 @@ get_caching_control(struct btrfs_block_group_cache *cache)
 	}
 
 	ctl = cache->caching_ctl;
-	atomic_inc(&ctl->count);
+	refcount_inc(&ctl->count);
 	spin_unlock(&cache->lock);
 	return ctl;
 }
 
 static void put_caching_control(struct btrfs_caching_control *ctl)
 {
-	if (atomic_dec_and_test(&ctl->count))
+	if (refcount_dec_and_test(&ctl->count))
 		kfree(ctl);
 }
 
@@ -599,7 +599,7 @@ static int cache_block_group(struct btrfs_block_group_cache *cache,
 	init_waitqueue_head(&caching_ctl->wait);
 	caching_ctl->block_group = cache;
 	caching_ctl->progress = cache->key.objectid;
-	atomic_set(&caching_ctl->count, 1);
+	refcount_set(&caching_ctl->count, 1);
 	btrfs_init_work(&caching_ctl->work, btrfs_cache_helper,
 			caching_thread, NULL, NULL);
 
@@ -620,7 +620,7 @@ static int cache_block_group(struct btrfs_block_group_cache *cache,
 		struct btrfs_caching_control *ctl;
 
 		ctl = cache->caching_ctl;
-		atomic_inc(&ctl->count);
+		refcount_inc(&ctl->count);
 		prepare_to_wait(&ctl->wait, &wait, TASK_UNINTERRUPTIBLE);
 		spin_unlock(&cache->lock);
 
@@ -707,7 +707,7 @@ static int cache_block_group(struct btrfs_block_group_cache *cache,
 	}
 
 	down_write(&fs_info->commit_root_sem);
-	atomic_inc(&caching_ctl->count);
+	refcount_inc(&caching_ctl->count);
 	list_add_tail(&caching_ctl->list, &fs_info->caching_block_groups);
 	up_write(&fs_info->commit_root_sem);
 
@@ -10416,7 +10416,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 				    &fs_info->caching_block_groups, list)
 				if (ctl->block_group == block_group) {
 					caching_ctl = ctl;
-					atomic_inc(&caching_ctl->count);
+					refcount_inc(&caching_ctl->count);
 					break;
 				}
 		}

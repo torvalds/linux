@@ -39,6 +39,7 @@
 #include <linux/security.h>
 #include <linux/sizes.h>
 #include <linux/dynamic_debug.h>
+#include <linux/refcount.h>
 #include "extent_io.h"
 #include "extent_map.h"
 #include "async-thread.h"
@@ -518,7 +519,7 @@ struct btrfs_caching_control {
 	struct btrfs_work work;
 	struct btrfs_block_group_cache *block_group;
 	u64 progress;
-	atomic_t count;
+	refcount_t count;
 };
 
 /* Once caching_thread() finds this much free space, it will wake up waiters. */
