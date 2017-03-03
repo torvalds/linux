@@ -1222,7 +1222,7 @@ struct btrfs_root {
 	dev_t anon_dev;
 
 	spinlock_t root_item_lock;
-	atomic_t refs;
+	refcount_t refs;
 
 	struct mutex delalloc_mutex;
 	spinlock_t delalloc_lock;
