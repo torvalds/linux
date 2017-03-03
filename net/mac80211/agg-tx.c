@@ -670,14 +670,14 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	tid_tx->timeout = timeout;
 
 	/* response timer */
-	tid_tx->addba_resp_timer.function = sta_addba_resp_timer_expired;
-	tid_tx->addba_resp_timer.data = (unsigned long)&sta->timer_to_tid[tid];
-	init_timer(&tid_tx->addba_resp_timer);
+	setup_timer(&tid_tx->addba_resp_timer,
+		    sta_addba_resp_timer_expired,
+		    (unsigned long)&sta->timer_to_tid[tid]);
 
 	/* tx timer */
-	tid_tx->session_timer.function = sta_tx_agg_session_timer_expired;
-	tid_tx->session_timer.data = (unsigned long)&sta->timer_to_tid[tid];
-	init_timer_deferrable(&tid_tx->session_timer);
+	setup_deferrable_timer(&tid_tx->session_timer,
+			       sta_tx_agg_session_timer_expired,
+			       (unsigned long)&sta->timer_to_tid[tid]);
 
 	/* assign a dialog token */
 	sta->ampdu_mlme.dialog_token_allocator++;
