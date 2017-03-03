@@ -1230,17 +1230,12 @@ bool dce110_clk_src_construct(
 			goto unexpected_failure;
 		}
 
-		if (clk_src->ref_freq_khz == 48000) {
-			calc_pll_cs_init_data_hdmi.
-				min_override_input_pxl_clk_pll_freq_khz = 24000;
-			calc_pll_cs_init_data_hdmi.
-				max_override_input_pxl_clk_pll_freq_khz = 48000;
-		} else if (clk_src->ref_freq_khz == 100000) {
-			calc_pll_cs_init_data_hdmi.
-				min_override_input_pxl_clk_pll_freq_khz = 25000;
-			calc_pll_cs_init_data_hdmi.
-				max_override_input_pxl_clk_pll_freq_khz = 50000;
-		}
+
+		calc_pll_cs_init_data_hdmi.
+				min_override_input_pxl_clk_pll_freq_khz = clk_src->ref_freq_khz/2;
+		calc_pll_cs_init_data_hdmi.
+				max_override_input_pxl_clk_pll_freq_khz = clk_src->ref_freq_khz;
+
 
 		if (!calc_pll_max_vco_construct(
 				&clk_src->calc_pll_hdmi, &calc_pll_cs_init_data_hdmi)) {

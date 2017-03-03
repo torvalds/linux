@@ -467,6 +467,8 @@ static bool construct(struct core_dc *dc,
 	else {
 		/* Create BIOS parser */
 		struct bp_init_data bp_init_data;
+		struct firmware_info fw_info = { { 0 } };
+
 		bp_init_data.ctx = dc_ctx;
 		bp_init_data.bios = init_params->asic_id.atombios_base_address;
 
@@ -479,7 +481,13 @@ static bool construct(struct core_dc *dc,
 		}
 
 		dc_ctx->created_bios = true;
-	}
+
+		if (dc_ctx->dc_bios->funcs->get_firmware_info(
+				dc_ctx->dc_bios, &fw_info) == BP_RESULT_OK) {
+				dc->ctx->ref_clock_inKhz = fw_info.pll_info.crystal_frequency;
+		} else
+			ASSERT_CRITICAL(false);
+		}
 
 	/* Create I2C AUX */
 	dc_ctx->i2caux = dal_i2caux_create(dc_ctx);
