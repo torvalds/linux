@@ -1777,6 +1777,23 @@ static int bnx2x_vf_mbx_qfilters(struct bnx2x *bp, struct bnx2x_virtf *vf)
 				goto op_err;
 		}
 
+		/* build vlan list */
+		fl = NULL;
+
+		rc = bnx2x_vf_mbx_macvlan_list(bp, vf, msg, &fl,
+					       VFPF_VLAN_FILTER);
+		if (rc)
+			goto op_err;
+
+		if (fl) {
+			/* set vlan list */
+			rc = bnx2x_vf_mac_vlan_config_list(bp, vf, fl,
+							   msg->vf_qid,
+							   false);
+			if (rc)
+				goto op_err;
+		}
+
 	}
 
 	if (msg->flags & VFPF_SET_Q_FILTERS_RX_MASK_CHANGED) {
