@@ -442,9 +442,16 @@ static const struct i2c_device_id ds3232_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ds3232_id);
 
+static const struct of_device_id ds3232_of_match[] = {
+	{ .compatible = "dallas,ds3232" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ds3232_of_match);
+
 static struct i2c_driver ds3232_driver = {
 	.driver = {
 		.name = "rtc-ds3232",
+		.of_match_table = of_match_ptr(ds3232_of_match),
 		.pm	= &ds3232_pm_ops,
 	},
 	.probe = ds3232_i2c_probe,
