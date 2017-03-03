@@ -734,6 +734,8 @@ struct drm_dp_aux_msg {
  * @dev: pointer to struct device that is the parent for this AUX channel
  * @crtc: backpointer to the crtc that is currently using this AUX channel
  * @hw_mutex: internal mutex used for locking transfers
+ * @crc_work: worker that captures CRCs for each frame
+ * @crc_count: counter of captured frame CRCs
  * @transfer: transfers a message representing a single AUX transaction
  *
  * The .dev field should be set to a pointer to the device that implements
@@ -771,6 +773,8 @@ struct drm_dp_aux {
 	struct device *dev;
 	struct drm_crtc *crtc;
 	struct mutex hw_mutex;
+	struct work_struct crc_work;
+	u8 crc_count;
 	ssize_t (*transfer)(struct drm_dp_aux *aux,
 			    struct drm_dp_aux_msg *msg);
 	/**
@@ -848,5 +852,8 @@ void drm_dp_downstream_debug(struct seq_file *m, const u8 dpcd[DP_RECEIVER_CAP_S
 void drm_dp_aux_init(struct drm_dp_aux *aux);
 int drm_dp_aux_register(struct drm_dp_aux *aux);
 void drm_dp_aux_unregister(struct drm_dp_aux *aux);
+
+int drm_dp_start_crc(struct drm_dp_aux *aux, struct drm_crtc *crtc);
+int drm_dp_stop_crc(struct drm_dp_aux *aux);
 
 #endif /* _DRM_DP_HELPER_H_ */
