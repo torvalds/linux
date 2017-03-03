@@ -2,6 +2,7 @@
 #define __EXTENTIO__
 
 #include <linux/rbtree.h>
+#include <linux/refcount.h>
 #include "ulist.h"
 
 /* bits for the extent state */
@@ -143,7 +144,7 @@ struct extent_state {
 
 	/* ADD NEW ELEMENTS AFTER THIS */
 	wait_queue_head_t wq;
-	atomic_t refs;
+	refcount_t refs;
 	unsigned state;
 
 	struct io_failure_record *failrec;
