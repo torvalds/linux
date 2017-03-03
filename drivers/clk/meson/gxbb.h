@@ -283,8 +283,9 @@
 #define CLKID_CTS_MCLK_I958	  110
 #define CLKID_CTS_MCLK_I958_SEL	  111
 #define CLKID_CTS_MCLK_I958_DIV	  112
+#define CLKID_CTS_I958		  113
 
-#define NR_CLKS			  113
+#define NR_CLKS			  114
 
 /* include the CLKIDs that have been made part of the stable DT binding */
 #include <dt-bindings/clock/gxbb-clkc.h>

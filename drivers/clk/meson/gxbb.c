@@ -933,6 +933,24 @@ static struct clk_gate gxbb_cts_mclk_i958 = {
 	},
 };
 
+static struct clk_mux gxbb_cts_i958 = {
+	.reg = (void *)HHI_AUD_CLK_CNTL2,
+	.mask = 0x1,
+	.shift = 27,
+	.lock = &clk_lock,
+		.hw.init = &(struct clk_init_data){
+		.name = "cts_i958",
+		.ops = &clk_mux_ops,
+		.parent_names = (const char *[]){ "cts_amclk", "cts_mclk_i958" },
+		.num_parents = 2,
+		/*
+		 *The parent is specific to origin of the audio data. Let the
+		 * consumer choose the appropriate parent
+		 */
+		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+	},
+};
+
 /* Everything Else (EE) domain gates */
 static MESON_GATE(gxbb_ddr, HHI_GCLK_MPEG0, 0);
 static MESON_GATE(gxbb_dos, HHI_GCLK_MPEG0, 1);
@@ -1139,6 +1157,7 @@ static struct clk_hw_onecell_data gxbb_hw_onecell_data = {
 		[CLKID_CTS_MCLK_I958]	    = &gxbb_cts_mclk_i958.hw,
 		[CLKID_CTS_MCLK_I958_SEL]   = &gxbb_cts_mclk_i958_sel.hw,
 		[CLKID_CTS_MCLK_I958_DIV]   = &gxbb_cts_mclk_i958_div.hw,
+		[CLKID_CTS_I958]	    = &gxbb_cts_i958.hw,
 	},
 	.num = NR_CLKS,
 };
@@ -1258,6 +1277,7 @@ static struct clk_hw_onecell_data gxl_hw_onecell_data = {
 		[CLKID_CTS_MCLK_I958]	    = &gxbb_cts_mclk_i958.hw,
 		[CLKID_CTS_MCLK_I958_SEL]   = &gxbb_cts_mclk_i958_sel.hw,
 		[CLKID_CTS_MCLK_I958_DIV]   = &gxbb_cts_mclk_i958_div.hw,
+		[CLKID_CTS_I958]	    = &gxbb_cts_i958.hw,
 	},
 	.num = NR_CLKS,
 };
@@ -1382,6 +1402,7 @@ static struct clk_mux *const gxbb_clk_muxes[] = {
 	&gxbb_mali,
 	&gxbb_cts_amclk_sel,
 	&gxbb_cts_mclk_i958_sel,
+	&gxbb_cts_i958,
 };
 
 static struct clk_divider *const gxbb_clk_dividers[] = {
