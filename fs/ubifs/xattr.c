@@ -559,6 +559,7 @@ out_free:
 	return err;
 }
 
+#ifdef CONFIG_UBIFS_FS_SECURITY
 static int init_xattrs(struct inode *inode, const struct xattr *xattr_array,
 		      void *fs_info)
 {
@@ -599,6 +600,7 @@ int ubifs_init_security(struct inode *dentry, struct inode *inode,
 	}
 	return err;
 }
+#endif
 
 static int xattr_get(const struct xattr_handler *handler,
 			   struct dentry *dentry, struct inode *inode,
@@ -639,15 +641,19 @@ static const struct xattr_handler ubifs_trusted_xattr_handler = {
 	.set = xattr_set,
 };
 
+#ifdef CONFIG_UBIFS_FS_SECURITY
 static const struct xattr_handler ubifs_security_xattr_handler = {
 	.prefix = XATTR_SECURITY_PREFIX,
 	.get = xattr_get,
 	.set = xattr_set,
 };
+#endif
 
 const struct xattr_handler *ubifs_xattr_handlers[] = {
 	&ubifs_user_xattr_handler,
 	&ubifs_trusted_xattr_handler,
+#ifdef CONFIG_UBIFS_FS_SECURITY
 	&ubifs_security_xattr_handler,
+#endif
 	NULL
 };
