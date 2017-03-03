@@ -109,17 +109,15 @@
 			enable-method = "psci";
 		};
 
-		L2_CA57: cache-controller@0 {
+		L2_CA57: cache-controller-0 {
 			compatible = "cache";
-			reg = <0>;
 			power-domains = <&sysc R8A7795_PD_CA57_SCU>;
 			cache-unified;
 			cache-level = <2>;
 		};
 
-		L2_CA53: cache-controller@100 {
+		L2_CA53: cache-controller-1 {
 			compatible = "cache";
-			reg = <0x100>;
 			power-domains = <&sysc R8A7795_PD_CA53_SCU>;
 			cache-unified;
 			cache-level = <2>;
