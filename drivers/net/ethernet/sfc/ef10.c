@@ -828,9 +828,7 @@ static int efx_ef10_alloc_piobufs(struct efx_nic *efx, unsigned int n)
 static int efx_ef10_link_piobufs(struct efx_nic *efx)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
-	_MCDI_DECLARE_BUF(inbuf,
-			  max(MC_CMD_LINK_PIOBUF_IN_LEN,
-			      MC_CMD_UNLINK_PIOBUF_IN_LEN));
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_LINK_PIOBUF_IN_LEN);
 	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
 	unsigned int offset, index;
@@ -838,8 +836,6 @@ static int efx_ef10_link_piobufs(struct efx_nic *efx)
 
 	BUILD_BUG_ON(MC_CMD_LINK_PIOBUF_OUT_LEN != 0);
 	BUILD_BUG_ON(MC_CMD_UNLINK_PIOBUF_OUT_LEN != 0);
-
-	memset(inbuf, 0, sizeof(inbuf));
 
 	/* Link a buffer to each VI in the write-combining mapping */
 	for (index = 0; index < nic_data->n_piobufs; ++index) {
@@ -920,6 +916,10 @@ static int efx_ef10_link_piobufs(struct efx_nic *efx)
 	return 0;
 
 fail:
+	/* inbuf was defined for MC_CMD_LINK_PIOBUF.  We can use the same
+	 * buffer for MC_CMD_UNLINK_PIOBUF because it's shorter.
+	 */
+	BUILD_BUG_ON(MC_CMD_LINK_PIOBUF_IN_LEN < MC_CMD_UNLINK_PIOBUF_IN_LEN);
 	while (index--) {
 		MCDI_SET_DWORD(inbuf, UNLINK_PIOBUF_IN_TXQ_INSTANCE,
 			       nic_data->pio_write_vi_base + index);
