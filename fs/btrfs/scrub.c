@@ -142,7 +142,7 @@ struct scrub_parity {
 
 	int			stripe_len;
 
-	atomic_t		refs;
+	refcount_t		refs;
 
 	struct list_head	spages;
 
@@ -2822,12 +2822,12 @@ static inline int scrub_calc_parity_bitmap_len(int nsectors)
 
 static void scrub_parity_get(struct scrub_parity *sparity)
 {
-	atomic_inc(&sparity->refs);
+	refcount_inc(&sparity->refs);
 }
 
 static void scrub_parity_put(struct scrub_parity *sparity)
 {
-	if (!atomic_dec_and_test(&sparity->refs))
+	if (!refcount_dec_and_test(&sparity->refs))
 		return;
 
 	scrub_parity_check_and_repair(sparity);
@@ -2879,7 +2879,7 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 	sparity->scrub_dev = sdev;
 	sparity->logic_start = logic_start;
 	sparity->logic_end = logic_end;
-	atomic_set(&sparity->refs, 1);
+	refcount_set(&sparity->refs, 1);
 	INIT_LIST_HEAD(&sparity->spages);
 	sparity->dbitmap = sparity->bitmap;
 	sparity->ebitmap = (void *)sparity->bitmap + bitmap_len;
