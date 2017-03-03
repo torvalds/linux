@@ -398,12 +398,11 @@ static void stress_inorder_work(struct work_struct *work)
 	if (!order)
 		return;
 
-	ww_acquire_init(&ctx, &ww_class);
-
 	do {
 		int contended = -1;
 		int n, err;
 
+		ww_acquire_init(&ctx, &ww_class);
 retry:
 		err = 0;
 		for (n = 0; n < nlocks; n++) {
@@ -433,9 +432,9 @@ retry:
 				    __func__, err);
 			break;
 		}
-	} while (--stress->nloops);
 
-	ww_acquire_fini(&ctx);
+		ww_acquire_fini(&ctx);
+	} while (--stress->nloops);
 
 	kfree(order);
 	kfree(stress);
@@ -470,9 +469,9 @@ static void stress_reorder_work(struct work_struct *work)
 	kfree(order);
 	order = NULL;
 
-	ww_acquire_init(&ctx, &ww_class);
-
 	do {
+		ww_acquire_init(&ctx, &ww_class);
+
 		list_for_each_entry(ll, &locks, link) {
 			err = ww_mutex_lock(ll->lock, &ctx);
 			if (!err)
@@ -495,9 +494,9 @@ static void stress_reorder_work(struct work_struct *work)
 		dummy_load(stress);
 		list_for_each_entry(ll, &locks, link)
 			ww_mutex_unlock(ll->lock);
-	} while (--stress->nloops);
 
-	ww_acquire_fini(&ctx);
+		ww_acquire_fini(&ctx);
+	} while (--stress->nloops);
 
 out:
 	list_for_each_entry_safe(ll, ln, &locks, link)
