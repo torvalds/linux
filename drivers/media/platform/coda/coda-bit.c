@@ -179,6 +179,25 @@ static void coda_kfifo_sync_to_device_write(struct coda_ctx *ctx)
 	coda_write(dev, wr_ptr, CODA_REG_BIT_WR_PTR(ctx->reg_idx));
 }
 
+static int coda_bitstream_pad(struct coda_ctx *ctx, u32 size)
+{
+	unsigned char *buf;
+	u32 n;
+
+	if (size < 6)
+		size = 6;
+
+	buf = kmalloc(size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	coda_h264_filler_nal(size, buf);
+	n = kfifo_in(&ctx->bitstream_fifo, buf, size);
+	kfree(buf);
+
+	return (n < size) ? -ENOSPC : 0;
+}
+
 static int coda_bitstream_queue(struct coda_ctx *ctx,
 				struct vb2_v4l2_buffer *src_buf)
 {
@@ -198,10 +217,10 @@ static int coda_bitstream_queue(struct coda_ctx *ctx,
 static bool coda_bitstream_try_queue(struct coda_ctx *ctx,
 				     struct vb2_v4l2_buffer *src_buf)
 {
+	unsigned long payload = vb2_get_plane_payload(&src_buf->vb2_buf, 0);
 	int ret;
 
-	if (coda_get_bitstream_payload(ctx) +
-	    vb2_get_plane_payload(&src_buf->vb2_buf, 0) + 512 >=
+	if (coda_get_bitstream_payload(ctx) + payload + 512 >=
 	    ctx->bitstream.size)
 		return false;
 
@@ -209,6 +228,11 @@ static bool coda_bitstream_try_queue(struct coda_ctx *ctx,
 		v4l2_err(&ctx->dev->v4l2_dev, "trying to queue empty buffer\n");
 		return true;
 	}
+
+	/* Add zero padding before the first H.264 buffer, if it is too small */
+	if (ctx->qsequence == 0 && payload < 512 &&
+	    ctx->codec->src_fourcc == V4L2_PIX_FMT_H264)
+		coda_bitstream_pad(ctx, 512 - payload);
 
 	ret = coda_bitstream_queue(ctx, src_buf);
 	if (ret < 0) {

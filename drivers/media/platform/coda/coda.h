@@ -290,6 +290,7 @@ void coda_bit_stream_end_flag(struct coda_ctx *ctx);
 void coda_m2m_buf_done(struct coda_ctx *ctx, struct vb2_v4l2_buffer *buf,
 		       enum vb2_buffer_state state);
 
+int coda_h264_filler_nal(int size, char *p);
 int coda_h264_padding(int size, char *p);
 
 bool coda_jpeg_check_buffer(struct coda_ctx *ctx, struct vb2_buffer *vb);
