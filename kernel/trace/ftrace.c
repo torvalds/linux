@@ -5752,7 +5752,8 @@ void ftrace_release_mod(struct module *mod)
 	last_pg = &ftrace_pages_start;
 	for (pg = ftrace_pages_start; pg; pg = *last_pg) {
 		rec = &pg->records[0];
-		if (within_module_core(rec->ip, mod)) {
+		if (within_module_core(rec->ip, mod) ||
+		    within_module_init(rec->ip, mod)) {
 			/*
 			 * As core pages are first, the first
 			 * page should never be a module page.
@@ -5821,7 +5822,8 @@ void ftrace_module_enable(struct module *mod)
 		 * not part of this module, then skip this pg,
 		 * which the "break" will do.
 		 */
-		if (!within_module_core(rec->ip, mod))
+		if (!within_module_core(rec->ip, mod) &&
+		    !within_module_init(rec->ip, mod))
 			break;
 
 		cnt = 0;
