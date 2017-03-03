@@ -921,8 +921,8 @@ static inline bool perform_link_training_int(
 	 * If the upstream DPTX and downstream DPRX both support TPS4,
 	 * TPS4 must be used instead of POST_LT_ADJ_REQ.
 	 */
-	if (link->dpcd_caps.max_ln_count.bits.POST_LT_ADJ_REQ_SUPPORTED != 1 &&
-		get_supported_tp(link) == HW_DP_TRAINING_PATTERN_4)
+	if (link->dpcd_caps.max_ln_count.bits.POST_LT_ADJ_REQ_SUPPORTED != 1 ||
+			get_supported_tp(link) == HW_DP_TRAINING_PATTERN_4)
 		return status;
 
 	if (status &&
