@@ -29,7 +29,7 @@ extern int lock_stat;
  * We'd rather not expose kernel/lockdep_states.h this wide, but we do need
  * the total number of states... :-(
  */
-#define XXX_LOCK_USAGE_STATES		(1+3*4)
+#define XXX_LOCK_USAGE_STATES		(1+2*4)
 
 /*
  * NR_LOCKDEP_CACHING_CLASSES ... Number of classes
@@ -363,10 +363,6 @@ static inline void lock_set_subclass(struct lockdep_map *lock,
 
 extern void lock_downgrade(struct lockdep_map *lock, unsigned long ip);
 
-extern void lockdep_set_current_reclaim_state(gfp_t gfp_mask);
-extern void lockdep_clear_current_reclaim_state(void);
-extern void lockdep_trace_alloc(gfp_t mask);
-
 struct pin_cookie { unsigned int val; };
 
 #define NIL_COOKIE (struct pin_cookie){ .val = 0U, }
@@ -375,7 +371,7 @@ extern struct pin_cookie lock_pin_lock(struct lockdep_map *lock);
 extern void lock_repin_lock(struct lockdep_map *lock, struct pin_cookie);
 extern void lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie);
 
-# define INIT_LOCKDEP				.lockdep_recursion = 0, .lockdep_reclaim_gfp = 0,
+# define INIT_LOCKDEP				.lockdep_recursion = 0,
 
 #define lockdep_depth(tsk)	(debug_locks ? (tsk)->lockdep_depth : 0)
 
@@ -416,9 +412,6 @@ static inline void lockdep_on(void)
 # define lock_downgrade(l, i)			do { } while (0)
 # define lock_set_class(l, n, k, s, i)		do { } while (0)
 # define lock_set_subclass(l, s, i)		do { } while (0)
-# define lockdep_set_current_reclaim_state(g)	do { } while (0)
-# define lockdep_clear_current_reclaim_state()	do { } while (0)
-# define lockdep_trace_alloc(g)			do { } while (0)
 # define lockdep_info()				do { } while (0)
 # define lockdep_init_map(lock, name, key, sub) \
 		do { (void)(name); (void)(key); } while (0)

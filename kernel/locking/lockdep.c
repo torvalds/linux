@@ -344,14 +344,12 @@ EXPORT_SYMBOL(lockdep_on);
 #if VERBOSE
 # define HARDIRQ_VERBOSE	1
 # define SOFTIRQ_VERBOSE	1
-# define RECLAIM_VERBOSE	1
 #else
 # define HARDIRQ_VERBOSE	0
 # define SOFTIRQ_VERBOSE	0
-# define RECLAIM_VERBOSE	0
 #endif
 
-#if VERBOSE || HARDIRQ_VERBOSE || SOFTIRQ_VERBOSE || RECLAIM_VERBOSE
+#if VERBOSE || HARDIRQ_VERBOSE || SOFTIRQ_VERBOSE
 /*
  * Quick filtering for interesting events:
  */
@@ -2567,14 +2565,6 @@ static int SOFTIRQ_verbose(struct lock_class *class)
 	return 0;
 }
 
-static int RECLAIM_FS_verbose(struct lock_class *class)
-{
-#if RECLAIM_VERBOSE
-	return class_filter(class);
-#endif
-	return 0;
-}
-
 #define STRICT_READ_CHECKS	1
 
 static int (*state_verbose_f[])(struct lock_class *class) = {
@@ -2870,57 +2860,6 @@ void trace_softirqs_off(unsigned long ip)
 		debug_atomic_inc(redundant_softirqs_off);
 }
 
-static void __lockdep_trace_alloc(gfp_t gfp_mask, unsigned long flags)
-{
-	struct task_struct *curr = current;
-
-	if (unlikely(!debug_locks))
-		return;
-
-	gfp_mask = current_gfp_context(gfp_mask);
-
-	/* no reclaim without waiting on it */
-	if (!(gfp_mask & __GFP_DIRECT_RECLAIM))
-		return;
-
-	/* this guy won't enter reclaim */
-	if ((curr->flags & PF_MEMALLOC) && !(gfp_mask & __GFP_NOMEMALLOC))
-		return;
-
-	/* We're only interested __GFP_FS allocations for now */
-	if (!(gfp_mask & __GFP_FS) || (curr->flags & PF_MEMALLOC_NOFS))
-		return;
-
-	/*
-	 * Oi! Can't be having __GFP_FS allocations with IRQs disabled.
-	 */
-	if (DEBUG_LOCKS_WARN_ON(irqs_disabled_flags(flags)))
-		return;
-
-	/* Disable lockdep if explicitly requested */
-	if (gfp_mask & __GFP_NOLOCKDEP)
-		return;
-
-	mark_held_locks(curr, RECLAIM_FS);
-}
-
-static void check_flags(unsigned long flags);
-
-void lockdep_trace_alloc(gfp_t gfp_mask)
-{
-	unsigned long flags;
-
-	if (unlikely(current->lockdep_recursion))
-		return;
-
-	raw_local_irq_save(flags);
-	check_flags(flags);
-	current->lockdep_recursion = 1;
-	__lockdep_trace_alloc(gfp_mask, flags);
-	current->lockdep_recursion = 0;
-	raw_local_irq_restore(flags);
-}
-
 static int mark_irqflags(struct task_struct *curr, struct held_lock *hlock)
 {
 	/*
@@ -2962,22 +2901,6 @@ static int mark_irqflags(struct task_struct *curr, struct held_lock *hlock)
 			if (curr->softirqs_enabled)
 				if (!mark_lock(curr, hlock,
 						LOCK_ENABLED_SOFTIRQ))
-					return 0;
-		}
-	}
-
-	/*
-	 * We reuse the irq context infrastructure more broadly as a general
-	 * context checking code. This tests GFP_FS recursion (a lock taken
-	 * during reclaim for a GFP_FS allocation is held over a GFP_FS
-	 * allocation).
-	 */
-	if (!hlock->trylock && (curr->lockdep_reclaim_gfp & __GFP_FS)) {
-		if (hlock->read) {
-			if (!mark_lock(curr, hlock, LOCK_USED_IN_RECLAIM_FS_READ))
-					return 0;
-		} else {
-			if (!mark_lock(curr, hlock, LOCK_USED_IN_RECLAIM_FS))
 					return 0;
 		}
 	}
@@ -3038,10 +2961,6 @@ static inline int separate_irq_context(struct task_struct *curr,
 		struct held_lock *hlock)
 {
 	return 0;
-}
-
-void lockdep_trace_alloc(gfp_t gfp_mask)
-{
 }
 
 #endif /* defined(CONFIG_TRACE_IRQFLAGS) && defined(CONFIG_PROVE_LOCKING) */
@@ -3951,18 +3870,6 @@ void lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie cookie)
 	raw_local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(lock_unpin_lock);
-
-void lockdep_set_current_reclaim_state(gfp_t gfp_mask)
-{
-	current->lockdep_reclaim_gfp = current_gfp_context(gfp_mask);
-}
-EXPORT_SYMBOL_GPL(lockdep_set_current_reclaim_state);
-
-void lockdep_clear_current_reclaim_state(void)
-{
-	current->lockdep_reclaim_gfp = 0;
-}
-EXPORT_SYMBOL_GPL(lockdep_clear_current_reclaim_state);
 
 #ifdef CONFIG_LOCK_STAT
 static int
