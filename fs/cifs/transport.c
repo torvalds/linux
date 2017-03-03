@@ -727,9 +727,11 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 
 	rc = wait_for_response(ses->server, midQ);
 	if (rc != 0) {
+		cifs_dbg(FYI, "Cancelling wait for mid %llu\n",	midQ->mid);
 		send_cancel(ses->server, buf, midQ);
 		spin_lock(&GlobalMid_Lock);
 		if (midQ->mid_state == MID_REQUEST_SUBMITTED) {
+			midQ->mid_flags |= MID_WAIT_CANCELLED;
 			midQ->callback = DeleteMidQEntry;
 			spin_unlock(&GlobalMid_Lock);
 			cifs_small_buf_release(buf);
