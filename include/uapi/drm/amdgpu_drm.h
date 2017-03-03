@@ -802,6 +802,7 @@ struct drm_amdgpu_info_vce_clock_table {
 #define AMDGPU_FAMILY_KV			125 /* Kaveri, Kabini, Mullins */
 #define AMDGPU_FAMILY_VI			130 /* Iceland, Tonga */
 #define AMDGPU_FAMILY_CZ			135 /* Carrizo, Stoney */
+#define AMDGPU_FAMILY_AI			141 /* Vega10 */
 
 #if defined(__cplusplus)
 }
