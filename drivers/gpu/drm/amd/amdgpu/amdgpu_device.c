@@ -713,7 +713,7 @@ bool amdgpu_need_post(struct amdgpu_device *adev)
 		return true;
 	}
 	/* then check MEM_SIZE, in case the crtcs are off */
-	reg = RREG32(mmCONFIG_MEMSIZE);
+	reg = amdgpu_asic_get_config_memsize(adev);
 
 	if (reg)
 		return false;
