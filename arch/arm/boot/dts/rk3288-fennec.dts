@@ -214,7 +214,6 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	#sound-dai-cells = <0>;
-	ddc-i2c-bus = <&i2c5>;
 	status = "okay";
 };
 
@@ -424,10 +423,6 @@
 		clocks = <&cru SCLK_I2S0_OUT>;
 		#sound-dai-cells = <0>;
 	};
-};
-
-&i2c5 {
-	status = "okay";
 };
 
 &i2s {

@@ -107,7 +107,6 @@
 };
 
 &hdmi {
-	ddc-i2c-bus = <&i2c5>;
 	status = "okay";
 };
 
@@ -124,10 +123,6 @@
 		pinctrl-0 = <&pmic_int>;
 
 	};
-};
-
-&i2c5 {
-	status = "okay";
 };
 
 &pinctrl {

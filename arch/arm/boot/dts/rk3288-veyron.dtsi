@@ -146,7 +146,6 @@
 };
 
 &hdmi {
-	ddc-i2c-bus = <&i2c5>;
 	status = "okay";
 };
 
@@ -316,14 +315,6 @@
 	clock-frequency = <400000>;
 	i2c-scl-falling-time-ns = <50>;		/* 11ns measured */
 	i2c-scl-rising-time-ns = <300>;		/* 225ns measured */
-};
-
-&i2c5 {
-	status = "okay";
-
-	clock-frequency = <100000>;
-	i2c-scl-falling-time-ns = <300>;
-	i2c-scl-rising-time-ns = <1000>;
 };
 
 &io_domains {

@@ -202,7 +202,6 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	#sound-dai-cells = <0>;
-	ddc-i2c-bus = <&i2c5>;
 	status = "okay";
 };
 
@@ -410,10 +409,6 @@ I2C
 &i2c2 {
 	status = "okay";
 	/* Add more nodes to your requirement, such as i2c2 */
-};
-
-&i2c5 {
-	status = "okay";
 };
 
 &i2s {

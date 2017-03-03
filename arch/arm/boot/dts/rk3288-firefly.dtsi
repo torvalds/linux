@@ -277,7 +277,6 @@
 };
 
 &hdmi {
-	ddc-i2c-bus = <&i2c5>;
 	status = "okay";
 };
 
@@ -437,10 +436,6 @@
 };
 
 &i2c4 {
-	status = "okay";
-};
-
-&i2c5 {
 	status = "okay";
 };
 

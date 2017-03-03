@@ -336,7 +336,6 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	#sound-dai-cells = <0>;
-	ddc-i2c-bus = <&i2c5>;
 	status = "okay";
 
 	/* Don't use vopl for HDMI */
@@ -418,10 +417,6 @@
 		interrupt-parent = <&gpio6>;
 		interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
 	};
-};
-
-&i2c5 {
-	status = "okay";
 };
 
 &i2s {
