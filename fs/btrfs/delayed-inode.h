@@ -26,7 +26,7 @@
 #include <linux/list.h>
 #include <linux/wait.h>
 #include <linux/atomic.h>
-
+#include <linux/refcount.h>
 #include "ctree.h"
 
 /* types of the delayed item */
@@ -67,7 +67,7 @@ struct btrfs_delayed_node {
 	struct rb_root del_root;
 	struct mutex mutex;
 	struct btrfs_inode_item inode_item;
-	atomic_t refs;
+	refcount_t refs;
 	u64 index_cnt;
 	unsigned long flags;
 	int count;
