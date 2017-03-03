@@ -275,7 +275,7 @@ DECLARE_EVENT_CLASS(btrfs__ordered_extent,
 		__entry->bytes_left	= ordered->bytes_left;
 		__entry->flags		= ordered->flags;
 		__entry->compress_type	= ordered->compress_type;
-		__entry->refs		= atomic_read(&ordered->refs);
+		__entry->refs		= refcount_read(&ordered->refs);
 		__entry->root_objectid	=
 				BTRFS_I(inode)->root->root_key.objectid;
 		__entry->truncated_len	= ordered->truncated_len;
