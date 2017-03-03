@@ -658,8 +658,18 @@ void dm_atomic_state_clear(struct drm_atomic_state *s)
 static void dm_atomic_state_free(struct drm_atomic_state *state)
 {
 	struct dm_atomic_state *dm_state = to_dm_atomic_state(state);
+	int i, j;
 
 	drm_atomic_state_default_release(state);
+
+	for (i = 0; i < dm_state->set_count; i++) {
+		for (j = 0; j < dm_state->set[i].surface_count; j++) {
+			dc_surface_release(dm_state->set[i].surfaces[j]);
+		}
+	}
+
+	for (i = 0; i < dm_state->set_count; i++)
+		dc_stream_release(dm_state->set[i].stream);
 
 	kfree(dm_state);
 }
