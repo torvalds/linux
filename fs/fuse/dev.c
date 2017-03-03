@@ -45,7 +45,7 @@ static void fuse_request_init(struct fuse_req *req, struct page **pages,
 	INIT_LIST_HEAD(&req->list);
 	INIT_LIST_HEAD(&req->intr_entry);
 	init_waitqueue_head(&req->waitq);
-	atomic_set(&req->count, 1);
+	refcount_set(&req->count, 1);
 	req->pages = pages;
 	req->page_descs = page_descs;
 	req->max_pages = npages;
@@ -102,14 +102,13 @@ void fuse_request_free(struct fuse_req *req)
 
 void __fuse_get_request(struct fuse_req *req)
 {
-	atomic_inc(&req->count);
+	refcount_inc(&req->count);
 }
 
 /* Must be called with > 1 refcount */
 static void __fuse_put_request(struct fuse_req *req)
 {
-	BUG_ON(atomic_read(&req->count) < 2);
-	atomic_dec(&req->count);
+	refcount_dec(&req->count);
 }
 
 static void fuse_req_init_context(struct fuse_req *req)
@@ -264,7 +263,7 @@ struct fuse_req *fuse_get_req_nofail_nopages(struct fuse_conn *fc,
 
 void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req)
 {
-	if (atomic_dec_and_test(&req->count)) {
+	if (refcount_dec_and_test(&req->count)) {
 		if (test_bit(FR_BACKGROUND, &req->flags)) {
 			/*
 			 * We get here in the unlikely case that a background

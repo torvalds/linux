@@ -307,7 +307,7 @@ struct fuse_req {
 	struct list_head intr_entry;
 
 	/** refcount */
-	atomic_t count;
+	refcount_t count;
 
 	/** Unique ID for the interrupt request */
 	u64 intr_unique;
