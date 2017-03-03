@@ -1488,6 +1488,28 @@ int analogix_dp_resume(struct device *dev)
 EXPORT_SYMBOL_GPL(analogix_dp_resume);
 #endif
 
+int analogix_dp_start_crc(struct drm_connector *connector)
+{
+	struct analogix_dp_device *dp = to_dp(connector);
+
+	if (!connector->state->crtc) {
+		DRM_ERROR("Connector %s doesn't currently have a CRTC.\n",
+			  connector->name);
+		return -EINVAL;
+	}
+
+	return drm_dp_start_crc(&dp->aux, connector->state->crtc);
+}
+EXPORT_SYMBOL_GPL(analogix_dp_start_crc);
+
+int analogix_dp_stop_crc(struct drm_connector *connector)
+{
+	struct analogix_dp_device *dp = to_dp(connector);
+
+	return drm_dp_stop_crc(&dp->aux);
+}
+EXPORT_SYMBOL_GPL(analogix_dp_stop_crc);
+
 MODULE_AUTHOR("Jingoo Han <jg1.han@samsung.com>");
 MODULE_DESCRIPTION("Analogix DP Core Driver");
 MODULE_LICENSE("GPL v2");
