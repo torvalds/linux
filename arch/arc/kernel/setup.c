@@ -10,6 +10,7 @@
 #include <linux/fs.h>
 #include <linux/delay.h>
 #include <linux/root_dev.h>
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/clocksource.h>
 #include <linux/console.h>
@@ -488,8 +489,9 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 {
 	char *str;
 	int cpu_id = ptr_to_cpu(v);
-	struct device_node *core_clk = of_find_node_by_name(NULL, "core_clk");
-	u32 freq = 0;
+	struct device *cpu_dev = get_cpu_device(cpu_id);
+	struct clk *cpu_clk;
+	unsigned long freq = 0;
 
 	if (!cpu_online(cpu_id)) {
 		seq_printf(m, "processor [%d]\t: Offline\n", cpu_id);
@@ -502,9 +504,15 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 	seq_printf(m, arc_cpu_mumbojumbo(cpu_id, str, PAGE_SIZE));
 
-	of_property_read_u32(core_clk, "clock-frequency", &freq);
+	cpu_clk = clk_get(cpu_dev, NULL);
+	if (IS_ERR(cpu_clk)) {
+		seq_printf(m, "CPU speed \t: Cannot get clock for processor [%d]\n",
+			   cpu_id);
+	} else {
+		freq = clk_get_rate(cpu_clk);
+	}
 	if (freq)
-		seq_printf(m, "CPU speed\t: %u.%02u Mhz\n",
+		seq_printf(m, "CPU speed\t: %lu.%02lu Mhz\n",
 			   freq / 1000000, (freq / 10000) % 100);
 
 	seq_printf(m, "Bogo MIPS\t: %lu.%02lu\n",
