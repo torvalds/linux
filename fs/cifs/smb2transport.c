@@ -115,22 +115,68 @@ smb3_crypto_shash_allocate(struct TCP_Server_Info *server)
 }
 
 static struct cifs_ses *
-smb2_find_smb_ses(struct smb2_hdr *smb2hdr, struct TCP_Server_Info *server)
+smb2_find_smb_ses_unlocked(struct TCP_Server_Info *server, __u64 ses_id)
 {
 	struct cifs_ses *ses;
 
-	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
-		if (ses->Suid != smb2hdr->SessionId)
+		if (ses->Suid != ses_id)
 			continue;
-		spin_unlock(&cifs_tcp_ses_lock);
 		return ses;
 	}
-	spin_unlock(&cifs_tcp_ses_lock);
 
 	return NULL;
 }
 
+struct cifs_ses *
+smb2_find_smb_ses(struct TCP_Server_Info *server, __u64 ses_id)
+{
+	struct cifs_ses *ses;
+
+	spin_lock(&cifs_tcp_ses_lock);
+	ses = smb2_find_smb_ses_unlocked(server, ses_id);
+	spin_unlock(&cifs_tcp_ses_lock);
+
+	return ses;
+}
+
+static struct cifs_tcon *
+smb2_find_smb_sess_tcon_unlocked(struct cifs_ses *ses, __u32  tid)
+{
+	struct cifs_tcon *tcon;
+
+	list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
+		if (tcon->tid != tid)
+			continue;
+		++tcon->tc_count;
+		return tcon;
+	}
+
+	return NULL;
+}
+
+/*
+ * Obtain tcon corresponding to the tid in the given
+ * cifs_ses
+ */
+
+struct cifs_tcon *
+smb2_find_smb_tcon(struct TCP_Server_Info *server, __u64 ses_id, __u32 tid)
+{
+	struct cifs_ses *ses;
+	struct cifs_tcon *tcon;
+
+	spin_lock(&cifs_tcp_ses_lock);
+	ses = smb2_find_smb_ses_unlocked(server, ses_id);
+	if (!ses) {
+		spin_unlock(&cifs_tcp_ses_lock);
+		return NULL;
+	}
+	tcon = smb2_find_smb_sess_tcon_unlocked(ses, tid);
+	spin_unlock(&cifs_tcp_ses_lock);
+
+	return tcon;
+}
 
 int
 smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
@@ -143,7 +189,7 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	struct smb2_hdr *smb2_pdu = (struct smb2_hdr *)iov[0].iov_base;
 	struct cifs_ses *ses;
 
-	ses = smb2_find_smb_ses(smb2_pdu, server);
+	ses = smb2_find_smb_ses(server, smb2_pdu->SessionId);
 	if (!ses) {
 		cifs_dbg(VFS, "%s: Could not find session\n", __func__);
 		return 0;
@@ -314,7 +360,7 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	struct smb2_hdr *smb2_pdu = (struct smb2_hdr *)iov[0].iov_base;
 	struct cifs_ses *ses;
 
-	ses = smb2_find_smb_ses(smb2_pdu, server);
+	ses = smb2_find_smb_ses(server, smb2_pdu->SessionId);
 	if (!ses) {
 		cifs_dbg(VFS, "%s: Could not find session\n", __func__);
 		return 0;
