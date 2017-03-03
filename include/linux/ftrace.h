@@ -146,6 +146,10 @@ struct ftrace_ops_hash {
 	struct ftrace_hash		*filter_hash;
 	struct mutex			regex_lock;
 };
+
+void ftrace_free_mem(void *start, void *end);
+#else
+static inline void ftrace_free_mem(void *start, void *end) { }
 #endif
 
 /*
@@ -262,6 +266,7 @@ static inline int ftrace_nr_registered_ops(void)
 }
 static inline void clear_ftrace_function(void) { }
 static inline void ftrace_kill(void) { }
+static inline void ftrace_free_mem(void *start, void *end) { }
 #endif /* CONFIG_FUNCTION_TRACER */
 
 #ifdef CONFIG_STACK_TRACER

@@ -5262,6 +5262,50 @@ void ftrace_module_init(struct module *mod)
 }
 #endif /* CONFIG_MODULES */
 
+void ftrace_free_mem(void *start_ptr, void *end_ptr)
+{
+	unsigned long start = (unsigned long)start_ptr;
+	unsigned long end = (unsigned long)end_ptr;
+	struct ftrace_page **last_pg = &ftrace_pages_start;
+	struct ftrace_page *pg;
+	struct dyn_ftrace *rec;
+	struct dyn_ftrace key;
+	int order;
+
+	key.ip = start;
+	key.flags = end;	/* overload flags, as it is unsigned long */
+
+	mutex_lock(&ftrace_lock);
+
+	for (pg = ftrace_pages_start; pg; last_pg = &pg->next, pg = *last_pg) {
+		if (end < pg->records[0].ip ||
+		    start >= (pg->records[pg->index - 1].ip + MCOUNT_INSN_SIZE))
+			continue;
+ again:
+		rec = bsearch(&key, pg->records, pg->index,
+			      sizeof(struct dyn_ftrace),
+			      ftrace_cmp_recs);
+		if (!rec)
+			continue;
+		pg->index--;
+		if (!pg->index) {
+			*last_pg = pg->next;
+			order = get_count_order(pg->size / ENTRIES_PER_PAGE);
+			free_pages((unsigned long)pg->records, order);
+			kfree(pg);
+			pg = container_of(last_pg, struct ftrace_page, next);
+			if (!(*last_pg))
+				ftrace_pages = pg;
+			continue;
+		}
+		memmove(rec, rec + 1,
+			(pg->index - (rec - pg->records)) * sizeof(*rec));
+		/* More than one function may be in this block */
+		goto again;
+	}
+	mutex_unlock(&ftrace_lock);
+}
+
 void __init ftrace_init(void)
 {
 	extern unsigned long __start_mcount_loc[];
