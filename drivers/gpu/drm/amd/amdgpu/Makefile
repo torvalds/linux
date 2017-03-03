@@ -64,7 +64,8 @@ amdgpu-y += \
 # add GFX block
 amdgpu-y += \
 	amdgpu_gfx.o \
-	gfx_v8_0.o
+	gfx_v8_0.o \
+	gfx_v9_0.o
 
 # add async DMA block
 amdgpu-y += \
