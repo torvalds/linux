@@ -1213,9 +1213,8 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct drm_i915_private *dev_priv;
 	int ret;
 
-	/* Enable nuclear pageflip on ILK+, except vlv/chv */
-	if (!i915.nuclear_pageflip &&
-	    (match_info->gen < 5 || match_info->has_gmch_display))
+	/* Enable nuclear pageflip on ILK+ */
+	if (!i915.nuclear_pageflip && match_info->gen < 5)
 		driver.driver_features &= ~DRIVER_ATOMIC;
 
 	ret = -ENOMEM;
