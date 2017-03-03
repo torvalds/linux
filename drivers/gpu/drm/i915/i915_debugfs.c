@@ -1354,12 +1354,14 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 
 	intel_runtime_pm_put(dev_priv);
 
-	if (delayed_work_pending(&dev_priv->gpu_error.hangcheck_work)) {
-		seq_printf(m, "Hangcheck active, fires in %dms\n",
+	if (timer_pending(&dev_priv->gpu_error.hangcheck_work.timer))
+		seq_printf(m, "Hangcheck active, timer fires in %dms\n",
 			   jiffies_to_msecs(dev_priv->gpu_error.hangcheck_work.timer.expires -
 					    jiffies));
-	} else
-		seq_printf(m, "Hangcheck inactive\n");
+	else if (delayed_work_pending(&dev_priv->gpu_error.hangcheck_work))
+		seq_puts(m, "Hangcheck active, work pending\n");
+	else
+		seq_puts(m, "Hangcheck inactive\n");
 
 	seq_printf(m, "GT active? %s\n", yesno(dev_priv->gt.awake));
 
