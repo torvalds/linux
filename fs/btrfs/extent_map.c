@@ -55,7 +55,7 @@ struct extent_map *alloc_extent_map(void)
 	em->flags = 0;
 	em->compress_type = BTRFS_COMPRESS_NONE;
 	em->generation = 0;
-	atomic_set(&em->refs, 1);
+	refcount_set(&em->refs, 1);
 	INIT_LIST_HEAD(&em->list);
 	return em;
 }
@@ -71,8 +71,8 @@ void free_extent_map(struct extent_map *em)
 {
 	if (!em)
 		return;
-	WARN_ON(atomic_read(&em->refs) == 0);
-	if (atomic_dec_and_test(&em->refs)) {
+	WARN_ON(refcount_read(&em->refs) == 0);
+	if (refcount_dec_and_test(&em->refs)) {
 		WARN_ON(extent_map_in_tree(em));
 		WARN_ON(!list_empty(&em->list));
 		if (test_bit(EXTENT_FLAG_FS_MAPPING, &em->flags))
@@ -322,7 +322,7 @@ static inline void setup_extent_mapping(struct extent_map_tree *tree,
 					struct extent_map *em,
 					int modified)
 {
-	atomic_inc(&em->refs);
+	refcount_inc(&em->refs);
 	em->mod_start = em->start;
 	em->mod_len = em->len;
 
@@ -381,7 +381,7 @@ __lookup_extent_mapping(struct extent_map_tree *tree,
 	if (strict && !(end > em->start && start < extent_map_end(em)))
 		return NULL;
 
-	atomic_inc(&em->refs);
+	refcount_inc(&em->refs);
 	return em;
 }
 
