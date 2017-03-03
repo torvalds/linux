@@ -48,6 +48,17 @@ config DRM_DW_HDMI_I2S_AUDIO
 	  Support the I2S Audio interface which is part of the Synopsis
 	  Designware HDMI block.
 
+config DRM_MEGACHIPS_STDPXXXX_GE_B850V3_FW
+	tristate "MegaChips stdp4028-ge-b850v3-fw and stdp2690-ge-b850v3-fw"
+	depends on OF
+	select DRM_KMS_HELPER
+	select DRM_PANEL
+	---help---
+          This is a driver for the display bridges of
+          GE B850v3 that convert dual channel LVDS
+          to DP++. This is used with the i.MX6 imx-ldb
+          driver. You are likely to say N here.
+
 config DRM_NXP_PTN3460
 	tristate "NXP PTN3460 DP/LVDS bridge"
 	depends on OF
