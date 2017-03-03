@@ -93,11 +93,14 @@ struct amdgpu_ih_ring {
 struct amdgpu_iv_entry {
 	unsigned client_id;
 	unsigned src_id;
-	unsigned src_data[AMDGPU_IH_SRC_DATA_MAX_SIZE_DW];
 	unsigned ring_id;
 	unsigned vm_id;
 	unsigned vm_id_src;
+	uint64_t timestamp;
+	unsigned timestamp_src;
 	unsigned pas_id;
+	unsigned pasid_src;
+	unsigned src_data[AMDGPU_IH_SRC_DATA_MAX_SIZE_DW];
 	const uint32_t *iv_entry;
 };
 
