@@ -3734,17 +3734,14 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	INIT_LIST_HEAD(&vport->rcv_buffer_list);
 	spin_lock_init(&vport->work_port_lock);
 
-	init_timer(&vport->fc_disctmo);
-	vport->fc_disctmo.function = lpfc_disc_timeout;
-	vport->fc_disctmo.data = (unsigned long)vport;
+	setup_timer(&vport->fc_disctmo, lpfc_disc_timeout,
+			(unsigned long)vport);
 
-	init_timer(&vport->els_tmofunc);
-	vport->els_tmofunc.function = lpfc_els_timeout;
-	vport->els_tmofunc.data = (unsigned long)vport;
+	setup_timer(&vport->els_tmofunc, lpfc_els_timeout,
+			(unsigned long)vport);
 
-	init_timer(&vport->delayed_disc_tmo);
-	vport->delayed_disc_tmo.function = lpfc_delayed_disc_tmo;
-	vport->delayed_disc_tmo.data = (unsigned long)vport;
+	setup_timer(&vport->delayed_disc_tmo, lpfc_delayed_disc_tmo,
+			(unsigned long)vport);
 
 	error = scsi_add_host_with_dma(shost, dev, &phba->pcidev->dev);
 	if (error)
@@ -5406,21 +5403,15 @@ lpfc_setup_driver_resource_phase1(struct lpfc_hba *phba)
 	INIT_LIST_HEAD(&phba->luns);
 
 	/* MBOX heartbeat timer */
-	init_timer(&psli->mbox_tmo);
-	psli->mbox_tmo.function = lpfc_mbox_timeout;
-	psli->mbox_tmo.data = (unsigned long) phba;
+	setup_timer(&psli->mbox_tmo, lpfc_mbox_timeout, (unsigned long)phba);
 	/* Fabric block timer */
-	init_timer(&phba->fabric_block_timer);
-	phba->fabric_block_timer.function = lpfc_fabric_block_timeout;
-	phba->fabric_block_timer.data = (unsigned long) phba;
+	setup_timer(&phba->fabric_block_timer, lpfc_fabric_block_timeout,
+			(unsigned long)phba);
 	/* EA polling mode timer */
-	init_timer(&phba->eratt_poll);
-	phba->eratt_poll.function = lpfc_poll_eratt;
-	phba->eratt_poll.data = (unsigned long) phba;
+	setup_timer(&phba->eratt_poll, lpfc_poll_eratt,
+			(unsigned long)phba);
 	/* Heartbeat timer */
-	init_timer(&phba->hb_tmofunc);
-	phba->hb_tmofunc.function = lpfc_hb_timeout;
-	phba->hb_tmofunc.data = (unsigned long)phba;
+	setup_timer(&phba->hb_tmofunc, lpfc_hb_timeout, (unsigned long)phba);
 
 	return 0;
 }
@@ -5446,9 +5437,8 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 	 */
 
 	/* FCP polling mode timer */
-	init_timer(&phba->fcp_poll_timer);
-	phba->fcp_poll_timer.function = lpfc_poll_timeout;
-	phba->fcp_poll_timer.data = (unsigned long) phba;
+	setup_timer(&phba->fcp_poll_timer, lpfc_poll_timeout,
+			(unsigned long)phba);
 
 	/* Host attention work mask setup */
 	phba->work_ha_mask = (HA_ERATT | HA_MBATT | HA_LATT);
@@ -5617,14 +5607,11 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	 * Initialize timers used by driver
 	 */
 
-	init_timer(&phba->rrq_tmr);
-	phba->rrq_tmr.function = lpfc_rrq_timeout;
-	phba->rrq_tmr.data = (unsigned long)phba;
+	setup_timer(&phba->rrq_tmr, lpfc_rrq_timeout, (unsigned long)phba);
 
 	/* FCF rediscover timer */
-	init_timer(&phba->fcf.redisc_wait);
-	phba->fcf.redisc_wait.function = lpfc_sli4_fcf_redisc_wait_tmo;
-	phba->fcf.redisc_wait.data = (unsigned long)phba;
+	setup_timer(&phba->fcf.redisc_wait, lpfc_sli4_fcf_redisc_wait_tmo,
+			(unsigned long)phba);
 
 	/*
 	 * Control structure for handling external multi-buffer mailbox
