@@ -240,6 +240,8 @@ void bcma_prepare_core(struct bcma_bus *bus, struct bcma_device *core)
 	core->dev.bus = &bcma_bus_type;
 	dev_set_name(&core->dev, "bcma%d:%d", bus->num, core->core_index);
 	core->dev.parent = bcma_bus_get_host_dev(bus);
+	if (core->dev.parent)
+		bcma_of_fill_device(core->dev.parent, core);
 
 	switch (bus->hosttype) {
 	case BCMA_HOSTTYPE_PCI:
@@ -249,8 +251,6 @@ void bcma_prepare_core(struct bcma_bus *bus, struct bcma_device *core)
 	case BCMA_HOSTTYPE_SOC:
 		if (IS_ENABLED(CONFIG_OF) && bus->host_pdev) {
 			core->dma_dev = &bus->host_pdev->dev;
-			if (core->dev.parent)
-				bcma_of_fill_device(core->dev.parent, core);
 		} else {
 			core->dev.dma_mask = &core->dev.coherent_dma_mask;
 			core->dma_dev = &core->dev;
