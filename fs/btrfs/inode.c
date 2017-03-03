@@ -4603,13 +4603,6 @@ error:
 
 	btrfs_free_path(path);
 
-	if (err == 0) {
-		/* only inline file may have last_size != new_size */
-		if (new_size >= fs_info->sectorsize ||
-		    new_size > fs_info->max_inline)
-			ASSERT(last_size == new_size);
-	}
-
 	if (be_nice && bytes_deleted > SZ_32M) {
 		unsigned long updates = trans->delayed_ref_updates;
 		if (updates) {
