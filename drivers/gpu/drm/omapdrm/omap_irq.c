@@ -182,12 +182,13 @@ static void omap_irq_fifo_underflow(struct omap_drm_private *priv,
 	pr_cont("(0x%08x)\n", irqstatus);
 }
 
-static void omap_irq_ocp_error_handler(u32 irqstatus)
+static void omap_irq_ocp_error_handler(struct drm_device *dev,
+	u32 irqstatus)
 {
 	if (!(irqstatus & DISPC_IRQ_OCP_ERR))
 		return;
 
-	DRM_ERROR("OCP error\n");
+	dev_err_ratelimited(dev->dev, "OCP error\n");
 }
 
 static irqreturn_t omap_irq_handler(int irq, void *arg)
@@ -218,7 +219,7 @@ static irqreturn_t omap_irq_handler(int irq, void *arg)
 			omap_crtc_error_irq(crtc, irqstatus);
 	}
 
-	omap_irq_ocp_error_handler(irqstatus);
+	omap_irq_ocp_error_handler(dev, irqstatus);
 	omap_irq_fifo_underflow(priv, irqstatus);
 
 	spin_lock_irqsave(&priv->wait_lock, flags);
