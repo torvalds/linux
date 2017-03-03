@@ -1548,6 +1548,47 @@ static int coda_decoder_reqbufs(struct coda_ctx *ctx,
 	return 0;
 }
 
+static bool coda_reorder_enable(struct coda_ctx *ctx)
+{
+	const char * const *profile_names;
+	const char * const *level_names;
+	struct coda_dev *dev = ctx->dev;
+	int profile, level;
+
+	if (dev->devtype->product != CODA_7541 &&
+	    dev->devtype->product != CODA_960)
+		return false;
+
+	if (ctx->codec->src_fourcc == V4L2_PIX_FMT_JPEG)
+		return false;
+
+	if (ctx->codec->src_fourcc != V4L2_PIX_FMT_H264)
+		return true;
+
+	profile = coda_h264_profile(ctx->params.h264_profile_idc);
+	if (profile < 0) {
+		v4l2_warn(&dev->v4l2_dev, "Invalid H264 Profile: %d\n",
+			 ctx->params.h264_profile_idc);
+		return false;
+	}
+
+	level = coda_h264_level(ctx->params.h264_level_idc);
+	if (level < 0) {
+		v4l2_warn(&dev->v4l2_dev, "Invalid H264 Level: %d\n",
+			 ctx->params.h264_level_idc);
+		return false;
+	}
+
+	profile_names = v4l2_ctrl_get_menu(V4L2_CID_MPEG_VIDEO_H264_PROFILE);
+	level_names = v4l2_ctrl_get_menu(V4L2_CID_MPEG_VIDEO_H264_LEVEL);
+
+	v4l2_dbg(1, coda_debug, &dev->v4l2_dev, "H264 Profile/Level: %s L%s\n",
+		 profile_names[profile], level_names[level]);
+
+	/* Baseline profile does not support reordering */
+	return profile > V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE;
+}
+
 static int __coda_start_decoding(struct coda_ctx *ctx)
 {
 	struct coda_q_data *q_data_src, *q_data_dst;
@@ -1594,8 +1635,7 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 	coda_write(dev, bitstream_buf, CODA_CMD_DEC_SEQ_BB_START);
 	coda_write(dev, bitstream_size / 1024, CODA_CMD_DEC_SEQ_BB_SIZE);
 	val = 0;
-	if ((dev->devtype->product == CODA_7541) ||
-	    (dev->devtype->product == CODA_960))
+	if (coda_reorder_enable(ctx))
 		val |= CODA_REORDER_ENABLE;
 	if (ctx->codec->src_fourcc == V4L2_PIX_FMT_JPEG)
 		val |= CODA_NO_INT_ENABLE;

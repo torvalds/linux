@@ -1374,6 +1374,18 @@ static void coda_buf_queue(struct vb2_buffer *vb)
 		 */
 		if (vb2_get_plane_payload(vb, 0) == 0)
 			coda_bit_stream_end_flag(ctx);
+
+		if (q_data->fourcc == V4L2_PIX_FMT_H264) {
+			/*
+			 * Unless already done, try to obtain profile_idc and
+			 * level_idc from the SPS header. This allows to decide
+			 * whether to enable reordering during sequence
+			 * initialization.
+			 */
+			if (!ctx->params.h264_profile_idc)
+				coda_sps_parse_profile(ctx, vb);
+		}
+
 		mutex_lock(&ctx->bitstream_mutex);
 		v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, vbuf);
 		if (vb2_is_streaming(vb->vb2_queue))
