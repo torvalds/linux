@@ -856,7 +856,7 @@ static int bcm2835_audio_write_worker(struct bcm2835_alsa_stream *alsa_stream,
 							  NULL);
 		} else {
 			while (count > 0) {
-				int bytes = min((int)m.u.write.max_packet, (int)count);
+				int bytes = min_t(int, m.u.write.max_packet, count);
 
 				status = bcm2835_vchi_msg_queue(instance->vchi_handle[0],
 								src, bytes);
