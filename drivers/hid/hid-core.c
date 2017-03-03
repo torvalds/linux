@@ -1695,7 +1695,7 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
 		len += sprintf(buf + len, "input");
 	if (hdev->claimed & HID_CLAIMED_HIDDEV)
 		len += sprintf(buf + len, "%shiddev%d", len ? "," : "",
-				hdev->minor);
+				((struct hiddev *)hdev->hiddev)->minor);
 	if (hdev->claimed & HID_CLAIMED_HIDRAW)
 		len += sprintf(buf + len, "%shidraw%d", len ? "," : "",
 				((struct hidraw *)hdev->hidraw)->minor);

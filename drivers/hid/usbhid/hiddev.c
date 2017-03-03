@@ -46,17 +46,6 @@
 #endif
 #define HIDDEV_BUFFER_SIZE	2048
 
-struct hiddev {
-	int exist;
-	int open;
-	struct mutex existancelock;
-	wait_queue_head_t wait;
-	struct hid_device *hid;
-	struct list_head list;
-	spinlock_t list_lock;
-	bool initialized;
-};
-
 struct hiddev_list {
 	struct hiddev_usage_ref buffer[HIDDEV_BUFFER_SIZE];
 	int head;
@@ -922,6 +911,8 @@ int hiddev_connect(struct hid_device *hid, unsigned int force)
 	 * the reports.
 	 */
 	hiddev->initialized = hid->quirks & HID_QUIRK_NO_INIT_REPORTS;
+
+	hiddev->minor = usbhid->intf->minor;
 
 	return 0;
 }
