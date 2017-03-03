@@ -8,6 +8,7 @@
  */
 
 #include <linux/mm.h>
+#include <linux/sched/signal.h>
 #include <linux/pagemap.h>
 #include <linux/rmap.h>
 #include <linux/swap.h>

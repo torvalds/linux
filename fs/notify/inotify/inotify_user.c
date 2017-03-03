@@ -30,7 +30,7 @@
 #include <linux/inotify.h>
 #include <linux/kernel.h> /* roundup() */
 #include <linux/namei.h> /* LOOKUP_FOLLOW */
-#include <linux/sched.h> /* struct user */
+#include <linux/sched/signal.h>
 #include <linux/slab.h> /* struct kmem_cache */
 #include <linux/syscalls.h>
 #include <linux/types.h>

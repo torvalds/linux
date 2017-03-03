@@ -28,6 +28,7 @@
 #include <linux/timer.h>
 #include <linux/version.h>
 #include <linux/wait.h>
+#include <linux/sched/signal.h>
 #include <linux/blockgroup_lock.h>
 #include <linux/percpu_counter.h>
 #include <linux/ratelimit.h>

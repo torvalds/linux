@@ -14,12 +14,14 @@
 #include <linux/stat.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/sched/stat.h>
 #include <linux/module.h>
 #include <linux/bitops.h>
 #include <linux/user_namespace.h>
 #include <linux/mount.h>
 #include <linux/pid_namespace.h>
 #include <linux/parser.h>
+#include <linux/cred.h>
 
 #include "internal.h"
 

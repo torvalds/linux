@@ -9,6 +9,7 @@
 
 #include <linux/fs.h>
 #include <linux/slab.h>
+#include <linux/cred.h>
 #include <linux/xattr.h>
 #include <linux/posix_acl.h>
 #include "overlayfs.h"

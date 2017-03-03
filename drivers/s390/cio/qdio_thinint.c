@@ -8,6 +8,8 @@
 #include <linux/slab.h>
 #include <linux/kernel_stat.h>
 #include <linux/atomic.h>
+#include <linux/rculist.h>
+
 #include <asm/debug.h>
 #include <asm/qdio.h>
 #include <asm/airq.h>

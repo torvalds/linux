@@ -4,8 +4,9 @@
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
 
-#include <linux/slab.h> 
+#include <linux/slab.h>
 #include <linux/stat.h>
+#include <linux/sched/xacct.h>
 #include <linux/fcntl.h>
 #include <linux/file.h>
 #include <linux/uio.h>

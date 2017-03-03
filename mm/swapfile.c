@@ -6,6 +6,8 @@
  */
 
 #include <linux/mm.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/task.h>
 #include <linux/hugetlb.h>
 #include <linux/mman.h>
 #include <linux/slab.h>

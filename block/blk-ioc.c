@@ -7,6 +7,7 @@
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 #include <linux/slab.h>
+#include <linux/sched/task.h>
 
 #include "blk.h"
 

@@ -27,6 +27,8 @@
 #include <linux/cgroup.h>
 #include <linux/module.h>
 #include <linux/sort.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/signal.h>
 #include <linux/interval_tree_generic.h>
 
 #include "vhost.h"

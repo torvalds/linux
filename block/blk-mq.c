@@ -20,6 +20,8 @@
 #include <linux/cpu.h>
 #include <linux/cache.h>
 #include <linux/sched/sysctl.h>
+#include <linux/sched/topology.h>
+#include <linux/sched/signal.h>
 #include <linux/delay.h>
 #include <linux/crash_dump.h>
 #include <linux/prefetch.h>

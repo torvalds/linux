@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/timer.h>
 #include <linux/sched.h>
+#include <linux/sched/loadavg.h>
 #include <linux/leds.h>
 #include <linux/reboot.h>
 #include <linux/suspend.h>

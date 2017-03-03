@@ -41,7 +41,7 @@
 #include <linux/uaccess.h>
 #include <linux/atomic.h>
 #include <linux/uio.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/mm.h>
 #include <linux/wait.h>
 #include <linux/dcache.h>

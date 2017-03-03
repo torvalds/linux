@@ -20,6 +20,7 @@
 #define __BTRFS_CTREE__
 
 #include <linux/mm.h>
+#include <linux/sched/signal.h>
 #include <linux/highmem.h>
 #include <linux/fs.h>
 #include <linux/rwsem.h>

@@ -5,6 +5,7 @@
 
 #include <linux/io.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/random.h>
 #include <asm/processor.h>
 #include <asm/apic.h>

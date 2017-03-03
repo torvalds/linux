@@ -5,6 +5,8 @@
 #include <linux/ptrace.h>
 #include <linux/extable.h>
 #include <linux/uaccess.h>
+#include <linux/sched/debug.h>
+
 #include <hwregs/supp_reg.h>
 #include <hwregs/intr_vect_defs.h>
 #include <asm/irq.h>

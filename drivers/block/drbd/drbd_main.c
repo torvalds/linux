@@ -52,6 +52,7 @@
 #define __KERNEL_SYSCALLS__
 #include <linux/unistd.h>
 #include <linux/vmalloc.h>
+#include <linux/sched/signal.h>
 
 #include <linux/drbd_limits.h>
 #include "drbd_int.h"

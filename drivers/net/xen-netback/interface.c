@@ -31,6 +31,7 @@
 #include "common.h"
 
 #include <linux/kthread.h>
+#include <linux/sched/task.h>
 #include <linux/ethtool.h>
 #include <linux/rtnetlink.h>
 #include <linux/if_vlan.h>

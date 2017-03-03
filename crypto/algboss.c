@@ -19,7 +19,7 @@
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/rtnetlink.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 

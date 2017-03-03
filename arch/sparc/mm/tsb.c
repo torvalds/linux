@@ -6,6 +6,8 @@
 #include <linux/kernel.h>
 #include <linux/preempt.h>
 #include <linux/slab.h>
+#include <linux/mm_types.h>
+
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>

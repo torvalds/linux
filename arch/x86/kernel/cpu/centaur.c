@@ -1,5 +1,6 @@
 
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 
 #include <asm/cpufeature.h>
 #include <asm/e820.h>

@@ -15,6 +15,7 @@
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/sched.h>
+#include <linux/cred.h>
 
 #define dprintk(fmt, args...) do{}while(0)
 

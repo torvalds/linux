@@ -12,6 +12,7 @@
 
 #include <linux/stddef.h>
 #include <linux/kernel.h>
+#include <linux/sched/hotplug.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/of.h>

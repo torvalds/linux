@@ -30,7 +30,7 @@
 #include <linux/mutex.h>
 #include <linux/percpu.h>
 #include <linux/preempt.h>
-#include <linux/rcupdate.h>
+#include <linux/rcupdate_wait.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/delay.h>

@@ -18,6 +18,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/string.h>
 
 #include <linux/mm.h>

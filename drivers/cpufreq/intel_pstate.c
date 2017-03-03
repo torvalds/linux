@@ -19,7 +19,7 @@
 #include <linux/hrtimer.h>
 #include <linux/tick.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
+#include <linux/sched/cpufreq.h>
 #include <linux/list.h>
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>

@@ -20,6 +20,7 @@
 #include <linux/moduleparam.h>
 #include <linux/inetdevice.h>
 #include <linux/export.h>
+#include <linux/sched/signal.h>
 
 #include "core.h"
 #include "cfg80211.h"

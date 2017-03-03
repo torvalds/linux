@@ -10,6 +10,8 @@
  */
 
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
+
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
 #include <rxrpc/packet.h>

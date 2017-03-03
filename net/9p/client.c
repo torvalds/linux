@@ -32,7 +32,7 @@
 #include <linux/idr.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/uaccess.h>
 #include <linux/uio.h>
 #include <net/9p/9p.h>

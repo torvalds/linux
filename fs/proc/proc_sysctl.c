@@ -8,6 +8,7 @@
 #include <linux/printk.h>
 #include <linux/security.h>
 #include <linux/sched.h>
+#include <linux/cred.h>
 #include <linux/namei.h>
 #include <linux/mm.h>
 #include <linux/module.h>

@@ -44,6 +44,7 @@
 
 */
 
+#include <linux/sched/signal.h>
 #include <linux/kthread.h>
 #include <linux/blkdev.h>
 #include <linux/badblocks.h>

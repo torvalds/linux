@@ -15,6 +15,7 @@
 #include <linux/extable.h>
 #include <linux/module.h>
 #include <linux/proc_fs.h>
+#include <linux/binfmts.h>
 #include <linux/kernel.h>
 #include <linux/syscalls.h>
 #include <linux/stackprotector.h>
@@ -27,6 +28,7 @@
 #include <linux/bootmem.h>
 #include <linux/acpi.h>
 #include <linux/tty.h>
+#include <linux/nmi.h>
 #include <linux/percpu.h>
 #include <linux/kmod.h>
 #include <linux/vmalloc.h>
@@ -61,6 +63,7 @@
 #include <linux/device.h>
 #include <linux/kthread.h>
 #include <linux/sched.h>
+#include <linux/sched/init.h>
 #include <linux/signal.h>
 #include <linux/idr.h>
 #include <linux/kgdb.h>
@@ -75,6 +78,8 @@
 #include <linux/blkdev.h>
 #include <linux/elevator.h>
 #include <linux/sched_clock.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/context_tracking.h>
 #include <linux/random.h>
 #include <linux/list.h>

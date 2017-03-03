@@ -7,6 +7,10 @@
 #include <linux/prctl.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/sched/idle.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/pm.h>

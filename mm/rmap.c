@@ -46,6 +46,8 @@
  */
 
 #include <linux/mm.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/task.h>
 #include <linux/pagemap.h>
 #include <linux/swap.h>
 #include <linux/swapops.h>
