@@ -363,7 +363,7 @@ void ida_check_random(void)
 {
 	DEFINE_IDA(ida);
 	DECLARE_BITMAP(bitmap, 2048);
-	int id;
+	int id, err;
 	unsigned int i;
 	time_t s = time(NULL);
 
@@ -377,8 +377,11 @@ void ida_check_random(void)
 			ida_remove(&ida, bit);
 		} else {
 			__set_bit(bit, bitmap);
-			ida_pre_get(&ida, GFP_KERNEL);
-			assert(!ida_get_new_above(&ida, bit, &id));
+			do {
+				ida_pre_get(&ida, GFP_KERNEL);
+				err = ida_get_new_above(&ida, bit, &id);
+			} while (err == -ENOMEM);
+			assert(!err);
 			assert(id == bit);
 		}
 	}
@@ -476,11 +479,36 @@ void ida_checks(void)
 	radix_tree_cpu_dead(1);
 }
 
+static void *ida_random_fn(void *arg)
+{
+	rcu_register_thread();
+	ida_check_random();
+	rcu_unregister_thread();
+	return NULL;
+}
+
+void ida_thread_tests(void)
+{
+	pthread_t threads[10];
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(threads); i++)
+		if (pthread_create(&threads[i], NULL, ida_random_fn, NULL)) {
+			perror("creating ida thread");
+			exit(1);
+		}
+
+	while (i--)
+		pthread_join(threads[i], NULL);
+}
+
 int __weak main(void)
 {
 	radix_tree_init();
 	idr_checks();
 	ida_checks();
+	ida_thread_tests();
+	radix_tree_cpu_dead(1);
 	rcu_barrier();
 	if (nr_allocated)
 		printf("nr_allocated = %d\n", nr_allocated);
