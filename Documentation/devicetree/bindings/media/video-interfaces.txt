@@ -83,6 +83,8 @@ Optional properties
 - flash-leds: An array of phandles, each referring to a flash LED, a sub-node
   of the LED driver device node.
 
+- lens-focus: A phandle to the node of the focus lens controller.
+
 
 Optional endpoint properties
 ----------------------------
