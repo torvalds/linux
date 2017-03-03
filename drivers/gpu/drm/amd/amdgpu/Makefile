@@ -78,7 +78,8 @@ amdgpu-y += \
 amdgpu-y += \
 	amdgpu_uvd.o \
 	uvd_v5_0.o \
-	uvd_v6_0.o
+	uvd_v6_0.o \
+	uvd_v7_0.o
 
 # add VCE block
 amdgpu-y += \
