@@ -13,6 +13,7 @@ endif
 
 ifeq ($(BUILD), 32)
 	CFLAGS += -m32
+	LDFLAGS += -m32
 endif
 
 targets: mapshift $(TARGETS)
