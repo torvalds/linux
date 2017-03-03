@@ -202,7 +202,7 @@ struct scrub_ctx {
 	 * doesn't free the scrub context before or while the workers are
 	 * doing the wakeup() call.
 	 */
-	atomic_t                refs;
+	refcount_t              refs;
 };
 
 struct scrub_fixup_nodatasum {
@@ -305,7 +305,7 @@ static void scrub_put_ctx(struct scrub_ctx *sctx);
 
 static void scrub_pending_bio_inc(struct scrub_ctx *sctx)
 {
-	atomic_inc(&sctx->refs);
+	refcount_inc(&sctx->refs);
 	atomic_inc(&sctx->bios_in_flight);
 }
 
@@ -356,7 +356,7 @@ static void scrub_pending_trans_workers_inc(struct scrub_ctx *sctx)
 {
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 
-	atomic_inc(&sctx->refs);
+	refcount_inc(&sctx->refs);
 	/*
 	 * increment scrubs_running to prevent cancel requests from
 	 * completing as long as a worker is running. we must also
@@ -447,7 +447,7 @@ static noinline_for_stack void scrub_free_ctx(struct scrub_ctx *sctx)
 
 static void scrub_put_ctx(struct scrub_ctx *sctx)
 {
-	if (atomic_dec_and_test(&sctx->refs))
+	if (refcount_dec_and_test(&sctx->refs))
 		scrub_free_ctx(sctx);
 }
 
@@ -462,7 +462,7 @@ struct scrub_ctx *scrub_setup_ctx(struct btrfs_device *dev, int is_dev_replace)
 	sctx = kzalloc(sizeof(*sctx), GFP_KERNEL);
 	if (!sctx)
 		goto nomem;
-	atomic_set(&sctx->refs, 1);
+	refcount_set(&sctx->refs, 1);
 	sctx->is_dev_replace = is_dev_replace;
 	sctx->pages_per_rd_bio = SCRUB_PAGES_PER_RD_BIO;
 	sctx->curr = -1;
