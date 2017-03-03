@@ -815,7 +815,10 @@ int amdgpu_bo_fbdev_mmap(struct amdgpu_bo *bo,
 
 int amdgpu_bo_set_tiling_flags(struct amdgpu_bo *bo, u64 tiling_flags)
 {
-	if (AMDGPU_TILING_GET(tiling_flags, TILE_SPLIT) > 6)
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
+
+	if (adev->family <= AMDGPU_FAMILY_CZ &&
+	    AMDGPU_TILING_GET(tiling_flags, TILE_SPLIT) > 6)
 		return -EINVAL;
 
 	bo->tiling_flags = tiling_flags;
