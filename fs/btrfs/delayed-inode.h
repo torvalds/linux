@@ -80,7 +80,7 @@ struct btrfs_delayed_item {
 	struct list_head readdir_list;	/* used for readdir items */
 	u64 bytes_reserved;
 	struct btrfs_delayed_node *delayed_node;
-	atomic_t refs;
+	refcount_t refs;
 	int ins_or_del;
 	u32 data_len;
 	char data[0];

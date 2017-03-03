@@ -308,7 +308,7 @@ static struct btrfs_delayed_item *btrfs_alloc_delayed_item(u32 data_len)
 		item->ins_or_del = 0;
 		item->bytes_reserved = 0;
 		item->delayed_node = NULL;
-		atomic_set(&item->refs, 1);
+		refcount_set(&item->refs, 1);
 	}
 	return item;
 }
@@ -483,7 +483,7 @@ static void btrfs_release_delayed_item(struct btrfs_delayed_item *item)
 {
 	if (item) {
 		__btrfs_remove_delayed_item(item);
-		if (atomic_dec_and_test(&item->refs))
+		if (refcount_dec_and_test(&item->refs))
 			kfree(item);
 	}
 }
@@ -1600,14 +1600,14 @@ bool btrfs_readdir_get_delayed_items(struct inode *inode,
 	mutex_lock(&delayed_node->mutex);
 	item = __btrfs_first_delayed_insertion_item(delayed_node);
 	while (item) {
-		atomic_inc(&item->refs);
+		refcount_inc(&item->refs);
 		list_add_tail(&item->readdir_list, ins_list);
 		item = __btrfs_next_delayed_item(item);
 	}
 
 	item = __btrfs_first_delayed_deletion_item(delayed_node);
 	while (item) {
-		atomic_inc(&item->refs);
+		refcount_inc(&item->refs);
 		list_add_tail(&item->readdir_list, del_list);
 		item = __btrfs_next_delayed_item(item);
 	}
@@ -1634,13 +1634,13 @@ void btrfs_readdir_put_delayed_items(struct inode *inode,
 
 	list_for_each_entry_safe(curr, next, ins_list, readdir_list) {
 		list_del(&curr->readdir_list);
-		if (atomic_dec_and_test(&curr->refs))
+		if (refcount_dec_and_test(&curr->refs))
 			kfree(curr);
 	}
 
 	list_for_each_entry_safe(curr, next, del_list, readdir_list) {
 		list_del(&curr->readdir_list);
-		if (atomic_dec_and_test(&curr->refs))
+		if (refcount_dec_and_test(&curr->refs))
 			kfree(curr);
 	}
 
@@ -1667,7 +1667,7 @@ int btrfs_should_delete_dir_index(struct list_head *del_list,
 		list_del(&curr->readdir_list);
 		ret = (curr->key.offset == index);
 
-		if (atomic_dec_and_test(&curr->refs))
+		if (refcount_dec_and_test(&curr->refs))
 			kfree(curr);
 
 		if (ret)
@@ -1705,7 +1705,7 @@ int btrfs_readdir_delayed_dir_index(struct dir_context *ctx,
 		list_del(&curr->readdir_list);
 
 		if (curr->key.offset < ctx->pos) {
-			if (atomic_dec_and_test(&curr->refs))
+			if (refcount_dec_and_test(&curr->refs))
 				kfree(curr);
 			continue;
 		}
@@ -1722,7 +1722,7 @@ int btrfs_readdir_delayed_dir_index(struct dir_context *ctx,
 		over = !dir_emit(ctx, name, name_len,
 			       location.objectid, d_type);
 
-		if (atomic_dec_and_test(&curr->refs))
+		if (refcount_dec_and_test(&curr->refs))
 			kfree(curr);
 
 		if (over)
