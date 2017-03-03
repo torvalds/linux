@@ -31,7 +31,9 @@ Optional properties:
 
 - domain-idle-states : A phandle of an idle-state that shall be soaked into a
                 generic domain power state. The idle state definitions are
-                compatible with domain-idle-state specified in [1].
+                compatible with domain-idle-state specified in [1]. phandles
+                that are not compatible with domain-idle-state will be
+                ignored.
   The domain-idle-state property reflects the idle state of this PM domain and
   not the idle states of the devices or sub-domains in the PM domain. Devices
   and sub-domains have their own idle-states independent of the parent

@@ -2093,11 +2093,6 @@ static int genpd_parse_state(struct genpd_power_state *genpd_state,
 	int err;
 	u32 residency;
 	u32 entry_latency, exit_latency;
-	const struct of_device_id *match_id;
-
-	match_id = of_match_node(idle_state_match, state_node);
-	if (!match_id)
-		return -EINVAL;
 
 	err = of_property_read_u32(state_node, "entry-latency-us",
 						&entry_latency);
@@ -2146,6 +2141,7 @@ int of_genpd_parse_idle_states(struct device_node *dn,
 	int err, ret;
 	int count;
 	struct of_phandle_iterator it;
+	const struct of_device_id *match_id;
 
 	count = of_count_phandle_with_args(dn, "domain-idle-states", NULL);
 	if (count <= 0)
@@ -2158,6 +2154,9 @@ int of_genpd_parse_idle_states(struct device_node *dn,
 	/* Loop over the phandles until all the requested entry is found */
 	of_for_each_phandle(&it, err, dn, "domain-idle-states", NULL, 0) {
 		np = it.node;
+		match_id = of_match_node(idle_state_match, np);
+		if (!match_id)
+			continue;
 		ret = genpd_parse_state(&st[i++], np);
 		if (ret) {
 			pr_err
@@ -2169,8 +2168,11 @@ int of_genpd_parse_idle_states(struct device_node *dn,
 		}
 	}
 
-	*n = count;
-	*states = st;
+	*n = i;
+	if (!i)
+		kfree(st);
+	else
+		*states = st;
 
 	return 0;
 }
