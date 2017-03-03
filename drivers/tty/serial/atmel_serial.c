@@ -38,7 +38,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/atmel_pdc.h>
-#include <linux/atmel_serial.h>
 #include <linux/uaccess.h>
 #include <linux/platform_data/atmel.h>
 #include <linux/timer.h>
@@ -71,6 +70,7 @@
 #include <linux/serial_core.h>
 
 #include "serial_mctrl_gpio.h"
+#include "atmel_serial.h"
 
 static void atmel_start_rx(struct uart_port *port);
 static void atmel_stop_rx(struct uart_port *port);
