@@ -287,6 +287,22 @@ static inline void __intel_breadcrumbs_finish(struct intel_breadcrumbs *b,
 	wake_up_process(wait->tsk); /* implicit smp_wmb() */
 }
 
+static inline void __intel_breadcrumbs_next(struct intel_engine_cs *engine,
+					    struct rb_node *next)
+{
+	struct intel_breadcrumbs *b = &engine->breadcrumbs;
+
+	GEM_BUG_ON(!b->irq_armed);
+	b->first_wait = to_wait(next);
+
+	/* We always wake up the next waiter that takes over as the bottom-half
+	 * as we may delegate not only the irq-seqno barrier to the next waiter
+	 * but also the task of waking up concurrent waiters.
+	 */
+	if (next)
+		wake_up_process(to_wait(next)->tsk);
+}
+
 static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 				    struct intel_wait *wait)
 {
@@ -357,21 +373,7 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 		GEM_BUG_ON(!next && !first);
 		if (next && next != &wait->node) {
 			GEM_BUG_ON(first);
-			b->first_wait = to_wait(next);
-			/* As there is a delay between reading the current
-			 * seqno, processing the completed tasks and selecting
-			 * the next waiter, we may have missed the interrupt
-			 * and so need for the next bottom-half to wakeup.
-			 *
-			 * Also as we enable the IRQ, we may miss the
-			 * interrupt for that seqno, so we have to wake up
-			 * the next bottom-half in order to do a coherent check
-			 * in case the seqno passed.
-			 */
-			__intel_breadcrumbs_enable_irq(b);
-			if (test_bit(ENGINE_IRQ_BREADCRUMB,
-				     &engine->irq_posted))
-				wake_up_process(to_wait(next)->tsk);
+			__intel_breadcrumbs_next(engine, next);
 		}
 
 		do {
@@ -473,21 +475,7 @@ static void __intel_engine_remove_wait(struct intel_engine_cs *engine,
 			}
 		}
 
-		if (next) {
-			/* In our haste, we may have completed the first waiter
-			 * before we enabled the interrupt. Do so now as we
-			 * have a second waiter for a future seqno. Afterwards,
-			 * we have to wake up that waiter in case we missed
-			 * the interrupt, or if we have to handle an
-			 * exception rather than a seqno completion.
-			 */
-			b->first_wait = to_wait(next);
-			if (b->first_wait->seqno != wait->seqno)
-				__intel_breadcrumbs_enable_irq(b);
-			wake_up_process(b->first_wait->tsk);
-		} else {
-			b->first_wait = NULL;
-		}
+		__intel_breadcrumbs_next(engine, next);
 	} else {
 		GEM_BUG_ON(rb_first(&b->waiters) == &wait->node);
 	}
