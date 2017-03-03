@@ -58,7 +58,7 @@ struct fuse_file *fuse_file_alloc(struct fuse_conn *fc)
 	}
 
 	INIT_LIST_HEAD(&ff->write_entry);
-	atomic_set(&ff->count, 1);
+	refcount_set(&ff->count, 1);
 	RB_CLEAR_NODE(&ff->polled_node);
 	init_waitqueue_head(&ff->poll_wait);
 
@@ -77,7 +77,7 @@ void fuse_file_free(struct fuse_file *ff)
 
 static struct fuse_file *fuse_file_get(struct fuse_file *ff)
 {
-	atomic_inc(&ff->count);
+	refcount_inc(&ff->count);
 	return ff;
 }
 
@@ -88,7 +88,7 @@ static void fuse_release_end(struct fuse_conn *fc, struct fuse_req *req)
 
 static void fuse_file_put(struct fuse_file *ff, bool sync)
 {
-	if (atomic_dec_and_test(&ff->count)) {
+	if (refcount_dec_and_test(&ff->count)) {
 		struct fuse_req *req = ff->reserved_req;
 
 		if (ff->fc->no_open) {
@@ -293,7 +293,7 @@ static int fuse_release(struct inode *inode, struct file *file)
 
 void fuse_sync_release(struct fuse_file *ff, int flags)
 {
-	WARN_ON(atomic_read(&ff->count) != 1);
+	WARN_ON(refcount_read(&ff->count) > 1);
 	fuse_prepare_release(ff, flags, FUSE_RELEASE);
 	/*
 	 * iput(NULL) is a no-op and since the refcount is 1 and everything's
