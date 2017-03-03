@@ -31,6 +31,7 @@
 #include "opp.h"
 #include "timing_generator.h"
 #include "transform.h"
+#include "core_types.h"
 #include "set_mode_types.h"
 #include "virtual/virtual_stream_encoder.h"
 
@@ -77,25 +78,39 @@ struct resource_pool *dc_create_resource_pool(
 				enum dce_version dc_version,
 				struct hw_asic_id asic_id)
 {
+	struct resource_pool *res_pool = NULL;
 
 	switch (dc_version) {
 	case DCE_VERSION_8_0:
-		return dce80_create_resource_pool(
+		res_pool = dce80_create_resource_pool(
 			num_virtual_links, dc);
+		break;
 	case DCE_VERSION_10_0:
-		return dce100_create_resource_pool(
+		res_pool = dce100_create_resource_pool(
 				num_virtual_links, dc);
+		break;
 	case DCE_VERSION_11_0:
-		return dce110_create_resource_pool(
+		res_pool = dce110_create_resource_pool(
 			num_virtual_links, dc, asic_id);
+		break;
 	case DCE_VERSION_11_2:
-		return dce112_create_resource_pool(
+		res_pool = dce112_create_resource_pool(
 			num_virtual_links, dc);
+		break;
 	default:
 		break;
 	}
+	if (res_pool != NULL) {
+		struct firmware_info fw_info = { { 0 } };
 
-	return false;
+		if (dc->ctx->dc_bios->funcs->get_firmware_info(
+				dc->ctx->dc_bios, &fw_info) == BP_RESULT_OK) {
+				res_pool->ref_clock_inKhz = fw_info.pll_info.crystal_frequency;
+			} else
+				ASSERT_CRITICAL(false);
+	}
+
+	return res_pool;
 }
 
 void dc_destroy_resource_pool(struct core_dc *dc)

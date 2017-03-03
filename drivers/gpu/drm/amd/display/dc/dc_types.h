@@ -91,7 +91,6 @@ struct dc_context {
 	bool created_bios;
 	struct gpio_service *gpio_service;
 	struct i2caux *i2caux;
-	unsigned int ref_clock_inKhz;
 };
 
 
