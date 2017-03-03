@@ -498,34 +498,6 @@ static bool execlists_elsp_idle(struct intel_engine_cs *engine)
 	return !engine->execlist_port[0].request;
 }
 
-/**
- * intel_execlists_idle() - Determine if all engine submission ports are idle
- * @dev_priv: i915 device private
- *
- * Return true if there are no requests pending on any of the submission ports
- * of any engines.
- */
-bool intel_execlists_idle(struct drm_i915_private *dev_priv)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	if (!i915.enable_execlists)
-		return true;
-
-	for_each_engine(engine, dev_priv, id) {
-		/* Interrupt/tasklet pending? */
-		if (test_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted))
-			return false;
-
-		/* Both ports drained, no more ELSP submission? */
-		if (!execlists_elsp_idle(engine))
-			return false;
-	}
-
-	return true;
-}
-
 static bool execlists_elsp_ready(const struct intel_engine_cs *engine)
 {
 	const struct execlist_port *port = engine->execlist_port;

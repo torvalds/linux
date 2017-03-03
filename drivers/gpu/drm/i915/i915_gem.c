@@ -2959,8 +2959,8 @@ i915_gem_idle_work_handler(struct work_struct *work)
 	 * new request is submitted.
 	 */
 	wait_for(READ_ONCE(dev_priv->gt.active_requests) ||
-		 intel_execlists_idle(dev_priv), 10);
-
+		 intel_engines_are_idle(dev_priv),
+		 10);
 	if (READ_ONCE(dev_priv->gt.active_requests))
 		return;
 
@@ -2985,7 +2985,7 @@ i915_gem_idle_work_handler(struct work_struct *work)
 	if (dev_priv->gt.active_requests)
 		goto out_unlock;
 
-	if (wait_for(intel_execlists_idle(dev_priv), 10))
+	if (wait_for(intel_engines_are_idle(dev_priv), 10))
 		DRM_ERROR("Timeout waiting for engines to idle\n");
 
 	for_each_engine(engine, dev_priv, id) {
@@ -4287,7 +4287,7 @@ int i915_gem_suspend(struct drm_i915_private *dev_priv)
 	 * reset the GPU back to its idle, low power state.
 	 */
 	WARN_ON(dev_priv->gt.awake);
-	WARN_ON(!intel_execlists_idle(dev_priv));
+	WARN_ON(!intel_engines_are_idle(dev_priv));
 
 	/*
 	 * Neither the BIOS, ourselves or any other kernel

@@ -1102,6 +1102,19 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 	return true;
 }
 
+bool intel_engines_are_idle(struct drm_i915_private *dev_priv)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	for_each_engine(engine, dev_priv, id) {
+		if (!intel_engine_is_idle(engine))
+			return false;
+	}
+
+	return true;
+}
+
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 #include "selftests/mock_engine.c"
 #endif

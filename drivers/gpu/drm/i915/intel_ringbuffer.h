@@ -665,5 +665,6 @@ static inline u32 *gen8_emit_pipe_control(u32 *batch, u32 flags, u32 offset)
 }
 
 bool intel_engine_is_idle(struct intel_engine_cs *engine);
+bool intel_engines_are_idle(struct drm_i915_private *dev_priv);
 
 #endif /* _INTEL_RINGBUFFER_H_ */
