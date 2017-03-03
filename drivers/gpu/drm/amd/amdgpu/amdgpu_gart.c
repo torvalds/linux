@@ -229,7 +229,8 @@ void amdgpu_gart_unbind(struct amdgpu_device *adev, uint64_t offset,
 	unsigned p;
 	int i, j;
 	u64 page_base;
-	uint64_t flags = AMDGPU_PTE_SYSTEM;
+	/* Starting from VEGA10, system bit must be 0 to mean invalid. */
+	uint64_t flags = 0;
 
 	if (!adev->gart.ready) {
 		WARN(1, "trying to unbind memory from uninitialized GART !\n");
