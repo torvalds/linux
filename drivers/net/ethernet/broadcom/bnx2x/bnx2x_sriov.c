@@ -1899,7 +1899,8 @@ void bnx2x_iov_adjust_stats_req(struct bnx2x *bp)
 			continue;
 		}
 
-		DP(BNX2X_MSG_IOV, "add addresses for vf %d\n", vf->abs_vfid);
+		DP_AND((BNX2X_MSG_IOV | BNX2X_MSG_STATS),
+		       "add addresses for vf %d\n", vf->abs_vfid);
 		for_each_vfq(vf, j) {
 			struct bnx2x_vf_queue *rxq = vfq_get(vf, j);
 
@@ -1920,11 +1921,12 @@ void bnx2x_iov_adjust_stats_req(struct bnx2x *bp)
 				cpu_to_le32(U64_HI(q_stats_addr));
 			cur_query_entry->address.lo =
 				cpu_to_le32(U64_LO(q_stats_addr));
-			DP(BNX2X_MSG_IOV,
-			   "added address %x %x for vf %d queue %d client %d\n",
-			   cur_query_entry->address.hi,
-			   cur_query_entry->address.lo, cur_query_entry->funcID,
-			   j, cur_query_entry->index);
+			DP_AND((BNX2X_MSG_IOV | BNX2X_MSG_STATS),
+			       "added address %x %x for vf %d queue %d client %d\n",
+			       cur_query_entry->address.hi,
+			       cur_query_entry->address.lo,
+			       cur_query_entry->funcID,
+			       j, cur_query_entry->index);
 			cur_query_entry++;
 			cur_data_offset += sizeof(struct per_queue_stats);
 			stats_count++;
