@@ -109,6 +109,7 @@ struct vop_ctrl {
 	struct vop_reg dither_up;
 	struct vop_reg dither_down;
 
+	struct vop_reg dsp_out_yuv;
 	struct vop_reg dsp_data_swap;
 	struct vop_reg dsp_ccir656_avg;
 	struct vop_reg dsp_black;

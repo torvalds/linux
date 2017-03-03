@@ -1560,6 +1560,10 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	VOP_CTRL_SET(vop, dclk_ddr,
 		     s->output_mode == ROCKCHIP_OUT_MODE_YUV420 ? 1 : 0);
 	VOP_CTRL_SET(vop, overlay_mode, is_yuv_output(s->bus_format));
+	VOP_CTRL_SET(vop, dsp_out_yuv, is_yuv_output(s->bus_format));
+	VOP_CTRL_SET(vop, dsp_background,
+		     is_yuv_output(s->bus_format) ? 0x20010200 : 0);
+
 	VOP_CTRL_SET(vop, htotal_pw, (htotal << 16) | hsync_len);
 	val = hact_st << 16;
 	val |= hact_end;
