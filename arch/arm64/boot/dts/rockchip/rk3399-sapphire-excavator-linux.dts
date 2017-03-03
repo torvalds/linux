@@ -202,7 +202,6 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	#sound-dai-cells = <0>;
-	ddc-i2c-bus = <&i2c3>;
 	status = "okay";
 };
 
@@ -217,12 +216,6 @@
 		irq_gpio_number = <&gpio1 20 IRQ_TYPE_LEVEL_LOW>;
 		rst_gpio_number = <&gpio4 22 GPIO_ACTIVE_HIGH>;
 	};
-};
-
-&i2c3 {
-	status = "okay";
-	i2c-scl-rising-time-ns = <450>;
-	i2c-scl-falling-time-ns = <15>;
 };
 
 &i2s2 {
