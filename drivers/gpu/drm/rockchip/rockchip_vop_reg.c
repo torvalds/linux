@@ -432,7 +432,7 @@ static const uint32_t vop_csc_y2r_bt709[] = {
 
 static const uint32_t vop_csc_r2y_bt709[] = {
 	0x027500bb, 0xff99003f, 0x01c2fea5, 0xfe6801c2,
-	0xffd7fe68, 0x00010200, 0x00080200, 0x00080200,
+	0x0000ffd7, 0x00010200, 0x00080200, 0x00080200,
 };
 
 static const uint32_t vop_csc_y2r_bt2020[] = {

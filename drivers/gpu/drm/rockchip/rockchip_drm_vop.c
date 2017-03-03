@@ -1124,7 +1124,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	if (win->csc) {
 		vop_load_csc_table(vop, win->csc->y2r_offset, y2r_table);
 		vop_load_csc_table(vop, win->csc->r2r_offset, r2r_table);
-		vop_load_csc_table(vop, win->csc->r2r_offset, r2y_table);
+		vop_load_csc_table(vop, win->csc->r2y_offset, r2y_table);
 		VOP_WIN_SET_EXT(vop, win, csc, y2r_en, !!y2r_table);
 		VOP_WIN_SET_EXT(vop, win, csc, r2r_en, !!r2r_table);
 		VOP_WIN_SET_EXT(vop, win, csc, r2y_en, !!r2y_table);
