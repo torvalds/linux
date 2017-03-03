@@ -438,16 +438,12 @@ int rds_ib_init(void)
 	if (ret)
 		goto out_sysctl;
 
-	ret = rds_trans_register(&rds_ib_transport);
-	if (ret)
-		goto out_recv;
+	rds_trans_register(&rds_ib_transport);
 
 	rds_info_register_func(RDS_INFO_IB_CONNECTIONS, rds_ib_ic_info);
 
 	goto out;
 
-out_recv:
-	rds_ib_recv_exit();
 out_sysctl:
 	rds_ib_sysctl_exit();
 out_ibreg:
