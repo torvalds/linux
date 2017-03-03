@@ -84,7 +84,8 @@ amdgpu-y += \
 # add VCE block
 amdgpu-y += \
 	amdgpu_vce.o \
-	vce_v3_0.o
+	vce_v3_0.o \
+	vce_v4_0.o
 
 # add amdkfd interfaces
 amdgpu-y += \
