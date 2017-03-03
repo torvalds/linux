@@ -4097,16 +4097,16 @@ __i915_request_irq_complete(const struct drm_i915_gem_request *req)
 		 * the seqno before we believe it coherent since they see
 		 * irq_posted == false but we are still running).
 		 */
-		spin_lock_irqsave(&b->lock, flags);
-		if (b->first_wait && b->first_wait->tsk != current)
+		spin_lock_irqsave(&b->irq_lock, flags);
+		if (b->irq_wait && b->irq_wait->tsk != current)
 			/* Note that if the bottom-half is changed as we
 			 * are sending the wake-up, the new bottom-half will
 			 * be woken by whomever made the change. We only have
 			 * to worry about when we steal the irq-posted for
 			 * ourself.
 			 */
-			wake_up_process(b->first_wait->tsk);
-		spin_unlock_irqrestore(&b->lock, flags);
+			wake_up_process(b->irq_wait->tsk);
+		spin_unlock_irqrestore(&b->irq_lock, flags);
 
 		if (__i915_gem_request_completed(req, seqno))
 			return true;

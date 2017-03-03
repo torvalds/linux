@@ -31,7 +31,9 @@ static unsigned int __intel_breadcrumbs_wakeup(struct intel_breadcrumbs *b)
 	struct intel_wait *wait;
 	unsigned int result = 0;
 
-	wait = b->first_wait;
+	lockdep_assert_held(&b->irq_lock);
+
+	wait = b->irq_wait;
 	if (wait) {
 		result = ENGINE_WAKEUP_WAITER;
 		if (wake_up_process(wait->tsk))
@@ -47,9 +49,9 @@ unsigned int intel_engine_wakeup(struct intel_engine_cs *engine)
 	unsigned long flags;
 	unsigned int result;
 
-	spin_lock_irqsave(&b->lock, flags);
+	spin_lock_irqsave(&b->irq_lock, flags);
 	result = __intel_breadcrumbs_wakeup(b);
-	spin_unlock_irqrestore(&b->lock, flags);
+	spin_unlock_irqrestore(&b->irq_lock, flags);
 
 	return result;
 }
@@ -117,10 +119,10 @@ static void intel_breadcrumbs_fake_irq(unsigned long data)
 	 * coherent seqno check.
 	 */
 
-	spin_lock_irqsave(&b->lock, flags);
+	spin_lock_irqsave(&b->irq_lock, flags);
 	if (!__intel_breadcrumbs_wakeup(b))
 		__intel_engine_disarm_breadcrumbs(engine);
-	spin_unlock_irqrestore(&b->lock, flags);
+	spin_unlock_irqrestore(&b->irq_lock, flags);
 	if (!b->irq_armed)
 		return;
 
@@ -164,7 +166,7 @@ void __intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine)
 {
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 
-	lockdep_assert_held(&b->lock);
+	lockdep_assert_held(&b->irq_lock);
 
 	if (b->irq_enabled) {
 		irq_disable(engine);
@@ -182,7 +184,7 @@ void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine)
 	if (!b->irq_armed)
 		return;
 
-	spin_lock_irqsave(&b->lock, flags);
+	spin_lock_irqsave(&b->irq_lock, flags);
 
 	/* We only disarm the irq when we are idle (all requests completed),
 	 * so if there remains a sleeping waiter, it missed the request
@@ -193,7 +195,7 @@ void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine)
 
 	__intel_engine_disarm_breadcrumbs(engine);
 
-	spin_unlock_irqrestore(&b->lock, flags);
+	spin_unlock_irqrestore(&b->irq_lock, flags);
 }
 
 static bool use_fake_irq(const struct intel_breadcrumbs *b)
@@ -228,7 +230,7 @@ static void __intel_breadcrumbs_enable_irq(struct intel_breadcrumbs *b)
 		container_of(b, struct intel_engine_cs, breadcrumbs);
 	struct drm_i915_private *i915 = engine->i915;
 
-	lockdep_assert_held(&b->lock);
+	lockdep_assert_held(&b->irq_lock);
 	if (b->irq_armed)
 		return;
 
@@ -276,7 +278,7 @@ static inline struct intel_wait *to_wait(struct rb_node *node)
 static inline void __intel_breadcrumbs_finish(struct intel_breadcrumbs *b,
 					      struct intel_wait *wait)
 {
-	lockdep_assert_held(&b->lock);
+	lockdep_assert_held(&b->rb_lock);
 
 	/* This request is completed, so remove it from the tree, mark it as
 	 * complete, and *then* wake up the associated task.
@@ -292,8 +294,10 @@ static inline void __intel_breadcrumbs_next(struct intel_engine_cs *engine,
 {
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 
+	spin_lock(&b->irq_lock);
 	GEM_BUG_ON(!b->irq_armed);
-	b->first_wait = to_wait(next);
+	b->irq_wait = to_wait(next);
+	spin_unlock(&b->irq_lock);
 
 	/* We always wake up the next waiter that takes over as the bottom-half
 	 * as we may delegate not only the irq-seqno barrier to the next waiter
@@ -384,8 +388,9 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 	}
 
 	if (first) {
+		spin_lock(&b->irq_lock);
 		GEM_BUG_ON(rb_first(&b->waiters) != &wait->node);
-		b->first_wait = wait;
+		b->irq_wait = wait;
 		/* After assigning ourselves as the new bottom-half, we must
 		 * perform a cursory check to prevent a missed interrupt.
 		 * Either we miss the interrupt whilst programming the hardware,
@@ -395,9 +400,10 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 		 * and so we miss the wake up.
 		 */
 		__intel_breadcrumbs_enable_irq(b);
+		spin_unlock(&b->irq_lock);
 	}
-	GEM_BUG_ON(!b->first_wait);
-	GEM_BUG_ON(rb_first(&b->waiters) != &b->first_wait->node);
+	GEM_BUG_ON(!b->irq_wait);
+	GEM_BUG_ON(rb_first(&b->waiters) != &b->irq_wait->node);
 
 	return first;
 }
@@ -408,9 +414,9 @@ bool intel_engine_add_wait(struct intel_engine_cs *engine,
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 	bool first;
 
-	spin_lock_irq(&b->lock);
+	spin_lock_irq(&b->rb_lock);
 	first = __intel_engine_add_wait(engine, wait);
-	spin_unlock_irq(&b->lock);
+	spin_unlock_irq(&b->rb_lock);
 
 	return first;
 }
@@ -434,12 +440,12 @@ static void __intel_engine_remove_wait(struct intel_engine_cs *engine,
 {
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 
-	lockdep_assert_held(&b->lock);
+	lockdep_assert_held(&b->rb_lock);
 
 	if (RB_EMPTY_NODE(&wait->node))
 		goto out;
 
-	if (b->first_wait == wait) {
+	if (b->irq_wait == wait) {
 		const int priority = wakeup_priority(b, wait->tsk);
 		struct rb_node *next;
 
@@ -484,9 +490,9 @@ static void __intel_engine_remove_wait(struct intel_engine_cs *engine,
 	rb_erase(&wait->node, &b->waiters);
 
 out:
-	GEM_BUG_ON(b->first_wait == wait);
+	GEM_BUG_ON(b->irq_wait == wait);
 	GEM_BUG_ON(rb_first(&b->waiters) !=
-		   (b->first_wait ? &b->first_wait->node : NULL));
+		   (b->irq_wait ? &b->irq_wait->node : NULL));
 }
 
 void intel_engine_remove_wait(struct intel_engine_cs *engine,
@@ -501,9 +507,9 @@ void intel_engine_remove_wait(struct intel_engine_cs *engine,
 	if (RB_EMPTY_NODE(&wait->node))
 		return;
 
-	spin_lock_irq(&b->lock);
+	spin_lock_irq(&b->rb_lock);
 	__intel_engine_remove_wait(engine, wait);
-	spin_unlock_irq(&b->lock);
+	spin_unlock_irq(&b->rb_lock);
 }
 
 static bool signal_valid(const struct drm_i915_gem_request *request)
@@ -573,7 +579,7 @@ static int intel_breadcrumbs_signaler(void *arg)
 			dma_fence_signal(&request->fence);
 			local_bh_enable(); /* kick start the tasklets */
 
-			spin_lock_irq(&b->lock);
+			spin_lock_irq(&b->rb_lock);
 
 			/* Wake up all other completed waiters and select the
 			 * next bottom-half for the next user interrupt.
@@ -596,7 +602,7 @@ static int intel_breadcrumbs_signaler(void *arg)
 			rb_erase(&request->signaling.node, &b->signals);
 			RB_CLEAR_NODE(&request->signaling.node);
 
-			spin_unlock_irq(&b->lock);
+			spin_unlock_irq(&b->rb_lock);
 
 			i915_gem_request_put(request);
 		} else {
@@ -653,7 +659,7 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 	request->signaling.wait.seqno = seqno;
 	i915_gem_request_get(request);
 
-	spin_lock(&b->lock);
+	spin_lock(&b->rb_lock);
 
 	/* First add ourselves into the list of waiters, but register our
 	 * bottom-half as the signaller thread. As per usual, only the oldest
@@ -687,7 +693,7 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 	if (first)
 		rcu_assign_pointer(b->first_signal, request);
 
-	spin_unlock(&b->lock);
+	spin_unlock(&b->rb_lock);
 
 	if (wakeup)
 		wake_up_process(b->signaler);
@@ -702,7 +708,7 @@ void intel_engine_cancel_signaling(struct drm_i915_gem_request *request)
 	lockdep_assert_held(&request->lock);
 	GEM_BUG_ON(!request->signaling.wait.seqno);
 
-	spin_lock(&b->lock);
+	spin_lock(&b->rb_lock);
 
 	if (!RB_EMPTY_NODE(&request->signaling.node)) {
 		if (request == rcu_access_pointer(b->first_signal)) {
@@ -718,7 +724,7 @@ void intel_engine_cancel_signaling(struct drm_i915_gem_request *request)
 
 	__intel_engine_remove_wait(engine, &request->signaling.wait);
 
-	spin_unlock(&b->lock);
+	spin_unlock(&b->rb_lock);
 
 	request->signaling.wait.seqno = 0;
 }
@@ -728,7 +734,9 @@ int intel_engine_init_breadcrumbs(struct intel_engine_cs *engine)
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 	struct task_struct *tsk;
 
-	spin_lock_init(&b->lock);
+	spin_lock_init(&b->rb_lock);
+	spin_lock_init(&b->irq_lock);
+
 	setup_timer(&b->fake_irq,
 		    intel_breadcrumbs_fake_irq,
 		    (unsigned long)engine);
@@ -766,7 +774,7 @@ void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine)
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 
 	cancel_fake_irq(engine);
-	spin_lock_irq(&b->lock);
+	spin_lock_irq(&b->irq_lock);
 
 	if (b->irq_enabled)
 		irq_enable(engine);
@@ -785,7 +793,7 @@ void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine)
 	if (b->irq_armed)
 		enable_fake_irq(b);
 
-	spin_unlock_irq(&b->lock);
+	spin_unlock_irq(&b->irq_lock);
 }
 
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine)
@@ -793,7 +801,7 @@ void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine)
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 
 	/* The engines should be idle and all requests accounted for! */
-	WARN_ON(READ_ONCE(b->first_wait));
+	WARN_ON(READ_ONCE(b->irq_wait));
 	WARN_ON(!RB_EMPTY_ROOT(&b->waiters));
 	WARN_ON(rcu_access_pointer(b->first_signal));
 	WARN_ON(!RB_EMPTY_ROOT(&b->signals));
@@ -809,10 +817,10 @@ bool intel_breadcrumbs_busy(struct intel_engine_cs *engine)
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 	bool busy = false;
 
-	spin_lock_irq(&b->lock);
+	spin_lock_irq(&b->rb_lock);
 
-	if (b->first_wait) {
-		wake_up_process(b->first_wait->tsk);
+	if (b->irq_wait) {
+		wake_up_process(b->irq_wait->tsk);
 		busy |= intel_engine_flag(engine);
 	}
 
@@ -821,7 +829,7 @@ bool intel_breadcrumbs_busy(struct intel_engine_cs *engine)
 		busy |= intel_engine_flag(engine);
 	}
 
-	spin_unlock_irq(&b->lock);
+	spin_unlock_irq(&b->rb_lock);
 
 	return busy;
 }

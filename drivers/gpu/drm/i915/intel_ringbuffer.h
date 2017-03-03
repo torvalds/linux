@@ -235,10 +235,12 @@ struct intel_engine_cs {
 	 * the overhead of waking that client is much preferred.
 	 */
 	struct intel_breadcrumbs {
-		spinlock_t lock; /* protects the lists of requests; irqsafe */
+		spinlock_t irq_lock; /* protects irq_*; irqsafe */
+		struct intel_wait *irq_wait; /* oldest waiter by retirement */
+
+		spinlock_t rb_lock; /* protects the rb and wraps irq_lock */
 		struct rb_root waiters; /* sorted by retirement, priority */
 		struct rb_root signals; /* sorted by retirement */
-		struct intel_wait *first_wait; /* oldest waiter by retirement */
 		struct task_struct *signaler; /* used for fence signalling */
 		struct drm_i915_gem_request __rcu *first_signal;
 		struct timer_list fake_irq; /* used after a missed interrupt */
@@ -639,7 +641,7 @@ void intel_engine_cancel_signaling(struct drm_i915_gem_request *request);
 
 static inline bool intel_engine_has_waiter(const struct intel_engine_cs *engine)
 {
-	return READ_ONCE(engine->breadcrumbs.first_wait);
+	return READ_ONCE(engine->breadcrumbs.irq_wait);
 }
 
 unsigned int intel_engine_wakeup(struct intel_engine_cs *engine);

@@ -1042,8 +1042,8 @@ static void notify_ring(struct intel_engine_cs *engine)
 	atomic_inc(&engine->irq_count);
 	set_bit(ENGINE_IRQ_BREADCRUMB, &engine->irq_posted);
 
-	spin_lock(&engine->breadcrumbs.lock);
-	wait = engine->breadcrumbs.first_wait;
+	spin_lock(&engine->breadcrumbs.irq_lock);
+	wait = engine->breadcrumbs.irq_wait;
 	if (wait) {
 		/* We use a callback from the dma-fence to submit
 		 * requests after waiting on our own requests. To
@@ -1064,7 +1064,7 @@ static void notify_ring(struct intel_engine_cs *engine)
 	} else {
 		__intel_engine_disarm_breadcrumbs(engine);
 	}
-	spin_unlock(&engine->breadcrumbs.lock);
+	spin_unlock(&engine->breadcrumbs.irq_lock);
 
 	if (rq) {
 		dma_fence_signal(&rq->fence);

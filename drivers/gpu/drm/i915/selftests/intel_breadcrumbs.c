@@ -37,7 +37,7 @@ static int check_rbtree(struct intel_engine_cs *engine,
 	struct rb_node *rb;
 	int n;
 
-	if (&b->first_wait->node != rb_first(&b->waiters)) {
+	if (&b->irq_wait->node != rb_first(&b->waiters)) {
 		pr_err("First waiter does not match first element of wait-tree\n");
 		return -EINVAL;
 	}
@@ -90,7 +90,7 @@ static int check_rbtree_empty(struct intel_engine_cs *engine)
 {
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 
-	if (b->first_wait) {
+	if (b->irq_wait) {
 		pr_err("Empty breadcrumbs still has a waiter\n");
 		return -EINVAL;
 	}
