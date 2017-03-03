@@ -22,6 +22,7 @@
 #include <asm/page.h>
 #include <asm/desc.h>
 #include <asm/cpufeature.h>
+#include <asm/mshyperv.h>
 
 #if defined(CONFIG_X86_64)
 unsigned int __read_mostly vdso64_enabled = 1;
@@ -121,6 +122,12 @@ static int vvar_fault(const struct vm_special_mapping *sm,
 				vmf->address,
 				__pa(pvti) >> PAGE_SHIFT);
 		}
+	} else if (sym_offset == image->sym_hvclock_page) {
+		struct ms_hyperv_tsc_page *tsc_pg = hv_get_tsc_page();
+
+		if (tsc_pg && vclock_was_used(VCLOCK_HVCLOCK))
+			ret = vm_insert_pfn(vma, vmf->address,
+					    vmalloc_to_pfn(tsc_pg));
 	}
 
 	if (ret == 0 || ret == -EBUSY)
