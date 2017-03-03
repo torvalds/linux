@@ -2183,7 +2183,7 @@ static int efx_ef10_tx_tso_desc(struct efx_tx_queue *tx_queue,
 		/* Modify IPv4 header if needed. */
 		ip->tot_len = 0;
 		ip->check = 0;
-		ipv4_id = ip->id;
+		ipv4_id = ntohs(ip->id);
 	} else {
 		/* Modify IPv6 header if needed. */
 		struct ipv6hdr *ipv6 = ipv6_hdr(skb);
