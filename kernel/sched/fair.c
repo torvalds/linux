@@ -6221,7 +6221,8 @@ static inline int find_best_target(struct task_struct *p, bool boosted, bool pre
 		int i;
 
 		for_each_cpu_and(i, tsk_cpus_allowed(p), sched_group_cpus(sg)) {
-			unsigned long cur_capacity, new_util;
+			unsigned long cur_capacity, new_util, wake_util;
+			unsigned long min_wake_util = ULONG_MAX;
 
 			if (!cpu_online(i))
 				continue;
@@ -6231,7 +6232,8 @@ static inline int find_best_target(struct task_struct *p, bool boosted, bool pre
 			 * so prev_cpu will receive a negative bias due to the double
 			 * accounting. However, the blocked utilization may be zero.
 			 */
-			new_util = cpu_util_wake(i, p) + task_util(p);
+			wake_util = cpu_util_wake(i, p);
+			new_util = wake_util + task_util(p);
 
 			/*
 			 * Ensure minimum capacity to grant the required boost.
@@ -6266,8 +6268,15 @@ static inline int find_best_target(struct task_struct *p, bool boosted, bool pre
 					 * Find a target cpu with the lowest/highest
 					 * utilization if prefer_idle/!prefer_idle.
 					 */
-					if ((prefer_idle && target_util > new_util) ||
-					    (!prefer_idle && target_util < new_util)) {
+					if (prefer_idle) {
+						/* Favor the CPU that last ran the task */
+						if (new_util > target_util ||
+						    wake_util > min_wake_util)
+							continue;
+						min_wake_util = wake_util;
+						target_util = new_util;
+						target_cpu = i;
+					} else if (target_util < new_util) {
 						target_util = new_util;
 						target_cpu = i;
 					}
