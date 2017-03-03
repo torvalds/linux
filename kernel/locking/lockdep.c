@@ -1307,6 +1307,19 @@ check_noncircular(struct lock_list *root, struct lock_class *target,
 	return result;
 }
 
+static noinline int
+check_redundant(struct lock_list *root, struct lock_class *target,
+		struct lock_list **target_entry)
+{
+	int result;
+
+	debug_atomic_inc(nr_redundant_checks);
+
+	result = __bfs_forwards(root, target, class_equal, target_entry);
+
+	return result;
+}
+
 #if defined(CONFIG_TRACE_IRQFLAGS) && defined(CONFIG_PROVE_LOCKING)
 /*
  * Forwards and backwards subgraph searching, for the purposes of
@@ -1871,6 +1884,20 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 			return 2;
 		}
 	}
+
+	/*
+	 * Is the <prev> -> <next> link redundant?
+	 */
+	this.class = hlock_class(prev);
+	this.parent = NULL;
+	ret = check_redundant(&this, hlock_class(next), &target_entry);
+	if (!ret) {
+		debug_atomic_inc(nr_redundant);
+		return 2;
+	}
+	if (ret < 0)
+		return print_bfs_bug(ret);
+
 
 	if (!*stack_saved) {
 		if (!save_trace(&trace))
