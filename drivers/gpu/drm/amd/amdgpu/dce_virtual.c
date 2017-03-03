@@ -122,8 +122,9 @@ static void dce_virtual_stop_mc_access(struct amdgpu_device *adev,
 		break;
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
-	case CHIP_POLARIS11:
 	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
 		dce_v11_0_disable_dce(adev);
 		break;
 	case CHIP_TOPAZ:
