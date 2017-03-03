@@ -127,6 +127,7 @@ EXPORT_SYMBOL(meson_sm_call);
  * meson_sm_call_read - retrieve data from secure-monitor
  *
  * @buffer:	Buffer to store the retrieved data
+ * @bsize:	Size of the buffer
  * @cmd_index:	Index of the SMC32 function ID
  * @arg0:	SMC32 Argument 0
  * @arg1:	SMC32 Argument 1
@@ -136,8 +137,8 @@ EXPORT_SYMBOL(meson_sm_call);
  *
  * Return:	size of read data on success, a negative value on error
  */
-int meson_sm_call_read(void *buffer, unsigned int cmd_index, u32 arg0,
-		       u32 arg1, u32 arg2, u32 arg3, u32 arg4)
+int meson_sm_call_read(void *buffer, unsigned int bsize, unsigned int cmd_index,
+		       u32 arg0, u32 arg1, u32 arg2, u32 arg3, u32 arg4)
 {
 	u32 size;
 
@@ -147,10 +148,13 @@ int meson_sm_call_read(void *buffer, unsigned int cmd_index, u32 arg0,
 	if (!fw.chip->cmd_shmem_out_base)
 		return -EINVAL;
 
+	if (bsize > fw.chip->shmem_size)
+		return -EINVAL;
+
 	if (meson_sm_call(cmd_index, &size, arg0, arg1, arg2, arg3, arg4) < 0)
 		return -EINVAL;
 
-	if (!size || size > fw.chip->shmem_size)
+	if (!size || size > bsize)
 		return -EINVAL;
 
 	if (buffer)

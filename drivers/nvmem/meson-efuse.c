@@ -27,7 +27,7 @@ static int meson_efuse_read(void *context, unsigned int offset,
 	u8 *buf = val;
 	int ret;
 
-	ret = meson_sm_call_read(buf, SM_EFUSE_READ, offset,
+	ret = meson_sm_call_read(buf, bytes, SM_EFUSE_READ, offset,
 				 bytes, 0, 0, 0);
 	if (ret < 0)
 		return ret;
