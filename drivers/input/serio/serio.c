@@ -953,12 +953,24 @@ static int serio_suspend(struct device *dev)
 static int serio_resume(struct device *dev)
 {
 	struct serio *serio = to_serio_port(dev);
+	int error = -ENOENT;
 
-	/*
-	 * Driver reconnect can take a while, so better let kseriod
-	 * deal with it.
-	 */
-	serio_queue_event(serio, NULL, SERIO_RECONNECT_PORT);
+	mutex_lock(&serio->drv_mutex);
+	if (serio->drv && serio->drv->fast_reconnect) {
+		error = serio->drv->fast_reconnect(serio);
+		if (error && error != -ENOENT)
+			dev_warn(dev, "fast reconnect failed with error %d\n",
+				 error);
+	}
+	mutex_unlock(&serio->drv_mutex);
+
+	if (error) {
+		/*
+		 * Driver reconnect can take a while, so better let
+		 * kseriod deal with it.
+		 */
+		serio_queue_event(serio, NULL, SERIO_RECONNECT_PORT);
+	}
 
 	return 0;
 }
