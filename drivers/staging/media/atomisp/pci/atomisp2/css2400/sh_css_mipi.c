@@ -210,18 +210,18 @@ ia_css_mipi_frame_calculate_size(const unsigned int width,
 	*/
 
 
-	words_per_odd_line	 = ((odd_line_bytes   + 3) >> 2);	/* ceil(odd_line_bytes/4); word = 4 bytes */
-	words_per_even_line  = ((even_line_bytes  + 3) >> 2);
+	words_per_odd_line	 = (odd_line_bytes   + 3) >> 2;	/* ceil(odd_line_bytes/4); word = 4 bytes */
+	words_per_even_line  = (even_line_bytes  + 3) >> 2;
 	words_for_first_line = words_per_odd_line + 2 + (hasSOLandEOL ? 1 : 0);
 		/* + SOF +packet header + optionally (SOL), but (EOL) is not in the first line */
 	words_per_odd_line	+= (1 + (hasSOLandEOL ? 2 : 0));
 		/* each non-first line has format header, and optionally (SOL) and (EOL). */
 	words_per_even_line += (1 + (hasSOLandEOL ? 2 : 0));
 
-	mem_words_per_odd_line	 = ((words_per_odd_line + 7) >> 3);
+	mem_words_per_odd_line	 = (words_per_odd_line + 7) >> 3;
 		/* ceil(words_per_odd_line/8); mem_word = 32 bytes, 8 words */
-	mem_words_for_first_line = ((words_for_first_line + 7) >> 3);
-	mem_words_per_even_line  = ((words_per_even_line + 7) >> 3);
+	mem_words_for_first_line = (words_for_first_line + 7) >> 3;
+	mem_words_per_even_line  = (words_per_even_line + 7) >> 3;
 	mem_words_for_EOF        = 1; /* last line consisit of the optional (EOL) and EOF */
 
 	mem_words = ((embedded_data_size_words + 7) >> 3) +
@@ -364,13 +364,13 @@ calculate_mipi_buff_size(
 		even_line_bytes = odd_line_bytes;
 	}
 
-	words_per_odd_line	 = ((odd_line_bytes   + 3) >> 2);
+	words_per_odd_line	 = (odd_line_bytes   + 3) >> 2;
 		/* ceil(odd_line_bytes/4); word = 4 bytes */
-	words_per_even_line  = ((even_line_bytes  + 3) >> 2);
+	words_per_even_line  = (even_line_bytes  + 3) >> 2;
 
-	mem_words_per_odd_line	 = ((words_per_odd_line + 7) >> 3);
+	mem_words_per_odd_line	 = (words_per_odd_line + 7) >> 3;
 		/* ceil(words_per_odd_line/8); mem_word = 32 bytes, 8 words */
-	mem_words_per_even_line  = ((words_per_even_line + 7) >> 3);
+	mem_words_per_even_line  = (words_per_even_line + 7) >> 3;
 
 	mem_words_per_buff_line =
 		(mem_words_per_odd_line > mem_words_per_even_line) ? mem_words_per_odd_line : mem_words_per_even_line;

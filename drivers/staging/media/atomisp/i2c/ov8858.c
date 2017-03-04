@@ -1250,7 +1250,7 @@ static int distance(struct ov8858_resolution const *res, const u32 w,
 		res->width < w || res->height < h)
 		return -1;
 
-	ratio = (res->width << 13);
+	ratio = res->width << 13;
 	ratio /= w;
 	ratio *= h;
 	ratio /= res->height;

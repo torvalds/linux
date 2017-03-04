@@ -45,7 +45,7 @@ bnlm_lut_encode(struct bnlm_lut *lut, const int32_t *lut_thr, const int32_t *lut
 {
 	uint32_t blk, i;
 	const uint32_t block_size = 16;
-	const uint32_t total_blocks = (ISP_VEC_NELEMS / block_size);
+	const uint32_t total_blocks = ISP_VEC_NELEMS / block_size;
 
 	/* Create VMEM LUTs from the threshold and value arrays.
 	 *

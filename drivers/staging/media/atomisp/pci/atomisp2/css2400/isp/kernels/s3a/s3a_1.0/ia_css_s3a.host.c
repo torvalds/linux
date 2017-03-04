@@ -350,7 +350,7 @@ ia_css_s3a_vmem_decode(
 	hi = isp_stats_hi;
 	lo = isp_stats_lo;
 
-	chunk = (ISP_VEC_NELEMS >> host_stats->grid.deci_factor_log2);
+	chunk = ISP_VEC_NELEMS >> host_stats->grid.deci_factor_log2;
 	chunk = max(chunk, 1);
 
 	for (y = 0; y < out_height; y++) {
