@@ -69,8 +69,8 @@ __visible DEFINE_PER_CPU_SHARED_ALIGNED(struct tss_struct, cpu_tss) = {
 };
 EXPORT_PER_CPU_SYMBOL(cpu_tss);
 
-DEFINE_PER_CPU(bool, need_tr_refresh);
-EXPORT_PER_CPU_SYMBOL_GPL(need_tr_refresh);
+DEFINE_PER_CPU(bool, __tss_limit_invalid);
+EXPORT_PER_CPU_SYMBOL_GPL(__tss_limit_invalid);
 
 /*
  * this gets called so that we can store lazy state into memory and copy the
@@ -222,7 +222,7 @@ void __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
 		 * Make sure that the TSS limit is correct for the CPU
 		 * to notice the IO bitmap.
 		 */
-		refresh_TR();
+		refresh_tss_limit();
 	} else if (test_tsk_thread_flag(prev_p, TIF_IO_BITMAP)) {
 		/*
 		 * Clear any possible leftover bits:

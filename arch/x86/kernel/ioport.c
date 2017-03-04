@@ -48,8 +48,14 @@ asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
 		t->io_bitmap_ptr = bitmap;
 		set_thread_flag(TIF_IO_BITMAP);
 
+		/*
+		 * Now that we have an IO bitmap, we need our TSS limit to be
+		 * correct.  It's fine if we are preempted after doing this:
+		 * with TIF_IO_BITMAP set, context switches will keep our TSS
+		 * limit correct.
+		 */
 		preempt_disable();
-		refresh_TR();
+		refresh_tss_limit();
 		preempt_enable();
 	}
 

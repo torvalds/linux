@@ -205,6 +205,8 @@ static inline void native_load_tr_desc(void)
 	asm volatile("ltr %w0"::"q" (GDT_ENTRY_TSS*8));
 }
 
+DECLARE_PER_CPU(bool, __tss_limit_invalid);
+
 static inline void force_reload_TR(void)
 {
 	struct desc_struct *d = get_cpu_gdt_table(smp_processor_id());
@@ -220,18 +222,20 @@ static inline void force_reload_TR(void)
 	write_gdt_entry(d, GDT_ENTRY_TSS, &tss, DESC_TSS);
 
 	load_TR_desc();
+	this_cpu_write(__tss_limit_invalid, false);
 }
 
-DECLARE_PER_CPU(bool, need_tr_refresh);
-
-static inline void refresh_TR(void)
+/*
+ * Call this if you need the TSS limit to be correct, which should be the case
+ * if and only if you have TIF_IO_BITMAP set or you're switching to a task
+ * with TIF_IO_BITMAP set.
+ */
+static inline void refresh_tss_limit(void)
 {
 	DEBUG_LOCKS_WARN_ON(preemptible());
 
-	if (unlikely(this_cpu_read(need_tr_refresh))) {
+	if (unlikely(this_cpu_read(__tss_limit_invalid)))
 		force_reload_TR();
-		this_cpu_write(need_tr_refresh, false);
-	}
 }
 
 /*
@@ -250,7 +254,7 @@ static inline void invalidate_tss_limit(void)
 	if (unlikely(test_thread_flag(TIF_IO_BITMAP)))
 		force_reload_TR();
 	else
-		this_cpu_write(need_tr_refresh, true);
+		this_cpu_write(__tss_limit_invalid, true);
 }
 
 static inline void native_load_gdt(const struct desc_ptr *dtr)
