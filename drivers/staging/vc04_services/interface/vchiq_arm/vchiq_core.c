@@ -2606,9 +2606,6 @@ vchiq_add_service_internal(VCHIQ_STATE_T *state,
 		sema_init(&service->bulk_remove_event, 0);
 		mutex_init(&service->bulk_mutex);
 		memset(&service->stats, 0, sizeof(service->stats));
-	} else {
-		vchiq_log_error(vchiq_core_log_level,
-			"Out of memory");
 	}
 
 	if (service) {
