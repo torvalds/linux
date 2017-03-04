@@ -3113,7 +3113,7 @@ int print_hwp(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 		return 0;
 
 	fprintf(outf, "cpu%d: MSR_HWP_CAPABILITIES: 0x%08llx "
-			"(high 0x%x guar 0x%x eff 0x%x low 0x%x)\n",
+			"(high %d guar %d eff %d low %d)\n",
 			cpu, msr,
 			(unsigned int)HWP_HIGHEST_PERF(msr),
 			(unsigned int)HWP_GUARANTEED_PERF(msr),
@@ -3124,7 +3124,7 @@ int print_hwp(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 		return 0;
 
 	fprintf(outf, "cpu%d: MSR_HWP_REQUEST: 0x%08llx "
-			"(min 0x%x max 0x%x des 0x%x epp 0x%x window 0x%x pkg 0x%x)\n",
+			"(min %d max %d des %d epp 0x%x window 0x%x pkg 0x%x)\n",
 			cpu, msr,
 			(unsigned int)(((msr) >> 0) & 0xff),
 			(unsigned int)(((msr) >> 8) & 0xff),
@@ -3138,7 +3138,7 @@ int print_hwp(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 			return 0;
 
 		fprintf(outf, "cpu%d: MSR_HWP_REQUEST_PKG: 0x%08llx "
-			"(min 0x%x max 0x%x des 0x%x epp 0x%x window 0x%x)\n",
+			"(min %d max %d des %d epp 0x%x window 0x%x)\n",
 			cpu, msr,
 			(unsigned int)(((msr) >> 0) & 0xff),
 			(unsigned int)(((msr) >> 8) & 0xff),
