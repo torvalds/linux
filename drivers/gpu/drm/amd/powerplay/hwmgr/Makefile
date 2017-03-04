@@ -5,7 +5,7 @@
 HARDWARE_MGR = hwmgr.o processpptables.o functiontables.o \
 		hardwaremanager.o pp_acpi.o cz_hwmgr.o \
 		cz_clockpowergating.o pppcielanes.o\
-		process_pptables_v1_0.o ppatomctrl.o \
+		process_pptables_v1_0.o ppatomctrl.o ppatomfwctrl.o \
 		smu7_hwmgr.o smu7_powertune.o smu7_thermal.o \
 		smu7_clockpowergating.o
 
