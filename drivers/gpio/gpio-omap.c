@@ -1085,7 +1085,8 @@ static int omap_gpio_chip_init(struct gpio_bank *bank, struct irq_chip *irqc)
 	 * REVISIT: Once we have OMAP1 supporting SPARSE_IRQ, we can drop
 	 * irq_alloc_descs() since a base IRQ offset will no longer be needed.
 	 */
-	irq_base = irq_alloc_descs(-1, 0, bank->width, 0);
+	irq_base = devm_irq_alloc_descs(bank->chip.parent,
+					-1, 0, bank->width, 0);
 	if (irq_base < 0) {
 		dev_err(bank->chip.parent, "Couldn't allocate IRQ numbers\n");
 		return -ENODEV;
