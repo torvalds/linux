@@ -389,51 +389,40 @@ static int nvram_pstore_open(struct pstore_info *psi)
 
 /**
  * nvram_pstore_write - pstore write callback for nvram
- * @type:               Type of message logged
- * @reason:             reason behind dump (oops/panic)
- * @id:                 identifier to indicate the write performed
- * @part:               pstore writes data to registered buffer in parts,
- *                      part number will indicate the same.
- * @count:              Indicates oops count
- * @compressed:         Flag to indicate the log is compressed
- * @size:               number of bytes written to the registered buffer
- * @psi:                registered pstore_info structure
+ * @record:             pstore record to write, with @id to be set
  *
  * Called by pstore_dump() when an oops or panic report is logged in the
  * printk buffer.
  * Returns 0 on successful write.
  */
-static int nvram_pstore_write(enum pstore_type_id type,
-				enum kmsg_dump_reason reason,
-				u64 *id, unsigned int part, int count,
-				bool compressed, size_t size,
-				struct pstore_info *psi)
+static int nvram_pstore_write(struct pstore_record *record)
 {
 	int rc;
 	unsigned int err_type = ERR_TYPE_KERNEL_PANIC;
 	struct oops_log_info *oops_hdr = (struct oops_log_info *) oops_buf;
 
 	/* part 1 has the recent messages from printk buffer */
-	if (part > 1 || (type != PSTORE_TYPE_DMESG))
+	if (record->part > 1 || (record->type != PSTORE_TYPE_DMESG))
 		return -1;
 
 	if (clobbering_unread_rtas_event())
 		return -1;
 
 	oops_hdr->version = cpu_to_be16(OOPS_HDR_VERSION);
-	oops_hdr->report_length = cpu_to_be16(size);
+	oops_hdr->report_length = cpu_to_be16(record->size);
 	oops_hdr->timestamp = cpu_to_be64(ktime_get_real_seconds());
 
-	if (compressed)
+	if (record->compressed)
 		err_type = ERR_TYPE_KERNEL_PANIC_GZ;
 
 	rc = nvram_write_os_partition(&oops_log_partition, oops_buf,
-		(int) (sizeof(*oops_hdr) + size), err_type, count);
+		(int) (sizeof(*oops_hdr) + record->size), err_type,
+		record->count);
 
 	if (rc != 0)
 		return rc;
 
-	*id = part;
+	record->id = record->part;
 	return 0;
 }
 

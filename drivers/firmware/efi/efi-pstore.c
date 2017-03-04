@@ -240,30 +240,28 @@ out:
 	return size;
 }
 
-static int efi_pstore_write(enum pstore_type_id type,
-		enum kmsg_dump_reason reason, u64 *id,
-		unsigned int part, int count, bool compressed, size_t size,
-		struct pstore_info *psi)
+static int efi_pstore_write(struct pstore_record *record)
 {
 	char name[DUMP_NAME_LEN];
 	efi_char16_t efi_name[DUMP_NAME_LEN];
 	efi_guid_t vendor = LINUX_EFI_CRASH_GUID;
 	int i, ret = 0;
 
-	sprintf(name, "dump-type%u-%u-%d-%lu-%c", type, part, count,
-		get_seconds(), compressed ? 'C' : 'D');
+	snprintf(name, sizeof(name), "dump-type%u-%u-%d-%lu-%c",
+		 record->type, record->part, record->count,
+		 get_seconds(), record->compressed ? 'C' : 'D');
 
 	for (i = 0; i < DUMP_NAME_LEN; i++)
 		efi_name[i] = name[i];
 
 	efivar_entry_set_safe(efi_name, vendor, PSTORE_EFI_ATTRIBUTES,
-			      !pstore_cannot_block_path(reason),
-			      size, psi->buf);
+			      !pstore_cannot_block_path(record->reason),
+			      record->size, record->psi->buf);
 
-	if (reason == KMSG_DUMP_OOPS)
+	if (record->reason == KMSG_DUMP_OOPS)
 		efivar_run_worker();
 
-	*id = part;
+	record->id = record->part;
 	return ret;
 };
 

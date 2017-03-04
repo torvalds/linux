@@ -484,7 +484,6 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 {
 	unsigned long	total = 0;
 	const char	*why;
-	u64		id;
 	unsigned int	part = 1;
 	unsigned long	flags = 0;
 	int		is_locked;
@@ -506,48 +505,59 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 	oopscount++;
 	while (total < kmsg_bytes) {
 		char *dst;
-		unsigned long size;
-		int hsize;
+		size_t dst_size;
+		int header_size;
 		int zipped_len = -1;
-		size_t len;
-		bool compressed = false;
-		size_t total_len;
+		size_t dump_size;
+		struct pstore_record record = {
+			.type = PSTORE_TYPE_DMESG,
+			.count = oopscount,
+			.reason = reason,
+			.part = part,
+			.compressed = false,
+			.buf = psinfo->buf,
+			.psi = psinfo,
+		};
 
 		if (big_oops_buf && is_locked) {
 			dst = big_oops_buf;
-			size = big_oops_buf_sz;
+			dst_size = big_oops_buf_sz;
 		} else {
 			dst = psinfo->buf;
-			size = psinfo->bufsize;
+			dst_size = psinfo->bufsize;
 		}
 
-		hsize = sprintf(dst, "%s#%d Part%u\n", why, oopscount, part);
-		size -= hsize;
+		/* Write dump header. */
+		header_size = snprintf(dst, dst_size, "%s#%d Part%u\n", why,
+				 oopscount, part);
+		dst_size -= header_size;
 
-		if (!kmsg_dump_get_buffer(dumper, true, dst + hsize,
-					  size, &len))
+		/* Write dump contents. */
+		if (!kmsg_dump_get_buffer(dumper, true, dst + header_size,
+					  dst_size, &dump_size))
 			break;
 
 		if (big_oops_buf && is_locked) {
 			zipped_len = pstore_compress(dst, psinfo->buf,
-						hsize + len, psinfo->bufsize);
+						header_size + dump_size,
+						psinfo->bufsize);
 
 			if (zipped_len > 0) {
-				compressed = true;
-				total_len = zipped_len;
+				record.compressed = true;
+				record.size = zipped_len;
 			} else {
-				total_len = copy_kmsg_to_buffer(hsize, len);
+				record.size = copy_kmsg_to_buffer(header_size,
+								  dump_size);
 			}
 		} else {
-			total_len = hsize + len;
+			record.size = header_size + dump_size;
 		}
 
-		ret = psinfo->write(PSTORE_TYPE_DMESG, reason, &id, part,
-				    oopscount, compressed, total_len, psinfo);
+		ret = psinfo->write(&record);
 		if (ret == 0 && reason == KMSG_DUMP_OOPS && pstore_is_mounted())
 			pstore_new_entry = 1;
 
-		total += total_len;
+		total += record.size;
 		part++;
 	}
 	if (is_locked)
@@ -618,14 +628,12 @@ static void pstore_register_console(void) {}
 static void pstore_unregister_console(void) {}
 #endif
 
-static int pstore_write_compat(enum pstore_type_id type,
-			       enum kmsg_dump_reason reason,
-			       u64 *id, unsigned int part, int count,
-			       bool compressed, size_t size,
-			       struct pstore_info *psi)
+static int pstore_write_compat(struct pstore_record *record)
 {
-	return psi->write_buf(type, reason, id, part, psinfo->buf, compressed,
-			     size, psi);
+	return record->psi->write_buf(record->type, record->reason,
+				      &record->id, record->part,
+				      psinfo->buf, record->compressed,
+				      record->size, record->psi);
 }
 
 static int pstore_write_buf_user_compat(enum pstore_type_id type,
