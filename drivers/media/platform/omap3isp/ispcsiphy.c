@@ -345,13 +345,14 @@ int omap3isp_csiphy_init(struct isp_device *isp)
 	phy2->phy_regs = OMAP3_ISP_IOMEM_CSIPHY2;
 	mutex_init(&phy2->mutex);
 
+	phy1->isp = isp;
+	mutex_init(&phy1->mutex);
+
 	if (isp->revision == ISP_REVISION_15_0) {
-		phy1->isp = isp;
 		phy1->csi2 = &isp->isp_csi2c;
 		phy1->num_data_lanes = ISP_CSIPHY1_NUM_DATA_LANES;
 		phy1->cfg_regs = OMAP3_ISP_IOMEM_CSI2C_REGS1;
 		phy1->phy_regs = OMAP3_ISP_IOMEM_CSIPHY1;
-		mutex_init(&phy1->mutex);
 	}
 
 	return 0;
