@@ -378,7 +378,7 @@ static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
  * Page Flip
  */
 
-static void rcar_du_crtc_finish_page_flip(struct rcar_du_crtc *rcrtc)
+void rcar_du_crtc_finish_page_flip(struct rcar_du_crtc *rcrtc)
 {
 	struct drm_pending_vblank_event *event;
 	struct drm_device *dev = rcrtc->crtc.dev;
@@ -650,6 +650,7 @@ static const struct drm_crtc_funcs crtc_funcs = {
 static irqreturn_t rcar_du_crtc_irq(int irq, void *arg)
 {
 	struct rcar_du_crtc *rcrtc = arg;
+	struct rcar_du_device *rcdu = rcrtc->group->dev;
 	irqreturn_t ret = IRQ_NONE;
 	u32 status;
 
@@ -658,7 +659,10 @@ static irqreturn_t rcar_du_crtc_irq(int irq, void *arg)
 
 	if (status & DSSR_FRM) {
 		drm_crtc_handle_vblank(&rcrtc->crtc);
-		rcar_du_crtc_finish_page_flip(rcrtc);
+
+		if (rcdu->info->gen < 3)
+			rcar_du_crtc_finish_page_flip(rcrtc);
+
 		ret = IRQ_HANDLED;
 	}
 
