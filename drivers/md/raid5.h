@@ -572,6 +572,14 @@ enum r5_cache_state {
 				 */
 };
 
+#define PENDING_IO_MAX 512
+#define PENDING_IO_ONE_FLUSH 128
+struct r5pending_data {
+	struct list_head sibling;
+	sector_t sector; /* stripe sector */
+	struct bio_list bios;
+};
+
 struct r5conf {
 	struct hlist_head	*stripe_hashtbl;
 	/* only protect corresponding hash list and inactive_list */
@@ -689,9 +697,13 @@ struct r5conf {
 	int			worker_cnt_per_group;
 	struct r5l_log		*log;
 
-	struct bio_list		pending_bios;
 	spinlock_t		pending_bios_lock;
 	bool			batch_bio_dispatch;
+	struct r5pending_data	*pending_data;
+	struct list_head	free_list;
+	struct list_head	pending_list;
+	int			pending_data_cnt;
+	struct r5pending_data	*next_pending_data;
 };
 
 
