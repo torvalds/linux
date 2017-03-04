@@ -2164,10 +2164,10 @@ lpfc_nvme_create_localport(struct lpfc_vport *vport)
 		lport->vport = vport;
 		INIT_LIST_HEAD(&lport->rport_list);
 		vport->nvmei_support = 1;
+		len  = lpfc_new_nvme_buf(vport, phba->sli4_hba.nvme_xri_max);
+		vport->phba->total_nvme_bufs += len;
 	}
 
-	len  = lpfc_new_nvme_buf(vport, phba->sli4_hba.nvme_xri_max);
-	vport->phba->total_nvme_bufs += len;
 	return ret;
 }
 
