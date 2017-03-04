@@ -323,7 +323,7 @@ static int ov2680_get_intg_factor(struct i2c_client *client,
 	u16 reg_val;
 	int ret;
 	ov2680_debug(dev,  "++++ov2680_get_intg_factor\n");
-	if (info == NULL)
+	if (!info)
 		return -EINVAL;
 
 	/* pixel clock */
@@ -899,7 +899,7 @@ static int power_up(struct v4l2_subdev *sd)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
 
-	if (NULL == dev->platform_data) {
+	if (!dev->platform_data) {
 		dev_err(&client->dev,
 			"no camera_sensor_platform_data");
 		return -ENODEV;
@@ -948,7 +948,7 @@ static int power_down(struct v4l2_subdev *sd)
 
 	h_flag = 0;
 	v_flag = 0;
-	if (NULL == dev->platform_data) {
+	if (!dev->platform_data) {
 		dev_err(&client->dev,
 			"no camera_sensor_platform_data");
 		return -ENODEV;
@@ -1077,7 +1077,7 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	ov2680_info = v4l2_get_subdev_hostdata(sd);
-	if (ov2680_info == NULL)
+	if (!ov2680_info)
 		return -EINVAL;
 
 	mutex_lock(&dev->input_lock);
@@ -1233,7 +1233,7 @@ static int ov2680_s_config(struct v4l2_subdev *sd,
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	if (platform_data == NULL)
+	if (!platform_data)
 		return -ENODEV;
 
 	dev->platform_data =

@@ -295,7 +295,7 @@ static int ov2722_get_intg_factor(struct i2c_client *client,
 	u16 reg_val;
 	int ret;
 
-	if (info == NULL)
+	if (!info)
 		return -EINVAL;
 
 	dev = to_ov2722_sensor(sd);
@@ -699,7 +699,7 @@ static int power_up(struct v4l2_subdev *sd)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
 
-	if (NULL == dev->platform_data) {
+	if (!dev->platform_data) {
 		dev_err(&client->dev,
 			"no camera_sensor_platform_data");
 		return -ENODEV;
@@ -746,7 +746,7 @@ static int power_down(struct v4l2_subdev *sd)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	if (NULL == dev->platform_data) {
+	if (!dev->platform_data) {
 		dev_err(&client->dev,
 			"no camera_sensor_platform_data");
 		return -ENODEV;
@@ -893,7 +893,7 @@ static int ov2722_set_fmt(struct v4l2_subdev *sd,
 	if (!fmt)
 		return -EINVAL;
 	ov2722_info = v4l2_get_subdev_hostdata(sd);
-	if (ov2722_info == NULL)
+	if (!ov2722_info)
 		return -EINVAL;
 
 	mutex_lock(&dev->input_lock);
@@ -1037,7 +1037,7 @@ static int ov2722_s_config(struct v4l2_subdev *sd,
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	if (platform_data == NULL)
+	if (!platform_data)
 		return -ENODEV;
 
 	dev->platform_data =
@@ -1268,7 +1268,7 @@ static int __ov2722_init_ctrl_handler(struct ov2722_device *dev)
 
 	dev->link_freq = v4l2_ctrl_find(&dev->ctrl_handler, V4L2_CID_LINK_FREQ);
 
-	if (dev->ctrl_handler.error || dev->link_freq == NULL)
+	if (dev->ctrl_handler.error || !dev->link_freq)
 		return dev->ctrl_handler.error;
 
 	dev->sd.ctrl_handler = hdl;

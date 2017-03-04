@@ -294,7 +294,7 @@ static int gc0310_get_intg_factor(struct i2c_client *client,
 	unsigned int vert_blanking;
 	unsigned int sh_delay;
 
-	if (info == NULL)
+	if (!info)
 		return -EINVAL;
 
 	/* pixel clock calculattion */
@@ -803,7 +803,7 @@ static int power_up(struct v4l2_subdev *sd)
 	int ret;
 
 	pr_info("%s S\n", __func__);
-	if (NULL == dev->platform_data) {
+	if (!dev->platform_data) {
 		dev_err(&client->dev,
 			"no camera_sensor_platform_data");
 		return -ENODEV;
@@ -848,7 +848,7 @@ static int power_down(struct v4l2_subdev *sd)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	if (NULL == dev->platform_data) {
+	if (!dev->platform_data) {
 		dev_err(&client->dev,
 			"no camera_sensor_platform_data");
 		return -ENODEV;
@@ -996,7 +996,7 @@ static int gc0310_set_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	gc0310_info = v4l2_get_subdev_hostdata(sd);
-	if (gc0310_info == NULL)
+	if (!gc0310_info)
 		return -EINVAL;
 
 	mutex_lock(&dev->input_lock);
@@ -1159,7 +1159,7 @@ static int gc0310_s_config(struct v4l2_subdev *sd,
 	int ret = 0;
 
 	pr_info("%s S\n", __func__);
-	if (platform_data == NULL)
+	if (!platform_data)
 		return -ENODEV;
 
 	dev->platform_data =
