@@ -39,5 +39,6 @@ struct isp_csiphy {
 int omap3isp_csiphy_acquire(struct isp_csiphy *phy);
 void omap3isp_csiphy_release(struct isp_csiphy *phy);
 int omap3isp_csiphy_init(struct isp_device *isp);
+void omap3isp_csiphy_cleanup(struct isp_device *isp);
 
 #endif	/* OMAP3_ISP_CSI_PHY_H */
