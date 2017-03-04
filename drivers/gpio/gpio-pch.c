@@ -403,7 +403,8 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 		goto err_gpiochip_add;
 	}
 
-	irq_base = irq_alloc_descs(-1, 0, gpio_pins[chip->ioh], NUMA_NO_NODE);
+	irq_base = devm_irq_alloc_descs(&pdev->dev, -1, 0,
+					gpio_pins[chip->ioh], NUMA_NO_NODE);
 	if (irq_base < 0) {
 		dev_warn(&pdev->dev, "PCH gpio: Failed to get IRQ base num\n");
 		chip->irq_base = -1;
@@ -416,8 +417,8 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 	iowrite32(msk, &chip->reg->imask);
 	iowrite32(msk, &chip->reg->ien);
 
-	ret = request_irq(pdev->irq, pch_gpio_handler,
-			  IRQF_SHARED, KBUILD_MODNAME, chip);
+	ret = devm_request_irq(&pdev->dev, pdev->irq, pch_gpio_handler,
+			       IRQF_SHARED, KBUILD_MODNAME, chip);
 	if (ret != 0) {
 		dev_err(&pdev->dev,
 			"%s request_irq failed\n", __func__);
@@ -430,7 +431,6 @@ end:
 	return 0;
 
 err_request_irq:
-	irq_free_descs(irq_base, gpio_pins[chip->ioh]);
 	gpiochip_remove(&chip->gpio);
 
 err_gpiochip_add:
@@ -451,12 +451,6 @@ err_pci_enable:
 static void pch_gpio_remove(struct pci_dev *pdev)
 {
 	struct pch_gpio *chip = pci_get_drvdata(pdev);
-
-	if (chip->irq_base != -1) {
-		free_irq(pdev->irq, chip);
-
-		irq_free_descs(chip->irq_base, gpio_pins[chip->ioh]);
-	}
 
 	gpiochip_remove(&chip->gpio);
 	pci_iounmap(pdev, chip->base);
