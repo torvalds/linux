@@ -10446,12 +10446,7 @@ lpfc_pci_remove_one_s3(struct pci_dev *pdev)
 	fc_remove_host(shost);
 	scsi_remove_host(shost);
 
-	/* Perform ndlp cleanup on the physical port.  The nvme and nvmet
-	 * localports are destroyed after to cleanup all transport memory.
-	 */
 	lpfc_cleanup(vport);
-	lpfc_nvmet_destroy_targetport(phba);
-	lpfc_nvme_destroy_localport(vport);
 
 	/*
 	 * Bring down the SLI Layer. This step disable all interrupts,
