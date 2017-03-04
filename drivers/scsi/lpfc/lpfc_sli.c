@@ -1,3 +1,4 @@
+
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
@@ -13874,6 +13875,8 @@ lpfc_dual_chute_pci_bar_map(struct lpfc_hba *phba, uint16_t pci_barset)
  * @startq: The starting FCP EQ to modify
  *
  * This function sends an MODIFY_EQ_DELAY mailbox command to the HBA.
+ * The command allows up to LPFC_MAX_EQ_DELAY_EQID_CNT EQ ID's to be
+ * updated in one mailbox command.
  *
  * The @phba struct is used to send mailbox command to HBA. The @startq
  * is used to get the starting FCP EQ to change.
@@ -13926,7 +13929,7 @@ lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq)
 		eq_delay->u.request.eq[cnt].phase = 0;
 		eq_delay->u.request.eq[cnt].delay_multi = dmult;
 		cnt++;
-		if (cnt >= LPFC_MAX_EQ_DELAY)
+		if (cnt >= LPFC_MAX_EQ_DELAY_EQID_CNT)
 			break;
 	}
 	eq_delay->u.request.num_eq = cnt;
