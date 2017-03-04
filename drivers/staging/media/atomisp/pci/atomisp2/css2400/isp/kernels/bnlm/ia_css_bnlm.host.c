@@ -39,7 +39,7 @@ static const int32_t div_lut_intercepts[BNLM_DIV_LUT_SIZE] = {
  *	lut_thr	:	array containing threshold values for lut
  *	lut_val	:	array containing output values related to lut_thr
  *	lut_size:	Size of lut_val array
- *	*/
+ */
 static inline void
 bnlm_lut_encode(struct bnlm_lut *lut, const int32_t *lut_thr, const int32_t *lut_val, const uint32_t lut_size)
 {
@@ -56,7 +56,7 @@ bnlm_lut_encode(struct bnlm_lut *lut, const int32_t *lut_thr, const int32_t *lut
 	 * Then these elements are copied into other groups inside the same
 	 * vector. If the LUT size is less than 16, then remaining elements are
 	 * set to 0.
-	 * */
+	 */
 	assert((lut_size >= 2) && (lut_size <= block_size));
 	/* array lut_thr has (lut_size-1) entries */
 	for (i = 0; i < lut_size-2; i++) {
@@ -90,7 +90,7 @@ bnlm_lut_encode(struct bnlm_lut *lut, const int32_t *lut_thr, const int32_t *lut
 /*
  * - Encodes BNLM public parameters into VMEM parameters
  * - Generates VMEM parameters which will needed internally ISP
- * */
+ */
 void
 ia_css_bnlm_vmem_encode(
 			struct bnlm_vmem_params *to,

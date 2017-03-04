@@ -505,7 +505,8 @@ static long ov2722_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 }
 
 /* This returns the exposure time being used. This should only be used
-   for filling in EXIF data, not for actual image processing. */
+ * for filling in EXIF data, not for actual image processing.
+ */
 static int ov2722_q_exposure(struct v4l2_subdev *sd, s32 *value)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -687,7 +688,8 @@ static int gpio_ctrl(struct v4l2_subdev *sd, bool flag)
 		return dev->platform_data->gpio_ctrl(sd, flag);
 
 	/* Note: the GPIO order is asymmetric: always RESET#
-	 * before PWDN# when turning it on or off. */
+	 * before PWDN# when turning it on or off.
+	 */
 	ret = dev->platform_data->gpio0_ctrl(sd, flag);
 	/*
 	 *ov2722 PWDN# active high when pull down,opposite to the convention

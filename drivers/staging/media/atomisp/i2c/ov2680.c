@@ -554,7 +554,8 @@ static long ov2680_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 }
 
 /* This returns the exposure time being used. This should only be used
-   for filling in EXIF data, not for actual image processing. */
+ * for filling in EXIF data, not for actual image processing.
+ */
 static int ov2680_q_exposure(struct v4l2_subdev *sd, s32 *value)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -1135,8 +1136,8 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 	v4l2_info(client, "\n%s idx %d \n", __func__, dev->fmt_idx);
 
 	/*ret = startup(sd);
-	   if (ret)
-	   dev_err(&client->dev, "ov2680 startup err\n");
+	 * if (ret)
+	 * dev_err(&client->dev, "ov2680 startup err\n");
 	 */
 err:
 	mutex_unlock(&dev->input_lock);
