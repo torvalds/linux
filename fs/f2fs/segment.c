@@ -441,7 +441,8 @@ void f2fs_balance_fs_bg(struct f2fs_sb_info *sbi)
 	}
 }
 
-static int __submit_flush_wait(struct block_device *bdev)
+static int __submit_flush_wait(struct f2fs_sb_info *sbi,
+				struct block_device *bdev)
 {
 	struct bio *bio = f2fs_bio_alloc(0);
 	int ret;
@@ -450,23 +451,24 @@ static int __submit_flush_wait(struct block_device *bdev)
 	bio->bi_bdev = bdev;
 	ret = submit_bio_wait(WRITE_FLUSH, bio);
 	bio_put(bio);
+
+	trace_f2fs_issue_flush(bdev, test_opt(sbi, NOBARRIER),
+				test_opt(sbi, FLUSH_MERGE), ret);
 	return ret;
 }
 
 static int submit_flush_wait(struct f2fs_sb_info *sbi)
 {
-	int ret = __submit_flush_wait(sbi->sb->s_bdev);
+	int ret = __submit_flush_wait(sbi, sbi->sb->s_bdev);
 	int i;
 
-	if (sbi->s_ndevs && !ret) {
-		for (i = 1; i < sbi->s_ndevs; i++) {
-			trace_f2fs_issue_flush(FDEV(i).bdev,
-					test_opt(sbi, NOBARRIER),
-					test_opt(sbi, FLUSH_MERGE));
-			ret = __submit_flush_wait(FDEV(i).bdev);
-			if (ret)
-				break;
-		}
+	if (!sbi->s_ndevs || ret)
+		return ret;
+
+	for (i = 1; i < sbi->s_ndevs; i++) {
+		ret = __submit_flush_wait(sbi, FDEV(i).bdev);
+		if (ret)
+			break;
 	}
 	return ret;
 }
