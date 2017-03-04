@@ -1301,16 +1301,16 @@ static int set_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 
 	for (i = 0; i < priv->pmkid_list.numpmkid; i++)	{
 		if (!memcmp(pmksa->bssid, priv->pmkid_list.pmkidlist[i].bssid,
-				 ETH_ALEN)) {
+			    ETH_ALEN)) {
 			flag = PMKID_FOUND;
 			break;
 		}
 	}
 	if (i < WILC_MAX_NUM_PMKIDS) {
 		memcpy(priv->pmkid_list.pmkidlist[i].bssid, pmksa->bssid,
-			    ETH_ALEN);
+		       ETH_ALEN);
 		memcpy(priv->pmkid_list.pmkidlist[i].pmkid, pmksa->pmkid,
-			    PMKID_LEN);
+		       PMKID_LEN);
 		if (!(flag == PMKID_FOUND))
 			priv->pmkid_list.numpmkid++;
 	} else {
@@ -1334,7 +1334,7 @@ static int del_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 
 	for (i = 0; i < priv->pmkid_list.numpmkid; i++)	{
 		if (!memcmp(pmksa->bssid, priv->pmkid_list.pmkidlist[i].bssid,
-				 ETH_ALEN)) {
+			    ETH_ALEN)) {
 			memset(&priv->pmkid_list.pmkidlist[i], 0, sizeof(struct host_if_pmkid));
 			break;
 		}
@@ -1343,11 +1343,11 @@ static int del_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 	if (i < priv->pmkid_list.numpmkid && priv->pmkid_list.numpmkid > 0) {
 		for (; i < (priv->pmkid_list.numpmkid - 1); i++) {
 			memcpy(priv->pmkid_list.pmkidlist[i].bssid,
-				    priv->pmkid_list.pmkidlist[i + 1].bssid,
-				    ETH_ALEN);
+			       priv->pmkid_list.pmkidlist[i + 1].bssid,
+			       ETH_ALEN);
 			memcpy(priv->pmkid_list.pmkidlist[i].pmkid,
-				    priv->pmkid_list.pmkidlist[i].pmkid,
-				    PMKID_LEN);
+			       priv->pmkid_list.pmkidlist[i].pmkid,
+			       PMKID_LEN);
 		}
 		priv->pmkid_list.numpmkid--;
 	} else {
