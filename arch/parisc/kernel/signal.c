@@ -233,6 +233,7 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs,
 	struct rt_sigframe __user *frame;
 	unsigned long rp, usp;
 	unsigned long haddr, sigframe_size;
+	unsigned long start, end;
 	int err = 0;
 #ifdef CONFIG_64BIT
 	struct compat_rt_sigframe __user * compat_frame;
@@ -300,10 +301,10 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs,
 	}
 #endif
 
-	flush_user_dcache_range((unsigned long) &frame->tramp[0],
-			   (unsigned long) &frame->tramp[TRAMP_SIZE]);
-	flush_user_icache_range((unsigned long) &frame->tramp[0],
-			   (unsigned long) &frame->tramp[TRAMP_SIZE]);
+	start = (unsigned long) &frame->tramp[0];
+	end = (unsigned long) &frame->tramp[TRAMP_SIZE];
+	flush_user_dcache_range_asm(start, end);
+	flush_user_icache_range_asm(start, end);
 
 	/* TRAMP Words 0-4, Length 5 = SIGRESTARTBLOCK_TRAMP
 	 * TRAMP Words 5-9, Length 4 = SIGRETURN_TRAMP
@@ -549,8 +550,8 @@ insert_restart_trampoline(struct pt_regs *regs)
 		WARN_ON(err);
 
 		/* flush data/instruction cache for new insns */
-		flush_user_dcache_range(start, end);
-		flush_user_icache_range(start, end);
+		flush_user_dcache_range_asm(start, end);
+		flush_user_icache_range_asm(start, end);
 
 		regs->gr[31] = regs->gr[30] + 8;
 		return;
