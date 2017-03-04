@@ -30,6 +30,8 @@
 #include <linux/time.h>
 #include <linux/types.h>
 
+struct module;
+
 /* pstore record types (see fs/pstore/inode.c for filename templates) */
 enum pstore_type_id {
 	PSTORE_TYPE_DMESG	= 0,
@@ -45,7 +47,31 @@ enum pstore_type_id {
 	PSTORE_TYPE_UNKNOWN	= 255
 };
 
-struct module;
+struct pstore_info;
+/**
+ * struct pstore_record - details of a pstore record entry
+ * @psi:	pstore backend driver information
+ * @type:	pstore record type
+ * @id:		per-type unique identifier for record
+ * @time:	timestamp of the record
+ * @count:	for PSTORE_TYPE_DMESG, the Oops count.
+ * @compressed:	for PSTORE_TYPE_DMESG, whether the buffer is compressed
+ * @buf:	pointer to record contents
+ * @size:	size of @buf
+ * @ecc_notice_size:
+ *		ECC information for @buf
+ */
+struct pstore_record {
+	struct pstore_info	*psi;
+	enum pstore_type_id	type;
+	u64			id;
+	struct timespec		time;
+	int			count;
+	bool			compressed;
+	char			*buf;
+	ssize_t			size;
+	ssize_t			ecc_notice_size;
+};
 
 /**
  * struct pstore_info - backend pstore driver structure

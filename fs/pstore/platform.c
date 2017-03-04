@@ -766,16 +766,9 @@ EXPORT_SYMBOL_GPL(pstore_unregister);
 void pstore_get_records(int quiet)
 {
 	struct pstore_info *psi = psinfo;
-	char			*buf = NULL;
-	ssize_t			size;
-	u64			id;
-	int			count;
-	enum pstore_type_id	type;
-	struct timespec		time;
+	struct pstore_record	record = { .psi = psi, };
 	int			failed = 0, rc;
-	bool			compressed;
 	int			unzipped_len = -1;
-	ssize_t			ecc_notice_size = 0;
 
 	if (!psi)
 		return;
@@ -784,39 +777,51 @@ void pstore_get_records(int quiet)
 	if (psi->open && psi->open(psi))
 		goto out;
 
-	while ((size = psi->read(&id, &type, &count, &time, &buf, &compressed,
-				 &ecc_notice_size, psi)) > 0) {
-		if (compressed && (type == PSTORE_TYPE_DMESG)) {
+	while ((record.size = psi->read(&record.id, &record.type,
+				 &record.count, &record.time,
+				 &record.buf, &record.compressed,
+				 &record.ecc_notice_size,
+				 record.psi)) > 0) {
+		if (record.compressed &&
+		    record.type == PSTORE_TYPE_DMESG) {
 			if (big_oops_buf)
-				unzipped_len = pstore_decompress(buf,
-							big_oops_buf, size,
+				unzipped_len = pstore_decompress(
+							record.buf,
+							big_oops_buf,
+							record.size,
 							big_oops_buf_sz);
 
 			if (unzipped_len > 0) {
-				if (ecc_notice_size)
+				if (record.ecc_notice_size)
 					memcpy(big_oops_buf + unzipped_len,
-					       buf + size, ecc_notice_size);
-				kfree(buf);
-				buf = big_oops_buf;
-				size = unzipped_len;
-				compressed = false;
+					       record.buf + record.size,
+					       record.ecc_notice_size);
+				kfree(record.buf);
+				record.buf = big_oops_buf;
+				record.size = unzipped_len;
+				record.compressed = false;
 			} else {
 				pr_err("decompression failed;returned %d\n",
 				       unzipped_len);
-				compressed = true;
+				record.compressed = true;
 			}
 		}
-		rc = pstore_mkfile(type, psi->name, id, count, buf,
-				   compressed, size + ecc_notice_size,
-				   time, psi);
+		rc = pstore_mkfile(record.type, psi->name, record.id,
+				   record.count, record.buf,
+				   record.compressed,
+				   record.size + record.ecc_notice_size,
+				   record.time, record.psi);
 		if (unzipped_len < 0) {
 			/* Free buffer other than big oops */
-			kfree(buf);
-			buf = NULL;
+			kfree(record.buf);
+			record.buf = NULL;
 		} else
 			unzipped_len = -1;
 		if (rc && (rc != -EEXIST || !quiet))
 			failed++;
+
+		memset(&record, 0, sizeof(record));
+		record.psi = psi;
 	}
 	if (psi->close)
 		psi->close(psi);
