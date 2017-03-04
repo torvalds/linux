@@ -408,7 +408,10 @@ static void init_cache_info(struct ppc_cache_info *info, u32 size, u32 lsize,
 	info->line_size = lsize;
 	info->block_size = bsize;
 	info->log_block_size = __ilog2(bsize);
-	info->blocks_per_page = PAGE_SIZE / bsize;
+	if (bsize)
+		info->blocks_per_page = PAGE_SIZE / bsize;
+	else
+		info->blocks_per_page = 0;
 
 	if (sets == 0)
 		info->assoc = 0xffff;
