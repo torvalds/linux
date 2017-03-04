@@ -151,20 +151,20 @@ MODULE_PARM_DESC(min_interrupt_out_interval, "Minimum interrupt out interval in 
 /* Structure to hold all of our device specific stuff */
 struct ld_usb {
 	struct mutex		mutex;		/* locks this structure */
-	struct usb_interface*	intf;		/* save off the usb interface pointer */
+	struct usb_interface	*intf;		/* save off the usb interface pointer */
 
 	int			open_count;	/* number of times this port has been opened */
 
-	char*			ring_buffer;
+	char			*ring_buffer;
 	unsigned int		ring_head;
 	unsigned int		ring_tail;
 
 	wait_queue_head_t	read_wait;
 	wait_queue_head_t	write_wait;
 
-	char*			interrupt_in_buffer;
-	struct usb_endpoint_descriptor* interrupt_in_endpoint;
-	struct urb*		interrupt_in_urb;
+	char			*interrupt_in_buffer;
+	struct usb_endpoint_descriptor *interrupt_in_endpoint;
+	struct urb		*interrupt_in_urb;
 	int			interrupt_in_interval;
 	size_t			interrupt_in_endpoint_size;
 	int			interrupt_in_running;
@@ -172,9 +172,9 @@ struct ld_usb {
 	int			buffer_overflow;
 	spinlock_t		rbsl;
 
-	char*			interrupt_out_buffer;
-	struct usb_endpoint_descriptor* interrupt_out_endpoint;
-	struct urb*		interrupt_out_urb;
+	char			*interrupt_out_buffer;
+	struct usb_endpoint_descriptor *interrupt_out_endpoint;
+	struct urb		*interrupt_out_urb;
 	int			interrupt_out_interval;
 	size_t			interrupt_out_endpoint_size;
 	int			interrupt_out_busy;
@@ -244,7 +244,7 @@ static void ld_usb_interrupt_in_callback(struct urb *urb)
 	if (urb->actual_length > 0) {
 		next_ring_head = (dev->ring_head+1) % ring_buffer_size;
 		if (next_ring_head != dev->ring_tail) {
-			actual_buffer = (size_t*)(dev->ring_buffer + dev->ring_head*(sizeof(size_t)+dev->interrupt_in_endpoint_size));
+			actual_buffer = (size_t *)(dev->ring_buffer + dev->ring_head * (sizeof(size_t)+dev->interrupt_in_endpoint_size));
 			/* actual_buffer gets urb->actual_length + interrupt_in_buffer */
 			*actual_buffer = urb->actual_length;
 			memcpy(actual_buffer+1, dev->interrupt_in_buffer, urb->actual_length);
@@ -483,7 +483,7 @@ static ssize_t ld_usb_read(struct file *file, char __user *buffer, size_t count,
 	}
 
 	/* actual_buffer contains actual_length + interrupt_in_buffer */
-	actual_buffer = (size_t*)(dev->ring_buffer + dev->ring_tail*(sizeof(size_t)+dev->interrupt_in_endpoint_size));
+	actual_buffer = (size_t *)(dev->ring_buffer + dev->ring_tail * (sizeof(size_t)+dev->interrupt_in_endpoint_size));
 	bytes_to_read = min(count, *actual_buffer);
 	if (bytes_to_read < *actual_buffer)
 		dev_warn(&dev->intf->dev, "Read buffer overflow, %zd bytes dropped\n",
