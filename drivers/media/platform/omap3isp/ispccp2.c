@@ -841,7 +841,7 @@ static int ccp2_s_stream(struct v4l2_subdev *sd, int enable)
 	switch (enable) {
 	case ISP_PIPELINE_STREAM_CONTINUOUS:
 		if (ccp2->phy) {
-			ret = omap3isp_csiphy_acquire(ccp2->phy);
+			ret = omap3isp_csiphy_acquire(ccp2->phy, &sd->entity);
 			if (ret < 0)
 				return ret;
 		}

@@ -164,21 +164,16 @@ static int csiphy_set_power(struct isp_csiphy *phy, u32 power)
 
 static int omap3isp_csiphy_config(struct isp_csiphy *phy)
 {
-	struct isp_csi2_device *csi2 = phy->csi2;
-	struct isp_pipeline *pipe = to_isp_pipeline(&csi2->subdev.entity);
-	struct isp_bus_cfg *buscfg = pipe->external->host_priv;
+	struct isp_pipeline *pipe = to_isp_pipeline(phy->entity);
+	struct isp_async_subdev *isd =
+		container_of(pipe->external->asd, struct isp_async_subdev, asd);
+	struct isp_bus_cfg *buscfg = pipe->external->host_priv ?
+		pipe->external->host_priv : &isd->bus;
 	struct isp_csiphy_lanes_cfg *lanes;
 	int csi2_ddrclk_khz;
 	unsigned int num_data_lanes, used_lanes = 0;
 	unsigned int i;
 	u32 reg;
-
-	if (!buscfg) {
-		struct isp_async_subdev *isd =
-			container_of(pipe->external->asd,
-				     struct isp_async_subdev, asd);
-		buscfg = &isd->bus;
-	}
 
 	if (buscfg->interface == ISP_INTERFACE_CCP2B_PHY1
 	    || buscfg->interface == ISP_INTERFACE_CCP2B_PHY2) {
@@ -222,7 +217,7 @@ static int omap3isp_csiphy_config(struct isp_csiphy *phy)
 	csi2_ddrclk_khz = pipe->external_rate / 1000
 		/ (2 * hweight32(used_lanes)) * pipe->external_width;
 
-	reg = isp_reg_readl(csi2->isp, phy->phy_regs, ISPCSIPHY_REG0);
+	reg = isp_reg_readl(phy->isp, phy->phy_regs, ISPCSIPHY_REG0);
 
 	reg &= ~(ISPCSIPHY_REG0_THS_TERM_MASK |
 		 ISPCSIPHY_REG0_THS_SETTLE_MASK);
@@ -233,9 +228,9 @@ static int omap3isp_csiphy_config(struct isp_csiphy *phy)
 	reg |= (DIV_ROUND_UP(90 * csi2_ddrclk_khz, 1000000) + 3)
 		<< ISPCSIPHY_REG0_THS_SETTLE_SHIFT;
 
-	isp_reg_writel(csi2->isp, reg, phy->phy_regs, ISPCSIPHY_REG0);
+	isp_reg_writel(phy->isp, reg, phy->phy_regs, ISPCSIPHY_REG0);
 
-	reg = isp_reg_readl(csi2->isp, phy->phy_regs, ISPCSIPHY_REG1);
+	reg = isp_reg_readl(phy->isp, phy->phy_regs, ISPCSIPHY_REG1);
 
 	reg &= ~(ISPCSIPHY_REG1_TCLK_TERM_MASK |
 		 ISPCSIPHY_REG1_TCLK_MISS_MASK |
@@ -244,10 +239,10 @@ static int omap3isp_csiphy_config(struct isp_csiphy *phy)
 	reg |= TCLK_MISS << ISPCSIPHY_REG1_TCLK_MISS_SHIFT;
 	reg |= TCLK_SETTLE << ISPCSIPHY_REG1_TCLK_SETTLE_SHIFT;
 
-	isp_reg_writel(csi2->isp, reg, phy->phy_regs, ISPCSIPHY_REG1);
+	isp_reg_writel(phy->isp, reg, phy->phy_regs, ISPCSIPHY_REG1);
 
 	/* DPHY lane configuration */
-	reg = isp_reg_readl(csi2->isp, phy->cfg_regs, ISPCSI2_PHY_CFG);
+	reg = isp_reg_readl(phy->isp, phy->cfg_regs, ISPCSI2_PHY_CFG);
 
 	for (i = 0; i < num_data_lanes; i++) {
 		reg &= ~(ISPCSI2_PHY_CFG_DATA_POL_MASK(i + 1) |
@@ -263,12 +258,12 @@ static int omap3isp_csiphy_config(struct isp_csiphy *phy)
 	reg |= lanes->clk.pol << ISPCSI2_PHY_CFG_CLOCK_POL_SHIFT;
 	reg |= lanes->clk.pos << ISPCSI2_PHY_CFG_CLOCK_POSITION_SHIFT;
 
-	isp_reg_writel(csi2->isp, reg, phy->cfg_regs, ISPCSI2_PHY_CFG);
+	isp_reg_writel(phy->isp, reg, phy->cfg_regs, ISPCSI2_PHY_CFG);
 
 	return 0;
 }
 
-int omap3isp_csiphy_acquire(struct isp_csiphy *phy)
+int omap3isp_csiphy_acquire(struct isp_csiphy *phy, struct media_entity *entity)
 {
 	int rval;
 
@@ -288,6 +283,8 @@ int omap3isp_csiphy_acquire(struct isp_csiphy *phy)
 	if (rval < 0)
 		goto done;
 
+	phy->entity = entity;
+
 	rval = omap3isp_csiphy_config(phy);
 	if (rval < 0)
 		goto done;
@@ -301,10 +298,10 @@ int omap3isp_csiphy_acquire(struct isp_csiphy *phy)
 
 		csiphy_power_autoswitch_enable(phy, true);
 	}
-
-	phy->phy_in_use = 1;
-
 done:
+	if (rval < 0)
+		phy->entity = NULL;
+
 	mutex_unlock(&phy->mutex);
 	return rval;
 }
@@ -312,10 +309,8 @@ done:
 void omap3isp_csiphy_release(struct isp_csiphy *phy)
 {
 	mutex_lock(&phy->mutex);
-	if (phy->phy_in_use) {
-		struct isp_csi2_device *csi2 = phy->csi2;
-		struct isp_pipeline *pipe =
-			to_isp_pipeline(&csi2->subdev.entity);
+	if (phy->entity) {
+		struct isp_pipeline *pipe = to_isp_pipeline(phy->entity);
 		struct isp_bus_cfg *buscfg = pipe->external->host_priv;
 
 		csiphy_routing_cfg(phy, buscfg->interface, false,
@@ -325,7 +320,7 @@ void omap3isp_csiphy_release(struct isp_csiphy *phy)
 			csiphy_set_power(phy, ISPCSI2_PHY_CFG_PWR_CMD_OFF);
 		}
 		regulator_disable(phy->vdd);
-		phy->phy_in_use = 0;
+		phy->entity = NULL;
 	}
 	mutex_unlock(&phy->mutex);
 }
