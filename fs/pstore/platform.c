@@ -722,9 +722,9 @@ int pstore_register(struct pstore_info *psi)
 	 */
 	backend = psi->name;
 
-	module_put(owner);
-
 	pr_info("Registered %s as persistent store backend\n", psi->name);
+
+	module_put(owner);
 
 	return 0;
 }
