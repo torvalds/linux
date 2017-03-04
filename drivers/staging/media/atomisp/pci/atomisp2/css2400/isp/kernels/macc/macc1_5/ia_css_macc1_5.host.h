@@ -24,18 +24,18 @@ void
 ia_css_macc1_5_encode(
 	struct sh_css_isp_macc1_5_params *to,
 	const struct ia_css_macc1_5_config *from,
-	unsigned size);
+	unsigned int size);
 
 void
 ia_css_macc1_5_vmem_encode(
 	struct sh_css_isp_macc1_5_vmem_params *params,
 	const struct ia_css_macc1_5_table *from,
-	unsigned size);
+	unsigned int size);
 
 #ifndef IA_CSS_NO_DEBUG
 void
 ia_css_macc1_5_debug_dtrace(
 	const struct ia_css_macc1_5_config *config,
-	unsigned level);
+	unsigned int level);
 #endif
 #endif /* __IA_CSS_MACC1_5_HOST_H */
