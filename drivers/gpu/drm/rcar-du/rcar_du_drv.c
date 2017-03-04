@@ -318,8 +318,6 @@ static int rcar_du_probe(struct platform_device *pdev)
 	if (rcdu == NULL)
 		return -ENOMEM;
 
-	init_waitqueue_head(&rcdu->commit.wait);
-
 	rcdu->dev = &pdev->dev;
 	rcdu->info = of_device_get_match_data(rcdu->dev);
 

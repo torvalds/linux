@@ -98,11 +98,6 @@ struct rcar_du_device {
 	unsigned int vspd1_sink;
 
 	struct rcar_du_lvdsenc *lvds[RCAR_DU_MAX_LVDS];
-
-	struct {
-		wait_queue_head_t wait;
-		u32 pending;
-	} commit;
 };
 
 static inline bool rcar_du_has(struct rcar_du_device *rcdu,
