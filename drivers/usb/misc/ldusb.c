@@ -122,13 +122,13 @@ MODULE_SUPPORTED_DEVICE("LD USB Devices");
  * avoid racing conditions and get better performance of the driver.
  */
 static int ring_buffer_size = 128;
-module_param(ring_buffer_size, int, 0);
+module_param(ring_buffer_size, int, 0000);
 MODULE_PARM_DESC(ring_buffer_size, "Read ring buffer size in reports");
 
 /* The write_buffer can contain more than one interrupt out transfer.
  */
 static int write_buffer_size = 10;
-module_param(write_buffer_size, int, 0);
+module_param(write_buffer_size, int, 0000);
 MODULE_PARM_DESC(write_buffer_size, "Write buffer size in reports");
 
 /* As of kernel version 2.6.4 ehci-hcd uses an
@@ -141,11 +141,11 @@ MODULE_PARM_DESC(write_buffer_size, "Write buffer size in reports");
  * or set to 1 to use the standard interval from the endpoint descriptors.
  */
 static int min_interrupt_in_interval = 2;
-module_param(min_interrupt_in_interval, int, 0);
+module_param(min_interrupt_in_interval, int, 0000);
 MODULE_PARM_DESC(min_interrupt_in_interval, "Minimum interrupt in interval in ms");
 
 static int min_interrupt_out_interval = 2;
-module_param(min_interrupt_out_interval, int, 0);
+module_param(min_interrupt_out_interval, int, 0000);
 MODULE_PARM_DESC(min_interrupt_out_interval, "Minimum interrupt out interval in ms");
 
 /* Structure to hold all of our device specific stuff */
