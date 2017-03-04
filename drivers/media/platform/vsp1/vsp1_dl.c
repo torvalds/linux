@@ -561,9 +561,19 @@ void vsp1_dlm_irq_display_start(struct vsp1_dl_manager *dlm)
 	spin_unlock(&dlm->lock);
 }
 
-void vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
+/**
+ * vsp1_dlm_irq_frame_end - Display list handler for the frame end interrupt
+ * @dlm: the display list manager
+ *
+ * Return true if the previous display list has completed at frame end, or false
+ * if it has been delayed by one frame because the display list commit raced
+ * with the frame end interrupt. The function always returns true in header mode
+ * as display list processing is then not continuous and races never occur.
+ */
+bool vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 {
 	struct vsp1_device *vsp1 = dlm->vsp1;
+	bool completed = false;
 
 	spin_lock(&dlm->lock);
 
@@ -575,8 +585,10 @@ void vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 	 * perform any operation as there can't be any new display list queued
 	 * in that case.
 	 */
-	if (dlm->mode == VSP1_DL_MODE_HEADER)
+	if (dlm->mode == VSP1_DL_MODE_HEADER) {
+		completed = true;
 		goto done;
+	}
 
 	/*
 	 * The UPD bit set indicates that the commit operation raced with the
@@ -594,6 +606,7 @@ void vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 	if (dlm->queued) {
 		dlm->active = dlm->queued;
 		dlm->queued = NULL;
+		completed = true;
 	}
 
 	/*
@@ -614,6 +627,8 @@ void vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 
 done:
 	spin_unlock(&dlm->lock);
+
+	return completed;
 }
 
 /* Hardware Setup */
