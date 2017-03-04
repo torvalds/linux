@@ -43,9 +43,9 @@ static const int32_t div_lut_intercepts[BNLM_DIV_LUT_SIZE] = {
 static inline void
 bnlm_lut_encode(struct bnlm_lut *lut, const int32_t *lut_thr, const int32_t *lut_val, const uint32_t lut_size)
 {
-	uint32_t blk, i;
-	const uint32_t block_size = 16;
-	const uint32_t total_blocks = ISP_VEC_NELEMS / block_size;
+	u32 blk, i;
+	const u32 block_size = 16;
+	const u32 total_blocks = ISP_VEC_NELEMS / block_size;
 
 	/* Create VMEM LUTs from the threshold and value arrays.
 	 *
@@ -79,7 +79,7 @@ bnlm_lut_encode(struct bnlm_lut *lut, const int32_t *lut_thr, const int32_t *lut
 
 	/* Copy data from first block to all blocks */
 	for (blk = 1; blk < total_blocks; blk++) {
-		uint32_t blk_offset = blk * block_size;
+		u32 blk_offset = blk * block_size;
 		for (i = 1; i < lut_size; i++) {
 			lut->thr[0][blk_offset + i] = lut->thr[0][i];
 			lut->val[0][blk_offset + i] = lut->val[0][i];
