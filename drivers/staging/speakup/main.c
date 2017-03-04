@@ -1324,7 +1324,7 @@ static int speakup_allocate(struct vc_data *vc)
 	if (speakup_console[vc_num] == NULL) {
 		speakup_console[vc_num] = kzalloc(sizeof(*speakup_console[0]),
 						  GFP_ATOMIC);
-		if (speakup_console[vc_num] == NULL)
+		if (!speakup_console[vc_num])
 			return -ENOMEM;
 		speakup_date(vc);
 	} else if (!spk_parked)
