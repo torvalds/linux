@@ -308,8 +308,8 @@ struct net_pkt_xmt {
 		u8 valid;	/* 1 = struct is valid - else ignore */
 		u8 hrawoffv;	/* 1 = hwrafoff is valid */
 		u8 nhrawoffv;	/* 1 = nhwrafoff is valid */
-		u16 protocol;	/* specifies packet protocol */
-		u32 csum;	/* value used to set skb->csum at IOPart */
+		__be16 protocol;	/* specifies packet protocol */
+		__wsum csum;	/* value used to set skb->csum at IOPart */
 		u32 hrawoff;	/* value used to set skb->h.raw at IOPart */
 		/* hrawoff points to the start of the TRANSPORT LAYER HEADER */
 		u32 nhrawoff;	/* value used to set skb->nh.raw at IOPart */
