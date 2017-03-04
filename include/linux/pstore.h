@@ -111,16 +111,11 @@ struct pstore_record {
  *	Read next available backend record. Called after a successful
  *	@open.
  *
- *	@id:	out: unique identifier for the record
- *	@type:	out: pstore record type
- *	@count: out: for PSTORE_TYPE_DMESG, the Oops count.
- *	@time:	out: timestamp for the record
- *	@buf:	out: kmalloc copy of record contents, to be freed by pstore
- *	@compressed:
- *		out: if the record contents are compressed
- *	@ecc_notice_size:
- *		out: ECC information
- *	@psi:	in: pointer to the struct pstore_info for the backend
+ *	@record:
+ *		pointer to record to populate. @buf should be allocated
+ *		by the backend and filled. At least @type and @id should
+ *		be populated, since these are used when creating pstorefs
+ *		file names.
  *
  *	Returns record size on success, zero when no more records are
  *	available, or negative on error.
@@ -207,10 +202,7 @@ struct pstore_info {
 
 	int		(*open)(struct pstore_info *psi);
 	int		(*close)(struct pstore_info *psi);
-	ssize_t		(*read)(u64 *id, enum pstore_type_id *type,
-			int *count, struct timespec *time, char **buf,
-			bool *compressed, ssize_t *ecc_notice_size,
-			struct pstore_info *psi);
+	ssize_t		(*read)(struct pstore_record *record);
 	int		(*write)(enum pstore_type_id type,
 			enum kmsg_dump_reason reason, u64 *id,
 			unsigned int part, int count, bool compressed,

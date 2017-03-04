@@ -807,12 +807,7 @@ void pstore_get_records(int quiet)
 	if (psi->open && psi->open(psi))
 		goto out;
 
-	while ((record.size = psi->read(&record.id, &record.type,
-				 &record.count, &record.time,
-				 &record.buf, &record.compressed,
-				 &record.ecc_notice_size,
-				 record.psi)) > 0) {
-
+	while ((record.size = psi->read(&record)) > 0) {
 		decompress_record(&record);
 		rc = pstore_mkfile(&record);
 

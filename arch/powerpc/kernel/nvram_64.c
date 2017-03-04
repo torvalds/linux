@@ -442,10 +442,7 @@ static int nvram_pstore_write(enum pstore_type_id type,
  * Returns the length of the data we read from each partition.
  * Returns 0 if we've been called before.
  */
-static ssize_t nvram_pstore_read(u64 *id, enum pstore_type_id *type,
-				int *count, struct timespec *time, char **buf,
-				bool *compressed, ssize_t *ecc_notice_size,
-				struct pstore_info *psi)
+static ssize_t nvram_pstore_read(struct pstore_record *record)
 {
 	struct oops_log_info *oops_hdr;
 	unsigned int err_type, id_no, size = 0;
@@ -459,40 +456,40 @@ static ssize_t nvram_pstore_read(u64 *id, enum pstore_type_id *type,
 	switch (nvram_type_ids[read_type]) {
 	case PSTORE_TYPE_DMESG:
 		part = &oops_log_partition;
-		*type = PSTORE_TYPE_DMESG;
+		record->type = PSTORE_TYPE_DMESG;
 		break;
 	case PSTORE_TYPE_PPC_COMMON:
 		sig = NVRAM_SIG_SYS;
 		part = &common_partition;
-		*type = PSTORE_TYPE_PPC_COMMON;
-		*id = PSTORE_TYPE_PPC_COMMON;
-		time->tv_sec = 0;
-		time->tv_nsec = 0;
+		record->type = PSTORE_TYPE_PPC_COMMON;
+		record->id = PSTORE_TYPE_PPC_COMMON;
+		record->time.tv_sec = 0;
+		record->time.tv_nsec = 0;
 		break;
 #ifdef CONFIG_PPC_PSERIES
 	case PSTORE_TYPE_PPC_RTAS:
 		part = &rtas_log_partition;
-		*type = PSTORE_TYPE_PPC_RTAS;
-		time->tv_sec = last_rtas_event;
-		time->tv_nsec = 0;
+		record->type = PSTORE_TYPE_PPC_RTAS;
+		record->time.tv_sec = last_rtas_event;
+		record->time.tv_nsec = 0;
 		break;
 	case PSTORE_TYPE_PPC_OF:
 		sig = NVRAM_SIG_OF;
 		part = &of_config_partition;
-		*type = PSTORE_TYPE_PPC_OF;
-		*id = PSTORE_TYPE_PPC_OF;
-		time->tv_sec = 0;
-		time->tv_nsec = 0;
+		record->type = PSTORE_TYPE_PPC_OF;
+		record->id = PSTORE_TYPE_PPC_OF;
+		record->time.tv_sec = 0;
+		record->time.tv_nsec = 0;
 		break;
 #endif
 #ifdef CONFIG_PPC_POWERNV
 	case PSTORE_TYPE_PPC_OPAL:
 		sig = NVRAM_SIG_FW;
 		part = &skiboot_partition;
-		*type = PSTORE_TYPE_PPC_OPAL;
-		*id = PSTORE_TYPE_PPC_OPAL;
-		time->tv_sec = 0;
-		time->tv_nsec = 0;
+		record->type = PSTORE_TYPE_PPC_OPAL;
+		record->id = PSTORE_TYPE_PPC_OPAL;
+		record->time.tv_sec = 0;
+		record->time.tv_nsec = 0;
 		break;
 #endif
 	default:
@@ -520,10 +517,10 @@ static ssize_t nvram_pstore_read(u64 *id, enum pstore_type_id *type,
 		return 0;
 	}
 
-	*count = 0;
+	record->count = 0;
 
 	if (part->os_partition)
-		*id = id_no;
+		record->id = id_no;
 
 	if (nvram_type_ids[read_type] == PSTORE_TYPE_DMESG) {
 		size_t length, hdr_size;
@@ -533,28 +530,28 @@ static ssize_t nvram_pstore_read(u64 *id, enum pstore_type_id *type,
 			/* Old format oops header had 2-byte record size */
 			hdr_size = sizeof(u16);
 			length = be16_to_cpu(oops_hdr->version);
-			time->tv_sec = 0;
-			time->tv_nsec = 0;
+			record->time.tv_sec = 0;
+			record->time.tv_nsec = 0;
 		} else {
 			hdr_size = sizeof(*oops_hdr);
 			length = be16_to_cpu(oops_hdr->report_length);
-			time->tv_sec = be64_to_cpu(oops_hdr->timestamp);
-			time->tv_nsec = 0;
+			record->time.tv_sec = be64_to_cpu(oops_hdr->timestamp);
+			record->time.tv_nsec = 0;
 		}
-		*buf = kmemdup(buff + hdr_size, length, GFP_KERNEL);
+		record->buf = kmemdup(buff + hdr_size, length, GFP_KERNEL);
 		kfree(buff);
-		if (*buf == NULL)
+		if (record->buf == NULL)
 			return -ENOMEM;
 
-		*ecc_notice_size = 0;
+		record->ecc_notice_size = 0;
 		if (err_type == ERR_TYPE_KERNEL_PANIC_GZ)
-			*compressed = true;
+			record->compressed = true;
 		else
-			*compressed = false;
+			record->compressed = false;
 		return length;
 	}
 
-	*buf = buff;
+	record->buf = buff;
 	return part->size;
 }
 

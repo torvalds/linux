@@ -925,10 +925,7 @@ static int erst_check_table(struct acpi_table_erst *erst_tab)
 
 static int erst_open_pstore(struct pstore_info *psi);
 static int erst_close_pstore(struct pstore_info *psi);
-static ssize_t erst_reader(u64 *id, enum pstore_type_id *type, int *count,
-			   struct timespec *time, char **buf,
-			   bool *compressed, ssize_t *ecc_notice_size,
-			   struct pstore_info *psi);
+static ssize_t erst_reader(struct pstore_record *record);
 static int erst_writer(enum pstore_type_id type, enum kmsg_dump_reason reason,
 		       u64 *id, unsigned int part, int count, bool compressed,
 		       size_t size, struct pstore_info *psi);
@@ -986,10 +983,7 @@ static int erst_close_pstore(struct pstore_info *psi)
 	return 0;
 }
 
-static ssize_t erst_reader(u64 *id, enum pstore_type_id *type, int *count,
-			   struct timespec *time, char **buf,
-			   bool *compressed, ssize_t *ecc_notice_size,
-			   struct pstore_info *psi)
+static ssize_t erst_reader(struct pstore_record *record)
 {
 	int rc;
 	ssize_t len = 0;
@@ -1027,33 +1021,33 @@ skip:
 	if (uuid_le_cmp(rcd->hdr.creator_id, CPER_CREATOR_PSTORE) != 0)
 		goto skip;
 
-	*buf = kmalloc(len, GFP_KERNEL);
-	if (*buf == NULL) {
+	record->buf = kmalloc(len, GFP_KERNEL);
+	if (record->buf == NULL) {
 		rc = -ENOMEM;
 		goto out;
 	}
-	memcpy(*buf, rcd->data, len - sizeof(*rcd));
-	*id = record_id;
-	*compressed = false;
-	*ecc_notice_size = 0;
+	memcpy(record->buf, rcd->data, len - sizeof(*rcd));
+	record->id = record_id;
+	record->compressed = false;
+	record->ecc_notice_size = 0;
 	if (uuid_le_cmp(rcd->sec_hdr.section_type,
 			CPER_SECTION_TYPE_DMESG_Z) == 0) {
-		*type = PSTORE_TYPE_DMESG;
-		*compressed = true;
+		record->type = PSTORE_TYPE_DMESG;
+		record->compressed = true;
 	} else if (uuid_le_cmp(rcd->sec_hdr.section_type,
 			CPER_SECTION_TYPE_DMESG) == 0)
-		*type = PSTORE_TYPE_DMESG;
+		record->type = PSTORE_TYPE_DMESG;
 	else if (uuid_le_cmp(rcd->sec_hdr.section_type,
 			     CPER_SECTION_TYPE_MCE) == 0)
-		*type = PSTORE_TYPE_MCE;
+		record->type = PSTORE_TYPE_MCE;
 	else
-		*type = PSTORE_TYPE_UNKNOWN;
+		record->type = PSTORE_TYPE_UNKNOWN;
 
 	if (rcd->hdr.validation_bits & CPER_VALID_TIMESTAMP)
-		time->tv_sec = rcd->hdr.timestamp;
+		record->time.tv_sec = rcd->hdr.timestamp;
 	else
-		time->tv_sec = 0;
-	time->tv_nsec = 0;
+		record->time.tv_sec = 0;
+	record->time.tv_nsec = 0;
 
 out:
 	kfree(rcd);
