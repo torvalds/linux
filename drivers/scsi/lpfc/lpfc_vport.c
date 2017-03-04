@@ -1,9 +1,11 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
+ * Copyright (C) 2017 Broadcom. All Rights Reserved. The term      *
+ * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
- * www.emulex.com                                                  *
+ * www.broadcom.com                                                *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
@@ -34,6 +36,7 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport_fc.h>
+
 #include "lpfc_hw4.h"
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
@@ -401,6 +404,22 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 		/* Setup appropriate attribute masks */
 		vport->fdmi_hba_mask = phba->pport->fdmi_hba_mask;
 		vport->fdmi_port_mask = phba->pport->fdmi_port_mask;
+	}
+
+	if ((phba->nvmet_support == 0) &&
+	    ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+	     (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME))) {
+		/* Create NVME binding with nvme_fc_transport. This
+		 * ensures the vport is initialized.
+		 */
+		rc = lpfc_nvme_create_localport(vport);
+		if (rc) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"6003 %s status x%x\n",
+					"NVME registration failed, ",
+					rc);
+			goto error_out;
+		}
 	}
 
 	/*

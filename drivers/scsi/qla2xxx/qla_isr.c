@@ -3148,14 +3148,17 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 	int i, ret;
 	struct qla_msix_entry *qentry;
 	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
+	int min_vecs = QLA_BASE_VECTORS;
 	struct irq_affinity desc = {
 		.pre_vectors = QLA_BASE_VECTORS,
 	};
 
-	if (QLA_TGT_MODE_ENABLED() && IS_ATIO_MSIX_CAPABLE(ha))
+	if (QLA_TGT_MODE_ENABLED() && IS_ATIO_MSIX_CAPABLE(ha)) {
 		desc.pre_vectors++;
+		min_vecs++;
+	}
 
-	ret = pci_alloc_irq_vectors_affinity(ha->pdev, QLA_BASE_VECTORS,
+	ret = pci_alloc_irq_vectors_affinity(ha->pdev, min_vecs,
 			ha->msix_count, PCI_IRQ_MSIX | PCI_IRQ_AFFINITY,
 			&desc);
 
