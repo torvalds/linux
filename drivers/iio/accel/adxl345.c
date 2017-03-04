@@ -14,6 +14,7 @@
 
 #include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/regmap.h>
 
 #include <linux/iio/iio.h>
 
@@ -45,8 +46,13 @@
 static const int adxl345_uscale = 38300;
 
 struct adxl345_data {
-	struct i2c_client *client;
+	struct regmap *regmap;
 	u8 data_range;
+};
+
+static const struct regmap_config adxl345_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
 };
 
 #define ADXL345_CHANNEL(reg, axis) {					\
@@ -69,6 +75,7 @@ static int adxl345_read_raw(struct iio_dev *indio_dev,
 			    int *val, int *val2, long mask)
 {
 	struct adxl345_data *data = iio_priv(indio_dev);
+	__le16 regval;
 	int ret;
 
 	switch (mask) {
@@ -78,11 +85,12 @@ static int adxl345_read_raw(struct iio_dev *indio_dev,
 		 * ADXL345_REG_DATA(X0/Y0/Z0) contain the least significant byte
 		 * and ADXL345_REG_DATA(X0/Y0/Z0) + 1 the most significant byte
 		 */
-		ret = i2c_smbus_read_word_data(data->client, chan->address);
+		ret = regmap_bulk_read(data->regmap, chan->address, &regval,
+				       sizeof(regval));
 		if (ret < 0)
 			return ret;
 
-		*val = sign_extend32(ret, 12);
+		*val = sign_extend32(le16_to_cpu(regval), 12);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
@@ -104,37 +112,50 @@ static int adxl345_probe(struct i2c_client *client,
 {
 	struct adxl345_data *data;
 	struct iio_dev *indio_dev;
+	struct regmap *regmap;
+	struct device *dev;
+	u32 regval;
 	int ret;
 
-	ret = i2c_smbus_read_byte_data(client, ADXL345_REG_DEVID);
+	regmap = devm_regmap_init_i2c(client, &adxl345_regmap_config);
+	if (IS_ERR(regmap)) {
+		dev_err(&client->dev, "Error initializing regmap: %ld\n",
+			PTR_ERR(regmap));
+		return PTR_ERR(regmap);
+	}
+
+	dev = regmap_get_device(regmap);
+
+	ret = regmap_read(regmap, ADXL345_REG_DEVID, &regval);
 	if (ret < 0) {
-		dev_err(&client->dev, "Error reading device ID: %d\n", ret);
+		dev_err(dev, "Error reading device ID: %d\n", ret);
 		return ret;
 	}
 
-	if (ret != ADXL345_DEVID) {
-		dev_err(&client->dev, "Invalid device ID: %d\n", ret);
+	if (regval != ADXL345_DEVID) {
+		dev_err(dev, "Invalid device ID: %x, expected %x\n",
+			regval, ADXL345_DEVID);
 		return -ENODEV;
 	}
 
-	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
 		return -ENOMEM;
 
 	data = iio_priv(indio_dev);
-	i2c_set_clientdata(client, indio_dev);
-	data->client = client;
+	dev_set_drvdata(dev, indio_dev);
+	data->regmap = regmap;
 	/* Enable full-resolution mode */
 	data->data_range = ADXL345_DATA_FORMAT_FULL_RES;
 
-	ret = i2c_smbus_write_byte_data(data->client, ADXL345_REG_DATA_FORMAT,
-					data->data_range);
+	ret = regmap_write(data->regmap, ADXL345_REG_DATA_FORMAT,
+			   data->data_range);
 	if (ret < 0) {
-		dev_err(&client->dev, "Failed to set data range: %d\n", ret);
+		dev_err(dev, "Failed to set data range: %d\n", ret);
 		return ret;
 	}
 
-	indio_dev->dev.parent = &client->dev;
+	indio_dev->dev.parent = dev;
 	indio_dev->name = id->name;
 	indio_dev->info = &adxl345_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -142,19 +163,18 @@ static int adxl345_probe(struct i2c_client *client,
 	indio_dev->num_channels = ARRAY_SIZE(adxl345_channels);
 
 	/* Enable measurement mode */
-	ret = i2c_smbus_write_byte_data(data->client, ADXL345_REG_POWER_CTL,
-					ADXL345_POWER_CTL_MEASURE);
+	ret = regmap_write(data->regmap, ADXL345_REG_POWER_CTL,
+			   ADXL345_POWER_CTL_MEASURE);
 	if (ret < 0) {
-		dev_err(&client->dev, "Failed to enable measurement mode: %d\n",
-			ret);
+		dev_err(dev, "Failed to enable measurement mode: %d\n", ret);
 		return ret;
 	}
 
 	ret = iio_device_register(indio_dev);
 	if (ret < 0) {
-		dev_err(&client->dev, "iio_device_register failed: %d\n", ret);
-		i2c_smbus_write_byte_data(data->client, ADXL345_REG_POWER_CTL,
-					  ADXL345_POWER_CTL_STANDBY);
+		dev_err(dev, "iio_device_register failed: %d\n", ret);
+		regmap_write(data->regmap, ADXL345_REG_POWER_CTL,
+			     ADXL345_POWER_CTL_STANDBY);
 	}
 
 	return ret;
@@ -167,8 +187,8 @@ static int adxl345_remove(struct i2c_client *client)
 
 	iio_device_unregister(indio_dev);
 
-	return i2c_smbus_write_byte_data(data->client, ADXL345_REG_POWER_CTL,
-					 ADXL345_POWER_CTL_STANDBY);
+	return regmap_write(data->regmap, ADXL345_REG_POWER_CTL,
+			    ADXL345_POWER_CTL_STANDBY);
 }
 
 static const struct i2c_device_id adxl345_i2c_id[] = {
