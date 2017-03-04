@@ -34,7 +34,7 @@
 #include "greybus.h"
 #include "gbphy.h"
 
-#define GB_NUM_MINORS	16	/* 16 is is more than enough */
+#define GB_NUM_MINORS	16	/* 16 is more than enough */
 #define GB_NAME		"ttyGB"
 
 #define GB_UART_WRITE_FIFO_SIZE		PAGE_SIZE
