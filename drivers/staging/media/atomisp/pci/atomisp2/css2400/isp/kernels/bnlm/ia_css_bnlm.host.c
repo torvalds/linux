@@ -64,7 +64,7 @@ bnlm_lut_encode(struct bnlm_lut *lut, const int32_t *lut_thr, const int32_t *lut
 		assert(lut_thr[i] <= lut_thr[i+1]);
 	}
 
-	/* Intialize */
+	/* Initialize */
 	for (i = 0; i < total_blocks * block_size; i++) {
 		lut->thr[0][i] = 0;
 		lut->val[0][i] = 0;
