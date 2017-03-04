@@ -2127,11 +2127,12 @@ lpfc_release_nvme_buf(struct lpfc_hba *phba, struct lpfc_nvme_buf *lpfc_ncmd)
 int
 lpfc_nvme_create_localport(struct lpfc_vport *vport)
 {
+	int ret = 0;
 	struct lpfc_hba  *phba = vport->phba;
 	struct nvme_fc_port_info nfcp_info;
 	struct nvme_fc_local_port *localport;
 	struct lpfc_nvme_lport *lport;
-	int len, ret = 0;
+	int len;
 
 	/* Initialize this localport instance.  The vport wwn usage ensures
 	 * that NPIV is accounted for.
@@ -2148,8 +2149,12 @@ lpfc_nvme_create_localport(struct lpfc_vport *vport)
 	/* localport is allocated from the stack, but the registration
 	 * call allocates heap memory as well as the private area.
 	 */
+#ifdef CONFIG_LPFC_NVME_INITIATOR
 	ret = nvme_fc_register_localport(&nfcp_info, &lpfc_nvme_template,
 					 &vport->phba->pcidev->dev, &localport);
+#else
+	ret = -ENOMEM;
+#endif
 	if (!ret) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME | LOG_NVME_DISC,
 				 "6005 Successfully registered local "
@@ -2185,6 +2190,7 @@ lpfc_nvme_create_localport(struct lpfc_vport *vport)
 void
 lpfc_nvme_destroy_localport(struct lpfc_vport *vport)
 {
+#ifdef CONFIG_LPFC_NVME_INITIATOR
 	struct nvme_fc_local_port *localport;
 	struct lpfc_nvme_lport *lport;
 	struct lpfc_nvme_rport *rport = NULL, *rport_next = NULL;
@@ -2200,7 +2206,6 @@ lpfc_nvme_destroy_localport(struct lpfc_vport *vport)
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME,
 			 "6011 Destroying NVME localport %p\n",
 			 localport);
-
 	list_for_each_entry_safe(rport, rport_next, &lport->rport_list, list) {
 		/* The last node ref has to get released now before the rport
 		 * private memory area is released by the transport.
@@ -2214,6 +2219,7 @@ lpfc_nvme_destroy_localport(struct lpfc_vport *vport)
 					 "6008 rport fail destroy %x\n", ret);
 		wait_for_completion_timeout(&rport->rport_unreg_done, 5);
 	}
+
 	/* lport's rport list is clear.  Unregister
 	 * lport and release resources.
 	 */
@@ -2237,6 +2243,7 @@ lpfc_nvme_destroy_localport(struct lpfc_vport *vport)
 				 "Failed, status x%x\n",
 				 ret);
 	}
+#endif
 }
 
 void
@@ -2267,6 +2274,7 @@ lpfc_nvme_update_localport(struct lpfc_vport *vport)
 int
 lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 {
+#ifdef CONFIG_LPFC_NVME_INITIATOR
 	int ret = 0;
 	struct nvme_fc_local_port *localport;
 	struct lpfc_nvme_lport *lport;
@@ -2340,7 +2348,6 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			rpinfo.port_role |= FC_PORT_ROLE_NVME_INITIATOR;
 		rpinfo.port_name = wwn_to_u64(ndlp->nlp_portname.u.wwn);
 		rpinfo.node_name = wwn_to_u64(ndlp->nlp_nodename.u.wwn);
-
 		ret = nvme_fc_register_remoteport(localport, &rpinfo,
 						  &remote_port);
 		if (!ret) {
@@ -2376,6 +2383,9 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 				 ndlp->nlp_type, ndlp->nlp_DID, ndlp);
 	}
 	return ret;
+#else
+	return 0;
+#endif
 }
 
 /* lpfc_nvme_unregister_port - unbind the DID and port_role from this rport.
@@ -2393,6 +2403,7 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 void
 lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 {
+#ifdef CONFIG_LPFC_NVME_INITIATOR
 	int ret;
 	struct nvme_fc_local_port *localport;
 	struct lpfc_nvme_lport *lport;
@@ -2450,6 +2461,7 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	return;
 
  input_err:
+#endif
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_DISC,
 			 "6168: State error: lport %p, rport%p FCID x%06x\n",
 			 vport->localport, ndlp->rport, ndlp->nlp_DID);
