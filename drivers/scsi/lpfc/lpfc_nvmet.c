@@ -1720,7 +1720,7 @@ lpfc_nvmet_unsol_issue_abort(struct lpfc_hba *phba,
 		atomic_inc(&tgtp->xmt_abort_rsp_error);
 		lpfc_printf_log(phba, KERN_WARNING, LOG_NVME_ABTS,
 				"6134 Drop ABTS - wrong NDLP state x%x.\n",
-				ndlp->nlp_state);
+				(ndlp) ? ndlp->nlp_state : NLP_STE_MAX_STATE);
 
 		/* No failure to an ABTS request. */
 		return 0;
@@ -1818,7 +1818,7 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 		atomic_inc(&tgtp->xmt_abort_rsp_error);
 		lpfc_printf_log(phba, KERN_WARNING, LOG_NVME_ABTS,
 				"6160 Drop ABTS - wrong NDLP state x%x.\n",
-				ndlp->nlp_state);
+				(ndlp) ? ndlp->nlp_state : NLP_STE_MAX_STATE);
 
 		/* No failure to an ABTS request. */
 		return 0;
