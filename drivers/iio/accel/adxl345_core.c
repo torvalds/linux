@@ -1,22 +1,19 @@
 /*
- * ADXL345 3-Axis Digital Accelerometer
+ * ADXL345 3-Axis Digital Accelerometer IIO core driver
  *
  * Copyright (c) 2017 Eva Rachel Retuya <eraretuya@gmail.com>
  *
  * This file is subject to the terms and conditions of version 2 of
  * the GNU General Public License. See the file COPYING in the main
  * directory of this archive for more details.
- *
- * IIO driver for ADXL345
- * 7-bit I2C slave address: 0x1D (ALT ADDRESS pin tied to VDDIO) or
- * 0x53 (ALT ADDRESS pin grounded)
  */
 
-#include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 
 #include <linux/iio/iio.h>
+
+#include "adxl345.h"
 
 #define ADXL345_REG_DEVID		0x00
 #define ADXL345_REG_POWER_CTL		0x2D
@@ -48,11 +45,6 @@ static const int adxl345_uscale = 38300;
 struct adxl345_data {
 	struct regmap *regmap;
 	u8 data_range;
-};
-
-static const struct regmap_config adxl345_regmap_config = {
-	.reg_bits = 8,
-	.val_bits = 8,
 };
 
 #define ADXL345_CHANNEL(reg, axis) {					\
@@ -107,24 +99,13 @@ static const struct iio_info adxl345_info = {
 	.read_raw	= adxl345_read_raw,
 };
 
-static int adxl345_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+int adxl345_core_probe(struct device *dev, struct regmap *regmap,
+		       const char *name)
 {
 	struct adxl345_data *data;
 	struct iio_dev *indio_dev;
-	struct regmap *regmap;
-	struct device *dev;
 	u32 regval;
 	int ret;
-
-	regmap = devm_regmap_init_i2c(client, &adxl345_regmap_config);
-	if (IS_ERR(regmap)) {
-		dev_err(&client->dev, "Error initializing regmap: %ld\n",
-			PTR_ERR(regmap));
-		return PTR_ERR(regmap);
-	}
-
-	dev = regmap_get_device(regmap);
 
 	ret = regmap_read(regmap, ADXL345_REG_DEVID, &regval);
 	if (ret < 0) {
@@ -156,7 +137,7 @@ static int adxl345_probe(struct i2c_client *client,
 	}
 
 	indio_dev->dev.parent = dev;
-	indio_dev->name = id->name;
+	indio_dev->name = name;
 	indio_dev->info = &adxl345_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = adxl345_channels;
@@ -179,10 +160,11 @@ static int adxl345_probe(struct i2c_client *client,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(adxl345_core_probe);
 
-static int adxl345_remove(struct i2c_client *client)
+int adxl345_core_remove(struct device *dev)
 {
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct adxl345_data *data = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
@@ -190,25 +172,8 @@ static int adxl345_remove(struct i2c_client *client)
 	return regmap_write(data->regmap, ADXL345_REG_POWER_CTL,
 			    ADXL345_POWER_CTL_STANDBY);
 }
-
-static const struct i2c_device_id adxl345_i2c_id[] = {
-	{ "adxl345", 0 },
-	{ }
-};
-
-MODULE_DEVICE_TABLE(i2c, adxl345_i2c_id);
-
-static struct i2c_driver adxl345_driver = {
-	.driver = {
-		.name	= "adxl345",
-	},
-	.probe		= adxl345_probe,
-	.remove		= adxl345_remove,
-	.id_table	= adxl345_i2c_id,
-};
-
-module_i2c_driver(adxl345_driver);
+EXPORT_SYMBOL_GPL(adxl345_core_remove);
 
 MODULE_AUTHOR("Eva Rachel Retuya <eraretuya@gmail.com>");
-MODULE_DESCRIPTION("ADXL345 3-Axis Digital Accelerometer driver");
+MODULE_DESCRIPTION("ADXL345 3-Axis Digital Accelerometer core driver");
 MODULE_LICENSE("GPL v2");
