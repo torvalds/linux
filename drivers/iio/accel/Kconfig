@@ -22,6 +22,20 @@ config ADXL345_I2C
 	  will be called adxl345_i2c and you will also get adxl345_core
 	  for the core module.
 
+config ADXL345_SPI
+	tristate "Analog Devices ADXL345 3-Axis Digital Accelerometer SPI Driver"
+	depends on INPUT_ADXL34X=n
+	depends on SPI
+	select ADXL345
+	select REGMAP_SPI
+	help
+	  Say Y here if you want to build support for the Analog Devices
+	  ADXL345 3-axis digital accelerometer.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called adxl345_spi and you will also get adxl345_core
+	  for the core module.
+
 config BMA180
 	tristate "Bosch BMA180/BMA250 3-Axis Accelerometer Driver"
 	depends on I2C
