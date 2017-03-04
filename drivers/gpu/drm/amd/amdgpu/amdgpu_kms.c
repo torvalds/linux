@@ -208,6 +208,14 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 		fw_info->ver = adev->sdma.instance[query_fw->index].fw_version;
 		fw_info->feature = adev->sdma.instance[query_fw->index].feature_version;
 		break;
+	case AMDGPU_INFO_FW_SOS:
+		fw_info->ver = adev->psp.sos_fw_version;
+		fw_info->feature = adev->psp.sos_feature_version;
+		break;
+	case AMDGPU_INFO_FW_ASD:
+		fw_info->ver = adev->psp.asd_fw_version;
+		fw_info->feature = adev->psp.asd_feature_version;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1079,6 +1087,23 @@ static int amdgpu_debugfs_firmware_info(struct seq_file *m, void *data)
 		seq_printf(m, "MEC2 feature version: %u, firmware version: 0x%08x\n",
 			   fw_info.feature, fw_info.ver);
 	}
+
+	/* PSP SOS */
+	query_fw.fw_type = AMDGPU_INFO_FW_SOS;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "SOS feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
+
+
+	/* PSP ASD */
+	query_fw.fw_type = AMDGPU_INFO_FW_ASD;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "ASD feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
 
 	/* SMC */
 	query_fw.fw_type = AMDGPU_INFO_FW_SMC;

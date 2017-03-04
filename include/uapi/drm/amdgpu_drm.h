@@ -523,6 +523,10 @@ struct drm_amdgpu_cs_chunk_data {
 	#define AMDGPU_INFO_FW_SMC		0x0a
 	/* Subquery id: Query SDMA firmware version */
 	#define AMDGPU_INFO_FW_SDMA		0x0b
+	/* Subquery id: Query PSP SOS firmware version */
+	#define AMDGPU_INFO_FW_SOS		0x0c
+	/* Subquery id: Query PSP ASD firmware version */
+	#define AMDGPU_INFO_FW_ASD		0x0d
 /* number of bytes moved for TTM migration */
 #define AMDGPU_INFO_NUM_BYTES_MOVED		0x0f
 /* the used VRAM size */
