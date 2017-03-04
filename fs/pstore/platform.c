@@ -814,11 +814,7 @@ void pstore_get_records(int quiet)
 				 record.psi)) > 0) {
 
 		decompress_record(&record);
-		rc = pstore_mkfile(record.type, psi->name, record.id,
-				   record.count, record.buf,
-				   record.compressed,
-				   record.size + record.ecc_notice_size,
-				   record.time, record.psi);
+		rc = pstore_mkfile(&record);
 
 		/* Free buffer other than big oops */
 		if (record.buf != big_oops_buf)

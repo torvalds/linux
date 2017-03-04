@@ -302,9 +302,7 @@ bool pstore_is_mounted(void)
  * Load it up with "size" bytes of data from "buf".
  * Set the mtime & ctime to the date that this record was originally stored.
  */
-int pstore_mkfile(enum pstore_type_id type, char *psname, u64 id, int count,
-		  char *data, bool compressed, size_t size,
-		  struct timespec time, struct pstore_info *psi)
+int pstore_mkfile(struct pstore_record *record)
 {
 	struct dentry		*root = pstore_sb->s_root;
 	struct dentry		*dentry;
@@ -313,12 +311,13 @@ int pstore_mkfile(enum pstore_type_id type, char *psname, u64 id, int count,
 	char			name[PSTORE_NAMELEN];
 	struct pstore_private	*private, *pos;
 	unsigned long		flags;
+	size_t			size = record->size + record->ecc_notice_size;
 
 	spin_lock_irqsave(&allpstore_lock, flags);
 	list_for_each_entry(pos, &allpstore, list) {
-		if (pos->type == type &&
-		    pos->id == id &&
-		    pos->psi == psi) {
+		if (pos->type == record->type &&
+		    pos->id == record->id &&
+		    pos->psi == record->psi) {
 			rc = -EEXIST;
 			break;
 		}
@@ -336,48 +335,56 @@ int pstore_mkfile(enum pstore_type_id type, char *psname, u64 id, int count,
 	private = kmalloc(sizeof *private + size, GFP_KERNEL);
 	if (!private)
 		goto fail_alloc;
-	private->type = type;
-	private->id = id;
-	private->count = count;
-	private->psi = psi;
+	private->type = record->type;
+	private->id = record->id;
+	private->count = record->count;
+	private->psi = record->psi;
 
-	switch (type) {
+	switch (record->type) {
 	case PSTORE_TYPE_DMESG:
 		scnprintf(name, sizeof(name), "dmesg-%s-%lld%s",
-			  psname, id, compressed ? ".enc.z" : "");
+			  record->psi->name, record->id,
+			  record->compressed ? ".enc.z" : "");
 		break;
 	case PSTORE_TYPE_CONSOLE:
-		scnprintf(name, sizeof(name), "console-%s-%lld", psname, id);
+		scnprintf(name, sizeof(name), "console-%s-%lld",
+			  record->psi->name, record->id);
 		break;
 	case PSTORE_TYPE_FTRACE:
-		scnprintf(name, sizeof(name), "ftrace-%s-%lld", psname, id);
+		scnprintf(name, sizeof(name), "ftrace-%s-%lld",
+			  record->psi->name, record->id);
 		break;
 	case PSTORE_TYPE_MCE:
-		scnprintf(name, sizeof(name), "mce-%s-%lld", psname, id);
+		scnprintf(name, sizeof(name), "mce-%s-%lld",
+			  record->psi->name, record->id);
 		break;
 	case PSTORE_TYPE_PPC_RTAS:
-		scnprintf(name, sizeof(name), "rtas-%s-%lld", psname, id);
+		scnprintf(name, sizeof(name), "rtas-%s-%lld",
+			  record->psi->name, record->id);
 		break;
 	case PSTORE_TYPE_PPC_OF:
 		scnprintf(name, sizeof(name), "powerpc-ofw-%s-%lld",
-			  psname, id);
+			  record->psi->name, record->id);
 		break;
 	case PSTORE_TYPE_PPC_COMMON:
 		scnprintf(name, sizeof(name), "powerpc-common-%s-%lld",
-			  psname, id);
+			  record->psi->name, record->id);
 		break;
 	case PSTORE_TYPE_PMSG:
-		scnprintf(name, sizeof(name), "pmsg-%s-%lld", psname, id);
+		scnprintf(name, sizeof(name), "pmsg-%s-%lld",
+			  record->psi->name, record->id);
 		break;
 	case PSTORE_TYPE_PPC_OPAL:
-		sprintf(name, "powerpc-opal-%s-%lld", psname, id);
+		scnprintf(name, sizeof(name), "powerpc-opal-%s-%lld",
+			  record->psi->name, record->id);
 		break;
 	case PSTORE_TYPE_UNKNOWN:
-		scnprintf(name, sizeof(name), "unknown-%s-%lld", psname, id);
+		scnprintf(name, sizeof(name), "unknown-%s-%lld",
+			  record->psi->name, record->id);
 		break;
 	default:
 		scnprintf(name, sizeof(name), "type%d-%s-%lld",
-			  type, psname, id);
+			  record->type, record->psi->name, record->id);
 		break;
 	}
 
@@ -387,13 +394,13 @@ int pstore_mkfile(enum pstore_type_id type, char *psname, u64 id, int count,
 	if (!dentry)
 		goto fail_lockedalloc;
 
-	memcpy(private->data, data, size);
+	memcpy(private->data, record->buf, size);
 	inode->i_size = private->size = size;
 
 	inode->i_private = private;
 
-	if (time.tv_sec)
-		inode->i_mtime = inode->i_ctime = time;
+	if (record->time.tv_sec)
+		inode->i_mtime = inode->i_ctime = record->time;
 
 	d_add(dentry, inode);
 
