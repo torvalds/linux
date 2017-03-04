@@ -55,7 +55,7 @@ struct spk_highlight_color_track {
 	/* Count of each background color */
 	unsigned int bgcount[8];
 	/* Buffer for characters drawn with each background color */
-	char highbuf[8][COLOR_BUFFER_SIZE];
+	u16 highbuf[8][COLOR_BUFFER_SIZE];
 	/* Current index into highbuf */
 	unsigned int highsize[8];
 	/* Reading Position for each color */
