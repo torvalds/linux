@@ -620,15 +620,15 @@ lpfc_nvme_adj_fcp_sgls(struct lpfc_vport *vport,
 	 * Embed the payload in the last half of the WQE
 	 * WQE words 16-30 get the NVME CMD IU payload
 	 *
-	 * WQE Word 16 is already setup with flags
-	 * WQE words 17-19 get payload Words 2-4
+	 * WQE words 16-19 get payload Words 1-4
 	 * WQE words 20-21 get payload Words 6-7
 	 * WQE words 22-29 get payload Words 16-23
 	 */
-	wptr = &wqe->words[17];  /* WQE ptr */
+	wptr = &wqe->words[16];  /* WQE ptr */
 	dptr = (uint32_t *)nCmd->cmdaddr;  /* payload ptr */
-	dptr += 2;		/* Skip Words 0-1 in payload */
+	dptr++;			/* Skip Word 0 in payload */
 
+	*wptr++ = *dptr++;	/* Word 1 */
 	*wptr++ = *dptr++;	/* Word 2 */
 	*wptr++ = *dptr++;	/* Word 3 */
 	*wptr++ = *dptr++;	/* Word 4 */
@@ -978,9 +978,6 @@ lpfc_nvme_prep_io_cmd(struct lpfc_vport *vport,
 			bf_set(wqe_cmd_type, &wqe->generic.wqe_com,
 			       NVME_WRITE_CMD);
 
-			/* Word 16 */
-			wqe->words[16] = LPFC_NVME_EMBED_WRITE;
-
 			phba->fc4NvmeOutputRequests++;
 		} else {
 			/* Word 7 */
@@ -1002,9 +999,6 @@ lpfc_nvme_prep_io_cmd(struct lpfc_vport *vport,
 			bf_set(wqe_cmd_type, &wqe->generic.wqe_com,
 			       NVME_READ_CMD);
 
-			/* Word 16 */
-			wqe->words[16] = LPFC_NVME_EMBED_READ;
-
 			phba->fc4NvmeInputRequests++;
 		}
 	} else {
@@ -1025,9 +1019,6 @@ lpfc_nvme_prep_io_cmd(struct lpfc_vport *vport,
 
 		/* Word 11 */
 		bf_set(wqe_cmd_type, &wqe->generic.wqe_com, NVME_READ_CMD);
-
-		/* Word 16 */
-		wqe->words[16] = LPFC_NVME_EMBED_CMD;
 
 		phba->fc4NvmeControlRequests++;
 	}
