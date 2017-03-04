@@ -2485,8 +2485,10 @@ int snapshot_gfx_mhz(void)
 
 	if (fp == NULL)
 		fp = fopen_or_die("/sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz", "r");
-	else
+	else {
 		rewind(fp);
+		fflush(fp);
+	}
 
 	retval = fscanf(fp, "%d", &gfx_cur_mhz);
 	if (retval != 1)
