@@ -3482,7 +3482,7 @@ void perf_limit_reasons_probe(unsigned int family, unsigned int model)
 int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
 	unsigned long long msr;
-	unsigned int dts;
+	unsigned int dts, dts2;
 	int cpu;
 
 	if (!(do_dts || do_ptm))
@@ -3507,7 +3507,6 @@ int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p
 		fprintf(outf, "cpu%d: MSR_IA32_PACKAGE_THERM_STATUS: 0x%08llx (%d C)\n",
 			cpu, msr, tcc_activation_temp - dts);
 
-#ifdef	THERM_DEBUG
 		if (get_msr(cpu, MSR_IA32_PACKAGE_THERM_INTERRUPT, &msr))
 			return 0;
 
@@ -3515,11 +3514,10 @@ int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p
 		dts2 = (msr >> 8) & 0x7F;
 		fprintf(outf, "cpu%d: MSR_IA32_PACKAGE_THERM_INTERRUPT: 0x%08llx (%d C, %d C)\n",
 			cpu, msr, tcc_activation_temp - dts, tcc_activation_temp - dts2);
-#endif
 	}
 
 
-	if (do_dts) {
+	if (do_dts && debug) {
 		unsigned int resolution;
 
 		if (get_msr(cpu, MSR_IA32_THERM_STATUS, &msr))
@@ -3530,7 +3528,6 @@ int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p
 		fprintf(outf, "cpu%d: MSR_IA32_THERM_STATUS: 0x%08llx (%d C +/- %d)\n",
 			cpu, msr, tcc_activation_temp - dts, resolution);
 
-#ifdef THERM_DEBUG
 		if (get_msr(cpu, MSR_IA32_THERM_INTERRUPT, &msr))
 			return 0;
 
@@ -3538,7 +3535,6 @@ int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p
 		dts2 = (msr >> 8) & 0x7F;
 		fprintf(outf, "cpu%d: MSR_IA32_THERM_INTERRUPT: 0x%08llx (%d C, %d C)\n",
 			cpu, msr, tcc_activation_temp - dts, tcc_activation_temp - dts2);
-#endif
 	}
 
 	return 0;
