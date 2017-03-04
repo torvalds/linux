@@ -321,7 +321,7 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	host->mmc->f_min = clk_round_rate(host->cfg_div_clk, 400000);
 
 	ret = meson_mmc_clk_set(host, host->mmc->f_min);
-	if (!ret)
+	if (ret)
 		clk_disable_unprepare(host->cfg_div_clk);
 
 	return ret;
@@ -771,7 +771,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 					meson_mmc_irq_thread, IRQF_SHARED,
 					DRIVER_NAME, host);
 	if (ret)
-		goto free_host;
+		goto err_div_clk;
 
 	mmc->max_blk_count = CMD_CFG_LENGTH_MASK;
 	mmc->max_req_size = mmc->max_blk_count * mmc->max_blk_size;
@@ -784,7 +784,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	if (host->bounce_buf == NULL) {
 		dev_err(host->dev, "Unable to map allocate DMA bounce buffer.\n");
 		ret = -ENOMEM;
-		goto free_host;
+		goto err_div_clk;
 	}
 
 	mmc->ops = &meson_mmc_ops;
@@ -792,8 +792,9 @@ static int meson_mmc_probe(struct platform_device *pdev)
 
 	return 0;
 
-free_host:
+err_div_clk:
 	clk_disable_unprepare(host->cfg_div_clk);
+free_host:
 	clk_disable_unprepare(host->core_clk);
 	mmc_free_host(mmc);
 	return ret;
