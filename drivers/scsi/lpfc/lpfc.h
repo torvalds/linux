@@ -105,7 +105,7 @@ struct lpfc_sli2_slim;
 #define LPFC_MSIX_VECTORS	2
 
 /* lpfc wait event data ready flag */
-#define LPFC_DATA_READY		(1<<0)
+#define LPFC_DATA_READY		0	/* bit 0 */
 
 /* queue dump line buffer size */
 #define LPFC_LBUF_SZ		128
