@@ -66,7 +66,7 @@ void rds_tcp_state_change(struct sock *sk);
 
 /* tcp_listen.c */
 struct socket *rds_tcp_listen_init(struct net *);
-void rds_tcp_listen_stop(struct socket *);
+void rds_tcp_listen_stop(struct socket *sock, struct work_struct *acceptor);
 void rds_tcp_listen_data_ready(struct sock *sk);
 int rds_tcp_accept_one(struct socket *sock);
 int rds_tcp_keepalive(struct socket *sock);
