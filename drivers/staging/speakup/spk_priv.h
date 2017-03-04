@@ -48,8 +48,9 @@ unsigned char spk_serial_in_nowait(void);
 int spk_serial_out(const char ch);
 void spk_serial_release(void);
 
-char synth_buffer_getc(void);
-char synth_buffer_peek(void);
+void synth_buffer_skip_nonlatin1(void);
+u16 synth_buffer_getc(void);
+u16 synth_buffer_peek(void);
 int synth_buffer_empty(void);
 struct var_t *spk_get_var(enum var_id_t var_id);
 ssize_t spk_var_show(struct kobject *kobj, struct kobj_attribute *attr,
@@ -65,6 +66,10 @@ int spk_synth_is_alive_nop(struct spk_synth *synth);
 int spk_synth_is_alive_restart(struct spk_synth *synth);
 __printf(1, 2)
 void synth_printf(const char *buf, ...);
+void synth_putwc(u16 wc);
+void synth_putwc_s(u16 wc);
+void synth_putws(const u16 *buf);
+void synth_putws_s(const u16 *buf);
 int synth_request_region(unsigned long start, unsigned long n);
 int synth_release_region(unsigned long start, unsigned long n);
 int synth_add(struct spk_synth *in_synth);

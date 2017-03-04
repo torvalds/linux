@@ -109,6 +109,7 @@ void spk_do_catch_up(struct spk_synth *synth)
 			synth->flush(synth);
 			continue;
 		}
+		synth_buffer_skip_nonlatin1();
 		if (synth_buffer_empty()) {
 			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 			break;
@@ -254,6 +255,35 @@ void synth_printf(const char *fmt, ...)
 	synth_start();
 }
 EXPORT_SYMBOL_GPL(synth_printf);
+
+void synth_putwc(u16 wc)
+{
+	synth_buffer_add(wc);
+}
+EXPORT_SYMBOL_GPL(synth_putwc);
+
+void synth_putwc_s(u16 wc)
+{
+	synth_buffer_add(wc);
+	synth_start();
+}
+EXPORT_SYMBOL_GPL(synth_putwc_s);
+
+void synth_putws(const u16 *buf)
+{
+	const u16 *p;
+
+	for (p = buf; *p; p++)
+		synth_buffer_add(*p);
+}
+EXPORT_SYMBOL_GPL(synth_putws);
+
+void synth_putws_s(const u16 *buf)
+{
+	synth_putws(buf);
+	synth_start();
+}
+EXPORT_SYMBOL_GPL(synth_putws_s);
 
 static int index_count;
 static int sentence_count;

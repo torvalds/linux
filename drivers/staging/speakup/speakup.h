@@ -66,7 +66,7 @@ void synth_release(void);
 
 void spk_do_flush(void);
 void speakup_start_ttys(void);
-void synth_buffer_add(char ch);
+void synth_buffer_add(u16 ch);
 void synth_buffer_clear(void);
 void speakup_clear_selection(void);
 int speakup_set_selection(struct tty_struct *tty);

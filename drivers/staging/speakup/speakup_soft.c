@@ -213,6 +213,7 @@ static ssize_t softsynth_read(struct file *fp, char __user *buf, size_t count,
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	while (1) {
 		prepare_to_wait(&speakup_event, &wait, TASK_INTERRUPTIBLE);
+		synth_buffer_skip_nonlatin1();
 		if (!synth_buffer_empty() || speakup_info.flushing)
 			break;
 		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
