@@ -1114,7 +1114,7 @@ lpfc_nvmet_prep_ls_wqe(struct lpfc_hba *phba,
 	bf_set(wqe_dfctl, &wqe->xmit_sequence.wge_ctl, 0);
 	bf_set(wqe_ls, &wqe->xmit_sequence.wge_ctl, 1);
 	bf_set(wqe_la, &wqe->xmit_sequence.wge_ctl, 0);
-	bf_set(wqe_rctl, &wqe->xmit_sequence.wge_ctl, FC_RCTL_DD_SOL_CTL);
+	bf_set(wqe_rctl, &wqe->xmit_sequence.wge_ctl, FC_RCTL_ELS4_REP);
 	bf_set(wqe_type, &wqe->xmit_sequence.wge_ctl, FC_TYPE_NVME);
 
 	/* Word 6 */

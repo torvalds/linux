@@ -316,7 +316,7 @@ lpfc_nvme_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 	bf_set(wqe_dfctl, &wqe->gen_req.wge_ctl, 0);
 	bf_set(wqe_si, &wqe->gen_req.wge_ctl, 1);
 	bf_set(wqe_la, &wqe->gen_req.wge_ctl, 1);
-	bf_set(wqe_rctl, &wqe->gen_req.wge_ctl, FC_RCTL_DD_UNSOL_CTL);
+	bf_set(wqe_rctl, &wqe->gen_req.wge_ctl, FC_RCTL_ELS4_REQ);
 	bf_set(wqe_type, &wqe->gen_req.wge_ctl, FC_TYPE_NVME);
 
 	/* Word 6 */
