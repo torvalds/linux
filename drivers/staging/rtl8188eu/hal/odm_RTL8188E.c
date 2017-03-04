@@ -81,9 +81,9 @@ static void dm_trx_hw_antenna_div_init(struct odm_dm_struct *dm_odm)
 
 	/* antenna mapping table */
 	if (!dm_odm->bIsMPChip) { /* testchip */
-		phy_set_bb_reg(adapter, ODM_REG_RX_DEFUALT_A_11N,
+		phy_set_bb_reg(adapter, ODM_REG_RX_DEFAULT_A_11N,
 			       BIT(10) | BIT(9) | BIT(8), 1);
-		phy_set_bb_reg(adapter, ODM_REG_RX_DEFUALT_A_11N,
+		phy_set_bb_reg(adapter, ODM_REG_RX_DEFAULT_A_11N,
 			       BIT(13) | BIT(12) | BIT(11), 2);
 	} else { /* MPchip */
 		phy_set_bb_reg(adapter, ODM_REG_ANT_MAPPING1_11N, bMaskDWord,
