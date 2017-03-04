@@ -1277,6 +1277,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	pnvme_fcreq->private = (void *)lpfc_ncmd;
 	lpfc_ncmd->nvmeCmd = pnvme_fcreq;
 	lpfc_ncmd->nrport = rport;
+	lpfc_ncmd->ndlp = ndlp;
 	lpfc_ncmd->start_time = jiffies;
 
 	lpfc_nvme_prep_io_cmd(vport, lpfc_ncmd, ndlp);
@@ -1812,10 +1813,10 @@ lpfc_post_nvme_sgl_list(struct lpfc_hba *phba,
 						pdma_phys_sgl1, cur_xritag);
 				if (status) {
 					/* failure, put on abort nvme list */
-					lpfc_ncmd->exch_busy = 1;
+					lpfc_ncmd->flags |= LPFC_SBUF_XBUSY;
 				} else {
 					/* success, put on NVME buffer list */
-					lpfc_ncmd->exch_busy = 0;
+					lpfc_ncmd->flags &= ~LPFC_SBUF_XBUSY;
 					lpfc_ncmd->status = IOSTAT_SUCCESS;
 					num_posted++;
 				}
@@ -1845,10 +1846,10 @@ lpfc_post_nvme_sgl_list(struct lpfc_hba *phba,
 					 struct lpfc_nvme_buf, list);
 			if (status) {
 				/* failure, put on abort nvme list */
-				lpfc_ncmd->exch_busy = 1;
+				lpfc_ncmd->flags |= LPFC_SBUF_XBUSY;
 			} else {
 				/* success, put on NVME buffer list */
-				lpfc_ncmd->exch_busy = 0;
+				lpfc_ncmd->flags &= ~LPFC_SBUF_XBUSY;
 				lpfc_ncmd->status = IOSTAT_SUCCESS;
 				num_posted++;
 			}
@@ -2090,7 +2091,7 @@ lpfc_release_nvme_buf(struct lpfc_hba *phba, struct lpfc_nvme_buf *lpfc_ncmd)
 	unsigned long iflag = 0;
 
 	lpfc_ncmd->nonsg_phys = 0;
-	if (lpfc_ncmd->exch_busy) {
+	if (lpfc_ncmd->flags & LPFC_SBUF_XBUSY) {
 		spin_lock_irqsave(&phba->sli4_hba.abts_nvme_buf_list_lock,
 					iflag);
 		lpfc_ncmd->nvmeCmd = NULL;
@@ -2452,4 +2453,57 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_DISC,
 			 "6168: State error: lport %p, rport%p FCID x%06x\n",
 			 vport->localport, ndlp->rport, ndlp->nlp_DID);
+}
+
+/**
+ * lpfc_sli4_nvme_xri_aborted - Fast-path process of NVME xri abort
+ * @phba: pointer to lpfc hba data structure.
+ * @axri: pointer to the fcp xri abort wcqe structure.
+ *
+ * This routine is invoked by the worker thread to process a SLI4 fast-path
+ * FCP aborted xri.
+ **/
+void
+lpfc_sli4_nvme_xri_aborted(struct lpfc_hba *phba,
+			   struct sli4_wcqe_xri_aborted *axri)
+{
+	uint16_t xri = bf_get(lpfc_wcqe_xa_xri, axri);
+	uint16_t rxid = bf_get(lpfc_wcqe_xa_remote_xid, axri);
+	struct lpfc_nvme_buf *lpfc_ncmd, *next_lpfc_ncmd;
+	struct lpfc_nodelist *ndlp;
+	unsigned long iflag = 0;
+	int rrq_empty = 0;
+
+	if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME))
+		return;
+	spin_lock_irqsave(&phba->hbalock, iflag);
+	spin_lock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+	list_for_each_entry_safe(lpfc_ncmd, next_lpfc_ncmd,
+				 &phba->sli4_hba.lpfc_abts_nvme_buf_list,
+				 list) {
+		if (lpfc_ncmd->cur_iocbq.sli4_xritag == xri) {
+			list_del(&lpfc_ncmd->list);
+			lpfc_ncmd->flags &= ~LPFC_SBUF_XBUSY;
+			lpfc_ncmd->status = IOSTAT_SUCCESS;
+			spin_unlock(
+				&phba->sli4_hba.abts_nvme_buf_list_lock);
+
+			rrq_empty = list_empty(&phba->active_rrq_list);
+			spin_unlock_irqrestore(&phba->hbalock, iflag);
+			ndlp = lpfc_ncmd->ndlp;
+			if (ndlp) {
+				lpfc_set_rrq_active(
+					phba, ndlp,
+					lpfc_ncmd->cur_iocbq.sli4_lxritag,
+					rxid, 1);
+				lpfc_sli4_abts_err_handler(phba, ndlp, axri);
+			}
+			lpfc_release_nvme_buf(phba, lpfc_ncmd);
+			if (rrq_empty)
+				lpfc_worker_wake_up(phba);
+			return;
+		}
+	}
+	spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+	spin_unlock_irqrestore(&phba->hbalock, iflag);
 }

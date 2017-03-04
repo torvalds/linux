@@ -734,6 +734,21 @@ lpfc_nvmet_update_targetport(struct lpfc_hba *phba)
 	return 0;
 }
 
+/**
+ * lpfc_sli4_nvmet_xri_aborted - Fast-path process of nvmet xri abort
+ * @phba: pointer to lpfc hba data structure.
+ * @axri: pointer to the nvmet xri abort wcqe structure.
+ *
+ * This routine is invoked by the worker thread to process a SLI4 fast-path
+ * NVMET aborted xri.
+ **/
+void
+lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
+			    struct sli4_wcqe_xri_aborted *axri)
+{
+	/* TODO: work in progress */
+}
+
 void
 lpfc_nvmet_destroy_targetport(struct lpfc_hba *phba)
 {
@@ -958,7 +973,7 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 
 	atomic_inc(&tgtp->rcv_fcp_cmd_drop);
 	lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-			"6159 FCP Drop IO x%x: nvmet_fc_rcv_fcp_req x%x\n",
+			"6159 FCP Drop IO x%x: err x%x\n",
 			ctxp->oxid, rc);
 dropit:
 	lpfc_nvmeio_data(phba, "NVMET FCP DROP: xri x%x sz %d from %06x\n",
@@ -1683,8 +1698,8 @@ lpfc_nvmet_unsol_issue_abort(struct lpfc_hba *phba,
 	struct lpfc_nodelist *ndlp;
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
-			"6067 %s: Entrypoint: sid %x xri %x\n", __func__,
-			sid, xri);
+			"6067 Abort: sid %x xri x%x/x%x\n",
+			sid, xri, ctxp->wqeq->sli4_xritag);
 
 	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
 
