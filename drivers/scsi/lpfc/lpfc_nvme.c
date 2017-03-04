@@ -1310,7 +1310,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 				 "sid: x%x did: x%x oxid: x%x\n",
 				 ret, vport->fc_myDID, ndlp->nlp_DID,
 				 lpfc_ncmd->cur_iocbq.sli4_xritag);
-		ret = -EINVAL;
+		ret = -EBUSY;
 		goto out_free_nvme_buf;
 	}
 

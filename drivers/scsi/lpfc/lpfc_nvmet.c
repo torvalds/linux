@@ -571,6 +571,7 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
 				"6102 Bad state IO x%x aborted\n",
 				ctxp->oxid);
+		rc = -ENXIO;
 		goto aerr;
 	}
 
@@ -580,6 +581,7 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
 				"6152 FCP Drop IO x%x: Prep\n",
 				ctxp->oxid);
+		rc = -ENXIO;
 		goto aerr;
 	}
 
@@ -618,8 +620,9 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 	ctxp->wqeq->hba_wqidx = 0;
 	nvmewqeq->context2 = NULL;
 	nvmewqeq->context3 = NULL;
+	rc = -EBUSY;
 aerr:
-	return -ENXIO;
+	return rc;
 }
 
 static void
