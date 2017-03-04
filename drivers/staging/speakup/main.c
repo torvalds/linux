@@ -775,7 +775,7 @@ static void say_line(struct vc_data *vc)
 		cp = buf;
 		while (*cp == SPACE)
 			cp++;
-		synth_printf("%d, ", (cp - buf) + 1);
+		synth_printf("%zd, ", (cp - buf) + 1);
 	}
 	spk_punc_mask = spk_punc_masks[spk_reading_punc];
 	spkup_write(buf, i);

@@ -63,6 +63,7 @@ void spk_do_catch_up(struct spk_synth *synth);
 void spk_synth_flush(struct spk_synth *synth);
 int spk_synth_is_alive_nop(struct spk_synth *synth);
 int spk_synth_is_alive_restart(struct spk_synth *synth);
+__printf(1, 2)
 void synth_printf(const char *buf, ...);
 int synth_request_region(unsigned long start, unsigned long n);
 int synth_release_region(unsigned long start, unsigned long n);
