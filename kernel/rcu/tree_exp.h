@@ -533,6 +533,7 @@ static void rcu_exp_wait_wake(struct rcu_state *rsp, unsigned long s)
 				rnp->exp_seq_rq = s;
 			spin_unlock(&rnp->exp_lock);
 		}
+		smp_mb(); /* All above changes before wakeup. */
 		wake_up_all(&rnp->exp_wq[(rsp->expedited_sequence >> 1) & 0x3]);
 	}
 	trace_rcu_exp_grace_period(rsp->name, s, TPS("endwake"));
@@ -614,6 +615,7 @@ static void _synchronize_rcu_expedited(struct rcu_state *rsp,
 	wait_event(rnp->exp_wq[(s >> 1) & 0x3],
 		   sync_exp_work_done(rsp,
 				      &rdp->exp_workdone0, s));
+	smp_mb(); /* Workqueue actions happen before return. */
 
 	/* Let the next expedited grace period start. */
 	mutex_unlock(&rsp->exp_mutex);
