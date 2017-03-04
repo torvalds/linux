@@ -212,7 +212,7 @@ unsigned int rop2)   /* ROP value */
 		sy += height - 1;
 		dx += width - 1;
 		dy += height - 1;
-		opSign = (-1);
+		opSign = -1;
 	}
 
 	/*

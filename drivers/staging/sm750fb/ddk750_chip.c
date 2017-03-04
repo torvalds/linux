@@ -352,7 +352,7 @@ unsigned int sm750_calc_pll_value(unsigned int request_orig, struct pll_value *p
 		RN = N * request;
 		quo = RN / input;
 		rem = RN % input;/* rem always small than 14318181 */
-		fl_quo = (rem * 10000 / input);
+		fl_quo = rem * 10000 / input;
 
 		for (d = max_d; d >= 0; d--) {
 			X = BIT(d);
