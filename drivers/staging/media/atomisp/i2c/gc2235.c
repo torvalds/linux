@@ -359,7 +359,7 @@ static long __gc2235_set_exposure(struct v4l2_subdev *sd, int coarse_itg,
 	u16 coarse_integration = (u16)coarse_itg;
 	int ret = 0;
 	u16 expo_coarse_h, expo_coarse_l, gain_val = 0xF0, gain_val2 = 0xF0;
-	expo_coarse_h = coarse_integration>>8;
+	expo_coarse_h = coarse_integration >> 8;
 	expo_coarse_l = coarse_integration & 0xff;
 
 	ret = gc2235_write_reg(client, GC2235_8BIT,
@@ -697,7 +697,7 @@ static int gc2235_s_power(struct v4l2_subdev *sd, int on)
 #define LARGEST_ALLOWED_RATIO_MISMATCH 800
 static int distance(struct gc2235_resolution *res, u32 w, u32 h)
 {
-	unsigned int w_ratio = (res->width << 13)/w;
+	unsigned int w_ratio = (res->width << 13) / w;
 	unsigned int h_ratio;
 	int match;
 

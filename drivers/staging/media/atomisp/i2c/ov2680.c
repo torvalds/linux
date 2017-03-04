@@ -389,9 +389,9 @@ static int ov2680_get_intg_factor(struct i2c_client *client,
 	buf->output_height = reg_val;
 
 	buf->binning_factor_x = res->bin_factor_x ?
-					(res->bin_factor_x*2) : 1;
+					(res->bin_factor_x * 2) : 1;
 	buf->binning_factor_y = res->bin_factor_y ?
-					(res->bin_factor_y*2) : 1;
+					(res->bin_factor_y * 2) : 1;
 	return 0;
 }
 
@@ -1005,7 +1005,7 @@ static int ov2680_s_power(struct v4l2_subdev *sd, int on)
 #define LARGEST_ALLOWED_RATIO_MISMATCH 600
 static int distance(struct ov2680_resolution *res, u32 w, u32 h)
 {
-	unsigned int w_ratio = (res->width << 13)/w;
+	unsigned int w_ratio = (res->width << 13) / w;
 	unsigned int h_ratio;
 	int match;
 

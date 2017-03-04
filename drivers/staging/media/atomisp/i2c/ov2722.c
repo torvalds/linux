@@ -328,7 +328,7 @@ static int ov2722_get_intg_factor(struct i2c_client *client,
 	pll_multiplier = pll_multiplier & 0x7f;
 	op_pix_clk_div = op_pix_clk_div & 0x03;
 	pix_clk_freq_hz = ext_clk_freq_hz / pre_pll_clk_div * pll_multiplier
-				* op_pix_clk_div/pll_invariant_div;
+				* op_pix_clk_div / pll_invariant_div;
 
 	dev->vt_pix_clk_freq_mhz = pix_clk_freq_hz;
 	buf->vt_pix_clk_freq_mhz = pix_clk_freq_hz;
@@ -801,7 +801,7 @@ static int ov2722_s_power(struct v4l2_subdev *sd, int on)
 #define LARGEST_ALLOWED_RATIO_MISMATCH 800
 static int distance(struct ov2722_resolution *res, u32 w, u32 h)
 {
-	unsigned int w_ratio = (res->width << 13)/w;
+	unsigned int w_ratio = (res->width << 13) / w;
 	unsigned int h_ratio;
 	int match;
 
@@ -933,7 +933,7 @@ static int ov2722_set_fmt(struct v4l2_subdev *sd,
 		for (i = 0; i < OV2722_POWER_UP_RETRY_NUM; i++) {
 			dev_err(&client->dev,
 				"ov2722 retry to power up %d/%d times, result: ",
-				i+1, OV2722_POWER_UP_RETRY_NUM);
+				i + 1, OV2722_POWER_UP_RETRY_NUM);
 			power_down(sd);
 			ret = power_up(sd);
 			if (ret) {

@@ -50,13 +50,13 @@ ia_css_macc1_5_vmem_encode(
 
 	for (k = 0; k < 4; k++)
 		for (i = 0; i < IA_CSS_MACC_NUM_AXES; i++) {
-			idx = idx_map[i] + (k*IA_CSS_MACC_NUM_AXES);
-			j   = 4*i;
+			idx = idx_map[i] + (k * IA_CSS_MACC_NUM_AXES);
+			j   = 4 * i;
 
 			params->data[0][(idx)] = from->data[j];
-			params->data[1][(idx)] = from->data[j+1];
-			params->data[2][(idx)] = from->data[j+2];
-			params->data[3][(idx)] = from->data[j+3];
+			params->data[1][(idx)] = from->data[j + 1];
+			params->data[2][(idx)] = from->data[j + 2];
+			params->data[3][(idx)] = from->data[j + 3];
 		}
 
 }
