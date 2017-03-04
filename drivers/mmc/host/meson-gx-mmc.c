@@ -394,15 +394,6 @@ static void meson_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	val &= ~(CFG_BUS_WIDTH_MASK << CFG_BUS_WIDTH_SHIFT);
 	val |= bus_width << CFG_BUS_WIDTH_SHIFT;
 
-	val &= ~(CFG_BLK_LEN_MASK << CFG_BLK_LEN_SHIFT);
-	val |= ilog2(SD_EMMC_CFG_BLK_SIZE) << CFG_BLK_LEN_SHIFT;
-
-	val &= ~(CFG_RESP_TIMEOUT_MASK << CFG_RESP_TIMEOUT_SHIFT);
-	val |= ilog2(SD_EMMC_CFG_RESP_TIMEOUT) << CFG_RESP_TIMEOUT_SHIFT;
-
-	val &= ~(CFG_RC_CC_MASK << CFG_RC_CC_SHIFT);
-	val |= ilog2(SD_EMMC_CFG_CMD_GAP) << CFG_RC_CC_SHIFT;
-
 	val &= ~CFG_DDR;
 	if (ios->timing == MMC_TIMING_UHS_DDR50 ||
 	    ios->timing == MMC_TIMING_MMC_DDR52 ||
@@ -413,11 +404,11 @@ static void meson_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	if (ios->timing == MMC_TIMING_MMC_HS400)
 		val |= CFG_CHK_DS;
 
-	writel(val, host->regs + SD_EMMC_CFG);
-
-	if (val != orig)
+	if (val != orig) {
+		writel(val, host->regs + SD_EMMC_CFG);
 		dev_dbg(host->dev, "%s: SD_EMMC_CFG: 0x%08x -> 0x%08x\n",
 			__func__, orig, val);
+	}
 }
 
 static void meson_mmc_request_done(struct mmc_host *mmc,
@@ -695,6 +686,17 @@ static int meson_mmc_get_cd(struct mmc_host *mmc)
 	return status;
 }
 
+static void meson_mmc_cfg_init(struct meson_host *host)
+{
+	u32 cfg = 0;
+
+	cfg |= ilog2(SD_EMMC_CFG_RESP_TIMEOUT) << CFG_RESP_TIMEOUT_SHIFT;
+	cfg |= ilog2(SD_EMMC_CFG_CMD_GAP) << CFG_RC_CC_SHIFT;
+	cfg |= ilog2(SD_EMMC_CFG_BLK_SIZE) << CFG_BLK_LEN_SHIFT;
+
+	writel(cfg, host->regs + SD_EMMC_CFG);
+}
+
 static const struct mmc_host_ops meson_mmc_ops = {
 	.request	= meson_mmc_request,
 	.set_ios	= meson_mmc_set_ios,
@@ -766,6 +768,9 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	writel(0, host->regs + SD_EMMC_IRQ_EN);
 	writel(IRQ_EN_MASK, host->regs + SD_EMMC_STATUS);
 	writel(IRQ_EN_MASK, host->regs + SD_EMMC_IRQ_EN);
+
+	/* set config to sane default */
+	meson_mmc_cfg_init(host);
 
 	ret = devm_request_threaded_irq(&pdev->dev, irq, meson_mmc_irq,
 					meson_mmc_irq_thread, IRQF_SHARED,
