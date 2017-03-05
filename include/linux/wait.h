@@ -200,22 +200,22 @@ __remove_wait_queue(struct wait_queue_head *wq_head, struct wait_queue_entry *wq
 	list_del(&wq_entry->task_list);
 }
 
-typedef int wait_bit_action_f(struct wait_bit_key *, int mode);
+typedef int wait_bit_action_f(struct wait_bit_key *key, int mode);
 void __wake_up(struct wait_queue_head *wq_head, unsigned int mode, int nr, void *key);
 void __wake_up_locked_key(struct wait_queue_head *wq_head, unsigned int mode, void *key);
 void __wake_up_sync_key(struct wait_queue_head *wq_head, unsigned int mode, int nr, void *key);
 void __wake_up_locked(struct wait_queue_head *wq_head, unsigned int mode, int nr);
 void __wake_up_sync(struct wait_queue_head *wq_head, unsigned int mode, int nr);
-void __wake_up_bit(struct wait_queue_head *, void *, int);
-int __wait_on_bit(struct wait_queue_head *, struct wait_bit_queue_entry *, wait_bit_action_f *, unsigned);
-int __wait_on_bit_lock(struct wait_queue_head *, struct wait_bit_queue_entry *, wait_bit_action_f *, unsigned);
-void wake_up_bit(void *, int);
-void wake_up_atomic_t(atomic_t *);
-int out_of_line_wait_on_bit(void *, int, wait_bit_action_f *, unsigned);
-int out_of_line_wait_on_bit_timeout(void *, int, wait_bit_action_f *, unsigned, unsigned long);
-int out_of_line_wait_on_bit_lock(void *, int, wait_bit_action_f *, unsigned);
-int out_of_line_wait_on_atomic_t(atomic_t *, int (*)(atomic_t *), unsigned);
-struct wait_queue_head *bit_waitqueue(void *, int);
+void __wake_up_bit(struct wait_queue_head *wq_head, void *word, int bit);
+int __wait_on_bit(struct wait_queue_head *wq_head, struct wait_bit_queue_entry *wbq_entry, wait_bit_action_f *action, unsigned int mode);
+int __wait_on_bit_lock(struct wait_queue_head *wq_head, struct wait_bit_queue_entry *wbq_entry, wait_bit_action_f *action, unsigned int mode);
+void wake_up_bit(void *word, int bit);
+void wake_up_atomic_t(atomic_t *p);
+int out_of_line_wait_on_bit(void *word, int, wait_bit_action_f *action, unsigned int mode);
+int out_of_line_wait_on_bit_timeout(void *word, int, wait_bit_action_f *action, unsigned int mode, unsigned long timeout);
+int out_of_line_wait_on_bit_lock(void *word, int, wait_bit_action_f *action, unsigned int mode);
+int out_of_line_wait_on_atomic_t(atomic_t *p, int (*)(atomic_t *), unsigned int mode);
+struct wait_queue_head *bit_waitqueue(void *word, int bit);
 
 #define wake_up(x)			__wake_up(x, TASK_NORMAL, 1, NULL)
 #define wake_up_nr(x, nr)		__wake_up(x, TASK_NORMAL, nr, NULL)
@@ -1008,10 +1008,10 @@ int wake_bit_function(struct wait_queue_entry *wq_entry, unsigned mode, int sync
 	} while (0)
 
 
-extern int bit_wait(struct wait_bit_key *, int);
-extern int bit_wait_io(struct wait_bit_key *, int);
-extern int bit_wait_timeout(struct wait_bit_key *, int);
-extern int bit_wait_io_timeout(struct wait_bit_key *, int);
+extern int bit_wait(struct wait_bit_key *key, int bit);
+extern int bit_wait_io(struct wait_bit_key *key, int bit);
+extern int bit_wait_timeout(struct wait_bit_key *key, int bit);
+extern int bit_wait_io_timeout(struct wait_bit_key *key, int bit);
 
 /**
  * wait_on_bit - wait for a bit to be cleared
