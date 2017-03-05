@@ -852,14 +852,12 @@ void pstore_get_records(int quiet)
 		decompress_record(record);
 		rc = pstore_mkfile(record);
 		if (rc) {
-			/* pstore_mkfile() did not take buf, so free it. */
+			/* pstore_mkfile() did not take record, so free it. */
 			kfree(record->buf);
+			kfree(record);
 			if (rc != -EEXIST || !quiet)
 				failed++;
 		}
-
-		/* Reset for next record. */
-		kfree(record);
 	}
 	if (psi->close)
 		psi->close(psi);
