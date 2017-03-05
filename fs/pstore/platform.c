@@ -768,6 +768,7 @@ EXPORT_SYMBOL_GPL(pstore_unregister);
 static void decompress_record(struct pstore_record *record)
 {
 	int unzipped_len;
+	char *decompressed;
 
 	/* Only PSTORE_TYPE_DMESG support compression. */
 	if (!record->compressed || record->type != PSTORE_TYPE_DMESG) {
@@ -783,17 +784,29 @@ static void decompress_record(struct pstore_record *record)
 
 	unzipped_len = pstore_decompress(record->buf, big_oops_buf,
 					 record->size, big_oops_buf_sz);
-	if (unzipped_len > 0) {
-		if (record->ecc_notice_size)
-			memcpy(big_oops_buf + unzipped_len,
-			       record->buf + record->size,
-			       record->ecc_notice_size);
-		kfree(record->buf);
-		record->buf = big_oops_buf;
-		record->size = unzipped_len;
-		record->compressed = false;
-	} else
+	if (unzipped_len <= 0) {
 		pr_err("decompression failed: %d\n", unzipped_len);
+		return;
+	}
+
+	/* Build new buffer for decompressed contents. */
+	decompressed = kmalloc(unzipped_len + record->ecc_notice_size,
+			       GFP_KERNEL);
+	if (!decompressed) {
+		pr_err("decompression ran out of memory\n");
+		return;
+	}
+	memcpy(decompressed, big_oops_buf, unzipped_len);
+
+	/* Append ECC notice to decompressed buffer. */
+	memcpy(decompressed + unzipped_len, record->buf + record->size,
+	       record->ecc_notice_size);
+
+	/* Swap out compresed contents with decompressed contents. */
+	kfree(record->buf);
+	record->buf = decompressed;
+	record->size = unzipped_len;
+	record->compressed = false;
 }
 
 /*
@@ -819,13 +832,10 @@ void pstore_get_records(int quiet)
 		decompress_record(&record);
 		rc = pstore_mkfile(&record);
 
-		/* Free buffer other than big oops */
-		if (record.buf != big_oops_buf)
-			kfree(record.buf);
-
 		if (rc && (rc != -EEXIST || !quiet))
 			failed++;
 
+		kfree(record.buf);
 		memset(&record, 0, sizeof(record));
 		record.psi = psi;
 	}
