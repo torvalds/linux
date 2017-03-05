@@ -828,14 +828,22 @@ void pstore_get_records(int quiet)
 	if (psi->open && psi->open(psi))
 		goto out;
 
+	/*
+	 * Backend callback read() allocates record.buf. decompress_record()
+	 * may reallocate record.buf. On success, pstore_mkfile() will keep
+	 * the record.buf, so free it only on failure.
+	 */
 	while ((record.size = psi->read(&record)) > 0) {
 		decompress_record(&record);
 		rc = pstore_mkfile(&record);
+		if (rc) {
+			/* pstore_mkfile() did not take buf, so free it. */
+			kfree(record.buf);
+			if (rc != -EEXIST || !quiet)
+				failed++;
+		}
 
-		if (rc && (rc != -EEXIST || !quiet))
-			failed++;
-
-		kfree(record.buf);
+		/* Reset for next record. */
 		memset(&record, 0, sizeof(record));
 		record.psi = psi;
 	}

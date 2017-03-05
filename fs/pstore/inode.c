@@ -52,7 +52,7 @@ struct pstore_private {
 	u64	id;
 	int	count;
 	ssize_t	size;
-	char	data[];
+	char    *buf;
 };
 
 struct pstore_ftrace_seq_data {
@@ -62,6 +62,14 @@ struct pstore_ftrace_seq_data {
 };
 
 #define REC_SIZE sizeof(struct pstore_ftrace_record)
+
+static void free_pstore_private(struct pstore_private *private)
+{
+	if (!private)
+		return;
+	kfree(private->buf);
+	kfree(private);
+}
 
 static void *pstore_ftrace_seq_start(struct seq_file *s, loff_t *pos)
 {
@@ -105,7 +113,7 @@ static int pstore_ftrace_seq_show(struct seq_file *s, void *v)
 {
 	struct pstore_private *ps = s->private;
 	struct pstore_ftrace_seq_data *data = v;
-	struct pstore_ftrace_record *rec = (void *)(ps->data + data->off);
+	struct pstore_ftrace_record *rec = (void *)(ps->buf + data->off);
 
 	seq_printf(s, "CPU:%d ts:%llu %08lx  %08lx  %pf <- %pF\n",
 		   pstore_ftrace_decode_cpu(rec),
@@ -143,7 +151,7 @@ static ssize_t pstore_file_read(struct file *file, char __user *userbuf,
 
 	if (ps->type == PSTORE_TYPE_FTRACE)
 		return seq_read(file, userbuf, count, ppos);
-	return simple_read_from_buffer(userbuf, count, ppos, ps->data, ps->size);
+	return simple_read_from_buffer(userbuf, count, ppos, ps->buf, ps->size);
 }
 
 static int pstore_file_open(struct inode *inode, struct file *file)
@@ -221,7 +229,7 @@ static void pstore_evict_inode(struct inode *inode)
 		spin_lock_irqsave(&allpstore_lock, flags);
 		list_del(&p->list);
 		spin_unlock_irqrestore(&allpstore_lock, flags);
-		kfree(p);
+		free_pstore_private(p);
 	}
 }
 
@@ -332,7 +340,7 @@ int pstore_mkfile(struct pstore_record *record)
 		goto fail;
 	inode->i_mode = S_IFREG | 0444;
 	inode->i_fop = &pstore_file_operations;
-	private = kmalloc(sizeof *private + size, GFP_KERNEL);
+	private = kzalloc(sizeof(*private), GFP_KERNEL);
 	if (!private)
 		goto fail_alloc;
 	private->type = record->type;
@@ -394,7 +402,7 @@ int pstore_mkfile(struct pstore_record *record)
 	if (!dentry)
 		goto fail_lockedalloc;
 
-	memcpy(private->data, record->buf, size);
+	private->buf = record->buf;
 	inode->i_size = private->size = size;
 
 	inode->i_private = private;
@@ -414,7 +422,7 @@ int pstore_mkfile(struct pstore_record *record)
 
 fail_lockedalloc:
 	inode_unlock(d_inode(root));
-	kfree(private);
+	free_pstore_private(private);
 fail_alloc:
 	iput(inode);
 
