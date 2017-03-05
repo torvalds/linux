@@ -161,19 +161,23 @@ struct synaptics_hw_state {
 	signed char scroll;
 };
 
+/* Data read from the touchpad */
+struct synaptics_device_info {
+	u32 model_id;		/* Model-ID */
+	u32 firmware_id;	/* Firmware-ID */
+	u32 board_id;		/* Board-ID */
+	u32 capabilities;	/* Capabilities */
+	u32 ext_cap;		/* Extended Capabilities */
+	u32 ext_cap_0c;		/* Ext Caps from 0x0c query */
+	u32 ext_cap_10;		/* Ext Caps from 0x10 query */
+	u32 identity;		/* Identification */
+	u32 x_res, y_res;	/* X/Y resolution in units/mm */
+	u32 x_max, y_max;	/* Max coordinates (from FW) */
+	u32 x_min, y_min;	/* Min coordinates (from FW) */
+};
+
 struct synaptics_data {
-	/* Data read from the touchpad */
-	unsigned long int model_id;		/* Model-ID */
-	unsigned long int firmware_id;		/* Firmware-ID */
-	unsigned long int board_id;		/* Board-ID */
-	unsigned long int capabilities;		/* Capabilities */
-	unsigned long int ext_cap;		/* Extended Capabilities */
-	unsigned long int ext_cap_0c;		/* Ext Caps from 0x0c query */
-	unsigned long int ext_cap_10;		/* Ext Caps from 0x10 query */
-	unsigned long int identity;		/* Identification */
-	unsigned int x_res, y_res;		/* X/Y resolution in units/mm */
-	unsigned int x_max, y_max;		/* Max coordinates (from FW) */
-	unsigned int x_min, y_min;		/* Min coordinates (from FW) */
+	struct synaptics_device_info info;
 
 	unsigned char pkt_type;			/* packet type - old, new, etc */
 	unsigned char mode;			/* current mode byte */
