@@ -265,14 +265,13 @@ void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info)
 int hv_ringbuffer_write(struct vmbus_channel *channel,
 			const struct kvec *kv_list, u32 kv_count)
 {
-	int i = 0;
+	int i;
 	u32 bytes_avail_towrite;
-	u32 totalbytes_towrite = 0;
-
+	u32 totalbytes_towrite = sizeof(u64);
 	u32 next_write_location;
 	u32 old_write;
-	u64 prev_indices = 0;
-	unsigned long flags = 0;
+	u64 prev_indices;
+	unsigned long flags;
 	struct hv_ring_buffer_info *outring_info = &channel->outbound;
 
 	if (channel->rescind)
@@ -280,8 +279,6 @@ int hv_ringbuffer_write(struct vmbus_channel *channel,
 
 	for (i = 0; i < kv_count; i++)
 		totalbytes_towrite += kv_list[i].iov_len;
-
-	totalbytes_towrite += sizeof(u64);
 
 	spin_lock_irqsave(&outring_info->ring_lock, flags);
 
@@ -339,7 +336,7 @@ int hv_ringbuffer_read(struct vmbus_channel *channel,
 		       u64 *requestid, bool raw)
 {
 	u32 bytes_avail_toread;
-	u32 next_read_location = 0;
+	u32 next_read_location;
 	u64 prev_indices = 0;
 	struct vmpacket_descriptor desc;
 	u32 offset;
