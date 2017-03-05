@@ -35,6 +35,7 @@ int out_of_line_wait_on_bit_timeout(void *word, int, wait_bit_action_f *action, 
 int out_of_line_wait_on_bit_lock(void *word, int, wait_bit_action_f *action, unsigned int mode);
 int out_of_line_wait_on_atomic_t(atomic_t *p, int (*)(atomic_t *), unsigned int mode);
 struct wait_queue_head *bit_waitqueue(void *word, int bit);
+extern void __init wait_bit_init(void);
 
 int wake_bit_function(struct wait_queue_entry *wq_entry, unsigned mode, int sync, void *key);
 

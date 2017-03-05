@@ -4,6 +4,21 @@
 #include <linux/wait_bit.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/debug.h>
+#include <linux/hash.h>
+
+#define WAIT_TABLE_BITS 8
+#define WAIT_TABLE_SIZE (1 << WAIT_TABLE_BITS)
+
+static wait_queue_head_t bit_wait_table[WAIT_TABLE_SIZE] __cacheline_aligned;
+
+wait_queue_head_t *bit_waitqueue(void *word, int bit)
+{
+	const int shift = BITS_PER_LONG == 32 ? 5 : 6;
+	unsigned long val = (unsigned long)word << shift | bit;
+
+	return bit_wait_table + hash_long(val, WAIT_TABLE_BITS);
+}
+EXPORT_SYMBOL(bit_waitqueue);
 
 int wake_bit_function(struct wait_queue_entry *wq_entry, unsigned mode, int sync, void *arg)
 {
@@ -261,3 +276,11 @@ __sched int bit_wait_io_timeout(struct wait_bit_key *word, int mode)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(bit_wait_io_timeout);
+
+void __init wait_bit_init(void)
+{
+	int i;
+
+	for (i = 0; i < WAIT_TABLE_SIZE; i++)
+		init_waitqueue_head(bit_wait_table + i);
+}
