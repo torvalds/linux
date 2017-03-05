@@ -142,19 +142,11 @@ struct pstore_record {
  *	Returns 0 on success, and non-zero on error.
  *
  * @write_buf:
- *	Perform a frontend write to a backend record, using a specified
- *	buffer. Unlike @write, this does not use the @psi @buf.
+ *	Perform a frontend write to a backend record. The record contains
+ *	all metadata and the buffer to write to backend storage. (Unlike
+ *	@write, this does not use the @psi @buf.)
  *
- *	@type:	in: pstore record type to write
- *	@reason:
- *		in: pstore write reason
- *	@id:	out: unique identifier for the record
- *	@part:	in: position in a multipart write
- *	@buf:	in: pointer to contents to write to backend record
- *	@compressed:
- *		in: if the record is compressed
- *	@size:	in: size of the write
- *	@psi:	in: pointer to the struct pstore_info for the backend
+ *	@record:	pointer to record metadata.
  *
  *	Returns 0 on success, and non-zero on error.
  *
@@ -203,10 +195,7 @@ struct pstore_info {
 	int		(*close)(struct pstore_info *psi);
 	ssize_t		(*read)(struct pstore_record *record);
 	int		(*write)(struct pstore_record *record);
-	int		(*write_buf)(enum pstore_type_id type,
-			enum kmsg_dump_reason reason, u64 *id,
-			unsigned int part, const char *buf, bool compressed,
-			size_t size, struct pstore_info *psi);
+	int		(*write_buf)(struct pstore_record *record);
 	int		(*write_buf_user)(enum pstore_type_id type,
 			enum kmsg_dump_reason reason, u64 *id,
 			unsigned int part, const char __user *buf,

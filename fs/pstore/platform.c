@@ -587,8 +587,11 @@ static void pstore_console_write(struct console *con, const char *s, unsigned c)
 	const char *e = s + c;
 
 	while (s < e) {
+		struct pstore_record record = {
+			.type = PSTORE_TYPE_CONSOLE,
+			.psi = psinfo,
+		};
 		unsigned long flags;
-		u64 id;
 
 		if (c > psinfo->bufsize)
 			c = psinfo->bufsize;
@@ -599,8 +602,9 @@ static void pstore_console_write(struct console *con, const char *s, unsigned c)
 		} else {
 			spin_lock_irqsave(&psinfo->buf_lock, flags);
 		}
-		psinfo->write_buf(PSTORE_TYPE_CONSOLE, 0, &id, 0,
-				  s, 0, c, psinfo);
+		record.buf = (char *)s;
+		record.size = c;
+		psinfo->write_buf(&record);
 		spin_unlock_irqrestore(&psinfo->buf_lock, flags);
 		s += c;
 		c = e - s;
@@ -630,10 +634,9 @@ static void pstore_unregister_console(void) {}
 
 static int pstore_write_compat(struct pstore_record *record)
 {
-	return record->psi->write_buf(record->type, record->reason,
-				      &record->id, record->part,
-				      psinfo->buf, record->compressed,
-				      record->size, record->psi);
+	record->buf = psinfo->buf;
+
+	return record->psi->write_buf(record);
 }
 
 static int pstore_write_buf_user_compat(enum pstore_type_id type,
@@ -653,6 +656,15 @@ static int pstore_write_buf_user_compat(enum pstore_type_id type,
 		bufsize = psinfo->bufsize;
 	spin_lock_irqsave(&psinfo->buf_lock, flags);
 	for (i = 0; i < size; ) {
+		struct pstore_record record = {
+			.type = type,
+			.reason = reason,
+			.id = id,
+			.part = part,
+			.buf = psinfo->buf,
+			.compressed = compressed,
+			.psi = psi,
+		};
 		size_t c = min(size - i, bufsize);
 
 		ret = __copy_from_user(psinfo->buf, buf + i, c);
@@ -660,8 +672,8 @@ static int pstore_write_buf_user_compat(enum pstore_type_id type,
 			ret = -EFAULT;
 			break;
 		}
-		ret = psi->write_buf(type, reason, id, part, psinfo->buf,
-				     compressed, c, psi);
+		record.size = c;
+		ret = psi->write_buf(&record);
 		if (unlikely(ret < 0))
 			break;
 		i += c;

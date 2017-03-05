@@ -378,23 +378,18 @@ static size_t ramoops_write_kmsg_hdr(struct persistent_ram_zone *prz,
 	return len;
 }
 
-static int notrace ramoops_pstore_write_buf(enum pstore_type_id type,
-					    enum kmsg_dump_reason reason,
-					    u64 *id, unsigned int part,
-					    const char *buf,
-					    bool compressed, size_t size,
-					    struct pstore_info *psi)
+static int notrace ramoops_pstore_write_buf(struct pstore_record *record)
 {
-	struct ramoops_context *cxt = psi->data;
+	struct ramoops_context *cxt = record->psi->data;
 	struct persistent_ram_zone *prz;
-	size_t hlen;
+	size_t size, hlen;
 
-	if (type == PSTORE_TYPE_CONSOLE) {
+	if (record->type == PSTORE_TYPE_CONSOLE) {
 		if (!cxt->cprz)
 			return -ENOMEM;
-		persistent_ram_write(cxt->cprz, buf, size);
+		persistent_ram_write(cxt->cprz, record->buf, record->size);
 		return 0;
-	} else if (type == PSTORE_TYPE_FTRACE) {
+	} else if (record->type == PSTORE_TYPE_FTRACE) {
 		int zonenum;
 
 		if (!cxt->fprzs)
@@ -407,33 +402,36 @@ static int notrace ramoops_pstore_write_buf(enum pstore_type_id type,
 		else
 			zonenum = 0;
 
-		persistent_ram_write(cxt->fprzs[zonenum], buf, size);
+		persistent_ram_write(cxt->fprzs[zonenum], record->buf,
+				     record->size);
 		return 0;
-	} else if (type == PSTORE_TYPE_PMSG) {
+	} else if (record->type == PSTORE_TYPE_PMSG) {
 		pr_warn_ratelimited("PMSG shouldn't call %s\n", __func__);
 		return -EINVAL;
 	}
 
-	if (type != PSTORE_TYPE_DMESG)
+	if (record->type != PSTORE_TYPE_DMESG)
 		return -EINVAL;
 
-	/* Out of the various dmesg dump types, ramoops is currently designed
+	/*
+	 * Out of the various dmesg dump types, ramoops is currently designed
 	 * to only store crash logs, rather than storing general kernel logs.
 	 */
-	if (reason != KMSG_DUMP_OOPS &&
-	    reason != KMSG_DUMP_PANIC)
+	if (record->reason != KMSG_DUMP_OOPS &&
+	    record->reason != KMSG_DUMP_PANIC)
 		return -EINVAL;
 
 	/* Skip Oopes when configured to do so. */
-	if (reason == KMSG_DUMP_OOPS && !cxt->dump_oops)
+	if (record->reason == KMSG_DUMP_OOPS && !cxt->dump_oops)
 		return -EINVAL;
 
-	/* Explicitly only take the first part of any new crash.
+	/*
+	 * Explicitly only take the first part of any new crash.
 	 * If our buffer is larger than kmsg_bytes, this can never happen,
 	 * and if our buffer is smaller than kmsg_bytes, we don't want the
 	 * report split across multiple records.
 	 */
-	if (part != 1)
+	if (record->part != 1)
 		return -ENOSPC;
 
 	if (!cxt->dprzs)
@@ -441,10 +439,12 @@ static int notrace ramoops_pstore_write_buf(enum pstore_type_id type,
 
 	prz = cxt->dprzs[cxt->dump_write_cnt];
 
-	hlen = ramoops_write_kmsg_hdr(prz, compressed);
+	/* Build header and append record contents. */
+	hlen = ramoops_write_kmsg_hdr(prz, record->compressed);
+	size = record->size;
 	if (size + hlen > prz->buffer_size)
 		size = prz->buffer_size - hlen;
-	persistent_ram_write(prz, buf, size);
+	persistent_ram_write(prz, record->buf, size);
 
 	cxt->dump_write_cnt = (cxt->dump_write_cnt + 1) % cxt->max_dump_cnt;
 
