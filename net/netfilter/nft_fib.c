@@ -112,7 +112,7 @@ int nft_fib_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	if (err < 0)
 		return err;
 
-	return nft_fib_validate(ctx, expr, NULL);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(nft_fib_init);
 

@@ -1772,8 +1772,19 @@ static int nf_tables_newexpr(const struct nft_ctx *ctx,
 			goto err1;
 	}
 
+	if (ops->validate) {
+		const struct nft_data *data = NULL;
+
+		err = ops->validate(ctx, expr, &data);
+		if (err < 0)
+			goto err2;
+	}
+
 	return 0;
 
+err2:
+	if (ops->destroy)
+		ops->destroy(ctx, expr);
 err1:
 	expr->ops = NULL;
 	return err;
