@@ -192,12 +192,14 @@
  * filling. This may change!
  */
 
-#define ADIS16240_SCAN_ACC_X	0
-#define ADIS16240_SCAN_ACC_Y	1
-#define ADIS16240_SCAN_ACC_Z	2
-#define ADIS16240_SCAN_SUPPLY	3
-#define ADIS16240_SCAN_AUX_ADC	4
-#define ADIS16240_SCAN_TEMP	5
+enum adis16240_scan {
+	ADIS16240_SCAN_ACC_X,
+	ADIS16240_SCAN_ACC_Y,
+	ADIS16240_SCAN_ACC_Z,
+	ADIS16240_SCAN_SUPPLY,
+	ADIS16240_SCAN_AUX_ADC,
+	ADIS16240_SCAN_TEMP,
+};
 
 static ssize_t adis16240_spi_read_signed(struct device *dev,
 					 struct device_attribute *attr,
