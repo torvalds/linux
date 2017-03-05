@@ -6011,9 +6011,8 @@ F:	include/linux/hsi/
 F:	include/uapi/linux/hsi/
 
 HSO 3G MODEM DRIVER
-M:	Jan Dumon <j.dumon@option.com>
-W:	http://www.pharscape.org
-S:	Maintained
+L:	linux-usb@vger.kernel.org
+S:	Orphan
 F:	drivers/net/usb/hso.c
 
 HSR NETWORK PROTOCOL

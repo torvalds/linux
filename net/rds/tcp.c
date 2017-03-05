@@ -652,16 +652,12 @@ static int rds_tcp_init(void)
 	if (ret)
 		goto out_pernet;
 
-	ret = rds_trans_register(&rds_tcp_transport);
-	if (ret)
-		goto out_recv;
+	rds_trans_register(&rds_tcp_transport);
 
 	rds_info_register_func(RDS_INFO_TCP_SOCKETS, rds_tcp_tc_info);
 
 	goto out;
 
-out_recv:
-	rds_tcp_recv_exit();
 out_pernet:
 	unregister_pernet_subsys(&rds_tcp_net_ops);
 out_notifier:

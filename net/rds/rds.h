@@ -903,7 +903,7 @@ void rds_connect_path_complete(struct rds_conn_path *conn, int curr);
 void rds_connect_complete(struct rds_connection *conn);
 
 /* transport.c */
-int rds_trans_register(struct rds_transport *trans);
+void rds_trans_register(struct rds_transport *trans);
 void rds_trans_unregister(struct rds_transport *trans);
 struct rds_transport *rds_trans_get_preferred(struct net *net, __be32 addr);
 void rds_trans_put(struct rds_transport *trans);

@@ -5693,13 +5693,18 @@ static int addrconf_sysctl_addr_gen_mode(struct ctl_table *ctl, int write,
 	struct inet6_dev *idev = (struct inet6_dev *)ctl->extra1;
 	struct net *net = (struct net *)ctl->extra2;
 
+	if (!rtnl_trylock())
+		return restart_syscall();
+
 	ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
 
 	if (write) {
 		new_val = *((int *)ctl->data);
 
-		if (check_addr_gen_mode(new_val) < 0)
-			return -EINVAL;
+		if (check_addr_gen_mode(new_val) < 0) {
+			ret = -EINVAL;
+			goto out;
+		}
 
 		/* request for default */
 		if (&net->ipv6.devconf_dflt->addr_gen_mode == ctl->data) {
@@ -5708,19 +5713,22 @@ static int addrconf_sysctl_addr_gen_mode(struct ctl_table *ctl, int write,
 		/* request for individual net device */
 		} else {
 			if (!idev)
-				return ret;
+				goto out;
 
-			if (check_stable_privacy(idev, net, new_val) < 0)
-				return -EINVAL;
+			if (check_stable_privacy(idev, net, new_val) < 0) {
+				ret = -EINVAL;
+				goto out;
+			}
 
 			if (idev->cnf.addr_gen_mode != new_val) {
 				idev->cnf.addr_gen_mode = new_val;
-				rtnl_lock();
 				addrconf_dev_config(idev->dev);
-				rtnl_unlock();
 			}
 		}
 	}
+
+out:
+	rtnl_unlock();
 
 	return ret;
 }
