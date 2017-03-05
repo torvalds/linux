@@ -38,7 +38,7 @@ struct wait_bit_key {
 
 struct wait_bit_queue {
 	struct wait_bit_key	key;
-	struct wait_queue_entry	wait;
+	struct wait_queue_entry	wq_entry;
 };
 
 struct wait_queue_head {
@@ -991,11 +991,11 @@ int wake_bit_function(struct wait_queue_entry *wq_entry, unsigned mode, int sync
 #define DEFINE_WAIT_BIT(name, word, bit)				\
 	struct wait_bit_queue name = {					\
 		.key = __WAIT_BIT_KEY_INITIALIZER(word, bit),		\
-		.wait	= {						\
+		.wq_entry = {						\
 			.private	= current,			\
 			.func		= wake_bit_function,		\
 			.task_list	=				\
-				LIST_HEAD_INIT((name).wait.task_list),	\
+				LIST_HEAD_INIT((name).wq_entry.task_list), \
 		},							\
 	}
 
