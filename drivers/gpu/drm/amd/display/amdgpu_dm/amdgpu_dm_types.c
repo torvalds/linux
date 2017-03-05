@@ -1948,7 +1948,7 @@ int amdgpu_dm_i2c_xfer(struct i2c_adapter *i2c_adap,
 	cmd.speed = 100;
 
 	for (i = 0; i < num; i++) {
-		cmd.payloads[i].write = (msgs[i].flags & I2C_M_RD);
+		cmd.payloads[i].write = !(msgs[i].flags & I2C_M_RD);
 		cmd.payloads[i].address = msgs[i].addr;
 		cmd.payloads[i].length = msgs[i].len;
 		cmd.payloads[i].data = msgs[i].buf;

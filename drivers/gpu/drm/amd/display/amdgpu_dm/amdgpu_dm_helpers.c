@@ -423,7 +423,7 @@ bool dm_helpers_submit_i2c(
 		return false;
 
 	for (i = 0; i < num; i++) {
-		msgs[i].flags = cmd->payloads[i].write ? I2C_M_RD : 0;
+		msgs[i].flags = cmd->payloads[i].write ? 0 : I2C_M_RD;
 		msgs[i].addr = cmd->payloads[i].address;
 		msgs[i].len = cmd->payloads[i].length;
 		msgs[i].buf = cmd->payloads[i].data;
