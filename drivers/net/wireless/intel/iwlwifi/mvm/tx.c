@@ -1884,3 +1884,20 @@ int iwl_mvm_flush_tx_path(struct iwl_mvm *mvm, u32 tfd_msk, u32 flags)
 		IWL_ERR(mvm, "Failed to send flush command (%d)\n", ret);
 	return ret;
 }
+
+int iwl_mvm_flush_sta(struct iwl_mvm *mvm, void *sta, bool int_sta, u32 flags)
+{
+	u32 mask;
+
+	if (int_sta) {
+		struct iwl_mvm_int_sta *int_sta = sta;
+
+		mask = int_sta->tfd_queue_msk;
+	} else {
+		struct iwl_mvm_sta *mvm_sta = sta;
+
+		mask = mvm_sta->tfd_queue_msk;
+	}
+
+	return iwl_mvm_flush_tx_path(mvm, mask, flags);
+}
