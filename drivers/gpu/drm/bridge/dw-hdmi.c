@@ -116,6 +116,7 @@ struct dw_hdmi_i2c {
 struct dw_hdmi_phy_data {
 	enum dw_hdmi_phy_type type;
 	const char *name;
+	unsigned int gen;
 	bool has_svsret;
 };
 
@@ -914,6 +915,40 @@ static void dw_hdmi_phy_sel_interface_control(struct dw_hdmi *hdmi, u8 enable)
 			 HDMI_PHY_CONF0_SELDIPIF_MASK);
 }
 
+static void dw_hdmi_phy_power_off(struct dw_hdmi *hdmi)
+{
+	const struct dw_hdmi_phy_data *phy = hdmi->phy;
+	unsigned int i;
+	u16 val;
+
+	if (phy->gen == 1) {
+		dw_hdmi_phy_enable_tmds(hdmi, 0);
+		dw_hdmi_phy_enable_powerdown(hdmi, true);
+		return;
+	}
+
+	dw_hdmi_phy_gen2_txpwron(hdmi, 0);
+
+	/*
+	 * Wait for TX_PHY_LOCK to be deasserted to indicate that the PHY went
+	 * to low power mode.
+	 */
+	for (i = 0; i < 5; ++i) {
+		val = hdmi_readb(hdmi, HDMI_PHY_STAT0);
+		if (!(val & HDMI_PHY_TX_PHY_LOCK))
+			break;
+
+		usleep_range(1000, 2000);
+	}
+
+	if (val & HDMI_PHY_TX_PHY_LOCK)
+		dev_warn(hdmi->dev, "PHY failed to power down\n");
+	else
+		dev_dbg(hdmi->dev, "PHY powered down in %u iterations\n", i);
+
+	dw_hdmi_phy_gen2_pddq(hdmi, 1);
+}
+
 static int hdmi_phy_configure(struct dw_hdmi *hdmi)
 {
 	u8 val, msec;
@@ -946,11 +981,7 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi)
 		return -EINVAL;
 	}
 
-	/* gen2 tx power off */
-	dw_hdmi_phy_gen2_txpwron(hdmi, 0);
-
-	/* gen2 pddq */
-	dw_hdmi_phy_gen2_pddq(hdmi, 1);
+	dw_hdmi_phy_power_off(hdmi);
 
 	/* Leave low power consumption mode by asserting SVSRET. */
 	if (hdmi->phy->has_svsret)
@@ -1025,8 +1056,6 @@ static int dw_hdmi_phy_init(struct dw_hdmi *hdmi)
 	for (i = 0; i < 2; i++) {
 		dw_hdmi_phy_sel_data_en_pol(hdmi, 1);
 		dw_hdmi_phy_sel_interface_control(hdmi, 0);
-		dw_hdmi_phy_enable_tmds(hdmi, 0);
-		dw_hdmi_phy_enable_powerdown(hdmi, true);
 
 		ret = hdmi_phy_configure(hdmi);
 		if (ret)
@@ -1256,8 +1285,7 @@ static void dw_hdmi_phy_disable(struct dw_hdmi *hdmi)
 	if (!hdmi->phy_enabled)
 		return;
 
-	dw_hdmi_phy_enable_tmds(hdmi, 0);
-	dw_hdmi_phy_enable_powerdown(hdmi, true);
+	dw_hdmi_phy_power_off(hdmi);
 
 	hdmi->phy_enabled = false;
 }
@@ -1827,23 +1855,29 @@ static const struct dw_hdmi_phy_data dw_hdmi_phys[] = {
 	{
 		.type = DW_HDMI_PHY_DWC_HDMI_TX_PHY,
 		.name = "DWC HDMI TX PHY",
+		.gen = 1,
 	}, {
 		.type = DW_HDMI_PHY_DWC_MHL_PHY_HEAC,
 		.name = "DWC MHL PHY + HEAC PHY",
+		.gen = 2,
 		.has_svsret = true,
 	}, {
 		.type = DW_HDMI_PHY_DWC_MHL_PHY,
 		.name = "DWC MHL PHY",
+		.gen = 2,
 		.has_svsret = true,
 	}, {
 		.type = DW_HDMI_PHY_DWC_HDMI_3D_TX_PHY_HEAC,
 		.name = "DWC HDMI 3D TX PHY + HEAC PHY",
+		.gen = 2,
 	}, {
 		.type = DW_HDMI_PHY_DWC_HDMI_3D_TX_PHY,
 		.name = "DWC HDMI 3D TX PHY",
+		.gen = 2,
 	}, {
 		.type = DW_HDMI_PHY_DWC_HDMI20_TX_PHY,
 		.name = "DWC HDMI 2.0 TX PHY",
+		.gen = 2,
 		.has_svsret = true,
 	}
 };
