@@ -38,6 +38,36 @@
 
 			interrupts = <23 IRQ_TYPE_NONE>;
 		};
+
+		led_red: led-red {
+			compatible = "motorola,cpcap-led-red";
+			vdd-supply = <&sw5>;
+			label = "status-led:red";
+		};
+
+		led_green: led-green {
+			compatible = "motorola,cpcap-led-green";
+			vdd-supply = <&sw5>;
+			label = "status-led:green";
+		};
+
+		led_blue: led-blue {
+			compatible = "motorola,cpcap-led-blue";
+			vdd-supply = <&sw5>;
+			label = "status-led:blue";
+		};
+
+		led_adl: led-adl {
+			compatible = "motorola,cpcap-led-adl";
+			vdd-supply = <&sw5>;
+			label = "button-backlight";
+		};
+
+		led_cp: led-cp {
+			compatible = "motorola,cpcap-led-cp";
+			vdd-supply = <&sw5>;
+			label = "shift-key-light";
+		};
 	};
 };
 
