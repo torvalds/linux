@@ -350,7 +350,8 @@ static struct vmbus_channel *alloc_channel(void)
 static void free_channel(struct vmbus_channel *channel)
 {
 	tasklet_kill(&channel->callback_event);
-	kfree(channel);
+
+	kfree_rcu(channel, rcu);
 }
 
 static void percpu_channel_enq(void *arg)
@@ -359,14 +360,14 @@ static void percpu_channel_enq(void *arg)
 	struct hv_per_cpu_context *hv_cpu
 		= this_cpu_ptr(hv_context.cpu_context);
 
-	list_add_tail(&channel->percpu_list, &hv_cpu->chan_list);
+	list_add_tail_rcu(&channel->percpu_list, &hv_cpu->chan_list);
 }
 
 static void percpu_channel_deq(void *arg)
 {
 	struct vmbus_channel *channel = arg;
 
-	list_del(&channel->percpu_list);
+	list_del_rcu(&channel->percpu_list);
 }
 
 
