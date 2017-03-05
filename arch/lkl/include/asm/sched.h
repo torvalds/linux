@@ -2,18 +2,17 @@
 #define _ASM_LKL_SCHED_H
 
 #include <linux/sched.h>
+#include <uapi/asm/host_ops.h>
 
 static inline void thread_sched_jb(void)
 {
-	set_ti_thread_flag(current_thread_info(), TIF_SCHED_JB);
-
 	if (test_ti_thread_flag(current_thread_info(), TIF_HOST_THREAD)) {
+		set_ti_thread_flag(current_thread_info(), TIF_SCHED_JB);
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		lkl_ops->jmp_buf_set(&current_thread_info()->sched_jb,
 				     schedule);
-	} else  {
-		lkl_ops->jmp_buf_set(&current_thread_info()->sched_jb,
-				     lkl_idle_tail_schedule);
+	} else {
+		lkl_bug("thread_sched_jb() can be used only for host task");
 	}
 }
 

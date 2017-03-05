@@ -205,7 +205,7 @@ exit_idle:
  *
  * Called with polling cleared.
  */
-void do_idle(void)
+static void do_idle(void)
 {
 	/*
 	 * If the arch has a polling bit, we maintain an invariant:
@@ -265,7 +265,6 @@ void do_idle(void)
 	sched_ttwu_pending();
 	schedule_preempt_disabled();
 }
-EXPORT_SYMBOL(do_idle);
 
 bool cpu_in_idle(unsigned long pc)
 {

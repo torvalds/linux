@@ -59,7 +59,6 @@ void threads_cleanup(void);
 #define TIF_NOHZ			6
 #define TIF_SCHED_JB			7
 #define TIF_HOST_THREAD			8
-#define TIF_IDLE			9
 
 #define __HAVE_THREAD_FUNCTIONS
 
