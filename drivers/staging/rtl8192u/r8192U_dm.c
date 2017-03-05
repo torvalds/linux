@@ -2304,10 +2304,10 @@ static void dm_check_edca_turbo(
 				/*  For Each time updating EDCA parameter, reset EDCA turbo mode status. */
 				dm_init_edca_turbo(dev);
 				u1bAIFS = qos_parameters->aifs[0] * ((mode&(IEEE_G|IEEE_N_24G)) ? 9 : 20) + aSifsTime;
-				u4bAcParam = (((u32)(qos_parameters->tx_op_limit[0])) << AC_PARAM_TXOP_LIMIT_OFFSET)|
-					(((u32)(qos_parameters->cw_max[0])) << AC_PARAM_ECW_MAX_OFFSET)|
-					(((u32)(qos_parameters->cw_min[0])) << AC_PARAM_ECW_MIN_OFFSET)|
-					((u32)u1bAIFS << AC_PARAM_AIFS_OFFSET);
+				u4bAcParam = (((le16_to_cpu(qos_parameters->tx_op_limit[0])) << AC_PARAM_TXOP_LIMIT_OFFSET)|
+					((le16_to_cpu(qos_parameters->cw_max[0])) << AC_PARAM_ECW_MAX_OFFSET)|
+					((le16_to_cpu(qos_parameters->cw_min[0])) << AC_PARAM_ECW_MIN_OFFSET)|
+					((u32)u1bAIFS << AC_PARAM_AIFS_OFFSET));
 				/*write_nic_dword(dev, WDCAPARA_ADD[i], u4bAcParam);*/
 				write_nic_dword(dev, EDCAPARA_BE,  u4bAcParam);
 
