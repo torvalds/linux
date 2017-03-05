@@ -36,7 +36,7 @@ struct wait_bit_key {
 	unsigned long		timeout;
 };
 
-struct wait_bit_queue {
+struct wait_bit_queue_entry {
 	struct wait_bit_key	key;
 	struct wait_queue_entry	wq_entry;
 };
@@ -207,8 +207,8 @@ void __wake_up_sync_key(struct wait_queue_head *wq_head, unsigned int mode, int 
 void __wake_up_locked(struct wait_queue_head *wq_head, unsigned int mode, int nr);
 void __wake_up_sync(struct wait_queue_head *wq_head, unsigned int mode, int nr);
 void __wake_up_bit(struct wait_queue_head *, void *, int);
-int __wait_on_bit(struct wait_queue_head *, struct wait_bit_queue *, wait_bit_action_f *, unsigned);
-int __wait_on_bit_lock(struct wait_queue_head *, struct wait_bit_queue *, wait_bit_action_f *, unsigned);
+int __wait_on_bit(struct wait_queue_head *, struct wait_bit_queue_entry *, wait_bit_action_f *, unsigned);
+int __wait_on_bit_lock(struct wait_queue_head *, struct wait_bit_queue_entry *, wait_bit_action_f *, unsigned);
 void wake_up_bit(void *, int);
 void wake_up_atomic_t(atomic_t *);
 int out_of_line_wait_on_bit(void *, int, wait_bit_action_f *, unsigned);
@@ -989,7 +989,7 @@ int wake_bit_function(struct wait_queue_entry *wq_entry, unsigned mode, int sync
 #define DEFINE_WAIT(name) DEFINE_WAIT_FUNC(name, autoremove_wake_function)
 
 #define DEFINE_WAIT_BIT(name, word, bit)				\
-	struct wait_bit_queue name = {					\
+	struct wait_bit_queue_entry name = {				\
 		.key = __WAIT_BIT_KEY_INITIALIZER(word, bit),		\
 		.wq_entry = {						\
 			.private	= current,			\

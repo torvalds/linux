@@ -394,8 +394,7 @@ EXPORT_SYMBOL(woken_wake_function);
 int wake_bit_function(struct wait_queue_entry *wq_entry, unsigned mode, int sync, void *arg)
 {
 	struct wait_bit_key *key = arg;
-	struct wait_bit_queue *wait_bit
-		= container_of(wq_entry, struct wait_bit_queue, wq_entry);
+	struct wait_bit_queue_entry *wait_bit = container_of(wq_entry, struct wait_bit_queue_entry, wq_entry);
 
 	if (wait_bit->key.flags != key->flags ||
 			wait_bit->key.bit_nr != key->bit_nr ||
@@ -412,17 +411,17 @@ EXPORT_SYMBOL(wake_bit_function);
  * permitted return codes. Nonzero return codes halt waiting and return.
  */
 int __sched
-__wait_on_bit(struct wait_queue_head *wq_head, struct wait_bit_queue *q,
+__wait_on_bit(struct wait_queue_head *wq_head, struct wait_bit_queue_entry *wbq_entry,
 	      wait_bit_action_f *action, unsigned mode)
 {
 	int ret = 0;
 
 	do {
-		prepare_to_wait(wq_head, &q->wq_entry, mode);
-		if (test_bit(q->key.bit_nr, q->key.flags))
-			ret = (*action)(&q->key, mode);
-	} while (test_bit(q->key.bit_nr, q->key.flags) && !ret);
-	finish_wait(wq_head, &q->wq_entry);
+		prepare_to_wait(wq_head, &wbq_entry->wq_entry, mode);
+		if (test_bit(wbq_entry->key.bit_nr, wbq_entry->key.flags))
+			ret = (*action)(&wbq_entry->key, mode);
+	} while (test_bit(wbq_entry->key.bit_nr, wbq_entry->key.flags) && !ret);
+	finish_wait(wq_head, &wbq_entry->wq_entry);
 	return ret;
 }
 EXPORT_SYMBOL(__wait_on_bit);
@@ -450,15 +449,15 @@ int __sched out_of_line_wait_on_bit_timeout(
 EXPORT_SYMBOL_GPL(out_of_line_wait_on_bit_timeout);
 
 int __sched
-__wait_on_bit_lock(struct wait_queue_head *wq_head, struct wait_bit_queue *q,
+__wait_on_bit_lock(struct wait_queue_head *wq_head, struct wait_bit_queue_entry *wbq_entry,
 			wait_bit_action_f *action, unsigned mode)
 {
 	int ret = 0;
 
 	for (;;) {
-		prepare_to_wait_exclusive(wq_head, &q->wq_entry, mode);
-		if (test_bit(q->key.bit_nr, q->key.flags)) {
-			ret = action(&q->key, mode);
+		prepare_to_wait_exclusive(wq_head, &wbq_entry->wq_entry, mode);
+		if (test_bit(wbq_entry->key.bit_nr, wbq_entry->key.flags)) {
+			ret = action(&wbq_entry->key, mode);
 			/*
 			 * See the comment in prepare_to_wait_event().
 			 * finish_wait() does not necessarily takes wwq_head->lock,
@@ -466,11 +465,11 @@ __wait_on_bit_lock(struct wait_queue_head *wq_head, struct wait_bit_queue *q,
 			 * smp_mb__after_atomic() before wake_up_page().
 			 */
 			if (ret)
-				finish_wait(wq_head, &q->wq_entry);
+				finish_wait(wq_head, &wbq_entry->wq_entry);
 		}
-		if (!test_and_set_bit(q->key.bit_nr, q->key.flags)) {
+		if (!test_and_set_bit(wbq_entry->key.bit_nr, wbq_entry->key.flags)) {
 			if (!ret)
-				finish_wait(wq_head, &q->wq_entry);
+				finish_wait(wq_head, &wbq_entry->wq_entry);
 			return 0;
 		} else if (ret) {
 			return ret;
@@ -538,7 +537,7 @@ static int wake_atomic_t_function(struct wait_queue_entry *wq_entry, unsigned mo
 				  void *arg)
 {
 	struct wait_bit_key *key = arg;
-	struct wait_bit_queue *wait_bit = container_of(wq_entry, struct wait_bit_queue, wq_entry);
+	struct wait_bit_queue_entry *wait_bit = container_of(wq_entry, struct wait_bit_queue_entry, wq_entry);
 	atomic_t *val = key->flags;
 
 	if (wait_bit->key.flags != key->flags ||
@@ -554,25 +553,25 @@ static int wake_atomic_t_function(struct wait_queue_entry *wq_entry, unsigned mo
  * return codes halt waiting and return.
  */
 static __sched
-int __wait_on_atomic_t(struct wait_queue_head *wq_head, struct wait_bit_queue *q,
+int __wait_on_atomic_t(struct wait_queue_head *wq_head, struct wait_bit_queue_entry *wbq_entry,
 		       int (*action)(atomic_t *), unsigned mode)
 {
 	atomic_t *val;
 	int ret = 0;
 
 	do {
-		prepare_to_wait(wq_head, &q->wq_entry, mode);
-		val = q->key.flags;
+		prepare_to_wait(wq_head, &wbq_entry->wq_entry, mode);
+		val = wbq_entry->key.flags;
 		if (atomic_read(val) == 0)
 			break;
 		ret = (*action)(val);
 	} while (!ret && atomic_read(val) != 0);
-	finish_wait(wq_head, &q->wq_entry);
+	finish_wait(wq_head, &wbq_entry->wq_entry);
 	return ret;
 }
 
 #define DEFINE_WAIT_ATOMIC_T(name, p)					\
-	struct wait_bit_queue name = {					\
+	struct wait_bit_queue_entry name = {				\
 		.key = __WAIT_ATOMIC_T_KEY_INITIALIZER(p),		\
 		.wq_entry = {						\
 			.private	= current,			\
