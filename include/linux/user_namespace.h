@@ -65,7 +65,7 @@ struct ucounts {
 	struct hlist_node node;
 	struct user_namespace *ns;
 	kuid_t uid;
-	atomic_t count;
+	int count;
 	atomic_t ucount[UCOUNT_COUNTS];
 };
 
