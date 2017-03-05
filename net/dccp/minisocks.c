@@ -146,6 +146,13 @@ struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
 	struct dccp_request_sock *dreq = dccp_rsk(req);
 	bool own_req;
 
+	/* TCP/DCCP listeners became lockless.
+	 * DCCP stores complex state in its request_sock, so we need
+	 * a protection for them, now this code runs without being protected
+	 * by the parent (listener) lock.
+	 */
+	spin_lock_bh(&dreq->dreq_lock);
+
 	/* Check for retransmitted REQUEST */
 	if (dccp_hdr(skb)->dccph_type == DCCP_PKT_REQUEST) {
 
@@ -160,7 +167,7 @@ struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
 			inet_rtx_syn_ack(sk, req);
 		}
 		/* Network Duplicate, discard packet */
-		return NULL;
+		goto out;
 	}
 
 	DCCP_SKB_CB(skb)->dccpd_reset_code = DCCP_RESET_CODE_PACKET_ERROR;
@@ -186,20 +193,20 @@ struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
 
 	child = inet_csk(sk)->icsk_af_ops->syn_recv_sock(sk, skb, req, NULL,
 							 req, &own_req);
-	if (!child)
-		goto listen_overflow;
+	if (child) {
+		child = inet_csk_complete_hashdance(sk, child, req, own_req);
+		goto out;
+	}
 
-	return inet_csk_complete_hashdance(sk, child, req, own_req);
-
-listen_overflow:
-	dccp_pr_debug("listen_overflow!\n");
 	DCCP_SKB_CB(skb)->dccpd_reset_code = DCCP_RESET_CODE_TOO_BUSY;
 drop:
 	if (dccp_hdr(skb)->dccph_type != DCCP_PKT_RESET)
 		req->rsk_ops->send_reset(sk, skb);
 
 	inet_csk_reqsk_queue_drop(sk, req);
-	return NULL;
+out:
+	spin_unlock_bh(&dreq->dreq_lock);
+	return child;
 }
 
 EXPORT_SYMBOL_GPL(dccp_check_req);
@@ -250,6 +257,7 @@ int dccp_reqsk_init(struct request_sock *req,
 {
 	struct dccp_request_sock *dreq = dccp_rsk(req);
 
+	spin_lock_init(&dreq->dreq_lock);
 	inet_rsk(req)->ir_rmt_port = dccp_hdr(skb)->dccph_sport;
 	inet_rsk(req)->ir_num	   = ntohs(dccp_hdr(skb)->dccph_dport);
 	inet_rsk(req)->acked	   = 0;
