@@ -949,9 +949,44 @@ static void dw_hdmi_phy_power_off(struct dw_hdmi *hdmi)
 	dw_hdmi_phy_gen2_pddq(hdmi, 1);
 }
 
+static int dw_hdmi_phy_power_on(struct dw_hdmi *hdmi)
+{
+	const struct dw_hdmi_phy_data *phy = hdmi->phy;
+	unsigned int i;
+	u8 val;
+
+	if (phy->gen == 1) {
+		dw_hdmi_phy_enable_powerdown(hdmi, false);
+
+		/* Toggle TMDS enable. */
+		dw_hdmi_phy_enable_tmds(hdmi, 0);
+		dw_hdmi_phy_enable_tmds(hdmi, 1);
+		return 0;
+	}
+
+	dw_hdmi_phy_gen2_txpwron(hdmi, 1);
+	dw_hdmi_phy_gen2_pddq(hdmi, 0);
+
+	/* Wait for PHY PLL lock */
+	for (i = 0; i < 5; ++i) {
+		val = hdmi_readb(hdmi, HDMI_PHY_STAT0) & HDMI_PHY_TX_PHY_LOCK;
+		if (val)
+			break;
+
+		usleep_range(1000, 2000);
+	}
+
+	if (!val) {
+		dev_err(hdmi->dev, "PHY PLL failed to lock\n");
+		return -ETIMEDOUT;
+	}
+
+	dev_dbg(hdmi->dev, "PHY PLL locked %u iterations\n", i);
+	return 0;
+}
+
 static int hdmi_phy_configure(struct dw_hdmi *hdmi)
 {
-	u8 val, msec;
 	const struct dw_hdmi_plat_data *pdata = hdmi->plat_data;
 	const struct dw_hdmi_mpll_config *mpll_config = pdata->mpll_cfg;
 	const struct dw_hdmi_curr_ctrl *curr_ctrl = pdata->cur_ctr;
@@ -1019,33 +1054,7 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi)
 	hdmi_phy_i2c_write(hdmi, HDMI_3D_TX_PHY_CKCALCTRL_OVERRIDE,
 			   HDMI_3D_TX_PHY_CKCALCTRL);
 
-	dw_hdmi_phy_enable_powerdown(hdmi, false);
-
-	/* toggle TMDS enable */
-	dw_hdmi_phy_enable_tmds(hdmi, 0);
-	dw_hdmi_phy_enable_tmds(hdmi, 1);
-
-	/* gen2 tx power on */
-	dw_hdmi_phy_gen2_txpwron(hdmi, 1);
-	dw_hdmi_phy_gen2_pddq(hdmi, 0);
-
-	/* Wait for PHY PLL lock */
-	msec = 5;
-	do {
-		val = hdmi_readb(hdmi, HDMI_PHY_STAT0) & HDMI_PHY_TX_PHY_LOCK;
-		if (!val)
-			break;
-
-		if (msec == 0) {
-			dev_err(hdmi->dev, "PHY PLL not locked\n");
-			return -ETIMEDOUT;
-		}
-
-		udelay(1000);
-		msec--;
-	} while (1);
-
-	return 0;
+	return dw_hdmi_phy_power_on(hdmi);
 }
 
 static int dw_hdmi_phy_init(struct dw_hdmi *hdmi)
