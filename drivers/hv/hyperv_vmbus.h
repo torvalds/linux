@@ -218,8 +218,8 @@ struct hv_per_cpu_context {
 
 struct hv_context {
 	/* We only support running on top of Hyper-V
-	* So at this point this really can only contain the Hyper-V ID
-	*/
+	 * So at this point this really can only contain the Hyper-V ID
+	 */
 	u64 guestid;
 
 	void *tsc_page;
@@ -403,17 +403,17 @@ int vmbus_post_msg(void *buffer, size_t buflen, bool can_sleep);
 void vmbus_on_event(unsigned long data);
 void vmbus_on_msg_dpc(unsigned long data);
 
-int hv_kvp_init(struct hv_util_service *);
+int hv_kvp_init(struct hv_util_service *srv);
 void hv_kvp_deinit(void);
-void hv_kvp_onchannelcallback(void *);
+void hv_kvp_onchannelcallback(void *context);
 
-int hv_vss_init(struct hv_util_service *);
+int hv_vss_init(struct hv_util_service *srv);
 void hv_vss_deinit(void);
-void hv_vss_onchannelcallback(void *);
+void hv_vss_onchannelcallback(void *context);
 
-int hv_fcopy_init(struct hv_util_service *);
+int hv_fcopy_init(struct hv_util_service *srv);
 void hv_fcopy_deinit(void);
-void hv_fcopy_onchannelcallback(void *);
+void hv_fcopy_onchannelcallback(void *context);
 void vmbus_initiate_unload(bool crash);
 
 static inline void hv_poll_channel(struct vmbus_channel *channel,

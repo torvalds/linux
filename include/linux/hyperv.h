@@ -524,10 +524,10 @@ struct vmbus_channel_open_channel {
 	u32 target_vp;
 
 	/*
-	* The upstream ring buffer begins at offset zero in the memory
-	* described by RingBufferGpadlHandle. The downstream ring buffer
-	* follows it at this offset (in pages).
-	*/
+	 * The upstream ring buffer begins at offset zero in the memory
+	 * described by RingBufferGpadlHandle. The downstream ring buffer
+	 * follows it at this offset (in pages).
+	 */
 	u32 downstream_ringbuffer_pageoffset;
 
 	/* User-specific data to be passed along to the server endpoint. */
@@ -1006,7 +1006,7 @@ extern int vmbus_open(struct vmbus_channel *channel,
 			    u32 recv_ringbuffersize,
 			    void *userdata,
 			    u32 userdatalen,
-			    void(*onchannel_callback)(void *context),
+			    void (*onchannel_callback)(void *context),
 			    void *context);
 
 extern void vmbus_close(struct vmbus_channel *channel);
@@ -1421,7 +1421,7 @@ struct hyperv_service_callback {
 	char *log_msg;
 	uuid_le data;
 	struct vmbus_channel *channel;
-	void (*callback) (void *context);
+	void (*callback)(void *context);
 };
 
 #define MAX_SRV_VER	0x7ffffff
