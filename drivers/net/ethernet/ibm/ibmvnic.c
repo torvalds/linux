@@ -705,6 +705,7 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	u8 *hdrs = (u8 *)&adapter->tx_rx_desc_req;
 	struct device *dev = &adapter->vdev->dev;
 	struct ibmvnic_tx_buff *tx_buff = NULL;
+	struct ibmvnic_sub_crq_queue *tx_scrq;
 	struct ibmvnic_tx_pool *tx_pool;
 	unsigned int tx_send_failed = 0;
 	unsigned int tx_map_failed = 0;
@@ -724,6 +725,7 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	int ret = 0;
 
 	tx_pool = &adapter->tx_pool[queue_num];
+	tx_scrq = adapter->tx_scrq[queue_num];
 	txq = netdev_get_tx_queue(netdev, skb_get_queue_mapping(skb));
 	handle_array = (u64 *)((u8 *)(adapter->login_rsp_buf) +
 				   be32_to_cpu(adapter->login_rsp_buf->
@@ -826,6 +828,14 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		ret = NETDEV_TX_BUSY;
 		goto out;
 	}
+
+	atomic_inc(&tx_scrq->used);
+
+	if (atomic_read(&tx_scrq->used) >= adapter->req_tx_entries_per_subcrq) {
+		netdev_info(netdev, "Stopping queue %d\n", queue_num);
+		netif_stop_subqueue(netdev, queue_num);
+	}
+
 	tx_packets++;
 	tx_bytes += skb->len;
 	txq->trans_start = jiffies;
@@ -1213,6 +1223,7 @@ static struct ibmvnic_sub_crq_queue *init_sub_crq_queue(struct ibmvnic_adapter
 	scrq->adapter = adapter;
 	scrq->size = 4 * PAGE_SIZE / sizeof(*scrq->msgs);
 	scrq->cur = 0;
+	atomic_set(&scrq->used, 0);
 	scrq->rx_skb_top = NULL;
 	spin_lock_init(&scrq->lock);
 
@@ -1355,8 +1366,22 @@ restart_loop:
 						 DMA_TO_DEVICE);
 			}
 
-			if (txbuff->last_frag)
+			if (txbuff->last_frag) {
+				atomic_dec(&scrq->used);
+
+				if (atomic_read(&scrq->used) <=
+				    (adapter->req_tx_entries_per_subcrq / 2) &&
+				    netif_subqueue_stopped(adapter->netdev,
+							   txbuff->skb)) {
+					netif_wake_subqueue(adapter->netdev,
+							    scrq->pool_index);
+					netdev_dbg(adapter->netdev,
+						   "Started queue %d\n",
+						   scrq->pool_index);
+				}
+
 				dev_kfree_skb_any(txbuff->skb);
+			}
 
 			adapter->tx_pool[pool].free_map[adapter->tx_pool[pool].
 						     producer_index] = index;
