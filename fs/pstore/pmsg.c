@@ -23,7 +23,11 @@ static DEFINE_MUTEX(pmsg_lock);
 static ssize_t write_pmsg(struct file *file, const char __user *buf,
 			  size_t count, loff_t *ppos)
 {
-	u64 id;
+	struct pstore_record record = {
+		.type = PSTORE_TYPE_PMSG,
+		.size = count,
+		.psi = psinfo,
+	};
 	int ret;
 
 	if (!count)
@@ -34,8 +38,7 @@ static ssize_t write_pmsg(struct file *file, const char __user *buf,
 		return -EFAULT;
 
 	mutex_lock(&pmsg_lock);
-	ret = psinfo->write_buf_user(PSTORE_TYPE_PMSG, 0, &id, 0, buf, 0, count,
-				     psinfo);
+	ret = psinfo->write_buf_user(&record, buf);
 	mutex_unlock(&pmsg_lock);
 	return ret ? ret : count;
 }

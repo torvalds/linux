@@ -152,18 +152,11 @@ struct pstore_record {
  *
  * @write_buf_user:
  *	Perform a frontend write to a backend record, using a specified
- *	buffer that is coming directly from userspace.
+ *	buffer that is coming directly from userspace, instead of the
+ *	@record @buf.
  *
- *	@type:	in: pstore record type to write
- *	@reason:
- *		in: pstore write reason
- *	@id:	out: unique identifier for the record
- *	@part:	in: position in a multipart write
- *	@buf:	in: pointer to userspace contents to write to backend record
- *	@compressed:
- *		in: if the record is compressed
- *	@size:	in: size of the write
- *	@psi:	in: pointer to the struct pstore_info for the backend
+ *	@record:	pointer to record metadata.
+ *	@buf:		pointer to userspace contents to write to backend
  *
  *	Returns 0 on success, and non-zero on error.
  *
@@ -196,10 +189,8 @@ struct pstore_info {
 	ssize_t		(*read)(struct pstore_record *record);
 	int		(*write)(struct pstore_record *record);
 	int		(*write_buf)(struct pstore_record *record);
-	int		(*write_buf_user)(enum pstore_type_id type,
-			enum kmsg_dump_reason reason, u64 *id,
-			unsigned int part, const char __user *buf,
-			bool compressed, size_t size, struct pstore_info *psi);
+	int		(*write_buf_user)(struct pstore_record *record,
+					  const char __user *buf);
 	int		(*erase)(struct pstore_record *record);
 };
 

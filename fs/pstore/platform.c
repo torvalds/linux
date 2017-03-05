@@ -639,47 +639,36 @@ static int pstore_write_compat(struct pstore_record *record)
 	return record->psi->write_buf(record);
 }
 
-static int pstore_write_buf_user_compat(enum pstore_type_id type,
-			       enum kmsg_dump_reason reason,
-			       u64 *id, unsigned int part,
-			       const char __user *buf,
-			       bool compressed, size_t size,
-			       struct pstore_info *psi)
+static int pstore_write_buf_user_compat(struct pstore_record *record,
+					const char __user *buf)
 {
 	unsigned long flags = 0;
-	size_t i, bufsize = size;
+	size_t i, bufsize, total_size = record->size;
 	long ret = 0;
 
-	if (unlikely(!access_ok(VERIFY_READ, buf, size)))
+	if (unlikely(!access_ok(VERIFY_READ, buf, total_size)))
 		return -EFAULT;
+	bufsize = total_size;
 	if (bufsize > psinfo->bufsize)
 		bufsize = psinfo->bufsize;
+	record->buf = psinfo->buf;
 	spin_lock_irqsave(&psinfo->buf_lock, flags);
-	for (i = 0; i < size; ) {
-		struct pstore_record record = {
-			.type = type,
-			.reason = reason,
-			.id = id,
-			.part = part,
-			.buf = psinfo->buf,
-			.compressed = compressed,
-			.psi = psi,
-		};
-		size_t c = min(size - i, bufsize);
+	for (i = 0; i < total_size; ) {
+		size_t c = min(total_size - i, bufsize);
 
-		ret = __copy_from_user(psinfo->buf, buf + i, c);
+		ret = __copy_from_user(record->buf, buf + i, c);
 		if (unlikely(ret != 0)) {
 			ret = -EFAULT;
 			break;
 		}
-		record.size = c;
-		ret = psi->write_buf(&record);
+		record->size = c;
+		ret = record->psi->write_buf(record);
 		if (unlikely(ret < 0))
 			break;
 		i += c;
 	}
 	spin_unlock_irqrestore(&psinfo->buf_lock, flags);
-	return unlikely(ret < 0) ? ret : size;
+	return unlikely(ret < 0) ? ret : total_size;
 }
 
 /*

@@ -451,19 +451,15 @@ static int notrace ramoops_pstore_write_buf(struct pstore_record *record)
 	return 0;
 }
 
-static int notrace ramoops_pstore_write_buf_user(enum pstore_type_id type,
-						 enum kmsg_dump_reason reason,
-						 u64 *id, unsigned int part,
-						 const char __user *buf,
-						 bool compressed, size_t size,
-						 struct pstore_info *psi)
+static int notrace ramoops_pstore_write_buf_user(struct pstore_record *record,
+						 const char __user *buf)
 {
-	if (type == PSTORE_TYPE_PMSG) {
-		struct ramoops_context *cxt = psi->data;
+	if (record->type == PSTORE_TYPE_PMSG) {
+		struct ramoops_context *cxt = record->psi->data;
 
 		if (!cxt->mprz)
 			return -ENOMEM;
-		return persistent_ram_write_user(cxt->mprz, buf, size);
+		return persistent_ram_write_user(cxt->mprz, buf, record->size);
 	}
 
 	return -EINVAL;
