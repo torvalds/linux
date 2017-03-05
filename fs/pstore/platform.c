@@ -818,8 +818,7 @@ static void decompress_record(struct pstore_record *record)
 void pstore_get_records(int quiet)
 {
 	struct pstore_info *psi = psinfo;
-	struct pstore_record	record = { .psi = psi, };
-	int			failed = 0, rc;
+	int failed = 0;
 
 	if (!psi)
 		return;
@@ -833,19 +832,34 @@ void pstore_get_records(int quiet)
 	 * may reallocate record.buf. On success, pstore_mkfile() will keep
 	 * the record.buf, so free it only on failure.
 	 */
-	while ((record.size = psi->read(&record)) > 0) {
-		decompress_record(&record);
-		rc = pstore_mkfile(&record);
+	for (;;) {
+		struct pstore_record *record;
+		int rc;
+
+		record = kzalloc(sizeof(*record), GFP_KERNEL);
+		if (!record) {
+			pr_err("out of memory creating record\n");
+			break;
+		}
+		record->psi = psi;
+
+		record->size = psi->read(record);
+
+		/* No more records left in backend? */
+		if (record->size <= 0)
+			break;
+
+		decompress_record(record);
+		rc = pstore_mkfile(record);
 		if (rc) {
 			/* pstore_mkfile() did not take buf, so free it. */
-			kfree(record.buf);
+			kfree(record->buf);
 			if (rc != -EEXIST || !quiet)
 				failed++;
 		}
 
 		/* Reset for next record. */
-		memset(&record, 0, sizeof(record));
-		record.psi = psi;
+		kfree(record);
 	}
 	if (psi->close)
 		psi->close(psi);
