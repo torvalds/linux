@@ -404,7 +404,7 @@ static int ibmvnic_open(struct net_device *netdev)
 	send_map_query(adapter);
 	for (i = 0; i < rxadd_subcrqs; i++) {
 		init_rx_pool(adapter, &adapter->rx_pool[i],
-			     IBMVNIC_BUFFS_PER_POOL, i,
+			     adapter->req_rx_add_entries_per_subcrq, i,
 			     be64_to_cpu(size_array[i]), 1);
 		if (alloc_rx_pool(adapter, &adapter->rx_pool[i])) {
 			dev_err(dev, "Couldn't alloc rx pool\n");
@@ -419,23 +419,23 @@ static int ibmvnic_open(struct net_device *netdev)
 	for (i = 0; i < tx_subcrqs; i++) {
 		tx_pool = &adapter->tx_pool[i];
 		tx_pool->tx_buff =
-		    kcalloc(adapter->max_tx_entries_per_subcrq,
+		    kcalloc(adapter->req_tx_entries_per_subcrq,
 			    sizeof(struct ibmvnic_tx_buff), GFP_KERNEL);
 		if (!tx_pool->tx_buff)
 			goto tx_pool_alloc_failed;
 
 		if (alloc_long_term_buff(adapter, &tx_pool->long_term_buff,
-					 adapter->max_tx_entries_per_subcrq *
+					 adapter->req_tx_entries_per_subcrq *
 					 adapter->req_mtu))
 			goto tx_ltb_alloc_failed;
 
 		tx_pool->free_map =
-		    kcalloc(adapter->max_tx_entries_per_subcrq,
+		    kcalloc(adapter->req_tx_entries_per_subcrq,
 			    sizeof(int), GFP_KERNEL);
 		if (!tx_pool->free_map)
 			goto tx_fm_alloc_failed;
 
-		for (j = 0; j < adapter->max_tx_entries_per_subcrq; j++)
+		for (j = 0; j < adapter->req_tx_entries_per_subcrq; j++)
 			tx_pool->free_map[j] = j;
 
 		tx_pool->consumer_index = 0;
@@ -746,7 +746,7 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	tx_pool->consumer_index =
 	    (tx_pool->consumer_index + 1) %
-		adapter->max_tx_entries_per_subcrq;
+		adapter->req_tx_entries_per_subcrq;
 
 	tx_buff = &tx_pool->tx_buff[index];
 	tx_buff->skb = skb;
@@ -819,7 +819,7 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 		if (tx_pool->consumer_index == 0)
 			tx_pool->consumer_index =
-				adapter->max_tx_entries_per_subcrq - 1;
+				adapter->req_tx_entries_per_subcrq - 1;
 		else
 			tx_pool->consumer_index--;
 
@@ -1387,7 +1387,7 @@ restart_loop:
 						     producer_index] = index;
 			adapter->tx_pool[pool].producer_index =
 			    (adapter->tx_pool[pool].producer_index + 1) %
-			    adapter->max_tx_entries_per_subcrq;
+			    adapter->req_tx_entries_per_subcrq;
 		}
 		/* remove tx_comp scrq*/
 		next->tx_comp.first = 0;
