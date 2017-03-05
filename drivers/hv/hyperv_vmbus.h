@@ -248,14 +248,6 @@ struct hv_context {
 
 extern struct hv_context hv_context;
 
-struct hv_ring_buffer_debug_info {
-	u32 current_interrupt_mask;
-	u32 current_read_index;
-	u32 current_write_index;
-	u32 bytes_avail_toread;
-	u32 bytes_avail_towrite;
-};
-
 /* Hv Interface */
 
 extern int hv_init(void);
@@ -288,9 +280,6 @@ int hv_ringbuffer_write(struct vmbus_channel *channel,
 int hv_ringbuffer_read(struct vmbus_channel *channel,
 		       void *buffer, u32 buflen, u32 *buffer_actual_len,
 		       u64 *requestid, bool raw);
-
-void hv_ringbuffer_get_debuginfo(const struct hv_ring_buffer_info *ring_info,
-				 struct hv_ring_buffer_debug_info *debug_info);
 
 /*
  * Maximum channels is determined by the size of the interrupt page

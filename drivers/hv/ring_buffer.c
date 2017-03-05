@@ -206,6 +206,7 @@ void hv_ringbuffer_get_debuginfo(const struct hv_ring_buffer_info *ring_info,
 			ring_info->ring_buffer->interrupt_mask;
 	}
 }
+EXPORT_SYMBOL_GPL(hv_ringbuffer_get_debuginfo);
 
 /* Initialize the ring buffer. */
 int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
