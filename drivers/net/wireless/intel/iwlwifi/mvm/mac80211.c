@@ -1478,7 +1478,7 @@ static void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
 		 * already marked as draining, so to complete the draining, we
 		 * just need to wait until the transport is empty.
 		 */
-		iwl_trans_wait_tx_queue_empty(mvm->trans, tfd_msk);
+		iwl_trans_wait_tx_queues_empty(mvm->trans, tfd_msk);
 	}
 
 	if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
@@ -4000,7 +4000,7 @@ static void iwl_mvm_mac_flush(struct ieee80211_hw *hw,
 		/* this can take a while, and we may need/want other operations
 		 * to succeed while doing this, so do it without the mutex held
 		 */
-		iwl_trans_wait_tx_queue_empty(mvm->trans, msk);
+		iwl_trans_wait_tx_queues_empty(mvm->trans, msk);
 	}
 }
 

@@ -658,7 +658,7 @@ int iwl_mvm_scd_queue_redirect(struct iwl_mvm *mvm, int queue, int tid,
 
 	/* Stop MAC queues and wait for this queue to empty */
 	iwl_mvm_stop_mac_queues(mvm, mq);
-	ret = iwl_trans_wait_tx_queue_empty(mvm->trans, BIT(queue));
+	ret = iwl_trans_wait_tx_queues_empty(mvm->trans, BIT(queue));
 	if (ret) {
 		IWL_ERR(mvm, "Error draining queue %d before reconfig\n",
 			queue);
@@ -1614,8 +1614,8 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		ret = iwl_mvm_flush_tx_path(mvm, mvm_sta->tfd_queue_msk, 0);
 		if (ret)
 			return ret;
-		ret = iwl_trans_wait_tx_queue_empty(mvm->trans,
-						    mvm_sta->tfd_queue_msk);
+		ret = iwl_trans_wait_tx_queues_empty(mvm->trans,
+						     mvm_sta->tfd_queue_msk);
 		if (ret)
 			return ret;
 		ret = iwl_mvm_drain_sta(mvm, mvm_sta, false);
@@ -2659,8 +2659,8 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			 * If reconfiguring an existing queue, it first must be
 			 * drained
 			 */
-			ret = iwl_trans_wait_tx_queue_empty(mvm->trans,
-							    BIT(queue));
+			ret = iwl_trans_wait_tx_queues_empty(mvm->trans,
+							     BIT(queue));
 			if (ret) {
 				IWL_ERR(mvm,
 					"Error draining queue before reconfig\n");
@@ -2846,8 +2846,8 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		iwl_mvm_drain_sta(mvm, mvmsta, true);
 		if (iwl_mvm_flush_tx_path(mvm, BIT(txq_id), 0))
 			IWL_ERR(mvm, "Couldn't flush the AGG queue\n");
-		iwl_trans_wait_tx_queue_empty(mvm->trans,
-					      mvmsta->tfd_queue_msk);
+		iwl_trans_wait_tx_queues_empty(mvm->trans,
+					       mvmsta->tfd_queue_msk);
 		iwl_mvm_drain_sta(mvm, mvmsta, false);
 
 		iwl_mvm_sta_tx_agg(mvm, sta, tid, txq_id, false);
