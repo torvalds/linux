@@ -45,9 +45,17 @@ struct nft_bitmap {
 	u8	bitmap[];
 };
 
-static inline void nft_bitmap_location(u32 key, u32 *idx, u32 *off)
+static inline void nft_bitmap_location(const struct nft_set *set,
+				       const void *key,
+				       u32 *idx, u32 *off)
 {
-	u32 k = (key << 1);
+	u32 k;
+
+	if (set->klen == 2)
+		k = *(u16 *)key;
+	else
+		k = *(u8 *)key;
+	k <<= 1;
 
 	*idx = k / BITS_PER_BYTE;
 	*off = k % BITS_PER_BYTE;
@@ -69,7 +77,7 @@ static bool nft_bitmap_lookup(const struct net *net, const struct nft_set *set,
 	u8 genmask = nft_genmask_cur(net);
 	u32 idx, off;
 
-	nft_bitmap_location(*key, &idx, &off);
+	nft_bitmap_location(set, key, &idx, &off);
 
 	return nft_bitmap_active(priv->bitmap, idx, off, genmask);
 }
@@ -83,7 +91,7 @@ static int nft_bitmap_insert(const struct net *net, const struct nft_set *set,
 	u8 genmask = nft_genmask_next(net);
 	u32 idx, off;
 
-	nft_bitmap_location(nft_set_ext_key(ext)->data[0], &idx, &off);
+	nft_bitmap_location(set, nft_set_ext_key(ext), &idx, &off);
 	if (nft_bitmap_active(priv->bitmap, idx, off, genmask))
 		return -EEXIST;
 
@@ -102,7 +110,7 @@ static void nft_bitmap_remove(const struct net *net,
 	u8 genmask = nft_genmask_next(net);
 	u32 idx, off;
 
-	nft_bitmap_location(nft_set_ext_key(ext)->data[0], &idx, &off);
+	nft_bitmap_location(set, nft_set_ext_key(ext), &idx, &off);
 	/* Enter 00 state. */
 	priv->bitmap[idx] &= ~(genmask << off);
 }
@@ -116,7 +124,7 @@ static void nft_bitmap_activate(const struct net *net,
 	u8 genmask = nft_genmask_next(net);
 	u32 idx, off;
 
-	nft_bitmap_location(nft_set_ext_key(ext)->data[0], &idx, &off);
+	nft_bitmap_location(set, nft_set_ext_key(ext), &idx, &off);
 	/* Enter 11 state. */
 	priv->bitmap[idx] |= (genmask << off);
 }
@@ -128,7 +136,7 @@ static bool nft_bitmap_flush(const struct net *net,
 	u8 genmask = nft_genmask_next(net);
 	u32 idx, off;
 
-	nft_bitmap_location(nft_set_ext_key(ext)->data[0], &idx, &off);
+	nft_bitmap_location(set, nft_set_ext_key(ext), &idx, &off);
 	/* Enter 10 state, similar to deactivation. */
 	priv->bitmap[idx] &= ~(genmask << off);
 
@@ -161,10 +169,9 @@ static void *nft_bitmap_deactivate(const struct net *net,
 	struct nft_bitmap *priv = nft_set_priv(set);
 	u8 genmask = nft_genmask_next(net);
 	struct nft_set_ext *ext;
-	u32 idx, off, key = 0;
+	u32 idx, off;
 
-	memcpy(&key, elem->key.val.data, set->klen);
-	nft_bitmap_location(key, &idx, &off);
+	nft_bitmap_location(set, elem->key.val.data, &idx, &off);
 
 	if (!nft_bitmap_active(priv->bitmap, idx, off, genmask))
 		return NULL;
