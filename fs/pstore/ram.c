@@ -469,25 +469,24 @@ static int notrace ramoops_pstore_write_buf_user(enum pstore_type_id type,
 	return -EINVAL;
 }
 
-static int ramoops_pstore_erase(enum pstore_type_id type, u64 id, int count,
-				struct timespec time, struct pstore_info *psi)
+static int ramoops_pstore_erase(struct pstore_record *record)
 {
-	struct ramoops_context *cxt = psi->data;
+	struct ramoops_context *cxt = record->psi->data;
 	struct persistent_ram_zone *prz;
 
-	switch (type) {
+	switch (record->type) {
 	case PSTORE_TYPE_DMESG:
-		if (id >= cxt->max_dump_cnt)
+		if (record->id >= cxt->max_dump_cnt)
 			return -EINVAL;
-		prz = cxt->dprzs[id];
+		prz = cxt->dprzs[record->id];
 		break;
 	case PSTORE_TYPE_CONSOLE:
 		prz = cxt->cprz;
 		break;
 	case PSTORE_TYPE_FTRACE:
-		if (id >= cxt->max_ftrace_cnt)
+		if (record->id >= cxt->max_ftrace_cnt)
 			return -EINVAL;
-		prz = cxt->fprzs[id];
+		prz = cxt->fprzs[record->id];
 		break;
 	case PSTORE_TYPE_PMSG:
 		prz = cxt->mprz;

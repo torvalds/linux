@@ -266,10 +266,7 @@ static int efi_pstore_write(struct pstore_record *record)
 };
 
 struct pstore_erase_data {
-	u64 id;
-	enum pstore_type_id type;
-	int count;
-	struct timespec time;
+	struct pstore_record *record;
 	efi_char16_t *name;
 };
 
@@ -295,8 +292,9 @@ static int efi_pstore_erase_func(struct efivar_entry *entry, void *data)
 		 * Check if an old format, which doesn't support
 		 * holding multiple logs, remains.
 		 */
-		sprintf(name_old, "dump-type%u-%u-%lu", ed->type,
-			(unsigned int)ed->id, ed->time.tv_sec);
+		snprintf(name_old, sizeof(name_old), "dump-type%u-%u-%lu",
+			ed->record->type, (unsigned int)ed->record->id,
+			ed->record->time.tv_sec);
 
 		for (i = 0; i < DUMP_NAME_LEN; i++)
 			efi_name_old[i] = name_old[i];
@@ -321,8 +319,7 @@ static int efi_pstore_erase_func(struct efivar_entry *entry, void *data)
 	return 1;
 }
 
-static int efi_pstore_erase(enum pstore_type_id type, u64 id, int count,
-			    struct timespec time, struct pstore_info *psi)
+static int efi_pstore_erase(struct pstore_record *record)
 {
 	struct pstore_erase_data edata;
 	struct efivar_entry *entry = NULL;
@@ -331,17 +328,16 @@ static int efi_pstore_erase(enum pstore_type_id type, u64 id, int count,
 	int found, i;
 	unsigned int part;
 
-	do_div(id, 1000);
-	part = do_div(id, 100);
-	sprintf(name, "dump-type%u-%u-%d-%lu", type, part, count, time.tv_sec);
+	do_div(record->id, 1000);
+	part = do_div(record->id, 100);
+	snprintf(name, sizeof(name), "dump-type%u-%u-%d-%lu",
+		 record->type, record->part, record->count,
+		 record->time.tv_sec);
 
 	for (i = 0; i < DUMP_NAME_LEN; i++)
 		efi_name[i] = name[i];
 
-	edata.id = part;
-	edata.type = type;
-	edata.count = count;
-	edata.time = time;
+	edata.record = record;
 	edata.name = efi_name;
 
 	if (efivar_entry_iter_begin())

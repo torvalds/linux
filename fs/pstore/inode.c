@@ -210,14 +210,12 @@ static int pstore_unlink(struct inode *dir, struct dentry *dentry)
 	if (err)
 		return err;
 
-	if (record->psi->erase) {
-		mutex_lock(&record->psi->read_mutex);
-		record->psi->erase(record->type, record->id, record->count,
-			      d_inode(dentry)->i_ctime, record->psi);
-		mutex_unlock(&record->psi->read_mutex);
-	} else {
+	if (!record->psi->erase)
 		return -EPERM;
-	}
+
+	mutex_lock(&record->psi->read_mutex);
+	record->psi->erase(record);
+	mutex_unlock(&record->psi->read_mutex);
 
 	return simple_unlink(dir, dentry);
 }

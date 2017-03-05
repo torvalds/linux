@@ -177,15 +177,11 @@ struct pstore_record {
  *
  * @erase:
  *	Delete a record from backend storage.  Different backends
- *	identify records differently, so all possible methods of
- *	identification are included to help the backend locate the
- *	record to remove.
+ *	identify records differently, so entire original record is
+ *	passed back to assist in identification of what the backend
+ *	should remove from storage.
  *
- *	@type:	in: pstore record type to write
- *	@id:	in: per-type unique identifier for the record
- *	@count:	in: Oops count
- *	@time:	in: timestamp for the record
- *	@psi:	in: pointer to the struct pstore_info for the backend
+ *	@record:	pointer to record metadata.
  *
  *	Returns 0 on success, and non-zero on error.
  *
@@ -215,9 +211,7 @@ struct pstore_info {
 			enum kmsg_dump_reason reason, u64 *id,
 			unsigned int part, const char __user *buf,
 			bool compressed, size_t size, struct pstore_info *psi);
-	int		(*erase)(enum pstore_type_id type, u64 id,
-			int count, struct timespec time,
-			struct pstore_info *psi);
+	int		(*erase)(struct pstore_record *record);
 };
 
 /* Supported frontends */
