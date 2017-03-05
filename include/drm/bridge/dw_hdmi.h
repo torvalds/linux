@@ -57,13 +57,27 @@ struct dw_hdmi_phy_config {
 	u16 vlev_ctr;   /* voltage level control */
 };
 
+struct dw_hdmi_phy_ops {
+	int (*init)(struct dw_hdmi *hdmi, void *data,
+		    struct drm_display_mode *mode);
+	void (*disable)(struct dw_hdmi *hdmi, void *data);
+	enum drm_connector_status (*read_hpd)(struct dw_hdmi *hdmi, void *data);
+};
+
 struct dw_hdmi_plat_data {
 	enum dw_hdmi_devtype dev_type;
+	enum drm_mode_status (*mode_valid)(struct drm_connector *connector,
+					   struct drm_display_mode *mode);
+
+	/* Vendor PHY support */
+	const struct dw_hdmi_phy_ops *phy_ops;
+	const char *phy_name;
+	void *phy_data;
+
+	/* Synopsys PHY support */
 	const struct dw_hdmi_mpll_config *mpll_cfg;
 	const struct dw_hdmi_curr_ctrl *cur_ctr;
 	const struct dw_hdmi_phy_config *phy_config;
-	enum drm_mode_status (*mode_valid)(struct drm_connector *connector,
-					   struct drm_display_mode *mode);
 };
 
 int dw_hdmi_probe(struct platform_device *pdev,
