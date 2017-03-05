@@ -722,8 +722,6 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 						    5*HZ);
 		post_status(&dm_device);
 	}
-
-	return;
 }
 
 static void hv_online_page(struct page *pg)

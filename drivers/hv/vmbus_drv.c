@@ -787,8 +787,6 @@ static void vmbus_shutdown(struct device *child_device)
 
 	if (drv->shutdown)
 		drv->shutdown(dev);
-
-	return;
 }
 
 

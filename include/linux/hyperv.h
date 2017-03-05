@@ -1500,8 +1500,6 @@ static inline  void hv_signal_on_read(struct vmbus_channel *channel)
 	cached_write_sz = hv_get_cached_bytes_to_write(rbi);
 	if (cached_write_sz < pending_sz)
 		vmbus_setevent(channel);
-
-	return;
 }
 
 static inline void

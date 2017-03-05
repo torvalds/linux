@@ -484,8 +484,6 @@ kvp_send_key(struct work_struct *dummy)
 	}
 
 	kfree(message);
-
-	return;
 }
 
 /*

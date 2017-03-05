@@ -73,8 +73,6 @@ static void hv_signal_on_write(u32 old_write, struct vmbus_channel *channel)
 	 */
 	if (old_write == READ_ONCE(rbi->ring_buffer->read_index))
 		vmbus_setevent(channel);
-
-	return;
 }
 
 /* Get the next write location for the specified ring buffer. */
