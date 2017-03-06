@@ -17,7 +17,7 @@
  *   - Gyroscope supported full-scale [dps]: +-125/+-245/+-500/+-1000/+-2000
  *   - FIFO size: 8KB
  *
- * - LSM6DSM:
+ * - LSM6DS3H/LSM6DSL/LSM6DSM:
  *   - Accelerometer/Gyroscope supported ODR [Hz]: 13, 26, 52, 104, 208, 416
  *   - Accelerometer supported full-scale [g]: +-2/+-4/+-8/+-16
  *   - Gyroscope supported full-scale [dps]: +-125/+-245/+-500/+-1000/+-2000
@@ -73,12 +73,6 @@
 #define ST_LSM6DSX_REG_GYRO_OUT_X_L_ADDR	0x22
 #define ST_LSM6DSX_REG_GYRO_OUT_Y_L_ADDR	0x24
 #define ST_LSM6DSX_REG_GYRO_OUT_Z_L_ADDR	0x26
-
-#define ST_LSM6DS3_WHOAMI			0x69
-#define ST_LSM6DSM_WHOAMI			0x6a
-
-#define ST_LSM6DS3_MAX_FIFO_SIZE		8192
-#define ST_LSM6DSM_MAX_FIFO_SIZE		4096
 
 #define ST_LSM6DSX_ACC_FS_2G_GAIN		IIO_G_TO_M_S_2(61)
 #define ST_LSM6DSX_ACC_FS_4G_GAIN		IIO_G_TO_M_S_2(122)
@@ -164,14 +158,26 @@ static const struct st_lsm6dsx_fs_table_entry st_lsm6dsx_fs_table[] = {
 
 static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 	{
-		.wai = ST_LSM6DS3_WHOAMI,
-		.max_fifo_size = ST_LSM6DS3_MAX_FIFO_SIZE,
-		.id = ST_LSM6DS3_ID,
+		.wai = 0x69,
+		.max_fifo_size = 8192,
+		.id = {
+			[0] = ST_LSM6DS3_ID,
+		},
 	},
 	{
-		.wai = ST_LSM6DSM_WHOAMI,
-		.max_fifo_size = ST_LSM6DSM_MAX_FIFO_SIZE,
-		.id = ST_LSM6DSM_ID,
+		.wai = 0x69,
+		.max_fifo_size = 4096,
+		.id = {
+			[0] = ST_LSM6DS3H_ID,
+		},
+	},
+	{
+		.wai = 0x6a,
+		.max_fifo_size = 4096,
+		.id = {
+			[0] = ST_LSM6DSL_ID,
+			[1] = ST_LSM6DSM_ID,
+		},
 	},
 };
 
@@ -241,11 +247,15 @@ out:
 
 static int st_lsm6dsx_check_whoami(struct st_lsm6dsx_hw *hw, int id)
 {
-	int err, i;
+	int err, i, j;
 	u8 data;
 
 	for (i = 0; i < ARRAY_SIZE(st_lsm6dsx_sensor_settings); i++) {
-		if (id == st_lsm6dsx_sensor_settings[i].id)
+		for (j = 0; j < ST_LSM6DSX_MAX_ID; j++) {
+			if (id == st_lsm6dsx_sensor_settings[i].id[j])
+				break;
+		}
+		if (j < ST_LSM6DSX_MAX_ID)
 			break;
 	}
 
