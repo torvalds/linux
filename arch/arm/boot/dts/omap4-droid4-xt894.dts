@@ -27,6 +27,14 @@
 		reg = <0x80000000 0x3fd00000>;	/* 1021 MB */
 	};
 
+	/* Poweroff GPIO probably connected to CPCAP */
+	gpio-poweroff {
+		compatible = "gpio-poweroff";
+		pinctrl-0 = <&poweroff_gpio>;
+		pinctrl-names = "default";
+		gpios = <&gpio2 18 GPIO_ACTIVE_LOW>;	/* gpio50 */
+	};
+
 	/* This is probably coming straight from the battery.. */
 	wl12xx_vmmc: regulator-wl12xx {
 		compatible = "regulator-fixed";
@@ -226,6 +234,14 @@
 };
 
 &omap4_pmx_core {
+
+	/* gpmc_ncs0.gpio_50 */
+	poweroff_gpio: pinmux_poweroff_pins {
+		pinctrl-single,pins = <
+		OMAP4_IOPAD(0x074, PIN_OUTPUT_PULLUP | MUX_MODE3)
+		>;
+	};
+
 	usb_gpio_mux_sel1: pinmux_usb_gpio_mux_sel1_pins {
 		/* gpio_60 */
 		pinctrl-single,pins = <
