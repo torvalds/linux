@@ -53,17 +53,6 @@ module_param(gso, bool, 0444);
  */
 DECLARE_EWMA(pkt_len, 0, 64)
 
-/* With mergeable buffers we align buffer address and use the low bits to
- * encode its true size. Buffer size is up to 1 page so we need to align to
- * square root of page size to ensure we reserve enough bits to encode the true
- * size.
- */
-#define MERGEABLE_BUFFER_MIN_ALIGN_SHIFT ((PAGE_SHIFT + 1) / 2)
-
-/* Minimum alignment for mergeable packet buffers. */
-#define MERGEABLE_BUFFER_ALIGN max(L1_CACHE_BYTES, \
-				   1 << MERGEABLE_BUFFER_MIN_ALIGN_SHIFT)
-
 #define VIRTNET_DRIVER_VERSION "1.0.0"
 
 struct virtnet_stats {
@@ -849,7 +838,7 @@ static unsigned int get_mergeable_buf_len(struct ewma_pkt_len *avg_pkt_len)
 
 	len = hdr_len + clamp_t(unsigned int, ewma_pkt_len_read(avg_pkt_len),
 			GOOD_PACKET_LEN, PAGE_SIZE - hdr_len);
-	return ALIGN(len, MERGEABLE_BUFFER_ALIGN);
+	return ALIGN(len, L1_CACHE_BYTES);
 }
 
 static int add_recvbuf_mergeable(struct virtnet_info *vi,
