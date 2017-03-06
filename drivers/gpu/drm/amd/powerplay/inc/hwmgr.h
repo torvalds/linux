@@ -83,7 +83,8 @@ enum PP_FEATURE_MASK {
 	PP_ULV_MASK = 0x100,
 	PP_ENABLE_GFX_CG_THRU_SMU = 0x200,
 	PP_CLOCK_STRETCH_MASK = 0x400,
-	PP_OD_FUZZY_FAN_CONTROL_MASK = 0x800
+	PP_OD_FUZZY_FAN_CONTROL_MASK = 0x800,
+	PP_SOCCLK_DPM_MASK = 0x1000,
 };
 
 enum PHM_BackEnd_Magic {
@@ -412,6 +413,7 @@ struct phm_cac_tdp_table {
 	uint16_t usLowCACLeakage;
 	uint16_t usHighCACLeakage;
 	uint16_t usMaximumPowerDeliveryLimit;
+	uint16_t usEDCLimit;
 	uint16_t usOperatingTempMinLimit;
 	uint16_t usOperatingTempMaxLimit;
 	uint16_t usOperatingTempStep;
@@ -436,6 +438,46 @@ struct phm_cac_tdp_table {
 	uint8_t  ucPlx_I2C_Line;
 	uint32_t usBoostPowerLimit;
 	uint8_t  ucCKS_LDO_REFSEL;
+};
+
+struct phm_tdp_table {
+	uint16_t usTDP;
+	uint16_t usConfigurableTDP;
+	uint16_t usTDC;
+	uint16_t usBatteryPowerLimit;
+	uint16_t usSmallPowerLimit;
+	uint16_t usLowCACLeakage;
+	uint16_t usHighCACLeakage;
+	uint16_t usMaximumPowerDeliveryLimit;
+	uint16_t usEDCLimit;
+	uint16_t usOperatingTempMinLimit;
+	uint16_t usOperatingTempMaxLimit;
+	uint16_t usOperatingTempStep;
+	uint16_t usOperatingTempHyst;
+	uint16_t usDefaultTargetOperatingTemp;
+	uint16_t usTargetOperatingTemp;
+	uint16_t usPowerTuneDataSetID;
+	uint16_t usSoftwareShutdownTemp;
+	uint16_t usClockStretchAmount;
+	uint16_t usTemperatureLimitTedge;
+	uint16_t usTemperatureLimitHotspot;
+	uint16_t usTemperatureLimitLiquid1;
+	uint16_t usTemperatureLimitLiquid2;
+	uint16_t usTemperatureLimitHBM;
+	uint16_t usTemperatureLimitVrVddc;
+	uint16_t usTemperatureLimitVrMvdd;
+	uint16_t usTemperatureLimitPlx;
+	uint8_t  ucLiquid1_I2C_address;
+	uint8_t  ucLiquid2_I2C_address;
+	uint8_t  ucLiquid_I2C_Line;
+	uint8_t  ucVr_I2C_address;
+	uint8_t  ucVr_I2C_Line;
+	uint8_t  ucPlx_I2C_address;
+	uint8_t  ucPlx_I2C_Line;
+	uint8_t  ucLiquid_I2C_LineSDA;
+	uint8_t  ucVr_I2C_LineSDA;
+	uint8_t  ucPlx_I2C_LineSDA;
+	uint32_t usBoostPowerLimit;
 };
 
 struct phm_ppm_table {
@@ -472,9 +514,11 @@ struct phm_vq_budgeting_table {
 struct phm_clock_and_voltage_limits {
 	uint32_t sclk;
 	uint32_t mclk;
+	uint32_t gfxclk;
 	uint16_t vddc;
 	uint16_t vddci;
 	uint16_t vddgfx;
+	uint16_t vddmem;
 };
 
 /* Structure to hold PPTable information */
@@ -482,18 +526,77 @@ struct phm_clock_and_voltage_limits {
 struct phm_ppt_v1_information {
 	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_sclk;
 	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_mclk;
+	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_socclk;
+	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_dcefclk;
 	struct phm_clock_array *valid_sclk_values;
 	struct phm_clock_array *valid_mclk_values;
+	struct phm_clock_array *valid_socclk_values;
+	struct phm_clock_array *valid_dcefclk_values;
 	struct phm_clock_and_voltage_limits max_clock_voltage_on_dc;
 	struct phm_clock_and_voltage_limits max_clock_voltage_on_ac;
 	struct phm_clock_voltage_dependency_table *vddc_dep_on_dal_pwrl;
 	struct phm_ppm_table *ppm_parameter_table;
 	struct phm_cac_tdp_table *cac_dtp_table;
+	struct phm_tdp_table *tdp_table;
 	struct phm_ppt_v1_mm_clock_voltage_dependency_table *mm_dep_table;
 	struct phm_ppt_v1_voltage_lookup_table *vddc_lookup_table;
 	struct phm_ppt_v1_voltage_lookup_table *vddgfx_lookup_table;
+	struct phm_ppt_v1_voltage_lookup_table *vddmem_lookup_table;
 	struct phm_ppt_v1_pcie_table *pcie_table;
+	struct phm_ppt_v1_gpio_table *gpio_table;
 	uint16_t us_ulv_voltage_offset;
+	uint16_t us_ulv_smnclk_did;
+	uint16_t us_ulv_mp1clk_did;
+	uint16_t us_ulv_gfxclk_bypass;
+	uint16_t us_gfxclk_slew_rate;
+	uint16_t us_min_gfxclk_freq_limit;
+};
+
+struct phm_ppt_v2_information {
+	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_sclk;
+	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_mclk;
+	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_socclk;
+	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_dcefclk;
+	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_pixclk;
+	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_dispclk;
+	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_phyclk;
+	struct phm_ppt_v1_mm_clock_voltage_dependency_table *mm_dep_table;
+
+	struct phm_clock_voltage_dependency_table *vddc_dep_on_dalpwrl;
+
+	struct phm_clock_array *valid_sclk_values;
+	struct phm_clock_array *valid_mclk_values;
+	struct phm_clock_array *valid_socclk_values;
+	struct phm_clock_array *valid_dcefclk_values;
+
+	struct phm_clock_and_voltage_limits max_clock_voltage_on_dc;
+	struct phm_clock_and_voltage_limits max_clock_voltage_on_ac;
+
+	struct phm_ppm_table *ppm_parameter_table;
+	struct phm_cac_tdp_table *cac_dtp_table;
+	struct phm_tdp_table *tdp_table;
+
+	struct phm_ppt_v1_voltage_lookup_table *vddc_lookup_table;
+	struct phm_ppt_v1_voltage_lookup_table *vddgfx_lookup_table;
+	struct phm_ppt_v1_voltage_lookup_table *vddmem_lookup_table;
+	struct phm_ppt_v1_voltage_lookup_table *vddci_lookup_table;
+
+	struct phm_ppt_v1_pcie_table *pcie_table;
+
+	uint16_t us_ulv_voltage_offset;
+	uint16_t us_ulv_smnclk_did;
+	uint16_t us_ulv_mp1clk_did;
+	uint16_t us_ulv_gfxclk_bypass;
+	uint16_t us_gfxclk_slew_rate;
+	uint16_t us_min_gfxclk_freq_limit;
+
+	uint8_t  uc_gfx_dpm_voltage_mode;
+	uint8_t  uc_soc_dpm_voltage_mode;
+	uint8_t  uc_uclk_dpm_voltage_mode;
+	uint8_t  uc_uvd_dpm_voltage_mode;
+	uint8_t  uc_vce_dpm_voltage_mode;
+	uint8_t  uc_mp0_dpm_voltage_mode;
+	uint8_t  uc_dcef_dpm_voltage_mode;
 };
 
 struct phm_dynamic_state_info {
@@ -572,6 +675,13 @@ struct pp_advance_fan_control_parameters {
 	uint16_t  usFanGainVrMvdd;
 	uint16_t  usFanGainPlx;
 	uint16_t  usFanGainHbm;
+	uint8_t   ucEnableZeroRPM;
+	uint8_t   ucFanStopTemperature;
+	uint8_t   ucFanStartTemperature;
+	uint32_t  ulMaxFanSCLKAcousticLimit;       /* Maximum Fan Controller SCLK Frequency Acoustic Limit. */
+	uint32_t  ulTargetGfxClk;
+	uint16_t  usZeroRPMStartTemperature;
+	uint16_t  usZeroRPMStopTemperature;
 };
 
 struct pp_thermal_controller_info {
