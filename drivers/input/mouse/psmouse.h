@@ -80,6 +80,7 @@ struct psmouse {
 	void (*set_scale)(struct psmouse *psmouse, enum psmouse_scale scale);
 
 	int (*reconnect)(struct psmouse *psmouse);
+	int (*fast_reconnect)(struct psmouse *psmouse);
 	void (*disconnect)(struct psmouse *psmouse);
 	void (*cleanup)(struct psmouse *psmouse);
 	int (*poll)(struct psmouse *psmouse);

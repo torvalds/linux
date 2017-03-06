@@ -966,6 +966,7 @@ static void psmouse_apply_defaults(struct psmouse *psmouse)
 	psmouse->protocol_handler = psmouse_process_byte;
 	psmouse->pktsize = 3;
 	psmouse->reconnect = NULL;
+	psmouse->fast_reconnect = NULL;
 	psmouse->disconnect = NULL;
 	psmouse->cleanup = NULL;
 	psmouse->pt_activate = NULL;
@@ -1628,14 +1629,25 @@ static int psmouse_connect(struct serio *serio, struct serio_driver *drv)
 	goto out;
 }
 
-static int psmouse_reconnect(struct serio *serio)
+static int __psmouse_reconnect(struct serio *serio, bool fast_reconnect)
 {
 	struct psmouse *psmouse = serio_get_drvdata(serio);
 	struct psmouse *parent = NULL;
+	int (*reconnect_handler)(struct psmouse *);
 	unsigned char type;
 	int rc = -1;
 
 	mutex_lock(&psmouse_mutex);
+
+	if (fast_reconnect) {
+		reconnect_handler = psmouse->fast_reconnect;
+		if (!reconnect_handler) {
+			rc = -ENOENT;
+			goto out_unlock;
+		}
+	} else {
+		reconnect_handler = psmouse->reconnect;
+	}
 
 	if (serio->parent && serio->id.type == SERIO_PS_PSTHRU) {
 		parent = serio_get_drvdata(serio->parent);
@@ -1644,8 +1656,8 @@ static int psmouse_reconnect(struct serio *serio)
 
 	psmouse_set_state(psmouse, PSMOUSE_INITIALIZING);
 
-	if (psmouse->reconnect) {
-		if (psmouse->reconnect(psmouse))
+	if (reconnect_handler) {
+		if (reconnect_handler(psmouse))
 			goto out;
 	} else {
 		psmouse_reset(psmouse);
@@ -1677,8 +1689,19 @@ out:
 	if (parent)
 		psmouse_activate(parent);
 
+out_unlock:
 	mutex_unlock(&psmouse_mutex);
 	return rc;
+}
+
+static int psmouse_reconnect(struct serio *serio)
+{
+	return __psmouse_reconnect(serio, false);
+}
+
+static int psmouse_fast_reconnect(struct serio *serio)
+{
+	return __psmouse_reconnect(serio, true);
 }
 
 static struct serio_device_id psmouse_serio_ids[] = {
@@ -1708,6 +1731,7 @@ static struct serio_driver psmouse_drv = {
 	.interrupt	= psmouse_interrupt,
 	.connect	= psmouse_connect,
 	.reconnect	= psmouse_reconnect,
+	.fast_reconnect	= psmouse_fast_reconnect,
 	.disconnect	= psmouse_disconnect,
 	.cleanup	= psmouse_cleanup,
 };
