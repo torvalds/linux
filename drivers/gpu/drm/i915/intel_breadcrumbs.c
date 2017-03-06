@@ -109,7 +109,6 @@ static void intel_breadcrumbs_fake_irq(unsigned long data)
 {
 	struct intel_engine_cs *engine = (struct intel_engine_cs *)data;
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
-	unsigned long flags;
 
 	/*
 	 * The timer persists in case we cannot enable interrupts,
@@ -119,10 +118,10 @@ static void intel_breadcrumbs_fake_irq(unsigned long data)
 	 * coherent seqno check.
 	 */
 
-	spin_lock_irqsave(&b->irq_lock, flags);
+	spin_lock_irq(&b->irq_lock);
 	if (!__intel_breadcrumbs_wakeup(b))
 		__intel_engine_disarm_breadcrumbs(engine);
-	spin_unlock_irqrestore(&b->irq_lock, flags);
+	spin_unlock_irq(&b->irq_lock);
 	if (!b->irq_armed)
 		return;
 
