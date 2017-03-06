@@ -25,6 +25,13 @@
 			cpcap_regulators: regulators {
 			};
 		};
+
+		cpcap_rtc: rtc {
+			compatible = "motorola,cpcap-rtc";
+
+			interrupt-parent = <&cpcap>;
+			interrupts = <39 IRQ_TYPE_NONE>, <26 IRQ_TYPE_NONE>;
+		};
 	};
 };
 
