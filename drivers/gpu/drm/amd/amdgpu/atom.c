@@ -1300,8 +1300,7 @@ struct atom_context *amdgpu_atom_parse(struct card_info *card, void *bios)
 	struct atom_context *ctx =
 	    kzalloc(sizeof(struct atom_context), GFP_KERNEL);
 	char *str;
-	char name[512];
-	int i;
+	u16 idx;
 
 	if (!ctx)
 		return NULL;
@@ -1339,18 +1338,13 @@ struct atom_context *amdgpu_atom_parse(struct card_info *card, void *bios)
 		return NULL;
 	}
 
-	str = CSTR(CU16(base + ATOM_ROM_MSG_PTR));
-	while (*str && ((*str == '\n') || (*str == '\r')))
-		str++;
-	/* name string isn't always 0 terminated */
-	for (i = 0; i < 511; i++) {
-		name[i] = str[i];
-		if (name[i] < '.' || name[i] > 'z') {
-			name[i] = 0;
-			break;
-		}
-	}
-	pr_info("ATOM BIOS: %s\n", name);
+	idx = CU16(ATOM_ROM_PART_NUMBER_PTR);
+	if (idx == 0)
+		idx = 0x80;
+
+	str = CSTR(idx);
+	if (*str != '\0')
+		pr_info("ATOM BIOS: %s\n", str);
 
 	return ctx;
 }
