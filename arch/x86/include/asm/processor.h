@@ -797,6 +797,7 @@ static inline void spin_lock_prefetch(const void *x)
 /*
  * User space process size: 3GB (default).
  */
+#define IA32_PAGE_OFFSET	PAGE_OFFSET
 #define TASK_SIZE		PAGE_OFFSET
 #define TASK_SIZE_MAX		TASK_SIZE
 #define STACK_TOP		TASK_SIZE
@@ -873,7 +874,8 @@ extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
  * This decides where the kernel will search for a free chunk of vm
  * space during mmap's.
  */
-#define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 3))
+#define __TASK_UNMAPPED_BASE(task_size)	(PAGE_ALIGN(task_size / 3))
+#define TASK_UNMAPPED_BASE		__TASK_UNMAPPED_BASE(TASK_SIZE)
 
 #define KSTK_EIP(task)		(task_pt_regs(task)->ip)
 

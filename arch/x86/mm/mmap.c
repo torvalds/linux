@@ -36,24 +36,22 @@ struct va_alignment __read_mostly va_align = {
 	.flags = -1,
 };
 
-static unsigned long stack_maxrandom_size(void)
+static inline unsigned long tasksize_32bit(void)
+{
+	return IA32_PAGE_OFFSET;
+}
+
+static unsigned long stack_maxrandom_size(unsigned long task_size)
 {
 	unsigned long max = 0;
 	if ((current->flags & PF_RANDOMIZE) &&
 		!(current->personality & ADDR_NO_RANDOMIZE)) {
-		max = ((-1UL) & STACK_RND_MASK) << PAGE_SHIFT;
+		max = (-1UL) & __STACK_RND_MASK(task_size == tasksize_32bit());
+		max <<= PAGE_SHIFT;
 	}
 
 	return max;
 }
-
-/*
- * Top of mmap area (just below the process stack).
- *
- * Leave an at least ~128 MB hole with possible stack randomization.
- */
-#define MIN_GAP (128*1024*1024UL + stack_maxrandom_size())
-#define MAX_GAP (TASK_SIZE/6*5)
 
 #ifdef CONFIG_COMPAT
 # define mmap32_rnd_bits  mmap_rnd_compat_bits
@@ -62,6 +60,8 @@ static unsigned long stack_maxrandom_size(void)
 # define mmap32_rnd_bits  mmap_rnd_bits
 # define mmap64_rnd_bits  mmap_rnd_bits
 #endif
+
+#define SIZE_128M    (128 * 1024 * 1024UL)
 
 static int mmap_is_legacy(void)
 {
@@ -84,16 +84,30 @@ unsigned long arch_mmap_rnd(void)
 	return arch_rnd(mmap_is_ia32() ? mmap32_rnd_bits : mmap64_rnd_bits);
 }
 
-static unsigned long mmap_base(unsigned long rnd)
+static unsigned long mmap_base(unsigned long rnd, unsigned long task_size)
 {
 	unsigned long gap = rlimit(RLIMIT_STACK);
+	unsigned long gap_min, gap_max;
 
-	if (gap < MIN_GAP)
-		gap = MIN_GAP;
-	else if (gap > MAX_GAP)
-		gap = MAX_GAP;
+	/*
+	 * Top of mmap area (just below the process stack).
+	 * Leave an at least ~128 MB hole with possible stack randomization.
+	 */
+	gap_min = SIZE_128M + stack_maxrandom_size(task_size);
+	gap_max = (task_size / 6) * 5;
 
-	return PAGE_ALIGN(TASK_SIZE - gap - rnd);
+	if (gap < gap_min)
+		gap = gap_min;
+	else if (gap > gap_max)
+		gap = gap_max;
+
+	return PAGE_ALIGN(task_size - gap - rnd);
+}
+
+static unsigned long mmap_legacy_base(unsigned long rnd,
+				      unsigned long task_size)
+{
+	return __TASK_UNMAPPED_BASE(task_size) + rnd;
 }
 
 /*
@@ -107,13 +121,13 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 	if (current->flags & PF_RANDOMIZE)
 		random_factor = arch_mmap_rnd();
 
-	mm->mmap_legacy_base = TASK_UNMAPPED_BASE + random_factor;
+	mm->mmap_legacy_base = mmap_legacy_base(random_factor, TASK_SIZE);
 
 	if (mmap_is_legacy()) {
 		mm->mmap_base = mm->mmap_legacy_base;
 		mm->get_unmapped_area = arch_get_unmapped_area;
 	} else {
-		mm->mmap_base = mmap_base(random_factor);
+		mm->mmap_base = mmap_base(random_factor, TASK_SIZE);
 		mm->get_unmapped_area = arch_get_unmapped_area_topdown;
 	}
 }
