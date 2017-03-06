@@ -744,6 +744,14 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 		iwl_mvm_load_nvm_to_nic(mvm);
 	}
 
+	if (IWL_MVM_PARSE_NVM && read_nvm) {
+		ret = iwl_nvm_init(mvm, true);
+		if (ret) {
+			IWL_ERR(mvm, "Failed to read NVM: %d\n", ret);
+			goto error;
+		}
+	}
+
 	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(REGULATORY_AND_NVM_GROUP,
 						NVM_ACCESS_COMPLETE), 0,
 				   sizeof(nvm_complete), &nvm_complete);
@@ -760,7 +768,7 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 		return ret;
 
 	/* Read the NVM only at driver load time, no need to do this twice */
-	if (read_nvm) {
+	if (!IWL_MVM_PARSE_NVM && read_nvm) {
 		ret = iwl_mvm_nvm_get_from_fw(mvm);
 		if (ret) {
 			IWL_ERR(mvm, "Failed to read NVM: %d\n", ret);
