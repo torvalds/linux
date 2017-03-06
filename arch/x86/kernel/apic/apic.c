@@ -1789,8 +1789,8 @@ void __init init_apic_mappings(void)
 		apic_phys = mp_lapic_addr;
 
 		/*
-		 * acpi lapic path already maps that address in
-		 * acpi_register_lapic_address()
+		 * If the system has ACPI MADT tables or MP info, the LAPIC
+		 * address is already registered.
 		 */
 		if (!acpi_lapic && !smp_found_config)
 			register_lapic_address(apic_phys);
