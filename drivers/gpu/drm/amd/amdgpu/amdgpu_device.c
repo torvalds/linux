@@ -49,6 +49,7 @@
 #include "cik.h"
 #endif
 #include "vi.h"
+#include "soc15.h"
 #include "bif/bif_4_1_d.h"
 #include <linux/pci.h>
 #include <linux/firmware.h>
@@ -1434,6 +1435,13 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 			return r;
 		break;
 #endif
+	case CHIP_VEGA10:
+		adev->family = AMDGPU_FAMILY_AI;
+
+		r = soc15_set_ip_blocks(adev);
+		if (r)
+			return r;
+		break;
 	default:
 		/* FIXME: not supported yet */
 		return -EINVAL;
