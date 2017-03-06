@@ -147,6 +147,7 @@ void intel_dsi_reset_clocks(struct intel_encoder *encoder,
 			    enum port port);
 
 struct drm_panel *intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id);
+int intel_dsi_vbt_get_modes(struct drm_panel *panel);
 enum mipi_dsi_pixel_format pixel_format_from_register_bits(u32 fmt);
 
 #endif /* _INTEL_DSI_H */

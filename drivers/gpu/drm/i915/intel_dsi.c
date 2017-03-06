@@ -1843,7 +1843,7 @@ void intel_dsi_init(struct drm_i915_private *dev_priv)
 	drm_panel_attach(intel_dsi->panel, connector);
 
 	mutex_lock(&dev->mode_config.mutex);
-	drm_panel_get_modes(intel_dsi->panel);
+	intel_dsi_vbt_get_modes(intel_dsi->panel);
 	list_for_each_entry(scan, &connector->probed_modes, head) {
 		if ((scan->type & DRM_MODE_TYPE_PREFERRED)) {
 			fixed_mode = drm_mode_duplicate(dev, scan);

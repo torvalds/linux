@@ -492,7 +492,7 @@ void intel_dsi_exec_vbt_sequence(struct intel_dsi *intel_dsi,
 	}
 }
 
-static int vbt_panel_get_modes(struct drm_panel *panel)
+int intel_dsi_vbt_get_modes(struct drm_panel *panel)
 {
 	struct vbt_panel *vbt_panel = to_vbt_panel(panel);
 	struct intel_dsi *intel_dsi = vbt_panel->intel_dsi;
@@ -513,10 +513,6 @@ static int vbt_panel_get_modes(struct drm_panel *panel)
 
 	return 1;
 }
-
-static const struct drm_panel_funcs vbt_panel_funcs = {
-	.get_modes = vbt_panel_get_modes,
-};
 
 struct drm_panel *intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 {
@@ -816,7 +812,6 @@ struct drm_panel *intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 
 	vbt_panel->intel_dsi = intel_dsi;
 	drm_panel_init(&vbt_panel->panel);
-	vbt_panel->panel.funcs = &vbt_panel_funcs;
 	drm_panel_add(&vbt_panel->panel);
 
 	/* a regular driver would get the device in probe */
