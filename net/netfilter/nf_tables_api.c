@@ -2534,8 +2534,8 @@ static int nft_ctx_init_from_setattr(struct nft_ctx *ctx, struct net *net,
 	return 0;
 }
 
-struct nft_set *nf_tables_set_lookup(const struct nft_table *table,
-				     const struct nlattr *nla, u8 genmask)
+static struct nft_set *nf_tables_set_lookup(const struct nft_table *table,
+					    const struct nlattr *nla, u8 genmask)
 {
 	struct nft_set *set;
 
@@ -2549,11 +2549,10 @@ struct nft_set *nf_tables_set_lookup(const struct nft_table *table,
 	}
 	return ERR_PTR(-ENOENT);
 }
-EXPORT_SYMBOL_GPL(nf_tables_set_lookup);
 
-struct nft_set *nf_tables_set_lookup_byid(const struct net *net,
-					  const struct nlattr *nla,
-					  u8 genmask)
+static struct nft_set *nf_tables_set_lookup_byid(const struct net *net,
+						 const struct nlattr *nla,
+						 u8 genmask)
 {
 	struct nft_trans *trans;
 	u32 id = ntohl(nla_get_be32(nla));
@@ -2568,7 +2567,25 @@ struct nft_set *nf_tables_set_lookup_byid(const struct net *net,
 	}
 	return ERR_PTR(-ENOENT);
 }
-EXPORT_SYMBOL_GPL(nf_tables_set_lookup_byid);
+
+struct nft_set *nft_set_lookup(const struct net *net,
+			       const struct nft_table *table,
+			       const struct nlattr *nla_set_name,
+			       const struct nlattr *nla_set_id,
+			       u8 genmask)
+{
+	struct nft_set *set;
+
+	set = nf_tables_set_lookup(table, nla_set_name, genmask);
+	if (IS_ERR(set)) {
+		if (!nla_set_id)
+			return set;
+
+		set = nf_tables_set_lookup_byid(net, nla_set_id, genmask);
+	}
+	return set;
+}
+EXPORT_SYMBOL_GPL(nft_set_lookup);
 
 static int nf_tables_set_alloc_name(struct nft_ctx *ctx, struct nft_set *set,
 				    const char *name)
