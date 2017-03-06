@@ -85,6 +85,7 @@ enum PP_FEATURE_MASK {
 	PP_CLOCK_STRETCH_MASK = 0x400,
 	PP_OD_FUZZY_FAN_CONTROL_MASK = 0x800,
 	PP_SOCCLK_DPM_MASK = 0x1000,
+	PP_DCEFCLK_DPM_MASK = 0x2000,
 };
 
 enum PHM_BackEnd_Magic {
@@ -820,6 +821,8 @@ extern uint32_t phm_get_lowest_enabled_level(struct pp_hwmgr *hwmgr, uint32_t ma
 extern void phm_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr);
 
 extern int smu7_init_function_pointers(struct pp_hwmgr *hwmgr);
+extern int vega10_hwmgr_init(struct pp_hwmgr *hwmgr);
+
 extern int phm_get_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 				uint32_t sclk, uint16_t id, uint16_t *voltage);
 

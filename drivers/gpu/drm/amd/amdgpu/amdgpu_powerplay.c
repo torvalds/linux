@@ -71,6 +71,7 @@ static int amdgpu_pp_early_init(void *handle)
 	case CHIP_TOPAZ:
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
+	case CHIP_VEGA10:
 		adev->pp_enabled = true;
 		if (amdgpu_create_pp_handle(adev))
 			return -EINVAL;

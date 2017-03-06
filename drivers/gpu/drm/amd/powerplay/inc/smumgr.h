@@ -38,6 +38,7 @@ extern const struct pp_smumgr_func iceland_smu_funcs;
 extern const struct pp_smumgr_func tonga_smu_funcs;
 extern const struct pp_smumgr_func fiji_smu_funcs;
 extern const struct pp_smumgr_func polaris10_smu_funcs;
+extern const struct pp_smumgr_func vega10_smu_funcs;
 
 enum AVFS_BTC_STATUS {
 	AVFS_BTC_BOOT = 0,
@@ -177,6 +178,8 @@ extern int smu_allocate_memory(void *device, uint32_t size,
 			 void **kptr, void *handle);
 
 extern int smu_free_memory(void *device, void *handle);
+extern int vega10_smum_init(struct pp_smumgr *smumgr);
+
 extern int smum_update_sclk_threshold(struct pp_hwmgr *hwmgr);
 
 extern int smum_update_smc_table(struct pp_hwmgr *hwmgr, uint32_t type);

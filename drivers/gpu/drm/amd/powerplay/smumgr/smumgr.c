@@ -86,6 +86,15 @@ int smum_early_init(struct pp_instance *handle)
 			return -EINVAL;
 		}
 		break;
+	case AMDGPU_FAMILY_AI:
+		switch (smumgr->chip_id) {
+		case CHIP_VEGA10:
+			smumgr->smumgr_funcs = &vega10_smu_funcs;
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
 	default:
 		kfree(smumgr);
 		return -EINVAL;
