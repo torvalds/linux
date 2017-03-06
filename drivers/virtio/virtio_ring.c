@@ -916,6 +916,7 @@ struct virtqueue *__vring_new_virtqueue(unsigned int index,
 					struct vring vring,
 					struct virtio_device *vdev,
 					bool weak_barriers,
+					bool context,
 					bool (*notify)(struct virtqueue *),
 					void (*callback)(struct virtqueue *),
 					const char *name)
@@ -1019,6 +1020,7 @@ struct virtqueue *vring_create_virtqueue(
 	struct virtio_device *vdev,
 	bool weak_barriers,
 	bool may_reduce_num,
+	bool context,
 	bool (*notify)(struct virtqueue *),
 	void (*callback)(struct virtqueue *),
 	const char *name)
@@ -1058,7 +1060,7 @@ struct virtqueue *vring_create_virtqueue(
 	queue_size_in_bytes = vring_size(num, vring_align);
 	vring_init(&vring, num, queue, vring_align);
 
-	vq = __vring_new_virtqueue(index, vring, vdev, weak_barriers,
+	vq = __vring_new_virtqueue(index, vring, vdev, weak_barriers, context,
 				   notify, callback, name);
 	if (!vq) {
 		vring_free_queue(vdev, queue_size_in_bytes, queue,
@@ -1079,6 +1081,7 @@ struct virtqueue *vring_new_virtqueue(unsigned int index,
 				      unsigned int vring_align,
 				      struct virtio_device *vdev,
 				      bool weak_barriers,
+				      bool context,
 				      void *pages,
 				      bool (*notify)(struct virtqueue *vq),
 				      void (*callback)(struct virtqueue *vq),
@@ -1086,7 +1089,7 @@ struct virtqueue *vring_new_virtqueue(unsigned int index,
 {
 	struct vring vring;
 	vring_init(&vring, num, pages, vring_align);
-	return __vring_new_virtqueue(index, vring, vdev, weak_barriers,
+	return __vring_new_virtqueue(index, vring, vdev, weak_barriers, context,
 				     notify, callback, name);
 }
 EXPORT_SYMBOL_GPL(vring_new_virtqueue);
