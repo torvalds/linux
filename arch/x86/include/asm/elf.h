@@ -303,6 +303,9 @@ static inline int mmap_is_ia32(void)
 		test_thread_flag(TIF_ADDR32));
 }
 
+extern unsigned long tasksize_32bit(void);
+extern unsigned long tasksize_64bit(void);
+
 #ifdef CONFIG_X86_32
 
 #define __STACK_RND_MASK(is32bit) (0x7ff)

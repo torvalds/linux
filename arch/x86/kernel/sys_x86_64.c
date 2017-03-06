@@ -17,6 +17,8 @@
 #include <linux/uaccess.h>
 #include <linux/elf.h>
 
+#include <asm/elf.h>
+#include <asm/compat.h>
 #include <asm/ia32.h>
 #include <asm/syscalls.h>
 
@@ -98,6 +100,18 @@ out:
 	return error;
 }
 
+static unsigned long get_mmap_base(int is_legacy)
+{
+	struct mm_struct *mm = current->mm;
+
+#ifdef CONFIG_HAVE_ARCH_COMPAT_MMAP_BASES
+	if (in_compat_syscall())
+		return is_legacy ? mm->mmap_compat_legacy_base
+				 : mm->mmap_compat_base;
+#endif
+	return is_legacy ? mm->mmap_legacy_base : mm->mmap_base;
+}
+
 static void find_start_end(unsigned long flags, unsigned long *begin,
 			   unsigned long *end)
 {
@@ -114,10 +128,11 @@ static void find_start_end(unsigned long flags, unsigned long *begin,
 		if (current->flags & PF_RANDOMIZE) {
 			*begin = randomize_page(*begin, 0x02000000);
 		}
-	} else {
-		*begin = current->mm->mmap_legacy_base;
-		*end = TASK_SIZE;
+		return;
 	}
+
+	*begin	= get_mmap_base(1);
+	*end	= in_compat_syscall() ? tasksize_32bit() : tasksize_64bit();
 }
 
 unsigned long
@@ -191,7 +206,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
 	info.length = len;
 	info.low_limit = PAGE_SIZE;
-	info.high_limit = mm->mmap_base;
+	info.high_limit = get_mmap_base(0);
 	info.align_mask = 0;
 	info.align_offset = pgoff << PAGE_SHIFT;
 	if (filp) {
