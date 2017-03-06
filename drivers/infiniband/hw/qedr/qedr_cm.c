@@ -287,7 +287,7 @@ static inline int qedr_gsi_build_header(struct qedr_dev *dev,
 	has_udp = (sgid_attr.gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP);
 	if (!has_udp) {
 		/* RoCE v1 */
-		ether_type = ETH_P_ROCE;
+		ether_type = ETH_P_IBOE;
 		*roce_mode = ROCE_V1;
 	} else if (ipv6_addr_v4mapped((struct in6_addr *)&sgid)) {
 		/* RoCE v2 IPv4 */

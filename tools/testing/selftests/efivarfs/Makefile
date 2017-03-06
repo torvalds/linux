@@ -1,13 +1,7 @@
 CFLAGS = -Wall
 
-test_objs = open-unlink create-read
-
-all: $(test_objs)
-
+TEST_GEN_FILES := open-unlink create-read
 TEST_PROGS := efivarfs.sh
-TEST_FILES := $(test_objs)
 
 include ../lib.mk
 
-clean:
-	rm -f $(test_objs)

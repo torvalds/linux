@@ -170,6 +170,8 @@ extern int kvmppc_book3s_hv_page_fault(struct kvm_run *run,
 			unsigned long status);
 extern long kvmppc_hv_find_lock_hpte(struct kvm *kvm, gva_t eaddr,
 			unsigned long slb_v, unsigned long valid);
+extern int kvmppc_hv_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu,
+			unsigned long gpa, gva_t ea, int is_store);
 
 extern void kvmppc_mmu_hpte_cache_map(struct kvm_vcpu *vcpu, struct hpte_cache *pte);
 extern struct hpte_cache *kvmppc_mmu_hpte_cache_next(struct kvm_vcpu *vcpu);
@@ -181,6 +183,25 @@ extern int kvmppc_mmu_hpte_sysinit(void);
 extern void kvmppc_mmu_hpte_sysexit(void);
 extern int kvmppc_mmu_hv_init(void);
 extern int kvmppc_book3s_hcall_implemented(struct kvm *kvm, unsigned long hc);
+
+extern int kvmppc_book3s_radix_page_fault(struct kvm_run *run,
+			struct kvm_vcpu *vcpu,
+			unsigned long ea, unsigned long dsisr);
+extern int kvmppc_mmu_radix_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
+			struct kvmppc_pte *gpte, bool data, bool iswrite);
+extern int kvmppc_init_vm_radix(struct kvm *kvm);
+extern void kvmppc_free_radix(struct kvm *kvm);
+extern int kvmppc_radix_init(void);
+extern void kvmppc_radix_exit(void);
+extern int kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
+			unsigned long gfn);
+extern int kvm_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
+			unsigned long gfn);
+extern int kvm_test_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
+			unsigned long gfn);
+extern long kvmppc_hv_get_dirty_log_radix(struct kvm *kvm,
+			struct kvm_memory_slot *memslot, unsigned long *map);
+extern int kvmhv_get_rmmu_info(struct kvm *kvm, struct kvm_ppc_rmmu_info *info);
 
 /* XXX remove this export when load_last_inst() is generic */
 extern int kvmppc_ld(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr, bool data);
@@ -211,8 +232,11 @@ extern long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 extern long kvmppc_do_h_remove(struct kvm *kvm, unsigned long flags,
 			unsigned long pte_index, unsigned long avpn,
 			unsigned long *hpret);
-extern long kvmppc_hv_get_dirty_log(struct kvm *kvm,
+extern long kvmppc_hv_get_dirty_log_hpt(struct kvm *kvm,
 			struct kvm_memory_slot *memslot, unsigned long *map);
+extern void kvmppc_harvest_vpa_dirty(struct kvmppc_vpa *vpa,
+			struct kvm_memory_slot *memslot,
+			unsigned long *map);
 extern void kvmppc_update_lpcr(struct kvm *kvm, unsigned long lpcr,
 			unsigned long mask);
 extern void kvmppc_set_fscr(struct kvm_vcpu *vcpu, u64 fscr);

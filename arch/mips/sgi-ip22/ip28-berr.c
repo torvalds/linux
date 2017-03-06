@@ -8,6 +8,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/seq_file.h>
 
 #include <asm/addrspace.h>

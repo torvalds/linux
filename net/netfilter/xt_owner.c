@@ -13,6 +13,8 @@
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/file.h>
+#include <linux/cred.h>
+
 #include <net/sock.h>
 #include <net/inet_sock.h>
 #include <linux/netfilter/x_tables.h>

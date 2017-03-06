@@ -26,6 +26,8 @@
 #include <linux/rtnetlink.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
+
 #include <net/llc.h>
 #include <net/llc_sap.h>
 #include <net/llc_pdu.h>

@@ -3,8 +3,8 @@ config ATH9K_HW
 config ATH9K_COMMON
 	tristate
 	select ATH_COMMON
-	select DEBUG_FS
-	select RELAY
+config ATH9K_COMMON_DEBUG
+	bool
 config ATH9K_DFS_DEBUGFS
 	def_bool y
 	depends on ATH9K_DEBUGFS && ATH9K_DFS_CERTIFIED
@@ -60,12 +60,14 @@ config ATH9K_DEBUGFS
 	bool "Atheros ath9k debugging"
 	depends on ATH9K && DEBUG_FS
 	select MAC80211_DEBUGFS
+	select ATH9K_COMMON_DEBUG
 	select RELAY
 	---help---
 	  Say Y, if you need access to ath9k's statistics for
 	  interrupts, rate control, etc.
 
 	  Also required for changing debug message flags at run time.
+	  As well as access to the FFT/spectral data and TX99.
 
 config ATH9K_STATION_STATISTICS
 	bool "Detailed station statistics"
@@ -174,8 +176,11 @@ config ATH9K_HTC
 config ATH9K_HTC_DEBUGFS
 	bool "Atheros ath9k_htc debugging"
 	depends on ATH9K_HTC && DEBUG_FS
+	select ATH9K_COMMON_DEBUG
+	select RELAY
 	---help---
 	  Say Y, if you need access to ath9k_htc's statistics.
+	  As well as access to the FFT/spectral data.
 
 config ATH9K_HWRNG
 	bool "Random number generator support"

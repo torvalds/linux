@@ -668,14 +668,14 @@ static int __init offb_init(void)
 		offb_init_nodriver(of_chosen, 1);
 	}
 
-	for (dp = NULL; (dp = of_find_node_by_type(dp, "display"));) {
+	for_each_node_by_type(dp, "display") {
 		if (of_get_property(dp, "linux,opened", NULL) &&
 		    of_get_property(dp, "linux,boot-display", NULL)) {
 			boot_disp = dp;
 			offb_init_nodriver(dp, 0);
 		}
 	}
-	for (dp = NULL; (dp = of_find_node_by_type(dp, "display"));) {
+	for_each_node_by_type(dp, "display") {
 		if (of_get_property(dp, "linux,opened", NULL) &&
 		    dp != boot_disp)
 			offb_init_nodriver(dp, 0);

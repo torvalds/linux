@@ -5,7 +5,8 @@
  * Author(s): Michael Holzheu <holzheu@de.ibm.com>
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
+#include <linux/init.h>
 #include <linux/cpu.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>

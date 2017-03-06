@@ -74,7 +74,7 @@
 static bool debug;
 static bool interface;
 
-module_param(interface, bool, S_IRUGO);
+module_param(interface, bool, 0444);
 module_param(debug, bool, 0644);
 
 /**

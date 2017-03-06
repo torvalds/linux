@@ -25,6 +25,7 @@
 
 #define PCI_DEVICE_ID_IBM_CORSA		0x04F0
 #define PCI_DEVICE_ID_IBM_FLASH_GT	0x0600
+#define PCI_DEVICE_ID_IBM_BRIARD	0x0624
 
 /* Since there is only one target, make it 0 */
 #define CXLFLASH_TARGET		0

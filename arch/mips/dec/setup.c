@@ -9,12 +9,12 @@
  * Copyright (C) 2000, 2001, 2002, 2003, 2005  Maciej W. Rozycki
  */
 #include <linux/console.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/irq.h>
 #include <linux/irqnr.h>
-#include <linux/module.h>
 #include <linux/param.h>
 #include <linux/percpu-defs.h>
 #include <linux/sched.h>

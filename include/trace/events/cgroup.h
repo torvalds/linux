@@ -61,19 +61,15 @@ DECLARE_EVENT_CLASS(cgroup,
 		__field(	int,		id			)
 		__field(	int,		level			)
 		__dynamic_array(char,		path,
-				cgrp->kn ? cgroup_path(cgrp, NULL, 0) + 1
-					 : strlen("(null)"))
+				cgroup_path(cgrp, NULL, 0) + 1)
 	),
 
 	TP_fast_assign(
 		__entry->root = cgrp->root->hierarchy_id;
 		__entry->id = cgrp->id;
 		__entry->level = cgrp->level;
-		if (cgrp->kn)
-			cgroup_path(cgrp, __get_dynamic_array(path),
-				    __get_dynamic_array_len(path));
-		else
-			__assign_str(path, "(null)");
+		cgroup_path(cgrp, __get_dynamic_array(path),
+				  __get_dynamic_array_len(path));
 	),
 
 	TP_printk("root=%d id=%d level=%d path=%s",
@@ -119,8 +115,7 @@ DECLARE_EVENT_CLASS(cgroup_migrate,
 		__field(	int,		dst_id			)
 		__field(	int,		dst_level		)
 		__dynamic_array(char,		dst_path,
-				dst_cgrp->kn ? cgroup_path(dst_cgrp, NULL, 0) + 1
-					     : strlen("(null)"))
+				cgroup_path(dst_cgrp, NULL, 0) + 1)
 		__field(	int,		pid			)
 		__string(	comm,		task->comm		)
 	),
@@ -129,11 +124,8 @@ DECLARE_EVENT_CLASS(cgroup_migrate,
 		__entry->dst_root = dst_cgrp->root->hierarchy_id;
 		__entry->dst_id = dst_cgrp->id;
 		__entry->dst_level = dst_cgrp->level;
-		if (dst_cgrp->kn)
-			cgroup_path(dst_cgrp, __get_dynamic_array(dst_path),
-				    __get_dynamic_array_len(dst_path));
-		else
-			__assign_str(dst_path, "(null)");
+		cgroup_path(dst_cgrp, __get_dynamic_array(dst_path),
+				      __get_dynamic_array_len(dst_path));
 		__entry->pid = task->pid;
 		__assign_str(comm, task->comm);
 	),

@@ -208,7 +208,18 @@
 					0x4c 0x02000022 0x0f0000ff
 				>;
 			};
-
+			vpif_capture_pins: vpif_capture_pins {
+				pinctrl-single,bits = <
+					/* VP_DIN[2..7], VP_CLKIN1, VP_CLKIN0 */
+					0x38 0x11111111 0xffffffff
+					/* VP_DIN[10..15,0..1] */
+					0x3c 0x11111111 0xffffffff
+					/* VP_DIN[8..9] */
+					0x40 0x00000011 0x000000ff
+					/* VP_CLKIN3, VP_CLKIN2 */
+					0x4c 0x00010100 0x000f0f00
+				>;
+			};
 		};
 		prictrl: priority-controller@14110 {
 			compatible = "ti,da850-mstpri";
@@ -266,22 +277,25 @@
 			interrupt-names = "edm3_tcerrint";
 		};
 		serial0: serial@42000 {
-			compatible = "ns16550a";
+			compatible = "ti,da830-uart", "ns16550a";
 			reg = <0x42000 0x100>;
+			reg-io-width = <4>;
 			reg-shift = <2>;
 			interrupts = <25>;
 			status = "disabled";
 		};
 		serial1: serial@10c000 {
-			compatible = "ns16550a";
+			compatible = "ti,da830-uart", "ns16550a";
 			reg = <0x10c000 0x100>;
+			reg-io-width = <4>;
 			reg-shift = <2>;
 			interrupts = <53>;
 			status = "disabled";
 		};
 		serial2: serial@10d000 {
-			compatible = "ns16550a";
+			compatible = "ti,da830-uart", "ns16550a";
 			reg = <0x10d000 0x100>;
+			reg-io-width = <4>;
 			reg-shift = <2>;
 			interrupts = <61>;
 			status = "disabled";
@@ -323,6 +337,18 @@
 			dmas = <&edma0 16 0>, <&edma0 17 0>;
 			dma-names = "rx", "tx";
 			status = "disabled";
+		};
+		vpif: video@217000 {
+			compatible = "ti,da850-vpif";
+			reg = <0x217000 0x1000>;
+			interrupts = <92>;
+			status = "disabled";
+
+			/* VPIF capture port */
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
 		};
 		mmc1: mmc@21b000 {
 			compatible = "ti,da830-mmc";
@@ -403,6 +429,12 @@
 			phy-names = "usb-phy";
 			status = "disabled";
 		};
+		sata: sata@218000 {
+			compatible = "ti,da850-ahci";
+			reg = <0x218000 0x2000>, <0x22c018 0x4>;
+			interrupts = <67>;
+			status = "disabled";
+		};
 		mdio: mdio@224000 {
 			compatible = "ti,davinci_mdio";
 			#address-cells = <1>;
@@ -423,6 +455,14 @@
 					35
 					36
 					>;
+			status = "disabled";
+		};
+		usb1: usb@225000 {
+			compatible = "ti,da830-ohci";
+			reg = <0x225000 0x1000>;
+			interrupts = <59>;
+			phys = <&usb_phy 1>;
+			phy-names = "usb-phy";
 			status = "disabled";
 		};
 		gpio: gpio@226000 {
@@ -458,10 +498,11 @@
 			dma-names = "tx", "rx";
 		};
 
-		display: display@213000 {
+		lcdc: display@213000 {
 			compatible = "ti,da850-tilcdc";
 			reg = <0x213000 0x1000>;
 			interrupts = <52>;
+			max-pixelclock = <37500>;
 			status = "disabled";
 		};
 	};

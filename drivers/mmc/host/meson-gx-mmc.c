@@ -35,6 +35,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/regulator/consumer.h>
+#include <linux/interrupt.h>
 
 #define DRIVER_NAME "meson-gx-mmc"
 
@@ -82,6 +83,7 @@
 #define   CFG_RC_CC_MASK 0xf
 #define   CFG_STOP_CLOCK BIT(22)
 #define   CFG_CLK_ALWAYS_ON BIT(18)
+#define   CFG_CHK_DS BIT(20)
 #define   CFG_AUTO_CLK BIT(23)
 
 #define SD_EMMC_STATUS 0x48
@@ -131,7 +133,7 @@ struct meson_host {
 	struct clk_mux mux;
 	struct clk *mux_clk;
 	struct clk *mux_parent[MUX_CLK_NUM_PARENTS];
-	unsigned long mux_parent_rate[MUX_CLK_NUM_PARENTS];
+	unsigned long current_clock;
 
 	struct clk_divider cfg_div;
 	struct clk *cfg_div_clk;
@@ -178,7 +180,7 @@ struct sd_emmc_desc {
 static int meson_mmc_clk_set(struct meson_host *host, unsigned long clk_rate)
 {
 	struct mmc_host *mmc = host->mmc;
-	int ret = 0;
+	int ret;
 	u32 cfg;
 
 	if (clk_rate) {
@@ -188,7 +190,7 @@ static int meson_mmc_clk_set(struct meson_host *host, unsigned long clk_rate)
 			clk_rate = mmc->f_min;
 	}
 
-	if (clk_rate == mmc->actual_clock)
+	if (clk_rate == host->current_clock)
 		return 0;
 
 	/* stop clock */
@@ -201,29 +203,34 @@ static int meson_mmc_clk_set(struct meson_host *host, unsigned long clk_rate)
 	dev_dbg(host->dev, "change clock rate %u -> %lu\n",
 		mmc->actual_clock, clk_rate);
 
-	if (clk_rate == 0) {
+	if (!clk_rate) {
 		mmc->actual_clock = 0;
+		host->current_clock = 0;
+		/* return with clock being stopped */
 		return 0;
 	}
 
 	ret = clk_set_rate(host->cfg_div_clk, clk_rate);
-	if (ret)
-		dev_warn(host->dev, "Unable to set cfg_div_clk to %lu. ret=%d\n",
-			 clk_rate, ret);
-	else if (clk_rate && clk_rate != clk_get_rate(host->cfg_div_clk))
-		dev_warn(host->dev, "divider requested rate %lu != actual rate %lu: ret=%d\n",
-			 clk_rate, clk_get_rate(host->cfg_div_clk), ret);
-	else
-		mmc->actual_clock = clk_rate;
-
-	/* (re)start clock, if non-zero */
-	if (!ret && clk_rate) {
-		cfg = readl(host->regs + SD_EMMC_CFG);
-		cfg &= ~CFG_STOP_CLOCK;
-		writel(cfg, host->regs + SD_EMMC_CFG);
+	if (ret) {
+		dev_err(host->dev, "Unable to set cfg_div_clk to %lu. ret=%d\n",
+			clk_rate, ret);
+		return ret;
 	}
 
-	return ret;
+	mmc->actual_clock = clk_get_rate(host->cfg_div_clk);
+	host->current_clock = clk_rate;
+
+	if (clk_rate != mmc->actual_clock)
+		dev_dbg(host->dev,
+			"divider requested rate %lu != actual rate %u\n",
+			clk_rate, mmc->actual_clock);
+
+	/* (re)start clock */
+	cfg = readl(host->regs + SD_EMMC_CFG);
+	cfg &= ~CFG_STOP_CLOCK;
+	writel(cfg, host->regs + SD_EMMC_CFG);
+
+	return 0;
 }
 
 /*
@@ -239,7 +246,6 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	const char *mux_parent_names[MUX_CLK_NUM_PARENTS];
 	unsigned int mux_parent_count = 0;
 	const char *clk_div_parents[1];
-	unsigned int f_min = UINT_MAX;
 	u32 clk_reg, cfg;
 
 	/* get the mux parents */
@@ -256,19 +262,9 @@ static int meson_mmc_clk_init(struct meson_host *host)
 			return ret;
 		}
 
-		host->mux_parent_rate[i] = clk_get_rate(host->mux_parent[i]);
 		mux_parent_names[i] = __clk_get_name(host->mux_parent[i]);
 		mux_parent_count++;
-		if (host->mux_parent_rate[i] < f_min)
-			f_min = host->mux_parent_rate[i];
 	}
-
-	/* cacluate f_min based on input clocks, and max divider value */
-	if (f_min != UINT_MAX)
-		f_min = DIV_ROUND_UP(CLK_SRC_XTAL_RATE, CLK_DIV_MAX);
-	else
-		f_min = 4000000;  /* default min: 400 MHz */
-	host->mmc->f_min = f_min;
 
 	/* create the mux */
 	snprintf(clk_name, sizeof(clk_name), "%s#mux", dev_name(host->dev));
@@ -324,9 +320,13 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	writel(cfg, host->regs + SD_EMMC_CFG);
 
 	ret = clk_prepare_enable(host->cfg_div_clk);
-	if (!ret)
-		ret = meson_mmc_clk_set(host, f_min);
+	if (ret)
+		return ret;
 
+	/* Get the nearest minimum clock to 400KHz */
+	host->mmc->f_min = clk_round_rate(host->cfg_div_clk, 400000);
+
+	ret = meson_mmc_clk_set(host, host->mmc->f_min);
 	if (!ret)
 		clk_disable_unprepare(host->cfg_div_clk);
 
@@ -378,7 +378,6 @@ static void meson_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	meson_mmc_clk_set(host, ios->clock);
 
 	/* Bus width */
-	val = readl(host->regs + SD_EMMC_CFG);
 	switch (ios->bus_width) {
 	case MMC_BUS_WIDTH_1:
 		bus_width = CFG_BUS_WIDTH_1;
@@ -393,7 +392,6 @@ static void meson_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		dev_err(host->dev, "Invalid ios->bus_width: %u.  Setting to 4.\n",
 			ios->bus_width);
 		bus_width = CFG_BUS_WIDTH_4;
-		return;
 	}
 
 	val = readl(host->regs + SD_EMMC_CFG);
@@ -410,6 +408,16 @@ static void meson_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	val &= ~(CFG_RC_CC_MASK << CFG_RC_CC_SHIFT);
 	val |= ilog2(SD_EMMC_CFG_CMD_GAP) << CFG_RC_CC_SHIFT;
+
+	val &= ~CFG_DDR;
+	if (ios->timing == MMC_TIMING_UHS_DDR50 ||
+	    ios->timing == MMC_TIMING_MMC_DDR52 ||
+	    ios->timing == MMC_TIMING_MMC_HS400)
+		val |= CFG_DDR;
+
+	val &= ~CFG_CHK_DS;
+	if (ios->timing == MMC_TIMING_MMC_HS400)
+		val |= CFG_CHK_DS;
 
 	writel(val, host->regs + SD_EMMC_CFG);
 
@@ -480,9 +488,9 @@ static void meson_mmc_start_cmd(struct mmc_host *mmc, struct mmc_command *cmd)
 			blk_len = cfg & (CFG_BLK_LEN_MASK << CFG_BLK_LEN_SHIFT);
 			blk_len >>= CFG_BLK_LEN_SHIFT;
 			if (blk_len != ilog2(cmd->data->blksz)) {
-				dev_warn(host->dev, "%s: update blk_len %d -> %d\n",
+				dev_dbg(host->dev, "%s: update blk_len %d -> %d\n",
 					__func__, blk_len,
-					 ilog2(cmd->data->blksz));
+					ilog2(cmd->data->blksz));
 				blk_len = ilog2(cmd->data->blksz);
 				cfg &= ~(CFG_BLK_LEN_MASK << CFG_BLK_LEN_SHIFT);
 				cfg |= blk_len << CFG_BLK_LEN_SHIFT;
@@ -544,11 +552,6 @@ static void meson_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	/* Stop execution */
 	writel(0, host->regs + SD_EMMC_START);
-
-	/* clear, ack, enable all interrupts */
-	writel(0, host->regs + SD_EMMC_IRQ_EN);
-	writel(IRQ_EN_MASK, host->regs + SD_EMMC_STATUS);
-	writel(IRQ_EN_MASK, host->regs + SD_EMMC_IRQ_EN);
 
 	host->mrq = mrq;
 
@@ -669,7 +672,6 @@ static irqreturn_t meson_mmc_irq_thread(int irq, void *dev_id)
 	struct mmc_command *cmd = host->cmd;
 	struct mmc_data *data;
 	unsigned int xfer_bytes;
-	int ret = IRQ_HANDLED;
 
 	if (WARN_ON(!mrq))
 		return IRQ_NONE;
@@ -678,14 +680,12 @@ static irqreturn_t meson_mmc_irq_thread(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	data = cmd->data;
-	if (data) {
+	if (data && data->flags & MMC_DATA_READ) {
 		xfer_bytes = data->blksz * data->blocks;
-		if (data->flags & MMC_DATA_READ) {
-			WARN_ON(xfer_bytes > host->bounce_buf_size);
-			sg_copy_from_buffer(data->sg, data->sg_len,
-					    host->bounce_buf, xfer_bytes);
-			data->bytes_xfered = xfer_bytes;
-		}
+		WARN_ON(xfer_bytes > host->bounce_buf_size);
+		sg_copy_from_buffer(data->sg, data->sg_len,
+				    host->bounce_buf, xfer_bytes);
+		data->bytes_xfered = xfer_bytes;
 	}
 
 	meson_mmc_read_resp(host->mmc, cmd);
@@ -694,7 +694,7 @@ static irqreturn_t meson_mmc_irq_thread(int irq, void *dev_id)
 	else
 		meson_mmc_start_cmd(host->mmc, data->stop);
 
-	return ret;
+	return IRQ_HANDLED;
 }
 
 /*
@@ -742,7 +742,8 @@ static int meson_mmc_probe(struct platform_device *pdev)
 
 	ret = mmc_of_parse(mmc);
 	if (ret) {
-		dev_warn(&pdev->dev, "error parsing DT: %d\n", ret);
+		if (ret != -EPROBE_DEFER)
+			dev_warn(&pdev->dev, "error parsing DT: %d\n", ret);
 		goto free_host;
 	}
 
@@ -780,6 +781,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	/* clear, ack, enable all interrupts */
 	writel(0, host->regs + SD_EMMC_IRQ_EN);
 	writel(IRQ_EN_MASK, host->regs + SD_EMMC_STATUS);
+	writel(IRQ_EN_MASK, host->regs + SD_EMMC_IRQ_EN);
 
 	ret = devm_request_threaded_irq(&pdev->dev, host->irq,
 					meson_mmc_irq, meson_mmc_irq_thread,
@@ -787,8 +789,11 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_host;
 
+	mmc->max_blk_count = CMD_CFG_LENGTH_MASK;
+	mmc->max_req_size = mmc->max_blk_count * mmc->max_blk_size;
+
 	/* data bounce buffer */
-	host->bounce_buf_size = SZ_512K;
+	host->bounce_buf_size = mmc->max_req_size;
 	host->bounce_buf =
 		dma_alloc_coherent(host->dev, host->bounce_buf_size,
 				   &host->bounce_dma_addr, GFP_KERNEL);
@@ -814,12 +819,11 @@ static int meson_mmc_remove(struct platform_device *pdev)
 {
 	struct meson_host *host = dev_get_drvdata(&pdev->dev);
 
-	if (WARN_ON(!host))
-		return 0;
+	/* disable interrupts */
+	writel(0, host->regs + SD_EMMC_IRQ_EN);
 
-	if (host->bounce_buf)
-		dma_free_coherent(host->dev, host->bounce_buf_size,
-				  host->bounce_buf, host->bounce_dma_addr);
+	dma_free_coherent(host->dev, host->bounce_buf_size,
+			  host->bounce_buf, host->bounce_dma_addr);
 
 	clk_disable_unprepare(host->cfg_div_clk);
 	clk_disable_unprepare(host->core_clk);

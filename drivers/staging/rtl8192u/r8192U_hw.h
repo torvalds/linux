@@ -1,18 +1,18 @@
 /*
-	This is part of rtl8187 OpenSource driver.
-	Copyright (C) Andrea Merello 2004-2005  <andrea.merello@gmail.com>
-	Released under the terms of GPL (General Public Licence)
-
-	Parts of this driver are based on the GPL part of the
-	official Realtek driver.
-	Parts of this driver are based on the rtl8180 driver skeleton
-	from Patric Schenke & Andres Salomon.
-	Parts of this driver are based on the Intel Pro Wireless
-	2100 GPL driver.
-
-	We want to thank the Authors of those projects
-	and the Ndiswrapper project Authors.
-*/
+ *	This is part of rtl8187 OpenSource driver.
+ *	Copyright (C) Andrea Merello 2004-2005  <andrea.merello@gmail.com>
+ *	Released under the terms of GPL (General Public Licence)
+ *
+ *	Parts of this driver are based on the GPL part of the
+ *	official Realtek driver.
+ *	Parts of this driver are based on the rtl8180 driver skeleton
+ *	from Patric Schenke & Andres Salomon.
+ *	Parts of this driver are based on the Intel Pro Wireless
+ *	2100 GPL driver.
+ *
+ *	We want to thank the Authors of those projects
+ *	and the Ndiswrapper project Authors.
+ */
 
 /* Mariusz Matuszek added full registers definition with Realtek's name */
 

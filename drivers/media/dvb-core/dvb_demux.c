@@ -19,7 +19,7 @@
 
 #define pr_fmt(fmt) "dvb_demux: " fmt
 
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>

@@ -112,7 +112,8 @@ lnet_selftest_init(void)
 		rc = cfs_wi_sched_create("lst_t", lnet_cpt_table(), i,
 					 nthrs, &lst_sched_test[i]);
 		if (rc) {
-			CERROR("Failed to create CPT affinity WI scheduler %d for LST\n", i);
+			CWARN("Failed to create CPU partition affinity WI scheduler %d for LST\n",
+			      i);
 			goto error;
 		}
 	}

@@ -20,7 +20,8 @@
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/kdebug.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/clock.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>

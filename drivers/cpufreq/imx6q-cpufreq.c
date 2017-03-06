@@ -53,16 +53,15 @@ static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 	freq_hz = new_freq * 1000;
 	old_freq = clk_get_rate(arm_clk) / 1000;
 
-	rcu_read_lock();
 	opp = dev_pm_opp_find_freq_ceil(cpu_dev, &freq_hz);
 	if (IS_ERR(opp)) {
-		rcu_read_unlock();
 		dev_err(cpu_dev, "failed to find OPP for %ld\n", freq_hz);
 		return PTR_ERR(opp);
 	}
 
 	volt = dev_pm_opp_get_voltage(opp);
-	rcu_read_unlock();
+	dev_pm_opp_put(opp);
+
 	volt_old = regulator_get_voltage(arm_reg);
 
 	dev_dbg(cpu_dev, "%u MHz, %ld mV --> %u MHz, %ld mV\n",
@@ -321,14 +320,15 @@ soc_opp_out:
 	 * freq_table initialised from OPP is therefore sorted in the
 	 * same order.
 	 */
-	rcu_read_lock();
 	opp = dev_pm_opp_find_freq_exact(cpu_dev,
 				  freq_table[0].frequency * 1000, true);
 	min_volt = dev_pm_opp_get_voltage(opp);
+	dev_pm_opp_put(opp);
 	opp = dev_pm_opp_find_freq_exact(cpu_dev,
 				  freq_table[--num].frequency * 1000, true);
 	max_volt = dev_pm_opp_get_voltage(opp);
-	rcu_read_unlock();
+	dev_pm_opp_put(opp);
+
 	ret = regulator_set_voltage_time(arm_reg, min_volt, max_volt);
 	if (ret > 0)
 		transition_latency += ret * 1000;

@@ -94,31 +94,25 @@
 
 &pio {
 	bl_en_pin: bl_en_pin@0 {
-		allwinner,pins = "PH6";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH6";
+		function = "gpio_in";
 	};
 
 	mmc0_cd_pin: mmc0_cd_pin@0 {
-		allwinner,pins = "PB4";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PB4";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 
 	ts_power_pin: ts_power_pin@0 {
-		allwinner,pins = "PH1";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH1";
+		function = "gpio_out";
 	};
 
 	usb0_id_detect_pin: usb0_id_detect_pin@0 {
-		allwinner,pins = "PH8";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PH8";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 };
 
@@ -136,7 +130,7 @@
 	};
 };
 
-#include "axp22x.dtsi"
+#include "axp223.dtsi"
 
 &reg_aldo1 {
 	regulator-always-on;
@@ -218,6 +212,10 @@
 
 &reg_rtc_ldo {
 	regulator-name = "vcc-rtc";
+};
+
+&cpu0 {
+	cpu-supply = <&reg_dcdc2>;
 };
 
 &r_uart {

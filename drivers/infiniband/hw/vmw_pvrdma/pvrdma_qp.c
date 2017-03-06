@@ -151,7 +151,7 @@ static int pvrdma_set_rq_size(struct pvrdma_dev *dev,
 }
 
 static int pvrdma_set_sq_size(struct pvrdma_dev *dev, struct ib_qp_cap *req_cap,
-			      enum ib_qp_type type, struct pvrdma_qp *qp)
+			      struct pvrdma_qp *qp)
 {
 	if (req_cap->max_send_wr > dev->dsr->caps.max_qp_wr ||
 	    req_cap->max_send_sge > dev->dsr->caps.max_sge) {
@@ -276,8 +276,7 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 			qp->is_kernel = true;
 
 			ret = pvrdma_set_sq_size(to_vdev(pd->device),
-						 &init_attr->cap,
-						 init_attr->qp_type, qp);
+						 &init_attr->cap, qp);
 			if (ret)
 				goto err_qp;
 

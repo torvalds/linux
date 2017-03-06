@@ -35,13 +35,13 @@
 /**
  * DOC: master and authentication
  *
- * struct &drm_master is used to track groups of clients with open
- * primary/legacy device nodes. For every struct &drm_file which has had at
+ * &struct drm_master is used to track groups of clients with open
+ * primary/legacy device nodes. For every &struct drm_file which has had at
  * least once successfully became the device master (either through the
  * SET_MASTER IOCTL, or implicitly through opening the primary device node when
  * no one else is the current master that time) there exists one &drm_master.
- * This is noted in the is_master member of &drm_file. All other clients have
- * just a pointer to the &drm_master they are associated with.
+ * This is noted in &drm_file.is_master. All other clients have just a pointer
+ * to the &drm_master they are associated with.
  *
  * In addition only one &drm_master can be the current master for a &drm_device.
  * It can be switched through the DROP_MASTER and SET_MASTER IOCTL, or
@@ -294,7 +294,7 @@ EXPORT_SYMBOL(drm_is_current_master);
 
 /**
  * drm_master_get - reference a master pointer
- * @master: struct &drm_master
+ * @master: &struct drm_master
  *
  * Increments the reference count of @master and returns a pointer to @master.
  */
@@ -322,7 +322,7 @@ static void drm_master_destroy(struct kref *kref)
 
 /**
  * drm_master_put - unreference and clear a master pointer
- * @master: pointer to a pointer of struct &drm_master
+ * @master: pointer to a pointer of &struct drm_master
  *
  * This decrements the &drm_master behind @master and sets it to NULL.
  */

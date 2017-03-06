@@ -163,6 +163,7 @@ enum tpacpi_hkey_event_t {
 	TP_HKEY_EV_HOTKEY_BASE		= 0x1001, /* first hotkey (FN+F1) */
 	TP_HKEY_EV_BRGHT_UP		= 0x1010, /* Brightness up */
 	TP_HKEY_EV_BRGHT_DOWN		= 0x1011, /* Brightness down */
+	TP_HKEY_EV_KBD_LIGHT		= 0x1012, /* Thinklight/kbd backlight */
 	TP_HKEY_EV_VOL_UP		= 0x1015, /* Volume up or unmute */
 	TP_HKEY_EV_VOL_DOWN		= 0x1016, /* Volume down or unmute */
 	TP_HKEY_EV_VOL_MUTE		= 0x1017, /* Mixer output mute */
@@ -372,11 +373,9 @@ enum led_status_t {
 	TPACPI_LED_BLINK,
 };
 
-/* Special LED class that can defer work */
+/* tpacpi LED class */
 struct tpacpi_led_classdev {
 	struct led_classdev led_classdev;
-	struct work_struct work;
-	enum led_status_t new_state;
 	int led;
 };
 
@@ -1959,7 +1958,7 @@ enum {	/* Positions of some of the keys in hotkey masks */
 	TP_ACPI_HKEY_HIBERNATE_MASK	= 1 << TP_ACPI_HOTKEYSCAN_FNF12,
 	TP_ACPI_HKEY_BRGHTUP_MASK	= 1 << TP_ACPI_HOTKEYSCAN_FNHOME,
 	TP_ACPI_HKEY_BRGHTDWN_MASK	= 1 << TP_ACPI_HOTKEYSCAN_FNEND,
-	TP_ACPI_HKEY_THNKLGHT_MASK	= 1 << TP_ACPI_HOTKEYSCAN_FNPAGEUP,
+	TP_ACPI_HKEY_KBD_LIGHT_MASK	= 1 << TP_ACPI_HOTKEYSCAN_FNPAGEUP,
 	TP_ACPI_HKEY_ZOOM_MASK		= 1 << TP_ACPI_HOTKEYSCAN_FNSPACE,
 	TP_ACPI_HKEY_VOLUP_MASK		= 1 << TP_ACPI_HOTKEYSCAN_VOLUMEUP,
 	TP_ACPI_HKEY_VOLDWN_MASK	= 1 << TP_ACPI_HOTKEYSCAN_VOLUMEDOWN,
@@ -2344,7 +2343,7 @@ static void hotkey_read_nvram(struct tp_nvram_state *n, const u32 m)
 		n->display_toggle = !!(d & TP_NVRAM_MASK_HKT_DISPLAY);
 		n->hibernate_toggle = !!(d & TP_NVRAM_MASK_HKT_HIBERNATE);
 	}
-	if (m & TP_ACPI_HKEY_THNKLGHT_MASK) {
+	if (m & TP_ACPI_HKEY_KBD_LIGHT_MASK) {
 		d = nvram_read_byte(TP_NVRAM_ADDR_THINKLIGHT);
 		n->thinklight_toggle = !!(d & TP_NVRAM_MASK_THINKLIGHT);
 	}
@@ -5084,18 +5083,27 @@ static struct ibm_struct video_driver_data = {
  * Keyboard backlight subdriver
  */
 
+static enum led_brightness kbdlight_brightness;
+static DEFINE_MUTEX(kbdlight_mutex);
+
 static int kbdlight_set_level(int level)
 {
+	int ret = 0;
+
 	if (!hkey_handle)
 		return -ENXIO;
 
+	mutex_lock(&kbdlight_mutex);
+
 	if (!acpi_evalf(hkey_handle, NULL, "MLCS", "dd", level))
-		return -EIO;
+		ret = -EIO;
+	else
+		kbdlight_brightness = level;
 
-	return 0;
+	mutex_unlock(&kbdlight_mutex);
+
+	return ret;
 }
-
-static int kbdlight_set_level_and_update(int level);
 
 static int kbdlight_get_level(void)
 {
@@ -5158,24 +5166,10 @@ static bool kbdlight_is_supported(void)
 	return status & BIT(9);
 }
 
-static void kbdlight_set_worker(struct work_struct *work)
-{
-	struct tpacpi_led_classdev *data =
-			container_of(work, struct tpacpi_led_classdev, work);
-
-	if (likely(tpacpi_lifecycle == TPACPI_LIFE_RUNNING))
-		kbdlight_set_level_and_update(data->new_state);
-}
-
-static void kbdlight_sysfs_set(struct led_classdev *led_cdev,
+static int kbdlight_sysfs_set(struct led_classdev *led_cdev,
 			enum led_brightness brightness)
 {
-	struct tpacpi_led_classdev *data =
-			container_of(led_cdev,
-				     struct tpacpi_led_classdev,
-				     led_classdev);
-	data->new_state = brightness;
-	queue_work(tpacpi_wq, &data->work);
+	return kbdlight_set_level(brightness);
 }
 
 static enum led_brightness kbdlight_sysfs_get(struct led_classdev *led_cdev)
@@ -5193,7 +5187,8 @@ static struct tpacpi_led_classdev tpacpi_led_kbdlight = {
 	.led_classdev = {
 		.name		= "tpacpi::kbd_backlight",
 		.max_brightness	= 2,
-		.brightness_set	= &kbdlight_sysfs_set,
+		.flags		= LED_BRIGHT_HW_CHANGED,
+		.brightness_set_blocking = &kbdlight_sysfs_set,
 		.brightness_get	= &kbdlight_sysfs_get,
 	}
 };
@@ -5205,7 +5200,6 @@ static int __init kbdlight_init(struct ibm_init_struct *iibm)
 	vdbg_printk(TPACPI_DBG_INIT, "initializing kbdlight subdriver\n");
 
 	TPACPI_ACPIHANDLE_INIT(hkey);
-	INIT_WORK(&tpacpi_led_kbdlight.work, kbdlight_set_worker);
 
 	if (!kbdlight_is_supported()) {
 		tp_features.kbdlight = 0;
@@ -5213,6 +5207,7 @@ static int __init kbdlight_init(struct ibm_init_struct *iibm)
 		return 1;
 	}
 
+	kbdlight_brightness = kbdlight_sysfs_get(NULL);
 	tp_features.kbdlight = 1;
 
 	rc = led_classdev_register(&tpacpi_pdev->dev,
@@ -5222,6 +5217,8 @@ static int __init kbdlight_init(struct ibm_init_struct *iibm)
 		return rc;
 	}
 
+	tpacpi_hotkey_driver_mask_set(hotkey_driver_mask |
+				      TP_ACPI_HKEY_KBD_LIGHT_MASK);
 	return 0;
 }
 
@@ -5229,7 +5226,6 @@ static void kbdlight_exit(void)
 {
 	if (tp_features.kbdlight)
 		led_classdev_unregister(&tpacpi_led_kbdlight.led_classdev);
-	flush_workqueue(tpacpi_wq);
 }
 
 static int kbdlight_set_level_and_update(int level)
@@ -5358,25 +5354,11 @@ static int light_set_status(int status)
 	return -ENXIO;
 }
 
-static void light_set_status_worker(struct work_struct *work)
-{
-	struct tpacpi_led_classdev *data =
-			container_of(work, struct tpacpi_led_classdev, work);
-
-	if (likely(tpacpi_lifecycle == TPACPI_LIFE_RUNNING))
-		light_set_status((data->new_state != TPACPI_LED_OFF));
-}
-
-static void light_sysfs_set(struct led_classdev *led_cdev,
+static int light_sysfs_set(struct led_classdev *led_cdev,
 			enum led_brightness brightness)
 {
-	struct tpacpi_led_classdev *data =
-		container_of(led_cdev,
-			     struct tpacpi_led_classdev,
-			     led_classdev);
-	data->new_state = (brightness != LED_OFF) ?
-				TPACPI_LED_ON : TPACPI_LED_OFF;
-	queue_work(tpacpi_wq, &data->work);
+	return light_set_status((brightness != LED_OFF) ?
+				TPACPI_LED_ON : TPACPI_LED_OFF);
 }
 
 static enum led_brightness light_sysfs_get(struct led_classdev *led_cdev)
@@ -5387,7 +5369,7 @@ static enum led_brightness light_sysfs_get(struct led_classdev *led_cdev)
 static struct tpacpi_led_classdev tpacpi_led_thinklight = {
 	.led_classdev = {
 		.name		= "tpacpi::thinklight",
-		.brightness_set	= &light_sysfs_set,
+		.brightness_set_blocking = &light_sysfs_set,
 		.brightness_get	= &light_sysfs_get,
 	}
 };
@@ -5403,7 +5385,6 @@ static int __init light_init(struct ibm_init_struct *iibm)
 		TPACPI_ACPIHANDLE_INIT(lght);
 	}
 	TPACPI_ACPIHANDLE_INIT(cmos);
-	INIT_WORK(&tpacpi_led_thinklight.work, light_set_status_worker);
 
 	/* light not supported on 570, 600e/x, 770e, 770x, G4x, R30, R31 */
 	tp_features.light = (cmos_handle || lght_handle) && !ledb_handle;
@@ -5437,7 +5418,6 @@ static int __init light_init(struct ibm_init_struct *iibm)
 static void light_exit(void)
 {
 	led_classdev_unregister(&tpacpi_led_thinklight.led_classdev);
-	flush_workqueue(tpacpi_wq);
 }
 
 static int light_read(struct seq_file *m)
@@ -5704,29 +5684,21 @@ static int led_set_status(const unsigned int led,
 	return rc;
 }
 
-static void led_set_status_worker(struct work_struct *work)
-{
-	struct tpacpi_led_classdev *data =
-		container_of(work, struct tpacpi_led_classdev, work);
-
-	if (likely(tpacpi_lifecycle == TPACPI_LIFE_RUNNING))
-		led_set_status(data->led, data->new_state);
-}
-
-static void led_sysfs_set(struct led_classdev *led_cdev,
+static int led_sysfs_set(struct led_classdev *led_cdev,
 			enum led_brightness brightness)
 {
 	struct tpacpi_led_classdev *data = container_of(led_cdev,
 			     struct tpacpi_led_classdev, led_classdev);
+	enum led_status_t new_state;
 
 	if (brightness == LED_OFF)
-		data->new_state = TPACPI_LED_OFF;
+		new_state = TPACPI_LED_OFF;
 	else if (tpacpi_led_state_cache[data->led] != TPACPI_LED_BLINK)
-		data->new_state = TPACPI_LED_ON;
+		new_state = TPACPI_LED_ON;
 	else
-		data->new_state = TPACPI_LED_BLINK;
+		new_state = TPACPI_LED_BLINK;
 
-	queue_work(tpacpi_wq, &data->work);
+	return led_set_status(data->led, new_state);
 }
 
 static int led_sysfs_blink_set(struct led_classdev *led_cdev,
@@ -5743,10 +5715,7 @@ static int led_sysfs_blink_set(struct led_classdev *led_cdev,
 	} else if ((*delay_on != 500) || (*delay_off != 500))
 		return -EINVAL;
 
-	data->new_state = TPACPI_LED_BLINK;
-	queue_work(tpacpi_wq, &data->work);
-
-	return 0;
+	return led_set_status(data->led, TPACPI_LED_BLINK);
 }
 
 static enum led_brightness led_sysfs_get(struct led_classdev *led_cdev)
@@ -5775,7 +5744,6 @@ static void led_exit(void)
 			led_classdev_unregister(&tpacpi_leds[i].led_classdev);
 	}
 
-	flush_workqueue(tpacpi_wq);
 	kfree(tpacpi_leds);
 }
 
@@ -5789,15 +5757,13 @@ static int __init tpacpi_init_led(unsigned int led)
 	if (!tpacpi_led_names[led])
 		return 0;
 
-	tpacpi_leds[led].led_classdev.brightness_set = &led_sysfs_set;
+	tpacpi_leds[led].led_classdev.brightness_set_blocking = &led_sysfs_set;
 	tpacpi_leds[led].led_classdev.blink_set = &led_sysfs_blink_set;
 	if (led_supported == TPACPI_LED_570)
 		tpacpi_leds[led].led_classdev.brightness_get =
 						&led_sysfs_get;
 
 	tpacpi_leds[led].led_classdev.name = tpacpi_led_names[led];
-
-	INIT_WORK(&tpacpi_leds[led].work, led_set_status_worker);
 
 	rc = led_classdev_register(&tpacpi_pdev->dev,
 				&tpacpi_leds[led].led_classdev);
@@ -9168,6 +9134,24 @@ static void tpacpi_driver_event(const unsigned int hkey_event)
 		case TP_HKEY_EV_VOL_MUTE:
 			volume_alsa_notify_change();
 		}
+	}
+	if (tp_features.kbdlight && hkey_event == TP_HKEY_EV_KBD_LIGHT) {
+		enum led_brightness brightness;
+
+		mutex_lock(&kbdlight_mutex);
+
+		/*
+		 * Check the brightness actually changed, setting the brightness
+		 * through kbdlight_set_level() also triggers this event.
+		 */
+		brightness = kbdlight_sysfs_get(NULL);
+		if (kbdlight_brightness != brightness) {
+			kbdlight_brightness = brightness;
+			led_classdev_notify_brightness_hw_changed(
+				&tpacpi_led_kbdlight.led_classdev, brightness);
+		}
+
+		mutex_unlock(&kbdlight_mutex);
 	}
 }
 

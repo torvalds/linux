@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -305,7 +305,6 @@ acpi_ex_resolve_operands(u16 opcode,
 		case ARGI_OBJECT_REF:
 		case ARGI_DEVICE_REF:
 		case ARGI_TARGETREF:	/* Allows implicit conversion rules before store */
-		case ARGI_FIXED_TARGET:	/* No implicit conversion before store to target */
 		case ARGI_SIMPLE_TARGET:	/* Name, Local, or arg - no implicit conversion  */
 		case ARGI_STORE_TARGET:
 

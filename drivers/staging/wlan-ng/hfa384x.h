@@ -1388,13 +1388,13 @@ static inline int hfa384x_drvr_getconfig16(struct hfa384x *hw, u16 rid, void *va
 
 	result = hfa384x_drvr_getconfig(hw, rid, val, sizeof(u16));
 	if (result == 0)
-		*((u16 *)val) = le16_to_cpu(*((u16 *)val));
+		le16_to_cpus(val);
 	return result;
 }
 
 static inline int hfa384x_drvr_setconfig16(struct hfa384x *hw, u16 rid, u16 val)
 {
-	u16 value = cpu_to_le16(val);
+	__le16 value = cpu_to_le16(val);
 
 	return hfa384x_drvr_setconfig(hw, rid, &value, sizeof(value));
 }

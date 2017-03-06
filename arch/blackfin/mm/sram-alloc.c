@@ -19,6 +19,8 @@
 #include <linux/spinlock.h>
 #include <linux/rtc.h>
 #include <linux/slab.h>
+#include <linux/mm_types.h>
+
 #include <asm/blackfin.h>
 #include <asm/mem_map.h>
 #include "blackfin_sram.h"

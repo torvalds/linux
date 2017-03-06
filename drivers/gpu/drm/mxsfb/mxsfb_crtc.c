@@ -46,7 +46,7 @@ static int mxsfb_set_pixel_fmt(struct mxsfb_drm_private *mxsfb)
 {
 	struct drm_crtc *crtc = &mxsfb->pipe.crtc;
 	struct drm_device *drm = crtc->dev;
-	const u32 format = crtc->primary->state->fb->pixel_format;
+	const u32 format = crtc->primary->state->fb->format->format;
 	u32 ctrl, ctrl1;
 
 	ctrl = CTRL_BYPASS_COUNT | CTRL_MASTER;

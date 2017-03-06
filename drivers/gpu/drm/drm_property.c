@@ -34,7 +34,7 @@
  * even the only way to transport metadata about the desired new modeset
  * configuration from userspace to the kernel. Properties have a well-defined
  * value range, which is enforced by the drm core. See the documentation of the
- * flags member of struct &drm_property for an overview of the different
+ * flags member of &struct drm_property for an overview of the different
  * property types and ranges.
  *
  * Properties don't store the current value directly, but need to be
@@ -42,8 +42,8 @@
  * drm_object_attach_property().
  *
  * Property values are only 64bit. To support bigger piles of data (like gamma
- * tables, color correction matrizes or large structures) a property can instead
- * point at a &drm_property_blob with that additional data
+ * tables, color correction matrices or large structures) a property can instead
+ * point at a &drm_property_blob with that additional data.
  *
  * Properties are defined by their symbolic name, userspace must keep a
  * per-object mapping from those names to the property ID used in the atomic

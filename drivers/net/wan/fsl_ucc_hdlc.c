@@ -573,7 +573,7 @@ static int ucc_hdlc_poll(struct napi_struct *napi, int budget)
 	howmany += hdlc_rx_done(priv, budget - howmany);
 
 	if (howmany < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, howmany);
 		qe_setbits32(priv->uccf->p_uccm,
 			     (UCCE_HDLC_RX_EVENTS | UCCE_HDLC_TX_EVENTS) << 16);
 	}
@@ -1175,3 +1175,4 @@ static struct platform_driver ucc_hdlc_driver = {
 };
 
 module_platform_driver(ucc_hdlc_driver);
+MODULE_LICENSE("GPL");

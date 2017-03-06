@@ -31,6 +31,7 @@
 #include "common.h"
 
 #include <linux/kthread.h>
+#include <linux/sched/task.h>
 #include <linux/ethtool.h>
 #include <linux/rtnetlink.h>
 #include <linux/if_vlan.h>
@@ -104,7 +105,7 @@ static int xenvif_poll(struct napi_struct *napi, int budget)
 	work_done = xenvif_tx_action(queue, budget);
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		xenvif_napi_schedule_or_enable_events(queue);
 	}
 

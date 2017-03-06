@@ -38,7 +38,11 @@
 #include <linux/backing-dev.h>
 #include <linux/security.h>
 #include <linux/xattr.h>
-#include <linux/fscrypto.h>
+#ifdef CONFIG_UBIFS_FS_ENCRYPTION
+#include <linux/fscrypt_supp.h>
+#else
+#include <linux/fscrypt_notsupp.h>
+#endif
 #include <linux/random.h>
 #include "ubifs-media.h"
 
@@ -1745,8 +1749,8 @@ int ubifs_update_time(struct inode *inode, struct timespec *time, int flags);
 /* dir.c */
 struct inode *ubifs_new_inode(struct ubifs_info *c, struct inode *dir,
 			      umode_t mode);
-int ubifs_getattr(struct vfsmount *mnt, struct dentry *dentry,
-		  struct kstat *stat);
+int ubifs_getattr(const struct path *path, struct kstat *stat,
+		  u32 request_mask, unsigned int flags);
 int ubifs_check_dir_empty(struct inode *dir);
 
 /* xattr.c */
@@ -1797,28 +1801,6 @@ int ubifs_decompress(const struct ubifs_info *c, const void *buf, int len,
 #include "key.h"
 
 #ifndef CONFIG_UBIFS_FS_ENCRYPTION
-#define fscrypt_set_d_op(i)
-#define fscrypt_get_ctx                 fscrypt_notsupp_get_ctx
-#define fscrypt_release_ctx             fscrypt_notsupp_release_ctx
-#define fscrypt_encrypt_page            fscrypt_notsupp_encrypt_page
-#define fscrypt_decrypt_page            fscrypt_notsupp_decrypt_page
-#define fscrypt_decrypt_bio_pages       fscrypt_notsupp_decrypt_bio_pages
-#define fscrypt_pullback_bio_page       fscrypt_notsupp_pullback_bio_page
-#define fscrypt_restore_control_page    fscrypt_notsupp_restore_control_page
-#define fscrypt_zeroout_range           fscrypt_notsupp_zeroout_range
-#define fscrypt_ioctl_set_policy	fscrypt_notsupp_ioctl_set_policy
-#define fscrypt_ioctl_get_policy	fscrypt_notsupp_ioctl_get_policy
-#define fscrypt_has_permitted_context   fscrypt_notsupp_has_permitted_context
-#define fscrypt_inherit_context         fscrypt_notsupp_inherit_context
-#define fscrypt_get_encryption_info     fscrypt_notsupp_get_encryption_info
-#define fscrypt_put_encryption_info     fscrypt_notsupp_put_encryption_info
-#define fscrypt_setup_filename          fscrypt_notsupp_setup_filename
-#define fscrypt_free_filename           fscrypt_notsupp_free_filename
-#define fscrypt_fname_encrypted_size    fscrypt_notsupp_fname_encrypted_size
-#define fscrypt_fname_alloc_buffer      fscrypt_notsupp_fname_alloc_buffer
-#define fscrypt_fname_free_buffer       fscrypt_notsupp_fname_free_buffer
-#define fscrypt_fname_disk_to_usr       fscrypt_notsupp_fname_disk_to_usr
-#define fscrypt_fname_usr_to_disk       fscrypt_notsupp_fname_usr_to_disk
 static inline int ubifs_encrypt(const struct inode *inode,
 				struct ubifs_data_node *dn,
 				unsigned int in_len, unsigned int *out_len,
@@ -1842,7 +1824,7 @@ int ubifs_decrypt(const struct inode *inode, struct ubifs_data_node *dn,
 		  unsigned int *out_len, int block);
 #endif
 
-extern struct fscrypt_operations ubifs_crypt_operations;
+extern const struct fscrypt_operations ubifs_crypt_operations;
 
 static inline bool __ubifs_crypt_is_encrypted(struct inode *inode)
 {

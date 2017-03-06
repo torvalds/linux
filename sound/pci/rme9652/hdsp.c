@@ -1510,14 +1510,14 @@ static int snd_hdsp_midi_output_close(struct snd_rawmidi_substream *substream)
 	return 0;
 }
 
-static struct snd_rawmidi_ops snd_hdsp_midi_output =
+static const struct snd_rawmidi_ops snd_hdsp_midi_output =
 {
 	.open =		snd_hdsp_midi_output_open,
 	.close =	snd_hdsp_midi_output_close,
 	.trigger =	snd_hdsp_midi_output_trigger,
 };
 
-static struct snd_rawmidi_ops snd_hdsp_midi_input =
+static const struct snd_rawmidi_ops snd_hdsp_midi_input =
 {
 	.open =		snd_hdsp_midi_input_open,
 	.close =	snd_hdsp_midi_input_close,

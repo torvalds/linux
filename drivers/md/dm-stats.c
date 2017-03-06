@@ -175,6 +175,7 @@ static void dm_stat_free(struct rcu_head *head)
 	int cpu;
 	struct dm_stat *s = container_of(head, struct dm_stat, rcu_head);
 
+	kfree(s->histogram_boundaries);
 	kfree(s->program_id);
 	kfree(s->aux_data);
 	for_each_possible_cpu(cpu) {

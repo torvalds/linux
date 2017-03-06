@@ -38,8 +38,6 @@ struct octeon_ethernet {
 	int imode;
 	/* List of outstanding tx buffers per queue */
 	struct sk_buff_head tx_free_list[16];
-	/* Device statistics */
-	struct net_device_stats stats;
 	unsigned int last_speed;
 	unsigned int last_link;
 	/* Last negotiated link state */

@@ -522,6 +522,7 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 		return;
 
 	DEBUGFS_ADD(flags);
+	DEBUGFS_ADD(aid);
 	DEBUGFS_ADD(num_ps_buf_frames);
 	DEBUGFS_ADD(last_seq_ctrl);
 	DEBUGFS_ADD(agg_status);

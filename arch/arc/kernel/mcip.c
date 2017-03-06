@@ -156,13 +156,18 @@ static void idu_set_mode(unsigned int cmn_irq, unsigned int lvl,
 	__mcip_cmd_data(CMD_IDU_SET_MODE, cmn_irq, data.word);
 }
 
-static void idu_irq_mask(struct irq_data *data)
+static void idu_irq_mask_raw(irq_hw_number_t hwirq)
 {
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&mcip_lock, flags);
-	__mcip_cmd_data(CMD_IDU_SET_MASK, data->hwirq, 1);
+	__mcip_cmd_data(CMD_IDU_SET_MASK, hwirq, 1);
 	raw_spin_unlock_irqrestore(&mcip_lock, flags);
+}
+
+static void idu_irq_mask(struct irq_data *data)
+{
+	idu_irq_mask_raw(data->hwirq);
 }
 
 static void idu_irq_unmask(struct irq_data *data)
@@ -230,14 +235,12 @@ static struct irq_chip idu_irq_chip = {
 
 };
 
-static irq_hw_number_t idu_first_hwirq;
-
 static void idu_cascade_isr(struct irq_desc *desc)
 {
 	struct irq_domain *idu_domain = irq_desc_get_handler_data(desc);
 	struct irq_chip *core_chip = irq_desc_get_chip(desc);
 	irq_hw_number_t core_hwirq = irqd_to_hwirq(irq_desc_get_irq_data(desc));
-	irq_hw_number_t idu_hwirq = core_hwirq - idu_first_hwirq;
+	irq_hw_number_t idu_hwirq = core_hwirq - FIRST_EXT_IRQ;
 
 	chained_irq_enter(core_chip, desc);
 	generic_handle_irq(irq_find_mapping(idu_domain, idu_hwirq));
@@ -252,23 +255,8 @@ static int idu_irq_map(struct irq_domain *d, unsigned int virq, irq_hw_number_t 
 	return 0;
 }
 
-static int idu_irq_xlate(struct irq_domain *d, struct device_node *n,
-			 const u32 *intspec, unsigned int intsize,
-			 irq_hw_number_t *out_hwirq, unsigned int *out_type)
-{
-	/*
-	 * Ignore value of interrupt distribution mode for common interrupts in
-	 * IDU which resides in intspec[1] since setting an affinity using value
-	 * from Device Tree is deprecated in ARC.
-	 */
-	*out_hwirq = intspec[0];
-	*out_type = IRQ_TYPE_NONE;
-
-	return 0;
-}
-
 static const struct irq_domain_ops idu_irq_ops = {
-	.xlate	= idu_irq_xlate,
+	.xlate	= irq_domain_xlate_onecell,
 	.map	= idu_irq_map,
 };
 
@@ -283,33 +271,37 @@ static int __init
 idu_of_init(struct device_node *intc, struct device_node *parent)
 {
 	struct irq_domain *domain;
-	/* Read IDU BCR to confirm nr_irqs */
-	int nr_irqs = of_irq_count(intc);
+	int nr_irqs;
 	int i, virq;
 	struct mcip_bcr mp;
+	struct mcip_idu_bcr idu_bcr;
 
 	READ_BCR(ARC_REG_MCIP_BCR, mp);
 
 	if (!mp.idu)
 		panic("IDU not detected, but DeviceTree using it");
 
-	pr_info("MCIP: IDU referenced from Devicetree %d irqs\n", nr_irqs);
+	READ_BCR(ARC_REG_MCIP_IDU_BCR, idu_bcr);
+	nr_irqs = mcip_idu_bcr_to_nr_irqs(idu_bcr);
+
+	pr_info("MCIP: IDU supports %u common irqs\n", nr_irqs);
 
 	domain = irq_domain_add_linear(intc, nr_irqs, &idu_irq_ops, NULL);
 
 	/* Parent interrupts (core-intc) are already mapped */
 
 	for (i = 0; i < nr_irqs; i++) {
+		/* Mask all common interrupts by default */
+		idu_irq_mask_raw(i);
+
 		/*
 		 * Return parent uplink IRQs (towards core intc) 24,25,.....
 		 * this step has been done before already
 		 * however we need it to get the parent virq and set IDU handler
 		 * as first level isr
 		 */
-		virq = irq_of_parse_and_map(intc, i);
-		if (!i)
-			idu_first_hwirq = irqd_to_hwirq(irq_get_irq_data(virq));
-
+		virq = irq_create_mapping(NULL, i + FIRST_EXT_IRQ);
+		BUG_ON(!virq);
 		irq_set_chained_handler_and_data(virq, idu_cascade_isr, domain);
 	}
 

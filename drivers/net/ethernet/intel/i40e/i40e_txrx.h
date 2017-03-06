@@ -52,7 +52,20 @@
  */
 #define INTRL_ENA                  BIT(6)
 #define INTRL_REG_TO_USEC(intrl) ((intrl & ~INTRL_ENA) << 2)
-#define INTRL_USEC_TO_REG(set) ((set) ? ((set) >> 2) | INTRL_ENA : 0)
+/**
+ * i40e_intrl_usec_to_reg - convert interrupt rate limit to register
+ * @intrl: interrupt rate limit to convert
+ *
+ * This function converts a decimal interrupt rate limit to the appropriate
+ * register format expected by the firmware when setting interrupt rate limit.
+ */
+static inline u16 i40e_intrl_usec_to_reg(int intrl)
+{
+	if (intrl >> 2)
+		return ((intrl >> 2) | INTRL_ENA);
+	else
+		return 0;
+}
 #define I40E_INTRL_8K              125     /* 8000 ints/sec */
 #define I40E_INTRL_62K             16      /* 62500 ints/sec */
 #define I40E_INTRL_83K             12      /* 83333 ints/sec */
@@ -240,7 +253,6 @@ struct i40e_tx_buffer {
 };
 
 struct i40e_rx_buffer {
-	struct sk_buff *skb;
 	dma_addr_t dma;
 	struct page *page;
 	unsigned int page_offset;
@@ -341,6 +353,14 @@ struct i40e_ring {
 
 	struct rcu_head rcu;		/* to avoid race on free */
 	u16 next_to_alloc;
+	struct sk_buff *skb;		/* When i40e_clean_rx_ring_irq() must
+					 * return before it sees the EOP for
+					 * the current packet, we save that skb
+					 * here and resume receiving this
+					 * packet the next time
+					 * i40e_clean_rx_ring_irq() is called
+					 * for this ring.
+					 */
 } ____cacheline_internodealigned_in_smp;
 
 enum i40e_latency_range {

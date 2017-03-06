@@ -25,7 +25,7 @@
 static void write_release_addr(u32 release_phys)
 {
 	u32 *virt = (u32 *) phys_to_virt(release_phys);
-	writel_relaxed(virt_to_phys(secondary_startup), virt);
+	writel_relaxed(__pa_symbol(secondary_startup), virt);
 	/* Make sure this store is visible to other CPUs */
 	smp_wmb();
 	__cpuc_flush_dcache_area(virt, sizeof(u32));
