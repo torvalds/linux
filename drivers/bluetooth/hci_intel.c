@@ -704,11 +704,14 @@ static int intel_setup(struct hci_uart *hu)
 	/* With this Intel bootloader only the hardware variant and device
 	 * revision information are used to select the right firmware.
 	 *
-	 * Currently this bootloader support is limited to hardware variant
-	 * iBT 3.0 (LnP/SfP) which is identified by the value 11 (0x0b).
+	 * The firmware filename is ibt-<hw_variant>-<dev_revid>.sfi.
+	 *
+	 * Currently the supported hardware variants are:
+	 *   11 (0x0b) for iBT 3.0 (LnP/SfP)
 	 */
-	snprintf(fwname, sizeof(fwname), "intel/ibt-11-%u.sfi",
-		 le16_to_cpu(params->dev_revid));
+	snprintf(fwname, sizeof(fwname), "intel/ibt-%u-%u.sfi",
+		le16_to_cpu(ver.hw_variant),
+		le16_to_cpu(params->dev_revid));
 
 	err = request_firmware(&fw, fwname, &hdev->dev);
 	if (err < 0) {
@@ -721,8 +724,9 @@ static int intel_setup(struct hci_uart *hu)
 	bt_dev_info(hdev, "Found device firmware: %s", fwname);
 
 	/* Save the DDC file name for later */
-	snprintf(fwname, sizeof(fwname), "intel/ibt-11-%u.ddc",
-		 le16_to_cpu(params->dev_revid));
+	snprintf(fwname, sizeof(fwname), "intel/ibt-%u-%u.ddc",
+		le16_to_cpu(ver.hw_variant),
+		le16_to_cpu(params->dev_revid));
 
 	kfree_skb(skb);
 
