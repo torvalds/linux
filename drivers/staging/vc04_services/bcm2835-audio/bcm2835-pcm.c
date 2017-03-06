@@ -156,8 +156,6 @@ static int snd_bcm2835_playback_open_generic(
 	alsa_stream->substream = substream;
 	alsa_stream->idx = idx;
 
-	sema_init(&alsa_stream->buffers_update_sem, 0);
-	sema_init(&alsa_stream->control_sem, 0);
 	spin_lock_init(&alsa_stream->lock);
 
 	err = bcm2835_audio_open(alsa_stream);

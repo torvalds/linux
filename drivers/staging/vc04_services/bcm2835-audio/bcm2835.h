@@ -122,8 +122,6 @@ struct bcm2835_alsa_stream {
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_indirect pcm_indirect;
 
-	struct semaphore buffers_update_sem;
-	struct semaphore control_sem;
 	spinlock_t lock;
 	volatile unsigned int control;
 	volatile unsigned int status;
