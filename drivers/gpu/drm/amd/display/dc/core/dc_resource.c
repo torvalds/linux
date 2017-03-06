@@ -1134,6 +1134,9 @@ enum dc_status resource_map_pool_resources(
 			if (!are_stream_backends_same(old_pipe_ctx->stream, stream))
 				continue;
 
+			if (old_pipe_ctx->top_pipe)
+				continue;
+
 			pipe_ctx->stream = stream;
 			copy_pipe_ctx(old_pipe_ctx, pipe_ctx);
 
