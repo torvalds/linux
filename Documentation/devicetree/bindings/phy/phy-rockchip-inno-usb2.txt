@@ -2,6 +2,7 @@ ROCKCHIP USB2.0 PHY WITH INNO IP BLOCK
 
 Required properties (phy (parent) node):
  - compatible : should be one of the listed compatibles:
+	* "rockchip,rk3328-usb2phy"
 	* "rockchip,rk3366-usb2phy"
 	* "rockchip,rk3399-usb2phy"
  - reg : the address offset of grf for usb-phy configuration.
@@ -11,6 +12,11 @@ Required properties (phy (parent) node):
 Optional properties:
  - clocks : phandle + phy specifier pair, for the input clock of phy.
  - clock-names : input clock name of phy, must be "phyclk".
+ - assigned-clocks : phandle of usb 480m clock.
+ - assigned-clock-parents : parent of usb 480m clock, select between
+		 usb-phy output 480m and xin24m.
+		 Refer to clk/clock-bindings.txt for generic clock
+		 consumer properties.
 
 Required nodes : a sub-node is required for each port the phy provides.
 		 The sub-node name is used to identify host or otg port,
