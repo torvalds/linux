@@ -55,6 +55,14 @@ static unsigned long stack_maxrandom_size(void)
 #define MIN_GAP (128*1024*1024UL + stack_maxrandom_size())
 #define MAX_GAP (TASK_SIZE/6*5)
 
+#ifdef CONFIG_COMPAT
+# define mmap32_rnd_bits  mmap_rnd_compat_bits
+# define mmap64_rnd_bits  mmap_rnd_bits
+#else
+# define mmap32_rnd_bits  mmap_rnd_bits
+# define mmap64_rnd_bits  mmap_rnd_bits
+#endif
+
 static int mmap_is_legacy(void)
 {
 	if (current->personality & ADDR_COMPAT_LAYOUT)
@@ -66,20 +74,14 @@ static int mmap_is_legacy(void)
 	return sysctl_legacy_va_layout;
 }
 
+static unsigned long arch_rnd(unsigned int rndbits)
+{
+	return (get_random_long() & ((1UL << rndbits) - 1)) << PAGE_SHIFT;
+}
+
 unsigned long arch_mmap_rnd(void)
 {
-	unsigned long rnd;
-
-	if (mmap_is_ia32())
-#ifdef CONFIG_COMPAT
-		rnd = get_random_long() & ((1UL << mmap_rnd_compat_bits) - 1);
-#else
-		rnd = get_random_long() & ((1UL << mmap_rnd_bits) - 1);
-#endif
-	else
-		rnd = get_random_long() & ((1UL << mmap_rnd_bits) - 1);
-
-	return rnd << PAGE_SHIFT;
+	return arch_rnd(mmap_is_ia32() ? mmap32_rnd_bits : mmap64_rnd_bits);
 }
 
 static unsigned long mmap_base(unsigned long rnd)
