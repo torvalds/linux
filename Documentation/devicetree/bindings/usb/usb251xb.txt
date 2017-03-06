@@ -40,26 +40,6 @@ Optional properties :
 	device connected.
  - sp-disabled-ports : Specifies the ports which will be self-power disabled
  - bp-disabled-ports : Specifies the ports which will be bus-power disabled
- - max-sp-power : Specifies the maximum current the hub consumes from an
-	upstream port when operating as self-powered hub including the power
-	consumption of a permanently attached peripheral if the hub is
-	configured as a compound device. The value is given in mA in a 0 - 500
-	range (default is 2).
- - max-bp-power : Specifies the maximum current the hub consumes from an
-	upstream port when operating as bus-powered hub including the power
-	consumption of a permanently attached peripheral if the hub is
-	configured as a compound device. The value is given in mA in a 0 - 500
-	range (default is 100).
- - max-sp-current : Specifies the maximum current the hub consumes from an
-	upstream port when operating as self-powered hub EXCLUDING the power
-	consumption of a permanently attached peripheral if the hub is
-	configured as a compound device. The value is given in mA in a 0 - 500
-	range (default is 2).
- - max-bp-current : Specifies the maximum current the hub consumes from an
-	upstream port when operating as bus-powered hub EXCLUDING the power
-	consumption of a permanently attached peripheral if the hub is
-	configured as a compound device. The value is given in mA in a 0 - 500
-	range (default is 100).
  - power-on-time : Specifies the time it takes from the time the host initiates
 	the power-on sequence to a port until the port has adequate power. The
 	value is given in ms in a 0 - 510 range (default is 100ms).
