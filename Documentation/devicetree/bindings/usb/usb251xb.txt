@@ -31,7 +31,9 @@ Optional properties :
 	(default is individual)
  - dynamic-power-switching : enable auto-switching from self- to bus-powered
 	operation if the local power source is removed or unavailable
- - oc-delay-{100us,4ms,8ms,16ms} : set over current timer delay (default is 8ms)
+ - oc-delay-us : Delay time (in microseconds) for filtering the over-current
+	sense inputs. Valid values are 100, 4000, 8000 (default) and 16000. If
+	an invalid value is given, the default is used instead.
  - compound-device : indicated the hub is part of a compound device
  - port-mapping-mode : enable port mapping mode
  - string-support : enable string descriptor support (required for manufacturer,
@@ -40,9 +42,9 @@ Optional properties :
 	device connected.
  - sp-disabled-ports : Specifies the ports which will be self-power disabled
  - bp-disabled-ports : Specifies the ports which will be bus-power disabled
- - power-on-time : Specifies the time it takes from the time the host initiates
-	the power-on sequence to a port until the port has adequate power. The
-	value is given in ms in a 0 - 510 range (default is 100ms).
+ - power-on-time-ms : Specifies the time it takes from the time the host
+	initiates the power-on sequence to a port until the port has adequate
+	power. The value is given in ms in a 0 - 510 range (default is 100ms).
 
 Examples:
 	usb2512b@2c {

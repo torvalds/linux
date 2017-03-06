@@ -375,18 +375,24 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 	if (of_get_property(np, "dynamic-power-switching", NULL))
 		hub->conf_data2 |= BIT(7);
 
-	if (of_get_property(np, "oc-delay-100us", NULL)) {
-		hub->conf_data2 &= ~BIT(5);
-		hub->conf_data2 &= ~BIT(4);
-	} else if (of_get_property(np, "oc-delay-4ms", NULL)) {
-		hub->conf_data2 &= ~BIT(5);
-		hub->conf_data2 |= BIT(4);
-	} else if (of_get_property(np, "oc-delay-8ms", NULL)) {
-		hub->conf_data2 |= BIT(5);
-		hub->conf_data2 &= ~BIT(4);
-	} else if (of_get_property(np, "oc-delay-16ms", NULL)) {
-		hub->conf_data2 |= BIT(5);
-		hub->conf_data2 |= BIT(4);
+	if (!of_property_read_u32(np, "oc-delay-us", property_u32)) {
+		if (*property_u32 == 100) {
+			/* 100 us*/
+			hub->conf_data2 &= ~BIT(5);
+			hub->conf_data2 &= ~BIT(4);
+		} else if (*property_u32 == 4000) {
+			/* 4 ms */
+			hub->conf_data2 &= ~BIT(5);
+			hub->conf_data2 |= BIT(4);
+		} else if (*property_u32 == 16000) {
+			/* 16 ms */
+			hub->conf_data2 |= BIT(5);
+			hub->conf_data2 |= BIT(4);
+		} else {
+			/* 8 ms (DEFAULT) */
+			hub->conf_data2 |= BIT(5);
+			hub->conf_data2 &= ~BIT(4);
+		}
 	}
 
 	if (of_get_property(np, "compound-device", NULL))
@@ -433,9 +439,8 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 	}
 
 	hub->power_on_time = USB251XB_DEF_POWER_ON_TIME;
-	if (!of_property_read_u32(np, "power-on-time", property_u32))
-		hub->power_on_time = min_t(u8, be32_to_cpu(*property_u32) / 2,
-					   255);
+	if (!of_property_read_u32(np, "power-on-time-ms", property_u32))
+		hub->power_on_time = min_t(u8, *property_u32 / 2, 255);
 
 	if (of_property_read_u16_array(np, "language-id", &hub->lang_id, 1))
 		hub->lang_id = USB251XB_DEF_LANGUAGE_ID;
