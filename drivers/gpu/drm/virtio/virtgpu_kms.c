@@ -175,8 +175,7 @@ int virtio_gpu_driver_load(struct drm_device *dev, unsigned long flags)
 	DRM_INFO("virgl 3d acceleration not supported by guest\n");
 #endif
 
-	ret = vgdev->vdev->config->find_vqs(vgdev->vdev, 2, vqs,
-					    callbacks, names, NULL);
+	ret = virtio_find_vqs(vgdev->vdev, 2, vqs, callbacks, names, NULL);
 	if (ret) {
 		DRM_ERROR("failed to find virt queues\n");
 		goto err_vqs;

@@ -2079,8 +2079,7 @@ static int virtnet_find_vqs(struct virtnet_info *vi)
 		names[txq2vq(i)] = vi->sq[i].name;
 	}
 
-	ret = vi->vdev->config->find_vqs(vi->vdev, total_vqs, vqs, callbacks,
-					 names, NULL);
+	ret = virtio_find_vqs(vi->vdev, total_vqs, vqs, callbacks, names, NULL);
 	if (ret)
 		goto err_find;
 
