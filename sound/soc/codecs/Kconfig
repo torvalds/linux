@@ -69,6 +69,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_DA7219 if I2C
 	select SND_SOC_DA732X if I2C
 	select SND_SOC_DA9055 if I2C
+	select SND_SOC_DIO2125
 	select SND_SOC_DMIC
 	select SND_SOC_ES8328_SPI if SPI_MASTER
 	select SND_SOC_ES8328_I2C if I2C
@@ -515,6 +516,10 @@ config SND_SOC_DA732X
 
 config SND_SOC_DA9055
 	tristate
+
+config SND_SOC_DIO2125
+	tristate "Dioo DIO2125 Amplifier"
+	select GPIOLIB
 
 config SND_SOC_DMIC
 	tristate
