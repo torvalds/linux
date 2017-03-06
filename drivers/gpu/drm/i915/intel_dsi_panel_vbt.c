@@ -518,7 +518,7 @@ static const struct drm_panel_funcs vbt_panel_funcs = {
 	.get_modes = vbt_panel_get_modes,
 };
 
-struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
+struct drm_panel *intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 {
 	struct drm_device *dev = intel_dsi->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);

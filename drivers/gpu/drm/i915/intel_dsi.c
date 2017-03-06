@@ -36,16 +36,6 @@
 #include "intel_drv.h"
 #include "intel_dsi.h"
 
-static const struct {
-	u16 panel_id;
-	struct drm_panel * (*init)(struct intel_dsi *intel_dsi, u16 panel_id);
-} intel_dsi_drivers[] = {
-	{
-		.panel_id = MIPI_DSI_GENERIC_PANEL_ID,
-		.init = vbt_panel_init,
-	},
-};
-
 /* return pixels in terms of txbyteclkhs */
 static u16 txbyteclkhs(u16 pixels, int bpp, int lane_count,
 		       u16 burst_mode_ratio)
@@ -1709,7 +1699,6 @@ void intel_dsi_init(struct drm_i915_private *dev_priv)
 	struct drm_connector *connector;
 	struct drm_display_mode *scan, *fixed_mode = NULL;
 	enum port port;
-	unsigned int i;
 
 	DRM_DEBUG_KMS("\n");
 
@@ -1816,13 +1805,7 @@ void intel_dsi_init(struct drm_i915_private *dev_priv)
 		intel_dsi->dsi_hosts[port] = host;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(intel_dsi_drivers); i++) {
-		intel_dsi->panel = intel_dsi_drivers[i].init(intel_dsi,
-							     intel_dsi_drivers[i].panel_id);
-		if (intel_dsi->panel)
-			break;
-	}
-
+	intel_dsi->panel = intel_dsi_vbt_init(intel_dsi, MIPI_DSI_GENERIC_PANEL_ID);
 	if (!intel_dsi->panel) {
 		DRM_DEBUG_KMS("no device found\n");
 		goto err;
