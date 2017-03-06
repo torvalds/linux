@@ -103,7 +103,7 @@ fake_dma_object(struct drm_i915_private *i915, u64 size)
 
 	obj = i915_gem_object_alloc(i915);
 	if (!obj)
-		return ERR_PTR(-ENOMEM);
+		goto err;
 
 	drm_gem_private_object_init(&i915->drm, &obj->base, size);
 	i915_gem_object_init(obj, &fake_ops);
@@ -114,10 +114,15 @@ fake_dma_object(struct drm_i915_private *i915, u64 size)
 
 	/* Preallocate the "backing storage" */
 	if (i915_gem_object_pin_pages(obj))
-		return ERR_PTR(-ENOMEM);
+		goto err_obj;
 
 	i915_gem_object_unpin_pages(obj);
 	return obj;
+
+err_obj:
+	i915_gem_object_put(obj);
+err:
+	return ERR_PTR(-ENOMEM);
 }
 
 static int igt_ppgtt_alloc(void *arg)
