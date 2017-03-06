@@ -81,6 +81,20 @@
 	status = "disabled";
 };
 
+&i2c1 {
+	tmp105@48 {
+		compatible = "ti,tmp105";
+		reg = <0x48>;
+		pinctrl-0 = <&tmp105_irq>;
+		pinctrl-names = "default";
+		/* kpd_row0.gpio_178 */
+		interrupts-extended = <&gpio6 18 IRQ_TYPE_EDGE_FALLING
+				       &omap4_pmx_core 0x14e>;
+		interrupt-names = "irq", "wakeup";
+		wakeup-source;
+	};
+};
+
 &keypad {
 	keypad,num-rows = <8>;
 	keypad,num-columns = <8>;
@@ -239,6 +253,13 @@
 	poweroff_gpio: pinmux_poweroff_pins {
 		pinctrl-single,pins = <
 		OMAP4_IOPAD(0x074, PIN_OUTPUT_PULLUP | MUX_MODE3)
+		>;
+	};
+
+	/* kpd_row0.gpio_178 */
+	tmp105_irq: pinmux_tmp105_irq {
+		pinctrl-single,pins = <
+		OMAP4_IOPAD(0x18e, PIN_INPUT_PULLUP | MUX_MODE3)
 		>;
 	};
 
