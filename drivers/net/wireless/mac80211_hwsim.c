@@ -350,6 +350,7 @@ static const struct ieee80211_channel hwsim_channels_5ghz[] = {
 	CHAN5G(5785), /* Channel 157 */
 	CHAN5G(5805), /* Channel 161 */
 	CHAN5G(5825), /* Channel 165 */
+	CHAN5G(5845), /* Channel 169 */
 };
 
 static const struct ieee80211_rate hwsim_rates[] = {
