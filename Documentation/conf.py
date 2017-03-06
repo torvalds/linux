@@ -58,7 +58,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'The Linux Kernel'
-copyright = '2016, The kernel development community'
+copyright = 'The kernel development community'
 author = 'The kernel development community'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -135,7 +135,7 @@ pygments_style = 'sphinx'
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
 
-primary_domain = 'C'
+primary_domain = 'c'
 highlight_language = 'none'
 
 # -- Options for HTML output ----------------------------------------------

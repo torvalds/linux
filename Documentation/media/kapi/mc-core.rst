@@ -162,13 +162,13 @@ framework provides a depth-first graph traversal API for that purpose.
    currently defined as 16.
 
 Drivers initiate a graph traversal by calling
-:c:func:`media_entity_graph_walk_start()`
+:c:func:`media_graph_walk_start()`
 
 The graph structure, provided by the caller, is initialized to start graph
 traversal at the given entity.
 
 Drivers can then retrieve the next entity by calling
-:c:func:`media_entity_graph_walk_next()`
+:c:func:`media_graph_walk_next()`
 
 When the graph traversal is complete the function will return ``NULL``.
 
@@ -206,7 +206,7 @@ Pipelines and media streams
 
 When starting streaming, drivers must notify all entities in the pipeline to
 prevent link states from being modified during streaming by calling
-:c:func:`media_entity_pipeline_start()`.
+:c:func:`media_pipeline_start()`.
 
 The function will mark all entities connected to the given entity through
 enabled links, either directly or indirectly, as streaming.
@@ -218,17 +218,17 @@ in higher-level pipeline structures and can then access the
 pipeline through the struct :c:type:`media_entity`
 pipe field.
 
-Calls to :c:func:`media_entity_pipeline_start()` can be nested.
+Calls to :c:func:`media_pipeline_start()` can be nested.
 The pipeline pointer must be identical for all nested calls to the function.
 
-:c:func:`media_entity_pipeline_start()` may return an error. In that case,
+:c:func:`media_pipeline_start()` may return an error. In that case,
 it will clean up any of the changes it did by itself.
 
 When stopping the stream, drivers must notify the entities with
-:c:func:`media_entity_pipeline_stop()`.
+:c:func:`media_pipeline_stop()`.
 
-If multiple calls to :c:func:`media_entity_pipeline_start()` have been
-made the same number of :c:func:`media_entity_pipeline_stop()` calls
+If multiple calls to :c:func:`media_pipeline_start()` have been
+made the same number of :c:func:`media_pipeline_stop()` calls
 are required to stop streaming.
 The :c:type:`media_entity`.\ ``pipe`` field is reset to ``NULL`` on the last
 nested stop call.
@@ -245,7 +245,7 @@ operation must be done with the media_device graph_mutex held.
 Link validation
 ^^^^^^^^^^^^^^^
 
-Link validation is performed by :c:func:`media_entity_pipeline_start()`
+Link validation is performed by :c:func:`media_pipeline_start()`
 for any entity which has sink pads in the pipeline. The
 :c:type:`media_entity`.\ ``link_validate()`` callback is used for that
 purpose. In ``link_validate()`` callback, entity driver should check

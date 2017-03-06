@@ -90,7 +90,6 @@ int amdgpu_vram_page_split = 1024;
 int amdgpu_exp_hw_support = 0;
 int amdgpu_sched_jobs = 32;
 int amdgpu_sched_hw_submission = 2;
-int amdgpu_powerplay = -1;
 int amdgpu_no_evict = 0;
 int amdgpu_direct_gma_size = 0;
 unsigned amdgpu_pcie_gen_cap = 0;
@@ -178,9 +177,6 @@ module_param_named(sched_jobs, amdgpu_sched_jobs, int, 0444);
 
 MODULE_PARM_DESC(sched_hw_submission, "the max number of HW submissions (default 2)");
 module_param_named(sched_hw_submission, amdgpu_sched_hw_submission, int, 0444);
-
-MODULE_PARM_DESC(powerplay, "Powerplay component (1 = enable, 0 = disable, -1 = auto (default))");
-module_param_named(powerplay, amdgpu_powerplay, int, 0444);
 
 MODULE_PARM_DESC(ppfeaturemask, "all power features enabled (default))");
 module_param_named(ppfeaturemask, amdgpu_pp_feature_mask, int, 0444);
@@ -686,7 +682,6 @@ static struct drm_driver kms_driver = {
 	    DRIVER_USE_AGP |
 	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM |
 	    DRIVER_PRIME | DRIVER_RENDER | DRIVER_MODESET,
-	.dev_priv_size = 0,
 	.load = amdgpu_driver_load_kms,
 	.open = amdgpu_driver_open_kms,
 	.preclose = amdgpu_driver_preclose_kms,
@@ -701,7 +696,6 @@ static struct drm_driver kms_driver = {
 	.get_scanout_position = amdgpu_get_crtc_scanoutpos,
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = amdgpu_debugfs_init,
-	.debugfs_cleanup = amdgpu_debugfs_cleanup,
 #endif
 	.irq_preinstall = amdgpu_irq_preinstall,
 	.irq_postinstall = amdgpu_irq_postinstall,

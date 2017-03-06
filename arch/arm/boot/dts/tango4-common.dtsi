@@ -97,6 +97,52 @@
 			clocks = <&xtal>;
 		};
 
+		mmc0: mmc@21000 {
+			compatible = "arasan,sdhci-8.9a";
+			reg = <0x21000 0x200>;
+			clock-names = "clk_xin", "clk_ahb";
+			clocks = <&clkgen SDIO_CLK>, <&clkgen SYS_CLK>;
+			interrupts = <60 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		mmc1: mmc@21200 {
+			compatible = "arasan,sdhci-8.9a";
+			reg = <0x21200 0x200>;
+			clock-names = "clk_xin", "clk_ahb";
+			clocks = <&clkgen SDIO_CLK>, <&clkgen SYS_CLK>;
+			interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		usb0: usb@21400 {
+			compatible = "chipidea,usb2";
+			reg = <0x21400 0x200>;
+			interrupts = <40 IRQ_TYPE_LEVEL_HIGH>;
+			phys = <&usb0_phy>;
+			phy-names = "usb-phy";
+		};
+
+		usb0_phy: phy@21700 {
+			compatible = "sigma,smp8642-usb-phy";
+			reg = <0x21700 0x100>;
+			#phy-cells = <0>;
+			clocks = <&clkgen USB_CLK>;
+		};
+
+		usb1: usb@25400 {
+			compatible = "chipidea,usb2";
+			reg = <0x25400 0x200>;
+			interrupts = <7 IRQ_TYPE_LEVEL_HIGH>;
+			phys = <&usb1_phy>;
+			phy-names = "usb-phy";
+		};
+
+		usb1_phy: phy@25700 {
+			compatible = "sigma,smp8642-usb-phy";
+			reg = <0x25700 0x100>;
+			#phy-cells = <0>;
+			clocks = <&clkgen USB_CLK>;
+		};
+
 		eth0: ethernet@26000 {
 			compatible = "sigma,smp8734-ethernet";
 			reg = <0x26000 0x800>;

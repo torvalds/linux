@@ -8,6 +8,7 @@
 #include <linux/stat.h>
 #include <linux/sysctl.h>
 #include <linux/slab.h>
+#include <linux/cred.h>
 #include <linux/hash.h>
 #include <linux/user_namespace.h>
 
@@ -57,7 +58,7 @@ static struct ctl_table_root set_root = {
 
 static int zero = 0;
 static int int_max = INT_MAX;
-#define UCOUNT_ENTRY(name) 				\
+#define UCOUNT_ENTRY(name)				\
 	{						\
 		.procname	= name,			\
 		.maxlen		= sizeof(int),		\
@@ -74,6 +75,10 @@ static struct ctl_table user_table[] = {
 	UCOUNT_ENTRY("max_net_namespaces"),
 	UCOUNT_ENTRY("max_mnt_namespaces"),
 	UCOUNT_ENTRY("max_cgroup_namespaces"),
+#ifdef CONFIG_INOTIFY_USER
+	UCOUNT_ENTRY("max_inotify_instances"),
+	UCOUNT_ENTRY("max_inotify_watches"),
+#endif
 	{ }
 };
 #endif /* CONFIG_SYSCTL */

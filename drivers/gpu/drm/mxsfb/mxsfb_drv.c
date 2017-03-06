@@ -218,7 +218,7 @@ static int mxsfb_load(struct drm_device *drm, unsigned long flags)
 
 	drm_kms_helper_poll_init(drm);
 
-	mxsfb->fbdev = drm_fbdev_cma_init(drm, 32, drm->mode_config.num_crtc,
+	mxsfb->fbdev = drm_fbdev_cma_init(drm, 32,
 					  drm->mode_config.num_connector);
 	if (IS_ERR(mxsfb->fbdev)) {
 		mxsfb->fbdev = NULL;
@@ -395,8 +395,8 @@ static int mxsfb_probe(struct platform_device *pdev)
 		pdev->id_entry = of_id->data;
 
 	drm = drm_dev_alloc(&mxsfb_driver, &pdev->dev);
-	if (!drm)
-		return -ENOMEM;
+	if (IS_ERR(drm))
+		return PTR_ERR(drm);
 
 	ret = mxsfb_load(drm, 0);
 	if (ret)

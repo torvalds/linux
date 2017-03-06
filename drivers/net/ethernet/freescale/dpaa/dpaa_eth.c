@@ -313,8 +313,8 @@ static void dpaa_tx_timeout(struct net_device *net_dev)
 /* Calculates the statistics for the given device by adding the statistics
  * collected by each CPU.
  */
-static struct rtnl_link_stats64 *dpaa_get_stats64(struct net_device *net_dev,
-						  struct rtnl_link_stats64 *s)
+static void dpaa_get_stats64(struct net_device *net_dev,
+			     struct rtnl_link_stats64 *s)
 {
 	int numstats = sizeof(struct rtnl_link_stats64) / sizeof(u64);
 	struct dpaa_priv *priv = netdev_priv(net_dev);
@@ -332,8 +332,6 @@ static struct rtnl_link_stats64 *dpaa_get_stats64(struct net_device *net_dev,
 		for (j = 0; j < numstats; j++)
 			netstats[j] += cpustats[j];
 	}
-
-	return s;
 }
 
 static struct mac_device *dpaa_mac_dev_get(struct platform_device *pdev)
@@ -2003,7 +2001,7 @@ static int dpaa_eth_poll(struct napi_struct *napi, int budget)
 	int cleaned = qman_p_poll_dqrr(np->p, budget);
 
 	if (cleaned < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, cleaned);
 		qman_p_irqsource_add(np->p, QM_PIRQ_DQRI);
 
 	} else if (np->down) {
@@ -2335,6 +2333,13 @@ static int dpaa_eth_stop(struct net_device *net_dev)
 	return err;
 }
 
+static int dpaa_ioctl(struct net_device *net_dev, struct ifreq *rq, int cmd)
+{
+	if (!net_dev->phydev)
+		return -EINVAL;
+	return phy_mii_ioctl(net_dev->phydev, rq, cmd);
+}
+
 static const struct net_device_ops dpaa_ops = {
 	.ndo_open = dpaa_open,
 	.ndo_start_xmit = dpaa_start_xmit,
@@ -2344,6 +2349,7 @@ static const struct net_device_ops dpaa_ops = {
 	.ndo_set_mac_address = dpaa_set_mac_address,
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_set_rx_mode = dpaa_set_rx_mode,
+	.ndo_do_ioctl = dpaa_ioctl,
 };
 
 static int dpaa_napi_add(struct net_device *net_dev)

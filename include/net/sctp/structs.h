@@ -82,7 +82,6 @@ struct sctp_outq;
 struct sctp_bind_addr;
 struct sctp_ulpq;
 struct sctp_ep_common;
-struct sctp_ssnmap;
 struct crypto_shash;
 
 
@@ -375,56 +374,24 @@ typedef struct sctp_sender_hb_info {
 	union sctp_addr daddr;
 	unsigned long sent_at;
 	__u64 hb_nonce;
-} __packed sctp_sender_hb_info_t;
+} sctp_sender_hb_info_t;
 
-/*
- *  RFC 2960 1.3.2 Sequenced Delivery within Streams
- *
- *  The term "stream" is used in SCTP to refer to a sequence of user
- *  messages that are to be delivered to the upper-layer protocol in
- *  order with respect to other messages within the same stream.  This is
- *  in contrast to its usage in TCP, where it refers to a sequence of
- *  bytes (in this document a byte is assumed to be eight bits).
- *  ...
- *
- *  This is the structure we use to track both our outbound and inbound
- *  SSN, or Stream Sequence Numbers.
- */
-
-struct sctp_stream {
-	__u16 *ssn;
-	unsigned int len;
-};
-
-struct sctp_ssnmap {
-	struct sctp_stream in;
-	struct sctp_stream out;
-};
-
-struct sctp_ssnmap *sctp_ssnmap_new(__u16 in, __u16 out,
-				    gfp_t gfp);
-void sctp_ssnmap_free(struct sctp_ssnmap *map);
-void sctp_ssnmap_clear(struct sctp_ssnmap *map);
+struct sctp_stream *sctp_stream_new(__u16 incnt, __u16 outcnt, gfp_t gfp);
+void sctp_stream_free(struct sctp_stream *stream);
+void sctp_stream_clear(struct sctp_stream *stream);
 
 /* What is the current SSN number for this stream? */
-static inline __u16 sctp_ssn_peek(struct sctp_stream *stream, __u16 id)
-{
-	return stream->ssn[id];
-}
+#define sctp_ssn_peek(stream, type, sid) \
+	((stream)->type[sid].ssn)
 
 /* Return the next SSN number for this stream.	*/
-static inline __u16 sctp_ssn_next(struct sctp_stream *stream, __u16 id)
-{
-	return stream->ssn[id]++;
-}
+#define sctp_ssn_next(stream, type, sid) \
+	((stream)->type[sid].ssn++)
 
 /* Skip over this ssn and all below. */
-static inline void sctp_ssn_skip(struct sctp_stream *stream, __u16 id, 
-				 __u16 ssn)
-{
-	stream->ssn[id] = ssn+1;
-}
-              
+#define sctp_ssn_skip(stream, type, sid, ssn) \
+	((stream)->type[sid].ssn = ssn + 1)
+
 /*
  * Pointers to address related SCTP functions.
  * (i.e. things that depend on the address family.)
@@ -530,6 +497,7 @@ struct sctp_datamsg {
 	/* Did the messenge fail to send? */
 	int send_error;
 	u8 send_failed:1,
+	   force_delay:1,
 	   can_delay;	    /* should this message be Nagle delayed */
 };
 
@@ -722,10 +690,9 @@ struct sctp_packet {
 	    ipfragok:1;		/* So let ip fragment this packet */
 };
 
-struct sctp_packet *sctp_packet_init(struct sctp_packet *,
-				     struct sctp_transport *,
-				     __u16 sport, __u16 dport);
-struct sctp_packet *sctp_packet_config(struct sctp_packet *, __u32 vtag, int);
+void sctp_packet_init(struct sctp_packet *, struct sctp_transport *,
+		      __u16 sport, __u16 dport);
+void sctp_packet_config(struct sctp_packet *, __u32 vtag, int);
 sctp_xmit_t sctp_packet_transmit_chunk(struct sctp_packet *,
 				       struct sctp_chunk *, int, gfp_t);
 sctp_xmit_t sctp_packet_append_chunk(struct sctp_packet *,
@@ -838,6 +805,8 @@ struct sctp_transport {
 
 	__u32 burst_limited;	/* Holds old cwnd when max.burst is applied */
 
+	__u32 dst_pending_confirm;	/* need to confirm neighbour */
+
 	/* Destination */
 	struct dst_entry *dst;
 	/* Source address. */
@@ -911,6 +880,9 @@ struct sctp_transport {
 	/* Timer to handle ICMP proto unreachable envets */
 	struct timer_list proto_unreach_timer;
 
+	/* Timer to handler reconf chunk rtx */
+	struct timer_list reconf_timer;
+
 	/* Since we're using per-destination retransmission timers
 	 * (see above), we're also using per-destination "transmitted"
 	 * queues.  This probably ought to be a private struct
@@ -969,6 +941,7 @@ void sctp_transport_pmtu(struct sctp_transport *, struct sock *sk);
 void sctp_transport_free(struct sctp_transport *);
 void sctp_transport_reset_t3_rtx(struct sctp_transport *);
 void sctp_transport_reset_hb_timer(struct sctp_transport *);
+void sctp_transport_reset_reconf_timer(struct sctp_transport *transport);
 int sctp_transport_hold(struct sctp_transport *);
 void sctp_transport_put(struct sctp_transport *);
 void sctp_transport_update_rto(struct sctp_transport *, __u32);
@@ -980,6 +953,8 @@ unsigned long sctp_transport_timeout(struct sctp_transport *);
 void sctp_transport_reset(struct sctp_transport *);
 void sctp_transport_update_pmtu(struct sock *, struct sctp_transport *, u32);
 void sctp_transport_immediate_rtx(struct sctp_transport *);
+void sctp_transport_dst_release(struct sctp_transport *t);
+void sctp_transport_dst_confirm(struct sctp_transport *t);
 
 
 /* This is the structure we use to queue packets as they come into
@@ -1285,7 +1260,10 @@ struct sctp_endpoint {
 	struct list_head endpoint_shared_keys;
 	__u16 active_key_id;
 	__u8  auth_enable:1,
-	      prsctp_enable:1;
+	      prsctp_enable:1,
+	      reconf_enable:1;
+
+	__u8  strreset_enable;
 };
 
 /* Recover the outter endpoint structure. */
@@ -1331,6 +1309,25 @@ struct sctp_inithdr_host {
 	__u16 num_inbound_streams;
 	__u32 initial_tsn;
 };
+
+struct sctp_stream_out {
+	__u16	ssn;
+	__u8	state;
+};
+
+struct sctp_stream_in {
+	__u16	ssn;
+};
+
+struct sctp_stream {
+	struct sctp_stream_out *out;
+	struct sctp_stream_in *in;
+	__u16 outcnt;
+	__u16 incnt;
+};
+
+#define SCTP_STREAM_CLOSED		0x00
+#define SCTP_STREAM_OPEN		0x01
 
 /* SCTP_GET_ASSOC_STATS counters */
 struct sctp_priv_assoc_stats {
@@ -1519,6 +1516,7 @@ struct sctp_association {
 			hostname_address:1, /* Peer understands DNS addresses? */
 			asconf_capable:1,   /* Does peer support ADDIP? */
 			prsctp_capable:1,   /* Can peer do PR-SCTP? */
+			reconf_capable:1,   /* Can peer do RE-CONFIG? */
 			auth_capable:1;     /* Is peer doing SCTP-AUTH? */
 
 		/* sack_needed : This flag indicates if the next received
@@ -1747,8 +1745,8 @@ struct sctp_association {
 	/* Default receive parameters */
 	__u32 default_rcv_context;
 
-	/* This tracks outbound ssn for a given stream.	 */
-	struct sctp_ssnmap *ssnmap;
+	/* Stream arrays */
+	struct sctp_stream *stream;
 
 	/* All outbound chunks go through this structure.  */
 	struct sctp_outq outqueue;
@@ -1878,7 +1876,16 @@ struct sctp_association {
 
 	__u8 need_ecne:1,	/* Need to send an ECNE Chunk? */
 	     temp:1,		/* Is it a temporary association? */
-	     prsctp_enable:1;
+	     prsctp_enable:1,
+	     reconf_enable:1;
+
+	__u8 strreset_enable;
+	__u8 strreset_outstanding; /* request param count on the fly */
+
+	__u32 strreset_outseq; /* Update after receiving response */
+	__u32 strreset_inseq; /* Update after receiving request */
+
+	struct sctp_chunk *strreset_chunk; /* save request chunk */
 
 	struct sctp_priv_assoc_stats stats;
 

@@ -1166,7 +1166,7 @@ static int reiserfs_parse_options(struct super_block *s,
 			if (!strcmp(arg, "auto")) {
 				/* From JFS code, to auto-get the size. */
 				*blocks =
-				    s->s_bdev->bd_inode->i_size >> s->
+				    i_size_read(s->s_bdev->bd_inode) >> s->
 				    s_blocksize_bits;
 			} else {
 				*blocks = simple_strtoul(arg, &p, 0);

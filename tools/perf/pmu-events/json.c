@@ -49,7 +49,7 @@ static char *mapfile(const char *fn, size_t *size)
 	int err;
 	int fd = open(fn, O_RDONLY);
 
-	if (fd < 0 && verbose && fn) {
+	if (fd < 0 && verbose > 0 && fn) {
 		pr_err("Error opening events file '%s': %s\n", fn,
 				strerror(errno));
 	}

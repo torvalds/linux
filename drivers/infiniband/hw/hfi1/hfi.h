@@ -356,12 +356,11 @@ struct hfi1_packet {
 	u64 rhf;
 	u32 maxcnt;
 	u32 rhqoff;
-	u32 hdrqtail;
-	int numpkt;
 	u16 tlen;
-	u16 hlen;
 	s16 etail;
-	u16 rsize;
+	u8 hlen;
+	u8 numpkt;
+	u8 rsize;
 	u8 updegr;
 	u8 rcv_flags;
 	u8 etype;
@@ -1584,6 +1583,11 @@ static inline struct hfi1_ibport *to_iport(struct ib_device *ibdev, u8 port)
 	return &dd->pport[pidx].ibport_data;
 }
 
+static inline struct hfi1_ibport *rcd_to_iport(struct hfi1_ctxtdata *rcd)
+{
+	return &rcd->ppd->ibport_data;
+}
+
 void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 			       bool do_cnp);
 static inline bool process_ecn(struct rvt_qp *qp, struct hfi1_packet *pkt,
@@ -1793,8 +1797,6 @@ int kdeth_process_expected(struct hfi1_packet *packet);
 int kdeth_process_eager(struct hfi1_packet *packet);
 int process_receive_invalid(struct hfi1_packet *packet);
 
-void update_sge(struct rvt_sge_state *ss, u32 length);
-
 /* global module parameter variables */
 extern unsigned int hfi1_max_mtu;
 extern unsigned int hfi1_cu;
@@ -1938,6 +1940,10 @@ static inline u64 hfi1_pkt_base_sdma_integrity(struct hfi1_devdata *dd)
 
 #define dd_dev_info(dd, fmt, ...) \
 	dev_info(&(dd)->pcidev->dev, "%s: " fmt, \
+			get_unit_name((dd)->unit), ##__VA_ARGS__)
+
+#define dd_dev_info_ratelimited(dd, fmt, ...) \
+	dev_info_ratelimited(&(dd)->pcidev->dev, "%s: " fmt, \
 			get_unit_name((dd)->unit), ##__VA_ARGS__)
 
 #define dd_dev_dbg(dd, fmt, ...) \

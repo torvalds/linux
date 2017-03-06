@@ -42,8 +42,8 @@ struct arch_uprobe {
 };
 
 struct arch_uprobe_task {
-	u32 saved_tpc;
-	u32 saved_tnpc;
+	u64 saved_tpc;
+	u64 saved_tnpc;
 };
 
 struct task_struct;

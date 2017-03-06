@@ -30,6 +30,7 @@
 #include <linux/smp.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/atomic.h>
 #include <linux/bitops.h>
 #include <linux/completion.h>
@@ -311,7 +312,7 @@ EXPORT_SYMBOL_GPL(torture_random);
 /*
  * Variables for shuffling.  The idea is to ensure that each CPU stays
  * idle for an extended period to test interactions with dyntick idle,
- * as well as interactions with any per-CPU varibles.
+ * as well as interactions with any per-CPU variables.
  */
 struct shuffle_task {
 	struct list_head st_l;

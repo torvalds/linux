@@ -7,6 +7,7 @@ Required properties:
 - compatible : must be "marvell,armada-370-corediv-clock",
 		       "marvell,armada-375-corediv-clock",
 		       "marvell,armada-380-corediv-clock",
+                       "marvell,mv98dx3236-corediv-clock",
 
 - reg : must be the register address of Core Divider control register
 - #clock-cells : from common clock binding; shall be set to 1

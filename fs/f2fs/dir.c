@@ -207,9 +207,13 @@ static struct f2fs_dir_entry *find_in_level(struct inode *dir,
 		f2fs_put_page(dentry_page, 0);
 	}
 
-	if (!de && room && F2FS_I(dir)->chash != namehash) {
-		F2FS_I(dir)->chash = namehash;
-		F2FS_I(dir)->clevel = level;
+	/* This is to increase the speed of f2fs_create */
+	if (!de && room) {
+		F2FS_I(dir)->task = current;
+		if (F2FS_I(dir)->chash != namehash) {
+			F2FS_I(dir)->chash = namehash;
+			F2FS_I(dir)->clevel = level;
+		}
 	}
 
 	return de;
@@ -268,7 +272,10 @@ struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
 
 	err = fscrypt_setup_filename(dir, child, 1, &fname);
 	if (err) {
-		*res_page = ERR_PTR(err);
+		if (err == -ENOENT)
+			*res_page = NULL;
+		else
+			*res_page = ERR_PTR(err);
 		return NULL;
 	}
 
@@ -545,8 +552,10 @@ int f2fs_add_regular_entry(struct inode *dir, const struct qstr *new_name,
 
 start:
 #ifdef CONFIG_F2FS_FAULT_INJECTION
-	if (time_to_inject(F2FS_I_SB(dir), FAULT_DIR_DEPTH))
+	if (time_to_inject(F2FS_I_SB(dir), FAULT_DIR_DEPTH)) {
+		f2fs_show_injection_info(FAULT_DIR_DEPTH);
 		return -ENOSPC;
+	}
 #endif
 	if (unlikely(current_depth == MAX_DIR_HASH_DEPTH))
 		return -ENOSPC;
@@ -643,14 +652,34 @@ int __f2fs_add_link(struct inode *dir, const struct qstr *name,
 				struct inode *inode, nid_t ino, umode_t mode)
 {
 	struct fscrypt_name fname;
+	struct page *page = NULL;
+	struct f2fs_dir_entry *de = NULL;
 	int err;
 
 	err = fscrypt_setup_filename(dir, name, 0, &fname);
 	if (err)
 		return err;
 
-	err = __f2fs_do_add_link(dir, &fname, inode, ino, mode);
-
+	/*
+	 * An immature stakable filesystem shows a race condition between lookup
+	 * and create. If we have same task when doing lookup and create, it's
+	 * definitely fine as expected by VFS normally. Otherwise, let's just
+	 * verify on-disk dentry one more time, which guarantees filesystem
+	 * consistency more.
+	 */
+	if (current != F2FS_I(dir)->task) {
+		de = __f2fs_find_entry(dir, &fname, &page);
+		F2FS_I(dir)->task = NULL;
+	}
+	if (de) {
+		f2fs_dentry_kunmap(dir, page);
+		f2fs_put_page(page, 0);
+		err = -EEXIST;
+	} else if (IS_ERR(page)) {
+		err = PTR_ERR(page);
+	} else {
+		err = __f2fs_do_add_link(dir, &fname, inode, ino, mode);
+	}
 	fscrypt_free_filename(&fname);
 	return err;
 }

@@ -10,6 +10,7 @@
  *  (C) 1991  Linus Torvalds - minix filesystem
  */
 #include <linux/sched.h>
+#include <linux/cred.h>
 #include <linux/gfp.h>
 #include "affs.h"
 
@@ -69,7 +70,7 @@ struct inode *affs_iget(struct super_block *sb, unsigned long ino)
 	if (affs_test_opt(sbi->s_flags, SF_SETMODE))
 		inode->i_mode = sbi->s_mode;
 	else
-		inode->i_mode = prot_to_mode(prot);
+		inode->i_mode = affs_prot_to_mode(prot);
 
 	id = be16_to_cpu(tail->uid);
 	if (id == 0 || affs_test_opt(sbi->s_flags, SF_SETUID))
@@ -184,11 +185,12 @@ affs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	}
 	tail = AFFS_TAIL(sb, bh);
 	if (tail->stype == cpu_to_be32(ST_ROOT)) {
-		secs_to_datestamp(inode->i_mtime.tv_sec,&AFFS_ROOT_TAIL(sb, bh)->root_change);
+		affs_secs_to_datestamp(inode->i_mtime.tv_sec,
+				       &AFFS_ROOT_TAIL(sb, bh)->root_change);
 	} else {
 		tail->protect = cpu_to_be32(AFFS_I(inode)->i_protect);
 		tail->size = cpu_to_be32(inode->i_size);
-		secs_to_datestamp(inode->i_mtime.tv_sec,&tail->change);
+		affs_secs_to_datestamp(inode->i_mtime.tv_sec, &tail->change);
 		if (!(inode->i_ino == AFFS_SB(sb)->s_root_block)) {
 			uid = i_uid_read(inode);
 			gid = i_gid_read(inode);
@@ -249,7 +251,7 @@ affs_notify_change(struct dentry *dentry, struct iattr *attr)
 	mark_inode_dirty(inode);
 
 	if (attr->ia_valid & ATTR_MODE)
-		mode_to_prot(inode);
+		affs_mode_to_prot(inode);
 out:
 	return error;
 }

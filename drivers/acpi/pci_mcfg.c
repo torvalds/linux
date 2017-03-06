@@ -195,11 +195,10 @@ int pci_mcfg_lookup(struct acpi_pci_root *root, struct resource *cfgres,
 		goto skip_lookup;
 
 	/*
-	 * We expect exact match, unless MCFG entry end bus covers more than
-	 * specified by caller.
+	 * We expect the range in bus_res in the coverage of MCFG bus range.
 	 */
 	list_for_each_entry(e, &pci_mcfg_list, list) {
-		if (e->segment == seg && e->bus_start == bus_res->start &&
+		if (e->segment == seg && e->bus_start <= bus_res->start &&
 		    e->bus_end >= bus_res->end) {
 			root->mcfg_addr = e->addr;
 		}

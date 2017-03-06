@@ -223,6 +223,13 @@ static int mn88473_set_frontend(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
+	/* PLP */
+	if (c->delivery_system == SYS_DVBT2) {
+		ret = regmap_write(dev->regmap[2], 0x36, c->stream_id);
+		if (ret)
+			goto err;
+	}
+
 	/* Reset FSM */
 	ret = regmap_write(dev->regmap[2], 0xf8, 0x9f);
 	if (ret)
@@ -592,7 +599,8 @@ static const struct dvb_frontend_ops mn88473_ops = {
 			FE_CAN_GUARD_INTERVAL_AUTO     |
 			FE_CAN_HIERARCHY_AUTO          |
 			FE_CAN_MUTE_TS                 |
-			FE_CAN_2G_MODULATION
+			FE_CAN_2G_MODULATION           |
+			FE_CAN_MULTISTREAM
 	},
 
 	.get_tune_settings = mn88473_get_tune_settings,

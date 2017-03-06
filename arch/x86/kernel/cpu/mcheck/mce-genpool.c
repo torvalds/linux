@@ -72,7 +72,7 @@ struct llist_node *mce_gen_pool_prepare_records(void)
 	return new_head.first;
 }
 
-void mce_gen_pool_process(void)
+void mce_gen_pool_process(struct work_struct *__unused)
 {
 	struct llist_node *head;
 	struct mce_evt_llist *node, *tmp;

@@ -43,6 +43,7 @@
 #include <ttm/ttm_placement.h>
 #include <ttm/ttm_module.h>
 
+#include <drm/drm_encoder.h>
 #include <drm/drm_gem.h>
 
 /* just for ttm_validate_buffer */
@@ -241,9 +242,7 @@ void qxl_debugfs_remove_files(struct qxl_device *qdev);
 struct qxl_device;
 
 struct qxl_device {
-	struct device			*dev;
-	struct drm_device		*ddev;
-	struct pci_dev			*pdev;
+	struct drm_device ddev;
 	unsigned long flags;
 
 	resource_size_t vram_base, vram_size;
@@ -335,8 +334,9 @@ __printf(2,3) void qxl_io_log(struct qxl_device *qdev, const char *fmt, ...);
 extern const struct drm_ioctl_desc qxl_ioctls[];
 extern int qxl_max_ioctl;
 
-int qxl_driver_load(struct drm_device *dev, unsigned long flags);
-int qxl_driver_unload(struct drm_device *dev);
+int qxl_device_init(struct qxl_device *qdev, struct drm_driver *drv,
+		    struct pci_dev *pdev, unsigned long flags);
+void qxl_device_fini(struct qxl_device *qdev);
 
 int qxl_modeset_init(struct qxl_device *qdev);
 void qxl_modeset_fini(struct qxl_device *qdev);
@@ -530,6 +530,7 @@ int qxl_garbage_collect(struct qxl_device *qdev);
 
 int qxl_debugfs_init(struct drm_minor *minor);
 void qxl_debugfs_takedown(struct drm_minor *minor);
+int qxl_ttm_debugfs_init(struct qxl_device *qdev);
 
 /* qxl_prime.c */
 int qxl_gem_prime_pin(struct drm_gem_object *obj);
