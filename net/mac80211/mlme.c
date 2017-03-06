@@ -2823,15 +2823,15 @@ static void ieee80211_get_rates(struct ieee80211_supported_band *sband,
 			*have_higher_than_11mbit = true;
 
 		/*
-		 * BSS_MEMBERSHIP_SELECTOR_HT_PHY is defined in 802.11n-2009
-		 * 7.3.2.2 as a magic value instead of a rate. Hence, skip it.
+		 * Skip HT and VHT BSS membership selectors since they're not
+		 * rates.
 		 *
-		 * Note: Even through the membership selector and the basic
+		 * Note: Even though the membership selector and the basic
 		 *	 rate flag share the same bit, they are not exactly
 		 *	 the same.
 		 */
-		if (!!(supp_rates[i] & 0x80) &&
-		    (supp_rates[i] & 0x7f) == BSS_MEMBERSHIP_SELECTOR_HT_PHY)
+		if (supp_rates[i] == (0x80 | BSS_MEMBERSHIP_SELECTOR_HT_PHY) ||
+		    supp_rates[i] == (0x80 | BSS_MEMBERSHIP_SELECTOR_VHT_PHY))
 			continue;
 
 		for (j = 0; j < sband->n_bitrates; j++) {
