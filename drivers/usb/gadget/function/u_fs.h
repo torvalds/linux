@@ -20,6 +20,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
+#include <linux/refcount.h>
 
 #ifdef VERBOSE_DEBUG
 #ifndef pr_vdebug
@@ -177,7 +178,7 @@ struct ffs_data {
 	struct completion		ep0req_completion;	/* P: mutex */
 
 	/* reference counter */
-	atomic_t			ref;
+	refcount_t			ref;
 	/* how many files are opened (EP0 and others) */
 	atomic_t			opened;
 
