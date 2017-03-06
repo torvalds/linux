@@ -299,8 +299,6 @@ static void skl_tplg_update_buffer_size(struct skl_sst *ctx,
 {
 	int multiplier = 1;
 	struct skl_module_fmt *in_fmt, *out_fmt;
-	int in_rate, out_rate;
-
 
 	/* Since fixups is applied to pin 0 only, ibs, obs needs
 	 * change for pin 0 only
@@ -311,21 +309,13 @@ static void skl_tplg_update_buffer_size(struct skl_sst *ctx,
 	if (mcfg->m_type == SKL_MODULE_TYPE_SRCINT)
 		multiplier = 5;
 
-	if (in_fmt->s_freq % 1000)
-		in_rate = (in_fmt->s_freq / 1000) + 1;
-	else
-		in_rate = (in_fmt->s_freq / 1000);
-
-	mcfg->ibs = in_rate * (mcfg->in_fmt->channels) *
+	mcfg->ibs = DIV_ROUND_UP(in_fmt->s_freq, 1000) *
+			(mcfg->in_fmt->channels) *
 			(mcfg->in_fmt->bit_depth >> 3) *
 			multiplier;
 
-	if (mcfg->out_fmt->s_freq % 1000)
-		out_rate = (mcfg->out_fmt->s_freq / 1000) + 1;
-	else
-		out_rate = (mcfg->out_fmt->s_freq / 1000);
-
-	mcfg->obs = out_rate * (mcfg->out_fmt->channels) *
+	mcfg->obs = DIV_ROUND_UP(mcfg->out_fmt->s_freq, 1000) *
+			(mcfg->out_fmt->channels) *
 			(mcfg->out_fmt->bit_depth >> 3) *
 			multiplier;
 }
