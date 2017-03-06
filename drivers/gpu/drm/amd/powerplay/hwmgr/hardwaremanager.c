@@ -443,6 +443,55 @@ int phm_get_clock_by_type(struct pp_hwmgr *hwmgr, enum amd_pp_clock_type type, s
 
 }
 
+int phm_get_clock_by_type_with_latency(struct pp_hwmgr *hwmgr,
+		enum amd_pp_clock_type type,
+		struct pp_clock_levels_with_latency *clocks)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (hwmgr->hwmgr_func->get_clock_by_type_with_latency == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->get_clock_by_type_with_latency(hwmgr, type, clocks);
+
+}
+
+int phm_get_clock_by_type_with_voltage(struct pp_hwmgr *hwmgr,
+		enum amd_pp_clock_type type,
+		struct pp_clock_levels_with_voltage *clocks)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (hwmgr->hwmgr_func->get_clock_by_type_with_voltage == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->get_clock_by_type_with_voltage(hwmgr, type, clocks);
+
+}
+
+int phm_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
+		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (!hwmgr->hwmgr_func->set_watermarks_for_clocks_ranges)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->set_watermarks_for_clocks_ranges(hwmgr,
+			wm_with_clock_ranges);
+}
+
+int phm_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
+		struct pp_display_clock_request *clock)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (!hwmgr->hwmgr_func->display_clock_voltage_request)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->display_clock_voltage_request(hwmgr, clock);
+}
+
 int phm_get_max_high_clocks(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_info *clocks)
 {
 	PHM_FUNC_CHECK(hwmgr);

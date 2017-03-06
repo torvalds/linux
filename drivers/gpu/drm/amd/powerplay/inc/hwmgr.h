@@ -347,6 +347,16 @@ struct pp_hwmgr_func {
 	int (*get_current_shallow_sleep_clocks)(struct pp_hwmgr *hwmgr,
 				const struct pp_hw_power_state *state, struct pp_clock_info *clock_info);
 	int (*get_clock_by_type)(struct pp_hwmgr *hwmgr, enum amd_pp_clock_type type, struct amd_pp_clocks *clocks);
+	int (*get_clock_by_type_with_latency)(struct pp_hwmgr *hwmgr,
+			enum amd_pp_clock_type type,
+			struct pp_clock_levels_with_latency *clocks);
+	int (*get_clock_by_type_with_voltage)(struct pp_hwmgr *hwmgr,
+			enum amd_pp_clock_type type,
+			struct pp_clock_levels_with_voltage *clocks);
+	int (*set_watermarks_for_clocks_ranges)(struct pp_hwmgr *hwmgr,
+			struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges);
+	int (*display_clock_voltage_request)(struct pp_hwmgr *hwmgr,
+			struct pp_display_clock_request *clock);
 	int (*get_max_high_clocks)(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_info *clocks);
 	int (*power_off_asic)(struct pp_hwmgr *hwmgr);
 	int (*force_clock_level)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, uint32_t mask);

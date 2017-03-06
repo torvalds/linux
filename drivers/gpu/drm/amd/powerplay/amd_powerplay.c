@@ -1349,6 +1349,100 @@ int amd_powerplay_get_clock_by_type(void *handle, enum amd_pp_clock_type type, s
 	return ret;
 }
 
+int amd_powerplay_get_clock_by_type_with_latency(void *handle,
+		enum amd_pp_clock_type type,
+		struct pp_clock_levels_with_latency *clocks)
+{
+	struct pp_hwmgr *hwmgr;
+	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+	int ret = 0;
+
+	ret = pp_check(pp_handle);
+	if (ret != 0)
+		return ret;
+
+	if (!clocks)
+		return -EINVAL;
+
+	mutex_lock(&pp_handle->pp_lock);
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+	ret = phm_get_clock_by_type_with_latency(hwmgr, type, clocks);
+	mutex_unlock(&pp_handle->pp_lock);
+	return ret;
+}
+
+int amd_powerplay_get_clock_by_type_with_voltage(void *handle,
+		enum amd_pp_clock_type type,
+		struct pp_clock_levels_with_voltage *clocks)
+{
+	struct pp_hwmgr *hwmgr;
+	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+	int ret = 0;
+
+	ret = pp_check(pp_handle);
+	if (ret != 0)
+		return ret;
+
+	if (!clocks)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	mutex_lock(&pp_handle->pp_lock);
+
+	ret = phm_get_clock_by_type_with_voltage(hwmgr, type, clocks);
+
+	mutex_unlock(&pp_handle->pp_lock);
+	return ret;
+}
+
+int amd_powerplay_set_watermarks_for_clocks_ranges(void *handle,
+		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges)
+{
+	struct pp_hwmgr *hwmgr;
+	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+	int ret = 0;
+
+	ret = pp_check(pp_handle);
+	if (ret != 0)
+		return ret;
+
+	if (!wm_with_clock_ranges)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	mutex_lock(&pp_handle->pp_lock);
+	ret = phm_set_watermarks_for_clocks_ranges(hwmgr,
+			wm_with_clock_ranges);
+	mutex_unlock(&pp_handle->pp_lock);
+
+	return ret;
+}
+
+int amd_powerplay_display_clock_voltage_request(void *handle,
+		struct pp_display_clock_request *clock)
+{
+	struct pp_hwmgr *hwmgr;
+	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+	int ret = 0;
+
+	ret = pp_check(pp_handle);
+	if (ret != 0)
+		return ret;
+
+	if (!clock)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	mutex_lock(&pp_handle->pp_lock);
+	ret = phm_display_clock_voltage_request(hwmgr, clock);
+	mutex_unlock(&pp_handle->pp_lock);
+
+	return ret;
+}
+
 int amd_powerplay_get_display_mode_validation_clocks(void *handle,
 		struct amd_pp_simple_clock_info *clocks)
 {
