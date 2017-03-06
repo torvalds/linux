@@ -31,7 +31,6 @@
 #define BT_IGNITIONPRO_ID	0x2000
 
 /* function prototypes */
-static int  omninet_open(struct tty_struct *tty, struct usb_serial_port *port);
 static void omninet_process_read_urb(struct urb *urb);
 static void omninet_write_bulk_callback(struct urb *urb);
 static int  omninet_write(struct tty_struct *tty, struct usb_serial_port *port,
@@ -60,7 +59,6 @@ static struct usb_serial_driver zyxel_omninet_device = {
 	.attach =		omninet_attach,
 	.port_probe =		omninet_port_probe,
 	.port_remove =		omninet_port_remove,
-	.open =			omninet_open,
 	.write =		omninet_write,
 	.write_room =		omninet_write_room,
 	.write_bulk_callback =	omninet_write_bulk_callback,
@@ -138,11 +136,6 @@ static int omninet_port_remove(struct usb_serial_port *port)
 	kfree(od);
 
 	return 0;
-}
-
-static int omninet_open(struct tty_struct *tty, struct usb_serial_port *port)
-{
-	return usb_serial_generic_open(tty, port);
 }
 
 #define OMNINET_HEADERLEN	4
