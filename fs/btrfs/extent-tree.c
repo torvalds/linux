@@ -3443,7 +3443,8 @@ again:
 		/*
 		 * don't bother trying to write stuff out _if_
 		 * a) we're not cached,
-		 * b) we're with nospace_cache mount option.
+		 * b) we're with nospace_cache mount option,
+		 * c) we're with v2 space_cache (FREE_SPACE_TREE).
 		 */
 		dcs = BTRFS_DC_WRITTEN;
 		spin_unlock(&block_group->lock);
