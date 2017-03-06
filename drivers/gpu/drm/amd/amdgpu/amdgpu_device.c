@@ -1994,6 +1994,10 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
 		return amdgpu_dc > 0;
 #endif
 #endif
+#if defined(CONFIG_DRM_AMD_DC) && defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	case CHIP_RAVEN:
+		return amdgpu_dc != 0;
+#endif
 	default:
 		return false;
 	}
