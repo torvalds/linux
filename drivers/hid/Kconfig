@@ -190,6 +190,7 @@ config HID_CORSAIR
 
 	Supported devices:
 	- Vengeance K90
+	- Scimitar PRO RGB
 
 config HID_PRODIKEYS
 	tristate "Prodikeys PC-MIDI Keyboard support"
