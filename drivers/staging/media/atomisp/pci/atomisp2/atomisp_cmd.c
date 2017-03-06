@@ -1099,15 +1099,9 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 		WARN_ON(!vb);
 		if (vb)
 			pipe->frame_config_id[vb->i] = frame->isp_config_id;
-#ifndef ISP2401
 		if (css_pipe_id == IA_CSS_PIPE_ID_CAPTURE &&
 		    asd->pending_capture_request > 0) {
 			err = atomisp_css_offline_capture_configure(asd,
-#else
-		if (css_pipe_id == IA_CSS_PIPE_ID_CAPTURE) {
-			if (asd->pending_capture_request > 0) {
-				err = atomisp_css_offline_capture_configure(asd,
-#endif
 					asd->params.offline_parm.num_captures,
 					asd->params.offline_parm.skip_frames,
 					asd->params.offline_parm.offset);
@@ -1298,9 +1292,7 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 		 */
 		wake_up(&vb->done);
 	}
-#ifndef ISP2401
-
-#else
+#ifdef ISP2401
 	atomic_set(&pipe->wdt_count, 0);
 #endif
 	/*
@@ -4995,26 +4987,15 @@ int atomisp_try_fmt(struct video_device *vdev, struct v4l2_format *f,
 {
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
-#ifndef ISP2401
 	struct v4l2_subdev_pad_config pad_cfg;
-#else
-    struct v4l2_subdev_pad_config pad_cfg;
-#endif
 	struct v4l2_subdev_format format = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
-#ifndef ISP2401
 	};
-#else
-		};
-#endif
+
 	struct v4l2_mbus_framefmt *snr_mbus_fmt = &format.format;
 	const struct atomisp_format_bridge *fmt;
 	struct atomisp_input_stream_info *stream_info =
-#ifndef ISP2401
 	    (struct atomisp_input_stream_info *)snr_mbus_fmt->reserved;
-#else
-		(struct atomisp_input_stream_info *)snr_mbus_fmt->reserved;
-#endif
 	uint16_t stream_index;
 	int source_pad = atomisp_subdev_source_pad(vdev);
 	int ret;
@@ -5044,11 +5025,7 @@ int atomisp_try_fmt(struct video_device *vdev, struct v4l2_format *f,
 		snr_mbus_fmt->width, snr_mbus_fmt->height);
 
 	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-#ifndef ISP2401
 			       pad, set_fmt, &pad_cfg, &format);
-#else
-			pad, set_fmt, &pad_cfg, &format);
-#endif
 	if (ret)
 		return ret;
 
@@ -6454,9 +6431,7 @@ int atomisp_s_ae_window(struct atomisp_sub_device *asd,
 			struct atomisp_ae_window *arg)
 {
 	struct atomisp_device *isp = asd->isp;
-#ifndef ISP2401
 	/* Coverity CID 298071 - initialzize struct */
-#endif
 	struct v4l2_subdev_selection sel = { 0 };
 
 	sel.r.left = arg->x_left;

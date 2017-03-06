@@ -906,9 +906,7 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 
 	strlcpy(isp->media_dev.model, "Intel Atom ISP",
 		sizeof(isp->media_dev.model));
-#ifndef ISP2401
 
-#endif
 	media_device_init(&isp->media_dev);
 	isp->v4l2_dev.mdev = &isp->media_dev;
 	ret = v4l2_device_register(isp->dev, &isp->v4l2_dev);
@@ -1545,16 +1543,12 @@ load_fw_fail:
 	atomisp_msi_irq_uninit(isp, dev);
 
 	atomisp_ospm_dphy_down(isp);
-#ifndef ISP2401
+
 	/* Address later when we worry about the ...field chips */
-#endif
 	if (ATOMISP_INTERNAL_PM) {
 		if (atomisp_mrfld_power_down(isp))
 			dev_err(&dev->dev, "Failed to switch off ISP\n");
 	}
-#ifdef ISP2401
-
-#endif
 	pci_dev_put(isp->pci_root);
 	return err;
 }

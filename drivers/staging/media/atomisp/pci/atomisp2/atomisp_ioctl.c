@@ -530,13 +530,8 @@ const struct atomisp_format_bridge *atomisp_get_format_bridge(
 	return NULL;
 }
 
-#ifndef ISP2401
 const struct atomisp_format_bridge *atomisp_get_format_bridge_from_mbus(
 	u32 mbus_code)
-#else
-const struct atomisp_format_bridge *atomisp_get_format_bridge_from_mbus(u32
-									mbus_code)
-#endif
 {
 	unsigned int i;
 
@@ -1303,14 +1298,8 @@ done:
 		/* this buffer will have a per-frame parameter */
 		pipe->frame_request_config_id[buf->index] = buf->reserved2 &
 					~ATOMISP_BUFFER_HAS_PER_FRAME_SETTING;
-#ifndef ISP2401
 		dev_dbg(isp->dev, "This buffer requires per_frame setting which has isp_config_id %d\n",
 			pipe->frame_request_config_id[buf->index]);
-#else
-		dev_dbg(isp->dev, "This buffer requires per_frame setting \
-				which has isp_config_id %d\n",
-				pipe->frame_request_config_id[buf->index]);
-#endif
 	} else {
 		pipe->frame_request_config_id[buf->index] = 0;
 	}
@@ -1494,12 +1483,7 @@ static int atomisp_dqbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 	buf->reserved2 = pipe->frame_config_id[buf->index];
 	rt_mutex_unlock(&isp->mutex);
 
-#ifndef ISP2401
 	dev_dbg(isp->dev, "dqbuf buffer %d (%s) for asd%d with exp_id %d, isp_config_id %d\n",
-#else
-	dev_dbg(isp->dev, "dqbuf buffer %d (%s) for asd%d with exp_id %d, \
-			isp_config_id %d\n",
-#endif
 		buf->index, vdev->name, asd->index, buf->reserved >> 16,
 		buf->reserved2);
 	return 0;
@@ -1570,12 +1554,9 @@ static unsigned int atomisp_sensor_start_stream(struct atomisp_sub_device *asd)
 	else
 		return 1;
 }
-#ifndef ISP2401
-int atomisp_stream_on_master_slave_sensor(struct atomisp_device *isp, bool isp_timeout)
-#else
+
 int atomisp_stream_on_master_slave_sensor(struct atomisp_device *isp,
 	bool isp_timeout)
-#endif
 {
 	unsigned int master = -1, slave = -1, delay_slave = 0;
 	int i, ret;
