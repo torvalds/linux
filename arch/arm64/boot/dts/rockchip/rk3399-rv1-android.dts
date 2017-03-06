@@ -53,7 +53,7 @@
 
 	vdd_log: vdd-log {
 		compatible = "pwm-regulator";
-		pwms = <&pwm2 0 25000 0>;
+		pwms = <&pwm2 0 25000 1>;
 		rockchip,pwm_id= <2>;
 		rockchip,pwm_voltage = <900000>;
 		regulator-name = "vdd_log";

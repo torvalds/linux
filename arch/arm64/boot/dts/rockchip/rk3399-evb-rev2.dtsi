@@ -59,7 +59,7 @@
 		compatible = "pwm-regulator";
 		rockchip,pwm_id = <3>;
 		rockchip,pwm_voltage = <900000>;
-		pwms = <&pwm3 0 25000 0>;
+		pwms = <&pwm3 0 25000 1>;
 		regulator-name = "vdd_center";
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <1400000>;
