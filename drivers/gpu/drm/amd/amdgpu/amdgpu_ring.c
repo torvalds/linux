@@ -135,6 +135,8 @@ void amdgpu_ring_commit(struct amdgpu_ring *ring)
 
 	if (ring->funcs->end_use)
 		ring->funcs->end_use(ring);
+
+	amdgpu_ring_lru_touch(ring->adev, ring);
 }
 
 /**
@@ -283,6 +285,8 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	}
 
 	ring->max_dw = max_dw;
+	INIT_LIST_HEAD(&ring->lru_list);
+	amdgpu_ring_lru_touch(adev, ring);
 
 	if (amdgpu_debugfs_ring_init(adev, ring)) {
 		DRM_ERROR("Failed to register debugfs file for rings !\n");
@@ -325,6 +329,65 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 	amdgpu_debugfs_ring_fini(ring);
 
 	ring->adev->rings[ring->idx] = NULL;
+}
+
+static void amdgpu_ring_lru_touch_locked(struct amdgpu_device *adev,
+					 struct amdgpu_ring *ring)
+{
+	/* list_move_tail handles the case where ring isn't part of the list */
+	list_move_tail(&ring->lru_list, &adev->ring_lru_list);
+}
+
+/**
+ * amdgpu_ring_lru_get - get the least recently used ring for a HW IP block
+ *
+ * @adev: amdgpu_device pointer
+ * @type: amdgpu_ring_type enum
+ * @ring: output ring
+ *
+ * Retrieve the amdgpu_ring structure for the least recently used ring of
+ * a specific IP block (all asics).
+ * Returns 0 on success, error on failure.
+ */
+int amdgpu_ring_lru_get(struct amdgpu_device *adev, int type,
+			struct amdgpu_ring **ring)
+{
+	struct amdgpu_ring *entry;
+
+	/* List is sorted in LRU order, find first entry corresponding
+	 * to the desired HW IP */
+	*ring = NULL;
+	spin_lock(&adev->ring_lru_list_lock);
+	list_for_each_entry(entry, &adev->ring_lru_list, lru_list) {
+		if (entry->funcs->type == type) {
+			*ring = entry;
+			amdgpu_ring_lru_touch_locked(adev, *ring);
+			break;
+		}
+	}
+	spin_unlock(&adev->ring_lru_list_lock);
+
+	if (!*ring) {
+		DRM_ERROR("Ring LRU contains no entries for ring type:%d\n", type);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
+ * amdgpu_ring_lru_touch - mark a ring as recently being used
+ *
+ * @adev: amdgpu_device pointer
+ * @ring: ring to touch
+ *
+ * Move @ring to the tail of the lru list
+ */
+void amdgpu_ring_lru_touch(struct amdgpu_device *adev, struct amdgpu_ring *ring)
+{
+	spin_lock(&adev->ring_lru_list_lock);
+	amdgpu_ring_lru_touch_locked(adev, ring);
+	spin_unlock(&adev->ring_lru_list_lock);
 }
 
 /*

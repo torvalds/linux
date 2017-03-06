@@ -1656,6 +1656,9 @@ struct amdgpu_device {
 	/* link all gtt */
 	spinlock_t			gtt_list_lock;
 	struct list_head                gtt_list;
+	/* keep an lru list of rings by HW IP */
+	struct list_head		ring_lru_list;
+	spinlock_t			ring_lru_list_lock;
 
 	/* record hw reset is performed */
 	bool has_hw_reset;

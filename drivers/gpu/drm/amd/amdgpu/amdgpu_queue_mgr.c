@@ -100,6 +100,40 @@ static int amdgpu_identity_map(struct amdgpu_device *adev,
 	return amdgpu_update_cached_map(mapper, ring, *out_ring);
 }
 
+static enum amdgpu_ring_type amdgpu_hw_ip_to_ring_type(int hw_ip)
+{
+	switch (hw_ip) {
+	case AMDGPU_HW_IP_GFX:
+		return AMDGPU_RING_TYPE_GFX;
+	case AMDGPU_HW_IP_COMPUTE:
+		return AMDGPU_RING_TYPE_COMPUTE;
+	case AMDGPU_HW_IP_DMA:
+		return AMDGPU_RING_TYPE_SDMA;
+	case AMDGPU_HW_IP_UVD:
+		return AMDGPU_RING_TYPE_UVD;
+	case AMDGPU_HW_IP_VCE:
+		return AMDGPU_RING_TYPE_VCE;
+	default:
+		DRM_ERROR("Invalid HW IP specified %d\n", hw_ip);
+		return -1;
+	}
+}
+
+static int amdgpu_lru_map(struct amdgpu_device *adev,
+			  struct amdgpu_queue_mapper *mapper,
+			  int user_ring,
+			  struct amdgpu_ring **out_ring)
+{
+	int r;
+	int ring_type = amdgpu_hw_ip_to_ring_type(mapper->hw_ip);
+
+	r = amdgpu_ring_lru_get(adev, ring_type, out_ring);
+	if (r)
+		return r;
+
+	return amdgpu_update_cached_map(mapper, user_ring, *out_ring);
+}
+
 /**
  * amdgpu_queue_mgr_init - init an amdgpu_queue_mgr struct
  *
@@ -230,7 +264,6 @@ int amdgpu_queue_mgr_map(struct amdgpu_device *adev,
 
 	switch (mapper->hw_ip) {
 	case AMDGPU_HW_IP_GFX:
-	case AMDGPU_HW_IP_COMPUTE:
 	case AMDGPU_HW_IP_DMA:
 	case AMDGPU_HW_IP_UVD:
 	case AMDGPU_HW_IP_VCE:
@@ -238,6 +271,9 @@ int amdgpu_queue_mgr_map(struct amdgpu_device *adev,
 	case AMDGPU_HW_IP_VCN_DEC:
 	case AMDGPU_HW_IP_VCN_ENC:
 		r = amdgpu_identity_map(adev, mapper, ring, out_ring);
+		break;
+	case AMDGPU_HW_IP_COMPUTE:
+		r = amdgpu_lru_map(adev, mapper, ring, out_ring);
 		break;
 	default:
 		*out_ring = NULL;
