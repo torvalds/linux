@@ -13,7 +13,7 @@
  * @file mali_osk_mali.c
  * Implementation of the OS abstraction layer which is specific for the Mali kernel device driver
  */
-#include "../platform/rk30/custom_log.h"
+#include "../platform/rk/custom_log.h"
 
 #include <linux/kernel.h>
 #include <asm/uaccess.h>

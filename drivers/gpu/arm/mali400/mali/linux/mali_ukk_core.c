@@ -68,7 +68,7 @@ int get_mali_version_in_rk30_wrapper(struct mali_session_data *session_data, _ma
 	return 0;
 }
 #else
-#include "../platform/rk30/rk_ext.h"
+#include "../platform/rk/rk_ext.h"
 int get_rk_ko_version_wrapper(struct mali_session_data *session_data, _mali_rk_ko_version_s __user *uargs)
 {
 	_mali_rk_ko_version_s kargs;

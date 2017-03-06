@@ -13,8 +13,8 @@
  * @file mali_kernel_linux.c
  * Implementation of the Linux device driver entrypoints
  */
-#include "../platform/rk30/custom_log.h"
-#include "../platform/rk30/rk_ext.h"
+#include "../platform/rk/custom_log.h"
+#include "../platform/rk/rk_ext.h"
 
 #include <linux/module.h>   /* kernel module definitions */
 #include <linux/fs.h>       /* file system operations */

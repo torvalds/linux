@@ -21,7 +21,7 @@ MALI_PP_SCHEDULER_KEEP_SUB_JOB_STARTS_ALIGNED ?= 0
 MALI_PP_SCHEDULER_FORCE_NO_JOB_OVERLAP_BETWEEN_APPS ?= 0
 MALI_UPPER_HALF_SCHEDULING ?= 1
 MALI_ENABLE_CPU_CYCLES ?= 0
-MALI_PLATFORM ?= rk30
+MALI_PLATFORM ?= rk
 
 # For customer releases the Linux Device Drivers will be provided as ARM proprietary and GPL releases:
 # The ARM proprietary product will only include the license/proprietary directory
@@ -39,9 +39,7 @@ ifneq ($(MALI_PLATFORM),)
 	EXTRA_DEFINES += -DMALI_FAKE_PLATFORM_DEVICE=1
 	#MALI_PLATFORM_FILES = $(wildcard platform/$(MALI_PLATFORM)/*.c)
 	mali-y += \
-		platform/$(MALI_PLATFORM)/mali_platform.o \
-		platform/$(MALI_PLATFORM)/rk3066.o \
-		platform/$(MALI_PLATFORM)/mali_dvfs.o
+		platform/$(MALI_PLATFORM)/rk.o
 endif
 
 ifeq ($(MALI_PLATFORM_FILES),)

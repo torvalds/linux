@@ -23,7 +23,6 @@
  *  ----------------------------------------------------------------------------
  */
 
-
 #ifndef __CUSTOM_LOG_H__
 #define __CUSTOM_LOG_H__
 
@@ -38,7 +37,6 @@ extern "C" {
 #include <linux/kernel.h>
 #include <linux/printk.h>
 
-
 /* -----------------------------------------------------------------------------
  *  Macros Definition
  * -----------------------------------------------------------------------------
@@ -47,18 +45,12 @@ extern "C" {
 /** 若下列 macro 有被定义, 才 使能 log 输出. */
 /* #define ENABLE_DEBUG_LOG */
 
-/** .! : 若需要全局地关闭 D log, 可以使能下面的代码. */
-/*
-#undef ENABLE_DEBUG_LOG
-#warning "custom debug log is disabled globally!"
-*/
-
 /*----------------------------------------------------------------------------*/
 
 #ifdef ENABLE_VERBOSE_LOG
 /** Verbose log. */
 #define V(fmt, args...) \
-	pr_info("V : [File] : %s; [Line] : %d; [Func] : %s(); " fmt \
+	pr_debug("V : [File] : %s; [Line] : %d; [Func] : %s(); " fmt \
 			"\n",	\
 		__FILE__,	\
 		__LINE__,	\
@@ -67,7 +59,6 @@ extern "C" {
 #else
 #define  V(...)  ((void)0)
 #endif
-
 
 #ifdef ENABLE_DEBUG_LOG
 /** Debug log. */
@@ -129,18 +120,18 @@ extern "C" {
 /** 使用 D(), 打印 char 字串. */
 #define D_STR(p_str) \
 do { \
-	if (NULL == p_str) { \
-		D(#p_str" = NULL."); \
+	if (!p_str) { \
+		D(#p_str " = NULL."); \
 	else \
-		D(#p_str" = '%s'.", p_str); \
+		D(#p_str " = '%s'.", p_str); \
 } while (0)
 
 #define E_STR(p_str) \
 do { \
-	if (NULL == p_str) \
-		E(#p_str" = NULL."); \
+	if (!p_str) \
+		E(#p_str " = NULL."); \
 	else \
-		E(#p_str" = '%s'.", p_str); \
+		E(#p_str " = '%s'.", p_str); \
 } while (0)
 
 #ifdef ENABLE_DEBUG_LOG
@@ -165,40 +156,10 @@ do { \
 
 /*-------------------------------------------------------*/
 
-#define EXIT_FOR_DEBUG \
-do { \
-	E("To exit for debug."); \
-	return 1; \
-} while (0)
-
-/*-------------------------------------------------------*/
-
 /**
- * 调用函数, 并检查返回值, 根据返回值决定是否跳转到指定的错误处理代码.
- * @param func_call
- *      对特定函数的调用,
- *      该函数的返回值必须是 表征 成功 or err 的 整型数.
- *	且被 "必须" 被定义为 "返回 0 表示操作成功".
- * @param result
- *	用于记录函数返回的 error code 的 整型变量,
- *	通常是 "ret" or "result" 等.
- * @param label
- *	若函数返回错误,
- *	程序将要跳转到的 错误处理处的 标号,
- *	通常就是 "EXIT".
- */
-#define CHECK_FUNC_CALL(func_call, result, label) \
-do { \
-	(result) = (func_call) \
-	if (0 != (result)) { \
-		E("Function call returned error : " #result " = %d.", result); \
-		goto label;\
-	} \
-} while (0)
-
-/**
- * 在特定条件下, 判定 error 发生, 对变量 'ret_var' 设置 'err_code',
- * Log 输出对应的 Error Caution,
+ * 在特定条件下, 判定 error 发生,
+ * 将变量 'ret_var' 设置 'err_code',
+ * log 输出对应的 Error Caution,
  * 然后跳转 'label' 指定的代码处执行.
  * @param msg
  *	纯字串形式的提示信息.
@@ -225,18 +186,15 @@ do { \
 	goto label; \
 } while (0)
 
-
 /* -----------------------------------------------------------------------------
  *  Types and Structures Definition
  * -----------------------------------------------------------------------------
  */
 
-
 /* -----------------------------------------------------------------------------
  *  Global Functions' Prototype
  * -----------------------------------------------------------------------------
  */
-
 
 /* -----------------------------------------------------------------------------
  *  Inline Functions Implementation
