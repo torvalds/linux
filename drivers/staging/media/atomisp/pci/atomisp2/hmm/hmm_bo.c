@@ -39,7 +39,7 @@
 #include <asm/cacheflush.h>
 #include <linux/io.h>
 #include <asm/current.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/file.h>
 
 #include "atomisp_internal.h"
