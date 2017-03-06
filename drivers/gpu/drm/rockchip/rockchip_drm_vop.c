@@ -19,7 +19,9 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_flip_work.h>
 #include <drm/drm_plane_helper.h>
+#ifdef CONFIG_DRM_ANALOGIX_DP
 #include <drm/bridge/analogix_dp.h>
+#endif
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -1112,6 +1114,7 @@ static void vop_crtc_destroy_state(struct drm_crtc *crtc,
 	kfree(s);
 }
 
+#ifdef CONFIG_DRM_ANALOGIX_DP
 static struct drm_connector *vop_get_edp_connector(struct vop *vop)
 {
 	struct drm_crtc *crtc = &vop->crtc;
@@ -1150,6 +1153,13 @@ static int vop_crtc_set_crc_source(struct drm_crtc *crtc,
 
 	return ret;
 }
+#else
+static int vop_crtc_set_crc_source(struct drm_crtc *crtc,
+				   const char *source_name, size_t *values_cnt)
+{
+	return -ENODEV;
+}
+#endif
 
 static const struct drm_crtc_funcs vop_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
