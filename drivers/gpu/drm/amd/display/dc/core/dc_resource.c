@@ -412,6 +412,8 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 	struct rect clip = {0};
 	int vpc_div = (data->format == PIXEL_FORMAT_420BPP12
 			|| data->format == PIXEL_FORMAT_420BPP15) ? 2 : 1;
+	bool need_split = (pipe_ctx->top_pipe && pipe_ctx->top_pipe->surface == pipe_ctx->surface)
+		|| (pipe_ctx->bottom_pipe && pipe_ctx->bottom_pipe->surface == pipe_ctx->surface);
 
 
 	if (surface->rotation == ROTATION_ANGLE_90 ||
@@ -466,17 +468,40 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 	data->viewport_c.height = (data->viewport.height + vpc_div - 1) / vpc_div;
 
 	/* Handle hsplit */
-	if (pipe_ctx->top_pipe && pipe_ctx->top_pipe->surface == pipe_ctx->surface) {
-		data->viewport.width /= 2;
-		data->viewport_c.width /= 2;
-		data->viewport.x +=  data->viewport.width;
-		data->viewport_c.x +=  data->viewport_c.width;
-		/* Floor primary pipe, ceil 2ndary pipe */
-		data->viewport.width += data->viewport.width % 2;
-		data->viewport_c.width += data->viewport_c.width % 2;
-	} else if (pipe_ctx->bottom_pipe && pipe_ctx->bottom_pipe->surface == pipe_ctx->surface) {
-		data->viewport.width /= 2;
-		data->viewport_c.width /= 2;
+	if (need_split && (surface->rotation == ROTATION_ANGLE_90 ||
+				surface->rotation == ROTATION_ANGLE_270)) {
+		bool lower_view = (surface->rotation == ROTATION_ANGLE_270) ^
+			(pipe_ctx->top_pipe && pipe_ctx->top_pipe->surface == pipe_ctx->surface);
+
+		if (lower_view) {
+			data->viewport.height /= 2;
+			data->viewport_c.height /= 2;
+			data->viewport.y +=  data->viewport.height;
+			data->viewport_c.y +=  data->viewport_c.height;
+			/* Ceil offset pipe */
+			data->viewport.height += data->viewport.height % 2;
+			data->viewport_c.height += data->viewport_c.height % 2;
+		} else {
+			data->viewport.height /= 2;
+			data->viewport_c.height /= 2;
+		}
+	} else if (need_split) {
+		bool right_view = (surface->rotation == ROTATION_ANGLE_180) ^
+			(pipe_ctx->top_pipe && pipe_ctx->top_pipe->surface == pipe_ctx->surface) ^
+			surface->horizontal_mirror;
+
+		if (right_view) {
+			data->viewport.width /= 2;
+			data->viewport_c.width /= 2;
+			data->viewport.x +=  data->viewport.width;
+			data->viewport_c.x +=  data->viewport_c.width;
+			/* Ceil offset pipe */
+			data->viewport.width += data->viewport.width % 2;
+			data->viewport_c.width += data->viewport_c.width % 2;
+		} else {
+			data->viewport.width /= 2;
+			data->viewport_c.width /= 2;
+		}
 	}
 }
 
