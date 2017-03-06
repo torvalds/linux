@@ -264,3 +264,20 @@
 	mode = <3>;
 	power = <50>;
 };
+
+&i2c4 {
+	ak8975: magnetometer@c {
+		compatible = "asahi-kasei,ak8975";
+		reg = <0x0c>;
+
+		vdd-supply = <&vhvio>;
+
+		interrupt-parent = <&gpio6>;
+		interrupts = <15 IRQ_TYPE_EDGE_RISING>; /* gpio175 */
+
+		rotation-matrix = "-1", "0", "0",
+				  "0", "1", "0",
+				  "0", "0", "-1";
+
+	};
+};
