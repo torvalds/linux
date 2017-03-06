@@ -1318,9 +1318,6 @@ static int do_rename(struct inode *old_dir, struct dentry *old_dentry,
 	unsigned int uninitialized_var(saved_nlink);
 	struct fscrypt_name old_nm, new_nm;
 
-	if (flags & ~RENAME_NOREPLACE)
-		return -EINVAL;
-
 	/*
 	 * Budget request settings: deletion direntry, new direntry, removing
 	 * the old inode, and changing old and new parent directory inodes.
