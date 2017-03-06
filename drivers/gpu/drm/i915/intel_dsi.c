@@ -28,7 +28,6 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/i915_drm.h>
-#include <drm/drm_panel.h>
 #include <drm/drm_mipi_dsi.h>
 #include <linux/slab.h>
 #include <linux/gpio/consumer.h>
@@ -1642,12 +1641,6 @@ static void intel_dsi_encoder_destroy(struct drm_encoder *encoder)
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 
-	if (intel_dsi->panel) {
-		drm_panel_detach(intel_dsi->panel);
-		/* XXX: Logically this call belongs in the panel driver. */
-		drm_panel_remove(intel_dsi->panel);
-	}
-
 	/* dispose of the gpios */
 	if (intel_dsi->gpio_panel)
 		gpiod_put(intel_dsi->gpio_panel);
@@ -1805,8 +1798,7 @@ void intel_dsi_init(struct drm_i915_private *dev_priv)
 		intel_dsi->dsi_hosts[port] = host;
 	}
 
-	intel_dsi->panel = intel_dsi_vbt_init(intel_dsi, MIPI_DSI_GENERIC_PANEL_ID);
-	if (!intel_dsi->panel) {
+	if (!intel_dsi_vbt_init(intel_dsi, MIPI_DSI_GENERIC_PANEL_ID)) {
 		DRM_DEBUG_KMS("no device found\n");
 		goto err;
 	}
@@ -1840,10 +1832,8 @@ void intel_dsi_init(struct drm_i915_private *dev_priv)
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 
-	drm_panel_attach(intel_dsi->panel, connector);
-
 	mutex_lock(&dev->mode_config.mutex);
-	intel_dsi_vbt_get_modes(intel_dsi->panel);
+	intel_dsi_vbt_get_modes(intel_dsi);
 	list_for_each_entry(scan, &connector->probed_modes, head) {
 		if ((scan->type & DRM_MODE_TYPE_PREFERRED)) {
 			fixed_mode = drm_mode_duplicate(dev, scan);
