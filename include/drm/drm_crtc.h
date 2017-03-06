@@ -776,6 +776,7 @@ struct drm_crtc {
 	 * Debugfs directory for this CRTC.
 	 */
 	struct dentry *debugfs_entry;
+#endif
 
 	/**
 	 * @crc:
@@ -783,7 +784,6 @@ struct drm_crtc {
 	 * Configuration settings of CRC capture.
 	 */
 	struct drm_crtc_crc crc;
-#endif
 
 	/**
 	 * @fence_context:
