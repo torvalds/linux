@@ -4197,10 +4197,10 @@ static const struct wacom_features wacom_features_0x343 =
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 static const struct wacom_features wacom_features_0x360 =
 	{ "Wacom Intuos Pro M", 44800, 29600, 8191, 63,
-	  INTUOSP2_BT, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 9, .touch_max = 10 };
+	  INTUOSP2_BT, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 9, .touch_max = 10 };
 static const struct wacom_features wacom_features_0x361 =
 	{ "Wacom Intuos Pro L", 62200, 43200, 8191, 63,
-	  INTUOSP2_BT, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 9, .touch_max = 10 };
+	  INTUOSP2_BT, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 9, .touch_max = 10 };
 
 static const struct wacom_features wacom_features_HID_ANY_ID =
 	{ "Wacom HID", .type = HID_GENERIC, .oVid = HID_ANY_ID, .oPid = HID_ANY_ID };
