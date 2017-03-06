@@ -27,6 +27,7 @@
 #include <linux/mmu_context.h>
 #include <linux/aio.h>
 #include <linux/uio.h>
+#include <linux/refcount.h>
 
 #include <linux/device.h>
 #include <linux/moduleparam.h>
@@ -114,7 +115,7 @@ enum ep0_state {
 
 struct dev_data {
 	spinlock_t			lock;
-	atomic_t			count;
+	refcount_t			count;
 	enum ep0_state			state;		/* P: lock */
 	struct usb_gadgetfs_event	event [N_EVENT];
 	unsigned			ev_next;
@@ -150,12 +151,12 @@ struct dev_data {
 
 static inline void get_dev (struct dev_data *data)
 {
-	atomic_inc (&data->count);
+	refcount_inc (&data->count);
 }
 
 static void put_dev (struct dev_data *data)
 {
-	if (likely (!atomic_dec_and_test (&data->count)))
+	if (likely (!refcount_dec_and_test (&data->count)))
 		return;
 	/* needs no more cleanup */
 	BUG_ON (waitqueue_active (&data->wait));
@@ -170,7 +171,7 @@ static struct dev_data *dev_new (void)
 	if (!dev)
 		return NULL;
 	dev->state = STATE_DEV_DISABLED;
-	atomic_set (&dev->count, 1);
+	refcount_set (&dev->count, 1);
 	spin_lock_init (&dev->lock);
 	INIT_LIST_HEAD (&dev->epfiles);
 	init_waitqueue_head (&dev->wait);
