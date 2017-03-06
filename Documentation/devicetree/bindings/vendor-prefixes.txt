@@ -79,6 +79,7 @@ denx	Denx Software Engineering
 devantech	Devantech, Ltd.
 digi	Digi International Inc.
 digilent	Diglent, Inc.
+dioo	Dioo Microcircuit Co., Ltd
 dlg	Dialog Semiconductor
 dlink	D-Link Corporation
 dmo	Data Modul AG
