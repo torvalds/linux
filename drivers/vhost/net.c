@@ -17,6 +17,8 @@
 #include <linux/workqueue.h>
 #include <linux/file.h>
 #include <linux/slab.h>
+#include <linux/sched/clock.h>
+#include <linux/sched/signal.h>
 #include <linux/vmalloc.h>
 
 #include <linux/net.h>

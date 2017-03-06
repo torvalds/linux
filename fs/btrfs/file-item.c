@@ -214,7 +214,7 @@ static int __btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio,
 	 * read from the commit root and sidestep a nasty deadlock
 	 * between reading the free space cache and updating the csum tree.
 	 */
-	if (btrfs_is_free_space_inode(inode)) {
+	if (btrfs_is_free_space_inode(BTRFS_I(inode))) {
 		path->search_commit_root = 1;
 		path->skip_locking = 1;
 	}
@@ -643,7 +643,33 @@ int btrfs_del_csums(struct btrfs_trans_handle *trans,
 
 		/* delete the entire item, it is inside our range */
 		if (key.offset >= bytenr && csum_end <= end_byte) {
-			ret = btrfs_del_item(trans, root, path);
+			int del_nr = 1;
+
+			/*
+			 * Check how many csum items preceding this one in this
+			 * leaf correspond to our range and then delete them all
+			 * at once.
+			 */
+			if (key.offset > bytenr && path->slots[0] > 0) {
+				int slot = path->slots[0] - 1;
+
+				while (slot >= 0) {
+					struct btrfs_key pk;
+
+					btrfs_item_key_to_cpu(leaf, &pk, slot);
+					if (pk.offset < bytenr ||
+					    pk.type != BTRFS_EXTENT_CSUM_KEY ||
+					    pk.objectid !=
+					    BTRFS_EXTENT_CSUM_OBJECTID)
+						break;
+					path->slots[0] = slot;
+					del_nr++;
+					key.offset = pk.offset;
+					slot--;
+				}
+			}
+			ret = btrfs_del_items(trans, root, path,
+					      path->slots[0], del_nr);
 			if (ret)
 				goto out;
 			if (key.offset == bytenr)
@@ -904,14 +930,14 @@ fail_unlock:
 	goto out;
 }
 
-void btrfs_extent_item_to_extent_map(struct inode *inode,
+void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 				     const struct btrfs_path *path,
 				     struct btrfs_file_extent_item *fi,
 				     const bool new_inline,
 				     struct extent_map *em)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
+	struct btrfs_root *root = inode->root;
 	struct extent_buffer *leaf = path->nodes[0];
 	const int slot = path->slots[0];
 	struct btrfs_key key;
@@ -976,8 +1002,8 @@ void btrfs_extent_item_to_extent_map(struct inode *inode,
 		}
 	} else {
 		btrfs_err(fs_info,
-			  "unknown file extent item type %d, inode %llu, offset %llu, root %llu",
-			  type, btrfs_ino(BTRFS_I(inode)), extent_start,
+			  "unknown file extent item type %d, inode %llu, offset %llu, "
+			  "root %llu", type, btrfs_ino(inode), extent_start,
 			  root->root_key.objectid);
 	}
 }

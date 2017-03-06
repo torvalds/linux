@@ -422,16 +422,16 @@ void btrfs_close_extra_devices(struct btrfs_fs_devices *fs_devices, int step);
 void btrfs_assign_next_active_device(struct btrfs_fs_info *fs_info,
 		struct btrfs_device *device, struct btrfs_device *this_dev);
 int btrfs_find_device_missing_or_by_path(struct btrfs_fs_info *fs_info,
-					 char *device_path,
+					 const char *device_path,
 					 struct btrfs_device **device);
 int btrfs_find_device_by_devspec(struct btrfs_fs_info *fs_info, u64 devid,
-					 char *devpath,
+					 const char *devpath,
 					 struct btrfs_device **device);
 struct btrfs_device *btrfs_alloc_device(struct btrfs_fs_info *fs_info,
 					const u64 *devid,
 					const u8 *uuid);
 int btrfs_rm_device(struct btrfs_fs_info *fs_info,
-		    char *device_path, u64 devid);
+		    const char *device_path, u64 devid);
 void btrfs_cleanup_fs_uuids(void);
 int btrfs_num_copies(struct btrfs_fs_info *fs_info, u64 logical, u64 len);
 int btrfs_grow_device(struct btrfs_trans_handle *trans,
@@ -439,9 +439,9 @@ int btrfs_grow_device(struct btrfs_trans_handle *trans,
 struct btrfs_device *btrfs_find_device(struct btrfs_fs_info *fs_info, u64 devid,
 				       u8 *uuid, u8 *fsid);
 int btrfs_shrink_device(struct btrfs_device *device, u64 new_size);
-int btrfs_init_new_device(struct btrfs_fs_info *fs_info, char *path);
+int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *path);
 int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
-				  char *device_path,
+				  const char *device_path,
 				  struct btrfs_device *srcdev,
 				  struct btrfs_device **device_out);
 int btrfs_balance(struct btrfs_balance_control *bctl,
@@ -474,7 +474,7 @@ void btrfs_destroy_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 				      struct btrfs_device *tgtdev);
 void btrfs_init_dev_replace_tgtdev_for_resume(struct btrfs_fs_info *fs_info,
 					      struct btrfs_device *tgtdev);
-void btrfs_scratch_superblocks(struct block_device *bdev, char *device_path);
+void btrfs_scratch_superblocks(struct block_device *bdev, const char *device_path);
 int btrfs_is_parity_mirror(struct btrfs_mapping_tree *map_tree,
 			   u64 logical, u64 len, int mirror_num);
 unsigned long btrfs_full_stripe_len(struct btrfs_fs_info *fs_info,

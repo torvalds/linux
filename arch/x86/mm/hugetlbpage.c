@@ -7,6 +7,7 @@
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
+#include <linux/sched/mm.h>
 #include <linux/hugetlb.h>
 #include <linux/pagemap.h>
 #include <linux/err.h>

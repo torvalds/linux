@@ -1,4 +1,4 @@
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/errno.h>
 #include <linux/dcache.h>
 #include <linux/path.h>

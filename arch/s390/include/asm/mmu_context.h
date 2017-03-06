@@ -9,6 +9,7 @@
 
 #include <asm/pgalloc.h>
 #include <linux/uaccess.h>
+#include <linux/mm_types.h>
 #include <asm/tlbflush.h>
 #include <asm/ctl_reg.h>
 

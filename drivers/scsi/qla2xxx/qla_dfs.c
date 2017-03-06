@@ -18,7 +18,7 @@ qla2x00_dfs_tgt_sess_show(struct seq_file *s, void *unused)
 	scsi_qla_host_t *vha = s->private;
 	struct qla_hw_data *ha = vha->hw;
 	unsigned long flags;
-	struct qla_tgt_sess *sess = NULL;
+	struct fc_port *sess = NULL;
 	struct qla_tgt *tgt= vha->vha_tgt.qla_tgt;
 
 	seq_printf(s, "%s\n",vha->host_str);
@@ -26,12 +26,11 @@ qla2x00_dfs_tgt_sess_show(struct seq_file *s, void *unused)
 		seq_printf(s, "Port ID   Port Name                Handle\n");
 
 		spin_lock_irqsave(&ha->tgt.sess_lock, flags);
-		list_for_each_entry(sess, &tgt->sess_list, sess_list_entry) {
+		list_for_each_entry(sess, &vha->vp_fcports, list)
 			seq_printf(s, "%02x:%02x:%02x  %8phC  %d\n",
-					   sess->s_id.b.domain,sess->s_id.b.area,
-					   sess->s_id.b.al_pa,	sess->port_name,
-					   sess->loop_id);
-		}
+			    sess->d_id.b.domain, sess->d_id.b.area,
+			    sess->d_id.b.al_pa, sess->port_name,
+			    sess->loop_id);
 		spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
 	}
 

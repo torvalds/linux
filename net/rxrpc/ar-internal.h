@@ -467,6 +467,7 @@ struct rxrpc_call {
 	struct rxrpc_connection	*conn;		/* connection carrying call */
 	struct rxrpc_peer	*peer;		/* Peer record for remote address */
 	struct rxrpc_sock __rcu	*socket;	/* socket responsible */
+	struct mutex		user_mutex;	/* User access mutex */
 	ktime_t			ack_at;		/* When deferred ACK needs to happen */
 	ktime_t			resend_at;	/* When next resend needs to happen */
 	ktime_t			ping_at;	/* When next to send a ping */

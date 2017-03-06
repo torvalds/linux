@@ -33,6 +33,7 @@
 #include <linux/pm_domain.h>
 #include <linux/export.h>
 #include <linux/sched/rt.h>
+#include <uapi/linux/sched/types.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/ioport.h>

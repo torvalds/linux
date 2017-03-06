@@ -28,6 +28,7 @@
 #include <linux/async.h>
 #include <linux/i2c.h>
 #include <linux/hdmi.h>
+#include <linux/sched/clock.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include <drm/drm_crtc.h>

@@ -45,6 +45,7 @@
 #include <linux/slab.h>
 #include <linux/hardirq.h>
 #include <linux/preempt.h>
+#include <linux/sched/debug.h>
 #include <linux/extable.h>
 #include <linux/kdebug.h>
 #include <linux/kallsyms.h>

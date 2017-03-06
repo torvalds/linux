@@ -21,6 +21,8 @@
 
 #include <sound/core.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
+
 #include "seq_fifo.h"
 #include "seq_lock.h"
 

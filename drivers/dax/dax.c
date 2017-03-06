@@ -13,6 +13,7 @@
 #include <linux/pagemap.h>
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/magic.h>
 #include <linux/mount.h>
 #include <linux/pfn_t.h>
 #include <linux/hash.h>

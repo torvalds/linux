@@ -2,6 +2,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/timer.h>

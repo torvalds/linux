@@ -12,6 +12,7 @@
 
 #include <linux/export.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/stacktrace.h>
 #include <asm/ptrace.h>
 #include <asm/processor.h>

@@ -731,7 +731,7 @@ static int scrub_fixup_readpage(u64 inum, u64 offset, u64 root, void *fixup_ctx)
 			ret = -EIO;
 			goto out;
 		}
-		ret = repair_io_failure(inode, offset, PAGE_SIZE,
+		ret = repair_io_failure(BTRFS_I(inode), offset, PAGE_SIZE,
 					fixup->logical, page,
 					offset - page_offset(page),
 					fixup->mirror_num);
@@ -4236,7 +4236,7 @@ out:
 	scrub_pending_trans_workers_dec(sctx);
 }
 
-static int check_extent_to_block(struct inode *inode, u64 start, u64 len,
+static int check_extent_to_block(struct btrfs_inode *inode, u64 start, u64 len,
 				 u64 logical)
 {
 	struct extent_state *cached_state = NULL;
@@ -4246,7 +4246,7 @@ static int check_extent_to_block(struct inode *inode, u64 start, u64 len,
 	u64 lockstart = start, lockend = start + len - 1;
 	int ret = 0;
 
-	io_tree = &BTRFS_I(inode)->io_tree;
+	io_tree = &inode->io_tree;
 
 	lock_extent_bits(io_tree, lockstart, lockend, &cached_state);
 	ordered = btrfs_lookup_ordered_range(inode, lockstart, len);
@@ -4325,7 +4325,8 @@ static int copy_nocow_pages_for_inode(u64 inum, u64 offset, u64 root,
 	io_tree = &BTRFS_I(inode)->io_tree;
 	nocow_ctx_logical = nocow_ctx->logical;
 
-	ret = check_extent_to_block(inode, offset, len, nocow_ctx_logical);
+	ret = check_extent_to_block(BTRFS_I(inode), offset, len,
+			nocow_ctx_logical);
 	if (ret) {
 		ret = ret > 0 ? 0 : ret;
 		goto out;
@@ -4372,7 +4373,7 @@ again:
 			}
 		}
 
-		ret = check_extent_to_block(inode, offset, len,
+		ret = check_extent_to_block(BTRFS_I(inode), offset, len,
 					    nocow_ctx_logical);
 		if (ret) {
 			ret = ret > 0 ? 0 : ret;

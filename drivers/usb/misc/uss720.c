@@ -50,6 +50,7 @@
 #include <linux/completion.h>
 #include <linux/kref.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 
 /*
  * Version Information

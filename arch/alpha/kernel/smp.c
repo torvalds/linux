@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/kernel_stat.h>
 #include <linux/module.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/mm.h>
 #include <linux/err.h>
 #include <linux/threads.h>
