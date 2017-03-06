@@ -487,6 +487,8 @@ static inline int iwl_mvm_update_sta(struct iwl_mvm *mvm,
 	return iwl_mvm_sta_send_to_fw(mvm, sta, true, 0);
 }
 
+int iwl_mvm_wait_sta_queues_empty(struct iwl_mvm *mvm,
+				  struct iwl_mvm_sta *mvm_sta);
 int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		   struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta);

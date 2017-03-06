@@ -3995,6 +3995,8 @@ static void iwl_mvm_mac_flush(struct ieee80211_hw *hw,
 				IWL_ERR(mvm, "flush request fail\n");
 		} else {
 			msk |= mvmsta->tfd_queue_msk;
+			if (iwl_mvm_has_new_tx_api(mvm))
+				iwl_mvm_wait_sta_queues_empty(mvm, mvmsta);
 		}
 	}
 
@@ -4003,7 +4005,7 @@ static void iwl_mvm_mac_flush(struct ieee80211_hw *hw,
 	/* this can take a while, and we may need/want other operations
 	 * to succeed while doing this, so do it without the mutex held
 	 */
-	if (!drop)
+	if (!drop && !iwl_mvm_has_new_tx_api(mvm))
 		iwl_trans_wait_tx_queues_empty(mvm->trans, msk);
 }
 

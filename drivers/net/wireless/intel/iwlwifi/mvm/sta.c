@@ -1590,6 +1590,29 @@ static void iwl_mvm_disable_sta_queues(struct iwl_mvm *mvm,
 	}
 }
 
+int iwl_mvm_wait_sta_queues_empty(struct iwl_mvm *mvm,
+				  struct iwl_mvm_sta *mvm_sta)
+{
+	int i, ret;
+
+	for (i = 0; i < ARRAY_SIZE(mvm_sta->tid_data); i++) {
+		u16 txq_id;
+
+		spin_lock_bh(&mvm_sta->lock);
+		txq_id = mvm_sta->tid_data[i].txq_id;
+		spin_unlock_bh(&mvm_sta->lock);
+
+		if (txq_id == IWL_MVM_INVALID_QUEUE)
+			continue;
+
+		ret = iwl_trans_wait_txq_empty(mvm->trans, txq_id);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
 int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		   struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta)
@@ -1614,8 +1637,14 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		ret = iwl_mvm_flush_sta(mvm, mvm_sta, false, 0);
 		if (ret)
 			return ret;
-		ret = iwl_trans_wait_tx_queues_empty(mvm->trans,
-						     mvm_sta->tfd_queue_msk);
+		if (iwl_mvm_has_new_tx_api(mvm)) {
+			ret = iwl_mvm_wait_sta_queues_empty(mvm, mvm_sta);
+		} else {
+			u32 q_mask = mvm_sta->tfd_queue_msk;
+
+			ret = iwl_trans_wait_tx_queues_empty(mvm->trans,
+							     q_mask);
+		}
 		if (ret)
 			return ret;
 		ret = iwl_mvm_drain_sta(mvm, mvm_sta, false);
@@ -2850,7 +2879,13 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		iwl_mvm_drain_sta(mvm, mvmsta, true);
 		if (iwl_mvm_flush_tx_path(mvm, BIT(txq_id), 0))
 			IWL_ERR(mvm, "Couldn't flush the AGG queue\n");
-		iwl_trans_wait_tx_queues_empty(mvm->trans, BIT(txq_id));
+
+		if (iwl_mvm_has_new_tx_api(mvm))
+			iwl_trans_wait_txq_empty(mvm->trans, txq_id);
+
+		else
+			iwl_trans_wait_tx_queues_empty(mvm->trans, BIT(txq_id));
+
 		iwl_mvm_drain_sta(mvm, mvmsta, false);
 
 		iwl_mvm_sta_tx_agg(mvm, sta, tid, txq_id, false);

@@ -2045,17 +2045,52 @@ void iwl_trans_pcie_log_scd_error(struct iwl_trans *trans, struct iwl_txq *txq)
 		iwl_read_direct32(trans, FH_TX_TRB_REG(fifo)));
 }
 
-static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, u32 txq_bm)
+static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, int txq_idx)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_txq *txq;
-	int cnt;
 	unsigned long now = jiffies;
+	u8 wr_ptr;
+
+	if (!test_bit(txq_idx, trans_pcie->queue_used))
+		return -EINVAL;
+
+	IWL_DEBUG_TX_QUEUES(trans, "Emptying queue %d...\n", txq_idx);
+	txq = trans_pcie->txq[txq_idx];
+	wr_ptr = ACCESS_ONCE(txq->write_ptr);
+
+	while (txq->read_ptr != ACCESS_ONCE(txq->write_ptr) &&
+	       !time_after(jiffies,
+			   now + msecs_to_jiffies(IWL_FLUSH_WAIT_MS))) {
+		u8 write_ptr = ACCESS_ONCE(txq->write_ptr);
+
+		if (WARN_ONCE(wr_ptr != write_ptr,
+			      "WR pointer moved while flushing %d -> %d\n",
+			      wr_ptr, write_ptr))
+			return -ETIMEDOUT;
+		usleep_range(1000, 2000);
+	}
+
+	if (txq->read_ptr != txq->write_ptr) {
+		IWL_ERR(trans,
+			"fail to flush all tx fifo queues Q %d\n", txq_idx);
+		iwl_trans_pcie_log_scd_error(trans, txq);
+		return -ETIMEDOUT;
+	}
+
+	IWL_DEBUG_TX_QUEUES(trans, "Queue %d is now empty.\n", txq_idx);
+
+	return 0;
+}
+
+static int iwl_trans_pcie_wait_txqs_empty(struct iwl_trans *trans, u32 txq_bm)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	int cnt;
 	int ret = 0;
 
 	/* waiting for all the tx frames complete might take a while */
 	for (cnt = 0; cnt < trans->cfg->base_params->num_of_queues; cnt++) {
-		u8 wr_ptr;
 
 		if (cnt == trans_pcie->cmd_queue)
 			continue;
@@ -2064,33 +2099,10 @@ static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, u32 txq_bm)
 		if (!(BIT(cnt) & txq_bm))
 			continue;
 
-		IWL_DEBUG_TX_QUEUES(trans, "Emptying queue %d...\n", cnt);
-		txq = trans_pcie->txq[cnt];
-		wr_ptr = ACCESS_ONCE(txq->write_ptr);
-
-		while (txq->read_ptr != ACCESS_ONCE(txq->write_ptr) &&
-		       !time_after(jiffies,
-				   now + msecs_to_jiffies(IWL_FLUSH_WAIT_MS))) {
-			u8 write_ptr = ACCESS_ONCE(txq->write_ptr);
-
-			if (WARN_ONCE(wr_ptr != write_ptr,
-				      "WR pointer moved while flushing %d -> %d\n",
-				      wr_ptr, write_ptr))
-				return -ETIMEDOUT;
-			usleep_range(1000, 2000);
-		}
-
-		if (txq->read_ptr != txq->write_ptr) {
-			IWL_ERR(trans,
-				"fail to flush all tx fifo queues Q %d\n", cnt);
-			ret = -ETIMEDOUT;
+		ret = iwl_trans_pcie_wait_txq_empty(trans, cnt);
+		if (ret)
 			break;
-		}
-		IWL_DEBUG_TX_QUEUES(trans, "Queue %d is now empty.\n", cnt);
 	}
-
-	if (ret)
-		iwl_trans_pcie_log_scd_error(trans, txq);
 
 	return ret;
 }
@@ -2862,7 +2874,6 @@ static void iwl_trans_pcie_resume(struct iwl_trans *trans)
 	.ref = iwl_trans_pcie_ref,					\
 	.unref = iwl_trans_pcie_unref,					\
 	.dump_data = iwl_trans_pcie_dump_data,				\
-	.wait_tx_queues_empty = iwl_trans_pcie_wait_txq_empty,		\
 	.d3_suspend = iwl_trans_pcie_d3_suspend,			\
 	.d3_resume = iwl_trans_pcie_d3_resume
 
@@ -2892,6 +2903,8 @@ static const struct iwl_trans_ops trans_ops_pcie = {
 
 	.txq_set_shared_mode = iwl_trans_pcie_txq_set_shared_mode,
 
+	.wait_tx_queues_empty = iwl_trans_pcie_wait_txqs_empty,
+
 	.freeze_txq_timer = iwl_trans_pcie_freeze_txq_timer,
 	.block_txq_ptrs = iwl_trans_pcie_block_txq_ptrs,
 };
@@ -2911,6 +2924,7 @@ static const struct iwl_trans_ops trans_ops_pcie_gen2 = {
 
 	.txq_alloc = iwl_trans_pcie_dyn_txq_alloc,
 	.txq_free = iwl_trans_pcie_dyn_txq_free,
+	.wait_txq_empty = iwl_trans_pcie_wait_txq_empty,
 };
 
 struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,

@@ -619,7 +619,8 @@ struct iwl_tx_queue_cfg_rsp {
  * @txq_disable: de-configure a Tx queue to send AMPDUs
  *	Must be atomic
  * @txq_set_shared_mode: change Tx queue shared/unshared marking
- * @wait_tx_queue_empty: wait until tx queues are empty. May sleep.
+ * @wait_tx_queues_empty: wait until tx queues are empty. May sleep.
+ * @wait_txq_empty: wait until specific tx queue is empty. May sleep.
  * @freeze_txq_timer: prevents the timer of the queue from firing until the
  *	queue is set to awake. Must be atomic.
  * @block_txq_ptrs: stop updating the write pointers of the Tx queues. Note
@@ -692,6 +693,7 @@ struct iwl_trans_ops {
 				    bool shared);
 
 	int (*wait_tx_queues_empty)(struct iwl_trans *trans, u32 txq_bm);
+	int (*wait_txq_empty)(struct iwl_trans *trans, int queue);
 	void (*freeze_txq_timer)(struct iwl_trans *trans, unsigned long txqs,
 				 bool freeze);
 	void (*block_txq_ptrs)(struct iwl_trans *trans, bool block);
@@ -1198,12 +1200,28 @@ static inline void iwl_trans_block_txq_ptrs(struct iwl_trans *trans,
 static inline int iwl_trans_wait_tx_queues_empty(struct iwl_trans *trans,
 						 u32 txqs)
 {
+	if (WARN_ON_ONCE(!trans->ops->wait_tx_queues_empty))
+		return -ENOTSUPP;
+
 	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
 		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
 		return -EIO;
 	}
 
 	return trans->ops->wait_tx_queues_empty(trans, txqs);
+}
+
+static inline int iwl_trans_wait_txq_empty(struct iwl_trans *trans, int queue)
+{
+	if (WARN_ON_ONCE(!trans->ops->wait_txq_empty))
+		return -ENOTSUPP;
+
+	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
+		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
+		return -EIO;
+	}
+
+	return trans->ops->wait_txq_empty(trans, queue);
 }
 
 static inline void iwl_trans_write8(struct iwl_trans *trans, u32 ofs, u8 val)
