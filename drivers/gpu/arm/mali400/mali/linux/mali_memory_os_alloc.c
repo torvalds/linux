@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2016 ARM Limited. All rights reserved.
+ * Copyright (C) 2013-2017 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -121,7 +121,7 @@ _mali_osk_errcode_t mali_mem_os_put_page(struct page *page)
 	if (1 == page_count(page)) {
 		atomic_sub(1, &mali_mem_os_allocator.allocated_pages);
 		dma_unmap_page(&mali_platform_device->dev, page_private(page),
-			       _MALI_OSK_MALI_PAGE_SIZE, DMA_TO_DEVICE);
+			       _MALI_OSK_MALI_PAGE_SIZE, DMA_BIDIRECTIONAL);
 		ClearPagePrivate(page);
 	}
 	put_page(page);
@@ -232,7 +232,11 @@ int mali_mem_os_alloc_pages(mali_mem_os_mem *os_mem, u32 size)
 
 		/* Ensure page is flushed from CPU caches. */
 		dma_addr = dma_map_page(&mali_platform_device->dev, new_page,
-					0, _MALI_OSK_MALI_PAGE_SIZE, DMA_TO_DEVICE);
+					0, _MALI_OSK_MALI_PAGE_SIZE, DMA_BIDIRECTIONAL);
+		dma_unmap_page(&mali_platform_device->dev, dma_addr,
+			       _MALI_OSK_MALI_PAGE_SIZE, DMA_BIDIRECTIONAL);
+		dma_addr = dma_map_page(&mali_platform_device->dev, new_page,
+					0, _MALI_OSK_MALI_PAGE_SIZE, DMA_BIDIRECTIONAL);
 
 		err = dma_mapping_error(&mali_platform_device->dev, dma_addr);
 		if (unlikely(err)) {
@@ -253,7 +257,7 @@ int mali_mem_os_alloc_pages(mali_mem_os_mem *os_mem, u32 size)
 		if (unlikely(NULL == m_page)) {
 			MALI_PRINT_ERROR(("OS Mem: Can't allocate mali_page node! \n"));
 			dma_unmap_page(&mali_platform_device->dev, page_private(new_page),
-				       _MALI_OSK_MALI_PAGE_SIZE, DMA_TO_DEVICE);
+				       _MALI_OSK_MALI_PAGE_SIZE, DMA_BIDIRECTIONAL);
 			ClearPagePrivate(new_page);
 			__free_page(new_page);
 			os_mem->count = (page_count - remaining) + i;
@@ -568,7 +572,7 @@ void mali_mem_os_free_page_node(struct mali_page_node *m_page)
 
 	if (1  == page_count(page)) {
 		dma_unmap_page(&mali_platform_device->dev, page_private(page),
-			       _MALI_OSK_MALI_PAGE_SIZE, DMA_TO_DEVICE);
+			       _MALI_OSK_MALI_PAGE_SIZE, DMA_BIDIRECTIONAL);
 		ClearPagePrivate(page);
 	}
 	__free_page(page);
