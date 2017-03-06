@@ -191,7 +191,7 @@ enum ep_state {
 struct ep_data {
 	struct mutex			lock;
 	enum ep_state			state;
-	atomic_t			count;
+	refcount_t			count;
 	struct dev_data			*dev;
 	/* must hold dev->lock before accessing ep or req */
 	struct usb_ep			*ep;
@@ -206,12 +206,12 @@ struct ep_data {
 
 static inline void get_ep (struct ep_data *data)
 {
-	atomic_inc (&data->count);
+	refcount_inc (&data->count);
 }
 
 static void put_ep (struct ep_data *data)
 {
-	if (likely (!atomic_dec_and_test (&data->count)))
+	if (likely (!refcount_dec_and_test (&data->count)))
 		return;
 	put_dev (data->dev);
 	/* needs no more cleanup */
@@ -1562,7 +1562,7 @@ static int activate_ep_files (struct dev_data *dev)
 		init_waitqueue_head (&data->wait);
 
 		strncpy (data->name, ep->name, sizeof (data->name) - 1);
-		atomic_set (&data->count, 1);
+		refcount_set (&data->count, 1);
 		data->dev = dev;
 		get_dev (dev);
 
