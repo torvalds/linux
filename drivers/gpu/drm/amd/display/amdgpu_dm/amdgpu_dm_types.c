@@ -2517,12 +2517,11 @@ void amdgpu_dm_atomic_commit_tail(
 	struct drm_device *dev = state->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_display_manager *dm = &adev->dm;
+	struct dm_atomic_state *dm_state;
 	uint32_t i, j;
-	uint32_t commit_streams_count = 0;
 	uint32_t new_crtcs_count = 0;
 	struct drm_crtc *crtc, *pcrtc;
 	struct drm_crtc_state *old_crtc_state;
-	const struct dc_stream *commit_streams[MAX_STREAMS];
 	struct amdgpu_crtc *new_crtcs[MAX_STREAMS];
 	const struct dc_stream *new_stream;
 	unsigned long flags;
@@ -2531,6 +2530,9 @@ void amdgpu_dm_atomic_commit_tail(
 	struct drm_connector_state *old_conn_state;
 
 	drm_atomic_helper_update_legacy_modeset_state(dev, state);
+
+	dm_state = to_dm_atomic_state(state);
+
 	/* update changed items */
 	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
 		struct amdgpu_crtc *acrtc;
@@ -2561,16 +2563,16 @@ void amdgpu_dm_atomic_commit_tail(
 		 */
 
 		if (modeset_required(new_state)) {
-			struct dm_connector_state *dm_state = NULL;
+			struct dm_connector_state *dm_conn_state = NULL;
 			new_stream = NULL;
 
 			if (aconnector)
-				dm_state = to_dm_connector_state(aconnector->base.state);
+				dm_conn_state = to_dm_connector_state(aconnector->base.state);
 
 			new_stream = create_stream_for_sink(
 					aconnector,
 					&crtc->state->mode,
-					dm_state);
+					dm_conn_state);
 
 			DRM_INFO("Atomic commit: SET crtc id %d: [%p]\n", acrtc->crtc_id, acrtc);
 
@@ -2598,6 +2600,13 @@ void amdgpu_dm_atomic_commit_tail(
 			if (acrtc->stream)
 				remove_stream(adev, acrtc);
 
+			/* TODO clean this stupid hack */
+			for (j = 0; j < dm_state->set_count; j++)
+				if (dm_state->set[j].stream->priv == acrtc) {
+					ASSERT(acrtc->stream == NULL);
+					new_stream = dm_state->set[j].stream;
+					break;
+				}
 			/*
 			 * this loop saves set mode crtcs
 			 * we needed to enable vblanks once all
@@ -2656,15 +2665,6 @@ void amdgpu_dm_atomic_commit_tail(
 			dm_error("%s: Failed to update stream scaling!\n", __func__);
 	}
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-
-		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
-
-		if (acrtc->stream) {
-			commit_streams[commit_streams_count] = acrtc->stream;
-			++commit_streams_count;
-		}
-	}
 
 	/*
 	 * Add streams after required streams from new and replaced streams
@@ -2693,7 +2693,8 @@ void amdgpu_dm_atomic_commit_tail(
 	}
 
 	/* DC is optimized not to do anything if 'streams' didn't change. */
-	WARN_ON(!dc_commit_streams(dm->dc, commit_streams, commit_streams_count));
+	WARN_ON(!dc_commit_validation_set(dm->dc, dm_state->set,
+					  dm_state->set_count));
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
@@ -3051,6 +3052,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 			}
 
 			new_stream = create_stream_for_sink(aconnector, &crtc_state->mode, dm_conn_state);
+			new_stream->priv = acrtc;
 
 			/*
 			 * we can have no stream on ACTION_SET if a display

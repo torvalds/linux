@@ -841,6 +841,24 @@ static void program_timing_sync(
 	}
 }
 
+static bool set_changed(
+		struct core_dc *dc,
+		const struct dc_validation_set set[],
+		uint8_t set_count)
+{
+	uint8_t i;
+
+	if (set_count != dc->current_context->stream_count)
+		return true;
+
+	for (i = 0; i < dc->current_context->stream_count; i++) {
+		if (&dc->current_context->streams[i]->public != set[i].stream)
+			return true;
+	}
+
+	return false;
+}
+
 static bool streams_changed(
 		struct core_dc *dc,
 		const struct dc_stream *streams[],
@@ -894,6 +912,106 @@ bool dc_enable_stereo(
 
 #endif
 	return ret;
+}
+
+/* TODO operate on validation set (or something like it) */
+bool dc_commit_validation_set(
+	const struct dc *dc,
+	const struct dc_validation_set set[],
+	uint8_t set_count)
+{
+	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc_bios *dcb = core_dc->ctx->dc_bios;
+	enum dc_status result = DC_ERROR_UNEXPECTED;
+	struct validate_context *context;
+	struct pipe_ctx *pipe;
+	int i, j, k, l;
+
+	/* TODO check validation set changed */
+	if (false == set_changed(core_dc, set, set_count))
+		return DC_OK;
+
+	dm_logger_write(core_dc->ctx->logger, LOG_DC, "%s: %d streams\n",
+				__func__, set_count);
+
+	for (i = 0; i < set_count; i++)
+		dc_stream_log(set[i].stream,
+			      core_dc->ctx->logger,
+			      LOG_DC);
+
+	context = dm_alloc(sizeof(struct validate_context));
+	if (context == NULL)
+		goto context_alloc_fail;
+
+	/* TODO no need for validation. just rebuild context */
+	/* TODO check context is created deterministically */
+	result = core_dc->res_pool->funcs->validate_with_context(core_dc, set,
+								 set_count,
+								 context,
+								 core_dc->current_context);
+	if (result != DC_OK) {
+		dm_logger_write(core_dc->ctx->logger, LOG_ERROR,
+					"%s: Context validation failed! dc_status:%d\n",
+					__func__,
+					result);
+		BREAK_TO_DEBUGGER();
+		dc_resource_validate_ctx_destruct(context);
+		goto fail;
+	}
+
+	if (!dcb->funcs->is_accelerated_mode(dcb))
+		core_dc->hwss.enable_accelerated_mode(core_dc);
+
+	if (result == DC_OK)
+		result = core_dc->hwss.apply_ctx_to_hw(core_dc, context);
+
+	program_timing_sync(core_dc, context);
+
+	for (i = 0; i < context->stream_count; i++) {
+		const struct core_sink *sink = context->streams[i]->sink;
+
+		for (j = 0; j < context->stream_status[i].surface_count; j++) {
+			struct core_surface *surface =
+					DC_SURFACE_TO_CORE(context->stream_status[i].surfaces[j]);
+
+			core_dc->hwss.apply_ctx_for_surface(core_dc, surface, context);
+
+			/*
+			 * enable stereo
+			 * TODO rework dc_enable_stereo call to work with validation sets?
+			 */
+			for (k = 0; k < MAX_PIPES; k++) {
+				pipe = &context->res_ctx.pipe_ctx[k];
+
+				for (l = 0 ; pipe && l < context->stream_count; l++)  {
+					if (context->streams[l] &&
+					    context->streams[l] == pipe->stream &&
+					    core_dc->hwss.setup_stereo)
+						core_dc->hwss.setup_stereo(pipe, core_dc);
+				}
+			}
+		}
+
+		CONN_MSG_MODE(sink->link, "{%dx%d, %dx%d@%dKhz}",
+				context->streams[i]->public.timing.h_addressable,
+				context->streams[i]->public.timing.v_addressable,
+				context->streams[i]->public.timing.h_total,
+				context->streams[i]->public.timing.v_total,
+				context->streams[i]->public.timing.pix_clk_khz);
+	}
+
+	dc_resource_validate_ctx_destruct(core_dc->current_context);
+	dm_free(core_dc->current_context);
+
+	core_dc->current_context = context;
+
+	return (result == DC_OK);
+
+fail:
+	dm_free(context);
+
+context_alloc_fail:
+	return (result == DC_OK);
 }
 
 bool dc_commit_streams(

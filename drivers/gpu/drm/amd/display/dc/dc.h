@@ -481,6 +481,8 @@ struct dc_stream {
 	/* TODO: ABM info (DMCU) */
 	/* TODO: PSR info */
 	/* TODO: CEA VIC */
+
+	void *priv;
 };
 
 struct dc_stream_update {
@@ -578,6 +580,20 @@ void dc_resource_validate_ctx_copy_construct(
 		struct validate_context *dst_ctx);
 
 void dc_resource_validate_ctx_destruct(struct validate_context *context);
+
+/*
+ * TODO update to make it about validation sets
+ * Set up streams and links associated to drive sinks
+ * The streams parameter is an absolute set of all active streams.
+ *
+ * After this call:
+ *   Phy, Encoder, Timing Generator are programmed and enabled.
+ *   New streams are enabled with blank stream; no memory read.
+ */
+bool dc_commit_validation_set(
+		const struct dc *dc,
+		const struct dc_validation_set set[],
+		uint8_t set_count);
 
 /*
  * Set up streams and links associated to drive sinks
