@@ -316,8 +316,15 @@ section "Livepatch life-cycle" below for more details about these
 two operations.
 
 Module removal is only safe when there are no users of the underlying
-functions.  The immediate consistency model is not able to detect this;
-therefore livepatch modules cannot be removed. See "Limitations" below.
+functions. The immediate consistency model is not able to detect this. The
+code just redirects the functions at the very beginning and it does not
+check if the functions are in use. In other words, it knows when the
+functions get called but it does not know when the functions return.
+Therefore it cannot be decided when the livepatch module can be safely
+removed. This is solved by a hybrid consistency model. When the system is
+transitioned to a new patch state (patched/unpatched) it is guaranteed that
+no task sleeps or runs in the old code.
+
 
 5. Livepatch life-cycle
 =======================
@@ -468,23 +475,6 @@ The current Livepatch implementation has several limitations:
     potential mistake is prevented by marking the problematic functions
     by "notrace".
 
-
-  + Livepatch modules can not be removed.
-
-    The current implementation just redirects the functions at the very
-    beginning. It does not check if the functions are in use. In other
-    words, it knows when the functions get called but it does not
-    know when the functions return. Therefore it can not decide when
-    the livepatch module can be safely removed.
-
-    This will get most likely solved once a more complex consistency model
-    is supported. The idea is that a safe state for patching should also
-    mean a safe state for removing the patch.
-
-    Note that the patch itself might get disabled by writing zero
-    to /sys/kernel/livepatch/<patch>/enabled. It causes that the new
-    code will not longer get called. But it does not guarantee
-    that anyone is not sleeping anywhere in the new code.
 
 
   + Livepatch works reliably only when the dynamic ftrace is located at

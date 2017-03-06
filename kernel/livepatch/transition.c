@@ -59,6 +59,7 @@ static void klp_complete_transition(void)
 	struct klp_func *func;
 	struct task_struct *g, *task;
 	unsigned int cpu;
+	bool immediate_func = false;
 
 	if (klp_target_state == KLP_UNPATCHED) {
 		/*
@@ -79,9 +80,16 @@ static void klp_complete_transition(void)
 	if (klp_transition_patch->immediate)
 		goto done;
 
-	klp_for_each_object(klp_transition_patch, obj)
-		klp_for_each_func(obj, func)
+	klp_for_each_object(klp_transition_patch, obj) {
+		klp_for_each_func(obj, func) {
 			func->transition = false;
+			if (func->immediate)
+				immediate_func = true;
+		}
+	}
+
+	if (klp_target_state == KLP_UNPATCHED && !immediate_func)
+		module_put(klp_transition_patch->mod);
 
 	/* Prevent klp_ftrace_handler() from seeing KLP_UNDEFINED state */
 	if (klp_target_state == KLP_PATCHED)
@@ -113,8 +121,31 @@ done:
  */
 void klp_cancel_transition(void)
 {
-	klp_target_state = !klp_target_state;
+	struct klp_patch *patch = klp_transition_patch;
+	struct klp_object *obj;
+	struct klp_func *func;
+	bool immediate_func = false;
+
+	if (WARN_ON_ONCE(klp_target_state != KLP_PATCHED))
+		return;
+
+	klp_target_state = KLP_UNPATCHED;
 	klp_complete_transition();
+
+	/*
+	 * In the enable error path, even immediate patches can be safely
+	 * removed because the transition hasn't been started yet.
+	 *
+	 * klp_complete_transition() doesn't have a module_put() for immediate
+	 * patches, so do it here.
+	 */
+	klp_for_each_object(patch, obj)
+		klp_for_each_func(obj, func)
+			if (func->immediate)
+				immediate_func = true;
+
+	if (patch->immediate || immediate_func)
+		module_put(patch->mod);
 }
 
 /*

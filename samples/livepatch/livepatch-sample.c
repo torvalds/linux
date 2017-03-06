@@ -99,7 +99,6 @@ static int livepatch_init(void)
 
 static void livepatch_exit(void)
 {
-	WARN_ON(klp_disable_patch(&patch));
 	WARN_ON(klp_unregister_patch(&patch));
 }
 

@@ -29,6 +29,7 @@
 #include <linux/livepatch.h>
 #include <linux/elf.h>
 #include <linux/moduleloader.h>
+#include <linux/completion.h>
 #include <asm/cacheflush.h>
 #include "patch.h"
 #include "transition.h"
@@ -354,6 +355,18 @@ static int __klp_enable_patch(struct klp_patch *patch)
 	    !list_prev_entry(patch, list)->enabled)
 		return -EBUSY;
 
+	/*
+	 * A reference is taken on the patch module to prevent it from being
+	 * unloaded.
+	 *
+	 * Note: For immediate (no consistency model) patches we don't allow
+	 * patch modules to unload since there is no safe/sane method to
+	 * determine if a thread is still running in the patched code contained
+	 * in the patch module once the ftrace registration is successful.
+	 */
+	if (!try_module_get(patch->mod))
+		return -ENODEV;
+
 	pr_notice("enabling patch '%s'\n", patch->mod->name);
 
 	klp_init_transition(patch, KLP_PATCHED);
@@ -442,6 +455,15 @@ static ssize_t enabled_store(struct kobject *kobj, struct kobj_attribute *attr,
 
 	mutex_lock(&klp_mutex);
 
+	if (!klp_is_patch_registered(patch)) {
+		/*
+		 * Module with the patch could either disappear meanwhile or is
+		 * not properly initialized yet.
+		 */
+		ret = -EINVAL;
+		goto err;
+	}
+
 	if (patch->enabled == enabled) {
 		/* already in requested state */
 		ret = -EINVAL;
@@ -498,10 +520,10 @@ static struct attribute *klp_patch_attrs[] = {
 
 static void klp_kobj_release_patch(struct kobject *kobj)
 {
-	/*
-	 * Once we have a consistency model we'll need to module_put() the
-	 * patch module here.  See klp_register_patch() for more details.
-	 */
+	struct klp_patch *patch;
+
+	patch = container_of(kobj, struct klp_patch, kobj);
+	complete(&patch->finish);
 }
 
 static struct kobj_type klp_ktype_patch = {
@@ -572,7 +594,6 @@ static void klp_free_patch(struct klp_patch *patch)
 	klp_free_objects_limited(patch, NULL);
 	if (!list_empty(&patch->list))
 		list_del(&patch->list);
-	kobject_put(&patch->kobj);
 }
 
 static int klp_init_func(struct klp_object *obj, struct klp_func *func)
@@ -695,11 +716,14 @@ static int klp_init_patch(struct klp_patch *patch)
 	mutex_lock(&klp_mutex);
 
 	patch->enabled = false;
+	init_completion(&patch->finish);
 
 	ret = kobject_init_and_add(&patch->kobj, &klp_ktype_patch,
 				   klp_root_kobj, "%s", patch->mod->name);
-	if (ret)
-		goto unlock;
+	if (ret) {
+		mutex_unlock(&klp_mutex);
+		return ret;
+	}
 
 	klp_for_each_object(patch, obj) {
 		ret = klp_init_object(patch, obj);
@@ -715,9 +739,12 @@ static int klp_init_patch(struct klp_patch *patch)
 
 free:
 	klp_free_objects_limited(patch, obj);
-	kobject_put(&patch->kobj);
-unlock:
+
 	mutex_unlock(&klp_mutex);
+
+	kobject_put(&patch->kobj);
+	wait_for_completion(&patch->finish);
+
 	return ret;
 }
 
@@ -731,23 +758,29 @@ unlock:
  */
 int klp_unregister_patch(struct klp_patch *patch)
 {
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&klp_mutex);
 
 	if (!klp_is_patch_registered(patch)) {
 		ret = -EINVAL;
-		goto out;
+		goto err;
 	}
 
 	if (patch->enabled) {
 		ret = -EBUSY;
-		goto out;
+		goto err;
 	}
 
 	klp_free_patch(patch);
 
-out:
+	mutex_unlock(&klp_mutex);
+
+	kobject_put(&patch->kobj);
+	wait_for_completion(&patch->finish);
+
+	return 0;
+err:
 	mutex_unlock(&klp_mutex);
 	return ret;
 }
@@ -760,12 +793,13 @@ EXPORT_SYMBOL_GPL(klp_unregister_patch);
  * Initializes the data structure associated with the patch and
  * creates the sysfs interface.
  *
+ * There is no need to take the reference on the patch module here. It is done
+ * later when the patch is enabled.
+ *
  * Return: 0 on success, otherwise error
  */
 int klp_register_patch(struct klp_patch *patch)
 {
-	int ret;
-
 	if (!patch || !patch->mod)
 		return -EINVAL;
 
@@ -788,21 +822,7 @@ int klp_register_patch(struct klp_patch *patch)
 		return -ENOSYS;
 	}
 
-	/*
-	 * A reference is taken on the patch module to prevent it from being
-	 * unloaded.  Right now, we don't allow patch modules to unload since
-	 * there is currently no method to determine if a thread is still
-	 * running in the patched code contained in the patch module once
-	 * the ftrace registration is successful.
-	 */
-	if (!try_module_get(patch->mod))
-		return -ENODEV;
-
-	ret = klp_init_patch(patch);
-	if (ret)
-		module_put(patch->mod);
-
-	return ret;
+	return klp_init_patch(patch);
 }
 EXPORT_SYMBOL_GPL(klp_register_patch);
 
