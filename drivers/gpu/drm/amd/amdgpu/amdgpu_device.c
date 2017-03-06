@@ -422,12 +422,11 @@ static int amdgpu_doorbell_init(struct amdgpu_device *adev)
 	if (adev->doorbell.num_doorbells == 0)
 		return -EINVAL;
 
-	adev->doorbell.ptr = ioremap(adev->doorbell.base, adev->doorbell.num_doorbells * sizeof(u32));
-	if (adev->doorbell.ptr == NULL) {
+	adev->doorbell.ptr = ioremap(adev->doorbell.base,
+				     adev->doorbell.num_doorbells *
+				     sizeof(u32));
+	if (adev->doorbell.ptr == NULL)
 		return -ENOMEM;
-	}
-	DRM_INFO("doorbell mmio base: 0x%08X\n", (uint32_t)adev->doorbell.base);
-	DRM_INFO("doorbell mmio size: %u\n", (unsigned)adev->doorbell.size);
 
 	return 0;
 }
