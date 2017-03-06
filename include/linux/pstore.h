@@ -130,27 +130,19 @@ struct pstore_record {
  *	available, or negative on error.
  *
  * @write:
- *	Perform a frontend notification of a write to a backend record. The
- *	data to be stored has already been written to the registered @buf
- *	of the @psi structure.
+ *	A newly generated record needs to be written to backend storage.
  *
  *	@record:
- *		pointer to record metadata. Note that @buf is NULL, since
- *		the @buf registered with @psi is what has been written. The
- *		backend is expected to update @id.
+ *		pointer to record metadata. When @type is PSTORE_TYPE_DMESG,
+ *		@buf will be pointing to the preallocated @psi.buf, since
+ *		memory allocation may be broken during an Oops. Regardless,
+ *		@buf must be proccesed or copied before returning. The
+ *		backend is also expected to write @id with something that
+ 8		can help identify this record to a future @erase callback.
  *
  *	Returns 0 on success, and non-zero on error.
  *
- * @write_buf:
- *	Perform a frontend write to a backend record. The record contains
- *	all metadata and the buffer to write to backend storage. (Unlike
- *	@write, this does not use the @psi @buf.)
- *
- *	@record:	pointer to record metadata.
- *
- *	Returns 0 on success, and non-zero on error.
- *
- * @write_buf_user:
+ * @write_user:
  *	Perform a frontend write to a backend record, using a specified
  *	buffer that is coming directly from userspace, instead of the
  *	@record @buf.
@@ -188,9 +180,8 @@ struct pstore_info {
 	int		(*close)(struct pstore_info *psi);
 	ssize_t		(*read)(struct pstore_record *record);
 	int		(*write)(struct pstore_record *record);
-	int		(*write_buf)(struct pstore_record *record);
-	int		(*write_buf_user)(struct pstore_record *record,
-					  const char __user *buf);
+	int		(*write_user)(struct pstore_record *record,
+				      const char __user *buf);
 	int		(*erase)(struct pstore_record *record);
 };
 

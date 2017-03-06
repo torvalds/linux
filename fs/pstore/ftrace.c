@@ -53,7 +53,7 @@ static void notrace pstore_ftrace_call(unsigned long ip,
 	rec.parent_ip = parent_ip;
 	pstore_ftrace_write_timestamp(&rec, pstore_ftrace_stamp++);
 	pstore_ftrace_encode_cpu(&rec, raw_smp_processor_id());
-	psinfo->write_buf(&record);
+	psinfo->write(&record);
 
 	local_irq_restore(flags);
 }
@@ -122,7 +122,7 @@ void pstore_register_ftrace(void)
 {
 	struct dentry *file;
 
-	if (!psinfo->write_buf)
+	if (!psinfo->write)
 		return;
 
 	pstore_ftrace_dir = debugfs_create_dir("pstore", NULL);

@@ -604,7 +604,7 @@ static void pstore_console_write(struct console *con, const char *s, unsigned c)
 		}
 		record.buf = (char *)s;
 		record.size = c;
-		psinfo->write_buf(&record);
+		psinfo->write(&record);
 		spin_unlock_irqrestore(&psinfo->buf_lock, flags);
 		s += c;
 		c = e - s;
@@ -632,15 +632,8 @@ static void pstore_register_console(void) {}
 static void pstore_unregister_console(void) {}
 #endif
 
-static int pstore_write_compat(struct pstore_record *record)
-{
-	record->buf = psinfo->buf;
-
-	return record->psi->write_buf(record);
-}
-
-static int pstore_write_buf_user_compat(struct pstore_record *record,
-					const char __user *buf)
+static int pstore_write_user_compat(struct pstore_record *record,
+				    const char __user *buf)
 {
 	unsigned long flags = 0;
 	size_t i, bufsize, total_size = record->size;
@@ -662,7 +655,7 @@ static int pstore_write_buf_user_compat(struct pstore_record *record,
 			break;
 		}
 		record->size = c;
-		ret = record->psi->write_buf(record);
+		ret = record->psi->write(record);
 		if (unlikely(ret < 0))
 			break;
 		i += c;
@@ -687,6 +680,20 @@ int pstore_register(struct pstore_info *psi)
 		return -EPERM;
 	}
 
+	/* Sanity check flags. */
+	if (!psi->flags) {
+		pr_warn("backend '%s' must support at least one frontend\n",
+			psi->name);
+		return -EINVAL;
+	}
+
+	/* Check for required functions. */
+	if (!psi->read || !psi->write) {
+		pr_warn("backend '%s' must implement read() and write()\n",
+			psi->name);
+		return -EINVAL;
+	}
+
 	spin_lock(&pstore_lock);
 	if (psinfo) {
 		pr_warn("backend '%s' already loaded: ignoring '%s'\n",
@@ -695,10 +702,8 @@ int pstore_register(struct pstore_info *psi)
 		return -EBUSY;
 	}
 
-	if (!psi->write)
-		psi->write = pstore_write_compat;
-	if (!psi->write_buf_user)
-		psi->write_buf_user = pstore_write_buf_user_compat;
+	if (!psi->write_user)
+		psi->write_user = pstore_write_user_compat;
 	psinfo = psi;
 	mutex_init(&psinfo->read_mutex);
 	spin_unlock(&pstore_lock);

@@ -378,7 +378,7 @@ static size_t ramoops_write_kmsg_hdr(struct persistent_ram_zone *prz,
 	return len;
 }
 
-static int notrace ramoops_pstore_write_buf(struct pstore_record *record)
+static int notrace ramoops_pstore_write(struct pstore_record *record)
 {
 	struct ramoops_context *cxt = record->psi->data;
 	struct persistent_ram_zone *prz;
@@ -451,8 +451,8 @@ static int notrace ramoops_pstore_write_buf(struct pstore_record *record)
 	return 0;
 }
 
-static int notrace ramoops_pstore_write_buf_user(struct pstore_record *record,
-						 const char __user *buf)
+static int notrace ramoops_pstore_write_user(struct pstore_record *record,
+					     const char __user *buf)
 {
 	if (record->type == PSTORE_TYPE_PMSG) {
 		struct ramoops_context *cxt = record->psi->data;
@@ -503,8 +503,8 @@ static struct ramoops_context oops_cxt = {
 		.name	= "ramoops",
 		.open	= ramoops_pstore_open,
 		.read	= ramoops_pstore_read,
-		.write_buf	= ramoops_pstore_write_buf,
-		.write_buf_user	= ramoops_pstore_write_buf_user,
+		.write	= ramoops_pstore_write,
+		.write_user	= ramoops_pstore_write_user,
 		.erase	= ramoops_pstore_erase,
 	},
 };
