@@ -2044,6 +2044,7 @@ static int virtnet_find_vqs(struct virtnet_info *vi)
 	int ret = -ENOMEM;
 	int i, total_vqs;
 	const char **names;
+	bool *ctx;
 
 	/* We expect 1 RX virtqueue followed by 1 TX virtqueue, followed by
 	 * possible N-1 RX/TX queue pairs used in multiqueue mode, followed by
@@ -2062,6 +2063,13 @@ static int virtnet_find_vqs(struct virtnet_info *vi)
 	names = kmalloc(total_vqs * sizeof(*names), GFP_KERNEL);
 	if (!names)
 		goto err_names;
+	if (vi->mergeable_rx_bufs) {
+		ctx = kzalloc(total_vqs * sizeof(*ctx), GFP_KERNEL);
+		if (!ctx)
+			goto err_ctx;
+	} else {
+		ctx = NULL;
+	}
 
 	/* Parameters for control virtqueue, if any */
 	if (vi->has_cvq) {
@@ -2077,9 +2085,12 @@ static int virtnet_find_vqs(struct virtnet_info *vi)
 		sprintf(vi->sq[i].name, "output.%d", i);
 		names[rxq2vq(i)] = vi->rq[i].name;
 		names[txq2vq(i)] = vi->sq[i].name;
+		if (ctx)
+			ctx[rxq2vq(i)] = true;
 	}
 
-	ret = virtio_find_vqs(vi->vdev, total_vqs, vqs, callbacks, names, NULL);
+	ret = vi->vdev->config->find_vqs(vi->vdev, total_vqs, vqs, callbacks,
+					 names, ctx, NULL);
 	if (ret)
 		goto err_find;
 
@@ -2101,6 +2112,8 @@ static int virtnet_find_vqs(struct virtnet_info *vi)
 	return 0;
 
 err_find:
+	kfree(ctx);
+err_ctx:
 	kfree(names);
 err_names:
 	kfree(callbacks);
