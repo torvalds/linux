@@ -7,6 +7,7 @@
 
 #include <dt-bindings/input/input.h>
 #include "omap443x.dtsi"
+#include "motorola-cpcap-mapphone.dtsi"
 
 / {
 	model = "Motorola Droid 4 XT894";
@@ -26,25 +27,7 @@
 		reg = <0x80000000 0x3fd00000>;	/* 1021 MB */
 	};
 
-	/* CPCAP really supports 1650000 to 3400000 range */
-	vmmc: regulator-mmc {
-		compatible = "regulator-fixed";
-		regulator-name = "vmmc";
-		regulator-min-microvolt = <3000000>;
-		regulator-max-microvolt = <3000000>;
-		regulator-always-on;
-	};
-
-	/* CPCAP really supports 3000000 to 3100000 range */
-	vemmc: regulator-emmc {
-		compatible = "regulator-fixed";
-		regulator-name = "vemmc";
-		regulator-min-microvolt = <3000000>;
-		regulator-max-microvolt = <3000000>;
-		regulator-always-on;
-	};
-
-	/* CPCAP really supports 1650000 to 1950000 range */
+	/* This is probably coming straight from the battery.. */
 	wl12xx_vmmc: regulator-wl12xx {
 		compatible = "regulator-fixed";
 		regulator-name = "vwl1271";
@@ -136,13 +119,13 @@
 };
 
 &mmc1 {
-	vmmc-supply = <&vmmc>;
+	vmmc-supply = <&vsimcard>;
 	bus-width = <4>;
 	cd-gpios = <&gpio4 10 GPIO_ACTIVE_LOW>;	/* gpio106 */
 };
 
 &mmc2 {
-	vmmc-supply = <&vemmc>;
+	vmmc-supply = <&vsdio>;
 	bus-width = <8>;
 	non-removable;
 };
