@@ -70,12 +70,15 @@ typedef enum {
 #define GPIO_POWER_CONFIG		0x04
 #define SUSPEND_DEBUG_ENABLE		0x05
 #define APIOS_SUSPEND_CONFIG		0x06
+#define VIRTUAL_POWEROFF		0x07
 
 /* struct arm_smccc_res: a0: error code; a1~a3: data */
 /* SMC32 Calls */
 int sip_smc_set_suspend_mode(u32 ctrl,
 			     u32 config1,
 			     u32 config2);
+int rk_psci_virtual_poweroff(void);
+
 struct arm_smccc_res sip_smc_get_call_count(void);
 struct arm_smccc_res sip_smc_get_atf_version(void);
 struct arm_smccc_res sip_smc_get_sip_version(void);

@@ -18,6 +18,12 @@
 #include <asm/smp_plat.h>
 #include <uapi/linux/psci.h>
 
+#ifdef CONFIG_64BIT
+#define PSCI_FN_NATIVE(version, name)	PSCI_##version##_FN64_##name
+#else
+#define PSCI_FN_NATIVE(version, name)	PSCI_##version##_FN_##name
+#endif
+
 #define SIZE_PAGE(n)	((n) << 12)
 
 static struct arm_smccc_res __invoke_sip_fn_smc(unsigned long function_id,
@@ -56,6 +62,15 @@ int sip_smc_set_suspend_mode(u32 ctrl,
 	res = __invoke_sip_fn_smc(SIP_SUSPEND_MODE32, ctrl,
 				  config1, config2);
 
+	return res.a0;
+}
+
+int rk_psci_virtual_poweroff(void)
+{
+	struct arm_smccc_res res;
+
+	res = __invoke_sip_fn_smc(PSCI_FN_NATIVE(1_0, SYSTEM_SUSPEND),
+				  0, 0, 0);
 	return res.a0;
 }
 
