@@ -41,6 +41,11 @@ enum cabc_stage_up_mode {
 	ADD_MODE,
 };
 
+#define DSP_BG_SWAP		0x1
+#define DSP_RB_SWAP		0x2
+#define DSP_RG_SWAP		0x4
+#define DSP_DELTA_SWAP		0x8
+
 enum vop_csc_format {
 	CSC_BT601,
 	CSC_BT709,
