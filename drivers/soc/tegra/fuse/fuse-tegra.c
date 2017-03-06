@@ -103,6 +103,9 @@ static struct tegra_fuse *fuse = &(struct tegra_fuse) {
 };
 
 static const struct of_device_id tegra_fuse_match[] = {
+#ifdef CONFIG_ARCH_TEGRA_186_SOC
+	{ .compatible = "nvidia,tegra186-efuse", .data = &tegra186_fuse_soc },
+#endif
 #ifdef CONFIG_ARCH_TEGRA_210_SOC
 	{ .compatible = "nvidia,tegra210-efuse", .data = &tegra210_fuse_soc },
 #endif
