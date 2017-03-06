@@ -180,6 +180,25 @@
 	};
 };
 
+&i2c1 {
+	lm3532@38 {
+		compatible = "ti,lm3532";
+		reg = <0x38>;
+
+		enable-gpios = <&gpio6 12 GPIO_ACTIVE_HIGH>;
+
+		backlight {
+			compatible = "ti,lm3532-backlight";
+
+			lcd {
+				led-sources = <0 1 2>;
+				ramp-up-msec = <1>;
+				ramp-down-msec = <0>;
+			};
+		};
+	};
+};
+
 /*
  * REVISIT: Add gpio173 reset pin handling to the driver, see gpio-hog above.
  * If the GPIO reset is used, we probably need to have /lib/firmware/maxtouch.fw
