@@ -32,18 +32,16 @@
 			next-level-cache = <&L2_CA15>;
 		};
 
-		L2_CA15: cache-controller@0 {
+		L2_CA15: cache-controller-0 {
 			compatible = "cache";
-			reg = <0>;
 			clocks = <&cpg_clocks R8A73A4_CLK_Z>;
 			power-domains = <&pd_a3sm>;
 			cache-unified;
 			cache-level = <2>;
 		};
 
-		L2_CA7: cache-controller@100 {
+		L2_CA7: cache-controller-1 {
 			compatible = "cache";
-			reg = <0x100>;
 			clocks = <&cpg_clocks R8A73A4_CLK_Z2>;
 			power-domains = <&pd_a3km>;
 			cache-unified;
