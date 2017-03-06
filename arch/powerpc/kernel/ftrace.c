@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/list.h>
 
+#include <asm/asm-prototypes.h>
 #include <asm/cacheflush.h>
 #include <asm/code-patching.h>
 #include <asm/ftrace.h>
