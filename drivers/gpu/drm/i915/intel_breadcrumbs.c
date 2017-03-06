@@ -46,12 +46,11 @@ static unsigned int __intel_breadcrumbs_wakeup(struct intel_breadcrumbs *b)
 unsigned int intel_engine_wakeup(struct intel_engine_cs *engine)
 {
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
-	unsigned long flags;
 	unsigned int result;
 
-	spin_lock_irqsave(&b->irq_lock, flags);
+	spin_lock_irq(&b->irq_lock);
 	result = __intel_breadcrumbs_wakeup(b);
-	spin_unlock_irqrestore(&b->irq_lock, flags);
+	spin_unlock_irq(&b->irq_lock);
 
 	return result;
 }
