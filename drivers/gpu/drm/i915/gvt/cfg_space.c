@@ -41,6 +41,54 @@ enum {
 	INTEL_GVT_PCI_BAR_MAX,
 };
 
+/* bitmap for writable bits (RW or RW1C bits, but cannot co-exist in one
+ * byte) byte by byte in standard pci configuration space. (not the full
+ * 256 bytes.)
+ */
+static const u8 pci_cfg_space_rw_bmp[PCI_INTERRUPT_LINE + 4] = {
+	[PCI_COMMAND]		= 0xff, 0x07,
+	[PCI_STATUS]		= 0x00, 0xf9, /* the only one RW1C byte */
+	[PCI_CACHE_LINE_SIZE]	= 0xff,
+	[PCI_BASE_ADDRESS_0 ... PCI_CARDBUS_CIS - 1] = 0xff,
+	[PCI_ROM_ADDRESS]	= 0x01, 0xf8, 0xff, 0xff,
+	[PCI_INTERRUPT_LINE]	= 0xff,
+};
+
+/**
+ * vgpu_pci_cfg_mem_write - write virtual cfg space memory
+ *
+ * Use this function to write virtual cfg space memory.
+ * For standard cfg space, only RW bits can be changed,
+ * and we emulates the RW1C behavior of PCI_STATUS register.
+ */
+static void vgpu_pci_cfg_mem_write(struct intel_vgpu *vgpu, unsigned int off,
+				   u8 *src, unsigned int bytes)
+{
+	u8 *cfg_base = vgpu_cfg_space(vgpu);
+	u8 mask, new, old;
+	int i = 0;
+
+	for (; i < bytes && (off + i < sizeof(pci_cfg_space_rw_bmp)); i++) {
+		mask = pci_cfg_space_rw_bmp[off + i];
+		old = cfg_base[off + i];
+		new = src[i] & mask;
+
+		/**
+		 * The PCI_STATUS high byte has RW1C bits, here
+		 * emulates clear by writing 1 for these bits.
+		 * Writing a 0b to RW1C bits has no effect.
+		 */
+		if (off + i == PCI_STATUS + 1)
+			new = (~new & old) & mask;
+
+		cfg_base[off + i] = (old & ~mask) | new;
+	}
+
+	/* For other configuration space directly copy as it is. */
+	if (i < bytes)
+		memcpy(cfg_base + off + i, src + i, bytes - i);
+}
+
 /**
  * intel_vgpu_emulate_cfg_read - emulate vGPU configuration space read
  *
@@ -123,7 +171,7 @@ static int emulate_pci_command_write(struct intel_vgpu *vgpu,
 	u8 changed = old ^ new;
 	int ret;
 
-	memcpy(vgpu_cfg_space(vgpu) + offset, p_data, bytes);
+	vgpu_pci_cfg_mem_write(vgpu, offset, p_data, bytes);
 	if (!(changed & PCI_COMMAND_MEMORY))
 		return 0;
 
@@ -277,10 +325,10 @@ int intel_vgpu_emulate_cfg_write(struct intel_vgpu *vgpu, unsigned int offset,
 		if (ret)
 			return ret;
 
-		memcpy(vgpu_cfg_space(vgpu) + offset, p_data, bytes);
+		vgpu_pci_cfg_mem_write(vgpu, offset, p_data, bytes);
 		break;
 	default:
-		memcpy(vgpu_cfg_space(vgpu) + offset, p_data, bytes);
+		vgpu_pci_cfg_mem_write(vgpu, offset, p_data, bytes);
 		break;
 	}
 	return 0;
