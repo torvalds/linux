@@ -37,6 +37,26 @@
 		startup-delay-us = <70000>;
 		enable-active-high;
 	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		volume_down {
+			label = "Volume Down";
+			gpios = <&gpio5 26 GPIO_ACTIVE_LOW>; /* gpio154 */
+			linux,code = <KEY_VOLUMEDOWN>;
+			linux,can-disable;
+		};
+
+		slider {
+			label = "Keypad Slide";
+			gpios = <&gpio4 26 GPIO_ACTIVE_HIGH>; /* gpio122 */
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_KEYPAD_SLIDE>;
+			linux,can-disable;
+
+		};
+	};
 };
 
 /* L3_2 interconnect is unused, SRAM, GPMC and L3_ICLK2 disabled */
