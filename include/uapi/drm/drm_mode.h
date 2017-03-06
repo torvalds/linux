@@ -72,12 +72,6 @@
 #define  DRM_MODE_FLAG_3D_L_DEPTH_GFX_GFX_DEPTH	(6<<14)
 #define  DRM_MODE_FLAG_3D_TOP_AND_BOTTOM	(7<<14)
 #define  DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF	(8<<14)
-/*
- * HDMI 2.0
- */
-#define DRM_MODE_FLAG_420_MASK			(0x03<<19)
-#define  DRM_MODE_FLAG_420			(1<<19)
-#define  DRM_MODE_FLAG_420_ONLY			(1<<20)
 
 /* Picture aspect ratio options */
 #define DRM_MODE_PICTURE_ASPECT_NONE		0
@@ -92,6 +86,13 @@
 			(DRM_MODE_PICTURE_ASPECT_4_3<<19)
 #define  DRM_MODE_FLAG_PIC_AR_16_9 \
 			(DRM_MODE_PICTURE_ASPECT_16_9<<19)
+
+/*
+ * HDMI 2.0
+ */
+#define DRM_MODE_FLAG_420_MASK			(0x03<<23)
+#define  DRM_MODE_FLAG_420			(1<<23)
+#define  DRM_MODE_FLAG_420_ONLY			(1<<24)
 
 /* DPMS flags */
 /* bit compatible with the xorg definitions. */
