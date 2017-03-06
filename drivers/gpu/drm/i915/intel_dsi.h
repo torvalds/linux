@@ -129,8 +129,11 @@ static inline struct intel_dsi *enc_to_intel_dsi(struct drm_encoder *encoder)
 	return container_of(encoder, struct intel_dsi, base.base);
 }
 
+/* intel_dsi.c */
 void wait_for_dsi_fifo_empty(struct intel_dsi *intel_dsi, enum port port);
+enum mipi_dsi_pixel_format pixel_format_from_register_bits(u32 fmt);
 
+/* intel_dsi_pll.c */
 bool intel_dsi_pll_is_enabled(struct drm_i915_private *dev_priv);
 int intel_compute_dsi_pll(struct intel_encoder *encoder,
 			  struct intel_crtc_state *config);
@@ -142,10 +145,10 @@ u32 intel_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
 void intel_dsi_reset_clocks(struct intel_encoder *encoder,
 			    enum port port);
 
+/* intel_dsi_vbt.c */
 bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id);
 int intel_dsi_vbt_get_modes(struct intel_dsi *intel_dsi);
 void intel_dsi_vbt_exec_sequence(struct intel_dsi *intel_dsi,
 				 enum mipi_seq seq_id);
-enum mipi_dsi_pixel_format pixel_format_from_register_bits(u32 fmt);
 
 #endif /* _INTEL_DSI_H */
