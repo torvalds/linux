@@ -267,7 +267,7 @@ bool __skb_flow_dissect(const struct sk_buff *skb,
 		memcpy(key_eth_addrs, &eth->h_dest, sizeof(*key_eth_addrs));
 	}
 
-again:
+proto_again:
 	switch (proto) {
 	case htons(ETH_P_IP): {
 		const struct iphdr *iph;
@@ -370,7 +370,7 @@ ipv6:
 			proto = vlan->h_vlan_encapsulated_proto;
 			nhoff += sizeof(*vlan);
 			if (skip_vlan)
-				goto again;
+				goto proto_again;
 		}
 
 		skip_vlan = true;
@@ -393,7 +393,7 @@ ipv6:
 			}
 		}
 
-		goto again;
+		goto proto_again;
 	}
 	case htons(ETH_P_PPP_SES): {
 		struct {
@@ -577,7 +577,7 @@ ip_proto_again:
 		if (flags & FLOW_DISSECTOR_F_STOP_AT_ENCAP)
 			goto out_good;
 
-		goto again;
+		goto proto_again;
 	}
 	case NEXTHDR_HOP:
 	case NEXTHDR_ROUTING:
