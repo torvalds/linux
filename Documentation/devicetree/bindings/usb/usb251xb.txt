@@ -7,18 +7,18 @@ Required properties :
  - compatible : Should be "microchip,usb251xb" or one of the specific types:
 	"microchip,usb2512b", "microchip,usb2512bi", "microchip,usb2513b",
 	"microchip,usb2513bi", "microchip,usb2514b", "microchip,usb2514bi"
- - hub-reset-gpios : Should specify the gpio for hub reset
+ - reset-gpios : Should specify the gpio for hub reset
+ - reg : I2C address on the selected bus (default is <0x2C>)
 
 Optional properties :
- - reg : I2C address on the selected bus (default is <0x2C>)
  - skip-config : Skip Hub configuration, but only send the USB-Attach command
- - vendor-id : USB Vendor ID of the hub (16 bit, default is 0x0424)
- - product-id : USB Product ID of the hub (16 bit, default depends on type)
- - device-id : USB Device ID of the hub (16 bit, default is 0x0bb3)
- - language-id : USB Language ID (16 bit, default is 0x0000)
- - manufacturer : USB Manufacturer string (max 31 characters long)
- - product : USB Product string (max 31 characters long)
- - serial : USB Serial string (max 31 characters long)
+ - vendor-id : Set USB Vendor ID of the hub (16 bit, default is 0x0424)
+ - product-id : Set USB Product ID of the hub (16 bit, default depends on type)
+ - device-id : Set USB Device ID of the hub (16 bit, default is 0x0bb3)
+ - language-id : Set USB Language ID (16 bit, default is 0x0000)
+ - manufacturer : Set USB Manufacturer string (max 31 characters long)
+ - product : Set USB Product string (max 31 characters long)
+ - serial : Set USB Serial string (max 31 characters long)
  - {bus,self}-powered : selects between self- and bus-powered operation (default
 	is self-powered)
  - disable-hi-speed : disable USB Hi-Speed support
@@ -34,7 +34,7 @@ Optional properties :
  - oc-delay-us : Delay time (in microseconds) for filtering the over-current
 	sense inputs. Valid values are 100, 4000, 8000 (default) and 16000. If
 	an invalid value is given, the default is used instead.
- - compound-device : indicated the hub is part of a compound device
+ - compound-device : indicate the hub is part of a compound device
  - port-mapping-mode : enable port mapping mode
  - string-support : enable string descriptor support (required for manufacturer,
 	product and serial string configuration)
@@ -49,7 +49,8 @@ Optional properties :
 Examples:
 	usb2512b@2c {
 		compatible = "microchip,usb2512b";
-		hub-reset-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+		reg = <0x2c>;
+		reset-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 	};
 
 	usb2514b@2c {
