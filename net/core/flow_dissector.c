@@ -479,18 +479,18 @@ ip_proto_again:
 
 		/* Only look inside GRE without routing */
 		if (hdr->flags & GRE_ROUTING)
-			break;
+			goto out_good;
 
 		/* Only look inside GRE for version 0 and 1 */
 		gre_ver = ntohs(hdr->flags & GRE_VERSION);
 		if (gre_ver > 1)
-			break;
+			goto out_good;
 
 		proto = hdr->protocol;
 		if (gre_ver) {
 			/* Version1 must be PPTP, and check the flags */
 			if (!(proto == GRE_PROTO_PPP && (hdr->flags & GRE_KEY)))
-				break;
+				goto out_good;
 		}
 
 		offset += sizeof(struct gre_base_hdr);
