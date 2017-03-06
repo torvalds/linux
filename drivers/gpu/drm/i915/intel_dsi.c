@@ -806,38 +806,38 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 	/* Power on, try both CRC pmic gpio and VBT */
 	if (intel_dsi->gpio_panel)
 		gpiod_set_value_cansleep(intel_dsi->gpio_panel, 1);
-	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_POWER_ON);
+	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_POWER_ON);
 	intel_dsi_msleep(intel_dsi, intel_dsi->panel_on_delay);
 
 	/* Deassert reset */
-	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_DEASSERT_RESET);
+	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_DEASSERT_RESET);
 
 	/* Put device in ready state (LP-11) */
 	intel_dsi_device_ready(encoder);
 
 	/* Send initialization commands in LP mode */
-	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_INIT_OTP);
+	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_INIT_OTP);
 
 	/* Enable port in pre-enable phase itself because as per hw team
 	 * recommendation, port should be enabled befor plane & pipe */
 	if (is_cmd_mode(intel_dsi)) {
 		for_each_dsi_port(port, intel_dsi->ports)
 			I915_WRITE(MIPI_MAX_RETURN_PKT_SIZE(port), 8 * 4);
-		intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_TEAR_ON);
-		intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_DISPLAY_ON);
+		intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_TEAR_ON);
+		intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_DISPLAY_ON);
 	} else {
 		msleep(20); /* XXX */
 		for_each_dsi_port(port, intel_dsi->ports)
 			dpi_send_cmd(intel_dsi, TURN_ON, false, port);
 		intel_dsi_msleep(intel_dsi, 100);
 
-		intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_DISPLAY_ON);
+		intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_DISPLAY_ON);
 
 		intel_dsi_port_enable(encoder);
 	}
 
 	intel_panel_enable_backlight(intel_dsi->attached_connector);
-	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_ON);
+	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_ON);
 }
 
 static void intel_dsi_enable_nop(struct intel_encoder *encoder,
@@ -863,7 +863,7 @@ static void intel_dsi_pre_disable(struct intel_encoder *encoder,
 
 	DRM_DEBUG_KMS("\n");
 
-	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_OFF);
+	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_OFF);
 	intel_panel_disable_backlight(intel_dsi->attached_connector);
 
 	/*
@@ -925,8 +925,8 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder,
 	 * some next enable sequence send turn on packet error is observed
 	 */
 	if (is_cmd_mode(intel_dsi))
-		intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_TEAR_OFF);
-	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_DISPLAY_OFF);
+		intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_TEAR_OFF);
+	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_DISPLAY_OFF);
 
 	/* Transition to LP-00 */
 	intel_dsi_clear_device_ready(encoder);
@@ -953,11 +953,11 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder,
 	}
 
 	/* Assert reset */
-	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_ASSERT_RESET);
+	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_ASSERT_RESET);
 
 	/* Power off, try both CRC pmic gpio and VBT */
 	intel_dsi_msleep(intel_dsi, intel_dsi->panel_off_delay);
-	intel_dsi_exec_vbt_sequence(intel_dsi, MIPI_SEQ_POWER_OFF);
+	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_POWER_OFF);
 	if (intel_dsi->gpio_panel)
 		gpiod_set_value_cansleep(intel_dsi->gpio_panel, 0);
 
