@@ -352,14 +352,13 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	adreno_gpu->rev = config->rev;
 
 	gpu->fast_rate = config->fast_rate;
-	gpu->slow_rate = config->slow_rate;
 	gpu->bus_freq  = config->bus_freq;
 #ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
 	gpu->bus_scale_table = config->bus_scale_table;
 #endif
 
-	DBG("fast_rate=%u, slow_rate=%u, bus_freq=%u",
-			gpu->fast_rate, gpu->slow_rate, gpu->bus_freq);
+	DBG("fast_rate=%u, slow_rate=27000000, bus_freq=%u",
+			gpu->fast_rate, gpu->bus_freq);
 
 	ret = msm_gpu_init(drm, pdev, &adreno_gpu->base, &funcs->base,
 			adreno_gpu->info->name, "kgsl_3d0_reg_memory", "kgsl_3d0_irq",

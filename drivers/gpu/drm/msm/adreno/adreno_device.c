@@ -2,7 +2,7 @@
  * Copyright (C) 2013-2014 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
- * Copyright (c) 2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014,2017 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published by
@@ -231,7 +231,6 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 
 	/* find clock rates: */
 	config.fast_rate = 0;
-	config.slow_rate = ~0;
 	for_each_child_of_node(node, child) {
 		if (of_device_is_compatible(child, "qcom,gpu-pwrlevels")) {
 			struct device_node *pwrlvl;
@@ -242,7 +241,6 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 					return ret;
 				}
 				config.fast_rate = max(config.fast_rate, val);
-				config.slow_rate = min(config.slow_rate, val);
 			}
 		}
 	}
@@ -251,7 +249,6 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 		dev_warn(dev, "could not find clk rates\n");
 		/* This is a safe low speed for all devices: */
 		config.fast_rate = 200000000;
-		config.slow_rate = 27000000;
 	}
 
 	dev->platform_data = &config;

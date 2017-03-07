@@ -123,8 +123,12 @@ static int disable_clk(struct msm_gpu *gpu)
 		if (gpu->grp_clks[i])
 			clk_unprepare(gpu->grp_clks[i]);
 
-	if (gpu->grp_clks[0] && gpu->slow_rate)
-		clk_set_rate(gpu->grp_clks[0], gpu->slow_rate);
+	/*
+	 * Set the clock to a deliberately low rate. On older targets the clock
+	 * speed had to be non zero to avoid problems. On newer targets this
+	 * will be rounded down to zero anyway so it all works out.
+	 */
+	clk_set_rate(gpu->grp_clks[0], 27000000);
 
 	if (gpu->grp_clks[2])
 		clk_set_rate(gpu->grp_clks[2], 0);
