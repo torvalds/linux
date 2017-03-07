@@ -231,13 +231,12 @@ int msm_perf_debugfs_init(struct drm_minor *minor)
 	return 0;
 
 fail:
-	msm_perf_debugfs_cleanup(minor);
+	msm_perf_debugfs_cleanup(priv);
 	return -1;
 }
 
-void msm_perf_debugfs_cleanup(struct drm_minor *minor)
+void msm_perf_debugfs_cleanup(struct msm_drm_private *priv)
 {
-	struct msm_drm_private *priv = minor->dev->dev_private;
 	struct msm_perf_state *perf = priv->perf;
 
 	if (!perf)

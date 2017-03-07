@@ -245,13 +245,12 @@ int msm_rd_debugfs_init(struct drm_minor *minor)
 	return 0;
 
 fail:
-	msm_rd_debugfs_cleanup(minor);
+	msm_rd_debugfs_cleanup(priv);
 	return -1;
 }
 
-void msm_rd_debugfs_cleanup(struct drm_minor *minor)
+void msm_rd_debugfs_cleanup(struct msm_drm_private *priv)
 {
-	struct msm_drm_private *priv = minor->dev->dev_private;
 	struct msm_rd_state *rd = priv->rd;
 
 	if (!rd)
