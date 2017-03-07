@@ -248,6 +248,9 @@ OPTIONS
 --show-mmap-events
 	Display mmap related events (e.g. MMAP, MMAP2).
 
+--show-namespace-events
+	Display namespace events i.e. events of type PERF_RECORD_NAMESPACES.
+
 --show-switch-events
 	Display context switch events i.e. events of type PERF_RECORD_SWITCH or
 	PERF_RECORD_SWITCH_CPU_WIDE.

@@ -830,6 +830,7 @@ struct perf_script {
 	bool			show_task_events;
 	bool			show_mmap_events;
 	bool			show_switch_events;
+	bool			show_namespace_events;
 	bool			allocated;
 	struct cpu_map		*cpus;
 	struct thread_map	*threads;
@@ -1118,6 +1119,41 @@ out:
 	return ret;
 }
 
+static int process_namespaces_event(struct perf_tool *tool,
+				    union perf_event *event,
+				    struct perf_sample *sample,
+				    struct machine *machine)
+{
+	struct thread *thread;
+	struct perf_script *script = container_of(tool, struct perf_script, tool);
+	struct perf_session *session = script->session;
+	struct perf_evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
+	int ret = -1;
+
+	thread = machine__findnew_thread(machine, event->namespaces.pid,
+					 event->namespaces.tid);
+	if (thread == NULL) {
+		pr_debug("problem processing NAMESPACES event, skipping it.\n");
+		return -1;
+	}
+
+	if (perf_event__process_namespaces(tool, event, sample, machine) < 0)
+		goto out;
+
+	if (!evsel->attr.sample_id_all) {
+		sample->cpu = 0;
+		sample->time = 0;
+		sample->tid = event->namespaces.tid;
+		sample->pid = event->namespaces.pid;
+	}
+	print_sample_start(sample, thread, evsel);
+	perf_event__fprintf(event, stdout);
+	ret = 0;
+out:
+	thread__put(thread);
+	return ret;
+}
+
 static int process_fork_event(struct perf_tool *tool,
 			      union perf_event *event,
 			      struct perf_sample *sample,
@@ -1293,6 +1329,8 @@ static int __cmd_script(struct perf_script *script)
 	}
 	if (script->show_switch_events)
 		script->tool.context_switch = process_switch_event;
+	if (script->show_namespace_events)
+		script->tool.namespaces = process_namespaces_event;
 
 	ret = perf_session__process_events(script->session);
 
@@ -2181,6 +2219,8 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "Show the mmap events"),
 	OPT_BOOLEAN('\0', "show-switch-events", &script.show_switch_events,
 		    "Show context switch events (if recorded)"),
+	OPT_BOOLEAN('\0', "show-namespace-events", &script.show_namespace_events,
+		    "Show namespace events (if recorded)"),
 	OPT_BOOLEAN('f', "force", &symbol_conf.force, "don't complain, do it"),
 	OPT_BOOLEAN(0, "ns", &nanosecs,
 		    "Use 9 decimal places when displaying time"),
