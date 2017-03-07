@@ -108,7 +108,7 @@ static struct stmmac_axi *stmmac_axi_setup(struct platform_device *pdev)
 	if (!np)
 		return NULL;
 
-	axi = kzalloc(sizeof(*axi), GFP_KERNEL);
+	axi = devm_kzalloc(&pdev->dev, sizeof(*axi), GFP_KERNEL);
 	if (!axi) {
 		of_node_put(np);
 		return ERR_PTR(-ENOMEM);
