@@ -161,11 +161,16 @@ static void igb_vlan_mode(struct net_device *netdev,
 static int igb_vlan_rx_add_vid(struct net_device *, __be16, u16);
 static int igb_vlan_rx_kill_vid(struct net_device *, __be16, u16);
 static void igb_restore_vlan(struct igb_adapter *);
-static void igb_rar_set_qsel(struct igb_adapter *, u8 *, u32 , u8);
+static void igb_rar_set_index(struct igb_adapter *, u32);
 static void igb_ping_all_vfs(struct igb_adapter *);
 static void igb_msg_task(struct igb_adapter *);
 static void igb_vmm_control(struct igb_adapter *);
 static int igb_set_vf_mac(struct igb_adapter *, int, unsigned char *);
+static void igb_flush_mac_table(struct igb_adapter *);
+static int igb_available_rars(struct igb_adapter *, u8);
+static void igb_set_default_mac_filter(struct igb_adapter *);
+static int igb_uc_sync(struct net_device *, const unsigned char *);
+static int igb_uc_unsync(struct net_device *, const unsigned char *);
 static void igb_restore_vf_multicasts(struct igb_adapter *adapter);
 static int igb_ndo_set_vf_mac(struct net_device *netdev, int vf, u8 *mac);
 static int igb_ndo_set_vf_vlan(struct net_device *netdev,
@@ -1987,6 +1992,13 @@ void igb_reset(struct igb_adapter *adapter)
 	if (hw->mac.ops.init_hw(hw))
 		dev_err(&pdev->dev, "Hardware Error\n");
 
+	/* RAR registers were cleared during init_hw, clear mac table */
+	igb_flush_mac_table(adapter);
+	__dev_uc_unsync(adapter->netdev, NULL);
+
+	/* Recover default RAR entry */
+	igb_set_default_mac_filter(adapter);
+
 	/* Flow control settings reset on hardware reset, so guarantee flow
 	 * control is off when forcing speed.
 	 */
@@ -2095,11 +2107,9 @@ static int igb_ndo_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 	/* guarantee we can provide a unique filter for the unicast address */
 	if (is_unicast_ether_addr(addr) || is_link_local_ether_addr(addr)) {
 		struct igb_adapter *adapter = netdev_priv(dev);
-		struct e1000_hw *hw = &adapter->hw;
 		int vfn = adapter->vfs_allocated_count;
-		int rar_entries = hw->mac.rar_entry_count - (vfn + 1);
 
-		if (netdev_uc_count(dev) >= rar_entries)
+		if (netdev_uc_count(dev) >= igb_available_rars(adapter, vfn))
 			return -ENOMEM;
 	}
 
@@ -2517,6 +2527,8 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_eeprom;
 	}
 
+	igb_set_default_mac_filter(adapter);
+
 	/* get firmware version for ethtool -i */
 	igb_set_fw_version(adapter);
 
@@ -2761,6 +2773,7 @@ err_eeprom:
 	if (hw->flash_address)
 		iounmap(hw->flash_address);
 err_sw_init:
+	kfree(adapter->mac_table);
 	kfree(adapter->shadow_vfta);
 	igb_clear_interrupt_scheme(adapter);
 #ifdef CONFIG_PCI_IOV
@@ -2937,6 +2950,7 @@ static void igb_remove(struct pci_dev *pdev)
 		iounmap(hw->flash_address);
 	pci_release_mem_regions(pdev);
 
+	kfree(adapter->mac_table);
 	kfree(adapter->shadow_vfta);
 	free_netdev(netdev);
 
@@ -3098,6 +3112,11 @@ static int igb_sw_init(struct igb_adapter *adapter)
 
 	/* Assume MSI-X interrupts, will be checked during IRQ allocation */
 	adapter->flags |= IGB_FLAG_HAS_MSIX;
+
+	adapter->mac_table = kzalloc(sizeof(struct igb_mac_addr) *
+				     hw->mac.rar_entry_count, GFP_ATOMIC);
+	if (!adapter->mac_table)
+		return -ENOMEM;
 
 	igb_probe_vfs(adapter);
 
@@ -3810,8 +3829,7 @@ static void igb_configure_rx(struct igb_adapter *adapter)
 	int i;
 
 	/* set the correct pool for the PF default MAC address in entry 0 */
-	igb_rar_set_qsel(adapter, adapter->hw.mac.addr, 0,
-			 adapter->vfs_allocated_count);
+	igb_set_default_mac_filter(adapter);
 
 	/* Setup the HW Rx Head and Tail Descriptor Pointers and
 	 * the Base and Length of the Rx Descriptor Ring
@@ -4051,8 +4069,7 @@ static int igb_set_mac(struct net_device *netdev, void *p)
 	memcpy(hw->mac.addr, addr->sa_data, netdev->addr_len);
 
 	/* set the correct pool for the new PF MAC address in entry 0 */
-	igb_rar_set_qsel(adapter, hw->mac.addr, 0,
-			 adapter->vfs_allocated_count);
+	igb_set_default_mac_filter(adapter);
 
 	return 0;
 }
@@ -4094,49 +4111,6 @@ static int igb_write_mc_addr_list(struct net_device *netdev)
 	kfree(mta_list);
 
 	return netdev_mc_count(netdev);
-}
-
-/**
- *  igb_write_uc_addr_list - write unicast addresses to RAR table
- *  @netdev: network interface device structure
- *
- *  Writes unicast address list to the RAR table.
- *  Returns: -ENOMEM on failure/insufficient address space
- *           0 on no addresses written
- *           X on writing X addresses to the RAR table
- **/
-static int igb_write_uc_addr_list(struct net_device *netdev)
-{
-	struct igb_adapter *adapter = netdev_priv(netdev);
-	struct e1000_hw *hw = &adapter->hw;
-	unsigned int vfn = adapter->vfs_allocated_count;
-	unsigned int rar_entries = hw->mac.rar_entry_count - (vfn + 1);
-	int count = 0;
-
-	/* return ENOMEM indicating insufficient memory for addresses */
-	if (netdev_uc_count(netdev) > rar_entries)
-		return -ENOMEM;
-
-	if (!netdev_uc_empty(netdev) && rar_entries) {
-		struct netdev_hw_addr *ha;
-
-		netdev_for_each_uc_addr(ha, netdev) {
-			if (!rar_entries)
-				break;
-			igb_rar_set_qsel(adapter, ha->addr,
-					 rar_entries--,
-					 vfn);
-			count++;
-		}
-	}
-	/* write the addresses in reverse order to avoid write combining */
-	for (; rar_entries > 0 ; rar_entries--) {
-		wr32(E1000_RAH(rar_entries), 0);
-		wr32(E1000_RAL(rar_entries), 0);
-	}
-	wrfl();
-
-	return count;
 }
 
 static int igb_vlan_promisc_enable(struct igb_adapter *adapter)
@@ -4311,8 +4285,7 @@ static void igb_set_rx_mode(struct net_device *netdev)
 	 * sufficient space to store all the addresses then enable
 	 * unicast promiscuous mode
 	 */
-	count = igb_write_uc_addr_list(netdev);
-	if (count < 0) {
+	if (__dev_uc_sync(netdev, igb_uc_sync, igb_uc_unsync)) {
 		rctl |= E1000_RCTL_UPE;
 		vmolr |= E1000_VMOLR_ROPE;
 	}
@@ -6369,7 +6342,6 @@ static void igb_vf_reset_msg(struct igb_adapter *adapter, u32 vf)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	unsigned char *vf_mac = adapter->vf_data[vf].vf_mac_addresses;
-	int rar_entry = hw->mac.rar_entry_count - (vf + 1);
 	u32 reg, msgbuf[3];
 	u8 *addr = (u8 *)(&msgbuf[1]);
 
@@ -6377,7 +6349,7 @@ static void igb_vf_reset_msg(struct igb_adapter *adapter, u32 vf)
 	igb_vf_reset(adapter, vf);
 
 	/* set vf mac address */
-	igb_rar_set_qsel(adapter, vf_mac, rar_entry, vf);
+	igb_set_vf_mac(adapter, vf, vf_mac);
 
 	/* enable transmit and receive for vf */
 	reg = rd32(E1000_VFTE);
@@ -6395,6 +6367,138 @@ static void igb_vf_reset_msg(struct igb_adapter *adapter, u32 vf)
 		msgbuf[0] = E1000_VF_RESET | E1000_VT_MSGTYPE_NACK;
 	}
 	igb_write_mbx(hw, msgbuf, 3, vf);
+}
+
+static void igb_flush_mac_table(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	int i;
+
+	for (i = 0; i < hw->mac.rar_entry_count; i++) {
+		adapter->mac_table[i].state &= ~IGB_MAC_STATE_IN_USE;
+		memset(adapter->mac_table[i].addr, 0, ETH_ALEN);
+		adapter->mac_table[i].queue = 0;
+		igb_rar_set_index(adapter, i);
+	}
+}
+
+static int igb_available_rars(struct igb_adapter *adapter, u8 queue)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	/* do not count rar entries reserved for VFs MAC addresses */
+	int rar_entries = hw->mac.rar_entry_count -
+			  adapter->vfs_allocated_count;
+	int i, count = 0;
+
+	for (i = 0; i < rar_entries; i++) {
+		/* do not count default entries */
+		if (adapter->mac_table[i].state & IGB_MAC_STATE_DEFAULT)
+			continue;
+
+		/* do not count "in use" entries for different queues */
+		if ((adapter->mac_table[i].state & IGB_MAC_STATE_IN_USE) &&
+		    (adapter->mac_table[i].queue != queue))
+			continue;
+
+		count++;
+	}
+
+	return count;
+}
+
+/* Set default MAC address for the PF in the first RAR entry */
+static void igb_set_default_mac_filter(struct igb_adapter *adapter)
+{
+	struct igb_mac_addr *mac_table = &adapter->mac_table[0];
+
+	ether_addr_copy(mac_table->addr, adapter->hw.mac.addr);
+	mac_table->queue = adapter->vfs_allocated_count;
+	mac_table->state = IGB_MAC_STATE_DEFAULT | IGB_MAC_STATE_IN_USE;
+
+	igb_rar_set_index(adapter, 0);
+}
+
+int igb_add_mac_filter(struct igb_adapter *adapter, const u8 *addr,
+		       const u8 queue)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	int rar_entries = hw->mac.rar_entry_count -
+			  adapter->vfs_allocated_count;
+	int i;
+
+	if (is_zero_ether_addr(addr))
+		return -EINVAL;
+
+	/* Search for the first empty entry in the MAC table.
+	 * Do not touch entries at the end of the table reserved for the VF MAC
+	 * addresses.
+	 */
+	for (i = 0; i < rar_entries; i++) {
+		if (adapter->mac_table[i].state & IGB_MAC_STATE_IN_USE)
+			continue;
+
+		ether_addr_copy(adapter->mac_table[i].addr, addr);
+		adapter->mac_table[i].queue = queue;
+		adapter->mac_table[i].state |= IGB_MAC_STATE_IN_USE;
+
+		igb_rar_set_index(adapter, i);
+		return i;
+	}
+
+	return -ENOSPC;
+}
+
+int igb_del_mac_filter(struct igb_adapter *adapter, const u8 *addr,
+		       const u8 queue)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	int rar_entries = hw->mac.rar_entry_count -
+			  adapter->vfs_allocated_count;
+	int i;
+
+	if (is_zero_ether_addr(addr))
+		return -EINVAL;
+
+	/* Search for matching entry in the MAC table based on given address
+	 * and queue. Do not touch entries at the end of the table reserved
+	 * for the VF MAC addresses.
+	 */
+	for (i = 0; i < rar_entries; i++) {
+		if (!(adapter->mac_table[i].state & IGB_MAC_STATE_IN_USE))
+			continue;
+		if (adapter->mac_table[i].queue != queue)
+			continue;
+		if (!ether_addr_equal(adapter->mac_table[i].addr, addr))
+			continue;
+
+		adapter->mac_table[i].state &= ~IGB_MAC_STATE_IN_USE;
+		memset(adapter->mac_table[i].addr, 0, ETH_ALEN);
+		adapter->mac_table[i].queue = 0;
+
+		igb_rar_set_index(adapter, i);
+		return 0;
+	}
+
+	return -ENOENT;
+}
+
+static int igb_uc_sync(struct net_device *netdev, const unsigned char *addr)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	int ret;
+
+	ret = igb_add_mac_filter(adapter, addr, adapter->vfs_allocated_count);
+
+	return min_t(int, ret, 0);
+}
+
+static int igb_uc_unsync(struct net_device *netdev, const unsigned char *addr)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+
+	igb_del_mac_filter(adapter, addr, adapter->vfs_allocated_count);
+
+	return 0;
 }
 
 static int igb_set_vf_mac_addr(struct igb_adapter *adapter, u32 *msg, int vf)
@@ -8078,11 +8182,16 @@ static void igb_io_resume(struct pci_dev *pdev)
 	igb_get_hw_control(adapter);
 }
 
-static void igb_rar_set_qsel(struct igb_adapter *adapter, u8 *addr, u32 index,
-			     u8 qsel)
+/**
+ *  igb_rar_set_index - Sync RAL[index] and RAH[index] registers with MAC table
+ *  @adapter: Pointer to adapter structure
+ *  @index: Index of the RAR entry which need to be synced with MAC table
+ **/
+static void igb_rar_set_index(struct igb_adapter *adapter, u32 index)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 rar_low, rar_high;
+	u8 *addr = adapter->mac_table[index].addr;
 
 	/* HW expects these to be in network order when they are plugged
 	 * into the registers which are little endian.  In order to guarantee
@@ -8093,12 +8202,16 @@ static void igb_rar_set_qsel(struct igb_adapter *adapter, u8 *addr, u32 index,
 	rar_high = le16_to_cpup((__le16 *)(addr + 4));
 
 	/* Indicate to hardware the Address is Valid. */
-	rar_high |= E1000_RAH_AV;
+	if (adapter->mac_table[index].state & IGB_MAC_STATE_IN_USE) {
+		rar_high |= E1000_RAH_AV;
 
-	if (hw->mac.type == e1000_82575)
-		rar_high |= E1000_RAH_POOL_1 * qsel;
-	else
-		rar_high |= E1000_RAH_POOL_1 << qsel;
+		if (hw->mac.type == e1000_82575)
+			rar_high |= E1000_RAH_POOL_1 *
+				    adapter->mac_table[index].queue;
+		else
+			rar_high |= E1000_RAH_POOL_1 <<
+				    adapter->mac_table[index].queue;
+	}
 
 	wr32(E1000_RAL(index), rar_low);
 	wrfl();
@@ -8114,10 +8227,13 @@ static int igb_set_vf_mac(struct igb_adapter *adapter,
 	 * towards the first, as a result a collision should not be possible
 	 */
 	int rar_entry = hw->mac.rar_entry_count - (vf + 1);
+	unsigned char *vf_mac_addr = adapter->vf_data[vf].vf_mac_addresses;
 
-	memcpy(adapter->vf_data[vf].vf_mac_addresses, mac_addr, ETH_ALEN);
-
-	igb_rar_set_qsel(adapter, mac_addr, rar_entry, vf);
+	ether_addr_copy(vf_mac_addr, mac_addr);
+	ether_addr_copy(adapter->mac_table[rar_entry].addr, mac_addr);
+	adapter->mac_table[rar_entry].queue = vf;
+	adapter->mac_table[rar_entry].state |= IGB_MAC_STATE_IN_USE;
+	igb_rar_set_index(adapter, rar_entry);
 
 	return 0;
 }

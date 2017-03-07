@@ -449,6 +449,15 @@ struct igb_nfc_filter {
 	u16 action;
 };
 
+struct igb_mac_addr {
+	u8 addr[ETH_ALEN];
+	u8 queue;
+	u8 state; /* bitmask */
+};
+
+#define IGB_MAC_STATE_DEFAULT	0x1
+#define IGB_MAC_STATE_IN_USE	0x2
+
 /* board specific private data structure */
 struct igb_adapter {
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
@@ -575,6 +584,8 @@ struct igb_adapter {
 	/* lock for RX network flow classification filter */
 	spinlock_t nfc_lock;
 	bool etype_bitmap[MAX_ETYPE_FILTER];
+
+	struct igb_mac_addr *mac_table;
 };
 
 /* flags controlling PTP/1588 function */
