@@ -2553,6 +2553,15 @@ static inline int setup_io_queues(struct octeon_device *octeon_dev,
 				__func__);
 			return 1;
 		}
+
+		if (octeon_dev->ioq_vector) {
+			struct octeon_ioq_vector *ioq_vector;
+
+			ioq_vector = &octeon_dev->ioq_vector[q];
+			netif_set_xps_queue(netdev,
+					    &ioq_vector->affinity_mask,
+					    ioq_vector->iq_index);
+		}
 	}
 
 	return 0;
