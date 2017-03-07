@@ -1836,9 +1836,9 @@ static void update_free_nid_bitmap(struct f2fs_sb_info *sbi, nid_t nid, bool set
 		return;
 
 	if (set)
-		set_bit_le(nid_ofs, nm_i->free_nid_bitmap[nat_ofs]);
+		__set_bit_le(nid_ofs, nm_i->free_nid_bitmap[nat_ofs]);
 	else
-		clear_bit_le(nid_ofs, nm_i->free_nid_bitmap[nat_ofs]);
+		__clear_bit_le(nid_ofs, nm_i->free_nid_bitmap[nat_ofs]);
 }
 
 static void scan_nat_page(struct f2fs_sb_info *sbi,
@@ -1850,7 +1850,7 @@ static void scan_nat_page(struct f2fs_sb_info *sbi,
 	unsigned int nat_ofs = NAT_BLOCK_OFFSET(start_nid);
 	int i;
 
-	set_bit_le(nat_ofs, nm_i->nat_block_bitmap);
+	__set_bit_le(nat_ofs, nm_i->nat_block_bitmap);
 
 	i = start_nid % NAT_ENTRY_PER_BLOCK;
 
