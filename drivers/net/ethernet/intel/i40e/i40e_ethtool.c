@@ -2384,6 +2384,8 @@ static int i40e_get_ethtool_fdir_entry(struct i40e_pf *pf,
 			(struct ethtool_rx_flow_spec *)&cmd->fs;
 	struct i40e_fdir_filter *rule = NULL;
 	struct hlist_node *node2;
+	u64 input_set;
+	u16 index;
 
 	hlist_for_each_entry_safe(rule, node2,
 				  &pf->fdir_filter_list, fdir_node) {
@@ -2409,11 +2411,42 @@ static int i40e_get_ethtool_fdir_entry(struct i40e_pf *pf,
 	fsp->h_u.tcp_ip4_spec.ip4src = rule->dst_ip;
 	fsp->h_u.tcp_ip4_spec.ip4dst = rule->src_ip;
 
-	/* Set the mask fields */
-	fsp->m_u.tcp_ip4_spec.psrc = htons(0xFFFF);
-	fsp->m_u.tcp_ip4_spec.pdst = htons(0xFFFF);
-	fsp->m_u.tcp_ip4_spec.ip4src = htonl(0xFFFFFFFF);
-	fsp->m_u.tcp_ip4_spec.ip4dst = htonl(0xFFFFFFFF);
+	switch (rule->flow_type) {
+	case TCP_V4_FLOW:
+		index = I40E_FILTER_PCTYPE_NONF_IPV4_TCP;
+		break;
+	case UDP_V4_FLOW:
+		index = I40E_FILTER_PCTYPE_NONF_IPV4_UDP;
+		break;
+	case IP_USER_FLOW:
+		index = I40E_FILTER_PCTYPE_NONF_IPV4_OTHER;
+		break;
+	default:
+		/* If we have stored a filter with a flow type not listed here
+		 * it is almost certainly a driver bug. WARN(), and then
+		 * assign the input_set as if all fields are enabled to avoid
+		 * reading unassigned memory.
+		 */
+		WARN(1, "Missing input set index for flow_type %d\n",
+		     rule->flow_type);
+		input_set = 0xFFFFFFFFFFFFFFFFULL;
+		goto no_input_set;
+	}
+
+	input_set = i40e_read_fd_input_set(pf, index);
+
+no_input_set:
+	if (input_set & I40E_L3_SRC_MASK)
+		fsp->m_u.tcp_ip4_spec.ip4src = htonl(0xFFFF);
+
+	if (input_set & I40E_L3_DST_MASK)
+		fsp->m_u.tcp_ip4_spec.ip4dst = htonl(0xFFFF);
+
+	if (input_set & I40E_L4_SRC_MASK)
+		fsp->m_u.tcp_ip4_spec.psrc = htons(0xFFFFFFFF);
+
+	if (input_set & I40E_L4_DST_MASK)
+		fsp->m_u.tcp_ip4_spec.pdst = htons(0xFFFFFFFF);
 
 	if (rule->dest_ctl == I40E_FILTER_PROGRAM_DESC_DEST_DROP_PACKET)
 		fsp->ring_cookie = RX_CLS_FLOW_DISC;
@@ -2725,36 +2758,74 @@ static int i40e_del_fdir_entry(struct i40e_vsi *vsi,
 
 /**
  * i40e_check_fdir_input_set - Check that a given rx_flow_spec mask is valid
+ * @vsi: pointer to the targeted VSI
  * @fsp: pointer to Rx flow specification
  *
  * Ensures that a given ethtool_rx_flow_spec has a valid mask.
  **/
-static int i40e_check_fdir_input_set(struct ethtool_rx_flow_spec *fsp)
+static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
+				     struct ethtool_rx_flow_spec *fsp)
 {
+	struct i40e_pf *pf = vsi->back;
 	struct ethtool_tcpip4_spec *tcp_ip4_spec;
 	struct ethtool_usrip4_spec *usr_ip4_spec;
+	u64 current_mask, new_mask;
+	u16 index;
+
+	switch (fsp->flow_type & ~FLOW_EXT) {
+	case TCP_V4_FLOW:
+		index = I40E_FILTER_PCTYPE_NONF_IPV4_TCP;
+		break;
+	case UDP_V4_FLOW:
+		index = I40E_FILTER_PCTYPE_NONF_IPV4_UDP;
+		break;
+	case IP_USER_FLOW:
+		index = I40E_FILTER_PCTYPE_NONF_IPV4_OTHER;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	/* Read the current input set from register memory. */
+	current_mask = i40e_read_fd_input_set(pf, index);
+	new_mask = current_mask;
 
 	/* Verify the provided mask is valid. */
 	switch (fsp->flow_type & ~FLOW_EXT) {
-	case SCTP_V4_FLOW:
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW:
 		tcp_ip4_spec = &fsp->m_u.tcp_ip4_spec;
 
 		/* IPv4 source address */
-		if (!tcp_ip4_spec->ip4src || ~tcp_ip4_spec->ip4src)
+		if (tcp_ip4_spec->ip4src == htonl(0xFFFFFFFF))
+			new_mask |= I40E_L3_SRC_MASK;
+		else if (!tcp_ip4_spec->ip4src)
+			new_mask &= ~I40E_L3_SRC_MASK;
+		else
 			return -EOPNOTSUPP;
 
 		/* IPv4 destination address */
-		if (!tcp_ip4_spec->ip4dst || ~tcp_ip4_spec->ip4dst)
+		if (tcp_ip4_spec->ip4dst == htonl(0xFFFFFFFF))
+			new_mask |= I40E_L3_DST_MASK;
+		else if (!tcp_ip4_spec->ip4dst)
+			new_mask &= ~I40E_L3_DST_MASK;
+		else
 			return -EOPNOTSUPP;
 
 		/* L4 source port */
-		if (!tcp_ip4_spec->psrc || (__be16)~tcp_ip4_spec->psrc)
+		if (tcp_ip4_spec->psrc == htons(0xFFFF))
+			new_mask |= I40E_L4_SRC_MASK;
+		else if (!tcp_ip4_spec->psrc)
+			new_mask &= ~I40E_L4_SRC_MASK;
+		else
 			return -EOPNOTSUPP;
 
 		/* L4 destination port */
-		if (!tcp_ip4_spec->pdst || (__be16)~tcp_ip4_spec->pdst)
+		if (tcp_ip4_spec->pdst == htons(0xFFFF))
+			new_mask |= I40E_L4_DST_MASK;
+		else if (!tcp_ip4_spec->pdst)
+			new_mask &= ~I40E_L4_DST_MASK;
+		else
 			return -EOPNOTSUPP;
 
 		/* Filtering on Type of Service is not supported. */
@@ -2766,15 +2837,27 @@ static int i40e_check_fdir_input_set(struct ethtool_rx_flow_spec *fsp)
 		usr_ip4_spec = &fsp->m_u.usr_ip4_spec;
 
 		/* IPv4 source address */
-		if (!usr_ip4_spec->ip4src || ~usr_ip4_spec->ip4src)
+		if (usr_ip4_spec->ip4src == htonl(0xFFFFFFFF))
+			new_mask |= I40E_L3_SRC_MASK;
+		else if (!usr_ip4_spec->ip4src)
+			new_mask &= ~I40E_L3_SRC_MASK;
+		else
 			return -EOPNOTSUPP;
 
 		/* IPv4 destination address */
-		if (!usr_ip4_spec->ip4dst || ~usr_ip4_spec->ip4dst)
+		if (usr_ip4_spec->ip4dst == htonl(0xFFFFFFFF))
+			new_mask |= I40E_L3_DST_MASK;
+		else if (!usr_ip4_spec->ip4dst)
+			new_mask &= ~I40E_L3_DST_MASK;
+		else
 			return -EOPNOTSUPP;
 
 		/* First 4 bytes of L4 header */
-		if (!usr_ip4_spec->l4_4_bytes || ~usr_ip4_spec->l4_4_bytes)
+		if (usr_ip4_spec->l4_4_bytes == htonl(0xFFFFFFFF))
+			new_mask |= I40E_L4_SRC_MASK | I40E_L4_DST_MASK;
+		else if (!usr_ip4_spec->l4_4_bytes)
+			new_mask &= ~(I40E_L4_SRC_MASK | I40E_L4_DST_MASK);
+		else
 			return -EOPNOTSUPP;
 
 		/* Filtering on Type of Service is not supported. */
@@ -2788,10 +2871,14 @@ static int i40e_check_fdir_input_set(struct ethtool_rx_flow_spec *fsp)
 		/* L4 protocol doesn't have a mask field. */
 		if (usr_ip4_spec->proto)
 			return -EINVAL;
+
 		break;
 	default:
 		return -EOPNOTSUPP;
 	}
+
+	if (new_mask != current_mask)
+		return -EOPNOTSUPP;
 
 	return 0;
 }
@@ -2836,7 +2923,7 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 	if (fsp->flow_type & FLOW_MAC_EXT)
 		return -EINVAL;
 
-	ret = i40e_check_fdir_input_set(fsp);
+	ret = i40e_check_fdir_input_set(vsi, fsp);
 	if (ret)
 		return ret;
 

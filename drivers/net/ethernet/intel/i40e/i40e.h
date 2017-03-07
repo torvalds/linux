@@ -734,6 +734,25 @@ static inline int i40e_get_fd_cnt_all(struct i40e_pf *pf)
 	return pf->hw.fdir_shared_filter_count + pf->fdir_pf_filter_count;
 }
 
+/**
+ * i40e_read_fd_input_set - reads value of flow director input set register
+ * @pf: pointer to the PF struct
+ * @addr: register addr
+ *
+ * This function reads value of flow director input set register
+ * specified by 'addr' (which is specific to flow-type)
+ **/
+static inline u64 i40e_read_fd_input_set(struct i40e_pf *pf, u16 addr)
+{
+	u64 val;
+
+	val = i40e_read_rx_ctl(&pf->hw, I40E_PRTQF_FD_INSET(addr, 1));
+	val <<= 32;
+	val += i40e_read_rx_ctl(&pf->hw, I40E_PRTQF_FD_INSET(addr, 0));
+
+	return val;
+}
+
 /* needed by i40e_ethtool.c */
 int i40e_up(struct i40e_vsi *vsi);
 void i40e_down(struct i40e_vsi *vsi);
