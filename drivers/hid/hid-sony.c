@@ -1236,7 +1236,7 @@ static int sony_register_touchpad(struct sony_sc *sc, int touch_count,
 	snprintf(name, name_sz, "%s" DS4_TOUCHPAD_SUFFIX, sc->hdev->name);
 	sc->touchpad->name = name;
 
-	ret = input_mt_init_slots(sc->touchpad, touch_count, 0);
+	ret = input_mt_init_slots(sc->touchpad, touch_count, INPUT_MT_POINTER);
 	if (ret < 0)
 		goto err;
 
