@@ -2334,7 +2334,7 @@ out:
 
 static void perf_c2c_display(struct perf_session *session)
 {
-	if (c2c.use_stdio)
+	if (use_browser == 0)
 		perf_c2c__hists_fprintf(stdout, session);
 	else
 		perf_c2c__hists_browse(&c2c.hists.hists);
