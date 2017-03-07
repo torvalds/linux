@@ -46,6 +46,15 @@ extern int __arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
 static inline
 bool mm_pkey_is_allocated(struct mm_struct *mm, int pkey)
 {
+	/*
+	 * "Allocated" pkeys are those that have been returned
+	 * from pkey_alloc().  pkey 0 is special, and never
+	 * returned from pkey_alloc().
+	 */
+	if (pkey <= 0)
+		return false;
+	if (pkey >= arch_max_pkey())
+		return false;
 	return mm_pkey_allocation_map(mm) & (1U << pkey);
 }
 
@@ -82,12 +91,6 @@ int mm_pkey_alloc(struct mm_struct *mm)
 static inline
 int mm_pkey_free(struct mm_struct *mm, int pkey)
 {
-	/*
-	 * pkey 0 is special, always allocated and can never
-	 * be freed.
-	 */
-	if (!pkey)
-		return -EINVAL;
 	if (!mm_pkey_is_allocated(mm, pkey))
 		return -EINVAL;
 
