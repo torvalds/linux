@@ -48,12 +48,13 @@ FILES=                                          \
          test-get_cpuid.bin                     \
          test-sdt.bin                           \
          test-cxx.bin                           \
-         test-jvmti.bin
+         test-jvmti.bin				\
+         test-sched_getcpu.bin
 
 FILES := $(addprefix $(OUTPUT),$(FILES))
 
-CC := $(CROSS_COMPILE)gcc -MD
-CXX := $(CROSS_COMPILE)g++ -MD
+CC ?= $(CROSS_COMPILE)gcc -MD
+CXX ?= $(CROSS_COMPILE)g++ -MD
 PKG_CONFIG := $(CROSS_COMPILE)pkg-config
 LLVM_CONFIG ?= llvm-config
 
@@ -89,6 +90,9 @@ $(OUTPUT)test-libelf.bin:
 	$(BUILD) -lelf
 
 $(OUTPUT)test-glibc.bin:
+	$(BUILD)
+
+$(OUTPUT)test-sched_getcpu.bin:
 	$(BUILD)
 
 DWARFLIBS := -ldw

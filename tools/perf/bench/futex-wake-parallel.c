@@ -8,6 +8,7 @@
  */
 
 /* For the CLR_() macros */
+#include <string.h>
 #include <pthread.h>
 
 #include <signal.h>

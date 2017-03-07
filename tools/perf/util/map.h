@@ -1,7 +1,7 @@
 #ifndef __PERF_MAP_H
 #define __PERF_MAP_H
 
-#include <linux/atomic.h>
+#include <linux/refcount.h>
 #include <linux/compiler.h>
 #include <linux/list.h>
 #include <linux/rbtree.h>
@@ -51,7 +51,7 @@ struct map {
 
 	struct dso		*dso;
 	struct map_groups	*groups;
-	atomic_t		refcnt;
+	refcount_t		refcnt;
 };
 
 struct kmap {
@@ -67,7 +67,7 @@ struct maps {
 struct map_groups {
 	struct maps	 maps[MAP__NR_TYPES];
 	struct machine	 *machine;
-	atomic_t	 refcnt;
+	refcount_t	 refcnt;
 };
 
 struct map_groups *map_groups__new(struct machine *machine);
@@ -77,7 +77,7 @@ bool map_groups__empty(struct map_groups *mg);
 static inline struct map_groups *map_groups__get(struct map_groups *mg)
 {
 	if (mg)
-		atomic_inc(&mg->refcnt);
+		refcount_inc(&mg->refcnt);
 	return mg;
 }
 
@@ -150,7 +150,7 @@ struct map *map__clone(struct map *map);
 static inline struct map *map__get(struct map *map)
 {
 	if (map)
-		atomic_inc(&map->refcnt);
+		refcount_inc(&map->refcnt);
 	return map;
 }
 

@@ -12,3 +12,7 @@
 #if GCC_VERSION >= 70000 && !defined(__CHECKER__)
 # define __fallthrough __attribute__ ((fallthrough))
 #endif
+
+#if GCC_VERSION >= 40300
+# define __compiletime_error(message) __attribute__((error(message)))
+#endif /* GCC_VERSION >= 40300 */

@@ -5,6 +5,10 @@
 #include <stddef.h>
 #include <assert.h>
 
+#ifndef UINT_MAX
+#define UINT_MAX	(~0U)
+#endif
+
 #define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
 
 #define PERF_ALIGN(x, a)	__PERF_ALIGN_MASK(x, (typeof(x))(a)-1)

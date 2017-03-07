@@ -1396,6 +1396,46 @@ struct sort_entry sort_transaction = {
 	.se_width_idx	= HISTC_TRANSACTION,
 };
 
+/* --sort symbol_size */
+
+static int64_t _sort__sym_size_cmp(struct symbol *sym_l, struct symbol *sym_r)
+{
+	int64_t size_l = sym_l != NULL ? symbol__size(sym_l) : 0;
+	int64_t size_r = sym_r != NULL ? symbol__size(sym_r) : 0;
+
+	return size_l < size_r ? -1 :
+		size_l == size_r ? 0 : 1;
+}
+
+static int64_t
+sort__sym_size_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	return _sort__sym_size_cmp(right->ms.sym, left->ms.sym);
+}
+
+static int _hist_entry__sym_size_snprintf(struct symbol *sym, char *bf,
+					  size_t bf_size, unsigned int width)
+{
+	if (sym)
+		return repsep_snprintf(bf, bf_size, "%*d", width, symbol__size(sym));
+
+	return repsep_snprintf(bf, bf_size, "%*s", width, "unknown");
+}
+
+static int hist_entry__sym_size_snprintf(struct hist_entry *he, char *bf,
+					 size_t size, unsigned int width)
+{
+	return _hist_entry__sym_size_snprintf(he->ms.sym, bf, size, width);
+}
+
+struct sort_entry sort_sym_size = {
+	.se_header	= "Symbol size",
+	.se_cmp		= sort__sym_size_cmp,
+	.se_snprintf	= hist_entry__sym_size_snprintf,
+	.se_width_idx	= HISTC_SYM_SIZE,
+};
+
+
 struct sort_dimension {
 	const char		*name;
 	struct sort_entry	*entry;
@@ -1418,6 +1458,7 @@ static struct sort_dimension common_sort_dimensions[] = {
 	DIM(SORT_GLOBAL_WEIGHT, "weight", sort_global_weight),
 	DIM(SORT_TRANSACTION, "transaction", sort_transaction),
 	DIM(SORT_TRACE, "trace", sort_trace),
+	DIM(SORT_SYM_SIZE, "symbol_size", sort_sym_size),
 };
 
 #undef DIM

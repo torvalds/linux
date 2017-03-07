@@ -146,6 +146,7 @@ static aggr_get_id_t		aggr_get_id;
 static bool			append_file;
 static const char		*output_name;
 static int			output_fd;
+static int			print_free_counters_hint;
 
 struct perf_stat {
 	bool			 record;
@@ -1109,6 +1110,9 @@ static void printout(int id, int nr, struct perf_evsel *counter, double uval,
 			counter->supported ? CNTR_NOT_COUNTED : CNTR_NOT_SUPPORTED,
 			csv_sep);
 
+		if (counter->supported)
+			print_free_counters_hint = 1;
+
 		fprintf(stat_config.output, "%-*s%s",
 			csv_output ? 0 : unit_width,
 			counter->unit, csv_sep);
@@ -1477,6 +1481,13 @@ static void print_footer(void)
 				avg_stats(&walltime_nsecs_stats));
 	}
 	fprintf(output, "\n\n");
+
+	if (print_free_counters_hint)
+		fprintf(output,
+"Some events weren't counted. Try disabling the NMI watchdog:\n"
+"	echo 0 > /proc/sys/kernel/nmi_watchdog\n"
+"	perf stat ...\n"
+"	echo 1 > /proc/sys/kernel/nmi_watchdog\n");
 }
 
 static void print_counters(struct timespec *ts, int argc, const char **argv)
@@ -2339,6 +2350,35 @@ static int __cmd_report(int argc, const char **argv)
 	return 0;
 }
 
+static void setup_system_wide(int forks)
+{
+	/*
+	 * Make system wide (-a) the default target if
+	 * no target was specified and one of following
+	 * conditions is met:
+	 *
+	 *   - there's no workload specified
+	 *   - there is workload specified but all requested
+	 *     events are system wide events
+	 */
+	if (!target__none(&target))
+		return;
+
+	if (!forks)
+		target.system_wide = true;
+	else {
+		struct perf_evsel *counter;
+
+		evlist__for_each_entry(evsel_list, counter) {
+			if (!counter->system_wide)
+				return;
+		}
+
+		if (evsel_list->nr_entries)
+			target.system_wide = true;
+	}
+}
+
 int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	const char * const stat_usage[] = {
@@ -2445,9 +2485,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 	} else if (big_num_opt == 0) /* User passed --no-big-num */
 		big_num = false;
 
-	/* Make system wide (-a) the default target. */
-	if (!argc && target__none(&target))
-		target.system_wide = true;
+	setup_system_wide(argc);
 
 	if (run_count < 0) {
 		pr_err("Run count must be a positive number\n");

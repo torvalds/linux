@@ -80,6 +80,7 @@ OPTIONS
 	- pid: command and tid of the task
 	- dso: name of library or module executed at the time of sample
 	- symbol: name of function executed at the time of sample
+	- symbol_size: size of function executed at the time of sample
 	- parent: name of function matched to the parent regex filter. Unmatched
 	entries are displayed as "[other]".
 	- cpu: cpu number the task ran at the time of sample
