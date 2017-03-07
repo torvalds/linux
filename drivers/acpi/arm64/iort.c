@@ -468,6 +468,30 @@ u32 iort_msi_map_rid(struct device *dev, u32 req_id)
 }
 
 /**
+ * iort_pmsi_get_dev_id() - Get the device id for a device
+ * @dev: The device for which the mapping is to be done.
+ * @dev_id: The device ID found.
+ *
+ * Returns: 0 for successful find a dev id, -ENODEV on error
+ */
+int iort_pmsi_get_dev_id(struct device *dev, u32 *dev_id)
+{
+	int i;
+	struct acpi_iort_node *node;
+
+	node = iort_find_dev_node(dev);
+	if (!node)
+		return -ENODEV;
+
+	for (i = 0; i < node->mapping_count; i++) {
+		if (iort_node_map_platform_id(node, dev_id, IORT_MSI_TYPE, i))
+			return 0;
+	}
+
+	return -ENODEV;
+}
+
+/**
  * iort_dev_find_its_id() - Find the ITS identifier for a device
  * @dev: The device.
  * @req_id: Device's requester ID
