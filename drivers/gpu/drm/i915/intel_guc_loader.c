@@ -114,7 +114,6 @@ static void guc_interrupts_capture(struct drm_i915_private *dev_priv)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	int irqs;
-	u32 tmp;
 
 	/* tell all command streamers to forward interrupts (but not vblank) to GuC */
 	irqs = _MASKED_BIT_ENABLE(GFX_INTERRUPT_STEERING);
@@ -128,31 +127,6 @@ static void guc_interrupts_capture(struct drm_i915_private *dev_priv)
 	I915_WRITE(GUC_BCS_RCS_IER, ~irqs);
 	I915_WRITE(GUC_VCS2_VCS1_IER, ~irqs);
 	I915_WRITE(GUC_WD_VECS_IER, ~irqs);
-
-	/*
-	 * The REDIRECT_TO_GUC bit of the PMINTRMSK register directs all
-	 * (unmasked) PM interrupts to the GuC. All other bits of this
-	 * register *disable* generation of a specific interrupt.
-	 *
-	 * 'pm_intr_keep' indicates bits that are NOT to be set when
-	 * writing to the PM interrupt mask register, i.e. interrupts
-	 * that must not be disabled.
-	 *
-	 * If the GuC is handling these interrupts, then we must not let
-	 * the PM code disable ANY interrupt that the GuC is expecting.
-	 * So for each ENABLED (0) bit in this register, we must SET the
-	 * bit in pm_intr_keep so that it's left enabled for the GuC.
-	 *
-	 * OTOH the REDIRECT_TO_GUC bit is initially SET in pm_intr_keep
-	 * (so interrupts go to the DISPLAY unit at first); but here we
-	 * need to CLEAR that bit, which will result in the register bit
-	 * being left SET!
-	 */
-	tmp = I915_READ(GEN6_PMINTRMSK);
-	if (tmp & GEN8_PMINTR_REDIRECT_TO_GUC) {
-		dev_priv->rps.pm_intr_keep |= ~tmp;
-		dev_priv->rps.pm_intr_keep &= ~GEN8_PMINTR_REDIRECT_TO_GUC;
-	}
 }
 
 static u32 get_gttype(struct drm_i915_private *dev_priv)
