@@ -55,6 +55,11 @@ static unsigned long override_dsm_mask;
 module_param(override_dsm_mask, ulong, S_IRUGO);
 MODULE_PARM_DESC(override_dsm_mask, "Bitmask of allowed NVDIMM DSM functions");
 
+static int default_dsm_family = -1;
+module_param(default_dsm_family, int, S_IRUGO);
+MODULE_PARM_DESC(default_dsm_family,
+		"Try this DSM type first when identifying NVDIMM family");
+
 LIST_HEAD(acpi_descs);
 DEFINE_MUTEX(acpi_desc_lock);
 
@@ -1372,6 +1377,7 @@ static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 	unsigned long dsm_mask;
 	const u8 *uuid;
 	int i;
+	int family = -1;
 
 	/* nfit test assumes 1:1 relationship between commands and dsms */
 	nfit_mem->dsm_mask = acpi_desc->dimm_cmd_force_en;
@@ -1402,10 +1408,11 @@ static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 	 */
 	for (i = NVDIMM_FAMILY_INTEL; i <= NVDIMM_FAMILY_MSFT; i++)
 		if (acpi_check_dsm(adev_dimm->handle, to_nfit_uuid(i), 1, 1))
-			break;
+			if (family < 0 || i == default_dsm_family)
+				family = i;
 
 	/* limit the supported commands to those that are publicly documented */
-	nfit_mem->family = i;
+	nfit_mem->family = family;
 	if (override_dsm_mask && !disable_vendor_specific)
 		dsm_mask = override_dsm_mask;
 	else if (nfit_mem->family == NVDIMM_FAMILY_INTEL) {
