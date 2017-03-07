@@ -101,6 +101,8 @@ enum latency_range {
 
 #define IGBVF_MNG_VLAN_NONE	(-1)
 
+#define IGBVF_MAX_MAC_FILTERS	3
+
 /* Number of packet split data buffers (not including the header buffer) */
 #define PS_PAGE_BUFFERS		(MAX_PS_BUFFERS - 1)
 

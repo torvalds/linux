@@ -1158,6 +1158,8 @@ msi_only:
 		pci_disable_sriov(adapter->pdev);
 		msleep(500);
 
+		kfree(adapter->vf_mac_list);
+		adapter->vf_mac_list = NULL;
 		kfree(adapter->vf_data);
 		adapter->vf_data = NULL;
 		wr32(E1000_IOVCTL, E1000_IOVCTL_REUSE_VFQ);
@@ -2809,6 +2811,8 @@ static int igb_disable_sriov(struct pci_dev *pdev)
 			msleep(500);
 		}
 
+		kfree(adapter->vf_mac_list);
+		adapter->vf_mac_list = NULL;
 		kfree(adapter->vf_data);
 		adapter->vf_data = NULL;
 		adapter->vfs_allocated_count = 0;
@@ -2829,8 +2833,9 @@ static int igb_enable_sriov(struct pci_dev *pdev, int num_vfs)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	int old_vfs = pci_num_vf(pdev);
+	struct vf_mac_filter *mac_list;
 	int err = 0;
-	int i;
+	int num_vf_mac_filters, i;
 
 	if (!(adapter->flags & IGB_FLAG_HAS_MSIX) || num_vfs > 7) {
 		err = -EPERM;
@@ -2858,6 +2863,38 @@ static int igb_enable_sriov(struct pci_dev *pdev, int num_vfs)
 		goto out;
 	}
 
+	/* Due to the limited number of RAR entries calculate potential
+	 * number of MAC filters available for the VFs. Reserve entries
+	 * for PF default MAC, PF MAC filters and at least one RAR entry
+	 * for each VF for VF MAC.
+	 */
+	num_vf_mac_filters = adapter->hw.mac.rar_entry_count -
+			     (1 + IGB_PF_MAC_FILTERS_RESERVED +
+			      adapter->vfs_allocated_count);
+
+	adapter->vf_mac_list = kcalloc(num_vf_mac_filters,
+				       sizeof(struct vf_mac_filter),
+				       GFP_KERNEL);
+
+	mac_list = adapter->vf_mac_list;
+	INIT_LIST_HEAD(&adapter->vf_macs.l);
+
+	if (adapter->vf_mac_list) {
+		/* Initialize list of VF MAC filters */
+		for (i = 0; i < num_vf_mac_filters; i++) {
+			mac_list->vf = -1;
+			mac_list->free = true;
+			list_add(&mac_list->l, &adapter->vf_macs.l);
+			mac_list++;
+		}
+	} else {
+		/* If we could not allocate memory for the VF MAC filters
+		 * we can continue without this feature but warn user.
+		 */
+		dev_err(&pdev->dev,
+			"Unable to allocate memory for VF MAC filter list\n");
+	}
+
 	/* only call pci_enable_sriov() if no VFs are allocated already */
 	if (!old_vfs) {
 		err = pci_enable_sriov(pdev, adapter->vfs_allocated_count);
@@ -2874,6 +2911,8 @@ static int igb_enable_sriov(struct pci_dev *pdev, int num_vfs)
 	goto out;
 
 err_out:
+	kfree(adapter->vf_mac_list);
+	adapter->vf_mac_list = NULL;
 	kfree(adapter->vf_data);
 	adapter->vf_data = NULL;
 	adapter->vfs_allocated_count = 0;
@@ -6501,18 +6540,106 @@ static int igb_uc_unsync(struct net_device *netdev, const unsigned char *addr)
 	return 0;
 }
 
+int igb_set_vf_mac_filter(struct igb_adapter *adapter, const int vf,
+			  const u32 info, const u8 *addr)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	struct vf_data_storage *vf_data = &adapter->vf_data[vf];
+	struct list_head *pos;
+	struct vf_mac_filter *entry = NULL;
+	int ret = 0;
+
+	switch (info) {
+	case E1000_VF_MAC_FILTER_CLR:
+		/* remove all unicast MAC filters related to the current VF */
+		list_for_each(pos, &adapter->vf_macs.l) {
+			entry = list_entry(pos, struct vf_mac_filter, l);
+			if (entry->vf == vf) {
+				entry->vf = -1;
+				entry->free = true;
+				igb_del_mac_filter(adapter, entry->vf_mac, vf);
+			}
+		}
+		break;
+	case E1000_VF_MAC_FILTER_ADD:
+		if (vf_data->flags & IGB_VF_FLAG_PF_SET_MAC) {
+			dev_warn(&pdev->dev,
+				 "VF %d requested MAC filter but is administratively denied\n",
+				 vf);
+			return -EINVAL;
+		}
+
+		if (!is_valid_ether_addr(addr)) {
+			dev_warn(&pdev->dev,
+				 "VF %d attempted to set invalid MAC filter\n",
+				 vf);
+			return -EINVAL;
+		}
+
+		/* try to find empty slot in the list */
+		list_for_each(pos, &adapter->vf_macs.l) {
+			entry = list_entry(pos, struct vf_mac_filter, l);
+			if (entry->free)
+				break;
+		}
+
+		if (entry && entry->free) {
+			entry->free = false;
+			entry->vf = vf;
+			ether_addr_copy(entry->vf_mac, addr);
+
+			ret = igb_add_mac_filter(adapter, addr, vf);
+			ret = min_t(int, ret, 0);
+		} else {
+			ret = -ENOSPC;
+		}
+
+		if (ret == -ENOSPC)
+			dev_warn(&pdev->dev,
+				 "VF %d has requested MAC filter but there is no space for it\n",
+				 vf);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
 static int igb_set_vf_mac_addr(struct igb_adapter *adapter, u32 *msg, int vf)
 {
+	struct pci_dev *pdev = adapter->pdev;
+	struct vf_data_storage *vf_data = &adapter->vf_data[vf];
+	u32 info = msg[0] & E1000_VT_MSGINFO_MASK;
+
 	/* The VF MAC Address is stored in a packed array of bytes
 	 * starting at the second 32 bit word of the msg array
 	 */
-	unsigned char *addr = (char *)&msg[1];
-	int err = -1;
+	unsigned char *addr = (unsigned char *)&msg[1];
+	int ret = 0;
 
-	if (is_valid_ether_addr(addr))
-		err = igb_set_vf_mac(adapter, vf, addr);
+	if (!info) {
+		if (vf_data->flags & IGB_VF_FLAG_PF_SET_MAC) {
+			dev_warn(&pdev->dev,
+				 "VF %d attempted to override administratively set MAC address\nReload the VF driver to resume operations\n",
+				 vf);
+			return -EINVAL;
+		}
 
-	return err;
+		if (!is_valid_ether_addr(addr)) {
+			dev_warn(&pdev->dev,
+				 "VF %d attempted to set invalid MAC\n",
+				 vf);
+			return -EINVAL;
+		}
+
+		ret = igb_set_vf_mac(adapter, vf, addr);
+	} else {
+		ret = igb_set_vf_mac_filter(adapter, vf, info, addr);
+	}
+
+	return ret;
 }
 
 static void igb_rcv_ack_from_vf(struct igb_adapter *adapter, u32 vf)
@@ -6569,13 +6696,7 @@ static void igb_rcv_msg_from_vf(struct igb_adapter *adapter, u32 vf)
 
 	switch ((msgbuf[0] & 0xFFFF)) {
 	case E1000_VF_SET_MAC_ADDR:
-		retval = -EINVAL;
-		if (!(vf_data->flags & IGB_VF_FLAG_PF_SET_MAC))
-			retval = igb_set_vf_mac_addr(adapter, msgbuf, vf);
-		else
-			dev_warn(&pdev->dev,
-				 "VF %d attempted to override administratively set MAC address\nReload the VF driver to resume operations\n",
-				 vf);
+		retval = igb_set_vf_mac_addr(adapter, msgbuf, vf);
 		break;
 	case E1000_VF_SET_PROMISC:
 		retval = igb_set_vf_promisc(adapter, msgbuf, vf);

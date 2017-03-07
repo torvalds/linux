@@ -1433,12 +1433,52 @@ static void igbvf_set_multi(struct net_device *netdev)
 }
 
 /**
+ * igbvf_set_uni - Configure unicast MAC filters
+ * @netdev: network interface device structure
+ *
+ * This routine is responsible for configuring the hardware for proper
+ * unicast filters.
+ **/
+static int igbvf_set_uni(struct net_device *netdev)
+{
+	struct igbvf_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+
+	if (netdev_uc_count(netdev) > IGBVF_MAX_MAC_FILTERS) {
+		pr_err("Too many unicast filters - No Space\n");
+		return -ENOSPC;
+	}
+
+	/* Clear all unicast MAC filters */
+	hw->mac.ops.set_uc_addr(hw, E1000_VF_MAC_FILTER_CLR, NULL);
+
+	if (!netdev_uc_empty(netdev)) {
+		struct netdev_hw_addr *ha;
+
+		/* Add MAC filters one by one */
+		netdev_for_each_uc_addr(ha, netdev) {
+			hw->mac.ops.set_uc_addr(hw, E1000_VF_MAC_FILTER_ADD,
+						ha->addr);
+			udelay(200);
+		}
+	}
+
+	return 0;
+}
+
+static void igbvf_set_rx_mode(struct net_device *netdev)
+{
+	igbvf_set_multi(netdev);
+	igbvf_set_uni(netdev);
+}
+
+/**
  * igbvf_configure - configure the hardware for Rx and Tx
  * @adapter: private board structure
  **/
 static void igbvf_configure(struct igbvf_adapter *adapter)
 {
-	igbvf_set_multi(adapter->netdev);
+	igbvf_set_rx_mode(adapter->netdev);
 
 	igbvf_restore_vlan(adapter);
 
@@ -2636,7 +2676,7 @@ static const struct net_device_ops igbvf_netdev_ops = {
 	.ndo_stop		= igbvf_close,
 	.ndo_start_xmit		= igbvf_xmit_frame,
 	.ndo_get_stats		= igbvf_get_stats,
-	.ndo_set_rx_mode	= igbvf_set_multi,
+	.ndo_set_rx_mode	= igbvf_set_rx_mode,
 	.ndo_set_mac_address	= igbvf_set_mac,
 	.ndo_change_mtu		= igbvf_change_mtu,
 	.ndo_do_ioctl		= igbvf_ioctl,
