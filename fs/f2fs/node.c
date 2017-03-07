@@ -339,7 +339,7 @@ static void set_node_addr(struct f2fs_sb_info *sbi, struct node_info *ni,
 	__set_nat_cache_dirty(nm_i, e);
 
 	if (enabled_nat_bits(sbi, NULL) && new_blkaddr == NEW_ADDR)
-		clear_bit_le(NAT_BLOCK_OFFSET(ni->nid), nm_i->empty_nat_bits);
+		__clear_bit_le(NAT_BLOCK_OFFSET(ni->nid), nm_i->empty_nat_bits);
 
 	/* update fsync_mark if its inode nat entry is still alive */
 	if (ni->nid != ni->ino)
@@ -1834,9 +1834,9 @@ static void update_free_nid_bitmap(struct f2fs_sb_info *sbi, nid_t nid,
 		return;
 
 	if (set)
-		set_bit_le(nid_ofs, nm_i->free_nid_bitmap[nat_ofs]);
+		__set_bit_le(nid_ofs, nm_i->free_nid_bitmap[nat_ofs]);
 	else
-		clear_bit_le(nid_ofs, nm_i->free_nid_bitmap[nat_ofs]);
+		__clear_bit_le(nid_ofs, nm_i->free_nid_bitmap[nat_ofs]);
 }
 
 static void scan_nat_page(struct f2fs_sb_info *sbi,
@@ -1848,7 +1848,7 @@ static void scan_nat_page(struct f2fs_sb_info *sbi,
 	unsigned int nat_ofs = NAT_BLOCK_OFFSET(start_nid);
 	int i;
 
-	set_bit_le(nat_ofs, nm_i->nat_block_bitmap);
+	__set_bit_le(nat_ofs, nm_i->nat_block_bitmap);
 
 	i = start_nid % NAT_ENTRY_PER_BLOCK;
 
@@ -2403,16 +2403,16 @@ static void __update_nat_bits(struct f2fs_sb_info *sbi, nid_t start_nid,
 			valid++;
 	}
 	if (valid == 0) {
-		set_bit_le(nat_index, nm_i->empty_nat_bits);
-		clear_bit_le(nat_index, nm_i->full_nat_bits);
+		__set_bit_le(nat_index, nm_i->empty_nat_bits);
+		__clear_bit_le(nat_index, nm_i->full_nat_bits);
 		return;
 	}
 
-	clear_bit_le(nat_index, nm_i->empty_nat_bits);
+	__clear_bit_le(nat_index, nm_i->empty_nat_bits);
 	if (valid == NAT_ENTRY_PER_BLOCK)
-		set_bit_le(nat_index, nm_i->full_nat_bits);
+		__set_bit_le(nat_index, nm_i->full_nat_bits);
 	else
-		clear_bit_le(nat_index, nm_i->full_nat_bits);
+		__clear_bit_le(nat_index, nm_i->full_nat_bits);
 }
 
 static void __flush_nat_entry_set(struct f2fs_sb_info *sbi,
