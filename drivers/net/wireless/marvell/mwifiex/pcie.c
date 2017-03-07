@@ -350,22 +350,15 @@ MODULE_DEVICE_TABLE(pci, mwifiex_ids);
 
 static void mwifiex_pcie_reset_notify(struct pci_dev *pdev, bool prepare)
 {
-	struct mwifiex_adapter *adapter;
-	struct pcie_service_card *card;
+	struct pcie_service_card *card = pci_get_drvdata(pdev);
+	struct mwifiex_adapter *adapter = card->adapter;
 
-	if (!pdev) {
-		pr_err("%s: PCIe device is not specified\n", __func__);
+	if (!adapter) {
+		dev_err(&pdev->dev, "%s: adapter structure is not valid\n",
+			__func__);
 		return;
 	}
 
-	card = (struct pcie_service_card *)pci_get_drvdata(pdev);
-	if (!card || !card->adapter) {
-		pr_err("%s: Card or adapter structure is not valid (%ld)\n",
-		       __func__, (long)card);
-		return;
-	}
-
-	adapter = card->adapter;
 	mwifiex_dbg(adapter, INFO,
 		    "%s: vendor=0x%4.04x device=0x%4.04x rev=%d %s\n",
 		    __func__, pdev->vendor, pdev->device,
