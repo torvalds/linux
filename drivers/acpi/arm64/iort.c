@@ -318,8 +318,7 @@ static int iort_id_map(struct acpi_iort_id_mapping *map, u8 type, u32 rid_in,
 
 static
 struct acpi_iort_node *iort_node_get_id(struct acpi_iort_node *node,
-					u32 *id_out, u8 type_mask,
-					int index)
+					u32 *id_out, int index)
 {
 	struct acpi_iort_node *parent;
 	struct acpi_iort_id_mapping *map;
@@ -340,9 +339,6 @@ struct acpi_iort_node *iort_node_get_id(struct acpi_iort_node *node,
 
 	parent = ACPI_ADD_PTR(struct acpi_iort_node, iort_table,
 			       map->output_reference);
-
-	if (!(IORT_TYPE_MASK(parent->type) & type_mask))
-		return NULL;
 
 	if (map->flags & ACPI_IORT_ID_SINGLE_MAPPING) {
 		if (node->type == ACPI_IORT_NODE_NAMED_COMPONENT ||
@@ -404,6 +400,34 @@ fail_map:
 		*id_out = id_in;
 
 	return NULL;
+}
+
+static
+struct acpi_iort_node *iort_node_map_platform_id(struct acpi_iort_node *node,
+						 u32 *id_out, u8 type_mask,
+						 int index)
+{
+	struct acpi_iort_node *parent;
+	u32 id;
+
+	/* step 1: retrieve the initial dev id */
+	parent = iort_node_get_id(node, &id, index);
+	if (!parent)
+		return NULL;
+
+	/*
+	 * optional step 2: map the initial dev id if its parent is not
+	 * the target type we want, map it again for the use cases such
+	 * as NC (named component) -> SMMU -> ITS. If the type is matched,
+	 * return the initial dev id and its parent pointer directly.
+	 */
+	if (!(IORT_TYPE_MASK(parent->type) & type_mask))
+		parent = iort_node_map_id(parent, id, id_out, type_mask);
+	else
+		if (id_out)
+			*id_out = id;
+
+	return parent;
 }
 
 static struct acpi_iort_node *iort_find_dev_node(struct device *dev)
@@ -604,14 +628,15 @@ const struct iommu_ops *iort_iommu_configure(struct device *dev)
 		if (!node)
 			return NULL;
 
-		parent = iort_node_get_id(node, &streamid,
-					  IORT_IOMMU_TYPE, i++);
+		parent = iort_node_map_platform_id(node, &streamid,
+						   IORT_IOMMU_TYPE, i++);
 
 		while (parent) {
 			ops = iort_iommu_xlate(dev, parent, streamid);
 
-			parent = iort_node_get_id(node, &streamid,
-						  IORT_IOMMU_TYPE, i++);
+			parent = iort_node_map_platform_id(node, &streamid,
+							   IORT_IOMMU_TYPE,
+							   i++);
 		}
 	}
 
