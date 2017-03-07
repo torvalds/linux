@@ -635,33 +635,27 @@ static void pstore_unregister_console(void) {}
 static int pstore_write_user_compat(struct pstore_record *record,
 				    const char __user *buf)
 {
-	unsigned long flags = 0;
-	size_t i, bufsize, total_size = record->size;
-	long ret = 0;
+	int ret = 0;
 
-	if (unlikely(!access_ok(VERIFY_READ, buf, total_size)))
-		return -EFAULT;
-	bufsize = total_size;
-	if (bufsize > psinfo->bufsize)
-		bufsize = psinfo->bufsize;
-	record->buf = psinfo->buf;
-	spin_lock_irqsave(&psinfo->buf_lock, flags);
-	for (i = 0; i < total_size; ) {
-		size_t c = min(total_size - i, bufsize);
+	if (record->buf)
+		return -EINVAL;
 
-		ret = __copy_from_user(record->buf, buf + i, c);
-		if (unlikely(ret != 0)) {
-			ret = -EFAULT;
-			break;
-		}
-		record->size = c;
-		ret = record->psi->write(record);
-		if (unlikely(ret < 0))
-			break;
-		i += c;
+	record->buf = kmalloc(record->size, GFP_KERNEL);
+	if (!record->buf)
+		return -ENOMEM;
+
+	if (unlikely(copy_from_user(record->buf, buf, record->size))) {
+		ret = -EFAULT;
+		goto out;
 	}
-	spin_unlock_irqrestore(&psinfo->buf_lock, flags);
-	return unlikely(ret < 0) ? ret : total_size;
+
+	ret = record->psi->write(record);
+
+out:
+	kfree(record->buf);
+	record->buf = NULL;
+
+	return unlikely(ret < 0) ? ret : record->size;
 }
 
 /*
