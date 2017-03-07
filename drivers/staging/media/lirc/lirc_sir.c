@@ -76,21 +76,6 @@ static inline void soutp(int offset, int value)
 	outb(value, io + offset);
 }
 
-#ifndef MAX_UDELAY_MS
-#define MAX_UDELAY_US 5000
-#else
-#define MAX_UDELAY_US (MAX_UDELAY_MS * 1000)
-#endif
-
-static void safe_udelay(unsigned long usecs)
-{
-	while (usecs > MAX_UDELAY_US) {
-		udelay(MAX_UDELAY_US);
-		usecs -= MAX_UDELAY_US;
-	}
-	udelay(usecs);
-}
-
 /* SECTION: Communication with user-space */
 static int sir_tx_ir(struct rc_dev *dev, unsigned int *tx_buf,
 		     unsigned int count)
@@ -281,7 +266,7 @@ static irqreturn_t sir_interrupt(int irq, void *dev_id)
 
 static void send_space(unsigned long len)
 {
-	safe_udelay(len);
+	usleep_range(len, len + 25);
 }
 
 static void send_pulse(unsigned long len)
