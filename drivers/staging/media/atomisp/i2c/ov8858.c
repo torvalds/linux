@@ -23,7 +23,7 @@
 #include <linux/module.h>
 #include <media/v4l2-device.h>
 #include <linux/acpi.h>
-#include <linux/atomisp_gmin_platform.h>
+#include "../include/linux/atomisp_gmin_platform.h"
 #ifdef CONFIG_PLATFORM_BTNS
 #include "ov8858_btns.h"
 #else

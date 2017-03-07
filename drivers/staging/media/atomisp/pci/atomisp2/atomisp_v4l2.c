@@ -27,9 +27,9 @@
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/intel_mid_pm.h>
+#include "../../include/linux/intel_mid_pm.h"
 
-#include <linux/atomisp_gmin_platform.h>
+#include "../../include/linux/atomisp_gmin_platform.h"
 
 #include "atomisp_cmd.h"
 #include "atomisp_common.h"
@@ -47,7 +47,7 @@
 #include "hrt/hive_isp_css_mm_hrt.h"
 
 #include "device_access.h"
-#include <linux/intel_mid_pm.h>
+#include "../../include/linux/intel_mid_pm.h"
 #include <asm/intel-mid.h>
 
 /* G-Min addition: pull this in from intel_mid_pm.h */

@@ -33,7 +33,7 @@
 #include <linux/v4l2-mediabus.h>
 #include <media/media-entity.h>
 
-#include <linux/atomisp_platform.h>
+#include "../include/linux/atomisp_platform.h"
 
 #define OV2680_NAME		"ov2680"
 #define OV2680B_NAME	"ov2680b"

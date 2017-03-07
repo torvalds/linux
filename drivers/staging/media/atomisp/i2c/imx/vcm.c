@@ -20,7 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <media/v4l2-device.h>
-#include <linux/atomisp_platform.h>
+#include "../../include/linux/atomisp_platform.h"
 
 int vcm_power_up(struct v4l2_subdev *sd)
 {

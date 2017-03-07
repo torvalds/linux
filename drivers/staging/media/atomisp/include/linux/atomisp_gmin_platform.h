@@ -15,7 +15,7 @@
 #ifndef ATOMISP_GMIN_PLATFORM_H_
 #define ATOMISP_GMIN_PLATFORM_H_
 
-#include <linux/atomisp_platform.h>
+#include "atomisp_platform.h"
 
 const struct atomisp_camera_caps *atomisp_get_default_camera_caps(void);
 const struct atomisp_platform_data *atomisp_get_platform_data(void);

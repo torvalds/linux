@@ -1,7 +1,7 @@
 #ifndef __AD5816G_H__
 #define __AD5816G_H__
 
-#include <linux/atomisp_platform.h>
+#include "../../include/linux/atomisp_platform.h"
 #include <linux/types.h>
 #include <linux/time.h>
 

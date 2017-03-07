@@ -1,7 +1,7 @@
 #ifndef __DRV201_H__
 #define __DRV201_H__
 
-#include <linux/atomisp_platform.h>
+#include "../../include/linux/atomisp_platform.h"
 #include <linux/types.h>
 #include <linux/time.h>
 

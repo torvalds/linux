@@ -18,7 +18,7 @@
  *
  */
 
-#include <linux/atomisp.h>
+#include "../include/linux/atomisp.h"
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>

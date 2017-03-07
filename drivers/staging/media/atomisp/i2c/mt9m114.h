@@ -33,8 +33,8 @@
 #include <media/v4l2-ctrls.h>
 #include <linux/v4l2-mediabus.h>
 #include <media/media-entity.h>
-#include <linux/atomisp_platform.h>
-#include <linux/atomisp.h>
+#include "../include/linux/atomisp_platform.h"
+#include "../include/linux/atomisp.h"
 
 #define V4L2_IDENT_MT9M114 8245
 

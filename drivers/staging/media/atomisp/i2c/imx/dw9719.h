@@ -22,7 +22,7 @@
 #ifndef __DW9719_H__
 #define __DW9719_H__
 
-#include <linux/atomisp_platform.h>
+#include "../../include/linux/atomisp_platform.h"
 #include <linux/types.h>
 
 #define DW9719_VCM_ADDR	 (0x18 >> 1)

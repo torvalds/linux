@@ -24,7 +24,7 @@
 #ifndef	__ATOMISP_CMD_H__
 #define	__ATOMISP_CMD_H__
 
-#include <linux/atomisp.h>
+#include "../../include/linux/atomisp.h"
 #include <linux/interrupt.h>
 #include <linux/videodev2.h>
 

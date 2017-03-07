@@ -25,7 +25,7 @@ static inline int platform_is(u8 model)
         return (boot_cpu_data.x86_model == model);
 }
 
-#include <asm/intel_mid_pcihelpers.h>
+#include "../../include/asm/intel_mid_pcihelpers.h"
 
 /* Unified message bus read/write operation */
 static DEFINE_SPINLOCK(msgbus_lock);

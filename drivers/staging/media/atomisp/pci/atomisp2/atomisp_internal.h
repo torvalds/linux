@@ -23,14 +23,14 @@
 #ifndef __ATOMISP_INTERNAL_H__
 #define __ATOMISP_INTERNAL_H__
 
-#include <linux/atomisp_platform.h>
+#include "../../include/linux/atomisp_platform.h"
 #include <linux/firmware.h>
 #include <linux/kernel.h>
 #include <linux/pm_qos.h>
 #include <linux/idr.h>
 
 #include <asm/intel-mid.h>
-#include <asm/intel_mid_pcihelpers.h>
+#include "../../include/asm/intel_mid_pcihelpers.h"
 
 #include <media/media-device.h>
 #include <media/v4l2-subdev.h>

@@ -22,7 +22,7 @@
 #ifndef __ATOMISP_ACC_H__
 #define __ATOMISP_ACC_H__
 
-#include <linux/atomisp.h>
+#include "../../include/linux/atomisp.h"
 #include "atomisp_internal.h"
 
 #include "ia_css_types.h"

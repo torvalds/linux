@@ -24,7 +24,7 @@
 
 #include "atomisp_compat_css20.h"
 
-#include <linux/atomisp.h>
+#include "../../include/linux/atomisp.h"
 #include <media/videobuf-vmalloc.h>
 
 #define CSS_RX_IRQ_INFO_BUFFER_OVERRUN \

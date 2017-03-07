@@ -34,7 +34,7 @@
 #include <linux/v4l2-mediabus.h>
 #include <media/media-entity.h>
 
-#include <linux/atomisp_platform.h>
+#include "../include/linux/atomisp_platform.h"
 
 #define GC0310_NAME		"gc0310"
 

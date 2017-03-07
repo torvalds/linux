@@ -1,7 +1,7 @@
 #ifndef __DW9714_H__
 #define __DW9714_H__
 
-#include <linux/atomisp_platform.h>
+#include "../../include/linux/atomisp_platform.h"
 #include <linux/types.h>
 
 

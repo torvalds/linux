@@ -24,7 +24,7 @@
 #ifndef	__ATOMISP_COMMON_H__
 #define	__ATOMISP_COMMON_H__
 
-#include <linux/atomisp.h>
+#include "../../include/linux/atomisp.h"
 
 #include <linux/v4l2-mediabus.h>
 

@@ -7,13 +7,13 @@
 #include <linux/delay.h>
 #include <media/v4l2-subdev.h>
 #include <linux/mfd/intel_soc_pmic.h>
-#include <linux/vlv2_plat_clock.h>
+#include "../../include/linux/vlv2_plat_clock.h"
 #include <linux/regulator/consumer.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
-#include <linux/atomisp_platform.h>
-#include <linux/atomisp_gmin_platform.h>
+#include "../../include/linux/atomisp_platform.h"
+#include "../../include/linux/atomisp_gmin_platform.h"
 
 #define MAX_SUBDEVS 8
 

@@ -22,7 +22,7 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/vlv2_plat_clock.h>
+#include "../../include/linux/vlv2_plat_clock.h"
 
 /* NOTE: Most of below constants could come from platform data.
  * To be fixed when appropriate ACPI support comes.

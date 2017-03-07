@@ -30,7 +30,7 @@
 #include <linux/moduleparam.h>
 #include <media/v4l2-device.h>
 #include <linux/io.h>
-#include <linux/atomisp_gmin_platform.h>
+#include "../include/linux/atomisp_gmin_platform.h"
 
 #include "gc0310.h"
 

@@ -35,7 +35,7 @@
 #include <linux/i2c.h>
 #include <linux/gpio.h>
 #include <linux/acpi.h>
-#include <linux/atomisp_gmin_platform.h>
+#include "../include/linux/atomisp_gmin_platform.h"
 #include <media/v4l2-device.h>
 
 #include "mt9m114.h"

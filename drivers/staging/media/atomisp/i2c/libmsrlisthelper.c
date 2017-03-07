@@ -20,7 +20,7 @@
 #include <linux/firmware.h>
 #include <linux/device.h>
 #include <linux/export.h>
-#include <linux/libmsrlisthelper.h>
+#include "../include/linux/libmsrlisthelper.h"
 #include <linux/module.h>
 #include <linux/slab.h>
 
