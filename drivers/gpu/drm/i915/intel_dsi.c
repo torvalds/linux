@@ -840,21 +840,24 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_ON);
 }
 
+/*
+ * DSI port enable has to be done before pipe and plane enable, so we do it in
+ * the pre_enable hook.
+ */
 static void intel_dsi_enable_nop(struct intel_encoder *encoder,
 				 struct intel_crtc_state *pipe_config,
 				 struct drm_connector_state *conn_state)
 {
 	DRM_DEBUG_KMS("\n");
-
-	/* for DSI port enable has to be done before pipe
-	 * and plane enable, so port enable is done in
-	 * pre_enable phase itself unlike other encoders
-	 */
 }
 
-static void intel_dsi_pre_disable(struct intel_encoder *encoder,
-				  struct intel_crtc_state *old_crtc_state,
-				  struct drm_connector_state *old_conn_state)
+/*
+ * DSI port disable has to be done after pipe and plane disable, so we do it in
+ * the post_disable hook.
+ */
+static void intel_dsi_disable(struct intel_encoder *encoder,
+			      struct intel_crtc_state *old_crtc_state,
+			      struct drm_connector_state *old_conn_state)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1730,7 +1733,7 @@ void intel_dsi_init(struct drm_i915_private *dev_priv)
 	intel_encoder->compute_config = intel_dsi_compute_config;
 	intel_encoder->pre_enable = intel_dsi_pre_enable;
 	intel_encoder->enable = intel_dsi_enable_nop;
-	intel_encoder->disable = intel_dsi_pre_disable;
+	intel_encoder->disable = intel_dsi_disable;
 	intel_encoder->post_disable = intel_dsi_post_disable;
 	intel_encoder->get_hw_state = intel_dsi_get_hw_state;
 	intel_encoder->get_config = intel_dsi_get_config;
