@@ -49,7 +49,7 @@ MODULE_PARM_DESC(scrub_overflow_abort,
 static bool disable_vendor_specific;
 module_param(disable_vendor_specific, bool, S_IRUGO);
 MODULE_PARM_DESC(disable_vendor_specific,
-		"Limit commands to the publicly specified set\n");
+		"Limit commands to the publicly specified set");
 
 static unsigned long override_dsm_mask;
 module_param(override_dsm_mask, ulong, S_IRUGO);
