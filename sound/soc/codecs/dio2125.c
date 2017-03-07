@@ -46,7 +46,7 @@ static int drv_event(struct snd_soc_dapm_widget *w,
 		return -EINVAL;
 	}
 
-	gpiod_set_value(priv->gpiod_enable, val);
+	gpiod_set_value_cansleep(priv->gpiod_enable, val);
 
 	return 0;
 }
