@@ -242,6 +242,45 @@ long prepare_to_wait_event(wait_queue_head_t *q, wait_queue_t *wait, int state)
 }
 EXPORT_SYMBOL(prepare_to_wait_event);
 
+/*
+ * Note! These two wait functions are entered with the
+ * wait-queue lock held (and interrupts off in the _irq
+ * case), so there is no race with testing the wakeup
+ * condition in the caller before they add the wait
+ * entry to the wake queue.
+ */
+int do_wait_intr(wait_queue_head_t *wq, wait_queue_t *wait)
+{
+	if (likely(list_empty(&wait->task_list)))
+		__add_wait_queue_tail(wq, wait);
+
+	set_current_state(TASK_INTERRUPTIBLE);
+	if (signal_pending(current))
+		return -ERESTARTSYS;
+
+	spin_unlock(&wq->lock);
+	schedule();
+	spin_lock(&wq->lock);
+	return 0;
+}
+EXPORT_SYMBOL(do_wait_intr);
+
+int do_wait_intr_irq(wait_queue_head_t *wq, wait_queue_t *wait)
+{
+	if (likely(list_empty(&wait->task_list)))
+		__add_wait_queue_tail(wq, wait);
+
+	set_current_state(TASK_INTERRUPTIBLE);
+	if (signal_pending(current))
+		return -ERESTARTSYS;
+
+	spin_unlock_irq(&wq->lock);
+	schedule();
+	spin_lock_irq(&wq->lock);
+	return 0;
+}
+EXPORT_SYMBOL(do_wait_intr_irq);
+
 /**
  * finish_wait - clean up after waiting in a queue
  * @q: waitqueue waited on
