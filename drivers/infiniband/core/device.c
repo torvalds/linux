@@ -336,12 +336,26 @@ int ib_register_device(struct ib_device *device,
 	struct device *parent = device->dev.parent;
 
 	WARN_ON_ONCE(!parent);
-	if (!device->dev.dma_ops)
-		device->dev.dma_ops = parent->dma_ops;
-	if (!device->dev.dma_mask)
-		device->dev.dma_mask = parent->dma_mask;
-	if (!device->dev.coherent_dma_mask)
-		device->dev.coherent_dma_mask = parent->coherent_dma_mask;
+	WARN_ON_ONCE(device->dma_device);
+	if (device->dev.dma_ops) {
+		/*
+		 * The caller provided custom DMA operations. Copy the
+		 * DMA-related fields that are used by e.g. dma_alloc_coherent()
+		 * into device->dev.
+		 */
+		device->dma_device = &device->dev;
+		if (!device->dev.dma_mask)
+			device->dev.dma_mask = parent->dma_mask;
+		if (!device->dev.coherent_dma_mask)
+			device->dev.coherent_dma_mask =
+				parent->coherent_dma_mask;
+	} else {
+		/*
+		 * The caller did not provide custom DMA operations. Use the
+		 * DMA mapping operations of the parent device.
+		 */
+		device->dma_device = parent;
+	}
 
 	mutex_lock(&device_mutex);
 
