@@ -408,7 +408,18 @@ static int of_get_omap_rng_device_details(struct omap_rng_dev *priv,
 						    "err = %d\n", err);
 		}
 
-		omap_rng_write(priv, RNG_INTMASK_REG, RNG_SHUTDOWN_OFLO_MASK);
+		/*
+		 * On OMAP4, enabling the shutdown_oflo interrupt is
+		 * done in the interrupt mask register. There is no
+		 * such register on EIP76, and it's enabled by the
+		 * same bit in the control register
+		 */
+		if (priv->pdata->regs[RNG_INTMASK_REG])
+			omap_rng_write(priv, RNG_INTMASK_REG,
+				       RNG_SHUTDOWN_OFLO_MASK);
+		else
+			omap_rng_write(priv, RNG_CONTROL_REG,
+				       RNG_SHUTDOWN_OFLO_MASK);
 	}
 	return 0;
 }
