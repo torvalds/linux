@@ -70,6 +70,8 @@
 };
 
 &i2c0 {
+	status = "okay";
+
 	temperature-sensor@4c {
 		compatible = "adi,adt7461a";
 		reg = <0x4c>;
