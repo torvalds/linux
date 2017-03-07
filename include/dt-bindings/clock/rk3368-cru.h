@@ -163,6 +163,7 @@
 #define PCLK_DPHYRX		369
 #define PCLK_DPHYTX0		370
 #define PCLK_EFUSE256		371
+#define PCLK_EFUSE1024		372
 
 /* hclk gates */
 #define HCLK_USB_PERI		447
