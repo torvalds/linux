@@ -622,9 +622,11 @@ static void nicvf_rcv_queue_config(struct nicvf *nic, struct queue_set *qs,
 	nicvf_send_msg_to_pf(nic, &mbx);
 
 	if (!nic->sqs_mode && (qidx == 0)) {
-		/* Enable checking L3/L4 length and TCP/UDP checksums */
+		/* Enable checking L3/L4 length and TCP/UDP checksums
+		 * Also allow IPv6 pkts with zero UDP checksum.
+		 */
 		nicvf_queue_reg_write(nic, NIC_QSET_RQ_GEN_CFG, 0,
-				      (BIT(24) | BIT(23) | BIT(21)));
+				      (BIT(24) | BIT(23) | BIT(21) | BIT(20)));
 		nicvf_config_vlan_stripping(nic, nic->netdev->features);
 	}
 
