@@ -761,7 +761,6 @@ static ssize_t message_store_helper(const char *buf, size_t count,
 	enum msg_index_t curmessage;
 
 	while (cp < end) {
-
 		while ((cp < end) && (*cp == ' ' || *cp == '\t'))
 			cp++;
 
