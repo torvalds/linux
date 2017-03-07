@@ -195,19 +195,29 @@
 	vpshufb rmask,	x0, x0;           \
 	vpshufb rmask,	x1, x1;
 
-.data
-
+.section	.rodata.cst16.bswap_mask, "aM", @progbits, 16
 .align 16
 .Lbswap_mask:
 	.byte 3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12
+.section	.rodata.cst16.bswap128_mask, "aM", @progbits, 16
+.align 16
 .Lbswap128_mask:
 	.byte 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
+.section	.rodata.cst16.bswap_iv_mask, "aM", @progbits, 16
+.align 16
 .Lbswap_iv_mask:
 	.byte 7, 6, 5, 4, 3, 2, 1, 0, 7, 6, 5, 4, 3, 2, 1, 0
+
+.section	.rodata.cst4.16_mask, "aM", @progbits, 4
+.align 4
 .L16_mask:
 	.byte 16, 16, 16, 16
+.section	.rodata.cst4.32_mask, "aM", @progbits, 4
+.align 4
 .L32_mask:
 	.byte 32, 0, 0, 0
+.section	.rodata.cst4.first_mask, "aM", @progbits, 4
+.align 4
 .Lfirst_mask:
 	.byte 0x1f, 0, 0, 0
 

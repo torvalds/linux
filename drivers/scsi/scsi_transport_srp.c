@@ -591,7 +591,7 @@ EXPORT_SYMBOL(srp_reconnect_rport);
  * Note: This function is called from soft-IRQ context and with the request
  * queue lock held.
  */
-static enum blk_eh_timer_return srp_timed_out(struct scsi_cmnd *scmd)
+enum blk_eh_timer_return srp_timed_out(struct scsi_cmnd *scmd)
 {
 	struct scsi_device *sdev = scmd->device;
 	struct Scsi_Host *shost = sdev->host;
@@ -603,6 +603,7 @@ static enum blk_eh_timer_return srp_timed_out(struct scsi_cmnd *scmd)
 		i->f->reset_timer_if_blocked && scsi_device_blocked(sdev) ?
 		BLK_EH_RESET_TIMER : BLK_EH_NOT_HANDLED;
 }
+EXPORT_SYMBOL(srp_timed_out);
 
 static void srp_rport_release(struct device *dev)
 {
@@ -793,19 +794,6 @@ void srp_stop_rport_timers(struct srp_rport *rport)
 }
 EXPORT_SYMBOL_GPL(srp_stop_rport_timers);
 
-static int srp_tsk_mgmt_response(struct Scsi_Host *shost, u64 nexus, u64 tm_id,
-				 int result)
-{
-	struct srp_internal *i = to_srp_internal(shost->transportt);
-	return i->f->tsk_mgmt_response(shost, nexus, tm_id, result);
-}
-
-static int srp_it_nexus_response(struct Scsi_Host *shost, u64 nexus, int result)
-{
-	struct srp_internal *i = to_srp_internal(shost->transportt);
-	return i->f->it_nexus_response(shost, nexus, result);
-}
-
 /**
  * srp_attach_transport  -  instantiate SRP transport template
  * @ft:		SRP transport class function template
@@ -819,11 +807,6 @@ srp_attach_transport(struct srp_function_template *ft)
 	i = kzalloc(sizeof(*i), GFP_KERNEL);
 	if (!i)
 		return NULL;
-
-	i->t.eh_timed_out = srp_timed_out;
-
-	i->t.tsk_mgmt_response = srp_tsk_mgmt_response;
-	i->t.it_nexus_response = srp_it_nexus_response;
 
 	i->t.host_size = sizeof(struct srp_host_attrs);
 	i->t.host_attrs.ac.attrs = &i->host_attrs[0];

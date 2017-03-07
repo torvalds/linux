@@ -158,6 +158,7 @@ void intel_gvt_emulate_vblank(struct intel_gvt *gvt);
 void intel_gvt_check_vblank_emulation(struct intel_gvt *gvt);
 
 int intel_vgpu_init_display(struct intel_vgpu *vgpu);
+void intel_vgpu_reset_display(struct intel_vgpu *vgpu);
 void intel_vgpu_clean_display(struct intel_vgpu *vgpu);
 
 #endif

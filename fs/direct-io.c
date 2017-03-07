@@ -587,7 +587,7 @@ static int dio_set_defer_completion(struct dio *dio)
 /*
  * Call into the fs to map some more disk blocks.  We record the current number
  * of available blocks at sdio->blocks_available.  These are in units of the
- * fs blocksize, (1 << inode->i_blkbits).
+ * fs blocksize, i_blocksize(inode).
  *
  * The fs is allowed to map lots of blocks at once.  If it wants to do that,
  * it uses the passed inode-relative block number as the file offset, as usual.
@@ -906,6 +906,7 @@ static int do_direct_IO(struct dio *dio, struct dio_submit *sdio,
 			struct buffer_head *map_bh)
 {
 	const unsigned blkbits = sdio->blkbits;
+	const unsigned i_blkbits = blkbits + sdio->blkfactor;
 	int ret = 0;
 
 	while (sdio->block_in_file < sdio->final_block_in_request) {
@@ -949,7 +950,7 @@ static int do_direct_IO(struct dio *dio, struct dio_submit *sdio,
 					clean_bdev_aliases(
 						map_bh->b_bdev,
 						map_bh->b_blocknr,
-						map_bh->b_size >> blkbits);
+						map_bh->b_size >> i_blkbits);
 				}
 
 				if (!sdio->blkfactor)

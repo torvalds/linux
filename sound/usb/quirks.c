@@ -1135,6 +1135,7 @@ bool snd_usb_get_sample_rate_quirk(struct snd_usb_audio *chip)
 	case USB_ID(0x045E, 0x076F): /* MS Lifecam HD-6000 */
 	case USB_ID(0x045E, 0x0772): /* MS Lifecam Studio */
 	case USB_ID(0x045E, 0x0779): /* MS Lifecam HD-3000 */
+	case USB_ID(0x047F, 0x02F7): /* Plantronics BT-600 */
 	case USB_ID(0x047F, 0x0415): /* Plantronics BT-300 */
 	case USB_ID(0x047F, 0xAA05): /* Plantronics DA45 */
 	case USB_ID(0x04D8, 0xFEEA): /* Benchmark DAC1 Pre */
@@ -1359,6 +1360,21 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 		if (fp->altsetting == 3)
 			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
 		break;
+
+	/* Amanero Combo384 USB interface with native DSD support */
+	case USB_ID(0x16d0, 0x071a):
+		if (fp->altsetting == 2) {
+			switch (chip->dev->descriptor.bcdDevice) {
+			case 0x199:
+				return SNDRV_PCM_FMTBIT_DSD_U32_LE;
+			case 0x19b:
+				return SNDRV_PCM_FMTBIT_DSD_U32_BE;
+			default:
+				break;
+			}
+		}
+		break;
+
 	default:
 		break;
 	}

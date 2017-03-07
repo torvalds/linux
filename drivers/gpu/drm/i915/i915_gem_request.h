@@ -170,17 +170,6 @@ struct drm_i915_gem_request {
 	/** Preallocate space in the ring for the emitting the request */
 	u32 reserved_space;
 
-	/**
-	 * Context related to the previous request.
-	 * As the contexts are accessed by the hardware until the switch is
-	 * completed to a new context, the hardware may still be writing
-	 * to the context object after the breadcrumb is visible. We must
-	 * not unpin/unbind/prune that object whilst still active and so
-	 * we keep the previous context pinned until the following (this)
-	 * request is retired.
-	 */
-	struct i915_gem_context *previous_context;
-
 	/** Batch buffer related to this request if any (used for
 	 * error state dump only).
 	 */
@@ -411,6 +400,25 @@ i915_gem_active_set(struct i915_gem_active *active,
 {
 	list_move(&active->link, &request->active_list);
 	rcu_assign_pointer(active->request, request);
+}
+
+/**
+ * i915_gem_active_set_retire_fn - updates the retirement callback
+ * @active - the active tracker
+ * @fn - the routine called when the request is retired
+ * @mutex - struct_mutex used to guard retirements
+ *
+ * i915_gem_active_set_retire_fn() updates the function pointer that
+ * is called when the final request associated with the @active tracker
+ * is retired.
+ */
+static inline void
+i915_gem_active_set_retire_fn(struct i915_gem_active *active,
+			      i915_gem_retire_fn fn,
+			      struct mutex *mutex)
+{
+	lockdep_assert_held(mutex);
+	active->retire = fn ?: i915_gem_retire_noop;
 }
 
 static inline struct drm_i915_gem_request *

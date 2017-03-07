@@ -30,6 +30,7 @@
 #include <linux/swap.h>
 #include <linux/quotaops.h>
 #include <linux/blkdev.h>
+#include <linux/sched/signal.h>
 
 #include <cluster/masklog.h>
 

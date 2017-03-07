@@ -211,6 +211,12 @@ static const struct dmi_system_id __initconst i8042_dmi_noloop_table[] = {
 			DMI_MATCH(DMI_PRODUCT_VERSION, "Rev 1"),
 		},
 	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "PEGATRON CORPORATION"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "C15B"),
+		},
+	},
 	{ }
 };
 
@@ -917,6 +923,10 @@ static struct pnp_driver i8042_pnp_kbd_driver = {
 	.name           = "i8042 kbd",
 	.id_table       = pnp_kbd_devids,
 	.probe          = i8042_pnp_kbd_probe,
+	.driver         = {
+		.probe_type = PROBE_FORCE_SYNCHRONOUS,
+		.suppress_bind_attrs = true,
+	},
 };
 
 static struct pnp_device_id pnp_aux_devids[] = {
@@ -939,6 +949,10 @@ static struct pnp_driver i8042_pnp_aux_driver = {
 	.name           = "i8042 aux",
 	.id_table       = pnp_aux_devids,
 	.probe          = i8042_pnp_aux_probe,
+	.driver         = {
+		.probe_type = PROBE_FORCE_SYNCHRONOUS,
+		.suppress_bind_attrs = true,
+	},
 };
 
 static void i8042_pnp_exit(void)

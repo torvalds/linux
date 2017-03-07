@@ -163,6 +163,7 @@ struct srp_rdma_ch {
 	int			max_ti_iu_len;
 	int			comp_vector;
 
+	u64			tsk_mgmt_tag;
 	struct completion	tsk_mgmt_done;
 	u8			tsk_mgmt_status;
 	bool			connected;

@@ -908,6 +908,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	struct module *ndev_owner = dev->dev.parent->driver->owner;
 	struct mii_bus *bus = phydev->mdio.bus;
 	struct device *d = &phydev->mdio.dev;
+	bool using_genphy = false;
 	int err;
 
 	/* For Ethernet device drivers that register their own MDIO bus, we
@@ -933,12 +934,22 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 			d->driver =
 				&genphy_driver[GENPHY_DRV_1G].mdiodrv.driver;
 
+		using_genphy = true;
+	}
+
+	if (!try_module_get(d->driver->owner)) {
+		dev_err(&dev->dev, "failed to get the device driver module\n");
+		err = -EIO;
+		goto error_put_device;
+	}
+
+	if (using_genphy) {
 		err = d->driver->probe(d);
 		if (err >= 0)
 			err = device_bind_driver(d);
 
 		if (err)
-			goto error;
+			goto error_module_put;
 	}
 
 	if (phydev->attached_dev) {
@@ -975,7 +986,13 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	return err;
 
 error:
+	/* phy_detach() does all of the cleanup below */
 	phy_detach(phydev);
+	return err;
+
+error_module_put:
+	module_put(d->driver->owner);
+error_put_device:
 	put_device(d);
 	if (ndev_owner != bus->owner)
 		module_put(bus->owner);
@@ -1039,6 +1056,8 @@ void phy_detach(struct phy_device *phydev)
 
 	phy_led_triggers_unregister(phydev);
 
+	module_put(phydev->mdio.dev.driver->owner);
+
 	/* If the device had no specific driver before (i.e. - it
 	 * was using the generic driver), we unbind the device
 	 * from the generic driver so that there's a chance a
@@ -1075,7 +1094,7 @@ int phy_suspend(struct phy_device *phydev)
 	if (wol.wolopts)
 		return -EBUSY;
 
-	if (phydrv->suspend)
+	if (phydev->drv && phydrv->suspend)
 		ret = phydrv->suspend(phydev);
 
 	if (ret)
@@ -1092,7 +1111,7 @@ int phy_resume(struct phy_device *phydev)
 	struct phy_driver *phydrv = to_phy_driver(phydev->mdio.dev.driver);
 	int ret = 0;
 
-	if (phydrv->resume)
+	if (phydev->drv && phydrv->resume)
 		ret = phydrv->resume(phydev);
 
 	if (ret)
@@ -1765,11 +1784,13 @@ static int phy_remove(struct device *dev)
 {
 	struct phy_device *phydev = to_phy_device(dev);
 
+	cancel_delayed_work_sync(&phydev->state_queue);
+
 	mutex_lock(&phydev->lock);
 	phydev->state = PHY_DOWN;
 	mutex_unlock(&phydev->lock);
 
-	if (phydev->drv->remove)
+	if (phydev->drv && phydev->drv->remove)
 		phydev->drv->remove(phydev);
 	phydev->drv = NULL;
 

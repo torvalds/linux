@@ -221,7 +221,8 @@ static int i2c_acpi_get_info(struct acpi_device *adev,
 
 	acpi_dev_free_resource_list(&resource_list);
 
-	strlcpy(info->type, dev_name(&adev->dev), sizeof(info->type));
+	acpi_set_modalias(adev, dev_name(&adev->dev), info->type,
+			  sizeof(info->type));
 
 	return 0;
 }
@@ -931,7 +932,10 @@ static int i2c_device_probe(struct device *dev)
 	if (!client->irq) {
 		int irq = -ENOENT;
 
-		if (dev->of_node) {
+		if (client->flags & I2C_CLIENT_HOST_NOTIFY) {
+			dev_dbg(dev, "Using Host Notify IRQ\n");
+			irq = i2c_smbus_host_notify_to_irq(client);
+		} else if (dev->of_node) {
 			irq = of_irq_get_byname(dev->of_node, "irq");
 			if (irq == -EINVAL || irq == -ENODATA)
 				irq = of_irq_get(dev->of_node, 0);
@@ -940,14 +944,7 @@ static int i2c_device_probe(struct device *dev)
 		}
 		if (irq == -EPROBE_DEFER)
 			return irq;
-		/*
-		 * ACPI and OF did not find any useful IRQ, try to see
-		 * if Host Notify can be used.
-		 */
-		if (irq < 0) {
-			dev_dbg(dev, "Using Host Notify IRQ\n");
-			irq = i2c_smbus_host_notify_to_irq(client);
-		}
+
 		if (irq < 0)
 			irq = 0;
 
@@ -1339,15 +1336,29 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 	client->dev.fwnode = info->fwnode;
 
 	i2c_dev_set_name(adap, client);
+
+	if (info->properties) {
+		status = device_add_properties(&client->dev, info->properties);
+		if (status) {
+			dev_err(&adap->dev,
+				"Failed to add properties to client %s: %d\n",
+				client->name, status);
+			goto out_err;
+		}
+	}
+
 	status = device_register(&client->dev);
 	if (status)
-		goto out_err;
+		goto out_free_props;
 
 	dev_dbg(&adap->dev, "client [%s] registered with bus id %s\n",
 		client->name, dev_name(&client->dev));
 
 	return client;
 
+out_free_props:
+	if (info->properties)
+		device_remove_properties(&client->dev);
 out_err:
 	dev_err(&adap->dev,
 		"Failed to register i2c client %s at 0x%02x (%d)\n",
@@ -1708,13 +1719,16 @@ static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 
 	if (i2c_check_addr_validity(addr, info.flags)) {
 		dev_err(&adap->dev, "of_i2c: invalid addr=%x on %s\n",
-			info.addr, node->full_name);
+			addr, node->full_name);
 		return ERR_PTR(-EINVAL);
 	}
 
 	info.addr = addr;
 	info.of_node = of_node_get(node);
 	info.archdata = &dev_ad;
+
+	if (of_property_read_bool(node, "host-notify"))
+		info.flags |= I2C_CLIENT_HOST_NOTIFY;
 
 	if (of_get_property(node, "wakeup-source", NULL))
 		info.flags |= I2C_CLIENT_WAKE;
@@ -3633,7 +3647,7 @@ int i2c_slave_register(struct i2c_client *client, i2c_slave_cb_t slave_cb)
 	int ret;
 
 	if (!client || !slave_cb) {
-		WARN(1, "insufficent data\n");
+		WARN(1, "insufficient data\n");
 		return -EINVAL;
 	}
 
@@ -3691,6 +3705,39 @@ int i2c_slave_unregister(struct i2c_client *client)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(i2c_slave_unregister);
+
+/**
+ * i2c_detect_slave_mode - detect operation mode
+ * @dev: The device owning the bus
+ *
+ * This checks the device nodes for an I2C slave by checking the address
+ * used in the reg property. If the address match the I2C_OWN_SLAVE_ADDRESS
+ * flag this means the device is configured to act as a I2C slave and it will
+ * be listening at that address.
+ *
+ * Returns true if an I2C own slave address is detected, otherwise returns
+ * false.
+ */
+bool i2c_detect_slave_mode(struct device *dev)
+{
+	if (IS_BUILTIN(CONFIG_OF) && dev->of_node) {
+		struct device_node *child;
+		u32 reg;
+
+		for_each_child_of_node(dev->of_node, child) {
+			of_property_read_u32(child, "reg", &reg);
+			if (reg & I2C_OWN_SLAVE_ADDRESS) {
+				of_node_put(child);
+				return true;
+			}
+		}
+	} else if (IS_BUILTIN(CONFIG_ACPI) && ACPI_HANDLE(dev)) {
+		dev_dbg(dev, "ACPI slave is not supported yet\n");
+	}
+	return false;
+}
+EXPORT_SYMBOL_GPL(i2c_detect_slave_mode);
+
 #endif
 
 MODULE_AUTHOR("Simon G. Vogl <simon@tk.uni-linz.ac.at>");

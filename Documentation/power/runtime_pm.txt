@@ -100,7 +100,7 @@ knows what to do to handle the device).
   * If the suspend callback returns an error code different from -EBUSY and
     -EAGAIN, the PM core regards this as a fatal error and will refuse to run
     the helper functions described in Section 4 for the device until its status
-    is directly set to  either'active', or 'suspended' (the PM core provides
+    is directly set to  either 'active', or 'suspended' (the PM core provides
     special helper functions for this purpose).
 
 In particular, if the driver requires remote wakeup capability (i.e. hardware
@@ -217,7 +217,7 @@ defined in include/linux/pm.h:
       one to complete
 
   spinlock_t lock;
-    - lock used for synchronisation
+    - lock used for synchronization
 
   atomic_t usage_count;
     - the usage counter of the device
@@ -565,7 +565,7 @@ appropriate to ensure that the device is not put back to sleep during the
 probe. This can happen with systems such as the network device layer.
 
 It may be desirable to suspend the device once ->probe() has finished.
-Therefore the driver core uses the asyncronous pm_request_idle() to submit a
+Therefore the driver core uses the asynchronous pm_request_idle() to submit a
 request to execute the subsystem-level idle callback for the device at that
 time.  A driver that makes use of the runtime autosuspend feature, may want to
 update the last busy mark before returning from ->probe().

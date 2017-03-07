@@ -319,6 +319,16 @@ static struct clk emac_clk = {
 	.gpsc		= 1,
 };
 
+/*
+ * In order to avoid adding the emac_clk to the clock lookup table twice (and
+ * screwing up the linked list in the process) create a separate clock for
+ * mdio inheriting the rate from emac_clk.
+ */
+static struct clk mdio_clk = {
+	.name		= "mdio",
+	.parent		= &emac_clk,
+};
+
 static struct clk mcasp_clk = {
 	.name		= "mcasp",
 	.parent		= &async3_clk,
@@ -365,6 +375,16 @@ static struct clk aemif_clk = {
 	.parent		= &pll0_sysclk3,
 	.lpsc		= DA8XX_LPSC0_EMIF25,
 	.flags		= ALWAYS_ENABLED,
+};
+
+/*
+ * In order to avoid adding the aemif_clk to the clock lookup table twice (and
+ * screwing up the linked list in the process) create a separate clock for
+ * nand inheriting the rate from aemif_clk.
+ */
+static struct clk aemif_nand_clk = {
+	.name		= "nand",
+	.parent		= &aemif_clk,
 };
 
 static struct clk usb11_clk = {
@@ -529,7 +549,7 @@ static struct clk_lookup da850_clks[] = {
 	CLK(NULL,		"arm",		&arm_clk),
 	CLK(NULL,		"rmii",		&rmii_clk),
 	CLK("davinci_emac.1",	NULL,		&emac_clk),
-	CLK("davinci_mdio.0",	"fck",		&emac_clk),
+	CLK("davinci_mdio.0",	"fck",		&mdio_clk),
 	CLK("davinci-mcasp.0",	NULL,		&mcasp_clk),
 	CLK("davinci-mcbsp.0",	NULL,		&mcbsp0_clk),
 	CLK("davinci-mcbsp.1",	NULL,		&mcbsp1_clk),
@@ -537,13 +557,13 @@ static struct clk_lookup da850_clks[] = {
 	CLK("da830-mmc.0",	NULL,		&mmcsd0_clk),
 	CLK("da830-mmc.1",	NULL,		&mmcsd1_clk),
 	CLK("ti-aemif",		NULL,		&aemif_clk),
-	CLK(NULL,		"aemif",	&aemif_clk),
+	CLK("davinci-nand.0",	"aemif",	&aemif_nand_clk),
 	CLK("ohci-da8xx",	"usb11",	&usb11_clk),
 	CLK("musb-da8xx",	"usb20",	&usb20_clk),
 	CLK("spi_davinci.0",	NULL,		&spi0_clk),
 	CLK("spi_davinci.1",	NULL,		&spi1_clk),
 	CLK("vpif",		NULL,		&vpif_clk),
-	CLK("ahci_da850",		NULL,		&sata_clk),
+	CLK("ahci_da850",	"fck",		&sata_clk),
 	CLK("davinci-rproc.0",	NULL,		&dsp_clk),
 	CLK(NULL,		NULL,		&ehrpwm_clk),
 	CLK("ehrpwm.0",		"fck",		&ehrpwm0_clk),
@@ -1174,14 +1194,28 @@ static int da850_set_armrate(struct clk *clk, unsigned long index)
 	return clk_set_rate(pllclk, index);
 }
 
-static int da850_set_pll0rate(struct clk *clk, unsigned long index)
+static int da850_set_pll0rate(struct clk *clk, unsigned long rate)
 {
-	unsigned int prediv, mult, postdiv;
-	struct da850_opp *opp;
 	struct pll_data *pll = clk->pll_data;
+	struct cpufreq_frequency_table *freq;
+	unsigned int prediv, mult, postdiv;
+	struct da850_opp *opp = NULL;
 	int ret;
 
-	opp = (struct da850_opp *) cpufreq_info.freq_table[index].driver_data;
+	rate /= 1000;
+
+	for (freq = da850_freq_table;
+	     freq->frequency != CPUFREQ_TABLE_END; freq++) {
+		/* rate is in Hz, freq->frequency is in KHz */
+		if (freq->frequency == rate) {
+			opp = (struct da850_opp *)freq->driver_data;
+			break;
+		}
+	}
+
+	if (!opp)
+		return -EINVAL;
+
 	prediv = opp->prediv;
 	mult = opp->mult;
 	postdiv = opp->postdiv;

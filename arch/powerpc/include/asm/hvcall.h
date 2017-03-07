@@ -276,6 +276,9 @@
 #define H_GET_MPP_X		0x314
 #define H_SET_MODE		0x31C
 #define H_CLEAR_HPT		0x358
+#define H_RESIZE_HPT_PREPARE	0x36C
+#define H_RESIZE_HPT_COMMIT	0x370
+#define H_REGISTER_PROC_TBL	0x37C
 #define H_SIGNAL_SYS_RESET	0x380
 #define MAX_HCALL_OPCODE	H_SIGNAL_SYS_RESET
 
@@ -312,6 +315,16 @@
 #define H_SIGNAL_SYS_RESET_ALL			-1
 #define H_SIGNAL_SYS_RESET_ALL_OTHERS		-2
 /* >= 0 values are CPU number */
+
+/* Flag values used in H_REGISTER_PROC_TBL hcall */
+#define PROC_TABLE_OP_MASK	0x18
+#define PROC_TABLE_DEREG	0x10
+#define PROC_TABLE_NEW		0x18
+#define PROC_TABLE_TYPE_MASK	0x06
+#define PROC_TABLE_HPT_SLB	0x00
+#define PROC_TABLE_HPT_PT	0x02
+#define PROC_TABLE_RADIX	0x04
+#define PROC_TABLE_GTSE		0x01
 
 #ifndef __ASSEMBLY__
 

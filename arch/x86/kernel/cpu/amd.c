@@ -5,6 +5,7 @@
 
 #include <linux/io.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/random.h>
 #include <asm/processor.h>
 #include <asm/apic.h>
@@ -312,12 +313,19 @@ static void amd_get_topology(struct cpuinfo_x86 *c)
 		u32 eax, ebx, ecx, edx;
 
 		cpuid(0x8000001e, &eax, &ebx, &ecx, &edx);
-		node_id = ecx & 7;
 
-		/* get compute unit information */
-		smp_num_siblings = ((ebx >> 8) & 3) + 1;
-		c->x86_max_cores /= smp_num_siblings;
-		c->cpu_core_id = ebx & 0xff;
+		node_id  = ecx & 0xff;
+		smp_num_siblings = ((ebx >> 8) & 0xff) + 1;
+
+		if (c->x86 == 0x15)
+			c->cu_id = ebx & 0xff;
+
+		if (c->x86 >= 0x17) {
+			c->cpu_core_id = ebx & 0xff;
+
+			if (smp_num_siblings > 1)
+				c->x86_max_cores /= smp_num_siblings;
+		}
 
 		/*
 		 * We may have multiple LLCs if L3 caches exist, so check if we
@@ -548,8 +556,10 @@ static void early_init_amd(struct cpuinfo_x86 *c)
 	if (c->x86_power & (1 << 8)) {
 		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 		set_cpu_cap(c, X86_FEATURE_NONSTOP_TSC);
-		if (!check_tsc_unstable())
-			set_sched_clock_stable();
+		if (check_tsc_unstable())
+			clear_sched_clock_stable();
+	} else {
+		clear_sched_clock_stable();
 	}
 
 	/* Bit 12 of 8000_0007 edx is accumulated power mechanism. */

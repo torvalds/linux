@@ -10,7 +10,7 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -172,7 +172,6 @@ static const struct of_device_id berlin2cd_pinctrl_match[] = {
 	},
 	{}
 };
-MODULE_DEVICE_TABLE(of, berlin2cd_pinctrl_match);
 
 static int berlin2cd_pinctrl_probe(struct platform_device *pdev)
 {
@@ -189,8 +188,4 @@ static struct platform_driver berlin2cd_pinctrl_driver = {
 		.of_match_table = berlin2cd_pinctrl_match,
 	},
 };
-module_platform_driver(berlin2cd_pinctrl_driver);
-
-MODULE_AUTHOR("Antoine Ténart <antoine.tenart@free-electrons.com>");
-MODULE_DESCRIPTION("Marvell Berlin BG2CD pinctrl driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(berlin2cd_pinctrl_driver);

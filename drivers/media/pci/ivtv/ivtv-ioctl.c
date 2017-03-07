@@ -35,7 +35,10 @@
 #include <media/i2c/saa7127.h>
 #include <media/tveeprom.h>
 #include <media/v4l2-event.h>
+#ifdef CONFIG_VIDEO_IVTV_DEPRECATED_IOCTLS
 #include <linux/dvb/audio.h>
+#include <linux/dvb/video.h>
+#endif
 
 u16 ivtv_service2vbi(int type)
 {
@@ -1620,13 +1623,23 @@ static int ivtv_try_decoder_cmd(struct file *file, void *fh, struct v4l2_decoder
 	return ivtv_video_command(itv, id, dec, true);
 }
 
+#ifdef CONFIG_VIDEO_IVTV_DEPRECATED_IOCTLS
+static __inline__ void warn_deprecated_ioctl(const char *name)
+{
+	pr_warn_once("warning: the %s ioctl is deprecated. Don't use it, as it will be removed soon\n",
+		     name);
+}
+#endif
+
 static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 {
 	struct ivtv_open_id *id = fh2id(filp->private_data);
 	struct ivtv *itv = id->itv;
-	int nonblocking = filp->f_flags & O_NONBLOCK;
 	struct ivtv_stream *s = &itv->streams[id->type];
+#ifdef CONFIG_VIDEO_IVTV_DEPRECATED_IOCTLS
+	int nonblocking = filp->f_flags & O_NONBLOCK;
 	unsigned long iarg = (unsigned long)arg;
+#endif
 
 	switch (cmd) {
 	case IVTV_IOC_DMA_FRAME: {
@@ -1658,12 +1671,12 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT))
 			return -EINVAL;
 		return ivtv_passthrough_mode(itv, *(int *)arg != 0);
-
+#ifdef CONFIG_VIDEO_IVTV_DEPRECATED_IOCTLS
 	case VIDEO_GET_PTS: {
 		s64 *pts = arg;
 		s64 frame;
 
-		IVTV_DEBUG_IOCTL("VIDEO_GET_PTS\n");
+		warn_deprecated_ioctl("VIDEO_GET_PTS");
 		if (s->type < IVTV_DEC_STREAM_TYPE_MPG) {
 			*pts = s->dma_pts;
 			break;
@@ -1677,7 +1690,7 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 		s64 *frame = arg;
 		s64 pts;
 
-		IVTV_DEBUG_IOCTL("VIDEO_GET_FRAME_COUNT\n");
+		warn_deprecated_ioctl("VIDEO_GET_FRAME_COUNT");
 		if (s->type < IVTV_DEC_STREAM_TYPE_MPG) {
 			*frame = 0;
 			break;
@@ -1690,7 +1703,7 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 	case VIDEO_PLAY: {
 		struct v4l2_decoder_cmd dc;
 
-		IVTV_DEBUG_IOCTL("VIDEO_PLAY\n");
+		warn_deprecated_ioctl("VIDEO_PLAY");
 		memset(&dc, 0, sizeof(dc));
 		dc.cmd = V4L2_DEC_CMD_START;
 		return ivtv_video_command(itv, id, &dc, 0);
@@ -1699,7 +1712,7 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 	case VIDEO_STOP: {
 		struct v4l2_decoder_cmd dc;
 
-		IVTV_DEBUG_IOCTL("VIDEO_STOP\n");
+		warn_deprecated_ioctl("VIDEO_STOP");
 		memset(&dc, 0, sizeof(dc));
 		dc.cmd = V4L2_DEC_CMD_STOP;
 		dc.flags = V4L2_DEC_CMD_STOP_TO_BLACK | V4L2_DEC_CMD_STOP_IMMEDIATELY;
@@ -1709,7 +1722,7 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 	case VIDEO_FREEZE: {
 		struct v4l2_decoder_cmd dc;
 
-		IVTV_DEBUG_IOCTL("VIDEO_FREEZE\n");
+		warn_deprecated_ioctl("VIDEO_FREEZE");
 		memset(&dc, 0, sizeof(dc));
 		dc.cmd = V4L2_DEC_CMD_PAUSE;
 		return ivtv_video_command(itv, id, &dc, 0);
@@ -1718,7 +1731,7 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 	case VIDEO_CONTINUE: {
 		struct v4l2_decoder_cmd dc;
 
-		IVTV_DEBUG_IOCTL("VIDEO_CONTINUE\n");
+		warn_deprecated_ioctl("VIDEO_CONTINUE");
 		memset(&dc, 0, sizeof(dc));
 		dc.cmd = V4L2_DEC_CMD_RESUME;
 		return ivtv_video_command(itv, id, &dc, 0);
@@ -1732,9 +1745,9 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 		int try = (cmd == VIDEO_TRY_COMMAND);
 
 		if (try)
-			IVTV_DEBUG_IOCTL("VIDEO_TRY_COMMAND %d\n", dc->cmd);
+			warn_deprecated_ioctl("VIDEO_TRY_COMMAND");
 		else
-			IVTV_DEBUG_IOCTL("VIDEO_COMMAND %d\n", dc->cmd);
+			warn_deprecated_ioctl("VIDEO_COMMAND");
 		return ivtv_video_command(itv, id, dc, try);
 	}
 
@@ -1742,7 +1755,7 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 		struct video_event *ev = arg;
 		DEFINE_WAIT(wait);
 
-		IVTV_DEBUG_IOCTL("VIDEO_GET_EVENT\n");
+		warn_deprecated_ioctl("VIDEO_GET_EVENT");
 		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT))
 			return -EINVAL;
 		memset(ev, 0, sizeof(*ev));
@@ -1785,28 +1798,28 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 	}
 
 	case VIDEO_SELECT_SOURCE:
-		IVTV_DEBUG_IOCTL("VIDEO_SELECT_SOURCE\n");
+		warn_deprecated_ioctl("VIDEO_SELECT_SOURCE");
 		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT))
 			return -EINVAL;
 		return ivtv_passthrough_mode(itv, iarg == VIDEO_SOURCE_DEMUX);
 
 	case AUDIO_SET_MUTE:
-		IVTV_DEBUG_IOCTL("AUDIO_SET_MUTE\n");
+		warn_deprecated_ioctl("AUDIO_SET_MUTE");
 		itv->speed_mute_audio = iarg;
 		return 0;
 
 	case AUDIO_CHANNEL_SELECT:
-		IVTV_DEBUG_IOCTL("AUDIO_CHANNEL_SELECT\n");
+		warn_deprecated_ioctl("AUDIO_CHANNEL_SELECT");
 		if (iarg > AUDIO_STEREO_SWAPPED)
 			return -EINVAL;
 		return v4l2_ctrl_s_ctrl(itv->ctrl_audio_playback, iarg + 1);
 
 	case AUDIO_BILINGUAL_CHANNEL_SELECT:
-		IVTV_DEBUG_IOCTL("AUDIO_BILINGUAL_CHANNEL_SELECT\n");
+		warn_deprecated_ioctl("AUDIO_BILINGUAL_CHANNEL_SELECT");
 		if (iarg > AUDIO_STEREO_SWAPPED)
 			return -EINVAL;
 		return v4l2_ctrl_s_ctrl(itv->ctrl_audio_multilingual_playback, iarg + 1);
-
+#endif
 	default:
 		return -EINVAL;
 	}
@@ -1821,6 +1834,7 @@ static long ivtv_default(struct file *file, void *fh, bool valid_prio,
 	if (!valid_prio) {
 		switch (cmd) {
 		case IVTV_IOC_PASSTHROUGH_MODE:
+#ifdef CONFIG_VIDEO_IVTV_DEPRECATED_IOCTLS
 		case VIDEO_PLAY:
 		case VIDEO_STOP:
 		case VIDEO_FREEZE:
@@ -1830,6 +1844,7 @@ static long ivtv_default(struct file *file, void *fh, bool valid_prio,
 		case AUDIO_SET_MUTE:
 		case AUDIO_CHANNEL_SELECT:
 		case AUDIO_BILINGUAL_CHANNEL_SELECT:
+#endif
 			return -EBUSY;
 		}
 	}
@@ -1847,6 +1862,7 @@ static long ivtv_default(struct file *file, void *fh, bool valid_prio,
 
 	case IVTV_IOC_DMA_FRAME:
 	case IVTV_IOC_PASSTHROUGH_MODE:
+#ifdef CONFIG_VIDEO_IVTV_DEPRECATED_IOCTLS
 	case VIDEO_GET_PTS:
 	case VIDEO_GET_FRAME_COUNT:
 	case VIDEO_GET_EVENT:
@@ -1860,6 +1876,7 @@ static long ivtv_default(struct file *file, void *fh, bool valid_prio,
 	case AUDIO_SET_MUTE:
 	case AUDIO_CHANNEL_SELECT:
 	case AUDIO_BILINGUAL_CHANNEL_SELECT:
+#endif
 		return ivtv_decoder_ioctls(file, cmd, (void *)arg);
 
 	default:

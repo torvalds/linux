@@ -12,6 +12,7 @@
 #include <linux/pci.h>
 #include <linux/ptrace.h>
 #include <linux/syscore_ops.h>
+#include <linux/sched/clock.h>
 
 #include <asm/apic.h>
 
@@ -1010,7 +1011,7 @@ static __init int amd_ibs_init(void)
 	 * all online cpus.
 	 */
 	cpuhp_setup_state(CPUHP_AP_PERF_X86_AMD_IBS_STARTING,
-			  "perf/x86/amd/ibs:STARTING",
+			  "perf/x86/amd/ibs:starting",
 			  x86_pmu_amd_ibs_starting_cpu,
 			  x86_pmu_amd_ibs_dying_cpu);
 

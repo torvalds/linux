@@ -77,6 +77,22 @@ struct sched_atom {
 
 #define TASK_STATE_TO_CHAR_STR "RSDTtZXxKWP"
 
+/* task state bitmask, copied from include/linux/sched.h */
+#define TASK_RUNNING		0
+#define TASK_INTERRUPTIBLE	1
+#define TASK_UNINTERRUPTIBLE	2
+#define __TASK_STOPPED		4
+#define __TASK_TRACED		8
+/* in tsk->exit_state */
+#define EXIT_DEAD		16
+#define EXIT_ZOMBIE		32
+#define EXIT_TRACE		(EXIT_ZOMBIE | EXIT_DEAD)
+/* in tsk->state again */
+#define TASK_DEAD		64
+#define TASK_WAKEKILL		128
+#define TASK_WAKING		256
+#define TASK_PARKED		512
+
 enum thread_state {
 	THREAD_SLEEPING = 0,
 	THREAD_WAIT_CPU,
@@ -206,22 +222,31 @@ struct perf_sched {
 	bool		show_cpu_visual;
 	bool		show_wakeups;
 	bool		show_migrations;
+	bool		show_state;
 	u64		skipped_samples;
 	const char	*time_str;
 	struct perf_time_interval ptime;
+	struct perf_time_interval hist_time;
 };
 
 /* per thread run time data */
 struct thread_runtime {
 	u64 last_time;      /* time of previous sched in/out event */
 	u64 dt_run;         /* run time */
-	u64 dt_wait;        /* time between CPU access (off cpu) */
+	u64 dt_sleep;       /* time between CPU access by sleep (off cpu) */
+	u64 dt_iowait;      /* time between CPU access by iowait (off cpu) */
+	u64 dt_preempt;     /* time between CPU access by preempt (off cpu) */
 	u64 dt_delay;       /* time between wakeup and sched-in */
 	u64 ready_to_run;   /* time of wakeup */
 
 	struct stats run_stats;
 	u64 total_run_time;
+	u64 total_sleep_time;
+	u64 total_iowait_time;
+	u64 total_preempt_time;
+	u64 total_delay_time;
 
+	int last_state;
 	u64 migrations;
 };
 
@@ -435,7 +460,7 @@ static struct task_desc *register_pid(struct perf_sched *sched,
 	BUG_ON(!sched->tasks);
 	sched->tasks[task->nr] = task;
 
-	if (verbose)
+	if (verbose > 0)
 		printf("registered task #%ld, PID %ld (%s)\n", sched->nr_tasks, pid, comm);
 
 	return task;
@@ -769,7 +794,7 @@ replay_wakeup_event(struct perf_sched *sched,
 	const u32 pid	 = perf_evsel__intval(evsel, sample, "pid");
 	struct task_desc *waker, *wakee;
 
-	if (verbose) {
+	if (verbose > 0) {
 		printf("sched_wakeup event %p\n", evsel);
 
 		printf(" ... pid %d woke up %s/%d\n", sample->tid, comm, pid);
@@ -797,7 +822,7 @@ static int replay_switch_event(struct perf_sched *sched,
 	int cpu = sample->cpu;
 	s64 delta;
 
-	if (verbose)
+	if (verbose > 0)
 		printf("sched_switch event %p\n", evsel);
 
 	if (cpu >= MAX_CPUS || cpu < 0)
@@ -845,7 +870,7 @@ static int replay_fork_event(struct perf_sched *sched,
 		goto out_put;
 	}
 
-	if (verbose) {
+	if (verbose > 0) {
 		printf("fork event\n");
 		printf("... parent: %s/%d\n", thread__comm_str(parent), parent->tid);
 		printf("...  child: %s/%d\n", thread__comm_str(child), child->tid);
@@ -1548,7 +1573,7 @@ static int map_switch_event(struct perf_sched *sched, struct perf_evsel *evsel,
 
 	timestamp__scnprintf_usec(timestamp, stimestamp, sizeof(stimestamp));
 	color_fprintf(stdout, color, "  %12s secs ", stimestamp);
-	if (new_shortname || (verbose && sched_in->tid)) {
+	if (new_shortname || (verbose > 0 && sched_in->tid)) {
 		const char *pid_color = color;
 
 		if (thread__has_color(sched_in))
@@ -1820,6 +1845,9 @@ static void timehist_header(struct perf_sched *sched)
 	printf(" %-*s  %9s  %9s  %9s", comm_width,
 		"task name", "wait time", "sch delay", "run time");
 
+	if (sched->show_state)
+		printf("  %s", "state");
+
 	printf("\n");
 
 	/*
@@ -1830,8 +1858,13 @@ static void timehist_header(struct perf_sched *sched)
 	if (sched->show_cpu_visual)
 		printf(" %*s ", ncpus, "");
 
-	printf(" %-*s  %9s  %9s  %9s\n", comm_width,
+	printf(" %-*s  %9s  %9s  %9s", comm_width,
 	       "[tid/pid]", "(msec)", "(msec)", "(msec)");
+
+	if (sched->show_state)
+		printf("  %5s", "");
+
+	printf("\n");
 
 	/*
 	 * separator
@@ -1845,18 +1878,34 @@ static void timehist_header(struct perf_sched *sched)
 		graph_dotted_line, graph_dotted_line, graph_dotted_line,
 		graph_dotted_line);
 
+	if (sched->show_state)
+		printf("  %.5s", graph_dotted_line);
+
 	printf("\n");
+}
+
+static char task_state_char(struct thread *thread, int state)
+{
+	static const char state_to_char[] = TASK_STATE_TO_CHAR_STR;
+	unsigned bit = state ? ffs(state) : 0;
+
+	/* 'I' for idle */
+	if (thread->tid == 0)
+		return 'I';
+
+	return bit < sizeof(state_to_char) - 1 ? state_to_char[bit] : '?';
 }
 
 static void timehist_print_sample(struct perf_sched *sched,
 				  struct perf_sample *sample,
 				  struct addr_location *al,
 				  struct thread *thread,
-				  u64 t)
+				  u64 t, int state)
 {
 	struct thread_runtime *tr = thread__priv(thread);
 	u32 max_cpus = sched->max_cpu + 1;
 	char tstr[64];
+	u64 wait_time;
 
 	timestamp__scnprintf_usec(t, tstr, sizeof(tstr));
 	printf("%15s [%04d] ", tstr, sample->cpu);
@@ -1879,9 +1928,14 @@ static void timehist_print_sample(struct perf_sched *sched,
 
 	printf(" %-*s ", comm_width, timehist_get_commstr(thread));
 
-	print_sched_time(tr->dt_wait, 6);
+	wait_time = tr->dt_sleep + tr->dt_iowait + tr->dt_preempt;
+	print_sched_time(wait_time, 6);
+
 	print_sched_time(tr->dt_delay, 6);
 	print_sched_time(tr->dt_run, 6);
+
+	if (sched->show_state)
+		printf(" %5c ", task_state_char(thread, state));
 
 	if (sched->show_wakeups)
 		printf("  %-*s", comm_width, "");
@@ -1929,8 +1983,11 @@ static void timehist_update_runtime_stats(struct thread_runtime *r,
 					 u64 t, u64 tprev)
 {
 	r->dt_delay   = 0;
-	r->dt_wait    = 0;
+	r->dt_sleep   = 0;
+	r->dt_iowait  = 0;
+	r->dt_preempt = 0;
 	r->dt_run     = 0;
+
 	if (tprev) {
 		r->dt_run = t - tprev;
 		if (r->ready_to_run) {
@@ -1942,12 +1999,25 @@ static void timehist_update_runtime_stats(struct thread_runtime *r,
 
 		if (r->last_time > tprev)
 			pr_debug("time travel: last sched out time for task > previous sched_switch event\n");
-		else if (r->last_time)
-			r->dt_wait = tprev - r->last_time;
+		else if (r->last_time) {
+			u64 dt_wait = tprev - r->last_time;
+
+			if (r->last_state == TASK_RUNNING)
+				r->dt_preempt = dt_wait;
+			else if (r->last_state == TASK_UNINTERRUPTIBLE)
+				r->dt_iowait = dt_wait;
+			else
+				r->dt_sleep = dt_wait;
+		}
 	}
 
 	update_stats(&r->run_stats, r->dt_run);
-	r->total_run_time += r->dt_run;
+
+	r->total_run_time     += r->dt_run;
+	r->total_delay_time   += r->dt_delay;
+	r->total_sleep_time   += r->dt_sleep;
+	r->total_iowait_time  += r->dt_iowait;
+	r->total_preempt_time += r->dt_preempt;
 }
 
 static bool is_idle_sample(struct perf_sample *sample,
@@ -1980,7 +2050,7 @@ static void save_task_callchain(struct perf_sched *sched,
 
 	if (thread__resolve_callchain(thread, cursor, evsel, sample,
 				      NULL, NULL, sched->max_stack + 2) != 0) {
-		if (verbose)
+		if (verbose > 0)
 			error("Failed to resolve callchain. Skipping\n");
 
 		return;
@@ -1997,7 +2067,7 @@ static void save_task_callchain(struct perf_sched *sched,
 			break;
 
 		sym = node->sym;
-		if (sym && sym->name) {
+		if (sym) {
 			if (!strcmp(sym->name, "schedule") ||
 			    !strcmp(sym->name, "__schedule") ||
 			    !strcmp(sym->name, "preempt_schedule"))
@@ -2372,6 +2442,8 @@ static int timehist_sched_change_event(struct perf_tool *tool,
 	struct thread_runtime *tr = NULL;
 	u64 tprev, t = sample->time;
 	int rc = 0;
+	int state = perf_evsel__intval(evsel, sample, "prev_state");
+
 
 	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_err("problem processing %d event. skipping it\n",
@@ -2446,8 +2518,10 @@ static int timehist_sched_change_event(struct perf_tool *tool,
 			 * time.  we only care total run time and run stat.
 			 */
 			last_tr->dt_run = 0;
-			last_tr->dt_wait = 0;
 			last_tr->dt_delay = 0;
+			last_tr->dt_sleep = 0;
+			last_tr->dt_iowait = 0;
+			last_tr->dt_preempt = 0;
 
 			if (itr->cursor.nr)
 				callchain_append(&itr->callchain, &itr->cursor, t - tprev);
@@ -2457,12 +2531,20 @@ static int timehist_sched_change_event(struct perf_tool *tool,
 	}
 
 	if (!sched->summary_only)
-		timehist_print_sample(sched, sample, &al, thread, t);
+		timehist_print_sample(sched, sample, &al, thread, t, state);
 
 out:
+	if (sched->hist_time.start == 0 && t >= ptime->start)
+		sched->hist_time.start = t;
+	if (ptime->end == 0 || t <= ptime->end)
+		sched->hist_time.end = t;
+
 	if (tr) {
 		/* time of this sched_switch event becomes last time task seen */
 		tr->last_time = sample->time;
+
+		/* last state is used to determine where to account wait time */
+		tr->last_state = state;
 
 		/* sched out event for task so reset ready to run time */
 		tr->ready_to_run = 0;
@@ -2520,7 +2602,26 @@ static void print_thread_runtime(struct thread *t,
 	printf("\n");
 }
 
+static void print_thread_waittime(struct thread *t,
+				  struct thread_runtime *r)
+{
+	printf("%*s   %5d  %9" PRIu64 " ",
+	       comm_width, timehist_get_commstr(t), t->ppid,
+	       (u64) r->run_stats.n);
+
+	print_sched_time(r->total_run_time, 8);
+	print_sched_time(r->total_sleep_time, 6);
+	printf(" ");
+	print_sched_time(r->total_iowait_time, 6);
+	printf(" ");
+	print_sched_time(r->total_preempt_time, 6);
+	printf(" ");
+	print_sched_time(r->total_delay_time, 6);
+	printf("\n");
+}
+
 struct total_run_stats {
+	struct perf_sched *sched;
 	u64  sched_count;
 	u64  task_count;
 	u64  total_run_time;
@@ -2539,7 +2640,11 @@ static int __show_thread_runtime(struct thread *t, void *priv)
 		stats->task_count++;
 		stats->sched_count += r->run_stats.n;
 		stats->total_run_time += r->total_run_time;
-		print_thread_runtime(t, r);
+
+		if (stats->sched->show_state)
+			print_thread_waittime(t, r);
+		else
+			print_thread_runtime(t, r);
 	}
 
 	return 0;
@@ -2624,20 +2729,27 @@ static void timehist_print_summary(struct perf_sched *sched,
 	struct thread *t;
 	struct thread_runtime *r;
 	int i;
+	u64 hist_time = sched->hist_time.end - sched->hist_time.start;
 
 	memset(&totals, 0, sizeof(totals));
+	totals.sched = sched;
 
 	if (sched->idle_hist) {
 		printf("\nIdle-time summary\n");
 		printf("%*s  parent  sched-out  ", comm_width, "comm");
 		printf("  idle-time   min-idle    avg-idle    max-idle  stddev  migrations\n");
+	} else if (sched->show_state) {
+		printf("\nWait-time summary\n");
+		printf("%*s  parent   sched-in  ", comm_width, "comm");
+		printf("   run-time      sleep      iowait     preempt       delay\n");
 	} else {
 		printf("\nRuntime summary\n");
 		printf("%*s  parent   sched-in  ", comm_width, "comm");
 		printf("   run-time    min-run     avg-run     max-run  stddev  migrations\n");
 	}
 	printf("%*s            (count)  ", comm_width, "");
-	printf("     (msec)     (msec)      (msec)      (msec)       %%\n");
+	printf("     (msec)     (msec)      (msec)      (msec)       %s\n",
+	       sched->show_state ? "(msec)" : "%");
 	printf("%.117s\n", graph_dotted_line);
 
 	machine__for_each_thread(m, show_thread_runtime, &totals);
@@ -2665,7 +2777,7 @@ static void timehist_print_summary(struct perf_sched *sched,
 			totals.sched_count += r->run_stats.n;
 			printf("    CPU %2d idle for ", i);
 			print_sched_time(r->total_run_time, 6);
-			printf(" msec\n");
+			printf(" msec  (%6.2f%%)\n", 100.0 * r->total_run_time / hist_time);
 		} else
 			printf("    CPU %2d idle entire time window\n", i);
 	}
@@ -2701,12 +2813,16 @@ static void timehist_print_summary(struct perf_sched *sched,
 
 	printf("\n"
 	       "    Total number of unique tasks: %" PRIu64 "\n"
-	       "Total number of context switches: %" PRIu64 "\n"
-	       "           Total run time (msec): ",
+	       "Total number of context switches: %" PRIu64 "\n",
 	       totals.task_count, totals.sched_count);
 
+	printf("           Total run time (msec): ");
 	print_sched_time(totals.total_run_time, 2);
 	printf("\n");
+
+	printf("    Total scheduling time (msec): ");
+	print_sched_time(hist_time, 2);
+	printf(" (x %d)\n", sched->max_cpu);
 }
 
 typedef int (*sched_handler)(struct perf_tool *tool,
@@ -3229,6 +3345,7 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN('I', "idle-hist", &sched.idle_hist, "Show idle events only"),
 	OPT_STRING(0, "time", &sched.time_str, "str",
 		   "Time span for analysis (start,stop)"),
+	OPT_BOOLEAN(0, "state", &sched.show_state, "Show task state when sched-out"),
 	OPT_PARENT(sched_options)
 	};
 

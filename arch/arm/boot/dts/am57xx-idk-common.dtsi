@@ -14,6 +14,10 @@
 		rtc1 = &rtc;
 	};
 
+	chosen {
+		stdout-path = &uart3;
+	};
+
 	vmain: fixedregulator-vmain {
 		compatible = "regulator-fixed";
 		regulator-name = "VMAIN";
@@ -303,6 +307,13 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 		};
+
+		extcon_usb2: tps659038_usb {
+			compatible = "ti,palmas-usb-vid";
+			ti,enable-vbus-detection;
+			ti,enable-id-detection;
+			/* ID & VBUS GPIOs provided in board dts */
+		};
 	};
 };
 
@@ -369,7 +380,7 @@
 };
 
 &usb2 {
-	dr_mode = "otg";
+	dr_mode = "peripheral";
 };
 
 &mmc2 {

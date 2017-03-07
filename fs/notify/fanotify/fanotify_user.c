@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <linux/compat.h>
+#include <linux/sched/signal.h>
 
 #include <asm/ioctls.h>
 

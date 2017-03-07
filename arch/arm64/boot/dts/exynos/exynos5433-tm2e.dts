@@ -11,21 +11,45 @@
  * published by the Free Software Foundation.
  */
 
-#include "exynos5433-tm2.dts"
+#include "exynos5433-tm2-common.dtsi"
 
 / {
 	model = "Samsung TM2E board";
 	compatible = "samsung,tm2e", "samsung,exynos5433";
 };
 
-&ldo23_reg {
-	regulator-name = "CAM_SEN_CORE_1.025V_AP";
-	regulator-max-microvolt = <1050000>;
-};
-
-&ldo25_reg {
-	regulator-name = "UNUSED_LDO25";
-	regulator-always-off;
+&cmu_disp {
+	/*
+	 * TM2 and TM2e differ only by DISP_PLL rate, but define all assigned
+	 * clocks properties for DISP CMU for each board to keep them together
+	 * for easier review and maintenance.
+	 */
+	assigned-clocks = <&cmu_disp CLK_FOUT_DISP_PLL>,
+			  <&cmu_mif CLK_DIV_SCLK_DECON_TV_ECLK>,
+			  <&cmu_disp CLK_MOUT_ACLK_DISP_333_USER>,
+			  <&cmu_disp CLK_MOUT_SCLK_DSIM0_USER>,
+			  <&cmu_disp CLK_MOUT_SCLK_DSIM0>,
+			  <&cmu_disp CLK_MOUT_SCLK_DECON_ECLK_USER>,
+			  <&cmu_disp CLK_MOUT_SCLK_DECON_ECLK>,
+			  <&cmu_disp CLK_MOUT_PHYCLK_MIPIDPHY0_RXCLKESC0_USER>,
+			  <&cmu_disp CLK_MOUT_PHYCLK_MIPIDPHY0_BITCLKDIV8_USER>,
+			  <&cmu_disp CLK_MOUT_DISP_PLL>,
+			  <&cmu_mif CLK_MOUT_SCLK_DECON_TV_ECLK_A>,
+			  <&cmu_disp CLK_MOUT_SCLK_DECON_TV_ECLK_USER>,
+			  <&cmu_disp CLK_MOUT_SCLK_DECON_TV_ECLK>;
+	assigned-clock-parents = <0>, <0>,
+				 <&cmu_mif CLK_ACLK_DISP_333>,
+				 <&cmu_mif CLK_SCLK_DSIM0_DISP>,
+				 <&cmu_disp CLK_MOUT_SCLK_DSIM0_USER>,
+				 <&cmu_mif CLK_SCLK_DECON_ECLK_DISP>,
+				 <&cmu_disp CLK_MOUT_SCLK_DECON_ECLK_USER>,
+				 <&cmu_disp CLK_PHYCLK_MIPIDPHY0_RXCLKESC0_PHY>,
+				 <&cmu_disp CLK_PHYCLK_MIPIDPHY0_BITCLKDIV8_PHY>,
+				 <&cmu_disp CLK_FOUT_DISP_PLL>,
+				 <&cmu_mif CLK_MOUT_BUS_PLL_DIV2>,
+				 <&cmu_mif CLK_SCLK_DECON_TV_ECLK_DISP>,
+				 <&cmu_disp CLK_MOUT_SCLK_DECON_TV_ECLK_USER>;
+	assigned-clock-rates = <278000000>, <400000000>;
 };
 
 &ldo31_reg {

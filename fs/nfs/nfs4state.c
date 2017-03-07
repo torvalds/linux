@@ -868,7 +868,7 @@ static struct nfs4_lock_state *nfs4_get_lock_state(struct nfs4_state *state, fl_
 	
 	for(;;) {
 		spin_lock(&state->state_lock);
-		lsp = __nfs4_find_lock_state(state, owner, 0);
+		lsp = __nfs4_find_lock_state(state, owner, NULL);
 		if (lsp != NULL)
 			break;
 		if (new != NULL) {
@@ -1091,6 +1091,7 @@ static void nfs_increment_seqid(int status, struct nfs_seqid *seqid)
 		case -NFS4ERR_BADXDR:
 		case -NFS4ERR_RESOURCE:
 		case -NFS4ERR_NOFILEHANDLE:
+		case -NFS4ERR_MOVED:
 			/* Non-seqid mutating errors */
 			return;
 	};
@@ -1729,7 +1730,6 @@ static int nfs4_recovery_handle_error(struct nfs_client *clp, int error)
 			break;
 		case -NFS4ERR_STALE_CLIENTID:
 			set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
-			nfs4_state_clear_reclaim_reboot(clp);
 			nfs4_state_start_reclaim_reboot(clp);
 			break;
 		case -NFS4ERR_EXPIRED:

@@ -147,49 +147,66 @@ static inline void flush_scache_line(unsigned long addr)
 }
 
 #define protected_cache_op(op,addr)				\
+({								\
+	int __err = 0;						\
 	__asm__ __volatile__(					\
 	"	.set	push			\n"		\
 	"	.set	noreorder		\n"		\
 	"	.set "MIPS_ISA_ARCH_LEVEL"	\n"		\
-	"1:	cache	%0, (%1)		\n"		\
-	"2:	.set	pop			\n"		\
+	"1:	cache	%1, (%2)		\n"		\
+	"2:	.insn				\n"		\
+	"	.set	pop			\n"		\
+	"	.section .fixup,\"ax\"		\n"		\
+	"3:	li	%0, %3			\n"		\
+	"	j	2b			\n"		\
+	"	.previous			\n"		\
 	"	.section __ex_table,\"a\"	\n"		\
-	"	"STR(PTR)" 1b, 2b		\n"		\
+	"	"STR(PTR)" 1b, 3b		\n"		\
 	"	.previous"					\
-	:							\
-	: "i" (op), "r" (addr))
+	: "+r" (__err)						\
+	: "i" (op), "r" (addr), "i" (-EFAULT));			\
+	__err;							\
+})
+
 
 #define protected_cachee_op(op,addr)				\
+({								\
+	int __err = 0;						\
 	__asm__ __volatile__(					\
 	"	.set	push			\n"		\
 	"	.set	noreorder		\n"		\
 	"	.set	mips0			\n"		\
 	"	.set	eva			\n"		\
-	"1:	cachee	%0, (%1)		\n"		\
-	"2:	.set	pop			\n"		\
+	"1:	cachee	%1, (%2)		\n"		\
+	"2:	.insn				\n"		\
+	"	.set	pop			\n"		\
+	"	.section .fixup,\"ax\"		\n"		\
+	"3:	li	%0, %3			\n"		\
+	"	j	2b			\n"		\
+	"	.previous			\n"		\
 	"	.section __ex_table,\"a\"	\n"		\
-	"	"STR(PTR)" 1b, 2b		\n"		\
+	"	"STR(PTR)" 1b, 3b		\n"		\
 	"	.previous"					\
-	:							\
-	: "i" (op), "r" (addr))
+	: "+r" (__err)						\
+	: "i" (op), "r" (addr), "i" (-EFAULT));			\
+	__err;							\
+})
 
 /*
  * The next two are for badland addresses like signal trampolines.
  */
-static inline void protected_flush_icache_line(unsigned long addr)
+static inline int protected_flush_icache_line(unsigned long addr)
 {
 	switch (boot_cpu_type()) {
 	case CPU_LOONGSON2:
-		protected_cache_op(Hit_Invalidate_I_Loongson2, addr);
-		break;
+		return protected_cache_op(Hit_Invalidate_I_Loongson2, addr);
 
 	default:
 #ifdef CONFIG_EVA
-		protected_cachee_op(Hit_Invalidate_I, addr);
+		return protected_cachee_op(Hit_Invalidate_I, addr);
 #else
-		protected_cache_op(Hit_Invalidate_I, addr);
+		return protected_cache_op(Hit_Invalidate_I, addr);
 #endif
-		break;
 	}
 }
 
@@ -199,21 +216,21 @@ static inline void protected_flush_icache_line(unsigned long addr)
  * caches.  We're talking about one cacheline unnecessarily getting invalidated
  * here so the penalty isn't overly hard.
  */
-static inline void protected_writeback_dcache_line(unsigned long addr)
+static inline int protected_writeback_dcache_line(unsigned long addr)
 {
 #ifdef CONFIG_EVA
-	protected_cachee_op(Hit_Writeback_Inv_D, addr);
+	return protected_cachee_op(Hit_Writeback_Inv_D, addr);
 #else
-	protected_cache_op(Hit_Writeback_Inv_D, addr);
+	return protected_cache_op(Hit_Writeback_Inv_D, addr);
 #endif
 }
 
-static inline void protected_writeback_scache_line(unsigned long addr)
+static inline int protected_writeback_scache_line(unsigned long addr)
 {
 #ifdef CONFIG_EVA
-	protected_cachee_op(Hit_Writeback_Inv_SD, addr);
+	return protected_cachee_op(Hit_Writeback_Inv_SD, addr);
 #else
-	protected_cache_op(Hit_Writeback_Inv_SD, addr);
+	return protected_cache_op(Hit_Writeback_Inv_SD, addr);
 #endif
 }
 

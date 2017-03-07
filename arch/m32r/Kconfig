@@ -18,6 +18,7 @@ config M32R
 	select MODULES_USE_ELF_RELA
 	select HAVE_DEBUG_STACKOVERFLOW
 	select CPU_NO_EFFICIENT_FFS
+	select DMA_NOOP_OPS
 
 config SBUS
 	bool

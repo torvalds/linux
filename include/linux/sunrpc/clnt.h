@@ -182,7 +182,6 @@ int		rpc_protocol(struct rpc_clnt *);
 struct net *	rpc_net_ns(struct rpc_clnt *);
 size_t		rpc_max_payload(struct rpc_clnt *);
 size_t		rpc_max_bc_payload(struct rpc_clnt *);
-unsigned long	rpc_get_timeout(struct rpc_clnt *clnt);
 void		rpc_force_rebind(struct rpc_clnt *);
 size_t		rpc_peeraddr(struct rpc_clnt *, struct sockaddr *, size_t);
 const char	*rpc_peeraddr2str(struct rpc_clnt *, enum rpc_display_format_t);
@@ -202,8 +201,9 @@ int		rpc_clnt_add_xprt(struct rpc_clnt *, struct xprt_create *,
 				struct rpc_xprt *,
 				void *),
 			void *data);
-void		rpc_cap_max_reconnect_timeout(struct rpc_clnt *clnt,
-			unsigned long timeo);
+void		rpc_set_connect_timeout(struct rpc_clnt *clnt,
+			unsigned long connect_timeout,
+			unsigned long reconnect_timeout);
 
 int		rpc_clnt_setup_test_and_add_xprt(struct rpc_clnt *,
 			struct rpc_xprt_switch *,
@@ -216,5 +216,6 @@ void rpc_clnt_xprt_switch_put(struct rpc_clnt *);
 void rpc_clnt_xprt_switch_add_xprt(struct rpc_clnt *, struct rpc_xprt *);
 bool rpc_clnt_xprt_switch_has_addr(struct rpc_clnt *clnt,
 			const struct sockaddr *sap);
+void rpc_cleanup_clids(void);
 #endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_CLNT_H */

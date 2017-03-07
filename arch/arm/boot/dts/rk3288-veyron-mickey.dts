@@ -182,8 +182,8 @@
 &rk808 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pmic_int_l &dvs_1 &dvs_2>;
-	dvs-gpios = <&gpio7 12 GPIO_ACTIVE_HIGH>,
-		    <&gpio7 15 GPIO_ACTIVE_HIGH>;
+	dvs-gpios = <&gpio7 RK_PB4 GPIO_ACTIVE_HIGH>,
+		    <&gpio7 RK_PB7 GPIO_ACTIVE_HIGH>;
 
 	/delete-property/ vcc6-supply;
 	/delete-property/ vcc12-supply;
@@ -244,7 +244,7 @@
 
 &vcc50_hdmi {
 	enable-active-high;
-	gpio = <&gpio7 11 GPIO_ACTIVE_HIGH>;
+	gpio = <&gpio7 RK_PB3 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&power_hdmi_on>;
 };

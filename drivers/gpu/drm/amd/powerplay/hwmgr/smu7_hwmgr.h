@@ -268,7 +268,7 @@ struct smu7_hwmgr {
 	uint32_t                       fast_watermark_threshold;
 
 	/* ---- Phase Shedding ---- */
-	bool                           vddc_phase_shed_control;
+	uint8_t                           vddc_phase_shed_control;
 
 	/* ---- DI/DT ---- */
 	struct smu7_display_timing        display_timing;

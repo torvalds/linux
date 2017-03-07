@@ -346,7 +346,7 @@ static int ax88772_reset(struct usbnet *dev)
 	if (ret < 0)
 		goto out;
 
-	asix_write_medium_mode(dev, AX88772_MEDIUM_DEFAULT, 0);
+	ret = asix_write_medium_mode(dev, AX88772_MEDIUM_DEFAULT, 0);
 	if (ret < 0)
 		goto out;
 
@@ -1367,6 +1367,7 @@ static struct usb_driver asix_driver = {
 	.probe =	usbnet_probe,
 	.suspend =	asix_suspend,
 	.resume =	asix_resume,
+	.reset_resume =	asix_resume,
 	.disconnect =	usbnet_disconnect,
 	.supports_autosuspend = 1,
 	.disable_hub_initiated_lpm = 1,

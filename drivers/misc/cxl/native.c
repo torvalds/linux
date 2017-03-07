@@ -9,6 +9,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/mm.h>

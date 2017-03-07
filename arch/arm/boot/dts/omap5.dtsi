@@ -17,6 +17,7 @@
 
 	compatible = "ti,omap5";
 	interrupt-parent = <&wakeupgen>;
+	chosen { };
 
 	aliases {
 		i2c0 = &i2c1;
@@ -91,7 +92,7 @@
 		interrupt-controller;
 		#interrupt-cells = <3>;
 		reg = <0 0x48211000 0 0x1000>,
-		      <0 0x48212000 0 0x1000>,
+		      <0 0x48212000 0 0x2000>,
 		      <0 0x48214000 0 0x2000>,
 		      <0 0x48216000 0 0x2000>;
 		interrupt-parent = <&gic>;
@@ -987,6 +988,7 @@
 			phy-names = "sata-phy";
 			clocks = <&sata_ref_clk>;
 			ti,hwmods = "sata";
+			ports-implemented = <0x1>;
 		};
 
 		dss: dss@58000000 {

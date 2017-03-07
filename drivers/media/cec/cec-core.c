@@ -239,7 +239,7 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 
 #if IS_REACHABLE(CONFIG_RC_CORE)
 	/* Prepare the RC input device */
-	adap->rc = rc_allocate_device();
+	adap->rc = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!adap->rc) {
 		pr_err("cec-%s: failed to allocate memory for rc_dev\n",
 		       name);
@@ -259,7 +259,6 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 	adap->rc->input_id.vendor = 0;
 	adap->rc->input_id.product = 0;
 	adap->rc->input_id.version = 1;
-	adap->rc->driver_type = RC_DRIVER_SCANCODE;
 	adap->rc->driver_name = CEC_NAME;
 	adap->rc->allowed_protocols = RC_BIT_CEC;
 	adap->rc->priv = adap;

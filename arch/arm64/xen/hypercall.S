@@ -49,7 +49,7 @@
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <linux/uaccess.h>
+#include <asm/asm-uaccess.h>
 #include <xen/interface/xen.h>
 
 
@@ -84,6 +84,7 @@ HYPERCALL1(tmem_op);
 HYPERCALL1(platform_op_raw);
 HYPERCALL2(multicall);
 HYPERCALL2(vm_assist);
+HYPERCALL3(dm_op);
 
 ENTRY(privcmd_call)
 	mov x16, x0

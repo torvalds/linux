@@ -52,17 +52,17 @@ static void namespace_blk_release(struct device *dev)
 	kfree(nsblk);
 }
 
-static struct device_type namespace_io_device_type = {
+static const struct device_type namespace_io_device_type = {
 	.name = "nd_namespace_io",
 	.release = namespace_io_release,
 };
 
-static struct device_type namespace_pmem_device_type = {
+static const struct device_type namespace_pmem_device_type = {
 	.name = "nd_namespace_pmem",
 	.release = namespace_pmem_release,
 };
 
-static struct device_type namespace_blk_device_type = {
+static const struct device_type namespace_blk_device_type = {
 	.name = "nd_namespace_blk",
 	.release = namespace_blk_release,
 };
@@ -957,25 +957,28 @@ static ssize_t __size_store(struct device *dev, unsigned long long val)
 {
 	resource_size_t allocated = 0, available = 0;
 	struct nd_region *nd_region = to_nd_region(dev->parent);
+	struct nd_namespace_common *ndns = to_ndns(dev);
 	struct nd_mapping *nd_mapping;
 	struct nvdimm_drvdata *ndd;
 	struct nd_label_id label_id;
 	u32 flags = 0, remainder;
+	int rc, i, id = -1;
 	u8 *uuid = NULL;
-	int rc, i;
 
-	if (dev->driver || to_ndns(dev)->claim)
+	if (dev->driver || ndns->claim)
 		return -EBUSY;
 
 	if (is_namespace_pmem(dev)) {
 		struct nd_namespace_pmem *nspm = to_nd_namespace_pmem(dev);
 
 		uuid = nspm->uuid;
+		id = nspm->id;
 	} else if (is_namespace_blk(dev)) {
 		struct nd_namespace_blk *nsblk = to_nd_namespace_blk(dev);
 
 		uuid = nsblk->uuid;
 		flags = NSLABEL_FLAG_LOCAL;
+		id = nsblk->id;
 	}
 
 	/*
@@ -1034,19 +1037,16 @@ static ssize_t __size_store(struct device *dev, unsigned long long val)
 
 		nd_namespace_pmem_set_resource(nd_region, nspm,
 				val * nd_region->ndr_mappings);
-	} else if (is_namespace_blk(dev)) {
-		struct nd_namespace_blk *nsblk = to_nd_namespace_blk(dev);
-
-		/*
-		 * Try to delete the namespace if we deleted all of its
-		 * allocation, this is not the seed device for the
-		 * region, and it is not actively claimed by a btt
-		 * instance.
-		 */
-		if (val == 0 && nd_region->ns_seed != dev
-				&& !nsblk->common.claim)
-			nd_device_unregister(dev, ND_ASYNC);
 	}
+
+	/*
+	 * Try to delete the namespace if we deleted all of its
+	 * allocation, this is not the seed or 0th device for the
+	 * region, and it is not actively claimed by a btt, pfn, or dax
+	 * instance.
+	 */
+	if (val == 0 && id != 0 && nd_region->ns_seed != dev && !ndns->claim)
+		nd_device_unregister(dev, ND_ASYNC);
 
 	return rc;
 }
@@ -1700,6 +1700,7 @@ static int select_pmem_id(struct nd_region *nd_region, u8 *pmem_id)
 struct device *create_namespace_pmem(struct nd_region *nd_region,
 		struct nd_namespace_label *nd_label)
 {
+	u64 altcookie = nd_region_interleave_set_altcookie(nd_region);
 	u64 cookie = nd_region_interleave_set_cookie(nd_region);
 	struct nd_label_ent *label_ent;
 	struct nd_namespace_pmem *nspm;
@@ -1718,7 +1719,11 @@ struct device *create_namespace_pmem(struct nd_region *nd_region,
 	if (__le64_to_cpu(nd_label->isetcookie) != cookie) {
 		dev_dbg(&nd_region->dev, "invalid cookie in label: %pUb\n",
 				nd_label->uuid);
-		return ERR_PTR(-EAGAIN);
+		if (__le64_to_cpu(nd_label->isetcookie) != altcookie)
+			return ERR_PTR(-EAGAIN);
+
+		dev_dbg(&nd_region->dev, "valid altcookie in label: %pUb\n",
+				nd_label->uuid);
 	}
 
 	nspm = kzalloc(sizeof(*nspm), GFP_KERNEL);
@@ -1733,9 +1738,14 @@ struct device *create_namespace_pmem(struct nd_region *nd_region,
 	res->name = dev_name(&nd_region->dev);
 	res->flags = IORESOURCE_MEM;
 
-	for (i = 0; i < nd_region->ndr_mappings; i++)
-		if (!has_uuid_at_pos(nd_region, nd_label->uuid, cookie, i))
-			break;
+	for (i = 0; i < nd_region->ndr_mappings; i++) {
+		if (has_uuid_at_pos(nd_region, nd_label->uuid, cookie, i))
+			continue;
+		if (has_uuid_at_pos(nd_region, nd_label->uuid, altcookie, i))
+			continue;
+		break;
+	}
+
 	if (i < nd_region->ndr_mappings) {
 		struct nvdimm_drvdata *ndd = to_ndd(&nd_region->mapping[i]);
 

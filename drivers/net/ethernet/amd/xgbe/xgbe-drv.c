@@ -539,6 +539,7 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 		}
 	}
 
+isr_done:
 	/* If there is not a separate AN irq, handle it here */
 	if (pdata->dev_irq == pdata->an_irq)
 		pdata->phy_if.an_isr(irq, pdata);
@@ -551,7 +552,6 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 	if (pdata->vdata->i2c_support && (pdata->dev_irq == pdata->i2c_irq))
 		pdata->i2c_if.i2c_isr(irq, pdata);
 
-isr_done:
 	return IRQ_HANDLED;
 }
 
@@ -1070,7 +1070,9 @@ static int xgbe_start(struct xgbe_prv_data *pdata)
 
 	DBGPR("-->xgbe_start\n");
 
-	hw_if->init(pdata);
+	ret = hw_if->init(pdata);
+	if (ret)
+		return ret;
 
 	xgbe_napi_enable(pdata, 1);
 
@@ -1129,11 +1131,11 @@ static void xgbe_stop(struct xgbe_prv_data *pdata)
 	hw_if->disable_tx(pdata);
 	hw_if->disable_rx(pdata);
 
+	phy_if->phy_stop(pdata);
+
 	xgbe_free_irqs(pdata);
 
 	xgbe_napi_disable(pdata, 1);
-
-	phy_if->phy_stop(pdata);
 
 	hw_if->exit(pdata);
 
@@ -1759,8 +1761,8 @@ static void xgbe_tx_timeout(struct net_device *netdev)
 	schedule_work(&pdata->restart_work);
 }
 
-static struct rtnl_link_stats64 *xgbe_get_stats64(struct net_device *netdev,
-						  struct rtnl_link_stats64 *s)
+static void xgbe_get_stats64(struct net_device *netdev,
+			     struct rtnl_link_stats64 *s)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 	struct xgbe_mmc_stats *pstats = &pdata->mmc_stats;
@@ -1786,8 +1788,6 @@ static struct rtnl_link_stats64 *xgbe_get_stats64(struct net_device *netdev,
 	s->tx_dropped = netdev->stats.tx_dropped;
 
 	DBGPR("<--%s\n", __func__);
-
-	return s;
 }
 
 static int xgbe_vlan_rx_add_vid(struct net_device *netdev, __be16 proto,

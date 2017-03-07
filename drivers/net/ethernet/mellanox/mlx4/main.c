@@ -42,6 +42,7 @@
 #include <linux/io-mapping.h>
 #include <linux/delay.h>
 #include <linux/kmod.h>
+#include <linux/etherdevice.h>
 #include <net/devlink.h>
 
 #include <linux/mlx4/device.h>
@@ -782,6 +783,23 @@ int mlx4_is_slave_active(struct mlx4_dev *dev, int slave)
 }
 EXPORT_SYMBOL(mlx4_is_slave_active);
 
+void mlx4_handle_eth_header_mcast_prio(struct mlx4_net_trans_rule_hw_ctrl *ctrl,
+				       struct _rule_hw *eth_header)
+{
+	if (is_multicast_ether_addr(eth_header->eth.dst_mac) ||
+	    is_broadcast_ether_addr(eth_header->eth.dst_mac)) {
+		struct mlx4_net_trans_rule_hw_eth *eth =
+			(struct mlx4_net_trans_rule_hw_eth *)eth_header;
+		struct _rule_hw *next_rule = (struct _rule_hw *)(eth + 1);
+		bool last_rule = next_rule->size == 0 && next_rule->id == 0 &&
+			next_rule->rsvd == 0;
+
+		if (last_rule)
+			ctrl->prio = cpu_to_be16(MLX4_DOMAIN_NIC);
+	}
+}
+EXPORT_SYMBOL(mlx4_handle_eth_header_mcast_prio);
+
 static void slave_adjust_steering_mode(struct mlx4_dev *dev,
 				       struct mlx4_dev_cap *dev_cap,
 				       struct mlx4_init_hca_param *hca_param)
@@ -820,10 +838,8 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 	 */
 	if (hca_param.global_caps) {
 		mlx4_err(dev, "Unknown hca global capabilities\n");
-		return -ENOSYS;
+		return -EINVAL;
 	}
-
-	mlx4_log_num_mgm_entry_size = hca_param.log_mc_entry_sz;
 
 	dev->caps.hca_core_clock = hca_param.hca_core_clock;
 
@@ -878,7 +894,7 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 	    PF_CONTEXT_BEHAVIOUR_MASK) {
 		mlx4_err(dev, "Unknown pf context behaviour %x known flags %x\n",
 			 func_cap.pf_context_behaviour, PF_CONTEXT_BEHAVIOUR_MASK);
-		return -ENOSYS;
+		return -EINVAL;
 	}
 
 	dev->caps.num_ports		= func_cap.num_ports;
@@ -1429,7 +1445,7 @@ int mlx4_port_map_set(struct mlx4_dev *dev, struct mlx4_port_map *v2p)
 	int err;
 
 	if (!(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_PORT_REMAP))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	mutex_lock(&priv->bond_mutex);
 
@@ -1866,7 +1882,7 @@ int mlx4_get_internal_clock_params(struct mlx4_dev *dev,
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
 	if (mlx4_is_slave(dev))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (!params)
 		return -EINVAL;
@@ -2366,7 +2382,7 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 
 	/* Query CONFIG_DEV parameters */
 	err = mlx4_config_dev_retrieval(dev, &params);
-	if (err && err != -ENOTSUPP) {
+	if (err && err != -EOPNOTSUPP) {
 		mlx4_err(dev, "Failed to query CONFIG_DEV parameters\n");
 	} else if (!err) {
 		dev->caps.rx_checksum_flags_port[1] = params.rx_csum_flags_port_1;
@@ -3474,7 +3490,7 @@ slave_start:
 	mlx4_enable_msi_x(dev);
 	if ((mlx4_is_mfunc(dev)) &&
 	    !(dev->flags & MLX4_FLAG_MSI_X)) {
-		err = -ENOSYS;
+		err = -EOPNOTSUPP;
 		mlx4_err(dev, "INTx is not supported in multi-function mode, aborting\n");
 		goto err_free_eq;
 	}
@@ -3484,6 +3500,8 @@ slave_start:
 		if (err)
 			goto err_disable_msix;
 	}
+
+	mlx4_init_quotas(dev);
 
 	err = mlx4_setup_hca(dev);
 	if (err == -EBUSY && (dev->flags & MLX4_FLAG_MSI_X) &&
@@ -3497,7 +3515,6 @@ slave_start:
 	if (err)
 		goto err_steer;
 
-	mlx4_init_quotas(dev);
 	/* When PF resources are ready arm its comm channel to enable
 	 * getting commands
 	 */

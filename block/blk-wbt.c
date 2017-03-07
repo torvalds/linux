@@ -96,7 +96,7 @@ static void wb_timestamp(struct rq_wb *rwb, unsigned long *var)
  */
 static bool wb_recent_wait(struct rq_wb *rwb)
 {
-	struct bdi_writeback *wb = &rwb->queue->backing_dev_info.wb;
+	struct bdi_writeback *wb = &rwb->queue->backing_dev_info->wb;
 
 	return time_before(jiffies, wb->dirty_sleep + HZ);
 }
@@ -279,7 +279,7 @@ enum {
 
 static int __latency_exceeded(struct rq_wb *rwb, struct blk_rq_stat *stat)
 {
-	struct backing_dev_info *bdi = &rwb->queue->backing_dev_info;
+	struct backing_dev_info *bdi = rwb->queue->backing_dev_info;
 	u64 thislat;
 
 	/*
@@ -339,7 +339,7 @@ static int latency_exceeded(struct rq_wb *rwb)
 
 static void rwb_trace_step(struct rq_wb *rwb, const char *msg)
 {
-	struct backing_dev_info *bdi = &rwb->queue->backing_dev_info;
+	struct backing_dev_info *bdi = rwb->queue->backing_dev_info;
 
 	trace_wbt_step(bdi, msg, rwb->scale_step, rwb->cur_win_nsec,
 			rwb->wb_background, rwb->wb_normal, rwb->wb_max);
@@ -423,7 +423,7 @@ static void wb_timer_fn(unsigned long data)
 
 	status = latency_exceeded(rwb);
 
-	trace_wbt_timer(&rwb->queue->backing_dev_info, status, rwb->scale_step,
+	trace_wbt_timer(rwb->queue->backing_dev_info, status, rwb->scale_step,
 			inflight);
 
 	/*
@@ -544,6 +544,8 @@ static inline bool may_queue(struct rq_wb *rwb, struct rq_wait *rqw,
  * the timer to kick off queuing again.
  */
 static void __wbt_wait(struct rq_wb *rwb, unsigned long rw, spinlock_t *lock)
+	__releases(lock)
+	__acquires(lock)
 {
 	struct rq_wait *rqw = get_rq_wait(rwb, current_is_kswapd());
 	DEFINE_WAIT(wait);
@@ -558,13 +560,12 @@ static void __wbt_wait(struct rq_wb *rwb, unsigned long rw, spinlock_t *lock)
 		if (may_queue(rwb, rqw, &wait, rw))
 			break;
 
-		if (lock)
+		if (lock) {
 			spin_unlock_irq(lock);
-
-		io_schedule();
-
-		if (lock)
+			io_schedule();
 			spin_lock_irq(lock);
+		} else
+			io_schedule();
 	} while (1);
 
 	finish_wait(&rqw->wait, &wait);
@@ -595,7 +596,7 @@ static inline bool wbt_should_throttle(struct rq_wb *rwb, struct bio *bio)
  * in an irq held spinlock, if it holds one when calling this function.
  * If we do sleep, we'll release and re-grab it.
  */
-unsigned int wbt_wait(struct rq_wb *rwb, struct bio *bio, spinlock_t *lock)
+enum wbt_flags wbt_wait(struct rq_wb *rwb, struct bio *bio, spinlock_t *lock)
 {
 	unsigned int ret = 0;
 

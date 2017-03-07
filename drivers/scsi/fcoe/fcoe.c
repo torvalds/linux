@@ -277,6 +277,7 @@ static struct scsi_host_template fcoe_shost_template = {
 	.name = "FCoE Driver",
 	.proc_name = FCOE_NAME,
 	.queuecommand = fc_queuecommand,
+	.eh_timed_out = fc_eh_timed_out,
 	.eh_abort_handler = fc_eh_abort,
 	.eh_device_reset_handler = fc_eh_device_reset,
 	.eh_host_reset_handler = fc_eh_host_reset,
@@ -326,8 +327,7 @@ static int fcoe_interface_setup(struct fcoe_interface *fcoe,
 
 	/* look for SAN MAC address, if multiple SAN MACs exist, only
 	 * use the first one for SPMA */
-	real_dev = (netdev->priv_flags & IFF_802_1Q_VLAN) ?
-		vlan_dev_real_dev(netdev) : netdev;
+	real_dev = is_vlan_dev(netdev) ? vlan_dev_real_dev(netdev) : netdev;
 	fcoe->realdev = real_dev;
 	rcu_read_lock();
 	for_each_dev_addr(real_dev, ha) {
@@ -730,7 +730,7 @@ static int fcoe_netdev_config(struct fc_lport *lport, struct net_device *netdev)
 	ctlr = fcoe_to_ctlr(fcoe);
 
 	/* Figure out the VLAN ID, if any */
-	if (netdev->priv_flags & IFF_802_1Q_VLAN)
+	if (is_vlan_dev(netdev))
 		lport->vlan = vlan_dev_vlan_id(netdev);
 	else
 		lport->vlan = 0;
@@ -959,13 +959,13 @@ static inline int fcoe_em_config(struct fc_lport *lport)
 	 * Reuse existing offload em instance in case
 	 * it is already allocated on real eth device
 	 */
-	if (fcoe->netdev->priv_flags & IFF_802_1Q_VLAN)
+	if (is_vlan_dev(fcoe->netdev))
 		cur_real_dev = vlan_dev_real_dev(fcoe->netdev);
 	else
 		cur_real_dev = fcoe->netdev;
 
 	list_for_each_entry(oldfcoe, &fcoe_hostlist, list) {
-		if (oldfcoe->netdev->priv_flags & IFF_802_1Q_VLAN)
+		if (is_vlan_dev(oldfcoe->netdev))
 			old_real_dev = vlan_dev_real_dev(oldfcoe->netdev);
 		else
 			old_real_dev = oldfcoe->netdev;
@@ -1563,7 +1563,7 @@ static int fcoe_xmit(struct fc_lport *lport, struct fc_frame *fp)
 	skb->protocol = htons(ETH_P_FCOE);
 	skb->priority = fcoe->priority;
 
-	if (fcoe->netdev->priv_flags & IFF_802_1Q_VLAN &&
+	if (is_vlan_dev(fcoe->netdev) &&
 	    fcoe->realdev->features & NETIF_F_HW_VLAN_CTAG_TX) {
 		/* must set skb->dev before calling vlan_put_tag */
 		skb->dev = fcoe->realdev;
@@ -1794,7 +1794,7 @@ fcoe_hostlist_lookup_realdev_port(struct net_device *netdev)
 	struct net_device *real_dev;
 
 	list_for_each_entry(fcoe, &fcoe_hostlist, list) {
-		if (fcoe->netdev->priv_flags & IFF_802_1Q_VLAN)
+		if (is_vlan_dev(fcoe->netdev))
 			real_dev = vlan_dev_real_dev(fcoe->netdev);
 		else
 			real_dev = fcoe->netdev;

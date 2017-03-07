@@ -78,14 +78,16 @@ static void ath79_spi_chipselect(struct spi_device *spi, int is_active)
 		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, sp->ioc_base);
 	}
 
-	if (spi->chip_select) {
+	if (gpio_is_valid(spi->cs_gpio)) {
 		/* SPI is normally active-low */
-		gpio_set_value(spi->cs_gpio, cs_high);
+		gpio_set_value_cansleep(spi->cs_gpio, cs_high);
 	} else {
+		u32 cs_bit = AR71XX_SPI_IOC_CS(spi->chip_select);
+
 		if (cs_high)
-			sp->ioc_base |= AR71XX_SPI_IOC_CS0;
+			sp->ioc_base |= cs_bit;
 		else
-			sp->ioc_base &= ~AR71XX_SPI_IOC_CS0;
+			sp->ioc_base &= ~cs_bit;
 
 		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, sp->ioc_base);
 	}
@@ -118,11 +120,8 @@ static int ath79_spi_setup_cs(struct spi_device *spi)
 	struct ath79_spi *sp = ath79_spidev_to_sp(spi);
 	int status;
 
-	if (spi->chip_select && !gpio_is_valid(spi->cs_gpio))
-		return -EINVAL;
-
 	status = 0;
-	if (spi->chip_select) {
+	if (gpio_is_valid(spi->cs_gpio)) {
 		unsigned long flags;
 
 		flags = GPIOF_DIR_OUT;
@@ -134,10 +133,12 @@ static int ath79_spi_setup_cs(struct spi_device *spi)
 		status = gpio_request_one(spi->cs_gpio, flags,
 					  dev_name(&spi->dev));
 	} else {
+		u32 cs_bit = AR71XX_SPI_IOC_CS(spi->chip_select);
+
 		if (spi->mode & SPI_CS_HIGH)
-			sp->ioc_base &= ~AR71XX_SPI_IOC_CS0;
+			sp->ioc_base &= ~cs_bit;
 		else
-			sp->ioc_base |= AR71XX_SPI_IOC_CS0;
+			sp->ioc_base |= cs_bit;
 
 		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, sp->ioc_base);
 	}
@@ -147,7 +148,7 @@ static int ath79_spi_setup_cs(struct spi_device *spi)
 
 static void ath79_spi_cleanup_cs(struct spi_device *spi)
 {
-	if (spi->chip_select) {
+	if (gpio_is_valid(spi->cs_gpio)) {
 		gpio_free(spi->cs_gpio);
 	}
 }

@@ -6957,7 +6957,7 @@ int bnx2x_link_update(struct link_params *params, struct link_vars *vars)
 			 * hence its link is expected to be down
 			 * - SECOND_PHY means that first phy should not be able
 			 * to link up by itself (using configuration)
-			 * - DEFAULT should be overriden during initialiazation
+			 * - DEFAULT should be overridden during initialization
 			 */
 				DP(NETIF_MSG_LINK, "Invalid link indication"
 					   "mpc=0x%x. DISABLING LINK !!!\n",

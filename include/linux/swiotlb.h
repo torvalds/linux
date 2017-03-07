@@ -9,7 +9,13 @@ struct device;
 struct page;
 struct scatterlist;
 
-extern int swiotlb_force;
+enum swiotlb_force {
+	SWIOTLB_NORMAL,		/* Default - depending on HW DMA mask etc. */
+	SWIOTLB_FORCE,		/* swiotlb=force */
+	SWIOTLB_NO_FORCE,	/* swiotlb=noforce */
+};
+
+extern enum swiotlb_force swiotlb_force;
 
 /*
  * Maximum allowable number of contiguous slabs to map,
@@ -108,11 +114,14 @@ swiotlb_dma_supported(struct device *hwdev, u64 mask);
 
 #ifdef CONFIG_SWIOTLB
 extern void __init swiotlb_free(void);
+unsigned int swiotlb_max_segment(void);
 #else
 static inline void swiotlb_free(void) { }
+static inline unsigned int swiotlb_max_segment(void) { return 0; }
 #endif
 
 extern void swiotlb_print_info(void);
 extern int is_swiotlb_buffer(phys_addr_t paddr);
+extern void swiotlb_set_max_segment(unsigned int);
 
 #endif /* __LINUX_SWIOTLB_H */

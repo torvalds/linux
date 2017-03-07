@@ -18,6 +18,7 @@
 
 	compatible = "ti,dra7xx";
 	interrupt-parent = <&crossbar_mpu>;
+	chosen { };
 
 	aliases {
 		i2c0 = &i2c1;
@@ -56,7 +57,7 @@
 		interrupt-controller;
 		#interrupt-cells = <3>;
 		reg = <0x0 0x48211000 0x0 0x1000>,
-		      <0x0 0x48212000 0x0 0x1000>,
+		      <0x0 0x48212000 0x0 0x2000>,
 		      <0x0 0x48214000 0x0 0x2000>,
 		      <0x0 0x48216000 0x0 0x2000>;
 		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;
@@ -1377,6 +1378,7 @@
 			phy-names = "sata-phy";
 			clocks = <&sata_ref_clk>;
 			ti,hwmods = "sata";
+			ports-implemented = <0x1>;
 		};
 
 		rtc: rtc@48838000 {
@@ -1707,7 +1709,6 @@
 			cpdma_channels = <8>;
 			ale_entries = <1024>;
 			bd_ram_size = <0x2000>;
-			no_bd_ram = <0>;
 			mac_control = <0x20>;
 			slaves = <2>;
 			active_slave = <0>;

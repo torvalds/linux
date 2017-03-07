@@ -213,7 +213,7 @@ static bool want_demangle(bool is_kernel_sym)
 
 static char *demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
 {
-	int demangle_flags = verbose ? (DMGL_PARAMS | DMGL_ANSI) : DMGL_NO_OPTS;
+	int demangle_flags = verbose > 0 ? (DMGL_PARAMS | DMGL_ANSI) : DMGL_NO_OPTS;
 	char *demangled = NULL;
 
 	/*
@@ -537,6 +537,12 @@ int sysfs__read_build_id(const char *filename, void *build_id, size_t size)
 				break;
 		} else {
 			int n = namesz + descsz;
+
+			if (n > (int)sizeof(bf)) {
+				n = sizeof(bf);
+				pr_debug("%s: truncating reading of build id in sysfs file %s: n_namesz=%u, n_descsz=%u.\n",
+					 __func__, filename, nhdr.n_namesz, nhdr.n_descsz);
+			}
 			if (read(fd, bf, n) != n)
 				break;
 		}

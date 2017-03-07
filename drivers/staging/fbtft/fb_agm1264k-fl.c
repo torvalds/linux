@@ -185,9 +185,9 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 			buf[i] = (u8)va_arg(args, unsigned int);
 
 		va_end(args);
-		fbtft_par_dbg_hex(DEBUG_WRITE_REGISTER, par,
-			par->info->device, u8, buf, len, "%s: ", __func__);
-	}
+		fbtft_par_dbg_hex(DEBUG_WRITE_REGISTER, par, par->info->device,
+				  u8, buf, len, "%s: ", __func__);
+}
 
 	va_start(args, len);
 
@@ -246,7 +246,7 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 
 static void
 construct_line_bitmap(struct fbtft_par *par, u8 *dest, signed short *src,
-						int xs, int xe, int y)
+		      int xs, int xe, int y)
 {
 	int x, i;
 
@@ -361,7 +361,8 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 		/* left half of display */
 		if (addr_win.xs < par->info->var.xres / 2) {
 			construct_line_bitmap(par, buf, convert_buf,
-				addr_win.xs, par->info->var.xres / 2, y);
+					      addr_win.xs,
+					      par->info->var.xres / 2, y);
 
 			len = par->info->var.xres / 2 - addr_win.xs;
 
@@ -382,8 +383,9 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 		/* right half of display */
 		if (addr_win.xe >= par->info->var.xres / 2) {
 			construct_line_bitmap(par, buf,
-				convert_buf, par->info->var.xres / 2,
-				addr_win.xe + 1, y);
+					      convert_buf,
+					      par->info->var.xres / 2,
+					      addr_win.xe + 1, y);
 
 			len = addr_win.xe + 1 - par->info->var.xres / 2;
 
@@ -413,7 +415,7 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 static int write(struct fbtft_par *par, void *buf, size_t len)
 {
 	fbtft_par_dbg_hex(DEBUG_WRITE, par, par->info->device, u8, buf, len,
-		"%s(len=%d): ", __func__, len);
+			  "%s(len=%d): ", __func__, len);
 
 	gpio_set_value(par->RW, 0); /* set write mode */
 

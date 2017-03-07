@@ -29,6 +29,7 @@
 #include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/phy.h>
+#include <linux/phy_led_triggers.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/mdio.h>
@@ -145,7 +146,7 @@ static int phy_config_interrupt(struct phy_device *phydev, u32 interrupts)
  */
 int phy_aneg_done(struct phy_device *phydev)
 {
-	if (phydev->drv->aneg_done)
+	if (phydev->drv && phydev->drv->aneg_done)
 		return phydev->drv->aneg_done(phydev);
 
 	return genphy_aneg_done(phydev);
@@ -579,7 +580,7 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 		return 0;
 
 	case SIOCSHWTSTAMP:
-		if (phydev->drv->hwtstamp)
+		if (phydev->drv && phydev->drv->hwtstamp)
 			return phydev->drv->hwtstamp(phydev, ifr);
 		/* fall through */
 
@@ -601,6 +602,9 @@ EXPORT_SYMBOL(phy_mii_ioctl);
 int phy_start_aneg(struct phy_device *phydev)
 {
 	int err;
+
+	if (!phydev->drv)
+		return -EIO;
 
 	mutex_lock(&phydev->lock);
 
@@ -649,14 +653,18 @@ void phy_start_machine(struct phy_device *phydev)
  * phy_trigger_machine - trigger the state machine to run
  *
  * @phydev: the phy_device struct
+ * @sync: indicate whether we should wait for the workqueue cancelation
  *
  * Description: There has been a change in state which requires that the
  *   state machine runs.
  */
 
-static void phy_trigger_machine(struct phy_device *phydev)
+static void phy_trigger_machine(struct phy_device *phydev, bool sync)
 {
-	cancel_delayed_work_sync(&phydev->state_queue);
+	if (sync)
+		cancel_delayed_work_sync(&phydev->state_queue);
+	else
+		cancel_delayed_work(&phydev->state_queue);
 	queue_delayed_work(system_power_efficient_wq, &phydev->state_queue, 0);
 }
 
@@ -693,7 +701,7 @@ static void phy_error(struct phy_device *phydev)
 	phydev->state = PHY_HALTED;
 	mutex_unlock(&phydev->lock);
 
-	phy_trigger_machine(phydev);
+	phy_trigger_machine(phydev, false);
 }
 
 /**
@@ -840,7 +848,7 @@ void phy_change(struct phy_device *phydev)
 	}
 
 	/* reschedule state queue work to run as soon as possible */
-	phy_trigger_machine(phydev);
+	phy_trigger_machine(phydev, true);
 	return;
 
 ignore:
@@ -942,7 +950,7 @@ void phy_start(struct phy_device *phydev)
 	if (do_resume)
 		phy_resume(phydev);
 
-	phy_trigger_machine(phydev);
+	phy_trigger_machine(phydev, true);
 }
 EXPORT_SYMBOL(phy_start);
 
@@ -970,7 +978,7 @@ void phy_state_machine(struct work_struct *work)
 
 	old_state = phydev->state;
 
-	if (phydev->drv->link_change_notify)
+	if (phydev->drv && phydev->drv->link_change_notify)
 		phydev->drv->link_change_notify(phydev);
 
 	switch (phydev->state) {
@@ -1064,6 +1072,15 @@ void phy_state_machine(struct work_struct *work)
 
 			if (old_link != phydev->link)
 				phydev->state = PHY_CHANGELINK;
+		}
+		/*
+		 * Failsafe: check that nobody set phydev->link=0 between two
+		 * poll cycles, otherwise we won't leave RUNNING state as long
+		 * as link remains down.
+		 */
+		if (!phydev->link && phydev->state == PHY_RUNNING) {
+			phydev->state = PHY_CHANGELINK;
+			phydev_err(phydev, "no link in PHY_RUNNING\n");
 		}
 		break;
 	case PHY_CHANGELINK:
@@ -1272,6 +1289,9 @@ EXPORT_SYMBOL(phy_write_mmd_indirect);
  */
 int phy_init_eee(struct phy_device *phydev, bool clk_stop_enable)
 {
+	if (!phydev->drv)
+		return -EIO;
+
 	/* According to 802.3az,the EEE is supported only in full duplex-mode.
 	 * Also EEE feature is active when core is operating with MII, GMII
 	 * or RGMII (all kinds). Internal PHYs are also allowed to proceed and
@@ -1349,6 +1369,9 @@ EXPORT_SYMBOL(phy_init_eee);
  */
 int phy_get_eee_err(struct phy_device *phydev)
 {
+	if (!phydev->drv)
+		return -EIO;
+
 	return phy_read_mmd_indirect(phydev, MDIO_PCS_EEE_WK_ERR, MDIO_MMD_PCS);
 }
 EXPORT_SYMBOL(phy_get_eee_err);
@@ -1364,6 +1387,9 @@ EXPORT_SYMBOL(phy_get_eee_err);
 int phy_ethtool_get_eee(struct phy_device *phydev, struct ethtool_eee *data)
 {
 	int val;
+
+	if (!phydev->drv)
+		return -EIO;
 
 	/* Get Supported EEE */
 	val = phy_read_mmd_indirect(phydev, MDIO_PCS_EEE_ABLE, MDIO_MMD_PCS);
@@ -1398,6 +1424,9 @@ int phy_ethtool_set_eee(struct phy_device *phydev, struct ethtool_eee *data)
 {
 	int val = ethtool_adv_to_mmd_eee_adv_t(data->advertised);
 
+	if (!phydev->drv)
+		return -EIO;
+
 	/* Mask prohibited EEE modes */
 	val &= ~phydev->eee_broken_modes;
 
@@ -1409,7 +1438,7 @@ EXPORT_SYMBOL(phy_ethtool_set_eee);
 
 int phy_ethtool_set_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol)
 {
-	if (phydev->drv->set_wol)
+	if (phydev->drv && phydev->drv->set_wol)
 		return phydev->drv->set_wol(phydev, wol);
 
 	return -EOPNOTSUPP;
@@ -1418,7 +1447,7 @@ EXPORT_SYMBOL(phy_ethtool_set_wol);
 
 void phy_ethtool_get_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol)
 {
-	if (phydev->drv->get_wol)
+	if (phydev->drv && phydev->drv->get_wol)
 		phydev->drv->get_wol(phydev, wol);
 }
 EXPORT_SYMBOL(phy_ethtool_get_wol);
@@ -1453,6 +1482,9 @@ int phy_ethtool_nway_reset(struct net_device *ndev)
 
 	if (!phydev)
 		return -ENODEV;
+
+	if (!phydev->drv)
+		return -EIO;
 
 	return genphy_restart_aneg(phydev);
 }

@@ -1,0 +1,83 @@
+Microchip USB 2.0 Hi-Speed Hub Controller
+
+The device node for the configuration of a Microchip USB251xB/xBi USB 2.0
+Hi-Speed Controller.
+
+Required properties :
+ - compatible : Should be "microchip,usb251xb" or one of the specific types:
+	"microchip,usb2512b", "microchip,usb2512bi", "microchip,usb2513b",
+	"microchip,usb2513bi", "microchip,usb2514b", "microchip,usb2514bi"
+ - hub-reset-gpios : Should specify the gpio for hub reset
+
+Optional properties :
+ - reg : I2C address on the selected bus (default is <0x2C>)
+ - skip-config : Skip Hub configuration, but only send the USB-Attach command
+ - vendor-id : USB Vendor ID of the hub (16 bit, default is 0x0424)
+ - product-id : USB Product ID of the hub (16 bit, default depends on type)
+ - device-id : USB Device ID of the hub (16 bit, default is 0x0bb3)
+ - language-id : USB Language ID (16 bit, default is 0x0000)
+ - manufacturer : USB Manufacturer string (max 31 characters long)
+ - product : USB Product string (max 31 characters long)
+ - serial : USB Serial string (max 31 characters long)
+ - {bus,self}-powered : selects between self- and bus-powered operation (default
+	is self-powered)
+ - disable-hi-speed : disable USB Hi-Speed support
+ - {multi,single}-tt : selects between multi- and single-transaction-translator
+	(default is multi-tt)
+ - disable-eop : disable End of Packet generation in full-speed mode
+ - {ganged,individual}-sensing : select over-current sense type in self-powered
+	mode (default is individual)
+ - {ganged,individual}-port-switching : select port power switching mode
+	(default is individual)
+ - dynamic-power-switching : enable auto-switching from self- to bus-powered
+	operation if the local power source is removed or unavailable
+ - oc-delay-{100us,4ms,8ms,16ms} : set over current timer delay (default is 8ms)
+ - compound-device : indicated the hub is part of a compound device
+ - port-mapping-mode : enable port mapping mode
+ - string-support : enable string descriptor support (required for manufacturer,
+	product and serial string configuration)
+ - non-removable-ports : Should specify the ports which have a non-removable
+	device connected.
+ - sp-disabled-ports : Specifies the ports which will be self-power disabled
+ - bp-disabled-ports : Specifies the ports which will be bus-power disabled
+ - max-sp-power : Specifies the maximum current the hub consumes from an
+	upstream port when operating as self-powered hub including the power
+	consumption of a permanently attached peripheral if the hub is
+	configured as a compound device. The value is given in mA in a 0 - 500
+	range (default is 2).
+ - max-bp-power : Specifies the maximum current the hub consumes from an
+	upstream port when operating as bus-powered hub including the power
+	consumption of a permanently attached peripheral if the hub is
+	configured as a compound device. The value is given in mA in a 0 - 500
+	range (default is 100).
+ - max-sp-current : Specifies the maximum current the hub consumes from an
+	upstream port when operating as self-powered hub EXCLUDING the power
+	consumption of a permanently attached peripheral if the hub is
+	configured as a compound device. The value is given in mA in a 0 - 500
+	range (default is 2).
+ - max-bp-current : Specifies the maximum current the hub consumes from an
+	upstream port when operating as bus-powered hub EXCLUDING the power
+	consumption of a permanently attached peripheral if the hub is
+	configured as a compound device. The value is given in mA in a 0 - 500
+	range (default is 100).
+ - power-on-time : Specifies the time it takes from the time the host initiates
+	the power-on sequence to a port until the port has adequate power. The
+	value is given in ms in a 0 - 510 range (default is 100ms).
+
+Examples:
+	usb2512b@2c {
+		compatible = "microchip,usb2512b";
+		hub-reset-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+	};
+
+	usb2514b@2c {
+		compatible = "microchip,usb2514b";
+		reg = <0x2c>;
+		reset-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+		vendor-id = /bits/ 16 <0x0000>;
+		product-id = /bits/ 16 <0x0000>;
+		string-support;
+		manufacturer = "Foo";
+		product = "Foo-Bar";
+		serial = "1234567890A";
+	};

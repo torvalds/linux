@@ -20,24 +20,17 @@
 #include <linux/task_io_accounting_ops.h>
 #include <linux/buffer_head.h>	/* grr. try_to_release_page,
 				   do_invalidatepage */
+#include <linux/shmem_fs.h>
 #include <linux/cleancache.h>
 #include <linux/rmap.h>
 #include "internal.h"
 
-static void clear_exceptional_entry(struct address_space *mapping,
-				    pgoff_t index, void *entry)
+static void clear_shadow_entry(struct address_space *mapping, pgoff_t index,
+			       void *entry)
 {
 	struct radix_tree_node *node;
 	void **slot;
 
-	/* Handled by shmem itself */
-	if (shmem_mapping(mapping))
-		return;
-
-	if (dax_mapping(mapping)) {
-		dax_delete_mapping_entry(mapping, index);
-		return;
-	}
 	spin_lock_irq(&mapping->tree_lock);
 	/*
 	 * Regular page slots are stabilized by the page lock even
@@ -53,6 +46,56 @@ static void clear_exceptional_entry(struct address_space *mapping,
 	mapping->nrexceptional--;
 unlock:
 	spin_unlock_irq(&mapping->tree_lock);
+}
+
+/*
+ * Unconditionally remove exceptional entry. Usually called from truncate path.
+ */
+static void truncate_exceptional_entry(struct address_space *mapping,
+				       pgoff_t index, void *entry)
+{
+	/* Handled by shmem itself */
+	if (shmem_mapping(mapping))
+		return;
+
+	if (dax_mapping(mapping)) {
+		dax_delete_mapping_entry(mapping, index);
+		return;
+	}
+	clear_shadow_entry(mapping, index, entry);
+}
+
+/*
+ * Invalidate exceptional entry if easily possible. This handles exceptional
+ * entries for invalidate_inode_pages() so for DAX it evicts only unlocked and
+ * clean entries.
+ */
+static int invalidate_exceptional_entry(struct address_space *mapping,
+					pgoff_t index, void *entry)
+{
+	/* Handled by shmem itself */
+	if (shmem_mapping(mapping))
+		return 1;
+	if (dax_mapping(mapping))
+		return dax_invalidate_mapping_entry(mapping, index);
+	clear_shadow_entry(mapping, index, entry);
+	return 1;
+}
+
+/*
+ * Invalidate exceptional entry if clean. This handles exceptional entries for
+ * invalidate_inode_pages2() so for DAX it evicts only clean entries.
+ */
+static int invalidate_exceptional_entry2(struct address_space *mapping,
+					 pgoff_t index, void *entry)
+{
+	/* Handled by shmem itself */
+	if (shmem_mapping(mapping))
+		return 1;
+	if (dax_mapping(mapping))
+		return dax_invalidate_mapping_entry_sync(mapping, index);
+	clear_shadow_entry(mapping, index, entry);
+	return 1;
 }
 
 /**
@@ -262,7 +305,8 @@ void truncate_inode_pages_range(struct address_space *mapping,
 				break;
 
 			if (radix_tree_exceptional_entry(page)) {
-				clear_exceptional_entry(mapping, index, page);
+				truncate_exceptional_entry(mapping, index,
+							   page);
 				continue;
 			}
 
@@ -351,7 +395,8 @@ void truncate_inode_pages_range(struct address_space *mapping,
 			}
 
 			if (radix_tree_exceptional_entry(page)) {
-				clear_exceptional_entry(mapping, index, page);
+				truncate_exceptional_entry(mapping, index,
+							   page);
 				continue;
 			}
 
@@ -470,7 +515,8 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
 				break;
 
 			if (radix_tree_exceptional_entry(page)) {
-				clear_exceptional_entry(mapping, index, page);
+				invalidate_exceptional_entry(mapping, index,
+							     page);
 				continue;
 			}
 
@@ -592,7 +638,9 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 				break;
 
 			if (radix_tree_exceptional_entry(page)) {
-				clear_exceptional_entry(mapping, index, page);
+				if (!invalidate_exceptional_entry2(mapping,
+								   index, page))
+					ret = -EBUSY;
 				continue;
 			}
 
@@ -738,7 +786,7 @@ EXPORT_SYMBOL(truncate_setsize);
  */
 void pagecache_isize_extended(struct inode *inode, loff_t from, loff_t to)
 {
-	int bsize = 1 << inode->i_blkbits;
+	int bsize = i_blocksize(inode);
 	loff_t rounded_from;
 	struct page *page;
 	pgoff_t index;

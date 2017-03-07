@@ -583,7 +583,7 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 		goto out_err1;
 	}
 
-	drm_helper_mode_fill_fb_struct(&vfbs->base.base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &vfbs->base.base, mode_cmd);
 	vfbs->surface = vmw_surface_reference(surface);
 	vfbs->base.user_handle = mode_cmd->handles[0];
 	vfbs->is_dmabuf_proxy = is_dmabuf_proxy;
@@ -757,7 +757,7 @@ static int vmw_create_dmabuf_proxy(struct drm_device *dev,
 				   struct vmw_surface **srf_out)
 {
 	uint32_t format;
-	struct drm_vmw_size content_base_size;
+	struct drm_vmw_size content_base_size = {0};
 	struct vmw_resource *res;
 	unsigned int bytes_pp;
 	struct drm_format_name_buf format_name;
@@ -864,7 +864,7 @@ static int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,
 		goto out_err1;
 	}
 
-	drm_helper_mode_fill_fb_struct(&vfbd->base.base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &vfbd->base.base, mode_cmd);
 	vfbd->base.dmabuf = true;
 	vfbd->buffer = vmw_dmabuf_reference(dmabuf);
 	vfbd->base.user_handle = mode_cmd->handles[0];
@@ -1671,7 +1671,7 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 		 *	1. Bounding box (assuming 32bpp) must be < prim_bb_mem
 		 *      2. Total pixels (assuming 32bpp) must be < prim_bb_mem
 		 */
-		u64 bb_mem    = bounding_box.w * bounding_box.h * 4;
+		u64 bb_mem    = (u64) bounding_box.w * bounding_box.h * 4;
 		u64 pixel_mem = total_pixels * 4;
 
 		if (bb_mem > dev_priv->prim_bb_mem) {

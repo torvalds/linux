@@ -308,9 +308,7 @@ static void cobalt_pci_iounmap(struct cobalt *cobalt, struct pci_dev *pci_dev)
 static void cobalt_free_msi(struct cobalt *cobalt, struct pci_dev *pci_dev)
 {
 	free_irq(pci_dev->irq, (void *)cobalt);
-
-	if (cobalt->msi_enabled)
-		pci_disable_msi(pci_dev);
+	pci_free_irq_vectors(pci_dev);
 }
 
 static int cobalt_setup_pci(struct cobalt *cobalt, struct pci_dev *pci_dev,
@@ -387,14 +385,12 @@ static int cobalt_setup_pci(struct cobalt *cobalt, struct pci_dev *pci_dev,
 	   from being generated. */
 	cobalt_set_interrupt(cobalt, false);
 
-	if (pci_enable_msi_range(pci_dev, 1, 1) < 1) {
+	if (pci_alloc_irq_vectors(pci_dev, 1, 1, PCI_IRQ_MSI) < 1) {
 		cobalt_err("Could not enable MSI\n");
-		cobalt->msi_enabled = false;
 		ret = -EIO;
 		goto err_release;
 	}
 	msi_config_show(cobalt, pci_dev);
-	cobalt->msi_enabled = true;
 
 	/* Register IRQ */
 	if (request_irq(pci_dev->irq, cobalt_irq_handler, IRQF_SHARED,

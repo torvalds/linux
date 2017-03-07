@@ -60,9 +60,6 @@ struct kvm_arch {
 	/* The last vcpu id that ran on each physical CPU */
 	int __percpu *last_vcpu_ran;
 
-	/* Timer */
-	struct arch_timer_kvm	timer;
-
 	/*
 	 * Anything that is not used directly from assembly code goes
 	 * here.

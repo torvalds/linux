@@ -51,6 +51,9 @@ static int meson_plane_atomic_check(struct drm_plane *plane,
 	struct drm_crtc_state *crtc_state;
 	struct drm_rect clip = { 0, };
 
+	if (!state->crtc)
+		return 0;
+
 	crtc_state = drm_atomic_get_crtc_state(state->state, state->crtc);
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
@@ -113,7 +116,7 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 	if (meson_vpu_is_compatible(priv, "amlogic,meson-gxbb-vpu"))
 		priv->viu.osd1_blk0_cfg[0] |= OSD_OUTPUT_COLOR_RGB;
 
-	switch (fb->pixel_format) {
+	switch (fb->format->format) {
 	case DRM_FORMAT_XRGB8888:
 		/* For XRGB, replace the pixel's alpha by 0xFF */
 		writel_bits_relaxed(OSD_REPLACE_EN, OSD_REPLACE_EN,

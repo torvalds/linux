@@ -463,6 +463,10 @@ static int fpr_set(struct task_struct *target, const struct user_regset *regset,
 
 	flush_fp_to_thread(target);
 
+	for (i = 0; i < 32 ; i++)
+		buf[i] = target->thread.TS_FPR(i);
+	buf[32] = target->thread.fp_state.fpscr;
+
 	/* copy to local buffer then write that out */
 	i = user_regset_copyin(&pos, &count, &kbuf, &ubuf, buf, 0, -1);
 	if (i)
@@ -671,6 +675,9 @@ static int vsr_set(struct task_struct *target, const struct user_regset *regset,
 	flush_fp_to_thread(target);
 	flush_altivec_to_thread(target);
 	flush_vsx_to_thread(target);
+
+	for (i = 0; i < 32 ; i++)
+		buf[i] = target->thread.fp_state.fpr[i][TS_VSRLOWOFFSET];
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				 buf, 0, 32 * sizeof(double));
@@ -1019,6 +1026,10 @@ static int tm_cfpr_set(struct task_struct *target,
 	flush_fp_to_thread(target);
 	flush_altivec_to_thread(target);
 
+	for (i = 0; i < 32; i++)
+		buf[i] = target->thread.TS_CKFPR(i);
+	buf[32] = target->thread.ckfp_state.fpscr;
+
 	/* copy to local buffer then write that out */
 	i = user_regset_copyin(&pos, &count, &kbuf, &ubuf, buf, 0, -1);
 	if (i)
@@ -1282,6 +1293,9 @@ static int tm_cvsx_set(struct task_struct *target,
 	flush_fp_to_thread(target);
 	flush_altivec_to_thread(target);
 	flush_vsx_to_thread(target);
+
+	for (i = 0; i < 32 ; i++)
+		buf[i] = target->thread.ckfp_state.fpr[i][TS_VSRLOWOFFSET];
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				 buf, 0, 32 * sizeof(double));

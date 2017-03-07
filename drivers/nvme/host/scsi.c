@@ -43,6 +43,7 @@
 #include <asm/unaligned.h>
 #include <scsi/sg.h>
 #include <scsi/scsi.h>
+#include <scsi/scsi_request.h>
 
 #include "nvme.h"
 
@@ -2160,30 +2161,6 @@ static int nvme_trans_synchronize_cache(struct nvme_ns *ns,
 	return nvme_trans_status_code(hdr, nvme_sc);
 }
 
-static int nvme_trans_start_stop(struct nvme_ns *ns, struct sg_io_hdr *hdr,
-							u8 *cmd)
-{
-	u8 immed, no_flush;
-
-	immed = cmd[1] & 0x01;
-	no_flush = cmd[4] & 0x04;
-
-	if (immed != 0) {
-		return nvme_trans_completion(hdr, SAM_STAT_CHECK_CONDITION,
-					ILLEGAL_REQUEST, SCSI_ASC_INVALID_CDB,
-					SCSI_ASCQ_CAUSE_NOT_REPORTABLE);
-	} else {
-		if (no_flush == 0) {
-			/* Issue NVME FLUSH command prior to START STOP UNIT */
-			int res = nvme_trans_synchronize_cache(ns, hdr);
-			if (res)
-				return res;
-		}
-
-		return 0;
-	}
-}
-
 static int nvme_trans_format_unit(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 							u8 *cmd)
 {
@@ -2371,12 +2348,14 @@ static int nvme_trans_unmap(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 
 static int nvme_scsi_translate(struct nvme_ns *ns, struct sg_io_hdr *hdr)
 {
-	u8 cmd[BLK_MAX_CDB];
+	u8 cmd[16];
 	int retcode;
 	unsigned int opcode;
 
 	if (hdr->cmdp == NULL)
 		return -EMSGSIZE;
+	if (hdr->cmd_len > sizeof(cmd))
+		return -EINVAL;
 	if (copy_from_user(cmd, hdr->cmdp, hdr->cmd_len))
 		return -EFAULT;
 
@@ -2439,9 +2418,6 @@ static int nvme_scsi_translate(struct nvme_ns *ns, struct sg_io_hdr *hdr)
 	case SECURITY_PROTOCOL_OUT:
 		retcode = nvme_trans_security_protocol(ns, hdr, cmd);
 		break;
-	case START_STOP:
-		retcode = nvme_trans_start_stop(ns, hdr, cmd);
-		break;
 	case SYNCHRONIZE_CACHE:
 		retcode = nvme_trans_synchronize_cache(ns, hdr);
 		break;
@@ -2477,8 +2453,6 @@ int nvme_sg_io(struct nvme_ns *ns, struct sg_io_hdr __user *u_hdr)
 	if (copy_from_user(&hdr, u_hdr, sizeof(hdr)))
 		return -EFAULT;
 	if (hdr.interface_id != 'S')
-		return -EINVAL;
-	if (hdr.cmd_len > BLK_MAX_CDB)
 		return -EINVAL;
 
 	/*

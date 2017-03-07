@@ -85,7 +85,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/stat.h>
@@ -117,6 +117,7 @@
 #include <net/checksum.h>
 #include <linux/security.h>
 #include <linux/freezer.h>
+#include <linux/file.h>
 
 struct hlist_head unix_socket_table[2 * UNIX_HASH_SIZE];
 EXPORT_SYMBOL_GPL(unix_socket_table);
@@ -995,6 +996,7 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	unsigned int hash;
 	struct unix_address *addr;
 	struct hlist_head *list;
+	struct path path = { NULL, NULL };
 
 	err = -EINVAL;
 	if (sunaddr->sun_family != AF_UNIX)
@@ -1010,9 +1012,20 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		goto out;
 	addr_len = err;
 
+	if (sun_path[0]) {
+		umode_t mode = S_IFSOCK |
+		       (SOCK_INODE(sock)->i_mode & ~current_umask());
+		err = unix_mknod(sun_path, mode, &path);
+		if (err) {
+			if (err == -EEXIST)
+				err = -EADDRINUSE;
+			goto out;
+		}
+	}
+
 	err = mutex_lock_interruptible(&u->bindlock);
 	if (err)
-		goto out;
+		goto out_put;
 
 	err = -EINVAL;
 	if (u->addr)
@@ -1029,16 +1042,6 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	atomic_set(&addr->refcnt, 1);
 
 	if (sun_path[0]) {
-		struct path path;
-		umode_t mode = S_IFSOCK |
-		       (SOCK_INODE(sock)->i_mode & ~current_umask());
-		err = unix_mknod(sun_path, mode, &path);
-		if (err) {
-			if (err == -EEXIST)
-				err = -EADDRINUSE;
-			unix_release_addr(addr);
-			goto out_up;
-		}
 		addr->hash = UNIX_HASH_SIZE;
 		hash = d_backing_inode(path.dentry)->i_ino & (UNIX_HASH_SIZE - 1);
 		spin_lock(&unix_table_lock);
@@ -1065,6 +1068,9 @@ out_unlock:
 	spin_unlock(&unix_table_lock);
 out_up:
 	mutex_unlock(&u->bindlock);
+out_put:
+	if (err)
+		path_put(&path);
 out:
 	return err;
 }
@@ -2587,6 +2593,43 @@ long unix_outq_len(struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(unix_outq_len);
 
+static int unix_open_file(struct sock *sk)
+{
+	struct path path;
+	struct file *f;
+	int fd;
+
+	if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
+		return -EPERM;
+
+	unix_state_lock(sk);
+	path = unix_sk(sk)->path;
+	if (!path.dentry) {
+		unix_state_unlock(sk);
+		return -ENOENT;
+	}
+
+	path_get(&path);
+	unix_state_unlock(sk);
+
+	fd = get_unused_fd_flags(O_CLOEXEC);
+	if (fd < 0)
+		goto out;
+
+	f = dentry_open(&path, O_PATH, current_cred());
+	if (IS_ERR(f)) {
+		put_unused_fd(fd);
+		fd = PTR_ERR(f);
+		goto out;
+	}
+
+	fd_install(fd, f);
+out:
+	path_put(&path);
+
+	return fd;
+}
+
 static int unix_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
 	struct sock *sk = sock->sk;
@@ -2604,6 +2647,9 @@ static int unix_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			err = amount;
 		else
 			err = put_user(amount, (int __user *)arg);
+		break;
+	case SIOCUNIXFILE:
+		err = unix_open_file(sk);
 		break;
 	default:
 		err = -ENOIOCTLCMD;

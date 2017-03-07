@@ -212,6 +212,12 @@ static int xhci_mtk_clks_enable(struct xhci_hcd_mtk *mtk)
 {
 	int ret;
 
+	ret = clk_prepare_enable(mtk->ref_clk);
+	if (ret) {
+		dev_err(mtk->dev, "failed to enable ref_clk\n");
+		goto ref_clk_err;
+	}
+
 	ret = clk_prepare_enable(mtk->sys_clk);
 	if (ret) {
 		dev_err(mtk->dev, "failed to enable sys_clk\n");
@@ -238,6 +244,8 @@ usb_p1_err:
 usb_p0_err:
 	clk_disable_unprepare(mtk->sys_clk);
 sys_clk_err:
+	clk_disable_unprepare(mtk->ref_clk);
+ref_clk_err:
 	return -EINVAL;
 }
 
@@ -248,6 +256,7 @@ static void xhci_mtk_clks_disable(struct xhci_hcd_mtk *mtk)
 		clk_disable_unprepare(mtk->wk_deb_p0);
 	}
 	clk_disable_unprepare(mtk->sys_clk);
+	clk_disable_unprepare(mtk->ref_clk);
 }
 
 /* only clocks can be turn off for ip-sleep wakeup mode */
@@ -550,6 +559,19 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 		return PTR_ERR(mtk->sys_clk);
 	}
 
+	/*
+	 * reference clock is usually a "fixed-clock", make it optional
+	 * for backward compatibility and ignore the error if it does
+	 * not exist.
+	 */
+	mtk->ref_clk = devm_clk_get(dev, "ref_ck");
+	if (IS_ERR(mtk->ref_clk)) {
+		if (PTR_ERR(mtk->ref_clk) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+
+		mtk->ref_clk = NULL;
+	}
+
 	mtk->lpm_support = of_property_read_bool(node, "usb3-lpm-capable");
 
 	ret = usb_wakeup_of_property_parse(mtk, node);
@@ -579,8 +601,10 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 		goto disable_ldos;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
+	if (irq < 0) {
+		ret = irq;
 		goto disable_clk;
+	}
 
 	/* Initialize dma_mask and coherent_dma_mask to 32-bits */
 	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));

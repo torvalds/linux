@@ -18,13 +18,6 @@
 #include <net/ip6_fib.h>
 #include <net/ip6_route.h>
 
-static bool fib6_is_local(const struct sk_buff *skb)
-{
-	const struct rt6_info *rt = (const void *)skb_dst(skb);
-
-	return rt && (rt->rt6i_flags & RTF_LOCAL);
-}
-
 static int get_ifindex(const struct net_device *dev)
 {
 	return dev ? dev->ifindex : 0;
@@ -164,8 +157,10 @@ void nft_fib6_eval(const struct nft_expr *expr, struct nft_regs *regs,
 
 	lookup_flags = nft_fib6_flowi_init(&fl6, priv, pkt, oif);
 
-	if (nft_hook(pkt) == NF_INET_PRE_ROUTING && fib6_is_local(pkt->skb)) {
-		nft_fib_store_result(dest, priv->result, pkt, LOOPBACK_IFINDEX);
+	if (nft_hook(pkt) == NF_INET_PRE_ROUTING &&
+	    nft_fib_is_loopback(pkt->skb, nft_in(pkt))) {
+		nft_fib_store_result(dest, priv->result, pkt,
+				     nft_in(pkt)->ifindex);
 		return;
 	}
 

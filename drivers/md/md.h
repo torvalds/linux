@@ -212,6 +212,7 @@ extern int rdev_clear_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
 				int is_new);
 struct md_cluster_info;
 
+/* change UNSUPPORTED_MDDEV_FLAGS for each array type if new flag is added */
 enum mddev_flags {
 	MD_ARRAY_FIRST_USE,	/* First use of array, needs initialization */
 	MD_CLOSING,		/* If set, we are closing the array, do not open
@@ -672,8 +673,6 @@ extern void md_rdev_clear(struct md_rdev *rdev);
 
 extern void mddev_suspend(struct mddev *mddev);
 extern void mddev_resume(struct mddev *mddev);
-extern struct bio *bio_clone_mddev(struct bio *bio, gfp_t gfp_mask,
-				   struct mddev *mddev);
 extern struct bio *bio_alloc_mddev(gfp_t gfp_mask, int nr_iovecs,
 				   struct mddev *mddev);
 
@@ -701,5 +700,19 @@ extern struct md_cluster_operations *md_cluster_ops;
 static inline int mddev_is_clustered(struct mddev *mddev)
 {
 	return mddev->cluster_info && mddev->bitmap_info.nodes > 1;
+}
+
+/* clear unsupported mddev_flags */
+static inline void mddev_clear_unsupported_flags(struct mddev *mddev,
+	unsigned long unsupported_flags)
+{
+	mddev->flags &= ~unsupported_flags;
+}
+
+static inline void mddev_check_writesame(struct mddev *mddev, struct bio *bio)
+{
+	if (bio_op(bio) == REQ_OP_WRITE_SAME &&
+	    !bdev_get_queue(bio->bi_bdev)->limits.max_write_same_sectors)
+		mddev->queue->limits.max_write_same_sectors = 0;
 }
 #endif /* _MD_MD_H */

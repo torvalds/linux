@@ -1276,18 +1276,6 @@ err_out:
 	return ret;
 }
 
-static void __exit dec_lance_remove(struct device *bdev)
-{
-	struct net_device *dev = dev_get_drvdata(bdev);
-	resource_size_t start, len;
-
-	unregister_netdev(dev);
-	start = to_tc_dev(bdev)->resource.start;
-	len = to_tc_dev(bdev)->resource.end - start + 1;
-	release_mem_region(start, len);
-	free_netdev(dev);
-}
-
 /* Find all the lance cards on the system and initialize them */
 static int __init dec_lance_platform_probe(void)
 {
@@ -1320,7 +1308,7 @@ static void __exit dec_lance_platform_remove(void)
 
 #ifdef CONFIG_TC
 static int dec_lance_tc_probe(struct device *dev);
-static int __exit dec_lance_tc_remove(struct device *dev);
+static int dec_lance_tc_remove(struct device *dev);
 
 static const struct tc_device_id dec_lance_tc_table[] = {
 	{ "DEC     ", "PMAD-AA " },
@@ -1334,7 +1322,7 @@ static struct tc_driver dec_lance_tc_driver = {
 		.name	= "declance",
 		.bus	= &tc_bus_type,
 		.probe	= dec_lance_tc_probe,
-		.remove	= __exit_p(dec_lance_tc_remove),
+		.remove	= dec_lance_tc_remove,
 	},
 };
 
@@ -1346,7 +1334,19 @@ static int dec_lance_tc_probe(struct device *dev)
         return status;
 }
 
-static int __exit dec_lance_tc_remove(struct device *dev)
+static void dec_lance_remove(struct device *bdev)
+{
+	struct net_device *dev = dev_get_drvdata(bdev);
+	resource_size_t start, len;
+
+	unregister_netdev(dev);
+	start = to_tc_dev(bdev)->resource.start;
+	len = to_tc_dev(bdev)->resource.end - start + 1;
+	release_mem_region(start, len);
+	free_netdev(dev);
+}
+
+static int dec_lance_tc_remove(struct device *dev)
 {
         put_device(dev);
         dec_lance_remove(dev);

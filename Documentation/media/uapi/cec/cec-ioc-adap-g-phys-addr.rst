@@ -35,11 +35,6 @@ Arguments
 Description
 ===========
 
-.. note::
-
-   This documents the proposed CEC API. This API is not yet finalized
-   and is currently only available as a staging kernel module.
-
 To query the current physical address applications call
 :ref:`ioctl CEC_ADAP_G_PHYS_ADDR <CEC_ADAP_G_PHYS_ADDR>` with a pointer to a __u16 where the
 driver stores the physical address.

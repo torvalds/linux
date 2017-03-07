@@ -328,9 +328,9 @@ static enum tree_code get_op(tree *rhs)
 			op = LROTATE_EXPR;
 			/*
 			 * This code limits the value of random_const to
-			 * the size of a wide int for the rotation
+			 * the size of a long for the rotation
 			 */
-			random_const &= HOST_BITS_PER_WIDE_INT - 1;
+			random_const %= TYPE_PRECISION(long_unsigned_type_node);
 			break;
 		}
 
@@ -592,12 +592,6 @@ __visible int plugin_init(struct plugin_name_args *plugin_info,
 	const struct plugin_argument * const argv = plugin_info->argv;
 	int i;
 
-	struct register_pass_info latent_entropy_pass_info;
-
-	latent_entropy_pass_info.pass		= make_latent_entropy_pass();
-	latent_entropy_pass_info.reference_pass_name		= "optimized";
-	latent_entropy_pass_info.ref_pass_instance_number	= 1;
-	latent_entropy_pass_info.pos_op		= PASS_POS_INSERT_BEFORE;
 	static const struct ggc_root_tab gt_ggc_r_gt_latent_entropy[] = {
 		{
 			.base = &latent_entropy_decl,
@@ -608,6 +602,8 @@ __visible int plugin_init(struct plugin_name_args *plugin_info,
 		},
 		LAST_GGC_ROOT_TAB
 	};
+
+	PASS_INFO(latent_entropy, "optimized", 1, PASS_POS_INSERT_BEFORE);
 
 	if (!plugin_default_version_check(version, &gcc_version)) {
 		error(G_("incompatible gcc/plugin versions"));

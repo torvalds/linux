@@ -159,7 +159,7 @@ static inline void bfin_dma_sync_single_for_device(struct device *dev,
 	_dma_sync(handle, size, dir);
 }
 
-struct dma_map_ops bfin_dma_ops = {
+const struct dma_map_ops bfin_dma_ops = {
 	.alloc			= bfin_dma_alloc,
 	.free			= bfin_dma_free,
 

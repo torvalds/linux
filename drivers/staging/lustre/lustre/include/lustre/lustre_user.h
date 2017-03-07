@@ -44,6 +44,7 @@
 
 #ifdef __KERNEL__
 # include <linux/quota.h>
+# include <linux/sched/signal.h>
 # include <linux/string.h> /* snprintf() */
 # include <linux/version.h>
 #else /* !__KERNEL__ */
@@ -1209,23 +1210,21 @@ struct hsm_action_item {
  * \retval buffer
  */
 static inline char *hai_dump_data_field(struct hsm_action_item *hai,
-					char *buffer, int len)
+					char *buffer, size_t len)
 {
-	int i, sz, data_len;
+	int i, data_len;
 	char *ptr;
 
 	ptr = buffer;
-	sz = len;
 	data_len = hai->hai_len - sizeof(*hai);
-	for (i = 0 ; (i < data_len) && (sz > 0) ; i++) {
-		int cnt;
-
-		cnt = snprintf(ptr, sz, "%.2X",
-			       (unsigned char)hai->hai_data[i]);
-		ptr += cnt;
-		sz -= cnt;
+	for (i = 0; (i < data_len) && (len > 2); i++) {
+		snprintf(ptr, 3, "%02X", (unsigned char)hai->hai_data[i]);
+		ptr += 2;
+		len -= 2;
 	}
+
 	*ptr = '\0';
+
 	return buffer;
 }
 

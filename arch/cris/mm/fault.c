@@ -8,6 +8,7 @@
 #include <linux/interrupt.h>
 #include <linux/extable.h>
 #include <linux/wait.h>
+#include <linux/sched/signal.h>
 #include <linux/uaccess.h>
 #include <arch/system.h>
 

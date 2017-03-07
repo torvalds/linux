@@ -1177,7 +1177,8 @@ xfs_qm_dqusage_adjust(
 	 * the case in all other instances. It's OK that we do this because
 	 * quotacheck is done only at mount time.
 	 */
-	error = xfs_iget(mp, NULL, ino, 0, XFS_ILOCK_EXCL, &ip);
+	error = xfs_iget(mp, NULL, ino, XFS_IGET_DONTCACHE, XFS_ILOCK_EXCL,
+			 &ip);
 	if (error) {
 		*res = BULKSTAT_RV_NOTHING;
 		return error;

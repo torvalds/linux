@@ -1019,7 +1019,7 @@ void cw1200_event_handler(struct work_struct *work)
 				NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW :
 				NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH;
 			pr_debug("[CQM] RSSI event: %d.\n", rcpi_rssi);
-			ieee80211_cqm_rssi_notify(priv->vif, cqm_evt,
+			ieee80211_cqm_rssi_notify(priv->vif, cqm_evt, rcpi_rssi,
 						  GFP_KERNEL);
 			break;
 		}

@@ -27,9 +27,15 @@
  * 2005-Dec	Used as a template for s390 by Mike Grundy
  *		<grundym@us.ibm.com>
  */
+#include <asm-generic/kprobes.h>
+
+#define BREAKPOINT_INSTRUCTION	0x0002
+
+#ifdef CONFIG_KPROBES
 #include <linux/types.h>
 #include <linux/ptrace.h>
 #include <linux/percpu.h>
+#include <linux/sched/task_stack.h>
 
 #define __ARCH_WANT_KPROBES_INSN_SLOT
 
@@ -37,7 +43,6 @@ struct pt_regs;
 struct kprobe;
 
 typedef u16 kprobe_opcode_t;
-#define BREAKPOINT_INSTRUCTION	0x0002
 
 /* Maximum instruction size is 3 (16bit) halfwords: */
 #define MAX_INSN_SIZE		0x0003
@@ -91,4 +96,5 @@ int probe_is_insn_relative_long(u16 *insn);
 
 #define flush_insn_slot(p)	do { } while (0)
 
+#endif /* CONFIG_KPROBES */
 #endif	/* _ASM_S390_KPROBES_H */

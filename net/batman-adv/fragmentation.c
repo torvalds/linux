@@ -1,4 +1,4 @@
-/* Copyright (C) 2013-2016  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2013-2017  B.A.T.M.A.N. contributors:
  *
  * Martin Hundebøll <martin@hundeboll.net>
  *
@@ -239,8 +239,10 @@ err_unlock:
 	spin_unlock_bh(&chain->lock);
 
 err:
-	if (!ret)
+	if (!ret) {
 		kfree(frag_entry_new);
+		kfree_skb(skb);
+	}
 
 	return ret;
 }
@@ -313,7 +315,7 @@ free:
  *
  * There are three possible outcomes: 1) Packet is merged: Return true and
  * set *skb to merged packet; 2) Packet is buffered: Return true and set *skb
- * to NULL; 3) Error: Return false and leave skb as is.
+ * to NULL; 3) Error: Return false and free skb.
  *
  * Return: true when packet is merged or buffered, false when skb is not not
  * used.
@@ -338,9 +340,9 @@ bool batadv_frag_skb_buffer(struct sk_buff **skb,
 		goto out_err;
 
 out:
-	*skb = skb_out;
 	ret = true;
 out_err:
+	*skb = skb_out;
 	return ret;
 }
 
@@ -474,7 +476,7 @@ int batadv_frag_send_packet(struct sk_buff *skb,
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if) {
 		ret = -EINVAL;
-		goto put_primary_if;
+		goto free_skb;
 	}
 
 	/* Create one header to be copied to all fragments */
@@ -499,10 +501,16 @@ int batadv_frag_send_packet(struct sk_buff *skb,
 
 	/* Eat and send fragments from the tail of skb */
 	while (skb->len > max_fragment_size) {
+		/* The initial check in this function should cover this case */
+		if (unlikely(frag_header.no == BATADV_FRAG_MAX_FRAGMENTS - 1)) {
+			ret = -EINVAL;
+			goto put_primary_if;
+		}
+
 		skb_fragment = batadv_frag_create(skb, &frag_header, mtu);
 		if (!skb_fragment) {
 			ret = -ENOMEM;
-			goto free_skb;
+			goto put_primary_if;
 		}
 
 		batadv_inc_counter(bat_priv, BATADV_CNT_FRAG_TX);
@@ -511,23 +519,17 @@ int batadv_frag_send_packet(struct sk_buff *skb,
 		ret = batadv_send_unicast_skb(skb_fragment, neigh_node);
 		if (ret != NET_XMIT_SUCCESS) {
 			ret = NET_XMIT_DROP;
-			goto free_skb;
+			goto put_primary_if;
 		}
 
 		frag_header.no++;
-
-		/* The initial check in this function should cover this case */
-		if (frag_header.no == BATADV_FRAG_MAX_FRAGMENTS - 1) {
-			ret = -EINVAL;
-			goto free_skb;
-		}
 	}
 
 	/* Make room for the fragment header. */
 	if (batadv_skb_head_push(skb, header_size) < 0 ||
 	    pskb_expand_head(skb, header_size + ETH_HLEN, 0, GFP_ATOMIC) < 0) {
 		ret = -ENOMEM;
-		goto free_skb;
+		goto put_primary_if;
 	}
 
 	memcpy(skb->data, &frag_header, header_size);

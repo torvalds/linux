@@ -643,7 +643,7 @@ repeat:
 		case -1:
 			if (errno == EINTR)
 				continue;
-			/* Fall trhu */
+			__fallthrough;
 		default:
 			c = getc(stdin);
 			tcsetattr(0, TCSAFLUSH, &save);
@@ -859,7 +859,7 @@ static void perf_top__mmap_read(struct perf_top *top)
 
 static int perf_top__start_counters(struct perf_top *top)
 {
-	char msg[512];
+	char msg[BUFSIZ];
 	struct perf_evsel *counter;
 	struct perf_evlist *evlist = top->evlist;
 	struct record_opts *opts = &top->record_opts;
@@ -871,7 +871,7 @@ try_again:
 		if (perf_evsel__open(counter, top->evlist->cpus,
 				     top->evlist->threads) < 0) {
 			if (perf_evsel__fallback(counter, errno, msg, sizeof(msg))) {
-				if (verbose)
+				if (verbose > 0)
 					ui__warning("%s\n", msg);
 				goto try_again;
 			}
@@ -1216,7 +1216,9 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (top.evlist == NULL)
 		return -ENOMEM;
 
-	perf_config(perf_top_config, &top);
+	status = perf_config(perf_top_config, &top);
+	if (status)
+		return status;
 
 	argc = parse_options(argc, argv, options, top_usage, 0);
 	if (argc)

@@ -16,6 +16,7 @@
 	interrupt-parent = <&wakeupgen>;
 	#address-cells = <1>;
 	#size-cells = <1>;
+	chosen { };
 
 	memory@0 {
 		device_type = "memory";
@@ -669,7 +670,6 @@
 			cpdma_channels = <8>;
 			ale_entries = <1024>;
 			bd_ram_size = <0x2000>;
-			no_bd_ram = <0>;
 			mac_control = <0x20>;
 			slaves = <2>;
 			active_slave = <0>;

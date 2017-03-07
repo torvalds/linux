@@ -23,6 +23,7 @@ Required properties:
 	entry in clock-names
  - clock-names : must contain
 	"sys_ck": for clock of xHCI MAC
+	"ref_ck": for reference clock of xHCI MAC
 	"wakeup_deb_p0": for USB wakeup debounce clock of port0
 	"wakeup_deb_p1": for USB wakeup debounce clock of port1
 
@@ -37,7 +38,7 @@ Optional properties:
  - usb3-lpm-capable : supports USB3.0 LPM
  - pinctrl-names : a pinctrl state named "default" must be defined
  - pinctrl-0 : pin control group
-	See: Documentation/devicetree/bindings/pinctrl/pinctrl-binding.txt
+	See: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
 
 Example:
 usb30: usb@11270000 {
@@ -47,10 +48,10 @@ usb30: usb@11270000 {
 	reg-names = "mac", "ippc";
 	interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_LOW>;
 	power-domains = <&scpsys MT8173_POWER_DOMAIN_USB>;
-	clocks = <&topckgen CLK_TOP_USB30_SEL>,
+	clocks = <&topckgen CLK_TOP_USB30_SEL>, <&clk26m>,
 		 <&pericfg CLK_PERI_USB0>,
 		 <&pericfg CLK_PERI_USB1>;
-	clock-names = "sys_ck",
+	clock-names = "sys_ck", "ref_ck",
 		      "wakeup_deb_p0",
 		      "wakeup_deb_p1";
 	phys = <&phy_port0 PHY_TYPE_USB3>,
@@ -67,7 +68,7 @@ usb30: usb@11270000 {
 
 In the case, xhci is added as subnode to mtu3. An example and the DT binding
 details of mtu3 can be found in:
-Documentation/devicetree/bindings/usb/mtu3.txt
+Documentation/devicetree/bindings/usb/mt8173-mtu3.txt
 
 Required properties:
  - compatible : should contain "mediatek,mt8173-xhci"
@@ -82,6 +83,7 @@ Required properties:
 	entry in clock-names
  - clock-names : must be
 	"sys_ck": for clock of xHCI MAC
+	"ref_ck": for reference clock of xHCI MAC
 
 Optional properties:
  - vbus-supply : reference to the VBUS regulator;
@@ -94,8 +96,8 @@ usb30: usb@11270000 {
 	reg-names = "mac";
 	interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_LOW>;
 	power-domains = <&scpsys MT8173_POWER_DOMAIN_USB>;
-	clocks = <&topckgen CLK_TOP_USB30_SEL>;
-	clock-names = "sys_ck";
+	clocks = <&topckgen CLK_TOP_USB30_SEL>, <&clk26m>;
+	clock-names = "sys_ck", "ref_ck";
 	vusb33-supply = <&mt6397_vusb_reg>;
 	usb3-lpm-capable;
 };

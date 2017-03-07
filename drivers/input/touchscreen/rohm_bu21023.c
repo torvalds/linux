@@ -1189,8 +1189,7 @@ static int rohm_bu21023_i2c_probe(struct i2c_client *client,
 	error = devm_add_action(dev, rohm_ts_remove_sysfs_group, dev);
 	if (error) {
 		rohm_ts_remove_sysfs_group(dev);
-		dev_err(&client->dev,
-			"Failed to add sysfs cleanup action: %d\n",
+		dev_err(dev, "Failed to add sysfs cleanup action: %d\n",
 			error);
 		return error;
 	}

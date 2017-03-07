@@ -20,7 +20,8 @@
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/kdebug.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/clock.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>
@@ -505,6 +506,10 @@ int x86_pmu_hw_config(struct perf_event *event)
 
 		if (event->attr.precise_ip > precise)
 			return -EOPNOTSUPP;
+
+		/* There's no sense in having PEBS for non sampling events: */
+		if (!is_sampling_event(event))
+			return -EINVAL;
 	}
 	/*
 	 * check that PEBS LBR correction does not conflict with
