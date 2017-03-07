@@ -68,7 +68,6 @@ struct st21nfca_i2c_phy {
 	struct nfc_hci_dev *hdev;
 
 	unsigned int gpio_ena;
-	unsigned int irq_polarity;
 
 	struct st21nfca_se_status se_status;
 
@@ -520,8 +519,6 @@ static int st21nfca_hci_i2c_acpi_request_resources(struct i2c_client *client)
 
 	phy->gpio_ena = desc_to_gpio(gpiod_ena);
 
-	phy->irq_polarity = irq_get_trigger_type(client->irq);
-
 	phy->se_status.is_ese_present = false;
 	phy->se_status.is_uicc_present = false;
 
@@ -565,8 +562,6 @@ static int st21nfca_hci_i2c_of_request_resources(struct i2c_client *client)
 	}
 
 	phy->gpio_ena = gpio;
-
-	phy->irq_polarity = irq_get_trigger_type(client->irq);
 
 	phy->se_status.is_ese_present =
 				of_property_read_bool(pp, "ese-present");
@@ -630,7 +625,7 @@ static int st21nfca_hci_i2c_probe(struct i2c_client *client,
 
 	r = devm_request_threaded_irq(&client->dev, client->irq, NULL,
 				st21nfca_hci_irq_thread_fn,
-				phy->irq_polarity | IRQF_ONESHOT,
+				IRQF_ONESHOT,
 				ST21NFCA_HCI_DRIVER_NAME, phy);
 	if (r < 0) {
 		nfc_err(&client->dev, "Unable to register IRQ handler\n");
