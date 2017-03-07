@@ -42,25 +42,25 @@ int dgnc_mgmt_open(struct inode *inode, struct file *file)
 {
 	unsigned long flags;
 	unsigned int minor = iminor(inode);
+	int rc = 0;
 
 	spin_lock_irqsave(&dgnc_global_lock, flags);
 
 	/* mgmt device */
-	if (minor < MAXMGMTDEVICES) {
-		/* Only allow 1 open at a time on mgmt device */
-		if (dgnc_mgmt_in_use[minor]) {
-			spin_unlock_irqrestore(&dgnc_global_lock, flags);
-			return -EBUSY;
-		}
-		dgnc_mgmt_in_use[minor]++;
-	} else {
-		spin_unlock_irqrestore(&dgnc_global_lock, flags);
-		return -ENXIO;
+	if (minor >= MAXMGMTDEVICES) {
+		rc = -ENXIO;
+		goto out;
 	}
+	/* Only allow 1 open at a time on mgmt device */
+	if (dgnc_mgmt_in_use[minor]) {
+		rc = -EBUSY;
+		goto out;
+	}
+	dgnc_mgmt_in_use[minor]++;
 
+out:
 	spin_unlock_irqrestore(&dgnc_global_lock, flags);
-
-	return 0;
+	return rc;
 }
 
 /*
@@ -72,17 +72,20 @@ int dgnc_mgmt_close(struct inode *inode, struct file *file)
 {
 	unsigned long flags;
 	unsigned int minor = iminor(inode);
+	int rc = 0;
 
 	spin_lock_irqsave(&dgnc_global_lock, flags);
 
 	/* mgmt device */
-	if (minor < MAXMGMTDEVICES) {
-		if (dgnc_mgmt_in_use[minor])
-			dgnc_mgmt_in_use[minor] = 0;
+	if (minor >= MAXMGMTDEVICES) {
+		rc = -ENXIO;
+		goto out;
 	}
-	spin_unlock_irqrestore(&dgnc_global_lock, flags);
+	dgnc_mgmt_in_use[minor] = 0;
 
-	return 0;
+out:
+	spin_unlock_irqrestore(&dgnc_global_lock, flags);
+	return rc;
 }
 
 /*
