@@ -1298,7 +1298,7 @@ static void isc_hist_count(struct isc_device *isc)
 	regmap_bulk_read(regmap, ISC_HIS_ENTRY, hist_entry, HIST_ENTRIES);
 
 	*hist_count = 0;
-	for (i = 0; i <= HIST_ENTRIES; i++)
+	for (i = 0; i < HIST_ENTRIES; i++)
 		*hist_count += i * (*hist_entry++);
 }
 
