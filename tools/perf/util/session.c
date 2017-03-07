@@ -1239,6 +1239,8 @@ static int machines__deliver_event(struct machines *machines,
 		return tool->mmap2(tool, event, sample, machine);
 	case PERF_RECORD_COMM:
 		return tool->comm(tool, event, sample, machine);
+	case PERF_RECORD_NAMESPACES:
+		return tool->namespaces(tool, event, sample, machine);
 	case PERF_RECORD_FORK:
 		return tool->fork(tool, event, sample, machine);
 	case PERF_RECORD_EXIT:
@@ -1490,6 +1492,11 @@ int perf_session__register_idle_thread(struct perf_session *session)
 
 	thread = machine__findnew_thread(&session->machines.host, 0, 0);
 	if (thread == NULL || thread__set_comm(thread, "swapper", 0)) {
+		pr_err("problem inserting idle task.\n");
+		err = -1;
+	}
+
+	if (thread == NULL || thread__set_namespaces(thread, 0, NULL)) {
 		pr_err("problem inserting idle task.\n");
 		err = -1;
 	}

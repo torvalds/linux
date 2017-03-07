@@ -28,6 +28,7 @@ struct thread {
 	bool			comm_set;
 	int			comm_len;
 	bool			dead; /* if set thread has exited */
+	struct list_head	namespaces_list;
 	struct list_head	comm_list;
 	u64			db_id;
 
@@ -40,6 +41,7 @@ struct thread {
 };
 
 struct machine;
+struct namespaces;
 struct comm;
 
 struct thread *thread__new(pid_t pid, pid_t tid);
@@ -61,6 +63,10 @@ static inline void thread__exited(struct thread *thread)
 {
 	thread->dead = true;
 }
+
+struct namespaces *thread__namespaces(const struct thread *thread);
+int thread__set_namespaces(struct thread *thread, u64 timestamp,
+			   struct namespaces_event *event);
 
 int __thread__set_comm(struct thread *thread, const char *comm, u64 timestamp,
 		       bool exec);

@@ -876,6 +876,9 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	signal(SIGTERM, sig_handler);
 	signal(SIGSEGV, sigsegv_handler);
 
+	if (rec->opts.record_namespaces)
+		tool->namespace_events = true;
+
 	if (rec->opts.auxtrace_snapshot_mode || rec->switch_output.enabled) {
 		signal(SIGUSR2, snapshot_sig_handler);
 		if (rec->opts.auxtrace_snapshot_mode)
@@ -1497,6 +1500,7 @@ static struct record record = {
 		.fork		= perf_event__process_fork,
 		.exit		= perf_event__process_exit,
 		.comm		= perf_event__process_comm,
+		.namespaces	= perf_event__process_namespaces,
 		.mmap		= perf_event__process_mmap,
 		.mmap2		= perf_event__process_mmap2,
 		.ordered_events	= true,
@@ -1611,6 +1615,8 @@ static struct option __record_options[] = {
 			  "opts", "AUX area tracing Snapshot Mode", ""),
 	OPT_UINTEGER(0, "proc-map-timeout", &record.opts.proc_map_timeout,
 			"per thread proc mmap processing timeout in ms"),
+	OPT_BOOLEAN(0, "namespaces", &record.opts.record_namespaces,
+		    "Record namespaces events"),
 	OPT_BOOLEAN(0, "switch-events", &record.opts.record_switch_events,
 		    "Record context switch events"),
 	OPT_BOOLEAN_FLAG(0, "all-kernel", &record.opts.all_kernel,

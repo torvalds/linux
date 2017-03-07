@@ -31,6 +31,7 @@ static const char *perf_event__names[] = {
 	[PERF_RECORD_LOST_SAMPLES]		= "LOST_SAMPLES",
 	[PERF_RECORD_SWITCH]			= "SWITCH",
 	[PERF_RECORD_SWITCH_CPU_WIDE]		= "SWITCH_CPU_WIDE",
+	[PERF_RECORD_NAMESPACES]		= "NAMESPACES",
 	[PERF_RECORD_HEADER_ATTR]		= "ATTR",
 	[PERF_RECORD_HEADER_EVENT_TYPE]		= "EVENT_TYPE",
 	[PERF_RECORD_HEADER_TRACING_DATA]	= "TRACING_DATA",
@@ -49,6 +50,16 @@ static const char *perf_event__names[] = {
 	[PERF_RECORD_TIME_CONV]			= "TIME_CONV",
 };
 
+static const char *perf_ns__names[] = {
+	[NET_NS_INDEX]		= "net",
+	[UTS_NS_INDEX]		= "uts",
+	[IPC_NS_INDEX]		= "ipc",
+	[PID_NS_INDEX]		= "pid",
+	[USER_NS_INDEX]		= "user",
+	[MNT_NS_INDEX]		= "mnt",
+	[CGROUP_NS_INDEX]	= "cgroup",
+};
+
 const char *perf_event__name(unsigned int id)
 {
 	if (id >= ARRAY_SIZE(perf_event__names))
@@ -56,6 +67,13 @@ const char *perf_event__name(unsigned int id)
 	if (!perf_event__names[id])
 		return "UNKNOWN";
 	return perf_event__names[id];
+}
+
+static const char *perf_ns__name(unsigned int id)
+{
+	if (id >= ARRAY_SIZE(perf_ns__names))
+		return "UNKNOWN";
+	return perf_ns__names[id];
 }
 
 static int perf_tool__process_synth_event(struct perf_tool *tool,
@@ -1008,12 +1026,47 @@ size_t perf_event__fprintf_comm(union perf_event *event, FILE *fp)
 	return fprintf(fp, "%s: %s:%d/%d\n", s, event->comm.comm, event->comm.pid, event->comm.tid);
 }
 
+size_t perf_event__fprintf_namespaces(union perf_event *event, FILE *fp)
+{
+	size_t ret = 0;
+	struct perf_ns_link_info *ns_link_info;
+	u32 nr_namespaces, idx;
+
+	ns_link_info = event->namespaces.link_info;
+	nr_namespaces = event->namespaces.nr_namespaces;
+
+	ret += fprintf(fp, " %d/%d - nr_namespaces: %u\n\t\t[",
+		       event->namespaces.pid,
+		       event->namespaces.tid,
+		       nr_namespaces);
+
+	for (idx = 0; idx < nr_namespaces; idx++) {
+		if (idx && (idx % 4 == 0))
+			ret += fprintf(fp, "\n\t\t ");
+
+		ret  += fprintf(fp, "%u/%s: %" PRIu64 "/%#" PRIx64 "%s", idx,
+				perf_ns__name(idx), (u64)ns_link_info[idx].dev,
+				(u64)ns_link_info[idx].ino,
+				((idx + 1) != nr_namespaces) ? ", " : "]\n");
+	}
+
+	return ret;
+}
+
 int perf_event__process_comm(struct perf_tool *tool __maybe_unused,
 			     union perf_event *event,
 			     struct perf_sample *sample,
 			     struct machine *machine)
 {
 	return machine__process_comm_event(machine, event, sample);
+}
+
+int perf_event__process_namespaces(struct perf_tool *tool __maybe_unused,
+				   union perf_event *event,
+				   struct perf_sample *sample,
+				   struct machine *machine)
+{
+	return machine__process_namespaces_event(machine, event, sample);
 }
 
 int perf_event__process_lost(struct perf_tool *tool __maybe_unused,
@@ -1195,6 +1248,9 @@ size_t perf_event__fprintf(union perf_event *event, FILE *fp)
 		break;
 	case PERF_RECORD_MMAP:
 		ret += perf_event__fprintf_mmap(event, fp);
+		break;
+	case PERF_RECORD_NAMESPACES:
+		ret += perf_event__fprintf_namespaces(event, fp);
 		break;
 	case PERF_RECORD_MMAP2:
 		ret += perf_event__fprintf_mmap2(event, fp);

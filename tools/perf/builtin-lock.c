@@ -858,6 +858,7 @@ static int __cmd_report(bool display_info)
 	struct perf_tool eops = {
 		.sample		 = process_sample_event,
 		.comm		 = perf_event__process_comm,
+		.namespaces	 = perf_event__process_namespaces,
 		.ordered_events	 = true,
 	};
 	struct perf_data_file file = {
