@@ -2028,6 +2028,10 @@ try_onemore:
 
 	f2fs_join_shrinker(sbi);
 
+	err = f2fs_build_stats(sbi);
+	if (err)
+		goto free_nm;
+
 	/* if there are nt orphan nodes free them */
 	err = recover_orphan_inodes(sbi);
 	if (err)
@@ -2051,10 +2055,6 @@ try_onemore:
 		err = -ENOMEM;
 		goto free_root_inode;
 	}
-
-	err = f2fs_build_stats(sbi);
-	if (err)
-		goto free_root_inode;
 
 	if (f2fs_proc_root)
 		sbi->s_proc = proc_mkdir(sb->s_id, f2fs_proc_root);
@@ -2149,7 +2149,6 @@ free_proc:
 		remove_proc_entry("segment_bits", sbi->s_proc);
 		remove_proc_entry(sb->s_id, f2fs_proc_root);
 	}
-	f2fs_destroy_stats(sbi);
 free_root_inode:
 	dput(sb->s_root);
 	sb->s_root = NULL;
@@ -2167,6 +2166,7 @@ free_node_inode:
 	truncate_inode_pages_final(META_MAPPING(sbi));
 	iput(sbi->node_inode);
 	mutex_unlock(&sbi->umount_mutex);
+	f2fs_destroy_stats(sbi);
 free_nm:
 	destroy_node_manager(sbi);
 free_sm:
