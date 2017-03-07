@@ -250,6 +250,9 @@
 
 		cx-supply = <&pm8841_s2>;
 
+		clocks = <&xo_board>;
+		clock-names = "xo";
+
 		memory-region = <&adsp_region>;
 
 		qcom,smem-states = <&adsp_smp2p_out 0>;
