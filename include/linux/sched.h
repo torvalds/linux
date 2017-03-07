@@ -186,7 +186,7 @@ extern long io_schedule_timeout(long timeout);
 extern void io_schedule(void);
 
 /**
- * struct prev_cputime - snaphsot of system and user cputime
+ * struct prev_cputime - snapshot of system and user cputime
  * @utime: time spent in user mode
  * @stime: time spent in system mode
  * @lock: protects the above two fields

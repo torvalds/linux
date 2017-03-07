@@ -7597,7 +7597,7 @@ next_group:
 
 /**
  * check_asym_packing - Check to see if the group is packed into the
- *			sched doman.
+ *			sched domain.
  *
  * This is primarily intended to used at the sibling level.  Some
  * cores like POWER7 prefer to use lower numbered SMT threads.  In the

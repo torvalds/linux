@@ -1120,7 +1120,7 @@ void add_timer_on(struct timer_list *timer, int cpu)
 EXPORT_SYMBOL_GPL(add_timer_on);
 
 /**
- * del_timer - deactive a timer.
+ * del_timer - deactivate a timer.
  * @timer: the timer to be deactivated
  *
  * del_timer() deactivates a timer - this works on both active and inactive
