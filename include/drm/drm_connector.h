@@ -90,6 +90,22 @@ enum subpixel_order {
 };
 
 /**
+ * enum drm_link_status - connector's link_status property value
+ *
+ * This enum is used as the connector's link status property value.
+ * It is set to the values defined in uapi.
+ *
+ * @DRM_LINK_STATUS_GOOD: DP Link is Good as a result of successful
+ *                        link training
+ * @DRM_LINK_STATUS_BAD: DP Link is BAD as a result of link training
+ *                       failure
+ */
+enum drm_link_status {
+	DRM_LINK_STATUS_GOOD = DRM_MODE_LINK_STATUS_GOOD,
+	DRM_LINK_STATUS_BAD = DRM_MODE_LINK_STATUS_BAD,
+};
+
+/**
  * struct drm_display_info - runtime data about the connected sink
  *
  * Describes a given display (e.g. CRT or flat panel) and its limitations. For
@@ -242,6 +258,12 @@ struct drm_connector_state {
 	struct drm_crtc *crtc;
 
 	struct drm_encoder *best_encoder;
+
+	/**
+	 * @link_status: Connector link_status to keep track of whether link is
+	 * GOOD or BAD to notify userspace if retraining is necessary.
+	 */
+	enum drm_link_status link_status;
 
 	struct drm_atomic_state *state;
 
@@ -795,25 +817,50 @@ static inline struct drm_connector *drm_connector_lookup(struct drm_device *dev,
 }
 
 /**
- * drm_connector_reference - incr the connector refcnt
- * @connector: connector
+ * drm_connector_get - acquire a connector reference
+ * @connector: DRM connector
  *
  * This function increments the connector's refcount.
  */
-static inline void drm_connector_reference(struct drm_connector *connector)
+static inline void drm_connector_get(struct drm_connector *connector)
 {
-	drm_mode_object_reference(&connector->base);
+	drm_mode_object_get(&connector->base);
 }
 
 /**
- * drm_connector_unreference - unref a connector
- * @connector: connector to unref
+ * drm_connector_put - release a connector reference
+ * @connector: DRM connector
  *
- * This function decrements the connector's refcount and frees it if it drops to zero.
+ * This function decrements the connector's reference count and frees the
+ * object if the reference count drops to zero.
+ */
+static inline void drm_connector_put(struct drm_connector *connector)
+{
+	drm_mode_object_put(&connector->base);
+}
+
+/**
+ * drm_connector_reference - acquire a connector reference
+ * @connector: DRM connector
+ *
+ * This is a compatibility alias for drm_connector_get() and should not be
+ * used by new code.
+ */
+static inline void drm_connector_reference(struct drm_connector *connector)
+{
+	drm_connector_get(connector);
+}
+
+/**
+ * drm_connector_unreference - release a connector reference
+ * @connector: DRM connector
+ *
+ * This is a compatibility alias for drm_connector_put() and should not be
+ * used by new code.
  */
 static inline void drm_connector_unreference(struct drm_connector *connector)
 {
-	drm_mode_object_unreference(&connector->base);
+	drm_connector_put(connector);
 }
 
 const char *drm_get_connector_status_name(enum drm_connector_status status);
@@ -837,6 +884,8 @@ int drm_mode_connector_set_path_property(struct drm_connector *connector,
 int drm_mode_connector_set_tile_property(struct drm_connector *connector);
 int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 					    const struct edid *edid);
+void drm_mode_connector_set_link_status_property(struct drm_connector *connector,
+						 uint64_t link_status);
 
 /**
  * struct drm_tile_group - Tile group metadata
@@ -882,7 +931,7 @@ void drm_mode_put_tile_group(struct drm_device *dev,
  *
  * This iterator tracks state needed to be able to walk the connector_list
  * within struct drm_mode_config. Only use together with
- * drm_connector_list_iter_get(), drm_connector_list_iter_put() and
+ * drm_connector_list_iter_begin(), drm_connector_list_iter_end() and
  * drm_connector_list_iter_next() respectively the convenience macro
  * drm_for_each_connector_iter().
  */
@@ -892,11 +941,11 @@ struct drm_connector_list_iter {
 	struct drm_connector *conn;
 };
 
-void drm_connector_list_iter_get(struct drm_device *dev,
-				 struct drm_connector_list_iter *iter);
+void drm_connector_list_iter_begin(struct drm_device *dev,
+				   struct drm_connector_list_iter *iter);
 struct drm_connector *
 drm_connector_list_iter_next(struct drm_connector_list_iter *iter);
-void drm_connector_list_iter_put(struct drm_connector_list_iter *iter);
+void drm_connector_list_iter_end(struct drm_connector_list_iter *iter);
 
 /**
  * drm_for_each_connector_iter - connector_list iterator macro
@@ -904,8 +953,8 @@ void drm_connector_list_iter_put(struct drm_connector_list_iter *iter);
  * @iter: &struct drm_connector_list_iter
  *
  * Note that @connector is only valid within the list body, if you want to use
- * @connector after calling drm_connector_list_iter_put() then you need to grab
- * your own reference first using drm_connector_reference().
+ * @connector after calling drm_connector_list_iter_end() then you need to grab
+ * your own reference first using drm_connector_begin().
  */
 #define drm_for_each_connector_iter(connector, iter) \
 	while ((connector = drm_connector_list_iter_next(iter)))

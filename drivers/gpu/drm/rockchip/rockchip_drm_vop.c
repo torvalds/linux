@@ -857,11 +857,6 @@ static void vop_crtc_disable_vblank(struct drm_crtc *crtc)
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
 }
 
-static const struct rockchip_crtc_funcs private_crtc_funcs = {
-	.enable_vblank = vop_crtc_enable_vblank,
-	.disable_vblank = vop_crtc_disable_vblank,
-};
-
 static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
 				const struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
@@ -937,10 +932,10 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	}
 
 	pin_pol = BIT(DCLK_INVERT);
-	pin_pol |= (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ?
-		   0 : BIT(HSYNC_POSITIVE);
-	pin_pol |= (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC) ?
-		   0 : BIT(VSYNC_POSITIVE);
+	pin_pol |= (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC) ?
+		   BIT(HSYNC_POSITIVE) : 0;
+	pin_pol |= (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC) ?
+		   BIT(VSYNC_POSITIVE) : 0;
 	VOP_CTRL_SET(vop, pin_pol, pin_pol);
 
 	switch (s->output_type) {
@@ -1123,6 +1118,8 @@ static const struct drm_crtc_funcs vop_crtc_funcs = {
 	.reset = vop_crtc_reset,
 	.atomic_duplicate_state = vop_crtc_duplicate_state,
 	.atomic_destroy_state = vop_crtc_destroy_state,
+	.enable_vblank = vop_crtc_enable_vblank,
+	.disable_vblank = vop_crtc_disable_vblank,
 };
 
 static void vop_fb_unref_worker(struct drm_flip_work *work, void *val)
@@ -1294,7 +1291,6 @@ static int vop_create_crtc(struct vop *vop)
 	init_completion(&vop->dsp_hold_completion);
 	init_completion(&vop->line_flag_completion);
 	crtc->port = port;
-	rockchip_register_crtc_funcs(crtc, &private_crtc_funcs);
 
 	return 0;
 
@@ -1313,7 +1309,6 @@ static void vop_destroy_crtc(struct vop *vop)
 	struct drm_device *drm_dev = vop->drm_dev;
 	struct drm_plane *plane, *tmp;
 
-	rockchip_unregister_crtc_funcs(crtc);
 	of_node_put(crtc->port);
 
 	/*

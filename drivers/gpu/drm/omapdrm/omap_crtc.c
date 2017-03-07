@@ -495,6 +495,8 @@ static const struct drm_crtc_funcs omap_crtc_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 	.atomic_set_property = omap_crtc_atomic_set_property,
 	.atomic_get_property = omap_crtc_atomic_get_property,
+	.enable_vblank = omap_irq_enable_vblank,
+	.disable_vblank = omap_irq_disable_vblank,
 };
 
 static const struct drm_crtc_helper_funcs omap_crtc_helper_funcs = {

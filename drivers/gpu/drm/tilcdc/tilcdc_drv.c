@@ -437,16 +437,6 @@ static irqreturn_t tilcdc_irq(int irq, void *arg)
 	return tilcdc_crtc_irq(priv->crtc);
 }
 
-static int tilcdc_enable_vblank(struct drm_device *dev, unsigned int pipe)
-{
-	return 0;
-}
-
-static void tilcdc_disable_vblank(struct drm_device *dev, unsigned int pipe)
-{
-	return;
-}
-
 #if defined(CONFIG_DEBUG_FS)
 static const struct {
 	const char *name;
@@ -557,9 +547,6 @@ static struct drm_driver tilcdc_driver = {
 			       DRIVER_PRIME | DRIVER_ATOMIC),
 	.lastclose          = tilcdc_lastclose,
 	.irq_handler        = tilcdc_irq,
-	.get_vblank_counter = drm_vblank_no_hw_counter,
-	.enable_vblank      = tilcdc_enable_vblank,
-	.disable_vblank     = tilcdc_disable_vblank,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops         = &drm_gem_cma_vm_ops,
 	.dumb_create        = drm_gem_cma_dumb_create,

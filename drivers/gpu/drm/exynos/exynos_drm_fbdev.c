@@ -99,7 +99,6 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 				VM_MAP, pgprot_writecombine(PAGE_KERNEL));
 	if (!exynos_gem->kvaddr) {
 		DRM_ERROR("failed to map pages to kernel space.\n");
-		drm_fb_helper_release_fbi(helper);
 		return -EIO;
 	}
 
@@ -272,7 +271,6 @@ static void exynos_drm_fbdev_destroy(struct drm_device *dev,
 	}
 
 	drm_fb_helper_unregister_fbi(fb_helper);
-	drm_fb_helper_release_fbi(fb_helper);
 
 	drm_fb_helper_fini(fb_helper);
 }

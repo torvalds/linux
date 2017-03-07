@@ -134,11 +134,6 @@ struct qxl_bo_list {
 struct qxl_crtc {
 	struct drm_crtc base;
 	int index;
-	int cur_x;
-	int cur_y;
-	int hot_spot_x;
-	int hot_spot_y;
-	struct qxl_bo *cursor_bo;
 };
 
 struct qxl_output {
@@ -243,7 +238,6 @@ struct qxl_device;
 
 struct qxl_device {
 	struct drm_device ddev;
-	unsigned long flags;
 
 	resource_size_t vram_base, vram_size;
 	resource_size_t surfaceram_base, surfaceram_size;
@@ -335,7 +329,7 @@ extern const struct drm_ioctl_desc qxl_ioctls[];
 extern int qxl_max_ioctl;
 
 int qxl_device_init(struct qxl_device *qdev, struct drm_driver *drv,
-		    struct pci_dev *pdev, unsigned long flags);
+		    struct pci_dev *pdev);
 void qxl_device_fini(struct qxl_device *qdev);
 
 int qxl_modeset_init(struct qxl_device *qdev);
@@ -529,7 +523,6 @@ int qxl_garbage_collect(struct qxl_device *qdev);
 /* debugfs */
 
 int qxl_debugfs_init(struct drm_minor *minor);
-void qxl_debugfs_takedown(struct drm_minor *minor);
 int qxl_ttm_debugfs_init(struct qxl_device *qdev);
 
 /* qxl_prime.c */

@@ -42,29 +42,26 @@
 
 #ifdef DSS_SUBSYS_NAME
 #define DSSERR(format, ...) \
-	printk(KERN_ERR "omapdss " DSS_SUBSYS_NAME " error: " format, \
-	## __VA_ARGS__)
+	pr_err("omapdss " DSS_SUBSYS_NAME " error: " format, ##__VA_ARGS__)
 #else
 #define DSSERR(format, ...) \
-	printk(KERN_ERR "omapdss error: " format, ## __VA_ARGS__)
+	pr_err("omapdss error: " format, ##__VA_ARGS__)
 #endif
 
 #ifdef DSS_SUBSYS_NAME
 #define DSSINFO(format, ...) \
-	printk(KERN_INFO "omapdss " DSS_SUBSYS_NAME ": " format, \
-	## __VA_ARGS__)
+	pr_info("omapdss " DSS_SUBSYS_NAME ": " format, ##__VA_ARGS__)
 #else
 #define DSSINFO(format, ...) \
-	printk(KERN_INFO "omapdss: " format, ## __VA_ARGS__)
+	pr_info("omapdss: " format, ## __VA_ARGS__)
 #endif
 
 #ifdef DSS_SUBSYS_NAME
 #define DSSWARN(format, ...) \
-	printk(KERN_WARNING "omapdss " DSS_SUBSYS_NAME ": " format, \
-	## __VA_ARGS__)
+	pr_warn("omapdss " DSS_SUBSYS_NAME ": " format, ##__VA_ARGS__)
 #else
 #define DSSWARN(format, ...) \
-	printk(KERN_WARNING "omapdss: " format, ## __VA_ARGS__)
+	pr_warn("omapdss: " format, ##__VA_ARGS__)
 #endif
 
 /* OMAP TRM gives bitfields as start:end, where start is the higher bit

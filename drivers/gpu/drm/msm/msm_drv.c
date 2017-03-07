@@ -152,7 +152,7 @@ u32 msm_readl(const void __iomem *addr)
 {
 	u32 val = readl(addr);
 	if (reglog)
-		printk(KERN_ERR "IO:R %p %08x\n", addr, val);
+		pr_err("IO:R %p %08x\n", addr, val);
 	return val;
 }
 
@@ -816,7 +816,6 @@ static struct drm_driver msm_driver = {
 	.irq_preinstall     = msm_irq_preinstall,
 	.irq_postinstall    = msm_irq_postinstall,
 	.irq_uninstall      = msm_irq_uninstall,
-	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.enable_vblank      = msm_enable_vblank,
 	.disable_vblank     = msm_disable_vblank,
 	.gem_free_object    = msm_gem_free_object,

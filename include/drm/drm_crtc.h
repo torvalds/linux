@@ -155,8 +155,15 @@ struct drm_crtc_state {
 	 * Target vertical blank period when a page flip
 	 * should take effect.
 	 */
-
 	u32 target_vblank;
+
+	/**
+	 * @pageflip_flags:
+	 *
+	 * DRM_MODE_PAGE_FLIP_* flags, as passed to the page flip ioctl.
+	 * Zero in any other case.
+	 */
+	u32 pageflip_flags;
 
 	/**
 	 * @event:
@@ -601,6 +608,50 @@ struct drm_crtc_funcs {
 	 */
 	void (*atomic_print_state)(struct drm_printer *p,
 				   const struct drm_crtc_state *state);
+
+	/**
+	 * @get_vblank_counter:
+	 *
+	 * Driver callback for fetching a raw hardware vblank counter for the
+	 * CRTC. It's meant to be used by new drivers as the replacement of
+	 * &drm_driver.get_vblank_counter hook.
+	 *
+	 * This callback is optional. If a device doesn't have a hardware
+	 * counter, the driver can simply leave the hook as NULL. The DRM core
+	 * will account for missed vblank events while interrupts where disabled
+	 * based on system timestamps.
+	 *
+	 * Wraparound handling and loss of events due to modesetting is dealt
+	 * with in the DRM core code, as long as drivers call
+	 * drm_crtc_vblank_off() and drm_crtc_vblank_on() when disabling or
+	 * enabling a CRTC.
+	 *
+	 * Returns:
+	 *
+	 * Raw vblank counter value.
+	 */
+	u32 (*get_vblank_counter)(struct drm_crtc *crtc);
+
+	/**
+	 * @enable_vblank:
+	 *
+	 * Enable vblank interrupts for the CRTC. It's meant to be used by
+	 * new drivers as the replacement of &drm_driver.enable_vblank hook.
+	 *
+	 * Returns:
+	 *
+	 * Zero on success, appropriate errno if the vblank interrupt cannot
+	 * be enabled.
+	 */
+	int (*enable_vblank)(struct drm_crtc *crtc);
+
+	/**
+	 * @disable_vblank:
+	 *
+	 * Disable vblank interrupts for the CRTC. It's meant to be used by
+	 * new drivers as the replacement of &drm_driver.disable_vblank hook.
+	 */
+	void (*disable_vblank)(struct drm_crtc *crtc);
 };
 
 /**

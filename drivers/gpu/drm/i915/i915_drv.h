@@ -3528,12 +3528,10 @@ u32 i915_gem_fence_alignment(struct drm_i915_private *dev_priv, u32 size,
 /* i915_debugfs.c */
 #ifdef CONFIG_DEBUG_FS
 int i915_debugfs_register(struct drm_i915_private *dev_priv);
-void i915_debugfs_unregister(struct drm_i915_private *dev_priv);
 int i915_debugfs_connector_add(struct drm_connector *connector);
 void intel_display_crc_init(struct drm_i915_private *dev_priv);
 #else
 static inline int i915_debugfs_register(struct drm_i915_private *dev_priv) {return 0;}
-static inline void i915_debugfs_unregister(struct drm_i915_private *dev_priv) {}
 static inline int i915_debugfs_connector_add(struct drm_connector *connector)
 { return 0; }
 static inline void intel_display_crc_init(struct drm_i915_private *dev_priv) {}

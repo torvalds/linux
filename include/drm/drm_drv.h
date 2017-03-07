@@ -120,15 +120,17 @@ struct drm_driver {
 	 *
 	 * Driver callback for fetching a raw hardware vblank counter for the
 	 * CRTC specified with the pipe argument.  If a device doesn't have a
-	 * hardware counter, the driver can simply use
-	 * drm_vblank_no_hw_counter() function. The DRM core will account for
-	 * missed vblank events while interrupts where disabled based on system
-	 * timestamps.
+	 * hardware counter, the driver can simply leave the hook as NULL.
+	 * The DRM core will account for missed vblank events while interrupts
+	 * where disabled based on system timestamps.
 	 *
 	 * Wraparound handling and loss of events due to modesetting is dealt
 	 * with in the DRM core code, as long as drivers call
 	 * drm_crtc_vblank_off() and drm_crtc_vblank_on() when disabling or
 	 * enabling a CRTC.
+	 *
+	 * This is deprecated and should not be used by new drivers.
+	 * Use &drm_crtc_funcs.get_vblank_counter instead.
 	 *
 	 * Returns:
 	 *
@@ -142,6 +144,9 @@ struct drm_driver {
 	 * Enable vblank interrupts for the CRTC specified with the pipe
 	 * argument.
 	 *
+	 * This is deprecated and should not be used by new drivers.
+	 * Use &drm_crtc_funcs.enable_vblank instead.
+	 *
 	 * Returns:
 	 *
 	 * Zero on success, appropriate errno if the given @crtc's vblank
@@ -154,6 +159,9 @@ struct drm_driver {
 	 *
 	 * Disable vblank interrupts for the CRTC specified with the pipe
 	 * argument.
+	 *
+	 * This is deprecated and should not be used by new drivers.
+	 * Use &drm_crtc_funcs.disable_vblank instead.
 	 */
 	void (*disable_vblank) (struct drm_device *dev, unsigned int pipe);
 

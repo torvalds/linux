@@ -170,8 +170,6 @@ void msm_debugfs_cleanup(struct drm_minor *minor)
 	struct drm_device *dev = minor->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 
-	drm_debugfs_remove_files(msm_debugfs_list,
-			ARRAY_SIZE(msm_debugfs_list), minor);
 	if (!priv)
 		return;
 

@@ -36,7 +36,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9n12_layers[] = {
 		.regs_offset = 0x40,
 		.id = 0,
 		.type = ATMEL_HLCDC_BASE_LAYER,
-		.nconfigs = 5,
+		.cfgs_offset = 0x2c,
 		.layout = {
 			.xstride = { 2 },
 			.default_color = 3,
@@ -65,7 +65,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9x5_layers[] = {
 		.regs_offset = 0x40,
 		.id = 0,
 		.type = ATMEL_HLCDC_BASE_LAYER,
-		.nconfigs = 5,
+		.cfgs_offset = 0x2c,
 		.layout = {
 			.xstride = { 2 },
 			.default_color = 3,
@@ -80,7 +80,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9x5_layers[] = {
 		.regs_offset = 0x100,
 		.id = 1,
 		.type = ATMEL_HLCDC_OVERLAY_LAYER,
-		.nconfigs = 10,
+		.cfgs_offset = 0x2c,
 		.layout = {
 			.pos = 2,
 			.size = 3,
@@ -98,7 +98,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9x5_layers[] = {
 		.regs_offset = 0x280,
 		.id = 2,
 		.type = ATMEL_HLCDC_OVERLAY_LAYER,
-		.nconfigs = 17,
+		.cfgs_offset = 0x4c,
 		.layout = {
 			.pos = 2,
 			.size = 3,
@@ -109,6 +109,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9x5_layers[] = {
 			.chroma_key = 10,
 			.chroma_key_mask = 11,
 			.general_config = 12,
+			.scaler_config = 13,
 			.csc = 14,
 		},
 	},
@@ -118,9 +119,9 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9x5_layers[] = {
 		.regs_offset = 0x340,
 		.id = 3,
 		.type = ATMEL_HLCDC_CURSOR_LAYER,
-		.nconfigs = 10,
 		.max_width = 128,
 		.max_height = 128,
+		.cfgs_offset = 0x2c,
 		.layout = {
 			.pos = 2,
 			.size = 3,
@@ -153,7 +154,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 		.regs_offset = 0x40,
 		.id = 0,
 		.type = ATMEL_HLCDC_BASE_LAYER,
-		.nconfigs = 7,
+		.cfgs_offset = 0x2c,
 		.layout = {
 			.xstride = { 2 },
 			.default_color = 3,
@@ -168,7 +169,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 		.regs_offset = 0x140,
 		.id = 1,
 		.type = ATMEL_HLCDC_OVERLAY_LAYER,
-		.nconfigs = 10,
+		.cfgs_offset = 0x2c,
 		.layout = {
 			.pos = 2,
 			.size = 3,
@@ -186,7 +187,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 		.regs_offset = 0x240,
 		.id = 2,
 		.type = ATMEL_HLCDC_OVERLAY_LAYER,
-		.nconfigs = 10,
+		.cfgs_offset = 0x2c,
 		.layout = {
 			.pos = 2,
 			.size = 3,
@@ -204,7 +205,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 		.regs_offset = 0x340,
 		.id = 3,
 		.type = ATMEL_HLCDC_OVERLAY_LAYER,
-		.nconfigs = 42,
+		.cfgs_offset = 0x4c,
 		.layout = {
 			.pos = 2,
 			.size = 3,
@@ -215,6 +216,11 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 			.chroma_key = 10,
 			.chroma_key_mask = 11,
 			.general_config = 12,
+			.scaler_config = 13,
+			.phicoeffs = {
+				.x = 17,
+				.y = 33,
+			},
 			.csc = 14,
 		},
 	},
@@ -224,9 +230,9 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 		.regs_offset = 0x440,
 		.id = 4,
 		.type = ATMEL_HLCDC_CURSOR_LAYER,
-		.nconfigs = 10,
 		.max_width = 128,
 		.max_height = 128,
+		.cfgs_offset = 0x2c,
 		.layout = {
 			.pos = 2,
 			.size = 3,
@@ -236,6 +242,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 			.chroma_key = 7,
 			.chroma_key_mask = 8,
 			.general_config = 9,
+			.scaler_config = 13,
 		},
 	},
 };
@@ -260,7 +267,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d4_layers[] = {
 		.regs_offset = 0x40,
 		.id = 0,
 		.type = ATMEL_HLCDC_BASE_LAYER,
-		.nconfigs = 7,
+		.cfgs_offset = 0x2c,
 		.layout = {
 			.xstride = { 2 },
 			.default_color = 3,
@@ -275,7 +282,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d4_layers[] = {
 		.regs_offset = 0x140,
 		.id = 1,
 		.type = ATMEL_HLCDC_OVERLAY_LAYER,
-		.nconfigs = 10,
+		.cfgs_offset = 0x2c,
 		.layout = {
 			.pos = 2,
 			.size = 3,
@@ -293,7 +300,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d4_layers[] = {
 		.regs_offset = 0x240,
 		.id = 2,
 		.type = ATMEL_HLCDC_OVERLAY_LAYER,
-		.nconfigs = 10,
+		.cfgs_offset = 0x2c,
 		.layout = {
 			.pos = 2,
 			.size = 3,
@@ -311,7 +318,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d4_layers[] = {
 		.regs_offset = 0x340,
 		.id = 3,
 		.type = ATMEL_HLCDC_OVERLAY_LAYER,
-		.nconfigs = 42,
+		.cfgs_offset = 0x4c,
 		.layout = {
 			.pos = 2,
 			.size = 3,
@@ -322,6 +329,11 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d4_layers[] = {
 			.chroma_key = 10,
 			.chroma_key_mask = 11,
 			.general_config = 12,
+			.scaler_config = 13,
+			.phicoeffs = {
+				.x = 17,
+				.y = 33,
+			},
 			.csc = 14,
 		},
 	},
@@ -392,6 +404,17 @@ int atmel_hlcdc_dc_mode_valid(struct atmel_hlcdc_dc *dc,
 	return MODE_OK;
 }
 
+static void atmel_hlcdc_layer_irq(struct atmel_hlcdc_layer *layer)
+{
+	if (!layer)
+		return;
+
+	if (layer->desc->type == ATMEL_HLCDC_BASE_LAYER ||
+	    layer->desc->type == ATMEL_HLCDC_OVERLAY_LAYER ||
+	    layer->desc->type == ATMEL_HLCDC_CURSOR_LAYER)
+		atmel_hlcdc_plane_irq(atmel_hlcdc_layer_to_plane(layer));
+}
+
 static irqreturn_t atmel_hlcdc_dc_irq_handler(int irq, void *data)
 {
 	struct drm_device *dev = data;
@@ -410,12 +433,8 @@ static irqreturn_t atmel_hlcdc_dc_irq_handler(int irq, void *data)
 		atmel_hlcdc_crtc_irq(dc->crtc);
 
 	for (i = 0; i < ATMEL_HLCDC_MAX_LAYERS; i++) {
-		struct atmel_hlcdc_layer *layer = dc->layers[i];
-
-		if (!(ATMEL_HLCDC_LAYER_STATUS(i) & status) || !layer)
-			continue;
-
-		atmel_hlcdc_layer_irq(layer);
+		if (ATMEL_HLCDC_LAYER_STATUS(i) & status)
+			atmel_hlcdc_layer_irq(dc->layers[i]);
 	}
 
 	return IRQ_HANDLED;
@@ -537,9 +556,7 @@ static const struct drm_mode_config_funcs mode_config_funcs = {
 static int atmel_hlcdc_dc_modeset_init(struct drm_device *dev)
 {
 	struct atmel_hlcdc_dc *dc = dev->dev_private;
-	struct atmel_hlcdc_planes *planes;
 	int ret;
-	int i;
 
 	drm_mode_config_init(dev);
 
@@ -549,24 +566,11 @@ static int atmel_hlcdc_dc_modeset_init(struct drm_device *dev)
 		return ret;
 	}
 
-	planes = atmel_hlcdc_create_planes(dev);
-	if (IS_ERR(planes)) {
-		dev_err(dev->dev, "failed to create planes\n");
-		return PTR_ERR(planes);
+	ret = atmel_hlcdc_create_planes(dev);
+	if (ret) {
+		dev_err(dev->dev, "failed to create planes: %d\n", ret);
+		return ret;
 	}
-
-	dc->planes = planes;
-
-	dc->layers[planes->primary->layer.desc->id] =
-						&planes->primary->layer;
-
-	if (planes->cursor)
-		dc->layers[planes->cursor->layer.desc->id] =
-							&planes->cursor->layer;
-
-	for (i = 0; i < planes->noverlays; i++)
-		dc->layers[planes->overlays[i]->layer.desc->id] =
-						&planes->overlays[i]->layer;
 
 	ret = atmel_hlcdc_crtc_create(dev);
 	if (ret) {
@@ -720,25 +724,6 @@ static void atmel_hlcdc_dc_irq_uninstall(struct drm_device *dev)
 	regmap_read(dc->hlcdc->regmap, ATMEL_HLCDC_ISR, &isr);
 }
 
-static int atmel_hlcdc_dc_enable_vblank(struct drm_device *dev,
-					unsigned int pipe)
-{
-	struct atmel_hlcdc_dc *dc = dev->dev_private;
-
-	/* Enable SOF (Start Of Frame) interrupt for vblank counting */
-	regmap_write(dc->hlcdc->regmap, ATMEL_HLCDC_IER, ATMEL_HLCDC_SOF);
-
-	return 0;
-}
-
-static void atmel_hlcdc_dc_disable_vblank(struct drm_device *dev,
-					  unsigned int pipe)
-{
-	struct atmel_hlcdc_dc *dc = dev->dev_private;
-
-	regmap_write(dc->hlcdc->regmap, ATMEL_HLCDC_IDR, ATMEL_HLCDC_SOF);
-}
-
 static const struct file_operations fops = {
 	.owner              = THIS_MODULE,
 	.open               = drm_open,
@@ -760,9 +745,6 @@ static struct drm_driver atmel_hlcdc_dc_driver = {
 	.irq_preinstall = atmel_hlcdc_dc_irq_uninstall,
 	.irq_postinstall = atmel_hlcdc_dc_irq_postinstall,
 	.irq_uninstall = atmel_hlcdc_dc_irq_uninstall,
-	.get_vblank_counter = drm_vblank_no_hw_counter,
-	.enable_vblank = atmel_hlcdc_dc_enable_vblank,
-	.disable_vblank = atmel_hlcdc_dc_disable_vblank,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,

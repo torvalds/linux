@@ -140,13 +140,13 @@ void drm_kms_helper_poll_enable(struct drm_device *dev)
 	if (!dev->mode_config.poll_enabled || !drm_kms_helper_poll)
 		return;
 
-	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (connector->polled & (DRM_CONNECTOR_POLL_CONNECT |
 					 DRM_CONNECTOR_POLL_DISCONNECT))
 			poll = true;
 	}
-	drm_connector_list_iter_put(&conn_iter);
+	drm_connector_list_iter_end(&conn_iter);
 
 	if (dev->mode_config.delayed_event) {
 		/*
@@ -311,7 +311,13 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 		count = drm_add_edid_modes(connector, edid);
 		drm_edid_to_eld(connector, edid);
 	} else {
-		count = drm_load_edid_firmware(connector);
+		struct edid *edid = drm_load_edid_firmware(connector);
+		if (!IS_ERR_OR_NULL(edid)) {
+			drm_mode_connector_update_edid_property(connector, edid);
+			count = drm_add_edid_modes(connector, edid);
+			drm_edid_to_eld(connector, edid);
+			kfree(edid);
+		}
 		if (count == 0)
 			count = (*connector_funcs->get_modes)(connector);
 	}
@@ -414,7 +420,7 @@ static void output_poll_execute(struct work_struct *work)
 		goto out;
 	}
 
-	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		/* Ignore forced connectors. */
 		if (connector->force)
@@ -468,7 +474,7 @@ static void output_poll_execute(struct work_struct *work)
 			changed = true;
 		}
 	}
-	drm_connector_list_iter_put(&conn_iter);
+	drm_connector_list_iter_end(&conn_iter);
 
 	mutex_unlock(&dev->mode_config.mutex);
 
@@ -574,7 +580,7 @@ bool drm_helper_hpd_irq_event(struct drm_device *dev)
 		return false;
 
 	mutex_lock(&dev->mode_config.mutex);
-	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		/* Only handle HPD capable connectors. */
 		if (!(connector->polled & DRM_CONNECTOR_POLL_HPD))
@@ -591,7 +597,7 @@ bool drm_helper_hpd_irq_event(struct drm_device *dev)
 		if (old_status != connector->status)
 			changed = true;
 	}
-	drm_connector_list_iter_put(&conn_iter);
+	drm_connector_list_iter_end(&conn_iter);
 	mutex_unlock(&dev->mode_config.mutex);
 
 	if (changed)

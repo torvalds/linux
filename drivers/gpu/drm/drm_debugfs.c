@@ -261,30 +261,8 @@ int drm_debugfs_cleanup(struct drm_minor *minor)
 static int connector_show(struct seq_file *m, void *data)
 {
 	struct drm_connector *connector = m->private;
-	const char *status;
 
-	switch (connector->force) {
-	case DRM_FORCE_ON:
-		status = "on\n";
-		break;
-
-	case DRM_FORCE_ON_DIGITAL:
-		status = "digital\n";
-		break;
-
-	case DRM_FORCE_OFF:
-		status = "off\n";
-		break;
-
-	case DRM_FORCE_UNSPECIFIED:
-		status = "unspecified\n";
-		break;
-
-	default:
-		return 0;
-	}
-
-	seq_puts(m, status);
+	seq_printf(m, "%s\n", drm_get_connector_force_name(connector->force));
 
 	return 0;
 }

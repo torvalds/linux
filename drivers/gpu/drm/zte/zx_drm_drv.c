@@ -71,9 +71,6 @@ static struct drm_driver zx_drm_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
 			   DRIVER_ATOMIC,
 	.lastclose = zx_drm_lastclose,
-	.get_vblank_counter = drm_vblank_no_hw_counter,
-	.enable_vblank = zx_vou_enable_vblank,
-	.disable_vblank = zx_vou_disable_vblank,
 	.gem_free_object = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = drm_gem_cma_dumb_create,

@@ -23,7 +23,6 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 
-#include "shmob_drm_crtc.h"
 #include "shmob_drm_drv.h"
 #include "shmob_drm_kms.h"
 #include "shmob_drm_plane.h"
@@ -222,22 +221,6 @@ static irqreturn_t shmob_drm_irq(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static int shmob_drm_enable_vblank(struct drm_device *dev, unsigned int pipe)
-{
-	struct shmob_drm_device *sdev = dev->dev_private;
-
-	shmob_drm_crtc_enable_vblank(sdev, true);
-
-	return 0;
-}
-
-static void shmob_drm_disable_vblank(struct drm_device *dev, unsigned int pipe)
-{
-	struct shmob_drm_device *sdev = dev->dev_private;
-
-	shmob_drm_crtc_enable_vblank(sdev, false);
-}
-
 static const struct file_operations shmob_drm_fops = {
 	.owner		= THIS_MODULE,
 	.open		= drm_open,
@@ -256,9 +239,6 @@ static struct drm_driver shmob_drm_driver = {
 	.load			= shmob_drm_load,
 	.unload			= shmob_drm_unload,
 	.irq_handler		= shmob_drm_irq,
-	.get_vblank_counter	= drm_vblank_no_hw_counter,
-	.enable_vblank		= shmob_drm_enable_vblank,
-	.disable_vblank		= shmob_drm_disable_vblank,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,

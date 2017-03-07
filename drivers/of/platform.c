@@ -571,6 +571,77 @@ void of_platform_depopulate(struct device *parent)
 }
 EXPORT_SYMBOL_GPL(of_platform_depopulate);
 
+static void devm_of_platform_populate_release(struct device *dev, void *res)
+{
+	of_platform_depopulate(*(struct device **)res);
+}
+
+/**
+ * devm_of_platform_populate() - Populate platform_devices from device tree data
+ * @dev: device that requested to populate from device tree data
+ *
+ * Similar to of_platform_populate(), but will automatically call
+ * of_platform_depopulate() when the device is unbound from the bus.
+ *
+ * Returns 0 on success, < 0 on failure.
+ */
+int devm_of_platform_populate(struct device *dev)
+{
+	struct device **ptr;
+	int ret;
+
+	if (!dev)
+		return -EINVAL;
+
+	ptr = devres_alloc(devm_of_platform_populate_release,
+			   sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
+	if (ret) {
+		devres_free(ptr);
+	} else {
+		*ptr = dev;
+		devres_add(dev, ptr);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(devm_of_platform_populate);
+
+static int devm_of_platform_match(struct device *dev, void *res, void *data)
+{
+	struct device **ptr = res;
+
+	if (!ptr) {
+		WARN_ON(!ptr);
+		return 0;
+	}
+
+	return *ptr == data;
+}
+
+/**
+ * devm_of_platform_depopulate() - Remove devices populated from device tree
+ * @dev: device that requested to depopulate from device tree data
+ *
+ * Complementary to devm_of_platform_populate(), this function removes children
+ * of the given device (and, recurrently, their children) that have been
+ * created from their respective device tree nodes (and only those,
+ * leaving others - eg. manually created - unharmed).
+ */
+void devm_of_platform_depopulate(struct device *dev)
+{
+	int ret;
+
+	ret = devres_release(dev, devm_of_platform_populate_release,
+			     devm_of_platform_match, dev);
+
+	WARN_ON(ret);
+}
+EXPORT_SYMBOL_GPL(devm_of_platform_depopulate);
+
 #ifdef CONFIG_OF_DYNAMIC
 static int of_platform_notify(struct notifier_block *nb,
 				unsigned long action, void *arg)

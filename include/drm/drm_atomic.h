@@ -138,12 +138,12 @@ struct drm_crtc_commit {
 
 struct __drm_planes_state {
 	struct drm_plane *ptr;
-	struct drm_plane_state *state;
+	struct drm_plane_state *state, *old_state, *new_state;
 };
 
 struct __drm_crtcs_state {
 	struct drm_crtc *ptr;
-	struct drm_crtc_state *state;
+	struct drm_crtc_state *state, *old_state, *new_state;
 	struct drm_crtc_commit *commit;
 	s32 __user *out_fence_ptr;
 	unsigned last_vblank_count;
@@ -151,7 +151,7 @@ struct __drm_crtcs_state {
 
 struct __drm_connnectors_state {
 	struct drm_connector *ptr;
-	struct drm_connector_state *state;
+	struct drm_connector_state *state, *old_state, *new_state;
 };
 
 /**
@@ -398,6 +398,31 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)							\
 		for_each_if (connector)
 
+#define for_each_oldnew_connector_in_state(__state, connector, old_connector_state, new_connector_state, __i) \
+	for ((__i) = 0;								\
+	     (__i) < (__state)->num_connector &&				\
+	     ((connector) = (__state)->connectors[__i].ptr,			\
+	     (old_connector_state) = (__state)->connectors[__i].old_state,	\
+	     (new_connector_state) = (__state)->connectors[__i].new_state, 1); 	\
+	     (__i)++)							\
+		for_each_if (connector)
+
+#define for_each_old_connector_in_state(__state, connector, old_connector_state, __i) \
+	for ((__i) = 0;								\
+	     (__i) < (__state)->num_connector &&				\
+	     ((connector) = (__state)->connectors[__i].ptr,			\
+	     (old_connector_state) = (__state)->connectors[__i].old_state, 1); 	\
+	     (__i)++)							\
+		for_each_if (connector)
+
+#define for_each_new_connector_in_state(__state, connector, new_connector_state, __i) \
+	for ((__i) = 0;								\
+	     (__i) < (__state)->num_connector &&				\
+	     ((connector) = (__state)->connectors[__i].ptr,			\
+	     (new_connector_state) = (__state)->connectors[__i].new_state, 1); 	\
+	     (__i)++)							\
+		for_each_if (connector)
+
 #define for_each_crtc_in_state(__state, crtc, crtc_state, __i)	\
 	for ((__i) = 0;						\
 	     (__i) < (__state)->dev->mode_config.num_crtc &&	\
@@ -406,6 +431,31 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)						\
 		for_each_if (crtc_state)
 
+#define for_each_oldnew_crtc_in_state(__state, crtc, old_crtc_state, new_crtc_state, __i) \
+	for ((__i) = 0;							\
+	     (__i) < (__state)->dev->mode_config.num_crtc &&		\
+	     ((crtc) = (__state)->crtcs[__i].ptr,			\
+	     (old_crtc_state) = (__state)->crtcs[__i].old_state,	\
+	     (new_crtc_state) = (__state)->crtcs[__i].new_state, 1);	\
+	     (__i)++)							\
+		for_each_if (crtc)
+
+#define for_each_old_crtc_in_state(__state, crtc, old_crtc_state, __i)	\
+	for ((__i) = 0;							\
+	     (__i) < (__state)->dev->mode_config.num_crtc &&		\
+	     ((crtc) = (__state)->crtcs[__i].ptr,			\
+	     (old_crtc_state) = (__state)->crtcs[__i].old_state, 1);	\
+	     (__i)++)							\
+		for_each_if (crtc)
+
+#define for_each_new_crtc_in_state(__state, crtc, new_crtc_state, __i)	\
+	for ((__i) = 0;							\
+	     (__i) < (__state)->dev->mode_config.num_crtc &&		\
+	     ((crtc) = (__state)->crtcs[__i].ptr,			\
+	     (new_crtc_state) = (__state)->crtcs[__i].new_state, 1);	\
+	     (__i)++)							\
+		for_each_if (crtc)
+
 #define for_each_plane_in_state(__state, plane, plane_state, __i)		\
 	for ((__i) = 0;							\
 	     (__i) < (__state)->dev->mode_config.num_total_plane &&	\
@@ -413,6 +463,31 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (plane_state) = (__state)->planes[__i].state, 1);		\
 	     (__i)++)							\
 		for_each_if (plane_state)
+
+#define for_each_oldnew_plane_in_state(__state, plane, old_plane_state, new_plane_state, __i) \
+	for ((__i) = 0;							\
+	     (__i) < (__state)->dev->mode_config.num_total_plane &&	\
+	     ((plane) = (__state)->planes[__i].ptr,			\
+	     (old_plane_state) = (__state)->planes[__i].old_state,	\
+	     (new_plane_state) = (__state)->planes[__i].new_state, 1);	\
+	     (__i)++)							\
+		for_each_if (plane)
+
+#define for_each_old_plane_in_state(__state, plane, old_plane_state, __i) \
+	for ((__i) = 0;							\
+	     (__i) < (__state)->dev->mode_config.num_total_plane &&	\
+	     ((plane) = (__state)->planes[__i].ptr,			\
+	     (old_plane_state) = (__state)->planes[__i].old_state, 1);	\
+	     (__i)++)							\
+		for_each_if (plane)
+
+#define for_each_new_plane_in_state(__state, plane, new_plane_state, __i) \
+	for ((__i) = 0;							\
+	     (__i) < (__state)->dev->mode_config.num_total_plane &&	\
+	     ((plane) = (__state)->planes[__i].ptr,			\
+	     (new_plane_state) = (__state)->planes[__i].new_state, 1);	\
+	     (__i)++)							\
+		for_each_if (plane)
 
 /**
  * drm_atomic_crtc_needs_modeset - compute combined modeset need
