@@ -4123,18 +4123,6 @@ static u32 mvpp2_bm_cookie_build(struct mvpp2_rx_desc *rx_desc)
 
 /* Tx descriptors helper methods */
 
-/* Get number of Tx descriptors waiting to be transmitted by HW */
-static int mvpp2_txq_pend_desc_num_get(struct mvpp2_port *port,
-				       struct mvpp2_tx_queue *txq)
-{
-	u32 val;
-
-	mvpp2_write(port->priv, MVPP2_TXQ_NUM_REG, txq->id);
-	val = mvpp2_read(port->priv, MVPP2_TXQ_PENDING_REG);
-
-	return val & MVPP2_TXQ_PENDING_MASK;
-}
-
 /* Get pointer to next Tx descriptor to be processed (send) by HW */
 static struct mvpp2_tx_desc *
 mvpp2_txq_next_desc_get(struct mvpp2_tx_queue *txq)
@@ -4740,7 +4728,8 @@ static void mvpp2_txq_clean(struct mvpp2_port *port, struct mvpp2_tx_queue *txq)
 		mdelay(1);
 		delay++;
 
-		pending = mvpp2_txq_pend_desc_num_get(port, txq);
+		pending = mvpp2_read(port->priv, MVPP2_TXQ_PENDING_REG) &
+			MVPP2_TXQ_PENDING_MASK;
 	} while (pending);
 
 	val &= ~MVPP2_TXQ_DRAIN_EN_MASK;
