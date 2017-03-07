@@ -2468,7 +2468,13 @@ static int sony_input_configured(struct hid_device *hdev,
 		hdev->quirks |= HID_QUIRK_NO_OUTPUT_REPORTS_ON_INTR_EP;
 		hdev->quirks |= HID_QUIRK_SKIP_OUTPUT_REPORT_ID;
 		sc->defer_initialization = 1;
+
 		ret = sixaxis_set_operational_usb(hdev);
+		if (ret < 0) {
+			hid_err(hdev, "Failed to set controller into operational mode\n");
+			goto err_stop;
+		}
+
 		sony_init_output_report(sc, sixaxis_send_output_report);
 	} else if ((sc->quirks & SIXAXIS_CONTROLLER_BT) ||
 			(sc->quirks & NAVIGATION_CONTROLLER_BT)) {
@@ -2477,7 +2483,13 @@ static int sony_input_configured(struct hid_device *hdev,
 		 * when connected via Bluetooth.
 		 */
 		hdev->quirks |= HID_QUIRK_NO_OUTPUT_REPORTS_ON_INTR_EP;
+
 		ret = sixaxis_set_operational_bt(hdev);
+		if (ret < 0) {
+			hid_err(hdev, "Failed to set controller into operational mode\n");
+			goto err_stop;
+		}
+
 		sony_init_output_report(sc, sixaxis_send_output_report);
 	} else if (sc->quirks & DUALSHOCK4_CONTROLLER) {
 		ret = dualshock4_get_calibration_data(sc);
