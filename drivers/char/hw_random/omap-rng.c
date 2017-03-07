@@ -398,16 +398,6 @@ static int of_get_omap_rng_device_details(struct omap_rng_dev *priv,
 			return err;
 		}
 
-		priv->clk = devm_clk_get(&pdev->dev, NULL);
-		if (IS_ERR(priv->clk) && PTR_ERR(priv->clk) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-		if (!IS_ERR(priv->clk)) {
-			err = clk_prepare_enable(priv->clk);
-			if (err)
-				dev_err(&pdev->dev, "unable to enable the clk, "
-						    "err = %d\n", err);
-		}
-
 		/*
 		 * On OMAP4, enabling the shutdown_oflo interrupt is
 		 * done in the interrupt mask register. There is no
@@ -476,6 +466,18 @@ static int omap_rng_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to runtime_get device: %d\n", ret);
 		pm_runtime_put_noidle(&pdev->dev);
 		goto err_ioremap;
+	}
+
+	priv->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(priv->clk) && PTR_ERR(priv->clk) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+	if (!IS_ERR(priv->clk)) {
+		ret = clk_prepare_enable(priv->clk);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"Unable to enable the clk: %d\n", ret);
+			goto err_register;
+		}
 	}
 
 	ret = (dev->of_node) ? of_get_omap_rng_device_details(priv, pdev) :
