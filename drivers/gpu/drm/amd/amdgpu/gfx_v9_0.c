@@ -3195,9 +3195,53 @@ static void gfx_v9_ring_emit_sb(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, 0);
 }
 
+static void gfx_v9_0_ring_emit_ce_meta(struct amdgpu_ring *ring)
+{
+	static struct v9_ce_ib_state ce_payload = {0};
+	uint64_t csa_addr;
+	int cnt;
+
+	cnt = (sizeof(ce_payload) >> 2) + 4 - 2;
+	csa_addr = AMDGPU_VA_RESERVED_SIZE - 2 * 4096;
+
+	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, cnt));
+	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(2) |
+				 WRITE_DATA_DST_SEL(8) |
+				 WR_CONFIRM) |
+				 WRITE_DATA_CACHE_POLICY(0));
+	amdgpu_ring_write(ring, lower_32_bits(csa_addr + offsetof(struct v9_gfx_meta_data, ce_payload)));
+	amdgpu_ring_write(ring, upper_32_bits(csa_addr + offsetof(struct v9_gfx_meta_data, ce_payload)));
+	amdgpu_ring_write_multiple(ring, (void *)&ce_payload, sizeof(ce_payload) >> 2);
+}
+
+static void gfx_v9_0_ring_emit_de_meta(struct amdgpu_ring *ring)
+{
+	static struct v9_de_ib_state de_payload = {0};
+	uint64_t csa_addr, gds_addr;
+	int cnt;
+
+	csa_addr = AMDGPU_VA_RESERVED_SIZE - 2 * 4096;
+	gds_addr = csa_addr + 4096;
+	de_payload.gds_backup_addrlo = lower_32_bits(gds_addr);
+	de_payload.gds_backup_addrhi = upper_32_bits(gds_addr);
+
+	cnt = (sizeof(de_payload) >> 2) + 4 - 2;
+	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, cnt));
+	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(1) |
+				 WRITE_DATA_DST_SEL(8) |
+				 WR_CONFIRM) |
+				 WRITE_DATA_CACHE_POLICY(0));
+	amdgpu_ring_write(ring, lower_32_bits(csa_addr + offsetof(struct v9_gfx_meta_data, de_payload)));
+	amdgpu_ring_write(ring, upper_32_bits(csa_addr + offsetof(struct v9_gfx_meta_data, de_payload)));
+	amdgpu_ring_write_multiple(ring, (void *)&de_payload, sizeof(de_payload) >> 2);
+}
+
 static void gfx_v9_ring_emit_cntxcntl(struct amdgpu_ring *ring, uint32_t flags)
 {
 	uint32_t dw2 = 0;
+
+	if (amdgpu_sriov_vf(ring->adev))
+		gfx_v9_0_ring_emit_ce_meta(ring);
 
 	dw2 |= 0x80000000; /* set load_enable otherwise this package is just NOPs */
 	if (flags & AMDGPU_HAVE_CTX_SWITCH) {
@@ -3222,6 +3266,9 @@ static void gfx_v9_ring_emit_cntxcntl(struct amdgpu_ring *ring, uint32_t flags)
 	amdgpu_ring_write(ring, PACKET3(PACKET3_CONTEXT_CONTROL, 1));
 	amdgpu_ring_write(ring, dw2);
 	amdgpu_ring_write(ring, 0);
+
+	if (amdgpu_sriov_vf(ring->adev))
+		gfx_v9_0_ring_emit_de_meta(ring);
 }
 
 static unsigned gfx_v9_0_ring_emit_init_cond_exec(struct amdgpu_ring *ring)
