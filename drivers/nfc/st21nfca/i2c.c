@@ -505,7 +505,6 @@ static int st21nfca_hci_i2c_acpi_request_resources(struct i2c_client *client)
 {
 	struct st21nfca_i2c_phy *phy = i2c_get_clientdata(client);
 	struct device *dev = &client->dev;
-	u8 tmp;
 
 	/* Get EN GPIO from ACPI */
 	phy->gpiod_ena = devm_gpiod_get_index(dev, ST21NFCA_GPIO_NAME_EN, 1,
@@ -515,19 +514,6 @@ static int st21nfca_hci_i2c_acpi_request_resources(struct i2c_client *client)
 		return PTR_ERR(phy->gpiod_ena);
 	}
 
-	phy->se_status.is_ese_present = false;
-	phy->se_status.is_uicc_present = false;
-
-	if (device_property_present(dev, "ese-present")) {
-		device_property_read_u8(dev, "ese-present", &tmp);
-		phy->se_status.is_ese_present = tmp;
-	}
-
-	if (device_property_present(dev, "uicc-present")) {
-		device_property_read_u8(dev, "uicc-present", &tmp);
-		phy->se_status.is_uicc_present = tmp;
-	}
-
 	return 0;
 }
 
@@ -535,11 +521,6 @@ static int st21nfca_hci_i2c_of_request_resources(struct i2c_client *client)
 {
 	struct st21nfca_i2c_phy *phy = i2c_get_clientdata(client);
 	struct device *dev = &client->dev;
-	struct device_node *pp;
-
-	pp = client->dev.of_node;
-	if (!pp)
-		return -ENODEV;
 
 	/* Get GPIO from device tree */
 	phy->gpiod_ena = devm_gpiod_get_index(dev, ST21NFCA_GPIO_NAME_EN, 0,
@@ -548,11 +529,6 @@ static int st21nfca_hci_i2c_of_request_resources(struct i2c_client *client)
 		nfc_err(dev, "Failed to request enable pin\n");
 		return PTR_ERR(phy->gpiod_ena);
 	}
-
-	phy->se_status.is_ese_present =
-				of_property_read_bool(pp, "ese-present");
-	phy->se_status.is_uicc_present =
-				of_property_read_bool(pp, "uicc-present");
 
 	return 0;
 }
@@ -602,6 +578,11 @@ static int st21nfca_hci_i2c_probe(struct i2c_client *client,
 		nfc_err(&client->dev, "st21nfca platform resources not available\n");
 		return -ENODEV;
 	}
+
+	phy->se_status.is_ese_present =
+			device_property_read_bool(&client->dev, "ese-present");
+	phy->se_status.is_uicc_present =
+			device_property_read_bool(&client->dev, "uicc-present");
 
 	r = st21nfca_hci_platform_init(phy);
 	if (r < 0) {
