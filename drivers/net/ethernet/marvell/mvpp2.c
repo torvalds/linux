@@ -215,9 +215,6 @@
 #define     MVPP2_BM_PHY_RLS_PRIO_EN_MASK	BIT(1)
 #define     MVPP2_BM_PHY_RLS_GRNTD_MASK		BIT(2)
 #define MVPP2_BM_VIRT_RLS_REG			0x64c0
-#define MVPP2_BM_MC_RLS_REG			0x64c4
-#define     MVPP2_BM_MC_ID_MASK			0xfff
-#define     MVPP2_BM_FORCE_RELEASE_MASK		BIT(12)
 
 /* TX Scheduler registers */
 #define MVPP2_TXP_SCHED_PORT_INDEX_REG		0x8000
@@ -928,22 +925,6 @@ struct mvpp2_bm_pool {
 	/* Ports using BM pool */
 	u32 port_map;
 };
-
-struct mvpp2_buff_hdr {
-	u32 next_buff_dma_addr;
-	u32 next_buff_virt_addr;
-	u16 byte_count;
-	u16 info;
-	u8  reserved1;		/* bm_qset (for future use, BM)		*/
-};
-
-/* Buffer header info bits */
-#define MVPP2_B_HDR_INFO_MC_ID_MASK	0xfff
-#define MVPP2_B_HDR_INFO_MC_ID(info)	((info) & MVPP2_B_HDR_INFO_MC_ID_MASK)
-#define MVPP2_B_HDR_INFO_LAST_OFFS	12
-#define MVPP2_B_HDR_INFO_LAST_MASK	BIT(12)
-#define MVPP2_B_HDR_INFO_IS_LAST(info) \
-	   ((info & MVPP2_B_HDR_INFO_LAST_MASK) >> MVPP2_B_HDR_INFO_LAST_OFFS)
 
 /* Static declaractions */
 
@@ -3611,22 +3592,6 @@ static inline void mvpp2_bm_pool_put(struct mvpp2_port *port, int pool,
 	mvpp2_write(port->priv, MVPP2_BM_PHY_RLS_REG(pool), buf_dma_addr);
 }
 
-/* Release multicast buffer */
-static void mvpp2_bm_pool_mc_put(struct mvpp2_port *port, int pool,
-				 dma_addr_t buf_dma_addr,
-				 unsigned long buf_virt_addr,
-				 int mc_id)
-{
-	u32 val = 0;
-
-	val |= (mc_id & MVPP2_BM_MC_ID_MASK);
-	mvpp2_write(port->priv, MVPP2_BM_MC_RLS_REG, val);
-
-	mvpp2_bm_pool_put(port, pool,
-			  buf_dma_addr | MVPP2_BM_PHY_RLS_MC_BUFF_MASK,
-			  buf_virt_addr);
-}
-
 /* Refill BM pool */
 static void mvpp2_pool_refill(struct mvpp2_port *port, u32 bm,
 			      dma_addr_t dma_addr,
@@ -5075,43 +5040,6 @@ static u32 mvpp2_skb_tx_csum(struct mvpp2_port *port, struct sk_buff *skb)
 	return MVPP2_TXD_L4_CSUM_NOT | MVPP2_TXD_IP_CSUM_DISABLE;
 }
 
-static void mvpp2_buff_hdr_rx(struct mvpp2_port *port,
-			      struct mvpp2_rx_desc *rx_desc)
-{
-	struct mvpp2_buff_hdr *buff_hdr;
-	struct sk_buff *skb;
-	u32 rx_status = rx_desc->status;
-	dma_addr_t buff_dma_addr;
-	unsigned long buff_virt_addr;
-	dma_addr_t buff_dma_addr_next;
-	unsigned long buff_virt_addr_next;
-	int mc_id;
-	int pool_id;
-
-	pool_id = (rx_status & MVPP2_RXD_BM_POOL_ID_MASK) >>
-		   MVPP2_RXD_BM_POOL_ID_OFFS;
-	buff_dma_addr = rx_desc->buf_dma_addr;
-	buff_virt_addr = rx_desc->buf_cookie;
-
-	do {
-		skb = (struct sk_buff *)buff_virt_addr;
-		buff_hdr = (struct mvpp2_buff_hdr *)skb->head;
-
-		mc_id = MVPP2_B_HDR_INFO_MC_ID(buff_hdr->info);
-
-		buff_dma_addr_next = buff_hdr->next_buff_dma_addr;
-		buff_virt_addr_next = buff_hdr->next_buff_virt_addr;
-
-		/* Release buffer */
-		mvpp2_bm_pool_mc_put(port, pool_id, buff_dma_addr,
-				     buff_virt_addr, mc_id);
-
-		buff_dma_addr = buff_dma_addr_next;
-		buff_virt_addr = buff_virt_addr_next;
-
-	} while (!MVPP2_B_HDR_INFO_IS_LAST(buff_hdr->info));
-}
-
 /* Main rx processing */
 static int mvpp2_rx(struct mvpp2_port *port, int rx_todo,
 		    struct mvpp2_rx_queue *rxq)
@@ -5146,11 +5074,6 @@ static int mvpp2_rx(struct mvpp2_port *port, int rx_todo,
 		bm = mvpp2_bm_cookie_build(rx_desc);
 		pool = mvpp2_bm_cookie_pool_get(bm);
 		bm_pool = &port->priv->bm_pools[pool];
-		/* Check if buffer header is used */
-		if (rx_status & MVPP2_RXD_BUF_HDR) {
-			mvpp2_buff_hdr_rx(port, rx_desc);
-			continue;
-		}
 
 		/* In case of an error, release the requested buffer pointer
 		 * to the Buffer Manager. This request process is controlled
