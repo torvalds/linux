@@ -152,7 +152,7 @@ struct octnic_gather {
 	 */
 	struct octeon_sg_entry *sg;
 
-	u64 sg_dma_ptr;
+	dma_addr_t sg_dma_ptr;
 };
 
 struct handshake {
@@ -734,6 +734,9 @@ static void delete_glists(struct lio *lio)
 	struct octnic_gather *g;
 	int i;
 
+	kfree(lio->glist_lock);
+	lio->glist_lock = NULL;
+
 	if (!lio->glist)
 		return;
 
@@ -741,23 +744,26 @@ static void delete_glists(struct lio *lio)
 		do {
 			g = (struct octnic_gather *)
 				list_delete_head(&lio->glist[i]);
-			if (g) {
-				if (g->sg) {
-					dma_unmap_single(&lio->oct_dev->
-							 pci_dev->dev,
-							 g->sg_dma_ptr,
-							 g->sg_size,
-							 DMA_TO_DEVICE);
-					kfree((void *)((unsigned long)g->sg -
-						       g->adjust));
-				}
+			if (g)
 				kfree(g);
-			}
 		} while (g);
+
+		if (lio->glists_virt_base && lio->glists_virt_base[i]) {
+			lio_dma_free(lio->oct_dev,
+				     lio->glist_entry_size * lio->tx_qsize,
+				     lio->glists_virt_base[i],
+				     lio->glists_dma_base[i]);
+		}
 	}
 
-	kfree((void *)lio->glist);
-	kfree((void *)lio->glist_lock);
+	kfree(lio->glists_virt_base);
+	lio->glists_virt_base = NULL;
+
+	kfree(lio->glists_dma_base);
+	lio->glists_dma_base = NULL;
+
+	kfree(lio->glist);
+	lio->glist = NULL;
 }
 
 /**
@@ -772,13 +778,30 @@ static int setup_glists(struct octeon_device *oct, struct lio *lio, int num_iqs)
 	lio->glist_lock = kcalloc(num_iqs, sizeof(*lio->glist_lock),
 				  GFP_KERNEL);
 	if (!lio->glist_lock)
-		return 1;
+		return -ENOMEM;
 
 	lio->glist = kcalloc(num_iqs, sizeof(*lio->glist),
 			     GFP_KERNEL);
 	if (!lio->glist) {
-		kfree((void *)lio->glist_lock);
-		return 1;
+		kfree(lio->glist_lock);
+		lio->glist_lock = NULL;
+		return -ENOMEM;
+	}
+
+	lio->glist_entry_size =
+		ROUNDUP8((ROUNDUP4(OCTNIC_MAX_SG) >> 2) * OCT_SG_ENTRY_SIZE);
+
+	/* allocate memory to store virtual and dma base address of
+	 * per glist consistent memory
+	 */
+	lio->glists_virt_base = kcalloc(num_iqs, sizeof(*lio->glists_virt_base),
+					GFP_KERNEL);
+	lio->glists_dma_base = kcalloc(num_iqs, sizeof(*lio->glists_dma_base),
+				       GFP_KERNEL);
+
+	if (!lio->glists_virt_base || !lio->glists_dma_base) {
+		delete_glists(lio);
+		return -ENOMEM;
 	}
 
 	for (i = 0; i < num_iqs; i++) {
@@ -788,6 +811,16 @@ static int setup_glists(struct octeon_device *oct, struct lio *lio, int num_iqs)
 
 		INIT_LIST_HEAD(&lio->glist[i]);
 
+		lio->glists_virt_base[i] =
+			lio_dma_alloc(oct,
+				      lio->glist_entry_size * lio->tx_qsize,
+				      &lio->glists_dma_base[i]);
+
+		if (!lio->glists_virt_base[i]) {
+			delete_glists(lio);
+			return -ENOMEM;
+		}
+
 		for (j = 0; j < lio->tx_qsize; j++) {
 			g = kzalloc_node(sizeof(*g), GFP_KERNEL,
 					 numa_node);
@@ -796,43 +829,18 @@ static int setup_glists(struct octeon_device *oct, struct lio *lio, int num_iqs)
 			if (!g)
 				break;
 
-			g->sg_size = ((ROUNDUP4(OCTNIC_MAX_SG) >> 2) *
-				      OCT_SG_ENTRY_SIZE);
+			g->sg = lio->glists_virt_base[i] +
+				(j * lio->glist_entry_size);
 
-			g->sg = kmalloc_node(g->sg_size + 8,
-					     GFP_KERNEL, numa_node);
-			if (!g->sg)
-				g->sg = kmalloc(g->sg_size + 8, GFP_KERNEL);
-			if (!g->sg) {
-				kfree(g);
-				break;
-			}
-
-			/* The gather component should be aligned on 64-bit
-			 * boundary
-			 */
-			if (((unsigned long)g->sg) & 7) {
-				g->adjust = 8 - (((unsigned long)g->sg) & 7);
-				g->sg = (struct octeon_sg_entry *)
-					((unsigned long)g->sg + g->adjust);
-			}
-			g->sg_dma_ptr = dma_map_single(&oct->pci_dev->dev,
-						       g->sg, g->sg_size,
-						       DMA_TO_DEVICE);
-			if (dma_mapping_error(&oct->pci_dev->dev,
-					      g->sg_dma_ptr)) {
-				kfree((void *)((unsigned long)g->sg -
-					       g->adjust));
-				kfree(g);
-				break;
-			}
+			g->sg_dma_ptr = lio->glists_dma_base[i] +
+					(j * lio->glist_entry_size);
 
 			list_add_tail(&g->list, &lio->glist[i]);
 		}
 
 		if (j != lio->tx_qsize) {
 			delete_glists(lio);
-			return 1;
+			return -ENOMEM;
 		}
 	}
 
@@ -1885,9 +1893,6 @@ static void free_netsgbuf(void *buf)
 		i++;
 	}
 
-	dma_sync_single_for_cpu(&lio->oct_dev->pci_dev->dev,
-				g->sg_dma_ptr, g->sg_size, DMA_TO_DEVICE);
-
 	iq = skb_iq(lio, skb);
 	spin_lock(&lio->glist_lock[iq]);
 	list_add_tail(&g->list, &lio->glist[iq]);
@@ -1932,9 +1937,6 @@ static void free_netsgbuf_with_resp(void *buf)
 			       frag->size, DMA_TO_DEVICE);
 		i++;
 	}
-
-	dma_sync_single_for_cpu(&lio->oct_dev->pci_dev->dev,
-				g->sg_dma_ptr, g->sg_size, DMA_TO_DEVICE);
 
 	iq = skb_iq(lio, skb);
 
@@ -3273,8 +3275,6 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 			i++;
 		}
 
-		dma_sync_single_for_device(&oct->pci_dev->dev, g->sg_dma_ptr,
-					   g->sg_size, DMA_TO_DEVICE);
 		dptr = g->sg_dma_ptr;
 
 		if (OCTEON_CN23XX_PF(oct))
