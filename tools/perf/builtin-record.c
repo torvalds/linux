@@ -986,6 +986,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	 */
 	if (forks) {
 		union perf_event *event;
+		pid_t tgid;
 
 		event = malloc(sizeof(event->comm) + machine->id_hdr_size);
 		if (event == NULL) {
@@ -999,10 +1000,30 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		 * cannot see a correct process name for those events.
 		 * Synthesize COMM event to prevent it.
 		 */
-		perf_event__synthesize_comm(tool, event,
-					    rec->evlist->workload.pid,
-					    process_synthesized_event,
-					    machine);
+		tgid = perf_event__synthesize_comm(tool, event,
+						   rec->evlist->workload.pid,
+						   process_synthesized_event,
+						   machine);
+		free(event);
+
+		if (tgid == -1)
+			goto out_child;
+
+		event = malloc(sizeof(event->namespaces) +
+			       (NR_NAMESPACES * sizeof(struct perf_ns_link_info)) +
+			       machine->id_hdr_size);
+		if (event == NULL) {
+			err = -ENOMEM;
+			goto out_child;
+		}
+
+		/*
+		 * Synthesize NAMESPACES event for the command specified.
+		 */
+		perf_event__synthesize_namespaces(tool, event,
+						  rec->evlist->workload.pid,
+						  tgid, process_synthesized_event,
+						  machine);
 		free(event);
 
 		perf_evlist__start_workload(rec->evlist);
