@@ -65,6 +65,10 @@
 	status = "okay";
 };
 
+&ehci0 {
+	status = "okay";
+};
+
 &i2c0 {
 	temperature-sensor@4c {
 		compatible = "adi,adt7461a";
@@ -119,6 +123,10 @@
 			reg = <0x04000000 0x3c000000>;
 		};
 	};
+};
+
+&ohci0 {
+	status = "okay";
 };
 
 &pcie0 {
