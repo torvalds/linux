@@ -230,7 +230,6 @@ int qxl_debugfs_add_files(struct qxl_device *rdev,
 			     struct drm_info_list *files,
 			     unsigned nfiles);
 int qxl_debugfs_fence_init(struct qxl_device *rdev);
-void qxl_debugfs_remove_files(struct qxl_device *qdev);
 
 struct qxl_device;
 

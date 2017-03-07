@@ -262,5 +262,4 @@ void qxl_device_fini(struct qxl_device *qdev)
 	iounmap(qdev->ram_header);
 	iounmap(qdev->rom);
 	qdev->rom = NULL;
-	qxl_debugfs_remove_files(qdev);
 }
