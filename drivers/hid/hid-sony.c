@@ -2477,6 +2477,10 @@ static int sony_input_configured(struct hid_device *hdev,
 		goto err_stop;
 	}
 
+	ret = append_dev_id = sony_check_add(sc);
+	if (ret < 0)
+		goto err_stop;
+
 	ret = sony_allocate_output_report(sc);
 	if (ret < 0) {
 		hid_err(hdev, "failed to allocate the output report buffer\n");
@@ -2610,10 +2614,6 @@ static int sony_input_configured(struct hid_device *hdev,
 		ret = 0;
 	}
 
-	if (ret < 0)
-		goto err_stop;
-
-	ret = append_dev_id = sony_check_add(sc);
 	if (ret < 0)
 		goto err_stop;
 
