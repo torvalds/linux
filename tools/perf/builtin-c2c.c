@@ -2536,7 +2536,7 @@ static int perf_c2c__report(int argc, const char **argv)
 	OPT_BOOLEAN(0, "stdio", &c2c.use_stdio, "Use the stdio interface"),
 #endif
 	OPT_BOOLEAN(0, "stats", &c2c.stats_only,
-		    "Use the stdio interface"),
+		    "Display only statistic tables (implies --stdio)"),
 	OPT_BOOLEAN(0, "full-symbols", &c2c.symbol_full,
 		    "Display full length of symbols"),
 	OPT_BOOLEAN(0, "no-source", &no_source,
