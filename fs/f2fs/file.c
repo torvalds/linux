@@ -110,6 +110,9 @@ static int get_parent_ino(struct inode *inode, nid_t *pino)
 {
 	struct dentry *dentry;
 
+	if (file_enc_name(inode))
+		return 0;
+
 	inode = igrab(inode);
 	dentry = d_find_any_alias(inode);
 	iput(inode);
