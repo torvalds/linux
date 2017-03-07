@@ -1137,6 +1137,81 @@ static enum bp_result get_ss_info_v4_1(
 	return result;
 }
 
+static enum bp_result get_ss_info_v4_2(
+	struct bios_parser *bp,
+	uint32_t id,
+	uint32_t index,
+	struct spread_spectrum_info *ss_info)
+{
+	enum bp_result result = BP_RESULT_OK;
+	struct atom_display_controller_info_v4_2 *disp_cntl_tbl = NULL;
+	struct atom_smu_info_v3_1 *smu_tbl = NULL;
+
+	if (!ss_info)
+		return BP_RESULT_BADINPUT;
+
+	if (!DATA_TABLES(dce_info))
+		return BP_RESULT_BADBIOSTABLE;
+
+	if (!DATA_TABLES(smu_info))
+		return BP_RESULT_BADBIOSTABLE;
+
+	disp_cntl_tbl =  GET_IMAGE(struct atom_display_controller_info_v4_2,
+							DATA_TABLES(dce_info));
+	if (!disp_cntl_tbl)
+		return BP_RESULT_BADBIOSTABLE;
+
+	smu_tbl =  GET_IMAGE(struct atom_smu_info_v3_1, DATA_TABLES(smu_info));
+	if (!smu_tbl)
+		return BP_RESULT_BADBIOSTABLE;
+
+
+	ss_info->type.STEP_AND_DELAY_INFO = false;
+	ss_info->spread_percentage_divider = 1000;
+	/* BIOS no longer uses target clock.  Always enable for now */
+	ss_info->target_clock_range = 0xffffffff;
+
+	switch (id) {
+	case AS_SIGNAL_TYPE_DVI:
+		ss_info->spread_spectrum_percentage =
+				disp_cntl_tbl->dvi_ss_percentage;
+		ss_info->spread_spectrum_range =
+				disp_cntl_tbl->dvi_ss_rate_10hz * 10;
+		if (disp_cntl_tbl->dvi_ss_mode & ATOM_SS_CENTRE_SPREAD_MODE)
+			ss_info->type.CENTER_MODE = true;
+		break;
+	case AS_SIGNAL_TYPE_HDMI:
+		ss_info->spread_spectrum_percentage =
+				disp_cntl_tbl->hdmi_ss_percentage;
+		ss_info->spread_spectrum_range =
+				disp_cntl_tbl->hdmi_ss_rate_10hz * 10;
+		if (disp_cntl_tbl->hdmi_ss_mode & ATOM_SS_CENTRE_SPREAD_MODE)
+			ss_info->type.CENTER_MODE = true;
+		break;
+	/* TODO LVDS not support anymore? */
+	case AS_SIGNAL_TYPE_DISPLAY_PORT:
+		ss_info->spread_spectrum_percentage =
+				disp_cntl_tbl->dp_ss_percentage;
+		ss_info->spread_spectrum_range =
+				disp_cntl_tbl->dp_ss_rate_10hz * 10;
+		if (disp_cntl_tbl->dp_ss_mode & ATOM_SS_CENTRE_SPREAD_MODE)
+			ss_info->type.CENTER_MODE = true;
+		break;
+	case AS_SIGNAL_TYPE_GPU_PLL:
+		ss_info->spread_spectrum_percentage =
+				smu_tbl->gpuclk_ss_percentage;
+		ss_info->spread_spectrum_range =
+				smu_tbl->gpuclk_ss_rate_10hz * 10;
+		if (smu_tbl->gpuclk_ss_mode & ATOM_SS_CENTRE_SPREAD_MODE)
+			ss_info->type.CENTER_MODE = true;
+		break;
+	default:
+		result = BP_RESULT_UNSUPPORTED;
+	}
+
+	return result;
+}
+
 /**
  * bios_parser_get_spread_spectrum_info
  * Get spread spectrum information from the ASIC_InternalSS_Info(ver 2.1 or
@@ -1177,6 +1252,8 @@ static enum bp_result bios_parser_get_spread_spectrum_info(
 		switch (tbl_revision.minor) {
 		case 1:
 			return get_ss_info_v4_1(bp, signal, index, ss_info);
+		case 2:
+			return get_ss_info_v4_2(bp, signal, index, ss_info);
 		default:
 			break;
 		}
@@ -1579,7 +1656,7 @@ static enum bp_result get_firmware_info_v3_1(
 	/* Hardcode frequency if BIOS gives no DCE Ref Clk */
 	if (info->pll_info.crystal_frequency == 0)
 		info->pll_info.crystal_frequency = 27000;
-
+	/*dp_phy_ref_clk is not correct for atom_display_controller_info_v4_2, but we don't use it*/
 	info->dp_phy_ref_clk     = dce_info->dpphy_refclk_10khz * 10;
 	info->i2c_engine_ref_clk = dce_info->i2c_engine_refclk_10khz * 10;
 
