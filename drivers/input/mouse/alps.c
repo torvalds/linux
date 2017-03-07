@@ -164,6 +164,10 @@ static const struct alps_protocol_info alps_v8_protocol_data = {
 	ALPS_PROTO_V8, 0x18, 0x18, 0
 };
 
+static const struct alps_protocol_info alps_v9_protocol_data = {
+	ALPS_PROTO_V9, 0xc8, 0xc8, 0
+};
+
 /*
  * Some v2 models report the stick buttons in separate bits
  */
@@ -2838,6 +2842,12 @@ static int alps_identify(struct psmouse *psmouse, struct alps_data *priv)
 		} else if (e7[0] == 0x73 && e7[1] == 0x03 &&
 			   e7[2] == 0x28 && ec[1] == 0x01) {
 			protocol = &alps_v8_protocol_data;
+		} else if (e7[0] == 0x73 && e7[1] == 0x03 && e7[2] == 0xc8) {
+			protocol = &alps_v9_protocol_data;
+			psmouse_warn(psmouse,
+				     "Unsupported ALPS V9 touchpad: E7=%3ph, EC=%3ph\n",
+				     e7, ec);
+			return -EINVAL;
 		} else {
 			psmouse_dbg(psmouse,
 				    "Likely not an ALPS touchpad: E7=%3ph, EC=%3ph\n", e7, ec);
