@@ -2409,6 +2409,12 @@ static int i40e_get_ethtool_fdir_entry(struct i40e_pf *pf,
 	fsp->h_u.tcp_ip4_spec.ip4src = rule->dst_ip;
 	fsp->h_u.tcp_ip4_spec.ip4dst = rule->src_ip;
 
+	/* Set the mask fields */
+	fsp->m_u.tcp_ip4_spec.psrc = htons(0xFFFF);
+	fsp->m_u.tcp_ip4_spec.pdst = htons(0xFFFF);
+	fsp->m_u.tcp_ip4_spec.ip4src = htonl(0xFFFFFFFF);
+	fsp->m_u.tcp_ip4_spec.ip4dst = htonl(0xFFFFFFFF);
+
 	if (rule->dest_ctl == I40E_FILTER_PROGRAM_DESC_DEST_DROP_PACKET)
 		fsp->ring_cookie = RX_CLS_FLOW_DISC;
 	else
@@ -2718,6 +2724,79 @@ static int i40e_del_fdir_entry(struct i40e_vsi *vsi,
 }
 
 /**
+ * i40e_check_fdir_input_set - Check that a given rx_flow_spec mask is valid
+ * @fsp: pointer to Rx flow specification
+ *
+ * Ensures that a given ethtool_rx_flow_spec has a valid mask.
+ **/
+static int i40e_check_fdir_input_set(struct ethtool_rx_flow_spec *fsp)
+{
+	struct ethtool_tcpip4_spec *tcp_ip4_spec;
+	struct ethtool_usrip4_spec *usr_ip4_spec;
+
+	/* Verify the provided mask is valid. */
+	switch (fsp->flow_type & ~FLOW_EXT) {
+	case SCTP_V4_FLOW:
+	case TCP_V4_FLOW:
+	case UDP_V4_FLOW:
+		tcp_ip4_spec = &fsp->m_u.tcp_ip4_spec;
+
+		/* IPv4 source address */
+		if (!tcp_ip4_spec->ip4src || ~tcp_ip4_spec->ip4src)
+			return -EOPNOTSUPP;
+
+		/* IPv4 destination address */
+		if (!tcp_ip4_spec->ip4dst || ~tcp_ip4_spec->ip4dst)
+			return -EOPNOTSUPP;
+
+		/* L4 source port */
+		if (!tcp_ip4_spec->psrc || (__be16)~tcp_ip4_spec->psrc)
+			return -EOPNOTSUPP;
+
+		/* L4 destination port */
+		if (!tcp_ip4_spec->pdst || (__be16)~tcp_ip4_spec->pdst)
+			return -EOPNOTSUPP;
+
+		/* Filtering on Type of Service is not supported. */
+		if (tcp_ip4_spec->tos)
+			return -EOPNOTSUPP;
+
+		break;
+	case IP_USER_FLOW:
+		usr_ip4_spec = &fsp->m_u.usr_ip4_spec;
+
+		/* IPv4 source address */
+		if (!usr_ip4_spec->ip4src || ~usr_ip4_spec->ip4src)
+			return -EOPNOTSUPP;
+
+		/* IPv4 destination address */
+		if (!usr_ip4_spec->ip4dst || ~usr_ip4_spec->ip4dst)
+			return -EOPNOTSUPP;
+
+		/* First 4 bytes of L4 header */
+		if (!usr_ip4_spec->l4_4_bytes || ~usr_ip4_spec->l4_4_bytes)
+			return -EOPNOTSUPP;
+
+		/* Filtering on Type of Service is not supported. */
+		if (usr_ip4_spec->tos)
+			return -EOPNOTSUPP;
+
+		/* IP version does not have a mask field. */
+		if (usr_ip4_spec->ip_ver)
+			return -EINVAL;
+
+		/* L4 protocol doesn't have a mask field. */
+		if (usr_ip4_spec->proto)
+			return -EINVAL;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+/**
  * i40e_add_fdir_ethtool - Add/Remove Flow Director filters
  * @vsi: pointer to the targeted VSI
  * @cmd: command to get or set RX flow classification rules
@@ -2756,6 +2835,10 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 	/* Extended MAC field is not supported */
 	if (fsp->flow_type & FLOW_MAC_EXT)
 		return -EINVAL;
+
+	ret = i40e_check_fdir_input_set(fsp);
+	if (ret)
+		return ret;
 
 	if (fsp->location >= (pf->hw.func_caps.fd_filters_best_effort +
 			      pf->hw.func_caps.fd_filters_guaranteed)) {
