@@ -4151,6 +4151,41 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_wedged_fops,
 			"%llu\n");
 
 static int
+fault_irq_set(struct drm_i915_private *i915,
+	      unsigned long *irq,
+	      unsigned long val)
+{
+	int err;
+
+	err = mutex_lock_interruptible(&i915->drm.struct_mutex);
+	if (err)
+		return err;
+
+	err = i915_gem_wait_for_idle(i915,
+				     I915_WAIT_LOCKED |
+				     I915_WAIT_INTERRUPTIBLE);
+	if (err)
+		goto err_unlock;
+
+	/* Retire to kick idle work */
+	i915_gem_retire_requests(i915);
+	GEM_BUG_ON(i915->gt.active_requests);
+
+	*irq = val;
+	mutex_unlock(&i915->drm.struct_mutex);
+
+	/* Flush idle worker to disarm irq */
+	while (flush_delayed_work(&i915->gt.idle_work))
+		;
+
+	return 0;
+
+err_unlock:
+	mutex_unlock(&i915->drm.struct_mutex);
+	return err;
+}
+
+static int
 i915_ring_missed_irq_get(void *data, u64 *val)
 {
 	struct drm_i915_private *dev_priv = data;
@@ -4162,18 +4197,9 @@ i915_ring_missed_irq_get(void *data, u64 *val)
 static int
 i915_ring_missed_irq_set(void *data, u64 val)
 {
-	struct drm_i915_private *dev_priv = data;
-	struct drm_device *dev = &dev_priv->drm;
-	int ret;
+	struct drm_i915_private *i915 = data;
 
-	/* Lock against concurrent debugfs callers */
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-	dev_priv->gpu_error.missed_irq_rings = val;
-	mutex_unlock(&dev->struct_mutex);
-
-	return 0;
+	return fault_irq_set(i915, &i915->gpu_error.missed_irq_rings, val);
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_ring_missed_irq_fops,
@@ -4193,13 +4219,12 @@ i915_ring_test_irq_get(void *data, u64 *val)
 static int
 i915_ring_test_irq_set(void *data, u64 val)
 {
-	struct drm_i915_private *dev_priv = data;
+	struct drm_i915_private *i915 = data;
 
-	val &= INTEL_INFO(dev_priv)->ring_mask;
+	val &= INTEL_INFO(i915)->ring_mask;
 	DRM_DEBUG_DRIVER("Masking interrupts on rings 0x%08llx\n", val);
-	dev_priv->gpu_error.test_irq_rings = val;
 
-	return 0;
+	return fault_irq_set(i915, &i915->gpu_error.test_irq_rings, val);
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_ring_test_irq_fops,
