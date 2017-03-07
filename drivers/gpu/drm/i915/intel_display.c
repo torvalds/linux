@@ -2102,6 +2102,10 @@ static unsigned int intel_surf_alignment(const struct drm_framebuffer *fb,
 {
 	struct drm_i915_private *dev_priv = to_i915(fb->dev);
 
+	/* AUX_DIST needs only 4K alignment */
+	if (fb->format->format == DRM_FORMAT_NV12 && plane == 1)
+		return 4096;
+
 	switch (fb->modifier) {
 	case DRM_FORMAT_MOD_NONE:
 		return intel_linear_alignment(dev_priv);
@@ -2386,13 +2390,7 @@ u32 intel_compute_tile_offset(int *x, int *y,
 	const struct drm_framebuffer *fb = state->base.fb;
 	unsigned int rotation = state->base.rotation;
 	int pitch = intel_fb_pitch(fb, plane, rotation);
-	u32 alignment;
-
-	/* AUX_DIST needs only 4K alignment */
-	if (fb->format->format == DRM_FORMAT_NV12 && plane == 1)
-		alignment = 4096;
-	else
-		alignment = intel_surf_alignment(fb, plane);
+	u32 alignment = intel_surf_alignment(fb, plane);
 
 	return _intel_compute_tile_offset(dev_priv, x, y, fb, plane, pitch,
 					  rotation, alignment);
