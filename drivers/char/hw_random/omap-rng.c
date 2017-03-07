@@ -398,7 +398,7 @@ static int of_get_omap_rng_device_details(struct omap_rng_dev *priv,
 			return err;
 		}
 
-		priv->clk = of_clk_get(pdev->dev.of_node, 0);
+		priv->clk = devm_clk_get(&pdev->dev, NULL);
 		if (IS_ERR(priv->clk) && PTR_ERR(priv->clk) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 		if (!IS_ERR(priv->clk)) {
