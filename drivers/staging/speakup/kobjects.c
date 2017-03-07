@@ -106,7 +106,8 @@ static void report_char_chartab_status(int reset, int received, int used,
  * This is called when a user changes the characters or chartab parameters.
  */
 static ssize_t chars_chartab_store(struct kobject *kobj,
-				   struct kobj_attribute *attr, const char *buf, size_t count)
+				   struct kobj_attribute *attr,
+				   const char *buf, size_t count)
 {
 	char *cp = (char *)buf;
 	char *end = cp + count; /* the null at the end of the buffer */
@@ -404,7 +405,8 @@ static ssize_t synth_store(struct kobject *kobj, struct kobj_attribute *attr,
  * This is called when text is sent to the synth via the synth_direct file.
  */
 static ssize_t synth_direct_store(struct kobject *kobj,
-				  struct kobj_attribute *attr, const char *buf, size_t count)
+				  struct kobj_attribute *attr,
+				  const char *buf, size_t count)
 {
 	u_char tmp[256];
 	int len;
