@@ -968,7 +968,7 @@ static int qed_ll2_start_ooo(struct qed_dev *cdev,
 {
 	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
 	u8 *handle = &hwfn->pf_params.iscsi_pf_params.ll2_ooo_queue_id;
-	struct qed_ll2_conn ll2_info;
+	struct qed_ll2_conn ll2_info = { 0 };
 	int rc;
 
 	ll2_info.conn_type = QED_LL2_TYPE_ISCSI_OOO;
