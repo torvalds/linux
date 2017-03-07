@@ -25,6 +25,7 @@
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/phy.h>
 #include <linux/clk.h>
 #include <linux/hrtimer.h>
@@ -643,6 +644,9 @@ struct mvpp2 {
 
 	/* Tclk value */
 	u32 tclk;
+
+	/* HW version */
+	enum { MVPP21, MVPP22 } hw_version;
 };
 
 struct mvpp2_pcpu_stats {
@@ -6429,6 +6433,9 @@ static int mvpp2_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
+	priv->hw_version =
+		(unsigned long)of_device_get_match_data(&pdev->dev);
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(priv->base))
@@ -6533,7 +6540,10 @@ static int mvpp2_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id mvpp2_match[] = {
-	{ .compatible = "marvell,armada-375-pp2" },
+	{
+		.compatible = "marvell,armada-375-pp2",
+		.data = (void *)MVPP21,
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mvpp2_match);
