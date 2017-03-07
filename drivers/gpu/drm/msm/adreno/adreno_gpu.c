@@ -35,6 +35,9 @@ int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value)
 	case MSM_PARAM_GMEM_SIZE:
 		*value = adreno_gpu->gmem;
 		return 0;
+	case MSM_PARAM_GMEM_BASE:
+		*value = 0x100000;
+		return 0;
 	case MSM_PARAM_CHIP_ID:
 		*value = adreno_gpu->rev.patchid |
 				(adreno_gpu->rev.minor << 8) |
