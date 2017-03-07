@@ -402,14 +402,8 @@
 /* Maximum number of TXQs used by single port */
 #define MVPP2_MAX_TXQ			8
 
-/* Maximum number of RXQs used by single port */
-#define MVPP2_MAX_RXQ			8
-
 /* Dfault number of RXQs in use */
 #define MVPP2_DEFAULT_RXQ		4
-
-/* Total number of RXQs available to all ports */
-#define MVPP2_RXQ_TOTAL_NUM		(MVPP2_MAX_PORTS * MVPP2_MAX_RXQ)
 
 /* Max number of Rx descriptors */
 #define MVPP2_MAX_RXD			128
@@ -730,6 +724,9 @@ struct mvpp2 {
 
 	/* HW version */
 	enum { MVPP21, MVPP22 } hw_version;
+
+	/* Maximum number of RXQs per port */
+	unsigned int max_port_rxqs;
 };
 
 struct mvpp2_pcpu_stats {
@@ -6352,7 +6349,8 @@ static int mvpp2_port_init(struct mvpp2_port *port)
 	struct mvpp2_txq_pcpu *txq_pcpu;
 	int queue, cpu, err;
 
-	if (port->first_rxq + rxq_number > MVPP2_RXQ_TOTAL_NUM)
+	if (port->first_rxq + rxq_number >
+	    MVPP2_MAX_PORTS * priv->max_port_rxqs)
 		return -EINVAL;
 
 	/* Disable port */
@@ -6473,8 +6471,7 @@ err_free_percpu:
 /* Ports initialization */
 static int mvpp2_port_probe(struct platform_device *pdev,
 			    struct device_node *port_node,
-			    struct mvpp2 *priv,
-			    int *next_first_rxq)
+			    struct mvpp2 *priv)
 {
 	struct device_node *phy_node;
 	struct mvpp2_port *port;
@@ -6532,7 +6529,11 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 
 	port->priv = priv;
 	port->id = id;
-	port->first_rxq = *next_first_rxq;
+	if (priv->hw_version == MVPP21)
+		port->first_rxq = port->id * rxq_number;
+	else
+		port->first_rxq = port->id * priv->max_port_rxqs;
+
 	port->phy_node = phy_node;
 	port->phy_interface = phy_mode;
 
@@ -6632,8 +6633,6 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	}
 	netdev_info(dev, "Using %s mac address %pM\n", mac_from, dev->dev_addr);
 
-	/* Increment the first Rx queue number to be used by the next port */
-	*next_first_rxq += rxq_number;
 	priv->port_list[id] = port;
 	return 0;
 
@@ -6779,7 +6778,7 @@ static int mvpp2_init(struct platform_device *pdev, struct mvpp2 *priv)
 	u32 val;
 
 	/* Checks for hardware constraints */
-	if (rxq_number % 4 || (rxq_number > MVPP2_MAX_RXQ) ||
+	if (rxq_number % 4 || (rxq_number > priv->max_port_rxqs) ||
 	    (txq_number > MVPP2_MAX_TXQ)) {
 		dev_err(&pdev->dev, "invalid queue size parameter\n");
 		return -EINVAL;
@@ -6870,7 +6869,7 @@ static int mvpp2_probe(struct platform_device *pdev)
 	struct mvpp2 *priv;
 	struct resource *res;
 	void __iomem *base;
-	int port_count, first_rxq, cpu;
+	int port_count, cpu;
 	int err;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct mvpp2), GFP_KERNEL);
@@ -6904,6 +6903,11 @@ static int mvpp2_probe(struct platform_device *pdev)
 				 MVPP21_ADDR_SPACE_SZ : MVPP22_ADDR_SPACE_SZ);
 		priv->cpu_base[cpu] = base + cpu * addr_space_sz;
 	}
+
+	if (priv->hw_version == MVPP21)
+		priv->max_port_rxqs = 8;
+	else
+		priv->max_port_rxqs = 32;
 
 	priv->pp_clk = devm_clk_get(&pdev->dev, "pp_clk");
 	if (IS_ERR(priv->pp_clk))
@@ -6947,9 +6951,8 @@ static int mvpp2_probe(struct platform_device *pdev)
 	}
 
 	/* Initialize ports */
-	first_rxq = 0;
 	for_each_available_child_of_node(dn, port_node) {
-		err = mvpp2_port_probe(pdev, port_node, priv, &first_rxq);
+		err = mvpp2_port_probe(pdev, port_node, priv);
 		if (err < 0)
 			goto err_gop_clk;
 	}
