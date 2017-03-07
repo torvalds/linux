@@ -587,20 +587,21 @@ It is extremely simple:
 		write_unlock(&rcu_gp_mutex);
 	}
 
-[You can ignore rcu_assign_pointer() and rcu_dereference() without
-missing much.  But here they are anyway.  And whatever you do, don't
-forget about them when submitting patches making use of RCU!]
+[You can ignore rcu_assign_pointer() and rcu_dereference() without missing
+much.  But here are simplified versions anyway.  And whatever you do,
+don't forget about them when submitting patches making use of RCU!]
 
-	#define rcu_assign_pointer(p, v)	({ \
-							smp_wmb(); \
-							(p) = (v); \
-						})
+	#define rcu_assign_pointer(p, v) \
+	({ \
+		smp_store_release(&(p), (v)); \
+	})
 
-	#define rcu_dereference(p)     ({ \
-					typeof(p) _________p1 = p; \
-					smp_read_barrier_depends(); \
-					(_________p1); \
-					})
+	#define rcu_dereference(p) \
+	({ \
+		typeof(p) _________p1 = p; \
+		smp_read_barrier_depends(); \
+		(_________p1); \
+	})
 
 
 The rcu_read_lock() and rcu_read_unlock() primitive read-acquire
