@@ -252,7 +252,7 @@ static const struct regmap_config rk818_regmap_config = {
 
 static const struct mfd_cell rk818s[] = {
 	{ .name = "rk808-clkout", },
-	{ .name = "rk818-regulator", },
+	{ .name = "rk808-regulator", },
 	{ .name = "rk818-battery", .of_compatible = "rk818-battery", },
 	{ .name = "rk818-charger", },
 	{
