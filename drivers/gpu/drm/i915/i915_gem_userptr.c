@@ -541,6 +541,8 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 		}
 
 		obj->userptr.work = ERR_CAST(pages);
+		if (IS_ERR(pages))
+			__i915_gem_userptr_set_active(obj, false);
 	}
 	mutex_unlock(&obj->mm.lock);
 
