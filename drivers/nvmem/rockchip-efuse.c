@@ -16,6 +16,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/rockchip/rockchip_sip.h>
 
 #define RK3288_A_SHIFT		6
 #define RK3288_A_MASK		0x3ff
@@ -50,6 +51,7 @@ struct rockchip_efuse_chip {
 	struct device *dev;
 	void __iomem *base;
 	struct clk *clk;
+	phys_addr_t phys;
 };
 
 static int rockchip_rk3288_efuse_read(void *context, unsigned int offset,
@@ -147,6 +149,51 @@ nomem:
 	return ret;
 }
 
+static int rockchip_rk3368_efuse_read(void *context, unsigned int offset,
+				      void *val, size_t bytes)
+{
+	struct rockchip_efuse_chip *efuse = context;
+	u8 *buf = val;
+	u32 wr_val;
+	int ret;
+
+	ret = clk_prepare_enable(efuse->clk);
+	if (ret < 0) {
+		dev_err(efuse->dev, "failed to prepare/enable efuse clk\n");
+		return ret;
+	}
+
+	sip_smc_secure_reg_write(efuse->phys + REG_EFUSE_CTRL,
+				 RK3288_LOAD | RK3288_PGENB);
+	udelay(1);
+	while (bytes--) {
+		wr_val = sip_smc_secure_reg_read(efuse->phys + REG_EFUSE_CTRL) &
+			 (~(RK3288_A_MASK << RK3288_A_SHIFT));
+		sip_smc_secure_reg_write(efuse->phys + REG_EFUSE_CTRL, wr_val);
+		wr_val = sip_smc_secure_reg_read(efuse->phys + REG_EFUSE_CTRL) |
+			 ((offset++ & RK3288_A_MASK) << RK3288_A_SHIFT);
+		sip_smc_secure_reg_write(efuse->phys + REG_EFUSE_CTRL, wr_val);
+		udelay(1);
+		wr_val = sip_smc_secure_reg_read(efuse->phys + REG_EFUSE_CTRL) |
+			 RK3288_STROBE;
+		sip_smc_secure_reg_write(efuse->phys + REG_EFUSE_CTRL, wr_val);
+		udelay(1);
+		*buf++ = sip_smc_secure_reg_read(efuse->phys + REG_EFUSE_DOUT);
+		wr_val = sip_smc_secure_reg_read(efuse->phys + REG_EFUSE_CTRL) &
+			 (~RK3288_STROBE);
+		sip_smc_secure_reg_write(efuse->phys + REG_EFUSE_CTRL, wr_val);
+		udelay(1);
+	}
+
+	/* Switch to standby mode */
+	sip_smc_secure_reg_write(efuse->phys + REG_EFUSE_CTRL,
+				 RK3288_PGENB | RK3288_CSB);
+
+	clk_disable_unprepare(efuse->clk);
+
+	return 0;
+}
+
 static int rockchip_rk3399_efuse_read(void *context, unsigned int offset,
 				      void *val, size_t bytes)
 {
@@ -233,12 +280,12 @@ static const struct of_device_id rockchip_efuse_match[] = {
 		.data = (void *)&rockchip_rk3288_efuse_read,
 	},
 	{
-		.compatible = "rockchip,rk3368-efuse",
-		.data = (void *)&rockchip_rk3288_efuse_read,
-	},
-	{
 		.compatible = "rockchip,rk3328-efuse",
 		.data = (void *)&rockchip_rk3328_efuse_read,
+	},
+	{
+		.compatible = "rockchip,rk3368-efuse",
+		.data = (void *)&rockchip_rk3368_efuse_read,
 	},
 	{
 		.compatible = "rockchip,rk3399-efuse",
@@ -268,6 +315,7 @@ static int rockchip_efuse_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	efuse->phys = res->start;
 	efuse->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(efuse->base))
 		return PTR_ERR(efuse->base);
