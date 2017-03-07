@@ -109,8 +109,6 @@ struct core_sink {
 	/* not used for now */
 	struct core_link *link;
 	struct dc_context *ctx;
-	uint32_t dongle_max_pix_clk;
-	bool converter_disable_audio;
 };
 
 /************ link *****************/

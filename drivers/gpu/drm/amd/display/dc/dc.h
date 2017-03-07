@@ -653,6 +653,8 @@ struct dc_sink {
 	enum signal_type sink_signal;
 	struct dc_edid dc_edid; /* raw edid */
 	struct dc_edid_caps edid_caps; /* parse display caps */
+	uint32_t dongle_max_pix_clk;
+	bool converter_disable_audio;
 };
 
 void dc_sink_retain(const struct dc_sink *sink);

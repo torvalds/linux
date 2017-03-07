@@ -1193,7 +1193,7 @@ enum dc_status resource_map_pool_resources(
 			pipe_ctx->stream_enc);
 
 		/* TODO: Add check if ASIC support and EDID audio */
-		if (!stream->sink->converter_disable_audio &&
+		if (!stream->sink->public.converter_disable_audio &&
 			dc_is_audio_capable_signal(pipe_ctx->stream->signal) &&
 			stream->public.audio_info.mode_count) {
 			pipe_ctx->audio = find_first_free_audio(

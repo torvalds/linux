@@ -675,16 +675,15 @@ bool dc_link_detect(const struct dc_link *dc_link, bool boot)
 
 		sink_init_data.link = &link->public;
 		sink_init_data.sink_signal = sink_caps.signal;
-		sink_init_data.dongle_max_pix_clk =
-			sink_caps.max_hdmi_pixel_clock;
-		sink_init_data.converter_disable_audio =
-			converter_disable_audio;
 
 		dc_sink = dc_sink_create(&sink_init_data);
 		if (!dc_sink) {
 			DC_ERROR("Failed to create sink!\n");
 			return false;
 		}
+
+		dc_sink->dongle_max_pix_clk = sink_caps.max_hdmi_pixel_clock;
+		dc_sink->converter_disable_audio = converter_disable_audio;
 
 		sink = DC_SINK_TO_CORE(dc_sink);
 		link->public.local_sink = &sink->public;
@@ -1361,7 +1360,7 @@ enum dc_status dc_link_validate_mode_timing(
 		struct core_link *link,
 		const struct dc_crtc_timing *timing)
 {
-	uint32_t max_pix_clk = stream->sink->dongle_max_pix_clk;
+	uint32_t max_pix_clk = stream->sink->public.dongle_max_pix_clk;
 
 	/* A hack to avoid failing any modes for EDID override feature on
 	 * topology change such as lower quality cable for DP or different dongle

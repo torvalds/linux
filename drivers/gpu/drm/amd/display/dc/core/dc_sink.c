@@ -60,8 +60,8 @@ static bool construct(struct sink *sink, const struct dc_sink_init_data *init_pa
 	sink->protected.public.sink_signal = init_params->sink_signal;
 	sink->protected.link = core_link;
 	sink->protected.ctx = core_link->ctx;
-	sink->protected.dongle_max_pix_clk = init_params->dongle_max_pix_clk;
-	sink->protected.converter_disable_audio =
+	sink->protected.public.dongle_max_pix_clk = init_params->dongle_max_pix_clk;
+	sink->protected.public.converter_disable_audio =
 			init_params->converter_disable_audio;
 
 	return true;
