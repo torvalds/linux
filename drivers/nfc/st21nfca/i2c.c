@@ -67,8 +67,7 @@ struct st21nfca_i2c_phy {
 	struct i2c_client *i2c_dev;
 	struct nfc_hci_dev *hdev;
 
-	unsigned int gpio_ena;
-
+	struct gpio_desc *gpiod_ena;
 	struct st21nfca_se_status se_status;
 
 	struct sk_buff *pending_skb;
@@ -149,7 +148,7 @@ static int st21nfca_hci_i2c_enable(void *phy_id)
 {
 	struct st21nfca_i2c_phy *phy = phy_id;
 
-	gpio_set_value(phy->gpio_ena, 1);
+	gpiod_set_value(phy->gpiod_ena, 1);
 	phy->powered = 1;
 	phy->run_mode = ST21NFCA_HCI_MODE;
 
@@ -162,7 +161,7 @@ static void st21nfca_hci_i2c_disable(void *phy_id)
 {
 	struct st21nfca_i2c_phy *phy = phy_id;
 
-	gpio_set_value(phy->gpio_ena, 0);
+	gpiod_set_value(phy->gpiod_ena, 0);
 
 	phy->powered = 0;
 }
@@ -505,19 +504,16 @@ static struct nfc_phy_ops i2c_phy_ops = {
 static int st21nfca_hci_i2c_acpi_request_resources(struct i2c_client *client)
 {
 	struct st21nfca_i2c_phy *phy = i2c_get_clientdata(client);
-	struct gpio_desc *gpiod_ena;
 	struct device *dev = &client->dev;
 	u8 tmp;
 
 	/* Get EN GPIO from ACPI */
-	gpiod_ena = devm_gpiod_get_index(dev, ST21NFCA_GPIO_NAME_EN, 1,
-					 GPIOD_OUT_LOW);
-	if (IS_ERR(gpiod_ena)) {
+	phy->gpiod_ena = devm_gpiod_get_index(dev, ST21NFCA_GPIO_NAME_EN, 1,
+					      GPIOD_OUT_LOW);
+	if (IS_ERR(phy->gpiod_ena)) {
 		nfc_err(dev, "Unable to get ENABLE GPIO\n");
-		return PTR_ERR(gpiod_ena);
+		return PTR_ERR(phy->gpiod_ena);
 	}
-
-	phy->gpio_ena = desc_to_gpio(gpiod_ena);
 
 	phy->se_status.is_ese_present = false;
 	phy->se_status.is_uicc_present = false;
@@ -538,30 +534,20 @@ static int st21nfca_hci_i2c_acpi_request_resources(struct i2c_client *client)
 static int st21nfca_hci_i2c_of_request_resources(struct i2c_client *client)
 {
 	struct st21nfca_i2c_phy *phy = i2c_get_clientdata(client);
+	struct device *dev = &client->dev;
 	struct device_node *pp;
-	int gpio;
-	int r;
 
 	pp = client->dev.of_node;
 	if (!pp)
 		return -ENODEV;
 
 	/* Get GPIO from device tree */
-	gpio = of_get_named_gpio(pp, "enable-gpios", 0);
-	if (gpio < 0) {
-		nfc_err(&client->dev, "Failed to retrieve enable-gpios from device tree\n");
-		return gpio;
+	phy->gpiod_ena = devm_gpiod_get_index(dev, ST21NFCA_GPIO_NAME_EN, 0,
+					      GPIOD_OUT_HIGH);
+	if (IS_ERR(phy->gpiod_ena)) {
+		nfc_err(dev, "Failed to request enable pin\n");
+		return PTR_ERR(phy->gpiod_ena);
 	}
-
-	/* GPIO request and configuration */
-	r = devm_gpio_request_one(&client->dev, gpio, GPIOF_OUT_INIT_HIGH,
-				  ST21NFCA_GPIO_NAME_EN);
-	if (r) {
-		nfc_err(&client->dev, "Failed to request enable pin\n");
-		return r;
-	}
-
-	phy->gpio_ena = gpio;
 
 	phy->se_status.is_ese_present =
 				of_property_read_bool(pp, "ese-present");
