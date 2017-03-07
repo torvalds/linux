@@ -2454,8 +2454,8 @@ intel_fill_fb_info(struct drm_i915_private *dev_priv,
 		 */
 		if (i915_gem_object_is_tiled(intel_fb->obj) &&
 		    (x + width) * cpp > fb->pitches[i]) {
-			DRM_DEBUG("bad fb plane %d offset: 0x%x\n",
-				  i, fb->offsets[i]);
+			DRM_DEBUG_KMS("bad fb plane %d offset: 0x%x\n",
+				      i, fb->offsets[i]);
 			return -EINVAL;
 		}
 
@@ -2537,9 +2537,9 @@ intel_fill_fb_info(struct drm_i915_private *dev_priv,
 		max_size = max(max_size, offset + size);
 	}
 
-	if (max_size * tile_size > to_intel_framebuffer(fb)->obj->base.size) {
-		DRM_DEBUG("fb too big for bo (need %u bytes, have %zu bytes)\n",
-			  max_size * tile_size, to_intel_framebuffer(fb)->obj->base.size);
+	if (max_size * tile_size > intel_fb->obj->base.size) {
+		DRM_DEBUG_KMS("fb too big for bo (need %u bytes, have %zu bytes)\n",
+			      max_size * tile_size, intel_fb->obj->base.size);
 		return -EINVAL;
 	}
 
@@ -14298,14 +14298,14 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 		 */
 		if (tiling != I915_TILING_NONE &&
 		    tiling != intel_fb_modifier_to_tiling(mode_cmd->modifier[0])) {
-			DRM_DEBUG("tiling_mode doesn't match fb modifier\n");
+			DRM_DEBUG_KMS("tiling_mode doesn't match fb modifier\n");
 			goto err;
 		}
 	} else {
 		if (tiling == I915_TILING_X) {
 			mode_cmd->modifier[0] = I915_FORMAT_MOD_X_TILED;
 		} else if (tiling == I915_TILING_Y) {
-			DRM_DEBUG("No Y tiling for legacy addfb\n");
+			DRM_DEBUG_KMS("No Y tiling for legacy addfb\n");
 			goto err;
 		}
 	}
@@ -14315,16 +14315,16 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	case I915_FORMAT_MOD_Y_TILED:
 	case I915_FORMAT_MOD_Yf_TILED:
 		if (INTEL_GEN(dev_priv) < 9) {
-			DRM_DEBUG("Unsupported tiling 0x%llx!\n",
-				  mode_cmd->modifier[0]);
+			DRM_DEBUG_KMS("Unsupported tiling 0x%llx!\n",
+				      mode_cmd->modifier[0]);
 			goto err;
 		}
 	case DRM_FORMAT_MOD_NONE:
 	case I915_FORMAT_MOD_X_TILED:
 		break;
 	default:
-		DRM_DEBUG("Unsupported fb modifier 0x%llx!\n",
-			  mode_cmd->modifier[0]);
+		DRM_DEBUG_KMS("Unsupported fb modifier 0x%llx!\n",
+			      mode_cmd->modifier[0]);
 		goto err;
 	}
 
@@ -14334,17 +14334,17 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	 */
 	if (INTEL_INFO(dev_priv)->gen < 4 &&
 	    tiling != intel_fb_modifier_to_tiling(mode_cmd->modifier[0])) {
-		DRM_DEBUG("tiling_mode must match fb modifier exactly on gen2/3\n");
+		DRM_DEBUG_KMS("tiling_mode must match fb modifier exactly on gen2/3\n");
 		goto err;
 	}
 
 	pitch_limit = intel_fb_pitch_limit(dev_priv, mode_cmd->modifier[0],
 					   mode_cmd->pixel_format);
 	if (mode_cmd->pitches[0] > pitch_limit) {
-		DRM_DEBUG("%s pitch (%u) must be at less than %d\n",
-			  mode_cmd->modifier[0] != DRM_FORMAT_MOD_NONE ?
-			  "tiled" : "linear",
-			  mode_cmd->pitches[0], pitch_limit);
+		DRM_DEBUG_KMS("%s pitch (%u) must be at most %d\n",
+			      mode_cmd->modifier[0] != DRM_FORMAT_MOD_NONE ?
+			      "tiled" : "linear",
+			      mode_cmd->pitches[0], pitch_limit);
 		goto err;
 	}
 
@@ -14352,9 +14352,9 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	 * If there's a fence, enforce that
 	 * the fb pitch and fence stride match.
 	 */
-	if (tiling != I915_TILING_NONE && mode_cmd->pitches[0] !=  stride) {
-		DRM_DEBUG("pitch (%d) must match tiling stride (%d)\n",
-			  mode_cmd->pitches[0], stride);
+	if (tiling != I915_TILING_NONE && mode_cmd->pitches[0] != stride) {
+		DRM_DEBUG_KMS("pitch (%d) must match tiling stride (%d)\n",
+			      mode_cmd->pitches[0], stride);
 		goto err;
 	}
 
@@ -14367,16 +14367,16 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 		break;
 	case DRM_FORMAT_XRGB1555:
 		if (INTEL_GEN(dev_priv) > 3) {
-			DRM_DEBUG("unsupported pixel format: %s\n",
-			          drm_get_format_name(mode_cmd->pixel_format, &format_name));
+			DRM_DEBUG_KMS("unsupported pixel format: %s\n",
+				      drm_get_format_name(mode_cmd->pixel_format, &format_name));
 			goto err;
 		}
 		break;
 	case DRM_FORMAT_ABGR8888:
 		if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv) &&
 		    INTEL_GEN(dev_priv) < 9) {
-			DRM_DEBUG("unsupported pixel format: %s\n",
-			          drm_get_format_name(mode_cmd->pixel_format, &format_name));
+			DRM_DEBUG_KMS("unsupported pixel format: %s\n",
+				      drm_get_format_name(mode_cmd->pixel_format, &format_name));
 			goto err;
 		}
 		break;
@@ -14384,15 +14384,15 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	case DRM_FORMAT_XRGB2101010:
 	case DRM_FORMAT_XBGR2101010:
 		if (INTEL_GEN(dev_priv) < 4) {
-			DRM_DEBUG("unsupported pixel format: %s\n",
-			          drm_get_format_name(mode_cmd->pixel_format, &format_name));
+			DRM_DEBUG_KMS("unsupported pixel format: %s\n",
+				      drm_get_format_name(mode_cmd->pixel_format, &format_name));
 			goto err;
 		}
 		break;
 	case DRM_FORMAT_ABGR2101010:
 		if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv)) {
-			DRM_DEBUG("unsupported pixel format: %s\n",
-			          drm_get_format_name(mode_cmd->pixel_format, &format_name));
+			DRM_DEBUG_KMS("unsupported pixel format: %s\n",
+				      drm_get_format_name(mode_cmd->pixel_format, &format_name));
 			goto err;
 		}
 		break;
@@ -14401,14 +14401,14 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	case DRM_FORMAT_YVYU:
 	case DRM_FORMAT_VYUY:
 		if (INTEL_GEN(dev_priv) < 5) {
-			DRM_DEBUG("unsupported pixel format: %s\n",
-			          drm_get_format_name(mode_cmd->pixel_format, &format_name));
+			DRM_DEBUG_KMS("unsupported pixel format: %s\n",
+				      drm_get_format_name(mode_cmd->pixel_format, &format_name));
 			goto err;
 		}
 		break;
 	default:
-		DRM_DEBUG("unsupported pixel format: %s\n",
-		          drm_get_format_name(mode_cmd->pixel_format, &format_name));
+		DRM_DEBUG_KMS("unsupported pixel format: %s\n",
+			      drm_get_format_name(mode_cmd->pixel_format, &format_name));
 		goto err;
 	}
 
@@ -14421,8 +14421,8 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 
 	stride_alignment = intel_fb_stride_alignment(&intel_fb->base, 0);
 	if (mode_cmd->pitches[0] & (stride_alignment - 1)) {
-		DRM_DEBUG("pitch (%d) must be at least %u byte aligned\n",
-			  mode_cmd->pitches[0], stride_alignment);
+		DRM_DEBUG_KMS("pitch (%d) must be at least %u byte aligned\n",
+			      mode_cmd->pitches[0], stride_alignment);
 		goto err;
 	}
 
