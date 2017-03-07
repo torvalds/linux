@@ -1425,11 +1425,11 @@
 
 		rcar_sound,dvc {
 			dvc0: dvc-0 {
-				dmas = <&audma0 0xbc>;
+				dmas = <&audma1 0xbc>;
 				dma-names = "tx";
 			};
 			dvc1: dvc-1 {
-				dmas = <&audma0 0xbe>;
+				dmas = <&audma1 0xbe>;
 				dma-names = "tx";
 			};
 		};
