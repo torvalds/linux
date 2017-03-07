@@ -1717,8 +1717,8 @@ void rockchip_wifi_exit_module(void)
 late_initcall(rockchip_wifi_init_module_rtkwifi);
 module_exit(rockchip_wifi_exit_module_rtkwifi);
 #else
-EXPORT_SYMBOL(rockchip_wifi_init_module_rtkwifi);
-EXPORT_SYMBOL(rockchip_wifi_exit_module_rtkwifi);
+module_init(rockchip_wifi_init_module_rtkwifi);
+module_exit(rockchip_wifi_exit_module_rtkwifi);
 #endif
 #else
 #ifdef CONFIG_ANDROID_4_2
