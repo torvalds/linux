@@ -636,6 +636,14 @@
 	status = "disabled";
 };
 
+&mailbox {
+	status = "okay";
+};
+
+&mailbox_scpi {
+	status = "okay";
+};
+
 &rga {
 	status = "okay";
 };
