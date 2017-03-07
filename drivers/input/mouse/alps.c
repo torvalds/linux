@@ -138,7 +138,6 @@ static const struct alps_model_info alps_model_data[] = {
 	{ { 0x73, 0x02, 0x50 }, 0x00, { ALPS_PROTO_V2, 0xcf, 0xcf, ALPS_FOUR_BUTTONS } },	/* Dell Vostro 1400 */
 	{ { 0x52, 0x01, 0x14 }, 0x00, { ALPS_PROTO_V2, 0xff, 0xff,
 		ALPS_PASS | ALPS_DUALPOINT | ALPS_PS2_INTERLEAVED } },				/* Toshiba Tecra A11-11L */
-	{ { 0x73, 0x02, 0x64 }, 0x8a, { ALPS_PROTO_V4, 0x8f, 0x8f, 0 } },
 };
 
 static const struct alps_protocol_info alps_v3_protocol_data = {
@@ -147,6 +146,10 @@ static const struct alps_protocol_info alps_v3_protocol_data = {
 
 static const struct alps_protocol_info alps_v3_rushmore_data = {
 	ALPS_PROTO_V3_RUSHMORE, 0x8f, 0x8f, ALPS_DUALPOINT
+};
+
+static const struct alps_protocol_info alps_v4_protocol_data = {
+	ALPS_PROTO_V4, 0x8f, 0x8f, 0
 };
 
 static const struct alps_protocol_info alps_v5_protocol_data = {
@@ -2815,7 +2818,10 @@ static int alps_identify(struct psmouse *psmouse, struct alps_data *priv)
 
 	protocol = alps_match_table(e7, ec);
 	if (!protocol) {
-		if (e7[0] == 0x73 && e7[1] == 0x03 && e7[2] == 0x50 &&
+		if (e7[0] == 0x73 && e7[1] == 0x02 && e7[2] == 0x64 &&
+			   ec[2] == 0x8a) {
+			protocol = &alps_v4_protocol_data;
+		} else if (e7[0] == 0x73 && e7[1] == 0x03 && e7[2] == 0x50 &&
 			   ec[0] == 0x73 && (ec[1] == 0x01 || ec[1] == 0x02)) {
 			protocol = &alps_v5_protocol_data;
 		} else if (ec[0] == 0x88 &&
