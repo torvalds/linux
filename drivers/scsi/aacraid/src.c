@@ -468,7 +468,7 @@ err_out:
 	return -1;
 
 err_blink:
-	return (status > 16) & 0xFF;
+	return (status >> 16) & 0xFF;
 }
 
 static inline u32 aac_get_vector(struct aac_dev *dev)
