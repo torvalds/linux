@@ -144,7 +144,7 @@ struct page *page_table_alloc_pgste(struct mm_struct *mm)
 	struct page *page;
 	unsigned long *table;
 
-	page = alloc_page(GFP_KERNEL|__GFP_REPEAT);
+	page = alloc_page(GFP_KERNEL);
 	if (page) {
 		table = (unsigned long *) page_to_phys(page);
 		clear_table(table, _PAGE_INVALID, PAGE_SIZE/2);
