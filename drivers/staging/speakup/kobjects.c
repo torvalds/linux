@@ -108,7 +108,7 @@ static void report_char_chartab_status(int reset, int received, int used,
 static ssize_t chars_chartab_store(struct kobject *kobj,
 	struct kobj_attribute *attr, const char *buf, size_t count)
 {
-	char *cp = (char *) buf;
+	char *cp = (char *)buf;
 	char *end = cp + count; /* the null at the end of the buffer */
 	char *linefeed = NULL;
 	char keyword[MAX_DESC_LEN + 1];
@@ -475,7 +475,7 @@ static ssize_t punc_show(struct kobject *kobj, struct kobj_attribute *attr,
 	}
 
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
-	pb = (struct st_bits_data *) &spk_punc_info[var->value];
+	pb = (struct st_bits_data *)&spk_punc_info[var->value];
 	mask = pb->mask;
 	for (i = 33; i < 128; i++) {
 		if (!(spk_chartab[i] & mask))
@@ -552,7 +552,7 @@ ssize_t spk_var_show(struct kobject *kobj, struct kobj_attribute *attr,
 		return -EINVAL;
 
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
-	var = (struct var_t *) param->data;
+	var = (struct var_t *)param->data;
 	switch (param->var_type) {
 	case VAR_NUM:
 	case VAR_TIME:
@@ -744,7 +744,7 @@ static void report_msg_status(int reset, int received, int used,
 static ssize_t message_store_helper(const char *buf, size_t count,
 	struct msg_group_t *group)
 {
-	char *cp = (char *) buf;
+	char *cp = (char *)buf;
 	char *end = cp + count;
 	char *linefeed = NULL;
 	char *temp = NULL;
