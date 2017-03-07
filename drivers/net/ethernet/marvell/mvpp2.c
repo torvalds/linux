@@ -3412,20 +3412,21 @@ static void mvpp2_bm_bufs_free(struct device *dev, struct mvpp2 *priv,
 
 	for (i = 0; i < bm_pool->buf_num; i++) {
 		dma_addr_t buf_dma_addr;
-		unsigned long vaddr;
+		phys_addr_t buf_phys_addr;
+		void *data;
 
-		/* Get buffer virtual address (indirect access) */
 		buf_dma_addr = mvpp2_read(priv,
 					  MVPP2_BM_PHY_ALLOC_REG(bm_pool->id));
-		vaddr = mvpp2_read(priv, MVPP2_BM_VIRT_ALLOC_REG);
+		buf_phys_addr = mvpp2_read(priv, MVPP2_BM_VIRT_ALLOC_REG);
 
 		dma_unmap_single(dev, buf_dma_addr,
 				 bm_pool->buf_size, DMA_FROM_DEVICE);
 
-		if (!vaddr)
+		data = (void *)phys_to_virt(buf_phys_addr);
+		if (!data)
 			break;
 
-		mvpp2_frag_free(bm_pool, (void *)vaddr);
+		mvpp2_frag_free(bm_pool, data);
 	}
 
 	/* Update BM driver with number of buffers removed from pool */
@@ -3542,6 +3543,7 @@ static void mvpp2_rxq_short_pool_set(struct mvpp2_port *port,
 static void *mvpp2_buf_alloc(struct mvpp2_port *port,
 			     struct mvpp2_bm_pool *bm_pool,
 			     dma_addr_t *buf_dma_addr,
+			     phys_addr_t *buf_phys_addr,
 			     gfp_t gfp_mask)
 {
 	dma_addr_t dma_addr;
@@ -3559,6 +3561,7 @@ static void *mvpp2_buf_alloc(struct mvpp2_port *port,
 		return NULL;
 	}
 	*buf_dma_addr = dma_addr;
+	*buf_phys_addr = virt_to_phys(data);
 
 	return data;
 }
@@ -3583,20 +3586,25 @@ static inline int mvpp2_bm_cookie_pool_get(unsigned long cookie)
 /* Release buffer to BM */
 static inline void mvpp2_bm_pool_put(struct mvpp2_port *port, int pool,
 				     dma_addr_t buf_dma_addr,
-				     unsigned long buf_virt_addr)
+				     phys_addr_t buf_phys_addr)
 {
-	mvpp2_write(port->priv, MVPP2_BM_VIRT_RLS_REG, buf_virt_addr);
+	/* MVPP2_BM_VIRT_RLS_REG is not interpreted by HW, and simply
+	 * returned in the "cookie" field of the RX
+	 * descriptor. Instead of storing the virtual address, we
+	 * store the physical address
+	 */
+	mvpp2_write(port->priv, MVPP2_BM_VIRT_RLS_REG, buf_phys_addr);
 	mvpp2_write(port->priv, MVPP2_BM_PHY_RLS_REG(pool), buf_dma_addr);
 }
 
 /* Refill BM pool */
 static void mvpp2_pool_refill(struct mvpp2_port *port, u32 bm,
 			      dma_addr_t dma_addr,
-			      unsigned long cookie)
+			      phys_addr_t phys_addr)
 {
 	int pool = mvpp2_bm_cookie_pool_get(bm);
 
-	mvpp2_bm_pool_put(port, pool, dma_addr, cookie);
+	mvpp2_bm_pool_put(port, pool, dma_addr, phys_addr);
 }
 
 /* Allocate buffers for the pool */
@@ -3605,6 +3613,7 @@ static int mvpp2_bm_bufs_add(struct mvpp2_port *port,
 {
 	int i, buf_size, total_size;
 	dma_addr_t dma_addr;
+	phys_addr_t phys_addr;
 	void *buf;
 
 	buf_size = MVPP2_RX_BUF_SIZE(bm_pool->pkt_size);
@@ -3619,12 +3628,13 @@ static int mvpp2_bm_bufs_add(struct mvpp2_port *port,
 	}
 
 	for (i = 0; i < buf_num; i++) {
-		buf = mvpp2_buf_alloc(port, bm_pool, &dma_addr, GFP_KERNEL);
+		buf = mvpp2_buf_alloc(port, bm_pool, &dma_addr,
+				      &phys_addr, GFP_KERNEL);
 		if (!buf)
 			break;
 
 		mvpp2_bm_pool_put(port, bm_pool->id, dma_addr,
-				  (unsigned long)buf);
+				  phys_addr);
 	}
 
 	/* Update BM driver with number of buffers added to pool */
@@ -4983,14 +4993,16 @@ static int mvpp2_rx_refill(struct mvpp2_port *port,
 			   struct mvpp2_bm_pool *bm_pool, u32 bm)
 {
 	dma_addr_t dma_addr;
+	phys_addr_t phys_addr;
 	void *buf;
 
 	/* No recycle or too many buffers are in use, so allocate a new skb */
-	buf = mvpp2_buf_alloc(port, bm_pool, &dma_addr, GFP_ATOMIC);
+	buf = mvpp2_buf_alloc(port, bm_pool, &dma_addr, &phys_addr,
+			      GFP_ATOMIC);
 	if (!buf)
 		return -ENOMEM;
 
-	mvpp2_pool_refill(port, bm, dma_addr, (unsigned long)buf);
+	mvpp2_pool_refill(port, bm, dma_addr, phys_addr);
 
 	return 0;
 }
@@ -5055,7 +5067,7 @@ static int mvpp2_rx(struct mvpp2_port *port, int rx_todo,
 		rx_status = rx_desc->status;
 		rx_bytes = rx_desc->data_size - MVPP2_MH_SIZE;
 		dma_addr = rx_desc->buf_dma_addr;
-		data = (void *)(uintptr_t)rx_desc->buf_cookie;
+		data = (void *)phys_to_virt(rx_desc->buf_cookie);
 
 		bm = mvpp2_bm_cookie_build(rx_desc);
 		pool = mvpp2_bm_cookie_pool_get(bm);
