@@ -3218,7 +3218,12 @@ static void skl_detach_scalers(struct intel_crtc *intel_crtc)
 u32 skl_plane_stride(const struct drm_framebuffer *fb, int plane,
 		     unsigned int rotation)
 {
-	u32 stride = intel_fb_pitch(fb, plane, rotation);
+	u32 stride;
+
+	if (plane >= fb->format->num_planes)
+		return 0;
+
+	stride = intel_fb_pitch(fb, plane, rotation);
 
 	/*
 	 * The stride is either expressed as a multiple of 64 bytes chunks for
