@@ -175,7 +175,7 @@ static void mdp5_kms_destroy(struct msm_kms *kms)
 	if (aspace) {
 		aspace->mmu->funcs->detach(aspace->mmu,
 				iommu_ports, ARRAY_SIZE(iommu_ports));
-		msm_gem_address_space_destroy(aspace);
+		msm_gem_address_space_put(aspace);
 	}
 }
 
