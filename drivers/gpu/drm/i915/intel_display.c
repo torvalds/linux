@@ -2467,7 +2467,7 @@ intel_fill_fb_info(struct drm_i915_private *dev_priv,
 		intel_fb->normal[i].y = y;
 
 		offset = _intel_compute_tile_offset(dev_priv, &x, &y,
-						    fb, 0, fb->pitches[i],
+						    fb, i, fb->pitches[i],
 						    DRM_ROTATE_0, tile_size);
 		offset /= tile_size;
 
