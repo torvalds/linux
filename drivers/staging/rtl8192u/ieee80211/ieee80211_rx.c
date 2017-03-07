@@ -939,7 +939,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	if (HTCCheck(ieee, skb->data))
 	{
 		if(net_ratelimit())
-		printk("find HTCControl\n");
+			printk("find HTCControl\n");
 		hdrlen += 4;
 		rx_stats->bContainHTC = true;
 	}

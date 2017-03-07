@@ -466,7 +466,7 @@ void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 			goto out;
 		ieee->set_chan(ieee->dev, ch);
 		if(channel_map[ch] == 1)
-		ieee80211_send_probe_requests(ieee);
+			ieee80211_send_probe_requests(ieee);
 
 		/* this prevent excessive time wait when we
 		 * need to wait for a syncro scan to end..
