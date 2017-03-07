@@ -208,11 +208,19 @@
 #define MVPP2_BM_PHY_ALLOC_REG(pool)		(0x6400 + ((pool) * 4))
 #define     MVPP2_BM_PHY_ALLOC_GRNTD_MASK	BIT(0)
 #define MVPP2_BM_VIRT_ALLOC_REG			0x6440
+#define MVPP22_BM_ADDR_HIGH_ALLOC		0x6444
+#define     MVPP22_BM_ADDR_HIGH_PHYS_MASK	0xff
+#define     MVPP22_BM_ADDR_HIGH_VIRT_MASK	0xff00
+#define     MVPP22_BM_ADDR_HIGH_VIRT_SHIFT	8
 #define MVPP2_BM_PHY_RLS_REG(pool)		(0x6480 + ((pool) * 4))
 #define     MVPP2_BM_PHY_RLS_MC_BUFF_MASK	BIT(0)
 #define     MVPP2_BM_PHY_RLS_PRIO_EN_MASK	BIT(1)
 #define     MVPP2_BM_PHY_RLS_GRNTD_MASK		BIT(2)
 #define MVPP2_BM_VIRT_RLS_REG			0x64c0
+#define MVPP22_BM_ADDR_HIGH_RLS_REG		0x64c4
+#define     MVPP22_BM_ADDR_HIGH_PHYS_RLS_MASK	0xff
+#define	    MVPP22_BM_ADDR_HIGH_VIRT_RLS_MASK	0xff00
+#define     MVPP22_BM_ADDR_HIGH_VIRT_RLS_SHIFT	8
 
 /* TX Scheduler registers */
 #define MVPP2_TXP_SCHED_PORT_INDEX_REG		0x8000
@@ -951,6 +959,8 @@ struct mvpp2_bm_pool {
 
 	/* Buffer Pointers Pool External (BPPE) size */
 	int size;
+	/* BPPE size in bytes */
+	int size_bytes;
 	/* Number of buffers for this pool */
 	int buf_num;
 	/* Pool buffer size */
@@ -3520,11 +3530,23 @@ static int mvpp2_bm_pool_create(struct platform_device *pdev,
 				struct mvpp2 *priv,
 				struct mvpp2_bm_pool *bm_pool, int size)
 {
-	int size_bytes;
 	u32 val;
 
-	size_bytes = sizeof(u32) * size;
-	bm_pool->virt_addr = dma_alloc_coherent(&pdev->dev, size_bytes,
+	/* Number of buffer pointers must be a multiple of 16, as per
+	 * hardware constraints
+	 */
+	if (!IS_ALIGNED(size, 16))
+		return -EINVAL;
+
+	/* PPv2.1 needs 8 bytes per buffer pointer, PPv2.2 needs 16
+	 * bytes per buffer pointer
+	 */
+	if (priv->hw_version == MVPP21)
+		bm_pool->size_bytes = 2 * sizeof(u32) * size;
+	else
+		bm_pool->size_bytes = 2 * sizeof(u64) * size;
+
+	bm_pool->virt_addr = dma_alloc_coherent(&pdev->dev, bm_pool->size_bytes,
 						&bm_pool->dma_addr,
 						GFP_KERNEL);
 	if (!bm_pool->virt_addr)
@@ -3532,15 +3554,15 @@ static int mvpp2_bm_pool_create(struct platform_device *pdev,
 
 	if (!IS_ALIGNED((unsigned long)bm_pool->virt_addr,
 			MVPP2_BM_POOL_PTR_ALIGN)) {
-		dma_free_coherent(&pdev->dev, size_bytes, bm_pool->virt_addr,
-				  bm_pool->dma_addr);
+		dma_free_coherent(&pdev->dev, bm_pool->size_bytes,
+				  bm_pool->virt_addr, bm_pool->dma_addr);
 		dev_err(&pdev->dev, "BM pool %d is not %d bytes aligned\n",
 			bm_pool->id, MVPP2_BM_POOL_PTR_ALIGN);
 		return -ENOMEM;
 	}
 
 	mvpp2_write(priv, MVPP2_BM_POOL_BASE_REG(bm_pool->id),
-		    bm_pool->dma_addr);
+		    lower_32_bits(bm_pool->dma_addr));
 	mvpp2_write(priv, MVPP2_BM_POOL_SIZE_REG(bm_pool->id), size);
 
 	val = mvpp2_read(priv, MVPP2_BM_POOL_CTRL_REG(bm_pool->id));
@@ -3568,6 +3590,31 @@ static void mvpp2_bm_pool_bufsize_set(struct mvpp2 *priv,
 	mvpp2_write(priv, MVPP2_POOL_BUF_SIZE_REG(bm_pool->id), val);
 }
 
+static void mvpp2_bm_bufs_get_addrs(struct device *dev, struct mvpp2 *priv,
+				    struct mvpp2_bm_pool *bm_pool,
+				    dma_addr_t *dma_addr,
+				    phys_addr_t *phys_addr)
+{
+	*dma_addr = mvpp2_read(priv, MVPP2_BM_PHY_ALLOC_REG(bm_pool->id));
+	*phys_addr = mvpp2_read(priv, MVPP2_BM_VIRT_ALLOC_REG);
+
+	if (priv->hw_version == MVPP22) {
+		u32 val;
+		u32 dma_addr_highbits, phys_addr_highbits;
+
+		val = mvpp2_read(priv, MVPP22_BM_ADDR_HIGH_ALLOC);
+		dma_addr_highbits = (val & MVPP22_BM_ADDR_HIGH_PHYS_MASK);
+		phys_addr_highbits = (val & MVPP22_BM_ADDR_HIGH_VIRT_MASK) >>
+			MVPP22_BM_ADDR_HIGH_VIRT_SHIFT;
+
+		if (sizeof(dma_addr_t) == 8)
+			*dma_addr |= (u64)dma_addr_highbits << 32;
+
+		if (sizeof(phys_addr_t) == 8)
+			*phys_addr |= (u64)phys_addr_highbits << 32;
+	}
+}
+
 /* Free all buffers from the pool */
 static void mvpp2_bm_bufs_free(struct device *dev, struct mvpp2 *priv,
 			       struct mvpp2_bm_pool *bm_pool)
@@ -3579,9 +3626,8 @@ static void mvpp2_bm_bufs_free(struct device *dev, struct mvpp2 *priv,
 		phys_addr_t buf_phys_addr;
 		void *data;
 
-		buf_dma_addr = mvpp2_read(priv,
-					  MVPP2_BM_PHY_ALLOC_REG(bm_pool->id));
-		buf_phys_addr = mvpp2_read(priv, MVPP2_BM_VIRT_ALLOC_REG);
+		mvpp2_bm_bufs_get_addrs(dev, priv, bm_pool,
+					&buf_dma_addr, &buf_phys_addr);
 
 		dma_unmap_single(dev, buf_dma_addr,
 				 bm_pool->buf_size, DMA_FROM_DEVICE);
@@ -3614,7 +3660,7 @@ static int mvpp2_bm_pool_destroy(struct platform_device *pdev,
 	val |= MVPP2_BM_STOP_MASK;
 	mvpp2_write(priv, MVPP2_BM_POOL_CTRL_REG(bm_pool->id), val);
 
-	dma_free_coherent(&pdev->dev, sizeof(u32) * bm_pool->size,
+	dma_free_coherent(&pdev->dev, bm_pool->size_bytes,
 			  bm_pool->virt_addr,
 			  bm_pool->dma_addr);
 	return 0;
@@ -3752,6 +3798,21 @@ static inline void mvpp2_bm_pool_put(struct mvpp2_port *port, int pool,
 				     dma_addr_t buf_dma_addr,
 				     phys_addr_t buf_phys_addr)
 {
+	if (port->priv->hw_version == MVPP22) {
+		u32 val = 0;
+
+		if (sizeof(dma_addr_t) == 8)
+			val |= upper_32_bits(buf_dma_addr) &
+				MVPP22_BM_ADDR_HIGH_PHYS_RLS_MASK;
+
+		if (sizeof(phys_addr_t) == 8)
+			val |= (upper_32_bits(buf_phys_addr)
+				<< MVPP22_BM_ADDR_HIGH_VIRT_RLS_SHIFT) &
+				MVPP22_BM_ADDR_HIGH_VIRT_RLS_MASK;
+
+		mvpp2_write(port->priv, MVPP22_BM_ADDR_HIGH_RLS_REG, val);
+	}
+
 	/* MVPP2_BM_VIRT_RLS_REG is not interpreted by HW, and simply
 	 * returned in the "cookie" field of the RX
 	 * descriptor. Instead of storing the virtual address, we
