@@ -394,8 +394,7 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 		fprintf(stdout, "\n\n");
 	}
 
-	if (sort_order == NULL &&
-	    parent_pattern == default_parent_pattern)
+	if (!quiet)
 		fprintf(stdout, "#\n# (%s)\n#\n", help);
 
 	if (rep->show_threads) {
