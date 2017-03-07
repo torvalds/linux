@@ -1158,6 +1158,7 @@ EXPORT_SYMBOL(drm_dp_psr_setup_time);
 /**
  * drm_dp_start_crc() - start capture of frame CRCs
  * @aux: DisplayPort AUX channel
+ * @crtc: CRTC displaying the frames whose CRCs are to be captured
  *
  * Returns 0 on success or a negative error code on failure.
  */
