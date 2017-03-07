@@ -20,7 +20,6 @@
 #include <linux/crc-ccitt.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
@@ -29,7 +28,7 @@
 #include <linux/delay.h>
 #include <linux/nfc.h>
 #include <linux/firmware.h>
-#include <linux/platform_data/st21nfca.h>
+
 #include <asm/unaligned.h>
 
 #include <net/nfc/hci.h>
@@ -59,6 +58,7 @@
 #define IS_START_OF_FRAME(buf) (buf[0] == ST21NFCA_SOF_EOF && \
 				buf[1] == 0)
 
+#define ST21NFCA_HCI_DRIVER_NAME "st21nfca_hci"
 #define ST21NFCA_HCI_I2C_DRIVER_NAME "st21nfca_hci_i2c"
 
 #define ST21NFCA_GPIO_NAME_EN "enable"
@@ -576,43 +576,10 @@ static int st21nfca_hci_i2c_of_request_resources(struct i2c_client *client)
 	return 0;
 }
 
-static int st21nfca_hci_i2c_request_resources(struct i2c_client *client)
-{
-	struct st21nfca_nfc_platform_data *pdata;
-	struct st21nfca_i2c_phy *phy = i2c_get_clientdata(client);
-	int r;
-
-	pdata = client->dev.platform_data;
-	if (pdata == NULL) {
-		nfc_err(&client->dev, "No platform data\n");
-		return -EINVAL;
-	}
-
-	/* store for later use */
-	phy->gpio_ena = pdata->gpio_ena;
-	phy->irq_polarity = pdata->irq_polarity;
-
-	if (phy->gpio_ena > 0) {
-		r = devm_gpio_request_one(&client->dev, phy->gpio_ena,
-					  GPIOF_OUT_INIT_HIGH,
-					  ST21NFCA_GPIO_NAME_EN);
-		if (r) {
-			pr_err("%s : ena gpio_request failed\n", __FILE__);
-			return r;
-		}
-	}
-
-	phy->se_status.is_ese_present = pdata->is_ese_present;
-	phy->se_status.is_uicc_present = pdata->is_uicc_present;
-
-	return 0;
-}
-
 static int st21nfca_hci_i2c_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	struct st21nfca_i2c_phy *phy;
-	struct st21nfca_nfc_platform_data *pdata;
 	int r;
 
 	dev_dbg(&client->dev, "%s\n", __func__);
@@ -638,17 +605,10 @@ static int st21nfca_hci_i2c_probe(struct i2c_client *client,
 	mutex_init(&phy->phy_lock);
 	i2c_set_clientdata(client, phy);
 
-	pdata = client->dev.platform_data;
-	if (!pdata && client->dev.of_node) {
+	if (client->dev.of_node) {
 		r = st21nfca_hci_i2c_of_request_resources(client);
 		if (r) {
 			nfc_err(&client->dev, "No platform data\n");
-			return r;
-		}
-	} else if (pdata) {
-		r = st21nfca_hci_i2c_request_resources(client);
-		if (r) {
-			nfc_err(&client->dev, "Cannot get platform resources\n");
 			return r;
 		}
 	} else if (ACPI_HANDLE(&client->dev)) {
