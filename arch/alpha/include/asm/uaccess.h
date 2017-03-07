@@ -74,6 +74,11 @@
  * more extensive comments with fixup_inline_exception below for
  * more information.
  */
+#define EXC(label,cont,res,err)				\
+	".section __ex_table,\"a\"\n"			\
+	"	.long "#label"-.\n"			\
+	"	lda "#res","#cont"-"#label"("#err")\n"	\
+	".previous\n"
 
 extern void __get_user_unknown(void);
 
@@ -118,20 +123,14 @@ struct __large_struct { unsigned long buf[100]; };
 #define __get_user_64(addr)				\
 	__asm__("1: ldq %0,%2\n"			\
 	"2:\n"						\
-	".section __ex_table,\"a\"\n"			\
-	"	.long 1b - .\n"				\
-	"	lda %0, 2b-1b(%1)\n"			\
-	".previous"					\
+	EXC(1b,2b,%0,%1)				\
 		: "=r"(__gu_val), "=r"(__gu_err)	\
 		: "m"(__m(addr)), "1"(__gu_err))
 
 #define __get_user_32(addr)				\
 	__asm__("1: ldl %0,%2\n"			\
 	"2:\n"						\
-	".section __ex_table,\"a\"\n"			\
-	"	.long 1b - .\n"				\
-	"	lda %0, 2b-1b(%1)\n"			\
-	".previous"					\
+	EXC(1b,2b,%0,%1)				\
 		: "=r"(__gu_val), "=r"(__gu_err)	\
 		: "m"(__m(addr)), "1"(__gu_err))
 
@@ -141,20 +140,14 @@ struct __large_struct { unsigned long buf[100]; };
 #define __get_user_16(addr)				\
 	__asm__("1: ldwu %0,%2\n"			\
 	"2:\n"						\
-	".section __ex_table,\"a\"\n"			\
-	"	.long 1b - .\n"				\
-	"	lda %0, 2b-1b(%1)\n"			\
-	".previous"					\
+	EXC(1b,2b,%0,%1)				\
 		: "=r"(__gu_val), "=r"(__gu_err)	\
 		: "m"(__m(addr)), "1"(__gu_err))
 
 #define __get_user_8(addr)				\
 	__asm__("1: ldbu %0,%2\n"			\
 	"2:\n"						\
-	".section __ex_table,\"a\"\n"			\
-	"	.long 1b - .\n"				\
-	"	lda %0, 2b-1b(%1)\n"			\
-	".previous"					\
+	EXC(1b,2b,%0,%1)				\
 		: "=r"(__gu_val), "=r"(__gu_err)	\
 		: "m"(__m(addr)), "1"(__gu_err))
 #else
@@ -170,12 +163,8 @@ struct __large_struct { unsigned long buf[100]; };
 	"	extwh %1,%3,%1\n"					\
 	"	or %0,%1,%0\n"						\
 	"3:\n"								\
-	".section __ex_table,\"a\"\n"					\
-	"	.long 1b - .\n"						\
-	"	lda %0, 3b-1b(%2)\n"					\
-	"	.long 2b - .\n"						\
-	"	lda %0, 3b-2b(%2)\n"					\
-	".previous"							\
+	EXC(1b,3b,%0,%2)						\
+	EXC(2b,3b,%0,%2)						\
 		: "=&r"(__gu_val), "=&r"(__gu_tmp), "=r"(__gu_err)	\
 		: "r"(addr), "2"(__gu_err));				\
 }
@@ -184,10 +173,7 @@ struct __large_struct { unsigned long buf[100]; };
 	__asm__("1: ldq_u %0,0(%2)\n"					\
 	"	extbl %0,%2,%0\n"					\
 	"2:\n"								\
-	".section __ex_table,\"a\"\n"					\
-	"	.long 1b - .\n"						\
-	"	lda %0, 2b-1b(%1)\n"					\
-	".previous"							\
+	EXC(1b,2b,%0,%1)						\
 		: "=&r"(__gu_val), "=r"(__gu_err)			\
 		: "r"(addr), "1"(__gu_err))
 #endif
@@ -233,20 +219,14 @@ extern void __put_user_unknown(void);
 #define __put_user_64(x, addr)					\
 __asm__ __volatile__("1: stq %r2,%1\n"				\
 	"2:\n"							\
-	".section __ex_table,\"a\"\n"				\
-	"	.long 1b - .\n"					\
-	"	lda $31,2b-1b(%0)\n"				\
-	".previous"						\
+	EXC(1b,2b,$31,%0)					\
 		: "=r"(__pu_err)				\
 		: "m" (__m(addr)), "rJ" (x), "0"(__pu_err))
 
 #define __put_user_32(x, addr)					\
 __asm__ __volatile__("1: stl %r2,%1\n"				\
 	"2:\n"							\
-	".section __ex_table,\"a\"\n"				\
-	"	.long 1b - .\n"					\
-	"	lda $31,2b-1b(%0)\n"				\
-	".previous"						\
+	EXC(1b,2b,$31,%0)					\
 		: "=r"(__pu_err)				\
 		: "m"(__m(addr)), "rJ"(x), "0"(__pu_err))
 
@@ -256,20 +236,14 @@ __asm__ __volatile__("1: stl %r2,%1\n"				\
 #define __put_user_16(x, addr)					\
 __asm__ __volatile__("1: stw %r2,%1\n"				\
 	"2:\n"							\
-	".section __ex_table,\"a\"\n"				\
-	"	.long 1b - .\n"					\
-	"	lda $31,2b-1b(%0)\n"				\
-	".previous"						\
+	EXC(1b,2b,$31,%0)					\
 		: "=r"(__pu_err)				\
 		: "m"(__m(addr)), "rJ"(x), "0"(__pu_err))
 
 #define __put_user_8(x, addr)					\
 __asm__ __volatile__("1: stb %r2,%1\n"				\
 	"2:\n"							\
-	".section __ex_table,\"a\"\n"				\
-	"	.long 1b - .\n"					\
-	"	lda $31,2b-1b(%0)\n"				\
-	".previous"						\
+	EXC(1b,2b,$31,%0)					\
 		: "=r"(__pu_err)				\
 		: "m"(__m(addr)), "rJ"(x), "0"(__pu_err))
 #else
@@ -291,16 +265,10 @@ __asm__ __volatile__("1: stb %r2,%1\n"				\
 	"3:	stq_u %2,1(%5)\n"				\
 	"4:	stq_u %1,0(%5)\n"				\
 	"5:\n"							\
-	".section __ex_table,\"a\"\n"				\
-	"	.long 1b - .\n"					\
-	"	lda $31, 5b-1b(%0)\n"				\
-	"	.long 2b - .\n"					\
-	"	lda $31, 5b-2b(%0)\n"				\
-	"	.long 3b - .\n"					\
-	"	lda $31, 5b-3b(%0)\n"				\
-	"	.long 4b - .\n"					\
-	"	lda $31, 5b-4b(%0)\n"				\
-	".previous"						\
+	EXC(1b,5b,$31,%0)					\
+	EXC(2b,5b,$31,%0)					\
+	EXC(3b,5b,$31,%0)					\
+	EXC(4b,5b,$31,%0)					\
 		: "=r"(__pu_err), "=&r"(__pu_tmp1), 		\
 		  "=&r"(__pu_tmp2), "=&r"(__pu_tmp3), 		\
 		  "=&r"(__pu_tmp4)				\
@@ -317,12 +285,8 @@ __asm__ __volatile__("1: stb %r2,%1\n"				\
 	"	or %1,%2,%1\n"					\
 	"2:	stq_u %1,0(%4)\n"				\
 	"3:\n"							\
-	".section __ex_table,\"a\"\n"				\
-	"	.long 1b - .\n"					\
-	"	lda $31, 3b-1b(%0)\n"				\
-	"	.long 2b - .\n"					\
-	"	lda $31, 3b-2b(%0)\n"				\
-	".previous"						\
+	EXC(1b,3b,$31,%0)					\
+	EXC(2b,3b,$31,%0)					\
 		: "=r"(__pu_err), 				\
 	  	  "=&r"(__pu_tmp1), "=&r"(__pu_tmp2)		\
 		: "r"((unsigned long)(x)), "r"(addr), "0"(__pu_err)); \

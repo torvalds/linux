@@ -482,12 +482,8 @@ do_entUna(void * va, unsigned long opcode, unsigned long reg,
 		"	extwl %1,%3,%1\n"
 		"	extwh %2,%3,%2\n"
 		"3:\n"
-		".section __ex_table,\"a\"\n"
-		"	.long 1b - .\n"
-		"	lda %1,3b-1b(%0)\n"
-		"	.long 2b - .\n"
-		"	lda %2,3b-2b(%0)\n"
-		".previous"
+		EXC(1b,3b,%1,%0)
+		EXC(2b,3b,%2,%0)
 			: "=r"(error), "=&r"(tmp1), "=&r"(tmp2)
 			: "r"(va), "0"(0));
 		if (error)
@@ -502,12 +498,8 @@ do_entUna(void * va, unsigned long opcode, unsigned long reg,
 		"	extll %1,%3,%1\n"
 		"	extlh %2,%3,%2\n"
 		"3:\n"
-		".section __ex_table,\"a\"\n"
-		"	.long 1b - .\n"
-		"	lda %1,3b-1b(%0)\n"
-		"	.long 2b - .\n"
-		"	lda %2,3b-2b(%0)\n"
-		".previous"
+		EXC(1b,3b,%1,%0)
+		EXC(2b,3b,%2,%0)
 			: "=r"(error), "=&r"(tmp1), "=&r"(tmp2)
 			: "r"(va), "0"(0));
 		if (error)
@@ -522,12 +514,8 @@ do_entUna(void * va, unsigned long opcode, unsigned long reg,
 		"	extql %1,%3,%1\n"
 		"	extqh %2,%3,%2\n"
 		"3:\n"
-		".section __ex_table,\"a\"\n"
-		"	.long 1b - .\n"
-		"	lda %1,3b-1b(%0)\n"
-		"	.long 2b - .\n"
-		"	lda %2,3b-2b(%0)\n"
-		".previous"
+		EXC(1b,3b,%1,%0)
+		EXC(2b,3b,%2,%0)
 			: "=r"(error), "=&r"(tmp1), "=&r"(tmp2)
 			: "r"(va), "0"(0));
 		if (error)
@@ -551,16 +539,10 @@ do_entUna(void * va, unsigned long opcode, unsigned long reg,
 		"3:	stq_u %2,1(%5)\n"
 		"4:	stq_u %1,0(%5)\n"
 		"5:\n"
-		".section __ex_table,\"a\"\n"
-		"	.long 1b - .\n"
-		"	lda %2,5b-1b(%0)\n"
-		"	.long 2b - .\n"
-		"	lda %1,5b-2b(%0)\n"
-		"	.long 3b - .\n"
-		"	lda $31,5b-3b(%0)\n"
-		"	.long 4b - .\n"
-		"	lda $31,5b-4b(%0)\n"
-		".previous"
+		EXC(1b,5b,%2,%0)
+		EXC(2b,5b,%1,%0)
+		EXC(3b,5b,$31,%0)
+		EXC(4b,5b,$31,%0)
 			: "=r"(error), "=&r"(tmp1), "=&r"(tmp2),
 			  "=&r"(tmp3), "=&r"(tmp4)
 			: "r"(va), "r"(una_reg(reg)), "0"(0));
@@ -581,16 +563,10 @@ do_entUna(void * va, unsigned long opcode, unsigned long reg,
 		"3:	stq_u %2,3(%5)\n"
 		"4:	stq_u %1,0(%5)\n"
 		"5:\n"
-		".section __ex_table,\"a\"\n"
-		"	.long 1b - .\n"
-		"	lda %2,5b-1b(%0)\n"
-		"	.long 2b - .\n"
-		"	lda %1,5b-2b(%0)\n"
-		"	.long 3b - .\n"
-		"	lda $31,5b-3b(%0)\n"
-		"	.long 4b - .\n"
-		"	lda $31,5b-4b(%0)\n"
-		".previous"
+		EXC(1b,5b,%2,%0)
+		EXC(2b,5b,%1,%0)
+		EXC(3b,5b,$31,%0)
+		EXC(4b,5b,$31,%0)
 			: "=r"(error), "=&r"(tmp1), "=&r"(tmp2),
 			  "=&r"(tmp3), "=&r"(tmp4)
 			: "r"(va), "r"(una_reg(reg)), "0"(0));
@@ -611,16 +587,10 @@ do_entUna(void * va, unsigned long opcode, unsigned long reg,
 		"3:	stq_u %2,7(%5)\n"
 		"4:	stq_u %1,0(%5)\n"
 		"5:\n"
-		".section __ex_table,\"a\"\n\t"
-		"	.long 1b - .\n"
-		"	lda %2,5b-1b(%0)\n"
-		"	.long 2b - .\n"
-		"	lda %1,5b-2b(%0)\n"
-		"	.long 3b - .\n"
-		"	lda $31,5b-3b(%0)\n"
-		"	.long 4b - .\n"
-		"	lda $31,5b-4b(%0)\n"
-		".previous"
+		EXC(1b,5b,%2,%0)
+		EXC(2b,5b,%1,%0)
+		EXC(3b,5b,$31,%0)
+		EXC(4b,5b,$31,%0)
 			: "=r"(error), "=&r"(tmp1), "=&r"(tmp2),
 			  "=&r"(tmp3), "=&r"(tmp4)
 			: "r"(va), "r"(una_reg(reg)), "0"(0));
@@ -835,12 +805,8 @@ do_entUnaUser(void __user * va, unsigned long opcode,
 		"	extwl %1,%3,%1\n"
 		"	extwh %2,%3,%2\n"
 		"3:\n"
-		".section __ex_table,\"a\"\n"
-		"	.long 1b - .\n"
-		"	lda %1,3b-1b(%0)\n"
-		"	.long 2b - .\n"
-		"	lda %2,3b-2b(%0)\n"
-		".previous"
+		EXC(1b,3b,%1,%0)
+		EXC(2b,3b,%2,%0)
 			: "=r"(error), "=&r"(tmp1), "=&r"(tmp2)
 			: "r"(va), "0"(0));
 		if (error)
@@ -855,12 +821,8 @@ do_entUnaUser(void __user * va, unsigned long opcode,
 		"	extll %1,%3,%1\n"
 		"	extlh %2,%3,%2\n"
 		"3:\n"
-		".section __ex_table,\"a\"\n"
-		"	.long 1b - .\n"
-		"	lda %1,3b-1b(%0)\n"
-		"	.long 2b - .\n"
-		"	lda %2,3b-2b(%0)\n"
-		".previous"
+		EXC(1b,3b,%1,%0)
+		EXC(2b,3b,%2,%0)
 			: "=r"(error), "=&r"(tmp1), "=&r"(tmp2)
 			: "r"(va), "0"(0));
 		if (error)
@@ -875,12 +837,8 @@ do_entUnaUser(void __user * va, unsigned long opcode,
 		"	extql %1,%3,%1\n"
 		"	extqh %2,%3,%2\n"
 		"3:\n"
-		".section __ex_table,\"a\"\n"
-		"	.long 1b - .\n"
-		"	lda %1,3b-1b(%0)\n"
-		"	.long 2b - .\n"
-		"	lda %2,3b-2b(%0)\n"
-		".previous"
+		EXC(1b,3b,%1,%0)
+		EXC(2b,3b,%2,%0)
 			: "=r"(error), "=&r"(tmp1), "=&r"(tmp2)
 			: "r"(va), "0"(0));
 		if (error)
@@ -895,12 +853,8 @@ do_entUnaUser(void __user * va, unsigned long opcode,
 		"	extll %1,%3,%1\n"
 		"	extlh %2,%3,%2\n"
 		"3:\n"
-		".section __ex_table,\"a\"\n"
-		"	.long 1b - .\n"
-		"	lda %1,3b-1b(%0)\n"
-		"	.long 2b - .\n"
-		"	lda %2,3b-2b(%0)\n"
-		".previous"
+		EXC(1b,3b,%1,%0)
+		EXC(2b,3b,%2,%0)
 			: "=r"(error), "=&r"(tmp1), "=&r"(tmp2)
 			: "r"(va), "0"(0));
 		if (error)
@@ -915,12 +869,8 @@ do_entUnaUser(void __user * va, unsigned long opcode,
 		"	extql %1,%3,%1\n"
 		"	extqh %2,%3,%2\n"
 		"3:\n"
-		".section __ex_table,\"a\"\n"
-		"	.long 1b - .\n"
-		"	lda %1,3b-1b(%0)\n"
-		"	.long 2b - .\n"
-		"	lda %2,3b-2b(%0)\n"
-		".previous"
+		EXC(1b,3b,%1,%0)
+		EXC(2b,3b,%2,%0)
 			: "=r"(error), "=&r"(tmp1), "=&r"(tmp2)
 			: "r"(va), "0"(0));
 		if (error)
@@ -944,16 +894,10 @@ do_entUnaUser(void __user * va, unsigned long opcode,
 		"3:	stq_u %2,1(%5)\n"
 		"4:	stq_u %1,0(%5)\n"
 		"5:\n"
-		".section __ex_table,\"a\"\n"
-		"	.long 1b - .\n"
-		"	lda %2,5b-1b(%0)\n"
-		"	.long 2b - .\n"
-		"	lda %1,5b-2b(%0)\n"
-		"	.long 3b - .\n"
-		"	lda $31,5b-3b(%0)\n"
-		"	.long 4b - .\n"
-		"	lda $31,5b-4b(%0)\n"
-		".previous"
+		EXC(1b,5b,%2,%0)
+		EXC(2b,5b,%1,%0)
+		EXC(3b,5b,$31,%0)
+		EXC(4b,5b,$31,%0)
 			: "=r"(error), "=&r"(tmp1), "=&r"(tmp2),
 			  "=&r"(tmp3), "=&r"(tmp4)
 			: "r"(va), "r"(*reg_addr), "0"(0));
@@ -978,16 +922,10 @@ do_entUnaUser(void __user * va, unsigned long opcode,
 		"3:	stq_u %2,3(%5)\n"
 		"4:	stq_u %1,0(%5)\n"
 		"5:\n"
-		".section __ex_table,\"a\"\n"
-		"	.long 1b - .\n"
-		"	lda %2,5b-1b(%0)\n"
-		"	.long 2b - .\n"
-		"	lda %1,5b-2b(%0)\n"
-		"	.long 3b - .\n"
-		"	lda $31,5b-3b(%0)\n"
-		"	.long 4b - .\n"
-		"	lda $31,5b-4b(%0)\n"
-		".previous"
+		EXC(1b,5b,%2,%0)
+		EXC(2b,5b,%1,%0)
+		EXC(3b,5b,$31,%0)
+		EXC(4b,5b,$31,%0)
 			: "=r"(error), "=&r"(tmp1), "=&r"(tmp2),
 			  "=&r"(tmp3), "=&r"(tmp4)
 			: "r"(va), "r"(*reg_addr), "0"(0));
@@ -1012,16 +950,10 @@ do_entUnaUser(void __user * va, unsigned long opcode,
 		"3:	stq_u %2,7(%5)\n"
 		"4:	stq_u %1,0(%5)\n"
 		"5:\n"
-		".section __ex_table,\"a\"\n\t"
-		"	.long 1b - .\n"
-		"	lda %2,5b-1b(%0)\n"
-		"	.long 2b - .\n"
-		"	lda %1,5b-2b(%0)\n"
-		"	.long 3b - .\n"
-		"	lda $31,5b-3b(%0)\n"
-		"	.long 4b - .\n"
-		"	lda $31,5b-4b(%0)\n"
-		".previous"
+		EXC(1b,5b,%2,%0)
+		EXC(2b,5b,%1,%0)
+		EXC(3b,5b,$31,%0)
+		EXC(4b,5b,$31,%0)
 			: "=r"(error), "=&r"(tmp1), "=&r"(tmp2),
 			  "=&r"(tmp3), "=&r"(tmp4)
 			: "r"(va), "r"(*reg_addr), "0"(0));
