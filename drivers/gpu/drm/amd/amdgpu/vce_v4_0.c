@@ -78,6 +78,9 @@ static uint64_t vce_v4_0_ring_get_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
+	if (ring->use_doorbell)
+		return adev->wb.wb[ring->wptr_offs];
+
 	if (ring == &adev->vce.ring[0])
 		return RREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_RB_WPTR));
 	else if (ring == &adev->vce.ring[1])
@@ -96,6 +99,13 @@ static uint64_t vce_v4_0_ring_get_wptr(struct amdgpu_ring *ring)
 static void vce_v4_0_ring_set_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
+
+	if (ring->use_doorbell) {
+		/* XXX check if swapping is necessary on BE */
+		adev->wb.wb[ring->wptr_offs] = lower_32_bits(ring->wptr);
+		WDOORBELL32(ring->doorbell_index, lower_32_bits(ring->wptr));
+		return;
+	}
 
 	if (ring == &adev->vce.ring[0])
 		WREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_RB_WPTR),
@@ -220,7 +230,10 @@ static int vce_v4_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	adev->vce.num_rings = 3;
+	if (amdgpu_sriov_vf(adev)) /* currently only VCN0 support SRIOV */
+		adev->vce.num_rings = 1;
+	else
+		adev->vce.num_rings = 3;
 
 	vce_v4_0_set_ring_funcs(adev);
 	vce_v4_0_set_irq_funcs(adev);
@@ -266,6 +279,16 @@ static int vce_v4_0_sw_init(void *handle)
 	for (i = 0; i < adev->vce.num_rings; i++) {
 		ring = &adev->vce.ring[i];
 		sprintf(ring->name, "vce%d", i);
+		if (amdgpu_sriov_vf(adev)) {
+			/* DOORBELL only works under SRIOV */
+			ring->use_doorbell = true;
+			if (i == 0)
+				ring->doorbell_index = AMDGPU_DOORBELL64_RING0_1 * 2;
+			else if (i == 1)
+				ring->doorbell_index = AMDGPU_DOORBELL64_RING2_3 * 2;
+			else
+				ring->doorbell_index = AMDGPU_DOORBELL64_RING2_3 * 2 + 1;
+		}
 		r = amdgpu_ring_init(adev, ring, 512, &adev->vce.irq, 0);
 		if (r)
 			return r;
