@@ -397,7 +397,6 @@ static int of_get_omap_rng_device_details(struct omap_rng_dev *priv,
 				irq, err);
 			return err;
 		}
-		omap_rng_write(priv, RNG_INTMASK_REG, RNG_SHUTDOWN_OFLO_MASK);
 
 		priv->clk = of_clk_get(pdev->dev.of_node, 0);
 		if (IS_ERR(priv->clk) && PTR_ERR(priv->clk) == -EPROBE_DEFER)
@@ -408,6 +407,8 @@ static int of_get_omap_rng_device_details(struct omap_rng_dev *priv,
 				dev_err(&pdev->dev, "unable to enable the clk, "
 						    "err = %d\n", err);
 		}
+
+		omap_rng_write(priv, RNG_INTMASK_REG, RNG_SHUTDOWN_OFLO_MASK);
 	}
 	return 0;
 }
