@@ -710,6 +710,11 @@ static void cgwb_bdi_destroy(struct backing_dev_info *bdi)
 	 */
 	atomic_dec(&bdi->usage_cnt);
 	wait_event(cgwb_release_wait, !atomic_read(&bdi->usage_cnt));
+	/*
+	 * Grab back our reference so that we hold it when @bdi gets
+	 * re-registered.
+	 */
+	atomic_inc(&bdi->usage_cnt);
 }
 
 /**
@@ -857,6 +862,8 @@ int bdi_register_owner(struct backing_dev_info *bdi, struct device *owner)
 			MINOR(owner->devt));
 	if (rc)
 		return rc;
+	/* Leaking owner reference... */
+	WARN_ON(bdi->owner);
 	bdi->owner = owner;
 	get_device(owner);
 	return 0;
