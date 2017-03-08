@@ -688,12 +688,7 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 	int ret;
 	int i;
 
-	if (sizeof(struct jr3_sensor) != 0xc00) {
-		dev_err(dev->class_dev,
-			"sizeof(struct jr3_sensor) = %x [expected %x]\n",
-			(unsigned int)sizeof(struct jr3_sensor), 0xc00);
-		return -EINVAL;
-	}
+	BUILD_BUG_ON(sizeof(struct jr3_block) != 0x80000);
 
 	if (context < ARRAY_SIZE(jr3_pci_boards))
 		board = &jr3_pci_boards[context];
