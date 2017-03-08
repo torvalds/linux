@@ -435,7 +435,7 @@ struct nfp_stat_pair {
 
 /**
  * struct nfp_net - NFP network device structure
- * @pdev:               Backpointer to PCI device
+ * @dev:		Backpointer to struct device
  * @netdev:             Backpointer to net_device structure
  * @is_vf:              Is the driver attached to a VF?
  * @bpf_offload_skip_sw:  Offloaded BPF program will not be rerun by cls_bpf
@@ -496,11 +496,12 @@ struct nfp_stat_pair {
  * @debugfs_dir:	Device directory in debugfs
  * @ethtool_dump_flag:	Ethtool dump flag
  * @port_list:		Entry on device port list
+ * @pdev:		Backpointer to PCI device
  * @cpp:		CPP device handle if available
  * @eth_port:		Translated ETH Table port entry
  */
 struct nfp_net {
-	struct pci_dev *pdev;
+	struct device *dev;
 	struct net_device *netdev;
 
 	unsigned is_vf:1;
@@ -588,6 +589,7 @@ struct nfp_net {
 
 	struct list_head port_list;
 
+	struct pci_dev *pdev;
 	struct nfp_cpp *cpp;
 
 	struct nfp_eth_table_port *eth_port;
