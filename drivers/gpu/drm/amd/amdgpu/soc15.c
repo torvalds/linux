@@ -58,6 +58,7 @@
 #include "uvd_v7_0.h"
 #include "vce_v4_0.h"
 #include "amdgpu_powerplay.h"
+#include "mxgpu_ai.h"
 
 MODULE_FIRMWARE("amdgpu/vega10_smc.bin");
 
@@ -470,6 +471,9 @@ static const struct amdgpu_ip_block_version vega10_common_ip_block =
 int soc15_set_ip_blocks(struct amdgpu_device *adev)
 {
 	nbio_v6_1_detect_hw_virt(adev);
+
+	if (amdgpu_sriov_vf(adev))
+		adev->virt.ops = &xgpu_ai_virt_ops;
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
