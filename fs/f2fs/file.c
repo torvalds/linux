@@ -2054,6 +2054,12 @@ static int f2fs_ioc_defragment(struct file *filp, unsigned long arg)
 		goto out;
 	}
 
+	if (unlikely((range.start + range.len) >> PAGE_SHIFT >
+					sbi->max_file_blocks)) {
+		err = -EINVAL;
+		goto out;
+	}
+
 	err = f2fs_defragment_range(sbi, filp, &range);
 	f2fs_update_time(sbi, REQ_TIME);
 	if (err < 0)
