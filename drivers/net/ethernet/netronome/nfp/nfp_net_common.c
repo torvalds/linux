@@ -739,10 +739,10 @@ static int nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 	const struct skb_frag_struct *frag;
-	struct nfp_net_r_vector *r_vec;
 	struct nfp_net_tx_desc *txd, txdg;
-	struct nfp_net_tx_buf *txbuf;
 	struct nfp_net_tx_ring *tx_ring;
+	struct nfp_net_r_vector *r_vec;
+	struct nfp_net_tx_buf *txbuf;
 	struct netdev_queue *nd_q;
 	dma_addr_t dma_addr;
 	unsigned int fsize;
