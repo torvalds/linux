@@ -1738,8 +1738,11 @@ static ssize_t store_event_char(struct device *dev,
 	struct usb_serial_port *port = to_usb_serial_port(dev);
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	struct usb_device *udev = port->serial->dev;
-	int v = simple_strtoul(valbuf, NULL, 10);
+	unsigned int v;
 	int rv;
+
+	if (kstrtouint(valbuf, 10, &v) || v >= 0x200)
+		return -EINVAL;
 
 	dev_dbg(&port->dev, "%s: setting event char = %i\n", __func__, v);
 
