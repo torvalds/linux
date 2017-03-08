@@ -939,6 +939,7 @@ static const struct of_device_id imx_ipu_dt_ids[] = {
 	{ .compatible = "fsl,imx51-ipu", .data = &ipu_type_imx51, },
 	{ .compatible = "fsl,imx53-ipu", .data = &ipu_type_imx53, },
 	{ .compatible = "fsl,imx6q-ipu", .data = &ipu_type_imx6q, },
+	{ .compatible = "fsl,imx6qp-ipu", .data = &ipu_type_imx6q, },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, imx_ipu_dt_ids);
@@ -1398,11 +1399,19 @@ static int ipu_probe(struct platform_device *pdev)
 	if (!ipu)
 		return -ENODEV;
 
+	ipu->id = of_alias_get_id(np, "ipu");
+
+	if (of_device_is_compatible(np, "fsl,imx6qp-ipu")) {
+		ipu->prg_priv = ipu_prg_lookup_by_phandle(&pdev->dev,
+							  "fsl,prg", ipu->id);
+		if (!ipu->prg_priv)
+			return -EPROBE_DEFER;
+	}
+
 	for (i = 0; i < 64; i++)
 		ipu->channel[i].ipu = ipu;
 	ipu->devtype = devtype;
 	ipu->ipu_type = devtype->type;
-	ipu->id = of_alias_get_id(np, "ipu");
 
 	spin_lock_init(&ipu->lock);
 	mutex_init(&ipu->channel_lock);
