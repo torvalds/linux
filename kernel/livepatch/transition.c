@@ -21,14 +21,13 @@
 
 #include <linux/cpu.h>
 #include <linux/stacktrace.h>
+#include "core.h"
 #include "patch.h"
 #include "transition.h"
 #include "../sched/sched.h"
 
 #define MAX_STACK_ENTRIES  100
 #define STACK_ERR_BUF_SIZE 128
-
-extern struct mutex klp_mutex;
 
 struct klp_patch *klp_transition_patch;
 
