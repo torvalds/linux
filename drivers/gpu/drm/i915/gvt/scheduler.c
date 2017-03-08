@@ -468,19 +468,7 @@ static int workload_thread(void *priv)
 
 		gvt_dbg_sched("ring id %d wait workload %p\n",
 				workload->ring_id, workload);
-retry:
-		i915_wait_request(workload->req,
-					 0, MAX_SCHEDULE_TIMEOUT);
-		/* I915 has replay mechanism and a request will be replayed
-		 * if there is i915 reset. So the seqno will be updated anyway.
-		 * If the seqno is not updated yet after waiting, which means
-		 * the replay may still be in progress and we can wait again.
-		 */
-		if (!i915_gem_request_completed(workload->req)) {
-			gvt_dbg_sched("workload %p not completed, wait again\n",
-					workload);
-			goto retry;
-		}
+		i915_wait_request(workload->req, 0, MAX_SCHEDULE_TIMEOUT);
 
 complete:
 		gvt_dbg_sched("will complete workload %p, status: %d\n",
