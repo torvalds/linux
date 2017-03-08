@@ -6495,8 +6495,14 @@ static void bnxt_reset_task(struct bnxt *bp, bool silent)
 	if (!silent)
 		bnxt_dbg_dump_states(bp);
 	if (netif_running(bp->dev)) {
+		int rc;
+
+		if (!silent)
+			bnxt_ulp_stop(bp);
 		bnxt_close_nic(bp, false, false);
-		bnxt_open_nic(bp, false, false);
+		rc = bnxt_open_nic(bp, false, false);
+		if (!silent && !rc)
+			bnxt_ulp_start(bp);
 	}
 }
 
