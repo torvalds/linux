@@ -143,6 +143,10 @@ process_mbx:
 		if (!hw->mbx.ops.tx_ready(&hw->mbx, FM10K_VFMBX_MSG_MTU)) {
 			/* keep track of how many times this occurs */
 			interface->hw_sm_mbx_full++;
+
+			/* make sure we try again momentarily */
+			fm10k_service_event_schedule(interface);
+
 			break;
 		}
 
