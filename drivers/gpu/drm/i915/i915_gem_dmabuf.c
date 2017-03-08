@@ -307,3 +307,8 @@ fail_detach:
 
 	return ERR_PTR(ret);
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftests/mock_dmabuf.c"
+#include "selftests/i915_gem_dmabuf.c"
+#endif

@@ -192,6 +192,8 @@ static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 		break;
 	}
 
+	wait_for_dsi_fifo_empty(intel_dsi, port);
+
 out:
 	data += len;
 
@@ -424,10 +426,9 @@ static const char *sequence_name(enum mipi_seq seq_id)
 		return "(unknown)";
 }
 
-static void generic_exec_sequence(struct drm_panel *panel, enum mipi_seq seq_id)
+void intel_dsi_exec_vbt_sequence(struct intel_dsi *intel_dsi,
+				 enum mipi_seq seq_id)
 {
-	struct vbt_panel *vbt_panel = to_vbt_panel(panel);
-	struct intel_dsi *intel_dsi = vbt_panel->intel_dsi;
 	struct drm_i915_private *dev_priv = to_i915(intel_dsi->base.base.dev);
 	const u8 *data;
 	fn_mipi_elem_exec mipi_elem_exec;
@@ -491,40 +492,6 @@ static void generic_exec_sequence(struct drm_panel *panel, enum mipi_seq seq_id)
 	}
 }
 
-static int vbt_panel_prepare(struct drm_panel *panel)
-{
-	generic_exec_sequence(panel, MIPI_SEQ_ASSERT_RESET);
-	generic_exec_sequence(panel, MIPI_SEQ_POWER_ON);
-	generic_exec_sequence(panel, MIPI_SEQ_DEASSERT_RESET);
-	generic_exec_sequence(panel, MIPI_SEQ_INIT_OTP);
-
-	return 0;
-}
-
-static int vbt_panel_unprepare(struct drm_panel *panel)
-{
-	generic_exec_sequence(panel, MIPI_SEQ_ASSERT_RESET);
-	generic_exec_sequence(panel, MIPI_SEQ_POWER_OFF);
-
-	return 0;
-}
-
-static int vbt_panel_enable(struct drm_panel *panel)
-{
-	generic_exec_sequence(panel, MIPI_SEQ_DISPLAY_ON);
-	generic_exec_sequence(panel, MIPI_SEQ_BACKLIGHT_ON);
-
-	return 0;
-}
-
-static int vbt_panel_disable(struct drm_panel *panel)
-{
-	generic_exec_sequence(panel, MIPI_SEQ_BACKLIGHT_OFF);
-	generic_exec_sequence(panel, MIPI_SEQ_DISPLAY_OFF);
-
-	return 0;
-}
-
 static int vbt_panel_get_modes(struct drm_panel *panel)
 {
 	struct vbt_panel *vbt_panel = to_vbt_panel(panel);
@@ -548,10 +515,6 @@ static int vbt_panel_get_modes(struct drm_panel *panel)
 }
 
 static const struct drm_panel_funcs vbt_panel_funcs = {
-	.disable = vbt_panel_disable,
-	.unprepare = vbt_panel_unprepare,
-	.prepare = vbt_panel_prepare,
-	.enable = vbt_panel_enable,
 	.get_modes = vbt_panel_get_modes,
 };
 
@@ -571,6 +534,7 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	u32 tclk_prepare_clkzero, ths_prepare_hszero;
 	u32 lp_to_hs_switch, hs_to_lp_switch;
 	u32 pclk, computed_ddr;
+	u32 mul;
 	u16 burst_mode_ratio;
 	enum port port;
 
@@ -674,11 +638,6 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 		break;
 	}
 
-	/*
-	 * ui(s) = 1/f [f in hz]
-	 * ui(ns) = 10^9 / (f*10^6) [f in Mhz] -> 10^3/f(Mhz)
-	 */
-
 	/* in Kbps */
 	ui_num = NS_KHZ_RATIO;
 	ui_den = bitrate;
@@ -692,21 +651,26 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	 */
 	intel_dsi->lp_byte_clk = DIV_ROUND_UP(tlpx_ns * ui_den, 8 * ui_num);
 
-	/* count values in UI = (ns value) * (bitrate / (2 * 10^6))
+	/* DDR clock period = 2 * UI
+	 * UI(sec) = 1/(bitrate * 10^3) (bitrate is in KHZ)
+	 * UI(nsec) = 10^6 / bitrate
+	 * DDR clock period (nsec) = 2 * UI = (2 * 10^6)/ bitrate
+	 * DDR clock count  = ns_value / DDR clock period
 	 *
-	 * Since txddrclkhs_i is 2xUI, all the count values programmed in
-	 * DPHY param register are divided by 2
-	 *
-	 * prepare count
+	 * For GEMINILAKE dphy_param_reg will be programmed in terms of
+	 * HS byte clock count for other platform in HS ddr clock count
 	 */
+	mul = IS_GEMINILAKE(dev_priv) ? 8 : 2;
 	ths_prepare_ns = max(mipi_config->ths_prepare,
 			     mipi_config->tclk_prepare);
-	prepare_cnt = DIV_ROUND_UP(ths_prepare_ns * ui_den, ui_num * 2);
+
+	/* prepare count */
+	prepare_cnt = DIV_ROUND_UP(ths_prepare_ns * ui_den, ui_num * mul);
 
 	/* exit zero count */
 	exit_zero_cnt = DIV_ROUND_UP(
 				(ths_prepare_hszero - ths_prepare_ns) * ui_den,
-				ui_num * 2
+				ui_num * mul
 				);
 
 	/*
@@ -720,12 +684,12 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 
 	/* clk zero count */
 	clk_zero_cnt = DIV_ROUND_UP(
-			(tclk_prepare_clkzero -	ths_prepare_ns)
-			* ui_den, 2 * ui_num);
+				(tclk_prepare_clkzero -	ths_prepare_ns)
+				* ui_den, ui_num * mul);
 
 	/* trail count */
 	tclk_trail_ns = max(mipi_config->tclk_trail, mipi_config->ths_trail);
-	trail_cnt = DIV_ROUND_UP(tclk_trail_ns * ui_den, 2 * ui_num);
+	trail_cnt = DIV_ROUND_UP(tclk_trail_ns * ui_den, ui_num * mul);
 
 	if (prepare_cnt > PREPARE_CNT_MAX ||
 		exit_zero_cnt > EXIT_ZERO_CNT_MAX ||
@@ -801,6 +765,19 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 			8);
 	intel_dsi->clk_hs_to_lp_count += extra_byte_count;
 
+	DRM_DEBUG_KMS("Pclk %d\n", intel_dsi->pclk);
+	DRM_DEBUG_KMS("Pixel overlap %d\n", intel_dsi->pixel_overlap);
+	DRM_DEBUG_KMS("Lane count %d\n", intel_dsi->lane_count);
+	DRM_DEBUG_KMS("DPHY param reg 0x%x\n", intel_dsi->dphy_reg);
+	DRM_DEBUG_KMS("Video mode format %s\n",
+		      intel_dsi->video_mode_format == VIDEO_MODE_NON_BURST_WITH_SYNC_PULSE ?
+		      "non-burst with sync pulse" :
+		      intel_dsi->video_mode_format == VIDEO_MODE_NON_BURST_WITH_SYNC_EVENTS ?
+		      "non-burst with sync events" :
+		      intel_dsi->video_mode_format == VIDEO_MODE_BURST ?
+		      "burst" : "<unknown>");
+	DRM_DEBUG_KMS("Burst mode ratio %d\n", intel_dsi->burst_mode_ratio);
+	DRM_DEBUG_KMS("Reset timer %d\n", intel_dsi->rst_timer_val);
 	DRM_DEBUG_KMS("Eot %s\n", enableddisabled(intel_dsi->eotp_pkt));
 	DRM_DEBUG_KMS("Clockstop %s\n", enableddisabled(!intel_dsi->clock_stop));
 	DRM_DEBUG_KMS("Mode %s\n", intel_dsi->operation_mode ? "command" : "video");

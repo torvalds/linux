@@ -158,13 +158,8 @@ i915_tiling_ok(struct drm_i915_gem_object *obj,
 		if (stride > 8192)
 			return false;
 
-		if (IS_GEN3(i915)) {
-			if (obj->base.size > I830_FENCE_MAX_SIZE_VAL << 20)
-				return false;
-		} else {
-			if (obj->base.size > I830_FENCE_MAX_SIZE_VAL << 19)
-				return false;
-		}
+		if (!is_power_of_2(stride))
+			return false;
 	}
 
 	if (IS_GEN2(i915) ||
@@ -176,12 +171,7 @@ i915_tiling_ok(struct drm_i915_gem_object *obj,
 	if (!stride || !IS_ALIGNED(stride, tile_width))
 		return false;
 
-	/* 965+ just needs multiples of tile width */
-	if (INTEL_GEN(i915) >= 4)
-		return true;
-
-	/* Pre-965 needs power of two tile widths */
-	return is_power_of_2(stride);
+	return true;
 }
 
 static bool i915_vma_fence_prepare(struct i915_vma *vma,
@@ -248,7 +238,7 @@ i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
 	if ((tiling | stride) == obj->tiling_and_stride)
 		return 0;
 
-	if (obj->framebuffer_references)
+	if (i915_gem_object_is_framebuffer(obj))
 		return -EBUSY;
 
 	/* We need to rebind the object if its current allocation
@@ -267,6 +257,12 @@ i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
 	err = i915_gem_object_fence_prepare(obj, tiling, stride);
 	if (err)
 		return err;
+
+	i915_gem_object_lock(obj);
+	if (i915_gem_object_is_framebuffer(obj)) {
+		i915_gem_object_unlock(obj);
+		return -EBUSY;
+	}
 
 	/* If the memory has unknown (i.e. varying) swizzling, we pin the
 	 * pages to prevent them being swapped out and causing corruption
@@ -304,6 +300,7 @@ i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
 	}
 
 	obj->tiling_and_stride = tiling | stride;
+	i915_gem_object_unlock(obj);
 
 	/* Force the fence to be reacquired for GTT access */
 	i915_gem_release_mmap(obj);
