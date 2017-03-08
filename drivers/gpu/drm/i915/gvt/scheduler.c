@@ -139,6 +139,9 @@ static int shadow_context_status_change(struct notifier_block *nb,
 	struct intel_vgpu_workload *workload =
 		scheduler->current_workload[req->engine->id];
 
+	if (unlikely(!workload))
+		return NOTIFY_OK;
+
 	switch (action) {
 	case INTEL_CONTEXT_SCHEDULE_IN:
 		intel_gvt_load_render_mmio(workload->vgpu,
