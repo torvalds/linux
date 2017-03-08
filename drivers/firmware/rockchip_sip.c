@@ -74,6 +74,31 @@ int rk_psci_virtual_poweroff(void)
 	return res.a0;
 }
 
+u32 sip_smc_secure_reg_read(u32 addr_phy)
+{
+	struct arm_smccc_res res;
+
+	res = __invoke_sip_fn_smc(SIP_ACCESS_REG, 0, addr_phy, SECURE_REG_RD);
+	if (res.a0)
+		pr_err("%s error: %d, addr phy: 0x%x\n",
+		       __func__, (int)res.a0, addr_phy);
+
+	return res.a1;
+}
+
+int sip_smc_secure_reg_write(u32 addr_phy, u32 val)
+{
+	struct arm_smccc_res res;
+
+	res = __invoke_sip_fn_smc(SIP_ACCESS_REG, val, addr_phy, SECURE_REG_WR);
+	if (res.a0)
+		pr_err("%s error: %d, addr phy: 0x%x\n",
+		       __func__, (int)res.a0, addr_phy);
+
+	return res.a0;
+}
+
+/************************** fiq debugger **************************************/
 static u64 ft_fiq_mem_phy;
 static void __iomem *ft_fiq_mem_base;
 static void (*psci_fiq_debugger_uart_irq_tf)(void *reg_base, u64 sp_el1);

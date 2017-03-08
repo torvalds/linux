@@ -21,10 +21,15 @@
 #define SIP_SVC_VERSION			0x8200ff03
 
 #define SIP_ATF_VERSION32		0x82000001
+#define SIP_ACCESS_REG			0x82000002
 #define SIP_SUSPEND_MODE32		0x82000003
 #define SIP_DDR_CFG32			0x82000008
 #define SIP_SHARE_MEM32			0x82000009
 #define SIP_SIP_VERSION32		0x8200000a
+
+/* SIP_ACCESS_REG read/write */
+#define SECURE_REG_RD			0x0
+#define SECURE_REG_WR			0x1
 
 /* Share mem page types */
 typedef enum {
@@ -86,6 +91,8 @@ struct arm_smccc_res sip_smc_ddr_cfg(u32 arg0, u32 arg1,
 				     u32 arg2);
 struct arm_smccc_res sip_smc_get_share_mem_page(u32 page_num,
 						share_page_type_t page_type);
+u32 sip_smc_secure_reg_read(u32 addr_phy);
+int sip_smc_secure_reg_write(u32 addr_phy, u32 val);
 
 void psci_enable_fiq(void);
 u32 rockchip_psci_smc_get_tf_ver(void);
