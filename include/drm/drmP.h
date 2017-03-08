@@ -77,10 +77,10 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_prime.h>
 #include <drm/drm_pci.h>
+#include <drm/drm_file.h>
 
 struct module;
 
-struct drm_file;
 struct drm_device;
 struct drm_agp_head;
 struct drm_local_map;
@@ -360,76 +360,6 @@ struct drm_ioctl_desc {
 		.name = #ioctl						\
 	 }
 
-/* Event queued up for userspace to read */
-struct drm_pending_event {
-	struct completion *completion;
-	void (*completion_release)(struct completion *completion);
-	struct drm_event *event;
-	struct dma_fence *fence;
-	struct list_head link;
-	struct list_head pending_link;
-	struct drm_file *file_priv;
-	pid_t pid; /* pid of requester, no guarantee it's valid by the time
-		      we deliver the event, for tracing only */
-};
-
-/** File private data */
-struct drm_file {
-	unsigned authenticated :1;
-	/* true when the client has asked us to expose stereo 3D mode flags */
-	unsigned stereo_allowed :1;
-	/*
-	 * true if client understands CRTC primary planes and cursor planes
-	 * in the plane list
-	 */
-	unsigned universal_planes:1;
-	/* true if client understands atomic properties */
-	unsigned atomic:1;
-	/*
-	 * This client is the creator of @master.
-	 * Protected by struct drm_device::master_mutex.
-	 */
-	unsigned is_master:1;
-
-	struct pid *pid;
-	drm_magic_t magic;
-	struct list_head lhead;
-	struct drm_minor *minor;
-	unsigned long lock_count;
-
-	/** Mapping of mm object handles to object pointers. */
-	struct idr object_idr;
-	/** Lock for synchronization of access to object_idr. */
-	spinlock_t table_lock;
-
-	struct file *filp;
-	void *driver_priv;
-
-	struct drm_master *master; /* master this node is currently associated with
-				      N.B. not always dev->master */
-	/**
-	 * fbs - List of framebuffers associated with this file.
-	 *
-	 * Protected by fbs_lock. Note that the fbs list holds a reference on
-	 * the fb object to prevent it from untimely disappearing.
-	 */
-	struct list_head fbs;
-	struct mutex fbs_lock;
-
-	/** User-created blob properties; this retains a reference on the
-	 *  property. */
-	struct list_head blobs;
-
-	wait_queue_head_t event_wait;
-	struct list_head pending_event_list;
-	struct list_head event_list;
-	int event_space;
-
-	struct mutex event_read_lock;
-
-	struct drm_prime_file_private prime;
-};
-
 /* Flags and return codes for get_vblank_timestamp() driver function. */
 #define DRM_CALLED_FROM_VBLIRQ 1
 #define DRM_VBLANKTIME_SCANOUTPOS_METHOD (1 << 0)
@@ -439,12 +369,6 @@ struct drm_file {
 #define DRM_SCANOUTPOS_VALID        (1 << 0)
 #define DRM_SCANOUTPOS_IN_VBLANK    (1 << 1)
 #define DRM_SCANOUTPOS_ACCURATE     (1 << 2)
-
-enum drm_minor_type {
-	DRM_MINOR_PRIMARY,
-	DRM_MINOR_CONTROL,
-	DRM_MINOR_RENDER,
-};
 
 /**
  * Info file list entry. This structure represents a debugfs or proc file to
@@ -465,21 +389,6 @@ struct drm_info_node {
 	struct drm_minor *minor;
 	const struct drm_info_list *info_ent;
 	struct dentry *dent;
-};
-
-/**
- * DRM minor structure. This structure represents a drm minor number.
- */
-struct drm_minor {
-	int index;			/**< Minor device number */
-	int type;                       /**< Control or render */
-	struct device *kdev;		/**< Linux device */
-	struct drm_device *dev;
-
-	struct dentry *debugfs_root;
-
-	struct list_head debugfs_list;
-	struct mutex debugfs_lock; /* Protects debugfs_list. */
 };
 
 /**
@@ -656,21 +565,6 @@ static inline int drm_device_is_unplugged(struct drm_device *dev)
 	return ret;
 }
 
-static inline bool drm_is_render_client(const struct drm_file *file_priv)
-{
-	return file_priv->minor->type == DRM_MINOR_RENDER;
-}
-
-static inline bool drm_is_control_client(const struct drm_file *file_priv)
-{
-	return file_priv->minor->type == DRM_MINOR_CONTROL;
-}
-
-static inline bool drm_is_primary_client(const struct drm_file *file_priv)
-{
-	return file_priv->minor->type == DRM_MINOR_PRIMARY;
-}
-
 /******************************************************************/
 /** \name Internal function definitions */
 /*@{*/
@@ -687,25 +581,6 @@ extern long drm_compat_ioctl(struct file *filp,
 #define drm_compat_ioctl NULL
 #endif
 extern bool drm_ioctl_flags(unsigned int nr, unsigned int *flags);
-
-/* File Operations (drm_file.c) */
-int drm_open(struct inode *inode, struct file *filp);
-ssize_t drm_read(struct file *filp, char __user *buffer,
-		 size_t count, loff_t *offset);
-int drm_release(struct inode *inode, struct file *filp);
-unsigned int drm_poll(struct file *filp, struct poll_table_struct *wait);
-int drm_event_reserve_init_locked(struct drm_device *dev,
-				  struct drm_file *file_priv,
-				  struct drm_pending_event *p,
-				  struct drm_event *e);
-int drm_event_reserve_init(struct drm_device *dev,
-			   struct drm_file *file_priv,
-			   struct drm_pending_event *p,
-			   struct drm_event *e);
-void drm_event_cancel_free(struct drm_device *dev,
-			   struct drm_pending_event *p);
-void drm_send_event_locked(struct drm_device *dev, struct drm_pending_event *e);
-void drm_send_event(struct drm_device *dev, struct drm_pending_event *e);
 
 /* Misc. IOCTL support (drm_ioctl.c) */
 int drm_noop(struct drm_device *dev, void *data,

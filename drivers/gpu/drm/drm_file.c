@@ -31,10 +31,13 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drmP.h>
 #include <linux/poll.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+
+#include <drm/drm_file.h>
+#include <drm/drmP.h>
+
 #include "drm_legacy.h"
 #include "drm_internal.h"
 #include "drm_crtc_internal.h"
