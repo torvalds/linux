@@ -307,8 +307,8 @@ static int jr3_pci_open(struct comedi_device *dev)
 	for (i = 0; i < dev->n_subdevices; i++) {
 		s = &dev->subdevices[i];
 		spriv = s->private;
-		dev_dbg(dev->class_dev, "serial: %p %d (%d)\n",
-			spriv, spriv->serial_no, s->index);
+		dev_dbg(dev->class_dev, "serial[%d]: %d\n", s->index,
+			spriv->serial_no);
 	}
 	return 0;
 }
@@ -659,11 +659,6 @@ jr3_pci_alloc_spriv(struct comedi_device *dev, struct comedi_subdevice *s)
 	spriv->range_table_list[57] = &spriv->range[8].l;
 	spriv->maxdata_list[56] = 0xffff;
 	spriv->maxdata_list[57] = 0xffff;
-
-	dev_dbg(dev->class_dev, "p->sensor %p %p (%tx)\n",
-		spriv->sensor, block,
-		((char __iomem *)spriv->sensor -
-		 (char __iomem *)block));
 
 	return spriv;
 }
