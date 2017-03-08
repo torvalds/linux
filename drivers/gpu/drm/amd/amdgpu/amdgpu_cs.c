@@ -888,7 +888,7 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 	struct amdgpu_fpriv *fpriv = parser->filp->driver_priv;
 	struct amdgpu_vm *vm = &fpriv->vm;
 	int i, j;
-	int r;
+	int r, ce_preempt = 0, de_preempt = 0;
 
 	for (i = 0, j = 0; i < parser->nchunks && j < parser->job->num_ibs; i++) {
 		struct amdgpu_cs_chunk *chunk;
@@ -902,6 +902,17 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 
 		if (chunk->chunk_id != AMDGPU_CHUNK_ID_IB)
 			continue;
+
+		if (ib->flags & AMDGPU_IB_FLAG_PREEMPT) {
+			if (ib->flags & AMDGPU_IB_FLAG_CE)
+				ce_preempt++;
+			else
+				de_preempt++;
+		}
+
+		/* only one preemptible IB per submit for me/ce */
+		if (ce_preempt > 1 || de_preempt > 1)
+			return -EINVAL;
 
 		r = amdgpu_cs_get_ring(adev, chunk_ib->ip_type,
 				       chunk_ib->ip_instance, chunk_ib->ring,
