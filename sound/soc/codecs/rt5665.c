@@ -1241,7 +1241,7 @@ static irqreturn_t rt5665_irq(int irq, void *data)
 static void rt5665_jd_check_handler(struct work_struct *work)
 {
 	struct rt5665_priv *rt5665 = container_of(work, struct rt5665_priv,
-		calibrate_work.work);
+		jd_check_work.work);
 
 	if (snd_soc_read(rt5665->codec, RT5665_AJD1_CTRL) & 0x0010) {
 		/* jack out */
