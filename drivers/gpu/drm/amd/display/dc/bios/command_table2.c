@@ -238,8 +238,8 @@ static enum bp_result transmitter_control_v1_6(
 	if (cntl->action == TRANSMITTER_CONTROL_ENABLE ||
 		cntl->action == TRANSMITTER_CONTROL_ACTIAVATE ||
 		cntl->action == TRANSMITTER_CONTROL_DEACTIVATE) {
-		dm_logger_write(bp->base.ctx->logger, LOG_HW_SET_MODE,\
-		"************************%s:ps.param.symclk_10khz = %d\n",\
+		dm_logger_write(bp->base.ctx->logger, LOG_BIOS,\
+		"%s:ps.param.symclk_10khz = %d\n",\
 		__func__, ps.param.symclk_10khz);
 	}
 
@@ -328,8 +328,8 @@ static enum bp_result set_pixel_clock_v7(
 			(uint8_t) bp->cmd_helper->
 				transmitter_color_depth_to_atom(
 					bp_params->color_depth);
-		dm_logger_write(bp->base.ctx->logger, LOG_HW_SET_MODE,\
-				"************************%s:program display clock = %d"\
+		dm_logger_write(bp->base.ctx->logger, LOG_BIOS,\
+				"%s:program display clock = %d"\
 				"colorDepth = %d\n", __func__,\
 				bp_params->target_pixel_clock, bp_params->color_depth);
 
@@ -760,8 +760,8 @@ static enum bp_result set_dce_clock_v2_1(
 		 */
 		params.param.dceclk_10khz = cpu_to_le32(
 				bp_params->target_clock_frequency / 10);
-	dm_logger_write(bp->base.ctx->logger, LOG_HW_SET_MODE,
-			"************************%s:target_clock_frequency = %d"\
+	dm_logger_write(bp->base.ctx->logger, LOG_BIOS,
+			"%s:target_clock_frequency = %d"\
 			"clock_type = %d \n", __func__,\
 			bp_params->target_clock_frequency,\
 			bp_params->clock_type);
