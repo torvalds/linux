@@ -46,6 +46,7 @@
 
 /dts-v1/;
 
+#include <dt-bindings/gpio/gpio.h>
 #include "armada-372x.dtsi"
 
 / {
@@ -59,6 +60,21 @@
 	memory@0 {
 		device_type = "memory";
 		reg = <0x00000000 0x00000000 0x00000000 0x20000000>;
+	};
+
+	exp_usb3_vbus: usb3-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "usb3-vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		regulator-always-on;
+		gpio = <&gpio_exp 1 GPIO_ACTIVE_HIGH>;
+	};
+
+	usb3_phy: usb3-phy {
+		compatible = "usb-nop-xceiv";
+		vcc-supply = <&exp_usb3_vbus>;
 	};
 };
 
@@ -127,6 +143,7 @@
 /* CON31 */
 &usb3 {
 	status = "okay";
+	usb-phy = <&usb3_phy>;
 };
 
 /* CON17 (PCIe) / CON12 (mini-PCIe) */
