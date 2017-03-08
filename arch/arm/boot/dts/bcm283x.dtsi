@@ -350,6 +350,16 @@
 			arm,primecell-periphid = <0x00241011>;
 		};
 
+		sdhost: mmc@7e202000 {
+			compatible = "brcm,bcm2835-sdhost";
+			reg = <0x7e202000 0x100>;
+			interrupts = <2 24>;
+			clocks = <&clocks BCM2835_CLOCK_VPU>;
+			dmas = <&dma 13>;
+			dma-names = "rx-tx";
+			status = "disabled";
+		};
+
 		i2s: i2s@7e203000 {
 			compatible = "brcm,bcm2835-i2s";
 			reg = <0x7e203000 0x20>,
