@@ -390,22 +390,23 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 	}
 	mutex_unlock(&wil->p2p_wdev_mutex);
 
-	/* social scan on P2P_DEVICE is handled as p2p search */
-	if (wdev->iftype == NL80211_IFTYPE_P2P_DEVICE &&
-	    wil_p2p_is_social_scan(request)) {
+	if (wdev->iftype == NL80211_IFTYPE_P2P_DEVICE) {
 		if (!wil->p2p.p2p_dev_started) {
 			wil_err(wil, "P2P search requested on stopped P2P device\n");
 			rc = -EIO;
 			goto out;
 		}
-		wil->scan_request = request;
-		wil->radio_wdev = wdev;
-		rc = wil_p2p_search(wil, request);
-		if (rc) {
-			wil->radio_wdev = wil_to_wdev(wil);
-			wil->scan_request = NULL;
+		/* social scan on P2P_DEVICE is handled as p2p search */
+		if (wil_p2p_is_social_scan(request)) {
+			wil->scan_request = request;
+			wil->radio_wdev = wdev;
+			rc = wil_p2p_search(wil, request);
+			if (rc) {
+				wil->radio_wdev = wil_to_wdev(wil);
+				wil->scan_request = NULL;
+			}
+			goto out;
 		}
-		goto out;
 	}
 
 	(void)wil_p2p_stop_discovery(wil);
