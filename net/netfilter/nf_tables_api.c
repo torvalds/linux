@@ -4095,7 +4095,8 @@ static const struct nla_policy nft_obj_policy[NFTA_OBJ_MAX + 1] = {
 	[NFTA_OBJ_DATA]		= { .type = NLA_NESTED },
 };
 
-static struct nft_object *nft_obj_init(const struct nft_object_type *type,
+static struct nft_object *nft_obj_init(const struct nft_ctx *ctx,
+				       const struct nft_object_type *type,
 				       const struct nlattr *attr)
 {
 	struct nlattr *tb[type->maxattr + 1];
@@ -4115,7 +4116,7 @@ static struct nft_object *nft_obj_init(const struct nft_object_type *type,
 	if (obj == NULL)
 		goto err1;
 
-	err = type->init((const struct nlattr * const *)tb, obj);
+	err = type->init(ctx, (const struct nlattr * const *)tb, obj);
 	if (err < 0)
 		goto err2;
 
@@ -4223,7 +4224,7 @@ static int nf_tables_newobj(struct net *net, struct sock *nlsk,
 	if (IS_ERR(type))
 		return PTR_ERR(type);
 
-	obj = nft_obj_init(type, nla[NFTA_OBJ_DATA]);
+	obj = nft_obj_init(&ctx, type, nla[NFTA_OBJ_DATA]);
 	if (IS_ERR(obj)) {
 		err = PTR_ERR(obj);
 		goto err1;
