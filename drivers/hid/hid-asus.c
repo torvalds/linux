@@ -63,9 +63,11 @@ MODULE_DESCRIPTION("Asus HID Keyboard and TouchPad");
 #define QUIRK_NO_INIT_REPORTS		BIT(1)
 #define QUIRK_SKIP_INPUT_MAPPING	BIT(2)
 #define QUIRK_IS_MULTITOUCH		BIT(3)
+#define QUIRK_NO_CONSUMER_USAGES	BIT(4)
 
 #define I2C_KEYBOARD_QUIRKS			(QUIRK_FIX_NOTEBOOK_REPORT | \
-						 QUIRK_NO_INIT_REPORTS)
+						 QUIRK_NO_INIT_REPORTS | \
+						 QUIRK_NO_CONSUMER_USAGES)
 #define I2C_TOUCHPAD_QUIRKS			(QUIRK_NO_INIT_REPORTS | \
 						 QUIRK_SKIP_INPUT_MAPPING | \
 						 QUIRK_IS_MULTITOUCH)
@@ -242,9 +244,26 @@ static int asus_input_mapping(struct hid_device *hdev,
 		case 0x5c: asus_map_key_clear(KEY_PROG3);		break;
 
 		default:
-			return 0;
+			/* ASUS lazily declares 256 usages, ignore the rest,
+			 * as some make the keyboard appear as a pointer device. */
+			return -1;
 		}
 		return 1;
+	}
+
+	if (drvdata->quirks & QUIRK_NO_CONSUMER_USAGES &&
+		(usage->hid & HID_USAGE_PAGE) == HID_UP_CONSUMER) {
+		switch (usage->hid & HID_USAGE) {
+		case 0xe2: /* Mute */
+		case 0xe9: /* Volume up */
+		case 0xea: /* Volume down */
+			return 0;
+		default:
+			/* Ignore dummy Consumer usages which make the
+			 * keyboard incorrectly appear as a pointer device.
+			 */
+			return -1;
+		}
 	}
 
 	return 0;
