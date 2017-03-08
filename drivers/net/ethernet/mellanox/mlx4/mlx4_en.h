@@ -327,7 +327,6 @@ struct mlx4_en_rx_desc {
 
 struct mlx4_en_rx_ring {
 	struct mlx4_hwq_resources wqres;
-	struct mlx4_en_rx_alloc page_alloc[MLX4_EN_MAX_RX_FRAGS];
 	u32 size ;	/* number of Rx descs*/
 	u32 actual_size;
 	u32 size_mask;
