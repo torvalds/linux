@@ -5511,8 +5511,9 @@ static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
 		bp->lpi_tmr_hi = le32_to_cpu(resp->valid_tx_lpi_timer_high) &
 				 PORT_PHY_QCAPS_RESP_TX_LPI_TIMER_HIGH_MASK;
 	}
-	link_info->support_auto_speeds =
-		le16_to_cpu(resp->supported_speeds_auto_mode);
+	if (resp->supported_speeds_auto_mode)
+		link_info->support_auto_speeds =
+			le16_to_cpu(resp->supported_speeds_auto_mode);
 
 hwrm_phy_qcaps_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
