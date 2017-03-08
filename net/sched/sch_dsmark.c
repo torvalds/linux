@@ -368,6 +368,8 @@ static int dsmark_init(struct Qdisc *sch, struct nlattr *opt)
 	p->q = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops, sch->handle);
 	if (p->q == NULL)
 		p->q = &noop_qdisc;
+	else
+		qdisc_hash_add(p->q, true);
 
 	pr_debug("%s: qdisc %p\n", __func__, p->q);
 
