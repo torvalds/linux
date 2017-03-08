@@ -55,6 +55,7 @@ static void ipu_crtc_enable(struct drm_crtc *crtc)
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 	struct ipu_soc *ipu = dev_get_drvdata(ipu_crtc->dev->parent);
 
+	ipu_prg_enable(ipu);
 	ipu_dc_enable(ipu);
 	ipu_dc_enable_channel(ipu_crtc->dc);
 	ipu_di_enable(ipu_crtc->di);
@@ -95,6 +96,7 @@ static void ipu_crtc_atomic_disable(struct drm_crtc *crtc,
 	 */
 	ipu_crtc_disable_planes(ipu_crtc, old_crtc_state);
 	ipu_dc_disable(ipu);
+	ipu_prg_disable(ipu);
 
 	spin_lock_irq(&crtc->dev->event_lock);
 	if (crtc->state->event) {
