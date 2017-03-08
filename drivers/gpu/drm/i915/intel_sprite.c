@@ -254,9 +254,6 @@ skl_update_plane(struct drm_plane *drm_plane,
 		int scaler_id = plane_state->scaler_id;
 		const struct intel_scaler *scaler;
 
-		DRM_DEBUG_KMS("plane = %d PS_PLANE_SEL(plane) = 0x%x\n",
-			      plane_id, PS_PLANE_SEL(plane_id));
-
 		scaler = &crtc_state->scaler_state.scalers[scaler_id];
 
 		I915_WRITE(SKL_PS_CTRL(pipe, scaler_id),
