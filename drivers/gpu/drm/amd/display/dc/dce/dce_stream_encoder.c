@@ -1093,8 +1093,8 @@ static void dce110_se_setup_hdmi_audio(
 		crtc_info->requested_pixel_clock,
 		crtc_info->calculated_pixel_clock,
 		&audio_clock_info)) {
-		dm_logger_write(enc->ctx->logger, LOG_HW_SET_MODE,
-				"\n*********************%s:Input::requested_pixel_clock = %d"\
+		dm_logger_write(enc->ctx->logger, LOG_HW_AUDIO,
+				"\n%s:Input::requested_pixel_clock = %d"\
 				"calculated_pixel_clock = %d \n", __func__,\
 				crtc_info->requested_pixel_clock,\
 				crtc_info->calculated_pixel_clock);

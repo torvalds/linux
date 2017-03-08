@@ -35,6 +35,7 @@ struct dal_logger;
 enum dc_log_type {
 	LOG_ERROR = 0,
 	LOG_WARNING,
+	LOG_DEBUG,
 	LOG_DC,
 	LOG_SURFACE,
 	LOG_HW_HOTPLUG,

@@ -3299,7 +3299,7 @@ static enum bp_result patch_bios_image_from_ext_display_connection_info(
 					    opm_object,
 					    &ext_display_connection_info_tbl) != BP_RESULT_OK) {
 
-		dm_logger_write(bp->base.ctx->logger, LOG_BIOS,
+		dm_logger_write(bp->base.ctx->logger, LOG_WARNING,
 				"%s: Failed to read Connection Info Table", __func__);
 		return BP_RESULT_UNSUPPORTED;
 	}

@@ -773,8 +773,8 @@ void dce_aud_wall_dto_setup(
 			crtc_info->calculated_pixel_clock,
 			&clock_info);
 
-		dm_logger_write(audio->ctx->logger, LOG_HW_SET_MODE,\
-				"\n************************%s:Input::requested_pixel_clock = %d"\
+		dm_logger_write(audio->ctx->logger, LOG_HW_AUDIO,\
+				"\n%s:Input::requested_pixel_clock = %d"\
 				"calculated_pixel_clock =%d\n"\
 				"audio_dto_module = %d audio_dto_phase =%d \n\n", __func__,\
 				crtc_info->requested_pixel_clock,\
