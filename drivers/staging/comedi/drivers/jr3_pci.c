@@ -653,7 +653,7 @@ jr3_pci_alloc_spriv(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 	spriv->range[8].l.length = 1;
 	spriv->range[8].l.range[0].min = 0;
-	spriv->range[8].l.range[0].max = 65536;
+	spriv->range[8].l.range[0].max = 65535;
 
 	spriv->range_table_list[56] = &spriv->range[8].l;
 	spriv->range_table_list[57] = &spriv->range[8].l;
