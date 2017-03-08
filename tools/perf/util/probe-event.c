@@ -3048,7 +3048,7 @@ concat_probe_trace_events(struct probe_trace_event **tevs, int *ntevs,
 	struct probe_trace_event *new_tevs;
 	int ret = 0;
 
-	if (ntevs == 0) {
+	if (*ntevs == 0) {
 		*tevs = *tevs2;
 		*ntevs = ntevs2;
 		*tevs2 = NULL;
