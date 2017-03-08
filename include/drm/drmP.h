@@ -444,7 +444,6 @@ enum drm_minor_type {
 	DRM_MINOR_PRIMARY,
 	DRM_MINOR_CONTROL,
 	DRM_MINOR_RENDER,
-	DRM_MINOR_CNT,
 };
 
 /**
