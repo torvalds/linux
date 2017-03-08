@@ -23,6 +23,7 @@
 #include <linux/export.h>
 #include <linux/hid.h>
 #include <linux/module.h>
+#include <linux/sched/signal.h>
 #include <linux/uio.h>
 #include <asm/unaligned.h>
 

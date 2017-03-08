@@ -372,12 +372,13 @@
 		};
 	};
 
-	coresight-replicator {
-		/*
-		 * Non-configurable replicators don't show up on the
-		 * AMBA bus.  As such no need to add "arm,primecell".
-		 */
-		compatible = "arm,coresight-replicator";
+	replicator@20120000 {
+		compatible = "qcom,coresight-replicator1x", "arm,primecell";
+		reg = <0 0x20120000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
 
 		ports {
 			#address-cells = <1>;

@@ -668,6 +668,7 @@ static int __init exynos_pcie_probe(struct platform_device *pdev)
 	pci->dev = dev;
 	pci->ops = &dw_pcie_ops;
 
+	ep->pci = pci;
 	ep->ops = (const struct exynos_pcie_ops *)
 		of_device_get_match_data(dev);
 

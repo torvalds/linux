@@ -21,6 +21,7 @@
 #include <linux/fs.h>
 #include <linux/net.h>
 #include <linux/string.h>
+#include <linux/sched/signal.h>
 #include <linux/list.h>
 #include <linux/wait.h>
 #include <linux/slab.h>
@@ -2073,7 +2074,8 @@ match_security(struct TCP_Server_Info *server, struct smb_vol *vol)
 	 * that was specified, or "Unspecified" if that sectype was not
 	 * compatible with the given NEGOTIATE request.
 	 */
-	if (select_sectype(server, vol->sectype) == Unspecified)
+	if (server->ops->select_sectype(server, vol->sectype)
+	     == Unspecified)
 		return false;
 
 	/*

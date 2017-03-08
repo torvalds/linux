@@ -13,6 +13,8 @@
 
 #include <linux/nmi.h>
 #include <linux/module.h>
+#include <linux/sched/debug.h>
+
 #include <asm/irq_regs.h>
 #include <linux/perf_event.h>
 

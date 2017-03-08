@@ -11,6 +11,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 #include <linux/sched.h>
+#include <linux/sched/hotplug.h>
 #include <linux/init.h>
 #include <linux/export.h>
 

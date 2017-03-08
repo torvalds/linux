@@ -25,7 +25,7 @@
 #include <linux/completion.h>
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
-#include <linux/rcupdate.h>
+#include <linux/rcupdate_wait.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/mutex.h>
@@ -46,6 +46,18 @@ static void __call_rcu(struct rcu_head *head,
 		       struct rcu_ctrlblk *rcp);
 
 #include "tiny_plugin.h"
+
+void rcu_barrier_bh(void)
+{
+	wait_rcu_gp(call_rcu_bh);
+}
+EXPORT_SYMBOL(rcu_barrier_bh);
+
+void rcu_barrier_sched(void)
+{
+	wait_rcu_gp(call_rcu_sched);
+}
+EXPORT_SYMBOL(rcu_barrier_sched);
 
 #if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE)
 

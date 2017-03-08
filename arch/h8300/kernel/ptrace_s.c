@@ -10,7 +10,7 @@
  */
 
 #include <linux/linkage.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/errno.h>
 #include <asm/ptrace.h>
 

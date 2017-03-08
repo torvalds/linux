@@ -51,7 +51,7 @@ module_param(gso, bool, 0444);
  * at once, the weight is chosen so that the EWMA will be insensitive to short-
  * term, transient changes in packet size.
  */
-DECLARE_EWMA(pkt_len, 1, 64)
+DECLARE_EWMA(pkt_len, 0, 64)
 
 /* With mergeable buffers we align buffer address and use the low bits to
  * encode its true size. Buffer size is up to 1 page so we need to align to

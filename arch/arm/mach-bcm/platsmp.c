@@ -21,6 +21,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/smp.h>
 
 #include <asm/cacheflush.h>

@@ -1637,94 +1637,6 @@ qla2x00_init_firmware(scsi_qla_host_t *vha, uint16_t size)
 	return rval;
 }
 
-/*
- * qla2x00_get_node_name_list
- *      Issue get node name list mailbox command, kmalloc()
- *      and return the resulting list. Caller must kfree() it!
- *
- * Input:
- *      ha = adapter state pointer.
- *      out_data = resulting list
- *      out_len = length of the resulting list
- *
- * Returns:
- *      qla2x00 local function return status code.
- *
- * Context:
- *      Kernel context.
- */
-int
-qla2x00_get_node_name_list(scsi_qla_host_t *vha, void **out_data, int *out_len)
-{
-	struct qla_hw_data *ha = vha->hw;
-	struct qla_port_24xx_data *list = NULL;
-	void *pmap;
-	mbx_cmd_t mc;
-	dma_addr_t pmap_dma;
-	ulong dma_size;
-	int rval, left;
-
-	left = 1;
-	while (left > 0) {
-		dma_size = left * sizeof(*list);
-		pmap = dma_alloc_coherent(&ha->pdev->dev, dma_size,
-					 &pmap_dma, GFP_KERNEL);
-		if (!pmap) {
-			ql_log(ql_log_warn, vha, 0x113f,
-			    "%s(%ld): DMA Alloc failed of %ld\n",
-			    __func__, vha->host_no, dma_size);
-			rval = QLA_MEMORY_ALLOC_FAILED;
-			goto out;
-		}
-
-		mc.mb[0] = MBC_PORT_NODE_NAME_LIST;
-		mc.mb[1] = BIT_1 | BIT_3;
-		mc.mb[2] = MSW(pmap_dma);
-		mc.mb[3] = LSW(pmap_dma);
-		mc.mb[6] = MSW(MSD(pmap_dma));
-		mc.mb[7] = LSW(MSD(pmap_dma));
-		mc.mb[8] = dma_size;
-		mc.out_mb = MBX_0|MBX_1|MBX_2|MBX_3|MBX_6|MBX_7|MBX_8;
-		mc.in_mb = MBX_0|MBX_1;
-		mc.tov = 30;
-		mc.flags = MBX_DMA_IN;
-
-		rval = qla2x00_mailbox_command(vha, &mc);
-		if (rval != QLA_SUCCESS) {
-			if ((mc.mb[0] == MBS_COMMAND_ERROR) &&
-			    (mc.mb[1] == 0xA)) {
-				left += le16_to_cpu(mc.mb[2]) /
-				    sizeof(struct qla_port_24xx_data);
-				goto restart;
-			}
-			goto out_free;
-		}
-
-		left = 0;
-
-		list = kmemdup(pmap, dma_size, GFP_KERNEL);
-		if (!list) {
-			ql_log(ql_log_warn, vha, 0x1140,
-			    "%s(%ld): failed to allocate node names list "
-			    "structure.\n", __func__, vha->host_no);
-			rval = QLA_MEMORY_ALLOC_FAILED;
-			goto out_free;
-		}
-
-restart:
-		dma_free_coherent(&ha->pdev->dev, dma_size, pmap, pmap_dma);
-	}
-
-	*out_data = list;
-	*out_len = dma_size;
-
-out:
-	return rval;
-
-out_free:
-	dma_free_coherent(&ha->pdev->dev, dma_size, pmap, pmap_dma);
-	return rval;
-}
 
 /*
  * qla2x00_get_port_database
@@ -3687,10 +3599,8 @@ void
 qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 	struct vp_rpt_id_entry_24xx *rptid_entry)
 {
-	uint8_t vp_idx;
-	uint16_t stat = le16_to_cpu(rptid_entry->vp_idx);
 	struct qla_hw_data *ha = vha->hw;
-	scsi_qla_host_t *vp;
+	scsi_qla_host_t *vp = NULL;
 	unsigned long   flags;
 	int found;
 
@@ -3701,80 +3611,124 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 		return;
 
 	if (rptid_entry->format == 0) {
+		/* loop */
 		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10b7,
 		    "Format 0 : Number of VPs setup %d, number of "
-		    "VPs acquired %d.\n",
-		    MSB(le16_to_cpu(rptid_entry->vp_count)),
-		    LSB(le16_to_cpu(rptid_entry->vp_count)));
+		    "VPs acquired %d.\n", rptid_entry->vp_setup,
+		    rptid_entry->vp_acquired);
 		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10b8,
 		    "Primary port id %02x%02x%02x.\n",
 		    rptid_entry->port_id[2], rptid_entry->port_id[1],
 		    rptid_entry->port_id[0]);
+
+		vha->d_id.b.domain = rptid_entry->port_id[2];
+		vha->d_id.b.area = rptid_entry->port_id[1];
+		vha->d_id.b.al_pa = rptid_entry->port_id[0];
+
+		spin_lock_irqsave(&ha->vport_slock, flags);
+		qlt_update_vp_map(vha, SET_AL_PA);
+		spin_unlock_irqrestore(&ha->vport_slock, flags);
+
 	} else if (rptid_entry->format == 1) {
-		vp_idx = LSB(stat);
+		/* fabric */
 		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10b9,
 		    "Format 1: VP[%d] enabled - status %d - with "
-		    "port id %02x%02x%02x.\n", vp_idx, MSB(stat),
+		    "port id %02x%02x%02x.\n", rptid_entry->vp_idx,
+			rptid_entry->vp_status,
 		    rptid_entry->port_id[2], rptid_entry->port_id[1],
 		    rptid_entry->port_id[0]);
 
 		/* buffer to buffer credit flag */
-		vha->flags.bbcr_enable = (rptid_entry->bbcr & 0xf) != 0;
+		vha->flags.bbcr_enable = (rptid_entry->u.f1.bbcr & 0xf) != 0;
 
-		/* FA-WWN is only for physical port */
-		if (!vp_idx) {
-			void *wwpn = ha->init_cb->port_name;
+		if (rptid_entry->vp_idx == 0) {
+			if (rptid_entry->vp_status == VP_STAT_COMPL) {
+				/* FA-WWN is only for physical port */
+				if (qla_ini_mode_enabled(vha) &&
+				    ha->flags.fawwpn_enabled &&
+				    (rptid_entry->u.f1.flags &
+				     VP_FLAGS_NAME_VALID)) {
+					memcpy(vha->port_name,
+					    rptid_entry->u.f1.port_name,
+					    WWN_SIZE);
+				}
 
-			if (!MSB(stat)) {
-				if (rptid_entry->vp_idx_map[1] & BIT_6)
-					wwpn = rptid_entry->reserved_4 + 8;
+				vha->d_id.b.domain = rptid_entry->port_id[2];
+				vha->d_id.b.area = rptid_entry->port_id[1];
+				vha->d_id.b.al_pa = rptid_entry->port_id[0];
+				spin_lock_irqsave(&ha->vport_slock, flags);
+				qlt_update_vp_map(vha, SET_AL_PA);
+				spin_unlock_irqrestore(&ha->vport_slock, flags);
 			}
-			memcpy(vha->port_name, wwpn, WWN_SIZE);
+
 			fc_host_port_name(vha->host) =
 			    wwn_to_u64(vha->port_name);
-			ql_dbg(ql_dbg_mbx, vha, 0x1018,
-			    "FA-WWN portname %016llx (%x)\n",
-			    fc_host_port_name(vha->host), MSB(stat));
-		}
 
-		vp = vha;
-		if (vp_idx == 0)
-			goto reg_needed;
+			if (qla_ini_mode_enabled(vha))
+				ql_dbg(ql_dbg_mbx, vha, 0x1018,
+				    "FA-WWN portname %016llx (%x)\n",
+				    fc_host_port_name(vha->host),
+				    rptid_entry->vp_status);
 
-		if (MSB(stat) != 0 && MSB(stat) != 2) {
-			ql_dbg(ql_dbg_mbx, vha, 0x10ba,
-			    "Could not acquire ID for VP[%d].\n", vp_idx);
-			return;
-		}
-
-		found = 0;
-		spin_lock_irqsave(&ha->vport_slock, flags);
-		list_for_each_entry(vp, &ha->vp_list, list) {
-			if (vp_idx == vp->vp_idx) {
-				found = 1;
-				break;
+			set_bit(REGISTER_FC4_NEEDED, &vha->dpc_flags);
+			set_bit(REGISTER_FDMI_NEEDED, &vha->dpc_flags);
+		} else {
+			if (rptid_entry->vp_status != VP_STAT_COMPL &&
+				rptid_entry->vp_status != VP_STAT_ID_CHG) {
+				ql_dbg(ql_dbg_mbx, vha, 0x10ba,
+				    "Could not acquire ID for VP[%d].\n",
+				    rptid_entry->vp_idx);
+				return;
 			}
+
+			found = 0;
+			spin_lock_irqsave(&ha->vport_slock, flags);
+			list_for_each_entry(vp, &ha->vp_list, list) {
+				if (rptid_entry->vp_idx == vp->vp_idx) {
+					found = 1;
+					break;
+				}
+			}
+			spin_unlock_irqrestore(&ha->vport_slock, flags);
+
+			if (!found)
+				return;
+
+			vp->d_id.b.domain = rptid_entry->port_id[2];
+			vp->d_id.b.area =  rptid_entry->port_id[1];
+			vp->d_id.b.al_pa = rptid_entry->port_id[0];
+			spin_lock_irqsave(&ha->vport_slock, flags);
+			qlt_update_vp_map(vp, SET_AL_PA);
+			spin_unlock_irqrestore(&ha->vport_slock, flags);
+
+			/*
+			 * Cannot configure here as we are still sitting on the
+			 * response queue. Handle it in dpc context.
+			 */
+			set_bit(VP_IDX_ACQUIRED, &vp->vp_flags);
+			set_bit(REGISTER_FC4_NEEDED, &vp->dpc_flags);
+			set_bit(REGISTER_FDMI_NEEDED, &vp->dpc_flags);
 		}
-		spin_unlock_irqrestore(&ha->vport_slock, flags);
-
-		if (!found)
-			return;
-
-		vp->d_id.b.domain = rptid_entry->port_id[2];
-		vp->d_id.b.area =  rptid_entry->port_id[1];
-		vp->d_id.b.al_pa = rptid_entry->port_id[0];
-
-		/*
-		 * Cannot configure here as we are still sitting on the
-		 * response queue. Handle it in dpc context.
-		 */
-		set_bit(VP_IDX_ACQUIRED, &vp->vp_flags);
-
-reg_needed:
-		set_bit(REGISTER_FC4_NEEDED, &vp->dpc_flags);
-		set_bit(REGISTER_FDMI_NEEDED, &vp->dpc_flags);
 		set_bit(VP_DPC_NEEDED, &vha->dpc_flags);
 		qla2xxx_wake_dpc(vha);
+	} else if (rptid_entry->format == 2) {
+		ql_dbg(ql_dbg_async, vha, 0xffff,
+		    "RIDA: format 2/N2N Primary port id %02x%02x%02x.\n",
+		    rptid_entry->port_id[2], rptid_entry->port_id[1],
+		    rptid_entry->port_id[0]);
+
+		ql_dbg(ql_dbg_async, vha, 0xffff,
+		    "N2N: Remote WWPN %8phC.\n",
+		    rptid_entry->u.f2.port_name);
+
+		/* N2N.  direct connect */
+		vha->d_id.b.domain = rptid_entry->port_id[2];
+		vha->d_id.b.area = rptid_entry->port_id[1];
+		vha->d_id.b.al_pa = rptid_entry->port_id[0];
+
+		spin_lock_irqsave(&ha->vport_slock, flags);
+		qlt_update_vp_map(vha, SET_AL_PA);
+		spin_unlock_irqrestore(&ha->vport_slock, flags);
 	}
 }
 

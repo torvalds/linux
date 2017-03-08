@@ -305,6 +305,7 @@ static int read_cap16(struct scsi_device *sdev, struct llun_info *lli)
 	struct cxlflash_cfg *cfg = shost_priv(sdev->host);
 	struct device *dev = &cfg->dev->dev;
 	struct glun_info *gli = lli->parent;
+	struct scsi_sense_hdr sshdr;
 	u8 *cmd_buf = NULL;
 	u8 *scsi_cmd = NULL;
 	u8 *sense_buf = NULL;
@@ -332,7 +333,8 @@ retry:
 	/* Drop the ioctl read semahpore across lengthy call */
 	up_read(&cfg->ioctl_rwsem);
 	result = scsi_execute(sdev, scsi_cmd, DMA_FROM_DEVICE, cmd_buf,
-			      CMD_BUFSIZE, sense_buf, to, CMD_RETRIES, 0, NULL);
+			      CMD_BUFSIZE, sense_buf, &sshdr, to, CMD_RETRIES,
+			      0, 0, NULL);
 	down_read(&cfg->ioctl_rwsem);
 	rc = check_state(cfg);
 	if (rc) {
@@ -345,10 +347,6 @@ retry:
 	if (driver_byte(result) == DRIVER_SENSE) {
 		result &= ~(0xFF<<24); /* DRIVER_SENSE is not an error */
 		if (result & SAM_STAT_CHECK_CONDITION) {
-			struct scsi_sense_hdr sshdr;
-
-			scsi_normalize_sense(sense_buf, SCSI_SENSE_BUFFERSIZE,
-					    &sshdr);
 			switch (sshdr.sense_key) {
 			case NO_SENSE:
 			case RECOVERED_ERROR:

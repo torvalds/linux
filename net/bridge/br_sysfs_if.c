@@ -17,6 +17,7 @@
 #include <linux/if_bridge.h>
 #include <linux/rtnetlink.h>
 #include <linux/spinlock.h>
+#include <linux/sched/signal.h>
 
 #include "br_private.h"
 

@@ -44,6 +44,7 @@
 #include <linux/uaccess.h>
 #include <linux/cpumask.h>
 #include <linux/delay.h>
+#include <linux/sched/clock.h>
 #include "trace.h"
 
 static struct trace_array	*hwlat_trace;

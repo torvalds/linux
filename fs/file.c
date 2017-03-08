@@ -12,7 +12,7 @@
 #include <linux/mm.h>
 #include <linux/mmzone.h>
 #include <linux/time.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/file.h>

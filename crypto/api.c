@@ -21,7 +21,7 @@
 #include <linux/kmod.h>
 #include <linux/module.h>
 #include <linux/param.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include "internal.h"

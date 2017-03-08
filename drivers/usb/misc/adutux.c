@@ -21,6 +21,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/module.h>

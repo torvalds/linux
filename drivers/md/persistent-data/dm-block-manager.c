@@ -13,6 +13,7 @@
 #include <linux/rwsem.h>
 #include <linux/device-mapper.h>
 #include <linux/stacktrace.h>
+#include <linux/sched/task.h>
 
 #define DM_MSG_PREFIX "block manager"
 

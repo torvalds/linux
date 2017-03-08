@@ -109,7 +109,7 @@ static inline void mlx4_u64_to_mac(u8 *addr, u64 mac)
 	int i;
 
 	for (i = ETH_ALEN; i > 0; i--) {
-		addr[i - 1] = mac && 0xFF;
+		addr[i - 1] = mac & 0xFF;
 		mac >>= 8;
 	}
 }
