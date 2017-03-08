@@ -250,7 +250,10 @@ static int mlx4_en_prepare_rx_desc(struct mlx4_en_priv *priv,
 					(index << priv->log_rx_info);
 
 	if (ring->page_cache.index > 0) {
-		frags[0] = ring->page_cache.buf[--ring->page_cache.index];
+		ring->page_cache.index--;
+		frags[0].page = ring->page_cache.buf[ring->page_cache.index].page;
+		frags[0].dma  = ring->page_cache.buf[ring->page_cache.index].dma;
+		frags[0].page_offset = XDP_PACKET_HEADROOM;
 		rx_desc->data[0].addr = cpu_to_be64(frags[0].dma +
 						    frags[0].page_offset);
 		return 0;
@@ -537,7 +540,9 @@ bool mlx4_en_rx_recycle(struct mlx4_en_rx_ring *ring,
 	if (cache->index >= MLX4_EN_CACHE_SIZE)
 		return false;
 
-	cache->buf[cache->index++] = *frame;
+	cache->buf[cache->index].page = frame->page;
+	cache->buf[cache->index].dma = frame->dma;
+	cache->index++;
 	return true;
 }
 
@@ -567,11 +572,9 @@ void mlx4_en_deactivate_rx_ring(struct mlx4_en_priv *priv,
 	int i;
 
 	for (i = 0; i < ring->page_cache.index; i++) {
-		struct mlx4_en_rx_alloc *frame = &ring->page_cache.buf[i];
-
-		dma_unmap_page(priv->ddev, frame->dma, frame->page_size,
-			       priv->dma_dir);
-		put_page(frame->page);
+		dma_unmap_page(priv->ddev, ring->page_cache.buf[i].dma,
+			       PAGE_SIZE, priv->dma_dir);
+		put_page(ring->page_cache.buf[i].page);
 	}
 	ring->page_cache.index = 0;
 	mlx4_en_free_rx_buf(priv, ring);
