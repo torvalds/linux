@@ -1139,7 +1139,8 @@ static void rt5665_enable_push_button_irq(struct snd_soc_codec *codec,
 	bool enable)
 {
 	if (enable) {
-		snd_soc_write(codec, RT5665_4BTN_IL_CMD_1, 0x000b);
+		snd_soc_write(codec, RT5665_4BTN_IL_CMD_1, 0x0003);
+		snd_soc_update_bits(codec, RT5665_SAR_IL_CMD_9, 0x1, 0x1);
 		snd_soc_write(codec, RT5665_IL_CMD_1, 0x0048);
 		snd_soc_update_bits(codec, RT5665_4BTN_IL_CMD_2,
 				RT5665_4BTN_IL_MASK | RT5665_4BTN_IL_RST_MASK,
