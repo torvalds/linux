@@ -1652,7 +1652,7 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 		skb_reserve(skb, data_off);
 		skb_put(skb, pkt_len);
 
-		if (nn->fw_ver.major <= 3) {
+		if (!nn->chained_metadata_format) {
 			nfp_net_set_hash_desc(nn->netdev, skb, rxd);
 		} else if (meta_len) {
 			void *end;
@@ -3195,6 +3195,8 @@ int nfp_net_netdev_init(struct net_device *netdev)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 	int err;
+
+	nn->chained_metadata_format = nn->fw_ver.major > 3;
 
 	/* Get some of the read-only fields from the BAR */
 	nn->cap = nn_readl(nn, NFP_NET_CFG_CAP);
