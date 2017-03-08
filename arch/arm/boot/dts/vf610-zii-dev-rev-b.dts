@@ -459,18 +459,6 @@
 		>;
 	};
 
-	pinctrl_gpio_switch0: pinctrl-gpio-switch0 {
-		fsl,pins = <
-			VF610_PAD_PTB5__GPIO_27		0x219d
-		>;
-	};
-
-	pinctrl_gpio_switch1: pinctrl-gpio-switch1 {
-		fsl,pins = <
-			VF610_PAD_PTB4__GPIO_26		0x219d
-		>;
-	};
-
 	pinctrl_mdio_mux: pinctrl-mdio-mux {
 		fsl,pins = <
 			VF610_PAD_PTA18__GPIO_8		0x31c2
