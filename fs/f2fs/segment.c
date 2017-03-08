@@ -796,6 +796,7 @@ static int __f2fs_issue_discard_zone(struct f2fs_sb_info *sbi,
 		struct block_device *bdev, block_t blkstart, block_t blklen)
 {
 	sector_t sector, nr_sects;
+	block_t lblkstart = blkstart;
 	int devi = 0;
 
 	if (sbi->s_ndevs) {
@@ -813,7 +814,7 @@ static int __f2fs_issue_discard_zone(struct f2fs_sb_info *sbi,
 	case BLK_ZONE_TYPE_CONVENTIONAL:
 		if (!blk_queue_discard(bdev_get_queue(bdev)))
 			return 0;
-		return __f2fs_issue_discard_async(sbi, bdev, blkstart, blklen);
+		return __f2fs_issue_discard_async(sbi, bdev, lblkstart, blklen);
 	case BLK_ZONE_TYPE_SEQWRITE_REQ:
 	case BLK_ZONE_TYPE_SEQWRITE_PREF:
 		sector = SECTOR_FROM_BLOCK(blkstart);
