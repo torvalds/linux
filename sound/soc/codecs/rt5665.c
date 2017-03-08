@@ -3964,6 +3964,62 @@ static const struct snd_soc_dapm_route rt5665_dapm_routes[] = {
 	{"PDMR", NULL, "PDM R Playback"},
 };
 
+static int rt5665_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
+			unsigned int rx_mask, int slots, int slot_width)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	unsigned int val = 0;
+
+	if (rx_mask || tx_mask)
+		val |= RT5665_I2S1_MODE_TDM;
+
+	switch (slots) {
+	case 4:
+		val |= RT5665_TDM_IN_CH_4;
+		val |= RT5665_TDM_OUT_CH_4;
+		break;
+	case 6:
+		val |= RT5665_TDM_IN_CH_6;
+		val |= RT5665_TDM_OUT_CH_6;
+		break;
+	case 8:
+		val |= RT5665_TDM_IN_CH_8;
+		val |= RT5665_TDM_OUT_CH_8;
+		break;
+	case 2:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	switch (slot_width) {
+	case 20:
+		val |= RT5665_TDM_IN_LEN_20;
+		val |= RT5665_TDM_OUT_LEN_20;
+		break;
+	case 24:
+		val |= RT5665_TDM_IN_LEN_24;
+		val |= RT5665_TDM_OUT_LEN_24;
+		break;
+	case 32:
+		val |= RT5665_TDM_IN_LEN_32;
+		val |= RT5665_TDM_OUT_LEN_32;
+		break;
+	case 16:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	snd_soc_update_bits(codec, RT5665_TDM_CTRL_1,
+		RT5665_I2S1_MODE_MASK | RT5665_TDM_IN_CH_MASK |
+		RT5665_TDM_OUT_CH_MASK | RT5665_TDM_IN_LEN_MASK |
+		RT5665_TDM_OUT_LEN_MASK, val);
+
+	return 0;
+}
+
+
 static int rt5665_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
@@ -4010,6 +4066,9 @@ static int rt5665_hw_params(struct snd_pcm_substream *substream,
 	switch (dai->id) {
 	case RT5665_AIF1_1:
 	case RT5665_AIF1_2:
+		if (params_channels(params) > 2)
+			rt5665_set_tdm_slot(dai, 0xf, 0xf,
+				params_channels(params), params_width(params));
 		mask_clk = RT5665_I2S_PD1_MASK;
 		val_clk = pre_div << RT5665_I2S_PD1_SFT;
 		snd_soc_update_bits(codec, RT5665_I2S1_SDP,
@@ -4223,61 +4282,6 @@ static int rt5665_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int Source,
 	rt5665->pll_in = freq_in;
 	rt5665->pll_out = freq_out;
 	rt5665->pll_src = Source;
-
-	return 0;
-}
-
-static int rt5665_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
-			unsigned int rx_mask, int slots, int slot_width)
-{
-	struct snd_soc_codec *codec = dai->codec;
-	unsigned int val = 0;
-
-	if (rx_mask || tx_mask)
-		val |= RT5665_I2S1_MODE_TDM;
-
-	switch (slots) {
-	case 4:
-		val |= RT5665_TDM_IN_CH_4;
-		val |= RT5665_TDM_OUT_CH_4;
-		break;
-	case 6:
-		val |= RT5665_TDM_IN_CH_6;
-		val |= RT5665_TDM_OUT_CH_6;
-		break;
-	case 8:
-		val |= RT5665_TDM_IN_CH_8;
-		val |= RT5665_TDM_OUT_CH_8;
-		break;
-	case 2:
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	switch (slot_width) {
-	case 20:
-		val |= RT5665_TDM_IN_LEN_20;
-		val |= RT5665_TDM_OUT_LEN_20;
-		break;
-	case 24:
-		val |= RT5665_TDM_IN_LEN_24;
-		val |= RT5665_TDM_OUT_LEN_24;
-		break;
-	case 32:
-		val |= RT5665_TDM_IN_LEN_32;
-		val |= RT5665_TDM_OUT_LEN_32;
-		break;
-	case 16:
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	snd_soc_update_bits(codec, RT5665_TDM_CTRL_1,
-		RT5665_I2S1_MODE_MASK | RT5665_TDM_IN_CH_MASK |
-		RT5665_TDM_OUT_CH_MASK | RT5665_TDM_IN_LEN_MASK |
-		RT5665_TDM_OUT_LEN_MASK, val);
 
 	return 0;
 }
