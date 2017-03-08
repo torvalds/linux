@@ -173,7 +173,6 @@ static int rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
 	unsigned long period, duty;
 	u64 clk_rate, div;
-	int ret;
 
 	clk_rate = clk_get_rate(pc->clk);
 
@@ -194,6 +193,8 @@ static int rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 #ifdef CONFIG_FB_ROCKCHIP
 	if (!pc->data->regs.ctrl) {
+		int ret;
+
 		ret = rk_fb_set_vop_pwm();
 		if (ret)
 			dev_err(pc->chip.dev, "rk_fb_set_vop_pwm failed: %d\n", ret);
