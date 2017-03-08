@@ -195,8 +195,10 @@ static const char *const ioctl_names[] = {
 vchiq_static_assert(ARRAY_SIZE(ioctl_names) ==
 		    (VCHIQ_IOC_MAX + 1));
 
+#if defined(CONFIG_BCM2835_VCHIQ_SUPPORT_MEMDUMP)
 static void
 dump_phys_mem(void *virt_addr, u32 num_bytes);
+#endif
 
 /****************************************************************************
 *
@@ -1159,6 +1161,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				args.handle, args.option, args.value);
 	} break;
 
+#if defined(CONFIG_BCM2835_VCHIQ_SUPPORT_MEMDUMP)
 	case VCHIQ_IOC_DUMP_PHYS_MEM: {
 		VCHIQ_DUMP_MEM_T  args;
 
@@ -1170,6 +1173,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		dump_phys_mem(args.virt_addr, args.num_bytes);
 	} break;
+#endif
 
 	case VCHIQ_IOC_LIB_VERSION: {
 		unsigned int lib_version = (unsigned int)arg;
@@ -1650,6 +1654,8 @@ vchiq_compat_ioctl_get_config(struct file *file,
 	return vchiq_ioctl(file, VCHIQ_IOC_GET_CONFIG, (unsigned long)args);
 }
 
+#if defined(CONFIG_BCM2835_VCHIQ_SUPPORT_MEMDUMP)
+
 struct vchiq_dump_mem32 {
 	compat_uptr_t virt_addr;
 	u32 num_bytes;
@@ -1682,6 +1688,8 @@ vchiq_compat_ioctl_dump_phys_mem(struct file *file,
 	return vchiq_ioctl(file, VCHIQ_IOC_DUMP_PHYS_MEM, (unsigned long)args);
 }
 
+#endif
+
 static long
 vchiq_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -1699,8 +1707,10 @@ vchiq_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return vchiq_compat_ioctl_dequeue_message(file, cmd, arg);
 	case VCHIQ_IOC_GET_CONFIG32:
 		return vchiq_compat_ioctl_get_config(file, cmd, arg);
+#if defined(CONFIG_BCM2835_VCHIQ_SUPPORT_MEMDUMP)
 	case VCHIQ_IOC_DUMP_PHYS_MEM32:
 		return vchiq_compat_ioctl_dump_phys_mem(file, cmd, arg);
+#endif
 	default:
 		return vchiq_ioctl(file, cmd, arg);
 	}
@@ -2044,6 +2054,8 @@ vchiq_dump_platform_service_state(void *dump_context, VCHIQ_SERVICE_T *service)
 *
 ***************************************************************************/
 
+#if defined(CONFIG_BCM2835_VCHIQ_SUPPORT_MEMDUMP)
+
 static void
 dump_phys_mem(void *virt_addr, u32 num_bytes)
 {
@@ -2125,6 +2137,8 @@ out:
 
 	kfree(pages);
 }
+
+#endif
 
 /****************************************************************************
 *
