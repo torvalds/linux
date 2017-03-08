@@ -77,8 +77,8 @@ static void xge_mac_set_speed(struct xge_pdata *pdata)
 
 void xge_mac_set_station_addr(struct xge_pdata *pdata)
 {
-	u32 addr0, addr1;
 	u8 *dev_addr = pdata->ndev->dev_addr;
+	u32 addr0, addr1;
 
 	addr0 = (dev_addr[3] << 24) | (dev_addr[2] << 16) |
 		(dev_addr[1] << 8) | dev_addr[0];

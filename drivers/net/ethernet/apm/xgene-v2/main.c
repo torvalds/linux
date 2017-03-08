@@ -27,9 +27,9 @@ static int xge_get_resources(struct xge_pdata *pdata)
 {
 	struct platform_device *pdev;
 	struct net_device *ndev;
-	struct device *dev;
-	struct resource *res;
 	int phy_mode, ret = 0;
+	struct resource *res;
+	struct device *dev;
 
 	pdev = pdata->pdev;
 	dev = &pdev->dev;
@@ -190,9 +190,9 @@ static netdev_tx_t xge_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct xge_pdata *pdata = netdev_priv(ndev);
 	struct device *dev = &pdata->pdev->dev;
-	static dma_addr_t dma_addr;
 	struct xge_desc_ring *tx_ring;
 	struct xge_raw_desc *raw_desc;
+	static dma_addr_t dma_addr;
 	u64 addr_lo, addr_hi;
 	void *pkt_buf;
 	u8 tail;
@@ -526,7 +526,7 @@ static int xge_close(struct net_device *ndev)
 static int xge_napi(struct napi_struct *napi, const int budget)
 {
 	struct net_device *ndev = napi->dev;
-	struct xge_pdata *pdata = netdev_priv(ndev);
+	struct xge_pdata *pdata;
 	int processed;
 
 	pdata = netdev_priv(ndev);
