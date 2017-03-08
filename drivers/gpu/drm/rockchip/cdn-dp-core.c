@@ -843,7 +843,7 @@ static int cdn_dp_audio_hw_params(struct device *dev,  void *data,
 
 	mutex_lock(&dp->lock);
 	if (!dp->active) {
-		ret = -ENODEV;
+		ret = 0;
 		goto out;
 	}
 
@@ -893,7 +893,7 @@ static int cdn_dp_audio_digital_mute(struct device *dev, void *data,
 
 	mutex_lock(&dp->lock);
 	if (!dp->active) {
-		ret = -ENODEV;
+		ret = 0;
 		goto out;
 	}
 
