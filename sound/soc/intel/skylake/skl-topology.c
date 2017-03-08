@@ -310,13 +310,11 @@ static void skl_tplg_update_buffer_size(struct skl_sst *ctx,
 		multiplier = 5;
 
 	mcfg->ibs = DIV_ROUND_UP(in_fmt->s_freq, 1000) *
-			(mcfg->in_fmt->channels) *
-			(mcfg->in_fmt->bit_depth >> 3) *
+			in_fmt->channels * (in_fmt->bit_depth >> 3) *
 			multiplier;
 
-	mcfg->obs = DIV_ROUND_UP(mcfg->out_fmt->s_freq, 1000) *
-			(mcfg->out_fmt->channels) *
-			(mcfg->out_fmt->bit_depth >> 3) *
+	mcfg->obs = DIV_ROUND_UP(out_fmt->s_freq, 1000) *
+			out_fmt->channels * (out_fmt->bit_depth >> 3) *
 			multiplier;
 }
 
