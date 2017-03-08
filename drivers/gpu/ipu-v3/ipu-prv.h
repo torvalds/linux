@@ -173,6 +173,7 @@ struct ipu_ic_priv;
 struct ipu_vdi;
 struct ipu_image_convert_priv;
 struct ipu_smfc_priv;
+struct ipu_pre;
 
 struct ipu_devtype;
 
@@ -263,5 +264,18 @@ void ipu_cpmem_exit(struct ipu_soc *ipu);
 
 int ipu_smfc_init(struct ipu_soc *ipu, struct device *dev, unsigned long base);
 void ipu_smfc_exit(struct ipu_soc *ipu);
+
+struct ipu_pre *ipu_pre_lookup_by_phandle(struct device *dev, const char *name,
+					  int index);
+int ipu_pre_get_available_count(void);
+int ipu_pre_get(struct ipu_pre *pre);
+void ipu_pre_put(struct ipu_pre *pre);
+u32 ipu_pre_get_baddr(struct ipu_pre *pre);
+void ipu_pre_configure(struct ipu_pre *pre, unsigned int width,
+		       unsigned int height,
+		       unsigned int stride, u32 format, unsigned int bufaddr);
+void ipu_pre_update(struct ipu_pre *pre, unsigned int bufaddr);
+
+extern struct platform_driver ipu_pre_drv;
 
 #endif				/* __IPU_PRV_H__ */

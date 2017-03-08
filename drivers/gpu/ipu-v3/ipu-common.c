@@ -1528,7 +1528,22 @@ static struct platform_driver imx_ipu_driver = {
 	.remove = ipu_remove,
 };
 
-module_platform_driver(imx_ipu_driver);
+static struct platform_driver * const drivers[] = {
+	&ipu_pre_drv,
+	&imx_ipu_driver,
+};
+
+static int __init imx_ipu_init(void)
+{
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
+}
+module_init(imx_ipu_init);
+
+static void __exit imx_ipu_exit(void)
+{
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
+}
+module_exit(imx_ipu_exit);
 
 MODULE_ALIAS("platform:imx-ipuv3");
 MODULE_DESCRIPTION("i.MX IPU v3 driver");
