@@ -710,6 +710,7 @@ static int wil_cfg80211_disconnect(struct wiphy *wiphy,
 		return 0;
 	}
 
+	wil->locally_generated_disc = true;
 	rc = wmi_call(wil, WMI_DISCONNECT_CMDID, NULL, 0,
 		      WMI_DISCONNECT_EVENTID, NULL, 0,
 		      WIL6210_DISCONNECT_TO_MS);
