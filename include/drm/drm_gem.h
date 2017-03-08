@@ -178,6 +178,32 @@ struct drm_gem_object {
 	struct dma_buf_attachment *import_attach;
 };
 
+/**
+ * DEFINE_DRM_GEM_FOPS() - macro to generate file operations for GEM drivers
+ * @name: name for the generated structure
+ *
+ * This macro autogenerates a suitable &struct file_operations for GEM based
+ * drivers, which can be assigned to &drm_driver.fops. Note that this structure
+ * cannot be shared between drivers, because it contains a reference to the
+ * current module using THIS_MODULE.
+ *
+ * Note that the declaration is already marked as static - if you need a
+ * non-static version of this you're probably doing it wrong and will break the
+ * THIS_MODULE reference by accident.
+ */
+#define DEFINE_DRM_GEM_FOPS(name) \
+	static const struct file_operations name = {\
+		.owner		= THIS_MODULE,\
+		.open		= drm_open,\
+		.release	= drm_release,\
+		.unlocked_ioctl	= drm_ioctl,\
+		.compat_ioctl	= drm_compat_ioctl,\
+		.poll		= drm_poll,\
+		.read		= drm_read,\
+		.llseek		= noop_llseek,\
+		.mmap		= drm_gem_mmap,\
+	}
+
 void drm_gem_object_release(struct drm_gem_object *obj);
 void drm_gem_object_free(struct kref *kref);
 int drm_gem_object_init(struct drm_device *dev,
