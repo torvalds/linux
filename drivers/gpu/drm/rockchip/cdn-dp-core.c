@@ -94,7 +94,7 @@ static int cdn_dp_grf_write(struct cdn_dp_device *dp,
 static int cdn_dp_clk_enable(struct cdn_dp_device *dp)
 {
 	int ret;
-	u32 rate;
+	unsigned long rate;
 
 	ret = clk_prepare_enable(dp->pclk);
 	if (ret < 0) {
@@ -123,7 +123,8 @@ static int cdn_dp_clk_enable(struct cdn_dp_device *dp)
 
 	rate = clk_get_rate(dp->core_clk);
 	if (!rate) {
-		DRM_DEV_ERROR(dp->dev, "get clk rate failed: %d\n", rate);
+		DRM_DEV_ERROR(dp->dev, "get clk rate failed\n");
+		ret = -EINVAL;
 		goto err_set_rate;
 	}
 
