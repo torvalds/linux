@@ -757,7 +757,9 @@ post_process_kernel_probe_trace_events(struct probe_trace_event *tevs,
 	}
 
 	for (i = 0; i < ntevs; i++) {
-		if (!tevs[i].point.address || tevs[i].point.retprobe)
+		if (!tevs[i].point.address)
+			continue;
+		if (tevs[i].point.retprobe && !kretprobe_offset_is_supported())
 			continue;
 		/* If we found a wrong one, mark it by NULL symbol */
 		if (kprobe_warn_out_range(tevs[i].point.symbol,
@@ -1525,11 +1527,6 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 
 	if (pp->offset && !pp->function) {
 		semantic_error("Offset requires an entry function.\n");
-		return -EINVAL;
-	}
-
-	if (pp->retprobe && !pp->function) {
-		semantic_error("Return probe requires an entry function.\n");
 		return -EINVAL;
 	}
 
@@ -2841,7 +2838,8 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 	}
 
 	/* Note that the symbols in the kmodule are not relocated */
-	if (!pev->uprobes && !pp->retprobe && !pev->target) {
+	if (!pev->uprobes && !pev->target &&
+			(!pp->retprobe || kretprobe_offset_is_supported())) {
 		reloc_sym = kernel_get_ref_reloc_sym();
 		if (!reloc_sym) {
 			pr_warning("Relocated base symbol is not found!\n");

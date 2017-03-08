@@ -65,6 +65,7 @@ struct probe_cache_entry *probe_cache__find_by_name(struct probe_cache *pcache,
 					const char *group, const char *event);
 int probe_cache__show_all_caches(struct strfilter *filter);
 bool probe_type_is_available(enum probe_type type);
+bool kretprobe_offset_is_supported(void);
 #else	/* ! HAVE_LIBELF_SUPPORT */
 static inline struct probe_cache *probe_cache__new(const char *tgt __maybe_unused)
 {

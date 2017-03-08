@@ -879,6 +879,7 @@ int probe_cache__show_all_caches(struct strfilter *filter)
 
 enum ftrace_readme {
 	FTRACE_README_PROBE_TYPE_X = 0,
+	FTRACE_README_KRETPROBE_OFFSET,
 	FTRACE_README_END,
 };
 
@@ -889,6 +890,7 @@ static struct {
 #define DEFINE_TYPE(idx, pat)			\
 	[idx] = {.pattern = pat, .avail = false}
 	DEFINE_TYPE(FTRACE_README_PROBE_TYPE_X, "*type: * x8/16/32/64,*"),
+	DEFINE_TYPE(FTRACE_README_KRETPROBE_OFFSET, "*place (kretprobe): *"),
 };
 
 static bool scan_ftrace_readme(enum ftrace_readme type)
@@ -938,4 +940,9 @@ bool probe_type_is_available(enum probe_type type)
 		return scan_ftrace_readme(FTRACE_README_PROBE_TYPE_X);
 
 	return true;
+}
+
+bool kretprobe_offset_is_supported(void)
+{
+	return scan_ftrace_readme(FTRACE_README_KRETPROBE_OFFSET);
 }
