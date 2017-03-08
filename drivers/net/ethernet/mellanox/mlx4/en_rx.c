@@ -53,38 +53,26 @@
 static int mlx4_alloc_pages(struct mlx4_en_priv *priv,
 			    struct mlx4_en_rx_alloc *page_alloc,
 			    const struct mlx4_en_frag_info *frag_info,
-			    gfp_t _gfp)
+			    gfp_t gfp)
 {
-	int order;
 	struct page *page;
 	dma_addr_t dma;
 
-	for (order = priv->rx_page_order; ;) {
-		gfp_t gfp = _gfp;
-
-		if (order)
-			gfp |= __GFP_COMP | __GFP_NOWARN | __GFP_NOMEMALLOC;
-		page = alloc_pages(gfp, order);
-		if (likely(page))
-			break;
-		if (--order < 0 ||
-		    ((PAGE_SIZE << order) < frag_info->frag_size))
-			return -ENOMEM;
-	}
-	dma = dma_map_page(priv->ddev, page, 0, PAGE_SIZE << order,
-			   priv->dma_dir);
+	page = alloc_page(gfp);
+	if (unlikely(!page))
+		return -ENOMEM;
+	dma = dma_map_page(priv->ddev, page, 0, PAGE_SIZE, priv->dma_dir);
 	if (unlikely(dma_mapping_error(priv->ddev, dma))) {
 		put_page(page);
 		return -ENOMEM;
 	}
-	page_alloc->page_size = PAGE_SIZE << order;
 	page_alloc->page = page;
 	page_alloc->dma = dma;
 	page_alloc->page_offset = 0;
 	/* Not doing get_page() for each frag is a big win
 	 * on asymetric workloads. Note we can not use atomic_set().
 	 */
-	page_ref_add(page, page_alloc->page_size / frag_info->frag_stride - 1);
+	page_ref_add(page, PAGE_SIZE / frag_info->frag_stride - 1);
 	return 0;
 }
 
@@ -105,7 +93,7 @@ static int mlx4_en_alloc_frags(struct mlx4_en_priv *priv,
 		page_alloc[i].page_offset += frag_info->frag_stride;
 
 		if (page_alloc[i].page_offset + frag_info->frag_stride <=
-		    ring_alloc[i].page_size)
+		    PAGE_SIZE)
 			continue;
 
 		if (unlikely(mlx4_alloc_pages(priv, &page_alloc[i],
@@ -127,11 +115,10 @@ out:
 	while (i--) {
 		if (page_alloc[i].page != ring_alloc[i].page) {
 			dma_unmap_page(priv->ddev, page_alloc[i].dma,
-				page_alloc[i].page_size,
-				priv->dma_dir);
+				       PAGE_SIZE, priv->dma_dir);
 			page = page_alloc[i].page;
 			/* Revert changes done by mlx4_alloc_pages */
-			page_ref_sub(page, page_alloc[i].page_size /
+			page_ref_sub(page, PAGE_SIZE /
 					   priv->frag_info[i].frag_stride - 1);
 			put_page(page);
 		}
@@ -147,8 +134,8 @@ static void mlx4_en_free_frag(struct mlx4_en_priv *priv,
 	u32 next_frag_end = frags[i].page_offset + 2 * frag_info->frag_stride;
 
 
-	if (next_frag_end > frags[i].page_size)
-		dma_unmap_page(priv->ddev, frags[i].dma, frags[i].page_size,
+	if (next_frag_end > PAGE_SIZE)
+		dma_unmap_page(priv->ddev, frags[i].dma, PAGE_SIZE,
 			       priv->dma_dir);
 
 	if (frags[i].page)
@@ -168,9 +155,8 @@ static int mlx4_en_init_allocator(struct mlx4_en_priv *priv,
 				     frag_info, GFP_KERNEL | __GFP_COLD))
 			goto out;
 
-		en_dbg(DRV, priv, "  frag %d allocator: - size:%d frags:%d\n",
-		       i, ring->page_alloc[i].page_size,
-		       page_ref_count(ring->page_alloc[i].page));
+		en_dbg(DRV, priv, "  frag %d allocator: - frags:%d\n",
+		       i, page_ref_count(ring->page_alloc[i].page));
 	}
 	return 0;
 
@@ -180,11 +166,10 @@ out:
 
 		page_alloc = &ring->page_alloc[i];
 		dma_unmap_page(priv->ddev, page_alloc->dma,
-			       page_alloc->page_size,
-			       priv->dma_dir);
+			       PAGE_SIZE, priv->dma_dir);
 		page = page_alloc->page;
 		/* Revert changes done by mlx4_alloc_pages */
-		page_ref_sub(page, page_alloc->page_size /
+		page_ref_sub(page, PAGE_SIZE /
 				   priv->frag_info[i].frag_stride - 1);
 		put_page(page);
 		page_alloc->page = NULL;
@@ -206,9 +191,9 @@ static void mlx4_en_destroy_allocator(struct mlx4_en_priv *priv,
 		       i, page_count(page_alloc->page));
 
 		dma_unmap_page(priv->ddev, page_alloc->dma,
-				page_alloc->page_size, priv->dma_dir);
+			       PAGE_SIZE, priv->dma_dir);
 		while (page_alloc->page_offset + frag_info->frag_stride <
-		       page_alloc->page_size) {
+		       PAGE_SIZE) {
 			put_page(page_alloc->page);
 			page_alloc->page_offset += frag_info->frag_stride;
 		}
@@ -1191,7 +1176,6 @@ void mlx4_en_calc_rx_buf(struct net_device *dev)
 	 * This only works when num_frags == 1.
 	 */
 	if (priv->tx_ring_num[TX_XDP]) {
-		priv->rx_page_order = 0;
 		priv->frag_info[0].frag_size = eff_mtu;
 		/* This will gain efficient xdp frame recycling at the
 		 * expense of more costly truesize accounting
@@ -1201,22 +1185,32 @@ void mlx4_en_calc_rx_buf(struct net_device *dev)
 		priv->rx_headroom = XDP_PACKET_HEADROOM;
 		i = 1;
 	} else {
-		int buf_size = 0;
+		int frag_size_max = 2048, buf_size = 0;
+
+		/* should not happen, right ? */
+		if (eff_mtu > PAGE_SIZE + (MLX4_EN_MAX_RX_FRAGS - 1) * 2048)
+			frag_size_max = PAGE_SIZE;
 
 		while (buf_size < eff_mtu) {
-			int frag_size = eff_mtu - buf_size;
+			int frag_stride, frag_size = eff_mtu - buf_size;
+			int pad, nb;
 
 			if (i < MLX4_EN_MAX_RX_FRAGS - 1)
-				frag_size = min(frag_size, 2048);
+				frag_size = min(frag_size, frag_size_max);
 
 			priv->frag_info[i].frag_size = frag_size;
+			frag_stride = ALIGN(frag_size, SMP_CACHE_BYTES);
+			/* We can only pack 2 1536-bytes frames in on 4K page
+			 * Therefore, each frame would consume more bytes (truesize)
+			 */
+			nb = PAGE_SIZE / frag_stride;
+			pad = (PAGE_SIZE - nb * frag_stride) / nb;
+			pad &= ~(SMP_CACHE_BYTES - 1);
+			priv->frag_info[i].frag_stride = frag_stride + pad;
 
-			priv->frag_info[i].frag_stride = ALIGN(frag_size,
-							       SMP_CACHE_BYTES);
 			buf_size += frag_size;
 			i++;
 		}
-		priv->rx_page_order = MLX4_EN_ALLOC_PREFER_ORDER;
 		priv->dma_dir = PCI_DMA_FROMDEVICE;
 		priv->rx_headroom = 0;
 	}

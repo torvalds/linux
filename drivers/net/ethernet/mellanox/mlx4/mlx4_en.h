@@ -102,9 +102,6 @@
 /* Use the maximum between 16384 and a single page */
 #define MLX4_EN_ALLOC_SIZE	PAGE_ALIGN(16384)
 
-#define MLX4_EN_ALLOC_PREFER_ORDER min_t(int, get_order(32768),		\
-					 PAGE_ALLOC_COSTLY_ORDER)
-
 #define MLX4_EN_MAX_RX_FRAGS	4
 
 /* Maximum ring sizes */
@@ -256,7 +253,6 @@ struct mlx4_en_rx_alloc {
 	struct page	*page;
 	dma_addr_t	dma;
 	u32		page_offset;
-	u32		page_size;
 };
 
 #define MLX4_EN_CACHE_SIZE (2 * NAPI_POLL_WEIGHT)
@@ -579,7 +575,6 @@ struct mlx4_en_priv {
 	u8 num_frags;
 	u8 log_rx_info;
 	u8 dma_dir;
-	u8 rx_page_order;
 	u16 rx_headroom;
 
 	struct mlx4_en_tx_ring **tx_ring[MLX4_EN_NUM_TX_TYPES];
