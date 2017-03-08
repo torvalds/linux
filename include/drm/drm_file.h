@@ -75,8 +75,6 @@ struct drm_pending_event {
 	struct list_head link;
 	struct list_head pending_link;
 	struct drm_file *file_priv;
-	pid_t pid; /* pid of requester, no guarantee it's valid by the time
-		      we deliver the event, for tracing only */
 };
 
 /** File private data */
