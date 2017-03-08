@@ -494,6 +494,7 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 	const struct dc_surface *surface = &pipe_ctx->surface->public;
 	struct core_stream *stream = pipe_ctx->stream;
 	struct rect clip = surface->clip_rect;
+	int recout_full_x, recout_full_y;
 
 	pipe_ctx->scl_data.recout.x = stream->public.dst.x;
 	if (stream->public.src.x < clip.x)
@@ -533,10 +534,21 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 		pipe_ctx->scl_data.recout.width /= 2;
 	}
 
-	recout_skip->width = pipe_ctx->scl_data.recout.x - stream->public.dst.x -
-			surface->dst_rect.x * stream->public.dst.width / stream->public.src.width;
-	recout_skip->height = pipe_ctx->scl_data.recout.y - stream->public.dst.y -
-			surface->dst_rect.y * stream->public.dst.height / stream->public.src.height;
+	/* Unclipped recout offset = stream dst offset + ((surf dst offset - stream src offset)
+	 * 				* 1/ stream scaling ratio) - (surf src offset * 1/ full scl
+	 * 				ratio)
+	 */
+	recout_full_x = stream->public.dst.x + (surface->dst_rect.x -  stream->public.src.x)
+					* stream->public.dst.width / stream->public.src.width -
+			surface->src_rect.x * surface->dst_rect.width / surface->src_rect.width
+					* stream->public.dst.width / stream->public.src.width;
+	recout_full_y = stream->public.dst.y + (surface->dst_rect.y -  stream->public.src.y)
+					* stream->public.dst.height / stream->public.src.height -
+			surface->src_rect.y * surface->dst_rect.height / surface->src_rect.height
+					* stream->public.dst.height / stream->public.src.height;
+
+	recout_skip->width = pipe_ctx->scl_data.recout.x - recout_full_x;
+	recout_skip->height = pipe_ctx->scl_data.recout.y - recout_full_y;
 }
 
 static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
