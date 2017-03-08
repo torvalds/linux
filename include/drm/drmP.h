@@ -428,21 +428,6 @@ struct drm_file {
 	struct drm_prime_file_private prime;
 };
 
-/**
- * Lock data.
- */
-struct drm_lock_data {
-	struct drm_hw_lock *hw_lock;	/**< Hardware lock */
-	/** Private of lock holder's file (NULL=kernel) */
-	struct drm_file *file_priv;
-	wait_queue_head_t lock_queue;	/**< Queue of blocked processes */
-	unsigned long lock_time;	/**< Time of last lock in jiffies */
-	spinlock_t spinlock;
-	uint32_t kernel_waiters;
-	uint32_t user_waiters;
-	int idle_has_lock;
-};
-
 /* Flags and return codes for get_vblank_timestamp() driver function. */
 #define DRM_CALLED_FROM_VBLIRQ 1
 #define DRM_VBLANKTIME_SCANOUTPOS_METHOD (1 << 0)
