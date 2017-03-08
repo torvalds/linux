@@ -998,14 +998,23 @@ static noinline int cow_file_range(struct inode *inode,
 		    BTRFS_DATA_RELOC_TREE_OBJECTID) {
 			ret = btrfs_reloc_clone_csums(inode, start,
 						      cur_alloc_size);
+			/*
+			 * Only drop cache here, and process as normal.
+			 *
+			 * We must not allow extent_clear_unlock_delalloc()
+			 * at out_unlock label to free meta of this ordered
+			 * extent, as its meta should be freed by
+			 * btrfs_finish_ordered_io().
+			 *
+			 * So we must continue until @start is increased to
+			 * skip current ordered extent.
+			 */
 			if (ret)
-				goto out_drop_extent_cache;
+				btrfs_drop_extent_cache(BTRFS_I(inode), start,
+						start + ram_size - 1, 0);
 		}
 
 		btrfs_dec_block_group_reservations(fs_info, ins.objectid);
-
-		if (disk_num_bytes < cur_alloc_size)
-			break;
 
 		/* we're not doing compressed IO, don't unlock the first
 		 * page (which the caller expects to stay locked), don't
@@ -1022,10 +1031,21 @@ static noinline int cow_file_range(struct inode *inode,
 					     delalloc_end, locked_page,
 					     EXTENT_LOCKED | EXTENT_DELALLOC,
 					     op);
-		disk_num_bytes -= cur_alloc_size;
+		if (disk_num_bytes < cur_alloc_size)
+			disk_num_bytes = 0;
+		else
+			disk_num_bytes -= cur_alloc_size;
 		num_bytes -= cur_alloc_size;
 		alloc_hint = ins.objectid + ins.offset;
 		start += cur_alloc_size;
+
+		/*
+		 * btrfs_reloc_clone_csums() error, since start is increased
+		 * extent_clear_unlock_delalloc() at out_unlock label won't
+		 * free metadata of current ordered extent, we're OK to exit.
+		 */
+		if (ret)
+			goto out_unlock;
 	}
 out:
 	return ret;
@@ -1414,15 +1434,14 @@ out_check:
 		BUG_ON(ret); /* -ENOMEM */
 
 		if (root->root_key.objectid ==
-		    BTRFS_DATA_RELOC_TREE_OBJECTID) {
+		    BTRFS_DATA_RELOC_TREE_OBJECTID)
+			/*
+			 * Error handled later, as we must prevent
+			 * extent_clear_unlock_delalloc() in error handler
+			 * from freeing metadata of created ordered extent.
+			 */
 			ret = btrfs_reloc_clone_csums(inode, cur_offset,
 						      num_bytes);
-			if (ret) {
-				if (!nolock && nocow)
-					btrfs_end_write_no_snapshoting(root);
-				goto error;
-			}
-		}
 
 		extent_clear_unlock_delalloc(inode, cur_offset,
 					     cur_offset + num_bytes - 1, end,
@@ -1434,6 +1453,14 @@ out_check:
 		if (!nolock && nocow)
 			btrfs_end_write_no_snapshoting(root);
 		cur_offset = extent_end;
+
+		/*
+		 * btrfs_reloc_clone_csums() error, now we're OK to call error
+		 * handler, as metadata for created ordered extent will only
+		 * be freed by btrfs_finish_ordered_io().
+		 */
+		if (ret)
+			goto error;
 		if (cur_offset > end)
 			break;
 	}
