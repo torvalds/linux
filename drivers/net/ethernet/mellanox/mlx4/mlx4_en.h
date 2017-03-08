@@ -105,14 +105,6 @@
 #define MLX4_EN_ALLOC_PREFER_ORDER min_t(int, get_order(32768),		\
 					 PAGE_ALLOC_COSTLY_ORDER)
 
-/* Receive fragment sizes; we use at most 3 fragments (for 9600 byte MTU
- * and 4K allocations) */
-enum {
-	FRAG_SZ0 = 1536 - NET_IP_ALIGN,
-	FRAG_SZ1 = 4096,
-	FRAG_SZ2 = 4096,
-	FRAG_SZ3 = MLX4_EN_ALLOC_SIZE
-};
 #define MLX4_EN_MAX_RX_FRAGS	4
 
 /* Maximum ring sizes */
