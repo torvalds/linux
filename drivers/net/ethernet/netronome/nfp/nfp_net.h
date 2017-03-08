@@ -446,6 +446,7 @@ struct nfp_stat_pair {
  * @fw_ver:             Firmware version
  * @cap:                Capabilities advertised by the Firmware
  * @max_mtu:            Maximum support MTU advertised by the Firmware
+ * @rss_hfunc:		RSS selected hash function
  * @rss_cfg:            RSS configuration
  * @rss_key:            RSS secret key
  * @rss_itbl:           RSS indirection table
@@ -518,6 +519,7 @@ struct nfp_net {
 	u32 cap;
 	u32 max_mtu;
 
+	u8 rss_hfunc;
 	u32 rss_cfg;
 	u8 rss_key[NFP_NET_CFG_RSS_KEY_SZ];
 	u8 rss_itbl[NFP_NET_CFG_RSS_ITBL_SZ];
@@ -776,6 +778,7 @@ void nfp_net_netdev_clean(struct net_device *netdev);
 void nfp_net_set_ethtool_ops(struct net_device *netdev);
 void nfp_net_info(struct nfp_net *nn);
 int nfp_net_reconfig(struct nfp_net *nn, u32 update);
+unsigned int nfp_net_rss_key_sz(struct nfp_net *nn);
 void nfp_net_rss_write_itbl(struct nfp_net *nn);
 void nfp_net_rss_write_key(struct nfp_net *nn);
 void nfp_net_coalesce_write_cfg(struct nfp_net *nn);

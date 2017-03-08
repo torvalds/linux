@@ -41,6 +41,7 @@
  *          Chris Telfer <chris.telfer@netronome.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/bpf.h>
 #include <linux/bpf_trace.h>
 #include <linux/module.h>
@@ -2045,7 +2046,7 @@ void nfp_net_rss_write_key(struct nfp_net *nn)
 {
 	int i;
 
-	for (i = 0; i < NFP_NET_CFG_RSS_KEY_SZ; i += 4)
+	for (i = 0; i < nfp_net_rss_key_sz(nn); i += 4)
 		nn_writel(nn, NFP_NET_CFG_RSS_KEY + i,
 			  get_unaligned_le32(nn->rss_key + i));
 }
@@ -3112,19 +3113,58 @@ void nfp_net_netdev_free(struct nfp_net *nn)
 }
 
 /**
+ * nfp_net_rss_key_sz() - Get current size of the RSS key
+ * @nn:		NFP Net device instance
+ *
+ * Return: size of the RSS key for currently selected hash function.
+ */
+unsigned int nfp_net_rss_key_sz(struct nfp_net *nn)
+{
+	switch (nn->rss_hfunc) {
+	case ETH_RSS_HASH_TOP:
+		return NFP_NET_CFG_RSS_KEY_SZ;
+	case ETH_RSS_HASH_XOR:
+		return 0;
+	case ETH_RSS_HASH_CRC32:
+		return 4;
+	}
+
+	nn_warn(nn, "Unknown hash function: %u\n", nn->rss_hfunc);
+	return 0;
+}
+
+/**
  * nfp_net_rss_init() - Set the initial RSS parameters
  * @nn:	     NFP Net device to reconfigure
  */
 static void nfp_net_rss_init(struct nfp_net *nn)
 {
-	netdev_rss_key_fill(nn->rss_key, NFP_NET_CFG_RSS_KEY_SZ);
+	unsigned long func_bit, rss_cap_hfunc;
+	u32 reg;
+
+	/* Read the RSS function capability and select first supported func */
+	reg = nn_readl(nn, NFP_NET_CFG_RSS_CAP);
+	rss_cap_hfunc =	FIELD_GET(NFP_NET_CFG_RSS_CAP_HFUNC, reg);
+	if (!rss_cap_hfunc)
+		rss_cap_hfunc =	FIELD_GET(NFP_NET_CFG_RSS_CAP_HFUNC,
+					  NFP_NET_CFG_RSS_TOEPLITZ);
+
+	func_bit = find_first_bit(&rss_cap_hfunc, NFP_NET_CFG_RSS_HFUNCS);
+	if (func_bit == NFP_NET_CFG_RSS_HFUNCS) {
+		dev_warn(&nn->pdev->dev,
+			 "Bad RSS config, defaulting to Toeplitz hash\n");
+		func_bit = ETH_RSS_HASH_TOP_BIT;
+	}
+	nn->rss_hfunc = 1 << func_bit;
+
+	netdev_rss_key_fill(nn->rss_key, nfp_net_rss_key_sz(nn));
 
 	nfp_net_rss_init_itbl(nn);
 
 	/* Enable IPv4/IPv6 TCP by default */
 	nn->rss_cfg = NFP_NET_CFG_RSS_IPV4_TCP |
 		      NFP_NET_CFG_RSS_IPV6_TCP |
-		      NFP_NET_CFG_RSS_TOEPLITZ |
+		      FIELD_PREP(NFP_NET_CFG_RSS_HFUNC, nn->rss_hfunc) |
 		      NFP_NET_CFG_RSS_MASK;
 }
 
