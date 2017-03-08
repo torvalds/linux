@@ -48,6 +48,7 @@
 #include <linux/list.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/compat.h>
 #include <soc/bcm2835/raspberrypi-firmware.h>
 
 #include "vchiq_core.h"
@@ -1228,6 +1229,485 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return ret;
 }
 
+#if defined(CONFIG_COMPAT)
+
+struct vchiq_service_params32 {
+	int fourcc;
+	compat_uptr_t callback;
+	compat_uptr_t userdata;
+	short version; /* Increment for non-trivial changes */
+	short version_min; /* Update for incompatible changes */
+};
+
+struct vchiq_create_service32 {
+	struct vchiq_service_params32 params;
+	int is_open;
+	int is_vchi;
+	unsigned int handle; /* OUT */
+};
+
+#define VCHIQ_IOC_CREATE_SERVICE32 \
+	_IOWR(VCHIQ_IOC_MAGIC, 2, struct vchiq_create_service32)
+
+static long
+vchiq_compat_ioctl_create_service(
+	struct file *file,
+	unsigned int cmd,
+	unsigned long arg)
+{
+	VCHIQ_CREATE_SERVICE_T __user *args;
+	struct vchiq_create_service32 __user *ptrargs32 =
+		(struct vchiq_create_service32 __user *)arg;
+	struct vchiq_create_service32 args32;
+	long ret;
+
+	args = compat_alloc_user_space(sizeof(*args));
+	if (!args)
+		return -EFAULT;
+
+	if (copy_from_user(&args32,
+			   (struct vchiq_create_service32 __user *)arg,
+			   sizeof(args32)))
+		return -EFAULT;
+
+	if (put_user(args32.params.fourcc, &args->params.fourcc) ||
+	    put_user(compat_ptr(args32.params.callback),
+		     &args->params.callback) ||
+	    put_user(compat_ptr(args32.params.userdata),
+		     &args->params.userdata) ||
+	    put_user(args32.params.version, &args->params.version) ||
+	    put_user(args32.params.version_min,
+		     &args->params.version_min) ||
+	    put_user(args32.is_open, &args->is_open) ||
+	    put_user(args32.is_vchi, &args->is_vchi) ||
+	    put_user(args32.handle, &args->handle))
+		return -EFAULT;
+
+	ret = vchiq_ioctl(file, VCHIQ_IOC_CREATE_SERVICE, (unsigned long)args);
+
+	if (ret < 0)
+		return ret;
+
+	if (get_user(args32.handle, &args->handle))
+		return -EFAULT;
+
+	if (copy_to_user(&ptrargs32->handle,
+			 &args32.handle,
+			 sizeof(args32.handle)))
+		return -EFAULT;
+
+	return 0;
+}
+
+struct vchiq_element32 {
+	compat_uptr_t data;
+	unsigned int size;
+};
+
+struct vchiq_queue_message32 {
+	unsigned int handle;
+	unsigned int count;
+	compat_uptr_t elements;
+};
+
+#define VCHIQ_IOC_QUEUE_MESSAGE32 \
+	_IOW(VCHIQ_IOC_MAGIC,  4, struct vchiq_queue_message32)
+
+static long
+vchiq_compat_ioctl_queue_message(struct file *file,
+				 unsigned int cmd,
+				 unsigned long arg)
+{
+	VCHIQ_QUEUE_MESSAGE_T *args;
+	VCHIQ_ELEMENT_T *elements;
+	struct vchiq_queue_message32 args32;
+	unsigned int count;
+
+	if (copy_from_user(&args32,
+			   (struct vchiq_queue_message32 __user *)arg,
+			   sizeof(args32)))
+		return -EFAULT;
+
+	args = compat_alloc_user_space(sizeof(*args) +
+				       (sizeof(*elements) * MAX_ELEMENTS));
+
+	if (!args)
+		return -EFAULT;
+
+	if (put_user(args32.handle, &args->handle) ||
+	    put_user(args32.count, &args->count) ||
+	    put_user(compat_ptr(args32.elements), &args->elements))
+		return -EFAULT;
+
+	if (args32.count > MAX_ELEMENTS)
+		return -EINVAL;
+
+	if (args32.elements && args32.count) {
+		struct vchiq_element32 tempelement32[MAX_ELEMENTS];
+
+		elements = (VCHIQ_ELEMENT_T __user *)(args + 1);
+
+		if (copy_from_user(&tempelement32,
+				   compat_ptr(args32.elements),
+				   sizeof(tempelement32)))
+			return -EFAULT;
+
+		for (count = 0; count < args32.count; count++) {
+			if (put_user(compat_ptr(tempelement32[count].data),
+				     &elements[count].data) ||
+			    put_user(tempelement32[count].size,
+				     &elements[count].size))
+				return -EFAULT;
+		}
+
+		if (put_user(elements, &args->elements))
+			return -EFAULT;
+	}
+
+	return vchiq_ioctl(file, VCHIQ_IOC_QUEUE_MESSAGE, (unsigned long)args);
+}
+
+struct vchiq_queue_bulk_transfer32 {
+	unsigned int handle;
+	compat_uptr_t data;
+	unsigned int size;
+	compat_uptr_t userdata;
+	VCHIQ_BULK_MODE_T mode;
+};
+
+#define VCHIQ_IOC_QUEUE_BULK_TRANSMIT32 \
+	_IOWR(VCHIQ_IOC_MAGIC, 5, struct vchiq_queue_bulk_transfer32)
+#define VCHIQ_IOC_QUEUE_BULK_RECEIVE32 \
+	_IOWR(VCHIQ_IOC_MAGIC, 6, struct vchiq_queue_bulk_transfer32)
+
+static long
+vchiq_compat_ioctl_queue_bulk(struct file *file,
+			      unsigned int cmd,
+			      unsigned long arg)
+{
+	VCHIQ_QUEUE_BULK_TRANSFER_T *args;
+	struct vchiq_queue_bulk_transfer32 args32;
+	struct vchiq_queue_bulk_transfer32 *ptrargs32 =
+		(struct vchiq_queue_bulk_transfer32 *)arg;
+	long ret;
+
+	args = compat_alloc_user_space(sizeof(*args));
+	if (!args)
+		return -EFAULT;
+
+	if (copy_from_user(&args32,
+			   (struct vchiq_queue_bulk_transfer32 __user *)arg,
+			   sizeof(args32)))
+		return -EFAULT;
+
+	if (put_user(args32.handle, &args->handle) ||
+	    put_user(compat_ptr(args32.data), &args->data) ||
+	    put_user(args32.size, &args->size) ||
+	    put_user(compat_ptr(args32.userdata), &args->userdata) ||
+	    put_user(args32.mode, &args->mode))
+		return -EFAULT;
+
+	if (cmd == VCHIQ_IOC_QUEUE_BULK_TRANSMIT32)
+		cmd = VCHIQ_IOC_QUEUE_BULK_TRANSMIT;
+	else
+		cmd = VCHIQ_IOC_QUEUE_BULK_RECEIVE;
+
+	ret = vchiq_ioctl(file, cmd, (unsigned long)args);
+
+	if (ret < 0)
+		return ret;
+
+	if (get_user(args32.mode, &args->mode))
+		return -EFAULT;
+
+	if (copy_to_user(&ptrargs32->mode,
+			 &args32.mode,
+			 sizeof(args32.mode)))
+		return -EFAULT;
+
+	return 0;
+}
+
+struct vchiq_completion_data32 {
+	VCHIQ_REASON_T reason;
+	compat_uptr_t header;
+	compat_uptr_t service_userdata;
+	compat_uptr_t bulk_userdata;
+};
+
+struct vchiq_await_completion32 {
+	unsigned int count;
+	compat_uptr_t buf;
+	unsigned int msgbufsize;
+	unsigned int msgbufcount; /* IN/OUT */
+	compat_uptr_t msgbufs;
+};
+
+#define VCHIQ_IOC_AWAIT_COMPLETION32 \
+	_IOWR(VCHIQ_IOC_MAGIC, 7, struct vchiq_await_completion32)
+
+static long
+vchiq_compat_ioctl_await_completion(struct file *file,
+				    unsigned int cmd,
+				    unsigned long arg)
+{
+	VCHIQ_AWAIT_COMPLETION_T *args;
+	VCHIQ_COMPLETION_DATA_T *completion;
+	VCHIQ_COMPLETION_DATA_T completiontemp;
+	struct vchiq_await_completion32 args32;
+	struct vchiq_completion_data32 completion32;
+	unsigned int *msgbufcount32;
+	compat_uptr_t msgbuf32;
+	void *msgbuf;
+	void **msgbufptr;
+	long ret;
+
+	args = compat_alloc_user_space(sizeof(*args) +
+				       sizeof(*completion) +
+				       sizeof(*msgbufptr));
+	if (!args)
+		return -EFAULT;
+
+	completion = (VCHIQ_COMPLETION_DATA_T *)(args + 1);
+	msgbufptr = (void __user **)(completion + 1);
+
+	if (copy_from_user(&args32,
+			   (struct vchiq_completion_data32 *)arg,
+			   sizeof(args32)))
+		return -EFAULT;
+
+	if (put_user(args32.count, &args->count) ||
+	    put_user(compat_ptr(args32.buf), &args->buf) ||
+	    put_user(args32.msgbufsize, &args->msgbufsize) ||
+	    put_user(args32.msgbufcount, &args->msgbufcount) ||
+	    put_user(compat_ptr(args32.msgbufs), &args->msgbufs))
+		return -EFAULT;
+
+	/* These are simple cases, so just fall into the native handler */
+	if (!args32.count || !args32.buf || !args32.msgbufcount)
+		return vchiq_ioctl(file,
+				   VCHIQ_IOC_AWAIT_COMPLETION,
+				   (unsigned long)args);
+
+	/*
+	 * These are the more complex cases.  Typical applications of this
+	 * ioctl will use a very large count, with a very large msgbufcount.
+	 * Since the native ioctl can asynchronously fill in the returned
+	 * buffers and the application can in theory begin processing messages
+	 * even before the ioctl returns, a bit of a trick is used here.
+	 *
+	 * By forcing both count and msgbufcount to be 1, it forces the native
+	 * ioctl to only claim at most 1 message is available.   This tricks
+	 * the calling application into thinking only 1 message was actually
+	 * available in the queue so like all good applications it will retry
+	 * waiting until all the required messages are received.
+	 *
+	 * This trick has been tested and proven to work with vchiq_test,
+	 * Minecraft_PI, the "hello pi" examples, and various other
+	 * applications that are included in Raspbian.
+	 */
+
+	if (copy_from_user(&msgbuf32,
+			   compat_ptr(args32.msgbufs) +
+			   (sizeof(compat_uptr_t) *
+			   (args32.msgbufcount - 1)),
+			   sizeof(msgbuf32)))
+		return -EFAULT;
+
+	msgbuf = compat_ptr(msgbuf32);
+
+	if (copy_to_user(msgbufptr,
+			 &msgbuf,
+			 sizeof(msgbuf)))
+		return -EFAULT;
+
+	if (copy_to_user(&args->msgbufs,
+			 &msgbufptr,
+			 sizeof(msgbufptr)))
+		return -EFAULT;
+
+	if (put_user(1U, &args->count) ||
+	    put_user(completion, &args->buf) ||
+	    put_user(1U, &args->msgbufcount))
+		return -EFAULT;
+
+	ret = vchiq_ioctl(file,
+			  VCHIQ_IOC_AWAIT_COMPLETION,
+			  (unsigned long)args);
+
+	/*
+	 * An return value of 0 here means that no messages where available
+	 * in the message queue.  In this case the native ioctl does not
+	 * return any data to the application at all.  Not even to update
+	 * msgbufcount.  This functionality needs to be kept here for
+	 * compatibility.
+	 *
+	 * Of course, < 0 means that an error occurred and no data is being
+	 * returned.
+	 *
+	 * Since count and msgbufcount was forced to 1, that means
+	 * the only other possible return value is 1. Meaning that 1 message
+	 * was available, so that multiple message case does not need to be
+	 * handled here.
+	 */
+	if (ret <= 0)
+		return ret;
+
+	if (copy_from_user(&completiontemp, completion, sizeof(*completion)))
+		return -EFAULT;
+
+	completion32.reason = completiontemp.reason;
+	completion32.header = ptr_to_compat(completiontemp.header);
+	completion32.service_userdata =
+		ptr_to_compat(completiontemp.service_userdata);
+	completion32.bulk_userdata =
+		ptr_to_compat(completiontemp.bulk_userdata);
+
+	if (copy_to_user(compat_ptr(args32.buf),
+			 &completion32,
+			 sizeof(completion32)))
+		return -EFAULT;
+
+	args32.msgbufcount--;
+
+	msgbufcount32 =
+		&((struct vchiq_await_completion32 __user *)arg)->msgbufcount;
+
+	if (copy_to_user(msgbufcount32,
+			 &args32.msgbufcount,
+			 sizeof(args32.msgbufcount)))
+		return -EFAULT;
+
+	return 1;
+}
+
+struct vchiq_dequeue_message32 {
+	unsigned int handle;
+	int blocking;
+	unsigned int bufsize;
+	compat_uptr_t buf;
+};
+
+#define VCHIQ_IOC_DEQUEUE_MESSAGE32 \
+	_IOWR(VCHIQ_IOC_MAGIC, 8, struct vchiq_dequeue_message32)
+
+static long
+vchiq_compat_ioctl_dequeue_message(struct file *file,
+				   unsigned int cmd,
+				   unsigned long arg)
+{
+	VCHIQ_DEQUEUE_MESSAGE_T *args;
+	struct vchiq_dequeue_message32 args32;
+
+	args = compat_alloc_user_space(sizeof(*args));
+	if (!args)
+		return -EFAULT;
+
+	if (copy_from_user(&args32,
+			   (struct vchiq_dequeue_message32 *)arg,
+			   sizeof(args32)))
+		return -EFAULT;
+
+	if (put_user(args32.handle, &args->handle) ||
+	    put_user(args32.blocking, &args->blocking) ||
+	    put_user(args32.bufsize, &args->bufsize) ||
+	    put_user(compat_ptr(args32.buf), &args->buf))
+		return -EFAULT;
+
+	return vchiq_ioctl(file, VCHIQ_IOC_DEQUEUE_MESSAGE,
+			   (unsigned long)args);
+}
+
+struct vchiq_get_config32 {
+	unsigned int config_size;
+	compat_uptr_t pconfig;
+};
+
+#define VCHIQ_IOC_GET_CONFIG32 \
+	_IOWR(VCHIQ_IOC_MAGIC, 10, struct vchiq_get_config32)
+
+static long
+vchiq_compat_ioctl_get_config(struct file *file,
+			      unsigned int cmd,
+			      unsigned long arg)
+{
+	VCHIQ_GET_CONFIG_T *args;
+	struct vchiq_get_config32 args32;
+
+	args = compat_alloc_user_space(sizeof(*args));
+	if (!args)
+		return -EFAULT;
+
+	if (copy_from_user(&args32,
+			   (struct vchiq_get_config32 *)arg,
+			   sizeof(args32)))
+		return -EFAULT;
+
+	if (put_user(args32.config_size, &args->config_size) ||
+	    put_user(compat_ptr(args32.pconfig), &args->pconfig))
+		return -EFAULT;
+
+	return vchiq_ioctl(file, VCHIQ_IOC_GET_CONFIG, (unsigned long)args);
+}
+
+struct vchiq_dump_mem32 {
+	compat_uptr_t virt_addr;
+	u32 num_bytes;
+};
+
+#define VCHIQ_IOC_DUMP_PHYS_MEM32 \
+	_IOW(VCHIQ_IOC_MAGIC, 15, struct vchiq_dump_mem32)
+
+static long
+vchiq_compat_ioctl_dump_phys_mem(struct file *file,
+				 unsigned int cmd,
+				 unsigned long arg)
+{
+	VCHIQ_DUMP_MEM_T *args;
+	struct vchiq_dump_mem32 args32;
+
+	args = compat_alloc_user_space(sizeof(*args));
+	if (!args)
+		return -EFAULT;
+
+	if (copy_from_user(&args32,
+			   (struct vchiq_dump_mem32 *)arg,
+			   sizeof(args32)))
+		return -EFAULT;
+
+	if (put_user(compat_ptr(args32.virt_addr), &args->virt_addr) ||
+	    put_user(args32.num_bytes, &args->num_bytes))
+		return -EFAULT;
+
+	return vchiq_ioctl(file, VCHIQ_IOC_DUMP_PHYS_MEM, (unsigned long)args);
+}
+
+static long
+vchiq_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	switch (cmd) {
+	case VCHIQ_IOC_CREATE_SERVICE32:
+		return vchiq_compat_ioctl_create_service(file, cmd, arg);
+	case VCHIQ_IOC_QUEUE_MESSAGE32:
+		return vchiq_compat_ioctl_queue_message(file, cmd, arg);
+	case VCHIQ_IOC_QUEUE_BULK_TRANSMIT32:
+	case VCHIQ_IOC_QUEUE_BULK_RECEIVE32:
+		return vchiq_compat_ioctl_queue_bulk(file, cmd, arg);
+	case VCHIQ_IOC_AWAIT_COMPLETION32:
+		return vchiq_compat_ioctl_await_completion(file, cmd, arg);
+	case VCHIQ_IOC_DEQUEUE_MESSAGE32:
+		return vchiq_compat_ioctl_dequeue_message(file, cmd, arg);
+	case VCHIQ_IOC_GET_CONFIG32:
+		return vchiq_compat_ioctl_get_config(file, cmd, arg);
+	case VCHIQ_IOC_DUMP_PHYS_MEM32:
+		return vchiq_compat_ioctl_dump_phys_mem(file, cmd, arg);
+	default:
+		return vchiq_ioctl(file, cmd, arg);
+	}
+}
+
+#endif
+
 /****************************************************************************
 *
 *   vchiq_open
@@ -1688,6 +2168,9 @@ static const struct file_operations
 vchiq_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = vchiq_ioctl,
+#if defined(CONFIG_COMPAT)
+	.compat_ioctl = vchiq_compat_ioctl,
+#endif
 	.open = vchiq_open,
 	.release = vchiq_release,
 	.read = vchiq_read
