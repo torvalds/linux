@@ -1420,17 +1420,14 @@ static void i915_driver_lastclose(struct drm_device *dev)
 	vga_switcheroo_process_delayed_switch();
 }
 
-static void i915_driver_preclose(struct drm_device *dev, struct drm_file *file)
+static void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
 {
+	struct drm_i915_file_private *file_priv = file->driver_priv;
+
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_context_close(dev, file);
 	i915_gem_release(dev, file);
 	mutex_unlock(&dev->struct_mutex);
-}
-
-static void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
-{
-	struct drm_i915_file_private *file_priv = file->driver_priv;
 
 	kfree(file_priv);
 }
@@ -2635,7 +2632,6 @@ static struct drm_driver driver = {
 	.release = i915_driver_release,
 	.open = i915_driver_open,
 	.lastclose = i915_driver_lastclose,
-	.preclose = i915_driver_preclose,
 	.postclose = i915_driver_postclose,
 	.set_busid = drm_pci_set_busid,
 
