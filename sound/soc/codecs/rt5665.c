@@ -4798,7 +4798,7 @@ static int rt5665_i2c_probe(struct i2c_client *i2c,
 	/* Enhance performance*/
 	regmap_update_bits(rt5665->regmap, RT5665_PWR_ANLG_1,
 		RT5665_HP_DRIVER_MASK | RT5665_LDO1_DVO_MASK,
-		RT5665_HP_DRIVER_5X | RT5665_LDO1_DVO_09);
+		RT5665_HP_DRIVER_5X | RT5665_LDO1_DVO_12);
 
 	INIT_DELAYED_WORK(&rt5665->jack_detect_work,
 				rt5665_jack_detect_handler);
