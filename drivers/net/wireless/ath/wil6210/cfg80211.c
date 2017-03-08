@@ -680,6 +680,7 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 	rc = wmi_send(wil, WMI_CONNECT_CMDID, &conn, sizeof(conn));
 	if (rc == 0) {
 		netif_carrier_on(ndev);
+		wil6210_bus_request(wil, WIL_MAX_BUS_REQUEST_KBPS);
 		/* Connect can take lots of time */
 		mod_timer(&wil->connect_timer,
 			  jiffies + msecs_to_jiffies(2000));
@@ -1199,6 +1200,7 @@ static int _wil_cfg80211_start_ap(struct wiphy *wiphy,
 	wil->pbss = pbss;
 
 	netif_carrier_on(ndev);
+	wil6210_bus_request(wil, WIL_MAX_BUS_REQUEST_KBPS);
 
 	rc = wmi_pcp_start(wil, bi, wmi_nettype, chan, hidden_ssid, is_go);
 	if (rc)
@@ -1214,6 +1216,7 @@ err_bcast:
 	wmi_pcp_stop(wil);
 err_pcp_start:
 	netif_carrier_off(ndev);
+	wil6210_bus_request(wil, WIL_DEFAULT_BUS_REQUEST_KBPS);
 out:
 	mutex_unlock(&wil->mutex);
 	return rc;
@@ -1320,6 +1323,7 @@ static int wil_cfg80211_stop_ap(struct wiphy *wiphy,
 	wil_dbg_misc(wil, "stop_ap\n");
 
 	netif_carrier_off(ndev);
+	wil6210_bus_request(wil, WIL_DEFAULT_BUS_REQUEST_KBPS);
 	wil_set_recovery_state(wil, fw_recovery_idle);
 
 	mutex_lock(&wil->mutex);

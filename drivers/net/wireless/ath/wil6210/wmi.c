@@ -565,6 +565,7 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 	    (wdev->iftype == NL80211_IFTYPE_P2P_CLIENT)) {
 		if (rc) {
 			netif_carrier_off(ndev);
+			wil6210_bus_request(wil, WIL_DEFAULT_BUS_REQUEST_KBPS);
 			wil_err(wil, "cfg80211_connect_result with failure\n");
 			cfg80211_connect_result(ndev, evt->bssid, NULL, 0,
 						NULL, 0,

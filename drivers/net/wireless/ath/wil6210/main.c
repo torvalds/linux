@@ -274,6 +274,7 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 		wil_bcast_fini(wil);
 		wil_update_net_queues_bh(wil, NULL, true);
 		netif_carrier_off(ndev);
+		wil6210_bus_request(wil, WIL_DEFAULT_BUS_REQUEST_KBPS);
 
 		if (test_bit(wil_status_fwconnected, wil->status)) {
 			clear_bit(wil_status_fwconnected, wil->status);
@@ -553,6 +554,12 @@ out_wmi_wq:
 	destroy_workqueue(wil->wmi_wq);
 
 	return -EAGAIN;
+}
+
+void wil6210_bus_request(struct wil6210_priv *wil, u32 kbps)
+{
+	if (wil->platform_ops.bus_request)
+		wil->platform_ops.bus_request(wil->platform_handle, kbps);
 }
 
 /**
@@ -1066,9 +1073,7 @@ int __wil_up(struct wil6210_priv *wil)
 	napi_enable(&wil->napi_tx);
 	set_bit(wil_status_napi_en, wil->status);
 
-	if (wil->platform_ops.bus_request)
-		wil->platform_ops.bus_request(wil->platform_handle,
-					      WIL_MAX_BUS_REQUEST_KBPS);
+	wil6210_bus_request(wil, WIL_DEFAULT_BUS_REQUEST_KBPS);
 
 	return 0;
 }
@@ -1092,8 +1097,7 @@ int __wil_down(struct wil6210_priv *wil)
 
 	set_bit(wil_status_resetting, wil->status);
 
-	if (wil->platform_ops.bus_request)
-		wil->platform_ops.bus_request(wil->platform_handle, 0);
+	wil6210_bus_request(wil, 0);
 
 	wil_disable_irq(wil);
 	if (test_and_clear_bit(wil_status_napi_en, wil->status)) {
