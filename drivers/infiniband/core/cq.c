@@ -196,7 +196,7 @@ void ib_free_cq(struct ib_cq *cq)
 		irq_poll_disable(&cq->iop);
 		break;
 	case IB_POLL_WORKQUEUE:
-		flush_work(&cq->work);
+		cancel_work_sync(&cq->work);
 		break;
 	default:
 		WARN_ON_ONCE(1);
