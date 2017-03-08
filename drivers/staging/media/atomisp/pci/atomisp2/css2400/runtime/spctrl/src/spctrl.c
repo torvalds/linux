@@ -32,10 +32,6 @@ more details.
 #define __INLINE_SP__
 #include "sp.h"
 
-#ifdef HRT_CSIM
-#include <hive_isp_css_sp_hrt.h>
-#endif
-
 #include "memory_access.h"
 #include "assert_support.h"
 #include "ia_css_spctrl.h"
@@ -113,28 +109,11 @@ enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
 	spctrl_cofig_info[sp_id].code_addr = code_addr;
 	spctrl_cofig_info[sp_id].program_name = spctrl_cfg->program_name;
 
-#ifdef HRT_CSIM
-	/* Secondary SP is named as SP2 in SDK, however we are using secondary
-	   SP as SP1 in the HSS and secondary SP Firmware */
-	if (sp_id == SP0_ID) {
-		hrt_cell_set_icache_base_address(SP, spctrl_cofig_info[sp_id].code_addr);
-		hrt_cell_invalidate_icache(SP);
-		hrt_cell_load_program(SP, spctrl_cofig_info[sp_id].program_name);
-	}
-#if defined(HAS_SEC_SP)
-	else {
-		hrt_cell_set_icache_base_address(SP2, spctrl_cofig_info[sp_id].code_addr);
-		hrt_cell_invalidate_icache(SP2);
-		hrt_cell_load_program(SP2, spctrl_cofig_info[sp_id].program_name);
-	}
-#endif /* HAS_SEC_SP */
-#else
 	/* now we program the base address into the icache and
 	 * invalidate the cache.
 	 */
 	sp_ctrl_store(sp_id, SP_ICACHE_ADDR_REG, (hrt_data)spctrl_cofig_info[sp_id].code_addr);
 	sp_ctrl_setbit(sp_id, SP_ICACHE_INV_REG, SP_ICACHE_INV_BIT);
-#endif
 	spctrl_loaded[sp_id] = true;
 	return IA_CSS_SUCCESS;
 }
@@ -143,32 +122,15 @@ enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
 /* reload pre-loaded FW */
 void sh_css_spctrl_reload_fw(sp_ID_t sp_id)
 {
-#ifdef HRT_CSIM
-	/* Secondary SP is named as SP2 in SDK, however we are using secondary
-	SP as SP1 in the HSS and secondary SP Firmware */
-	if (sp_id == SP0_ID) {
-		hrt_cell_set_icache_base_address(SP, spctrl_cofig_info[sp_id].code_addr);
-		hrt_cell_invalidate_icache(SP);
-		hrt_cell_load_program(SP, spctrl_cofig_info[sp_id].program_name);
-	}
-#if defined(HAS_SEC_SP)
-	else {
-		hrt_cell_set_icache_base_address(SP2, spctrl_cofig_info[sp_id].code_addr);
-		hrt_cell_invalidate_icache(SP2);
-		hrt_cell_load_program(SP2, spctrl_cofig_info[sp_id].program_name);
-	}
-#endif /* HAS_SEC_SP */
-#else
 	/* now we program the base address into the icache and
 	* invalidate the cache.
 	*/
 	sp_ctrl_store(sp_id, SP_ICACHE_ADDR_REG, (hrt_data)spctrl_cofig_info[sp_id].code_addr);
 	sp_ctrl_setbit(sp_id, SP_ICACHE_INV_REG, SP_ICACHE_INV_BIT);
-#endif
 	spctrl_loaded[sp_id] = true;
 }
-
 #endif
+
 hrt_vaddress get_sp_code_addr(sp_ID_t  sp_id)
 {
 	return spctrl_cofig_info[sp_id].code_addr;
@@ -186,40 +148,6 @@ enum ia_css_err ia_css_spctrl_unload_fw(sp_ID_t sp_id)
 	return IA_CSS_SUCCESS;
 }
 
-#ifdef HRT_CSIM
-enum ia_css_err ia_css_spctrl_start(sp_ID_t sp_id)
-{
-	unsigned int HIVE_ADDR_sp_start_isp_entry;
-#if defined(HAS_SEC_SP)
-	unsigned int HIVE_ADDR_sp1_start_entry;
-#endif /* HAS_SEC_SP */
-	if ((sp_id >= N_SP_ID) || ((sp_id < N_SP_ID) && (!spctrl_loaded[sp_id])))
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
-if (sp_id == SP0_ID)
-	HIVE_ADDR_sp_start_isp_entry = spctrl_cofig_info[sp_id].sp_entry;
-#if defined(HAS_SEC_SP)
-else
-	HIVE_ADDR_sp1_start_entry = spctrl_cofig_info[sp_id].sp_entry;
-#endif /* HAS_SEC_SP  */
-
-#if !defined(C_RUN) && !defined(HRT_UNSCHED)
-	sp_dmem_store(sp_id,
-		spctrl_cofig_info[sp_id].spctrl_config_dmem_addr,
-		&spctrl_cofig_info[sp_id].dmem_config,
-		sizeof(spctrl_cofig_info[sp_id].dmem_config));
-#endif
-	if (sp_id == SP0_ID)
-		hrt_cell_start_function(SP, sp_start_isp);
-#if defined(HAS_SEC_SP)
-	else
-		/* Secondary SP is named as sp1 in the firmware however in
-		   SDK secondary SP is named as SP2 */
-		hrt_cell_start_function(SP2, sp1_start);
-#endif /* HAS_SEC_SP */
-
-	return IA_CSS_SUCCESS;
-}
-#else
 /* Initialize dmem_cfg in SP dmem  and  start SP program*/
 enum ia_css_err ia_css_spctrl_start(sp_ID_t sp_id)
 {
@@ -244,7 +172,7 @@ enum ia_css_err ia_css_spctrl_start(sp_ID_t sp_id)
 	sp_ctrl_setbit(sp_id, SP_SC_REG, SP_START_BIT);
 	return IA_CSS_SUCCESS;
 }
-#endif
+
 /* Query the state of SP1 */
 ia_css_spctrl_sp_sw_state ia_css_spctrl_get_state(sp_ID_t sp_id)
 {
@@ -270,16 +198,7 @@ int ia_css_spctrl_is_idle(sp_ID_t sp_id)
 	int state = 0;
 	assert (sp_id < N_SP_ID);
 
-#ifdef HRT_CSIM
-	if (sp_id == SP0_ID)
-		state = (int)hrt_ctl_is_ready(SP);
-#if defined(HAS_SEC_SP)
-	else
-		state = (int)hrt_ctl_is_ready(SP2);
-#endif /* HAS_SEC_SP */
-#else /* HRT_CSIM */
 	state = sp_ctrl_getbit(sp_id, SP_SC_REG, SP_IDLE_BIT);
-#endif /* HRT_CSIM */
 	return state;
 }
 

@@ -1575,14 +1575,6 @@ enable_interrupts(enum ia_css_irq_type irq_type)
 		ia_css_isys_rx_enable_all_interrupts(port);
 #endif
 
-#if defined(HRT_CSIM)
-	/*
-	 * Enable IRQ on the SP which signals that SP goes to idle
-	 * to get statistics for each binary
-	 */
-	cnd_isp_irq_enable(ISP0_ID, true);
-	cnd_virq_enable_channel(virq_isp, true);
-#endif
 	IA_CSS_LEAVE_PRIVATE("");
 }
 
@@ -1938,18 +1930,6 @@ ia_css_init(const struct ia_css_env *env,
 		return err;
 	}
 #endif /* HAS_BL */
-
-#if defined(HRT_CSIM)
-	/**
-	 * In compiled simulator context include debug support by default.
-	 * In all other cases (e.g. Android phone), the user (e.g. driver)
-	 * must explicitly enable debug support by calling this function.
-	 */
-	if (!ia_css_debug_mode_init()) {
-		IA_CSS_LEAVE_ERR(IA_CSS_ERR_INTERNAL_ERROR);
-		return IA_CSS_ERR_INTERNAL_ERROR;
-	}
-#endif
 
 #if WITH_PC_MONITORING
 	if (!thread_alive) {
@@ -2317,10 +2297,6 @@ create_host_pipeline(struct ia_css_stream *stream)
 				goto ERR;
 		}
 
-#ifdef HRT_CSIM
-		if(main_pipe->continuous_frames[0])
-			ia_css_frame_zero(main_pipe->continuous_frames[0]);
-#endif
 	}
 
 #if defined(USE_INPUT_SYSTEM_VERSION_2)
@@ -2806,11 +2782,6 @@ enum ia_css_err ia_css_irq_translate(
 			infos |= IA_CSS_IRQ_INFO_EVENTS_READY;
 			break;
 		case virq_isp:
-#ifdef HRT_CSIM
-			/* Enable IRQ which signals that ISP goes to idle
-			 * to get statistics for each binary */
-			infos |= IA_CSS_IRQ_INFO_ISP_BINARY_STATISTICS_READY;
-#endif
 			break;
 #if !defined(HAS_NO_INPUT_SYSTEM)
 		case virq_isys_sof:
@@ -6062,9 +6033,6 @@ static enum ia_css_err load_video_binaries(struct ia_css_pipe *pipe)
 		err = ia_css_frame_allocate_from_info(
 				&mycs->tnr_frames[i],
 				&tnr_info);
-#ifdef HRT_CSIM
-		ia_css_frame_zero(mycs->tnr_frames[i]);
-#endif
 		if (err != IA_CSS_SUCCESS)
 			return err;
 	}
@@ -6773,9 +6741,6 @@ allocate_delay_frames(struct ia_css_pipe *pipe)
 		err = ia_css_frame_allocate_from_info(&delay_frames[i],	&ref_info);
 		if (err != IA_CSS_SUCCESS)
 			return err;
-#if defined(HRT_CSIM) || defined(__SVOS__)
-		ia_css_frame_zero(delay_frames[i]);
-#endif
 	}
 	IA_CSS_LEAVE_PRIVATE("");
 	return IA_CSS_SUCCESS;
@@ -11193,10 +11158,8 @@ enum ia_css_err
 ia_css_pipe_update_qos_ext_mapped_arg(struct ia_css_pipe *pipe, uint32_t fw_handle,
 	struct ia_css_isp_param_css_segments *css_seg, struct ia_css_isp_param_isp_segments *isp_seg)
 {
-#ifndef HRT_CSIM
 	unsigned int HIVE_ADDR_sp_group;
 	static struct sh_css_sp_group sp_group;
-#endif
 	static struct sh_css_sp_stage sp_stage;
 	static struct sh_css_isp_stage isp_stage;
 	const struct ia_css_fw_info *fw;
@@ -11235,17 +11198,12 @@ ia_css_pipe_update_qos_ext_mapped_arg(struct ia_css_pipe *pipe, uint32_t fw_hand
 			} else {
 				stage_num = stage->stage_num;
 
-#ifndef HRT_CSIM
 				HIVE_ADDR_sp_group = fw->info.sp.group;
 				sp_dmem_load(SP0_ID,
 					(unsigned int)sp_address_of(sp_group),
 					&sp_group, sizeof(struct sh_css_sp_group));
 				mmgr_load(sp_group.pipe[thread_id].sp_stage_addr[stage_num],
 					&sp_stage, sizeof(struct sh_css_sp_stage));
-#else
-				mmgr_load(sh_css_sp_group.pipe[thread_id].sp_stage_addr[stage_num],
-					&sp_stage, sizeof(struct sh_css_sp_stage));
-#endif
 
 				mmgr_load(sp_stage.isp_stage_addr,
 					&isp_stage, sizeof(struct sh_css_isp_stage));

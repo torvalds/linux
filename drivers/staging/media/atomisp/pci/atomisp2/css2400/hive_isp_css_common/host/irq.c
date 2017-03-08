@@ -218,9 +218,6 @@ void irq_raise(
 /* The SW IRQ pins are remapped to offset zero */
 	gp_device_reg_store(GP_DEVICE0_ID,
 		(unsigned int)addr, 1);
-#ifdef HRT_CSIM
-	hrt_sleep();
-#endif
 	gp_device_reg_store(GP_DEVICE0_ID,
 		(unsigned int)addr, 0);
 return;
@@ -412,14 +409,10 @@ return status;
 STORAGE_CLASS_INLINE void irq_wait_for_write_complete(
 	const irq_ID_t		ID)
 {
-assert(ID < N_IRQ_ID);
-assert(IRQ_BASE[ID] != (hrt_address)-1);
+	assert(ID < N_IRQ_ID);
+	assert(IRQ_BASE[ID] != (hrt_address)-1);
 	(void)ia_css_device_load_uint32(IRQ_BASE[ID] +
 		_HRT_IRQ_CONTROLLER_ENABLE_REG_IDX*sizeof(hrt_data));
-#ifdef HRT_CSIM
-	hrt_sleep();
-#endif
-return;
 }
 
 STORAGE_CLASS_INLINE bool any_irq_channel_enabled(

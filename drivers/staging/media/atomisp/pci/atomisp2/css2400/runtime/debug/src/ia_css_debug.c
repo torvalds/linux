@@ -2578,29 +2578,13 @@ ia_css_debug_mode_enable_dma_channel(int dma_id,
 void dtrace_dot(const char *fmt, ...)
 {
 	va_list ap;
-#ifdef HRT_CSIM
-	va_list ap2;
-#endif
 
 	assert(fmt != NULL);
 	va_start(ap, fmt);
-#ifdef HRT_CSIM
-	va_start(ap2, fmt);
-#endif
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_INFO, "%s", DPG_START);
 	ia_css_debug_vdtrace(IA_CSS_DEBUG_INFO, fmt, ap);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_INFO, "%s", DPG_END);
-#ifdef HRT_CSIM
-	/* For CSIM we print double because HSS log can mess up this output
-	 * As post processing, we remove incomplete lines and make lines uniq.
-	 * */
-	ia_css_debug_dtrace(IA_CSS_DEBUG_INFO, "%s", DPG_START);
-	ia_css_debug_vdtrace(IA_CSS_DEBUG_INFO, fmt, ap2);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_INFO, "%s", DPG_END);\
-
-	va_end(ap2);
-#endif
 	va_end(ap);
 }
 #ifdef HAS_WATCHDOG_SP_THREAD_DEBUG

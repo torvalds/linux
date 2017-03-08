@@ -3705,23 +3705,6 @@ static void sh_css_update_isp_params_to_ddr(
 
 	assert(params != NULL);
 
-#ifdef HRT_CSIM
-	{
-		/* ispparm struct is read with DMA which reads
-		 * multiples of the DDR word with (32 bytes):
-		 * So we pad with zeroes to prevent warnings in csim.
-		 */
-		unsigned int aligned_width, padding_bytes;
-		hrt_vaddress pad_ptr;
-
-		aligned_width = CEIL_MUL(
-				  size,
-				  HIVE_ISP_DDR_WORD_BYTES);
-		padding_bytes = aligned_width - size;
-		pad_ptr = ddr_ptr + size;
-		mmgr_clear(pad_ptr, padding_bytes);
-	}
-#endif
 	mmgr_store(ddr_ptr, &(params->uds), size);
 	IA_CSS_LEAVE_PRIVATE("void");
 }
@@ -4073,18 +4056,6 @@ sh_css_params_write_to_ddr_internal(
 					return err;
 				}
 			}
-#ifdef HRT_CSIM
-			else {
-				hrt_vaddress ptr =
-					(hrt_vaddress)ddr_map->fpn_tbl;
-				/* prevent warnings when reading fpn table
-				 * in csim.*/
-				/* Actual values are not used when fpn is
-				 * disabled. */
-				/* MW: fpn_tbl_size*sizeof(whatever)? */
-				mmgr_clear(ptr, ddr_map_size->fpn_tbl);
-			}
-#endif
 		}
 	}
 

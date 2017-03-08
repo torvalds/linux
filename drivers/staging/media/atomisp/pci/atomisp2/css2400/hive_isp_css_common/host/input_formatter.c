@@ -204,15 +204,8 @@ void input_formatter_bin_get_state(
 	assert(ID < N_INPUT_FORMATTER_ID);
 	assert(state != NULL);
 
-#ifdef HRT_CSIM
-	/* The compiled simulator mode of the input formatter
-	 * does not support reading from the write-only reset
-	 * register. */
-	state->reset = 0;
-#else
 	state->reset = input_formatter_reg_load(ID,
 		HIVE_STR2MEM_SOFT_RESET_REG_ADDRESS);
-#endif
 	state->input_endianness = input_formatter_reg_load(ID,
 		HIVE_STR2MEM_INPUT_ENDIANNESS_REG_ADDRESS);
 	state->output_endianness = input_formatter_reg_load(ID,

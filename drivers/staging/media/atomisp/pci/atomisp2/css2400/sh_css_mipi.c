@@ -515,9 +515,6 @@ allocate_mipi_frames(struct ia_css_pipe *pipe, struct ia_css_stream_info *info)
 						pipe, port);
 					return err;
 				}
-#ifdef HRT_CSIM
-				ia_css_frame_zero(my_css.mipi_frames[port][i]);
-#endif
 			}
 			if (info->metadata_info.size > 0) {
 				/* free previous metadata buffer */

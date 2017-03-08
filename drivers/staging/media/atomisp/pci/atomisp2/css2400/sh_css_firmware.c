@@ -226,7 +226,7 @@ sh_css_load_firmware(const char *fw_data,
 	strncpy(FW_rel_ver_name, file_header->version, min(sizeof(FW_rel_ver_name), sizeof(file_header->version)) - 1);
 	valid_firmware = sh_css_check_firmware_version(fw_data);
 	if (!valid_firmware) {
-#if (!defined HRT_CSIM && !defined HRT_RTL)
+#if !defined(HRT_RTL)
 		IA_CSS_ERROR("CSS code version (%s) and firmware version (%s) mismatch!",
 				file_header->version, release_version);
 		return IA_CSS_ERR_VERSION_MISMATCH;
@@ -350,14 +350,7 @@ sh_css_load_blob(const unsigned char *blob, unsigned size)
 	   is required for the CSS DMA to read the instructions. */
 
 	assert(blob != NULL);
-	if (target_addr) {
+	if (target_addr) 
 		mmgr_store(target_addr, blob, size);
-#ifdef HRT_CSIM
-		{
-			unsigned padded_size = CEIL_MUL(size, HIVE_ISP_DDR_WORD_BYTES);
-			mmgr_clear(target_addr + size, padded_size - size);
-		}
-#endif
-	}
 	return target_addr;
 }
