@@ -2189,11 +2189,11 @@ static int __dwc3_cleanup_done_trbs(struct dwc3 *dwc, struct dwc3_ep *dep,
 		return 1;
 	}
 
-	if ((trb->ctrl & DWC3_TRB_CTRL_HWO) && status != -ESHUTDOWN)
-		return 1;
-
 	count = trb->size & DWC3_TRB_SIZE_MASK;
 	req->remaining += count;
+
+	if ((trb->ctrl & DWC3_TRB_CTRL_HWO) && status != -ESHUTDOWN)
+		return 1;
 
 	if (dep->direction) {
 		if (count) {
