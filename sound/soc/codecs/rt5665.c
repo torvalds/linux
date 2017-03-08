@@ -1193,9 +1193,12 @@ static int rt5665_headset_detect(struct snd_soc_codec *codec, int jack_insert)
 		}
 
 		regmap_update_bits(rt5665->regmap, RT5665_EJD_CTRL_1,
-			0x180, 0x180);
+			0x1a0, 0x120);
 		regmap_write(rt5665->regmap, RT5665_EJD_CTRL_3, 0x3424);
+		regmap_write(rt5665->regmap, RT5665_IL_CMD_1, 0x0048);
 		regmap_write(rt5665->regmap, RT5665_SAR_IL_CMD_1, 0xa291);
+
+		usleep_range(10000, 15000);
 
 		rt5665->sar_adc_value = snd_soc_read(rt5665->codec,
 			RT5665_SAR_IL_CMD_4) & 0x7ff;
@@ -4788,7 +4791,7 @@ static int rt5665_i2c_probe(struct i2c_client *i2c,
 
 	regmap_write(rt5665->regmap, RT5665_HP_LOGIC_CTRL_2, 0x0002);
 	regmap_update_bits(rt5665->regmap, RT5665_EJD_CTRL_1,
-		0xf000 | RT5665_VREF_POW_MASK, 0xd000 | RT5665_VREF_POW_REG);
+		0xf000 | RT5665_VREF_POW_MASK, 0xe000 | RT5665_VREF_POW_REG);
 	/* Work around for pow_pump */
 	regmap_update_bits(rt5665->regmap, RT5665_STO1_DAC_SIL_DET,
 		RT5665_DEB_STO_DAC_MASK, RT5665_DEB_80_MS);
