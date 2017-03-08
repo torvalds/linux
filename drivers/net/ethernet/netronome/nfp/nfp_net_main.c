@@ -178,6 +178,8 @@ nfp_net_get_mac_addr(struct nfp_net *nn, struct nfp_pf *pf, unsigned int id)
 		if (pf->eth_tbl->ports[i].eth_index == id) {
 			const u8 *mac_addr = pf->eth_tbl->ports[i].mac_addr;
 
+			nn->eth_port = &pf->eth_tbl->ports[i];
+
 			ether_addr_copy(nn->netdev->dev_addr, mac_addr);
 			ether_addr_copy(nn->netdev->perm_addr, mac_addr);
 			return;

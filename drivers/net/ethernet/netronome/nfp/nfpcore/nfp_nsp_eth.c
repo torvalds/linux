@@ -134,9 +134,32 @@ nfp_eth_port_translate(const struct eth_table_entry *src, unsigned int index,
 
 	nfp_eth_copy_mac_reverse(dst->mac_addr, src->mac_addr);
 
-	snprintf(dst->label, sizeof(dst->label) - 1, "%llu.%llu",
-		 FIELD_GET(NSP_ETH_PORT_PHYLABEL, port),
-		 FIELD_GET(NSP_ETH_PORT_LABEL, port));
+	dst->label_port = FIELD_GET(NSP_ETH_PORT_PHYLABEL, port);
+	dst->label_subport = FIELD_GET(NSP_ETH_PORT_LABEL, port);
+}
+
+static void
+nfp_eth_mark_split_ports(struct nfp_cpp *cpp, struct nfp_eth_table *table)
+{
+	unsigned int i, j;
+
+	for (i = 0; i < table->count; i++)
+		for (j = 0; j < table->count; j++) {
+			if (i == j)
+				continue;
+			if (table->ports[i].label_port !=
+			    table->ports[j].label_port)
+				continue;
+			if (table->ports[i].label_subport ==
+			    table->ports[j].label_subport)
+				nfp_warn(cpp,
+					 "Port %d subport %d is a duplicate\n",
+					 table->ports[i].label_port,
+					 table->ports[i].label_subport);
+
+			table->ports[i].is_split = true;
+			break;
+		}
 }
 
 /**
@@ -202,6 +225,8 @@ __nfp_eth_read_ports(struct nfp_cpp *cpp, struct nfp_nsp *nsp)
 		if (entries[i].port & NSP_ETH_PORT_LANES_MASK)
 			nfp_eth_port_translate(&entries[i], i,
 					       &table->ports[j++]);
+
+	nfp_eth_mark_split_ports(cpp, table);
 
 	kfree(entries);
 

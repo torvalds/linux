@@ -112,6 +112,7 @@
 
 /* Forward declarations */
 struct nfp_cpp;
+struct nfp_eth_table_port;
 struct nfp_net;
 struct nfp_net_r_vector;
 
@@ -496,6 +497,7 @@ struct nfp_stat_pair {
  * @ethtool_dump_flag:	Ethtool dump flag
  * @port_list:		Entry on device port list
  * @cpp:		CPP device handle if available
+ * @eth_port:		Translated ETH Table port entry
  */
 struct nfp_net {
 	struct pci_dev *pdev;
@@ -587,6 +589,8 @@ struct nfp_net {
 	struct list_head port_list;
 
 	struct nfp_cpp *cpp;
+
+	struct nfp_eth_table_port *eth_port;
 };
 
 struct nfp_net_ring_set {
