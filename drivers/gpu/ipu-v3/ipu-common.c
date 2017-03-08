@@ -1530,6 +1530,7 @@ static struct platform_driver imx_ipu_driver = {
 
 static struct platform_driver * const drivers[] = {
 	&ipu_pre_drv,
+	&ipu_prg_drv,
 	&imx_ipu_driver,
 };
 

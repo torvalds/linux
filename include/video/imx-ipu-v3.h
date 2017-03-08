@@ -331,6 +331,21 @@ int ipu_dp_set_global_alpha(struct ipu_dp *dp, bool enable, u8 alpha,
 		bool bg_chan);
 
 /*
+ * IPU Prefetch Resolve Gasket (prg) functions
+ */
+int ipu_prg_max_active_channels(void);
+bool ipu_prg_present(struct ipu_soc *ipu);
+bool ipu_prg_format_supported(struct ipu_soc *ipu, uint32_t format,
+			      uint64_t modifier);
+int ipu_prg_enable(struct ipu_soc *ipu);
+void ipu_prg_disable(struct ipu_soc *ipu);
+void ipu_prg_channel_disable(struct ipuv3_channel *ipu_chan);
+int ipu_prg_channel_configure(struct ipuv3_channel *ipu_chan,
+			      unsigned int axi_id,  unsigned int width,
+			      unsigned int height, unsigned int stride,
+			      u32 format, unsigned long *eba);
+
+/*
  * IPU CMOS Sensor Interface (csi) functions
  */
 struct ipu_csi;

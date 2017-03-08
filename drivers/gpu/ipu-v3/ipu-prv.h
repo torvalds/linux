@@ -174,6 +174,7 @@ struct ipu_vdi;
 struct ipu_image_convert_priv;
 struct ipu_smfc_priv;
 struct ipu_pre;
+struct ipu_prg;
 
 struct ipu_devtype;
 
@@ -208,6 +209,7 @@ struct ipu_soc {
 	struct ipu_vdi          *vdi_priv;
 	struct ipu_image_convert_priv *image_convert_priv;
 	struct ipu_smfc_priv	*smfc_priv;
+	struct ipu_prg		*prg_priv;
 };
 
 static inline u32 ipu_idmac_read(struct ipu_soc *ipu, unsigned offset)
@@ -276,6 +278,10 @@ void ipu_pre_configure(struct ipu_pre *pre, unsigned int width,
 		       unsigned int stride, u32 format, unsigned int bufaddr);
 void ipu_pre_update(struct ipu_pre *pre, unsigned int bufaddr);
 
+struct ipu_prg *ipu_prg_lookup_by_phandle(struct device *dev, const char *name,
+					  int ipu_id);
+
 extern struct platform_driver ipu_pre_drv;
+extern struct platform_driver ipu_prg_drv;
 
 #endif				/* __IPU_PRV_H__ */
