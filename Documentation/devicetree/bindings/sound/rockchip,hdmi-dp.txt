@@ -1,0 +1,17 @@
+ROCKCHIP Built-in HDMI and DP audio
+
+Required properties:
+- compatible: "rockchip,rk3399-hdmi-dp"
+- rockchip,cpu: The phandle of the Rockchip I2S controller that's
+  connected to the CODEC
+- rockchip,codec: The phandle of audio codecs, should contain HDMI
+  or DP, or both.
+
+Example:
+
+sound {
+	compatible = "rockchip,rk3399-hdmi-dp";
+	rockchip,cpu = <&i2s2>;
+	rockchip,codec = <&hdmi>, <&cdn_dp>;
+};
+
