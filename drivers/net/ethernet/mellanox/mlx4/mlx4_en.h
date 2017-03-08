@@ -472,9 +472,8 @@ struct mlx4_en_mc_list {
 
 struct mlx4_en_frag_info {
 	u16 frag_size;
-	u16 frag_prefix_size;
-	u32 frag_stride;
 	u16 rx_headroom;
+	u32 frag_stride;
 };
 
 #ifdef CONFIG_MLX4_EN_DCB
