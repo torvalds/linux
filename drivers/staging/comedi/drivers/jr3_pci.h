@@ -732,5 +732,5 @@ struct jr3_t {
 		u32 program_hi[0x8000];		/*  0x40000 - 0x60000 */
 		u32 reset;			/*  0x60000 - 0x60004 */
 		char pad3[0x20000 - 0x00004];	/*  0x60004 - 0x80000 */
-	} channel[4];
+	} block[4];
 };

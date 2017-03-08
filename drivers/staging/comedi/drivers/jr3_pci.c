@@ -405,8 +405,8 @@ static void jr3_write_firmware(struct comedi_device *dev,
 				unsigned int data1 = 0;
 				unsigned int data2 = 0;
 
-				lo = &iobase->channel[subdev].program_lo[addr];
-				hi = &iobase->channel[subdev].program_hi[addr];
+				lo = &iobase->block[subdev].program_lo[addr];
+				hi = &iobase->block[subdev].program_hi[addr];
 
 				more = more &&
 				       read_idm_word(data, size, &pos, &data1);
@@ -639,7 +639,7 @@ jr3_pci_alloc_spriv(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (!spriv)
 		return NULL;
 
-	spriv->sensor = &iobase->channel[s->index].sensor;
+	spriv->sensor = &iobase->block[s->index].sensor;
 
 	for (j = 0; j < 8; j++) {
 		spriv->range[j].l.length = 1;
@@ -671,7 +671,7 @@ jr3_pci_alloc_spriv(struct comedi_device *dev, struct comedi_subdevice *s)
 static void jr3_pci_show_copyright(struct comedi_device *dev)
 {
 	struct jr3_t __iomem *iobase = dev->mmio;
-	struct jr3_sensor __iomem *sensor0 = &iobase->channel[0].sensor;
+	struct jr3_sensor __iomem *sensor0 = &iobase->block[0].sensor;
 	char copy[ARRAY_SIZE(sensor0->copyright) + 1];
 	int i;
 
@@ -744,7 +744,7 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 
 	/* Reset DSP card */
 	for (i = 0; i < dev->n_subdevices; i++)
-		writel(0, &iobase->channel[i].reset);
+		writel(0, &iobase->block[i].reset);
 
 	ret = comedi_load_firmware(dev, &comedi_to_pci_dev(dev)->dev,
 				   "comedi/jr3pci.idm",
