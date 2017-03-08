@@ -789,6 +789,11 @@ static int cs35l35_codec_probe(struct snd_soc_codec *codec)
 				CS35L35_SP_DRV_MASK,
 				cs35l35->pdata.sp_drv_str <<
 				CS35L35_SP_DRV_SHIFT);
+	if (cs35l35->pdata.sp_drv_unused)
+		regmap_update_bits(cs35l35->regmap, CS35L35_SP_FMT_CTL3,
+				   CS35L35_SP_I2S_DRV_MASK,
+				   cs35l35->pdata.sp_drv_unused <<
+				   CS35L35_SP_I2S_DRV_SHIFT);
 
 	if (classh->classh_algo_enable) {
 		if (classh->classh_bst_override)
@@ -1169,6 +1174,8 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 
 	if (of_property_read_u32(np, "cirrus,sp-drv-strength", &val32) >= 0)
 		pdata->sp_drv_str = val32;
+	if (of_property_read_u32(np, "cirrus,sp-drv-unused", &val32) >= 0)
+		pdata->sp_drv_unused = val32 | CS35L35_VALID_PDATA;
 
 	pdata->stereo = of_property_read_bool(np, "cirrus,stereo-config");
 

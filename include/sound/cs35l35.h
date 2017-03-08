@@ -80,6 +80,8 @@ struct cs35l35_platform_data {
 	bool stereo;
 	/* serial port drive strength */
 	int sp_drv_str;
+	/* serial port drive in unused slots */
+	int sp_drv_unused;
 	/* Boost Power Down with FET */
 	bool bst_pdn_fet_on;
 	/* Boost Voltage : used if ClassH Algo Enabled */
