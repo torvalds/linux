@@ -110,6 +110,11 @@ static int imx_drm_atomic_check(struct drm_device *dev,
 	if (ret)
 		return ret;
 
+	/* Assign PRG/PRE channels and check if all constrains are satisfied. */
+	ret = ipu_planes_assign_pre(dev, state);
+	if (ret)
+		return ret;
+
 	return ret;
 }
 

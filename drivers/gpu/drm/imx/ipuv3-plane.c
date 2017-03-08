@@ -23,6 +23,17 @@
 #include "video/imx-ipu-v3.h"
 #include "ipuv3-plane.h"
 
+struct ipu_plane_state {
+	struct drm_plane_state base;
+	bool use_pre;
+};
+
+static inline struct ipu_plane_state *
+to_ipu_plane_state(struct drm_plane_state *p)
+{
+	return container_of(p, struct ipu_plane_state, base);
+}
+
 static inline struct ipu_plane *to_ipu_plane(struct drm_plane *p)
 {
 	return container_of(p, struct ipu_plane, base);
@@ -223,6 +234,8 @@ void ipu_plane_disable(struct ipu_plane *ipu_plane, bool disable_dp_channel)
 	ipu_dmfc_disable_channel(ipu_plane->dmfc);
 	if (ipu_plane->dp)
 		ipu_dp_disable(ipu_plane->ipu);
+	if (ipu_prg_present(ipu_plane->ipu))
+		ipu_prg_channel_disable(ipu_plane->ipu_ch);
 }
 
 void ipu_plane_disable_deferred(struct drm_plane *plane)
@@ -246,13 +259,56 @@ static void ipu_plane_destroy(struct drm_plane *plane)
 	kfree(ipu_plane);
 }
 
+void ipu_plane_state_reset(struct drm_plane *plane)
+{
+	struct ipu_plane_state *ipu_state;
+
+	if (plane->state) {
+		ipu_state = to_ipu_plane_state(plane->state);
+		__drm_atomic_helper_plane_destroy_state(plane->state);
+		kfree(ipu_state);
+	}
+
+	ipu_state = kzalloc(sizeof(*ipu_state), GFP_KERNEL);
+
+	if (ipu_state) {
+		ipu_state->base.plane = plane;
+		ipu_state->base.rotation = DRM_ROTATE_0;
+	}
+
+	plane->state = &ipu_state->base;
+}
+
+struct drm_plane_state *ipu_plane_duplicate_state(struct drm_plane *plane)
+{
+	struct ipu_plane_state *state;
+
+	if (WARN_ON(!plane->state))
+		return NULL;
+
+	state = kmalloc(sizeof(*state), GFP_KERNEL);
+	if (state)
+		__drm_atomic_helper_plane_duplicate_state(plane, &state->base);
+
+	return &state->base;
+}
+
+void ipu_plane_destroy_state(struct drm_plane *plane,
+			     struct drm_plane_state *state)
+{
+	struct ipu_plane_state *ipu_state = to_ipu_plane_state(state);
+
+	__drm_atomic_helper_plane_destroy_state(state);
+	kfree(ipu_state);
+}
+
 static const struct drm_plane_funcs ipu_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
 	.destroy	= ipu_plane_destroy,
-	.reset		= drm_atomic_helper_plane_reset,
-	.atomic_duplicate_state	= drm_atomic_helper_plane_duplicate_state,
-	.atomic_destroy_state	= drm_atomic_helper_plane_destroy_state,
+	.reset		= ipu_plane_state_reset,
+	.atomic_duplicate_state	= ipu_plane_duplicate_state,
+	.atomic_destroy_state	= ipu_plane_destroy_state,
 };
 
 static int ipu_plane_atomic_check(struct drm_plane *plane,
@@ -426,17 +482,33 @@ static void ipu_plane_atomic_disable(struct drm_plane *plane,
 	ipu_plane->disabling = true;
 }
 
+static int ipu_chan_assign_axi_id(int ipu_chan)
+{
+	switch (ipu_chan) {
+	case IPUV3_CHANNEL_MEM_BG_SYNC:
+		return 1;
+	case IPUV3_CHANNEL_MEM_FG_SYNC:
+		return 2;
+	case IPUV3_CHANNEL_MEM_DC_SYNC:
+		return 3;
+	default:
+		return 0;
+	}
+}
+
 static void ipu_plane_atomic_update(struct drm_plane *plane,
 				    struct drm_plane_state *old_state)
 {
 	struct ipu_plane *ipu_plane = to_ipu_plane(plane);
 	struct drm_plane_state *state = plane->state;
+	struct ipu_plane_state *ipu_state = to_ipu_plane_state(state);
 	struct drm_crtc_state *crtc_state = state->crtc->state;
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_rect *dst = &state->dst;
 	unsigned long eba, ubo, vbo;
 	unsigned long alpha_eba = 0;
 	enum ipu_color_space ics;
+	unsigned int axi_id = 0;
 	int active;
 
 	if (ipu_plane->dp_flow == IPU_DP_FLOW_SYNC_FG)
@@ -444,7 +516,23 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 
 	eba = drm_plane_state_to_eba(state, 0);
 
+	/*
+	 * Configure PRG channel and attached PRE, this changes the EBA to an
+	 * internal SRAM location.
+	 */
+	if (ipu_state->use_pre) {
+		axi_id = ipu_chan_assign_axi_id(ipu_plane->dma);
+		ipu_prg_channel_configure(ipu_plane->ipu_ch, axi_id,
+					  drm_rect_width(&state->src) >> 16,
+					  drm_rect_height(&state->src) >> 16,
+					  state->fb->pitches[0],
+					  state->fb->format->format, &eba);
+	}
+
 	if (old_state->fb && !drm_atomic_crtc_needs_modeset(crtc_state)) {
+		/* nothing to do if PRE is used */
+		if (ipu_state->use_pre)
+			return;
 		active = ipu_idmac_get_current_buffer(ipu_plane->ipu_ch);
 		ipu_cpmem_set_buffer(ipu_plane->ipu_ch, !active, eba);
 		ipu_idmac_select_buffer(ipu_plane->ipu_ch, !active);
@@ -503,6 +591,7 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 	ipu_cpmem_set_high_priority(ipu_plane->ipu_ch);
 	ipu_idmac_set_double_buffer(ipu_plane->ipu_ch, 1);
 	ipu_cpmem_set_stride(ipu_plane->ipu_ch, state->fb->pitches[0]);
+	ipu_cpmem_set_axi_id(ipu_plane->ipu_ch, axi_id);
 	switch (fb->format->format) {
 	case DRM_FORMAT_YUV420:
 	case DRM_FORMAT_YVU420:
@@ -577,6 +666,35 @@ static const struct drm_plane_helper_funcs ipu_plane_helper_funcs = {
 	.atomic_disable = ipu_plane_atomic_disable,
 	.atomic_update = ipu_plane_atomic_update,
 };
+
+int ipu_planes_assign_pre(struct drm_device *dev,
+			  struct drm_atomic_state *state)
+{
+	struct drm_plane_state *plane_state;
+	struct drm_plane *plane;
+	int available_pres = ipu_prg_max_active_channels();
+	int i;
+
+	for_each_plane_in_state(state, plane, plane_state, i) {
+		struct ipu_plane_state *ipu_state =
+				to_ipu_plane_state(plane_state);
+		struct ipu_plane *ipu_plane = to_ipu_plane(plane);
+
+		if (ipu_prg_present(ipu_plane->ipu) && available_pres &&
+		    plane_state->fb &&
+		    ipu_prg_format_supported(ipu_plane->ipu,
+					     plane_state->fb->format->format,
+					     plane_state->fb->modifier)) {
+			ipu_state->use_pre = true;
+			available_pres--;
+		} else {
+			ipu_state->use_pre = false;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ipu_planes_assign_pre);
 
 struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
 				 int dma, int dp, unsigned int possible_crtcs,
