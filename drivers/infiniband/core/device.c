@@ -1029,8 +1029,7 @@ static int __init ib_core_init(void)
 		return -ENOMEM;
 
 	ib_comp_wq = alloc_workqueue("ib-comp-wq",
-			WQ_UNBOUND | WQ_HIGHPRI | WQ_MEM_RECLAIM,
-			WQ_UNBOUND_MAX_ACTIVE);
+			WQ_HIGHPRI | WQ_MEM_RECLAIM | WQ_SYSFS, 0);
 	if (!ib_comp_wq) {
 		ret = -ENOMEM;
 		goto err;
