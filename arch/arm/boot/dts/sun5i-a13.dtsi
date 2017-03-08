@@ -46,7 +46,6 @@
 
 #include "sun5i.dtsi"
 
-#include <dt-bindings/pinctrl/sun4i-a10.h>
 #include <dt-bindings/thermal/thermal.h>
 
 / {

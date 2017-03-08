@@ -47,7 +47,6 @@
 #include "sun5i.dtsi"
 
 #include <dt-bindings/dma/sun4i-a10.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	interrupt-parent = <&intc>;

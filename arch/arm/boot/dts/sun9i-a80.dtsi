@@ -46,8 +46,6 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
-#include <dt-bindings/pinctrl/sun4i-a10.h>
-
 #include <dt-bindings/clock/sun9i-a80-ccu.h>
 #include <dt-bindings/clock/sun9i-a80-de.h>
 #include <dt-bindings/clock/sun9i-a80-usb.h>

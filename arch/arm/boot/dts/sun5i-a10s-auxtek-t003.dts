@@ -44,7 +44,6 @@
 #include "sun5i-a10s.dtsi"
 #include "sunxi-common-regulators.dtsi"
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "Auxtek t003 A10s hdmi tv-stick";
