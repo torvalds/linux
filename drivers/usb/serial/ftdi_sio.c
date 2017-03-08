@@ -1741,10 +1741,10 @@ static ssize_t store_event_char(struct device *dev,
 	unsigned int v;
 	int rv;
 
-	if (kstrtouint(valbuf, 10, &v) || v >= 0x200)
+	if (kstrtouint(valbuf, 0, &v) || v >= 0x200)
 		return -EINVAL;
 
-	dev_dbg(&port->dev, "%s: setting event char = %i\n", __func__, v);
+	dev_dbg(&port->dev, "%s: setting event char = 0x%03x\n", __func__, v);
 
 	rv = usb_control_msg(udev,
 			     usb_sndctrlpipe(udev, 0),
