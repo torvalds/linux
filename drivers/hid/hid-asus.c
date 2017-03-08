@@ -226,7 +226,7 @@ static int asus_input_mapping(struct hid_device *hdev,
 		case 0x35: asus_map_key_clear(KEY_DISPLAY_OFF);		break;
 		case 0x6c: asus_map_key_clear(KEY_SLEEP);		break;
 		case 0x82: asus_map_key_clear(KEY_CAMERA);		break;
-		case 0x88: asus_map_key_clear(KEY_WLAN);			break;
+		case 0x88: asus_map_key_clear(KEY_RFKILL);			break;
 		case 0xb5: asus_map_key_clear(KEY_CALC);			break;
 		case 0xc4: asus_map_key_clear(KEY_KBDILLUMUP);		break;
 		case 0xc5: asus_map_key_clear(KEY_KBDILLUMDOWN);		break;
