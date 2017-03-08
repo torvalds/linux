@@ -23,11 +23,6 @@
 #include <platform_support.h>
 #include "ia_css_circbuf_comm.h"
 #include "ia_css_circbuf_desc.h"
-#ifdef __SP
-#include "event_handler.sp.h"
-/* We should not #define SP_FILE_ID here, because we are in a header file. */
-#include "ia_css_sp_assert_level.sp.h"
-#endif
 
 /****************************************************************
  *
@@ -287,11 +282,7 @@ STORAGE_CLASS_INLINE void ia_css_circbuf_write(
 	OP___assert(cb->desc != NULL);
 
 	/* Cannot continue as the queue is full*/
-#ifdef __SP
-	SP_ASSERT_FATAL(!ia_css_circbuf_is_full(cb));
-#else
 	assert(!ia_css_circbuf_is_full(cb));
-#endif
 
 	ia_css_circbuf_elem_cpy(&elem, &cb->elems[cb->desc->end]);
 

@@ -16,15 +16,6 @@
 
 #include <assert_support.h>
 
-#ifdef __SP
-#include <hive_isp_css_sp_api_modified.h>
-#include <ia_css_sp_file_id.sp.h>
-#ifndef SP_FILE_ID
-#define SP_FILE_ID SP_FILE_ID_CIRCBUF /* overrule default in ia_css_sp_assert_level.sp.h */
-#endif
-#include <ia_css_sp_assert_level.sp.h>
-#endif
-
 /**********************************************************************
  *
  * Forward declarations.
@@ -117,11 +108,7 @@ uint32_t ia_css_circbuf_pop(ia_css_circbuf_t *cb)
 	uint32_t ret;
 	ia_css_circbuf_elem_t elem;
 
-#ifdef __SP
-	SP_ASSERT_FATAL(!ia_css_circbuf_is_empty(cb));
-#else
 	assert(!ia_css_circbuf_is_empty(cb));
-#endif
 
 	/* read an element from the buffer */
 	elem = ia_css_circbuf_read(cb);

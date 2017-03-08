@@ -209,13 +209,13 @@ STORAGE_CLASS_INLINE unsigned int ceil_pow2(unsigned int a)
 
 #endif /* !defined(PIPE_GENERATION) */
 
-#if !defined(__ISP) && !defined(__SP)
+#if !defined(__ISP)
 /*
  * For SP and ISP, SDK provides the definition of OP_std_modadd.
  * We need it only for host
  */
 #define OP_std_modadd(base, offset, size) ((base+offset)%(size))
-#endif /* !defined(__ISP) && !defined(__SP) */
+#endif /* !defined(__ISP) */
 
 #if !defined(__KERNEL__)
 #define clamp(a, min_val, max_val) MIN(MAX((a), (min_val)), (max_val))

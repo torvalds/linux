@@ -15,11 +15,8 @@
 #ifndef _SH_CSS_DEFS_H_
 #define _SH_CSS_DEFS_H_
 
-#if !defined(__SP1)
 #include "isp.h"
-#else
-#include "system_local.h"  /* to get IS_ISP_2500_SYSTEM for SP1*/
-#endif
+
 /*#include "vamem.h"*/ /* Cannot include for VAMEM properties this file is visible on ISP -> pipeline generator */
 
 #include "math_support.h"	/* max(), min, etc etc */

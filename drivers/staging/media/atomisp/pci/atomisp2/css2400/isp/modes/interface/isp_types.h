@@ -35,7 +35,7 @@ more details.
    without this extra decl. */
 struct ia_css_3a_output;
 
-#if defined(__ISP) || defined(__SP)
+#if defined(__ISP)
 struct isp_uds_config {
 	int      hive_dx;
 	int      hive_dy;

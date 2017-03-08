@@ -146,13 +146,8 @@ more details.
 	       	         ISP_INPUT == IA_CSS_BINARY_INPUT_SENSOR ? 1 : \
 	                 isp_online)
 
-#if defined(__SP)
-#define ISP_DVS_ENVELOPE_WIDTH	(ENABLE_DVS_ENVELOPE ? stage->dvs_envelope.width : 0)
-#define ISP_DVS_ENVELOPE_HEIGHT (ENABLE_DVS_ENVELOPE ? stage->dvs_envelope.height : 0)
-#else
 #define ISP_DVS_ENVELOPE_WIDTH  0
 #define ISP_DVS_ENVELOPE_HEIGHT 0
-#endif
 
 #define _ISP_INPUT_WIDTH_VECS	_ISP_VECS(ISP_INPUT_WIDTH)
 

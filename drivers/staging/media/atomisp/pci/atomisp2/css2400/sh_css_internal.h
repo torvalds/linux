@@ -33,7 +33,7 @@
 #include "ia_css_buffer.h"
 
 #include "ia_css_binary.h"
-#if !defined(__ISP) && !defined(__SP)
+#if !defined(__ISP)
 #include "sh_css_firmware.h" /* not needed/desired on SP/ISP */
 #endif
 #include "sh_css_legacy.h"
@@ -557,12 +557,8 @@ struct sh_css_sp_pipeline {
 	uint32_t	running;	/* needed for pipe termination */
 	hrt_vaddress	sp_stage_addr[SH_CSS_MAX_STAGES];
 	hrt_vaddress	scaler_pp_lut; /* Early bound LUT */
-#ifndef __SP
 	uint32_t	dummy; /* stage ptr is only used on sp but lives in
 				  this struct; needs cleanup */
-#else
-	struct sh_css_sp_stage *stage; /* Current stage for this pipeline */
-#endif
 	int32_t num_execs; /* number of times to run if this is
 			      an acceleration pipe. */
 #if defined(SH_CSS_ENABLE_METADATA)
@@ -797,7 +793,7 @@ struct sh_css_hmm_buffer {
 	 * uint64_t does not exist on SP/ISP.
 	 * Size of the struct is checked by sp.hive.c.
 	 */
-#if !defined(__SP) && !defined(__ISP)
+#if !defined(__ISP)
 	CSS_ALIGN(uint64_t cookie_ptr, 8); /* TODO: check if this alignment is needed */
 	uint64_t kernel_ptr;
 #else
@@ -1006,7 +1002,7 @@ sh_css_vprint(const char *fmt, va_list args)
    issue with the firmware struct/union's.
    More permanent solution will be to refactor this include.
 */
-#if !defined(__ISP) && !defined(__SP)
+#if !defined(__ISP)
 hrt_vaddress
 sh_css_params_ddr_address_map(void);
 
@@ -1114,6 +1110,6 @@ ia_css_get_crop_offsets(
 		struct ia_css_pipe *pipe,
 		struct ia_css_frame_info *in_frame);
 #endif
-#endif /* !defined(__ISP) && !defined(__SP) */
+#endif /* !defined(__ISP) */
 
 #endif /* _SH_CSS_INTERNAL_H_ */
