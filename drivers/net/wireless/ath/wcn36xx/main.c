@@ -337,10 +337,10 @@ out_smd_stop:
 	wcn36xx_smd_stop(wcn);
 out_free_smd_buf:
 	kfree(wcn->hal_buf);
-out_free_dxe_pool:
-	wcn36xx_dxe_free_mem_pools(wcn);
 out_free_dxe_ctl:
 	wcn36xx_dxe_free_ctl_blks(wcn);
+out_free_dxe_pool:
+	wcn36xx_dxe_free_mem_pools(wcn);
 out_smd_close:
 	wcn36xx_smd_close(wcn);
 out_err:
