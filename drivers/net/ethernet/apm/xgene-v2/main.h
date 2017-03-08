@@ -55,6 +55,7 @@ struct xge_stats {
 	u64 tx_bytes;
 	u64 rx_packets;
 	u64 rx_bytes;
+	u64 rx_errors;
 };
 
 /* ethernet private data */
