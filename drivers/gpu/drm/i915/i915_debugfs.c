@@ -4231,11 +4231,13 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_ring_test_irq_fops,
 #define DROP_RETIRE 0x4
 #define DROP_ACTIVE 0x8
 #define DROP_FREED 0x10
+#define DROP_SHRINK_ALL 0x20
 #define DROP_ALL (DROP_UNBOUND	| \
 		  DROP_BOUND	| \
 		  DROP_RETIRE	| \
 		  DROP_ACTIVE	| \
-		  DROP_FREED)
+		  DROP_FREED	| \
+		  DROP_SHRINK_ALL)
 static int
 i915_drop_caches_get(void *data, u64 *val)
 {
@@ -4275,6 +4277,9 @@ i915_drop_caches_set(void *data, u64 val)
 
 	if (val & DROP_UNBOUND)
 		i915_gem_shrink(dev_priv, LONG_MAX, I915_SHRINK_UNBOUND);
+
+	if (val & DROP_SHRINK_ALL)
+		i915_gem_shrink_all(dev_priv);
 
 unlock:
 	mutex_unlock(&dev->struct_mutex);
