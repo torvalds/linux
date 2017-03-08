@@ -689,7 +689,6 @@ static struct drm_driver kms_driver = {
 	    DRIVER_PRIME | DRIVER_RENDER | DRIVER_MODESET,
 	.load = amdgpu_driver_load_kms,
 	.open = amdgpu_driver_open_kms,
-	.preclose = amdgpu_driver_preclose_kms,
 	.postclose = amdgpu_driver_postclose_kms,
 	.lastclose = amdgpu_driver_lastclose_kms,
 	.set_busid = drm_pci_set_busid,

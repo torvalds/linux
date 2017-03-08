@@ -779,6 +779,8 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 	if (!fpriv)
 		return;
 
+	pm_runtime_get_sync(dev->dev);
+
 	amdgpu_ctx_mgr_fini(&fpriv->ctx_mgr);
 
 	amdgpu_uvd_free_handles(adev, file_priv);
@@ -807,21 +809,6 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
-}
-
-/**
- * amdgpu_driver_preclose_kms - drm callback for pre close
- *
- * @dev: drm dev pointer
- * @file_priv: drm file
- *
- * On device pre close, tear down hyperz and cmask filps on r1xx-r5xx
- * (all asics).
- */
-void amdgpu_driver_preclose_kms(struct drm_device *dev,
-				struct drm_file *file_priv)
-{
-	pm_runtime_get_sync(dev->dev);
 }
 
 /*
