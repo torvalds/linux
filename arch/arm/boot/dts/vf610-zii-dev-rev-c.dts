@@ -97,21 +97,25 @@
 					port@1 {
 						reg = <1>;
 						label = "lan1";
+						phy-handle = <&switch0phy1>;
 					};
 
 					port@2 {
 						reg = <2>;
 						label = "lan2";
+						phy-handle = <&switch0phy2>;
 					};
 
 					port@3 {
 						reg = <3>;
 						label = "lan3";
+						phy-handle = <&switch0phy3>;
 					};
 
 					port@4 {
 						reg = <4>;
 						label = "lan4";
+						phy-handle = <&switch0phy4>;
 					};
 
 					switch0port10: port@10 {
@@ -119,6 +123,35 @@
 						label = "dsa";
 						phy-mode = "xgmii";
 						link = <&switch1port10>;
+					};
+				};
+
+				mdio {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					switch0phy1: switch0phy@1 {
+						reg = <1>;
+						interrupt-parent = <&switch0>;
+						interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;
+					};
+
+					switch0phy2: switch0phy@2 {
+						reg = <2>;
+						interrupt-parent = <&switch0>;
+						interrupts = <2 IRQ_TYPE_LEVEL_HIGH>;
+					};
+
+					switch0phy3: switch0phy@3 {
+						reg = <3>;
+						interrupt-parent = <&switch0>;
+						interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
+					};
+
+					switch0phy4: switch0phy@4 {
+						reg = <4>;
+						interrupt-parent = <&switch0>;
+						interrupts = <4 IRQ_TYPE_LEVEL_HIGH>;
 					};
 				};
 			};
@@ -150,21 +183,25 @@
 					port@1 {
 						reg = <1>;
 						label = "lan5";
+						phy-handle = <&switch1phy1>;
 					};
 
 					port@2 {
 						reg = <2>;
 						label = "lan6";
+						phy-handle = <&switch1phy2>;
 					};
 
 					port@3 {
 						reg = <3>;
 						label = "lan7";
+						phy-handle = <&switch1phy3>;
 					};
 
 					port@4 {
 						reg = <4>;
 						label = "lan8";
+						phy-handle = <&switch1phy4>;
 					};
 
 
@@ -173,6 +210,34 @@
 						label = "dsa";
 						phy-mode = "xgmii";
 						link = <&switch0port10>;
+					};
+				};
+				mdio {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					switch1phy1: switch1phy@1 {
+						reg = <1>;
+						interrupt-parent = <&switch1>;
+						interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;
+					};
+
+					switch1phy2: switch1phy@2 {
+						reg = <2>;
+						interrupt-parent = <&switch1>;
+						interrupts = <2 IRQ_TYPE_LEVEL_HIGH>;
+					};
+
+					switch1phy3: switch1phy@3 {
+						reg = <3>;
+						interrupt-parent = <&switch1>;
+						interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
+					};
+
+					switch1phy4: switch1phy@4 {
+						reg = <4>;
+						interrupt-parent = <&switch1>;
+						interrupts = <4 IRQ_TYPE_LEVEL_HIGH>;
 					};
 				};
 			};
