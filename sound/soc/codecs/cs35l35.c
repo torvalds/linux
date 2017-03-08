@@ -1509,6 +1509,8 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 		goto err;
 	}
 
+	return 0;
+
 err:
 	regulator_bulk_disable(cs35l35->num_supplies,
 			       cs35l35->supplies);
