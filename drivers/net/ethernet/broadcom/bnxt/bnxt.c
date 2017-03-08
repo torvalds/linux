@@ -7444,6 +7444,10 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		goto init_err_pci_clean;
 
+	rc = bnxt_hwrm_func_reset(bp);
+	if (rc)
+		goto init_err_pci_clean;
+
 	bnxt_hwrm_fw_set_time(bp);
 
 	dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_SG |
@@ -7551,10 +7555,6 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		bp->flags |= BNXT_FLAG_STRIP_VLAN;
 
 	rc = bnxt_probe_phy(bp);
-	if (rc)
-		goto init_err_pci_clean;
-
-	rc = bnxt_hwrm_func_reset(bp);
 	if (rc)
 		goto init_err_pci_clean;
 
