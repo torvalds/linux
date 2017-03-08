@@ -51,13 +51,13 @@
 #include <linux/platform_device.h>
 #include <linux/poll.h>
 #include <linux/ratelimit.h>
-#include <linux/rbtree.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/vmalloc.h>
 #include <linux/workqueue.h>
 #include <linux/dma-fence.h>
+#include <linux/module.h>
 
 #include <asm/mman.h>
 #include <asm/pgalloc.h>
@@ -75,8 +75,8 @@
 #include <drm/drm_mm.h>
 #include <drm/drm_os_linux.h>
 #include <drm/drm_sarea.h>
-#include <drm/drm_vma_manager.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_prime.h>
 
 struct module;
 
@@ -89,6 +89,7 @@ struct drm_dma_handle;
 struct drm_gem_object;
 struct drm_master;
 struct drm_vblank_crtc;
+struct drm_vma_offset_manager;
 
 struct device_node;
 struct videomode;
@@ -368,12 +369,6 @@ struct drm_pending_event {
 	struct drm_file *file_priv;
 	pid_t pid; /* pid of requester, no guarantee it's valid by the time
 		      we deliver the event, for tracing only */
-};
-
-struct drm_prime_file_private {
-	struct mutex lock;
-	struct rb_root dmabufs;
-	struct rb_root handles;
 };
 
 /** File private data */
@@ -758,27 +753,6 @@ static inline int drm_debugfs_remove_files(const struct drm_info_list *files,
 	return 0;
 }
 #endif
-
-struct dma_buf_export_info;
-
-extern struct dma_buf *drm_gem_prime_export(struct drm_device *dev,
-					    struct drm_gem_object *obj,
-					    int flags);
-extern int drm_gem_prime_handle_to_fd(struct drm_device *dev,
-		struct drm_file *file_priv, uint32_t handle, uint32_t flags,
-		int *prime_fd);
-extern struct drm_gem_object *drm_gem_prime_import(struct drm_device *dev,
-		struct dma_buf *dma_buf);
-extern int drm_gem_prime_fd_to_handle(struct drm_device *dev,
-		struct drm_file *file_priv, int prime_fd, uint32_t *handle);
-struct dma_buf *drm_gem_dmabuf_export(struct drm_device *dev,
-				      struct dma_buf_export_info *exp_info);
-extern void drm_gem_dmabuf_release(struct dma_buf *dma_buf);
-
-extern int drm_prime_sg_to_page_addr_arrays(struct sg_table *sgt, struct page **pages,
-					    dma_addr_t *addrs, int max_pages);
-extern struct sg_table *drm_prime_pages_to_sg(struct page **pages, unsigned int nr_pages);
-extern void drm_prime_gem_destroy(struct drm_gem_object *obj, struct sg_table *sg);
 
 
 extern struct drm_dma_handle *drm_pci_alloc(struct drm_device *dev, size_t size,
