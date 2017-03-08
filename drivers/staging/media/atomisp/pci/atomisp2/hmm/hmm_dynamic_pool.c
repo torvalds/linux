@@ -60,11 +60,7 @@ static unsigned int get_pages_from_dynamic_pool(void *pool,
 
 			page_obj[i].page = hmm_page->page;
 			page_obj[i++].type = HMM_PAGE_TYPE_DYNAMIC;
-#ifdef USE_KMEM_CACHE
 			kmem_cache_free(dypool_info->pgptr_cache, hmm_page);
-#else
-			atomisp_kernel_free(hmm_page);
-#endif
 
 			if (i == size)
 				return i;
@@ -117,12 +113,8 @@ static void free_pages_to_dynamic_pool(void *pool,
 		}
 		return;
 	}
-#ifdef USE_KMEM_CACHE
 	hmm_page = kmem_cache_zalloc(dypool_info->pgptr_cache,
 						GFP_KERNEL);
-#else
-	hmm_page = atomisp_kernel_malloc(sizeof(struct hmm_page));
-#endif
 	if (!hmm_page) {
 		dev_err(atomisp_dev, "out of memory for hmm_page.\n");
 
@@ -164,7 +156,6 @@ static int hmm_dynamic_pool_init(void **pool, unsigned int pool_size)
 		return -ENOMEM;
 	}
 
-#ifdef USE_KMEM_CACHE
 	dypool_info->pgptr_cache = kmem_cache_create("pgptr_cache",
 						sizeof(struct hmm_page), 0,
 						SLAB_HWCACHE_ALIGN, NULL);
@@ -172,7 +163,6 @@ static int hmm_dynamic_pool_init(void **pool, unsigned int pool_size)
 		atomisp_kernel_free(dypool_info);
 		return -ENOMEM;
 	}
-#endif
 
 	INIT_LIST_HEAD(&dypool_info->pages_list);
 	spin_lock_init(&dypool_info->list_lock);
@@ -219,19 +209,13 @@ static void hmm_dynamic_pool_exit(void **pool)
 			hmm_mem_stat.dyc_size--;
 			hmm_mem_stat.sys_size--;
 		}
-#ifdef USE_KMEM_CACHE
 		kmem_cache_free(dypool_info->pgptr_cache, hmm_page);
-#else
-		atomisp_kernel_free(hmm_page);
-#endif
 		spin_lock_irqsave(&dypool_info->list_lock, flags);
 	}
 
 	spin_unlock_irqrestore(&dypool_info->list_lock, flags);
 
-#ifdef USE_KMEM_CACHE
 	kmem_cache_destroy(dypool_info->pgptr_cache);
-#endif
 
 	atomisp_kernel_free(dypool_info);
 

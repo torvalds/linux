@@ -103,14 +103,10 @@ static phys_addr_t alloc_page_table(struct isp_mmu *mmu)
 	 * The slab allocator(kmem_cache and kmalloc family) doesn't handle
 	 * GFP_DMA32 flag, so we have to use buddy allocator.
 	 */
-#ifdef USE_KMEM_CACHE
 	if (totalram_pages > (unsigned long)NR_PAGES_2GB)
 		virt = (void *)__get_free_page(GFP_KERNEL | GFP_DMA32);
 	else
 		virt = kmem_cache_zalloc(mmu->tbl_cache, GFP_KERNEL);
-#else
-	virt = (void *)__get_free_page(GFP_KERNEL | GFP_DMA32);
-#endif
 	if (!virt)
 		return (phys_addr_t)NULL_PAGE;
 
@@ -144,11 +140,7 @@ static void free_page_table(struct isp_mmu *mmu, phys_addr_t page)
 	set_memory_wb((unsigned long)virt, 1);
 #endif
 
-#ifdef USE_KMEM_CACHE
 	kmem_cache_free(mmu->tbl_cache, virt);
-#else
-	free_page((unsigned long)virt);
-#endif
 }
 
 static void mmu_remap_error(struct isp_mmu *mmu,
@@ -559,13 +551,11 @@ int isp_mmu_init(struct isp_mmu *mmu, struct isp_mmu_client *driver)
 
 	mutex_init(&mmu->pt_mutex);
 
-#ifdef USE_KMEM_CACHE
 	mmu->tbl_cache = kmem_cache_create("iopte_cache", ISP_PAGE_SIZE,
 					   ISP_PAGE_SIZE, SLAB_HWCACHE_ALIGN,
 					   NULL);
 	if (!mmu->tbl_cache)
 		return -ENOMEM;
-#endif
 
 	return 0;
 }
@@ -600,7 +590,5 @@ void isp_mmu_exit(struct isp_mmu *mmu)
 
 	free_page_table(mmu, l1_pt);
 
-#ifdef USE_KMEM_CACHE
 	kmem_cache_destroy(mmu->tbl_cache);
-#endif
 }

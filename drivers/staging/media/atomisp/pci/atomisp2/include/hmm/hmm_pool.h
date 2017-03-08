@@ -101,9 +101,7 @@ struct hmm_dynamic_pool_info {
 	/* list lock is used to protect the free pages block lists */
 	spinlock_t		list_lock;
 
-#ifdef USE_KMEM_CACHE
 	struct kmem_cache	*pgptr_cache;
-#endif
 	bool			initialized;
 
 	unsigned int		pool_size;

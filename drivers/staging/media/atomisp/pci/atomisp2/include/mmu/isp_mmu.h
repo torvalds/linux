@@ -119,9 +119,7 @@ struct isp_mmu {
 	phys_addr_t base_address;
 
 	struct mutex pt_mutex;
-#ifdef USE_KMEM_CACHE
 	struct kmem_cache *tbl_cache;
-#endif
 };
 
 /* flags for PDE and PTE */
