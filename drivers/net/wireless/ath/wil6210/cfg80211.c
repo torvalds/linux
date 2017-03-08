@@ -416,9 +416,9 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 
 	for (i = 0; i < request->n_ssids; i++) {
 		wil_dbg_misc(wil, "SSID[%d]", i);
-		print_hex_dump_bytes("SSID ", DUMP_PREFIX_OFFSET,
-				     request->ssids[i].ssid,
-				     request->ssids[i].ssid_len);
+		wil_hex_dump_misc("SSID ", DUMP_PREFIX_OFFSET, 16, 1,
+				  request->ssids[i].ssid,
+				  request->ssids[i].ssid_len, true);
 	}
 
 	if (request->n_ssids)
@@ -455,8 +455,8 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 	}
 
 	if (request->ie_len)
-		print_hex_dump_bytes("Scan IE ", DUMP_PREFIX_OFFSET,
-				     request->ie, request->ie_len);
+		wil_hex_dump_misc("Scan IE ", DUMP_PREFIX_OFFSET, 16, 1,
+				  request->ie, request->ie_len, true);
 	else
 		wil_dbg_misc(wil, "Scan has no IE's\n");
 
@@ -762,7 +762,8 @@ int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	 */
 
 	wil_dbg_misc(wil, "mgmt_tx\n");
-	print_hex_dump_bytes("mgmt tx frame ", DUMP_PREFIX_OFFSET, buf, len);
+	wil_hex_dump_misc("mgmt tx frame ", DUMP_PREFIX_OFFSET, 16, 1, buf,
+			  len, true);
 
 	cmd = kmalloc(sizeof(*cmd) + len, GFP_KERNEL);
 	if (!cmd) {
@@ -1095,18 +1096,18 @@ static int _wil_cfg80211_merge_extra_ies(const u8 *ies1, u16 ies1_len,
 
 static void wil_print_bcon_data(struct cfg80211_beacon_data *b)
 {
-	print_hex_dump_bytes("head     ", DUMP_PREFIX_OFFSET,
-			     b->head, b->head_len);
-	print_hex_dump_bytes("tail     ", DUMP_PREFIX_OFFSET,
-			     b->tail, b->tail_len);
-	print_hex_dump_bytes("BCON IE  ", DUMP_PREFIX_OFFSET,
-			     b->beacon_ies, b->beacon_ies_len);
-	print_hex_dump_bytes("PROBE    ", DUMP_PREFIX_OFFSET,
-			     b->probe_resp, b->probe_resp_len);
-	print_hex_dump_bytes("PROBE IE ", DUMP_PREFIX_OFFSET,
-			     b->proberesp_ies, b->proberesp_ies_len);
-	print_hex_dump_bytes("ASSOC IE ", DUMP_PREFIX_OFFSET,
-			     b->assocresp_ies, b->assocresp_ies_len);
+	wil_hex_dump_misc("head     ", DUMP_PREFIX_OFFSET, 16, 1,
+			  b->head, b->head_len, true);
+	wil_hex_dump_misc("tail     ", DUMP_PREFIX_OFFSET, 16, 1,
+			  b->tail, b->tail_len, true);
+	wil_hex_dump_misc("BCON IE  ", DUMP_PREFIX_OFFSET, 16, 1,
+			  b->beacon_ies, b->beacon_ies_len, true);
+	wil_hex_dump_misc("PROBE    ", DUMP_PREFIX_OFFSET, 16, 1,
+			  b->probe_resp, b->probe_resp_len, true);
+	wil_hex_dump_misc("PROBE IE ", DUMP_PREFIX_OFFSET, 16, 1,
+			  b->proberesp_ies, b->proberesp_ies_len, true);
+	wil_hex_dump_misc("ASSOC IE ", DUMP_PREFIX_OFFSET, 16, 1,
+			  b->assocresp_ies, b->assocresp_ies_len, true);
 }
 
 /* internal functions for device reset and starting AP */
@@ -1302,8 +1303,8 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 	wil_dbg_misc(wil, "BI %d DTIM %d\n", info->beacon_interval,
 		     info->dtim_period);
 	wil_dbg_misc(wil, "PBSS %d\n", info->pbss);
-	print_hex_dump_bytes("SSID ", DUMP_PREFIX_OFFSET,
-			     info->ssid, info->ssid_len);
+	wil_hex_dump_misc("SSID ", DUMP_PREFIX_OFFSET, 16, 1,
+			  info->ssid, info->ssid_len, true);
 	wil_print_bcon_data(bcon);
 	wil_print_crypto(wil, crypto);
 

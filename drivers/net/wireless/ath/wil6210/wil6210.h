@@ -766,6 +766,12 @@ static inline void wil_c(struct wil6210_priv *wil, u32 reg, u32 val)
 			 print_hex_dump_debug("DBG[ WMI]" prefix_str,\
 					prefix_type, rowsize,	\
 					groupsize, buf, len, ascii)
+
+#define wil_hex_dump_misc(prefix_str, prefix_type, rowsize,	\
+			  groupsize, buf, len, ascii)		\
+			  print_hex_dump_debug("DBG[MISC]" prefix_str,\
+					prefix_type, rowsize,	\
+					groupsize, buf, len, ascii)
 #else /* defined(CONFIG_DYNAMIC_DEBUG) */
 static inline
 void wil_hex_dump_txrx(const char *prefix_str, int prefix_type, int rowsize,
@@ -776,6 +782,12 @@ void wil_hex_dump_txrx(const char *prefix_str, int prefix_type, int rowsize,
 static inline
 void wil_hex_dump_wmi(const char *prefix_str, int prefix_type, int rowsize,
 		      int groupsize, const void *buf, size_t len, bool ascii)
+{
+}
+
+static inline
+void wil_hex_dump_misc(const char *prefix_str, int prefix_type, int rowsize,
+		       int groupsize, const void *buf, size_t len, bool ascii)
 {
 }
 #endif /* defined(CONFIG_DYNAMIC_DEBUG) */
