@@ -230,9 +230,12 @@ void vp_del_vqs(struct virtio_device *vdev)
 		if (vp_dev->per_vq_vectors) {
 			int v = vp_dev->vqs[vq->index]->msix_vector;
 
-			if (v != VIRTIO_MSI_NO_VECTOR)
-				free_irq(pci_irq_vector(vp_dev->pci_dev, v),
-					vq);
+			if (v != VIRTIO_MSI_NO_VECTOR) {
+				int irq = pci_irq_vector(vp_dev->pci_dev, v);
+
+				irq_set_affinity_hint(irq, NULL);
+				free_irq(irq, vq);
+			}
 		}
 		vp_del_vq(vq);
 	}
