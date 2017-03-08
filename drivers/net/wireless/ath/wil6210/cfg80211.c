@@ -681,6 +681,7 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 	if (rc == 0) {
 		netif_carrier_on(ndev);
 		wil6210_bus_request(wil, WIL_MAX_BUS_REQUEST_KBPS);
+		wil->bss = bss;
 		/* Connect can take lots of time */
 		mod_timer(&wil->connect_timer,
 			  jiffies + msecs_to_jiffies(2000));

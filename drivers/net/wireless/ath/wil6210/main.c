@@ -284,6 +284,7 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 			cfg80211_connect_result(ndev, bssid, NULL, 0, NULL, 0,
 						WLAN_STATUS_UNSPECIFIED_FAILURE,
 						GFP_KERNEL);
+			wil->bss = NULL;
 		}
 		clear_bit(wil_status_fwconnecting, wil->status);
 		break;

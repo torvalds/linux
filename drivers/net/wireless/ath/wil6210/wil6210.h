@@ -613,6 +613,7 @@ struct wil6210_priv {
 	u16 channel; /* relevant in AP mode */
 	int sinfo_gen;
 	u32 ap_isolate; /* no intra-BSS communication */
+	struct cfg80211_bss *bss; /* connected bss, relevant in STA mode */
 	/* interrupt moderation */
 	u32 tx_max_burst_duration;
 	u32 tx_interframe_timeout;
