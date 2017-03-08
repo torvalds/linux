@@ -6736,6 +6736,10 @@ static void brcmf_cfg80211_reg_notifier(struct wiphy *wiphy,
 	s32 err;
 	int i;
 
+	/* The country code gets set to "00" by default at boot, ignore */
+	if (req->alpha2[0] == '0' && req->alpha2[1] == '0')
+		return;
+
 	/* ignore non-ISO3166 country codes */
 	for (i = 0; i < sizeof(req->alpha2); i++)
 		if (req->alpha2[i] < 'A' || req->alpha2[i] > 'Z') {
