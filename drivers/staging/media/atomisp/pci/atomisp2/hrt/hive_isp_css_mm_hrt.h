@@ -24,10 +24,6 @@
 #ifndef _hive_isp_css_mm_hrt_h_
 #define _hive_isp_css_mm_hrt_h_
 
-#ifndef HRT_KERNEL
-/* size_t is defined already in kernel mode */
-#include <stdlib.h>
-#endif
 #include <hmm/hmm.h>
 #include <hrt/hive_isp_css_custom_host_hrt.h>
 
