@@ -232,4 +232,6 @@ int ath10k_bmi_lz_stream_start(struct ath10k *ar, u32 address);
 int ath10k_bmi_lz_data(struct ath10k *ar, const void *buffer, u32 length);
 int ath10k_bmi_fast_download(struct ath10k *ar, u32 address,
 			     const void *buffer, u32 length);
+int ath10k_bmi_read_soc_reg(struct ath10k *ar, u32 address, u32 *reg_val);
+int ath10k_bmi_write_soc_reg(struct ath10k *ar, u32 address, u32 reg_val);
 #endif /* _BMI_H_ */
