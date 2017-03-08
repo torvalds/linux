@@ -213,21 +213,19 @@ static int dm355evm_keys_probe(struct platform_device *pdev)
 				      IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				      dev_name(&pdev->dev), keys);
 	if (status < 0)
-		goto fail2;
+		goto fail1;
 
 	/* register */
 	status = input_register_device(input);
 	if (status < 0)
-		goto fail3;
+		goto fail2;
 
 	platform_set_drvdata(pdev, keys);
 
 	return 0;
 
-fail3:
-	free_irq(keys->irq, keys);
 fail2:
-	sparse_keymap_free(input);
+	free_irq(keys->irq, keys);
 fail1:
 	input_free_device(input);
 	kfree(keys);
@@ -241,7 +239,6 @@ static int dm355evm_keys_remove(struct platform_device *pdev)
 	struct dm355evm_keys	*keys = platform_get_drvdata(pdev);
 
 	free_irq(keys->irq, keys);
-	sparse_keymap_free(keys->input);
 	input_unregister_device(keys->input);
 	kfree(keys);
 
