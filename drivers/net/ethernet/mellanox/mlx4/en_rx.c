@@ -72,6 +72,7 @@ static int mlx4_alloc_page(struct mlx4_en_priv *priv,
 }
 
 static int mlx4_en_alloc_frags(struct mlx4_en_priv *priv,
+			       struct mlx4_en_rx_ring *ring,
 			       struct mlx4_en_rx_desc *rx_desc,
 			       struct mlx4_en_rx_alloc *frags,
 			       gfp_t gfp)
@@ -79,8 +80,11 @@ static int mlx4_en_alloc_frags(struct mlx4_en_priv *priv,
 	int i;
 
 	for (i = 0; i < priv->num_frags; i++, frags++) {
-		if (!frags->page && mlx4_alloc_page(priv, frags, gfp))
-			return -ENOMEM;
+		if (!frags->page) {
+			if (mlx4_alloc_page(priv, frags, gfp))
+				return -ENOMEM;
+			ring->rx_alloc_pages++;
+		}
 		rx_desc->data[i].addr = cpu_to_be64(frags->dma +
 						    frags->page_offset);
 	}
@@ -133,7 +137,6 @@ static int mlx4_en_prepare_rx_desc(struct mlx4_en_priv *priv,
 	struct mlx4_en_rx_desc *rx_desc = ring->buf + (index * ring->stride);
 	struct mlx4_en_rx_alloc *frags = ring->rx_info +
 					(index << priv->log_rx_info);
-
 	if (ring->page_cache.index > 0) {
 		/* XDP uses a single page per frame */
 		if (!frags->page) {
@@ -147,7 +150,7 @@ static int mlx4_en_prepare_rx_desc(struct mlx4_en_priv *priv,
 		return 0;
 	}
 
-	return mlx4_en_alloc_frags(priv, rx_desc, frags, gfp);
+	return mlx4_en_alloc_frags(priv, ring, rx_desc, frags, gfp);
 }
 
 static bool mlx4_en_is_ring_empty(const struct mlx4_en_rx_ring *ring)
