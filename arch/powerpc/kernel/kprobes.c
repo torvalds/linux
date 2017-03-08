@@ -189,6 +189,15 @@ static void __kprobes set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
 	kcb->kprobe_saved_msr = regs->msr;
 }
 
+bool arch_function_offset_within_entry(unsigned long offset)
+{
+#ifdef PPC64_ELF_ABI_v2
+	return offset <= 8;
+#else
+	return !offset;
+#endif
+}
+
 void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 				      struct pt_regs *regs)
 {
