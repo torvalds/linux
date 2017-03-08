@@ -99,35 +99,6 @@ extern const hrt_vaddress	mmgr_EXCEPTION;
 extern void mmgr_set_base_address(
 	const sys_address		base_addr);
 
-/*! Get the (sub)system virtual memory page table base address
-
- \return base_address,
- */
-/* unused */
-extern sys_address mmgr_get_base_address(void);
-
-
-/*! Set the (sub)system virtual memory page table base index
-
- \param	base_addr[in]		The index  where page table 0 is located
-
- \Note: The base_index is the MSB section of an absolute system address,
-        the in-page address bits are discared. The base address is not
-	relative to the DDR base address
-
- \return none,
- */
-/* unused */
-extern void mmgr_set_base_index(
-	const hrt_data			base_index);
-
-/*! Get the (sub)system virtual memory page table base index
-
- \return base_address,
- */
-/* unused */
-extern hrt_data mmgr_get_base_index(void);
-
 /*! Return the address of an allocation in memory
 
  \param	size[in]			Size in bytes of the allocation
@@ -157,22 +128,6 @@ extern hrt_vaddress mmgr_calloc_ex(
 	const size_t			size,
 	const char				*caller_func,
 	int						caller_line);
-
-/*! Return the address of a reallocated allocation in memory
-
- \param	vaddr[in]		Address of an allocation
- \param	size[in]		Size in bytes of the allocation
-
- \Note
- All limitations and particularities of the C stdlib
- realloc function apply
-
- \return vaddress
- */
-/* unused */
-extern hrt_vaddress mmgr_realloc(
-	hrt_vaddress			vaddr,
-	const size_t			size);
 
 /*! Free the memory allocation identified by the address
 
@@ -204,26 +159,6 @@ extern hrt_vaddress mmgr_alloc_attr_ex(
 	const uint16_t			attribute,
 	const char				*caller_func,
 	int						caller_line);
-
-/*! Return the address of a reallocated allocation in memory
-
- \param	vaddr[in]		Address of an allocation
- \param	size[in]		Size in bytes of the allocation
- \param	attribute[in]		Bit vector specifying the properties
- 				of the allocation
-#endif
-
- \Note
-	All limitations and particularities of the C stdlib
-	realloc function apply
-
- \return vaddress
- */
-/* unused */
-extern hrt_vaddress mmgr_realloc_attr(
-	hrt_vaddress			vaddr,
-	const size_t			size,
-	const uint16_t			attribute);
 
 /*! Return the address of a mapped existing allocation in memory
 
@@ -263,20 +198,6 @@ extern void mmgr_clear_ex(
 	const size_t			size,
 	const char			*caller_func,
 	int				caller_line);
-
-/*! Set an allocation in memory to a value
-
- \param	vaddr[in]		Address of an allocation
- \param	data[in]		Value to set
- \param	size[in]		Size in bytes of the area to be set
-
- \return none
- */
-/* unused */
-extern void mmgr_set(
-	hrt_vaddress			vaddr,
-	const uint8_t			data,
-	const size_t			size);
 
 /*! Read an array of bytes from a virtual memory address
 
