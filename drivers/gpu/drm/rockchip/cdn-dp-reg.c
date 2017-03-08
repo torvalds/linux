@@ -29,7 +29,7 @@
 #define LINK_TRAINING_RETRY_MS		20
 #define LINK_TRAINING_TIMEOUT_MS	500
 
-void cdn_dp_set_fw_clk(struct cdn_dp_device *dp, u32 clk)
+void cdn_dp_set_fw_clk(struct cdn_dp_device *dp, unsigned long clk)
 {
 	writel(clk / 1000000, dp->regs + SW_CLK_H);
 }
