@@ -584,20 +584,17 @@ static struct sk_buff *mlx4_en_rx_skb(struct mlx4_en_priv *priv,
 	return skb;
 }
 
-static void validate_loopback(struct mlx4_en_priv *priv, struct sk_buff *skb)
+static void validate_loopback(struct mlx4_en_priv *priv, void *va)
 {
+	const unsigned char *data = va + ETH_HLEN;
 	int i;
-	int offset = ETH_HLEN;
 
-	for (i = 0; i < MLX4_LOOPBACK_TEST_PAYLOAD; i++, offset++) {
-		if (*(skb->data + offset) != (unsigned char) (i & 0xff))
-			goto out_loopback;
+	for (i = 0; i < MLX4_LOOPBACK_TEST_PAYLOAD; i++) {
+		if (data[i] != (unsigned char)i)
+			return;
 	}
 	/* Loopback found */
 	priv->loopback_ok = 1;
-
-out_loopback:
-	dev_kfree_skb_any(skb);
 }
 
 static bool mlx4_en_refill_rx_buffers(struct mlx4_en_priv *priv,
@@ -785,6 +782,11 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 			}
 		}
 
+		if (unlikely(priv->validate_loopback)) {
+			validate_loopback(priv, va);
+			goto next;
+		}
+
 		/*
 		 * Packet is OK - process it.
 		 */
@@ -945,11 +947,6 @@ xdp_drop_no_cnt:
 		skb = mlx4_en_rx_skb(priv, frags, length);
 		if (unlikely(!skb)) {
 			ring->dropped++;
-			goto next;
-		}
-
-		if (unlikely(priv->validate_loopback)) {
-			validate_loopback(priv, skb);
 			goto next;
 		}
 
