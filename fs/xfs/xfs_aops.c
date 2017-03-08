@@ -298,7 +298,7 @@ xfs_end_io(
 			goto done;
 		if (ioend->io_bio->bi_error) {
 			error = xfs_reflink_cancel_cow_range(ip,
-					ioend->io_offset, ioend->io_size);
+					ioend->io_offset, ioend->io_size, true);
 			goto done;
 		}
 		error = xfs_reflink_end_cow(ip, ioend->io_offset,
