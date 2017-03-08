@@ -37,6 +37,11 @@ Optional properties:
   Table 3-10 of the datasheet lists drive-strength specifications
   0 = 1x (Default)
   1 = .5x
+  - cirrus,sp-drv-unused : Determines how unused slots should be driven on the
+  Serial Port.
+  0 - Hi-Z
+  2 - Drive 0's (Default)
+  3 - Drive 1's
 
   - cirrus,bst-pdn-fet-on : Boolean to determine if the Boost PDN control
   powers down with a rectification FET On or Off. If VSPK is supplied
