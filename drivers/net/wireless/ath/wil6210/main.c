@@ -1158,6 +1158,7 @@ void wil_halp_vote(struct wil6210_priv *wil)
 		    wil->halp.ref_cnt);
 
 	if (++wil->halp.ref_cnt == 1) {
+		reinit_completion(&wil->halp.comp);
 		wil6210_set_halp(wil);
 		rc = wait_for_completion_timeout(&wil->halp.comp, to_jiffies);
 		if (!rc) {
