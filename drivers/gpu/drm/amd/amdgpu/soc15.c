@@ -469,6 +469,8 @@ static const struct amdgpu_ip_block_version vega10_common_ip_block =
 
 int soc15_set_ip_blocks(struct amdgpu_device *adev)
 {
+	nbio_v6_1_detect_hw_virt(adev);
+
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 		amdgpu_ip_block_add(adev, &vega10_common_ip_block);
