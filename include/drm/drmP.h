@@ -689,7 +689,7 @@ extern long drm_compat_ioctl(struct file *filp,
 #endif
 extern bool drm_ioctl_flags(unsigned int nr, unsigned int *flags);
 
-/* File Operations (drm_fops.c) */
+/* File Operations (drm_file.c) */
 int drm_open(struct inode *inode, struct file *filp);
 ssize_t drm_read(struct file *filp, char __user *buffer,
 		 size_t count, loff_t *offset);

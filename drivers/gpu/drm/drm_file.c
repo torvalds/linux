@@ -1,7 +1,4 @@
 /*
- * \file drm_fops.c
- * File operations for DRM
- *
  * \author Rickard E. (Rik) Faith <faith@valinux.com>
  * \author Daryll Strauss <daryll@valinux.com>
  * \author Gareth Hughes <gareth@valinux.com>

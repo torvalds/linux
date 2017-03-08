@@ -298,10 +298,10 @@ over.
 File Operations
 ---------------
 
-.. kernel-doc:: drivers/gpu/drm/drm_fops.c
+.. kernel-doc:: drivers/gpu/drm/drm_file.c
    :doc: file operations
 
-.. kernel-doc:: drivers/gpu/drm/drm_fops.c
+.. kernel-doc:: drivers/gpu/drm/drm_file.c
    :export:
 
 IOCTLs

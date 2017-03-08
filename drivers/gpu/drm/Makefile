@@ -4,7 +4,7 @@
 
 drm-y       :=	drm_auth.o drm_bufs.o drm_cache.o \
 		drm_context.o drm_dma.o \
-		drm_fops.o drm_gem.o drm_ioctl.o drm_irq.o \
+		drm_file.o drm_gem.o drm_ioctl.o drm_irq.o \
 		drm_lock.o drm_memory.o drm_drv.o \
 		drm_scatter.o drm_pci.o \
 		drm_platform.o drm_sysfs.o drm_hashtab.o drm_mm.o \
