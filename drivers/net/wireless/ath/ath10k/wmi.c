@@ -3643,6 +3643,11 @@ static void ath10k_dfs_radar_report(struct ath10k *ar,
 
 	spin_lock_bh(&ar->data_lock);
 	ch = ar->rx_channel;
+
+	/* fetch target operating channel during channel change */
+	if (!ch)
+		ch = ar->tgt_oper_chan;
+
 	spin_unlock_bh(&ar->data_lock);
 
 	if (!ch) {
