@@ -532,6 +532,22 @@ struct drm_amdgpu_cs_chunk_data {
 	#define AMDGPU_INFO_VBIOS_IMAGE		0x2
 /* Query UVD handles */
 #define AMDGPU_INFO_NUM_HANDLES			0x1C
+/* Query sensor related information */
+#define AMDGPU_INFO_SENSOR			0x1D
+	/* Subquery id: Query GPU shader clock */
+	#define AMDGPU_INFO_SENSOR_GFX_SCLK		0x1
+	/* Subquery id: Query GPU memory clock */
+	#define AMDGPU_INFO_SENSOR_GFX_MCLK		0x2
+	/* Subquery id: Query GPU temperature */
+	#define AMDGPU_INFO_SENSOR_GPU_TEMP		0x3
+	/* Subquery id: Query GPU load */
+	#define AMDGPU_INFO_SENSOR_GPU_LOAD		0x4
+	/* Subquery id: Query average GPU power	*/
+	#define AMDGPU_INFO_SENSOR_GPU_AVG_POWER	0x5
+	/* Subquery id: Query northbridge voltage */
+	#define AMDGPU_INFO_SENSOR_VDDNB		0x6
+	/* Subquery id: Query graphics voltage */
+	#define AMDGPU_INFO_SENSOR_VDDGFX		0x7
 
 #define AMDGPU_INFO_MMR_SE_INDEX_SHIFT	0
 #define AMDGPU_INFO_MMR_SE_INDEX_MASK	0xff
@@ -595,6 +611,10 @@ struct drm_amdgpu_info {
 			__u32 type;
 			__u32 offset;
 		} vbios_info;
+
+		struct {
+			__u32 type;
+		} sensor_info;
 	};
 };
 

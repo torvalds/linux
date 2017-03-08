@@ -240,6 +240,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 	uint32_t ui32 = 0;
 	uint64_t ui64 = 0;
 	int i, found;
+	int ui32_size = sizeof(ui32);
 
 	if (!info->return_size || !info->return_pointer)
 		return -EINVAL;
@@ -595,6 +596,80 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		default:
 			return -EINVAL;
 		}
+	}
+	case AMDGPU_INFO_SENSOR: {
+		struct pp_gpu_power query = {0};
+		int query_size = sizeof(query);
+
+		if (amdgpu_dpm == 0)
+			return -ENOENT;
+
+		switch (info->sensor_info.type) {
+		case AMDGPU_INFO_SENSOR_GFX_SCLK:
+			/* get sclk in Mhz */
+			if (amdgpu_dpm_read_sensor(adev,
+						   AMDGPU_PP_SENSOR_GFX_SCLK,
+						   (void *)&ui32, &ui32_size)) {
+				return -EINVAL;
+			}
+			ui32 /= 100;
+			break;
+		case AMDGPU_INFO_SENSOR_GFX_MCLK:
+			/* get mclk in Mhz */
+			if (amdgpu_dpm_read_sensor(adev,
+						   AMDGPU_PP_SENSOR_GFX_MCLK,
+						   (void *)&ui32, &ui32_size)) {
+				return -EINVAL;
+			}
+			ui32 /= 100;
+			break;
+		case AMDGPU_INFO_SENSOR_GPU_TEMP:
+			/* get temperature in millidegrees C */
+			if (amdgpu_dpm_read_sensor(adev,
+						   AMDGPU_PP_SENSOR_GPU_TEMP,
+						   (void *)&ui32, &ui32_size)) {
+				return -EINVAL;
+			}
+			break;
+		case AMDGPU_INFO_SENSOR_GPU_LOAD:
+			/* get GPU load */
+			if (amdgpu_dpm_read_sensor(adev,
+						   AMDGPU_PP_SENSOR_GPU_LOAD,
+						   (void *)&ui32, &ui32_size)) {
+				return -EINVAL;
+			}
+			break;
+		case AMDGPU_INFO_SENSOR_GPU_AVG_POWER:
+			/* get average GPU power */
+			if (amdgpu_dpm_read_sensor(adev,
+						   AMDGPU_PP_SENSOR_GPU_POWER,
+						   (void *)&query, &query_size)) {
+				return -EINVAL;
+			}
+			ui32 = query.average_gpu_power >> 8;
+			break;
+		case AMDGPU_INFO_SENSOR_VDDNB:
+			/* get VDDNB in millivolts */
+			if (amdgpu_dpm_read_sensor(adev,
+						   AMDGPU_PP_SENSOR_VDDNB,
+						   (void *)&ui32, &ui32_size)) {
+				return -EINVAL;
+			}
+			break;
+		case AMDGPU_INFO_SENSOR_VDDGFX:
+			/* get VDDGFX in millivolts */
+			if (amdgpu_dpm_read_sensor(adev,
+						   AMDGPU_PP_SENSOR_VDDGFX,
+						   (void *)&ui32, &ui32_size)) {
+				return -EINVAL;
+			}
+			break;
+		default:
+			DRM_DEBUG_KMS("Invalid request %d\n",
+				      info->sensor_info.type);
+			return -EINVAL;
+		}
+		return copy_to_user(out, &ui32, min(size, 4u)) ? -EFAULT : 0;
 	}
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->query);
