@@ -1740,11 +1740,12 @@ void unregister_kprobes(struct kprobe **kps, int num)
 }
 EXPORT_SYMBOL_GPL(unregister_kprobes);
 
-int __weak __kprobes kprobe_exceptions_notify(struct notifier_block *self,
-					      unsigned long val, void *data)
+int __weak kprobe_exceptions_notify(struct notifier_block *self,
+					unsigned long val, void *data)
 {
 	return NOTIFY_DONE;
 }
+NOKPROBE_SYMBOL(kprobe_exceptions_notify);
 
 static struct notifier_block kprobe_exceptions_nb = {
 	.notifier_call = kprobe_exceptions_notify,
