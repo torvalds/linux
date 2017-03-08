@@ -545,8 +545,8 @@ struct udc {
 	u32 __iomem			*txfifo;
 
 	/* DMA desc pools */
-	struct pci_pool			*data_requests;
-	struct pci_pool			*stp_requests;
+	struct dma_pool			*data_requests;
+	struct dma_pool			*stp_requests;
 
 	/* device data */
 	unsigned long			phys_addr;

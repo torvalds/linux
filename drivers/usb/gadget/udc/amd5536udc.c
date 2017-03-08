@@ -583,7 +583,7 @@ udc_alloc_request(struct usb_ep *usbep, gfp_t gfp)
 
 	if (ep->dma) {
 		/* ep0 in requests are allocated from data pool here */
-		dma_desc = pci_pool_alloc(ep->dev->data_requests, gfp,
+		dma_desc = dma_pool_alloc(ep->dev->data_requests, gfp,
 						&req->td_phys);
 		if (!dma_desc) {
 			kfree(req);
@@ -622,7 +622,7 @@ static int udc_free_dma_chain(struct udc *dev, struct udc_request *req)
 	td = phys_to_virt(td_last->next);
 
 	for (i = 1; i < req->chain_len; i++) {
-		pci_pool_free(dev->data_requests, td,
+		dma_pool_free(dev->data_requests, td,
 			      (dma_addr_t)td_last->next);
 		td_last = td;
 		td = phys_to_virt(td_last->next);
@@ -652,7 +652,7 @@ udc_free_request(struct usb_ep *usbep, struct usb_request *usbreq)
 		if (req->chain_len > 1)
 			udc_free_dma_chain(ep->dev, req);
 
-		pci_pool_free(ep->dev->data_requests, req->td_data,
+		dma_pool_free(ep->dev->data_requests, req->td_data,
 							req->td_phys);
 	}
 	kfree(req);
@@ -847,7 +847,7 @@ static int udc_create_dma_chain(
 	for (i = buf_len; i < bytes; i += buf_len) {
 		/* create or determine next desc. */
 		if (create_new_chain) {
-			td = pci_pool_alloc(ep->dev->data_requests,
+			td = dma_pool_alloc(ep->dev->data_requests,
 					    gfp_flags, &dma_addr);
 			if (!td)
 				return -ENOMEM;
