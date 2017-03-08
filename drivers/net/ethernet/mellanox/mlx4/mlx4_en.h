@@ -474,7 +474,6 @@ struct mlx4_en_frag_info {
 	u16 frag_size;
 	u16 frag_prefix_size;
 	u32 frag_stride;
-	enum dma_data_direction dma_dir;
 	u16 order;
 	u16 rx_headroom;
 };
@@ -584,8 +583,9 @@ struct mlx4_en_priv {
 	u32 rx_ring_num;
 	u32 rx_skb_size;
 	struct mlx4_en_frag_info frag_info[MLX4_EN_MAX_RX_FRAGS];
-	u16 num_frags;
-	u16 log_rx_info;
+	u8 num_frags;
+	u8 log_rx_info;
+	u8 dma_dir;
 
 	struct mlx4_en_tx_ring **tx_ring[MLX4_EN_NUM_TX_TYPES];
 	struct mlx4_en_rx_ring *rx_ring[MAX_RX_RINGS];

@@ -72,7 +72,7 @@ static int mlx4_alloc_pages(struct mlx4_en_priv *priv,
 			return -ENOMEM;
 	}
 	dma = dma_map_page(priv->ddev, page, 0, PAGE_SIZE << order,
-			   frag_info->dma_dir);
+			   priv->dma_dir);
 	if (unlikely(dma_mapping_error(priv->ddev, dma))) {
 		put_page(page);
 		return -ENOMEM;
@@ -128,7 +128,7 @@ out:
 		if (page_alloc[i].page != ring_alloc[i].page) {
 			dma_unmap_page(priv->ddev, page_alloc[i].dma,
 				page_alloc[i].page_size,
-				priv->frag_info[i].dma_dir);
+				priv->dma_dir);
 			page = page_alloc[i].page;
 			/* Revert changes done by mlx4_alloc_pages */
 			page_ref_sub(page, page_alloc[i].page_size /
@@ -149,7 +149,7 @@ static void mlx4_en_free_frag(struct mlx4_en_priv *priv,
 
 	if (next_frag_end > frags[i].page_size)
 		dma_unmap_page(priv->ddev, frags[i].dma, frags[i].page_size,
-			       frag_info->dma_dir);
+			       priv->dma_dir);
 
 	if (frags[i].page)
 		put_page(frags[i].page);
@@ -181,7 +181,7 @@ out:
 		page_alloc = &ring->page_alloc[i];
 		dma_unmap_page(priv->ddev, page_alloc->dma,
 			       page_alloc->page_size,
-			       priv->frag_info[i].dma_dir);
+			       priv->dma_dir);
 		page = page_alloc->page;
 		/* Revert changes done by mlx4_alloc_pages */
 		page_ref_sub(page, page_alloc->page_size /
@@ -206,7 +206,7 @@ static void mlx4_en_destroy_allocator(struct mlx4_en_priv *priv,
 		       i, page_count(page_alloc->page));
 
 		dma_unmap_page(priv->ddev, page_alloc->dma,
-				page_alloc->page_size, frag_info->dma_dir);
+				page_alloc->page_size, priv->dma_dir);
 		while (page_alloc->page_offset + frag_info->frag_stride <
 		       page_alloc->page_size) {
 			put_page(page_alloc->page);
@@ -570,7 +570,7 @@ void mlx4_en_deactivate_rx_ring(struct mlx4_en_priv *priv,
 		struct mlx4_en_rx_alloc *frame = &ring->page_cache.buf[i];
 
 		dma_unmap_page(priv->ddev, frame->dma, frame->page_size,
-			       priv->frag_info[0].dma_dir);
+			       priv->dma_dir);
 		put_page(frame->page);
 	}
 	ring->page_cache.index = 0;
@@ -1202,7 +1202,7 @@ void mlx4_en_calc_rx_buf(struct net_device *dev)
 		 * expense of more costly truesize accounting
 		 */
 		priv->frag_info[0].frag_stride = PAGE_SIZE;
-		priv->frag_info[0].dma_dir = PCI_DMA_BIDIRECTIONAL;
+		priv->dma_dir = PCI_DMA_BIDIRECTIONAL;
 		priv->frag_info[0].rx_headroom = XDP_PACKET_HEADROOM;
 		i = 1;
 	} else {
@@ -1217,11 +1217,11 @@ void mlx4_en_calc_rx_buf(struct net_device *dev)
 			priv->frag_info[i].frag_stride =
 				ALIGN(priv->frag_info[i].frag_size,
 				      SMP_CACHE_BYTES);
-			priv->frag_info[i].dma_dir = PCI_DMA_FROMDEVICE;
 			priv->frag_info[i].rx_headroom = 0;
 			buf_size += priv->frag_info[i].frag_size;
 			i++;
 		}
+		priv->dma_dir = PCI_DMA_FROMDEVICE;
 	}
 
 	priv->num_frags = i;
