@@ -1904,10 +1904,11 @@ sub wait_for_input
 
 	# copy data from stdin to the console
 	if (vec($rout, fileno(\*STDIN), 1) == 1) {
-	    sysread(\*STDIN, $buf, 1000);
-	    syswrite($fp, $buf, 1000);
-	    next;
+	    $nr = sysread(\*STDIN, $buf, 1000);
+	    syswrite($fp, $buf, $nr) if ($nr > 0);
 	}
+
+	next if (vec($rout, fileno($fp), 1) != 1);
 
 	$line = "";
 
