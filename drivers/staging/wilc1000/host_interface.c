@@ -3472,8 +3472,7 @@ void wilc_network_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 		netdev_err(vif->ndev, "message parameters (%d)\n", result);
 }
 
-void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *pu8Buffer,
-				   u32 u32Length)
+void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
@@ -3483,7 +3482,7 @@ void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *pu8Buffer,
 
 	mutex_lock(&hif_deinit_lock);
 
-	id = ((pu8Buffer[u32Length - 4]) | (pu8Buffer[u32Length - 3] << 8) | (pu8Buffer[u32Length - 2] << 16) | (pu8Buffer[u32Length - 1] << 24));
+	id = ((buffer[length - 4]) | (buffer[length - 3] << 8) | (buffer[length - 2] << 16) | (buffer[length - 1] << 24));
 	vif = wilc_get_vif_from_idx(wilc, id);
 	if (!vif) {
 		mutex_unlock(&hif_deinit_lock);
@@ -3508,9 +3507,9 @@ void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *pu8Buffer,
 	msg.id = HOST_IF_MSG_RCVD_GNRL_ASYNC_INFO;
 	msg.vif = vif;
 
-	msg.body.async_info.len = u32Length;
-	msg.body.async_info.buffer = kmalloc(u32Length, GFP_KERNEL);
-	memcpy(msg.body.async_info.buffer, pu8Buffer, u32Length);
+	msg.body.async_info.len = length;
+	msg.body.async_info.buffer = kmalloc(length, GFP_KERNEL);
+	memcpy(msg.body.async_info.buffer, buffer, length);
 
 	result = wilc_enqueue_cmd(&msg);
 	if (result)
