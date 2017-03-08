@@ -4465,6 +4465,10 @@ static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
 		vf->vlan = le16_to_cpu(resp->vlan) & VLAN_VID_MASK;
 	}
 #endif
+	if (BNXT_PF(bp) && (le16_to_cpu(resp->flags) &
+			    FUNC_QCFG_RESP_FLAGS_FW_DCBX_AGENT_ENABLED))
+		bp->flags |= BNXT_FLAG_FW_LLDP_AGENT;
+
 	switch (resp->port_partition_type) {
 	case FUNC_QCFG_RESP_PORT_PARTITION_TYPE_NPAR1_0:
 	case FUNC_QCFG_RESP_PORT_PARTITION_TYPE_NPAR1_5:
