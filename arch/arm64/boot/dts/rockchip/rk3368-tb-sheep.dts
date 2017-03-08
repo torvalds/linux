@@ -46,36 +46,6 @@
 / {
 	model = "Rockchip Sheep board";
 	compatible = "rockchip,sheep", "rockchip,rk3368";
-
-	dwc_control_usb: dwc-control-usb {
-		compatible = "rockchip,rk3368-dwc-control-usb";
-		rockchip,grf = <&grf>;
-		grf-offset = <0x04bc>; /* GRF_SOC_STATUS for USB2.0 OTG */
-		interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "otg_id", "otg_bvalid",
-				  "otg_linestate", "host0_linestate";
-		clocks = <&cru HCLK_USB_PERI>, <&cru SCLK_USBPHY480M>;
-		clock-names = "hclk_usb_peri", "usbphy_480m";
-
-		usb_bc {
-			compatible = "inno,phy";
-			regbase = &dwc_control_usb;
-			rk_usb,bvalid     = <0x4bc 23 1>;
-			rk_usb,iddig      = <0x4bc 26 1>;
-			rk_usb,vdmsrcen   = <0x718 12 1>;
-			rk_usb,vdpsrcen   = <0x718 11 1>;
-			rk_usb,rdmpden    = <0x718 10 1>;
-			rk_usb,idpsrcen   = <0x718  9 1>;
-			rk_usb,idmsinken  = <0x718  8 1>;
-			rk_usb,idpsinken  = <0x718  7 1>;
-			rk_usb,dpattach   = <0x4b8 31 1>;
-			rk_usb,cpdet      = <0x4b8 30 1>;
-			rk_usb,dcpattach  = <0x4b8 29 1>;
-		};
-	};
 };
 
 &rt5640 {
@@ -144,21 +114,13 @@
 };
 
 &dwc_control_usb {
-	host_drv_gpio = <&gpio0 4 GPIO_ACTIVE_LOW>;
 	otg_drv_gpio = <&gpio0 25 GPIO_ACTIVE_LOW>;
 
 	rockchip,remote_wakeup;
 	rockchip,usb_irq_wakeup;
+	status = "okay";
 };
 
 &usb_otg {
-	clocks = <&cru SCLK_OTGPHY0>, <&cru HCLK_OTG0>;
-	clock-names = "sclk_otgphy0", "otg";
-	resets = <&cru SRST_USBOTG_AHB>,
-		 <&cru SRST_USBOTG_PHY>,
-		 <&cru SRST_USBOTG_CON>;
-	reset-names = "otg_ahb", "otg_phy", "otg_controller";
-	/* 0 - Normal, 1 - Force Host, 2 - Force Device */
-	rockchip,usb-mode = <0>;
 	status = "okay";
 };
