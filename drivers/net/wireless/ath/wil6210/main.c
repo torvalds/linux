@@ -306,10 +306,34 @@ static void wil_disconnect_worker(struct work_struct *work)
 {
 	struct wil6210_priv *wil = container_of(work,
 			struct wil6210_priv, disconnect_worker);
+	struct net_device *ndev = wil_to_ndev(wil);
+	int rc;
+	struct {
+		struct wmi_cmd_hdr wmi;
+		struct wmi_disconnect_event evt;
+	} __packed reply;
 
-	mutex_lock(&wil->mutex);
-	_wil6210_disconnect(wil, NULL, WLAN_REASON_UNSPECIFIED, false);
-	mutex_unlock(&wil->mutex);
+	if (test_bit(wil_status_fwconnected, wil->status))
+		/* connect succeeded after all */
+		return;
+
+	if (!test_bit(wil_status_fwconnecting, wil->status))
+		/* already disconnected */
+		return;
+
+	rc = wmi_call(wil, WMI_DISCONNECT_CMDID, NULL, 0,
+		      WMI_DISCONNECT_EVENTID, &reply, sizeof(reply),
+		      WIL6210_DISCONNECT_TO_MS);
+	if (rc) {
+		wil_err(wil, "disconnect error %d\n", rc);
+		return;
+	}
+
+	wil_update_net_queues_bh(wil, NULL, true);
+	netif_carrier_off(ndev);
+	cfg80211_connect_result(ndev, NULL, NULL, 0, NULL, 0,
+				WLAN_STATUS_UNSPECIFIED_FAILURE, GFP_KERNEL);
+	clear_bit(wil_status_fwconnecting, wil->status);
 }
 
 static void wil_connect_timer_fn(ulong x)
