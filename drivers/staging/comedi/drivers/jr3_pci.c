@@ -705,6 +705,9 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
+	if (pci_resource_len(pcidev, 0) < board->n_subdevs * sizeof(*block))
+		return -ENXIO;
+
 	dev->mmio = pci_ioremap_bar(pcidev, 0);
 	if (!dev->mmio)
 		return -ENOMEM;
