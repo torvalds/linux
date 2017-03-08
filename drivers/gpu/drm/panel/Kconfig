@@ -52,6 +52,12 @@ config DRM_PANEL_PANASONIC_VVX10F034N00
 	  WUXGA (1920x1200) Novatek NT1397-based DSI panel as found in some
 	  Xperia Z2 tablets
 
+config DRM_PANEL_SAMSUNG_S6E3HA2
+	tristate "Samsung S6E3HA2 DSI video mode panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	select VIDEOMODE_HELPERS
+
 config DRM_PANEL_SAMSUNG_S6E8AA0
 	tristate "Samsung S6E8AA0 DSI video mode panel"
 	depends on OF
