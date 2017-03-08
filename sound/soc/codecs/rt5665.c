@@ -3912,6 +3912,7 @@ static const struct snd_soc_dapm_route rt5665_dapm_routes[] = {
 	{"Mono MIX", "MONOVOL Switch", "MONOVOL"},
 	{"Mono Amp", NULL, "Mono MIX"},
 	{"Mono Amp", NULL, "Vref2"},
+	{"Mono Amp", NULL, "Vref3"},
 	{"Mono Amp", NULL, "CLKDET SYS"},
 	{"Mono Amp", NULL, "CLKDET MONO"},
 	{"Mono Playback", "Switch", "Mono Amp"},
