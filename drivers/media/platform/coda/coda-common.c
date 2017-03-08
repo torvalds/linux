@@ -2205,7 +2205,12 @@ static void coda_fw_callback(const struct firmware *fw, void *context);
 
 static int coda_firmware_request(struct coda_dev *dev)
 {
-	char *fw = dev->devtype->firmware[dev->firmware];
+	char *fw;
+
+	if (dev->firmware >= ARRAY_SIZE(dev->devtype->firmware))
+		return -EINVAL;
+
+	fw = dev->devtype->firmware[dev->firmware];
 
 	dev_dbg(&dev->plat_dev->dev, "requesting firmware '%s' for %s\n", fw,
 		coda_product_name(dev->devtype->product));
@@ -2221,16 +2226,16 @@ static void coda_fw_callback(const struct firmware *fw, void *context)
 	struct platform_device *pdev = dev->plat_dev;
 	int i, ret;
 
-	if (!fw && dev->firmware == 1) {
-		v4l2_err(&dev->v4l2_dev, "firmware request failed\n");
-		goto put_pm;
-	}
 	if (!fw) {
-		dev->firmware = 1;
-		coda_firmware_request(dev);
+		dev->firmware++;
+		ret = coda_firmware_request(dev);
+		if (ret < 0) {
+			v4l2_err(&dev->v4l2_dev, "firmware request failed\n");
+			goto put_pm;
+		}
 		return;
 	}
-	if (dev->firmware == 1) {
+	if (dev->firmware > 0) {
 		/*
 		 * Since we can't suppress warnings for failed asynchronous
 		 * firmware requests, report that the fallback firmware was
