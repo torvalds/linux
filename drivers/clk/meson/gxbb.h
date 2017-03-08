@@ -191,7 +191,7 @@
 #define CLKID_PERIPHS		  20
 #define CLKID_SPICC		  21
 /* CLKID_I2C */
-#define CLKID_SAR_ADC		  23
+/* #define CLKID_SAR_ADC */
 #define CLKID_SMART_CARD	  24
 #define CLKID_RNG0		  25
 #define CLKID_UART0		  26
@@ -204,7 +204,7 @@
 #define CLKID_ASSIST_MISC	  33
 /* CLKID_SPI */
 #define CLKID_I2S_SPDIF		  35
-#define CLKID_ETH		  36
+/* CLKID_ETH */
 #define CLKID_DEMUX		  37
 #define CLKID_AIU_GLUE		  38
 #define CLKID_IEC958		  39
@@ -231,13 +231,13 @@
 #define CLKID_AHB_DATA_BUS	  60
 #define CLKID_AHB_CTRL_BUS	  61
 #define CLKID_HDMI_INTR_SYNC	  62
-#define CLKID_HDMI_PCLK		  63
+/* CLKID_HDMI_PCLK */
 /* CLKID_USB1_DDR_BRIDGE */
 /* CLKID_USB0_DDR_BRIDGE */
 #define CLKID_MMC_PCLK		  66
 #define CLKID_DVIN		  67
 #define CLKID_UART2		  68
-#define CLKID_SANA		  69
+/* #define CLKID_SANA */
 #define CLKID_VPU_INTR		  70
 #define CLKID_SEC_AHB_AHB3_BRIDGE 71
 #define CLKID_CLK81_A53		  72
@@ -245,7 +245,7 @@
 #define CLKID_VCLK2_VENCI1	  74
 #define CLKID_VCLK2_VENCP0	  75
 #define CLKID_VCLK2_VENCP1	  76
-#define CLKID_GCLK_VENCI_INT0	  77
+/* CLKID_GCLK_VENCI_INT0 */
 #define CLKID_GCLK_VENCI_INT	  78
 #define CLKID_DAC_CLK		  79
 #define CLKID_AOCLK_GATE	  80
@@ -265,8 +265,11 @@
 /* CLKID_SD_EMMC_A */
 /* CLKID_SD_EMMC_B */
 /* CLKID_SD_EMMC_C */
+/* CLKID_SAR_ADC_CLK */
+/* CLKID_SAR_ADC_SEL */
+#define CLKID_SAR_ADC_DIV	  99
 
-#define NR_CLKS			  97
+#define NR_CLKS			  100
 
 /* include the CLKIDs that have been made part of the stable DT binding */
 #include <dt-bindings/clock/gxbb-clkc.h>

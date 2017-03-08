@@ -48,6 +48,12 @@ module_param_named(fbdev_emulation, drm_fbdev_emulation, bool, 0600);
 MODULE_PARM_DESC(fbdev_emulation,
 		 "Enable legacy fbdev emulation [default=true]");
 
+static int drm_fbdev_overalloc = CONFIG_DRM_FBDEV_OVERALLOC;
+module_param(drm_fbdev_overalloc, int, 0444);
+MODULE_PARM_DESC(drm_fbdev_overalloc,
+		 "Overallocation of the fbdev buffer (%) [default="
+		 __MODULE_STRING(CONFIG_DRM_FBDEV_OVERALLOC) "]");
+
 static LIST_HEAD(kernel_fb_helper_list);
 static DEFINE_MUTEX(kernel_fb_helper_lock);
 
@@ -63,7 +69,8 @@ static DEFINE_MUTEX(kernel_fb_helper_lock);
  * drm_fb_helper_init(), drm_fb_helper_single_add_all_connectors() and
  * drm_fb_helper_initial_config(). Drivers with fancier requirements than the
  * default behaviour can override the third step with their own code.
- * Teardown is done with drm_fb_helper_fini().
+ * Teardown is done with drm_fb_helper_fini() after the fbdev device is
+ * unregisters using drm_fb_helper_unregister_fbi().
  *
  * At runtime drivers should restore the fbdev console by calling
  * drm_fb_helper_restore_fbdev_mode_unlocked() from their &drm_driver.lastclose
@@ -127,7 +134,7 @@ int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 		return 0;
 
 	mutex_lock(&dev->mode_config.mutex);
-	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		ret = drm_fb_helper_add_one_connector(fb_helper, connector);
 
@@ -141,14 +148,14 @@ fail:
 		struct drm_fb_helper_connector *fb_helper_connector =
 			fb_helper->connector_info[i];
 
-		drm_connector_unreference(fb_helper_connector->connector);
+		drm_connector_put(fb_helper_connector->connector);
 
 		kfree(fb_helper_connector);
 		fb_helper->connector_info[i] = NULL;
 	}
 	fb_helper->connector_count = 0;
 out:
-	drm_connector_list_iter_put(&conn_iter);
+	drm_connector_list_iter_end(&conn_iter);
 	mutex_unlock(&dev->mode_config.mutex);
 
 	return ret;
@@ -178,7 +185,7 @@ int drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper, struct drm_
 	if (!fb_helper_connector)
 		return -ENOMEM;
 
-	drm_connector_reference(connector);
+	drm_connector_get(connector);
 	fb_helper_connector->connector = connector;
 	fb_helper->connector_info[fb_helper->connector_count++] = fb_helper_connector;
 	return 0;
@@ -204,7 +211,7 @@ int drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
 	if (i == fb_helper->connector_count)
 		return -EINVAL;
 	fb_helper_connector = fb_helper->connector_info[i];
-	drm_connector_unreference(fb_helper_connector->connector);
+	drm_connector_put(fb_helper_connector->connector);
 
 	for (j = i + 1; j < fb_helper->connector_count; j++) {
 		fb_helper->connector_info[j - 1] = fb_helper->connector_info[j];
@@ -626,7 +633,7 @@ static void drm_fb_helper_modeset_release(struct drm_fb_helper *helper,
 	int i;
 
 	for (i = 0; i < modeset->num_connectors; i++) {
-		drm_connector_unreference(modeset->connectors[i]);
+		drm_connector_put(modeset->connectors[i]);
 		modeset->connectors[i] = NULL;
 	}
 	modeset->num_connectors = 0;
@@ -643,7 +650,7 @@ static void drm_fb_helper_crtc_free(struct drm_fb_helper *helper)
 	int i;
 
 	for (i = 0; i < helper->connector_count; i++) {
-		drm_connector_unreference(helper->connector_info[i]->connector);
+		drm_connector_put(helper->connector_info[i]->connector);
 		kfree(helper->connector_info[i]);
 	}
 	kfree(helper->connector_info);
@@ -709,7 +716,7 @@ void drm_fb_helper_prepare(struct drm_device *dev, struct drm_fb_helper *helper,
 EXPORT_SYMBOL(drm_fb_helper_prepare);
 
 /**
- * drm_fb_helper_init - initialize a drm_fb_helper structure
+ * drm_fb_helper_init - initialize a &struct drm_fb_helper
  * @dev: drm device
  * @fb_helper: driver-allocated fbdev helper structure to initialize
  * @max_conn_count: max connector count
@@ -780,7 +787,9 @@ EXPORT_SYMBOL(drm_fb_helper_init);
  * @fb_helper: driver-allocated fbdev helper
  *
  * A helper to alloc fb_info and the members cmap and apertures. Called
- * by the driver within the fb_probe fb_helper callback function.
+ * by the driver within the fb_probe fb_helper callback function. Drivers do not
+ * need to release the allocated fb_info structure themselves, this is
+ * automatically done when calling drm_fb_helper_fini().
  *
  * RETURNS:
  * fb_info pointer if things went okay, pointer containing error code
@@ -823,7 +832,8 @@ EXPORT_SYMBOL(drm_fb_helper_alloc_fbi);
  * @fb_helper: driver-allocated fbdev helper
  *
  * A wrapper around unregister_framebuffer, to release the fb_info
- * framebuffer device
+ * framebuffer device. This must be called before releasing all resources for
+ * @fb_helper by calling drm_fb_helper_fini().
  */
 void drm_fb_helper_unregister_fbi(struct drm_fb_helper *fb_helper)
 {
@@ -833,32 +843,26 @@ void drm_fb_helper_unregister_fbi(struct drm_fb_helper *fb_helper)
 EXPORT_SYMBOL(drm_fb_helper_unregister_fbi);
 
 /**
- * drm_fb_helper_release_fbi - dealloc fb_info and its members
+ * drm_fb_helper_fini - finialize a &struct drm_fb_helper
  * @fb_helper: driver-allocated fbdev helper
  *
- * A helper to free memory taken by fb_info and the members cmap and
- * apertures
+ * This cleans up all remaining resources associated with @fb_helper. Must be
+ * called after drm_fb_helper_unlink_fbi() was called.
  */
-void drm_fb_helper_release_fbi(struct drm_fb_helper *fb_helper)
-{
-	if (fb_helper) {
-		struct fb_info *info = fb_helper->fbdev;
-
-		if (info) {
-			if (info->cmap.len)
-				fb_dealloc_cmap(&info->cmap);
-			framebuffer_release(info);
-		}
-
-		fb_helper->fbdev = NULL;
-	}
-}
-EXPORT_SYMBOL(drm_fb_helper_release_fbi);
-
 void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 {
-	if (!drm_fbdev_emulation)
+	struct fb_info *info;
+
+	if (!drm_fbdev_emulation || !fb_helper)
 		return;
+
+	info = fb_helper->fbdev;
+	if (info) {
+		if (info->cmap.len)
+			fb_dealloc_cmap(&info->cmap);
+		framebuffer_release(info);
+	}
+	fb_helper->fbdev = NULL;
 
 	cancel_work_sync(&fb_helper->resume_work);
 	cancel_work_sync(&fb_helper->dirty_work);
@@ -1241,6 +1245,74 @@ int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 EXPORT_SYMBOL(drm_fb_helper_setcmap);
 
 /**
+ * drm_fb_helper_ioctl - legacy ioctl implementation
+ * @info: fbdev registered by the helper
+ * @cmd: ioctl command
+ * @arg: ioctl argument
+ *
+ * A helper to implement the standard fbdev ioctl. Only
+ * FBIO_WAITFORVSYNC is implemented for now.
+ */
+int drm_fb_helper_ioctl(struct fb_info *info, unsigned int cmd,
+			unsigned long arg)
+{
+	struct drm_fb_helper *fb_helper = info->par;
+	struct drm_device *dev = fb_helper->dev;
+	struct drm_mode_set *mode_set;
+	struct drm_crtc *crtc;
+	int ret = 0;
+
+	mutex_lock(&dev->mode_config.mutex);
+	if (!drm_fb_helper_is_bound(fb_helper)) {
+		ret = -EBUSY;
+		goto unlock;
+	}
+
+	switch (cmd) {
+	case FBIO_WAITFORVSYNC:
+		/*
+		 * Only consider the first CRTC.
+		 *
+		 * This ioctl is supposed to take the CRTC number as
+		 * an argument, but in fbdev times, what that number
+		 * was supposed to be was quite unclear, different
+		 * drivers were passing that argument differently
+		 * (some by reference, some by value), and most of the
+		 * userspace applications were just hardcoding 0 as an
+		 * argument.
+		 *
+		 * The first CRTC should be the integrated panel on
+		 * most drivers, so this is the best choice we can
+		 * make. If we're not smart enough here, one should
+		 * just consider switch the userspace to KMS.
+		 */
+		mode_set = &fb_helper->crtc_info[0].mode_set;
+		crtc = mode_set->crtc;
+
+		/*
+		 * Only wait for a vblank event if the CRTC is
+		 * enabled, otherwise just don't do anythintg,
+		 * not even report an error.
+		 */
+		ret = drm_crtc_vblank_get(crtc);
+		if (!ret) {
+			drm_crtc_wait_one_vblank(crtc);
+			drm_crtc_vblank_put(crtc);
+		}
+
+		ret = 0;
+		goto unlock;
+	default:
+		ret = -ENOTTY;
+	}
+
+unlock:
+	mutex_unlock(&dev->mode_config.mutex);
+	return ret;
+}
+EXPORT_SYMBOL(drm_fb_helper_ioctl);
+
+/**
  * drm_fb_helper_check_var - implementation for &fb_ops.fb_check_var
  * @var: screeninfo to check
  * @info: fbdev registered by the helper
@@ -1579,6 +1651,10 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 		sizes.fb_width = sizes.surface_width = 1024;
 		sizes.fb_height = sizes.surface_height = 768;
 	}
+
+	/* Handle our overallocation */
+	sizes.surface_height *= drm_fbdev_overalloc;
+	sizes.surface_height /= 100;
 
 	/* push down into drivers */
 	ret = (*fb_helper->funcs->fb_probe)(fb_helper, &sizes);
@@ -2184,7 +2260,7 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
 			fb_crtc->y = offset->y;
 			modeset->mode = drm_mode_duplicate(dev,
 							   fb_crtc->desired_mode);
-			drm_connector_reference(connector);
+			drm_connector_get(connector);
 			modeset->connectors[modeset->num_connectors++] = connector;
 			modeset->fb = fb_helper->fb;
 			modeset->x = offset->x;

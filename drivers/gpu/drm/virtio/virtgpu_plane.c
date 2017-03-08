@@ -44,6 +44,7 @@ static const uint32_t virtio_gpu_cursor_formats[] = {
 
 static void virtio_gpu_plane_destroy(struct drm_plane *plane)
 {
+	drm_plane_cleanup(plane);
 	kfree(plane);
 }
 

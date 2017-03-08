@@ -26,6 +26,8 @@
 #include <linux/buffer_head.h>
 #include <linux/task_io_accounting_ops.h>
 #include <linux/dax.h>
+#include <linux/sched/signal.h>
+
 #include "internal.h"
 
 /*
@@ -41,7 +43,7 @@
  */
 loff_t
 iomap_apply(struct inode *inode, loff_t pos, loff_t length, unsigned flags,
-		struct iomap_ops *ops, void *data, iomap_actor_t actor)
+		const struct iomap_ops *ops, void *data, iomap_actor_t actor)
 {
 	struct iomap iomap = { 0 };
 	loff_t written = 0, ret;
@@ -235,7 +237,7 @@ again:
 
 ssize_t
 iomap_file_buffered_write(struct kiocb *iocb, struct iov_iter *iter,
-		struct iomap_ops *ops)
+		const struct iomap_ops *ops)
 {
 	struct inode *inode = iocb->ki_filp->f_mapping->host;
 	loff_t pos = iocb->ki_pos, ret = 0, written = 0;
@@ -318,7 +320,7 @@ iomap_dirty_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 
 int
 iomap_file_dirty(struct inode *inode, loff_t pos, loff_t len,
-		struct iomap_ops *ops)
+		const struct iomap_ops *ops)
 {
 	loff_t ret;
 
@@ -398,7 +400,7 @@ iomap_zero_range_actor(struct inode *inode, loff_t pos, loff_t count,
 
 int
 iomap_zero_range(struct inode *inode, loff_t pos, loff_t len, bool *did_zero,
-		struct iomap_ops *ops)
+		const struct iomap_ops *ops)
 {
 	loff_t ret;
 
@@ -418,10 +420,10 @@ EXPORT_SYMBOL_GPL(iomap_zero_range);
 
 int
 iomap_truncate_page(struct inode *inode, loff_t pos, bool *did_zero,
-		struct iomap_ops *ops)
+		const struct iomap_ops *ops)
 {
-	unsigned blocksize = (1 << inode->i_blkbits);
-	unsigned off = pos & (blocksize - 1);
+	unsigned int blocksize = i_blocksize(inode);
+	unsigned int off = pos & (blocksize - 1);
 
 	/* Block boundary? Nothing to do */
 	if (!off)
@@ -445,11 +447,10 @@ iomap_page_mkwrite_actor(struct inode *inode, loff_t pos, loff_t length,
 	return length;
 }
 
-int iomap_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
-		struct iomap_ops *ops)
+int iomap_page_mkwrite(struct vm_fault *vmf, const struct iomap_ops *ops)
 {
 	struct page *page = vmf->page;
-	struct inode *inode = file_inode(vma->vm_file);
+	struct inode *inode = file_inode(vmf->vma->vm_file);
 	unsigned long length;
 	loff_t offset, size;
 	ssize_t ret;
@@ -545,7 +546,7 @@ iomap_fiemap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 }
 
 int iomap_fiemap(struct inode *inode, struct fiemap_extent_info *fi,
-		loff_t start, loff_t len, struct iomap_ops *ops)
+		loff_t start, loff_t len, const struct iomap_ops *ops)
 {
 	struct fiemap_ctx ctx;
 	loff_t ret;
@@ -736,9 +737,9 @@ iomap_dio_actor(struct inode *inode, loff_t pos, loff_t length,
 		void *data, struct iomap *iomap)
 {
 	struct iomap_dio *dio = data;
-	unsigned blkbits = blksize_bits(bdev_logical_block_size(iomap->bdev));
-	unsigned fs_block_size = (1 << inode->i_blkbits), pad;
-	unsigned align = iov_iter_alignment(dio->submit.iter);
+	unsigned int blkbits = blksize_bits(bdev_logical_block_size(iomap->bdev));
+	unsigned int fs_block_size = i_blocksize(inode), pad;
+	unsigned int align = iov_iter_alignment(dio->submit.iter);
 	struct iov_iter iter;
 	struct bio *bio;
 	bool need_zeroout = false;
@@ -839,8 +840,8 @@ iomap_dio_actor(struct inode *inode, loff_t pos, loff_t length,
 }
 
 ssize_t
-iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter, struct iomap_ops *ops,
-		iomap_dio_end_io_t end_io)
+iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
+		const struct iomap_ops *ops, iomap_dio_end_io_t end_io)
 {
 	struct address_space *mapping = iocb->ki_filp->f_mapping;
 	struct inode *inode = file_inode(iocb->ki_filp);

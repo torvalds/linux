@@ -123,7 +123,7 @@ static void c6x_dma_sync_sg_for_device(struct device *dev,
 
 }
 
-struct dma_map_ops c6x_dma_ops = {
+const struct dma_map_ops c6x_dma_ops = {
 	.alloc			= c6x_dma_alloc,
 	.free			= c6x_dma_free,
 	.map_page		= c6x_dma_map_page,

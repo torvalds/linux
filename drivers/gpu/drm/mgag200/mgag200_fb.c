@@ -198,7 +198,7 @@ static int mgag200fb_create(struct drm_fb_helper *helper,
 
 	ret = mgag200_framebuffer_init(dev, &mfbdev->mfb, &mode_cmd, gobj);
 	if (ret)
-		goto err_framebuffer_init;
+		goto err_alloc_fbi;
 
 	mfbdev->sysram = sysram;
 	mfbdev->size = size;
@@ -230,8 +230,6 @@ static int mgag200fb_create(struct drm_fb_helper *helper,
 
 	return 0;
 
-err_framebuffer_init:
-	drm_fb_helper_release_fbi(helper);
 err_alloc_fbi:
 	vfree(sysram);
 err_sysram:
@@ -246,7 +244,6 @@ static int mga_fbdev_destroy(struct drm_device *dev,
 	struct mga_framebuffer *mfb = &mfbdev->mfb;
 
 	drm_fb_helper_unregister_fbi(&mfbdev->helper);
-	drm_fb_helper_release_fbi(&mfbdev->helper);
 
 	if (mfb->obj) {
 		drm_gem_object_unreference_unlocked(mfb->obj);

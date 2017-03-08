@@ -434,6 +434,25 @@ static void atmel_hlcdc_crtc_destroy_state(struct drm_crtc *crtc,
 	kfree(state);
 }
 
+static int atmel_hlcdc_crtc_enable_vblank(struct drm_crtc *c)
+{
+	struct atmel_hlcdc_crtc *crtc = drm_crtc_to_atmel_hlcdc_crtc(c);
+	struct regmap *regmap = crtc->dc->hlcdc->regmap;
+
+	/* Enable SOF (Start Of Frame) interrupt for vblank counting */
+	regmap_write(regmap, ATMEL_HLCDC_IER, ATMEL_HLCDC_SOF);
+
+	return 0;
+}
+
+static void atmel_hlcdc_crtc_disable_vblank(struct drm_crtc *c)
+{
+	struct atmel_hlcdc_crtc *crtc = drm_crtc_to_atmel_hlcdc_crtc(c);
+	struct regmap *regmap = crtc->dc->hlcdc->regmap;
+
+	regmap_write(regmap, ATMEL_HLCDC_IDR, ATMEL_HLCDC_SOF);
+}
+
 static const struct drm_crtc_funcs atmel_hlcdc_crtc_funcs = {
 	.page_flip = drm_atomic_helper_page_flip,
 	.set_config = drm_atomic_helper_set_config,
@@ -441,12 +460,14 @@ static const struct drm_crtc_funcs atmel_hlcdc_crtc_funcs = {
 	.reset = atmel_hlcdc_crtc_reset,
 	.atomic_duplicate_state =  atmel_hlcdc_crtc_duplicate_state,
 	.atomic_destroy_state = atmel_hlcdc_crtc_destroy_state,
+	.enable_vblank = atmel_hlcdc_crtc_enable_vblank,
+	.disable_vblank = atmel_hlcdc_crtc_disable_vblank,
 };
 
 int atmel_hlcdc_crtc_create(struct drm_device *dev)
 {
+	struct atmel_hlcdc_plane *primary = NULL, *cursor = NULL;
 	struct atmel_hlcdc_dc *dc = dev->dev_private;
-	struct atmel_hlcdc_planes *planes = dc->planes;
 	struct atmel_hlcdc_crtc *crtc;
 	int ret;
 	int i;
@@ -457,20 +478,41 @@ int atmel_hlcdc_crtc_create(struct drm_device *dev)
 
 	crtc->dc = dc;
 
-	ret = drm_crtc_init_with_planes(dev, &crtc->base,
-				&planes->primary->base,
-				planes->cursor ? &planes->cursor->base : NULL,
-				&atmel_hlcdc_crtc_funcs, NULL);
+	for (i = 0; i < ATMEL_HLCDC_MAX_LAYERS; i++) {
+		if (!dc->layers[i])
+			continue;
+
+		switch (dc->layers[i]->desc->type) {
+		case ATMEL_HLCDC_BASE_LAYER:
+			primary = atmel_hlcdc_layer_to_plane(dc->layers[i]);
+			break;
+
+		case ATMEL_HLCDC_CURSOR_LAYER:
+			cursor = atmel_hlcdc_layer_to_plane(dc->layers[i]);
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	ret = drm_crtc_init_with_planes(dev, &crtc->base, &primary->base,
+					&cursor->base, &atmel_hlcdc_crtc_funcs,
+					NULL);
 	if (ret < 0)
 		goto fail;
 
 	crtc->id = drm_crtc_index(&crtc->base);
 
-	if (planes->cursor)
-		planes->cursor->base.possible_crtcs = 1 << crtc->id;
+	for (i = 0; i < ATMEL_HLCDC_MAX_LAYERS; i++) {
+		struct atmel_hlcdc_plane *overlay;
 
-	for (i = 0; i < planes->noverlays; i++)
-		planes->overlays[i]->base.possible_crtcs = 1 << crtc->id;
+		if (dc->layers[i] &&
+		    dc->layers[i]->desc->type == ATMEL_HLCDC_OVERLAY_LAYER) {
+			overlay = atmel_hlcdc_layer_to_plane(dc->layers[i]);
+			overlay->base.possible_crtcs = 1 << crtc->id;
+		}
+	}
 
 	drm_crtc_helper_add(&crtc->base, &lcdc_crtc_helper_funcs);
 	drm_crtc_vblank_reset(&crtc->base);

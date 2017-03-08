@@ -77,55 +77,6 @@ void rockchip_drm_dma_detach_device(struct drm_device *drm_dev,
 	iommu_detach_device(domain, dev);
 }
 
-int rockchip_register_crtc_funcs(struct drm_crtc *crtc,
-				 const struct rockchip_crtc_funcs *crtc_funcs)
-{
-	int pipe = drm_crtc_index(crtc);
-	struct rockchip_drm_private *priv = crtc->dev->dev_private;
-
-	if (pipe >= ROCKCHIP_MAX_CRTC)
-		return -EINVAL;
-
-	priv->crtc_funcs[pipe] = crtc_funcs;
-
-	return 0;
-}
-
-void rockchip_unregister_crtc_funcs(struct drm_crtc *crtc)
-{
-	int pipe = drm_crtc_index(crtc);
-	struct rockchip_drm_private *priv = crtc->dev->dev_private;
-
-	if (pipe >= ROCKCHIP_MAX_CRTC)
-		return;
-
-	priv->crtc_funcs[pipe] = NULL;
-}
-
-static int rockchip_drm_crtc_enable_vblank(struct drm_device *dev,
-					   unsigned int pipe)
-{
-	struct rockchip_drm_private *priv = dev->dev_private;
-	struct drm_crtc *crtc = drm_crtc_from_index(dev, pipe);
-
-	if (crtc && priv->crtc_funcs[pipe] &&
-	    priv->crtc_funcs[pipe]->enable_vblank)
-		return priv->crtc_funcs[pipe]->enable_vblank(crtc);
-
-	return 0;
-}
-
-static void rockchip_drm_crtc_disable_vblank(struct drm_device *dev,
-					     unsigned int pipe)
-{
-	struct rockchip_drm_private *priv = dev->dev_private;
-	struct drm_crtc *crtc = drm_crtc_from_index(dev, pipe);
-
-	if (crtc && priv->crtc_funcs[pipe] &&
-	    priv->crtc_funcs[pipe]->enable_vblank)
-		priv->crtc_funcs[pipe]->disable_vblank(crtc);
-}
-
 static int rockchip_drm_init_iommu(struct drm_device *drm_dev)
 {
 	struct rockchip_drm_private *private = drm_dev->dev_private;
@@ -277,9 +228,6 @@ static struct drm_driver rockchip_drm_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM |
 				  DRIVER_PRIME | DRIVER_ATOMIC,
 	.lastclose		= rockchip_drm_lastclose,
-	.get_vblank_counter	= drm_vblank_no_hw_counter,
-	.enable_vblank		= rockchip_drm_crtc_enable_vblank,
-	.disable_vblank		= rockchip_drm_crtc_disable_vblank,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.gem_free_object_unlocked = rockchip_gem_free_object,
 	.dumb_create		= rockchip_gem_dumb_create,

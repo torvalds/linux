@@ -15,6 +15,7 @@
 #include <linux/file.h>		/* for fput */
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
+#include <net/pkt_cls.h>
 
 /*
  * The ATM queuing discipline provides a framework for invoking classifiers

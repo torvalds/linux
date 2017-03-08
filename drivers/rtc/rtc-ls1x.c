@@ -138,7 +138,7 @@ err:
 	return ret;
 }
 
-static struct rtc_class_ops  ls1x_rtc_ops = {
+static const struct rtc_class_ops  ls1x_rtc_ops = {
 	.read_time	= ls1x_rtc_read_time,
 	.set_time	= ls1x_rtc_set_time,
 };

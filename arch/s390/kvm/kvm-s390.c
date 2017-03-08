@@ -23,11 +23,14 @@
 #include <linux/kvm_host.h>
 #include <linux/mman.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/random.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
 #include <linux/vmalloc.h>
 #include <linux/bitmap.h>
+#include <linux/sched/signal.h>
+
 #include <asm/asm-offsets.h>
 #include <asm/lowcore.h>
 #include <asm/stp.h>
@@ -217,7 +220,7 @@ static void allow_cpu_feat(unsigned long nr)
 static inline int plo_test_bit(unsigned char nr)
 {
 	register unsigned long r0 asm("0") = (unsigned long) nr | 0x100;
-	int cc = 3; /* subfunction not available */
+	int cc;
 
 	asm volatile(
 		/* Parameter registers are ignored for "test bit" */
@@ -370,6 +373,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_S390_IRQCHIP:
 	case KVM_CAP_VM_ATTRIBUTES:
 	case KVM_CAP_MP_STATE:
+	case KVM_CAP_IMMEDIATE_EXIT:
 	case KVM_CAP_S390_INJECT_IRQ:
 	case KVM_CAP_S390_USER_SIGP:
 	case KVM_CAP_S390_USER_STSI:
@@ -442,6 +446,9 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 	struct kvm_memory_slot *memslot;
 	int is_dirty = 0;
 
+	if (kvm_is_ucontrol(kvm))
+		return -EINVAL;
+
 	mutex_lock(&kvm->slots_lock);
 
 	r = -EINVAL;
@@ -505,6 +512,14 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 		} else if (MACHINE_HAS_VX) {
 			set_kvm_facility(kvm->arch.model.fac_mask, 129);
 			set_kvm_facility(kvm->arch.model.fac_list, 129);
+			if (test_facility(134)) {
+				set_kvm_facility(kvm->arch.model.fac_mask, 134);
+				set_kvm_facility(kvm->arch.model.fac_list, 134);
+			}
+			if (test_facility(135)) {
+				set_kvm_facility(kvm->arch.model.fac_mask, 135);
+				set_kvm_facility(kvm->arch.model.fac_list, 135);
+			}
 			r = 0;
 		} else
 			r = -EINVAL;
@@ -821,6 +836,13 @@ static int kvm_s390_set_processor(struct kvm *kvm, struct kvm_device_attr *attr)
 		}
 		memcpy(kvm->arch.model.fac_list, proc->fac_list,
 		       S390_ARCH_FAC_LIST_SIZE_BYTE);
+		VM_EVENT(kvm, 3, "SET: guest ibc: 0x%4.4x, guest cpuid: 0x%16.16llx",
+			 kvm->arch.model.ibc,
+			 kvm->arch.model.cpuid);
+		VM_EVENT(kvm, 3, "SET: guest faclist: 0x%16.16llx.%16.16llx.%16.16llx",
+			 kvm->arch.model.fac_list[0],
+			 kvm->arch.model.fac_list[1],
+			 kvm->arch.model.fac_list[2]);
 	} else
 		ret = -EFAULT;
 	kfree(proc);
@@ -894,6 +916,13 @@ static int kvm_s390_get_processor(struct kvm *kvm, struct kvm_device_attr *attr)
 	proc->ibc = kvm->arch.model.ibc;
 	memcpy(&proc->fac_list, kvm->arch.model.fac_list,
 	       S390_ARCH_FAC_LIST_SIZE_BYTE);
+	VM_EVENT(kvm, 3, "GET: guest ibc: 0x%4.4x, guest cpuid: 0x%16.16llx",
+		 kvm->arch.model.ibc,
+		 kvm->arch.model.cpuid);
+	VM_EVENT(kvm, 3, "GET: guest faclist: 0x%16.16llx.%16.16llx.%16.16llx",
+		 kvm->arch.model.fac_list[0],
+		 kvm->arch.model.fac_list[1],
+		 kvm->arch.model.fac_list[2]);
 	if (copy_to_user((void __user *)attr->addr, proc, sizeof(*proc)))
 		ret = -EFAULT;
 	kfree(proc);
@@ -917,6 +946,17 @@ static int kvm_s390_get_machine(struct kvm *kvm, struct kvm_device_attr *attr)
 	       S390_ARCH_FAC_LIST_SIZE_BYTE);
 	memcpy((unsigned long *)&mach->fac_list, S390_lowcore.stfle_fac_list,
 	       sizeof(S390_lowcore.stfle_fac_list));
+	VM_EVENT(kvm, 3, "GET: host ibc:  0x%4.4x, host cpuid:  0x%16.16llx",
+		 kvm->arch.model.ibc,
+		 kvm->arch.model.cpuid);
+	VM_EVENT(kvm, 3, "GET: host facmask:  0x%16.16llx.%16.16llx.%16.16llx",
+		 mach->fac_mask[0],
+		 mach->fac_mask[1],
+		 mach->fac_mask[2]);
+	VM_EVENT(kvm, 3, "GET: host faclist:  0x%16.16llx.%16.16llx.%16.16llx",
+		 mach->fac_list[0],
+		 mach->fac_list[1],
+		 mach->fac_list[2]);
 	if (copy_to_user((void __user *)attr->addr, mach, sizeof(*mach)))
 		ret = -EFAULT;
 	kfree(mach);
@@ -1938,6 +1978,8 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 
 	if (test_kvm_facility(vcpu->kvm, 8) && sclp.has_pfmfi)
 		vcpu->arch.sie_block->ecb2 |= 0x08;
+	if (test_kvm_facility(vcpu->kvm, 130))
+		vcpu->arch.sie_block->ecb2 |= 0x20;
 	vcpu->arch.sie_block->eca = 0x1002000U;
 	if (sclp.has_cei)
 		vcpu->arch.sie_block->eca |= 0x80000000U;
@@ -2578,7 +2620,7 @@ static int vcpu_post_run_fault_in_sie(struct kvm_vcpu *vcpu)
 	 * to look up the current opcode to get the length of the instruction
 	 * to be able to forward the PSW.
 	 */
-	rc = read_guest_instr(vcpu, &opcode, 1);
+	rc = read_guest_instr(vcpu, vcpu->arch.sie_block->gpsw.addr, &opcode, 1);
 	ilen = insn_length(opcode);
 	if (rc < 0) {
 		return rc;
@@ -2759,6 +2801,9 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	int rc;
 	sigset_t sigsaved;
+
+	if (kvm_run->immediate_exit)
+		return -EINTR;
 
 	if (guestdbg_exit_pending(vcpu)) {
 		kvm_s390_prepare_debug_exit(vcpu);

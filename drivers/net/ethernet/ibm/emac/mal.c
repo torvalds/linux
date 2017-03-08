@@ -421,20 +421,20 @@ static int mal_poll(struct napi_struct *napi, int budget)
 		int n;
 		if (unlikely(test_bit(MAL_COMMAC_POLL_DISABLED, &mc->flags)))
 			continue;
-		n = mc->ops->poll_rx(mc->dev, budget);
+		n = mc->ops->poll_rx(mc->dev, budget - received);
 		if (n) {
 			received += n;
-			budget -= n;
-			if (budget <= 0)
-				goto more_work; // XXX What if this is the last one ?
+			if (received >= budget)
+				return budget;
 		}
 	}
 
-	/* We need to disable IRQs to protect from RXDE IRQ here */
-	spin_lock_irqsave(&mal->lock, flags);
-	__napi_complete(napi);
-	mal_enable_eob_irq(mal);
-	spin_unlock_irqrestore(&mal->lock, flags);
+	if (napi_complete_done(napi, received)) {
+		/* We need to disable IRQs to protect from RXDE IRQ here */
+		spin_lock_irqsave(&mal->lock, flags);
+		mal_enable_eob_irq(mal);
+		spin_unlock_irqrestore(&mal->lock, flags);
+	}
 
 	/* Check for "rotting" packet(s) */
 	list_for_each(l, &mal->poll_list) {

@@ -18,8 +18,6 @@
 #include <soc/at91/at91sam9_sdramc.h>
 
 #ifndef __ASSEMBLY__
-extern void __iomem *at91_ramc_base[];
-
 #define at91_ramc_read(id, field) \
 	__raw_readl(at91_ramc_base[id] + field)
 

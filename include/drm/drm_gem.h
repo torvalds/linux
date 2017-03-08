@@ -48,9 +48,9 @@ struct drm_gem_object {
 	 *
 	 * Reference count of this object
 	 *
-	 * Please use drm_gem_object_reference() to acquire and
-	 * drm_gem_object_unreference() or drm_gem_object_unreference_unlocked()
-	 * to release a reference to a GEM buffer object.
+	 * Please use drm_gem_object_get() to acquire and drm_gem_object_put()
+	 * or drm_gem_object_put_unlocked() to release a reference to a GEM
+	 * buffer object.
 	 */
 	struct kref refcount;
 
@@ -187,42 +187,90 @@ int drm_gem_mmap_obj(struct drm_gem_object *obj, unsigned long obj_size,
 int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
 
 /**
- * drm_gem_object_reference - acquire a GEM BO reference
+ * drm_gem_object_get - acquire a GEM buffer object reference
  * @obj: GEM buffer object
  *
- * This acquires additional reference to @obj. It is illegal to call this
- * without already holding a reference. No locks required.
+ * This function acquires an additional reference to @obj. It is illegal to
+ * call this without already holding a reference. No locks required.
  */
-static inline void
-drm_gem_object_reference(struct drm_gem_object *obj)
+static inline void drm_gem_object_get(struct drm_gem_object *obj)
 {
 	kref_get(&obj->refcount);
 }
 
 /**
- * __drm_gem_object_unreference - raw function to release a GEM BO reference
+ * __drm_gem_object_put - raw function to release a GEM buffer object reference
  * @obj: GEM buffer object
  *
  * This function is meant to be used by drivers which are not encumbered with
  * &drm_device.struct_mutex legacy locking and which are using the
  * gem_free_object_unlocked callback. It avoids all the locking checks and
- * locking overhead of drm_gem_object_unreference() and
- * drm_gem_object_unreference_unlocked().
+ * locking overhead of drm_gem_object_put() and drm_gem_object_put_unlocked().
  *
  * Drivers should never call this directly in their code. Instead they should
- * wrap it up into a ``driver_gem_object_unreference(struct driver_gem_object
- * *obj)`` wrapper function, and use that. Shared code should never call this, to
+ * wrap it up into a ``driver_gem_object_put(struct driver_gem_object *obj)``
+ * wrapper function, and use that. Shared code should never call this, to
  * avoid breaking drivers by accident which still depend upon
  * &drm_device.struct_mutex locking.
  */
 static inline void
-__drm_gem_object_unreference(struct drm_gem_object *obj)
+__drm_gem_object_put(struct drm_gem_object *obj)
 {
 	kref_put(&obj->refcount, drm_gem_object_free);
 }
 
-void drm_gem_object_unreference_unlocked(struct drm_gem_object *obj);
-void drm_gem_object_unreference(struct drm_gem_object *obj);
+void drm_gem_object_put_unlocked(struct drm_gem_object *obj);
+void drm_gem_object_put(struct drm_gem_object *obj);
+
+/**
+ * drm_gem_object_reference - acquire a GEM buffer object reference
+ * @obj: GEM buffer object
+ *
+ * This is a compatibility alias for drm_gem_object_get() and should not be
+ * used by new code.
+ */
+static inline void drm_gem_object_reference(struct drm_gem_object *obj)
+{
+	drm_gem_object_get(obj);
+}
+
+/**
+ * __drm_gem_object_unreference - raw function to release a GEM buffer object
+ *                                reference
+ * @obj: GEM buffer object
+ *
+ * This is a compatibility alias for __drm_gem_object_put() and should not be
+ * used by new code.
+ */
+static inline void __drm_gem_object_unreference(struct drm_gem_object *obj)
+{
+	__drm_gem_object_put(obj);
+}
+
+/**
+ * drm_gem_object_unreference_unlocked - release a GEM buffer object reference
+ * @obj: GEM buffer object
+ *
+ * This is a compatibility alias for drm_gem_object_put_unlocked() and should
+ * not be used by new code.
+ */
+static inline void
+drm_gem_object_unreference_unlocked(struct drm_gem_object *obj)
+{
+	drm_gem_object_put_unlocked(obj);
+}
+
+/**
+ * drm_gem_object_unreference - release a GEM buffer object reference
+ * @obj: GEM buffer object
+ *
+ * This is a compatibility alias for drm_gem_object_put() and should not be
+ * used by new code.
+ */
+static inline void drm_gem_object_unreference(struct drm_gem_object *obj)
+{
+	drm_gem_object_put(obj);
+}
 
 int drm_gem_handle_create(struct drm_file *file_priv,
 			  struct drm_gem_object *obj,

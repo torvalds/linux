@@ -199,24 +199,6 @@ static void hdlcd_irq_uninstall(struct drm_device *drm)
 	hdlcd_write(hdlcd, HDLCD_REG_INT_MASK, irq_mask);
 }
 
-static int hdlcd_enable_vblank(struct drm_device *drm, unsigned int crtc)
-{
-	struct hdlcd_drm_private *hdlcd = drm->dev_private;
-	unsigned int mask = hdlcd_read(hdlcd, HDLCD_REG_INT_MASK);
-
-	hdlcd_write(hdlcd, HDLCD_REG_INT_MASK, mask | HDLCD_INTERRUPT_VSYNC);
-
-	return 0;
-}
-
-static void hdlcd_disable_vblank(struct drm_device *drm, unsigned int crtc)
-{
-	struct hdlcd_drm_private *hdlcd = drm->dev_private;
-	unsigned int mask = hdlcd_read(hdlcd, HDLCD_REG_INT_MASK);
-
-	hdlcd_write(hdlcd, HDLCD_REG_INT_MASK, mask & ~HDLCD_INTERRUPT_VSYNC);
-}
-
 #ifdef CONFIG_DEBUG_FS
 static int hdlcd_show_underrun_count(struct seq_file *m, void *arg)
 {
@@ -278,9 +260,6 @@ static struct drm_driver hdlcd_driver = {
 	.irq_preinstall = hdlcd_irq_preinstall,
 	.irq_postinstall = hdlcd_irq_postinstall,
 	.irq_uninstall = hdlcd_irq_uninstall,
-	.get_vblank_counter = drm_vblank_no_hw_counter,
-	.enable_vblank = hdlcd_enable_vblank,
-	.disable_vblank = hdlcd_disable_vblank,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = drm_gem_cma_dumb_create,

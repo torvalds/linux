@@ -44,6 +44,7 @@
 #include <linux/pci.h>
 #include <linux/aer.h>
 #include <linux/nmi.h>
+#include <linux/sched/clock.h>
 
 #include <acpi/ghes.h>
 #include <acpi/apei.h>

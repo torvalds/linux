@@ -168,9 +168,8 @@ static void mtk_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	state->pending_config = true;
 }
 
-int mtk_drm_crtc_enable_vblank(struct drm_device *drm, unsigned int pipe)
+static int mtk_drm_crtc_enable_vblank(struct drm_crtc *crtc)
 {
-	struct drm_crtc *crtc = drm_crtc_from_index(drm, pipe);
 	struct mtk_drm_crtc *mtk_crtc = to_mtk_crtc(crtc);
 	struct mtk_ddp_comp *ovl = mtk_crtc->ddp_comp[0];
 
@@ -179,9 +178,8 @@ int mtk_drm_crtc_enable_vblank(struct drm_device *drm, unsigned int pipe)
 	return 0;
 }
 
-void mtk_drm_crtc_disable_vblank(struct drm_device *drm, unsigned int pipe)
+static void mtk_drm_crtc_disable_vblank(struct drm_crtc *crtc)
 {
-	struct drm_crtc *crtc = drm_crtc_from_index(drm, pipe);
 	struct mtk_drm_crtc *mtk_crtc = to_mtk_crtc(crtc);
 	struct mtk_ddp_comp *ovl = mtk_crtc->ddp_comp[0];
 
@@ -436,6 +434,8 @@ static const struct drm_crtc_funcs mtk_crtc_funcs = {
 	.atomic_duplicate_state	= mtk_drm_crtc_duplicate_state,
 	.atomic_destroy_state	= mtk_drm_crtc_destroy_state,
 	.gamma_set		= drm_atomic_helper_legacy_gamma_set,
+	.enable_vblank		= mtk_drm_crtc_enable_vblank,
+	.disable_vblank		= mtk_drm_crtc_disable_vblank,
 };
 
 static const struct drm_crtc_helper_funcs mtk_crtc_helper_funcs = {

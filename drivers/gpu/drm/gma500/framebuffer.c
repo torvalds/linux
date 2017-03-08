@@ -111,8 +111,9 @@ static int psbfb_pan(struct fb_var_screeninfo *var, struct fb_info *info)
         return 0;
 }
 
-static int psbfb_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int psbfb_vm_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	struct psb_framebuffer *psbfb = vma->vm_private_data;
 	struct drm_device *dev = psbfb->base.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
@@ -392,7 +393,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	info = drm_fb_helper_alloc_fbi(&fbdev->psb_fb_helper);
 	if (IS_ERR(info)) {
 		ret = PTR_ERR(info);
-		goto err_free_range;
+		goto out;
 	}
 	info->par = fbdev;
 
@@ -400,7 +401,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 
 	ret = psb_framebuffer_init(dev, psbfb, &mode_cmd, backing);
 	if (ret)
-		goto err_release;
+		goto out;
 
 	fb = &psbfb->base;
 	psbfb->fbdev = info;
@@ -445,9 +446,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 					psbfb->base.width, psbfb->base.height);
 
 	return 0;
-err_release:
-	drm_fb_helper_release_fbi(&fbdev->psb_fb_helper);
-err_free_range:
+out:
 	psb_gtt_free_range(dev, backing);
 	return ret;
 }
@@ -536,7 +535,6 @@ static int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
 	struct psb_framebuffer *psbfb = &fbdev->pfb;
 
 	drm_fb_helper_unregister_fbi(&fbdev->psb_fb_helper);
-	drm_fb_helper_release_fbi(&fbdev->psb_fb_helper);
 
 	drm_fb_helper_fini(&fbdev->psb_fb_helper);
 	drm_framebuffer_unregister_private(&psbfb->base);

@@ -117,8 +117,7 @@ static void qxl_gc_work(struct work_struct *work)
 
 int qxl_device_init(struct qxl_device *qdev,
 		    struct drm_driver *drv,
-		    struct pci_dev *pdev,
-		    unsigned long flags)
+		    struct pci_dev *pdev)
 {
 	int r, sb;
 
@@ -129,8 +128,6 @@ int qxl_device_init(struct qxl_device *qdev,
 	qdev->ddev.pdev = pdev;
 	pci_set_drvdata(pdev, &qdev->ddev);
 	qdev->ddev.dev_private = qdev;
-
-	qdev->flags = flags;
 
 	mutex_init(&qdev->gem.mutex);
 	mutex_init(&qdev->update_area_mutex);

@@ -126,7 +126,7 @@ static int mxsfb_pipe_prepare_fb(struct drm_simple_display_pipe *pipe,
 	return drm_fb_cma_prepare_fb(&pipe->plane, plane_state);
 }
 
-struct drm_simple_display_pipe_funcs mxsfb_funcs = {
+static struct drm_simple_display_pipe_funcs mxsfb_funcs = {
 	.enable		= mxsfb_pipe_enable,
 	.disable	= mxsfb_pipe_disable,
 	.update		= mxsfb_pipe_update,
@@ -221,6 +221,7 @@ static int mxsfb_load(struct drm_device *drm, unsigned long flags)
 	mxsfb->fbdev = drm_fbdev_cma_init(drm, 32,
 					  drm->mode_config.num_connector);
 	if (IS_ERR(mxsfb->fbdev)) {
+		ret = PTR_ERR(mxsfb->fbdev);
 		mxsfb->fbdev = NULL;
 		dev_err(drm->dev, "Failed to init FB CMA area\n");
 		goto err_cma;
@@ -340,7 +341,6 @@ static struct drm_driver mxsfb_driver = {
 	.irq_handler		= mxsfb_irq_handler,
 	.irq_preinstall		= mxsfb_irq_preinstall,
 	.irq_uninstall		= mxsfb_irq_preinstall,
-	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= mxsfb_enable_vblank,
 	.disable_vblank		= mxsfb_disable_vblank,
 	.gem_free_object	= drm_gem_cma_free_object,

@@ -334,19 +334,6 @@ extern int ttm_bo_validate(struct ttm_buffer_object *bo,
  */
 extern void ttm_bo_unref(struct ttm_buffer_object **bo);
 
-
-/**
- * ttm_bo_list_ref_sub
- *
- * @bo: The buffer object.
- * @count: The number of references with which to decrease @bo::list_kref;
- * @never_free: The refcount should not reach zero with this operation.
- *
- * Release @count lru list references to this buffer object.
- */
-extern void ttm_bo_list_ref_sub(struct ttm_buffer_object *bo, int count,
-				bool never_free);
-
 /**
  * ttm_bo_add_to_lru
  *
@@ -369,7 +356,7 @@ extern void ttm_bo_add_to_lru(struct ttm_buffer_object *bo);
  * and is usually called just immediately after the bo has been reserved to
  * avoid recursive reservation from lru lists.
  */
-extern int ttm_bo_del_from_lru(struct ttm_buffer_object *bo);
+extern void ttm_bo_del_from_lru(struct ttm_buffer_object *bo);
 
 /**
  * ttm_bo_move_to_lru_tail

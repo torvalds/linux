@@ -422,6 +422,5 @@ static inline void virtio_gpu_object_unreserve(struct virtio_gpu_object *bo)
 
 /* virgl debufs */
 int virtio_gpu_debugfs_init(struct drm_minor *minor);
-void virtio_gpu_debugfs_takedown(struct drm_minor *minor);
 
 #endif

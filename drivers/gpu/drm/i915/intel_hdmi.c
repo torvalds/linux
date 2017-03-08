@@ -36,6 +36,7 @@
 #include <drm/drm_edid.h>
 #include "intel_drv.h"
 #include <drm/i915_drm.h>
+#include <drm/intel_lpe_audio.h>
 #include "i915_drv.h"
 
 static struct drm_device *intel_hdmi_to_dev(struct intel_hdmi *intel_hdmi)

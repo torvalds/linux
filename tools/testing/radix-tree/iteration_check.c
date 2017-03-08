@@ -177,7 +177,7 @@ void iteration_test(unsigned order, unsigned test_duration)
 {
 	int i;
 
-	printf("Running %siteration tests for %d seconds\n",
+	printv(1, "Running %siteration tests for %d seconds\n",
 			order > 0 ? "multiorder " : "", test_duration);
 
 	max_order = order;

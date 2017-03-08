@@ -1254,8 +1254,7 @@ static int dss_bind(struct device *dev)
 	dss.lcd_clk_source[1] = DSS_CLK_SRC_FCK;
 
 	rev = dss_read_reg(DSS_REVISION);
-	printk(KERN_INFO "OMAP DSS rev %d.%d\n",
-			FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
+	pr_info("OMAP DSS rev %d.%d\n", FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
 
 	dss_runtime_put();
 

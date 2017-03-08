@@ -291,7 +291,7 @@ ksocknal_match_tx(struct ksock_conn *conn, struct ksock_tx *tx, int nonblk)
 	} else {
 		nob = tx->tx_lnetmsg->msg_len +
 		      ((conn->ksnc_proto == &ksocknal_protocol_v1x) ?
-		       sizeof(lnet_hdr_t) : sizeof(ksock_msg_t));
+		       sizeof(struct lnet_hdr) : sizeof(ksock_msg_t));
 	}
 
 	/* default checking for typed connection */
@@ -459,23 +459,23 @@ static int
 ksocknal_send_hello_v1(struct ksock_conn *conn, ksock_hello_msg_t *hello)
 {
 	struct socket *sock = conn->ksnc_sock;
-	lnet_hdr_t *hdr;
-	lnet_magicversion_t *hmv;
+	struct lnet_hdr *hdr;
+	struct lnet_magicversion *hmv;
 	int rc;
 	int i;
 
-	CLASSERT(sizeof(lnet_magicversion_t) == offsetof(lnet_hdr_t, src_nid));
+	BUILD_BUG_ON(sizeof(struct lnet_magicversion) != offsetof(struct lnet_hdr, src_nid));
 
 	LIBCFS_ALLOC(hdr, sizeof(*hdr));
 	if (!hdr) {
-		CERROR("Can't allocate lnet_hdr_t\n");
+		CERROR("Can't allocate struct lnet_hdr\n");
 		return -ENOMEM;
 	}
 
-	hmv = (lnet_magicversion_t *)&hdr->dest_nid;
+	hmv = (struct lnet_magicversion *)&hdr->dest_nid;
 
 	/*
-	 * Re-organize V2.x message header to V1.x (lnet_hdr_t)
+	 * Re-organize V2.x message header to V1.x (struct lnet_hdr)
 	 * header and send out
 	 */
 	hmv->magic         = cpu_to_le32(LNET_PROTO_TCP_MAGIC);
@@ -577,18 +577,18 @@ ksocknal_recv_hello_v1(struct ksock_conn *conn, ksock_hello_msg_t *hello,
 		       int timeout)
 {
 	struct socket *sock = conn->ksnc_sock;
-	lnet_hdr_t *hdr;
+	struct lnet_hdr *hdr;
 	int rc;
 	int i;
 
 	LIBCFS_ALLOC(hdr, sizeof(*hdr));
 	if (!hdr) {
-		CERROR("Can't allocate lnet_hdr_t\n");
+		CERROR("Can't allocate struct lnet_hdr\n");
 		return -ENOMEM;
 	}
 
 	rc = lnet_sock_read(sock, &hdr->src_nid,
-			    sizeof(*hdr) - offsetof(lnet_hdr_t, src_nid),
+			    sizeof(*hdr) - offsetof(struct lnet_hdr, src_nid),
 			    timeout);
 	if (rc) {
 		CERROR("Error %d reading rest of HELLO hdr from %pI4h\n",
@@ -723,10 +723,10 @@ ksocknal_pack_msg_v1(struct ksock_tx *tx)
 	LASSERT(tx->tx_lnetmsg);
 
 	tx->tx_iov[0].iov_base = &tx->tx_lnetmsg->msg_hdr;
-	tx->tx_iov[0].iov_len  = sizeof(lnet_hdr_t);
+	tx->tx_iov[0].iov_len  = sizeof(struct lnet_hdr);
 
-	tx->tx_nob = tx->tx_lnetmsg->msg_len + sizeof(lnet_hdr_t);
-	tx->tx_resid = tx->tx_lnetmsg->msg_len + sizeof(lnet_hdr_t);
+	tx->tx_nob = tx->tx_lnetmsg->msg_len + sizeof(struct lnet_hdr);
+	tx->tx_resid = tx->tx_lnetmsg->msg_len + sizeof(struct lnet_hdr);
 }
 
 static void

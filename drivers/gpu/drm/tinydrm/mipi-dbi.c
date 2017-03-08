@@ -64,7 +64,7 @@
 	else if (len <= 32) \
 		DRM_DEBUG_DRIVER("cmd=%02x, par=%*ph\n", cmd, (int)len, data);\
 	else \
-		DRM_DEBUG_DRIVER("cmd=%02x, len=%zu\n", cmd, (int)len); \
+		DRM_DEBUG_DRIVER("cmd=%02x, len=%zu\n", cmd, len); \
 })
 
 static const u8 mipi_dbi_dcs_read_commands[] = {

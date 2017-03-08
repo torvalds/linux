@@ -67,7 +67,7 @@
 	vcc5_host2: vcc5-host2-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio0 12 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb2_pwr_en>;
 		regulator-name = "vcc5_host2";
@@ -103,8 +103,8 @@
 &rk808 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pmic_int_l &dvs_1 &dvs_2>;
-	dvs-gpios = <&gpio7 11 GPIO_ACTIVE_HIGH>,
-		    <&gpio7 15 GPIO_ACTIVE_HIGH>;
+	dvs-gpios = <&gpio7 RK_PB3 GPIO_ACTIVE_HIGH>,
+		    <&gpio7 RK_PB7 GPIO_ACTIVE_HIGH>;
 
 	/delete-property/ vcc6-supply;
 
@@ -133,7 +133,7 @@
 
 &vcc50_hdmi {
 	enable-active-high;
-	gpio = <&gpio7 2 GPIO_ACTIVE_HIGH>;
+	gpio = <&gpio7 RK_PA2 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&vcc50_hdmi_en>;
 };

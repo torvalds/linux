@@ -195,7 +195,7 @@ static ssize_t notes_read(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute notes_attr = {
+static struct bin_attribute notes_attr __ro_after_init  = {
 	.attr = {
 		.name = "notes",
 		.mode = S_IRUGO,

@@ -192,7 +192,7 @@ static void nios2_dma_sync_sg_for_device(struct device *dev,
 
 }
 
-struct dma_map_ops nios2_dma_ops = {
+const struct dma_map_ops nios2_dma_ops = {
 	.alloc			= nios2_dma_alloc,
 	.free			= nios2_dma_free,
 	.map_page		= nios2_dma_map_page,

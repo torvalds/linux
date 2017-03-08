@@ -107,10 +107,8 @@ static int bochsfb_create(struct drm_fb_helper *helper,
 	info->par = &bochs->fb.helper;
 
 	ret = bochs_framebuffer_init(bochs->dev, &bochs->fb.gfb, &mode_cmd, gobj);
-	if (ret) {
-		drm_fb_helper_release_fbi(helper);
+	if (ret)
 		return ret;
-	}
 
 	bochs->fb.size = size;
 
@@ -144,7 +142,6 @@ static int bochs_fbdev_destroy(struct bochs_device *bochs)
 	DRM_DEBUG_DRIVER("\n");
 
 	drm_fb_helper_unregister_fbi(&bochs->fb.helper);
-	drm_fb_helper_release_fbi(&bochs->fb.helper);
 
 	if (gfb->obj) {
 		drm_gem_object_unreference_unlocked(gfb->obj);

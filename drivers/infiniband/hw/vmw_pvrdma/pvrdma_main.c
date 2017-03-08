@@ -132,13 +132,14 @@ static int pvrdma_port_immutable(struct ib_device *ibdev, u8 port_num,
 	struct ib_port_attr attr;
 	int err;
 
-	err = pvrdma_query_port(ibdev, port_num, &attr);
+	immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE;
+
+	err = ib_query_port(ibdev, port_num, &attr);
 	if (err)
 		return err;
 
 	immutable->pkey_tbl_len = attr.pkey_tbl_len;
 	immutable->gid_tbl_len = attr.gid_tbl_len;
-	immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE;
 	immutable->max_mad_size = IB_MGMT_MAD_SIZE;
 	return 0;
 }
@@ -172,7 +173,7 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 	dev->flags = 0;
 	dev->ib_dev.owner = THIS_MODULE;
 	dev->ib_dev.num_comp_vectors = 1;
-	dev->ib_dev.dma_device = &dev->pdev->dev;
+	dev->ib_dev.dev.parent = &dev->pdev->dev;
 	dev->ib_dev.uverbs_abi_ver = PVRDMA_UVERBS_ABI_VERSION;
 	dev->ib_dev.uverbs_cmd_mask =
 		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT)		|
@@ -282,7 +283,7 @@ static irqreturn_t pvrdma_intr0_handler(int irq, void *dev_id)
 
 	dev_dbg(&dev->pdev->dev, "interrupt 0 (response) handler\n");
 
-	if (dev->intr.type != PVRDMA_INTR_TYPE_MSIX) {
+	if (!dev->pdev->msix_enabled) {
 		/* Legacy intr */
 		icr = pvrdma_read_reg(dev, PVRDMA_REG_ICR);
 		if (icr == 0)
@@ -489,31 +490,13 @@ static irqreturn_t pvrdma_intrx_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void pvrdma_disable_msi_all(struct pvrdma_dev *dev)
-{
-	if (dev->intr.type == PVRDMA_INTR_TYPE_MSIX)
-		pci_disable_msix(dev->pdev);
-	else if (dev->intr.type == PVRDMA_INTR_TYPE_MSI)
-		pci_disable_msi(dev->pdev);
-}
-
 static void pvrdma_free_irq(struct pvrdma_dev *dev)
 {
 	int i;
 
 	dev_dbg(&dev->pdev->dev, "freeing interrupts\n");
-
-	if (dev->intr.type == PVRDMA_INTR_TYPE_MSIX) {
-		for (i = 0; i < dev->intr.size; i++) {
-			if (dev->intr.enabled[i]) {
-				free_irq(dev->intr.msix_entry[i].vector, dev);
-				dev->intr.enabled[i] = 0;
-			}
-		}
-	} else if (dev->intr.type == PVRDMA_INTR_TYPE_INTX ||
-		   dev->intr.type == PVRDMA_INTR_TYPE_MSI) {
-		free_irq(dev->pdev->irq, dev);
-	}
+	for (i = 0; i < dev->nr_vectors; i++)
+		free_irq(pci_irq_vector(dev->pdev, i), dev);
 }
 
 static void pvrdma_enable_intrs(struct pvrdma_dev *dev)
@@ -528,126 +511,48 @@ static void pvrdma_disable_intrs(struct pvrdma_dev *dev)
 	pvrdma_write_reg(dev, PVRDMA_REG_IMR, ~0);
 }
 
-static int pvrdma_enable_msix(struct pci_dev *pdev, struct pvrdma_dev *dev)
-{
-	int i;
-	int ret;
-
-	for (i = 0; i < PVRDMA_MAX_INTERRUPTS; i++) {
-		dev->intr.msix_entry[i].entry = i;
-		dev->intr.msix_entry[i].vector = i;
-
-		switch (i) {
-		case 0:
-			/* CMD ring handler */
-			dev->intr.handler[i] = pvrdma_intr0_handler;
-			break;
-		case 1:
-			/* Async event ring handler */
-			dev->intr.handler[i] = pvrdma_intr1_handler;
-			break;
-		default:
-			/* Completion queue handler */
-			dev->intr.handler[i] = pvrdma_intrx_handler;
-			break;
-		}
-	}
-
-	ret = pci_enable_msix(pdev, dev->intr.msix_entry,
-			      PVRDMA_MAX_INTERRUPTS);
-	if (!ret) {
-		dev->intr.type = PVRDMA_INTR_TYPE_MSIX;
-		dev->intr.size = PVRDMA_MAX_INTERRUPTS;
-	} else if (ret > 0) {
-		ret = pci_enable_msix(pdev, dev->intr.msix_entry, ret);
-		if (!ret) {
-			dev->intr.type = PVRDMA_INTR_TYPE_MSIX;
-			dev->intr.size = ret;
-		} else {
-			dev->intr.size = 0;
-		}
-	}
-
-	dev_dbg(&pdev->dev, "using interrupt type %d, size %d\n",
-		dev->intr.type, dev->intr.size);
-
-	return ret;
-}
-
 static int pvrdma_alloc_intrs(struct pvrdma_dev *dev)
 {
-	int ret = 0;
-	int i;
+	struct pci_dev *pdev = dev->pdev;
+	int ret = 0, i;
 
-	if (pci_find_capability(dev->pdev, PCI_CAP_ID_MSIX) &&
-	    pvrdma_enable_msix(dev->pdev, dev)) {
-		/* Try MSI */
-		ret = pci_enable_msi(dev->pdev);
-		if (!ret) {
-			dev->intr.type = PVRDMA_INTR_TYPE_MSI;
-		} else {
-			/* Legacy INTR */
-			dev->intr.type = PVRDMA_INTR_TYPE_INTX;
-		}
+	ret = pci_alloc_irq_vectors(pdev, 1, PVRDMA_MAX_INTERRUPTS,
+			PCI_IRQ_MSIX);
+	if (ret < 0) {
+		ret = pci_alloc_irq_vectors(pdev, 1, 1,
+				PCI_IRQ_MSI | PCI_IRQ_LEGACY);
+		if (ret < 0)
+			return ret;
+	}
+	dev->nr_vectors = ret;
+
+	ret = request_irq(pci_irq_vector(dev->pdev, 0), pvrdma_intr0_handler,
+			pdev->msix_enabled ? 0 : IRQF_SHARED, DRV_NAME, dev);
+	if (ret) {
+		dev_err(&dev->pdev->dev,
+			"failed to request interrupt 0\n");
+		goto out_free_vectors;
 	}
 
-	/* Request First IRQ */
-	switch (dev->intr.type) {
-	case PVRDMA_INTR_TYPE_INTX:
-	case PVRDMA_INTR_TYPE_MSI:
-		ret = request_irq(dev->pdev->irq, pvrdma_intr0_handler,
-				  IRQF_SHARED, DRV_NAME, dev);
+	for (i = 1; i < dev->nr_vectors; i++) {
+		ret = request_irq(pci_irq_vector(dev->pdev, i),
+				i == 1 ? pvrdma_intr1_handler :
+					 pvrdma_intrx_handler,
+				0, DRV_NAME, dev);
 		if (ret) {
 			dev_err(&dev->pdev->dev,
-				"failed to request interrupt\n");
-			goto disable_msi;
-		}
-		break;
-	case PVRDMA_INTR_TYPE_MSIX:
-		ret = request_irq(dev->intr.msix_entry[0].vector,
-				  pvrdma_intr0_handler, 0, DRV_NAME, dev);
-		if (ret) {
-			dev_err(&dev->pdev->dev,
-				"failed to request interrupt 0\n");
-			goto disable_msi;
-		}
-		dev->intr.enabled[0] = 1;
-		break;
-	default:
-		/* Not reached */
-		break;
-	}
-
-	/* For MSIX: request intr for each vector */
-	if (dev->intr.size > 1) {
-		ret = request_irq(dev->intr.msix_entry[1].vector,
-				  pvrdma_intr1_handler, 0, DRV_NAME, dev);
-		if (ret) {
-			dev_err(&dev->pdev->dev,
-				"failed to request interrupt 1\n");
-			goto free_irq;
-		}
-		dev->intr.enabled[1] = 1;
-
-		for (i = 2; i < dev->intr.size; i++) {
-			ret = request_irq(dev->intr.msix_entry[i].vector,
-					  pvrdma_intrx_handler, 0,
-					  DRV_NAME, dev);
-			if (ret) {
-				dev_err(&dev->pdev->dev,
-					"failed to request interrupt %d\n", i);
-				goto free_irq;
-			}
-			dev->intr.enabled[i] = 1;
+				"failed to request interrupt %d\n", i);
+			goto free_irqs;
 		}
 	}
 
 	return 0;
 
-free_irq:
-	pvrdma_free_irq(dev);
-disable_msi:
-	pvrdma_disable_msi_all(dev);
+free_irqs:
+	while (--i >= 0)
+		free_irq(pci_irq_vector(dev->pdev, i), dev);
+out_free_vectors:
+	pci_free_irq_vectors(pdev);
 	return ret;
 }
 
@@ -1091,7 +996,7 @@ err_free_uar_table:
 	pvrdma_uar_table_cleanup(dev);
 err_free_intrs:
 	pvrdma_free_irq(dev);
-	pvrdma_disable_msi_all(dev);
+	pci_free_irq_vectors(pdev);
 err_free_cq_ring:
 	pvrdma_page_dir_cleanup(dev, &dev->cq_pdir);
 err_free_async_ring:
@@ -1141,7 +1046,7 @@ static void pvrdma_pci_remove(struct pci_dev *pdev)
 
 	pvrdma_disable_intrs(dev);
 	pvrdma_free_irq(dev);
-	pvrdma_disable_msi_all(dev);
+	pci_free_irq_vectors(pdev);
 
 	/* Deactivate pvrdma device */
 	pvrdma_write_reg(dev, PVRDMA_REG_CTL, PVRDMA_DEVICE_CTL_RESET);

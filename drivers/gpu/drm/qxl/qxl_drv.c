@@ -79,17 +79,13 @@ qxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		goto free_dev;
 
-	ret = qxl_device_init(qdev, &qxl_driver, pdev, ent->driver_data);
+	ret = qxl_device_init(qdev, &qxl_driver, pdev);
 	if (ret)
 		goto disable_pci;
 
-	ret = drm_vblank_init(&qdev->ddev, 1);
-	if (ret)
-		goto unload;
-
 	ret = qxl_modeset_init(qdev);
 	if (ret)
-		goto vblank_cleanup;
+		goto unload;
 
 	drm_kms_helper_poll_init(&qdev->ddev);
 
@@ -102,8 +98,6 @@ qxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 modeset_cleanup:
 	qxl_modeset_fini(qdev);
-vblank_cleanup:
-	drm_vblank_cleanup(&qdev->ddev);
 unload:
 	qxl_device_fini(qdev);
 disable_pci:
@@ -247,21 +241,6 @@ static int qxl_pm_restore(struct device *dev)
 	return qxl_drm_resume(drm_dev, false);
 }
 
-static u32 qxl_noop_get_vblank_counter(struct drm_device *dev,
-				       unsigned int pipe)
-{
-	return 0;
-}
-
-static int qxl_noop_enable_vblank(struct drm_device *dev, unsigned int pipe)
-{
-	return 0;
-}
-
-static void qxl_noop_disable_vblank(struct drm_device *dev, unsigned int pipe)
-{
-}
-
 static const struct dev_pm_ops qxl_pm_ops = {
 	.suspend = qxl_pm_suspend,
 	.resume = qxl_pm_resume,
@@ -280,10 +259,8 @@ static struct pci_driver qxl_pci_driver = {
 
 static struct drm_driver qxl_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
-			   DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED,
-	.get_vblank_counter = qxl_noop_get_vblank_counter,
-	.enable_vblank = qxl_noop_enable_vblank,
-	.disable_vblank = qxl_noop_disable_vblank,
+			   DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED |
+			   DRIVER_ATOMIC,
 
 	.set_busid = drm_pci_set_busid,
 
@@ -292,7 +269,6 @@ static struct drm_driver qxl_driver = {
 	.dumb_destroy = drm_gem_dumb_destroy,
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = qxl_debugfs_init,
-	.debugfs_cleanup = qxl_debugfs_takedown,
 #endif
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,

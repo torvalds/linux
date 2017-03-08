@@ -25,8 +25,14 @@ void ccu_mux_helper_adjust_parent_for_prediv(struct ccu_common *common,
 	int i;
 
 	if (!((common->features & CCU_FEATURE_FIXED_PREDIV) ||
-	      (common->features & CCU_FEATURE_VARIABLE_PREDIV)))
+	      (common->features & CCU_FEATURE_VARIABLE_PREDIV) ||
+	      (common->features & CCU_FEATURE_ALL_PREDIV)))
 		return;
+
+	if (common->features & CCU_FEATURE_ALL_PREDIV) {
+		*parent_rate = *parent_rate / common->prediv;
+		return;
+	}
 
 	reg = readl(common->base + common->reg);
 	if (parent_index < 0) {
@@ -64,19 +70,46 @@ int ccu_mux_helper_determine_rate(struct ccu_common *common,
 	struct clk_hw *best_parent, *hw = &common->hw;
 	unsigned int i;
 
+	if (clk_hw_get_flags(hw) & CLK_SET_RATE_NO_REPARENT) {
+		unsigned long adj_parent_rate;
+
+		best_parent = clk_hw_get_parent(hw);
+		best_parent_rate = clk_hw_get_rate(best_parent);
+
+		adj_parent_rate = best_parent_rate;
+		ccu_mux_helper_adjust_parent_for_prediv(common, cm, -1,
+							&adj_parent_rate);
+
+		best_rate = round(cm, adj_parent_rate, req->rate, data);
+
+		goto out;
+	}
+
 	for (i = 0; i < clk_hw_get_num_parents(hw); i++) {
-		unsigned long tmp_rate, parent_rate;
+		unsigned long tmp_rate, parent_rate, adj_parent_rate;
 		struct clk_hw *parent;
 
 		parent = clk_hw_get_parent_by_index(hw, i);
 		if (!parent)
 			continue;
 
-		parent_rate = clk_hw_get_rate(parent);
-		ccu_mux_helper_adjust_parent_for_prediv(common, cm, i,
-							&parent_rate);
+		if (clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT) {
+			struct clk_rate_request parent_req = *req;
+			int ret = __clk_determine_rate(parent, &parent_req);
 
-		tmp_rate = round(cm, clk_hw_get_rate(parent), req->rate, data);
+			if (ret)
+				continue;
+
+			parent_rate = parent_req.rate;
+		} else {
+			parent_rate = clk_hw_get_rate(parent);
+		}
+
+		adj_parent_rate = parent_rate;
+		ccu_mux_helper_adjust_parent_for_prediv(common, cm, i,
+							&adj_parent_rate);
+
+		tmp_rate = round(cm, adj_parent_rate, req->rate, data);
 		if (tmp_rate == req->rate) {
 			best_parent = parent;
 			best_parent_rate = parent_rate;

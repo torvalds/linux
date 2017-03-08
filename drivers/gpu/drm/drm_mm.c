@@ -170,7 +170,7 @@ struct drm_mm_node *
 __drm_mm_interval_first(const struct drm_mm *mm, u64 start, u64 last)
 {
 	return drm_mm_interval_tree_iter_first((struct rb_root *)&mm->interval_tree,
-					       start, last);
+					       start, last) ?: (struct drm_mm_node *)&mm->head_node;
 }
 EXPORT_SYMBOL(__drm_mm_interval_first);
 

@@ -1163,7 +1163,7 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 	if (IS_GEN5(dev_priv))
 		intel_gpu_ips_init(dev_priv);
 
-	i915_audio_component_init(dev_priv);
+	intel_audio_init(dev_priv);
 
 	/*
 	 * Some ports require correctly set-up hpd registers for detection to
@@ -1181,7 +1181,7 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
  */
 static void i915_driver_unregister(struct drm_i915_private *dev_priv)
 {
-	i915_audio_component_cleanup(dev_priv);
+	intel_audio_deinit(dev_priv);
 
 	intel_gpu_ips_teardown();
 	acpi_video_unregister();
@@ -1191,7 +1191,6 @@ static void i915_driver_unregister(struct drm_i915_private *dev_priv)
 
 	i915_teardown_sysfs(dev_priv);
 	i915_guc_log_unregister(dev_priv);
-	i915_debugfs_unregister(dev_priv);
 	drm_dev_unregister(&dev_priv->drm);
 
 	i915_gem_shrinker_cleanup(dev_priv);

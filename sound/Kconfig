@@ -108,6 +108,8 @@ source "sound/parisc/Kconfig"
 
 source "sound/soc/Kconfig"
 
+source "sound/x86/Kconfig"
+
 endif # SND
 
 menuconfig SOUND_PRIME

@@ -255,14 +255,14 @@ static void ca_midi_output_trigger(struct snd_rawmidi_substream *substream, int 
 	}
 }
 
-static struct snd_rawmidi_ops ca_midi_output =
+static const struct snd_rawmidi_ops ca_midi_output =
 {
 	.open =		ca_midi_output_open,
 	.close =	ca_midi_output_close,
 	.trigger =	ca_midi_output_trigger,
 };
 
-static struct snd_rawmidi_ops ca_midi_input =
+static const struct snd_rawmidi_ops ca_midi_input =
 {
 	.open =		ca_midi_input_open,
 	.close =	ca_midi_input_close,

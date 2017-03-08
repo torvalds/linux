@@ -54,11 +54,3 @@ virtio_gpu_debugfs_init(struct drm_minor *minor)
 				 minor->debugfs_root, minor);
 	return 0;
 }
-
-void
-virtio_gpu_debugfs_takedown(struct drm_minor *minor)
-{
-	drm_debugfs_remove_files(virtio_gpu_debugfs_list,
-				 VIRTIO_GPU_DEBUGFS_ENTRIES,
-				 minor);
-}

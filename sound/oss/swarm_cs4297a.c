@@ -64,7 +64,7 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/ioport.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/delay.h>
 #include <linux/sound.h>
 #include <linux/slab.h>

@@ -276,7 +276,7 @@ static inline void i915_gem_object_unlock(struct drm_i915_gem_object *obj)
 static inline bool
 i915_gem_object_is_dead(const struct drm_i915_gem_object *obj)
 {
-	return atomic_read(&obj->base.refcount.refcount) == 0;
+	return kref_read(&obj->base.refcount) == 0;
 }
 
 static inline bool

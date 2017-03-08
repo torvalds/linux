@@ -63,6 +63,7 @@ enum qlock_stats {
  */
 #include <linux/debugfs.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/fs.h>
 
 static const char * const qstat_names[qstat_num + 1] = {

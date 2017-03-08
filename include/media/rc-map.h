@@ -17,7 +17,7 @@
  * @RC_TYPE_UNKNOWN: Protocol not known
  * @RC_TYPE_OTHER: Protocol known but proprietary
  * @RC_TYPE_RC5: Philips RC5 protocol
- * @RC_TYPE_RC5X: Philips RC5x protocol
+ * @RC_TYPE_RC5X_20: Philips RC5x 20 bit protocol
  * @RC_TYPE_RC5_SZ: StreamZap variant of RC5
  * @RC_TYPE_JVC: JVC protocol
  * @RC_TYPE_SONY12: Sony 12 bit protocol
@@ -41,7 +41,7 @@ enum rc_type {
 	RC_TYPE_UNKNOWN		= 0,
 	RC_TYPE_OTHER		= 1,
 	RC_TYPE_RC5		= 2,
-	RC_TYPE_RC5X		= 3,
+	RC_TYPE_RC5X_20		= 3,
 	RC_TYPE_RC5_SZ		= 4,
 	RC_TYPE_JVC		= 5,
 	RC_TYPE_SONY12		= 6,
@@ -66,7 +66,7 @@ enum rc_type {
 #define RC_BIT_UNKNOWN		(1ULL << RC_TYPE_UNKNOWN)
 #define RC_BIT_OTHER		(1ULL << RC_TYPE_OTHER)
 #define RC_BIT_RC5		(1ULL << RC_TYPE_RC5)
-#define RC_BIT_RC5X		(1ULL << RC_TYPE_RC5X)
+#define RC_BIT_RC5X_20		(1ULL << RC_TYPE_RC5X_20)
 #define RC_BIT_RC5_SZ		(1ULL << RC_TYPE_RC5_SZ)
 #define RC_BIT_JVC		(1ULL << RC_TYPE_JVC)
 #define RC_BIT_SONY12		(1ULL << RC_TYPE_SONY12)
@@ -87,7 +87,7 @@ enum rc_type {
 #define RC_BIT_CEC		(1ULL << RC_TYPE_CEC)
 
 #define RC_BIT_ALL	(RC_BIT_UNKNOWN | RC_BIT_OTHER | \
-			 RC_BIT_RC5 | RC_BIT_RC5X | RC_BIT_RC5_SZ | \
+			 RC_BIT_RC5 | RC_BIT_RC5X_20 | RC_BIT_RC5_SZ | \
 			 RC_BIT_JVC | \
 			 RC_BIT_SONY12 | RC_BIT_SONY15 | RC_BIT_SONY20 | \
 			 RC_BIT_NEC | RC_BIT_NECX | RC_BIT_NEC32 | \
@@ -95,7 +95,26 @@ enum rc_type {
 			 RC_BIT_RC6_6A_20 | RC_BIT_RC6_6A_24 | \
 			 RC_BIT_RC6_6A_32 | RC_BIT_RC6_MCE | RC_BIT_SHARP | \
 			 RC_BIT_XMP | RC_BIT_CEC)
+/* All rc protocols for which we have decoders */
+#define RC_BIT_ALL_IR_DECODER \
+			(RC_BIT_RC5 | RC_BIT_RC5X_20 | RC_BIT_RC5_SZ | \
+			 RC_BIT_JVC | \
+			 RC_BIT_SONY12 | RC_BIT_SONY15 | RC_BIT_SONY20 | \
+			 RC_BIT_NEC | RC_BIT_NECX | RC_BIT_NEC32 | \
+			 RC_BIT_SANYO | RC_BIT_MCE_KBD | RC_BIT_RC6_0 | \
+			 RC_BIT_RC6_6A_20 | RC_BIT_RC6_6A_24 | \
+			 RC_BIT_RC6_6A_32 | RC_BIT_RC6_MCE | RC_BIT_SHARP | \
+			 RC_BIT_XMP)
 
+#define RC_BIT_ALL_IR_ENCODER \
+			(RC_BIT_RC5 | RC_BIT_RC5X_20 | RC_BIT_RC5_SZ | \
+			 RC_BIT_JVC | \
+			 RC_BIT_SONY12 | RC_BIT_SONY15 | RC_BIT_SONY20 | \
+			 RC_BIT_NEC | RC_BIT_NECX | RC_BIT_NEC32 | \
+			 RC_BIT_SANYO | \
+			 RC_BIT_RC6_0 | RC_BIT_RC6_6A_20 | RC_BIT_RC6_6A_24 | \
+			 RC_BIT_RC6_6A_32 | RC_BIT_RC6_MCE | \
+			 RC_BIT_SHARP)
 
 #define RC_SCANCODE_UNKNOWN(x)			(x)
 #define RC_SCANCODE_OTHER(x)			(x)
@@ -198,6 +217,7 @@ struct rc_map *rc_map_get(const char *name);
 #define RC_MAP_CEC                       "rc-cec"
 #define RC_MAP_CINERGY_1400              "rc-cinergy-1400"
 #define RC_MAP_CINERGY                   "rc-cinergy"
+#define RC_MAP_D680_DMB                  "rc-d680-dmb"
 #define RC_MAP_DELOCK_61959              "rc-delock-61959"
 #define RC_MAP_DIB0700_NEC_TABLE         "rc-dib0700-nec"
 #define RC_MAP_DIB0700_RC5_TABLE         "rc-dib0700-rc5"
@@ -208,6 +228,8 @@ struct rc_map *rc_map_get(const char *name);
 #define RC_MAP_DNTV_LIVE_DVB_T           "rc-dntv-live-dvb-t"
 #define RC_MAP_DTT200U                   "rc-dtt200u"
 #define RC_MAP_DVBSKY                    "rc-dvbsky"
+#define RC_MAP_DVICO_MCE		 "rc-dvico-mce"
+#define RC_MAP_DVICO_PORTABLE		 "rc-dvico-portable"
 #define RC_MAP_EMPTY                     "rc-empty"
 #define RC_MAP_EM_TERRATEC               "rc-em-terratec"
 #define RC_MAP_ENCORE_ENLTV2             "rc-encore-enltv2"
@@ -219,6 +241,7 @@ struct rc_map *rc_map_get(const char *name);
 #define RC_MAP_FLYVIDEO                  "rc-flyvideo"
 #define RC_MAP_FUSIONHDTV_MCE            "rc-fusionhdtv-mce"
 #define RC_MAP_GADMEI_RM008Z             "rc-gadmei-rm008z"
+#define RC_MAP_GEEKBOX                   "rc-geekbox"
 #define RC_MAP_GENIUS_TVGO_A11MCE        "rc-genius-tvgo-a11mce"
 #define RC_MAP_GOTVIEW7135               "rc-gotview7135"
 #define RC_MAP_HAUPPAUGE_NEW             "rc-hauppauge"

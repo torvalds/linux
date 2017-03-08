@@ -364,7 +364,7 @@ static void meson_uart_set_termios(struct uart_port *port,
 
 	writel(val, port->membase + AML_UART_CONTROL);
 
-	baud = uart_get_baud_rate(port, termios, old, 9600, 115200);
+	baud = uart_get_baud_rate(port, termios, old, 9600, 4000000);
 	meson_uart_change_speed(port, baud);
 
 	port->read_status_mask = AML_UART_TX_FIFO_WERR;

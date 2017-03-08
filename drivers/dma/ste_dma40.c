@@ -2809,12 +2809,14 @@ static void __init d40_chan_init(struct d40_base *base, struct dma_device *dma,
 
 static void d40_ops_init(struct d40_base *base, struct dma_device *dev)
 {
-	if (dma_has_cap(DMA_SLAVE, dev->cap_mask))
+	if (dma_has_cap(DMA_SLAVE, dev->cap_mask)) {
 		dev->device_prep_slave_sg = d40_prep_slave_sg;
+		dev->directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
+	}
 
 	if (dma_has_cap(DMA_MEMCPY, dev->cap_mask)) {
 		dev->device_prep_dma_memcpy = d40_prep_memcpy;
-
+		dev->directions = BIT(DMA_MEM_TO_MEM);
 		/*
 		 * This controller can only access address at even
 		 * 32bit boundaries, i.e. 2^2
@@ -2836,6 +2838,7 @@ static void d40_ops_init(struct d40_base *base, struct dma_device *dev)
 	dev->device_pause = d40_pause;
 	dev->device_resume = d40_resume;
 	dev->device_terminate_all = d40_terminate_all;
+	dev->residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
 	dev->dev = base->dev;
 }
 

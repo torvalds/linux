@@ -6,6 +6,8 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/spinlock.h>
+#include <linux/mm_types.h>
+
 #include <asm/spitfire.h>
 #include <asm-generic/mm_hooks.h>
 

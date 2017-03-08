@@ -227,7 +227,8 @@ static int vvp_page_prep_write(const struct lu_env *env,
  * This takes inode as a separate argument, because inode on which error is to
  * be set can be different from \a vmpage inode in case of direct-io.
  */
-static void vvp_vmpage_error(struct inode *inode, struct page *vmpage, int ioret)
+static void vvp_vmpage_error(struct inode *inode, struct page *vmpage,
+			     int ioret)
 {
 	struct vvp_object *obj = cl_inode2vvp(inode);
 

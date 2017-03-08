@@ -11,12 +11,13 @@
  *
  * In VC4, the Pixel Valve is what most closely corresponds to the
  * DRM's concept of a CRTC.  The PV generates video timings from the
- * output's clock plus its configuration.  It pulls scaled pixels from
+ * encoder's clock plus its configuration.  It pulls scaled pixels from
  * the HVS at that timing, and feeds it to the encoder.
  *
  * However, the DRM CRTC also collects the configuration of all the
- * DRM planes attached to it.  As a result, this file also manages
- * setup of the VC4 HVS's display elements on the CRTC.
+ * DRM planes attached to it.  As a result, the CRTC is also
+ * responsible for writing the display list for the HVS channel that
+ * the CRTC will use.
  *
  * The 2835 has 3 different pixel valves.  pv0 in the audio power
  * domain feeds DSI0 or DPI, while pv1 feeds DS1 or SMI.  pv2 in the
@@ -654,9 +655,8 @@ static void vc4_crtc_atomic_flush(struct drm_crtc *crtc,
 	}
 }
 
-int vc4_enable_vblank(struct drm_device *dev, unsigned int crtc_id)
+static int vc4_enable_vblank(struct drm_crtc *crtc)
 {
-	struct drm_crtc *crtc = drm_crtc_from_index(dev, crtc_id);
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 
 	CRTC_WRITE(PV_INTEN, PV_INT_VFP_START);
@@ -664,9 +664,8 @@ int vc4_enable_vblank(struct drm_device *dev, unsigned int crtc_id)
 	return 0;
 }
 
-void vc4_disable_vblank(struct drm_device *dev, unsigned int crtc_id)
+static void vc4_disable_vblank(struct drm_crtc *crtc)
 {
-	struct drm_crtc *crtc = drm_crtc_from_index(dev, crtc_id);
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 
 	CRTC_WRITE(PV_INTEN, 0);
@@ -857,6 +856,8 @@ static const struct drm_crtc_funcs vc4_crtc_funcs = {
 	.atomic_duplicate_state = vc4_crtc_duplicate_state,
 	.atomic_destroy_state = vc4_crtc_destroy_state,
 	.gamma_set = vc4_crtc_gamma_set,
+	.enable_vblank = vc4_enable_vblank,
+	.disable_vblank = vc4_disable_vblank,
 };
 
 static const struct drm_crtc_helper_funcs vc4_crtc_helper_funcs = {
