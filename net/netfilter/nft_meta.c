@@ -45,16 +45,15 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 		*dest = skb->len;
 		break;
 	case NFT_META_PROTOCOL:
-		*dest = 0;
-		*(__be16 *)dest = skb->protocol;
+		nft_reg_store16(dest, (__force u16)skb->protocol);
 		break;
 	case NFT_META_NFPROTO:
-		*dest = nft_pf(pkt);
+		nft_reg_store8(dest, nft_pf(pkt));
 		break;
 	case NFT_META_L4PROTO:
 		if (!pkt->tprot_set)
 			goto err;
-		*dest = pkt->tprot;
+		nft_reg_store8(dest, pkt->tprot);
 		break;
 	case NFT_META_PRIORITY:
 		*dest = skb->priority;
@@ -85,14 +84,12 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 	case NFT_META_IIFTYPE:
 		if (in == NULL)
 			goto err;
-		*dest = 0;
-		*(u16 *)dest = in->type;
+		nft_reg_store16(dest, in->type);
 		break;
 	case NFT_META_OIFTYPE:
 		if (out == NULL)
 			goto err;
-		*dest = 0;
-		*(u16 *)dest = out->type;
+		nft_reg_store16(dest, out->type);
 		break;
 	case NFT_META_SKUID:
 		sk = skb_to_full_sk(skb);
@@ -142,19 +139,19 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 #endif
 	case NFT_META_PKTTYPE:
 		if (skb->pkt_type != PACKET_LOOPBACK) {
-			*dest = skb->pkt_type;
+			nft_reg_store8(dest, skb->pkt_type);
 			break;
 		}
 
 		switch (nft_pf(pkt)) {
 		case NFPROTO_IPV4:
 			if (ipv4_is_multicast(ip_hdr(skb)->daddr))
-				*dest = PACKET_MULTICAST;
+				nft_reg_store8(dest, PACKET_MULTICAST);
 			else
-				*dest = PACKET_BROADCAST;
+				nft_reg_store8(dest, PACKET_BROADCAST);
 			break;
 		case NFPROTO_IPV6:
-			*dest = PACKET_MULTICAST;
+			nft_reg_store8(dest, PACKET_MULTICAST);
 			break;
 		case NFPROTO_NETDEV:
 			switch (skb->protocol) {
@@ -168,14 +165,14 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 					goto err;
 
 				if (ipv4_is_multicast(iph->daddr))
-					*dest = PACKET_MULTICAST;
+					nft_reg_store8(dest, PACKET_MULTICAST);
 				else
-					*dest = PACKET_BROADCAST;
+					nft_reg_store8(dest, PACKET_BROADCAST);
 
 				break;
 			}
 			case htons(ETH_P_IPV6):
-				*dest = PACKET_MULTICAST;
+				nft_reg_store8(dest, PACKET_MULTICAST);
 				break;
 			default:
 				WARN_ON_ONCE(1);
@@ -230,7 +227,9 @@ void nft_meta_set_eval(const struct nft_expr *expr,
 {
 	const struct nft_meta *meta = nft_expr_priv(expr);
 	struct sk_buff *skb = pkt->skb;
-	u32 value = regs->data[meta->sreg];
+	u32 *sreg = &regs->data[meta->sreg];
+	u32 value = *sreg;
+	u8 pkt_type;
 
 	switch (meta->key) {
 	case NFT_META_MARK:
@@ -240,9 +239,12 @@ void nft_meta_set_eval(const struct nft_expr *expr,
 		skb->priority = value;
 		break;
 	case NFT_META_PKTTYPE:
-		if (skb->pkt_type != value &&
-		    skb_pkt_type_ok(value) && skb_pkt_type_ok(skb->pkt_type))
-			skb->pkt_type = value;
+		pkt_type = nft_reg_load8(sreg);
+
+		if (skb->pkt_type != pkt_type &&
+		    skb_pkt_type_ok(pkt_type) &&
+		    skb_pkt_type_ok(skb->pkt_type))
+			skb->pkt_type = pkt_type;
 		break;
 	case NFT_META_NFTRACE:
 		skb->nf_trace = !!value;
