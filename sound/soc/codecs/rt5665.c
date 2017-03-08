@@ -3178,6 +3178,9 @@ static const struct snd_soc_dapm_route rt5665_dapm_routes[] = {
 	{"DAC Mono Right Filter", NULL, "DAC Mono R ASRC", is_using_asrc},
 	{"DAC Stereo1 Filter", NULL, "DAC STO1 ASRC", is_using_asrc},
 	{"DAC Stereo2 Filter", NULL, "DAC STO2 ASRC", is_using_asrc},
+	{"I2S1 ASRC", NULL, "CLKDET"},
+	{"I2S2 ASRC", NULL, "CLKDET"},
+	{"I2S3 ASRC", NULL, "CLKDET"},
 
 	/*Vref*/
 	{"Mic Det Power", NULL, "Vref2"},
