@@ -271,7 +271,7 @@
 		};
 	};
 
-	gmac: eth@fe300000 {
+	gmac: ethernet@fe300000 {
 		compatible = "rockchip,rk3399-gmac";
 		reg = <0x0 0xfe300000 0x0 0x10000>;
 		rockchip,grf = <&grf>;
