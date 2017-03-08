@@ -201,6 +201,7 @@
 				"generic-xhci";
 				reg = <0x58000 0x4000>;
 				interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&sb_periph_clk 12>;
 				status = "disabled";
 			};
 
