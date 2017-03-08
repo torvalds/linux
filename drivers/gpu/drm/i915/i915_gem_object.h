@@ -274,12 +274,6 @@ static inline void i915_gem_object_unlock(struct drm_i915_gem_object *obj)
 }
 
 static inline bool
-i915_gem_object_is_dead(const struct drm_i915_gem_object *obj)
-{
-	return kref_read(&obj->base.refcount) == 0;
-}
-
-static inline bool
 i915_gem_object_has_struct_page(const struct drm_i915_gem_object *obj)
 {
 	return obj->ops->flags & I915_GEM_OBJECT_HAS_STRUCT_PAGE;
