@@ -338,6 +338,9 @@ static int drm_gem_cma_mmap_obj(struct drm_gem_cma_object *cma_obj,
  * as their ->mmap() handler in the DRM device file's file_operations
  * structure.
  *
+ * Instead of directly referencing this function, drivers should use the
+ * DEFINE_DRM_GEM_CMA_FOPS().macro.
+ *
  * Returns:
  * 0 on success or a negative error code on failure.
  */

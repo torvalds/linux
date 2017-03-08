@@ -167,16 +167,7 @@ static void sti_mode_config_init(struct drm_device *dev)
 	dev->mode_config.funcs = &sti_mode_config_funcs;
 }
 
-static const struct file_operations sti_driver_fops = {
-	.owner = THIS_MODULE,
-	.open = drm_open,
-	.mmap = drm_gem_cma_mmap,
-	.poll = drm_poll,
-	.read = drm_read,
-	.unlocked_ioctl = drm_ioctl,
-	.compat_ioctl = drm_compat_ioctl,
-	.release = drm_release,
-};
+DEFINE_DRM_GEM_CMA_FOPS(sti_driver_fops);
 
 static struct drm_driver sti_driver = {
 	.driver_features = DRIVER_MODESET |

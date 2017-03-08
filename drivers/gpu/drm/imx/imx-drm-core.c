@@ -57,16 +57,7 @@ static void imx_drm_driver_lastclose(struct drm_device *drm)
 	drm_fbdev_cma_restore_mode(imxdrm->fbhelper);
 }
 
-static const struct file_operations imx_drm_driver_fops = {
-	.owner = THIS_MODULE,
-	.open = drm_open,
-	.release = drm_release,
-	.unlocked_ioctl = drm_ioctl,
-	.mmap = drm_gem_cma_mmap,
-	.poll = drm_poll,
-	.read = drm_read,
-	.llseek = noop_llseek,
-};
+DEFINE_DRM_GEM_CMA_FOPS(imx_drm_driver_fops);
 
 void imx_drm_connector_destroy(struct drm_connector *connector)
 {

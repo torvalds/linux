@@ -91,19 +91,7 @@ static irqreturn_t meson_irq(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static const struct file_operations fops = {
-	.owner		= THIS_MODULE,
-	.open		= drm_open,
-	.release	= drm_release,
-	.unlocked_ioctl	= drm_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= drm_compat_ioctl,
-#endif
-	.poll		= drm_poll,
-	.read		= drm_read,
-	.llseek		= no_llseek,
-	.mmap		= drm_gem_cma_mmap,
-};
+DEFINE_DRM_GEM_CMA_FOPS(fops);
 
 static struct drm_driver meson_driver = {
 	.driver_features	= DRIVER_HAVE_IRQ | DRIVER_GEM |

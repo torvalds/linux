@@ -89,6 +89,9 @@ DEFINE_MUTEX(drm_global_mutex);
  *             .mmap = drm_gem_mmap,
  *     };
  *
+ * For CMA based drivers there is the DEFINE_DRM_GEM_CMA_FOPS() macro to make
+ * this simpler.
+ *
  * FIXME: We should have a macro for this (and the CMA version) so that drivers
  * don't have to repeat it all the time.
  */
