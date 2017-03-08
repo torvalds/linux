@@ -176,14 +176,20 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 		vgpu_vreg(vgpu, SDEISR) &= ~(SDE_PORTA_HOTPLUG_SPT |
 				SDE_PORTE_HOTPLUG_SPT);
 
-	if (intel_vgpu_has_monitor_on_port(vgpu, PORT_B))
+	if (intel_vgpu_has_monitor_on_port(vgpu, PORT_B)) {
 		vgpu_vreg(vgpu, SDEISR) |= SDE_PORTB_HOTPLUG_CPT;
+		vgpu_vreg(vgpu, SFUSE_STRAP) |= SFUSE_STRAP_DDIB_DETECTED;
+	}
 
-	if (intel_vgpu_has_monitor_on_port(vgpu, PORT_C))
+	if (intel_vgpu_has_monitor_on_port(vgpu, PORT_C)) {
 		vgpu_vreg(vgpu, SDEISR) |= SDE_PORTC_HOTPLUG_CPT;
+		vgpu_vreg(vgpu, SFUSE_STRAP) |= SFUSE_STRAP_DDIC_DETECTED;
+	}
 
-	if (intel_vgpu_has_monitor_on_port(vgpu, PORT_D))
+	if (intel_vgpu_has_monitor_on_port(vgpu, PORT_D)) {
 		vgpu_vreg(vgpu, SDEISR) |= SDE_PORTD_HOTPLUG_CPT;
+		vgpu_vreg(vgpu, SFUSE_STRAP) |= SFUSE_STRAP_DDID_DETECTED;
+	}
 
 	if (IS_SKYLAKE(dev_priv) &&
 			intel_vgpu_has_monitor_on_port(vgpu, PORT_E)) {
@@ -196,6 +202,8 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 				GEN8_PORT_DP_A_HOTPLUG;
 		else
 			vgpu_vreg(vgpu, SDEISR) |= SDE_PORTA_HOTPLUG_SPT;
+
+		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_A)) |= DDI_INIT_DISPLAY_DETECTED;
 	}
 }
 

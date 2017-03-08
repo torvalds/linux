@@ -96,10 +96,10 @@ static int gvt_dma_map_iova(struct intel_vgpu *vgpu, kvm_pfn_t pfn,
 	struct device *dev = &vgpu->gvt->dev_priv->drm.pdev->dev;
 	dma_addr_t daddr;
 
-	page = pfn_to_page(pfn);
-	if (is_error_page(page))
+	if (unlikely(!pfn_valid(pfn)))
 		return -EFAULT;
 
+	page = pfn_to_page(pfn);
 	daddr = dma_map_page(dev, page, 0, PAGE_SIZE,
 			PCI_DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(dev, daddr))
