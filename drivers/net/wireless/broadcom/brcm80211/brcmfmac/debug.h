@@ -59,6 +59,10 @@ void __brcmf_err(const char *func, const char *fmt, ...);
 	} while (0)
 
 #if defined(DEBUG) || defined(CONFIG_BRCM_TRACING)
+
+/* For debug/tracing purposes treat info messages as errors */
+#define brcmf_info brcmf_err
+
 __printf(3, 4)
 void __brcmf_dbg(u32 level, const char *func, const char *fmt, ...);
 #define brcmf_dbg(level, fmt, ...)				\
@@ -76,6 +80,11 @@ do {								\
 #define BRCMF_FWCON_ON()	(brcmf_msg_level & BRCMF_FWCON_VAL)
 
 #else /* defined(DEBUG) || defined(CONFIG_BRCM_TRACING) */
+
+#define brcmf_info(fmt, ...)						\
+	do {								\
+		pr_info("%s: " fmt, __func__, ##__VA_ARGS__);		\
+	} while (0)
 
 #define brcmf_dbg(level, fmt, ...) no_printk(fmt, ##__VA_ARGS__)
 
