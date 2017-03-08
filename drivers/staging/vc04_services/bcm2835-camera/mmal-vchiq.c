@@ -276,10 +276,6 @@ static int bulk_receive(struct vchiq_mmal_instance *instance,
 	msg_context->u.bulk.dts = msg->u.buffer_from_host.buffer_header.dts;
 	msg_context->u.bulk.pts = msg->u.buffer_from_host.buffer_header.pts;
 
-	// only need to flush L1 cache here, as VCHIQ takes care of the L2
-	// cache.
-	__cpuc_flush_dcache_area(msg_context->u.bulk.buffer->buffer, rd_len);
-
 	/* queue the bulk submission */
 	vchi_service_use(instance->handle);
 	ret = vchi_bulk_queue_receive(instance->handle,
