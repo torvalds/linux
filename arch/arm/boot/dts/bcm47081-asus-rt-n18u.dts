@@ -47,7 +47,6 @@
 		usb2 {
 			label = "bcm53xx:blue:usb2";
 			gpios = <&chipcommon 3 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "default-off";
 		};
 
 		wan {
@@ -65,7 +64,6 @@
 		usb3 {
 			label = "bcm53xx:blue:usb3";
 			gpios = <&chipcommon 14 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "default-off";
 		};
 	};
 

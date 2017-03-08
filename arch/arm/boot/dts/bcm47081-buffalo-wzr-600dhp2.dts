@@ -68,7 +68,6 @@
 		power1 {
 			label = "bcm53xx:red:power";
 			gpios = <&hc595 2 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-off";
 		};
 
 		router0 {
@@ -80,7 +79,6 @@
 		router1 {
 			label = "bcm53xx:amber:router";
 			gpios = <&hc595 4 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-off";
 		};
 
 		wan {
@@ -92,13 +90,11 @@
 		wireless0 {
 			label = "bcm53xx:green:wireless";
 			gpios = <&hc595 6 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-off";
 		};
 
 		wireless1 {
 			label = "bcm53xx:amber:wireless";
 			gpios = <&hc595 7 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-off";
 		};
 	};
 
