@@ -1442,16 +1442,21 @@ static int bdw_adjust_min_pipe_pixel_rate(struct intel_crtc_state *crtc_state,
 	if (IS_BROADWELL(dev_priv) && crtc_state->ips_enabled)
 		pixel_rate = DIV_ROUND_UP(pixel_rate * 100, 95);
 
-	/* BSpec says "Do not use DisplayPort with CDCLK less than
-	 * 432 MHz, audio enabled, port width x4, and link rate
-	 * HBR2 (5.4 GHz), or else there may be audio corruption or
-	 * screen corruption."
+	/* BSpec says "Do not use DisplayPort with CDCLK less than 432 MHz,
+	 * audio enabled, port width x4, and link rate HBR2 (5.4 GHz), or else
+	 * there may be audio corruption or screen corruption." This cdclk
+	 * restriction for GLK is 316.8 MHz and since GLK can output two
+	 * pixels per clock, the pixel rate becomes 2 * 316.8 MHz.
 	 */
 	if (intel_crtc_has_dp_encoder(crtc_state) &&
 	    crtc_state->has_audio &&
 	    crtc_state->port_clock >= 540000 &&
-	    crtc_state->lane_count == 4)
-		pixel_rate = max(432000, pixel_rate);
+	    crtc_state->lane_count == 4) {
+		if (IS_GEMINILAKE(dev_priv))
+			pixel_rate = max(2 * 316800, pixel_rate);
+		else
+			pixel_rate = max(432000, pixel_rate);
+	}
 
 	return pixel_rate;
 }
