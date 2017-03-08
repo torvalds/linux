@@ -161,6 +161,7 @@ void intel_pipe_update_end(struct intel_crtc *crtc, struct intel_flip_work *work
 	int scanline_end = intel_get_crtc_scanline(crtc);
 	u32 end_vbl_count = intel_crtc_get_vblank_counter(crtc);
 	ktime_t end_vbl_time = ktime_get();
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
 	if (work) {
 		work->flip_queued_vblank = end_vbl_count;
@@ -185,6 +186,9 @@ void intel_pipe_update_end(struct intel_crtc *crtc, struct intel_flip_work *work
 	}
 
 	local_irq_enable();
+
+	if (intel_vgpu_active(dev_priv))
+		return;
 
 	if (crtc->debug.start_vbl_count &&
 	    crtc->debug.start_vbl_count != end_vbl_count) {
