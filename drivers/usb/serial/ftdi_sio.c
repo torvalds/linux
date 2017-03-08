@@ -1716,8 +1716,11 @@ static ssize_t latency_timer_store(struct device *dev,
 {
 	struct usb_serial_port *port = to_usb_serial_port(dev);
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	int v = simple_strtoul(valbuf, NULL, 10);
+	u8 v;
 	int rv;
+
+	if (kstrtou8(valbuf, 10, &v))
+		return -EINVAL;
 
 	priv->latency = v;
 	rv = write_latency_timer(port);
