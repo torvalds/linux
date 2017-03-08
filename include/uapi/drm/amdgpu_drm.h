@@ -448,6 +448,9 @@ union drm_amdgpu_cs {
 /* Preamble flag, which means the IB could be dropped if no context switch */
 #define AMDGPU_IB_FLAG_PREAMBLE (1<<1)
 
+/* Preempt flag, IB should set Pre_enb bit if PREEMPT flag detected */
+#define AMDGPU_IB_FLAG_PREEMPT (1<<2)
+
 struct drm_amdgpu_cs_chunk_ib {
 	__u32 _pad;
 	/** AMDGPU_IB_FLAG_* */
