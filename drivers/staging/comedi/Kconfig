@@ -1,6 +1,5 @@
 config COMEDI
 	tristate "Data acquisition support (comedi)"
-	depends on m
 	---help---
 	  Enable support for a wide range of data acquisition devices
 	  for Linux.
