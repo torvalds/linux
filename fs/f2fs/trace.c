@@ -138,7 +138,7 @@ static unsigned int gang_lookup_pids(pid_t *results, unsigned long first_index,
 
 	radix_tree_for_each_slot(slot, &pids, &iter, first_index) {
 		results[ret] = iter.index;
-		if (++ret == PIDVEC_SIZE)
+		if (++ret == max_items)
 			break;
 	}
 	return ret;
