@@ -30,8 +30,8 @@ bool debug_fw; /* = false; */
 module_param(debug_fw, bool, 0444);
 MODULE_PARM_DESC(debug_fw, " do not perform card reset. For FW debug");
 
-static bool oob_mode;
-module_param(oob_mode, bool, 0444);
+static u8 oob_mode;
+module_param(oob_mode, byte, 0444);
 MODULE_PARM_DESC(oob_mode,
 		 " enable out of the box (OOB) mode in FW, for diagnostics and certification");
 
@@ -642,13 +642,25 @@ static inline void wil_release_cpu(struct wil6210_priv *wil)
 	wil_w(wil, RGF_USER_USER_CPU_0, 1);
 }
 
-static void wil_set_oob_mode(struct wil6210_priv *wil, bool enable)
+static void wil_set_oob_mode(struct wil6210_priv *wil, u8 mode)
 {
-	wil_info(wil, "enable=%d\n", enable);
-	if (enable)
+	wil_info(wil, "oob_mode to %d\n", mode);
+	switch (mode) {
+	case 0:
+		wil_c(wil, RGF_USER_USAGE_6, BIT_USER_OOB_MODE |
+		      BIT_USER_OOB_R2_MODE);
+		break;
+	case 1:
+		wil_c(wil, RGF_USER_USAGE_6, BIT_USER_OOB_R2_MODE);
 		wil_s(wil, RGF_USER_USAGE_6, BIT_USER_OOB_MODE);
-	else
+		break;
+	case 2:
 		wil_c(wil, RGF_USER_USAGE_6, BIT_USER_OOB_MODE);
+		wil_s(wil, RGF_USER_USAGE_6, BIT_USER_OOB_R2_MODE);
+		break;
+	default:
+		wil_err(wil, "invalid oob_mode: %d\n", mode);
+	}
 }
 
 static int wil_target_reset(struct wil6210_priv *wil)
