@@ -697,7 +697,7 @@ static int create_trace_kprobe(int argc, char **argv)
 			return ret;
 		}
 		if (offset && is_return &&
-		    !arch_function_offset_within_entry(offset)) {
+		    !function_offset_within_entry(NULL, symbol, offset)) {
 			pr_info("Given offset is not valid for return probe.\n");
 			return -EINVAL;
 		}
