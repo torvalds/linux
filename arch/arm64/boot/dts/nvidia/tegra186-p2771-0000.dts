@@ -5,4 +5,27 @@
 / {
 	model = "NVIDIA Tegra186 P2771-0000 Development Board";
 	compatible = "nvidia,p2771-0000", "nvidia,tegra186";
+
+	/* SDMMC1 (SD/MMC) */
+	sdhci@3400000 {
+		status = "okay";
+
+		vmmc-supply = <&vdd_sd>;
+	};
+
+	regulators {
+		vdd_sd: regulator@100 {
+			compatible = "regulator-fixed";
+			reg = <100>;
+
+			regulator-name = "SD_CARD_SW_PWR";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+
+			gpio = <&gpio TEGRA_MAIN_GPIO(P, 6) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+
+			vin-supply = <&vdd_3v3_sys>;
+		};
+	};
 };
