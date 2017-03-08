@@ -1427,8 +1427,8 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 	init_completion(&cs35l35->pdn_done);
 
 	ret = devm_request_threaded_irq(dev, i2c_client->irq, NULL, cs35l35_irq,
-					IRQF_ONESHOT | IRQF_TRIGGER_LOW,
-					"cs35l35", cs35l35);
+					IRQF_ONESHOT | IRQF_TRIGGER_LOW |
+					IRQF_SHARED, "cs35l35", cs35l35);
 	if (ret != 0) {
 		dev_err(dev, "Failed to request IRQ: %d\n", ret);
 		goto err;
