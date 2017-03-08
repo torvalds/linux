@@ -3439,8 +3439,7 @@ int wilc_deinit(struct wilc_vif *vif)
 	return result;
 }
 
-void wilc_network_info_received(struct wilc *wilc, u8 *pu8Buffer,
-				u32 u32Length)
+void wilc_network_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
@@ -3448,7 +3447,7 @@ void wilc_network_info_received(struct wilc *wilc, u8 *pu8Buffer,
 	struct host_if_drv *hif_drv = NULL;
 	struct wilc_vif *vif;
 
-	id = ((pu8Buffer[u32Length - 4]) | (pu8Buffer[u32Length - 3] << 8) | (pu8Buffer[u32Length - 2] << 16) | (pu8Buffer[u32Length - 1] << 24));
+	id = ((buffer[length - 4]) | (buffer[length - 3] << 8) | (buffer[length - 2] << 16) | (buffer[length - 1] << 24));
 	vif = wilc_get_vif_from_idx(wilc, id);
 	if (!vif)
 		return;
@@ -3464,9 +3463,9 @@ void wilc_network_info_received(struct wilc *wilc, u8 *pu8Buffer,
 	msg.id = HOST_IF_MSG_RCVD_NTWRK_INFO;
 	msg.vif = vif;
 
-	msg.body.net_info.len = u32Length;
-	msg.body.net_info.buffer = kmalloc(u32Length, GFP_KERNEL);
-	memcpy(msg.body.net_info.buffer, pu8Buffer, u32Length);
+	msg.body.net_info.len = length;
+	msg.body.net_info.buffer = kmalloc(length, GFP_KERNEL);
+	memcpy(msg.body.net_info.buffer, buffer, length);
 
 	result = wilc_enqueue_cmd(&msg);
 	if (result)
