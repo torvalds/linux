@@ -64,8 +64,10 @@ static int nfp_net_debugfs_rx_q_read(struct seq_file *file, void *data)
 	rx_rd_p = nfp_qcp_rd_ptr_read(rx_ring->qcp_rx);
 	rx_wr_p = nfp_qcp_wr_ptr_read(rx_ring->qcp_rx);
 
-	seq_printf(file, "RX[%02d]: H_RD=%d H_WR=%d FL_RD=%d FL_WR=%d RX_RD=%d RX_WR=%d\n",
-		   rx_ring->idx, rx_ring->rd_p, rx_ring->wr_p,
+	seq_printf(file, "RX[%02d,%02d,%02d]: cnt=%d dma=%pad host=%p   H_RD=%d H_WR=%d FL_RD=%d FL_WR=%d RX_RD=%d RX_WR=%d\n",
+		   rx_ring->idx, rx_ring->fl_qcidx, rx_ring->rx_qcidx,
+		   rx_ring->cnt, &rx_ring->dma, rx_ring->rxds,
+		   rx_ring->rd_p, rx_ring->wr_p,
 		   fl_rd_p, fl_wr_p, rx_rd_p, rx_wr_p);
 
 	for (i = 0; i < rxd_cnt; i++) {
@@ -151,8 +153,11 @@ static int nfp_net_debugfs_tx_q_read(struct seq_file *file, void *data)
 	d_rd_p = nfp_qcp_rd_ptr_read(tx_ring->qcp_q);
 	d_wr_p = nfp_qcp_wr_ptr_read(tx_ring->qcp_q);
 
-	seq_printf(file, "TX[%02d]: H_RD=%d H_WR=%d D_RD=%d D_WR=%d\n",
-		   tx_ring->idx, tx_ring->rd_p, tx_ring->wr_p, d_rd_p, d_wr_p);
+	seq_printf(file, "TX[%02d,%02d%s]: cnt=%d dma=%pad host=%p   H_RD=%d H_WR=%d D_RD=%d D_WR=%d\n",
+		   tx_ring->idx, tx_ring->qcidx,
+		   tx_ring == r_vec->tx_ring ? "" : "xdp",
+		   tx_ring->cnt, &tx_ring->dma, tx_ring->txds,
+		   tx_ring->rd_p, tx_ring->wr_p, d_rd_p, d_wr_p);
 
 	for (i = 0; i < txd_cnt; i++) {
 		txd = &tx_ring->txds[i];

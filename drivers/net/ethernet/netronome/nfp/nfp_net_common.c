@@ -1776,11 +1776,6 @@ nfp_net_tx_ring_alloc(struct nfp_net_tx_ring *tx_ring, u32 cnt, bool is_xdp)
 		netif_set_xps_queue(nn->netdev, &r_vec->affinity_mask,
 				    tx_ring->idx);
 
-	nn_dbg(nn, "TxQ%02d: QCidx=%02d cnt=%d dma=%#llx host=%p %s\n",
-	       tx_ring->idx, tx_ring->qcidx,
-	       tx_ring->cnt, (unsigned long long)tx_ring->dma, tx_ring->txds,
-	       is_xdp ? "XDP" : "");
-
 	return 0;
 
 err_alloc:
@@ -1899,10 +1894,6 @@ nfp_net_rx_ring_alloc(struct nfp_net_rx_ring *rx_ring, unsigned int fl_bufsz,
 	rx_ring->rxbufs = kzalloc(sz, GFP_KERNEL);
 	if (!rx_ring->rxbufs)
 		goto err_alloc;
-
-	nn_dbg(nn, "RxQ%02d: FlQCidx=%02d RxQCidx=%02d cnt=%d dma=%#llx host=%p\n",
-	       rx_ring->idx, rx_ring->fl_qcidx, rx_ring->rx_qcidx,
-	       rx_ring->cnt, (unsigned long long)rx_ring->dma, rx_ring->rxds);
 
 	return 0;
 
