@@ -234,6 +234,13 @@
 		rockchip,uboot-charge-on = <1>;
 		rockchip,android-charge-on = <0>;
 	};
+
+	hdmi_dp_sound: hdmi-dp-sound {
+		status = "disabled";
+		compatible = "rockchip,rk3399-hdmi-dp";
+		rockchip,cpu = <&i2s2>;
+		rockchip,codec = <&hdmi>, <&cdn_dp>;
+	};
 };
 
 &vopb {
