@@ -3884,7 +3884,6 @@ static void *host_int_ParseJoinBssParam(struct network_info *ptstrNetworkInfo)
 					pNewJoinBssParam->supp_rates[i + 1] = pu8IEs[index + i];
 
 				index += suppRatesNo;
-				continue;
 			} else if (pu8IEs[index] == EXT_SUPP_RATES_IE) {
 				extSuppRatesNo = pu8IEs[index + 1];
 				if (extSuppRatesNo > (MAX_RATES_SUPPORTED - suppRatesNo))
@@ -3896,11 +3895,9 @@ static void *host_int_ParseJoinBssParam(struct network_info *ptstrNetworkInfo)
 					pNewJoinBssParam->supp_rates[suppRatesNo + i + 1] = pu8IEs[index + i];
 
 				index += extSuppRatesNo;
-				continue;
 			} else if (pu8IEs[index] == HT_CAPABILITY_IE) {
 				pNewJoinBssParam->ht_capable = true;
 				index += pu8IEs[index + 1] + 2;
-				continue;
 			} else if ((pu8IEs[index] == WMM_IE) &&
 				   (pu8IEs[index + 2] == 0x00) && (pu8IEs[index + 3] == 0x50) &&
 				   (pu8IEs[index + 4] == 0xF2) &&
@@ -3912,7 +3909,6 @@ static void *host_int_ParseJoinBssParam(struct network_info *ptstrNetworkInfo)
 				if (pu8IEs[index + 8] & BIT(7))
 					pNewJoinBssParam->uapsd_cap = true;
 				index += pu8IEs[index + 1] + 2;
-				continue;
 			} else if ((pu8IEs[index] == P2P_IE) &&
 				 (pu8IEs[index + 2] == 0x50) && (pu8IEs[index + 3] == 0x6f) &&
 				 (pu8IEs[index + 4] == 0x9a) &&
@@ -3942,8 +3938,6 @@ static void *host_int_ParseJoinBssParam(struct network_info *ptstrNetworkInfo)
 				memcpy(pNewJoinBssParam->start_time, pu8IEs + u16P2P_count, 4);
 
 				index += pu8IEs[index + 1] + 2;
-				continue;
-
 			} else if ((pu8IEs[index] == RSN_IE) ||
 				 ((pu8IEs[index] == WPA_IE) && (pu8IEs[index + 2] == 0x00) &&
 				  (pu8IEs[index + 3] == 0x50) && (pu8IEs[index + 4] == 0xF2) &&
@@ -3989,7 +3983,6 @@ static void *host_int_ParseJoinBssParam(struct network_info *ptstrNetworkInfo)
 				}
 				pNewJoinBssParam->rsn_found = true;
 				index += pu8IEs[index + 1] + 2;
-				continue;
 			} else {
 				index += pu8IEs[index + 1] + 2;
 			}
