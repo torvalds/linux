@@ -2,6 +2,7 @@
  * Copyright 2002-2005, Instant802 Networks, Inc.
  * Copyright 2005-2006, Devicescape Software, Inc.
  * Copyright (c) 2006 Jiri Benc <jbenc@suse.cz>
+ * Copyright 2017	Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -239,6 +240,32 @@ static void rate_control_free(struct ieee80211_local *local,
 #endif
 
 	kfree(ctrl_ref);
+}
+
+void ieee80211_check_rate_mask(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_supported_band *sband;
+	u32 user_mask, basic_rates = sdata->vif.bss_conf.basic_rates;
+	enum nl80211_band band;
+
+	if (WARN_ON(!sdata->vif.bss_conf.chandef.chan))
+		return;
+
+	if (WARN_ON_ONCE(!basic_rates))
+		return;
+
+	band = sdata->vif.bss_conf.chandef.chan->band;
+	user_mask = sdata->rc_rateidx_mask[band];
+	sband = local->hw.wiphy->bands[band];
+
+	if (user_mask & basic_rates)
+		return;
+
+	sdata_dbg(sdata,
+		  "no overlap between basic rates (0x%x) and user mask (0x%x on band %d) - clearing the latter",
+		  basic_rates, user_mask, band);
+	sdata->rc_rateidx_mask[band] = (1 << sband->n_bitrates) - 1;
 }
 
 static bool rc_no_data_or_no_ack_use_min(struct ieee80211_tx_rate_control *txrc)
