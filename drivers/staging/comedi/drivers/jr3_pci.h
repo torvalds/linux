@@ -280,7 +280,7 @@ struct intern_transform {
  * and hardware manuals.
  */
 
-struct jr3_channel {
+struct jr3_sensor {
 	/*
 	 * Raw_channels is the area used to store the raw data coming from
 	 * the sensor.
@@ -727,7 +727,7 @@ struct jr3_channel {
 struct jr3_t {
 	struct {
 		u32 program_lo[0x4000];		/*  0x00000 - 0x10000 */
-		struct jr3_channel data;	/*  0x10000 - 0x10c00 */
+		struct jr3_sensor data;		/*  0x10000 - 0x10c00 */
 		char pad2[0x30000 - 0x00c00];	/*  0x10c00 - 0x40000 */
 		u32 program_hi[0x8000];		/*  0x40000 - 0x60000 */
 		u32 reset;			/*  0x60000 - 0x60004 */

@@ -113,7 +113,7 @@ enum jr3_pci_poll_state {
 };
 
 struct jr3_pci_subdev_private {
-	struct jr3_channel __iomem *channel;
+	struct jr3_sensor __iomem *channel;
 	unsigned long next_time_min;
 	enum jr3_pci_poll_state state;
 	int serial_no;
@@ -134,12 +134,12 @@ static struct jr3_pci_poll_delay poll_delay_min_max(int min, int max)
 	return result;
 }
 
-static int is_complete(struct jr3_channel __iomem *channel)
+static int is_complete(struct jr3_sensor __iomem *channel)
 {
 	return get_s16(&channel->command_word0) == 0;
 }
 
-static void set_transforms(struct jr3_channel __iomem *channel,
+static void set_transforms(struct jr3_sensor __iomem *channel,
 			   const struct jr3_pci_transform *transf, short num)
 {
 	int i;
@@ -157,18 +157,18 @@ static void set_transforms(struct jr3_channel __iomem *channel,
 	}
 }
 
-static void use_transform(struct jr3_channel __iomem *channel,
+static void use_transform(struct jr3_sensor __iomem *channel,
 			  short transf_num)
 {
 	set_s16(&channel->command_word0, 0x0500 + (transf_num & 0x000f));
 }
 
-static void use_offset(struct jr3_channel __iomem *channel, short offset_num)
+static void use_offset(struct jr3_sensor __iomem *channel, short offset_num)
 {
 	set_s16(&channel->command_word0, 0x0600 + (offset_num & 0x000f));
 }
 
-static void set_offset(struct jr3_channel __iomem *channel)
+static void set_offset(struct jr3_sensor __iomem *channel)
 {
 	set_s16(&channel->command_word0, 0x0700);
 }
@@ -182,7 +182,7 @@ struct six_axis_t {
 	s16 mz;
 };
 
-static void set_full_scales(struct jr3_channel __iomem *channel,
+static void set_full_scales(struct jr3_sensor __iomem *channel,
 			    struct six_axis_t full_scale)
 {
 	set_s16(&channel->full_scale.fx, full_scale.fx);
@@ -194,7 +194,7 @@ static void set_full_scales(struct jr3_channel __iomem *channel,
 	set_s16(&channel->command_word0, 0x0a00);
 }
 
-static struct six_axis_t get_min_full_scales(struct jr3_channel __iomem
+static struct six_axis_t get_min_full_scales(struct jr3_sensor __iomem
 					     *channel)
 {
 	struct six_axis_t result;
@@ -208,7 +208,7 @@ static struct six_axis_t get_min_full_scales(struct jr3_channel __iomem
 	return result;
 }
 
-static struct six_axis_t get_max_full_scales(struct jr3_channel __iomem
+static struct six_axis_t get_max_full_scales(struct jr3_sensor __iomem
 					     *channel)
 {
 	struct six_axis_t result;
@@ -451,7 +451,7 @@ jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 {
 	struct jr3_pci_subdev_private *spriv = s->private;
 	struct jr3_pci_poll_delay result = poll_delay_min_max(1000, 2000);
-	struct jr3_channel __iomem *channel;
+	struct jr3_sensor __iomem *channel;
 	u16 model_no;
 	u16 serial_no;
 	int errors;
@@ -673,7 +673,7 @@ jr3_pci_alloc_spriv(struct comedi_device *dev, struct comedi_subdevice *s)
 static void jr3_pci_show_copyright(struct comedi_device *dev)
 {
 	struct jr3_t __iomem *iobase = dev->mmio;
-	struct jr3_channel __iomem *ch0data = &iobase->channel[0].data;
+	struct jr3_sensor __iomem *ch0data = &iobase->channel[0].data;
 	char copy[ARRAY_SIZE(ch0data->copyright) + 1];
 	int i;
 
@@ -695,10 +695,10 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 	int ret;
 	int i;
 
-	if (sizeof(struct jr3_channel) != 0xc00) {
+	if (sizeof(struct jr3_sensor) != 0xc00) {
 		dev_err(dev->class_dev,
-			"sizeof(struct jr3_channel) = %x [expected %x]\n",
-			(unsigned int)sizeof(struct jr3_channel), 0xc00);
+			"sizeof(struct jr3_sensor) = %x [expected %x]\n",
+			(unsigned int)sizeof(struct jr3_sensor), 0xc00);
 		return -EINVAL;
 	}
 
