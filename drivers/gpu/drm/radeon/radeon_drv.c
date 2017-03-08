@@ -109,8 +109,6 @@ void radeon_driver_lastclose_kms(struct drm_device *dev);
 int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv);
 void radeon_driver_postclose_kms(struct drm_device *dev,
 				 struct drm_file *file_priv);
-void radeon_driver_preclose_kms(struct drm_device *dev,
-				struct drm_file *file_priv);
 int radeon_suspend_kms(struct drm_device *dev, bool suspend,
 		       bool fbcon, bool freeze);
 int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon);
@@ -539,7 +537,6 @@ static struct drm_driver kms_driver = {
 	    DRIVER_PRIME | DRIVER_RENDER,
 	.load = radeon_driver_load_kms,
 	.open = radeon_driver_open_kms,
-	.preclose = radeon_driver_preclose_kms,
 	.postclose = radeon_driver_postclose_kms,
 	.lastclose = radeon_driver_lastclose_kms,
 	.set_busid = drm_pci_set_busid,
