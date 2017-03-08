@@ -1,0 +1,7 @@
+config RTL8822BE
+	tristate "Realtek 8822B PCIE WiFi"
+	depends on PCI
+	default m
+	---help---
+	  Help message of RTL8822BE
+
