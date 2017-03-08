@@ -37,6 +37,7 @@ static struct usb_device_id ath9k_hif_usb_ids[] = {
 	{ USB_DEVICE(0x0cf3, 0xb002) }, /* Ubiquiti WifiStation */
 	{ USB_DEVICE(0x057c, 0x8403) }, /* AVM FRITZ!WLAN 11N v2 USB */
 	{ USB_DEVICE(0x0471, 0x209e) }, /* Philips (or NXP) PTA01 */
+	{ USB_DEVICE(0x1eda, 0x2315) }, /* AirTies */
 
 	{ USB_DEVICE(0x0cf3, 0x7015),
 	  .driver_info = AR9287_USB },  /* Atheros */
