@@ -639,7 +639,7 @@ jr3_pci_alloc_spriv(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (!spriv)
 		return NULL;
 
-	spriv->sensor = &iobase->channel[s->index].data;
+	spriv->sensor = &iobase->channel[s->index].sensor;
 
 	for (j = 0; j < 8; j++) {
 		spriv->range[j].l.length = 1;
@@ -671,12 +671,12 @@ jr3_pci_alloc_spriv(struct comedi_device *dev, struct comedi_subdevice *s)
 static void jr3_pci_show_copyright(struct comedi_device *dev)
 {
 	struct jr3_t __iomem *iobase = dev->mmio;
-	struct jr3_sensor __iomem *ch0data = &iobase->channel[0].data;
-	char copy[ARRAY_SIZE(ch0data->copyright) + 1];
+	struct jr3_sensor __iomem *sensor0 = &iobase->channel[0].sensor;
+	char copy[ARRAY_SIZE(sensor0->copyright) + 1];
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(ch0data->copyright); i++)
-		copy[i] = (char)(get_u16(&ch0data->copyright[i]) >> 8);
+	for (i = 0; i < ARRAY_SIZE(sensor0->copyright); i++)
+		copy[i] = (char)(get_u16(&sensor0->copyright[i]) >> 8);
 	copy[i] = '\0';
 	dev_dbg(dev->class_dev, "Firmware copyright: %s\n", copy);
 }
