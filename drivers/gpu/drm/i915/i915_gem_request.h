@@ -348,6 +348,9 @@ static inline bool i915_spin_request(const struct drm_i915_gem_request *request,
 	u32 seqno;
 
 	seqno = i915_gem_request_global_seqno(request);
+	if (!seqno)
+		return 0;
+
 	return (__i915_gem_request_started(request, seqno) &&
 		__i915_spin_request(request, seqno, state, timeout_us));
 }
