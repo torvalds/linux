@@ -1705,10 +1705,9 @@ static int nfp_net_poll(struct napi_struct *napi, int budget)
 			nfp_net_xdp_complete(r_vec->xdp_ring);
 	}
 
-	if (pkts_polled < budget) {
-		napi_complete_done(napi, pkts_polled);
-		nfp_net_irq_unmask(r_vec->nfp_net, r_vec->irq_entry);
-	}
+	if (pkts_polled < budget)
+		if (napi_complete_done(napi, pkts_polled))
+			nfp_net_irq_unmask(r_vec->nfp_net, r_vec->irq_entry);
 
 	return pkts_polled;
 }
