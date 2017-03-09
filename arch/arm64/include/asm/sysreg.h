@@ -182,6 +182,10 @@
 
 #define SYS_CNTFRQ_EL0			sys_reg(3, 3, 14, 0, 0)
 
+#define SYS_CNTP_TVAL_EL0		sys_reg(3, 3, 14, 2, 0)
+#define SYS_CNTP_CTL_EL0		sys_reg(3, 3, 14, 2, 1)
+#define SYS_CNTP_CVAL_EL0		sys_reg(3, 3, 14, 2, 2)
+
 #define __PMEV_op2(n)			((n) & 0x7)
 #define __CNTR_CRm(n)			(0x8 | (((n) >> 3) & 0x3))
 #define SYS_PMEVCNTRn_EL0(n)		sys_reg(3, 3, 14, __CNTR_CRm(n), __PMEV_op2(n))
