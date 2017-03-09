@@ -183,7 +183,7 @@ struct sun4i_crtc *sun4i_crtc_init(struct drm_device *drm)
 	drm_crtc_helper_add(&scrtc->crtc, &sun4i_crtc_helper_funcs);
 
 	/* Set crtc.port to output port node of the tcon */
-	scrtc->crtc.port = of_graph_get_port_by_id(drv->tcon->dev->of_node,
+	scrtc->crtc.port = of_graph_get_port_by_id(scrtc->tcon->dev->of_node,
 						   1);
 
 	/* Set possible_crtcs to this crtc for overlay planes */
