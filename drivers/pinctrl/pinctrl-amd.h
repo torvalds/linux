@@ -87,7 +87,7 @@ struct amd_function {
 };
 
 struct amd_gpio {
-	spinlock_t              lock;
+	raw_spinlock_t          lock;
 	void __iomem            *base;
 
 	const struct amd_pingroup *groups;
