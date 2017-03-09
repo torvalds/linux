@@ -745,9 +745,9 @@ out:
 /*
  * Create an rpc connection to the nfs4_pnfs_ds data server.
  * Currently only supports IPv4 and IPv6 addresses.
- * If connection fails, make devid unavailable.
+ * If connection fails, make devid unavailable and return a -errno.
  */
-void nfs4_pnfs_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds,
+int nfs4_pnfs_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds,
 			  struct nfs4_deviceid_node *devid, unsigned int timeo,
 			  unsigned int retrans, u32 version, u32 minor_version)
 {
@@ -772,6 +772,17 @@ void nfs4_pnfs_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds,
 	} else {
 		nfs4_wait_ds_connect(ds);
 	}
+
+	/*
+	 * At this point the ds->ds_clp should be ready, but it might have
+	 * hit an error.
+	 */
+	if (!ds->ds_clp || !nfs_client_init_is_complete(ds->ds_clp)) {
+		WARN_ON_ONCE(1);
+		return -EINVAL;
+	}
+
+	return nfs_client_init_status(ds->ds_clp);
 }
 EXPORT_SYMBOL_GPL(nfs4_pnfs_ds_connect);
 

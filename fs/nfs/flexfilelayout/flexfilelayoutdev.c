@@ -384,6 +384,7 @@ nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx,
 	struct inode *ino = lseg->pls_layout->plh_inode;
 	struct nfs_server *s = NFS_SERVER(ino);
 	unsigned int max_payload;
+	int status;
 
 	if (!ff_layout_mirror_valid(lseg, mirror, true)) {
 		pr_err_ratelimited("NFS: %s: No data server for offset index %d\n",
@@ -404,7 +405,7 @@ nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx,
 	/* FIXME: For now we assume the server sent only one version of NFS
 	 * to use for the DS.
 	 */
-	nfs4_pnfs_ds_connect(s, ds, devid, dataserver_timeo,
+	status = nfs4_pnfs_ds_connect(s, ds, devid, dataserver_timeo,
 			     dataserver_retrans,
 			     mirror->mirror_ds->ds_versions[0].version,
 			     mirror->mirror_ds->ds_versions[0].minor_version);
