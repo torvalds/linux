@@ -339,6 +339,7 @@
 		smmu: smmu@fd800000 {
 			compatible = "arm,mmu-500";
 			reg = <0x0 0xfd800000 0x0 0x20000>;
+			status = "disabled";
 			#global-interrupts = <1>;
 			interrupt-parent = <&gic>;
 			interrupts = <0 155 4>,
