@@ -441,10 +441,20 @@ static struct meson_clk_mpll gxbb_mpll0 = {
 		.shift   = 0,
 		.width   = 14,
 	},
+	.sdm_en = {
+		.reg_off = HHI_MPLL_CNTL7,
+		.shift   = 15,
+		.width	 = 1,
+	},
 	.n2 = {
 		.reg_off = HHI_MPLL_CNTL7,
 		.shift   = 16,
 		.width   = 9,
+	},
+	.en = {
+		.reg_off = HHI_MPLL_CNTL7,
+		.shift   = 14,
+		.width	 = 1,
 	},
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
@@ -461,10 +471,20 @@ static struct meson_clk_mpll gxbb_mpll1 = {
 		.shift   = 0,
 		.width   = 14,
 	},
+	.sdm_en = {
+		.reg_off = HHI_MPLL_CNTL8,
+		.shift   = 15,
+		.width	 = 1,
+	},
 	.n2 = {
 		.reg_off = HHI_MPLL_CNTL8,
 		.shift   = 16,
 		.width   = 9,
+	},
+	.en = {
+		.reg_off = HHI_MPLL_CNTL8,
+		.shift   = 14,
+		.width	 = 1,
 	},
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
@@ -481,10 +501,20 @@ static struct meson_clk_mpll gxbb_mpll2 = {
 		.shift   = 0,
 		.width   = 14,
 	},
+	.sdm_en = {
+		.reg_off = HHI_MPLL_CNTL9,
+		.shift   = 15,
+		.width	 = 1,
+	},
 	.n2 = {
 		.reg_off = HHI_MPLL_CNTL9,
 		.shift   = 16,
 		.width   = 9,
+	},
+	.en = {
+		.reg_off = HHI_MPLL_CNTL9,
+		.shift   = 14,
+		.width	 = 1,
 	},
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
