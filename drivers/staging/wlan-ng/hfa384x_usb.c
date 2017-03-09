@@ -2316,7 +2316,7 @@ int hfa384x_drvr_ramdl_write(struct hfa384x *hw, u32 daddr, void *buf, u32 len)
 int hfa384x_drvr_readpda(struct hfa384x *hw, void *buf, unsigned int len)
 {
 	int result = 0;
-	u16 *pda = buf;
+	__le16 *pda = buf;
 	int pdaok = 0;
 	int morepdrs = 1;
 	int currpdr = 0;	/* word offset of the current pdr */
