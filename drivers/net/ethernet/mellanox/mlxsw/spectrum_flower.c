@@ -183,7 +183,8 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 	      BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
-	      BIT(FLOW_DISSECTOR_KEY_PORTS))) {
+	      BIT(FLOW_DISSECTOR_KEY_PORTS) |
+	      BIT(FLOW_DISSECTOR_KEY_VLAN))) {
 		dev_err(mlxsw_sp->bus_info->dev, "Unsupported key\n");
 		return -EOPNOTSUPP;
 	}
@@ -242,6 +243,27 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 					       MLXSW_AFK_ELEMENT_SMAC,
 					       key->src, mask->src,
 					       sizeof(key->src));
+	}
+
+	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_VLAN)) {
+		struct flow_dissector_key_vlan *key =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_VLAN,
+						  f->key);
+		struct flow_dissector_key_vlan *mask =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_VLAN,
+						  f->mask);
+		if (mask->vlan_id != 0)
+			mlxsw_sp_acl_rulei_keymask_u32(rulei,
+						       MLXSW_AFK_ELEMENT_VID,
+						       key->vlan_id,
+						       mask->vlan_id);
+		if (mask->vlan_priority != 0)
+			mlxsw_sp_acl_rulei_keymask_u32(rulei,
+						       MLXSW_AFK_ELEMENT_PCP,
+						       key->vlan_priority,
+						       mask->vlan_priority);
 	}
 
 	if (addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS)
