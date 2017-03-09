@@ -1749,7 +1749,9 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 	intel_runtime_pm_get(dev_priv);
 	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 
-	if (HAS_PCH_SPLIT(dev_priv))
+	if (INTEL_GEN(dev_priv) >= 9)
+		/* no global SR status; inspect per-plane WM */;
+	else if (HAS_PCH_SPLIT(dev_priv))
 		sr_enabled = I915_READ(WM1_LP_ILK) & WM1_LP_SR_EN;
 	else if (IS_I965GM(dev_priv) || IS_G4X(dev_priv) ||
 		 IS_I945G(dev_priv) || IS_I945GM(dev_priv))
