@@ -128,9 +128,7 @@ static void alloc_init_pte(pmd_t *pmd, unsigned long addr,
 		phys_addr_t pte_phys;
 		BUG_ON(!pgtable_alloc);
 		pte_phys = pgtable_alloc();
-		pte = pte_set_fixmap(pte_phys);
 		__pmd_populate(pmd, pte_phys, PMD_TYPE_TABLE);
-		pte_clear_fixmap();
 	}
 	BUG_ON(pmd_bad(*pmd));
 
@@ -168,9 +166,7 @@ static void alloc_init_pmd(pud_t *pud, unsigned long addr, unsigned long end,
 		phys_addr_t pmd_phys;
 		BUG_ON(!pgtable_alloc);
 		pmd_phys = pgtable_alloc();
-		pmd = pmd_set_fixmap(pmd_phys);
 		__pud_populate(pud, pmd_phys, PUD_TYPE_TABLE);
-		pmd_clear_fixmap();
 	}
 	BUG_ON(pud_bad(*pud));
 
