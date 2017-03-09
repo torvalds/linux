@@ -143,7 +143,7 @@ void sun4i_tcon0_mode_set(struct sun4i_tcon *tcon,
 
 	/*
 	 * This is called a backporch in the register documentation,
-	 * but it really is the front porch + hsync
+	 * but it really is the back porch + hsync
 	 */
 	bp = mode->crtc_htotal - mode->crtc_hsync_start;
 	DRM_DEBUG_DRIVER("Setting horizontal total %d, backporch %d\n",
@@ -156,7 +156,7 @@ void sun4i_tcon0_mode_set(struct sun4i_tcon *tcon,
 
 	/*
 	 * This is called a backporch in the register documentation,
-	 * but it really is the front porch + hsync
+	 * but it really is the back porch + hsync
 	 */
 	bp = mode->crtc_vtotal - mode->crtc_vsync_start;
 	DRM_DEBUG_DRIVER("Setting vertical total %d, backporch %d\n",
