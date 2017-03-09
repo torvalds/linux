@@ -23,28 +23,7 @@
 #include <asm/irq_vectors.h>
 #include <asm/timer.h>
 
-static struct bau_operations ops;
-
-static struct bau_operations uv123_bau_ops = {
-	.bau_gpa_to_offset       = uv_gpa_to_offset,
-	.read_l_sw_ack           = read_mmr_sw_ack,
-	.read_g_sw_ack           = read_gmmr_sw_ack,
-	.write_l_sw_ack          = write_mmr_sw_ack,
-	.write_g_sw_ack          = write_gmmr_sw_ack,
-	.write_payload_first     = write_mmr_payload_first,
-	.write_payload_last      = write_mmr_payload_last,
-};
-
-static struct bau_operations uv4_bau_ops = {
-	.bau_gpa_to_offset       = uv_gpa_to_soc_phys_ram,
-	.read_l_sw_ack           = read_mmr_proc_sw_ack,
-	.read_g_sw_ack           = read_gmmr_proc_sw_ack,
-	.write_l_sw_ack          = write_mmr_proc_sw_ack,
-	.write_g_sw_ack          = write_gmmr_proc_sw_ack,
-	.write_payload_first     = write_mmr_proc_payload_first,
-	.write_payload_last      = write_mmr_proc_payload_last,
-};
-
+static struct bau_operations ops __ro_after_init;
 
 /* timeouts in nanoseconds (indexed by UVH_AGING_PRESCALE_SEL urgency7 30:28) */
 static int timeout_base_ns[] = {
@@ -2157,6 +2136,26 @@ fail:
 	kfree(uvhub_mask);
 	return 1;
 }
+
+static const struct bau_operations uv123_bau_ops __initconst = {
+	.bau_gpa_to_offset       = uv_gpa_to_offset,
+	.read_l_sw_ack           = read_mmr_sw_ack,
+	.read_g_sw_ack           = read_gmmr_sw_ack,
+	.write_l_sw_ack          = write_mmr_sw_ack,
+	.write_g_sw_ack          = write_gmmr_sw_ack,
+	.write_payload_first     = write_mmr_payload_first,
+	.write_payload_last      = write_mmr_payload_last,
+};
+
+static const struct bau_operations uv4_bau_ops __initconst = {
+	.bau_gpa_to_offset       = uv_gpa_to_soc_phys_ram,
+	.read_l_sw_ack           = read_mmr_proc_sw_ack,
+	.read_g_sw_ack           = read_gmmr_proc_sw_ack,
+	.write_l_sw_ack          = write_mmr_proc_sw_ack,
+	.write_g_sw_ack          = write_gmmr_proc_sw_ack,
+	.write_payload_first     = write_mmr_proc_payload_first,
+	.write_payload_last      = write_mmr_proc_payload_last,
+};
 
 /*
  * Initialization of BAU-related structures
