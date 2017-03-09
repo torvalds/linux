@@ -316,6 +316,11 @@
 #define CSR_HW_REV_DASH(_val)          (((_val) & 0x0000003) >> 0)
 #define CSR_HW_REV_STEP(_val)          (((_val) & 0x000000C) >> 2)
 
+/* HW RFID */
+#define CSR_HW_RFID_FLAVOR(_val)       (((_val) & 0x000000F) >> 0)
+#define CSR_HW_RFID_DASH(_val)         (((_val) & 0x00000F0) >> 4)
+#define CSR_HW_RFID_STEP(_val)         (((_val) & 0x0000F00) >> 8)
+#define CSR_HW_RFID_TYPE(_val)         (((_val) & 0x0FFF000) >> 12)
 
 /**
  *  hw_rev values
