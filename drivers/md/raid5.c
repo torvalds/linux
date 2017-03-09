@@ -64,6 +64,7 @@
 #include "raid5.h"
 #include "raid0.h"
 #include "bitmap.h"
+#include "raid5-log.h"
 
 #define UNSUPPORTED_MDDEV_FLAGS	(1L << MD_FAILFAST_SUPPORTED)
 
@@ -997,18 +998,8 @@ static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
 
 	might_sleep();
 
-	if (!test_bit(STRIPE_R5C_CACHING, &sh->state)) {
-		/* writing out phase */
-		if (s->waiting_extra_page)
-			return;
-		if (r5l_write_stripe(conf->log, sh) == 0)
-			return;
-	} else {  /* caching phase */
-		if (test_bit(STRIPE_LOG_TRAPPED, &sh->state)) {
-			r5c_cache_data(conf->log, sh, s);
-			return;
-		}
-	}
+	if (log_stripe(sh, s) == 0)
+		return;
 
 	should_defer = conf->batch_bio_dispatch && conf->group_cnt;
 
@@ -3345,7 +3336,7 @@ handle_failed_stripe(struct r5conf *conf, struct stripe_head *sh,
 		if (bi)
 			bitmap_end = 1;
 
-		r5l_stripe_write_finished(sh);
+		log_stripe_write_finished(sh);
 
 		if (test_and_clear_bit(R5_Overlap, &sh->dev[i].flags))
 			wake_up(&conf->wait_for_overlap);
@@ -3764,7 +3755,7 @@ returnbi:
 				discard_pending = 1;
 		}
 
-	r5l_stripe_write_finished(sh);
+	log_stripe_write_finished(sh);
 
 	if (!discard_pending &&
 	    test_bit(R5_Discard, &sh->dev[sh->pd_idx].flags)) {
@@ -4754,7 +4745,7 @@ static void handle_stripe(struct stripe_head *sh)
 
 	if (s.just_cached)
 		r5c_handle_cached_data_endio(conf, sh, disks, &s.return_bi);
-	r5l_stripe_write_finished(sh);
+	log_stripe_write_finished(sh);
 
 	/* Now we might consider reading some blocks, either to check/generate
 	 * parity, or to satisfy requests
@@ -6168,7 +6159,7 @@ static int handle_active_stripes(struct r5conf *conf, int group,
 
 	for (i = 0; i < batch_size; i++)
 		handle_stripe(batch[i]);
-	r5l_write_stripe_run(conf->log);
+	log_write_stripe_run(conf);
 
 	cond_resched();
 
@@ -6745,8 +6736,8 @@ static void free_conf(struct r5conf *conf)
 {
 	int i;
 
-	if (conf->log)
-		r5l_exit_log(conf->log);
+	log_exit(conf);
+
 	if (conf->shrinker.nr_deferred)
 		unregister_shrinker(&conf->shrinker);
 
@@ -7436,14 +7427,8 @@ static int raid5_run(struct mddev *mddev)
 		blk_queue_max_hw_sectors(mddev->queue, UINT_MAX);
 	}
 
-	if (journal_dev) {
-		char b[BDEVNAME_SIZE];
-
-		pr_debug("md/raid:%s: using device %s as journal\n",
-			 mdname(mddev), bdevname(journal_dev->bdev, b));
-		if (r5l_init_log(conf, journal_dev))
-			goto abort;
-	}
+	if (log_init(conf, journal_dev))
+		goto abort;
 
 	return 0;
 abort:
@@ -7557,17 +7542,13 @@ static int raid5_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 
 	print_raid5_conf(conf);
 	if (test_bit(Journal, &rdev->flags) && conf->log) {
-		struct r5l_log *log;
 		/*
 		 * we can't wait pending write here, as this is called in
 		 * raid5d, wait will deadlock.
 		 */
 		if (atomic_read(&mddev->writes_pending))
 			return -EBUSY;
-		log = conf->log;
-		conf->log = NULL;
-		synchronize_rcu();
-		r5l_exit_log(log);
+		log_exit(conf);
 		return 0;
 	}
 	if (rdev == p->rdev)
@@ -7636,7 +7617,6 @@ static int raid5_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 	int last = conf->raid_disks - 1;
 
 	if (test_bit(Journal, &rdev->flags)) {
-		char b[BDEVNAME_SIZE];
 		if (conf->log)
 			return -EBUSY;
 
@@ -7645,9 +7625,7 @@ static int raid5_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 		 * The array is in readonly mode if journal is missing, so no
 		 * write requests running. We should be safe
 		 */
-		r5l_init_log(conf, rdev);
-		pr_debug("md/raid:%s: using device %s as journal\n",
-			 mdname(mddev), bdevname(rdev->bdev, b));
+		log_init(conf, rdev);
 		return 0;
 	}
 	if (mddev->recovery_disabled == conf->recovery_disabled)
