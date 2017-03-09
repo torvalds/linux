@@ -27,11 +27,8 @@ HDMI 1.3a specification is sufficient:
 http://www.microprocessor.org/HDMISpecification13a.pdf
 
 
-The Kernel Interface
-====================
-
-CEC Adapter
------------
+CEC Adapter Interface
+---------------------
 
 The struct cec_adapter represents the CEC adapter hardware. It is created by
 calling cec_allocate_adapter() and deleted by calling cec_delete_adapter():
