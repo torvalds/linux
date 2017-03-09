@@ -411,7 +411,7 @@ struct iwl_geo_tx_power_profiles_cmd {
  *      Threshold. Typical energy threshold is -72dBm.
  * @bf_temp_threshold: This threshold determines the type of temperature
  *	filtering (Slow or Fast) that is selected (Units are in Celsuis):
- *      If the current temperature is above this threshold - Fast filter
+ *	If the current temperature is above this threshold - Fast filter
  *	will be used, If the current temperature is below this threshold -
  *	Slow filter will be used.
  * @bf_temp_fast_filter: Send Beacon to driver if delta in temperature values

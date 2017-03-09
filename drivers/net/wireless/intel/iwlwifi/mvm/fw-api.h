@@ -412,13 +412,13 @@ struct iwl_tx_ant_cfg_cmd {
 	__le32 valid;
 } __packed;
 
-/*
- * Calibration control struct.
+/**
+ * struct iwl_calib_ctrl - Calibration control struct.
  * Sent as part of the phy configuration command.
  * @flow_trigger: bitmap for which calibrations to perform according to
- *		flow triggers.
+ *		flow triggers, using &enum iwl_calib_cfg
  * @event_trigger: bitmap for which calibrations to perform according to
- *		event triggers.
+ *		event triggers, using &enum iwl_calib_cfg
  */
 struct iwl_calib_ctrl {
 	__le32 flow_trigger;
@@ -450,8 +450,10 @@ enum iwl_calib_cfg {
 	IWL_CALIB_CFG_AGC_IDX			= BIT(18),
 };
 
-/*
- * Phy configuration command.
+/**
+ * struct iwl_phy_cfg_cmd - Phy configuration command
+ * @phy_cfg: PHY configuration value, uses &enum iwl_fw_phy_cfg
+ * @calib_control: calibration control data
  */
 struct iwl_phy_cfg_cmd {
 	__le32	phy_cfg;
@@ -1576,8 +1578,8 @@ enum iwl_sf_scenario {
 #define SF_CFG_DUMMY_NOTIF_OFF	BIT(16)
 
 /**
- * Smart Fifo configuration command.
- * @state: smart fifo state, types listed in enum %iwl_sf_sate.
+ * struct iwl_sf_cfg_cmd - Smart Fifo configuration command.
+ * @state: smart fifo state, types listed in &enum iwl_sf_state.
  * @watermark: Minimum allowed availabe free space in RXF for transient state.
  * @long_delay_timeouts: aging and idle timer values for each scenario
  * in long delay state.
@@ -1631,7 +1633,7 @@ struct iwl_mcc_update_cmd {
 } __packed; /* LAR_UPDATE_MCC_CMD_API_S_VER_2 */
 
 /**
- * iwl_mcc_update_resp_v1  - response to MCC_UPDATE_CMD.
+ * struct iwl_mcc_update_resp_v1  - response to MCC_UPDATE_CMD.
  * Contains the new channel control profile map, if changed, and the new MCC
  * (mobile country code).
  * The new MCC may be different than what was requested in MCC_UPDATE_CMD.
@@ -1654,7 +1656,7 @@ struct iwl_mcc_update_resp_v1  {
 } __packed; /* LAR_UPDATE_MCC_CMD_RESP_S_VER_1 */
 
 /**
- * iwl_mcc_update_resp - response to MCC_UPDATE_CMD.
+ * struct iwl_mcc_update_resp - response to MCC_UPDATE_CMD.
  * Contains the new channel control profile map, if changed, and the new MCC
  * (mobile country code).
  * The new MCC may be different than what was requested in MCC_UPDATE_CMD.
@@ -1736,10 +1738,10 @@ enum iwl_dts_measurement_flags {
 };
 
 /**
- * iwl_dts_measurement_cmd - request DTS temperature and/or voltage measurements
+ * struct iwl_dts_measurement_cmd - request DTS temp and/or voltage measurements
  *
- * @flags: indicates which measurements we want as specified in &enum
- *	   iwl_dts_measurement_flags
+ * @flags: indicates which measurements we want as specified in
+ *	&enum iwl_dts_measurement_flags
  */
 struct iwl_dts_measurement_cmd {
 	__le32 flags;
@@ -1791,7 +1793,7 @@ enum iwl_dts_bit_mode {
 };
 
 /**
- * iwl_ext_dts_measurement_cmd - request extended DTS temperature measurements
+ * struct iwl_ext_dts_measurement_cmd - request extended DTS temp measurements
  * @control_mode: see &enum iwl_dts_control_measurement_mode
  * @temperature: used when over write DTS mode is selected
  * @sensor: set temperature sensor to use. See &enum iwl_dts_used
@@ -1871,7 +1873,7 @@ struct iwl_mvm_ctdp_cmd {
 #define IWL_MAX_DTS_TRIPS	8
 
 /**
- * struct iwl_temp_report_ths_cmd - set temperature thresholds
+ * struct temp_report_ths_cmd - set temperature thresholds
  *
  * @num_temps: number of temperature thresholds passed
  * @thresholds: array with the thresholds to be configured
@@ -1893,7 +1895,7 @@ enum iwl_tdls_channel_switch_type {
 }; /* TDLS_STA_CHANNEL_SWITCH_CMD_TYPE_API_E_VER_1 */
 
 /**
- * Switch timing sub-element in a TDLS channel-switch command
+ * struct iwl_tdls_channel_switch_timing - Switch timing in TDLS channel-switch
  * @frame_timestamp: GP2 timestamp of channel-switch request/response packet
  *	received from peer
  * @max_offchan_duration: What amount of microseconds out of a DTIM is given
@@ -1913,7 +1915,7 @@ struct iwl_tdls_channel_switch_timing {
 #define IWL_TDLS_CH_SW_FRAME_MAX_SIZE 200
 
 /**
- * TDLS channel switch frame template
+ * struct iwl_tdls_channel_switch_frame - TDLS channel switch frame template
  *
  * A template representing a TDLS channel-switch request or response frame
  *
@@ -1928,7 +1930,7 @@ struct iwl_tdls_channel_switch_frame {
 } __packed; /* TDLS_STA_CHANNEL_SWITCH_FRAME_API_S_VER_1 */
 
 /**
- * TDLS channel switch command
+ * struct iwl_tdls_channel_switch_cmd - TDLS channel switch command
  *
  * The command is sent to initiate a channel switch and also in response to
  * incoming TDLS channel-switch request/response packets from remote peers.
@@ -1948,7 +1950,7 @@ struct iwl_tdls_channel_switch_cmd {
 } __packed; /* TDLS_STA_CHANNEL_SWITCH_CMD_API_S_VER_1 */
 
 /**
- * TDLS channel switch start notification
+ * struct iwl_tdls_channel_switch_notif - TDLS channel switch start notification
  *
  * @status: non-zero on success
  * @offchannel_duration: duration given in microseconds
@@ -1961,7 +1963,7 @@ struct iwl_tdls_channel_switch_notif {
 } __packed; /* TDLS_STA_CHANNEL_SWITCH_NTFY_API_S_VER_1 */
 
 /**
- * TDLS station info
+ * struct iwl_tdls_sta_info - TDLS station info
  *
  * @sta_id: station id of the TDLS peer
  * @tx_to_peer_tid: TID reserved vs. the peer for FW based Tx
@@ -1976,7 +1978,7 @@ struct iwl_tdls_sta_info {
 } __packed; /* TDLS_STA_INFO_VER_1 */
 
 /**
- * TDLS basic config command
+ * struct iwl_tdls_config_cmd - TDLS basic config command
  *
  * @id_and_color: MAC id and color being configured
  * @tdls_peer_count: amount of currently connected TDLS peers
@@ -2000,7 +2002,7 @@ struct iwl_tdls_config_cmd {
 } __packed; /* TDLS_CONFIG_CMD_API_S_VER_1 */
 
 /**
- * TDLS per-station config information from FW
+ * struct iwl_tdls_config_sta_info_res - TDLS per-station config information
  *
  * @sta_id: station id of the TDLS peer
  * @tx_to_peer_last_seq: last sequence number used by FW during FW-based Tx to
@@ -2012,7 +2014,7 @@ struct iwl_tdls_config_sta_info_res {
 } __packed; /* TDLS_STA_INFO_RSP_VER_1 */
 
 /**
- * TDLS config information from FW
+ * struct iwl_tdls_config_res - TDLS config information from FW
  *
  * @tx_to_ap_last_seq: last sequence number used by FW during FW-based Tx to AP
  * @sta_info: per-station TDLS config information
@@ -2028,7 +2030,7 @@ struct iwl_tdls_config_res {
 #define TX_FIFO_INTERNAL_MAX_NUM	6
 
 /**
- * Shared memory configuration information from the FW
+ * struct iwl_shared_mem_cfg_v1 - Shared memory configuration information
  *
  * @shared_mem_addr: shared memory addr (pre 8000 HW set to 0x0 as MARBH is not
  *	accessible)
@@ -2082,7 +2084,7 @@ struct iwl_shared_mem_lmac_cfg {
 } __packed; /* SHARED_MEM_ALLOC_LMAC_API_S_VER_1 */
 
 /**
- * Shared memory configuration information from the FW
+ * struct iwl_shared_mem_cfg - Shared memory configuration information
  *
  * @shared_mem_addr: shared memory address
  * @shared_mem_size: shared memory size
@@ -2110,7 +2112,7 @@ struct iwl_shared_mem_cfg {
 } __packed; /* SHARED_MEM_ALLOC_API_S_VER_3 */
 
 /**
- * VHT MU-MIMO group configuration
+ * struct iwl_mu_group_mgmt_cmd - VHT MU-MIMO group configuration
  *
  * @membership_status: a bitmap of MU groups
  * @user_position:the position of station in a group. If the station is in the
@@ -2137,7 +2139,7 @@ struct iwl_mu_group_mgmt_notif {
 #define MAX_STORED_BEACON_SIZE 600
 
 /**
- * Stored beacon notification
+ * struct iwl_stored_beacon_notif - Stored beacon notification
  *
  * @system_time: system time on air rise
  * @tsf: TSF on air rise
@@ -2172,7 +2174,7 @@ enum iwl_lqm_status {
 };
 
 /**
- * Link Quality Measurement command
+ * struct iwl_link_qual_msrmnt_cmd - Link Quality Measurement command
  * @cmd_operatrion: command operation to be performed (start or stop)
  *	as defined above.
  * @mac_id: MAC ID the measurement applies to.
@@ -2187,7 +2189,7 @@ struct iwl_link_qual_msrmnt_cmd {
 } __packed /* LQM_CMD_API_S_VER_1 */;
 
 /**
- * Link Quality Measurement notification
+ * struct iwl_link_qual_msrmnt_notif - Link Quality Measurement notification
  *
  * @frequent_stations_air_time: an array containing the total air time
  *	(in uSec) used by the most frequently transmitting stations.
@@ -2215,7 +2217,7 @@ struct iwl_link_qual_msrmnt_notif {
 } __packed; /* LQM_MEASUREMENT_COMPLETE_NTF_API_S_VER1 */
 
 /**
- * Channel switch NOA notification
+ * struct iwl_channel_switch_noa_notif - Channel switch NOA notification
  *
  * @id_and_color: ID and color of the MAC
  */

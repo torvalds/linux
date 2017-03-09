@@ -595,9 +595,10 @@ struct iwl_mvm_tx_resp {
  * struct iwl_mvm_ba_notif - notifies about reception of BA
  * ( BA_NOTIF = 0xc5 )
  * @sta_addr: MAC address
+ * @reserved: reserved
  * @sta_id: Index of recipient (BA-sending) station in fw's station table
  * @tid: tid of the session
- * @seq_ctl:
+ * @seq_ctl: sequence control field
  * @bitmap: the bitmap of the BA notification as seen in the air
  * @scd_flow: the tx queue this BA relates to
  * @scd_ssn: the index of the last contiguously sent packet
@@ -606,6 +607,7 @@ struct iwl_mvm_tx_resp {
  * @reduced_txp: power reduced according to TPC. This is the actual value and
  *	not a copy from the LQ command. Thus, if not the first rate was used
  *	for Tx-ing then this value will be set to 0 by FW.
+ * @reserved1: reserved
  */
 struct iwl_mvm_ba_notif {
 	u8 sta_addr[ETH_ALEN];
@@ -628,13 +630,13 @@ struct iwl_mvm_ba_notif {
  * @q_num: TFD queue number
  * @tfd_index: Index of first un-acked frame in the  TFD queue
  * @scd_queue: For debug only - the physical queue the TFD queue is bound to
+ * @reserved: reserved for alignment
  */
 struct iwl_mvm_compressed_ba_tfd {
 	__le16 q_num;
 	__le16 tfd_index;
 	u8 scd_queue;
-	u8 reserved;
-	__le16 reserved2;
+	u8 reserved[3];
 } __packed; /* COMPRESSED_BA_TFD_API_S_VER_1 */
 
 /**
@@ -682,11 +684,12 @@ enum iwl_mvm_ba_resp_flags {
  * @query_frame_cnt: SCD query frame count
  * @txed: number of frames sent in the aggregation (all-TIDs)
  * @done: number of frames that were Acked by the BA (all-TIDs)
+ * @reserved: reserved (for alignment)
  * @wireless_time: Wireless-media time
  * @tx_rate: the rate the aggregation was sent at
  * @tfd_cnt: number of TFD-Q elements
  * @ra_tid_cnt: number of RATID-Q elements
- * @ba_tfd: array of TFD queue status updates. See &iwl_mvm_compressed_ba_tfd
+ * @tfd: array of TFD queue status updates. See &iwl_mvm_compressed_ba_tfd
  *	for details.
  * @ra_tid: array of RA-TID queue status updates. For debug purposes only. See
  *	&iwl_mvm_compressed_ba_ratid for more details.
@@ -760,6 +763,7 @@ struct iwl_mac_beacon_cmd_v7 {
  * struct iwl_mac_beacon_cmd - beacon template command with offloaded CSA
  * @byte_cnt: byte count of the beacon frame
  * @flags: for future use
+ * @reserved: reserved
  * @data: see &iwl_mac_beacon_cmd_data
  */
 struct iwl_mac_beacon_cmd {
@@ -819,9 +823,9 @@ enum iwl_scd_cfg_actions {
 
 /**
  * struct iwl_scd_txq_cfg_cmd - New txq hw scheduler config command
- * @token:
+ * @token: unused
  * @sta_id: station id
- * @tid:
+ * @tid: TID
  * @scd_queue: scheduler queue to confiug
  * @action: 1 queue enable, 0 queue disable, 2 change txq's tid owner
  *	Value is one of %iwl_scd_cfg_actions options
@@ -829,6 +833,7 @@ enum iwl_scd_cfg_actions {
  * @tx_fifo: %enum iwl_mvm_tx_fifo
  * @window: BA window size
  * @ssn: SSN for the BA agreement
+ * @reserved: reserved
  */
 struct iwl_scd_txq_cfg_cmd {
 	u8 token;

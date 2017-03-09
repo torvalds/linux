@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,6 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -111,7 +112,7 @@ enum scan_framework_client {
 };
 
 /**
- * iwl_scan_offload_blacklist - SCAN_OFFLOAD_BLACKLIST_S
+ * struct iwl_scan_offload_blacklist - SCAN_OFFLOAD_BLACKLIST_S
  * @ssid:		MAC address to filter out
  * @reported_rssi:	AP rssi reported to the host
  * @client_bitmap: clients ignore this entry  - enum scan_framework_client
@@ -135,7 +136,7 @@ enum iwl_scan_offload_band_selection {
 };
 
 /**
- * iwl_scan_offload_profile - SCAN_OFFLOAD_PROFILE_S
+ * struct iwl_scan_offload_profile - SCAN_OFFLOAD_PROFILE_S
  * @ssid_index:		index to ssid list in fixed part
  * @unicast_cipher:	encryption algorithm to match - bitmap
  * @aut_alg:		authentication algorithm to match - bitmap
@@ -154,8 +155,7 @@ struct iwl_scan_offload_profile {
 } __packed;
 
 /**
- * iwl_scan_offload_profile_cfg - SCAN_OFFLOAD_PROFILES_CFG_API_S_VER_1
- * @blaclist:		AP list to filter off from scan results
+ * struct iwl_scan_offload_profile_cfg - SCAN_OFFLOAD_PROFILES_CFG_API_S_VER_1
  * @profiles:		profiles to search for match
  * @blacklist_len:	length of blacklist
  * @num_profiles:	num of profiles in the list
@@ -176,7 +176,7 @@ struct iwl_scan_offload_profile_cfg {
 } __packed;
 
 /**
- * iwl_scan_schedule_lmac - schedule of scan offload
+ * struct iwl_scan_schedule_lmac - schedule of scan offload
  * @delay:		delay between iterations, in seconds.
  * @iterations:		num of scan iterations
  * @full_scan_mul:	number of partial scans before each full scan
@@ -200,7 +200,7 @@ enum iwl_scan_ebs_status {
 };
 
 /**
- * iwl_scan_req_tx_cmd - SCAN_REQ_TX_CMD_API_S
+ * struct iwl_scan_req_tx_cmd - SCAN_REQ_TX_CMD_API_S
  * @tx_flags: combination of TX_CMD_FLG_*
  * @rate_n_flags: rate for *all* Tx attempts, if TX_CMD_FLG_STA_RATE_MSK is
  *	cleared. Combination of RATE_MCS_*
@@ -220,7 +220,7 @@ enum iwl_scan_channel_flags_lmac {
 };
 
 /**
- * iwl_scan_channel_cfg_lmac - SCAN_CHANNEL_CFG_S_VER2
+ * struct iwl_scan_channel_cfg_lmac - SCAN_CHANNEL_CFG_S_VER2
  * @flags:		bits 1-20: directed scan to i'th ssid
  *			other bits &enum iwl_scan_channel_flags_lmac
  * @channel_number:	channel number 1-13 etc
@@ -235,7 +235,7 @@ struct iwl_scan_channel_cfg_lmac {
 } __packed;
 
 /*
- * iwl_scan_probe_segment - PROBE_SEGMENT_API_S_VER_1
+ * struct iwl_scan_probe_segment - PROBE_SEGMENT_API_S_VER_1
  * @offset: offset in the data block
  * @len: length of the segment
  */
@@ -263,7 +263,7 @@ enum iwl_scan_channel_flags {
 	IWL_SCAN_CHANNEL_FLAG_CACHE_ADD		= BIT(2),
 };
 
-/* iwl_scan_channel_opt - CHANNEL_OPTIMIZATION_API_S
+/* struct iwl_scan_channel_opt - CHANNEL_OPTIMIZATION_API_S
  * @flags: enum iwl_scan_channel_flags
  * @non_ebs_ratio: defines the ratio of number of scan iterations where EBS is
  *	involved.
@@ -276,7 +276,7 @@ struct iwl_scan_channel_opt {
 } __packed;
 
 /**
- * iwl_mvm_lmac_scan_flags
+ * enum iwl_mvm_lmac_scan_flags - LMAC scan flags
  * @IWL_MVM_LMAC_SCAN_FLAG_PASS_ALL: pass all beacons and probe responses
  *	without filtering.
  * @IWL_MVM_LMAC_SCAN_FLAG_PASSIVE: force passive scan on all channels
@@ -320,7 +320,7 @@ enum iwl_scan_priority_ext {
 };
 
 /**
- * iwl_scan_req_lmac - SCAN_REQUEST_CMD_API_S_VER_1
+ * struct iwl_scan_req_lmac - SCAN_REQUEST_CMD_API_S_VER_1
  * @reserved1: for alignment and future use
  * @channel_num: num of channels to scan
  * @active-dwell: dwell time for active channels
@@ -410,7 +410,7 @@ struct iwl_lmac_scan_complete_notif {
 } __packed;
 
 /**
- * iwl_scan_offload_complete - PERIODIC_SCAN_COMPLETE_NTF_API_S_VER_2
+ * struct iwl_scan_offload_complete - PERIODIC_SCAN_COMPLETE_NTF_API_S_VER_2
  * @last_schedule_line: last schedule line executed (fast or regular)
  * @last_schedule_iteration: last scan iteration executed before scan abort
  * @status: enum iwl_scan_offload_complete_status
@@ -547,12 +547,12 @@ struct iwl_scan_config {
 } __packed; /* SCAN_CONFIG_DB_CMD_API_S_3 */
 
 /**
- * iwl_umac_scan_flags
- *@IWL_UMAC_SCAN_FLAG_PREEMPTIVE: scan process triggered by this scan request
+ * enum iwl_umac_scan_flags - UMAC scan flags
+ * @IWL_UMAC_SCAN_FLAG_PREEMPTIVE: scan process triggered by this scan request
  *	can be preempted by other scan requests with higher priority.
  *	The low priority scan will be resumed when the higher proirity scan is
  *	completed.
- *@IWL_UMAC_SCAN_FLAG_START_NOTIF: notification will be sent to the driver
+ * @IWL_UMAC_SCAN_FLAG_START_NOTIF: notification will be sent to the driver
  *	when scan starts.
  */
 enum iwl_umac_scan_flags {

@@ -147,7 +147,8 @@ enum iwl_csum_rx_assist_info {
 
 /**
  * struct iwl_rx_mpdu_res_start - phy info
- * @assist: see CSUM_RX_ASSIST_ above
+ * @byte_count: byte count of the frame
+ * @assist: see &enum iwl_csum_rx_assist_info
  */
 struct iwl_rx_mpdu_res_start {
 	__le16 byte_count;
@@ -447,7 +448,7 @@ struct iwl_rxq_sync_notification {
 } __packed; /* MULTI_QUEUE_DRV_SYNC_HDR_CMD_API_S_VER_1 */
 
 /**
- * Internal message identifier
+ * enum iwl_mvm_rxq_notif_type - Internal message identifier
  *
  * @IWL_MVM_RXQ_EMPTY: empty sync notification
  * @IWL_MVM_RXQ_NOTIF_DEL_BA: notify RSS queues of delBA
@@ -491,7 +492,7 @@ enum iwl_mvm_pm_event {
 /**
  * struct iwl_mvm_pm_state_notification - station PM state notification
  * @sta_id: station ID of the station changing state
- * @type: the new powersave state, see IWL_MVM_PM_EVENT_ above
+ * @type: the new powersave state, see &enum iwl_mvm_pm_event
  */
 struct iwl_mvm_pm_state_notification {
 	u8 sta_id;

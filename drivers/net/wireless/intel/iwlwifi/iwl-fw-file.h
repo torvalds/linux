@@ -395,8 +395,8 @@ enum iwl_ucode_tlv_capa {
 #define IWL_UCODE_API(ver)	(((ver) & 0x0000FF00) >> 8)
 #define IWL_UCODE_SERIAL(ver)	((ver) & 0x000000FF)
 
-/*
- * Calibration control struct.
+/**
+ * struct iwl_tlv_calib_ctrl - Calibration control struct.
  * Sent as part of the phy configuration command.
  * @flow_trigger: bitmap for which calibrations to perform according to
  *		flow triggers.
