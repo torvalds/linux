@@ -224,10 +224,16 @@ struct stripe_head {
 	spinlock_t		batch_lock; /* only header's lock is useful */
 	struct list_head	batch_list; /* protected by head's batch lock*/
 
-	struct r5l_io_unit	*log_io;
+	union {
+		struct r5l_io_unit	*log_io;
+		struct ppl_io_unit	*ppl_io;
+	};
+
 	struct list_head	log_list;
 	sector_t		log_start; /* first meta block on the journal */
 	struct list_head	r5c; /* for r5c_cache->stripe_in_journal */
+
+	struct page		*ppl_page; /* partial parity of this stripe */
 	/**
 	 * struct stripe_operations
 	 * @target - STRIPE_OP_COMPUTE_BLK target
@@ -400,6 +406,7 @@ enum {
 	STRIPE_OP_BIODRAIN,
 	STRIPE_OP_RECONSTRUCT,
 	STRIPE_OP_CHECK,
+	STRIPE_OP_PARTIAL_PARITY,
 };
 
 /*
@@ -696,6 +703,7 @@ struct r5conf {
 	int			group_cnt;
 	int			worker_cnt_per_group;
 	struct r5l_log		*log;
+	void			*log_private;
 
 	spinlock_t		pending_bios_lock;
 	bool			batch_bio_dispatch;

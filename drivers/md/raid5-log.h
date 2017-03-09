@@ -31,6 +31,20 @@ extern struct md_sysfs_entry r5c_journal_mode;
 extern void r5c_update_on_rdev_error(struct mddev *mddev);
 extern bool r5c_big_stripe_cached(struct r5conf *conf, sector_t sect);
 
+extern struct dma_async_tx_descriptor *
+ops_run_partial_parity(struct stripe_head *sh, struct raid5_percpu *percpu,
+		       struct dma_async_tx_descriptor *tx);
+extern int ppl_init_log(struct r5conf *conf);
+extern void ppl_exit_log(struct r5conf *conf);
+extern int ppl_write_stripe(struct r5conf *conf, struct stripe_head *sh);
+extern void ppl_write_stripe_run(struct r5conf *conf);
+extern void ppl_stripe_write_finished(struct stripe_head *sh);
+
+static inline bool raid5_has_ppl(struct r5conf *conf)
+{
+	return test_bit(MD_HAS_PPL, &conf->mddev->flags);
+}
+
 static inline int log_stripe(struct stripe_head *sh, struct stripe_head_state *s)
 {
 	struct r5conf *conf = sh->raid_conf;
@@ -45,6 +59,8 @@ static inline int log_stripe(struct stripe_head *sh, struct stripe_head_state *s
 			/* caching phase */
 			return r5c_cache_data(conf->log, sh);
 		}
+	} else if (raid5_has_ppl(conf)) {
+		return ppl_write_stripe(conf, sh);
 	}
 
 	return -EAGAIN;
@@ -56,24 +72,32 @@ static inline void log_stripe_write_finished(struct stripe_head *sh)
 
 	if (conf->log)
 		r5l_stripe_write_finished(sh);
+	else if (raid5_has_ppl(conf))
+		ppl_stripe_write_finished(sh);
 }
 
 static inline void log_write_stripe_run(struct r5conf *conf)
 {
 	if (conf->log)
 		r5l_write_stripe_run(conf->log);
+	else if (raid5_has_ppl(conf))
+		ppl_write_stripe_run(conf);
 }
 
 static inline void log_exit(struct r5conf *conf)
 {
 	if (conf->log)
 		r5l_exit_log(conf);
+	else if (raid5_has_ppl(conf))
+		ppl_exit_log(conf);
 }
 
 static inline int log_init(struct r5conf *conf, struct md_rdev *journal_dev)
 {
 	if (journal_dev)
 		return r5l_init_log(conf, journal_dev);
+	else if (raid5_has_ppl(conf))
+		return ppl_init_log(conf);
 
 	return 0;
 }

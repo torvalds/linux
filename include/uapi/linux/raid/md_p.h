@@ -398,4 +398,31 @@ struct r5l_meta_block {
 
 #define R5LOG_VERSION 0x1
 #define R5LOG_MAGIC 0x6433c509
+
+struct ppl_header_entry {
+	__le64 data_sector;	/* raid sector of the new data */
+	__le32 pp_size;		/* length of partial parity */
+	__le32 data_size;	/* length of data */
+	__le32 parity_disk;	/* member disk containing parity */
+	__le32 checksum;	/* checksum of partial parity data for this
+				 * entry (~crc32c) */
+} __attribute__ ((__packed__));
+
+#define PPL_HEADER_SIZE 4096
+#define PPL_HDR_RESERVED 512
+#define PPL_HDR_ENTRY_SPACE \
+	(PPL_HEADER_SIZE - PPL_HDR_RESERVED - 4 * sizeof(u32) - sizeof(u64))
+#define PPL_HDR_MAX_ENTRIES \
+	(PPL_HDR_ENTRY_SPACE / sizeof(struct ppl_header_entry))
+
+struct ppl_header {
+	__u8 reserved[PPL_HDR_RESERVED];/* reserved space, fill with 0xff */
+	__le32 signature;		/* signature (family number of volume) */
+	__le32 padding;			/* zero pad */
+	__le64 generation;		/* generation number of the header */
+	__le32 entries_count;		/* number of entries in entry array */
+	__le32 checksum;		/* checksum of the header (~crc32c) */
+	struct ppl_header_entry entries[PPL_HDR_MAX_ENTRIES];
+} __attribute__ ((__packed__));
+
 #endif

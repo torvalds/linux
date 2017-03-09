@@ -482,6 +482,11 @@ static void shrink_buffers(struct stripe_head *sh)
 		sh->dev[i].page = NULL;
 		put_page(p);
 	}
+
+	if (sh->ppl_page) {
+		put_page(sh->ppl_page);
+		sh->ppl_page = NULL;
+	}
 }
 
 static int grow_buffers(struct stripe_head *sh, gfp_t gfp)
@@ -498,6 +503,13 @@ static int grow_buffers(struct stripe_head *sh, gfp_t gfp)
 		sh->dev[i].page = page;
 		sh->dev[i].orig_page = page;
 	}
+
+	if (raid5_has_ppl(sh->raid_conf)) {
+		sh->ppl_page = alloc_page(gfp);
+		if (!sh->ppl_page)
+			return 1;
+	}
+
 	return 0;
 }
 
@@ -746,7 +758,7 @@ static bool stripe_can_batch(struct stripe_head *sh)
 {
 	struct r5conf *conf = sh->raid_conf;
 
-	if (conf->log)
+	if (conf->log || raid5_has_ppl(conf))
 		return false;
 	return test_bit(STRIPE_BATCH_READY, &sh->state) &&
 		!test_bit(STRIPE_BITMAP_PENDING, &sh->state) &&
@@ -2093,6 +2105,9 @@ static void raid_run_ops(struct stripe_head *sh, unsigned long ops_request)
 			async_tx_ack(tx);
 	}
 
+	if (test_bit(STRIPE_OP_PARTIAL_PARITY, &ops_request))
+		tx = ops_run_partial_parity(sh, percpu, tx);
+
 	if (test_bit(STRIPE_OP_PREXOR, &ops_request)) {
 		if (level < 6)
 			tx = ops_run_prexor5(sh, percpu, tx);
@@ -3168,6 +3183,12 @@ schedule_reconstruction(struct stripe_head *sh, struct stripe_head_state *s,
 		s->locked++;
 	}
 
+	if (raid5_has_ppl(sh->raid_conf) &&
+	    test_bit(STRIPE_OP_BIODRAIN, &s->ops_request) &&
+	    !test_bit(STRIPE_FULL_WRITE, &sh->state) &&
+	    test_bit(R5_Insync, &sh->dev[pd_idx].flags))
+		set_bit(STRIPE_OP_PARTIAL_PARITY, &s->ops_request);
+
 	pr_debug("%s: stripe %llu locked: %d ops_request: %lx\n",
 		__func__, (unsigned long long)sh->sector,
 		s->locked, s->ops_request);
@@ -3214,6 +3235,36 @@ static int add_stripe_bio(struct stripe_head *sh, struct bio *bi, int dd_idx,
 	}
 	if (*bip && (*bip)->bi_iter.bi_sector < bio_end_sector(bi))
 		goto overlap;
+
+	if (forwrite && raid5_has_ppl(conf)) {
+		/*
+		 * With PPL only writes to consecutive data chunks within a
+		 * stripe are allowed because for a single stripe_head we can
+		 * only have one PPL entry at a time, which describes one data
+		 * range. Not really an overlap, but wait_for_overlap can be
+		 * used to handle this.
+		 */
+		sector_t sector;
+		sector_t first = 0;
+		sector_t last = 0;
+		int count = 0;
+		int i;
+
+		for (i = 0; i < sh->disks; i++) {
+			if (i != sh->pd_idx &&
+			    (i == dd_idx || sh->dev[i].towrite)) {
+				sector = sh->dev[i].sector;
+				if (count == 0 || sector < first)
+					first = sector;
+				if (sector > last)
+					last = sector;
+				count++;
+			}
+		}
+
+		if (first + conf->chunk_sectors * (count - 1) != last)
+			goto overlap;
+	}
 
 	if (!forwrite || previous)
 		clear_bit(STRIPE_BATCH_READY, &sh->state);
@@ -7208,6 +7259,13 @@ static int raid5_run(struct mddev *mddev)
 		BUG_ON(mddev->delta_disks != 0);
 	}
 
+	if (test_bit(MD_HAS_JOURNAL, &mddev->flags) &&
+	    test_bit(MD_HAS_PPL, &mddev->flags)) {
+		pr_warn("md/raid:%s: using journal device and PPL not allowed - disabling PPL\n",
+			mdname(mddev));
+		clear_bit(MD_HAS_PPL, &mddev->flags);
+	}
+
 	if (mddev->private == NULL)
 		conf = setup_conf(mddev);
 	else
@@ -7689,7 +7747,7 @@ static int raid5_resize(struct mddev *mddev, sector_t sectors)
 	sector_t newsize;
 	struct r5conf *conf = mddev->private;
 
-	if (conf->log)
+	if (conf->log || raid5_has_ppl(conf))
 		return -EINVAL;
 	sectors &= ~((sector_t)conf->chunk_sectors - 1);
 	newsize = raid5_size(mddev, sectors, mddev->raid_disks);
@@ -7740,7 +7798,7 @@ static int check_reshape(struct mddev *mddev)
 {
 	struct r5conf *conf = mddev->private;
 
-	if (conf->log)
+	if (conf->log || raid5_has_ppl(conf))
 		return -EINVAL;
 	if (mddev->delta_disks == 0 &&
 	    mddev->new_layout == mddev->layout &&
