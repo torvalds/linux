@@ -1344,12 +1344,12 @@ static inline void msr_check_and_clear(unsigned long bits)
 				".section __ftr_fixup,\"a\"\n"		\
 				".align 3\n"				\
 				"98:\n"					\
-				"	.llong %1\n"			\
-				"	.llong %1\n"			\
-				"	.llong 97b-98b\n"		\
-				"	.llong 99b-98b\n"		\
-				"	.llong 0\n"			\
-				"	.llong 0\n"			\
+				"	.8byte %1\n"			\
+				"	.8byte %1\n"			\
+				"	.8byte 97b-98b\n"		\
+				"	.8byte 99b-98b\n"		\
+				"	.8byte 0\n"			\
+				"	.8byte 0\n"			\
 				".previous"				\
 			: "=r" (rval) \
 			: "i" (CPU_FTR_CELL_TB_BUG), "i" (SPRN_TBRL) : "cr0"); \

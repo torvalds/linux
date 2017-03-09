@@ -104,13 +104,13 @@ master:
 	.balign 8
 	.globl kernel
 kernel:
-	.llong  0x0
+	.8byte  0x0
 	.size kernel, . - kernel
 
 	.balign 8
 	.globl dt_offset
 dt_offset:
-	.llong  0x0
+	.8byte  0x0
 	.size dt_offset, . - dt_offset
 
 

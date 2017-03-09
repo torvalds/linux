@@ -27,7 +27,7 @@
 
 	.globl opal_tracepoint_refcount
 opal_tracepoint_refcount:
-	.llong	0
+	.8byte	0
 
 	.section	".text"
 
