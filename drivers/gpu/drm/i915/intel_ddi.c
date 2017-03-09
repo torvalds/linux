@@ -837,7 +837,7 @@ intel_ddi_get_crtc_encoder(struct intel_crtc *crtc)
 	return ret;
 }
 
-struct intel_encoder *
+static struct intel_encoder *
 intel_ddi_get_crtc_new_encoder(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
@@ -850,7 +850,7 @@ intel_ddi_get_crtc_new_encoder(struct intel_crtc_state *crtc_state)
 
 	state = crtc_state->base.state;
 
-	for_each_connector_in_state(state, connector, connector_state, i) {
+	for_each_new_connector_in_state(state, connector, connector_state, i) {
 		if (connector_state->crtc != crtc_state->base.crtc)
 			continue;
 
