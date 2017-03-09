@@ -299,5 +299,5 @@ What:		/sys/bus/pci/devices/.../revision
 Date:		November 2016
 Contact:	Emil Velikov <emil.l.velikov@gmail.com>
 Description:
-		This file contains the revision field of the the PCI device.
+		This file contains the revision field of the PCI device.
 		The value comes from device config space. The file is read only.
