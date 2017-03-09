@@ -2053,7 +2053,6 @@ static bool update_transition_efer(struct vcpu_vmx *vmx, int efer_offset)
 static unsigned long segment_base(u16 selector)
 {
 	struct desc_ptr *gdt = this_cpu_ptr(&host_gdt);
-	struct desc_struct *d;
 	struct desc_struct *table;
 	unsigned long v;
 
@@ -10642,6 +10641,11 @@ static int vmx_check_nested_events(struct kvm_vcpu *vcpu, bool external_intr)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
+	if (vcpu->arch.exception.pending ||
+		vcpu->arch.nmi_injected ||
+		vcpu->arch.interrupt.pending)
+		return -EBUSY;
+
 	if (nested_cpu_has_preemption_timer(get_vmcs12(vcpu)) &&
 	    vmx->nested.preemption_timer_expired) {
 		if (vmx->nested.nested_run_pending)
@@ -10651,8 +10655,7 @@ static int vmx_check_nested_events(struct kvm_vcpu *vcpu, bool external_intr)
 	}
 
 	if (vcpu->arch.nmi_pending && nested_exit_on_nmi(vcpu)) {
-		if (vmx->nested.nested_run_pending ||
-		    vcpu->arch.interrupt.pending)
+		if (vmx->nested.nested_run_pending)
 			return -EBUSY;
 		nested_vmx_vmexit(vcpu, EXIT_REASON_EXCEPTION_NMI,
 				  NMI_VECTOR | INTR_TYPE_NMI_INTR |

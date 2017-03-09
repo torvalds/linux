@@ -1749,6 +1749,12 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 
 	pdata->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pdata->clk)) {
+		/* Abort if the clock is defined but couldn't be retrived.
+		 * Always abort if the clock is missing on DT system as
+		 * the driver can't cope with this case.
+		 */
+		if (PTR_ERR(pdata->clk) != -ENOENT || dev->of_node)
+			return PTR_ERR(pdata->clk);
 		/* Firmware may have set up the clock already. */
 		dev_info(dev, "clocks have been setup already\n");
 	}

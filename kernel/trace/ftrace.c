@@ -15,6 +15,7 @@
 
 #include <linux/stop_machine.h>
 #include <linux/clocksource.h>
+#include <linux/sched/task.h>
 #include <linux/kallsyms.h>
 #include <linux/seq_file.h>
 #include <linux/suspend.h>

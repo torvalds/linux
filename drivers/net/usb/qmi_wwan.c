@@ -11,6 +11,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/sched/signal.h>
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
 #include <linux/etherdevice.h>

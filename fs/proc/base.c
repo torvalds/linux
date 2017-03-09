@@ -85,6 +85,11 @@
 #include <linux/user_namespace.h>
 #include <linux/fs_struct.h>
 #include <linux/slab.h>
+#include <linux/sched/autogroup.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/coredump.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/stat.h>
 #include <linux/flex_array.h>
 #include <linux/posix-timers.h>
 #ifdef CONFIG_HARDWALL
@@ -1724,11 +1729,12 @@ out_unlock:
 	return NULL;
 }
 
-int pid_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
+int pid_getattr(const struct path *path, struct kstat *stat,
+		u32 request_mask, unsigned int query_flags)
 {
-	struct inode *inode = d_inode(dentry);
+	struct inode *inode = d_inode(path->dentry);
 	struct task_struct *task;
-	struct pid_namespace *pid = dentry->d_sb->s_fs_info;
+	struct pid_namespace *pid = path->dentry->d_sb->s_fs_info;
 
 	generic_fillattr(inode, stat);
 
@@ -3511,9 +3517,10 @@ static int proc_task_readdir(struct file *file, struct dir_context *ctx)
 	return 0;
 }
 
-static int proc_task_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
+static int proc_task_getattr(const struct path *path, struct kstat *stat,
+			     u32 request_mask, unsigned int query_flags)
 {
-	struct inode *inode = d_inode(dentry);
+	struct inode *inode = d_inode(path->dentry);
 	struct task_struct *p = get_proc_task(inode);
 	generic_fillattr(inode, stat);
 

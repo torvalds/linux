@@ -20,6 +20,7 @@
 #include <linux/clockchips.h>
 #include <linux/hardirq.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/smp.h>
 #include <linux/delay.h>
 #include <linux/module.h>

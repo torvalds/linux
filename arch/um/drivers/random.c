@@ -6,7 +6,7 @@
  * This software may be used and distributed according to the terms
  * of the GNU General Public License, incorporated herein by reference.
  */
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>

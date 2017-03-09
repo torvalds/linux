@@ -17,7 +17,7 @@
 #include <linux/module.h>
 #include <linux/parport.h>
 #include <linux/delay.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/uaccess.h>
 
 #undef DEBUG /* undef me for production */

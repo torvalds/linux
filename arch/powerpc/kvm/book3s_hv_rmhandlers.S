@@ -1787,12 +1787,12 @@ kvmppc_hdsi:
 	/* HPTE not found fault or protection fault? */
 	andis.	r0, r6, (DSISR_NOHPTE | DSISR_PROTFAULT)@h
 	beq	1f			/* if not, send it to the guest */
+	andi.	r0, r11, MSR_DR		/* data relocation enabled? */
+	beq	3f
 BEGIN_FTR_SECTION
 	mfspr	r5, SPRN_ASDR		/* on POWER9, use ASDR to get VSID */
 	b	4f
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
-	andi.	r0, r11, MSR_DR		/* data relocation enabled? */
-	beq	3f
 	clrrdi	r0, r4, 28
 	PPC_SLBFEE_DOT(R5, R0)		/* if so, look up SLB */
 	li	r0, BOOK3S_INTERRUPT_DATA_SEGMENT
@@ -1879,12 +1879,12 @@ kvmppc_hisi:
 	bne	.Lradix_hisi		/* for radix, just save ASDR */
 	andis.	r0, r11, SRR1_ISI_NOPT@h
 	beq	1f
+	andi.	r0, r11, MSR_IR		/* instruction relocation enabled? */
+	beq	3f
 BEGIN_FTR_SECTION
 	mfspr	r5, SPRN_ASDR		/* on POWER9, use ASDR to get VSID */
 	b	4f
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
-	andi.	r0, r11, MSR_IR		/* instruction relocation enabled? */
-	beq	3f
 	clrrdi	r0, r10, 28
 	PPC_SLBFEE_DOT(R5, R0)		/* if so, look up SLB */
 	li	r0, BOOK3S_INTERRUPT_INST_SEGMENT

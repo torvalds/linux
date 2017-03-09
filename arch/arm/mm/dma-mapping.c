@@ -870,6 +870,9 @@ static int __arm_dma_mmap(struct device *dev, struct vm_area_struct *vma,
 				      vma->vm_end - vma->vm_start,
 				      vma->vm_page_prot);
 	}
+#else
+	ret = vm_iomap_memory(vma, vma->vm_start,
+			      (vma->vm_end - vma->vm_start));
 #endif	/* CONFIG_MMU */
 
 	return ret;

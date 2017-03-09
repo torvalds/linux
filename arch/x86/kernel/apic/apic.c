@@ -1865,14 +1865,14 @@ static void __smp_spurious_interrupt(u8 vector)
 		"should never happen.\n", vector, smp_processor_id());
 }
 
-__visible void smp_spurious_interrupt(struct pt_regs *regs)
+__visible void __irq_entry smp_spurious_interrupt(struct pt_regs *regs)
 {
 	entering_irq();
 	__smp_spurious_interrupt(~regs->orig_ax);
 	exiting_irq();
 }
 
-__visible void smp_trace_spurious_interrupt(struct pt_regs *regs)
+__visible void __irq_entry smp_trace_spurious_interrupt(struct pt_regs *regs)
 {
 	u8 vector = ~regs->orig_ax;
 
@@ -1923,14 +1923,14 @@ static void __smp_error_interrupt(struct pt_regs *regs)
 
 }
 
-__visible void smp_error_interrupt(struct pt_regs *regs)
+__visible void __irq_entry smp_error_interrupt(struct pt_regs *regs)
 {
 	entering_irq();
 	__smp_error_interrupt(regs);
 	exiting_irq();
 }
 
-__visible void smp_trace_error_interrupt(struct pt_regs *regs)
+__visible void __irq_entry smp_trace_error_interrupt(struct pt_regs *regs)
 {
 	entering_irq();
 	trace_error_apic_entry(ERROR_APIC_VECTOR);

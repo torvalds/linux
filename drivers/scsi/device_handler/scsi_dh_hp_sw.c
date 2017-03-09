@@ -100,9 +100,8 @@ static int hp_sw_tur(struct scsi_device *sdev, struct hp_sw_dh_data *h)
 		REQ_FAILFAST_DRIVER;
 
 retry:
-	res = scsi_execute_req_flags(sdev, cmd, DMA_NONE, NULL, 0, &sshdr,
-				     HP_SW_TIMEOUT, HP_SW_RETRIES,
-				     NULL, req_flags, 0);
+	res = scsi_execute(sdev, cmd, DMA_NONE, NULL, 0, NULL, &sshdr,
+			HP_SW_TIMEOUT, HP_SW_RETRIES, req_flags, 0, NULL);
 	if (res) {
 		if (scsi_sense_valid(&sshdr))
 			ret = tur_done(sdev, h, &sshdr);
@@ -139,9 +138,8 @@ static int hp_sw_start_stop(struct hp_sw_dh_data *h)
 		REQ_FAILFAST_DRIVER;
 
 retry:
-	res = scsi_execute_req_flags(sdev, cmd, DMA_NONE, NULL, 0, &sshdr,
-				     HP_SW_TIMEOUT, HP_SW_RETRIES,
-				     NULL, req_flags, 0);
+	res = scsi_execute(sdev, cmd, DMA_NONE, NULL, 0, NULL, &sshdr,
+			HP_SW_TIMEOUT, HP_SW_RETRIES, req_flags, 0, NULL);
 	if (res) {
 		if (!scsi_sense_valid(&sshdr)) {
 			sdev_printk(KERN_WARNING, sdev,

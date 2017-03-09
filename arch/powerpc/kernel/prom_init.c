@@ -839,7 +839,7 @@ struct ibm_arch_vec __cacheline_aligned ibm_architecture_vec = {
 		0,
 #endif
 		.associativity = OV5_FEAT(OV5_TYPE1_AFFINITY) | OV5_FEAT(OV5_PRRN),
-		.bin_opts = OV5_FEAT(OV5_RESIZE_HPT),
+		.bin_opts = OV5_FEAT(OV5_RESIZE_HPT) | OV5_FEAT(OV5_HP_EVT),
 		.micro_checkpoint = 0,
 		.reserved0 = 0,
 		.max_cpus = cpu_to_be32(NR_CPUS),	/* number of cores supported */

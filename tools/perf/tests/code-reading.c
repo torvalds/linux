@@ -599,7 +599,7 @@ static int do_test_code_reading(bool try_kcore)
 				continue;
 			}
 
-			if (verbose) {
+			if (verbose > 0) {
 				char errbuf[512];
 				perf_evlist__strerror_open(evlist, errno, errbuf, sizeof(errbuf));
 				pr_debug("perf_evlist__open() failed!\n%s\n", errbuf);

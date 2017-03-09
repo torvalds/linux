@@ -253,6 +253,8 @@ static int artpec6_pcie_probe(struct platform_device *pdev)
 
 	pci->dev = dev;
 
+	artpec6_pcie->pci = pci;
+
 	dbi_base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
 	pci->dbi_base = devm_ioremap_resource(dev, dbi_base);
 	if (IS_ERR(pci->dbi_base))

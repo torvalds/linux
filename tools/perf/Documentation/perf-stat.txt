@@ -63,7 +63,7 @@ report::
 
 -a::
 --all-cpus::
-        system-wide collection from all CPUs
+        system-wide collection from all CPUs (default if no target is specified)
 
 -c::
 --scale::

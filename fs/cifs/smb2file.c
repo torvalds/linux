@@ -73,7 +73,8 @@ smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 		nr_ioctl_req.Timeout = 0; /* use server default (120 seconds) */
 		nr_ioctl_req.Reserved = 0;
 		rc = SMB2_ioctl(xid, oparms->tcon, fid->persistent_fid,
-			fid->volatile_fid, FSCTL_LMR_REQUEST_RESILIENCY, true,
+			fid->volatile_fid, FSCTL_LMR_REQUEST_RESILIENCY,
+			true /* is_fsctl */, false /* use_ipc */,
 			(char *)&nr_ioctl_req, sizeof(nr_ioctl_req),
 			NULL, NULL /* no return info */);
 		if (rc == -EOPNOTSUPP) {

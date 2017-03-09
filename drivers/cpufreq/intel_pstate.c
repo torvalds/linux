@@ -19,7 +19,7 @@
 #include <linux/hrtimer.h>
 #include <linux/tick.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
+#include <linux/sched/cpufreq.h>
 #include <linux/list.h>
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
@@ -38,11 +38,6 @@
 #include <asm/intel-family.h>
 
 #define INTEL_CPUFREQ_TRANSITION_LATENCY	20000
-
-#define ATOM_RATIOS		0x66a
-#define ATOM_VIDS		0x66b
-#define ATOM_TURBO_RATIOS	0x66c
-#define ATOM_TURBO_VIDS		0x66d
 
 #ifdef CONFIG_ACPI
 #include <acpi/processor.h>
@@ -364,37 +359,25 @@ static bool driver_registered __read_mostly;
 static bool acpi_ppc;
 #endif
 
-static struct perf_limits performance_limits = {
-	.no_turbo = 0,
-	.turbo_disabled = 0,
-	.max_perf_pct = 100,
-	.max_perf = int_ext_tofp(1),
-	.min_perf_pct = 100,
-	.min_perf = int_ext_tofp(1),
-	.max_policy_pct = 100,
-	.max_sysfs_pct = 100,
-	.min_policy_pct = 0,
-	.min_sysfs_pct = 0,
-};
+static struct perf_limits performance_limits;
+static struct perf_limits powersave_limits;
+static struct perf_limits *limits;
 
-static struct perf_limits powersave_limits = {
-	.no_turbo = 0,
-	.turbo_disabled = 0,
-	.max_perf_pct = 100,
-	.max_perf = int_ext_tofp(1),
-	.min_perf_pct = 0,
-	.min_perf = 0,
-	.max_policy_pct = 100,
-	.max_sysfs_pct = 100,
-	.min_policy_pct = 0,
-	.min_sysfs_pct = 0,
-};
+static void intel_pstate_init_limits(struct perf_limits *limits)
+{
+	memset(limits, 0, sizeof(*limits));
+	limits->max_perf_pct = 100;
+	limits->max_perf = int_ext_tofp(1);
+	limits->max_policy_pct = 100;
+	limits->max_sysfs_pct = 100;
+}
 
-#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE
-static struct perf_limits *limits = &performance_limits;
-#else
-static struct perf_limits *limits = &powersave_limits;
-#endif
+static void intel_pstate_set_performance_limits(struct perf_limits *limits)
+{
+	intel_pstate_init_limits(limits);
+	limits->min_perf_pct = 100;
+	limits->min_perf = int_ext_tofp(1);
+}
 
 static DEFINE_MUTEX(intel_pstate_driver_lock);
 static DEFINE_MUTEX(intel_pstate_limits_lock);
@@ -1367,7 +1350,7 @@ static int atom_get_min_pstate(void)
 {
 	u64 value;
 
-	rdmsrl(ATOM_RATIOS, value);
+	rdmsrl(MSR_ATOM_CORE_RATIOS, value);
 	return (value >> 8) & 0x7F;
 }
 
@@ -1375,7 +1358,7 @@ static int atom_get_max_pstate(void)
 {
 	u64 value;
 
-	rdmsrl(ATOM_RATIOS, value);
+	rdmsrl(MSR_ATOM_CORE_RATIOS, value);
 	return (value >> 16) & 0x7F;
 }
 
@@ -1383,7 +1366,7 @@ static int atom_get_turbo_pstate(void)
 {
 	u64 value;
 
-	rdmsrl(ATOM_TURBO_RATIOS, value);
+	rdmsrl(MSR_ATOM_CORE_TURBO_RATIOS, value);
 	return value & 0x7F;
 }
 
@@ -1445,7 +1428,7 @@ static void atom_get_vid(struct cpudata *cpudata)
 {
 	u64 value;
 
-	rdmsrl(ATOM_VIDS, value);
+	rdmsrl(MSR_ATOM_CORE_VIDS, value);
 	cpudata->vid.min = int_tofp((value >> 8) & 0x7f);
 	cpudata->vid.max = int_tofp((value >> 16) & 0x7f);
 	cpudata->vid.ratio = div_fp(
@@ -1453,7 +1436,7 @@ static void atom_get_vid(struct cpudata *cpudata)
 		int_tofp(cpudata->pstate.max_pstate -
 			cpudata->pstate.min_pstate));
 
-	rdmsrl(ATOM_TURBO_VIDS, value);
+	rdmsrl(MSR_ATOM_CORE_TURBO_VIDS, value);
 	cpudata->vid.turbo = value & 0x7f;
 }
 
@@ -2084,20 +2067,6 @@ static void intel_pstate_clear_update_util_hook(unsigned int cpu)
 	synchronize_sched();
 }
 
-static void intel_pstate_set_performance_limits(struct perf_limits *limits)
-{
-	limits->no_turbo = 0;
-	limits->turbo_disabled = 0;
-	limits->max_perf_pct = 100;
-	limits->max_perf = int_ext_tofp(1);
-	limits->min_perf_pct = 100;
-	limits->min_perf = int_ext_tofp(1);
-	limits->max_policy_pct = 100;
-	limits->max_sysfs_pct = 100;
-	limits->min_policy_pct = 0;
-	limits->min_sysfs_pct = 0;
-}
-
 static void intel_pstate_update_perf_limits(struct cpufreq_policy *policy,
 					    struct perf_limits *limits)
 {
@@ -2465,6 +2434,11 @@ static void intel_pstate_driver_cleanup(void)
 static int intel_pstate_register_driver(void)
 {
 	int ret;
+
+	intel_pstate_init_limits(&powersave_limits);
+	intel_pstate_set_performance_limits(&performance_limits);
+	limits = IS_ENABLED(CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE) ?
+			&performance_limits : &powersave_limits;
 
 	ret = cpufreq_register_driver(intel_pstate_driver);
 	if (ret) {

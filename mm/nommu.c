@@ -17,6 +17,7 @@
 
 #include <linux/export.h>
 #include <linux/mm.h>
+#include <linux/sched/mm.h>
 #include <linux/vmacache.h>
 #include <linux/mman.h>
 #include <linux/swap.h>
@@ -757,7 +758,7 @@ static void delete_vma_from_mm(struct vm_area_struct *vma)
 	mm->map_count--;
 	for (i = 0; i < VMACACHE_SIZE; i++) {
 		/* if the vma is cached, invalidate the entire cache */
-		if (curr->vmacache[i] == vma) {
+		if (curr->vmacache.vmas[i] == vma) {
 			vmacache_invalidate(mm);
 			break;
 		}
@@ -1084,7 +1085,7 @@ static int do_mmap_shared_file(struct vm_area_struct *vma)
 {
 	int ret;
 
-	ret = vma->vm_file->f_op->mmap(vma->vm_file, vma);
+	ret = call_mmap(vma->vm_file, vma);
 	if (ret == 0) {
 		vma->vm_region->vm_top = vma->vm_region->vm_end;
 		return 0;
@@ -1115,7 +1116,7 @@ static int do_mmap_private(struct vm_area_struct *vma,
 	 * - VM_MAYSHARE will be set if it may attempt to share
 	 */
 	if (capabilities & NOMMU_MAP_DIRECT) {
-		ret = vma->vm_file->f_op->mmap(vma->vm_file, vma);
+		ret = call_mmap(vma->vm_file, vma);
 		if (ret == 0) {
 			/* shouldn't return success if we're not sharing */
 			BUG_ON(!(vma->vm_flags & VM_MAYSHARE));

@@ -22,7 +22,8 @@
 #include <linux/audit.h>
 #include <linux/compat.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/ptrace.h>
