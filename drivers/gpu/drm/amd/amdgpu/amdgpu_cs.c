@@ -923,59 +923,68 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 	return 0;
 }
 
+static int amdgpu_cs_process_fence_dep(struct amdgpu_cs_parser *p,
+				       struct amdgpu_cs_chunk *chunk)
+{
+	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
+	unsigned num_deps;
+	int i, r;
+	struct drm_amdgpu_cs_chunk_dep *deps;
+
+	deps = (struct drm_amdgpu_cs_chunk_dep *)chunk->kdata;
+	num_deps = chunk->length_dw * 4 /
+		sizeof(struct drm_amdgpu_cs_chunk_dep);
+
+	for (i = 0; i < num_deps; ++i) {
+		struct amdgpu_ring *ring;
+		struct amdgpu_ctx *ctx;
+		struct dma_fence *fence;
+
+		ctx = amdgpu_ctx_get(fpriv, deps[i].ctx_id);
+		if (ctx == NULL)
+			return -EINVAL;
+
+		r = amdgpu_queue_mgr_map(p->adev, &ctx->queue_mgr,
+					 deps[i].ip_type,
+					 deps[i].ip_instance,
+					 deps[i].ring, &ring);
+		if (r) {
+			amdgpu_ctx_put(ctx);
+			return r;
+		}
+
+		fence = amdgpu_ctx_get_fence(ctx, ring,
+					     deps[i].handle);
+		if (IS_ERR(fence)) {
+			r = PTR_ERR(fence);
+			amdgpu_ctx_put(ctx);
+			return r;
+		} else if (fence) {
+			r = amdgpu_sync_fence(p->adev, &p->job->sync,
+					      fence);
+			dma_fence_put(fence);
+			amdgpu_ctx_put(ctx);
+			if (r)
+				return r;
+		}
+	}
+	return 0;
+}
+
 static int amdgpu_cs_dependencies(struct amdgpu_device *adev,
 				  struct amdgpu_cs_parser *p)
 {
-	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
-	int i, j, r;
+	int i, r;
 
 	for (i = 0; i < p->nchunks; ++i) {
-		struct drm_amdgpu_cs_chunk_dep *deps;
 		struct amdgpu_cs_chunk *chunk;
-		unsigned num_deps;
 
 		chunk = &p->chunks[i];
 
-		if (chunk->chunk_id != AMDGPU_CHUNK_ID_DEPENDENCIES)
-			continue;
-
-		deps = (struct drm_amdgpu_cs_chunk_dep *)chunk->kdata;
-		num_deps = chunk->length_dw * 4 /
-			sizeof(struct drm_amdgpu_cs_chunk_dep);
-
-		for (j = 0; j < num_deps; ++j) {
-			struct amdgpu_ring *ring;
-			struct amdgpu_ctx *ctx;
-			struct dma_fence *fence;
-
-			ctx = amdgpu_ctx_get(fpriv, deps[j].ctx_id);
-			if (ctx == NULL)
-				return -EINVAL;
-
-			r = amdgpu_queue_mgr_map(adev, &ctx->queue_mgr,
-						 deps[j].ip_type,
-						 deps[j].ip_instance,
-						 deps[j].ring, &ring);
-			if (r) {
-				amdgpu_ctx_put(ctx);
+		if (chunk->chunk_id == AMDGPU_CHUNK_ID_DEPENDENCIES) {
+			r = amdgpu_cs_process_fence_dep(p, chunk);
+			if (r)
 				return r;
-			}
-
-			fence = amdgpu_ctx_get_fence(ctx, ring,
-						     deps[j].handle);
-			if (IS_ERR(fence)) {
-				r = PTR_ERR(fence);
-				amdgpu_ctx_put(ctx);
-				return r;
-
-			} else if (fence) {
-				r = amdgpu_sync_fence(adev, &p->job->sync,
-						      fence);
-				dma_fence_put(fence);
-				amdgpu_ctx_put(ctx);
-				if (r)
-					return r;
-			}
 		}
 	}
 
