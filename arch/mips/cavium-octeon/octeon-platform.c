@@ -7,8 +7,6 @@
  * Copyright (C) 2008 Wind River Systems
  */
 
-#include <linux/init.h>
-#include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/of_platform.h>
 #include <linux/of_fdt.h>
@@ -440,7 +438,7 @@ out:
 }
 device_initcall(octeon_rng_device_init);
 
-static struct of_device_id __initdata octeon_ids[] = {
+const struct of_device_id octeon_ids[] __initconst = {
 	{ .compatible = "simple-bus", },
 	{ .compatible = "cavium,octeon-6335-uctl", },
 	{ .compatible = "cavium,octeon-5750-usbn", },
@@ -480,6 +478,7 @@ static void __init octeon_fdt_set_phy(int eth, int phy_addr)
 	alt_phy_handle = fdt_getprop(initial_boot_params, eth, "cavium,alt-phy-handle", NULL);
 	if (alt_phy_handle) {
 		u32 alt_phandle = be32_to_cpup(alt_phy_handle);
+
 		alt_phy = fdt_node_offset_by_phandle(initial_boot_params, alt_phandle);
 	} else {
 		alt_phy = -1;
@@ -578,6 +577,7 @@ static void __init octeon_fdt_rm_ethernet(int node)
 	if (phy_handle) {
 		u32 ph = be32_to_cpup(phy_handle);
 		int p = fdt_node_offset_by_phandle(initial_boot_params, ph);
+
 		if (p >= 0)
 			fdt_nop_node(initial_boot_params, p);
 	}
@@ -727,6 +727,7 @@ int __init octeon_prune_device_tree(void)
 
 	for (i = 0; i < 2; i++) {
 		int mgmt;
+
 		snprintf(name_buffer, sizeof(name_buffer),
 			 "mix%d", i);
 		alias_prop = fdt_getprop(initial_boot_params, aliases,
@@ -742,6 +743,7 @@ int __init octeon_prune_device_tree(void)
 						 name_buffer);
 			} else {
 				int phy_addr = cvmx_helper_board_get_mii_address(CVMX_HELPER_BOARD_MGMT_IPD_PORT + i);
+
 				octeon_fdt_set_phy(mgmt, phy_addr);
 			}
 		}
@@ -750,6 +752,7 @@ int __init octeon_prune_device_tree(void)
 	pip_path = fdt_getprop(initial_boot_params, aliases, "pip", NULL);
 	if (pip_path) {
 		int pip = fdt_path_offset(initial_boot_params, pip_path);
+
 		if (pip	 >= 0)
 			for (i = 0; i <= 4; i++)
 				octeon_fdt_pip_iface(pip, i);
@@ -766,6 +769,7 @@ int __init octeon_prune_device_tree(void)
 
 	for (i = 0; i < 2; i++) {
 		int i2c;
+
 		snprintf(name_buffer, sizeof(name_buffer),
 			 "twsi%d", i);
 		alias_prop = fdt_getprop(initial_boot_params, aliases,
@@ -796,11 +800,11 @@ int __init octeon_prune_device_tree(void)
 
 	for (i = 0; i < 2; i++) {
 		int i2c;
+
 		snprintf(name_buffer, sizeof(name_buffer),
 			 "smi%d", i);
 		alias_prop = fdt_getprop(initial_boot_params, aliases,
 					name_buffer, NULL);
-
 		if (alias_prop) {
 			i2c = fdt_path_offset(initial_boot_params, alias_prop);
 			if (i2c < 0)
@@ -823,6 +827,7 @@ int __init octeon_prune_device_tree(void)
 
 	for (i = 0; i < 3; i++) {
 		int uart;
+
 		snprintf(name_buffer, sizeof(name_buffer),
 			 "uart%d", i);
 		alias_prop = fdt_getprop(initial_boot_params, aliases,
@@ -862,6 +867,7 @@ int __init octeon_prune_device_tree(void)
 		int len;
 
 		int cf = fdt_path_offset(initial_boot_params, alias_prop);
+
 		base_ptr = 0;
 		if (octeon_bootinfo->major_version == 1
 			&& octeon_bootinfo->minor_version >= 1) {
@@ -911,6 +917,7 @@ int __init octeon_prune_device_tree(void)
 			fdt_nop_property(initial_boot_params, cf, "cavium,dma-engine-handle");
 			if (!is_16bit) {
 				__be32 width = cpu_to_be32(8);
+
 				fdt_setprop_inplace(initial_boot_params, cf,
 						"cavium,bus-width", &width, sizeof(width));
 			}
@@ -1036,6 +1043,7 @@ end_led:
 		} else  {
 			__be32 new_f[1];
 			enum cvmx_helper_board_usb_clock_types c;
+
 			c = __cvmx_helper_board_usb_get_clock_type();
 			switch (c) {
 			case USB_CLOCK_TYPE_REF_48:
