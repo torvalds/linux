@@ -673,7 +673,7 @@ static int __init hp_wmi_input_setup(void)
 	status = wmi_install_notify_handler(HPWMI_EVENT_GUID, hp_wmi_notify, NULL);
 	if (ACPI_FAILURE(status)) {
 		err = -EIO;
-		goto err_free_keymap;
+		goto err_free_dev;
 	}
 
 	err = input_register_device(hp_wmi_input_dev);
@@ -684,8 +684,6 @@ static int __init hp_wmi_input_setup(void)
 
  err_uninstall_notifier:
 	wmi_remove_notify_handler(HPWMI_EVENT_GUID);
- err_free_keymap:
-	sparse_keymap_free(hp_wmi_input_dev);
  err_free_dev:
 	input_free_device(hp_wmi_input_dev);
 	return err;
@@ -694,7 +692,6 @@ static int __init hp_wmi_input_setup(void)
 static void hp_wmi_input_destroy(void)
 {
 	wmi_remove_notify_handler(HPWMI_EVENT_GUID);
-	sparse_keymap_free(hp_wmi_input_dev);
 	input_unregister_device(hp_wmi_input_dev);
 }
 
