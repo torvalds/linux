@@ -1,11 +1,8 @@
-#ifndef _PGTABLE_NOPUD_H
-#define _PGTABLE_NOPUD_H
+#ifndef _PGTABLE_NOP4D_HACK_H
+#define _PGTABLE_NOP4D_HACK_H
 
 #ifndef __ASSEMBLY__
-
-#ifdef __ARCH_USE_5LEVEL_HACK
-#include <asm-generic/pgtable-nop4d-hack.h>
-#else
+#include <asm-generic/5level-fixup.h>
 
 #define __PAGETABLE_PUD_FOLDED
 
@@ -18,8 +15,8 @@ typedef struct { pgd_t pgd; } pud_t;
 
 #define PUD_SHIFT	PGDIR_SHIFT
 #define PTRS_PER_PUD	1
-#define PUD_SIZE  	(1UL << PUD_SHIFT)
-#define PUD_MASK  	(~(PUD_SIZE-1))
+#define PUD_SIZE	(1UL << PUD_SHIFT)
+#define PUD_MASK	(~(PUD_SIZE-1))
 
 /*
  * The "pgd_xxx()" functions here are trivial for a folded two-level
@@ -37,15 +34,15 @@ static inline void pgd_clear(pgd_t *pgd)	{ }
  * (puds are folded into pgds so this doesn't get actually called,
  * but the define is needed for a generic inline function.)
  */
-#define set_pgd(pgdptr, pgdval)			set_pud((pud_t *)(pgdptr), (pud_t) { pgdval })
+#define set_pgd(pgdptr, pgdval)	set_pud((pud_t *)(pgdptr), (pud_t) { pgdval })
 
-static inline pud_t * pud_offset(pgd_t * pgd, unsigned long address)
+static inline pud_t *pud_offset(pgd_t *pgd, unsigned long address)
 {
 	return (pud_t *)pgd;
 }
 
 #define pud_val(x)				(pgd_val((x).pgd))
-#define __pud(x)				((pud_t) { __pgd(x) } )
+#define __pud(x)				((pud_t) { __pgd(x) })
 
 #define pgd_page(pgd)				(pud_page((pud_t){ pgd }))
 #define pgd_page_vaddr(pgd)			(pud_page_vaddr((pud_t){ pgd }))
@@ -62,5 +59,4 @@ static inline pud_t * pud_offset(pgd_t * pgd, unsigned long address)
 #define pud_addr_end(addr, end)			(end)
 
 #endif /* __ASSEMBLY__ */
-#endif /* !__ARCH_USE_5LEVEL_HACK */
-#endif /* _PGTABLE_NOPUD_H */
+#endif /* _PGTABLE_NOP4D_HACK_H */
