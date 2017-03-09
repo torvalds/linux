@@ -202,8 +202,6 @@ struct mtk_sha_rec {
  * @sha:	pointer to operation record of SHA
  * @aes_list:	device list of AES
  * @sha_list:	device list of SHA
- * @tmp:	pointer to temporary buffer for internal use
- * @tmp_dma:	DMA address of temporary buffer
  * @rec:	it's used to select SHA record for tfm
  *
  * Structure storing cryptographic device information.
@@ -222,8 +220,6 @@ struct mtk_cryp {
 	struct list_head aes_list;
 	struct list_head sha_list;
 
-	void *tmp;
-	dma_addr_t tmp_dma;
 	bool rec;
 };
 
