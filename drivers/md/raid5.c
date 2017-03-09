@@ -7648,6 +7648,11 @@ static int raid5_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 			*rdevp = rdev;
 		}
 	}
+	if (!err) {
+		err = log_modify(conf, rdev, false);
+		if (err)
+			goto abort;
+	}
 	if (p->replacement) {
 		/* We must have just cleared 'rdev' */
 		p->rdev = p->replacement;
@@ -7657,6 +7662,9 @@ static int raid5_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 			   */
 		p->replacement = NULL;
 		clear_bit(WantReplacement, &rdev->flags);
+
+		if (!err)
+			err = log_modify(conf, p->rdev, true);
 	} else
 		/* We might have just removed the Replacement as faulty-
 		 * clear the bit just in case
@@ -7713,10 +7721,12 @@ static int raid5_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 		if (p->rdev == NULL) {
 			clear_bit(In_sync, &rdev->flags);
 			rdev->raid_disk = disk;
-			err = 0;
 			if (rdev->saved_raid_disk != disk)
 				conf->fullsync = 1;
 			rcu_assign_pointer(p->rdev, rdev);
+
+			err = log_modify(conf, rdev, true);
+
 			goto out;
 		}
 	}

@@ -39,6 +39,7 @@ extern void ppl_exit_log(struct r5conf *conf);
 extern int ppl_write_stripe(struct r5conf *conf, struct stripe_head *sh);
 extern void ppl_write_stripe_run(struct r5conf *conf);
 extern void ppl_stripe_write_finished(struct stripe_head *sh);
+extern int ppl_modify_log(struct r5conf *conf, struct md_rdev *rdev, bool add);
 
 static inline bool raid5_has_ppl(struct r5conf *conf)
 {
@@ -98,6 +99,14 @@ static inline int log_init(struct r5conf *conf, struct md_rdev *journal_dev)
 		return r5l_init_log(conf, journal_dev);
 	else if (raid5_has_ppl(conf))
 		return ppl_init_log(conf);
+
+	return 0;
+}
+
+static inline int log_modify(struct r5conf *conf, struct md_rdev *rdev, bool add)
+{
+	if (raid5_has_ppl(conf))
+		return ppl_modify_log(conf, rdev, add);
 
 	return 0;
 }

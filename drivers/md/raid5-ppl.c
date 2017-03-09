@@ -400,6 +400,13 @@ static void ppl_submit_iounit(struct ppl_io_unit *io)
 	struct stripe_head *sh;
 	int i;
 
+	bio->bi_private = io;
+
+	if (!log->rdev || test_bit(Faulty, &log->rdev->flags)) {
+		ppl_log_endio(bio);
+		return;
+	}
+
 	for (i = 0; i < io->entries_count; i++) {
 		struct ppl_header_entry *e = &pplhdr->entries[i];
 
@@ -415,7 +422,6 @@ static void ppl_submit_iounit(struct ppl_io_unit *io)
 	pplhdr->entries_count = cpu_to_le32(io->entries_count);
 	pplhdr->checksum = cpu_to_le32(~crc32c_le(~0, pplhdr, PPL_HEADER_SIZE));
 
-	bio->bi_private = io;
 	bio->bi_end_io = ppl_log_endio;
 	bio->bi_opf = REQ_OP_WRITE | REQ_FUA;
 	bio->bi_bdev = log->rdev->bdev;
@@ -1188,5 +1194,42 @@ int ppl_init_log(struct r5conf *conf)
 	return 0;
 err:
 	__ppl_exit_log(ppl_conf);
+	return ret;
+}
+
+int ppl_modify_log(struct r5conf *conf, struct md_rdev *rdev, bool add)
+{
+	struct ppl_conf *ppl_conf = conf->log_private;
+	struct ppl_log *log;
+	int ret = 0;
+	char b[BDEVNAME_SIZE];
+
+	if (!rdev)
+		return -EINVAL;
+
+	pr_debug("%s: disk: %d operation: %s dev: %s\n",
+		 __func__, rdev->raid_disk, add ? "add" : "remove",
+		 bdevname(rdev->bdev, b));
+
+	if (rdev->raid_disk < 0)
+		return 0;
+
+	if (rdev->raid_disk >= ppl_conf->count)
+		return -ENODEV;
+
+	log = &ppl_conf->child_logs[rdev->raid_disk];
+
+	mutex_lock(&log->io_mutex);
+	if (add) {
+		ret = ppl_validate_rdev(rdev);
+		if (!ret) {
+			log->rdev = rdev;
+			ret = ppl_write_empty_header(log);
+		}
+	} else {
+		log->rdev = NULL;
+	}
+	mutex_unlock(&log->io_mutex);
+
 	return ret;
 }
