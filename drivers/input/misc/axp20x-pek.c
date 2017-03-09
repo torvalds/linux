@@ -239,7 +239,7 @@ static int axp20x_pek_probe(struct platform_device *pdev)
 					     axp20x_pek_irq, 0,
 					     "axp20x-pek-dbr", idev);
 	if (error < 0) {
-		dev_err(axp20x->dev, "Failed to request dbr IRQ#%d: %d\n",
+		dev_err(&pdev->dev, "Failed to request dbr IRQ#%d: %d\n",
 			axp20x_pek->irq_dbr, error);
 		return error;
 	}
@@ -248,14 +248,14 @@ static int axp20x_pek_probe(struct platform_device *pdev)
 					  axp20x_pek_irq, 0,
 					  "axp20x-pek-dbf", idev);
 	if (error < 0) {
-		dev_err(axp20x->dev, "Failed to request dbf IRQ#%d: %d\n",
+		dev_err(&pdev->dev, "Failed to request dbf IRQ#%d: %d\n",
 			axp20x_pek->irq_dbf, error);
 		return error;
 	}
 
 	error = sysfs_create_group(&pdev->dev.kobj, &axp20x_attribute_group);
 	if (error) {
-		dev_err(axp20x->dev, "Failed to create sysfs attributes: %d\n",
+		dev_err(&pdev->dev, "Failed to create sysfs attributes: %d\n",
 			error);
 		return error;
 	}
@@ -271,7 +271,7 @@ static int axp20x_pek_probe(struct platform_device *pdev)
 
 	error = input_register_device(idev);
 	if (error) {
-		dev_err(axp20x->dev, "Can't register input device: %d\n",
+		dev_err(&pdev->dev, "Can't register input device: %d\n",
 			error);
 		return error;
 	}
