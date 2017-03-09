@@ -102,12 +102,12 @@ struct fw_header {
 struct fw_sync_header {
 	__le32 cmd;
 	__le32 seq_num;
-};
+} __packed;
 
 struct fw_data {
 	struct fw_header fw_hdr;
 	__le32 seq_num;
 	u8 data[1];
-};
+} __packed;
 
 #endif /*_MWIFIEX_USB_H */
