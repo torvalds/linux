@@ -328,8 +328,7 @@ static void update_mapping_prot(phys_addr_t phys, unsigned long virt,
 		return;
 	}
 
-	__create_pgd_mapping(init_mm.pgd, phys, virt, size, prot,
-			     NULL, debug_pagealloc_enabled());
+	__create_pgd_mapping(init_mm.pgd, phys, virt, size, prot, NULL, false);
 
 	/* flush the TLBs after updating live kernel mappings */
 	flush_tlb_kernel_range(virt, virt + size);
@@ -381,7 +380,7 @@ static void __init __map_memblock(pgd_t *pgd, phys_addr_t start, phys_addr_t end
 	 */
 	__create_pgd_mapping(pgd, kernel_start, __phys_to_virt(kernel_start),
 			     kernel_end - kernel_start, PAGE_KERNEL,
-			     early_pgtable_alloc, debug_pagealloc_enabled());
+			     early_pgtable_alloc, false);
 }
 
 void __init mark_linear_text_alias_ro(void)
@@ -437,7 +436,7 @@ static void __init map_kernel_segment(pgd_t *pgd, void *va_start, void *va_end,
 	BUG_ON(!PAGE_ALIGNED(size));
 
 	__create_pgd_mapping(pgd, pa_start, (unsigned long)va_start, size, prot,
-			     early_pgtable_alloc, debug_pagealloc_enabled());
+			     early_pgtable_alloc, false);
 
 	vma->addr	= va_start;
 	vma->phys_addr	= pa_start;
