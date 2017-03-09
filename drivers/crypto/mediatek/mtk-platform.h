@@ -38,14 +38,14 @@
  * Ring 2/3 are used by SHA.
  */
 enum {
-	RING0 = 0,
-	RING1,
-	RING2,
-	RING3,
-	RING_MAX,
+	MTK_RING0,
+	MTK_RING1,
+	MTK_RING2,
+	MTK_RING3,
+	MTK_RING_MAX
 };
 
-#define MTK_REC_NUM		(RING_MAX / 2)
+#define MTK_REC_NUM		(MTK_RING_MAX / 2)
 #define MTK_IRQ_NUM		5
 
 /**
@@ -137,7 +137,7 @@ typedef int (*mtk_aes_fn)(struct mtk_cryp *cryp, struct mtk_aes_rec *aes);
  * @resume:	pointer to resume function
  * @total:	request buffer length
  * @buf:	pointer to page buffer
- * @id:		record identification
+ * @id:		the current use of ring
  * @flags:	it's describing AES operation state
  * @lock:	the async queue lock
  *
@@ -172,9 +172,9 @@ struct mtk_aes_rec {
  * @queue:	crypto request queue
  * @req:	pointer to ahash request
  * @task:	the tasklet is use in SHA interrupt
- * @id:		record identification
+ * @id:		the current use of ring
  * @flags:	it's describing SHA operation state
- * @lock:	the ablkcipher queue lock
+ * @lock:	the async queue lock
  *
  * Structure used to record SHA execution state.
  */
@@ -197,9 +197,9 @@ struct mtk_sha_rec {
  * @clk_ethif:	pointer to ethif clock
  * @clk_cryp:	pointer to crypto clock
  * @irq:	global system and rings IRQ
- * @ring:	pointer to execution state of AES
- * @aes:	pointer to execution state of SHA
- * @sha:	each execution record map to a ring
+ * @ring:	pointer to descriptor rings
+ * @aes:	pointer to operation record of AES
+ * @sha:	pointer to operation record of SHA
  * @aes_list:	device list of AES
  * @sha_list:	device list of SHA
  * @tmp:	pointer to temporary buffer for internal use
@@ -215,7 +215,7 @@ struct mtk_cryp {
 	struct clk *clk_cryp;
 	int irq[MTK_IRQ_NUM];
 
-	struct mtk_ring *ring[RING_MAX];
+	struct mtk_ring *ring[MTK_RING_MAX];
 	struct mtk_aes_rec *aes[MTK_REC_NUM];
 	struct mtk_sha_rec *sha[MTK_REC_NUM];
 

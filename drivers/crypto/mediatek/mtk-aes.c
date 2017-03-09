@@ -1152,8 +1152,8 @@ static int mtk_aes_record_init(struct mtk_cryp *cryp)
 	}
 
 	/* Link to ring0 and ring1 respectively */
-	aes[0]->id = RING0;
-	aes[1]->id = RING1;
+	aes[0]->id = MTK_RING0;
+	aes[1]->id = MTK_RING1;
 
 	return 0;
 
@@ -1221,14 +1221,14 @@ int mtk_cipher_alg_register(struct mtk_cryp *cryp)
 	if (ret)
 		goto err_record;
 
-	ret = devm_request_irq(cryp->dev, cryp->irq[RING0], mtk_aes_irq,
+	ret = devm_request_irq(cryp->dev, cryp->irq[MTK_RING0], mtk_aes_irq,
 			       0, "mtk-aes", cryp->aes[0]);
 	if (ret) {
 		dev_err(cryp->dev, "unable to request AES irq.\n");
 		goto err_res;
 	}
 
-	ret = devm_request_irq(cryp->dev, cryp->irq[RING1], mtk_aes_irq,
+	ret = devm_request_irq(cryp->dev, cryp->irq[MTK_RING1], mtk_aes_irq,
 			       0, "mtk-aes", cryp->aes[1]);
 	if (ret) {
 		dev_err(cryp->dev, "unable to request AES irq.\n");
@@ -1236,8 +1236,8 @@ int mtk_cipher_alg_register(struct mtk_cryp *cryp)
 	}
 
 	/* Enable ring0 and ring1 interrupt */
-	mtk_aes_write(cryp, AIC_ENABLE_SET(RING0), MTK_IRQ_RDR0);
-	mtk_aes_write(cryp, AIC_ENABLE_SET(RING1), MTK_IRQ_RDR1);
+	mtk_aes_write(cryp, AIC_ENABLE_SET(MTK_RING0), MTK_IRQ_RDR0);
+	mtk_aes_write(cryp, AIC_ENABLE_SET(MTK_RING1), MTK_IRQ_RDR1);
 
 	spin_lock(&mtk_aes.lock);
 	list_add_tail(&cryp->aes_list, &mtk_aes.dev_list);

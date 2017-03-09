@@ -694,7 +694,7 @@ static void mtk_sha_finish_req(struct mtk_cryp *cryp,
 	sha->req->base.complete(&sha->req->base, err);
 
 	/* Handle new request */
-	mtk_sha_handle_queue(cryp, sha->id - RING2, NULL);
+	mtk_sha_handle_queue(cryp, sha->id - MTK_RING2, NULL);
 }
 
 static int mtk_sha_handle_queue(struct mtk_cryp *cryp, u8 id,
@@ -1269,8 +1269,8 @@ static int mtk_sha_record_init(struct mtk_cryp *cryp)
 	}
 
 	/* Link to ring2 and ring3 respectively */
-	sha[0]->id = RING2;
-	sha[1]->id = RING3;
+	sha[0]->id = MTK_RING2;
+	sha[1]->id = MTK_RING3;
 
 	cryp->rec = 1;
 
@@ -1343,14 +1343,14 @@ int mtk_hash_alg_register(struct mtk_cryp *cryp)
 	if (err)
 		goto err_record;
 
-	err = devm_request_irq(cryp->dev, cryp->irq[RING2], mtk_sha_irq,
+	err = devm_request_irq(cryp->dev, cryp->irq[MTK_RING2], mtk_sha_irq,
 			       0, "mtk-sha", cryp->sha[0]);
 	if (err) {
 		dev_err(cryp->dev, "unable to request sha irq0.\n");
 		goto err_res;
 	}
 
-	err = devm_request_irq(cryp->dev, cryp->irq[RING3], mtk_sha_irq,
+	err = devm_request_irq(cryp->dev, cryp->irq[MTK_RING3], mtk_sha_irq,
 			       0, "mtk-sha", cryp->sha[1]);
 	if (err) {
 		dev_err(cryp->dev, "unable to request sha irq1.\n");
@@ -1358,8 +1358,8 @@ int mtk_hash_alg_register(struct mtk_cryp *cryp)
 	}
 
 	/* Enable ring2 and ring3 interrupt for hash */
-	mtk_sha_write(cryp, AIC_ENABLE_SET(RING2), MTK_IRQ_RDR2);
-	mtk_sha_write(cryp, AIC_ENABLE_SET(RING3), MTK_IRQ_RDR3);
+	mtk_sha_write(cryp, AIC_ENABLE_SET(MTK_RING2), MTK_IRQ_RDR2);
+	mtk_sha_write(cryp, AIC_ENABLE_SET(MTK_RING3), MTK_IRQ_RDR3);
 
 	cryp->tmp = dma_alloc_coherent(cryp->dev, SHA_TMP_BUF_SIZE,
 					&cryp->tmp_dma, GFP_KERNEL);
