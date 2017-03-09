@@ -143,6 +143,10 @@ static pte_t sun4v_hugepage_shift_to_tte(pte_t entry, unsigned int shift)
 	pte_val(entry) = pte_val(entry) & ~_PAGE_SZALL_4V;
 
 	switch (shift) {
+	case HPAGE_2GB_SHIFT:
+		hugepage_size = _PAGE_SZ2GB_4V;
+		pte_val(entry) |= _PAGE_PMD_HUGE;
+		break;
 	case HPAGE_256MB_SHIFT:
 		hugepage_size = _PAGE_SZ256MB_4V;
 		pte_val(entry) |= _PAGE_PMD_HUGE;
@@ -183,6 +187,9 @@ static unsigned int sun4v_huge_tte_to_shift(pte_t entry)
 	unsigned int shift;
 
 	switch (tte_szbits) {
+	case _PAGE_SZ2GB_4V:
+		shift = HPAGE_2GB_SHIFT;
+		break;
 	case _PAGE_SZ256MB_4V:
 		shift = HPAGE_256MB_SHIFT;
 		break;
