@@ -23,6 +23,7 @@
 #define SHA_OP_FINAL		2
 
 #define SHA_DATA_LEN_MSK	cpu_to_le32(GENMASK(16, 0))
+#define SHA_MAX_DIGEST_BUF_SIZE	32
 
 /* SHA command token */
 #define SHA_CT_SIZE		5
@@ -33,7 +34,6 @@
 
 /* SHA transform information */
 #define SHA_TFM_HASH		cpu_to_le32(0x2 << 0)
-#define SHA_TFM_INNER_DIG	cpu_to_le32(0x1 << 21)
 #define SHA_TFM_SIZE(x)		cpu_to_le32((x) << 8)
 #define SHA_TFM_START		cpu_to_le32(0x1 << 4)
 #define SHA_TFM_CONTINUE	cpu_to_le32(0x1 << 5)
@@ -60,31 +60,17 @@
 #define SHA_FLAGS_PAD		BIT(10)
 
 /**
- * mtk_sha_ct is a set of hardware instructions(command token)
- * that are used to control engine's processing flow of SHA,
- * and it contains the first two words of transform state.
- */
-struct mtk_sha_ct {
-	__le32 ctrl[2];
-	__le32 cmd[3];
-};
-
-/**
- * mtk_sha_tfm is used to define SHA transform state
- * and store result digest that produced by engine.
- */
-struct mtk_sha_tfm {
-	__le32 ctrl[2];
-	__le32 digest[SIZE_IN_WORDS(SHA512_DIGEST_SIZE)];
-};
-
-/**
- * mtk_sha_info consists of command token and transform state
- * of SHA, its role is similar to mtk_aes_info.
+ * mtk_sha_info - hardware information of AES
+ * @cmd:	command token, hardware instruction
+ * @tfm:	transform state of cipher algorithm.
+ * @state:	contains keys and initial vectors.
+ *
  */
 struct mtk_sha_info {
-	struct mtk_sha_ct ct;
-	struct mtk_sha_tfm tfm;
+	__le32 ctrl[2];
+	__le32 cmd[3];
+	__le32 tfm[2];
+	__le32 digest[SHA_MAX_DIGEST_BUF_SIZE];
 };
 
 struct mtk_sha_reqctx {
@@ -93,7 +79,6 @@ struct mtk_sha_reqctx {
 	unsigned long op;
 
 	u64 digcnt;
-	bool start;
 	size_t bufcnt;
 	dma_addr_t dma_addr;
 
@@ -265,7 +250,9 @@ static void mtk_sha_fill_padding(struct mtk_sha_reqctx *ctx, u32 len)
 	bits[1] = cpu_to_be64(size << 3);
 	bits[0] = cpu_to_be64(size >> 61);
 
-	if (ctx->flags & (SHA_FLAGS_SHA384 | SHA_FLAGS_SHA512)) {
+	switch (ctx->flags & SHA_FLAGS_ALGO_MSK) {
+	case SHA_FLAGS_SHA384:
+	case SHA_FLAGS_SHA512:
 		index = ctx->bufcnt & 0x7f;
 		padlen = (index < 112) ? (112 - index) : ((128 + 112) - index);
 		*(ctx->buffer + ctx->bufcnt) = 0x80;
@@ -273,7 +260,9 @@ static void mtk_sha_fill_padding(struct mtk_sha_reqctx *ctx, u32 len)
 		memcpy(ctx->buffer + ctx->bufcnt + padlen, bits, 16);
 		ctx->bufcnt += padlen + 16;
 		ctx->flags |= SHA_FLAGS_PAD;
-	} else {
+		break;
+
+	default:
 		index = ctx->bufcnt & 0x3f;
 		padlen = (index < 56) ? (56 - index) : ((64 + 56) - index);
 		*(ctx->buffer + ctx->bufcnt) = 0x80;
@@ -281,36 +270,35 @@ static void mtk_sha_fill_padding(struct mtk_sha_reqctx *ctx, u32 len)
 		memcpy(ctx->buffer + ctx->bufcnt + padlen, &bits[1], 8);
 		ctx->bufcnt += padlen + 8;
 		ctx->flags |= SHA_FLAGS_PAD;
+		break;
 	}
 }
 
 /* Initialize basic transform information of SHA */
 static void mtk_sha_info_init(struct mtk_sha_reqctx *ctx)
 {
-	struct mtk_sha_ct *ct = &ctx->info.ct;
-	struct mtk_sha_tfm *tfm = &ctx->info.tfm;
+	struct mtk_sha_info *info = &ctx->info;
 
 	ctx->ct_hdr = SHA_CT_CTRL_HDR;
 	ctx->ct_size = SHA_CT_SIZE;
 
-	tfm->ctrl[0] = SHA_TFM_HASH | SHA_TFM_INNER_DIG |
-		       SHA_TFM_SIZE(SIZE_IN_WORDS(ctx->ds));
+	info->tfm[0] = SHA_TFM_HASH | SHA_TFM_SIZE(SIZE_IN_WORDS(ctx->ds));
 
 	switch (ctx->flags & SHA_FLAGS_ALGO_MSK) {
 	case SHA_FLAGS_SHA1:
-		tfm->ctrl[0] |= SHA_TFM_SHA1;
+		info->tfm[0] |= SHA_TFM_SHA1;
 		break;
 	case SHA_FLAGS_SHA224:
-		tfm->ctrl[0] |= SHA_TFM_SHA224;
+		info->tfm[0] |= SHA_TFM_SHA224;
 		break;
 	case SHA_FLAGS_SHA256:
-		tfm->ctrl[0] |= SHA_TFM_SHA256;
+		info->tfm[0] |= SHA_TFM_SHA256;
 		break;
 	case SHA_FLAGS_SHA384:
-		tfm->ctrl[0] |= SHA_TFM_SHA384;
+		info->tfm[0] |= SHA_TFM_SHA384;
 		break;
 	case SHA_FLAGS_SHA512:
-		tfm->ctrl[0] |= SHA_TFM_SHA512;
+		info->tfm[0] |= SHA_TFM_SHA512;
 		break;
 
 	default:
@@ -318,13 +306,13 @@ static void mtk_sha_info_init(struct mtk_sha_reqctx *ctx)
 		return;
 	}
 
-	tfm->ctrl[1] = SHA_TFM_HASH_STORE;
-	ct->ctrl[0] = tfm->ctrl[0] | SHA_TFM_CONTINUE | SHA_TFM_START;
-	ct->ctrl[1] = tfm->ctrl[1];
+	info->tfm[1] = SHA_TFM_HASH_STORE;
+	info->ctrl[0] = info->tfm[0] | SHA_TFM_CONTINUE | SHA_TFM_START;
+	info->ctrl[1] = info->tfm[1];
 
-	ct->cmd[0] = SHA_CMD0;
-	ct->cmd[1] = SHA_CMD1;
-	ct->cmd[2] = SHA_CMD2 | SHA_TFM_DIGEST(SIZE_IN_WORDS(ctx->ds));
+	info->cmd[0] = SHA_CMD0;
+	info->cmd[1] = SHA_CMD1;
+	info->cmd[2] = SHA_CMD2 | SHA_TFM_DIGEST(SIZE_IN_WORDS(ctx->ds));
 }
 
 /*
@@ -337,17 +325,15 @@ static int mtk_sha_info_update(struct mtk_cryp *cryp,
 {
 	struct mtk_sha_reqctx *ctx = ahash_request_ctx(sha->req);
 	struct mtk_sha_info *info = &ctx->info;
-	struct mtk_sha_ct *ct = &info->ct;
-
-	if (ctx->start)
-		ctx->start = false;
-	else
-		ct->ctrl[0] &= ~SHA_TFM_START;
 
 	ctx->ct_hdr &= ~SHA_DATA_LEN_MSK;
 	ctx->ct_hdr |= cpu_to_le32(len1 + len2);
-	ct->cmd[0] &= ~SHA_DATA_LEN_MSK;
-	ct->cmd[0] |= cpu_to_le32(len1 + len2);
+	info->cmd[0] &= ~SHA_DATA_LEN_MSK;
+	info->cmd[0] |= cpu_to_le32(len1 + len2);
+
+	/* Setting SHA_TFM_START only for the first iteration */
+	if (ctx->digcnt)
+		info->ctrl[0] &= ~SHA_TFM_START;
 
 	ctx->digcnt += len1;
 
@@ -357,7 +343,8 @@ static int mtk_sha_info_update(struct mtk_cryp *cryp,
 		dev_err(cryp->dev, "dma %zu bytes error\n", sizeof(*info));
 		return -EINVAL;
 	}
-	ctx->tfm_dma = ctx->ct_dma + sizeof(*ct);
+
+	ctx->tfm_dma = ctx->ct_dma + sizeof(info->ctrl) + sizeof(info->cmd);
 
 	return 0;
 }
@@ -422,7 +409,6 @@ static int mtk_sha_init(struct ahash_request *req)
 	ctx->bufcnt = 0;
 	ctx->digcnt = 0;
 	ctx->buffer = tctx->buf;
-	ctx->start = true;
 
 	if (tctx->flags & SHA_FLAGS_HMAC) {
 		struct mtk_sha_hmac_ctx *bctx = tctx->base;
@@ -635,7 +621,7 @@ static int mtk_sha_final_req(struct mtk_cryp *cryp,
 static int mtk_sha_finish(struct ahash_request *req)
 {
 	struct mtk_sha_reqctx *ctx = ahash_request_ctx(req);
-	u32 *digest = ctx->info.tfm.digest;
+	__le32 *digest = ctx->info.digest;
 	u32 *result = (u32 *)req->result;
 	int i;
 
