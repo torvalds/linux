@@ -382,7 +382,6 @@ static int usb_wakeup_of_property_parse(struct xhci_hcd_mtk *mtk,
 
 static int xhci_mtk_setup(struct usb_hcd *hcd);
 static const struct xhci_driver_overrides xhci_mtk_overrides __initconst = {
-	.extra_priv_size = sizeof(struct xhci_hcd),
 	.reset = xhci_mtk_setup,
 };
 
