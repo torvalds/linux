@@ -267,6 +267,7 @@ static inline bool userfaultfd_must_wait(struct userfaultfd_ctx *ctx,
 {
 	struct mm_struct *mm = ctx->mm;
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd, _pmd;
 	pte_t *pte;
@@ -277,7 +278,10 @@ static inline bool userfaultfd_must_wait(struct userfaultfd_ctx *ctx,
 	pgd = pgd_offset(mm, address);
 	if (!pgd_present(*pgd))
 		goto out;
-	pud = pud_offset(pgd, address);
+	p4d = p4d_offset(pgd, address);
+	if (!p4d_present(*p4d))
+		goto out;
+	pud = pud_offset(p4d, address);
 	if (!pud_present(*pud))
 		goto out;
 	pmd = pmd_offset(pud, address);
