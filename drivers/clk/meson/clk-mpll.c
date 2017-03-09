@@ -68,7 +68,7 @@
 #define SDM_MIN 1
 #define SDM_MAX 16383
 #define N2_MIN	4
-#define N2_MAX	127
+#define N2_MAX	511
 
 #define to_meson_clk_mpll(_hw) container_of(_hw, struct meson_clk_mpll, hw)
 
