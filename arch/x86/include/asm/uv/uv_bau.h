@@ -185,6 +185,13 @@
 #define MSG_REGULAR			1
 #define MSG_RETRY			2
 
+enum uv_bau_version {
+	UV_BAU_V1 = 1,
+	UV_BAU_V2,
+	UV_BAU_V3,
+	UV_BAU_V4,
+};
+
 /*
  * Distribution: 32 bytes (256 bits) (bytes 0-0x1f of descriptor)
  * If the 'multilevel' flag in the header portion of the descriptor

@@ -724,7 +724,7 @@ static int wait_completion(struct bau_desc *bau_desc, struct bau_control *bcp, l
 		right_shift = ((desc - UV_CPUS_PER_AS) * UV_ACT_STATUS_SIZE);
 	}
 
-	if (bcp->uvhub_version == 1)
+	if (bcp->uvhub_version == UV_BAU_V1)
 		return uv1_wait_completion(bau_desc, mmr_offset, right_shift, bcp, try);
 	else
 		return uv2_3_wait_completion(bau_desc, mmr_offset, right_shift, bcp, try);
@@ -918,7 +918,7 @@ int uv_flush_send_and_wait(struct cpumask *flush_mask, struct bau_control *bcp,
 	struct uv1_bau_msg_header *uv1_hdr = NULL;
 	struct uv2_3_bau_msg_header *uv2_3_hdr = NULL;
 
-	if (bcp->uvhub_version == 1) {
+	if (bcp->uvhub_version == UV_BAU_V1) {
 		uv1 = 1;
 		uv1_throttle(hmaster, stat);
 	}
@@ -1296,7 +1296,7 @@ void uv_bau_message_interrupt(struct pt_regs *regs)
 
 		msgdesc.msg_slot = msg - msgdesc.queue_first;
 		msgdesc.msg = msg;
-		if (bcp->uvhub_version == 2)
+		if (bcp->uvhub_version == UV_BAU_V2)
 			process_uv2_message(&msgdesc, bcp);
 		else
 			/* no error workaround for uv1 or uv3 */
@@ -1838,7 +1838,7 @@ static void pq_init(int node, int pnode)
 	 * and the payload queue tail must be maintained by the kernel.
 	 */
 	bcp = &per_cpu(bau_control, smp_processor_id());
-	if (bcp->uvhub_version <= 3) {
+	if (bcp->uvhub_version <= UV_BAU_V3) {
 		tail = first;
 		gnode = uv_gpa_to_gnode(uv_gpa(pqp));
 		first = (gnode << UV_PAYLOADQ_GNODE_SHIFT) | tail;
@@ -2052,13 +2052,13 @@ static int scan_sock(struct socket_desc *sdp, struct uvhub_desc *bdp,
 		bcp->socket_master = *smasterp;
 		bcp->uvhub = bdp->uvhub;
 		if (is_uv1_hub())
-			bcp->uvhub_version = 1;
+			bcp->uvhub_version = UV_BAU_V1;
 		else if (is_uv2_hub())
-			bcp->uvhub_version = 2;
+			bcp->uvhub_version = UV_BAU_V2;
 		else if (is_uv3_hub())
-			bcp->uvhub_version = 3;
+			bcp->uvhub_version = UV_BAU_V3;
 		else if (is_uv4_hub())
-			bcp->uvhub_version = 4;
+			bcp->uvhub_version = UV_BAU_V4;
 		else {
 			pr_emerg("uvhub version not 1, 2, 3, or 4\n");
 			return 1;
