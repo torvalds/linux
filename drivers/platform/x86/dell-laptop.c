@@ -2151,11 +2151,17 @@ static int __init dell_init(void)
 
 		dell_backlight_device->props.brightness =
 			dell_get_intensity(dell_backlight_device);
+		if (dell_backlight_device->props.brightness < 0) {
+			ret = dell_backlight_device->props.brightness;
+			goto fail_get_brightness;
+		}
 		backlight_update_status(dell_backlight_device);
 	}
 
 	return 0;
 
+fail_get_brightness:
+	backlight_device_unregister(dell_backlight_device);
 fail_backlight:
 	dell_cleanup_rfkill();
 fail_rfkill:
