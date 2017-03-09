@@ -857,7 +857,7 @@ void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 	struct mwifiex_sta_node *sta_ptr;
 	u8 *peer, *pos, *end;
 	u8 i, action, basic;
-	__le16 cap = 0;
+	u16 cap = 0;
 	int ie_len = 0;
 
 	if (len < (sizeof(struct ethhdr) + 3))
@@ -879,7 +879,7 @@ void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 
 		pos = buf + sizeof(struct ethhdr) + 4;
 		/* payload 1+ category 1 + action 1 + dialog 1 */
-		cap = cpu_to_le16(*(u16 *)pos);
+		cap = get_unaligned_le16(pos);
 		ie_len = len - sizeof(struct ethhdr) - TDLS_REQ_FIX_LEN;
 		pos += 2;
 		break;
@@ -889,7 +889,7 @@ void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 			return;
 		/* payload 1+ category 1 + action 1 + dialog 1 + status code 2*/
 		pos = buf + sizeof(struct ethhdr) + 6;
-		cap = cpu_to_le16(*(u16 *)pos);
+		cap = get_unaligned_le16(pos);
 		ie_len = len - sizeof(struct ethhdr) - TDLS_RESP_FIX_LEN;
 		pos += 2;
 		break;
@@ -909,7 +909,7 @@ void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 	if (!sta_ptr)
 		return;
 
-	sta_ptr->tdls_cap.capab = cap;
+	sta_ptr->tdls_cap.capab = cpu_to_le16(cap);
 
 	for (end = pos + ie_len; pos + 1 < end; pos += 2 + pos[1]) {
 		if (pos + 2 + pos[1] > end)
@@ -969,7 +969,7 @@ void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 		case WLAN_EID_AID:
 			if (priv->adapter->is_hw_11ac_capable)
 				sta_ptr->tdls_cap.aid =
-					      le16_to_cpu(*(__le16 *)(pos + 2));
+					get_unaligned_le16((pos + 2));
 		default:
 			break;
 		}

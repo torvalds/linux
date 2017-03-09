@@ -130,7 +130,7 @@ static int mwifiex_cmd_802_11_snmp_mib(struct mwifiex_private *priv,
 	} else if (cmd_action == HostCmd_ACT_GEN_SET) {
 		snmp_mib->query_type = cpu_to_le16(HostCmd_ACT_GEN_SET);
 		snmp_mib->buf_size = cpu_to_le16(sizeof(u16));
-		*((__le16 *) (snmp_mib->value)) = cpu_to_le16(*ul_temp);
+		put_unaligned_le16(*ul_temp, snmp_mib->value);
 		le16_unaligned_add_cpu(&cmd->size, sizeof(u16));
 	}
 
@@ -138,7 +138,7 @@ static int mwifiex_cmd_802_11_snmp_mib(struct mwifiex_private *priv,
 		    "cmd: SNMP_CMD: Action=0x%x, OID=0x%x,\t"
 		    "OIDSize=0x%x, Value=0x%x\n",
 		    cmd_action, cmd_oid, le16_to_cpu(snmp_mib->buf_size),
-		    le16_to_cpu(*(__le16 *)snmp_mib->value));
+		    get_unaligned_le16(snmp_mib->value));
 	return 0;
 }
 
@@ -1400,7 +1400,7 @@ mwifiex_cmd_append_rpn_expression(struct mwifiex_private *priv,
 		filter = &mef_entry->filter[i];
 		if (!filter->filt_type)
 			break;
-		*(__le32 *)stack_ptr = cpu_to_le32((u32)filter->repeat);
+		put_unaligned_le32((u32)filter->repeat, stack_ptr);
 		stack_ptr += 4;
 		*stack_ptr = TYPE_DNUM;
 		stack_ptr += 1;
@@ -1412,8 +1412,7 @@ mwifiex_cmd_append_rpn_expression(struct mwifiex_private *priv,
 		stack_ptr += 1;
 		*stack_ptr = TYPE_BYTESEQ;
 		stack_ptr += 1;
-
-		*(__le32 *)stack_ptr = cpu_to_le32((u32)filter->offset);
+		put_unaligned_le32((u32)filter->offset, stack_ptr);
 		stack_ptr += 4;
 		*stack_ptr = TYPE_DNUM;
 		stack_ptr += 1;
@@ -1787,7 +1786,7 @@ mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
 			return -ENODATA;
 		}
 
-		*(__le16 *)pos = cpu_to_le16(params->capability);
+		put_unaligned_le16(params->capability, pos);
 		config_len += sizeof(params->capability);
 
 		qos_info = params->uapsd_queues | (params->max_sp << 5);
@@ -2036,7 +2035,7 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 	case HostCmd_CMD_VERSION_EXT:
 		cmd_ptr->command = cpu_to_le16(cmd_no);
 		cmd_ptr->params.verext.version_str_sel =
-			(u8) (*((u32 *) data_buf));
+			(u8)(get_unaligned((u32 *)data_buf));
 		memcpy(&cmd_ptr->params, data_buf,
 		       sizeof(struct host_cmd_ds_version_ext));
 		cmd_ptr->size =
@@ -2047,7 +2046,8 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 	case HostCmd_CMD_MGMT_FRAME_REG:
 		cmd_ptr->command = cpu_to_le16(cmd_no);
 		cmd_ptr->params.reg_mask.action = cpu_to_le16(cmd_action);
-		cmd_ptr->params.reg_mask.mask = cpu_to_le32(*(u32 *)data_buf);
+		cmd_ptr->params.reg_mask.mask = cpu_to_le32(
+						get_unaligned((u32 *)data_buf));
 		cmd_ptr->size =
 			cpu_to_le16(sizeof(struct host_cmd_ds_mgmt_frame_reg) +
 				    S_DS_GEN);
@@ -2067,7 +2067,8 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 	case HostCmd_CMD_P2P_MODE_CFG:
 		cmd_ptr->command = cpu_to_le16(cmd_no);
 		cmd_ptr->params.mode_cfg.action = cpu_to_le16(cmd_action);
-		cmd_ptr->params.mode_cfg.mode = cpu_to_le16(*(u16 *)data_buf);
+		cmd_ptr->params.mode_cfg.mode = cpu_to_le16(
+						get_unaligned((u16 *)data_buf));
 		cmd_ptr->size =
 			cpu_to_le16(sizeof(struct host_cmd_ds_p2p_mode_cfg) +
 				    S_DS_GEN);

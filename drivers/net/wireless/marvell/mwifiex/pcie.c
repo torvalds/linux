@@ -119,7 +119,7 @@ static int mwifiex_read_reg_byte(struct mwifiex_adapter *adapter,
  */
 static bool mwifiex_pcie_ok_to_access_hw(struct mwifiex_adapter *adapter)
 {
-	u32 *cookie_addr;
+	u32 cookie_value;
 	struct pcie_service_card *card = adapter->card;
 	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 
@@ -127,11 +127,11 @@ static bool mwifiex_pcie_ok_to_access_hw(struct mwifiex_adapter *adapter)
 		return true;
 
 	if (card->sleep_cookie_vbase) {
-		cookie_addr = (u32 *)card->sleep_cookie_vbase;
+		cookie_value = get_unaligned_le32(card->sleep_cookie_vbase);
 		mwifiex_dbg(adapter, INFO,
 			    "info: ACCESS_HW: sleep cookie=0x%x\n",
-			    *cookie_addr);
-		if (*cookie_addr == FW_AWAKE_COOKIE)
+			    cookie_value);
+		if (cookie_value == FW_AWAKE_COOKIE)
 			return true;
 	}
 
@@ -440,7 +440,7 @@ static void mwifiex_delay_for_sleep_cookie(struct mwifiex_adapter *adapter,
 					    sizeof(sleep_cookie),
 					    PCI_DMA_FROMDEVICE);
 		buffer = cmdrsp->data;
-		sleep_cookie = READ_ONCE(*(u32 *)buffer);
+		sleep_cookie = get_unaligned_le32(buffer);
 
 		if (sleep_cookie == MWIFIEX_DEF_SLEEP_COOKIE) {
 			mwifiex_dbg(adapter, INFO,
@@ -1042,6 +1042,7 @@ static int mwifiex_pcie_delete_cmdrsp_buf(struct mwifiex_adapter *adapter)
 static int mwifiex_pcie_alloc_sleep_cookie_buf(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
+	u32 tmp;
 
 	card->sleep_cookie_vbase = pci_alloc_consistent(card->dev, sizeof(u32),
 						     &card->sleep_cookie_pbase);
@@ -1051,11 +1052,12 @@ static int mwifiex_pcie_alloc_sleep_cookie_buf(struct mwifiex_adapter *adapter)
 		return -ENOMEM;
 	}
 	/* Init val of Sleep Cookie */
-	*(u32 *)card->sleep_cookie_vbase = FW_AWAKE_COOKIE;
+	tmp = FW_AWAKE_COOKIE;
+	put_unaligned(tmp, card->sleep_cookie_vbase);
 
 	mwifiex_dbg(adapter, INFO,
 		    "alloc_scook: sleep cookie=0x%x\n",
-		    *((u32 *)card->sleep_cookie_vbase));
+		    get_unaligned(card->sleep_cookie_vbase));
 
 	return 0;
 }
@@ -1216,7 +1218,6 @@ mwifiex_pcie_send_data(struct mwifiex_adapter *adapter, struct sk_buff *skb,
 	dma_addr_t buf_pa;
 	struct mwifiex_pcie_buf_desc *desc = NULL;
 	struct mwifiex_pfu_buf_desc *desc2 = NULL;
-	__le16 *tmp;
 
 	if (!(skb->data && skb->len)) {
 		mwifiex_dbg(adapter, ERROR,
@@ -1237,10 +1238,8 @@ mwifiex_pcie_send_data(struct mwifiex_adapter *adapter, struct sk_buff *skb,
 
 		adapter->data_sent = true;
 		payload = skb->data;
-		tmp = (__le16 *)&payload[0];
-		*tmp = cpu_to_le16((u16)skb->len);
-		tmp = (__le16 *)&payload[2];
-		*tmp = cpu_to_le16(MWIFIEX_TYPE_DATA);
+		put_unaligned_le16((u16)skb->len, payload + 0);
+		put_unaligned_le16(MWIFIEX_TYPE_DATA, payload + 2);
 
 		if (mwifiex_map_pci_memory(adapter, skb, skb->len,
 					   PCI_DMA_TODEVICE))
@@ -1369,7 +1368,6 @@ static int mwifiex_pcie_process_recv_data(struct mwifiex_adapter *adapter)
 		(card->rxbd_rdptr & reg->rx_rollover_ind))) {
 		struct sk_buff *skb_data;
 		u16 rx_len;
-		__le16 pkt_len;
 
 		rd_index = card->rxbd_rdptr & reg->rx_mask;
 		skb_data = card->rx_buf_list[rd_index];
@@ -1386,8 +1384,7 @@ static int mwifiex_pcie_process_recv_data(struct mwifiex_adapter *adapter)
 		/* Get data length from interface header -
 		 * first 2 bytes for len, next 2 bytes is for type
 		 */
-		pkt_len = *((__le16 *)skb_data->data);
-		rx_len = le16_to_cpu(pkt_len);
+		rx_len = get_unaligned_le16(skb_data->data);
 		if (WARN_ON(rx_len <= INTF_HEADER_LEN ||
 			    rx_len > MWIFIEX_RX_DATA_BUF_SIZE)) {
 			mwifiex_dbg(adapter, ERROR,
@@ -1594,8 +1591,8 @@ mwifiex_pcie_send_cmd(struct mwifiex_adapter *adapter, struct sk_buff *skb)
 
 	adapter->cmd_sent = true;
 
-	*(__le16 *)&payload[0] = cpu_to_le16((u16)skb->len);
-	*(__le16 *)&payload[2] = cpu_to_le16(MWIFIEX_TYPE_CMD);
+	put_unaligned_le16((u16)skb->len, &payload[0]);
+	put_unaligned_le16(MWIFIEX_TYPE_CMD, &payload[2]);
 
 	if (mwifiex_map_pci_memory(adapter, skb, skb->len, PCI_DMA_TODEVICE))
 		return -1;
@@ -1687,7 +1684,6 @@ static int mwifiex_pcie_process_cmd_complete(struct mwifiex_adapter *adapter)
 	struct sk_buff *skb = card->cmdrsp_buf;
 	int count = 0;
 	u16 rx_len;
-	__le16 pkt_len;
 
 	mwifiex_dbg(adapter, CMD,
 		    "info: Rx CMD Response\n");
@@ -1707,8 +1703,7 @@ static int mwifiex_pcie_process_cmd_complete(struct mwifiex_adapter *adapter)
 		card->cmd_buf = NULL;
 	}
 
-	pkt_len = *((__le16 *)skb->data);
-	rx_len = le16_to_cpu(pkt_len);
+	rx_len = get_unaligned_le16(skb->data);
 	skb_put(skb, MWIFIEX_UPLD_SIZE - skb->len);
 	skb_trim(skb, rx_len);
 
@@ -1849,7 +1844,7 @@ static int mwifiex_pcie_process_event_ready(struct mwifiex_adapter *adapter)
 		desc = card->evtbd_ring[rdptr];
 		memset(desc, 0, sizeof(*desc));
 
-		event = *(u32 *) &skb_cmd->data[INTF_HEADER_LEN];
+		event = get_unaligned_le32(&skb_cmd->data[INTF_HEADER_LEN]);
 		adapter->event_cause = event;
 		/* The first 4bytes will be the event transfer header
 		   len is 2 bytes followed by type which is 2 bytes */
