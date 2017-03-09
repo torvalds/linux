@@ -233,12 +233,7 @@ skl_update_plane(struct drm_plane *drm_plane,
 
 	plane_ctl = PLANE_CTL_ENABLE;
 
-	if (IS_GEMINILAKE(dev_priv)) {
-		I915_WRITE(PLANE_COLOR_CTL(pipe, plane_id),
-			   PLANE_COLOR_PIPE_GAMMA_ENABLE |
-			   PLANE_COLOR_PIPE_CSC_ENABLE |
-			   PLANE_COLOR_PLANE_GAMMA_DISABLE);
-	} else {
+	if (!IS_GEMINILAKE(dev_priv)) {
 		plane_ctl |=
 			PLANE_CTL_PIPE_GAMMA_ENABLE |
 			PLANE_CTL_PIPE_CSC_ENABLE |
@@ -248,12 +243,6 @@ skl_update_plane(struct drm_plane *drm_plane,
 	plane_ctl |= skl_plane_ctl_format(fb->format->format);
 	plane_ctl |= skl_plane_ctl_tiling(fb->modifier);
 	plane_ctl |= skl_plane_ctl_rotation(rotation);
-
-	if (key->flags) {
-		I915_WRITE(PLANE_KEYVAL(pipe, plane_id), key->min_value);
-		I915_WRITE(PLANE_KEYMAX(pipe, plane_id), key->max_value);
-		I915_WRITE(PLANE_KEYMSK(pipe, plane_id), key->channel_mask);
-	}
 
 	if (key->flags & I915_SET_COLORKEY_DESTINATION)
 		plane_ctl |= PLANE_CTL_KEY_ENABLE_DESTINATION;
@@ -265,6 +254,19 @@ skl_update_plane(struct drm_plane *drm_plane,
 	src_h--;
 	crtc_w--;
 	crtc_h--;
+
+	if (IS_GEMINILAKE(dev_priv)) {
+		I915_WRITE(PLANE_COLOR_CTL(pipe, plane_id),
+			   PLANE_COLOR_PIPE_GAMMA_ENABLE |
+			   PLANE_COLOR_PIPE_CSC_ENABLE |
+			   PLANE_COLOR_PLANE_GAMMA_DISABLE);
+	}
+
+	if (key->flags) {
+		I915_WRITE(PLANE_KEYVAL(pipe, plane_id), key->min_value);
+		I915_WRITE(PLANE_KEYMAX(pipe, plane_id), key->max_value);
+		I915_WRITE(PLANE_KEYMSK(pipe, plane_id), key->channel_mask);
+	}
 
 	I915_WRITE(PLANE_OFFSET(pipe, plane_id), (y << 16) | x);
 	I915_WRITE(PLANE_STRIDE(pipe, plane_id), stride);
@@ -433,6 +435,9 @@ vlv_update_plane(struct drm_plane *dplane,
 	if (rotation & DRM_REFLECT_X)
 		sprctl |= SP_MIRROR;
 
+	if (key->flags & I915_SET_COLORKEY_SOURCE)
+		sprctl |= SP_SOURCE_KEY;
+
 	/* Sizes are 0 based */
 	src_w--;
 	src_h--;
@@ -451,18 +456,14 @@ vlv_update_plane(struct drm_plane *dplane,
 
 	linear_offset = intel_fb_xy_to_linear(x, y, plane_state, 0);
 
+	if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B)
+		chv_update_csc(intel_plane, fb->format->format);
+
 	if (key->flags) {
 		I915_WRITE(SPKEYMINVAL(pipe, plane_id), key->min_value);
 		I915_WRITE(SPKEYMAXVAL(pipe, plane_id), key->max_value);
 		I915_WRITE(SPKEYMSK(pipe, plane_id), key->channel_mask);
 	}
-
-	if (key->flags & I915_SET_COLORKEY_SOURCE)
-		sprctl |= SP_SOURCE_KEY;
-
-	if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B)
-		chv_update_csc(intel_plane, fb->format->format);
-
 	I915_WRITE(SPSTRIDE(pipe, plane_id), fb->pitches[0]);
 	I915_WRITE(SPPOS(pipe, plane_id), (crtc_y << 16) | crtc_x);
 
@@ -563,6 +564,11 @@ ivb_update_plane(struct drm_plane *plane,
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		sprctl |= SPRITE_PIPE_CSC_ENABLE;
 
+	if (key->flags & I915_SET_COLORKEY_DESTINATION)
+		sprctl |= SPRITE_DEST_KEY;
+	else if (key->flags & I915_SET_COLORKEY_SOURCE)
+		sprctl |= SPRITE_SOURCE_KEY;
+
 	/* Sizes are 0 based */
 	src_w--;
 	src_h--;
@@ -589,11 +595,6 @@ ivb_update_plane(struct drm_plane *plane,
 		I915_WRITE(SPRKEYMAX(pipe), key->max_value);
 		I915_WRITE(SPRKEYMSK(pipe), key->channel_mask);
 	}
-
-	if (key->flags & I915_SET_COLORKEY_DESTINATION)
-		sprctl |= SPRITE_DEST_KEY;
-	else if (key->flags & I915_SET_COLORKEY_SOURCE)
-		sprctl |= SPRITE_SOURCE_KEY;
 
 	I915_WRITE(SPRSTRIDE(pipe), fb->pitches[0]);
 	I915_WRITE(SPRPOS(pipe), (crtc_y << 16) | crtc_x);
@@ -696,6 +697,11 @@ ilk_update_plane(struct drm_plane *plane,
 	if (IS_GEN6(dev_priv))
 		dvscntr |= DVS_TRICKLE_FEED_DISABLE; /* must disable */
 
+	if (key->flags & I915_SET_COLORKEY_DESTINATION)
+		dvscntr |= DVS_DEST_KEY;
+	else if (key->flags & I915_SET_COLORKEY_SOURCE)
+		dvscntr |= DVS_SOURCE_KEY;
+
 	/* Sizes are 0 based */
 	src_w--;
 	src_h--;
@@ -721,11 +727,6 @@ ilk_update_plane(struct drm_plane *plane,
 		I915_WRITE(DVSKEYMAX(pipe), key->max_value);
 		I915_WRITE(DVSKEYMSK(pipe), key->channel_mask);
 	}
-
-	if (key->flags & I915_SET_COLORKEY_DESTINATION)
-		dvscntr |= DVS_DEST_KEY;
-	else if (key->flags & I915_SET_COLORKEY_SOURCE)
-		dvscntr |= DVS_SOURCE_KEY;
 
 	I915_WRITE(DVSSTRIDE(pipe), fb->pitches[0]);
 	I915_WRITE(DVSPOS(pipe), (crtc_y << 16) | crtc_x);

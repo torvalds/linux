@@ -2984,20 +2984,6 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 	if (INTEL_GEN(dev_priv) < 4) {
 		if (intel_crtc->pipe == PIPE_B)
 			dspcntr |= DISPPLANE_SEL_PIPE_B;
-
-		/* pipesrc and dspsize control the size that is scaled from,
-		 * which should always be the user's requested size.
-		 */
-		I915_WRITE(DSPSIZE(plane),
-			   ((crtc_state->pipe_src_h - 1) << 16) |
-			   (crtc_state->pipe_src_w - 1));
-		I915_WRITE(DSPPOS(plane), 0);
-	} else if (IS_CHERRYVIEW(dev_priv) && plane == PLANE_B) {
-		I915_WRITE(PRIMSIZE(plane),
-			   ((crtc_state->pipe_src_h - 1) << 16) |
-			   (crtc_state->pipe_src_w - 1));
-		I915_WRITE(PRIMPOS(plane), 0);
-		I915_WRITE(PRIMCNSTALPHA(plane), 0);
 	}
 
 	switch (fb->format->format) {
@@ -3059,6 +3045,22 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 
 	intel_crtc->adjusted_x = x;
 	intel_crtc->adjusted_y = y;
+
+	if (INTEL_GEN(dev_priv) < 4) {
+		/* pipesrc and dspsize control the size that is scaled from,
+		 * which should always be the user's requested size.
+		 */
+		I915_WRITE(DSPSIZE(plane),
+			   ((crtc_state->pipe_src_h - 1) << 16) |
+			   (crtc_state->pipe_src_w - 1));
+		I915_WRITE(DSPPOS(plane), 0);
+	} else if (IS_CHERRYVIEW(dev_priv) && plane == PLANE_B) {
+		I915_WRITE(PRIMSIZE(plane),
+			   ((crtc_state->pipe_src_h - 1) << 16) |
+			   (crtc_state->pipe_src_w - 1));
+		I915_WRITE(PRIMPOS(plane), 0);
+		I915_WRITE(PRIMCNSTALPHA(plane), 0);
+	}
 
 	I915_WRITE(reg, dspcntr);
 
@@ -3344,12 +3346,7 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 
 	plane_ctl = PLANE_CTL_ENABLE;
 
-	if (IS_GEMINILAKE(dev_priv)) {
-		I915_WRITE(PLANE_COLOR_CTL(pipe, plane_id),
-			   PLANE_COLOR_PIPE_GAMMA_ENABLE |
-			   PLANE_COLOR_PIPE_CSC_ENABLE |
-			   PLANE_COLOR_PLANE_GAMMA_DISABLE);
-	} else {
+	if (!IS_GEMINILAKE(dev_priv)) {
 		plane_ctl |=
 			PLANE_CTL_PIPE_GAMMA_ENABLE |
 			PLANE_CTL_PIPE_CSC_ENABLE |
@@ -3370,6 +3367,13 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 
 	intel_crtc->adjusted_x = src_x;
 	intel_crtc->adjusted_y = src_y;
+
+	if (IS_GEMINILAKE(dev_priv)) {
+		I915_WRITE(PLANE_COLOR_CTL(pipe, plane_id),
+			   PLANE_COLOR_PIPE_GAMMA_ENABLE |
+			   PLANE_COLOR_PIPE_CSC_ENABLE |
+			   PLANE_COLOR_PLANE_GAMMA_DISABLE);
+	}
 
 	I915_WRITE(PLANE_CTL(pipe, plane_id), plane_ctl);
 	I915_WRITE(PLANE_OFFSET(pipe, plane_id), (src_y << 16) | src_x);
