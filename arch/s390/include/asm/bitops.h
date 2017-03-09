@@ -15,14 +15,6 @@
  * end up numbered:
  *   |63..............0|127............64|191...........128|255...........192|
  *
- * There are a few little-endian macros used mostly for filesystem
- * bitmaps, these work on similar bit array layouts, but byte-oriented:
- *   |7...0|15...8|23...16|31...24|39...32|47...40|55...48|63...56|
- *
- * The main difference is that bit 3-5 in the bit number field needs to be
- * reversed compared to the big-endian bit fields. This can be achieved by
- * XOR with 0x38.
- *
  * We also have special functions which work with an MSB0 encoding.
  * The bits are numbered:
  *   |0..............63|64............127|128...........191|192...........255|
