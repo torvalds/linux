@@ -112,6 +112,7 @@ struct tcmu_dev {
 	spinlock_t commands_lock;
 
 	struct timer_list timeout;
+	unsigned int cmd_time_out;
 
 	char dev_config[TCMU_CONFIG_LEN];
 };
@@ -172,7 +173,9 @@ static struct tcmu_cmd *tcmu_alloc_cmd(struct se_cmd *se_cmd)
 
 	tcmu_cmd->se_cmd = se_cmd;
 	tcmu_cmd->tcmu_dev = udev;
-	tcmu_cmd->deadline = jiffies + msecs_to_jiffies(TCMU_TIME_OUT);
+	if (udev->cmd_time_out)
+		tcmu_cmd->deadline = jiffies +
+					msecs_to_jiffies(udev->cmd_time_out);
 
 	idr_preload(GFP_KERNEL);
 	spin_lock_irq(&udev->commands_lock);
@@ -451,7 +454,11 @@ tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 
 		pr_debug("sleeping for ring space\n");
 		spin_unlock_irq(&udev->cmdr_lock);
-		ret = schedule_timeout(msecs_to_jiffies(TCMU_TIME_OUT));
+		if (udev->cmd_time_out)
+			ret = schedule_timeout(
+					msecs_to_jiffies(udev->cmd_time_out));
+		else
+			ret = schedule_timeout(msecs_to_jiffies(TCMU_TIME_OUT));
 		finish_wait(&udev->wait_cmdr, &__wait);
 		if (!ret) {
 			pr_warn("tcmu: command timed out\n");
@@ -526,8 +533,9 @@ tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 	/* TODO: only if FLUSH and FUA? */
 	uio_event_notify(&udev->uio_info);
 
-	mod_timer(&udev->timeout,
-		round_jiffies_up(jiffies + msecs_to_jiffies(TCMU_TIME_OUT)));
+	if (udev->cmd_time_out)
+		mod_timer(&udev->timeout, round_jiffies_up(jiffies +
+			  msecs_to_jiffies(udev->cmd_time_out)));
 
 	return TCM_NO_SENSE;
 }
@@ -742,6 +750,7 @@ static struct se_device *tcmu_alloc_device(struct se_hba *hba, const char *name)
 	}
 
 	udev->hba = hba;
+	udev->cmd_time_out = TCMU_TIME_OUT;
 
 	init_waitqueue_head(&udev->wait_cmdr);
 	spin_lock_init(&udev->cmdr_lock);
@@ -1037,7 +1046,7 @@ static void tcmu_free_device(struct se_device *dev)
 
 enum {
 	Opt_dev_config, Opt_dev_size, Opt_hw_block_size, Opt_hw_max_sectors,
-	Opt_err,
+	Opt_cmd_time_out, Opt_err,
 };
 
 static match_table_t tokens = {
@@ -1045,6 +1054,7 @@ static match_table_t tokens = {
 	{Opt_dev_size, "dev_size=%u"},
 	{Opt_hw_block_size, "hw_block_size=%u"},
 	{Opt_hw_max_sectors, "hw_max_sectors=%u"},
+	{Opt_cmd_time_out, "cmd_time_out=%u"},
 	{Opt_err, NULL}
 };
 
@@ -1111,6 +1121,23 @@ static ssize_t tcmu_set_configfs_dev_params(struct se_device *dev,
 			if (ret < 0)
 				pr_err("kstrtoul() failed for dev_size=\n");
 			break;
+		case Opt_cmd_time_out:
+			if (tcmu_dev_configured(udev)) {
+				pr_err("Can not update cmd_time_out after device has been configured.\n");
+				ret = -EINVAL;
+				break;
+			}
+			arg_p = match_strdup(&args[0]);
+			if (!arg_p) {
+				ret = -ENOMEM;
+				break;
+			}
+			ret = kstrtouint(arg_p, 0, &udev->cmd_time_out);
+			kfree(arg_p);
+			if (ret < 0)
+				pr_err("kstrtouint() failed for cmd_time_out=\n");
+			udev->cmd_time_out *= MSEC_PER_SEC;
+			break;
 		case Opt_hw_block_size:
 			ret = tcmu_set_dev_attrib(&args[0],
 					&(dev->dev_attrib.hw_block_size));
@@ -1138,7 +1165,9 @@ static ssize_t tcmu_show_configfs_dev_params(struct se_device *dev, char *b)
 
 	bl = sprintf(b + bl, "Config: %s ",
 		     udev->dev_config[0] ? udev->dev_config : "NULL");
-	bl += sprintf(b + bl, "Size: %zu\n", udev->dev_size);
+	bl += sprintf(b + bl, "Size: %zu ", udev->dev_size);
+	bl += sprintf(b + bl, "Cmd Time Out: %lu\n",
+		      udev->cmd_time_out / MSEC_PER_SEC);
 
 	return bl;
 }
