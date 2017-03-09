@@ -998,6 +998,11 @@ static void tcmu_dev_call_rcu(struct rcu_head *p)
 	kfree(udev);
 }
 
+static bool tcmu_dev_configured(struct tcmu_dev *udev)
+{
+	return udev->uio_info.uio_dev ? true : false;
+}
+
 static void tcmu_free_device(struct se_device *dev)
 {
 	struct tcmu_dev *udev = TCMU_DEV(dev);
@@ -1019,8 +1024,7 @@ static void tcmu_free_device(struct se_device *dev)
 	spin_unlock_irq(&udev->commands_lock);
 	WARN_ON(!all_expired);
 
-	/* Device was configured */
-	if (udev->uio_info.uio_dev) {
+	if (tcmu_dev_configured(udev)) {
 		tcmu_netlink_event(TCMU_CMD_REMOVED_DEVICE, udev->uio_info.name,
 				   udev->uio_info.uio_dev->minor);
 
