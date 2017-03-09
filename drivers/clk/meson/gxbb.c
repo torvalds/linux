@@ -816,7 +816,7 @@ static struct meson_clk_mpll *const gxbb_clk_mplls[] = {
 	&gxbb_mpll2,
 };
 
-static struct clk_gate *gxbb_clk_gates[] = {
+static struct clk_gate *const gxbb_clk_gates[] = {
 	&gxbb_clk81,
 	&gxbb_ddr,
 	&gxbb_dos,

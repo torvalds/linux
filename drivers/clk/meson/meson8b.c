@@ -501,7 +501,7 @@ static struct meson_clk_pll *const meson8b_clk_plls[] = {
 	&meson8b_sys_pll,
 };
 
-static struct clk_gate *meson8b_clk_gates[] = {
+static struct clk_gate *const meson8b_clk_gates[] = {
 	&meson8b_clk81,
 	&meson8b_ddr,
 	&meson8b_dos,
