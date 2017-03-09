@@ -1148,30 +1148,21 @@ static void gen6_pm_rps_work(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(work, struct drm_i915_private, rps.work);
-	bool client_boost;
+	bool client_boost = false;
 	int new_delay, adj, min, max;
-	u32 pm_iir;
+	u32 pm_iir = 0;
 
 	spin_lock_irq(&dev_priv->irq_lock);
-	/* Speed up work cancelation during disabling rps interrupts. */
-	if (!dev_priv->rps.interrupts_enabled) {
-		spin_unlock_irq(&dev_priv->irq_lock);
-		return;
+	if (dev_priv->rps.interrupts_enabled) {
+		pm_iir = fetch_and_zero(&dev_priv->rps.pm_iir);
+		client_boost = fetch_and_zero(&dev_priv->rps.client_boost);
 	}
-
-	pm_iir = dev_priv->rps.pm_iir;
-	dev_priv->rps.pm_iir = 0;
-	/* Make sure not to corrupt PMIMR state used by ringbuffer on GEN6 */
-	gen6_unmask_pm_irq(dev_priv, dev_priv->pm_rps_events);
-	client_boost = dev_priv->rps.client_boost;
-	dev_priv->rps.client_boost = false;
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	/* Make sure we didn't queue anything we're not going to process. */
 	WARN_ON(pm_iir & ~dev_priv->pm_rps_events);
-
 	if ((pm_iir & dev_priv->pm_rps_events) == 0 && !client_boost)
-		return;
+		goto out;
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 
@@ -1228,6 +1219,13 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	}
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
+
+out:
+	/* Make sure not to corrupt PMIMR state used by ringbuffer on GEN6 */
+	spin_lock_irq(&dev_priv->irq_lock);
+	if (dev_priv->rps.interrupts_enabled)
+		gen6_unmask_pm_irq(dev_priv, dev_priv->pm_rps_events);
+	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
 
