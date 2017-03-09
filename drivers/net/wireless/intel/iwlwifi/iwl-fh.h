@@ -66,6 +66,7 @@
 #define __iwl_fh_h__
 
 #include <linux/types.h>
+#include <linux/bitfield.h>
 
 /****************************/
 /* Flow Handler Definitions */
@@ -478,13 +479,12 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
 #define RFH_GEN_CFG	0xA09800
 #define RFH_GEN_CFG_SERVICE_DMA_SNOOP	BIT(0)
 #define RFH_GEN_CFG_RFH_DMA_SNOOP	BIT(1)
-#define RFH_GEN_CFG_RB_CHUNK_SIZE_POS	4
+#define RFH_GEN_CFG_RB_CHUNK_SIZE	BIT(4)
 #define RFH_GEN_CFG_RB_CHUNK_SIZE_128	1
 #define RFH_GEN_CFG_RB_CHUNK_SIZE_64	0
-#define RFH_GEN_CFG_DEFAULT_RXQ_NUM_MASK 0xF00
-#define RFH_GEN_CFG_DEFAULT_RXQ_NUM_POS 8
-
-#define DEFAULT_RXQ_NUM			0
+/* the driver assumes everywhere that the default RXQ is 0 */
+#define RFH_GEN_CFG_DEFAULT_RXQ_NUM	0xF00
+#define RFH_GEN_CFG_VAL(_n, _v)		FIELD_PREP(RFH_GEN_CFG_ ## _n, _v)
 
 /* end of 9000 rx series registers */
 

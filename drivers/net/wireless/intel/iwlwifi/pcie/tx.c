@@ -1344,10 +1344,8 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, u16 ssn,
 		iwl_trans_write_mem32(trans,
 			trans_pcie->scd_base_addr +
 			SCD_CONTEXT_QUEUE_OFFSET(txq_id) + sizeof(u32),
-			((frame_limit << SCD_QUEUE_CTX_REG2_WIN_SIZE_POS) &
-					SCD_QUEUE_CTX_REG2_WIN_SIZE_MSK) |
-			((frame_limit << SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
-					SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK));
+			SCD_QUEUE_CTX_REG2_VAL(WIN_SIZE, frame_limit) |
+			SCD_QUEUE_CTX_REG2_VAL(FRAME_LIMIT, frame_limit));
 
 		/* Set up status area in SRAM, map to Tx DMA/FIFO, activate */
 		iwl_write_prph(trans, SCD_QUEUE_STATUS_BITS(txq_id),
