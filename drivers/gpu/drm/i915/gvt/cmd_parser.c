@@ -817,6 +817,25 @@ static bool is_shadowed_mmio(unsigned int offset)
 	return ret;
 }
 
+static inline bool is_force_nonpriv_mmio(unsigned int offset)
+{
+	return (offset >= 0x24d0 && offset < 0x2500);
+}
+
+static int force_nonpriv_reg_handler(struct parser_exec_state *s,
+				     unsigned int offset, unsigned int index)
+{
+	struct intel_gvt *gvt = s->vgpu->gvt;
+	unsigned int data = cmd_val(s, index + 1);
+
+	if (!intel_gvt_in_force_nonpriv_whitelist(gvt, data)) {
+		gvt_err("Unexpected forcenonpriv 0x%x LRI write, value=0x%x\n",
+			offset, data);
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int cmd_reg_handler(struct parser_exec_state *s,
 	unsigned int offset, unsigned int index, char *cmd)
 {
@@ -840,6 +859,10 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 				s->vgpu->id, offset);
 		return 0;
 	}
+
+	if (is_force_nonpriv_mmio(offset) &&
+	    force_nonpriv_reg_handler(s, offset, index))
+		return -EINVAL;
 
 	if (offset == i915_mmio_reg_offset(DERRMR) ||
 		offset == i915_mmio_reg_offset(FORCEWAKE_MT)) {

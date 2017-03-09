@@ -107,4 +107,7 @@ int intel_vgpu_default_mmio_read(struct intel_vgpu *vgpu, unsigned int offset,
 				 void *p_data, unsigned int bytes);
 int intel_vgpu_default_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 				  void *p_data, unsigned int bytes);
+
+bool intel_gvt_in_force_nonpriv_whitelist(struct intel_gvt *gvt,
+					  unsigned int offset);
 #endif
