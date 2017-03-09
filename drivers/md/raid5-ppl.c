@@ -103,6 +103,10 @@ struct ppl_conf {
 	mempool_t *io_pool;
 	struct bio_set *bs;
 	mempool_t *meta_pool;
+
+	/* used only for recovery */
+	int recovered_entries;
+	int mismatch_count;
 };
 
 struct ppl_log {
@@ -514,6 +518,474 @@ void ppl_stripe_write_finished(struct stripe_head *sh)
 		ppl_io_unit_finished(io);
 }
 
+static void ppl_xor(int size, struct page *page1, struct page *page2)
+{
+	struct async_submit_ctl submit;
+	struct dma_async_tx_descriptor *tx;
+	struct page *xor_srcs[] = { page1, page2 };
+
+	init_async_submit(&submit, ASYNC_TX_ACK|ASYNC_TX_XOR_DROP_DST,
+			  NULL, NULL, NULL, NULL);
+	tx = async_xor(page1, xor_srcs, 0, 2, size, &submit);
+
+	async_tx_quiesce(&tx);
+}
+
+/*
+ * PPL recovery strategy: xor partial parity and data from all modified data
+ * disks within a stripe and write the result as the new stripe parity. If all
+ * stripe data disks are modified (full stripe write), no partial parity is
+ * available, so just xor the data disks.
+ *
+ * Recovery of a PPL entry shall occur only if all modified data disks are
+ * available and read from all of them succeeds.
+ *
+ * A PPL entry applies to a stripe, partial parity size for an entry is at most
+ * the size of the chunk. Examples of possible cases for a single entry:
+ *
+ * case 0: single data disk write:
+ *   data0    data1    data2     ppl        parity
+ * +--------+--------+--------+           +--------------------+
+ * | ------ | ------ | ------ | +----+    | (no change)        |
+ * | ------ | -data- | ------ | | pp | -> | data1 ^ pp         |
+ * | ------ | -data- | ------ | | pp | -> | data1 ^ pp         |
+ * | ------ | ------ | ------ | +----+    | (no change)        |
+ * +--------+--------+--------+           +--------------------+
+ * pp_size = data_size
+ *
+ * case 1: more than one data disk write:
+ *   data0    data1    data2     ppl        parity
+ * +--------+--------+--------+           +--------------------+
+ * | ------ | ------ | ------ | +----+    | (no change)        |
+ * | -data- | -data- | ------ | | pp | -> | data0 ^ data1 ^ pp |
+ * | -data- | -data- | ------ | | pp | -> | data0 ^ data1 ^ pp |
+ * | ------ | ------ | ------ | +----+    | (no change)        |
+ * +--------+--------+--------+           +--------------------+
+ * pp_size = data_size / modified_data_disks
+ *
+ * case 2: write to all data disks (also full stripe write):
+ *   data0    data1    data2                parity
+ * +--------+--------+--------+           +--------------------+
+ * | ------ | ------ | ------ |           | (no change)        |
+ * | -data- | -data- | -data- | --------> | xor all data       |
+ * | ------ | ------ | ------ | --------> | (no change)        |
+ * | ------ | ------ | ------ |           | (no change)        |
+ * +--------+--------+--------+           +--------------------+
+ * pp_size = 0
+ *
+ * The following cases are possible only in other implementations. The recovery
+ * code can handle them, but they are not generated at runtime because they can
+ * be reduced to cases 0, 1 and 2:
+ *
+ * case 3:
+ *   data0    data1    data2     ppl        parity
+ * +--------+--------+--------+ +----+    +--------------------+
+ * | ------ | -data- | -data- | | pp |    | data1 ^ data2 ^ pp |
+ * | ------ | -data- | -data- | | pp | -> | data1 ^ data2 ^ pp |
+ * | -data- | -data- | -data- | | -- | -> | xor all data       |
+ * | -data- | -data- | ------ | | pp |    | data0 ^ data1 ^ pp |
+ * +--------+--------+--------+ +----+    +--------------------+
+ * pp_size = chunk_size
+ *
+ * case 4:
+ *   data0    data1    data2     ppl        parity
+ * +--------+--------+--------+ +----+    +--------------------+
+ * | ------ | -data- | ------ | | pp |    | data1 ^ pp         |
+ * | ------ | ------ | ------ | | -- | -> | (no change)        |
+ * | ------ | ------ | ------ | | -- | -> | (no change)        |
+ * | -data- | ------ | ------ | | pp |    | data0 ^ pp         |
+ * +--------+--------+--------+ +----+    +--------------------+
+ * pp_size = chunk_size
+ */
+static int ppl_recover_entry(struct ppl_log *log, struct ppl_header_entry *e,
+			     sector_t ppl_sector)
+{
+	struct ppl_conf *ppl_conf = log->ppl_conf;
+	struct mddev *mddev = ppl_conf->mddev;
+	struct r5conf *conf = mddev->private;
+	int block_size = ppl_conf->block_size;
+	struct page *page1;
+	struct page *page2;
+	sector_t r_sector_first;
+	sector_t r_sector_last;
+	int strip_sectors;
+	int data_disks;
+	int i;
+	int ret = 0;
+	char b[BDEVNAME_SIZE];
+	unsigned int pp_size = le32_to_cpu(e->pp_size);
+	unsigned int data_size = le32_to_cpu(e->data_size);
+
+	page1 = alloc_page(GFP_KERNEL);
+	page2 = alloc_page(GFP_KERNEL);
+
+	if (!page1 || !page2) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	r_sector_first = le64_to_cpu(e->data_sector) * (block_size >> 9);
+
+	if ((pp_size >> 9) < conf->chunk_sectors) {
+		if (pp_size > 0) {
+			data_disks = data_size / pp_size;
+			strip_sectors = pp_size >> 9;
+		} else {
+			data_disks = conf->raid_disks - conf->max_degraded;
+			strip_sectors = (data_size >> 9) / data_disks;
+		}
+		r_sector_last = r_sector_first +
+				(data_disks - 1) * conf->chunk_sectors +
+				strip_sectors;
+	} else {
+		data_disks = conf->raid_disks - conf->max_degraded;
+		strip_sectors = conf->chunk_sectors;
+		r_sector_last = r_sector_first + (data_size >> 9);
+	}
+
+	pr_debug("%s: array sector first: %llu last: %llu\n", __func__,
+		 (unsigned long long)r_sector_first,
+		 (unsigned long long)r_sector_last);
+
+	/* if start and end is 4k aligned, use a 4k block */
+	if (block_size == 512 &&
+	    (r_sector_first & (STRIPE_SECTORS - 1)) == 0 &&
+	    (r_sector_last & (STRIPE_SECTORS - 1)) == 0)
+		block_size = STRIPE_SIZE;
+
+	/* iterate through blocks in strip */
+	for (i = 0; i < strip_sectors; i += (block_size >> 9)) {
+		bool update_parity = false;
+		sector_t parity_sector;
+		struct md_rdev *parity_rdev;
+		struct stripe_head sh;
+		int disk;
+		int indent = 0;
+
+		pr_debug("%s:%*s iter %d start\n", __func__, indent, "", i);
+		indent += 2;
+
+		memset(page_address(page1), 0, PAGE_SIZE);
+
+		/* iterate through data member disks */
+		for (disk = 0; disk < data_disks; disk++) {
+			int dd_idx;
+			struct md_rdev *rdev;
+			sector_t sector;
+			sector_t r_sector = r_sector_first + i +
+					    (disk * conf->chunk_sectors);
+
+			pr_debug("%s:%*s data member disk %d start\n",
+				 __func__, indent, "", disk);
+			indent += 2;
+
+			if (r_sector >= r_sector_last) {
+				pr_debug("%s:%*s array sector %llu doesn't need parity update\n",
+					 __func__, indent, "",
+					 (unsigned long long)r_sector);
+				indent -= 2;
+				continue;
+			}
+
+			update_parity = true;
+
+			/* map raid sector to member disk */
+			sector = raid5_compute_sector(conf, r_sector, 0,
+						      &dd_idx, NULL);
+			pr_debug("%s:%*s processing array sector %llu => data member disk %d, sector %llu\n",
+				 __func__, indent, "",
+				 (unsigned long long)r_sector, dd_idx,
+				 (unsigned long long)sector);
+
+			rdev = conf->disks[dd_idx].rdev;
+			if (!rdev) {
+				pr_debug("%s:%*s data member disk %d missing\n",
+					 __func__, indent, "", dd_idx);
+				update_parity = false;
+				break;
+			}
+
+			pr_debug("%s:%*s reading data member disk %s sector %llu\n",
+				 __func__, indent, "", bdevname(rdev->bdev, b),
+				 (unsigned long long)sector);
+			if (!sync_page_io(rdev, sector, block_size, page2,
+					REQ_OP_READ, 0, false)) {
+				md_error(mddev, rdev);
+				pr_debug("%s:%*s read failed!\n", __func__,
+					 indent, "");
+				ret = -EIO;
+				goto out;
+			}
+
+			ppl_xor(block_size, page1, page2);
+
+			indent -= 2;
+		}
+
+		if (!update_parity)
+			continue;
+
+		if (pp_size > 0) {
+			pr_debug("%s:%*s reading pp disk sector %llu\n",
+				 __func__, indent, "",
+				 (unsigned long long)(ppl_sector + i));
+			if (!sync_page_io(log->rdev,
+					ppl_sector - log->rdev->data_offset + i,
+					block_size, page2, REQ_OP_READ, 0,
+					false)) {
+				pr_debug("%s:%*s read failed!\n", __func__,
+					 indent, "");
+				md_error(mddev, log->rdev);
+				ret = -EIO;
+				goto out;
+			}
+
+			ppl_xor(block_size, page1, page2);
+		}
+
+		/* map raid sector to parity disk */
+		parity_sector = raid5_compute_sector(conf, r_sector_first + i,
+				0, &disk, &sh);
+		BUG_ON(sh.pd_idx != le32_to_cpu(e->parity_disk));
+		parity_rdev = conf->disks[sh.pd_idx].rdev;
+
+		BUG_ON(parity_rdev->bdev->bd_dev != log->rdev->bdev->bd_dev);
+		pr_debug("%s:%*s write parity at sector %llu, disk %s\n",
+			 __func__, indent, "",
+			 (unsigned long long)parity_sector,
+			 bdevname(parity_rdev->bdev, b));
+		if (!sync_page_io(parity_rdev, parity_sector, block_size,
+				page1, REQ_OP_WRITE, 0, false)) {
+			pr_debug("%s:%*s parity write error!\n", __func__,
+				 indent, "");
+			md_error(mddev, parity_rdev);
+			ret = -EIO;
+			goto out;
+		}
+	}
+out:
+	if (page1)
+		__free_page(page1);
+	if (page2)
+		__free_page(page2);
+	return ret;
+}
+
+static int ppl_recover(struct ppl_log *log, struct ppl_header *pplhdr)
+{
+	struct ppl_conf *ppl_conf = log->ppl_conf;
+	struct md_rdev *rdev = log->rdev;
+	struct mddev *mddev = rdev->mddev;
+	sector_t ppl_sector = rdev->ppl.sector + (PPL_HEADER_SIZE >> 9);
+	struct page *page;
+	int i;
+	int ret = 0;
+
+	page = alloc_page(GFP_KERNEL);
+	if (!page)
+		return -ENOMEM;
+
+	/* iterate through all PPL entries saved */
+	for (i = 0; i < le32_to_cpu(pplhdr->entries_count); i++) {
+		struct ppl_header_entry *e = &pplhdr->entries[i];
+		u32 pp_size = le32_to_cpu(e->pp_size);
+		sector_t sector = ppl_sector;
+		int ppl_entry_sectors = pp_size >> 9;
+		u32 crc, crc_stored;
+
+		pr_debug("%s: disk: %d entry: %d ppl_sector: %llu pp_size: %u\n",
+			 __func__, rdev->raid_disk, i,
+			 (unsigned long long)ppl_sector, pp_size);
+
+		crc = ~0;
+		crc_stored = le32_to_cpu(e->checksum);
+
+		/* read parial parity for this entry and calculate its checksum */
+		while (pp_size) {
+			int s = pp_size > PAGE_SIZE ? PAGE_SIZE : pp_size;
+
+			if (!sync_page_io(rdev, sector - rdev->data_offset,
+					s, page, REQ_OP_READ, 0, false)) {
+				md_error(mddev, rdev);
+				ret = -EIO;
+				goto out;
+			}
+
+			crc = crc32c_le(crc, page_address(page), s);
+
+			pp_size -= s;
+			sector += s >> 9;
+		}
+
+		crc = ~crc;
+
+		if (crc != crc_stored) {
+			/*
+			 * Don't recover this entry if the checksum does not
+			 * match, but keep going and try to recover other
+			 * entries.
+			 */
+			pr_debug("%s: ppl entry crc does not match: stored: 0x%x calculated: 0x%x\n",
+				 __func__, crc_stored, crc);
+			ppl_conf->mismatch_count++;
+		} else {
+			ret = ppl_recover_entry(log, e, ppl_sector);
+			if (ret)
+				goto out;
+			ppl_conf->recovered_entries++;
+		}
+
+		ppl_sector += ppl_entry_sectors;
+	}
+
+	/* flush the disk cache after recovery if necessary */
+	ret = blkdev_issue_flush(rdev->bdev, GFP_KERNEL, NULL);
+out:
+	__free_page(page);
+	return ret;
+}
+
+static int ppl_write_empty_header(struct ppl_log *log)
+{
+	struct page *page;
+	struct ppl_header *pplhdr;
+	struct md_rdev *rdev = log->rdev;
+	int ret = 0;
+
+	pr_debug("%s: disk: %d ppl_sector: %llu\n", __func__,
+		 rdev->raid_disk, (unsigned long long)rdev->ppl.sector);
+
+	page = alloc_page(GFP_NOIO | __GFP_ZERO);
+	if (!page)
+		return -ENOMEM;
+
+	pplhdr = page_address(page);
+	memset(pplhdr->reserved, 0xff, PPL_HDR_RESERVED);
+	pplhdr->signature = cpu_to_le32(log->ppl_conf->signature);
+	pplhdr->checksum = cpu_to_le32(~crc32c_le(~0, pplhdr, PAGE_SIZE));
+
+	if (!sync_page_io(rdev, rdev->ppl.sector - rdev->data_offset,
+			  PPL_HEADER_SIZE, page, REQ_OP_WRITE | REQ_FUA, 0,
+			  false)) {
+		md_error(rdev->mddev, rdev);
+		ret = -EIO;
+	}
+
+	__free_page(page);
+	return ret;
+}
+
+static int ppl_load_distributed(struct ppl_log *log)
+{
+	struct ppl_conf *ppl_conf = log->ppl_conf;
+	struct md_rdev *rdev = log->rdev;
+	struct mddev *mddev = rdev->mddev;
+	struct page *page;
+	struct ppl_header *pplhdr;
+	u32 crc, crc_stored;
+	u32 signature;
+	int ret = 0;
+
+	pr_debug("%s: disk: %d\n", __func__, rdev->raid_disk);
+
+	/* read PPL header */
+	page = alloc_page(GFP_KERNEL);
+	if (!page)
+		return -ENOMEM;
+
+	if (!sync_page_io(rdev, rdev->ppl.sector - rdev->data_offset,
+			  PAGE_SIZE, page, REQ_OP_READ, 0, false)) {
+		md_error(mddev, rdev);
+		ret = -EIO;
+		goto out;
+	}
+	pplhdr = page_address(page);
+
+	/* check header validity */
+	crc_stored = le32_to_cpu(pplhdr->checksum);
+	pplhdr->checksum = 0;
+	crc = ~crc32c_le(~0, pplhdr, PAGE_SIZE);
+
+	if (crc_stored != crc) {
+		pr_debug("%s: ppl header crc does not match: stored: 0x%x calculated: 0x%x\n",
+			 __func__, crc_stored, crc);
+		ppl_conf->mismatch_count++;
+		goto out;
+	}
+
+	signature = le32_to_cpu(pplhdr->signature);
+
+	if (mddev->external) {
+		/*
+		 * For external metadata the header signature is set and
+		 * validated in userspace.
+		 */
+		ppl_conf->signature = signature;
+	} else if (ppl_conf->signature != signature) {
+		pr_debug("%s: ppl header signature does not match: stored: 0x%x configured: 0x%x\n",
+			 __func__, signature, ppl_conf->signature);
+		ppl_conf->mismatch_count++;
+		goto out;
+	}
+
+	/* attempt to recover from log if we are starting a dirty array */
+	if (!mddev->pers && mddev->recovery_cp != MaxSector)
+		ret = ppl_recover(log, pplhdr);
+out:
+	/* write empty header if we are starting the array */
+	if (!ret && !mddev->pers)
+		ret = ppl_write_empty_header(log);
+
+	__free_page(page);
+
+	pr_debug("%s: return: %d mismatch_count: %d recovered_entries: %d\n",
+		 __func__, ret, ppl_conf->mismatch_count,
+		 ppl_conf->recovered_entries);
+	return ret;
+}
+
+static int ppl_load(struct ppl_conf *ppl_conf)
+{
+	int ret = 0;
+	u32 signature = 0;
+	bool signature_set = false;
+	int i;
+
+	for (i = 0; i < ppl_conf->count; i++) {
+		struct ppl_log *log = &ppl_conf->child_logs[i];
+
+		/* skip missing drive */
+		if (!log->rdev)
+			continue;
+
+		ret = ppl_load_distributed(log);
+		if (ret)
+			break;
+
+		/*
+		 * For external metadata we can't check if the signature is
+		 * correct on a single drive, but we can check if it is the same
+		 * on all drives.
+		 */
+		if (ppl_conf->mddev->external) {
+			if (!signature_set) {
+				signature = ppl_conf->signature;
+				signature_set = true;
+			} else if (signature != ppl_conf->signature) {
+				pr_warn("md/raid:%s: PPL header signature does not match on all member drives\n",
+					mdname(ppl_conf->mddev));
+				ret = -EINVAL;
+				break;
+			}
+		}
+	}
+
+	pr_debug("%s: return: %d mismatch_count: %d recovered_entries: %d\n",
+		 __func__, ret, ppl_conf->mismatch_count,
+		 ppl_conf->recovered_entries);
+	return ret;
+}
+
 static void __ppl_exit_log(struct ppl_conf *ppl_conf)
 {
 	clear_bit(MD_HAS_PPL, &ppl_conf->mddev->flags);
@@ -693,6 +1165,23 @@ int ppl_init_log(struct r5conf *conf)
 	if (need_cache_flush)
 		pr_warn("md/raid:%s: Volatile write-back cache should be disabled on all member drives when using PPL!\n",
 			mdname(mddev));
+
+	/* load and possibly recover the logs from the member disks */
+	ret = ppl_load(ppl_conf);
+
+	if (ret) {
+		goto err;
+	} else if (!mddev->pers &&
+		   mddev->recovery_cp == 0 && !mddev->degraded &&
+		   ppl_conf->recovered_entries > 0 &&
+		   ppl_conf->mismatch_count == 0) {
+		/*
+		 * If we are starting a dirty array and the recovery succeeds
+		 * without any issues, set the array as clean.
+		 */
+		mddev->recovery_cp = MaxSector;
+		set_bit(MD_SB_CHANGE_CLEAN, &mddev->sb_flags);
+	}
 
 	conf->log_private = ppl_conf;
 
