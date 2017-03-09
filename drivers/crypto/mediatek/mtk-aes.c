@@ -70,6 +70,8 @@
 #define AES_FLAGS_ENCRYPT	BIT(4)
 #define AES_FLAGS_BUSY		BIT(5)
 
+#define AES_AUTH_TAG_ERR	cpu_to_le32(BIT(26))
+
 /**
  * Command token(CT) is a set of hardware instructions that
  * are used to control engine's processing flow of AES.
@@ -305,6 +307,9 @@ static int mtk_aes_xmit(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 			ring->res_next = ring->res_base;
 	}
 	res->hdr |= MTK_DESC_LAST;
+
+	/* Pointer to current result descriptor */
+	ring->res_prev = res;
 
 	/* Prepare enough space for authenticated tag */
 	if (aes->flags & AES_FLAGS_GCM)
@@ -799,6 +804,19 @@ mtk_aes_gcm_ctx_cast(struct mtk_aes_base_ctx *ctx)
 	return container_of(ctx, struct mtk_aes_gcm_ctx, base);
 }
 
+/*
+ * Engine will verify and compare tag automatically, so we just need
+ * to check returned status which stored in the result descriptor.
+ */
+static int mtk_aes_gcm_tag_verify(struct mtk_cryp *cryp,
+				  struct mtk_aes_rec *aes)
+{
+	u32 status = cryp->ring[aes->id]->res_prev->ct;
+
+	return mtk_aes_complete(cryp, aes, (status & AES_AUTH_TAG_ERR) ?
+				-EBADMSG : 0);
+}
+
 /* Initialize transform information of GCM mode */
 static void mtk_aes_gcm_info_init(struct mtk_cryp *cryp,
 				  struct mtk_aes_rec *aes,
@@ -902,6 +920,8 @@ static int mtk_aes_gcm_start(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 
 	if (aes->flags & AES_FLAGS_ENCRYPT) {
 		u32 tag[4];
+
+		aes->resume = mtk_aes_transfer_complete;
 		/* Compute total process length. */
 		aes->total = len + gctx->authsize;
 		/* Compute text length. */
@@ -909,10 +929,10 @@ static int mtk_aes_gcm_start(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 		/* Hardware will append authenticated tag to output buffer */
 		scatterwalk_map_and_copy(tag, req->dst, len, gctx->authsize, 1);
 	} else {
+		aes->resume = mtk_aes_gcm_tag_verify;
 		aes->total = len;
 		gctx->textlen = req->cryptlen - gctx->authsize;
 	}
-	aes->resume = mtk_aes_transfer_complete;
 
 	return mtk_aes_gcm_dma(cryp, aes, req->src, req->dst, len);
 }
@@ -925,7 +945,7 @@ static int mtk_aes_gcm_crypt(struct aead_request *req, u64 mode)
 	rctx->mode = AES_FLAGS_GCM | mode;
 
 	return mtk_aes_handle_queue(ctx->cryp, !!(mode & AES_FLAGS_ENCRYPT),
-								&req->base);
+				    &req->base);
 }
 
 static void mtk_gcm_setkey_done(struct crypto_async_request *req, int err)

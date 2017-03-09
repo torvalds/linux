@@ -88,6 +88,7 @@ struct mtk_desc {
  * @cmd_dma:	DMA address of command descriptor ring
  * @res_base:	pointer to result descriptor ring base
  * @res_next:	pointer to the next result descriptor
+ * @res_prev:	pointer to the previous result descriptor
  * @res_dma:	DMA address of result descriptor ring
  *
  * A descriptor ring is a circular buffer that is used to manage
@@ -100,6 +101,7 @@ struct mtk_ring {
 	dma_addr_t cmd_dma;
 	struct mtk_desc *res_base;
 	struct mtk_desc *res_next;
+	struct mtk_desc *res_prev;
 	dma_addr_t res_dma;
 };
 
