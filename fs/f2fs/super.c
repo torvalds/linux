@@ -49,6 +49,7 @@ char *fault_name[FAULT_MAX] = {
 	[FAULT_BLOCK]		= "no more block",
 	[FAULT_DIR_DEPTH]	= "too big dir depth",
 	[FAULT_EVICT_INODE]	= "evict_inode fail",
+	[FAULT_TRUNCATE]	= "truncate fail",
 	[FAULT_IO]		= "IO error",
 	[FAULT_CHECKPOINT]	= "checkpoint error",
 };
