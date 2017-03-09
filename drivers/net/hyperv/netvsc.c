@@ -562,8 +562,8 @@ void netvsc_device_remove(struct hv_device *device)
 	/* Now, we can close the channel safely */
 	vmbus_close(device->channel);
 
-	for (i = 0; i < VRSS_CHANNEL_MAX; i++)
-		napi_disable(&net_device->chan_table[0].napi);
+	for (i = 0; i < net_device->num_chn; i++)
+		napi_disable(&net_device->chan_table[i].napi);
 
 	/* Release all resources */
 	free_netvsc_device(net_device);
