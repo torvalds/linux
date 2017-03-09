@@ -3513,7 +3513,7 @@ static void hfa384x_int_rxmonitor(struct wlandevice *wlandev,
 
 		caphdr->version = htonl(P80211CAPTURE_VERSION);
 		caphdr->length = htonl(sizeof(struct p80211_caphdr));
-		caphdr->mactime = __cpu_to_be64(rxdesc->time) * 1000;
+		caphdr->mactime = __cpu_to_be64(rxdesc->time * 1000);
 		caphdr->hosttime = __cpu_to_be64(jiffies);
 		caphdr->phytype = htonl(4);	/* dss_dot11_b */
 		caphdr->channel = htonl(hw->sniff_channel);
