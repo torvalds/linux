@@ -533,7 +533,8 @@ static int mtk_aes_complete(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 	aes->areq->complete(aes->areq, 0);
 
 	/* Handle new request */
-	return mtk_aes_handle_queue(cryp, aes->id, NULL);
+	tasklet_schedule(&aes->queue_task);
+	return 0;
 }
 
 static int mtk_aes_start(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
@@ -1094,6 +1095,13 @@ static struct aead_alg aes_gcm_alg = {
 	},
 };
 
+static void mtk_aes_queue_task(unsigned long data)
+{
+	struct mtk_aes_rec *aes = (struct mtk_aes_rec *)data;
+
+	mtk_aes_handle_queue(aes->cryp, aes->id, NULL);
+}
+
 static void mtk_aes_done_task(unsigned long data)
 {
 	struct mtk_aes_rec *aes = (struct mtk_aes_rec *)data;
@@ -1116,7 +1124,7 @@ static irqreturn_t mtk_aes_irq(int irq, void *dev_id)
 		mtk_aes_write(cryp, RDR_THRESH(aes->id),
 			      MTK_RDR_PROC_THRESH | MTK_RDR_PROC_MODE);
 
-		tasklet_schedule(&aes->task);
+		tasklet_schedule(&aes->done_task);
 	} else {
 		dev_warn(cryp->dev, "AES interrupt when no active requests.\n");
 	}
@@ -1149,7 +1157,9 @@ static int mtk_aes_record_init(struct mtk_cryp *cryp)
 		spin_lock_init(&aes[i]->lock);
 		crypto_init_queue(&aes[i]->queue, AES_QUEUE_SIZE);
 
-		tasklet_init(&aes[i]->task, mtk_aes_done_task,
+		tasklet_init(&aes[i]->queue_task, mtk_aes_queue_task,
+			     (unsigned long)aes[i]);
+		tasklet_init(&aes[i]->done_task, mtk_aes_done_task,
 			     (unsigned long)aes[i]);
 	}
 
@@ -1173,7 +1183,9 @@ static void mtk_aes_record_free(struct mtk_cryp *cryp)
 	int i;
 
 	for (i = 0; i < MTK_REC_NUM; i++) {
-		tasklet_kill(&cryp->aes[i]->task);
+		tasklet_kill(&cryp->aes[i]->done_task);
+		tasklet_kill(&cryp->aes[i]->queue_task);
+
 		free_page((unsigned long)cryp->aes[i]->buf);
 		kfree(cryp->aes[i]);
 	}

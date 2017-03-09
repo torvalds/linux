@@ -128,7 +128,8 @@ typedef int (*mtk_aes_fn)(struct mtk_cryp *cryp, struct mtk_aes_rec *aes);
  * @cryp:	pointer to Cryptographic device
  * @queue:	crypto request queue
  * @areq:	pointer to async request
- * @task:	the tasklet is use in AES interrupt
+ * @done_task:	the tasklet is use in AES interrupt
+ * @queue_task:	the tasklet is used to dequeue request
  * @ctx:	pointer to current context
  * @src:	the structure that holds source sg list info
  * @dst:	the structure that holds destination sg list info
@@ -147,7 +148,8 @@ struct mtk_aes_rec {
 	struct mtk_cryp *cryp;
 	struct crypto_queue queue;
 	struct crypto_async_request *areq;
-	struct tasklet_struct task;
+	struct tasklet_struct done_task;
+	struct tasklet_struct queue_task;
 	struct mtk_aes_base_ctx *ctx;
 	struct mtk_aes_dma src;
 	struct mtk_aes_dma dst;
@@ -171,7 +173,8 @@ struct mtk_aes_rec {
  * @cryp:	pointer to Cryptographic device
  * @queue:	crypto request queue
  * @req:	pointer to ahash request
- * @task:	the tasklet is use in SHA interrupt
+ * @done_task:	the tasklet is use in SHA interrupt
+ * @queue_task:	the tasklet is used to dequeue request
  * @id:		the current use of ring
  * @flags:	it's describing SHA operation state
  * @lock:	the async queue lock
@@ -182,7 +185,8 @@ struct mtk_sha_rec {
 	struct mtk_cryp *cryp;
 	struct crypto_queue queue;
 	struct ahash_request *req;
-	struct tasklet_struct task;
+	struct tasklet_struct done_task;
+	struct tasklet_struct queue_task;
 
 	u8 id;
 	unsigned long flags;

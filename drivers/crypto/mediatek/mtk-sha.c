@@ -661,7 +661,7 @@ static void mtk_sha_finish_req(struct mtk_cryp *cryp,
 	sha->req->base.complete(&sha->req->base, err);
 
 	/* Handle new request */
-	mtk_sha_handle_queue(cryp, sha->id - MTK_RING2, NULL);
+	tasklet_schedule(&sha->queue_task);
 }
 
 static int mtk_sha_handle_queue(struct mtk_cryp *cryp, u8 id,
@@ -1183,6 +1183,13 @@ static struct ahash_alg algs_sha384_sha512[] = {
 },
 };
 
+static void mtk_sha_queue_task(unsigned long data)
+{
+	struct mtk_sha_rec *sha = (struct mtk_sha_rec *)data;
+
+	mtk_sha_handle_queue(sha->cryp, sha->id - MTK_RING2, NULL);
+}
+
 static void mtk_sha_done_task(unsigned long data)
 {
 	struct mtk_sha_rec *sha = (struct mtk_sha_rec *)data;
@@ -1205,7 +1212,7 @@ static irqreturn_t mtk_sha_irq(int irq, void *dev_id)
 		mtk_sha_write(cryp, RDR_THRESH(sha->id),
 			      MTK_RDR_PROC_THRESH | MTK_RDR_PROC_MODE);
 
-		tasklet_schedule(&sha->task);
+		tasklet_schedule(&sha->done_task);
 	} else {
 		dev_warn(cryp->dev, "SHA interrupt when no active requests.\n");
 	}
@@ -1231,7 +1238,9 @@ static int mtk_sha_record_init(struct mtk_cryp *cryp)
 		spin_lock_init(&sha[i]->lock);
 		crypto_init_queue(&sha[i]->queue, SHA_QUEUE_SIZE);
 
-		tasklet_init(&sha[i]->task, mtk_sha_done_task,
+		tasklet_init(&sha[i]->queue_task, mtk_sha_queue_task,
+			     (unsigned long)sha[i]);
+		tasklet_init(&sha[i]->done_task, mtk_sha_done_task,
 			     (unsigned long)sha[i]);
 	}
 
@@ -1254,7 +1263,9 @@ static void mtk_sha_record_free(struct mtk_cryp *cryp)
 	int i;
 
 	for (i = 0; i < MTK_REC_NUM; i++) {
-		tasklet_kill(&cryp->sha[i]->task);
+		tasklet_kill(&cryp->sha[i]->done_task);
+		tasklet_kill(&cryp->sha[i]->queue_task);
+
 		kfree(cryp->sha[i]);
 	}
 }
