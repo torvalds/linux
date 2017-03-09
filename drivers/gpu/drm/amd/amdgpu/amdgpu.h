@@ -121,6 +121,11 @@ extern int amdgpu_param_buf_per_se;
 /* max number of IP instances */
 #define AMDGPU_MAX_SDMA_INSTANCES		2
 
+/* max number of VMHUB */
+#define AMDGPU_MAX_VMHUBS			2
+#define AMDGPU_MMHUB				0
+#define AMDGPU_GFXHUB				1
+
 /* hardcode that limit for now */
 #define AMDGPU_VA_RESERVED_SIZE			(8 << 20)
 
@@ -306,6 +311,12 @@ struct amdgpu_gart_funcs {
 	/* set pte flags based per asic */
 	uint64_t (*get_vm_pte_flags)(struct amdgpu_device *adev,
 				     uint32_t flags);
+};
+
+/* provided by the mc block */
+struct amdgpu_mc_funcs {
+	/* adjust mc addr in fb for APU case */
+	u64 (*adjust_mc_addr)(struct amdgpu_device *adev, u64 addr);
 };
 
 /* provided by the ih block */
@@ -557,6 +568,21 @@ int amdgpu_gart_bind(struct amdgpu_device *adev, uint64_t offset,
 int amdgpu_ttm_recover_gart(struct amdgpu_device *adev);
 
 /*
+ * VMHUB structures, functions & helpers
+ */
+struct amdgpu_vmhub {
+	uint32_t	ctx0_ptb_addr_lo32;
+	uint32_t	ctx0_ptb_addr_hi32;
+	uint32_t	vm_inv_eng0_req;
+	uint32_t	vm_inv_eng0_ack;
+	uint32_t	vm_context0_cntl;
+	uint32_t	vm_l2_pro_fault_status;
+	uint32_t	vm_l2_pro_fault_cntl;
+	uint32_t	(*get_invalidate_req)(unsigned int vm_id);
+	uint32_t	(*get_vm_protection_bits)(void);
+};
+
+/*
  * GPU MC structures, functions & helpers
  */
 struct amdgpu_mc {
@@ -589,6 +615,9 @@ struct amdgpu_mc {
 	u64					shared_aperture_end;
 	u64					private_aperture_start;
 	u64					private_aperture_end;
+	/* protects concurrent invalidation */
+	spinlock_t		invalidate_lock;
+	const struct amdgpu_mc_funcs *mc_funcs;
 };
 
 /*
@@ -1473,6 +1502,7 @@ struct amdgpu_device {
 	struct amdgpu_gart		gart;
 	struct amdgpu_dummy_page	dummy_page;
 	struct amdgpu_vm_manager	vm_manager;
+	struct amdgpu_vmhub             vmhub[AMDGPU_MAX_VMHUBS];
 
 	/* memory management */
 	struct amdgpu_mman		mman;

@@ -447,6 +447,16 @@ static bool amdgpu_vm_ring_has_compute_vm_bug(struct amdgpu_ring *ring)
 	return false;
 }
 
+static u64 amdgpu_vm_adjust_mc_addr(struct amdgpu_device *adev, u64 mc_addr)
+{
+	u64 addr = mc_addr;
+
+	if (adev->mc.mc_funcs && adev->mc.mc_funcs->adjust_mc_addr)
+		addr = adev->mc.mc_funcs->adjust_mc_addr(adev, addr);
+
+	return addr;
+}
+
 /**
  * amdgpu_vm_flush - hardware flush the vm
  *
@@ -477,9 +487,10 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job)
 	if (ring->funcs->emit_vm_flush && (job->vm_needs_flush ||
 	    amdgpu_vm_is_gpu_reset(adev, id))) {
 		struct dma_fence *fence;
+		u64 pd_addr = amdgpu_vm_adjust_mc_addr(adev, job->vm_pd_addr);
 
-		trace_amdgpu_vm_flush(job->vm_pd_addr, ring->idx, job->vm_id);
-		amdgpu_ring_emit_vm_flush(ring, job->vm_id, job->vm_pd_addr);
+		trace_amdgpu_vm_flush(pd_addr, ring->idx, job->vm_id);
+		amdgpu_ring_emit_vm_flush(ring, job->vm_id, pd_addr);
 
 		r = amdgpu_fence_emit(ring, &fence);
 		if (r)
@@ -715,15 +726,18 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 		    (count == AMDGPU_VM_MAX_UPDATE_SIZE)) {
 
 			if (count) {
+				uint64_t pt_addr =
+					amdgpu_vm_adjust_mc_addr(adev, last_pt);
+
 				if (shadow)
 					amdgpu_vm_do_set_ptes(&params,
 							      last_shadow,
-							      last_pt, count,
+							      pt_addr, count,
 							      incr,
 							      AMDGPU_PTE_VALID);
 
 				amdgpu_vm_do_set_ptes(&params, last_pde,
-						      last_pt, count, incr,
+						      pt_addr, count, incr,
 						      AMDGPU_PTE_VALID);
 			}
 
@@ -737,11 +751,13 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 	}
 
 	if (count) {
+		uint64_t pt_addr = amdgpu_vm_adjust_mc_addr(adev, last_pt);
+
 		if (vm->page_directory->shadow)
-			amdgpu_vm_do_set_ptes(&params, last_shadow, last_pt,
+			amdgpu_vm_do_set_ptes(&params, last_shadow, pt_addr,
 					      count, incr, AMDGPU_PTE_VALID);
 
-		amdgpu_vm_do_set_ptes(&params, last_pde, last_pt,
+		amdgpu_vm_do_set_ptes(&params, last_pde, pt_addr,
 				      count, incr, AMDGPU_PTE_VALID);
 	}
 
