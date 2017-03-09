@@ -258,13 +258,12 @@ get_msg_context(struct vchiq_mmal_instance *instance)
 {
 	struct mmal_msg_context *msg_context;
 
-	/* todo: should this be allocated from a pool to avoid kmalloc */
-	msg_context = kmalloc(sizeof(*msg_context), GFP_KERNEL);
+	/* todo: should this be allocated from a pool to avoid kzalloc */
+	msg_context = kzalloc(sizeof(*msg_context), GFP_KERNEL);
 
 	if (!msg_context)
 		return NULL;
 
-	memset(msg_context, 0, sizeof(*msg_context));
 	msg_context->instance = instance;
 	msg_context->handle =
 		mmal_context_map_create_handle(&instance->context_map,
@@ -2017,12 +2016,11 @@ int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance)
 		return -EIO;
 	}
 
-	instance = kmalloc(sizeof(*instance), GFP_KERNEL);
+	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
 
 	if (!instance)
 		return -ENOMEM;
 
-	memset(instance, 0, sizeof(*instance));
 	mutex_init(&instance->vchiq_mutex);
 	mutex_init(&instance->bulk_mutex);
 
