@@ -672,6 +672,8 @@ struct bau_operations {
 	void		(*write_g_sw_ack)(int pnode, unsigned long mmr);
 	void		(*write_payload_first)(int pnode, unsigned long mmr);
 	void		(*write_payload_last)(int pnode, unsigned long mmr);
+	int		(*wait_completion)(struct bau_desc*,
+				struct bau_control*, long try);
 };
 
 static inline void write_mmr_data_broadcast(int pnode, unsigned long mmr_image)

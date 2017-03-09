@@ -686,14 +686,6 @@ static int uv2_3_wait_completion(struct bau_desc *bau_desc,
 	return FLUSH_COMPLETE;
 }
 
-static int wait_completion(struct bau_desc *bau_desc, struct bau_control *bcp, long try)
-{
-	if (bcp->uvhub_version == UV_BAU_V1)
-		return uv1_wait_completion(bau_desc, bcp, try);
-	else
-		return uv2_3_wait_completion(bau_desc, bcp, try);
-}
-
 /*
  * Our retries are blocked by all destination sw ack resources being
  * in use, and a timeout is pending. In that case hardware immediately
@@ -922,7 +914,7 @@ int uv_flush_send_and_wait(struct cpumask *flush_mask, struct bau_control *bcp,
 		write_mmr_activation(index);
 
 		try++;
-		completion_stat = wait_completion(bau_desc, bcp, try);
+		completion_stat = ops.wait_completion(bau_desc, bcp, try);
 
 		handle_cmplt(completion_stat, bau_desc, bcp, hmaster, stat);
 
@@ -2135,7 +2127,7 @@ fail:
 	return 1;
 }
 
-static const struct bau_operations uv123_bau_ops __initconst = {
+static const struct bau_operations uv1_bau_ops __initconst = {
 	.bau_gpa_to_offset       = uv_gpa_to_offset,
 	.read_l_sw_ack           = read_mmr_sw_ack,
 	.read_g_sw_ack           = read_gmmr_sw_ack,
@@ -2143,6 +2135,18 @@ static const struct bau_operations uv123_bau_ops __initconst = {
 	.write_g_sw_ack          = write_gmmr_sw_ack,
 	.write_payload_first     = write_mmr_payload_first,
 	.write_payload_last      = write_mmr_payload_last,
+	.wait_completion	 = uv1_wait_completion,
+};
+
+static const struct bau_operations uv2_3_bau_ops __initconst = {
+	.bau_gpa_to_offset       = uv_gpa_to_offset,
+	.read_l_sw_ack           = read_mmr_sw_ack,
+	.read_g_sw_ack           = read_gmmr_sw_ack,
+	.write_l_sw_ack          = write_mmr_sw_ack,
+	.write_g_sw_ack          = write_gmmr_sw_ack,
+	.write_payload_first     = write_mmr_payload_first,
+	.write_payload_last      = write_mmr_payload_last,
+	.wait_completion	 = uv2_3_wait_completion,
 };
 
 static const struct bau_operations uv4_bau_ops __initconst = {
@@ -2153,6 +2157,7 @@ static const struct bau_operations uv4_bau_ops __initconst = {
 	.write_g_sw_ack          = write_gmmr_proc_sw_ack,
 	.write_payload_first     = write_mmr_proc_payload_first,
 	.write_payload_last      = write_mmr_proc_payload_last,
+	.wait_completion	 = uv2_3_wait_completion,
 };
 
 /*
@@ -2174,11 +2179,11 @@ static int __init uv_bau_init(void)
 	if (is_uv4_hub())
 		ops = uv4_bau_ops;
 	else if (is_uv3_hub())
-		ops = uv123_bau_ops;
+		ops = uv2_3_bau_ops;
 	else if (is_uv2_hub())
-		ops = uv123_bau_ops;
+		ops = uv2_3_bau_ops;
 	else if (is_uv1_hub())
-		ops = uv123_bau_ops;
+		ops = uv1_bau_ops;
 
 	for_each_possible_cpu(cur_cpu) {
 		mask = &per_cpu(uv_flush_tlb_mask, cur_cpu);
