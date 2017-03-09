@@ -604,14 +604,12 @@ static int ideapad_input_init(struct ideapad_private *priv)
 	error = input_register_device(inputdev);
 	if (error) {
 		pr_err("Unable to register input device\n");
-		goto err_free_keymap;
+		goto err_free_dev;
 	}
 
 	priv->inputdev = inputdev;
 	return 0;
 
-err_free_keymap:
-	sparse_keymap_free(inputdev);
 err_free_dev:
 	input_free_device(inputdev);
 	return error;
@@ -619,7 +617,6 @@ err_free_dev:
 
 static void ideapad_input_exit(struct ideapad_private *priv)
 {
-	sparse_keymap_free(priv->inputdev);
 	input_unregister_device(priv->inputdev);
 	priv->inputdev = NULL;
 }
