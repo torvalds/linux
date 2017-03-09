@@ -13,9 +13,9 @@ A typical media device hardware is shown at :ref:`typical_media_device`.
 
 .. _typical_media_device:
 
-.. figure::  typical_media_device.*
-    :alt:    typical_media_device.pdf / typical_media_device.svg
-    :align:  center
+.. kernel-figure:: typical_media_device.svg
+    :alt:   typical_media_device.svg
+    :align: center
 
     Typical Media Device
 

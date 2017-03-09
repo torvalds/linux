@@ -1514,8 +1514,8 @@ be named ``MEDIA_BUS_FMT_SRGGB10_2X8_PADHI_LE``.
 
 .. _bayer-patterns:
 
-.. figure::  bayer.*
-    :alt:    bayer.pdf / bayer.svg
+.. kernel-figure:: bayer.svg
+    :alt:    bayer.svg
     :align:  center
 
     **Figure 4.8 Bayer Patterns**
