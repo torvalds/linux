@@ -251,8 +251,7 @@ static void fixup_all_perms_name(const struct qstr *key)
 	struct sdcardfs_sb_info *sbinfo;
 	struct limit_search limit = {
 		.flags = BY_NAME,
-		.name = key->name,
-		.length = key->len,
+		.name = QSTR_INIT(key->name, key->len),
 	};
 	list_for_each_entry(sbinfo, &sdcardfs_super_list, list) {
 		if (sbinfo_has_sdcard_magic(sbinfo))
@@ -265,8 +264,7 @@ static void fixup_all_perms_name_userid(const struct qstr *key, userid_t userid)
 	struct sdcardfs_sb_info *sbinfo;
 	struct limit_search limit = {
 		.flags = BY_NAME | BY_USERID,
-		.name = key->name,
-		.length = key->len,
+		.name = QSTR_INIT(key->name, key->len),
 		.userid = userid,
 	};
 	list_for_each_entry(sbinfo, &sdcardfs_super_list, list) {

@@ -282,7 +282,7 @@ static void __fixup_perms_recursive(struct dentry *dentry, struct limit_search *
 	if (needs_fixup(info->perm)) {
 		list_for_each_entry(child, &dentry->d_subdirs, d_child) {
 			spin_lock_nested(&child->d_lock, depth + 1);
-			if (!(limit->flags & BY_NAME) || !strncasecmp(child->d_name.name, limit->name, limit->length)) {
+			if (!(limit->flags & BY_NAME) || qstr_case_eq(&child->d_name, &limit->name)) {
 				if (d_inode(child)) {
 					get_derived_permission(dentry, child);
 					fixup_tmp_permissions(d_inode(child));

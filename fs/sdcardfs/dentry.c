@@ -82,11 +82,7 @@ static int sdcardfs_d_revalidate(struct dentry *dentry, unsigned int flags)
 		spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
 	}
 
-	if (dentry->d_name.len != lower_dentry->d_name.len) {
-		__d_drop(dentry);
-		err = 0;
-	} else if (strncasecmp(dentry->d_name.name, lower_dentry->d_name.name,
-				dentry->d_name.len) != 0) {
+	if (!qstr_case_eq(&dentry->d_name, &lower_dentry->d_name)) {
 		__d_drop(dentry);
 		err = 0;
 	}
@@ -166,7 +162,7 @@ static int sdcardfs_cmp_ci(const struct dentry *parent,
 	}
 	*/
 	if (name->len == len) {
-		if (strncasecmp(name->name, str, len) == 0)
+		if (str_n_case_eq(name->name, str, len))
 			return 0;
 	}
 	return 1;
