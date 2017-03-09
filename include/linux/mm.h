@@ -1619,11 +1619,14 @@ int __pte_alloc_kernel(pmd_t *pmd, unsigned long address);
  * Remove it when 4level-fixup.h has been removed.
  */
 #if defined(CONFIG_MMU) && !defined(__ARCH_HAS_4LEVEL_HACK)
+
+#ifndef __ARCH_HAS_5LEVEL_HACK
 static inline pud_t *pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
 {
 	return (unlikely(pgd_none(*pgd)) && __pud_alloc(mm, pgd, address))?
 		NULL: pud_offset(pgd, address);
 }
+#endif /* !__ARCH_HAS_5LEVEL_HACK */
 
 static inline pmd_t *pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
 {
