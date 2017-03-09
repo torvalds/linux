@@ -1114,15 +1114,12 @@ const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
 						unsigned long end,
 						unsigned int cpu)
 {
-	int locals = 0;
-	int remotes = 0;
-	int hubs = 0;
+	int locals = 0, remotes = 0, hubs = 0;
 	struct bau_desc *bau_desc;
 	struct cpumask *flush_mask;
 	struct ptc_stats *stat;
 	struct bau_control *bcp;
-	unsigned long descriptor_status;
-	unsigned long status;
+	unsigned long descriptor_status, status, address;
 
 	bcp = &per_cpu(bau_control, cpu);
 
@@ -1171,10 +1168,24 @@ const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
 	record_send_statistics(stat, locals, hubs, remotes, bau_desc);
 
 	if (!end || (end - start) <= PAGE_SIZE)
-		bau_desc->payload.address = start;
+		address = start;
 	else
-		bau_desc->payload.address = TLB_FLUSH_ALL;
-	bau_desc->payload.sending_cpu = cpu;
+		address = TLB_FLUSH_ALL;
+
+	switch (bcp->uvhub_version) {
+	case UV_BAU_V1:
+	case UV_BAU_V2:
+	case UV_BAU_V3:
+		bau_desc->payload.uv1_2_3.address = address;
+		bau_desc->payload.uv1_2_3.sending_cpu = cpu;
+		break;
+	case UV_BAU_V4:
+		bau_desc->payload.uv4.address = address;
+		bau_desc->payload.uv4.sending_cpu = cpu;
+		bau_desc->payload.uv4.qualifier = BAU_DESC_QUALIFIER;
+		break;
+	}
+
 	/*
 	 * uv_flush_send_and_wait returns 0 if all cpu's were messaged,
 	 * or 1 if it gave up and the original cpumask should be returned.
