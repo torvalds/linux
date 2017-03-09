@@ -1560,10 +1560,7 @@ static bool mmc_blk_rw_cmd_err(struct mmc_blk_data *md, struct mmc_card *card,
 			       struct mmc_blk_request *brq, struct request *req,
 			       bool old_req_pending)
 {
-	struct mmc_queue_req *mq_rq;
 	bool req_pending;
-
-	mq_rq = container_of(brq, struct mmc_queue_req, brq);
 
 	/*
 	 * If this is an SD card and we're writing, we can first
