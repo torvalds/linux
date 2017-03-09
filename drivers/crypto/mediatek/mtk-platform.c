@@ -465,6 +465,9 @@ static int mtk_desc_ring_alloc(struct mtk_cryp *cryp)
 					   GFP_KERNEL);
 		if (!ring[i]->res_base)
 			goto err_cleanup;
+
+		ring[i]->cmd_next = ring[i]->cmd_base;
+		ring[i]->res_next = ring[i]->res_base;
 	}
 	return 0;
 

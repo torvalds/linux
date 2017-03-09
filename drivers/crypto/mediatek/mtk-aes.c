@@ -262,7 +262,7 @@ static int mtk_aes_xmit(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 
 	/* Write command descriptors */
 	for (nents = 0; nents < slen; ++nents, ssg = sg_next(ssg)) {
-		cmd = ring->cmd_base + ring->cmd_pos;
+		cmd = ring->cmd_next;
 		cmd->hdr = MTK_DESC_BUF_LEN(ssg->length);
 		cmd->buf = cpu_to_le32(sg_dma_address(ssg));
 
@@ -274,22 +274,24 @@ static int mtk_aes_xmit(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 			cmd->tfm = cpu_to_le32(aes->ctx->tfm_dma);
 		}
 
-		if (++ring->cmd_pos == MTK_DESC_NUM)
-			ring->cmd_pos = 0;
+		/* Shift ring buffer and check boundary */
+		if (++ring->cmd_next == ring->cmd_base + MTK_DESC_NUM)
+			ring->cmd_next = ring->cmd_base;
 	}
 	cmd->hdr |= MTK_DESC_LAST;
 
 	/* Prepare result descriptors */
 	for (nents = 0; nents < dlen; ++nents, dsg = sg_next(dsg)) {
-		res = ring->res_base + ring->res_pos;
+		res = ring->res_next;
 		res->hdr = MTK_DESC_BUF_LEN(dsg->length);
 		res->buf = cpu_to_le32(sg_dma_address(dsg));
 
 		if (nents == 0)
 			res->hdr |= MTK_DESC_FIRST;
 
-		if (++ring->res_pos == MTK_DESC_NUM)
-			ring->res_pos = 0;
+		/* Shift ring buffer and check boundary */
+		if (++ring->res_next == ring->res_base + MTK_DESC_NUM)
+			ring->res_next = ring->res_base;
 	}
 	res->hdr |= MTK_DESC_LAST;
 

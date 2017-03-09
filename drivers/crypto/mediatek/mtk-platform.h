@@ -84,11 +84,11 @@ struct mtk_desc {
 /**
  * struct mtk_ring - Descriptor ring
  * @cmd_base:	pointer to command descriptor ring base
+ * @cmd_next:	pointer to the next command descriptor
  * @cmd_dma:	DMA address of command descriptor ring
- * @cmd_pos:	current position in the command descriptor ring
  * @res_base:	pointer to result descriptor ring base
+ * @res_next:	pointer to the next result descriptor
  * @res_dma:	DMA address of result descriptor ring
- * @res_pos:	current position in the result descriptor ring
  *
  * A descriptor ring is a circular buffer that is used to manage
  * one or more descriptors. There are two type of descriptor rings;
@@ -96,11 +96,11 @@ struct mtk_desc {
  */
 struct mtk_ring {
 	struct mtk_desc *cmd_base;
+	struct mtk_desc *cmd_next;
 	dma_addr_t cmd_dma;
-	u32 cmd_pos;
 	struct mtk_desc *res_base;
+	struct mtk_desc *res_next;
 	dma_addr_t res_dma;
-	u32 res_pos;
 };
 
 /**

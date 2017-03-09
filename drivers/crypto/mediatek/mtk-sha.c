@@ -152,6 +152,21 @@ static inline void mtk_sha_write(struct mtk_cryp *cryp,
 	writel_relaxed(value, cryp->base + offset);
 }
 
+static inline void mtk_sha_ring_shift(struct mtk_ring *ring,
+				      struct mtk_desc **cmd_curr,
+				      struct mtk_desc **res_curr,
+				      int *count)
+{
+	*cmd_curr = ring->cmd_next++;
+	*res_curr = ring->res_next++;
+	(*count)++;
+
+	if (ring->cmd_next == ring->cmd_base + MTK_DESC_NUM) {
+		ring->cmd_next = ring->cmd_base;
+		ring->res_next = ring->res_base;
+	}
+}
+
 static struct mtk_cryp *mtk_sha_find_dev(struct mtk_sha_ctx *tctx)
 {
 	struct mtk_cryp *cryp = NULL;
@@ -426,8 +441,7 @@ static int mtk_sha_xmit(struct mtk_cryp *cryp, struct mtk_sha_rec *sha,
 {
 	struct mtk_sha_reqctx *ctx = ahash_request_ctx(sha->req);
 	struct mtk_ring *ring = cryp->ring[sha->id];
-	struct mtk_desc *cmd = ring->cmd_base + ring->cmd_pos;
-	struct mtk_desc *res = ring->res_base + ring->res_pos;
+	struct mtk_desc *cmd, *res;
 	int err, count = 0;
 
 	err = mtk_sha_info_update(cryp, sha, len1, len2);
@@ -435,6 +449,8 @@ static int mtk_sha_xmit(struct mtk_cryp *cryp, struct mtk_sha_rec *sha,
 		return err;
 
 	/* Fill in the command/result descriptors */
+	mtk_sha_ring_shift(ring, &cmd, &res, &count);
+
 	res->hdr = MTK_DESC_FIRST | MTK_DESC_BUF_LEN(len1);
 	cmd->hdr = MTK_DESC_FIRST | MTK_DESC_BUF_LEN(len1) |
 		   MTK_DESC_CT_LEN(ctx->ct_size);
@@ -443,25 +459,12 @@ static int mtk_sha_xmit(struct mtk_cryp *cryp, struct mtk_sha_rec *sha,
 	cmd->ct_hdr = ctx->ct_hdr;
 	cmd->tfm = cpu_to_le32(ctx->tfm_dma);
 
-	if (++ring->cmd_pos == MTK_DESC_NUM)
-		ring->cmd_pos = 0;
-
-	ring->res_pos = ring->cmd_pos;
-	count++;
-
 	if (len2) {
-		cmd = ring->cmd_base + ring->cmd_pos;
-		res = ring->res_base + ring->res_pos;
+		mtk_sha_ring_shift(ring, &cmd, &res, &count);
 
 		res->hdr = MTK_DESC_BUF_LEN(len2);
 		cmd->hdr = MTK_DESC_BUF_LEN(len2);
 		cmd->buf = cpu_to_le32(addr2);
-
-		if (++ring->cmd_pos == MTK_DESC_NUM)
-			ring->cmd_pos = 0;
-
-		ring->res_pos = ring->cmd_pos;
-		count++;
 	}
 
 	cmd->hdr |= MTK_DESC_LAST;
