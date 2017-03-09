@@ -30,6 +30,7 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 
 #define CDNS_UART_TTY_NAME	"ttyPS"
 #define CDNS_UART_NAME		"xuartps"
@@ -176,6 +177,7 @@ MODULE_PARM_DESC(rx_timeout, "Rx timeout, 1-255");
 #define CDNS_UART_BDIV_MIN	4
 #define CDNS_UART_BDIV_MAX	255
 #define CDNS_UART_CD_MAX	65535
+#define UART_AUTOSUSPEND_TIMEOUT	3000
 
 /**
  * struct cdns_uart - device data
@@ -1065,16 +1067,13 @@ static void cdns_uart_poll_put_char(struct uart_port *port, unsigned char c)
 static void cdns_uart_pm(struct uart_port *port, unsigned int state,
 		   unsigned int oldstate)
 {
-	struct cdns_uart *cdns_uart = port->private_data;
-
 	switch (state) {
 	case UART_PM_STATE_OFF:
-		clk_disable(cdns_uart->uartclk);
-		clk_disable(cdns_uart->pclk);
+		pm_runtime_mark_last_busy(port->dev);
+		pm_runtime_put_autosuspend(port->dev);
 		break;
 	default:
-		clk_enable(cdns_uart->pclk);
-		clk_enable(cdns_uart->uartclk);
+		pm_runtime_get_sync(port->dev);
 		break;
 	}
 }
@@ -1436,9 +1435,33 @@ static int cdns_uart_resume(struct device *device)
 	return uart_resume_port(&cdns_uart_uart_driver, port);
 }
 #endif /* ! CONFIG_PM_SLEEP */
+static int __maybe_unused cdns_runtime_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct uart_port *port = platform_get_drvdata(pdev);
+	struct cdns_uart *cdns_uart = port->private_data;
 
-static SIMPLE_DEV_PM_OPS(cdns_uart_dev_pm_ops, cdns_uart_suspend,
-		cdns_uart_resume);
+	clk_disable(cdns_uart->uartclk);
+	clk_disable(cdns_uart->pclk);
+	return 0;
+};
+
+static int __maybe_unused cdns_runtime_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct uart_port *port = platform_get_drvdata(pdev);
+	struct cdns_uart *cdns_uart = port->private_data;
+
+	clk_enable(cdns_uart->pclk);
+	clk_enable(cdns_uart->uartclk);
+	return 0;
+};
+
+static const struct dev_pm_ops cdns_uart_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(cdns_uart_suspend, cdns_uart_resume)
+	SET_RUNTIME_PM_OPS(cdns_runtime_suspend,
+			   cdns_runtime_resume, NULL)
+};
 
 static const struct cdns_platform_data zynqmp_uart_def = {
 				.quirks = CDNS_UART_RXBS_SUPPORT, };
@@ -1558,6 +1581,11 @@ static int cdns_uart_probe(struct platform_device *pdev)
 	cdns_uart_data->port = port;
 	platform_set_drvdata(pdev, port);
 
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_set_autosuspend_delay(&pdev->dev, UART_AUTOSUSPEND_TIMEOUT);
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_set_active(&pdev->dev);
+
 	rc = uart_add_one_port(&cdns_uart_uart_driver, port);
 	if (rc) {
 		dev_err(&pdev->dev,
@@ -1573,6 +1601,9 @@ err_out_notif_unreg:
 			&cdns_uart_data->clk_rate_change_nb);
 #endif
 err_out_clk_disable:
+	pm_runtime_disable(&pdev->dev);
+	pm_runtime_set_suspended(&pdev->dev);
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	clk_unprepare(cdns_uart_data->uartclk);
 err_out_clk_dis_pclk:
 	clk_unprepare(cdns_uart_data->pclk);
@@ -1601,6 +1632,9 @@ static int cdns_uart_remove(struct platform_device *pdev)
 	port->mapbase = 0;
 	clk_unprepare(cdns_uart_data->uartclk);
 	clk_unprepare(cdns_uart_data->pclk);
+	pm_runtime_disable(&pdev->dev);
+	pm_runtime_set_suspended(&pdev->dev);
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	return rc;
 }
 
