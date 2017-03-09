@@ -39,6 +39,7 @@
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_gact.h>
 #include <net/tc_act/tc_mirred.h>
+#include <net/tc_act/tc_vlan.h>
 
 #include "spectrum.h"
 #include "core_acl_flex_keys.h"
@@ -73,6 +74,15 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 							 out_dev);
 			if (err)
 				return err;
+		} else if (is_tcf_vlan(a)) {
+			u16 proto = be16_to_cpu(tcf_vlan_push_proto(a));
+			u32 action = tcf_vlan_action(a);
+			u8 prio = tcf_vlan_push_prio(a);
+			u16 vid = tcf_vlan_push_vid(a);
+
+			return mlxsw_sp_acl_rulei_act_vlan(mlxsw_sp, rulei,
+							   action, vid,
+							   proto, prio);
 		} else {
 			dev_err(mlxsw_sp->bus_info->dev, "Unsupported action\n");
 			return -EOPNOTSUPP;

@@ -567,6 +567,89 @@ static char *mlxsw_afa_block_append_action(struct mlxsw_afa_block *block,
 	return oneact + MLXSW_AFA_PAYLOAD_OFFSET;
 }
 
+/* VLAN Action
+ * -----------
+ * VLAN action is used for manipulating VLANs. It can be used to implement QinQ,
+ * VLAN translation, change of PCP bits of the VLAN tag, push, pop as swap VLANs
+ * and more.
+ */
+
+#define MLXSW_AFA_VLAN_CODE 0x02
+#define MLXSW_AFA_VLAN_SIZE 1
+
+enum mlxsw_afa_vlan_vlan_tag_cmd {
+	MLXSW_AFA_VLAN_VLAN_TAG_CMD_NOP,
+	MLXSW_AFA_VLAN_VLAN_TAG_CMD_PUSH_TAG,
+	MLXSW_AFA_VLAN_VLAN_TAG_CMD_POP_TAG,
+};
+
+enum mlxsw_afa_vlan_cmd {
+	MLXSW_AFA_VLAN_CMD_NOP,
+	MLXSW_AFA_VLAN_CMD_SET_OUTER,
+	MLXSW_AFA_VLAN_CMD_SET_INNER,
+	MLXSW_AFA_VLAN_CMD_COPY_OUTER_TO_INNER,
+	MLXSW_AFA_VLAN_CMD_COPY_INNER_TO_OUTER,
+	MLXSW_AFA_VLAN_CMD_SWAP,
+};
+
+/* afa_vlan_vlan_tag_cmd
+ * Tag command: push, pop, nop VLAN header.
+ */
+MLXSW_ITEM32(afa, vlan, vlan_tag_cmd, 0x00, 29, 3);
+
+/* afa_vlan_vid_cmd */
+MLXSW_ITEM32(afa, vlan, vid_cmd, 0x04, 29, 3);
+
+/* afa_vlan_vid */
+MLXSW_ITEM32(afa, vlan, vid, 0x04, 0, 12);
+
+/* afa_vlan_ethertype_cmd */
+MLXSW_ITEM32(afa, vlan, ethertype_cmd, 0x08, 29, 3);
+
+/* afa_vlan_ethertype
+ * Index to EtherTypes in Switch VLAN EtherType Register (SVER).
+ */
+MLXSW_ITEM32(afa, vlan, ethertype, 0x08, 24, 3);
+
+/* afa_vlan_pcp_cmd */
+MLXSW_ITEM32(afa, vlan, pcp_cmd, 0x08, 13, 3);
+
+/* afa_vlan_pcp */
+MLXSW_ITEM32(afa, vlan, pcp, 0x08, 8, 3);
+
+static inline void
+mlxsw_afa_vlan_pack(char *payload,
+		    enum mlxsw_afa_vlan_vlan_tag_cmd vlan_tag_cmd,
+		    enum mlxsw_afa_vlan_cmd vid_cmd, u16 vid,
+		    enum mlxsw_afa_vlan_cmd pcp_cmd, u8 pcp,
+		    enum mlxsw_afa_vlan_cmd ethertype_cmd, u8 ethertype)
+{
+	mlxsw_afa_vlan_vlan_tag_cmd_set(payload, vlan_tag_cmd);
+	mlxsw_afa_vlan_vid_cmd_set(payload, vid_cmd);
+	mlxsw_afa_vlan_vid_set(payload, vid);
+	mlxsw_afa_vlan_pcp_cmd_set(payload, pcp_cmd);
+	mlxsw_afa_vlan_pcp_set(payload, pcp);
+	mlxsw_afa_vlan_ethertype_cmd_set(payload, ethertype_cmd);
+	mlxsw_afa_vlan_ethertype_set(payload, ethertype);
+}
+
+int mlxsw_afa_block_append_vlan_modify(struct mlxsw_afa_block *block,
+				       u16 vid, u8 pcp, u8 et)
+{
+	char *act = mlxsw_afa_block_append_action(block,
+						  MLXSW_AFA_VLAN_CODE,
+						  MLXSW_AFA_VLAN_SIZE);
+
+	if (!act)
+		return -ENOBUFS;
+	mlxsw_afa_vlan_pack(act, MLXSW_AFA_VLAN_VLAN_TAG_CMD_NOP,
+			    MLXSW_AFA_VLAN_CMD_SET_OUTER, vid,
+			    MLXSW_AFA_VLAN_CMD_SET_OUTER, pcp,
+			    MLXSW_AFA_VLAN_CMD_SET_OUTER, et);
+	return 0;
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_vlan_modify);
+
 /* Trap / Discard Action
  * ---------------------
  * The Trap / Discard action enables trapping / mirroring packets to the CPU

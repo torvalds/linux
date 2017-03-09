@@ -39,6 +39,7 @@
 #include <linux/string.h>
 #include <linux/rhashtable.h>
 #include <linux/netdevice.h>
+#include <net/tc_act/tc_vlan.h>
 
 #include "reg.h"
 #include "core.h"
@@ -333,6 +334,34 @@ int mlxsw_sp_acl_rulei_act_fwd(struct mlxsw_sp *mlxsw_sp,
 	}
 	return mlxsw_afa_block_append_fwd(rulei->act_block,
 					  local_port, in_port);
+}
+
+int mlxsw_sp_acl_rulei_act_vlan(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_acl_rule_info *rulei,
+				u32 action, u16 vid, u16 proto, u8 prio)
+{
+	u8 ethertype;
+
+	if (action == TCA_VLAN_ACT_MODIFY) {
+		switch (proto) {
+		case ETH_P_8021Q:
+			ethertype = 0;
+			break;
+		case ETH_P_8021AD:
+			ethertype = 1;
+			break;
+		default:
+			dev_err(mlxsw_sp->bus_info->dev, "Unsupported VLAN protocol %#04x\n",
+				proto);
+			return -EINVAL;
+		}
+
+		return mlxsw_afa_block_append_vlan_modify(rulei->act_block,
+							  vid, prio, ethertype);
+	} else {
+		dev_err(mlxsw_sp->bus_info->dev, "Unsupported VLAN action\n");
+		return -EINVAL;
+	}
 }
 
 struct mlxsw_sp_acl_rule *
