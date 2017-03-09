@@ -2595,13 +2595,13 @@ void hostif_sme_task(unsigned long dev)
 	DPRINTK(3, "\n");
 
 	if (priv->dev_state >= DEVICE_STATE_BOOT) {
-		if (0 < cnt_smeqbody(priv)
+		if (cnt_smeqbody(priv) > 0
 		    && priv->dev_state >= DEVICE_STATE_BOOT) {
 			hostif_sme_execute(priv,
 					   priv->sme_i.event_buff[priv->sme_i.
 								  qhead]);
 			inc_smeqhead(priv);
-			if (0 < cnt_smeqbody(priv))
+			if (cnt_smeqbody(priv) > 0)
 				tasklet_schedule(&priv->sme_task);
 		}
 	}
