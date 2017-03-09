@@ -142,7 +142,6 @@ struct sysinfo_3_2_2 {
 
 extern int topology_max_mnest;
 
-#define TOPOLOGY_CORE_BITS	64
 #define TOPOLOGY_NR_MAG		6
 
 struct topology_core {
@@ -152,7 +151,7 @@ struct topology_core {
 	unsigned char pp:2;
 	unsigned char reserved1;
 	unsigned short origin;
-	unsigned long mask[TOPOLOGY_CORE_BITS / BITS_PER_LONG];
+	unsigned long mask;
 };
 
 struct topology_container {
