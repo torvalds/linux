@@ -2,7 +2,7 @@
 # 1. WL_IFACE_COMB_NUM_CHANNELS must be added if Android version is 4.4 with Kernel version 3.0~3.4,
 #    otherwise please remove it.
 
-CONFIG_BCMDHD := y
+MODULE_NAME = bcmdhd
 CONFIG_BCMDHD_SDIO := y
 #CONFIG_BCMDHD_PCIE := y
 CONFIG_BCMDHD_OOB := y
@@ -52,7 +52,7 @@ DHDOFILES += dhd_pcie.o dhd_pcie_linux.o pcie_core.o dhd_flowring.o \
 	dhd_msgbuf.o
 endif
 
-obj-$(CONFIG_BCMDHD) += bcmdhd.o
+obj-$(CONFIG_AP6XXX) += bcmdhd.o
 bcmdhd-objs += $(DHDOFILES)
 
 #ifeq ($(CONFIG_MACH_ODROID_4210),y)
