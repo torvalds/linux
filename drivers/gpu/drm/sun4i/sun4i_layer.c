@@ -16,7 +16,6 @@
 #include <drm/drmP.h>
 
 #include "sun4i_backend.h"
-#include "sun4i_drv.h"
 #include "sun4i_layer.h"
 
 struct sun4i_plane_desc {
@@ -102,9 +101,9 @@ static const struct sun4i_plane_desc sun4i_backend_planes[] = {
 };
 
 static struct sun4i_layer *sun4i_layer_init_one(struct drm_device *drm,
+						struct sun4i_backend *backend,
 						const struct sun4i_plane_desc *plane)
 {
-	struct sun4i_drv *drv = drm->dev_private;
 	struct sun4i_layer *layer;
 	int ret;
 
@@ -124,14 +123,14 @@ static struct sun4i_layer *sun4i_layer_init_one(struct drm_device *drm,
 
 	drm_plane_helper_add(&layer->plane,
 			     &sun4i_backend_layer_helper_funcs);
-	layer->backend = drv->backend;
+	layer->backend = backend;
 
 	return layer;
 }
 
-struct sun4i_layer **sun4i_layers_init(struct drm_device *drm)
+struct sun4i_layer **sun4i_layers_init(struct drm_device *drm,
+				       struct sun4i_backend *backend)
 {
-	struct sun4i_drv *drv = drm->dev_private;
 	struct sun4i_layer **layers;
 	int i;
 
@@ -165,7 +164,7 @@ struct sun4i_layer **sun4i_layers_init(struct drm_device *drm)
 		const struct sun4i_plane_desc *plane = &sun4i_backend_planes[i];
 		struct sun4i_layer *layer;
 
-		layer = sun4i_layer_init_one(drm, plane);
+		layer = sun4i_layer_init_one(drm, backend, plane);
 		if (IS_ERR(layer)) {
 			dev_err(drm->dev, "Couldn't initialize %s plane\n",
 				i ? "overlay" : "primary");
@@ -174,7 +173,7 @@ struct sun4i_layer **sun4i_layers_init(struct drm_device *drm)
 
 		DRM_DEBUG_DRIVER("Assigning %s plane to pipe %d\n",
 				 i ? "overlay" : "primary", plane->pipe);
-		regmap_update_bits(drv->backend->regs, SUN4I_BACKEND_ATTCTL_REG0(i),
+		regmap_update_bits(backend->regs, SUN4I_BACKEND_ATTCTL_REG0(i),
 				   SUN4I_BACKEND_ATTCTL_REG0_LAY_PIPESEL_MASK,
 				   SUN4I_BACKEND_ATTCTL_REG0_LAY_PIPESEL(plane->pipe));
 

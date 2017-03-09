@@ -149,7 +149,7 @@ struct sun4i_crtc *sun4i_crtc_init(struct drm_device *drm,
 	scrtc->tcon = tcon;
 
 	/* Create our layers */
-	scrtc->layers = sun4i_layers_init(drm);
+	scrtc->layers = sun4i_layers_init(drm, scrtc->backend);
 	if (IS_ERR(scrtc->layers)) {
 		dev_err(drm->dev, "Couldn't create the planes\n");
 		return NULL;
