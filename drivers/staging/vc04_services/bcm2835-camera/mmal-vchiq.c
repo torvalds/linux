@@ -24,6 +24,8 @@
 #include <linux/slab.h>
 #include <linux/completion.h>
 #include <linux/vmalloc.h>
+#include <linux/spinlock.h>
+#include <linux/btree.h>
 #include <asm/cacheflush.h>
 #include <media/videobuf2-vmalloc.h>
 
@@ -108,8 +110,13 @@ static const char *const port_action_type_names[] = {
 #define DBG_DUMP_MSG(MSG, MSG_LEN, TITLE)
 #endif
 
+struct vchiq_mmal_instance;
+
 /* normal message context */
 struct mmal_msg_context {
+	struct vchiq_mmal_instance *instance;
+	u32 handle;
+
 	union {
 		struct {
 			/* work struct for defered callback - must come first */
@@ -146,6 +153,13 @@ struct mmal_msg_context {
 
 };
 
+struct vchiq_mmal_context_map {
+	/* ensure serialized access to the btree(contention should be low) */
+	spinlock_t spinlock;
+	struct btree_head32 btree_head;
+	u32 last_handle;
+};
+
 struct vchiq_mmal_instance {
 	VCHI_SERVICE_HANDLE_T handle;
 
@@ -158,13 +172,90 @@ struct vchiq_mmal_instance {
 	/* vmalloc page to receive scratch bulk xfers into */
 	void *bulk_scratch;
 
+	/* mapping table between context handles and mmal_msg_contexts */
+	struct vchiq_mmal_context_map context_map;
+
 	/* component to use next */
 	int component_idx;
 	struct vchiq_mmal_component component[VCHIQ_MMAL_MAX_COMPONENTS];
 };
 
-static struct mmal_msg_context *get_msg_context(struct vchiq_mmal_instance
-						*instance)
+static int __must_check
+mmal_context_map_init(struct vchiq_mmal_context_map *context_map)
+{
+	spin_lock_init(&context_map->spinlock);
+	context_map->last_handle = 0;
+	return btree_init32(&context_map->btree_head);
+}
+
+static void mmal_context_map_destroy(struct vchiq_mmal_context_map *context_map)
+{
+	spin_lock(&context_map->spinlock);
+	btree_destroy32(&context_map->btree_head);
+	spin_unlock(&context_map->spinlock);
+}
+
+static u32
+mmal_context_map_create_handle(struct vchiq_mmal_context_map *context_map,
+			       struct mmal_msg_context *msg_context,
+			       gfp_t gfp)
+{
+	u32 handle;
+
+	spin_lock(&context_map->spinlock);
+
+	while (1) {
+		/* just use a simple count for handles, but do not use 0 */
+		context_map->last_handle++;
+		if (!context_map->last_handle)
+			context_map->last_handle++;
+
+		handle = context_map->last_handle;
+
+		/* check if the handle is already in use */
+		if (!btree_lookup32(&context_map->btree_head, handle))
+			break;
+	}
+
+	if (btree_insert32(&context_map->btree_head, handle,
+			   msg_context, gfp)) {
+		/* probably out of memory */
+		spin_unlock(&context_map->spinlock);
+		return 0;
+	}
+
+	spin_unlock(&context_map->spinlock);
+	return handle;
+}
+
+static struct mmal_msg_context *
+mmal_context_map_lookup_handle(struct vchiq_mmal_context_map *context_map,
+			       u32 handle)
+{
+	struct mmal_msg_context *msg_context;
+
+	if (!handle)
+		return NULL;
+
+	spin_lock(&context_map->spinlock);
+
+	msg_context = btree_lookup32(&context_map->btree_head, handle);
+
+	spin_unlock(&context_map->spinlock);
+	return msg_context;
+}
+
+static void
+mmal_context_map_destroy_handle(struct vchiq_mmal_context_map *context_map,
+				u32 handle)
+{
+	spin_lock(&context_map->spinlock);
+	btree_remove32(&context_map->btree_head, handle);
+	spin_unlock(&context_map->spinlock);
+}
+
+static struct mmal_msg_context *
+get_msg_context(struct vchiq_mmal_instance *instance)
 {
 	struct mmal_msg_context *msg_context;
 
@@ -172,11 +263,32 @@ static struct mmal_msg_context *get_msg_context(struct vchiq_mmal_instance
 	msg_context = kmalloc(sizeof(*msg_context), GFP_KERNEL);
 	memset(msg_context, 0, sizeof(*msg_context));
 
+	msg_context->instance = instance;
+	msg_context->handle =
+		mmal_context_map_create_handle(&instance->context_map,
+					       msg_context,
+					       GFP_KERNEL);
+
+	if (!msg_context->handle) {
+		kfree(msg_context);
+		return NULL;
+	}
+
 	return msg_context;
 }
 
-static void release_msg_context(struct mmal_msg_context *msg_context)
+static struct mmal_msg_context *
+lookup_msg_context(struct vchiq_mmal_instance *instance, u32 handle)
 {
+	return mmal_context_map_lookup_handle(&instance->context_map,
+		handle);
+}
+
+static void
+release_msg_context(struct mmal_msg_context *msg_context)
+{
+	mmal_context_map_destroy_handle(&msg_context->instance->context_map,
+					msg_context->handle);
 	kfree(msg_context);
 }
 
@@ -199,7 +311,8 @@ static void event_to_host_cb(struct vchiq_mmal_instance *instance,
  */
 static void buffer_work_cb(struct work_struct *work)
 {
-	struct mmal_msg_context *msg_context = (struct mmal_msg_context *)work;
+	struct mmal_msg_context *msg_context =
+		container_of(work, struct mmal_msg_context, u.bulk.work);
 
 	msg_context->u.bulk.port->buffer_cb(msg_context->u.bulk.instance,
 					    msg_context->u.bulk.port,
@@ -412,7 +525,7 @@ buffer_from_host(struct vchiq_mmal_instance *instance,
 
 	m.h.type = MMAL_MSG_TYPE_BUFFER_FROM_HOST;
 	m.h.magic = MMAL_MAGIC;
-	m.h.context = msg_context;
+	m.h.context = msg_context->handle;
 	m.h.status = 0;
 
 	/* drvbuf is our private data passed back */
@@ -610,6 +723,7 @@ static void service_callback(void *param,
 	u32 msg_len;
 	struct mmal_msg *msg;
 	VCHI_HELD_MSG_T msg_handle;
+	struct mmal_msg_context *msg_context;
 
 	if (!instance) {
 		pr_err("Message callback passed NULL instance\n");
@@ -646,23 +760,25 @@ static void service_callback(void *param,
 
 		default:
 			/* messages dependent on header context to complete */
-
-			/* todo: the msg.context really ought to be sanity
-			 * checked before we just use it, afaict it comes back
-			 * and is used raw from the videocore. Perhaps it
-			 * should be verified the address lies in the kernel
-			 * address space.
-			 */
 			if (!msg->h.context) {
 				pr_err("received message context was null!\n");
 				vchi_held_msg_release(&msg_handle);
 				break;
 			}
 
+			msg_context = lookup_msg_context(instance,
+							 msg->h.context);
+			if (!msg_context) {
+				pr_err("received invalid message context %u!\n",
+				       msg->h.context);
+				vchi_held_msg_release(&msg_handle);
+				break;
+			}
+
 			/* fill in context values */
-			msg->h.context->u.sync.msg_handle = msg_handle;
-			msg->h.context->u.sync.msg = msg;
-			msg->h.context->u.sync.msg_len = msg_len;
+			msg_context->u.sync.msg_handle = msg_handle;
+			msg_context->u.sync.msg = msg;
+			msg_context->u.sync.msg_len = msg_len;
 
 			/* todo: should this check (completion_done()
 			 * == 1) for no one waiting? or do we need a
@@ -674,7 +790,7 @@ static void service_callback(void *param,
 			 */
 
 			/* complete message so caller knows it happened */
-			complete(&msg->h.context->u.sync.cmplt);
+			complete(&msg_context->u.sync.cmplt);
 			break;
 		}
 
@@ -706,7 +822,7 @@ static int send_synchronous_mmal_msg(struct vchiq_mmal_instance *instance,
 				     struct mmal_msg **msg_out,
 				     VCHI_HELD_MSG_T *msg_handle_out)
 {
-	struct mmal_msg_context msg_context;
+	struct mmal_msg_context *msg_context;
 	int ret;
 
 	/* payload size must not cause message to exceed max size */
@@ -717,10 +833,14 @@ static int send_synchronous_mmal_msg(struct vchiq_mmal_instance *instance,
 		return -EINVAL;
 	}
 
-	init_completion(&msg_context.u.sync.cmplt);
+	msg_context = get_msg_context(instance);
+	if (!msg_context)
+		return -ENOMEM;
+
+	init_completion(&msg_context->u.sync.cmplt);
 
 	msg->h.magic = MMAL_MAGIC;
-	msg->h.context = &msg_context;
+	msg->h.context = msg_context->handle;
 	msg->h.status = 0;
 
 	DBG_DUMP_MSG(msg, (sizeof(struct mmal_msg_header) + payload_len),
@@ -737,20 +857,23 @@ static int send_synchronous_mmal_msg(struct vchiq_mmal_instance *instance,
 
 	if (ret) {
 		pr_err("error %d queuing message\n", ret);
+		release_msg_context(msg_context);
 		return ret;
 	}
 
-	ret = wait_for_completion_timeout(&msg_context.u.sync.cmplt, 3 * HZ);
+	ret = wait_for_completion_timeout(&msg_context->u.sync.cmplt, 3 * HZ);
 	if (ret <= 0) {
 		pr_err("error %d waiting for sync completion\n", ret);
 		if (ret == 0)
 			ret = -ETIME;
 		/* todo: what happens if the message arrives after aborting */
+		release_msg_context(msg_context);
 		return ret;
 	}
 
-	*msg_out = msg_context.u.sync.msg;
-	*msg_handle_out = msg_context.u.sync.msg_handle;
+	*msg_out = msg_context->u.sync.msg;
+	*msg_handle_out = msg_context->u.sync.msg_handle;
+	release_msg_context(msg_context);
 
 	return 0;
 }
@@ -1829,6 +1952,8 @@ int vchiq_mmal_finalise(struct vchiq_mmal_instance *instance)
 
 	vfree(instance->bulk_scratch);
 
+	mmal_context_map_destroy(&instance->context_map);
+
 	kfree(instance);
 
 	return status;
@@ -1887,6 +2012,13 @@ int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance)
 	mutex_init(&instance->bulk_mutex);
 
 	instance->bulk_scratch = vmalloc(PAGE_SIZE);
+
+	status = mmal_context_map_init(&instance->context_map);
+	if (status) {
+		pr_err("Failed to init context map (status=%d)\n", status);
+		kfree(instance);
+		return status;
+	}
 
 	params.callback_param = instance;
 

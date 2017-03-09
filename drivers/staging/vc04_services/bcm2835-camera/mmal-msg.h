@@ -86,7 +86,7 @@ struct mmal_msg_header {
 	/* Opaque handle to the control service */
 	u32 control_service;
 
-	struct mmal_msg_context *context; /** a u32 per message context */
+	u32 context; /** a u32 per message context */
 	u32 status; /** The status of the vchiq operation */
 	u32 padding;
 };
