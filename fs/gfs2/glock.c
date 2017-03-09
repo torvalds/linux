@@ -1920,10 +1920,10 @@ static const struct seq_operations gfs2_sbstats_seq_ops = {
 
 #define GFS2_SEQ_GOODSIZE min(PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER, 65536UL)
 
-static int gfs2_glocks_open(struct inode *inode, struct file *file)
+static int __gfs2_glocks_open(struct inode *inode, struct file *file,
+			      const struct seq_operations *ops)
 {
-	int ret = seq_open_private(file, &gfs2_glock_seq_ops,
-				   sizeof(struct gfs2_glock_iter));
+	int ret = seq_open_private(file, ops, sizeof(struct gfs2_glock_iter));
 	if (ret == 0) {
 		struct seq_file *seq = file->private_data;
 		struct gfs2_glock_iter *gi = seq->private;
@@ -1939,6 +1939,11 @@ static int gfs2_glocks_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
+static int gfs2_glocks_open(struct inode *inode, struct file *file)
+{
+	return __gfs2_glocks_open(inode, file, &gfs2_glock_seq_ops);
+}
+
 static int gfs2_glocks_release(struct inode *inode, struct file *file)
 {
 	struct seq_file *seq = file->private_data;
@@ -1951,20 +1956,7 @@ static int gfs2_glocks_release(struct inode *inode, struct file *file)
 
 static int gfs2_glstats_open(struct inode *inode, struct file *file)
 {
-	int ret = seq_open_private(file, &gfs2_glstats_seq_ops,
-				   sizeof(struct gfs2_glock_iter));
-	if (ret == 0) {
-		struct seq_file *seq = file->private_data;
-		struct gfs2_glock_iter *gi = seq->private;
-		gi->sdp = inode->i_private;
-		gi->last_pos = 0;
-		seq->buf = kmalloc(GFS2_SEQ_GOODSIZE, GFP_KERNEL | __GFP_NOWARN);
-		if (seq->buf)
-			seq->size = GFS2_SEQ_GOODSIZE;
-		gi->gl = NULL;
-		ret = rhashtable_walk_init(&gl_hash_table, &gi->hti, GFP_KERNEL);
-	}
-	return ret;
+	return __gfs2_glocks_open(inode, file, &gfs2_glstats_seq_ops);
 }
 
 static int gfs2_sbstats_open(struct inode *inode, struct file *file)
