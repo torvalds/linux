@@ -594,8 +594,7 @@ struct iwl_mvm_tx_resp {
 /**
  * struct iwl_mvm_ba_notif - notifies about reception of BA
  * ( BA_NOTIF = 0xc5 )
- * @sta_addr_lo32: lower 32 bits of the MAC address
- * @sta_addr_hi16: upper 16 bits of the MAC address
+ * @sta_addr: MAC address
  * @sta_id: Index of recipient (BA-sending) station in fw's station table
  * @tid: tid of the session
  * @seq_ctl:
@@ -609,8 +608,7 @@ struct iwl_mvm_tx_resp {
  *	for Tx-ing then this value will be set to 0 by FW.
  */
 struct iwl_mvm_ba_notif {
-	__le32 sta_addr_lo32;
-	__le16 sta_addr_hi16;
+	u8 sta_addr[ETH_ALEN];
 	__le16 reserved;
 
 	u8 sta_id;
