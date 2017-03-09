@@ -1,9 +1,12 @@
 #ifndef _ASM_POWERPC_BOOK3S_64_PGTABLE_H_
 #define _ASM_POWERPC_BOOK3S_64_PGTABLE_H_
 
+#include <asm-generic/5level-fixup.h>
+
 #ifndef __ASSEMBLY__
 #include <linux/mmdebug.h>
 #endif
+
 /*
  * Common bits between hash and Radix page table
  */
