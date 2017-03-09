@@ -125,6 +125,7 @@ typedef int (*mtk_aes_fn)(struct mtk_cryp *cryp, struct mtk_aes_rec *aes);
 
 /**
  * struct mtk_aes_rec - AES operation record
+ * @cryp:	pointer to Cryptographic device
  * @queue:	crypto request queue
  * @areq:	pointer to async request
  * @task:	the tasklet is use in AES interrupt
@@ -143,6 +144,7 @@ typedef int (*mtk_aes_fn)(struct mtk_cryp *cryp, struct mtk_aes_rec *aes);
  * Structure used to record AES execution state.
  */
 struct mtk_aes_rec {
+	struct mtk_cryp *cryp;
 	struct crypto_queue queue;
 	struct crypto_async_request *areq;
 	struct tasklet_struct task;
@@ -166,6 +168,7 @@ struct mtk_aes_rec {
 
 /**
  * struct mtk_sha_rec - SHA operation record
+ * @cryp:	pointer to Cryptographic device
  * @queue:	crypto request queue
  * @req:	pointer to ahash request
  * @task:	the tasklet is use in SHA interrupt
@@ -176,6 +179,7 @@ struct mtk_aes_rec {
  * Structure used to record SHA execution state.
  */
 struct mtk_sha_rec {
+	struct mtk_cryp *cryp;
 	struct crypto_queue queue;
 	struct ahash_request *req;
 	struct tasklet_struct task;

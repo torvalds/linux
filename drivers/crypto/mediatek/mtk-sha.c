@@ -1216,60 +1216,31 @@ static struct ahash_alg algs_sha384_sha512[] = {
 },
 };
 
-static void mtk_sha_task0(unsigned long data)
+static void mtk_sha_done_task(unsigned long data)
 {
-	struct mtk_cryp *cryp = (struct mtk_cryp *)data;
-	struct mtk_sha_rec *sha = cryp->sha[0];
+	struct mtk_sha_rec *sha = (struct mtk_sha_rec *)data;
+	struct mtk_cryp *cryp = sha->cryp;
 
 	mtk_sha_unmap(cryp, sha);
 	mtk_sha_complete(cryp, sha);
 }
 
-static void mtk_sha_task1(unsigned long data)
+static irqreturn_t mtk_sha_irq(int irq, void *dev_id)
 {
-	struct mtk_cryp *cryp = (struct mtk_cryp *)data;
-	struct mtk_sha_rec *sha = cryp->sha[1];
+	struct mtk_sha_rec *sha = (struct mtk_sha_rec *)dev_id;
+	struct mtk_cryp *cryp = sha->cryp;
+	u32 val = mtk_sha_read(cryp, RDR_STAT(sha->id));
 
-	mtk_sha_unmap(cryp, sha);
-	mtk_sha_complete(cryp, sha);
-}
-
-static irqreturn_t mtk_sha_ring2_irq(int irq, void *dev_id)
-{
-	struct mtk_cryp *cryp = (struct mtk_cryp *)dev_id;
-	struct mtk_sha_rec *sha = cryp->sha[0];
-	u32 val = mtk_sha_read(cryp, RDR_STAT(RING2));
-
-	mtk_sha_write(cryp, RDR_STAT(RING2), val);
+	mtk_sha_write(cryp, RDR_STAT(sha->id), val);
 
 	if (likely((SHA_FLAGS_BUSY & sha->flags))) {
-		mtk_sha_write(cryp, RDR_PROC_COUNT(RING2), MTK_CNT_RST);
-		mtk_sha_write(cryp, RDR_THRESH(RING2),
+		mtk_sha_write(cryp, RDR_PROC_COUNT(sha->id), MTK_CNT_RST);
+		mtk_sha_write(cryp, RDR_THRESH(sha->id),
 			      MTK_RDR_PROC_THRESH | MTK_RDR_PROC_MODE);
 
 		tasklet_schedule(&sha->task);
 	} else {
-		dev_warn(cryp->dev, "AES interrupt when no active requests.\n");
-	}
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t mtk_sha_ring3_irq(int irq, void *dev_id)
-{
-	struct mtk_cryp *cryp = (struct mtk_cryp *)dev_id;
-	struct mtk_sha_rec *sha = cryp->sha[1];
-	u32 val = mtk_sha_read(cryp, RDR_STAT(RING3));
-
-	mtk_sha_write(cryp, RDR_STAT(RING3), val);
-
-	if (likely((SHA_FLAGS_BUSY & sha->flags))) {
-		mtk_sha_write(cryp, RDR_PROC_COUNT(RING3), MTK_CNT_RST);
-		mtk_sha_write(cryp, RDR_THRESH(RING3),
-			      MTK_RDR_PROC_THRESH | MTK_RDR_PROC_MODE);
-
-		tasklet_schedule(&sha->task);
-	} else {
-		dev_warn(cryp->dev, "AES interrupt when no active requests.\n");
+		dev_warn(cryp->dev, "SHA interrupt when no active requests.\n");
 	}
 	return IRQ_HANDLED;
 }
@@ -1288,14 +1259,18 @@ static int mtk_sha_record_init(struct mtk_cryp *cryp)
 		if (!sha[i])
 			goto err_cleanup;
 
-		sha[i]->id = i + RING2;
+		sha[i]->cryp = cryp;
 
 		spin_lock_init(&sha[i]->lock);
 		crypto_init_queue(&sha[i]->queue, SHA_QUEUE_SIZE);
+
+		tasklet_init(&sha[i]->task, mtk_sha_done_task,
+			     (unsigned long)sha[i]);
 	}
 
-	tasklet_init(&sha[0]->task, mtk_sha_task0, (unsigned long)cryp);
-	tasklet_init(&sha[1]->task, mtk_sha_task1, (unsigned long)cryp);
+	/* Link to ring2 and ring3 respectively */
+	sha[0]->id = RING2;
+	sha[1]->id = RING3;
 
 	cryp->rec = 1;
 
@@ -1368,19 +1343,15 @@ int mtk_hash_alg_register(struct mtk_cryp *cryp)
 	if (err)
 		goto err_record;
 
-	/* Ring2 is use by SHA record0 */
-	err = devm_request_irq(cryp->dev, cryp->irq[RING2],
-			       mtk_sha_ring2_irq, IRQF_TRIGGER_LOW,
-			       "mtk-sha", cryp);
+	err = devm_request_irq(cryp->dev, cryp->irq[RING2], mtk_sha_irq,
+			       0, "mtk-sha", cryp->sha[0]);
 	if (err) {
 		dev_err(cryp->dev, "unable to request sha irq0.\n");
 		goto err_res;
 	}
 
-	/* Ring3 is use by SHA record1 */
-	err = devm_request_irq(cryp->dev, cryp->irq[RING3],
-			       mtk_sha_ring3_irq, IRQF_TRIGGER_LOW,
-			       "mtk-sha", cryp);
+	err = devm_request_irq(cryp->dev, cryp->irq[RING3], mtk_sha_irq,
+			       0, "mtk-sha", cryp->sha[1]);
 	if (err) {
 		dev_err(cryp->dev, "unable to request sha irq1.\n");
 		goto err_res;

@@ -1092,55 +1092,26 @@ static struct aead_alg aes_gcm_alg = {
 	},
 };
 
-static void mtk_aes_enc_task(unsigned long data)
+static void mtk_aes_done_task(unsigned long data)
 {
-	struct mtk_cryp *cryp = (struct mtk_cryp *)data;
-	struct mtk_aes_rec *aes = cryp->aes[0];
+	struct mtk_aes_rec *aes = (struct mtk_aes_rec *)data;
+	struct mtk_cryp *cryp = aes->cryp;
 
 	mtk_aes_unmap(cryp, aes);
 	aes->resume(cryp, aes);
 }
 
-static void mtk_aes_dec_task(unsigned long data)
+static irqreturn_t mtk_aes_irq(int irq, void *dev_id)
 {
-	struct mtk_cryp *cryp = (struct mtk_cryp *)data;
-	struct mtk_aes_rec *aes = cryp->aes[1];
+	struct mtk_aes_rec *aes  = (struct mtk_aes_rec *)dev_id;
+	struct mtk_cryp *cryp = aes->cryp;
+	u32 val = mtk_aes_read(cryp, RDR_STAT(aes->id));
 
-	mtk_aes_unmap(cryp, aes);
-	aes->resume(cryp, aes);
-}
-
-static irqreturn_t mtk_aes_enc_irq(int irq, void *dev_id)
-{
-	struct mtk_cryp *cryp = (struct mtk_cryp *)dev_id;
-	struct mtk_aes_rec *aes = cryp->aes[0];
-	u32 val = mtk_aes_read(cryp, RDR_STAT(RING0));
-
-	mtk_aes_write(cryp, RDR_STAT(RING0), val);
+	mtk_aes_write(cryp, RDR_STAT(aes->id), val);
 
 	if (likely(AES_FLAGS_BUSY & aes->flags)) {
-		mtk_aes_write(cryp, RDR_PROC_COUNT(RING0), MTK_CNT_RST);
-		mtk_aes_write(cryp, RDR_THRESH(RING0),
-			      MTK_RDR_PROC_THRESH | MTK_RDR_PROC_MODE);
-
-		tasklet_schedule(&aes->task);
-	} else {
-		dev_warn(cryp->dev, "AES interrupt when no active requests.\n");
-	}
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t mtk_aes_dec_irq(int irq, void *dev_id)
-{
-	struct mtk_cryp *cryp = (struct mtk_cryp *)dev_id;
-	struct mtk_aes_rec *aes = cryp->aes[1];
-	u32 val = mtk_aes_read(cryp, RDR_STAT(RING1));
-
-	mtk_aes_write(cryp, RDR_STAT(RING1), val);
-
-	if (likely(AES_FLAGS_BUSY & aes->flags)) {
-		mtk_aes_write(cryp, RDR_PROC_COUNT(RING1), MTK_CNT_RST);
-		mtk_aes_write(cryp, RDR_THRESH(RING1),
+		mtk_aes_write(cryp, RDR_PROC_COUNT(aes->id), MTK_CNT_RST);
+		mtk_aes_write(cryp, RDR_THRESH(aes->id),
 			      MTK_RDR_PROC_THRESH | MTK_RDR_PROC_MODE);
 
 		tasklet_schedule(&aes->task);
@@ -1171,14 +1142,18 @@ static int mtk_aes_record_init(struct mtk_cryp *cryp)
 		if (!aes[i]->buf)
 			goto err_cleanup;
 
-		aes[i]->id = i;
+		aes[i]->cryp = cryp;
 
 		spin_lock_init(&aes[i]->lock);
 		crypto_init_queue(&aes[i]->queue, AES_QUEUE_SIZE);
+
+		tasklet_init(&aes[i]->task, mtk_aes_done_task,
+			     (unsigned long)aes[i]);
 	}
 
-	tasklet_init(&aes[0]->task, mtk_aes_enc_task, (unsigned long)cryp);
-	tasklet_init(&aes[1]->task, mtk_aes_dec_task, (unsigned long)cryp);
+	/* Link to ring0 and ring1 respectively */
+	aes[0]->id = RING0;
+	aes[1]->id = RING1;
 
 	return 0;
 
@@ -1246,19 +1221,17 @@ int mtk_cipher_alg_register(struct mtk_cryp *cryp)
 	if (ret)
 		goto err_record;
 
-	/* Ring0 is use by encryption record */
-	ret = devm_request_irq(cryp->dev, cryp->irq[RING0], mtk_aes_enc_irq,
-			       IRQF_TRIGGER_LOW, "mtk-aes", cryp);
+	ret = devm_request_irq(cryp->dev, cryp->irq[RING0], mtk_aes_irq,
+			       0, "mtk-aes", cryp->aes[0]);
 	if (ret) {
-		dev_err(cryp->dev, "unable to request AES encryption irq.\n");
+		dev_err(cryp->dev, "unable to request AES irq.\n");
 		goto err_res;
 	}
 
-	/* Ring1 is use by decryption record */
-	ret = devm_request_irq(cryp->dev, cryp->irq[RING1], mtk_aes_dec_irq,
-			       IRQF_TRIGGER_LOW, "mtk-aes", cryp);
+	ret = devm_request_irq(cryp->dev, cryp->irq[RING1], mtk_aes_irq,
+			       0, "mtk-aes", cryp->aes[1]);
 	if (ret) {
-		dev_err(cryp->dev, "unable to request AES decryption irq.\n");
+		dev_err(cryp->dev, "unable to request AES irq.\n");
 		goto err_res;
 	}
 
