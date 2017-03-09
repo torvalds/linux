@@ -456,6 +456,7 @@ config PHY_QCOM_UFS
 config PHY_TUSB1210
 	tristate "TI TUSB1210 ULPI PHY module"
 	depends on USB_ULPI_BUS
+	depends on EXTCON || !EXTCON # if EXTCON=m, this cannot be built-in
 	select GENERIC_PHY
 	help
 	  Support for TI TUSB1210 USB ULPI PHY.
