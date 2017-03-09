@@ -478,8 +478,6 @@ static void ks7010_rw_function(struct work_struct *work)
 	/* wiat after WAKEUP */
 	while (time_after(priv->last_wakeup + ((30 * HZ) / 1000), jiffies)) {
 		DPRINTK(4, "wait after WAKEUP\n");
-/*		queue_delayed_work(priv->ks_wlan_hw.ks7010sdio_wq,&priv->ks_wlan_hw.rw_wq,
-		(priv->last_wakeup + ((30*HZ)/1000) - jiffies));*/
 		dev_info(&priv->ks_wlan_hw.sdio_card->func->dev,
 			 "wake: %lu %lu\n",
 			 priv->last_wakeup + (30 * HZ) / 1000,
