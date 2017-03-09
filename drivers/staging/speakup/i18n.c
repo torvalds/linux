@@ -476,19 +476,20 @@ static char *find_specifier_end(char *input)
 /*
  * Function: compare_specifiers
  * Compare the format specifiers pointed to by *input1 and *input2.
- * Return 1 if they are the same, 0 otherwise.  Advance *input1 and *input2
- * so that they point to the character following the end of the specifier.
+ * Return true if they are the same, false otherwise.
+ * Advance *input1 and *input2 so that they point to the character following
+ * the end of the specifier.
  */
-static int compare_specifiers(char **input1, char **input2)
+static bool compare_specifiers(char **input1, char **input2)
 {
-	int same = 0;
+	bool same = false;
 	char *end1 = find_specifier_end(*input1);
 	char *end2 = find_specifier_end(*input2);
 	size_t length1 = end1 - *input1;
 	size_t length2 = end2 - *input2;
 
 	if ((length1 == length2) && !memcmp(*input1, *input2, length1))
-		same = 1;
+		same = true;
 
 	*input1 = end1;
 	*input2 = end2;
@@ -499,12 +500,12 @@ static int compare_specifiers(char **input1, char **input2)
  * Function: fmt_validate
  * Check that two format strings contain the same number of format specifiers,
  * and that the order of specifiers is the same in both strings.
- * Return 1 if the condition holds, 0 if it doesn't.
+ * Return true if the condition holds, false if it doesn't.
  */
-static int fmt_validate(char *template, char *user)
+static bool fmt_validate(char *template, char *user)
 {
-	int valid = 1;
-	int still_comparing = 1;
+	bool valid = true;
+	bool still_comparing = true;
 	char *template_ptr = template;
 	char *user_ptr = user;
 
@@ -516,10 +517,10 @@ static int fmt_validate(char *template, char *user)
 			valid = compare_specifiers(&template_ptr, &user_ptr);
 		} else {
 			/* No more format specifiers in one or both strings. */
-			still_comparing = 0;
+			still_comparing = false;
 			/* See if one has more specifiers than the other. */
 			if (template_ptr || user_ptr)
-				valid = 0;
+				valid = false;
 		}
 	}
 	return valid;
