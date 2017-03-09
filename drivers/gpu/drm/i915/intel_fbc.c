@@ -1061,7 +1061,7 @@ void intel_fbc_choose_crtc(struct drm_i915_private *dev_priv,
 	 * plane. We could go for fancier schemes such as checking the plane
 	 * size, but this would just affect the few platforms that don't tie FBC
 	 * to pipe or plane A. */
-	for_each_plane_in_state(state, plane, plane_state, i) {
+	for_each_new_plane_in_state(state, plane, plane_state, i) {
 		struct intel_plane_state *intel_plane_state =
 			to_intel_plane_state(plane_state);
 		struct intel_crtc_state *intel_crtc_state;
