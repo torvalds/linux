@@ -23,6 +23,7 @@
 #include <drm/drm_panel.h>
 
 #include "sun4i_backend.h"
+#include "sun4i_crtc.h"
 #include "sun4i_drv.h"
 #include "sun4i_tcon.h"
 
@@ -350,8 +351,9 @@ static int sun4i_tv_atomic_check(struct drm_encoder *encoder,
 static void sun4i_tv_disable(struct drm_encoder *encoder)
 {
 	struct sun4i_tv *tv = drm_encoder_to_sun4i_tv(encoder);
-	struct sun4i_drv *drv = tv->drv;
-	struct sun4i_tcon *tcon = drv->tcon;
+	struct sun4i_crtc *crtc = drm_crtc_to_sun4i_crtc(encoder->crtc);
+	struct sun4i_tcon *tcon = crtc->tcon;
+	struct sun4i_backend *backend = crtc->backend;
 
 	DRM_DEBUG_DRIVER("Disabling the TV Output\n");
 
@@ -360,18 +362,19 @@ static void sun4i_tv_disable(struct drm_encoder *encoder)
 	regmap_update_bits(tv->regs, SUN4I_TVE_EN_REG,
 			   SUN4I_TVE_EN_ENABLE,
 			   0);
-	sun4i_backend_disable_color_correction(drv->backend);
+	sun4i_backend_disable_color_correction(backend);
 }
 
 static void sun4i_tv_enable(struct drm_encoder *encoder)
 {
 	struct sun4i_tv *tv = drm_encoder_to_sun4i_tv(encoder);
-	struct sun4i_drv *drv = tv->drv;
-	struct sun4i_tcon *tcon = drv->tcon;
+	struct sun4i_crtc *crtc = drm_crtc_to_sun4i_crtc(encoder->crtc);
+	struct sun4i_tcon *tcon = crtc->tcon;
+	struct sun4i_backend *backend = crtc->backend;
 
 	DRM_DEBUG_DRIVER("Enabling the TV Output\n");
 
-	sun4i_backend_apply_color_correction(drv->backend);
+	sun4i_backend_apply_color_correction(backend);
 
 	regmap_update_bits(tv->regs, SUN4I_TVE_EN_REG,
 			   SUN4I_TVE_EN_ENABLE,
@@ -385,8 +388,8 @@ static void sun4i_tv_mode_set(struct drm_encoder *encoder,
 			      struct drm_display_mode *adjusted_mode)
 {
 	struct sun4i_tv *tv = drm_encoder_to_sun4i_tv(encoder);
-	struct sun4i_drv *drv = tv->drv;
-	struct sun4i_tcon *tcon = drv->tcon;
+	struct sun4i_crtc *crtc = drm_crtc_to_sun4i_crtc(encoder->crtc);
+	struct sun4i_tcon *tcon = crtc->tcon;
 	const struct tv_mode *tv_mode = sun4i_tv_find_tv_by_mode(mode);
 
 	sun4i_tcon1_mode_set(tcon, mode);
