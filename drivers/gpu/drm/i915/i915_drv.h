@@ -2375,9 +2375,6 @@ struct drm_i915_private {
 	} sagv_status;
 
 	struct {
-		/* protects DSPARB registers on pre-g4x/vlv/chv */
-		spinlock_t dsparb_lock;
-
 		/*
 		 * Raw watermark latency values:
 		 * in 0.1us units for WM0,
