@@ -131,7 +131,7 @@ enum iwl_mvm_tx_fifo {
 
 
 /* commands */
-enum {
+enum iwl_legacy_cmds {
 	MVM_ALIVE = 0x1,
 	REPLY_ERROR = 0x2,
 	ECHO_CMD = 0x3,
@@ -354,8 +354,29 @@ enum iwl_debug_cmds {
 	MFU_ASSERT_DUMP_NTF = 0xFE,
 };
 
-/* command groups */
-enum {
+/**
+ * enum iwl_mvm_command_groups - command groups for the firmware
+ * @LEGACY_GROUP: legacy group, uses command IDs from &enum iwl_legacy_cmds
+ * @LONG_GROUP: legacy group with long header, also uses command IDs
+ *	from &enum iwl_legacy_cmds
+ * @SYSTEM_GROUP: system group, uses command IDs from
+ *	&enum iwl_system_subcmd_ids
+ * @MAC_CONF_GROUP: MAC configuration group, uses command IDs from
+ *	&enum iwl_mac_conf_subcmd_ids
+ * @PHY_OPS_GROUP: PHY operations group, uses command IDs from
+ *	&enum iwl_phy_ops_subcmd_ids
+ * @DATA_PATH_GROUP: data path group, uses command IDs from
+ *	&enum iwl_data_path_subcmd_ids
+ * @SCAN_GROUP: scan group, uses command IDs from &enum iwl_scan_subcmd_ids
+ * @NAN_GROUP: NAN group, uses command IDs from &enum iwl_nan_subcmd_ids
+ * @TOF_GROUP: TOF group, uses command IDs from &enum iwl_tof_subcmd_ids
+ * @PROT_OFFLOAD_GROUP: protocol offload group, uses command IDs from
+ *	&enum iwl_prot_offload_subcmd_ids
+ * @REGULATORY_AND_NVM_GROUP: regulatory/NVM group, uses command IDs from
+ *	&enum iwl_regulatory_and_nvm_subcmd_ids
+ * @DEBUG_GROUP: Debug group, uses command IDs from &enum iwl_debug_cmds
+ */
+enum iwl_mvm_command_groups {
 	LEGACY_GROUP = 0x0,
 	LONG_GROUP = 0x1,
 	SYSTEM_GROUP = 0x2,
