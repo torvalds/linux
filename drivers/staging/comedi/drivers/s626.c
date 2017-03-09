@@ -599,7 +599,7 @@ static int s626_write_trim_dac(struct comedi_device *dev,
 	 * Save the new setpoint in case the application needs to read it back
 	 * later.
 	 */
-	devpriv->trim_setpoint[logical_chan] = (u8)dac_data;
+	devpriv->trim_setpoint[logical_chan] = dac_data;
 
 	/* Map logical channel number to physical channel number. */
 	chan = s626_trimchan[logical_chan];
