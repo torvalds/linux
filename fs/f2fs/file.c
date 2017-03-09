@@ -622,6 +622,12 @@ int f2fs_truncate(struct inode *inode)
 
 	trace_f2fs_truncate(inode);
 
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+	if (time_to_inject(F2FS_I_SB(inode), FAULT_TRUNCATE)) {
+		f2fs_show_injection_info(FAULT_TRUNCATE);
+		return -EIO;
+	}
+#endif
 	/* we should check inline_data size */
 	if (!f2fs_may_inline_data(inode)) {
 		err = f2fs_convert_inline_inode(inode);
