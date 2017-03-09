@@ -94,12 +94,12 @@ static int tcp_v4_md5_hash_hdr(char *md5_hash, const struct tcp_md5sig_key *key,
 struct inet_hashinfo tcp_hashinfo;
 EXPORT_SYMBOL(tcp_hashinfo);
 
-static u32 tcp_v4_init_sequence(const struct sk_buff *skb, u32 *tsoff)
+static u32 tcp_v4_init_seq_and_tsoff(const struct sk_buff *skb, u32 *tsoff)
 {
-	return secure_tcp_sequence_number(ip_hdr(skb)->daddr,
-					  ip_hdr(skb)->saddr,
-					  tcp_hdr(skb)->dest,
-					  tcp_hdr(skb)->source, tsoff);
+	return secure_tcp_seq_and_tsoff(ip_hdr(skb)->daddr,
+					ip_hdr(skb)->saddr,
+					tcp_hdr(skb)->dest,
+					tcp_hdr(skb)->source, tsoff);
 }
 
 int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp)
@@ -236,11 +236,11 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	rt = NULL;
 
 	if (likely(!tp->repair)) {
-		seq = secure_tcp_sequence_number(inet->inet_saddr,
-						 inet->inet_daddr,
-						 inet->inet_sport,
-						 usin->sin_port,
-						 &tp->tsoffset);
+		seq = secure_tcp_seq_and_tsoff(inet->inet_saddr,
+					       inet->inet_daddr,
+					       inet->inet_sport,
+					       usin->sin_port,
+					       &tp->tsoffset);
 		if (!tp->write_seq)
 			tp->write_seq = seq;
 	}
@@ -1249,7 +1249,7 @@ static const struct tcp_request_sock_ops tcp_request_sock_ipv4_ops = {
 	.cookie_init_seq =	cookie_v4_init_sequence,
 #endif
 	.route_req	=	tcp_v4_route_req,
-	.init_seq	=	tcp_v4_init_sequence,
+	.init_seq_tsoff	=	tcp_v4_init_seq_and_tsoff,
 	.send_synack	=	tcp_v4_send_synack,
 };
 
