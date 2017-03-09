@@ -152,7 +152,6 @@ static int intel_hid_input_setup(struct platform_device *device)
 	if (ret)
 		return ret;
 
-	priv->input_dev->dev.parent = &device->dev;
 	priv->input_dev->name = "Intel HID events";
 	priv->input_dev->id.bustype = BUS_HOST;
 
@@ -173,7 +172,6 @@ static int intel_button_array_input_setup(struct platform_device *device)
 	if (ret)
 		return ret;
 
-	priv->array->dev.parent = &device->dev;
 	priv->array->name = "Intel HID 5 button array";
 	priv->array->id.bustype = BUS_HOST;
 
