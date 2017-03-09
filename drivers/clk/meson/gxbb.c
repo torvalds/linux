@@ -459,7 +459,7 @@ static struct meson_clk_mpll gxbb_mpll0 = {
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll0",
-		.ops = &meson_clk_mpll_ro_ops,
+		.ops = &meson_clk_mpll_ops,
 		.parent_names = (const char *[]){ "fixed_pll" },
 		.num_parents = 1,
 	},
@@ -489,7 +489,7 @@ static struct meson_clk_mpll gxbb_mpll1 = {
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll1",
-		.ops = &meson_clk_mpll_ro_ops,
+		.ops = &meson_clk_mpll_ops,
 		.parent_names = (const char *[]){ "fixed_pll" },
 		.num_parents = 1,
 	},
@@ -519,7 +519,7 @@ static struct meson_clk_mpll gxbb_mpll2 = {
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll2",
-		.ops = &meson_clk_mpll_ro_ops,
+		.ops = &meson_clk_mpll_ops,
 		.parent_names = (const char *[]){ "fixed_pll" },
 		.num_parents = 1,
 	},
