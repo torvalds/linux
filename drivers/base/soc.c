@@ -230,6 +230,8 @@ const struct soc_device_attribute *soc_device_match(
 			break;
 		ret = bus_for_each_dev(&soc_bus_type, NULL, (void *)matches,
 				       soc_device_match_one);
+		if (ret < 0)
+			return NULL;
 		if (!ret)
 			matches++;
 		else
