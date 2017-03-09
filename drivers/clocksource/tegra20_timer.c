@@ -245,7 +245,7 @@ static int __init tegra20_init_rtc(struct device_node *np)
 
 	rtc_base = of_iomap(np, 0);
 	if (!rtc_base) {
-		pr_err("Can't map RTC registers");
+		pr_err("Can't map RTC registers\n");
 		return -ENXIO;
 	}
 

@@ -141,7 +141,7 @@ static int __init orion_timer_init(struct device_node *np)
 
 	ret = clk_prepare_enable(clk);
 	if (ret) {
-		pr_err("Failed to prepare clock");
+		pr_err("Failed to prepare clock\n");
 		return ret;
 	}
 
@@ -165,7 +165,7 @@ static int __init orion_timer_init(struct device_node *np)
 				    "orion_clocksource", rate, 300, 32,
 				    clocksource_mmio_readl_down);
 	if (ret) {
-		pr_err("Failed to initialize mmio timer");
+		pr_err("Failed to initialize mmio timer\n");
 		return ret;
 	}
 

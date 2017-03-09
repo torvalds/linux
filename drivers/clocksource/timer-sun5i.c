@@ -332,19 +332,19 @@ static int __init sun5i_timer_init(struct device_node *node)
 
 	timer_base = of_io_request_and_map(node, 0, of_node_full_name(node));
 	if (IS_ERR(timer_base)) {
-		pr_err("Can't map registers");
+		pr_err("Can't map registers\n");
 		return PTR_ERR(timer_base);;
 	}
 
 	irq = irq_of_parse_and_map(node, 0);
 	if (irq <= 0) {
-		pr_err("Can't parse IRQ");
+		pr_err("Can't parse IRQ\n");
 		return -EINVAL;
 	}
 
 	clk = of_clk_get(node, 0);
 	if (IS_ERR(clk)) {
-		pr_err("Can't get timer clock");
+		pr_err("Can't get timer clock\n");
 		return PTR_ERR(clk);
 	}
 

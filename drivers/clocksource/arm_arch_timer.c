@@ -1055,7 +1055,7 @@ static int __init arch_timer_mem_init(struct device_node *np)
 
 	ret = -EINVAL;
 	if (!irq) {
-		pr_err("arch_timer: Frame missing %s irq",
+		pr_err("arch_timer: Frame missing %s irq\n",
 		       arch_timer_mem_use_virtual ? "virt" : "phys");
 		goto out;
 	}

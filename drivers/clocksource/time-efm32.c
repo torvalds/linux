@@ -235,7 +235,7 @@ static int __init efm32_clockevent_init(struct device_node *np)
 
 	ret = setup_irq(irq, &efm32_clock_event_irq);
 	if (ret) {
-		pr_err("Failed setup irq");
+		pr_err("Failed setup irq\n");
 		goto err_setup_irq;
 	}
 

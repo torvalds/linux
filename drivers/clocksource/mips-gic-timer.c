@@ -174,7 +174,7 @@ static int __init gic_clocksource_of_init(struct device_node *node)
 
 	if (!gic_present || !node->parent ||
 	    !of_device_is_compatible(node->parent, "mti,gic")) {
-		pr_warn("No DT definition for the mips gic driver");
+		pr_warn("No DT definition for the mips gic driver\n");
 		return -ENXIO;
 	}
 

@@ -89,13 +89,13 @@ static int __init bcm2835_timer_init(struct device_node *node)
 
 	base = of_iomap(node, 0);
 	if (!base) {
-		pr_err("Can't remap registers");
+		pr_err("Can't remap registers\n");
 		return -ENXIO;
 	}
 
 	ret = of_property_read_u32(node, "clock-frequency", &freq);
 	if (ret) {
-		pr_err("Can't read clock-frequency");
+		pr_err("Can't read clock-frequency\n");
 		goto err_iounmap;
 	}
 
@@ -107,7 +107,7 @@ static int __init bcm2835_timer_init(struct device_node *node)
 
 	irq = irq_of_parse_and_map(node, DEFAULT_TIMER);
 	if (irq <= 0) {
-		pr_err("Can't parse IRQ");
+		pr_err("Can't parse IRQ\n");
 		ret = -EINVAL;
 		goto err_iounmap;
 	}
