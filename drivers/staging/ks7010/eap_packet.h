@@ -58,12 +58,15 @@ struct ieee802_1x_eapol_key {
 	 * encrypt the Key field; 64-bit NTP timestamp MAY be used here
 	 */
 	unsigned char replay_counter[IEEE8021X_REPLAY_COUNTER_LEN];
-	unsigned char key_iv[IEEE8021X_KEY_IV_LEN];	/* cryptographically random number */
+	unsigned char key_iv[IEEE8021X_KEY_IV_LEN]; /* cryptographically random
+						     * number
+						     */
 	unsigned char key_index;	/*
 					 * key flag in the most significant bit:
 					 * 0 = broadcast (default key),
-					 * 1 = unicast (key mapping key); key index is in the
-					 * 7 least significant bits
+					 * 1 = unicast (key mapping key);
+					 * key index is in the 7 least
+					 * significant bits
 					 */
 	/*
 	 * HMAC-MD5 message integrity check computed with MS-MPPE-Send-Key as
