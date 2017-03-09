@@ -4996,14 +4996,20 @@ consistency_policy_show(struct mddev *mddev, char *page)
 static ssize_t
 consistency_policy_store(struct mddev *mddev, const char *buf, size_t len)
 {
+	int err = 0;
+
 	if (mddev->pers) {
-		return -EBUSY;
+		if (mddev->pers->change_consistency_policy)
+			err = mddev->pers->change_consistency_policy(mddev, buf);
+		else
+			err = -EBUSY;
 	} else if (mddev->external && strncmp(buf, "ppl", 3) == 0) {
 		set_bit(MD_HAS_PPL, &mddev->flags);
-		return len;
 	} else {
-		return -EINVAL;
+		err = -EINVAL;
 	}
+
+	return err ? err : len;
 }
 
 static struct md_sysfs_entry md_consistency_policy =

@@ -1187,6 +1187,10 @@ int ppl_init_log(struct r5conf *conf)
 		 */
 		mddev->recovery_cp = MaxSector;
 		set_bit(MD_SB_CHANGE_CLEAN, &mddev->sb_flags);
+	} else if (mddev->pers && ppl_conf->mismatch_count > 0) {
+		/* no mismatch allowed when enabling PPL for a running array */
+		ret = -EINVAL;
+		goto err;
 	}
 
 	conf->log_private = ppl_conf;

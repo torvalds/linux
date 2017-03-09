@@ -8334,6 +8334,58 @@ static void *raid6_takeover(struct mddev *mddev)
 	return setup_conf(mddev);
 }
 
+static void raid5_reset_stripe_cache(struct mddev *mddev)
+{
+	struct r5conf *conf = mddev->private;
+
+	mutex_lock(&conf->cache_size_mutex);
+	while (conf->max_nr_stripes &&
+	       drop_one_stripe(conf))
+		;
+	while (conf->min_nr_stripes > conf->max_nr_stripes &&
+	       grow_one_stripe(conf, GFP_KERNEL))
+		;
+	mutex_unlock(&conf->cache_size_mutex);
+}
+
+static int raid5_change_consistency_policy(struct mddev *mddev, const char *buf)
+{
+	struct r5conf *conf;
+	int err;
+
+	err = mddev_lock(mddev);
+	if (err)
+		return err;
+	conf = mddev->private;
+	if (!conf) {
+		mddev_unlock(mddev);
+		return -ENODEV;
+	}
+
+	if (strncmp(buf, "ppl", 3) == 0 && !raid5_has_ppl(conf)) {
+		mddev_suspend(mddev);
+		set_bit(MD_HAS_PPL, &mddev->flags);
+		err = log_init(conf, NULL);
+		if (!err)
+			raid5_reset_stripe_cache(mddev);
+		mddev_resume(mddev);
+	} else if (strncmp(buf, "resync", 6) == 0 && raid5_has_ppl(conf)) {
+		mddev_suspend(mddev);
+		log_exit(conf);
+		raid5_reset_stripe_cache(mddev);
+		mddev_resume(mddev);
+	} else {
+		err = -EINVAL;
+	}
+
+	if (!err)
+		md_update_sb(mddev, 1);
+
+	mddev_unlock(mddev);
+
+	return err;
+}
+
 static struct md_personality raid6_personality =
 {
 	.name		= "raid6",
@@ -8379,6 +8431,7 @@ static struct md_personality raid5_personality =
 	.quiesce	= raid5_quiesce,
 	.takeover	= raid5_takeover,
 	.congested	= raid5_congested,
+	.change_consistency_policy = raid5_change_consistency_policy,
 };
 
 static struct md_personality raid4_personality =
