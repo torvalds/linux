@@ -91,15 +91,6 @@ static void free_netvsc_device(struct netvsc_device *nvdev)
 }
 
 
-static inline bool netvsc_channel_idle(const struct netvsc_device *net_device,
-				       u16 q_idx)
-{
-	const struct netvsc_channel *nvchan = &net_device->chan_table[q_idx];
-
-	return atomic_read(&net_device->num_outstanding_recvs) == 0 &&
-		atomic_read(&nvchan->queue_sends) == 0;
-}
-
 static struct netvsc_device *get_outbound_net_device(struct hv_device *device)
 {
 	struct netvsc_device *net_device = hv_device_to_netvsc_device(device);
@@ -1273,13 +1264,10 @@ void netvsc_channel_cb(void *context)
 	if (unlikely(!ndev))
 		return;
 
-	net_device = net_device_to_netvsc_device(ndev);
-	if (unlikely(net_device->destroy) &&
-	    netvsc_channel_idle(net_device, q_idx))
-		return;
-
 	/* disable interupts from host */
 	hv_begin_read(&channel->inbound);
+
+	net_device = net_device_to_netvsc_device(ndev);
 	napi_schedule(&net_device->chan_table[q_idx].napi);
 }
 
