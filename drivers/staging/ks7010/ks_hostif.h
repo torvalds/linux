@@ -110,9 +110,9 @@ struct channel_list_t {
 #define	DOT11_OPERATION_RATE_SET	  0x11110100	/* rate set */
 
 #define LOCAL_AP_SEARCH_INTEAVAL          0xF1010100	/* AP search interval (R/W) */
-#define LOCAL_CURRENTADDRESS              0xF1050100	/* MAC Adress change (W) */
-#define LOCAL_MULTICAST_ADDRESS           0xF1060100	/* Multicast Adress (W) */
-#define LOCAL_MULTICAST_FILTER            0xF1060200	/* Multicast Adress Filter enable/disable (W) */
+#define LOCAL_CURRENTADDRESS              0xF1050100	/* MAC Address change (W) */
+#define LOCAL_MULTICAST_ADDRESS           0xF1060100	/* Multicast Address (W) */
+#define LOCAL_MULTICAST_FILTER            0xF1060200	/* Multicast Address Filter enable/disable (W) */
 #define LOCAL_SEARCHED_AP_LIST            0xF1030100	/* AP list (R) */
 #define LOCAL_LINK_AP_STATUS              0xF1040100	/* Link AP status (R) */
 #define	LOCAL_PACKET_STATISTICS		  0xF1020100	/* tx,rx packets statistics */
