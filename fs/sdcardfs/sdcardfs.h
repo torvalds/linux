@@ -478,8 +478,6 @@ extern void setup_derived_state(struct inode *inode, perm_t perm, userid_t useri
 			uid_t uid, bool under_android, struct inode *top);
 extern void get_derived_permission(struct dentry *parent, struct dentry *dentry);
 extern void get_derived_permission_new(struct dentry *parent, struct dentry *dentry, const struct qstr *name);
-extern void drop_recursive(struct dentry *parent);
-extern void fixup_top_recursive(struct dentry *parent);
 extern void fixup_perms_recursive(struct dentry *dentry, struct limit_search *limit);
 
 extern void update_derived_permission_lock(struct dentry *dentry);

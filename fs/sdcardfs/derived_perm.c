@@ -305,44 +305,6 @@ void fixup_perms_recursive(struct dentry *dentry, struct limit_search *limit)
 	__fixup_perms_recursive(dentry, limit, 0);
 }
 
-void drop_recursive(struct dentry *parent) {
-	struct dentry *dentry;
-	struct sdcardfs_inode_info *info;
-	if (!d_inode(parent))
-		return;
-	info = SDCARDFS_I(d_inode(parent));
-	spin_lock(&parent->d_lock);
-	list_for_each_entry(dentry, &parent->d_subdirs, d_child) {
-		if (d_inode(dentry)) {
-			if (SDCARDFS_I(d_inode(parent))->top != SDCARDFS_I(d_inode(dentry))->top) {
-				drop_recursive(dentry);
-				d_drop(dentry);
-			}
-		}
-	}
-	spin_unlock(&parent->d_lock);
-}
-
-void fixup_top_recursive(struct dentry *parent) {
-	struct dentry *dentry;
-	struct sdcardfs_inode_info *info;
-
-	if (!d_inode(parent))
-		return;
-	info = SDCARDFS_I(d_inode(parent));
-	spin_lock(&parent->d_lock);
-	list_for_each_entry(dentry, &parent->d_subdirs, d_child) {
-		if (d_inode(dentry)) {
-			if (SDCARDFS_I(d_inode(parent))->top != SDCARDFS_I(d_inode(dentry))->top) {
-				get_derived_permission(parent, dentry);
-				fixup_tmp_permissions(d_inode(dentry));
-				fixup_top_recursive(dentry);
-			}
-		}
-	}
-	spin_unlock(&parent->d_lock);
-}
-
 /* main function for updating derived permission */
 inline void update_derived_permission_lock(struct dentry *dentry)
 {
