@@ -68,7 +68,7 @@ struct tegra_drm_client;
 struct tegra_drm_context {
 	struct tegra_drm_client *client;
 	struct host1x_channel *channel;
-	struct list_head list;
+	unsigned int id;
 };
 
 struct tegra_drm_client_ops {
