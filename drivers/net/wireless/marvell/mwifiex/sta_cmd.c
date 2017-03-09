@@ -126,12 +126,12 @@ static int mwifiex_cmd_802_11_snmp_mib(struct mwifiex_private *priv,
 	if (cmd_action == HostCmd_ACT_GEN_GET) {
 		snmp_mib->query_type = cpu_to_le16(HostCmd_ACT_GEN_GET);
 		snmp_mib->buf_size = cpu_to_le16(MAX_SNMP_BUF_SIZE);
-		le16_add_cpu(&cmd->size, MAX_SNMP_BUF_SIZE);
+		le16_unaligned_add_cpu(&cmd->size, MAX_SNMP_BUF_SIZE);
 	} else if (cmd_action == HostCmd_ACT_GEN_SET) {
 		snmp_mib->query_type = cpu_to_le16(HostCmd_ACT_GEN_SET);
 		snmp_mib->buf_size = cpu_to_le16(sizeof(u16));
 		*((__le16 *) (snmp_mib->value)) = cpu_to_le16(*ul_temp);
-		le16_add_cpu(&cmd->size, sizeof(u16));
+		le16_unaligned_add_cpu(&cmd->size, sizeof(u16));
 	}
 
 	mwifiex_dbg(priv->adapter, CMD,
@@ -1357,8 +1357,9 @@ mwifiex_cmd_802_11_subsc_evt(struct mwifiex_private *priv,
 			    subsc_evt_cfg->bcn_l_rssi_cfg.evt_freq);
 
 		pos += sizeof(struct mwifiex_ie_types_rssi_threshold);
-		le16_add_cpu(&cmd->size,
-			     sizeof(struct mwifiex_ie_types_rssi_threshold));
+		le16_unaligned_add_cpu(&cmd->size,
+				       sizeof(
+				       struct mwifiex_ie_types_rssi_threshold));
 	}
 
 	if (event_bitmap & BITMASK_BCN_RSSI_HIGH) {
@@ -1378,8 +1379,9 @@ mwifiex_cmd_802_11_subsc_evt(struct mwifiex_private *priv,
 			    subsc_evt_cfg->bcn_h_rssi_cfg.evt_freq);
 
 		pos += sizeof(struct mwifiex_ie_types_rssi_threshold);
-		le16_add_cpu(&cmd->size,
-			     sizeof(struct mwifiex_ie_types_rssi_threshold));
+		le16_unaligned_add_cpu(&cmd->size,
+				       sizeof(
+				       struct mwifiex_ie_types_rssi_threshold));
 	}
 
 	return 0;
@@ -1683,14 +1685,15 @@ mwifiex_cmd_coalesce_cfg(struct mwifiex_private *priv,
 					       sizeof(u8) + sizeof(u8));
 
 		/* Add the rule length to the command size*/
-		le16_add_cpu(&cmd->size, le16_to_cpu(rule->header.len) +
-			     sizeof(struct mwifiex_ie_types_header));
+		le16_unaligned_add_cpu(&cmd->size,
+				       le16_to_cpu(rule->header.len) +
+				       sizeof(struct mwifiex_ie_types_header));
 
 		rule = (void *)((u8 *)rule->params + length);
 	}
 
 	/* Add sizeof action, num_of_rules to total command length */
-	le16_add_cpu(&cmd->size, sizeof(u16) + sizeof(u16));
+	le16_unaligned_add_cpu(&cmd->size, sizeof(u16) + sizeof(u16));
 
 	return 0;
 }
@@ -1708,7 +1711,7 @@ mwifiex_cmd_tdls_config(struct mwifiex_private *priv,
 	cmd->command = cpu_to_le16(HostCmd_CMD_TDLS_CONFIG);
 	cmd->size = cpu_to_le16(S_DS_GEN);
 	tdls_config->tdls_action = cpu_to_le16(cmd_action);
-	le16_add_cpu(&cmd->size, sizeof(tdls_config->tdls_action));
+	le16_unaligned_add_cpu(&cmd->size, sizeof(tdls_config->tdls_action));
 
 	switch (cmd_action) {
 	case ACT_TDLS_CS_ENABLE_CONFIG:
@@ -1735,7 +1738,7 @@ mwifiex_cmd_tdls_config(struct mwifiex_private *priv,
 		return -ENOTSUPP;
 	}
 
-	le16_add_cpu(&cmd->size, len);
+	le16_unaligned_add_cpu(&cmd->size, len);
 	return 0;
 }
 
@@ -1759,7 +1762,8 @@ mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
 
 	cmd->command = cpu_to_le16(HostCmd_CMD_TDLS_OPER);
 	cmd->size = cpu_to_le16(S_DS_GEN);
-	le16_add_cpu(&cmd->size, sizeof(struct host_cmd_ds_tdls_oper));
+	le16_unaligned_add_cpu(&cmd->size,
+			       sizeof(struct host_cmd_ds_tdls_oper));
 
 	tdls_oper->reason = 0;
 	memcpy(tdls_oper->peer_mac, oper->peer_mac, ETH_ALEN);
@@ -1861,7 +1865,7 @@ mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
 		return -ENOTSUPP;
 	}
 
-	le16_add_cpu(&cmd->size, config_len);
+	le16_unaligned_add_cpu(&cmd->size, config_len);
 
 	return 0;
 }

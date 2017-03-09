@@ -153,7 +153,8 @@ int mwifiex_cmd_issue_chan_report_request(struct mwifiex_private *priv,
 
 	cmd->command = cpu_to_le16(HostCmd_CMD_CHAN_REPORT_REQUEST);
 	cmd->size = cpu_to_le16(S_DS_GEN);
-	le16_add_cpu(&cmd->size, sizeof(struct host_cmd_ds_chan_rpt_req));
+	le16_unaligned_add_cpu(&cmd->size,
+			       sizeof(struct host_cmd_ds_chan_rpt_req));
 
 	cr_req->chan_desc.start_freq = cpu_to_le16(MWIFIEX_A_BAND_START_FREQ);
 	cr_req->chan_desc.chan_num = radar_params->chandef->chan->hw_value;
