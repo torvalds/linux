@@ -29,6 +29,7 @@
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/kfifo.h>
+#include <linux/refcount.h>
 #include <scsi/iscsi_proto.h>
 #include <scsi/iscsi_if.h>
 #include <scsi/scsi_transport_iscsi.h>
@@ -139,7 +140,7 @@ struct iscsi_task {
 
 	/* state set/tested under session->lock */
 	int			state;
-	atomic_t		refcount;
+	refcount_t		refcount;
 	struct list_head	running;	/* running cmd list */
 	void			*dd_data;	/* driver/transport data */
 };
