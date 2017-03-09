@@ -254,8 +254,6 @@ struct ti_bandgap {
  * @ts_data: pointer to struct with thresholds, limits of temperature sensor
  * @registers: pointer to the list of register offsets and bitfields
  * @domain: the name of the domain where the sensor is located
- * @slope: sensor gradient slope info for hotspot extrapolation equation
- * @constant: sensor gradient const info for hotspot extrapolation equation
  * @slope_pcb: sensor gradient slope info for hotspot extrapolation equation
  *             with no external influence
  * @constant_pcb: sensor gradient const info for hotspot extrapolation equation
@@ -274,8 +272,6 @@ struct ti_temp_sensor {
 	struct temp_sensor_registers	*registers;
 	char				*domain;
 	/* for hotspot extrapolation */
-	const int			slope;
-	const int			constant;
 	const int			slope_pcb;
 	const int			constant_pcb;
 	int (*register_cooling)(struct ti_bandgap *bgp, int id);
