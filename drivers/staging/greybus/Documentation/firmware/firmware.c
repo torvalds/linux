@@ -217,13 +217,12 @@ int main(int argc, char *argv[])
 	if (argc > 2)
 		sscanf(argv[2], "%u", &fw_update_type);
 
-	if (argc > 3) {
+	if (argc > 3)
 		firmware_tag = argv[3];
-	} else if (!fw_update_type) {
+	else if (!fw_update_type)
 		firmware_tag = FW_TAG_INT_DEFAULT;
-	} else {
+	else
 		firmware_tag = FW_TAG_BCND_DEFAULT;
-	}
 
 	if (argc > 4)
 		sscanf(argv[4], "%u", &fw_timeout);
