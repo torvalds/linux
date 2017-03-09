@@ -282,6 +282,7 @@ nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx)
 			     dataserver_retrans, 4,
 			     s->nfs_client->cl_minorversion);
 	if (status) {
+		nfs4_mark_deviceid_unavailable(devid);
 		ret = NULL;
 		goto out;
 	}
