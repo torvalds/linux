@@ -343,8 +343,6 @@ static int __nvme_rdma_init_request(struct nvme_rdma_ctrl *ctrl,
 	struct ib_device *ibdev = dev->dev;
 	int ret;
 
-	BUG_ON(queue_idx >= ctrl->queue_count);
-
 	ret = nvme_rdma_alloc_qe(ibdev, &req->sqe, sizeof(struct nvme_command),
 			DMA_TO_DEVICE);
 	if (ret)
@@ -652,7 +650,21 @@ out_free_queues:
 
 static int nvme_rdma_init_io_queues(struct nvme_rdma_ctrl *ctrl)
 {
+	struct nvmf_ctrl_options *opts = ctrl->ctrl.opts;
+	unsigned int nr_io_queues;
 	int i, ret;
+
+	nr_io_queues = min(opts->nr_io_queues, num_online_cpus());
+	ret = nvme_set_queue_count(&ctrl->ctrl, &nr_io_queues);
+	if (ret)
+		return ret;
+
+	ctrl->queue_count = nr_io_queues + 1;
+	if (ctrl->queue_count < 2)
+		return 0;
+
+	dev_info(ctrl->ctrl.device,
+		"creating %d I/O queues.\n", nr_io_queues);
 
 	for (i = 1; i < ctrl->queue_count; i++) {
 		ret = nvme_rdma_init_queue(ctrl, i,
@@ -1791,19 +1803,7 @@ static const struct nvme_ctrl_ops nvme_rdma_ctrl_ops = {
 
 static int nvme_rdma_create_io_queues(struct nvme_rdma_ctrl *ctrl)
 {
-	struct nvmf_ctrl_options *opts = ctrl->ctrl.opts;
 	int ret;
-
-	ret = nvme_set_queue_count(&ctrl->ctrl, &opts->nr_io_queues);
-	if (ret)
-		return ret;
-
-	ctrl->queue_count = opts->nr_io_queues + 1;
-	if (ctrl->queue_count < 2)
-		return 0;
-
-	dev_info(ctrl->ctrl.device,
-		"creating %d I/O queues.\n", opts->nr_io_queues);
 
 	ret = nvme_rdma_init_io_queues(ctrl);
 	if (ret)
