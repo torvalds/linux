@@ -262,7 +262,7 @@ get_msg_context(struct vchiq_mmal_instance *instance)
 	msg_context = kzalloc(sizeof(*msg_context), GFP_KERNEL);
 
 	if (!msg_context)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	msg_context->instance = instance;
 	msg_context->handle =
@@ -272,7 +272,7 @@ get_msg_context(struct vchiq_mmal_instance *instance)
 
 	if (!msg_context->handle) {
 		kfree(msg_context);
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	return msg_context;
@@ -507,8 +507,8 @@ buffer_from_host(struct vchiq_mmal_instance *instance,
 
 	/* get context */
 	msg_context = get_msg_context(instance);
-	if (!msg_context) {
-		ret = -ENOMEM;
+	if (IS_ERR(msg_context)) {
+		ret = PTR_ERR(msg_context);
 		goto unlock;
 	}
 
@@ -845,8 +845,8 @@ static int send_synchronous_mmal_msg(struct vchiq_mmal_instance *instance,
 	}
 
 	msg_context = get_msg_context(instance);
-	if (!msg_context)
-		return -ENOMEM;
+	if (IS_ERR(msg_context))
+		return PTR_ERR(msg_context);
 
 	init_completion(&msg_context->u.sync.cmplt);
 
