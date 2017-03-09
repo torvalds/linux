@@ -687,6 +687,62 @@ static int uv2_3_wait_completion(struct bau_desc *bau_desc,
 }
 
 /*
+ * Returns the status of current BAU message for cpu desc as a bit field
+ * [Error][Busy][Aux]
+ */
+static u64 read_status(u64 status_mmr, int index, int desc)
+{
+	u64 stat;
+
+	stat = ((read_lmmr(status_mmr) >> index) & UV_ACT_STATUS_MASK) << 1;
+	stat |= (read_lmmr(UVH_LB_BAU_SB_ACTIVATION_STATUS_2) >> desc) & 0x1;
+
+	return stat;
+}
+
+static int uv4_wait_completion(struct bau_desc *bau_desc,
+				struct bau_control *bcp, long try)
+{
+	struct ptc_stats *stat = bcp->statp;
+	u64 descriptor_stat;
+	u64 mmr = bcp->status_mmr;
+	int index = bcp->status_index;
+	int desc = bcp->uvhub_cpu;
+
+	descriptor_stat = read_status(mmr, index, desc);
+
+	/* spin on the status MMR, waiting for it to go idle */
+	while (descriptor_stat != UV2H_DESC_IDLE) {
+		switch (descriptor_stat) {
+		case UV2H_DESC_SOURCE_TIMEOUT:
+			stat->s_stimeout++;
+			return FLUSH_GIVEUP;
+
+		case UV2H_DESC_DEST_TIMEOUT:
+			stat->s_dtimeout++;
+			bcp->conseccompletes = 0;
+			return FLUSH_RETRY_TIMEOUT;
+
+		case UV2H_DESC_DEST_STRONG_NACK:
+			stat->s_plugged++;
+			bcp->conseccompletes = 0;
+			return FLUSH_RETRY_PLUGGED;
+
+		case UV2H_DESC_DEST_PUT_ERR:
+			bcp->conseccompletes = 0;
+			return FLUSH_GIVEUP;
+
+		default:
+			/* descriptor_stat is still BUSY */
+			cpu_relax();
+		}
+		descriptor_stat = read_status(mmr, index, desc);
+	}
+	bcp->conseccompletes++;
+	return FLUSH_COMPLETE;
+}
+
+/*
  * Our retries are blocked by all destination sw ack resources being
  * in use, and a timeout is pending. In that case hardware immediately
  * returns the ERROR that looks like a destination timeout.
@@ -2157,7 +2213,7 @@ static const struct bau_operations uv4_bau_ops __initconst = {
 	.write_g_sw_ack          = write_gmmr_proc_sw_ack,
 	.write_payload_first     = write_mmr_proc_payload_first,
 	.write_payload_last      = write_mmr_proc_payload_last,
-	.wait_completion	 = uv2_3_wait_completion,
+	.wait_completion         = uv4_wait_completion,
 };
 
 /*
