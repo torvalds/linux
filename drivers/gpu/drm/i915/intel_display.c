@@ -2976,6 +2976,7 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 	unsigned int rotation = plane_state->base.rotation;
 	int x = plane_state->base.src.x1 >> 16;
 	int y = plane_state->base.src.y1 >> 16;
+	unsigned long irqflags;
 
 	dspcntr = DISPPLANE_GAMMA_ENABLE;
 
@@ -3046,37 +3047,41 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 	intel_crtc->adjusted_x = x;
 	intel_crtc->adjusted_y = y;
 
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+
 	if (INTEL_GEN(dev_priv) < 4) {
 		/* pipesrc and dspsize control the size that is scaled from,
 		 * which should always be the user's requested size.
 		 */
-		I915_WRITE(DSPSIZE(plane),
-			   ((crtc_state->pipe_src_h - 1) << 16) |
-			   (crtc_state->pipe_src_w - 1));
-		I915_WRITE(DSPPOS(plane), 0);
+		I915_WRITE_FW(DSPSIZE(plane),
+			      ((crtc_state->pipe_src_h - 1) << 16) |
+			      (crtc_state->pipe_src_w - 1));
+		I915_WRITE_FW(DSPPOS(plane), 0);
 	} else if (IS_CHERRYVIEW(dev_priv) && plane == PLANE_B) {
-		I915_WRITE(PRIMSIZE(plane),
-			   ((crtc_state->pipe_src_h - 1) << 16) |
-			   (crtc_state->pipe_src_w - 1));
-		I915_WRITE(PRIMPOS(plane), 0);
-		I915_WRITE(PRIMCNSTALPHA(plane), 0);
+		I915_WRITE_FW(PRIMSIZE(plane),
+			      ((crtc_state->pipe_src_h - 1) << 16) |
+			      (crtc_state->pipe_src_w - 1));
+		I915_WRITE_FW(PRIMPOS(plane), 0);
+		I915_WRITE_FW(PRIMCNSTALPHA(plane), 0);
 	}
 
-	I915_WRITE(reg, dspcntr);
+	I915_WRITE_FW(reg, dspcntr);
 
-	I915_WRITE(DSPSTRIDE(plane), fb->pitches[0]);
+	I915_WRITE_FW(DSPSTRIDE(plane), fb->pitches[0]);
 	if (INTEL_GEN(dev_priv) >= 4) {
-		I915_WRITE(DSPSURF(plane),
-			   intel_plane_ggtt_offset(plane_state) +
-			   intel_crtc->dspaddr_offset);
-		I915_WRITE(DSPTILEOFF(plane), (y << 16) | x);
-		I915_WRITE(DSPLINOFF(plane), linear_offset);
+		I915_WRITE_FW(DSPSURF(plane),
+			      intel_plane_ggtt_offset(plane_state) +
+			      intel_crtc->dspaddr_offset);
+		I915_WRITE_FW(DSPTILEOFF(plane), (y << 16) | x);
+		I915_WRITE_FW(DSPLINOFF(plane), linear_offset);
 	} else {
-		I915_WRITE(DSPADDR(plane),
-			   intel_plane_ggtt_offset(plane_state) +
-			   intel_crtc->dspaddr_offset);
+		I915_WRITE_FW(DSPADDR(plane),
+			      intel_plane_ggtt_offset(plane_state) +
+			      intel_crtc->dspaddr_offset);
 	}
-	POSTING_READ(reg);
+	POSTING_READ_FW(reg);
+
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 static void i9xx_disable_primary_plane(struct drm_plane *primary,
@@ -3086,13 +3091,18 @@ static void i9xx_disable_primary_plane(struct drm_plane *primary,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int plane = intel_crtc->plane;
+	unsigned long irqflags;
 
-	I915_WRITE(DSPCNTR(plane), 0);
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+
+	I915_WRITE_FW(DSPCNTR(plane), 0);
 	if (INTEL_INFO(dev_priv)->gen >= 4)
-		I915_WRITE(DSPSURF(plane), 0);
+		I915_WRITE_FW(DSPSURF(plane), 0);
 	else
-		I915_WRITE(DSPADDR(plane), 0);
-	POSTING_READ(DSPCNTR(plane));
+		I915_WRITE_FW(DSPADDR(plane), 0);
+	POSTING_READ_FW(DSPCNTR(plane));
+
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 static void ironlake_update_primary_plane(struct drm_plane *primary,
@@ -3110,6 +3120,7 @@ static void ironlake_update_primary_plane(struct drm_plane *primary,
 	unsigned int rotation = plane_state->base.rotation;
 	int x = plane_state->base.src.x1 >> 16;
 	int y = plane_state->base.src.y1 >> 16;
+	unsigned long irqflags;
 
 	dspcntr = DISPPLANE_GAMMA_ENABLE;
 	dspcntr |= DISPLAY_PLANE_ENABLE;
@@ -3166,19 +3177,23 @@ static void ironlake_update_primary_plane(struct drm_plane *primary,
 	intel_crtc->adjusted_x = x;
 	intel_crtc->adjusted_y = y;
 
-	I915_WRITE(reg, dspcntr);
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
-	I915_WRITE(DSPSTRIDE(plane), fb->pitches[0]);
-	I915_WRITE(DSPSURF(plane),
-		   intel_plane_ggtt_offset(plane_state) +
-		   intel_crtc->dspaddr_offset);
+	I915_WRITE_FW(reg, dspcntr);
+
+	I915_WRITE_FW(DSPSTRIDE(plane), fb->pitches[0]);
+	I915_WRITE_FW(DSPSURF(plane),
+		      intel_plane_ggtt_offset(plane_state) +
+		      intel_crtc->dspaddr_offset);
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
-		I915_WRITE(DSPOFFSET(plane), (y << 16) | x);
+		I915_WRITE_FW(DSPOFFSET(plane), (y << 16) | x);
 	} else {
-		I915_WRITE(DSPTILEOFF(plane), (y << 16) | x);
-		I915_WRITE(DSPLINOFF(plane), linear_offset);
+		I915_WRITE_FW(DSPTILEOFF(plane), (y << 16) | x);
+		I915_WRITE_FW(DSPLINOFF(plane), linear_offset);
 	}
-	POSTING_READ(reg);
+	POSTING_READ_FW(reg);
+
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 static u32
@@ -3343,6 +3358,7 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	int dst_y = plane_state->base.dst.y1;
 	int dst_w = drm_rect_width(&plane_state->base.dst);
 	int dst_h = drm_rect_height(&plane_state->base.dst);
+	unsigned long irqflags;
 
 	plane_ctl = PLANE_CTL_ENABLE;
 
@@ -3368,17 +3384,19 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	intel_crtc->adjusted_x = src_x;
 	intel_crtc->adjusted_y = src_y;
 
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+
 	if (IS_GEMINILAKE(dev_priv)) {
-		I915_WRITE(PLANE_COLOR_CTL(pipe, plane_id),
-			   PLANE_COLOR_PIPE_GAMMA_ENABLE |
-			   PLANE_COLOR_PIPE_CSC_ENABLE |
-			   PLANE_COLOR_PLANE_GAMMA_DISABLE);
+		I915_WRITE_FW(PLANE_COLOR_CTL(pipe, plane_id),
+			      PLANE_COLOR_PIPE_GAMMA_ENABLE |
+			      PLANE_COLOR_PIPE_CSC_ENABLE |
+			      PLANE_COLOR_PLANE_GAMMA_DISABLE);
 	}
 
-	I915_WRITE(PLANE_CTL(pipe, plane_id), plane_ctl);
-	I915_WRITE(PLANE_OFFSET(pipe, plane_id), (src_y << 16) | src_x);
-	I915_WRITE(PLANE_STRIDE(pipe, plane_id), stride);
-	I915_WRITE(PLANE_SIZE(pipe, plane_id), (src_h << 16) | src_w);
+	I915_WRITE_FW(PLANE_CTL(pipe, plane_id), plane_ctl);
+	I915_WRITE_FW(PLANE_OFFSET(pipe, plane_id), (src_y << 16) | src_x);
+	I915_WRITE_FW(PLANE_STRIDE(pipe, plane_id), stride);
+	I915_WRITE_FW(PLANE_SIZE(pipe, plane_id), (src_h << 16) | src_w);
 
 	if (scaler_id >= 0) {
 		uint32_t ps_ctrl = 0;
@@ -3386,19 +3404,21 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 		WARN_ON(!dst_w || !dst_h);
 		ps_ctrl = PS_SCALER_EN | PS_PLANE_SEL(plane_id) |
 			crtc_state->scaler_state.scalers[scaler_id].mode;
-		I915_WRITE(SKL_PS_CTRL(pipe, scaler_id), ps_ctrl);
-		I915_WRITE(SKL_PS_PWR_GATE(pipe, scaler_id), 0);
-		I915_WRITE(SKL_PS_WIN_POS(pipe, scaler_id), (dst_x << 16) | dst_y);
-		I915_WRITE(SKL_PS_WIN_SZ(pipe, scaler_id), (dst_w << 16) | dst_h);
-		I915_WRITE(PLANE_POS(pipe, plane_id), 0);
+		I915_WRITE_FW(SKL_PS_CTRL(pipe, scaler_id), ps_ctrl);
+		I915_WRITE_FW(SKL_PS_PWR_GATE(pipe, scaler_id), 0);
+		I915_WRITE_FW(SKL_PS_WIN_POS(pipe, scaler_id), (dst_x << 16) | dst_y);
+		I915_WRITE_FW(SKL_PS_WIN_SZ(pipe, scaler_id), (dst_w << 16) | dst_h);
+		I915_WRITE_FW(PLANE_POS(pipe, plane_id), 0);
 	} else {
-		I915_WRITE(PLANE_POS(pipe, plane_id), (dst_y << 16) | dst_x);
+		I915_WRITE_FW(PLANE_POS(pipe, plane_id), (dst_y << 16) | dst_x);
 	}
 
-	I915_WRITE(PLANE_SURF(pipe, plane_id),
-		   intel_plane_ggtt_offset(plane_state) + surf_addr);
+	I915_WRITE_FW(PLANE_SURF(pipe, plane_id),
+		      intel_plane_ggtt_offset(plane_state) + surf_addr);
 
-	POSTING_READ(PLANE_SURF(pipe, plane_id));
+	POSTING_READ_FW(PLANE_SURF(pipe, plane_id));
+
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 static void skylake_disable_primary_plane(struct drm_plane *primary,
@@ -3408,10 +3428,15 @@ static void skylake_disable_primary_plane(struct drm_plane *primary,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum plane_id plane_id = to_intel_plane(primary)->id;
 	enum pipe pipe = to_intel_plane(primary)->pipe;
+	unsigned long irqflags;
 
-	I915_WRITE(PLANE_CTL(pipe, plane_id), 0);
-	I915_WRITE(PLANE_SURF(pipe, plane_id), 0);
-	POSTING_READ(PLANE_SURF(pipe, plane_id));
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+
+	I915_WRITE_FW(PLANE_CTL(pipe, plane_id), 0);
+	I915_WRITE_FW(PLANE_SURF(pipe, plane_id), 0);
+	POSTING_READ_FW(PLANE_SURF(pipe, plane_id));
+
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 /* Assume fb object is pinned & idle & fenced and just update base pointers */
@@ -9175,24 +9200,24 @@ static void i845_update_cursor(struct drm_crtc *crtc, u32 base,
 		/* On these chipsets we can only modify the base/size/stride
 		 * whilst the cursor is disabled.
 		 */
-		I915_WRITE(CURCNTR(PIPE_A), 0);
-		POSTING_READ(CURCNTR(PIPE_A));
+		I915_WRITE_FW(CURCNTR(PIPE_A), 0);
+		POSTING_READ_FW(CURCNTR(PIPE_A));
 		intel_crtc->cursor_cntl = 0;
 	}
 
 	if (intel_crtc->cursor_base != base) {
-		I915_WRITE(CURBASE(PIPE_A), base);
+		I915_WRITE_FW(CURBASE(PIPE_A), base);
 		intel_crtc->cursor_base = base;
 	}
 
 	if (intel_crtc->cursor_size != size) {
-		I915_WRITE(CURSIZE, size);
+		I915_WRITE_FW(CURSIZE, size);
 		intel_crtc->cursor_size = size;
 	}
 
 	if (intel_crtc->cursor_cntl != cntl) {
-		I915_WRITE(CURCNTR(PIPE_A), cntl);
-		POSTING_READ(CURCNTR(PIPE_A));
+		I915_WRITE_FW(CURCNTR(PIPE_A), cntl);
+		POSTING_READ_FW(CURCNTR(PIPE_A));
 		intel_crtc->cursor_cntl = cntl;
 	}
 }
@@ -9232,14 +9257,14 @@ static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base,
 	}
 
 	if (intel_crtc->cursor_cntl != cntl) {
-		I915_WRITE(CURCNTR(pipe), cntl);
-		POSTING_READ(CURCNTR(pipe));
+		I915_WRITE_FW(CURCNTR(pipe), cntl);
+		POSTING_READ_FW(CURCNTR(pipe));
 		intel_crtc->cursor_cntl = cntl;
 	}
 
 	/* and commit changes on next vblank */
-	I915_WRITE(CURBASE(pipe), base);
-	POSTING_READ(CURBASE(pipe));
+	I915_WRITE_FW(CURBASE(pipe), base);
+	POSTING_READ_FW(CURBASE(pipe));
 
 	intel_crtc->cursor_base = base;
 }
@@ -9253,6 +9278,7 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
 	u32 base = intel_crtc->cursor_addr;
+	unsigned long irqflags;
 	u32 pos = 0;
 
 	if (plane_state) {
@@ -9279,12 +9305,16 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 		}
 	}
 
-	I915_WRITE(CURPOS(pipe), pos);
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+
+	I915_WRITE_FW(CURPOS(pipe), pos);
 
 	if (IS_I845G(dev_priv) || IS_I865G(dev_priv))
 		i845_update_cursor(crtc, base, plane_state);
 	else
 		i9xx_update_cursor(crtc, base, plane_state);
+
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 static bool cursor_size_ok(struct drm_i915_private *dev_priv,
