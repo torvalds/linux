@@ -104,8 +104,6 @@ struct mdp5_plane_state {
 
 	/* assigned by crtc blender */
 	enum mdp_mixer_stage_id stage;
-
-	bool pending : 1;
 };
 #define to_mdp5_plane_state(x) \
 		container_of(x, struct mdp5_plane_state, base)
@@ -232,8 +230,6 @@ int mdp5_irq_domain_init(struct mdp5_kms *mdp5_kms);
 void mdp5_irq_domain_fini(struct mdp5_kms *mdp5_kms);
 
 uint32_t mdp5_plane_get_flush(struct drm_plane *plane);
-void mdp5_plane_complete_commit(struct drm_plane *plane,
-	struct drm_plane_state *state);
 enum mdp5_pipe mdp5_plane_pipe(struct drm_plane *plane);
 struct drm_plane *mdp5_plane_init(struct drm_device *dev, bool primary);
 

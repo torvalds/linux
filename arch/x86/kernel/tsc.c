@@ -1356,6 +1356,9 @@ void __init tsc_init(void)
 		(unsigned long)cpu_khz / 1000,
 		(unsigned long)cpu_khz % 1000);
 
+	/* Sanitize TSC ADJUST before cyc2ns gets initialized */
+	tsc_store_and_check_tsc_adjust(true);
+
 	/*
 	 * Secondary CPUs do not run through tsc_init(), so set up
 	 * all the scale factors for all CPUs, assuming the same
@@ -1386,8 +1389,6 @@ void __init tsc_init(void)
 
 	if (unsynchronized_tsc())
 		mark_tsc_unstable("TSCs unsynchronized");
-	else
-		tsc_store_and_check_tsc_adjust(true);
 
 	check_system_tsc_reliable();
 

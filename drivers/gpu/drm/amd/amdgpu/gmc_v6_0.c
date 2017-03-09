@@ -44,6 +44,7 @@ MODULE_FIRMWARE("radeon/tahiti_mc.bin");
 MODULE_FIRMWARE("radeon/pitcairn_mc.bin");
 MODULE_FIRMWARE("radeon/verde_mc.bin");
 MODULE_FIRMWARE("radeon/oland_mc.bin");
+MODULE_FIRMWARE("radeon/si58_mc.bin");
 
 #define MC_SEQ_MISC0__MT__MASK   0xf0000000
 #define MC_SEQ_MISC0__MT__GDDR1  0x10000000
@@ -113,6 +114,7 @@ static int gmc_v6_0_init_microcode(struct amdgpu_device *adev)
 	const char *chip_name;
 	char fw_name[30];
 	int err;
+	bool is_58_fw = false;
 
 	DRM_DEBUG("\n");
 
@@ -135,7 +137,14 @@ static int gmc_v6_0_init_microcode(struct amdgpu_device *adev)
 	default: BUG();
 	}
 
-	snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc.bin", chip_name);
+	/* this memory configuration requires special firmware */
+	if (((RREG32(mmMC_SEQ_MISC0) & 0xff000000) >> 24) == 0x58)
+		is_58_fw = true;
+
+	if (is_58_fw)
+		snprintf(fw_name, sizeof(fw_name), "radeon/si58_mc.bin");
+	else
+		snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc.bin", chip_name);
 	err = request_firmware(&adev->mc.fw, fw_name, adev->dev);
 	if (err)
 		goto out;
@@ -245,6 +254,9 @@ static void gmc_v6_0_mc_program(struct amdgpu_device *adev)
 	}
 	WREG32(mmHDP_REG_COHERENCY_FLUSH_CNTL, 0);
 
+	if (adev->mode_info.num_crtc)
+		amdgpu_display_set_vga_render_state(adev, false);
+
 	gmc_v6_0_mc_stop(adev, &save);
 
 	if (gmc_v6_0_wait_for_idle((void *)adev)) {
@@ -274,7 +286,6 @@ static void gmc_v6_0_mc_program(struct amdgpu_device *adev)
 		dev_warn(adev->dev, "Wait for MC idle timedout !\n");
 	}
 	gmc_v6_0_mc_resume(adev, &save);
-	amdgpu_display_set_vga_render_state(adev, false);
 }
 
 static int gmc_v6_0_mc_init(struct amdgpu_device *adev)
@@ -463,19 +474,11 @@ static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 	WREG32(mmVM_CONTEXT1_CNTL,
 	       VM_CONTEXT1_CNTL__ENABLE_CONTEXT_MASK |
 	       (1UL << VM_CONTEXT1_CNTL__PAGE_TABLE_DEPTH__SHIFT) |
-	       ((amdgpu_vm_block_size - 9) << VM_CONTEXT1_CNTL__PAGE_TABLE_BLOCK_SIZE__SHIFT) |
-	       VM_CONTEXT1_CNTL__RANGE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-	       VM_CONTEXT1_CNTL__RANGE_PROTECTION_FAULT_ENABLE_DEFAULT_MASK |
-	       VM_CONTEXT1_CNTL__DUMMY_PAGE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-	       VM_CONTEXT1_CNTL__DUMMY_PAGE_PROTECTION_FAULT_ENABLE_DEFAULT_MASK |
-	       VM_CONTEXT1_CNTL__PDE0_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-	       VM_CONTEXT1_CNTL__PDE0_PROTECTION_FAULT_ENABLE_DEFAULT_MASK |
-	       VM_CONTEXT1_CNTL__VALID_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-	       VM_CONTEXT1_CNTL__VALID_PROTECTION_FAULT_ENABLE_DEFAULT_MASK |
-	       VM_CONTEXT1_CNTL__READ_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-	       VM_CONTEXT1_CNTL__READ_PROTECTION_FAULT_ENABLE_DEFAULT_MASK |
-	       VM_CONTEXT1_CNTL__WRITE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-	       VM_CONTEXT1_CNTL__WRITE_PROTECTION_FAULT_ENABLE_DEFAULT_MASK);
+	       ((amdgpu_vm_block_size - 9) << VM_CONTEXT1_CNTL__PAGE_TABLE_BLOCK_SIZE__SHIFT));
+	if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_ALWAYS)
+		gmc_v6_0_set_fault_enable_default(adev, false);
+	else
+		gmc_v6_0_set_fault_enable_default(adev, true);
 
 	gmc_v6_0_gart_flush_gpu_tlb(adev, 0);
 	dev_info(adev->dev, "PCIE GART of %uM enabled (table at 0x%016llX).\n",
@@ -754,7 +757,10 @@ static int gmc_v6_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	return amdgpu_irq_get(adev, &adev->mc.vm_fault, 0);
+	if (amdgpu_vm_fault_stop != AMDGPU_VM_FAULT_STOP_ALWAYS)
+		return amdgpu_irq_get(adev, &adev->mc.vm_fault, 0);
+	else
+		return 0;
 }
 
 static int gmc_v6_0_sw_init(void *handle)

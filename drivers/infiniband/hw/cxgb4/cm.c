@@ -1804,20 +1804,21 @@ static int rx_data(struct c4iw_dev *dev, struct sk_buff *skb)
 	skb_trim(skb, dlen);
 	mutex_lock(&ep->com.mutex);
 
-	/* update RX credits */
-	update_rx_credits(ep, dlen);
-
 	switch (ep->com.state) {
 	case MPA_REQ_SENT:
+		update_rx_credits(ep, dlen);
 		ep->rcv_seq += dlen;
 		disconnect = process_mpa_reply(ep, skb);
 		break;
 	case MPA_REQ_WAIT:
+		update_rx_credits(ep, dlen);
 		ep->rcv_seq += dlen;
 		disconnect = process_mpa_request(ep, skb);
 		break;
 	case FPDU_MODE: {
 		struct c4iw_qp_attributes attrs;
+
+		update_rx_credits(ep, dlen);
 		BUG_ON(!ep->com.qp);
 		if (status)
 			pr_err("%s Unexpected streaming data." \

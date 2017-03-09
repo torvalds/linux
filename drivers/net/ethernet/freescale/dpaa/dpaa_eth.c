@@ -1668,7 +1668,7 @@ static struct sk_buff *sg_fd_to_skb(const struct dpaa_priv *priv,
 
 free_buffers:
 	/* compensate sw bpool counter changes */
-	for (i--; i > 0; i--) {
+	for (i--; i >= 0; i--) {
 		dpaa_bp = dpaa_bpid2pool(sgt[i].bpid);
 		if (dpaa_bp) {
 			count_ptr = this_cpu_ptr(dpaa_bp->percpu_count);

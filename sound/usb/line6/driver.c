@@ -754,8 +754,9 @@ int line6_probe(struct usb_interface *interface,
 		goto error;
 	}
 
+	line6_get_interval(line6);
+
 	if (properties->capabilities & LINE6_CAP_CONTROL) {
-		line6_get_interval(line6);
 		ret = line6_init_cap_control(line6);
 		if (ret < 0)
 			goto error;

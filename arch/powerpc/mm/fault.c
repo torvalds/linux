@@ -253,8 +253,11 @@ int do_page_fault(struct pt_regs *regs, unsigned long address,
 	if (unlikely(debugger_fault_handler(regs)))
 		goto bail;
 
-	/* On a kernel SLB miss we can only check for a valid exception entry */
-	if (!user_mode(regs) && (address >= TASK_SIZE)) {
+	/*
+	 * The kernel should never take an execute fault nor should it
+	 * take a page fault to a kernel address.
+	 */
+	if (!user_mode(regs) && (is_exec || (address >= TASK_SIZE))) {
 		rc = SIGSEGV;
 		goto bail;
 	}
@@ -390,20 +393,6 @@ good_area:
 #endif /* CONFIG_8xx */
 
 	if (is_exec) {
-		/*
-		 * An execution fault + no execute ?
-		 *
-		 * On CPUs that don't have CPU_FTR_COHERENT_ICACHE we
-		 * deliberately create NX mappings, and use the fault to do the
-		 * cache flush. This is usually handled in hash_page_do_lazy_icache()
-		 * but we could end up here if that races with a concurrent PTE
-		 * update. In that case we need to fall through here to the VMA
-		 * check below.
-		 */
-		if (cpu_has_feature(CPU_FTR_COHERENT_ICACHE) &&
-			(regs->msr & SRR1_ISI_N_OR_G))
-			goto bad_area;
-
 		/*
 		 * Allow execution from readable areas if the MMU does not
 		 * provide separate controls over reading and executing.
