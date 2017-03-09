@@ -1102,6 +1102,7 @@ static u32 vlv_wa_c0_ei(struct drm_i915_private *dev_priv, u32 pm_iir)
 
 	if (prev->cz_clock) {
 		u64 time, c0;
+		u32 render, media;
 		unsigned int mul;
 
 		mul = VLV_CZ_CLOCK_TO_MILLI_SEC * 100; /* scale to threshold% */
@@ -1116,8 +1117,9 @@ static u32 vlv_wa_c0_ei(struct drm_i915_private *dev_priv, u32 pm_iir)
 		 * mesa. To account for this we need to combine both engines
 		 * into our activity counter.
 		 */
-		c0 = now.render_c0 - prev->render_c0;
-		c0 += now.media_c0 - prev->media_c0;
+		render = now.render_c0 - prev->render_c0;
+		media = now.media_c0 - prev->media_c0;
+		c0 = max(render, media);
 		c0 *= mul;
 
 		if (c0 > time * dev_priv->rps.up_threshold)
