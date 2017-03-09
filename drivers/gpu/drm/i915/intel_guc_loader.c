@@ -109,26 +109,6 @@ static void guc_interrupts_release(struct drm_i915_private *dev_priv)
 	I915_WRITE(GUC_WD_VECS_IER, 0);
 }
 
-static void guc_interrupts_capture(struct drm_i915_private *dev_priv)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	int irqs;
-
-	/* tell all command streamers to forward interrupts (but not vblank) to GuC */
-	irqs = _MASKED_BIT_ENABLE(GFX_INTERRUPT_STEERING);
-	for_each_engine(engine, dev_priv, id)
-		I915_WRITE(RING_MODE_GEN7(engine), irqs);
-
-	/* route USER_INTERRUPT to Host, all others are sent to GuC. */
-	irqs = GT_RENDER_USER_INTERRUPT << GEN8_RCS_IRQ_SHIFT |
-	       GT_RENDER_USER_INTERRUPT << GEN8_BCS_IRQ_SHIFT;
-	/* These three registers have the same bit definitions */
-	I915_WRITE(GUC_BCS_RCS_IER, ~irqs);
-	I915_WRITE(GUC_VCS2_VCS1_IER, ~irqs);
-	I915_WRITE(GUC_WD_VECS_IER, ~irqs);
-}
-
 static u32 get_gttype(struct drm_i915_private *dev_priv)
 {
 	/* XXX: GT type based on PCI device ID? field seems unused by fw */
@@ -503,7 +483,6 @@ int intel_guc_setup(struct drm_i915_private *dev_priv)
 		err = i915_guc_submission_enable(dev_priv);
 		if (err)
 			goto fail;
-		guc_interrupts_capture(dev_priv);
 	}
 
 	DRM_INFO("GuC %s (firmware %s [version %u.%u])\n",
