@@ -1,0 +1,20 @@
+/*
+ * Device Tree Source for OMAP3 SoC CPU thermal
+ *
+ * Copyright (C) 2017 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+#include <dt-bindings/thermal/thermal.h>
+
+cpu_thermal: cpu_thermal {
+	polling-delay-passive = <250>; /* milliseconds */
+	polling-delay = <1000>; /* milliseconds */
+	coefficients = <0 20000>;
+
+			/* sensor       ID */
+	thermal-sensors = <&bandgap     0>;
+};
