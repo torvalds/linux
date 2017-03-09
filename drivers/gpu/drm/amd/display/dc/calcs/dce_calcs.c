@@ -796,11 +796,11 @@ static void calculate_bandwidth(
 			}
 			else if (bw_leq(data->vsr[i], bw_int_to_fixed(1))) {
 				data->lb_lines_in_per_line_out_in_middle_of_frame[i] = bw_int_to_fixed(1);
-			}
-			else if (bw_leq(data->vsr[i], bw_int_to_fixed(4 / 3))) {
+			} else if (bw_leq(data->vsr[i],
+					bw_frc_to_fixed(4, 3))) {
 				data->lb_lines_in_per_line_out_in_middle_of_frame[i] = bw_div(bw_int_to_fixed(4), bw_int_to_fixed(3));
-			}
-			else if (bw_leq(data->vsr[i], bw_int_to_fixed(6 / 4))) {
+			} else if (bw_leq(data->vsr[i],
+					bw_frc_to_fixed(6, 4))) {
 				data->lb_lines_in_per_line_out_in_middle_of_frame[i] = bw_div(bw_int_to_fixed(6), bw_int_to_fixed(4));
 			}
 			else if (bw_leq(data->vsr[i], bw_int_to_fixed(2))) {
