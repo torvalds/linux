@@ -3464,7 +3464,12 @@ __intel_display_resume(struct drm_device *dev,
 	if (!state)
 		return 0;
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+	/*
+	 * We've duplicated the state, pointers to the old state are invalid.
+	 *
+	 * Don't attempt to use the old state until we commit the duplicated state.
+	 */
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		/*
 		 * Force recalculation even if we restore
 		 * current state. With fast modeset this may not result
@@ -5002,13 +5007,12 @@ static void intel_post_plane_update(struct intel_crtc_state *old_crtc_state)
 	}
 }
 
-static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state)
+static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
+				   struct intel_crtc_state *pipe_config)
 {
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->base.crtc);
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc_state *pipe_config =
-		to_intel_crtc_state(crtc->base.state);
 	struct drm_atomic_state *old_state = old_crtc_state->base.state;
 	struct drm_plane *primary = crtc->base.primary;
 	struct drm_plane_state *old_pri_state =
@@ -5105,12 +5109,11 @@ static void intel_encoders_pre_pll_enable(struct drm_crtc *crtc,
 					  struct intel_crtc_state *crtc_state,
 					  struct drm_atomic_state *old_state)
 {
-	struct drm_connector_state *old_conn_state;
+	struct drm_connector_state *conn_state;
 	struct drm_connector *conn;
 	int i;
 
-	for_each_connector_in_state(old_state, conn, old_conn_state, i) {
-		struct drm_connector_state *conn_state = conn->state;
+	for_each_new_connector_in_state(old_state, conn, conn_state, i) {
 		struct intel_encoder *encoder =
 			to_intel_encoder(conn_state->best_encoder);
 
@@ -5126,12 +5129,11 @@ static void intel_encoders_pre_enable(struct drm_crtc *crtc,
 				      struct intel_crtc_state *crtc_state,
 				      struct drm_atomic_state *old_state)
 {
-	struct drm_connector_state *old_conn_state;
+	struct drm_connector_state *conn_state;
 	struct drm_connector *conn;
 	int i;
 
-	for_each_connector_in_state(old_state, conn, old_conn_state, i) {
-		struct drm_connector_state *conn_state = conn->state;
+	for_each_new_connector_in_state(old_state, conn, conn_state, i) {
 		struct intel_encoder *encoder =
 			to_intel_encoder(conn_state->best_encoder);
 
@@ -5147,12 +5149,11 @@ static void intel_encoders_enable(struct drm_crtc *crtc,
 				  struct intel_crtc_state *crtc_state,
 				  struct drm_atomic_state *old_state)
 {
-	struct drm_connector_state *old_conn_state;
+	struct drm_connector_state *conn_state;
 	struct drm_connector *conn;
 	int i;
 
-	for_each_connector_in_state(old_state, conn, old_conn_state, i) {
-		struct drm_connector_state *conn_state = conn->state;
+	for_each_new_connector_in_state(old_state, conn, conn_state, i) {
 		struct intel_encoder *encoder =
 			to_intel_encoder(conn_state->best_encoder);
 
@@ -5172,7 +5173,7 @@ static void intel_encoders_disable(struct drm_crtc *crtc,
 	struct drm_connector *conn;
 	int i;
 
-	for_each_connector_in_state(old_state, conn, old_conn_state, i) {
+	for_each_old_connector_in_state(old_state, conn, old_conn_state, i) {
 		struct intel_encoder *encoder =
 			to_intel_encoder(old_conn_state->best_encoder);
 
@@ -5192,7 +5193,7 @@ static void intel_encoders_post_disable(struct drm_crtc *crtc,
 	struct drm_connector *conn;
 	int i;
 
-	for_each_connector_in_state(old_state, conn, old_conn_state, i) {
+	for_each_old_connector_in_state(old_state, conn, old_conn_state, i) {
 		struct intel_encoder *encoder =
 			to_intel_encoder(old_conn_state->best_encoder);
 
@@ -5212,7 +5213,7 @@ static void intel_encoders_post_pll_disable(struct drm_crtc *crtc,
 	struct drm_connector *conn;
 	int i;
 
-	for_each_connector_in_state(old_state, conn, old_conn_state, i) {
+	for_each_old_connector_in_state(old_state, conn, old_conn_state, i) {
 		struct intel_encoder *encoder =
 			to_intel_encoder(old_conn_state->best_encoder);
 
@@ -10877,7 +10878,7 @@ static bool check_single_encoder_cloning(struct drm_atomic_state *state,
 	struct drm_connector_state *connector_state;
 	int i;
 
-	for_each_connector_in_state(state, connector, connector_state, i) {
+	for_each_new_connector_in_state(state, connector, connector_state, i) {
 		if (connector_state->crtc != &crtc->base)
 			continue;
 
@@ -11051,7 +11052,7 @@ compute_baseline_pipe_bpp(struct intel_crtc *crtc,
 	state = pipe_config->base.state;
 
 	/* Clamp display bpp to EDID value */
-	for_each_connector_in_state(state, connector, connector_state, i) {
+	for_each_new_connector_in_state(state, connector, connector_state, i) {
 		if (connector_state->crtc != &crtc->base)
 			continue;
 
@@ -11324,7 +11325,7 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 			       &pipe_config->pipe_src_w,
 			       &pipe_config->pipe_src_h);
 
-	for_each_connector_in_state(state, connector, connector_state, i) {
+	for_each_new_connector_in_state(state, connector, connector_state, i) {
 		if (connector_state->crtc != crtc)
 			continue;
 
@@ -11355,7 +11356,7 @@ encoder_retry:
 	 * adjust it according to limitations or connector properties, and also
 	 * a chance to reject the mode entirely.
 	 */
-	for_each_connector_in_state(state, connector, connector_state, i) {
+	for_each_new_connector_in_state(state, connector, connector_state, i) {
 		if (connector_state->crtc != crtc)
 			continue;
 
@@ -11407,16 +11408,16 @@ static void
 intel_modeset_update_crtc_state(struct drm_atomic_state *state)
 {
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_state *new_crtc_state;
 	int i;
 
 	/* Double check state. */
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		to_intel_crtc(crtc)->config = to_intel_crtc_state(crtc->state);
+	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
+		to_intel_crtc(crtc)->config = to_intel_crtc_state(new_crtc_state);
 
 		/* Update hwmode for vblank functions */
-		if (crtc->state->active)
-			crtc->hwmode = crtc->state->adjusted_mode;
+		if (new_crtc_state->active)
+			crtc->hwmode = new_crtc_state->adjusted_mode;
 		else
 			crtc->hwmode.crtc_clock = 0;
 
@@ -11889,19 +11890,18 @@ verify_connector_state(struct drm_device *dev,
 		       struct drm_crtc *crtc)
 {
 	struct drm_connector *connector;
-	struct drm_connector_state *old_conn_state;
+	struct drm_connector_state *new_conn_state;
 	int i;
 
-	for_each_connector_in_state(state, connector, old_conn_state, i) {
+	for_each_new_connector_in_state(state, connector, new_conn_state, i) {
 		struct drm_encoder *encoder = connector->encoder;
-		struct drm_connector_state *state = connector->state;
 
-		if (state->crtc != crtc)
+		if (new_conn_state->crtc != crtc)
 			continue;
 
 		intel_connector_verify_state(to_intel_connector(connector));
 
-		I915_STATE_WARN(state->best_encoder != encoder,
+		I915_STATE_WARN(new_conn_state->best_encoder != encoder,
 		     "connector's atomic encoder doesn't match legacy encoder\n");
 	}
 }
@@ -12187,21 +12187,21 @@ static void intel_modeset_clear_plls(struct drm_atomic_state *state)
 	struct drm_device *dev = state->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	int i;
 
 	if (!dev_priv->display.crtc_compute_clock)
 		return;
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 		struct intel_shared_dpll *old_dpll =
-			to_intel_crtc_state(crtc->state)->shared_dpll;
+			to_intel_crtc_state(old_crtc_state)->shared_dpll;
 
-		if (!needs_modeset(crtc_state))
+		if (!needs_modeset(new_crtc_state))
 			continue;
 
-		to_intel_crtc_state(crtc_state)->shared_dpll = NULL;
+		to_intel_crtc_state(new_crtc_state)->shared_dpll = NULL;
 
 		if (!old_dpll)
 			continue;
@@ -12227,7 +12227,7 @@ static int haswell_mode_set_planes_workaround(struct drm_atomic_state *state)
 	int i;
 
 	/* look at all crtc's that are going to be enabled in during modeset */
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		intel_crtc = to_intel_crtc(crtc);
 
 		if (!crtc_state->active || !needs_modeset(crtc_state))
@@ -12329,7 +12329,7 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct drm_i915_private *dev_priv = to_i915(state->dev);
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	int ret = 0, i;
 
 	if (!check_digital_port_conflicts(state)) {
@@ -12342,13 +12342,13 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 	intel_state->cdclk.logical = dev_priv->cdclk.logical;
 	intel_state->cdclk.actual = dev_priv->cdclk.actual;
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		if (crtc_state->active)
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		if (new_crtc_state->active)
 			intel_state->active_crtcs |= 1 << i;
 		else
 			intel_state->active_crtcs &= ~(1 << i);
 
-		if (crtc_state->active != crtc->state->active)
+		if (old_crtc_state->active != new_crtc_state->active)
 			intel_state->active_pipe_changes |= drm_crtc_mask(crtc);
 	}
 
@@ -12427,7 +12427,7 @@ static int intel_atomic_check(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_state *old_crtc_state, *crtc_state;
 	int ret, i;
 	bool any_ms = false;
 
@@ -12435,12 +12435,12 @@ static int intel_atomic_check(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, crtc_state, i) {
 		struct intel_crtc_state *pipe_config =
 			to_intel_crtc_state(crtc_state);
 
 		/* Catch I915_MODE_FLAG_INHERITED */
-		if (crtc_state->mode.private_flags != crtc->state->mode.private_flags)
+		if (crtc_state->mode.private_flags != old_crtc_state->mode.private_flags)
 			crtc_state->mode_changed = true;
 
 		if (!needs_modeset(crtc_state))
@@ -12467,10 +12467,10 @@ static int intel_atomic_check(struct drm_device *dev,
 
 		if (i915.fastboot &&
 		    intel_pipe_config_compare(dev_priv,
-					to_intel_crtc_state(crtc->state),
+					to_intel_crtc_state(old_crtc_state),
 					pipe_config, true)) {
 			crtc_state->mode_changed = false;
-			to_intel_crtc_state(crtc_state)->update_pipe = true;
+			pipe_config->update_pipe = true;
 		}
 
 		if (needs_modeset(crtc_state))
@@ -12510,7 +12510,7 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	int i, ret;
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		if (state->legacy_cursor_update)
 			continue;
 
@@ -12607,19 +12607,21 @@ static bool needs_vblank_wait(struct intel_crtc_state *crtc_state)
 static void intel_update_crtc(struct drm_crtc *crtc,
 			      struct drm_atomic_state *state,
 			      struct drm_crtc_state *old_crtc_state,
+			      struct drm_crtc_state *new_crtc_state,
 			      unsigned int *crtc_vblank_mask)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_crtc_state *pipe_config = to_intel_crtc_state(crtc->state);
-	bool modeset = needs_modeset(crtc->state);
+	struct intel_crtc_state *pipe_config = to_intel_crtc_state(new_crtc_state);
+	bool modeset = needs_modeset(new_crtc_state);
 
 	if (modeset) {
 		update_scanline_offset(intel_crtc);
 		dev_priv->display.crtc_enable(pipe_config, state);
 	} else {
-		intel_pre_plane_update(to_intel_crtc_state(old_crtc_state));
+		intel_pre_plane_update(to_intel_crtc_state(old_crtc_state),
+				       pipe_config);
 	}
 
 	if (drm_atomic_get_existing_plane_state(state, crtc->primary)) {
@@ -12638,15 +12640,15 @@ static void intel_update_crtcs(struct drm_atomic_state *state,
 			       unsigned int *crtc_vblank_mask)
 {
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *old_crtc_state;
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	int i;
 
-	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
-		if (!crtc->state->active)
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		if (!new_crtc_state->active)
 			continue;
 
 		intel_update_crtc(crtc, state, old_crtc_state,
-				  crtc_vblank_mask);
+				  new_crtc_state, crtc_vblank_mask);
 	}
 }
 
@@ -12657,7 +12659,7 @@ static void skl_update_crtcs(struct drm_atomic_state *state,
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct drm_crtc *crtc;
 	struct intel_crtc *intel_crtc;
-	struct drm_crtc_state *old_crtc_state;
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	struct intel_crtc_state *cstate;
 	unsigned int updated = 0;
 	bool progress;
@@ -12666,9 +12668,9 @@ static void skl_update_crtcs(struct drm_atomic_state *state,
 
 	const struct skl_ddb_entry *entries[I915_MAX_PIPES] = {};
 
-	for_each_crtc_in_state(state, crtc, old_crtc_state, i)
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i)
 		/* ignore allocations for crtc's that have been turned off. */
-		if (crtc->state->active)
+		if (new_crtc_state->active)
 			entries[i] = &to_intel_crtc_state(old_crtc_state)->wm.skl.ddb;
 
 	/*
@@ -12680,7 +12682,7 @@ static void skl_update_crtcs(struct drm_atomic_state *state,
 	do {
 		progress = false;
 
-		for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
+		for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 			bool vbl_wait = false;
 			unsigned int cmask = drm_crtc_mask(crtc);
 
@@ -12705,12 +12707,12 @@ static void skl_update_crtcs(struct drm_atomic_state *state,
 			 */
 			if (!skl_ddb_entry_equal(&cstate->wm.skl.ddb,
 						 &to_intel_crtc_state(old_crtc_state)->wm.skl.ddb) &&
-			    !crtc->state->active_changed &&
+			    !new_crtc_state->active_changed &&
 			    intel_state->wm_results.dirty_pipes != updated)
 				vbl_wait = true;
 
 			intel_update_crtc(crtc, state, old_crtc_state,
-					  crtc_vblank_mask);
+					  new_crtc_state, crtc_vblank_mask);
 
 			if (vbl_wait)
 				intel_wait_for_vblank(dev_priv, pipe);
@@ -12743,7 +12745,7 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 	struct drm_device *dev = state->dev;
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_crtc_state *old_crtc_state;
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	struct drm_crtc *crtc;
 	struct intel_crtc_state *intel_cstate;
 	bool hw_check = intel_state->modeset;
@@ -12756,22 +12758,23 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 	if (intel_state->modeset)
 		intel_display_power_get(dev_priv, POWER_DOMAIN_MODESET);
 
-	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
-		if (needs_modeset(crtc->state) ||
-		    to_intel_crtc_state(crtc->state)->update_pipe) {
+		if (needs_modeset(new_crtc_state) ||
+		    to_intel_crtc_state(new_crtc_state)->update_pipe) {
 			hw_check = true;
 
 			put_domains[to_intel_crtc(crtc)->pipe] =
 				modeset_get_crtc_power_domains(crtc,
-					to_intel_crtc_state(crtc->state));
+					to_intel_crtc_state(new_crtc_state));
 		}
 
-		if (!needs_modeset(crtc->state))
+		if (!needs_modeset(new_crtc_state))
 			continue;
 
-		intel_pre_plane_update(to_intel_crtc_state(old_crtc_state));
+		intel_pre_plane_update(to_intel_crtc_state(old_crtc_state),
+				       to_intel_crtc_state(new_crtc_state));
 
 		if (old_crtc_state->active) {
 			intel_crtc_disable_planes(crtc, old_crtc_state->plane_mask);
@@ -12821,16 +12824,16 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 	}
 
 	/* Complete the events for pipes that have now been disabled */
-	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
-		bool modeset = needs_modeset(crtc->state);
+	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
+		bool modeset = needs_modeset(new_crtc_state);
 
 		/* Complete events for now disable pipes here. */
-		if (modeset && !crtc->state->active && crtc->state->event) {
+		if (modeset && !new_crtc_state->active && new_crtc_state->event) {
 			spin_lock_irq(&dev->event_lock);
-			drm_crtc_send_vblank_event(crtc, crtc->state->event);
+			drm_crtc_send_vblank_event(crtc, new_crtc_state->event);
 			spin_unlock_irq(&dev->event_lock);
 
-			crtc->state->event = NULL;
+			new_crtc_state->event = NULL;
 		}
 	}
 
@@ -12856,21 +12859,21 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 	 *
 	 * TODO: Move this (and other cleanup) to an async worker eventually.
 	 */
-	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
-		intel_cstate = to_intel_crtc_state(crtc->state);
+	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
+		intel_cstate = to_intel_crtc_state(new_crtc_state);
 
 		if (dev_priv->display.optimize_watermarks)
 			dev_priv->display.optimize_watermarks(intel_state,
 							      intel_cstate);
 	}
 
-	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		intel_post_plane_update(to_intel_crtc_state(old_crtc_state));
 
 		if (put_domains[i])
 			modeset_put_power_domains(dev_priv, put_domains[i]);
 
-		intel_modeset_verify_crtc(crtc, state, old_crtc_state, crtc->state);
+		intel_modeset_verify_crtc(crtc, state, old_crtc_state, new_crtc_state);
 	}
 
 	if (intel_state->modeset && intel_can_enable_sagv(state))
@@ -12942,13 +12945,13 @@ intel_atomic_commit_ready(struct i915_sw_fence *fence,
 
 static void intel_atomic_track_fbs(struct drm_atomic_state *state)
 {
-	struct drm_plane_state *old_plane_state;
+	struct drm_plane_state *old_plane_state, *new_plane_state;
 	struct drm_plane *plane;
 	int i;
 
-	for_each_plane_in_state(state, plane, old_plane_state, i)
+	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i)
 		i915_gem_track_fb(intel_fb_obj(old_plane_state->fb),
-				  intel_fb_obj(plane->state->fb),
+				  intel_fb_obj(new_plane_state->fb),
 				  to_intel_plane(plane)->frontbuffer_bit);
 }
 
@@ -14890,7 +14893,7 @@ retry:
 	}
 
 	/* Write calculated watermark values back */
-	for_each_crtc_in_state(state, crtc, cstate, i) {
+	for_each_new_crtc_in_state(state, crtc, cstate, i) {
 		struct intel_crtc_state *cs = to_intel_crtc_state(cstate);
 
 		cs->wm.need_postvbl_update = true;
