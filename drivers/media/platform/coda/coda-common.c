@@ -1405,7 +1405,7 @@ int coda_alloc_aux_buf(struct coda_dev *dev, struct coda_aux_buf *buf,
 					GFP_KERNEL);
 	if (!buf->vaddr) {
 		v4l2_err(&dev->v4l2_dev,
-			 "Failed to allocate %s buffer of size %u\n",
+			 "Failed to allocate %s buffer of size %zu\n",
 			 name, size);
 		return -ENOMEM;
 	}
