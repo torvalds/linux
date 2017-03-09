@@ -601,8 +601,12 @@ struct uvhub_desc {
 	struct socket_desc	socket[2];
 };
 
-/*
- * one per-cpu; to locate the software tables
+/**
+ * struct bau_control
+ * @status_mmr: location of status mmr, determined by uvhub_cpu
+ * @status_index: index of ERR|BUSY bits in status mmr, determined by uvhub_cpu
+ *
+ * Per-cpu control struct containing CPU topology information and BAU tuneables.
  */
 struct bau_control {
 	struct bau_desc		*descriptor_base;
@@ -620,6 +624,8 @@ struct bau_control {
 	int			timeout_tries;
 	int			ipi_attempts;
 	int			conseccompletes;
+	u64			status_mmr;
+	int			status_index;
 	bool			nobau;
 	short			baudisabled;
 	short			cpu;

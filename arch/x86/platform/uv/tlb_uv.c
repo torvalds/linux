@@ -527,11 +527,12 @@ static unsigned long uv1_read_status(unsigned long mmr_offset, int right_shift)
  * return COMPLETE, RETRY(PLUGGED or TIMEOUT) or GIVEUP
  */
 static int uv1_wait_completion(struct bau_desc *bau_desc,
-				unsigned long mmr_offset, int right_shift,
 				struct bau_control *bcp, long try)
 {
 	unsigned long descriptor_status;
 	cycles_t ttm;
+	u64 mmr_offset = bcp->status_mmr;
+	int right_shift = bcp->status_index;
 	struct ptc_stats *stat = bcp->statp;
 
 	descriptor_status = uv1_read_status(mmr_offset, right_shift);
@@ -619,11 +620,12 @@ int handle_uv2_busy(struct bau_control *bcp)
 }
 
 static int uv2_3_wait_completion(struct bau_desc *bau_desc,
-				unsigned long mmr_offset, int right_shift,
 				struct bau_control *bcp, long try)
 {
 	unsigned long descriptor_stat;
 	cycles_t ttm;
+	u64 mmr_offset = bcp->status_mmr;
+	int right_shift = bcp->status_index;
 	int desc = bcp->uvhub_cpu;
 	long busy_reps = 0;
 	struct ptc_stats *stat = bcp->statp;
@@ -684,29 +686,12 @@ static int uv2_3_wait_completion(struct bau_desc *bau_desc,
 	return FLUSH_COMPLETE;
 }
 
-/*
- * There are 2 status registers; each and array[32] of 2 bits. Set up for
- * which register to read and position in that register based on cpu in
- * current hub.
- */
 static int wait_completion(struct bau_desc *bau_desc, struct bau_control *bcp, long try)
 {
-	int right_shift;
-	unsigned long mmr_offset;
-	int desc = bcp->uvhub_cpu;
-
-	if (desc < UV_CPUS_PER_AS) {
-		mmr_offset = UVH_LB_BAU_SB_ACTIVATION_STATUS_0;
-		right_shift = desc * UV_ACT_STATUS_SIZE;
-	} else {
-		mmr_offset = UVH_LB_BAU_SB_ACTIVATION_STATUS_1;
-		right_shift = ((desc - UV_CPUS_PER_AS) * UV_ACT_STATUS_SIZE);
-	}
-
 	if (bcp->uvhub_version == UV_BAU_V1)
-		return uv1_wait_completion(bau_desc, mmr_offset, right_shift, bcp, try);
+		return uv1_wait_completion(bau_desc, bcp, try);
 	else
-		return uv2_3_wait_completion(bau_desc, mmr_offset, right_shift, bcp, try);
+		return uv2_3_wait_completion(bau_desc, bcp, try);
 }
 
 /*
@@ -2024,8 +2009,7 @@ static int scan_sock(struct socket_desc *sdp, struct uvhub_desc *bdp,
 			struct bau_control **smasterp,
 			struct bau_control **hmasterp)
 {
-	int i;
-	int cpu;
+	int i, cpu, uvhub_cpu;
 	struct bau_control *bcp;
 
 	for (i = 0; i < sdp->num_cpus; i++) {
@@ -2054,7 +2038,21 @@ static int scan_sock(struct socket_desc *sdp, struct uvhub_desc *bdp,
 			return 1;
 		}
 		bcp->uvhub_master = *hmasterp;
-		bcp->uvhub_cpu = uv_cpu_blade_processor_id(cpu);
+		uvhub_cpu = uv_cpu_blade_processor_id(cpu);
+		bcp->uvhub_cpu = uvhub_cpu;
+
+		/*
+		 * The ERROR and BUSY status registers are located pairwise over
+		 * the STATUS_0 and STATUS_1 mmrs; each an array[32] of 2 bits.
+		 */
+		if (uvhub_cpu < UV_CPUS_PER_AS) {
+			bcp->status_mmr = UVH_LB_BAU_SB_ACTIVATION_STATUS_0;
+			bcp->status_index = uvhub_cpu * UV_ACT_STATUS_SIZE;
+		} else {
+			bcp->status_mmr = UVH_LB_BAU_SB_ACTIVATION_STATUS_1;
+			bcp->status_index = (uvhub_cpu - UV_CPUS_PER_AS)
+						* UV_ACT_STATUS_SIZE;
+		}
 
 		if (bcp->uvhub_cpu >= MAX_CPUS_PER_UVHUB) {
 			pr_emerg("%d cpus per uvhub invalid\n",
