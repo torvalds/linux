@@ -1470,7 +1470,7 @@ static int intel_max_pixel_rate(struct drm_atomic_state *state)
 	memcpy(intel_state->min_pixclk, dev_priv->min_pixclk,
 	       sizeof(intel_state->min_pixclk));
 
-	for_each_crtc_in_state(state, crtc, cstate, i) {
+	for_each_new_crtc_in_state(state, crtc, cstate, i) {
 		int pixel_rate;
 
 		crtc_state = to_intel_crtc_state(cstate);
