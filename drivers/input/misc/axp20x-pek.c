@@ -13,6 +13,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/acpi.h>
 #include <linux/errno.h>
 #include <linux/irq.h>
 #include <linux/init.h>
@@ -267,9 +268,17 @@ static int axp20x_pek_probe(struct platform_device *pdev)
 
 	axp20x_pek->axp20x = dev_get_drvdata(pdev->dev.parent);
 
-	error = axp20x_pek_probe_input_device(axp20x_pek, pdev);
-	if (error)
-		return error;
+	/*
+	 * Do not register the input device if there is an "INTCFD9"
+	 * gpio button ACPI device, that handles the power button too,
+	 * and otherwise we end up reporting all presses twice.
+	 */
+	if (!acpi_dev_found("INTCFD9") ||
+	    !IS_ENABLED(CONFIG_INPUT_SOC_BUTTON_ARRAY)) {
+		error = axp20x_pek_probe_input_device(axp20x_pek, pdev);
+		if (error)
+			return error;
+	}
 
 	error = sysfs_create_group(&pdev->dev.kobj, &axp20x_attribute_group);
 	if (error) {
