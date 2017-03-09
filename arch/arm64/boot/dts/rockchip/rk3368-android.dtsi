@@ -49,7 +49,7 @@
 	};
 
 	chosen {
-		bootargs = "earlycon=uart8250,mmio32,0xff690000 swiotlb=1";
+		bootargs = "earlycon=uart8250,mmio32,0xff690000 swiotlb=1 firmware_class.path=/system/vendor/firmware";
 	};
 
 	fiq_debugger: fiq-debugger {
