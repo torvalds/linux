@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2004-2016 Cavium Networks
+ * Copyright (C) 2004-2017 Cavium, Inc.
  * Copyright (C) 2008 Wind River Systems
  */
 
@@ -13,60 +13,18 @@
 #include <linux/of_platform.h>
 #include <linux/of_fdt.h>
 #include <linux/libfdt.h>
-#include <linux/usb/ehci_def.h>
-#include <linux/usb/ehci_pdriver.h>
-#include <linux/usb/ohci_pdriver.h>
 
 #include <asm/octeon/octeon.h>
 #include <asm/octeon/cvmx-helper-board.h>
+
+#ifdef CONFIG_USB
+#include <linux/usb/ehci_def.h>
+#include <linux/usb/ehci_pdriver.h>
+#include <linux/usb/ohci_pdriver.h>
 #include <asm/octeon/cvmx-uctlx-defs.h>
 
 #define CVMX_UAHCX_EHCI_USBCMD	(CVMX_ADD_IO_SEG(0x00016F0000000010ull))
 #define CVMX_UAHCX_OHCI_USBCMD	(CVMX_ADD_IO_SEG(0x00016F0000000408ull))
-
-/* Octeon Random Number Generator.  */
-static int __init octeon_rng_device_init(void)
-{
-	struct platform_device *pd;
-	int ret = 0;
-
-	struct resource rng_resources[] = {
-		{
-			.flags	= IORESOURCE_MEM,
-			.start	= XKPHYS_TO_PHYS(CVMX_RNM_CTL_STATUS),
-			.end	= XKPHYS_TO_PHYS(CVMX_RNM_CTL_STATUS) + 0xf
-		}, {
-			.flags	= IORESOURCE_MEM,
-			.start	= cvmx_build_io_address(8, 0),
-			.end	= cvmx_build_io_address(8, 0) + 0x7
-		}
-	};
-
-	pd = platform_device_alloc("octeon_rng", -1);
-	if (!pd) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	ret = platform_device_add_resources(pd, rng_resources,
-					    ARRAY_SIZE(rng_resources));
-	if (ret)
-		goto fail;
-
-	ret = platform_device_add(pd);
-	if (ret)
-		goto fail;
-
-	return ret;
-fail:
-	platform_device_put(pd);
-
-out:
-	return ret;
-}
-device_initcall(octeon_rng_device_init);
-
-#ifdef CONFIG_USB
 
 static DEFINE_MUTEX(octeon2_usb_clocks_mutex);
 
@@ -440,6 +398,47 @@ device_initcall(octeon_ohci_device_init);
 
 #endif /* CONFIG_USB */
 
+/* Octeon Random Number Generator.  */
+static int __init octeon_rng_device_init(void)
+{
+	struct platform_device *pd;
+	int ret = 0;
+
+	struct resource rng_resources[] = {
+		{
+			.flags	= IORESOURCE_MEM,
+			.start	= XKPHYS_TO_PHYS(CVMX_RNM_CTL_STATUS),
+			.end	= XKPHYS_TO_PHYS(CVMX_RNM_CTL_STATUS) + 0xf
+		}, {
+			.flags	= IORESOURCE_MEM,
+			.start	= cvmx_build_io_address(8, 0),
+			.end	= cvmx_build_io_address(8, 0) + 0x7
+		}
+	};
+
+	pd = platform_device_alloc("octeon_rng", -1);
+	if (!pd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = platform_device_add_resources(pd, rng_resources,
+					    ARRAY_SIZE(rng_resources));
+	if (ret)
+		goto fail;
+
+	ret = platform_device_add(pd);
+	if (ret)
+		goto fail;
+
+	return ret;
+fail:
+	platform_device_put(pd);
+
+out:
+	return ret;
+}
+device_initcall(octeon_rng_device_init);
 
 static struct of_device_id __initdata octeon_ids[] = {
 	{ .compatible = "simple-bus", },
@@ -1004,6 +1003,7 @@ end_led:
 		;
 	}
 
+#ifdef CONFIG_USB
 	/* OHCI/UHCI USB */
 	alias_prop = fdt_getprop(initial_boot_params, aliases,
 				 "uctl", NULL);
@@ -1052,6 +1052,7 @@ end_led:
 			}
 		}
 	}
+#endif
 
 	return 0;
 }
