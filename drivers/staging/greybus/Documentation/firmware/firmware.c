@@ -64,7 +64,7 @@
 #define FW_TAG_INT_DEFAULT	"s3f"
 #define FW_TAG_BCND_DEFAULT	"bf_01"
 #define FW_UPDATE_TYPE_DEFAULT	0
-#define FW_TIMEOUT_DEFAULT	10000;
+#define FW_TIMEOUT_DEFAULT	10000
 
 static const char *firmware_tag;
 static const char *fwdev = FW_DEV_DEFAULT;
