@@ -116,6 +116,12 @@
 	status = "okay";
 };
 
+/* CON27 */
+&usb2 {
+	status = "okay";
+};
+
+
 &mdio {
 	status = "okay";
 	phy0: ethernet-phy@0 {
