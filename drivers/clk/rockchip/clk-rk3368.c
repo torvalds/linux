@@ -365,7 +365,7 @@ static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
 	 * stclk_mcu is listed as child of fclk_mcu_src in diagram 5,
 	 * but stclk_mcu has an additional own divider in diagram 2
 	 */
-	COMPOSITE_NOMUX(0, "stclk_mcu", "fclk_mcu_src", 0,
+	COMPOSITE_NOMUX(0, "stclk_mcu", "fclk_mcu_src", CLK_IGNORE_UNUSED,
 			RK3368_CLKSEL_CON(12), 8, 3, DFLAGS,
 			RK3368_CLKGATE_CON(13), 13, GFLAGS),
 
@@ -687,9 +687,9 @@ static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
 	/* clk_hsadc_tsp is part of diagram2 */
 
 	/* fclk_mcu_src gates */
-	GATE(0, "hclk_noc_mcu", "fclk_mcu_src", 0, RK3368_CLKGATE_CON(13), 14, GFLAGS),
-	GATE(0, "fclk_mcu", "fclk_mcu_src", 0, RK3368_CLKGATE_CON(13), 12, GFLAGS),
-	GATE(0, "hclk_mcu", "fclk_mcu_src", 0, RK3368_CLKGATE_CON(13), 11, GFLAGS),
+	GATE(0, "hclk_noc_mcu", "fclk_mcu_src", CLK_IGNORE_UNUSED, RK3368_CLKGATE_CON(13), 14, GFLAGS),
+	GATE(0, "fclk_mcu", "fclk_mcu_src", CLK_IGNORE_UNUSED, RK3368_CLKGATE_CON(13), 12, GFLAGS),
+	GATE(0, "hclk_mcu", "fclk_mcu_src", CLK_IGNORE_UNUSED, RK3368_CLKGATE_CON(13), 11, GFLAGS),
 
 	/* hclk_cpu gates */
 	GATE(HCLK_SPDIF, "hclk_spdif", "hclk_bus", 0, RK3368_CLKGATE_CON(12), 10, GFLAGS),
