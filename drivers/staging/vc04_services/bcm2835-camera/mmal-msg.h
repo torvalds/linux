@@ -84,7 +84,7 @@ struct mmal_msg_header {
 	u32 type; /** enum mmal_msg_type */
 
 	/* Opaque handle to the control service */
-	struct mmal_control_service *control_service;
+	u32 control_service;
 
 	struct mmal_msg_context *context; /** a u32 per message context */
 	u32 status; /** The status of the vchiq operation */
