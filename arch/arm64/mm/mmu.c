@@ -103,7 +103,15 @@ static bool pgattr_change_is_safe(u64 old, u64 new)
 	 */
 	static const pteval_t mask = PTE_PXN | PTE_RDONLY | PTE_WRITE;
 
-	return old  == 0 || new  == 0 || ((old ^ new) & ~mask) == 0;
+	/* creating or taking down mappings is always safe */
+	if (old == 0 || new == 0)
+		return true;
+
+	/* live contiguous mappings may not be manipulated at all */
+	if ((old | new) & PTE_CONT)
+		return false;
+
+	return ((old ^ new) & ~mask) == 0;
 }
 
 static void alloc_init_pte(pmd_t *pmd, unsigned long addr,
