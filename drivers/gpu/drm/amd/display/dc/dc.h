@@ -433,6 +433,35 @@ struct dc_stream {
 	/* TODO: CEA VIC */
 };
 
+struct dc_stream_update {
+
+	struct rect src;
+
+	struct rect dst;
+
+};
+
+
+/*
+ * Setup stream attributes if no stream updates are provided
+ * there will be no impact on the stream parameters
+ *
+ * Set up surface attributes and associate to a stream
+ * The surfaces parameter is an absolute set of all surface active for the stream.
+ * If no surfaces are provided, the stream will be blanked; no memory read.
+ * Any flip related attribute changes must be done through this interface.
+ *
+ * After this call:
+ *   Surfaces attributes are programmed and configured to be composed into stream.
+ *   This does not trigger a flip.  No surface address is programmed.
+ *
+ */
+
+void dc_update_surfaces_and_stream(struct dc *dc,
+		struct dc_surface_update *surface_updates, int surface_count,
+		const struct dc_stream *dc_stream,
+		struct dc_stream_update *stream_update);
+
 /*
  * Log the current stream state.
  */

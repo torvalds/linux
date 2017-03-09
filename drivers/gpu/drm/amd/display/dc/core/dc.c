@@ -1268,6 +1268,27 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 	return overall_type;
 }
 
+void dc_update_surfaces_and_stream(struct dc *dc,
+		struct dc_surface_update *surface_updates, int surface_count,
+		const struct dc_stream *dc_stream,
+		struct dc_stream_update *stream_update)
+{
+	const struct dc_stream_status *stream_status;
+
+	stream_status = dc_stream_get_status(dc_stream);
+	ASSERT(stream_status);
+	if (!stream_status)
+		return; /* Cannot update stream that is not committed */
+
+	if (stream_update) {
+		dc->stream_funcs.stream_update_scaling(dc, dc_stream,
+				&stream_update->src, &stream_update->dst);
+	}
+
+	dc_update_surfaces_for_stream(dc, surface_updates,
+			surface_count, dc_stream);
+}
+
 enum surface_update_type update_surface_trace_level = UPDATE_TYPE_FULL;
 
 void dc_update_surfaces_for_stream(struct dc *dc,
