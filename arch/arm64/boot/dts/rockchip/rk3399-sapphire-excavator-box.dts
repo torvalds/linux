@@ -54,11 +54,7 @@
 	};
 };
 
-&dw_hdmi_audio {
-	status = "okay";
-};
-
-&hdmi_sound {
+&hdmi_dp_sound {
 	status = "okay";
 };
 
