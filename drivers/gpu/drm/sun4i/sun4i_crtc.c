@@ -134,9 +134,10 @@ static const struct drm_crtc_funcs sun4i_crtc_funcs = {
 	.disable_vblank		= sun4i_crtc_disable_vblank,
 };
 
-struct sun4i_crtc *sun4i_crtc_init(struct drm_device *drm)
+struct sun4i_crtc *sun4i_crtc_init(struct drm_device *drm,
+				   struct sun4i_backend *backend,
+				   struct sun4i_tcon *tcon)
 {
-	struct sun4i_drv *drv = drm->dev_private;
 	struct sun4i_crtc *scrtc;
 	struct drm_plane *primary = NULL, *cursor = NULL;
 	int ret, i;
@@ -144,8 +145,8 @@ struct sun4i_crtc *sun4i_crtc_init(struct drm_device *drm)
 	scrtc = devm_kzalloc(drm->dev, sizeof(*scrtc), GFP_KERNEL);
 	if (!scrtc)
 		return ERR_PTR(-ENOMEM);
-	scrtc->backend = drv->backend;
-	scrtc->tcon = drv->tcon;
+	scrtc->backend = backend;
+	scrtc->tcon = tcon;
 
 	/* Create our layers */
 	scrtc->layers = sun4i_layers_init(drm);
