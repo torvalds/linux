@@ -42,6 +42,7 @@ struct tegra_drm {
 	struct drm_device *drm;
 
 	struct iommu_domain *domain;
+	struct mutex mm_lock;
 	struct drm_mm mm;
 
 	struct mutex clients_lock;
