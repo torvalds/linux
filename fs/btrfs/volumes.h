@@ -543,4 +543,6 @@ struct list_head *btrfs_get_fs_uuids(void);
 void btrfs_set_fs_info_ptr(struct btrfs_fs_info *fs_info);
 void btrfs_reset_fs_info_ptr(struct btrfs_fs_info *fs_info);
 
+bool btrfs_check_rw_degradable(struct btrfs_fs_info *fs_info);
+
 #endif
