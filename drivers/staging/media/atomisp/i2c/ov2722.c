@@ -807,9 +807,9 @@ static int distance(struct ov2722_resolution *res, u32 w, u32 h)
 	h_ratio = (res->height << 13) / h;
 	if (h_ratio == 0)
 		return -1;
-	match   = abs(((w_ratio << 13) / h_ratio) - ((int)8192));
+	match   = abs(((w_ratio << 13) / h_ratio) - 8192);
 
-	if ((w_ratio < (int)8192) || (h_ratio < (int)8192)  ||
+	if ((w_ratio < 8192) || (h_ratio < 8192)  ||
 		(match > LARGEST_ALLOWED_RATIO_MISMATCH))
 		return -1;
 
@@ -998,7 +998,7 @@ static int ov2722_detect(struct i2c_client *client)
 	}
 	ret = ov2722_read_reg(client, OV2722_8BIT,
 					OV2722_SC_CMMN_CHIP_ID_L, &low);
-	id = ((((u16) high) << 8) | (u16) low);
+	id = (high << 8) | low;
 
 	if ((id != OV2722_ID) && (id != OV2720_ID)) {
 		dev_err(&client->dev, "sensor ID error\n");

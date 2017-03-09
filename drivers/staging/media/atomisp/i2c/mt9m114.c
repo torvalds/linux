@@ -618,9 +618,9 @@ static int distance(struct mt9m114_res_struct const *res, u32 w, u32 h)
 	h_ratio = (res->height << 13) / h;
 	if (h_ratio == 0)
 		return -1;
-	match   = abs(((w_ratio << 13) / h_ratio) - ((int)8192));
+	match   = abs(((w_ratio << 13) / h_ratio) - 8192);
 
-	if ((w_ratio < (int)8192) || (h_ratio < (int)8192)  ||
+	if ((w_ratio < 8192) || (h_ratio < 8192)  ||
 		(match > LARGEST_ALLOWED_RATIO_MISMATCH))
 		return -1;
 

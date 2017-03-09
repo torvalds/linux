@@ -278,7 +278,7 @@ static int gc2235_get_intg_factor(struct i2c_client *client,
 	if (ret)
 		return ret;
 
-	buf->crop_horizontal_start = ((u16)reg_val_h << 8) | (u16)reg_val;
+	buf->crop_horizontal_start = (reg_val_h << 8) | reg_val;
 
 	ret =  gc2235_read_reg(client, GC2235_8BIT,
 					GC2235_V_CROP_START_H, &reg_val_h);
@@ -287,7 +287,7 @@ static int gc2235_get_intg_factor(struct i2c_client *client,
 	if (ret)
 		return ret;
 
-	buf->crop_vertical_start = ((u16)reg_val_h << 8) | (u16)reg_val;
+	buf->crop_vertical_start = (reg_val_h << 8) | reg_val;
 
 	ret = gc2235_read_reg(client, GC2235_8BIT,
 					GC2235_H_OUTSIZE_H, &reg_val_h);
@@ -295,7 +295,7 @@ static int gc2235_get_intg_factor(struct i2c_client *client,
 					GC2235_H_OUTSIZE_L, &reg_val);
 	if (ret)
 		return ret;
-	buf->output_width = ((u16)reg_val_h << 8) | (u16)reg_val;
+	buf->output_width = (reg_val_h << 8) | reg_val;
 
 	ret = gc2235_read_reg(client, GC2235_8BIT,
 					GC2235_V_OUTSIZE_H, &reg_val_h);
@@ -303,7 +303,7 @@ static int gc2235_get_intg_factor(struct i2c_client *client,
 					GC2235_V_OUTSIZE_L, &reg_val);
 	if (ret)
 		return ret;
-	buf->output_height = ((u16)reg_val_h << 8) | (u16)reg_val;
+	buf->output_height = (reg_val_h << 8) | reg_val;
 
 	buf->crop_horizontal_end = buf->crop_horizontal_start +
 						buf->output_width - 1;
@@ -317,7 +317,7 @@ static int gc2235_get_intg_factor(struct i2c_client *client,
 	if (ret)
 		return ret;
 
-	dummy = ((u16)reg_val_h << 8) | (u16)reg_val;
+	dummy = (reg_val_h << 8) | reg_val;
 
 	ret = gc2235_read_reg(client, GC2235_8BIT,
 					GC2235_SH_DELAY_H, &reg_val_h);
@@ -702,9 +702,9 @@ static int distance(struct gc2235_resolution *res, u32 w, u32 h)
 	h_ratio = (res->height << 13) / h;
 	if (h_ratio == 0)
 		return -1;
-	match   = abs(((w_ratio << 13) / h_ratio) - ((int)8192));
+	match   = abs(((w_ratio << 13) / h_ratio) - 8192);
 
-	if ((w_ratio < (int)8192) || (h_ratio < (int)8192)  ||
+	if ((w_ratio < 8192) || (h_ratio < 8192)  ||
 		(match > LARGEST_ALLOWED_RATIO_MISMATCH))
 		return -1;
 
@@ -873,7 +873,7 @@ static int gc2235_detect(struct i2c_client *client)
 	}
 	ret = gc2235_read_reg(client, GC2235_8BIT,
 					GC2235_SENSOR_ID_L, &low);
-	id = ((((u16) high) << 8) | (u16) low);
+	id = ((high << 8) | low);
 
 	if (id != GC2235_ID) {
 		dev_err(&client->dev, "sensor ID error, 0x%x\n", id);

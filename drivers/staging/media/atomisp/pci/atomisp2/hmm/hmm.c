@@ -553,7 +553,7 @@ int hmm_set(ia_css_ptr virt, int c, unsigned int bytes)
 		vptr = hmm_bo_vmap(bo, true);
 		if (vptr) {
 			vptr = vptr + (virt - bo->start);
-			memset((void *)vptr, c, bytes);
+			memset(vptr, c, bytes);
 			clflush_cache_range(vptr, bytes);
 			hmm_bo_vunmap(bo);
 			return 0;

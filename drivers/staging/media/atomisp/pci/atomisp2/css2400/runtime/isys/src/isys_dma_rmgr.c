@@ -69,7 +69,7 @@ bool ia_css_isys_dma_channel_rmgr_acquire(
 		for (i = ISYS2401_DMA_CHANNEL_0; i < N_ISYS2401_DMA_CHANNEL; i++) {
 			if (bitop_getbit(cur_rsrc->active_table, i) == 0) {
 				bitop_setbit(cur_rsrc->active_table, i);
-				*channel = (isys2401_dma_channel)i;
+				*channel = i;
 				cur_rsrc->num_active++;
 				retval = true;
 				break;
