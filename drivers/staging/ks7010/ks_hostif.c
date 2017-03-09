@@ -2616,14 +2616,12 @@ void hostif_sme_enqueue(struct ks_wlan_private *priv, unsigned short event)
 	if (cnt_smeqbody(priv) < (SME_EVENT_BUFF_SIZE - 1)) {
 		priv->sme_i.event_buff[priv->sme_i.qtail] = event;
 		inc_smeqtail(priv);
-		//DPRINTK(3,"inc_smeqtail \n");
 #ifdef KS_WLAN_DEBUG
 		if (priv->sme_i.max_event_count < cnt_smeqbody(priv))
 			priv->sme_i.max_event_count = cnt_smeqbody(priv);
 #endif /* KS_WLAN_DEBUG */
 	} else {
 		/* in case of buffer overflow */
-		//DPRINTK(2,"sme queue buffer overflow\n");
 		netdev_err(priv->net_dev, "sme queue buffer overflow\n");
 	}
 
