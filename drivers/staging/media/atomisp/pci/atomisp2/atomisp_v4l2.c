@@ -51,12 +51,10 @@
 /* G-Min addition: pull this in from intel_mid_pm.h */
 #define CSTATE_EXIT_LATENCY_C1  1
 
-#ifdef ISP2401
 static uint skip_fwload = 0;
 module_param(skip_fwload, uint, 0644);
-MODULE_PARM_DESC(skip_fwload, "Skip atomisp firmware load for COS");
+MODULE_PARM_DESC(skip_fwload, "Skip atomisp firmware load");
 
-#endif
 /* set reserved memory pool size in page */
 unsigned int repool_pgnr;
 module_param(repool_pgnr, uint, 0644);
@@ -1088,14 +1086,9 @@ atomisp_load_firmware(struct atomisp_device *isp)
 	int rc;
 	char *fw_path = NULL;
 
-#ifdef ISP2401
 	if (skip_fwload)
 		return NULL;
 
-#endif
-#if defined(ATOMISP_FWNAME)
-	fw_path = ATOMISP_FWNAME;
-#else
 	if (isp->media_dev.driver_version == ATOMISP_CSS_VERSION_21) {
 		if (isp->media_dev.hw_revision ==
 		    ((ATOMISP_HW_REVISION_ISP2401 << ATOMISP_HW_REVISION_SHIFT)
@@ -1112,7 +1105,6 @@ atomisp_load_firmware(struct atomisp_device *isp)
 		     | ATOMISP_HW_STEPPING_B0))
 			fw_path = "shisp_2400b0_v21.bin";
 	}
-#endif
 
 	if (!fw_path) {
 		dev_err(isp->dev,
