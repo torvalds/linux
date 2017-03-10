@@ -243,6 +243,26 @@ static int rv_verify_smc_interface(struct pp_smumgr *smumgr)
 	return 0;
 }
 
+/* sdma is disabled by default in vbios, need to re-enable in driver */
+static int rv_smc_enable_sdma(struct pp_smumgr *smumgr)
+{
+	PP_ASSERT_WITH_CODE(!rv_send_msg_to_smc(smumgr,
+			PPSMC_MSG_PowerUpSdma),
+			"Attempt to power up sdma Failed!",
+			return -EINVAL);
+
+	return 0;
+}
+
+static int rv_smc_disable_sdma(struct pp_smumgr *smumgr)
+{
+	PP_ASSERT_WITH_CODE(!rv_send_msg_to_smc(smumgr,
+			PPSMC_MSG_PowerDownSdma),
+			"Attempt to power down sdma Failed!",
+			return -EINVAL);
+
+	return 0;
+}
 
 static int rv_smu_fini(struct pp_smumgr *smumgr)
 {
@@ -250,6 +270,7 @@ static int rv_smu_fini(struct pp_smumgr *smumgr)
 			(struct rv_smumgr *)(smumgr->backend);
 
 	if (priv) {
+		rv_smc_disable_sdma(smumgr);
 		cgs_free_gpu_mem(smumgr->device,
 				priv->smu_tables.entry[WMTABLE].handle);
 		cgs_free_gpu_mem(smumgr->device,
@@ -264,6 +285,8 @@ static int rv_smu_fini(struct pp_smumgr *smumgr)
 static int rv_start_smu(struct pp_smumgr *smumgr)
 {
 	if (rv_verify_smc_interface(smumgr))
+		return -EINVAL;
+	if (rv_smc_enable_sdma(smumgr))
 		return -EINVAL;
 
 	return 0;
