@@ -452,6 +452,7 @@ struct nfp_stat_pair {
  * @num_tx_rings:	Currently configured number of TX rings
  * @num_stack_tx_rings:	Number of TX rings used by the stack (not XDP)
  * @num_rx_rings:	Currently configured number of RX rings
+ * @mtu:		Device MTU
  */
 struct nfp_net_dp {
 	struct device *dev;
@@ -484,6 +485,8 @@ struct nfp_net_dp {
 	unsigned int num_tx_rings;
 	unsigned int num_stack_tx_rings;
 	unsigned int num_rx_rings;
+
+	unsigned int mtu;
 };
 
 /**
@@ -610,7 +613,6 @@ struct nfp_net {
 
 struct nfp_net_ring_set {
 	unsigned int n_rings;
-	unsigned int mtu;
 	unsigned int dcnt;
 	void *rings;
 };

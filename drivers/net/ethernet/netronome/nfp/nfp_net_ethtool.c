@@ -189,7 +189,6 @@ static int nfp_net_set_ring_size(struct nfp_net *nn, u32 rxd_cnt, u32 txd_cnt)
 	struct nfp_net_ring_set *reconfig_rx = NULL, *reconfig_tx = NULL;
 	struct nfp_net_ring_set rx = {
 		.n_rings = nn->dp.num_rx_rings,
-		.mtu = nn->dp.netdev->mtu,
 		.dcnt = rxd_cnt,
 	};
 	struct nfp_net_ring_set tx = {
@@ -770,7 +769,6 @@ static int nfp_net_set_num_rings(struct nfp_net *nn, unsigned int total_rx,
 	struct nfp_net_ring_set *reconfig_rx = NULL, *reconfig_tx = NULL;
 	struct nfp_net_ring_set rx = {
 		.n_rings = total_rx,
-		.mtu = nn->dp.netdev->mtu,
 		.dcnt = nn->dp.rxd_cnt,
 	};
 	struct nfp_net_ring_set tx = {

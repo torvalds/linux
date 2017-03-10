@@ -1099,7 +1099,7 @@ static void nfp_net_tx_timeout(struct net_device *netdev)
 /* Receive processing
  */
 static unsigned int
-nfp_net_calc_fl_bufsz(struct nfp_net_dp *dp, unsigned int mtu)
+nfp_net_calc_fl_bufsz(struct nfp_net_dp *dp)
 {
 	unsigned int fl_bufsz;
 
@@ -1108,7 +1108,7 @@ nfp_net_calc_fl_bufsz(struct nfp_net_dp *dp, unsigned int mtu)
 		fl_bufsz += NFP_NET_MAX_PREPEND;
 	else
 		fl_bufsz += dp->rx_offset;
-	fl_bufsz += ETH_HLEN + VLAN_HLEN * 2 + mtu;
+	fl_bufsz += ETH_HLEN + VLAN_HLEN * 2 + dp->mtu;
 
 	fl_bufsz = SKB_DATA_ALIGN(fl_bufsz);
 	fl_bufsz += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
@@ -1935,12 +1935,13 @@ nfp_net_rx_ring_set_swap(struct nfp_net *nn, struct nfp_net_dp *dp,
 	struct nfp_net_dp new_dp = *dp;
 
 	dp->fl_bufsz = nn->dp.fl_bufsz;
-	s->mtu = nn->dp.netdev->mtu;
+	dp->mtu = nn->dp.netdev->mtu;
 	s->dcnt = nn->dp.rxd_cnt;
 	s->rings = nn->dp.rx_rings;
 	s->n_rings = nn->dp.num_rx_rings;
 
-	nn->dp.netdev->mtu = new.mtu;
+	nn->dp.mtu = new_dp.mtu;
+	nn->dp.netdev->mtu = new_dp.mtu;
 	nn->dp.fl_bufsz = new_dp.fl_bufsz;
 	nn->dp.rxd_cnt = new.dcnt;
 	nn->dp.rx_rings = new.rings;
@@ -2255,7 +2256,6 @@ static int nfp_net_netdev_open(struct net_device *netdev)
 	struct nfp_net *nn = netdev_priv(netdev);
 	struct nfp_net_ring_set rx = {
 		.n_rings = nn->dp.num_rx_rings,
-		.mtu = nn->dp.netdev->mtu,
 		.dcnt = nn->dp.rxd_cnt,
 	};
 	struct nfp_net_ring_set tx = {
@@ -2466,6 +2466,8 @@ static void nfp_net_dp_swap(struct nfp_net *nn, struct nfp_net_dp *dp)
 
 	*dp = nn->dp;
 	nn->dp = new_dp;
+
+	nn->dp.netdev->mtu = new_dp.mtu;
 }
 
 static int
@@ -2554,7 +2556,6 @@ nfp_net_ring_reconfig_down(struct nfp_net *nn, struct nfp_net_dp *dp,
 {
 	nfp_net_dp_swap(nn, dp);
 
-	nn->dp.netdev->mtu = rx ? rx->mtu : nn->dp.netdev->mtu;
 	nn->dp.rxd_cnt = rx ? rx->dcnt : nn->dp.rxd_cnt;
 	nn->dp.txd_cnt = tx ? tx->dcnt : nn->dp.txd_cnt;
 	nn->dp.num_rx_rings = rx ? rx->n_rings : nn->dp.num_rx_rings;
@@ -2572,8 +2573,7 @@ nfp_net_ring_reconfig(struct nfp_net *nn, struct nfp_net_dp *dp,
 {
 	int r, err;
 
-	dp->fl_bufsz = nfp_net_calc_fl_bufsz(dp,
-					     rx ? rx->mtu : nn->dp.netdev->mtu);
+	dp->fl_bufsz = nfp_net_calc_fl_bufsz(dp);
 
 	dp->num_stack_tx_rings = tx ? tx->n_rings : dp->num_tx_rings;
 	if (*xdp_prog)
@@ -2659,7 +2659,6 @@ static int nfp_net_change_mtu(struct net_device *netdev, int new_mtu)
 	struct nfp_net *nn = netdev_priv(netdev);
 	struct nfp_net_ring_set rx = {
 		.n_rings = nn->dp.num_rx_rings,
-		.mtu = new_mtu,
 		.dcnt = nn->dp.rxd_cnt,
 	};
 	struct nfp_net_dp *dp;
@@ -2667,6 +2666,8 @@ static int nfp_net_change_mtu(struct net_device *netdev, int new_mtu)
 	dp = nfp_net_clone_dp(nn);
 	if (!dp)
 		return -ENOMEM;
+
+	dp->mtu = new_mtu;
 
 	return nfp_net_ring_reconfig(nn, dp, &nn->dp.xdp_prog, &rx, NULL);
 }
@@ -2988,7 +2989,6 @@ static int nfp_net_xdp_setup(struct nfp_net *nn, struct bpf_prog *prog)
 {
 	struct nfp_net_ring_set rx = {
 		.n_rings = nn->dp.num_rx_rings,
-		.mtu = nn->dp.netdev->mtu,
 		.dcnt = nn->dp.rxd_cnt,
 	};
 	struct nfp_net_ring_set tx = {
@@ -3263,7 +3263,8 @@ int nfp_net_netdev_init(struct net_device *netdev)
 		netdev->mtu = nn->max_mtu;
 	else
 		netdev->mtu = NFP_NET_DEFAULT_MTU;
-	nn->dp.fl_bufsz = nfp_net_calc_fl_bufsz(&nn->dp, netdev->mtu);
+	nn->dp.mtu = netdev->mtu;
+	nn->dp.fl_bufsz = nfp_net_calc_fl_bufsz(&nn->dp);
 
 	/* Advertise/enable offloads based on capabilities
 	 *
