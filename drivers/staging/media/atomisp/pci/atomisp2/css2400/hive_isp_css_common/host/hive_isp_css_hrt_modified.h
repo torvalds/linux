@@ -30,21 +30,6 @@
 #include <gpio_block.h>
 #include <gp_regs.h>
 #include <gp_timer_hrt.h>
-#ifdef _HIVE_ISP_CSS_FPGA_SYSTEM
-  #include <i2c_api.h>
-  #include <dis_sensor.h>
-  #include <display_driver.h>
-  #include <display.h>
-  #include <display_driver.h>
-  #include <shi_sensor_api.h>
-#define hrt_gdc_slave_port(gdc_id)    HRTCAT(gdc_id,_sl_in)
-  #include <isp2400_mamoiada_demo_params.h>
-  #include <isp2400_support.h>
-  #include "isp_css_dev_flash_hrt.h"
-  #include "isp_css_dev_display_hrt.h"
-  #include "isp_css_dev_i2c_hrt.h"
-  #include "isp_css_dev_tb.h"
-#else /* CSS ASIC system */
   #include <css_receiver_2400_hrt.h>
 //  #include <isp2400_mamoiada_params.h>
 //  #include <isp2400_support.h>
@@ -63,7 +48,6 @@
 #error "hive_isp_css_hrt_modified.h: SYSTEM must be one of {2400_MAMOIADA_SYSTEM, 2401_MAMOIADA_SYSTEM}"
 #endif
   #endif
-#endif /* _HIVE_ISP_CSS_FPGA_SYSTEM */
 #include <sp_hrt.h>
 #include <input_system_hrt.h>
 #include <input_selector_hrt.h>
