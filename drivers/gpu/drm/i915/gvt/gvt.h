@@ -143,6 +143,8 @@ struct intel_vgpu {
 	int id;
 	unsigned long handle; /* vGPU handle used by hypervisor MPT modules */
 	bool active;
+	bool pv_notified;
+	bool failsafe;
 	bool resetting;
 	void *sched_data;
 
@@ -203,18 +205,18 @@ struct intel_gvt_firmware {
 };
 
 struct intel_gvt_opregion {
-	void __iomem *opregion_va;
+	void *opregion_va;
 	u32 opregion_pa;
 };
 
 #define NR_MAX_INTEL_VGPU_TYPES 20
 struct intel_vgpu_type {
 	char name[16];
-	unsigned int max_instance;
 	unsigned int avail_instance;
 	unsigned int low_gm_size;
 	unsigned int high_gm_size;
 	unsigned int fence;
+	enum intel_vgpu_edid resolution;
 };
 
 struct intel_gvt {
@@ -317,6 +319,7 @@ struct intel_vgpu_creation_params {
 	__u64 low_gm_sz;  /* in MB */
 	__u64 high_gm_sz; /* in MB */
 	__u64 fence_sz;
+	__u64 resolution;
 	__s32 primary;
 	__u64 vgpu_id;
 };
@@ -448,6 +451,11 @@ struct intel_gvt_ops {
 	void (*vgpu_reset)(struct intel_vgpu *);
 };
 
+
+enum {
+	GVT_FAILSAFE_UNSUPPORTED_GUEST,
+	GVT_FAILSAFE_INSUFFICIENT_RESOURCE,
+};
 
 #include "mpt.h"
 
