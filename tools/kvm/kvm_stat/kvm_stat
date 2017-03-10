@@ -320,6 +320,37 @@ def parse_int_list(list_string):
     return integers
 
 
+def get_gname_from_pid(pid):
+    """Returns the guest name for a QEMU process pid.
+
+    Extracts the guest name from the QEMU comma line by processing the '-name'
+    option. Will also handle names specified out of sequence.
+
+    """
+    name = ''
+    try:
+        line = open('/proc/{}/cmdline'.format(pid), 'rb').read().split('\0')
+        parms = line[line.index('-name') + 1].split(',')
+        while '' in parms:
+            # commas are escaped (i.e. ',,'), hence e.g. 'foo,bar' results in
+            # ['foo', '', 'bar'], which we revert here
+            idx = parms.index('')
+            parms[idx - 1] += ',' + parms[idx + 1]
+            del parms[idx:idx+2]
+        # the '-name' switch allows for two ways to specify the guest name,
+        # where the plain name overrides the name specified via 'guest='
+        for arg in parms:
+            if '=' not in arg:
+                name = arg
+                break
+            if arg[:6] == 'guest=':
+                name = arg[6:]
+    except (ValueError, IOError, IndexError):
+        pass
+
+    return name
+
+
 def get_online_cpus():
     """Returns a list of cpu id integers."""
     with open('/sys/devices/system/cpu/online') as cpu_list:
@@ -803,6 +834,7 @@ LABEL_WIDTH = 40
 NUMBER_WIDTH = 10
 DELAY_INITIAL = 0.25
 DELAY_REGULAR = 3.0
+MAX_GUEST_NAME_LEN = 48
 
 
 class Tui(object):
@@ -863,9 +895,14 @@ class Tui(object):
         if pid is None:
             pid = self.stats.pid_filter
         self.screen.erase()
+        gname = get_gname_from_pid(pid)
+        if gname:
+            gname = ('({})'.format(gname[:MAX_GUEST_NAME_LEN] + '...'
+                                   if len(gname) > MAX_GUEST_NAME_LEN
+                                   else gname))
         if pid > 0:
-            self.screen.addstr(0, 0, 'kvm statistics - pid {0}'
-                               .format(pid), curses.A_BOLD)
+            self.screen.addstr(0, 0, 'kvm statistics - pid {0} {1}'
+                               .format(pid, gname), curses.A_BOLD)
         else:
             self.screen.addstr(0, 0, 'kvm statistics - summary', curses.A_BOLD)
         self.screen.addstr(2, 1, 'Event')
