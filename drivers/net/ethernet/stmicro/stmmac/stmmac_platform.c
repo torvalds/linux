@@ -365,7 +365,6 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 		plat->clk_ptp_ref = NULL;
 		dev_warn(&pdev->dev, "PTP uses main clock\n");
 	} else {
-		clk_prepare_enable(plat->clk_ptp_ref);
 		plat->clk_ptp_rate = clk_get_rate(plat->clk_ptp_ref);
 		dev_dbg(&pdev->dev, "PTP rate %d\n", plat->clk_ptp_rate);
 	}
