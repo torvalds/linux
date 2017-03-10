@@ -108,9 +108,7 @@ static int int3496_probe(struct platform_device *pdev)
 	data->dev = dev;
 	INIT_DELAYED_WORK(&data->work, int3496_do_usb_id);
 
-	data->gpio_usb_id = devm_gpiod_get_index(dev, "id",
-						INT3496_GPIO_USB_ID,
-						GPIOD_IN);
+	data->gpio_usb_id = devm_gpiod_get(dev, "id", GPIOD_IN);
 	if (IS_ERR(data->gpio_usb_id)) {
 		ret = PTR_ERR(data->gpio_usb_id);
 		dev_err(dev, "can't request USB ID GPIO: %d\n", ret);
@@ -123,15 +121,11 @@ static int int3496_probe(struct platform_device *pdev)
 		return data->usb_id_irq;
 	}
 
-	data->gpio_vbus_en = devm_gpiod_get_index(dev, "vbus",
-						 INT3496_GPIO_VBUS_EN,
-						 GPIOD_ASIS);
+	data->gpio_vbus_en = devm_gpiod_get(dev, "vbus", GPIOD_ASIS);
 	if (IS_ERR(data->gpio_vbus_en))
 		dev_info(dev, "can't request VBUS EN GPIO\n");
 
-	data->gpio_usb_mux = devm_gpiod_get_index(dev, "mux",
-						 INT3496_GPIO_USB_MUX,
-						 GPIOD_ASIS);
+	data->gpio_usb_mux = devm_gpiod_get(dev, "mux", GPIOD_ASIS);
 	if (IS_ERR(data->gpio_usb_mux))
 		dev_info(dev, "can't request USB MUX GPIO\n");
 
