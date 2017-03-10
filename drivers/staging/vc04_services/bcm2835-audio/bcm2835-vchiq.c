@@ -302,16 +302,16 @@ vc_vchi_audio_init(VCHI_INSTANCE_T vchi_instance,
 	/* Open the VCHI service connections */
 	for (i = 0; i < num_connections; i++) {
 		SERVICE_CREATION_T params = {
-			VCHI_VERSION_EX(VC_AUDIOSERV_VER, VC_AUDIOSERV_MIN_VER),
-			VC_AUDIO_SERVER_NAME, // 4cc service code
-			vchi_connections[i], // passed in fn pointers
-			0, // rx fifo size (unused)
-			0, // tx fifo size (unused)
-			audio_vchi_callback, // service callback
-			instance, // service callback parameter
-			1, //TODO: remove VCOS_FALSE,   // unaligned bulk receives
-			1, //TODO: remove VCOS_FALSE,   // unaligned bulk transmits
-			0 // want crc check on bulk transfers
+			.version		= VCHI_VERSION_EX(VC_AUDIOSERV_VER, VC_AUDIOSERV_MIN_VER),
+			.service_id		= VC_AUDIO_SERVER_NAME,
+			.connection		= vchi_connections[i],
+			.rx_fifo_size		= 0,
+			.tx_fifo_size		= 0,
+			.callback		= audio_vchi_callback,
+			.callback_param		= instance,
+			.want_unaligned_bulk_rx = 1, //TODO: remove VCOS_FALSE
+			.want_unaligned_bulk_tx = 1, //TODO: remove VCOS_FALSE
+			.want_crc		= 0
 		};
 
 		LOG_DBG("%s: about to open %i\n", __func__, i);
