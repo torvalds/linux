@@ -97,7 +97,7 @@
 	phy-supply = <&vcc_phy>;
 	phy-mode = "rgmii";
 	clock_in_out = "input";
-	snps,reset-gpio = <&gpio1 18 GPIO_ACTIVE_LOW>;
+	snps,reset-gpio = <&gpio1 RK_PC2 GPIO_ACTIVE_LOW>;
 	snps,reset-active-low;
 	snps,reset-delays-us = <0 10000 50000>;
 	assigned-clocks = <&cru SCLK_MAC2IO>, <&cru SCLK_MAC2IO_EXT>;
@@ -126,7 +126,7 @@
 };
 
 &u2phy {
-	otg-vbus-gpios = <&gpio0 27 GPIO_ACTIVE_HIGH>;
+	otg-vbus-gpios = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
 	u2phy_host: host-port {
@@ -139,7 +139,7 @@
 };
 
 &u3phy {
-	vbus-drv-gpios = <&gpio0 0 GPIO_ACTIVE_HIGH>;
+	vbus-drv-gpios = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
@@ -311,7 +311,7 @@
 	pmic {
 		pmic_int_l: pmic-int-l {
 		rockchip,pins =
-			<2 6 RK_FUNC_GPIO &pcfg_pull_up>;	/* gpio2_a6 */
+			<2 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>;	/* gpio2_a6 */
 		};
 	};
 };
