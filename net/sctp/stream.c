@@ -675,3 +675,157 @@ out:
 
 	return chunk;
 }
+
+struct sctp_chunk *sctp_process_strreset_resp(
+				struct sctp_association *asoc,
+				union sctp_params param,
+				struct sctp_ulpevent **evp)
+{
+	struct sctp_strreset_resp *resp = param.v;
+	struct sctp_stream *stream = asoc->stream;
+	struct sctp_transport *t;
+	__u16 i, nums, flags = 0;
+	sctp_paramhdr_t *req;
+	__u32 result;
+
+	req = sctp_chunk_lookup_strreset_param(asoc, resp->response_seq, 0);
+	if (!req)
+		return NULL;
+
+	result = ntohl(resp->result);
+	if (result != SCTP_STRRESET_PERFORMED) {
+		/* if in progress, do nothing but retransmit */
+		if (result == SCTP_STRRESET_IN_PROGRESS)
+			return NULL;
+		else if (result == SCTP_STRRESET_DENIED)
+			flags = SCTP_STREAM_RESET_DENIED;
+		else
+			flags = SCTP_STREAM_RESET_FAILED;
+	}
+
+	if (req->type == SCTP_PARAM_RESET_OUT_REQUEST) {
+		struct sctp_strreset_outreq *outreq;
+		__u16 *str_p = NULL;
+
+		outreq = (struct sctp_strreset_outreq *)req;
+		nums = (ntohs(outreq->param_hdr.length) - sizeof(*outreq)) / 2;
+
+		if (result == SCTP_STRRESET_PERFORMED) {
+			if (nums) {
+				str_p = outreq->list_of_streams;
+				for (i = 0; i < nums; i++)
+					stream->out[ntohs(str_p[i])].ssn = 0;
+			} else {
+				for (i = 0; i < stream->outcnt; i++)
+					stream->out[i].ssn = 0;
+			}
+
+			flags = SCTP_STREAM_RESET_OUTGOING_SSN;
+		}
+
+		for (i = 0; i < stream->outcnt; i++)
+			stream->out[i].state = SCTP_STREAM_OPEN;
+
+		*evp = sctp_ulpevent_make_stream_reset_event(asoc, flags,
+			nums, str_p, GFP_ATOMIC);
+	} else if (req->type == SCTP_PARAM_RESET_IN_REQUEST) {
+		struct sctp_strreset_inreq *inreq;
+		__u16 *str_p = NULL;
+
+		/* if the result is performed, it's impossible for inreq */
+		if (result == SCTP_STRRESET_PERFORMED)
+			return NULL;
+
+		inreq = (struct sctp_strreset_inreq *)req;
+		nums = (ntohs(inreq->param_hdr.length) - sizeof(*inreq)) / 2;
+
+		str_p = inreq->list_of_streams;
+		*evp = sctp_ulpevent_make_stream_reset_event(asoc, flags,
+			nums, str_p, GFP_ATOMIC);
+	} else if (req->type == SCTP_PARAM_RESET_TSN_REQUEST) {
+		struct sctp_strreset_resptsn *resptsn;
+		__u32 stsn, rtsn;
+
+		/* check for resptsn, as sctp_verify_reconf didn't do it*/
+		if (ntohs(param.p->length) != sizeof(*resptsn))
+			return NULL;
+
+		resptsn = (struct sctp_strreset_resptsn *)resp;
+		stsn = ntohl(resptsn->senders_next_tsn);
+		rtsn = ntohl(resptsn->receivers_next_tsn);
+
+		if (result == SCTP_STRRESET_PERFORMED) {
+			__u32 mtsn = sctp_tsnmap_get_max_tsn_seen(
+						&asoc->peer.tsn_map);
+
+			sctp_ulpq_reasm_flushtsn(&asoc->ulpq, mtsn);
+			sctp_ulpq_abort_pd(&asoc->ulpq, GFP_ATOMIC);
+
+			sctp_tsnmap_init(&asoc->peer.tsn_map,
+					 SCTP_TSN_MAP_INITIAL,
+					 stsn, GFP_ATOMIC);
+
+			sctp_outq_free(&asoc->outqueue);
+
+			asoc->next_tsn = rtsn;
+			asoc->ctsn_ack_point = asoc->next_tsn - 1;
+			asoc->adv_peer_ack_point = asoc->ctsn_ack_point;
+
+			for (i = 0; i < stream->outcnt; i++)
+				stream->out[i].ssn = 0;
+			for (i = 0; i < stream->incnt; i++)
+				stream->in[i].ssn = 0;
+		}
+
+		for (i = 0; i < stream->outcnt; i++)
+			stream->out[i].state = SCTP_STREAM_OPEN;
+
+		*evp = sctp_ulpevent_make_assoc_reset_event(asoc, flags,
+			stsn, rtsn, GFP_ATOMIC);
+	} else if (req->type == SCTP_PARAM_RESET_ADD_OUT_STREAMS) {
+		struct sctp_strreset_addstrm *addstrm;
+		__u16 number;
+
+		addstrm = (struct sctp_strreset_addstrm *)req;
+		nums = ntohs(addstrm->number_of_streams);
+		number = stream->outcnt - nums;
+
+		if (result == SCTP_STRRESET_PERFORMED)
+			for (i = number; i < stream->outcnt; i++)
+				stream->out[i].state = SCTP_STREAM_OPEN;
+		else
+			stream->outcnt = number;
+
+		*evp = sctp_ulpevent_make_stream_change_event(asoc, flags,
+			0, nums, GFP_ATOMIC);
+	} else if (req->type == SCTP_PARAM_RESET_ADD_IN_STREAMS) {
+		struct sctp_strreset_addstrm *addstrm;
+
+		/* if the result is performed, it's impossible for addstrm in
+		 * request.
+		 */
+		if (result == SCTP_STRRESET_PERFORMED)
+			return NULL;
+
+		addstrm = (struct sctp_strreset_addstrm *)req;
+		nums = ntohs(addstrm->number_of_streams);
+
+		*evp = sctp_ulpevent_make_stream_change_event(asoc, flags,
+			nums, 0, GFP_ATOMIC);
+	}
+
+	asoc->strreset_outstanding--;
+	asoc->strreset_outseq++;
+
+	/* remove everything for this reconf request */
+	if (!asoc->strreset_outstanding) {
+		t = asoc->strreset_chunk->transport;
+		if (del_timer(&t->reconf_timer))
+			sctp_transport_put(t);
+
+		sctp_chunk_put(asoc->strreset_chunk);
+		asoc->strreset_chunk = NULL;
+	}
+
+	return NULL;
+}
