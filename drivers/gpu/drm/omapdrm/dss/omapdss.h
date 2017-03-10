@@ -92,10 +92,6 @@ enum omap_channel {
 };
 
 enum omap_color_mode {
-	OMAP_DSS_COLOR_CLUT1	= 1 << 0,  /* BITMAP 1 */
-	OMAP_DSS_COLOR_CLUT2	= 1 << 1,  /* BITMAP 2 */
-	OMAP_DSS_COLOR_CLUT4	= 1 << 2,  /* BITMAP 4 */
-	OMAP_DSS_COLOR_CLUT8	= 1 << 3,  /* BITMAP 8 */
 	OMAP_DSS_COLOR_RGB12U	= 1 << 4,  /* RGB12, 16-bit container */
 	OMAP_DSS_COLOR_ARGB16	= 1 << 5,  /* ARGB16 */
 	OMAP_DSS_COLOR_RGB16	= 1 << 6,  /* RGB16 */

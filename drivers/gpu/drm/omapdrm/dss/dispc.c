@@ -946,14 +946,6 @@ static void dispc_ovl_set_color_mode(enum omap_plane_id plane,
 		}
 	} else {
 		switch (color_mode) {
-		case OMAP_DSS_COLOR_CLUT1:
-			m = 0x0; break;
-		case OMAP_DSS_COLOR_CLUT2:
-			m = 0x1; break;
-		case OMAP_DSS_COLOR_CLUT4:
-			m = 0x2; break;
-		case OMAP_DSS_COLOR_CLUT8:
-			m = 0x3; break;
 		case OMAP_DSS_COLOR_RGB12U:
 			m = 0x4; break;
 		case OMAP_DSS_COLOR_ARGB16:
@@ -1878,13 +1870,6 @@ static void dispc_ovl_set_rotation_attrs(enum omap_plane_id plane, u8 rotation,
 static int color_mode_to_bpp(enum omap_color_mode color_mode)
 {
 	switch (color_mode) {
-	case OMAP_DSS_COLOR_CLUT1:
-		return 1;
-	case OMAP_DSS_COLOR_CLUT2:
-		return 2;
-	case OMAP_DSS_COLOR_CLUT4:
-		return 4;
-	case OMAP_DSS_COLOR_CLUT8:
 	case OMAP_DSS_COLOR_NV12:
 		return 8;
 	case OMAP_DSS_COLOR_RGB12U:
@@ -1933,14 +1918,7 @@ static void calc_vrfb_rotation_offset(u8 rotation, bool mirror,
 {
 	u8 ps;
 
-	/* FIXME CLUT formats */
 	switch (color_mode) {
-	case OMAP_DSS_COLOR_CLUT1:
-	case OMAP_DSS_COLOR_CLUT2:
-	case OMAP_DSS_COLOR_CLUT4:
-	case OMAP_DSS_COLOR_CLUT8:
-		BUG();
-		return;
 	case OMAP_DSS_COLOR_YUV2:
 	case OMAP_DSS_COLOR_UYVY:
 		ps = 4;
@@ -2019,18 +1997,7 @@ static void calc_dma_rotation_offset(u8 rotation, bool mirror,
 	u8 ps;
 	u16 fbw, fbh;
 
-	/* FIXME CLUT formats */
-	switch (color_mode) {
-	case OMAP_DSS_COLOR_CLUT1:
-	case OMAP_DSS_COLOR_CLUT2:
-	case OMAP_DSS_COLOR_CLUT4:
-	case OMAP_DSS_COLOR_CLUT8:
-		BUG();
-		return;
-	default:
-		ps = color_mode_to_bpp(color_mode) / 8;
-		break;
-	}
+	ps = color_mode_to_bpp(color_mode) / 8;
 
 	DSSDBG("calc_rot(%d): scrw %d, %dx%d\n", rotation, screen_width,
 			width, height);
@@ -2171,17 +2138,7 @@ static void calc_tiler_rotation_offset(u16 screen_width, u16 width,
 {
 	u8 ps;
 
-	switch (color_mode) {
-	case OMAP_DSS_COLOR_CLUT1:
-	case OMAP_DSS_COLOR_CLUT2:
-	case OMAP_DSS_COLOR_CLUT4:
-	case OMAP_DSS_COLOR_CLUT8:
-		BUG();
-		return;
-	default:
-		ps = color_mode_to_bpp(color_mode) / 8;
-		break;
-	}
+	ps = color_mode_to_bpp(color_mode) / 8;
 
 	DSSDBG("scrw %d, width %d\n", screen_width, width);
 
@@ -2580,16 +2537,6 @@ static int dispc_ovl_calc_scaling(unsigned long pclk, unsigned long lclk,
 		*y_predecim = (rotation_type == OMAP_DSS_ROT_TILER &&
 				dss_has_feature(FEAT_BURST_2D)) ?
 				2 : max_decim_limit;
-	}
-
-	if (color_mode == OMAP_DSS_COLOR_CLUT1 ||
-	    color_mode == OMAP_DSS_COLOR_CLUT2 ||
-	    color_mode == OMAP_DSS_COLOR_CLUT4 ||
-	    color_mode == OMAP_DSS_COLOR_CLUT8) {
-		*x_predecim = 1;
-		*y_predecim = 1;
-		*five_taps = false;
-		return 0;
 	}
 
 	decim_x = DIV_ROUND_UP(DIV_ROUND_UP(width, out_width), maxdownscale);

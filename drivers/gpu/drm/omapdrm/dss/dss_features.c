@@ -233,8 +233,6 @@ static const enum omap_dss_output_id omap5_dss_supported_outputs[] = {
 
 static const enum omap_color_mode omap2_dss_supported_color_modes[] = {
 	/* OMAP_DSS_GFX */
-	OMAP_DSS_COLOR_CLUT1 | OMAP_DSS_COLOR_CLUT2 |
-	OMAP_DSS_COLOR_CLUT4 | OMAP_DSS_COLOR_CLUT8 |
 	OMAP_DSS_COLOR_RGB12U | OMAP_DSS_COLOR_RGB16 |
 	OMAP_DSS_COLOR_RGB24U | OMAP_DSS_COLOR_RGB24P,
 
@@ -251,8 +249,6 @@ static const enum omap_color_mode omap2_dss_supported_color_modes[] = {
 
 static const enum omap_color_mode omap3_dss_supported_color_modes[] = {
 	/* OMAP_DSS_GFX */
-	OMAP_DSS_COLOR_CLUT1 | OMAP_DSS_COLOR_CLUT2 |
-	OMAP_DSS_COLOR_CLUT4 | OMAP_DSS_COLOR_CLUT8 |
 	OMAP_DSS_COLOR_RGB12U | OMAP_DSS_COLOR_ARGB16 |
 	OMAP_DSS_COLOR_RGB16 | OMAP_DSS_COLOR_RGB24U |
 	OMAP_DSS_COLOR_RGB24P | OMAP_DSS_COLOR_ARGB32 |
@@ -273,8 +269,6 @@ static const enum omap_color_mode omap3_dss_supported_color_modes[] = {
 
 static const enum omap_color_mode omap4_dss_supported_color_modes[] = {
 	/* OMAP_DSS_GFX */
-	OMAP_DSS_COLOR_CLUT1 | OMAP_DSS_COLOR_CLUT2 |
-	OMAP_DSS_COLOR_CLUT4 | OMAP_DSS_COLOR_CLUT8 |
 	OMAP_DSS_COLOR_RGB12U | OMAP_DSS_COLOR_ARGB16 |
 	OMAP_DSS_COLOR_RGB16 | OMAP_DSS_COLOR_RGB24U |
 	OMAP_DSS_COLOR_RGB24P | OMAP_DSS_COLOR_ARGB32 |
