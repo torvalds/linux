@@ -120,6 +120,11 @@ static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
 			return 0;
 		}
 
+		if (!pte_allows_gup(pte_val(pte), write)) {
+			pte_unmap(ptep);
+			return 0;
+		}
+
 		if (pte_devmap(pte)) {
 			pgmap = get_dev_pagemap(pte_pfn(pte), pgmap);
 			if (unlikely(!pgmap)) {
@@ -127,8 +132,7 @@ static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
 				pte_unmap(ptep);
 				return 0;
 			}
-		} else if (!pte_allows_gup(pte_val(pte), write) ||
-			   pte_special(pte)) {
+		} else if (pte_special(pte)) {
 			pte_unmap(ptep);
 			return 0;
 		}
