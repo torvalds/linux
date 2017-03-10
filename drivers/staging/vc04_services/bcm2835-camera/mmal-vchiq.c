@@ -1442,7 +1442,7 @@ static int port_parameter_get(struct vchiq_mmal_instance *instance,
 	}
 
 	ret = -rmsg->u.port_parameter_get_reply.status;
-	if (ret) {
+	if (ret || (rmsg->u.port_parameter_get_reply.size > *value_size)) {
 		/* Copy only as much as we have space for
 		 * but report true size of parameter
 		 */
