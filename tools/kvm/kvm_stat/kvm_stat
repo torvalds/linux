@@ -716,15 +716,23 @@ class TracepointProvider(object):
                     ret[name] += val
         return ret
 
+    def reset(self):
+        """Reset all field counters"""
+        for group in self.group_leaders:
+            for event in group.events:
+                event.reset()
+
 
 class DebugfsProvider(object):
     """Provides data from the files that KVM creates in the kvm debugfs
     folder."""
     def __init__(self):
         self._fields = self.get_available_fields()
+        self._baseline = {}
         self._pid = 0
         self.do_read = True
         self.paths = []
+        self.reset()
 
     def get_available_fields(self):
         """"Returns a list of available fields.
@@ -741,6 +749,7 @@ class DebugfsProvider(object):
     @fields.setter
     def fields(self, fields):
         self._fields = fields
+        self.reset()
 
     @property
     def pid(self):
@@ -758,10 +767,11 @@ class DebugfsProvider(object):
             self.paths = filter(lambda x: "{}-".format(pid) in x, vms)
 
         else:
-            self.paths = ['']
+            self.paths = []
             self.do_read = True
+        self.reset()
 
-    def read(self):
+    def read(self, reset=0):
         """Returns a dict with format:'file name / field -> current value'."""
         results = {}
 
@@ -769,10 +779,22 @@ class DebugfsProvider(object):
         if not self.do_read:
             return results
 
-        for path in self.paths:
+        paths = self.paths
+        if self._pid == 0:
+            paths = []
+            for entry in os.walk(PATH_DEBUGFS_KVM):
+                for dir in entry[1]:
+                    paths.append(dir)
+        for path in paths:
             for field in self._fields:
-                results[field] = results.get(field, 0) \
-                                 + self.read_field(field, path)
+                value = self.read_field(field, path)
+                key = path + field
+                if reset:
+                    self._baseline[key] = value
+                if self._baseline.get(key, -1) == -1:
+                    self._baseline[key] = value
+                results[field] = (results.get(field, 0) + value -
+                                  self._baseline.get(key, 0))
 
         return results
 
@@ -785,6 +807,11 @@ class DebugfsProvider(object):
                        .read())
         except IOError:
             return 0
+
+    def reset(self):
+        """Reset field counters"""
+        self._baseline = {}
+        self.read(1)
 
 
 class Stats(object):
@@ -822,14 +849,20 @@ class Stats(object):
         for provider in self.providers:
             provider.pid = self._pid_filter
 
+    def reset(self):
+        self.values = {}
+        for provider in self.providers:
+            provider.reset()
+
     @property
     def fields_filter(self):
         return self._fields_filter
 
     @fields_filter.setter
     def fields_filter(self, fields_filter):
-        self._fields_filter = fields_filter
-        self.update_provider_filters()
+        if fields_filter != self._fields_filter:
+            self._fields_filter = fields_filter
+            self.update_provider_filters()
 
     @property
     def pid_filter(self):
@@ -837,9 +870,10 @@ class Stats(object):
 
     @pid_filter.setter
     def pid_filter(self, pid):
-        self._pid_filter = pid
-        self.values = {}
-        self.update_provider_pid()
+        if pid != self._pid_filter:
+            self._pid_filter = pid
+            self.values = {}
+            self.update_provider_pid()
 
     def get(self):
         """Returns a dict with field -> (value, delta to last value) of all
@@ -847,11 +881,9 @@ class Stats(object):
         for provider in self.providers:
             new = provider.read()
             for key in provider.fields:
-                oldval = self.values.get(key, (0, 0))
+                oldval = self.values.get(key, (0, 0))[0]
                 newval = new.get(key, 0)
-                newdelta = None
-                if oldval is not None:
-                    newdelta = newval - oldval[0]
+                newdelta = newval - oldval
                 self.values[key] = (newval, newdelta)
         return self.values
 
@@ -1117,6 +1149,10 @@ class Tui(object):
                 if char == 'p':
                     self.show_vm_selection_by_pid()
                     sleeptime = DELAY_INITIAL
+                if char == 'r':
+                    self.refresh_header()
+                    self.stats.reset()
+                    sleeptime = DELAY_INITIAL
             except KeyboardInterrupt:
                 break
             except curses.error:
@@ -1190,6 +1226,7 @@ Interactive Commands:
    p     filter by PID
    q     quit
    x     toggle reporting of stats for individual child trace events
+   r     reset stats
 Press any other key to refresh statistics immediately.
 """
 
