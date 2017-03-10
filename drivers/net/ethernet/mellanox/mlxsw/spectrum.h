@@ -187,6 +187,7 @@ struct mlxsw_sp_fib;
 struct mlxsw_sp_vr {
 	u16 id; /* virtual router ID */
 	u32 tb_id; /* kernel fib table id */
+	unsigned int rif_count;
 	struct mlxsw_sp_fib *fib4;
 };
 
