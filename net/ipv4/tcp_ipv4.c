@@ -423,7 +423,8 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 
 	switch (type) {
 	case ICMP_REDIRECT:
-		do_redirect(icmp_skb, sk);
+		if (!sock_owned_by_user(sk))
+			do_redirect(icmp_skb, sk);
 		goto out;
 	case ICMP_SOURCE_QUENCH:
 		/* Just silently ignore these. */
