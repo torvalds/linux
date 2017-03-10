@@ -502,6 +502,17 @@ struct sctp_stream_reset_event {
 	__u16 strreset_stream_list[];
 };
 
+#define SCTP_ASSOC_RESET_DENIED		0x0004
+#define SCTP_ASSOC_RESET_FAILED		0x0008
+struct sctp_assoc_reset_event {
+	__u16 assocreset_type;
+	__u16 assocreset_flags;
+	__u32 assocreset_length;
+	sctp_assoc_t assocreset_assoc_id;
+	__u32 assocreset_local_tsn;
+	__u32 assocreset_remote_tsn;
+};
+
 /*
  * Described in Section 7.3
  *   Ancillary Data and Notification Interest Options
@@ -518,6 +529,7 @@ struct sctp_event_subscribe {
 	__u8 sctp_authentication_event;
 	__u8 sctp_sender_dry_event;
 	__u8 sctp_stream_reset_event;
+	__u8 sctp_assoc_reset_event;
 };
 
 /*
@@ -543,6 +555,7 @@ union sctp_notification {
 	struct sctp_authkey_event sn_authkey_event;
 	struct sctp_sender_dry_event sn_sender_dry_event;
 	struct sctp_stream_reset_event sn_strreset_event;
+	struct sctp_assoc_reset_event sn_assocreset_event;
 };
 
 /* Section 5.3.1
@@ -572,6 +585,8 @@ enum sctp_sn_type {
 #define SCTP_SENDER_DRY_EVENT		SCTP_SENDER_DRY_EVENT
 	SCTP_STREAM_RESET_EVENT,
 #define SCTP_STREAM_RESET_EVENT		SCTP_STREAM_RESET_EVENT
+	SCTP_ASSOC_RESET_EVENT,
+#define SCTP_ASSOC_RESET_EVENT		SCTP_ASSOC_RESET_EVENT
 };
 
 /* Notification error codes used to fill up the error fields in some
