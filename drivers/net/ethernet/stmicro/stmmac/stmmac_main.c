@@ -1256,19 +1256,14 @@ static void free_dma_desc_resources(struct stmmac_priv *priv)
  */
 static void stmmac_mac_enable_rx_queues(struct stmmac_priv *priv)
 {
-	int rx_count = priv->dma_cap.number_rx_queues;
-	int queue = 0;
+	u32 rx_queues_count = priv->plat->rx_queues_to_use;
+	int queue;
+	u8 mode;
 
-	/* If GMAC does not have multiple queues, then this is not necessary*/
-	if (rx_count == 1)
-		return;
-
-	/**
-	 *  If the core is synthesized with multiple rx queues / multiple
-	 *  dma channels, then rx queues will be disabled by default.
-	 *  For now only rx queue 0 is enabled.
-	 */
-	priv->hw->mac->rx_queue_enable(priv->hw, queue);
+	for (queue = 0; queue < rx_queues_count; queue++) {
+		mode = priv->plat->rx_queues_cfg[queue].mode_to_use;
+		priv->hw->mac->rx_queue_enable(priv->hw, mode, queue);
+	}
 }
 
 /**

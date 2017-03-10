@@ -457,7 +457,7 @@ struct stmmac_ops {
 	/* Enable and verify that the IPC module is supported */
 	int (*rx_ipc)(struct mac_device_info *hw);
 	/* Enable RX Queues */
-	void (*rx_queue_enable)(struct mac_device_info *hw, u32 queue);
+	void (*rx_queue_enable)(struct mac_device_info *hw, u8 mode, u32 queue);
 	/* Program RX Algorithms */
 	void (*prog_mtl_rx_algorithms)(struct mac_device_info *hw, u32 rx_alg);
 	/* Program TX Algorithms */

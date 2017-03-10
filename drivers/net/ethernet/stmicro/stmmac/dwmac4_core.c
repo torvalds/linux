@@ -59,13 +59,17 @@ static void dwmac4_core_init(struct mac_device_info *hw, int mtu)
 	writel(value, ioaddr + GMAC_INT_EN);
 }
 
-static void dwmac4_rx_queue_enable(struct mac_device_info *hw, u32 queue)
+static void dwmac4_rx_queue_enable(struct mac_device_info *hw,
+				   u8 mode, u32 queue)
 {
 	void __iomem *ioaddr = hw->pcsr;
 	u32 value = readl(ioaddr + GMAC_RXQ_CTRL0);
 
 	value &= GMAC_RX_QUEUE_CLEAR(queue);
-	value |= GMAC_RX_AV_QUEUE_ENABLE(queue);
+	if (mode == MTL_RX_AVB)
+		value |= GMAC_RX_AV_QUEUE_ENABLE(queue);
+	else if (mode == MTL_RX_DCB)
+		value |= GMAC_RX_DCB_QUEUE_ENABLE(queue);
 
 	writel(value, ioaddr + GMAC_RXQ_CTRL0);
 }
