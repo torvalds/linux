@@ -976,6 +976,7 @@ class Tui(object):
         Asks for a pid until a valid pid or 0 has been entered.
 
         """
+        msg = ''
         while True:
             self.screen.erase()
             self.screen.addstr(0, 0,
@@ -984,6 +985,7 @@ class Tui(object):
             self.screen.addstr(1, 0,
                                'This might limit the shown data to the trace '
                                'statistics.')
+            self.screen.addstr(5, 0, msg)
 
             curses.echo()
             self.screen.addstr(3, 0, "Pid [0 or pid]: ")
@@ -995,6 +997,7 @@ class Tui(object):
                     pid = int(pid)
                     if pid != 0 and not os.path.isdir(os.path.join('/proc/',
                                                                    str(pid))):
+                        msg = '"' + str(pid) + '": Not a running process'
                         continue
                 else:
                     pid = 0
@@ -1003,6 +1006,7 @@ class Tui(object):
                 break
 
             except ValueError:
+                msg = '"' + str(pid) + '": Not a valid pid'
                 continue
 
     def show_stats(self):
