@@ -873,7 +873,8 @@ done_merging:
 		higher_page = page + (combined_pfn - pfn);
 		buddy_pfn = __find_buddy_pfn(combined_pfn, order + 1);
 		higher_buddy = higher_page + (buddy_pfn - combined_pfn);
-		if (page_is_buddy(higher_page, higher_buddy, order + 1)) {
+		if (pfn_valid_within(buddy_pfn) &&
+		    page_is_buddy(higher_page, higher_buddy, order + 1)) {
 			list_add_tail(&page->lru,
 				&zone->free_area[order].free_list[migratetype]);
 			goto out;

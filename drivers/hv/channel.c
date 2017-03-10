@@ -543,7 +543,7 @@ static int vmbus_close_internal(struct vmbus_channel *channel)
 	/*
 	 * In case a device driver's probe() fails (e.g.,
 	 * util_probe() -> vmbus_open() returns -ENOMEM) and the device is
-	 * rescinded later (e.g., we dynamically disble an Integrated Service
+	 * rescinded later (e.g., we dynamically disable an Integrated Service
 	 * in Hyper-V Manager), the driver's remove() invokes vmbus_close():
 	 * here we should skip most of the below cleanup work.
 	 */
