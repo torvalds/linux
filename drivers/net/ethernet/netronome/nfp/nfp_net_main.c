@@ -130,7 +130,7 @@ err_area:
 }
 
 static void
-nfp_net_get_mac_addr_hwinfo(struct nfp_net *nn, struct nfp_cpp *cpp,
+nfp_net_get_mac_addr_hwinfo(struct nfp_net_dp *dp, struct nfp_cpp *cpp,
 			    unsigned int id)
 {
 	u8 mac_addr[ETH_ALEN];
@@ -141,22 +141,22 @@ nfp_net_get_mac_addr_hwinfo(struct nfp_net *nn, struct nfp_cpp *cpp,
 
 	mac_str = nfp_hwinfo_lookup(cpp, name);
 	if (!mac_str) {
-		dev_warn(nn->dev, "Can't lookup MAC address. Generate\n");
-		eth_hw_addr_random(nn->netdev);
+		dev_warn(dp->dev, "Can't lookup MAC address. Generate\n");
+		eth_hw_addr_random(dp->netdev);
 		return;
 	}
 
 	if (sscanf(mac_str, "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
 		   &mac_addr[0], &mac_addr[1], &mac_addr[2],
 		   &mac_addr[3], &mac_addr[4], &mac_addr[5]) != 6) {
-		dev_warn(nn->dev,
+		dev_warn(dp->dev,
 			 "Can't parse MAC address (%s). Generate.\n", mac_str);
-		eth_hw_addr_random(nn->netdev);
+		eth_hw_addr_random(dp->netdev);
 		return;
 	}
 
-	ether_addr_copy(nn->netdev->dev_addr, mac_addr);
-	ether_addr_copy(nn->netdev->perm_addr, mac_addr);
+	ether_addr_copy(dp->netdev->dev_addr, mac_addr);
+	ether_addr_copy(dp->netdev->perm_addr, mac_addr);
 }
 
 /**
@@ -179,12 +179,12 @@ nfp_net_get_mac_addr(struct nfp_net *nn, struct nfp_pf *pf, unsigned int id)
 
 			nn->eth_port = &pf->eth_tbl->ports[i];
 
-			ether_addr_copy(nn->netdev->dev_addr, mac_addr);
-			ether_addr_copy(nn->netdev->perm_addr, mac_addr);
+			ether_addr_copy(nn->dp.netdev->dev_addr, mac_addr);
+			ether_addr_copy(nn->dp.netdev->perm_addr, mac_addr);
 			return;
 		}
 
-	nfp_net_get_mac_addr_hwinfo(nn, pf->cpp, id);
+	nfp_net_get_mac_addr_hwinfo(&nn->dp, pf->cpp, id);
 }
 
 static unsigned int nfp_net_pf_get_num_ports(struct nfp_pf *pf)
@@ -309,7 +309,7 @@ nfp_net_pf_alloc_port_netdev(struct nfp_pf *pf, void __iomem *ctrl_bar,
 	nn->ctrl_bar = ctrl_bar;
 	nn->tx_bar = tx_bar;
 	nn->rx_bar = rx_bar;
-	nn->is_vf = 0;
+	nn->dp.is_vf = 0;
 	nn->stride_rx = stride;
 	nn->stride_tx = stride;
 
@@ -331,7 +331,7 @@ nfp_net_pf_init_port_netdev(struct nfp_pf *pf, struct nfp_net *nn,
 	 */
 	nn->me_freq_mhz = 1200;
 
-	err = nfp_net_netdev_init(nn->netdev);
+	err = nfp_net_netdev_init(nn->dp.netdev);
 	if (err)
 		return err;
 
@@ -400,7 +400,7 @@ nfp_net_pf_spawn_netdevs(struct nfp_pf *pf,
 	/* Get MSI-X vectors */
 	wanted_irqs = 0;
 	list_for_each_entry(nn, &pf->ports, port_list)
-		wanted_irqs += NFP_NET_NON_Q_VECTORS + nn->num_r_vecs;
+		wanted_irqs += NFP_NET_NON_Q_VECTORS + nn->dp.num_r_vecs;
 	pf->irq_entries = kcalloc(wanted_irqs, sizeof(*pf->irq_entries),
 				  GFP_KERNEL);
 	if (!pf->irq_entries) {
@@ -445,7 +445,7 @@ nfp_net_pf_spawn_netdevs(struct nfp_pf *pf,
 err_prev_deinit:
 	list_for_each_entry_continue_reverse(nn, &pf->ports, port_list) {
 		nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
-		nfp_net_netdev_clean(nn->netdev);
+		nfp_net_netdev_clean(nn->dp.netdev);
 	}
 	nfp_net_irqs_disable(pf->pdev);
 err_vec_free:
@@ -571,7 +571,7 @@ void nfp_net_pci_remove(struct nfp_pf *pf)
 	list_for_each_entry(nn, &pf->ports, port_list) {
 		nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
 
-		nfp_net_netdev_clean(nn->netdev);
+		nfp_net_netdev_clean(nn->dp.netdev);
 	}
 
 	nfp_net_pf_free_netdevs(pf);

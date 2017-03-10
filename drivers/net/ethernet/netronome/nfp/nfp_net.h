@@ -50,14 +50,14 @@
 
 #include "nfp_net_ctrl.h"
 
-#define nn_err(nn, fmt, args...)  netdev_err((nn)->netdev, fmt, ## args)
-#define nn_warn(nn, fmt, args...) netdev_warn((nn)->netdev, fmt, ## args)
-#define nn_info(nn, fmt, args...) netdev_info((nn)->netdev, fmt, ## args)
-#define nn_dbg(nn, fmt, args...)  netdev_dbg((nn)->netdev, fmt, ## args)
-#define nn_warn_ratelimit(nn, fmt, args...)				\
+#define nn_err(nn, fmt, args...)  netdev_err((nn)->dp.netdev, fmt, ## args)
+#define nn_warn(nn, fmt, args...) netdev_warn((nn)->dp.netdev, fmt, ## args)
+#define nn_info(nn, fmt, args...) netdev_info((nn)->dp.netdev, fmt, ## args)
+#define nn_dbg(nn, fmt, args...)  netdev_dbg((nn)->dp.netdev, fmt, ## args)
+#define nn_dp_warn(dp, fmt, args...)					\
 	do {								\
 		if (unlikely(net_ratelimit()))				\
-			netdev_warn((nn)->netdev, fmt, ## args);	\
+			netdev_warn((dp)->netdev, fmt, ## args);	\
 	} while (0)
 
 /* Max time to wait for NFP to respond on updates (in seconds) */
@@ -434,18 +434,62 @@ struct nfp_stat_pair {
 };
 
 /**
- * struct nfp_net - NFP network device structure
+ * struct nfp_net_dp - NFP network device datapath data structure
  * @dev:		Backpointer to struct device
- * @netdev:             Backpointer to net_device structure
- * @is_vf:              Is the driver attached to a VF?
+ * @netdev:		Backpointer to net_device structure
+ * @is_vf:		Is the driver attached to a VF?
  * @bpf_offload_skip_sw:  Offloaded BPF program will not be rerun by cls_bpf
  * @bpf_offload_xdp:	Offloaded BPF program is XDP
  * @chained_metadata_format:  Firemware will use new metadata format
- * @ctrl:               Local copy of the control register/word.
- * @fl_bufsz:           Currently configured size of the freelist buffers
+ * @ctrl:		Local copy of the control register/word.
+ * @fl_bufsz:		Currently configured size of the freelist buffers
  * @rx_offset:		Offset in the RX buffers where packet data starts
  * @xdp_prog:		Installed XDP program
- * @fw_ver:             Firmware version
+ * @tx_rings:		Array of pre-allocated TX ring structures
+ * @rx_rings:		Array of pre-allocated RX ring structures
+ *
+ * @txd_cnt:		Size of the TX ring in number of descriptors
+ * @rxd_cnt:		Size of the RX ring in number of descriptors
+ * @num_r_vecs:		Number of used ring vectors
+ * @num_tx_rings:	Currently configured number of TX rings
+ * @num_stack_tx_rings:	Number of TX rings used by the stack (not XDP)
+ * @num_rx_rings:	Currently configured number of RX rings
+ */
+struct nfp_net_dp {
+	struct device *dev;
+	struct net_device *netdev;
+
+	unsigned is_vf:1;
+	unsigned bpf_offload_skip_sw:1;
+	unsigned bpf_offload_xdp:1;
+	unsigned chained_metadata_format:1;
+
+	u32 ctrl;
+	u32 fl_bufsz;
+
+	u32 rx_offset;
+
+	struct bpf_prog *xdp_prog;
+
+	struct nfp_net_tx_ring *tx_rings;
+	struct nfp_net_rx_ring *rx_rings;
+
+	/* Cold data follows */
+
+	unsigned int txd_cnt;
+	unsigned int rxd_cnt;
+
+	unsigned int num_r_vecs;
+
+	unsigned int num_tx_rings;
+	unsigned int num_stack_tx_rings;
+	unsigned int num_rx_rings;
+};
+
+/**
+ * struct nfp_net - NFP network device structure
+ * @dp:			Datapath structure
+ * @fw_ver:		Firmware version
  * @cap:                Capabilities advertised by the Firmware
  * @max_mtu:            Maximum support MTU advertised by the Firmware
  * @rss_hfunc:		RSS selected hash function
@@ -457,17 +501,9 @@ struct nfp_stat_pair {
  * @rx_filter_change:	Jiffies when statistics last changed
  * @rx_filter_stats_timer:  Timer for polling filter offload statistics
  * @rx_filter_lock:	Lock protecting timer state changes (teardown)
+ * @max_r_vecs:		Number of allocated interrupt vectors for RX/TX
  * @max_tx_rings:       Maximum number of TX rings supported by the Firmware
  * @max_rx_rings:       Maximum number of RX rings supported by the Firmware
- * @num_tx_rings:       Currently configured number of TX rings
- * @num_stack_tx_rings:	Number of TX rings used by the stack (not XDP)
- * @num_rx_rings:       Currently configured number of RX rings
- * @txd_cnt:            Size of the TX ring in number of descriptors
- * @rxd_cnt:            Size of the RX ring in number of descriptors
- * @tx_rings:           Array of pre-allocated TX ring structures
- * @rx_rings:           Array of pre-allocated RX ring structures
- * @max_r_vecs:	        Number of allocated interrupt vectors for RX/TX
- * @num_r_vecs:         Number of used ring vectors
  * @r_vecs:             Pre-allocated array of ring vectors
  * @irq_entries:        Pre-allocated array of MSI-X entries
  * @lsc_handler:        Handler for Link State Change interrupt
@@ -502,25 +538,10 @@ struct nfp_stat_pair {
  * @eth_port:		Translated ETH Table port entry
  */
 struct nfp_net {
-	struct device *dev;
-	struct net_device *netdev;
-
-	unsigned is_vf:1;
-	unsigned bpf_offload_skip_sw:1;
-	unsigned bpf_offload_xdp:1;
-	unsigned chained_metadata_format:1;
-
-	u32 ctrl;
-	u32 fl_bufsz;
-
-	u32 rx_offset;
-
-	struct bpf_prog *xdp_prog;
-
-	struct nfp_net_tx_ring *tx_rings;
-	struct nfp_net_rx_ring *rx_rings;
+	struct nfp_net_dp dp;
 
 	struct nfp_net_fw_version fw_ver;
+
 	u32 cap;
 	u32 max_mtu;
 
@@ -537,18 +558,10 @@ struct nfp_net {
 	unsigned int max_tx_rings;
 	unsigned int max_rx_rings;
 
-	unsigned int num_tx_rings;
-	unsigned int num_stack_tx_rings;
-	unsigned int num_rx_rings;
-
 	int stride_tx;
 	int stride_rx;
 
-	int txd_cnt;
-	int rxd_cnt;
-
 	unsigned int max_r_vecs;
-	unsigned int num_r_vecs;
 	struct nfp_net_r_vector r_vecs[NFP_NET_MAX_R_VECS];
 	struct msix_entry irq_entries[NFP_NET_MAX_IRQS];
 
