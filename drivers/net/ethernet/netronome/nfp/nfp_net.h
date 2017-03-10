@@ -439,6 +439,7 @@ struct nfp_stat_pair {
  * @bpf_offload_xdp:	Offloaded BPF program is XDP
  * @chained_metadata_format:  Firemware will use new metadata format
  * @rx_dma_dir:		Mapping direction for RX buffers
+ * @rx_dma_off:		Offset at which DMA packets (for XDP headroom)
  * @rx_offset:		Offset in the RX buffers where packet data starts
  * @ctrl:		Local copy of the control register/word.
  * @fl_bufsz:		Currently configured size of the freelist buffers
@@ -465,6 +466,7 @@ struct nfp_net_dp {
 	u8 chained_metadata_format:1;
 
 	u8 rx_dma_dir;
+	u8 rx_dma_off;
 
 	u8 rx_offset;
 
