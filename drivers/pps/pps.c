@@ -242,6 +242,18 @@ static long pps_cdev_ioctl(struct file *file,
 	return 0;
 }
 
+#ifdef CONFIG_COMPAT
+static long pps_cdev_compat_ioctl(struct file *file,
+		unsigned int cmd, unsigned long arg)
+{
+	cmd = _IOC(_IOC_DIR(cmd), _IOC_TYPE(cmd), _IOC_NR(cmd), sizeof(void *));
+
+	return pps_cdev_ioctl(file, cmd, arg);
+}
+#else
+#define pps_cdev_compat_ioctl	NULL
+#endif
+
 static int pps_cdev_open(struct inode *inode, struct file *file)
 {
 	struct pps_device *pps = container_of(inode->i_cdev,
@@ -268,6 +280,7 @@ static const struct file_operations pps_cdev_fops = {
 	.llseek		= no_llseek,
 	.poll		= pps_cdev_poll,
 	.fasync		= pps_cdev_fasync,
+	.compat_ioctl	= pps_cdev_compat_ioctl,
 	.unlocked_ioctl	= pps_cdev_ioctl,
 	.open		= pps_cdev_open,
 	.release	= pps_cdev_release,
