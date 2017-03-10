@@ -316,6 +316,29 @@ static int sdcardfs_fasync(int fd, struct file *file, int flag)
 	return err;
 }
 
+/*
+ * Sdcardfs cannot use generic_file_llseek as ->llseek, because it would
+ * only set the offset of the upper file.  So we have to implement our
+ * own method to set both the upper and lower file offsets
+ * consistently.
+ */
+static loff_t sdcardfs_file_llseek(struct file *file, loff_t offset, int whence)
+{
+	int err;
+	struct file *lower_file;
+
+	err = generic_file_llseek(file, offset, whence);
+	if (err < 0)
+		goto out;
+
+	lower_file = sdcardfs_lower_file(file);
+	err = generic_file_llseek(lower_file, offset, whence);
+
+out:
+	return err;
+}
+
+
 const struct file_operations sdcardfs_main_fops = {
 	.llseek		= generic_file_llseek,
 	.read		= sdcardfs_read,
@@ -334,7 +357,7 @@ const struct file_operations sdcardfs_main_fops = {
 
 /* trimmed directory options */
 const struct file_operations sdcardfs_dir_fops = {
-	.llseek		= generic_file_llseek,
+	.llseek		= sdcardfs_file_llseek,
 	.read		= generic_read_dir,
 	.iterate	= sdcardfs_readdir,
 	.unlocked_ioctl	= sdcardfs_unlocked_ioctl,
