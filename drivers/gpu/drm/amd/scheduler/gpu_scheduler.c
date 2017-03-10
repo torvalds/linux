@@ -460,6 +460,7 @@ int amd_sched_job_init(struct amd_sched_job *job,
 	job->sched = sched;
 	job->s_entity = entity;
 	job->s_fence = amd_sched_fence_create(entity, owner);
+	job->id = atomic64_inc_return(&sched->job_id_count);
 	if (!job->s_fence)
 		return -ENOMEM;
 
@@ -617,6 +618,7 @@ int amd_sched_init(struct amd_gpu_scheduler *sched,
 	INIT_LIST_HEAD(&sched->ring_mirror_list);
 	spin_lock_init(&sched->job_list_lock);
 	atomic_set(&sched->hw_rq_count, 0);
+	atomic64_set(&sched->job_id_count, 0);
 
 	/* Each scheduler will run on a seperate kernel thread */
 	sched->thread = kthread_run(amd_sched_main, sched, sched->name);

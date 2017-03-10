@@ -80,6 +80,7 @@ struct amd_sched_job {
 	struct work_struct		finish_work;
 	struct list_head		node;
 	struct delayed_work		work_tdr;
+	uint64_t			id;
 };
 
 extern const struct dma_fence_ops amd_sched_fence_ops_scheduled;
@@ -124,6 +125,7 @@ struct amd_gpu_scheduler {
 	wait_queue_head_t		wake_up_worker;
 	wait_queue_head_t		job_scheduled;
 	atomic_t			hw_rq_count;
+	atomic64_t			job_id_count;
 	struct task_struct		*thread;
 	struct list_head	ring_mirror_list;
 	spinlock_t			job_list_lock;
