@@ -2386,7 +2386,7 @@ add_out:
 	list_add_tail(&nes->set_list, head);
 }
 
-void __update_nat_bits(struct f2fs_sb_info *sbi, nid_t start_nid,
+static void __update_nat_bits(struct f2fs_sb_info *sbi, nid_t start_nid,
 						struct page *page)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
