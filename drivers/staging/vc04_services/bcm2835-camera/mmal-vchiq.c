@@ -297,7 +297,7 @@ static void event_to_host_cb(struct vchiq_mmal_instance *instance,
 			     struct mmal_msg *msg, u32 msg_len)
 {
 	pr_debug("unhandled event\n");
-	pr_debug("component:%p port type:%d num:%d cmd:0x%x length:%d\n",
+	pr_debug("component:%u port type:%d num:%d cmd:0x%x length:%d\n",
 		 msg->u.event_to_host.client_component,
 		 msg->u.event_to_host.port_type,
 		 msg->u.event_to_host.port_num,
@@ -1105,7 +1105,7 @@ static int create_component(struct vchiq_mmal_instance *instance,
 
 	/* build component create message */
 	m.h.type = MMAL_MSG_TYPE_COMPONENT_CREATE;
-	m.u.component_create.client_component = component;
+	m.u.component_create.client_component = (u32)(unsigned long)component;
 	strncpy(m.u.component_create.name, name,
 		sizeof(m.u.component_create.name));
 

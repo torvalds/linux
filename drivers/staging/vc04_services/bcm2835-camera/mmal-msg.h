@@ -101,7 +101,7 @@ struct mmal_msg_version {
 
 /* request to VC to create component */
 struct mmal_msg_component_create {
-	void *client_component; /* component context */
+	u32 client_component; /* component context */
 	char name[128];
 	u32 pid;                /* For debug */
 };
@@ -339,7 +339,7 @@ struct mmal_msg_port_parameter_get_reply {
 #define MMAL_WORKER_EVENT_SPACE 256
 
 struct mmal_msg_event_to_host {
-	void *client_component; /* component context */
+	u32 client_component; /* component context */
 
 	u32 port_type;
 	u32 port_num;
