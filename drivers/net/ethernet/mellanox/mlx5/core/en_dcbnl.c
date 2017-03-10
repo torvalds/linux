@@ -302,6 +302,9 @@ static u8 mlx5e_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5e_dcbx *dcbx = &priv->dcbx;
 
+	if (mode & DCB_CAP_DCBX_LLD_MANAGED)
+		return 1;
+
 	if ((!mode) && MLX5_CAP_GEN(priv->mdev, dcbx)) {
 		if (dcbx->mode == MLX5E_DCBX_PARAM_VER_OPER_AUTO)
 			return 0;
@@ -315,13 +318,10 @@ static u8 mlx5e_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 		return 1;
 	}
 
-	if (mlx5e_dcbnl_switch_to_host_mode(netdev_priv(dev)))
+	if (!(mode & DCB_CAP_DCBX_HOST))
 		return 1;
 
-	if ((mode & DCB_CAP_DCBX_LLD_MANAGED) ||
-	    !(mode & DCB_CAP_DCBX_VER_CEE) ||
-	    !(mode & DCB_CAP_DCBX_VER_IEEE) ||
-	    !(mode & DCB_CAP_DCBX_HOST))
+	if (mlx5e_dcbnl_switch_to_host_mode(netdev_priv(dev)))
 		return 1;
 
 	return 0;
