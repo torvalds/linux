@@ -159,8 +159,10 @@ void bt_accept_enqueue(struct sock *parent, struct sock *sk)
 	BT_DBG("parent %p, sk %p", parent, sk);
 
 	sock_hold(sk);
+	lock_sock(sk);
 	list_add_tail(&bt_sk(sk)->accept_q, &bt_sk(parent)->accept_q);
 	bt_sk(sk)->parent = parent;
+	release_sock(sk);
 	parent->sk_ack_backlog++;
 }
 EXPORT_SYMBOL(bt_accept_enqueue);
