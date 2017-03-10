@@ -623,10 +623,12 @@ struct bcmgenet_priv {
 	struct work_struct bcmgenet_irq_work;
 	int irq0;
 	int irq1;
-	unsigned int irq0_stat;
-	unsigned int irq1_stat;
 	int wol_irq;
 	bool wol_irq_disabled;
+
+	/* shared status */
+	spinlock_t lock;
+	unsigned int irq0_stat;
 
 	/* HW descriptors/checksum variables */
 	bool desc_64b_en;
