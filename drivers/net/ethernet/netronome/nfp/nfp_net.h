@@ -316,8 +316,6 @@ struct nfp_net_rx_buf {
  * @rxds:       Virtual address of FL/RX ring in host memory
  * @dma:        DMA address of the FL/RX ring
  * @size:       Size, in bytes, of the FL/RX ring (needed to free)
- * @bufsz:	Buffer allocation size for convenience of management routines
- *		(NOTE: this is in second cache line, do not use on fast path!)
  */
 struct nfp_net_rx_ring {
 	struct nfp_net_r_vector *r_vec;
@@ -339,7 +337,6 @@ struct nfp_net_rx_ring {
 
 	dma_addr_t dma;
 	unsigned int size;
-	unsigned int bufsz;
 } ____cacheline_aligned;
 
 /**
