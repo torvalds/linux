@@ -720,13 +720,6 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		if (err)
 			goto put_out_dir;
 
-		err = update_dent_inode(old_inode, new_inode,
-						&new_dentry->d_name);
-		if (err) {
-			release_orphan_inode(sbi);
-			goto put_out_dir;
-		}
-
 		f2fs_set_link(new_dir, new_entry, new_page, old_inode);
 
 		new_inode->i_ctime = current_time(new_inode);
@@ -779,8 +772,6 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	down_write(&F2FS_I(old_inode)->i_sem);
 	file_lost_pino(old_inode);
-	if (new_inode && file_enc_name(new_inode))
-		file_set_enc_name(old_inode);
 	up_write(&F2FS_I(old_inode)->i_sem);
 
 	old_inode->i_ctime = current_time(old_inode);
@@ -917,18 +908,6 @@ static int f2fs_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	f2fs_lock_op(sbi);
 
-	err = update_dent_inode(old_inode, new_inode, &new_dentry->d_name);
-	if (err)
-		goto out_unlock;
-	if (file_enc_name(new_inode))
-		file_set_enc_name(old_inode);
-
-	err = update_dent_inode(new_inode, old_inode, &old_dentry->d_name);
-	if (err)
-		goto out_undo;
-	if (file_enc_name(old_inode))
-		file_set_enc_name(new_inode);
-
 	/* update ".." directory entry info of old dentry */
 	if (old_dir_entry)
 		f2fs_set_link(old_inode, old_dir_entry, old_dir_page, new_dir);
@@ -972,14 +951,6 @@ static int f2fs_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (IS_DIRSYNC(old_dir) || IS_DIRSYNC(new_dir))
 		f2fs_sync_fs(sbi->sb, 1);
 	return 0;
-out_undo:
-	/*
-	 * Still we may fail to recover name info of f2fs_inode here
-	 * Drop it, once its name is set as encrypted
-	 */
-	update_dent_inode(old_inode, old_inode, &old_dentry->d_name);
-out_unlock:
-	f2fs_unlock_op(sbi);
 out_new_dir:
 	if (new_dir_entry) {
 		f2fs_dentry_kunmap(new_inode, new_dir_page);
