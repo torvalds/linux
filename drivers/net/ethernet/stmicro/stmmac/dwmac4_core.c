@@ -336,11 +336,12 @@ static void dwmac4_set_filter(struct mac_device_info *hw,
 }
 
 static void dwmac4_flow_ctrl(struct mac_device_info *hw, unsigned int duplex,
-			     unsigned int fc, unsigned int pause_time)
+			     unsigned int fc, unsigned int pause_time,
+			     u32 tx_cnt)
 {
 	void __iomem *ioaddr = hw->pcsr;
-	u32 channel = STMMAC_CHAN0;	/* FIXME */
 	unsigned int flow = 0;
+	u32 queue = 0;
 
 	pr_debug("GMAC Flow-Control:\n");
 	if (fc & FLOW_RX) {
@@ -350,13 +351,18 @@ static void dwmac4_flow_ctrl(struct mac_device_info *hw, unsigned int duplex,
 	}
 	if (fc & FLOW_TX) {
 		pr_debug("\tTransmit Flow-Control ON\n");
-		flow |= GMAC_TX_FLOW_CTRL_TFE;
-		writel(flow, ioaddr + GMAC_QX_TX_FLOW_CTRL(channel));
 
-		if (duplex) {
+		if (duplex)
 			pr_debug("\tduplex mode: PAUSE %d\n", pause_time);
-			flow |= (pause_time << GMAC_TX_FLOW_CTRL_PT_SHIFT);
-			writel(flow, ioaddr + GMAC_QX_TX_FLOW_CTRL(channel));
+
+		for (queue = 0; queue < tx_cnt; queue++) {
+			flow |= GMAC_TX_FLOW_CTRL_TFE;
+
+			if (duplex)
+				flow |=
+				(pause_time << GMAC_TX_FLOW_CTRL_PT_SHIFT);
+
+			writel(flow, ioaddr + GMAC_QX_TX_FLOW_CTRL(queue));
 		}
 	}
 }

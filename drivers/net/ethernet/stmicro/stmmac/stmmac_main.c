@@ -673,6 +673,19 @@ static void stmmac_release_ptp(struct stmmac_priv *priv)
 }
 
 /**
+ *  stmmac_mac_flow_ctrl - Configure flow control in all queues
+ *  @priv: driver private structure
+ *  Description: It is used for configuring the flow control in all queues
+ */
+static void stmmac_mac_flow_ctrl(struct stmmac_priv *priv, u32 duplex)
+{
+	u32 tx_cnt = priv->plat->tx_queues_to_use;
+
+	priv->hw->mac->flow_ctrl(priv->hw, duplex, priv->flow_ctrl,
+				 priv->pause, tx_cnt);
+}
+
+/**
  * stmmac_adjust_link - adjusts the link parameters
  * @dev: net device structure
  * Description: this is the helper called by the physical abstraction layer
@@ -687,7 +700,6 @@ static void stmmac_adjust_link(struct net_device *dev)
 	struct phy_device *phydev = dev->phydev;
 	unsigned long flags;
 	int new_state = 0;
-	unsigned int fc = priv->flow_ctrl, pause_time = priv->pause;
 
 	if (!phydev)
 		return;
@@ -709,8 +721,7 @@ static void stmmac_adjust_link(struct net_device *dev)
 		}
 		/* Flow Control operation */
 		if (phydev->pause)
-			priv->hw->mac->flow_ctrl(priv->hw, phydev->duplex,
-						 fc, pause_time);
+			stmmac_mac_flow_ctrl(priv, phydev->duplex);
 
 		if (phydev->speed != priv->speed) {
 			new_state = 1;

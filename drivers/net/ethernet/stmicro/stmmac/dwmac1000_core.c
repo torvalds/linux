@@ -216,7 +216,8 @@ static void dwmac1000_set_filter(struct mac_device_info *hw,
 
 
 static void dwmac1000_flow_ctrl(struct mac_device_info *hw, unsigned int duplex,
-				unsigned int fc, unsigned int pause_time)
+				unsigned int fc, unsigned int pause_time,
+				u32 tx_cnt)
 {
 	void __iomem *ioaddr = hw->pcsr;
 	/* Set flow such that DZPQ in Mac Register 6 is 0,
