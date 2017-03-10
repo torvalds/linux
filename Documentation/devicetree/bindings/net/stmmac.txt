@@ -92,8 +92,15 @@ Optional properties:
 		- snps,tx-sched-dwrr: Deficit Weighted Round Robin
 		- snps,tx-sched-sp: Strict priority
 	- For each TX queue
-		- snps,weight: TX queue weight (if using a weighted algorithm)
-
+		- snps,weight: TX queue weight (if using a DCB weight algorithm)
+		- Choose one of these modes:
+			- snps,dcb-algorithm: TX queue will be working in DCB
+			- snps,avb-algorithm: TX queue will be working in AVB
+		- Configure Credit Base Shaper (if AVB Mode selected):
+			- snps,send_slope: enable Low Power Interface
+			- snps,idle_slope: unlock on WoL
+			- snps,high_credit: max write outstanding req. limit
+			- snps,low_credit: max read outstanding req. limit
 Examples:
 
 	stmmac_axi_setup: stmmac-axi-config {
@@ -112,10 +119,19 @@ Examples:
 	};
 
 	mtl_tx_setup: tx-queues-config {
-		snps,tx-queues-to-use = <1>;
+		snps,tx-queues-to-use = <2>;
 		snps,tx-sched-wrr;
 		queue0 {
 			snps,weight = <0x10>;
+			snps,dcb-algorithm;
+		};
+
+		queue1 {
+			snps,avb-algorithm;
+			snps,send_slope = <0x1000>;
+			snps,idle_slope = <0x1000>;
+			snps,high_credit = <0x3E800>;
+			snps,low_credit = <0xFFC18000>;
 		};
 	};
 

@@ -171,11 +171,11 @@ static void stmmac_mtl_setup(struct platform_device *pdev,
 			break;
 
 		if (of_property_read_bool(q_node, "snps,dcb-algorithm"))
-			plat->rx_queues_cfg[queue].mode_to_use = MTL_RX_DCB;
+			plat->rx_queues_cfg[queue].mode_to_use = MTL_QUEUE_DCB;
 		else if (of_property_read_bool(q_node, "snps,avb-algorithm"))
-			plat->rx_queues_cfg[queue].mode_to_use = MTL_RX_AVB;
+			plat->rx_queues_cfg[queue].mode_to_use = MTL_QUEUE_AVB;
 		else
-			plat->rx_queues_cfg[queue].mode_to_use = MTL_RX_DCB;
+			plat->rx_queues_cfg[queue].mode_to_use = MTL_QUEUE_DCB;
 
 		if (of_property_read_u8(q_node, "snps,map-to-dma-channel",
 					&plat->rx_queues_cfg[queue].chan))
@@ -211,6 +211,29 @@ static void stmmac_mtl_setup(struct platform_device *pdev,
 		if (of_property_read_u8(q_node, "snps,weight",
 					&plat->tx_queues_cfg[queue].weight))
 			plat->tx_queues_cfg[queue].weight = 0x10 + queue;
+
+		if (of_property_read_bool(q_node, "snps,dcb-algorithm")) {
+			plat->tx_queues_cfg[queue].mode_to_use = MTL_QUEUE_DCB;
+		} else if (of_property_read_bool(q_node,
+						 "snps,avb-algorithm")) {
+			plat->tx_queues_cfg[queue].mode_to_use = MTL_QUEUE_AVB;
+
+			/* Credit Base Shaper parameters used by AVB */
+			if (of_property_read_u32(q_node, "snps,send_slope",
+				&plat->tx_queues_cfg[queue].send_slope))
+				plat->tx_queues_cfg[queue].send_slope = 0x0;
+			if (of_property_read_u32(q_node, "snps,idle_slope",
+				&plat->tx_queues_cfg[queue].idle_slope))
+				plat->tx_queues_cfg[queue].idle_slope = 0x0;
+			if (of_property_read_u32(q_node, "snps,high_credit",
+				&plat->tx_queues_cfg[queue].high_credit))
+				plat->tx_queues_cfg[queue].high_credit = 0x0;
+			if (of_property_read_u32(q_node, "snps,low_credit",
+				&plat->tx_queues_cfg[queue].low_credit))
+				plat->tx_queues_cfg[queue].low_credit = 0x0;
+		} else {
+			plat->tx_queues_cfg[queue].mode_to_use = MTL_QUEUE_DCB;
+		}
 
 		queue++;
 	}

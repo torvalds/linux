@@ -1671,6 +1671,31 @@ static void stmmac_set_tx_queue_weight(struct stmmac_priv *priv)
 }
 
 /**
+ *  stmmac_configure_cbs - Configure CBS in TX queue
+ *  @priv: driver private structure
+ *  Description: It is used for configuring CBS in AVB TX queues
+ */
+static void stmmac_configure_cbs(struct stmmac_priv *priv)
+{
+	u32 tx_queues_count = priv->plat->tx_queues_to_use;
+	u32 mode_to_use;
+	u32 queue;
+
+	for (queue = 0; queue < tx_queues_count; queue++) {
+		mode_to_use = priv->plat->tx_queues_cfg[queue].mode_to_use;
+		if (mode_to_use == MTL_QUEUE_DCB)
+			continue;
+
+		priv->hw->mac->config_cbs(priv->hw,
+				priv->plat->tx_queues_cfg[queue].send_slope,
+				priv->plat->tx_queues_cfg[queue].idle_slope,
+				priv->plat->tx_queues_cfg[queue].high_credit,
+				priv->plat->tx_queues_cfg[queue].low_credit,
+				queue);
+	}
+}
+
+/**
  *  stmmac_rx_queue_dma_chan_map - Map RX queue to RX dma channel
  *  @priv: driver private structure
  *  Description: It is used for mapping RX queues to RX dma channels
@@ -1709,6 +1734,10 @@ static void stmmac_mtl_configuration(struct stmmac_priv *priv)
 	if (tx_queues_count > 1 && priv->hw->mac->prog_mtl_tx_algorithms)
 		priv->hw->mac->prog_mtl_tx_algorithms(priv->hw,
 						priv->plat->tx_sched_algorithm);
+
+	/* Configure CBS in AVB TX queues */
+	if (tx_queues_count > 1 && priv->hw->mac->config_cbs)
+		stmmac_configure_cbs(priv);
 
 	/* Map RX MTL to DMA channels */
 	if (rx_queues_count > 1 && priv->hw->mac->map_mtl_to_dma)

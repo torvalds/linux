@@ -467,6 +467,10 @@ struct stmmac_ops {
 					u32 weight, u32 queue);
 	/* RX MTL queue to RX dma mapping */
 	void (*map_mtl_to_dma)(struct mac_device_info *hw, u32 queue, u32 chan);
+	/* Configure AV Algorithm */
+	void (*config_cbs)(struct mac_device_info *hw, u32 send_slope,
+			   u32 idle_slope, u32 high_credit, u32 low_credit,
+			   u32 queue);
 	/* Dump MAC registers */
 	void (*dump_regs)(struct mac_device_info *hw, u32 *reg_space);
 	/* Handle extra events on specific interrupts hw dependent */

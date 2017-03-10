@@ -66,9 +66,9 @@ static void dwmac4_rx_queue_enable(struct mac_device_info *hw,
 	u32 value = readl(ioaddr + GMAC_RXQ_CTRL0);
 
 	value &= GMAC_RX_QUEUE_CLEAR(queue);
-	if (mode == MTL_RX_AVB)
+	if (mode == MTL_QUEUE_AVB)
 		value |= GMAC_RX_AV_QUEUE_ENABLE(queue);
-	else if (mode == MTL_RX_DCB)
+	else if (mode == MTL_QUEUE_DCB)
 		value |= GMAC_RX_DCB_QUEUE_ENABLE(queue);
 
 	writel(value, ioaddr + GMAC_RXQ_CTRL0);
@@ -153,6 +153,47 @@ static void dwmac4_map_mtl_dma(struct mac_device_info *hw, u32 queue, u32 chan)
 		writel(value, ioaddr + MTL_RXQ_DMA_MAP0);
 	else
 		writel(value, ioaddr + MTL_RXQ_DMA_MAP1);
+}
+
+static void dwmac4_config_cbs(struct mac_device_info *hw,
+			      u32 send_slope, u32 idle_slope,
+			      u32 high_credit, u32 low_credit, u32 queue)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 value;
+
+	pr_debug("Queue %d configured as AVB. Parameters:\n", queue);
+	pr_debug("\tsend_slope: 0x%08x\n", send_slope);
+	pr_debug("\tidle_slope: 0x%08x\n", idle_slope);
+	pr_debug("\thigh_credit: 0x%08x\n", high_credit);
+	pr_debug("\tlow_credit: 0x%08x\n", low_credit);
+
+	/* enable AV algorithm */
+	value = readl(ioaddr + MTL_ETSX_CTRL_BASE_ADDR(queue));
+	value |= MTL_ETS_CTRL_AVALG;
+	value |= MTL_ETS_CTRL_CC;
+	writel(value, ioaddr + MTL_ETSX_CTRL_BASE_ADDR(queue));
+
+	/* configure send slope */
+	value = readl(ioaddr + MTL_SEND_SLP_CREDX_BASE_ADDR(queue));
+	value &= ~MTL_SEND_SLP_CRED_SSC_MASK;
+	value |= send_slope & MTL_SEND_SLP_CRED_SSC_MASK;
+	writel(value, ioaddr + MTL_SEND_SLP_CREDX_BASE_ADDR(queue));
+
+	/* configure idle slope (same register as tx weight) */
+	dwmac4_set_mtl_tx_queue_weight(hw, idle_slope, queue);
+
+	/* configure high credit */
+	value = readl(ioaddr + MTL_HIGH_CREDX_BASE_ADDR(queue));
+	value &= ~MTL_HIGH_CRED_HC_MASK;
+	value |= high_credit & MTL_HIGH_CRED_HC_MASK;
+	writel(value, ioaddr + MTL_HIGH_CREDX_BASE_ADDR(queue));
+
+	/* configure high credit */
+	value = readl(ioaddr + MTL_LOW_CREDX_BASE_ADDR(queue));
+	value &= ~MTL_HIGH_CRED_LC_MASK;
+	value |= low_credit & MTL_HIGH_CRED_LC_MASK;
+	writel(value, ioaddr + MTL_LOW_CREDX_BASE_ADDR(queue));
 }
 
 static void dwmac4_dump_regs(struct mac_device_info *hw, u32 *reg_space)
@@ -566,6 +607,7 @@ static const struct stmmac_ops dwmac4_ops = {
 	.prog_mtl_tx_algorithms = dwmac4_prog_mtl_tx_algorithms,
 	.set_mtl_tx_queue_weight = dwmac4_set_mtl_tx_queue_weight,
 	.map_mtl_to_dma = dwmac4_map_mtl_dma,
+	.config_cbs = dwmac4_config_cbs,
 	.dump_regs = dwmac4_dump_regs,
 	.host_irq_status = dwmac4_irq_status,
 	.host_mtl_irq_status = dwmac4_irq_mtl_status,

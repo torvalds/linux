@@ -55,9 +55,9 @@
 #define MTL_RX_ALGORITHM_SP	0x4
 #define MTL_RX_ALGORITHM_WSP	0x5
 
-/* RX Queue Mode */
-#define MTL_RX_DCB		0x0
-#define MTL_RX_AVB		0x1
+/* RX/TX Queue Mode */
+#define MTL_QUEUE_DCB		0x0
+#define MTL_QUEUE_AVB		0x1
 
 /* The MDC clock could be set higher than the IEEE 802.3
  * specified frequency limit 0f 2.5 MHz, by programming a clock divider
@@ -131,6 +131,12 @@ struct stmmac_rxq_cfg {
 
 struct stmmac_txq_cfg {
 	u8 weight;
+	u8 mode_to_use;
+	/* Credit Base Shaper parameters */
+	u32 send_slope;
+	u32 idle_slope;
+	u32 high_credit;
+	u32 low_credit;
 };
 
 struct plat_stmmacenet_data {
