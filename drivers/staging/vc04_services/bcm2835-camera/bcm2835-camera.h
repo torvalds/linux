@@ -125,7 +125,7 @@ int set_framerate_params(struct bm2835_mmal_dev *dev);
 {	\
 	v4l2_dbg(level, debug, dev,	\
 "%s: w %u h %u field %u pfmt 0x%x bpl %u sz_img %u colorspace 0x%x priv %u\n", \
-		!desc ? "" : desc,	\
+		desc,	\
 		(pix_fmt)->width, (pix_fmt)->height, (pix_fmt)->field,	\
 		(pix_fmt)->pixelformat, (pix_fmt)->bytesperline,	\
 		(pix_fmt)->sizeimage, (pix_fmt)->colorspace, (pix_fmt)->priv); \
@@ -135,7 +135,7 @@ int set_framerate_params(struct bm2835_mmal_dev *dev);
 	v4l2_dbg(level, debug, dev,	\
 "%s: w %u h %u l %u t %u  field %u chromakey %06X clip %p " \
 "clipcount %u bitmap %p\n", \
-		!desc ? "" : desc,	\
+		desc,	\
 		(win_fmt)->w.width, (win_fmt)->w.height, \
 		(win_fmt)->w.left, (win_fmt)->w.top, \
 		(win_fmt)->field,	\
