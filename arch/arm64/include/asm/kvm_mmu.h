@@ -108,7 +108,7 @@ alternative_else_nop_endif
 #else
 
 #include <asm/pgalloc.h>
-#include <asm/cachetype.h>
+#include <asm/cache.h>
 #include <asm/cacheflush.h>
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>

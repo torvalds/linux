@@ -22,7 +22,7 @@
 #include <linux/pagemap.h>
 
 #include <asm/cacheflush.h>
-#include <asm/cachetype.h>
+#include <asm/cache.h>
 #include <asm/tlbflush.h>
 
 void sync_icache_aliases(void *kaddr, unsigned long len)
