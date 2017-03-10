@@ -973,7 +973,9 @@ class Tui(object):
         self.screen.addstr(2, 1, 'Event')
         self.screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH -
                            len('Total'), 'Total')
-        self.screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH + 8 -
+        self.screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH + 7 -
+                           len('%Total'), '%Total')
+        self.screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH + 7 + 8 -
                            len('Current'), 'Current')
         self.screen.addstr(4, 1, 'Collecting data...')
         self.screen.refresh()
@@ -989,6 +991,9 @@ class Tui(object):
                 return (-stats[x][1], -stats[x][0])
             else:
                 return (0, -stats[x][0])
+        total = 0.
+        for val in stats.values():
+            total += val[0]
         for key in sorted(stats.keys(), key=sortkey):
 
             if row >= self.screen.getmaxyx()[0]:
@@ -1001,6 +1006,8 @@ class Tui(object):
             col += LABEL_WIDTH
             self.screen.addstr(row, col, '%10d' % (values[0],))
             col += NUMBER_WIDTH
+            self.screen.addstr(row, col, '%7.1f' % (values[0] * 100 / total,))
+            col += 7
             if values[1] is not None:
                 self.screen.addstr(row, col, '%8d' % (values[1] / sleeptime,))
             row += 1
