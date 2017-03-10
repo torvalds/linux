@@ -146,11 +146,9 @@ EXPORT_SYMBOL_GPL(fpga_bridge_put);
 int fpga_bridges_enable(struct list_head *bridge_list)
 {
 	struct fpga_bridge *bridge;
-	struct list_head *node;
 	int ret;
 
-	list_for_each(node, bridge_list) {
-		bridge = list_entry(node, struct fpga_bridge, node);
+	list_for_each_entry(bridge, bridge_list, node) {
 		ret = fpga_bridge_enable(bridge);
 		if (ret)
 			return ret;
@@ -172,11 +170,9 @@ EXPORT_SYMBOL_GPL(fpga_bridges_enable);
 int fpga_bridges_disable(struct list_head *bridge_list)
 {
 	struct fpga_bridge *bridge;
-	struct list_head *node;
 	int ret;
 
-	list_for_each(node, bridge_list) {
-		bridge = list_entry(node, struct fpga_bridge, node);
+	list_for_each_entry(bridge, bridge_list, node) {
 		ret = fpga_bridge_disable(bridge);
 		if (ret)
 			return ret;
@@ -196,13 +192,10 @@ EXPORT_SYMBOL_GPL(fpga_bridges_disable);
  */
 void fpga_bridges_put(struct list_head *bridge_list)
 {
-	struct fpga_bridge *bridge;
-	struct list_head *node, *next;
+	struct fpga_bridge *bridge, *next;
 	unsigned long flags;
 
-	list_for_each_safe(node, next, bridge_list) {
-		bridge = list_entry(node, struct fpga_bridge, node);
-
+	list_for_each_entry_safe(bridge, next, bridge_list, node) {
 		fpga_bridge_put(bridge);
 
 		spin_lock_irqsave(&bridge_list_lock, flags);
