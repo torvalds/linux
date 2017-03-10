@@ -35,6 +35,7 @@
 #include "rxe.h"
 #include "rxe_loc.h"
 #include "rxe_queue.h"
+#include "rxe_hw_counters.h"
 
 static int rxe_query_device(struct ib_device *dev,
 			    struct ib_device_attr *attr,
@@ -1318,6 +1319,8 @@ int rxe_register_device(struct rxe_dev *rxe)
 	dev->map_mr_sg = rxe_map_mr_sg;
 	dev->attach_mcast = rxe_attach_mcast;
 	dev->detach_mcast = rxe_detach_mcast;
+	dev->get_hw_stats = rxe_ib_get_hw_stats;
+	dev->alloc_hw_stats = rxe_ib_alloc_hw_stats;
 
 	err = ib_register_device(dev, NULL);
 	if (err) {

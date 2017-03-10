@@ -278,6 +278,7 @@ static inline int rxe_xmit_packet(struct rxe_dev *rxe, struct rxe_qp *qp,
 
 	if (err) {
 		rxe->xmit_errors++;
+		rxe_counter_inc(rxe, RXE_CNT_SEND_ERR);
 		return err;
 	}
 
@@ -287,6 +288,7 @@ static inline int rxe_xmit_packet(struct rxe_dev *rxe, struct rxe_qp *qp,
 		rxe_run_task(&qp->comp.task, 1);
 	}
 
+	rxe_counter_inc(rxe, RXE_CNT_SENT_PKTS);
 	goto done;
 
 drop:

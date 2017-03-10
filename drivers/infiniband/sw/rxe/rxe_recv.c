@@ -403,6 +403,8 @@ int rxe_rcv(struct sk_buff *skb)
 		goto drop;
 	}
 
+	rxe_counter_inc(rxe, RXE_CNT_RCVD_PKTS);
+
 	if (unlikely(bth_qpn(pkt) == IB_MULTICAST_QPN))
 		rxe_rcv_mcast_pkt(rxe, skb);
 	else
