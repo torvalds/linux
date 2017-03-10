@@ -307,7 +307,7 @@ static void nfp_net_get_stats(struct net_device *netdev,
 			break;
 
 		case NFP_NET_DEV_ET_STATS:
-			io_p = nn->ctrl_bar + nfp_net_et_stats[i].off;
+			io_p = nn->dp.ctrl_bar + nfp_net_et_stats[i].off;
 			data[i] = readq(io_p);
 			break;
 		}
@@ -339,15 +339,15 @@ static void nfp_net_get_stats(struct net_device *netdev,
 	for (j = 0; j < NN_ET_RVEC_GATHER_STATS; j++)
 		data[i++] = gathered_stats[j];
 	for (j = 0; j < nn->dp.num_tx_rings; j++) {
-		io_p = nn->ctrl_bar + NFP_NET_CFG_TXR_STATS(j);
+		io_p = nn->dp.ctrl_bar + NFP_NET_CFG_TXR_STATS(j);
 		data[i++] = readq(io_p);
-		io_p = nn->ctrl_bar + NFP_NET_CFG_TXR_STATS(j) + 8;
+		io_p = nn->dp.ctrl_bar + NFP_NET_CFG_TXR_STATS(j) + 8;
 		data[i++] = readq(io_p);
 	}
 	for (j = 0; j < nn->dp.num_rx_rings; j++) {
-		io_p = nn->ctrl_bar + NFP_NET_CFG_RXR_STATS(j);
+		io_p = nn->dp.ctrl_bar + NFP_NET_CFG_RXR_STATS(j);
 		data[i++] = readq(io_p);
-		io_p = nn->ctrl_bar + NFP_NET_CFG_RXR_STATS(j) + 8;
+		io_p = nn->dp.ctrl_bar + NFP_NET_CFG_RXR_STATS(j) + 8;
 		data[i++] = readq(io_p);
 	}
 }
@@ -461,7 +461,7 @@ static int nfp_net_set_rss_hash_opt(struct nfp_net *nn,
 	if (new_rss_cfg == nn->rss_cfg)
 		return 0;
 
-	writel(new_rss_cfg, nn->ctrl_bar + NFP_NET_CFG_RSS_CTRL);
+	writel(new_rss_cfg, nn->dp.ctrl_bar + NFP_NET_CFG_RSS_CTRL);
 	err = nfp_net_reconfig(nn, NFP_NET_CFG_UPDATE_RSS);
 	if (err)
 		return err;
@@ -573,7 +573,7 @@ static void nfp_net_get_regs(struct net_device *netdev,
 	regs->version = nn_readl(nn, NFP_NET_CFG_VERSION);
 
 	for (i = 0; i < NFP_NET_CFG_BAR_SZ / sizeof(u32); i++)
-		regs_buf[i] = readl(nn->ctrl_bar + (i * sizeof(u32)));
+		regs_buf[i] = readl(nn->dp.ctrl_bar + (i * sizeof(u32)));
 }
 
 static int nfp_net_get_coalesce(struct net_device *netdev,

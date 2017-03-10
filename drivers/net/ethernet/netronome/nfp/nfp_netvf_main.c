@@ -210,7 +210,7 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	vf->nn = nn;
 
 	nn->fw_ver = fw_ver;
-	nn->ctrl_bar = ctrl_bar;
+	nn->dp.ctrl_bar = ctrl_bar;
 	nn->dp.is_vf = 1;
 	nn->stride_tx = stride;
 	nn->stride_rx = stride;
@@ -338,7 +338,7 @@ static void nfp_netvf_pci_remove(struct pci_dev *pdev)
 	} else {
 		iounmap(vf->q_bar);
 	}
-	iounmap(nn->ctrl_bar);
+	iounmap(nn->dp.ctrl_bar);
 
 	nfp_net_netdev_free(nn);
 

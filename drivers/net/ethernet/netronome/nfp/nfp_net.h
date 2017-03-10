@@ -447,6 +447,7 @@ struct nfp_stat_pair {
  * @xdp_prog:		Installed XDP program
  * @tx_rings:		Array of pre-allocated TX ring structures
  * @rx_rings:		Array of pre-allocated RX ring structures
+ * @ctrl_bar:		Pointer to mapped control BAR
  *
  * @txd_cnt:		Size of the TX ring in number of descriptors
  * @rxd_cnt:		Size of the RX ring in number of descriptors
@@ -473,6 +474,8 @@ struct nfp_net_dp {
 
 	struct nfp_net_tx_ring *tx_rings;
 	struct nfp_net_rx_ring *rx_rings;
+
+	u8 __iomem *ctrl_bar;
 
 	/* Cold data follows */
 
@@ -527,7 +530,6 @@ struct nfp_net_dp {
  * @vxlan_ports:	VXLAN ports for RX inner csum offload communicated to HW
  * @vxlan_usecnt:	IPv4/IPv6 VXLAN port use counts
  * @qcp_cfg:            Pointer to QCP queue used for configuration notification
- * @ctrl_bar:           Pointer to mapped control BAR
  * @tx_bar:             Pointer to mapped TX queues
  * @rx_bar:             Pointer to mapped FL/RX queues
  * @debugfs_dir:	Device directory in debugfs
@@ -595,7 +597,6 @@ struct nfp_net {
 
 	u8 __iomem *qcp_cfg;
 
-	u8 __iomem *ctrl_bar;
 	u8 __iomem *tx_bar;
 	u8 __iomem *rx_bar;
 
@@ -622,42 +623,42 @@ struct nfp_net_ring_set {
  */
 static inline u16 nn_readb(struct nfp_net *nn, int off)
 {
-	return readb(nn->ctrl_bar + off);
+	return readb(nn->dp.ctrl_bar + off);
 }
 
 static inline void nn_writeb(struct nfp_net *nn, int off, u8 val)
 {
-	writeb(val, nn->ctrl_bar + off);
+	writeb(val, nn->dp.ctrl_bar + off);
 }
 
 static inline u16 nn_readw(struct nfp_net *nn, int off)
 {
-	return readw(nn->ctrl_bar + off);
+	return readw(nn->dp.ctrl_bar + off);
 }
 
 static inline void nn_writew(struct nfp_net *nn, int off, u16 val)
 {
-	writew(val, nn->ctrl_bar + off);
+	writew(val, nn->dp.ctrl_bar + off);
 }
 
 static inline u32 nn_readl(struct nfp_net *nn, int off)
 {
-	return readl(nn->ctrl_bar + off);
+	return readl(nn->dp.ctrl_bar + off);
 }
 
 static inline void nn_writel(struct nfp_net *nn, int off, u32 val)
 {
-	writel(val, nn->ctrl_bar + off);
+	writel(val, nn->dp.ctrl_bar + off);
 }
 
 static inline u64 nn_readq(struct nfp_net *nn, int off)
 {
-	return readq(nn->ctrl_bar + off);
+	return readq(nn->dp.ctrl_bar + off);
 }
 
 static inline void nn_writeq(struct nfp_net *nn, int off, u64 val)
 {
-	writeq(val, nn->ctrl_bar + off);
+	writeq(val, nn->dp.ctrl_bar + off);
 }
 
 /* Flush posted PCI writes by reading something without side effects */
