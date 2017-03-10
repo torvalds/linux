@@ -812,6 +812,13 @@ class Tui(object):
         except:
             pass
 
+        # Hide cursor in extra statement as some monochrome terminals
+        # might support hiding but not colors.
+        try:
+            curses.curs_set(0)
+        except curses.error:
+            pass
+
         curses.use_default_colors()
         return self
 
