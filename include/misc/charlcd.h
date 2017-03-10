@@ -14,6 +14,7 @@ struct charlcd {
 	const struct charlcd_ops *ops;
 	const unsigned char *char_conv;	/* Optional */
 
+	int ifwidth;			/* 4-bit or 8-bit (default) */
 	int height;
 	int width;
 	int bwidth;			/* Default set by charlcd_alloc() */
@@ -28,6 +29,7 @@ struct charlcd_ops {
 	void (*write_data)(struct charlcd *lcd, int data);
 
 	/* Optional */
+	void (*write_cmd_raw4)(struct charlcd *lcd, int cmd);	/* 4-bit only */
 	void (*clear_fast)(struct charlcd *lcd);
 	void (*backlight)(struct charlcd *lcd, int on);
 };

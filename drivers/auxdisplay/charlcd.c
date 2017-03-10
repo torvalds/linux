@@ -223,24 +223,46 @@ static void charlcd_clear_display(struct charlcd *lcd)
 
 static int charlcd_init_display(struct charlcd *lcd)
 {
+	void (*write_cmd_raw)(struct charlcd *lcd, int cmd);
 	struct charlcd_priv *priv = to_priv(lcd);
+	u8 init;
+
+	if (lcd->ifwidth != 4 && lcd->ifwidth != 8)
+		return -EINVAL;
 
 	priv->flags = ((lcd->height > 1) ? LCD_FLAG_N : 0) | LCD_FLAG_D |
 		      LCD_FLAG_C | LCD_FLAG_B;
 
 	long_sleep(20);		/* wait 20 ms after power-up for the paranoid */
 
-	/* 8bits, 1 line, small fonts; let's do it 3 times */
-	lcd->ops->write_cmd(lcd, LCD_CMD_FUNCTION_SET | LCD_CMD_DATA_LEN_8BITS);
+	/*
+	 * 8-bit mode, 1 line, small fonts; let's do it 3 times, to make sure
+	 * the LCD is in 8-bit mode afterwards
+	 */
+	init = LCD_CMD_FUNCTION_SET | LCD_CMD_DATA_LEN_8BITS;
+	if (lcd->ifwidth == 4) {
+		init >>= 4;
+		write_cmd_raw = lcd->ops->write_cmd_raw4;
+	} else {
+		write_cmd_raw = lcd->ops->write_cmd;
+	}
+	write_cmd_raw(lcd, init);
 	long_sleep(10);
-	lcd->ops->write_cmd(lcd, LCD_CMD_FUNCTION_SET | LCD_CMD_DATA_LEN_8BITS);
+	write_cmd_raw(lcd, init);
 	long_sleep(10);
-	lcd->ops->write_cmd(lcd, LCD_CMD_FUNCTION_SET | LCD_CMD_DATA_LEN_8BITS);
+	write_cmd_raw(lcd, init);
 	long_sleep(10);
+
+	if (lcd->ifwidth == 4) {
+		/* Switch to 4-bit mode, 1 line, small fonts */
+		lcd->ops->write_cmd_raw4(lcd, LCD_CMD_FUNCTION_SET >> 4);
+		long_sleep(10);
+	}
 
 	/* set font height and lines number */
 	lcd->ops->write_cmd(lcd,
-		LCD_CMD_FUNCTION_SET | LCD_CMD_DATA_LEN_8BITS |
+		LCD_CMD_FUNCTION_SET |
+		((lcd->ifwidth == 8) ? LCD_CMD_DATA_LEN_8BITS : 0) |
 		((priv->flags & LCD_FLAG_F) ? LCD_CMD_FONT_5X10_DOTS : 0) |
 		((priv->flags & LCD_FLAG_N) ? LCD_CMD_TWO_LINES : 0));
 	long_sleep(10);
@@ -482,7 +504,8 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 	/* check whether one of F,N flags was changed */
 	else if ((oldflags ^ priv->flags) & (LCD_FLAG_F | LCD_FLAG_N))
 		lcd->ops->write_cmd(lcd,
-			LCD_CMD_FUNCTION_SET | LCD_CMD_DATA_LEN_8BITS |
+			LCD_CMD_FUNCTION_SET |
+			((lcd->ifwidth == 8) ? LCD_CMD_DATA_LEN_8BITS : 0) |
 			((priv->flags & LCD_FLAG_F) ? LCD_CMD_FONT_5X10_DOTS : 0) |
 			((priv->flags & LCD_FLAG_N) ? LCD_CMD_TWO_LINES : 0));
 	/* check whether L flag was changed */
@@ -716,6 +739,7 @@ struct charlcd *charlcd_alloc(unsigned int drvdata_size)
 	priv->esc_seq.len = -1;
 
 	lcd = &priv->lcd;
+	lcd->ifwidth = 8;
 	lcd->bwidth = DEFAULT_LCD_BWIDTH;
 	lcd->hwidth = DEFAULT_LCD_HWIDTH;
 	lcd->drvdata = priv->drvdata;
