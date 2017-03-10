@@ -2392,9 +2392,7 @@ static int mlxsw_sp_router_set_abort_trap(struct mlxsw_sp *mlxsw_sp)
 {
 	char ralta_pl[MLXSW_REG_RALTA_LEN];
 	char ralst_pl[MLXSW_REG_RALST_LEN];
-	char raltb_pl[MLXSW_REG_RALTB_LEN];
-	char ralue_pl[MLXSW_REG_RALUE_LEN];
-	int err;
+	int i, err;
 
 	mlxsw_reg_ralta_pack(ralta_pl, true, MLXSW_REG_RALXX_PROTOCOL_IPV4,
 			     MLXSW_SP_LPM_TREE_MIN);
@@ -2407,16 +2405,33 @@ static int mlxsw_sp_router_set_abort_trap(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		return err;
 
-	mlxsw_reg_raltb_pack(raltb_pl, 0, MLXSW_REG_RALXX_PROTOCOL_IPV4,
-			     MLXSW_SP_LPM_TREE_MIN);
-	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(raltb), raltb_pl);
-	if (err)
-		return err;
+	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_VRS); i++) {
+		struct mlxsw_sp_vr *vr = &mlxsw_sp->router.vrs[i];
+		char raltb_pl[MLXSW_REG_RALTB_LEN];
+		char ralue_pl[MLXSW_REG_RALUE_LEN];
 
-	mlxsw_reg_ralue_pack4(ralue_pl, MLXSW_SP_L3_PROTO_IPV4,
-			      MLXSW_REG_RALUE_OP_WRITE_WRITE, 0, 0, 0);
-	mlxsw_reg_ralue_act_ip2me_pack(ralue_pl);
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralue), ralue_pl);
+		if (!mlxsw_sp_vr_is_used(vr))
+			continue;
+
+		mlxsw_reg_raltb_pack(raltb_pl, vr->id,
+				     MLXSW_REG_RALXX_PROTOCOL_IPV4,
+				     MLXSW_SP_LPM_TREE_MIN);
+		err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(raltb),
+				      raltb_pl);
+		if (err)
+			return err;
+
+		mlxsw_reg_ralue_pack4(ralue_pl, MLXSW_SP_L3_PROTO_IPV4,
+				      MLXSW_REG_RALUE_OP_WRITE_WRITE, vr->id, 0,
+				      0);
+		mlxsw_reg_ralue_act_ip2me_pack(ralue_pl);
+		err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralue),
+				      ralue_pl);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 static void mlxsw_sp_fib4_node_flush(struct mlxsw_sp *mlxsw_sp,
