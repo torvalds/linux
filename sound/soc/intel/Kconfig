@@ -214,6 +214,18 @@ config SND_SOC_INTEL_BYT_CHT_DA7213_MACH
 	  platforms with DA7212/7213 audio codec.
 	  If unsure select "N".
 
+config SND_SOC_INTEL_BYT_CHT_NOCODEC_MACH
+	tristate "ASoC Audio driver for Intel Baytrail & Cherrytrail platform with no codec (MinnowBoard MAX, Up)"
+	depends on X86_INTEL_LPSS && I2C && ACPI
+	select SND_SST_ATOM_HIFI2_PLATFORM
+	select SND_SST_IPC_ACPI
+	select SND_SOC_INTEL_SST_MATCH if ACPI
+	help
+	  This adds support for ASoC machine driver for the MinnowBoard Max or
+	  Up boards and provides access to I2S signals on the Low-Speed
+	  connector
+	  If unsure select "N".
+
 config SND_SOC_INTEL_SKYLAKE
 	tristate
 	select SND_HDA_EXT_CORE
