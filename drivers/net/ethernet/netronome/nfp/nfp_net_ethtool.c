@@ -196,13 +196,18 @@ static int nfp_net_set_ring_size(struct nfp_net *nn, u32 rxd_cnt, u32 txd_cnt)
 		.n_rings = nn->dp.num_tx_rings,
 		.dcnt = txd_cnt,
 	};
+	struct nfp_net_dp *dp;
 
 	if (nn->dp.rxd_cnt != rxd_cnt)
 		reconfig_rx = &rx;
 	if (nn->dp.txd_cnt != txd_cnt)
 		reconfig_tx = &tx;
 
-	return nfp_net_ring_reconfig(nn, &nn->dp.xdp_prog,
+	dp = nfp_net_clone_dp(nn);
+	if (!dp)
+		return -ENOMEM;
+
+	return nfp_net_ring_reconfig(nn, dp, &nn->dp.xdp_prog,
 				     reconfig_rx, reconfig_tx);
 }
 
@@ -772,6 +777,7 @@ static int nfp_net_set_num_rings(struct nfp_net *nn, unsigned int total_rx,
 		.n_rings = total_tx,
 		.dcnt = nn->dp.txd_cnt,
 	};
+	struct nfp_net_dp *dp;
 
 	if (nn->dp.num_rx_rings != total_rx)
 		reconfig_rx = &rx;
@@ -783,7 +789,11 @@ static int nfp_net_set_num_rings(struct nfp_net *nn, unsigned int total_rx,
 	if (nn->dp.xdp_prog)
 		tx.n_rings += total_rx;
 
-	return nfp_net_ring_reconfig(nn, &nn->dp.xdp_prog,
+	dp = nfp_net_clone_dp(nn);
+	if (!dp)
+		return -ENOMEM;
+
+	return nfp_net_ring_reconfig(nn, dp, &nn->dp.xdp_prog,
 				     reconfig_rx, reconfig_tx);
 }
 
