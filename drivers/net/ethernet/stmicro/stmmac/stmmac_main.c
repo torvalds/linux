@@ -2901,6 +2901,11 @@ static irqreturn_t stmmac_interrupt(int irq, void *dev_id)
 	if ((priv->plat->has_gmac) || (priv->plat->has_gmac4)) {
 		int status = priv->hw->mac->host_irq_status(priv->hw,
 							    &priv->xstats);
+
+		if (priv->synopsys_id >= DWMAC_CORE_4_00)
+			status |= priv->hw->mac->host_mtl_irq_status(priv->hw,
+								STMMAC_CHAN0);
+
 		if (unlikely(status)) {
 			/* For LPI we need to save the tx status */
 			if (status & CORE_IRQ_TX_PATH_IN_LPI_MODE)

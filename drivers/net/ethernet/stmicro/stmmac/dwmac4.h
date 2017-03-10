@@ -175,7 +175,7 @@ enum power_event {
 #define MTL_OPERATION_RAA_WSP		(0x1 << 2)
 
 #define MTL_INT_STATUS			0x00000c20
-#define MTL_INT_Q0			BIT(0)
+#define MTL_INT_QX(x)			BIT(x)
 
 #define MTL_RXQ_DMA_MAP0		0x00000c30 /* queue 0 to 3 */
 #define MTL_RXQ_DMA_MAP1		0x00000c34 /* queue 4 to 7 */

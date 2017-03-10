@@ -416,11 +416,34 @@ static void dwmac4_phystatus(void __iomem *ioaddr, struct stmmac_extra_stats *x)
 	}
 }
 
+static int dwmac4_irq_mtl_status(struct mac_device_info *hw, u32 chan)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 mtl_int_qx_status;
+	int ret = 0;
+
+	mtl_int_qx_status = readl(ioaddr + MTL_INT_STATUS);
+
+	/* Check MTL Interrupt */
+	if (mtl_int_qx_status & MTL_INT_QX(chan)) {
+		/* read Queue x Interrupt status */
+		u32 status = readl(ioaddr + MTL_CHAN_INT_CTRL(chan));
+
+		if (status & MTL_RX_OVERFLOW_INT) {
+			/*  clear Interrupt */
+			writel(status | MTL_RX_OVERFLOW_INT,
+			       ioaddr + MTL_CHAN_INT_CTRL(chan));
+			ret = CORE_IRQ_MTL_RX_OVERFLOW;
+		}
+	}
+
+	return ret;
+}
+
 static int dwmac4_irq_status(struct mac_device_info *hw,
 			     struct stmmac_extra_stats *x)
 {
 	void __iomem *ioaddr = hw->pcsr;
-	u32 mtl_int_qx_status;
 	u32 intr_status;
 	int ret = 0;
 
@@ -437,20 +460,6 @@ static int dwmac4_irq_status(struct mac_device_info *hw,
 	if (unlikely(intr_status & pmt_irq)) {
 		readl(ioaddr + GMAC_PMT);
 		x->irq_receive_pmt_irq_n++;
-	}
-
-	mtl_int_qx_status = readl(ioaddr + MTL_INT_STATUS);
-	/* Check MTL Interrupt: Currently only one queue is used: Q0. */
-	if (mtl_int_qx_status & MTL_INT_Q0) {
-		/* read Queue 0 Interrupt status */
-		u32 status = readl(ioaddr + MTL_CHAN_INT_CTRL(STMMAC_CHAN0));
-
-		if (status & MTL_RX_OVERFLOW_INT) {
-			/*  clear Interrupt */
-			writel(status | MTL_RX_OVERFLOW_INT,
-			       ioaddr + MTL_CHAN_INT_CTRL(STMMAC_CHAN0));
-			ret = CORE_IRQ_MTL_RX_OVERFLOW;
-		}
 	}
 
 	dwmac_pcs_isr(ioaddr, GMAC_PCS_BASE, intr_status, x);
@@ -554,6 +563,7 @@ static const struct stmmac_ops dwmac4_ops = {
 	.map_mtl_to_dma = dwmac4_map_mtl_dma,
 	.dump_regs = dwmac4_dump_regs,
 	.host_irq_status = dwmac4_irq_status,
+	.host_mtl_irq_status = dwmac4_irq_mtl_status,
 	.flow_ctrl = dwmac4_flow_ctrl,
 	.pmt = dwmac4_pmt,
 	.set_umac_addr = dwmac4_set_umac_addr,
