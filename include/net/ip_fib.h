@@ -232,8 +232,20 @@ enum fib_event_type {
 int register_fib_notifier(struct notifier_block *nb,
 			  void (*cb)(struct notifier_block *nb));
 int unregister_fib_notifier(struct notifier_block *nb);
+int call_fib_notifier(struct notifier_block *nb, struct net *net,
+		      enum fib_event_type event_type,
+		      struct fib_notifier_info *info);
 int call_fib_notifiers(struct net *net, enum fib_event_type event_type,
 		       struct fib_notifier_info *info);
+
+void fib_notify(struct net *net, struct notifier_block *nb);
+#ifdef CONFIG_IP_MULTIPLE_TABLES
+void fib_rules_notify(struct net *net, struct notifier_block *nb);
+#else
+static inline void fib_rules_notify(struct net *net, struct notifier_block *nb)
+{
+}
+#endif
 
 struct fib_table {
 	struct hlist_node	tb_hlist;
