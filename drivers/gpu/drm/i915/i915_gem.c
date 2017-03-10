@@ -788,6 +788,15 @@ int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
+	if (i915_gem_object_is_coherent(obj) ||
+	    !static_cpu_has(X86_FEATURE_CLFLUSH)) {
+		ret = i915_gem_object_set_to_cpu_domain(obj, false);
+		if (ret)
+			goto err_unpin;
+		else
+			goto out;
+	}
+
 	i915_gem_object_flush_gtt_write_domain(obj);
 
 	/* If we're not in the cpu read domain, set ourself into the gtt
@@ -796,16 +805,9 @@ int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
 	 * anyway again before the next pread happens.
 	 */
 	if (!(obj->base.read_domains & I915_GEM_DOMAIN_CPU))
-		*needs_clflush = !i915_gem_object_is_coherent(obj);
+		*needs_clflush = CLFLUSH_BEFORE;
 
-	if (*needs_clflush && !static_cpu_has(X86_FEATURE_CLFLUSH)) {
-		ret = i915_gem_object_set_to_cpu_domain(obj, false);
-		if (ret)
-			goto err_unpin;
-
-		*needs_clflush = 0;
-	}
-
+out:
 	/* return with the pages pinned */
 	return 0;
 
@@ -838,6 +840,15 @@ int i915_gem_obj_prepare_shmem_write(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
+	if (i915_gem_object_is_coherent(obj) ||
+	    !static_cpu_has(X86_FEATURE_CLFLUSH)) {
+		ret = i915_gem_object_set_to_cpu_domain(obj, true);
+		if (ret)
+			goto err_unpin;
+		else
+			goto out;
+	}
+
 	i915_gem_object_flush_gtt_write_domain(obj);
 
 	/* If we're not in the cpu write domain, set ourself into the
@@ -846,25 +857,15 @@ int i915_gem_obj_prepare_shmem_write(struct drm_i915_gem_object *obj,
 	 * right away and we therefore have to clflush anyway.
 	 */
 	if (obj->base.write_domain != I915_GEM_DOMAIN_CPU)
-		*needs_clflush |= cpu_write_needs_clflush(obj) << 1;
+		*needs_clflush |= CLFLUSH_AFTER;
 
 	/* Same trick applies to invalidate partially written cachelines read
 	 * before writing.
 	 */
 	if (!(obj->base.read_domains & I915_GEM_DOMAIN_CPU))
-		*needs_clflush |= !i915_gem_object_is_coherent(obj);
+		*needs_clflush |= CLFLUSH_BEFORE;
 
-	if (*needs_clflush && !static_cpu_has(X86_FEATURE_CLFLUSH)) {
-		ret = i915_gem_object_set_to_cpu_domain(obj, true);
-		if (ret)
-			goto err_unpin;
-
-		*needs_clflush = 0;
-	}
-
-	if ((*needs_clflush & CLFLUSH_AFTER) == 0)
-		obj->cache_dirty = true;
-
+out:
 	intel_fb_obj_invalidate(obj, ORIGIN_CPU);
 	obj->mm.dirty = true;
 	/* return with the pages pinned */

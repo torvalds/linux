@@ -3353,9 +3353,9 @@ int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
 				    unsigned int *needs_clflush);
 int i915_gem_obj_prepare_shmem_write(struct drm_i915_gem_object *obj,
 				     unsigned int *needs_clflush);
-#define CLFLUSH_BEFORE 0x1
-#define CLFLUSH_AFTER 0x2
-#define CLFLUSH_FLAGS (CLFLUSH_BEFORE | CLFLUSH_AFTER)
+#define CLFLUSH_BEFORE	BIT(0)
+#define CLFLUSH_AFTER	BIT(1)
+#define CLFLUSH_FLAGS	(CLFLUSH_BEFORE | CLFLUSH_AFTER)
 
 static inline void
 i915_gem_obj_finish_shmem_access(struct drm_i915_gem_object *obj)
