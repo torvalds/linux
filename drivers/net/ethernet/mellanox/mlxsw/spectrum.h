@@ -186,11 +186,8 @@ struct mlxsw_sp_fib;
 
 struct mlxsw_sp_vr {
 	u16 id; /* virtual router ID */
-	bool used;
-	enum mlxsw_sp_l3proto proto;
 	u32 tb_id; /* kernel fib table id */
-	struct mlxsw_sp_lpm_tree *lpm_tree;
-	struct mlxsw_sp_fib *fib;
+	struct mlxsw_sp_fib *fib4;
 };
 
 enum mlxsw_sp_span_type {
