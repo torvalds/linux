@@ -255,7 +255,7 @@ static struct vpu_hw_info hw_vpu_9190 = {
  * file handle translate information
  */
 DEF_FMT_TRANS_TBL(vpu_jpegd,
-		  12, 40, 66, 67
+		  12, 13, 14, 40, 66, 67
 );
 
 DEF_FMT_TRANS_TBL(vpu_h264d,
