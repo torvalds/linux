@@ -167,7 +167,8 @@ nfsd_adjust_nfsd_versions4(void)
 
 int nfsd_minorversion(u32 minorversion, enum vers_op change)
 {
-	if (minorversion > NFSD_SUPPORTED_MINOR_VERSION)
+	if (minorversion > NFSD_SUPPORTED_MINOR_VERSION &&
+	    change != NFSD_AVAIL)
 		return -1;
 	switch(change) {
 	case NFSD_SET:
