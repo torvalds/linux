@@ -84,7 +84,7 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 				(u32)((workload->ctx_desc.lrca + i) <<
 				GTT_PAGE_SHIFT));
 		if (context_gpa == INTEL_GVT_INVALID_ADDR) {
-			gvt_err("Invalid guest context descriptor\n");
+			gvt_vgpu_err("Invalid guest context descriptor\n");
 			return -EINVAL;
 		}
 
@@ -176,6 +176,7 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 	struct i915_gem_context *shadow_ctx = workload->vgpu->shadow_ctx;
 	struct drm_i915_private *dev_priv = workload->vgpu->gvt->dev_priv;
 	struct drm_i915_gem_request *rq;
+	struct intel_vgpu *vgpu = workload->vgpu;
 	int ret;
 
 	gvt_dbg_sched("ring id %d prepare to dispatch workload %p\n",
@@ -189,7 +190,7 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 
 	rq = i915_gem_request_alloc(dev_priv->engine[ring_id], shadow_ctx);
 	if (IS_ERR(rq)) {
-		gvt_err("fail to allocate gem request\n");
+		gvt_vgpu_err("fail to allocate gem request\n");
 		ret = PTR_ERR(rq);
 		goto out;
 	}
@@ -322,7 +323,7 @@ static void update_guest_context(struct intel_vgpu_workload *workload)
 				(u32)((workload->ctx_desc.lrca + i) <<
 					GTT_PAGE_SHIFT));
 		if (context_gpa == INTEL_GVT_INVALID_ADDR) {
-			gvt_err("invalid guest context descriptor\n");
+			gvt_vgpu_err("invalid guest context descriptor\n");
 			return;
 		}
 
@@ -417,6 +418,7 @@ static int workload_thread(void *priv)
 	int ring_id = p->ring_id;
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
 	struct intel_vgpu_workload *workload = NULL;
+	struct intel_vgpu *vgpu = NULL;
 	int ret;
 	bool need_force_wake = IS_SKYLAKE(gvt->dev_priv);
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
@@ -459,7 +461,8 @@ static int workload_thread(void *priv)
 		mutex_unlock(&gvt->lock);
 
 		if (ret) {
-			gvt_err("fail to dispatch workload, skip\n");
+			vgpu = workload->vgpu;
+			gvt_vgpu_err("fail to dispatch workload, skip\n");
 			goto complete;
 		}
 
