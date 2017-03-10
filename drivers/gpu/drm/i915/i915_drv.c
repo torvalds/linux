@@ -573,9 +573,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (i915_inject_load_failure())
 		return -ENODEV;
 
-	ret = intel_bios_init(dev_priv);
-	if (ret)
-		DRM_INFO("failed to find VBIOS tables\n");
+	intel_bios_init(dev_priv);
 
 	/* If we have > 1 VGA cards, then we need to arbitrate access
 	 * to the common VGA resources.
