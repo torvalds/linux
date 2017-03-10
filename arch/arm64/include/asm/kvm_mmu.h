@@ -245,7 +245,7 @@ static inline void __coherent_cache_guest_page(struct kvm_vcpu *vcpu,
 	if (!icache_is_aliasing()) {		/* PIPT */
 		flush_icache_range((unsigned long)va,
 				   (unsigned long)va + size);
-	} else if (!icache_is_aivivt()) {	/* non ASID-tagged VIVT */
+	} else {
 		/* any kind of VIPT cache */
 		__flush_icache_all();
 	}
