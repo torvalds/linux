@@ -399,8 +399,7 @@ void call_srcu(struct srcu_struct *sp, struct rcu_head *head,
 }
 EXPORT_SYMBOL_GPL(call_srcu);
 
-static void srcu_advance_batches(struct srcu_struct *sp, int trycount);
-static void srcu_reschedule(struct srcu_struct *sp);
+static void srcu_reschedule(struct srcu_struct *sp, unsigned long delay);
 
 /*
  * Helper function for synchronize_srcu() and synchronize_srcu_expedited().
@@ -409,7 +408,6 @@ static void __synchronize_srcu(struct srcu_struct *sp, int trycount)
 {
 	struct rcu_synchronize rcu;
 	struct rcu_head *head = &rcu.head;
-	bool done = false;
 
 	RCU_LOCKDEP_WARN(lock_is_held(&sp->dep_map) ||
 			 lock_is_held(&rcu_bh_lock_map) ||
@@ -431,25 +429,15 @@ static void __synchronize_srcu(struct srcu_struct *sp, int trycount)
 		sp->running = true;
 		rcu_batch_queue(&sp->batch_check0, head);
 		spin_unlock_irq(&sp->queue_lock);
-
-		srcu_advance_batches(sp, trycount);
-		if (!rcu_batch_empty(&sp->batch_done)) {
-			BUG_ON(sp->batch_done.head != head);
-			rcu_batch_dequeue(&sp->batch_done);
-			done = true;
-		}
 		/* give the processing owner to work_struct */
-		srcu_reschedule(sp);
+		srcu_reschedule(sp, 0);
 	} else {
 		rcu_batch_queue(&sp->batch_queue, head);
 		spin_unlock_irq(&sp->queue_lock);
 	}
 
-	if (!done) {
-		wait_for_completion(&rcu.completion);
-		smp_mb(); /* Caller's later accesses after GP. */
-	}
-
+	wait_for_completion(&rcu.completion);
+	smp_mb(); /* Caller's later accesses after GP. */
 }
 
 /**
@@ -639,7 +627,7 @@ static void srcu_invoke_callbacks(struct srcu_struct *sp)
  * Finished one round of SRCU grace period.  Start another if there are
  * more SRCU callbacks queued, otherwise put SRCU into not-running state.
  */
-static void srcu_reschedule(struct srcu_struct *sp)
+static void srcu_reschedule(struct srcu_struct *sp, unsigned long delay)
 {
 	bool pending = true;
 
@@ -653,8 +641,7 @@ static void srcu_reschedule(struct srcu_struct *sp)
 	}
 
 	if (pending)
-		queue_delayed_work(system_power_efficient_wq,
-				   &sp->work, SRCU_INTERVAL);
+		queue_delayed_work(system_power_efficient_wq, &sp->work, delay);
 }
 
 /*
@@ -669,6 +656,6 @@ void process_srcu(struct work_struct *work)
 	srcu_collect_new(sp);
 	srcu_advance_batches(sp, 1);
 	srcu_invoke_callbacks(sp);
-	srcu_reschedule(sp);
+	srcu_reschedule(sp, SRCU_INTERVAL);
 }
 EXPORT_SYMBOL_GPL(process_srcu);
