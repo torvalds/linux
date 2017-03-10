@@ -1,7 +1,6 @@
-#ifndef ISP2401
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
+ * Copyright (c) 2010-2015, Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -12,21 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  */
-#else
-/**
-Support for Intel Camera Imaging ISP subsystem.
-Copyright (c) 2010 - 2015, Intel Corporation.
-
-This program is free software; you can redistribute it and/or modify it
-under the terms and conditions of the GNU General Public License,
-version 2, as published by the Free Software Foundation.
-
-This program is distributed in the hope it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-more details.
-*/
-#endif
 
 #include "ia_css_rmgr.h"
 
@@ -279,21 +263,7 @@ void rmgr_pop_handle(struct ia_css_rmgr_vbuf_pool *pool,
 void ia_css_rmgr_acq_vbuf(struct ia_css_rmgr_vbuf_pool *pool,
 			  struct ia_css_rmgr_vbuf_handle **handle)
 {
-#ifdef __KLOCWORK__
-	/* KW sees the *handle = h; assignment about 20 lines down
-	   and thinks that we are assigning a local to a global.
-	   What it does not see is that in ia_css_i_host_rmgr_pop_handle
-	   a new value is assigned to handle.
-	   So this is a false positive KW issue.
-	   To fix that we make the struct static for KW so it will
-	   think that h remains alive; we do not want this in our
-	   production code though as it breaks reentrancy of the code
-	 */
-
-	static struct ia_css_rmgr_vbuf_handle h;
-#else /* __KLOCWORK__ */
 	struct ia_css_rmgr_vbuf_handle h;
-#endif /* __KLOCWORK__ */
 
 	if ((pool == NULL) || (handle == NULL) || (*handle == NULL)) {
 		IA_CSS_LOG("Invalid inputs");
