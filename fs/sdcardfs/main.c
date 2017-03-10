@@ -432,6 +432,7 @@ static struct file_system_type sdcardfs_fs_type = {
 	.kill_sb	= sdcardfs_kill_sb,
 	.fs_flags	= 0,
 };
+MODULE_ALIAS_FS(SDCARDFS_NAME);
 
 static int __init init_sdcardfs_fs(void)
 {
