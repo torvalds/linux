@@ -277,7 +277,7 @@ enum rk805_reg {
 #define RK818_CALC_REST_REGH		0xf0
 #define RK818_CALC_REST_REGL		0xf1
 #define RK818_SAVE_DATA19		0xf2
-#define RK818_NUM_REGULATORS		14
+#define RK818_NUM_REGULATORS		17
 
 /* IRQ Definitions */
 #define RK808_IRQ_VOUT_LO	0
