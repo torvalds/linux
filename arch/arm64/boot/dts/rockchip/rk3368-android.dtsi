@@ -170,6 +170,8 @@
 		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_VOP>, <&cru DCLK_VOP>, <&cru HCLK_VOP>;
 		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc";
+		assigned-clocks = <&cru ACLK_VOP>;
+		assigned-clock-rates = <400000000>;
 		/*power-domains = <&power PD_VIO>;*/
 		resets = <&cru SRST_LCDC0_AXI>, <&cru SRST_LCDC0_AHB>, <&cru SRST_LCDC0_DCLK>;
 		reset-names = "axi", "ahb", "dclk";
