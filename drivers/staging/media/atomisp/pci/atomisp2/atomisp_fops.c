@@ -1100,7 +1100,7 @@ int atomisp_videobuf_mmap_mapper(struct videobuf_queue *q,
 			continue;
 
 		map = kzalloc(sizeof(struct videobuf_mapping), GFP_KERNEL);
-		if (map == NULL) {
+		if (!map) {
 			mutex_unlock(&q->vb_lock);
 			return -ENOMEM;
 		}
