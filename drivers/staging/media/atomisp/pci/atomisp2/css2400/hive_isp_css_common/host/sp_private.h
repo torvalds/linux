@@ -18,9 +18,6 @@
 #include "sp_public.h"
 
 #include "device_access.h"
-#ifdef C_RUN
-#include <string.h>	/* memcpy() */
-#endif
 
 #include "assert_support.h"
 
@@ -81,11 +78,7 @@ STORAGE_CLASS_SP_C void sp_dmem_store(
 {
 assert(ID < N_SP_ID);
 assert(SP_DMEM_BASE[ID] != (hrt_address)-1);
-#ifndef C_RUN
 	ia_css_device_store(SP_DMEM_BASE[ID] + addr, data, size);
-#else
-	memcpy((void *)(uint32_t)addr, data, size);
-#endif
 return;
 }
 
@@ -97,11 +90,7 @@ STORAGE_CLASS_SP_C void sp_dmem_load(
 {
 assert(ID < N_SP_ID);
 assert(SP_DMEM_BASE[ID] != (hrt_address)-1);
-#ifndef C_RUN
 	ia_css_device_load(SP_DMEM_BASE[ID] + addr, data, size);
-#else
-	memcpy(data, (void *)(uint32_t)addr, size);
-#endif
 return;
 }
 
@@ -113,11 +102,7 @@ STORAGE_CLASS_SP_C void sp_dmem_store_uint8(
 assert(ID < N_SP_ID);
 assert(SP_DMEM_BASE[ID] != (hrt_address)-1);
 	(void)ID;
-#ifndef C_RUN
 	ia_css_device_store_uint8(SP_DMEM_BASE[SP0_ID] + addr, data);
-#else
-	*(uint8_t *)(uint32_t)addr = data;
-#endif
 return;
 }
 
@@ -129,11 +114,7 @@ STORAGE_CLASS_SP_C void sp_dmem_store_uint16(
 assert(ID < N_SP_ID);
 assert(SP_DMEM_BASE[ID] != (hrt_address)-1);
 	(void)ID;
-#ifndef C_RUN
 	ia_css_device_store_uint16(SP_DMEM_BASE[SP0_ID] + addr, data);
-#else
-	*(uint16_t *)(uint32_t)addr = data;
-#endif
 return;
 }
 
@@ -145,11 +126,7 @@ STORAGE_CLASS_SP_C void sp_dmem_store_uint32(
 assert(ID < N_SP_ID);
 assert(SP_DMEM_BASE[ID] != (hrt_address)-1);
 	(void)ID;
-#ifndef C_RUN
 	ia_css_device_store_uint32(SP_DMEM_BASE[SP0_ID] + addr, data);
-#else
-	*(uint32_t *)(uint32_t)addr = data;
-#endif
 return;
 }
 
@@ -160,11 +137,7 @@ STORAGE_CLASS_SP_C uint8_t sp_dmem_load_uint8(
 assert(ID < N_SP_ID);
 assert(SP_DMEM_BASE[ID] != (hrt_address)-1);
 	(void)ID;
-#ifndef C_RUN
 	return ia_css_device_load_uint8(SP_DMEM_BASE[SP0_ID] + addr);
-#else
-	return *(uint8_t *)(uint32_t)addr;
-#endif
 }
 
 STORAGE_CLASS_SP_C uint16_t sp_dmem_load_uint16(
@@ -174,11 +147,7 @@ STORAGE_CLASS_SP_C uint16_t sp_dmem_load_uint16(
 assert(ID < N_SP_ID);
 assert(SP_DMEM_BASE[ID] != (hrt_address)-1);
 	(void)ID;
-#ifndef C_RUN
 	return ia_css_device_load_uint16(SP_DMEM_BASE[SP0_ID] + addr);
-#else
-	return *(uint16_t *)(uint32_t)addr;
-#endif
 }
 
 STORAGE_CLASS_SP_C uint32_t sp_dmem_load_uint32(
@@ -188,11 +157,7 @@ STORAGE_CLASS_SP_C uint32_t sp_dmem_load_uint32(
 assert(ID < N_SP_ID);
 assert(SP_DMEM_BASE[ID] != (hrt_address)-1);
 	(void)ID;
-#ifndef C_RUN
 	return ia_css_device_load_uint32(SP_DMEM_BASE[SP0_ID] + addr);
-#else
-	return *(uint32_t *)(uint32_t)addr;
-#endif
 }
 
 #endif /* __SP_PRIVATE_H_INCLUDED__ */

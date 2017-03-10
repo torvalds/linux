@@ -21,10 +21,6 @@
 
 #include "isp_public.h"
 
-#ifdef C_RUN
-#include <string.h>		/* memcpy() */
-#endif
-
 #include "device_access.h"
 
 #include "assert_support.h"
@@ -95,9 +91,7 @@ STORAGE_CLASS_ISP_C void isp_dmem_store(
 {
 	assert(ID < N_ISP_ID);
 	assert(ISP_DMEM_BASE[ID] != (hrt_address)-1);
-#ifdef C_RUN
-	memcpy((void *)addr, data, size);
-#elif !defined(HRT_MEMORY_ACCESS)
+#if !defined(HRT_MEMORY_ACCESS)
 	ia_css_device_store(ISP_DMEM_BASE[ID] + addr, data, size);
 #else
 	hrt_master_port_store(ISP_DMEM_BASE[ID] + addr, data, size);
@@ -113,9 +107,7 @@ STORAGE_CLASS_ISP_C void isp_dmem_load(
 {
 	assert(ID < N_ISP_ID);
 	assert(ISP_DMEM_BASE[ID] != (hrt_address)-1);
-#ifdef C_RUN
-	memcpy(data, (void *)addr, size);
-#elif !defined(HRT_MEMORY_ACCESS)
+#if !defined(HRT_MEMORY_ACCESS)
 	ia_css_device_load(ISP_DMEM_BASE[ID] + addr, data, size);
 #else
 	hrt_master_port_load(ISP_DMEM_BASE[ID] + addr, data, size);
@@ -131,9 +123,7 @@ STORAGE_CLASS_ISP_C void isp_dmem_store_uint32(
 	assert(ID < N_ISP_ID);
 	assert(ISP_DMEM_BASE[ID] != (hrt_address)-1);
 	(void)ID;
-#ifdef C_RUN
-	*(uint32_t *)addr = data;
-#elif !defined(HRT_MEMORY_ACCESS)
+#if !defined(HRT_MEMORY_ACCESS)
 	ia_css_device_store_uint32(ISP_DMEM_BASE[ID] + addr, data);
 #else
 	hrt_master_port_store_32(ISP_DMEM_BASE[ID] + addr, data);
@@ -148,9 +138,7 @@ STORAGE_CLASS_ISP_C uint32_t isp_dmem_load_uint32(
 	assert(ID < N_ISP_ID);
 	assert(ISP_DMEM_BASE[ID] != (hrt_address)-1);
 	(void)ID;
-#ifdef C_RUN
-	return *(uint32_t *)addr;
-#elif !defined(HRT_MEMORY_ACCESS)
+#if !defined(HRT_MEMORY_ACCESS)
 	return ia_css_device_load_uint32(ISP_DMEM_BASE[ID] + addr);
 #else
 	return hrt_master_port_uload_32(ISP_DMEM_BASE[ID] + addr);

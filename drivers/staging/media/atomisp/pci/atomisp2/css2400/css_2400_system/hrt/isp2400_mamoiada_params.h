@@ -177,11 +177,7 @@
 
 #define _isp_ceil_div(a,b)                     (((a)+(b)-1)/(b))
 
-#ifdef C_RUN
-#define ISP_VEC_ALIGN                          (_isp_ceil_div(ISP_VEC_WIDTH, 64)*8)
-#else
 #define ISP_VEC_ALIGN                          ISP_VMEM_ALIGN
-#endif
 
 /* HRT specific vector support */
 #define isp2400_mamoiada_vector_alignment         ISP_VEC_ALIGN

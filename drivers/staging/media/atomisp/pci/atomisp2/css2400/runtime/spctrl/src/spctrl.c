@@ -62,7 +62,7 @@ enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
 
 	spctrl_cofig_info[sp_id].code_addr = mmgr_NULL;
 
-#if defined(C_RUN) || defined(HRT_UNSCHED)
+#if defined(HRT_UNSCHED)
 	(void)init_dmem_cfg;
 	code_addr = mmgr_malloc(1);
 	if (code_addr == mmgr_NULL)

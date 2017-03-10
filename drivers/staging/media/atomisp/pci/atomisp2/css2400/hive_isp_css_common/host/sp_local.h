@@ -44,30 +44,7 @@ struct sp_stall_s {
 	bool	icache_master;
 };
 
-#ifdef C_RUN
-#include "hive_isp_css_sp_hrt.h"
-#define sp_address_of(var)	_hrt_cell_get_crun_indexed_symbol(SP, var)
-#ifdef C_RUN_DYNAMIC_LINK_PROGRAMS
-#ifndef DUMMY_HRT_SYSMEM_FUNCTIONS
-#define DUMMY_HRT_SYSMEM_FUNCTIONS
-/* These two inline functions prevent gcc from generating compiler warnings
- * about unused static functions. */
-static inline void *
-dummy__hrt_sysmem_ident_address(hive_device_id mem, const char *sym)
-{
-	return __hrt_sysmem_ident_address(mem, sym);
-}
-
-static inline void
-dummy_hrt_sysmem_map_var(hive_mem_id mem, const char *ident, volatile void *native_address, unsigned int size)
-{
-	_hrt_sysmem_map_var(mem, ident, native_address, size);
-}
-#endif /* DUMMY_HRT_SYSMEM_FUNCTIONS */
-#endif /* C_RUN */
-#else
 #define sp_address_of(var)	(HIVE_ADDR_ ## var)
-#endif
 
 /*
  * deprecated

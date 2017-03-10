@@ -92,16 +92,12 @@
  * The implemenation for the pipe generation tool is in see support.isp.h */
 #define OP___assert(cnd) assert(cnd)
 
-#ifdef C_RUN
-#define compile_time_assert(cond) OP___assert(cond)
-#else
 STORAGE_CLASS_INLINE void compile_time_assert (unsigned cond)
 {
 	/* Call undefined function if cond is false */
 	extern void _compile_time_assert (void);
 	if (!cond) _compile_time_assert();
 }
-#endif
 #endif /* PIPE_GENERATION */
 
 #endif /* __ASSERT_SUPPORT_H_INCLUDED__ */

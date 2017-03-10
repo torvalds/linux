@@ -131,10 +131,6 @@ static void load_vector (
 {
 	unsigned i;
 	hive_uedge *data;
-#ifdef C_RUN
-	data = (hive_uedge *)from;
-	(void)ID;
-#else
 	unsigned size = sizeof(short)*ISP_NWAY;
 	VMEM_ARRAY(v, 2*ISP_NWAY); /* Need 2 vectors to work around vmem hss bug */
 	assert(ISP_BAMEM_BASE[ID] != (hrt_address)-1);
@@ -144,7 +140,6 @@ static void load_vector (
 	hrt_master_port_load(ISP_BAMEM_BASE[ID] + (unsigned long)from, &v[0][0], size);
 #endif
 	data = (hive_uedge *)v;
-#endif
 	for (i = 0; i < ISP_NWAY; i++) {
 		hive_uedge elem = 0;
 		hive_sim_wide_unpack(data, &elem, ISP_VEC_ELEMBITS, i);
@@ -159,13 +154,6 @@ static void store_vector (
 	const t_vmem_elem	*from)
 {
 	unsigned i;
-#ifdef C_RUN
-	hive_uedge *data = (hive_uedge *)to;
-	(void)ID;
-	for (i = 0; i < ISP_NWAY; i++) {
-		hive_sim_wide_pack(data, (hive_wide)&from[i], ISP_VEC_ELEMBITS, i);
-	}
-#else
 	unsigned size = sizeof(short)*ISP_NWAY;
 	VMEM_ARRAY(v, 2*ISP_NWAY); /* Need 2 vectors to work around vmem hss bug */
 	//load_vector (&v[1][0], &to[ISP_NWAY]); /* Fetch the next vector, since it will be overwritten. */
@@ -181,7 +169,6 @@ static void store_vector (
 	hrt_master_port_store(ISP_BAMEM_BASE[ID] + (unsigned long)to, &v, size);
 #endif
 	hrt_sleep(); /* Spend at least 1 cycles per vector */
-#endif
 }
 
 void isp_vmem_load(
@@ -193,9 +180,7 @@ void isp_vmem_load(
 	unsigned c;
 	const t_vmem_elem *vp = from;
 	assert(ID < N_ISP_ID);
-#ifndef C_RUN
 	assert((unsigned long)from % ISP_VEC_ALIGN == 0);
-#endif
 	assert(elems % ISP_NWAY == 0);
 	for (c = 0; c < elems; c += ISP_NWAY) {
 		load_vector(ID, &to[c], vp);
@@ -212,9 +197,7 @@ void isp_vmem_store(
 	unsigned c;
 	t_vmem_elem *vp = to;
 	assert(ID < N_ISP_ID);
-#ifndef C_RUN
 	assert((unsigned long)to % ISP_VEC_ALIGN == 0);
-#endif
 	assert(elems % ISP_NWAY == 0);
 	for (c = 0; c < elems; c += ISP_NWAY) {
 		store_vector (ID, vp, &from[c]);
@@ -234,9 +217,7 @@ void isp_vmem_2d_load (
 	unsigned h;
 
 	assert(ID < N_ISP_ID);
-#ifndef C_RUN
 	assert((unsigned long)from % ISP_VEC_ALIGN == 0);
-#endif
 	assert(width % ISP_NWAY == 0);
 	assert(stride_from % ISP_NWAY == 0);
 	for (h = 0; h < height; h++) {
@@ -262,9 +243,7 @@ void isp_vmem_2d_store (
 	unsigned h;
 
 	assert(ID < N_ISP_ID);
-#ifndef C_RUN
 	assert((unsigned long)to % ISP_VEC_ALIGN == 0);
-#endif
 	assert(width % ISP_NWAY == 0);
 	assert(stride_to % ISP_NWAY == 0);
 	for (h = 0; h < height; h++) {

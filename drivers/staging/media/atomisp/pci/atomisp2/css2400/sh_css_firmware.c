@@ -95,7 +95,7 @@ setup_binary(struct ia_css_fw_info *fw, const char *fw_data, struct ia_css_fw_in
 
 	*sh_css_fw = *fw;
 
-#if defined(C_RUN) || defined(HRT_UNSCHED)
+#if defined(HRT_UNSCHED)
 	sh_css_fw->blob.code = sh_css_malloc(1);
 #else
 	sh_css_fw->blob.code = sh_css_malloc(fw->blob.size);

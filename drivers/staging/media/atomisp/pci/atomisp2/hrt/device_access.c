@@ -4,9 +4,6 @@
 #include "assert_support.h"
 
 #include <hrt/master_port.h>	/* hrt_master_port_load() */
-#ifdef C_RUN
-#include <string.h>				/* memcpy() */
-#endif
 
 /*
  * This is an HRT backend implementation for CSIM
@@ -105,11 +102,7 @@ void device_load(
 	const size_t			size)
 {
 assert(base_address != (sys_address)-1);
-#ifndef C_RUN
 	hrt_master_port_load((uint32_t)(base_address + addr), data, size);
-#else
-	memcpy(data, (void *)addr, size);
-#endif
 }
 
 void device_store(
@@ -118,10 +111,6 @@ void device_store(
 	const size_t			size)
 {
 assert(base_address != (sys_address)-1);
-#ifndef C_RUN
 	hrt_master_port_store((uint32_t)(base_address + addr), data, size);
-#else
-	memcpy((void *)addr, data, size);
-#endif
 return;
 }

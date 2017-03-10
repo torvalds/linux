@@ -19,11 +19,7 @@
 
 #define VMEM_SIZE	ISP_VMEM_DEPTH
 #define VMEM_ELEMBITS	ISP_VMEM_ELEMBITS
-#ifdef C_RUN
-#define VMEM_ALIGN	1
-#else
 #define VMEM_ALIGN	ISP_VMEM_ALIGN
-#endif
 
 #ifndef PIPE_GENERATION
 typedef tvector *pvector;

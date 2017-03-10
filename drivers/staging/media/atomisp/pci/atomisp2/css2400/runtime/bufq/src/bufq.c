@@ -290,11 +290,7 @@ init_bufq(unsigned int desc_offset,
 	ia_css_queue_remote_t remoteq;
 
 	fw = &sh_css_sp_fw;
-#ifdef C_RUN
-	q_base_addr = (unsigned int)sp_address_of(ia_css_bufq_host_sp_queue);
-#else
 	q_base_addr = fw->info.sp.host_sp_queue;
-#endif
 
 	/* Setup queue location as SP and proc id as SP0_ID */
 	remoteq.location = IA_CSS_QUEUE_LOC_SP;

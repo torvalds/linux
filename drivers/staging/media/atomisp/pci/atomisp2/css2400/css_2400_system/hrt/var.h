@@ -44,29 +44,6 @@
 #define HRT_HOST_TYPE(cell_type)   HRTCAT(hrt_host_type_of_, cell_type)
 #define HRT_INT_TYPE(type)         HRTCAT(hrt_int_type_of_, type)
 
-#ifdef C_RUN
-
-#ifdef C_RUN_DYNAMIC_LINK_PROGRAMS
-extern void *csim_processor_get_crun_symbol(hive_proc_id p, const char *sym);
-#define _hrt_cell_get_crun_symbol(cell,sym)          csim_processor_get_crun_symbol(cell,HRTSTR(sym))
-#define _hrt_cell_get_crun_indexed_symbol(cell,sym)  csim_processor_get_crun_symbol(cell,HRTSTR(sym))
-#else
-#define _hrt_cell_get_crun_symbol(cell,sym)         (&sym)
-#define _hrt_cell_get_crun_indexed_symbol(cell,sym) (sym)
-#endif //  C_RUN_DYNAMIC_LINK_PROGRAMS
-
-#define hrt_scalar_store(cell, type, var, data) \
-	((*(HRT_HOST_TYPE(type)*)_hrt_cell_get_crun_symbol(cell,var)) = (data))
-#define hrt_scalar_load(cell, type, var) \
-	((*(HRT_HOST_TYPE(type)*)_hrt_cell_get_crun_symbol(cell,var)))
-
-#define hrt_indexed_store(cell, type, array, index, data) \
-	((((HRT_HOST_TYPE(type)*)_hrt_cell_get_crun_indexed_symbol(cell,array))[index]) = (data))
-#define hrt_indexed_load(cell, type, array, index) \
-	(((HRT_HOST_TYPE(type)*)_hrt_cell_get_crun_indexed_symbol(cell,array))[index])
-
-#else /* C_RUN */
-
 #define hrt_scalar_store(cell, type, var, data) \
   HRTCAT(hrt_mem_store_,HRT_TYPE_BITS(cell, type))(\
 	       cell, \
@@ -92,8 +69,6 @@ extern void *csim_processor_get_crun_symbol(hive_proc_id p, const char *sym);
          cell, \
 	       HRTCAT(HIVE_MEM_,array), \
 	       (HRTCAT(HIVE_ADDR_,array))+((index)*HRT_TYPE_BYTES(cell, type))))
-
-#endif /* C_RUN */
 
 #endif /* _HRT_VAR_H */
 #endif
