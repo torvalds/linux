@@ -550,6 +550,7 @@ class TracepointProvider(object):
     def setup_traces(self):
         """Creates all event and group objects needed to be able to retrieve
         data."""
+        fields = self.get_available_fields()
         if self._pid > 0:
             # Fetch list of all threads of the monitored pid, as qemu
             # starts a thread for each vcpu.
@@ -560,7 +561,7 @@ class TracepointProvider(object):
 
         # The constant is needed as a buffer for python libs, std
         # streams and other files that the script opens.
-        newlim = len(groupids) * len(self._fields) + 50
+        newlim = len(groupids) * len(fields) + 50
         try:
             softlim_, hardlim = resource.getrlimit(resource.RLIMIT_NOFILE)
 
@@ -576,7 +577,7 @@ class TracepointProvider(object):
 
         for groupid in groupids:
             group = Group()
-            for name in self._fields:
+            for name in fields:
                 tracepoint = name
                 tracefilter = None
                 match = re.match(r'(.*)\((.*)\)', name)
