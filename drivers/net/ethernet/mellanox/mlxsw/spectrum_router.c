@@ -196,19 +196,15 @@ static void mlxsw_sp_fib_destroy(struct mlxsw_sp_fib *fib)
 }
 
 static struct mlxsw_sp_lpm_tree *
-mlxsw_sp_lpm_tree_find_unused(struct mlxsw_sp *mlxsw_sp, bool one_reserved)
+mlxsw_sp_lpm_tree_find_unused(struct mlxsw_sp *mlxsw_sp)
 {
 	static struct mlxsw_sp_lpm_tree *lpm_tree;
 	int i;
 
 	for (i = 0; i < MLXSW_SP_LPM_TREE_COUNT; i++) {
 		lpm_tree = &mlxsw_sp->router.lpm_trees[i];
-		if (lpm_tree->ref_count == 0) {
-			if (one_reserved)
-				one_reserved = false;
-			else
-				return lpm_tree;
-		}
+		if (lpm_tree->ref_count == 0)
+			return lpm_tree;
 	}
 	return NULL;
 }
@@ -262,12 +258,12 @@ mlxsw_sp_lpm_tree_left_struct_set(struct mlxsw_sp *mlxsw_sp,
 static struct mlxsw_sp_lpm_tree *
 mlxsw_sp_lpm_tree_create(struct mlxsw_sp *mlxsw_sp,
 			 struct mlxsw_sp_prefix_usage *prefix_usage,
-			 enum mlxsw_sp_l3proto proto, bool one_reserved)
+			 enum mlxsw_sp_l3proto proto)
 {
 	struct mlxsw_sp_lpm_tree *lpm_tree;
 	int err;
 
-	lpm_tree = mlxsw_sp_lpm_tree_find_unused(mlxsw_sp, one_reserved);
+	lpm_tree = mlxsw_sp_lpm_tree_find_unused(mlxsw_sp);
 	if (!lpm_tree)
 		return ERR_PTR(-EBUSY);
 	lpm_tree->proto = proto;
@@ -297,7 +293,7 @@ static int mlxsw_sp_lpm_tree_destroy(struct mlxsw_sp *mlxsw_sp,
 static struct mlxsw_sp_lpm_tree *
 mlxsw_sp_lpm_tree_get(struct mlxsw_sp *mlxsw_sp,
 		      struct mlxsw_sp_prefix_usage *prefix_usage,
-		      enum mlxsw_sp_l3proto proto, bool one_reserved)
+		      enum mlxsw_sp_l3proto proto)
 {
 	struct mlxsw_sp_lpm_tree *lpm_tree;
 	int i;
@@ -311,7 +307,7 @@ mlxsw_sp_lpm_tree_get(struct mlxsw_sp *mlxsw_sp,
 			goto inc_ref_count;
 	}
 	lpm_tree = mlxsw_sp_lpm_tree_create(mlxsw_sp, prefix_usage,
-					    proto, one_reserved);
+					    proto);
 	if (IS_ERR(lpm_tree))
 		return lpm_tree;
 
@@ -421,7 +417,7 @@ static struct mlxsw_sp_vr *mlxsw_sp_vr_create(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_prefix_usage_zero(&req_prefix_usage);
 	mlxsw_sp_prefix_usage_set(&req_prefix_usage, prefix_len);
 	lpm_tree = mlxsw_sp_lpm_tree_get(mlxsw_sp, &req_prefix_usage,
-					 proto, true);
+					 proto);
 	if (IS_ERR(lpm_tree)) {
 		err = PTR_ERR(lpm_tree);
 		goto err_tree_get;
@@ -463,7 +459,7 @@ mlxsw_sp_vr_lpm_tree_check(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_vr *vr,
 		return 0;
 
 	new_tree = mlxsw_sp_lpm_tree_get(mlxsw_sp, req_prefix_usage,
-					 vr->proto, false);
+					 vr->proto);
 	if (IS_ERR(new_tree)) {
 		/* We failed to get a tree according to the required
 		 * prefix usage. However, the current tree might be still good
