@@ -337,24 +337,6 @@ static void init_dent_inode(const struct qstr *name, struct page *ipage)
 	set_page_dirty(ipage);
 }
 
-int update_dent_inode(struct inode *inode, struct inode *to,
-					const struct qstr *name)
-{
-	struct page *page;
-
-	if (file_enc_name(to))
-		return 0;
-
-	page = get_node_page(F2FS_I_SB(inode), inode->i_ino);
-	if (IS_ERR(page))
-		return PTR_ERR(page);
-
-	init_dent_inode(name, page);
-	f2fs_put_page(page, 1);
-
-	return 0;
-}
-
 void do_make_empty_dir(struct inode *inode, struct inode *parent,
 					struct f2fs_dentry_ptr *d)
 {
@@ -438,8 +420,11 @@ struct page *init_inode_metadata(struct inode *inode, struct inode *dir,
 		set_cold_node(inode, page);
 	}
 
-	if (new_name)
+	if (new_name) {
 		init_dent_inode(new_name, page);
+		if (f2fs_encrypted_inode(dir))
+			file_set_enc_name(inode);
+	}
 
 	/*
 	 * This file should be checkpointed during fsync.
@@ -599,8 +584,6 @@ add_dentry:
 			err = PTR_ERR(page);
 			goto fail;
 		}
-		if (f2fs_encrypted_inode(dir))
-			file_set_enc_name(inode);
 	}
 
 	make_dentry_ptr(NULL, &d, (void *)dentry_blk, 1);

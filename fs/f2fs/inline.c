@@ -528,8 +528,6 @@ int f2fs_add_inline_entry(struct inode *dir, const struct qstr *new_name,
 			err = PTR_ERR(page);
 			goto fail;
 		}
-		if (f2fs_encrypted_inode(dir))
-			file_set_enc_name(inode);
 	}
 
 	f2fs_wait_on_page_writeback(ipage, NODE, true);
