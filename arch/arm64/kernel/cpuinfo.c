@@ -46,6 +46,7 @@ static char *icache_policy_str[] = {
 	[0 ... ICACHE_POLICY_PIPT]	= "RESERVED/UNKNOWN",
 	[ICACHE_POLICY_VIPT]		= "VIPT",
 	[ICACHE_POLICY_PIPT]		= "PIPT",
+	[ICACHE_POLICY_VPIPT]		= "VPIPT",
 };
 
 unsigned long __icache_flags;
@@ -290,6 +291,9 @@ static void cpuinfo_detect_icache_policy(struct cpuinfo_arm64 *info)
 
 	switch (l1ip) {
 	case ICACHE_POLICY_PIPT:
+		break;
+	case ICACHE_POLICY_VPIPT:
+		set_bit(ICACHEF_VPIPT, &__icache_flags);
 		break;
 	default:
 		/* Fallthrough */
