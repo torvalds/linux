@@ -347,7 +347,7 @@ struct mmal_msg_event_to_host {
 	u32 cmd;
 	u32 length;
 	u8 data[MMAL_WORKER_EVENT_SPACE];
-	struct mmal_buffer_header *delayed_buffer;
+	u32 delayed_buffer;
 };
 
 /* all mmal messages are serialised through this structure */
