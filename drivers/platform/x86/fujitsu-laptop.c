@@ -947,6 +947,14 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 	/* Suspect this is a keymap of the application panel, print it */
 	pr_info("BTNI: [0x%x]\n", call_fext_func(FUNC_BUTTONS, 0x0, 0x0, 0x0));
 
+	/* Sync backlight power status */
+	if (acpi_video_get_backlight_type() == acpi_backlight_vendor) {
+		if (call_fext_func(FUNC_BACKLIGHT, 0x2, 0x4, 0x0) == 3)
+			fujitsu_bl->bl_device->props.power = FB_BLANK_POWERDOWN;
+		else
+			fujitsu_bl->bl_device->props.power = FB_BLANK_UNBLANK;
+	}
+
 #if IS_ENABLED(CONFIG_LEDS_CLASS)
 	if (call_fext_func(FUNC_LEDS, 0x0, 0x0, 0x0) & LOGOLAMP_POWERON) {
 		result = led_classdev_register(&fujitsu_bl->pf_device->dev,
@@ -1263,14 +1271,6 @@ static int __init fujitsu_init(void)
 	ret = acpi_bus_register_driver(&acpi_fujitsu_laptop_driver);
 	if (ret)
 		goto fail_laptop1;
-
-	/* Sync backlight power status (needs FUJ02E3 device, hence deferred) */
-	if (acpi_video_get_backlight_type() == acpi_backlight_vendor) {
-		if (call_fext_func(FUNC_BACKLIGHT, 0x2, 0x4, 0x0) == 3)
-			fujitsu_bl->bl_device->props.power = FB_BLANK_POWERDOWN;
-		else
-			fujitsu_bl->bl_device->props.power = FB_BLANK_UNBLANK;
-	}
 
 	pr_info("driver " FUJITSU_DRIVER_VERSION " successfully loaded\n");
 
