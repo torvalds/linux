@@ -39,10 +39,6 @@
 #include "mmu/isp_mmu.h"
 #include "mmu/sh_mmu_mrfld.h"
 
-#ifdef USE_SSSE3
-#include <asm/ssse3.h>
-#endif
-
 struct hmm_bo_device bo_device;
 struct hmm_pool	dynamic_pool;
 struct hmm_pool	reserved_pool;
@@ -53,9 +49,7 @@ const char *hmm_bo_type_strings[HMM_BO_LAST] = {
 	"p", /* private */
 	"s", /* shared */
 	"u", /* user */
-#ifdef CONFIG_ION
 	"i", /* ion */
-#endif
 };
 
 static ssize_t bo_show(struct device *dev, struct device_attribute *attr,
@@ -356,12 +350,7 @@ static int load_and_flush_by_kmap(ia_css_ptr virt, void *data, unsigned int byte
 		virt += len;	/* update virt for next loop */
 
 		if (des) {
-
-#ifdef USE_SSSE3
-			_ssse3_memcpy(des, src, len);
-#else
 			memcpy(des, src, len);
-#endif
 			des += len;
 		}
 
@@ -388,11 +377,7 @@ static int load_and_flush(ia_css_ptr virt, void *data, unsigned int bytes)
 		void *src = bo->vmap_addr;
 
 		src += (virt - bo->start);
-#ifdef USE_SSSE3
-		_ssse3_memcpy(data, src, bytes);
-#else
 		memcpy(data, src, bytes);
-#endif
 		if (bo->status & HMM_BO_VMAPED_CACHED)
 			clflush_cache_range(src, bytes);
 	} else {
@@ -404,11 +389,7 @@ static int load_and_flush(ia_css_ptr virt, void *data, unsigned int bytes)
 		else
 			vptr = vptr + (virt - bo->start);
 
-#ifdef USE_SSSE3
-		_ssse3_memcpy(data, vptr, bytes);
-#else
 		memcpy(data, vptr, bytes);
-#endif
 		clflush_cache_range(vptr, bytes);
 		hmm_bo_vunmap(bo);
 	}
@@ -450,11 +431,7 @@ int hmm_store(ia_css_ptr virt, const void *data, unsigned int bytes)
 		void *dst = bo->vmap_addr;
 
 		dst += (virt - bo->start);
-#ifdef USE_SSSE3
-		_ssse3_memcpy(dst, data, bytes);
-#else
 		memcpy(dst, data, bytes);
-#endif
 		if (bo->status & HMM_BO_VMAPED_CACHED)
 			clflush_cache_range(dst, bytes);
 	} else {
@@ -464,11 +441,7 @@ int hmm_store(ia_css_ptr virt, const void *data, unsigned int bytes)
 		if (vptr) {
 			vptr = vptr + (virt - bo->start);
 
-#ifdef USE_SSSE3
-			_ssse3_memcpy(vptr, data, bytes);
-#else
 			memcpy(vptr, data, bytes);
-#endif
 			clflush_cache_range(vptr, bytes);
 			hmm_bo_vunmap(bo);
 			return 0;
@@ -504,11 +477,8 @@ int hmm_store(ia_css_ptr virt, const void *data, unsigned int bytes)
 
 		virt += len;
 
-#ifdef USE_SSSE3
-		_ssse3_memcpy(des, src, len);
-#else
 		memcpy(des, src, len);
-#endif
+
 		src += len;
 
 		clflush_cache_range(des, len);
