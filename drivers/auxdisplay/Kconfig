@@ -13,6 +13,9 @@ menuconfig AUXDISPLAY
 
 	  If you say N, all options in this submenu will be skipped and disabled.
 
+config CHARLCD
+	tristate "Character LCD core support" if COMPILE_TEST
+
 if AUXDISPLAY
 
 config KS0108
