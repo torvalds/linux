@@ -450,6 +450,22 @@ static inline void bcmgenet_rdma_ring_writel(struct bcmgenet_priv *priv,
 			genet_dma_ring_regs[r]);
 }
 
+static int bcmgenet_begin(struct net_device *dev)
+{
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+
+	/* Turn on the clock */
+	return clk_prepare_enable(priv->clk);
+}
+
+static void bcmgenet_complete(struct net_device *dev)
+{
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+
+	/* Turn off the clock */
+	clk_disable_unprepare(priv->clk);
+}
+
 static int bcmgenet_get_link_ksettings(struct net_device *dev,
 				       struct ethtool_link_ksettings *cmd)
 {
@@ -1022,6 +1038,8 @@ static int bcmgenet_set_eee(struct net_device *dev, struct ethtool_eee *e)
 
 /* standard ethtool support functions. */
 static const struct ethtool_ops bcmgenet_ethtool_ops = {
+	.begin			= bcmgenet_begin,
+	.complete		= bcmgenet_complete,
 	.get_strings		= bcmgenet_get_strings,
 	.get_sset_count		= bcmgenet_get_sset_count,
 	.get_ethtool_stats	= bcmgenet_get_ethtool_stats,
