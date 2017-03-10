@@ -991,10 +991,13 @@ class Tui(object):
             curses.noecho()
 
             try:
-                pid = int(pid)
-                if pid != 0 and not os.path.isdir(os.path.join('/proc/',
-                                                               str(pid))):
-                    continue
+                if len(pid) > 0:
+                    pid = int(pid)
+                    if pid != 0 and not os.path.isdir(os.path.join('/proc/',
+                                                                   str(pid))):
+                        continue
+                else:
+                    pid = 0
                 self.refresh_header(pid)
                 self.update_pid(pid)
                 break
