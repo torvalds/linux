@@ -255,18 +255,18 @@ struct mmal_driver_buffer {
 
 /* buffer header */
 struct mmal_buffer_header {
-	struct mmal_buffer_header *next; /* next header */
-	void *priv; /* framework private data */
+	u32 next; /* next header */
+	u32 priv; /* framework private data */
 	u32 cmd;
-	void *data;
+	u32 data;
 	u32 alloc_size;
 	u32 length;
 	u32 offset;
 	u32 flags;
 	s64 pts;
 	s64 dts;
-	void *type;
-	void *user_data;
+	u32 type;
+	u32 user_data;
 };
 
 struct mmal_buffer_header_type_specific {
