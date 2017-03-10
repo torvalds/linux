@@ -183,8 +183,9 @@ static void dwmac4_rx_watchdog(void __iomem *ioaddr, u32 riwt)
 }
 
 static void dwmac4_dma_chan_op_mode(void __iomem *ioaddr, int txmode,
-				    int rxmode, u32 channel)
+				    int rxmode, u32 channel, int rxfifosz)
 {
+	unsigned int rqs = rxfifosz / 256 - 1;
 	u32 mtl_tx_op, mtl_rx_op, mtl_rx_int;
 
 	/* Following code only done for channel 0, other channels not yet
@@ -250,6 +251,53 @@ static void dwmac4_dma_chan_op_mode(void __iomem *ioaddr, int txmode,
 			mtl_rx_op |= MTL_OP_MODE_RTC_128;
 	}
 
+	mtl_rx_op &= ~MTL_OP_MODE_RQS_MASK;
+	mtl_rx_op |= rqs << MTL_OP_MODE_RQS_SHIFT;
+
+	/* enable flow control only if each channel gets 4 KiB or more FIFO */
+	if (rxfifosz >= 4096) {
+		unsigned int rfd, rfa;
+
+		mtl_rx_op |= MTL_OP_MODE_EHFC;
+
+		/* Set Threshold for Activating Flow Control to min 2 frames,
+		 * i.e. 1500 * 2 = 3000 bytes.
+		 *
+		 * Set Threshold for Deactivating Flow Control to min 1 frame,
+		 * i.e. 1500 bytes.
+		 */
+		switch (rxfifosz) {
+		case 4096:
+			/* This violates the above formula because of FIFO size
+			 * limit therefore overflow may occur in spite of this.
+			 */
+			rfd = 0x03; /* Full-2.5K */
+			rfa = 0x01; /* Full-1.5K */
+			break;
+
+		case 8192:
+			rfd = 0x06; /* Full-4K */
+			rfa = 0x0a; /* Full-6K */
+			break;
+
+		case 16384:
+			rfd = 0x06; /* Full-4K */
+			rfa = 0x12; /* Full-10K */
+			break;
+
+		default:
+			rfd = 0x06; /* Full-4K */
+			rfa = 0x1e; /* Full-16K */
+			break;
+		}
+
+		mtl_rx_op &= ~MTL_OP_MODE_RFD_MASK;
+		mtl_rx_op |= rfd << MTL_OP_MODE_RFD_SHIFT;
+
+		mtl_rx_op &= ~MTL_OP_MODE_RFA_MASK;
+		mtl_rx_op |= rfa << MTL_OP_MODE_RFA_SHIFT;
+	}
+
 	writel(mtl_rx_op, ioaddr + MTL_CHAN_RX_OP_MODE(channel));
 
 	/* Enable MTL RX overflow */
@@ -262,7 +310,7 @@ static void dwmac4_dma_operation_mode(void __iomem *ioaddr, int txmode,
 				      int rxmode, int rxfifosz)
 {
 	/* Only Channel 0 is actually configured and used */
-	dwmac4_dma_chan_op_mode(ioaddr, txmode, rxmode, 0);
+	dwmac4_dma_chan_op_mode(ioaddr, txmode, rxmode, 0, rxfifosz);
 }
 
 static void dwmac4_get_hw_feature(void __iomem *ioaddr,
