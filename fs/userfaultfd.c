@@ -695,8 +695,7 @@ void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx *vm_ctx,
 	userfaultfd_event_wait_completion(ctx, &ewq);
 }
 
-void userfaultfd_remove(struct vm_area_struct *vma,
-			struct vm_area_struct **prev,
+bool userfaultfd_remove(struct vm_area_struct *vma,
 			unsigned long start, unsigned long end)
 {
 	struct mm_struct *mm = vma->vm_mm;
@@ -705,12 +704,10 @@ void userfaultfd_remove(struct vm_area_struct *vma,
 
 	ctx = vma->vm_userfaultfd_ctx.ctx;
 	if (!ctx || !(ctx->features & UFFD_FEATURE_EVENT_REMOVE))
-		return;
+		return true;
 
 	userfaultfd_ctx_get(ctx);
 	up_read(&mm->mmap_sem);
-
-	*prev = NULL; /* We wait for ACK w/o the mmap semaphore */
 
 	msg_init(&ewq.msg);
 
@@ -720,7 +717,7 @@ void userfaultfd_remove(struct vm_area_struct *vma,
 
 	userfaultfd_event_wait_completion(ctx, &ewq);
 
-	down_read(&mm->mmap_sem);
+	return false;
 }
 
 static bool has_unmap_ctx(struct userfaultfd_ctx *ctx, struct list_head *unmaps,
