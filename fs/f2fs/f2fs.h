@@ -1873,12 +1873,6 @@ static inline int f2fs_has_inline_data(struct inode *inode)
 	return is_inode_flag_set(inode, FI_INLINE_DATA);
 }
 
-static inline void f2fs_clear_inline_inode(struct inode *inode)
-{
-	clear_inode_flag(inode, FI_INLINE_DATA);
-	clear_inode_flag(inode, FI_DATA_EXIST);
-}
-
 static inline int f2fs_exist_data(struct inode *inode)
 {
 	return is_inode_flag_set(inode, FI_DATA_EXIST);
@@ -2508,7 +2502,7 @@ extern struct kmem_cache *inode_entry_slab;
 bool f2fs_may_inline_data(struct inode *inode);
 bool f2fs_may_inline_dentry(struct inode *inode);
 void read_inline_data(struct page *page, struct page *ipage);
-bool truncate_inline_inode(struct page *ipage, u64 from);
+void truncate_inline_inode(struct inode *inode, struct page *ipage, u64 from);
 int f2fs_read_inline_data(struct inode *inode, struct page *page);
 int f2fs_convert_inline_page(struct dnode_of_data *dn, struct page *page);
 int f2fs_convert_inline_inode(struct inode *inode);

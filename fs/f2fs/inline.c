@@ -63,19 +63,21 @@ void read_inline_data(struct page *page, struct page *ipage)
 		SetPageUptodate(page);
 }
 
-bool truncate_inline_inode(struct page *ipage, u64 from)
+void truncate_inline_inode(struct inode *inode, struct page *ipage, u64 from)
 {
 	void *addr;
 
 	if (from >= MAX_INLINE_DATA)
-		return false;
+		return;
 
 	addr = inline_data_addr(ipage);
 
 	f2fs_wait_on_page_writeback(ipage, NODE, true);
 	memset(addr + from, 0, MAX_INLINE_DATA - from);
 	set_page_dirty(ipage);
-	return true;
+
+	if (from == 0)
+		clear_inode_flag(inode, FI_DATA_EXIST);
 }
 
 int f2fs_read_inline_data(struct inode *inode, struct page *page)
@@ -146,11 +148,11 @@ int f2fs_convert_inline_page(struct dnode_of_data *dn, struct page *page)
 	set_inode_flag(dn->inode, FI_APPEND_WRITE);
 
 	/* clear inline data and flag after data writeback */
-	truncate_inline_inode(dn->inode_page, 0);
+	truncate_inline_inode(dn->inode, dn->inode_page, 0);
 	clear_inline_node(dn->inode_page);
 clear_out:
 	stat_dec_inline_inode(dn->inode);
-	f2fs_clear_inline_inode(dn->inode);
+	clear_inode_flag(dn->inode, FI_INLINE_DATA);
 	f2fs_put_dnode(dn);
 	return 0;
 }
@@ -267,9 +269,8 @@ process_inline:
 	if (f2fs_has_inline_data(inode)) {
 		ipage = get_node_page(sbi, inode->i_ino);
 		f2fs_bug_on(sbi, IS_ERR(ipage));
-		if (!truncate_inline_inode(ipage, 0))
-			return false;
-		f2fs_clear_inline_inode(inode);
+		truncate_inline_inode(inode, ipage, 0);
+		clear_inode_flag(inode, FI_INLINE_DATA);
 		f2fs_put_page(ipage, 1);
 	} else if (ri && (ri->i_inline & F2FS_INLINE_DATA)) {
 		if (truncate_blocks(inode, 0, false))
@@ -380,7 +381,7 @@ static int f2fs_move_inline_dirents(struct inode *dir, struct page *ipage,
 	set_page_dirty(page);
 
 	/* clear inline dir and flag after data writeback */
-	truncate_inline_inode(ipage, 0);
+	truncate_inline_inode(dir, ipage, 0);
 
 	stat_dec_inline_dir(dir);
 	clear_inode_flag(dir, FI_INLINE_DENTRY);
@@ -455,7 +456,7 @@ static int f2fs_move_rehashed_dirents(struct inode *dir, struct page *ipage,
 	}
 
 	memcpy(backup_dentry, inline_dentry, MAX_INLINE_DATA);
-	truncate_inline_inode(ipage, 0);
+	truncate_inline_inode(dir, ipage, 0);
 
 	unlock_page(ipage);
 
