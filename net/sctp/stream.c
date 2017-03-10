@@ -267,18 +267,6 @@ int sctp_send_add_streams(struct sctp_association *asoc,
 		stream->out = streamout;
 	}
 
-	if (in) {
-		struct sctp_stream_in *streamin;
-
-		streamin = krealloc(stream->in, incnt * sizeof(*streamin),
-				    GFP_KERNEL);
-		if (!streamin)
-			goto out;
-
-		memset(streamin + stream->incnt, 0, in * sizeof(*streamin));
-		stream->in = streamin;
-	}
-
 	chunk = sctp_make_strreset_addstrm(asoc, out, in);
 	if (!chunk)
 		goto out;
@@ -624,4 +612,66 @@ struct sctp_chunk *sctp_process_strreset_addstrm_out(
 
 out:
 	return sctp_make_strreset_resp(asoc, result, request_seq);
+}
+
+struct sctp_chunk *sctp_process_strreset_addstrm_in(
+				struct sctp_association *asoc,
+				union sctp_params param,
+				struct sctp_ulpevent **evp)
+{
+	struct sctp_strreset_addstrm *addstrm = param.v;
+	struct sctp_stream *stream = asoc->stream;
+	__u32 result = SCTP_STRRESET_DENIED;
+	struct sctp_stream_out *streamout;
+	struct sctp_chunk *chunk = NULL;
+	__u32 request_seq, outcnt;
+	__u16 out;
+
+	request_seq = ntohl(addstrm->request_seq);
+	if (request_seq > asoc->strreset_inseq) {
+		result = SCTP_STRRESET_ERR_BAD_SEQNO;
+		goto out;
+	} else if (request_seq == asoc->strreset_inseq) {
+		asoc->strreset_inseq++;
+	}
+
+	if (!(asoc->strreset_enable & SCTP_ENABLE_CHANGE_ASSOC_REQ))
+		goto out;
+
+	if (asoc->strreset_outstanding) {
+		result = SCTP_STRRESET_ERR_IN_PROGRESS;
+		goto out;
+	}
+
+	out = ntohs(addstrm->number_of_streams);
+	outcnt = stream->outcnt + out;
+	if (!out || outcnt > SCTP_MAX_STREAM)
+		goto out;
+
+	streamout = krealloc(stream->out, outcnt * sizeof(*streamout),
+			     GFP_ATOMIC);
+	if (!streamout)
+		goto out;
+
+	memset(streamout + stream->outcnt, 0, out * sizeof(*streamout));
+	stream->out = streamout;
+
+	chunk = sctp_make_strreset_addstrm(asoc, out, 0);
+	if (!chunk)
+		goto out;
+
+	asoc->strreset_chunk = chunk;
+	asoc->strreset_outstanding = 1;
+	sctp_chunk_hold(asoc->strreset_chunk);
+
+	stream->outcnt = outcnt;
+
+	*evp = sctp_ulpevent_make_stream_change_event(asoc,
+		0, 0, ntohs(addstrm->number_of_streams), GFP_ATOMIC);
+
+out:
+	if (!chunk)
+		chunk = sctp_make_strreset_resp(asoc, result, request_seq);
+
+	return chunk;
 }
