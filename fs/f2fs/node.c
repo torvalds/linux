@@ -1823,7 +1823,8 @@ static void remove_free_nid(struct f2fs_sb_info *sbi, nid_t nid)
 		kmem_cache_free(free_nid_slab, i);
 }
 
-void update_free_nid_bitmap(struct f2fs_sb_info *sbi, nid_t nid, bool set)
+static void update_free_nid_bitmap(struct f2fs_sb_info *sbi, nid_t nid,
+					bool set)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	unsigned int nat_ofs = NAT_BLOCK_OFFSET(nid);
@@ -2383,7 +2384,7 @@ add_out:
 	list_add_tail(&nes->set_list, head);
 }
 
-void __update_nat_bits(struct f2fs_sb_info *sbi, nid_t start_nid,
+static void __update_nat_bits(struct f2fs_sb_info *sbi, nid_t start_nid,
 						struct page *page)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
@@ -2638,7 +2639,7 @@ static int init_node_manager(struct f2fs_sb_info *sbi)
 	return 0;
 }
 
-int init_free_nid_cache(struct f2fs_sb_info *sbi)
+static int init_free_nid_cache(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 
