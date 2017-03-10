@@ -439,9 +439,9 @@ struct nfp_stat_pair {
  * @bpf_offload_xdp:	Offloaded BPF program is XDP
  * @chained_metadata_format:  Firemware will use new metadata format
  * @rx_dma_dir:		Mapping direction for RX buffers
+ * @rx_offset:		Offset in the RX buffers where packet data starts
  * @ctrl:		Local copy of the control register/word.
  * @fl_bufsz:		Currently configured size of the freelist buffers
- * @rx_offset:		Offset in the RX buffers where packet data starts
  * @xdp_prog:		Installed XDP program
  * @tx_rings:		Array of pre-allocated TX ring structures
  * @rx_rings:		Array of pre-allocated RX ring structures
@@ -466,10 +466,10 @@ struct nfp_net_dp {
 
 	u8 rx_dma_dir;
 
+	u8 rx_offset;
+
 	u32 ctrl;
 	u32 fl_bufsz;
-
-	u32 rx_offset;
 
 	struct bpf_prog *xdp_prog;
 

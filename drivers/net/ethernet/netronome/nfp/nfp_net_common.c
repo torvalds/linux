@@ -3124,10 +3124,18 @@ int nfp_net_netdev_init(struct net_device *netdev)
 	nfp_net_write_mac_addr(nn);
 
 	/* Determine RX packet/metadata boundary offset */
-	if (nn->fw_ver.major >= 2)
-		nn->dp.rx_offset = nn_readl(nn, NFP_NET_CFG_RX_OFFSET);
-	else
+	if (nn->fw_ver.major >= 2) {
+		u32 reg;
+
+		reg = nn_readl(nn, NFP_NET_CFG_RX_OFFSET);
+		if (reg > NFP_NET_MAX_PREPEND) {
+			nn_err(nn, "Invalid rx offset: %d\n", reg);
+			return -EINVAL;
+		}
+		nn->dp.rx_offset = reg;
+	} else {
 		nn->dp.rx_offset = NFP_NET_RX_OFFSET;
+	}
 
 	/* Set default MTU and Freelist buffer size */
 	if (nn->max_mtu < NFP_NET_DEFAULT_MTU)
