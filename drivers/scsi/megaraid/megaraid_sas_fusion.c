@@ -2338,7 +2338,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 				fp_possible = false;
 				atomic_dec(&instance->fw_outstanding);
 			} else if ((scsi_buff_len > MR_LARGE_IO_MIN_SIZE) ||
-				   atomic_dec_if_positive(&mrdev_priv->r1_ldio_hint)) {
+				   (atomic_dec_if_positive(&mrdev_priv->r1_ldio_hint) > 0)) {
 				fp_possible = false;
 				atomic_dec(&instance->fw_outstanding);
 				if (scsi_buff_len > MR_LARGE_IO_MIN_SIZE)

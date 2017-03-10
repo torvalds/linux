@@ -1963,6 +1963,9 @@ scan_target:
 	if (!mr_device_priv_data)
 		return -ENOMEM;
 	sdev->hostdata = mr_device_priv_data;
+
+	atomic_set(&mr_device_priv_data->r1_ldio_hint,
+		   instance->r1_ldio_hint_default);
 	return 0;
 }
 
