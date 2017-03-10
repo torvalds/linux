@@ -66,8 +66,8 @@ int register_fib_notifier(struct notifier_block *nb,
 		 */
 		rcu_read_lock();
 		for_each_net_rcu(net) {
-			fib_rules_notify(net, nb, FIB_EVENT_RULE_ADD);
-			fib_notify(net, nb, FIB_EVENT_ENTRY_ADD);
+			fib_rules_notify(net, nb);
+			fib_notify(net, nb);
 		}
 		rcu_read_unlock();
 
