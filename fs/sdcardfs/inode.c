@@ -856,9 +856,7 @@ static int sdcardfs_fillattr(struct vfsmount *mnt, struct inode *inode, struct k
 static int sdcardfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		 struct kstat *stat)
 {
-	struct dentry *lower_dentry;
-	struct inode *inode;
-	struct inode *lower_inode;
+	struct kstat lower_stat;
 	struct path lower_path;
 	struct dentry *parent;
 	int err;
@@ -873,16 +871,15 @@ static int sdcardfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	}
 	dput(parent);
 
-	inode = d_inode(dentry);
-
 	sdcardfs_get_lower_path(dentry, &lower_path);
-	lower_dentry = lower_path.dentry;
-	lower_inode = sdcardfs_lower_inode(inode);
-
-	sdcardfs_copy_and_fix_attrs(inode, lower_inode);
-	fsstack_copy_inode_size(inode, lower_inode);
-
-	err = sdcardfs_fillattr(mnt, inode, stat);
+	err = vfs_getattr(&lower_path, &lower_stat);
+	if (err)
+		goto out;
+	sdcardfs_copy_and_fix_attrs(d_inode(dentry),
+			      d_inode(lower_path.dentry));
+	err = sdcardfs_fillattr(mnt, d_inode(dentry), stat);
+	stat->blocks = lower_stat.blocks;
+out:
 	sdcardfs_put_lower_path(dentry, &lower_path);
 	return err;
 }
