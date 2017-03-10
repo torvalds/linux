@@ -57,7 +57,7 @@ static void nfs_readdir_clear_array(struct page*);
 const struct file_operations nfs_dir_operations = {
 	.llseek		= nfs_llseek_dir,
 	.read		= generic_read_dir,
-	.iterate_shared	= nfs_readdir,
+	.iterate	= nfs_readdir,
 	.open		= nfs_opendir,
 	.release	= nfs_closedir,
 	.fsync		= nfs_fsync_dir,
@@ -145,7 +145,6 @@ struct nfs_cache_array_entry {
 };
 
 struct nfs_cache_array {
-	atomic_t refcount;
 	int size;
 	int eof_index;
 	u64 last_cookie;
@@ -201,18 +200,9 @@ void nfs_readdir_clear_array(struct page *page)
 	int i;
 
 	array = kmap_atomic(page);
-	if (atomic_dec_and_test(&array->refcount))
-		for (i = 0; i < array->size; i++)
-			kfree(array->array[i].string.name);
+	for (i = 0; i < array->size; i++)
+		kfree(array->array[i].string.name);
 	kunmap_atomic(array);
-}
-
-static bool grab_page(struct page *page)
-{
-	struct nfs_cache_array *array = kmap_atomic(page);
-	bool res = atomic_inc_not_zero(&array->refcount);
-	kunmap_atomic(array);
-	return res;
 }
 
 /*
@@ -680,7 +670,6 @@ int nfs_readdir_xdr_to_array(nfs_readdir_descriptor_t *desc, struct page *page, 
 		goto out_label_free;
 	}
 	memset(array, 0, sizeof(struct nfs_cache_array));
-	atomic_set(&array->refcount, 1);
 	array->eof_index = -1;
 
 	status = nfs_readdir_alloc_pages(pages, array_size);
@@ -743,7 +732,8 @@ int nfs_readdir_filler(nfs_readdir_descriptor_t *desc, struct page* page)
 static
 void cache_page_release(nfs_readdir_descriptor_t *desc)
 {
-	nfs_readdir_clear_array(desc->page);
+	if (!desc->page->mapping)
+		nfs_readdir_clear_array(desc->page);
 	put_page(desc->page);
 	desc->page = NULL;
 }
@@ -751,16 +741,8 @@ void cache_page_release(nfs_readdir_descriptor_t *desc)
 static
 struct page *get_cache_page(nfs_readdir_descriptor_t *desc)
 {
-	struct page *page;
-
-	for (;;) {
-		page = read_cache_page(desc->file->f_mapping,
+	return read_cache_page(desc->file->f_mapping,
 			desc->page_index, (filler_t *)nfs_readdir_filler, desc);
-		if (IS_ERR(page) || grab_page(page))
-			break;
-		put_page(page);
-	}
-	return page;
 }
 
 /*
@@ -966,11 +948,13 @@ out:
 
 static loff_t nfs_llseek_dir(struct file *filp, loff_t offset, int whence)
 {
+	struct inode *inode = file_inode(filp);
 	struct nfs_open_dir_context *dir_ctx = filp->private_data;
 
 	dfprintk(FILE, "NFS: llseek dir(%pD2, %lld, %d)\n",
 			filp, offset, whence);
 
+	inode_lock(inode);
 	switch (whence) {
 		case 1:
 			offset += filp->f_pos;
@@ -978,13 +962,16 @@ static loff_t nfs_llseek_dir(struct file *filp, loff_t offset, int whence)
 			if (offset >= 0)
 				break;
 		default:
-			return -EINVAL;
+			offset = -EINVAL;
+			goto out;
 	}
 	if (offset != filp->f_pos) {
 		filp->f_pos = offset;
 		dir_ctx->dir_cookie = 0;
 		dir_ctx->duped = 0;
 	}
+out:
+	inode_unlock(inode);
 	return offset;
 }
 
