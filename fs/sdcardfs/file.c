@@ -338,6 +338,52 @@ out:
 	return err;
 }
 
+/*
+ * Sdcardfs read_iter, redirect modified iocb to lower read_iter
+ */
+ssize_t sdcardfs_read_iter(struct kiocb *iocb, struct iov_iter *iter)
+{
+	int err;
+	struct file *file = iocb->ki_filp, *lower_file;
+
+	lower_file = sdcardfs_lower_file(file);
+	if (!lower_file->f_op->read_iter) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	get_file(lower_file); /* prevent lower_file from being released */
+	iocb->ki_filp = lower_file;
+	err = lower_file->f_op->read_iter(iocb, iter);
+	/* ? wait IO finish to update atime as ecryptfs ? */
+	iocb->ki_filp = file;
+	fput(lower_file);
+out:
+	return err;
+}
+
+/*
+ * Sdcardfs write_iter, redirect modified iocb to lower write_iter
+ */
+ssize_t sdcardfs_write_iter(struct kiocb *iocb, struct iov_iter *iter)
+{
+	int err;
+	struct file *file = iocb->ki_filp, *lower_file;
+
+	lower_file = sdcardfs_lower_file(file);
+	if (!lower_file->f_op->write_iter) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	get_file(lower_file); /* prevent lower_file from being released */
+	iocb->ki_filp = lower_file;
+	err = lower_file->f_op->write_iter(iocb, iter);
+	iocb->ki_filp = file;
+	fput(lower_file);
+out:
+	return err;
+}
 
 const struct file_operations sdcardfs_main_fops = {
 	.llseek		= generic_file_llseek,
@@ -353,6 +399,8 @@ const struct file_operations sdcardfs_main_fops = {
 	.release	= sdcardfs_file_release,
 	.fsync		= sdcardfs_fsync,
 	.fasync		= sdcardfs_fasync,
+	.read_iter	= sdcardfs_read_iter,
+	.write_iter	= sdcardfs_write_iter,
 };
 
 /* trimmed directory options */
