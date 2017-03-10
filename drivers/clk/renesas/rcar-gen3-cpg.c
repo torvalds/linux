@@ -247,6 +247,7 @@ static struct clk * __init cpg_sd_clk_register(const struct cpg_core_clk *core,
 
 static const struct rcar_gen3_cpg_pll_config *cpg_pll_config __initdata;
 static unsigned int cpg_clk_extalr __initdata;
+static u32 cpg_mode __initdata;
 
 struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 	const struct cpg_core_clk *core, const struct cpg_mssr_info *info,
@@ -334,9 +335,10 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 }
 
 int __init rcar_gen3_cpg_init(const struct rcar_gen3_cpg_pll_config *config,
-			      unsigned int clk_extalr)
+			      unsigned int clk_extalr, u32 mode)
 {
 	cpg_pll_config = config;
 	cpg_clk_extalr = clk_extalr;
+	cpg_mode = mode;
 	return 0;
 }
