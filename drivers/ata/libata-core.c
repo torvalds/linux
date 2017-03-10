@@ -4910,7 +4910,7 @@ void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-void ata_sg_clean(struct ata_queued_cmd *qc)
+static void ata_sg_clean(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct scatterlist *sg = qc->sg;
