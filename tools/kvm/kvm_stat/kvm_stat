@@ -835,6 +835,7 @@ NUMBER_WIDTH = 10
 DELAY_INITIAL = 0.25
 DELAY_REGULAR = 3.0
 MAX_GUEST_NAME_LEN = 48
+MAX_REGEX_LEN = 44
 
 
 class Tui(object):
@@ -905,6 +906,11 @@ class Tui(object):
                                .format(pid, gname), curses.A_BOLD)
         else:
             self.screen.addstr(0, 0, 'kvm statistics - summary', curses.A_BOLD)
+        if self.stats.fields_filter and self.stats.fields_filter != '^[^\(]*$':
+            regex = self.stats.fields_filter
+            if len(regex) > MAX_REGEX_LEN:
+                regex = regex[:MAX_REGEX_LEN] + '...'
+            self.screen.addstr(1, 17, 'regex filter: {0}'.format(regex))
         self.screen.addstr(2, 1, 'Event')
         self.screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH -
                            len('Total'), 'Total')
