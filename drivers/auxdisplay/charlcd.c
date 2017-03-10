@@ -159,15 +159,19 @@ EXPORT_SYMBOL_GPL(charlcd_poke);
 static void charlcd_gotoxy(struct charlcd *lcd)
 {
 	struct charlcd_priv *priv = to_priv(lcd);
+	unsigned int addr;
 
-	lcd->ops->write_cmd(lcd,
-		LCD_CMD_SET_DDRAM_ADDR | (priv->addr.y ? lcd->hwidth : 0) |
-		/*
-		 * we force the cursor to stay at the end of the
-		 * line if it wants to go farther
-		 */
-		((priv->addr.x < lcd->bwidth) ? priv->addr.x & (lcd->hwidth - 1)
-					      : lcd->bwidth - 1));
+	/*
+	 * we force the cursor to stay at the end of the
+	 * line if it wants to go farther
+	 */
+	addr = priv->addr.x < lcd->bwidth ? priv->addr.x & (lcd->hwidth - 1)
+					  : lcd->bwidth - 1;
+	if (priv->addr.y & 1)
+		addr += lcd->hwidth;
+	if (priv->addr.y & 2)
+		addr += lcd->bwidth;
+	lcd->ops->write_cmd(lcd, LCD_CMD_SET_DDRAM_ADDR | addr);
 }
 
 static void charlcd_home(struct charlcd *lcd)
@@ -203,7 +207,7 @@ static void charlcd_clear_fast(struct charlcd *lcd)
 	if (lcd->ops->clear_fast)
 		lcd->ops->clear_fast(lcd);
 	else
-		for (pos = 0; pos < lcd->height * lcd->hwidth; pos++)
+		for (pos = 0; pos < min(2, lcd->height) * lcd->hwidth; pos++)
 			lcd->ops->write_data(lcd, ' ');
 
 	charlcd_home(lcd);
