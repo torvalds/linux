@@ -1648,6 +1648,23 @@ static void stmmac_init_tx_coalesce(struct stmmac_priv *priv)
 }
 
 /**
+ *  stmmac_set_tx_queue_weight - Set TX queue weight
+ *  @priv: driver private structure
+ *  Description: It is used for setting TX queues weight
+ */
+static void stmmac_set_tx_queue_weight(struct stmmac_priv *priv)
+{
+	u32 tx_queues_count = priv->plat->tx_queues_to_use;
+	u32 weight;
+	u32 queue;
+
+	for (queue = 0; queue < tx_queues_count; queue++) {
+		weight = priv->plat->tx_queues_cfg[queue].weight;
+		priv->hw->mac->set_mtl_tx_queue_weight(priv->hw, weight, queue);
+	}
+}
+
+/**
  *  stmmac_mtl_configuration - Configure MTL
  *  @priv: driver private structure
  *  Description: It is used for configurring MTL
@@ -1656,6 +1673,9 @@ static void stmmac_mtl_configuration(struct stmmac_priv *priv)
 {
 	u32 rx_queues_count = priv->plat->rx_queues_to_use;
 	u32 tx_queues_count = priv->plat->tx_queues_to_use;
+
+	if (tx_queues_count > 1 && priv->hw->mac->set_mtl_tx_queue_weight)
+		stmmac_set_tx_queue_weight(priv);
 
 	/* Configure MTL RX algorithms */
 	if (rx_queues_count > 1 && priv->hw->mac->prog_mtl_rx_algorithms)

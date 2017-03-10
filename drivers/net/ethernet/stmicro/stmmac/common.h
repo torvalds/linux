@@ -462,6 +462,9 @@ struct stmmac_ops {
 	void (*prog_mtl_rx_algorithms)(struct mac_device_info *hw, u32 rx_alg);
 	/* Program TX Algorithms */
 	void (*prog_mtl_tx_algorithms)(struct mac_device_info *hw, u32 tx_alg);
+	/* Set MTL TX queues weight */
+	void (*set_mtl_tx_queue_weight)(struct mac_device_info *hw,
+					u32 weight, u32 queue);
 	/* Dump MAC registers */
 	void (*dump_regs)(struct mac_device_info *hw, u32 *reg_space);
 	/* Handle extra events on specific interrupts hw dependent */
