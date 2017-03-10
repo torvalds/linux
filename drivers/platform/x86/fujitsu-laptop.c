@@ -685,6 +685,25 @@ static const struct dmi_system_id fujitsu_dmi_table[] __initconst = {
 
 /* ACPI device for LCD brightness control */
 
+static int fujitsu_backlight_register(void)
+{
+	struct backlight_properties props = {
+		.brightness = fujitsu_bl->brightness_level,
+		.max_brightness = fujitsu_bl->max_brightness - 1,
+		.type = BACKLIGHT_PLATFORM
+	};
+	struct backlight_device *bd;
+
+	bd = backlight_device_register("fujitsu-laptop", NULL, NULL,
+				       &fujitsu_bl_ops, &props);
+	if (IS_ERR(bd))
+		return PTR_ERR(bd);
+
+	fujitsu_bl->bl_device = bd;
+
+	return 0;
+}
+
 static int acpi_fujitsu_bl_add(struct acpi_device *device)
 {
 	int state = 0;
@@ -1184,7 +1203,7 @@ MODULE_DEVICE_TABLE(acpi, fujitsu_ids);
 
 static int __init fujitsu_init(void)
 {
-	int ret, max_brightness;
+	int ret;
 
 	if (acpi_disabled)
 		return -ENODEV;
@@ -1224,22 +1243,9 @@ static int __init fujitsu_init(void)
 	/* Register backlight stuff */
 
 	if (acpi_video_get_backlight_type() == acpi_backlight_vendor) {
-		struct backlight_properties props;
-
-		memset(&props, 0, sizeof(struct backlight_properties));
-		max_brightness = fujitsu_bl->max_brightness;
-		props.type = BACKLIGHT_PLATFORM;
-		props.max_brightness = max_brightness - 1;
-		fujitsu_bl->bl_device = backlight_device_register("fujitsu-laptop",
-								  NULL, NULL,
-								  &fujitsu_bl_ops,
-								  &props);
-		if (IS_ERR(fujitsu_bl->bl_device)) {
-			ret = PTR_ERR(fujitsu_bl->bl_device);
-			fujitsu_bl->bl_device = NULL;
+		ret = fujitsu_backlight_register();
+		if (ret)
 			goto fail_sysfs_group;
-		}
-		fujitsu_bl->bl_device->props.brightness = fujitsu_bl->brightness_level;
 	}
 
 	ret = platform_driver_register(&fujitsu_pf_driver);
