@@ -861,6 +861,7 @@ DELAY_INITIAL = 0.25
 DELAY_REGULAR = 3.0
 MAX_GUEST_NAME_LEN = 48
 MAX_REGEX_LEN = 44
+DEFAULT_REGEX = r'^[^\(]*$'
 
 
 class Tui(object):
@@ -907,9 +908,9 @@ class Tui(object):
     def update_drilldown(self):
         """Sets or removes a filter that only allows fields without braces."""
         if not self.stats.fields_filter:
-            self.stats.fields_filter = r'^[^\(]*$'
+            self.stats.fields_filter = DEFAULT_REGEX
 
-        elif self.stats.fields_filter == r'^[^\(]*$':
+        elif self.stats.fields_filter == DEFAULT_REGEX:
             self.stats.fields_filter = None
 
     def update_pid(self, pid):
@@ -931,7 +932,8 @@ class Tui(object):
                                .format(pid, gname), curses.A_BOLD)
         else:
             self.screen.addstr(0, 0, 'kvm statistics - summary', curses.A_BOLD)
-        if self.stats.fields_filter and self.stats.fields_filter != '^[^\(]*$':
+        if self.stats.fields_filter and self.stats.fields_filter \
+           != DEFAULT_REGEX:
             regex = self.stats.fields_filter
             if len(regex) > MAX_REGEX_LEN:
                 regex = regex[:MAX_REGEX_LEN] + '...'
@@ -991,7 +993,7 @@ class Tui(object):
             regex = self.screen.getstr()
             curses.noecho()
             if len(regex) == 0:
-                self.stats.fields_filter = r'^[^\(]*$'
+                self.stats.fields_filter = DEFAULT_REGEX
                 self.refresh_header()
                 return
             try:
@@ -1101,6 +1103,11 @@ class Tui(object):
                     sleeptime = DELAY_INITIAL
                 if char == 'q':
                     break
+                if char == 'c':
+                    self.stats.fields_filter = DEFAULT_REGEX
+                    self.refresh_header(0)
+                    self.update_pid(0)
+                    sleeptime = DELAY_INITIAL
                 if char == 'f':
                     self.show_filter_selection()
                     sleeptime = DELAY_INITIAL
@@ -1177,6 +1184,7 @@ Requirements:
   the large number of files that are possibly opened.
 
 Interactive Commands:
+   c     clear filter
    f     filter by regular expression
    g     filter by guest name
    p     filter by PID

@@ -29,6 +29,8 @@ meaning of events.
 INTERACTIVE COMMANDS
 --------------------
 [horizontal]
+*c*::	clear filter
+
 *f*::	filter by regular expression
 
 *g*::	filter by guest name
