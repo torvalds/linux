@@ -17,14 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/bitops.h>
 #include <linux/cacheinfo.h>
-#include <linux/cpu.h>
-#include <linux/compiler.h>
 #include <linux/of.h>
-
-#include <asm/cachetype.h>
-#include <asm/processor.h>
 
 #define MAX_CACHE_LEVEL			7	/* Max 7 level supported */
 /* Ctypen, bits[3(n - 1) + 2 : 3(n - 1)], for n = 1 to 7 */
@@ -43,43 +37,11 @@ static inline enum cache_type get_cache_type(int level)
 	return CLIDR_CTYPE(clidr, level);
 }
 
-/*
- * Cache Size Selection Register(CSSELR) selects which Cache Size ID
- * Register(CCSIDR) is accessible by specifying the required cache
- * level and the cache type. We need to ensure that no one else changes
- * CSSELR by calling this in non-preemtible context
- */
-u64 __attribute_const__ cache_get_ccsidr(u64 csselr)
-{
-	u64 ccsidr;
-
-	WARN_ON(preemptible());
-
-	write_sysreg(csselr, csselr_el1);
-	isb();
-	ccsidr = read_sysreg(ccsidr_el1);
-
-	return ccsidr;
-}
-
 static void ci_leaf_init(struct cacheinfo *this_leaf,
 			 enum cache_type type, unsigned int level)
 {
-	bool is_icache = type & CACHE_TYPE_INST;
-	u64 tmp = cache_get_ccsidr((level - 1) << 1 | is_icache);
-
 	this_leaf->level = level;
 	this_leaf->type = type;
-	this_leaf->coherency_line_size = CACHE_LINESIZE(tmp);
-	this_leaf->number_of_sets = CACHE_NUMSETS(tmp);
-	this_leaf->ways_of_associativity = CACHE_ASSOCIATIVITY(tmp);
-	this_leaf->size = this_leaf->number_of_sets *
-	    this_leaf->coherency_line_size * this_leaf->ways_of_associativity;
-	this_leaf->attributes =
-		((tmp & CCSIDR_EL1_WRITE_THROUGH) ? CACHE_WRITE_THROUGH : 0) |
-		((tmp & CCSIDR_EL1_WRITE_BACK) ? CACHE_WRITE_BACK : 0) |
-		((tmp & CCSIDR_EL1_READ_ALLOCATE) ? CACHE_READ_ALLOCATE : 0) |
-		((tmp & CCSIDR_EL1_WRITE_ALLOCATE) ? CACHE_WRITE_ALLOCATE : 0);
 }
 
 static int __init_cache_level(unsigned int cpu)

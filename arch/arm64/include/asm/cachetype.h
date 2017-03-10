@@ -40,30 +40,6 @@
 extern unsigned long __icache_flags;
 
 /*
- * NumSets, bits[27:13] - (Number of sets in cache) - 1
- * Associativity, bits[12:3] - (Associativity of cache) - 1
- * LineSize, bits[2:0] - (Log2(Number of words in cache line)) - 2
- */
-#define CCSIDR_EL1_WRITE_THROUGH	BIT(31)
-#define CCSIDR_EL1_WRITE_BACK		BIT(30)
-#define CCSIDR_EL1_READ_ALLOCATE	BIT(29)
-#define CCSIDR_EL1_WRITE_ALLOCATE	BIT(28)
-#define CCSIDR_EL1_LINESIZE_MASK	0x7
-#define CCSIDR_EL1_LINESIZE(x)		((x) & CCSIDR_EL1_LINESIZE_MASK)
-#define CCSIDR_EL1_ASSOCIATIVITY_SHIFT	3
-#define CCSIDR_EL1_ASSOCIATIVITY_MASK	0x3ff
-#define CCSIDR_EL1_ASSOCIATIVITY(x)	\
-	(((x) >> CCSIDR_EL1_ASSOCIATIVITY_SHIFT) & CCSIDR_EL1_ASSOCIATIVITY_MASK)
-#define CCSIDR_EL1_NUMSETS_SHIFT	13
-#define CCSIDR_EL1_NUMSETS_MASK		0x7fff
-#define CCSIDR_EL1_NUMSETS(x) \
-	(((x) >> CCSIDR_EL1_NUMSETS_SHIFT) & CCSIDR_EL1_NUMSETS_MASK)
-
-#define CACHE_LINESIZE(x)	(16 << CCSIDR_EL1_LINESIZE(x))
-#define CACHE_NUMSETS(x)	(CCSIDR_EL1_NUMSETS(x) + 1)
-#define CACHE_ASSOCIATIVITY(x)	(CCSIDR_EL1_ASSOCIATIVITY(x) + 1)
-
-/*
  * Whilst the D-side always behaves as PIPT on AArch64, aliasing is
  * permitted in the I-cache.
  */
