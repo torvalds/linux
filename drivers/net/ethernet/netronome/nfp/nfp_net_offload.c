@@ -168,8 +168,7 @@ nfp_net_bpf_offload_prepare(struct nfp_net *nn,
 	start_off = nn_readw(nn, NFP_NET_CFG_BPF_START);
 	done_off = nn_readw(nn, NFP_NET_CFG_BPF_DONE);
 
-	*code = dma_zalloc_coherent(&nn->pdev->dev, code_sz, dma_addr,
-				    GFP_KERNEL);
+	*code = dma_zalloc_coherent(nn->dev, code_sz, dma_addr, GFP_KERNEL);
 	if (!*code)
 		return -ENOMEM;
 
@@ -181,7 +180,7 @@ nfp_net_bpf_offload_prepare(struct nfp_net *nn,
 	return 0;
 
 out:
-	dma_free_coherent(&nn->pdev->dev, code_sz, *code, *dma_addr);
+	dma_free_coherent(nn->dev, code_sz, *code, *dma_addr);
 	return ret;
 }
 
@@ -214,7 +213,7 @@ nfp_net_bpf_load_and_start(struct nfp_net *nn, u32 tc_flags,
 	if (err)
 		nn_err(nn, "FW command error while enabling BPF: %d\n", err);
 
-	dma_free_coherent(&nn->pdev->dev, code_sz, code, dma_addr);
+	dma_free_coherent(nn->dev, code_sz, code, dma_addr);
 
 	nfp_net_bpf_stats_reset(nn);
 	mod_timer(&nn->rx_filter_stats_timer, jiffies + NFP_NET_STAT_POLL_IVL);

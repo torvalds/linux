@@ -112,6 +112,7 @@
 
 /* Forward declarations */
 struct nfp_cpp;
+struct nfp_eth_table_port;
 struct nfp_net;
 struct nfp_net_r_vector;
 
@@ -434,11 +435,12 @@ struct nfp_stat_pair {
 
 /**
  * struct nfp_net - NFP network device structure
- * @pdev:               Backpointer to PCI device
+ * @dev:		Backpointer to struct device
  * @netdev:             Backpointer to net_device structure
  * @is_vf:              Is the driver attached to a VF?
  * @bpf_offload_skip_sw:  Offloaded BPF program will not be rerun by cls_bpf
  * @bpf_offload_xdp:	Offloaded BPF program is XDP
+ * @chained_metadata_format:  Firemware will use new metadata format
  * @ctrl:               Local copy of the control register/word.
  * @fl_bufsz:           Currently configured size of the freelist buffers
  * @rx_offset:		Offset in the RX buffers where packet data starts
@@ -446,6 +448,7 @@ struct nfp_stat_pair {
  * @fw_ver:             Firmware version
  * @cap:                Capabilities advertised by the Firmware
  * @max_mtu:            Maximum support MTU advertised by the Firmware
+ * @rss_hfunc:		RSS selected hash function
  * @rss_cfg:            RSS configuration
  * @rss_key:            RSS secret key
  * @rss_itbl:           RSS indirection table
@@ -494,15 +497,18 @@ struct nfp_stat_pair {
  * @debugfs_dir:	Device directory in debugfs
  * @ethtool_dump_flag:	Ethtool dump flag
  * @port_list:		Entry on device port list
+ * @pdev:		Backpointer to PCI device
  * @cpp:		CPP device handle if available
+ * @eth_port:		Translated ETH Table port entry
  */
 struct nfp_net {
-	struct pci_dev *pdev;
+	struct device *dev;
 	struct net_device *netdev;
 
 	unsigned is_vf:1;
 	unsigned bpf_offload_skip_sw:1;
 	unsigned bpf_offload_xdp:1;
+	unsigned chained_metadata_format:1;
 
 	u32 ctrl;
 	u32 fl_bufsz;
@@ -518,6 +524,7 @@ struct nfp_net {
 	u32 cap;
 	u32 max_mtu;
 
+	u8 rss_hfunc;
 	u32 rss_cfg;
 	u8 rss_key[NFP_NET_CFG_RSS_KEY_SZ];
 	u8 rss_itbl[NFP_NET_CFG_RSS_ITBL_SZ];
@@ -584,7 +591,10 @@ struct nfp_net {
 
 	struct list_head port_list;
 
+	struct pci_dev *pdev;
 	struct nfp_cpp *cpp;
+
+	struct nfp_eth_table_port *eth_port;
 };
 
 struct nfp_net_ring_set {
@@ -776,6 +786,7 @@ void nfp_net_netdev_clean(struct net_device *netdev);
 void nfp_net_set_ethtool_ops(struct net_device *netdev);
 void nfp_net_info(struct nfp_net *nn);
 int nfp_net_reconfig(struct nfp_net *nn, u32 update);
+unsigned int nfp_net_rss_key_sz(struct nfp_net *nn);
 void nfp_net_rss_write_itbl(struct nfp_net *nn);
 void nfp_net_rss_write_key(struct nfp_net *nn);
 void nfp_net_coalesce_write_cfg(struct nfp_net *nn);

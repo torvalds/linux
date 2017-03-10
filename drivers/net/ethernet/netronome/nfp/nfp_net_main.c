@@ -141,8 +141,7 @@ nfp_net_get_mac_addr_hwinfo(struct nfp_net *nn, struct nfp_cpp *cpp,
 
 	mac_str = nfp_hwinfo_lookup(cpp, name);
 	if (!mac_str) {
-		dev_warn(&nn->pdev->dev,
-			 "Can't lookup MAC address. Generate\n");
+		dev_warn(nn->dev, "Can't lookup MAC address. Generate\n");
 		eth_hw_addr_random(nn->netdev);
 		return;
 	}
@@ -150,7 +149,7 @@ nfp_net_get_mac_addr_hwinfo(struct nfp_net *nn, struct nfp_cpp *cpp,
 	if (sscanf(mac_str, "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
 		   &mac_addr[0], &mac_addr[1], &mac_addr[2],
 		   &mac_addr[3], &mac_addr[4], &mac_addr[5]) != 6) {
-		dev_warn(&nn->pdev->dev,
+		dev_warn(nn->dev,
 			 "Can't parse MAC address (%s). Generate.\n", mac_str);
 		eth_hw_addr_random(nn->netdev);
 		return;
@@ -177,6 +176,8 @@ nfp_net_get_mac_addr(struct nfp_net *nn, struct nfp_pf *pf, unsigned int id)
 	for (i = 0; pf->eth_tbl && i < pf->eth_tbl->count; i++)
 		if (pf->eth_tbl->ports[i].eth_index == id) {
 			const u8 *mac_addr = pf->eth_tbl->ports[i].mac_addr;
+
+			nn->eth_port = &pf->eth_tbl->ports[i];
 
 			ether_addr_copy(nn->netdev->dev_addr, mac_addr);
 			ether_addr_copy(nn->netdev->perm_addr, mac_addr);

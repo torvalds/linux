@@ -41,6 +41,7 @@
  *          Chris Telfer <chris.telfer@netronome.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/bpf.h>
 #include <linux/bpf_trace.h>
 #include <linux/module.h>
@@ -66,6 +67,7 @@
 #include <net/pkt_cls.h>
 #include <net/vxlan.h>
 
+#include "nfpcore/nfp_nsp_eth.h"
 #include "nfp_net_ctrl.h"
 #include "nfp_net.h"
 
@@ -87,7 +89,7 @@ static dma_addr_t
 nfp_net_dma_map_rx(struct nfp_net *nn, void *frag, unsigned int bufsz,
 		   int direction)
 {
-	return dma_map_single(&nn->pdev->dev, frag + NFP_NET_RX_BUF_HEADROOM,
+	return dma_map_single(nn->dev, frag + NFP_NET_RX_BUF_HEADROOM,
 			      bufsz - NFP_NET_RX_BUF_NON_DATA, direction);
 }
 
@@ -95,7 +97,7 @@ static void
 nfp_net_dma_unmap_rx(struct nfp_net *nn, dma_addr_t dma_addr,
 		     unsigned int bufsz, int direction)
 {
-	dma_unmap_single(&nn->pdev->dev, dma_addr,
+	dma_unmap_single(nn->dev, dma_addr,
 			 bufsz - NFP_NET_RX_BUF_NON_DATA, direction);
 }
 
@@ -737,10 +739,10 @@ static int nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 	const struct skb_frag_struct *frag;
-	struct nfp_net_r_vector *r_vec;
 	struct nfp_net_tx_desc *txd, txdg;
-	struct nfp_net_tx_buf *txbuf;
 	struct nfp_net_tx_ring *tx_ring;
+	struct nfp_net_r_vector *r_vec;
+	struct nfp_net_tx_buf *txbuf;
 	struct netdev_queue *nd_q;
 	dma_addr_t dma_addr;
 	unsigned int fsize;
@@ -766,9 +768,9 @@ static int nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	/* Start with the head skbuf */
-	dma_addr = dma_map_single(&nn->pdev->dev, skb->data, skb_headlen(skb),
+	dma_addr = dma_map_single(nn->dev, skb->data, skb_headlen(skb),
 				  DMA_TO_DEVICE);
-	if (dma_mapping_error(&nn->pdev->dev, dma_addr))
+	if (dma_mapping_error(nn->dev, dma_addr))
 		goto err_free;
 
 	wr_idx = tx_ring->wr_p & (tx_ring->cnt - 1);
@@ -810,9 +812,9 @@ static int nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 			frag = &skb_shinfo(skb)->frags[f];
 			fsize = skb_frag_size(frag);
 
-			dma_addr = skb_frag_dma_map(&nn->pdev->dev, frag, 0,
+			dma_addr = skb_frag_dma_map(nn->dev, frag, 0,
 						    fsize, DMA_TO_DEVICE);
-			if (dma_mapping_error(&nn->pdev->dev, dma_addr))
+			if (dma_mapping_error(nn->dev, dma_addr))
 				goto err_unmap;
 
 			wr_idx = (wr_idx + 1) & (tx_ring->cnt - 1);
@@ -851,8 +853,7 @@ err_unmap:
 	--f;
 	while (f >= 0) {
 		frag = &skb_shinfo(skb)->frags[f];
-		dma_unmap_page(&nn->pdev->dev,
-			       tx_ring->txbufs[wr_idx].dma_addr,
+		dma_unmap_page(nn->dev, tx_ring->txbufs[wr_idx].dma_addr,
 			       skb_frag_size(frag), DMA_TO_DEVICE);
 		tx_ring->txbufs[wr_idx].skb = NULL;
 		tx_ring->txbufs[wr_idx].dma_addr = 0;
@@ -861,7 +862,7 @@ err_unmap:
 		if (wr_idx < 0)
 			wr_idx += tx_ring->cnt;
 	}
-	dma_unmap_single(&nn->pdev->dev, tx_ring->txbufs[wr_idx].dma_addr,
+	dma_unmap_single(nn->dev, tx_ring->txbufs[wr_idx].dma_addr,
 			 skb_headlen(skb), DMA_TO_DEVICE);
 	tx_ring->txbufs[wr_idx].skb = NULL;
 	tx_ring->txbufs[wr_idx].dma_addr = 0;
@@ -918,8 +919,7 @@ static void nfp_net_tx_complete(struct nfp_net_tx_ring *tx_ring)
 
 		if (fidx == -1) {
 			/* unmap head */
-			dma_unmap_single(&nn->pdev->dev,
-					 tx_ring->txbufs[idx].dma_addr,
+			dma_unmap_single(nn->dev, tx_ring->txbufs[idx].dma_addr,
 					 skb_headlen(skb), DMA_TO_DEVICE);
 
 			done_pkts += tx_ring->txbufs[idx].pkt_cnt;
@@ -927,8 +927,7 @@ static void nfp_net_tx_complete(struct nfp_net_tx_ring *tx_ring)
 		} else {
 			/* unmap fragment */
 			frag = &skb_shinfo(skb)->frags[fidx];
-			dma_unmap_page(&nn->pdev->dev,
-				       tx_ring->txbufs[idx].dma_addr,
+			dma_unmap_page(nn->dev, tx_ring->txbufs[idx].dma_addr,
 				       skb_frag_size(frag), DMA_TO_DEVICE);
 		}
 
@@ -1025,7 +1024,6 @@ nfp_net_tx_ring_reset(struct nfp_net *nn, struct nfp_net_tx_ring *tx_ring)
 {
 	struct nfp_net_r_vector *r_vec = tx_ring->r_vec;
 	const struct skb_frag_struct *frag;
-	struct pci_dev *pdev = nn->pdev;
 	struct netdev_queue *nd_q;
 
 	while (tx_ring->rd_p != tx_ring->wr_p) {
@@ -1045,13 +1043,13 @@ nfp_net_tx_ring_reset(struct nfp_net *nn, struct nfp_net_tx_ring *tx_ring)
 
 			if (tx_buf->fidx == -1) {
 				/* unmap head */
-				dma_unmap_single(&pdev->dev, tx_buf->dma_addr,
+				dma_unmap_single(nn->dev, tx_buf->dma_addr,
 						 skb_headlen(skb),
 						 DMA_TO_DEVICE);
 			} else {
 				/* unmap fragment */
 				frag = &skb_shinfo(skb)->frags[tx_buf->fidx];
-				dma_unmap_page(&pdev->dev, tx_buf->dma_addr,
+				dma_unmap_page(nn->dev, tx_buf->dma_addr,
 					       skb_frag_size(frag),
 					       DMA_TO_DEVICE);
 			}
@@ -1155,7 +1153,7 @@ nfp_net_rx_alloc_one(struct nfp_net_rx_ring *rx_ring, dma_addr_t *dma_addr,
 	direction = xdp ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE;
 
 	*dma_addr = nfp_net_dma_map_rx(nn, frag, fl_bufsz, direction);
-	if (dma_mapping_error(&nn->pdev->dev, *dma_addr)) {
+	if (dma_mapping_error(nn->dev, *dma_addr)) {
 		nfp_net_free_frag(frag, xdp);
 		nn_warn_ratelimit(nn, "Failed to map DMA RX buffer\n");
 		return NULL;
@@ -1179,7 +1177,7 @@ nfp_net_napi_alloc_one(struct nfp_net *nn, int direction, dma_addr_t *dma_addr)
 	}
 
 	*dma_addr = nfp_net_dma_map_rx(nn, frag, nn->fl_bufsz, direction);
-	if (dma_mapping_error(&nn->pdev->dev, *dma_addr)) {
+	if (dma_mapping_error(nn->dev, *dma_addr)) {
 		nfp_net_free_frag(frag, nn->xdp_prog);
 		nn_warn_ratelimit(nn, "Failed to map DMA RX buffer\n");
 		return NULL;
@@ -1497,7 +1495,7 @@ nfp_net_tx_xdp_buf(struct nfp_net *nn, struct nfp_net_rx_ring *rx_ring,
 	txbuf->pkt_cnt = 1;
 	txbuf->real_len = pkt_len;
 
-	dma_sync_single_for_device(&nn->pdev->dev, rxbuf->dma_addr + pkt_off,
+	dma_sync_single_for_device(nn->dev, rxbuf->dma_addr + pkt_off,
 				   pkt_len, DMA_BIDIRECTIONAL);
 
 	/* Build TX descriptor */
@@ -1609,7 +1607,7 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 				  nn->bpf_offload_xdp)) {
 			int act;
 
-			dma_sync_single_for_cpu(&nn->pdev->dev,
+			dma_sync_single_for_cpu(nn->dev,
 						rxbuf->dma_addr + pkt_off,
 						pkt_len, DMA_BIDIRECTIONAL);
 			act = nfp_net_run_xdp(xdp_prog, rxbuf->frag + data_off,
@@ -1654,7 +1652,7 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 		skb_reserve(skb, data_off);
 		skb_put(skb, pkt_len);
 
-		if (nn->fw_ver.major <= 3) {
+		if (!nn->chained_metadata_format) {
 			nfp_net_set_hash_desc(nn->netdev, skb, rxd);
 		} else if (meta_len) {
 			void *end;
@@ -1707,10 +1705,9 @@ static int nfp_net_poll(struct napi_struct *napi, int budget)
 			nfp_net_xdp_complete(r_vec->xdp_ring);
 	}
 
-	if (pkts_polled < budget) {
-		napi_complete_done(napi, pkts_polled);
-		nfp_net_irq_unmask(r_vec->nfp_net, r_vec->irq_entry);
-	}
+	if (pkts_polled < budget)
+		if (napi_complete_done(napi, pkts_polled))
+			nfp_net_irq_unmask(r_vec->nfp_net, r_vec->irq_entry);
 
 	return pkts_polled;
 }
@@ -1726,12 +1723,11 @@ static void nfp_net_tx_ring_free(struct nfp_net_tx_ring *tx_ring)
 {
 	struct nfp_net_r_vector *r_vec = tx_ring->r_vec;
 	struct nfp_net *nn = r_vec->nfp_net;
-	struct pci_dev *pdev = nn->pdev;
 
 	kfree(tx_ring->txbufs);
 
 	if (tx_ring->txds)
-		dma_free_coherent(&pdev->dev, tx_ring->size,
+		dma_free_coherent(nn->dev, tx_ring->size,
 				  tx_ring->txds, tx_ring->dma);
 
 	tx_ring->cnt = 0;
@@ -1754,13 +1750,12 @@ nfp_net_tx_ring_alloc(struct nfp_net_tx_ring *tx_ring, u32 cnt, bool is_xdp)
 {
 	struct nfp_net_r_vector *r_vec = tx_ring->r_vec;
 	struct nfp_net *nn = r_vec->nfp_net;
-	struct pci_dev *pdev = nn->pdev;
 	int sz;
 
 	tx_ring->cnt = cnt;
 
 	tx_ring->size = sizeof(*tx_ring->txds) * tx_ring->cnt;
-	tx_ring->txds = dma_zalloc_coherent(&pdev->dev, tx_ring->size,
+	tx_ring->txds = dma_zalloc_coherent(nn->dev, tx_ring->size,
 					    &tx_ring->dma, GFP_KERNEL);
 	if (!tx_ring->txds)
 		goto err_alloc;
@@ -1773,11 +1768,6 @@ nfp_net_tx_ring_alloc(struct nfp_net_tx_ring *tx_ring, u32 cnt, bool is_xdp)
 	if (!is_xdp)
 		netif_set_xps_queue(nn->netdev, &r_vec->affinity_mask,
 				    tx_ring->idx);
-
-	nn_dbg(nn, "TxQ%02d: QCidx=%02d cnt=%d dma=%#llx host=%p %s\n",
-	       tx_ring->idx, tx_ring->qcidx,
-	       tx_ring->cnt, (unsigned long long)tx_ring->dma, tx_ring->txds,
-	       is_xdp ? "XDP" : "");
 
 	return 0;
 
@@ -1852,12 +1842,11 @@ static void nfp_net_rx_ring_free(struct nfp_net_rx_ring *rx_ring)
 {
 	struct nfp_net_r_vector *r_vec = rx_ring->r_vec;
 	struct nfp_net *nn = r_vec->nfp_net;
-	struct pci_dev *pdev = nn->pdev;
 
 	kfree(rx_ring->rxbufs);
 
 	if (rx_ring->rxds)
-		dma_free_coherent(&pdev->dev, rx_ring->size,
+		dma_free_coherent(nn->dev, rx_ring->size,
 				  rx_ring->rxds, rx_ring->dma);
 
 	rx_ring->cnt = 0;
@@ -1881,14 +1870,13 @@ nfp_net_rx_ring_alloc(struct nfp_net_rx_ring *rx_ring, unsigned int fl_bufsz,
 {
 	struct nfp_net_r_vector *r_vec = rx_ring->r_vec;
 	struct nfp_net *nn = r_vec->nfp_net;
-	struct pci_dev *pdev = nn->pdev;
 	int sz;
 
 	rx_ring->cnt = cnt;
 	rx_ring->bufsz = fl_bufsz;
 
 	rx_ring->size = sizeof(*rx_ring->rxds) * rx_ring->cnt;
-	rx_ring->rxds = dma_zalloc_coherent(&pdev->dev, rx_ring->size,
+	rx_ring->rxds = dma_zalloc_coherent(nn->dev, rx_ring->size,
 					    &rx_ring->dma, GFP_KERNEL);
 	if (!rx_ring->rxds)
 		goto err_alloc;
@@ -1897,10 +1885,6 @@ nfp_net_rx_ring_alloc(struct nfp_net_rx_ring *rx_ring, unsigned int fl_bufsz,
 	rx_ring->rxbufs = kzalloc(sz, GFP_KERNEL);
 	if (!rx_ring->rxbufs)
 		goto err_alloc;
-
-	nn_dbg(nn, "RxQ%02d: FlQCidx=%02d RxQCidx=%02d cnt=%d dma=%#llx host=%p\n",
-	       rx_ring->idx, rx_ring->fl_qcidx, rx_ring->rx_qcidx,
-	       rx_ring->cnt, (unsigned long long)rx_ring->dma, rx_ring->rxds);
 
 	return 0;
 
@@ -2045,7 +2029,7 @@ void nfp_net_rss_write_key(struct nfp_net *nn)
 {
 	int i;
 
-	for (i = 0; i < NFP_NET_CFG_RSS_KEY_SZ; i += 4)
+	for (i = 0; i < nfp_net_rss_key_sz(nn); i += 4)
 		nn_writel(nn, NFP_NET_CFG_RSS_KEY + i,
 			  get_unaligned_le32(nn->rss_key + i));
 }
@@ -2830,6 +2814,26 @@ nfp_net_features_check(struct sk_buff *skb, struct net_device *dev,
 	return features;
 }
 
+static int
+nfp_net_get_phys_port_name(struct net_device *netdev, char *name, size_t len)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+	int err;
+
+	if (!nn->eth_port)
+		return -EOPNOTSUPP;
+
+	if (!nn->eth_port->is_split)
+		err = snprintf(name, len, "p%d", nn->eth_port->label_port);
+	else
+		err = snprintf(name, len, "p%ds%d", nn->eth_port->label_port,
+			       nn->eth_port->label_subport);
+	if (err >= len)
+		return -EINVAL;
+
+	return 0;
+}
+
 /**
  * nfp_net_set_vxlan_port() - set vxlan port in SW and reconfigure HW
  * @nn:   NFP Net device to reconfigure
@@ -3008,6 +3012,7 @@ static const struct net_device_ops nfp_net_netdev_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_set_features	= nfp_net_set_features,
 	.ndo_features_check	= nfp_net_features_check,
+	.ndo_get_phys_port_name	= nfp_net_get_phys_port_name,
 	.ndo_udp_tunnel_add	= nfp_net_add_vxlan_port,
 	.ndo_udp_tunnel_del	= nfp_net_del_vxlan_port,
 	.ndo_xdp		= nfp_net_xdp,
@@ -3075,6 +3080,7 @@ struct nfp_net *nfp_net_netdev_alloc(struct pci_dev *pdev,
 	nn = netdev_priv(netdev);
 
 	nn->netdev = netdev;
+	nn->dev = &pdev->dev;
 	nn->pdev = pdev;
 
 	nn->max_tx_rings = max_tx_rings;
@@ -3112,19 +3118,58 @@ void nfp_net_netdev_free(struct nfp_net *nn)
 }
 
 /**
+ * nfp_net_rss_key_sz() - Get current size of the RSS key
+ * @nn:		NFP Net device instance
+ *
+ * Return: size of the RSS key for currently selected hash function.
+ */
+unsigned int nfp_net_rss_key_sz(struct nfp_net *nn)
+{
+	switch (nn->rss_hfunc) {
+	case ETH_RSS_HASH_TOP:
+		return NFP_NET_CFG_RSS_KEY_SZ;
+	case ETH_RSS_HASH_XOR:
+		return 0;
+	case ETH_RSS_HASH_CRC32:
+		return 4;
+	}
+
+	nn_warn(nn, "Unknown hash function: %u\n", nn->rss_hfunc);
+	return 0;
+}
+
+/**
  * nfp_net_rss_init() - Set the initial RSS parameters
  * @nn:	     NFP Net device to reconfigure
  */
 static void nfp_net_rss_init(struct nfp_net *nn)
 {
-	netdev_rss_key_fill(nn->rss_key, NFP_NET_CFG_RSS_KEY_SZ);
+	unsigned long func_bit, rss_cap_hfunc;
+	u32 reg;
+
+	/* Read the RSS function capability and select first supported func */
+	reg = nn_readl(nn, NFP_NET_CFG_RSS_CAP);
+	rss_cap_hfunc =	FIELD_GET(NFP_NET_CFG_RSS_CAP_HFUNC, reg);
+	if (!rss_cap_hfunc)
+		rss_cap_hfunc =	FIELD_GET(NFP_NET_CFG_RSS_CAP_HFUNC,
+					  NFP_NET_CFG_RSS_TOEPLITZ);
+
+	func_bit = find_first_bit(&rss_cap_hfunc, NFP_NET_CFG_RSS_HFUNCS);
+	if (func_bit == NFP_NET_CFG_RSS_HFUNCS) {
+		dev_warn(nn->dev,
+			 "Bad RSS config, defaulting to Toeplitz hash\n");
+		func_bit = ETH_RSS_HASH_TOP_BIT;
+	}
+	nn->rss_hfunc = 1 << func_bit;
+
+	netdev_rss_key_fill(nn->rss_key, nfp_net_rss_key_sz(nn));
 
 	nfp_net_rss_init_itbl(nn);
 
 	/* Enable IPv4/IPv6 TCP by default */
 	nn->rss_cfg = NFP_NET_CFG_RSS_IPV4_TCP |
 		      NFP_NET_CFG_RSS_IPV6_TCP |
-		      NFP_NET_CFG_RSS_TOEPLITZ |
+		      FIELD_PREP(NFP_NET_CFG_RSS_HFUNC, nn->rss_hfunc) |
 		      NFP_NET_CFG_RSS_MASK;
 }
 
@@ -3150,6 +3195,8 @@ int nfp_net_netdev_init(struct net_device *netdev)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 	int err;
+
+	nn->chained_metadata_format = nn->fw_ver.major > 3;
 
 	/* Get some of the read-only fields from the BAR */
 	nn->cap = nn_readl(nn, NFP_NET_CFG_CAP);

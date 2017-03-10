@@ -40,6 +40,7 @@
  *          Brad Petrus <brad.petrus@netronome.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -454,7 +455,7 @@ static int nfp_net_set_rss_hash_opt(struct nfp_net *nn,
 		return -EINVAL;
 	}
 
-	new_rss_cfg |= NFP_NET_CFG_RSS_TOEPLITZ;
+	new_rss_cfg |= FIELD_PREP(NFP_NET_CFG_RSS_HFUNC, nn->rss_hfunc);
 	new_rss_cfg |= NFP_NET_CFG_RSS_MASK;
 
 	if (new_rss_cfg == nn->rss_cfg)
@@ -496,7 +497,12 @@ static u32 nfp_net_get_rxfh_indir_size(struct net_device *netdev)
 
 static u32 nfp_net_get_rxfh_key_size(struct net_device *netdev)
 {
-	return NFP_NET_CFG_RSS_KEY_SZ;
+	struct nfp_net *nn = netdev_priv(netdev);
+
+	if (!(nn->cap & NFP_NET_CFG_CTRL_RSS))
+		return -EOPNOTSUPP;
+
+	return nfp_net_rss_key_sz(nn);
 }
 
 static int nfp_net_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
@@ -512,9 +518,12 @@ static int nfp_net_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 		for (i = 0; i < ARRAY_SIZE(nn->rss_itbl); i++)
 			indir[i] = nn->rss_itbl[i];
 	if (key)
-		memcpy(key, nn->rss_key, NFP_NET_CFG_RSS_KEY_SZ);
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP;
+		memcpy(key, nn->rss_key, nfp_net_rss_key_sz(nn));
+	if (hfunc) {
+		*hfunc = nn->rss_hfunc;
+		if (*hfunc >= 1 << ETH_RSS_HASH_FUNCS_COUNT)
+			*hfunc = ETH_RSS_HASH_UNKNOWN;
+	}
 
 	return 0;
 }
@@ -527,14 +536,14 @@ static int nfp_net_set_rxfh(struct net_device *netdev,
 	int i;
 
 	if (!(nn->cap & NFP_NET_CFG_CTRL_RSS) ||
-	    !(hfunc == ETH_RSS_HASH_NO_CHANGE || hfunc == ETH_RSS_HASH_TOP))
+	    !(hfunc == ETH_RSS_HASH_NO_CHANGE || hfunc == nn->rss_hfunc))
 		return -EOPNOTSUPP;
 
 	if (!key && !indir)
 		return 0;
 
 	if (key) {
-		memcpy(nn->rss_key, key, NFP_NET_CFG_RSS_KEY_SZ);
+		memcpy(nn->rss_key, key, nfp_net_rss_key_sz(nn));
 		nfp_net_rss_write_key(nn);
 	}
 	if (indir) {
