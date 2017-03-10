@@ -1200,6 +1200,7 @@
 			      "hclk", "pm";
 		bus-range = <0x0 0x1>;
 		max-link-speed = <1>;
+		linux,pci-domain = <0>;
 		msi-map = <0x0 &its 0x0 0x1000>;
 		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH 0>,
 			     <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH 0>,
