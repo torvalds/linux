@@ -218,13 +218,9 @@ int intel_vgt_balloon(struct drm_i915_private *dev_priv)
 			goto err;
 	}
 
-	/*
-	 * No need to partition out the last physical page,
-	 * because it is reserved to the guard page.
-	 */
-	if (unmappable_end < ggtt_end - PAGE_SIZE) {
+	if (unmappable_end < ggtt_end) {
 		ret = vgt_balloon_space(ggtt, &bl_info.space[3],
-					unmappable_end, ggtt_end - PAGE_SIZE);
+					unmappable_end, ggtt_end);
 		if (ret)
 			goto err;
 	}
