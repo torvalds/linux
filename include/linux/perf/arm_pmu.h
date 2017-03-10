@@ -75,6 +75,8 @@ struct pmu_hw_events {
 	 * already have to allocate this struct per cpu.
 	 */
 	struct arm_pmu		*percpu_pmu;
+
+	int irq;
 };
 
 enum armpmu_attr_groups {
@@ -88,7 +90,6 @@ struct arm_pmu {
 	struct pmu	pmu;
 	cpumask_t	active_irqs;
 	cpumask_t	supported_cpus;
-	int		*irq_affinity;
 	char		*name;
 	irqreturn_t	(*handle_irq)(int irq_num, void *dev);
 	void		(*enable)(struct perf_event *event);
