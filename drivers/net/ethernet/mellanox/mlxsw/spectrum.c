@@ -4818,6 +4818,8 @@ static int mlxsw_sp_netdevice_vport_event(struct net_device *dev,
 	int err = 0;
 
 	mlxsw_sp_vport = mlxsw_sp_port_vport_find(mlxsw_sp_port, vid);
+	if (!mlxsw_sp_vport)
+		return 0;
 
 	switch (event) {
 	case NETDEV_PRECHANGEUPPER:
@@ -4835,16 +4837,17 @@ static int mlxsw_sp_netdevice_vport_event(struct net_device *dev,
 		break;
 	case NETDEV_CHANGEUPPER:
 		upper_dev = info->upper_dev;
-		if (info->linking) {
-			if (WARN_ON(!mlxsw_sp_vport))
-				return -EINVAL;
-			err = mlxsw_sp_vport_bridge_join(mlxsw_sp_vport,
-							 upper_dev);
+		if (netif_is_bridge_master(upper_dev)) {
+			if (info->linking)
+				err = mlxsw_sp_vport_bridge_join(mlxsw_sp_vport,
+								 upper_dev);
+			else
+				mlxsw_sp_vport_bridge_leave(mlxsw_sp_vport);
 		} else {
-			if (!mlxsw_sp_vport)
-				return 0;
-			mlxsw_sp_vport_bridge_leave(mlxsw_sp_vport);
+			err = -EINVAL;
+			WARN_ON(1);
 		}
+		break;
 	}
 
 	return err;
