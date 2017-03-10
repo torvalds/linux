@@ -1399,7 +1399,7 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 		pcie_bus_configure_settings(child);
 
 	pci_bus_add_devices(bus);
-	return err;
+	return 0;
 
 err_free_res:
 	pci_free_resource_list(&res);
