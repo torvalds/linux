@@ -706,7 +706,7 @@ void brcmf_remove_interface(struct brcmf_if *ifp, bool rtnl_locked)
 		return;
 	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d, ifidx=%d\n", ifp->bsscfgidx,
 		  ifp->ifidx);
-	brcmf_fws_del_interface(ifp);
+	brcmf_proto_del_if(ifp->drvr, ifp);
 	brcmf_del_if(ifp->drvr, ifp->bsscfgidx, rtnl_locked);
 }
 
@@ -1035,7 +1035,7 @@ fail:
 		drvr->config = NULL;
 	}
 	if (drvr->fws) {
-		brcmf_fws_del_interface(ifp);
+		brcmf_proto_del_if(ifp->drvr, ifp);
 		brcmf_fws_deinit(drvr);
 	}
 	brcmf_net_detach(ifp->ndev, false);
