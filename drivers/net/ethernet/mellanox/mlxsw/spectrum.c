@@ -4565,33 +4565,40 @@ static int mlxsw_sp_netdevice_bridge_event(struct net_device *br_dev,
 	struct netdev_notifier_changeupper_info *info;
 	struct net_device *upper_dev;
 	struct mlxsw_sp *mlxsw_sp;
-	int err;
+	int err = 0;
 
 	mlxsw_sp = mlxsw_sp_lower_get(br_dev);
 	if (!mlxsw_sp)
-		return 0;
-	if (br_dev != mlxsw_sp->master_bridge.dev)
 		return 0;
 
 	info = ptr;
 
 	switch (event) {
-	case NETDEV_CHANGEUPPER:
+	case NETDEV_PRECHANGEUPPER:
 		upper_dev = info->upper_dev;
 		if (!is_vlan_dev(upper_dev))
-			break;
-		if (info->linking) {
-			err = mlxsw_sp_master_bridge_vlan_link(mlxsw_sp,
-							       upper_dev);
-			if (err)
-				return err;
+			return -EINVAL;
+		if (is_vlan_dev(upper_dev) &&
+		    br_dev != mlxsw_sp->master_bridge.dev)
+			return -EINVAL;
+		break;
+	case NETDEV_CHANGEUPPER:
+		upper_dev = info->upper_dev;
+		if (is_vlan_dev(upper_dev)) {
+			if (info->linking)
+				err = mlxsw_sp_master_bridge_vlan_link(mlxsw_sp,
+								       upper_dev);
+			else
+				mlxsw_sp_master_bridge_vlan_unlink(mlxsw_sp,
+								   upper_dev);
 		} else {
-			mlxsw_sp_master_bridge_vlan_unlink(mlxsw_sp, upper_dev);
+			err = -EINVAL;
+			WARN_ON(1);
 		}
 		break;
 	}
 
-	return 0;
+	return err;
 }
 
 static u16 mlxsw_sp_avail_vfid_get(const struct mlxsw_sp *mlxsw_sp)
