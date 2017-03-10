@@ -380,6 +380,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_S390_SKEYS:
 	case KVM_CAP_S390_IRQ_STATE:
 	case KVM_CAP_S390_USER_INSTR0:
+	case KVM_CAP_S390_AIS:
 		r = 1;
 		break;
 	case KVM_CAP_S390_MEM_OP:
@@ -542,6 +543,20 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 		}
 		mutex_unlock(&kvm->lock);
 		VM_EVENT(kvm, 3, "ENABLE: CAP_S390_RI %s",
+			 r ? "(not available)" : "(success)");
+		break;
+	case KVM_CAP_S390_AIS:
+		mutex_lock(&kvm->lock);
+		if (kvm->created_vcpus) {
+			r = -EBUSY;
+		} else {
+			set_kvm_facility(kvm->arch.model.fac_mask, 72);
+			set_kvm_facility(kvm->arch.model.fac_list, 72);
+			kvm->arch.float_int.ais_enabled = 1;
+			r = 0;
+		}
+		mutex_unlock(&kvm->lock);
+		VM_EVENT(kvm, 3, "ENABLE: AIS %s",
 			 r ? "(not available)" : "(success)");
 		break;
 	case KVM_CAP_S390_GS:

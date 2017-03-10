@@ -4110,6 +4110,14 @@ Returns: 0 on success; -EINVAL if the machine does not support
 
 Allows use of guarded storage for the KVM guest.
 
+7.10 KVM_CAP_S390_AIS
+
+Architectures: s390
+Parameters: none
+
+Allow use of adapter-interruption suppression.
+Returns: 0 on success; -EBUSY if a VCPU has already been created.
+
 8. Other capabilities.
 ----------------------
 

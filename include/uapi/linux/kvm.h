@@ -884,6 +884,7 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_PPC_MMU_HASH_V3 135
 #define KVM_CAP_IMMEDIATE_EXIT 136
 #define KVM_CAP_S390_GS 137
+#define KVM_CAP_S390_AIS 138
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
