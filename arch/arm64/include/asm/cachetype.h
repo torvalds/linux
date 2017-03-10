@@ -63,19 +63,6 @@ extern unsigned long __icache_flags;
 #define CACHE_NUMSETS(x)	(CCSIDR_EL1_NUMSETS(x) + 1)
 #define CACHE_ASSOCIATIVITY(x)	(CCSIDR_EL1_ASSOCIATIVITY(x) + 1)
 
-extern u64 __attribute_const__ cache_get_ccsidr(u64 csselr);
-
-/* Helpers for Level 1 Instruction cache csselr = 1L */
-static inline int icache_get_linesize(void)
-{
-	return CACHE_LINESIZE(cache_get_ccsidr(1L));
-}
-
-static inline int icache_get_numsets(void)
-{
-	return CACHE_NUMSETS(cache_get_ccsidr(1L));
-}
-
 /*
  * Whilst the D-side always behaves as PIPT on AArch64, aliasing is
  * permitted in the I-cache.
