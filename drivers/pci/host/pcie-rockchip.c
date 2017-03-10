@@ -1148,6 +1148,7 @@ static int rockchip_pcie_prog_ib_atu(struct rockchip_pcie *rockchip,
 
 static int rockchip_cfg_atu(struct rockchip_pcie *rockchip)
 {
+	struct device *dev = rockchip->dev;
 	int offset;
 	int err;
 	int reg_no;
@@ -1160,15 +1161,14 @@ static int rockchip_cfg_atu(struct rockchip_pcie *rockchip)
 						(reg_no << 20),
 						0);
 		if (err) {
-			dev_err(rockchip->dev,
-					"program RC mem outbound ATU failed\n");
+			dev_err(dev, "program RC mem outbound ATU failed\n");
 			return err;
 		}
 	}
 
 	err = rockchip_pcie_prog_ib_atu(rockchip, 2, 32 - 1, 0x0, 0);
 	if (err) {
-		dev_err(rockchip->dev, "program RC mem inbound ATU failed\n");
+		dev_err(dev, "program RC mem inbound ATU failed\n");
 		return err;
 	}
 
@@ -1182,8 +1182,7 @@ static int rockchip_cfg_atu(struct rockchip_pcie *rockchip)
 						(reg_no << 20),
 						0);
 		if (err) {
-			dev_err(rockchip->dev,
-					"program RC io outbound ATU failed\n");
+			dev_err(dev, "program RC io outbound ATU failed\n");
 			return err;
 		}
 	}
