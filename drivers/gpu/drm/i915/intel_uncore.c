@@ -138,13 +138,6 @@ fw_domains_put(struct drm_i915_private *dev_priv, enum forcewake_domains fw_doma
 }
 
 static void
-vgpu_fw_domains_nop(struct drm_i915_private *dev_priv,
-		    enum forcewake_domains fw_domains)
-{
-	/* Guest driver doesn't need to takes care forcewake. */
-}
-
-static void
 fw_domains_posting_read(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore_forcewake_domain *d;
@@ -1187,7 +1180,7 @@ static void fw_domain_init(struct drm_i915_private *dev_priv,
 
 static void intel_uncore_fw_domains_init(struct drm_i915_private *dev_priv)
 {
-	if (INTEL_INFO(dev_priv)->gen <= 5)
+	if (INTEL_GEN(dev_priv) <= 5 || intel_vgpu_active(dev_priv))
 		return;
 
 	if (IS_GEN9(dev_priv)) {
@@ -1273,11 +1266,6 @@ static void intel_uncore_fw_domains_init(struct drm_i915_private *dev_priv)
 			       FORCEWAKE, FORCEWAKE_ACK);
 	}
 
-	if (intel_vgpu_active(dev_priv)) {
-		dev_priv->uncore.funcs.force_wake_get = vgpu_fw_domains_nop;
-		dev_priv->uncore.funcs.force_wake_put = vgpu_fw_domains_nop;
-	}
-
 	/* All future platforms are expected to require complex power gating */
 	WARN_ON(dev_priv->uncore.fw_domains == 0);
 }
@@ -1327,9 +1315,32 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 	dev_priv->uncore.pmic_bus_access_nb.notifier_call =
 		i915_pmic_bus_access_notifier;
 
-	switch (INTEL_INFO(dev_priv)->gen) {
-	default:
-	case 9:
+	if (IS_GEN(dev_priv, 2, 4) || intel_vgpu_active(dev_priv)) {
+		ASSIGN_WRITE_MMIO_VFUNCS(gen2);
+		ASSIGN_READ_MMIO_VFUNCS(gen2);
+	} else if (IS_GEN5(dev_priv)) {
+		ASSIGN_WRITE_MMIO_VFUNCS(gen5);
+		ASSIGN_READ_MMIO_VFUNCS(gen5);
+	} else if (IS_GEN(dev_priv, 6, 7)) {
+		ASSIGN_WRITE_MMIO_VFUNCS(gen6);
+
+		if (IS_VALLEYVIEW(dev_priv)) {
+			ASSIGN_FW_DOMAINS_TABLE(__vlv_fw_ranges);
+			ASSIGN_READ_MMIO_VFUNCS(fwtable);
+		} else {
+			ASSIGN_READ_MMIO_VFUNCS(gen6);
+		}
+	} else if (IS_GEN8(dev_priv)) {
+		if (IS_CHERRYVIEW(dev_priv)) {
+			ASSIGN_FW_DOMAINS_TABLE(__chv_fw_ranges);
+			ASSIGN_WRITE_MMIO_VFUNCS(fwtable);
+			ASSIGN_READ_MMIO_VFUNCS(fwtable);
+
+		} else {
+			ASSIGN_WRITE_MMIO_VFUNCS(gen8);
+			ASSIGN_READ_MMIO_VFUNCS(gen6);
+		}
+	} else {
 		ASSIGN_FW_DOMAINS_TABLE(__gen9_fw_ranges);
 		ASSIGN_WRITE_MMIO_VFUNCS(fwtable);
 		ASSIGN_READ_MMIO_VFUNCS(fwtable);
@@ -1341,39 +1352,6 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 			dev_priv->uncore.funcs.mmio_writel =
 						gen9_decoupled_write32;
 		}
-		break;
-	case 8:
-		if (IS_CHERRYVIEW(dev_priv)) {
-			ASSIGN_FW_DOMAINS_TABLE(__chv_fw_ranges);
-			ASSIGN_WRITE_MMIO_VFUNCS(fwtable);
-			ASSIGN_READ_MMIO_VFUNCS(fwtable);
-
-		} else {
-			ASSIGN_WRITE_MMIO_VFUNCS(gen8);
-			ASSIGN_READ_MMIO_VFUNCS(gen6);
-		}
-		break;
-	case 7:
-	case 6:
-		ASSIGN_WRITE_MMIO_VFUNCS(gen6);
-
-		if (IS_VALLEYVIEW(dev_priv)) {
-			ASSIGN_FW_DOMAINS_TABLE(__vlv_fw_ranges);
-			ASSIGN_READ_MMIO_VFUNCS(fwtable);
-		} else {
-			ASSIGN_READ_MMIO_VFUNCS(gen6);
-		}
-		break;
-	case 5:
-		ASSIGN_WRITE_MMIO_VFUNCS(gen5);
-		ASSIGN_READ_MMIO_VFUNCS(gen5);
-		break;
-	case 4:
-	case 3:
-	case 2:
-		ASSIGN_WRITE_MMIO_VFUNCS(gen2);
-		ASSIGN_READ_MMIO_VFUNCS(gen2);
-		break;
 	}
 
 	iosf_mbi_register_pmic_bus_access_notifier(
