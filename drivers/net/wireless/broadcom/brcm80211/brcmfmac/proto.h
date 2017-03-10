@@ -46,6 +46,7 @@ struct brcmf_proto {
 	void (*rxreorder)(struct brcmf_if *ifp, struct sk_buff *skb);
 	void (*add_if)(struct brcmf_if *ifp);
 	void (*del_if)(struct brcmf_if *ifp);
+	void (*reset_if)(struct brcmf_if *ifp);
 	void *pd;
 };
 
@@ -134,6 +135,14 @@ brcmf_proto_del_if(struct brcmf_pub *drvr, struct brcmf_if *ifp)
 	if (!drvr->proto->del_if)
 		return;
 	drvr->proto->del_if(ifp);
+}
+
+static inline void
+brcmf_proto_reset_if(struct brcmf_pub *drvr, struct brcmf_if *ifp)
+{
+	if (!drvr->proto->reset_if)
+		return;
+	drvr->proto->reset_if(ifp);
 }
 
 #endif /* BRCMFMAC_PROTO_H */

@@ -22,7 +22,6 @@
 #include "core.h"
 #include "debug.h"
 #include "tracepoint.h"
-#include "fwsignal.h"
 #include "fweh.h"
 #include "fwil.h"
 #include "proto.h"
@@ -180,7 +179,7 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 	}
 
 	if (ifp && ifevent->action == BRCMF_E_IF_CHANGE)
-		brcmf_fws_reset_interface(ifp);
+		brcmf_proto_reset_if(drvr, ifp);
 
 	err = brcmf_fweh_call_event_handler(ifp, emsg->event_code, emsg, data);
 
