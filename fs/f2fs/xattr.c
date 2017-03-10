@@ -546,7 +546,9 @@ static bool f2fs_xattr_value_same(struct f2fs_xattr_entry *entry,
 					const void *value, size_t size)
 {
 	void *pval = entry->e_name + entry->e_name_len;
-	return (entry->e_value_size == size) && !memcmp(pval, value, size);
+
+	return (le16_to_cpu(entry->e_value_size) == size) &&
+					!memcmp(pval, value, size);
 }
 
 static int __f2fs_setxattr(struct inode *inode, int index,
