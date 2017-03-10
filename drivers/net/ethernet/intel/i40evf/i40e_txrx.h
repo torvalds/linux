@@ -393,20 +393,6 @@ int __i40evf_maybe_stop_tx(struct i40e_ring *tx_ring, int size);
 bool __i40evf_chk_linearize(struct sk_buff *skb);
 
 /**
- * i40e_get_head - Retrieve head from head writeback
- * @tx_ring: Tx ring to fetch head of
- *
- * Returns value of Tx ring head based on value stored
- * in head write-back location
- **/
-static inline u32 i40e_get_head(struct i40e_ring *tx_ring)
-{
-	void *head = (struct i40e_tx_desc *)tx_ring->desc + tx_ring->count;
-
-	return le32_to_cpu(*(volatile __le32 *)head);
-}
-
-/**
  * i40e_xmit_descriptor_count - calculate number of Tx descriptors needed
  * @skb:     send buffer
  * @tx_ring: ring to send buffer on

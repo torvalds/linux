@@ -137,10 +137,7 @@ u32 i40evf_get_tx_pending(struct i40e_ring *ring, bool in_sw)
 {
 	u32 head, tail;
 
-	if (!in_sw)
-		head = i40e_get_head(ring);
-	else
-		head = ring->next_to_clean;
+	head = ring->next_to_clean;
 	tail = readl(ring->tail);
 
 	if (head != tail)
@@ -165,7 +162,6 @@ static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
 {
 	u16 i = tx_ring->next_to_clean;
 	struct i40e_tx_buffer *tx_buf;
-	struct i40e_tx_desc *tx_head;
 	struct i40e_tx_desc *tx_desc;
 	unsigned int total_bytes = 0, total_packets = 0;
 	unsigned int budget = vsi->work_limit;
@@ -173,8 +169,6 @@ static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
 	tx_buf = &tx_ring->tx_bi[i];
 	tx_desc = I40E_TX_DESC(tx_ring, i);
 	i -= tx_ring->count;
-
-	tx_head = I40E_TX_DESC(tx_ring, i40e_get_head(tx_ring));
 
 	do {
 		struct i40e_tx_desc *eop_desc = tx_buf->next_to_watch;
@@ -186,8 +180,9 @@ static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
 		/* prevent any other reads prior to eop_desc */
 		read_barrier_depends();
 
-		/* we have caught up to head, no work left to do */
-		if (tx_head == tx_desc)
+		/* if the descriptor isn't done, no work yet to do */
+		if (!(eop_desc->cmd_type_offset_bsz &
+		      cpu_to_le64(I40E_TX_DESC_DTYPE_DESC_DONE)))
 			break;
 
 		/* clear next_to_watch to prevent false hangs */
@@ -464,10 +459,6 @@ int i40evf_setup_tx_descriptors(struct i40e_ring *tx_ring)
 
 	/* round up to nearest 4K */
 	tx_ring->size = tx_ring->count * sizeof(struct i40e_tx_desc);
-	/* add u32 for head writeback, align after this takes care of
-	 * guaranteeing this is at least one cache line in size
-	 */
-	tx_ring->size += sizeof(u32);
 	tx_ring->size = ALIGN(tx_ring->size, 4096);
 	tx_ring->desc = dma_alloc_coherent(dev, tx_ring->size,
 					   &tx_ring->dma, GFP_KERNEL);
@@ -2012,7 +2003,6 @@ static inline void i40evf_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	u16 i = tx_ring->next_to_use;
 	u32 td_tag = 0;
 	dma_addr_t dma;
-	u16 desc_count = 1;
 
 	if (tx_flags & I40E_TX_FLAGS_HW_VLAN) {
 		td_cmd |= I40E_TX_DESC_CMD_IL2TAG1;
@@ -2048,7 +2038,6 @@ static inline void i40evf_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 
 			tx_desc++;
 			i++;
-			desc_count++;
 
 			if (i == tx_ring->count) {
 				tx_desc = I40E_TX_DESC(tx_ring, 0);
@@ -2070,7 +2059,6 @@ static inline void i40evf_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 
 		tx_desc++;
 		i++;
-		desc_count++;
 
 		if (i == tx_ring->count) {
 			tx_desc = I40E_TX_DESC(tx_ring, 0);
@@ -2096,46 +2084,8 @@ static inline void i40evf_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 
 	i40e_maybe_stop_tx(tx_ring, DESC_NEEDED);
 
-	/* write last descriptor with EOP bit */
-	td_cmd |= I40E_TX_DESC_CMD_EOP;
-
-	/* We can OR these values together as they both are checked against
-	 * 4 below and at this point desc_count will be used as a boolean value
-	 * after this if/else block.
-	 */
-	desc_count |= ++tx_ring->packet_stride;
-
-	/* Algorithm to optimize tail and RS bit setting:
-	 * if queue is stopped
-	 *	mark RS bit
-	 *	reset packet counter
-	 * else if xmit_more is supported and is true
-	 *	advance packet counter to 4
-	 *	reset desc_count to 0
-	 *
-	 * if desc_count >= 4
-	 *	mark RS bit
-	 *	reset packet counter
-	 * if desc_count > 0
-	 *	update tail
-	 *
-	 * Note: If there are less than 4 descriptors
-	 * pending and interrupts were disabled the service task will
-	 * trigger a force WB.
-	 */
-	if (netif_xmit_stopped(txring_txq(tx_ring))) {
-		goto do_rs;
-	} else if (skb->xmit_more) {
-		/* set stride to arm on next packet and reset desc_count */
-		tx_ring->packet_stride = WB_STRIDE;
-		desc_count = 0;
-	} else if (desc_count >= WB_STRIDE) {
-do_rs:
-		/* write last descriptor with RS bit set */
-		td_cmd |= I40E_TX_DESC_CMD_RS;
-		tx_ring->packet_stride = 0;
-	}
-
+	/* write last descriptor with RS and EOP bits */
+	td_cmd |= I40E_TXD_CMD;
 	tx_desc->cmd_type_offset_bsz =
 			build_ctob(td_cmd, td_offset, size, td_tag);
 
@@ -2151,7 +2101,7 @@ do_rs:
 	first->next_to_watch = tx_desc;
 
 	/* notify HW of packet */
-	if (desc_count) {
+	if (netif_xmit_stopped(txring_txq(tx_ring)) || !skb->xmit_more) {
 		writel(i, tx_ring->tail);
 
 		/* we need this if more than one processor can write to our tail

@@ -260,10 +260,6 @@ void i40evf_configure_queues(struct i40evf_adapter *adapter)
 		vqpi->txq.queue_id = i;
 		vqpi->txq.ring_len = adapter->tx_rings[i].count;
 		vqpi->txq.dma_ring_addr = adapter->tx_rings[i].dma;
-		vqpi->txq.headwb_enabled = 1;
-		vqpi->txq.dma_headwb_addr = vqpi->txq.dma_ring_addr +
-		    (vqpi->txq.ring_len * sizeof(struct i40e_tx_desc));
-
 		vqpi->rxq.vsi_id = vqci->vsi_id;
 		vqpi->rxq.queue_id = i;
 		vqpi->rxq.ring_len = adapter->rx_rings[i].count;
