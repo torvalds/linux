@@ -224,6 +224,7 @@ IOCTL_NUMBERS = {
     'RESET':       0x00002403,
 }
 
+
 class Arch(object):
     """Encapsulates global architecture specific data.
 
@@ -254,11 +255,13 @@ class Arch(object):
                     return ArchX86(SVM_EXIT_REASONS)
                 return
 
+
 class ArchX86(Arch):
     def __init__(self, exit_reasons):
         self.sc_perf_evt_open = 298
         self.ioctl_numbers = IOCTL_NUMBERS
         self.exit_reasons = exit_reasons
+
 
 class ArchPPC(Arch):
     def __init__(self):
@@ -274,11 +277,13 @@ class ArchPPC(Arch):
         self.ioctl_numbers['SET_FILTER'] = 0x80002406 | char_ptr_size << 16
         self.exit_reasons = {}
 
+
 class ArchA64(Arch):
     def __init__(self):
         self.sc_perf_evt_open = 241
         self.ioctl_numbers = IOCTL_NUMBERS
         self.exit_reasons = AARCH64_EXIT_REASONS
+
 
 class ArchS390(Arch):
     def __init__(self):
@@ -341,6 +346,7 @@ def get_filters():
 libc = ctypes.CDLL('libc.so.6', use_errno=True)
 syscall = libc.syscall
 
+
 class perf_event_attr(ctypes.Structure):
     """Struct that holds the necessary data to set up a trace event.
 
@@ -369,6 +375,7 @@ class perf_event_attr(ctypes.Structure):
         self.size = ctypes.sizeof(self)
         self.read_format = PERF_FORMAT_GROUP
 
+
 def perf_event_open(attr, pid, cpu, group_fd, flags):
     """Wrapper for the sys_perf_evt_open() syscall.
 
@@ -393,6 +400,7 @@ PERF_FORMAT_GROUP = 1 << 3
 
 PATH_DEBUGFS_TRACING = '/sys/kernel/debug/tracing'
 PATH_DEBUGFS_KVM = '/sys/kernel/debug/kvm'
+
 
 class Group(object):
     """Represents a perf event group."""
@@ -425,6 +433,7 @@ class Group(object):
         return dict(zip([event.name for event in self.events],
                         struct.unpack(read_format,
                                       os.read(self.events[0].fd, length))))
+
 
 class Event(object):
     """Represents a performance event and manages its life cycle."""
@@ -508,6 +517,7 @@ class Event(object):
     def reset(self):
         """Resets the count of the trace event in the kernel."""
         fcntl.ioctl(self.fd, ARCH.ioctl_numbers['RESET'], 0)
+
 
 class TracepointProvider(object):
     """Data provider for the stats class.
@@ -650,6 +660,7 @@ class TracepointProvider(object):
                     ret[name] += val
         return ret
 
+
 class DebugfsProvider(object):
     """Provides data from the files that KVM creates in the kvm debugfs
     folder."""
@@ -718,6 +729,7 @@ class DebugfsProvider(object):
                        .read())
         except IOError:
             return 0
+
 
 class Stats(object):
     """Manages the data providers and the data they provide.
@@ -790,6 +802,7 @@ class Stats(object):
 LABEL_WIDTH = 40
 NUMBER_WIDTH = 10
 
+
 class Tui(object):
     """Instruments curses to draw a nice text ui."""
     def __init__(self, stats):
@@ -859,6 +872,7 @@ class Tui(object):
                            len('Current'), 'Current')
         row = 3
         stats = self.stats.get()
+
         def sortkey(x):
             if stats[x][1]:
                 return (-stats[x][1], -stats[x][0])
@@ -966,6 +980,7 @@ class Tui(object):
             except curses.error:
                 continue
 
+
 def batch(stats):
     """Prints statistics in a key, value format."""
     try:
@@ -978,13 +993,16 @@ def batch(stats):
     except KeyboardInterrupt:
         pass
 
+
 def log(stats):
     """Prints statistics as reiterating key block, multiple value blocks."""
     keys = sorted(stats.get().iterkeys())
+
     def banner():
         for k in keys:
             print '%s' % k,
         print
+
     def statline():
         s = stats.get()
         for k in keys:
@@ -1001,6 +1019,7 @@ def log(stats):
             line += 1
         except KeyboardInterrupt:
             break
+
 
 def get_options():
     """Returns processed program arguments."""
@@ -1072,6 +1091,7 @@ Requirements:
     (options, _) = optparser.parse_args(sys.argv)
     return options
 
+
 def get_providers(options):
     """Returns a list of data providers depending on the passed options."""
     providers = []
@@ -1084,6 +1104,7 @@ def get_providers(options):
         providers.append(TracepointProvider())
 
     return providers
+
 
 def check_access(options):
     """Exits if the current user can't access all needed directories."""
@@ -1113,6 +1134,7 @@ def check_access(options):
         time.sleep(5)
 
     return options
+
 
 def main():
     options = get_options()
