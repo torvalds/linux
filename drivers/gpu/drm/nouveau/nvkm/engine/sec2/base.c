@@ -59,6 +59,13 @@ static void
 nvkm_sec2_recv(struct work_struct *work)
 {
 	struct nvkm_sec2 *sec2 = container_of(work, typeof(*sec2), work);
+
+	if (!sec2->queue) {
+		nvkm_warn(&sec2->engine.subdev,
+			  "recv function called while no firmware set!\n");
+		return;
+	}
+
 	nvkm_msgqueue_recv(sec2->queue);
 }
 
