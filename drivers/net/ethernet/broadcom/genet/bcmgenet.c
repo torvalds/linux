@@ -1234,7 +1234,6 @@ static unsigned int __bcmgenet_tx_reclaim(struct net_device *dev,
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct device *kdev = &priv->pdev->dev;
 	struct enet_cb *tx_cb_ptr;
-	struct netdev_queue *txq;
 	unsigned int pkts_compl = 0;
 	unsigned int bytes_compl = 0;
 	unsigned int c_index;
@@ -1286,13 +1285,8 @@ static unsigned int __bcmgenet_tx_reclaim(struct net_device *dev,
 	dev->stats.tx_packets += pkts_compl;
 	dev->stats.tx_bytes += bytes_compl;
 
-	txq = netdev_get_tx_queue(dev, ring->queue);
-	netdev_tx_completed_queue(txq, pkts_compl, bytes_compl);
-
-	if (ring->free_bds > (MAX_SKB_FRAGS + 1)) {
-		if (netif_tx_queue_stopped(txq))
-			netif_tx_wake_queue(txq);
-	}
+	netdev_tx_completed_queue(netdev_get_tx_queue(dev, ring->queue),
+				  pkts_compl, bytes_compl);
 
 	return pkts_compl;
 }
@@ -1315,8 +1309,16 @@ static int bcmgenet_tx_poll(struct napi_struct *napi, int budget)
 	struct bcmgenet_tx_ring *ring =
 		container_of(napi, struct bcmgenet_tx_ring, napi);
 	unsigned int work_done = 0;
+	struct netdev_queue *txq;
+	unsigned long flags;
 
-	work_done = bcmgenet_tx_reclaim(ring->priv->dev, ring);
+	spin_lock_irqsave(&ring->lock, flags);
+	work_done = __bcmgenet_tx_reclaim(ring->priv->dev, ring);
+	if (ring->free_bds > (MAX_SKB_FRAGS + 1)) {
+		txq = netdev_get_tx_queue(ring->priv->dev, ring->queue);
+		netif_tx_wake_queue(txq);
+	}
+	spin_unlock_irqrestore(&ring->lock, flags);
 
 	if (work_done == 0) {
 		napi_complete(napi);
