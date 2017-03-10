@@ -124,8 +124,9 @@ static s32 i2c_nuvoton_write_status(struct i2c_client *client, u8 data)
 	/* this causes the current command to be aborted */
 	for (i = 0, status = -1; i < TPM_I2C_RETRY_COUNT && status < 0; i++) {
 		status = i2c_nuvoton_write_buf(client, TPM_STS, 1, &data);
-		usleep_range(TPM_I2C_BUS_DELAY, TPM_I2C_BUS_DELAY
-			     + TPM_I2C_DELAY_RANGE);
+		if (status < 0)
+			usleep_range(TPM_I2C_BUS_DELAY, TPM_I2C_BUS_DELAY
+				     + TPM_I2C_DELAY_RANGE);
 	}
 	return status;
 }
