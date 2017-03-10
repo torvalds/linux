@@ -84,9 +84,6 @@ module_param_named(eptad, enable_ept_ad_bits, bool, S_IRUGO);
 static bool __read_mostly emulate_invalid_guest_state = true;
 module_param(emulate_invalid_guest_state, bool, S_IRUGO);
 
-static bool __read_mostly vmm_exclusive = 1;
-module_param(vmm_exclusive, bool, S_IRUGO);
-
 static bool __read_mostly fasteoi = 1;
 module_param(fasteoi, bool, S_IRUGO);
 
@@ -910,8 +907,6 @@ static void nested_release_page_clean(struct page *page)
 
 static unsigned long nested_ept_get_cr3(struct kvm_vcpu *vcpu);
 static u64 construct_eptp(unsigned long root_hpa);
-static void kvm_cpu_vmxon(u64 addr);
-static void kvm_cpu_vmxoff(void);
 static bool vmx_xsaves_supported(void);
 static int vmx_set_tss_addr(struct kvm *kvm, unsigned int addr);
 static void vmx_set_segment(struct kvm_vcpu *vcpu,
@@ -2231,15 +2226,10 @@ static void decache_tsc_multiplier(struct vcpu_vmx *vmx)
 static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	u64 phys_addr = __pa(per_cpu(vmxarea, cpu));
 	bool already_loaded = vmx->loaded_vmcs->cpu == cpu;
 
-	if (!vmm_exclusive)
-		kvm_cpu_vmxon(phys_addr);
-	else if (!already_loaded)
-		loaded_vmcs_clear(vmx->loaded_vmcs);
-
 	if (!already_loaded) {
+		loaded_vmcs_clear(vmx->loaded_vmcs);
 		local_irq_disable();
 		crash_disable_local_vmclear(cpu);
 
@@ -2317,11 +2307,6 @@ static void vmx_vcpu_put(struct kvm_vcpu *vcpu)
 	vmx_vcpu_pi_put(vcpu);
 
 	__vmx_load_host_state(to_vmx(vcpu));
-	if (!vmm_exclusive) {
-		__loaded_vmcs_clear(to_vmx(vcpu)->loaded_vmcs);
-		vcpu->cpu = -1;
-		kvm_cpu_vmxoff();
-	}
 }
 
 static void vmx_decache_cr0_guest_bits(struct kvm_vcpu *vcpu);
@@ -3416,6 +3401,7 @@ static __init int vmx_disabled_by_bios(void)
 
 static void kvm_cpu_vmxon(u64 addr)
 {
+	cr4_set_bits(X86_CR4_VMXE);
 	intel_pt_handle_vmx(1);
 
 	asm volatile (ASM_VMX_VMXON_RAX
@@ -3458,12 +3444,8 @@ static int hardware_enable(void)
 		/* enable and lock */
 		wrmsrl(MSR_IA32_FEATURE_CONTROL, old | test_bits);
 	}
-	cr4_set_bits(X86_CR4_VMXE);
-
-	if (vmm_exclusive) {
-		kvm_cpu_vmxon(phys_addr);
-		ept_sync_global();
-	}
+	kvm_cpu_vmxon(phys_addr);
+	ept_sync_global();
 
 	native_store_gdt(this_cpu_ptr(&host_gdt));
 
@@ -3489,15 +3471,13 @@ static void kvm_cpu_vmxoff(void)
 	asm volatile (__ex(ASM_VMX_VMXOFF) : : : "cc");
 
 	intel_pt_handle_vmx(0);
+	cr4_clear_bits(X86_CR4_VMXE);
 }
 
 static void hardware_disable(void)
 {
-	if (vmm_exclusive) {
-		vmclear_local_loaded_vmcss();
-		kvm_cpu_vmxoff();
-	}
-	cr4_clear_bits(X86_CR4_VMXE);
+	vmclear_local_loaded_vmcss();
+	kvm_cpu_vmxoff();
 }
 
 static __init int adjust_vmx_controls(u32 ctl_min, u32 ctl_opt,
@@ -9170,11 +9150,7 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	vmx->loaded_vmcs->shadow_vmcs = NULL;
 	if (!vmx->loaded_vmcs->vmcs)
 		goto free_msrs;
-	if (!vmm_exclusive)
-		kvm_cpu_vmxon(__pa(per_cpu(vmxarea, raw_smp_processor_id())));
 	loaded_vmcs_init(vmx->loaded_vmcs);
-	if (!vmm_exclusive)
-		kvm_cpu_vmxoff();
 
 	cpu = get_cpu();
 	vmx_vcpu_load(&vmx->vcpu, cpu);
