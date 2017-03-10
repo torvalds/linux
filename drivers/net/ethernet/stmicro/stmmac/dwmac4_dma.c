@@ -294,6 +294,11 @@ static void dwmac4_get_hw_feature(void __iomem *ioaddr,
 	hw_cap = readl(ioaddr + GMAC_HW_FEATURE1);
 	dma_cap->av = (hw_cap & GMAC_HW_FEAT_AVSEL) >> 20;
 	dma_cap->tsoen = (hw_cap & GMAC_HW_TSOEN) >> 18;
+	/* RX and TX FIFO sizes are encoded as log2(n / 128). Undo that by
+	 * shifting and store the sizes in bytes.
+	 */
+	dma_cap->tx_fifo_size = 128 << ((hw_cap & GMAC_HW_TXFIFOSIZE) >> 6);
+	dma_cap->rx_fifo_size = 128 << ((hw_cap & GMAC_HW_RXFIFOSIZE) >> 0);
 	/* MAC HW feature2 */
 	hw_cap = readl(ioaddr + GMAC_HW_FEATURE2);
 	/* TX and RX number of channels */
