@@ -1052,6 +1052,13 @@ Requirements:
   CAP_SYS_ADMIN and perf events are used.
 - CAP_SYS_RESOURCE if the hard limit is not high enough to allow
   the large number of files that are possibly opened.
+
+Interactive Commands:
+   f     filter by regular expression
+   p     filter by PID
+   q     quit
+   x     toggle reporting of stats for individual child trace events
+Press any other key to refresh statistics immediately.
 """
 
     class PlainHelpFormatter(optparse.IndentedHelpFormatter):
