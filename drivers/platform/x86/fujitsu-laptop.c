@@ -1236,60 +1236,60 @@ static int __init fujitsu_init(void)
 
 	ret = acpi_bus_register_driver(&acpi_fujitsu_bl_driver);
 	if (ret)
-		goto fail_acpi;
+		goto err_free_fujitsu_bl;
 
 	/* Register platform stuff */
 
 	fujitsu_bl->pf_device = platform_device_alloc("fujitsu-laptop", -1);
 	if (!fujitsu_bl->pf_device) {
 		ret = -ENOMEM;
-		goto fail_platform_driver;
+		goto err_unregister_acpi;
 	}
 
 	ret = platform_device_add(fujitsu_bl->pf_device);
 	if (ret)
-		goto fail_platform_device1;
+		goto err_put_platform_device;
 
 	ret =
 	    sysfs_create_group(&fujitsu_bl->pf_device->dev.kobj,
 			       &fujitsu_pf_attribute_group);
 	if (ret)
-		goto fail_platform_device2;
+		goto err_del_platform_device;
 
 	ret = platform_driver_register(&fujitsu_pf_driver);
 	if (ret)
-		goto fail_sysfs_group;
+		goto err_remove_sysfs_group;
 
 	/* Register laptop driver */
 
 	fujitsu_laptop = kzalloc(sizeof(struct fujitsu_laptop), GFP_KERNEL);
 	if (!fujitsu_laptop) {
 		ret = -ENOMEM;
-		goto fail_laptop;
+		goto err_unregister_platform_driver;
 	}
 
 	ret = acpi_bus_register_driver(&acpi_fujitsu_laptop_driver);
 	if (ret)
-		goto fail_laptop1;
+		goto err_free_fujitsu_laptop;
 
 	pr_info("driver " FUJITSU_DRIVER_VERSION " successfully loaded\n");
 
 	return 0;
 
-fail_laptop1:
+err_free_fujitsu_laptop:
 	kfree(fujitsu_laptop);
-fail_laptop:
+err_unregister_platform_driver:
 	platform_driver_unregister(&fujitsu_pf_driver);
-fail_sysfs_group:
+err_remove_sysfs_group:
 	sysfs_remove_group(&fujitsu_bl->pf_device->dev.kobj,
 			   &fujitsu_pf_attribute_group);
-fail_platform_device2:
+err_del_platform_device:
 	platform_device_del(fujitsu_bl->pf_device);
-fail_platform_device1:
+err_put_platform_device:
 	platform_device_put(fujitsu_bl->pf_device);
-fail_platform_driver:
+err_unregister_acpi:
 	acpi_bus_unregister_driver(&acpi_fujitsu_bl_driver);
-fail_acpi:
+err_free_fujitsu_bl:
 	kfree(fujitsu_bl);
 
 	return ret;
