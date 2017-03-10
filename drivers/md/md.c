@@ -2273,7 +2273,7 @@ static bool does_sb_need_changing(struct mddev *mddev)
 	/* Check if any mddev parameters have changed */
 	if ((mddev->dev_sectors != le64_to_cpu(sb->size)) ||
 	    (mddev->reshape_position != le64_to_cpu(sb->reshape_position)) ||
-	    (mddev->layout != le64_to_cpu(sb->layout)) ||
+	    (mddev->layout != le32_to_cpu(sb->layout)) ||
 	    (mddev->raid_disks != le32_to_cpu(sb->raid_disks)) ||
 	    (mddev->chunk_sectors != le32_to_cpu(sb->chunksize)))
 		return true;
