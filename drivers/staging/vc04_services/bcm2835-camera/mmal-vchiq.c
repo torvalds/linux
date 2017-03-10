@@ -24,7 +24,6 @@
 #include <linux/slab.h>
 #include <linux/completion.h>
 #include <linux/vmalloc.h>
-#include <linux/spinlock.h>
 #include <linux/btree.h>
 #include <asm/cacheflush.h>
 #include <media/videobuf2-vmalloc.h>
@@ -155,7 +154,7 @@ struct mmal_msg_context {
 
 struct vchiq_mmal_context_map {
 	/* ensure serialized access to the btree(contention should be low) */
-	spinlock_t spinlock;
+	struct mutex lock;
 	struct btree_head32 btree_head;
 	u32 last_handle;
 };
@@ -183,16 +182,16 @@ struct vchiq_mmal_instance {
 static int __must_check
 mmal_context_map_init(struct vchiq_mmal_context_map *context_map)
 {
-	spin_lock_init(&context_map->spinlock);
+	mutex_init(&context_map->lock);
 	context_map->last_handle = 0;
 	return btree_init32(&context_map->btree_head);
 }
 
 static void mmal_context_map_destroy(struct vchiq_mmal_context_map *context_map)
 {
-	spin_lock(&context_map->spinlock);
+	mutex_lock(&context_map->lock);
 	btree_destroy32(&context_map->btree_head);
-	spin_unlock(&context_map->spinlock);
+	mutex_unlock(&context_map->lock);
 }
 
 static u32
@@ -202,7 +201,7 @@ mmal_context_map_create_handle(struct vchiq_mmal_context_map *context_map,
 {
 	u32 handle;
 
-	spin_lock(&context_map->spinlock);
+	mutex_lock(&context_map->lock);
 
 	while (1) {
 		/* just use a simple count for handles, but do not use 0 */
@@ -220,11 +219,11 @@ mmal_context_map_create_handle(struct vchiq_mmal_context_map *context_map,
 	if (btree_insert32(&context_map->btree_head, handle,
 			   msg_context, gfp)) {
 		/* probably out of memory */
-		spin_unlock(&context_map->spinlock);
+		mutex_unlock(&context_map->lock);
 		return 0;
 	}
 
-	spin_unlock(&context_map->spinlock);
+	mutex_unlock(&context_map->lock);
 	return handle;
 }
 
@@ -237,11 +236,11 @@ mmal_context_map_lookup_handle(struct vchiq_mmal_context_map *context_map,
 	if (!handle)
 		return NULL;
 
-	spin_lock(&context_map->spinlock);
+	mutex_lock(&context_map->lock);
 
 	msg_context = btree_lookup32(&context_map->btree_head, handle);
 
-	spin_unlock(&context_map->spinlock);
+	mutex_unlock(&context_map->lock);
 	return msg_context;
 }
 
@@ -249,9 +248,9 @@ static void
 mmal_context_map_destroy_handle(struct vchiq_mmal_context_map *context_map,
 				u32 handle)
 {
-	spin_lock(&context_map->spinlock);
+	mutex_lock(&context_map->lock);
 	btree_remove32(&context_map->btree_head, handle);
-	spin_unlock(&context_map->spinlock);
+	mutex_unlock(&context_map->lock);
 }
 
 static struct mmal_msg_context *
