@@ -34,6 +34,7 @@
 static int zero = 0;
 static int one = 1;
 static int label_limit = (1 << 20) - 1;
+static int ttl_max = 255;
 
 static void rtmsg_lfib(int event, u32 label, struct mpls_route *rt,
 		       struct nlmsghdr *nlh, struct net *net, u32 portid,
@@ -2042,6 +2043,15 @@ static const struct ctl_table mpls_table[] = {
 		.extra1		= &zero,
 		.extra2		= &one,
 	},
+	{
+		.procname	= "default_ttl",
+		.data		= MPLS_NS_SYSCTL_OFFSET(mpls.default_ttl),
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &one,
+		.extra2		= &ttl_max,
+	},
 	{ }
 };
 
@@ -2053,6 +2063,7 @@ static int mpls_net_init(struct net *net)
 	net->mpls.platform_labels = 0;
 	net->mpls.platform_label = NULL;
 	net->mpls.ip_ttl_propagate = 1;
+	net->mpls.default_ttl = 255;
 
 	table = kmemdup(mpls_table, sizeof(mpls_table), GFP_KERNEL);
 	if (table == NULL)
