@@ -226,8 +226,6 @@ static int sdhci_pxav2_probe(struct platform_device *pdev)
 		goto err_add_host;
 	}
 
-	platform_set_drvdata(pdev, host);
-
 	return 0;
 
 err_add_host:
