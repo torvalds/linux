@@ -31,6 +31,8 @@ INTERACTIVE COMMANDS
 [horizontal]
 *f*::	filter by regular expression
 
+*g*::	filter by guest name
+
 *p*::	filter by PID
 
 *q*::	quit
@@ -61,6 +63,10 @@ OPTIONS
 -p<pid>::
 --pid=<pid>::
 	limit statistics to one virtual machine (pid)
+
+-g<guest>::
+--guest=<guest_name>::
+	limit statistics to one virtual machine (guest name)
 
 -f<fields>::
 --fields=<fields>::

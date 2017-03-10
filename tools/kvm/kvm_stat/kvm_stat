@@ -30,6 +30,7 @@ import fcntl
 import resource
 import struct
 import re
+import subprocess
 from collections import defaultdict
 
 VMX_EXIT_REASONS = {
@@ -318,6 +319,30 @@ def parse_int_list(list_string):
                                   int(int_range[1]) + 1))
 
     return integers
+
+
+def get_pid_from_gname(gname):
+    """Fuzzy function to convert guest name to QEMU process pid.
+
+    Returns a list of potential pids, can be empty if no match found.
+    Throws an exception on processing errors.
+
+    """
+    pids = []
+    try:
+        child = subprocess.Popen(['ps', '-A', '--format', 'pid,args'],
+                                 stdout=subprocess.PIPE)
+    except:
+        raise Exception
+    for line in child.stdout:
+        line = line.lstrip().split(' ', 1)
+        # perform a sanity check before calling the more expensive
+        # function to possibly extract the guest name
+        if ' -name ' in line[1] and gname == get_gname_from_pid(line[0]):
+            pids.append(int(line[0]))
+    child.stdout.close()
+
+    return pids
 
 
 def get_gname_from_pid(pid):
@@ -977,7 +1002,7 @@ class Tui(object):
             except re.error:
                 continue
 
-    def show_vm_selection(self):
+    def show_vm_selection_by_pid(self):
         """Draws PID selection mask.
 
         Asks for a pid until a valid pid or 0 has been entered.
@@ -1016,6 +1041,50 @@ class Tui(object):
                 msg = '"' + str(pid) + '": Not a valid pid'
                 continue
 
+    def show_vm_selection_by_guest_name(self):
+        """Draws guest selection mask.
+
+        Asks for a guest name until a valid guest name or '' is entered.
+
+        """
+        msg = ''
+        while True:
+            self.screen.erase()
+            self.screen.addstr(0, 0,
+                               'Show statistics for specific guest.',
+                               curses.A_BOLD)
+            self.screen.addstr(1, 0,
+                               'This might limit the shown data to the trace '
+                               'statistics.')
+            self.screen.addstr(5, 0, msg)
+            curses.echo()
+            self.screen.addstr(3, 0, "Guest [ENTER or guest]: ")
+            gname = self.screen.getstr()
+            curses.noecho()
+
+            if not gname:
+                self.refresh_header(0)
+                self.update_pid(0)
+                break
+            else:
+                pids = []
+                try:
+                    pids = get_pid_from_gname(gname)
+                except:
+                    msg = '"' + gname + '": Internal error while searching, ' \
+                          'use pid filter instead'
+                    continue
+                if len(pids) == 0:
+                    msg = '"' + gname + '": Not an active guest'
+                    continue
+                if len(pids) > 1:
+                    msg = '"' + gname + '": Multiple matches found, use pid ' \
+                          'filter instead'
+                    continue
+                self.refresh_header(pids[0])
+                self.update_pid(pids[0])
+                break
+
     def show_stats(self):
         """Refreshes the screen and processes user input."""
         sleeptime = DELAY_INITIAL
@@ -1035,8 +1104,11 @@ class Tui(object):
                 if char == 'f':
                     self.show_filter_selection()
                     sleeptime = DELAY_INITIAL
+                if char == 'g':
+                    self.show_vm_selection_by_guest_name()
+                    sleeptime = DELAY_INITIAL
                 if char == 'p':
-                    self.show_vm_selection()
+                    self.show_vm_selection_by_pid()
                     sleeptime = DELAY_INITIAL
             except KeyboardInterrupt:
                 break
@@ -1106,6 +1178,7 @@ Requirements:
 
 Interactive Commands:
    f     filter by regular expression
+   g     filter by guest name
    p     filter by PID
    q     quit
    x     toggle reporting of stats for individual child trace events
@@ -1118,6 +1191,22 @@ Press any other key to refresh statistics immediately.
                 return description + "\n"
             else:
                 return ""
+
+    def cb_guest_to_pid(option, opt, val, parser):
+        try:
+            pids = get_pid_from_gname(val)
+        except:
+            raise optparse.OptionValueError('Error while searching for guest '
+                                            '"{}", use "-p" to specify a pid '
+                                            'instead'.format(val))
+        if len(pids) == 0:
+            raise optparse.OptionValueError('No guest by the name "{}" '
+                                            'found'.format(val))
+        if len(pids) > 1:
+            raise optparse.OptionValueError('Multiple processes found (pids: '
+                                            '{}) - use "-p" to specify a pid '
+                                            'instead'.format(" ".join(pids)))
+        parser.values.pid = pids[0]
 
     optparser = optparse.OptionParser(description=description_text,
                                       formatter=PlainHelpFormatter())
@@ -1157,6 +1246,14 @@ Press any other key to refresh statistics immediately.
                          type='int',
                          dest='pid',
                          help='restrict statistics to pid',
+                         )
+    optparser.add_option('-g', '--guest',
+                         action='callback',
+                         type='string',
+                         dest='pid',
+                         metavar='GUEST',
+                         help='restrict statistics to guest by name',
+                         callback=cb_guest_to_pid,
                          )
     (options, _) = optparser.parse_args(sys.argv)
     return options
