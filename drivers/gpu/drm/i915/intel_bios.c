@@ -1332,6 +1332,7 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 	return;
 }
 
+/* Common defaults which may be overridden by VBT. */
 static void
 init_vbt_defaults(struct drm_i915_private *dev_priv)
 {
@@ -1368,6 +1369,18 @@ init_vbt_defaults(struct drm_i915_private *dev_priv)
 			&dev_priv->vbt.ddi_port_info[port];
 
 		info->hdmi_level_shift = HDMI_LEVEL_SHIFT_UNKNOWN;
+	}
+}
+
+/* Defaults to initialize only if there is no VBT. */
+static void
+init_vbt_missing_defaults(struct drm_i915_private *dev_priv)
+{
+	enum port port;
+
+	for (port = PORT_A; port < I915_MAX_PORTS; port++) {
+		struct ddi_vbt_port_info *info =
+			&dev_priv->vbt.ddi_port_info[port];
 
 		info->supports_dvi = (port != PORT_A && port != PORT_E);
 		info->supports_hdmi = info->supports_dvi;
@@ -1504,8 +1517,10 @@ void intel_bios_init(struct drm_i915_private *dev_priv)
 	parse_ddi_ports(dev_priv, bdb);
 
 out:
-	if (!vbt)
+	if (!vbt) {
 		DRM_INFO("Failed to find VBIOS tables (VBT)\n");
+		init_vbt_missing_defaults(dev_priv);
+	}
 
 	if (bios)
 		pci_unmap_rom(pdev, bios);
