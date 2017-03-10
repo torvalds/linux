@@ -990,7 +990,7 @@ int brcmf_bus_started(struct device *dev)
 	if (ret < 0)
 		goto fail;
 
-	brcmf_fws_add_interface(ifp);
+	brcmf_proto_add_if(drvr, ifp);
 
 	drvr->config = brcmf_cfg80211_attach(drvr, bus_if->dev,
 					     drvr->settings->p2p_enable);

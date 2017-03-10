@@ -25,6 +25,7 @@
 #include "fwsignal.h"
 #include "fweh.h"
 #include "fwil.h"
+#include "proto.h"
 
 /**
  * struct brcmf_fweh_queue_item - event item on event queue.
@@ -172,7 +173,7 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 		if (IS_ERR(ifp))
 			return;
 		if (!is_p2pdev)
-			brcmf_fws_add_interface(ifp);
+			brcmf_proto_add_if(drvr, ifp);
 		if (!drvr->fweh.evt_handler[BRCMF_E_IF])
 			if (brcmf_net_attach(ifp, false) < 0)
 				return;
