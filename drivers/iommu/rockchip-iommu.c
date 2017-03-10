@@ -267,12 +267,14 @@ static void rk_iommu_power_on(struct rk_iommu *iommu)
 		clk_enable(iommu->hclk);
 	}
 
+	pm_runtime_enable(iommu->dev);
 	pm_runtime_get_sync(iommu->dev);
 }
 
 static void rk_iommu_power_off(struct rk_iommu *iommu)
 {
 	pm_runtime_put_sync(iommu->dev);
+	pm_runtime_disable(iommu->dev);
 
 	if (iommu->aclk && iommu->hclk) {
 		clk_disable(iommu->aclk);
@@ -1209,15 +1211,11 @@ static int rk_iommu_probe(struct platform_device *pdev)
 		clk_prepare(iommu->hclk);
 	}
 
-	pm_runtime_enable(dev);
-
 	return 0;
 }
 
 static int rk_iommu_remove(struct platform_device *pdev)
 {
-	pm_runtime_disable(&pdev->dev);
-
 	return 0;
 }
 
