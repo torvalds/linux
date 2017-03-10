@@ -2159,7 +2159,7 @@ megasas_set_raidflag_cpu_affinity(union RAID_CONTEXT_UNION *praid_context,
 				cpu_sel = MR_RAID_CTX_CPUSEL_1;
 
 			if (is_stream_detected(rctx_g35) &&
-			    (raid->level == 5) &&
+			    ((raid->level == 5) || (raid->level == 6)) &&
 			    (raid->writeMode == MR_RL_WRITE_THROUGH_MODE) &&
 			    (cpu_sel == MR_RAID_CTX_CPUSEL_FCFS))
 				cpu_sel = MR_RAID_CTX_CPUSEL_0;
