@@ -966,6 +966,7 @@ class Tui(object):
             regex = self.screen.getstr()
             curses.noecho()
             if len(regex) == 0:
+                self.stats.fields_filter = r'^[^\(]*$'
                 self.refresh_header()
                 return
             try:
