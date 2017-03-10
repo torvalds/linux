@@ -349,9 +349,7 @@ static int ade7754_set_irq(struct device *dev, bool enable)
 	else
 		irqen &= ~BIT(14);
 
-	ret = ade7754_spi_write_reg_16(dev, ADE7754_IRQEN, irqen);
-
-	return ret;
+	return ade7754_spi_write_reg_16(dev, ADE7754_IRQEN, irqen);
 }
 
 /* Power down the device */
