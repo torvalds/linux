@@ -532,7 +532,7 @@ buffer_from_host(struct vchiq_mmal_instance *instance,
 	m.u.buffer_from_host.drvbuf.magic = MMAL_MAGIC;
 	m.u.buffer_from_host.drvbuf.component_handle = port->component->handle;
 	m.u.buffer_from_host.drvbuf.port_handle = port->handle;
-	m.u.buffer_from_host.drvbuf.client_context = msg_context;
+	m.u.buffer_from_host.drvbuf.client_context = msg_context->handle;
 
 	/* buffer header */
 	m.u.buffer_from_host.buffer_header.cmd = 0;
@@ -614,12 +614,20 @@ static void buffer_to_host_cb(struct vchiq_mmal_instance *instance,
 			      struct mmal_msg *msg, u32 msg_len)
 {
 	struct mmal_msg_context *msg_context;
+	u32 handle;
 
 	pr_debug("buffer_to_host_cb: instance:%p msg:%p msg_len:%d\n",
 		 instance, msg, msg_len);
 
 	if (msg->u.buffer_from_host.drvbuf.magic == MMAL_MAGIC) {
-		msg_context = msg->u.buffer_from_host.drvbuf.client_context;
+		handle = msg->u.buffer_from_host.drvbuf.client_context;
+		msg_context = lookup_msg_context(instance, handle);
+
+		if (!msg_context) {
+			pr_err("drvbuf.client_context(%u) is invalid\n",
+			       handle);
+			return;
+		}
 	} else {
 		pr_err("MMAL_MSG_TYPE_BUFFER_TO_HOST with bad magic\n");
 		return;

@@ -250,7 +250,7 @@ struct mmal_driver_buffer {
 	u32 magic;
 	u32 component_handle;
 	u32 port_handle;
-	void *client_context;
+	u32 client_context;
 };
 
 /* buffer header */
