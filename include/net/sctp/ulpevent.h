@@ -136,6 +136,10 @@ struct sctp_ulpevent *sctp_ulpevent_make_assoc_reset_event(
 	const struct sctp_association *asoc, __u16 flags,
 	 __u32 local_tsn, __u32 remote_tsn, gfp_t gfp);
 
+struct sctp_ulpevent *sctp_ulpevent_make_stream_change_event(
+	const struct sctp_association *asoc, __u16 flags,
+	__u32 strchange_instrms, __u32 strchange_outstrms, gfp_t gfp);
+
 void sctp_ulpevent_read_sndrcvinfo(const struct sctp_ulpevent *event,
 				   struct msghdr *);
 void sctp_ulpevent_read_rcvinfo(const struct sctp_ulpevent *event,
