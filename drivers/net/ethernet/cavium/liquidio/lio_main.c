@@ -782,7 +782,7 @@ static int setup_glists(struct octeon_device *oct, struct lio *lio, int num_iqs)
 	}
 
 	for (i = 0; i < num_iqs; i++) {
-		int numa_node = cpu_to_node(i % num_online_cpus());
+		int numa_node = dev_to_node(&oct->pci_dev->dev);
 
 		spin_lock_init(&lio->glist_lock[i]);
 
