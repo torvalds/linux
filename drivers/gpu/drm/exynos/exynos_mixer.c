@@ -381,11 +381,14 @@ static void mixer_cfg_rgb_fmt(struct mixer_context *ctx, unsigned int height)
 	struct mixer_resources *res = &ctx->mixer_res;
 	u32 val;
 
-	if (height == 480) {
+	switch (height) {
+	case 480:
+	case 576:
 		val = MXR_CFG_RGB601_0_255;
-	} else if (height == 576) {
-		val = MXR_CFG_RGB601_0_255;
-	} else if (height == 720) {
+		break;
+	case 720:
+	case 1080:
+	default:
 		val = MXR_CFG_RGB709_16_235;
 		mixer_reg_write(res, MXR_CM_COEFF_Y,
 				(1 << 30) | (94 << 20) | (314 << 10) |
@@ -394,24 +397,7 @@ static void mixer_cfg_rgb_fmt(struct mixer_context *ctx, unsigned int height)
 				(972 << 20) | (851 << 10) | (225 << 0));
 		mixer_reg_write(res, MXR_CM_COEFF_CR,
 				(225 << 20) | (820 << 10) | (1004 << 0));
-	} else if (height == 1080) {
-		val = MXR_CFG_RGB709_16_235;
-		mixer_reg_write(res, MXR_CM_COEFF_Y,
-				(1 << 30) | (94 << 20) | (314 << 10) |
-				(32 << 0));
-		mixer_reg_write(res, MXR_CM_COEFF_CB,
-				(972 << 20) | (851 << 10) | (225 << 0));
-		mixer_reg_write(res, MXR_CM_COEFF_CR,
-				(225 << 20) | (820 << 10) | (1004 << 0));
-	} else {
-		val = MXR_CFG_RGB709_16_235;
-		mixer_reg_write(res, MXR_CM_COEFF_Y,
-				(1 << 30) | (94 << 20) | (314 << 10) |
-				(32 << 0));
-		mixer_reg_write(res, MXR_CM_COEFF_CB,
-				(972 << 20) | (851 << 10) | (225 << 0));
-		mixer_reg_write(res, MXR_CM_COEFF_CR,
-				(225 << 20) | (820 << 10) | (1004 << 0));
+		break;
 	}
 
 	mixer_reg_writemask(res, MXR_CFG, val, MXR_CFG_RGB_FMT_MASK);
