@@ -58,7 +58,6 @@
 #define MLXSW_SP_VFID_MAX 1024	/* Bridged VLAN interfaces */
 
 #define MLXSW_SP_RFID_BASE 15360
-#define MLXSW_SP_INVALID_RIF 0xffff
 
 #define MLXSW_SP_MID_MAX 7000
 
@@ -92,6 +91,7 @@ static inline u16 mlxsw_sp_pfc_delay_get(int mtu, u16 delay)
 }
 
 struct mlxsw_sp_port;
+struct mlxsw_sp_rif;
 
 struct mlxsw_sp_upper {
 	struct net_device *dev;
@@ -105,16 +105,6 @@ struct mlxsw_sp_fid {
 	struct net_device *dev;
 	struct mlxsw_sp_rif *r;
 	u16 fid;
-};
-
-struct mlxsw_sp_rif {
-	struct list_head nexthop_list;
-	struct list_head neigh_list;
-	struct net_device *dev;
-	struct mlxsw_sp_fid *f;
-	unsigned char addr[ETH_ALEN];
-	int mtu;
-	u16 rif;
 };
 
 struct mlxsw_sp_mid {
@@ -138,16 +128,6 @@ static inline u16 mlxsw_sp_fid_to_vfid(u16 fid)
 static inline bool mlxsw_sp_fid_is_vfid(u16 fid)
 {
 	return fid >= MLXSW_SP_VFID_BASE && fid < MLXSW_SP_RFID_BASE;
-}
-
-static inline bool mlxsw_sp_fid_is_rfid(u16 fid)
-{
-	return fid >= MLXSW_SP_RFID_BASE;
-}
-
-static inline u16 mlxsw_sp_rif_sp_to_fid(u16 rif)
-{
-	return MLXSW_SP_RFID_BASE + rif;
 }
 
 struct mlxsw_sp_sb_pr {
@@ -385,6 +365,7 @@ struct mlxsw_sp_port {
 };
 
 bool mlxsw_sp_port_dev_check(const struct net_device *dev);
+struct mlxsw_sp *mlxsw_sp_lower_get(struct net_device *dev);
 struct mlxsw_sp_port *mlxsw_sp_port_lower_dev_hold(struct net_device *dev);
 void mlxsw_sp_port_dev_put(struct mlxsw_sp_port *mlxsw_sp_port);
 
@@ -496,19 +477,6 @@ mlxsw_sp_vfid_find(const struct mlxsw_sp *mlxsw_sp,
 	return NULL;
 }
 
-static inline struct mlxsw_sp_rif *
-mlxsw_sp_rif_find_by_dev(const struct mlxsw_sp *mlxsw_sp,
-			 const struct net_device *dev)
-{
-	int i;
-
-	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS); i++)
-		if (mlxsw_sp->rifs[i] && mlxsw_sp->rifs[i]->dev == dev)
-			return mlxsw_sp->rifs[i];
-
-	return NULL;
-}
-
 enum mlxsw_sp_flood_table {
 	MLXSW_SP_FLOOD_TABLE_UC,
 	MLXSW_SP_FLOOD_TABLE_BC,
@@ -569,8 +537,6 @@ int mlxsw_sp_rif_fdb_op(struct mlxsw_sp *mlxsw_sp, const char *mac, u16 fid,
 			bool adding);
 struct mlxsw_sp_fid *mlxsw_sp_fid_create(struct mlxsw_sp *mlxsw_sp, u16 fid);
 void mlxsw_sp_fid_destroy(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *f);
-void mlxsw_sp_rif_bridge_destroy(struct mlxsw_sp *mlxsw_sp,
-				 struct mlxsw_sp_rif *r);
 int mlxsw_sp_port_ets_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			  enum mlxsw_reg_qeec_hr hr, u8 index, u8 next_index,
 			  bool dwrr, u8 dwrr_weight);
@@ -607,8 +573,11 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_router_netevent_event(struct notifier_block *unused,
 				   unsigned long event, void *ptr);
-void mlxsw_sp_router_rif_gone_sync(struct mlxsw_sp *mlxsw_sp,
-				   struct mlxsw_sp_rif *r);
+int mlxsw_sp_netdevice_router_port_event(struct net_device *dev);
+int mlxsw_sp_inetaddr_event(struct notifier_block *unused,
+			    unsigned long event, void *ptr);
+void mlxsw_sp_rif_bridge_destroy(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_rif *r);
 
 int mlxsw_sp_kvdl_alloc(struct mlxsw_sp *mlxsw_sp, unsigned int entry_count);
 void mlxsw_sp_kvdl_free(struct mlxsw_sp *mlxsw_sp, int entry_index);
