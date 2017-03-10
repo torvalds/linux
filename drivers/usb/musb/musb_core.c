@@ -2467,8 +2467,8 @@ static int musb_remove(struct platform_device *pdev)
 	pm_runtime_get_sync(musb->controller);
 	musb_host_cleanup(musb);
 	musb_gadget_cleanup(musb);
-	spin_lock_irqsave(&musb->lock, flags);
 	musb_platform_disable(musb);
+	spin_lock_irqsave(&musb->lock, flags);
 	musb_generic_disable(musb);
 	spin_unlock_irqrestore(&musb->lock, flags);
 	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
