@@ -289,9 +289,7 @@ rga_gem_buf_to_pages(struct rockchip_rga *rga, void **mmu_pages, int fd)
 
 		for (p = 0; p < len; p++) {
 			dma_addr_t phys = address + (p << PAGE_SHIFT);
-			void *virt = phys_to_virt(phys);
 
-			rga_dma_flush_range(virt, 4 * 1024);
 			pages[mapped_size + p] = phys;
 		}
 
