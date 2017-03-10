@@ -53,7 +53,7 @@ union mmal_es_specific_format {
 };
 
 /** Definition of an elementary stream format (MMAL_ES_FORMAT_T) */
-struct mmal_es_format {
+struct mmal_es_format_local {
 	u32 type;      /* enum mmal_es_type */
 
 	u32 encoding;  /* FourCC specifying encoding of the elementary stream.*/
@@ -62,10 +62,7 @@ struct mmal_es_format {
 			       * stream.
 			       */
 
-	union mmal_es_specific_format *es; /* TODO: pointers in
-					    * message serialisation?!?
-					    */
-					    /* Type specific
+	union mmal_es_specific_format *es;  /* Type specific
 					     * information for the
 					     * elementary stream
 					     */
@@ -75,6 +72,28 @@ struct mmal_es_format {
 
 	u32 extradata_size;       /**< Size of the codec specific data */
 	u8  *extradata;           /**< Codec specific data */
+};
+
+/** Remote definition of an elementary stream format (MMAL_ES_FORMAT_T) */
+struct mmal_es_format {
+	u32 type;      /* enum mmal_es_type */
+
+	u32 encoding;  /* FourCC specifying encoding of the elementary stream.*/
+	u32 encoding_variant; /* FourCC specifying the specific
+			       * encoding variant of the elementary
+			       * stream.
+			       */
+
+	u32 es; /* Type specific
+		 * information for the
+		 * elementary stream
+		 */
+
+	u32 bitrate;        /**< Bitrate in bits per second */
+	u32 flags; /**< Flags describing properties of the elementary stream. */
+
+	u32 extradata_size;       /**< Size of the codec specific data */
+	u32 extradata;           /**< Codec specific data */
 };
 
 #endif /* MMAL_MSG_FORMAT_H */

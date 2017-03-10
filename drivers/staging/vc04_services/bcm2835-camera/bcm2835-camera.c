@@ -1583,7 +1583,7 @@ static int set_camera_parameters(struct vchiq_mmal_instance *instance,
 static int __init mmal_init(struct bm2835_mmal_dev *dev)
 {
 	int ret;
-	struct mmal_es_format *format;
+	struct mmal_es_format_local *format;
 	u32 bool_true = 1;
 	u32 supported_encodings[MAX_SUPPORTED_ENCODINGS];
 	int param_size;
