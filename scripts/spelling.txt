@@ -372,6 +372,8 @@ disassocation||disassociation
 disapear||disappear
 disapeared||disappeared
 disappared||disappeared
+disble||disable
+disbled||disabled
 disconnet||disconnect
 discontinous||discontinuous
 dispertion||dispersion
