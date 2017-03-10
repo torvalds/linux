@@ -1660,6 +1660,23 @@ static void stmmac_set_tx_queue_weight(struct stmmac_priv *priv)
 }
 
 /**
+ *  stmmac_rx_queue_dma_chan_map - Map RX queue to RX dma channel
+ *  @priv: driver private structure
+ *  Description: It is used for mapping RX queues to RX dma channels
+ */
+static void stmmac_rx_queue_dma_chan_map(struct stmmac_priv *priv)
+{
+	u32 rx_queues_count = priv->plat->rx_queues_to_use;
+	u32 queue;
+	u32 chan;
+
+	for (queue = 0; queue < rx_queues_count; queue++) {
+		chan = priv->plat->rx_queues_cfg[queue].chan;
+		priv->hw->mac->map_mtl_to_dma(priv->hw, queue, chan);
+	}
+}
+
+/**
  *  stmmac_mtl_configuration - Configure MTL
  *  @priv: driver private structure
  *  Description: It is used for configurring MTL
@@ -1681,6 +1698,10 @@ static void stmmac_mtl_configuration(struct stmmac_priv *priv)
 	if (tx_queues_count > 1 && priv->hw->mac->prog_mtl_tx_algorithms)
 		priv->hw->mac->prog_mtl_tx_algorithms(priv->hw,
 						priv->plat->tx_sched_algorithm);
+
+	/* Map RX MTL to DMA channels */
+	if (rx_queues_count > 1 && priv->hw->mac->map_mtl_to_dma)
+		stmmac_rx_queue_dma_chan_map(priv);
 
 	/* Enable MAC RX Queues */
 	if (rx_queues_count > 1 && priv->hw->mac->rx_queue_enable)

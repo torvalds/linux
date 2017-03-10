@@ -465,6 +465,8 @@ struct stmmac_ops {
 	/* Set MTL TX queues weight */
 	void (*set_mtl_tx_queue_weight)(struct mac_device_info *hw,
 					u32 weight, u32 queue);
+	/* RX MTL queue to RX dma mapping */
+	void (*map_mtl_to_dma)(struct mac_device_info *hw, u32 queue, u32 chan);
 	/* Dump MAC registers */
 	void (*dump_regs)(struct mac_device_info *hw, u32 *reg_space);
 	/* Handle extra events on specific interrupts hw dependent */

@@ -131,6 +131,30 @@ static void dwmac4_set_mtl_tx_queue_weight(struct mac_device_info *hw,
 	writel(value, ioaddr + MTL_TXQX_WEIGHT_BASE_ADDR(queue));
 }
 
+static void dwmac4_map_mtl_dma(struct mac_device_info *hw, u32 queue, u32 chan)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 value;
+
+	if (queue < 4)
+		value = readl(ioaddr + MTL_RXQ_DMA_MAP0);
+	else
+		value = readl(ioaddr + MTL_RXQ_DMA_MAP1);
+
+	if (queue == 0 || queue == 4) {
+		value &= ~MTL_RXQ_DMA_Q04MDMACH_MASK;
+		value |= MTL_RXQ_DMA_Q04MDMACH(chan);
+	} else {
+		value &= ~MTL_RXQ_DMA_QXMDMACH_MASK(queue);
+		value |= MTL_RXQ_DMA_QXMDMACH(chan, queue);
+	}
+
+	if (queue < 4)
+		writel(value, ioaddr + MTL_RXQ_DMA_MAP0);
+	else
+		writel(value, ioaddr + MTL_RXQ_DMA_MAP1);
+}
+
 static void dwmac4_dump_regs(struct mac_device_info *hw, u32 *reg_space)
 {
 	void __iomem *ioaddr = hw->pcsr;
@@ -521,6 +545,7 @@ static const struct stmmac_ops dwmac4_ops = {
 	.prog_mtl_rx_algorithms = dwmac4_prog_mtl_rx_algorithms,
 	.prog_mtl_tx_algorithms = dwmac4_prog_mtl_tx_algorithms,
 	.set_mtl_tx_queue_weight = dwmac4_set_mtl_tx_queue_weight,
+	.map_mtl_to_dma = dwmac4_map_mtl_dma,
 	.dump_regs = dwmac4_dump_regs,
 	.host_irq_status = dwmac4_irq_status,
 	.flow_ctrl = dwmac4_flow_ctrl,
