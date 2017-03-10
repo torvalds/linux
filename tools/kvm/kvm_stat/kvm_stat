@@ -969,12 +969,15 @@ class Tui(object):
 
 def batch(stats):
     """Prints statistics in a key, value format."""
-    s = stats.get()
-    time.sleep(1)
-    s = stats.get()
-    for key in sorted(s.keys()):
-        values = s[key]
-        print '%-42s%10d%10d' % (key, values[0], values[1])
+    try:
+        s = stats.get()
+        time.sleep(1)
+        s = stats.get()
+        for key in sorted(s.keys()):
+            values = s[key]
+            print '%-42s%10d%10d' % (key, values[0], values[1])
+    except KeyboardInterrupt:
+        pass
 
 def log(stats):
     """Prints statistics as reiterating key block, multiple value blocks."""
@@ -991,11 +994,14 @@ def log(stats):
     line = 0
     banner_repeat = 20
     while True:
-        time.sleep(1)
-        if line % banner_repeat == 0:
-            banner()
-        statline()
-        line += 1
+        try:
+            time.sleep(1)
+            if line % banner_repeat == 0:
+                banner()
+            statline()
+            line += 1
+        except KeyboardInterrupt:
+            break
 
 def get_options():
     """Returns processed program arguments."""
