@@ -1821,7 +1821,7 @@ static int stmmac_open(struct net_device *dev)
 		netdev_err(priv->dev,
 			   "%s: ERROR: allocating the IRQ %d (error: %d)\n",
 			   __func__, dev->irq, ret);
-		goto init_error;
+		goto irq_error;
 	}
 
 	/* Request the Wake IRQ in case of another line is used for WoL */
@@ -1858,7 +1858,11 @@ lpiirq_error:
 		free_irq(priv->wol_irq, dev);
 wolirq_error:
 	free_irq(dev->irq, dev);
+irq_error:
+	if (dev->phydev)
+		phy_stop(dev->phydev);
 
+	del_timer_sync(&priv->txtimer);
 init_error:
 	free_dma_desc_resources(priv);
 dma_desc_error:
