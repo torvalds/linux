@@ -42,15 +42,15 @@ enum mmal_port_type {
  * buffer_num, buffer_size and userdata parameters are writable.
  */
 struct mmal_port {
-	void *priv; /* Private member used by the framework */
-	const char *name; /* Port name. Used for debugging purposes (RO) */
+	u32 priv; /* Private member used by the framework */
+	u32 name; /* Port name. Used for debugging purposes (RO) */
 
 	u32 type;      /* Type of the port (RO) enum mmal_port_type */
 	u16 index;     /* Index of the port in its type list (RO) */
 	u16 index_all; /* Index of the port in the list of all ports (RO) */
 
 	u32 is_enabled; /* Indicates whether the port is enabled or not (RO) */
-	struct mmal_es_format *format; /* Format of the elementary stream */
+	u32 format; /* Format of the elementary stream */
 
 	u32 buffer_num_min; /* Minimum number of buffers the port
 			     *   requires (RO).  This is set by the
@@ -94,9 +94,9 @@ struct mmal_port {
 			  * the client.
 			  */
 
-	void *component; /* Component this port belongs to (Read Only) */
+	u32 component; /* Component this port belongs to (Read Only) */
 
-	void *userdata; /* Field reserved for use by the client */
+	u32 userdata; /* Field reserved for use by the client */
 
 	u32 capabilities; /* Flags describing the capabilities of a
 			   * port (RO).  Bitwise combination of \ref

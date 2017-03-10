@@ -943,7 +943,7 @@ static void port_to_mmal_msg(struct vchiq_mmal_port *port, struct mmal_port *p)
 	/* only three writable fields in a port */
 	p->buffer_num = port->current_buffer.num;
 	p->buffer_size = port->current_buffer.size;
-	p->userdata = port;
+	p->userdata = (u32)(unsigned long)port;
 }
 
 static int port_info_set(struct vchiq_mmal_instance *instance,
