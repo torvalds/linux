@@ -252,11 +252,20 @@ static u32 cpg_mode __initdata;
 static u32 cpg_quirks __initdata;
 
 #define PLL_ERRATA	BIT(0)		/* Missing PLL0/2/4 post-divider */
+#define RCKCR_CKSEL	BIT(1)		/* Manual RCLK parent selection */
 
 static const struct soc_device_attribute cpg_quirks_match[] __initconst = {
 	{
 		.soc_id = "r8a7795", .revision = "ES1.0",
-		.data = (void *)PLL_ERRATA,
+		.data = (void *)(PLL_ERRATA | RCKCR_CKSEL),
+	},
+	{
+		.soc_id = "r8a7795", .revision = "ES1.*",
+		.data = (void *)RCKCR_CKSEL,
+	},
+	{
+		.soc_id = "r8a7796", .revision = "ES1.0",
+		.data = (void *)RCKCR_CKSEL,
 	},
 	{ /* sentinel */ }
 };
@@ -330,18 +339,25 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 		return cpg_sd_clk_register(core, base, __clk_get_name(parent));
 
 	case CLK_TYPE_GEN3_R:
-		/*
-		 * RINT is default.
-		 * Only if EXTALR is populated, we switch to it.
-		 */
-		value = readl(base + CPG_RCKCR) & 0x3f;
+		if (cpg_quirks & RCKCR_CKSEL) {
+			/*
+			 * RINT is default.
+			 * Only if EXTALR is populated, we switch to it.
+			 */
+			value = readl(base + CPG_RCKCR) & 0x3f;
 
-		if (clk_get_rate(clks[cpg_clk_extalr])) {
-			parent = clks[cpg_clk_extalr];
-			value |= BIT(15);
+			if (clk_get_rate(clks[cpg_clk_extalr])) {
+				parent = clks[cpg_clk_extalr];
+				value |= BIT(15);
+			}
+
+			writel(value, base + CPG_RCKCR);
+			break;
 		}
 
-		writel(value, base + CPG_RCKCR);
+		/* Select parent clock of RCLK by MD28 */
+		if (cpg_mode & BIT(28))
+			parent = clks[cpg_clk_extalr];
 		break;
 
 	default:
