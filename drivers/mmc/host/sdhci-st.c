@@ -418,8 +418,6 @@ static int sdhci_st_probe(struct platform_device *pdev)
 		goto err_out;
 	}
 
-	platform_set_drvdata(pdev, host);
-
 	host_version = readw_relaxed((host->ioaddr + SDHCI_HOST_VERSION));
 
 	dev_info(&pdev->dev, "SDHCI ST Initialised: Host Version: 0x%x Vendor Version 0x%x\n",
