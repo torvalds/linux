@@ -781,6 +781,12 @@ static int acpi_fujitsu_bl_add(struct acpi_device *device)
 		fujitsu_bl->max_brightness = FUJITSU_LCD_N_LEVELS;
 	get_lcd_level();
 
+	if (acpi_video_get_backlight_type() == acpi_backlight_vendor) {
+		error = fujitsu_backlight_register();
+		if (error)
+			goto err_unregister_input_dev;
+	}
+
 	return 0;
 
 err_unregister_input_dev:
@@ -797,6 +803,7 @@ static int acpi_fujitsu_bl_remove(struct acpi_device *device)
 	struct fujitsu_bl *fujitsu_bl = acpi_driver_data(device);
 	struct input_dev *input = fujitsu_bl->input;
 
+	backlight_device_unregister(fujitsu_bl->bl_device);
 	input_unregister_device(input);
 
 	fujitsu_bl->acpi_handle = NULL;
@@ -948,7 +955,8 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 	pr_info("BTNI: [0x%x]\n", call_fext_func(FUNC_BUTTONS, 0x0, 0x0, 0x0));
 
 	/* Sync backlight power status */
-	if (acpi_video_get_backlight_type() == acpi_backlight_vendor) {
+	if (fujitsu_bl->bl_device &&
+	    acpi_video_get_backlight_type() == acpi_backlight_vendor) {
 		if (call_fext_func(FUNC_BACKLIGHT, 0x2, 0x4, 0x0) == 3)
 			fujitsu_bl->bl_device->props.power = FB_BLANK_POWERDOWN;
 		else
@@ -1248,17 +1256,9 @@ static int __init fujitsu_init(void)
 	if (ret)
 		goto fail_platform_device2;
 
-	/* Register backlight stuff */
-
-	if (acpi_video_get_backlight_type() == acpi_backlight_vendor) {
-		ret = fujitsu_backlight_register();
-		if (ret)
-			goto fail_sysfs_group;
-	}
-
 	ret = platform_driver_register(&fujitsu_pf_driver);
 	if (ret)
-		goto fail_backlight;
+		goto fail_sysfs_group;
 
 	/* Register laptop driver */
 
@@ -1280,8 +1280,6 @@ fail_laptop1:
 	kfree(fujitsu_laptop);
 fail_laptop:
 	platform_driver_unregister(&fujitsu_pf_driver);
-fail_backlight:
-	backlight_device_unregister(fujitsu_bl->bl_device);
 fail_sysfs_group:
 	sysfs_remove_group(&fujitsu_bl->pf_device->dev.kobj,
 			   &fujitsu_pf_attribute_group);
@@ -1304,8 +1302,6 @@ static void __exit fujitsu_cleanup(void)
 	kfree(fujitsu_laptop);
 
 	platform_driver_unregister(&fujitsu_pf_driver);
-
-	backlight_device_unregister(fujitsu_bl->bl_device);
 
 	sysfs_remove_group(&fujitsu_bl->pf_device->dev.kobj,
 			   &fujitsu_pf_attribute_group);
