@@ -2208,6 +2208,8 @@ static int f2fs_ioc_move_range(struct file *filp, unsigned long arg)
 					range.pos_out, range.len);
 
 	mnt_drop_write_file(filp);
+	if (err)
+		goto err_out;
 
 	if (copy_to_user((struct f2fs_move_range __user *)arg,
 						&range, sizeof(range)))
