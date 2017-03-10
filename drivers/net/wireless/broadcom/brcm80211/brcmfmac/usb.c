@@ -29,6 +29,7 @@
 #include "usb.h"
 #include "core.h"
 #include "common.h"
+#include "bcdc.h"
 
 
 #define IOCTL_RESP_TIMEOUT		msecs_to_jiffies(2000)
@@ -488,7 +489,7 @@ static void brcmf_usb_tx_complete(struct urb *urb)
 	spin_lock_irqsave(&devinfo->tx_flowblock_lock, flags);
 	if (devinfo->tx_freecount > devinfo->tx_high_watermark &&
 		devinfo->tx_flowblock) {
-		brcmf_txflowblock(devinfo->dev, false);
+		brcmf_proto_bcdc_txflowblock(devinfo->dev, false);
 		devinfo->tx_flowblock = false;
 	}
 	spin_unlock_irqrestore(&devinfo->tx_flowblock_lock, flags);
@@ -635,7 +636,7 @@ static int brcmf_usb_tx(struct device *dev, struct sk_buff *skb)
 	spin_lock_irqsave(&devinfo->tx_flowblock_lock, flags);
 	if (devinfo->tx_freecount < devinfo->tx_low_watermark &&
 	    !devinfo->tx_flowblock) {
-		brcmf_txflowblock(dev, true);
+		brcmf_proto_bcdc_txflowblock(dev, true);
 		devinfo->tx_flowblock = true;
 	}
 	spin_unlock_irqrestore(&devinfo->tx_flowblock_lock, flags);

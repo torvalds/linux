@@ -345,6 +345,16 @@ brcmf_proto_bcdc_txdata(struct brcmf_pub *drvr, int ifidx, u8 offset,
 	return brcmf_bus_txdata(drvr->bus_if, pktbuf);
 }
 
+void brcmf_proto_bcdc_txflowblock(struct device *dev, bool state)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_pub *drvr = bus_if->drvr;
+
+	brcmf_dbg(TRACE, "Enter\n");
+
+	brcmf_fws_bus_blocked(drvr, state);
+}
+
 static void
 brcmf_proto_bcdc_configure_addr_mode(struct brcmf_pub *drvr, int ifidx,
 				     enum proto_addr_mode addr_mode)

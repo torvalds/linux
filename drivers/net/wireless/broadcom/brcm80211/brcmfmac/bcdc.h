@@ -19,6 +19,7 @@
 #ifdef CONFIG_BRCMFMAC_PROTO_BCDC
 int brcmf_proto_bcdc_attach(struct brcmf_pub *drvr);
 void brcmf_proto_bcdc_detach(struct brcmf_pub *drvr);
+void brcmf_proto_bcdc_txflowblock(struct device *dev, bool state);
 #else
 static inline int brcmf_proto_bcdc_attach(struct brcmf_pub *drvr) { return 0; }
 static inline void brcmf_proto_bcdc_detach(struct brcmf_pub *drvr) {}

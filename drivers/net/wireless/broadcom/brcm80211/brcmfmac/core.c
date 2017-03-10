@@ -283,16 +283,6 @@ void brcmf_txflowblock_if(struct brcmf_if *ifp,
 	spin_unlock_irqrestore(&ifp->netif_stop_lock, flags);
 }
 
-void brcmf_txflowblock(struct device *dev, bool state)
-{
-	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
-	struct brcmf_pub *drvr = bus_if->drvr;
-
-	brcmf_dbg(TRACE, "Enter\n");
-
-	brcmf_fws_bus_blocked(drvr, state);
-}
-
 void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb)
 {
 	if (skb->pkt_type == PACKET_MULTICAST)
