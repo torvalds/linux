@@ -72,6 +72,27 @@ Optional properties:
 	- snps,mb: mixed-burst
 	- snps,rb: rebuild INCRx Burst
 - mdio: with compatible = "snps,dwmac-mdio", create and register mdio bus.
+- Multiple RX Queues parameters: below the list of all the parameters to
+				 configure the multiple RX queues:
+	- snps,rx-queues-to-use: number of RX queues to be used in the driver
+	- Choose one of these RX scheduling algorithms:
+		- snps,rx-sched-sp: Strict priority
+		- snps,rx-sched-wsp: Weighted Strict priority
+	- For each RX queue
+		- Choose one of these modes:
+			- snps,dcb-algorithm: Queue to be enabled as DCB
+			- snps,avb-algorithm: Queue to be enabled as AVB
+		- snps,map-to-dma-channel: Channel to map
+- Multiple TX Queues parameters: below the list of all the parameters to
+				 configure the multiple TX queues:
+	- snps,tx-queues-to-use: number of TX queues to be used in the driver
+	- Choose one of these TX scheduling algorithms:
+		- snps,tx-sched-wrr: Weighted Round Robin
+		- snps,tx-sched-wfq: Weighted Fair Queuing
+		- snps,tx-sched-dwrr: Deficit Weighted Round Robin
+		- snps,tx-sched-sp: Strict priority
+	- For each TX queue
+		- snps,weight: TX queue weight (if using a weighted algorithm)
 
 Examples:
 
@@ -79,6 +100,23 @@ Examples:
 		snps,wr_osr_lmt = <0xf>;
 		snps,rd_osr_lmt = <0xf>;
 		snps,blen = <256 128 64 32 0 0 0>;
+	};
+
+	mtl_rx_setup: rx-queues-config {
+		snps,rx-queues-to-use = <1>;
+		snps,rx-sched-sp;
+		queue0 {
+			snps,dcb-algorithm;
+			snps,map-to-dma-channel = <0x0>;
+		};
+	};
+
+	mtl_tx_setup: tx-queues-config {
+		snps,tx-queues-to-use = <1>;
+		snps,tx-sched-wrr;
+		queue0 {
+			snps,weight = <0x10>;
+		};
 	};
 
 	gmac0: ethernet@e0800000 {
@@ -104,4 +142,6 @@ Examples:
 			phy1: ethernet-phy@0 {
 			};
 		};
+		snps,mtl-rx-config = <&mtl_rx_setup>;
+		snps,mtl-tx-config = <&mtl_tx_setup>;
 	};

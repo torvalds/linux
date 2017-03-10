@@ -132,6 +132,95 @@ static struct stmmac_axi *stmmac_axi_setup(struct platform_device *pdev)
 }
 
 /**
+ * stmmac_mtl_setup - parse DT parameters for multiple queues configuration
+ * @pdev: platform device
+ */
+static void stmmac_mtl_setup(struct platform_device *pdev,
+			     struct plat_stmmacenet_data *plat)
+{
+	struct device_node *q_node;
+	struct device_node *rx_node;
+	struct device_node *tx_node;
+	u8 queue = 0;
+
+	rx_node = of_parse_phandle(pdev->dev.of_node, "snps,mtl-rx-config", 0);
+	if (!rx_node)
+		return;
+
+	tx_node = of_parse_phandle(pdev->dev.of_node, "snps,mtl-tx-config", 0);
+	if (!tx_node) {
+		of_node_put(rx_node);
+		return;
+	}
+
+	/* Processing RX queues common config */
+	if (of_property_read_u8(rx_node, "snps,rx-queues-to-use",
+				&plat->rx_queues_to_use))
+		plat->rx_queues_to_use = 1;
+
+	if (of_property_read_bool(rx_node, "snps,rx-sched-sp"))
+		plat->rx_sched_algorithm = MTL_RX_ALGORITHM_SP;
+	else if (of_property_read_bool(rx_node, "snps,rx-sched-wsp"))
+		plat->rx_sched_algorithm = MTL_RX_ALGORITHM_WSP;
+	else
+		plat->rx_sched_algorithm = MTL_RX_ALGORITHM_SP;
+
+	/* Processing individual RX queue config */
+	for_each_child_of_node(rx_node, q_node) {
+		if (queue >= plat->rx_queues_to_use)
+			break;
+
+		if (of_property_read_bool(q_node, "snps,dcb-algorithm"))
+			plat->rx_queues_cfg[queue].mode_to_use = MTL_RX_DCB;
+		else if (of_property_read_bool(q_node, "snps,avb-algorithm"))
+			plat->rx_queues_cfg[queue].mode_to_use = MTL_RX_AVB;
+		else
+			plat->rx_queues_cfg[queue].mode_to_use = MTL_RX_DCB;
+
+		if (of_property_read_u8(q_node, "snps,map-to-dma-channel",
+					&plat->rx_queues_cfg[queue].chan))
+			plat->rx_queues_cfg[queue].chan = queue;
+		/* TODO: Dynamic mapping to be included in the future */
+
+		queue++;
+	}
+
+	/* Processing TX queues common config */
+	if (of_property_read_u8(tx_node, "snps,tx-queues-to-use",
+				&plat->tx_queues_to_use))
+		plat->tx_queues_to_use = 1;
+
+	if (of_property_read_bool(tx_node, "snps,tx-sched-wrr"))
+		plat->tx_sched_algorithm = MTL_TX_ALGORITHM_WRR;
+	else if (of_property_read_bool(tx_node, "snps,tx-sched-wfq"))
+		plat->tx_sched_algorithm = MTL_TX_ALGORITHM_WFQ;
+	else if (of_property_read_bool(tx_node, "snps,tx-sched-dwrr"))
+		plat->tx_sched_algorithm = MTL_TX_ALGORITHM_DWRR;
+	else if (of_property_read_bool(tx_node, "snps,tx-sched-sp"))
+		plat->tx_sched_algorithm = MTL_TX_ALGORITHM_SP;
+	else
+		plat->tx_sched_algorithm = MTL_TX_ALGORITHM_SP;
+
+	queue = 0;
+
+	/* Processing individual TX queue config */
+	for_each_child_of_node(tx_node, q_node) {
+		if (queue >= plat->tx_queues_to_use)
+			break;
+
+		if (of_property_read_u8(q_node, "snps,weight",
+					&plat->tx_queues_cfg[queue].weight))
+			plat->tx_queues_cfg[queue].weight = 0x10 + queue;
+
+		queue++;
+	}
+
+	of_node_put(rx_node);
+	of_node_put(tx_node);
+	of_node_put(q_node);
+}
+
+/**
  * stmmac_dt_phy - parse device-tree driver parameters to allocate PHY resources
  * @plat: driver data platform structure
  * @np: device tree node
@@ -339,6 +428,8 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 	of_property_read_u32(np, "snps,ps-speed", &plat->mac_port_sel_speed);
 
 	plat->axi = stmmac_axi_setup(pdev);
+
+	stmmac_mtl_setup(pdev, plat);
 
 	/* clock setup */
 	plat->stmmac_clk = devm_clk_get(&pdev->dev,
