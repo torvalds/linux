@@ -357,6 +357,8 @@ int is_obbpath_invalid(struct dentry *dent)
 	struct sdcardfs_dentry_info *di = SDCARDFS_D(dent);
 	struct sdcardfs_sb_info *sbi = SDCARDFS_SB(dent->d_sb);
 	char *path_buf, *obbpath_s;
+	int need_put = 0;
+	struct path lower_path;
 
 	/* check the base obbpath has been changed.
 	 * this routine can check an uninitialized obb dentry as well.
@@ -383,10 +385,13 @@ int is_obbpath_invalid(struct dentry *dent)
 			}
 
 			//unlock_dir(lower_parent);
-			path_put(&di->lower_path);
+			pathcpy(&lower_path, &di->lower_path);
+			need_put = 1;
 		}
 	}
 	spin_unlock(&di->lock);
+	if (need_put)
+		path_put(&lower_path);
 	return ret;
 }
 
