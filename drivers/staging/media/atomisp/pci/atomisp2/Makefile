@@ -97,7 +97,6 @@ atomisp-objs += \
 	./css2400/isp/kernels/crop/crop_1.0/ia_css_crop.host.o \
 	./css2400/isp/kernels/io_ls/bayer_io_ls/ia_css_bayer_io.host.o \
 	./css2400/isp/kernels/aa/aa_2/ia_css_aa2.host.o \
-	./css2400/isp/kernels/pdaf/ia_css_pdaf.host.o \
 	./css2400/isp/kernels/copy_output/copy_output_1.0/ia_css_copy_output.host.o \
 	./css2400/isp/kernels/ob/ob_1.0/ia_css_ob.host.o \
 	./css2400/isp/kernels/ob/ob2/ia_css_ob2.host.o \
@@ -300,7 +299,6 @@ INCLUDES += \
 	-I$(atomisp)/css2400/isp/kernels/ob/ob2/ \
 	-I$(atomisp)/css2400/isp/kernels/output/ \
 	-I$(atomisp)/css2400/isp/kernels/output/output_1.0/ \
-	-I$(atomisp)/css2400/isp/kernels/pdaf/ \
 	-I$(atomisp)/css2400/isp/kernels/qplane/ \
 	-I$(atomisp)/css2400/isp/kernels/qplane/qplane_2/ \
 	-I$(atomisp)/css2400/isp/kernels/raw_aa_binning/ \
