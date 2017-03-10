@@ -130,31 +130,86 @@ enum iwl_mvm_tx_fifo {
 };
 
 
-/* commands */
+/**
+ * enum iwl_legacy_cmds - legacy group command IDs
+ */
 enum iwl_legacy_cmds {
+	/**
+	 * @MVM_ALIVE:
+	 * Alive data from the firmware, as described in
+	 * &struct mvm_alive_resp_v3 or &struct mvm_alive_resp.
+	 */
 	MVM_ALIVE = 0x1,
+
+	/**
+	 * @REPLY_ERROR: Cause an error in the firmware, for testing purposes.
+	 */
 	REPLY_ERROR = 0x2,
+
+	/**
+	 * @ECHO_CMD: Send data to the device to have it returned immediately.
+	 */
 	ECHO_CMD = 0x3,
 
+	/**
+	 * @INIT_COMPLETE_NOTIF: Notification that initialization is complete.
+	 */
 	INIT_COMPLETE_NOTIF = 0x4,
 
-	/* PHY context commands */
+	/**
+	 * @PHY_CONTEXT_CMD:
+	 * Add/modify/remove a PHY context, using &struct iwl_phy_context_cmd.
+	 */
 	PHY_CONTEXT_CMD = 0x8,
+
+	/**
+	 * @DBG_CFG: Debug configuration command.
+	 */
 	DBG_CFG = 0x9,
+
+	/**
+	 * @ANTENNA_COUPLING_NOTIFICATION:
+	 * Antenna coupling data, &struct iwl_mvm_antenna_coupling_notif
+	 */
 	ANTENNA_COUPLING_NOTIFICATION = 0xa,
 
-	/* UMAC scan commands */
+	/**
+	 * @SCAN_ITERATION_COMPLETE_UMAC:
+	 * Firmware indicates a scan iteration completed, using
+	 * &struct iwl_umac_scan_iter_complete_notif.
+	 */
 	SCAN_ITERATION_COMPLETE_UMAC = 0xb5,
+
+	/**
+	 * @SCAN_CFG_CMD:
+	 * uses &struct iwl_scan_config_v1 or &struct iwl_scan_config
+	 */
 	SCAN_CFG_CMD = 0xc,
 	SCAN_REQ_UMAC = 0xd,
 	SCAN_ABORT_UMAC = 0xe,
+
+	/**
+	 * @SCAN_COMPLETE_UMAC: uses &struct iwl_umac_scan_complete
+	 */
 	SCAN_COMPLETE_UMAC = 0xf,
 
 	BA_WINDOW_STATUS_NOTIFICATION_ID = 0x13,
 
-	/* station table */
+	/**
+	 * @ADD_STA_KEY:
+	 * &struct iwl_mvm_add_sta_key_cmd_v1 or
+	 * &struct iwl_mvm_add_sta_key_cmd.
+	 */
 	ADD_STA_KEY = 0x17,
+
+	/**
+	 * @ADD_STA:
+	 * &struct iwl_mvm_add_sta_cmd or &struct iwl_mvm_add_sta_cmd_v7.
+	 */
 	ADD_STA = 0x18,
+	/**
+	 * @REMOVE_STA: &struct iwl_mvm_rm_sta_cmd
+	 */
 	REMOVE_STA = 0x19,
 
 	/* paging get item */
@@ -162,10 +217,23 @@ enum iwl_legacy_cmds {
 
 	/* TX */
 	TX_CMD = 0x1c,
+
+	/**
+	 * @TXPATH_FLUSH: &struct iwl_tx_path_flush_cmd
+	 */
 	TXPATH_FLUSH = 0x1e,
+
+	/**
+	 * @MGMT_MCAST_KEY:
+	 * &struct iwl_mvm_mgmt_mcast_key_cmd or
+	 * &struct iwl_mvm_mgmt_mcast_key_cmd_v1
+	 */
 	MGMT_MCAST_KEY = 0x1f,
 
 	/* scheduler config */
+	/**
+	 * @SCD_QUEUE_CFG: &struct iwl_scd_txq_cfg_cmd
+	 */
 	SCD_QUEUE_CFG = 0x1d,
 
 	/* global key */
@@ -179,17 +247,40 @@ enum iwl_legacy_cmds {
 	TDLS_CHANNEL_SWITCH_NOTIFICATION = 0xaa,
 	TDLS_CONFIG_CMD = 0xa7,
 
-	/* MAC and Binding commands */
+	/**
+	 * @MAC_CONTEXT_CMD: &struct iwl_mac_ctx_cmd
+	 */
 	MAC_CONTEXT_CMD = 0x28,
+
+	/**
+	 * @TIME_EVENT_CMD:
+	 * &struct iwl_time_event_cmd, response in &struct iwl_time_event_resp
+	 */
 	TIME_EVENT_CMD = 0x29, /* both CMD and response */
+	/**
+	 * @TIME_EVENT_NOTIFICATION: &struct iwl_time_event_notif
+	 */
 	TIME_EVENT_NOTIFICATION = 0x2a,
+	/**
+	 * @BINDING_CONTEXT_CMD:
+	 * &struct iwl_binding_cmd or &struct iwl_binding_cmd_v1
+	 */
 	BINDING_CONTEXT_CMD = 0x2b,
+	/**
+	 * @TIME_QUOTA_CMD: &struct iwl_time_quota_cmd
+	 */
 	TIME_QUOTA_CMD = 0x2c,
 	NON_QOS_TX_COUNTER_CMD = 0x2d,
 
+	/**
+	 * @LQ_CMD: using &struct iwl_lq_cmd
+	 */
 	LQ_CMD = 0x4e,
 
-	/* paging block to FW cpu2 */
+	/**
+	 * @FW_PAGING_BLOCK_CMD:
+	 * &struct iwl_fw_paging_cmd or &struct iwl_fw_paging_cmd_v1
+	 */
 	FW_PAGING_BLOCK_CMD = 0x4f,
 
 	/* Scan offload */
@@ -203,6 +294,9 @@ enum iwl_legacy_cmds {
 	SCAN_ITERATION_COMPLETE = 0xe7,
 
 	/* Phy */
+	/**
+	 * @PHY_CONFIGURATION_CMD: &struct iwl_phy_cfg_cmd
+	 */
 	PHY_CONFIGURATION_CMD = 0x6a,
 	CALIB_RES_NOTIF_PHY_DB = 0x6b,
 	PHY_DB_CMD = 0x6c,
@@ -211,7 +305,9 @@ enum iwl_legacy_cmds {
 	TOF_CMD = 0x10,
 	TOF_NOTIFICATION = 0x11,
 
-	/* Power - legacy power table command */
+	/**
+	 * @POWER_TABLE_CMD: &struct iwl_device_power_cmd
+	 */
 	POWER_TABLE_CMD = 0x77,
 	PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION = 0x78,
 	LTR_CONFIG = 0xee,
@@ -222,17 +318,38 @@ enum iwl_legacy_cmds {
 	/* Set/Get DC2DC frequency tune */
 	DC2DC_CONFIG_CMD = 0x83,
 
-	/* NVM */
+	/**
+	 * @NVM_ACCESS_CMD: using &struct iwl_nvm_access_cmd
+	 */
 	NVM_ACCESS_CMD = 0x88,
 
 	SET_CALIB_DEFAULT_CMD = 0x8e,
 
 	BEACON_NOTIFICATION = 0x90,
 	BEACON_TEMPLATE_CMD = 0x91,
+	/**
+	 * @TX_ANT_CONFIGURATION_CMD: &struct iwl_tx_ant_cfg_cmd
+	 */
 	TX_ANT_CONFIGURATION_CMD = 0x98,
+
+	/**
+	 * @STATISTICS_CMD: &struct iwl_statistics_cmd
+	 */
 	STATISTICS_CMD = 0x9c,
+
+	/**
+	 * @STATISTICS_NOTIFICATION:
+	 * one of &struct iwl_notif_statistics_v10,
+	 * &struct iwl_notif_statistics_v11,
+	 * &struct iwl_notif_statistics_cdb
+	 */
 	STATISTICS_NOTIFICATION = 0x9d,
 	EOSP_NOTIFICATION = 0x9e,
+
+	/**
+	 * @REDUCE_TX_POWER_CMD:
+	 * &struct iwl_dev_tx_power_cmd_v3 or &struct iwl_dev_tx_power_cmd
+	 */
 	REDUCE_TX_POWER_CMD = 0x9f,
 
 	/* RF-KILL commands and notifications */
@@ -241,11 +358,19 @@ enum iwl_legacy_cmds {
 
 	MISSED_BEACONS_NOTIFICATION = 0xa2,
 
-	/* Power - new power table command */
+	/**
+	 * @MAC_PM_POWER_TABLE: using &struct iwl_mac_power_cmd
+	 */
 	MAC_PM_POWER_TABLE = 0xa9,
 
+	/**
+	 * @MFUART_LOAD_NOTIFICATION: &struct iwl_mfuart_load_notif
+	 */
 	MFUART_LOAD_NOTIFICATION = 0xb1,
 
+	/**
+	 * @RSS_CONFIG_CMD: &struct iwl_rss_config_cmd
+	 */
 	RSS_CONFIG_CMD = 0xb3,
 
 	REPLY_RX_PHY_CMD = 0xc0,
@@ -254,7 +379,14 @@ enum iwl_legacy_cmds {
 	BA_NOTIF = 0xc5,
 
 	/* Location Aware Regulatory */
+	/**
+	 * @MCC_UPDATE_CMD: using &struct iwl_mcc_update_cmd
+	 */
 	MCC_UPDATE_CMD = 0xc8,
+
+	/**
+	 * @MCC_CHUB_UPDATE_CMD: using &struct iwl_mcc_chub_notif
+	 */
 	MCC_CHUB_UPDATE_CMD = 0xc9,
 
 	MARKER_CMD = 0xcb,
@@ -262,14 +394,29 @@ enum iwl_legacy_cmds {
 	/* BT Coex */
 	BT_COEX_PRIO_TABLE = 0xcc,
 	BT_COEX_PROT_ENV = 0xcd,
+	/**
+	 * @BT_PROFILE_NOTIFICATION: &struct iwl_bt_coex_profile_notif
+	 */
 	BT_PROFILE_NOTIFICATION = 0xce,
+	/**
+	 * @BT_CONFIG: &struct iwl_bt_coex_cmd
+	 */
 	BT_CONFIG = 0x9b,
 	BT_COEX_UPDATE_SW_BOOST = 0x5a,
 	BT_COEX_UPDATE_CORUN_LUT = 0x5b,
 	BT_COEX_UPDATE_REDUCED_TXP = 0x5c,
+	/**
+	 * @BT_COEX_CI: &struct iwl_bt_coex_ci_cmd
+	 */
 	BT_COEX_CI = 0x5d,
 
+	/**
+	 * @REPLY_SF_CFG_CMD: &struct iwl_sf_cfg_cmd
+	 */
 	REPLY_SF_CFG_CMD = 0xd1,
+	/**
+	 * @REPLY_BEACON_FILTERING_CMD: &struct iwl_beacon_filter_cmd
+	 */
 	REPLY_BEACON_FILTERING_CMD = 0xd2,
 
 	/* DTS measurements */
@@ -283,19 +430,39 @@ enum iwl_legacy_cmds {
 	BCAST_FILTER_CMD = 0xcf,
 	MCAST_FILTER_CMD = 0xd0,
 
-	/* D3 commands/notifications */
+	/**
+	 * @D3_CONFIG_CMD: &struct iwl_d3_manager_config
+	 */
 	D3_CONFIG_CMD = 0xd3,
 	PROT_OFFLOAD_CONFIG_CMD = 0xd4,
 	OFFLOADS_QUERY_CMD = 0xd5,
 	REMOTE_WAKE_CONFIG_CMD = 0xd6,
 	D0I3_END_CMD = 0xed,
 
-	/* for WoWLAN in particular */
+	/**
+	 * @WOWLAN_PATTERNS: &struct iwl_wowlan_patterns_cmd
+	 */
 	WOWLAN_PATTERNS = 0xe0,
+
+	/**
+	 * @WOWLAN_CONFIGURATION: &struct iwl_wowlan_config_cmd
+	 */
 	WOWLAN_CONFIGURATION = 0xe1,
+	/**
+	 * @WOWLAN_TSC_RSC_PARAM: &struct iwl_wowlan_rsc_tsc_params_cmd
+	 */
 	WOWLAN_TSC_RSC_PARAM = 0xe2,
+	/**
+	 * @WOWLAN_TKIP_PARAM: &struct iwl_wowlan_tkip_params_cmd
+	 */
 	WOWLAN_TKIP_PARAM = 0xe3,
+	/**
+	 * @WOWLAN_KEK_KCK_MATERIAL: &struct iwl_wowlan_kek_kck_material_cmd
+	 */
 	WOWLAN_KEK_KCK_MATERIAL = 0xe4,
+	/**
+	 * @WOWLAN_GET_STATUSES: response in &struct iwl_wowlan_status
+	 */
 	WOWLAN_GET_STATUSES = 0xe5,
 	WOWLAN_TX_POWER_PER_DB = 0xe6,
 
@@ -316,21 +483,42 @@ enum iwl_mac_conf_subcmd_ids {
 	CHANNEL_SWITCH_NOA_NOTIF = 0xFF,
 };
 
+/**
+ * enum iwl_phy_ops_subcmd_ids - PHY group commands
+ */
 enum iwl_phy_ops_subcmd_ids {
 	CMD_DTS_MEASUREMENT_TRIGGER_WIDE = 0x0,
 	CTDP_CONFIG_CMD = 0x03,
+
+	/**
+	 * @TEMP_REPORTING_THRESHOLDS_CMD: &struct temp_report_ths_cmd
+	 */
 	TEMP_REPORTING_THRESHOLDS_CMD = 0x04,
 	GEO_TX_POWER_LIMIT = 0x05,
 	CT_KILL_NOTIFICATION = 0xFE,
 	DTS_MEASUREMENT_NOTIF_WIDE = 0xFF,
 };
 
+/**
+ * enum iwl_system_subcmd_ids - system group command IDs
+ */
 enum iwl_system_subcmd_ids {
+	/**
+	 * @SHARED_MEM_CFG_CMD:
+	 * response in &struct iwl_shared_mem_cfg or
+	 * &struct iwl_shared_mem_cfg_v1
+	 */
 	SHARED_MEM_CFG_CMD = 0x0,
 	INIT_EXTENDED_CFG_CMD = 0x03,
 };
 
+/**
+ * enum iwl_data_path_subcmd_ids - data path group commands
+ */
 enum iwl_data_path_subcmd_ids {
+	/**
+	 * @DQA_ENABLE_CMD: &struct iwl_dqa_enable_cmd
+	 */
 	DQA_ENABLE_CMD = 0x0,
 	UPDATE_MU_GROUPS_CMD = 0x1,
 	TRIGGER_RX_QUEUES_NOTIF_CMD = 0x2,
@@ -2432,5 +2620,13 @@ struct iwl_nvm_get_info_rsp {
 	struct iwl_nvm_get_info_phy phy_sku;
 	struct iwl_nvm_get_info_regulatory regulatory;
 } __packed; /* GRP_REGULATORY_NVM_GET_INFO_CMD_RSP_S_VER_1 */
+
+/**
+ * struct iwl_mvm_antenna_coupling_notif - antenna coupling notification
+ * @isolation: antenna isolation value
+ */
+struct iwl_mvm_antenna_coupling_notif {
+	__le32 isolation;
+} __packed;
 
 #endif /* __fw_api_h__ */
