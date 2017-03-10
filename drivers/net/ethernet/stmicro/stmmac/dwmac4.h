@@ -164,6 +164,16 @@ enum power_event {
 #define GMAC_HI_REG_AE			BIT(31)
 
 /*  MTL registers */
+#define MTL_OPERATION_MODE		0x00000c00
+#define MTL_OPERATION_SCHALG_MASK	GENMASK(6, 5)
+#define MTL_OPERATION_SCHALG_WRR	(0x0 << 5)
+#define MTL_OPERATION_SCHALG_WFQ	(0x1 << 5)
+#define MTL_OPERATION_SCHALG_DWRR	(0x2 << 5)
+#define MTL_OPERATION_SCHALG_SP		(0x3 << 5)
+#define MTL_OPERATION_RAA		BIT(2)
+#define MTL_OPERATION_RAA_SP		(0x0 << 2)
+#define MTL_OPERATION_RAA_WSP		(0x1 << 2)
+
 #define MTL_INT_STATUS			0x00000c20
 #define MTL_INT_Q0			BIT(0)
 

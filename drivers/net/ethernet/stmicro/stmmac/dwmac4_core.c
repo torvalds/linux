@@ -70,6 +70,52 @@ static void dwmac4_rx_queue_enable(struct mac_device_info *hw, u32 queue)
 	writel(value, ioaddr + GMAC_RXQ_CTRL0);
 }
 
+static void dwmac4_prog_mtl_rx_algorithms(struct mac_device_info *hw,
+					  u32 rx_alg)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 value = readl(ioaddr + MTL_OPERATION_MODE);
+
+	value &= ~MTL_OPERATION_RAA;
+	switch (rx_alg) {
+	case MTL_RX_ALGORITHM_SP:
+		value |= MTL_OPERATION_RAA_SP;
+		break;
+	case MTL_RX_ALGORITHM_WSP:
+		value |= MTL_OPERATION_RAA_WSP;
+		break;
+	default:
+		break;
+	}
+
+	writel(value, ioaddr + MTL_OPERATION_MODE);
+}
+
+static void dwmac4_prog_mtl_tx_algorithms(struct mac_device_info *hw,
+					  u32 tx_alg)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 value = readl(ioaddr + MTL_OPERATION_MODE);
+
+	value &= ~MTL_OPERATION_SCHALG_MASK;
+	switch (tx_alg) {
+	case MTL_TX_ALGORITHM_WRR:
+		value |= MTL_OPERATION_SCHALG_WRR;
+		break;
+	case MTL_TX_ALGORITHM_WFQ:
+		value |= MTL_OPERATION_SCHALG_WFQ;
+		break;
+	case MTL_TX_ALGORITHM_DWRR:
+		value |= MTL_OPERATION_SCHALG_DWRR;
+		break;
+	case MTL_TX_ALGORITHM_SP:
+		value |= MTL_OPERATION_SCHALG_SP;
+		break;
+	default:
+		break;
+	}
+}
+
 static void dwmac4_dump_regs(struct mac_device_info *hw, u32 *reg_space)
 {
 	void __iomem *ioaddr = hw->pcsr;
@@ -457,6 +503,8 @@ static const struct stmmac_ops dwmac4_ops = {
 	.core_init = dwmac4_core_init,
 	.rx_ipc = dwmac4_rx_ipc_enable,
 	.rx_queue_enable = dwmac4_rx_queue_enable,
+	.prog_mtl_rx_algorithms = dwmac4_prog_mtl_rx_algorithms,
+	.prog_mtl_tx_algorithms = dwmac4_prog_mtl_tx_algorithms,
 	.dump_regs = dwmac4_dump_regs,
 	.host_irq_status = dwmac4_irq_status,
 	.flow_ctrl = dwmac4_flow_ctrl,

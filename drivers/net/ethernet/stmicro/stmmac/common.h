@@ -458,6 +458,10 @@ struct stmmac_ops {
 	int (*rx_ipc)(struct mac_device_info *hw);
 	/* Enable RX Queues */
 	void (*rx_queue_enable)(struct mac_device_info *hw, u32 queue);
+	/* Program RX Algorithms */
+	void (*prog_mtl_rx_algorithms)(struct mac_device_info *hw, u32 rx_alg);
+	/* Program TX Algorithms */
+	void (*prog_mtl_tx_algorithms)(struct mac_device_info *hw, u32 tx_alg);
 	/* Dump MAC registers */
 	void (*dump_regs)(struct mac_device_info *hw, u32 *reg_space);
 	/* Handle extra events on specific interrupts hw dependent */

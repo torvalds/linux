@@ -1648,6 +1648,31 @@ static void stmmac_init_tx_coalesce(struct stmmac_priv *priv)
 }
 
 /**
+ *  stmmac_mtl_configuration - Configure MTL
+ *  @priv: driver private structure
+ *  Description: It is used for configurring MTL
+ */
+static void stmmac_mtl_configuration(struct stmmac_priv *priv)
+{
+	u32 rx_queues_count = priv->plat->rx_queues_to_use;
+	u32 tx_queues_count = priv->plat->tx_queues_to_use;
+
+	/* Configure MTL RX algorithms */
+	if (rx_queues_count > 1 && priv->hw->mac->prog_mtl_rx_algorithms)
+		priv->hw->mac->prog_mtl_rx_algorithms(priv->hw,
+						priv->plat->rx_sched_algorithm);
+
+	/* Configure MTL TX algorithms */
+	if (tx_queues_count > 1 && priv->hw->mac->prog_mtl_tx_algorithms)
+		priv->hw->mac->prog_mtl_tx_algorithms(priv->hw,
+						priv->plat->tx_sched_algorithm);
+
+	/* Enable MAC RX Queues */
+	if (rx_queues_count > 1 && priv->hw->mac->rx_queue_enable)
+		stmmac_mac_enable_rx_queues(priv);
+}
+
+/**
  * stmmac_hw_setup - setup mac in a usable state.
  *  @dev : pointer to the device structure.
  *  Description:
@@ -1691,9 +1716,9 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 	/* Initialize the MAC Core */
 	priv->hw->mac->core_init(priv->hw, dev->mtu);
 
-	/* Initialize MAC RX Queues */
-	if (priv->hw->mac->rx_queue_enable)
-		stmmac_mac_enable_rx_queues(priv);
+	/* Initialize MTL*/
+	if (priv->synopsys_id >= DWMAC_CORE_4_00)
+		stmmac_mtl_configuration(priv);
 
 	ret = priv->hw->mac->rx_ipc(priv->hw);
 	if (!ret) {
