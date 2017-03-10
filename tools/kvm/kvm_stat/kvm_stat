@@ -31,7 +31,6 @@ import resource
 import struct
 import re
 from collections import defaultdict
-from time import sleep
 
 VMX_EXIT_REASONS = {
     'EXCEPTION_NMI':        0,
@@ -657,6 +656,7 @@ class DebugfsProvider(object):
         self._fields = self.get_available_fields()
         self._pid = 0
         self.do_read = True
+        self.paths = []
 
     def get_available_fields(self):
         """"Returns a list of available fields.
@@ -794,7 +794,6 @@ class Tui(object):
     def __init__(self, stats):
         self.stats = stats
         self.screen = None
-        self.drilldown = False
         self.update_drilldown()
 
     def __enter__(self):
@@ -950,11 +949,10 @@ class Tui(object):
         while True:
             self.refresh(sleeptime)
             curses.halfdelay(int(sleeptime * 10))
-            sleeptime = 3
+            sleeptime = 3.0
             try:
                 char = self.screen.getkey()
                 if char == 'x':
-                    self.drilldown = not self.drilldown
                     self.update_drilldown()
                 if char == 'q':
                     break
@@ -1064,12 +1062,12 @@ Requirements:
                          help='fields to display (regex)',
                          )
     optparser.add_option('-p', '--pid',
-                        action='store',
-                        default=0,
-                        type=int,
-                        dest='pid',
-                        help='restrict statistics to pid',
-                        )
+                         action='store',
+                         default=0,
+                         type='int',
+                         dest='pid',
+                         help='restrict statistics to pid',
+                         )
     (options, _) = optparser.parse_args(sys.argv)
     return options
 
@@ -1099,8 +1097,8 @@ def check_access(options):
                          "Also ensure, that the kvm modules are loaded.\n")
         sys.exit(1)
 
-    if not os.path.exists(PATH_DEBUGFS_TRACING) and (options.tracepoints
-                                                     or not options.debugfs):
+    if not os.path.exists(PATH_DEBUGFS_TRACING) and (options.tracepoints or
+                                                     not options.debugfs):
         sys.stderr.write("Please enable CONFIG_TRACING in your kernel "
                          "when using the option -t (default).\n"
                          "If it is enabled, make {0} readable by the "
@@ -1111,7 +1109,7 @@ def check_access(options):
 
         sys.stderr.write("Falling back to debugfs statistics!\n")
         options.debugfs = True
-        sleep(5)
+        time.sleep(5)
 
     return options
 
