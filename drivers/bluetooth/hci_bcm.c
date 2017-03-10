@@ -697,27 +697,13 @@ static int bcm_resource(struct acpi_resource *ares, void *data)
 	/* Always tell the ACPI core to skip this resource */
 	return 1;
 }
+#endif /* CONFIG_ACPI */
 
-static int bcm_acpi_probe(struct bcm_device *dev)
+static int bcm_platform_probe(struct bcm_device *dev)
 {
 	struct platform_device *pdev = dev->pdev;
-	LIST_HEAD(resources);
-	const struct dmi_system_id *dmi_id;
-	const struct acpi_gpio_mapping *gpio_mapping = acpi_bcm_int_last_gpios;
-	const struct acpi_device_id *id;
-	int ret;
 
 	dev->name = dev_name(&pdev->dev);
-
-	/* Retrieve GPIO data */
-	id = acpi_match_device(pdev->dev.driver->acpi_match_table, &pdev->dev);
-	if (id)
-		gpio_mapping = (const struct acpi_gpio_mapping *) id->driver_data;
-
-	ret = acpi_dev_add_driver_gpios(ACPI_COMPANION(&pdev->dev),
-					gpio_mapping);
-	if (ret)
-		return ret;
 
 	dev->clk = devm_clk_get(&pdev->dev, NULL);
 
@@ -755,6 +741,33 @@ static int bcm_acpi_probe(struct bcm_device *dev)
 		return -EINVAL;
 	}
 
+	return 0;
+}
+
+#ifdef CONFIG_ACPI
+static int bcm_acpi_probe(struct bcm_device *dev)
+{
+	struct platform_device *pdev = dev->pdev;
+	LIST_HEAD(resources);
+	const struct dmi_system_id *dmi_id;
+	const struct acpi_gpio_mapping *gpio_mapping = acpi_bcm_int_last_gpios;
+	const struct acpi_device_id *id;
+	int ret;
+
+	/* Retrieve GPIO data */
+	id = acpi_match_device(pdev->dev.driver->acpi_match_table, &pdev->dev);
+	if (id)
+		gpio_mapping = (const struct acpi_gpio_mapping *) id->driver_data;
+
+	ret = acpi_dev_add_driver_gpios(ACPI_COMPANION(&pdev->dev),
+					gpio_mapping);
+	if (ret)
+		return ret;
+
+	ret = bcm_platform_probe(dev);
+	if (ret)
+		return ret;
+
 	/* Retrieve UART ACPI info */
 	ret = acpi_dev_get_resources(ACPI_COMPANION(&dev->pdev->dev),
 				     &resources, bcm_resource, dev);
@@ -789,7 +802,10 @@ static int bcm_probe(struct platform_device *pdev)
 
 	dev->pdev = pdev;
 
-	ret = bcm_acpi_probe(dev);
+	if (has_acpi_companion(&pdev->dev))
+		ret = bcm_acpi_probe(dev);
+	else
+		ret = bcm_platform_probe(dev);
 	if (ret)
 		return ret;
 
