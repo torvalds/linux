@@ -477,3 +477,82 @@ out:
 
 	return chunk;
 }
+
+struct sctp_chunk *sctp_process_strreset_tsnreq(
+				struct sctp_association *asoc,
+				union sctp_params param,
+				struct sctp_ulpevent **evp)
+{
+	__u32 init_tsn = 0, next_tsn = 0, max_tsn_seen;
+	struct sctp_strreset_tsnreq *tsnreq = param.v;
+	struct sctp_stream *stream = asoc->stream;
+	__u32 result = SCTP_STRRESET_DENIED;
+	__u32 request_seq;
+	__u16 i;
+
+	request_seq = ntohl(tsnreq->request_seq);
+	if (request_seq > asoc->strreset_inseq) {
+		result = SCTP_STRRESET_ERR_BAD_SEQNO;
+		goto out;
+	} else if (request_seq == asoc->strreset_inseq) {
+		asoc->strreset_inseq++;
+	}
+
+	if (!(asoc->strreset_enable & SCTP_ENABLE_RESET_ASSOC_REQ))
+		goto out;
+
+	if (asoc->strreset_outstanding) {
+		result = SCTP_STRRESET_ERR_IN_PROGRESS;
+		goto out;
+	}
+
+	/* G3: The same processing as though a SACK chunk with no gap report
+	 *     and a cumulative TSN ACK of the Sender's Next TSN minus 1 were
+	 *     received MUST be performed.
+	 */
+	max_tsn_seen = sctp_tsnmap_get_max_tsn_seen(&asoc->peer.tsn_map);
+	sctp_ulpq_reasm_flushtsn(&asoc->ulpq, max_tsn_seen);
+	sctp_ulpq_abort_pd(&asoc->ulpq, GFP_ATOMIC);
+
+	/* G1: Compute an appropriate value for the Receiver's Next TSN -- the
+	 *     TSN that the peer should use to send the next DATA chunk.  The
+	 *     value SHOULD be the smallest TSN not acknowledged by the
+	 *     receiver of the request plus 2^31.
+	 */
+	init_tsn = sctp_tsnmap_get_ctsn(&asoc->peer.tsn_map) + (1 << 31);
+	sctp_tsnmap_init(&asoc->peer.tsn_map, SCTP_TSN_MAP_INITIAL,
+			 init_tsn, GFP_ATOMIC);
+
+	/* G4: The same processing as though a FWD-TSN chunk (as defined in
+	 *     [RFC3758]) with all streams affected and a new cumulative TSN
+	 *     ACK of the Receiver's Next TSN minus 1 were received MUST be
+	 *     performed.
+	 */
+	sctp_outq_free(&asoc->outqueue);
+
+	/* G2: Compute an appropriate value for the local endpoint's next TSN,
+	 *     i.e., the next TSN assigned by the receiver of the SSN/TSN reset
+	 *     chunk.  The value SHOULD be the highest TSN sent by the receiver
+	 *     of the request plus 1.
+	 */
+	next_tsn = asoc->next_tsn;
+	asoc->ctsn_ack_point = next_tsn - 1;
+	asoc->adv_peer_ack_point = asoc->ctsn_ack_point;
+
+	/* G5:  The next expected and outgoing SSNs MUST be reset to 0 for all
+	 *      incoming and outgoing streams.
+	 */
+	for (i = 0; i < stream->outcnt; i++)
+		stream->out[i].ssn = 0;
+	for (i = 0; i < stream->incnt; i++)
+		stream->in[i].ssn = 0;
+
+	result = SCTP_STRRESET_PERFORMED;
+
+	*evp = sctp_ulpevent_make_assoc_reset_event(asoc, 0, init_tsn,
+						    next_tsn, GFP_ATOMIC);
+
+out:
+	return sctp_make_strreset_tsnresp(asoc, result, request_seq,
+					  next_tsn, init_tsn);
+}
