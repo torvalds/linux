@@ -186,27 +186,16 @@ static void nfp_net_get_ringparam(struct net_device *netdev,
 
 static int nfp_net_set_ring_size(struct nfp_net *nn, u32 rxd_cnt, u32 txd_cnt)
 {
-	struct nfp_net_ring_set *reconfig_rx = NULL, *reconfig_tx = NULL;
-	struct nfp_net_ring_set rx = {
-		.n_rings = nn->dp.num_rx_rings,
-		.dcnt = rxd_cnt,
-	};
-	struct nfp_net_ring_set tx = {
-		.n_rings = nn->dp.num_tx_rings,
-		.dcnt = txd_cnt,
-	};
 	struct nfp_net_dp *dp;
-
-	if (nn->dp.rxd_cnt != rxd_cnt)
-		reconfig_rx = &rx;
-	if (nn->dp.txd_cnt != txd_cnt)
-		reconfig_tx = &tx;
 
 	dp = nfp_net_clone_dp(nn);
 	if (!dp)
 		return -ENOMEM;
 
-	return nfp_net_ring_reconfig(nn, dp, reconfig_rx, reconfig_tx);
+	dp->rxd_cnt = rxd_cnt;
+	dp->txd_cnt = txd_cnt;
+
+	return nfp_net_ring_reconfig(nn, dp);
 }
 
 static int nfp_net_set_ringparam(struct net_device *netdev,
@@ -765,32 +754,19 @@ static void nfp_net_get_channels(struct net_device *netdev,
 static int nfp_net_set_num_rings(struct nfp_net *nn, unsigned int total_rx,
 				 unsigned int total_tx)
 {
-	struct nfp_net_ring_set *reconfig_rx = NULL, *reconfig_tx = NULL;
-	struct nfp_net_ring_set rx = {
-		.n_rings = total_rx,
-		.dcnt = nn->dp.rxd_cnt,
-	};
-	struct nfp_net_ring_set tx = {
-		.n_rings = total_tx,
-		.dcnt = nn->dp.txd_cnt,
-	};
 	struct nfp_net_dp *dp;
-
-	if (nn->dp.num_rx_rings != total_rx)
-		reconfig_rx = &rx;
-	if (nn->dp.num_stack_tx_rings != total_tx ||
-	    (nn->dp.xdp_prog && reconfig_rx))
-		reconfig_tx = &tx;
-
-	/* nfp_net_check_config() will catch tx.n_rings > nn->max_tx_rings */
-	if (nn->dp.xdp_prog)
-		tx.n_rings += total_rx;
 
 	dp = nfp_net_clone_dp(nn);
 	if (!dp)
 		return -ENOMEM;
 
-	return nfp_net_ring_reconfig(nn, dp, reconfig_rx, reconfig_tx);
+	dp->num_rx_rings = total_rx;
+	dp->num_tx_rings = total_tx;
+	/* nfp_net_check_config() will catch num_tx_rings > nn->max_tx_rings */
+	if (dp->xdp_prog)
+		dp->num_tx_rings += total_rx;
+
+	return nfp_net_ring_reconfig(nn, dp);
 }
 
 static int nfp_net_set_channels(struct net_device *netdev,

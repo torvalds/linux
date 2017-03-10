@@ -611,12 +611,6 @@ struct nfp_net {
 	struct nfp_eth_table_port *eth_port;
 };
 
-struct nfp_net_ring_set {
-	unsigned int n_rings;
-	unsigned int dcnt;
-	void *rings;
-};
-
 /* Functions to read/write from/to a BAR
  * Performs any endian conversion necessary.
  */
@@ -813,9 +807,7 @@ nfp_net_irqs_assign(struct nfp_net *nn, struct msix_entry *irq_entries,
 		    unsigned int n);
 
 struct nfp_net_dp *nfp_net_clone_dp(struct nfp_net *nn);
-int
-nfp_net_ring_reconfig(struct nfp_net *nn, struct nfp_net_dp *new,
-		      struct nfp_net_ring_set *rx, struct nfp_net_ring_set *tx);
+int nfp_net_ring_reconfig(struct nfp_net *nn, struct nfp_net_dp *new);
 
 #ifdef CONFIG_NFP_DEBUG
 void nfp_net_debugfs_create(void);
