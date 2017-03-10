@@ -206,8 +206,7 @@ static int nfp_net_set_ring_size(struct nfp_net *nn, u32 rxd_cnt, u32 txd_cnt)
 	if (!dp)
 		return -ENOMEM;
 
-	return nfp_net_ring_reconfig(nn, dp, &nn->dp.xdp_prog,
-				     reconfig_rx, reconfig_tx);
+	return nfp_net_ring_reconfig(nn, dp, reconfig_rx, reconfig_tx);
 }
 
 static int nfp_net_set_ringparam(struct net_device *netdev,
@@ -791,8 +790,7 @@ static int nfp_net_set_num_rings(struct nfp_net *nn, unsigned int total_rx,
 	if (!dp)
 		return -ENOMEM;
 
-	return nfp_net_ring_reconfig(nn, dp, &nn->dp.xdp_prog,
-				     reconfig_rx, reconfig_tx);
+	return nfp_net_ring_reconfig(nn, dp, reconfig_rx, reconfig_tx);
 }
 
 static int nfp_net_set_channels(struct net_device *netdev,
