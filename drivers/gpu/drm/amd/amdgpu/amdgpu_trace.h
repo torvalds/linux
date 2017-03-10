@@ -70,7 +70,7 @@ TRACE_EVENT(amdgpu_bo_create,
 			   __entry->visible = bo->flags;
 			   ),
 
-	    TP_printk("bo=%p,pages=%u,type=%d,prefered=%d,allowed=%d,visible=%d",
+	    TP_printk("bo=%p, pages=%u, type=%d, prefered=%d, allowed=%d, visible=%d",
 		       __entry->bo, __entry->pages, __entry->type,
 		       __entry->prefer, __entry->allow, __entry->visible)
 );
@@ -117,7 +117,7 @@ TRACE_EVENT(amdgpu_cs_ioctl,
 			   __entry->ring_name = job->ring->name;
 			   __entry->num_ibs = job->num_ibs;
 			   ),
-	    TP_printk("adev=%p, sched_job=%p, first ib=%p, sched fence=%p, ring name:%s, num_ibs:%u",
+	    TP_printk("adev=%p, sched_job=%p, first_ib=%p, sched_fence=%p, ring_name=%s, num_ibs=%u",
 		      __entry->adev, __entry->sched_job, __entry->ib,
 		      __entry->fence, __entry->ring_name, __entry->num_ibs)
 );
@@ -148,7 +148,7 @@ TRACE_EVENT(amdgpu_sched_run_job,
 			   __entry->ring_name = job->ring->name;
 			   __entry->num_ibs = job->num_ibs;
 			   ),
-	    TP_printk("adev=%p, sched_job=%p, first ib=%p, sched fence=%p, timeline=%s, context=%u, seqno=%u, ring name=%s, num_ibs=%u",
+	    TP_printk("adev=%p, sched_job=%p, first_ib=%p, sched_fence=%p, timeline=%s, context=%u, seqno=%u, ring_name=%s, num_ibs=%u",
 		      __entry->adev, __entry->sched_job, __entry->ib,
 		      __entry->fence, __get_str(timeline), __entry->context, __entry->seqno,
 		      __entry->ring_name, __entry->num_ibs)
@@ -328,7 +328,7 @@ TRACE_EVENT(amdgpu_bo_list_set,
 			   __entry->bo = bo;
 			   __entry->bo_size = amdgpu_bo_size(bo);
 			   ),
-	    TP_printk("list=%p, bo=%p, bo_size = %Ld",
+	    TP_printk("list=%p, bo=%p, bo_size=%Ld",
 		      __entry->list,
 		      __entry->bo,
 		      __entry->bo_size)
@@ -346,7 +346,7 @@ TRACE_EVENT(amdgpu_cs_bo_status,
 			__entry->total_bo = total_bo;
 			__entry->total_size = total_size;
 			),
-	    TP_printk("total bo size = %Ld, total bo count = %Ld",
+	    TP_printk("total_bo_size=%Ld, total_bo_count=%Ld",
 			__entry->total_bo, __entry->total_size)
 );
 
