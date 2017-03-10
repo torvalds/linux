@@ -1475,7 +1475,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	ir = get_ir_device_by_adapter(adap);
 	if (ir == NULL) {
 		ir = kzalloc(sizeof(struct IR), GFP_KERNEL);
-		if (ir == NULL) {
+		if (!ir) {
 			ret = -ENOMEM;
 			goto out_no_ir;
 		}
@@ -1515,7 +1515,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 		/* Set up a struct IR_tx instance */
 		tx = kzalloc(sizeof(struct IR_tx), GFP_KERNEL);
-		if (tx == NULL) {
+		if (!tx) {
 			ret = -ENOMEM;
 			goto out_put_xx;
 		}
@@ -1559,7 +1559,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 		/* Set up a struct IR_rx instance */
 		rx = kzalloc(sizeof(struct IR_rx), GFP_KERNEL);
-		if (rx == NULL) {
+		if (!rx) {
 			ret = -ENOMEM;
 			goto out_put_xx;
 		}
