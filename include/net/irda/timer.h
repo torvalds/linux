@@ -59,7 +59,7 @@ struct lap_cb;
  *  Slot timer must never exceed 85 ms, and must always be at least 25 ms, 
  *  suggested to  75-85 msec by IrDA lite. This doesn't work with a lot of
  *  devices, and other stackes uses a lot more, so it's best we do it as well
- *  (Note : this is the default value and sysctl overides it - Jean II)
+ *  (Note : this is the default value and sysctl overrides it - Jean II)
  */
 #define SLOT_TIMEOUT            (90*HZ/1000)
 
