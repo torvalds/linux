@@ -801,6 +801,8 @@ class Stats(object):
 
 LABEL_WIDTH = 40
 NUMBER_WIDTH = 10
+DELAY_INITIAL = 0.25
+DELAY_REGULAR = 3.0
 
 
 class Tui(object):
@@ -856,13 +858,14 @@ class Tui(object):
         """Propagates pid selection to stats object."""
         self.stats.pid_filter = pid
 
-    def refresh(self, sleeptime):
-        """Refreshes on-screen data."""
+    def refresh_header(self, pid=None):
+        """Refreshes the header."""
+        if pid is None:
+            pid = self.stats.pid_filter
         self.screen.erase()
-        if self.stats.pid_filter > 0:
+        if pid > 0:
             self.screen.addstr(0, 0, 'kvm statistics - pid {0}'
-                               .format(self.stats.pid_filter),
-                               curses.A_BOLD)
+                               .format(pid), curses.A_BOLD)
         else:
             self.screen.addstr(0, 0, 'kvm statistics - summary', curses.A_BOLD)
         self.screen.addstr(2, 1, 'Event')
@@ -870,7 +873,13 @@ class Tui(object):
                            len('Total'), 'Total')
         self.screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH + 8 -
                            len('Current'), 'Current')
+        self.screen.addstr(4, 1, 'Collecting data...')
+        self.screen.refresh()
+
+    def refresh_body(self, sleeptime):
         row = 3
+        self.screen.move(row, 0)
+        self.screen.clrtobot()
         stats = self.stats.get()
 
         def sortkey(x):
@@ -914,10 +923,12 @@ class Tui(object):
             regex = self.screen.getstr()
             curses.noecho()
             if len(regex) == 0:
+                self.refresh_header()
                 return
             try:
                 re.compile(regex)
                 self.stats.fields_filter = regex
+                self.refresh_header()
                 return
             except re.error:
                 continue
@@ -944,37 +955,38 @@ class Tui(object):
 
             try:
                 pid = int(pid)
-
-                if pid == 0:
-                    self.update_pid(pid)
-                    break
-                else:
-                    if not os.path.isdir(os.path.join('/proc/', str(pid))):
-                        continue
-                    else:
-                        self.update_pid(pid)
-                        break
+                if pid != 0 and not os.path.isdir(os.path.join('/proc/',
+                                                               str(pid))):
+                    continue
+                self.refresh_header(pid)
+                self.update_pid(pid)
+                break
 
             except ValueError:
                 continue
 
     def show_stats(self):
         """Refreshes the screen and processes user input."""
-        sleeptime = 0.25
+        sleeptime = DELAY_INITIAL
+        self.refresh_header()
         while True:
-            self.refresh(sleeptime)
+            self.refresh_body(sleeptime)
             curses.halfdelay(int(sleeptime * 10))
-            sleeptime = 3.0
+            sleeptime = DELAY_REGULAR
             try:
                 char = self.screen.getkey()
                 if char == 'x':
+                    self.refresh_header()
                     self.update_drilldown()
+                    sleeptime = DELAY_INITIAL
                 if char == 'q':
                     break
                 if char == 'f':
                     self.show_filter_selection()
+                    sleeptime = DELAY_INITIAL
                 if char == 'p':
                     self.show_vm_selection()
+                    sleeptime = DELAY_INITIAL
             except KeyboardInterrupt:
                 break
             except curses.error:
