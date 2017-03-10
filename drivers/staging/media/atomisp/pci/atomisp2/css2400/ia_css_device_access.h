@@ -35,11 +35,8 @@ ia_css_device_load_uint16(const hrt_address addr);
 uint32_t
 ia_css_device_load_uint32(const hrt_address addr);
 
-/* 64 bit types not supported by hivecc */
-#ifndef __HIVECC
 uint64_t
 ia_css_device_load_uint64(const hrt_address addr);
-#endif
 
 void
 ia_css_device_store_uint8(const hrt_address addr, const uint8_t data);
@@ -50,11 +47,8 @@ ia_css_device_store_uint16(const hrt_address addr, const uint16_t data);
 void
 ia_css_device_store_uint32(const hrt_address addr, const uint32_t data);
 
-/* 64 bit types not supported by hivecc */
-#ifndef __HIVECC
 void
 ia_css_device_store_uint64(const hrt_address addr, const uint64_t data);
-#endif
 
 void
 ia_css_device_load(const hrt_address addr, void *data, const size_t size);

@@ -976,7 +976,6 @@ struct host_sp_queues {
 
 extern int (*sh_css_printf)(const char *fmt, va_list args);
 
-#ifndef __HIVECC
 STORAGE_CLASS_INLINE void
 sh_css_print(const char *fmt, ...)
 {
@@ -995,7 +994,6 @@ sh_css_vprint(const char *fmt, va_list args)
 	if (sh_css_printf)
 		sh_css_printf(fmt, args);
 }
-#endif
 
 /* The following #if is there because this header file is also included
    by SP and ISP code but they do not need this data and HIVECC has alignment

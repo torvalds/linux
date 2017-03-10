@@ -49,17 +49,6 @@
 #define HOST_ADDRESS(x) (unsigned long)(x)
 #endif
 
-#elif defined(__HIVECC)
-#ifndef PIPE_GENERATION
-#include <hive/cell_support.h> /* for HAVE_STDINT */
-#endif
-#define __INDIRECT_STDINT_INCLUDE
-#include <stdint/stdint.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <limits.h>
-#define HOST_ADDRESS(x) (unsigned long)(x)
-
 #elif defined(__KERNEL__)
 
 #define CHAR_BIT (8)

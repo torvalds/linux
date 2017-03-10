@@ -93,38 +93,6 @@ typedef enum {
    DMA_PACK_WIDTH_B(width_b) | \
    DMA_PACK_HEIGHT(height))
 
-#ifdef __HIVECC
-#define hive_dma_move_data(dma_id, read, channel, addr_a, addr_b, to_is_var, from_is_var) \
-{ \
-  /*hive_dma_snd(dma_id, DMA_PACK_CMD_CHANNEL(read?_DMA_V2_MOVE_B2A_COMMAND:_DMA_V2_MOVE_A2B_COMMAND, channel)); \
-  hive_dma_snd(dma_id, read?(unsigned)(addr_b):(unsigned)(addr_a)); \
-  hive_dma_snd(dma_id, read?(unsigned)(addr_a):(unsigned)(addr_b)); */\
-  if (read) { \
-    hive_dma_snd(dma_id, DMA_PACK_CMD_CHANNEL(_DMA_V2_MOVE_B2A_COMMAND, channel)); \
-    hive_dma_snd(dma_id, (unsigned)(addr_b)); \
-    hive_dma_snd(dma_id, (unsigned)(addr_a)); \
-  } else { \
-    hive_dma_snd(dma_id, DMA_PACK_CMD_CHANNEL(_DMA_V2_MOVE_A2B_COMMAND, channel)); \
-    hive_dma_snd(dma_id, (unsigned)(addr_a)); \
-    hive_dma_snd(dma_id, (unsigned)(addr_b)); \
-  } \
-}
-#define hive_dma_move_data_no_ack(dma_id, read, channel, addr_a, addr_b, to_is_var, from_is_var) \
-{ \
-  /*hive_dma_snd(dma_id, DMA_PACK_CMD_CHANNEL(read?_DMA_V2_NO_ACK_MOVE_B2A_NO_SYNC_CHK_COMMAND:_DMA_V2_NO_ACK_MOVE_A2B_NO_SYNC_CHK_COMMAND, channel)); \
-  hive_dma_snd(dma_id, read?(unsigned)(addr_b):(unsigned)(addr_a)); \
-  hive_dma_snd(dma_id, read?(unsigned)(addr_a):(unsigned)(addr_b)); */\
-  if (read) { \
-    hive_dma_snd(dma_id, DMA_PACK_CMD_CHANNEL(_DMA_V2_NO_ACK_MOVE_B2A_NO_SYNC_CHK_COMMAND, channel)); \
-    hive_dma_snd(dma_id, (unsigned)(addr_b)); \
-    hive_dma_snd(dma_id, (unsigned)(addr_a)); \
-  } else { \
-    hive_dma_snd(dma_id, DMA_PACK_CMD_CHANNEL(_DMA_V2_NO_ACK_MOVE_A2B_NO_SYNC_CHK_COMMAND, channel)); \
-    hive_dma_snd(dma_id, (unsigned)(addr_a)); \
-    hive_dma_snd(dma_id, (unsigned)(addr_b)); \
-  } \
-}
-#else
 #define hive_dma_move_data(dma_id, read, channel, addr_a, addr_b, to_is_var, from_is_var) \
 { \
   hive_dma_snd(dma_id, DMA_PACK(_DMA_V2_SET_CRUN_COMMAND, CMD)); \
@@ -143,7 +111,6 @@ typedef enum {
   hive_dma_snd(dma_id, to_is_var); \
   hive_dma_snd(dma_id, from_is_var); \
 }
-#endif
 
 #define hive_dma_move_b2a_data(dma_id, channel, to_addr, from_addr, to_is_var, from_is_var) \
 { \
@@ -155,14 +122,6 @@ typedef enum {
   hive_dma_move_data(dma_id, false, channel, from_addr, to_addr, from_is_var, to_is_var) \
 }
 
-#ifdef __HIVECC
-#define hive_dma_set_data(dma_id, channel, address, value, is_var) \
-{ \
-  hive_dma_snd(dma_id, _DMA_V2_PACK_CHANNEL_CMD(_DMA_V2_INIT_A_COMMAND, channel)); \
-  hive_dma_snd(dma_id, value); \
-  hive_dma_snd(dma_id, address); \
-}
-#else
 #define hive_dma_set_data(dma_id, channel, address, value, is_var) \
 { \
   hive_dma_snd(dma_id, DMA_PACK(_DMA_V2_SET_CRUN_COMMAND, CMD)); \
@@ -171,7 +130,6 @@ typedef enum {
   hive_dma_snd(dma_id, address); \
   hive_dma_snd(dma_id, is_var); \
 }
-#endif
 
 #define hive_dma_clear_data(dma_id, channel, address, is_var) hive_dma_set_data(dma_id, channel, address, 0, is_var)
 
@@ -190,15 +148,6 @@ typedef enum {
   hive_dma_snd(dma_id, height); \
 }
 
-#ifdef __HIVECC
-/* If the command is "set" the 5th argument holds the value */
-#define hive_dma_execute(dma_id, channel, cmd, to_addr, from_addr_value, to_is_var, from_is_var) \
-{ \
-  hive_dma_snd(dma_id, DMA_PACK_CMD_CHANNEL(cmd, channel)); \
-  hive_dma_snd(dma_id, to_addr); \
-  hive_dma_snd(dma_id, from_addr_value); \
-}
-#else
 #define hive_dma_execute(dma_id, channel, cmd, to_addr, from_addr_value, to_is_var, from_is_var) \
 { \
   hive_dma_snd(dma_id, DMA_PACK(_DMA_V2_SET_CRUN_COMMAND, CMD)); \
@@ -210,7 +159,6 @@ typedef enum {
 	hive_dma_snd(dma_id, from_is_var); \
   } \
 }
-#endif
 
 #define hive_dma_configure_fast(dma_id, channel, connection, extension, elems_A, elems_B) \
 { \

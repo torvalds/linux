@@ -29,13 +29,6 @@
 #define ENOBUFS 233
 
 
-#elif defined(__HIVECC)
-#include <errno.h>
-/*
- * Put here everything __HIVECC specific not covered in
- * "errno.h"
- */
-
 #elif defined(__KERNEL__)
 #include <linux/errno.h>
 /*

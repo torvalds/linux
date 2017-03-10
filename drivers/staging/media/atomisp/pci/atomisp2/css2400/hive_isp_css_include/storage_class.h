@@ -24,8 +24,6 @@
 
 #if defined(_MSC_VER)
 #define STORAGE_CLASS_INLINE static __inline
-#elif defined(__HIVECC)
-#define STORAGE_CLASS_INLINE static inline
 #else
 #define STORAGE_CLASS_INLINE static inline
 #endif

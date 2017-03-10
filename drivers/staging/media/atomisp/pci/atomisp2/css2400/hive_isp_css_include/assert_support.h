@@ -61,15 +61,6 @@
 #include <assert.h>
 #endif
 
-#elif defined(__HIVECC)
-
-/* enable assert for unsched, disable assert for sched and target */
-#if defined(HRT_UNSCHED)
-#define assert(cnd) OP___csim_assert(cnd)
-#else
-#define assert(cnd) ((void)0)
-#endif
-
 #elif defined(__KERNEL__)
 #include <linux/bug.h>
 

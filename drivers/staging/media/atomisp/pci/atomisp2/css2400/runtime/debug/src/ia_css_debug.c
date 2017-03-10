@@ -255,7 +255,7 @@ void ia_css_debug_dump_sp_stack_info(void)
 void ia_css_debug_dump_sp_stack_info(void)
 {
 }
-#endif /* #if __HIVECC */
+#endif /* #if !C_RUN && !HRT_UNSCHED */
 
 
 void ia_css_debug_set_dtrace_level(const unsigned int trace_level)

@@ -35,21 +35,13 @@ more details.
 
 /* Binary independent constants */
 
-#ifdef MODE
-//#error __FILE__ "is mode independent"
-#endif
-
 #ifndef NO_HOIST
 #  define		NO_HOIST 	HIVE_ATTRIBUTE (( no_hoist ))
 #endif
 
 #define NO_HOIST_CSE HIVE_ATTRIBUTE ((no_hoist, no_cse))
 
-#ifdef __HIVECC
-#define UNION union
-#else
 #define UNION struct /* Union constructors not allowed in C++ */
-#endif
 
 /* ISP binary identifiers.
    These determine the order in which the binaries are looked up, do not change
