@@ -491,7 +491,8 @@ struct stmmac_ops {
 	void (*reset_eee_mode)(struct mac_device_info *hw);
 	void (*set_eee_timer)(struct mac_device_info *hw, int ls, int tw);
 	void (*set_eee_pls)(struct mac_device_info *hw, int link);
-	void (*debug)(void __iomem *ioaddr, struct stmmac_extra_stats *x);
+	void (*debug)(void __iomem *ioaddr, struct stmmac_extra_stats *x,
+		      u32 rx_queues, u32 tx_queues);
 	/* PCS calls */
 	void (*pcs_ctrl_ane)(void __iomem *ioaddr, bool ane, bool srgmi_ral,
 			     bool loopback);

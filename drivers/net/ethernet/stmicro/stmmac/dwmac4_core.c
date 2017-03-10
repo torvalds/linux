@@ -469,64 +469,69 @@ static int dwmac4_irq_status(struct mac_device_info *hw,
 	return ret;
 }
 
-static void dwmac4_debug(void __iomem *ioaddr, struct stmmac_extra_stats *x)
+static void dwmac4_debug(void __iomem *ioaddr, struct stmmac_extra_stats *x,
+			 u32 rx_queues, u32 tx_queues)
 {
 	u32 value;
+	u32 queue;
 
-	/*  Currently only channel 0 is supported */
-	value = readl(ioaddr + MTL_CHAN_TX_DEBUG(STMMAC_CHAN0));
+	for (queue = 0; queue < tx_queues; queue++) {
+		value = readl(ioaddr + MTL_CHAN_TX_DEBUG(queue));
 
-	if (value & MTL_DEBUG_TXSTSFSTS)
-		x->mtl_tx_status_fifo_full++;
-	if (value & MTL_DEBUG_TXFSTS)
-		x->mtl_tx_fifo_not_empty++;
-	if (value & MTL_DEBUG_TWCSTS)
-		x->mmtl_fifo_ctrl++;
-	if (value & MTL_DEBUG_TRCSTS_MASK) {
-		u32 trcsts = (value & MTL_DEBUG_TRCSTS_MASK)
-			     >> MTL_DEBUG_TRCSTS_SHIFT;
-		if (trcsts == MTL_DEBUG_TRCSTS_WRITE)
-			x->mtl_tx_fifo_read_ctrl_write++;
-		else if (trcsts == MTL_DEBUG_TRCSTS_TXW)
-			x->mtl_tx_fifo_read_ctrl_wait++;
-		else if (trcsts == MTL_DEBUG_TRCSTS_READ)
-			x->mtl_tx_fifo_read_ctrl_read++;
-		else
-			x->mtl_tx_fifo_read_ctrl_idle++;
+		if (value & MTL_DEBUG_TXSTSFSTS)
+			x->mtl_tx_status_fifo_full++;
+		if (value & MTL_DEBUG_TXFSTS)
+			x->mtl_tx_fifo_not_empty++;
+		if (value & MTL_DEBUG_TWCSTS)
+			x->mmtl_fifo_ctrl++;
+		if (value & MTL_DEBUG_TRCSTS_MASK) {
+			u32 trcsts = (value & MTL_DEBUG_TRCSTS_MASK)
+				     >> MTL_DEBUG_TRCSTS_SHIFT;
+			if (trcsts == MTL_DEBUG_TRCSTS_WRITE)
+				x->mtl_tx_fifo_read_ctrl_write++;
+			else if (trcsts == MTL_DEBUG_TRCSTS_TXW)
+				x->mtl_tx_fifo_read_ctrl_wait++;
+			else if (trcsts == MTL_DEBUG_TRCSTS_READ)
+				x->mtl_tx_fifo_read_ctrl_read++;
+			else
+				x->mtl_tx_fifo_read_ctrl_idle++;
+		}
+		if (value & MTL_DEBUG_TXPAUSED)
+			x->mac_tx_in_pause++;
 	}
-	if (value & MTL_DEBUG_TXPAUSED)
-		x->mac_tx_in_pause++;
 
-	value = readl(ioaddr + MTL_CHAN_RX_DEBUG(STMMAC_CHAN0));
+	for (queue = 0; queue < rx_queues; queue++) {
+		value = readl(ioaddr + MTL_CHAN_RX_DEBUG(queue));
 
-	if (value & MTL_DEBUG_RXFSTS_MASK) {
-		u32 rxfsts = (value & MTL_DEBUG_RXFSTS_MASK)
-			     >> MTL_DEBUG_RRCSTS_SHIFT;
+		if (value & MTL_DEBUG_RXFSTS_MASK) {
+			u32 rxfsts = (value & MTL_DEBUG_RXFSTS_MASK)
+				     >> MTL_DEBUG_RRCSTS_SHIFT;
 
-		if (rxfsts == MTL_DEBUG_RXFSTS_FULL)
-			x->mtl_rx_fifo_fill_level_full++;
-		else if (rxfsts == MTL_DEBUG_RXFSTS_AT)
-			x->mtl_rx_fifo_fill_above_thresh++;
-		else if (rxfsts == MTL_DEBUG_RXFSTS_BT)
-			x->mtl_rx_fifo_fill_below_thresh++;
-		else
-			x->mtl_rx_fifo_fill_level_empty++;
+			if (rxfsts == MTL_DEBUG_RXFSTS_FULL)
+				x->mtl_rx_fifo_fill_level_full++;
+			else if (rxfsts == MTL_DEBUG_RXFSTS_AT)
+				x->mtl_rx_fifo_fill_above_thresh++;
+			else if (rxfsts == MTL_DEBUG_RXFSTS_BT)
+				x->mtl_rx_fifo_fill_below_thresh++;
+			else
+				x->mtl_rx_fifo_fill_level_empty++;
+		}
+		if (value & MTL_DEBUG_RRCSTS_MASK) {
+			u32 rrcsts = (value & MTL_DEBUG_RRCSTS_MASK) >>
+				     MTL_DEBUG_RRCSTS_SHIFT;
+
+			if (rrcsts == MTL_DEBUG_RRCSTS_FLUSH)
+				x->mtl_rx_fifo_read_ctrl_flush++;
+			else if (rrcsts == MTL_DEBUG_RRCSTS_RSTAT)
+				x->mtl_rx_fifo_read_ctrl_read_data++;
+			else if (rrcsts == MTL_DEBUG_RRCSTS_RDATA)
+				x->mtl_rx_fifo_read_ctrl_status++;
+			else
+				x->mtl_rx_fifo_read_ctrl_idle++;
+		}
+		if (value & MTL_DEBUG_RWCSTS)
+			x->mtl_rx_fifo_ctrl_active++;
 	}
-	if (value & MTL_DEBUG_RRCSTS_MASK) {
-		u32 rrcsts = (value & MTL_DEBUG_RRCSTS_MASK) >>
-			     MTL_DEBUG_RRCSTS_SHIFT;
-
-		if (rrcsts == MTL_DEBUG_RRCSTS_FLUSH)
-			x->mtl_rx_fifo_read_ctrl_flush++;
-		else if (rrcsts == MTL_DEBUG_RRCSTS_RSTAT)
-			x->mtl_rx_fifo_read_ctrl_read_data++;
-		else if (rrcsts == MTL_DEBUG_RRCSTS_RDATA)
-			x->mtl_rx_fifo_read_ctrl_status++;
-		else
-			x->mtl_rx_fifo_read_ctrl_idle++;
-	}
-	if (value & MTL_DEBUG_RWCSTS)
-		x->mtl_rx_fifo_ctrl_active++;
 
 	/* GMAC debug */
 	value = readl(ioaddr + GMAC_DEBUG);

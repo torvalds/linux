@@ -520,6 +520,8 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 				 struct ethtool_stats *dummy, u64 *data)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
+	u32 rx_queues_count = priv->plat->rx_queues_to_use;
+	u32 tx_queues_count = priv->plat->tx_queues_to_use;
 	int i, j = 0;
 
 	/* Update the DMA HW counters for dwmac10/100 */
@@ -550,7 +552,8 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 		if ((priv->hw->mac->debug) &&
 		    (priv->synopsys_id >= DWMAC_CORE_3_50))
 			priv->hw->mac->debug(priv->ioaddr,
-					     (void *)&priv->xstats);
+					     (void *)&priv->xstats,
+					     rx_queues_count, tx_queues_count);
 	}
 	for (i = 0; i < STMMAC_STATS_LEN; i++) {
 		char *p = (char *)priv + stmmac_gstrings_stats[i].stat_offset;
