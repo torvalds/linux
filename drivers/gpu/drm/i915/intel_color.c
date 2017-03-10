@@ -465,14 +465,14 @@ static void glk_load_degamma_lut(struct drm_crtc_state *state)
 	 *  different values per channel, so this just loads a linear table.
 	 */
 	for (i = 0; i < lut_size; i++) {
-		uint32_t v = (i * ((1 << 16) - 1)) / (lut_size - 1);
+		uint32_t v = (i * (1 << 16)) / (lut_size - 1);
 
 		I915_WRITE(PRE_CSC_GAMC_DATA(pipe), v);
 	}
 
 	/* Clamp values > 1.0. */
 	while (i++ < 35)
-		I915_WRITE(PRE_CSC_GAMC_DATA(pipe), (1 << 16) - 1);
+		I915_WRITE(PRE_CSC_GAMC_DATA(pipe), (1 << 16));
 }
 
 static void glk_load_luts(struct drm_crtc_state *state)
