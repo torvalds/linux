@@ -72,8 +72,6 @@ extern int userfaultfd_unmap_prep(struct vm_area_struct *vma,
 extern void userfaultfd_unmap_complete(struct mm_struct *mm,
 				       struct list_head *uf);
 
-extern void userfaultfd_exit(struct mm_struct *mm);
-
 #else /* CONFIG_USERFAULTFD */
 
 /* mm helpers */
@@ -136,10 +134,6 @@ static inline int userfaultfd_unmap_prep(struct vm_area_struct *vma,
 
 static inline void userfaultfd_unmap_complete(struct mm_struct *mm,
 					      struct list_head *uf)
-{
-}
-
-static inline void userfaultfd_exit(struct mm_struct *mm)
 {
 }
 
