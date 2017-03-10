@@ -1202,8 +1202,6 @@ static int f2fs_zero_range(struct inode *inode, loff_t offset, loff_t len,
 		if (ret)
 			return ret;
 
-		if (offset + len > new_size)
-			new_size = offset + len;
 		new_size = max_t(loff_t, new_size, offset + len);
 	} else {
 		if (off_start) {
