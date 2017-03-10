@@ -39,14 +39,15 @@
 struct f_fs_opts;
 
 struct ffs_dev {
-	const char *name;
-	bool name_allocated;
-	bool mounted;
-	bool desc_ready;
-	bool single;
 	struct ffs_data *ffs_data;
 	struct f_fs_opts *opts;
 	struct list_head entry;
+
+	char name[41];
+
+	bool mounted;
+	bool desc_ready;
+	bool single;
 
 	int (*ffs_ready_callback)(struct ffs_data *ffs);
 	void (*ffs_closed_callback)(struct ffs_data *ffs);
