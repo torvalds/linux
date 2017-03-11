@@ -124,7 +124,7 @@ static int mv88e6xxx_g1_atu_data_read(struct mv88e6xxx_chip *chip,
 		if (val & GLOBAL_ATU_DATA_TRUNK)
 			entry->trunk = true;
 
-		entry->portv_trunkid = (val >> 4) & mv88e6xxx_port_mask(chip);
+		entry->portvec = (val >> 4) & mv88e6xxx_port_mask(chip);
 	}
 
 	return 0;
@@ -139,7 +139,7 @@ static int mv88e6xxx_g1_atu_data_write(struct mv88e6xxx_chip *chip,
 		if (entry->trunk)
 			data |= GLOBAL_ATU_DATA_TRUNK;
 
-		data |= (entry->portv_trunkid & mv88e6xxx_port_mask(chip)) << 4;
+		data |= (entry->portvec & mv88e6xxx_port_mask(chip)) << 4;
 	}
 
 	return mv88e6xxx_g1_write(chip, GLOBAL_ATU_DATA, data);
@@ -284,8 +284,8 @@ static int mv88e6xxx_g1_atu_move(struct mv88e6xxx_chip *chip, u16 fid,
 	shift = bitmap_weight(&mask, 16);
 
 	entry.state = 0xf, /* Full EntryState means Move */
-	entry.portv_trunkid = from_port & mask;
-	entry.portv_trunkid |= (to_port & mask) << shift;
+	entry.portvec = from_port & mask;
+	entry.portvec |= (to_port & mask) << shift;
 
 	return mv88e6xxx_g1_atu_flushmove(chip, fid, &entry, all);
 }

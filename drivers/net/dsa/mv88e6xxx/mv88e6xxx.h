@@ -713,7 +713,7 @@ struct mv88e6xxx_info {
 struct mv88e6xxx_atu_entry {
 	u8	state;
 	bool	trunk;
-	u16	portv_trunkid;
+	u16	portvec;
 	u8	mac[ETH_ALEN];
 };
 
