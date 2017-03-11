@@ -1306,6 +1306,11 @@ static void mv88e6xxx_port_stp_state_set(struct dsa_switch *ds, int port,
 		netdev_err(ds->ports[port].netdev, "failed to update state\n");
 }
 
+static int mv88e6xxx_atu_setup(struct mv88e6xxx_chip *chip)
+{
+	return mv88e6xxx_g1_atu_set_age_time(chip, 300000);
+}
+
 static void mv88e6xxx_port_fast_age(struct dsa_switch *ds, int port)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
@@ -2756,10 +2761,6 @@ static int mv88e6xxx_g1_setup(struct mv88e6xxx_chip *chip)
 	if (err)
 		return err;
 
-	err = mv88e6xxx_g1_atu_set_age_time(chip, 300000);
-	if (err)
-		return err;
-
 	/* Clear all ATU entries */
 	err = _mv88e6xxx_atu_flush(chip, 0, true);
 	if (err)
@@ -2844,6 +2845,10 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 		if (err)
 			goto unlock;
 	}
+
+	err = mv88e6xxx_atu_setup(chip);
+	if (err)
+		goto unlock;
 
 	/* Some generations have the configuration of sending reserved
 	 * management frames to the CPU in global2, others in
