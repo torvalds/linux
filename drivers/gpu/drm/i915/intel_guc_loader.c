@@ -91,24 +91,6 @@ const char *intel_uc_fw_status_repr(enum intel_uc_fw_status status)
 	}
 };
 
-static void guc_interrupts_release(struct drm_i915_private *dev_priv)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	int irqs;
-
-	/* tell all command streamers NOT to forward interrupts or vblank to GuC */
-	irqs = _MASKED_FIELD(GFX_FORWARD_VBLANK_MASK, GFX_FORWARD_VBLANK_NEVER);
-	irqs |= _MASKED_BIT_DISABLE(GFX_INTERRUPT_STEERING);
-	for_each_engine(engine, dev_priv, id)
-		I915_WRITE(RING_MODE_GEN7(engine), irqs);
-
-	/* route all GT interrupts to the host */
-	I915_WRITE(GUC_BCS_RCS_IER, 0);
-	I915_WRITE(GUC_VCS2_VCS1_IER, 0);
-	I915_WRITE(GUC_WD_VECS_IER, 0);
-}
-
 static u32 get_gttype(struct drm_i915_private *dev_priv)
 {
 	/* XXX: GT type based on PCI device ID? field seems unused by fw */
@@ -429,7 +411,6 @@ int intel_guc_setup(struct drm_i915_private *dev_priv)
 		goto fail;
 	}
 
-	guc_interrupts_release(dev_priv);
 	gen9_reset_guc_interrupts(dev_priv);
 
 	/* We need to notify the guc whenever we change the GGTT */
@@ -496,7 +477,6 @@ fail:
 	if (guc_fw->load_status == INTEL_UC_FIRMWARE_PENDING)
 		guc_fw->load_status = INTEL_UC_FIRMWARE_FAIL;
 
-	guc_interrupts_release(dev_priv);
 	i915_guc_submission_disable(dev_priv);
 	i915_guc_submission_fini(dev_priv);
 	i915_ggtt_disable_guc(dev_priv);
@@ -746,7 +726,6 @@ void intel_guc_fini(struct drm_i915_private *dev_priv)
 	struct drm_i915_gem_object *obj;
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
-	guc_interrupts_release(dev_priv);
 	i915_guc_submission_disable(dev_priv);
 	i915_guc_submission_fini(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
