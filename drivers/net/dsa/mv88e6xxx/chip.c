@@ -2697,33 +2697,6 @@ static int mv88e6xxx_g1_set_switch_mac(struct mv88e6xxx_chip *chip, u8 *addr)
 	return 0;
 }
 
-static int mv88e6xxx_g1_set_age_time(struct mv88e6xxx_chip *chip,
-				     unsigned int msecs)
-{
-	const unsigned int coeff = chip->info->age_time_coeff;
-	const unsigned int min = 0x01 * coeff;
-	const unsigned int max = 0xff * coeff;
-	u8 age_time;
-	u16 val;
-	int err;
-
-	if (msecs < min || msecs > max)
-		return -ERANGE;
-
-	/* Round to nearest multiple of coeff */
-	age_time = (msecs + coeff / 2) / coeff;
-
-	err = mv88e6xxx_g1_read(chip, GLOBAL_ATU_CONTROL, &val);
-	if (err)
-		return err;
-
-	/* AgeTime is 11:4 bits */
-	val &= ~0xff0;
-	val |= age_time << 4;
-
-	return mv88e6xxx_g1_write(chip, GLOBAL_ATU_CONTROL, val);
-}
-
 static int mv88e6xxx_set_ageing_time(struct dsa_switch *ds,
 				     unsigned int ageing_time)
 {
@@ -2731,7 +2704,7 @@ static int mv88e6xxx_set_ageing_time(struct dsa_switch *ds,
 	int err;
 
 	mutex_lock(&chip->reg_lock);
-	err = mv88e6xxx_g1_set_age_time(chip, ageing_time);
+	err = mv88e6xxx_g1_atu_set_age_time(chip, ageing_time);
 	mutex_unlock(&chip->reg_lock);
 
 	return err;
@@ -2783,7 +2756,7 @@ static int mv88e6xxx_g1_setup(struct mv88e6xxx_chip *chip)
 	if (err)
 		return err;
 
-	err = mv88e6xxx_g1_set_age_time(chip, 300000);
+	err = mv88e6xxx_g1_atu_set_age_time(chip, 300000);
 	if (err)
 		return err;
 
