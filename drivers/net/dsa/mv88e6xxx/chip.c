@@ -1556,7 +1556,7 @@ loadpurge:
 	return _mv88e6xxx_vtu_cmd(chip, GLOBAL_VTU_OP_STU_LOAD_PURGE);
 }
 
-static int _mv88e6xxx_fid_new(struct mv88e6xxx_chip *chip, u16 *fid)
+static int mv88e6xxx_atu_new(struct mv88e6xxx_chip *chip, u16 *fid)
 {
 	DECLARE_BITMAP(fid_bitmap, MV88E6XXX_N_FID);
 	struct mv88e6xxx_vtu_entry vlan;
@@ -1610,7 +1610,7 @@ static int _mv88e6xxx_vtu_new(struct mv88e6xxx_chip *chip, u16 vid,
 	};
 	int i, err;
 
-	err = _mv88e6xxx_fid_new(chip, &vlan.fid);
+	err = mv88e6xxx_atu_new(chip, &vlan.fid);
 	if (err)
 		return err;
 
