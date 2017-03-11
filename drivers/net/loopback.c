@@ -13,7 +13,7 @@
  *
  *		Alan Cox	:	Fixed oddments for NET3.014
  *		Alan Cox	:	Rejig for NET3.029 snap #3
- *		Alan Cox	: 	Fixed NET3.029 bugs and sped up
+ *		Alan Cox	:	Fixed NET3.029 bugs and sped up
  *		Larry McVoy	:	Tiny tweak to double performance
  *		Alan Cox	:	Backed out LMV's tweak - the linux mm
  *					can't take it...
@@ -41,7 +41,7 @@
 #include <linux/in.h>
 
 #include <linux/uaccess.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 #include <linux/inet.h>
 #include <linux/netdevice.h>
@@ -65,8 +65,7 @@ struct pcpu_lstats {
 	struct u64_stats_sync	syncp;
 };
 
-/*
- * The higher levels take care of making this non-reentrant (it's
+/* The higher levels take care of making this non-reentrant (it's
  * called with bh's disabled).
  */
 static netdev_tx_t loopback_xmit(struct sk_buff *skb,
@@ -164,14 +163,13 @@ static void loopback_dev_free(struct net_device *dev)
 }
 
 static const struct net_device_ops loopback_ops = {
-	.ndo_init      = loopback_dev_init,
-	.ndo_start_xmit= loopback_xmit,
+	.ndo_init        = loopback_dev_init,
+	.ndo_start_xmit  = loopback_xmit,
 	.ndo_get_stats64 = loopback_get_stats64,
 	.ndo_set_mac_address = eth_mac_addr,
 };
 
-/*
- * The loopback device is special. There is only one instance
+/* The loopback device is special. There is only one instance
  * per network namespace.
  */
 static void loopback_setup(struct net_device *dev)
@@ -185,7 +183,7 @@ static void loopback_setup(struct net_device *dev)
 	dev->priv_flags		|= IFF_LIVE_ADDR_CHANGE | IFF_NO_QUEUE;
 	netif_keep_dst(dev);
 	dev->hw_features	= NETIF_F_GSO_SOFTWARE;
-	dev->features 		= NETIF_F_SG | NETIF_F_FRAGLIST
+	dev->features		= NETIF_F_SG | NETIF_F_FRAGLIST
 		| NETIF_F_GSO_SOFTWARE
 		| NETIF_F_HW_CSUM
 		| NETIF_F_RXCSUM
@@ -221,7 +219,6 @@ static __net_init int loopback_net_init(struct net *net)
 	net->loopback_dev = dev;
 	return 0;
 
-
 out_free_netdev:
 	free_netdev(dev);
 out:
@@ -232,5 +229,5 @@ out:
 
 /* Registered in net/core/dev.c */
 struct pernet_operations __net_initdata loopback_net_ops = {
-       .init = loopback_net_init,
+	.init = loopback_net_init,
 };
