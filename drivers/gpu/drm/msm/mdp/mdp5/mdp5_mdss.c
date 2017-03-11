@@ -160,7 +160,7 @@ void msm_mdss_destroy(struct drm_device *dev)
 
 int msm_mdss_init(struct drm_device *dev)
 {
-	struct platform_device *pdev = dev->platformdev;
+	struct platform_device *pdev = to_platform_device(dev->dev);
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_mdss *mdss;
 	int ret;
