@@ -373,8 +373,8 @@ static const struct attribute_group adis16240_attribute_group = {
 
 static const struct iio_info adis16240_info = {
 	.attrs = &adis16240_attribute_group,
-	.read_raw = &adis16240_read_raw,
-	.write_raw = &adis16240_write_raw,
+	.read_raw = adis16240_read_raw,
+	.write_raw = adis16240_write_raw,
 	.update_scan_mode = adis_update_scan_mode,
 	.driver_module = THIS_MODULE,
 };
