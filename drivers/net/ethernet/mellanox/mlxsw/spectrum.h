@@ -588,6 +588,8 @@ struct mlxsw_sp_acl_rule_info {
 	unsigned int priority;
 	struct mlxsw_afk_element_values values;
 	struct mlxsw_afa_block *act_block;
+	unsigned int counter_index;
+	bool counter_valid;
 };
 
 enum mlxsw_sp_acl_profile {
@@ -652,6 +654,8 @@ int mlxsw_sp_acl_rulei_act_fwd(struct mlxsw_sp *mlxsw_sp,
 int mlxsw_sp_acl_rulei_act_vlan(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_acl_rule_info *rulei,
 				u32 action, u16 vid, u16 proto, u8 prio);
+int mlxsw_sp_acl_rulei_act_count(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_acl_rule_info *rulei);
 
 struct mlxsw_sp_acl_rule;
 
@@ -671,6 +675,9 @@ mlxsw_sp_acl_rule_lookup(struct mlxsw_sp *mlxsw_sp,
 			 unsigned long cookie);
 struct mlxsw_sp_acl_rule_info *
 mlxsw_sp_acl_rule_rulei(struct mlxsw_sp_acl_rule *rule);
+int mlxsw_sp_acl_rule_get_stats(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_acl_rule *rule,
+				u64 *packets, u64 *bytes, u64 *last_use);
 
 int mlxsw_sp_acl_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_acl_fini(struct mlxsw_sp *mlxsw_sp);
