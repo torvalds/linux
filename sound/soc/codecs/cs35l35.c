@@ -1463,7 +1463,7 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 	}
 
 	dev_info(dev, "Cirrus Logic CS35L35 (%x), Revision: %02X\n",
-		 devid, ret & 0xFF);
+		 devid, reg & 0xFF);
 
 	/* Set the INT Masks for critical errors */
 	regmap_write(cs35l35->regmap, CS35L35_INT_MASK_1,
