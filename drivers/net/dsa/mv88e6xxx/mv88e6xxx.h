@@ -944,6 +944,11 @@ static inline unsigned int mv88e6xxx_num_ports(struct mv88e6xxx_chip *chip)
 	return chip->info->num_ports;
 }
 
+static inline u16 mv88e6xxx_port_mask(struct mv88e6xxx_chip *chip)
+{
+	return GENMASK(mv88e6xxx_num_ports(chip) - 1, 0);
+}
+
 int mv88e6xxx_read(struct mv88e6xxx_chip *chip, int addr, int reg, u16 *val);
 int mv88e6xxx_write(struct mv88e6xxx_chip *chip, int addr, int reg, u16 val);
 int mv88e6xxx_update(struct mv88e6xxx_chip *chip, int addr, int reg,

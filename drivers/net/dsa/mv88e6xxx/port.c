@@ -539,7 +539,7 @@ int mv88e6351_port_set_egress_unknowns(struct mv88e6xxx_chip *chip, int port,
 
 int mv88e6xxx_port_set_vlan_map(struct mv88e6xxx_chip *chip, int port, u16 map)
 {
-	const u16 mask = GENMASK(mv88e6xxx_num_ports(chip) - 1, 0);
+	const u16 mask = mv88e6xxx_port_mask(chip);
 	u16 reg;
 	int err;
 
