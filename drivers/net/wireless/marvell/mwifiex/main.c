@@ -1718,6 +1718,9 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter)
 	wiphy_unregister(adapter->wiphy);
 	wiphy_free(adapter->wiphy);
 
+	if (adapter->irq_wakeup >= 0)
+		device_init_wakeup(adapter->dev, false);
+
 	/* Unregister device */
 	mwifiex_dbg(adapter, INFO,
 		    "info: unregister device\n");
