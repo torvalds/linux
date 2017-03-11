@@ -1025,7 +1025,8 @@ static void update_ckpt_flags(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	spin_lock(&sbi->cp_lock);
 
-	if (cpc->reason == CP_UMOUNT && ckpt->cp_pack_total_block_count >
+	if (cpc->reason == CP_UMOUNT &&
+			le32_to_cpu(ckpt->cp_pack_total_block_count) >
 			sbi->blocks_per_seg - NM_I(sbi)->nat_bits_blocks)
 		disable_nat_bits(sbi, false);
 
