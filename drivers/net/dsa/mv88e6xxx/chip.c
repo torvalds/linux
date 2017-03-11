@@ -2012,76 +2012,6 @@ unlock:
 	return err;
 }
 
-static int _mv88e6xxx_atu_mac_write(struct mv88e6xxx_chip *chip,
-				    const unsigned char *addr)
-{
-	int i, err;
-
-	for (i = 0; i < 3; i++) {
-		err = mv88e6xxx_g1_write(chip, GLOBAL_ATU_MAC_01 + i,
-					 (addr[i * 2] << 8) | addr[i * 2 + 1]);
-		if (err)
-			return err;
-	}
-
-	return 0;
-}
-
-static int _mv88e6xxx_atu_mac_read(struct mv88e6xxx_chip *chip,
-				   unsigned char *addr)
-{
-	u16 val;
-	int i, err;
-
-	for (i = 0; i < 3; i++) {
-		err = mv88e6xxx_g1_read(chip, GLOBAL_ATU_MAC_01 + i, &val);
-		if (err)
-			return err;
-
-		addr[i * 2] = val >> 8;
-		addr[i * 2 + 1] = val & 0xff;
-	}
-
-	return 0;
-}
-
-static int _mv88e6xxx_atu_getnext(struct mv88e6xxx_chip *chip, u16 fid,
-				  struct mv88e6xxx_atu_entry *entry);
-
-static int mv88e6xxx_atu_get(struct mv88e6xxx_chip *chip, int fid,
-			     const u8 *addr, struct mv88e6xxx_atu_entry *entry)
-{
-	struct mv88e6xxx_atu_entry next;
-	int err;
-
-	memcpy(next.mac, addr, ETH_ALEN);
-	eth_addr_dec(next.mac);
-
-	err = _mv88e6xxx_atu_mac_write(chip, next.mac);
-	if (err)
-		return err;
-
-	do {
-		err = _mv88e6xxx_atu_getnext(chip, fid, &next);
-		if (err)
-			return err;
-
-		if (next.state == GLOBAL_ATU_DATA_STATE_UNUSED)
-			break;
-
-		if (ether_addr_equal(next.mac, addr)) {
-			*entry = next;
-			return 0;
-		}
-	} while (ether_addr_greater(addr, next.mac));
-
-	memset(entry, 0, sizeof(*entry));
-	entry->fid = fid;
-	ether_addr_copy(entry->mac, addr);
-
-	return 0;
-}
-
 static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
 					const unsigned char *addr, u16 vid,
 					u8 state)
@@ -2098,9 +2028,20 @@ static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
 	if (err)
 		return err;
 
-	err = mv88e6xxx_atu_get(chip, vlan.fid, addr, &entry);
+	entry.state = GLOBAL_ATU_DATA_STATE_UNUSED;
+	ether_addr_copy(entry.mac, addr);
+	eth_addr_dec(entry.mac);
+
+	err = mv88e6xxx_g1_atu_getnext(chip, vlan.fid, &entry);
 	if (err)
 		return err;
+
+	/* Initialize a fresh ATU entry if it isn't found */
+	if (entry.state == GLOBAL_ATU_DATA_STATE_UNUSED ||
+	    !ether_addr_equal(entry.mac, addr)) {
+		memset(&entry, 0, sizeof(entry));
+		ether_addr_copy(entry.mac, addr);
+	}
 
 	/* Purge the ATU entry only if no port is using it anymore */
 	if (state == GLOBAL_ATU_DATA_STATE_UNUSED) {
@@ -2152,68 +2093,19 @@ static int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
 	return err;
 }
 
-static int _mv88e6xxx_atu_getnext(struct mv88e6xxx_chip *chip, u16 fid,
-				  struct mv88e6xxx_atu_entry *entry)
-{
-	struct mv88e6xxx_atu_entry next = { 0 };
-	u16 val;
-	int err;
-
-	next.fid = fid;
-
-	err = _mv88e6xxx_atu_wait(chip);
-	if (err)
-		return err;
-
-	err = _mv88e6xxx_atu_cmd(chip, fid, GLOBAL_ATU_OP_GET_NEXT_DB);
-	if (err)
-		return err;
-
-	err = _mv88e6xxx_atu_mac_read(chip, next.mac);
-	if (err)
-		return err;
-
-	err = mv88e6xxx_g1_read(chip, GLOBAL_ATU_DATA, &val);
-	if (err)
-		return err;
-
-	next.state = val & GLOBAL_ATU_DATA_STATE_MASK;
-	if (next.state != GLOBAL_ATU_DATA_STATE_UNUSED) {
-		unsigned int mask, shift;
-
-		if (val & GLOBAL_ATU_DATA_TRUNK) {
-			next.trunk = true;
-			mask = GLOBAL_ATU_DATA_TRUNK_ID_MASK;
-			shift = GLOBAL_ATU_DATA_TRUNK_ID_SHIFT;
-		} else {
-			next.trunk = false;
-			mask = GLOBAL_ATU_DATA_PORT_VECTOR_MASK;
-			shift = GLOBAL_ATU_DATA_PORT_VECTOR_SHIFT;
-		}
-
-		next.portv_trunkid = (val & mask) >> shift;
-	}
-
-	*entry = next;
-	return 0;
-}
-
 static int mv88e6xxx_port_db_dump_fid(struct mv88e6xxx_chip *chip,
 				      u16 fid, u16 vid, int port,
 				      struct switchdev_obj *obj,
 				      int (*cb)(struct switchdev_obj *obj))
 {
-	struct mv88e6xxx_atu_entry addr = {
-		.mac = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff },
-	};
+	struct mv88e6xxx_atu_entry addr;
 	int err;
 
-	err = _mv88e6xxx_atu_mac_write(chip, addr.mac);
-	if (err)
-		return err;
+	addr.state = GLOBAL_ATU_DATA_STATE_UNUSED;
+	eth_broadcast_addr(addr.mac);
 
 	do {
-		err = _mv88e6xxx_atu_getnext(chip, fid, &addr);
+		err = mv88e6xxx_g1_atu_getnext(chip, fid, &addr);
 		if (err)
 			return err;
 
