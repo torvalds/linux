@@ -1210,17 +1210,6 @@ static int _mv88e6xxx_atu_flush_move(struct mv88e6xxx_chip *chip,
 	return _mv88e6xxx_atu_cmd(chip, entry->fid, op);
 }
 
-static int _mv88e6xxx_atu_flush(struct mv88e6xxx_chip *chip,
-				u16 fid, bool static_too)
-{
-	struct mv88e6xxx_atu_entry entry = {
-		.fid = fid,
-		.state = 0, /* EntryState bits must be 0 */
-	};
-
-	return _mv88e6xxx_atu_flush_move(chip, &entry, static_too);
-}
-
 static int _mv88e6xxx_atu_move(struct mv88e6xxx_chip *chip, u16 fid,
 			       int from_port, int to_port, bool static_too)
 {
@@ -1309,6 +1298,10 @@ static void mv88e6xxx_port_stp_state_set(struct dsa_switch *ds, int port,
 static int mv88e6xxx_atu_setup(struct mv88e6xxx_chip *chip)
 {
 	int err;
+
+	err = mv88e6xxx_g1_atu_flush(chip, 0, true);
+	if (err)
+		return err;
 
 	err = mv88e6xxx_g1_atu_set_learn2all(chip, true);
 	if (err)
@@ -1714,7 +1707,7 @@ static int _mv88e6xxx_fid_new(struct mv88e6xxx_chip *chip, u16 *fid)
 		return -ENOSPC;
 
 	/* Clear the database */
-	return _mv88e6xxx_atu_flush(chip, *fid, true);
+	return mv88e6xxx_g1_atu_flush(chip, *fid, true);
 }
 
 static int _mv88e6xxx_vtu_new(struct mv88e6xxx_chip *chip, u16 vid,
@@ -2632,11 +2625,6 @@ static int mv88e6xxx_g1_setup(struct mv88e6xxx_chip *chip)
 	/* Clear all the VTU and STU entries */
 	err = _mv88e6xxx_vtu_stu_flush(chip);
 	if (err < 0)
-		return err;
-
-	/* Clear all ATU entries */
-	err = _mv88e6xxx_atu_flush(chip, 0, true);
-	if (err)
 		return err;
 
 	/* Configure the IP ToS mapping registers. */

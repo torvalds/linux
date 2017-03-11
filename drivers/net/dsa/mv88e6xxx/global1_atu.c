@@ -232,3 +232,40 @@ int mv88e6xxx_g1_atu_loadpurge(struct mv88e6xxx_chip *chip, u16 fid,
 
 	return mv88e6xxx_g1_atu_op(chip, fid, GLOBAL_ATU_OP_LOAD_DB);
 }
+
+static int mv88e6xxx_g1_atu_flushmove(struct mv88e6xxx_chip *chip, u16 fid,
+				      struct mv88e6xxx_atu_entry *entry,
+				      bool all)
+{
+	u16 op;
+	int err;
+
+	err = mv88e6xxx_g1_atu_op_wait(chip);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g1_atu_data_write(chip, entry);
+	if (err)
+		return err;
+
+	/* Flush/Move all or non-static entries from all or a given database */
+	if (all && fid)
+		op = GLOBAL_ATU_OP_FLUSH_MOVE_ALL_DB;
+	else if (fid)
+		op = GLOBAL_ATU_OP_FLUSH_MOVE_NON_STATIC_DB;
+	else if (all)
+		op = GLOBAL_ATU_OP_FLUSH_MOVE_ALL;
+	else
+		op = GLOBAL_ATU_OP_FLUSH_MOVE_NON_STATIC;
+
+	return mv88e6xxx_g1_atu_op(chip, fid, op);
+}
+
+int mv88e6xxx_g1_atu_flush(struct mv88e6xxx_chip *chip, u16 fid, bool all)
+{
+	struct mv88e6xxx_atu_entry entry = {
+		.state = 0, /* Null EntryState means Flush */
+	};
+
+	return mv88e6xxx_g1_atu_flushmove(chip, fid, &entry, all);
+}
