@@ -236,8 +236,9 @@ static struct mmal_fmt *get_format(struct v4l2_format *f)
 }
 
 /* ------------------------------------------------------------------
-	Videobuf queue operations
-   ------------------------------------------------------------------*/
+ *	Videobuf queue operations
+ * ------------------------------------------------------------------
+ */
 
 static int queue_setup(struct vb2_queue *vq,
 		       unsigned int *nbuffers, unsigned int *nplanes,
@@ -665,8 +666,9 @@ static struct vb2_ops bm2835_mmal_video_qops = {
 };
 
 /* ------------------------------------------------------------------
-	IOCTL operations
-   ------------------------------------------------------------------*/
+ *	IOCTL operations
+ * ------------------------------------------------------------------
+ */
 
 static int set_overlay_params(struct bm2835_mmal_dev *dev,
 			      struct vchiq_mmal_port *port)
@@ -828,7 +830,8 @@ static int vidioc_g_fbuf(struct file *file, void *fh,
 			 struct v4l2_framebuffer *a)
 {
 	/* The video overlay must stay within the framebuffer and can't be
-	   positioned independently. */
+	 * positioned independently.
+	 */
 	struct bm2835_mmal_dev *dev = video_drvdata(file);
 	struct vchiq_mmal_port *preview_port =
 		    &dev->component[MMAL_COMPONENT_CAMERA]->
@@ -1285,7 +1288,8 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	}
 
 	/* If the format is unsupported v4l2 says we should switch to
-	 * a supported one and not return an error. */
+	 * a supported one and not return an error.
+	 */
 	mfmt = get_format(f);
 	if (!mfmt) {
 		v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
@@ -1479,7 +1483,8 @@ static const struct v4l2_ioctl_ops camera0_ioctl_ops_gstreamer = {
 	.vidioc_qbuf = vb2_ioctl_qbuf,
 	.vidioc_dqbuf = vb2_ioctl_dqbuf,
 	/* Remove this function ptr to fix gstreamer bug
-	.vidioc_enum_framesizes = vidioc_enum_framesizes, */
+	 * .vidioc_enum_framesizes = vidioc_enum_framesizes,
+	 */
 	.vidioc_enum_frameintervals = vidioc_enum_frameintervals,
 	.vidioc_g_parm        = vidioc_g_parm,
 	.vidioc_s_parm        = vidioc_s_parm,
@@ -1492,8 +1497,9 @@ static const struct v4l2_ioctl_ops camera0_ioctl_ops_gstreamer = {
 };
 
 /* ------------------------------------------------------------------
-	Driver init/finalise
-   ------------------------------------------------------------------*/
+ *	Driver init/finalise
+ * ------------------------------------------------------------------
+ */
 
 static const struct v4l2_file_operations camera0_fops = {
 	.owner = THIS_MODULE,

@@ -90,7 +90,8 @@ struct bm2835_mmal_v4l2_ctrl {
 	u32 id; /* v4l2 control identifier */
 	enum bm2835_mmal_ctrl_type type;
 	/* control minimum value or
-	 * mask for MMAL_CONTROL_TYPE_STD_MENU */
+	 * mask for MMAL_CONTROL_TYPE_STD_MENU
+	 */
 	s32 min;
 	s32 max; /* maximum value of control */
 	s32 def;  /* default value of control */
@@ -396,10 +397,10 @@ static int ctrl_set_metering_mode(struct bm2835_mmal_dev *dev,
 		break;
 
 	/* todo matrix weighting not added to Linux API till 3.9
-	case V4L2_EXPOSURE_METERING_MATRIX:
-		dev->metering_mode = MMAL_PARAM_EXPOSUREMETERINGMODE_MATRIX;
-		break;
-	*/
+	 * case V4L2_EXPOSURE_METERING_MATRIX:
+	 *	dev->metering_mode = MMAL_PARAM_EXPOSUREMETERINGMODE_MATRIX;
+	 *	break;
+	 */
 	}
 
 	if (dev->scene_mode == V4L2_SCENE_MODE_NONE) {
@@ -978,8 +979,9 @@ static const struct bm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 		false
 	},
 /*	{
-		0, MMAL_CONTROL_TYPE_CLUSTER, 3, 1, 0, NULL, 0, NULL
-	}, */
+ *		0, MMAL_CONTROL_TYPE_CLUSTER, 3, 1, 0, NULL, 0, NULL
+ *	},
+ */
 	{
 		V4L2_CID_EXPOSURE_AUTO, MMAL_CONTROL_TYPE_STD_MENU,
 		~0x03, 3, V4L2_EXPOSURE_AUTO, 0, NULL,
@@ -988,9 +990,9 @@ static const struct bm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 		false
 	},
 /* todo this needs mixing in with set exposure
-	{
-	       V4L2_CID_SCENE_MODE, MMAL_CONTROL_TYPE_STD_MENU,
-	},
+ *	{
+ *		V4L2_CID_SCENE_MODE, MMAL_CONTROL_TYPE_STD_MENU,
+ *	},
  */
 	{
 		V4L2_CID_EXPOSURE_ABSOLUTE, MMAL_CONTROL_TYPE_STD,

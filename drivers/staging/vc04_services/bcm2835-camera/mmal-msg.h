@@ -108,9 +108,9 @@ struct mmal_msg_component_create {
 
 /* reply from VC to component creation request */
 struct mmal_msg_component_create_reply {
-	u32 status; /** enum mmal_msg_status - how does this differ to
-		     * the one in the header?
-		     */
+	u32 status;	/* enum mmal_msg_status - how does this differ to
+			 * the one in the header?
+			 */
 	u32 component_handle; /* VideoCore handle for component */
 	u32 input_num;        /* Number of input ports */
 	u32 output_num;       /* Number of output ports */
@@ -228,10 +228,12 @@ struct mmal_msg_port_action_reply {
 /** Signals that the current payload is a keyframe (i.e. self decodable) */
 #define MMAL_BUFFER_HEADER_FLAG_KEYFRAME               (1<<3)
 /** Signals a discontinuity in the stream of data (e.g. after a seek).
- * Can be used for instance by a decoder to reset its state */
+ * Can be used for instance by a decoder to reset its state
+ */
 #define MMAL_BUFFER_HEADER_FLAG_DISCONTINUITY          (1<<4)
 /** Signals a buffer containing some kind of config data for the component
- * (e.g. codec config data) */
+ * (e.g. codec config data)
+ */
 #define MMAL_BUFFER_HEADER_FLAG_CONFIG                 (1<<5)
 /** Signals an encrypted payload */
 #define MMAL_BUFFER_HEADER_FLAG_ENCRYPTED              (1<<6)
@@ -314,9 +316,9 @@ struct mmal_msg_port_parameter_set {
 };
 
 struct mmal_msg_port_parameter_set_reply {
-	u32 status; /** enum mmal_msg_status todo: how does this
-		     * differ to the one in the header?
-		     */
+	u32 status;	/* enum mmal_msg_status todo: how does this
+			 * differ to the one in the header?
+			 */
 };
 
 /* port parameter getting */

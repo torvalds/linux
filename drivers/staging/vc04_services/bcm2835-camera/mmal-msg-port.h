@@ -26,12 +26,14 @@ enum mmal_port_type {
 #define MMAL_PORT_CAPABILITY_PASSTHROUGH                       0x01
 /** The port wants to allocate the buffer payloads.
  * This signals a preference that payload allocation should be done
- * on this port for efficiency reasons. */
+ * on this port for efficiency reasons.
+ */
 #define MMAL_PORT_CAPABILITY_ALLOCATION                        0x02
 /** The port supports format change events.
  * This applies to input ports and is used to let the client know
  * whether the port supports being reconfigured via a format
- * change event (i.e. without having to disable the port). */
+ * change event (i.e. without having to disable the port).
+ */
 #define MMAL_PORT_CAPABILITY_SUPPORTS_EVENT_FORMAT_CHANGE      0x04
 
 /* mmal port structure (MMAL_PORT_T)
