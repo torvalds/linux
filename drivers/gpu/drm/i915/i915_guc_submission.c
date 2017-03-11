@@ -954,6 +954,28 @@ static void guc_interrupts_capture(struct drm_i915_private *dev_priv)
 	I915_WRITE(GUC_BCS_RCS_IER, ~irqs);
 	I915_WRITE(GUC_VCS2_VCS1_IER, ~irqs);
 	I915_WRITE(GUC_WD_VECS_IER, ~irqs);
+
+	/*
+	 * The REDIRECT_TO_GUC bit of the PMINTRMSK register directs all
+	 * (unmasked) PM interrupts to the GuC. All other bits of this
+	 * register *disable* generation of a specific interrupt.
+	 *
+	 * 'pm_intrmsk_mbz' indicates bits that are NOT to be set when
+	 * writing to the PM interrupt mask register, i.e. interrupts
+	 * that must not be disabled.
+	 *
+	 * If the GuC is handling these interrupts, then we must not let
+	 * the PM code disable ANY interrupt that the GuC is expecting.
+	 * So for each ENABLED (0) bit in this register, we must SET the
+	 * bit in pm_intrmsk_mbz so that it's left enabled for the GuC.
+	 * GuC needs ARAT expired interrupt unmasked hence it is set in
+	 * pm_intrmsk_mbz.
+	 *
+	 * Here we CLEAR REDIRECT_TO_GUC bit in pm_intrmsk_mbz, which will
+	 * result in the register bit being left SET!
+	 */
+	dev_priv->rps.pm_intrmsk_mbz |= ARAT_EXPIRED_INTRMSK;
+	dev_priv->rps.pm_intrmsk_mbz &= ~GEN8_PMINTR_REDIRECT_TO_GUC;
 }
 
 int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
@@ -1014,6 +1036,10 @@ static void guc_interrupts_release(struct drm_i915_private *dev_priv)
 	I915_WRITE(GUC_BCS_RCS_IER, 0);
 	I915_WRITE(GUC_VCS2_VCS1_IER, 0);
 	I915_WRITE(GUC_WD_VECS_IER, 0);
+
+	dev_priv->rps.pm_intrmsk_mbz |= GEN8_PMINTR_REDIRECT_TO_GUC;
+	dev_priv->rps.pm_intrmsk_mbz &= ~ARAT_EXPIRED_INTRMSK;
+
 }
 
 void i915_guc_submission_disable(struct drm_i915_private *dev_priv)

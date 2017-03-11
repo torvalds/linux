@@ -4284,30 +4284,6 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	if (INTEL_INFO(dev_priv)->gen >= 8)
 		dev_priv->rps.pm_intrmsk_mbz |= GEN8_PMINTR_REDIRECT_TO_GUC;
 
-	/*
-	 * The REDIRECT_TO_GUC bit of the PMINTRMSK register directs all
-	 * (unmasked) PM interrupts to the GuC. All other bits of this
-	 * register *disable* generation of a specific interrupt.
-	 *
-	 * 'pm_intrmsk_mbz' indicates bits that are NOT to be set when
-	 * writing to the PM interrupt mask register, i.e. interrupts
-	 * that must not be disabled.
-	 *
-	 * If the GuC is handling these interrupts, then we must not let
-	 * the PM code disable ANY interrupt that the GuC is expecting.
-	 * So for each ENABLED (0) bit in this register, we must SET the
-	 * bit in pm_intrmsk_mbz so that it's left enabled for the GuC.
-	 * GuC needs ARAT expired interrupt unmasked hence it is set in
-	 * pm_intrmsk_mbz.
-	 *
-	 * Here we CLEAR REDIRECT_TO_GUC bit in pm_intrmsk_mbz, which will
-	 * result in the register bit being left SET!
-	 */
-	if (HAS_GUC_SCHED(dev_priv)) {
-		dev_priv->rps.pm_intrmsk_mbz |= ARAT_EXPIRED_INTRMSK;
-		dev_priv->rps.pm_intrmsk_mbz &= ~GEN8_PMINTR_REDIRECT_TO_GUC;
-	}
-
 	if (IS_GEN2(dev_priv)) {
 		/* Gen2 doesn't have a hardware frame counter */
 		dev->max_vblank_count = 0;
