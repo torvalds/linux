@@ -46,6 +46,7 @@ struct rcu_batch {
 
 struct srcu_struct {
 	unsigned long completed;
+	unsigned long srcu_gp_seq;
 	struct srcu_array __percpu *per_cpu_ref;
 	spinlock_t queue_lock; /* protect ->batch_queue, ->running */
 	int srcu_state;

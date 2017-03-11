@@ -110,6 +110,7 @@ static inline void rcu_batch_move(struct rcu_batch *to, struct rcu_batch *from)
 static int init_srcu_struct_fields(struct srcu_struct *sp)
 {
 	sp->completed = 0;
+	sp->srcu_gp_seq = 0;
 	spin_lock_init(&sp->queue_lock);
 	sp->srcu_state = SRCU_STATE_IDLE;
 	rcu_batch_init(&sp->batch_queue);
@@ -319,6 +320,15 @@ EXPORT_SYMBOL_GPL(__srcu_read_unlock);
 #define SYNCHRONIZE_SRCU_EXP_TRYCOUNT	12
 
 /*
+ * Start an SRCU grace period.
+ */
+static void srcu_gp_start(struct srcu_struct *sp)
+{
+	WRITE_ONCE(sp->srcu_state, SRCU_STATE_SCAN1);
+	rcu_seq_start(&sp->srcu_gp_seq);
+}
+
+/*
  * @@@ Wait until all pre-existing readers complete.  Such readers
  * will have used the index specified by "idx".
  * the caller should ensures the ->completed is not changed while checking
@@ -352,6 +362,15 @@ static void srcu_flip(struct srcu_struct *sp)
 	 * guarantee for __srcu_read_lock().
 	 */
 	smp_mb(); /* D */  /* Pairs with C. */
+}
+
+/*
+ * End an SRCU grace period.
+ */
+static void srcu_gp_end(struct srcu_struct *sp)
+{
+	rcu_seq_end(&sp->srcu_gp_seq);
+	WRITE_ONCE(sp->srcu_state, SRCU_STATE_DONE);
 }
 
 /*
@@ -392,7 +411,7 @@ void call_srcu(struct srcu_struct *sp, struct rcu_head *head,
 	smp_mb__after_unlock_lock(); /* Caller's prior accesses before GP. */
 	rcu_batch_queue(&sp->batch_queue, head);
 	if (READ_ONCE(sp->srcu_state) == SRCU_STATE_IDLE) {
-		WRITE_ONCE(sp->srcu_state, SRCU_STATE_SCAN1);
+		srcu_gp_start(sp);
 		queue_delayed_work(system_power_efficient_wq, &sp->work, 0);
 	}
 	spin_unlock_irqrestore(&sp->queue_lock, flags);
@@ -426,7 +445,7 @@ static void __synchronize_srcu(struct srcu_struct *sp, int trycount)
 	smp_mb__after_unlock_lock(); /* Caller's prior accesses before GP. */
 	if (READ_ONCE(sp->srcu_state) == SRCU_STATE_IDLE) {
 		/* steal the processing owner */
-		WRITE_ONCE(sp->srcu_state, SRCU_STATE_SCAN1);
+		srcu_gp_start(sp);
 		rcu_batch_queue(&sp->batch_check0, head);
 		spin_unlock_irq(&sp->queue_lock);
 		/* give the processing owner to work_struct */
@@ -561,7 +580,7 @@ static void srcu_advance_batches(struct srcu_struct *sp, int trycount)
 	 */
 
 	if (sp->srcu_state == SRCU_STATE_DONE)
-		WRITE_ONCE(sp->srcu_state, SRCU_STATE_SCAN1);
+		srcu_gp_start(sp);
 
 	if (sp->srcu_state == SRCU_STATE_SCAN1) {
 		idx = 1 ^ (sp->completed & 1);
@@ -608,7 +627,7 @@ static void srcu_advance_batches(struct srcu_struct *sp, int trycount)
 		 */
 		rcu_batch_move(&sp->batch_done, &sp->batch_check1);
 
-		WRITE_ONCE(sp->srcu_state, SRCU_STATE_DONE);
+		srcu_gp_end(sp);
 	}
 }
 
