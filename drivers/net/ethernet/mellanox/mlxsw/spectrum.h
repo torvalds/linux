@@ -607,6 +607,8 @@ struct mlxsw_sp_acl_profile_ops {
 			void *ruleset_priv, void *rule_priv,
 			struct mlxsw_sp_acl_rule_info *rulei);
 	void (*rule_del)(struct mlxsw_sp *mlxsw_sp, void *rule_priv);
+	int (*rule_activity_get)(struct mlxsw_sp *mlxsw_sp, void *rule_priv,
+				 bool *activity);
 };
 
 struct mlxsw_sp_acl_ops {
