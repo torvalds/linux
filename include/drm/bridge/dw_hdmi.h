@@ -25,6 +25,7 @@ enum dw_hdmi_devtype {
 	IMX6Q_HDMI,
 	IMX6DL_HDMI,
 	RK3288_HDMI,
+	RK3328_HDMI,
 	RK3368_HDMI,
 	RK3399_HDMI,
 };
@@ -71,6 +72,8 @@ struct dw_hdmi_phy_ops {
 		    struct drm_display_mode *mode);
 	void (*disable)(struct dw_hdmi *hdmi, void *data);
 	enum drm_connector_status (*read_hpd)(struct dw_hdmi *hdmi, void *data);
+	int (*read)(struct dw_hdmi *hdmi, void *data, int offset);
+	void (*write)(struct dw_hdmi *hdmi, void *data, int val, int offset);
 };
 
 struct dw_hdmi_plat_data {
@@ -99,7 +102,8 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 		 const struct dw_hdmi_plat_data *plat_data);
 void dw_hdmi_suspend(struct device *dev);
 void dw_hdmi_resume(struct device *dev);
-
+enum drm_connector_status dw_hdmi_phy_read_hpd(struct dw_hdmi *hdmi,
+					       void *data);
 void dw_hdmi_set_sample_rate(struct dw_hdmi *hdmi, unsigned int rate);
 void dw_hdmi_audio_enable(struct dw_hdmi *hdmi);
 void dw_hdmi_audio_disable(struct dw_hdmi *hdmi);

@@ -1418,12 +1418,13 @@ static void dw_hdmi_phy_disable(struct dw_hdmi *hdmi, void *data)
 	dw_hdmi_phy_power_off(hdmi);
 }
 
-static enum drm_connector_status dw_hdmi_phy_read_hpd(struct dw_hdmi *hdmi,
+enum drm_connector_status dw_hdmi_phy_read_hpd(struct dw_hdmi *hdmi,
 						      void *data)
 {
 	return hdmi_readb(hdmi, HDMI_PHY_STAT0) & HDMI_PHY_HPD ?
 		connector_status_connected : connector_status_disconnected;
 }
+EXPORT_SYMBOL_GPL(dw_hdmi_phy_read_hpd);
 
 static const struct dw_hdmi_phy_ops dw_hdmi_synopsys_phy_ops = {
 	.init = dw_hdmi_phy_init,
@@ -2366,7 +2367,12 @@ static int dw_hdmi_detect_phy(struct dw_hdmi *hdmi)
 
 	phy_type = hdmi_readb(hdmi, HDMI_CONFIG2_ID);
 
-	if (phy_type == DW_HDMI_PHY_VENDOR_PHY) {
+	/*
+	 * RK3328 phy_type is DW_HDMI_PHY_DWC_HDMI20_TX_PHY,
+	 * but it has a vedor phy.
+	 */
+	if (phy_type == DW_HDMI_PHY_VENDOR_PHY ||
+	    hdmi->dev_type == RK3328_HDMI) {
 		/* Vendor PHYs require support from the glue layer. */
 		if (!hdmi->plat_data->phy_ops || !hdmi->plat_data->phy_name) {
 			dev_err(hdmi->dev,
@@ -2528,12 +2534,20 @@ static const struct file_operations dw_hdmi_ctrl_fops = {
 static int dw_hdmi_phy_show(struct seq_file *s, void *v)
 {
 	struct dw_hdmi *hdmi = s->private;
-	u32 i;
+	u32 i, total, val;
 
-	seq_puts(s, "\n>>>hdmi_phy reg ");
-	for (i = 0; i < 0x28; i++)
-		seq_printf(s, "regs %02x val %04x\n",
-			   i, hdmi_phy_i2c_read(hdmi, i));
+	seq_puts(s, "\n>>>hdmi_phy reg\n");
+	if (hdmi->dev_type != RK3328_HDMI)
+		total = 0x28;
+	else
+		total = 0x100;
+	for (i = 0; i < total; i++) {
+		if (hdmi->dev_type != RK3328_HDMI)
+			val = hdmi_phy_i2c_read(hdmi, i);
+		else
+			val = hdmi->phy.ops->read(hdmi, hdmi->phy.data, i);
+		seq_printf(s, "regs %02x val %04x\n", i, val);
+	}
 	return 0;
 }
 
@@ -2555,13 +2569,16 @@ dw_hdmi_phy_write(struct file *file, const char __user *buf,
 		return -EFAULT;
 	if (sscanf(kbuf, "%x%x", &reg, &val) == -1)
 		return -EFAULT;
-	if ((reg < 0) || (reg > 0x28)) {
+	if ((reg < 0) || (reg > 0x100)) {
 		dev_err(hdmi->dev, "it is not a hdmi phy register\n");
 		return count;
 	}
 	dev_info(hdmi->dev, "/*******hdmi phy register config******/");
 	dev_info(hdmi->dev, "\n reg=%x val=%x\n", reg, val);
-	dw_hdmi_phy_i2c_write(hdmi, val, reg);
+	if (hdmi->dev_type != RK3328_HDMI)
+		dw_hdmi_phy_i2c_write(hdmi, val, reg);
+	else
+		hdmi->phy.ops->write(hdmi, hdmi->phy.data, val, reg);
 	return count;
 }
 

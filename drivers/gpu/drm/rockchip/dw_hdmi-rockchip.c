@@ -8,9 +8,11 @@
  */
 
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/rockchip/cpu.h>
 #include <linux/regmap.h>
 #include <linux/pm_runtime.h>
 
@@ -29,18 +31,566 @@
 #define RK3399_GRF_SOC_CON20		0x6250
 #define RK3399_HDMI_LCDC_SEL		BIT(6)
 
+#define RK3328_GRF_SOC_CON2		0x0408
+#define RK3328_DDC_MASK_EN		((3 << 10) | (3 << (10 + 16)))
+#define RK3328_GRF_SOC_CON3		0x040c
+#define RK3328_IO_CTRL_BY_HDMI		(0xf0000000 | BIT(13) | BIT(12))
+#define RK3328_GRF_SOC_CON4		0x0410
+#define RK3328_IO_3V_DOMAIN		(7 << (9 + 16))
+#define RK3328_IO_5V_DOMAIN		((7 << 9) | (3 << (9 + 16)))
+#define RK3328_HPD_3V			(BIT(8 + 16) | BIT(13 + 16))
+
 #define HIWORD_UPDATE(val, mask)	(val | (mask) << 16)
 
 struct rockchip_hdmi {
 	struct device *dev;
 	struct regmap *regmap;
+	void __iomem *hdmiphy;
 	struct drm_encoder encoder;
 	enum dw_hdmi_devtype dev_type;
 	struct clk *vpll_clk;
 	struct clk *grf_clk;
+	struct clk *hdmiphy_pclk;
+	struct clk *hdmiphy_clk;
+	struct clk *hclk_vio;
+	struct clk_hw	hdmiphy_clkhw;
 };
 
 #define to_rockchip_hdmi(x)	container_of(x, struct rockchip_hdmi, x)
+
+/*
+ * Inno HDMI phy pre pll output 4 clock: tmdsclock_tx/tmdsclock_ctrl/
+ * preclock_ctrl/pclk_vop.
+ * tmdsclock_tx is used for transmit hdmi signal, it's is equal to
+ * tmdsclock.
+ *	Ftmdsclock_tx = Fvco / (4 * tmds_div_a * tmds_div_b)
+ * tmdsclock_ctrl is output to dw-hdmi controller, it's is equal to
+ * tmdsclock.
+ *	Ftmdsclock_ctrl = Fvco / (4 * tmds_div_a * tmds_div_c)
+ * preclock_ctrl is output to dw-hdmi controller, it's equal to mode
+ * pixel clock.
+ *	Fpreclock_ctrl = (pclk_div_a == 1) ?
+ *			 Fvco / (pclk_div_b * pclk_div_c) :
+ *			 Fvco / (pclk_div_a * pclk_div_c) :
+ * pclk_vop is clock source of dclk_lcdc, it's equal to mode pixel clock.
+ *	Fpclk_vop = (vco_div_5 == 1) ? Fvco / 5 : (pclk_div_a == 1) ?
+ *		    Fvco / (2 * pclk_div_b * pclk_div_d) :
+ *		    Fvco / (2 * pclk_div_a * pclk_div_d)
+ * Fvco = Fref * (nf + frac / (1 << 24)) / nd
+ */
+struct inno_pre_pll_config {
+	unsigned long	pixclock;
+	u32		tmdsclock;
+	u8		nd;
+	u16		nf;
+	u8		tmds_div_a;
+	u8		tmds_div_b;
+	u8		tmds_div_c;
+	u8		pclk_div_a;
+	u8		pclk_div_b;
+	u8		pclk_div_c;
+	u8		pclk_div_d;
+	u8		vco_div_5;
+	u32		frac;
+};
+
+struct inno_post_pll_config {
+	unsigned long	tmdsclock;
+	u8		nd;
+	u16		nf;
+	u8		no;
+	u8		version;
+};
+
+struct inno_phy_config {
+	unsigned long	tmdsclock;
+	u8		regs[14];
+};
+
+static const struct inno_pre_pll_config inno_pre_pll_cfg[] = {
+	{27000000,	27000000,	1,	90,	3,	2,
+		2,	10,	3,	3,	4,	0,	0},
+	{27000000,	33750000,	1,	90,	1,	3,
+		3,	10,	3,	3,	4,	0,	0},
+	{40000000,	40000000,	1,	80,	2,	2,
+		2,	12,	2,	2,	2,	0,	0},
+	{59341000,	59341000,	1,	98,	3,	1,
+		2,	1,	3,	3,	4,	0,	0xE6AE6B},
+	{59400000,	59400000,	1,	99,	3,	1,
+		1,	1,	3,	3,	4,	0,	0},
+	{59341000,	74176250,	1,	98,	0,	3,
+		3,	1,	3,	3,	4,	0,	0xE6AE6B},
+	{59400000,	74250000,	1,	99,	1,	2,
+		2,	1,	3,	3,	4,	0,	0},
+	{74176000,	74176000,	1,	98,	1,	2,
+		2,	1,	2,	3,	4,	0,	0xE6AE6B},
+	{74250000,	74250000,	1,	99,	1,	2,
+		2,	1,	2,	3,	4,	0,	0},
+	{74176000,	92720000,	4,	494,	1,	2,
+		2,	1,	3,	3,	4,	0,	0x816817},
+	{74250000,	92812500,	4,	495,	1,	2,
+		2,	1,	3,	3,	4,	0,	0},
+	{148352000,	148352000,	1,	98,	1,	1,
+		1,	1,	2,	2,	2,	0,	0xE6AE6B},
+	{148500000,	148500000,	1,	99,	1,	1,
+		1,	1,	2,	2,	2,	0,	0},
+	{148352000,	185440000,	4,	494,	0,	2,
+		2,	1,	3,	2,	2,	0,	0x816817},
+	{148500000,	185625000,	4,	495,	0,	2,
+		2,	1,	3,	2,	2,	0,	0},
+	{296703000,	296703000,	1,	98,	0,	1,
+		1,	1,	0,	2,	2,	0,	0xE6AE6B},
+	{297000000,	297000000,	1,	99,	0,	1,
+		1,	1,	0,	2,	2,	0,	0},
+	{296703000,	370878750,	4,	494,	1,	2,
+		0,	1,	3,	1,	1,	0,	0x816817},
+	{297000000,	371250000,	4,	495,	1,	2,
+		0,	1,	3,	1,	1,	0,	0},
+	{593407000,	296703500,	1,	98,	0,	1,
+		1,	1,	0,	2,	1,	0,	0xE6AE6B},
+	{594000000,	297000000,	1,	99,	0,	1,
+		1,	1,	0,	2,	1,	0,	0},
+	{593407000,	370879375,	4,	494,	1,	2,
+		0,	1,	3,	1,	1,	1,	0x816817},
+	{594000000,	371250000,	4,	495,	1,	2,
+		0,	1,	3,	1,	1,	1,	0},
+	{593407000,	593407000,	1,	98,	0,	2,
+		0,	1,	0,	1,	1,	0,	0xE6AE6B},
+	{594000000,	594000000,	1,	99,	0,	2,
+		0,	1,	0,	1,	1,	0,	0},
+	{~0UL,		0,		0,	0,	0,	0,
+		0,	0,	0,	0,	0,	0,	0},
+};
+
+static const struct inno_post_pll_config inno_post_pll_cfg[] = {
+	{33750000,	1,	40,	8,	1},
+	{33750000,	1,	80,	8,	2},
+	{74250000,	1,	40,	8,	1},
+	{74250000,	18,	80,	8,	2},
+	{148500000,	2,	40,	4,	3},
+	{297000000,	4,	40,	2,	3},
+	{371250000,	8,	40,	1,	3},
+	{~0UL,		0,	0,	0,	0},
+};
+
+static const struct inno_phy_config inno_phy_cfg[] = {
+	{	165000000, {
+			0x07, 0x08, 0x08, 0x08, 0x00, 0x00, 0x08, 0x08, 0x08,
+			0x00, 0xac, 0xcc, 0xcc, 0xcc,
+		},
+	}, {
+		340000000, {
+			0x0b, 0x0d, 0x0d, 0x0d, 0x07, 0x15, 0x08, 0x08, 0x08,
+			0x3f, 0xac, 0xcc, 0xcd, 0xdd,
+		},
+	}, {
+		594000000, {
+			0x10, 0x1a, 0x1a, 0x1a, 0x07, 0x15, 0x08, 0x08, 0x08,
+			0x00, 0xac, 0xcc, 0xcc, 0xcc,
+		},
+	}, {
+		~0UL, {
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00, 0x00,
+		},
+	}
+};
+
+static void inno_phy_writel(struct rockchip_hdmi *hdmi, int offset, u8 val)
+{
+	writel(val, hdmi->hdmiphy + (offset << 2));
+}
+
+static u8 inno_phy_readl(struct rockchip_hdmi *hdmi, int offset)
+{
+	return readl(hdmi->hdmiphy + (offset << 2));
+}
+
+static void
+inno_phy_modeb(struct rockchip_hdmi *hdmi, u8 data, u8 mask, int offset)
+{
+	u8 val = inno_phy_readl(hdmi, offset) & ~mask;
+
+	val |= data & mask;
+	inno_phy_writel(hdmi, offset, val);
+}
+
+static int inno_dw_hdmi_phy_read(struct dw_hdmi *hdmi, void *data, int offset)
+{
+	struct rockchip_hdmi *rockchip_hdmi = (struct rockchip_hdmi *)data;
+
+	return inno_phy_readl(rockchip_hdmi, offset);
+}
+
+static void
+inno_dw_hdmi_phy_write(struct dw_hdmi *hdmi, void *data, int val, int offset)
+{
+	struct rockchip_hdmi *rockchip_hdmi = (struct rockchip_hdmi *)data;
+
+	inno_phy_writel(rockchip_hdmi, offset, val);
+}
+
+static int
+inno_dw_hdmi_phy_init(struct dw_hdmi *dw_hdmi, void *data,
+		      struct drm_display_mode *mode)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+	const struct inno_post_pll_config *inno_pll_config = inno_post_pll_cfg;
+	const struct inno_phy_config *inno_phy_config = inno_phy_cfg;
+	u32 val, i, chipversion = 1;
+
+	if (rockchip_get_cpu_version())
+		chipversion = 2;
+
+	for (; inno_pll_config->tmdsclock != ~0UL; inno_pll_config++)
+		if (inno_pll_config->tmdsclock >= (mode->crtc_clock * 1000) &&
+		    inno_pll_config->version & chipversion)
+			break;
+	for (; inno_phy_config->tmdsclock != ~0UL; inno_phy_config++)
+		if (inno_phy_config->tmdsclock >= (mode->crtc_clock * 1000))
+			break;
+	if (inno_pll_config->tmdsclock == ~0UL &&
+	    inno_phy_config->tmdsclock == ~0UL)
+		return -EINVAL;
+
+	/* set pdata_en to 0 */
+	inno_phy_modeb(hdmi, 0, 1, 0x01);
+	/* Power off post PLL */
+	inno_phy_modeb(hdmi, 1, 1, 0xaa);
+
+	val = inno_pll_config->nf & 0xff;
+	inno_phy_writel(hdmi, 0xac, val);
+	if (inno_pll_config->no == 1) {
+		inno_phy_writel(hdmi, 0xaa, 2);
+		val = (inno_pll_config->nf >> 8) |
+		      inno_pll_config->nd;
+		inno_phy_writel(hdmi, 0xab, val);
+	} else {
+		val = (inno_pll_config->no / 2) - 1;
+		inno_phy_writel(hdmi, 0xad, val);
+		val = (inno_pll_config->nf >> 8) |
+		      inno_pll_config->nd;
+		inno_phy_writel(hdmi, 0xab, val);
+		inno_phy_writel(hdmi, 0xaa, 0x0e);
+	}
+	/* Power up post PLL */
+	inno_phy_modeb(hdmi, 0, 1, 0xaa);
+	/* Wait for post PLL lock */
+	for (i = 0; i < 5; ++i) {
+		if (inno_phy_readl(hdmi, 0xaf) & 1)
+			break;
+		usleep_range(1000, 2000);
+	}
+
+	for (i = 0; i < 14; i++)
+		inno_phy_writel(hdmi, 0xb5 + i, inno_phy_config->regs[i]);
+
+	/* bit[7:6] of reg c8/c9/ca/c8 is ESD detect threshold:
+	 * 00 - 340mV
+	 * 01 - 280mV
+	 * 10 - 260mV
+	 * 11 - 240mV
+	 * default is 240mV, now we set it to 340mV
+	 */
+	inno_phy_writel(hdmi, 0xc8, 0);
+	inno_phy_writel(hdmi, 0xc9, 0);
+	inno_phy_writel(hdmi, 0xca, 0);
+	inno_phy_writel(hdmi, 0xcb, 0);
+
+	if (inno_phy_config->tmdsclock > 340000000) {
+		/* Set termination resistor to 100ohm */
+		val = clk_get_rate(hdmi->hdmiphy_pclk) / 100000;
+		inno_phy_writel(hdmi, 0xc5, ((val >> 8) & 0xff) | 0x80);
+		inno_phy_writel(hdmi, 0xc6, val & 0xff);
+		inno_phy_writel(hdmi, 0xc7, 3 << 1);
+		inno_phy_writel(hdmi, 0xc5, ((val >> 8) & 0xff));
+	} else if (inno_phy_config->tmdsclock > 165000000) {
+		inno_phy_writel(hdmi, 0xc5, 0x81);
+		/* clk termination resistor is 50ohm
+		 * data termination resistor is 150ohm
+		 */
+		inno_phy_writel(hdmi, 0xc8, 0x30);
+		inno_phy_writel(hdmi, 0xc9, 0x10);
+		inno_phy_writel(hdmi, 0xca, 0x10);
+		inno_phy_writel(hdmi, 0xcb, 0x10);
+	} else {
+		inno_phy_writel(hdmi, 0xc5, 0x81);
+	}
+
+	if (inno_phy_config->tmdsclock > 340000000)
+		msleep(100);
+
+	inno_phy_modeb(hdmi, 4, 4, 0xb0);
+	inno_phy_writel(hdmi, 0xb2, 0x0f);
+	/* set pdata_en to 1 */
+	inno_phy_modeb(hdmi, 1, 1, 0x01);
+	return 0;
+}
+
+static void inno_dw_hdmi_phy_disable(struct dw_hdmi *dw_hdmi, void *data)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	/* Power off driver */
+	inno_phy_writel(hdmi, 0xb2, 0);
+	/* Power off band gap */
+	inno_phy_modeb(hdmi, 0, 4, 0xb0);
+	/* Power off post pll */
+	inno_phy_modeb(hdmi, 1, 1, 0xaa);
+}
+
+static enum drm_connector_status
+inno_dw_hdmi_phy_read_hpd(struct dw_hdmi *dw_hdmi, void *data)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+	enum drm_connector_status status;
+
+	status = dw_hdmi_phy_read_hpd(dw_hdmi, data);
+	if (status == connector_status_connected)
+		regmap_write(hdmi->regmap,
+			     RK3328_GRF_SOC_CON4,
+			     RK3328_IO_5V_DOMAIN);
+	else
+		regmap_write(hdmi->regmap,
+			     RK3328_GRF_SOC_CON4,
+			     RK3328_IO_3V_DOMAIN);
+	return status;
+}
+
+static int inno_dw_hdmi_phy_pll_prepare(struct clk_hw *hw)
+{
+	struct rockchip_hdmi *hdmi =
+		container_of(hw, struct rockchip_hdmi, hdmiphy_clkhw);
+
+	if (inno_phy_readl(hdmi, 0xa0) & 1)
+		inno_phy_modeb(hdmi, 0, 1, 0xa0);
+	return 0;
+}
+
+static void inno_dw_hdmi_phy_pll_unprepare(struct clk_hw *hw)
+{
+	struct rockchip_hdmi *hdmi =
+		container_of(hw, struct rockchip_hdmi, hdmiphy_clkhw);
+
+	if ((inno_phy_readl(hdmi, 0xa0) & 1) == 0)
+		inno_phy_modeb(hdmi, 1, 1, 0xa0);
+}
+
+static int inno_dw_hdmi_phy_is_prepared(struct clk_hw *hw)
+{
+	struct rockchip_hdmi *hdmi =
+		container_of(hw, struct rockchip_hdmi, hdmiphy_clkhw);
+
+	return (inno_phy_readl(hdmi, 0xa0) & 1) ? 0 : 1;
+}
+
+static unsigned long
+inno_dw_hdmi_phy_pll_recalc_rate(struct clk_hw *hw,
+				  unsigned long parent_rate)
+{
+	struct rockchip_hdmi *hdmi =
+		container_of(hw, struct rockchip_hdmi, hdmiphy_clkhw);
+	unsigned long rate, vco, frac;
+	u8 nd, no_a, no_b, no_c, no_d;
+	u16 nf;
+
+	nd = inno_phy_readl(hdmi, 0xa1) & 0x3f;
+	nf = ((inno_phy_readl(hdmi, 0xa2) & 0x0f) << 8) |
+	     inno_phy_readl(hdmi, 0xa3);
+	vco = parent_rate * nf;
+	if ((inno_phy_readl(hdmi, 0xa2) & 0x30) == 0) {
+		frac = inno_phy_readl(hdmi, 0xd3) |
+		       (inno_phy_readl(hdmi, 0xd2) << 8) |
+		       (inno_phy_readl(hdmi, 0xd1) << 16);
+		vco += DIV_ROUND_CLOSEST(parent_rate * frac, (1 << 24));
+	}
+	if (inno_phy_readl(hdmi, 0xa0) & 2) {
+		rate = vco / (nd * 5);
+	} else {
+		no_a = inno_phy_readl(hdmi, 0xa5) & 0x1f;
+		no_b = ((inno_phy_readl(hdmi, 0xa5) >> 5) & 7) + 2;
+		no_c = (1 << ((inno_phy_readl(hdmi, 0xa6) >> 5) & 7));
+		no_d = inno_phy_readl(hdmi, 0xa6) & 0x1f;
+		if (no_a == 1)
+			rate = vco / (nd * no_b * no_d * 2);
+		else
+			rate = vco / (nd * no_a * no_d * 2);
+	}
+
+	return rate;
+}
+
+static long
+inno_dw_hdmi_phy_pll_round_rate(struct clk_hw *hw, unsigned long rate,
+				unsigned long *parent_rate)
+{
+	const struct inno_pre_pll_config *inno_pll_config = inno_pre_pll_cfg;
+
+	for (; inno_pll_config->pixclock != ~0UL; inno_pll_config++)
+		if (inno_pll_config->pixclock == rate)
+			break;
+	/* XXX: Limit pixel clock under 300MHz */
+	if (inno_pll_config->pixclock < 300000000)
+		return inno_pll_config->pixclock;
+	else
+		return ~0UL;
+}
+
+static int
+inno_dw_hdmi_phy_pll_set_rate(struct clk_hw *hw, unsigned long rate,
+			      unsigned long parent_rate)
+{
+	struct rockchip_hdmi *hdmi =
+		container_of(hw, struct rockchip_hdmi, hdmiphy_clkhw);
+	const struct inno_pre_pll_config *inno_pll_config = inno_pre_pll_cfg;
+	u32 val, i;
+
+	for (; inno_pll_config->pixclock != ~0UL; inno_pll_config++)
+		if (inno_pll_config->pixclock == rate &&
+		    inno_pll_config->tmdsclock == rate)
+			break;
+	if (inno_pll_config->pixclock == ~0UL) {
+		dev_err(hdmi->dev, "unsupported rate %lu\n", rate);
+		return -EINVAL;
+	}
+	/* Power off PLL */
+	inno_phy_modeb(hdmi, 1, 1, 0xa0);
+	/* Configure pre-pll */
+	inno_phy_modeb(hdmi, (inno_pll_config->vco_div_5 & 1) << 1, 2, 0xa0);
+	inno_phy_writel(hdmi, 0xa1, inno_pll_config->nd);
+	if (inno_pll_config->frac)
+		val = ((inno_pll_config->nf >> 8) & 0x0f) | 0xc0;
+	else
+		val = ((inno_pll_config->nf >> 8) & 0x0f) | 0xf0;
+	inno_phy_writel(hdmi, 0xa2, val);
+	val = inno_pll_config->nf & 0xff;
+	inno_phy_writel(hdmi, 0xa3, val);
+	val = (inno_pll_config->pclk_div_a & 0x1f) |
+	      ((inno_pll_config->pclk_div_b & 3) << 5);
+	inno_phy_writel(hdmi, 0xa5, val);
+	val = (inno_pll_config->pclk_div_d & 0x1f) |
+	      ((inno_pll_config->pclk_div_c & 3) << 5);
+	inno_phy_writel(hdmi, 0xa6, val);
+	val = ((inno_pll_config->tmds_div_a & 3) << 4) |
+	      ((inno_pll_config->tmds_div_b & 3) << 2) |
+	      (inno_pll_config->tmds_div_c & 3);
+	inno_phy_writel(hdmi, 0xa4, val);
+
+	if (inno_pll_config->frac) {
+		val = inno_pll_config->frac & 0xff;
+		inno_phy_writel(hdmi, 0xd3, val);
+		val = (inno_pll_config->frac >> 8) & 0xff;
+		inno_phy_writel(hdmi, 0xd2, val);
+		val = (inno_pll_config->frac >> 16) & 0xff;
+		inno_phy_writel(hdmi, 0xd1, val);
+	} else {
+		inno_phy_writel(hdmi, 0xd3, 0);
+		inno_phy_writel(hdmi, 0xd2, 0);
+		inno_phy_writel(hdmi, 0xd1, 0);
+	}
+
+	/* Power up PLL */
+	inno_phy_modeb(hdmi, 0, 1, 0xa0);
+
+	/* Wait for PLL lock */
+	for (i = 0; i < 5; ++i) {
+		if (inno_phy_readl(hdmi, 0xa9) & 1)
+			break;
+		usleep_range(1000, 2000);
+	}
+	return 0;
+}
+
+static const struct clk_ops inno_dw_hdmi_phy_pll_clk_norate_ops = {
+	.prepare = inno_dw_hdmi_phy_pll_prepare,
+	.unprepare = inno_dw_hdmi_phy_pll_unprepare,
+	.is_prepared = inno_dw_hdmi_phy_is_prepared,
+	.recalc_rate = inno_dw_hdmi_phy_pll_recalc_rate,
+	.round_rate = inno_dw_hdmi_phy_pll_round_rate,
+	.set_rate = inno_dw_hdmi_phy_pll_set_rate,
+};
+
+static void inno_dw_hdmi_phy_clk_unregister(void *data)
+{
+	struct rockchip_hdmi *hdmi = data;
+
+	of_clk_del_provider(hdmi->dev->of_node);
+	clk_unregister(hdmi->hdmiphy_clk);
+}
+
+static int inno_dw_hdmi_phy_clk_register(struct rockchip_hdmi *hdmi)
+{
+	struct device_node *node = hdmi->dev->of_node;
+	struct clk_init_data init;
+	const char *clk_name = "xin24m";
+	int ret;
+
+	init.flags = 0;
+	init.name = "hdmi_phy";
+	init.ops = &inno_dw_hdmi_phy_pll_clk_norate_ops;
+	init.parent_names = &clk_name;
+	init.num_parents = 1;
+
+	/* optional override of the clockname */
+	of_property_read_string(node, "clock-output-names", &init.name);
+
+	hdmi->hdmiphy_clkhw.init = &init;
+
+	/* register the clock */
+	hdmi->hdmiphy_clk = clk_register(hdmi->dev, &hdmi->hdmiphy_clkhw);
+	if (IS_ERR(hdmi->hdmiphy_clk)) {
+		ret = PTR_ERR(hdmi->hdmiphy_clk);
+		goto err_ret;
+	}
+	ret = of_clk_add_provider(node, of_clk_src_simple_get,
+				  hdmi->hdmiphy_clk);
+	if (ret < 0)
+		goto err_clk_provider;
+
+	ret = devm_add_action(hdmi->dev, inno_dw_hdmi_phy_clk_unregister,
+			      hdmi);
+	if (ret < 0)
+		goto err_unreg_action;
+	return 0;
+err_unreg_action:
+	of_clk_del_provider(node);
+err_clk_provider:
+	clk_unregister(hdmi->hdmiphy_clk);
+err_ret:
+	return ret;
+}
+
+static int rk3328_hdmi_init(struct rockchip_hdmi *hdmi)
+{
+	int ret;
+
+	ret = clk_prepare_enable(hdmi->grf_clk);
+	if (ret < 0) {
+		dev_err(hdmi->dev, "failed to enable grfclk %d\n", ret);
+		return -EPROBE_DEFER;
+	}
+	/* Map HPD pin to 3V io */
+	regmap_write(hdmi->regmap,
+		     RK3328_GRF_SOC_CON4,
+		     RK3328_IO_3V_DOMAIN |
+		     RK3328_HPD_3V);
+	/* Map ddc pin to 5V io */
+	regmap_write(hdmi->regmap,
+		     RK3328_GRF_SOC_CON3,
+		     RK3328_IO_CTRL_BY_HDMI);
+	regmap_write(hdmi->regmap,
+		     RK3328_GRF_SOC_CON2,
+		     RK3328_DDC_MASK_EN |
+		     BIT(18));
+	clk_disable_unprepare(hdmi->grf_clk);
+	/*
+	 * Use phy internal register control
+	 * rxsense/poweron/pllpd/pdataen signal.
+	 */
+	inno_phy_writel(hdmi, 0x01, 0x07);
+	inno_phy_writel(hdmi, 0x02, 0x91);
+	return 0;
+}
 
 /*
  * There are some rates that would be ranged for better clock jitter at
@@ -229,9 +779,43 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 		return PTR_ERR(hdmi->grf_clk);
 	}
 
+	hdmi->hclk_vio = devm_clk_get(hdmi->dev, "hclk_vio");
+	if (PTR_ERR(hdmi->hclk_vio) == -ENOENT) {
+		hdmi->hclk_vio = NULL;
+	} else if (PTR_ERR(hdmi->hclk_vio) == -EPROBE_DEFER) {
+		return -EPROBE_DEFER;
+	} else if (IS_ERR(hdmi->hclk_vio)) {
+		dev_err(hdmi->dev, "failed to get hclk_vio clock\n");
+		return PTR_ERR(hdmi->hclk_vio);
+	}
+
+	hdmi->hdmiphy_pclk = devm_clk_get(hdmi->dev, "pclk_hdmiphy");
+	if (PTR_ERR(hdmi->hdmiphy_pclk) == -ENOENT) {
+		hdmi->hdmiphy_pclk = NULL;
+	} else if (PTR_ERR(hdmi->hdmiphy_pclk) == -EPROBE_DEFER) {
+		return -EPROBE_DEFER;
+	} else if (IS_ERR(hdmi->hdmiphy_pclk)) {
+		dev_err(hdmi->dev, "failed to get pclk_hdmiphy clock\n");
+		return PTR_ERR(hdmi->hdmiphy_pclk);
+	}
+
 	ret = clk_prepare_enable(hdmi->vpll_clk);
 	if (ret) {
 		dev_err(hdmi->dev, "Failed to enable HDMI vpll: %d\n", ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(hdmi->hclk_vio);
+	if (ret) {
+		dev_err(hdmi->dev, "Failed to eanble HDMI hclk_vio: %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(hdmi->hdmiphy_pclk);
+	if (ret) {
+		dev_err(hdmi->dev, "Failed to eanble HDMI pclk_hdmiphy: %d\n",
+			ret);
 		return ret;
 	}
 
@@ -395,6 +979,14 @@ static const struct drm_encoder_helper_funcs dw_hdmi_rockchip_encoder_helper_fun
 	.atomic_check = dw_hdmi_rockchip_encoder_atomic_check,
 };
 
+static const struct dw_hdmi_phy_ops inno_dw_hdmi_phy_ops = {
+	.init		= inno_dw_hdmi_phy_init,
+	.disable	= inno_dw_hdmi_phy_disable,
+	.read_hpd	= inno_dw_hdmi_phy_read_hpd,
+	.read		= inno_dw_hdmi_phy_read,
+	.write		= inno_dw_hdmi_phy_write,
+};
+
 static const struct dw_hdmi_plat_data rk3288_hdmi_drv_data = {
 	.mode_valid = dw_hdmi_rockchip_mode_valid,
 	.mpll_cfg   = rockchip_mpll_cfg,
@@ -402,6 +994,13 @@ static const struct dw_hdmi_plat_data rk3288_hdmi_drv_data = {
 	.phy_config = rockchip_phy_config,
 	.dev_type   = RK3288_HDMI,
 	.tmds_n_table = rockchip_werid_tmds_n_table,
+};
+
+static const struct dw_hdmi_plat_data rk3328_hdmi_drv_data = {
+	.mode_valid = dw_hdmi_rockchip_mode_valid,
+	.phy_ops    = &inno_dw_hdmi_phy_ops,
+	.phy_name   = "inno_dw_hdmi_phy2",
+	.dev_type   = RK3328_HDMI,
 };
 
 static const struct dw_hdmi_plat_data rk3368_hdmi_drv_data = {
@@ -425,6 +1024,10 @@ static const struct of_device_id dw_hdmi_rockchip_dt_ids[] = {
 	  .data = &rk3288_hdmi_drv_data
 	},
 	{
+	  .compatible = "rockchip,rk3328-dw-hdmi",
+	  .data = &rk3328_hdmi_drv_data
+	},
+	{
 	 .compatible = "rockchip,rk3368-dw-hdmi",
 	 .data = &rk3368_hdmi_drv_data
 	},
@@ -439,12 +1042,12 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 				 void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	const struct dw_hdmi_plat_data *plat_data;
+	struct dw_hdmi_plat_data *plat_data;
 	const struct of_device_id *match;
 	struct drm_device *drm = data;
 	struct drm_encoder *encoder;
 	struct rockchip_hdmi *hdmi;
-	struct resource *iores;
+	struct resource *iores, *phyres;
 	int irq;
 	int ret;
 
@@ -456,7 +1059,7 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		return -ENOMEM;
 
 	match = of_match_node(dw_hdmi_rockchip_dt_ids, pdev->dev.of_node);
-	plat_data = match->data;
+	plat_data = (struct dw_hdmi_plat_data *)match->data;
 	hdmi->dev = &pdev->dev;
 	hdmi->dev_type = plat_data->dev_type;
 	encoder = &hdmi->encoder;
@@ -483,6 +1086,18 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 	if (ret) {
 		dev_err(hdmi->dev, "Unable to parse OF data\n");
 		return ret;
+	}
+
+	if (hdmi->dev_type == RK3328_HDMI) {
+		phyres = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		hdmi->hdmiphy = devm_ioremap_resource(dev, phyres);
+		if (IS_ERR(hdmi->hdmiphy))
+			return PTR_ERR(hdmi->hdmiphy);
+		plat_data->phy_data = hdmi;
+		ret = rk3328_hdmi_init(hdmi);
+		if (ret < 0)
+			return ret;
+		inno_dw_hdmi_phy_clk_register(hdmi);
 	}
 
 	drm_encoder_helper_add(encoder, &dw_hdmi_rockchip_encoder_helper_funcs);
