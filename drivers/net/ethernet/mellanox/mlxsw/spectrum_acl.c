@@ -54,6 +54,7 @@ struct mlxsw_sp_acl {
 	struct mlxsw_afa *afa;
 	const struct mlxsw_sp_acl_ops *ops;
 	struct rhashtable ruleset_ht;
+	struct list_head rules;
 	unsigned long priv[0];
 	/* priv has to be always the last item */
 };
@@ -80,6 +81,7 @@ struct mlxsw_sp_acl_ruleset {
 
 struct mlxsw_sp_acl_rule {
 	struct rhash_head ht_node; /* Member of rule HT */
+	struct list_head list;
 	unsigned long cookie; /* HT key */
 	struct mlxsw_sp_acl_ruleset *ruleset;
 	struct mlxsw_sp_acl_rule_info *rulei;
@@ -422,6 +424,7 @@ int mlxsw_sp_acl_rule_add(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_rhashtable_insert;
 
+	list_add_tail(&rule->list, &mlxsw_sp->acl->rules);
 	return 0;
 
 err_rhashtable_insert:
@@ -435,6 +438,7 @@ void mlxsw_sp_acl_rule_del(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_acl_ruleset *ruleset = rule->ruleset;
 	const struct mlxsw_sp_acl_profile_ops *ops = ruleset->ht_key.ops;
 
+	list_del(&rule->list);
 	rhashtable_remove_fast(&ruleset->rule_ht, &rule->ht_node,
 			       mlxsw_sp_acl_rule_ht_params);
 	ops->rule_del(mlxsw_sp, rule->priv);
@@ -570,6 +574,7 @@ int mlxsw_sp_acl_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		goto err_rhashtable_init;
 
+	INIT_LIST_HEAD(&acl->rules);
 	err = acl_ops->init(mlxsw_sp, acl->priv);
 	if (err)
 		goto err_acl_ops_init;
@@ -594,6 +599,7 @@ void mlxsw_sp_acl_fini(struct mlxsw_sp *mlxsw_sp)
 	const struct mlxsw_sp_acl_ops *acl_ops = acl->ops;
 
 	acl_ops->fini(mlxsw_sp, acl->priv);
+	WARN_ON(!list_empty(&acl->rules));
 	rhashtable_destroy(&acl->ruleset_ht);
 	mlxsw_afa_destroy(acl->afa);
 	mlxsw_afk_destroy(acl->afk);
