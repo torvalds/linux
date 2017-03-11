@@ -437,7 +437,6 @@ int setup_obb_dentry(struct dentry *dentry, struct path *lower_path)
 
 	if(!err) {
 		/* the obbpath base has been found */
-		printk(KERN_INFO "sdcardfs: the sbi->obbpath is found\n");
 		pathcpy(lower_path, &obbpath);
 	} else {
 		/* if the sbi->obbpath is not available, we can optionally

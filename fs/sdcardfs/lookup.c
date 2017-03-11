@@ -395,9 +395,6 @@ struct dentry *sdcardfs_lookup(struct inode *dir, struct dentry *dentry,
 
 	if(!check_caller_access_to_name(d_inode(parent), &dentry->d_name)) {
 		ret = ERR_PTR(-EACCES);
-		printk(KERN_INFO "%s: need to check the caller's gid in packages.list\n"
-                         "	dentry: %s, task:%s\n",
-						 __func__, dentry->d_name.name, current->comm);
 		goto out_err;
         }
 
