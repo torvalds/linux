@@ -535,6 +535,24 @@ int mv88e6351_port_set_egress_unknowns(struct mv88e6xxx_chip *chip, int port,
 
 /* Offset 0x05: Port Control 1 */
 
+int mv88e6xxx_port_set_message_port(struct mv88e6xxx_chip *chip, int port,
+				    bool message_port)
+{
+	u16 val;
+	int err;
+
+	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_1, &val);
+	if (err)
+		return err;
+
+	if (message_port)
+		val |= PORT_CONTROL_1_MESSAGE_PORT;
+	else
+		val &= ~PORT_CONTROL_1_MESSAGE_PORT;
+
+	return mv88e6xxx_port_write(chip, port, PORT_CONTROL_1, val);
+}
+
 /* Offset 0x06: Port Based VLAN Map */
 
 int mv88e6xxx_port_set_vlan_map(struct mv88e6xxx_chip *chip, int port, u16 map)

@@ -2504,6 +2504,13 @@ static int mv88e6xxx_setup_port_normal(struct mv88e6xxx_chip *chip, int port)
 	return chip->info->ops->port_set_egress_unknowns(chip, port, false);
 }
 
+static int mv88e6xxx_setup_message_port(struct mv88e6xxx_chip *chip, int port)
+{
+	bool message = dsa_is_dsa_port(chip->ds, port);
+
+	return mv88e6xxx_port_set_message_port(chip, port, message);
+}
+
 static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 {
 	struct dsa_switch *ds = chip->ds;
@@ -2658,10 +2665,7 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 			return err;
 	}
 
-	/* Port Control 1: disable trunking, disable sending
-	 * learning messages to this port.
-	 */
-	err = mv88e6xxx_port_write(chip, port, PORT_CONTROL_1, 0x0000);
+	err = mv88e6xxx_setup_message_port(chip, port);
 	if (err)
 		return err;
 
