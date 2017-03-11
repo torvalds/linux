@@ -1546,17 +1546,21 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 	cec_write(priv, REG_CEC_FRO_IM_CLK_CTRL,
 			CEC_FRO_IM_CLK_CTRL_GHOST_DIS | CEC_FRO_IM_CLK_CTRL_IMCLK_SEL);
 
+	/* ensure interrupts are disabled */
+	cec_write(priv, REG_CEC_RXSHPDINTENA, 0);
+
+	/* clear pending interrupts */
+	cec_read(priv, REG_CEC_RXSHPDINT);
+	reg_read(priv, REG_INT_FLAGS_0);
+	reg_read(priv, REG_INT_FLAGS_1);
+	reg_read(priv, REG_INT_FLAGS_2);
+
 	/* initialize the optional IRQ */
 	if (client->irq) {
 		unsigned long irq_flags;
 
 		/* init read EDID waitqueue and HDP work */
 		init_waitqueue_head(&priv->wq_edid);
-
-		/* clear pending interrupts */
-		reg_read(priv, REG_INT_FLAGS_0);
-		reg_read(priv, REG_INT_FLAGS_1);
-		reg_read(priv, REG_INT_FLAGS_2);
 
 		irq_flags =
 			irqd_get_trigger_type(irq_get_irq_data(client->irq));
