@@ -616,6 +616,11 @@
 		vop_out: port {
 			#address-cells = <1>;
 			#size-cells = <0>;
+
+			vop_out_hdmi: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&hdmi_in_vop>;
+			};
 		};
 	};
 
@@ -628,6 +633,48 @@
 		clock-names = "aclk", "iface";
 		#iommu-cells = <0>;
 		status = "disabled";
+	};
+
+	hdmi: hdmi@ff3c0000 {
+		compatible = "rockchip,rk3328-dw-hdmi";
+		reg = <0x0 0xff3c0000 0x0 0x20000>,
+		      <0x0 0xff430000 0x0 0x10000>;
+		reg-io-width = <4>;
+		interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_HDMI>,
+			 <&cru SCLK_HDMI_SFC>,
+			 <&cru PCLK_HDMIPHY>,
+			 <&cru HCLK_VIO>;
+		clock-names = "iahb",
+			      "isfr",
+			      "pclk_hdmiphy",
+			      "hclk_vio";
+		#clock-cells = <0>;
+		clock-output-names = "hdmi_phy";
+		assigned-clocks = <&cru HDMIPHY>;
+		assigned-clock-parents = <&hdmi>;
+		pinctrl-names = "default", "gpio";
+		pinctrl-0 = <&hdmi_cec &hdmii2c_xfer &hdmi_hpd>;
+		pinctrl-1 = <&i2c3_gpio>;
+		resets = <&cru SRST_HDMI_P>,
+			 <&cru SRST_HDMIPHY>;
+		reset-names = "hdmi",
+			      "hdmiphy";
+		rockchip,grf = <&grf>;
+		status = "disabled";
+
+		ports {
+			hdmi_in: port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				hdmi_in_vop: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vop_out_hdmi>;
+				};
+			};
+		};
 	};
 
 	display_subsystem: display-subsystem {
