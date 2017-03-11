@@ -15,6 +15,7 @@
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/clockchips.h>
+#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -35,6 +36,21 @@
 #define ORION_ONESHOT_MAX	0xfffffffe
 
 static void __iomem *timer_base;
+
+static unsigned long notrace orion_read_timer(void)
+{
+	return ~readl(timer_base + TIMER0_VAL);
+}
+
+static struct delay_timer orion_delay_timer = {
+	.read_current_timer = orion_read_timer,
+};
+
+static void orion_delay_timer_init(unsigned long rate)
+{
+	orion_delay_timer.freq = rate;
+	register_current_timer_delay(&orion_delay_timer);
+}
 
 /*
  * Free-running clocksource handling.
@@ -167,6 +183,9 @@ static int __init orion_timer_init(struct device_node *np)
 	orion_clkevt.irq = irq;
 	clockevents_config_and_register(&orion_clkevt, rate,
 					ORION_ONESHOT_MIN, ORION_ONESHOT_MAX);
+
+
+	orion_delay_timer_init(rate);
 
 	return 0;
 }
