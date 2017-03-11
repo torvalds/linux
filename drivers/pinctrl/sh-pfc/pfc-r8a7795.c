@@ -2056,7 +2056,7 @@ static const unsigned int hscif2_clk_b_pins[] = {
 	RCAR_GP_PIN(6, 21),
 };
 static const unsigned int hscif2_clk_b_mux[] = {
-	HSCK1_B_MARK,
+	HSCK2_B_MARK,
 };
 static const unsigned int hscif2_ctrl_b_pins[] = {
 	/* RTS, CTS */
@@ -2129,7 +2129,7 @@ static const unsigned int hscif4_ctrl_pins[] = {
 	RCAR_GP_PIN(1, 15), RCAR_GP_PIN(1, 14),
 };
 static const unsigned int hscif4_ctrl_mux[] = {
-	HRTS4_N_MARK, HCTS3_N_MARK,
+	HRTS4_N_MARK, HCTS4_N_MARK,
 };
 
 static const unsigned int hscif4_data_b_pins[] = {
