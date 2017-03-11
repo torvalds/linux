@@ -246,6 +246,7 @@ struct mlxsw_sp_router {
 };
 
 struct mlxsw_sp_acl;
+struct mlxsw_sp_counter_pool;
 
 struct mlxsw_sp {
 	struct {
@@ -281,6 +282,7 @@ struct mlxsw_sp {
 		DECLARE_BITMAP(usage, MLXSW_SP_KVD_LINEAR_SIZE);
 	} kvdl;
 
+	struct mlxsw_sp_counter_pool *counter_pool;
 	struct {
 		struct mlxsw_sp_span_entry *entries;
 		int entries_count;
