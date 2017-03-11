@@ -357,11 +357,11 @@ static int s2mpa01_pmic_probe(struct platform_device *pdev)
 	if (iodev->dev->of_node) {
 		reg_np = of_get_child_by_name(iodev->dev->of_node,
 							"regulators");
-			if (!reg_np) {
-				dev_err(&pdev->dev,
-					"could not find regulators sub-node\n");
-				return -EINVAL;
-			}
+		if (!reg_np) {
+			dev_err(&pdev->dev,
+				"could not find regulators sub-node\n");
+			return -EINVAL;
+		}
 
 		of_regulator_match(&pdev->dev, reg_np, rdata,
 						S2MPA01_REGULATOR_MAX);
