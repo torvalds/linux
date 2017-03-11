@@ -1189,7 +1189,8 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		}
 		seq_printf(m, "PM IER=0x%08x IMR=0x%08x ISR=0x%08x IIR=0x%08x, MASK=0x%08x\n",
 			   pm_ier, pm_imr, pm_isr, pm_iir, pm_mask);
-		seq_printf(m, "pm_intr_keep: 0x%08x\n", dev_priv->rps.pm_intr_keep);
+		seq_printf(m, "pm_intrmsk_mbz: 0x%08x\n",
+			   dev_priv->rps.pm_intrmsk_mbz);
 		seq_printf(m, "GT_PERF_STATUS: 0x%08x\n", gt_perf_status);
 		seq_printf(m, "Render p-state ratio: %d\n",
 			   (gt_perf_status & (IS_GEN9(dev_priv) ? 0x1ff00 : 0xff00)) >> 8);

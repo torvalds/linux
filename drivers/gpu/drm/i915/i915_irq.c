@@ -391,7 +391,7 @@ void gen6_enable_rps_interrupts(struct drm_i915_private *dev_priv)
 
 u32 gen6_sanitize_rps_pm_mask(struct drm_i915_private *dev_priv, u32 mask)
 {
-	return (mask & ~dev_priv->rps.pm_intr_keep);
+	return (mask & ~dev_priv->rps.pm_intrmsk_mbz);
 }
 
 void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv)
@@ -4270,7 +4270,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	else
 		dev_priv->pm_rps_events = GEN6_PM_RPS_EVENTS;
 
-	dev_priv->rps.pm_intr_keep = 0;
+	dev_priv->rps.pm_intrmsk_mbz = 0;
 
 	/*
 	 * SNB,IVB can while VLV,CHV may hard hang on looping batchbuffer
@@ -4279,33 +4279,33 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	 * TODO: verify if this can be reproduced on VLV,CHV.
 	 */
 	if (INTEL_INFO(dev_priv)->gen <= 7 && !IS_HASWELL(dev_priv))
-		dev_priv->rps.pm_intr_keep |= GEN6_PM_RP_UP_EI_EXPIRED;
+		dev_priv->rps.pm_intrmsk_mbz |= GEN6_PM_RP_UP_EI_EXPIRED;
 
 	if (INTEL_INFO(dev_priv)->gen >= 8)
-		dev_priv->rps.pm_intr_keep |= GEN8_PMINTR_REDIRECT_TO_GUC;
+		dev_priv->rps.pm_intrmsk_mbz |= GEN8_PMINTR_REDIRECT_TO_GUC;
 
 	/*
 	 * The REDIRECT_TO_GUC bit of the PMINTRMSK register directs all
 	 * (unmasked) PM interrupts to the GuC. All other bits of this
 	 * register *disable* generation of a specific interrupt.
 	 *
-	 * 'pm_intr_keep' indicates bits that are NOT to be set when
+	 * 'pm_intrmsk_mbz' indicates bits that are NOT to be set when
 	 * writing to the PM interrupt mask register, i.e. interrupts
 	 * that must not be disabled.
 	 *
 	 * If the GuC is handling these interrupts, then we must not let
 	 * the PM code disable ANY interrupt that the GuC is expecting.
 	 * So for each ENABLED (0) bit in this register, we must SET the
-	 * bit in pm_intr_keep so that it's left enabled for the GuC.
+	 * bit in pm_intrmsk_mbz so that it's left enabled for the GuC.
 	 * GuC needs ARAT expired interrupt unmasked hence it is set in
-	 * pm_intr_keep.
+	 * pm_intrmsk_mbz.
 	 *
-	 * Here we CLEAR REDIRECT_TO_GUC bit in pm_intr_keep, which will
+	 * Here we CLEAR REDIRECT_TO_GUC bit in pm_intrmsk_mbz, which will
 	 * result in the register bit being left SET!
 	 */
 	if (HAS_GUC_SCHED(dev_priv)) {
-		dev_priv->rps.pm_intr_keep |= ARAT_EXPIRED_INTRMSK;
-		dev_priv->rps.pm_intr_keep &= ~GEN8_PMINTR_REDIRECT_TO_GUC;
+		dev_priv->rps.pm_intrmsk_mbz |= ARAT_EXPIRED_INTRMSK;
+		dev_priv->rps.pm_intrmsk_mbz &= ~GEN8_PMINTR_REDIRECT_TO_GUC;
 	}
 
 	if (IS_GEN2(dev_priv)) {

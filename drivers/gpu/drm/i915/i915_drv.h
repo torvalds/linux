@@ -1337,7 +1337,7 @@ struct intel_gen6_power_mgmt {
 	u32 pm_iir;
 
 	/* PM interrupt bits that should never be masked */
-	u32 pm_intr_keep;
+	u32 pm_intrmsk_mbz;
 
 	/* Frequencies are stored in potentially platform dependent multiples.
 	 * In other words, *_freq needs to be multiplied by X to be interesting.
