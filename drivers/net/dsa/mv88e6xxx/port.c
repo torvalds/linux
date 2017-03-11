@@ -812,6 +812,13 @@ int mv88e6xxx_port_disable_learn_limit(struct mv88e6xxx_chip *chip, int port)
 	return mv88e6xxx_port_write(chip, port, PORT_ATU_CONTROL, 0);
 }
 
+/* Offset 0x0D: (Priority) Override Register */
+
+int mv88e6xxx_port_disable_pri_override(struct mv88e6xxx_chip *chip, int port)
+{
+	return mv88e6xxx_port_write(chip, port, PORT_PRI_OVERRIDE, 0);
+}
+
 /* Offset 0x0f: Port Ether type */
 
 int mv88e6351_port_set_ether_type(struct mv88e6xxx_chip *chip, int port,
