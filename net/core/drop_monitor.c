@@ -412,9 +412,8 @@ static int __init init_net_drop_monitor(void)
 	for_each_possible_cpu(cpu) {
 		data = &per_cpu(dm_cpu_data, cpu);
 		INIT_WORK(&data->dm_alert_work, send_dm_alert);
-		init_timer(&data->send_timer);
-		data->send_timer.data = (unsigned long)data;
-		data->send_timer.function = sched_send_work;
+		setup_timer(&data->send_timer, sched_send_work,
+			    (unsigned long)data);
 		spin_lock_init(&data->lock);
 		reset_per_cpu_data(data);
 	}
