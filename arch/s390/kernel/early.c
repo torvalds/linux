@@ -231,9 +231,28 @@ static noinline __init void detect_machine_type(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_VM;
 }
 
+/* Remove leading, trailing and double whitespace. */
+static inline void strim_all(char *str)
+{
+	char *s;
+
+	s = strim(str);
+	if (s != str)
+		memmove(str, s, strlen(s));
+	while (*str) {
+		if (!isspace(*str++))
+			continue;
+		if (isspace(*str)) {
+			s = skip_spaces(str);
+			memmove(str, s, strlen(s) + 1);
+		}
+	}
+}
+
 static noinline __init void setup_arch_string(void)
 {
 	struct sysinfo_1_1_1 *mach = (struct sysinfo_1_1_1 *)&sysinfo_page;
+	char mstr[80];
 
 	if (stsi(mach, 1, 1, 1))
 		return;
@@ -241,11 +260,11 @@ static noinline __init void setup_arch_string(void)
 	EBCASC(mach->type, sizeof(mach->type));
 	EBCASC(mach->model, sizeof(mach->model));
 	EBCASC(mach->model_capacity, sizeof(mach->model_capacity));
-	dump_stack_set_arch_desc("%-16.16s %-4.4s %-16.16s %-16.16s (%s)",
-				 mach->manufacturer,
-				 mach->type,
-				 mach->model,
-				 mach->model_capacity,
+	sprintf(mstr, "%-16.16s %-4.4s %-16.16s %-16.16s",
+		mach->manufacturer, mach->type,
+		mach->model, mach->model_capacity);
+	strim_all(mstr);
+	dump_stack_set_arch_desc("%s (%s)", mstr,
 				 MACHINE_IS_LPAR ? "LPAR" :
 				 MACHINE_IS_VM ? "z/VM" :
 				 MACHINE_IS_KVM ? "KVM" : "unknown");
