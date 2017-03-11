@@ -92,6 +92,8 @@ struct mlxsw_sp_acl_rule {
 	struct mlxsw_sp_acl_ruleset *ruleset;
 	struct mlxsw_sp_acl_rule_info *rulei;
 	u64 last_used;
+	u64 last_packets;
+	u64 last_bytes;
 	unsigned long priv[0];
 	/* priv has to be always the last item */
 };
@@ -557,6 +559,32 @@ static void mlxsw_sp_acl_rul_activity_update_work(struct work_struct *work)
 		dev_err(acl->mlxsw_sp->bus_info->dev, "Could not update acl activity");
 
 	mlxsw_sp_acl_rule_activity_work_schedule(acl);
+}
+
+int mlxsw_sp_acl_rule_get_stats(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_acl_rule *rule,
+				u64 *packets, u64 *bytes, u64 *last_use)
+
+{
+	struct mlxsw_sp_acl_rule_info *rulei;
+	u64 current_packets;
+	u64 current_bytes;
+	int err;
+
+	rulei = mlxsw_sp_acl_rule_rulei(rule);
+	err = mlxsw_sp_flow_counter_get(mlxsw_sp, rulei->counter_index,
+					&current_packets, &current_bytes);
+	if (err)
+		return err;
+
+	*packets = current_packets - rule->last_packets;
+	*bytes = current_bytes - rule->last_bytes;
+	*last_use = rule->last_used;
+
+	rule->last_bytes = current_bytes;
+	rule->last_packets = current_packets;
+
+	return 0;
 }
 
 #define MLXSW_SP_KDVL_ACT_EXT_SIZE 1

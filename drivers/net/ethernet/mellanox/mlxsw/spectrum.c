@@ -1434,6 +1434,9 @@ static int mlxsw_sp_setup_tc(struct net_device *dev, u32 handle,
 			mlxsw_sp_flower_destroy(mlxsw_sp_port, ingress,
 						tc->cls_flower);
 			return 0;
+		case TC_CLSFLOWER_STATS:
+			return mlxsw_sp_flower_stats(mlxsw_sp_port, ingress,
+						     tc->cls_flower);
 		default:
 			return -EOPNOTSUPP;
 		}
