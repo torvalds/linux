@@ -2045,26 +2045,6 @@ static int _mv88e6xxx_atu_mac_read(struct mv88e6xxx_chip *chip,
 	return 0;
 }
 
-static int _mv88e6xxx_atu_load(struct mv88e6xxx_chip *chip,
-			       struct mv88e6xxx_atu_entry *entry)
-{
-	int ret;
-
-	ret = _mv88e6xxx_atu_wait(chip);
-	if (ret < 0)
-		return ret;
-
-	ret = _mv88e6xxx_atu_mac_write(chip, entry->mac);
-	if (ret < 0)
-		return ret;
-
-	ret = _mv88e6xxx_atu_data_write(chip, entry);
-	if (ret < 0)
-		return ret;
-
-	return _mv88e6xxx_atu_cmd(chip, entry->fid, GLOBAL_ATU_OP_LOAD_DB);
-}
-
 static int _mv88e6xxx_atu_getnext(struct mv88e6xxx_chip *chip, u16 fid,
 				  struct mv88e6xxx_atu_entry *entry);
 
@@ -2132,7 +2112,7 @@ static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
 		entry.state = state;
 	}
 
-	return _mv88e6xxx_atu_load(chip, &entry);
+	return mv88e6xxx_g1_atu_loadpurge(chip, vlan.fid, &entry);
 }
 
 static int mv88e6xxx_port_fdb_prepare(struct dsa_switch *ds, int port,
