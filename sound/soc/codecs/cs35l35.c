@@ -1375,7 +1375,8 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 
 	for (i = 0; i < ARRAY_SIZE(cs35l35_supplies); i++)
 		cs35l35->supplies[i].supply = cs35l35_supplies[i];
-		cs35l35->num_supplies = ARRAY_SIZE(cs35l35_supplies);
+
+	cs35l35->num_supplies = ARRAY_SIZE(cs35l35_supplies);
 
 	ret = devm_regulator_bulk_get(dev, cs35l35->num_supplies,
 				      cs35l35->supplies);
