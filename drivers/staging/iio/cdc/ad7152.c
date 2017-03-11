@@ -441,9 +441,9 @@ static int ad7152_write_raw_get_fmt(struct iio_dev *indio_dev,
 
 static const struct iio_info ad7152_info = {
 	.attrs = &ad7152_attribute_group,
-	.read_raw = &ad7152_read_raw,
-	.write_raw = &ad7152_write_raw,
-	.write_raw_get_fmt = &ad7152_write_raw_get_fmt,
+	.read_raw = ad7152_read_raw,
+	.write_raw = ad7152_write_raw,
+	.write_raw_get_fmt = ad7152_write_raw_get_fmt,
 	.driver_module = THIS_MODULE,
 };
 
