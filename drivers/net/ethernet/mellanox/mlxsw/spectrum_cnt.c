@@ -52,7 +52,11 @@ struct mlxsw_sp_counter_pool {
 	struct mlxsw_sp_counter_sub_pool *sub_pools;
 };
 
-static struct mlxsw_sp_counter_sub_pool mlxsw_sp_counter_sub_pools[] = {};
+static struct mlxsw_sp_counter_sub_pool mlxsw_sp_counter_sub_pools[] = {
+	[MLXSW_SP_COUNTER_SUB_POOL_FLOW] = {
+		.bank_count = 6,
+	},
+};
 
 static int mlxsw_sp_counter_pool_validate(struct mlxsw_sp *mlxsw_sp)
 {
@@ -69,6 +73,19 @@ static int mlxsw_sp_counter_pool_validate(struct mlxsw_sp *mlxsw_sp)
 	return 0;
 }
 
+static int mlxsw_sp_counter_sub_pools_prepare(struct mlxsw_sp *mlxsw_sp)
+{
+	struct mlxsw_sp_counter_sub_pool *sub_pool;
+
+	/* Prepare generic flow pool*/
+	sub_pool = &mlxsw_sp_counter_sub_pools[MLXSW_SP_COUNTER_SUB_POOL_FLOW];
+	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, COUNTER_SIZE_PACKETS_BYTES))
+		return -EIO;
+	sub_pool->entry_size = MLXSW_CORE_RES_GET(mlxsw_sp->core,
+						  COUNTER_SIZE_PACKETS_BYTES);
+	return 0;
+}
+
 int mlxsw_sp_counter_pool_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp_counter_sub_pool *sub_pool;
@@ -82,6 +99,10 @@ int mlxsw_sp_counter_pool_init(struct mlxsw_sp *mlxsw_sp)
 		return -EIO;
 
 	err = mlxsw_sp_counter_pool_validate(mlxsw_sp);
+	if (err)
+		return err;
+
+	err = mlxsw_sp_counter_sub_pools_prepare(mlxsw_sp);
 	if (err)
 		return err;
 

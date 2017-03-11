@@ -38,8 +38,7 @@
 #include "spectrum.h"
 
 enum mlxsw_sp_counter_sub_pool_id {
-	/* Placeholder before first pool registered */
-	MLXSW_SP_COUNTER_SUB_POOL_PLACEHOLDER,
+	MLXSW_SP_COUNTER_SUB_POOL_FLOW,
 };
 
 int mlxsw_sp_counter_alloc(struct mlxsw_sp *mlxsw_sp,
