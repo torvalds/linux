@@ -56,12 +56,10 @@ int mv88e6085_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
 				  enum mv88e6xxx_frame_mode mode);
 int mv88e6351_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
 				  enum mv88e6xxx_frame_mode mode);
-int mv88e6085_port_set_egress_unknowns(struct mv88e6xxx_chip *chip, int port,
-				       bool on);
-int mv88e6095_port_set_egress_unknowns(struct mv88e6xxx_chip *chip, int port,
-				       bool on);
-int mv88e6351_port_set_egress_unknowns(struct mv88e6xxx_chip *chip, int port,
-				       bool on);
+int mv88e6185_port_set_egress_floods(struct mv88e6xxx_chip *chip, int port,
+				     bool unicast, bool multicast);
+int mv88e6352_port_set_egress_floods(struct mv88e6xxx_chip *chip, int port,
+				     bool unicast, bool multicast);
 int mv88e6351_port_set_ether_type(struct mv88e6xxx_chip *chip, int port,
 				  u16 etype);
 int mv88e6xxx_port_set_message_port(struct mv88e6xxx_chip *chip, int port,

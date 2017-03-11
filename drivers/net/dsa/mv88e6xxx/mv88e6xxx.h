@@ -132,12 +132,12 @@
 #define PORT_CONTROL_TAG_IF_BOTH	BIT(6)
 #define PORT_CONTROL_USE_IP		BIT(5)
 #define PORT_CONTROL_USE_TAG		BIT(4)
-#define PORT_CONTROL_FORWARD_UNKNOWN_MC	BIT(3)
 #define PORT_CONTROL_FORWARD_UNKNOWN	BIT(2)
-#define PORT_CONTROL_NOT_EGRESS_UNKNOWN_DA		(0x0 << 2)
-#define PORT_CONTROL_NOT_EGRESS_UNKNOWN_MULTICAST_DA	(0x1 << 2)
-#define PORT_CONTROL_NOT_EGRESS_UNKNOWN_UNITCAST_DA	(0x2 << 2)
-#define PORT_CONTROL_EGRESS_ALL_UNKNOWN_DA		(0x3 << 2)
+#define PORT_CONTROL_EGRESS_FLOODS_MASK			(0x3 << 2)
+#define PORT_CONTROL_EGRESS_FLOODS_NO_UNKNOWN_DA	(0x0 << 2)
+#define PORT_CONTROL_EGRESS_FLOODS_NO_UNKNOWN_MC_DA	(0x1 << 2)
+#define PORT_CONTROL_EGRESS_FLOODS_NO_UNKNOWN_UC_DA	(0x2 << 2)
+#define PORT_CONTROL_EGRESS_FLOODS_ALL_UNKNOWN_DA	(0x3 << 2)
 #define PORT_CONTROL_STATE_MASK		0x03
 #define PORT_CONTROL_STATE_DISABLED	0x00
 #define PORT_CONTROL_STATE_BLOCKING	0x01
@@ -167,7 +167,6 @@
 #define PORT_CONTROL_2_DISCARD_UNTAGGED	BIT(8)
 #define PORT_CONTROL_2_MAP_DA		BIT(7)
 #define PORT_CONTROL_2_DEFAULT_FORWARD	BIT(6)
-#define PORT_CONTROL_2_FORWARD_UNKNOWN	BIT(6)
 #define PORT_CONTROL_2_EGRESS_MONITOR	BIT(5)
 #define PORT_CONTROL_2_INGRESS_MONITOR	BIT(4)
 #define PORT_CONTROL_2_UPSTREAM_MASK	0x0f
@@ -864,8 +863,8 @@ struct mv88e6xxx_ops {
 
 	int (*port_set_frame_mode)(struct mv88e6xxx_chip *chip, int port,
 				   enum mv88e6xxx_frame_mode mode);
-	int (*port_set_egress_unknowns)(struct mv88e6xxx_chip *chip, int port,
-					bool on);
+	int (*port_set_egress_floods)(struct mv88e6xxx_chip *chip, int port,
+				      bool unicast, bool multicast);
 	int (*port_set_ether_type)(struct mv88e6xxx_chip *chip, int port,
 				   u16 etype);
 	int (*port_jumbo_config)(struct mv88e6xxx_chip *chip, int port);
