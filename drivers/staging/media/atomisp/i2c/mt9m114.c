@@ -444,12 +444,8 @@ static int mt9m114_set_suspend(struct v4l2_subdev *sd)
 static int mt9m114_init_common(struct v4l2_subdev *sd)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret;
 
-	ret = mt9m114_write_reg_array(client, mt9m114_common, PRE_POLLING);
-	if (ret)
-		return ret;
-	return ret;
+	return mt9m114_write_reg_array(client, mt9m114_common, PRE_POLLING);
 }
 
 static int power_ctrl(struct v4l2_subdev *sd, bool flag)
