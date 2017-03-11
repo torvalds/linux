@@ -552,7 +552,6 @@ enum mv88e6xxx_cap {
 
 #define MV88E6XXX_FLAG_SERDES		BIT_ULL(MV88E6XXX_CAP_SERDES)
 
-#define MV88E6XXX_FLAG_G1_ATU_FID	BIT_ULL(MV88E6XXX_CAP_G1_ATU_FID)
 #define MV88E6XXX_FLAG_G1_VTU_FID	BIT_ULL(MV88E6XXX_CAP_G1_VTU_FID)
 
 #define MV88E6XXX_FLAG_GLOBAL2		BIT_ULL(MV88E6XXX_CAP_GLOBAL2)
@@ -595,8 +594,7 @@ enum mv88e6xxx_cap {
 	 MV88E6XXX_FLAGS_MULTI_CHIP)
 
 #define MV88E6XXX_FLAGS_FAMILY_6097	\
-	(MV88E6XXX_FLAG_G1_ATU_FID |	\
-	 MV88E6XXX_FLAG_G1_VTU_FID |	\
+	(MV88E6XXX_FLAG_G1_VTU_FID |	\
 	 MV88E6XXX_FLAG_GLOBAL2 |	\
 	 MV88E6XXX_FLAG_G2_INT |        \
 	 MV88E6XXX_FLAG_G2_MGMT_EN_2X |	\
@@ -609,8 +607,7 @@ enum mv88e6xxx_cap {
 	 MV88E6XXX_FLAGS_PVT)
 
 #define MV88E6XXX_FLAGS_FAMILY_6165	\
-	(MV88E6XXX_FLAG_G1_ATU_FID |	\
-	 MV88E6XXX_FLAG_G1_VTU_FID |	\
+	(MV88E6XXX_FLAG_G1_VTU_FID |	\
 	 MV88E6XXX_FLAG_GLOBAL2 |	\
 	 MV88E6XXX_FLAG_G2_INT |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_2X |	\
@@ -642,7 +639,6 @@ enum mv88e6xxx_cap {
 
 #define MV88E6XXX_FLAGS_FAMILY_6341	\
 	(MV88E6XXX_FLAG_EEE |		\
-	 MV88E6XXX_FLAG_G1_ATU_FID |	\
 	 MV88E6XXX_FLAG_G1_VTU_FID |	\
 	 MV88E6XXX_FLAG_GLOBAL2 |	\
 	 MV88E6XXX_FLAG_G2_INT |	\
@@ -655,8 +651,7 @@ enum mv88e6xxx_cap {
 	 MV88E6XXX_FLAGS_SERDES)
 
 #define MV88E6XXX_FLAGS_FAMILY_6351	\
-	(MV88E6XXX_FLAG_G1_ATU_FID |	\
-	 MV88E6XXX_FLAG_G1_VTU_FID |	\
+	(MV88E6XXX_FLAG_G1_VTU_FID |	\
 	 MV88E6XXX_FLAG_GLOBAL2 |	\
 	 MV88E6XXX_FLAG_G2_INT |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_2X |	\
@@ -670,7 +665,6 @@ enum mv88e6xxx_cap {
 
 #define MV88E6XXX_FLAGS_FAMILY_6352	\
 	(MV88E6XXX_FLAG_EEE |		\
-	 MV88E6XXX_FLAG_G1_ATU_FID |	\
 	 MV88E6XXX_FLAG_G1_VTU_FID |	\
 	 MV88E6XXX_FLAG_GLOBAL2 |	\
 	 MV88E6XXX_FLAG_G2_INT |	\
@@ -708,11 +702,15 @@ struct mv88e6xxx_info {
 	unsigned int g1_irqs;
 	enum dsa_tag_protocol tag_protocol;
 	unsigned long long flags;
+
+	/* Mask for FromPort and ToPort value of PortVec used in ATU Move
+	 * operation. 0 means that the ATU Move operation is not supported.
+	 */
+	u8 atu_move_port_mask;
 	const struct mv88e6xxx_ops *ops;
 };
 
 struct mv88e6xxx_atu_entry {
-	u16	fid;
 	u8	state;
 	bool	trunk;
 	u16	portv_trunkid;

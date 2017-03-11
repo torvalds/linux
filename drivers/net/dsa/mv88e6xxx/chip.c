@@ -1066,11 +1066,6 @@ static void mv88e6xxx_get_regs(struct dsa_switch *ds, int port,
 	mutex_unlock(&chip->reg_lock);
 }
 
-static int _mv88e6xxx_atu_wait(struct mv88e6xxx_chip *chip)
-{
-	return mv88e6xxx_g1_wait(chip, GLOBAL_ATU_OP, GLOBAL_ATU_OP_BUSY);
-}
-
 static int mv88e6xxx_get_eee(struct dsa_switch *ds, int port,
 			     struct ethtool_eee *e)
 {
@@ -1128,111 +1123,6 @@ out:
 	mutex_unlock(&chip->reg_lock);
 
 	return err;
-}
-
-static int _mv88e6xxx_atu_cmd(struct mv88e6xxx_chip *chip, u16 fid, u16 cmd)
-{
-	u16 val;
-	int err;
-
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G1_ATU_FID)) {
-		err = mv88e6xxx_g1_write(chip, GLOBAL_ATU_FID, fid);
-		if (err)
-			return err;
-	} else if (mv88e6xxx_num_databases(chip) == 256) {
-		/* ATU DBNum[7:4] are located in ATU Control 15:12 */
-		err = mv88e6xxx_g1_read(chip, GLOBAL_ATU_CONTROL, &val);
-		if (err)
-			return err;
-
-		err = mv88e6xxx_g1_write(chip, GLOBAL_ATU_CONTROL,
-					 (val & 0xfff) | ((fid << 8) & 0xf000));
-		if (err)
-			return err;
-
-		/* ATU DBNum[3:0] are located in ATU Operation 3:0 */
-		cmd |= fid & 0xf;
-	}
-
-	err = mv88e6xxx_g1_write(chip, GLOBAL_ATU_OP, cmd);
-	if (err)
-		return err;
-
-	return _mv88e6xxx_atu_wait(chip);
-}
-
-static int _mv88e6xxx_atu_data_write(struct mv88e6xxx_chip *chip,
-				     struct mv88e6xxx_atu_entry *entry)
-{
-	u16 data = entry->state & GLOBAL_ATU_DATA_STATE_MASK;
-
-	if (entry->state != GLOBAL_ATU_DATA_STATE_UNUSED) {
-		unsigned int mask, shift;
-
-		if (entry->trunk) {
-			data |= GLOBAL_ATU_DATA_TRUNK;
-			mask = GLOBAL_ATU_DATA_TRUNK_ID_MASK;
-			shift = GLOBAL_ATU_DATA_TRUNK_ID_SHIFT;
-		} else {
-			mask = GLOBAL_ATU_DATA_PORT_VECTOR_MASK;
-			shift = GLOBAL_ATU_DATA_PORT_VECTOR_SHIFT;
-		}
-
-		data |= (entry->portv_trunkid << shift) & mask;
-	}
-
-	return mv88e6xxx_g1_write(chip, GLOBAL_ATU_DATA, data);
-}
-
-static int _mv88e6xxx_atu_flush_move(struct mv88e6xxx_chip *chip,
-				     struct mv88e6xxx_atu_entry *entry,
-				     bool static_too)
-{
-	int op;
-	int err;
-
-	err = _mv88e6xxx_atu_wait(chip);
-	if (err)
-		return err;
-
-	err = _mv88e6xxx_atu_data_write(chip, entry);
-	if (err)
-		return err;
-
-	if (entry->fid) {
-		op = static_too ? GLOBAL_ATU_OP_FLUSH_MOVE_ALL_DB :
-			GLOBAL_ATU_OP_FLUSH_MOVE_NON_STATIC_DB;
-	} else {
-		op = static_too ? GLOBAL_ATU_OP_FLUSH_MOVE_ALL :
-			GLOBAL_ATU_OP_FLUSH_MOVE_NON_STATIC;
-	}
-
-	return _mv88e6xxx_atu_cmd(chip, entry->fid, op);
-}
-
-static int _mv88e6xxx_atu_move(struct mv88e6xxx_chip *chip, u16 fid,
-			       int from_port, int to_port, bool static_too)
-{
-	struct mv88e6xxx_atu_entry entry = {
-		.trunk = false,
-		.fid = fid,
-	};
-
-	/* EntryState bits must be 0xF */
-	entry.state = GLOBAL_ATU_DATA_STATE_MASK;
-
-	/* ToPort and FromPort are respectively in PortVec bits 7:4 and 3:0 */
-	entry.portv_trunkid = (to_port & 0x0f) << 4;
-	entry.portv_trunkid |= from_port & 0x0f;
-
-	return _mv88e6xxx_atu_flush_move(chip, &entry, static_too);
-}
-
-static int _mv88e6xxx_atu_remove(struct mv88e6xxx_chip *chip, u16 fid,
-				 int port, bool static_too)
-{
-	/* Destination port 0xF means remove the entries */
-	return _mv88e6xxx_atu_move(chip, fid, port, 0x0f, static_too);
 }
 
 static int _mv88e6xxx_port_based_vlan_map(struct mv88e6xxx_chip *chip, int port)
@@ -1316,7 +1206,7 @@ static void mv88e6xxx_port_fast_age(struct dsa_switch *ds, int port)
 	int err;
 
 	mutex_lock(&chip->reg_lock);
-	err = _mv88e6xxx_atu_remove(chip, 0, port, false);
+	err = mv88e6xxx_g1_atu_remove(chip, 0, port, false);
 	mutex_unlock(&chip->reg_lock);
 
 	if (err)
@@ -1968,7 +1858,7 @@ static int _mv88e6xxx_port_vlan_del(struct mv88e6xxx_chip *chip,
 	if (err)
 		return err;
 
-	return _mv88e6xxx_atu_remove(chip, vlan.fid, port, false);
+	return mv88e6xxx_g1_atu_remove(chip, vlan.fid, port, false);
 }
 
 static int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port,
@@ -3688,6 +3578,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 8,
+		.atu_move_port_mask = 0xf,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6097,
 		.ops = &mv88e6085_ops,
@@ -3703,6 +3594,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 8,
+		.atu_move_port_mask = 0xf,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6095,
 		.ops = &mv88e6095_ops,
@@ -3718,6 +3610,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 8,
+		.atu_move_port_mask = 0xf,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6097,
 		.ops = &mv88e6097_ops,
@@ -3733,6 +3626,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 9,
+		.atu_move_port_mask = 0xf,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6165,
 		.ops = &mv88e6123_ops,
@@ -3748,6 +3642,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 9,
+		.atu_move_port_mask = 0xf,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6185,
 		.ops = &mv88e6131_ops,
@@ -3763,6 +3658,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 9,
+		.atu_move_port_mask = 0xf,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6165,
 		.ops = &mv88e6161_ops,
@@ -3778,6 +3674,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 9,
+		.atu_move_port_mask = 0xf,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6165,
 		.ops = &mv88e6165_ops,
@@ -3793,6 +3690,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 9,
+		.atu_move_port_mask = 0xf,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6351,
 		.ops = &mv88e6171_ops,
@@ -3808,6 +3706,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 9,
+		.atu_move_port_mask = 0xf,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6352,
 		.ops = &mv88e6172_ops,
@@ -3823,6 +3722,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 9,
+		.atu_move_port_mask = 0xf,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6351,
 		.ops = &mv88e6175_ops,
@@ -3838,6 +3738,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 9,
+		.atu_move_port_mask = 0xf,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6352,
 		.ops = &mv88e6176_ops,
@@ -3853,6 +3754,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 8,
+		.atu_move_port_mask = 0xf,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6185,
 		.ops = &mv88e6185_ops,
@@ -3869,6 +3771,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.tag_protocol = DSA_TAG_PROTO_DSA,
 		.age_time_coeff = 3750,
 		.g1_irqs = 9,
+		.atu_move_port_mask = 0x1f,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6390,
 		.ops = &mv88e6190_ops,
 	},
@@ -3883,6 +3786,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 3750,
 		.g1_irqs = 9,
+		.atu_move_port_mask = 0x1f,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6390,
 		.ops = &mv88e6190x_ops,
@@ -3898,6 +3802,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 3750,
 		.g1_irqs = 9,
+		.atu_move_port_mask = 0x1f,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6390,
 		.ops = &mv88e6391_ops,
@@ -3913,6 +3818,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 9,
+		.atu_move_port_mask = 0xf,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6352,
 		.ops = &mv88e6240_ops,
@@ -3928,6 +3834,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 3750,
 		.g1_irqs = 9,
+		.atu_move_port_mask = 0x1f,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6390,
 		.ops = &mv88e6290_ops,
@@ -3943,6 +3850,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 8,
+		.atu_move_port_mask = 0xf,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6320,
 		.ops = &mv88e6320_ops,
@@ -3958,6 +3866,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 8,
+		.atu_move_port_mask = 0xf,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6320,
 		.ops = &mv88e6321_ops,
@@ -3972,6 +3881,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.port_base_addr = 0x10,
 		.global1_addr = 0x1b,
 		.age_time_coeff = 3750,
+		.atu_move_port_mask = 0x1f,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6341,
 		.ops = &mv88e6141_ops,
@@ -3986,6 +3896,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.port_base_addr = 0x10,
 		.global1_addr = 0x1b,
 		.age_time_coeff = 3750,
+		.atu_move_port_mask = 0x1f,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6341,
 		.ops = &mv88e6341_ops,
@@ -4001,6 +3912,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 9,
+		.atu_move_port_mask = 0xf,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6351,
 		.ops = &mv88e6350_ops,
@@ -4016,6 +3928,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 9,
+		.atu_move_port_mask = 0xf,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6351,
 		.ops = &mv88e6351_ops,
@@ -4031,6 +3944,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 9,
+		.atu_move_port_mask = 0xf,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6352,
 		.ops = &mv88e6352_ops,
@@ -4045,6 +3959,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 3750,
 		.g1_irqs = 9,
+		.atu_move_port_mask = 0x1f,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6390,
 		.ops = &mv88e6390_ops,
@@ -4059,6 +3974,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 3750,
 		.g1_irqs = 9,
+		.atu_move_port_mask = 0x1f,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6390,
 		.ops = &mv88e6390x_ops,

@@ -269,3 +269,32 @@ int mv88e6xxx_g1_atu_flush(struct mv88e6xxx_chip *chip, u16 fid, bool all)
 
 	return mv88e6xxx_g1_atu_flushmove(chip, fid, &entry, all);
 }
+
+static int mv88e6xxx_g1_atu_move(struct mv88e6xxx_chip *chip, u16 fid,
+				 int from_port, int to_port, bool all)
+{
+	struct mv88e6xxx_atu_entry entry = { 0 };
+	unsigned long mask;
+	int shift;
+
+	if (!chip->info->atu_move_port_mask)
+		return -EOPNOTSUPP;
+
+	mask = chip->info->atu_move_port_mask;
+	shift = bitmap_weight(&mask, 16);
+
+	entry.state = 0xf, /* Full EntryState means Move */
+	entry.portv_trunkid = from_port & mask;
+	entry.portv_trunkid |= (to_port & mask) << shift;
+
+	return mv88e6xxx_g1_atu_flushmove(chip, fid, &entry, all);
+}
+
+int mv88e6xxx_g1_atu_remove(struct mv88e6xxx_chip *chip, u16 fid, int port,
+			    bool all)
+{
+	int from_port = port;
+	int to_port = chip->info->atu_move_port_mask;
+
+	return mv88e6xxx_g1_atu_move(chip, fid, from_port, to_port, all);
+}
