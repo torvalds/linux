@@ -15,6 +15,23 @@
 
 /* Offset 0x0A: ATU Control Register */
 
+int mv88e6xxx_g1_atu_set_learn2all(struct mv88e6xxx_chip *chip, bool learn2all)
+{
+	u16 val;
+	int err;
+
+	err = mv88e6xxx_g1_read(chip, GLOBAL_ATU_CONTROL, &val);
+	if (err)
+		return err;
+
+	if (learn2all)
+		val |= GLOBAL_ATU_CONTROL_LEARN2ALL;
+	else
+		val &= ~GLOBAL_ATU_CONTROL_LEARN2ALL;
+
+	return mv88e6xxx_g1_write(chip, GLOBAL_ATU_CONTROL, val);
+}
+
 int mv88e6xxx_g1_atu_set_age_time(struct mv88e6xxx_chip *chip,
 				  unsigned int msecs)
 {

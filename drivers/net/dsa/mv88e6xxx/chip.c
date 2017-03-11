@@ -1308,6 +1308,12 @@ static void mv88e6xxx_port_stp_state_set(struct dsa_switch *ds, int port,
 
 static int mv88e6xxx_atu_setup(struct mv88e6xxx_chip *chip)
 {
+	int err;
+
+	err = mv88e6xxx_g1_atu_set_learn2all(chip, true);
+	if (err)
+		return err;
+
 	return mv88e6xxx_g1_atu_set_age_time(chip, 300000);
 }
 
@@ -2754,15 +2760,6 @@ static int mv88e6xxx_g1_setup(struct mv88e6xxx_chip *chip)
 	/* Clear all the VTU and STU entries */
 	err = _mv88e6xxx_vtu_stu_flush(chip);
 	if (err < 0)
-		return err;
-
-	/* Set the default address aging time to 5 minutes, and
-	 * enable address learn messages to be sent to all message
-	 * ports.
-	 */
-	err = mv88e6xxx_g1_write(chip, GLOBAL_ATU_CONTROL,
-				 GLOBAL_ATU_CONTROL_LEARN2ALL);
-	if (err)
 		return err;
 
 	/* Clear all ATU entries */
