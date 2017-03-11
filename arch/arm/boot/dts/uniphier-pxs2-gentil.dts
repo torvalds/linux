@@ -51,11 +51,6 @@
 	compatible = "socionext,uniphier-pxs2-gentil",
 		     "socionext,uniphier-pxs2";
 
-	memory@80000000 {
-		device_type = "memory";
-		reg = <0x80000000 0x80000000>;
-	};
-
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
@@ -69,6 +64,11 @@
 		i2c4 = &i2c4;
 		i2c5 = &i2c5;
 		i2c6 = &i2c6;
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x80000000>;
 	};
 };
 
