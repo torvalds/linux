@@ -49,6 +49,9 @@
 #define ETH_RX_CQE_PAGE_SIZE_BYTES                      4096
 #define ETH_RX_NUM_NEXT_PAGE_BDS                        2
 
+#define ETH_MAX_TUNN_LSO_INNER_IPV4_OFFSET          253
+#define ETH_MAX_TUNN_LSO_INNER_IPV6_OFFSET          251
+
 #define ETH_TX_MIN_BDS_PER_NON_LSO_PKT                          1
 #define ETH_TX_MAX_BDS_PER_NON_LSO_PACKET                       18
 #define ETH_TX_MAX_BDS_PER_LSO_PACKET	255

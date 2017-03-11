@@ -38,7 +38,8 @@
 #include <linux/qed/qed_chain.h>
 #include <linux/qed/qed_roce_if.h>
 #include <linux/qed/qede_roce.h>
-#include "qedr_hsi.h"
+#include <linux/qed/roce_common.h>
+#include "qedr_hsi_rdma.h"
 
 #define QEDR_MODULE_VERSION	"8.10.10.0"
 #define QEDR_NODE_DESC "QLogic 579xx RoCE HCA"

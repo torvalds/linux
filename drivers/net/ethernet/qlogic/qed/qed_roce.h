@@ -82,6 +82,7 @@ struct qed_rdma_info {
 	struct qed_bmap qp_map;
 	struct qed_bmap srq_map;
 	struct qed_bmap cid_map;
+	struct qed_bmap real_cid_map;
 	struct qed_bmap dpi_map;
 	struct qed_bmap toggle_bits;
 	struct qed_rdma_events events;
@@ -92,6 +93,7 @@ struct qed_rdma_info {
 	u32 num_qps;
 	u32 num_mrs;
 	u16 queue_zone_base;
+	u16 max_queue_zones;
 	enum protocol_type proto;
 };
 
@@ -153,6 +155,7 @@ struct qed_rdma_qp {
 	dma_addr_t irq_phys_addr;
 	u8 irq_num_pages;
 	bool resp_offloaded;
+	u32 cq_prod;
 
 	u8 remote_mac_addr[6];
 	u8 local_mac_addr[6];
@@ -163,8 +166,8 @@ struct qed_rdma_qp {
 
 #if IS_ENABLED(CONFIG_QED_RDMA)
 void qed_rdma_dpm_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
-void qed_async_roce_event(struct qed_hwfn *p_hwfn,
-			  struct event_ring_entry *p_eqe);
+void qed_roce_async_event(struct qed_hwfn *p_hwfn,
+			  u8 fw_event_code, union rdma_eqe_data *rdma_data);
 void qed_ll2b_complete_tx_gsi_packet(struct qed_hwfn *p_hwfn,
 				     u8 connection_handle,
 				     void *cookie,
@@ -187,7 +190,9 @@ void qed_ll2b_complete_rx_gsi_packet(struct qed_hwfn *p_hwfn,
 				     u16 src_mac_addr_lo, bool b_last_packet);
 #else
 static inline void qed_rdma_dpm_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt) {}
-static inline void qed_async_roce_event(struct qed_hwfn *p_hwfn, struct event_ring_entry *p_eqe) {}
+static inline void qed_roce_async_event(struct qed_hwfn *p_hwfn,
+					u8 fw_event_code,
+					union rdma_eqe_data *rdma_data) {}
 static inline void qed_ll2b_complete_tx_gsi_packet(struct qed_hwfn *p_hwfn,
 						   u8 connection_handle,
 						   void *cookie,

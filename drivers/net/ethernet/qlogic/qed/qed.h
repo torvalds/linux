@@ -51,7 +51,7 @@
 #include "qed_hsi.h"
 
 extern const struct qed_common_ops qed_common_ops_pass;
-#define DRV_MODULE_VERSION "8.10.10.20"
+#define DRV_MODULE_VERSION "8.10.10.21"
 
 #define MAX_HWFNS_PER_DEVICE    (4)
 #define NAME_SIZE 16

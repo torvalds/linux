@@ -296,9 +296,12 @@ qed_async_event_completion(struct qed_hwfn *p_hwfn,
 			   struct event_ring_entry *p_eqe)
 {
 	switch (p_eqe->protocol_id) {
+#if IS_ENABLED(CONFIG_QED_RDMA)
 	case PROTOCOLID_ROCE:
-		qed_async_roce_event(p_hwfn, p_eqe);
+		qed_roce_async_event(p_hwfn, p_eqe->opcode,
+				     &p_eqe->data.rdma_data);
 		return 0;
+#endif
 	case PROTOCOLID_COMMON:
 		return qed_sriov_eqe_event(p_hwfn,
 					   p_eqe->opcode,
@@ -306,14 +309,6 @@ qed_async_event_completion(struct qed_hwfn *p_hwfn,
 	case PROTOCOLID_ISCSI:
 		if (!IS_ENABLED(CONFIG_QED_ISCSI))
 			return -EINVAL;
-		if (p_eqe->opcode == ISCSI_EVENT_TYPE_ASYN_DELETE_OOO_ISLES) {
-			u32 cid = le32_to_cpu(p_eqe->data.iscsi_info.cid);
-
-			qed_ooo_release_connection_isles(p_hwfn,
-							 p_hwfn->p_ooo_info,
-							 cid);
-			return 0;
-		}
 
 		if (p_hwfn->p_iscsi_info->event_cb) {
 			struct qed_iscsi_info *p_iscsi = p_hwfn->p_iscsi_info;
