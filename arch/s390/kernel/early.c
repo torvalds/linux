@@ -252,7 +252,8 @@ static inline void strim_all(char *str)
 static noinline __init void setup_arch_string(void)
 {
 	struct sysinfo_1_1_1 *mach = (struct sysinfo_1_1_1 *)&sysinfo_page;
-	char mstr[80];
+	struct sysinfo_3_2_2 *vm = (struct sysinfo_3_2_2 *)&sysinfo_page;
+	char mstr[80], hvstr[17];
 
 	if (stsi(mach, 1, 1, 1))
 		return;
@@ -264,10 +265,17 @@ static noinline __init void setup_arch_string(void)
 		mach->manufacturer, mach->type,
 		mach->model, mach->model_capacity);
 	strim_all(mstr);
-	dump_stack_set_arch_desc("%s (%s)", mstr,
-				 MACHINE_IS_LPAR ? "LPAR" :
-				 MACHINE_IS_VM ? "z/VM" :
-				 MACHINE_IS_KVM ? "KVM" : "unknown");
+	if (stsi(vm, 3, 2, 2) == 0 && vm->count) {
+		EBCASC(vm->vm[0].cpi, sizeof(vm->vm[0].cpi));
+		sprintf(hvstr, "%-16.16s", vm->vm[0].cpi);
+		strim_all(hvstr);
+	} else {
+		sprintf(hvstr, "%s",
+			MACHINE_IS_LPAR ? "LPAR" :
+			MACHINE_IS_VM ? "z/VM" :
+			MACHINE_IS_KVM ? "KVM" : "unknown");
+	}
+	dump_stack_set_arch_desc("%s (%s)", mstr, hvstr);
 }
 
 static __init void setup_topology(void)
