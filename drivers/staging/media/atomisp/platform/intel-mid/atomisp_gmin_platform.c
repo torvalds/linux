@@ -354,7 +354,7 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 	if (!client)
 		return NULL;
 
-	dev = client ? &client->dev : NULL;
+	dev = &client->dev;
 
 	for (i=0; i < MAX_SUBDEVS && gmin_subdevs[i].subdev; i++)
 		;
