@@ -125,7 +125,6 @@
 		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clock CLK_WDT>;
 		clock-names = "watchdog";
-		status = "disabled";
 	};
 
 	clock: clock-controller@10030000 {

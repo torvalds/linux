@@ -555,7 +555,3 @@
 	vtmu-supply = <&ldo10_reg>;
 	status = "okay";
 };
-
-&watchdog {
-	status = "okay";
-};

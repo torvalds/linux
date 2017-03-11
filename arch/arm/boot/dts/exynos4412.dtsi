@@ -222,7 +222,6 @@
 		clocks = <&clock CLK_WDT>;
 		clock-names = "watchdog";
 		samsung,syscon-phandle = <&pmu_system_controller>;
-		status = "disabled";
 	};
 
 	adc: adc@126C0000 {
