@@ -64,5 +64,7 @@ int mlxsw_afa_block_append_fwd(struct mlxsw_afa_block *block,
 			       u8 local_port, bool in_port);
 int mlxsw_afa_block_append_vlan_modify(struct mlxsw_afa_block *block,
 				       u16 vid, u8 pcp, u8 et);
+int mlxsw_afa_block_append_counter(struct mlxsw_afa_block *block,
+				   u32 counter_index);
 
 #endif

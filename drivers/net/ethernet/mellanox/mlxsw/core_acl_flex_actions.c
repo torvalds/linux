@@ -760,3 +760,54 @@ err_append_action:
 	return err;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_fwd);
+
+/* Policing and Counting Action
+ * ----------------------------
+ * Policing and Counting action is used for binding policer and counter
+ * to ACL rules.
+ */
+
+#define MLXSW_AFA_POLCNT_CODE 0x08
+#define MLXSW_AFA_POLCNT_SIZE 1
+
+enum mlxsw_afa_polcnt_counter_set_type {
+	/* No count */
+	MLXSW_AFA_POLCNT_COUNTER_SET_TYPE_NO_COUNT = 0x00,
+	/* Count packets and bytes */
+	MLXSW_AFA_POLCNT_COUNTER_SET_TYPE_PACKETS_BYTES = 0x03,
+	/* Count only packets */
+	MLXSW_AFA_POLCNT_COUNTER_SET_TYPE_PACKETS = 0x05,
+};
+
+/* afa_polcnt_counter_set_type
+ * Counter set type for flow counters.
+ */
+MLXSW_ITEM32(afa, polcnt, counter_set_type, 0x04, 24, 8);
+
+/* afa_polcnt_counter_index
+ * Counter index for flow counters.
+ */
+MLXSW_ITEM32(afa, polcnt, counter_index, 0x04, 0, 24);
+
+static inline void
+mlxsw_afa_polcnt_pack(char *payload,
+		      enum mlxsw_afa_polcnt_counter_set_type set_type,
+		      u32 counter_index)
+{
+	mlxsw_afa_polcnt_counter_set_type_set(payload, set_type);
+	mlxsw_afa_polcnt_counter_index_set(payload, counter_index);
+}
+
+int mlxsw_afa_block_append_counter(struct mlxsw_afa_block *block,
+				   u32 counter_index)
+{
+	char *act = mlxsw_afa_block_append_action(block,
+						  MLXSW_AFA_POLCNT_CODE,
+						  MLXSW_AFA_POLCNT_SIZE);
+	if (!act)
+		return -ENOBUFS;
+	mlxsw_afa_polcnt_pack(act, MLXSW_AFA_POLCNT_COUNTER_SET_TYPE_PACKETS_BYTES,
+			      counter_index);
+	return 0;
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_counter);
