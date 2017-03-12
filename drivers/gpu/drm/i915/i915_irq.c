@@ -4282,7 +4282,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		dev_priv->rps.pm_intrmsk_mbz |= GEN6_PM_RP_UP_EI_EXPIRED;
 
 	if (INTEL_INFO(dev_priv)->gen >= 8)
-		dev_priv->rps.pm_intrmsk_mbz |= GEN8_PMINTR_REDIRECT_TO_GUC;
+		dev_priv->rps.pm_intrmsk_mbz |= GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
 
 	if (IS_GEN2(dev_priv)) {
 		/* Gen2 doesn't have a hardware frame counter */

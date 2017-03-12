@@ -975,7 +975,7 @@ static void guc_interrupts_capture(struct drm_i915_private *dev_priv)
 	 * result in the register bit being left SET!
 	 */
 	dev_priv->rps.pm_intrmsk_mbz |= ARAT_EXPIRED_INTRMSK;
-	dev_priv->rps.pm_intrmsk_mbz &= ~GEN8_PMINTR_REDIRECT_TO_GUC;
+	dev_priv->rps.pm_intrmsk_mbz &= ~GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
 }
 
 int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
@@ -1037,9 +1037,8 @@ static void guc_interrupts_release(struct drm_i915_private *dev_priv)
 	I915_WRITE(GUC_VCS2_VCS1_IER, 0);
 	I915_WRITE(GUC_WD_VECS_IER, 0);
 
-	dev_priv->rps.pm_intrmsk_mbz |= GEN8_PMINTR_REDIRECT_TO_GUC;
+	dev_priv->rps.pm_intrmsk_mbz |= GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
 	dev_priv->rps.pm_intrmsk_mbz &= ~ARAT_EXPIRED_INTRMSK;
-
 }
 
 void i915_guc_submission_disable(struct drm_i915_private *dev_priv)
