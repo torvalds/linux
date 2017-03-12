@@ -490,7 +490,7 @@ ENTRY(pgm_check_handler)
 	jnz	.Lpgm_svcper		# -> single stepped svc
 1:	CHECK_STACK STACK_SIZE,__LC_SAVE_AREA_SYNC
 	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
-	j	3f
+	j	4f
 2:	UPDATE_VTIME %r14,%r15,__LC_SYNC_ENTER_TIMER
 	lg	%r15,__LC_KERNEL_STACK
 	lgr	%r14,%r12
@@ -499,8 +499,8 @@ ENTRY(pgm_check_handler)
 	tm	__LC_PGM_ILC+2,0x02	# check for transaction abort
 	jz	3f
 	mvc	__THREAD_trap_tdb(256,%r14),0(%r13)
-3:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
-	stg	%r10,__THREAD_last_break(%r14)
+3:	stg	%r10,__THREAD_last_break(%r14)
+4:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	stmg	%r0,%r7,__PT_R0(%r11)
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_SYNC
 	stmg	%r8,%r9,__PT_PSW(%r11)
@@ -509,14 +509,14 @@ ENTRY(pgm_check_handler)
 	xc	__PT_FLAGS(8,%r11),__PT_FLAGS(%r11)
 	stg	%r10,__PT_ARGS(%r11)
 	tm	__LC_PGM_ILC+3,0x80	# check for per exception
-	jz	4f
+	jz	5f
 	tmhh	%r8,0x0001		# kernel per event ?
 	jz	.Lpgm_kprobe
 	oi	__PT_FLAGS+7(%r11),_PIF_PER_TRAP
 	mvc	__THREAD_per_address(8,%r14),__LC_PER_ADDRESS
 	mvc	__THREAD_per_cause(2,%r14),__LC_PER_CODE
 	mvc	__THREAD_per_paid(1,%r14),__LC_PER_ACCESS_ID
-4:	REENABLE_IRQS
+5:	REENABLE_IRQS
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	larl	%r1,pgm_check_table
 	llgh	%r10,__PT_INT_CODE+2(%r11)
