@@ -212,7 +212,8 @@ I hit SysRq, but nothing seems to happen, what's wrong?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There are some keyboards that produce a different keycode for SysRq than the
-pre-defined value of 99 (see ``KEY_SYSRQ`` in ``include/linux/input.h``), or
+pre-defined value of 99
+(see ``KEY_SYSRQ`` in ``include/uapi/linux/input-event-codes.h``), or
 which don't have a SysRq key at all. In these cases, run ``showkey -s`` to find
 an appropriate scancode sequence, and use ``setkeycodes <sequence> 99`` to map
 this sequence to the usual SysRq code (e.g., ``setkeycodes e05b 99``). It's
