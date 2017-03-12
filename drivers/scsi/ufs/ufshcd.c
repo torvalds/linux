@@ -7642,7 +7642,7 @@ static inline ssize_t ufshcd_pm_lvl_store(struct device *dev,
 	if (kstrtoul(buf, 0, &value))
 		return -EINVAL;
 
-	if ((value < UFS_PM_LVL_0) || (value >= UFS_PM_LVL_MAX))
+	if (value >= UFS_PM_LVL_MAX)
 		return -EINVAL;
 
 	spin_lock_irqsave(hba->host->host_lock, flags);
