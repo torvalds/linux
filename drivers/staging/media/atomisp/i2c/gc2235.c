@@ -539,10 +539,6 @@ static int __gc2235_init(struct v4l2_subdev *sd)
 }
 
 static int is_init;
-static int gc2235_init(struct v4l2_subdev *sd)
-{
-	return __gc2235_init(sd);
-}
 
 static int power_ctrl(struct v4l2_subdev *sd, bool flag)
 {
@@ -669,7 +665,7 @@ static int gc2235_s_power(struct v4l2_subdev *sd, int on)
 	else {
 		ret = power_up(sd);
 		if (!ret)
-			ret = gc2235_init(sd);
+			ret = __gc2235_init(sd);
 		is_init = 1;
 	}
 	return ret;
