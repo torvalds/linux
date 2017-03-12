@@ -441,6 +441,7 @@ out_gpio_remove:
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id xlp_gpio_acpi_match[] = {
 	{ "BRCM9006", GPIO_VARIANT_VULCAN },
+	{ "CAV9006",  GPIO_VARIANT_VULCAN },
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, xlp_gpio_acpi_match);
