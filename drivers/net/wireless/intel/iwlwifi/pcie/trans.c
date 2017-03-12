@@ -2754,6 +2754,13 @@ static struct iwl_trans_dump_data
 				  (PAGE_SIZE << trans_pcie->rx_page_order));
 	}
 
+	/* Paged memory for gen2 HW */
+	if (trans->cfg->gen2)
+		for (i = 0; i < trans_pcie->init_dram.paging_cnt; i++)
+			len += sizeof(*data) +
+			       sizeof(struct iwl_fw_error_dump_paging) +
+			       trans_pcie->init_dram.paging[i].size;
+
 	dump_data = vzalloc(len);
 	if (!dump_data)
 		return NULL;
@@ -2792,6 +2799,28 @@ static struct iwl_trans_dump_data
 	len += iwl_trans_pcie_fh_regs_dump(trans, &data);
 	if (dump_rbs)
 		len += iwl_trans_pcie_dump_rbs(trans, &data, num_rbs);
+
+	/* Paged memory for gen2 HW */
+	if (trans->cfg->gen2) {
+		for (i = 0; i < trans_pcie->init_dram.paging_cnt; i++) {
+			struct iwl_fw_error_dump_paging *paging;
+			dma_addr_t addr =
+				trans_pcie->init_dram.paging[i].physical;
+			u32 page_len = trans_pcie->init_dram.paging[i].size;
+
+			data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_PAGING);
+			data->len = cpu_to_le32(sizeof(*paging) + page_len);
+			paging = (void *)data->data;
+			paging->index = cpu_to_le32(i);
+			dma_sync_single_for_cpu(trans->dev, addr, page_len,
+						DMA_BIDIRECTIONAL);
+			memcpy(paging->data,
+			       trans_pcie->init_dram.paging[i].block, page_len);
+			data = iwl_fw_error_next_data(data);
+
+			len += sizeof(*data) + sizeof(*paging) + page_len;
+		}
+	}
 
 	len += iwl_trans_pcie_dump_monitor(trans, &data, monitor_len);
 
