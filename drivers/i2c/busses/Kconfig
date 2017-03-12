@@ -1022,7 +1022,7 @@ config I2C_XLR
 
 config I2C_XLP9XX
 	tristate "XLP9XX I2C support"
-	depends on CPU_XLP || ARCH_VULCAN || COMPILE_TEST
+	depends on CPU_XLP || ARCH_THUNDER2 || COMPILE_TEST
 	help
 	  This driver enables support for the on-chip I2C interface of
 	  the Broadcom XLP9xx/XLP5xx MIPS and Vulcan ARM64 processors.
