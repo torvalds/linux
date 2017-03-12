@@ -280,6 +280,7 @@ vc_vchi_audio_init(VCHI_INSTANCE_T vchi_instance,
 	unsigned int i;
 	struct bcm2835_audio_instance *instance;
 	int status;
+	int ret;
 
 	LOG_DBG("%s: start", __func__);
 
@@ -287,12 +288,12 @@ vc_vchi_audio_init(VCHI_INSTANCE_T vchi_instance,
 		LOG_ERR("%s: unsupported number of connections %u (max=%u)\n",
 			__func__, num_connections, VCHI_MAX_NUM_CONNECTIONS);
 
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 	/* Allocate memory for this instance */
 	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
 	if (!instance)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	instance->num_connections = num_connections;
 
@@ -321,7 +322,7 @@ vc_vchi_audio_init(VCHI_INSTANCE_T vchi_instance,
 		if (status) {
 			LOG_ERR("%s: failed to open VCHI service connection (status=%d)\n",
 				__func__, status);
-
+			ret = -EPERM;
 			goto err_close_services;
 		}
 		/* Finished with the service for now */
@@ -341,7 +342,7 @@ err_close_services:
 	kfree(instance);
 	LOG_ERR("%s: error\n", __func__);
 
-	return NULL;
+	return ERR_PTR(ret);
 }
 
 static int vc_vchi_audio_deinit(struct bcm2835_audio_instance *instance)
@@ -432,7 +433,7 @@ static int bcm2835_audio_open_connection(struct bcm2835_alsa_stream *alsa_stream
 	/* Initialize an instance of the audio service */
 	instance = vc_vchi_audio_init(vchi_instance, &vchi_connection, 1);
 
-	if (!instance) {
+	if (IS_ERR(instance)) {
 		LOG_ERR("%s: failed to initialize audio service\n", __func__);
 
 		ret = -EPERM;
