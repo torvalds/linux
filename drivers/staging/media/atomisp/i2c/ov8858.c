@@ -2206,9 +2206,7 @@ static struct i2c_driver ov8858_driver = {
 
 static __init int ov8858_init_mod(void)
 {
-	int ret;
-	ret = i2c_add_driver(&ov8858_driver);
-	return ret;
+	return i2c_add_driver(&ov8858_driver);
 }
 
 static __exit void ov8858_exit_mod(void)

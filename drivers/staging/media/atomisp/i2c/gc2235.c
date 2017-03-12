@@ -541,10 +541,7 @@ static int __gc2235_init(struct v4l2_subdev *sd)
 static int is_init;
 static int gc2235_init(struct v4l2_subdev *sd)
 {
-	int ret = 0;
-	ret = __gc2235_init(sd);
-
-	return ret;
+	return __gc2235_init(sd);
 }
 
 static int power_ctrl(struct v4l2_subdev *sd, bool flag)
@@ -585,9 +582,7 @@ static int gpio_ctrl(struct v4l2_subdev *sd, bool flag)
 
 	ret |= dev->platform_data->gpio1_ctrl(sd, !flag);
 	usleep_range(60, 90);
-	ret = dev->platform_data->gpio0_ctrl(sd, flag);
-
-	return ret;
+	return dev->platform_data->gpio0_ctrl(sd, flag);
 }
 
 static int power_up(struct v4l2_subdev *sd)
