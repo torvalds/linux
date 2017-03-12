@@ -97,6 +97,7 @@ struct etnaviv_cmdbuf;
 
 struct etnaviv_gpu {
 	struct drm_device *drm;
+	struct thermal_cooling_device *cooling;
 	struct device *dev;
 	struct mutex lock;
 	struct etnaviv_chip_identity identity;
@@ -150,6 +151,7 @@ struct etnaviv_gpu {
 	u32 hangcheck_fence;
 	u32 hangcheck_dma_addr;
 	struct work_struct recover_work;
+	unsigned int freq_scale;
 };
 
 static inline void gpu_write(struct etnaviv_gpu *gpu, u32 reg, u32 data)
