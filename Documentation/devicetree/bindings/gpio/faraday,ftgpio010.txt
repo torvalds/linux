@@ -1,8 +1,11 @@
-Cortina Systems Gemini GPIO Controller
+Faraday Technology FTGPIO010 GPIO Controller
 
 Required properties:
 
-- compatible : Must be "cortina,gemini-gpio"
+- compatible : Should be one of
+  "cortina,gemini-gpio", "faraday,ftgpio010"
+  "moxa,moxart-gpio", "faraday,ftgpio010"
+  "faraday,ftgpio010"
 - reg : Should contain registers location and length
 - interrupts : Should contain the interrupt line for the GPIO block
 - gpio-controller : marks this as a GPIO controller
@@ -14,7 +17,7 @@ Required properties:
 Example:
 
 gpio@4d000000 {
-	compatible = "cortina,gemini-gpio";
+	compatible = "cortina,gemini-gpio", "faraday,ftgpio010";
 	reg = <0x4d000000 0x100>;
 	interrupts = <22 IRQ_TYPE_LEVEL_HIGH>;
 	gpio-controller;
