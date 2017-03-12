@@ -398,37 +398,6 @@ static int chan_recv_cb(struct l2cap_chan *chan, struct sk_buff *skb)
 	return err;
 }
 
-static u8 get_addr_type_from_eui64(u8 byte)
-{
-	/* Is universal(0) or local(1) bit */
-	return ((byte & 0x02) ? BDADDR_LE_RANDOM : BDADDR_LE_PUBLIC);
-}
-
-static void copy_to_bdaddr(struct in6_addr *ip6_daddr, bdaddr_t *addr)
-{
-	u8 *eui64 = ip6_daddr->s6_addr + 8;
-
-	addr->b[0] = eui64[7];
-	addr->b[1] = eui64[6];
-	addr->b[2] = eui64[5];
-	addr->b[3] = eui64[2];
-	addr->b[4] = eui64[1];
-	addr->b[5] = eui64[0];
-}
-
-static void convert_dest_bdaddr(struct in6_addr *ip6_daddr,
-				bdaddr_t *addr, u8 *addr_type)
-{
-	copy_to_bdaddr(ip6_daddr, addr);
-
-	/* We need to toggle the U/L bit that we got from IPv6 address
-	 * so that we get the proper address and type of the BD address.
-	 */
-	addr->b[5] ^= 0x02;
-
-	*addr_type = get_addr_type_from_eui64(addr->b[5]);
-}
-
 static int setup_header(struct sk_buff *skb, struct net_device *netdev,
 			bdaddr_t *peer_addr, u8 *peer_addr_type)
 {
@@ -436,8 +405,7 @@ static int setup_header(struct sk_buff *skb, struct net_device *netdev,
 	struct ipv6hdr *hdr;
 	struct lowpan_btle_dev *dev;
 	struct lowpan_peer *peer;
-	bdaddr_t addr, *any = BDADDR_ANY;
-	u8 *daddr = any->b;
+	u8 *daddr;
 	int err, status = 0;
 
 	hdr = ipv6_hdr(skb);
@@ -448,34 +416,24 @@ static int setup_header(struct sk_buff *skb, struct net_device *netdev,
 
 	if (ipv6_addr_is_multicast(&ipv6_daddr)) {
 		lowpan_cb(skb)->chan = NULL;
+		daddr = NULL;
 	} else {
-		u8 addr_type;
+		BT_DBG("dest IP %pI6c", &ipv6_daddr);
 
-		/* Get destination BT device from skb.
-		 * If there is no such peer then discard the packet.
+		/* The packet might be sent to 6lowpan interface
+		 * because of routing (either via default route
+		 * or user set route) so get peer according to
+		 * the destination address.
 		 */
-		convert_dest_bdaddr(&ipv6_daddr, &addr, &addr_type);
-
-		BT_DBG("dest addr %pMR type %d IP %pI6c", &addr,
-		       addr_type, &ipv6_daddr);
-
-		peer = peer_lookup_ba(dev, &addr, addr_type);
+		peer = peer_lookup_dst(dev, &ipv6_daddr, skb);
 		if (!peer) {
-			/* The packet might be sent to 6lowpan interface
-			 * because of routing (either via default route
-			 * or user set route) so get peer according to
-			 * the destination address.
-			 */
-			peer = peer_lookup_dst(dev, &ipv6_daddr, skb);
-			if (!peer) {
-				BT_DBG("no such peer %pMR found", &addr);
-				return -ENOENT;
-			}
+			BT_DBG("no such peer");
+			return -ENOENT;
 		}
 
 		daddr = peer->lladdr;
-		*peer_addr = addr;
-		*peer_addr_type = addr_type;
+		peer_addr = &peer->chan->dst;
+		*peer_addr_type = peer->chan->dst_type;
 		lowpan_cb(skb)->chan = peer->chan;
 
 		status = 1;
@@ -717,14 +675,6 @@ static struct l2cap_chan *chan_create(void)
 	return chan;
 }
 
-static void set_ip_addr_bits(u8 addr_type, u8 *addr)
-{
-	if (addr_type == BDADDR_LE_PUBLIC)
-		*addr |= 0x02;
-	else
-		*addr &= ~0x02;
-}
-
 static struct l2cap_chan *add_peer_chan(struct l2cap_chan *chan,
 					struct lowpan_btle_dev *dev)
 {
@@ -740,11 +690,6 @@ static struct l2cap_chan *add_peer_chan(struct l2cap_chan *chan,
 	baswap((void *)peer->lladdr, &chan->dst);
 
 	lowpan_iphc_uncompress_eui48_lladdr(&peer->peer_addr, peer->lladdr);
-
-	/* IPv6 address needs to have the U/L bit set properly so toggle
-	 * it back here.
-	 */
-	set_ip_addr_bits(chan->dst_type, (u8 *)&peer->peer_addr.s6_addr + 8);
 
 	spin_lock(&devices_lock);
 	INIT_LIST_HEAD(&peer->list);

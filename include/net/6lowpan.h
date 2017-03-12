@@ -211,10 +211,6 @@ static inline void lowpan_iphc_uncompress_eui48_lladdr(struct in6_addr *ipaddr,
 	ipaddr->s6_addr[11] = 0xFF;
 	ipaddr->s6_addr[12] = 0xFE;
 	memcpy(&ipaddr->s6_addr[13], lladdr + 3, 3);
-	/* second bit-flip (Universe/Local)
-	 * is done according RFC2464
-	 */
-	ipaddr->s6_addr[8] ^= 0x02;
 }
 
 #ifdef DEBUG

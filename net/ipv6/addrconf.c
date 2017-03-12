@@ -2077,7 +2077,11 @@ static int addrconf_ifid_6lowpan(u8 *eui, struct net_device *dev)
 {
 	switch (dev->addr_len) {
 	case ETH_ALEN:
-		return addrconf_ifid_eui48(eui, dev);
+		memcpy(eui, dev->dev_addr, 3);
+		eui[3] = 0xFF;
+		eui[4] = 0xFE;
+		memcpy(eui + 5, dev->dev_addr + 3, 3);
+		break;
 	case EUI64_ADDR_LEN:
 		memcpy(eui, dev->dev_addr, EUI64_ADDR_LEN);
 		eui[0] ^= 2;
