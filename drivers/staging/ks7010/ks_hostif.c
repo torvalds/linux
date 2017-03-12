@@ -507,8 +507,8 @@ static
 void hostif_mib_get_confirm(struct ks_wlan_private *priv)
 {
 	struct net_device *dev = priv->net_dev;
-	uint32_t mib_status;
-	uint32_t mib_attribute;
+	u32 mib_status;
+	u32 mib_attribute;
 	u16 mib_val_size;
 	u16 mib_val_type;
 
@@ -587,8 +587,8 @@ void hostif_mib_get_confirm(struct ks_wlan_private *priv)
 static
 void hostif_mib_set_confirm(struct ks_wlan_private *priv)
 {
-	uint32_t mib_status;	/* +04 MIB Status */
-	uint32_t mib_attribute;	/* +08 MIB attribute */
+	u32 mib_status;	/* +04 MIB Status */
+	u32 mib_attribute;	/* +08 MIB attribute */
 
 	DPRINTK(3, "\n");
 
@@ -1864,7 +1864,7 @@ void hostif_receive(struct ks_wlan_private *priv, unsigned char *p,
 static
 void hostif_sme_set_wep(struct ks_wlan_private *priv, int type)
 {
-	uint32_t val;
+	u32 val;
 
 	switch (type) {
 	case SME_WEP_INDEX_REQUEST:
@@ -1918,7 +1918,7 @@ struct wpa_suite_t {
 } __packed;
 
 struct rsn_mode_t {
-	uint32_t rsn_mode;
+	u32 rsn_mode;
 	u16 rsn_capability;
 } __packed;
 
@@ -1927,7 +1927,7 @@ void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
 {
 	struct wpa_suite_t wpa_suite;
 	struct rsn_mode_t rsn_mode;
-	uint32_t val;
+	u32 val;
 
 	memset(&wpa_suite, 0, sizeof(wpa_suite));
 
@@ -2323,7 +2323,7 @@ void hostif_sme_sleep_set(struct ks_wlan_private *priv)
 static
 void hostif_sme_set_key(struct ks_wlan_private *priv, int type)
 {
-	uint32_t val;
+	u32 val;
 
 	switch (type) {
 	case SME_SET_FLAG:
@@ -2413,7 +2413,7 @@ void hostif_sme_set_pmksa(struct ks_wlan_private *priv)
 static
 void hostif_sme_execute(struct ks_wlan_private *priv, int event)
 {
-	uint32_t val;
+	u32 val;
 
 	DPRINTK(3, "event=%d\n", event);
 	switch (event) {

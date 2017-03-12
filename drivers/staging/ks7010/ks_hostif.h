@@ -143,7 +143,7 @@ struct channel_list_t {
 
 struct hostif_mib_get_request_t {
 	struct hostif_hdr header;
-	uint32_t mib_attribute;
+	u32 mib_attribute;
 } __packed;
 
 struct hostif_mib_value_t {
@@ -159,36 +159,36 @@ struct hostif_mib_value_t {
 
 struct hostif_mib_get_confirm_t {
 	struct hostif_hdr header;
-	uint32_t mib_status;
+	u32 mib_status;
 #define MIB_SUCCESS    0
 #define MIB_INVALID    1
 #define MIB_READ_ONLY  2
 #define MIB_WRITE_ONLY 3
-	uint32_t mib_attribute;
+	u32 mib_attribute;
 	struct hostif_mib_value_t mib_value;
 } __packed;
 
 struct hostif_mib_set_request_t {
 	struct hostif_hdr header;
-	uint32_t mib_attribute;
+	u32 mib_attribute;
 	struct hostif_mib_value_t mib_value;
 } __packed;
 
 struct hostif_mib_set_confirm_t {
 	struct hostif_hdr header;
-	uint32_t mib_status;
-	uint32_t mib_attribute;
+	u32 mib_status;
+	u32 mib_attribute;
 } __packed;
 
 struct hostif_power_mngmt_request_t {
 	struct hostif_hdr header;
-	uint32_t mode;
+	u32 mode;
 #define POWER_ACTIVE  1
 #define POWER_SAVE    2
-	uint32_t wake_up;
+	u32 wake_up;
 #define SLEEP_FALSE 0
 #define SLEEP_TRUE  1	/* not used */
-	uint32_t receiveDTIMs;
+	u32 receiveDTIMs;
 #define DTIM_FALSE 0
 #define DTIM_TRUE  1
 } __packed;
@@ -480,8 +480,8 @@ struct hostif_bss_scan_request_t {
 #define ACTIVE_SCAN  0
 #define PASSIVE_SCAN 1
 	u8 pad[3];
-	uint32_t ch_time_min;
-	uint32_t ch_time_max;
+	u32 ch_time_min;
+	u32 ch_time_max;
 	struct channel_list_t channel_list;
 	struct ssid_t ssid;
 } __packed;
@@ -506,10 +506,10 @@ struct hostif_phy_information_confirm_t {
 	u8 sq;
 	u8 noise;
 	u8 link_speed;
-	uint32_t tx_frame;
-	uint32_t rx_frame;
-	uint32_t tx_error;
-	uint32_t rx_error;
+	u32 tx_frame;
+	u32 rx_frame;
+	u32 tx_error;
+	u32 rx_error;
 } __packed;
 
 /* sleep mode */
