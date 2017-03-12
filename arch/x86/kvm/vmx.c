@@ -10287,8 +10287,6 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 				entry_failure_code))
 		return 1;
 
-	kvm_mmu_reset_context(vcpu);
-
 	if (!enable_ept)
 		vcpu->arch.walk_mmu->inject_page_fault = vmx_inject_page_fault_nested;
 
