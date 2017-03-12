@@ -540,7 +540,7 @@ static int cs35l35_hw_params(struct snd_pcm_substream *substream,
 			default:
 				dev_err(codec->dev, "ratio not supported\n");
 				return -EINVAL;
-			};
+			}
 		} else {
 			/* Only certain ratios supported in I2S MASTER Mode */
 			switch (sp_sclks) {
@@ -550,7 +550,7 @@ static int cs35l35_hw_params(struct snd_pcm_substream *substream,
 			default:
 				dev_err(codec->dev, "ratio not supported\n");
 				return -EINVAL;
-			};
+			}
 		}
 		ret = regmap_update_bits(cs35l35->regmap,
 					CS35L35_CLK_CTL3,
@@ -703,7 +703,7 @@ static int cs35l35_codec_set_sysclk(struct snd_soc_codec *codec,
 	default:
 		dev_err(codec->dev, "Invalid CLK Source\n");
 		return -EINVAL;
-	};
+	}
 
 	switch (freq) {
 	case 5644800:
