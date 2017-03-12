@@ -1417,9 +1417,7 @@ static int set_ai_fifo_size(struct comedi_device *dev, unsigned int num_samples)
 	if (retval < 0)
 		return retval;
 
-	num_samples = retval * fifo->num_segments * fifo->sample_packing_ratio;
-
-	return num_samples;
+	return retval * fifo->num_segments * fifo->sample_packing_ratio;
 }
 
 /* query length of fifo */
