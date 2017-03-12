@@ -8453,9 +8453,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->opts1_mask = (tp->mac_version != RTL_GIGA_MAC_VER_01) ?
 		~(RxBOVF | RxFOVF) : ~0;
 
-	init_timer(&tp->timer);
-	tp->timer.data = (unsigned long) dev;
-	tp->timer.function = rtl8169_phy_timer;
+	setup_timer(&tp->timer, rtl8169_phy_timer, (unsigned long)dev);
 
 	tp->rtl_fw = RTL_FIRMWARE_UNKNOWN;
 
