@@ -278,6 +278,23 @@ lowpan_iphc_ctx_get_by_mcast_addr(const struct net_device *dev,
 	return ret;
 }
 
+static void lowpan_iphc_uncompress_lladdr(const struct net_device *dev,
+					  struct in6_addr *ipaddr,
+					  const void *lladdr)
+{
+	switch (dev->addr_len) {
+	case ETH_ALEN:
+		lowpan_iphc_uncompress_eui48_lladdr(ipaddr, lladdr);
+		break;
+	case EUI64_ADDR_LEN:
+		lowpan_iphc_uncompress_eui64_lladdr(ipaddr, lladdr);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		break;
+	}
+}
+
 /* Uncompress address function for source and
  * destination address(non-multicast).
  *
@@ -320,7 +337,7 @@ static int lowpan_iphc_uncompress_addr(struct sk_buff *skb,
 			lowpan_iphc_uncompress_802154_lladdr(ipaddr, lladdr);
 			break;
 		default:
-			lowpan_iphc_uncompress_eui64_lladdr(ipaddr, lladdr);
+			lowpan_iphc_uncompress_lladdr(dev, ipaddr, lladdr);
 			break;
 		}
 		break;
@@ -381,7 +398,7 @@ static int lowpan_iphc_uncompress_ctx_addr(struct sk_buff *skb,
 			lowpan_iphc_uncompress_802154_lladdr(ipaddr, lladdr);
 			break;
 		default:
-			lowpan_iphc_uncompress_eui64_lladdr(ipaddr, lladdr);
+			lowpan_iphc_uncompress_lladdr(dev, ipaddr, lladdr);
 			break;
 		}
 		ipv6_addr_prefix_copy(ipaddr, &ctx->pfx, ctx->plen);
@@ -810,6 +827,21 @@ lowpan_iphc_compress_ctx_802154_lladdr(const struct in6_addr *ipaddr,
 	return lladdr_compress;
 }
 
+static bool lowpan_iphc_addr_equal(const struct net_device *dev,
+				   const struct lowpan_iphc_ctx *ctx,
+				   const struct in6_addr *ipaddr,
+				   const void *lladdr)
+{
+	struct in6_addr tmp = {};
+
+	lowpan_iphc_uncompress_lladdr(dev, &tmp, lladdr);
+
+	if (ctx)
+		ipv6_addr_prefix_copy(&tmp, &ctx->pfx, ctx->plen);
+
+	return ipv6_addr_equal(&tmp, ipaddr);
+}
+
 static u8 lowpan_compress_ctx_addr(u8 **hc_ptr, const struct net_device *dev,
 				   const struct in6_addr *ipaddr,
 				   const struct lowpan_iphc_ctx *ctx,
@@ -827,13 +859,7 @@ static u8 lowpan_compress_ctx_addr(u8 **hc_ptr, const struct net_device *dev,
 		}
 		break;
 	default:
-		/* check for SAM/DAM = 11 */
-		memcpy(&tmp.s6_addr[8], lladdr, EUI64_ADDR_LEN);
-		/* second bit-flip (Universe/Local) is done according RFC2464 */
-		tmp.s6_addr[8] ^= 0x02;
-		/* context information are always used */
-		ipv6_addr_prefix_copy(&tmp, &ctx->pfx, ctx->plen);
-		if (ipv6_addr_equal(&tmp, ipaddr)) {
+		if (lowpan_iphc_addr_equal(dev, ctx, ipaddr, lladdr)) {
 			dam = LOWPAN_IPHC_DAM_11;
 			goto out;
 		}
@@ -929,11 +955,12 @@ static u8 lowpan_compress_addr_64(u8 **hc_ptr, const struct net_device *dev,
 		}
 		break;
 	default:
-		if (is_addr_mac_addr_based(ipaddr, lladdr)) {
-			dam = LOWPAN_IPHC_DAM_11; /* 0-bits */
+		if (lowpan_iphc_addr_equal(dev, NULL, ipaddr, lladdr)) {
+			dam = LOWPAN_IPHC_DAM_11;
 			pr_debug("address compression 0 bits\n");
 			goto out;
 		}
+
 		break;
 	}
 
