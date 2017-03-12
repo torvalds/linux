@@ -509,8 +509,8 @@ void hostif_mib_get_confirm(struct ks_wlan_private *priv)
 	struct net_device *dev = priv->net_dev;
 	uint32_t mib_status;
 	uint32_t mib_attribute;
-	uint16_t mib_val_size;
-	uint16_t mib_val_type;
+	u16 mib_val_size;
+	u16 mib_val_type;
 
 	DPRINTK(3, "\n");
 
@@ -901,7 +901,7 @@ void hostif_ps_adhoc_set_confirm(struct ks_wlan_private *priv)
 static
 void hostif_infrastructure_set_confirm(struct ks_wlan_private *priv)
 {
-	uint16_t result_code;
+	u16 result_code;
 
 	DPRINTK(3, "\n");
 	result_code = get_WORD(priv);
@@ -1364,7 +1364,7 @@ static
 void hostif_ps_adhoc_set_request(struct ks_wlan_private *priv)
 {
 	struct hostif_ps_adhoc_set_request_t *pp;
-	uint16_t capability;
+	u16 capability;
 
 	DPRINTK(3, "\n");
 
@@ -1407,7 +1407,7 @@ static
 void hostif_infrastructure_set_request(struct ks_wlan_private *priv)
 {
 	struct hostif_infrastructure_set_request_t *pp;
-	uint16_t capability;
+	u16 capability;
 
 	DPRINTK(3, "ssid.size=%d\n", priv->reg.ssid.size);
 
@@ -1473,7 +1473,7 @@ void hostif_infrastructure_set_request(struct ks_wlan_private *priv)
 static void hostif_infrastructure_set2_request(struct ks_wlan_private *priv)
 {
 	struct hostif_infrastructure_set2_request_t *pp;
-	uint16_t capability;
+	u16 capability;
 
 	DPRINTK(2, "ssid.size=%d\n", priv->reg.ssid.size);
 
@@ -1542,7 +1542,7 @@ static
 void hostif_adhoc_set_request(struct ks_wlan_private *priv)
 {
 	struct hostif_adhoc_set_request_t *pp;
-	uint16_t capability;
+	u16 capability;
 
 	DPRINTK(3, "\n");
 
@@ -1587,7 +1587,7 @@ static
 void hostif_adhoc_set2_request(struct ks_wlan_private *priv)
 {
 	struct hostif_adhoc_set2_request_t *pp;
-	uint16_t capability;
+	u16 capability;
 
 	DPRINTK(3, "\n");
 
@@ -1919,7 +1919,7 @@ struct wpa_suite_t {
 
 struct rsn_mode_t {
 	uint32_t rsn_mode;
-	uint16_t rsn_capability;
+	u16 rsn_capability;
 } __packed;
 
 static
@@ -2382,7 +2382,7 @@ static
 void hostif_sme_set_pmksa(struct ks_wlan_private *priv)
 {
 	struct pmk_cache_t {
-		uint16_t size;
+		u16 size;
 		struct {
 			u8 bssid[ETH_ALEN];
 			u8 pmkid[IW_PMKID_LEN];
