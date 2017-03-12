@@ -27,6 +27,12 @@ config PCIE_XILINX_NWL
 	 or End Point. The current option selection will only
 	 support root port enabling.
 
+config PCI_FTPCI100
+	bool "Faraday Technology FTPCI100 PCI controller"
+	depends on OF
+	depends on ARM
+	default ARCH_GEMINI
+
 config PCI_TEGRA
 	bool "NVIDIA Tegra PCIe controller"
 	depends on ARCH_TEGRA
