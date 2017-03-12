@@ -349,7 +349,7 @@ static struct mt9m114_res_struct mt9m114_res[] = {
 	.width	= 1296,
 	.height = 736,
 	.fps	= 30,
-	.used	= 0,
+	.used	= false,
 	.regs	= NULL,
 	.skip_frames = 1,
 
@@ -365,7 +365,7 @@ static struct mt9m114_res_struct mt9m114_res[] = {
 	.width	= 1296,
 	.height = 864,
 	.fps	= 30,
-	.used	= 0,
+	.used	= false,
 	.regs	= NULL,
 	.skip_frames = 1,
 
@@ -381,7 +381,7 @@ static struct mt9m114_res_struct mt9m114_res[] = {
 	.width	= 1296,
 	.height	= 976,
 	.fps	= 30,
-	.used	= 0,
+	.used	= false,
 	.regs	= NULL,
 	.skip_frames = 1,
 

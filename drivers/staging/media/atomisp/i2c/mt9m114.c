@@ -922,10 +922,10 @@ static int mt9m114_set_fmt(struct v4l2_subdev *sd,
 		for (index = 0; index < N_RES; index++) {
 			if ((width == mt9m114_res[index].width) &&
 			    (height == mt9m114_res[index].height)) {
-				mt9m114_res[index].used = 1;
+				mt9m114_res[index].used = true;
 				continue;
 			}
-			mt9m114_res[index].used = 0;
+			mt9m114_res[index].used = false;
 		}
 	}
 	ret = mt9m114_get_intg_factor(c, mt9m114_info,
