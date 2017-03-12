@@ -82,7 +82,7 @@
 		};
 
 		gpio0: gpio@4d000000 {
-			compatible = "cortina,gemini-gpio";
+			compatible = "cortina,gemini-gpio", "faraday,ftgpio010";
 			reg = <0x4d000000 0x100>;
 			interrupts = <22 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
@@ -92,7 +92,7 @@
 		};
 
 		gpio1: gpio@4e000000 {
-			compatible = "cortina,gemini-gpio";
+			compatible = "cortina,gemini-gpio", "faraday,ftgpio010";
 			reg = <0x4e000000 0x100>;
 			interrupts = <23 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
@@ -102,7 +102,7 @@
 		};
 
 		gpio2: gpio@4f000000 {
-			compatible = "cortina,gemini-gpio";
+			compatible = "cortina,gemini-gpio", "faraday,ftgpio010";
 			reg = <0x4f000000 0x100>;
 			interrupts = <24 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
