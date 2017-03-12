@@ -72,7 +72,7 @@ struct hostif_data_request_t {
 #define TYPE_DATA 0x0000
 #define TYPE_AUTH 0x0001
 	uint16_t reserved;
-	uint8_t data[0];
+	u8 data[0];
 } __packed;
 
 struct hostif_data_indication_t {
@@ -83,14 +83,14 @@ struct hostif_data_indication_t {
 #define TYPE_GMK1 0x0002
 #define TYPE_GMK2 0x0003
 	uint16_t reserved;
-	uint8_t data[0];
+	u8 data[0];
 } __packed;
 
 #define CHANNEL_LIST_MAX_SIZE 14
 struct channel_list_t {
-	uint8_t size;
-	uint8_t body[CHANNEL_LIST_MAX_SIZE];
-	uint8_t pad;
+	u8 size;
+	u8 body[CHANNEL_LIST_MAX_SIZE];
+	u8 pad;
 } __packed;
 
 /* MIB Attribute */
@@ -154,7 +154,7 @@ struct hostif_mib_value_t {
 #define MIB_VALUE_TYPE_BOOL     2
 #define MIB_VALUE_TYPE_COUNT32  3
 #define MIB_VALUE_TYPE_OSTRING  4
-	uint8_t body[0];
+	u8 body[0];
 } __packed;
 
 struct hostif_mib_get_confirm_t {
@@ -227,32 +227,32 @@ struct hostif_start_confirm_t {
 
 #define SSID_MAX_SIZE 32
 struct ssid_t {
-	uint8_t size;
-	uint8_t body[SSID_MAX_SIZE];
-	uint8_t ssid_pad;
+	u8 size;
+	u8 body[SSID_MAX_SIZE];
+	u8 ssid_pad;
 } __packed;
 
 #define RATE_SET_MAX_SIZE 16
 struct rate_set8_t {
-	uint8_t size;
-	uint8_t body[8];
-	uint8_t rate_pad;
+	u8 size;
+	u8 body[8];
+	u8 rate_pad;
 } __packed;
 
 struct FhParms_t {
 	uint16_t dwellTime;
-	uint8_t hopSet;
-	uint8_t hopPattern;
-	uint8_t hopIndex;
+	u8 hopSet;
+	u8 hopPattern;
+	u8 hopIndex;
 } __packed;
 
 struct DsParms_t {
-	uint8_t channel;
+	u8 channel;
 } __packed;
 
 struct CfParms_t {
-	uint8_t count;
-	uint8_t period;
+	u8 count;
+	u8 period;
 	uint16_t maxDuration;
 	uint16_t durRemaining;
 } __packed;
@@ -262,27 +262,27 @@ struct IbssParms_t {
 } __packed;
 
 struct rsn_t {
-	uint8_t size;
+	u8 size;
 #define RSN_BODY_SIZE 64
-	uint8_t body[RSN_BODY_SIZE];
+	u8 body[RSN_BODY_SIZE];
 } __packed;
 
 struct ErpParams_t {
-	uint8_t erp_info;
+	u8 erp_info;
 } __packed;
 
 struct rate_set16_t {
-	uint8_t size;
-	uint8_t body[16];
-	uint8_t rate_pad;
+	u8 size;
+	u8 body[16];
+	u8 rate_pad;
 } __packed;
 
 struct ap_info_t {
-	uint8_t bssid[6];	/* +00 */
-	uint8_t rssi;	/* +06 */
-	uint8_t sq;	/* +07 */
-	uint8_t noise;	/* +08 */
-	uint8_t pad0;	/* +09 */
+	u8 bssid[6];	/* +00 */
+	u8 rssi;	/* +06 */
+	u8 sq;	/* +07 */
+	u8 noise;	/* +08 */
+	u8 pad0;	/* +09 */
 	uint16_t beacon_period;	/* +10 */
 	uint16_t capability;	/* +12 */
 #define BSS_CAP_ESS             BIT(0)
@@ -295,21 +295,21 @@ struct ap_info_t {
 #define BSS_CAP_CHANNEL_AGILITY BIT(7)
 #define BSS_CAP_SHORT_SLOT_TIME BIT(10)
 #define BSS_CAP_DSSS_OFDM       BIT(13)
-	uint8_t frame_type;	/* +14 */
-	uint8_t ch_info;	/* +15 */
+	u8 frame_type;	/* +14 */
+	u8 ch_info;	/* +15 */
 #define FRAME_TYPE_BEACON	0x80
 #define FRAME_TYPE_PROBE_RESP	0x50
 	uint16_t body_size;	/* +16 */
-	uint8_t body[1024];	/* +18 */
+	u8 body[1024];	/* +18 */
 	/* +1032 */
 } __packed;
 
 struct link_ap_info_t {
-	uint8_t bssid[6];	/* +00 */
-	uint8_t rssi;	/* +06 */
-	uint8_t sq;	/* +07 */
-	uint8_t noise;	/* +08 */
-	uint8_t pad0;	/* +09 */
+	u8 bssid[6];	/* +00 */
+	u8 rssi;	/* +06 */
+	u8 sq;	/* +07 */
+	u8 noise;	/* +08 */
+	u8 pad0;	/* +09 */
 	uint16_t beacon_period;	/* +10 */
 	uint16_t capability;	/* +12 */
 	struct rate_set8_t rate_set;	/* +14 */
@@ -318,16 +318,16 @@ struct link_ap_info_t {
 	struct CfParms_t cf_parameter;	/* +30 */
 	struct IbssParms_t ibss_parameter;	/* +36 */
 	struct ErpParams_t erp_parameter;	/* +38 */
-	uint8_t pad1;	/* +39 */
+	u8 pad1;	/* +39 */
 	struct rate_set8_t ext_rate_set;	/* +40 */
-	uint8_t DTIM_period;	/* +50 */
-	uint8_t rsn_mode;	/* +51 */
+	u8 DTIM_period;	/* +50 */
+	u8 rsn_mode;	/* +51 */
 #define RSN_MODE_NONE	0
 #define RSN_MODE_WPA	1
 #define RSN_MODE_WPA2	2
 	struct {
-		uint8_t size;	/* +52 */
-		uint8_t body[128];	/* +53 */
+		u8 size;	/* +52 */
+		u8 body[128];	/* +53 */
 	} __packed rsn;
 } __packed;
 
@@ -400,7 +400,7 @@ struct hostif_infrastructure_set2_request_t {
 #define AUTH_TYPE_SHARED_KEY  1
 	struct channel_list_t channel_list;
 	uint16_t scan_type;
-	uint8_t bssid[ETH_ALEN];
+	u8 bssid[ETH_ALEN];
 } __packed;
 
 struct hostif_infrastructure_set_confirm_t {
@@ -431,7 +431,7 @@ struct hostif_adhoc_set2_request_t {
 				 * bit10:ShortSlotTime bit13:DSSS-OFDM DSSS-OFDM not supported always 0 */
 	uint16_t scan_type;
 	struct channel_list_t channel_list;
-	uint8_t bssid[ETH_ALEN];
+	u8 bssid[ETH_ALEN];
 } __packed;
 
 struct hostif_adhoc_set_confirm_t {
@@ -440,26 +440,26 @@ struct hostif_adhoc_set_confirm_t {
 } __packed;
 
 struct last_associate_t {
-	uint8_t type;
-	uint8_t status;
+	u8 type;
+	u8 status;
 } __packed;
 
 struct association_request_t {
-	uint8_t type;
+	u8 type;
 #define FRAME_TYPE_ASSOC_REQ	0x00
 #define FRAME_TYPE_REASSOC_REQ	0x20
-	uint8_t pad;
+	u8 pad;
 	uint16_t capability;
 	uint16_t listen_interval;
-	uint8_t ap_address[6];
+	u8 ap_address[6];
 	uint16_t reqIEs_size;
 } __packed;
 
 struct association_response_t {
-	uint8_t type;
+	u8 type;
 #define FRAME_TYPE_ASSOC_RESP	0x10
 #define FRAME_TYPE_REASSOC_RESP	0x30
-	uint8_t pad;
+	u8 pad;
 	uint16_t capability;
 	uint16_t status;
 	uint16_t association_id;
@@ -476,10 +476,10 @@ struct hostif_associate_indication_t {
 
 struct hostif_bss_scan_request_t {
 	struct hostif_hdr header;
-	uint8_t scan_type;
+	u8 scan_type;
 #define ACTIVE_SCAN  0
 #define PASSIVE_SCAN 1
-	uint8_t pad[3];
+	u8 pad[3];
 	uint32_t ch_time_min;
 	uint32_t ch_time_max;
 	struct channel_list_t channel_list;
@@ -502,10 +502,10 @@ struct hostif_phy_information_request_t {
 
 struct hostif_phy_information_confirm_t {
 	struct hostif_hdr header;
-	uint8_t rssi;
-	uint8_t sq;
-	uint8_t noise;
-	uint8_t link_speed;
+	u8 rssi;
+	u8 sq;
+	u8 noise;
+	u8 link_speed;
 	uint32_t tx_frame;
 	uint32_t rx_frame;
 	uint32_t tx_error;

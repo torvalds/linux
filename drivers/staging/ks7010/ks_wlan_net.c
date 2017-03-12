@@ -2767,7 +2767,7 @@ static int ks_wlan_set_wps_probe_req(struct net_device *dev,
 				     struct iw_request_info *info,
 				     struct iw_point *dwrq, char *extra)
 {
-	uint8_t *p = extra;
+	u8 *p = extra;
 	unsigned char len;
 	struct ks_wlan_private *priv =
 	    (struct ks_wlan_private *)netdev_priv(dev);

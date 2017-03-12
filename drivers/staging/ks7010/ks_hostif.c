@@ -2384,8 +2384,8 @@ void hostif_sme_set_pmksa(struct ks_wlan_private *priv)
 	struct pmk_cache_t {
 		uint16_t size;
 		struct {
-			uint8_t bssid[ETH_ALEN];
-			uint8_t pmkid[IW_PMKID_LEN];
+			u8 bssid[ETH_ALEN];
+			u8 pmkid[IW_PMKID_LEN];
 		} __packed list[PMK_LIST_MAX];
 	} __packed pmkcache;
 	struct pmk_t *pmk;
