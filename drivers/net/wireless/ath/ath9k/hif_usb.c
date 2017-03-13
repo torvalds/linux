@@ -1217,6 +1217,9 @@ static int send_eject_command(struct usb_interface *interface)
 	u8 bulk_out_ep;
 	int r;
 
+	if (iface_desc->desc.bNumEndpoints < 2)
+		return -ENODEV;
+
 	/* Find bulk out endpoint */
 	for (r = 1; r >= 0; r--) {
 		endpoint = &iface_desc->endpoint[r].desc;
