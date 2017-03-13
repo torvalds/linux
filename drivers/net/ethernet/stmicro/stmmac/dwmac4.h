@@ -25,6 +25,7 @@
 #define GMAC_RXQ_CTRL0			0x000000a0
 #define GMAC_INT_STATUS			0x000000b0
 #define GMAC_INT_EN			0x000000b4
+#define GMAC_1US_TIC_COUNTER		0x000000dc
 #define GMAC_PCS_BASE			0x000000e0
 #define GMAC_PHYIF_CONTROL_STATUS	0x000000f8
 #define GMAC_PMT			0x000000c0
@@ -148,6 +149,8 @@ enum power_event {
 /* MAC HW features1 bitmap */
 #define GMAC_HW_FEAT_AVSEL		BIT(20)
 #define GMAC_HW_TSOEN			BIT(18)
+#define GMAC_HW_TXFIFOSIZE		GENMASK(10, 6)
+#define GMAC_HW_RXFIFOSIZE		GENMASK(4, 0)
 
 /* MAC HW features2 bitmap */
 #define GMAC_HW_FEAT_TXCHCNT		GENMASK(21, 18)
@@ -180,6 +183,7 @@ enum power_event {
 #define MTL_OP_MODE_TSF			BIT(1)
 
 #define MTL_OP_MODE_TQS_MASK		GENMASK(24, 16)
+#define MTL_OP_MODE_TQS_SHIFT		16
 
 #define MTL_OP_MODE_TTC_MASK		0x70
 #define MTL_OP_MODE_TTC_SHIFT		4
@@ -192,6 +196,17 @@ enum power_event {
 #define MTL_OP_MODE_TTC_256		(5 << MTL_OP_MODE_TTC_SHIFT)
 #define MTL_OP_MODE_TTC_384		(6 << MTL_OP_MODE_TTC_SHIFT)
 #define MTL_OP_MODE_TTC_512		(7 << MTL_OP_MODE_TTC_SHIFT)
+
+#define MTL_OP_MODE_RQS_MASK		GENMASK(29, 20)
+#define MTL_OP_MODE_RQS_SHIFT		20
+
+#define MTL_OP_MODE_RFD_MASK		GENMASK(19, 14)
+#define MTL_OP_MODE_RFD_SHIFT		14
+
+#define MTL_OP_MODE_RFA_MASK		GENMASK(13, 8)
+#define MTL_OP_MODE_RFA_SHIFT		8
+
+#define MTL_OP_MODE_EHFC		BIT(7)
 
 #define MTL_OP_MODE_RTC_MASK		0x18
 #define MTL_OP_MODE_RTC_SHIFT		3

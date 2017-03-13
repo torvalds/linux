@@ -1281,6 +1281,9 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 {
 	int rxfifosz = priv->plat->rx_fifo_size;
 
+	if (rxfifosz == 0)
+		rxfifosz = priv->dma_cap.rx_fifo_size;
+
 	if (priv->plat->force_thresh_dma_mode)
 		priv->hw->dma->dma_mode(priv->ioaddr, tc, tc, rxfifosz);
 	else if (priv->plat->force_sf_dma_mode || priv->plat->tx_coe) {
@@ -1711,6 +1714,10 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 	stmmac_mmc_setup(priv);
 
 	if (init_ptp) {
+		ret = clk_prepare_enable(priv->plat->clk_ptp_ref);
+		if (ret < 0)
+			netdev_warn(priv->dev, "failed to enable PTP reference clock: %d\n", ret);
+
 		ret = stmmac_init_ptp(priv);
 		if (ret == -EOPNOTSUPP)
 			netdev_warn(priv->dev, "PTP not supported by HW\n");
@@ -1752,6 +1759,13 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 		priv->hw->dma->enable_tso(priv->ioaddr, 1, STMMAC_CHAN0);
 
 	return 0;
+}
+
+static void stmmac_hw_teardown(struct net_device *dev)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+
+	clk_disable_unprepare(priv->plat->clk_ptp_ref);
 }
 
 /**
@@ -1821,7 +1835,7 @@ static int stmmac_open(struct net_device *dev)
 		netdev_err(priv->dev,
 			   "%s: ERROR: allocating the IRQ %d (error: %d)\n",
 			   __func__, dev->irq, ret);
-		goto init_error;
+		goto irq_error;
 	}
 
 	/* Request the Wake IRQ in case of another line is used for WoL */
@@ -1858,7 +1872,12 @@ lpiirq_error:
 		free_irq(priv->wol_irq, dev);
 wolirq_error:
 	free_irq(dev->irq, dev);
+irq_error:
+	if (dev->phydev)
+		phy_stop(dev->phydev);
 
+	del_timer_sync(&priv->txtimer);
+	stmmac_hw_teardown(dev);
 init_error:
 	free_dma_desc_resources(priv);
 dma_desc_error:
@@ -2063,6 +2082,8 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 		des = skb_frag_dma_map(priv->device, frag, 0,
 				       skb_frag_size(frag),
 				       DMA_TO_DEVICE);
+		if (dma_mapping_error(priv->device, des))
+			goto dma_map_err;
 
 		stmmac_tso_allocator(priv, des, skb_frag_size(frag),
 				     (i == nfrags - 1));

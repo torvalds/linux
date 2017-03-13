@@ -28,9 +28,9 @@ Optional properties:
   clocks may be specified in derived bindings.
 - clock-names: One name for each entry in the clocks property, the
   first one should be "stmmaceth" and the second one should be "pclk".
-- clk_ptp_ref: this is the PTP reference clock; in case of the PTP is
-  available this clock is used for programming the Timestamp Addend Register.
-  If not passed then the system clock will be used and this is fine on some
+- ptp_ref: this is the PTP reference clock; in case of the PTP is available
+  this clock is used for programming the Timestamp Addend Register. If not
+  passed then the system clock will be used and this is fine on some
   platforms.
 - tx-fifo-depth: See ethernet.txt file in the same directory
 - rx-fifo-depth: See ethernet.txt file in the same directory

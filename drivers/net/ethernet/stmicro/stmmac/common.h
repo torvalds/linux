@@ -324,6 +324,9 @@ struct dma_features {
 	unsigned int number_tx_queues;
 	/* Alternate (enhanced) DESC mode */
 	unsigned int enh_desc;
+	/* TX and RX FIFO sizes */
+	unsigned int tx_fifo_size;
+	unsigned int rx_fifo_size;
 };
 
 /* GMAC TX FIFO is 8K, Rx FIFO is 16K */
