@@ -973,15 +973,6 @@ static int skl_tplg_mixer_dapm_pre_pmd_event(struct snd_soc_dapm_widget *w,
 			src_mconfig = sink_mconfig->m_in_pin[i].tgt_mcfg;
 			if (!src_mconfig)
 				continue;
-			/*
-			 * If path_found == 1, that means pmd for source
-			 * pipe has not occurred, source is connected to
-			 * some other sink. so its responsibility of sink
-			 * to unbind itself from source.
-			 */
-			ret = skl_stop_pipe(ctx, src_mconfig->pipe);
-			if (ret < 0)
-				return ret;
 
 			ret = skl_unbind_modules(ctx,
 						src_mconfig, sink_mconfig);
