@@ -144,8 +144,9 @@ struct pcie_port {
 
 struct dw_pcie_ops {
 	u64	(*cpu_addr_fixup)(u64 cpu_addr);
-	u32	(*readl_dbi)(struct dw_pcie *pcie, u32 reg);
-	void	(*writel_dbi)(struct dw_pcie *pcie, u32 reg, u32 val);
+	u32	(*readl_dbi)(struct dw_pcie *pcie, void __iomem *base, u32 reg);
+	void	(*writel_dbi)(struct dw_pcie *pcie, void __iomem *base, u32 reg,
+			      u32 val);
 	int	(*link_up)(struct dw_pcie *pcie);
 };
 
@@ -163,14 +164,25 @@ struct dw_pcie {
 int dw_pcie_read(void __iomem *addr, int size, u32 *val);
 int dw_pcie_write(void __iomem *addr, int size, u32 val);
 
-u32 dw_pcie_readl_dbi(struct dw_pcie *pci, u32 reg);
-void dw_pcie_writel_dbi(struct dw_pcie *pci, u32 reg, u32 val);
+u32 __dw_pcie_readl_dbi(struct dw_pcie *pci, void __iomem *base, u32 reg);
+void __dw_pcie_writel_dbi(struct dw_pcie *pci, void __iomem *base, u32 reg,
+			  u32 val);
 int dw_pcie_link_up(struct dw_pcie *pci);
 int dw_pcie_wait_for_link(struct dw_pcie *pci);
 void dw_pcie_prog_outbound_atu(struct dw_pcie *pci, int index,
 			       int type, u64 cpu_addr, u64 pci_addr,
 			       u32 size);
 void dw_pcie_setup(struct dw_pcie *pci);
+
+static inline void dw_pcie_writel_dbi(struct dw_pcie *pci, u32 reg, u32 val)
+{
+	__dw_pcie_writel_dbi(pci, pci->dbi_base, reg, val);
+}
+
+static inline u32 dw_pcie_readl_dbi(struct dw_pcie *pci, u32 reg)
+{
+	return  __dw_pcie_readl_dbi(pci, pci->dbi_base, reg);
+}
 
 #ifdef CONFIG_PCIE_DW_HOST
 irqreturn_t dw_handle_msi_irq(struct pcie_port *pp);

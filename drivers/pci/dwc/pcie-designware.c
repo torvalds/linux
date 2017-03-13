@@ -61,20 +61,21 @@ int dw_pcie_write(void __iomem *addr, int size, u32 val)
 	return PCIBIOS_SUCCESSFUL;
 }
 
-u32 dw_pcie_readl_dbi(struct dw_pcie *pci, u32 reg)
+u32 __dw_pcie_readl_dbi(struct dw_pcie *pci, void __iomem *base, u32 reg)
 {
 	if (pci->ops->readl_dbi)
-		return pci->ops->readl_dbi(pci, reg);
+		return pci->ops->readl_dbi(pci, base, reg);
 
-	return readl(pci->dbi_base + reg);
+	return readl(base + reg);
 }
 
-void dw_pcie_writel_dbi(struct dw_pcie *pci, u32 reg, u32 val)
+void __dw_pcie_writel_dbi(struct dw_pcie *pci, void __iomem *base, u32 reg,
+			  u32 val)
 {
 	if (pci->ops->writel_dbi)
-		pci->ops->writel_dbi(pci, reg, val);
+		pci->ops->writel_dbi(pci, base, reg, val);
 	else
-		writel(val, pci->dbi_base + reg);
+		writel(val, base + reg);
 }
 
 static u32 dw_pcie_readl_unroll(struct dw_pcie *pci, u32 index, u32 reg)
