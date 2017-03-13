@@ -2431,7 +2431,7 @@ static int ks_wlan_data_read(struct net_device *dev,
 			return 0;
 		}
 		read_length = 0;
-		memset(extra, 0, 1);
+		*extra = '\0';
 		dwrq->length = 0;
 		return 0;
 	}
