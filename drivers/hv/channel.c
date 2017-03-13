@@ -506,12 +506,15 @@ int vmbus_teardown_gpadl(struct vmbus_channel *channel, u32 gpadl_handle)
 
 	wait_for_completion(&info->waitevent);
 
-	if (channel->rescind) {
-		ret = -ENODEV;
-		goto post_msg_err;
-	}
-
 post_msg_err:
+	/*
+	 * If the channel has been rescinded;
+	 * we will be awakened by the rescind
+	 * handler; set the error code to zero so we don't leak memory.
+	 */
+	if (channel->rescind)
+		ret = 0;
+
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 	list_del(&info->msglistentry);
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
