@@ -87,6 +87,34 @@ enum subpixel_order {
 	SubPixelVerticalRGB,
 	SubPixelVerticalBGR,
 	SubPixelNone,
+
+};
+
+/*
+ * struct drm_scdc - Information about scdc capabilities of a HDMI 2.0 sink
+ *
+ * Provides SCDC register support and capabilities related information on a
+ * HDMI 2.0 sink. In case of a HDMI 1.4 sink, all parameter must be 0.
+ */
+struct drm_scdc {
+	/**
+	 * @supported: status control & data channel present.
+	 */
+	bool supported;
+	/**
+	 * @read_request: sink is capable of generating scdc read request.
+	 */
+	bool read_request;
+};
+
+/**
+ * struct drm_hdmi_info - runtime information about the connected HDMI sink
+ *
+ * Describes if a given display supports advanced HDMI 2.0 features.
+ * This information is available in CEA-861-F extension blocks (like HF-VSDB).
+ */
+struct drm_hdmi_info {
+	struct drm_scdc scdc;
 };
 
 /**
@@ -204,6 +232,11 @@ struct drm_display_info {
 	 * @cea_rev: CEA revision of the HDMI sink.
 	 */
 	u8 cea_rev;
+
+	/**
+	 * @hdmi: advance features of a HDMI sink.
+	 */
+	struct drm_hdmi_info hdmi;
 };
 
 int drm_display_info_set_bus_formats(struct drm_display_info *info,
