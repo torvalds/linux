@@ -308,23 +308,110 @@ int get_ap_information(struct ks_wlan_private *priv, struct ap_info_t *ap_info,
 }
 
 static
+int hostif_data_indication_wpa(struct ks_wlan_private *priv,
+			       unsigned short auth_type)
+{
+	struct ether_hdr *eth_hdr;
+	unsigned short eth_proto;
+	unsigned char RecvMIC[8];
+	char buf[128];
+	unsigned long now;
+	struct mic_failure_t *mic_failure;
+	struct michel_mic_t michel_mic;
+	union iwreq_data wrqu;
+
+	eth_hdr = (struct ether_hdr *)(priv->rxp);
+	eth_proto = ntohs(eth_hdr->h_proto);
+
+	if (memcmp(&eth_hdr->h_source[0], &priv->eth_addr[0], ETH_ALEN)) {	/* source address check */
+		if (eth_hdr->h_dest_snap != eth_hdr->h_source_snap) {
+			DPRINTK(1, "invalid data format\n");
+			priv->nstats.rx_errors++;
+			return -EINVAL;
+		}
+		if (((auth_type == TYPE_PMK1
+					&& priv->wpa.pairwise_suite ==
+					IW_AUTH_CIPHER_TKIP) || (auth_type == TYPE_GMK1
+								&& priv->wpa.
+								group_suite ==
+								IW_AUTH_CIPHER_TKIP)
+				|| (auth_type == TYPE_GMK2
+					&& priv->wpa.group_suite ==
+					IW_AUTH_CIPHER_TKIP))
+			&& priv->wpa.key[auth_type - 1].key_len) {
+			DPRINTK(4, "TKIP: protocol=%04X: size=%u\n",
+				eth_proto, priv->rx_size);
+			/* MIC save */
+			memcpy(&RecvMIC[0],
+				(priv->rxp) + ((priv->rx_size) - 8), 8);
+			priv->rx_size = priv->rx_size - 8;
+			if (auth_type > 0 && auth_type < 4) {	/* auth_type check */
+				MichaelMICFunction(&michel_mic, (uint8_t *)priv->wpa.key[auth_type - 1].rx_mic_key, (uint8_t *)priv->rxp, (int)priv->rx_size, (uint8_t)0,	/* priority */
+						(uint8_t *)michel_mic.Result);
+			}
+			if (memcmp(michel_mic.Result, RecvMIC, 8)) {
+				now = jiffies;
+				mic_failure = &priv->wpa.mic_failure;
+				/* MIC FAILURE */
+				if (mic_failure->last_failure_time &&
+					(now -
+						mic_failure->last_failure_time) /
+					HZ >= 60) {
+					mic_failure->failure = 0;
+				}
+				DPRINTK(4, "MIC FAILURE\n");
+				if (mic_failure->failure == 0) {
+					mic_failure->failure = 1;
+					mic_failure->counter = 0;
+				} else if (mic_failure->failure == 1) {
+					mic_failure->failure = 2;
+					mic_failure->counter =
+						(uint16_t)((now -
+								mic_failure->
+								last_failure_time)
+							/ HZ);
+					if (!mic_failure->counter)	/* mic_failure counter value range 1-60 */
+						mic_failure->counter =
+							1;
+				}
+				priv->wpa.mic_failure.
+					last_failure_time = now;
+				/*  needed parameters: count, keyid, key type, TSC */
+				sprintf(buf,
+					"MLME-MICHAELMICFAILURE.indication(keyid=%d %scast addr="
+					"%pM)",
+					auth_type - 1,
+					eth_hdr->
+					h_dest[0] & 0x01 ? "broad" :
+					"uni", eth_hdr->h_source);
+				memset(&wrqu, 0, sizeof(wrqu));
+				wrqu.data.length = strlen(buf);
+				DPRINTK(4,
+					"IWEVENT:MICHAELMICFAILURE\n");
+				wireless_send_event(priv->net_dev,
+						IWEVCUSTOM, &wrqu,
+						buf);
+				return -EINVAL;
+
+			}
+		}
+	}
+	return 0;
+}
+
+
+static
 void hostif_data_indication(struct ks_wlan_private *priv)
 {
 	unsigned int rx_ind_size;	/* indicate data size */
 	struct sk_buff *skb;
 	unsigned short auth_type;
 	unsigned char temp[256];
-
-	unsigned char RecvMIC[8];
-	char buf[128];
 	struct ether_hdr *eth_hdr;
 	unsigned short eth_proto;
-	unsigned long now;
-	struct mic_failure_t *mic_failure;
 	struct ieee802_1x_hdr *aa1x_hdr;
 	struct wpa_eapol_key *eap_key;
-	struct michel_mic_t michel_mic;
-	union iwreq_data wrqu;
+	int rc;
 
 	DPRINTK(3, "\n");
 
@@ -356,78 +443,9 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 
 	/*  for WPA */
 	if (auth_type != TYPE_DATA && priv->wpa.rsn_enabled) {
-		if (memcmp(&eth_hdr->h_source[0], &priv->eth_addr[0], ETH_ALEN)) {	/* source address check */
-			if (eth_hdr->h_dest_snap != eth_hdr->h_source_snap) {
-				DPRINTK(1, "invalid data format\n");
-				priv->nstats.rx_errors++;
-				return;
-			}
-			if (((auth_type == TYPE_PMK1
-			      && priv->wpa.pairwise_suite ==
-			      IW_AUTH_CIPHER_TKIP) || (auth_type == TYPE_GMK1
-						       && priv->wpa.
-						       group_suite ==
-						       IW_AUTH_CIPHER_TKIP)
-			     || (auth_type == TYPE_GMK2
-				 && priv->wpa.group_suite ==
-				 IW_AUTH_CIPHER_TKIP))
-			    && priv->wpa.key[auth_type - 1].key_len) {
-				DPRINTK(4, "TKIP: protocol=%04X: size=%u\n",
-					eth_proto, priv->rx_size);
-				/* MIC save */
-				memcpy(&RecvMIC[0],
-				       (priv->rxp) + ((priv->rx_size) - 8), 8);
-				priv->rx_size = priv->rx_size - 8;
-				if (auth_type > 0 && auth_type < 4) {	/* auth_type check */
-					MichaelMICFunction(&michel_mic, (uint8_t *)priv->wpa.key[auth_type - 1].rx_mic_key, (uint8_t *)priv->rxp, (int)priv->rx_size, (uint8_t)0,	/* priority */
-							   (uint8_t *)michel_mic.Result);
-				}
-				if (memcmp(michel_mic.Result, RecvMIC, 8)) {
-					now = jiffies;
-					mic_failure = &priv->wpa.mic_failure;
-					/* MIC FAILURE */
-					if (mic_failure->last_failure_time &&
-					    (now -
-					     mic_failure->last_failure_time) /
-					    HZ >= 60) {
-						mic_failure->failure = 0;
-					}
-					DPRINTK(4, "MIC FAILURE\n");
-					if (mic_failure->failure == 0) {
-						mic_failure->failure = 1;
-						mic_failure->counter = 0;
-					} else if (mic_failure->failure == 1) {
-						mic_failure->failure = 2;
-						mic_failure->counter =
-						    (uint16_t)((now -
-								 mic_failure->
-								 last_failure_time)
-								/ HZ);
-						if (!mic_failure->counter)	/* mic_failure counter value range 1-60 */
-							mic_failure->counter =
-							    1;
-					}
-					priv->wpa.mic_failure.
-					    last_failure_time = now;
-					/*  needed parameters: count, keyid, key type, TSC */
-					sprintf(buf,
-						"MLME-MICHAELMICFAILURE.indication(keyid=%d %scast addr="
-						"%pM)",
-						auth_type - 1,
-						eth_hdr->
-						h_dest[0] & 0x01 ? "broad" :
-						"uni", eth_hdr->h_source);
-					memset(&wrqu, 0, sizeof(wrqu));
-					wrqu.data.length = strlen(buf);
-					DPRINTK(4,
-						"IWEVENT:MICHAELMICFAILURE\n");
-					wireless_send_event(priv->net_dev,
-							    IWEVCUSTOM, &wrqu,
-							    buf);
-					return;
-				}
-			}
-		}
+		rc = hostif_data_indication_wpa(priv, auth_type);
+		if (rc)
+			return;
 	}
 
 	if ((priv->connect_status & FORCE_DISCONNECT) ||
