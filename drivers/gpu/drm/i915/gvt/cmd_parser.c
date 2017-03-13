@@ -1030,7 +1030,7 @@ static int cmd_handler_pipe_control(struct parser_exec_state *s)
 			ret = cmd_reg_handler(s, 0x2358, 1, "pipe_ctrl");
 		else if (post_sync == 1) {
 			/* check ggtt*/
-			if ((cmd_val(s, 2) & (1 << 2))) {
+			if ((cmd_val(s, 1) & PIPE_CONTROL_GLOBAL_GTT_IVB)) {
 				gma = cmd_val(s, 2) & GENMASK(31, 3);
 				if (gmadr_bytes == 8)
 					gma |= (cmd_gma_hi(s, 3)) << 32;
