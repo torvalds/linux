@@ -969,7 +969,7 @@ static int cs35l35_codec_probe(struct snd_soc_codec *codec)
 		}
 	}
 
-	return ret;
+	return 0;
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_cs35l35 = {
