@@ -1613,6 +1613,105 @@ int amdgpu_vm_bo_unmap(struct amdgpu_device *adev,
 }
 
 /**
+ * amdgpu_vm_bo_clear_mappings - remove all mappings in a specific range
+ *
+ * @adev: amdgpu_device pointer
+ * @vm: VM structure to use
+ * @saddr: start of the range
+ * @size: size of the range
+ *
+ * Remove all mappings in a range, split them as appropriate.
+ * Returns 0 for success, error for failure.
+ */
+int amdgpu_vm_bo_clear_mappings(struct amdgpu_device *adev,
+				struct amdgpu_vm *vm,
+				uint64_t saddr, uint64_t size)
+{
+	struct amdgpu_bo_va_mapping *before, *after, *tmp, *next;
+	struct interval_tree_node *it;
+	LIST_HEAD(removed);
+	uint64_t eaddr;
+
+	eaddr = saddr + size - 1;
+	saddr /= AMDGPU_GPU_PAGE_SIZE;
+	eaddr /= AMDGPU_GPU_PAGE_SIZE;
+
+	/* Allocate all the needed memory */
+	before = kzalloc(sizeof(*before), GFP_KERNEL);
+	if (!before)
+		return -ENOMEM;
+
+	after = kzalloc(sizeof(*after), GFP_KERNEL);
+	if (!after) {
+		kfree(before);
+		return -ENOMEM;
+	}
+
+	/* Now gather all removed mappings */
+	it = interval_tree_iter_first(&vm->va, saddr, eaddr);
+	while (it) {
+		tmp = container_of(it, struct amdgpu_bo_va_mapping, it);
+		it = interval_tree_iter_next(it, saddr, eaddr);
+
+		/* Remember mapping split at the start */
+		if (tmp->it.start < saddr) {
+			before->it.start = tmp->it.start;;
+			before->it.last = saddr - 1;
+			before->offset = tmp->offset;
+			before->flags = tmp->flags;
+			list_add(&before->list, &tmp->list);
+		}
+
+		/* Remember mapping split at the end */
+		if (tmp->it.last > eaddr) {
+			after->it.start = eaddr + 1;
+			after->it.last = tmp->it.last;
+			after->offset = tmp->offset;
+			after->offset += after->it.start - tmp->it.start;
+			after->flags = tmp->flags;
+			list_add(&after->list, &tmp->list);
+		}
+
+		list_del(&tmp->list);
+		list_add(&tmp->list, &removed);
+	}
+
+	/* And free them up */
+	list_for_each_entry_safe(tmp, next, &removed, list) {
+		interval_tree_remove(&tmp->it, &vm->va);
+		list_del(&tmp->list);
+
+		if (tmp->it.start < saddr)
+		    tmp->it.start = saddr;
+		if (tmp->it.last > eaddr)
+		    tmp->it.last = eaddr;
+
+		list_add(&tmp->list, &vm->freed);
+		trace_amdgpu_vm_bo_unmap(NULL, tmp);
+	}
+
+	/* Insert partial mapping before the range*/
+	if (before->it.start != before->it.last) {
+		interval_tree_insert(&before->it, &vm->va);
+		if (before->flags & AMDGPU_PTE_PRT)
+			amdgpu_vm_prt_get(adev);
+	} else {
+		kfree(before);
+	}
+
+	/* Insert partial mapping after the range */
+	if (after->it.start != after->it.last) {
+		interval_tree_insert(&after->it, &vm->va);
+		if (after->flags & AMDGPU_PTE_PRT)
+			amdgpu_vm_prt_get(adev);
+	} else {
+		kfree(after);
+	}
+
+	return 0;
+}
+
+/**
  * amdgpu_vm_bo_rmv - remove a bo to a specific vm
  *
  * @adev: amdgpu_device pointer

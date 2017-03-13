@@ -507,14 +507,16 @@ static int amdgpu_gem_va_check(void *param, struct amdgpu_bo *bo)
  * amdgpu_gem_va_update_vm -update the bo_va in its VM
  *
  * @adev: amdgpu_device pointer
+ * @vm: vm to update
  * @bo_va: bo_va to update
  * @list: validation list
- * @operation: map or unmap
+ * @operation: map, unmap or clear
  *
  * Update the bo_va directly after setting its address. Errors are not
  * vital here, so they are not reported back to userspace.
  */
 static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
+				    struct amdgpu_vm *vm,
 				    struct amdgpu_bo_va *bo_va,
 				    struct list_head *list,
 				    uint32_t operation)
@@ -529,16 +531,16 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 			goto error;
 	}
 
-	r = amdgpu_vm_validate_pt_bos(adev, bo_va->vm, amdgpu_gem_va_check,
+	r = amdgpu_vm_validate_pt_bos(adev, vm, amdgpu_gem_va_check,
 				      NULL);
 	if (r)
 		goto error;
 
-	r = amdgpu_vm_update_page_directory(adev, bo_va->vm);
+	r = amdgpu_vm_update_page_directory(adev, vm);
 	if (r)
 		goto error;
 
-	r = amdgpu_vm_clear_freed(adev, bo_va->vm);
+	r = amdgpu_vm_clear_freed(adev, vm);
 	if (r)
 		goto error;
 
@@ -592,6 +594,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	switch (args->operation) {
 	case AMDGPU_VA_OP_MAP:
 	case AMDGPU_VA_OP_UNMAP:
+	case AMDGPU_VA_OP_CLEAR:
 		break;
 	default:
 		dev_err(&dev->pdev->dev, "unsupported operation %d\n",
@@ -600,7 +603,8 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	}
 
 	INIT_LIST_HEAD(&list);
-	if (!(args->flags & AMDGPU_VM_PAGE_PRT)) {
+	if ((args->operation != AMDGPU_VA_OP_CLEAR) &&
+	    !(args->flags & AMDGPU_VM_PAGE_PRT)) {
 		gobj = drm_gem_object_lookup(filp, args->handle);
 		if (gobj == NULL)
 			return -ENOENT;
@@ -625,8 +629,10 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 			r = -ENOENT;
 			goto error_backoff;
 		}
-	} else {
+	} else if (args->operation != AMDGPU_VA_OP_CLEAR) {
 		bo_va = fpriv->prt_va;
+	} else {
+		bo_va = NULL;
 	}
 
 	switch (args->operation) {
@@ -644,11 +650,18 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	case AMDGPU_VA_OP_UNMAP:
 		r = amdgpu_vm_bo_unmap(adev, bo_va, args->va_address);
 		break;
+
+	case AMDGPU_VA_OP_CLEAR:
+		r = amdgpu_vm_bo_clear_mappings(adev, &fpriv->vm,
+						args->va_address,
+						args->map_size);
+		break;
 	default:
 		break;
 	}
 	if (!r && !(args->flags & AMDGPU_VM_DELAY_UPDATE) && !amdgpu_vm_debug)
-		amdgpu_gem_va_update_vm(adev, bo_va, &list, args->operation);
+		amdgpu_gem_va_update_vm(adev, &fpriv->vm, bo_va, &list,
+					args->operation);
 
 error_backoff:
 	ttm_eu_backoff_reservation(&ticket, &list);

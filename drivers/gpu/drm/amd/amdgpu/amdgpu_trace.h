@@ -188,7 +188,7 @@ TRACE_EVENT(amdgpu_vm_bo_map,
 			     ),
 
 	    TP_fast_assign(
-			   __entry->bo = bo_va->bo;
+			   __entry->bo = bo_va ? bo_va->bo : NULL;
 			   __entry->start = mapping->it.start;
 			   __entry->last = mapping->it.last;
 			   __entry->offset = mapping->offset;
