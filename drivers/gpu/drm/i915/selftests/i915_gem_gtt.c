@@ -539,7 +539,7 @@ static int walk_hole(struct drm_i915_private *i915,
 		vma = i915_vma_instance(obj, vm, NULL);
 		if (IS_ERR(vma)) {
 			err = PTR_ERR(vma);
-			goto err;
+			goto err_put;
 		}
 
 		for (addr = hole_start;
@@ -550,7 +550,7 @@ static int walk_hole(struct drm_i915_private *i915,
 				pr_err("%s bind failed at %llx + %llx [hole %llx- %llx] with err=%d\n",
 				       __func__, addr, vma->size,
 				       hole_start, hole_end, err);
-				goto err;
+				goto err_close;
 			}
 			i915_vma_unpin(vma);
 
@@ -559,14 +559,14 @@ static int walk_hole(struct drm_i915_private *i915,
 				pr_err("%s incorrect at %llx + %llx\n",
 				       __func__, addr, vma->size);
 				err = -EINVAL;
-				goto err;
+				goto err_close;
 			}
 
 			err = i915_vma_unbind(vma);
 			if (err) {
 				pr_err("%s unbind failed at %llx + %llx  with err=%d\n",
 				       __func__, addr, vma->size, err);
-				goto err;
+				goto err_close;
 			}
 
 			GEM_BUG_ON(drm_mm_node_allocated(&vma->node));
@@ -575,13 +575,14 @@ static int walk_hole(struct drm_i915_private *i915,
 					"%s timed out at %llx\n",
 					__func__, addr)) {
 				err = -EINTR;
-				goto err;
+				goto err_close;
 			}
 		}
 
-err:
+err_close:
 		if (!i915_vma_is_ggtt(vma))
 			i915_vma_close(vma);
+err_put:
 		i915_gem_object_put(obj);
 		if (err)
 			return err;
