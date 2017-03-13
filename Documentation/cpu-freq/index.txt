@@ -21,8 +21,6 @@ Documents in this directory:
 
 amd-powernow.txt -	AMD powernow driver specific file.
 
-boost.txt -		Frequency boosting support.
-
 core.txt	-	General description of the CPUFreq core and
 			of CPUFreq notifiers.
 
@@ -32,16 +30,11 @@ cpufreq-nforce2.txt -	nVidia nForce2 platform specific file.
 
 cpufreq-stats.txt -	General description of sysfs cpufreq stats.
 
-governors.txt	-	What are cpufreq governors and how to
-			implement them?
-
 index.txt	-	File index, Mailing list and Links (this document)
 
 intel-pstate.txt -	Intel pstate cpufreq driver specific file.
 
 pcc-cpufreq.txt -	PCC cpufreq driver specific file.
-
-user-guide.txt	-	User Guide to CPUFreq
 
 
 Mailing List
