@@ -2308,7 +2308,7 @@ static int switch_data_file(void)
 		return ret;
 
 	memset(options, 0, sizeof(options));
-	memset(options, 0, sizeof(abs_path));
+	memset(abs_path, 0, sizeof(abs_path));
 
 	while ((dent = readdir(pwd_dir))) {
 		char path[PATH_MAX];
