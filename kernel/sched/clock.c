@@ -141,7 +141,14 @@ static void __set_sched_clock_stable(void)
 	tick_dep_clear(TICK_DEP_BIT_CLOCK_UNSTABLE);
 }
 
-static void __clear_sched_clock_stable(struct work_struct *work)
+static void __sched_clock_work(struct work_struct *work)
+{
+	static_branch_disable(&__sched_clock_stable);
+}
+
+static DECLARE_WORK(sched_clock_work, __sched_clock_work);
+
+static void __clear_sched_clock_stable(void)
 {
 	struct sched_clock_data *scd = this_scd();
 
@@ -160,11 +167,11 @@ static void __clear_sched_clock_stable(struct work_struct *work)
 			scd->tick_gtod, gtod_offset,
 			scd->tick_raw,  raw_offset);
 
-	static_branch_disable(&__sched_clock_stable);
 	tick_dep_set(TICK_DEP_BIT_CLOCK_UNSTABLE);
-}
 
-static DECLARE_WORK(sched_clock_work, __clear_sched_clock_stable);
+	if (sched_clock_stable())
+		schedule_work(&sched_clock_work);
+}
 
 void clear_sched_clock_stable(void)
 {
@@ -173,7 +180,7 @@ void clear_sched_clock_stable(void)
 	smp_mb(); /* matches sched_clock_init_late() */
 
 	if (sched_clock_running == 2)
-		schedule_work(&sched_clock_work);
+		__clear_sched_clock_stable();
 }
 
 void sched_clock_init_late(void)
