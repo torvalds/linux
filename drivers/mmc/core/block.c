@@ -1433,36 +1433,39 @@ static enum mmc_blk_status mmc_blk_err_check(struct mmc_card *card,
 	return MMC_BLK_SUCCESS;
 }
 
-static void mmc_blk_rw_rq_prep(struct mmc_queue_req *mqrq,
-			       struct mmc_card *card,
-			       int disable_multi,
-			       struct mmc_queue *mq)
+static void mmc_blk_data_prep(struct mmc_queue *mq, struct mmc_queue_req *mqrq,
+			      int disable_multi, bool *do_rel_wr,
+			      bool *do_data_tag)
 {
-	u32 readcmd, writecmd;
+	struct mmc_blk_data *md = mq->blkdata;
+	struct mmc_card *card = md->queue.card;
 	struct mmc_blk_request *brq = &mqrq->brq;
 	struct request *req = mqrq->req;
-	struct mmc_blk_data *md = mq->blkdata;
-	bool do_data_tag;
 
 	/*
 	 * Reliable writes are used to implement Forced Unit Access and
 	 * are supported only on MMCs.
 	 */
-	bool do_rel_wr = (req->cmd_flags & REQ_FUA) &&
-		(rq_data_dir(req) == WRITE) &&
-		(md->flags & MMC_BLK_REL_WR);
+	*do_rel_wr = (req->cmd_flags & REQ_FUA) &&
+		     rq_data_dir(req) == WRITE &&
+		     (md->flags & MMC_BLK_REL_WR);
 
 	memset(brq, 0, sizeof(struct mmc_blk_request));
-	brq->mrq.cmd = &brq->cmd;
+
 	brq->mrq.data = &brq->data;
 
-	brq->cmd.arg = blk_rq_pos(req);
-	if (!mmc_card_blockaddr(card))
-		brq->cmd.arg <<= 9;
-	brq->cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_ADTC;
-	brq->data.blksz = 512;
 	brq->stop.opcode = MMC_STOP_TRANSMISSION;
 	brq->stop.arg = 0;
+
+	if (rq_data_dir(req) == READ) {
+		brq->data.flags = MMC_DATA_READ;
+		brq->stop.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_AC;
+	} else {
+		brq->data.flags = MMC_DATA_WRITE;
+		brq->stop.flags = MMC_RSP_SPI_R1B | MMC_RSP_R1B | MMC_CMD_AC;
+	}
+
+	brq->data.blksz = 512;
 	brq->data.blocks = blk_rq_sectors(req);
 
 	/*
@@ -1493,6 +1496,68 @@ static void mmc_blk_rw_rq_prep(struct mmc_queue_req *mqrq,
 						brq->data.blocks);
 	}
 
+	if (*do_rel_wr)
+		mmc_apply_rel_rw(brq, card, req);
+
+	/*
+	 * Data tag is used only during writing meta data to speed
+	 * up write and any subsequent read of this meta data
+	 */
+	*do_data_tag = card->ext_csd.data_tag_unit_size &&
+		       (req->cmd_flags & REQ_META) &&
+		       (rq_data_dir(req) == WRITE) &&
+		       ((brq->data.blocks * brq->data.blksz) >=
+			card->ext_csd.data_tag_unit_size);
+
+	mmc_set_data_timeout(&brq->data, card);
+
+	brq->data.sg = mqrq->sg;
+	brq->data.sg_len = mmc_queue_map_sg(mq, mqrq);
+
+	/*
+	 * Adjust the sg list so it is the same size as the
+	 * request.
+	 */
+	if (brq->data.blocks != blk_rq_sectors(req)) {
+		int i, data_size = brq->data.blocks << 9;
+		struct scatterlist *sg;
+
+		for_each_sg(brq->data.sg, sg, brq->data.sg_len, i) {
+			data_size -= sg->length;
+			if (data_size <= 0) {
+				sg->length += data_size;
+				i++;
+				break;
+			}
+		}
+		brq->data.sg_len = i;
+	}
+
+	mqrq->areq.mrq = &brq->mrq;
+
+	mmc_queue_bounce_pre(mqrq);
+}
+
+static void mmc_blk_rw_rq_prep(struct mmc_queue_req *mqrq,
+			       struct mmc_card *card,
+			       int disable_multi,
+			       struct mmc_queue *mq)
+{
+	u32 readcmd, writecmd;
+	struct mmc_blk_request *brq = &mqrq->brq;
+	struct request *req = mqrq->req;
+	struct mmc_blk_data *md = mq->blkdata;
+	bool do_rel_wr, do_data_tag;
+
+	mmc_blk_data_prep(mq, mqrq, disable_multi, &do_rel_wr, &do_data_tag);
+
+	brq->mrq.cmd = &brq->cmd;
+
+	brq->cmd.arg = blk_rq_pos(req);
+	if (!mmc_card_blockaddr(card))
+		brq->cmd.arg <<= 9;
+	brq->cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_ADTC;
+
 	if (brq->data.blocks > 1 || do_rel_wr) {
 		/* SPI multiblock writes terminate using a special
 		 * token, not a STOP_TRANSMISSION request.
@@ -1507,32 +1572,7 @@ static void mmc_blk_rw_rq_prep(struct mmc_queue_req *mqrq,
 		readcmd = MMC_READ_SINGLE_BLOCK;
 		writecmd = MMC_WRITE_BLOCK;
 	}
-	if (rq_data_dir(req) == READ) {
-		brq->cmd.opcode = readcmd;
-		brq->data.flags = MMC_DATA_READ;
-		if (brq->mrq.stop)
-			brq->stop.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 |
-					MMC_CMD_AC;
-	} else {
-		brq->cmd.opcode = writecmd;
-		brq->data.flags = MMC_DATA_WRITE;
-		if (brq->mrq.stop)
-			brq->stop.flags = MMC_RSP_SPI_R1B | MMC_RSP_R1B |
-					MMC_CMD_AC;
-	}
-
-	if (do_rel_wr)
-		mmc_apply_rel_rw(brq, card, req);
-
-	/*
-	 * Data tag is used only during writing meta data to speed
-	 * up write and any subsequent read of this meta data
-	 */
-	do_data_tag = (card->ext_csd.data_tag_unit_size) &&
-		(req->cmd_flags & REQ_META) &&
-		(rq_data_dir(req) == WRITE) &&
-		((brq->data.blocks * brq->data.blksz) >=
-		 card->ext_csd.data_tag_unit_size);
+	brq->cmd.opcode = rq_data_dir(req) == READ ? readcmd : writecmd;
 
 	/*
 	 * Pre-defined multi-block transfers are preferable to
@@ -1563,34 +1603,7 @@ static void mmc_blk_rw_rq_prep(struct mmc_queue_req *mqrq,
 		brq->mrq.sbc = &brq->sbc;
 	}
 
-	mmc_set_data_timeout(&brq->data, card);
-
-	brq->data.sg = mqrq->sg;
-	brq->data.sg_len = mmc_queue_map_sg(mq, mqrq);
-
-	/*
-	 * Adjust the sg list so it is the same size as the
-	 * request.
-	 */
-	if (brq->data.blocks != blk_rq_sectors(req)) {
-		int i, data_size = brq->data.blocks << 9;
-		struct scatterlist *sg;
-
-		for_each_sg(brq->data.sg, sg, brq->data.sg_len, i) {
-			data_size -= sg->length;
-			if (data_size <= 0) {
-				sg->length += data_size;
-				i++;
-				break;
-			}
-		}
-		brq->data.sg_len = i;
-	}
-
-	mqrq->areq.mrq = &brq->mrq;
 	mqrq->areq.err_check = mmc_blk_err_check;
-
-	mmc_queue_bounce_pre(mqrq);
 }
 
 static bool mmc_blk_rw_cmd_err(struct mmc_blk_data *md, struct mmc_card *card,
