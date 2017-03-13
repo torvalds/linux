@@ -77,6 +77,11 @@ struct skl_sst {
 	wait_queue_head_t boot_wait;
 	bool boot_complete;
 
+	/* module load */
+	wait_queue_head_t mod_load_wait;
+	bool mod_load_complete;
+	bool mod_load_status;
+
 	/* IPC messaging */
 	struct sst_generic_ipc ipc;
 
