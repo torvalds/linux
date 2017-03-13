@@ -1,7 +1,8 @@
 /*
  * Device Tree Source for UniPhier Reference Daughter Board
  *
- * Copyright (C) 2015 Masahiro Yamada <yamada.masahiro@socionext.com>
+ * Copyright (C) 2015-2017 Socionext Inc.
+ *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -46,5 +47,6 @@
 	eeprom@50 {
 		compatible = "microchip,24lc128";
 		reg = <0x50>;
+		pagesize = <64>;
 	};
 };
