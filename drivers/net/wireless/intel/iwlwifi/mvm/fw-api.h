@@ -1612,7 +1612,7 @@ struct iwl_mcc_update_cmd {
 	u8 source_id;
 	u8 reserved;
 	__le32 key;
-	__le32 reserved2[5];
+	u8 reserved2[20];
 } __packed; /* LAR_UPDATE_MCC_CMD_API_S_VER_2 */
 
 /**
@@ -2196,7 +2196,7 @@ struct iwl_link_qual_msrmnt_notif {
 	__le32 tx_frame_dropped;
 	__le32 mac_id;
 	__le32 status;
-	__le32 reserved[3];
+	u8 reserved[12];
 } __packed; /* LQM_MEASUREMENT_COMPLETE_NTF_API_S_VER1 */
 
 /**

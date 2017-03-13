@@ -72,7 +72,7 @@ struct mvm_statistics_dbg {
 	__le32 burst_check;
 	__le32 burst_count;
 	__le32 wait_for_silence_timeout_cnt;
-	__le32 reserved[3];
+	u8 reserved[12];
 } __packed; /* STATISTICS_DEBUG_API_S_VER_2 */
 
 struct mvm_statistics_div {
