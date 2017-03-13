@@ -3318,6 +3318,7 @@ static s32 ixgbe_reset_hw_X550em(struct ixgbe_hw *hw)
 	u32 ctrl = 0;
 	u32 i;
 	bool link_up = false;
+	u32 swfw_mask = hw->phy.phy_semaphore_mask;
 
 	/* Call adapter stop to disable Tx/Rx and clear interrupts */
 	status = hw->mac.ops.stop_adapter(hw);
@@ -3363,9 +3364,16 @@ mac_reset_top:
 			ctrl = IXGBE_CTRL_RST;
 	}
 
+	status = hw->mac.ops.acquire_swfw_sync(hw, swfw_mask);
+	if (status) {
+		hw_dbg(hw, "semaphore failed with %d", status);
+		return IXGBE_ERR_SWFW_SYNC;
+	}
+
 	ctrl |= IXGBE_READ_REG(hw, IXGBE_CTRL);
 	IXGBE_WRITE_REG(hw, IXGBE_CTRL, ctrl);
 	IXGBE_WRITE_FLUSH(hw);
+	hw->mac.ops.release_swfw_sync(hw, swfw_mask);
 	usleep_range(1000, 1200);
 
 	/* Poll for reset bit to self-clear meaning reset is complete */
