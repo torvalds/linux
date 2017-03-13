@@ -109,7 +109,7 @@ static void xhci_print_cap_regs(struct xhci_hcd *xhci)
 	xhci_dbg(xhci, "RTSOFF 0x%x:\n", temp & RTSOFF_MASK);
 
 	/* xhci 1.1 controllers have the HCCPARAMS2 register */
-	if (hci_version > 100) {
+	if (hci_version > 0x100) {
 		temp = readl(&xhci->cap_regs->hcc_params2);
 		xhci_dbg(xhci, "HCC PARAMS2 0x%x:\n", (unsigned int) temp);
 		xhci_dbg(xhci, "  HC %s Force save context capability",
