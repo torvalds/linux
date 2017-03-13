@@ -66,6 +66,7 @@
 #include "port.h"
 #include "trap.h"
 #include "txheader.h"
+#include "spectrum_cnt.h"
 
 static const char mlxsw_sp_driver_name[] = "mlxsw_spectrum";
 static const char mlxsw_sp_driver_version[] = "1.0";
@@ -137,6 +138,60 @@ MLXSW_ITEM32(tx, hdr, fid, 0x08, 0, 16);
  * 6 - Control packets
  */
 MLXSW_ITEM32(tx, hdr, type, 0x0C, 0, 4);
+
+int mlxsw_sp_flow_counter_get(struct mlxsw_sp *mlxsw_sp,
+			      unsigned int counter_index, u64 *packets,
+			      u64 *bytes)
+{
+	char mgpc_pl[MLXSW_REG_MGPC_LEN];
+	int err;
+
+	mlxsw_reg_mgpc_pack(mgpc_pl, counter_index, MLXSW_REG_MGPC_OPCODE_NOP,
+			    MLXSW_REG_MGPC_COUNTER_SET_TYPE_PACKETS_BYTES);
+	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(mgpc), mgpc_pl);
+	if (err)
+		return err;
+	*packets = mlxsw_reg_mgpc_packet_counter_get(mgpc_pl);
+	*bytes = mlxsw_reg_mgpc_byte_counter_get(mgpc_pl);
+	return 0;
+}
+
+static int mlxsw_sp_flow_counter_clear(struct mlxsw_sp *mlxsw_sp,
+				       unsigned int counter_index)
+{
+	char mgpc_pl[MLXSW_REG_MGPC_LEN];
+
+	mlxsw_reg_mgpc_pack(mgpc_pl, counter_index, MLXSW_REG_MGPC_OPCODE_CLEAR,
+			    MLXSW_REG_MGPC_COUNTER_SET_TYPE_PACKETS_BYTES);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mgpc), mgpc_pl);
+}
+
+int mlxsw_sp_flow_counter_alloc(struct mlxsw_sp *mlxsw_sp,
+				unsigned int *p_counter_index)
+{
+	int err;
+
+	err = mlxsw_sp_counter_alloc(mlxsw_sp, MLXSW_SP_COUNTER_SUB_POOL_FLOW,
+				     p_counter_index);
+	if (err)
+		return err;
+	err = mlxsw_sp_flow_counter_clear(mlxsw_sp, *p_counter_index);
+	if (err)
+		goto err_counter_clear;
+	return 0;
+
+err_counter_clear:
+	mlxsw_sp_counter_free(mlxsw_sp, MLXSW_SP_COUNTER_SUB_POOL_FLOW,
+			      *p_counter_index);
+	return err;
+}
+
+void mlxsw_sp_flow_counter_free(struct mlxsw_sp *mlxsw_sp,
+				unsigned int counter_index)
+{
+	 mlxsw_sp_counter_free(mlxsw_sp, MLXSW_SP_COUNTER_SUB_POOL_FLOW,
+			       counter_index);
+}
 
 static void mlxsw_sp_txhdr_construct(struct sk_buff *skb,
 				     const struct mlxsw_tx_info *tx_info)
@@ -1379,6 +1434,9 @@ static int mlxsw_sp_setup_tc(struct net_device *dev, u32 handle,
 			mlxsw_sp_flower_destroy(mlxsw_sp_port, ingress,
 						tc->cls_flower);
 			return 0;
+		case TC_CLSFLOWER_STATS:
+			return mlxsw_sp_flower_stats(mlxsw_sp_port, ingress,
+						     tc->cls_flower);
 		default:
 			return -EOPNOTSUPP;
 		}
@@ -3224,6 +3282,12 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		goto err_acl_init;
 	}
 
+	err = mlxsw_sp_counter_pool_init(mlxsw_sp);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to init counter pool\n");
+		goto err_counter_pool_init;
+	}
+
 	err = mlxsw_sp_ports_create(mlxsw_sp);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to create ports\n");
@@ -3233,6 +3297,8 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 	return 0;
 
 err_ports_create:
+	mlxsw_sp_counter_pool_fini(mlxsw_sp);
+err_counter_pool_init:
 	mlxsw_sp_acl_fini(mlxsw_sp);
 err_acl_init:
 	mlxsw_sp_span_fini(mlxsw_sp);
@@ -3255,6 +3321,7 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 
 	mlxsw_sp_ports_remove(mlxsw_sp);
+	mlxsw_sp_counter_pool_fini(mlxsw_sp);
 	mlxsw_sp_acl_fini(mlxsw_sp);
 	mlxsw_sp_span_fini(mlxsw_sp);
 	mlxsw_sp_router_fini(mlxsw_sp);

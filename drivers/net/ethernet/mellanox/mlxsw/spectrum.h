@@ -246,6 +246,7 @@ struct mlxsw_sp_router {
 };
 
 struct mlxsw_sp_acl;
+struct mlxsw_sp_counter_pool;
 
 struct mlxsw_sp {
 	struct {
@@ -281,6 +282,7 @@ struct mlxsw_sp {
 		DECLARE_BITMAP(usage, MLXSW_SP_KVD_LINEAR_SIZE);
 	} kvdl;
 
+	struct mlxsw_sp_counter_pool *counter_pool;
 	struct {
 		struct mlxsw_sp_span_entry *entries;
 		int entries_count;
@@ -586,6 +588,8 @@ struct mlxsw_sp_acl_rule_info {
 	unsigned int priority;
 	struct mlxsw_afk_element_values values;
 	struct mlxsw_afa_block *act_block;
+	unsigned int counter_index;
+	bool counter_valid;
 };
 
 enum mlxsw_sp_acl_profile {
@@ -605,6 +609,8 @@ struct mlxsw_sp_acl_profile_ops {
 			void *ruleset_priv, void *rule_priv,
 			struct mlxsw_sp_acl_rule_info *rulei);
 	void (*rule_del)(struct mlxsw_sp *mlxsw_sp, void *rule_priv);
+	int (*rule_activity_get)(struct mlxsw_sp *mlxsw_sp, void *rule_priv,
+				 bool *activity);
 };
 
 struct mlxsw_sp_acl_ops {
@@ -648,6 +654,8 @@ int mlxsw_sp_acl_rulei_act_fwd(struct mlxsw_sp *mlxsw_sp,
 int mlxsw_sp_acl_rulei_act_vlan(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_acl_rule_info *rulei,
 				u32 action, u16 vid, u16 proto, u8 prio);
+int mlxsw_sp_acl_rulei_act_count(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_acl_rule_info *rulei);
 
 struct mlxsw_sp_acl_rule;
 
@@ -667,6 +675,9 @@ mlxsw_sp_acl_rule_lookup(struct mlxsw_sp *mlxsw_sp,
 			 unsigned long cookie);
 struct mlxsw_sp_acl_rule_info *
 mlxsw_sp_acl_rule_rulei(struct mlxsw_sp_acl_rule *rule);
+int mlxsw_sp_acl_rule_get_stats(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_acl_rule *rule,
+				u64 *packets, u64 *bytes, u64 *last_use);
 
 int mlxsw_sp_acl_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_acl_fini(struct mlxsw_sp *mlxsw_sp);
@@ -677,5 +688,14 @@ int mlxsw_sp_flower_replace(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
 			    __be16 protocol, struct tc_cls_flower_offload *f);
 void mlxsw_sp_flower_destroy(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
 			     struct tc_cls_flower_offload *f);
+int mlxsw_sp_flower_stats(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
+			  struct tc_cls_flower_offload *f);
+int mlxsw_sp_flow_counter_get(struct mlxsw_sp *mlxsw_sp,
+			      unsigned int counter_index, u64 *packets,
+			      u64 *bytes);
+int mlxsw_sp_flow_counter_alloc(struct mlxsw_sp *mlxsw_sp,
+				unsigned int *p_counter_index);
+void mlxsw_sp_flow_counter_free(struct mlxsw_sp *mlxsw_sp,
+				unsigned int counter_index);
 
 #endif

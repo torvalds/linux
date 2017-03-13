@@ -1,7 +1,7 @@
 /*
- * drivers/net/ethernet/mellanox/mlxsw/core_acl_flex_actions.h
+ * drivers/net/ethernet/mellanox/mlxsw/spectrum_cnt.h
  * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2017 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2017 Arkadi Sharshevsky <arkdis@mellanox.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,39 +32,22 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _MLXSW_CORE_ACL_FLEX_ACTIONS_H
-#define _MLXSW_CORE_ACL_FLEX_ACTIONS_H
+#ifndef _MLXSW_SPECTRUM_CNT_H
+#define _MLXSW_SPECTRUM_CNT_H
 
-#include <linux/types.h>
+#include "spectrum.h"
 
-struct mlxsw_afa;
-struct mlxsw_afa_block;
-
-struct mlxsw_afa_ops {
-	int (*kvdl_set_add)(void *priv, u32 *p_kvdl_index,
-			    char *enc_actions, bool is_first);
-	void (*kvdl_set_del)(void *priv, u32 kvdl_index, bool is_first);
-	int (*kvdl_fwd_entry_add)(void *priv, u32 *p_kvdl_index, u8 local_port);
-	void (*kvdl_fwd_entry_del)(void *priv, u32 kvdl_index);
+enum mlxsw_sp_counter_sub_pool_id {
+	MLXSW_SP_COUNTER_SUB_POOL_FLOW,
 };
 
-struct mlxsw_afa *mlxsw_afa_create(unsigned int max_acts_per_set,
-				   const struct mlxsw_afa_ops *ops,
-				   void *ops_priv);
-void mlxsw_afa_destroy(struct mlxsw_afa *mlxsw_afa);
-struct mlxsw_afa_block *mlxsw_afa_block_create(struct mlxsw_afa *mlxsw_afa);
-void mlxsw_afa_block_destroy(struct mlxsw_afa_block *block);
-int mlxsw_afa_block_commit(struct mlxsw_afa_block *block);
-char *mlxsw_afa_block_first_set(struct mlxsw_afa_block *block);
-u32 mlxsw_afa_block_first_set_kvdl_index(struct mlxsw_afa_block *block);
-void mlxsw_afa_block_continue(struct mlxsw_afa_block *block);
-void mlxsw_afa_block_jump(struct mlxsw_afa_block *block, u16 group_id);
-int mlxsw_afa_block_append_drop(struct mlxsw_afa_block *block);
-int mlxsw_afa_block_append_fwd(struct mlxsw_afa_block *block,
-			       u8 local_port, bool in_port);
-int mlxsw_afa_block_append_vlan_modify(struct mlxsw_afa_block *block,
-				       u16 vid, u8 pcp, u8 et);
-int mlxsw_afa_block_append_counter(struct mlxsw_afa_block *block,
-				   u32 counter_index);
+int mlxsw_sp_counter_alloc(struct mlxsw_sp *mlxsw_sp,
+			   enum mlxsw_sp_counter_sub_pool_id sub_pool_id,
+			   unsigned int *p_counter_index);
+void mlxsw_sp_counter_free(struct mlxsw_sp *mlxsw_sp,
+			   enum mlxsw_sp_counter_sub_pool_id sub_pool_id,
+			   unsigned int counter_index);
+int mlxsw_sp_counter_pool_init(struct mlxsw_sp *mlxsw_sp);
+void mlxsw_sp_counter_pool_fini(struct mlxsw_sp *mlxsw_sp);
 
 #endif

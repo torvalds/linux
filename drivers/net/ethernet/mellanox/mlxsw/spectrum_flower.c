@@ -56,6 +56,11 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 	if (tc_no_actions(exts))
 		return 0;
 
+	/* Count action is inserted first */
+	err = mlxsw_sp_acl_rulei_act_count(mlxsw_sp, rulei);
+	if (err)
+		return err;
+
 	tcf_exts_to_list(exts, &actions);
 	list_for_each_entry(a, &actions, list) {
 		if (is_tcf_gact_shot(a)) {
@@ -345,4 +350,48 @@ void mlxsw_sp_flower_destroy(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
 	}
 
 	mlxsw_sp_acl_ruleset_put(mlxsw_sp, ruleset);
+}
+
+int mlxsw_sp_flower_stats(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
+			  struct tc_cls_flower_offload *f)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct mlxsw_sp_acl_ruleset *ruleset;
+	struct mlxsw_sp_acl_rule *rule;
+	struct tc_action *a;
+	LIST_HEAD(actions);
+	u64 packets;
+	u64 lastuse;
+	u64 bytes;
+	int err;
+
+	ruleset = mlxsw_sp_acl_ruleset_get(mlxsw_sp, mlxsw_sp_port->dev,
+					   ingress,
+					   MLXSW_SP_ACL_PROFILE_FLOWER);
+	if (WARN_ON(IS_ERR(ruleset)))
+		return -EINVAL;
+
+	rule = mlxsw_sp_acl_rule_lookup(mlxsw_sp, ruleset, f->cookie);
+	if (!rule)
+		return -EINVAL;
+
+	err = mlxsw_sp_acl_rule_get_stats(mlxsw_sp, rule, &bytes, &packets,
+					  &lastuse);
+	if (err)
+		goto err_rule_get_stats;
+
+	preempt_disable();
+
+	tcf_exts_to_list(f->exts, &actions);
+	list_for_each_entry(a, &actions, list)
+		tcf_action_stats_update(a, bytes, packets, lastuse);
+
+	preempt_enable();
+
+	mlxsw_sp_acl_ruleset_put(mlxsw_sp, ruleset);
+	return 0;
+
+err_rule_get_stats:
+	mlxsw_sp_acl_ruleset_put(mlxsw_sp, ruleset);
+	return err;
 }
