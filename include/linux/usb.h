@@ -354,6 +354,7 @@ struct usb_devmap {
  */
 struct usb_bus {
 	struct device *controller;	/* host/master side hardware */
+	struct device *sysdev;		/* as seen from firmware or bus */
 	int busnum;			/* Bus number (in order of reg) */
 	const char *bus_name;		/* stable id (PCI slot_name etc) */
 	u8 uses_dma;			/* Does the host controller use DMA? */
