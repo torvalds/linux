@@ -31,13 +31,13 @@
 
 #include <asm/platform.h>
 #include <asm/bootparam.h>
+#include <asm/setup.h>
 
 #include <platform/simcall.h>
 
 
 void __init platform_init(bp_tag_t* bootparam)
 {
-
 }
 
 void platform_halt(void)
@@ -59,25 +59,9 @@ void platform_restart(void)
 	/* control never gets here */
 }
 
-extern void iss_net_poll(void);
-
-const char twirl[]="|/-\\|/-\\";
-
 void platform_heartbeat(void)
 {
-#if 0
-	static int i = 0, j = 0;
-
-	if (--i < 0) {
-		i = 99;
-		printk("\r%c\r", twirl[j++]);
-		if (j == 8)
-			j = 0;
-	}
-#endif
 }
-
-
 
 static int
 iss_panic_event(struct notifier_block *this, unsigned long event, void *ptr)
@@ -87,9 +71,7 @@ iss_panic_event(struct notifier_block *this, unsigned long event, void *ptr)
 }
 
 static struct notifier_block iss_panic_block = {
-	iss_panic_event,
-	NULL,
-	0
+	.notifier_call = iss_panic_event,
 };
 
 void __init platform_setup(char **p_cmdline)
