@@ -29,6 +29,7 @@ EXPORT_SYMBOL(br_should_route_hook);
 static int
 br_netif_receive_skb(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
+	br_drop_fake_rtable(skb);
 	return netif_receive_skb(skb);
 }
 
