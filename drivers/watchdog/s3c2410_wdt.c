@@ -131,7 +131,7 @@ struct s3c2410_wdt {
 	unsigned long		wtdat_save;
 	struct watchdog_device	wdt_device;
 	struct notifier_block	freq_transition;
-	struct s3c2410_wdt_variant *drv_data;
+	const struct s3c2410_wdt_variant *drv_data;
 	struct regmap *pmureg;
 };
 
@@ -401,7 +401,7 @@ static const struct watchdog_ops s3c2410wdt_ops = {
 	.restart = s3c2410wdt_restart,
 };
 
-static struct watchdog_device s3c2410_wdd = {
+static const struct watchdog_device s3c2410_wdd = {
 	.info = &s3c2410_wdt_ident,
 	.ops = &s3c2410wdt_ops,
 	.timeout = S3C2410_WATCHDOG_DEFAULT_TIME,
@@ -507,7 +507,7 @@ static inline unsigned int s3c2410wdt_get_bootstatus(struct s3c2410_wdt *wdt)
 	return 0;
 }
 
-static inline struct s3c2410_wdt_variant *
+static inline const struct s3c2410_wdt_variant *
 s3c2410_get_wdt_drv_data(struct platform_device *pdev)
 {
 	if (pdev->dev.of_node) {
