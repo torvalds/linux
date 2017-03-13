@@ -960,6 +960,7 @@ EXPORT_SYMBOL_GPL(i2c_dw_read_comp_param);
 int i2c_dw_probe(struct dw_i2c_dev *dev)
 {
 	struct i2c_adapter *adap = &dev->adapter;
+	unsigned long irq_flags;
 	int r;
 
 	init_completion(&dev->cmd_complete);
@@ -975,9 +976,15 @@ int i2c_dw_probe(struct dw_i2c_dev *dev)
 	adap->dev.parent = dev->dev;
 	i2c_set_adapdata(adap, dev);
 
+	if (dev->pm_disabled) {
+		dev_pm_syscore_device(dev->dev, true);
+		irq_flags = IRQF_NO_SUSPEND;
+	} else {
+		irq_flags = IRQF_SHARED | IRQF_COND_SUSPEND;
+	}
+
 	i2c_dw_disable_int(dev);
-	r = devm_request_irq(dev->dev, dev->irq, i2c_dw_isr,
-			     IRQF_SHARED | IRQF_COND_SUSPEND,
+	r = devm_request_irq(dev->dev, dev->irq, i2c_dw_isr, irq_flags,
 			     dev_name(dev->dev), dev);
 	if (r) {
 		dev_err(dev->dev, "failure requesting irq %i: %d\n",

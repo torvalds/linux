@@ -286,7 +286,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	ACPI_COMPANION_SET(&adap->dev, ACPI_COMPANION(&pdev->dev));
 	adap->dev.of_node = pdev->dev.of_node;
 
-	if (dev->pm_runtime_disabled) {
+	if (dev->pm_disabled) {
 		pm_runtime_forbid(&pdev->dev);
 	} else {
 		pm_runtime_set_autosuspend_delay(&pdev->dev, 1000);
@@ -302,7 +302,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	return r;
 
 exit_probe:
-	if (!dev->pm_runtime_disabled)
+	if (!dev->pm_disabled)
 		pm_runtime_disable(&pdev->dev);
 exit_reset:
 	if (!IS_ERR_OR_NULL(dev->rst))
@@ -322,7 +322,7 @@ static int dw_i2c_plat_remove(struct platform_device *pdev)
 
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
-	if (!dev->pm_runtime_disabled)
+	if (!dev->pm_disabled)
 		pm_runtime_disable(&pdev->dev);
 	if (!IS_ERR_OR_NULL(dev->rst))
 		reset_control_assert(dev->rst);
@@ -374,9 +374,7 @@ static int dw_i2c_plat_resume(struct device *dev)
 	struct dw_i2c_dev *i_dev = platform_get_drvdata(pdev);
 
 	i2c_dw_plat_prepare_clk(i_dev, true);
-
-	if (!i_dev->pm_runtime_disabled)
-		i2c_dw_init(i_dev);
+	i2c_dw_init(i_dev);
 
 	return 0;
 }
