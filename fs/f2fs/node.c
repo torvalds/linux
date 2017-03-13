@@ -2448,10 +2448,11 @@ static void __flush_nat_entry_set(struct f2fs_sb_info *sbi,
 		f2fs_put_page(page, 1);
 	}
 
-	f2fs_bug_on(sbi, set->entry_cnt);
-
-	radix_tree_delete(&NM_I(sbi)->nat_set_root, set->set);
-	kmem_cache_free(nat_entry_set_slab, set);
+	/* Allow dirty nats by node block allocation in write_begin */
+	if (!set->entry_cnt) {
+		radix_tree_delete(&NM_I(sbi)->nat_set_root, set->set);
+		kmem_cache_free(nat_entry_set_slab, set);
+	}
 }
 
 /*
@@ -2496,8 +2497,7 @@ void flush_nat_entries(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 		__flush_nat_entry_set(sbi, set, cpc);
 
 	up_write(&nm_i->nat_tree_lock);
-
-	f2fs_bug_on(sbi, nm_i->dirty_nat_cnt);
+	/* Allow dirty nats by node block allocation in write_begin */
 }
 
 static int __get_nat_bitmaps(struct f2fs_sb_info *sbi)
