@@ -1890,72 +1890,71 @@ static int ks_wlan_set_encode_ext(struct net_device *dev,
 	if (dwrq->flags & IW_ENCODE_DISABLED)
 		priv->wpa.key[index].key_len = 0;
 
-	if (enc) {
-		priv->wpa.key[index].ext_flags = enc->ext_flags;
-		if (enc->ext_flags & IW_ENCODE_EXT_SET_TX_KEY) {
-			priv->wpa.txkey = index;
-			commit |= SME_WEP_INDEX;
-		} else if (enc->ext_flags & IW_ENCODE_EXT_RX_SEQ_VALID) {
-			memcpy(&priv->wpa.key[index].rx_seq[0],
-			       enc->rx_seq, IW_ENCODE_SEQ_MAX_SIZE);
+	if (!enc)
+		return -EINVAL;
+
+	priv->wpa.key[index].ext_flags = enc->ext_flags;
+	if (enc->ext_flags & IW_ENCODE_EXT_SET_TX_KEY) {
+		priv->wpa.txkey = index;
+		commit |= SME_WEP_INDEX;
+	} else if (enc->ext_flags & IW_ENCODE_EXT_RX_SEQ_VALID) {
+		memcpy(&priv->wpa.key[index].rx_seq[0],
+			enc->rx_seq, IW_ENCODE_SEQ_MAX_SIZE);
+	}
+
+	memcpy(&priv->wpa.key[index].addr.sa_data[0],
+		&enc->addr.sa_data[0], ETH_ALEN);
+
+	switch (enc->alg) {
+	case IW_ENCODE_ALG_NONE:
+		if (priv->reg.privacy_invoked) {
+			priv->reg.privacy_invoked = 0x00;
+			commit |= SME_WEP_FLAG;
 		}
+		priv->wpa.key[index].key_len = 0;
 
-		memcpy(&priv->wpa.key[index].addr.sa_data[0],
-		       &enc->addr.sa_data[0], ETH_ALEN);
-
-		switch (enc->alg) {
-		case IW_ENCODE_ALG_NONE:
-			if (priv->reg.privacy_invoked) {
-				priv->reg.privacy_invoked = 0x00;
-				commit |= SME_WEP_FLAG;
-			}
-			priv->wpa.key[index].key_len = 0;
-
-			break;
-		case IW_ENCODE_ALG_WEP:
-		case IW_ENCODE_ALG_CCMP:
-			if (!priv->reg.privacy_invoked) {
-				priv->reg.privacy_invoked = 0x01;
-				commit |= SME_WEP_FLAG;
-			}
-			if (enc->key_len) {
-				memcpy(&priv->wpa.key[index].key_val[0],
-				       &enc->key[0], enc->key_len);
-				priv->wpa.key[index].key_len = enc->key_len;
-				commit |= (SME_WEP_VAL1 << index);
-			}
-			break;
-		case IW_ENCODE_ALG_TKIP:
-			if (!priv->reg.privacy_invoked) {
-				priv->reg.privacy_invoked = 0x01;
-				commit |= SME_WEP_FLAG;
-			}
-			if (enc->key_len == 32) {
-				memcpy(&priv->wpa.key[index].key_val[0],
-				       &enc->key[0], enc->key_len - 16);
-				priv->wpa.key[index].key_len =
-				    enc->key_len - 16;
-				if (priv->wpa.key_mgmt_suite == 4) {	/* WPA_NONE */
-					memcpy(&priv->wpa.key[index].
-					       tx_mic_key[0], &enc->key[16], 8);
-					memcpy(&priv->wpa.key[index].
-					       rx_mic_key[0], &enc->key[16], 8);
-				} else {
-					memcpy(&priv->wpa.key[index].
-					       tx_mic_key[0], &enc->key[16], 8);
-					memcpy(&priv->wpa.key[index].
-					       rx_mic_key[0], &enc->key[24], 8);
-				}
-				commit |= (SME_WEP_VAL1 << index);
-			}
-			break;
-		default:
-			return -EINVAL;
+		break;
+	case IW_ENCODE_ALG_WEP:
+	case IW_ENCODE_ALG_CCMP:
+		if (!priv->reg.privacy_invoked) {
+			priv->reg.privacy_invoked = 0x01;
+			commit |= SME_WEP_FLAG;
 		}
-		priv->wpa.key[index].alg = enc->alg;
-	} else {
+		if (enc->key_len) {
+			memcpy(&priv->wpa.key[index].key_val[0],
+				&enc->key[0], enc->key_len);
+			priv->wpa.key[index].key_len = enc->key_len;
+			commit |= (SME_WEP_VAL1 << index);
+		}
+		break;
+	case IW_ENCODE_ALG_TKIP:
+		if (!priv->reg.privacy_invoked) {
+			priv->reg.privacy_invoked = 0x01;
+			commit |= SME_WEP_FLAG;
+		}
+		if (enc->key_len == 32) {
+			memcpy(&priv->wpa.key[index].key_val[0],
+				&enc->key[0], enc->key_len - 16);
+			priv->wpa.key[index].key_len =
+				enc->key_len - 16;
+			if (priv->wpa.key_mgmt_suite == 4) {	/* WPA_NONE */
+				memcpy(&priv->wpa.key[index].
+					tx_mic_key[0], &enc->key[16], 8);
+				memcpy(&priv->wpa.key[index].
+					rx_mic_key[0], &enc->key[16], 8);
+			} else {
+				memcpy(&priv->wpa.key[index].
+					tx_mic_key[0], &enc->key[16], 8);
+				memcpy(&priv->wpa.key[index].
+					rx_mic_key[0], &enc->key[24], 8);
+			}
+			commit |= (SME_WEP_VAL1 << index);
+		}
+		break;
+	default:
 		return -EINVAL;
 	}
+	priv->wpa.key[index].alg = enc->alg;
 
 	if (commit) {
 		if (commit & SME_WEP_INDEX)
@@ -2025,51 +2024,53 @@ static int ks_wlan_set_pmksa(struct net_device *dev,
 				if (!memcmp
 				    ("\x00\x00\x00\x00\x00\x00", pmk->bssid,
 				     ETH_ALEN))
-					break;
+					break; /* loop */
 			}
 			memcpy(pmk->bssid, pmksa->bssid.sa_data, ETH_ALEN);
 			memcpy(pmk->pmkid, pmksa->pmkid, IW_PMKID_LEN);
 			list_add(&pmk->list, &priv->pmklist.head);
 			priv->pmklist.size++;
-		} else {	/* search cache data */
-			list_for_each(ptr, &priv->pmklist.head) {
-				pmk = list_entry(ptr, struct pmk_t, list);
-				if (!memcmp(pmksa->bssid.sa_data, pmk->bssid, ETH_ALEN)) {	/* match address! list move to head. */
-					memcpy(pmk->pmkid, pmksa->pmkid,
-					       IW_PMKID_LEN);
-					list_move(&pmk->list,
-						  &priv->pmklist.head);
+			break;	/* case */
+		}
+		/* search cache data */
+		list_for_each(ptr, &priv->pmklist.head) {
+			pmk = list_entry(ptr, struct pmk_t, list);
+			if (!memcmp(pmksa->bssid.sa_data, pmk->bssid, ETH_ALEN)) {	/* match address! list move to head. */
+				memcpy(pmk->pmkid, pmksa->pmkid,
+					IW_PMKID_LEN);
+				list_move(&pmk->list,
+					&priv->pmklist.head);
+				break; /* list_for_each */
+			}
+		}
+		if (ptr != &priv->pmklist.head)	/* not find address. */
+			break;	/* case */
+
+		if (priv->pmklist.size <= PMK_LIST_MAX) {	/* new cache data */
+			for (i = 0; i < PMK_LIST_MAX; i++) {
+				pmk = &priv->pmklist.pmk[i];
+				if (!memcmp
+					("\x00\x00\x00\x00\x00\x00",
+						pmk->bssid, ETH_ALEN))
 					break;
-				}
 			}
-			if (ptr == &priv->pmklist.head) {	/* not find address. */
-				if (priv->pmklist.size <= PMK_LIST_MAX) {	/* new cache data */
-					for (i = 0; i < PMK_LIST_MAX; i++) {
-						pmk = &priv->pmklist.pmk[i];
-						if (!memcmp
-						    ("\x00\x00\x00\x00\x00\x00",
-						     pmk->bssid, ETH_ALEN))
-							break;
-					}
-					memcpy(pmk->bssid, pmksa->bssid.sa_data,
-					       ETH_ALEN);
-					memcpy(pmk->pmkid, pmksa->pmkid,
-					       IW_PMKID_LEN);
-					list_add(&pmk->list,
-						 &priv->pmklist.head);
-					priv->pmklist.size++;
-				} else {	/* overwrite old cache data */
-					pmk =
-					    list_entry(priv->pmklist.head.prev,
-						       struct pmk_t, list);
-					memcpy(pmk->bssid, pmksa->bssid.sa_data,
-					       ETH_ALEN);
-					memcpy(pmk->pmkid, pmksa->pmkid,
-					       IW_PMKID_LEN);
-					list_move(&pmk->list,
-						  &priv->pmklist.head);
-				}
-			}
+			memcpy(pmk->bssid, pmksa->bssid.sa_data,
+				ETH_ALEN);
+			memcpy(pmk->pmkid, pmksa->pmkid,
+				IW_PMKID_LEN);
+			list_add(&pmk->list,
+				&priv->pmklist.head);
+			priv->pmklist.size++;
+		} else {	/* overwrite old cache data */
+			pmk =
+				list_entry(priv->pmklist.head.prev,
+					struct pmk_t, list);
+			memcpy(pmk->bssid, pmksa->bssid.sa_data,
+				ETH_ALEN);
+			memcpy(pmk->pmkid, pmksa->pmkid,
+				IW_PMKID_LEN);
+			list_move(&pmk->list,
+				&priv->pmklist.head);
 		}
 		break;
 	case IW_PMKSA_REMOVE:
