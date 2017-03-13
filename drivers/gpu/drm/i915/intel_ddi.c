@@ -1244,6 +1244,11 @@ void intel_ddi_enable_transcoder_func(const struct intel_crtc_state *crtc_state)
 			temp |= TRANS_DDI_MODE_SELECT_HDMI;
 		else
 			temp |= TRANS_DDI_MODE_SELECT_DVI;
+
+		if (crtc_state->hdmi_scrambling)
+			temp |= TRANS_DDI_HDMI_SCRAMBLING_MASK;
+		if (crtc_state->hdmi_high_tmds_clock_ratio)
+			temp |= TRANS_DDI_HIGH_TMDS_CHAR_RATE;
 	} else if (type == INTEL_OUTPUT_ANALOG) {
 		temp |= TRANS_DDI_MODE_SELECT_FDI;
 		temp |= (crtc_state->fdi_lanes - 1) << 1;
@@ -1816,6 +1821,12 @@ static void intel_enable_ddi(struct intel_encoder *intel_encoder,
 	if (type == INTEL_OUTPUT_HDMI) {
 		struct intel_digital_port *intel_dig_port =
 			enc_to_dig_port(encoder);
+		bool clock_ratio = pipe_config->hdmi_high_tmds_clock_ratio;
+		bool scrambling = pipe_config->hdmi_scrambling;
+
+		intel_hdmi_handle_sink_scrambling(intel_encoder,
+						  conn_state->connector,
+						  clock_ratio, scrambling);
 
 		/* In HDMI/DVI mode, the port width, and swing/emphasis values
 		 * are ignored so nothing special needs to be done besides
@@ -1848,6 +1859,12 @@ static void intel_disable_ddi(struct intel_encoder *intel_encoder,
 
 	if (old_crtc_state->has_audio)
 		intel_audio_codec_disable(intel_encoder);
+
+	if (type == INTEL_OUTPUT_HDMI) {
+		intel_hdmi_handle_sink_scrambling(intel_encoder,
+						  old_conn_state->connector,
+						  false, false);
+	}
 
 	if (type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
@@ -1975,6 +1992,12 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 
 		if (intel_hdmi->infoframe_enabled(&encoder->base, pipe_config))
 			pipe_config->has_infoframe = true;
+
+		if ((temp & TRANS_DDI_HDMI_SCRAMBLING_MASK) ==
+			TRANS_DDI_HDMI_SCRAMBLING_MASK)
+			pipe_config->hdmi_scrambling = true;
+		if (temp & TRANS_DDI_HIGH_TMDS_CHAR_RATE)
+			pipe_config->hdmi_high_tmds_clock_ratio = true;
 		/* fall through */
 	case TRANS_DDI_MODE_SELECT_DVI:
 		pipe_config->lane_count = 4;

@@ -732,6 +732,12 @@ struct intel_crtc_state {
 
 	/* bitmask of visible planes (enum plane_id) */
 	u8 active_planes;
+
+	/* HDMI scrambling status */
+	bool hdmi_scrambling;
+
+	/* HDMI High TMDS char rate ratio */
+	bool hdmi_high_tmds_clock_ratio;
 };
 
 struct intel_crtc {
@@ -1623,6 +1629,10 @@ struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder);
 bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 			       struct intel_crtc_state *pipe_config,
 			       struct drm_connector_state *conn_state);
+void intel_hdmi_handle_sink_scrambling(struct intel_encoder *intel_encoder,
+				       struct drm_connector *connector,
+				       bool high_tmds_clock_ratio,
+				       bool scrambling);
 void intel_dp_dual_mode_set_tmds_output(struct intel_hdmi *hdmi, bool enable);
 
 

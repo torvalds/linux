@@ -11710,6 +11710,9 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 	if ((INTEL_GEN(dev_priv) < 8 && !IS_HASWELL(dev_priv)) ||
 	    IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		PIPE_CONF_CHECK_I(limited_color_range);
+
+	PIPE_CONF_CHECK_I(hdmi_scrambling);
+	PIPE_CONF_CHECK_I(hdmi_high_tmds_clock_ratio);
 	PIPE_CONF_CHECK_I(has_infoframe);
 
 	PIPE_CONF_CHECK_I(has_audio);
