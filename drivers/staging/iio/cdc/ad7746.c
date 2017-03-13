@@ -91,6 +91,7 @@
 
 struct ad7746_chip_info {
 	struct i2c_client *client;
+	struct mutex lock; /* protect sensor state */
 	/*
 	 * Capacitive channel digital filter setup;
 	 * conversion time/update rate setup per channel
@@ -298,11 +299,11 @@ static inline ssize_t ad7746_start_calib(struct device *dev,
 	if (!doit)
 		return 0;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&chip->lock);
 	regval |= chip->config;
 	ret = i2c_smbus_write_byte_data(chip->client, AD7746_REG_CFG, regval);
 	if (ret < 0) {
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(&chip->lock);
 		return ret;
 	}
 
@@ -310,12 +311,12 @@ static inline ssize_t ad7746_start_calib(struct device *dev,
 		msleep(20);
 		ret = i2c_smbus_read_byte_data(chip->client, AD7746_REG_CFG);
 		if (ret < 0) {
-			mutex_unlock(&indio_dev->mlock);
+			mutex_unlock(&chip->lock);
 			return ret;
 		}
 	} while ((ret == regval) && timeout--);
 
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&chip->lock);
 
 	return len;
 }
@@ -426,7 +427,7 @@ static int ad7746_write_raw(struct iio_dev *indio_dev,
 	struct ad7746_chip_info *chip = iio_priv(indio_dev);
 	int ret, reg;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&chip->lock);
 
 	switch (mask) {
 	case IIO_CHAN_INFO_CALIBSCALE:
@@ -521,7 +522,7 @@ static int ad7746_write_raw(struct iio_dev *indio_dev,
 	}
 
 out:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&chip->lock);
 	return ret;
 }
 
@@ -534,7 +535,7 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 	int ret, delay, idx;
 	u8 regval, reg;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&chip->lock);
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
@@ -658,7 +659,7 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 		ret = -EINVAL;
 	}
 out:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&chip->lock);
 	return ret;
 }
 
@@ -686,6 +687,7 @@ static int ad7746_probe(struct i2c_client *client,
 	if (!indio_dev)
 		return -ENOMEM;
 	chip = iio_priv(indio_dev);
+	mutex_init(&chip->lock);
 	/* this is only used for device removal purposes */
 	i2c_set_clientdata(client, indio_dev);
 
