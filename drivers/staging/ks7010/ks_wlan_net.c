@@ -238,7 +238,7 @@ static int ks_wlan_set_freq(struct net_device *dev,
 			rc = -EINVAL;
 		} else {
 			/* Yes ! We can set it !!! */
-			priv->reg.channel = (u8) (channel);
+			priv->reg.channel = (u8)(channel);
 			priv->need_commit |= SME_MODE_SET;
 		}
 	}
@@ -493,12 +493,12 @@ static int ks_wlan_set_rate(struct net_device *dev,
 			case 11000000:
 			case 5500000:
 				priv->reg.rate_set.body[0] =
-				    (uint8_t) (vwrq->value / 500000);
+				    (uint8_t)(vwrq->value / 500000);
 				break;
 			case 2000000:
 			case 1000000:
 				priv->reg.rate_set.body[0] =
-				    ((uint8_t) (vwrq->value / 500000)) |
+				    ((uint8_t)(vwrq->value / 500000)) |
 				    BASIC_RATE;
 				break;
 			default:
@@ -550,7 +550,7 @@ static int ks_wlan_set_rate(struct net_device *dev,
 			case 18000000:
 			case 9000000:
 				priv->reg.rate_set.body[0] =
-				    (uint8_t) (vwrq->value / 500000);
+				    (uint8_t)(vwrq->value / 500000);
 				break;
 			case 24000000:
 			case 12000000:
@@ -560,7 +560,7 @@ static int ks_wlan_set_rate(struct net_device *dev,
 			case 2000000:
 			case 1000000:
 				priv->reg.rate_set.body[0] =
-				    ((uint8_t) (vwrq->value / 500000)) |
+				    ((uint8_t)(vwrq->value / 500000)) |
 				    BASIC_RATE;
 				break;
 			default:
@@ -3127,119 +3127,119 @@ static const struct iw_priv_args ks_wlan_private_args[] = {
 };
 
 static const iw_handler ks_wlan_handler[] = {
-	(iw_handler) ks_wlan_config_commit,	/* SIOCSIWCOMMIT */
-	(iw_handler) ks_wlan_get_name,	/* SIOCGIWNAME */
-	(iw_handler) NULL,	/* SIOCSIWNWID */
-	(iw_handler) NULL,	/* SIOCGIWNWID */
-	(iw_handler) ks_wlan_set_freq,	/* SIOCSIWFREQ */
-	(iw_handler) ks_wlan_get_freq,	/* SIOCGIWFREQ */
-	(iw_handler) ks_wlan_set_mode,	/* SIOCSIWMODE */
-	(iw_handler) ks_wlan_get_mode,	/* SIOCGIWMODE */
+	(iw_handler)ks_wlan_config_commit,	/* SIOCSIWCOMMIT */
+	(iw_handler)ks_wlan_get_name,	/* SIOCGIWNAME */
+	(iw_handler)NULL,	/* SIOCSIWNWID */
+	(iw_handler)NULL,	/* SIOCGIWNWID */
+	(iw_handler)ks_wlan_set_freq,	/* SIOCSIWFREQ */
+	(iw_handler)ks_wlan_get_freq,	/* SIOCGIWFREQ */
+	(iw_handler)ks_wlan_set_mode,	/* SIOCSIWMODE */
+	(iw_handler)ks_wlan_get_mode,	/* SIOCGIWMODE */
 #ifndef KSC_OPNOTSUPP
-	(iw_handler) ks_wlan_set_sens,	/* SIOCSIWSENS */
-	(iw_handler) ks_wlan_get_sens,	/* SIOCGIWSENS */
+	(iw_handler)ks_wlan_set_sens,	/* SIOCSIWSENS */
+	(iw_handler)ks_wlan_get_sens,	/* SIOCGIWSENS */
 #else /* KSC_OPNOTSUPP */
-	(iw_handler) NULL,	/* SIOCSIWSENS */
-	(iw_handler) NULL,	/* SIOCGIWSENS */
+	(iw_handler)NULL,	/* SIOCSIWSENS */
+	(iw_handler)NULL,	/* SIOCGIWSENS */
 #endif /* KSC_OPNOTSUPP */
-	(iw_handler) NULL,	/* SIOCSIWRANGE */
-	(iw_handler) ks_wlan_get_range,	/* SIOCGIWRANGE */
-	(iw_handler) NULL,	/* SIOCSIWPRIV */
-	(iw_handler) NULL,	/* SIOCGIWPRIV */
-	(iw_handler) NULL,	/* SIOCSIWSTATS */
-	(iw_handler) ks_wlan_get_iwstats,	/* SIOCGIWSTATS */
-	(iw_handler) NULL,	/* SIOCSIWSPY */
-	(iw_handler) NULL,	/* SIOCGIWSPY */
-	(iw_handler) NULL,	/* SIOCSIWTHRSPY */
-	(iw_handler) NULL,	/* SIOCGIWTHRSPY */
-	(iw_handler) ks_wlan_set_wap,	/* SIOCSIWAP */
-	(iw_handler) ks_wlan_get_wap,	/* SIOCGIWAP */
-//      (iw_handler) NULL,                      /* SIOCSIWMLME */
-	(iw_handler) ks_wlan_set_mlme,	/* SIOCSIWMLME */
-	(iw_handler) ks_wlan_get_aplist,	/* SIOCGIWAPLIST */
-	(iw_handler) ks_wlan_set_scan,	/* SIOCSIWSCAN */
-	(iw_handler) ks_wlan_get_scan,	/* SIOCGIWSCAN */
-	(iw_handler) ks_wlan_set_essid,	/* SIOCSIWESSID */
-	(iw_handler) ks_wlan_get_essid,	/* SIOCGIWESSID */
-	(iw_handler) ks_wlan_set_nick,	/* SIOCSIWNICKN */
-	(iw_handler) ks_wlan_get_nick,	/* SIOCGIWNICKN */
-	(iw_handler) NULL,	/* -- hole -- */
-	(iw_handler) NULL,	/* -- hole -- */
-	(iw_handler) ks_wlan_set_rate,	/* SIOCSIWRATE */
-	(iw_handler) ks_wlan_get_rate,	/* SIOCGIWRATE */
-	(iw_handler) ks_wlan_set_rts,	/* SIOCSIWRTS */
-	(iw_handler) ks_wlan_get_rts,	/* SIOCGIWRTS */
-	(iw_handler) ks_wlan_set_frag,	/* SIOCSIWFRAG */
-	(iw_handler) ks_wlan_get_frag,	/* SIOCGIWFRAG */
+	(iw_handler)NULL,	/* SIOCSIWRANGE */
+	(iw_handler)ks_wlan_get_range,	/* SIOCGIWRANGE */
+	(iw_handler)NULL,	/* SIOCSIWPRIV */
+	(iw_handler)NULL,	/* SIOCGIWPRIV */
+	(iw_handler)NULL,	/* SIOCSIWSTATS */
+	(iw_handler)ks_wlan_get_iwstats,	/* SIOCGIWSTATS */
+	(iw_handler)NULL,	/* SIOCSIWSPY */
+	(iw_handler)NULL,	/* SIOCGIWSPY */
+	(iw_handler)NULL,	/* SIOCSIWTHRSPY */
+	(iw_handler)NULL,	/* SIOCGIWTHRSPY */
+	(iw_handler)ks_wlan_set_wap,	/* SIOCSIWAP */
+	(iw_handler)ks_wlan_get_wap,	/* SIOCGIWAP */
+//      (iw_handler)NULL,                      /* SIOCSIWMLME */
+	(iw_handler)ks_wlan_set_mlme,	/* SIOCSIWMLME */
+	(iw_handler)ks_wlan_get_aplist,	/* SIOCGIWAPLIST */
+	(iw_handler)ks_wlan_set_scan,	/* SIOCSIWSCAN */
+	(iw_handler)ks_wlan_get_scan,	/* SIOCGIWSCAN */
+	(iw_handler)ks_wlan_set_essid,	/* SIOCSIWESSID */
+	(iw_handler)ks_wlan_get_essid,	/* SIOCGIWESSID */
+	(iw_handler)ks_wlan_set_nick,	/* SIOCSIWNICKN */
+	(iw_handler)ks_wlan_get_nick,	/* SIOCGIWNICKN */
+	(iw_handler)NULL,	/* -- hole -- */
+	(iw_handler)NULL,	/* -- hole -- */
+	(iw_handler)ks_wlan_set_rate,	/* SIOCSIWRATE */
+	(iw_handler)ks_wlan_get_rate,	/* SIOCGIWRATE */
+	(iw_handler)ks_wlan_set_rts,	/* SIOCSIWRTS */
+	(iw_handler)ks_wlan_get_rts,	/* SIOCGIWRTS */
+	(iw_handler)ks_wlan_set_frag,	/* SIOCSIWFRAG */
+	(iw_handler)ks_wlan_get_frag,	/* SIOCGIWFRAG */
 #ifndef KSC_OPNOTSUPP
-	(iw_handler) ks_wlan_set_txpow,	/* SIOCSIWTXPOW */
-	(iw_handler) ks_wlan_get_txpow,	/* SIOCGIWTXPOW */
-	(iw_handler) ks_wlan_set_retry,	/* SIOCSIWRETRY */
-	(iw_handler) ks_wlan_get_retry,	/* SIOCGIWRETRY */
+	(iw_handler)ks_wlan_set_txpow,	/* SIOCSIWTXPOW */
+	(iw_handler)ks_wlan_get_txpow,	/* SIOCGIWTXPOW */
+	(iw_handler)ks_wlan_set_retry,	/* SIOCSIWRETRY */
+	(iw_handler)ks_wlan_get_retry,	/* SIOCGIWRETRY */
 #else /* KSC_OPNOTSUPP */
-	(iw_handler) NULL,	/* SIOCSIWTXPOW */
-	(iw_handler) NULL,	/* SIOCGIWTXPOW */
-	(iw_handler) NULL,	/* SIOCSIWRETRY */
-	(iw_handler) NULL,	/* SIOCGIWRETRY */
+	(iw_handler)NULL,	/* SIOCSIWTXPOW */
+	(iw_handler)NULL,	/* SIOCGIWTXPOW */
+	(iw_handler)NULL,	/* SIOCSIWRETRY */
+	(iw_handler)NULL,	/* SIOCGIWRETRY */
 #endif /* KSC_OPNOTSUPP */
-	(iw_handler) ks_wlan_set_encode,	/* SIOCSIWENCODE */
-	(iw_handler) ks_wlan_get_encode,	/* SIOCGIWENCODE */
-	(iw_handler) ks_wlan_set_power,	/* SIOCSIWPOWER */
-	(iw_handler) ks_wlan_get_power,	/* SIOCGIWPOWER */
-	(iw_handler) NULL,	/* -- hole -- */
-	(iw_handler) NULL,	/* -- hole -- */
-//      (iw_handler) NULL,                      /* SIOCSIWGENIE */
-	(iw_handler) ks_wlan_set_genie,	/* SIOCSIWGENIE */
-	(iw_handler) NULL,	/* SIOCGIWGENIE */
-	(iw_handler) ks_wlan_set_auth_mode,	/* SIOCSIWAUTH */
-	(iw_handler) ks_wlan_get_auth_mode,	/* SIOCGIWAUTH */
-	(iw_handler) ks_wlan_set_encode_ext,	/* SIOCSIWENCODEEXT */
-	(iw_handler) ks_wlan_get_encode_ext,	/* SIOCGIWENCODEEXT */
-	(iw_handler) ks_wlan_set_pmksa,	/* SIOCSIWPMKSA */
-	(iw_handler) NULL,	/* -- hole -- */
+	(iw_handler)ks_wlan_set_encode,	/* SIOCSIWENCODE */
+	(iw_handler)ks_wlan_get_encode,	/* SIOCGIWENCODE */
+	(iw_handler)ks_wlan_set_power,	/* SIOCSIWPOWER */
+	(iw_handler)ks_wlan_get_power,	/* SIOCGIWPOWER */
+	(iw_handler)NULL,	/* -- hole -- */
+	(iw_handler)NULL,	/* -- hole -- */
+//      (iw_handler)NULL,                      /* SIOCSIWGENIE */
+	(iw_handler)ks_wlan_set_genie,	/* SIOCSIWGENIE */
+	(iw_handler)NULL,	/* SIOCGIWGENIE */
+	(iw_handler)ks_wlan_set_auth_mode,	/* SIOCSIWAUTH */
+	(iw_handler)ks_wlan_get_auth_mode,	/* SIOCGIWAUTH */
+	(iw_handler)ks_wlan_set_encode_ext,	/* SIOCSIWENCODEEXT */
+	(iw_handler)ks_wlan_get_encode_ext,	/* SIOCGIWENCODEEXT */
+	(iw_handler)ks_wlan_set_pmksa,	/* SIOCSIWPMKSA */
+	(iw_handler)NULL,	/* -- hole -- */
 };
 
 /* private_handler */
 static const iw_handler ks_wlan_private_handler[] = {
-	(iw_handler) NULL,	/*  0 */
-	(iw_handler) NULL,	/*  1, used to be: KS_WLAN_GET_DRIVER_VERSION */
-	(iw_handler) NULL,	/*  2 */
-	(iw_handler) ks_wlan_get_firmware_version,	/*  3 KS_WLAN_GET_FIRM_VERSION */
+	(iw_handler)NULL,	/*  0 */
+	(iw_handler)NULL,	/*  1, used to be: KS_WLAN_GET_DRIVER_VERSION */
+	(iw_handler)NULL,	/*  2 */
+	(iw_handler)ks_wlan_get_firmware_version,	/*  3 KS_WLAN_GET_FIRM_VERSION */
 #ifdef WPS
-	(iw_handler) ks_wlan_set_wps_enable,	/*  4 KS_WLAN_SET_WPS_ENABLE  */
-	(iw_handler) ks_wlan_get_wps_enable,	/*  5 KS_WLAN_GET_WPS_ENABLE  */
-	(iw_handler) ks_wlan_set_wps_probe_req,	/*  6 KS_WLAN_SET_WPS_PROBE_REQ */
+	(iw_handler)ks_wlan_set_wps_enable,	/*  4 KS_WLAN_SET_WPS_ENABLE  */
+	(iw_handler)ks_wlan_get_wps_enable,	/*  5 KS_WLAN_GET_WPS_ENABLE  */
+	(iw_handler)ks_wlan_set_wps_probe_req,	/*  6 KS_WLAN_SET_WPS_PROBE_REQ */
 #else
-	(iw_handler) NULL,	/*  4 */
-	(iw_handler) NULL,	/*  5 */
-	(iw_handler) NULL,	/*  6 */
+	(iw_handler)NULL,	/*  4 */
+	(iw_handler)NULL,	/*  5 */
+	(iw_handler)NULL,	/*  6 */
 #endif /* WPS */
 
-	(iw_handler) ks_wlan_get_eeprom_cksum,	/*  7 KS_WLAN_GET_CONNECT */
-	(iw_handler) ks_wlan_set_preamble,	/*  8 KS_WLAN_SET_PREAMBLE */
-	(iw_handler) ks_wlan_get_preamble,	/*  9 KS_WLAN_GET_PREAMBLE */
-	(iw_handler) ks_wlan_set_powermgt,	/* 10 KS_WLAN_SET_POWER_SAVE */
-	(iw_handler) ks_wlan_get_powermgt,	/* 11 KS_WLAN_GET_POWER_SAVE */
-	(iw_handler) ks_wlan_set_scan_type,	/* 12 KS_WLAN_SET_SCAN_TYPE */
-	(iw_handler) ks_wlan_get_scan_type,	/* 13 KS_WLAN_GET_SCAN_TYPE */
-	(iw_handler) ks_wlan_set_rx_gain,	/* 14 KS_WLAN_SET_RX_GAIN */
-	(iw_handler) ks_wlan_get_rx_gain,	/* 15 KS_WLAN_GET_RX_GAIN */
-	(iw_handler) ks_wlan_hostt,	/* 16 KS_WLAN_HOSTT */
-	(iw_handler) NULL,	/* 17 */
-	(iw_handler) ks_wlan_set_beacon_lost,	/* 18 KS_WLAN_SET_BECAN_LOST */
-	(iw_handler) ks_wlan_get_beacon_lost,	/* 19 KS_WLAN_GET_BECAN_LOST */
-	(iw_handler) ks_wlan_set_tx_gain,	/* 20 KS_WLAN_SET_TX_GAIN */
-	(iw_handler) ks_wlan_get_tx_gain,	/* 21 KS_WLAN_GET_TX_GAIN */
-	(iw_handler) ks_wlan_set_phy_type,	/* 22 KS_WLAN_SET_PHY_TYPE */
-	(iw_handler) ks_wlan_get_phy_type,	/* 23 KS_WLAN_GET_PHY_TYPE */
-	(iw_handler) ks_wlan_set_cts_mode,	/* 24 KS_WLAN_SET_CTS_MODE */
-	(iw_handler) ks_wlan_get_cts_mode,	/* 25 KS_WLAN_GET_CTS_MODE */
-	(iw_handler) NULL,	/* 26 */
-	(iw_handler) NULL,	/* 27 */
-	(iw_handler) ks_wlan_set_sleep_mode,	/* 28 KS_WLAN_SET_SLEEP_MODE */
-	(iw_handler) ks_wlan_get_sleep_mode,	/* 29 KS_WLAN_GET_SLEEP_MODE */
-	(iw_handler) NULL,	/* 30 */
-	(iw_handler) NULL,	/* 31 */
+	(iw_handler)ks_wlan_get_eeprom_cksum,	/*  7 KS_WLAN_GET_CONNECT */
+	(iw_handler)ks_wlan_set_preamble,	/*  8 KS_WLAN_SET_PREAMBLE */
+	(iw_handler)ks_wlan_get_preamble,	/*  9 KS_WLAN_GET_PREAMBLE */
+	(iw_handler)ks_wlan_set_powermgt,	/* 10 KS_WLAN_SET_POWER_SAVE */
+	(iw_handler)ks_wlan_get_powermgt,	/* 11 KS_WLAN_GET_POWER_SAVE */
+	(iw_handler)ks_wlan_set_scan_type,	/* 12 KS_WLAN_SET_SCAN_TYPE */
+	(iw_handler)ks_wlan_get_scan_type,	/* 13 KS_WLAN_GET_SCAN_TYPE */
+	(iw_handler)ks_wlan_set_rx_gain,	/* 14 KS_WLAN_SET_RX_GAIN */
+	(iw_handler)ks_wlan_get_rx_gain,	/* 15 KS_WLAN_GET_RX_GAIN */
+	(iw_handler)ks_wlan_hostt,	/* 16 KS_WLAN_HOSTT */
+	(iw_handler)NULL,	/* 17 */
+	(iw_handler)ks_wlan_set_beacon_lost,	/* 18 KS_WLAN_SET_BECAN_LOST */
+	(iw_handler)ks_wlan_get_beacon_lost,	/* 19 KS_WLAN_GET_BECAN_LOST */
+	(iw_handler)ks_wlan_set_tx_gain,	/* 20 KS_WLAN_SET_TX_GAIN */
+	(iw_handler)ks_wlan_get_tx_gain,	/* 21 KS_WLAN_GET_TX_GAIN */
+	(iw_handler)ks_wlan_set_phy_type,	/* 22 KS_WLAN_SET_PHY_TYPE */
+	(iw_handler)ks_wlan_get_phy_type,	/* 23 KS_WLAN_GET_PHY_TYPE */
+	(iw_handler)ks_wlan_set_cts_mode,	/* 24 KS_WLAN_SET_CTS_MODE */
+	(iw_handler)ks_wlan_get_cts_mode,	/* 25 KS_WLAN_GET_CTS_MODE */
+	(iw_handler)NULL,	/* 26 */
+	(iw_handler)NULL,	/* 27 */
+	(iw_handler)ks_wlan_set_sleep_mode,	/* 28 KS_WLAN_SET_SLEEP_MODE */
+	(iw_handler)ks_wlan_get_sleep_mode,	/* 29 KS_WLAN_GET_SLEEP_MODE */
+	(iw_handler)NULL,	/* 30 */
+	(iw_handler)NULL,	/* 31 */
 };
 
 static const struct iw_handler_def ks_wlan_handler_def = {
@@ -3247,8 +3247,8 @@ static const struct iw_handler_def ks_wlan_handler_def = {
 	.num_private = sizeof(ks_wlan_private_handler) / sizeof(iw_handler),
 	.num_private_args =
 	    sizeof(ks_wlan_private_args) / sizeof(struct iw_priv_args),
-	.standard = (iw_handler *) ks_wlan_handler,
-	.private = (iw_handler *) ks_wlan_private_handler,
+	.standard = (iw_handler *)ks_wlan_handler,
+	.private = (iw_handler *)ks_wlan_private_handler,
 	.private_args = (struct iw_priv_args *)ks_wlan_private_args,
 	.get_wireless_stats = ks_get_wireless_stats,
 };
