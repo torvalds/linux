@@ -61,8 +61,7 @@ extern void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx *,
 					unsigned long from, unsigned long to,
 					unsigned long len);
 
-extern void userfaultfd_remove(struct vm_area_struct *vma,
-			       struct vm_area_struct **prev,
+extern bool userfaultfd_remove(struct vm_area_struct *vma,
 			       unsigned long start,
 			       unsigned long end);
 
@@ -71,8 +70,6 @@ extern int userfaultfd_unmap_prep(struct vm_area_struct *vma,
 				  struct list_head *uf);
 extern void userfaultfd_unmap_complete(struct mm_struct *mm,
 				       struct list_head *uf);
-
-extern void userfaultfd_exit(struct mm_struct *mm);
 
 #else /* CONFIG_USERFAULTFD */
 
@@ -120,11 +117,11 @@ static inline void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx *ctx,
 {
 }
 
-static inline void userfaultfd_remove(struct vm_area_struct *vma,
-				      struct vm_area_struct **prev,
+static inline bool userfaultfd_remove(struct vm_area_struct *vma,
 				      unsigned long start,
 				      unsigned long end)
 {
+	return true;
 }
 
 static inline int userfaultfd_unmap_prep(struct vm_area_struct *vma,
@@ -136,10 +133,6 @@ static inline int userfaultfd_unmap_prep(struct vm_area_struct *vma,
 
 static inline void userfaultfd_unmap_complete(struct mm_struct *mm,
 					      struct list_head *uf)
-{
-}
-
-static inline void userfaultfd_exit(struct mm_struct *mm)
 {
 }
 

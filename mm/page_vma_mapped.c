@@ -104,6 +104,7 @@ bool page_vma_mapped_walk(struct page_vma_mapped_walk *pvmw)
 	struct mm_struct *mm = pvmw->vma->vm_mm;
 	struct page *page = pvmw->page;
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
 
 	/* The only possible pmd mapping has been handled on last iteration */
@@ -133,7 +134,10 @@ restart:
 	pgd = pgd_offset(mm, pvmw->address);
 	if (!pgd_present(*pgd))
 		return false;
-	pud = pud_offset(pgd, pvmw->address);
+	p4d = p4d_offset(pgd, pvmw->address);
+	if (!p4d_present(*p4d))
+		return false;
+	pud = pud_offset(p4d, pvmw->address);
 	if (!pud_present(*pud))
 		return false;
 	pvmw->pmd = pmd_offset(pud, pvmw->address);

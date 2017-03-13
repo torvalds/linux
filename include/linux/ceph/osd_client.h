@@ -189,6 +189,7 @@ struct ceph_osd_request {
 
 	/* internal */
 	unsigned long r_stamp;                /* jiffies, send or check time */
+	unsigned long r_start_stamp;          /* jiffies */
 	int r_attempts;
 	struct ceph_eversion r_replay_version; /* aka reassert_version */
 	u32 r_last_force_resend;

@@ -172,10 +172,6 @@ the same read(2) protocol as for the page fault notifications. The
 manager has to explicitly enable these events by setting appropriate
 bits in uffdio_api.features passed to UFFDIO_API ioctl:
 
-UFFD_FEATURE_EVENT_EXIT - enable notification about exit() of the
-non-cooperative process. When the monitored process exits, the uffd
-manager will get UFFD_EVENT_EXIT.
-
 UFFD_FEATURE_EVENT_FORK - enable userfaultfd hooks for fork(). When
 this feature is enabled, the userfaultfd context of the parent process
 is duplicated into the newly created process. The manager receives
