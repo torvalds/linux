@@ -75,7 +75,6 @@ static int __init ion_dummy_init(void)
 	if (!heaps)
 		return -ENOMEM;
 
-
 	/* Allocate a dummy carveout heap */
 	carveout_ptr = alloc_pages_exact(
 				dummy_heaps[ION_HEAP_TYPE_CARVEOUT].size,
