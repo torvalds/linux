@@ -1887,6 +1887,7 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 			atomic_add_return(smmu->num_context_banks,
 					  &cavium_smmu_context_count);
 		smmu->cavium_id_base -= smmu->num_context_banks;
+		dev_notice(smmu->dev, "\tenabling workaround for Cavium erratum 27704\n");
 	}
 
 	/* ID2 */
