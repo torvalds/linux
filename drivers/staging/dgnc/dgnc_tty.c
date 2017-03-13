@@ -1669,20 +1669,20 @@ static int dgnc_tty_tiocmget(struct tty_struct *tty)
 {
 	struct channel_t *ch;
 	struct un_t *un;
-	int rc = -EIO;
+	int rc;
 	unsigned char mstat = 0;
 	unsigned long flags;
 
 	if (!tty || tty->magic != TTY_MAGIC)
-		return rc;
+		return -EIO;
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return rc;
+		return -EIO;
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return rc;
+		return -EIO;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
 
@@ -1720,23 +1720,22 @@ static int dgnc_tty_tiocmset(struct tty_struct *tty,
 	struct dgnc_board *bd;
 	struct channel_t *ch;
 	struct un_t *un;
-	int rc = -EIO;
 	unsigned long flags;
 
 	if (!tty || tty->magic != TTY_MAGIC)
-		return rc;
+		return -EIO;
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return rc;
+		return -EIO;
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return rc;
+		return -EIO;
 
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
-		return rc;
+		return -EIO;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
 
@@ -1769,23 +1768,22 @@ static int dgnc_tty_send_break(struct tty_struct *tty, int msec)
 	struct dgnc_board *bd;
 	struct channel_t *ch;
 	struct un_t *un;
-	int rc = -EIO;
 	unsigned long flags;
 
 	if (!tty || tty->magic != TTY_MAGIC)
-		return rc;
+		return -EIO;
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return rc;
+		return -EIO;
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return rc;
+		return -EIO;
 
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
-		return rc;
+		return -EIO;
 
 	switch (msec) {
 	case -1:
@@ -1877,11 +1875,11 @@ static void dgnc_tty_send_xchar(struct tty_struct *tty, char c)
 static inline int dgnc_get_mstat(struct channel_t *ch)
 {
 	unsigned char mstat;
-	int rc = -ENXIO;
 	unsigned long flags;
+	int rc;
 
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return rc;
+		return -ENXIO;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
 
@@ -1990,21 +1988,20 @@ static int dgnc_tty_digigeta(struct tty_struct *tty,
 	struct un_t *un;
 	struct digi_t tmp;
 	unsigned long flags;
-	int rc = -EFAULT;
 
 	if (!retinfo)
-		return rc;
+		return -EFAULT;
 
 	if (!tty || tty->magic != TTY_MAGIC)
-		return rc;
+		return -EFAULT;
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return rc;
+		return -EFAULT;
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return rc;
+		return -EFAULT;
 
 	memset(&tmp, 0, sizeof(tmp));
 
@@ -2013,7 +2010,7 @@ static int dgnc_tty_digigeta(struct tty_struct *tty,
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 
 	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
-		return rc;
+		return -EFAULT;
 
 	return 0;
 }
@@ -2031,25 +2028,24 @@ static int dgnc_tty_digiseta(struct tty_struct *tty,
 	struct un_t *un;
 	struct digi_t new_digi;
 	unsigned long flags;
-	int rc = -EFAULT;
 
 	if (!tty || tty->magic != TTY_MAGIC)
-		return rc;
+		return -EFAULT;
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return rc;
+		return -EFAULT;
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return rc;
+		return -EFAULT;
 
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
-		return rc;
+		return -EFAULT;
 
 	if (copy_from_user(&new_digi, new_info, sizeof(new_digi)))
-		return rc;
+		return -EFAULT;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
 
@@ -2358,24 +2354,24 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	struct board_ops *ch_bd_ops;
 	struct channel_t *ch;
 	struct un_t *un;
-	int rc = -ENODEV;
+	int rc;
 	unsigned long flags;
 	void __user *uarg = (void __user *)arg;
 
 	if (!tty || tty->magic != TTY_MAGIC)
-		return rc;
+		return -ENODEV;
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return rc;
+		return -ENODEV;
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return rc;
+		return -ENODEV;
 
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
-		return rc;
+		return -ENODEV;
 
 	ch_bd_ops = bd->bd_ops;
 
@@ -2401,7 +2397,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		rc = tty_check_change(tty);
 		spin_unlock_irqrestore(&ch->ch_lock, flags);
 		if (rc)
-			return rc;
+			return -ENODEV;
 
 		rc = ch_bd_ops->drain(tty, 0);
 
@@ -2427,7 +2423,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		rc = tty_check_change(tty);
 		spin_unlock_irqrestore(&ch->ch_lock, flags);
 		if (rc)
-			return rc;
+			return -ENODEV;
 
 		rc = ch_bd_ops->drain(tty, 0);
 		if (rc)
@@ -2445,7 +2441,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		rc = tty_check_change(tty);
 		spin_unlock_irqrestore(&ch->ch_lock, flags);
 		if (rc)
-			return rc;
+			return -ENODEV;
 
 		rc = ch_bd_ops->drain(tty, 0);
 		if (rc)
