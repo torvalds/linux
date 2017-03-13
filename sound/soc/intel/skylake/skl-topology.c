@@ -678,26 +678,29 @@ static int skl_tplg_mixer_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static int skl_fill_sink_instance_id(struct skl_sst *ctx,
-				struct skl_algo_data *alg_data)
+static int skl_fill_sink_instance_id(struct skl_sst *ctx, u32 *params,
+				int size, struct skl_module_cfg *mcfg)
 {
-	struct skl_kpb_params *params = (struct skl_kpb_params *)alg_data->params;
-	struct skl_mod_inst_map *inst;
 	int i, pvt_id;
 
-	inst = params->map;
+	if (mcfg->m_type == SKL_MODULE_TYPE_KPB) {
+		struct skl_kpb_params *kpb_params =
+				(struct skl_kpb_params *)params;
+		struct skl_mod_inst_map *inst = kpb_params->map;
 
-	for (i = 0; i < params->num_modules; i++) {
-		pvt_id = skl_get_pvt_instance_id_map(ctx,
-					inst->mod_id, inst->inst_id);
-		if (pvt_id < 0)
-			return -EINVAL;
-		inst->inst_id = pvt_id;
-		inst++;
+		for (i = 0; i < kpb_params->num_modules; i++) {
+			pvt_id = skl_get_pvt_instance_id_map(ctx, inst->mod_id,
+								inst->inst_id);
+			if (pvt_id < 0)
+				return -EINVAL;
+
+			inst->inst_id = pvt_id;
+			inst++;
+		}
 	}
+
 	return 0;
 }
-
 /*
  * Some modules require params to be set after the module is bound to
  * all pins connected.
@@ -714,6 +717,7 @@ static int skl_tplg_set_module_bind_params(struct snd_soc_dapm_widget *w,
 	struct soc_bytes_ext *sb;
 	struct skl_algo_data *bc;
 	struct skl_specific_cfg *sp_cfg;
+	u32 *params;
 
 	/*
 	 * check all out/in pins are in bind state.
@@ -746,11 +750,18 @@ static int skl_tplg_set_module_bind_params(struct snd_soc_dapm_widget *w,
 			bc = (struct skl_algo_data *)sb->dobj.private;
 
 			if (bc->set_params == SKL_PARAM_BIND) {
-				if (mconfig->m_type == SKL_MODULE_TYPE_KPB)
-					skl_fill_sink_instance_id(ctx, bc);
-				ret = skl_set_module_params(ctx,
-						(u32 *)bc->params, bc->max,
-						bc->param_id, mconfig);
+				params = kzalloc(bc->max, GFP_KERNEL);
+				if (!params)
+					return -ENOMEM;
+
+				memcpy(params, bc->params, bc->max);
+				skl_fill_sink_instance_id(ctx, params, bc->max,
+								mconfig);
+
+				ret = skl_set_module_params(ctx, params,
+						bc->max, bc->param_id, mconfig);
+				kfree(params);
+
 				if (ret < 0)
 					return ret;
 			}
