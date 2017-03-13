@@ -945,6 +945,19 @@ int f2fs_sync_inode_meta(struct f2fs_sb_info *sbi)
 	return 0;
 }
 
+static void __prepare_cp_block(struct f2fs_sb_info *sbi)
+{
+	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);
+	struct f2fs_nm_info *nm_i = NM_I(sbi);
+	nid_t last_nid = nm_i->next_scan_nid;
+
+	next_free_nid(sbi, &last_nid);
+	ckpt->valid_block_count = cpu_to_le64(valid_user_blocks(sbi));
+	ckpt->valid_node_count = cpu_to_le32(valid_node_count(sbi));
+	ckpt->valid_inode_count = cpu_to_le32(valid_inode_count(sbi));
+	ckpt->next_free_nid = cpu_to_le32(last_nid);
+}
+
 /*
  * Freeze all the FS-operations for checkpoint.
  */
@@ -971,7 +984,14 @@ retry_flush_dents:
 		goto retry_flush_dents;
 	}
 
+	/*
+	 * POR: we should ensure that there are no dirty node pages
+	 * until finishing nat/sit flush. inode->i_blocks can be updated.
+	 */
+	down_write(&sbi->node_change);
+
 	if (get_pages(sbi, F2FS_DIRTY_IMETA)) {
+		up_write(&sbi->node_change);
 		f2fs_unlock_all(sbi);
 		err = f2fs_sync_inode_meta(sbi);
 		if (err)
@@ -979,10 +999,6 @@ retry_flush_dents:
 		goto retry_flush_dents;
 	}
 
-	/*
-	 * POR: we should ensure that there are no dirty node pages
-	 * until finishing nat/sit flush.
-	 */
 retry_flush_nodes:
 	down_write(&sbi->node_write);
 
@@ -990,11 +1006,19 @@ retry_flush_nodes:
 		up_write(&sbi->node_write);
 		err = sync_node_pages(sbi, &wbc);
 		if (err) {
+			up_write(&sbi->node_change);
 			f2fs_unlock_all(sbi);
 			goto out;
 		}
 		goto retry_flush_nodes;
 	}
+
+	/*
+	 * sbi->node_change is used only for AIO write_begin path which produces
+	 * dirty node blocks and some checkpoint values by block allocation.
+	 */
+	__prepare_cp_block(sbi);
+	up_write(&sbi->node_change);
 out:
 	blk_finish_plug(&plug);
 	return err;
@@ -1062,7 +1086,6 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	unsigned long orphan_num = sbi->im[ORPHAN_INO].ino_num;
-	nid_t last_nid = nm_i->next_scan_nid;
 	block_t start_blk;
 	unsigned int data_sum_blocks, orphan_blocks;
 	__u32 crc32 = 0;
@@ -1079,14 +1102,11 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 			return -EIO;
 	}
 
-	next_free_nid(sbi, &last_nid);
-
 	/*
 	 * modify checkpoint
 	 * version number is already updated
 	 */
 	ckpt->elapsed_time = cpu_to_le64(get_mtime(sbi));
-	ckpt->valid_block_count = cpu_to_le64(valid_user_blocks(sbi));
 	ckpt->free_segment_count = cpu_to_le32(free_segments(sbi));
 	for (i = 0; i < NR_CURSEG_NODE_TYPE; i++) {
 		ckpt->cur_node_segno[i] =
@@ -1104,10 +1124,6 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 		ckpt->alloc_type[i + CURSEG_HOT_DATA] =
 				curseg_alloc_type(sbi, i + CURSEG_HOT_DATA);
 	}
-
-	ckpt->valid_node_count = cpu_to_le32(valid_node_count(sbi));
-	ckpt->valid_inode_count = cpu_to_le32(valid_inode_count(sbi));
-	ckpt->next_free_nid = cpu_to_le32(last_nid);
 
 	/* 2 cp  + n data seg summary + orphan inode blocks */
 	data_sum_blocks = npages_for_summary_flush(sbi, false);
