@@ -113,6 +113,9 @@ static int int3496_probe(struct platform_device *pdev)
 		ret = PTR_ERR(data->gpio_usb_id);
 		dev_err(dev, "can't request USB ID GPIO: %d\n", ret);
 		return ret;
+	} else if (gpiod_get_direction(data->gpio_usb_id) != GPIOF_DIR_IN) {
+		dev_warn(dev, FW_BUG "USB ID GPIO not in input mode, fixing\n");
+		gpiod_direction_input(data->gpio_usb_id);
 	}
 
 	data->usb_id_irq = gpiod_to_irq(data->gpio_usb_id);
