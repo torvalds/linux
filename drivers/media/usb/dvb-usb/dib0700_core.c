@@ -783,6 +783,9 @@ int dib0700_rc_setup(struct dvb_usb_device *d, struct usb_interface *intf)
 
 	/* Starting in firmware 1.20, the RC info is provided on a bulk pipe */
 
+	if (intf->altsetting[0].desc.bNumEndpoints < rc_ep + 1)
+		return -ENODEV;
+
 	purb = usb_alloc_urb(0, GFP_KERNEL);
 	if (purb == NULL) {
 		err("rc usb alloc urb failed");
