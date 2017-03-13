@@ -255,7 +255,7 @@ static int __init ion_test_probe(struct platform_device *pdev)
 	testdev->misc.parent = &pdev->dev;
 	ret = misc_register(&testdev->misc);
 	if (ret) {
-		pr_err("failed to register misc device.\n");
+		dev_err(&pdev->dev, "failed to register misc device.\n");
 		return ret;
 	}
 
