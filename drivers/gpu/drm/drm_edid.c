@@ -35,6 +35,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_displayid.h>
+#include <drm/drm_scdc_helper.h>
 
 #define version_greater(edid, maj, min) \
 	(((edid)->version > (maj)) || \
@@ -4087,12 +4088,42 @@ EXPORT_SYMBOL(drm_rgb_quant_range_selectable);
 static void drm_parse_hdmi_forum_vsdb(struct drm_connector *connector,
 				 const u8 *hf_vsdb)
 {
-	struct drm_hdmi_info *hdmi = &connector->display_info.hdmi;
+	struct drm_display_info *display = &connector->display_info;
+	struct drm_hdmi_info *hdmi = &display->hdmi;
 
 	if (hf_vsdb[6] & 0x80) {
 		hdmi->scdc.supported = true;
 		if (hf_vsdb[6] & 0x40)
 			hdmi->scdc.read_request = true;
+	}
+
+	/*
+	 * All HDMI 2.0 monitors must support scrambling at rates > 340 MHz.
+	 * And as per the spec, three factors confirm this:
+	 * * Availability of a HF-VSDB block in EDID (check)
+	 * * Non zero Max_TMDS_Char_Rate filed in HF-VSDB (let's check)
+	 * * SCDC support available (let's check)
+	 * Lets check it out.
+	 */
+
+	if (hf_vsdb[5]) {
+		/* max clock is 5000 KHz times block value */
+		u32 max_tmds_clock = hf_vsdb[5] * 5000;
+		struct drm_scdc *scdc = &hdmi->scdc;
+
+		if (max_tmds_clock > 340000) {
+			display->max_tmds_clock = max_tmds_clock;
+			DRM_DEBUG_KMS("HF-VSDB: max TMDS clock %d kHz\n",
+				display->max_tmds_clock);
+		}
+
+		if (scdc->supported) {
+			scdc->scrambling.supported = true;
+
+			/* Few sinks support scrambling for cloks < 340M */
+			if ((hf_vsdb[6] & 0x8))
+				scdc->scrambling.low_rates = true;
+		}
 	}
 }
 

@@ -120,6 +120,20 @@ enum subpixel_order {
 
 };
 
+/**
+ * struct drm_scrambling: sink's scrambling support.
+ */
+struct drm_scrambling {
+	/**
+	 * @supported: scrambling supported for rates > 340 Mhz.
+	 */
+	bool supported;
+	/**
+	 * @low_rates: scrambling supported for rates <= 340 Mhz.
+	 */
+	bool low_rates;
+};
+
 /*
  * struct drm_scdc - Information about scdc capabilities of a HDMI 2.0 sink
  *
@@ -135,7 +149,12 @@ struct drm_scdc {
 	 * @read_request: sink is capable of generating scdc read request.
 	 */
 	bool read_request;
+	/**
+	 * @scrambling: sink's scrambling capabilities
+	 */
+	struct drm_scrambling scrambling;
 };
+
 
 /**
  * struct drm_hdmi_info - runtime information about the connected HDMI sink
