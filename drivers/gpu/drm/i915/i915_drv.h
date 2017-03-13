@@ -1159,7 +1159,7 @@ struct intel_gen6_power_mgmt {
 	struct intel_rps_client semaphores, mmioflips;
 
 	/* manual wa residency calculations */
-	struct intel_rps_ei up_ei, down_ei;
+	struct intel_rps_ei ei;
 
 	/*
 	 * Protects RPS/RC6 register access and PCU communication.
