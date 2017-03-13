@@ -78,12 +78,9 @@ struct rds_ib_mr *rds_ib_alloc_fmr(struct rds_ib_device *rds_ibdev, int npages)
 	return ibmr;
 
 out_no_cigar:
-	if (ibmr) {
-		if (fmr->fmr)
-			ib_dealloc_fmr(fmr->fmr);
-		kfree(ibmr);
-	}
+	kfree(ibmr);
 	atomic_dec(&pool->item_count);
+
 	return ERR_PTR(err);
 }
 
