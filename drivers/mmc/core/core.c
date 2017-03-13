@@ -292,23 +292,18 @@ static void mmc_mrq_pr_debug(struct mmc_host *host, struct mmc_request *mrq)
 	}
 }
 
-static int mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
+static int mmc_mrq_prep(struct mmc_host *host, struct mmc_request *mrq)
 {
 #ifdef CONFIG_MMC_DEBUG
 	unsigned int i, sz;
 	struct scatterlist *sg;
 #endif
-	mmc_retune_hold(host);
 
-	if (mmc_card_removed(host->card))
-		return -ENOMEDIUM;
-
-	mmc_mrq_pr_debug(host, mrq);
-
-	WARN_ON(!host->claimed);
-
-	mrq->cmd->error = 0;
-	mrq->cmd->mrq = mrq;
+	if (mrq->cmd) {
+		mrq->cmd->error = 0;
+		mrq->cmd->mrq = mrq;
+		mrq->cmd->data = mrq->data;
+	}
 	if (mrq->sbc) {
 		mrq->sbc->error = 0;
 		mrq->sbc->mrq = mrq;
@@ -325,8 +320,6 @@ static int mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 		if (sz != mrq->data->blocks * mrq->data->blksz)
 			return -EINVAL;
 #endif
-
-		mrq->cmd->data = mrq->data;
 		mrq->data->error = 0;
 		mrq->data->mrq = mrq;
 		if (mrq->stop) {
@@ -335,6 +328,27 @@ static int mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 			mrq->stop->mrq = mrq;
 		}
 	}
+
+	return 0;
+}
+
+static int mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
+{
+	int err;
+
+	mmc_retune_hold(host);
+
+	if (mmc_card_removed(host->card))
+		return -ENOMEDIUM;
+
+	mmc_mrq_pr_debug(host, mrq);
+
+	WARN_ON(!host->claimed);
+
+	err = mmc_mrq_prep(host, mrq);
+	if (err)
+		return err;
+
 	led_trigger_event(host->led, LED_FULL);
 	__mmc_start_request(host, mrq);
 
