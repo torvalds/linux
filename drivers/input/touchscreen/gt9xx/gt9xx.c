@@ -2626,6 +2626,11 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 		return PTR_ERR(ts->tp_regulator);
 	}
 
+	ret = regulator_enable(ts->tp_regulator);
+	if (ret < 0)
+		GTP_ERROR("failed to enable tp regulator\n");
+	msleep(20);
+
     ts->irq_pin = of_get_named_gpio_flags(np, "touch-gpio", 0, (enum of_gpio_flags *)(&ts->irq_flags));
     ts->rst_pin = of_get_named_gpio_flags(np, "reset-gpio", 0, &rst_flags);
     ts->pwr_pin = of_get_named_gpio_flags(np, "power-gpio", 0, &pwr_flags);
