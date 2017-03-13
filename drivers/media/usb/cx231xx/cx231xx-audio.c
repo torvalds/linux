@@ -698,6 +698,11 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 					    hs_config_info[0].interface_info.
 					    audio_index + 1];
 
+	if (uif->altsetting[0].desc.bNumEndpoints < isoc_pipe + 1) {
+		err = -ENODEV;
+		goto err_free_card;
+	}
+
 	adev->end_point_addr =
 	    uif->altsetting[0].endpoint[isoc_pipe].desc.
 			bEndpointAddress;
@@ -713,8 +718,14 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 	}
 
 	for (i = 0; i < adev->num_alt; i++) {
-		u16 tmp =
-		    le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].desc.
+		u16 tmp;
+
+		if (uif->altsetting[i].desc.bNumEndpoints < isoc_pipe + 1) {
+			err = -ENODEV;
+			goto err_free_pkt_size;
+		}
+
+		tmp = le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].desc.
 				wMaxPacketSize);
 		adev->alt_max_pkt_size[i] =
 		    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
@@ -725,6 +736,8 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 
 	return 0;
 
+err_free_pkt_size:
+	kfree(adev->alt_max_pkt_size);
 err_free_card:
 	snd_card_free(card);
 
