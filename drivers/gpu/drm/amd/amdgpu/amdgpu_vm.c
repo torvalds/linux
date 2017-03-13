@@ -1194,10 +1194,13 @@ static void amdgpu_vm_update_prt_state(struct amdgpu_device *adev)
 }
 
 /**
- * amdgpu_vm_prt_put - add a PRT user
+ * amdgpu_vm_prt_get - add a PRT user
  */
 static void amdgpu_vm_prt_get(struct amdgpu_device *adev)
 {
+	if (!adev->gart.gart_funcs->set_prt)
+		return;
+
 	if (atomic_inc_return(&adev->vm_manager.num_prt_users) == 1)
 		amdgpu_vm_update_prt_state(adev);
 }
@@ -1228,9 +1231,12 @@ static void amdgpu_vm_prt_cb(struct dma_fence *fence, struct dma_fence_cb *_cb)
 static void amdgpu_vm_add_prt_cb(struct amdgpu_device *adev,
 				 struct dma_fence *fence)
 {
-	struct amdgpu_prt_cb *cb = kmalloc(sizeof(struct amdgpu_prt_cb),
-					   GFP_KERNEL);
+	struct amdgpu_prt_cb *cb;
 
+	if (!adev->gart.gart_funcs->set_prt)
+		return;
+
+	cb = kmalloc(sizeof(struct amdgpu_prt_cb), GFP_KERNEL);
 	if (!cb) {
 		/* Last resort when we are OOM */
 		if (fence)
@@ -1445,14 +1451,6 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 	    size == 0 || size & AMDGPU_GPU_PAGE_MASK)
 		return -EINVAL;
 
-	if (flags & AMDGPU_PTE_PRT) {
-		/* Check if we have PRT hardware support */
-		if (!adev->gart.gart_funcs->set_prt)
-			return -EINVAL;
-
-		amdgpu_vm_prt_get(adev);
-	}
-
 	/* make sure object fit at this offset */
 	eaddr = saddr + size - 1;
 	if (saddr >= eaddr ||
@@ -1532,6 +1530,9 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 		vm->page_tables[pt_idx].bo = pt;
 		vm->page_tables[pt_idx].addr = 0;
 	}
+
+	if (flags & AMDGPU_PTE_PRT)
+		amdgpu_vm_prt_get(adev);
 
 	return 0;
 
@@ -1753,7 +1754,7 @@ err:
 void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 {
 	struct amdgpu_bo_va_mapping *mapping, *tmp;
-	bool prt_fini_called = false;
+	bool prt_fini_needed = !!adev->gart.gart_funcs->set_prt;
 	int i;
 
 	amd_sched_entity_fini(vm->entity.sched, &vm->entity);
@@ -1767,9 +1768,9 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 		kfree(mapping);
 	}
 	list_for_each_entry_safe(mapping, tmp, &vm->freed, list) {
-		if (mapping->flags & AMDGPU_PTE_PRT && !prt_fini_called) {
+		if (mapping->flags & AMDGPU_PTE_PRT && prt_fini_needed) {
 			amdgpu_vm_prt_fini(adev, vm);
-			prt_fini_called = true;
+			prt_fini_needed = false;
 		}
 
 		list_del(&mapping->list);
