@@ -3503,6 +3503,21 @@ static bool cea_db_is_hdmi_vcb420(const u8 *db)
 	return true;
 }
 
+static bool cea_db_is_hdmi_forum_vsdb(const u8 *db)
+{
+	unsigned int oui;
+
+	if (cea_db_tag(db) != VENDOR_BLOCK)
+		return false;
+
+	if (cea_db_payload_len(db) < 7)
+		return false;
+
+	oui = db[3] << 16 | db[2] << 8 | db[1];
+
+	return oui == HDMI_FORUM_IEEE_OUI;
+}
+
 #define for_each_cea_db(cea, i, start, end) \
 	for ((i) = (start); (i) < (end) && (i) + cea_db_payload_len(&(cea)[(i)]) < (end); (i) += cea_db_payload_len(&(cea)[(i)]) + 1)
 
