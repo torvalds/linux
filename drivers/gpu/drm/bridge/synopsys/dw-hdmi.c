@@ -200,6 +200,7 @@ struct dw_hdmi {
 	const struct dw_hdmi_plat_data *plat_data;
 
 	int vic;
+	int irq;
 
 	u8 edid[HDMI_EDID_LEN];
 
@@ -2554,6 +2555,7 @@ __dw_hdmi_probe(struct platform_device *pdev,
 		goto err_iahb;
 	}
 
+	hdmi->irq = irq;
 	ret = devm_request_threaded_irq(dev, irq, dw_hdmi_hardirq,
 					dw_hdmi_irq, IRQF_SHARED,
 					dev_name(dev), hdmi);
@@ -2747,6 +2749,49 @@ void dw_hdmi_unbind(struct dw_hdmi *hdmi)
 	__dw_hdmi_remove(hdmi);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_unbind);
+
+static void dw_hdmi_reg_initial(struct dw_hdmi *hdmi)
+{
+	if (hdmi_readb(hdmi, HDMI_IH_MUTE)) {
+		initialize_hdmi_ih_mutes(hdmi);
+		hdmi_writeb(hdmi, HDMI_PHY_I2CM_INT_ADDR_DONE_POL,
+			    HDMI_PHY_I2CM_INT_ADDR);
+
+		hdmi_writeb(hdmi, HDMI_PHY_I2CM_CTLINT_ADDR_NAC_POL |
+			    HDMI_PHY_I2CM_CTLINT_ADDR_ARBITRATION_POL,
+			    HDMI_PHY_I2CM_CTLINT_ADDR);
+
+		hdmi_writeb(hdmi, HDMI_PHY_HPD | HDMI_PHY_RX_SENSE,
+			    HDMI_PHY_POL0);
+		hdmi_writeb(hdmi, hdmi->phy_mask, HDMI_PHY_MASK0);
+		hdmi_writeb(hdmi, ~(HDMI_IH_PHY_STAT0_HPD |
+			    HDMI_IH_PHY_STAT0_RX_SENSE),
+			    HDMI_IH_MUTE_PHY_STAT0);
+	}
+}
+
+void dw_hdmi_suspend(struct device *dev)
+{
+	struct dw_hdmi *hdmi = dev_get_drvdata(dev);
+
+	mutex_lock(&hdmi->mutex);
+	if (hdmi->irq)
+		disable_irq(hdmi->irq);
+	mutex_unlock(&hdmi->mutex);
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_suspend);
+
+void dw_hdmi_resume(struct device *dev)
+{
+	struct dw_hdmi *hdmi = dev_get_drvdata(dev);
+
+	mutex_lock(&hdmi->mutex);
+	dw_hdmi_reg_initial(hdmi);
+	if (hdmi->irq)
+		enable_irq(hdmi->irq);
+	mutex_unlock(&hdmi->mutex);
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_resume);
 
 MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de>");
 MODULE_AUTHOR("Andy Yan <andy.yan@rock-chips.com>");
