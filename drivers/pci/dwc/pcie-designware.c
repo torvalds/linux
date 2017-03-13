@@ -61,21 +61,35 @@ int dw_pcie_write(void __iomem *addr, int size, u32 val)
 	return PCIBIOS_SUCCESSFUL;
 }
 
-u32 __dw_pcie_readl_dbi(struct dw_pcie *pci, void __iomem *base, u32 reg)
+u32 __dw_pcie_read_dbi(struct dw_pcie *pci, void __iomem *base, u32 reg,
+		       size_t size)
 {
-	if (pci->ops->readl_dbi)
-		return pci->ops->readl_dbi(pci, base, reg);
+	int ret;
+	u32 val;
 
-	return readl(base + reg);
+	if (pci->ops->read_dbi)
+		return pci->ops->read_dbi(pci, base, reg, size);
+
+	ret = dw_pcie_read(base + reg, size, &val);
+	if (ret)
+		dev_err(pci->dev, "read DBI address failed\n");
+
+	return val;
 }
 
-void __dw_pcie_writel_dbi(struct dw_pcie *pci, void __iomem *base, u32 reg,
-			  u32 val)
+void __dw_pcie_write_dbi(struct dw_pcie *pci, void __iomem *base, u32 reg,
+			 size_t size, u32 val)
 {
-	if (pci->ops->writel_dbi)
-		pci->ops->writel_dbi(pci, base, reg, val);
-	else
-		writel(val, base + reg);
+	int ret;
+
+	if (pci->ops->write_dbi) {
+		pci->ops->write_dbi(pci, base, reg, size, val);
+		return;
+	}
+
+	ret = dw_pcie_write(base + reg, size, val);
+	if (ret)
+		dev_err(pci->dev, "write DBI address failed\n");
 }
 
 static u32 dw_pcie_readl_unroll(struct dw_pcie *pci, u32 index, u32 reg)
