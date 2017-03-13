@@ -1561,6 +1561,70 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 }
 
 /**
+ * amdgpu_vm_bo_replace_map - map bo inside a vm, replacing existing mappings
+ *
+ * @adev: amdgpu_device pointer
+ * @bo_va: bo_va to store the address
+ * @saddr: where to map the BO
+ * @offset: requested offset in the BO
+ * @flags: attributes of pages (read/write/valid/etc.)
+ *
+ * Add a mapping of the BO at the specefied addr into the VM. Replace existing
+ * mappings as we do so.
+ * Returns 0 for success, error for failure.
+ *
+ * Object has to be reserved and unreserved outside!
+ */
+int amdgpu_vm_bo_replace_map(struct amdgpu_device *adev,
+			     struct amdgpu_bo_va *bo_va,
+			     uint64_t saddr, uint64_t offset,
+			     uint64_t size, uint64_t flags)
+{
+	struct amdgpu_bo_va_mapping *mapping;
+	struct amdgpu_vm *vm = bo_va->vm;
+	uint64_t eaddr;
+	int r;
+
+	/* validate the parameters */
+	if (saddr & AMDGPU_GPU_PAGE_MASK || offset & AMDGPU_GPU_PAGE_MASK ||
+	    size == 0 || size & AMDGPU_GPU_PAGE_MASK)
+		return -EINVAL;
+
+	/* make sure object fit at this offset */
+	eaddr = saddr + size - 1;
+	if (saddr >= eaddr ||
+	    (bo_va->bo && offset + size > amdgpu_bo_size(bo_va->bo)))
+		return -EINVAL;
+
+	/* Allocate all the needed memory */
+	mapping = kmalloc(sizeof(*mapping), GFP_KERNEL);
+	if (!mapping)
+		return -ENOMEM;
+
+	r = amdgpu_vm_bo_clear_mappings(adev, bo_va->vm, saddr, size);
+	if (r) {
+		kfree(mapping);
+		return r;
+	}
+
+	saddr /= AMDGPU_GPU_PAGE_SIZE;
+	eaddr /= AMDGPU_GPU_PAGE_SIZE;
+
+	mapping->it.start = saddr;
+	mapping->it.last = eaddr;
+	mapping->offset = offset;
+	mapping->flags = flags;
+
+	list_add(&mapping->list, &bo_va->invalids);
+	interval_tree_insert(&mapping->it, &vm->va);
+
+	if (flags & AMDGPU_PTE_PRT)
+		amdgpu_vm_prt_get(adev);
+
+	return 0;
+}
+
+/**
  * amdgpu_vm_bo_unmap - remove bo mapping from vm
  *
  * @adev: amdgpu_device pointer

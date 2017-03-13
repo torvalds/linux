@@ -544,7 +544,8 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 	if (r)
 		goto error;
 
-	if (operation == AMDGPU_VA_OP_MAP)
+	if (operation == AMDGPU_VA_OP_MAP ||
+	    operation == AMDGPU_VA_OP_REPLACE)
 		r = amdgpu_vm_bo_update(adev, bo_va, false);
 
 error:
@@ -595,6 +596,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	case AMDGPU_VA_OP_MAP:
 	case AMDGPU_VA_OP_UNMAP:
 	case AMDGPU_VA_OP_CLEAR:
+	case AMDGPU_VA_OP_REPLACE:
 		break;
 	default:
 		dev_err(&dev->pdev->dev, "unsupported operation %d\n",
@@ -655,6 +657,17 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 		r = amdgpu_vm_bo_clear_mappings(adev, &fpriv->vm,
 						args->va_address,
 						args->map_size);
+		break;
+	case AMDGPU_VA_OP_REPLACE:
+		r = amdgpu_vm_alloc_pts(adev, bo_va->vm, args->va_address,
+					args->map_size);
+		if (r)
+			goto error_backoff;
+
+		va_flags = amdgpu_vm_get_pte_flags(adev, args->flags);
+		r = amdgpu_vm_bo_replace_map(adev, bo_va, args->va_address,
+					     args->offset_in_bo, args->map_size,
+					     va_flags);
 		break;
 	default:
 		break;

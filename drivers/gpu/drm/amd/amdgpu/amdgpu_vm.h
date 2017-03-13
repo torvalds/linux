@@ -207,6 +207,10 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 		     struct amdgpu_bo_va *bo_va,
 		     uint64_t addr, uint64_t offset,
 		     uint64_t size, uint64_t flags);
+int amdgpu_vm_bo_replace_map(struct amdgpu_device *adev,
+			     struct amdgpu_bo_va *bo_va,
+			     uint64_t addr, uint64_t offset,
+			     uint64_t size, uint64_t flags);
 int amdgpu_vm_bo_unmap(struct amdgpu_device *adev,
 		       struct amdgpu_bo_va *bo_va,
 		       uint64_t addr);
