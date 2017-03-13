@@ -105,6 +105,8 @@ struct skl_sst {
 	void (*update_d0i3c)(struct device *dev, bool enable);
 
 	struct skl_d0i3_data d0i3;
+
+	const struct skl_dsp_ops *dsp_ops;
 };
 
 struct skl_ipc_init_instance_msg {
