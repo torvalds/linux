@@ -3004,7 +3004,7 @@ int atomisp_get_metadata_by_type(struct atomisp_sub_device *asd, int flag,
 		return 0;
 
 	md_type = md->type;
-	if (md_type >= ATOMISP_METADATA_TYPE_NUM)
+	if (md_type < 0 || md_type >= ATOMISP_METADATA_TYPE_NUM)
 		return -EINVAL;
 
 	/* This is done in the atomisp_buf_done() */
