@@ -537,6 +537,11 @@ static int bxt_set_dsp_D3(struct sst_dsp *ctx, unsigned int core_id)
 		"Failed to set DSP to D3:core id = %d;Continue reset\n",
 		core_id);
 
+	if (core_id == SKL_DSP_CORE0_ID) {
+		/* disable Interrupt */
+		skl_ipc_op_int_disable(ctx);
+		skl_ipc_int_disable(ctx);
+	}
 	ret = skl_dsp_disable_core(ctx, core_mask);
 	if (ret < 0) {
 		dev_err(ctx->dev, "Failed to disable core %d\n", ret);
