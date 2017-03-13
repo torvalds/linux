@@ -159,8 +159,7 @@ enum ia_css_err ia_css_frame_allocate(struct ia_css_frame **frame,
 
 #ifndef ISP2401
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-		      "ia_css_frame_allocate() leave: frame=%p\n",
-		      frame ? *frame : (void *)-1);
+		      "ia_css_frame_allocate() leave: frame=%p\n", *frame);
 #else
 	if ((*frame != NULL) && err == IA_CSS_SUCCESS)
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
