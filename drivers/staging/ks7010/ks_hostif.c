@@ -375,8 +375,7 @@ int hostif_data_indication_wpa(struct ks_wlan_private *priv,
 
 			/*  needed parameters: count, keyid, key type, TSC */
 			sprintf(buf,
-				"MLME-MICHAELMICFAILURE.indication(keyid=%d %scast addr="
-				"%pM)",
+				"MLME-MICHAELMICFAILURE.indication(keyid=%d %scast addr=%pM)",
 				auth_type - 1,
 				eth_hdr->h_dest[0] & 0x01 ? "broad" : "uni",
 				eth_hdr->h_source);
