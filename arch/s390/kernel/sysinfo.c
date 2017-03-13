@@ -522,6 +522,12 @@ static ssize_t stsi_read(struct file *file, char __user *buf, size_t size, loff_
 	return simple_read_from_buffer(buf, size, ppos, file->private_data, PAGE_SIZE);
 }
 
+STSI_FILE( 1, 1, 1);
+STSI_FILE( 1, 2, 1);
+STSI_FILE( 1, 2, 2);
+STSI_FILE( 2, 2, 1);
+STSI_FILE( 2, 2, 2);
+STSI_FILE( 3, 2, 2);
 STSI_FILE(15, 1, 2);
 STSI_FILE(15, 1, 3);
 STSI_FILE(15, 1, 4);
@@ -534,6 +540,12 @@ struct stsi_file {
 };
 
 static struct stsi_file stsi_file[] __initdata = {
+	{.fops = &stsi_1_1_1_fs_ops,  .name =  "1_1_1"},
+	{.fops = &stsi_1_2_1_fs_ops,  .name =  "1_2_1"},
+	{.fops = &stsi_1_2_2_fs_ops,  .name =  "1_2_2"},
+	{.fops = &stsi_2_2_1_fs_ops,  .name =  "2_2_1"},
+	{.fops = &stsi_2_2_2_fs_ops,  .name =  "2_2_2"},
+	{.fops = &stsi_3_2_2_fs_ops,  .name =  "3_2_2"},
 	{.fops = &stsi_15_1_2_fs_ops, .name = "15_1_2"},
 	{.fops = &stsi_15_1_3_fs_ops, .name = "15_1_3"},
 	{.fops = &stsi_15_1_4_fs_ops, .name = "15_1_4"},
@@ -541,15 +553,21 @@ static struct stsi_file stsi_file[] __initdata = {
 	{.fops = &stsi_15_1_6_fs_ops, .name = "15_1_6"},
 };
 
+static u8 stsi_0_0_0;
+
 static __init int stsi_init_debugfs(void)
 {
 	struct dentry *stsi_root;
 	struct stsi_file *sf;
-	int i;
+	int lvl, i;
 
 	stsi_root = debugfs_create_dir("stsi", arch_debugfs_dir);
 	if (IS_ERR_OR_NULL(stsi_root))
 		return 0;
+	lvl = stsi(NULL, 0, 0, 0);
+	if (lvl > 0)
+		stsi_0_0_0 = lvl;
+	debugfs_create_u8("0_0_0", 0400, stsi_root, &stsi_0_0_0);
 	for (i = 0; i < ARRAY_SIZE(stsi_file); i++) {
 		sf = &stsi_file[i];
 		debugfs_create_file(sf->name, 0400, stsi_root, NULL, sf->fops);
