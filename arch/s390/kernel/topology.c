@@ -246,7 +246,7 @@ static void update_cpu_masks(void)
 
 void store_topology(struct sysinfo_15_1_x *info)
 {
-	stsi(info, 15, 1, min(topology_max_mnest, 4));
+	stsi(info, 15, 1, topology_mnest_limit());
 }
 
 static int __arch_update_cpu_topology(void)
