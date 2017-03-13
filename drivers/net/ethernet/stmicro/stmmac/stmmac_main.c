@@ -1455,6 +1455,9 @@ static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 	int status;
 	int rxfifosz = priv->plat->rx_fifo_size;
 
+	if (rxfifosz == 0)
+		rxfifosz = priv->dma_cap.rx_fifo_size;
+
 	status = priv->hw->dma->dma_interrupt(priv->ioaddr, &priv->xstats);
 	if (likely((status & handle_rx)) || (status & handle_tx)) {
 		if (likely(napi_schedule_prep(&priv->napi))) {
