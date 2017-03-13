@@ -1817,6 +1817,7 @@ void mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		mmc_blk_issue_flush(mq, req);
 	} else {
 		mmc_blk_issue_rw_rq(mq, req);
+		card->host->context_info.is_waiting_last_req = false;
 	}
 
 out:
