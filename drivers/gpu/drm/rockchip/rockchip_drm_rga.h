@@ -14,6 +14,7 @@ struct rga_cmdlist {
 	void		*dst_mmu_pages;
 	void		*src1_mmu_pages;
 	struct dma_buf_attachment *src_attach;
+	struct dma_buf_attachment *src1_attach;
 	struct dma_buf_attachment *dst_attach;
 };
 

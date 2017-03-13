@@ -221,10 +221,12 @@ static int rga_check_reg_offset(struct device *dev,
 		switch (reg) {
 		case RGA_BUF_TYPE_GEMFD | RGA_DST_Y_RGB_BASE_ADDR:
 		case RGA_BUF_TYPE_GEMFD | RGA_SRC_Y_RGB_BASE_ADDR:
+		case RGA_BUF_TYPE_GEMFD | RGA_SRC1_RGB_BASE_ADDR:
 			break;
 
 		case RGA_BUF_TYPE_USERPTR | RGA_DST_Y_RGB_BASE_ADDR:
 		case RGA_BUF_TYPE_USERPTR | RGA_SRC_Y_RGB_BASE_ADDR:
+		case RGA_BUF_TYPE_USERPTR | RGA_SRC1_RGB_BASE_ADDR:
 			goto err;
 
 		default:
@@ -327,6 +329,16 @@ static int rga_map_cmdlist_gem(struct rockchip_rga *rga,
 		int index = cmdlist->last - 2 * (i + 1);
 
 		switch (cmdlist->data[index]) {
+		case RGA_SRC1_RGB_BASE_ADDR | RGA_BUF_TYPE_GEMFD:
+			fd = cmdlist->data[index + 1];
+			attach = rga_gem_buf_to_pages(rga, &mmu_pages, fd);
+			if (IS_ERR(attach))
+				return PTR_ERR(attach);
+
+			cmdlist->src1_attach = attach;
+			cmdlist->src1_mmu_pages = mmu_pages;
+			break;
+
 		case RGA_SRC_Y_RGB_BASE_ADDR | RGA_BUF_TYPE_GEMFD:
 			fd = cmdlist->data[index + 1];
 			attach = rga_gem_buf_to_pages(rga, &mmu_pages, fd);
@@ -365,6 +377,14 @@ static void rga_unmap_cmdlist_gem(struct rockchip_rga *rga,
 		dma_buf_put(dma_buf);
 	}
 	node->cmdlist.src_attach = NULL;
+
+	attach = node->cmdlist.src1_attach;
+	if (attach) {
+		dma_buf = attach->dmabuf;
+		dma_buf_detach(dma_buf, attach);
+		dma_buf_put(dma_buf);
+	}
+	node->cmdlist.src1_attach = NULL;
 
 	attach = node->cmdlist.dst_attach;
 	if (attach) {
