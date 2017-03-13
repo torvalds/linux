@@ -1394,13 +1394,9 @@ static int ironlake_drpc_info(struct seq_file *m)
 	u32 rgvmodectl, rstdbyctl;
 	u16 crstandvid;
 
-	intel_runtime_pm_get(dev_priv);
-
 	rgvmodectl = I915_READ(MEMMODECTL);
 	rstdbyctl = I915_READ(RSTDBYCTL);
 	crstandvid = I915_READ16(CRSTANDVID);
-
-	intel_runtime_pm_put(dev_priv);
 
 	seq_printf(m, "HD boost: %s\n", yesno(rgvmodectl & MEMMODE_BOOST_EN));
 	seq_printf(m, "Boost freq: %d\n",
@@ -1470,13 +1466,9 @@ static int vlv_drpc_info(struct seq_file *m)
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	u32 rpmodectl1, rcctl1, pw_status;
 
-	intel_runtime_pm_get(dev_priv);
-
 	pw_status = I915_READ(VLV_GTLC_PW_STATUS);
 	rpmodectl1 = I915_READ(GEN6_RP_CONTROL);
 	rcctl1 = I915_READ(GEN6_RC_CONTROL);
-
-	intel_runtime_pm_put(dev_priv);
 
 	seq_printf(m, "Video Turbo Mode: %s\n",
 		   yesno(rpmodectl1 & GEN6_RP_MEDIA_TURBO));
@@ -1506,21 +1498,12 @@ static int vlv_drpc_info(struct seq_file *m)
 static int gen6_drpc_info(struct seq_file *m)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
 	u32 rpmodectl1, gt_core_status, rcctl1, rc6vids = 0;
 	u32 gen9_powergate_enable = 0, gen9_powergate_status = 0;
 	unsigned forcewake_count;
-	int count = 0, ret;
+	int count = 0;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-	intel_runtime_pm_get(dev_priv);
-
-	spin_lock_irq(&dev_priv->uncore.lock);
-	forcewake_count = dev_priv->uncore.fw_domain[FW_DOMAIN_ID_RENDER].wake_count;
-	spin_unlock_irq(&dev_priv->uncore.lock);
-
+	forcewake_count = READ_ONCE(dev_priv->uncore.fw_domain[FW_DOMAIN_ID_RENDER].wake_count);
 	if (forcewake_count) {
 		seq_puts(m, "RC information inaccurate because somebody "
 			    "holds a forcewake reference \n");
@@ -1540,12 +1523,10 @@ static int gen6_drpc_info(struct seq_file *m)
 		gen9_powergate_enable = I915_READ(GEN9_PG_ENABLE);
 		gen9_powergate_status = I915_READ(GEN9_PWRGT_DOMAIN_STATUS);
 	}
-	mutex_unlock(&dev->struct_mutex);
+
 	mutex_lock(&dev_priv->rps.hw_lock);
 	sandybridge_pcode_read(dev_priv, GEN6_PCODE_READ_RC6VIDS, &rc6vids);
 	mutex_unlock(&dev_priv->rps.hw_lock);
-
-	intel_runtime_pm_put(dev_priv);
 
 	seq_printf(m, "Video Turbo Mode: %s\n",
 		   yesno(rpmodectl1 & GEN6_RP_MEDIA_TURBO));
@@ -1623,13 +1604,20 @@ static int gen6_drpc_info(struct seq_file *m)
 static int i915_drpc_info(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	int err;
+
+	intel_runtime_pm_get(dev_priv);
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		return vlv_drpc_info(m);
+		err = vlv_drpc_info(m);
 	else if (INTEL_GEN(dev_priv) >= 6)
-		return gen6_drpc_info(m);
+		err = gen6_drpc_info(m);
 	else
-		return ironlake_drpc_info(m);
+		err = ironlake_drpc_info(m);
+
+	intel_runtime_pm_put(dev_priv);
+
+	return err;
 }
 
 static int i915_frontbuffer_tracking(struct seq_file *m, void *unused)
