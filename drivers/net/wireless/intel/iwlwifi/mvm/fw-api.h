@@ -1681,7 +1681,7 @@ struct iwl_mcc_update_resp {
  * @reserved1: reserved for alignment
  */
 struct iwl_mcc_chub_notif {
-	u16 mcc;
+	__le16 mcc;
 	u8 source_id;
 	u8 reserved1;
 } __packed; /* LAR_MCC_NOTIFY_S */

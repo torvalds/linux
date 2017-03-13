@@ -913,8 +913,8 @@ void iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
 	if (WARN_ON_ONCE(!iwl_mvm_is_lar_supported(mvm)))
 		return;
 
-	mcc[0] = notif->mcc >> 8;
-	mcc[1] = notif->mcc & 0xff;
+	mcc[0] = le16_to_cpu(notif->mcc) >> 8;
+	mcc[1] = le16_to_cpu(notif->mcc) & 0xff;
 	mcc[2] = '\0';
 	src = notif->source_id;
 
