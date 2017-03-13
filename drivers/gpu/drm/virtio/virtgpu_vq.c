@@ -97,8 +97,8 @@ virtio_gpu_get_vbuf(struct virtio_gpu_device *vgdev,
 	struct virtio_gpu_vbuffer *vbuf;
 
 	vbuf = kmem_cache_alloc(vgdev->vbufs, GFP_KERNEL);
-	if (IS_ERR(vbuf))
-		return ERR_CAST(vbuf);
+	if (!vbuf)
+		return ERR_PTR(-ENOMEM);
 	memset(vbuf, 0, VBUFFER_SIZE);
 
 	BUG_ON(size > MAX_INLINE_CMD_SIZE);
