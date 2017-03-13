@@ -8,6 +8,7 @@
  *          Joe Taylor <joe@tensilica.com>
  *
  * Copyright 2001 - 2005 Tensilica Inc.
+ * Copyright 2017 Cadence Design Systems Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -15,6 +16,7 @@
  * option) any later version.
  *
  */
+#include <linux/bootmem.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -76,5 +78,24 @@ static struct notifier_block iss_panic_block = {
 
 void __init platform_setup(char **p_cmdline)
 {
+	int argc = simc_argc();
+	int argv_size = simc_argv_size();
+
+	if (argc > 1) {
+		void **argv = alloc_bootmem(argv_size);
+		char *cmdline = alloc_bootmem(argv_size);
+		int i;
+
+		cmdline[0] = 0;
+		simc_argv((void *)argv);
+
+		for (i = 1; i < argc; ++i) {
+			if (i > 1)
+				strcat(cmdline, " ");
+			strcat(cmdline, argv[i]);
+		}
+		*p_cmdline = cmdline;
+	}
+
 	atomic_notifier_chain_register(&panic_notifier_list, &iss_panic_block);
 }
