@@ -783,9 +783,6 @@ struct platform_device *ci_hdrc_add_device(struct device *dev,
 	}
 
 	pdev->dev.parent = dev;
-	pdev->dev.dma_mask = dev->dma_mask;
-	pdev->dev.dma_parms = dev->dma_parms;
-	dma_set_coherent_mask(&pdev->dev, dev->coherent_dma_mask);
 
 	ret = platform_device_add_resources(pdev, res, nres);
 	if (ret)
