@@ -230,7 +230,8 @@ static int ks_wlan_set_freq(struct net_device *dev,
 	} else {
 		int channel = fwrq->m;
 		/* We should do a better check than that,
-		 * based on the card capability !!! */
+		 * based on the card capability !!!
+		 */
 		if ((channel < 1) || (channel > 14)) {
 			netdev_dbg(dev,
 				   "%s: New channel value of %d is invalid!\n",
@@ -343,7 +344,8 @@ static int ks_wlan_get_essid(struct net_device *dev,
 
 	/* for SLEEP MODE */
 	/* Note : if dwrq->flags != 0, we should
-	 * get the relevant SSID from the SSID list... */
+	 * get the relevant SSID from the SSID list...
+	 */
 	if (priv->reg.ssid.size) {
 		/* Get the current SSID */
 		memcpy(extra, priv->reg.ssid.body, priv->reg.ssid.size);
@@ -1139,7 +1141,8 @@ static int ks_wlan_get_range(struct net_device *dev,
 	range->max_nwid = 0x0000;
 	range->num_channels = 14;
 	/* Should be based on cap_rid.country to give only
-	 * what the current card support */
+	 * what the current card support
+	 */
 	k = 0;
 	for (i = 0; i < 13; i++) {	/* channel 1 -- 13 */
 		range->freq[k].i = i + 1;	/* List index */
@@ -1191,7 +1194,8 @@ static int ks_wlan_get_range(struct net_device *dev,
 
 	/* Set an indication of the max TCP throughput
 	 * in bit/s that we can expect using this interface.
-	 * May be use for QoS stuff... Jean II */
+	 * May be use for QoS stuff... Jean II
+	 */
 	if (i > 2)
 		range->throughput = 5000 * 1000;
 	else
@@ -1225,9 +1229,11 @@ static int ks_wlan_get_range(struct net_device *dev,
 	range->retry_flags = IW_RETRY_ON;
 	range->r_time_flags = IW_RETRY_ON;
 
-	/* Experimental measurements - boundary 11/5.5 Mb/s */
-	/* Note : with or without the (local->rssi), results
-	 * are somewhat different. - Jean II */
+	/* Experimental measurements - boundary 11/5.5 Mb/s
+	 *
+	 * Note : with or without the (local->rssi), results
+	 * are somewhat different. - Jean II
+	 */
 	range->avg_qual.qual = 50;
 	range->avg_qual.level = 186;	/* -70 dBm */
 	range->avg_qual.noise = 0;
@@ -1500,7 +1506,8 @@ static inline char *ks_wlan_translate_scan(struct net_device *dev,
 				 ap->ssid.body);
 
 	/* Rate : stuffing multiple values in a single event require a bit
-	 * more of magic - Jean II */
+	 * more of magic - Jean II
+	 */
 	current_val = current_ev + IW_EV_LCP_LEN;
 
 	iwe.cmd = SIOCGIWRATE;
@@ -1572,7 +1579,8 @@ static inline char *ks_wlan_translate_scan(struct net_device *dev,
 	}
 
 	/* The other data in the scan result are not really
-	 * interesting, so for now drop it - Jean II */
+	 * interesting, so for now drop it - Jean II
+	 */
 	return current_ev;
 }
 
@@ -1599,7 +1607,8 @@ static int ks_wlan_get_scan(struct net_device *dev,
 
 	if (priv->aplist.size == 0) {
 		/* Client error, no scan results...
-		 * The caller need to restart the scan. */
+		 * The caller need to restart the scan.
+		 */
 		DPRINTK(2, "aplist 0\n");
 		return -ENODATA;
 	}
@@ -1974,12 +1983,13 @@ static int ks_wlan_get_encode_ext(struct net_device *dev,
 		return -EPERM;
 
 	/* for SLEEP MODE */
-	/*  WPA (not used ?? wpa_supplicant)
-	   struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
-	   struct iw_encode_ext *enc;
-	   enc = (struct iw_encode_ext *)extra;
-	   int index = dwrq->flags & IW_ENCODE_INDEX;
-	   WPA (not used ?? wpa_supplicant) */
+	/* WPA (not used ?? wpa_supplicant)
+	 * struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
+	 * struct iw_encode_ext *enc;
+	 * enc = (struct iw_encode_ext *)extra;
+	 * int index = dwrq->flags & IW_ENCODE_INDEX;
+	 * WPA (not used ?? wpa_supplicant)
+	 */
 	return 0;
 }
 
@@ -2109,7 +2119,8 @@ static struct iw_statistics *ks_get_wireless_stats(struct net_device *dev)
 	}
 
 	/* Packets discarded in the wireless adapter due to wireless
-	 * specific problems */
+	 * specific problems
+	 */
 	wstats->discard.nwid = 0;	/* Rx invalid nwid      */
 	wstats->discard.code = 0;	/* Rx invalid crypt     */
 	wstats->discard.fragment = 0;	/* Rx invalid frag      */
@@ -3362,8 +3373,10 @@ void send_packet_complete(void *arg1, void *arg2)
 	}
 }
 
-/* Set or clear the multicast filter for this adaptor.
-   This routine is not state sensitive and need not be SMP locked. */
+/*
+ * Set or clear the multicast filter for this adaptor.
+ * This routine is not state sensitive and need not be SMP locked.
+ */
 static
 void ks_wlan_set_multicast_list(struct net_device *dev)
 {
