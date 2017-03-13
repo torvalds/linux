@@ -435,6 +435,7 @@ void vmalloc_sync_all(void)
 static noinline int vmalloc_fault(unsigned long address)
 {
 	pgd_t *pgd, *pgd_ref;
+	p4d_t *p4d, *p4d_ref;
 	pud_t *pud, *pud_ref;
 	pmd_t *pmd, *pmd_ref;
 	pte_t *pte, *pte_ref;
@@ -458,8 +459,28 @@ static noinline int vmalloc_fault(unsigned long address)
 	if (pgd_none(*pgd)) {
 		set_pgd(pgd, *pgd_ref);
 		arch_flush_lazy_mmu_mode();
-	} else {
+	} else if (CONFIG_PGTABLE_LEVELS > 4) {
+		/*
+		 * With folded p4d, pgd_none() is always false, so the pgd may
+		 * point to an empty page table entry and pgd_page_vaddr()
+		 * will return garbage.
+		 *
+		 * We will do the correct sanity check on the p4d level.
+		 */
 		BUG_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_ref));
+	}
+
+	/* With 4-level paging, copying happens on the p4d level. */
+	p4d = p4d_offset(pgd, address);
+	p4d_ref = p4d_offset(pgd_ref, address);
+	if (p4d_none(*p4d_ref))
+		return -1;
+
+	if (p4d_none(*p4d)) {
+		set_p4d(p4d, *p4d_ref);
+		arch_flush_lazy_mmu_mode();
+	} else {
+		BUG_ON(p4d_pfn(*p4d) != p4d_pfn(*p4d_ref));
 	}
 
 	/*
@@ -467,8 +488,8 @@ static noinline int vmalloc_fault(unsigned long address)
 	 * are shared:
 	 */
 
-	pud = pud_offset(pgd, address);
-	pud_ref = pud_offset(pgd_ref, address);
+	pud = pud_offset(p4d, address);
+	pud_ref = pud_offset(p4d_ref, address);
 	if (pud_none(*pud_ref))
 		return -1;
 
