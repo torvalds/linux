@@ -508,7 +508,26 @@ struct iwl_nvm_access_cmd {
 
 #define NUM_OF_FW_PAGING_BLOCKS	33 /* 32 for data and 1 block for CSS */
 
-/*
+/**
+ * struct iwl_fw_paging_cmd_v1 - paging layout
+ *
+ * (FW_PAGING_BLOCK_CMD = 0x4f)
+ *
+ * Send to FW the paging layout in the driver.
+ *
+ * @flags: various flags for the command
+ * @block_size: the block size in powers of 2
+ * @block_num: number of blocks specified in the command.
+ * @device_phy_addr: virtual addresses from device side
+ */
+struct iwl_fw_paging_cmd_v1 {
+	__le32 flags;
+	__le32 block_size;
+	__le32 block_num;
+	__le32 device_phy_addr[NUM_OF_FW_PAGING_BLOCKS];
+} __packed; /* FW_PAGING_BLOCK_CMD_API_S_VER_1 */
+
+/**
  * struct iwl_fw_paging_cmd - paging layout
  *
  * (FW_PAGING_BLOCK_CMD = 0x4f)
@@ -519,16 +538,12 @@ struct iwl_nvm_access_cmd {
  * @block_size: the block size in powers of 2
  * @block_num: number of blocks specified in the command.
  * @device_phy_addr: virtual addresses from device side
- *	32 bit address for API version 1, 64 bit address for API version 2.
-*/
+ */
 struct iwl_fw_paging_cmd {
 	__le32 flags;
 	__le32 block_size;
 	__le32 block_num;
-	union {
-		__le32 addr32[NUM_OF_FW_PAGING_BLOCKS];
-		__le64 addr64[NUM_OF_FW_PAGING_BLOCKS];
-	} device_phy_addr;
+	__le64 device_phy_addr[NUM_OF_FW_PAGING_BLOCKS];
 } __packed; /* FW_PAGING_BLOCK_CMD_API_S_VER_2 */
 
 /*
