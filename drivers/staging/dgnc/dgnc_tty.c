@@ -1411,7 +1411,7 @@ static int dgnc_tty_chars_in_buffer(struct tty_struct *tty)
 	else
 		chars = thead - ttail + WQUEUESIZE;
 
-	return (int)chars;
+	return chars;
 }
 
 /*
