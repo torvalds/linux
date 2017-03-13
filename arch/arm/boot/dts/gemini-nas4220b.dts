@@ -1,0 +1,102 @@
+/*
+ * Device Tree file for the Gemini-based Raidsonic NAS IB-4220-B
+ */
+
+/dts-v1/;
+
+#include "gemini.dtsi"
+#include <dt-bindings/input/input.h>
+
+/ {
+	model = "Raidsonic NAS IB-4220-B";
+	compatible = "raidsonic,ib-4220-b", "cortina,gemini";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	memory { /* 128 MB */
+		device_type = "memory";
+		reg = <0x00000000 0x8000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,19200n8";
+		stdout-path = &uart0;
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		button@29 {
+			debounce_interval = <50>;
+			wakeup-source;
+			linux,code = <KEY_SETUP>;
+			label = "Backup button";
+			gpios = <&gpio1 29 GPIO_ACTIVE_LOW>;
+		};
+		button@31 {
+			debounce_interval = <50>;
+			wakeup-source;
+			linux,code = <KEY_RESTART>;
+			label = "Softreset button";
+			gpios = <&gpio1 31 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led@28 {
+			label = "nas4220b:orange:hdd";
+			gpios = <&gpio1 28 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+		led@30 {
+			label = "nas4220b:green:os";
+			gpios = <&gpio1 30 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	soc {
+		flash@30000000 {
+			status = "okay";
+			/* 16MB of flash */
+			reg = <0x30000000 0x01000000>;
+
+			partition@0 {
+				label = "RedBoot";
+				reg = <0x00000000 0x00020000>;
+				read-only;
+			};
+			partition@20000 {
+				label = "Kernel";
+				reg = <0x00020000 0x00300000>;
+			};
+			partition@320000 {
+				label = "Ramdisk";
+				reg = <0x00320000 0x00600000>;
+			};
+			partition@920000 {
+				label = "Application";
+				reg = <0x00920000 0x00600000>;
+			};
+			partition@f20000 {
+				label = "VCTL";
+				reg = <0x00f20000 0x00020000>;
+				read-only;
+			};
+			partition@f40000 {
+				label = "CurConf";
+				reg = <0x00f40000 0x000a0000>;
+				read-only;
+			};
+			partition@fe0000 {
+				label = "FIS directory";
+				reg = <0x00fe0000 0x00020000>;
+				read-only;
+			};
+		};
+	};
+};

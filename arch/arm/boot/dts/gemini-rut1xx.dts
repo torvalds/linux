@@ -1,0 +1,65 @@
+/*
+ * Device Tree file for Teltonika RUT1xx
+ */
+
+/dts-v1/;
+
+#include "gemini.dtsi"
+#include <dt-bindings/input/input.h>
+
+/ {
+	model = "Teltonika RUT1xx";
+	compatible = "teltonika,rut1xx", "cortina,gemini";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	memory { /* 128 MB */
+		device_type = "memory";
+		reg = <0x00000000 0x8000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8";
+		stdout-path = &uart0;
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		button@28 {
+			debounce_interval = <50>;
+			wakeup-source;
+			linux,code = <KEY_SETUP>;
+			label = "Reset to defaults";
+			gpios = <&gpio1 28 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led@7 {
+			/* FIXME: add the LED color */
+			label = "rut1xx::gsm";
+			gpios = <&gpio0 7 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+		led@31 {
+			/* FIXME: add the LED color */
+			label = "rut1xx::power";
+			gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	soc {
+		flash@30000000 {
+			status = "okay";
+			/* 8MB of flash */
+			reg = <0x30000000 0x00800000>;
+			/* TODO: add flash partitions here */
+		};
+	};
+};
