@@ -432,7 +432,7 @@ static void speak_char(u16 ch)
 	char *cp;
 	struct var_t *direct = spk_get_var(DIRECT);
 
-	if (direct && direct->u.n.value) {
+	if (ch >= 0x100 || (direct && direct->u.n.value)) {
 		if (IS_CHAR(ch, B_CAP)) {
 			spk_pitch_shift++;
 			synth_printf("%s", spk_str_caps_start);
@@ -443,8 +443,6 @@ static void speak_char(u16 ch)
 		return;
 	}
 
-	if (ch >= 0x100)
-		return;
 	cp = spk_characters[ch];
 	if (cp == NULL) {
 		pr_info("speak_char: cp == NULL!\n");
@@ -712,17 +710,16 @@ static void spell_word(struct vc_data *vc)
 	char *cp1;
 	char *str_cap = spk_str_caps_stop;
 	char *last_cap = spk_str_caps_stop;
+	struct var_t *direct = spk_get_var(DIRECT);
 	u16 ch;
 
 	if (!get_word(vc))
 		return;
 	while ((ch = *cp)) {
-		if (ch >= 0x100)
-			/* FIXME */
-			continue;
 		if (cp != buf)
 			synth_printf(" %s ", delay_str[spk_spell_delay]);
-		if (IS_CHAR(ch, B_CAP)) {
+		/* FIXME: Non-latin1 considered as lower case */
+		if (ch < 0x100 && IS_CHAR(ch, B_CAP)) {
 			str_cap = spk_str_caps_start;
 			if (*spk_str_caps_stop)
 				spk_pitch_shift++;
@@ -734,18 +731,21 @@ static void spell_word(struct vc_data *vc)
 			synth_printf("%s", str_cap);
 			last_cap = str_cap;
 		}
-		if (this_speakup_key == SPELL_PHONETIC &&
+		if (ch >= 0x100 || (direct && direct->u.n.value)) {
+			synth_putwc_s(ch);
+		} else if (this_speakup_key == SPELL_PHONETIC &&
 		    ch <= 0x7f && isalpha(ch)) {
 			ch &= 0x1f;
 			cp1 = phonetic[--ch];
+			synth_printf("%s", cp1);
 		} else {
 			cp1 = spk_characters[ch];
 			if (*cp1 == '^') {
 				synth_printf("%s", spk_msg_get(MSG_CTRL));
 				cp1++;
 			}
+			synth_printf("%s", cp1);
 		}
-		synth_printf("%s", cp1);
 		cp++;
 	}
 	if (str_cap != spk_str_caps_stop)
