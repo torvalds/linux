@@ -1661,7 +1661,7 @@ xilinx_cdma_prep_memcpy(struct dma_chan *dchan, dma_addr_t dma_dst,
 {
 	struct xilinx_dma_chan *chan = to_xilinx_chan(dchan);
 	struct xilinx_dma_tx_descriptor *desc;
-	struct xilinx_cdma_tx_segment *segment, *prev;
+	struct xilinx_cdma_tx_segment *segment;
 	struct xilinx_cdma_desc_hw *hw;
 
 	if (!len || len > XILINX_DMA_MAX_TRANS_LEN)
@@ -1688,21 +1688,11 @@ xilinx_cdma_prep_memcpy(struct dma_chan *dchan, dma_addr_t dma_dst,
 		hw->dest_addr_msb = upper_32_bits(dma_dst);
 	}
 
-	/* Fill the previous next descriptor with current */
-	prev = list_last_entry(&desc->segments,
-			       struct xilinx_cdma_tx_segment, node);
-	prev->hw.next_desc = segment->phys;
-
 	/* Insert the segment into the descriptor segments list. */
 	list_add_tail(&segment->node, &desc->segments);
 
-	prev = segment;
-
-	/* Link the last hardware descriptor with the first. */
-	segment = list_first_entry(&desc->segments,
-				struct xilinx_cdma_tx_segment, node);
 	desc->async_tx.phys = segment->phys;
-	prev->hw.next_desc = segment->phys;
+	hw->next_desc = segment->phys;
 
 	return &desc->async_tx;
 
