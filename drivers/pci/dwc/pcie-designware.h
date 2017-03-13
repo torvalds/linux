@@ -143,6 +143,7 @@ struct pcie_port {
 };
 
 struct dw_pcie_ops {
+	u64	(*cpu_addr_fixup)(u64 cpu_addr);
 	u32	(*readl_dbi)(struct dw_pcie *pcie, u32 reg);
 	void	(*writel_dbi)(struct dw_pcie *pcie, u32 reg, u32 val);
 	int	(*link_up)(struct dw_pcie *pcie);
