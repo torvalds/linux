@@ -1406,8 +1406,8 @@ static int ks_wlan_set_scan(struct net_device *dev,
 
 	/* for SLEEP MODE */
 	/* specified SSID SCAN */
-	if (wrqu->data.length == sizeof(struct iw_scan_req)
-	    && wrqu->data.flags & IW_SCAN_THIS_ESSID) {
+	if (wrqu->data.length == sizeof(struct iw_scan_req) &&
+	    wrqu->data.flags & IW_SCAN_THIS_ESSID) {
 		req = (struct iw_scan_req *)extra;
 		priv->scan_ssid_len = req->essid_len;
 		memcpy(priv->scan_ssid, req->essid, priv->scan_ssid_len);
