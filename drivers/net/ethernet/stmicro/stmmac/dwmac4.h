@@ -164,8 +164,25 @@ enum power_event {
 #define GMAC_HI_REG_AE			BIT(31)
 
 /*  MTL registers */
+#define MTL_OPERATION_MODE		0x00000c00
+#define MTL_OPERATION_SCHALG_MASK	GENMASK(6, 5)
+#define MTL_OPERATION_SCHALG_WRR	(0x0 << 5)
+#define MTL_OPERATION_SCHALG_WFQ	(0x1 << 5)
+#define MTL_OPERATION_SCHALG_DWRR	(0x2 << 5)
+#define MTL_OPERATION_SCHALG_SP		(0x3 << 5)
+#define MTL_OPERATION_RAA		BIT(2)
+#define MTL_OPERATION_RAA_SP		(0x0 << 2)
+#define MTL_OPERATION_RAA_WSP		(0x1 << 2)
+
 #define MTL_INT_STATUS			0x00000c20
-#define MTL_INT_Q0			BIT(0)
+#define MTL_INT_QX(x)			BIT(x)
+
+#define MTL_RXQ_DMA_MAP0		0x00000c30 /* queue 0 to 3 */
+#define MTL_RXQ_DMA_MAP1		0x00000c34 /* queue 4 to 7 */
+#define MTL_RXQ_DMA_Q04MDMACH_MASK	GENMASK(3, 0)
+#define MTL_RXQ_DMA_Q04MDMACH(x)	((x) << 0)
+#define MTL_RXQ_DMA_QXMDMACH_MASK(x)	GENMASK(11 + (8 * ((x) - 1)), 8 * (x))
+#define MTL_RXQ_DMA_QXMDMACH(chan, q)	((chan) << (8 * (q)))
 
 #define MTL_CHAN_BASE_ADDR		0x00000d00
 #define MTL_CHAN_BASE_OFFSET		0x40
@@ -215,6 +232,46 @@ enum power_event {
 #define MTL_OP_MODE_RTC_64		0
 #define MTL_OP_MODE_RTC_96		(2 << MTL_OP_MODE_RTC_SHIFT)
 #define MTL_OP_MODE_RTC_128		(3 << MTL_OP_MODE_RTC_SHIFT)
+
+/* MTL ETS Control register */
+#define MTL_ETS_CTRL_BASE_ADDR		0x00000d10
+#define MTL_ETS_CTRL_BASE_OFFSET	0x40
+#define MTL_ETSX_CTRL_BASE_ADDR(x)	(MTL_ETS_CTRL_BASE_ADDR + \
+					((x) * MTL_ETS_CTRL_BASE_OFFSET))
+
+#define MTL_ETS_CTRL_CC			BIT(3)
+#define MTL_ETS_CTRL_AVALG		BIT(2)
+
+/* MTL Queue Quantum Weight */
+#define MTL_TXQ_WEIGHT_BASE_ADDR	0x00000d18
+#define MTL_TXQ_WEIGHT_BASE_OFFSET	0x40
+#define MTL_TXQX_WEIGHT_BASE_ADDR(x)	(MTL_TXQ_WEIGHT_BASE_ADDR + \
+					((x) * MTL_TXQ_WEIGHT_BASE_OFFSET))
+#define MTL_TXQ_WEIGHT_ISCQW_MASK	GENMASK(20, 0)
+
+/* MTL sendSlopeCredit register */
+#define MTL_SEND_SLP_CRED_BASE_ADDR	0x00000d1c
+#define MTL_SEND_SLP_CRED_OFFSET	0x40
+#define MTL_SEND_SLP_CREDX_BASE_ADDR(x)	(MTL_SEND_SLP_CRED_BASE_ADDR + \
+					((x) * MTL_SEND_SLP_CRED_OFFSET))
+
+#define MTL_SEND_SLP_CRED_SSC_MASK	GENMASK(13, 0)
+
+/* MTL hiCredit register */
+#define MTL_HIGH_CRED_BASE_ADDR		0x00000d20
+#define MTL_HIGH_CRED_OFFSET		0x40
+#define MTL_HIGH_CREDX_BASE_ADDR(x)	(MTL_HIGH_CRED_BASE_ADDR + \
+					((x) * MTL_HIGH_CRED_OFFSET))
+
+#define MTL_HIGH_CRED_HC_MASK		GENMASK(28, 0)
+
+/* MTL loCredit register */
+#define MTL_LOW_CRED_BASE_ADDR		0x00000d24
+#define MTL_LOW_CRED_OFFSET		0x40
+#define MTL_LOW_CREDX_BASE_ADDR(x)	(MTL_LOW_CRED_BASE_ADDR + \
+					((x) * MTL_LOW_CRED_OFFSET))
+
+#define MTL_HIGH_CRED_LC_MASK		GENMASK(28, 0)
 
 /*  MTL debug */
 #define MTL_DEBUG_TXSTSFSTS		BIT(5)
