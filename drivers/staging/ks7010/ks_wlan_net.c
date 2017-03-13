@@ -1885,8 +1885,7 @@ static int ks_wlan_set_encode_ext(struct net_device *dev,
 	/* for SLEEP MODE */
 	if (index < 1 || index > 4)
 		return -EINVAL;
-	else
-		index--;
+	index--;
 
 	if (dwrq->flags & IW_ENCODE_DISABLED)
 		priv->wpa.key[index].key_len = 0;
@@ -2076,20 +2075,21 @@ static int ks_wlan_set_pmksa(struct net_device *dev,
 	case IW_PMKSA_REMOVE:
 		if (list_empty(&priv->pmklist.head)) {	/* list empty */
 			return -EINVAL;
-		} else {	/* search cache data */
-			list_for_each(ptr, &priv->pmklist.head) {
-				pmk = list_entry(ptr, struct pmk_t, list);
-				if (!memcmp(pmksa->bssid.sa_data, pmk->bssid, ETH_ALEN)) {	/* match address! list del. */
-					eth_zero_addr(pmk->bssid);
-					memset(pmk->pmkid, 0, IW_PMKID_LEN);
-					list_del_init(&pmk->list);
-					break;
-				}
-			}
-			if (ptr == &priv->pmklist.head) {	/* not find address. */
-				return 0;
+		}
+		/* search cache data */
+		list_for_each(ptr, &priv->pmklist.head) {
+			pmk = list_entry(ptr, struct pmk_t, list);
+			if (!memcmp(pmksa->bssid.sa_data, pmk->bssid, ETH_ALEN)) {	/* match address! list del. */
+				eth_zero_addr(pmk->bssid);
+				memset(pmk->pmkid, 0, IW_PMKID_LEN);
+				list_del_init(&pmk->list);
+				break;
 			}
 		}
+		if (ptr == &priv->pmklist.head) {	/* not find address. */
+			return 0;
+		}
+
 		break;
 	case IW_PMKSA_FLUSH:
 		memset(&priv->pmklist, 0, sizeof(priv->pmklist));
