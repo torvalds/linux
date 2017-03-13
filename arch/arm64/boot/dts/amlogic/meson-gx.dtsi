@@ -410,7 +410,6 @@
 			};
 		};
 
-
 		hiubus: hiubus@c883c000 {
 			compatible = "simple-bus";
 			reg = <0x0 0xc883c000 0x0 0x2000>;
