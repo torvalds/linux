@@ -173,6 +173,9 @@ OPTIONS
 	By default, every sort keys not specified in -F will be appended
 	automatically.
 
+	If the keys starts with a prefix '+', then it will append the specified
+        field(s) to the default field order. For example: perf report -F +period,sample.
+
 -p::
 --parent=<regex>::
         A regex filter to identify parent. The parent is a caller of this
