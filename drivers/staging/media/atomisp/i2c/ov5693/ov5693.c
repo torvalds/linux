@@ -1132,7 +1132,7 @@ static int ov5693_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_FOCUS_STATUS:
 		ret = ov5693_q_focus_status(&dev->sd, &ctrl->val);
-
+		break;
 	case V4L2_CID_BIN_FACTOR_HORZ:
 		ret = ov5693_g_bin_factor_x(&dev->sd, &ctrl->val);
 		break;
