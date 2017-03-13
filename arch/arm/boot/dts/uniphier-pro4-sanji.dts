@@ -85,6 +85,7 @@
 	eeprom@54 {
 		compatible = "st,24c64";
 		reg = <0x54>;
+		pagesize = <32>;
 	};
 };
 
