@@ -1620,7 +1620,6 @@ static int ks_wlan_get_scan(struct net_device *dev,
 			return -E2BIG;
 		}
 		current_ev = ks_wlan_translate_scan(dev, current_ev,
-//                                                  extra + IW_SCAN_MAX_DATA,
 						    extra + dwrq->length,
 						    &priv->current_ap);
 	}
@@ -1633,7 +1632,6 @@ static int ks_wlan_get_scan(struct net_device *dev,
 		}
 		/* Translate to WE format this entry */
 		current_ev = ks_wlan_translate_scan(dev, info, current_ev,
-//                                                  extra + IW_SCAN_MAX_DATA,
 						    extra + dwrq->length,
 						    &priv->aplist.ap[i]);
 	}
