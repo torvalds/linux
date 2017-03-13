@@ -2400,7 +2400,7 @@ static int ks_wlan_data_write(struct net_device *dev,
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
 	/* for SLEEP MODE */
-	wbuff = (unsigned char *)kmalloc(dwrq->length, GFP_ATOMIC);
+	wbuff = kmalloc(dwrq->length, GFP_ATOMIC);
 	if (!wbuff)
 		return -EFAULT;
 	memcpy(wbuff, extra, dwrq->length);
