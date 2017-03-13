@@ -84,8 +84,9 @@ out_no_cigar:
 	return ERR_PTR(err);
 }
 
-int rds_ib_map_fmr(struct rds_ib_device *rds_ibdev, struct rds_ib_mr *ibmr,
-		   struct scatterlist *sg, unsigned int nents)
+static int rds_ib_map_fmr(struct rds_ib_device *rds_ibdev,
+			  struct rds_ib_mr *ibmr, struct scatterlist *sg,
+			  unsigned int nents)
 {
 	struct ib_device *dev = rds_ibdev->dev;
 	struct rds_ib_fmr *fmr = &ibmr->u.fmr;
