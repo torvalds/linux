@@ -860,7 +860,9 @@ static const struct adreno_gpu_funcs funcs = {
 		.idle = a5xx_idle,
 		.irq = a5xx_irq,
 		.destroy = a5xx_destroy,
+#ifdef CONFIG_DEBUG_FS
 		.show = a5xx_show,
+#endif
 	},
 	.get_timestamp = a5xx_get_timestamp,
 };
