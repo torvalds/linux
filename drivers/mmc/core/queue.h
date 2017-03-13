@@ -51,6 +51,8 @@ struct mmc_queue {
 	unsigned long		qslots;
 };
 
+extern int mmc_queue_alloc_shared_queue(struct mmc_card *card);
+extern void mmc_queue_free_shared_queue(struct mmc_card *card);
 extern int mmc_init_queue(struct mmc_queue *, struct mmc_card *, spinlock_t *,
 			  const char *);
 extern void mmc_cleanup_queue(struct mmc_queue *);

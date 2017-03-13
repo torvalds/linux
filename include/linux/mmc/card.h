@@ -208,6 +208,7 @@ struct sdio_cis {
 struct mmc_host;
 struct sdio_func;
 struct sdio_func_tuple;
+struct mmc_queue_req;
 
 #define SDIO_MAX_FUNCS		7
 
@@ -300,6 +301,10 @@ struct mmc_card {
 	struct dentry		*debugfs_root;
 	struct mmc_part	part[MMC_NUM_PHY_PARTITION]; /* physical partitions */
 	unsigned int    nr_parts;
+
+	struct mmc_queue_req	*mqrq;		/* Shared queue structure */
+	unsigned int		bouncesz;	/* Bounce buffer size */
+	int			qdepth;		/* Shared queue depth */
 };
 
 static inline bool mmc_large_sector(struct mmc_card *card)
