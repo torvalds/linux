@@ -368,7 +368,7 @@ int hostif_data_indication_wpa(struct ks_wlan_private *priv,
 				mic_failure->failure = 2;
 				mic_failure->counter =
 					(uint16_t)((now - mic_failure->last_failure_time) / HZ);
-				if (!mic_failure->counter)	/* mic_failure counter value range 1-60 */
+				if (!mic_failure->counter)	/*  range 1-60 */
 					mic_failure->counter = 1;
 			}
 			priv->wpa.mic_failure.last_failure_time = now;
