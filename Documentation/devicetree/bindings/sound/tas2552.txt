@@ -25,6 +25,9 @@ Example:
 tas2552: tas2552@41 {
 	compatible = "ti,tas2552";
 	reg = <0x41>;
+	vbat-supply = <&reg_vbat>;
+	iovdd-supply = <&reg_iovdd>;
+	avdd-supply = <&reg_avdd>;
 	enable-gpio = <&gpio4 2 GPIO_ACTIVE_HIGH>;
 };
 
