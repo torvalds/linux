@@ -1511,8 +1511,10 @@ static inline char *ks_wlan_translate_scan(struct net_device *dev,
 	current_val = current_ev + IW_EV_LCP_LEN;
 
 	iwe.cmd = SIOCGIWRATE;
-	/* Those two flags are ignored... */
-	iwe.u.bitrate.fixed = iwe.u.bitrate.disabled = 0;
+
+	/* These two flags are ignored... */
+	iwe.u.bitrate.fixed = 0;
+	iwe.u.bitrate.disabled = 0;
 
 	/* Max 16 values */
 	for (i = 0; i < 16; i++) {
