@@ -395,6 +395,10 @@
 	clocks = <&clkc CLKID_I2C>;
 };
 
+&i2c_AO {
+	clocks = <&clkc CLKID_AO_I2C>;
+};
+
 &i2c_B {
 	clocks = <&clkc CLKID_I2C>;
 };
@@ -432,6 +436,10 @@
 		 <&xtal>,
 		 <&clkc CLKID_FCLK_DIV2>;
 	clock-names = "core", "clkin0", "clkin1";
+};
+
+&spifc {
+	clocks = <&clkc CLKID_SPI>;
 };
 
 &vpu {
