@@ -1401,7 +1401,8 @@ static int set_syndrome_sources(struct page **srcs,
 		     (test_bit(R5_Wantdrain, &dev->flags) ||
 		      test_bit(R5_InJournal, &dev->flags))) ||
 		    (srctype == SYNDROME_SRC_WRITTEN &&
-		     dev->written)) {
+		     (dev->written ||
+		      test_bit(R5_InJournal, &dev->flags)))) {
 			if (test_bit(R5_InJournal, &dev->flags))
 				srcs[slot] = sh->dev[i].orig_page;
 			else
