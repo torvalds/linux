@@ -132,7 +132,7 @@ static int raumfeld_cs4270_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops raumfeld_cs4270_ops = {
+static const struct snd_soc_ops raumfeld_cs4270_ops = {
 	.startup = raumfeld_cs4270_startup,
 	.shutdown = raumfeld_cs4270_shutdown,
 	.hw_params = raumfeld_cs4270_hw_params,

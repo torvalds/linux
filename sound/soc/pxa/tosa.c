@@ -85,7 +85,7 @@ static int tosa_startup(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static struct snd_soc_ops tosa_ops = {
+static const struct snd_soc_ops tosa_ops = {
 	.startup = tosa_startup,
 };
 

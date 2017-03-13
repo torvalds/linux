@@ -152,7 +152,7 @@ err:
 	return ret;
 }
 
-static struct snd_soc_ops z2_ops = {
+static const struct snd_soc_ops z2_ops = {
 	.hw_params = z2_hw_params,
 };
 

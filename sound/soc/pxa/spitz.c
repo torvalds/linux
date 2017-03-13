@@ -156,7 +156,7 @@ static int spitz_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops spitz_ops = {
+static const struct snd_soc_ops spitz_ops = {
 	.startup = spitz_startup,
 	.hw_params = spitz_hw_params,
 };
