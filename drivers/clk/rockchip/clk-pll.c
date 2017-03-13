@@ -238,11 +238,9 @@ rockchip_rk3066_pll_clk_set_by_auto(struct rockchip_clk_pll *pll,
 
 	/* output the best PLL setting */
 	if ((nr_out <= PLL_NR_MAX) && (no_out > 0)) {
-		if (rate_table->nr && rate_table->nf && rate_table->no) {
-			rate_table->nr = nr_out;
-			rate_table->nf = nf_out;
-			rate_table->no = no_out;
-		}
+		rate_table->nr = nr_out;
+		rate_table->nf = nf_out;
+		rate_table->no = no_out;
 	} else {
 		return NULL;
 	}
