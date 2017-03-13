@@ -27,6 +27,7 @@
 #include <linux/pagemap.h>
 #include <drm/drmP.h>
 #include <drm/amdgpu_drm.h>
+#include <drm/drm_syncobj.h>
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
 
@@ -154,6 +155,8 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 			break;
 
 		case AMDGPU_CHUNK_ID_DEPENDENCIES:
+		case AMDGPU_CHUNK_ID_SYNCOBJ_IN:
+		case AMDGPU_CHUNK_ID_SYNCOBJ_OUT:
 			break;
 
 		default:
@@ -682,6 +685,11 @@ static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bo
 		ttm_eu_backoff_reservation(&parser->ticket,
 					   &parser->validated);
 	}
+
+	for (i = 0; i < parser->num_post_dep_syncobjs; i++)
+		drm_syncobj_put(parser->post_dep_syncobjs[i]);
+	kfree(parser->post_dep_syncobjs);
+
 	dma_fence_put(parser->fence);
 
 	if (parser->ctx)
@@ -971,6 +979,64 @@ static int amdgpu_cs_process_fence_dep(struct amdgpu_cs_parser *p,
 	return 0;
 }
 
+static int amdgpu_syncobj_lookup_and_add_to_sync(struct amdgpu_cs_parser *p,
+						 uint32_t handle)
+{
+	int r;
+	struct dma_fence *fence;
+	r = drm_syncobj_fence_get(p->filp, handle, &fence);
+	if (r)
+		return r;
+
+	r = amdgpu_sync_fence(p->adev, &p->job->sync, fence);
+	dma_fence_put(fence);
+
+	return r;
+}
+
+static int amdgpu_cs_process_syncobj_in_dep(struct amdgpu_cs_parser *p,
+					    struct amdgpu_cs_chunk *chunk)
+{
+	unsigned num_deps;
+	int i, r;
+	struct drm_amdgpu_cs_chunk_sem *deps;
+
+	deps = (struct drm_amdgpu_cs_chunk_sem *)chunk->kdata;
+	num_deps = chunk->length_dw * 4 /
+		sizeof(struct drm_amdgpu_cs_chunk_sem);
+
+	for (i = 0; i < num_deps; ++i) {
+		r = amdgpu_syncobj_lookup_and_add_to_sync(p, deps[i].handle);
+		if (r)
+			return r;
+	}
+	return 0;
+}
+
+static int amdgpu_cs_process_syncobj_out_dep(struct amdgpu_cs_parser *p,
+					     struct amdgpu_cs_chunk *chunk)
+{
+	unsigned num_deps;
+	int i;
+	struct drm_amdgpu_cs_chunk_sem *deps;
+	deps = (struct drm_amdgpu_cs_chunk_sem *)chunk->kdata;
+	num_deps = chunk->length_dw * 4 /
+		sizeof(struct drm_amdgpu_cs_chunk_sem);
+
+	p->post_dep_syncobjs = kmalloc_array(num_deps,
+					     sizeof(struct drm_syncobj *),
+					     GFP_KERNEL);
+	p->num_post_dep_syncobjs = 0;
+
+	for (i = 0; i < num_deps; ++i) {
+		p->post_dep_syncobjs[i] = drm_syncobj_find(p->filp, deps[i].handle);
+		if (!p->post_dep_syncobjs[i])
+			return -EINVAL;
+		p->num_post_dep_syncobjs++;
+	}
+	return 0;
+}
+
 static int amdgpu_cs_dependencies(struct amdgpu_device *adev,
 				  struct amdgpu_cs_parser *p)
 {
@@ -985,10 +1051,28 @@ static int amdgpu_cs_dependencies(struct amdgpu_device *adev,
 			r = amdgpu_cs_process_fence_dep(p, chunk);
 			if (r)
 				return r;
+		} else if (chunk->chunk_id == AMDGPU_CHUNK_ID_SYNCOBJ_IN) {
+			r = amdgpu_cs_process_syncobj_in_dep(p, chunk);
+			if (r)
+				return r;
+		} else if (chunk->chunk_id == AMDGPU_CHUNK_ID_SYNCOBJ_OUT) {
+			r = amdgpu_cs_process_syncobj_out_dep(p, chunk);
+			if (r)
+				return r;
 		}
 	}
 
 	return 0;
+}
+
+static void amdgpu_cs_post_dependencies(struct amdgpu_cs_parser *p)
+{
+	int i;
+
+	for (i = 0; i < p->num_post_dep_syncobjs; ++i) {
+		drm_syncobj_replace_fence(p->filp, p->post_dep_syncobjs[i],
+					  p->fence);
+	}
 }
 
 static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
@@ -1011,6 +1095,9 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	job->owner = p->filp;
 	job->fence_ctx = entity->fence_context;
 	p->fence = dma_fence_get(&job->base.s_fence->finished);
+
+	amdgpu_cs_post_dependencies(p);
+
 	cs->out.handle = amdgpu_ctx_add_fence(p->ctx, ring, p->fence);
 	job->uf_sequence = cs->out.handle;
 	amdgpu_job_free_resources(job);
@@ -1018,7 +1105,6 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 
 	trace_amdgpu_cs_ioctl(job);
 	amd_sched_entity_push_job(&job->base);
-
 	return 0;
 }
 

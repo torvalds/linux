@@ -440,6 +440,8 @@ struct drm_amdgpu_gem_va {
 #define AMDGPU_CHUNK_ID_IB		0x01
 #define AMDGPU_CHUNK_ID_FENCE		0x02
 #define AMDGPU_CHUNK_ID_DEPENDENCIES	0x03
+#define AMDGPU_CHUNK_ID_SYNCOBJ_IN      0x04
+#define AMDGPU_CHUNK_ID_SYNCOBJ_OUT     0x05
 
 struct drm_amdgpu_cs_chunk {
 	__u32		chunk_id;
@@ -505,6 +507,10 @@ struct drm_amdgpu_cs_chunk_dep {
 struct drm_amdgpu_cs_chunk_fence {
 	__u32 handle;
 	__u32 offset;
+};
+
+struct drm_amdgpu_cs_chunk_sem {
+	__u32 handle;
 };
 
 struct drm_amdgpu_cs_chunk_data {
