@@ -425,7 +425,8 @@ static inline pmd_t * __init early_ioremap_pmd(unsigned long addr)
 	/* Don't assume we're using swapper_pg_dir at this point */
 	pgd_t *base = __va(read_cr3());
 	pgd_t *pgd = &base[pgd_index(addr)];
-	pud_t *pud = pud_offset(pgd, addr);
+	p4d_t *p4d = p4d_offset(pgd, addr);
+	pud_t *pud = pud_offset(p4d, addr);
 	pmd_t *pmd = pmd_offset(pud, addr);
 
 	return pmd;

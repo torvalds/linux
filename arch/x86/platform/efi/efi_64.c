@@ -166,6 +166,7 @@ void efi_sync_low_kernel_mappings(void)
 {
 	unsigned num_entries;
 	pgd_t *pgd_k, *pgd_efi;
+	p4d_t *p4d_k, *p4d_efi;
 	pud_t *pud_k, *pud_efi;
 
 	if (efi_enabled(EFI_OLD_MEMMAP))
@@ -197,16 +198,20 @@ void efi_sync_low_kernel_mappings(void)
 	BUILD_BUG_ON((EFI_VA_END & ~PUD_MASK) != 0);
 
 	pgd_efi = efi_pgd + pgd_index(EFI_VA_END);
-	pud_efi = pud_offset(pgd_efi, 0);
+	p4d_efi = p4d_offset(pgd_efi, 0);
+	pud_efi = pud_offset(p4d_efi, 0);
 
 	pgd_k = pgd_offset_k(EFI_VA_END);
-	pud_k = pud_offset(pgd_k, 0);
+	p4d_k = p4d_offset(pgd_k, 0);
+	pud_k = pud_offset(p4d_k, 0);
 
 	num_entries = pud_index(EFI_VA_END);
 	memcpy(pud_efi, pud_k, sizeof(pud_t) * num_entries);
 
-	pud_efi = pud_offset(pgd_efi, EFI_VA_START);
-	pud_k = pud_offset(pgd_k, EFI_VA_START);
+	p4d_efi = p4d_offset(pgd_efi, EFI_VA_START);
+	pud_efi = pud_offset(p4d_efi, EFI_VA_START);
+	p4d_k = p4d_offset(pgd_k, EFI_VA_START);
+	pud_k = pud_offset(p4d_k, EFI_VA_START);
 
 	num_entries = PTRS_PER_PUD - pud_index(EFI_VA_START);
 	memcpy(pud_efi, pud_k, sizeof(pud_t) * num_entries);
