@@ -87,6 +87,12 @@ static inline unsigned long rcu_seq_snap(unsigned long *sp)
 	return s;
 }
 
+/* Return the current value the update side's sequence number, no ordering. */
+static inline unsigned long rcu_seq_current(unsigned long *sp)
+{
+	return READ_ONCE(*sp);
+}
+
 /*
  * Given a snapshot from rcu_seq_snap(), determine whether or not a
  * full update-side operation has occurred.
