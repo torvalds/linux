@@ -446,6 +446,7 @@ static int bxt_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 				return ret;
 			}
 		}
+		skl->cores.state[core_id] = SKL_DSP_RUNNING;
 		return ret;
 	}
 
