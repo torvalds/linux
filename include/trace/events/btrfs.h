@@ -25,6 +25,7 @@ struct extent_buffer;
 struct btrfs_work;
 struct __btrfs_workqueue;
 struct btrfs_qgroup_extent_record;
+struct btrfs_qgroup;
 
 #define show_ref_type(type)						\
 	__print_symbolic(type,						\
@@ -1612,6 +1613,49 @@ TRACE_EVENT(qgroup_update_counters,
 		  __entry->qgid,
 		  __entry->cur_old_count,
 		  __entry->cur_new_count)
+);
+
+TRACE_EVENT(qgroup_update_reserve,
+
+	TP_PROTO(struct btrfs_fs_info *fs_info, struct btrfs_qgroup *qgroup,
+		 s64 diff),
+
+	TP_ARGS(fs_info, qgroup, diff),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,	qgid			)
+		__field(	u64,	cur_reserved		)
+		__field(	s64,	diff			)
+	),
+
+	TP_fast_assign_btrfs(fs_info,
+		__entry->qgid		= qgroup->qgroupid;
+		__entry->cur_reserved	= qgroup->reserved;
+		__entry->diff		= diff;
+	),
+
+	TP_printk_btrfs("qgid=%llu cur_reserved=%llu diff=%lld",
+		__entry->qgid, __entry->cur_reserved, __entry->diff)
+);
+
+TRACE_EVENT(qgroup_meta_reserve,
+
+	TP_PROTO(struct btrfs_root *root, s64 diff),
+
+	TP_ARGS(root, diff),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,	refroot			)
+		__field(	s64,	diff			)
+	),
+
+	TP_fast_assign_btrfs(root->fs_info,
+		__entry->refroot	= root->objectid;
+		__entry->diff		= diff;
+	),
+
+	TP_printk_btrfs("refroot=%llu(%s) diff=%lld",
+		show_root_type(__entry->refroot), __entry->diff)
 );
 
 #endif /* _TRACE_BTRFS_H */
