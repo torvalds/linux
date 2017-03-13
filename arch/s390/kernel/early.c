@@ -377,7 +377,7 @@ static int __init topology_setup(char *str)
 
 	rc = kstrtobool(str, &enabled);
 	if (!rc && !enabled)
-		S390_lowcore.machine_flags &= ~MACHINE_HAS_TOPOLOGY;
+		S390_lowcore.machine_flags &= ~MACHINE_FLAG_TOPOLOGY;
 	return rc;
 }
 early_param("topology", topology_setup);
