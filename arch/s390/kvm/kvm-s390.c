@@ -1646,7 +1646,7 @@ static void sca_add_vcpu(struct kvm_vcpu *vcpu)
 		sca->cpu[vcpu->vcpu_id].sda = (__u64) vcpu->arch.sie_block;
 		vcpu->arch.sie_block->scaoh = (__u32)(((__u64)sca) >> 32);
 		vcpu->arch.sie_block->scaol = (__u32)(__u64)sca & ~0x3fU;
-		vcpu->arch.sie_block->ecb2 |= 0x04U;
+		vcpu->arch.sie_block->ecb2 |= ECB2_ESCA;
 		set_bit_inv(vcpu->vcpu_id, (unsigned long *) sca->mcn);
 	} else {
 		struct bsca_block *sca = vcpu->kvm->arch.sca;
@@ -1700,7 +1700,7 @@ static int sca_switch_to_extended(struct kvm *kvm)
 	kvm_for_each_vcpu(vcpu_idx, vcpu, kvm) {
 		vcpu->arch.sie_block->scaoh = scaoh;
 		vcpu->arch.sie_block->scaol = scaol;
-		vcpu->arch.sie_block->ecb2 |= 0x04U;
+		vcpu->arch.sie_block->ecb2 |= ECB2_ESCA;
 	}
 	kvm->arch.sca = new_sca;
 	kvm->arch.use_esca = 1;
@@ -1939,8 +1939,8 @@ int kvm_s390_vcpu_setup_cmma(struct kvm_vcpu *vcpu)
 	if (!vcpu->arch.sie_block->cbrlo)
 		return -ENOMEM;
 
-	vcpu->arch.sie_block->ecb2 |= 0x80;
-	vcpu->arch.sie_block->ecb2 &= ~0x08;
+	vcpu->arch.sie_block->ecb2 |= ECB2_CMMA;
+	vcpu->arch.sie_block->ecb2 &= ~ECB2_PFMFI;
 	return 0;
 }
 
@@ -1970,28 +1970,28 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 
 	/* pgste_set_pte has special handling for !MACHINE_HAS_ESOP */
 	if (MACHINE_HAS_ESOP)
-		vcpu->arch.sie_block->ecb |= 0x02;
+		vcpu->arch.sie_block->ecb |= ECB_HOSTPROTINT;
 	if (test_kvm_facility(vcpu->kvm, 9))
-		vcpu->arch.sie_block->ecb |= 0x04;
+		vcpu->arch.sie_block->ecb |= ECB_SRSI;
 	if (test_kvm_facility(vcpu->kvm, 73))
-		vcpu->arch.sie_block->ecb |= 0x10;
+		vcpu->arch.sie_block->ecb |= ECB_TE;
 
 	if (test_kvm_facility(vcpu->kvm, 8) && sclp.has_pfmfi)
-		vcpu->arch.sie_block->ecb2 |= 0x08;
+		vcpu->arch.sie_block->ecb2 |= ECB2_PFMFI;
 	if (test_kvm_facility(vcpu->kvm, 130))
-		vcpu->arch.sie_block->ecb2 |= 0x20;
-	vcpu->arch.sie_block->eca = 0x1002000U;
+		vcpu->arch.sie_block->ecb2 |= ECB2_IEP;
+	vcpu->arch.sie_block->eca = ECA_MVPGI | ECA_PROTEXCI;
 	if (sclp.has_cei)
-		vcpu->arch.sie_block->eca |= 0x80000000U;
+		vcpu->arch.sie_block->eca |= ECA_CEI;
 	if (sclp.has_ib)
-		vcpu->arch.sie_block->eca |= 0x40000000U;
+		vcpu->arch.sie_block->eca |= ECA_IB;
 	if (sclp.has_siif)
-		vcpu->arch.sie_block->eca |= 1;
+		vcpu->arch.sie_block->eca |= ECA_SII;
 	if (sclp.has_sigpif)
-		vcpu->arch.sie_block->eca |= 0x10000000U;
+		vcpu->arch.sie_block->eca |= ECA_SIGPI;
 	if (test_kvm_facility(vcpu->kvm, 129)) {
-		vcpu->arch.sie_block->eca |= 0x00020000;
-		vcpu->arch.sie_block->ecd |= 0x20000000;
+		vcpu->arch.sie_block->eca |= ECA_VX;
+		vcpu->arch.sie_block->ecd |= ECD_HOSTREGMGMT;
 	}
 	vcpu->arch.sie_block->riccbd = (unsigned long) &vcpu->run->s.regs.riccb;
 	vcpu->arch.sie_block->ictl |= ICTL_ISKE | ICTL_SSKE | ICTL_RRBE;
@@ -2752,9 +2752,9 @@ static void sync_regs(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	if ((kvm_run->kvm_dirty_regs & KVM_SYNC_RICCB) &&
 	    test_kvm_facility(vcpu->kvm, 64) &&
 	    riccb->valid &&
-	    !(vcpu->arch.sie_block->ecb3 & 0x01)) {
+	    !(vcpu->arch.sie_block->ecb3 & ECB3_RI)) {
 		VCPU_EVENT(vcpu, 3, "%s", "ENABLE: RI (sync_regs)");
-		vcpu->arch.sie_block->ecb3 |= 0x01;
+		vcpu->arch.sie_block->ecb3 |= ECB3_RI;
 	}
 	save_access_regs(vcpu->arch.host_acrs);
 	restore_access_regs(vcpu->run->s.regs.acrs);
