@@ -42,8 +42,9 @@ static void mlx5e_get_drvinfo(struct net_device *dev,
 	strlcpy(drvinfo->version, DRIVER_VERSION " (" DRIVER_RELDATE ")",
 		sizeof(drvinfo->version));
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
-		 "%d.%d.%04d",
-		 fw_rev_maj(mdev), fw_rev_min(mdev), fw_rev_sub(mdev));
+		 "%d.%d.%04d (%.16s)",
+		 fw_rev_maj(mdev), fw_rev_min(mdev), fw_rev_sub(mdev),
+		 mdev->board_id);
 	strlcpy(drvinfo->bus_info, pci_name(mdev->pdev),
 		sizeof(drvinfo->bus_info));
 }
