@@ -235,4 +235,6 @@ int skl_get_pvt_instance_id_map(struct skl_sst *ctx,
 void skl_freeup_uuid_list(struct skl_sst *ctx);
 
 int skl_dsp_strip_extended_manifest(struct firmware *fw);
+void skl_dsp_enable_notification(struct skl_sst *ctx, bool enable);
+
 #endif /*__SKL_SST_DSP_H__*/

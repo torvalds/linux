@@ -58,7 +58,7 @@ static int skl_free_dma_buf(struct device *dev, struct snd_dma_buffer *dmab)
 #define NOTIFICATION_MASK 0xf
 
 /* disable notfication for underruns/overruns from firmware module */
-static void skl_dsp_enable_notification(struct skl_sst *ctx, bool enable)
+void skl_dsp_enable_notification(struct skl_sst *ctx, bool enable)
 {
 	struct notification_mask mask;
 	struct skl_ipc_large_config_msg	msg = {0};
