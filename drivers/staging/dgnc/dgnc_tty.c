@@ -218,6 +218,7 @@ unregister_serial_driver:
 	tty_unregister_driver(brd->serial_driver);
 free_serial_driver:
 	put_tty_driver(brd->serial_driver);
+
 	return rc;
 }
 
@@ -319,6 +320,7 @@ err_free_channels:
 		kfree(brd->channels[i]);
 		brd->channels[i] = NULL;
 	}
+
 	return rc;
 }
 
@@ -1081,11 +1083,12 @@ static int dgnc_tty_open(struct tty_struct *tty, struct file *file)
 
 err_brd_unlock:
 	spin_unlock_irqrestore(&brd->bd_lock, flags);
+
 	return rc;
 err_ch_unlock:
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
-	return rc;
 
+	return rc;
 }
 
 /*
@@ -1212,6 +1215,7 @@ static int dgnc_block_til_ready(struct tty_struct *tty,
 	ch->ch_wopen--;
 
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
+
 	return rc;
 }
 
@@ -1660,6 +1664,7 @@ static int dgnc_tty_write(struct tty_struct *tty,
 
 exit_retry:
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
+
 	return 0;
 }
 
@@ -2400,7 +2405,6 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 			return -ENODEV;
 
 		rc = ch_bd_ops->drain(tty, 0);
-
 		if (rc)
 			return -EINTR;
 
@@ -2787,5 +2791,6 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	}
 err_unlock:
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
+
 	return rc;
 }

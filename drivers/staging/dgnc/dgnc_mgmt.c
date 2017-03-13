@@ -60,6 +60,7 @@ int dgnc_mgmt_open(struct inode *inode, struct file *file)
 
 out:
 	spin_unlock_irqrestore(&dgnc_global_lock, flags);
+
 	return rc;
 }
 
@@ -85,6 +86,7 @@ int dgnc_mgmt_close(struct inode *inode, struct file *file)
 
 out:
 	spin_unlock_irqrestore(&dgnc_global_lock, flags);
+
 	return rc;
 }
 
@@ -253,6 +255,5 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	}
 	}
-
 	return 0;
 }

@@ -280,6 +280,7 @@ static struct dgnc_board *dgnc_found_board(struct pci_dev *pdev, int id)
 
 failed:
 	kfree(brd);
+
 	return ERR_PTR(rc);
 }
 
@@ -411,6 +412,7 @@ static int dgnc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	brd->dpastatus = BD_RUNNING;
 
 	dgnc_board[dgnc_num_boards++] = brd;
+
 	return 0;
 
 free_irq:
@@ -419,6 +421,7 @@ unregister_tty:
 	dgnc_tty_unregister(brd);
 failed:
 	kfree(brd);
+
 	return rc;
 }
 
@@ -477,12 +480,14 @@ static int dgnc_start(void)
 	spin_unlock_irqrestore(&dgnc_poll_lock, flags);
 
 	add_timer(&dgnc_poll_timer);
+
 	return 0;
 
 failed_device:
 	class_destroy(dgnc_class);
 failed_class:
 	unregister_chrdev(dgnc_major, "dgnc");
+
 	return rc;
 }
 
@@ -596,7 +601,6 @@ static int __init dgnc_init_module(void)
 		cleanup();
 		return rc;
 	}
-
 	return 0;
 }
 
