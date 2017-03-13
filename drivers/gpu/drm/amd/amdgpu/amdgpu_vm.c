@@ -187,6 +187,78 @@ void amdgpu_vm_move_pt_bos_in_lru(struct amdgpu_device *adev,
 	spin_unlock(&glob->lru_lock);
 }
 
+/**
+ * amdgpu_vm_alloc_pts - Allocate page tables.
+ *
+ * @adev: amdgpu_device pointer
+ * @vm: VM to allocate page tables for
+ * @saddr: Start address which needs to be allocated
+ * @size: Size from start address we need.
+ *
+ * Make sure the page tables are allocated.
+ */
+int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
+			struct amdgpu_vm *vm,
+			uint64_t saddr, uint64_t size)
+{
+	unsigned last_pfn, pt_idx;
+	uint64_t eaddr;
+	int r;
+
+	/* validate the parameters */
+	if (saddr & AMDGPU_GPU_PAGE_MASK || size & AMDGPU_GPU_PAGE_MASK)
+		return -EINVAL;
+
+	eaddr = saddr + size - 1;
+	last_pfn = eaddr / AMDGPU_GPU_PAGE_SIZE;
+	if (last_pfn >= adev->vm_manager.max_pfn) {
+		dev_err(adev->dev, "va above limit (0x%08X >= 0x%08X)\n",
+			last_pfn, adev->vm_manager.max_pfn);
+		return -EINVAL;
+	}
+
+	saddr /= AMDGPU_GPU_PAGE_SIZE;
+	eaddr /= AMDGPU_GPU_PAGE_SIZE;
+
+	saddr >>= amdgpu_vm_block_size;
+	eaddr >>= amdgpu_vm_block_size;
+
+	BUG_ON(eaddr >= amdgpu_vm_num_pdes(adev));
+
+	if (eaddr > vm->max_pde_used)
+		vm->max_pde_used = eaddr;
+
+	/* walk over the address space and allocate the page tables */
+	for (pt_idx = saddr; pt_idx <= eaddr; ++pt_idx) {
+		struct reservation_object *resv = vm->page_directory->tbo.resv;
+		struct amdgpu_bo *pt;
+
+		if (vm->page_tables[pt_idx].bo)
+			continue;
+
+		r = amdgpu_bo_create(adev, AMDGPU_VM_PTE_COUNT * 8,
+				     AMDGPU_GPU_PAGE_SIZE, true,
+				     AMDGPU_GEM_DOMAIN_VRAM,
+				     AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
+				     AMDGPU_GEM_CREATE_SHADOW |
+				     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS |
+				     AMDGPU_GEM_CREATE_VRAM_CLEARED,
+				     NULL, resv, &pt);
+		if (r)
+			return r;
+
+		/* Keep a reference to the page table to avoid freeing
+		 * them up in the wrong order.
+		 */
+		pt->parent = amdgpu_bo_ref(vm->page_directory);
+
+		vm->page_tables[pt_idx].bo = pt;
+		vm->page_tables[pt_idx].addr = 0;
+	}
+
+	return 0;
+}
+
 static bool amdgpu_vm_is_gpu_reset(struct amdgpu_device *adev,
 			      struct amdgpu_vm_id *id)
 {
@@ -1442,9 +1514,7 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 	struct amdgpu_bo_va_mapping *mapping;
 	struct amdgpu_vm *vm = bo_va->vm;
 	struct interval_tree_node *it;
-	unsigned last_pfn, pt_idx;
 	uint64_t eaddr;
-	int r;
 
 	/* validate the parameters */
 	if (saddr & AMDGPU_GPU_PAGE_MASK || offset & AMDGPU_GPU_PAGE_MASK ||
@@ -1457,13 +1527,6 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 	    (bo_va->bo && offset + size > amdgpu_bo_size(bo_va->bo)))
 		return -EINVAL;
 
-	last_pfn = eaddr / AMDGPU_GPU_PAGE_SIZE;
-	if (last_pfn >= adev->vm_manager.max_pfn) {
-		dev_err(adev->dev, "va above limit (0x%08X >= 0x%08X)\n",
-			last_pfn, adev->vm_manager.max_pfn);
-		return -EINVAL;
-	}
-
 	saddr /= AMDGPU_GPU_PAGE_SIZE;
 	eaddr /= AMDGPU_GPU_PAGE_SIZE;
 
@@ -1475,15 +1538,12 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 		dev_err(adev->dev, "bo %p va 0x%010Lx-0x%010Lx conflict with "
 			"0x%010lx-0x%010lx\n", bo_va->bo, saddr, eaddr,
 			tmp->it.start, tmp->it.last + 1);
-		r = -EINVAL;
-		goto error;
+		return -EINVAL;
 	}
 
 	mapping = kmalloc(sizeof(*mapping), GFP_KERNEL);
-	if (!mapping) {
-		r = -ENOMEM;
-		goto error;
-	}
+	if (!mapping)
+		return -ENOMEM;
 
 	INIT_LIST_HEAD(&mapping->list);
 	mapping->it.start = saddr;
@@ -1494,56 +1554,10 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 	list_add(&mapping->list, &bo_va->invalids);
 	interval_tree_insert(&mapping->it, &vm->va);
 
-	/* Make sure the page tables are allocated */
-	saddr >>= amdgpu_vm_block_size;
-	eaddr >>= amdgpu_vm_block_size;
-
-	BUG_ON(eaddr >= amdgpu_vm_num_pdes(adev));
-
-	if (eaddr > vm->max_pde_used)
-		vm->max_pde_used = eaddr;
-
-	/* walk over the address space and allocate the page tables */
-	for (pt_idx = saddr; pt_idx <= eaddr; ++pt_idx) {
-		struct reservation_object *resv = vm->page_directory->tbo.resv;
-		struct amdgpu_bo *pt;
-
-		if (vm->page_tables[pt_idx].bo)
-			continue;
-
-		r = amdgpu_bo_create(adev, AMDGPU_VM_PTE_COUNT * 8,
-				     AMDGPU_GPU_PAGE_SIZE, true,
-				     AMDGPU_GEM_DOMAIN_VRAM,
-				     AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
-				     AMDGPU_GEM_CREATE_SHADOW |
-				     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS |
-				     AMDGPU_GEM_CREATE_VRAM_CLEARED,
-				     NULL, resv, &pt);
-		if (r)
-			goto error_free;
-
-		/* Keep a reference to the page table to avoid freeing
-		 * them up in the wrong order.
-		 */
-		pt->parent = amdgpu_bo_ref(vm->page_directory);
-
-		vm->page_tables[pt_idx].bo = pt;
-		vm->page_tables[pt_idx].addr = 0;
-	}
-
 	if (flags & AMDGPU_PTE_PRT)
 		amdgpu_vm_prt_get(adev);
 
 	return 0;
-
-error_free:
-	list_del(&mapping->list);
-	interval_tree_remove(&mapping->it, &vm->va);
-	trace_amdgpu_vm_bo_unmap(bo_va, mapping);
-	amdgpu_vm_free_mapping(adev, vm, mapping, NULL);
-
-error:
-	return r;
 }
 
 /**

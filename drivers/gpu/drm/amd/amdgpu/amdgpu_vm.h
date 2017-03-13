@@ -179,6 +179,9 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			      void *param);
 void amdgpu_vm_move_pt_bos_in_lru(struct amdgpu_device *adev,
 				  struct amdgpu_vm *vm);
+int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
+			struct amdgpu_vm *vm,
+			uint64_t saddr, uint64_t size);
 int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		      struct amdgpu_sync *sync, struct dma_fence *fence,
 		      struct amdgpu_job *job);
