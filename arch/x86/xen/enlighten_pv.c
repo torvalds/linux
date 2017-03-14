@@ -1477,12 +1477,21 @@ static int xen_cpu_up_prepare_pv(unsigned int cpu)
 		     cpu, rc);
 		return rc;
 	}
+
+	rc = xen_smp_intr_init_pv(cpu);
+	if (rc) {
+		WARN(1, "xen_smp_intr_init_pv() for CPU %d failed: %d\n",
+		     cpu, rc);
+		return rc;
+	}
+
 	return 0;
 }
 
 static int xen_cpu_dead_pv(unsigned int cpu)
 {
 	xen_smp_intr_free(cpu);
+	xen_smp_intr_free_pv(cpu);
 
 	xen_teardown_timer(cpu);
 

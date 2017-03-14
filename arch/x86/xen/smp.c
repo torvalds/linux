@@ -133,9 +133,10 @@ void xen_smp_intr_free(unsigned int cpu)
 		kfree(per_cpu(xen_callfuncsingle_irq, cpu).name);
 		per_cpu(xen_callfuncsingle_irq, cpu).name = NULL;
 	}
-	if (xen_hvm_domain())
-		return;
+}
 
+void xen_smp_intr_free_pv(unsigned int cpu)
+{
 	if (per_cpu(xen_irq_work, cpu).irq >= 0) {
 		unbind_from_irqhandler(per_cpu(xen_irq_work, cpu).irq, NULL);
 		per_cpu(xen_irq_work, cpu).irq = -1;
@@ -149,11 +150,12 @@ void xen_smp_intr_free(unsigned int cpu)
 		kfree(per_cpu(xen_pmu_irq, cpu).name);
 		per_cpu(xen_pmu_irq, cpu).name = NULL;
 	}
-};
+}
+
 int xen_smp_intr_init(unsigned int cpu)
 {
 	int rc;
-	char *resched_name, *callfunc_name, *debug_name, *pmu_name;
+	char *resched_name, *callfunc_name, *debug_name;
 
 	resched_name = kasprintf(GFP_KERNEL, "resched%d", cpu);
 	rc = bind_ipi_to_irqhandler(XEN_RESCHEDULE_VECTOR,
@@ -200,12 +202,17 @@ int xen_smp_intr_init(unsigned int cpu)
 	per_cpu(xen_callfuncsingle_irq, cpu).irq = rc;
 	per_cpu(xen_callfuncsingle_irq, cpu).name = callfunc_name;
 
-	/*
-	 * The IRQ worker on PVHVM goes through the native path and uses the
-	 * IPI mechanism.
-	 */
-	if (xen_hvm_domain())
-		return 0;
+	return 0;
+
+ fail:
+	xen_smp_intr_free(cpu);
+	return rc;
+}
+
+int xen_smp_intr_init_pv(unsigned int cpu)
+{
+	int rc;
+	char *callfunc_name, *pmu_name;
 
 	callfunc_name = kasprintf(GFP_KERNEL, "irqwork%d", cpu);
 	rc = bind_ipi_to_irqhandler(XEN_IRQ_WORK_VECTOR,
@@ -234,7 +241,7 @@ int xen_smp_intr_init(unsigned int cpu)
 	return 0;
 
  fail:
-	xen_smp_intr_free(cpu);
+	xen_smp_intr_free_pv(cpu);
 	return rc;
 }
 
