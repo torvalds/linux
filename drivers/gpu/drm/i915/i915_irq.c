@@ -2664,14 +2664,6 @@ static void i915_reset_and_wakeup(struct drm_i915_private *dev_priv)
 	DRM_DEBUG_DRIVER("resetting chip\n");
 	kobject_uevent_env(kobj, KOBJ_CHANGE, reset_event);
 
-	/*
-	 * In most cases it's guaranteed that we get here with an RPM
-	 * reference held, for example because there is a pending GPU
-	 * request that won't finish until the reset is done. This
-	 * isn't the case at least when we get here by doing a
-	 * simulated reset via debugs, so get an RPM reference.
-	 */
-	intel_runtime_pm_get(dev_priv);
 	intel_prepare_reset(dev_priv);
 
 	do {
@@ -2693,7 +2685,6 @@ static void i915_reset_and_wakeup(struct drm_i915_private *dev_priv)
 				     HZ));
 
 	intel_finish_reset(dev_priv);
-	intel_runtime_pm_put(dev_priv);
 
 	if (!test_bit(I915_WEDGED, &dev_priv->gpu_error.flags))
 		kobject_uevent_env(kobj,
@@ -2780,15 +2771,24 @@ void i915_handle_error(struct drm_i915_private *dev_priv,
 	vscnprintf(error_msg, sizeof(error_msg), fmt, args);
 	va_end(args);
 
+	/*
+	 * In most cases it's guaranteed that we get here with an RPM
+	 * reference held, for example because there is a pending GPU
+	 * request that won't finish until the reset is done. This
+	 * isn't the case at least when we get here by doing a
+	 * simulated reset via debugfs, so get an RPM reference.
+	 */
+	intel_runtime_pm_get(dev_priv);
+
 	i915_capture_error_state(dev_priv, engine_mask, error_msg);
 	i915_clear_error_registers(dev_priv);
 
 	if (!engine_mask)
-		return;
+		goto out;
 
 	if (test_and_set_bit(I915_RESET_IN_PROGRESS,
 			     &dev_priv->gpu_error.flags))
-		return;
+		goto out;
 
 	/*
 	 * Wakeup waiting processes so that the reset function
@@ -2805,6 +2805,9 @@ void i915_handle_error(struct drm_i915_private *dev_priv,
 	i915_error_wake_up(dev_priv);
 
 	i915_reset_and_wakeup(dev_priv);
+
+out:
+	intel_runtime_pm_put(dev_priv);
 }
 
 /* Called from drm generic code, passed 'crtc' which
