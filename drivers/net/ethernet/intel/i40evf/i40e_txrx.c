@@ -1116,6 +1116,7 @@ add_tail_frag:
  * i40evf_fetch_rx_buffer - Allocate skb and populate it
  * @rx_ring: rx descriptor ring to transact packets on
  * @rx_desc: descriptor containing info written by hardware
+ * @size: size of buffer to add to skb
  *
  * This function allocates an skb on the fly, and populates it with the page
  * data from the current receive descriptor, taking care to set up the skb
@@ -1125,13 +1126,9 @@ add_tail_frag:
 static inline
 struct sk_buff *i40evf_fetch_rx_buffer(struct i40e_ring *rx_ring,
 				       union i40e_rx_desc *rx_desc,
-				       struct sk_buff *skb)
+				       struct sk_buff *skb,
+				       unsigned int size)
 {
-	u64 local_status_error_len =
-		le64_to_cpu(rx_desc->wb.qword1.status_error_len);
-	unsigned int size =
-		(local_status_error_len & I40E_RXD_QW1_LENGTH_PBUF_MASK) >>
-		I40E_RXD_QW1_LENGTH_PBUF_SHIFT;
 	struct i40e_rx_buffer *rx_buffer;
 	struct page *page;
 
@@ -1244,6 +1241,7 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 
 	while (likely(total_rx_packets < budget)) {
 		union i40e_rx_desc *rx_desc;
+		unsigned int size;
 		u16 vlan_tag;
 		u8 rx_ptype;
 		u64 qword;
@@ -1260,19 +1258,21 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 		/* status_error_len will always be zero for unused descriptors
 		 * because it's cleared in cleanup, and overlaps with hdr_addr
 		 * which is always zero because packet split isn't used, if the
-		 * hardware wrote DD then it will be non-zero
+		 * hardware wrote DD then the length will be non-zero
 		 */
-		if (!i40e_test_staterr(rx_desc,
-				       BIT(I40E_RX_DESC_STATUS_DD_SHIFT)))
+		qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
+		size = (qword & I40E_RXD_QW1_LENGTH_PBUF_MASK) >>
+		       I40E_RXD_QW1_LENGTH_PBUF_SHIFT;
+		if (!size)
 			break;
 
 		/* This memory barrier is needed to keep us from reading
-		 * any other fields out of the rx_desc until we know the
-		 * DD bit is set.
+		 * any other fields out of the rx_desc until we have
+		 * verified the descriptor has been written back.
 		 */
 		dma_rmb();
 
-		skb = i40evf_fetch_rx_buffer(rx_ring, rx_desc, skb);
+		skb = i40evf_fetch_rx_buffer(rx_ring, rx_desc, skb, size);
 		if (!skb)
 			break;
 
