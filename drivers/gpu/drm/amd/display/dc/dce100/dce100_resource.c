@@ -265,7 +265,7 @@ static const struct dce110_link_enc_hpd_registers link_enc_hpd_regs[] = {
 
 #define link_regs(id)\
 [id] = {\
-	LE_DCE110_REG_LIST(id)\
+	LE_DCE100_REG_LIST(id)\
 }
 
 static const struct dce110_link_enc_registers link_enc_regs[] = {

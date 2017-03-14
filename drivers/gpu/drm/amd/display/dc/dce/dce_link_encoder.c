@@ -169,9 +169,6 @@ static void disable_prbs_symbols(
 static void disable_prbs_mode(
 	struct dce110_link_encoder *enc110)
 {
-	/* This register resides in DP back end block;
-	 * transmitter is used for the offset */
-
 	REG_UPDATE(DP_DPHY_PRBS_CNTL, DPHY_PRBS_EN, 0);
 }
 
@@ -216,9 +213,7 @@ static void set_dp_phy_pattern_d102(
 
 	disable_prbs_symbols(enc110, true);
 
-	/* Disable PRBS mode,
-	 * make sure DPHY_PRBS_CNTL.DPHY_PRBS_EN=0 */
-
+	/* Disable PRBS mode */
 	disable_prbs_mode(enc110);
 
 	/* Program debug symbols to be output */
@@ -264,43 +259,54 @@ void dce110_link_encoder_set_dp_phy_pattern_training_pattern(
 
 	enable_phy_bypass_mode(enc110, false);
 
-	/* Disable PRBS mode,
-	 * make sure DPHY_PRBS_CNTL.DPHY_PRBS_EN=0 */
-
+	/* Disable PRBS mode */
 	disable_prbs_mode(enc110);
+}
+
+static void setup_panel_mode(
+	struct dce110_link_encoder *enc110,
+	enum dp_panel_mode panel_mode)
+{
+	uint32_t value;
+
+	ASSERT(REG(DP_DPHY_INTERNAL_CTRL));
+	value = REG_READ(DP_DPHY_INTERNAL_CTRL);
+
+	switch (panel_mode) {
+	case DP_PANEL_MODE_EDP:
+		value = 0x1;
+		break;
+	case DP_PANEL_MODE_SPECIAL:
+		value = 0x11;
+		break;
+	default:
+		value = 0x0;
+		break;
+	}
+
+	REG_WRITE(DP_DPHY_INTERNAL_CTRL, value);
 }
 
 static void set_dp_phy_pattern_symbol_error(
 	struct dce110_link_encoder *enc110)
 {
 	/* Disable PHY Bypass mode to setup the test pattern */
-	uint32_t value = 0x0;
-
 	enable_phy_bypass_mode(enc110, false);
 
 	/* program correct panel mode*/
-	{
-		ASSERT(REG(DP_DPHY_INTERNAL_CTRL));
-		/*DCE 120 does not have this reg*/
-
-		REG_WRITE(DP_DPHY_INTERNAL_CTRL, value);
-	}
+	setup_panel_mode(enc110, DP_PANEL_MODE_DEFAULT);
 
 	/* A PRBS23 pattern is used for most DP electrical measurements. */
 
 	/* Enable PRBS symbols on the lanes */
-
 	disable_prbs_symbols(enc110, false);
 
 	/* For PRBS23 Set bit DPHY_PRBS_SEL=1 and Set bit DPHY_PRBS_EN=1 */
-	{
-		REG_UPDATE_2(DP_DPHY_PRBS_CNTL,
-					DPHY_PRBS_SEL, 1,
-					DPHY_PRBS_EN, 1);
-	}
+	REG_UPDATE_2(DP_DPHY_PRBS_CNTL,
+			DPHY_PRBS_SEL, 1,
+			DPHY_PRBS_EN, 1);
 
 	/* Enable phy bypass mode to enable the test pattern */
-
 	enable_phy_bypass_mode(enc110, true);
 }
 
@@ -308,24 +314,19 @@ static void set_dp_phy_pattern_prbs7(
 	struct dce110_link_encoder *enc110)
 {
 	/* Disable PHY Bypass mode to setup the test pattern */
-
 	enable_phy_bypass_mode(enc110, false);
 
 	/* A PRBS7 pattern is used for most DP electrical measurements. */
 
 	/* Enable PRBS symbols on the lanes */
-
 	disable_prbs_symbols(enc110, false);
 
 	/* For PRBS7 Set bit DPHY_PRBS_SEL=0 and Set bit DPHY_PRBS_EN=1 */
-	{
-		REG_UPDATE_2(DP_DPHY_PRBS_CNTL,
-					DPHY_PRBS_SEL, 0,
-					DPHY_PRBS_EN, 1);
-	}
+	REG_UPDATE_2(DP_DPHY_PRBS_CNTL,
+			DPHY_PRBS_SEL, 0,
+			DPHY_PRBS_EN, 1);
 
 	/* Enable phy bypass mode to enable the test pattern */
-
 	enable_phy_bypass_mode(enc110, true);
 }
 
@@ -374,7 +375,7 @@ static void set_dp_phy_pattern_80bit_custom(
 	enable_phy_bypass_mode(enc110, true);
 }
 
-static void set_dp_phy_pattern_hbr2_compliance(
+static void set_dp_phy_pattern_hbr2_compliance_cp2520_2(
 	struct dce110_link_encoder *enc110)
 {
 
@@ -391,56 +392,34 @@ static void set_dp_phy_pattern_hbr2_compliance(
 	enable_phy_bypass_mode(enc110, false);
 
 	/* Setup DIG encoder in DP SST mode */
-
 	enc110->base.funcs->setup(&enc110->base, SIGNAL_TYPE_DISPLAY_PORT);
 
-	/* program correct panel mode*/
-	{
-		ASSERT(REG(DP_DPHY_INTERNAL_CTRL));
-
-		REG_WRITE(DP_DPHY_INTERNAL_CTRL, 0x0);
-	}
+	/* ensure normal panel mode. */
+	setup_panel_mode(enc110, DP_PANEL_MODE_DEFAULT);
 
 	/* no vbid after BS (SR)
 	 * DP_LINK_FRAMING_CNTL changed history Sandra Liu
 	 * 11000260 / 11000104 / 110000FC */
+	REG_UPDATE_3(DP_LINK_FRAMING_CNTL,
+			DP_IDLE_BS_INTERVAL, 0xFC,
+			DP_VBID_DISABLE, 1,
+			DP_VID_ENHANCED_FRAME_MODE, 1);
 
-	/* TODO DP_LINK_FRAMING_CNTL should always use hardware default value
-	 * output  except output hbr2_compliance pattern for physical PHY
-	 * measurement. This is not normal usage case. SW should reset this
-	 * register to hardware default value after end use of HBR2 eye
-	 */
-	BREAK_TO_DEBUGGER();
-	/* TODO: do we still need this, find out at compliance test
-	addr = mmDP_LINK_FRAMING_CNTL + fe_addr_offset;
-
-	value = dal_read_reg(ctx, addr);
-
-	set_reg_field_value(value, 0xFC,
-			DP_LINK_FRAMING_CNTL, DP_IDLE_BS_INTERVAL);
-	set_reg_field_value(value, 1,
-			DP_LINK_FRAMING_CNTL, DP_VBID_DISABLE);
-	set_reg_field_value(value, 1,
-			DP_LINK_FRAMING_CNTL, DP_VID_ENHANCED_FRAME_MODE);
-
-	dal_write_reg(ctx, addr, value);
-	 */
 	/* swap every BS with SR */
-
 	REG_UPDATE(DP_DPHY_SCRAM_CNTL, DPHY_SCRAMBLER_BS_COUNT, 0);
 
-	/*TODO add support for this test pattern
-	 * support_dp_hbr2_eye_pattern
-	 */
+	/* select cp2520 pattern 2 */
+	if (REG(DP_DPHY_HBR2_PATTERN_CONTROL))
+		REG_UPDATE(DP_DPHY_HBR2_PATTERN_CONTROL,
+				DP_DPHY_HBR2_PATTERN_CONTROL, 0x2);
 
 	/* set link training complete */
 	set_link_training_complete(enc110, true);
-	/* do not enable video stream */
 
+	/* disable video stream */
 	REG_UPDATE(DP_VID_STREAM_CNTL, DP_VID_STREAM_ENABLE, 0);
 
 	/* Disable PHY Bypass mode to setup the test pattern */
-
 	enable_phy_bypass_mode(enc110, false);
 }
 
@@ -448,41 +427,26 @@ static void set_dp_phy_pattern_passthrough_mode(
 	struct dce110_link_encoder *enc110,
 	enum dp_panel_mode panel_mode)
 {
-	uint32_t value;
-
 	/* program correct panel mode */
-	{
-		ASSERT(REG(DP_DPHY_INTERNAL_CTRL));
-		value = REG_READ(DP_DPHY_INTERNAL_CTRL);
+	setup_panel_mode(enc110, panel_mode);
 
-		switch (panel_mode) {
-		case DP_PANEL_MODE_EDP:
-			value = 0x1;
-		break;
-		case DP_PANEL_MODE_SPECIAL:
-			value = 0x11;
-		break;
-		default:
-			value = 0x0;
-			break;
-		}
-
-		REG_WRITE(DP_DPHY_INTERNAL_CTRL, value);
-	}
+	/* restore LINK_FRAMING_CNTL and DPHY_SCRAMBLER_BS_COUNT
+	 * in case we were doing HBR2 compliance pattern before
+	 */
+	REG_UPDATE_3(DP_LINK_FRAMING_CNTL,
+			DP_IDLE_BS_INTERVAL, 0x2000,
+			DP_VBID_DISABLE, 0,
+			DP_VID_ENHANCED_FRAME_MODE, 1);
 
 	REG_UPDATE(DP_DPHY_SCRAM_CNTL, DPHY_SCRAMBLER_BS_COUNT, 0x1FF);
 
 	/* set link training complete */
-
 	set_link_training_complete(enc110, true);
 
 	/* Disable PHY Bypass mode to setup the test pattern */
-
 	enable_phy_bypass_mode(enc110, false);
 
-	/* Disable PRBS mode,
-	 * make sure DPHY_PRBS_CNTL.DPHY_PRBS_EN=0 */
-
+	/* Disable PRBS mode */
 	disable_prbs_mode(enc110);
 }
 
@@ -828,8 +792,7 @@ static void link_encoder_disable(struct dce110_link_encoder *enc110)
 	REG_UPDATE(DP_LINK_CNTL, DP_LINK_TRAINING_COMPLETE, 0);
 
 	/* reset panel mode */
-	ASSERT(REG(DP_DPHY_INTERNAL_CTRL));
-	REG_WRITE(DP_DPHY_INTERNAL_CTRL, 0);
+	setup_panel_mode(enc110, DP_PANEL_MODE_DEFAULT);
 }
 
 static void hpd_initialize(
@@ -1433,7 +1396,7 @@ void dce110_link_encoder_dp_set_phy_pattern(
 			enc110, param->custom_pattern);
 		break;
 	case DP_TEST_PATTERN_HBR2_COMPLIANCE_EYE:
-		set_dp_phy_pattern_hbr2_compliance(enc110);
+		set_dp_phy_pattern_hbr2_compliance_cp2520_2(enc110);
 		break;
 	case DP_TEST_PATTERN_VIDEO_MODE: {
 		set_dp_phy_pattern_passthrough_mode(
