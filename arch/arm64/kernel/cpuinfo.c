@@ -67,6 +67,7 @@ static const char *const hwcap_str[] = {
 	"asimdrdm",
 	"jscvt",
 	"fcma",
+	"lrcpc",
 	NULL
 };
 
