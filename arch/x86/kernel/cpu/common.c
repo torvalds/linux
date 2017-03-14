@@ -448,8 +448,15 @@ void load_percpu_segment(int cpu)
 	load_stack_canary_segment();
 }
 
-/* Used by XEN to force the GDT read-only when required */
+/*
+ * On 64-bit the GDT remapping is read-only.
+ * A global is used for Xen to change the default when required.
+ */
+#ifdef CONFIG_X86_64
+pgprot_t pg_fixmap_gdt_flags = PAGE_KERNEL_RO;
+#else
 pgprot_t pg_fixmap_gdt_flags = PAGE_KERNEL;
+#endif
 
 /* Setup the fixmap mapping only once per-processor */
 static inline void setup_fixmap_gdt(int cpu)
@@ -457,6 +464,17 @@ static inline void setup_fixmap_gdt(int cpu)
 	__set_fixmap(get_cpu_gdt_ro_index(cpu),
 		     __pa(get_cpu_gdt_rw(cpu)), pg_fixmap_gdt_flags);
 }
+
+/* Load the original GDT from the per-cpu structure */
+void load_direct_gdt(int cpu)
+{
+	struct desc_ptr gdt_descr;
+
+	gdt_descr.address = (long)get_cpu_gdt_rw(cpu);
+	gdt_descr.size = GDT_SIZE - 1;
+	load_gdt(&gdt_descr);
+}
+EXPORT_SYMBOL_GPL(load_direct_gdt);
 
 /* Load a fixmap remapping of the per-cpu GDT */
 void load_fixmap_gdt(int cpu)
@@ -467,6 +485,7 @@ void load_fixmap_gdt(int cpu)
 	gdt_descr.size = GDT_SIZE - 1;
 	load_gdt(&gdt_descr);
 }
+EXPORT_SYMBOL_GPL(load_fixmap_gdt);
 
 /*
  * Current gdt points %fs at the "master" per-cpu area: after this,
@@ -474,11 +493,8 @@ void load_fixmap_gdt(int cpu)
  */
 void switch_to_new_gdt(int cpu)
 {
-	struct desc_ptr gdt_descr;
-
-	gdt_descr.address = (long)get_cpu_gdt_rw(cpu);
-	gdt_descr.size = GDT_SIZE - 1;
-	load_gdt(&gdt_descr);
+	/* Load the original GDT */
+	load_direct_gdt(cpu);
 	/* Reload the per-cpu base */
 	load_percpu_segment(cpu);
 }
