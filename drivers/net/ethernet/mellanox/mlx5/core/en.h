@@ -280,7 +280,6 @@ struct mlx5e_cq {
 	struct napi_struct        *napi;
 	struct mlx5_core_cq        mcq;
 	struct mlx5e_channel      *channel;
-	struct mlx5e_priv         *priv;
 
 	/* cqe decompression */
 	struct mlx5_cqe64          title;
@@ -290,6 +289,7 @@ struct mlx5e_cq {
 	u16                        decmprs_wqe_counter;
 
 	/* control */
+	struct mlx5_core_dev      *mdev;
 	struct mlx5_frag_wq_ctrl   wq_ctrl;
 } ____cacheline_aligned_in_smp;
 
@@ -533,7 +533,7 @@ struct mlx5e_rq {
 	u32                    mpwqe_num_strides;
 	u32                    rqn;
 	struct mlx5e_channel  *channel;
-	struct mlx5e_priv     *priv;
+	struct mlx5_core_dev  *mdev;
 	struct mlx5_core_mkey  umr_mkey;
 } ____cacheline_aligned_in_smp;
 
@@ -556,6 +556,8 @@ struct mlx5e_channel {
 
 	/* control */
 	struct mlx5e_priv         *priv;
+	struct mlx5_core_dev      *mdev;
+	struct mlx5e_tstamp       *tstamp;
 	int                        ix;
 	int                        cpu;
 };
@@ -715,22 +717,6 @@ enum {
 	MLX5E_NIC_PRIO
 };
 
-struct mlx5e_profile {
-	void	(*init)(struct mlx5_core_dev *mdev,
-			struct net_device *netdev,
-			const struct mlx5e_profile *profile, void *ppriv);
-	void	(*cleanup)(struct mlx5e_priv *priv);
-	int	(*init_rx)(struct mlx5e_priv *priv);
-	void	(*cleanup_rx)(struct mlx5e_priv *priv);
-	int	(*init_tx)(struct mlx5e_priv *priv);
-	void	(*cleanup_tx)(struct mlx5e_priv *priv);
-	void	(*enable)(struct mlx5e_priv *priv);
-	void	(*disable)(struct mlx5e_priv *priv);
-	void	(*update_stats)(struct mlx5e_priv *priv);
-	int	(*max_nch)(struct mlx5_core_dev *mdev);
-	int	max_tc;
-};
-
 struct mlx5e_priv {
 	/* priv data path fields - start */
 	struct mlx5e_txqsq *txq2sq[MLX5E_MAX_NUM_CHANNELS * MLX5E_MAX_NUM_TC];
@@ -768,6 +754,22 @@ struct mlx5e_priv {
 
 	const struct mlx5e_profile *profile;
 	void                      *ppriv;
+};
+
+struct mlx5e_profile {
+	void	(*init)(struct mlx5_core_dev *mdev,
+			struct net_device *netdev,
+			const struct mlx5e_profile *profile, void *ppriv);
+	void	(*cleanup)(struct mlx5e_priv *priv);
+	int	(*init_rx)(struct mlx5e_priv *priv);
+	void	(*cleanup_rx)(struct mlx5e_priv *priv);
+	int	(*init_tx)(struct mlx5e_priv *priv);
+	void	(*cleanup_tx)(struct mlx5e_priv *priv);
+	void	(*enable)(struct mlx5e_priv *priv);
+	void	(*disable)(struct mlx5e_priv *priv);
+	void	(*update_stats)(struct mlx5e_priv *priv);
+	int	(*max_nch)(struct mlx5_core_dev *mdev);
+	int	max_tc;
 };
 
 void mlx5e_build_ptys2ethtool_map(void);
