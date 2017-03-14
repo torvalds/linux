@@ -105,7 +105,7 @@ static int decon_enable_vblank(struct exynos_drm_crtc *crtc)
 		if (ctx->out_type & IFTYPE_I80)
 			val |= VIDINTCON0_FRAMEDONE;
 		else
-			val |= VIDINTCON0_INTFRMEN;
+			val |= VIDINTCON0_INTFRMEN | VIDINTCON0_FRAMESEL_FP;
 
 		writel(val, ctx->addr + DECON_VIDINTCON0);
 	}
