@@ -3182,7 +3182,7 @@ struct wmi_10_4_phyerr_event {
 
 struct phyerr_radar_report {
 	__le32 reg0; /* RADAR_REPORT_REG0_* */
-	__le32 reg1; /* REDAR_REPORT_REG1_* */
+	__le32 reg1; /* RADAR_REPORT_REG1_* */
 } __packed;
 
 #define RADAR_REPORT_REG0_PULSE_IS_CHIRP_MASK		0x80000000
