@@ -63,6 +63,29 @@ static const struct i40evf_stats i40evf_gstrings_stats[] = {
 #define I40EVF_STATS_LEN(_dev) \
 	(I40EVF_GLOBAL_STATS_LEN + I40EVF_QUEUE_STATS_LEN(_dev))
 
+/* For now we have one and only one private flag and it is only defined
+ * when we have support for the SKIP_CPU_SYNC DMA attribute.  Instead
+ * of leaving all this code sitting around empty we will strip it unless
+ * our one private flag is actually available.
+ */
+struct i40evf_priv_flags {
+	char flag_string[ETH_GSTRING_LEN];
+	u32 flag;
+	bool read_only;
+};
+
+#define I40EVF_PRIV_FLAG(_name, _flag, _read_only) { \
+	.flag_string = _name, \
+	.flag = _flag, \
+	.read_only = _read_only, \
+}
+
+static const struct i40evf_priv_flags i40evf_gstrings_priv_flags[] = {
+	I40EVF_PRIV_FLAG("legacy-rx", I40EVF_FLAG_LEGACY_RX, 0),
+};
+
+#define I40EVF_PRIV_FLAGS_STR_LEN ARRAY_SIZE(i40evf_gstrings_priv_flags)
+
 /**
  * i40evf_get_link_ksettings - Get Link Speed and Duplex settings
  * @netdev: network interface device structure
@@ -124,6 +147,8 @@ static int i40evf_get_sset_count(struct net_device *netdev, int sset)
 {
 	if (sset == ETH_SS_STATS)
 		return I40EVF_STATS_LEN(netdev);
+	else if (sset == ETH_SS_PRIV_FLAGS)
+		return I40EVF_PRIV_FLAGS_STR_LEN;
 	else
 		return -EINVAL;
 }
@@ -189,7 +214,83 @@ static void i40evf_get_strings(struct net_device *netdev, u32 sset, u8 *data)
 			snprintf(p, ETH_GSTRING_LEN, "rx-%u.bytes", i);
 			p += ETH_GSTRING_LEN;
 		}
+	} else if (sset == ETH_SS_PRIV_FLAGS) {
+		for (i = 0; i < I40EVF_PRIV_FLAGS_STR_LEN; i++) {
+			snprintf(p, ETH_GSTRING_LEN, "%s",
+				 i40evf_gstrings_priv_flags[i].flag_string);
+			p += ETH_GSTRING_LEN;
+		}
 	}
+}
+
+/**
+ * i40evf_get_priv_flags - report device private flags
+ * @dev: network interface device structure
+ *
+ * The get string set count and the string set should be matched for each
+ * flag returned.  Add new strings for each flag to the i40e_gstrings_priv_flags
+ * array.
+ *
+ * Returns a u32 bitmap of flags.
+ **/
+static u32 i40evf_get_priv_flags(struct net_device *netdev)
+{
+	struct i40evf_adapter *adapter = netdev_priv(netdev);
+	u32 i, ret_flags = 0;
+
+	for (i = 0; i < I40EVF_PRIV_FLAGS_STR_LEN; i++) {
+		const struct i40evf_priv_flags *priv_flags;
+
+		priv_flags = &i40evf_gstrings_priv_flags[i];
+
+		if (priv_flags->flag & adapter->flags)
+			ret_flags |= BIT(i);
+	}
+
+	return ret_flags;
+}
+
+/**
+ * i40evf_set_priv_flags - set private flags
+ * @dev: network interface device structure
+ * @flags: bit flags to be set
+ **/
+static int i40evf_set_priv_flags(struct net_device *netdev, u32 flags)
+{
+	struct i40evf_adapter *adapter = netdev_priv(netdev);
+	u64 changed_flags;
+	u32 i;
+
+	changed_flags = adapter->flags;
+
+	for (i = 0; i < I40EVF_PRIV_FLAGS_STR_LEN; i++) {
+		const struct i40evf_priv_flags *priv_flags;
+
+		priv_flags = &i40evf_gstrings_priv_flags[i];
+
+		if (priv_flags->read_only)
+			continue;
+
+		if (flags & BIT(i))
+			adapter->flags |= priv_flags->flag;
+		else
+			adapter->flags &= ~(priv_flags->flag);
+	}
+
+	/* check for flags that changed */
+	changed_flags ^= adapter->flags;
+
+	/* Process any additional changes needed as a result of flag changes. */
+
+	/* issue a reset to force legacy-rx change to take effect */
+	if (changed_flags & I40EVF_FLAG_LEGACY_RX) {
+		if (netif_running(netdev)) {
+			adapter->flags |= I40EVF_FLAG_RESET_NEEDED;
+			schedule_work(&adapter->reset_task);
+		}
+	}
+
+	return 0;
 }
 
 /**
@@ -238,6 +339,7 @@ static void i40evf_get_drvinfo(struct net_device *netdev,
 	strlcpy(drvinfo->version, i40evf_driver_version, 32);
 	strlcpy(drvinfo->fw_version, "N/A", 4);
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev), 32);
+	drvinfo->n_priv_flags = I40EVF_PRIV_FLAGS_STR_LEN;
 }
 
 /**
@@ -649,6 +751,8 @@ static const struct ethtool_ops i40evf_ethtool_ops = {
 	.get_strings		= i40evf_get_strings,
 	.get_ethtool_stats	= i40evf_get_ethtool_stats,
 	.get_sset_count		= i40evf_get_sset_count,
+	.get_priv_flags		= i40evf_get_priv_flags,
+	.set_priv_flags		= i40evf_set_priv_flags,
 	.get_msglevel		= i40evf_get_msglevel,
 	.set_msglevel		= i40evf_set_msglevel,
 	.get_coalesce		= i40evf_get_coalesce,
