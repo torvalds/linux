@@ -243,7 +243,7 @@ static int fimd_enable_vblank(struct exynos_drm_crtc *crtc)
 			val |= VIDINTCON0_INT_FRAME;
 
 			val &= ~VIDINTCON0_FRAMESEL0_MASK;
-			val |= VIDINTCON0_FRAMESEL0_VSYNC;
+			val |= VIDINTCON0_FRAMESEL0_FRONTPORCH;
 			val &= ~VIDINTCON0_FRAMESEL1_MASK;
 			val |= VIDINTCON0_FRAMESEL1_NONE;
 		}
