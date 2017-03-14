@@ -33,5 +33,6 @@
 #define HWCAP_CPUID		(1 << 11)
 #define HWCAP_ASIMDRDM		(1 << 12)
 #define HWCAP_JSCVT		(1 << 13)
+#define HWCAP_FCMA		(1 << 14)
 
 #endif /* _UAPI__ASM_HWCAP_H */
