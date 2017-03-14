@@ -22,6 +22,10 @@ config XEN_PV
 	help
 	  Support running as a Xen PV guest.
 
+config XEN_PV_SMP
+	def_bool y
+	depends on XEN_PV && SMP
+
 config XEN_DOM0
 	bool "Xen PV Dom0 support"
 	default y
