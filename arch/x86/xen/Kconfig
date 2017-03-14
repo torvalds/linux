@@ -6,7 +6,6 @@ config XEN
 	bool "Xen guest support"
 	depends on PARAVIRT
 	select PARAVIRT_CLOCK
-	select XEN_HAVE_VPMU
 	depends on X86_64 || (X86_32 && X86_PAE)
 	depends on X86_LOCAL_APIC && X86_TSC
 	help
@@ -19,6 +18,7 @@ config XEN_PV
 	default y
 	depends on XEN
 	select XEN_HAVE_PVMMU
+	select XEN_HAVE_VPMU
 	help
 	  Support running as a Xen PV guest.
 
