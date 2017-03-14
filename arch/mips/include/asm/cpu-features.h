@@ -547,6 +547,9 @@
 #ifndef cpu_guest_has_maar
 #define cpu_guest_has_maar	(cpu_data[0].guest.options & MIPS_CPU_MAAR)
 #endif
+#ifndef cpu_guest_has_userlocal
+#define cpu_guest_has_userlocal	(cpu_data[0].guest.options & MIPS_CPU_ULRI)
+#endif
 
 /*
  * Guest dynamic capabilities

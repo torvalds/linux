@@ -1005,7 +1005,8 @@ static inline unsigned int decode_guest_config3(struct cpuinfo_mips *c)
 	unsigned int config3, config3_dyn;
 
 	probe_gc0_config_dyn(config3, config3, config3_dyn,
-			     MIPS_CONF_M | MIPS_CONF3_MSA | MIPS_CONF3_CTXTC);
+			     MIPS_CONF_M | MIPS_CONF3_MSA | MIPS_CONF3_ULRI |
+			     MIPS_CONF3_CTXTC);
 
 	if (config3 & MIPS_CONF3_CTXTC)
 		c->guest.options |= MIPS_CPU_CTXTC;
@@ -1014,6 +1015,9 @@ static inline unsigned int decode_guest_config3(struct cpuinfo_mips *c)
 
 	if (config3 & MIPS_CONF3_PW)
 		c->guest.options |= MIPS_CPU_HTW;
+
+	if (config3 & MIPS_CONF3_ULRI)
+		c->guest.options |= MIPS_CPU_ULRI;
 
 	if (config3 & MIPS_CONF3_SC)
 		c->guest.options |= MIPS_CPU_SEGMENTS;
