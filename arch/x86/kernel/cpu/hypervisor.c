@@ -28,8 +28,10 @@
 
 static const __initconst struct hypervisor_x86 * const hypervisors[] =
 {
-#ifdef CONFIG_XEN
+#ifdef CONFIG_XEN_PV
 	&x86_hyper_xen_pv,
+#endif
+#ifdef CONFIG_XEN_PVHVM
 	&x86_hyper_xen_hvm,
 #endif
 	&x86_hyper_vmware,
