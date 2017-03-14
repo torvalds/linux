@@ -565,6 +565,9 @@ static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 	u32 config, config1;
 	int vcpu_id = vcpu->vcpu_id;
 
+	/* Start off the timer at 100 MHz */
+	kvm_mips_init_count(vcpu, 100*1000*1000);
+
 	/*
 	 * Arch specific stuff, set up config registers properly so that the
 	 * guest will come up as expected

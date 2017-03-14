@@ -372,9 +372,6 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 	/* Init */
 	vcpu->arch.last_sched_cpu = -1;
 
-	/* Start off the timer */
-	kvm_mips_init_count(vcpu);
-
 	return vcpu;
 
 out_free_gebase:
