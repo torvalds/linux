@@ -1113,9 +1113,35 @@ add_tail_frag:
 }
 
 /**
+ * i40e_get_rx_buffer - Fetch Rx buffer and synchronize data for use
+ * @rx_ring: rx descriptor ring to transact packets on
+ * @size: size of buffer to add to skb
+ *
+ * This function will pull an Rx buffer from the ring and synchronize it
+ * for use by the CPU.
+ */
+static struct i40e_rx_buffer *i40e_get_rx_buffer(struct i40e_ring *rx_ring,
+						 const unsigned int size)
+{
+	struct i40e_rx_buffer *rx_buffer;
+
+	rx_buffer = &rx_ring->rx_bi[rx_ring->next_to_clean];
+	prefetchw(rx_buffer->page);
+
+	/* we are reusing so sync this buffer for CPU use */
+	dma_sync_single_range_for_cpu(rx_ring->dev,
+				      rx_buffer->dma,
+				      rx_buffer->page_offset,
+				      size,
+				      DMA_FROM_DEVICE);
+
+	return rx_buffer;
+}
+
+/**
  * i40evf_fetch_rx_buffer - Allocate skb and populate it
  * @rx_ring: rx descriptor ring to transact packets on
- * @rx_desc: descriptor containing info written by hardware
+ * @rx_buffer: rx buffer to pull data from
  * @size: size of buffer to add to skb
  *
  * This function allocates an skb on the fly, and populates it with the page
@@ -1125,19 +1151,13 @@ add_tail_frag:
  */
 static inline
 struct sk_buff *i40evf_fetch_rx_buffer(struct i40e_ring *rx_ring,
-				       union i40e_rx_desc *rx_desc,
+				       struct i40e_rx_buffer *rx_buffer,
 				       struct sk_buff *skb,
 				       unsigned int size)
 {
-	struct i40e_rx_buffer *rx_buffer;
-	struct page *page;
-
-	rx_buffer = &rx_ring->rx_bi[rx_ring->next_to_clean];
-	page = rx_buffer->page;
-	prefetchw(page);
-
 	if (likely(!skb)) {
-		void *page_addr = page_address(page) + rx_buffer->page_offset;
+		void *page_addr = page_address(rx_buffer->page) +
+				  rx_buffer->page_offset;
 
 		/* prefetch first cache line of first page */
 		prefetch(page_addr);
@@ -1153,20 +1173,7 @@ struct sk_buff *i40evf_fetch_rx_buffer(struct i40e_ring *rx_ring,
 			rx_ring->rx_stats.alloc_buff_failed++;
 			return NULL;
 		}
-
-		/* we will be copying header into skb->data in
-		 * pskb_may_pull so it is in our interest to prefetch
-		 * it now to avoid a possible cache miss
-		 */
-		prefetchw(skb->data);
 	}
-
-	/* we are reusing so sync this buffer for CPU use */
-	dma_sync_single_range_for_cpu(rx_ring->dev,
-				      rx_buffer->dma,
-				      rx_buffer->page_offset,
-				      size,
-				      DMA_FROM_DEVICE);
 
 	/* pull page into skb */
 	if (i40e_add_rx_frag(rx_ring, rx_buffer, size, skb)) {
@@ -1240,6 +1247,7 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 	bool failure = false;
 
 	while (likely(total_rx_packets < budget)) {
+		struct i40e_rx_buffer *rx_buffer;
 		union i40e_rx_desc *rx_desc;
 		unsigned int size;
 		u16 vlan_tag;
@@ -1272,7 +1280,9 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 		 */
 		dma_rmb();
 
-		skb = i40evf_fetch_rx_buffer(rx_ring, rx_desc, skb, size);
+		rx_buffer = i40e_get_rx_buffer(rx_ring, size);
+
+		skb = i40evf_fetch_rx_buffer(rx_ring, rx_buffer, skb, size);
 		if (!skb)
 			break;
 
