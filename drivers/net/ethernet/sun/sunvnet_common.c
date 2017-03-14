@@ -1749,16 +1749,12 @@ void sunvnet_port_add_txq_common(struct vnet_port *port)
 	vp->nports++;
 	vp->q_used[smallest]++;
 	port->q_index = smallest;
-	netif_tx_wake_queue(netdev_get_tx_queue(VNET_PORT_TO_NET_DEVICE(port),
-						port->q_index));
 }
 EXPORT_SYMBOL_GPL(sunvnet_port_add_txq_common);
 
 void sunvnet_port_rm_txq_common(struct vnet_port *port)
 {
 	port->vp->nports--;
-	netif_tx_stop_queue(netdev_get_tx_queue(VNET_PORT_TO_NET_DEVICE(port),
-						port->q_index));
 	port->vp->q_used[port->q_index]--;
 	port->q_index = 0;
 }
