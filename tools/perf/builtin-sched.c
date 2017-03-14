@@ -221,6 +221,7 @@ struct perf_sched {
 	unsigned int	max_stack;
 	bool		show_cpu_visual;
 	bool		show_wakeups;
+	bool		show_next;
 	bool		show_migrations;
 	bool		show_state;
 	u64		skipped_samples;
@@ -1897,14 +1898,18 @@ static char task_state_char(struct thread *thread, int state)
 }
 
 static void timehist_print_sample(struct perf_sched *sched,
+				  struct perf_evsel *evsel,
 				  struct perf_sample *sample,
 				  struct addr_location *al,
 				  struct thread *thread,
 				  u64 t, int state)
 {
 	struct thread_runtime *tr = thread__priv(thread);
+	const char *next_comm = perf_evsel__strval(evsel, sample, "next_comm");
+	const u32 next_pid = perf_evsel__intval(evsel, sample, "next_pid");
 	u32 max_cpus = sched->max_cpu + 1;
 	char tstr[64];
+	char nstr[30];
 	u64 wait_time;
 
 	timestamp__scnprintf_usec(t, tstr, sizeof(tstr));
@@ -1937,7 +1942,12 @@ static void timehist_print_sample(struct perf_sched *sched,
 	if (sched->show_state)
 		printf(" %5c ", task_state_char(thread, state));
 
-	if (sched->show_wakeups)
+	if (sched->show_next) {
+		snprintf(nstr, sizeof(nstr), "next: %s[%d]", next_comm, next_pid);
+		printf(" %-*s", comm_width, nstr);
+	}
+
+	if (sched->show_wakeups && !sched->show_next)
 		printf("  %-*s", comm_width, "");
 
 	if (thread->tid == 0)
@@ -2531,7 +2541,7 @@ static int timehist_sched_change_event(struct perf_tool *tool,
 	}
 
 	if (!sched->summary_only)
-		timehist_print_sample(sched, sample, &al, thread, t, state);
+		timehist_print_sample(sched, evsel, sample, &al, thread, t, state);
 
 out:
 	if (sched->hist_time.start == 0 && t >= ptime->start)
@@ -3341,6 +3351,7 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN('S', "with-summary", &sched.summary,
 		    "Show all syscalls and summary with statistics"),
 	OPT_BOOLEAN('w', "wakeups", &sched.show_wakeups, "Show wakeup events"),
+	OPT_BOOLEAN('n', "next", &sched.show_next, "Show next task"),
 	OPT_BOOLEAN('M', "migrations", &sched.show_migrations, "Show migration events"),
 	OPT_BOOLEAN('V', "cpu-visual", &sched.show_cpu_visual, "Add CPU visual"),
 	OPT_BOOLEAN('I', "idle-hist", &sched.idle_hist, "Show idle events only"),
@@ -3438,10 +3449,14 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 			if (argc)
 				usage_with_options(timehist_usage, timehist_options);
 		}
-		if (sched.show_wakeups && sched.summary_only) {
-			pr_err(" Error: -s and -w are mutually exclusive.\n");
+		if ((sched.show_wakeups || sched.show_next) &&
+		    sched.summary_only) {
+			pr_err(" Error: -s and -[n|w] are mutually exclusive.\n");
 			parse_options_usage(timehist_usage, timehist_options, "s", true);
-			parse_options_usage(NULL, timehist_options, "w", true);
+			if (sched.show_wakeups)
+				parse_options_usage(NULL, timehist_options, "w", true);
+			if (sched.show_next)
+				parse_options_usage(NULL, timehist_options, "n", true);
 			return -EINVAL;
 		}
 
