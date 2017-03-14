@@ -92,31 +92,6 @@ struct fsnotify_mark *fsnotify_find_inode_mark(struct fsnotify_group *group,
 	return mark;
 }
 
-/*
- * Attach an initialized mark to a given inode.
- * These marks may be used for the fsnotify backend to determine which
- * event types should be delivered to which group and for which inodes.  These
- * marks are ordered according to priority, highest number first, and then by
- * the group's location in memory.
- */
-int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
-			    struct fsnotify_group *group, struct inode *inode,
-			    int allow_dups)
-{
-	int ret;
-
-	BUG_ON(!mutex_is_locked(&group->mark_mutex));
-	assert_spin_locked(&mark->lock);
-
-	spin_lock(&inode->i_lock);
-	ret = fsnotify_add_mark_list(&inode->i_fsnotify_marks, mark, inode,
-				     NULL, allow_dups);
-	inode->i_fsnotify_mask = fsnotify_recalc_mask(inode->i_fsnotify_marks);
-	spin_unlock(&inode->i_lock);
-
-	return ret;
-}
-
 /**
  * fsnotify_unmount_inodes - an sb is unmounting.  handle any watched inodes.
  * @sb: superblock being unmounted.

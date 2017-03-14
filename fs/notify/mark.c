@@ -320,12 +320,13 @@ int fsnotify_compare_groups(struct fsnotify_group *a, struct fsnotify_group *b)
 
 static int fsnotify_attach_connector_to_object(
 					struct fsnotify_mark_connector **connp,
+					spinlock_t *lock,
 					struct inode *inode,
 					struct vfsmount *mnt)
 {
 	struct fsnotify_mark_connector *conn;
 
-	conn = kmem_cache_alloc(fsnotify_mark_connector_cachep, GFP_ATOMIC);
+	conn = kmem_cache_alloc(fsnotify_mark_connector_cachep, GFP_KERNEL);
 	if (!conn)
 		return -ENOMEM;
 	INIT_HLIST_HEAD(&conn->list);
@@ -341,7 +342,12 @@ static int fsnotify_attach_connector_to_object(
 	 * lockless_dereference() in fsnotify().
 	 */
 	smp_wmb();
-	*connp = conn;
+	spin_lock(lock);
+	if (!*connp)
+		*connp = conn;
+	else
+		kmem_cache_free(fsnotify_mark_connector_cachep, conn);
+	spin_unlock(lock);
 
 	return 0;
 }
@@ -352,20 +358,35 @@ static int fsnotify_attach_connector_to_object(
  * to which group and for which inodes. These marks are ordered according to
  * priority, highest number first, and then by the group's location in memory.
  */
-int fsnotify_add_mark_list(struct fsnotify_mark_connector **connp,
-			   struct fsnotify_mark *mark, struct inode *inode,
-			   struct vfsmount *mnt, int allow_dups)
+static int fsnotify_add_mark_list(struct fsnotify_mark *mark,
+				  struct inode *inode, struct vfsmount *mnt,
+				  int allow_dups)
 {
 	struct fsnotify_mark *lmark, *last = NULL;
 	struct fsnotify_mark_connector *conn;
+	struct fsnotify_mark_connector **connp;
+	spinlock_t *lock;
 	int cmp;
-	int err;
+	int err = 0;
+
+	if (WARN_ON(!inode && !mnt))
+		return -EINVAL;
+	if (inode) {
+		connp = &inode->i_fsnotify_marks;
+		lock = &inode->i_lock;
+	} else {
+		connp = &real_mount(mnt)->mnt_fsnotify_marks;
+		lock = &mnt->mnt_root->d_lock;
+	}
 
 	if (!*connp) {
-		err = fsnotify_attach_connector_to_object(connp, inode, mnt);
+		err = fsnotify_attach_connector_to_object(connp, lock,
+							  inode, mnt);
 		if (err)
 			return err;
 	}
+	spin_lock(&mark->lock);
+	spin_lock(lock);
 	conn = *connp;
 
 	/* is mark the first mark? */
@@ -380,8 +401,10 @@ int fsnotify_add_mark_list(struct fsnotify_mark_connector **connp,
 	hlist_for_each_entry(lmark, &conn->list, obj_list) {
 		last = lmark;
 
-		if ((lmark->group == mark->group) && !allow_dups)
-			return -EEXIST;
+		if ((lmark->group == mark->group) && !allow_dups) {
+			err = -EEXIST;
+			goto out_err;
+		}
 
 		cmp = fsnotify_compare_groups(lmark->group, mark->group);
 		if (cmp >= 0) {
@@ -395,7 +418,10 @@ int fsnotify_add_mark_list(struct fsnotify_mark_connector **connp,
 	hlist_add_behind_rcu(&mark->obj_list, &last->obj_list);
 added:
 	mark->connector = conn;
-	return 0;
+out_err:
+	spin_unlock(lock);
+	spin_unlock(&mark->lock);
+	return err;
 }
 
 /*
@@ -427,22 +453,16 @@ int fsnotify_add_mark_locked(struct fsnotify_mark *mark,
 	list_add(&mark->g_list, &group->marks_list);
 	atomic_inc(&group->num_marks);
 	fsnotify_get_mark(mark); /* for i_list and g_list */
-
-	if (inode) {
-		ret = fsnotify_add_inode_mark(mark, group, inode, allow_dups);
-		if (ret)
-			goto err;
-	} else if (mnt) {
-		ret = fsnotify_add_vfsmount_mark(mark, group, mnt, allow_dups);
-		if (ret)
-			goto err;
-	} else {
-		BUG();
-	}
 	spin_unlock(&mark->lock);
 
+	ret = fsnotify_add_mark_list(mark, inode, mnt, allow_dups);
+	if (ret)
+		goto err;
+
 	if (inode)
-		__fsnotify_update_child_dentry_flags(inode);
+		fsnotify_recalc_inode_mask(inode);
+	else
+		fsnotify_recalc_vfsmount_mask(mnt);
 
 	return ret;
 err:

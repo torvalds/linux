@@ -21,20 +21,6 @@ extern u32 fsnotify_recalc_mask(struct fsnotify_mark_connector *conn);
 extern int fsnotify_compare_groups(struct fsnotify_group *a,
 				   struct fsnotify_group *b);
 
-/* Add mark to a proper place in mark list */
-extern int fsnotify_add_mark_list(struct fsnotify_mark_connector **connp,
-				  struct fsnotify_mark *mark,
-				  struct inode *inode, struct vfsmount *mnt,
-				  int allow_dups);
-/* add a mark to an inode */
-extern int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
-				   struct fsnotify_group *group, struct inode *inode,
-				   int allow_dups);
-/* add a mark to a vfsmount */
-extern int fsnotify_add_vfsmount_mark(struct fsnotify_mark *mark,
-				      struct fsnotify_group *group, struct vfsmount *mnt,
-				      int allow_dups);
-
 /* vfsmount specific destruction of a mark */
 extern void fsnotify_destroy_vfsmount_mark(struct fsnotify_mark *mark);
 /* inode specific destruction of a mark */

@@ -80,27 +80,3 @@ struct fsnotify_mark *fsnotify_find_vfsmount_mark(struct fsnotify_group *group,
 
 	return mark;
 }
-
-/*
- * Attach an initialized mark to a given group and vfsmount.
- * These marks may be used for the fsnotify backend to determine which
- * event types should be delivered to which groups.
- */
-int fsnotify_add_vfsmount_mark(struct fsnotify_mark *mark,
-			       struct fsnotify_group *group, struct vfsmount *mnt,
-			       int allow_dups)
-{
-	struct mount *m = real_mount(mnt);
-	int ret;
-
-	BUG_ON(!mutex_is_locked(&group->mark_mutex));
-	assert_spin_locked(&mark->lock);
-
-	spin_lock(&mnt->mnt_root->d_lock);
-	ret = fsnotify_add_mark_list(&m->mnt_fsnotify_marks, mark, NULL, mnt,
-				     allow_dups);
-	m->mnt_fsnotify_mask = fsnotify_recalc_mask(m->mnt_fsnotify_marks);
-	spin_unlock(&mnt->mnt_root->d_lock);
-
-	return ret;
-}
