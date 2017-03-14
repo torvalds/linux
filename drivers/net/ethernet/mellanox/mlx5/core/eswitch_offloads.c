@@ -68,8 +68,10 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 	}
 	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
 		counter = mlx5_fc_create(esw->dev, true);
-		if (IS_ERR(counter))
-			return ERR_CAST(counter);
+		if (IS_ERR(counter)) {
+			rule = ERR_CAST(counter);
+			goto err_counter_alloc;
+		}
 		dest[i].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
 		dest[i].counter = counter;
 		i++;
@@ -92,10 +94,15 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 	rule = mlx5_add_flow_rules((struct mlx5_flow_table *)esw->fdb_table.fdb,
 				   spec, &flow_act, dest, i);
 	if (IS_ERR(rule))
-		mlx5_fc_destroy(esw->dev, counter);
+		goto err_add_rule;
 	else
 		esw->offloads.num_flows++;
 
+	return rule;
+
+err_add_rule:
+	mlx5_fc_destroy(esw->dev, counter);
+err_counter_alloc:
 	return rule;
 }
 
@@ -106,12 +113,10 @@ mlx5_eswitch_del_offloaded_rule(struct mlx5_eswitch *esw,
 {
 	struct mlx5_fc *counter = NULL;
 
-	if (!IS_ERR(rule)) {
-		counter = mlx5_flow_rule_counter(rule);
-		mlx5_del_flow_rules(rule);
-		mlx5_fc_destroy(esw->dev, counter);
-		esw->offloads.num_flows--;
-	}
+	counter = mlx5_flow_rule_counter(rule);
+	mlx5_del_flow_rules(rule);
+	mlx5_fc_destroy(esw->dev, counter);
+	esw->offloads.num_flows--;
 }
 
 static int esw_set_global_vlan_pop(struct mlx5_eswitch *esw, u8 val)

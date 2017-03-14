@@ -85,10 +85,11 @@ enum {
 static struct mlx5_flow_handle *
 mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 		      struct mlx5e_tc_flow_parse_attr *parse_attr,
-		      struct mlx5_nic_flow_attr *attr)
+		      struct mlx5e_tc_flow *flow)
 {
+	struct mlx5_nic_flow_attr *attr = flow->nic_attr;
 	struct mlx5_core_dev *dev = priv->mdev;
-	struct mlx5_flow_destination dest = { 0 };
+	struct mlx5_flow_destination dest = {};
 	struct mlx5_flow_act flow_act = {
 		.action = attr->action,
 		.flow_tag = attr->flow_tag,
@@ -152,11 +153,9 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 {
 	struct mlx5_fc *counter = NULL;
 
-	if (!IS_ERR(flow->rule)) {
-		counter = mlx5_flow_rule_counter(flow->rule);
-		mlx5_del_flow_rules(flow->rule);
-		mlx5_fc_destroy(priv->mdev, counter);
-	}
+	counter = mlx5_flow_rule_counter(flow->rule);
+	mlx5_del_flow_rules(flow->rule);
+	mlx5_fc_destroy(priv->mdev, counter);
 
 	if (!mlx5e_tc_num_filters(priv) && (priv->fs.tc.t)) {
 		mlx5_destroy_flow_table(priv->fs.tc.t);
@@ -164,23 +163,39 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 	}
 }
 
+static void mlx5e_detach_encap(struct mlx5e_priv *priv,
+			       struct mlx5e_tc_flow *flow);
+
 static struct mlx5_flow_handle *
 mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		      struct mlx5e_tc_flow_parse_attr *parse_attr,
-		      struct mlx5_esw_flow_attr *attr)
+		      struct mlx5e_tc_flow *flow)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
+	struct mlx5_flow_handle *rule;
 	int err;
 
 	err = mlx5_eswitch_add_vlan_action(esw, attr);
-	if (err)
-		return ERR_PTR(err);
+	if (err) {
+		rule = ERR_PTR(err);
+		goto err_add_vlan;
+	}
 
-	return mlx5_eswitch_add_offloaded_rule(esw, &parse_attr->spec, attr);
+	rule = mlx5_eswitch_add_offloaded_rule(esw, &parse_attr->spec, attr);
+	if (IS_ERR(rule))
+		goto err_add_rule;
+
+	return rule;
+
+err_add_rule:
+	mlx5_eswitch_del_vlan_action(esw, attr);
+err_add_vlan:
+	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_ENCAP)
+		mlx5e_detach_encap(priv, flow);
+
+	return rule;
 }
-
-static void mlx5e_detach_encap(struct mlx5e_priv *priv,
-			       struct mlx5e_tc_flow *flow);
 
 static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 				  struct mlx5e_tc_flow *flow)
@@ -214,10 +229,6 @@ static void mlx5e_detach_encap(struct mlx5e_priv *priv,
 	}
 }
 
-/* we get here also when setting rule to the FW failed, etc. It means that the
- * flow rule itself might not exist, but some offloading related to the actions
- * should be cleaned.
- */
 static void mlx5e_tc_del_flow(struct mlx5e_priv *priv,
 			      struct mlx5e_tc_flow *flow)
 {
@@ -665,8 +676,10 @@ static int parse_cls_flower(struct mlx5e_priv *priv,
 }
 
 static int parse_tc_nic_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
-				struct mlx5_nic_flow_attr *attr)
+				struct mlx5e_tc_flow_parse_attr *parse_attr,
+				struct mlx5e_tc_flow *flow)
 {
+	struct mlx5_nic_flow_attr *attr = flow->nic_attr;
 	const struct tc_action *a;
 	LIST_HEAD(actions);
 
@@ -1210,17 +1223,17 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv, __be16 protocol,
 		err = parse_tc_fdb_actions(priv, f->exts, flow);
 		if (err < 0)
 			goto err_free;
-		flow->rule = mlx5e_tc_add_fdb_flow(priv, parse_attr, flow->esw_attr);
+		flow->rule = mlx5e_tc_add_fdb_flow(priv, parse_attr, flow);
 	} else {
-		err = parse_tc_nic_actions(priv, f->exts, flow->nic_attr);
+		err = parse_tc_nic_actions(priv, f->exts, parse_attr, flow);
 		if (err < 0)
 			goto err_free;
-		flow->rule = mlx5e_tc_add_nic_flow(priv, parse_attr, flow->nic_attr);
+		flow->rule = mlx5e_tc_add_nic_flow(priv, parse_attr, flow);
 	}
 
 	if (IS_ERR(flow->rule)) {
 		err = PTR_ERR(flow->rule);
-		goto err_del_rule;
+		goto err_free;
 	}
 
 	err = rhashtable_insert_fast(&tc->ht, &flow->node,
