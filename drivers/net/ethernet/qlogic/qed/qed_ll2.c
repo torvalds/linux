@@ -211,6 +211,8 @@ static void qed_ll2b_complete_rx_packet(struct qed_hwfn *p_hwfn,
 	/* If need to reuse or there's no replacement buffer, repost this */
 	if (rc)
 		goto out_post;
+	dma_unmap_single(&cdev->pdev->dev, buffer->phys_addr,
+			 cdev->ll2->rx_size, DMA_FROM_DEVICE);
 
 	skb = build_skb(buffer->data, 0);
 	if (!skb) {
