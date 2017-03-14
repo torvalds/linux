@@ -266,10 +266,8 @@ static int cpcap_rtc_probe(struct platform_device *pdev)
 	rtc->rtc_dev = devm_rtc_device_register(dev, "cpcap_rtc",
 						&cpcap_rtc_ops, THIS_MODULE);
 
-	if (IS_ERR(rtc->rtc_dev)) {
-		kfree(rtc);
+	if (IS_ERR(rtc->rtc_dev))
 		return PTR_ERR(rtc->rtc_dev);
-	}
 
 	err = cpcap_get_vendor(dev, rtc->regmap, &rtc->vendor);
 	if (err)
