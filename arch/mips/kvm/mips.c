@@ -1043,7 +1043,6 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_READONLY_MEM:
 	case KVM_CAP_SYNC_MMU:
 	case KVM_CAP_IMMEDIATE_EXIT:
-	case KVM_CAP_MIPS_TE:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
@@ -1075,7 +1074,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		r = cpu_has_msa && !(boot_cpu_data.msa_id & MSA_IR_WRPF);
 		break;
 	default:
-		r = 0;
+		r = kvm_mips_callbacks->check_extension(kvm, ext);
 		break;
 	}
 	return r;
