@@ -190,6 +190,9 @@ qed_sp_iscsi_func_start(struct qed_hwfn *p_hwfn,
 	p_init->num_sq_pages_in_ring = p_params->num_sq_pages_in_ring;
 	p_init->num_r2tq_pages_in_ring = p_params->num_r2tq_pages_in_ring;
 	p_init->num_uhq_pages_in_ring = p_params->num_uhq_pages_in_ring;
+	p_init->ooo_enable = p_params->ooo_enable;
+	p_init->ll2_rx_queue_id = p_hwfn->hw_info.resc_start[QED_LL2_QUEUE] +
+				  p_params->ll2_ooo_queue_id;
 	p_init->func_params.log_page_size = p_params->log_page_size;
 	val = p_params->num_tasks;
 	p_init->func_params.num_tasks = cpu_to_le16(val);
