@@ -35,6 +35,19 @@ struct vnet_tx_entry {
 
 struct vnet;
 
+struct vnet_port_stats {
+	/* keep them all the same size */
+	u32 rx_bytes;
+	u32 tx_bytes;
+	u32 rx_packets;
+	u32 tx_packets;
+	u32 event_up;
+	u32 event_reset;
+	u32 q_placeholder;
+};
+
+#define NUM_VNET_PORT_STATS  (sizeof(struct vnet_port_stats) / sizeof(u32))
+
 /* Structure to describe a vnet-port or vsw-port in the MD.
  * If the vsw bit is set, this structure represents a vswitch
  * port, and the net_device can be found from ->dev. If the
@@ -43,6 +56,8 @@ struct vnet;
  */
 struct vnet_port {
 	struct vio_driver_state	vio;
+
+	struct vnet_port_stats stats;
 
 	struct hlist_node	hash;
 	u8			raddr[ETH_ALEN];

@@ -411,6 +411,8 @@ static int vnet_rx_one(struct vnet_port *port, struct vio_net_desc *desc)
 
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += len;
+	port->stats.rx_packets++;
+	port->stats.rx_bytes += len;
 	napi_gro_receive(&port->napi, skb);
 	return 0;
 
@@ -768,6 +770,7 @@ static int vnet_event_napi(struct vnet_port *port, int budget)
 			maybe_tx_wakeup(port);
 
 		port->rx_event = 0;
+		port->stats.event_reset++;
 		return 0;
 	}
 
@@ -781,6 +784,7 @@ static int vnet_event_napi(struct vnet_port *port, int budget)
 
 		vio_link_state_change(vio, LDC_EVENT_UP);
 		port->rx_event = 0;
+		port->stats.event_up++;
 		return 0;
 	}
 
@@ -1430,6 +1434,8 @@ ldc_start_done:
 
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += port->tx_bufs[txi].skb->len;
+	port->stats.tx_packets++;
+	port->stats.tx_bytes += port->tx_bufs[txi].skb->len;
 
 	dr->prod = (dr->prod + 1) & (VNET_TX_RING_SIZE - 1);
 	if (unlikely(vnet_tx_dring_avail(dr) < 1)) {
