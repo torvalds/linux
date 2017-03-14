@@ -189,7 +189,7 @@ void intel_huc_init(struct drm_i915_private *dev_priv)
 
 	DRM_DEBUG_DRIVER("HuC firmware pending, path %s\n", fw_path);
 
-	intel_uc_fw_fetch(dev_priv, huc_fw);
+	intel_uc_prepare_fw(dev_priv, huc_fw);
 }
 
 /**

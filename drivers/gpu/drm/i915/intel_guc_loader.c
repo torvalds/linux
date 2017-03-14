@@ -26,7 +26,6 @@
  *    Dave Gordon <david.s.gordon@intel.com>
  *    Alex Dai <yu.dai@intel.com>
  */
-#include <linux/firmware.h>
 #include "i915_drv.h"
 #include "intel_uc.h"
 
@@ -520,140 +519,6 @@ fail:
 	return ret;
 }
 
-void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
-			 struct intel_uc_fw *uc_fw)
-{
-	struct pci_dev *pdev = dev_priv->drm.pdev;
-	struct drm_i915_gem_object *obj;
-	const struct firmware *fw = NULL;
-	struct uc_css_header *css;
-	size_t size;
-	int err;
-
-	DRM_DEBUG_DRIVER("before requesting firmware: uC fw fetch status %s\n",
-		intel_uc_fw_status_repr(uc_fw->fetch_status));
-
-	err = request_firmware(&fw, uc_fw->path, &pdev->dev);
-	if (err)
-		goto fail;
-	if (!fw)
-		goto fail;
-
-	DRM_DEBUG_DRIVER("fetch uC fw from %s succeeded, fw %p\n",
-		uc_fw->path, fw);
-
-	/* Check the size of the blob before examining buffer contents */
-	if (fw->size < sizeof(struct uc_css_header)) {
-		DRM_NOTE("Firmware header is missing\n");
-		goto fail;
-	}
-
-	css = (struct uc_css_header *)fw->data;
-
-	/* Firmware bits always start from header */
-	uc_fw->header_offset = 0;
-	uc_fw->header_size = (css->header_size_dw - css->modulus_size_dw -
-		css->key_size_dw - css->exponent_size_dw) * sizeof(u32);
-
-	if (uc_fw->header_size != sizeof(struct uc_css_header)) {
-		DRM_NOTE("CSS header definition mismatch\n");
-		goto fail;
-	}
-
-	/* then, uCode */
-	uc_fw->ucode_offset = uc_fw->header_offset + uc_fw->header_size;
-	uc_fw->ucode_size = (css->size_dw - css->header_size_dw) * sizeof(u32);
-
-	/* now RSA */
-	if (css->key_size_dw != UOS_RSA_SCRATCH_MAX_COUNT) {
-		DRM_NOTE("RSA key size is bad\n");
-		goto fail;
-	}
-	uc_fw->rsa_offset = uc_fw->ucode_offset + uc_fw->ucode_size;
-	uc_fw->rsa_size = css->key_size_dw * sizeof(u32);
-
-	/* At least, it should have header, uCode and RSA. Size of all three. */
-	size = uc_fw->header_size + uc_fw->ucode_size + uc_fw->rsa_size;
-	if (fw->size < size) {
-		DRM_NOTE("Missing firmware components\n");
-		goto fail;
-	}
-
-	/*
-	 * The GuC firmware image has the version number embedded at a well-known
-	 * offset within the firmware blob; note that major / minor version are
-	 * TWO bytes each (i.e. u16), although all pointers and offsets are defined
-	 * in terms of bytes (u8).
-	 */
-	switch (uc_fw->fw) {
-	case INTEL_UC_FW_TYPE_GUC:
-		/* Header and uCode will be loaded to WOPCM. Size of the two. */
-		size = uc_fw->header_size + uc_fw->ucode_size;
-
-		/* Top 32k of WOPCM is reserved (8K stack + 24k RC6 context). */
-		if (size > intel_guc_wopcm_size(dev_priv)) {
-			DRM_ERROR("Firmware is too large to fit in WOPCM\n");
-			goto fail;
-		}
-		uc_fw->major_ver_found = css->guc.sw_version >> 16;
-		uc_fw->minor_ver_found = css->guc.sw_version & 0xFFFF;
-		break;
-
-	case INTEL_UC_FW_TYPE_HUC:
-		uc_fw->major_ver_found = css->huc.sw_version >> 16;
-		uc_fw->minor_ver_found = css->huc.sw_version & 0xFFFF;
-		break;
-
-	default:
-		DRM_ERROR("Unknown firmware type %d\n", uc_fw->fw);
-		err = -ENOEXEC;
-		goto fail;
-	}
-
-	if (uc_fw->major_ver_found != uc_fw->major_ver_wanted ||
-	    uc_fw->minor_ver_found < uc_fw->minor_ver_wanted) {
-		DRM_NOTE("uC firmware version %d.%d, required %d.%d\n",
-			uc_fw->major_ver_found, uc_fw->minor_ver_found,
-			uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted);
-		err = -ENOEXEC;
-		goto fail;
-	}
-
-	DRM_DEBUG_DRIVER("firmware version %d.%d OK (minimum %d.%d)\n",
-			uc_fw->major_ver_found, uc_fw->minor_ver_found,
-			uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted);
-
-	mutex_lock(&dev_priv->drm.struct_mutex);
-	obj = i915_gem_object_create_from_data(dev_priv, fw->data, fw->size);
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-	if (IS_ERR_OR_NULL(obj)) {
-		err = obj ? PTR_ERR(obj) : -ENOMEM;
-		goto fail;
-	}
-
-	uc_fw->obj = obj;
-	uc_fw->size = fw->size;
-
-	DRM_DEBUG_DRIVER("uC fw fetch status SUCCESS, obj %p\n",
-			uc_fw->obj);
-
-	release_firmware(fw);
-	uc_fw->fetch_status = INTEL_UC_FIRMWARE_SUCCESS;
-	return;
-
-fail:
-	DRM_WARN("Failed to fetch valid uC firmware from %s (error %d)\n",
-		 uc_fw->path, err);
-	DRM_DEBUG_DRIVER("uC fw fetch status FAIL; err %d, fw %p, obj %p\n",
-		err, fw, uc_fw->obj);
-
-	obj = fetch_and_zero(&uc_fw->obj);
-	if (obj)
-		i915_gem_object_put(obj);
-
-	release_firmware(fw);		/* OK even if fw is NULL */
-	uc_fw->fetch_status = INTEL_UC_FIRMWARE_FAIL;
-}
 
 /**
  * intel_guc_init() - define parameters and fetch firmware
@@ -712,7 +577,7 @@ void intel_guc_init(struct drm_i915_private *dev_priv)
 
 	guc_fw->fetch_status = INTEL_UC_FIRMWARE_PENDING;
 	DRM_DEBUG_DRIVER("GuC firmware pending, path %s\n", fw_path);
-	intel_uc_fw_fetch(dev_priv, guc_fw);
+	intel_uc_prepare_fw(dev_priv, guc_fw);
 	/* status must now be FAIL or SUCCESS */
 }
 
