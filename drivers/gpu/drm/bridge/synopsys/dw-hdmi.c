@@ -4014,6 +4014,7 @@ struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
 	if (!hdmi)
 		return ERR_PTR(-ENOMEM);
 
+	hdmi->connector.stereo_allowed = 1;
 	hdmi->plat_data = plat_data;
 	hdmi->dev = dev;
 	hdmi->sample_rate = 48000;
