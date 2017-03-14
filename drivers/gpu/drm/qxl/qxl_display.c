@@ -572,6 +572,8 @@ static void qxl_cursor_atomic_update(struct drm_plane *plane,
 	ret = qxl_alloc_release_reserved(qdev, sizeof(*cmd),
 					 QXL_RELEASE_CURSOR_CMD,
 					 &release, NULL);
+	if (ret)
+		return;
 
 	cmd = (struct qxl_cursor_cmd *) qxl_release_map(qdev, release);
 
