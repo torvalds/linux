@@ -727,7 +727,7 @@ void rdtgroup_kn_unlock(struct kernfs_node *kn)
 	if (atomic_dec_and_test(&rdtgrp->waitcount) &&
 	    (rdtgrp->flags & RDT_DELETED)) {
 		kernfs_unbreak_active_protection(kn);
-		kernfs_put(kn);
+		kernfs_put(rdtgrp->kn);
 		kfree(rdtgrp);
 	} else {
 		kernfs_unbreak_active_protection(kn);
