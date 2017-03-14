@@ -9,6 +9,7 @@
 
 #include <asm/tlbflush.h>
 #include <asm/sections.h>
+#include <asm/fixmap.h>
 
 extern pgd_t early_level4_pgt[PTRS_PER_PGD];
 extern struct range pfn_mapped[E820_X_MAX];

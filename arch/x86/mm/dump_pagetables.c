@@ -20,6 +20,7 @@
 
 #include <asm/kasan.h>
 #include <asm/pgtable.h>
+#include <asm/fixmap.h>
 
 /*
  * The dumper groups pagetable entries of the same type into one, and for
