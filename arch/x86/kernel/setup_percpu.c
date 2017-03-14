@@ -160,7 +160,7 @@ static inline void setup_percpu_segment(int cpu)
 	pack_descriptor(&gdt, per_cpu_offset(cpu), 0xFFFFF,
 			0x2 | DESCTYPE_S, 0x8);
 	gdt.s = 1;
-	write_gdt_entry(get_cpu_gdt_table(cpu),
+	write_gdt_entry(get_cpu_gdt_rw(cpu),
 			GDT_ENTRY_PERCPU, &gdt, DESCTYPE_S);
 #endif
 }

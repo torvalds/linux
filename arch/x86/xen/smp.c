@@ -392,7 +392,7 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	if (ctxt == NULL)
 		return -ENOMEM;
 
-	gdt = get_cpu_gdt_table(cpu);
+	gdt = get_cpu_gdt_rw(cpu);
 
 #ifdef CONFIG_X86_32
 	ctxt->user_regs.fs = __KERNEL_PERCPU;

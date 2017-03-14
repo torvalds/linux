@@ -710,7 +710,7 @@ static void load_TLS_descriptor(struct thread_struct *t,
 
 	*shadow = t->tls_array[i];
 
-	gdt = get_cpu_gdt_table(cpu);
+	gdt = get_cpu_gdt_rw(cpu);
 	maddr = arbitrary_virt_to_machine(&gdt[GDT_ENTRY_TLS_MIN+i]);
 	mc = __xen_mc_entry(0);
 
@@ -1544,6 +1544,9 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	 * mark it RW later, when the initial percpu area is freed.
 	 */
 	xen_initial_gdt = &per_cpu(gdt_page, 0);
+
+	/* GDT can only be remapped RO */
+	pg_fixmap_gdt_flags = PAGE_KERNEL_RO;
 
 	xen_smp_init();
 

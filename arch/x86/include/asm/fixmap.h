@@ -100,6 +100,10 @@ enum fixed_addresses {
 #ifdef	CONFIG_X86_INTEL_MID
 	FIX_LNW_VRTC,
 #endif
+	/* Fixmap entries to remap the GDTs, one per processor. */
+	FIX_GDT_REMAP_BEGIN,
+	FIX_GDT_REMAP_END = FIX_GDT_REMAP_BEGIN + NR_CPUS - 1,
+
 	__end_of_permanent_fixed_addresses,
 
 	/*
