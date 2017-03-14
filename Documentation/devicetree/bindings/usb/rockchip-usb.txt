@@ -25,6 +25,8 @@ Optional properties:
    even if it's used for a non-split periodic transfer.
  - rockchip,high-bandwidth: If present, support high bandwidth
    endpoints.
+ - rockchip,usb-pd-off: when set, support turning off usb pd at
+   PM suspend.
 
 Example:
  - RK3288
