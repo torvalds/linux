@@ -297,35 +297,46 @@ static void __init xen_filter_cpu_maps(void)
 
 }
 
-static void __init xen_smp_prepare_boot_cpu(void)
+static void __init xen_pv_smp_prepare_boot_cpu(void)
 {
 	BUG_ON(smp_processor_id() != 0);
 	native_smp_prepare_boot_cpu();
 
-	if (xen_pv_domain()) {
-		if (!xen_feature(XENFEAT_writable_page_tables))
-			/* We've switched to the "real" per-cpu gdt, so make
-			 * sure the old memory can be recycled. */
-			make_lowmem_page_readwrite(xen_initial_gdt);
+	if (!xen_feature(XENFEAT_writable_page_tables))
+		/* We've switched to the "real" per-cpu gdt, so make
+		 * sure the old memory can be recycled. */
+		make_lowmem_page_readwrite(xen_initial_gdt);
 
 #ifdef CONFIG_X86_32
-		/*
-		 * Xen starts us with XEN_FLAT_RING1_DS, but linux code
-		 * expects __USER_DS
-		 */
-		loadsegment(ds, __USER_DS);
-		loadsegment(es, __USER_DS);
+	/*
+	 * Xen starts us with XEN_FLAT_RING1_DS, but linux code
+	 * expects __USER_DS
+	 */
+	loadsegment(ds, __USER_DS);
+	loadsegment(es, __USER_DS);
 #endif
 
-		xen_filter_cpu_maps();
-		xen_setup_vcpu_info_placement();
-	}
+	xen_filter_cpu_maps();
+	xen_setup_vcpu_info_placement();
+
+	/*
+	 * The alternative logic (which patches the unlock/lock) runs before
+	 * the smp bootup up code is activated. Hence we need to set this up
+	 * the core kernel is being patched. Otherwise we will have only
+	 * modules patched but not core code.
+	 */
+	xen_init_spinlocks();
+}
+
+static void __init xen_hvm_smp_prepare_boot_cpu(void)
+{
+	BUG_ON(smp_processor_id() != 0);
+	native_smp_prepare_boot_cpu();
 
 	/*
 	 * Setup vcpu_info for boot CPU.
 	 */
-	if (xen_hvm_domain())
-		xen_vcpu_setup(0);
+	xen_vcpu_setup(0);
 
 	/*
 	 * The alternative logic (which patches the unlock/lock) runs before
@@ -717,7 +728,7 @@ static irqreturn_t xen_irq_work_interrupt(int irq, void *dev_id)
 }
 
 static const struct smp_ops xen_smp_ops __initconst = {
-	.smp_prepare_boot_cpu = xen_smp_prepare_boot_cpu,
+	.smp_prepare_boot_cpu = xen_pv_smp_prepare_boot_cpu,
 	.smp_prepare_cpus = xen_smp_prepare_cpus,
 	.smp_cpus_done = xen_smp_cpus_done,
 
@@ -754,5 +765,5 @@ void __init xen_hvm_smp_init(void)
 	smp_ops.cpu_die = xen_cpu_die;
 	smp_ops.send_call_func_ipi = xen_smp_send_call_function_ipi;
 	smp_ops.send_call_func_single_ipi = xen_smp_send_call_function_single_ipi;
-	smp_ops.smp_prepare_boot_cpu = xen_smp_prepare_boot_cpu;
+	smp_ops.smp_prepare_boot_cpu = xen_hvm_smp_prepare_boot_cpu;
 }
