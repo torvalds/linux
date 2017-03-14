@@ -621,7 +621,9 @@ void kvm_mips_write_compare(struct kvm_vcpu *vcpu, u32 compare, bool ack)
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	int dc;
 	u32 old_compare = kvm_read_c0_guest_compare(cop0);
-	ktime_t now;
+	s32 delta = compare - old_compare;
+	u32 cause;
+	ktime_t now = ktime_set(0, 0); /* silence bogus GCC warning */
 	u32 count;
 
 	/* if unchanged, must just be an ack */
@@ -633,6 +635,21 @@ void kvm_mips_write_compare(struct kvm_vcpu *vcpu, u32 compare, bool ack)
 		return;
 	}
 
+	/*
+	 * If guest CP0_Compare moves forward, CP0_GTOffset should be adjusted
+	 * too to prevent guest CP0_Count hitting guest CP0_Compare.
+	 *
+	 * The new GTOffset corresponds to the new value of CP0_Compare, and is
+	 * set prior to it being written into the guest context. We disable
+	 * preemption until the new value is written to prevent restore of a
+	 * GTOffset corresponding to the old CP0_Compare value.
+	 */
+	if (IS_ENABLED(CONFIG_KVM_MIPS_VZ) && delta > 0) {
+		preempt_disable();
+		write_c0_gtoffset(compare - read_c0_count());
+		back_to_back_c0_hazard();
+	}
+
 	/* freeze_hrtimer() takes care of timer interrupts <= count */
 	dc = kvm_mips_count_disabled(vcpu);
 	if (!dc)
@@ -640,12 +657,36 @@ void kvm_mips_write_compare(struct kvm_vcpu *vcpu, u32 compare, bool ack)
 
 	if (ack)
 		kvm_mips_callbacks->dequeue_timer_int(vcpu);
+	else if (IS_ENABLED(CONFIG_KVM_MIPS_VZ))
+		/*
+		 * With VZ, writing CP0_Compare acks (clears) CP0_Cause.TI, so
+		 * preserve guest CP0_Cause.TI if we don't want to ack it.
+		 */
+		cause = kvm_read_c0_guest_cause(cop0);
 
 	kvm_write_c0_guest_compare(cop0, compare);
+
+	if (IS_ENABLED(CONFIG_KVM_MIPS_VZ)) {
+		if (delta > 0)
+			preempt_enable();
+
+		back_to_back_c0_hazard();
+
+		if (!ack && cause & CAUSEF_TI)
+			kvm_write_c0_guest_cause(cop0, cause);
+	}
 
 	/* resume_hrtimer() takes care of timer interrupts > count */
 	if (!dc)
 		kvm_mips_resume_hrtimer(vcpu, now, count);
+
+	/*
+	 * If guest CP0_Compare is moving backward, we delay CP0_GTOffset change
+	 * until after the new CP0_Compare is written, otherwise new guest
+	 * CP0_Count could hit new guest CP0_Compare.
+	 */
+	if (IS_ENABLED(CONFIG_KVM_MIPS_VZ) && delta <= 0)
+		write_c0_gtoffset(compare - read_c0_count());
 }
 
 /**
