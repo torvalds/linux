@@ -1156,7 +1156,7 @@ jmp_cmp:
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff,
 						  vlan_tci) != 2);
 			off = offsetof(struct sk_buff, vlan_tci);
-			emit_half_load(r_s0, r_skb, off, ctx);
+			emit_half_load_unsigned(r_s0, r_skb, off, ctx);
 			if (code == (BPF_ANC | SKF_AD_VLAN_TAG)) {
 				emit_andi(r_A, r_s0, (u16)~VLAN_TAG_PRESENT, ctx);
 			} else {
@@ -1183,7 +1183,7 @@ jmp_cmp:
 			BUILD_BUG_ON(offsetof(struct sk_buff,
 					      queue_mapping) > 0xff);
 			off = offsetof(struct sk_buff, queue_mapping);
-			emit_half_load(r_A, r_skb, off, ctx);
+			emit_half_load_unsigned(r_A, r_skb, off, ctx);
 			break;
 		default:
 			pr_debug("%s: Unhandled opcode: 0x%02x\n", __FILE__,
