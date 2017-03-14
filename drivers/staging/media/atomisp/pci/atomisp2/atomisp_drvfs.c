@@ -128,11 +128,9 @@ static ssize_t iunit_dbgfun_store(struct device_driver *drv, const char *buf,
 	unsigned int opt;
 	int ret;
 
-	if (kstrtouint(buf, 10, &opt)) {
-		dev_err(atomisp_dev, "%s setting %d value invalid\n",
-			__func__, opt);
-		return -EINVAL;
-	}
+	ret = kstrtouint(buf, 10, &opt);
+	if (ret)
+		return ret;
 
 	ret = atomisp_set_css_dbgfunc(iunit_debug.isp, opt);
 	if (ret)
@@ -154,11 +152,9 @@ static ssize_t iunit_dbgopt_store(struct device_driver *drv, const char *buf,
 	unsigned int opt;
 	int ret;
 
-	if (kstrtouint(buf, 10, &opt)) {
-		dev_err(atomisp_dev, "%s setting %d value invalid\n",
-			__func__, opt);
-		return -EINVAL;
-	}
+	ret = kstrtouint(buf, 10, &opt);
+	if (ret)
+		return ret;
 
 	iunit_debug.dbgopt = opt;
 	ret = iunit_dump_dbgopt(iunit_debug.isp, iunit_debug.dbgopt);
