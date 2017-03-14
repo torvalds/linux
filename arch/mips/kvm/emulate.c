@@ -1477,9 +1477,8 @@ enum emulation_result kvm_mips_emulate_store(union mips_instruction inst,
 					     struct kvm_run *run,
 					     struct kvm_vcpu *vcpu)
 {
-	enum emulation_result er = EMULATE_DO_MMIO;
+	enum emulation_result er;
 	u32 rt;
-	u32 bytes;
 	void *data = run->mmio.data;
 	unsigned long curr_pc;
 
@@ -1494,103 +1493,63 @@ enum emulation_result kvm_mips_emulate_store(union mips_instruction inst,
 
 	rt = inst.i_format.rt;
 
+	run->mmio.phys_addr = kvm_mips_callbacks->gva_to_gpa(
+						vcpu->arch.host_cp0_badvaddr);
+	if (run->mmio.phys_addr == KVM_INVALID_ADDR)
+		goto out_fail;
+
 	switch (inst.i_format.opcode) {
-	case sb_op:
-		bytes = 1;
-		if (bytes > sizeof(run->mmio.data)) {
-			kvm_err("%s: bad MMIO length: %d\n", __func__,
-			       run->mmio.len);
-		}
-		run->mmio.phys_addr =
-		    kvm_mips_callbacks->gva_to_gpa(vcpu->arch.
-						   host_cp0_badvaddr);
-		if (run->mmio.phys_addr == KVM_INVALID_ADDR) {
-			er = EMULATE_FAIL;
-			break;
-		}
-		run->mmio.len = bytes;
-		run->mmio.is_write = 1;
-		vcpu->mmio_needed = 1;
-		vcpu->mmio_is_write = 1;
-		*(u8 *) data = vcpu->arch.gprs[rt];
-		kvm_debug("OP_SB: eaddr: %#lx, gpr: %#lx, data: %#x\n",
-			  vcpu->arch.host_cp0_badvaddr, vcpu->arch.gprs[rt],
-			  *(u8 *) data);
-
-		break;
-
 	case sw_op:
-		bytes = 4;
-		if (bytes > sizeof(run->mmio.data)) {
-			kvm_err("%s: bad MMIO length: %d\n", __func__,
-			       run->mmio.len);
-		}
-		run->mmio.phys_addr =
-		    kvm_mips_callbacks->gva_to_gpa(vcpu->arch.
-						   host_cp0_badvaddr);
-		if (run->mmio.phys_addr == KVM_INVALID_ADDR) {
-			er = EMULATE_FAIL;
-			break;
-		}
-
-		run->mmio.len = bytes;
-		run->mmio.is_write = 1;
-		vcpu->mmio_needed = 1;
-		vcpu->mmio_is_write = 1;
-		*(u32 *) data = vcpu->arch.gprs[rt];
+		run->mmio.len = 4;
+		*(u32 *)data = vcpu->arch.gprs[rt];
 
 		kvm_debug("[%#lx] OP_SW: eaddr: %#lx, gpr: %#lx, data: %#x\n",
 			  vcpu->arch.pc, vcpu->arch.host_cp0_badvaddr,
-			  vcpu->arch.gprs[rt], *(u32 *) data);
+			  vcpu->arch.gprs[rt], *(u32 *)data);
 		break;
 
 	case sh_op:
-		bytes = 2;
-		if (bytes > sizeof(run->mmio.data)) {
-			kvm_err("%s: bad MMIO length: %d\n", __func__,
-			       run->mmio.len);
-		}
-		run->mmio.phys_addr =
-		    kvm_mips_callbacks->gva_to_gpa(vcpu->arch.
-						   host_cp0_badvaddr);
-		if (run->mmio.phys_addr == KVM_INVALID_ADDR) {
-			er = EMULATE_FAIL;
-			break;
-		}
-
-		run->mmio.len = bytes;
-		run->mmio.is_write = 1;
-		vcpu->mmio_needed = 1;
-		vcpu->mmio_is_write = 1;
-		*(u16 *) data = vcpu->arch.gprs[rt];
+		run->mmio.len = 2;
+		*(u16 *)data = vcpu->arch.gprs[rt];
 
 		kvm_debug("[%#lx] OP_SH: eaddr: %#lx, gpr: %#lx, data: %#x\n",
 			  vcpu->arch.pc, vcpu->arch.host_cp0_badvaddr,
-			  vcpu->arch.gprs[rt], *(u32 *) data);
+			  vcpu->arch.gprs[rt], *(u16 *)data);
+		break;
+
+	case sb_op:
+		run->mmio.len = 1;
+		*(u8 *)data = vcpu->arch.gprs[rt];
+
+		kvm_debug("[%#lx] OP_SB: eaddr: %#lx, gpr: %#lx, data: %#x\n",
+			  vcpu->arch.pc, vcpu->arch.host_cp0_badvaddr,
+			  vcpu->arch.gprs[rt], *(u8 *)data);
 		break;
 
 	default:
 		kvm_err("Store not yet supported (inst=0x%08x)\n",
 			inst.word);
-		er = EMULATE_FAIL;
-		break;
+		goto out_fail;
 	}
 
-	/* Rollback PC if emulation was unsuccessful */
-	if (er == EMULATE_FAIL)
-		vcpu->arch.pc = curr_pc;
+	run->mmio.is_write = 1;
+	vcpu->mmio_needed = 1;
+	vcpu->mmio_is_write = 1;
+	return EMULATE_DO_MMIO;
 
-	return er;
+out_fail:
+	/* Rollback PC if emulation was unsuccessful */
+	vcpu->arch.pc = curr_pc;
+	return EMULATE_FAIL;
 }
 
 enum emulation_result kvm_mips_emulate_load(union mips_instruction inst,
 					    u32 cause, struct kvm_run *run,
 					    struct kvm_vcpu *vcpu)
 {
-	enum emulation_result er = EMULATE_DO_MMIO;
+	enum emulation_result er;
 	unsigned long curr_pc;
 	u32 op, rt;
-	u32 bytes;
 
 	rt = inst.i_format.rt;
 	op = inst.i_format.opcode;
@@ -1609,94 +1568,41 @@ enum emulation_result kvm_mips_emulate_load(union mips_instruction inst,
 
 	vcpu->arch.io_gpr = rt;
 
+	run->mmio.phys_addr = kvm_mips_callbacks->gva_to_gpa(
+						vcpu->arch.host_cp0_badvaddr);
+	if (run->mmio.phys_addr == KVM_INVALID_ADDR)
+		return EMULATE_FAIL;
+
+	vcpu->mmio_needed = 2;	/* signed */
 	switch (op) {
 	case lw_op:
-		bytes = 4;
-		if (bytes > sizeof(run->mmio.data)) {
-			kvm_err("%s: bad MMIO length: %d\n", __func__,
-			       run->mmio.len);
-			er = EMULATE_FAIL;
-			break;
-		}
-		run->mmio.phys_addr =
-		    kvm_mips_callbacks->gva_to_gpa(vcpu->arch.
-						   host_cp0_badvaddr);
-		if (run->mmio.phys_addr == KVM_INVALID_ADDR) {
-			er = EMULATE_FAIL;
-			break;
-		}
-
-		run->mmio.len = bytes;
-		run->mmio.is_write = 0;
-		vcpu->mmio_needed = 1;
-		vcpu->mmio_is_write = 0;
+		run->mmio.len = 4;
 		break;
 
-	case lh_op:
 	case lhu_op:
-		bytes = 2;
-		if (bytes > sizeof(run->mmio.data)) {
-			kvm_err("%s: bad MMIO length: %d\n", __func__,
-			       run->mmio.len);
-			er = EMULATE_FAIL;
-			break;
-		}
-		run->mmio.phys_addr =
-		    kvm_mips_callbacks->gva_to_gpa(vcpu->arch.
-						   host_cp0_badvaddr);
-		if (run->mmio.phys_addr == KVM_INVALID_ADDR) {
-			er = EMULATE_FAIL;
-			break;
-		}
-
-		run->mmio.len = bytes;
-		run->mmio.is_write = 0;
-		vcpu->mmio_needed = 1;
-		vcpu->mmio_is_write = 0;
-
-		if (op == lh_op)
-			vcpu->mmio_needed = 2;
-		else
-			vcpu->mmio_needed = 1;
-
+		vcpu->mmio_needed = 1;	/* unsigned */
+		/* fall through */
+	case lh_op:
+		run->mmio.len = 2;
 		break;
 
 	case lbu_op:
+		vcpu->mmio_needed = 1;	/* unsigned */
+		/* fall through */
 	case lb_op:
-		bytes = 1;
-		if (bytes > sizeof(run->mmio.data)) {
-			kvm_err("%s: bad MMIO length: %d\n", __func__,
-			       run->mmio.len);
-			er = EMULATE_FAIL;
-			break;
-		}
-		run->mmio.phys_addr =
-		    kvm_mips_callbacks->gva_to_gpa(vcpu->arch.
-						   host_cp0_badvaddr);
-		if (run->mmio.phys_addr == KVM_INVALID_ADDR) {
-			er = EMULATE_FAIL;
-			break;
-		}
-
-		run->mmio.len = bytes;
-		run->mmio.is_write = 0;
-		vcpu->mmio_is_write = 0;
-
-		if (op == lb_op)
-			vcpu->mmio_needed = 2;
-		else
-			vcpu->mmio_needed = 1;
-
+		run->mmio.len = 1;
 		break;
 
 	default:
 		kvm_err("Load not yet supported (inst=0x%08x)\n",
 			inst.word);
-		er = EMULATE_FAIL;
-		break;
+		vcpu->mmio_needed = 0;
+		return EMULATE_FAIL;
 	}
 
-	return er;
+	run->mmio.is_write = 0;
+	vcpu->mmio_is_write = 0;
+	return EMULATE_DO_MMIO;
 }
 
 static enum emulation_result kvm_mips_guest_cache_op(int (*fn)(unsigned long),
@@ -1872,18 +1778,6 @@ enum emulation_result kvm_mips_emulate_inst(u32 cause, u32 *opc,
 	switch (inst.r_format.opcode) {
 	case cop0_op:
 		er = kvm_mips_emulate_CP0(inst, opc, cause, run, vcpu);
-		break;
-	case sb_op:
-	case sh_op:
-	case sw_op:
-		er = kvm_mips_emulate_store(inst, cause, run, vcpu);
-		break;
-	case lb_op:
-	case lbu_op:
-	case lhu_op:
-	case lh_op:
-	case lw_op:
-		er = kvm_mips_emulate_load(inst, cause, run, vcpu);
 		break;
 
 #ifndef CONFIG_CPU_MIPSR6
