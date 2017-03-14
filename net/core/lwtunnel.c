@@ -162,7 +162,6 @@ int lwtunnel_valid_encap_type_attr(struct nlattr *attr, int remaining)
 	struct rtnexthop *rtnh = (struct rtnexthop *)attr;
 	struct nlattr *nla_entype;
 	struct nlattr *attrs;
-	struct nlattr *nla;
 	u16 encap_type;
 	int attrlen;
 
@@ -170,7 +169,6 @@ int lwtunnel_valid_encap_type_attr(struct nlattr *attr, int remaining)
 		attrlen = rtnh_attrlen(rtnh);
 		if (attrlen > 0) {
 			attrs = rtnh_attrs(rtnh);
-			nla = nla_find(attrs, attrlen, RTA_ENCAP);
 			nla_entype = nla_find(attrs, attrlen, RTA_ENCAP_TYPE);
 
 			if (nla_entype) {
