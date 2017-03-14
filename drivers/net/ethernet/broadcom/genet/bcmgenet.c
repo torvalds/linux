@@ -2455,13 +2455,6 @@ static void bcmgenet_irq_task(struct work_struct *work)
 
 	netif_dbg(priv, intr, priv->dev, "%s\n", __func__);
 
-	if (priv->irq0_stat & UMAC_IRQ_MPD_R) {
-		priv->irq0_stat &= ~UMAC_IRQ_MPD_R;
-		netif_dbg(priv, wol, priv->dev,
-			  "magic packet detected, waking up\n");
-		bcmgenet_power_up(priv, GENET_POWER_WOL_MAGIC);
-	}
-
 	/* Link UP/DOWN event */
 	if (priv->irq0_stat & UMAC_IRQ_LINK_EVENT) {
 		phy_mac_interrupt(priv->phydev,
@@ -2558,8 +2551,7 @@ static irqreturn_t bcmgenet_isr0(int irq, void *dev_id)
 				UMAC_IRQ_PHY_DET_F |
 				UMAC_IRQ_LINK_EVENT |
 				UMAC_IRQ_HFB_SM |
-				UMAC_IRQ_HFB_MM |
-				UMAC_IRQ_MPD_R)) {
+				UMAC_IRQ_HFB_MM)) {
 		/* all other interested interrupts handled in bottom half */
 		schedule_work(&priv->bcmgenet_irq_work);
 	}
