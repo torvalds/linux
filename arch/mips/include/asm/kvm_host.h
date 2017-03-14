@@ -229,6 +229,7 @@ enum emulation_result {
 	EMULATE_WAIT,		/* WAIT instruction */
 	EMULATE_PRIV_FAIL,
 	EMULATE_EXCEPT,		/* A guest exception has been generated */
+	EMULATE_HYPERCALL,	/* HYPCALL instruction */
 };
 
 #define mips3_paddr_to_tlbpfn(x) \
@@ -831,6 +832,12 @@ unsigned int kvm_mips_config1_wrmask(struct kvm_vcpu *vcpu);
 unsigned int kvm_mips_config3_wrmask(struct kvm_vcpu *vcpu);
 unsigned int kvm_mips_config4_wrmask(struct kvm_vcpu *vcpu);
 unsigned int kvm_mips_config5_wrmask(struct kvm_vcpu *vcpu);
+
+/* Hypercalls (hypcall.c) */
+
+enum emulation_result kvm_mips_emul_hypcall(struct kvm_vcpu *vcpu,
+					    union mips_instruction inst);
+int kvm_mips_handle_hypcall(struct kvm_vcpu *vcpu);
 
 /* Dynamic binary translation */
 extern int kvm_mips_trans_cache_index(union mips_instruction inst,

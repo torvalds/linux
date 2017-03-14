@@ -82,6 +82,10 @@ static int kvm_trap_emul_handle_cop_unusable(struct kvm_vcpu *vcpu)
 		ret = RESUME_HOST;
 		break;
 
+	case EMULATE_HYPERCALL:
+		ret = kvm_mips_handle_hypcall(vcpu);
+		break;
+
 	default:
 		BUG();
 	}

@@ -1143,6 +1143,9 @@ enum emulation_result kvm_mips_emulate_CP0(union mips_instruction inst,
 		case wait_op:
 			er = kvm_mips_emul_wait(vcpu);
 			break;
+		case hypcall_op:
+			er = kvm_mips_emul_hypcall(vcpu, inst);
+			break;
 		}
 	} else {
 		rt = inst.c0r_format.rt;

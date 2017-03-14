@@ -28,6 +28,11 @@ S390:
   property inside the device tree's /hypervisor node.
   For more information refer to Documentation/virtual/kvm/ppc-pv.txt
 
+MIPS:
+  KVM hypercalls use the HYPCALL instruction with code 0 and the hypercall
+  number in $2 (v0). Up to four arguments may be placed in $4-$7 (a0-a3) and
+  the return value is placed in $2 (v0).
+
 KVM Hypercalls Documentation
 ===========================
 The template for each hypercall is:
