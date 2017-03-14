@@ -584,3 +584,15 @@ int __qcom_scm_restore_sec_cfg(struct device *dev, u32 device_id,
 {
 	return -ENODEV;
 }
+
+int __qcom_scm_iommu_secure_ptbl_size(struct device *dev, u32 spare,
+				      size_t *size)
+{
+	return -ENODEV;
+}
+
+int __qcom_scm_iommu_secure_ptbl_init(struct device *dev, u64 addr, u32 size,
+				      u32 spare)
+{
+	return -ENODEV;
+}
