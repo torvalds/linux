@@ -521,17 +521,17 @@ fail:
 
 
 /**
- * intel_guc_init() - define parameters and fetch firmware
- * @dev_priv:	i915 device private
+ * intel_guc_init_fw() - select and prepare firmware for loading
+ * @guc:	intel_guc struct
  *
  * Called early during driver load, but after GEM is initialised.
  *
  * The firmware will be transferred to the GuC's memory later,
  * when intel_guc_init_hw() is called.
  */
-void intel_guc_init(struct drm_i915_private *dev_priv)
+void intel_guc_init_fw(struct intel_guc *guc)
 {
-	struct intel_uc_fw *guc_fw = &dev_priv->guc.fw;
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	const char *fw_path;
 
 	if (!HAS_GUC(dev_priv)) {
@@ -549,23 +549,23 @@ void intel_guc_init(struct drm_i915_private *dev_priv)
 		fw_path = NULL;
 	} else if (IS_SKYLAKE(dev_priv)) {
 		fw_path = I915_SKL_GUC_UCODE;
-		guc_fw->major_ver_wanted = SKL_FW_MAJOR;
-		guc_fw->minor_ver_wanted = SKL_FW_MINOR;
+		guc->fw.major_ver_wanted = SKL_FW_MAJOR;
+		guc->fw.minor_ver_wanted = SKL_FW_MINOR;
 	} else if (IS_BROXTON(dev_priv)) {
 		fw_path = I915_BXT_GUC_UCODE;
-		guc_fw->major_ver_wanted = BXT_FW_MAJOR;
-		guc_fw->minor_ver_wanted = BXT_FW_MINOR;
+		guc->fw.major_ver_wanted = BXT_FW_MAJOR;
+		guc->fw.minor_ver_wanted = BXT_FW_MINOR;
 	} else if (IS_KABYLAKE(dev_priv)) {
 		fw_path = I915_KBL_GUC_UCODE;
-		guc_fw->major_ver_wanted = KBL_FW_MAJOR;
-		guc_fw->minor_ver_wanted = KBL_FW_MINOR;
+		guc->fw.major_ver_wanted = KBL_FW_MAJOR;
+		guc->fw.minor_ver_wanted = KBL_FW_MINOR;
 	} else {
 		fw_path = "";	/* unknown device */
 	}
 
-	guc_fw->path = fw_path;
-	guc_fw->fetch_status = INTEL_UC_FIRMWARE_NONE;
-	guc_fw->load_status = INTEL_UC_FIRMWARE_NONE;
+	guc->fw.path = fw_path;
+	guc->fw.fetch_status = INTEL_UC_FIRMWARE_NONE;
+	guc->fw.load_status = INTEL_UC_FIRMWARE_NONE;
 
 	/* Early (and silent) return if GuC loading is disabled */
 	if (!i915.enable_guc_loading)
@@ -575,9 +575,9 @@ void intel_guc_init(struct drm_i915_private *dev_priv)
 	if (*fw_path == '\0')
 		return;
 
-	guc_fw->fetch_status = INTEL_UC_FIRMWARE_PENDING;
+	guc->fw.fetch_status = INTEL_UC_FIRMWARE_PENDING;
 	DRM_DEBUG_DRIVER("GuC firmware pending, path %s\n", fw_path);
-	intel_uc_prepare_fw(dev_priv, guc_fw);
+	intel_uc_prepare_fw(dev_priv, &guc->fw);
 	/* status must now be FAIL or SUCCESS */
 }
 

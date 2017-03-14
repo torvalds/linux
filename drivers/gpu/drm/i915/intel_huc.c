@@ -141,8 +141,8 @@ static int huc_ucode_xfer(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_huc_init() - initiate HuC firmware loading request
- * @dev_priv: the drm_i915_private device
+ * intel_huc_init_fw() - select and prepare firmware for loading
+ * @huc:	intel_huc struct
  *
  * Called early during driver load, but after GEM is initialised. The loading
  * will continue only when driver explicitly specify firmware name and version.
@@ -152,44 +152,45 @@ static int huc_ucode_xfer(struct drm_i915_private *dev_priv)
  *
  * The DMA-copying to HW is done later when intel_huc_init_hw() is called.
  */
-void intel_huc_init(struct drm_i915_private *dev_priv)
+void intel_huc_init_fw(struct intel_huc *huc)
 {
-	struct intel_huc *huc = &dev_priv->huc;
-	struct intel_uc_fw *huc_fw = &huc->fw;
+	struct drm_i915_private *dev_priv = huc_to_i915(huc);
 	const char *fw_path = NULL;
 
-	huc_fw->path = NULL;
-	huc_fw->fetch_status = INTEL_UC_FIRMWARE_NONE;
-	huc_fw->load_status = INTEL_UC_FIRMWARE_NONE;
-	huc_fw->fw = INTEL_UC_FW_TYPE_HUC;
+	huc->fw.path = NULL;
+	huc->fw.fetch_status = INTEL_UC_FIRMWARE_NONE;
+	huc->fw.load_status = INTEL_UC_FIRMWARE_NONE;
+	huc->fw.fw = INTEL_UC_FW_TYPE_HUC;
 
 	if (!HAS_HUC_UCODE(dev_priv))
 		return;
 
 	if (IS_SKYLAKE(dev_priv)) {
 		fw_path = I915_SKL_HUC_UCODE;
-		huc_fw->major_ver_wanted = SKL_HUC_FW_MAJOR;
-		huc_fw->minor_ver_wanted = SKL_HUC_FW_MINOR;
+		huc->fw.major_ver_wanted = SKL_HUC_FW_MAJOR;
+		huc->fw.minor_ver_wanted = SKL_HUC_FW_MINOR;
 	} else if (IS_BROXTON(dev_priv)) {
 		fw_path = I915_BXT_HUC_UCODE;
-		huc_fw->major_ver_wanted = BXT_HUC_FW_MAJOR;
-		huc_fw->minor_ver_wanted = BXT_HUC_FW_MINOR;
+		huc->fw.major_ver_wanted = BXT_HUC_FW_MAJOR;
+		huc->fw.minor_ver_wanted = BXT_HUC_FW_MINOR;
 	} else if (IS_KABYLAKE(dev_priv)) {
 		fw_path = I915_KBL_HUC_UCODE;
-		huc_fw->major_ver_wanted = KBL_HUC_FW_MAJOR;
-		huc_fw->minor_ver_wanted = KBL_HUC_FW_MINOR;
+		huc->fw.major_ver_wanted = KBL_HUC_FW_MAJOR;
+		huc->fw.minor_ver_wanted = KBL_HUC_FW_MINOR;
 	}
 
-	huc_fw->path = fw_path;
+	huc->fw.path = fw_path;
 
-	if (huc_fw->path == NULL)
+	if (fw_path == NULL)
 		return;
 
-	huc_fw->fetch_status = INTEL_UC_FIRMWARE_PENDING;
+	huc->fw.fetch_status = INTEL_UC_FIRMWARE_PENDING;
 
 	DRM_DEBUG_DRIVER("HuC firmware pending, path %s\n", fw_path);
 
-	intel_uc_prepare_fw(dev_priv, huc_fw);
+	WARN(huc->fw.path == NULL, "HuC present but no fw path\n");
+
+	intel_uc_prepare_fw(dev_priv, &huc->fw);
 }
 
 /**

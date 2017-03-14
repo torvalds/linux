@@ -605,8 +605,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		goto cleanup_irq;
 
-	intel_huc_init(dev_priv);
-	intel_guc_init(dev_priv);
+	intel_uc_init_fw(dev_priv);
 
 	ret = i915_gem_init(dev_priv);
 	if (ret)

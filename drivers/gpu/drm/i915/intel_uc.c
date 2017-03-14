@@ -31,6 +31,12 @@ void intel_uc_init_early(struct drm_i915_private *dev_priv)
 	mutex_init(&dev_priv->guc.send_mutex);
 }
 
+void intel_uc_init_fw(struct drm_i915_private *dev_priv)
+{
+	intel_huc_init_fw(&dev_priv->huc);
+	intel_guc_init_fw(&dev_priv->guc);
+}
+
 /*
  * Read GuC command/status register (SOFT_SCRATCH_0)
  * Return true if it contains a response rather than a command
