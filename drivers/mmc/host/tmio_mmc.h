@@ -54,7 +54,7 @@
 #define TMIO_STOP_STP		BIT(0)
 #define TMIO_STOP_SEC		BIT(8)
 
-/* Definitions for values the CTRL_STATUS register can take. */
+/* Definitions for values the CTL_STATUS register can take */
 #define TMIO_STAT_CMDRESPEND    BIT(0)
 #define TMIO_STAT_DATAEND       BIT(2)
 #define TMIO_STAT_CARD_REMOVE   BIT(3)
@@ -65,7 +65,7 @@
 #define TMIO_STAT_CARD_INSERT_A BIT(9)
 #define TMIO_STAT_SIGSTATE_A    BIT(10)
 
-/* These belong technically to CTRL_STATUS2, but the driver merges them */
+/* These belong technically to CTL_STATUS2, but the driver merges them */
 #define TMIO_STAT_CMD_IDX_ERR   BIT(16)
 #define TMIO_STAT_CRCFAIL       BIT(17)
 #define TMIO_STAT_STOPBIT_ERR   BIT(18)
@@ -89,7 +89,7 @@
 
 #define TMIO_BBS		512		/* Boot block size */
 
-/* Definitions for values the CTRL_SDIO_STATUS register can take. */
+/* Definitions for values the CTL_SDIO_STATUS register can take */
 #define TMIO_SDIO_STAT_IOIRQ	0x0001
 #define TMIO_SDIO_STAT_EXPUB52	0x4000
 #define TMIO_SDIO_STAT_EXWT	0x8000
