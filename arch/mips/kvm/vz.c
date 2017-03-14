@@ -1392,6 +1392,13 @@ static u64 kvm_vz_get_one_regs_segments[] = {
 	KVM_REG_MIPS_CP0_SEGCTL2,
 };
 
+static u64 kvm_vz_get_one_regs_htw[] = {
+	KVM_REG_MIPS_CP0_PWBASE,
+	KVM_REG_MIPS_CP0_PWFIELD,
+	KVM_REG_MIPS_CP0_PWSIZE,
+	KVM_REG_MIPS_CP0_PWCTL,
+};
+
 static u64 kvm_vz_get_one_regs_kscratch[] = {
 	KVM_REG_MIPS_CP0_KSCRATCH1,
 	KVM_REG_MIPS_CP0_KSCRATCH2,
@@ -1416,6 +1423,8 @@ static unsigned long kvm_vz_num_regs(struct kvm_vcpu *vcpu)
 		ret += ARRAY_SIZE(kvm_vz_get_one_regs_contextconfig);
 	if (cpu_guest_has_segments)
 		ret += ARRAY_SIZE(kvm_vz_get_one_regs_segments);
+	if (cpu_guest_has_htw)
+		ret += ARRAY_SIZE(kvm_vz_get_one_regs_htw);
 	ret += __arch_hweight8(cpu_data[0].guest.kscratch_mask);
 
 	return ret;
@@ -1460,6 +1469,12 @@ static int kvm_vz_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *indices)
 				 sizeof(kvm_vz_get_one_regs_segments)))
 			return -EFAULT;
 		indices += ARRAY_SIZE(kvm_vz_get_one_regs_segments);
+	}
+	if (cpu_guest_has_htw) {
+		if (copy_to_user(indices, kvm_vz_get_one_regs_htw,
+				 sizeof(kvm_vz_get_one_regs_htw)))
+			return -EFAULT;
+		indices += ARRAY_SIZE(kvm_vz_get_one_regs_htw);
 	}
 	for (i = 0; i < 6; ++i) {
 		if (!cpu_guest_has_kscr(i + 2))
@@ -1564,8 +1579,28 @@ static int kvm_vz_get_one_reg(struct kvm_vcpu *vcpu,
 			return -EINVAL;
 		*v = read_gc0_segctl2();
 		break;
+	case KVM_REG_MIPS_CP0_PWBASE:
+		if (!cpu_guest_has_htw)
+			return -EINVAL;
+		*v = read_gc0_pwbase();
+		break;
+	case KVM_REG_MIPS_CP0_PWFIELD:
+		if (!cpu_guest_has_htw)
+			return -EINVAL;
+		*v = read_gc0_pwfield();
+		break;
+	case KVM_REG_MIPS_CP0_PWSIZE:
+		if (!cpu_guest_has_htw)
+			return -EINVAL;
+		*v = read_gc0_pwsize();
+		break;
 	case KVM_REG_MIPS_CP0_WIRED:
 		*v = (long)read_gc0_wired();
+		break;
+	case KVM_REG_MIPS_CP0_PWCTL:
+		if (!cpu_guest_has_htw)
+			return -EINVAL;
+		*v = read_gc0_pwctl();
 		break;
 	case KVM_REG_MIPS_CP0_HWRENA:
 		*v = (long)read_gc0_hwrena();
@@ -1746,8 +1781,28 @@ static int kvm_vz_set_one_reg(struct kvm_vcpu *vcpu,
 			return -EINVAL;
 		write_gc0_segctl2(v);
 		break;
+	case KVM_REG_MIPS_CP0_PWBASE:
+		if (!cpu_guest_has_htw)
+			return -EINVAL;
+		write_gc0_pwbase(v);
+		break;
+	case KVM_REG_MIPS_CP0_PWFIELD:
+		if (!cpu_guest_has_htw)
+			return -EINVAL;
+		write_gc0_pwfield(v);
+		break;
+	case KVM_REG_MIPS_CP0_PWSIZE:
+		if (!cpu_guest_has_htw)
+			return -EINVAL;
+		write_gc0_pwsize(v);
+		break;
 	case KVM_REG_MIPS_CP0_WIRED:
 		change_gc0_wired(MIPSR6_WIRED_WIRED, v);
+		break;
+	case KVM_REG_MIPS_CP0_PWCTL:
+		if (!cpu_guest_has_htw)
+			return -EINVAL;
+		write_gc0_pwctl(v);
 		break;
 	case KVM_REG_MIPS_CP0_HWRENA:
 		write_gc0_hwrena(v);
@@ -2179,6 +2234,14 @@ static int kvm_vz_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		kvm_restore_gc0_segctl2(cop0);
 	}
 
+	/* restore HTW registers */
+	if (cpu_guest_has_htw) {
+		kvm_restore_gc0_pwbase(cop0);
+		kvm_restore_gc0_pwfield(cop0);
+		kvm_restore_gc0_pwsize(cop0);
+		kvm_restore_gc0_pwctl(cop0);
+	}
+
 	/* restore Root.GuestCtl2 from unused Guest guestctl2 register */
 	if (cpu_has_guestctl2)
 		write_c0_guestctl2(
@@ -2266,6 +2329,15 @@ static int kvm_vz_vcpu_put(struct kvm_vcpu *vcpu, int cpu)
 		kvm_save_gc0_segctl0(cop0);
 		kvm_save_gc0_segctl1(cop0);
 		kvm_save_gc0_segctl2(cop0);
+	}
+
+	/* save HTW registers if enabled in guest */
+	if (cpu_guest_has_htw &&
+	    kvm_read_sw_gc0_config3(cop0) & MIPS_CONF3_PW) {
+		kvm_save_gc0_pwbase(cop0);
+		kvm_save_gc0_pwfield(cop0);
+		kvm_save_gc0_pwsize(cop0);
+		kvm_save_gc0_pwctl(cop0);
 	}
 
 	kvm_vz_save_timer(vcpu);
@@ -2594,6 +2666,14 @@ static int kvm_vz_vcpu_setup(struct kvm_vcpu *vcpu)
 				(_page_cachable_default >> _CACHE_SHIFT) <<
 						(16 + MIPS_SEGCFG_C_SHIFT));
 		kvm_write_sw_gc0_segctl2(cop0, 0x00380438);
+	}
+
+	/* reset HTW registers */
+	if (cpu_guest_has_htw && cpu_has_mips_r6) {
+		/* PWField */
+		kvm_write_sw_gc0_pwfield(cop0, 0x0c30c302);
+		/* PWSize */
+		kvm_write_sw_gc0_pwsize(cop0, 1 << MIPS_PWSIZE_PTW_SHIFT);
 	}
 
 	/* start with no pending virtual guest interrupts */
