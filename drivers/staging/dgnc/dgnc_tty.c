@@ -1790,16 +1790,8 @@ static int dgnc_tty_send_break(struct tty_struct *tty, int msec)
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
 		return -EIO;
 
-	switch (msec) {
-	case -1:
+	if (msec < 0)
 		msec = 0xFFFF;
-		break;
-	case 0:
-		msec = 0;
-		break;
-	default:
-		break;
-	}
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
 
