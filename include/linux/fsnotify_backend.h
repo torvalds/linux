@@ -196,8 +196,9 @@ struct fsnotify_group {
 
 /*
  * Inode / vfsmount point to this structure which tracks all marks attached to
- * the inode / vfsmount. The structure is freed only when inode / vfsmount gets
- * freed.
+ * the inode / vfsmount. The reference to inode / vfsmount is held by this
+ * structure whenever the list is non-empty. The structure is freed only when
+ * inode / vfsmount gets freed.
  */
 struct fsnotify_mark_connector {
 #define FSNOTIFY_OBJ_TYPE_INODE		0x01
@@ -245,10 +246,9 @@ struct fsnotify_mark {
 	struct fsnotify_mark_connector *connector;
 	/* Events types to ignore [mark->lock, group->mark_mutex] */
 	__u32 ignored_mask;
-#define FSNOTIFY_MARK_FLAG_OBJECT_PINNED	0x04
-#define FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY	0x08
-#define FSNOTIFY_MARK_FLAG_ALIVE		0x10
-#define FSNOTIFY_MARK_FLAG_ATTACHED		0x20
+#define FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY	0x01
+#define FSNOTIFY_MARK_FLAG_ALIVE		0x02
+#define FSNOTIFY_MARK_FLAG_ATTACHED		0x04
 	unsigned int flags;		/* flags [mark->lock] */
 	void (*free_mark)(struct fsnotify_mark *mark); /* called on final put+free */
 };

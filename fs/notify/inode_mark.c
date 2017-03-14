@@ -43,9 +43,10 @@ void fsnotify_recalc_inode_mask(struct inode *inode)
 	__fsnotify_update_child_dentry_flags(inode);
 }
 
-void fsnotify_destroy_inode_mark(struct fsnotify_mark *mark)
+struct inode *fsnotify_destroy_inode_mark(struct fsnotify_mark *mark)
 {
 	struct inode *inode = mark->connector->inode;
+	bool empty;
 
 	BUG_ON(!mutex_is_locked(&mark->group->mark_mutex));
 	assert_spin_locked(&mark->lock);
@@ -53,6 +54,7 @@ void fsnotify_destroy_inode_mark(struct fsnotify_mark *mark)
 	spin_lock(&inode->i_lock);
 
 	hlist_del_init_rcu(&mark->obj_list);
+	empty = hlist_empty(&mark->connector->list);
 	mark->connector = NULL;
 
 	/*
@@ -62,6 +64,8 @@ void fsnotify_destroy_inode_mark(struct fsnotify_mark *mark)
 	 */
 	inode->i_fsnotify_mask = fsnotify_recalc_mask(inode->i_fsnotify_marks);
 	spin_unlock(&inode->i_lock);
+
+	return empty ? inode : NULL;
 }
 
 /*
@@ -86,30 +90,6 @@ struct fsnotify_mark *fsnotify_find_inode_mark(struct fsnotify_group *group,
 	spin_unlock(&inode->i_lock);
 
 	return mark;
-}
-
-/*
- * If we are setting a mark mask on an inode mark we should pin the inode
- * in memory.
- */
-void fsnotify_set_inode_mark_mask_locked(struct fsnotify_mark *mark,
-					 __u32 mask)
-{
-	struct inode *inode;
-
-	assert_spin_locked(&mark->lock);
-
-	if (mask && mark->connector &&
-	    !(mark->flags & FSNOTIFY_MARK_FLAG_OBJECT_PINNED)) {
-		mark->flags |= FSNOTIFY_MARK_FLAG_OBJECT_PINNED;
-		inode = igrab(mark->connector->inode);
-		/*
-		 * we shouldn't be able to get here if the inode wasn't
-		 * already safely held in memory.  But bug in case it
-		 * ever is wrong.
-		 */
-		BUG_ON(!inode);
-	}
 }
 
 /*

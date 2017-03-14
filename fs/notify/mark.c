@@ -142,10 +142,9 @@ void fsnotify_detach_mark(struct fsnotify_mark *mark)
 
 	mark->flags &= ~FSNOTIFY_MARK_FLAG_ATTACHED;
 
-	if (mark->connector->flags & FSNOTIFY_OBJ_TYPE_INODE) {
-		inode = mark->connector->inode;
-		fsnotify_destroy_inode_mark(mark);
-	} else if (mark->connector->flags & FSNOTIFY_OBJ_TYPE_VFSMOUNT)
+	if (mark->connector->flags & FSNOTIFY_OBJ_TYPE_INODE)
+		inode = fsnotify_destroy_inode_mark(mark);
+	else if (mark->connector->flags & FSNOTIFY_OBJ_TYPE_VFSMOUNT)
 		fsnotify_destroy_vfsmount_mark(mark);
 	else
 		BUG();
@@ -160,7 +159,7 @@ void fsnotify_detach_mark(struct fsnotify_mark *mark)
 
 	spin_unlock(&mark->lock);
 
-	if (inode && (mark->flags & FSNOTIFY_MARK_FLAG_OBJECT_PINNED))
+	if (inode)
 		iput(inode);
 
 	atomic_dec(&group->num_marks);
@@ -274,9 +273,6 @@ void fsnotify_set_mark_mask_locked(struct fsnotify_mark *mark, __u32 mask)
 	assert_spin_locked(&mark->lock);
 
 	mark->mask = mask;
-
-	if (mark->connector && mark->connector->flags & FSNOTIFY_OBJ_TYPE_INODE)
-		fsnotify_set_inode_mark_mask_locked(mark, mask);
 }
 
 void fsnotify_set_mark_ignored_mask_locked(struct fsnotify_mark *mark, __u32 mask)
@@ -375,6 +371,8 @@ int fsnotify_add_mark_list(struct fsnotify_mark_connector **connp,
 	/* is mark the first mark? */
 	if (hlist_empty(&conn->list)) {
 		hlist_add_head_rcu(&mark->obj_list, &conn->list);
+		if (inode)
+			__iget(inode);
 		goto added;
 	}
 
@@ -441,9 +439,6 @@ int fsnotify_add_mark_locked(struct fsnotify_mark *mark,
 	} else {
 		BUG();
 	}
-
-	/* this will pin the object if appropriate */
-	fsnotify_set_mark_mask_locked(mark, mark->mask);
 	spin_unlock(&mark->lock);
 
 	if (inode)
