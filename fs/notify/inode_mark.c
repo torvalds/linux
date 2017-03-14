@@ -45,7 +45,7 @@ void fsnotify_recalc_inode_mask(struct inode *inode)
 
 void fsnotify_destroy_inode_mark(struct fsnotify_mark *mark)
 {
-	struct inode *inode = mark->inode;
+	struct inode *inode = mark->connector->inode;
 
 	BUG_ON(!mutex_is_locked(&mark->group->mark_mutex));
 	assert_spin_locked(&mark->lock);
@@ -53,7 +53,7 @@ void fsnotify_destroy_inode_mark(struct fsnotify_mark *mark)
 	spin_lock(&inode->i_lock);
 
 	hlist_del_init_rcu(&mark->obj_list);
-	mark->inode = NULL;
+	mark->connector = NULL;
 
 	/*
 	 * this mark is now off the inode->i_fsnotify_marks list and we
@@ -69,7 +69,7 @@ void fsnotify_destroy_inode_mark(struct fsnotify_mark *mark)
  */
 void fsnotify_clear_inode_marks_by_group(struct fsnotify_group *group)
 {
-	fsnotify_clear_marks_by_group_flags(group, FSNOTIFY_MARK_FLAG_INODE);
+	fsnotify_clear_marks_by_group_flags(group, FSNOTIFY_OBJ_TYPE_INODE);
 }
 
 /*
@@ -99,11 +99,10 @@ void fsnotify_set_inode_mark_mask_locked(struct fsnotify_mark *mark,
 
 	assert_spin_locked(&mark->lock);
 
-	if (mask &&
-	    mark->inode &&
+	if (mask && mark->connector &&
 	    !(mark->flags & FSNOTIFY_MARK_FLAG_OBJECT_PINNED)) {
 		mark->flags |= FSNOTIFY_MARK_FLAG_OBJECT_PINNED;
-		inode = igrab(mark->inode);
+		inode = igrab(mark->connector->inode);
 		/*
 		 * we shouldn't be able to get here if the inode wasn't
 		 * already safely held in memory.  But bug in case it
@@ -126,15 +125,12 @@ int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 {
 	int ret;
 
-	mark->flags |= FSNOTIFY_MARK_FLAG_INODE;
-
 	BUG_ON(!mutex_is_locked(&group->mark_mutex));
 	assert_spin_locked(&mark->lock);
 
 	spin_lock(&inode->i_lock);
-	mark->inode = inode;
-	ret = fsnotify_add_mark_list(&inode->i_fsnotify_marks, mark,
-				     allow_dups);
+	ret = fsnotify_add_mark_list(&inode->i_fsnotify_marks, mark, inode,
+				     NULL, allow_dups);
 	inode->i_fsnotify_mask = fsnotify_recalc_mask(inode->i_fsnotify_marks);
 	spin_unlock(&inode->i_lock);
 

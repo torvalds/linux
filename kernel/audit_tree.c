@@ -172,10 +172,25 @@ static unsigned long inode_to_key(const struct inode *inode)
 /*
  * Function to return search key in our hash from chunk. Key 0 is special and
  * should never be present in the hash.
+ *
+ * Must be called with chunk->mark.lock held to protect from connector
+ * becoming NULL.
  */
+static unsigned long __chunk_to_key(struct audit_chunk *chunk)
+{
+	if (!chunk->mark.connector)
+		return 0;
+	return (unsigned long)chunk->mark.connector->inode;
+}
+
 static unsigned long chunk_to_key(struct audit_chunk *chunk)
 {
-	return (unsigned long)chunk->mark.inode;
+	unsigned long key;
+
+	spin_lock(&chunk->mark.lock);
+	key = __chunk_to_key(chunk);
+	spin_unlock(&chunk->mark.lock);
+	return key;
 }
 
 static inline struct list_head *chunk_hash(unsigned long key)
@@ -187,7 +202,7 @@ static inline struct list_head *chunk_hash(unsigned long key)
 /* hash_lock & entry->lock is held by caller */
 static void insert_hash(struct audit_chunk *chunk)
 {
-	unsigned long key = chunk_to_key(chunk);
+	unsigned long key = __chunk_to_key(chunk);
 	struct list_head *list;
 
 	if (!(chunk->mark.flags & FSNOTIFY_MARK_FLAG_ATTACHED))
@@ -276,8 +291,8 @@ static void untag_chunk(struct node *p)
 	if (!new)
 		goto Fallback;
 
-	if (fsnotify_add_mark_locked(&new->mark, entry->group, entry->inode,
-				     NULL, 1)) {
+	if (fsnotify_add_mark_locked(&new->mark, entry->group,
+				     entry->connector->inode, NULL, 1)) {
 		fsnotify_put_mark(&new->mark);
 		goto Fallback;
 	}
@@ -418,7 +433,7 @@ static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 	}
 
 	if (fsnotify_add_mark_locked(chunk_entry, old_entry->group,
-				     old_entry->inode, NULL, 1)) {
+			     old_entry->connector->inode, NULL, 1)) {
 		spin_unlock(&old_entry->lock);
 		mutex_unlock(&old_entry->group->mark_mutex);
 		fsnotify_put_mark(chunk_entry);

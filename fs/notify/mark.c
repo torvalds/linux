@@ -142,10 +142,10 @@ void fsnotify_detach_mark(struct fsnotify_mark *mark)
 
 	mark->flags &= ~FSNOTIFY_MARK_FLAG_ATTACHED;
 
-	if (mark->flags & FSNOTIFY_MARK_FLAG_INODE) {
-		inode = mark->inode;
+	if (mark->connector->flags & FSNOTIFY_OBJ_TYPE_INODE) {
+		inode = mark->connector->inode;
 		fsnotify_destroy_inode_mark(mark);
-	} else if (mark->flags & FSNOTIFY_MARK_FLAG_VFSMOUNT)
+	} else if (mark->connector->flags & FSNOTIFY_OBJ_TYPE_VFSMOUNT)
 		fsnotify_destroy_vfsmount_mark(mark);
 	else
 		BUG();
@@ -275,7 +275,7 @@ void fsnotify_set_mark_mask_locked(struct fsnotify_mark *mark, __u32 mask)
 
 	mark->mask = mask;
 
-	if (mark->flags & FSNOTIFY_MARK_FLAG_INODE)
+	if (mark->connector && mark->connector->flags & FSNOTIFY_OBJ_TYPE_INODE)
 		fsnotify_set_inode_mark_mask_locked(mark, mask);
 }
 
@@ -323,7 +323,9 @@ int fsnotify_compare_groups(struct fsnotify_group *a, struct fsnotify_group *b)
 }
 
 static int fsnotify_attach_connector_to_object(
-					struct fsnotify_mark_connector **connp)
+					struct fsnotify_mark_connector **connp,
+					struct inode *inode,
+					struct vfsmount *mnt)
 {
 	struct fsnotify_mark_connector *conn;
 
@@ -331,6 +333,13 @@ static int fsnotify_attach_connector_to_object(
 	if (!conn)
 		return -ENOMEM;
 	INIT_HLIST_HEAD(&conn->list);
+	if (inode) {
+		conn->flags = FSNOTIFY_OBJ_TYPE_INODE;
+		conn->inode = inode;
+	} else {
+		conn->flags = FSNOTIFY_OBJ_TYPE_VFSMOUNT;
+		conn->mnt = mnt;
+	}
 	/*
 	 * Make sure 'conn' initialization is visible. Matches
 	 * lockless_dereference() in fsnotify().
@@ -348,7 +357,8 @@ static int fsnotify_attach_connector_to_object(
  * priority, highest number first, and then by the group's location in memory.
  */
 int fsnotify_add_mark_list(struct fsnotify_mark_connector **connp,
-			   struct fsnotify_mark *mark, int allow_dups)
+			   struct fsnotify_mark *mark, struct inode *inode,
+			   struct vfsmount *mnt, int allow_dups)
 {
 	struct fsnotify_mark *lmark, *last = NULL;
 	struct fsnotify_mark_connector *conn;
@@ -356,7 +366,7 @@ int fsnotify_add_mark_list(struct fsnotify_mark_connector **connp,
 	int err;
 
 	if (!*connp) {
-		err = fsnotify_attach_connector_to_object(connp);
+		err = fsnotify_attach_connector_to_object(connp, inode, mnt);
 		if (err)
 			return err;
 	}
@@ -365,7 +375,7 @@ int fsnotify_add_mark_list(struct fsnotify_mark_connector **connp,
 	/* is mark the first mark? */
 	if (hlist_empty(&conn->list)) {
 		hlist_add_head_rcu(&mark->obj_list, &conn->list);
-		return 0;
+		goto added;
 	}
 
 	/* should mark be in the middle of the current list? */
@@ -378,13 +388,15 @@ int fsnotify_add_mark_list(struct fsnotify_mark_connector **connp,
 		cmp = fsnotify_compare_groups(lmark->group, mark->group);
 		if (cmp >= 0) {
 			hlist_add_before_rcu(&mark->obj_list, &lmark->obj_list);
-			return 0;
+			goto added;
 		}
 	}
 
 	BUG_ON(last == NULL);
 	/* mark should be the last entry.  last is the current last entry */
 	hlist_add_behind_rcu(&mark->obj_list, &last->obj_list);
+added:
+	mark->connector = conn;
 	return 0;
 }
 
@@ -507,7 +519,7 @@ void fsnotify_clear_marks_by_group_flags(struct fsnotify_group *group,
 	 */
 	mutex_lock_nested(&group->mark_mutex, SINGLE_DEPTH_NESTING);
 	list_for_each_entry_safe(mark, lmark, &group->marks_list, g_list) {
-		if (mark->flags & flags)
+		if (mark->connector->flags & flags)
 			list_move(&mark->g_list, &to_free);
 	}
 	mutex_unlock(&group->mark_mutex);

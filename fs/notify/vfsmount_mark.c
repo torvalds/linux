@@ -31,7 +31,7 @@
 
 void fsnotify_clear_vfsmount_marks_by_group(struct fsnotify_group *group)
 {
-	fsnotify_clear_marks_by_group_flags(group, FSNOTIFY_MARK_FLAG_VFSMOUNT);
+	fsnotify_clear_marks_by_group_flags(group, FSNOTIFY_OBJ_TYPE_VFSMOUNT);
 }
 
 /*
@@ -49,7 +49,7 @@ void fsnotify_recalc_vfsmount_mask(struct vfsmount *mnt)
 
 void fsnotify_destroy_vfsmount_mark(struct fsnotify_mark *mark)
 {
-	struct vfsmount *mnt = mark->mnt;
+	struct vfsmount *mnt = mark->connector->mnt;
 	struct mount *m = real_mount(mnt);
 
 	BUG_ON(!mutex_is_locked(&mark->group->mark_mutex));
@@ -58,7 +58,7 @@ void fsnotify_destroy_vfsmount_mark(struct fsnotify_mark *mark)
 	spin_lock(&mnt->mnt_root->d_lock);
 
 	hlist_del_init_rcu(&mark->obj_list);
-	mark->mnt = NULL;
+	mark->connector = NULL;
 
 	m->mnt_fsnotify_mask = fsnotify_recalc_mask(m->mnt_fsnotify_marks);
 	spin_unlock(&mnt->mnt_root->d_lock);
@@ -93,14 +93,12 @@ int fsnotify_add_vfsmount_mark(struct fsnotify_mark *mark,
 	struct mount *m = real_mount(mnt);
 	int ret;
 
-	mark->flags |= FSNOTIFY_MARK_FLAG_VFSMOUNT;
-
 	BUG_ON(!mutex_is_locked(&group->mark_mutex));
 	assert_spin_locked(&mark->lock);
 
 	spin_lock(&mnt->mnt_root->d_lock);
-	mark->mnt = mnt;
-	ret = fsnotify_add_mark_list(&m->mnt_fsnotify_marks, mark, allow_dups);
+	ret = fsnotify_add_mark_list(&m->mnt_fsnotify_marks, mark, NULL, mnt,
+				     allow_dups);
 	m->mnt_fsnotify_mask = fsnotify_recalc_mask(m->mnt_fsnotify_marks);
 	spin_unlock(&mnt->mnt_root->d_lock);
 

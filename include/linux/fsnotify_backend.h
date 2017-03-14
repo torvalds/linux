@@ -200,6 +200,13 @@ struct fsnotify_group {
  * freed.
  */
 struct fsnotify_mark_connector {
+#define FSNOTIFY_OBJ_TYPE_INODE		0x01
+#define FSNOTIFY_OBJ_TYPE_VFSMOUNT	0x02
+	unsigned int flags;	/* Type of object [lock] */
+	union {	/* Object pointer [lock] */
+		struct inode *inode;
+		struct vfsmount *mnt;
+	};
 	struct hlist_head list;
 };
 
@@ -234,14 +241,10 @@ struct fsnotify_mark {
 	spinlock_t lock;
 	/* List of marks for inode / vfsmount [obj_lock] */
 	struct hlist_node obj_list;
-	union {	/* Object pointer [mark->lock, group->mark_mutex] */
-		struct inode *inode;	/* inode this mark is associated with */
-		struct vfsmount *mnt;	/* vfsmount this mark is associated with */
-	};
+	/* Head of list of marks for an object [mark->lock, group->mark_mutex] */
+	struct fsnotify_mark_connector *connector;
 	/* Events types to ignore [mark->lock, group->mark_mutex] */
 	__u32 ignored_mask;
-#define FSNOTIFY_MARK_FLAG_INODE		0x01
-#define FSNOTIFY_MARK_FLAG_VFSMOUNT		0x02
 #define FSNOTIFY_MARK_FLAG_OBJECT_PINNED	0x04
 #define FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY	0x08
 #define FSNOTIFY_MARK_FLAG_ALIVE		0x10
@@ -353,7 +356,7 @@ extern void fsnotify_free_mark(struct fsnotify_mark *mark);
 extern void fsnotify_clear_vfsmount_marks_by_group(struct fsnotify_group *group);
 /* run all the marks in a group, and clear all of the inode marks */
 extern void fsnotify_clear_inode_marks_by_group(struct fsnotify_group *group);
-/* run all the marks in a group, and clear all of the marks where mark->flags & flags is true*/
+/* run all the marks in a group, and clear all of the marks attached to given object type */
 extern void fsnotify_clear_marks_by_group_flags(struct fsnotify_group *group, unsigned int flags);
 extern void fsnotify_connector_free(struct fsnotify_mark_connector **connp);
 extern void fsnotify_get_mark(struct fsnotify_mark *mark);

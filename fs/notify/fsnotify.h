@@ -26,6 +26,7 @@ extern void fsnotify_set_inode_mark_mask_locked(struct fsnotify_mark *fsn_mark,
 /* Add mark to a proper place in mark list */
 extern int fsnotify_add_mark_list(struct fsnotify_mark_connector **connp,
 				  struct fsnotify_mark *mark,
+				  struct inode *inode, struct vfsmount *mnt,
 				  int allow_dups);
 /* add a mark to an inode */
 extern int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
@@ -44,7 +45,7 @@ extern void fsnotify_destroy_inode_mark(struct fsnotify_mark *mark);
 extern struct fsnotify_mark *fsnotify_find_mark(
 					struct fsnotify_mark_connector *conn,
 					struct fsnotify_group *group);
-/* Destroy all marks in the given list protected by 'lock' */
+/* Destroy all marks connected via given connector protected by 'lock' */
 extern void fsnotify_destroy_marks(struct fsnotify_mark_connector *conn,
 				   spinlock_t *lock);
 /* run the list of all marks associated with inode and destroy them */
