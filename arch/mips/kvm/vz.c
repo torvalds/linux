@@ -2747,37 +2747,73 @@ static unsigned int kvm_vz_resize_guest_vtlb(unsigned int size)
 static int kvm_vz_hardware_enable(void)
 {
 	unsigned int mmu_size, guest_mmu_size, ftlb_size;
+	u64 guest_cvmctl, cvmvmconfig;
 
-	/*
-	 * ImgTec cores tend to use a shared root/guest TLB. To avoid overlap of
-	 * root wired and guest entries, the guest TLB may need resizing.
-	 */
-	mmu_size = current_cpu_data.tlbsizevtlb;
-	ftlb_size = current_cpu_data.tlbsize - mmu_size;
+	switch (current_cpu_type()) {
+	case CPU_CAVIUM_OCTEON3:
+		/* Set up guest timer/perfcount IRQ lines */
+		guest_cvmctl = read_gc0_cvmctl();
+		guest_cvmctl &= ~CVMCTL_IPTI;
+		guest_cvmctl |= 7ull << CVMCTL_IPTI_SHIFT;
+		guest_cvmctl &= ~CVMCTL_IPPCI;
+		guest_cvmctl |= 6ull << CVMCTL_IPPCI_SHIFT;
+		write_gc0_cvmctl(guest_cvmctl);
 
-	/* Try switching to maximum guest VTLB size for flush */
-	guest_mmu_size = kvm_vz_resize_guest_vtlb(mmu_size);
-	current_cpu_data.guest.tlbsize = guest_mmu_size + ftlb_size;
-	kvm_vz_local_flush_guesttlb_all();
+		cvmvmconfig = read_c0_cvmvmconfig();
+		/* No I/O hole translation. */
+		cvmvmconfig |= CVMVMCONF_DGHT;
+		/* Halve the root MMU size */
+		mmu_size = ((cvmvmconfig & CVMVMCONF_MMUSIZEM1)
+			    >> CVMVMCONF_MMUSIZEM1_S) + 1;
+		guest_mmu_size = mmu_size / 2;
+		mmu_size -= guest_mmu_size;
+		cvmvmconfig &= ~CVMVMCONF_RMMUSIZEM1;
+		cvmvmconfig |= mmu_size - 1;
+		write_c0_cvmvmconfig(cvmvmconfig);
 
-	/*
-	 * Reduce to make space for root wired entries and at least 2 root
-	 * non-wired entries. This does assume that long-term wired entries
-	 * won't be added later.
-	 */
-	guest_mmu_size = mmu_size - num_wired_entries() - 2;
-	guest_mmu_size = kvm_vz_resize_guest_vtlb(guest_mmu_size);
-	current_cpu_data.guest.tlbsize = guest_mmu_size + ftlb_size;
+		/* Update our records */
+		current_cpu_data.tlbsize = mmu_size;
+		current_cpu_data.tlbsizevtlb = mmu_size;
+		current_cpu_data.guest.tlbsize = guest_mmu_size;
 
-	/*
-	 * Write the VTLB size, but if another CPU has already written, check it
-	 * matches or we won't provide a consistent view to the guest. If this
-	 * ever happens it suggests an asymmetric number of wired entries.
-	 */
-	if (cmpxchg(&kvm_vz_guest_vtlb_size, 0, guest_mmu_size) &&
-	    WARN(guest_mmu_size != kvm_vz_guest_vtlb_size,
-		 "Available guest VTLB size mismatch"))
-		return -EINVAL;
+		/* Flush moved entries in new (guest) context */
+		kvm_vz_local_flush_guesttlb_all();
+		break;
+	default:
+		/*
+		 * ImgTec cores tend to use a shared root/guest TLB. To avoid
+		 * overlap of root wired and guest entries, the guest TLB may
+		 * need resizing.
+		 */
+		mmu_size = current_cpu_data.tlbsizevtlb;
+		ftlb_size = current_cpu_data.tlbsize - mmu_size;
+
+		/* Try switching to maximum guest VTLB size for flush */
+		guest_mmu_size = kvm_vz_resize_guest_vtlb(mmu_size);
+		current_cpu_data.guest.tlbsize = guest_mmu_size + ftlb_size;
+		kvm_vz_local_flush_guesttlb_all();
+
+		/*
+		 * Reduce to make space for root wired entries and at least 2
+		 * root non-wired entries. This does assume that long-term wired
+		 * entries won't be added later.
+		 */
+		guest_mmu_size = mmu_size - num_wired_entries() - 2;
+		guest_mmu_size = kvm_vz_resize_guest_vtlb(guest_mmu_size);
+		current_cpu_data.guest.tlbsize = guest_mmu_size + ftlb_size;
+
+		/*
+		 * Write the VTLB size, but if another CPU has already written,
+		 * check it matches or we won't provide a consistent view to the
+		 * guest. If this ever happens it suggests an asymmetric number
+		 * of wired entries.
+		 */
+		if (cmpxchg(&kvm_vz_guest_vtlb_size, 0, guest_mmu_size) &&
+		    WARN(guest_mmu_size != kvm_vz_guest_vtlb_size,
+			 "Available guest VTLB size mismatch"))
+			return -EINVAL;
+		break;
+	}
 
 	/*
 	 * Enable virtualization features granting guest direct control of
@@ -2814,7 +2850,35 @@ static int kvm_vz_hardware_enable(void)
 
 static void kvm_vz_hardware_disable(void)
 {
+	u64 cvmvmconfig;
+	unsigned int mmu_size;
+
+	/* Flush any remaining guest TLB entries */
 	kvm_vz_local_flush_guesttlb_all();
+
+	switch (current_cpu_type()) {
+	case CPU_CAVIUM_OCTEON3:
+		/*
+		 * Allocate whole TLB for root. Existing guest TLB entries will
+		 * change ownership to the root TLB. We should be safe though as
+		 * they've already been flushed above while in guest TLB.
+		 */
+		cvmvmconfig = read_c0_cvmvmconfig();
+		mmu_size = ((cvmvmconfig & CVMVMCONF_MMUSIZEM1)
+			    >> CVMVMCONF_MMUSIZEM1_S) + 1;
+		cvmvmconfig &= ~CVMVMCONF_RMMUSIZEM1;
+		cvmvmconfig |= mmu_size - 1;
+		write_c0_cvmvmconfig(cvmvmconfig);
+
+		/* Update our records */
+		current_cpu_data.tlbsize = mmu_size;
+		current_cpu_data.tlbsizevtlb = mmu_size;
+		current_cpu_data.guest.tlbsize = 0;
+
+		/* Flush moved entries in new (root) context */
+		local_flush_tlb_all();
+		break;
+	}
 
 	if (cpu_has_guestid) {
 		write_c0_guestctl1(0);

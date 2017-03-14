@@ -447,6 +447,7 @@ void kvm_vz_local_flush_guesttlb_all(void)
 	unsigned long old_entrylo[2];
 	unsigned long old_pagemask;
 	int entry;
+	u64 cvmmemctl2 = 0;
 
 	local_irq_save(flags);
 
@@ -456,6 +457,15 @@ void kvm_vz_local_flush_guesttlb_all(void)
 	old_entrylo[0] = read_gc0_entrylo0();
 	old_entrylo[1] = read_gc0_entrylo1();
 	old_pagemask = read_gc0_pagemask();
+
+	switch (current_cpu_type()) {
+	case CPU_CAVIUM_OCTEON3:
+		/* Inhibit machine check due to multiple matching TLB entries */
+		cvmmemctl2 = read_c0_cvmmemctl2();
+		cvmmemctl2 |= CVMMEMCTL2_INHIBITTS;
+		write_c0_cvmmemctl2(cvmmemctl2);
+		break;
+	};
 
 	/* Invalidate guest entries in guest TLB */
 	write_gc0_entrylo0(0);
@@ -468,6 +478,12 @@ void kvm_vz_local_flush_guesttlb_all(void)
 		mtc0_tlbw_hazard();
 		guest_tlb_write_indexed();
 	}
+
+	if (cvmmemctl2) {
+		cvmmemctl2 &= ~CVMMEMCTL2_INHIBITTS;
+		write_c0_cvmmemctl2(cvmmemctl2);
+	};
+
 	write_gc0_index(old_index);
 	write_gc0_entryhi(old_entryhi);
 	write_gc0_entrylo0(old_entrylo[0]);
