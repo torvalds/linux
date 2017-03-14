@@ -730,6 +730,13 @@ static enum emulation_result kvm_vz_gpsi_cop0(union mips_instruction inst,
 			} else if (rd == MIPS_CP0_COMPARE &&
 				   sel == 0) {		/* Compare */
 				val = read_gc0_compare();
+			} else if (rd == MIPS_CP0_LLADDR &&
+				   sel == 0) {		/* LLAddr */
+				if (cpu_guest_has_rw_llb)
+					val = read_gc0_lladdr() &
+						MIPS_LLADDR_LLB;
+				else
+					val = 0;
 			} else if ((rd == MIPS_CP0_PRID &&
 				    (sel == 0 ||	/* PRid */
 				     sel == 2 ||	/* CDMMBase */
@@ -777,6 +784,15 @@ static enum emulation_result kvm_vz_gpsi_cop0(union mips_instruction inst,
 				kvm_mips_write_compare(vcpu,
 						       vcpu->arch.gprs[rt],
 						       true);
+			} else if (rd == MIPS_CP0_LLADDR &&
+				   sel == 0) {		/* LLAddr */
+				/*
+				 * P5600 generates GPSI on guest MTC0 LLAddr.
+				 * Only allow the guest to clear LLB.
+				 */
+				if (cpu_guest_has_rw_llb &&
+				    !(val & MIPS_LLADDR_LLB))
+					write_gc0_lladdr(0);
 			} else if (rd == MIPS_CP0_ERRCTL &&
 				   (sel == 0)) {	/* ErrCtl */
 				/* ignore the written value */
@@ -2246,6 +2262,14 @@ static int kvm_vz_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	if (cpu_has_guestctl2)
 		write_c0_guestctl2(
 			cop0->reg[MIPS_CP0_GUESTCTL2][MIPS_CP0_GUESTCTL2_SEL]);
+
+	/*
+	 * We should clear linked load bit to break interrupted atomics. This
+	 * prevents a SC on the next VCPU from succeeding by matching a LL on
+	 * the previous VCPU.
+	 */
+	if (cpu_guest_has_rw_llb)
+		write_gc0_lladdr(0);
 
 	return 0;
 }
