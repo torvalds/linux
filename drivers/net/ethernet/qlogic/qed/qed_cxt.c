@@ -422,8 +422,9 @@ static void qed_cxt_set_proto_cid_count(struct qed_hwfn *p_hwfn,
 		u32 page_sz = p_mgr->clients[ILT_CLI_CDUC].p_size.val;
 		u32 cxt_size = CONN_CXT_SIZE(p_hwfn);
 		u32 elems_per_page = ILT_PAGE_IN_BYTES(page_sz) / cxt_size;
+		u32 align = elems_per_page * DQ_RANGE_ALIGN;
 
-		p_conn->cid_count = roundup(p_conn->cid_count, elems_per_page);
+		p_conn->cid_count = roundup(p_conn->cid_count, align);
 	}
 }
 
