@@ -655,6 +655,29 @@ static unsigned long intel_calculate_wm(unsigned long clock_in_khz,
 	return wm_size;
 }
 
+static bool intel_wm_plane_visible(const struct intel_crtc_state *crtc_state,
+				   const struct intel_plane_state *plane_state)
+{
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+
+	/* FIXME check the 'enable' instead */
+	if (!crtc_state->base.active)
+		return false;
+
+	/*
+	 * Treat cursor with fb as always visible since cursor updates
+	 * can happen faster than the vrefresh rate, and the current
+	 * watermark code doesn't handle that correctly. Cursor updates
+	 * which set/clear the fb or change the cursor size are going
+	 * to get throttled by intel_legacy_cursor_update() to work
+	 * around this problem with the watermark code.
+	 */
+	if (plane->id == PLANE_CURSOR)
+		return plane_state->base.fb != NULL;
+	else
+		return plane_state->base.visible;
+}
+
 static struct intel_crtc *single_enabled_crtc(struct drm_i915_private *dev_priv)
 {
 	struct intel_crtc *crtc, *enabled = NULL;
@@ -1961,7 +1984,7 @@ static uint32_t ilk_compute_pri_wm(const struct intel_crtc_state *cstate,
 	uint32_t method1, method2;
 	int cpp;
 
-	if (!cstate->base.active || !pstate->base.visible)
+	if (!intel_wm_plane_visible(cstate, pstate))
 		return 0;
 
 	cpp = pstate->base.fb->format->cpp[0];
@@ -1990,7 +2013,7 @@ static uint32_t ilk_compute_spr_wm(const struct intel_crtc_state *cstate,
 	uint32_t method1, method2;
 	int cpp;
 
-	if (!cstate->base.active || !pstate->base.visible)
+	if (!intel_wm_plane_visible(cstate, pstate))
 		return 0;
 
 	cpp = pstate->base.fb->format->cpp[0];
@@ -2013,15 +2036,7 @@ static uint32_t ilk_compute_cur_wm(const struct intel_crtc_state *cstate,
 {
 	int cpp;
 
-	/*
-	 * Treat cursor with fb as always visible since cursor updates
-	 * can happen faster than the vrefresh rate, and the current
-	 * watermark code doesn't handle that correctly. Cursor updates
-	 * which set/clear the fb or change the cursor size are going
-	 * to get throttled by intel_legacy_cursor_update() to work
-	 * around this problem with the watermark code.
-	 */
-	if (!cstate->base.active || !pstate->base.fb)
+	if (!intel_wm_plane_visible(cstate, pstate))
 		return 0;
 
 	cpp = pstate->base.fb->format->cpp[0];
@@ -2038,7 +2053,7 @@ static uint32_t ilk_compute_fbc_wm(const struct intel_crtc_state *cstate,
 {
 	int cpp;
 
-	if (!cstate->base.active || !pstate->base.visible)
+	if (!intel_wm_plane_visible(cstate, pstate))
 		return 0;
 
 	cpp = pstate->base.fb->format->cpp[0];
