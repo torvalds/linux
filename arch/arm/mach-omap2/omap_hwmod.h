@@ -676,7 +676,7 @@ struct omap_hwmod {
 	const char			*main_clk;
 	struct clk			*_clk;
 	struct omap_hwmod_opt_clk	*opt_clks;
-	char				*clkdm_name;
+	const char			*clkdm_name;
 	struct clockdomain		*clkdm;
 	struct list_head		slave_ports; /* connect to *_TA */
 	void				*dev_attr;
