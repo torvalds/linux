@@ -556,6 +556,7 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 		struct dc *dc,
 		struct dc_surface_update *updates,
 		int surface_count,
+		struct dc_stream_update *stream_update,
 		const struct dc_stream_status *stream_status);
 
 /*******************************************************************************
