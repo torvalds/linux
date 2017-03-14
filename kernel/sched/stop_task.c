@@ -24,7 +24,7 @@ check_preempt_curr_stop(struct rq *rq, struct task_struct *p, int flags)
 }
 
 static struct task_struct *
-pick_next_task_stop(struct rq *rq, struct task_struct *prev, struct pin_cookie cookie)
+pick_next_task_stop(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 {
 	struct task_struct *stop = rq->stop;
 

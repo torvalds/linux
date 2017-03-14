@@ -642,9 +642,7 @@ static unsigned int tcmu_handle_completions(struct tcmu_dev *udev)
 		WARN_ON(tcmu_hdr_get_op(entry->hdr.len_op) != TCMU_OP_CMD);
 
 		spin_lock(&udev->commands_lock);
-		cmd = idr_find(&udev->commands, entry->hdr.cmd_id);
-		if (cmd)
-			idr_remove(&udev->commands, cmd->cmd_id);
+		cmd = idr_remove(&udev->commands, entry->hdr.cmd_id);
 		spin_unlock(&udev->commands_lock);
 
 		if (!cmd) {
@@ -783,15 +781,15 @@ static int tcmu_find_mem_index(struct vm_area_struct *vma)
 	return -1;
 }
 
-static int tcmu_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int tcmu_vma_fault(struct vm_fault *vmf)
 {
-	struct tcmu_dev *udev = vma->vm_private_data;
+	struct tcmu_dev *udev = vmf->vma->vm_private_data;
 	struct uio_info *info = &udev->uio_info;
 	struct page *page;
 	unsigned long offset;
 	void *addr;
 
-	int mi = tcmu_find_mem_index(vma);
+	int mi = tcmu_find_mem_index(vmf->vma);
 	if (mi < 0)
 		return VM_FAULT_SIGBUS;
 

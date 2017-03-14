@@ -22,7 +22,7 @@
  * | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - |
  *   | | [ ]                       [ ] [      thresh_cmp     ]   [  thresh_ctl   ]
  *   | |  |                         |                                     |
- *   | |  *- IFM (Linux)            |    thresh start/stop OR FAB match -*
+ *   | |  *- IFM (Linux)            |	               thresh start/stop -*
  *   | *- BHRB (Linux)              *sm
  *   *- EBB (Linux)
  *
@@ -50,11 +50,9 @@
  * MMCR1[31]   = pmc4combine[1]
  *
  * if pmc == 3 and unit == 0 and pmcxsel[0:6] == 0b0101011
- *	# PM_MRK_FAB_RSP_MATCH
- *	MMCR1[20:27] = thresh_ctl   (FAB_CRESP_MATCH / FAB_TYPE_MATCH)
+ *	MMCR1[20:27] = thresh_ctl
  * else if pmc == 4 and unit == 0xf and pmcxsel[0:6] == 0b0101001
- *	# PM_MRK_FAB_RSP_MATCH_CYC
- *	MMCR1[20:27] = thresh_ctl   (FAB_CRESP_MATCH / FAB_TYPE_MATCH)
+ *	MMCR1[20:27] = thresh_ctl
  * else
  *	MMCRA[48:55] = thresh_ctl   (THRESH START/END)
  *
@@ -105,6 +103,21 @@ enum {
 
 /* PowerISA v2.07 format attribute structure*/
 extern struct attribute_group isa207_pmu_format_group;
+
+/* Table of alternatives, sorted by column 0 */
+static const unsigned int power9_event_alternatives[][MAX_ALT] = {
+	{ PM_INST_DISP,			PM_INST_DISP_ALT },
+};
+
+static int power9_get_alternatives(u64 event, unsigned int flags, u64 alt[])
+{
+	int num_alt = 0;
+
+	num_alt = isa207_get_alternatives(event, alt, power9_event_alternatives,
+				(int)ARRAY_SIZE(power9_event_alternatives));
+
+	return num_alt;
+}
 
 GENERIC_EVENT_ATTR(cpu-cycles,			PM_CYC);
 GENERIC_EVENT_ATTR(stalled-cycles-frontend,	PM_ICT_NOSLOT_CYC);
@@ -211,6 +224,17 @@ static const struct attribute_group *power9_pmu_attr_groups[] = {
 	&power9_pmu_format_group,
 	&power9_pmu_events_group,
 	NULL,
+};
+
+static int power9_generic_events_dd1[] = {
+	[PERF_COUNT_HW_CPU_CYCLES] =			PM_CYC,
+	[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] =	PM_ICT_NOSLOT_CYC,
+	[PERF_COUNT_HW_STALLED_CYCLES_BACKEND] =	PM_CMPLU_STALL,
+	[PERF_COUNT_HW_INSTRUCTIONS] =			PM_INST_DISP,
+	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] =		PM_BRU_CMPL,
+	[PERF_COUNT_HW_BRANCH_MISSES] =			PM_BR_MPRED_CMPL,
+	[PERF_COUNT_HW_CACHE_REFERENCES] =		PM_LD_REF_L1,
+	[PERF_COUNT_HW_CACHE_MISSES] =			PM_LD_MISS_L1_FIN,
 };
 
 static int power9_generic_events[] = {
@@ -383,10 +407,11 @@ static struct power_pmu power9_isa207_pmu = {
 	.config_bhrb		= power9_config_bhrb,
 	.bhrb_filter_map	= power9_bhrb_filter_map,
 	.get_constraint		= isa207_get_constraint,
+	.get_alternatives	= power9_get_alternatives,
 	.disable_pmc		= isa207_disable_pmc,
 	.flags			= PPMU_NO_SIAR | PPMU_ARCH_207S,
-	.n_generic		= ARRAY_SIZE(power9_generic_events),
-	.generic_events		= power9_generic_events,
+	.n_generic		= ARRAY_SIZE(power9_generic_events_dd1),
+	.generic_events		= power9_generic_events_dd1,
 	.cache_events		= &power9_cache_events,
 	.attr_groups		= power9_isa207_pmu_attr_groups,
 	.bhrb_nr		= 32,
@@ -396,11 +421,12 @@ static struct power_pmu power9_pmu = {
 	.name			= "POWER9",
 	.n_counter		= MAX_PMU_COUNTERS,
 	.add_fields		= ISA207_ADD_FIELDS,
-	.test_adder		= ISA207_TEST_ADDER,
+	.test_adder		= P9_DD1_TEST_ADDER,
 	.compute_mmcr		= isa207_compute_mmcr,
 	.config_bhrb		= power9_config_bhrb,
 	.bhrb_filter_map	= power9_bhrb_filter_map,
 	.get_constraint		= isa207_get_constraint,
+	.get_alternatives	= power9_get_alternatives,
 	.disable_pmc		= isa207_disable_pmc,
 	.flags			= PPMU_HAS_SIER | PPMU_ARCH_207S,
 	.n_generic		= ARRAY_SIZE(power9_generic_events),
@@ -420,6 +446,11 @@ static int __init init_power9_pmu(void)
 		return -ENODEV;
 
 	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
+		/*
+		 * Since PM_INST_CMPL may not provide right counts in all
+		 * sampling scenarios in power9 DD1, instead use PM_INST_DISP.
+		 */
+		EVENT_VAR(PM_INST_CMPL, _g).id = PM_INST_DISP;
 		rc = register_power_pmu(&power9_isa207_pmu);
 	} else {
 		rc = register_power_pmu(&power9_pmu);

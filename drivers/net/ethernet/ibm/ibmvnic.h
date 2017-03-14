@@ -976,11 +976,11 @@ struct ibmvnic_adapter {
 	dma_addr_t login_rsp_buf_token;
 	int login_rsp_buf_sz;
 
-	atomic_t running_cap_queries;
+	atomic_t running_cap_crqs;
+	bool wait_capability;
 
 	struct ibmvnic_sub_crq_queue **tx_scrq;
 	struct ibmvnic_sub_crq_queue **rx_scrq;
-	int requested_caps;
 	bool renegotiate;
 
 	/* rx structs */
@@ -1049,5 +1049,6 @@ struct ibmvnic_adapter {
 
 	struct work_struct vnic_crq_init;
 	struct work_struct ibmvnic_xport;
+	struct tasklet_struct tasklet;
 	bool failover;
 };

@@ -670,13 +670,13 @@ int bpf__probe(struct bpf_object *obj)
 
 		err = convert_perf_probe_events(pev, 1);
 		if (err < 0) {
-			pr_debug("bpf_probe: failed to convert perf probe events");
+			pr_debug("bpf_probe: failed to convert perf probe events\n");
 			goto out;
 		}
 
 		err = apply_perf_probe_events(pev, 1);
 		if (err < 0) {
-			pr_debug("bpf_probe: failed to apply perf probe events");
+			pr_debug("bpf_probe: failed to apply perf probe events\n");
 			goto out;
 		}
 

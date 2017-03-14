@@ -43,6 +43,7 @@ static bool detect_loud_models(struct fw_unit *unit)
 	const char *const models[] = {
 		"Onyxi",
 		"Onyx-i",
+		"Onyx 1640i",
 		"d.Pro",
 		"Mackie Onyx Satellite",
 		"Tapco LINK.firewire 4x6",

@@ -218,8 +218,6 @@ static int greybus_probe(struct device *dev)
 		return retval;
 	}
 
-	gb_timesync_schedule_synchronous(bundle->intf);
-
 	pm_runtime_put(&bundle->intf->dev);
 
 	return 0;
@@ -326,16 +324,8 @@ static int __init gb_init(void)
 		pr_err("gb_operation_init failed (%d)\n", retval);
 		goto error_operation;
 	}
-
-	retval = gb_timesync_init();
-	if (retval) {
-		pr_err("gb_timesync_init failed\n");
-		goto error_timesync;
-	}
 	return 0;	/* Success */
 
-error_timesync:
-	gb_operation_exit();
 error_operation:
 	gb_hd_exit();
 error_hd:
@@ -349,7 +339,6 @@ module_init(gb_init);
 
 static void __exit gb_exit(void)
 {
-	gb_timesync_exit();
 	gb_operation_exit();
 	gb_hd_exit();
 	bus_unregister(&greybus_bus_type);

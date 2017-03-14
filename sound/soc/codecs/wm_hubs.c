@@ -1269,7 +1269,7 @@ void wm_hubs_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_ON:
-		/* Turn off any unneded single ended outputs */
+		/* Turn off any unneeded single ended outputs */
 		val = 0;
 		mask = 0;
 

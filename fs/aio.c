@@ -20,7 +20,7 @@
 #include <linux/backing-dev.h>
 #include <linux/uio.h>
 
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/mm.h>
@@ -512,7 +512,7 @@ static int aio_setup_ring(struct kioctx *ctx)
 
 	ctx->mmap_base = do_mmap_pgoff(ctx->aio_ring_file, 0, ctx->mmap_size,
 				       PROT_READ | PROT_WRITE,
-				       MAP_SHARED, 0, &unused);
+				       MAP_SHARED, 0, &unused, NULL);
 	up_write(&mm->mmap_sem);
 	if (IS_ERR((void *)ctx->mmap_base)) {
 		ctx->mmap_size = 0;
@@ -1495,7 +1495,7 @@ static ssize_t aio_read(struct kiocb *req, struct iocb *iocb, bool vectored,
 		return ret;
 	ret = rw_verify_area(READ, file, &req->ki_pos, iov_iter_count(&iter));
 	if (!ret)
-		ret = aio_ret(req, file->f_op->read_iter(req, &iter));
+		ret = aio_ret(req, call_read_iter(file, req, &iter));
 	kfree(iovec);
 	return ret;
 }
@@ -1520,7 +1520,7 @@ static ssize_t aio_write(struct kiocb *req, struct iocb *iocb, bool vectored,
 	if (!ret) {
 		req->ki_flags |= IOCB_WRITE;
 		file_start_write(file);
-		ret = aio_ret(req, file->f_op->write_iter(req, &iter));
+		ret = aio_ret(req, call_write_iter(file, req, &iter));
 		/*
 		 * We release freeze protection in aio_complete().  Fool lockdep
 		 * by telling it the lock got released so that it doesn't

@@ -40,9 +40,9 @@ __iomem void *plat_of_remap_node(const char *node)
 	if (of_address_to_resource(np, 0, &res))
 		panic("Failed to get resource for %s", node);
 
-	if ((request_mem_region(res.start,
+	if (!request_mem_region(res.start,
 				resource_size(&res),
-				res.name) < 0))
+				res.name))
 		panic("Failed to request resources for %s", node);
 
 	return ioremap_nocache(res.start, resource_size(&res));
@@ -66,13 +66,21 @@ static int __init early_init_dt_find_memory(unsigned long node,
 
 void __init plat_mem_setup(void)
 {
+	void *dtb = NULL;
+
 	set_io_port_base(KSEG1);
 
 	/*
 	 * Load the builtin devicetree. This causes the chosen node to be
-	 * parsed resulting in our memory appearing
+	 * parsed resulting in our memory appearing. fw_passed_dtb is used
+	 * by CONFIG_MIPS_APPENDED_RAW_DTB as well.
 	 */
-	__dt_setup_arch(__dtb_start);
+	if (fw_passed_dtb)
+		dtb = (void *)fw_passed_dtb;
+	else if (__dtb_start != __dtb_end)
+		dtb = (void *)__dtb_start;
+
+	__dt_setup_arch(dtb);
 
 	of_scan_flat_dt(early_init_dt_find_memory, NULL);
 	if (memory_dtb)

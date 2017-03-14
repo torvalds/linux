@@ -1,6 +1,9 @@
 #ifndef _PSMOUSE_H
 #define _PSMOUSE_H
 
+#define PSMOUSE_OOB_NONE	0x00
+#define PSMOUSE_OOB_EXTRA_BTNS	0x01
+
 #define PSMOUSE_CMD_SETSCALE11	0x00e6
 #define PSMOUSE_CMD_SETSCALE21	0x00e7
 #define PSMOUSE_CMD_SETRES	0x10e8
@@ -53,6 +56,8 @@ struct psmouse {
 	unsigned char pktcnt;
 	unsigned char pktsize;
 	unsigned char type;
+	unsigned char oob_data_type;
+	unsigned char extra_buttons;
 	bool ignore_parity;
 	bool acks_disable_command;
 	unsigned int model;

@@ -114,11 +114,11 @@ config options.
     Memory model -> Sparse Memory  (CONFIG_SPARSEMEM)
     Allow for memory hot-add       (CONFIG_MEMORY_HOTPLUG)
 
-- To enable memory removal, the followings are also necessary
+- To enable memory removal, the following are also necessary
     Allow for memory hot remove    (CONFIG_MEMORY_HOTREMOVE)
     Page Migration                 (CONFIG_MIGRATION)
 
-- For ACPI memory hotplug, the followings are also necessary
+- For ACPI memory hotplug, the following are also necessary
     Memory hotplug (under ACPI Support menu) (CONFIG_ACPI_HOTPLUG_MEMORY)
     This option can be kernel module.
 

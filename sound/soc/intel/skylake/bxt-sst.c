@@ -23,7 +23,6 @@
 #include "../common/sst-dsp.h"
 #include "../common/sst-dsp-priv.h"
 #include "skl-sst-ipc.h"
-#include "skl-tplg-interface.h"
 
 #define BXT_BASEFW_TIMEOUT	3000
 #define BXT_INIT_TIMEOUT	500
@@ -52,7 +51,7 @@ static unsigned int bxt_get_errorcode(struct sst_dsp *ctx)
 }
 
 static int
-bxt_load_library(struct sst_dsp *ctx, struct skl_dfw_manifest *minfo)
+bxt_load_library(struct sst_dsp *ctx, struct skl_lib_info *linfo, int lib_count)
 {
 	struct snd_dma_buffer dmab;
 	struct skl_sst *skl = ctx->thread_context;
@@ -61,11 +60,11 @@ bxt_load_library(struct sst_dsp *ctx, struct skl_dfw_manifest *minfo)
 	int ret = 0, i, dma_id, stream_tag;
 
 	/* library indices start from 1 to N. 0 represents base FW */
-	for (i = 1; i < minfo->lib_count; i++) {
-		ret = request_firmware(&fw, minfo->lib[i].name, ctx->dev);
+	for (i = 1; i < lib_count; i++) {
+		ret = request_firmware(&fw, linfo[i].name, ctx->dev);
 		if (ret < 0) {
 			dev_err(ctx->dev, "Request lib %s failed:%d\n",
-					minfo->lib[i].name, ret);
+					linfo[i].name, ret);
 			return ret;
 		}
 
@@ -96,7 +95,7 @@ bxt_load_library(struct sst_dsp *ctx, struct skl_dfw_manifest *minfo)
 		ret = skl_sst_ipc_load_library(&skl->ipc, dma_id, i);
 		if (ret < 0)
 			dev_err(ctx->dev, "IPC Load Lib for %s fail: %d\n",
-					minfo->lib[i].name, ret);
+					linfo[i].name, ret);
 
 		ctx->dsp_ops.trigger(ctx->dev, false, stream_tag);
 		ctx->dsp_ops.cleanup(ctx->dev, &dmab, stream_tag);
@@ -119,8 +118,7 @@ load_library_failed:
 static int sst_bxt_prepare_fw(struct sst_dsp *ctx,
 			const void *fwdata, u32 fwsize)
 {
-	int stream_tag, ret, i;
-	u32 reg;
+	int stream_tag, ret;
 
 	stream_tag = ctx->dsp_ops.prepare(ctx->dev, 0x40, fwsize, &ctx->dmab);
 	if (stream_tag <= 0) {
@@ -153,23 +151,13 @@ static int sst_bxt_prepare_fw(struct sst_dsp *ctx,
 	}
 
 	/* Step 4: Wait for DONE Bit */
-	for (i = BXT_INIT_TIMEOUT; i > 0; --i) {
-		reg = sst_dsp_shim_read(ctx, SKL_ADSP_REG_HIPCIE);
-
-		if (reg & SKL_ADSP_REG_HIPCIE_DONE) {
-			sst_dsp_shim_update_bits_forced(ctx,
-					SKL_ADSP_REG_HIPCIE,
+	ret = sst_dsp_register_poll(ctx, SKL_ADSP_REG_HIPCIE,
 					SKL_ADSP_REG_HIPCIE_DONE,
-					SKL_ADSP_REG_HIPCIE_DONE);
-			break;
-		}
-		mdelay(1);
-	}
-	if (!i) {
-		dev_info(ctx->dev, "Waiting for HIPCIE done, reg: 0x%x\n", reg);
-		sst_dsp_shim_update_bits(ctx, SKL_ADSP_REG_HIPCIE,
-				SKL_ADSP_REG_HIPCIE_DONE,
-				SKL_ADSP_REG_HIPCIE_DONE);
+					SKL_ADSP_REG_HIPCIE_DONE,
+					BXT_INIT_TIMEOUT, "HIPCIE Done");
+	if (ret < 0) {
+		dev_err(ctx->dev, "Timout for Purge Request%d\n", ret);
+		goto base_fw_load_failed;
 	}
 
 	/* Step 5: power down core1 */
@@ -184,19 +172,10 @@ static int sst_bxt_prepare_fw(struct sst_dsp *ctx,
 	skl_ipc_op_int_enable(ctx);
 
 	/* Step 7: Wait for ROM init */
-	for (i = BXT_INIT_TIMEOUT; i > 0; --i) {
-		if (SKL_FW_INIT ==
-				(sst_dsp_shim_read(ctx, BXT_ADSP_FW_STATUS) &
-				SKL_FW_STS_MASK)) {
-
-			dev_info(ctx->dev, "ROM loaded, continue FW loading\n");
-			break;
-		}
-		mdelay(1);
-	}
-	if (!i) {
-		dev_err(ctx->dev, "Timeout for ROM init, HIPCIE: 0x%x\n", reg);
-		ret = -EIO;
+	ret = sst_dsp_register_poll(ctx, BXT_ADSP_FW_STATUS, SKL_FW_STS_MASK,
+			SKL_FW_INIT, BXT_INIT_TIMEOUT, "ROM Load");
+	if (ret < 0) {
+		dev_err(ctx->dev, "Timeout for ROM init, ret:%d\n", ret);
 		goto base_fw_load_failed;
 	}
 
@@ -432,7 +411,6 @@ static int bxt_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 	int ret;
 	struct skl_ipc_dxstate_info dx;
 	unsigned int core_mask = SKL_DSP_CORE_MASK(core_id);
-	struct skl_dfw_manifest *minfo = &skl->manifest;
 
 	if (skl->fw_loaded == false) {
 		skl->boot_complete = false;
@@ -442,8 +420,9 @@ static int bxt_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 			return ret;
 		}
 
-		if (minfo->lib_count > 1) {
-			ret = bxt_load_library(ctx, minfo);
+		if (skl->lib_count > 1) {
+			ret = bxt_load_library(ctx, skl->lib_info,
+						skl->lib_count);
 			if (ret < 0) {
 				dev_err(ctx->dev, "reload libs failed: %d\n", ret);
 				return ret;
@@ -640,8 +619,9 @@ int bxt_sst_init_fw(struct device *dev, struct skl_sst *ctx)
 
 	skl_dsp_init_core_state(sst);
 
-	if (ctx->manifest.lib_count > 1) {
-		ret = sst->fw_ops.load_library(sst, &ctx->manifest);
+	if (ctx->lib_count > 1) {
+		ret = sst->fw_ops.load_library(sst, ctx->lib_info,
+						ctx->lib_count);
 		if (ret < 0) {
 			dev_err(dev, "Load Library failed : %x\n", ret);
 			return ret;

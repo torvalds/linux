@@ -112,7 +112,7 @@ static int hi6220_phy_exit(struct phy *phy)
 	return hi6220_phy_setup(priv, false);
 }
 
-static struct phy_ops hi6220_phy_ops = {
+static const struct phy_ops hi6220_phy_ops = {
 	.init		= hi6220_phy_start,
 	.exit		= hi6220_phy_exit,
 	.owner		= THIS_MODULE,

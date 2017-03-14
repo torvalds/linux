@@ -144,6 +144,7 @@ static struct powernv_pstate_info {
 	unsigned int max;
 	unsigned int nominal;
 	unsigned int nr_pstates;
+	bool wof_enabled;
 } powernv_pstate_info;
 
 /* Use following macros for conversions between pstate_id and index */
@@ -203,6 +204,7 @@ static int init_powernv_pstates(void)
 	const __be32 *pstate_ids, *pstate_freqs;
 	u32 len_ids, len_freqs;
 	u32 pstate_min, pstate_max, pstate_nominal;
+	u32 pstate_turbo, pstate_ultra_turbo;
 
 	power_mgt = of_find_node_by_path("/ibm,opal/power-mgt");
 	if (!power_mgt) {
@@ -225,8 +227,29 @@ static int init_powernv_pstates(void)
 		pr_warn("ibm,pstate-nominal not found\n");
 		return -ENODEV;
 	}
+
+	if (of_property_read_u32(power_mgt, "ibm,pstate-ultra-turbo",
+				 &pstate_ultra_turbo)) {
+		powernv_pstate_info.wof_enabled = false;
+		goto next;
+	}
+
+	if (of_property_read_u32(power_mgt, "ibm,pstate-turbo",
+				 &pstate_turbo)) {
+		powernv_pstate_info.wof_enabled = false;
+		goto next;
+	}
+
+	if (pstate_turbo == pstate_ultra_turbo)
+		powernv_pstate_info.wof_enabled = false;
+	else
+		powernv_pstate_info.wof_enabled = true;
+
+next:
 	pr_info("cpufreq pstate min %d nominal %d max %d\n", pstate_min,
 		pstate_nominal, pstate_max);
+	pr_info("Workload Optimized Frequency is %s in the platform\n",
+		(powernv_pstate_info.wof_enabled) ? "enabled" : "disabled");
 
 	pstate_ids = of_get_property(power_mgt, "ibm,pstate-ids", &len_ids);
 	if (!pstate_ids) {
@@ -268,6 +291,13 @@ static int init_powernv_pstates(void)
 			powernv_pstate_info.nominal = i;
 		else if (id == pstate_min)
 			powernv_pstate_info.min = i;
+
+		if (powernv_pstate_info.wof_enabled && id == pstate_turbo) {
+			int j;
+
+			for (j = i - 1; j >= (int)powernv_pstate_info.max; j--)
+				powernv_freqs[j].flags = CPUFREQ_BOOST_FREQ;
+		}
 	}
 
 	/* End of list marker entry */
@@ -305,9 +335,12 @@ static ssize_t cpuinfo_nominal_freq_show(struct cpufreq_policy *policy,
 struct freq_attr cpufreq_freq_attr_cpuinfo_nominal_freq =
 	__ATTR_RO(cpuinfo_nominal_freq);
 
+#define SCALING_BOOST_FREQS_ATTR_INDEX		2
+
 static struct freq_attr *powernv_cpu_freq_attr[] = {
 	&cpufreq_freq_attr_scaling_available_freqs,
 	&cpufreq_freq_attr_cpuinfo_nominal_freq,
+	&cpufreq_freq_attr_scaling_boost_freqs,
 	NULL,
 };
 
@@ -1013,11 +1046,22 @@ static int __init powernv_cpufreq_init(void)
 	register_reboot_notifier(&powernv_cpufreq_reboot_nb);
 	opal_message_notifier_register(OPAL_MSG_OCC, &powernv_cpufreq_opal_nb);
 
-	rc = cpufreq_register_driver(&powernv_cpufreq_driver);
-	if (!rc)
-		return 0;
+	if (powernv_pstate_info.wof_enabled)
+		powernv_cpufreq_driver.boost_enabled = true;
+	else
+		powernv_cpu_freq_attr[SCALING_BOOST_FREQS_ATTR_INDEX] = NULL;
 
-	pr_info("Failed to register the cpufreq driver (%d)\n", rc);
+	rc = cpufreq_register_driver(&powernv_cpufreq_driver);
+	if (rc) {
+		pr_info("Failed to register the cpufreq driver (%d)\n", rc);
+		goto cleanup_notifiers;
+	}
+
+	if (powernv_pstate_info.wof_enabled)
+		cpufreq_enable_boost_support();
+
+	return 0;
+cleanup_notifiers:
 	unregister_all_notifiers();
 	clean_chip_info();
 out:

@@ -56,7 +56,8 @@
 #include "watchdog-reset.h"
 
 /* External clock frequency */
-static unsigned long xtal_f = 12000000, xusbxti_f = 48000000;
+static unsigned long xtal_f __ro_after_init = 12000000;
+static unsigned long xusbxti_f __ro_after_init = 48000000;
 
 void __init s3c64xx_set_xtal_freq(unsigned long freq)
 {

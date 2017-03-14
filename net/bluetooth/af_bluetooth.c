@@ -27,6 +27,8 @@
 #include <linux/module.h>
 #include <linux/debugfs.h>
 #include <linux/stringify.h>
+#include <linux/sched/signal.h>
+
 #include <asm/ioctls.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -245,7 +247,7 @@ int bt_sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	if (err == 0) {
 		sock_recv_ts_and_drops(msg, sk, skb);
 
-		if (bt_sk(sk)->skb_msg_name)
+		if (msg->msg_name && bt_sk(sk)->skb_msg_name)
 			bt_sk(sk)->skb_msg_name(skb, msg->msg_name,
 						&msg->msg_namelen);
 	}

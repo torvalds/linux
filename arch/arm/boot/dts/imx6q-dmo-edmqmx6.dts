@@ -104,7 +104,6 @@
 &ecspi5 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi5>;
-	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio1 12 0>;
 	status = "okay";
 

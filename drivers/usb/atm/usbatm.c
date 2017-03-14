@@ -74,7 +74,7 @@
 #include <linux/moduleparam.h>
 #include <linux/netdevice.h>
 #include <linux/proc_fs.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
 #include <linux/stat.h>

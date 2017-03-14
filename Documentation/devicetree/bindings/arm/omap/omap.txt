@@ -151,6 +151,9 @@ Boards:
 - AM335X SBC-T335 : single board computer, built around the Sitara AM3352/4
   compatible = "compulab,sbc-t335", "compulab,cm-t335", "ti,am33xx"
 
+- AM335X phyCORE-AM335x: Development kit
+  compatible = "phytec,am335x-pcm-953", "phytec,am335x-phycore-som", "ti,am33xx"
+
 - OMAP5 EVM : Evaluation Module
   compatible = "ti,omap5-evm", "ti,omap5"
 

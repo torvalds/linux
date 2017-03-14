@@ -29,15 +29,28 @@ int __item_insert(struct radix_tree_root *root, struct item *item)
 	return __radix_tree_insert(root, item->index, item->order, item);
 }
 
-int item_insert(struct radix_tree_root *root, unsigned long index)
+struct item *item_create(unsigned long index, unsigned int order)
 {
-	return __item_insert(root, item_create(index, 0));
+	struct item *ret = malloc(sizeof(*ret));
+
+	ret->index = index;
+	ret->order = order;
+	return ret;
 }
 
 int item_insert_order(struct radix_tree_root *root, unsigned long index,
 			unsigned order)
 {
-	return __item_insert(root, item_create(index, order));
+	struct item *item = item_create(index, order);
+	int err = __item_insert(root, item);
+	if (err)
+		free(item);
+	return err;
+}
+
+int item_insert(struct radix_tree_root *root, unsigned long index)
+{
+	return item_insert_order(root, index, 0);
 }
 
 void item_sanity(struct item *item, unsigned long index)
@@ -59,15 +72,6 @@ int item_delete(struct radix_tree_root *root, unsigned long index)
 		return 1;
 	}
 	return 0;
-}
-
-struct item *item_create(unsigned long index, unsigned int order)
-{
-	struct item *ret = malloc(sizeof(*ret));
-
-	ret->index = index;
-	ret->order = order;
-	return ret;
 }
 
 void item_check_present(struct radix_tree_root *root, unsigned long index)

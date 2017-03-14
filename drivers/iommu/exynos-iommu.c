@@ -276,6 +276,8 @@ struct sysmmu_drvdata {
 	struct list_head owner_node;	/* node for owner controllers list */
 	phys_addr_t pgtable;		/* assigned page table structure */
 	unsigned int version;		/* our version */
+
+	struct iommu_device iommu;	/* IOMMU core handle */
 };
 
 static struct exynos_iommu_domain *to_exynos_domain(struct iommu_domain *dom)
@@ -381,13 +383,14 @@ static void show_fault_information(struct sysmmu_drvdata *data,
 {
 	sysmmu_pte_t *ent;
 
-	dev_err(data->sysmmu, "%s FAULT occurred at %#x (page table base: %pa)\n",
-		finfo->name, fault_addr, &data->pgtable);
+	dev_err(data->sysmmu, "%s: %s FAULT occurred at %#x\n",
+		dev_name(data->master), finfo->name, fault_addr);
+	dev_dbg(data->sysmmu, "Page table base: %pa\n", &data->pgtable);
 	ent = section_entry(phys_to_virt(data->pgtable), fault_addr);
-	dev_err(data->sysmmu, "\tLv1 entry: %#x\n", *ent);
+	dev_dbg(data->sysmmu, "\tLv1 entry: %#x\n", *ent);
 	if (lv1ent_page(ent)) {
 		ent = page_entry(ent, fault_addr);
-		dev_err(data->sysmmu, "\t Lv2 entry: %#x\n", *ent);
+		dev_dbg(data->sysmmu, "\t Lv2 entry: %#x\n", *ent);
 	}
 }
 
@@ -611,6 +614,18 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 	data->sysmmu = dev;
 	spin_lock_init(&data->lock);
 
+	ret = iommu_device_sysfs_add(&data->iommu, &pdev->dev, NULL,
+				     dev_name(data->sysmmu));
+	if (ret)
+		return ret;
+
+	iommu_device_set_ops(&data->iommu, &exynos_iommu_ops);
+	iommu_device_set_fwnode(&data->iommu, &dev->of_node->fwnode);
+
+	ret = iommu_device_register(&data->iommu);
+	if (ret)
+		return ret;
+
 	platform_set_drvdata(pdev, data);
 
 	__sysmmu_get_version(data);
@@ -627,8 +642,6 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_enable(dev);
-
-	of_iommu_set_ops(dev->of_node, &exynos_iommu_ops);
 
 	return 0;
 }
@@ -743,6 +756,8 @@ static struct iommu_domain *exynos_iommu_domain_alloc(unsigned type)
 				DMA_TO_DEVICE);
 	/* For mapping page table entries we rely on dma == phys */
 	BUG_ON(handle != virt_to_phys(domain->pgtable));
+	if (dma_mapping_error(dma_dev, handle))
+		goto err_lv2ent;
 
 	spin_lock_init(&domain->lock);
 	spin_lock_init(&domain->pgtablelock);
@@ -754,6 +769,8 @@ static struct iommu_domain *exynos_iommu_domain_alloc(unsigned type)
 
 	return &domain->domain;
 
+err_lv2ent:
+	free_pages((unsigned long)domain->lv2entcnt, 1);
 err_counter:
 	free_pages((unsigned long)domain->pgtable, 2);
 err_dma_cookie:
@@ -897,6 +914,7 @@ static sysmmu_pte_t *alloc_lv2entry(struct exynos_iommu_domain *domain,
 	}
 
 	if (lv1ent_fault(sent)) {
+		dma_addr_t handle;
 		sysmmu_pte_t *pent;
 		bool need_flush_flpd_cache = lv1ent_zero(sent);
 
@@ -908,7 +926,12 @@ static sysmmu_pte_t *alloc_lv2entry(struct exynos_iommu_domain *domain,
 		update_pte(sent, mk_lv1ent_page(virt_to_phys(pent)));
 		kmemleak_ignore(pent);
 		*pgcounter = NUM_LV2ENTRIES;
-		dma_map_single(dma_dev, pent, LV2TABLE_SIZE, DMA_TO_DEVICE);
+		handle = dma_map_single(dma_dev, pent, LV2TABLE_SIZE,
+					DMA_TO_DEVICE);
+		if (dma_mapping_error(dma_dev, handle)) {
+			kmem_cache_free(lv2table_kmem_cache, pent);
+			return ERR_PTR(-EADDRINUSE);
+		}
 
 		/*
 		 * If pre-fetched SLPD is a faulty SLPD in zero_l2_table,
@@ -1231,9 +1254,21 @@ static int exynos_iommu_add_device(struct device *dev)
 
 static void exynos_iommu_remove_device(struct device *dev)
 {
+	struct exynos_iommu_owner *owner = dev->archdata.iommu;
+
 	if (!has_sysmmu(dev))
 		return;
 
+	if (owner->domain) {
+		struct iommu_group *group = iommu_group_get(dev);
+
+		if (group) {
+			WARN_ON(owner->domain !=
+				iommu_group_default_domain(group));
+			exynos_iommu_detach_device(owner->domain, dev);
+			iommu_group_put(group);
+		}
+	}
 	iommu_group_remove_device(dev);
 }
 
@@ -1242,7 +1277,7 @@ static int exynos_iommu_of_xlate(struct device *dev,
 {
 	struct exynos_iommu_owner *owner = dev->archdata.iommu;
 	struct platform_device *sysmmu = of_find_device_by_node(spec->np);
-	struct sysmmu_drvdata *data;
+	struct sysmmu_drvdata *data, *entry;
 
 	if (!sysmmu)
 		return -ENODEV;
@@ -1260,6 +1295,10 @@ static int exynos_iommu_of_xlate(struct device *dev,
 		mutex_init(&owner->rpm_lock);
 		dev->archdata.iommu = owner;
 	}
+
+	list_for_each_entry(entry, &owner->controllers, owner_node)
+		if (entry == data)
+			return 0;
 
 	list_add_tail(&data->owner_node, &owner->controllers);
 	data->master = dev;

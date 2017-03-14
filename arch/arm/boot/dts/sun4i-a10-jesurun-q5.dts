@@ -163,17 +163,13 @@
 
 &pio {
 	emac_power_pin_q5: emac_power_pin@0 {
-		allwinner,pins = "PH19";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH19";
+		function = "gpio_out";
 	};
 
 	led_pins_q5: led_pins@0 {
-		allwinner,pins = "PH20";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH20";
+		function = "gpio_out";
 	};
 };
 

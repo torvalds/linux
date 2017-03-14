@@ -12,8 +12,11 @@
  */
 
 #include <linux/kvm_host.h>
+#include <linux/log2.h>
+#include <asm/mmu_context.h>
 #include <asm/msa.h>
 #include <asm/setup.h>
+#include <asm/tlbex.h>
 #include <asm/uasm.h>
 
 /* Register names */
@@ -50,6 +53,8 @@
 /* Some CP0 registers */
 #define C0_HWRENA	7, 0
 #define C0_BADVADDR	8, 0
+#define C0_BADINSTR	8, 1
+#define C0_BADINSTRP	8, 2
 #define C0_ENTRYHI	10, 0
 #define C0_STATUS	12, 0
 #define C0_CAUSE	13, 0
@@ -89,6 +94,21 @@ static void *kvm_mips_build_ret_from_exit(void *addr);
 static void *kvm_mips_build_ret_to_guest(void *addr);
 static void *kvm_mips_build_ret_to_host(void *addr);
 
+/*
+ * The version of this function in tlbex.c uses current_cpu_type(), but for KVM
+ * we assume symmetry.
+ */
+static int c0_kscratch(void)
+{
+	switch (boot_cpu_type()) {
+	case CPU_XLP:
+	case CPU_XLR:
+		return 22;
+	default:
+		return 31;
+	}
+}
+
 /**
  * kvm_mips_entry_setup() - Perform global setup for entry code.
  *
@@ -103,18 +123,21 @@ int kvm_mips_entry_setup(void)
 	 * We prefer to use KScratchN registers if they are available over the
 	 * defaults above, which may not work on all cores.
 	 */
-	unsigned int kscratch_mask = cpu_data[0].kscratch_mask & 0xfc;
+	unsigned int kscratch_mask = cpu_data[0].kscratch_mask;
+
+	if (pgd_reg != -1)
+		kscratch_mask &= ~BIT(pgd_reg);
 
 	/* Pick a scratch register for storing VCPU */
 	if (kscratch_mask) {
-		scratch_vcpu[0] = 31;
+		scratch_vcpu[0] = c0_kscratch();
 		scratch_vcpu[1] = ffs(kscratch_mask) - 1;
 		kscratch_mask &= ~BIT(scratch_vcpu[1]);
 	}
 
 	/* Pick a scratch register to use as a temp for saving state */
 	if (kscratch_mask) {
-		scratch_tmp[0] = 31;
+		scratch_tmp[0] = c0_kscratch();
 		scratch_tmp[1] = ffs(kscratch_mask) - 1;
 		kscratch_mask &= ~BIT(scratch_tmp[1]);
 	}
@@ -130,7 +153,7 @@ static void kvm_mips_build_save_scratch(u32 **p, unsigned int tmp,
 	UASM_i_SW(p, tmp, offsetof(struct pt_regs, cp0_epc), frame);
 
 	/* Save the temp scratch register value in cp0_cause of stack frame */
-	if (scratch_tmp[0] == 31) {
+	if (scratch_tmp[0] == c0_kscratch()) {
 		UASM_i_MFC0(p, tmp, scratch_tmp[0], scratch_tmp[1]);
 		UASM_i_SW(p, tmp, offsetof(struct pt_regs, cp0_cause), frame);
 	}
@@ -146,7 +169,7 @@ static void kvm_mips_build_restore_scratch(u32 **p, unsigned int tmp,
 	UASM_i_LW(p, tmp, offsetof(struct pt_regs, cp0_epc), frame);
 	UASM_i_MTC0(p, tmp, scratch_vcpu[0], scratch_vcpu[1]);
 
-	if (scratch_tmp[0] == 31) {
+	if (scratch_tmp[0] == c0_kscratch()) {
 		UASM_i_LW(p, tmp, offsetof(struct pt_regs, cp0_cause), frame);
 		UASM_i_MTC0(p, tmp, scratch_tmp[0], scratch_tmp[1]);
 	}
@@ -286,23 +309,26 @@ static void *kvm_mips_build_enter_guest(void *addr)
 	uasm_i_andi(&p, T0, T0, KSU_USER | ST0_ERL | ST0_EXL);
 	uasm_i_xori(&p, T0, T0, KSU_USER);
 	uasm_il_bnez(&p, &r, T0, label_kernel_asid);
-	 UASM_i_ADDIU(&p, T1, K1,
-		      offsetof(struct kvm_vcpu_arch, guest_kernel_asid));
+	 UASM_i_ADDIU(&p, T1, K1, offsetof(struct kvm_vcpu_arch,
+					   guest_kernel_mm.context.asid));
 	/* else user */
-	UASM_i_ADDIU(&p, T1, K1,
-		     offsetof(struct kvm_vcpu_arch, guest_user_asid));
+	UASM_i_ADDIU(&p, T1, K1, offsetof(struct kvm_vcpu_arch,
+					  guest_user_mm.context.asid));
 	uasm_l_kernel_asid(&l, p);
 
 	/* t1: contains the base of the ASID array, need to get the cpu id  */
 	/* smp_processor_id */
 	uasm_i_lw(&p, T2, offsetof(struct thread_info, cpu), GP);
-	/* x4 */
-	uasm_i_sll(&p, T2, T2, 2);
+	/* index the ASID array */
+	uasm_i_sll(&p, T2, T2, ilog2(sizeof(long)));
 	UASM_i_ADDU(&p, T3, T1, T2);
-	uasm_i_lw(&p, K0, 0, T3);
+	UASM_i_LW(&p, K0, 0, T3);
 #ifdef CONFIG_MIPS_ASID_BITS_VARIABLE
-	/* x sizeof(struct cpuinfo_mips)/4 */
-	uasm_i_addiu(&p, T3, ZERO, sizeof(struct cpuinfo_mips)/4);
+	/*
+	 * reuse ASID array offset
+	 * cpuinfo_mips is a multiple of sizeof(long)
+	 */
+	uasm_i_addiu(&p, T3, ZERO, sizeof(struct cpuinfo_mips)/sizeof(long));
 	uasm_i_mul(&p, T2, T2, T3);
 
 	UASM_i_LA_mostly(&p, AT, (long)&cpu_data[0].asid_mask);
@@ -312,7 +338,20 @@ static void *kvm_mips_build_enter_guest(void *addr)
 #else
 	uasm_i_andi(&p, K0, K0, MIPS_ENTRYHI_ASID);
 #endif
-	uasm_i_mtc0(&p, K0, C0_ENTRYHI);
+
+	/*
+	 * Set up KVM T&E GVA pgd.
+	 * This does roughly the same as TLBMISS_HANDLER_SETUP_PGD():
+	 * - call tlbmiss_handler_setup_pgd(mm->pgd)
+	 * - but skips write into CP0_PWBase for now
+	 */
+	UASM_i_LW(&p, A0, (int)offsetof(struct mm_struct, pgd) -
+			  (int)offsetof(struct mm_struct, context.asid), T1);
+
+	UASM_i_LA(&p, T9, (unsigned long)tlbmiss_handler_setup_pgd);
+	uasm_i_jalr(&p, RA, T9);
+	 uasm_i_mtc0(&p, K0, C0_ENTRYHI);
+
 	uasm_i_ehb(&p);
 
 	/* Disable RDHWR access */
@@ -343,6 +382,80 @@ static void *kvm_mips_build_enter_guest(void *addr)
 	uasm_i_eret(&p);
 
 	uasm_resolve_relocs(relocs, labels);
+
+	return p;
+}
+
+/**
+ * kvm_mips_build_tlb_refill_exception() - Assemble TLB refill handler.
+ * @addr:	Address to start writing code.
+ * @handler:	Address of common handler (within range of @addr).
+ *
+ * Assemble TLB refill exception fast path handler for guest execution.
+ *
+ * Returns:	Next address after end of written function.
+ */
+void *kvm_mips_build_tlb_refill_exception(void *addr, void *handler)
+{
+	u32 *p = addr;
+	struct uasm_label labels[2];
+	struct uasm_reloc relocs[2];
+	struct uasm_label *l = labels;
+	struct uasm_reloc *r = relocs;
+
+	memset(labels, 0, sizeof(labels));
+	memset(relocs, 0, sizeof(relocs));
+
+	/* Save guest k1 into scratch register */
+	UASM_i_MTC0(&p, K1, scratch_tmp[0], scratch_tmp[1]);
+
+	/* Get the VCPU pointer from the VCPU scratch register */
+	UASM_i_MFC0(&p, K1, scratch_vcpu[0], scratch_vcpu[1]);
+
+	/* Save guest k0 into VCPU structure */
+	UASM_i_SW(&p, K0, offsetof(struct kvm_vcpu, arch.gprs[K0]), K1);
+
+	/*
+	 * Some of the common tlbex code uses current_cpu_type(). For KVM we
+	 * assume symmetry and just disable preemption to silence the warning.
+	 */
+	preempt_disable();
+
+	/*
+	 * Now for the actual refill bit. A lot of this can be common with the
+	 * Linux TLB refill handler, however we don't need to handle so many
+	 * cases. We only need to handle user mode refills, and user mode runs
+	 * with 32-bit addressing.
+	 *
+	 * Therefore the branch to label_vmalloc generated by build_get_pmde64()
+	 * that isn't resolved should never actually get taken and is harmless
+	 * to leave in place for now.
+	 */
+
+#ifdef CONFIG_64BIT
+	build_get_pmde64(&p, &l, &r, K0, K1); /* get pmd in K1 */
+#else
+	build_get_pgde32(&p, K0, K1); /* get pgd in K1 */
+#endif
+
+	/* we don't support huge pages yet */
+
+	build_get_ptep(&p, K0, K1);
+	build_update_entries(&p, K0, K1);
+	build_tlb_write_entry(&p, &l, &r, tlb_random);
+
+	preempt_enable();
+
+	/* Get the VCPU pointer from the VCPU scratch register again */
+	UASM_i_MFC0(&p, K1, scratch_vcpu[0], scratch_vcpu[1]);
+
+	/* Restore the guest's k0/k1 registers */
+	UASM_i_LW(&p, K0, offsetof(struct kvm_vcpu, arch.gprs[K0]), K1);
+	uasm_i_ehb(&p);
+	UASM_i_MFC0(&p, K1, scratch_tmp[0], scratch_tmp[1]);
+
+	/* Jump to guest */
+	uasm_i_eret(&p);
 
 	return p;
 }
@@ -467,6 +580,18 @@ void *kvm_mips_build_exit(void *addr)
 
 	uasm_i_mfc0(&p, K0, C0_CAUSE);
 	uasm_i_sw(&p, K0, offsetof(struct kvm_vcpu_arch, host_cp0_cause), K1);
+
+	if (cpu_has_badinstr) {
+		uasm_i_mfc0(&p, K0, C0_BADINSTR);
+		uasm_i_sw(&p, K0, offsetof(struct kvm_vcpu_arch,
+					   host_cp0_badinstr), K1);
+	}
+
+	if (cpu_has_badinstrp) {
+		uasm_i_mfc0(&p, K0, C0_BADINSTRP);
+		uasm_i_sw(&p, K0, offsetof(struct kvm_vcpu_arch,
+					   host_cp0_badinstrp), K1);
+	}
 
 	/* Now restore the host state just enough to run the handlers */
 

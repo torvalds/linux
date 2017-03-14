@@ -649,11 +649,15 @@ static inline size_t cpumask_size(void)
  * used. Please use this_cpu_cpumask_var_t in those cases. The direct use
  * of this_cpu_ptr() or this_cpu_read() will lead to failures when the
  * other type of cpumask_var_t implementation is configured.
+ *
+ * Please also note that __cpumask_var_read_mostly can be used to declare
+ * a cpumask_var_t variable itself (not its content) as read mostly.
  */
 #ifdef CONFIG_CPUMASK_OFFSTACK
 typedef struct cpumask *cpumask_var_t;
 
-#define this_cpu_cpumask_var_ptr(x) this_cpu_read(x)
+#define this_cpu_cpumask_var_ptr(x)	this_cpu_read(x)
+#define __cpumask_var_read_mostly	__read_mostly
 
 bool alloc_cpumask_var_node(cpumask_var_t *mask, gfp_t flags, int node);
 bool alloc_cpumask_var(cpumask_var_t *mask, gfp_t flags);
@@ -667,6 +671,7 @@ void free_bootmem_cpumask_var(cpumask_var_t mask);
 typedef struct cpumask cpumask_var_t[1];
 
 #define this_cpu_cpumask_var_ptr(x) this_cpu_ptr(x)
+#define __cpumask_var_read_mostly
 
 static inline bool alloc_cpumask_var(cpumask_var_t *mask, gfp_t flags)
 {

@@ -71,7 +71,7 @@ static void benchmark_size(unsigned long size, unsigned long step, int order)
 	tagged = benchmark_iter(&tree, true);
 	normal = benchmark_iter(&tree, false);
 
-	printf("Size %ld, step %6ld, order %d tagged %10lld ns, normal %10lld ns\n",
+	printv(2, "Size %ld, step %6ld, order %d tagged %10lld ns, normal %10lld ns\n",
 		size, step, order, tagged, normal);
 
 	item_kill_tree(&tree);
@@ -85,8 +85,8 @@ void benchmark(void)
 				128, 256, 512, 12345, 0};
 	int c, s;
 
-	printf("starting benchmarks\n");
-	printf("RADIX_TREE_MAP_SHIFT = %d\n", RADIX_TREE_MAP_SHIFT);
+	printv(1, "starting benchmarks\n");
+	printv(1, "RADIX_TREE_MAP_SHIFT = %d\n", RADIX_TREE_MAP_SHIFT);
 
 	for (c = 0; size[c]; c++)
 		for (s = 0; step[s]; s++)

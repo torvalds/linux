@@ -225,22 +225,22 @@ isp_video_remote_subdev(struct isp_video *video, u32 *pad)
 static int isp_video_get_graph_data(struct isp_video *video,
 				    struct isp_pipeline *pipe)
 {
-	struct media_entity_graph graph;
+	struct media_graph graph;
 	struct media_entity *entity = &video->video.entity;
 	struct media_device *mdev = entity->graph_obj.mdev;
 	struct isp_video *far_end = NULL;
 	int ret;
 
 	mutex_lock(&mdev->graph_mutex);
-	ret = media_entity_graph_walk_init(&graph, entity->graph_obj.mdev);
+	ret = media_graph_walk_init(&graph, mdev);
 	if (ret) {
 		mutex_unlock(&mdev->graph_mutex);
 		return ret;
 	}
 
-	media_entity_graph_walk_start(&graph, entity);
+	media_graph_walk_start(&graph, entity);
 
-	while ((entity = media_entity_graph_walk_next(&graph))) {
+	while ((entity = media_graph_walk_next(&graph))) {
 		struct isp_video *__video;
 
 		media_entity_enum_set(&pipe->ent_enum, entity);
@@ -261,7 +261,7 @@ static int isp_video_get_graph_data(struct isp_video *video,
 
 	mutex_unlock(&mdev->graph_mutex);
 
-	media_entity_graph_walk_cleanup(&graph);
+	media_graph_walk_cleanup(&graph);
 
 	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		pipe->input = far_end;
@@ -1112,7 +1112,7 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	pipe->l3_ick = clk_get_rate(video->isp->clock[ISP_CLK_L3_ICK]);
 	pipe->max_rate = pipe->l3_ick;
 
-	ret = media_entity_pipeline_start(&video->video.entity, &pipe->pipe);
+	ret = media_pipeline_start(&video->video.entity, &pipe->pipe);
 	if (ret < 0)
 		goto err_pipeline_start;
 
@@ -1169,7 +1169,7 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	return 0;
 
 err_check_format:
-	media_entity_pipeline_stop(&video->video.entity);
+	media_pipeline_stop(&video->video.entity);
 err_pipeline_start:
 	/* TODO: Implement PM QoS */
 	/* The DMA queue must be emptied here, otherwise CCDC interrupts that
@@ -1236,7 +1236,7 @@ isp_video_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 	video->error = false;
 
 	/* TODO: Implement PM QoS */
-	media_entity_pipeline_stop(&video->video.entity);
+	media_pipeline_stop(&video->video.entity);
 
 	media_entity_enum_cleanup(&pipe->ent_enum);
 
@@ -1350,6 +1350,7 @@ static int isp_video_open(struct file *file)
 done:
 	if (ret < 0) {
 		v4l2_fh_del(&handle->vfh);
+		v4l2_fh_exit(&handle->vfh);
 		kfree(handle);
 	}
 
@@ -1373,6 +1374,7 @@ static int isp_video_release(struct file *file)
 
 	/* Release the file handle. */
 	v4l2_fh_del(vfh);
+	v4l2_fh_exit(vfh);
 	kfree(handle);
 	file->private_data = NULL;
 

@@ -18,8 +18,6 @@
  * 02110-1301, USA.
  */
 
-#include <stddef.h>
-
 #include <linux/types.h>
 #include <linux/export.h>
 #include <linux/ceph/libceph.h>

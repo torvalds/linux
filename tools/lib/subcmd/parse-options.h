@@ -1,6 +1,7 @@
 #ifndef __SUBCMD_PARSE_OPTIONS_H
 #define __SUBCMD_PARSE_OPTIONS_H
 
+#include <linux/kernel.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -132,32 +133,32 @@ struct option {
 #define OPT_UINTEGER(s, l, v, h)    { .type = OPTION_UINTEGER, .short_name = (s), .long_name = (l), .value = check_vtype(v, unsigned int *), .help = (h) }
 #define OPT_LONG(s, l, v, h)        { .type = OPTION_LONG, .short_name = (s), .long_name = (l), .value = check_vtype(v, long *), .help = (h) }
 #define OPT_U64(s, l, v, h)         { .type = OPTION_U64, .short_name = (s), .long_name = (l), .value = check_vtype(v, u64 *), .help = (h) }
-#define OPT_STRING(s, l, v, a, h)   { .type = OPTION_STRING,  .short_name = (s), .long_name = (l), .value = check_vtype(v, const char **), (a), .help = (h) }
+#define OPT_STRING(s, l, v, a, h)   { .type = OPTION_STRING,  .short_name = (s), .long_name = (l), .value = check_vtype(v, const char **), .argh = (a), .help = (h) }
 #define OPT_STRING_OPTARG(s, l, v, a, h, d) \
 	{ .type = OPTION_STRING,  .short_name = (s), .long_name = (l), \
-	  .value = check_vtype(v, const char **), (a), .help = (h), \
+	  .value = check_vtype(v, const char **), .argh =(a), .help = (h), \
 	  .flags = PARSE_OPT_OPTARG, .defval = (intptr_t)(d) }
 #define OPT_STRING_OPTARG_SET(s, l, v, os, a, h, d) \
 	{ .type = OPTION_STRING, .short_name = (s), .long_name = (l), \
-	  .value = check_vtype(v, const char **), (a), .help = (h), \
+	  .value = check_vtype(v, const char **), .argh = (a), .help = (h), \
 	  .flags = PARSE_OPT_OPTARG, .defval = (intptr_t)(d), \
 	  .set = check_vtype(os, bool *)}
-#define OPT_STRING_NOEMPTY(s, l, v, a, h)   { .type = OPTION_STRING,  .short_name = (s), .long_name = (l), .value = check_vtype(v, const char **), (a), .help = (h), .flags = PARSE_OPT_NOEMPTY}
+#define OPT_STRING_NOEMPTY(s, l, v, a, h)   { .type = OPTION_STRING,  .short_name = (s), .long_name = (l), .value = check_vtype(v, const char **), .argh = (a), .help = (h), .flags = PARSE_OPT_NOEMPTY}
 #define OPT_DATE(s, l, v, h) \
 	{ .type = OPTION_CALLBACK, .short_name = (s), .long_name = (l), .value = (v), .argh = "time", .help = (h), .callback = parse_opt_approxidate_cb }
 #define OPT_CALLBACK(s, l, v, a, h, f) \
-	{ .type = OPTION_CALLBACK, .short_name = (s), .long_name = (l), .value = (v), (a), .help = (h), .callback = (f) }
+	{ .type = OPTION_CALLBACK, .short_name = (s), .long_name = (l), .value = (v), .argh = (a), .help = (h), .callback = (f) }
 #define OPT_CALLBACK_NOOPT(s, l, v, a, h, f) \
-	{ .type = OPTION_CALLBACK, .short_name = (s), .long_name = (l), .value = (v), (a), .help = (h), .callback = (f), .flags = PARSE_OPT_NOARG }
+	{ .type = OPTION_CALLBACK, .short_name = (s), .long_name = (l), .value = (v), .argh = (a), .help = (h), .callback = (f), .flags = PARSE_OPT_NOARG }
 #define OPT_CALLBACK_DEFAULT(s, l, v, a, h, f, d) \
-	{ .type = OPTION_CALLBACK, .short_name = (s), .long_name = (l), .value = (v), (a), .help = (h), .callback = (f), .defval = (intptr_t)d, .flags = PARSE_OPT_LASTARG_DEFAULT }
+	{ .type = OPTION_CALLBACK, .short_name = (s), .long_name = (l), .value = (v), .argh = (a), .help = (h), .callback = (f), .defval = (intptr_t)d, .flags = PARSE_OPT_LASTARG_DEFAULT }
 #define OPT_CALLBACK_DEFAULT_NOOPT(s, l, v, a, h, f, d) \
 	{ .type = OPTION_CALLBACK, .short_name = (s), .long_name = (l),\
-	.value = (v), (a), .help = (h), .callback = (f), .defval = (intptr_t)d,\
+	.value = (v), .arg = (a), .help = (h), .callback = (f), .defval = (intptr_t)d,\
 	.flags = PARSE_OPT_LASTARG_DEFAULT | PARSE_OPT_NOARG}
 #define OPT_CALLBACK_OPTARG(s, l, v, d, a, h, f) \
 	{ .type = OPTION_CALLBACK, .short_name = (s), .long_name = (l), \
-	  .value = (v), (a), .help = (h), .callback = (f), \
+	  .value = (v), .argh = (a), .help = (h), .callback = (f), \
 	  .flags = PARSE_OPT_OPTARG, .data = (d) }
 
 /* parse_options() will filter out the processed options and leave the

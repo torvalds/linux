@@ -17,6 +17,8 @@
 #include <linux/init.h>
 #include <linux/cpu.h>
 #include <linux/sched.h>
+#include <linux/sched/hotplug.h>
+#include <linux/sched/task_stack.h>
 #include <linux/smp.h>
 #include <linux/cpufreq.h>
 #include <asm/processor.h>
@@ -418,7 +420,6 @@ static int loongson3_cpu_disable(void)
 
 	set_cpu_online(cpu, false);
 	calculate_cpu_foreign_map();
-	cpumask_clear_cpu(cpu, &cpu_callin_map);
 	local_irq_save(flags);
 	fixup_irqs();
 	local_irq_restore(flags);

@@ -191,9 +191,25 @@ static inline unsigned int crypto_queue_len(struct crypto_queue *queue)
 	return queue->qlen;
 }
 
-/* These functions require the input/output to be aligned as u32. */
 void crypto_inc(u8 *a, unsigned int size);
-void crypto_xor(u8 *dst, const u8 *src, unsigned int size);
+void __crypto_xor(u8 *dst, const u8 *src, unsigned int size);
+
+static inline void crypto_xor(u8 *dst, const u8 *src, unsigned int size)
+{
+	if (IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) &&
+	    __builtin_constant_p(size) &&
+	    (size % sizeof(unsigned long)) == 0) {
+		unsigned long *d = (unsigned long *)dst;
+		unsigned long *s = (unsigned long *)src;
+
+		while (size > 0) {
+			*d++ ^= *s++;
+			size -= sizeof(unsigned long);
+		}
+	} else {
+		__crypto_xor(dst, src, size);
+	}
+}
 
 int blkcipher_walk_done(struct blkcipher_desc *desc,
 			struct blkcipher_walk *walk, int err);
@@ -344,13 +360,18 @@ static inline struct crypto_alg *crypto_get_attr_alg(struct rtattr **tb,
 	return crypto_attr_alg(tb[1], type, mask);
 }
 
+static inline int crypto_requires_off(u32 type, u32 mask, u32 off)
+{
+	return (type ^ off) & mask & off;
+}
+
 /*
  * Returns CRYPTO_ALG_ASYNC if type/mask requires the use of sync algorithms.
  * Otherwise returns zero.
  */
 static inline int crypto_requires_sync(u32 type, u32 mask)
 {
-	return (type ^ CRYPTO_ALG_ASYNC) & mask & CRYPTO_ALG_ASYNC;
+	return crypto_requires_off(type, mask, CRYPTO_ALG_ASYNC);
 }
 
 noinline unsigned long __crypto_memneq(const void *a, const void *b, size_t size);

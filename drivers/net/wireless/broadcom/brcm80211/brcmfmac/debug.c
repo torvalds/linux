@@ -32,16 +32,25 @@ static int brcmf_debug_create_memdump(struct brcmf_bus *bus, const void *data,
 {
 	void *dump;
 	size_t ramsize;
+	int err;
 
 	ramsize = brcmf_bus_get_ramsize(bus);
-	if (ramsize) {
-		dump = vzalloc(len + ramsize);
-		if (!dump)
-			return -ENOMEM;
-		memcpy(dump, data, len);
-		brcmf_bus_get_memdump(bus, dump + len, ramsize);
-		dev_coredumpv(bus->dev, dump, len + ramsize, GFP_KERNEL);
+	if (!ramsize)
+		return -ENOTSUPP;
+
+	dump = vzalloc(len + ramsize);
+	if (!dump)
+		return -ENOMEM;
+
+	memcpy(dump, data, len);
+	err = brcmf_bus_get_memdump(bus, dump + len, ramsize);
+	if (err) {
+		vfree(dump);
+		return err;
 	}
+
+	dev_coredumpv(bus->dev, dump, len + ramsize, GFP_KERNEL);
+
 	return 0;
 }
 
@@ -49,10 +58,18 @@ static int brcmf_debug_psm_watchdog_notify(struct brcmf_if *ifp,
 					   const struct brcmf_event_msg *evtmsg,
 					   void *data)
 {
+	int err;
+
 	brcmf_dbg(TRACE, "enter: bsscfgidx=%d\n", ifp->bsscfgidx);
 
-	return brcmf_debug_create_memdump(ifp->drvr->bus_if, data,
-					  evtmsg->datalen);
+	brcmf_err("PSM's watchdog has fired!\n");
+
+	err = brcmf_debug_create_memdump(ifp->drvr->bus_if, data,
+					 evtmsg->datalen);
+	if (err)
+		brcmf_err("Failed to get memory dump, %d\n", err);
+
+	return err;
 }
 
 void brcmf_debugfs_init(void)

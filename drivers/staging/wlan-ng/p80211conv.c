@@ -387,7 +387,7 @@ int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 		   (((memcmp(e_snap->oui, oui_rfc1042,
 		   WLAN_IEEE_OUI_LEN) == 0) &&
 		   (ethconv == WLAN_ETHCONV_8021h) &&
-		   (p80211_stt_findproto(le16_to_cpu(e_snap->type)))) ||
+		   (p80211_stt_findproto(be16_to_cpu(e_snap->type)))) ||
 		   (memcmp(e_snap->oui, oui_rfc1042, WLAN_IEEE_OUI_LEN) !=
 			0))) {
 		pr_debug("SNAP+RFC1042 len: %d\n", payload_length);

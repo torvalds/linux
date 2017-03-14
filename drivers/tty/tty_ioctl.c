@@ -9,7 +9,7 @@
 #include <linux/types.h>
 #include <linux/termios.h>
 #include <linux/errno.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/kernel.h>
 #include <linux/major.h>
 #include <linux/tty.h>

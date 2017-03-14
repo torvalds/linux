@@ -81,6 +81,9 @@ typedef enum {
 	PHY_INTERFACE_MODE_MOCA,
 	PHY_INTERFACE_MODE_QSGMII,
 	PHY_INTERFACE_MODE_TRGMII,
+	PHY_INTERFACE_MODE_1000BASEX,
+	PHY_INTERFACE_MODE_2500BASEX,
+	PHY_INTERFACE_MODE_RXAUI,
 	PHY_INTERFACE_MODE_MAX,
 } phy_interface_t;
 
@@ -141,6 +144,12 @@ static inline const char *phy_modes(phy_interface_t interface)
 		return "qsgmii";
 	case PHY_INTERFACE_MODE_TRGMII:
 		return "trgmii";
+	case PHY_INTERFACE_MODE_1000BASEX:
+		return "1000base-x";
+	case PHY_INTERFACE_MODE_2500BASEX:
+		return "2500base-x";
+	case PHY_INTERFACE_MODE_RXAUI:
+		return "rxaui";
 	default:
 		return "unknown";
 	}
@@ -157,11 +166,7 @@ static inline const char *phy_modes(phy_interface_t interface)
 /* Used when trying to connect to a specific phy (mii bus id:phy device id) */
 #define PHY_ID_FMT "%s:%02x"
 
-/*
- * Need to be a little smaller than phydev->dev.bus_id to leave room
- * for the ":%02x"
- */
-#define MII_BUS_ID_SIZE	(20 - 3)
+#define MII_BUS_ID_SIZE	61
 
 /* Or MII_ADDR_C45 into regnum for read/write on mii_bus to enable the 21 bit
    IEEE 802.3ae clause 45 addressing mode used by 10GIGE phy chips. */
@@ -631,7 +636,7 @@ struct phy_driver {
 /* A Structure for boards to register fixups with the PHY Lib */
 struct phy_fixup {
 	struct list_head list;
-	char bus_id[20];
+	char bus_id[MII_BUS_ID_SIZE + 3];
 	u32 phy_uid;
 	u32 phy_uid_mask;
 	int (*run)(struct phy_device *phydev);
@@ -802,6 +807,9 @@ int phy_stop_interrupts(struct phy_device *phydev);
 
 static inline int phy_read_status(struct phy_device *phydev)
 {
+	if (!phydev->drv)
+		return -EIO;
+
 	return phydev->drv->read_status(phydev);
 }
 
@@ -880,6 +888,25 @@ int __init mdio_bus_init(void);
 void mdio_bus_exit(void);
 
 extern struct bus_type mdio_bus_type;
+
+struct mdio_board_info {
+	const char	*bus_id;
+	char		modalias[MDIO_NAME_SIZE];
+	int		mdio_addr;
+	const void	*platform_data;
+};
+
+#if IS_ENABLED(CONFIG_PHYLIB)
+int mdiobus_register_board_info(const struct mdio_board_info *info,
+				unsigned int n);
+#else
+static inline int mdiobus_register_board_info(const struct mdio_board_info *i,
+					      unsigned int n)
+{
+	return 0;
+}
+#endif
+
 
 /**
  * module_phy_driver() - Helper macro for registering PHY drivers

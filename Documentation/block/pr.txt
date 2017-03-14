@@ -90,7 +90,7 @@ and thus removes any access restriction implied by it.
 4. IOC_PR_PREEMPT
 
 This ioctl command releases the existing reservation referred to by
-old_key and replaces it with a a new reservation of type for the
+old_key and replaces it with a new reservation of type for the
 reservation key new_key.
 
 

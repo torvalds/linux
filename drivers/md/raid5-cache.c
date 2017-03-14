@@ -20,6 +20,7 @@
 #include <linux/crc32c.h>
 #include <linux/random.h>
 #include <linux/kthread.h>
+#include <linux/types.h>
 #include "md.h"
 #include "raid5.h"
 #include "bitmap.h"
@@ -164,7 +165,58 @@ struct r5l_log {
 	struct work_struct deferred_io_work;
 	/* to disable write back during in degraded mode */
 	struct work_struct disable_writeback_work;
+
+	/* to for chunk_aligned_read in writeback mode, details below */
+	spinlock_t tree_lock;
+	struct radix_tree_root big_stripe_tree;
 };
+
+/*
+ * Enable chunk_aligned_read() with write back cache.
+ *
+ * Each chunk may contain more than one stripe (for example, a 256kB
+ * chunk contains 64 4kB-page, so this chunk contain 64 stripes). For
+ * chunk_aligned_read, these stripes are grouped into one "big_stripe".
+ * For each big_stripe, we count how many stripes of this big_stripe
+ * are in the write back cache. These data are tracked in a radix tree
+ * (big_stripe_tree). We use radix_tree item pointer as the counter.
+ * r5c_tree_index() is used to calculate keys for the radix tree.
+ *
+ * chunk_aligned_read() calls r5c_big_stripe_cached() to look up
+ * big_stripe of each chunk in the tree. If this big_stripe is in the
+ * tree, chunk_aligned_read() aborts. This look up is protected by
+ * rcu_read_lock().
+ *
+ * It is necessary to remember whether a stripe is counted in
+ * big_stripe_tree. Instead of adding new flag, we reuses existing flags:
+ * STRIPE_R5C_PARTIAL_STRIPE and STRIPE_R5C_FULL_STRIPE. If either of these
+ * two flags are set, the stripe is counted in big_stripe_tree. This
+ * requires moving set_bit(STRIPE_R5C_PARTIAL_STRIPE) to
+ * r5c_try_caching_write(); and moving clear_bit of
+ * STRIPE_R5C_PARTIAL_STRIPE and STRIPE_R5C_FULL_STRIPE to
+ * r5c_finish_stripe_write_out().
+ */
+
+/*
+ * radix tree requests lowest 2 bits of data pointer to be 2b'00.
+ * So it is necessary to left shift the counter by 2 bits before using it
+ * as data pointer of the tree.
+ */
+#define R5C_RADIX_COUNT_SHIFT 2
+
+/*
+ * calculate key for big_stripe_tree
+ *
+ * sect: align_bi->bi_iter.bi_sector or sh->sector
+ */
+static inline sector_t r5c_tree_index(struct r5conf *conf,
+				      sector_t sect)
+{
+	sector_t offset;
+
+	offset = sector_div(sect, conf->chunk_sectors);
+	return sect;
+}
 
 /*
  * an IO range starts from a meta data block and end at the next meta data
@@ -337,17 +389,30 @@ void r5c_check_cached_full_stripe(struct r5conf *conf)
 /*
  * Total log space (in sectors) needed to flush all data in cache
  *
- * Currently, writing-out phase automatically includes all pending writes
- * to the same sector. So the reclaim of each stripe takes up to
- * (conf->raid_disks + 1) pages of log space.
+ * To avoid deadlock due to log space, it is necessary to reserve log
+ * space to flush critical stripes (stripes that occupying log space near
+ * last_checkpoint). This function helps check how much log space is
+ * required to flush all cached stripes.
  *
- * To totally avoid deadlock due to log space, the code reserves
- * (conf->raid_disks + 1) pages for each stripe in cache, which is not
- * necessary in most cases.
+ * To reduce log space requirements, two mechanisms are used to give cache
+ * flush higher priorities:
+ *    1. In handle_stripe_dirtying() and schedule_reconstruction(),
+ *       stripes ALREADY in journal can be flushed w/o pending writes;
+ *    2. In r5l_write_stripe() and r5c_cache_data(), stripes NOT in journal
+ *       can be delayed (r5l_add_no_space_stripe).
  *
- * To improve this, we will need writing-out phase to be able to NOT include
- * pending writes, which will reduce the requirement to
- * (conf->max_degraded + 1) pages per stripe in cache.
+ * In cache flush, the stripe goes through 1 and then 2. For a stripe that
+ * already passed 1, flushing it requires at most (conf->max_degraded + 1)
+ * pages of journal space. For stripes that has not passed 1, flushing it
+ * requires (conf->raid_disks + 1) pages of journal space. There are at
+ * most (conf->group_cnt + 1) stripe that passed 1. So total journal space
+ * required to flush all cached stripes (in pages) is:
+ *
+ *     (stripe_in_journal_count - group_cnt - 1) * (max_degraded + 1) +
+ *     (group_cnt + 1) * (raid_disks + 1)
+ * or
+ *     (stripe_in_journal_count) * (max_degraded + 1) +
+ *     (group_cnt + 1) * (raid_disks - max_degraded)
  */
 static sector_t r5c_log_required_to_flush_cache(struct r5conf *conf)
 {
@@ -356,8 +421,9 @@ static sector_t r5c_log_required_to_flush_cache(struct r5conf *conf)
 	if (!r5c_is_writeback(log))
 		return 0;
 
-	return BLOCK_SECTORS * (conf->raid_disks + 1) *
-		atomic_read(&log->stripe_in_journal_count);
+	return BLOCK_SECTORS *
+		((conf->max_degraded + 1) * atomic_read(&log->stripe_in_journal_count) +
+		 (conf->raid_disks - conf->max_degraded) * (conf->group_cnt + 1));
 }
 
 /*
@@ -412,16 +478,6 @@ void r5c_make_stripe_write_out(struct stripe_head *sh)
 
 	if (!test_and_set_bit(STRIPE_PREREAD_ACTIVE, &sh->state))
 		atomic_inc(&conf->preread_active_stripes);
-
-	if (test_and_clear_bit(STRIPE_R5C_PARTIAL_STRIPE, &sh->state)) {
-		BUG_ON(atomic_read(&conf->r5c_cached_partial_stripes) == 0);
-		atomic_dec(&conf->r5c_cached_partial_stripes);
-	}
-
-	if (test_and_clear_bit(STRIPE_R5C_FULL_STRIPE, &sh->state)) {
-		BUG_ON(atomic_read(&conf->r5c_cached_full_stripes) == 0);
-		atomic_dec(&conf->r5c_cached_full_stripes);
-	}
 }
 
 static void r5c_handle_data_cached(struct stripe_head *sh)
@@ -1271,6 +1327,10 @@ static void r5c_flush_stripe(struct r5conf *conf, struct stripe_head *sh)
 	atomic_inc(&conf->active_stripes);
 	r5c_make_stripe_write_out(sh);
 
+	if (test_bit(STRIPE_R5C_PARTIAL_STRIPE, &sh->state))
+		atomic_inc(&conf->r5c_flushing_partial_stripes);
+	else
+		atomic_inc(&conf->r5c_flushing_full_stripes);
 	raid5_release_stripe(sh);
 }
 
@@ -1313,12 +1373,16 @@ static void r5c_do_reclaim(struct r5conf *conf)
 	unsigned long flags;
 	int total_cached;
 	int stripes_to_flush;
+	int flushing_partial, flushing_full;
 
 	if (!r5c_is_writeback(log))
 		return;
 
+	flushing_partial = atomic_read(&conf->r5c_flushing_partial_stripes);
+	flushing_full = atomic_read(&conf->r5c_flushing_full_stripes);
 	total_cached = atomic_read(&conf->r5c_cached_partial_stripes) +
-		atomic_read(&conf->r5c_cached_full_stripes);
+		atomic_read(&conf->r5c_cached_full_stripes) -
+		flushing_full - flushing_partial;
 
 	if (total_cached > conf->min_nr_stripes * 3 / 4 ||
 	    atomic_read(&conf->empty_inactive_list_nr) > 0)
@@ -1328,7 +1392,7 @@ static void r5c_do_reclaim(struct r5conf *conf)
 		 */
 		stripes_to_flush = R5C_RECLAIM_STRIPE_GROUP;
 	else if (total_cached > conf->min_nr_stripes * 1 / 2 ||
-		 atomic_read(&conf->r5c_cached_full_stripes) >
+		 atomic_read(&conf->r5c_cached_full_stripes) - flushing_full >
 		 R5C_FULL_STRIPE_FLUSH_BATCH)
 		/*
 		 * if stripe cache pressure moderate, or if there is many full
@@ -1362,9 +1426,9 @@ static void r5c_do_reclaim(struct r5conf *conf)
 			    !test_bit(STRIPE_HANDLE, &sh->state) &&
 			    atomic_read(&sh->count) == 0) {
 				r5c_flush_stripe(conf, sh);
+				if (count++ >= R5C_RECLAIM_STRIPE_GROUP)
+					break;
 			}
-			if (count++ >= R5C_RECLAIM_STRIPE_GROUP)
-				break;
 		}
 		spin_unlock(&conf->device_lock);
 		spin_unlock_irqrestore(&log->stripe_in_journal_lock, flags);
@@ -2320,6 +2384,10 @@ int r5c_try_caching_write(struct r5conf *conf,
 	int i;
 	struct r5dev *dev;
 	int to_cache = 0;
+	void **pslot;
+	sector_t tree_index;
+	int ret;
+	uintptr_t refcount;
 
 	BUG_ON(!r5c_is_writeback(log));
 
@@ -2362,6 +2430,44 @@ int r5c_try_caching_write(struct r5conf *conf,
 			r5c_make_stripe_write_out(sh);
 			return -EAGAIN;
 		}
+	}
+
+	/* if the stripe is not counted in big_stripe_tree, add it now */
+	if (!test_bit(STRIPE_R5C_PARTIAL_STRIPE, &sh->state) &&
+	    !test_bit(STRIPE_R5C_FULL_STRIPE, &sh->state)) {
+		tree_index = r5c_tree_index(conf, sh->sector);
+		spin_lock(&log->tree_lock);
+		pslot = radix_tree_lookup_slot(&log->big_stripe_tree,
+					       tree_index);
+		if (pslot) {
+			refcount = (uintptr_t)radix_tree_deref_slot_protected(
+				pslot, &log->tree_lock) >>
+				R5C_RADIX_COUNT_SHIFT;
+			radix_tree_replace_slot(
+				&log->big_stripe_tree, pslot,
+				(void *)((refcount + 1) << R5C_RADIX_COUNT_SHIFT));
+		} else {
+			/*
+			 * this radix_tree_insert can fail safely, so no
+			 * need to call radix_tree_preload()
+			 */
+			ret = radix_tree_insert(
+				&log->big_stripe_tree, tree_index,
+				(void *)(1 << R5C_RADIX_COUNT_SHIFT));
+			if (ret) {
+				spin_unlock(&log->tree_lock);
+				r5c_make_stripe_write_out(sh);
+				return -EAGAIN;
+			}
+		}
+		spin_unlock(&log->tree_lock);
+
+		/*
+		 * set STRIPE_R5C_PARTIAL_STRIPE, this shows the stripe is
+		 * counted in the radix tree
+		 */
+		set_bit(STRIPE_R5C_PARTIAL_STRIPE, &sh->state);
+		atomic_inc(&conf->r5c_cached_partial_stripes);
 	}
 
 	for (i = disks; i--; ) {
@@ -2438,17 +2544,20 @@ void r5c_finish_stripe_write_out(struct r5conf *conf,
 				 struct stripe_head *sh,
 				 struct stripe_head_state *s)
 {
+	struct r5l_log *log = conf->log;
 	int i;
 	int do_wakeup = 0;
+	sector_t tree_index;
+	void **pslot;
+	uintptr_t refcount;
 
-	if (!conf->log ||
-	    !test_bit(R5_InJournal, &sh->dev[sh->pd_idx].flags))
+	if (!log || !test_bit(R5_InJournal, &sh->dev[sh->pd_idx].flags))
 		return;
 
 	WARN_ON(test_bit(STRIPE_R5C_CACHING, &sh->state));
 	clear_bit(R5_InJournal, &sh->dev[sh->pd_idx].flags);
 
-	if (conf->log->r5c_journal_mode == R5C_JOURNAL_MODE_WRITE_THROUGH)
+	if (log->r5c_journal_mode == R5C_JOURNAL_MODE_WRITE_THROUGH)
 		return;
 
 	for (i = sh->disks; i--; ) {
@@ -2470,12 +2579,45 @@ void r5c_finish_stripe_write_out(struct r5conf *conf,
 	if (do_wakeup)
 		wake_up(&conf->wait_for_overlap);
 
-	spin_lock_irq(&conf->log->stripe_in_journal_lock);
+	spin_lock_irq(&log->stripe_in_journal_lock);
 	list_del_init(&sh->r5c);
-	spin_unlock_irq(&conf->log->stripe_in_journal_lock);
+	spin_unlock_irq(&log->stripe_in_journal_lock);
 	sh->log_start = MaxSector;
-	atomic_dec(&conf->log->stripe_in_journal_count);
-	r5c_update_log_state(conf->log);
+
+	atomic_dec(&log->stripe_in_journal_count);
+	r5c_update_log_state(log);
+
+	/* stop counting this stripe in big_stripe_tree */
+	if (test_bit(STRIPE_R5C_PARTIAL_STRIPE, &sh->state) ||
+	    test_bit(STRIPE_R5C_FULL_STRIPE, &sh->state)) {
+		tree_index = r5c_tree_index(conf, sh->sector);
+		spin_lock(&log->tree_lock);
+		pslot = radix_tree_lookup_slot(&log->big_stripe_tree,
+					       tree_index);
+		BUG_ON(pslot == NULL);
+		refcount = (uintptr_t)radix_tree_deref_slot_protected(
+			pslot, &log->tree_lock) >>
+			R5C_RADIX_COUNT_SHIFT;
+		if (refcount == 1)
+			radix_tree_delete(&log->big_stripe_tree, tree_index);
+		else
+			radix_tree_replace_slot(
+				&log->big_stripe_tree, pslot,
+				(void *)((refcount - 1) << R5C_RADIX_COUNT_SHIFT));
+		spin_unlock(&log->tree_lock);
+	}
+
+	if (test_and_clear_bit(STRIPE_R5C_PARTIAL_STRIPE, &sh->state)) {
+		BUG_ON(atomic_read(&conf->r5c_cached_partial_stripes) == 0);
+		atomic_dec(&conf->r5c_flushing_partial_stripes);
+		atomic_dec(&conf->r5c_cached_partial_stripes);
+	}
+
+	if (test_and_clear_bit(STRIPE_R5C_FULL_STRIPE, &sh->state)) {
+		BUG_ON(atomic_read(&conf->r5c_cached_full_stripes) == 0);
+		atomic_dec(&conf->r5c_flushing_full_stripes);
+		atomic_dec(&conf->r5c_cached_full_stripes);
+	}
 }
 
 int
@@ -2533,6 +2675,22 @@ r5c_cache_data(struct r5l_log *log, struct stripe_head *sh,
 
 	mutex_unlock(&log->io_mutex);
 	return 0;
+}
+
+/* check whether this big stripe is in write back cache. */
+bool r5c_big_stripe_cached(struct r5conf *conf, sector_t sect)
+{
+	struct r5l_log *log = conf->log;
+	sector_t tree_index;
+	void *slot;
+
+	if (!log)
+		return false;
+
+	WARN_ON_ONCE(!rcu_read_lock_held());
+	tree_index = r5c_tree_index(conf, sect);
+	slot = radix_tree_lookup(&log->big_stripe_tree, tree_index);
+	return slot != NULL;
 }
 
 static int r5l_load_log(struct r5l_log *log)
@@ -2680,6 +2838,9 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 	log->meta_pool = mempool_create_page_pool(R5L_POOL_SIZE, 0);
 	if (!log->meta_pool)
 		goto out_mempool;
+
+	spin_lock_init(&log->tree_lock);
+	INIT_RADIX_TREE(&log->big_stripe_tree, GFP_NOWAIT | __GFP_NOWARN);
 
 	log->reclaim_thread = md_register_thread(r5l_reclaim_thread,
 						 log->rdev->mddev, "reclaim");

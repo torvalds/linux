@@ -1412,7 +1412,7 @@ int elantech_detect(struct psmouse *psmouse, bool set_properties)
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
 	unsigned char param[3];
 
-	ps2_command(&psmouse->ps2dev, NULL, PSMOUSE_CMD_RESET_DIS);
+	ps2_command(ps2dev, NULL, PSMOUSE_CMD_RESET_DIS);
 
 	if (ps2_command(ps2dev,  NULL, PSMOUSE_CMD_DISABLE) ||
 	    ps2_command(ps2dev,  NULL, PSMOUSE_CMD_SETSCALE11) ||

@@ -117,6 +117,8 @@ static const struct {
 struct qcom_smd_edge {
 	struct device dev;
 
+	const char *name;
+
 	struct device_node *of_node;
 	unsigned edge_id;
 	unsigned remote_pid;
@@ -917,6 +919,21 @@ static int qcom_smd_trysend(struct rpmsg_endpoint *ept, void *data, int len)
 	return __qcom_smd_send(qsept->qsch, data, len, false);
 }
 
+static unsigned int qcom_smd_poll(struct rpmsg_endpoint *ept,
+				  struct file *filp, poll_table *wait)
+{
+	struct qcom_smd_endpoint *qsept = to_smd_endpoint(ept);
+	struct qcom_smd_channel *channel = qsept->qsch;
+	unsigned int mask = 0;
+
+	poll_wait(filp, &channel->fblockread_event, wait);
+
+	if (qcom_smd_get_tx_avail(channel) > 20)
+		mask |= POLLOUT | POLLWRNORM;
+
+	return mask;
+}
+
 /*
  * Finds the device_node for the smd child interested in this channel.
  */
@@ -949,6 +966,7 @@ static const struct rpmsg_endpoint_ops qcom_smd_endpoint_ops = {
 	.destroy_ept = qcom_smd_destroy_ept,
 	.send = qcom_smd_send,
 	.trysend = qcom_smd_trysend,
+	.poll = qcom_smd_poll,
 };
 
 /*
@@ -982,6 +1000,20 @@ static int qcom_smd_create_device(struct qcom_smd_channel *channel)
 	rpdev->dev.parent = &edge->dev;
 
 	return rpmsg_register_device(rpdev);
+}
+
+static int qcom_smd_create_chrdev(struct qcom_smd_edge *edge)
+{
+	struct qcom_smd_device *qsdev;
+
+	qsdev = kzalloc(sizeof(*qsdev), GFP_KERNEL);
+	if (!qsdev)
+		return -ENOMEM;
+
+	qsdev->edge = edge;
+	qsdev->rpdev.ops = &qcom_smd_device_ops;
+	qsdev->rpdev.dev.parent = &edge->dev;
+	return rpmsg_chrdev_register_device(&qsdev->rpdev);
 }
 
 /*
@@ -1248,6 +1280,10 @@ static int qcom_smd_parse_edge(struct device *dev,
 		return -EINVAL;
 	}
 
+	ret = of_property_read_string(node, "label", &edge->name);
+	if (ret < 0)
+		edge->name = node->name;
+
 	irq = irq_of_parse_and_map(node, 0);
 	if (irq < 0) {
 		dev_err(dev, "required smd interrupt missing\n");
@@ -1285,6 +1321,21 @@ static void qcom_smd_edge_release(struct device *dev)
 	kfree(edge);
 }
 
+static ssize_t rpmsg_name_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct qcom_smd_edge *edge = to_smd_edge(dev);
+
+	return sprintf(buf, "%s\n", edge->name);
+}
+static DEVICE_ATTR_RO(rpmsg_name);
+
+static struct attribute *qcom_smd_edge_attrs[] = {
+	&dev_attr_rpmsg_name.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(qcom_smd_edge);
+
 /**
  * qcom_smd_register_edge() - register an edge based on an device_node
  * @parent:    parent device for the edge
@@ -1306,6 +1357,7 @@ struct qcom_smd_edge *qcom_smd_register_edge(struct device *parent,
 
 	edge->dev.parent = parent;
 	edge->dev.release = qcom_smd_edge_release;
+	edge->dev.groups = qcom_smd_edge_groups;
 	dev_set_name(&edge->dev, "%s:%s", dev_name(parent), node->name);
 	ret = device_register(&edge->dev);
 	if (ret) {
@@ -1316,6 +1368,12 @@ struct qcom_smd_edge *qcom_smd_register_edge(struct device *parent,
 	ret = qcom_smd_parse_edge(&edge->dev, node, edge);
 	if (ret) {
 		dev_err(&edge->dev, "failed to parse smd edge\n");
+		goto unregister_dev;
+	}
+
+	ret = qcom_smd_create_chrdev(edge);
+	if (ret) {
+		dev_err(&edge->dev, "failed to register chrdev for edge\n");
 		goto unregister_dev;
 	}
 

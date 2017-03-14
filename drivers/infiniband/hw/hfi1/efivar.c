@@ -45,6 +45,7 @@
  *
  */
 
+#include <linux/ctype.h>
 #include "efivar.h"
 
 /* GUID for HFI1 variables in EFI */
@@ -150,15 +151,32 @@ fail:
 int read_hfi1_efi_var(struct hfi1_devdata *dd, const char *kind,
 		      unsigned long *size, void **return_data)
 {
+	char prefix_name[64];
 	char name[64];
+	int result;
+	int i;
 
 	/* create a common prefix */
-	snprintf(name, sizeof(name), "%04x:%02x:%02x.%x-%s",
+	snprintf(prefix_name, sizeof(prefix_name), "%04x:%02x:%02x.%x",
 		 pci_domain_nr(dd->pcidev->bus),
 		 dd->pcidev->bus->number,
 		 PCI_SLOT(dd->pcidev->devfn),
-		 PCI_FUNC(dd->pcidev->devfn),
-		 kind);
+		 PCI_FUNC(dd->pcidev->devfn));
+	snprintf(name, sizeof(name), "%s-%s", prefix_name, kind);
+	result = read_efi_var(name, size, return_data);
 
-	return read_efi_var(name, size, return_data);
+	/*
+	 * If reading the lowercase EFI variable fail, read the uppercase
+	 * variable.
+	 */
+	if (result) {
+		/* Converting to uppercase */
+		for (i = 0; prefix_name[i]; i++)
+			if (isalpha(prefix_name[i]))
+				prefix_name[i] = toupper(prefix_name[i]);
+		snprintf(name, sizeof(name), "%s-%s", prefix_name, kind);
+		result = read_efi_var(name, size, return_data);
+	}
+
+	return result;
 }

@@ -429,15 +429,11 @@ struct octeon_config {
 
 /* The following config values are fixed and should not be modified. */
 
-/* Maximum address space to be mapped for Octeon's BAR1 index-based access. */
-#define  MAX_BAR1_MAP_INDEX                     2
+#define  BAR1_INDEX_DYNAMIC_MAP          2
+#define  BAR1_INDEX_STATIC_MAP          15
 #define  OCTEON_BAR1_ENTRY_SIZE         (4 * 1024 * 1024)
 
-/* BAR1 Index 0 to (MAX_BAR1_MAP_INDEX - 1) for normal mapped memory access.
- * Bar1 register at MAX_BAR1_MAP_INDEX used by driver for dynamic access.
- */
-#define  MAX_BAR1_IOREMAP_SIZE  ((MAX_BAR1_MAP_INDEX + 1) * \
-				 OCTEON_BAR1_ENTRY_SIZE)
+#define  MAX_BAR1_IOREMAP_SIZE  (16 * OCTEON_BAR1_ENTRY_SIZE)
 
 /* Response lists - 1 ordered, 1 unordered-blocking, 1 unordered-nonblocking
  * NoResponse Lists are now maintained with each IQ. (Dec' 2007).

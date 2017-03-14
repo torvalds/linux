@@ -1,35 +1,34 @@
 /******************************************************************************
-
-  Copyright(c) 2003 - 2004 Intel Corporation. All rights reserved.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms of version 2 of the GNU General Public License as
-  published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc., 59
-  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-
-  The full GNU General Public License is included in this distribution in the
-  file called LICENSE.
-
-  Contact Information:
-  James P. Ketrenos <ipw2100-admin@linux.intel.com>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-******************************************************************************
-
-  Few modifications for Realtek's Wi-Fi drivers by
-  Andrea Merello <andrea.merello@gmail.com>
-
-  A special thanks goes to Realtek for their support !
-
-******************************************************************************/
+ *
+ *  Copyright(c) 2003 - 2004 Intel Corporation. All rights reserved.
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of version 2 of the GNU General Public License as
+ *  published by the Free Software Foundation.
+ *
+ *  This program is distributed in the hope that it will be useful, but WITHOUT
+ *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ *  more details.
+ *
+ *  You should have received a copy of the GNU General Public License along with
+ *  this program; if not, write to the Free Software Foundation, Inc., 59
+ *  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *
+ *  The full GNU General Public License is included in this distribution in the
+ *  file called LICENSE.
+ *
+ *  Contact Information:
+ *  James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ *  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ *
+ *
+ *  Few modifications for Realtek's Wi-Fi drivers by
+ *  Andrea Merello <andrea.merello@gmail.com>
+ *
+ *  A special thanks goes to Realtek for their support !
+ *
+ ******************************************************************************/
 
 #include <linux/compiler.h>
 #include <linux/errno.h>
@@ -55,101 +54,101 @@
 
 
 /*
-
-
-802.11 Data Frame
-
-
-802.11 frame_contorl for data frames - 2 bytes
-     ,-----------------------------------------------------------------------------------------.
-bits | 0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  8  |  9  |  a  |  b  |  c  |  d  |  e   |
-     |----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|------|
-val  | 0  |  0  |  0  |  1  |  x  |  0  |  0  |  0  |  1  |  0  |  x  |  x  |  x  |  x  |  x   |
-     |----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|------|
-desc | ^-ver-^  |  ^type-^  |  ^-----subtype-----^  | to  |from |more |retry| pwr |more |wep   |
-     |          |           | x=0 data,x=1 data+ack | DS  | DS  |frag |     | mgm |data |      |
-     '-----------------------------------------------------------------------------------------'
-                                                    /\
-                                                    |
-802.11 Data Frame                                   |
-           ,--------- 'ctrl' expands to >-----------'
-          |
-      ,--'---,-------------------------------------------------------------.
-Bytes |  2   |  2   |    6    |    6    |    6    |  2   | 0..2312 |   4  |
-      |------|------|---------|---------|---------|------|---------|------|
-Desc. | ctrl | dura |  DA/RA  |   TA    |    SA   | Sequ |  Frame  |  fcs |
-      |      | tion | (BSSID) |         |         | ence |  data   |      |
-      `--------------------------------------------------|         |------'
-Total: 28 non-data bytes                                 `----.----'
-                                                              |
-       .- 'Frame data' expands to <---------------------------'
-       |
-       V
-      ,---------------------------------------------------.
-Bytes |  1   |  1   |    1    |    3     |  2   |  0-2304 |
-      |------|------|---------|----------|------|---------|
-Desc. | SNAP | SNAP | Control |Eth Tunnel| Type | IP      |
-      | DSAP | SSAP |         |          |      | Packet  |
-      | 0xAA | 0xAA |0x03 (UI)|0x00-00-F8|      |         |
-      `-----------------------------------------|         |
-Total: 8 non-data bytes                         `----.----'
-                                                     |
-       .- 'IP Packet' expands, if WEP enabled, to <--'
-       |
-       V
-      ,-----------------------.
-Bytes |  4  |   0-2296  |  4  |
-      |-----|-----------|-----|
-Desc. | IV  | Encrypted | ICV |
-      |     | IP Packet |     |
-      `-----------------------'
-Total: 8 non-data bytes
-
-
-802.3 Ethernet Data Frame
-
-      ,-----------------------------------------.
-Bytes |   6   |   6   |  2   |  Variable |   4  |
-      |-------|-------|------|-----------|------|
-Desc. | Dest. | Source| Type | IP Packet |  fcs |
-      |  MAC  |  MAC  |      |           |      |
-      `-----------------------------------------'
-Total: 18 non-data bytes
-
-In the event that fragmentation is required, the incoming payload is split into
-N parts of size ieee->fts.  The first fragment contains the SNAP header and the
-remaining packets are just data.
-
-If encryption is enabled, each fragment payload size is reduced by enough space
-to add the prefix and postfix (IV and ICV totalling 8 bytes in the case of WEP)
-So if you have 1500 bytes of payload with ieee->fts set to 500 without
-encryption it will take 3 frames.  With WEP it will take 4 frames as the
-payload of each frame is reduced to 492 bytes.
-
-* SKB visualization
-*
-*  ,- skb->data
-* |
-* |    ETHERNET HEADER        ,-<-- PAYLOAD
-* |                           |     14 bytes from skb->data
-* |  2 bytes for Type --> ,T. |     (sizeof ethhdr)
-* |                       | | |
-* |,-Dest.--. ,--Src.---. | | |
-* |  6 bytes| | 6 bytes | | | |
-* v         | |         | | | |
-* 0         | v       1 | v | v           2
-* 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
-*     ^     | ^         | ^ |
-*     |     | |         | | |
-*     |     | |         | `T' <---- 2 bytes for Type
-*     |     | |         |
-*     |     | '---SNAP--' <-------- 6 bytes for SNAP
-*     |     |
-*     `-IV--' <-------------------- 4 bytes for IV (WEP)
-*
-*      SNAP HEADER
-*
-*/
+ *
+ *
+ * 802.11 Data Frame
+ *
+ *
+ * 802.11 frame_contorl for data frames - 2 bytes
+ *      ,-----------------------------------------------------------------------------------------.
+ * bits | 0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  8  |  9  |  a  |  b  |  c  |  d  |  e   |
+ *      |----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|------|
+ * val  | 0  |  0  |  0  |  1  |  x  |  0  |  0  |  0  |  1  |  0  |  x  |  x  |  x  |  x  |  x   |
+ *      |----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|------|
+ * desc | ^-ver-^  |  ^type-^  |  ^-----subtype-----^  | to  |from |more |retry| pwr |more |wep   |
+ *      |          |           | x=0 data,x=1 data+ack | DS  | DS  |frag |     | mgm |data |      |
+ *      '-----------------------------------------------------------------------------------------'
+ *                                                    /\
+ *                                                    |
+ * 802.11 Data Frame                                  |
+ *           ,--------- 'ctrl' expands to >-----------'
+ *           |
+ *        ,--'---,-------------------------------------------------------------.
+ *  Bytes |  2   |  2   |    6    |    6    |    6    |  2   | 0..2312 |   4  |
+ *        |------|------|---------|---------|---------|------|---------|------|
+ *  Desc. | ctrl | dura |  DA/RA  |   TA    |    SA   | Sequ |  Frame  |  fcs |
+ *        |      | tion | (BSSID) |         |         | ence |  data   |      |
+ *        `--------------------------------------------------|         |------'
+ *  Total: 28 non-data bytes                                 `----.----'
+ *                                                                |
+ *         .- 'Frame data' expands to <---------------------------'
+ *         |
+ *         V
+ *        ,---------------------------------------------------.
+ *  Bytes |  1   |  1   |    1    |    3     |  2   |  0-2304 |
+ *        |------|------|---------|----------|------|---------|
+ *  Desc. | SNAP | SNAP | Control |Eth Tunnel| Type | IP      |
+ *        | DSAP | SSAP |         |          |      | Packet  |
+ *        | 0xAA | 0xAA |0x03 (UI)|0x00-00-F8|      |         |
+ *        `-----------------------------------------|         |
+ *  Total: 8 non-data bytes                         `----.----'
+ *                                                       |
+ *         .- 'IP Packet' expands, if WEP enabled, to <--'
+ *         |
+ *         V
+ *        ,-----------------------.
+ *  Bytes |  4  |   0-2296  |  4  |
+ *        |-----|-----------|-----|
+ *  Desc. | IV  | Encrypted | ICV |
+ *        |     | IP Packet |     |
+ *        `-----------------------'
+ *  Total: 8 non-data bytes
+ *
+ *
+ *  802.3 Ethernet Data Frame
+ *
+ *        ,-----------------------------------------.
+ *  Bytes |   6   |   6   |  2   |  Variable |   4  |
+ *        |-------|-------|------|-----------|------|
+ *  Desc. | Dest. | Source| Type | IP Packet |  fcs |
+ *        |  MAC  |  MAC  |      |           |      |
+ *        `-----------------------------------------'
+ *  Total: 18 non-data bytes
+ *
+ *  In the event that fragmentation is required, the incoming payload is split into
+ *  N parts of size ieee->fts.  The first fragment contains the SNAP header and the
+ *  remaining packets are just data.
+ *
+ *  If encryption is enabled, each fragment payload size is reduced by enough space
+ *  to add the prefix and postfix (IV and ICV totalling 8 bytes in the case of WEP)
+ *  So if you have 1500 bytes of payload with ieee->fts set to 500 without
+ *  encryption it will take 3 frames.  With WEP it will take 4 frames as the
+ *  payload of each frame is reduced to 492 bytes.
+ *
+ * SKB visualization
+ *
+ *  ,- skb->data
+ * |
+ * |    ETHERNET HEADER        ,-<-- PAYLOAD
+ * |                           |     14 bytes from skb->data
+ * |  2 bytes for Type --> ,T. |     (sizeof ethhdr)
+ * |                       | | |
+ * |,-Dest.--. ,--Src.---. | | |
+ * |  6 bytes| | 6 bytes | | | |
+ * v         | |         | | | |
+ * 0         | v       1 | v | v           2
+ * 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+ *     ^     | ^         | ^ |
+ *     |     | |         | | |
+ *     |     | |         | `T' <---- 2 bytes for Type
+ *     |     | |         |
+ *     |     | '---SNAP--' <-------- 6 bytes for SNAP
+ *     |     |
+ *     `-IV--' <-------------------- 4 bytes for IV (WEP)
+ *
+ *      SNAP HEADER
+ *
+ */
 
 static u8 P802_1H_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0xf8 };
 static u8 RFC1042_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0x00 };
@@ -205,11 +204,13 @@ int ieee80211_encrypt_fragment(
 	}
 
 	/* To encrypt, frame format is:
-	 * IV (4 bytes), clear payload (including SNAP), ICV (4 bytes) */
+	 * IV (4 bytes), clear payload (including SNAP), ICV (4 bytes)
+	 */
 
 	// PR: FIXME: Copied from hostap. Check fragmentation/MSDU/MPDU encryption.
 	/* Host-based IEEE 802.11 fragmentation for TX is not yet supported, so
-	 * call both MSDU and MPDU encryption functions from here. */
+	 * call both MSDU and MPDU encryption functions from here.
+	 */
 	atomic_inc(&crypt->refcnt);
 	res = 0;
 	if (crypt->ops->encrypt_msdu)
@@ -250,7 +251,7 @@ static struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
 
 	memset(txb, 0, sizeof(struct ieee80211_txb));
 	txb->nr_frags = nr_frags;
-	txb->frag_size = txb_size;
+	txb->frag_size = __cpu_to_le16(txb_size);
 
 	for (i = 0; i < nr_frags; i++) {
 		txb->fragments[i] = dev_alloc_skb(txb_size);
@@ -304,7 +305,7 @@ ieee80211_classify(struct sk_buff *skb, struct ieee80211_network *network)
 
 #define SN_LESS(a, b)		(((a-b)&0x800)!=0)
 static void ieee80211_tx_query_agg_cap(struct ieee80211_device *ieee,
-				       struct sk_buff *skb, cb_desc *tcb_desc)
+				       struct sk_buff *skb, struct cb_desc *tcb_desc)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 	PTX_TS_RECORD			pTxTs = NULL;
@@ -379,7 +380,7 @@ FORCED_AGG_SETTING:
 }
 
 static void ieee80211_qurey_ShortPreambleMode(struct ieee80211_device *ieee,
-					      cb_desc *tcb_desc)
+					      struct cb_desc *tcb_desc)
 {
 	tcb_desc->bUseShortPreamble = false;
 	if (tcb_desc->data_rate == 2)
@@ -393,7 +394,7 @@ static void ieee80211_qurey_ShortPreambleMode(struct ieee80211_device *ieee,
 	return;
 }
 static void
-ieee80211_query_HTCapShortGI(struct ieee80211_device *ieee, cb_desc *tcb_desc)
+ieee80211_query_HTCapShortGI(struct ieee80211_device *ieee, struct cb_desc *tcb_desc)
 {
 	PRT_HIGH_THROUGHPUT		pHTInfo = ieee->pHTInfo;
 
@@ -415,7 +416,7 @@ ieee80211_query_HTCapShortGI(struct ieee80211_device *ieee, cb_desc *tcb_desc)
 }
 
 static void ieee80211_query_BandwidthMode(struct ieee80211_device *ieee,
-					  cb_desc *tcb_desc)
+					  struct cb_desc *tcb_desc)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 
@@ -436,7 +437,7 @@ static void ieee80211_query_BandwidthMode(struct ieee80211_device *ieee,
 }
 
 static void ieee80211_query_protectionmode(struct ieee80211_device *ieee,
-					   cb_desc *tcb_desc,
+					   struct cb_desc *tcb_desc,
 					   struct sk_buff *skb)
 {
 	// Common Settings
@@ -548,7 +549,7 @@ NO_PROTECTION:
 
 
 static void ieee80211_txrate_selectmode(struct ieee80211_device *ieee,
-					cb_desc *tcb_desc)
+					struct cb_desc *tcb_desc)
 {
 #ifdef TO_DO_LIST
 	if(!IsDataFrame(pFrame))
@@ -615,12 +616,13 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	struct ieee80211_crypt_data *crypt;
 
-	cb_desc *tcb_desc;
+	struct cb_desc *tcb_desc;
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
 	/* If there is no driver handler to take the TXB, dont' bother
-	 * creating it... */
+	 * creating it...
+	 */
 	if ((!ieee->hard_start_xmit && !(ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE))||
 	   ((!ieee->softmac_data_hard_start_xmit && (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE)))) {
 		printk(KERN_WARNING "%s: No xmit handler.\n",
@@ -683,13 +685,15 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (ieee->iw_mode == IW_MODE_INFRA) {
 			fc |= IEEE80211_FCTL_TODS;
 			/* To DS: Addr1 = BSSID, Addr2 = SA,
-			Addr3 = DA */
+			 * Addr3 = DA
+			 */
 			memcpy(&header.addr1, ieee->current_network.bssid, ETH_ALEN);
 			memcpy(&header.addr2, &src, ETH_ALEN);
 			memcpy(&header.addr3, &dest, ETH_ALEN);
 		} else if (ieee->iw_mode == IW_MODE_ADHOC) {
 			/* not From/To DS: Addr1 = DA, Addr2 = SA,
-			Addr3 = BSSID */
+			 * Addr3 = BSSID
+			 */
 			memcpy(&header.addr1, dest, ETH_ALEN);
 			memcpy(&header.addr2, src, ETH_ALEN);
 			memcpy(&header.addr3, ieee->current_network.bssid, ETH_ALEN);
@@ -698,7 +702,8 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		header.frame_ctl = cpu_to_le16(fc);
 
 		/* Determine fragmentation size based on destination (multicast
-		* and broadcast are not fragmented) */
+		 * and broadcast are not fragmented)
+		 */
 		if (is_multicast_ether_addr(header.addr1)) {
 			frag_size = MAX_FRAG_THRESHOLD;
 			qos_ctl |= QOS_CTL_NOTCONTAIN_ACK;
@@ -720,9 +725,10 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 			hdr_len = IEEE80211_3ADDR_LEN;
 		}
 		/* Determine amount of payload per fragment.  Regardless of if
-		* this stack is providing the full 802.11 header, one will
-		* eventually be affixed to this fragment -- so we must account for
-		* it when determining the amount of payload space. */
+		 * this stack is providing the full 802.11 header, one will
+		 * eventually be affixed to this fragment -- so we must account for
+		 * it when determining the amount of payload space.
+		 */
 		bytes_per_frag = frag_size - hdr_len;
 		if (ieee->config &
 		(CFG_IEEE80211_COMPUTE_FCS | CFG_IEEE80211_RESERVE_FCS))
@@ -734,7 +740,8 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 				crypt->ops->extra_postfix_len;
 
 		/* Number of fragments is the total bytes_per_frag /
-		* payload_per_fragment */
+		 * payload_per_fragment
+		 */
 		nr_frags = bytes / bytes_per_frag;
 		bytes_last_frag = bytes % bytes_per_frag;
 		if (bytes_last_frag)
@@ -743,8 +750,9 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 			bytes_last_frag = bytes_per_frag;
 
 		/* When we allocate the TXB we allocate enough space for the reserve
-		* and full fragment bytes (bytes_per_frag doesn't include prefix,
-		* postfix, header, FCS, etc.) */
+		 * and full fragment bytes (bytes_per_frag doesn't include prefix,
+		 * postfix, header, FCS, etc.)
+		 */
 		txb = ieee80211_alloc_txb(nr_frags, frag_size + ieee->tx_headroom, GFP_ATOMIC);
 		if (unlikely(!txb)) {
 			printk(KERN_WARNING "%s: Could not allocate TXB\n",
@@ -752,7 +760,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 			goto failed;
 		}
 		txb->encrypted = encrypt;
-		txb->payload_size = bytes;
+		txb->payload_size = __cpu_to_le16(bytes);
 
 		//if (ieee->current_network.QoS_Enable)
 		if(qos_actived)
@@ -766,7 +774,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		for (i = 0; i < nr_frags; i++) {
 			skb_frag = txb->fragments[i];
-			tcb_desc = (cb_desc *)(skb_frag->cb + MAX_DEV_ADDR_SIZE);
+			tcb_desc = (struct cb_desc *)(skb_frag->cb + MAX_DEV_ADDR_SIZE);
 			if(qos_actived){
 				skb_frag->priority = skb->priority;//UP2AC(skb->priority);
 				tcb_desc->queue_index =  UP2AC(skb->priority);
@@ -791,7 +799,8 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 			memcpy(frag_hdr, &header, hdr_len);
 
 			/* If this is not the last fragment, then add the MOREFRAGS
-			* bit to the frame control */
+			 * bit to the frame control
+			 */
 			if (i != nr_frags - 1) {
 				frag_hdr->frame_ctl = cpu_to_le16(
 					fc | IEEE80211_FCTL_MOREFRAGS);
@@ -824,7 +833,8 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb_pull(skb, bytes);
 
 			/* Encryption routine will move the header forward in order
-			* to insert the IV between the header and the payload */
+			 * to insert the IV between the header and the payload
+			 */
 			if (encrypt)
 				ieee80211_encrypt_fragment(ieee, skb_frag, hdr_len);
 			if (ieee->config &
@@ -859,7 +869,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		txb->encrypted = 0;
-		txb->payload_size = skb->len;
+		txb->payload_size = __cpu_to_le16(skb->len);
 		memcpy(skb_put(txb->fragments[0],skb->len), skb->data, skb->len);
 	}
 
@@ -867,7 +877,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 //WB add to fill data tcb_desc here. only first fragment is considered, need to change, and you may remove to other place.
 	if (txb)
 	{
-		cb_desc *tcb_desc = (cb_desc *)(txb->fragments[0]->cb + MAX_DEV_ADDR_SIZE);
+		struct cb_desc *tcb_desc = (struct cb_desc *)(txb->fragments[0]->cb + MAX_DEV_ADDR_SIZE);
 		tcb_desc->bTxEnableFwCalcDur = 1;
 		if (is_multicast_ether_addr(header.addr1))
 			tcb_desc->bMulticast = 1;
@@ -896,7 +906,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		}else{
 			if ((*ieee->hard_start_xmit)(txb, dev) == 0) {
 				stats->tx_packets++;
-				stats->tx_bytes += txb->payload_size;
+				stats->tx_bytes += __le16_to_cpu(txb->payload_size);
 				return 0;
 			}
 			ieee80211_txb_free(txb);

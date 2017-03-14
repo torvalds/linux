@@ -222,6 +222,10 @@
 	CNST_PMC_VAL(1) | CNST_PMC_VAL(2) | CNST_PMC_VAL(3) | \
 	CNST_PMC_VAL(4) | CNST_PMC_VAL(5) | CNST_PMC_VAL(6) | CNST_NC_VAL
 
+/*
+ * Lets restrict use of PMC5 for instruction counting.
+ */
+#define P9_DD1_TEST_ADDER	(ISA207_TEST_ADDER | CNST_PMC_VAL(5))
 
 /* Bits in MMCR1 for PowerISA v2.07 */
 #define MMCR1_UNIT_SHIFT(pmc)		(60 - (4 * ((pmc) - 1)))
@@ -260,5 +264,8 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 				unsigned int hwc[], unsigned long mmcr[],
 				struct perf_event *pevents[]);
 void isa207_disable_pmc(unsigned int pmc, unsigned long mmcr[]);
+int isa207_get_alternatives(u64 event, u64 alt[],
+				const unsigned int ev_alt[][MAX_ALT], int size);
+
 
 #endif

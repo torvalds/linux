@@ -31,10 +31,16 @@ struct be_sge {
 	__le32 len;
 };
 
-#define MCC_WRB_SGE_CNT_SHIFT 3	/* bits 3 - 7 of dword 0 */
-#define MCC_WRB_SGE_CNT_MASK 0x1F	/* bits 3 - 7 of dword 0 */
 struct be_mcc_wrb {
-	u32 embedded;		/* dword 0 */
+	u32 emb_sgecnt_special;	/* dword 0 */
+	/* bits 0 - embedded    */
+	/* bits 1 - 2 reserved	*/
+	/* bits 3 - 7 sge count	*/
+	/* bits 8 - 23 reserved	*/
+	/* bits 24 - 31 special	*/
+#define MCC_WRB_EMBEDDED_MASK 1
+#define MCC_WRB_SGE_CNT_SHIFT 3
+#define MCC_WRB_SGE_CNT_MASK 0x1F
 	u32 payload_length;	/* dword 1 */
 	u32 tag0;		/* dword 2 */
 	u32 tag1;		/* dword 3 */
@@ -1131,11 +1137,6 @@ struct tcp_connect_and_offload_out {
 	u16 cid;
 	u16 rsvd0;
 
-} __packed;
-
-struct be_mcc_wrb_context {
-	struct MCC_WRB *wrb;
-	int *users_final_status;
 } __packed;
 
 #define DB_DEF_PDU_RING_ID_MASK	0x3FFF	/* bits 0 - 13 */

@@ -6,6 +6,7 @@
 
 #include <linux/memcontrol.h>
 #include <linux/writeback.h>
+#include <linux/shmem_fs.h>
 #include <linux/pagemap.h>
 #include <linux/atomic.h>
 #include <linux/module.h>
@@ -267,7 +268,7 @@ bool workingset_refault(void *shadow)
 	}
 	lruvec = mem_cgroup_lruvec(pgdat, memcg);
 	refault = atomic_long_read(&lruvec->inactive_age);
-	active_file = lruvec_lru_size(lruvec, LRU_ACTIVE_FILE);
+	active_file = lruvec_lru_size(lruvec, LRU_ACTIVE_FILE, MAX_NR_ZONES);
 	rcu_read_unlock();
 
 	/*
@@ -354,10 +355,8 @@ void workingset_update_node(struct radix_tree_node *node, void *private)
 	 * as node->private_list is protected by &mapping->tree_lock.
 	 */
 	if (node->count && node->count == node->exceptional) {
-		if (list_empty(&node->private_list)) {
-			node->private_data = mapping;
+		if (list_empty(&node->private_list))
 			list_lru_add(&shadow_nodes, &node->private_list);
-		}
 	} else {
 		if (!list_empty(&node->private_list))
 			list_lru_del(&shadow_nodes, &node->private_list);
@@ -435,7 +434,7 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
 	 */
 
 	node = container_of(item, struct radix_tree_node, private_list);
-	mapping = node->private_data;
+	mapping = container_of(node->root, struct address_space, page_tree);
 
 	/* Coming from the list, invert the lock order */
 	if (!spin_trylock(&mapping->tree_lock)) {

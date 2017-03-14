@@ -327,7 +327,7 @@ static int __init hip04_smp_init(void)
 	 */
 	writel_relaxed(hip04_boot_method[0], relocation);
 	writel_relaxed(0xa5a5a5a5, relocation + 4);	/* magic number */
-	writel_relaxed(virt_to_phys(secondary_startup), relocation + 8);
+	writel_relaxed(__pa_symbol(secondary_startup), relocation + 8);
 	writel_relaxed(0, relocation + 12);
 	iounmap(relocation);
 

@@ -117,12 +117,11 @@ static int bgmac_probe(struct bcma_device *core)
 	u8 *mac;
 	int err;
 
-	bgmac = kzalloc(sizeof(*bgmac), GFP_KERNEL);
+	bgmac = bgmac_alloc(&core->dev);
 	if (!bgmac)
 		return -ENOMEM;
 
 	bgmac->bcma.core = core;
-	bgmac->dev = &core->dev;
 	bgmac->dma_dev = core->dma_dev;
 	bgmac->irq = core->irq;
 
@@ -145,7 +144,7 @@ static int bgmac_probe(struct bcma_device *core)
 		goto err;
 	}
 
-	ether_addr_copy(bgmac->mac_addr, mac);
+	ether_addr_copy(bgmac->net_dev->dev_addr, mac);
 
 	/* On BCM4706 we need common core to access PHY */
 	if (core->id.id == BCMA_CORE_4706_MAC_GBIT &&
@@ -178,7 +177,7 @@ static int bgmac_probe(struct bcma_device *core)
 
 	if (!bgmac_is_bcm4707_family(core) &&
 	    !(ci->id == BCMA_CHIP_ID_BCM53573 && core->core_unit == 1)) {
-		mii_bus = bcma_mdio_mii_register(core, bgmac->phyaddr);
+		mii_bus = bcma_mdio_mii_register(bgmac);
 		if (IS_ERR(mii_bus)) {
 			err = PTR_ERR(mii_bus);
 			goto err;
@@ -307,7 +306,6 @@ static int bgmac_probe(struct bcma_device *core)
 err1:
 	bcma_mdio_mii_unregister(bgmac->mii_bus);
 err:
-	kfree(bgmac);
 	bcma_set_drvdata(core, NULL);
 
 	return err;

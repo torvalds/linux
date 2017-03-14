@@ -1070,7 +1070,7 @@ static int bm_rw(struct drbd_device *device, const unsigned int flags, unsigned 
 		.done = 0,
 		.flags = flags,
 		.error = 0,
-		.kref = { ATOMIC_INIT(2) },
+		.kref = KREF_INIT(2),
 	};
 
 	if (!get_ldev_if_state(device, D_ATTACHING)) {  /* put is in drbd_bm_aio_ctx_destroy() */

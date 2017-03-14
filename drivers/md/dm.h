@@ -95,8 +95,7 @@ int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t);
 /*
  * To check whether the target type is request-based or not (bio-based).
  */
-#define dm_target_request_based(t) (((t)->type->map_rq != NULL) || \
-				    ((t)->type->clone_and_map_rq != NULL))
+#define dm_target_request_based(t) ((t)->type->clone_and_map_rq != NULL)
 
 /*
  * To check whether the target type is a hybrid (capable of being

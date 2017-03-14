@@ -43,10 +43,11 @@ static void proc_evict_inode(struct inode *inode)
 	de = PDE(inode);
 	if (de)
 		pde_put(de);
+
 	head = PROC_I(inode)->sysctl;
 	if (head) {
 		RCU_INIT_POINTER(PROC_I(inode)->sysctl, NULL);
-		sysctl_head_put(head);
+		proc_sys_evict_inode(inode, head);
 	}
 }
 
@@ -106,7 +107,7 @@ static int proc_show_options(struct seq_file *seq, struct dentry *root)
 
 	if (!gid_eq(pid->pid_gid, GLOBAL_ROOT_GID))
 		seq_printf(seq, ",gid=%u", from_kgid_munged(&init_user_ns, pid->pid_gid));
-	if (pid->hide_pid != 0)
+	if (pid->hide_pid != HIDEPID_OFF)
 		seq_printf(seq, ",hidepid=%u", pid->hide_pid);
 
 	return 0;

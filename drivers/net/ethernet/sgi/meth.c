@@ -854,7 +854,7 @@ static int meth_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit meth_remove(struct platform_device *pdev)
+static int meth_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 
@@ -866,7 +866,7 @@ static int __exit meth_remove(struct platform_device *pdev)
 
 static struct platform_driver meth_driver = {
 	.probe	= meth_probe,
-	.remove	= __exit_p(meth_remove),
+	.remove	= meth_remove,
 	.driver = {
 		.name	= "meth",
 	}

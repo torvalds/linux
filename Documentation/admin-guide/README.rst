@@ -17,7 +17,7 @@ What is Linux?
   loading, shared copy-on-write executables, proper memory management,
   and multistack networking including IPv4 and IPv6.
 
-  It is distributed under the GNU General Public License - see the
+  It is distributed under the GNU General Public License v2 - see the
   accompanying COPYING file for more details.
 
 On what hardware does it run?
@@ -236,7 +236,7 @@ Configuring the kernel
 
     - Having unnecessary drivers will make the kernel bigger, and can
       under some circumstances lead to problems: probing for a
-      nonexistent controller card may confuse your other controllers
+      nonexistent controller card may confuse your other controllers.
 
     - A kernel with math-emulation compiled in will still use the
       coprocessor if one is present: the math emulation will just

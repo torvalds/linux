@@ -221,8 +221,8 @@ void __init tx4939_setup(void)
 		(txx9_master_clock + 500000) / 1000000,
 		(txx9_gbus_clock + 500000) / 1000000,
 		(__u32)____raw_readq(&tx4939_ccfgptr->crir),
-		(unsigned long long)____raw_readq(&tx4939_ccfgptr->ccfg),
-		(unsigned long long)____raw_readq(&tx4939_ccfgptr->pcfg));
+		____raw_readq(&tx4939_ccfgptr->ccfg),
+		____raw_readq(&tx4939_ccfgptr->pcfg));
 
 	pr_info("%s DDRC -- EN:%08x", txx9_pcode_str,
 		(__u32)____raw_readq(&tx4939_ddrcptr->winen));
@@ -230,7 +230,7 @@ void __init tx4939_setup(void)
 		__u64 win = ____raw_readq(&tx4939_ddrcptr->win[i]);
 		if (!((__u32)____raw_readq(&tx4939_ddrcptr->winen) & (1 << i)))
 			continue;	/* disabled */
-		printk(KERN_CONT " #%d:%016llx", i, (unsigned long long)win);
+		pr_cont(" #%d:%016llx", i, win);
 		tx4939_sdram_resource[i].name = "DDR SDRAM";
 		tx4939_sdram_resource[i].start =
 			(unsigned long)(win >> 48) << 20;
@@ -240,7 +240,7 @@ void __init tx4939_setup(void)
 		tx4939_sdram_resource[i].flags = IORESOURCE_MEM;
 		request_resource(&iomem_resource, &tx4939_sdram_resource[i]);
 	}
-	printk(KERN_CONT "\n");
+	pr_cont("\n");
 
 	/* SRAM */
 	if (____raw_readq(&tx4939_sramcptr->cr) & 1) {

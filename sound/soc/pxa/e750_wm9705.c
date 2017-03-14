@@ -22,8 +22,6 @@
 
 #include <asm/mach-types.h>
 
-#include "pxa2xx-ac97.h"
-
 static int e750_spk_amp_event(struct snd_soc_dapm_widget *w,
 				struct snd_kcontrol *kcontrol, int event)
 {

@@ -149,9 +149,11 @@ kprobe_opcode_t *__get_insn_slot(struct kprobe_insn_cache *c)
 	struct kprobe_insn_page *kip;
 	kprobe_opcode_t *slot = NULL;
 
+	/* Since the slot array is not protected by rcu, we need a mutex */
 	mutex_lock(&c->mutex);
  retry:
-	list_for_each_entry(kip, &c->pages, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(kip, &c->pages, list) {
 		if (kip->nused < slots_per_page(c)) {
 			int i;
 			for (i = 0; i < slots_per_page(c); i++) {
@@ -159,6 +161,7 @@ kprobe_opcode_t *__get_insn_slot(struct kprobe_insn_cache *c)
 					kip->slot_used[i] = SLOT_USED;
 					kip->nused++;
 					slot = kip->insns + (i * c->insn_size);
+					rcu_read_unlock();
 					goto out;
 				}
 			}
@@ -167,6 +170,7 @@ kprobe_opcode_t *__get_insn_slot(struct kprobe_insn_cache *c)
 			WARN_ON(1);
 		}
 	}
+	rcu_read_unlock();
 
 	/* If there are any garbage slots, collect it and try again. */
 	if (c->nr_garbage && collect_garbage_slots(c) == 0)
@@ -193,7 +197,7 @@ kprobe_opcode_t *__get_insn_slot(struct kprobe_insn_cache *c)
 	kip->nused = 1;
 	kip->ngarbage = 0;
 	kip->cache = c;
-	list_add(&kip->list, &c->pages);
+	list_add_rcu(&kip->list, &c->pages);
 	slot = kip->insns;
 out:
 	mutex_unlock(&c->mutex);
@@ -213,7 +217,8 @@ static int collect_one_slot(struct kprobe_insn_page *kip, int idx)
 		 * next time somebody inserts a probe.
 		 */
 		if (!list_is_singular(&kip->list)) {
-			list_del(&kip->list);
+			list_del_rcu(&kip->list);
+			synchronize_rcu();
 			kip->cache->free(kip->insns);
 			kfree(kip);
 		}
@@ -235,8 +240,7 @@ static int collect_garbage_slots(struct kprobe_insn_cache *c)
 			continue;
 		kip->ngarbage = 0;	/* we will collect all garbages */
 		for (i = 0; i < slots_per_page(c); i++) {
-			if (kip->slot_used[i] == SLOT_DIRTY &&
-			    collect_one_slot(kip, i))
+			if (kip->slot_used[i] == SLOT_DIRTY && collect_one_slot(kip, i))
 				break;
 		}
 	}
@@ -248,27 +252,58 @@ void __free_insn_slot(struct kprobe_insn_cache *c,
 		      kprobe_opcode_t *slot, int dirty)
 {
 	struct kprobe_insn_page *kip;
+	long idx;
 
 	mutex_lock(&c->mutex);
-	list_for_each_entry(kip, &c->pages, list) {
-		long idx = ((long)slot - (long)kip->insns) /
-				(c->insn_size * sizeof(kprobe_opcode_t));
-		if (idx >= 0 && idx < slots_per_page(c)) {
-			WARN_ON(kip->slot_used[idx] != SLOT_USED);
-			if (dirty) {
-				kip->slot_used[idx] = SLOT_DIRTY;
-				kip->ngarbage++;
-				if (++c->nr_garbage > slots_per_page(c))
-					collect_garbage_slots(c);
-			} else
-				collect_one_slot(kip, idx);
+	rcu_read_lock();
+	list_for_each_entry_rcu(kip, &c->pages, list) {
+		idx = ((long)slot - (long)kip->insns) /
+			(c->insn_size * sizeof(kprobe_opcode_t));
+		if (idx >= 0 && idx < slots_per_page(c))
 			goto out;
+	}
+	/* Could not find this slot. */
+	WARN_ON(1);
+	kip = NULL;
+out:
+	rcu_read_unlock();
+	/* Mark and sweep: this may sleep */
+	if (kip) {
+		/* Check double free */
+		WARN_ON(kip->slot_used[idx] != SLOT_USED);
+		if (dirty) {
+			kip->slot_used[idx] = SLOT_DIRTY;
+			kip->ngarbage++;
+			if (++c->nr_garbage > slots_per_page(c))
+				collect_garbage_slots(c);
+		} else {
+			collect_one_slot(kip, idx);
 		}
 	}
-	/* Could not free this slot. */
-	WARN_ON(1);
-out:
 	mutex_unlock(&c->mutex);
+}
+
+/*
+ * Check given address is on the page of kprobe instruction slots.
+ * This will be used for checking whether the address on a stack
+ * is on a text area or not.
+ */
+bool __is_insn_slot_addr(struct kprobe_insn_cache *c, unsigned long addr)
+{
+	struct kprobe_insn_page *kip;
+	bool ret = false;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(kip, &c->pages, list) {
+		if (addr >= (unsigned long)kip->insns &&
+		    addr < (unsigned long)kip->insns + PAGE_SIZE) {
+			ret = true;
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	return ret;
 }
 
 #ifdef CONFIG_OPTPROBES
@@ -1704,6 +1739,12 @@ void unregister_kprobes(struct kprobe **kps, int num)
 			__unregister_kprobe_bottom(kps[i]);
 }
 EXPORT_SYMBOL_GPL(unregister_kprobes);
+
+int __weak __kprobes kprobe_exceptions_notify(struct notifier_block *self,
+					      unsigned long val, void *data)
+{
+	return NOTIFY_DONE;
+}
 
 static struct notifier_block kprobe_exceptions_nb = {
 	.notifier_call = kprobe_exceptions_notify,

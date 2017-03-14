@@ -845,7 +845,7 @@ serial_txx9_type(struct uart_port *port)
 	return "txx9";
 }
 
-static struct uart_ops serial_txx9_pops = {
+static const struct uart_ops serial_txx9_pops = {
 	.tx_empty	= serial_txx9_tx_empty,
 	.set_mctrl	= serial_txx9_set_mctrl,
 	.get_mctrl	= serial_txx9_get_mctrl,

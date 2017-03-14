@@ -875,6 +875,17 @@ int opal_error_code(int rc)
 	}
 }
 
+void powernv_set_nmmu_ptcr(unsigned long ptcr)
+{
+	int rc;
+
+	if (firmware_has_feature(FW_FEATURE_OPAL)) {
+		rc = opal_nmmu_set_ptcr(-1UL, ptcr);
+		if (rc != OPAL_SUCCESS && rc != OPAL_UNSUPPORTED)
+			pr_warn("%s: Unable to set nest mmu ptcr\n", __func__);
+	}
+}
+
 EXPORT_SYMBOL_GPL(opal_poll_events);
 EXPORT_SYMBOL_GPL(opal_rtc_read);
 EXPORT_SYMBOL_GPL(opal_rtc_write);

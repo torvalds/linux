@@ -121,6 +121,8 @@ struct of_drconf_cell {
 #define OV1_PPC_2_06		0x02	/* set if we support PowerPC 2.06 */
 #define OV1_PPC_2_07		0x01	/* set if we support PowerPC 2.07 */
 
+#define OV1_PPC_3_00		0x80	/* set if we support PowerPC 3.00 */
+
 /* Option vector 2: Open Firmware options supported */
 #define OV2_REAL_MODE		0x20	/* set if we want OF in real mode */
 
@@ -151,10 +153,19 @@ struct of_drconf_cell {
 #define OV5_XCMO		0x0440	/* Page Coalescing */
 #define OV5_TYPE1_AFFINITY	0x0580	/* Type 1 NUMA affinity */
 #define OV5_PRRN		0x0540	/* Platform Resource Reassignment */
-#define OV5_PFO_HW_RNG		0x0E80	/* PFO Random Number Generator */
-#define OV5_PFO_HW_842		0x0E40	/* PFO Compression Accelerator */
-#define OV5_PFO_HW_ENCR		0x0E20	/* PFO Encryption Accelerator */
-#define OV5_SUB_PROCESSORS	0x0F01	/* 1,2,or 4 Sub-Processors supported */
+#define OV5_HP_EVT		0x0604	/* Hot Plug Event support */
+#define OV5_RESIZE_HPT		0x0601	/* Hash Page Table resizing */
+#define OV5_PFO_HW_RNG		0x1180	/* PFO Random Number Generator */
+#define OV5_PFO_HW_842		0x1140	/* PFO Compression Accelerator */
+#define OV5_PFO_HW_ENCR		0x1120	/* PFO Encryption Accelerator */
+#define OV5_SUB_PROCESSORS	0x1501	/* 1,2,or 4 Sub-Processors supported */
+#define OV5_XIVE_EXPLOIT	0x1701	/* XIVE exploitation supported */
+#define OV5_MMU_RADIX_300	0x1880	/* ISA v3.00 radix MMU supported */
+#define OV5_MMU_HASH_300	0x1840	/* ISA v3.00 hash MMU supported */
+#define OV5_MMU_SEGM_RADIX	0x1820	/* radix mode (no segmentation) */
+#define OV5_MMU_PROC_TBL	0x1810	/* hcall selects SLB or proc table */
+#define OV5_MMU_SLB		0x1800	/* always use SLB */
+#define OV5_MMU_GTSE		0x1808	/* Guest translation shootdown */
 
 /* Option Vector 6: IBM PAPR hints */
 #define OV6_LINUX		0x02	/* Linux is our OS */

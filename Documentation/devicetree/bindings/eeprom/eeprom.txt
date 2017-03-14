@@ -10,6 +10,8 @@ Required properties:
 
 	"catalyst,24c32"
 
+	"microchip,24c128"
+
 	"ramtron,24c64"
 
 	"renesas,r1ex24002"

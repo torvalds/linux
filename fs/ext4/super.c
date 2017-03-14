@@ -438,6 +438,9 @@ void __ext4_error(struct super_block *sb, const char *function,
 	struct va_format vaf;
 	va_list args;
 
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(sb))))
+		return;
+
 	if (ext4_error_ratelimit(sb)) {
 		va_start(args, fmt);
 		vaf.fmt = fmt;
@@ -458,6 +461,9 @@ void __ext4_error_inode(struct inode *inode, const char *function,
 	va_list args;
 	struct va_format vaf;
 	struct ext4_super_block *es = EXT4_SB(inode->i_sb)->s_es;
+
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
+		return;
 
 	es->s_last_error_ino = cpu_to_le32(inode->i_ino);
 	es->s_last_error_block = cpu_to_le64(block);
@@ -490,6 +496,9 @@ void __ext4_error_file(struct file *file, const char *function,
 	struct ext4_super_block *es;
 	struct inode *inode = file_inode(file);
 	char pathname[80], *path;
+
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
+		return;
 
 	es = EXT4_SB(inode->i_sb)->s_es;
 	es->s_last_error_ino = cpu_to_le32(inode->i_ino);
@@ -567,6 +576,9 @@ void __ext4_std_error(struct super_block *sb, const char *function,
 	char nbuf[16];
 	const char *errstr;
 
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(sb))))
+		return;
+
 	/* Special case: if the error is EROFS, and we're not already
 	 * inside a transaction, then there's really no point in logging
 	 * an error. */
@@ -599,6 +611,9 @@ void __ext4_abort(struct super_block *sb, const char *function,
 {
 	struct va_format vaf;
 	va_list args;
+
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(sb))))
+		return;
 
 	save_error_info(sb, function, line);
 	va_start(args, fmt);
@@ -694,6 +709,9 @@ __acquires(bitlock)
 	struct va_format vaf;
 	va_list args;
 	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
+
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(sb))))
+		return;
 
 	es->s_last_error_ino = cpu_to_le32(ino);
 	es->s_last_error_block = cpu_to_le64(block);
@@ -825,6 +843,7 @@ static void ext4_put_super(struct super_block *sb)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_super_block *es = sbi->s_es;
+	int aborted = 0;
 	int i, err;
 
 	ext4_unregister_li_request(sb);
@@ -834,9 +853,10 @@ static void ext4_put_super(struct super_block *sb)
 	destroy_workqueue(sbi->rsv_conversion_wq);
 
 	if (sbi->s_journal) {
+		aborted = is_journal_aborted(sbi->s_journal);
 		err = jbd2_journal_destroy(sbi->s_journal);
 		sbi->s_journal = NULL;
-		if (err < 0)
+		if ((err < 0) && !aborted)
 			ext4_abort(sb, "Couldn't clean up the journal");
 	}
 
@@ -847,7 +867,7 @@ static void ext4_put_super(struct super_block *sb)
 	ext4_mb_release(sb);
 	ext4_ext_release(sb);
 
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!(sb->s_flags & MS_RDONLY) && !aborted) {
 		ext4_clear_feature_journal_needs_recovery(sb);
 		es->s_state = cpu_to_le16(sbi->s_mount_state);
 	}
@@ -1100,12 +1120,6 @@ static int ext4_get_context(struct inode *inode, void *ctx, size_t len)
 				 EXT4_XATTR_NAME_ENCRYPTION_CONTEXT, ctx, len);
 }
 
-static int ext4_key_prefix(struct inode *inode, u8 **key)
-{
-	*key = EXT4_SB(inode->i_sb)->key_prefix;
-	return EXT4_SB(inode->i_sb)->key_prefix_size;
-}
-
 static int ext4_prepare_context(struct inode *inode)
 {
 	return ext4_convert_inline_data(inode);
@@ -1179,9 +1193,9 @@ static unsigned ext4_max_namelen(struct inode *inode)
 		EXT4_NAME_LEN;
 }
 
-static struct fscrypt_operations ext4_cryptops = {
+static const struct fscrypt_operations ext4_cryptops = {
+	.key_prefix		= "ext4:",
 	.get_context		= ext4_get_context,
-	.key_prefix		= ext4_key_prefix,
 	.prepare_context	= ext4_prepare_context,
 	.set_context		= ext4_set_context,
 	.dummy_context		= ext4_dummy_context,
@@ -1190,7 +1204,7 @@ static struct fscrypt_operations ext4_cryptops = {
 	.max_namelen		= ext4_max_namelen,
 };
 #else
-static struct fscrypt_operations ext4_cryptops = {
+static const struct fscrypt_operations ext4_cryptops = {
 	.is_encrypted		= ext4_encrypted_inode,
 };
 #endif
@@ -1290,7 +1304,7 @@ enum {
 	Opt_noquota, Opt_barrier, Opt_nobarrier, Opt_err,
 	Opt_usrquota, Opt_grpquota, Opt_prjquota, Opt_i_version, Opt_dax,
 	Opt_stripe, Opt_delalloc, Opt_nodelalloc, Opt_mblk_io_submit,
-	Opt_lazytime, Opt_nolazytime,
+	Opt_lazytime, Opt_nolazytime, Opt_debug_want_extra_isize,
 	Opt_nomblk_io_submit, Opt_block_validity, Opt_noblock_validity,
 	Opt_inode_readahead_blks, Opt_journal_ioprio,
 	Opt_dioread_nolock, Opt_dioread_lock,
@@ -1358,6 +1372,7 @@ static const match_table_t tokens = {
 	{Opt_delalloc, "delalloc"},
 	{Opt_lazytime, "lazytime"},
 	{Opt_nolazytime, "nolazytime"},
+	{Opt_debug_want_extra_isize, "debug_want_extra_isize=%u"},
 	{Opt_nodelalloc, "nodelalloc"},
 	{Opt_removed, "mblk_io_submit"},
 	{Opt_removed, "nomblk_io_submit"},
@@ -1563,6 +1578,7 @@ static const struct mount_opts {
 #endif
 	{Opt_nouid32, EXT4_MOUNT_NO_UID32, MOPT_SET},
 	{Opt_debug, EXT4_MOUNT_DEBUG, MOPT_SET},
+	{Opt_debug_want_extra_isize, 0, MOPT_GTE0},
 	{Opt_quota, EXT4_MOUNT_QUOTA | EXT4_MOUNT_USRQUOTA, MOPT_SET | MOPT_Q},
 	{Opt_usrquota, EXT4_MOUNT_QUOTA | EXT4_MOUNT_USRQUOTA,
 							MOPT_SET | MOPT_Q},
@@ -1676,6 +1692,8 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
 		if (arg == 0)
 			arg = JBD2_DEFAULT_MAX_COMMIT_AGE;
 		sbi->s_commit_interval = HZ * arg;
+	} else if (token == Opt_debug_want_extra_isize) {
+		sbi->s_want_extra_isize = arg;
 	} else if (token == Opt_max_batch_time) {
 		sbi->s_max_batch_time = arg;
 	} else if (token == Opt_min_batch_time) {
@@ -2619,9 +2637,9 @@ static unsigned long ext4_get_stripe_size(struct ext4_sb_info *sbi)
 
 	if (sbi->s_stripe && sbi->s_stripe <= sbi->s_blocks_per_group)
 		ret = sbi->s_stripe;
-	else if (stripe_width <= sbi->s_blocks_per_group)
+	else if (stripe_width && stripe_width <= sbi->s_blocks_per_group)
 		ret = stripe_width;
-	else if (stride <= sbi->s_blocks_per_group)
+	else if (stride && stride <= sbi->s_blocks_per_group)
 		ret = stride;
 	else
 		ret = 0;
@@ -3842,7 +3860,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	db_count = (sbi->s_groups_count + EXT4_DESC_PER_BLOCK(sb) - 1) /
 		   EXT4_DESC_PER_BLOCK(sb);
 	if (ext4_has_feature_meta_bg(sb)) {
-		if (le32_to_cpu(es->s_first_meta_bg) >= db_count) {
+		if (le32_to_cpu(es->s_first_meta_bg) > db_count) {
 			ext4_msg(sb, KERN_WARNING,
 				 "first meta block group too large: %u "
 				 "(group descriptor block count %u)",
@@ -3925,7 +3943,8 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	 * root first: it may be modified in the journal!
 	 */
 	if (!test_opt(sb, NOLOAD) && ext4_has_feature_journal(sb)) {
-		if (ext4_load_journal(sb, es, journal_devnum))
+		err = ext4_load_journal(sb, es, journal_devnum);
+		if (err)
 			goto failed_mount3a;
 	} else if (test_opt(sb, NOLOAD) && !(sb->s_flags & MS_RDONLY) &&
 		   ext4_has_feature_journal_needs_recovery(sb)) {
@@ -4087,7 +4106,8 @@ no_journal:
 		sb->s_flags |= MS_RDONLY;
 
 	/* determine the minimum size of new large inodes, if present */
-	if (sbi->s_inode_size > EXT4_GOOD_OLD_INODE_SIZE) {
+	if (sbi->s_inode_size > EXT4_GOOD_OLD_INODE_SIZE &&
+	    sbi->s_want_extra_isize == 0) {
 		sbi->s_want_extra_isize = sizeof(struct ext4_inode) -
 						     EXT4_GOOD_OLD_INODE_SIZE;
 		if (ext4_has_feature_extra_isize(sb)) {
@@ -4218,11 +4238,6 @@ no_journal:
 	ratelimit_state_init(&sbi->s_msg_ratelimit_state, 5 * HZ, 10);
 
 	kfree(orig_data);
-#ifdef CONFIG_EXT4_FS_ENCRYPTION
-	memcpy(sbi->key_prefix, EXT4_KEY_DESC_PREFIX,
-				EXT4_KEY_DESC_PREFIX_SIZE);
-	sbi->key_prefix_size = EXT4_KEY_DESC_PREFIX_SIZE;
-#endif
 	return 0;
 
 cantfind_ext4:
@@ -4720,6 +4735,9 @@ static int ext4_sync_fs(struct super_block *sb, int wait)
 	bool needs_barrier = false;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(sb))))
+		return 0;
+
 	trace_ext4_sync_fs(sb, wait);
 	flush_workqueue(sbi->rsv_conversion_wq);
 	/*
@@ -4803,7 +4821,7 @@ out:
  */
 static int ext4_unfreeze(struct super_block *sb)
 {
-	if (sb->s_flags & MS_RDONLY)
+	if ((sb->s_flags & MS_RDONLY) || ext4_forced_shutdown(EXT4_SB(sb)))
 		return 0;
 
 	if (EXT4_SB(sb)->s_journal) {

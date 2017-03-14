@@ -9,6 +9,7 @@
 #include <linux/hardirq.h>
 #include <asm/apic.h>
 #include <asm/trace/irq_vectors.h>
+#include <linux/interrupt.h>
 
 static inline void __smp_irq_work_interrupt(void)
 {
@@ -16,14 +17,14 @@ static inline void __smp_irq_work_interrupt(void)
 	irq_work_run();
 }
 
-__visible void smp_irq_work_interrupt(struct pt_regs *regs)
+__visible void __irq_entry smp_irq_work_interrupt(struct pt_regs *regs)
 {
 	ipi_entering_ack_irq();
 	__smp_irq_work_interrupt();
 	exiting_irq();
 }
 
-__visible void smp_trace_irq_work_interrupt(struct pt_regs *regs)
+__visible void __irq_entry smp_trace_irq_work_interrupt(struct pt_regs *regs)
 {
 	ipi_entering_ack_irq();
 	trace_irq_work_entry(IRQ_WORK_VECTOR);

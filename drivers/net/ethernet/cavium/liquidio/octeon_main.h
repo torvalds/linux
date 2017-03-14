@@ -23,6 +23,8 @@
 #ifndef _OCTEON_MAIN_H_
 #define  _OCTEON_MAIN_H_
 
+#include <linux/sched/signal.h>
+
 #if BITS_PER_LONG == 32
 #define CVM_CAST64(v) ((long long)(v))
 #elif BITS_PER_LONG == 64

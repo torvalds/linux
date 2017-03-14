@@ -9,7 +9,7 @@ Required properties:
 - reg		    : should contain IO map address for IR.
 
 Optional properties:
-- linux,rc-map-name : Remote control map name.
+- linux,rc-map-name: see rc.txt file in the same directory.
 - resets : phandle + reset specifier pair
 
 Example:

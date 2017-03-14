@@ -104,7 +104,7 @@ static void nvme_loop_complete_rq(struct request *req)
 			return;
 		}
 
-		if (req->cmd_type == REQ_TYPE_DRV_PRIV)
+		if (blk_rq_is_passthrough(req))
 			error = req->errors;
 		else
 			error = nvme_error_status(req->errors);
@@ -724,8 +724,7 @@ static int __init nvme_loop_init_module(void)
 	ret = nvmet_register_transport(&nvme_loop_ops);
 	if (ret)
 		return ret;
-	nvmf_register_transport(&nvme_loop_transport);
-	return 0;
+	return nvmf_register_transport(&nvme_loop_transport);
 }
 
 static void __exit nvme_loop_cleanup_module(void)

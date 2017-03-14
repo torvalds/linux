@@ -549,15 +549,6 @@
 			loops can be debugged more effectively on production
 			systems.
 
-	clocksource.arm_arch_timer.fsl-a008585=
-			[ARM64]
-			Format: <bool>
-			Enable/disable the workaround of Freescale/NXP
-			erratum A-008585.  This can be useful for KVM
-			guests, if the guest device tree doesn't show the
-			erratum.  If unspecified, the workaround is
-			enabled based on the device tree.
-
 	clearcpuid=BITNUM [X86]
 			Disable CPUID feature X for the kernel. See
 			arch/x86/include/asm/cpufeatures.h for the valid bit
@@ -966,6 +957,12 @@
 			serial port must already be setup and configured.
 			Options are not yet supported.
 
+		lantiq,<addr>
+			Start an early, polled-mode console on a lantiq serial
+			(lqasc) port at the specified address. The serial port
+			must already be setup and configured. Options are not
+			yet supported.
+
 		lpuart,<addr>
 		lpuart32,<addr>
 			Use early console provided by Freescale LP UART driver
@@ -979,9 +976,10 @@
 			address. The serial port must already be setup
 			and configured. Options are not yet supported.
 
-	earlyprintk=	[X86,SH,BLACKFIN,ARM,M68k]
+	earlyprintk=	[X86,SH,BLACKFIN,ARM,M68k,S390]
 			earlyprintk=vga
 			earlyprintk=efi
+			earlyprintk=sclp
 			earlyprintk=xen
 			earlyprintk=serial[,ttySn[,baudrate]]
 			earlyprintk=serial[,0x...[,baudrate]]
@@ -1015,6 +1013,8 @@
 			the real console.
 
 			The xen output can only be used by Xen PV guests.
+
+			The sclp output can only be used on s390.
 
 	edac_report=	[HW,EDAC] Control how to report EDAC event
 			Format: {"on" | "off" | "force"}
@@ -1200,6 +1200,10 @@
 			debugfs, even when the module is unloaded/reloaded.
 			When zero, profiling data is discarded and associated
 			debugfs files are removed at module unload time.
+
+	goldfish	[X86] Enable the goldfish android emulator platform.
+			Don't use this when you are not running on the
+			android emulator
 
 	gpt		[EFI] Forces disk with valid GPT signature but
 			invalid Protective MBR to be treated as GPT. If the
@@ -3278,6 +3282,13 @@
 			Lazy RCU callbacks are those which RCU can
 			prove do nothing more than free memory.
 
+	rcutree.rcu_kick_kthreads= [KNL]
+			Cause the grace-period kthread to get an extra
+			wake_up() if it sleeps three times longer than
+			it should at force-quiescent-state time.
+			This wake_up() will be accompanied by a
+			WARN_ONCE() splat and an ftrace_dump().
+
 	rcuperf.gp_exp= [KNL]
 			Measure performance of expedited synchronous
 			grace-period primitives.
@@ -3563,6 +3574,10 @@
 	rhash_entries=	[KNL,NET]
 			Set number of hash buckets for route cache
 
+	ring3mwait=disable
+			[KNL] Disable ring 3 MONITOR/MWAIT feature on supported
+			CPUs.
+
 	ro		[KNL] Mount root device read-only on boot
 
 	rodata=		[KNL]
@@ -3678,6 +3693,14 @@
 			may poison objects when not in use. Also tracks the
 			last alloc / free. For more information see
 			Documentation/vm/slub.txt.
+
+	slub_memcg_sysfs=	[MM, SLUB]
+			Determines whether to enable sysfs directories for
+			memory cgroup sub-caches. 1 to enable, 0 to disable.
+			The default is determined by CONFIG_SLUB_MEMCG_SYSFS_ON.
+			Enabling this can lead to a very high number of	debug
+			directories and files being created under
+			/sys/kernel/slub.
 
 	slub_max_order= [MM, SLUB]
 			Determines the maximum allowed order for slabs.

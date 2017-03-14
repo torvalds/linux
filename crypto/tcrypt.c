@@ -22,6 +22,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <crypto/aead.h>
 #include <crypto/hash.h>
 #include <crypto/skcipher.h>
@@ -1009,6 +1011,8 @@ static void test_available(void)
 static inline int tcrypt_test(const char *alg)
 {
 	int ret;
+
+	pr_debug("testing %s\n", alg);
 
 	ret = alg_test(alg, alg, 0, 0);
 	/* non-fips algs return -EINVAL in fips mode */
@@ -2059,6 +2063,8 @@ static int __init tcrypt_mod_init(void)
 	if (err) {
 		printk(KERN_ERR "tcrypt: one or more tests failed!\n");
 		goto err_free_tv;
+	} else {
+		pr_debug("all tests passed\n");
 	}
 
 	/* We intentionaly return -EAGAIN to prevent keeping the module,

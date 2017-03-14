@@ -441,8 +441,9 @@ int tegra_bo_dumb_map_offset(struct drm_file *file, struct drm_device *drm,
 	return 0;
 }
 
-static int tegra_bo_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int tegra_bo_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *gem = vma->vm_private_data;
 	struct tegra_bo *bo = to_tegra_bo(gem);
 	struct page *page;

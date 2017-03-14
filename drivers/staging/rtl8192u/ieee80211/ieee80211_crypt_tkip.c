@@ -304,7 +304,7 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	int len;
 	u8 *pos;
 	struct rtl_80211_hdr_4addr *hdr;
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	int ret = 0;
 	u8 rc4key[16],  *icv;
 	u32 crc;
@@ -387,7 +387,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u32 iv32;
 	u16 iv16;
 	struct rtl_80211_hdr_4addr *hdr;
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	u8 rc4key[16];
 	u8 icv[4];
 	u32 crc;

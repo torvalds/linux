@@ -25,58 +25,6 @@
 #include "emac.h"
 #include "emac-sgmii.h"
 
-/* EMAC base register offsets */
-#define EMAC_MAC_CTRL			0x001480
-#define EMAC_WOL_CTRL0			0x0014a0
-#define EMAC_RSS_KEY0			0x0014b0
-#define EMAC_H1TPD_BASE_ADDR_LO		0x0014e0
-#define EMAC_H2TPD_BASE_ADDR_LO		0x0014e4
-#define EMAC_H3TPD_BASE_ADDR_LO		0x0014e8
-#define EMAC_INTER_SRAM_PART9		0x001534
-#define EMAC_DESC_CTRL_0		0x001540
-#define EMAC_DESC_CTRL_1		0x001544
-#define EMAC_DESC_CTRL_2		0x001550
-#define EMAC_DESC_CTRL_10		0x001554
-#define EMAC_DESC_CTRL_12		0x001558
-#define EMAC_DESC_CTRL_13		0x00155c
-#define EMAC_DESC_CTRL_3		0x001560
-#define EMAC_DESC_CTRL_4		0x001564
-#define EMAC_DESC_CTRL_5		0x001568
-#define EMAC_DESC_CTRL_14		0x00156c
-#define EMAC_DESC_CTRL_15		0x001570
-#define EMAC_DESC_CTRL_16		0x001574
-#define EMAC_DESC_CTRL_6		0x001578
-#define EMAC_DESC_CTRL_8		0x001580
-#define EMAC_DESC_CTRL_9		0x001584
-#define EMAC_DESC_CTRL_11		0x001588
-#define EMAC_TXQ_CTRL_0			0x001590
-#define EMAC_TXQ_CTRL_1			0x001594
-#define EMAC_TXQ_CTRL_2			0x001598
-#define EMAC_RXQ_CTRL_0			0x0015a0
-#define EMAC_RXQ_CTRL_1			0x0015a4
-#define EMAC_RXQ_CTRL_2			0x0015a8
-#define EMAC_RXQ_CTRL_3			0x0015ac
-#define EMAC_BASE_CPU_NUMBER		0x0015b8
-#define EMAC_DMA_CTRL			0x0015c0
-#define EMAC_MAILBOX_0			0x0015e0
-#define EMAC_MAILBOX_5			0x0015e4
-#define EMAC_MAILBOX_6			0x0015e8
-#define EMAC_MAILBOX_13			0x0015ec
-#define EMAC_MAILBOX_2			0x0015f4
-#define EMAC_MAILBOX_3			0x0015f8
-#define EMAC_MAILBOX_11			0x00160c
-#define EMAC_AXI_MAST_CTRL		0x001610
-#define EMAC_MAILBOX_12			0x001614
-#define EMAC_MAILBOX_9			0x001618
-#define EMAC_MAILBOX_10			0x00161c
-#define EMAC_ATHR_HEADER_CTRL		0x001620
-#define EMAC_CLK_GATE_CTRL		0x001814
-#define EMAC_MISC_CTRL			0x001990
-#define EMAC_MAILBOX_7			0x0019e0
-#define EMAC_MAILBOX_8			0x0019e4
-#define EMAC_MAILBOX_15			0x001bd4
-#define EMAC_MAILBOX_16			0x001bd8
-
 /* EMAC_MAC_CTRL */
 #define SINGLE_PAUSE_MODE       	0x10000000
 #define DEBUG_MODE                      0x08000000
@@ -102,14 +50,6 @@
 #define TXFC                            0x00000004
 #define RXEN                            0x00000002
 #define TXEN                            0x00000001
-
-
-/* EMAC_WOL_CTRL0 */
-#define LK_CHG_PME			0x20
-#define LK_CHG_EN			0x10
-#define MG_FRAME_PME			0x8
-#define MG_FRAME_EN			0x4
-#define WK_FRAME_EN			0x1
 
 /* EMAC_DESC_CTRL_3 */
 #define RFD_RING_SIZE_BMSK                                       0xfff
@@ -313,8 +253,6 @@ struct emac_skb_cb {
 	RX_PKT_INT1     |\
 	RX_PKT_INT2     |\
 	RX_PKT_INT3)
-
-#define EMAC_MAC_IRQ_RES                                    	"core0"
 
 void emac_mac_multicast_addr_set(struct emac_adapter *adpt, u8 *addr)
 {
@@ -558,7 +496,7 @@ void emac_mac_reset(struct emac_adapter *adpt)
 	emac_reg_update32(adpt->base + EMAC_DMA_MAS_CTRL, 0, INT_RD_CLR_EN);
 }
 
-void emac_mac_start(struct emac_adapter *adpt)
+static void emac_mac_start(struct emac_adapter *adpt)
 {
 	struct phy_device *phydev = adpt->phydev;
 	u32 mac, csr1;
@@ -575,11 +513,19 @@ void emac_mac_start(struct emac_adapter *adpt)
 
 	mac |= TXEN | RXEN;     /* enable RX/TX */
 
-	/* Configure MAC flow control to match the PHY's settings. */
-	if (phydev->pause)
-		mac |= RXFC;
-	if (phydev->pause != phydev->asym_pause)
-		mac |= TXFC;
+	/* Configure MAC flow control. If set to automatic, then match
+	 * whatever the PHY does. Otherwise, enable or disable it, depending
+	 * on what the user configured via ethtool.
+	 */
+	mac &= ~(RXFC | TXFC);
+
+	if (adpt->automatic) {
+		/* If it's set to automatic, then update our local values */
+		adpt->rx_flow_control = phydev->pause;
+		adpt->tx_flow_control = phydev->pause != phydev->asym_pause;
+	}
+	mac |= adpt->rx_flow_control ? RXFC : 0;
+	mac |= adpt->tx_flow_control ? TXFC : 0;
 
 	/* setup link speed */
 	mac &= ~SPEED_MASK;
@@ -621,8 +567,6 @@ void emac_mac_start(struct emac_adapter *adpt)
 
 	emac_reg_update32(adpt->base + EMAC_ATHR_HEADER_CTRL,
 			  (HEADER_ENABLE | HEADER_CNT_EN), 0);
-
-	emac_reg_update32(adpt->csr + EMAC_EMAC_WRAPPER_CSR2, 0, WOL_EN);
 }
 
 void emac_mac_stop(struct emac_adapter *adpt)
@@ -963,12 +907,16 @@ static void emac_mac_rx_descs_refill(struct emac_adapter *adpt,
 static void emac_adjust_link(struct net_device *netdev)
 {
 	struct emac_adapter *adpt = netdev_priv(netdev);
+	struct emac_sgmii *sgmii = &adpt->phy;
 	struct phy_device *phydev = netdev->phydev;
 
-	if (phydev->link)
+	if (phydev->link) {
 		emac_mac_start(adpt);
-	else
+		sgmii->link_up(adpt);
+	} else {
+		sgmii->link_down(adpt);
 		emac_mac_stop(adpt);
+	}
 
 	phy_print_status(phydev);
 }
@@ -977,40 +925,26 @@ static void emac_adjust_link(struct net_device *netdev)
 int emac_mac_up(struct emac_adapter *adpt)
 {
 	struct net_device *netdev = adpt->netdev;
-	struct emac_irq	*irq = &adpt->irq;
 	int ret;
 
 	emac_mac_rx_tx_ring_reset_all(adpt);
 	emac_mac_config(adpt);
-
-	ret = request_irq(irq->irq, emac_isr, 0, EMAC_MAC_IRQ_RES, irq);
-	if (ret) {
-		netdev_err(adpt->netdev, "could not request %s irq\n",
-			   EMAC_MAC_IRQ_RES);
-		return ret;
-	}
-
 	emac_mac_rx_descs_refill(adpt, &adpt->rx_q);
 
+	adpt->phydev->irq = PHY_IGNORE_INTERRUPT;
 	ret = phy_connect_direct(netdev, adpt->phydev, emac_adjust_link,
 				 PHY_INTERFACE_MODE_SGMII);
 	if (ret) {
 		netdev_err(adpt->netdev, "could not connect phy\n");
-		free_irq(irq->irq, irq);
 		return ret;
 	}
+
+	phy_attached_print(adpt->phydev, NULL);
 
 	/* enable mac irq */
 	writel((u32)~DIS_INT, adpt->base + EMAC_INT_STATUS);
 	writel(adpt->irq.mask, adpt->base + EMAC_INT_MASK);
 
-	/* Enable pause frames.  Without this feature, the EMAC has been shown
-	 * to receive (and drop) frames with FCS errors at gigabit connections.
-	 */
-	adpt->phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
-	adpt->phydev->advertising |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
-
-	adpt->phydev->irq = PHY_IGNORE_INTERRUPT;
 	phy_start(adpt->phydev);
 
 	napi_enable(&adpt->rx_q.napi);
@@ -1036,7 +970,6 @@ void emac_mac_down(struct emac_adapter *adpt)
 	writel(DIS_INT, adpt->base + EMAC_INT_STATUS);
 	writel(0, adpt->base + EMAC_INT_MASK);
 	synchronize_irq(adpt->irq.irq);
-	free_irq(adpt->irq.irq, &adpt->irq);
 
 	phy_disconnect(adpt->phydev);
 
@@ -1213,7 +1146,6 @@ void emac_mac_rx_process(struct emac_adapter *adpt, struct emac_rx_queue *rx_q,
 		emac_receive_skb(rx_q, skb, (u16)RRD_CVALN_TAG(&rrd),
 				 (bool)RRD_CVTAG(&rrd));
 
-		netdev->last_rx = jiffies;
 		(*num_pkts)++;
 	} while (*num_pkts < max_pkts);
 

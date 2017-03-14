@@ -1,6 +1,11 @@
 #ifndef MMC_QUEUE_H
 #define MMC_QUEUE_H
 
+#include <linux/types.h>
+#include <linux/blkdev.h>
+#include <linux/mmc/core.h>
+#include <linux/mmc/host.h>
+
 static inline bool mmc_req_is_special(struct request *req)
 {
 	return req &&
@@ -9,7 +14,6 @@ static inline bool mmc_req_is_special(struct request *req)
 		 req_op(req) == REQ_OP_SECURE_ERASE);
 }
 
-struct request;
 struct task_struct;
 struct mmc_blk_data;
 
@@ -29,16 +33,15 @@ struct mmc_queue_req {
 	char			*bounce_buf;
 	struct scatterlist	*bounce_sg;
 	unsigned int		bounce_sg_len;
-	struct mmc_async_req	mmc_active;
+	struct mmc_async_req	areq;
 };
 
 struct mmc_queue {
 	struct mmc_card		*card;
 	struct task_struct	*thread;
 	struct semaphore	thread_sem;
-	unsigned int		flags;
-#define MMC_QUEUE_SUSPENDED	(1 << 0)
-#define MMC_QUEUE_NEW_REQUEST	(1 << 1)
+	bool			new_request;
+	bool			suspended;
 	bool			asleep;
 	struct mmc_blk_data	*blkdata;
 	struct request_queue	*queue;

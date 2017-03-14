@@ -333,6 +333,7 @@ size_t strnlen(const char *s, size_t maxlen);
 unsigned int atou(const char *s);
 unsigned long long simple_strtoull(const char *cp, char **endp, unsigned int base);
 size_t strlen(const char *s);
+char *strchr(const char *s, int c);
 
 /* tty.c */
 void puts(const char *);

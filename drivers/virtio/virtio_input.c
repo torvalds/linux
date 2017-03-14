@@ -173,7 +173,8 @@ static int virtinput_init_vqs(struct virtio_input *vi)
 	static const char * const names[] = { "events", "status" };
 	int err;
 
-	err = vi->vdev->config->find_vqs(vi->vdev, 2, vqs, cbs, names);
+	err = vi->vdev->config->find_vqs(vi->vdev, 2, vqs, cbs, names,
+			NULL);
 	if (err)
 		return err;
 	vi->evt = vqs[0];

@@ -51,7 +51,7 @@
 		compatible = "mmc-pwrseq-emmc";
 		pinctrl-0 = <&emmc_reset>;
 		pinctrl-names = "default";
-		reset-gpios = <&gpio3 9 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio3 RK_PB1 GPIO_ACTIVE_LOW>;
 	};
 
 	ext_gmac: external-gmac-clock {
@@ -106,7 +106,7 @@
 	phy-supply = <&vccio_pmu>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&rgmii_pins &phy_rst>;
-	snps,reset-gpio = <&gpio4 8 GPIO_ACTIVE_LOW>;
+	snps,reset-gpio = <&gpio4 RK_PB0 GPIO_ACTIVE_LOW>;
 	snps,reset-active-low;
 	snps,reset-delays-us = <0 10000 30000>;
 	rx_delay = <0x10>;

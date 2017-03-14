@@ -635,7 +635,7 @@ s32 rtw_hal_xmit(struct adapter *adapt, struct xmit_frame *pxmitframe)
 	if (res == _SUCCESS) {
 		rtw_dump_xframe(adapt, pxmitframe);
 	} else {
-		DBG_88E("==> %s xmitframe_coalsece failed\n", __func__);
+		DBG_88E("==> %s xmitframe_coalesce failed\n", __func__);
 		rtw_free_xmitbuf(pxmitpriv, pxmitbuf);
 		rtw_free_xmitframe(pxmitpriv, pxmitframe);
 	}

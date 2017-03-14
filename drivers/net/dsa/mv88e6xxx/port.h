@@ -58,6 +58,8 @@ int mv88e6351_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
 				  enum mv88e6xxx_frame_mode mode);
 int mv88e6085_port_set_egress_unknowns(struct mv88e6xxx_chip *chip, int port,
 				       bool on);
+int mv88e6095_port_set_egress_unknowns(struct mv88e6xxx_chip *chip, int port,
+				       bool on);
 int mv88e6351_port_set_egress_unknowns(struct mv88e6xxx_chip *chip, int port,
 				       bool on);
 int mv88e6351_port_set_ether_type(struct mv88e6xxx_chip *chip, int port,
@@ -67,5 +69,10 @@ int mv88e6095_port_egress_rate_limiting(struct mv88e6xxx_chip *chip, int port);
 int mv88e6097_port_egress_rate_limiting(struct mv88e6xxx_chip *chip, int port);
 int mv88e6097_port_pause_config(struct mv88e6xxx_chip *chip, int port);
 int mv88e6390_port_pause_config(struct mv88e6xxx_chip *chip, int port);
-
+int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
+			      phy_interface_t mode);
+int mv88e6xxx_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode);
+int mv88e6xxx_port_set_map_da(struct mv88e6xxx_chip *chip, int port);
+int mv88e6095_port_set_upstream_port(struct mv88e6xxx_chip *chip, int port,
+				     int upstream_port);
 #endif /* _MV88E6XXX_PORT_H */

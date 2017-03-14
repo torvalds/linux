@@ -147,7 +147,7 @@
 
 # ifndef __ASSEMBLY__
 
-#include <linux/sched.h>	/* for mm_struct */
+#include <linux/sched/mm.h>	/* for mm_struct */
 #include <linux/bitops.h>
 #include <asm/cacheflush.h>
 #include <asm/mmu_context.h>

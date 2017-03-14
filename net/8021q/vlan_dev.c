@@ -671,7 +671,8 @@ static int vlan_ethtool_get_ts_info(struct net_device *dev,
 	return 0;
 }
 
-static struct rtnl_link_stats64 *vlan_dev_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
+static void vlan_dev_get_stats64(struct net_device *dev,
+				 struct rtnl_link_stats64 *stats)
 {
 	struct vlan_pcpu_stats *p;
 	u32 rx_errors = 0, tx_dropped = 0;
@@ -702,8 +703,6 @@ static struct rtnl_link_stats64 *vlan_dev_get_stats64(struct net_device *dev, st
 	}
 	stats->rx_errors  = rx_errors;
 	stats->tx_dropped = tx_dropped;
-
-	return stats;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -792,8 +791,6 @@ static const struct net_device_ops vlan_netdev_ops = {
 	.ndo_netpoll_cleanup	= vlan_dev_netpoll_cleanup,
 #endif
 	.ndo_fix_features	= vlan_dev_fix_features,
-	.ndo_neigh_construct	= netdev_default_l2upper_neigh_construct,
-	.ndo_neigh_destroy	= netdev_default_l2upper_neigh_destroy,
 	.ndo_fdb_add		= switchdev_port_fdb_add,
 	.ndo_fdb_del		= switchdev_port_fdb_del,
 	.ndo_fdb_dump		= switchdev_port_fdb_dump,

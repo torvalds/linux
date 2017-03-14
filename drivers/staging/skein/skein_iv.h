@@ -4,18 +4,18 @@
 #include "skein_base.h"    /* get Skein macros and types */
 
 /*
-***************** Pre-computed Skein IVs *******************
-**
-** NOTE: these values are not "magic" constants, but
-** are generated using the Threefish block function.
-** They are pre-computed here only for speed; i.e., to
-** avoid the need for a Threefish call during Init().
-**
-** The IV for any fixed hash length may be pre-computed.
-** Only the most common values are included here.
-**
-************************************************************
-**/
+ **************** Pre-computed Skein IVs *******************
+ *
+ * NOTE: these values are not "magic" constants, but
+ * are generated using the Threefish block function.
+ * They are pre-computed here only for speed; i.e., to
+ * avoid the need for a Threefish call during Init().
+ *
+ * The IV for any fixed hash length may be pre-computed.
+ * Only the most common values are included here.
+ *
+ ***********************************************************
+ */
 
 #define MK_64 SKEIN_MK_64
 

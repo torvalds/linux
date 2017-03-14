@@ -94,6 +94,7 @@ int cl_setattr_ost(struct cl_object *obj, const struct iattr *attr,
 
 	io = vvp_env_thread_io(env);
 	io->ci_obj = obj;
+	io->ci_verify_layout = 1;
 
 	io->u.ci_setattr.sa_attr.lvb_atime = LTIME_S(attr->ia_atime);
 	io->u.ci_setattr.sa_attr.lvb_mtime = LTIME_S(attr->ia_mtime);
@@ -120,13 +121,7 @@ again:
 	cl_io_fini(env, io);
 	if (unlikely(io->ci_need_restart))
 		goto again;
-	/* HSM import case: file is released, cannot be restored
-	 * no need to fail except if restore registration failed
-	 * with -ENODATA
-	 */
-	if (result == -ENODATA && io->ci_restore_needed &&
-	    io->ci_result != -ENODATA)
-		result = 0;
+
 	cl_env_put(env, &refcheck);
 	return result;
 }

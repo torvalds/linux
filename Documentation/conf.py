@@ -34,7 +34,7 @@ from load_config import loadConfig
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['kerneldoc', 'rstFlatTable', 'kernel_include', 'cdomain']
+extensions = ['kerneldoc', 'rstFlatTable', 'kernel_include', 'cdomain', 'kfigure']
 
 # The name of the math extension changed on Sphinx 1.4
 if major == 1 and minor > 3:
@@ -58,7 +58,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'The Linux Kernel'
-copyright = '2016, The kernel development community'
+copyright = 'The kernel development community'
 author = 'The kernel development community'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -135,7 +135,7 @@ pygments_style = 'sphinx'
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
 
-primary_domain = 'C'
+primary_domain = 'c'
 highlight_language = 'none'
 
 # -- Options for HTML output ----------------------------------------------

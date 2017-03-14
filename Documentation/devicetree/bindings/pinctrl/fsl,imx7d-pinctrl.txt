@@ -19,7 +19,7 @@ iomuxc: iomuxc@30330000 {
 	reg = <0x30330000 0x10000>;
 };
 
-Pheriparials using pads from iomuxc-lpsr support low state retention power
+Peripherals using pads from iomuxc-lpsr support low state retention power
 state, under LPSR mode GPIO's state of pads are retain.
 
 Please refer to fsl,imx-pinctrl.txt in this directory for common binding part

@@ -23,20 +23,24 @@
 #include <linux/hrtimer.h>
 #include <linux/workqueue.h>
 
-struct arch_timer_kvm {
+struct arch_timer_context {
+	/* Registers: control register, timer value */
+	u32				cnt_ctl;
+	u64				cnt_cval;
+
+	/* Timer IRQ */
+	struct kvm_irq_level		irq;
+
+	/* Active IRQ state caching */
+	bool				active_cleared_last;
+
 	/* Virtual offset */
 	u64			cntvoff;
 };
 
 struct arch_timer_cpu {
-	/* Registers: control register, timer value */
-	u32				cntv_ctl;	/* Saved/restored */
-	u64				cntv_cval;	/* Saved/restored */
-
-	/*
-	 * Anything that is not used directly from assembly code goes
-	 * here.
-	 */
+	struct arch_timer_context	vtimer;
+	struct arch_timer_context	ptimer;
 
 	/* Background timer used when the guest is not running */
 	struct hrtimer			timer;
@@ -47,21 +51,15 @@ struct arch_timer_cpu {
 	/* Background timer active */
 	bool				armed;
 
-	/* Timer IRQ */
-	struct kvm_irq_level		irq;
-
-	/* Active IRQ state caching */
-	bool				active_cleared_last;
-
 	/* Is the timer enabled */
 	bool			enabled;
 };
 
 int kvm_timer_hyp_init(void);
 int kvm_timer_enable(struct kvm_vcpu *vcpu);
-void kvm_timer_init(struct kvm *kvm);
 int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu,
-			 const struct kvm_irq_level *irq);
+			 const struct kvm_irq_level *virt_irq,
+			 const struct kvm_irq_level *phys_irq);
 void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu);
 void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu);
 void kvm_timer_sync_hwstate(struct kvm_vcpu *vcpu);
@@ -70,11 +68,16 @@ void kvm_timer_vcpu_terminate(struct kvm_vcpu *vcpu);
 u64 kvm_arm_timer_get_reg(struct kvm_vcpu *, u64 regid);
 int kvm_arm_timer_set_reg(struct kvm_vcpu *, u64 regid, u64 value);
 
-bool kvm_timer_should_fire(struct kvm_vcpu *vcpu);
+bool kvm_timer_should_fire(struct arch_timer_context *timer_ctx);
 void kvm_timer_schedule(struct kvm_vcpu *vcpu);
 void kvm_timer_unschedule(struct kvm_vcpu *vcpu);
+
+u64 kvm_phys_timer_read(void);
 
 void kvm_timer_vcpu_put(struct kvm_vcpu *vcpu);
 
 void kvm_timer_init_vhe(void);
+
+#define vcpu_vtimer(v)	(&(v)->arch.timer_cpu.vtimer)
+#define vcpu_ptimer(v)	(&(v)->arch.timer_cpu.ptimer)
 #endif

@@ -249,7 +249,7 @@ static int palmz72_pm_suspend(void)
 	store_ptr = *PALMZ72_SAVE_DWORD;
 
 	/* Setting PSPR to a proper value */
-	PSPR = virt_to_phys(&palmz72_resume_info);
+	PSPR = __pa_symbol(&palmz72_resume_info);
 
 	return 0;
 }

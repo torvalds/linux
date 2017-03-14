@@ -631,22 +631,22 @@ enum ena_admin_flow_hash_proto {
 /* RSS flow hash fields */
 enum ena_admin_flow_hash_fields {
 	/* Ethernet Dest Addr */
-	ENA_ADMIN_RSS_L2_DA	= 0,
+	ENA_ADMIN_RSS_L2_DA	= BIT(0),
 
 	/* Ethernet Src Addr */
-	ENA_ADMIN_RSS_L2_SA	= 1,
+	ENA_ADMIN_RSS_L2_SA	= BIT(1),
 
 	/* ipv4/6 Dest Addr */
-	ENA_ADMIN_RSS_L3_DA	= 2,
+	ENA_ADMIN_RSS_L3_DA	= BIT(2),
 
 	/* ipv4/6 Src Addr */
-	ENA_ADMIN_RSS_L3_SA	= 5,
+	ENA_ADMIN_RSS_L3_SA	= BIT(3),
 
 	/* tcp/udp Dest Port */
-	ENA_ADMIN_RSS_L4_DP	= 6,
+	ENA_ADMIN_RSS_L4_DP	= BIT(4),
 
 	/* tcp/udp Src Port */
-	ENA_ADMIN_RSS_L4_SP	= 7,
+	ENA_ADMIN_RSS_L4_SP	= BIT(5),
 };
 
 struct ena_admin_proto_input {
@@ -871,6 +871,14 @@ struct ena_admin_aenq_link_change_desc {
 
 	/* 0 : link_status */
 	u32 flags;
+};
+
+struct ena_admin_aenq_keep_alive_desc {
+	struct ena_admin_aenq_common_desc aenq_common_desc;
+
+	u32 rx_drops_low;
+
+	u32 rx_drops_high;
 };
 
 struct ena_admin_ena_mmio_req_read_less_resp {

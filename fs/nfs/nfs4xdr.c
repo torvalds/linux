@@ -169,8 +169,10 @@ static int nfs4_stat_to_errno(int);
 				open_owner_id_maxsz + \
 				encode_opentype_maxsz + \
 				encode_claim_null_maxsz)
+#define decode_space_limit_maxsz	(3)
 #define decode_ace_maxsz	(3 + nfs4_owner_maxsz)
 #define decode_delegation_maxsz	(1 + decode_stateid_maxsz + 1 + \
+				decode_space_limit_maxsz + \
 				decode_ace_maxsz)
 #define decode_change_info_maxsz	(5)
 #define decode_open_maxsz	(op_decode_hdr_maxsz + \
@@ -924,34 +926,22 @@ static __be32 *reserve_space(struct xdr_stream *xdr, size_t nbytes)
 
 static void encode_opaque_fixed(struct xdr_stream *xdr, const void *buf, size_t len)
 {
-	__be32 *p;
-
-	p = xdr_reserve_space(xdr, len);
-	xdr_encode_opaque_fixed(p, buf, len);
+	WARN_ON_ONCE(xdr_stream_encode_opaque_fixed(xdr, buf, len) < 0);
 }
 
 static void encode_string(struct xdr_stream *xdr, unsigned int len, const char *str)
 {
-	__be32 *p;
-
-	p = reserve_space(xdr, 4 + len);
-	xdr_encode_opaque(p, str, len);
+	WARN_ON_ONCE(xdr_stream_encode_opaque(xdr, str, len) < 0);
 }
 
 static void encode_uint32(struct xdr_stream *xdr, u32 n)
 {
-	__be32 *p;
-
-	p = reserve_space(xdr, 4);
-	*p = cpu_to_be32(n);
+	WARN_ON_ONCE(xdr_stream_encode_u32(xdr, n) < 0);
 }
 
 static void encode_uint64(struct xdr_stream *xdr, u64 n)
 {
-	__be32 *p;
-
-	p = reserve_space(xdr, 8);
-	xdr_encode_hyper(p, n);
+	WARN_ON_ONCE(xdr_stream_encode_u64(xdr, n) < 0);
 }
 
 static void encode_nfs4_seqid(struct xdr_stream *xdr,
@@ -2524,7 +2514,7 @@ static void nfs4_xdr_enc_getacl(struct rpc_rqst *req, struct xdr_stream *xdr,
 	encode_compound_hdr(xdr, req, &hdr);
 	encode_sequence(xdr, &args->seq_args, &hdr);
 	encode_putfh(xdr, args->fh, &hdr);
-	replen = hdr.replen + op_decode_hdr_maxsz + 1;
+	replen = hdr.replen + op_decode_hdr_maxsz;
 	encode_getattr_two(xdr, FATTR4_WORD0_ACL, 0, &hdr);
 
 	xdr_inline_pages(&req->rq_rcv_buf, replen << 2,
@@ -3062,20 +3052,15 @@ static void print_overflow_msg(const char *func, const struct xdr_stream *xdr)
 
 static int decode_opaque_inline(struct xdr_stream *xdr, unsigned int *len, char **string)
 {
-	__be32 *p;
-
-	p = xdr_inline_decode(xdr, 4);
-	if (unlikely(!p))
-		goto out_overflow;
-	*len = be32_to_cpup(p);
-	p = xdr_inline_decode(xdr, *len);
-	if (unlikely(!p))
-		goto out_overflow;
-	*string = (char *)p;
+	ssize_t ret = xdr_stream_decode_opaque_inline(xdr, (void **)string,
+			NFS4_OPAQUE_LIMIT);
+	if (unlikely(ret < 0)) {
+		if (ret == -EBADMSG)
+			print_overflow_msg(__func__, xdr);
+		return -EIO;
+	}
+	*len = ret;
 	return 0;
-out_overflow:
-	print_overflow_msg(__func__, xdr);
-	return -EIO;
 }
 
 static int decode_compound_hdr(struct xdr_stream *xdr, struct compound_hdr *hdr)
@@ -3142,7 +3127,7 @@ static int decode_op_hdr(struct xdr_stream *xdr, enum nfs_opnum4 expected)
 }
 
 /* Dummy routine */
-static int decode_ace(struct xdr_stream *xdr, void *ace, struct nfs_client *clp)
+static int decode_ace(struct xdr_stream *xdr, void *ace)
 {
 	__be32 *p;
 	unsigned int strlen;
@@ -3890,45 +3875,50 @@ out_overflow:
 	return -EIO;
 }
 
+static ssize_t decode_nfs4_string(struct xdr_stream *xdr,
+		struct nfs4_string *name, gfp_t gfp_flags)
+{
+	ssize_t ret;
+
+	ret = xdr_stream_decode_string_dup(xdr, &name->data,
+			XDR_MAX_NETOBJ, gfp_flags);
+	name->len = 0;
+	if (ret > 0)
+		name->len = ret;
+	return ret;
+}
+
 static int decode_attr_owner(struct xdr_stream *xdr, uint32_t *bitmap,
 		const struct nfs_server *server, kuid_t *uid,
 		struct nfs4_string *owner_name)
 {
-	uint32_t len;
-	__be32 *p;
-	int ret = 0;
+	ssize_t len;
+	char *p;
 
 	*uid = make_kuid(&init_user_ns, -2);
 	if (unlikely(bitmap[1] & (FATTR4_WORD1_OWNER - 1U)))
 		return -EIO;
-	if (likely(bitmap[1] & FATTR4_WORD1_OWNER)) {
-		p = xdr_inline_decode(xdr, 4);
-		if (unlikely(!p))
-			goto out_overflow;
-		len = be32_to_cpup(p);
-		p = xdr_inline_decode(xdr, len);
-		if (unlikely(!p))
-			goto out_overflow;
-		if (owner_name != NULL) {
-			owner_name->data = kmemdup(p, len, GFP_NOWAIT);
-			if (owner_name->data != NULL) {
-				owner_name->len = len;
-				ret = NFS_ATTR_FATTR_OWNER_NAME;
-			}
-		} else if (len < XDR_MAX_NETOBJ) {
-			if (nfs_map_name_to_uid(server, (char *)p, len, uid) == 0)
-				ret = NFS_ATTR_FATTR_OWNER;
-			else
-				dprintk("%s: nfs_map_name_to_uid failed!\n",
-						__func__);
-		} else
-			dprintk("%s: name too long (%u)!\n",
-					__func__, len);
-		bitmap[1] &= ~FATTR4_WORD1_OWNER;
+	if (!(bitmap[1] & FATTR4_WORD1_OWNER))
+		return 0;
+	bitmap[1] &= ~FATTR4_WORD1_OWNER;
+
+	if (owner_name != NULL) {
+		len = decode_nfs4_string(xdr, owner_name, GFP_NOWAIT);
+		if (len <= 0)
+			goto out;
+		dprintk("%s: name=%s\n", __func__, owner_name->data);
+		return NFS_ATTR_FATTR_OWNER_NAME;
+	} else {
+		len = xdr_stream_decode_opaque_inline(xdr, (void **)&p,
+				XDR_MAX_NETOBJ);
+		if (len <= 0 || nfs_map_name_to_uid(server, p, len, uid) != 0)
+			goto out;
+		dprintk("%s: uid=%d\n", __func__, (int)from_kuid(&init_user_ns, *uid));
+		return NFS_ATTR_FATTR_OWNER;
 	}
-	dprintk("%s: uid=%d\n", __func__, (int)from_kuid(&init_user_ns, *uid));
-	return ret;
-out_overflow:
+out:
+	if (len != -EBADMSG)
+		return 0;
 	print_overflow_msg(__func__, xdr);
 	return -EIO;
 }
@@ -3937,41 +3927,33 @@ static int decode_attr_group(struct xdr_stream *xdr, uint32_t *bitmap,
 		const struct nfs_server *server, kgid_t *gid,
 		struct nfs4_string *group_name)
 {
-	uint32_t len;
-	__be32 *p;
-	int ret = 0;
+	ssize_t len;
+	char *p;
 
 	*gid = make_kgid(&init_user_ns, -2);
 	if (unlikely(bitmap[1] & (FATTR4_WORD1_OWNER_GROUP - 1U)))
 		return -EIO;
-	if (likely(bitmap[1] & FATTR4_WORD1_OWNER_GROUP)) {
-		p = xdr_inline_decode(xdr, 4);
-		if (unlikely(!p))
-			goto out_overflow;
-		len = be32_to_cpup(p);
-		p = xdr_inline_decode(xdr, len);
-		if (unlikely(!p))
-			goto out_overflow;
-		if (group_name != NULL) {
-			group_name->data = kmemdup(p, len, GFP_NOWAIT);
-			if (group_name->data != NULL) {
-				group_name->len = len;
-				ret = NFS_ATTR_FATTR_GROUP_NAME;
-			}
-		} else if (len < XDR_MAX_NETOBJ) {
-			if (nfs_map_group_to_gid(server, (char *)p, len, gid) == 0)
-				ret = NFS_ATTR_FATTR_GROUP;
-			else
-				dprintk("%s: nfs_map_group_to_gid failed!\n",
-						__func__);
-		} else
-			dprintk("%s: name too long (%u)!\n",
-					__func__, len);
-		bitmap[1] &= ~FATTR4_WORD1_OWNER_GROUP;
+	if (!(bitmap[1] & FATTR4_WORD1_OWNER_GROUP))
+		return 0;
+	bitmap[1] &= ~FATTR4_WORD1_OWNER_GROUP;
+
+	if (group_name != NULL) {
+		len = decode_nfs4_string(xdr, group_name, GFP_NOWAIT);
+		if (len <= 0)
+			goto out;
+		dprintk("%s: name=%s\n", __func__, group_name->data);
+		return NFS_ATTR_FATTR_OWNER_NAME;
+	} else {
+		len = xdr_stream_decode_opaque_inline(xdr, (void **)&p,
+				XDR_MAX_NETOBJ);
+		if (len <= 0 || nfs_map_group_to_gid(server, p, len, gid) != 0)
+			goto out;
+		dprintk("%s: gid=%d\n", __func__, (int)from_kgid(&init_user_ns, *gid));
+		return NFS_ATTR_FATTR_GROUP;
 	}
-	dprintk("%s: gid=%d\n", __func__, (int)from_kgid(&init_user_ns, *gid));
-	return ret;
-out_overflow:
+out:
+	if (len != -EBADMSG)
+		return 0;
 	print_overflow_msg(__func__, xdr);
 	return -EIO;
 }
@@ -4294,15 +4276,12 @@ out_overflow:
 
 static int decode_opaque_fixed(struct xdr_stream *xdr, void *buf, size_t len)
 {
-	__be32 *p;
-
-	p = xdr_inline_decode(xdr, len);
-	if (likely(p)) {
-		memcpy(buf, p, len);
-		return 0;
+	ssize_t ret = xdr_stream_decode_opaque_fixed(xdr, buf, len);
+	if (unlikely(ret < 0)) {
+		print_overflow_msg(__func__, xdr);
+		return -EIO;
 	}
-	print_overflow_msg(__func__, xdr);
-	return -EIO;
+	return 0;
 }
 
 static int decode_stateid(struct xdr_stream *xdr, nfs4_stateid *stateid)
@@ -5093,7 +5072,7 @@ static int decode_rw_delegation(struct xdr_stream *xdr,
 		if (decode_space_limit(xdr, &res->pagemod_limit) < 0)
 				return -EIO;
 	}
-	return decode_ace(xdr, NULL, res->server->nfs_client);
+	return decode_ace(xdr, NULL);
 out_overflow:
 	print_overflow_msg(__func__, xdr);
 	return -EIO;
@@ -5660,8 +5639,6 @@ static int decode_exchange_id(struct xdr_stream *xdr,
 	status = decode_opaque_inline(xdr, &dummy, &dummy_str);
 	if (unlikely(status))
 		return status;
-	if (unlikely(dummy > NFS4_OPAQUE_LIMIT))
-		return -EIO;
 	memcpy(res->server_owner->major_id, dummy_str, dummy);
 	res->server_owner->major_id_sz = dummy;
 
@@ -5669,8 +5646,6 @@ static int decode_exchange_id(struct xdr_stream *xdr,
 	status = decode_opaque_inline(xdr, &dummy, &dummy_str);
 	if (unlikely(status))
 		return status;
-	if (unlikely(dummy > NFS4_OPAQUE_LIMIT))
-		return -EIO;
 	memcpy(res->server_scope->server_scope, dummy_str, dummy);
 	res->server_scope->server_scope_sz = dummy;
 
@@ -5685,16 +5660,12 @@ static int decode_exchange_id(struct xdr_stream *xdr,
 		status = decode_opaque_inline(xdr, &dummy, &dummy_str);
 		if (unlikely(status))
 			return status;
-		if (unlikely(dummy > NFS4_OPAQUE_LIMIT))
-			return -EIO;
 		memcpy(res->impl_id->domain, dummy_str, dummy);
 
 		/* nii_name */
 		status = decode_opaque_inline(xdr, &dummy, &dummy_str);
 		if (unlikely(status))
 			return status;
-		if (unlikely(dummy > NFS4_OPAQUE_LIMIT))
-			return -EIO;
 		memcpy(res->impl_id->name, dummy_str, dummy);
 
 		/* nii_date */

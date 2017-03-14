@@ -291,7 +291,7 @@ objlayout_read_pagelist(struct nfs_pgio_header *hdr)
 			      &hdr->args.pgbase,
 			      hdr->args.offset, hdr->args.count);
 
-	dprintk("%s: inode(%lx) offset 0x%llx count 0x%Zx eof=%d\n",
+	dprintk("%s: inode(%lx) offset 0x%llx count 0x%zx eof=%d\n",
 		__func__, inode->i_ino, offset, count, hdr->res.eof);
 
 	err = objio_read_pagelist(hdr);

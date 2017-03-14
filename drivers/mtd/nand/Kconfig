@@ -426,6 +426,7 @@ config MTD_NAND_ORION
 
 config MTD_NAND_OXNAS
 	tristate "NAND Flash support for Oxford Semiconductor SoC"
+	depends on ARCH_OXNAS || COMPILE_TEST
 	depends on HAS_IOMEM
 	help
 	  This enables the NAND flash controller on Oxford Semiconductor SoCs.
@@ -535,6 +536,7 @@ config MTD_NAND_JZ4780
 
 config MTD_NAND_FSMC
 	tristate "Support for NAND on ST Micros FSMC"
+	depends on OF
 	depends on PLAT_SPEAR || ARCH_NOMADIK || ARCH_U8500 || MACH_U300
 	help
 	  Enables support for NAND Flash chips on the ST Microelectronics

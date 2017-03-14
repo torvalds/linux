@@ -5,6 +5,7 @@
  * (C) Copyright 2013-2014 O2S GmbH <www.o2s.ch>
  * (C) Copyright 2013-2014 David Lanzend�rfer <david.lanzendoerfer@o2s.ch>
  * (C) Copyright 2013-2014 Hans de Goede <hdegoede@redhat.com>
+ * (C) Copyright 2017 Sootech SA
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -101,6 +102,7 @@
 	(SDXC_SOFT_RESET | SDXC_FIFO_RESET | SDXC_DMA_RESET)
 
 /* clock control bits */
+#define SDXC_MASK_DATA0			BIT(31)
 #define SDXC_CARD_CLOCK_ON		BIT(16)
 #define SDXC_LOW_POWER_ON		BIT(17)
 
@@ -253,6 +255,11 @@ struct sunxi_mmc_cfg {
 
 	/* does the IP block support autocalibration? */
 	bool can_calibrate;
+
+	/* Does DATA0 needs to be masked while the clock is updated */
+	bool mask_data0;
+
+	bool needs_new_timings;
 };
 
 struct sunxi_mmc_host {
@@ -654,11 +661,16 @@ static int sunxi_mmc_oclk_onoff(struct sunxi_mmc_host *host, u32 oclk_en)
 	unsigned long expire = jiffies + msecs_to_jiffies(750);
 	u32 rval;
 
+	dev_dbg(mmc_dev(host->mmc), "%sabling the clock\n",
+		oclk_en ? "en" : "dis");
+
 	rval = mmc_readl(host, REG_CLKCR);
-	rval &= ~(SDXC_CARD_CLOCK_ON | SDXC_LOW_POWER_ON);
+	rval &= ~(SDXC_CARD_CLOCK_ON | SDXC_LOW_POWER_ON | SDXC_MASK_DATA0);
 
 	if (oclk_en)
 		rval |= SDXC_CARD_CLOCK_ON;
+	if (host->cfg->mask_data0)
+		rval |= SDXC_MASK_DATA0;
 
 	mmc_writel(host, REG_CLKCR, rval);
 
@@ -678,46 +690,29 @@ static int sunxi_mmc_oclk_onoff(struct sunxi_mmc_host *host, u32 oclk_en)
 		return -EIO;
 	}
 
+	if (host->cfg->mask_data0) {
+		rval = mmc_readl(host, REG_CLKCR);
+		mmc_writel(host, REG_CLKCR, rval & ~SDXC_MASK_DATA0);
+	}
+
 	return 0;
 }
 
 static int sunxi_mmc_calibrate(struct sunxi_mmc_host *host, int reg_off)
 {
-	u32 reg = readl(host->reg_base + reg_off);
-	u32 delay;
-	unsigned long timeout;
-
 	if (!host->cfg->can_calibrate)
 		return 0;
 
-	reg &= ~(SDXC_CAL_DL_MASK << SDXC_CAL_DL_SW_SHIFT);
-	reg &= ~SDXC_CAL_DL_SW_EN;
-
-	writel(reg | SDXC_CAL_START, host->reg_base + reg_off);
-
-	dev_dbg(mmc_dev(host->mmc), "calibration started\n");
-
-	timeout = jiffies + HZ * SDXC_CAL_TIMEOUT;
-
-	while (!((reg = readl(host->reg_base + reg_off)) & SDXC_CAL_DONE)) {
-		if (time_before(jiffies, timeout))
-			cpu_relax();
-		else {
-			reg &= ~SDXC_CAL_START;
-			writel(reg, host->reg_base + reg_off);
-
-			return -ETIMEDOUT;
-		}
-	}
-
-	delay = (reg >> SDXC_CAL_DL_SHIFT) & SDXC_CAL_DL_MASK;
-
-	reg &= ~SDXC_CAL_START;
-	reg |= (delay << SDXC_CAL_DL_SW_SHIFT) | SDXC_CAL_DL_SW_EN;
-
-	writel(reg, host->reg_base + reg_off);
-
-	dev_dbg(mmc_dev(host->mmc), "calibration ended, reg is 0x%x\n", reg);
+	/*
+	 * FIXME:
+	 * This is not clear how the calibration is supposed to work
+	 * yet. The best rate have been obtained by simply setting the
+	 * delay to 0, as Allwinner does in its BSP.
+	 *
+	 * The only mode that doesn't have such a delay is HS400, that
+	 * is in itself a TODO.
+	 */
+	writel(SDXC_CAL_DL_SW_EN, host->reg_base + reg_off);
 
 	return 0;
 }
@@ -745,6 +740,7 @@ static int sunxi_mmc_clk_set_phase(struct sunxi_mmc_host *host,
 			index = SDXC_CLK_50M_DDR;
 		}
 	} else {
+		dev_dbg(mmc_dev(host->mmc), "Invalid clock... returning\n");
 		return -EINVAL;
 	}
 
@@ -757,9 +753,20 @@ static int sunxi_mmc_clk_set_phase(struct sunxi_mmc_host *host,
 static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 				  struct mmc_ios *ios)
 {
+	struct mmc_host *mmc = host->mmc;
 	long rate;
 	u32 rval, clock = ios->clock;
 	int ret;
+
+	ret = sunxi_mmc_oclk_onoff(host, 0);
+	if (ret)
+		return ret;
+
+	/* Our clock is gated now */
+	mmc->actual_clock = 0;
+
+	if (!ios->clock)
+		return 0;
 
 	/* 8 bit DDR requires a higher module clock */
 	if (ios->timing == MMC_TIMING_MMC_DDR52 &&
@@ -768,24 +775,20 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 
 	rate = clk_round_rate(host->clk_mmc, clock);
 	if (rate < 0) {
-		dev_err(mmc_dev(host->mmc), "error rounding clk to %d: %ld\n",
+		dev_err(mmc_dev(mmc), "error rounding clk to %d: %ld\n",
 			clock, rate);
 		return rate;
 	}
-	dev_dbg(mmc_dev(host->mmc), "setting clk to %d, rounded %ld\n",
+	dev_dbg(mmc_dev(mmc), "setting clk to %d, rounded %ld\n",
 		clock, rate);
 
 	/* setting clock rate */
 	ret = clk_set_rate(host->clk_mmc, rate);
 	if (ret) {
-		dev_err(mmc_dev(host->mmc), "error setting clk to %ld: %d\n",
+		dev_err(mmc_dev(mmc), "error setting clk to %ld: %d\n",
 			rate, ret);
 		return ret;
 	}
-
-	ret = sunxi_mmc_oclk_onoff(host, 0);
-	if (ret)
-		return ret;
 
 	/* clear internal divider */
 	rval = mmc_readl(host, REG_CLKCR);
@@ -798,6 +801,9 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 	}
 	mmc_writel(host, REG_CLKCR, rval);
 
+	if (host->cfg->needs_new_timings)
+		mmc_writel(host, REG_SD_NTSR, SDXC_2X_TIMING_MODE);
+
 	ret = sunxi_mmc_clk_set_phase(host, ios, rate);
 	if (ret)
 		return ret;
@@ -806,9 +812,22 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 	if (ret)
 		return ret;
 
-	/* TODO: enable calibrate on sdc2 SDXC_REG_DS_DL_REG of A64 */
+	/*
+	 * FIXME:
+	 *
+	 * In HS400 we'll also need to calibrate the data strobe
+	 * signal. This should only happen on the MMC2 controller (at
+	 * least on the A64).
+	 */
 
-	return sunxi_mmc_oclk_onoff(host, 1);
+	ret = sunxi_mmc_oclk_onoff(host, 1);
+	if (ret)
+		return ret;
+
+	/* And we just enabled our clock back */
+	mmc->actual_clock = rate;
+
+	return 0;
 }
 
 static void sunxi_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
@@ -882,7 +901,7 @@ static void sunxi_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	mmc_writel(host, REG_GCTRL, rval);
 
 	/* set up clock */
-	if (ios->clock && ios->power_mode) {
+	if (ios->power_mode) {
 		host->ferror = sunxi_mmc_clk_set_rate(host, ios);
 		/* Android code had a usleep_range(50000, 55000); here */
 	}
@@ -1089,6 +1108,14 @@ static const struct sunxi_mmc_cfg sun50i_a64_cfg = {
 	.idma_des_size_bits = 16,
 	.clk_delays = NULL,
 	.can_calibrate = true,
+	.mask_data0 = true,
+	.needs_new_timings = true,
+};
+
+static const struct sunxi_mmc_cfg sun50i_a64_emmc_cfg = {
+	.idma_des_size_bits = 13,
+	.clk_delays = NULL,
+	.can_calibrate = true,
 };
 
 static const struct of_device_id sunxi_mmc_of_match[] = {
@@ -1097,6 +1124,7 @@ static const struct of_device_id sunxi_mmc_of_match[] = {
 	{ .compatible = "allwinner,sun7i-a20-mmc", .data = &sun7i_a20_cfg },
 	{ .compatible = "allwinner,sun9i-a80-mmc", .data = &sun9i_a80_cfg },
 	{ .compatible = "allwinner,sun50i-a64-mmc", .data = &sun50i_a64_cfg },
+	{ .compatible = "allwinner,sun50i-a64-emmc", .data = &sun50i_a64_emmc_cfg },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, sunxi_mmc_of_match);

@@ -25,9 +25,6 @@
 #include <asm/cpu-features.h>
 #include <asm/kmap_types.h>
 
-/* undef for production */
-#define HIGHMEM_DEBUG 1
-
 /* declarations for highmem.c */
 extern unsigned long highstart_pfn, highend_pfn;
 

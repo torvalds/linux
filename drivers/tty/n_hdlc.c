@@ -667,7 +667,7 @@ static ssize_t n_hdlc_tty_write(struct tty_struct *tty, struct file *file,
 	struct n_hdlc_buf *tbuf;
 
 	if (debuglevel >= DEBUG_LEVEL_INFO)	
-		printk("%s(%d)n_hdlc_tty_write() called count=%Zd\n",
+		printk("%s(%d)n_hdlc_tty_write() called count=%zd\n",
 			__FILE__,__LINE__,count);
 		
 	/* Verify pointers */

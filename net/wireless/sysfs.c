@@ -39,9 +39,11 @@ SHOW_FMT(address_mask, "%pM", wiphy.addr_mask);
 
 static ssize_t name_show(struct device *dev,
 			 struct device_attribute *attr,
-			 char *buf) {
+			 char *buf)
+{
 	struct wiphy *wiphy = &dev_to_rdev(dev)->wiphy;
-	return sprintf(buf, "%s\n", dev_name(&wiphy->dev));
+
+	return sprintf(buf, "%s\n", wiphy_name(wiphy));
 }
 static DEVICE_ATTR_RO(name);
 

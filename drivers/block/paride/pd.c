@@ -439,18 +439,16 @@ static int pd_retries = 0;	/* i/o error retry count */
 static int pd_block;		/* address of next requested block */
 static int pd_count;		/* number of blocks still to do */
 static int pd_run;		/* sectors in current cluster */
-static int pd_cmd;		/* current command READ/WRITE */
 static char *pd_buf;		/* buffer for request in progress */
 
 static enum action do_pd_io_start(void)
 {
-	if (pd_req->cmd_type == REQ_TYPE_DRV_PRIV) {
+	switch (req_op(pd_req)) {
+	case REQ_OP_DRV_IN:
 		phase = pd_special;
 		return pd_special();
-	}
-
-	pd_cmd = rq_data_dir(pd_req);
-	if (pd_cmd == READ || pd_cmd == WRITE) {
+	case REQ_OP_READ:
+	case REQ_OP_WRITE:
 		pd_block = blk_rq_pos(pd_req);
 		pd_count = blk_rq_cur_sectors(pd_req);
 		if (pd_block + pd_count > get_capacity(pd_req->rq_disk))
@@ -458,7 +456,7 @@ static enum action do_pd_io_start(void)
 		pd_run = blk_rq_sectors(pd_req);
 		pd_buf = bio_data(pd_req->bio);
 		pd_retries = 0;
-		if (pd_cmd == READ)
+		if (req_op(pd_req) == REQ_OP_READ)
 			return do_pd_read_start();
 		else
 			return do_pd_write_start();
@@ -723,11 +721,10 @@ static int pd_special_command(struct pd_unit *disk,
 	struct request *rq;
 	int err = 0;
 
-	rq = blk_get_request(disk->gd->queue, READ, __GFP_RECLAIM);
+	rq = blk_get_request(disk->gd->queue, REQ_OP_DRV_IN, __GFP_RECLAIM);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 
-	rq->cmd_type = REQ_TYPE_DRV_PRIV;
 	rq->special = func;
 
 	err = blk_execute_rq(disk->gd->queue, disk->gd, rq, 0);

@@ -80,11 +80,17 @@ static unsigned long ccu_nm_recalc_rate(struct clk_hw *hw,
 
 	n = reg >> nm->n.shift;
 	n &= (1 << nm->n.width) - 1;
+	n += nm->n.offset;
+	if (!n)
+		n++;
 
 	m = reg >> nm->m.shift;
 	m &= (1 << nm->m.width) - 1;
+	m += nm->m.offset;
+	if (!m)
+		m++;
 
-	return parent_rate * (n + 1) / (m + 1);
+	return parent_rate * n / m;
 }
 
 static long ccu_nm_round_rate(struct clk_hw *hw, unsigned long rate,
@@ -94,7 +100,7 @@ static long ccu_nm_round_rate(struct clk_hw *hw, unsigned long rate,
 	struct _ccu_nm _nm;
 
 	_nm.min_n = nm->n.min;
-	_nm.max_n = 1 << nm->n.width;
+	_nm.max_n = nm->n.max ?: 1 << nm->n.width;
 	_nm.min_m = 1;
 	_nm.max_m = nm->m.max ?: 1 << nm->m.width;
 
@@ -117,7 +123,7 @@ static int ccu_nm_set_rate(struct clk_hw *hw, unsigned long rate,
 		ccu_frac_helper_disable(&nm->common, &nm->frac);
 
 	_nm.min_n = 1;
-	_nm.max_n = 1 << nm->n.width;
+	_nm.max_n = nm->n.max ?: 1 << nm->n.width;
 	_nm.min_m = 1;
 	_nm.max_m = nm->m.max ?: 1 << nm->m.width;
 
@@ -129,8 +135,9 @@ static int ccu_nm_set_rate(struct clk_hw *hw, unsigned long rate,
 	reg &= ~GENMASK(nm->n.width + nm->n.shift - 1, nm->n.shift);
 	reg &= ~GENMASK(nm->m.width + nm->m.shift - 1, nm->m.shift);
 
-	writel(reg | ((_nm.m - 1) << nm->m.shift) | ((_nm.n - 1) << nm->n.shift),
-	       nm->common.base + nm->common.reg);
+	reg |= (_nm.n - nm->n.offset) << nm->n.shift;
+	reg |= (_nm.m - nm->m.offset) << nm->m.shift;
+	writel(reg, nm->common.base + nm->common.reg);
 
 	spin_unlock_irqrestore(nm->common.lock, flags);
 

@@ -5,8 +5,46 @@ The cache bindings explained below are ePAPR compliant
 
 Required Properties:
 
-- compatible	: Should include "fsl,chip-l2-cache-controller" and "cache"
-		  where chip is the processor (bsc9132, npc8572 etc.)
+- compatible	: Should include one of the following:
+		  "fsl,8540-l2-cache-controller"
+		  "fsl,8541-l2-cache-controller"
+		  "fsl,8544-l2-cache-controller"
+		  "fsl,8548-l2-cache-controller"
+		  "fsl,8555-l2-cache-controller"
+		  "fsl,8568-l2-cache-controller"
+		  "fsl,b4420-l2-cache-controller"
+		  "fsl,b4860-l2-cache-controller"
+		  "fsl,bsc9131-l2-cache-controller"
+		  "fsl,bsc9132-l2-cache-controller"
+		  "fsl,c293-l2-cache-controller"
+		  "fsl,mpc8536-l2-cache-controller"
+		  "fsl,mpc8540-l2-cache-controller"
+		  "fsl,mpc8541-l2-cache-controller"
+		  "fsl,mpc8544-l2-cache-controller"
+		  "fsl,mpc8548-l2-cache-controller"
+		  "fsl,mpc8555-l2-cache-controller"
+		  "fsl,mpc8560-l2-cache-controller"
+		  "fsl,mpc8568-l2-cache-controller"
+		  "fsl,mpc8569-l2-cache-controller"
+		  "fsl,mpc8572-l2-cache-controller"
+		  "fsl,p1010-l2-cache-controller"
+		  "fsl,p1011-l2-cache-controller"
+		  "fsl,p1012-l2-cache-controller"
+		  "fsl,p1013-l2-cache-controller"
+		  "fsl,p1014-l2-cache-controller"
+		  "fsl,p1015-l2-cache-controller"
+		  "fsl,p1016-l2-cache-controller"
+		  "fsl,p1020-l2-cache-controller"
+		  "fsl,p1021-l2-cache-controller"
+		  "fsl,p1022-l2-cache-controller"
+		  "fsl,p1023-l2-cache-controller"
+		  "fsl,p1024-l2-cache-controller"
+		  "fsl,p1025-l2-cache-controller"
+		  "fsl,p2010-l2-cache-controller"
+		  "fsl,p2020-l2-cache-controller"
+		  "fsl,t2080-l2-cache-controller"
+		  "fsl,t4240-l2-cache-controller"
+		  and "cache".
 - reg		: Address and size of L2 cache controller registers
 - cache-size	: Size of the entire L2 cache
 - interrupts	: Error interrupt of L2 controller

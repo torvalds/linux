@@ -102,7 +102,7 @@ struct rxe_type_info rxe_type_info[RXE_NUM_TYPES] = {
 	},
 };
 
-static inline char *pool_name(struct rxe_pool *pool)
+static inline const char *pool_name(struct rxe_pool *pool)
 {
 	return rxe_type_info[pool->type].name;
 }
@@ -110,13 +110,6 @@ static inline char *pool_name(struct rxe_pool *pool)
 static inline struct kmem_cache *pool_cache(struct rxe_pool *pool)
 {
 	return rxe_type_info[pool->type].cache;
-}
-
-static inline enum rxe_elem_type rxe_type(void *arg)
-{
-	struct rxe_pool_entry *elem = arg;
-
-	return elem->pool->type;
 }
 
 int rxe_cache_init(void)
@@ -273,6 +266,7 @@ static u32 alloc_index(struct rxe_pool *pool)
 	if (index >= range)
 		index = find_first_zero_bit(pool->table, range);
 
+	WARN_ON_ONCE(index >= range);
 	set_bit(index, pool->table);
 	pool->last = index;
 	return index + pool->min_index;
@@ -461,7 +455,7 @@ void *rxe_pool_get_index(struct rxe_pool *pool, u32 index)
 
 out:
 	spin_unlock_irqrestore(&pool->pool_lock, flags);
-	return node ? (void *)elem : NULL;
+	return node ? elem : NULL;
 }
 
 void *rxe_pool_get_key(struct rxe_pool *pool, void *key)
@@ -497,5 +491,5 @@ void *rxe_pool_get_key(struct rxe_pool *pool, void *key)
 
 out:
 	spin_unlock_irqrestore(&pool->pool_lock, flags);
-	return node ? ((void *)elem) : NULL;
+	return node ? elem : NULL;
 }

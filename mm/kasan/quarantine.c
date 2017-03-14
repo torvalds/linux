@@ -274,6 +274,7 @@ static void per_cpu_remove_cache(void *arg)
 	qlist_free_all(&to_free, cache);
 }
 
+/* Free all quarantined objects belonging to cache. */
 void quarantine_remove_cache(struct kmem_cache *cache)
 {
 	unsigned long flags, i;

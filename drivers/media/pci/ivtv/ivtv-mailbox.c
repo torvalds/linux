@@ -19,10 +19,10 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <stdarg.h>
-
 #include "ivtv-driver.h"
 #include "ivtv-mailbox.h"
+
+#include <stdarg.h>
 
 /* Firmware mailbox flags*/
 #define IVTV_MBOX_FIRMWARE_DONE 0x00000004

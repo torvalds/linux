@@ -278,13 +278,9 @@ static int ak8974_await_drdy(struct ak8974 *ak8974)
 		if (val & AK8974_STATUS_DRDY)
 			return 0;
 	} while (--timeout);
-	if (!timeout) {
-		dev_err(&ak8974->i2c->dev,
-			"timeout waiting for DRDY\n");
-		return -ETIMEDOUT;
-	}
 
-	return 0;
+	dev_err(&ak8974->i2c->dev, "timeout waiting for DRDY\n");
+	return -ETIMEDOUT;
 }
 
 static int ak8974_getresult(struct ak8974 *ak8974, __le16 *result)

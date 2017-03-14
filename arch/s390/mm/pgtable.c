@@ -275,6 +275,8 @@ void ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
 {
 	pgste_t pgste;
 
+	if (!MACHINE_HAS_NX)
+		pte_val(pte) &= ~_PAGE_NOEXEC;
 	if (mm_has_pgste(mm)) {
 		pgste = pgste_get(ptep);
 		pgste_set_key(ptep, pgste, pte, mm);
@@ -742,7 +744,7 @@ int reset_guest_reference_bit(struct mm_struct *mm, unsigned long addr)
 
 	pgste_set_unlock(ptep, new);
 	pte_unmap_unlock(ptep, ptl);
-	return 0;
+	return cc;
 }
 EXPORT_SYMBOL(reset_guest_reference_bit);
 

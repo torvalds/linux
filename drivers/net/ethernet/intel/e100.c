@@ -2253,7 +2253,7 @@ static int e100_poll(struct napi_struct *napi, int budget)
 
 	/* If budget not fully consumed, exit the polling mode */
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		e100_enable_irq(nic);
 	}
 
@@ -2426,19 +2426,21 @@ err_clean_rx:
 #define E100_82552_LED_ON       0x000F /* LEDTX and LED_RX both on */
 #define E100_82552_LED_OFF      0x000A /* LEDTX and LED_RX both off */
 
-static int e100_get_settings(struct net_device *netdev, struct ethtool_cmd *cmd)
+static int e100_get_link_ksettings(struct net_device *netdev,
+				   struct ethtool_link_ksettings *cmd)
 {
 	struct nic *nic = netdev_priv(netdev);
-	return mii_ethtool_gset(&nic->mii, cmd);
+	return mii_ethtool_get_link_ksettings(&nic->mii, cmd);
 }
 
-static int e100_set_settings(struct net_device *netdev, struct ethtool_cmd *cmd)
+static int e100_set_link_ksettings(struct net_device *netdev,
+				   const struct ethtool_link_ksettings *cmd)
 {
 	struct nic *nic = netdev_priv(netdev);
 	int err;
 
 	mdio_write(netdev, nic->mii.phy_id, MII_BMCR, BMCR_RESET);
-	err = mii_ethtool_sset(&nic->mii, cmd);
+	err = mii_ethtool_set_link_ksettings(&nic->mii, cmd);
 	e100_exec_cb(nic, NULL, e100_configure);
 
 	return err;
@@ -2741,8 +2743,6 @@ static void e100_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 }
 
 static const struct ethtool_ops e100_ethtool_ops = {
-	.get_settings		= e100_get_settings,
-	.set_settings		= e100_set_settings,
 	.get_drvinfo		= e100_get_drvinfo,
 	.get_regs_len		= e100_get_regs_len,
 	.get_regs		= e100_get_regs,
@@ -2763,6 +2763,8 @@ static const struct ethtool_ops e100_ethtool_ops = {
 	.get_ethtool_stats	= e100_get_ethtool_stats,
 	.get_sset_count		= e100_get_sset_count,
 	.get_ts_info		= ethtool_op_get_ts_info,
+	.get_link_ksettings	= e100_get_link_ksettings,
+	.set_link_ksettings	= e100_set_link_ksettings,
 };
 
 static int e100_do_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)

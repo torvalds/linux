@@ -44,6 +44,7 @@
 
 */
 
+#include <linux/sched/signal.h>
 #include <linux/kthread.h>
 #include <linux/blkdev.h>
 #include <linux/badblocks.h>
@@ -189,16 +190,6 @@ struct bio *bio_alloc_mddev(gfp_t gfp_mask, int nr_iovecs,
 	return b;
 }
 EXPORT_SYMBOL_GPL(bio_alloc_mddev);
-
-struct bio *bio_clone_mddev(struct bio *bio, gfp_t gfp_mask,
-			    struct mddev *mddev)
-{
-	if (!mddev || !mddev->bio_set)
-		return bio_clone(bio, gfp_mask);
-
-	return bio_clone_bioset(bio, gfp_mask, mddev->bio_set);
-}
-EXPORT_SYMBOL_GPL(bio_clone_mddev);
 
 /*
  * We have a system wide 'event count' that is incremented
@@ -5228,8 +5219,11 @@ int md_run(struct mddev *mddev)
 		sysfs_notify_dirent_safe(rdev->sysfs_state);
 	}
 
-	if (mddev->bio_set == NULL)
+	if (mddev->bio_set == NULL) {
 		mddev->bio_set = bioset_create(BIO_POOL_SIZE, 0);
+		if (!mddev->bio_set)
+			return -ENOMEM;
+	}
 
 	spin_lock(&pers_lock);
 	pers = find_pers(mddev->level, mddev->clevel);
@@ -5346,8 +5340,8 @@ int md_run(struct mddev *mddev)
 			queue_flag_set_unlocked(QUEUE_FLAG_NONROT, mddev->queue);
 		else
 			queue_flag_clear_unlocked(QUEUE_FLAG_NONROT, mddev->queue);
-		mddev->queue->backing_dev_info.congested_data = mddev;
-		mddev->queue->backing_dev_info.congested_fn = md_congested;
+		mddev->queue->backing_dev_info->congested_data = mddev;
+		mddev->queue->backing_dev_info->congested_fn = md_congested;
 	}
 	if (pers->sync_request) {
 		if (mddev->kobj.sd &&
@@ -5704,7 +5698,7 @@ static int do_md_stop(struct mddev *mddev, int mode,
 
 		__md_stop_writes(mddev);
 		__md_stop(mddev);
-		mddev->queue->backing_dev_info.congested_fn = NULL;
+		mddev->queue->backing_dev_info->congested_fn = NULL;
 
 		/* tell userspace to handle 'inactive' */
 		sysfs_notify_dirent_safe(mddev->sysfs_state);
@@ -8980,7 +8974,14 @@ static __exit void md_exit(void)
 
 	for_each_mddev(mddev, tmp) {
 		export_array(mddev);
+		mddev->ctime = 0;
 		mddev->hold_active = 0;
+		/*
+		 * for_each_mddev() will call mddev_put() at the end of each
+		 * iteration.  As the mddev is now fully clear, this will
+		 * schedule the mddev for destruction by a workqueue, and the
+		 * destroy_workqueue() below will wait for that to complete.
+		 */
 	}
 	destroy_workqueue(md_misc_wq);
 	destroy_workqueue(md_wq);

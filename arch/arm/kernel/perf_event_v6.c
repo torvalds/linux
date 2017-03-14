@@ -581,9 +581,5 @@ static struct platform_driver armv6_pmu_driver = {
 	.probe		= armv6_pmu_device_probe,
 };
 
-static int __init register_armv6_pmu_driver(void)
-{
-	return platform_driver_register(&armv6_pmu_driver);
-}
-device_initcall(register_armv6_pmu_driver);
+builtin_platform_driver(armv6_pmu_driver);
 #endif	/* CONFIG_CPU_V6 || CONFIG_CPU_V6K */

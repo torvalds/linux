@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/scatterlist.h>
 #include <linux/sched.h>
+#include <linux/sched/stat.h>
 #include <linux/slab.h>
 #include <linux/hardirq.h>
 

@@ -12,26 +12,6 @@ menuconfig LIRC_STAGING
 
 if LIRC_STAGING
 
-config LIRC_BT829
-        tristate "BT829 based hardware"
-	depends on LIRC && PCI
-	help
-	  Driver for the IR interface on BT829-based hardware
-
-config LIRC_IMON
-	tristate "Legacy SoundGraph iMON Receiver and Display"
-	depends on LIRC && USB
-	help
-	  Driver for the original SoundGraph iMON IR Receiver and Display
-
-	  Current generation iMON devices use the input layer imon driver.
-
-config LIRC_PARALLEL
-	tristate "Homebrew Parallel Port Receiver"
-	depends on LIRC && PARPORT
-	help
-	  Driver for Homebrew Parallel Port Receivers
-
 config LIRC_SASEM
 	tristate "Sasem USB IR Remote"
 	depends on LIRC && USB
@@ -40,7 +20,7 @@ config LIRC_SASEM
 
 config LIRC_SIR
 	tristate "Built-in SIR IrDA port"
-	depends on LIRC
+	depends on RC_CORE
 	help
 	  Driver for the SIR IrDA port
 

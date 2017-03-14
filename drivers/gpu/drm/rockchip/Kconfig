@@ -24,6 +24,7 @@ config ROCKCHIP_ANALOGIX_DP
 config ROCKCHIP_CDN_DP
         tristate "Rockchip cdn DP"
         depends on DRM_ROCKCHIP
+	depends on EXTCON
 	select SND_SOC_HDMI_CODEC if SND_SOC
         help
 	  This selects support for Rockchip SoC specific extensions

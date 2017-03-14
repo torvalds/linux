@@ -357,7 +357,7 @@ static void bnxt_get_channels(struct net_device *dev,
 	int max_rx_rings, max_tx_rings, tcs;
 
 	bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, true);
-	channel->max_combined = max_t(int, max_rx_rings, max_tx_rings);
+	channel->max_combined = min_t(int, max_rx_rings, max_tx_rings);
 
 	if (bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, false)) {
 		max_rx_rings = 0;
@@ -387,9 +387,10 @@ static int bnxt_set_channels(struct net_device *dev,
 			     struct ethtool_channels *channel)
 {
 	struct bnxt *bp = netdev_priv(dev);
-	int max_rx_rings, max_tx_rings, tcs;
-	u32 rc = 0;
+	int req_tx_rings, req_rx_rings, tcs;
 	bool sh = false;
+	int tx_xdp = 0;
+	int rc = 0;
 
 	if (channel->other_count)
 		return -EINVAL;
@@ -409,19 +410,22 @@ static int bnxt_set_channels(struct net_device *dev,
 	if (channel->combined_count)
 		sh = true;
 
-	bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, sh);
-
 	tcs = netdev_get_num_tc(dev);
-	if (tcs > 1)
-		max_tx_rings /= tcs;
 
-	if (sh &&
-	    channel->combined_count > max_t(int, max_rx_rings, max_tx_rings))
-		return -ENOMEM;
-
-	if (!sh && (channel->rx_count > max_rx_rings ||
-		    channel->tx_count > max_tx_rings))
-		return -ENOMEM;
+	req_tx_rings = sh ? channel->combined_count : channel->tx_count;
+	req_rx_rings = sh ? channel->combined_count : channel->rx_count;
+	if (bp->tx_nr_rings_xdp) {
+		if (!sh) {
+			netdev_err(dev, "Only combined mode supported when XDP is enabled.\n");
+			return -EINVAL;
+		}
+		tx_xdp = req_rx_rings;
+	}
+	rc = bnxt_reserve_rings(bp, req_tx_rings, req_rx_rings, tcs, tx_xdp);
+	if (rc) {
+		netdev_warn(dev, "Unable to allocate the requested rings\n");
+		return rc;
+	}
 
 	if (netif_running(dev)) {
 		if (BNXT_PF(bp)) {
@@ -439,19 +443,17 @@ static int bnxt_set_channels(struct net_device *dev,
 
 	if (sh) {
 		bp->flags |= BNXT_FLAG_SHARED_RINGS;
-		bp->rx_nr_rings = min_t(int, channel->combined_count,
-					max_rx_rings);
-		bp->tx_nr_rings_per_tc = min_t(int, channel->combined_count,
-					       max_tx_rings);
+		bp->rx_nr_rings = channel->combined_count;
+		bp->tx_nr_rings_per_tc = channel->combined_count;
 	} else {
 		bp->flags &= ~BNXT_FLAG_SHARED_RINGS;
 		bp->rx_nr_rings = channel->rx_count;
 		bp->tx_nr_rings_per_tc = channel->tx_count;
 	}
-
-	bp->tx_nr_rings = bp->tx_nr_rings_per_tc;
+	bp->tx_nr_rings_xdp = tx_xdp;
+	bp->tx_nr_rings = bp->tx_nr_rings_per_tc + tx_xdp;
 	if (tcs > 1)
-		bp->tx_nr_rings = bp->tx_nr_rings_per_tc * tcs;
+		bp->tx_nr_rings = bp->tx_nr_rings_per_tc * tcs + tx_xdp;
 
 	bp->cp_nr_rings = sh ? max_t(int, bp->tx_nr_rings, bp->rx_nr_rings) :
 			       bp->tx_nr_rings + bp->rx_nr_rings;
@@ -524,24 +526,49 @@ static int bnxt_grxclsrule(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 
 fltr_found:
 	fkeys = &fltr->fkeys;
-	if (fkeys->basic.ip_proto == IPPROTO_TCP)
-		fs->flow_type = TCP_V4_FLOW;
-	else if (fkeys->basic.ip_proto == IPPROTO_UDP)
-		fs->flow_type = UDP_V4_FLOW;
-	else
-		goto fltr_err;
+	if (fkeys->basic.n_proto == htons(ETH_P_IP)) {
+		if (fkeys->basic.ip_proto == IPPROTO_TCP)
+			fs->flow_type = TCP_V4_FLOW;
+		else if (fkeys->basic.ip_proto == IPPROTO_UDP)
+			fs->flow_type = UDP_V4_FLOW;
+		else
+			goto fltr_err;
 
-	fs->h_u.tcp_ip4_spec.ip4src = fkeys->addrs.v4addrs.src;
-	fs->m_u.tcp_ip4_spec.ip4src = cpu_to_be32(~0);
+		fs->h_u.tcp_ip4_spec.ip4src = fkeys->addrs.v4addrs.src;
+		fs->m_u.tcp_ip4_spec.ip4src = cpu_to_be32(~0);
 
-	fs->h_u.tcp_ip4_spec.ip4dst = fkeys->addrs.v4addrs.dst;
-	fs->m_u.tcp_ip4_spec.ip4dst = cpu_to_be32(~0);
+		fs->h_u.tcp_ip4_spec.ip4dst = fkeys->addrs.v4addrs.dst;
+		fs->m_u.tcp_ip4_spec.ip4dst = cpu_to_be32(~0);
 
-	fs->h_u.tcp_ip4_spec.psrc = fkeys->ports.src;
-	fs->m_u.tcp_ip4_spec.psrc = cpu_to_be16(~0);
+		fs->h_u.tcp_ip4_spec.psrc = fkeys->ports.src;
+		fs->m_u.tcp_ip4_spec.psrc = cpu_to_be16(~0);
 
-	fs->h_u.tcp_ip4_spec.pdst = fkeys->ports.dst;
-	fs->m_u.tcp_ip4_spec.pdst = cpu_to_be16(~0);
+		fs->h_u.tcp_ip4_spec.pdst = fkeys->ports.dst;
+		fs->m_u.tcp_ip4_spec.pdst = cpu_to_be16(~0);
+	} else {
+		int i;
+
+		if (fkeys->basic.ip_proto == IPPROTO_TCP)
+			fs->flow_type = TCP_V6_FLOW;
+		else if (fkeys->basic.ip_proto == IPPROTO_UDP)
+			fs->flow_type = UDP_V6_FLOW;
+		else
+			goto fltr_err;
+
+		*(struct in6_addr *)&fs->h_u.tcp_ip6_spec.ip6src[0] =
+			fkeys->addrs.v6addrs.src;
+		*(struct in6_addr *)&fs->h_u.tcp_ip6_spec.ip6dst[0] =
+			fkeys->addrs.v6addrs.dst;
+		for (i = 0; i < 4; i++) {
+			fs->m_u.tcp_ip6_spec.ip6src[i] = cpu_to_be32(~0);
+			fs->m_u.tcp_ip6_spec.ip6dst[i] = cpu_to_be32(~0);
+		}
+		fs->h_u.tcp_ip6_spec.psrc = fkeys->ports.src;
+		fs->m_u.tcp_ip6_spec.psrc = cpu_to_be16(~0);
+
+		fs->h_u.tcp_ip6_spec.pdst = fkeys->ports.dst;
+		fs->m_u.tcp_ip6_spec.pdst = cpu_to_be16(~0);
+	}
 
 	fs->ring_cookie = fltr->rxq;
 	rc = 0;
@@ -893,7 +920,7 @@ u32 _bnxt_fw_to_ethtool_adv_spds(u16 fw_speeds, u8 fw_pause)
 static void bnxt_fw_to_ethtool_advertised_spds(struct bnxt_link_info *link_info,
 				struct ethtool_link_ksettings *lk_ksettings)
 {
-	u16 fw_speeds = link_info->auto_link_speeds;
+	u16 fw_speeds = link_info->advertising;
 	u8 fw_pause = 0;
 
 	if (link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL)
@@ -1090,8 +1117,9 @@ static int bnxt_set_link_ksettings(struct net_device *dev,
 	struct bnxt *bp = netdev_priv(dev);
 	struct bnxt_link_info *link_info = &bp->link_info;
 	const struct ethtool_link_settings *base = &lk_ksettings->base;
-	u32 speed, fw_advertising = 0;
 	bool set_pause = false;
+	u16 fw_advertising = 0;
+	u32 speed;
 	int rc = 0;
 
 	if (!BNXT_SINGLE_PF(bp))
@@ -1550,17 +1578,37 @@ static int bnxt_flash_package_from_file(struct net_device *dev,
 	bnxt_hwrm_cmd_hdr_init(bp, &install, HWRM_NVM_INSTALL_UPDATE, -1, -1);
 	install.install_type = cpu_to_le32(install_type);
 
-	rc = hwrm_send_message(bp, &install, sizeof(install),
-			       INSTALL_PACKAGE_TIMEOUT);
-	if (rc)
-		return -EOPNOTSUPP;
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &install, sizeof(install),
+				INSTALL_PACKAGE_TIMEOUT);
+	if (rc) {
+		rc = -EOPNOTSUPP;
+		goto flash_pkg_exit;
+	}
+
+	if (resp->error_code) {
+		u8 error_code = ((struct hwrm_err_output *)resp)->cmd_err;
+
+		if (error_code == NVM_INSTALL_UPDATE_CMD_ERR_CODE_FRAG_ERR) {
+			install.flags |= cpu_to_le16(
+			       NVM_INSTALL_UPDATE_REQ_FLAGS_ALLOWED_TO_DEFRAG);
+			rc = _hwrm_send_message(bp, &install, sizeof(install),
+						INSTALL_PACKAGE_TIMEOUT);
+			if (rc) {
+				rc = -EOPNOTSUPP;
+				goto flash_pkg_exit;
+			}
+		}
+	}
 
 	if (resp->result) {
 		netdev_err(dev, "PKG install error = %d, problem_item = %d\n",
 			   (s8)resp->result, (int)resp->problem_item);
-		return -ENOPKG;
+		rc = -ENOPKG;
 	}
-	return 0;
+flash_pkg_exit:
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
 }
 
 static int bnxt_flash_device(struct net_device *dev,
@@ -2039,6 +2087,47 @@ static int bnxt_nway_reset(struct net_device *dev)
 	return rc;
 }
 
+static int bnxt_set_phys_id(struct net_device *dev,
+			    enum ethtool_phys_id_state state)
+{
+	struct hwrm_port_led_cfg_input req = {0};
+	struct bnxt *bp = netdev_priv(dev);
+	struct bnxt_pf_info *pf = &bp->pf;
+	struct bnxt_led_cfg *led_cfg;
+	u8 led_state;
+	__le16 duration;
+	int i, rc;
+
+	if (!bp->num_leds || BNXT_VF(bp))
+		return -EOPNOTSUPP;
+
+	if (state == ETHTOOL_ID_ACTIVE) {
+		led_state = PORT_LED_CFG_REQ_LED0_STATE_BLINKALT;
+		duration = cpu_to_le16(500);
+	} else if (state == ETHTOOL_ID_INACTIVE) {
+		led_state = PORT_LED_CFG_REQ_LED1_STATE_DEFAULT;
+		duration = cpu_to_le16(0);
+	} else {
+		return -EINVAL;
+	}
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_LED_CFG, -1, -1);
+	req.port_id = cpu_to_le16(pf->port_id);
+	req.num_leds = bp->num_leds;
+	led_cfg = (struct bnxt_led_cfg *)&req.led0_id;
+	for (i = 0; i < bp->num_leds; i++, led_cfg++) {
+		req.enables |= BNXT_LED_DFLT_ENABLES(i);
+		led_cfg->led_id = bp->leds[i].led_id;
+		led_cfg->led_state = led_state;
+		led_cfg->led_blink_on = duration;
+		led_cfg->led_blink_off = duration;
+		led_cfg->led_group_id = bp->leds[i].led_group_id;
+	}
+	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc)
+		rc = -EIO;
+	return rc;
+}
+
 const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_link_ksettings	= bnxt_get_link_ksettings,
 	.set_link_ksettings	= bnxt_set_link_ksettings,
@@ -2070,5 +2159,6 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.set_eee		= bnxt_set_eee,
 	.get_module_info	= bnxt_get_module_info,
 	.get_module_eeprom	= bnxt_get_module_eeprom,
-	.nway_reset		= bnxt_nway_reset
+	.nway_reset		= bnxt_nway_reset,
+	.set_phys_id		= bnxt_set_phys_id,
 };

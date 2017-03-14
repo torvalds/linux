@@ -12,6 +12,7 @@
 #include <linux/poll.h>
 #include <linux/fs.h>
 #include <linux/mutex.h>
+#include <linux/sched/signal.h>
 #include <linux/compiler.h> /* need __user */
 #include <linux/videodev2.h>
 

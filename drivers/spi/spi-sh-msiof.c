@@ -1164,10 +1164,8 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	int ret;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct sh_msiof_spi_priv));
-	if (master == NULL) {
-		dev_err(&pdev->dev, "failed to allocate spi master\n");
+	if (master == NULL)
 		return -ENOMEM;
-	}
 
 	p = spi_master_get_devdata(master);
 

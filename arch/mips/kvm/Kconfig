@@ -20,7 +20,9 @@ config KVM
 	select EXPORT_UASM
 	select PREEMPT_NOTIFIERS
 	select ANON_INODES
+	select KVM_GENERIC_DIRTYLOG_READ_PROTECT
 	select KVM_MMIO
+	select MMU_NOTIFIER
 	select SRCU
 	---help---
 	  Support for hosting Guest kernels.

@@ -1038,6 +1038,8 @@ const char * const vmstat_text[] = {
 	"compact_fail",
 	"compact_success",
 	"compact_daemon_wake",
+	"compact_daemon_migrate_scanned",
+	"compact_daemon_free_scanned",
 #endif
 
 #ifdef CONFIG_HUGETLB_PAGE

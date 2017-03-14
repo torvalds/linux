@@ -16,6 +16,8 @@
 #include <linux/export.h>
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
+#include <linux/sched/stat.h>
+
 #include <asm/processor.h>
 #include <asm/user.h>
 #include <asm/fpu/xstate.h>
@@ -122,8 +124,6 @@ int kvm_update_cpuid(struct kvm_vcpu *vcpu)
 	best = kvm_find_cpuid_entry(vcpu, 0xD, 1);
 	if (best && (best->eax & (F(XSAVES) | F(XSAVEC))))
 		best->ebx = xstate_required_size(vcpu->arch.xcr0, true);
-
-	kvm_x86_ops->fpu_activate(vcpu);
 
 	/*
 	 * The existing code assumes virtual address is 48-bit in the canonical
@@ -383,7 +383,7 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 
 	/* cpuid 7.0.ecx*/
 	const u32 kvm_cpuid_7_0_ecx_x86_features =
-		F(AVX512VBMI) | F(PKU) | 0 /*OSPKE*/;
+		F(AVX512VBMI) | F(PKU) | 0 /*OSPKE*/ | F(AVX512_VPOPCNTDQ);
 
 	/* cpuid 7.0.edx*/
 	const u32 kvm_cpuid_7_0_edx_x86_features =
@@ -860,12 +860,6 @@ void kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx, u32 *ecx, u32 *edx)
 
 	if (!best)
 		best = check_cpuid_limit(vcpu, function, index);
-
-	/*
-	 * Perfmon not yet supported for L2 guest.
-	 */
-	if (is_guest_mode(vcpu) && function == 0xa)
-		best = NULL;
 
 	if (best) {
 		*eax = best->eax;

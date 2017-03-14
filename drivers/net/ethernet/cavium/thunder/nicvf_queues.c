@@ -603,7 +603,7 @@ void nicvf_cmp_queue_config(struct nicvf *nic, struct queue_set *qs,
 	cq_cfg.ena = 1;
 	cq_cfg.reset = 0;
 	cq_cfg.caching = 0;
-	cq_cfg.qsize = CMP_QSIZE;
+	cq_cfg.qsize = ilog2(qs->cq_len >> 10);
 	cq_cfg.avg_con = 0;
 	nicvf_queue_reg_write(nic, NIC_QSET_CQ_0_7_CFG, qidx, *(u64 *)&cq_cfg);
 
@@ -652,9 +652,12 @@ static void nicvf_snd_queue_config(struct nicvf *nic, struct queue_set *qs,
 	sq_cfg.ena = 1;
 	sq_cfg.reset = 0;
 	sq_cfg.ldwb = 0;
-	sq_cfg.qsize = SND_QSIZE;
+	sq_cfg.qsize = ilog2(qs->sq_len >> 10);
 	sq_cfg.tstmp_bgx_intf = 0;
-	sq_cfg.cq_limit = 0;
+	/* CQ's level at which HW will stop processing SQEs to avoid
+	 * transmitting a pkt with no space in CQ to post CQE_TX.
+	 */
+	sq_cfg.cq_limit = (CMP_QUEUE_PIPELINE_RSVD * 256) / qs->cq_len;
 	nicvf_queue_reg_write(nic, NIC_QSET_SQ_0_7_CFG, qidx, *(u64 *)&sq_cfg);
 
 	/* Set threshold value for interrupt generation */
@@ -816,10 +819,20 @@ int nicvf_config_data_transfer(struct nicvf *nic, bool enable)
 {
 	bool disable = false;
 	struct queue_set *qs = nic->qs;
+	struct queue_set *pqs = nic->pnicvf->qs;
 	int qidx;
 
 	if (!qs)
 		return 0;
+
+	/* Take primary VF's queue lengths.
+	 * This is needed to take queue lengths set from ethtool
+	 * into consideration.
+	 */
+	if (nic->sqs_mode && pqs) {
+		qs->cq_len = pqs->cq_len;
+		qs->sq_len = pqs->sq_len;
+	}
 
 	if (enable) {
 		if (nicvf_alloc_resources(nic))

@@ -207,7 +207,7 @@ int xhci_reset(struct xhci_hcd *xhci)
 	ret = xhci_handshake(&xhci->op_regs->status,
 			STS_CNR, 0, 10 * 1000 * 1000);
 
-	for (i = 0; i < 2; ++i) {
+	for (i = 0; i < 2; i++) {
 		xhci->bus_state[i].port_c_suspend = 0;
 		xhci->bus_state[i].suspended_ports = 0;
 		xhci->bus_state[i].resuming_ports = 0;
@@ -1332,12 +1332,11 @@ command_cleanup:
 int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
-	struct xhci_td *buffer;
 	unsigned long flags;
 	int ret = 0;
-	unsigned int slot_id, ep_index;
+	unsigned int slot_id, ep_index, ep_state;
 	struct urb_priv	*urb_priv;
-	int size, i;
+	int num_tds;
 
 	if (!urb || xhci_check_args(hcd, urb->dev, urb->ep,
 					true, true, __func__) <= 0)
@@ -1349,39 +1348,29 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 	if (!HCD_HW_ACCESSIBLE(hcd)) {
 		if (!in_interrupt())
 			xhci_dbg(xhci, "urb submitted during PCI suspend\n");
-		ret = -ESHUTDOWN;
-		goto exit;
+		return -ESHUTDOWN;
 	}
 
 	if (usb_endpoint_xfer_isoc(&urb->ep->desc))
-		size = urb->number_of_packets;
+		num_tds = urb->number_of_packets;
 	else if (usb_endpoint_is_bulk_out(&urb->ep->desc) &&
 	    urb->transfer_buffer_length > 0 &&
 	    urb->transfer_flags & URB_ZERO_PACKET &&
 	    !(urb->transfer_buffer_length % usb_endpoint_maxp(&urb->ep->desc)))
-		size = 2;
+		num_tds = 2;
 	else
-		size = 1;
+		num_tds = 1;
 
 	urb_priv = kzalloc(sizeof(struct urb_priv) +
-				  size * sizeof(struct xhci_td *), mem_flags);
+			   num_tds * sizeof(struct xhci_td), mem_flags);
 	if (!urb_priv)
 		return -ENOMEM;
 
-	buffer = kzalloc(size * sizeof(struct xhci_td), mem_flags);
-	if (!buffer) {
-		kfree(urb_priv);
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < size; i++) {
-		urb_priv->td[i] = buffer;
-		buffer++;
-	}
-
-	urb_priv->length = size;
-	urb_priv->td_cnt = 0;
+	urb_priv->num_tds = num_tds;
+	urb_priv->num_tds_done = 0;
 	urb->hcpriv = urb_priv;
+
+	trace_xhci_urb_enqueue(urb);
 
 	if (usb_endpoint_xfer_control(&urb->ep->desc)) {
 		/* Check to see if the max packet size for the default control
@@ -1396,69 +1385,51 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 				return ret;
 			}
 		}
+	}
 
-		/* We have a spinlock and interrupts disabled, so we must pass
-		 * atomic context to this function, which may allocate memory.
-		 */
-		spin_lock_irqsave(&xhci->lock, flags);
-		if (xhci->xhc_state & XHCI_STATE_DYING)
-			goto dying;
+	spin_lock_irqsave(&xhci->lock, flags);
+
+	if (xhci->xhc_state & XHCI_STATE_DYING) {
+		xhci_dbg(xhci, "Ep 0x%x: URB %p submitted for non-responsive xHCI host.\n",
+			 urb->ep->desc.bEndpointAddress, urb);
+		ret = -ESHUTDOWN;
+		goto free_priv;
+	}
+
+	switch (usb_endpoint_type(&urb->ep->desc)) {
+
+	case USB_ENDPOINT_XFER_CONTROL:
 		ret = xhci_queue_ctrl_tx(xhci, GFP_ATOMIC, urb,
-				slot_id, ep_index);
-		if (ret)
-			goto free_priv;
-		spin_unlock_irqrestore(&xhci->lock, flags);
-	} else if (usb_endpoint_xfer_bulk(&urb->ep->desc)) {
-		spin_lock_irqsave(&xhci->lock, flags);
-		if (xhci->xhc_state & XHCI_STATE_DYING)
-			goto dying;
-		if (xhci->devs[slot_id]->eps[ep_index].ep_state &
-				EP_GETTING_STREAMS) {
-			xhci_warn(xhci, "WARN: Can't enqueue URB while bulk ep "
-					"is transitioning to using streams.\n");
+					 slot_id, ep_index);
+		break;
+	case USB_ENDPOINT_XFER_BULK:
+		ep_state = xhci->devs[slot_id]->eps[ep_index].ep_state;
+		if (ep_state & (EP_GETTING_STREAMS | EP_GETTING_NO_STREAMS)) {
+			xhci_warn(xhci, "WARN: Can't enqueue URB, ep in streams transition state %x\n",
+				  ep_state);
 			ret = -EINVAL;
-		} else if (xhci->devs[slot_id]->eps[ep_index].ep_state &
-				EP_GETTING_NO_STREAMS) {
-			xhci_warn(xhci, "WARN: Can't enqueue URB while bulk ep "
-					"is transitioning to "
-					"not having streams.\n");
-			ret = -EINVAL;
-		} else {
-			ret = xhci_queue_bulk_tx(xhci, GFP_ATOMIC, urb,
-					slot_id, ep_index);
+			break;
 		}
-		if (ret)
-			goto free_priv;
-		spin_unlock_irqrestore(&xhci->lock, flags);
-	} else if (usb_endpoint_xfer_int(&urb->ep->desc)) {
-		spin_lock_irqsave(&xhci->lock, flags);
-		if (xhci->xhc_state & XHCI_STATE_DYING)
-			goto dying;
+		ret = xhci_queue_bulk_tx(xhci, GFP_ATOMIC, urb,
+					 slot_id, ep_index);
+		break;
+
+
+	case USB_ENDPOINT_XFER_INT:
 		ret = xhci_queue_intr_tx(xhci, GFP_ATOMIC, urb,
 				slot_id, ep_index);
-		if (ret)
-			goto free_priv;
-		spin_unlock_irqrestore(&xhci->lock, flags);
-	} else {
-		spin_lock_irqsave(&xhci->lock, flags);
-		if (xhci->xhc_state & XHCI_STATE_DYING)
-			goto dying;
+		break;
+
+	case USB_ENDPOINT_XFER_ISOC:
 		ret = xhci_queue_isoc_tx_prepare(xhci, GFP_ATOMIC, urb,
 				slot_id, ep_index);
-		if (ret)
-			goto free_priv;
-		spin_unlock_irqrestore(&xhci->lock, flags);
 	}
-exit:
-	return ret;
-dying:
-	xhci_dbg(xhci, "Ep 0x%x: URB %p submitted for "
-			"non-responsive xHCI host.\n",
-			urb->ep->desc.bEndpointAddress, urb);
-	ret = -ESHUTDOWN;
+
+	if (ret) {
 free_priv:
-	xhci_urb_free_priv(urb_priv);
-	urb->hcpriv = NULL;
+		xhci_urb_free_priv(urb_priv);
+		urb->hcpriv = NULL;
+	}
 	spin_unlock_irqrestore(&xhci->lock, flags);
 	return ret;
 }
@@ -1509,6 +1480,9 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 
 	xhci = hcd_to_xhci(hcd);
 	spin_lock_irqsave(&xhci->lock, flags);
+
+	trace_xhci_urb_dequeue(urb);
+
 	/* Make sure the URB hasn't completed or been unlinked already */
 	ret = usb_hcd_check_unlink_urb(hcd, urb, status);
 	if (ret || !urb->hcpriv)
@@ -1518,10 +1492,10 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
 				"HW died, freeing TD.");
 		urb_priv = urb->hcpriv;
-		for (i = urb_priv->td_cnt;
-		     i < urb_priv->length && xhci->devs[urb->dev->slot_id];
+		for (i = urb_priv->num_tds_done;
+		     i < urb_priv->num_tds && xhci->devs[urb->dev->slot_id];
 		     i++) {
-			td = urb_priv->td[i];
+			td = &urb_priv->td[i];
 			if (!list_empty(&td->td_list))
 				list_del_init(&td->td_list);
 			if (!list_empty(&td->cancelled_td_list))
@@ -1544,33 +1518,32 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	}
 
 	urb_priv = urb->hcpriv;
-	i = urb_priv->td_cnt;
-	if (i < urb_priv->length)
+	i = urb_priv->num_tds_done;
+	if (i < urb_priv->num_tds)
 		xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
 				"Cancel URB %p, dev %s, ep 0x%x, "
 				"starting at offset 0x%llx",
 				urb, urb->dev->devpath,
 				urb->ep->desc.bEndpointAddress,
 				(unsigned long long) xhci_trb_virt_to_dma(
-					urb_priv->td[i]->start_seg,
-					urb_priv->td[i]->first_trb));
+					urb_priv->td[i].start_seg,
+					urb_priv->td[i].first_trb));
 
-	for (; i < urb_priv->length; i++) {
-		td = urb_priv->td[i];
+	for (; i < urb_priv->num_tds; i++) {
+		td = &urb_priv->td[i];
 		list_add_tail(&td->cancelled_td_list, &ep->cancelled_td_list);
 	}
 
 	/* Queue a stop endpoint command, but only if this is
 	 * the first cancellation to be handled.
 	 */
-	if (!(ep->ep_state & EP_HALT_PENDING)) {
+	if (!(ep->ep_state & EP_STOP_CMD_PENDING)) {
 		command = xhci_alloc_command(xhci, false, false, GFP_ATOMIC);
 		if (!command) {
 			ret = -ENOMEM;
 			goto done;
 		}
-		ep->ep_state |= EP_HALT_PENDING;
-		ep->stop_cmds_pending++;
+		ep->ep_state |= EP_STOP_CMD_PENDING;
 		ep->stop_cmd_timer.expires = jiffies +
 			XHCI_STOP_EP_CMD_TIMEOUT * HZ;
 		add_timer(&ep->stop_cmd_timer);
@@ -1809,7 +1782,7 @@ static void xhci_zero_in_ctx(struct xhci_hcd *xhci, struct xhci_virt_device *vir
 	slot_ctx->dev_info &= cpu_to_le32(~LAST_CTX_MASK);
 	/* Endpoint 0 is always valid */
 	slot_ctx->dev_info |= cpu_to_le32(LAST_CTX(1));
-	for (i = 1; i < 31; ++i) {
+	for (i = 1; i < 31; i++) {
 		ep_ctx = xhci_get_ep_ctx(xhci, virt_dev->in_ctx, i);
 		ep_ctx->ep_info = 0;
 		ep_ctx->ep_info2 = 0;
@@ -1824,32 +1797,32 @@ static int xhci_configure_endpoint_result(struct xhci_hcd *xhci,
 	int ret;
 
 	switch (*cmd_status) {
-	case COMP_CMD_ABORT:
-	case COMP_CMD_STOP:
+	case COMP_COMMAND_ABORTED:
+	case COMP_STOPPED:
 		xhci_warn(xhci, "Timeout while waiting for configure endpoint command\n");
 		ret = -ETIME;
 		break;
-	case COMP_ENOMEM:
+	case COMP_RESOURCE_ERROR:
 		dev_warn(&udev->dev,
 			 "Not enough host controller resources for new device state.\n");
 		ret = -ENOMEM;
 		/* FIXME: can we allocate more resources for the HC? */
 		break;
-	case COMP_BW_ERR:
-	case COMP_2ND_BW_ERR:
+	case COMP_BANDWIDTH_ERROR:
+	case COMP_SECONDARY_BANDWIDTH_ERROR:
 		dev_warn(&udev->dev,
 			 "Not enough bandwidth for new device state.\n");
 		ret = -ENOSPC;
 		/* FIXME: can we go back to the old state? */
 		break;
-	case COMP_TRB_ERR:
+	case COMP_TRB_ERROR:
 		/* the HCD set up something wrong */
 		dev_warn(&udev->dev, "ERROR: Endpoint drop flag = 0, "
 				"add flag = 1, "
 				"and endpoint is not disabled.\n");
 		ret = -EINVAL;
 		break;
-	case COMP_DEV_ERR:
+	case COMP_INCOMPATIBLE_DEVICE_ERROR:
 		dev_warn(&udev->dev,
 			 "ERROR: Incompatible device for endpoint configure command.\n");
 		ret = -ENODEV;
@@ -1875,33 +1848,33 @@ static int xhci_evaluate_context_result(struct xhci_hcd *xhci,
 	struct xhci_virt_device *virt_dev = xhci->devs[udev->slot_id];
 
 	switch (*cmd_status) {
-	case COMP_CMD_ABORT:
-	case COMP_CMD_STOP:
+	case COMP_COMMAND_ABORTED:
+	case COMP_STOPPED:
 		xhci_warn(xhci, "Timeout while waiting for evaluate context command\n");
 		ret = -ETIME;
 		break;
-	case COMP_EINVAL:
+	case COMP_PARAMETER_ERROR:
 		dev_warn(&udev->dev,
 			 "WARN: xHCI driver setup invalid evaluate context command.\n");
 		ret = -EINVAL;
 		break;
-	case COMP_EBADSLT:
+	case COMP_SLOT_NOT_ENABLED_ERROR:
 		dev_warn(&udev->dev,
 			"WARN: slot not enabled for evaluate context command.\n");
 		ret = -EINVAL;
 		break;
-	case COMP_CTX_STATE:
+	case COMP_CONTEXT_STATE_ERROR:
 		dev_warn(&udev->dev,
 			"WARN: invalid context state for evaluate context command.\n");
 		xhci_dbg_ctx(xhci, virt_dev->out_ctx, 1);
 		ret = -EINVAL;
 		break;
-	case COMP_DEV_ERR:
+	case COMP_INCOMPATIBLE_DEVICE_ERROR:
 		dev_warn(&udev->dev,
 			"ERROR: Incompatible device for evaluate context command.\n");
 		ret = -ENODEV;
 		break;
-	case COMP_MEL_ERR:
+	case COMP_MAX_EXIT_LATENCY_TOO_LARGE_ERROR:
 		/* Max Exit Latency too large error */
 		dev_warn(&udev->dev, "WARN: Max Exit Latency too large\n");
 		ret = -EINVAL;
@@ -2781,7 +2754,7 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 		     LAST_CTX_TO_EP_NUM(le32_to_cpu(slot_ctx->dev_info)));
 
 	/* Free any rings that were dropped, but not changed. */
-	for (i = 1; i < 31; ++i) {
+	for (i = 1; i < 31; i++) {
 		if ((le32_to_cpu(ctrl_ctx->drop_flags) & (1 << (i + 1))) &&
 		    !(le32_to_cpu(ctrl_ctx->add_flags) & (1 << (i + 1)))) {
 			xhci_free_or_cache_endpoint_ring(xhci, virt_dev, i);
@@ -2793,7 +2766,7 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	 * Install any rings for completely new endpoints or changed endpoints,
 	 * and free or cache any old rings from changed endpoints.
 	 */
-	for (i = 1; i < 31; ++i) {
+	for (i = 1; i < 31; i++) {
 		if (!virt_dev->eps[i].new_ring)
 			continue;
 		/* Only cache or free the old ring if it exists.
@@ -2827,7 +2800,7 @@ void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	xhci_dbg(xhci, "%s called for udev %p\n", __func__, udev);
 	virt_dev = xhci->devs[udev->slot_id];
 	/* Free any rings allocated for added endpoints */
-	for (i = 0; i < 31; ++i) {
+	for (i = 0; i < 31; i++) {
 		if (virt_dev->eps[i].new_ring) {
 			xhci_ring_free(xhci, virt_dev->eps[i].new_ring);
 			virt_dev->eps[i].new_ring = NULL;
@@ -3497,13 +3470,13 @@ int xhci_discover_or_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
 	 */
 	ret = reset_device_cmd->status;
 	switch (ret) {
-	case COMP_CMD_ABORT:
-	case COMP_CMD_STOP:
+	case COMP_COMMAND_ABORTED:
+	case COMP_STOPPED:
 		xhci_warn(xhci, "Timeout waiting for reset device command\n");
 		ret = -ETIME;
 		goto command_cleanup;
-	case COMP_EBADSLT: /* 0.95 completion code for bad slot ID */
-	case COMP_CTX_STATE: /* 0.96 completion code for same thing */
+	case COMP_SLOT_NOT_ENABLED_ERROR: /* 0.95 completion for bad slot ID */
+	case COMP_CONTEXT_STATE_ERROR: /* 0.96 completion code for same thing */
 		xhci_dbg(xhci, "Can't reset device (slot ID %u) in %s state\n",
 				slot_id,
 				xhci_get_slot_state(xhci, virt_dev->out_ctx));
@@ -3533,7 +3506,7 @@ int xhci_discover_or_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
 
 	/* Everything but endpoint 0 is disabled, so free or cache the rings. */
 	last_freed_endpoint = 1;
-	for (i = 1; i < 31; ++i) {
+	for (i = 1; i < 31; i++) {
 		struct xhci_virt_ep *ep = &virt_dev->eps[i];
 
 		if (ep->ep_state & EP_HAS_STREAMS) {
@@ -3609,8 +3582,8 @@ void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	virt_dev = xhci->devs[udev->slot_id];
 
 	/* Stop any wayward timer functions (which may grab the lock) */
-	for (i = 0; i < 31; ++i) {
-		virt_dev->eps[i].ep_state &= ~EP_HALT_PENDING;
+	for (i = 0; i < 31; i++) {
+		virt_dev->eps[i].ep_state &= ~EP_STOP_CMD_PENDING;
 		del_timer_sync(&virt_dev->eps[i].stop_cmd_timer);
 	}
 
@@ -3844,6 +3817,7 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 				le32_to_cpu(slot_ctx->dev_info) >> 27);
 
 	spin_lock_irqsave(&xhci->lock, flags);
+	trace_xhci_setup_device(virt_dev);
 	ret = xhci_queue_address_device(xhci, command, virt_dev->in_ctx->dma,
 					udev->slot_id, setup);
 	if (ret) {
@@ -3863,22 +3837,22 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 	 * command on a timeout.
 	 */
 	switch (command->status) {
-	case COMP_CMD_ABORT:
-	case COMP_CMD_STOP:
+	case COMP_COMMAND_ABORTED:
+	case COMP_STOPPED:
 		xhci_warn(xhci, "Timeout while waiting for setup device command\n");
 		ret = -ETIME;
 		break;
-	case COMP_CTX_STATE:
-	case COMP_EBADSLT:
+	case COMP_CONTEXT_STATE_ERROR:
+	case COMP_SLOT_NOT_ENABLED_ERROR:
 		xhci_err(xhci, "Setup ERROR: setup %s command for slot %d.\n",
 			 act, udev->slot_id);
 		ret = -EINVAL;
 		break;
-	case COMP_TX_ERR:
+	case COMP_USB_TRANSACTION_ERROR:
 		dev_warn(&udev->dev, "Device not responding to setup %s.\n", act);
 		ret = -EPROTO;
 		break;
-	case COMP_DEV_ERR:
+	case COMP_INCOMPATIBLE_DEVICE_ERROR:
 		dev_warn(&udev->dev,
 			 "ERROR: Incompatible device for setup %s command\n", act);
 		ret = -ENODEV;

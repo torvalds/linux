@@ -1131,11 +1131,11 @@ static void xgbe_stop(struct xgbe_prv_data *pdata)
 	hw_if->disable_tx(pdata);
 	hw_if->disable_rx(pdata);
 
+	phy_if->phy_stop(pdata);
+
 	xgbe_free_irqs(pdata);
 
 	xgbe_napi_disable(pdata, 1);
-
-	phy_if->phy_stop(pdata);
 
 	hw_if->exit(pdata);
 
@@ -1761,8 +1761,8 @@ static void xgbe_tx_timeout(struct net_device *netdev)
 	schedule_work(&pdata->restart_work);
 }
 
-static struct rtnl_link_stats64 *xgbe_get_stats64(struct net_device *netdev,
-						  struct rtnl_link_stats64 *s)
+static void xgbe_get_stats64(struct net_device *netdev,
+			     struct rtnl_link_stats64 *s)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 	struct xgbe_mmc_stats *pstats = &pdata->mmc_stats;
@@ -1788,8 +1788,6 @@ static struct rtnl_link_stats64 *xgbe_get_stats64(struct net_device *netdev,
 	s->tx_dropped = netdev->stats.tx_dropped;
 
 	DBGPR("<--%s\n", __func__);
-
-	return s;
 }
 
 static int xgbe_vlan_rx_add_vid(struct net_device *netdev, __be16 proto,

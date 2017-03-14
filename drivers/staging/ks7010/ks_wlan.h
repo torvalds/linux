@@ -36,7 +36,7 @@
 
 #ifdef KS_WLAN_DEBUG
 #define DPRINTK(n, fmt, args...) \
-                 if (KS_WLAN_DEBUG>(n)) printk(KERN_NOTICE "%s: "fmt, __FUNCTION__, ## args)
+                 if (KS_WLAN_DEBUG > (n)) printk(KERN_NOTICE "%s: "fmt, __FUNCTION__, ## args)
 #else
 #define DPRINTK(n, fmt, args...)
 #endif
@@ -94,7 +94,7 @@ enum {
 #define SME_WEP_VAL2        (1<<6)
 #define SME_WEP_VAL3        (1<<7)
 #define SME_WEP_VAL4        (1<<8)
-#define SME_WEP_VAL_MASK    (SME_WEP_VAL1|SME_WEP_VAL2|SME_WEP_VAL3|SME_WEP_VAL4)
+#define SME_WEP_VAL_MASK    (SME_WEP_VAL1 | SME_WEP_VAL2 | SME_WEP_VAL3 | SME_WEP_VAL4)
 #define SME_RSN             (1<<9)
 #define SME_RSN_MULTICAST   (1<<10)
 #define SME_RSN_UNICAST	    (1<<11)
@@ -363,6 +363,7 @@ struct wpa_key_t {
 	u8 tx_mic_key[MIC_KEY_SIZE];
 	u8 rx_mic_key[MIC_KEY_SIZE];
 };
+
 #define WPA_KEY_INDEX_MAX 4
 #define WPA_RX_SEQ_LEN 6
 
@@ -408,7 +409,6 @@ struct wps_status_t {
 #endif /* WPS */
 
 struct ks_wlan_private {
-
 	struct hw_info_t ks_wlan_hw;	/* hardware information */
 
 	struct net_device *net_dev;

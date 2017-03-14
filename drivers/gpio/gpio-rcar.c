@@ -242,11 +242,24 @@ static void gpio_rcar_config_general_input_output_mode(struct gpio_chip *chip,
 
 static int gpio_rcar_request(struct gpio_chip *chip, unsigned offset)
 {
-	return pinctrl_request_gpio(chip->base + offset);
+	struct gpio_rcar_priv *p = gpiochip_get_data(chip);
+	int error;
+
+	error = pm_runtime_get_sync(&p->pdev->dev);
+	if (error < 0)
+		return error;
+
+	error = pinctrl_request_gpio(chip->base + offset);
+	if (error)
+		pm_runtime_put(&p->pdev->dev);
+
+	return error;
 }
 
 static void gpio_rcar_free(struct gpio_chip *chip, unsigned offset)
 {
+	struct gpio_rcar_priv *p = gpiochip_get_data(chip);
+
 	pinctrl_free_gpio(chip->base + offset);
 
 	/*
@@ -254,6 +267,8 @@ static void gpio_rcar_free(struct gpio_chip *chip, unsigned offset)
 	 * drive the GPIO pin as an output.
 	 */
 	gpio_rcar_config_general_input_output_mode(chip, offset, false);
+
+	pm_runtime_put(&p->pdev->dev);
 }
 
 static int gpio_rcar_direction_input(struct gpio_chip *chip, unsigned offset)
@@ -426,7 +441,6 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_enable(dev);
-	pm_runtime_get_sync(dev);
 
 	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
@@ -460,6 +474,7 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 
 	irq_chip = &p->irq_chip;
 	irq_chip->name = name;
+	irq_chip->parent_device = dev;
 	irq_chip->irq_mask = gpio_rcar_irq_disable;
 	irq_chip->irq_unmask = gpio_rcar_irq_enable;
 	irq_chip->irq_set_type = gpio_rcar_irq_set_type;
@@ -494,7 +509,6 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 err1:
 	gpiochip_remove(gpio_chip);
 err0:
-	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
 	return ret;
 }
@@ -505,7 +519,6 @@ static int gpio_rcar_remove(struct platform_device *pdev)
 
 	gpiochip_remove(&p->gpio_chip);
 
-	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	return 0;
 }

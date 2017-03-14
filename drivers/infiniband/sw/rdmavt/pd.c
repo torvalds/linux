@@ -90,7 +90,7 @@ struct ib_pd *rvt_alloc_pd(struct ib_device *ibdev,
 	spin_unlock(&dev->n_pds_lock);
 
 	/* ib_alloc_pd() will initialize pd->ibpd. */
-	pd->user = udata ? 1 : 0;
+	pd->user = !!udata;
 
 	ret = &pd->ibpd;
 

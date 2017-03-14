@@ -64,8 +64,7 @@ USAGE
 When inserting the driver modules the root cell must be specified along with a
 list of volume location server IP addresses:
 
-	modprobe af_rxrpc
-	modprobe rxkad
+	modprobe rxrpc
 	modprobe kafs rootcell=cambridge.redhat.com:172.16.18.73:172.16.18.91
 
 The first module is the AF_RXRPC network protocol driver.  This provides the
@@ -214,34 +213,3 @@ If a file is opened with a particular key and then the file descriptor is
 passed to a process that doesn't have that key (perhaps over an AF_UNIX
 socket), then the operations on the file will be made with key that was used to
 open the file.
-
-
-========
-EXAMPLES
-========
-
-Here's what I use to test this.  Some of the names and IP addresses are local
-to my internal DNS.  My "root.afs" partition has a mount point within it for
-some public volumes volumes.
-
-insmod /tmp/rxrpc.o
-insmod /tmp/rxkad.o
-insmod /tmp/kafs.o rootcell=cambridge.redhat.com:172.16.18.91
-
-mount -t afs \%root.afs. /afs
-mount -t afs \%cambridge.redhat.com:root.cell. /afs/cambridge.redhat.com/
-
-echo add grand.central.org 18.9.48.14:128.2.203.61:130.237.48.87 > /proc/fs/afs/cells
-mount -t afs "#grand.central.org:root.cell." /afs/grand.central.org/
-mount -t afs "#grand.central.org:root.archive." /afs/grand.central.org/archive
-mount -t afs "#grand.central.org:root.contrib." /afs/grand.central.org/contrib
-mount -t afs "#grand.central.org:root.doc." /afs/grand.central.org/doc
-mount -t afs "#grand.central.org:root.project." /afs/grand.central.org/project
-mount -t afs "#grand.central.org:root.service." /afs/grand.central.org/service
-mount -t afs "#grand.central.org:root.software." /afs/grand.central.org/software
-mount -t afs "#grand.central.org:root.user." /afs/grand.central.org/user
-
-umount /afs
-rmmod kafs
-rmmod rxkad
-rmmod rxrpc

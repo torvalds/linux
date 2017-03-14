@@ -768,7 +768,7 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 	__efx_reconfigure_port(efx);
 	mutex_unlock(&efx->mac_lock);
 
-	netif_device_attach(efx->net_dev);
+	efx_device_attach_if_not_resetting(efx);
 
 	return rc_test;
 }

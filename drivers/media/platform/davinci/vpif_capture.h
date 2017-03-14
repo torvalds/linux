@@ -10,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef VPIF_CAPTURE_H
@@ -67,7 +63,7 @@ struct common_obj {
 	struct vb2_queue buffer_queue;
 	/* Queue of filled frames */
 	struct list_head dma_queue;
-	/* Used in video-buf */
+	/* Protects the dma_queue field */
 	spinlock_t irqlock;
 	/* lock used to access this structure */
 	struct mutex lock;

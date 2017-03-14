@@ -20,7 +20,7 @@
 #include <linux/in.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/spinlock.h>
 #include <linux/timer.h>
 #include <linux/string.h>

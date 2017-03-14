@@ -37,6 +37,7 @@
 
 #include "lgdt330x.h"
 #include "lgdt3305.h"
+#include "lgdt3306a.h"
 #include "zl10353.h"
 #include "s5h1409.h"
 #include "mt2060.h"
@@ -918,6 +919,17 @@ static struct tda18271_config pinnacle_80e_dvb_config = {
 	.std_map = &drx_j_std_map,
 	.gate    = TDA18271_GATE_DIGITAL,
 	.role    = TDA18271_MASTER,
+};
+
+static struct lgdt3306a_config hauppauge_01595_lgdt3306a_config = {
+	.qam_if_khz         = 4000,
+	.vsb_if_khz         = 3250,
+	.spectral_inversion = 0,
+	.deny_i2c_rptr      = 0,
+	.mpeg_mode          = LGDT3306A_MPEG_SERIAL,
+	.tpclk_edge         = LGDT3306A_TPCLK_RISING_EDGE,
+	.tpvalid_polarity   = LGDT3306A_TP_VALID_HIGH,
+	.xtalMHz            = 25,
 };
 
 /* ------------------------------------------------------------------ */
@@ -1948,6 +1960,68 @@ static int em28xx_dvb_init(struct em28xx *dev)
 
 			dvb->i2c_client_tuner = client;
 
+		}
+		break;
+	case EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_01595:
+		{
+			struct i2c_adapter *adapter;
+			struct i2c_client *client;
+			struct i2c_board_info info = {};
+			struct lgdt3306a_config lgdt3306a_config;
+			struct si2157_config si2157_config = {};
+
+			/* attach demod */
+			lgdt3306a_config = hauppauge_01595_lgdt3306a_config;
+			lgdt3306a_config.fe = &dvb->fe[0];
+			lgdt3306a_config.i2c_adapter = &adapter;
+			strlcpy(info.type, "lgdt3306a", sizeof(info.type));
+			info.addr = 0x59;
+			info.platform_data = &lgdt3306a_config;
+			request_module(info.type);
+			client = i2c_new_device(&dev->i2c_adap[dev->def_i2c_bus],
+					&info);
+			if (client == NULL || client->dev.driver == NULL) {
+				result = -ENODEV;
+				goto out_free;
+			}
+
+			if (!try_module_get(client->dev.driver->owner)) {
+				i2c_unregister_device(client);
+				result = -ENODEV;
+				goto out_free;
+			}
+
+			dvb->i2c_client_demod = client;
+
+			/* attach tuner */
+			si2157_config.fe = dvb->fe[0];
+			si2157_config.if_port = 1;
+			si2157_config.inversion = 1;
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+			si2157_config.mdev = dev->media_dev;
+#endif
+			memset(&info, 0, sizeof(struct i2c_board_info));
+			strlcpy(info.type, "si2157", sizeof(info.type));
+			info.addr = 0x60;
+			info.platform_data = &si2157_config;
+			request_module(info.type);
+
+			client = i2c_new_device(adapter, &info);
+			if (client == NULL || client->dev.driver == NULL) {
+				module_put(dvb->i2c_client_demod->dev.driver->owner);
+				i2c_unregister_device(dvb->i2c_client_demod);
+				result = -ENODEV;
+				goto out_free;
+			}
+			if (!try_module_get(client->dev.driver->owner)) {
+				i2c_unregister_device(client);
+				module_put(dvb->i2c_client_demod->dev.driver->owner);
+				i2c_unregister_device(dvb->i2c_client_demod);
+				result = -ENODEV;
+				goto out_free;
+			}
+
+			dvb->i2c_client_tuner = client;
 		}
 		break;
 	default:

@@ -10,6 +10,7 @@
  */
 
 #include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/elf-fdpic.h>

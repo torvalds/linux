@@ -22,7 +22,6 @@ struct ceph_osd_client;
  * completion callback for async writepages
  */
 typedef void (*ceph_osdc_callback_t)(struct ceph_osd_request *);
-typedef void (*ceph_osdc_unsafe_callback_t)(struct ceph_osd_request *, bool);
 
 #define CEPH_HOMELESS_OSD	-1
 
@@ -170,15 +169,12 @@ struct ceph_osd_request {
 	unsigned int		r_num_ops;
 
 	int               r_result;
-	bool              r_got_reply;
 
 	struct ceph_osd_client *r_osdc;
 	struct kref       r_kref;
 	bool              r_mempool;
-	struct completion r_completion;
-	struct completion r_done_completion;  /* fsync waiter */
+	struct completion r_completion;       /* private to osd_client.c */
 	ceph_osdc_callback_t r_callback;
-	ceph_osdc_unsafe_callback_t r_unsafe_callback;
 	struct list_head  r_unsafe_item;
 
 	struct inode *r_inode;         	      /* for use by callbacks */

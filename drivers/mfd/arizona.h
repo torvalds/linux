@@ -17,8 +17,6 @@
 #include <linux/regmap.h>
 #include <linux/pm.h>
 
-struct wm_arizona;
-
 extern const struct regmap_config wm5102_i2c_regmap;
 extern const struct regmap_config wm5102_spi_regmap;
 

@@ -55,24 +55,24 @@ static struct var_t vars[] = {
  * These attributes will appear in /sys/accessibility/speakup/keypc.
  */
 static struct kobj_attribute caps_start_attribute =
-	__ATTR(caps_start, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(caps_start, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute caps_stop_attribute =
-	__ATTR(caps_stop, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(caps_stop, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute pitch_attribute =
-	__ATTR(pitch, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(pitch, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute rate_attribute =
-	__ATTR(rate, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(rate, 0644, spk_var_show, spk_var_store);
 
 static struct kobj_attribute delay_time_attribute =
-	__ATTR(delay_time, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(delay_time, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute direct_attribute =
-	__ATTR(direct, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(direct, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute full_time_attribute =
-	__ATTR(full_time, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(full_time, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute jiffy_delta_attribute =
-	__ATTR(jiffy_delta, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(jiffy_delta, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute trigger_time_attribute =
-	__ATTR(trigger_time, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(trigger_time, 0644, spk_var_show, spk_var_store);
 
 /*
  * Create a group of attributes so that we can create and destroy them all
@@ -309,8 +309,8 @@ static void keynote_release(void)
 	synth_port = 0;
 }
 
-module_param_named(port, port_forced, int, S_IRUGO);
-module_param_named(start, synth_keypc.startup, short, S_IRUGO);
+module_param_named(port, port_forced, int, 0444);
+module_param_named(start, synth_keypc.startup, short, 0444);
 
 MODULE_PARM_DESC(port, "Set the port for the synthesizer (override probing).");
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");

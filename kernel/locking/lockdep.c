@@ -28,6 +28,8 @@
 #define DISABLE_BRANCH_PROFILING
 #include <linux/mutex.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
+#include <linux/sched/task.h>
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/proc_fs.h>
@@ -2203,7 +2205,7 @@ cache_hit:
 	 * Important for check_no_collision().
 	 */
 	if (unlikely(nr_chain_hlocks > MAX_LOCKDEP_CHAIN_HLOCKS)) {
-		if (debug_locks_off_graph_unlock())
+		if (!debug_locks_off_graph_unlock())
 			return 0;
 
 		print_lockdep_off("BUG: MAX_LOCKDEP_CHAIN_HLOCKS too low!");
@@ -4412,13 +4414,13 @@ void lockdep_rcu_suspicious(const char *file, const int line, const char *s)
 #endif /* #ifdef CONFIG_PROVE_RCU_REPEATEDLY */
 	/* Note: the following can be executed concurrently, so be careful. */
 	printk("\n");
-	printk("===============================\n");
-	printk("[ INFO: suspicious RCU usage. ]\n");
+	pr_err("===============================\n");
+	pr_err("[ ERR: suspicious RCU usage.  ]\n");
 	print_kernel_ident();
-	printk("-------------------------------\n");
-	printk("%s:%d %s!\n", file, line, s);
-	printk("\nother info that might help us debug this:\n\n");
-	printk("\n%srcu_scheduler_active = %d, debug_locks = %d\n",
+	pr_err("-------------------------------\n");
+	pr_err("%s:%d %s!\n", file, line, s);
+	pr_err("\nother info that might help us debug this:\n\n");
+	pr_err("\n%srcu_scheduler_active = %d, debug_locks = %d\n",
 	       !rcu_lockdep_current_cpu_online()
 			? "RCU used illegally from offline CPU!\n"
 			: !rcu_is_watching()

@@ -20,6 +20,7 @@
 #include <linux/cpu_pm.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
+#include <uapi/linux/sched/types.h>
 #include <linux/module.h>
 #include <linux/preempt.h>
 #include <linux/psci.h>

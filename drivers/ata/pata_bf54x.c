@@ -1143,7 +1143,7 @@ static unsigned char bfin_bmdma_status(struct ata_port *ap)
 
 /**
  *	bfin_data_xfer - Transfer data by PIO
- *	@adev: device for this I/O
+ *	@qc: queued command
  *	@buf: data buffer
  *	@buflen: buffer length
  *	@write_data: read/write
@@ -1151,10 +1151,11 @@ static unsigned char bfin_bmdma_status(struct ata_port *ap)
  *	Note: Original code is ata_sff_data_xfer().
  */
 
-static unsigned int bfin_data_xfer(struct ata_device *dev, unsigned char *buf,
+static unsigned int bfin_data_xfer(struct ata_queued_cmd *qc,
+				   unsigned char *buf,
 				   unsigned int buflen, int rw)
 {
-	struct ata_port *ap = dev->link->ap;
+	struct ata_port *ap = qc->dev->link->ap;
 	void __iomem *base = (void __iomem *)ap->ioaddr.ctl_addr;
 	unsigned int words = buflen >> 1;
 	unsigned short *buf16 = (u16 *)buf;

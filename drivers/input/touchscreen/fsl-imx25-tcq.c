@@ -507,7 +507,7 @@ static int mx25_tcq_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct input_dev *idev;
 	struct mx25_tcq_priv *priv;
-	struct mx25_tsadc *tsadc = dev_get_drvdata(pdev->dev.parent);
+	struct mx25_tsadc *tsadc = dev_get_drvdata(dev->parent);
 	struct resource *res;
 	void __iomem *mem;
 	int error;

@@ -11,7 +11,7 @@
 #ifndef _FSCRYPT_PRIVATE_H
 #define _FSCRYPT_PRIVATE_H
 
-#include <linux/fscrypto.h>
+#include <linux/fscrypt_supp.h>
 
 #define FS_FNAME_CRYPTO_DIGEST_SIZE	32
 
@@ -71,6 +71,11 @@ struct fscrypt_info {
 	u8 ci_master_key[FS_KEY_DESCRIPTOR_SIZE];
 };
 
+typedef enum {
+	FS_DECRYPT = 0,
+	FS_ENCRYPT,
+} fscrypt_direction_t;
+
 #define FS_CTX_REQUIRES_FREE_ENCRYPT_FL		0x00000001
 #define FS_CTX_HAS_BOUNCE_BUFFER_FL		0x00000002
 
@@ -81,11 +86,20 @@ struct fscrypt_completion_result {
 
 #define DECLARE_FS_COMPLETION_RESULT(ecr) \
 	struct fscrypt_completion_result ecr = { \
-		COMPLETION_INITIALIZER((ecr).completion), 0 }
+		COMPLETION_INITIALIZER_ONSTACK((ecr).completion), 0 }
 
 
 /* crypto.c */
-int fscrypt_initialize(unsigned int cop_flags);
+extern int fscrypt_initialize(unsigned int cop_flags);
+extern struct workqueue_struct *fscrypt_read_workqueue;
+extern int fscrypt_do_page_crypto(const struct inode *inode,
+				  fscrypt_direction_t rw, u64 lblk_num,
+				  struct page *src_page,
+				  struct page *dest_page,
+				  unsigned int len, unsigned int offs,
+				  gfp_t gfp_flags);
+extern struct page *fscrypt_alloc_bounce_page(struct fscrypt_ctx *ctx,
+					      gfp_t gfp_flags);
 
 /* keyinfo.c */
 extern int fscrypt_get_crypt_info(struct inode *);

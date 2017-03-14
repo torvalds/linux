@@ -43,7 +43,7 @@
  * Chunks can be determined from the address using the index field
  * in the page struct. The index field contains a pointer to the chunk.
  *
- * To use this allocator, arch code should do the followings.
+ * To use this allocator, arch code should do the following:
  *
  * - define __addr_to_pcpu_ptr() and __pcpu_ptr_to_addr() to translate
  *   regular address to percpu pointer and back if they need to be

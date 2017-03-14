@@ -257,10 +257,10 @@ int r8712_is_same_ibss(struct _adapter *adapter, struct wlan_network *pnetwork)
 	struct security_priv *psecuritypriv = &adapter->securitypriv;
 
 	if ((psecuritypriv->PrivacyAlgrthm != _NO_PRIVACY_) &&
-		    (pnetwork->network.Privacy == 0))
+		    (pnetwork->network.Privacy == cpu_to_le32(0)))
 		ret = false;
 	else if ((psecuritypriv->PrivacyAlgrthm == _NO_PRIVACY_) &&
-		 (pnetwork->network.Privacy == 1))
+		 (pnetwork->network.Privacy == cpu_to_le32(1)))
 		ret = false;
 	else
 		ret = true;
@@ -933,7 +933,7 @@ void r8712_stassoc_event_callback(struct _adapter *adapter, u8 *pbuf)
 		return;
 	/* to do : init sta_info variable */
 	psta->qos_option = 0;
-	psta->mac_id = le32_to_cpu((uint)pstassoc->cam_id);
+	psta->mac_id = le32_to_cpu(pstassoc->cam_id);
 	/* psta->aid = (uint)pstassoc->cam_id; */
 
 	if (adapter->securitypriv.AuthAlgrthm == 2)
@@ -1637,25 +1637,23 @@ void r8712_update_registrypriv_dev_network(struct _adapter *adapter)
 	pdev_network->Rssi = 0;
 	switch (pregistrypriv->wireless_mode) {
 	case WIRELESS_11B:
-		pdev_network->NetworkTypeInUse = cpu_to_le32(Ndis802_11DS);
+		pdev_network->NetworkTypeInUse = Ndis802_11DS;
 		break;
 	case WIRELESS_11G:
 	case WIRELESS_11BG:
-		pdev_network->NetworkTypeInUse = cpu_to_le32(Ndis802_11OFDM24);
+		pdev_network->NetworkTypeInUse = Ndis802_11OFDM24;
 		break;
 	case WIRELESS_11A:
-		pdev_network->NetworkTypeInUse = cpu_to_le32(Ndis802_11OFDM5);
+		pdev_network->NetworkTypeInUse = Ndis802_11OFDM5;
 		break;
 	default:
 		/* TODO */
 		break;
 	}
-	pdev_network->Configuration.DSConfig = cpu_to_le32(
-					       pregistrypriv->channel);
+	pdev_network->Configuration.DSConfig = pregistrypriv->channel;
 	if (cur_network->network.InfrastructureMode == Ndis802_11IBSS)
-		pdev_network->Configuration.ATIMWindow = cpu_to_le32(3);
-	pdev_network->InfrastructureMode = cpu_to_le32(
-				cur_network->network.InfrastructureMode);
+		pdev_network->Configuration.ATIMWindow = 3;
+	pdev_network->InfrastructureMode = cur_network->network.InfrastructureMode;
 	/* 1. Supported rates
 	 * 2. IE
 	 */
@@ -1710,12 +1708,12 @@ unsigned int r8712_restructure_ht_ie(struct _adapter *padapter, u8 *in_ie,
 		}
 		out_len = *pout_len;
 		memset(&ht_capie, 0, sizeof(struct ieee80211_ht_cap));
-		ht_capie.cap_info = IEEE80211_HT_CAP_SUP_WIDTH |
+		ht_capie.cap_info = cpu_to_le16(IEEE80211_HT_CAP_SUP_WIDTH |
 				    IEEE80211_HT_CAP_SGI_20 |
 				    IEEE80211_HT_CAP_SGI_40 |
 				    IEEE80211_HT_CAP_TX_STBC |
 				    IEEE80211_HT_CAP_MAX_AMSDU |
-				    IEEE80211_HT_CAP_DSSSCCK40;
+				    IEEE80211_HT_CAP_DSSSCCK40);
 		ht_capie.ampdu_params_info = (IEEE80211_HT_CAP_AMPDU_FACTOR &
 				0x03) | (IEEE80211_HT_CAP_AMPDU_DENSITY & 0x00);
 		r8712_set_ie(out_ie + out_len, _HT_CAPABILITY_IE_,

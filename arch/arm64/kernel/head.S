@@ -149,7 +149,7 @@ extra_header_fields:
 	.quad	0				// SizeOfHeapReserve
 	.quad	0				// SizeOfHeapCommit
 	.long	0				// LoaderFlags
-	.long	0x6				// NumberOfRvaAndSizes
+	.long	(section_table - .) / 8		// NumberOfRvaAndSizes
 
 	.quad	0				// ExportTable
 	.quad	0				// ImportTable
@@ -157,6 +157,11 @@ extra_header_fields:
 	.quad	0				// ExceptionTable
 	.quad	0				// CertificationTable
 	.quad	0				// BaseRelocationTable
+
+#ifdef CONFIG_DEBUG_EFI
+	.long	efi_debug_table - _head		// DebugTable
+	.long	efi_debug_table_size
+#endif
 
 	// Section table
 section_table:
@@ -194,6 +199,46 @@ section_table:
 	.short	0		// NumberOfRelocations  (0 for executables)
 	.short	0		// NumberOfLineNumbers  (0 for executables)
 	.long	0xe0500020	// Characteristics (section flags)
+
+#ifdef CONFIG_DEBUG_EFI
+	/*
+	 * The debug table is referenced via its Relative Virtual Address (RVA),
+	 * which is only defined for those parts of the image that are covered
+	 * by a section declaration. Since this header is not covered by any
+	 * section, the debug table must be emitted elsewhere. So stick it in
+	 * the .init.rodata section instead.
+	 *
+	 * Note that the EFI debug entry itself may legally have a zero RVA,
+	 * which means we can simply put it right after the section headers.
+	 */
+	__INITRODATA
+
+	.align	2
+efi_debug_table:
+	// EFI_IMAGE_DEBUG_DIRECTORY_ENTRY
+	.long	0			// Characteristics
+	.long	0			// TimeDateStamp
+	.short	0			// MajorVersion
+	.short	0			// MinorVersion
+	.long	2			// Type == EFI_IMAGE_DEBUG_TYPE_CODEVIEW
+	.long	efi_debug_entry_size	// SizeOfData
+	.long	0			// RVA
+	.long	efi_debug_entry - _head	// FileOffset
+
+	.set	efi_debug_table_size, . - efi_debug_table
+	.previous
+
+efi_debug_entry:
+	// EFI_IMAGE_DEBUG_CODEVIEW_NB10_ENTRY
+	.ascii	"NB10"			// Signature
+	.long	0			// Unknown
+	.long	0			// Unknown2
+	.long	0			// Unknown3
+
+	.asciz	VMLINUX_PATH
+
+	.set	efi_debug_entry_size, . - efi_debug_entry
+#endif
 
 	/*
 	 * EFI will load .text onwards at the 4k section alignment
@@ -483,7 +528,7 @@ ENTRY(kimage_vaddr)
  * If we're fortunate enough to boot at EL2, ensure that the world is
  * sane before dropping to EL1.
  *
- * Returns either BOOT_CPU_MODE_EL1 or BOOT_CPU_MODE_EL2 in x20 if
+ * Returns either BOOT_CPU_MODE_EL1 or BOOT_CPU_MODE_EL2 in w0 if
  * booted in EL1 or EL2 respectively.
  */
 ENTRY(el2_setup)
@@ -592,15 +637,26 @@ CPU_LE(	movk	x0, #0x30d0, lsl #16	)	// Clear EE and E0E on LE systems
 #endif
 
 	/* EL2 debug */
-	mrs	x0, id_aa64dfr0_el1		// Check ID_AA64DFR0_EL1 PMUVer
-	sbfx	x0, x0, #8, #4
+	mrs	x1, id_aa64dfr0_el1		// Check ID_AA64DFR0_EL1 PMUVer
+	sbfx	x0, x1, #8, #4
 	cmp	x0, #1
 	b.lt	4f				// Skip if no PMU present
 	mrs	x0, pmcr_el0			// Disable debug access traps
 	ubfx	x0, x0, #11, #5			// to EL2 and allow access to
 4:
-	csel	x0, xzr, x0, lt			// all PMU counters from EL1
-	msr	mdcr_el2, x0			// (if they exist)
+	csel	x3, xzr, x0, lt			// all PMU counters from EL1
+
+	/* Statistical profiling */
+	ubfx	x0, x1, #32, #4			// Check ID_AA64DFR0_EL1 PMSVer
+	cbz	x0, 6f				// Skip if SPE not present
+	cbnz	x2, 5f				// VHE?
+	mov	x1, #(MDCR_EL2_E2PB_MASK << MDCR_EL2_E2PB_SHIFT)
+	orr	x3, x3, x1			// If we don't have VHE, then
+	b	6f				// use EL1&0 translation.
+5:						// For VHE, use EL2 translation
+	orr	x3, x3, #MDCR_EL2_TPMS		// and disable access from EL1
+6:
+	msr	mdcr_el2, x3			// Configure debug traps
 
 	/* Stage-2 translation */
 	msr	vttbr_el2, xzr
@@ -613,8 +669,7 @@ CPU_LE(	movk	x0, #0x30d0, lsl #16	)	// Clear EE and E0E on LE systems
 
 install_el2_stub:
 	/* Hypervisor stub */
-	adrp	x0, __hyp_stub_vectors
-	add	x0, x0, #:lo12:__hyp_stub_vectors
+	adr_l	x0, __hyp_stub_vectors
 	msr	vbar_el2, x0
 
 	/* spsr */
@@ -628,7 +683,7 @@ ENDPROC(el2_setup)
 
 /*
  * Sets the __boot_cpu_mode flag depending on the CPU boot mode passed
- * in x20. See arch/arm64/include/asm/virt.h for more info.
+ * in w0. See arch/arm64/include/asm/virt.h for more info.
  */
 set_cpu_boot_mode_flag:
 	adr_l	x1, __boot_cpu_mode

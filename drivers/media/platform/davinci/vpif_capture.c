@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  * TODO : add support for VBI & HBI data service
  *	  add static buffer allocation
  */
@@ -45,6 +41,7 @@ module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level 0-1");
 
 #define VPIF_DRIVER_NAME	"vpif_capture"
+MODULE_ALIAS("platform:" VPIF_DRIVER_NAME);
 
 /* global variables */
 static struct vpif_device vpif_obj = { {NULL} };
@@ -178,8 +175,6 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 	unsigned long addr, flags;
 	int ret;
 
-	spin_lock_irqsave(&common->irqlock, flags);
-
 	/* Initialize field_id */
 	ch->field_id = 0;
 
@@ -210,6 +205,7 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 	vpif_config_addr(ch, ret);
 
 	/* Get the next frame from the buffer queue */
+	spin_lock_irqsave(&common->irqlock, flags);
 	common->cur_frm = common->next_frm = list_entry(common->dma_queue.next,
 				    struct vpif_cap_buffer, list);
 	/* Remove buffer from the buffer queue */
@@ -243,6 +239,7 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 	return 0;
 
 err:
+	spin_lock_irqsave(&common->irqlock, flags);
 	list_for_each_entry_safe(buf, tmp, &common->dma_queue, list) {
 		list_del(&buf->list);
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_QUEUED);
@@ -286,7 +283,6 @@ static void vpif_stop_streaming(struct vb2_queue *vq)
 		vpif_dbg(1, debug, "stream off failed in subdev\n");
 
 	/* release all active buffers */
-	spin_lock_irqsave(&common->irqlock, flags);
 	if (common->cur_frm == common->next_frm) {
 		vb2_buffer_done(&common->cur_frm->vb.vb2_buf,
 				VB2_BUF_STATE_ERROR);
@@ -299,6 +295,7 @@ static void vpif_stop_streaming(struct vb2_queue *vq)
 					VB2_BUF_STATE_ERROR);
 	}
 
+	spin_lock_irqsave(&common->irqlock, flags);
 	while (!list_empty(&common->dma_queue)) {
 		common->next_frm = list_entry(common->dma_queue.next,
 						struct vpif_cap_buffer, list);
@@ -647,6 +644,10 @@ static int vpif_input_to_subdev(
 
 	vpif_dbg(2, debug, "vpif_input_to_subdev\n");
 
+	if (!chan_cfg)
+		return -1;
+	if (input_index >= chan_cfg->input_count)
+		return -1;
 	subdev_name = chan_cfg->inputs[input_index].subdev_name;
 	if (!subdev_name)
 		return -1;
@@ -685,6 +686,9 @@ static int vpif_set_input(
 	if (sd_index >= 0) {
 		sd = vpif_obj.sd[sd_index];
 		subdev_info = &vpif_cfg->subdev_info[sd_index];
+	} else {
+		/* no subdevice, no input to setup */
+		return 0;
 	}
 
 	/* first setup input path from sub device to vpif */
@@ -1430,6 +1434,11 @@ static __init int vpif_probe(struct platform_device *pdev)
 	int res_idx = 0;
 	int i, err;
 
+	if (!pdev->dev.platform_data) {
+		dev_warn(&pdev->dev, "Missing platform data.  Giving up.\n");
+		return -EINVAL;
+	}
+
 	vpif_dev = &pdev->dev;
 
 	err = initialize_vpif();
@@ -1466,7 +1475,10 @@ static __init int vpif_probe(struct platform_device *pdev)
 	}
 
 	if (!vpif_obj.config->asd_sizes) {
-		i2c_adap = i2c_get_adapter(1);
+		int i2c_id = vpif_obj.config->i2c_adapter_id;
+
+		i2c_adap = i2c_get_adapter(i2c_id);
+		WARN_ON(!i2c_adap);
 		for (i = 0; i < subdev_count; i++) {
 			subdevdata = &vpif_obj.config->subdev_info[i];
 			vpif_obj.sd[i] =

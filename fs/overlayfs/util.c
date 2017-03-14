@@ -10,7 +10,9 @@
 #include <linux/fs.h>
 #include <linux/mount.h>
 #include <linux/slab.h>
+#include <linux/cred.h>
 #include <linux/xattr.h>
+#include <linux/sched/signal.h>
 #include "overlayfs.h"
 #include "ovl_entry.h"
 
@@ -262,4 +264,34 @@ bool ovl_is_whiteout(struct dentry *dentry)
 struct file *ovl_path_open(struct path *path, int flags)
 {
 	return dentry_open(path, flags | O_NOATIME, current_cred());
+}
+
+int ovl_copy_up_start(struct dentry *dentry)
+{
+	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
+	struct ovl_entry *oe = dentry->d_fsdata;
+	int err;
+
+	spin_lock(&ofs->copyup_wq.lock);
+	err = wait_event_interruptible_locked(ofs->copyup_wq, !oe->copying);
+	if (!err) {
+		if (oe->__upperdentry)
+			err = 1; /* Already copied up */
+		else
+			oe->copying = true;
+	}
+	spin_unlock(&ofs->copyup_wq.lock);
+
+	return err;
+}
+
+void ovl_copy_up_end(struct dentry *dentry)
+{
+	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
+	struct ovl_entry *oe = dentry->d_fsdata;
+
+	spin_lock(&ofs->copyup_wq.lock);
+	oe->copying = false;
+	wake_up_locked(&ofs->copyup_wq);
+	spin_unlock(&ofs->copyup_wq.lock);
 }

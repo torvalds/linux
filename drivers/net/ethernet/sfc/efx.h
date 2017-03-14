@@ -276,6 +276,12 @@ static inline void efx_device_detach_sync(struct efx_nic *efx)
 	netif_tx_unlock_bh(dev);
 }
 
+static inline void efx_device_attach_if_not_resetting(struct efx_nic *efx)
+{
+	if ((efx->state != STATE_DISABLED) && !efx->reset_pending)
+		netif_device_attach(efx->net_dev);
+}
+
 static inline bool efx_rwsem_assert_write_locked(struct rw_semaphore *sem)
 {
 	if (WARN_ON(down_read_trylock(sem))) {

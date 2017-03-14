@@ -45,7 +45,7 @@ struct xfrm_flo {
 };
 
 static DEFINE_SPINLOCK(xfrm_policy_afinfo_lock);
-static struct xfrm_policy_afinfo __rcu *xfrm_policy_afinfo[NPROTO]
+static struct xfrm_policy_afinfo const __rcu *xfrm_policy_afinfo[AF_INET6 + 1]
 						__read_mostly;
 
 static struct kmem_cache *xfrm_dst_cache __read_mostly;
@@ -103,11 +103,11 @@ bool xfrm_selector_match(const struct xfrm_selector *sel, const struct flowi *fl
 	return false;
 }
 
-static struct xfrm_policy_afinfo *xfrm_policy_get_afinfo(unsigned short family)
+static const struct xfrm_policy_afinfo *xfrm_policy_get_afinfo(unsigned short family)
 {
-	struct xfrm_policy_afinfo *afinfo;
+	const struct xfrm_policy_afinfo *afinfo;
 
-	if (unlikely(family >= NPROTO))
+	if (unlikely(family >= ARRAY_SIZE(xfrm_policy_afinfo)))
 		return NULL;
 	rcu_read_lock();
 	afinfo = rcu_dereference(xfrm_policy_afinfo[family]);
@@ -116,18 +116,13 @@ static struct xfrm_policy_afinfo *xfrm_policy_get_afinfo(unsigned short family)
 	return afinfo;
 }
 
-static void xfrm_policy_put_afinfo(struct xfrm_policy_afinfo *afinfo)
-{
-	rcu_read_unlock();
-}
-
 static inline struct dst_entry *__xfrm_dst_lookup(struct net *net,
 						  int tos, int oif,
 						  const xfrm_address_t *saddr,
 						  const xfrm_address_t *daddr,
 						  int family)
 {
-	struct xfrm_policy_afinfo *afinfo;
+	const struct xfrm_policy_afinfo *afinfo;
 	struct dst_entry *dst;
 
 	afinfo = xfrm_policy_get_afinfo(family);
@@ -136,7 +131,7 @@ static inline struct dst_entry *__xfrm_dst_lookup(struct net *net,
 
 	dst = afinfo->dst_lookup(net, tos, oif, saddr, daddr);
 
-	xfrm_policy_put_afinfo(afinfo);
+	rcu_read_unlock();
 
 	return dst;
 }
@@ -330,7 +325,7 @@ void xfrm_policy_destroy(struct xfrm_policy *policy)
 }
 EXPORT_SYMBOL(xfrm_policy_destroy);
 
-/* Rule must be locked. Release descentant resources, announce
+/* Rule must be locked. Release descendant resources, announce
  * entry dead. The rule must be unlinked from lists to the moment.
  */
 
@@ -1431,12 +1426,12 @@ xfrm_get_saddr(struct net *net, int oif, xfrm_address_t *local,
 	       xfrm_address_t *remote, unsigned short family)
 {
 	int err;
-	struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
+	const struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
 
 	if (unlikely(afinfo == NULL))
 		return -EINVAL;
 	err = afinfo->get_saddr(net, oif, local, remote);
-	xfrm_policy_put_afinfo(afinfo);
+	rcu_read_unlock();
 	return err;
 }
 
@@ -1538,21 +1533,15 @@ xfrm_tmpl_resolve(struct xfrm_policy **pols, int npols, const struct flowi *fl,
 
 }
 
-/* Check that the bundle accepts the flow and its components are
- * still valid.
- */
-
-static inline int xfrm_get_tos(const struct flowi *fl, int family)
+static int xfrm_get_tos(const struct flowi *fl, int family)
 {
-	struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
-	int tos;
+	const struct xfrm_policy_afinfo *afinfo;
+	int tos = 0;
 
-	if (!afinfo)
-		return -EINVAL;
+	afinfo = xfrm_policy_get_afinfo(family);
+	tos = afinfo ? afinfo->get_tos(fl) : 0;
 
-	tos = afinfo->get_tos(fl);
-
-	xfrm_policy_put_afinfo(afinfo);
+	rcu_read_unlock();
 
 	return tos;
 }
@@ -1609,7 +1598,7 @@ static const struct flow_cache_ops xfrm_bundle_fc_ops = {
 
 static inline struct xfrm_dst *xfrm_alloc_dst(struct net *net, int family)
 {
-	struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
+	const struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
 	struct dst_ops *dst_ops;
 	struct xfrm_dst *xdst;
 
@@ -1638,7 +1627,7 @@ static inline struct xfrm_dst *xfrm_alloc_dst(struct net *net, int family)
 	} else
 		xdst = ERR_PTR(-ENOBUFS);
 
-	xfrm_policy_put_afinfo(afinfo);
+	rcu_read_unlock();
 
 	return xdst;
 }
@@ -1646,7 +1635,7 @@ static inline struct xfrm_dst *xfrm_alloc_dst(struct net *net, int family)
 static inline int xfrm_init_path(struct xfrm_dst *path, struct dst_entry *dst,
 				 int nfheader_len)
 {
-	struct xfrm_policy_afinfo *afinfo =
+	const struct xfrm_policy_afinfo *afinfo =
 		xfrm_policy_get_afinfo(dst->ops->family);
 	int err;
 
@@ -1655,7 +1644,7 @@ static inline int xfrm_init_path(struct xfrm_dst *path, struct dst_entry *dst,
 
 	err = afinfo->init_path(path, dst, nfheader_len);
 
-	xfrm_policy_put_afinfo(afinfo);
+	rcu_read_unlock();
 
 	return err;
 }
@@ -1663,7 +1652,7 @@ static inline int xfrm_init_path(struct xfrm_dst *path, struct dst_entry *dst,
 static inline int xfrm_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 				const struct flowi *fl)
 {
-	struct xfrm_policy_afinfo *afinfo =
+	const struct xfrm_policy_afinfo *afinfo =
 		xfrm_policy_get_afinfo(xdst->u.dst.ops->family);
 	int err;
 
@@ -1672,7 +1661,7 @@ static inline int xfrm_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 
 	err = afinfo->fill_dst(xdst, dev, fl);
 
-	xfrm_policy_put_afinfo(afinfo);
+	rcu_read_unlock();
 
 	return err;
 }
@@ -1705,9 +1694,6 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 	xfrm_flowi_addr_get(fl, &saddr, &daddr, family);
 
 	tos = xfrm_get_tos(fl, family);
-	err = tos;
-	if (tos < 0)
-		goto put_states;
 
 	dst_hold(dst);
 
@@ -2215,7 +2201,7 @@ error:
 static struct dst_entry *make_blackhole(struct net *net, u16 family,
 					struct dst_entry *dst_orig)
 {
-	struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
+	const struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
 	struct dst_entry *ret;
 
 	if (!afinfo) {
@@ -2224,7 +2210,7 @@ static struct dst_entry *make_blackhole(struct net *net, u16 family,
 	} else {
 		ret = afinfo->blackhole_route(net, dst_orig);
 	}
-	xfrm_policy_put_afinfo(afinfo);
+	rcu_read_unlock();
 
 	return ret;
 }
@@ -2466,7 +2452,7 @@ xfrm_policy_ok(const struct xfrm_tmpl *tmpl, const struct sec_path *sp, int star
 int __xfrm_decode_session(struct sk_buff *skb, struct flowi *fl,
 			  unsigned int family, int reverse)
 {
-	struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
+	const struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
 	int err;
 
 	if (unlikely(afinfo == NULL))
@@ -2474,7 +2460,7 @@ int __xfrm_decode_session(struct sk_buff *skb, struct flowi *fl,
 
 	afinfo->decode_session(skb, fl, reverse);
 	err = security_xfrm_decode_session(skb, &fl->flowi_secid);
-	xfrm_policy_put_afinfo(afinfo);
+	rcu_read_unlock();
 	return err;
 }
 EXPORT_SYMBOL(__xfrm_decode_session);
@@ -2742,10 +2728,11 @@ void xfrm_garbage_collect(struct net *net)
 }
 EXPORT_SYMBOL(xfrm_garbage_collect);
 
-static void xfrm_garbage_collect_deferred(struct net *net)
+void xfrm_garbage_collect_deferred(struct net *net)
 {
 	flow_cache_flush_deferred(net);
 }
+EXPORT_SYMBOL(xfrm_garbage_collect_deferred);
 
 static void xfrm_init_pmtu(struct dst_entry *dst)
 {
@@ -2849,22 +2836,52 @@ static unsigned int xfrm_mtu(const struct dst_entry *dst)
 	return mtu ? : dst_mtu(dst->path);
 }
 
+static const void *xfrm_get_dst_nexthop(const struct dst_entry *dst,
+					const void *daddr)
+{
+	const struct dst_entry *path = dst->path;
+
+	for (; dst != path; dst = dst->child) {
+		const struct xfrm_state *xfrm = dst->xfrm;
+
+		if (xfrm->props.mode == XFRM_MODE_TRANSPORT)
+			continue;
+		if (xfrm->type->flags & XFRM_TYPE_REMOTE_COADDR)
+			daddr = xfrm->coaddr;
+		else if (!(xfrm->type->flags & XFRM_TYPE_LOCAL_COADDR))
+			daddr = &xfrm->id.daddr;
+	}
+	return daddr;
+}
+
 static struct neighbour *xfrm_neigh_lookup(const struct dst_entry *dst,
 					   struct sk_buff *skb,
 					   const void *daddr)
 {
-	return dst->path->ops->neigh_lookup(dst, skb, daddr);
+	const struct dst_entry *path = dst->path;
+
+	if (!skb)
+		daddr = xfrm_get_dst_nexthop(dst, daddr);
+	return path->ops->neigh_lookup(path, skb, daddr);
 }
 
-int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
+static void xfrm_confirm_neigh(const struct dst_entry *dst, const void *daddr)
+{
+	const struct dst_entry *path = dst->path;
+
+	daddr = xfrm_get_dst_nexthop(dst, daddr);
+	path->ops->confirm_neigh(path, daddr);
+}
+
+int xfrm_policy_register_afinfo(const struct xfrm_policy_afinfo *afinfo, int family)
 {
 	int err = 0;
-	if (unlikely(afinfo == NULL))
-		return -EINVAL;
-	if (unlikely(afinfo->family >= NPROTO))
+
+	if (WARN_ON(family >= ARRAY_SIZE(xfrm_policy_afinfo)))
 		return -EAFNOSUPPORT;
+
 	spin_lock(&xfrm_policy_afinfo_lock);
-	if (unlikely(xfrm_policy_afinfo[afinfo->family] != NULL))
+	if (unlikely(xfrm_policy_afinfo[family] != NULL))
 		err = -EEXIST;
 	else {
 		struct dst_ops *dst_ops = afinfo->dst_ops;
@@ -2882,9 +2899,9 @@ int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 			dst_ops->link_failure = xfrm_link_failure;
 		if (likely(dst_ops->neigh_lookup == NULL))
 			dst_ops->neigh_lookup = xfrm_neigh_lookup;
-		if (likely(afinfo->garbage_collect == NULL))
-			afinfo->garbage_collect = xfrm_garbage_collect_deferred;
-		rcu_assign_pointer(xfrm_policy_afinfo[afinfo->family], afinfo);
+		if (likely(!dst_ops->confirm_neigh))
+			dst_ops->confirm_neigh = xfrm_confirm_neigh;
+		rcu_assign_pointer(xfrm_policy_afinfo[family], afinfo);
 	}
 	spin_unlock(&xfrm_policy_afinfo_lock);
 
@@ -2892,34 +2909,24 @@ int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 }
 EXPORT_SYMBOL(xfrm_policy_register_afinfo);
 
-int xfrm_policy_unregister_afinfo(struct xfrm_policy_afinfo *afinfo)
+void xfrm_policy_unregister_afinfo(const struct xfrm_policy_afinfo *afinfo)
 {
-	int err = 0;
-	if (unlikely(afinfo == NULL))
-		return -EINVAL;
-	if (unlikely(afinfo->family >= NPROTO))
-		return -EAFNOSUPPORT;
-	spin_lock(&xfrm_policy_afinfo_lock);
-	if (likely(xfrm_policy_afinfo[afinfo->family] != NULL)) {
-		if (unlikely(xfrm_policy_afinfo[afinfo->family] != afinfo))
-			err = -EINVAL;
-		else
-			RCU_INIT_POINTER(xfrm_policy_afinfo[afinfo->family],
-					 NULL);
-	}
-	spin_unlock(&xfrm_policy_afinfo_lock);
-	if (!err) {
-		struct dst_ops *dst_ops = afinfo->dst_ops;
+	struct dst_ops *dst_ops = afinfo->dst_ops;
+	int i;
 
-		synchronize_rcu();
-
-		dst_ops->kmem_cachep = NULL;
-		dst_ops->check = NULL;
-		dst_ops->negative_advice = NULL;
-		dst_ops->link_failure = NULL;
-		afinfo->garbage_collect = NULL;
+	for (i = 0; i < ARRAY_SIZE(xfrm_policy_afinfo); i++) {
+		if (xfrm_policy_afinfo[i] != afinfo)
+			continue;
+		RCU_INIT_POINTER(xfrm_policy_afinfo[i], NULL);
+		break;
 	}
-	return err;
+
+	synchronize_rcu();
+
+	dst_ops->kmem_cachep = NULL;
+	dst_ops->check = NULL;
+	dst_ops->negative_advice = NULL;
+	dst_ops->link_failure = NULL;
 }
 EXPORT_SYMBOL(xfrm_policy_unregister_afinfo);
 

@@ -447,7 +447,7 @@ struct drxj_cfg_atv_output {
 		u16 hi_cfg_ctrl;	  /**< HI Configure() parameter 5                       */
 		u16 hi_cfg_transmit;	  /**< HI Configure() parameter 6                       */
 
-		/* UIO configuartion */
+		/* UIO configuration */
 		enum drxuio_mode uio_sma_rx_mode;/**< current mode of SmaRx pin                        */
 		enum drxuio_mode uio_sma_tx_mode;/**< current mode of SmaTx pin                        */
 		enum drxuio_mode uio_gpio_mode; /**< current mode of ASEL pin                         */
@@ -459,7 +459,7 @@ struct drxj_cfg_atv_output {
 		/* IQM RC frequecy shift */
 		u32 iqm_rc_rate_ofs;	   /**< frequency shifter setting after setchannel      */
 
-		/* ATV configuartion */
+		/* ATV configuration */
 		u32 atv_cfg_changed_flags; /**< flag: flags cfg changes */
 		s16 atv_top_equ0[DRXJ_COEF_IDX_MAX];	     /**< shadow of ATV_TOP_EQU0__A */
 		s16 atv_top_equ1[DRXJ_COEF_IDX_MAX];	     /**< shadow of ATV_TOP_EQU1__A */

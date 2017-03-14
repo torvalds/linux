@@ -42,8 +42,8 @@ static int parse_record_events(const struct option *opt,
 
 		fprintf(stderr, "%-13s%-*s%s\n",
 			e->tag,
-			verbose ? 25 : 0,
-			verbose ? perf_mem_events__name(j) : "",
+			verbose > 0 ? 25 : 0,
+			verbose > 0 ? perf_mem_events__name(j) : "",
 			e->supported ? ": available" : "");
 	}
 	exit(0);

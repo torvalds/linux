@@ -77,8 +77,8 @@ static void vrf_tx_error(struct net_device *vrf_dev, struct sk_buff *skb)
 	kfree_skb(skb);
 }
 
-static struct rtnl_link_stats64 *vrf_get_stats64(struct net_device *dev,
-						 struct rtnl_link_stats64 *stats)
+static void vrf_get_stats64(struct net_device *dev,
+			    struct rtnl_link_stats64 *stats)
 {
 	int i;
 
@@ -102,7 +102,6 @@ static struct rtnl_link_stats64 *vrf_get_stats64(struct net_device *dev,
 		stats->rx_bytes += rbytes;
 		stats->rx_packets += rpkts;
 	}
-	return stats;
 }
 
 /* Local traffic destined to local address. Reinsert the packet to rx
@@ -379,7 +378,8 @@ static int vrf_finish_output6(struct net *net, struct sock *sk,
 	if (unlikely(!neigh))
 		neigh = __neigh_create(&nd_tbl, nexthop, dst->dev, false);
 	if (!IS_ERR(neigh)) {
-		ret = dst_neigh_output(dst, neigh, skb);
+		sock_confirm_neigh(skb, neigh);
+		ret = neigh_output(neigh, skb);
 		rcu_read_unlock_bh();
 		return ret;
 	}
@@ -575,8 +575,10 @@ static int vrf_finish_output(struct net *net, struct sock *sk, struct sk_buff *s
 	neigh = __ipv4_neigh_lookup_noref(dev, nexthop);
 	if (unlikely(!neigh))
 		neigh = __neigh_create(&arp_tbl, &nexthop, dev, false);
-	if (!IS_ERR(neigh))
-		ret = dst_neigh_output(dst, neigh, skb);
+	if (!IS_ERR(neigh)) {
+		sock_confirm_neigh(skb, neigh);
+		ret = neigh_output(neigh, skb);
+	}
 
 	rcu_read_unlock_bh();
 err:

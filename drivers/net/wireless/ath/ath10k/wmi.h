@@ -75,7 +75,7 @@ struct wmi_cmd_hdr {
 
 /*
  * There is no signed version of __le32, so for a temporary solution come
- * up with our own version. The idea is from fs/ntfs/types.h.
+ * up with our own version. The idea is from fs/ntfs/endian.h.
  *
  * Use a_ prefix so that it doesn't conflict if we get proper support to
  * linux/types.h.
@@ -1728,8 +1728,10 @@ enum wmi_phy_mode {
 	MODE_11AC_VHT20_2G = 11,
 	MODE_11AC_VHT40_2G = 12,
 	MODE_11AC_VHT80_2G = 13,
-	MODE_UNKNOWN    = 14,
-	MODE_MAX        = 14
+	MODE_11AC_VHT80_80 = 14,
+	MODE_11AC_VHT160 = 15,
+	MODE_UNKNOWN    = 16,
+	MODE_MAX        = 16
 };
 
 static inline const char *ath10k_wmi_phymode_str(enum wmi_phy_mode mode)
@@ -1757,6 +1759,10 @@ static inline const char *ath10k_wmi_phymode_str(enum wmi_phy_mode mode)
 		return "11ac-vht40";
 	case MODE_11AC_VHT80:
 		return "11ac-vht80";
+	case MODE_11AC_VHT160:
+		return "11ac-vht160";
+	case MODE_11AC_VHT80_80:
+		return "11ac-vht80+80";
 	case MODE_11AC_VHT20_2G:
 		return "11ac-vht20-2g";
 	case MODE_11AC_VHT40_2G:
@@ -1811,6 +1817,7 @@ struct wmi_channel {
 struct wmi_channel_arg {
 	u32 freq;
 	u32 band_center_freq1;
+	u32 band_center_freq2;
 	bool passive;
 	bool allow_ibss;
 	bool allow_ht;
@@ -1875,9 +1882,18 @@ enum wmi_channel_change_cause {
 #define WMI_VHT_CAP_MAX_MPDU_LEN_MASK            0x00000003
 #define WMI_VHT_CAP_RX_LDPC                      0x00000010
 #define WMI_VHT_CAP_SGI_80MHZ                    0x00000020
+#define WMI_VHT_CAP_SGI_160MHZ                   0x00000040
 #define WMI_VHT_CAP_TX_STBC                      0x00000080
 #define WMI_VHT_CAP_RX_STBC_MASK                 0x00000300
 #define WMI_VHT_CAP_RX_STBC_MASK_SHIFT           8
+#define WMI_VHT_CAP_SU_BFER                      0x00000800
+#define WMI_VHT_CAP_SU_BFEE                      0x00001000
+#define WMI_VHT_CAP_MAX_CS_ANT_MASK              0x0000E000
+#define WMI_VHT_CAP_MAX_CS_ANT_MASK_SHIFT        13
+#define WMI_VHT_CAP_MAX_SND_DIM_MASK             0x00070000
+#define WMI_VHT_CAP_MAX_SND_DIM_MASK_SHIFT       16
+#define WMI_VHT_CAP_MU_BFER                      0x00080000
+#define WMI_VHT_CAP_MU_BFEE                      0x00100000
 #define WMI_VHT_CAP_MAX_AMPDU_LEN_EXP            0x03800000
 #define WMI_VHT_CAP_MAX_AMPDU_LEN_EXP_SHIFT      23
 #define WMI_VHT_CAP_RX_FIXED_ANT                 0x10000000
@@ -1926,6 +1942,8 @@ enum {
 	REGDMN_MODE_11AC_VHT40PLUS   = 0x40000, /* 5Ghz, VHT40 + channels */
 	REGDMN_MODE_11AC_VHT40MINUS  = 0x80000, /* 5Ghz  VHT40 - channels */
 	REGDMN_MODE_11AC_VHT80       = 0x100000, /* 5Ghz, VHT80 channels */
+	REGDMN_MODE_11AC_VHT160      = 0x200000,     /* 5Ghz, VHT160 channels */
+	REGDMN_MODE_11AC_VHT80_80    = 0x400000,     /* 5Ghz, VHT80+80 channels */
 	REGDMN_MODE_ALL              = 0xffffffff
 };
 
@@ -5783,6 +5801,7 @@ enum wmi_peer_chwidth {
 	WMI_PEER_CHWIDTH_20MHZ = 0,
 	WMI_PEER_CHWIDTH_40MHZ = 1,
 	WMI_PEER_CHWIDTH_80MHZ = 2,
+	WMI_PEER_CHWIDTH_160MHZ = 3,
 };
 
 enum wmi_peer_param {
@@ -5792,6 +5811,7 @@ enum wmi_peer_param {
 	WMI_PEER_CHAN_WIDTH = 0x4,
 	WMI_PEER_NSS        = 0x5,
 	WMI_PEER_USE_4ADDR  = 0x6,
+	WMI_PEER_DEBUG      = 0xa,
 	WMI_PEER_DUMMY_VAR  = 0xff, /* dummy parameter for STA PS workaround */
 };
 
@@ -5873,6 +5893,7 @@ struct wmi_peer_flags_map {
 	u32 bw80;
 	u32 vht_2g;
 	u32 pmf;
+	u32 bw160;
 };
 
 enum wmi_peer_flags {
@@ -5892,6 +5913,7 @@ enum wmi_peer_flags {
 	WMI_PEER_80MHZ = 0x04000000,
 	WMI_PEER_VHT_2G = 0x08000000,
 	WMI_PEER_PMF = 0x10000000,
+	WMI_PEER_160MHZ = 0x20000000
 };
 
 enum wmi_10x_peer_flags {
@@ -5909,6 +5931,7 @@ enum wmi_10x_peer_flags {
 	WMI_10X_PEER_SPATIAL_MUX = 0x00200000,
 	WMI_10X_PEER_VHT = 0x02000000,
 	WMI_10X_PEER_80MHZ = 0x04000000,
+	WMI_10X_PEER_160MHZ = 0x20000000
 };
 
 enum wmi_10_2_peer_flags {
@@ -5928,6 +5951,7 @@ enum wmi_10_2_peer_flags {
 	WMI_10_2_PEER_80MHZ = 0x04000000,
 	WMI_10_2_PEER_VHT_2G = 0x08000000,
 	WMI_10_2_PEER_PMF = 0x10000000,
+	WMI_10_2_PEER_160MHZ = 0x20000000
 };
 
 /*
@@ -6581,7 +6605,7 @@ struct sk_buff *ath10k_wmi_alloc_skb(struct ath10k *ar, u32 len);
 int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
 int ath10k_wmi_cmd_send_nowait(struct ath10k *ar, struct sk_buff *skb,
 			       u32 cmd_id);
-void ath10k_wmi_start_scan_init(struct ath10k *ar, struct wmi_start_scan_arg *);
+void ath10k_wmi_start_scan_init(struct ath10k *ar, struct wmi_start_scan_arg *arg);
 
 void ath10k_wmi_pull_pdev_stats_base(const struct wmi_pdev_stats_base *src,
 				     struct ath10k_fw_stats_pdev *dst);

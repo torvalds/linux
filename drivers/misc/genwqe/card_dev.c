@@ -29,7 +29,7 @@
 #include <linux/pci.h>
 #include <linux/string.h>
 #include <linux/fs.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/wait.h>
 #include <linux/delay.h>
 #include <linux/atomic.h>
@@ -1396,7 +1396,7 @@ int genwqe_device_remove(struct genwqe_dev *cd)
 	 * application which will decrease this reference from
 	 * 1/unused to 0/illegal and not from 2/used 1/empty.
 	 */
-	rc = atomic_read(&cd->cdev_genwqe.kobj.kref.refcount);
+	rc = kref_read(&cd->cdev_genwqe.kobj.kref);
 	if (rc != 1) {
 		dev_err(&pci_dev->dev,
 			"[%s] err: cdev_genwqe...refcount=%d\n", __func__, rc);

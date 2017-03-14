@@ -33,6 +33,7 @@
 #include <linux/migrate.h>
 #include <linux/backing-dev.h>
 #include <linux/freezer.h>
+#include <linux/sched/mm.h>
 
 #include "xfs_format.h"
 #include "xfs_log_format.h"
@@ -758,7 +759,7 @@ xfs_buf_readahead_map(
 	int			nmaps,
 	const struct xfs_buf_ops *ops)
 {
-	if (bdi_read_congested(target->bt_bdi))
+	if (bdi_read_congested(target->bt_bdev->bd_bdi))
 		return;
 
 	xfs_buf_read_map(target, map, nmaps,
@@ -1791,7 +1792,6 @@ xfs_alloc_buftarg(
 	btp->bt_mount = mp;
 	btp->bt_dev =  bdev->bd_dev;
 	btp->bt_bdev = bdev;
-	btp->bt_bdi = blk_get_backing_dev_info(bdev);
 
 	if (xfs_setsize_buftarg_early(btp, bdev))
 		goto error;

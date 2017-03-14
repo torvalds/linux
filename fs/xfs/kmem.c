@@ -16,6 +16,7 @@
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <linux/mm.h>
+#include <linux/sched/mm.h>
 #include <linux/highmem.h>
 #include <linux/slab.h>
 #include <linux/swap.h>

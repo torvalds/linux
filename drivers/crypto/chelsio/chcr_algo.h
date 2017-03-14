@@ -185,20 +185,21 @@
 			FW_CRYPTO_LOOKASIDE_WR_CCTX_LOC_V(1) | \
 			FW_CRYPTO_LOOKASIDE_WR_CCTX_SIZE_V((ctx_len)))
 
-#define FILL_WR_RX_Q_ID(cid, qid, wr_iv) \
+#define FILL_WR_RX_Q_ID(cid, qid, wr_iv, fid) \
 		htonl( \
 			FW_CRYPTO_LOOKASIDE_WR_RX_CHID_V((cid)) | \
 			FW_CRYPTO_LOOKASIDE_WR_RX_Q_ID_V((qid)) | \
 			FW_CRYPTO_LOOKASIDE_WR_LCB_V(0) | \
-			FW_CRYPTO_LOOKASIDE_WR_IV_V((wr_iv)))
+			FW_CRYPTO_LOOKASIDE_WR_IV_V((wr_iv)) | \
+			FW_CRYPTO_LOOKASIDE_WR_FQIDX_V(fid))
 
-#define FILL_ULPTX_CMD_DEST(cid) \
+#define FILL_ULPTX_CMD_DEST(cid, qid) \
 	htonl(ULPTX_CMD_V(ULP_TX_PKT) | \
 	      ULP_TXPKT_DEST_V(0) | \
 	      ULP_TXPKT_DATAMODIFY_V(0) | \
 	      ULP_TXPKT_CHANNELID_V((cid)) | \
 	      ULP_TXPKT_RO_V(1) | \
-	      ULP_TXPKT_FID_V(0))
+	      ULP_TXPKT_FID_V(qid))
 
 #define KEYCTX_ALIGN_PAD(bs) ({unsigned int _bs = (bs);\
 			      _bs == SHA1_DIGEST_SIZE ? 12 : 0; })

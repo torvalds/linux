@@ -83,6 +83,14 @@
 			};
 		};
 
+		base_fpga_region {
+			#address-cells = <0x1>;
+			#size-cells = <0x1>;
+
+			compatible = "fpga-region";
+			fpga-mgr = <&fpga_mgr>;
+		};
+
 		clkmgr@ffd04000 {
 				compatible = "altr,clk-mgr";
 				reg = <0xffd04000 0x1000>;
@@ -400,6 +408,12 @@
 				};
 		};
 
+		socfpga_axi_setup: stmmac-axi-config {
+			snps,wr_osr_lmt = <0xf>;
+			snps,rd_osr_lmt = <0xf>;
+			snps,blen = <0 0 0 0 16 0 0>;
+		};
+
 		gmac0: ethernet@ff800000 {
 			compatible = "altr,socfpga-stmmac", "snps,dwmac-3.72a", "snps,dwmac";
 			altr,sysmgr-syscon = <&sysmgr 0x44 0>;
@@ -416,6 +430,7 @@
 			clock-names = "stmmaceth";
 			resets = <&rst EMAC0_RESET>;
 			reset-names = "stmmaceth";
+			snps,axi-config = <&socfpga_axi_setup>;
 			status = "disabled";
 		};
 
@@ -435,6 +450,7 @@
 			clock-names = "stmmaceth";
 			resets = <&rst EMAC1_RESET>;
 			reset-names = "stmmaceth";
+			snps,axi-config = <&socfpga_axi_setup>;
 			status = "disabled";
 		};
 
@@ -452,6 +468,7 @@
 			rx-fifo-depth = <16384>;
 			clocks = <&l4_mp_clk>;
 			clock-names = "stmmaceth";
+			snps,axi-config = <&socfpga_axi_setup>;
 			status = "disabled";
 		};
 
@@ -510,6 +527,15 @@
 				#interrupt-cells = <2>;
 				interrupts = <0 114 IRQ_TYPE_LEVEL_HIGH>;
 			};
+		};
+
+		fpga_mgr: fpga-mgr@ffd03000 {
+			compatible = "altr,socfpga-a10-fpga-mgr";
+			reg = <0xffd03000 0x100
+			       0xffcfe400 0x20>;
+			clocks = <&l4_mp_clk>;
+			resets = <&rst FPGAMGR_RESET>;
+			reset-names = "fpgamgr";
 		};
 
 		i2c0: i2c@ffc02200 {
@@ -578,7 +604,7 @@
 		};
 
 		sdr: sdr@ffc25000 {
-			compatible = "syscon";
+			compatible = "altr,sdr-ctl", "syscon";
 			reg = <0xffcfb100 0x80>;
 		};
 
@@ -602,6 +628,19 @@
 			fifo-depth = <0x400>;
 			clocks = <&l4_mp_clk>, <&sdmmc_clk>;
 			clock-names = "biu", "ciu";
+			status = "disabled";
+		};
+
+		nand: nand@ffb90000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "denali,denali-nand-dt", "altr,socfpga-denali-nand";
+			reg = <0xffb90000 0x72000>,
+			      <0xffb80000 0x10000>;
+			reg-names = "nand_data", "denali_reg";
+			interrupts = <0 99 4>;
+			dma-mask = <0xffffffff>;
+			clocks = <&nand_clk>;
 			status = "disabled";
 		};
 

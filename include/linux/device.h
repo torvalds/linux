@@ -88,6 +88,8 @@ extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
  *
  * @suspend:	Called when a device on this bus wants to go to sleep mode.
  * @resume:	Called to bring a device on this bus out of sleep mode.
+ * @num_vf:	Called to find out how many virtual functions a device on this
+ *		bus supports.
  * @pm:		Power management operations of this bus, callback the specific
  *		device driver's pm-ops.
  * @iommu_ops:  IOMMU specific operations for this bus, used to attach IOMMU
@@ -126,6 +128,8 @@ struct bus_type {
 
 	int (*suspend)(struct device *dev, pm_message_t state);
 	int (*resume)(struct device *dev);
+
+	int (*num_vf)(struct device *dev);
 
 	const struct dev_pm_ops *pm;
 
@@ -921,6 +925,7 @@ struct device {
 #ifdef CONFIG_NUMA
 	int		numa_node;	/* NUMA node this device is close to */
 #endif
+	const struct dma_map_ops *dma_ops;
 	u64		*dma_mask;	/* dma mask (if dma'able device) */
 	u64		coherent_dma_mask;/* Like dma_mask, but for
 					     alloc_coherent mappings as
@@ -1135,10 +1140,18 @@ static inline bool device_supports_offline(struct device *dev)
 extern void lock_device_hotplug(void);
 extern void unlock_device_hotplug(void);
 extern int lock_device_hotplug_sysfs(void);
+void assert_held_device_hotplug(void);
 extern int device_offline(struct device *dev);
 extern int device_online(struct device *dev);
 extern void set_primary_fwnode(struct device *dev, struct fwnode_handle *fwnode);
 extern void set_secondary_fwnode(struct device *dev, struct fwnode_handle *fwnode);
+
+static inline int dev_num_vf(struct device *dev)
+{
+	if (dev->bus && dev->bus->num_vf)
+		return dev->bus->num_vf(dev);
+	return 0;
+}
 
 /*
  * Root device objects for grouping under /sys/devices

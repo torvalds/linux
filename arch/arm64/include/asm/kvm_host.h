@@ -70,9 +70,6 @@ struct kvm_arch {
 
 	/* Interrupt controller */
 	struct vgic_dist	vgic;
-
-	/* Timer */
-	struct arch_timer_kvm	timer;
 };
 
 #define KVM_NR_MEM_OBJS     40
@@ -229,7 +226,12 @@ struct kvm_vcpu_arch {
 
 	/* Pointer to host CPU context */
 	kvm_cpu_context_t *host_cpu_context;
-	struct kvm_guest_debug_arch host_debug_state;
+	struct {
+		/* {Break,watch}point registers */
+		struct kvm_guest_debug_arch regs;
+		/* Statistical profiling extension */
+		u64 pmscr_el1;
+	} host_debug_state;
 
 	/* VGIC state */
 	struct vgic_cpu vgic_cpu;

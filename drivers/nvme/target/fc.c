@@ -1817,16 +1817,14 @@ nvmet_fc_xmt_fcp_op_done(struct nvmefc_tgt_fcp_req *fcpreq)
 		/* data no longer needed */
 		nvmet_fc_free_tgt_pgs(fod);
 
-		if (fcpreq->fcp_error || abort)
-			nvmet_req_complete(&fod->req, fcpreq->fcp_error);
-
+		nvmet_req_complete(&fod->req, fcpreq->fcp_error);
 		return;
 	}
 
 	switch (fcpreq->op) {
 
 	case NVMET_FCOP_WRITEDATA:
-		if (abort || fcpreq->fcp_error ||
+		if (fcpreq->fcp_error ||
 		    fcpreq->transferred_length != fcpreq->transfer_length) {
 			nvmet_req_complete(&fod->req,
 					NVME_SC_FC_TRANSPORT_ERROR);
@@ -1849,7 +1847,7 @@ nvmet_fc_xmt_fcp_op_done(struct nvmefc_tgt_fcp_req *fcpreq)
 
 	case NVMET_FCOP_READDATA:
 	case NVMET_FCOP_READDATA_RSP:
-		if (abort || fcpreq->fcp_error ||
+		if (fcpreq->fcp_error ||
 		    fcpreq->transferred_length != fcpreq->transfer_length) {
 			/* data no longer needed */
 			nvmet_fc_free_tgt_pgs(fod);

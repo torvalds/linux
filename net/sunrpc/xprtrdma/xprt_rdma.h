@@ -74,7 +74,9 @@ struct rpcrdma_ia {
 	unsigned int		ri_max_frmr_depth;
 	unsigned int		ri_max_inline_write;
 	unsigned int		ri_max_inline_read;
+	unsigned int		ri_max_send_sges;
 	bool			ri_reminv_expected;
+	bool			ri_implicit_roundup;
 	enum ib_mr_type		ri_mrtype;
 	struct ib_qp_attr	ri_qp_attr;
 	struct ib_qp_init_attr	ri_qp_init_attr;
@@ -303,15 +305,19 @@ struct rpcrdma_mr_seg {		/* chunk descriptors */
 	char		*mr_offset;	/* kva if no page, else offset */
 };
 
-/* Reserve enough Send SGEs to send a maximum size inline request:
+/* The Send SGE array is provisioned to send a maximum size
+ * inline request:
  * - RPC-over-RDMA header
  * - xdr_buf head iovec
- * - RPCRDMA_MAX_INLINE bytes, possibly unaligned, in pages
+ * - RPCRDMA_MAX_INLINE bytes, in pages
  * - xdr_buf tail iovec
+ *
+ * The actual number of array elements consumed by each RPC
+ * depends on the device's max_sge limit.
  */
 enum {
-	RPCRDMA_MAX_SEND_PAGES = PAGE_SIZE + RPCRDMA_MAX_INLINE - 1,
-	RPCRDMA_MAX_PAGE_SGES = (RPCRDMA_MAX_SEND_PAGES >> PAGE_SHIFT) + 1,
+	RPCRDMA_MIN_SEND_SGES = 3,
+	RPCRDMA_MAX_PAGE_SGES = RPCRDMA_MAX_INLINE >> PAGE_SHIFT,
 	RPCRDMA_MAX_SEND_SGES = 1 + 1 + RPCRDMA_MAX_PAGE_SGES + 1,
 };
 
@@ -346,6 +352,22 @@ static inline struct rpcrdma_req *
 rpcr_to_rdmar(struct rpc_rqst *rqst)
 {
 	return rqst->rq_xprtdata;
+}
+
+static inline void
+rpcrdma_push_mw(struct rpcrdma_mw *mw, struct list_head *list)
+{
+	list_add_tail(&mw->mw_list, list);
+}
+
+static inline struct rpcrdma_mw *
+rpcrdma_pop_mw(struct list_head *list)
+{
+	struct rpcrdma_mw *mw;
+
+	mw = list_first_entry(list, struct rpcrdma_mw, mw_list);
+	list_del(&mw->mw_list);
+	return mw;
 }
 
 /*

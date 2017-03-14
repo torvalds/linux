@@ -14,6 +14,16 @@
 #include <linux/irqchip.h>
 #include <asm/irq.h>
 
+#define NR_EXCEPTIONS	16
+
+struct bcr_irq_arcv2 {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad:3, firq:1, prio:4, exts:8, irqs:8, ver:8;
+#else
+	unsigned int ver:8, irqs:8, exts:8, prio:4, firq:1, pad:3;
+#endif
+};
+
 /*
  * Early Hardware specific Interrupt setup
  * -Called very early (start_kernel -> setup_arch -> setup_processor)
@@ -22,15 +32,8 @@
  */
 void arc_init_IRQ(void)
 {
-	unsigned int tmp, irq_prio;
-
-	struct irq_build {
-#ifdef CONFIG_CPU_BIG_ENDIAN
-		unsigned int pad:3, firq:1, prio:4, exts:8, irqs:8, ver:8;
-#else
-		unsigned int ver:8, irqs:8, exts:8, prio:4, firq:1, pad:3;
-#endif
-	} irq_bcr;
+	unsigned int tmp, irq_prio, i;
+	struct bcr_irq_arcv2 irq_bcr;
 
 	struct aux_irq_ctrl {
 #ifdef CONFIG_CPU_BIG_ENDIAN
@@ -68,8 +71,18 @@ void arc_init_IRQ(void)
 		irq_prio + 1, ARCV2_IRQ_DEF_PRIO,
 		irq_bcr.firq ? " FIRQ (not used)":"");
 
+	/*
+	 * Set a default priority for all available interrupts to prevent
+	 * switching of register banks if Fast IRQ and multiple register banks
+	 * are supported by CPU.
+	 */
+	for (i = NR_EXCEPTIONS; i < irq_bcr.irqs + NR_EXCEPTIONS; i++) {
+		write_aux_reg(AUX_IRQ_SELECT, i);
+		write_aux_reg(AUX_IRQ_PRIORITY, ARCV2_IRQ_DEF_PRIO);
+	}
+
 	/* setup status32, don't enable intr yet as kernel doesn't want */
-	tmp = read_aux_reg(0xa);
+	tmp = read_aux_reg(ARC_REG_STATUS32);
 	tmp |= STATUS_AD_MASK | (ARCV2_IRQ_DEF_PRIO << 1);
 	tmp &= ~STATUS_IE_MASK;
 	asm volatile("kflag %0	\n"::"r"(tmp));
@@ -115,7 +128,7 @@ static int arcv2_irq_map(struct irq_domain *d, unsigned int irq,
 	 * core intc IRQs [16, 23]:
 	 * Statically assigned always private-per-core (Timers, WDT, IPI, PCT)
 	 */
-	if (hw < 24) {
+	if (hw < FIRST_EXT_IRQ) {
 		/*
 		 * A subsequent request_percpu_irq() fails if percpu_devid is
 		 * not set. That in turns sets NOAUTOEN, meaning each core needs
@@ -140,11 +153,16 @@ static int __init
 init_onchip_IRQ(struct device_node *intc, struct device_node *parent)
 {
 	struct irq_domain *root_domain;
+	struct bcr_irq_arcv2 irq_bcr;
+	unsigned int nr_cpu_irqs;
+
+	READ_BCR(ARC_REG_IRQ_BCR, irq_bcr);
+	nr_cpu_irqs = irq_bcr.irqs + NR_EXCEPTIONS;
 
 	if (parent)
 		panic("DeviceTree incore intc not a root irq controller\n");
 
-	root_domain = irq_domain_add_linear(intc, NR_CPU_IRQS, &arcv2_irq_ops, NULL);
+	root_domain = irq_domain_add_linear(intc, nr_cpu_irqs, &arcv2_irq_ops, NULL);
 	if (!root_domain)
 		panic("root irq domain not avail\n");
 

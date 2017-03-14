@@ -15,6 +15,8 @@
 #include <linux/writeback.h>
 #include <linux/buffer_head.h>
 #include <linux/falloc.h>
+#include <linux/sched/signal.h>
+
 #include "internal.h"
 
 #include <asm/ioctls.h>

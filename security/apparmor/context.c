@@ -13,11 +13,11 @@
  * License.
  *
  *
- * AppArmor sets confinement on every task, via the the aa_task_cxt and
- * the aa_task_cxt.profile, both of which are required and are not allowed
- * to be NULL.  The aa_task_cxt is not reference counted and is unique
+ * AppArmor sets confinement on every task, via the the aa_task_ctx and
+ * the aa_task_ctx.profile, both of which are required and are not allowed
+ * to be NULL.  The aa_task_ctx is not reference counted and is unique
  * to each cred (which is reference count).  The profile pointed to by
- * the task_cxt is reference counted.
+ * the task_ctx is reference counted.
  *
  * TODO
  * If a task uses change_hat it currently does not return to the old
@@ -30,28 +30,28 @@
 #include "include/policy.h"
 
 /**
- * aa_alloc_task_context - allocate a new task_cxt
+ * aa_alloc_task_context - allocate a new task_ctx
  * @flags: gfp flags for allocation
  *
  * Returns: allocated buffer or NULL on failure
  */
-struct aa_task_cxt *aa_alloc_task_context(gfp_t flags)
+struct aa_task_ctx *aa_alloc_task_context(gfp_t flags)
 {
-	return kzalloc(sizeof(struct aa_task_cxt), flags);
+	return kzalloc(sizeof(struct aa_task_ctx), flags);
 }
 
 /**
- * aa_free_task_context - free a task_cxt
- * @cxt: task_cxt to free (MAYBE NULL)
+ * aa_free_task_context - free a task_ctx
+ * @ctx: task_ctx to free (MAYBE NULL)
  */
-void aa_free_task_context(struct aa_task_cxt *cxt)
+void aa_free_task_context(struct aa_task_ctx *ctx)
 {
-	if (cxt) {
-		aa_put_profile(cxt->profile);
-		aa_put_profile(cxt->previous);
-		aa_put_profile(cxt->onexec);
+	if (ctx) {
+		aa_put_profile(ctx->profile);
+		aa_put_profile(ctx->previous);
+		aa_put_profile(ctx->onexec);
 
-		kzfree(cxt);
+		kzfree(ctx);
 	}
 }
 
@@ -60,7 +60,7 @@ void aa_free_task_context(struct aa_task_cxt *cxt)
  * @new: a blank task context      (NOT NULL)
  * @old: the task context to copy  (NOT NULL)
  */
-void aa_dup_task_context(struct aa_task_cxt *new, const struct aa_task_cxt *old)
+void aa_dup_task_context(struct aa_task_ctx *new, const struct aa_task_ctx *old)
 {
 	*new = *old;
 	aa_get_profile(new->profile);
@@ -93,31 +93,36 @@ struct aa_profile *aa_get_task_profile(struct task_struct *task)
  */
 int aa_replace_current_profile(struct aa_profile *profile)
 {
-	struct aa_task_cxt *cxt = current_cxt();
+	struct aa_task_ctx *ctx = current_ctx();
 	struct cred *new;
-	BUG_ON(!profile);
+	AA_BUG(!profile);
 
-	if (cxt->profile == profile)
+	if (ctx->profile == profile)
 		return 0;
+
+	if (current_cred() != current_real_cred())
+		return -EBUSY;
 
 	new  = prepare_creds();
 	if (!new)
 		return -ENOMEM;
 
-	cxt = cred_cxt(new);
-	if (unconfined(profile) || (cxt->profile->ns != profile->ns))
+	ctx = cred_ctx(new);
+	if (unconfined(profile) || (ctx->profile->ns != profile->ns))
 		/* if switching to unconfined or a different profile namespace
 		 * clear out context state
 		 */
-		aa_clear_task_cxt_trans(cxt);
+		aa_clear_task_ctx_trans(ctx);
 
-	/* be careful switching cxt->profile, when racing replacement it
-	 * is possible that cxt->profile->replacedby->profile is the reference
+	/*
+	 * be careful switching ctx->profile, when racing replacement it
+	 * is possible that ctx->profile->proxy->profile is the reference
 	 * keeping @profile valid, so make sure to get its reference before
-	 * dropping the reference on cxt->profile */
+	 * dropping the reference on ctx->profile
+	 */
 	aa_get_profile(profile);
-	aa_put_profile(cxt->profile);
-	cxt->profile = profile;
+	aa_put_profile(ctx->profile);
+	ctx->profile = profile;
 
 	commit_creds(new);
 	return 0;
@@ -131,15 +136,15 @@ int aa_replace_current_profile(struct aa_profile *profile)
  */
 int aa_set_current_onexec(struct aa_profile *profile)
 {
-	struct aa_task_cxt *cxt;
+	struct aa_task_ctx *ctx;
 	struct cred *new = prepare_creds();
 	if (!new)
 		return -ENOMEM;
 
-	cxt = cred_cxt(new);
+	ctx = cred_ctx(new);
 	aa_get_profile(profile);
-	aa_put_profile(cxt->onexec);
-	cxt->onexec = profile;
+	aa_put_profile(ctx->onexec);
+	ctx->onexec = profile;
 
 	commit_creds(new);
 	return 0;
@@ -157,28 +162,28 @@ int aa_set_current_onexec(struct aa_profile *profile)
  */
 int aa_set_current_hat(struct aa_profile *profile, u64 token)
 {
-	struct aa_task_cxt *cxt;
+	struct aa_task_ctx *ctx;
 	struct cred *new = prepare_creds();
 	if (!new)
 		return -ENOMEM;
-	BUG_ON(!profile);
+	AA_BUG(!profile);
 
-	cxt = cred_cxt(new);
-	if (!cxt->previous) {
+	ctx = cred_ctx(new);
+	if (!ctx->previous) {
 		/* transfer refcount */
-		cxt->previous = cxt->profile;
-		cxt->token = token;
-	} else if (cxt->token == token) {
-		aa_put_profile(cxt->profile);
+		ctx->previous = ctx->profile;
+		ctx->token = token;
+	} else if (ctx->token == token) {
+		aa_put_profile(ctx->profile);
 	} else {
-		/* previous_profile && cxt->token != token */
+		/* previous_profile && ctx->token != token */
 		abort_creds(new);
 		return -EACCES;
 	}
-	cxt->profile = aa_get_newest_profile(profile);
+	ctx->profile = aa_get_newest_profile(profile);
 	/* clear exec on switching context */
-	aa_put_profile(cxt->onexec);
-	cxt->onexec = NULL;
+	aa_put_profile(ctx->onexec);
+	ctx->onexec = NULL;
 
 	commit_creds(new);
 	return 0;
@@ -195,27 +200,27 @@ int aa_set_current_hat(struct aa_profile *profile, u64 token)
  */
 int aa_restore_previous_profile(u64 token)
 {
-	struct aa_task_cxt *cxt;
+	struct aa_task_ctx *ctx;
 	struct cred *new = prepare_creds();
 	if (!new)
 		return -ENOMEM;
 
-	cxt = cred_cxt(new);
-	if (cxt->token != token) {
+	ctx = cred_ctx(new);
+	if (ctx->token != token) {
 		abort_creds(new);
 		return -EACCES;
 	}
 	/* ignore restores when there is no saved profile */
-	if (!cxt->previous) {
+	if (!ctx->previous) {
 		abort_creds(new);
 		return 0;
 	}
 
-	aa_put_profile(cxt->profile);
-	cxt->profile = aa_get_newest_profile(cxt->previous);
-	BUG_ON(!cxt->profile);
+	aa_put_profile(ctx->profile);
+	ctx->profile = aa_get_newest_profile(ctx->previous);
+	AA_BUG(!ctx->profile);
 	/* clear exec && prev information when restoring to previous context */
-	aa_clear_task_cxt_trans(cxt);
+	aa_clear_task_ctx_trans(ctx);
 
 	commit_creds(new);
 	return 0;

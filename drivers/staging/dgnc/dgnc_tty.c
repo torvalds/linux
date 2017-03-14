@@ -19,7 +19,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/sched.h>	/* For jiffies, task states */
+#include <linux/sched/signal.h>	/* For jiffies, task states, etc. */
 #include <linux/interrupt.h>	/* For tasklet and interrupt structs/defines */
 #include <linux/module.h>
 #include <linux/ctype.h>
@@ -971,9 +971,10 @@ static int dgnc_tty_open(struct tty_struct *tty, struct file *file)
 	 * touched safely, the close routine will signal the
 	 * ch_flags_wait to wake us back up.
 	 */
-	rc = wait_event_interruptible(ch->ch_flags_wait,
-			(((ch->ch_tun.un_flags |
-			   ch->ch_pun.un_flags) & UN_CLOSING) == 0));
+	rc = wait_event_interruptible(
+				ch->ch_flags_wait,
+				(((ch->ch_tun.un_flags |
+				ch->ch_pun.un_flags) & UN_CLOSING) == 0));
 
 	/* If ret is non-zero, user ctrl-c'ed us */
 	if (rc)
@@ -1193,7 +1194,8 @@ static int dgnc_block_til_ready(struct tty_struct *tty,
 				 (old_flags != (ch->ch_tun.un_flags |
 						ch->ch_pun.un_flags)));
 		else
-			retval = wait_event_interruptible(ch->ch_flags_wait,
+			retval = wait_event_interruptible(
+					ch->ch_flags_wait,
 					(old_flags != ch->ch_flags));
 
 		/*

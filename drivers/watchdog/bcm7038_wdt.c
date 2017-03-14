@@ -101,7 +101,7 @@ static unsigned int bcm7038_wdt_get_timeleft(struct watchdog_device *wdog)
 	return time_left / wdt->rate;
 }
 
-static struct watchdog_info bcm7038_wdt_info = {
+static const struct watchdog_info bcm7038_wdt_info = {
 	.identity	= "Broadcom BCM7038 Watchdog Timer",
 	.options	= WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING |
 				WDIOF_MAGICCLOSE

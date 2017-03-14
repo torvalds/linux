@@ -131,7 +131,7 @@
 						 <&clk_s_d2_quadfs 0>;
 
 			assigned-clock-rates = <297000000>,
-					       <108000000>,
+					       <297000000>,
 					       <0>,
 					       <400000000>,
 					       <400000000>;
@@ -221,6 +221,7 @@
 
 			sti-hda@8d02000 {
 				compatible = "st,stih407-hda";
+				status = "disabled";
 				reg = <0x8d02000 0x400>, <0x92b0120 0x4>;
 				reg-names = "hda-reg", "video-dacs-ctrl";
 				clock-names = "pix",
@@ -231,6 +232,17 @@
 					 <&clk_s_d2_flexgen CLK_HDDAC>,
 					 <&clk_s_d2_quadfs 0>,
 					 <&clk_s_d2_quadfs 1>;
+			};
+
+			sti-hqvdp@9c000000 {
+				compatible = "st,stih407-hqvdp";
+				reg = <0x9C00000 0x100000>;
+				clock-names = "hqvdp", "pix_main";
+				clocks = <&clk_s_c0_flexgen CLK_MAIN_DISP>,
+					 <&clk_s_d2_flexgen CLK_PIX_MAIN_DISP>;
+				reset-names = "hqvdp";
+				resets = <&softreset STIH407_HDQVDP_SOFTRESET>;
+				st,vtg = <&vtg_main>;
 			};
 		};
 
@@ -258,6 +270,16 @@
 			clock-names = "thermal";
 			clocks = <&clk_sysin>;
 			interrupts = <GIC_SPI 205 IRQ_TYPE_EDGE_RISING>;
+		};
+
+		delta0 {
+			compatible = "st,st-delta";
+			clock-names = "delta",
+				      "delta-st231",
+				      "delta-flash-promip";
+			clocks = <&clk_s_c0_flexgen CLK_VID_DMU>,
+				 <&clk_s_c0_flexgen CLK_ST231_DMU>,
+				 <&clk_s_c0_flexgen CLK_FLASH_PROMIP>;
 		};
 	};
 };

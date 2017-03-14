@@ -18,6 +18,7 @@
 /**
  * @file octeon_console.c
  */
+#include <linux/moduleparam.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/crc32.h>
@@ -548,6 +549,16 @@ int octeon_init_consoles(struct octeon_device *oct)
 			OCTEON_PCI_CONSOLE_BLOCK_NAME);
 		return ret;
 	}
+
+	/* Dedicate one of Octeon's BAR1 index registers to create a static
+	 * mapping to a region of Octeon DRAM that contains the PCI console
+	 * named block.
+	 */
+	oct->console_nb_info.bar1_index = BAR1_INDEX_STATIC_MAP;
+	oct->fn_list.bar1_idx_setup(oct, addr, oct->console_nb_info.bar1_index,
+				    true);
+	oct->console_nb_info.dram_region_base = addr
+		& ~(OCTEON_BAR1_ENTRY_SIZE - 1ULL);
 
 	/* num_consoles > 0, is an indication that the consoles
 	 * are accessible

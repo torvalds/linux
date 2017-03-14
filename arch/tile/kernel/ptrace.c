@@ -23,6 +23,8 @@
 #include <linux/elf.h>
 #include <linux/tracehook.h>
 #include <linux/context_tracking.h>
+#include <linux/sched/task_stack.h>
+
 #include <asm/traps.h>
 #include <arch/chip.h>
 

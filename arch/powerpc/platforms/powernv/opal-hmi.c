@@ -180,7 +180,8 @@ static void print_hmi_event_info(struct OpalHMIEvent *hmi_evt)
 		"An XSCOM operation completed",
 		"SCOM has set a reserved FIR bit to cause recovery",
 		"Debug trigger has set a reserved FIR bit to cause recovery",
-		"A hypervisor resource error occurred"
+		"A hypervisor resource error occurred",
+		"CAPP recovery process is in progress",
 	};
 
 	/* Print things out */

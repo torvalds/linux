@@ -749,7 +749,7 @@ static int nicvf_poll(struct napi_struct *napi, int budget)
 
 	if (work_done < budget) {
 		/* Slow packet rate, exit polling */
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		/* Re-enable interrupts */
 		cq_head = nicvf_queue_reg_read(nic, NIC_QSET_CQ_0_7_HEAD,
 					       cq->cq_idx);
@@ -1274,7 +1274,8 @@ int nicvf_open(struct net_device *netdev)
 	/* Configure receive side scaling and MTU */
 	if (!nic->sqs_mode) {
 		nicvf_rss_init(nic);
-		if (nicvf_update_hw_max_frs(nic, netdev->mtu))
+		err = nicvf_update_hw_max_frs(nic, netdev->mtu);
+		if (err)
 			goto cleanup;
 
 		/* Clear percpu stats */
@@ -1461,8 +1462,8 @@ void nicvf_update_stats(struct nicvf *nic)
 		nicvf_update_sq_stats(nic, qidx);
 }
 
-static struct rtnl_link_stats64 *nicvf_get_stats64(struct net_device *netdev,
-					    struct rtnl_link_stats64 *stats)
+static void nicvf_get_stats64(struct net_device *netdev,
+			      struct rtnl_link_stats64 *stats)
 {
 	struct nicvf *nic = netdev_priv(netdev);
 	struct nicvf_hw_stats *hw_stats = &nic->hw_stats;
@@ -1478,7 +1479,6 @@ static struct rtnl_link_stats64 *nicvf_get_stats64(struct net_device *netdev,
 	stats->tx_packets = hw_stats->tx_frames;
 	stats->tx_dropped = hw_stats->tx_drops;
 
-	return stats;
 }
 
 static void nicvf_tx_timeout(struct net_device *dev)

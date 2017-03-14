@@ -18,7 +18,7 @@ config AS3935
 
 endmenu
 
-menu "Proximity sensors"
+menu "Proximity and distance sensors"
 
 config LIDAR_LITE_V2
 	tristate "PulsedLight LIDAR sensor"
@@ -44,5 +44,16 @@ config SX9500
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sx9500.
+
+config SRF08
+	tristate "Devantech SRF08 ultrasonic ranger sensor"
+	depends on I2C
+	help
+	  Say Y here to build a driver for Devantech SRF08 ultrasonic
+	  ranger sensor. This driver can be used to measure the distance
+	  of objects.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called srf08.
 
 endmenu

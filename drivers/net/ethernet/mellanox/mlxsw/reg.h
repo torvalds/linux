@@ -1,9 +1,9 @@
 /*
  * drivers/net/ethernet/mellanox/mlxsw/reg.h
- * Copyright (c) 2015 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015-2017 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2015-2016 Ido Schimmel <idosch@mellanox.com>
  * Copyright (c) 2015 Elad Raz <eladr@mellanox.com>
- * Copyright (c) 2015-2016 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2015-2017 Jiri Pirko <jiri@mellanox.com>
  * Copyright (c) 2016 Yotam Gigi <yotamg@mellanox.com>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1757,6 +1757,505 @@ static inline void mlxsw_reg_spvmlr_pack(char *payload, u8 local_port,
 	}
 }
 
+/* PPBT - Policy-Engine Port Binding Table
+ * ---------------------------------------
+ * This register is used for configuration of the Port Binding Table.
+ */
+#define MLXSW_REG_PPBT_ID 0x3002
+#define MLXSW_REG_PPBT_LEN 0x14
+
+MLXSW_REG_DEFINE(ppbt, MLXSW_REG_PPBT_ID, MLXSW_REG_PPBT_LEN);
+
+enum mlxsw_reg_pxbt_e {
+	MLXSW_REG_PXBT_E_IACL,
+	MLXSW_REG_PXBT_E_EACL,
+};
+
+/* reg_ppbt_e
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, ppbt, e, 0x00, 31, 1);
+
+enum mlxsw_reg_pxbt_op {
+	MLXSW_REG_PXBT_OP_BIND,
+	MLXSW_REG_PXBT_OP_UNBIND,
+};
+
+/* reg_ppbt_op
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ppbt, op, 0x00, 28, 3);
+
+/* reg_ppbt_local_port
+ * Local port. Not including CPU port.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, ppbt, local_port, 0x00, 16, 8);
+
+/* reg_ppbt_g
+ * group - When set, the binding is of an ACL group. When cleared,
+ * the binding is of an ACL.
+ * Must be set to 1 for Spectrum.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ppbt, g, 0x10, 31, 1);
+
+/* reg_ppbt_acl_info
+ * ACL/ACL group identifier. If the g bit is set, this field should hold
+ * the acl_group_id, else it should hold the acl_id.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ppbt, acl_info, 0x10, 0, 16);
+
+static inline void mlxsw_reg_ppbt_pack(char *payload, enum mlxsw_reg_pxbt_e e,
+				       enum mlxsw_reg_pxbt_op op,
+				       u8 local_port, u16 acl_info)
+{
+	MLXSW_REG_ZERO(ppbt, payload);
+	mlxsw_reg_ppbt_e_set(payload, e);
+	mlxsw_reg_ppbt_op_set(payload, op);
+	mlxsw_reg_ppbt_local_port_set(payload, local_port);
+	mlxsw_reg_ppbt_g_set(payload, true);
+	mlxsw_reg_ppbt_acl_info_set(payload, acl_info);
+}
+
+/* PACL - Policy-Engine ACL Register
+ * ---------------------------------
+ * This register is used for configuration of the ACL.
+ */
+#define MLXSW_REG_PACL_ID 0x3004
+#define MLXSW_REG_PACL_LEN 0x70
+
+MLXSW_REG_DEFINE(pacl, MLXSW_REG_PACL_ID, MLXSW_REG_PACL_LEN);
+
+/* reg_pacl_v
+ * Valid. Setting the v bit makes the ACL valid. It should not be cleared
+ * while the ACL is bounded to either a port, VLAN or ACL rule.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pacl, v, 0x00, 24, 1);
+
+/* reg_pacl_acl_id
+ * An identifier representing the ACL (managed by software)
+ * Range 0 .. cap_max_acl_regions - 1
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pacl, acl_id, 0x08, 0, 16);
+
+#define MLXSW_REG_PXXX_TCAM_REGION_INFO_LEN 16
+
+/* reg_pacl_tcam_region_info
+ * Opaque object that represents a TCAM region.
+ * Obtained through PTAR register.
+ * Access: RW
+ */
+MLXSW_ITEM_BUF(reg, pacl, tcam_region_info, 0x30,
+	       MLXSW_REG_PXXX_TCAM_REGION_INFO_LEN);
+
+static inline void mlxsw_reg_pacl_pack(char *payload, u16 acl_id,
+				       bool valid, const char *tcam_region_info)
+{
+	MLXSW_REG_ZERO(pacl, payload);
+	mlxsw_reg_pacl_acl_id_set(payload, acl_id);
+	mlxsw_reg_pacl_v_set(payload, valid);
+	mlxsw_reg_pacl_tcam_region_info_memcpy_to(payload, tcam_region_info);
+}
+
+/* PAGT - Policy-Engine ACL Group Table
+ * ------------------------------------
+ * This register is used for configuration of the ACL Group Table.
+ */
+#define MLXSW_REG_PAGT_ID 0x3005
+#define MLXSW_REG_PAGT_BASE_LEN 0x30
+#define MLXSW_REG_PAGT_ACL_LEN 4
+#define MLXSW_REG_PAGT_ACL_MAX_NUM 16
+#define MLXSW_REG_PAGT_LEN (MLXSW_REG_PAGT_BASE_LEN + \
+		MLXSW_REG_PAGT_ACL_MAX_NUM * MLXSW_REG_PAGT_ACL_LEN)
+
+MLXSW_REG_DEFINE(pagt, MLXSW_REG_PAGT_ID, MLXSW_REG_PAGT_LEN);
+
+/* reg_pagt_size
+ * Number of ACLs in the group.
+ * Size 0 invalidates a group.
+ * Range 0 .. cap_max_acl_group_size (hard coded to 16 for now)
+ * Total number of ACLs in all groups must be lower or equal
+ * to cap_max_acl_tot_groups
+ * Note: a group which is binded must not be invalidated
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pagt, size, 0x00, 0, 8);
+
+/* reg_pagt_acl_group_id
+ * An identifier (numbered from 0..cap_max_acl_groups-1) representing
+ * the ACL Group identifier (managed by software).
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pagt, acl_group_id, 0x08, 0, 16);
+
+/* reg_pagt_acl_id
+ * ACL identifier
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, pagt, acl_id, 0x30, 0, 16, 0x04, 0x00, false);
+
+static inline void mlxsw_reg_pagt_pack(char *payload, u16 acl_group_id)
+{
+	MLXSW_REG_ZERO(pagt, payload);
+	mlxsw_reg_pagt_acl_group_id_set(payload, acl_group_id);
+}
+
+static inline void mlxsw_reg_pagt_acl_id_pack(char *payload, int index,
+					      u16 acl_id)
+{
+	u8 size = mlxsw_reg_pagt_size_get(payload);
+
+	if (index >= size)
+		mlxsw_reg_pagt_size_set(payload, index + 1);
+	mlxsw_reg_pagt_acl_id_set(payload, index, acl_id);
+}
+
+/* PTAR - Policy-Engine TCAM Allocation Register
+ * ---------------------------------------------
+ * This register is used for allocation of regions in the TCAM.
+ * Note: Query method is not supported on this register.
+ */
+#define MLXSW_REG_PTAR_ID 0x3006
+#define MLXSW_REG_PTAR_BASE_LEN 0x20
+#define MLXSW_REG_PTAR_KEY_ID_LEN 1
+#define MLXSW_REG_PTAR_KEY_ID_MAX_NUM 16
+#define MLXSW_REG_PTAR_LEN (MLXSW_REG_PTAR_BASE_LEN + \
+		MLXSW_REG_PTAR_KEY_ID_MAX_NUM * MLXSW_REG_PTAR_KEY_ID_LEN)
+
+MLXSW_REG_DEFINE(ptar, MLXSW_REG_PTAR_ID, MLXSW_REG_PTAR_LEN);
+
+enum mlxsw_reg_ptar_op {
+	/* allocate a TCAM region */
+	MLXSW_REG_PTAR_OP_ALLOC,
+	/* resize a TCAM region */
+	MLXSW_REG_PTAR_OP_RESIZE,
+	/* deallocate TCAM region */
+	MLXSW_REG_PTAR_OP_FREE,
+	/* test allocation */
+	MLXSW_REG_PTAR_OP_TEST,
+};
+
+/* reg_ptar_op
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, ptar, op, 0x00, 28, 4);
+
+/* reg_ptar_action_set_type
+ * Type of action set to be used on this region.
+ * For Spectrum, this is always type 2 - "flexible"
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, ptar, action_set_type, 0x00, 16, 8);
+
+/* reg_ptar_key_type
+ * TCAM key type for the region.
+ * For Spectrum, this is always type 0x50 - "FLEX_KEY"
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, ptar, key_type, 0x00, 0, 8);
+
+/* reg_ptar_region_size
+ * TCAM region size. When allocating/resizing this is the requested size,
+ * the response is the actual size. Note that actual size may be
+ * larger than requested.
+ * Allowed range 1 .. cap_max_rules-1
+ * Reserved during op deallocate.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, ptar, region_size, 0x04, 0, 16);
+
+/* reg_ptar_region_id
+ * Region identifier
+ * Range 0 .. cap_max_regions-1
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, ptar, region_id, 0x08, 0, 16);
+
+/* reg_ptar_tcam_region_info
+ * Opaque object that represents the TCAM region.
+ * Returned when allocating a region.
+ * Provided by software for ACL generation and region deallocation and resize.
+ * Access: RW
+ */
+MLXSW_ITEM_BUF(reg, ptar, tcam_region_info, 0x10,
+	       MLXSW_REG_PXXX_TCAM_REGION_INFO_LEN);
+
+/* reg_ptar_flexible_key_id
+ * Identifier of the Flexible Key.
+ * Only valid if key_type == "FLEX_KEY"
+ * The key size will be rounded up to one of the following values:
+ * 9B, 18B, 36B, 54B.
+ * This field is reserved for in resize operation.
+ * Access: WO
+ */
+MLXSW_ITEM8_INDEXED(reg, ptar, flexible_key_id, 0x20, 0, 8,
+		    MLXSW_REG_PTAR_KEY_ID_LEN, 0x00, false);
+
+static inline void mlxsw_reg_ptar_pack(char *payload, enum mlxsw_reg_ptar_op op,
+				       u16 region_size, u16 region_id,
+				       const char *tcam_region_info)
+{
+	MLXSW_REG_ZERO(ptar, payload);
+	mlxsw_reg_ptar_op_set(payload, op);
+	mlxsw_reg_ptar_action_set_type_set(payload, 2); /* "flexible" */
+	mlxsw_reg_ptar_key_type_set(payload, 0x50); /* "FLEX_KEY" */
+	mlxsw_reg_ptar_region_size_set(payload, region_size);
+	mlxsw_reg_ptar_region_id_set(payload, region_id);
+	mlxsw_reg_ptar_tcam_region_info_memcpy_to(payload, tcam_region_info);
+}
+
+static inline void mlxsw_reg_ptar_key_id_pack(char *payload, int index,
+					      u16 key_id)
+{
+	mlxsw_reg_ptar_flexible_key_id_set(payload, index, key_id);
+}
+
+static inline void mlxsw_reg_ptar_unpack(char *payload, char *tcam_region_info)
+{
+	mlxsw_reg_ptar_tcam_region_info_memcpy_from(payload, tcam_region_info);
+}
+
+/* PPBS - Policy-Engine Policy Based Switching Register
+ * ----------------------------------------------------
+ * This register retrieves and sets Policy Based Switching Table entries.
+ */
+#define MLXSW_REG_PPBS_ID 0x300C
+#define MLXSW_REG_PPBS_LEN 0x14
+
+MLXSW_REG_DEFINE(ppbs, MLXSW_REG_PPBS_ID, MLXSW_REG_PPBS_LEN);
+
+/* reg_ppbs_pbs_ptr
+ * Index into the PBS table.
+ * For Spectrum, the index points to the KVD Linear.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, ppbs, pbs_ptr, 0x08, 0, 24);
+
+/* reg_ppbs_system_port
+ * Unique port identifier for the final destination of the packet.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ppbs, system_port, 0x10, 0, 16);
+
+static inline void mlxsw_reg_ppbs_pack(char *payload, u32 pbs_ptr,
+				       u16 system_port)
+{
+	MLXSW_REG_ZERO(ppbs, payload);
+	mlxsw_reg_ppbs_pbs_ptr_set(payload, pbs_ptr);
+	mlxsw_reg_ppbs_system_port_set(payload, system_port);
+}
+
+/* PRCR - Policy-Engine Rules Copy Register
+ * ----------------------------------------
+ * This register is used for accessing rules within a TCAM region.
+ */
+#define MLXSW_REG_PRCR_ID 0x300D
+#define MLXSW_REG_PRCR_LEN 0x40
+
+MLXSW_REG_DEFINE(prcr, MLXSW_REG_PRCR_ID, MLXSW_REG_PRCR_LEN);
+
+enum mlxsw_reg_prcr_op {
+	/* Move rules. Moves the rules from "tcam_region_info" starting
+	 * at offset "offset" to "dest_tcam_region_info"
+	 * at offset "dest_offset."
+	 */
+	MLXSW_REG_PRCR_OP_MOVE,
+	/* Copy rules. Copies the rules from "tcam_region_info" starting
+	 * at offset "offset" to "dest_tcam_region_info"
+	 * at offset "dest_offset."
+	 */
+	MLXSW_REG_PRCR_OP_COPY,
+};
+
+/* reg_prcr_op
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, prcr, op, 0x00, 28, 4);
+
+/* reg_prcr_offset
+ * Offset within the source region to copy/move from.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, prcr, offset, 0x00, 0, 16);
+
+/* reg_prcr_size
+ * The number of rules to copy/move.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, prcr, size, 0x04, 0, 16);
+
+/* reg_prcr_tcam_region_info
+ * Opaque object that represents the source TCAM region.
+ * Access: Index
+ */
+MLXSW_ITEM_BUF(reg, prcr, tcam_region_info, 0x10,
+	       MLXSW_REG_PXXX_TCAM_REGION_INFO_LEN);
+
+/* reg_prcr_dest_offset
+ * Offset within the source region to copy/move to.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, prcr, dest_offset, 0x20, 0, 16);
+
+/* reg_prcr_dest_tcam_region_info
+ * Opaque object that represents the destination TCAM region.
+ * Access: Index
+ */
+MLXSW_ITEM_BUF(reg, prcr, dest_tcam_region_info, 0x30,
+	       MLXSW_REG_PXXX_TCAM_REGION_INFO_LEN);
+
+static inline void mlxsw_reg_prcr_pack(char *payload, enum mlxsw_reg_prcr_op op,
+				       const char *src_tcam_region_info,
+				       u16 src_offset,
+				       const char *dest_tcam_region_info,
+				       u16 dest_offset, u16 size)
+{
+	MLXSW_REG_ZERO(prcr, payload);
+	mlxsw_reg_prcr_op_set(payload, op);
+	mlxsw_reg_prcr_offset_set(payload, src_offset);
+	mlxsw_reg_prcr_size_set(payload, size);
+	mlxsw_reg_prcr_tcam_region_info_memcpy_to(payload,
+						  src_tcam_region_info);
+	mlxsw_reg_prcr_dest_offset_set(payload, dest_offset);
+	mlxsw_reg_prcr_dest_tcam_region_info_memcpy_to(payload,
+						       dest_tcam_region_info);
+}
+
+/* PEFA - Policy-Engine Extended Flexible Action Register
+ * ------------------------------------------------------
+ * This register is used for accessing an extended flexible action entry
+ * in the central KVD Linear Database.
+ */
+#define MLXSW_REG_PEFA_ID 0x300F
+#define MLXSW_REG_PEFA_LEN 0xB0
+
+MLXSW_REG_DEFINE(pefa, MLXSW_REG_PEFA_ID, MLXSW_REG_PEFA_LEN);
+
+/* reg_pefa_index
+ * Index in the KVD Linear Centralized Database.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pefa, index, 0x00, 0, 24);
+
+#define MLXSW_REG_PXXX_FLEX_ACTION_SET_LEN 0xA8
+
+/* reg_pefa_flex_action_set
+ * Action-set to perform when rule is matched.
+ * Must be zero padded if action set is shorter.
+ * Access: RW
+ */
+MLXSW_ITEM_BUF(reg, pefa, flex_action_set, 0x08,
+	       MLXSW_REG_PXXX_FLEX_ACTION_SET_LEN);
+
+static inline void mlxsw_reg_pefa_pack(char *payload, u32 index,
+				       const char *flex_action_set)
+{
+	MLXSW_REG_ZERO(pefa, payload);
+	mlxsw_reg_pefa_index_set(payload, index);
+	mlxsw_reg_pefa_flex_action_set_memcpy_to(payload, flex_action_set);
+}
+
+/* PTCE-V2 - Policy-Engine TCAM Entry Register Version 2
+ * -----------------------------------------------------
+ * This register is used for accessing rules within a TCAM region.
+ * It is a new version of PTCE in order to support wider key,
+ * mask and action within a TCAM region. This register is not supported
+ * by SwitchX and SwitchX-2.
+ */
+#define MLXSW_REG_PTCE2_ID 0x3017
+#define MLXSW_REG_PTCE2_LEN 0x1D8
+
+MLXSW_REG_DEFINE(ptce2, MLXSW_REG_PTCE2_ID, MLXSW_REG_PTCE2_LEN);
+
+/* reg_ptce2_v
+ * Valid.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ptce2, v, 0x00, 31, 1);
+
+/* reg_ptce2_a
+ * Activity. Set if a packet lookup has hit on the specific entry.
+ * To clear the "a" bit, use "clear activity" op or "clear on read" op.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, ptce2, a, 0x00, 30, 1);
+
+enum mlxsw_reg_ptce2_op {
+	/* Read operation. */
+	MLXSW_REG_PTCE2_OP_QUERY_READ = 0,
+	/* clear on read operation. Used to read entry
+	 * and clear Activity bit.
+	 */
+	MLXSW_REG_PTCE2_OP_QUERY_CLEAR_ON_READ = 1,
+	/* Write operation. Used to write a new entry to the table.
+	 * All R/W fields are relevant for new entry. Activity bit is set
+	 * for new entries - Note write with v = 0 will delete the entry.
+	 */
+	MLXSW_REG_PTCE2_OP_WRITE_WRITE = 0,
+	/* Update action. Only action set will be updated. */
+	MLXSW_REG_PTCE2_OP_WRITE_UPDATE = 1,
+	/* Clear activity. A bit is cleared for the entry. */
+	MLXSW_REG_PTCE2_OP_WRITE_CLEAR_ACTIVITY = 2,
+};
+
+/* reg_ptce2_op
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, ptce2, op, 0x00, 20, 3);
+
+/* reg_ptce2_offset
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, ptce2, offset, 0x00, 0, 16);
+
+/* reg_ptce2_tcam_region_info
+ * Opaque object that represents the TCAM region.
+ * Access: Index
+ */
+MLXSW_ITEM_BUF(reg, ptce2, tcam_region_info, 0x10,
+	       MLXSW_REG_PXXX_TCAM_REGION_INFO_LEN);
+
+#define MLXSW_REG_PTCE2_FLEX_KEY_BLOCKS_LEN 96
+
+/* reg_ptce2_flex_key_blocks
+ * ACL Key.
+ * Access: RW
+ */
+MLXSW_ITEM_BUF(reg, ptce2, flex_key_blocks, 0x20,
+	       MLXSW_REG_PTCE2_FLEX_KEY_BLOCKS_LEN);
+
+/* reg_ptce2_mask
+ * mask- in the same size as key. A bit that is set directs the TCAM
+ * to compare the corresponding bit in key. A bit that is clear directs
+ * the TCAM to ignore the corresponding bit in key.
+ * Access: RW
+ */
+MLXSW_ITEM_BUF(reg, ptce2, mask, 0x80,
+	       MLXSW_REG_PTCE2_FLEX_KEY_BLOCKS_LEN);
+
+/* reg_ptce2_flex_action_set
+ * ACL action set.
+ * Access: RW
+ */
+MLXSW_ITEM_BUF(reg, ptce2, flex_action_set, 0xE0,
+	       MLXSW_REG_PXXX_FLEX_ACTION_SET_LEN);
+
+static inline void mlxsw_reg_ptce2_pack(char *payload, bool valid,
+					enum mlxsw_reg_ptce2_op op,
+					const char *tcam_region_info,
+					u16 offset)
+{
+	MLXSW_REG_ZERO(ptce2, payload);
+	mlxsw_reg_ptce2_v_set(payload, valid);
+	mlxsw_reg_ptce2_op_set(payload, op);
+	mlxsw_reg_ptce2_offset_set(payload, offset);
+	mlxsw_reg_ptce2_tcam_region_info_memcpy_to(payload, tcam_region_info);
+}
+
 /* QPCR - QoS Policer Configuration Register
  * -----------------------------------------
  * The QPCR register is used to create policers - that limit
@@ -3154,7 +3653,7 @@ static inline void mlxsw_reg_pspa_pack(char *payload, u8 swid, u8 local_port)
  * Configures the properties for forwarding to CPU.
  */
 #define MLXSW_REG_HTGT_ID 0x7002
-#define MLXSW_REG_HTGT_LEN 0x100
+#define MLXSW_REG_HTGT_LEN 0x20
 
 MLXSW_REG_DEFINE(htgt, MLXSW_REG_HTGT_ID, MLXSW_REG_HTGT_LEN);
 
@@ -4965,6 +5464,46 @@ static inline void mlxsw_reg_mlcr_pack(char *payload, u8 local_port,
 					   MLXSW_REG_MLCR_DURATION_MAX : 0);
 }
 
+/* MPSC - Monitoring Packet Sampling Configuration Register
+ * --------------------------------------------------------
+ * MPSC Register is used to configure the Packet Sampling mechanism.
+ */
+#define MLXSW_REG_MPSC_ID 0x9080
+#define MLXSW_REG_MPSC_LEN 0x1C
+
+MLXSW_REG_DEFINE(mpsc, MLXSW_REG_MPSC_ID, MLXSW_REG_MPSC_LEN);
+
+/* reg_mpsc_local_port
+ * Local port number
+ * Not supported for CPU port
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mpsc, local_port, 0x00, 16, 8);
+
+/* reg_mpsc_e
+ * Enable sampling on port local_port
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mpsc, e, 0x04, 30, 1);
+
+#define MLXSW_REG_MPSC_RATE_MAX 3500000000UL
+
+/* reg_mpsc_rate
+ * Sampling rate = 1 out of rate packets (with randomization around
+ * the point). Valid values are: 1 to MLXSW_REG_MPSC_RATE_MAX
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mpsc, rate, 0x08, 0, 32);
+
+static inline void mlxsw_reg_mpsc_pack(char *payload, u8 local_port, bool e,
+				       u32 rate)
+{
+	MLXSW_REG_ZERO(mpsc, payload);
+	mlxsw_reg_mpsc_local_port_set(payload, local_port);
+	mlxsw_reg_mpsc_e_set(payload, e);
+	mlxsw_reg_mpsc_rate_set(payload, rate);
+}
+
 /* SBPR - Shared Buffer Pools Register
  * -----------------------------------
  * The SBPR configures and retrieves the shared buffer pools and configuration.
@@ -5394,6 +5933,14 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(svpe),
 	MLXSW_REG(sfmr),
 	MLXSW_REG(spvmlr),
+	MLXSW_REG(ppbt),
+	MLXSW_REG(pacl),
+	MLXSW_REG(pagt),
+	MLXSW_REG(ptar),
+	MLXSW_REG(ppbs),
+	MLXSW_REG(prcr),
+	MLXSW_REG(pefa),
+	MLXSW_REG(ptce2),
 	MLXSW_REG(qpcr),
 	MLXSW_REG(qtct),
 	MLXSW_REG(qeec),
@@ -5429,6 +5976,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mpat),
 	MLXSW_REG(mpar),
 	MLXSW_REG(mlcr),
+	MLXSW_REG(mpsc),
 	MLXSW_REG(sbpr),
 	MLXSW_REG(sbcm),
 	MLXSW_REG(sbpm),

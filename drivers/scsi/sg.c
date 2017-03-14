@@ -781,9 +781,7 @@ sg_common_write(Sg_fd * sfp, Sg_request * srp,
 	}
 	if (atomic_read(&sdp->detaching)) {
 		if (srp->bio) {
-			if (srp->rq->cmd != srp->rq->__cmd)
-				kfree(srp->rq->cmd);
-
+			scsi_req_free_cmd(scsi_req(srp->rq));
 			blk_end_request_all(srp->rq, -EIO);
 			srp->rq = NULL;
 		}
@@ -1187,8 +1185,9 @@ sg_fasync(int fd, struct file *filp, int mode)
 }
 
 static int
-sg_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+sg_vma_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	Sg_fd *sfp;
 	unsigned long offset, len, sa;
 	Sg_scatter_hold *rsv_schp;
@@ -1279,6 +1278,7 @@ static void
 sg_rq_end_io(struct request *rq, int uptodate)
 {
 	struct sg_request *srp = rq->end_io_data;
+	struct scsi_request *req = scsi_req(rq);
 	Sg_device *sdp;
 	Sg_fd *sfp;
 	unsigned long iflags;
@@ -1297,9 +1297,9 @@ sg_rq_end_io(struct request *rq, int uptodate)
 	if (unlikely(atomic_read(&sdp->detaching)))
 		pr_info("%s: device detaching\n", __func__);
 
-	sense = rq->sense;
+	sense = req->sense;
 	result = rq->errors;
-	resid = rq->resid_len;
+	resid = req->resid_len;
 
 	SCSI_LOG_TIMEOUT(4, sg_printk(KERN_INFO, sdp,
 				      "sg_cmd_done: pack_id=%d, res=0x%x\n",
@@ -1333,6 +1333,10 @@ sg_rq_end_io(struct request *rq, int uptodate)
 			sdp->device->changed = 1;
 		}
 	}
+
+	if (req->sense_len)
+		memcpy(srp->sense_b, req->sense, SCSI_SENSE_BUFFERSIZE);
+
 	/* Rely on write phase to clean out srp status values, so no "else" */
 
 	/*
@@ -1342,8 +1346,7 @@ sg_rq_end_io(struct request *rq, int uptodate)
 	 * blk_rq_unmap_user() can be called from user context.
 	 */
 	srp->rq = NULL;
-	if (rq->cmd != rq->__cmd)
-		kfree(rq->cmd);
+	scsi_req_free_cmd(scsi_req(rq));
 	__blk_put_request(rq->q, rq);
 
 	write_lock_irqsave(&sfp->rq_list_lock, iflags);
@@ -1658,6 +1661,7 @@ sg_start_req(Sg_request *srp, unsigned char *cmd)
 {
 	int res;
 	struct request *rq;
+	struct scsi_request *req;
 	Sg_fd *sfp = srp->parentfp;
 	sg_io_hdr_t *hp = &srp->header;
 	int dxfer_len = (int) hp->dxfer_len;
@@ -1695,22 +1699,23 @@ sg_start_req(Sg_request *srp, unsigned char *cmd)
 	 * With scsi-mq disabled, blk_get_request() with GFP_KERNEL usually
 	 * does not sleep except under memory pressure.
 	 */
-	rq = blk_get_request(q, rw, GFP_KERNEL);
+	rq = blk_get_request(q, hp->dxfer_direction == SG_DXFER_TO_DEV ?
+			REQ_OP_SCSI_OUT : REQ_OP_SCSI_IN, GFP_KERNEL);
 	if (IS_ERR(rq)) {
 		kfree(long_cmdp);
 		return PTR_ERR(rq);
 	}
+	req = scsi_req(rq);
 
-	blk_rq_set_block_pc(rq);
+	scsi_req_init(rq);
 
 	if (hp->cmd_len > BLK_MAX_CDB)
-		rq->cmd = long_cmdp;
-	memcpy(rq->cmd, cmd, hp->cmd_len);
-	rq->cmd_len = hp->cmd_len;
+		req->cmd = long_cmdp;
+	memcpy(req->cmd, cmd, hp->cmd_len);
+	req->cmd_len = hp->cmd_len;
 
 	srp->rq = rq;
 	rq->end_io_data = srp;
-	rq->sense = srp->sense_b;
 	rq->retries = SG_DEFAULT_RETRIES;
 
 	if ((dxfer_len <= 0) || (dxfer_dir == SG_DXFER_NONE))
@@ -1753,6 +1758,10 @@ sg_start_req(Sg_request *srp, unsigned char *cmd)
 			return res;
 
 		iov_iter_truncate(&i, hp->dxfer_len);
+		if (!iov_iter_count(&i)) {
+			kfree(iov);
+			return -EINVAL;
+		}
 
 		res = blk_rq_map_user_iov(q, rq, md, &i, GFP_ATOMIC);
 		kfree(iov);
@@ -1786,8 +1795,7 @@ sg_finish_rem_req(Sg_request *srp)
 		ret = blk_rq_unmap_user(srp->bio);
 
 	if (srp->rq) {
-		if (srp->rq->cmd != srp->rq->__cmd)
-			kfree(srp->rq->cmd);
+		scsi_req_free_cmd(scsi_req(srp->rq));
 		blk_put_request(srp->rq);
 	}
 

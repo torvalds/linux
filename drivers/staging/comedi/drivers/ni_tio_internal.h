@@ -160,8 +160,9 @@
 #define GI_TC_INTERRUPT_ENABLE(x)	(((x) % 2) ? BIT(9) : BIT(6))
 #define GI_GATE_INTERRUPT_ENABLE(x)	(((x) % 2) ? BIT(10) : BIT(8))
 
-void ni_tio_write(struct ni_gpct *, unsigned int value, enum ni_gpct_register);
-unsigned int ni_tio_read(struct ni_gpct *, enum ni_gpct_register);
+void ni_tio_write(struct ni_gpct *counter, unsigned int value,
+		  enum ni_gpct_register);
+unsigned int ni_tio_read(struct ni_gpct *counter, enum ni_gpct_register);
 
 static inline bool
 ni_tio_counting_mode_registers_present(const struct ni_gpct_device *counter_dev)
@@ -170,12 +171,13 @@ ni_tio_counting_mode_registers_present(const struct ni_gpct_device *counter_dev)
 	return counter_dev->variant != ni_gpct_variant_e_series;
 }
 
-void ni_tio_set_bits(struct ni_gpct *, enum ni_gpct_register reg,
+void ni_tio_set_bits(struct ni_gpct *counter, enum ni_gpct_register reg,
 		     unsigned int mask, unsigned int value);
-unsigned int ni_tio_get_soft_copy(const struct ni_gpct *,
+unsigned int ni_tio_get_soft_copy(const struct ni_gpct *counter,
 				  enum ni_gpct_register reg);
 
-int ni_tio_arm(struct ni_gpct *, bool arm, unsigned int start_trigger);
-int ni_tio_set_gate_src(struct ni_gpct *, unsigned int gate, unsigned int src);
+int ni_tio_arm(struct ni_gpct *counter, bool arm, unsigned int start_trigger);
+int ni_tio_set_gate_src(struct ni_gpct *counter, unsigned int gate,
+			unsigned int src);
 
 #endif /* _COMEDI_NI_TIO_INTERNAL_H */

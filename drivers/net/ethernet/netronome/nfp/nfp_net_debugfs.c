@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Netronome Systems, Inc.
+ * Copyright (C) 2015-2017 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -202,16 +202,17 @@ static const struct file_operations nfp_xdp_q_fops = {
 	.llseek = seq_lseek
 };
 
-void nfp_net_debugfs_adapter_add(struct nfp_net *nn)
+void nfp_net_debugfs_port_add(struct nfp_net *nn, struct dentry *ddir, int id)
 {
 	struct dentry *queues, *tx, *rx, *xdp;
-	char int_name[16];
+	char name[20];
 	int i;
 
 	if (IS_ERR_OR_NULL(nfp_dir))
 		return;
 
-	nn->debugfs_dir = debugfs_create_dir(pci_name(nn->pdev), nfp_dir);
+	sprintf(name, "port%d", id);
+	nn->debugfs_dir = debugfs_create_dir(name, ddir);
 	if (IS_ERR_OR_NULL(nn->debugfs_dir))
 		return;
 
@@ -227,24 +228,38 @@ void nfp_net_debugfs_adapter_add(struct nfp_net *nn)
 		return;
 
 	for (i = 0; i < min(nn->max_rx_rings, nn->max_r_vecs); i++) {
-		sprintf(int_name, "%d", i);
-		debugfs_create_file(int_name, S_IRUSR, rx,
+		sprintf(name, "%d", i);
+		debugfs_create_file(name, S_IRUSR, rx,
 				    &nn->r_vecs[i], &nfp_rx_q_fops);
-		debugfs_create_file(int_name, S_IRUSR, xdp,
+		debugfs_create_file(name, S_IRUSR, xdp,
 				    &nn->r_vecs[i], &nfp_xdp_q_fops);
 	}
 
 	for (i = 0; i < min(nn->max_tx_rings, nn->max_r_vecs); i++) {
-		sprintf(int_name, "%d", i);
-		debugfs_create_file(int_name, S_IRUSR, tx,
+		sprintf(name, "%d", i);
+		debugfs_create_file(name, S_IRUSR, tx,
 				    &nn->r_vecs[i], &nfp_tx_q_fops);
 	}
 }
 
-void nfp_net_debugfs_adapter_del(struct nfp_net *nn)
+struct dentry *nfp_net_debugfs_device_add(struct pci_dev *pdev)
 {
-	debugfs_remove_recursive(nn->debugfs_dir);
-	nn->debugfs_dir = NULL;
+	struct dentry *dev_dir;
+
+	if (IS_ERR_OR_NULL(nfp_dir))
+		return NULL;
+
+	dev_dir = debugfs_create_dir(pci_name(pdev), nfp_dir);
+	if (IS_ERR_OR_NULL(dev_dir))
+		return NULL;
+
+	return dev_dir;
+}
+
+void nfp_net_debugfs_dir_clean(struct dentry **dir)
+{
+	debugfs_remove_recursive(*dir);
+	*dir = NULL;
 }
 
 void nfp_net_debugfs_create(void)

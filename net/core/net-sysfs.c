@@ -15,6 +15,7 @@
 #include <net/switchdev.h>
 #include <linux/if_arp.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 #include <linux/nsproxy.h>
 #include <net/sock.h>
 #include <net/net_namespace.h>

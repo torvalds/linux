@@ -124,6 +124,17 @@
 				reg = <0x4000 0x1000>;
 				interrupt-parent = <&gic>;
 				interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				ehci_port1: port@1 {
+					reg = <1>;
+				};
+
+				ehci_port2: port@2 {
+					reg = <2>;
+				};
 			};
 
 			ohci: ohci@d000 {
@@ -133,6 +144,17 @@
 				reg = <0xd000 0x1000>;
 				interrupt-parent = <&gic>;
 				interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				ohci_port1: port@1 {
+					reg = <1>;
+				};
+
+				ohci_port2: port@2 {
+					reg = <2>;
+				};
 			};
 		};
 

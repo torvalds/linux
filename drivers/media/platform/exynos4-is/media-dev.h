@@ -154,7 +154,7 @@ struct fimc_md {
 	bool user_subdev_api;
 	spinlock_t slock;
 	struct list_head pipelines;
-	struct media_entity_graph link_setup_graph;
+	struct media_graph link_setup_graph;
 };
 
 static inline

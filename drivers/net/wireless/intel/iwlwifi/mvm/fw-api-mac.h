@@ -64,13 +64,14 @@
 #define __fw_api_mac_h__
 
 /*
- * The first MAC indices (starting from 0)
- * are available to the driver, AUX follows
+ * The first MAC indices (starting from 0) are available to the driver,
+ * AUX indices follows - 1 for non-CDB, 2 for CDB.
  */
 #define MAC_INDEX_AUX		4
 #define MAC_INDEX_MIN_DRIVER	0
 #define NUM_MAC_INDEX_DRIVER	MAC_INDEX_AUX
-#define NUM_MAC_INDEX		(MAC_INDEX_AUX + 1)
+#define NUM_MAC_INDEX		(NUM_MAC_INDEX_DRIVER + 1)
+#define NUM_MAC_INDEX_CDB	(NUM_MAC_INDEX_DRIVER + 2)
 
 #define IWL_MVM_STATION_COUNT	16
 #define IWL_MVM_TDLS_STA_COUNT	4

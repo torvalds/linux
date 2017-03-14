@@ -1023,7 +1023,7 @@ static const struct bpf_map_ops htab_ops = {
 	.map_delete_elem = htab_map_delete_elem,
 };
 
-static struct bpf_map_type_list htab_type __read_mostly = {
+static struct bpf_map_type_list htab_type __ro_after_init = {
 	.ops = &htab_ops,
 	.type = BPF_MAP_TYPE_HASH,
 };
@@ -1037,7 +1037,7 @@ static const struct bpf_map_ops htab_lru_ops = {
 	.map_delete_elem = htab_lru_map_delete_elem,
 };
 
-static struct bpf_map_type_list htab_lru_type __read_mostly = {
+static struct bpf_map_type_list htab_lru_type __ro_after_init = {
 	.ops = &htab_lru_ops,
 	.type = BPF_MAP_TYPE_LRU_HASH,
 };
@@ -1124,7 +1124,7 @@ static const struct bpf_map_ops htab_percpu_ops = {
 	.map_delete_elem = htab_map_delete_elem,
 };
 
-static struct bpf_map_type_list htab_percpu_type __read_mostly = {
+static struct bpf_map_type_list htab_percpu_type __ro_after_init = {
 	.ops = &htab_percpu_ops,
 	.type = BPF_MAP_TYPE_PERCPU_HASH,
 };
@@ -1138,7 +1138,7 @@ static const struct bpf_map_ops htab_lru_percpu_ops = {
 	.map_delete_elem = htab_lru_map_delete_elem,
 };
 
-static struct bpf_map_type_list htab_lru_percpu_type __read_mostly = {
+static struct bpf_map_type_list htab_lru_percpu_type __ro_after_init = {
 	.ops = &htab_lru_percpu_ops,
 	.type = BPF_MAP_TYPE_LRU_PERCPU_HASH,
 };

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Qualcomm Atheros, Inc.
+ * Copyright (c) 2014,2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -27,7 +27,7 @@ static int wil_ethtoolops_begin(struct net_device *ndev)
 
 	mutex_lock(&wil->mutex);
 
-	wil_dbg_misc(wil, "%s()\n", __func__);
+	wil_dbg_misc(wil, "ethtoolops_begin\n");
 
 	return 0;
 }
@@ -36,7 +36,7 @@ static void wil_ethtoolops_complete(struct net_device *ndev)
 {
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
 
-	wil_dbg_misc(wil, "%s()\n", __func__);
+	wil_dbg_misc(wil, "ethtoolops_complete\n");
 
 	mutex_unlock(&wil->mutex);
 }
@@ -48,7 +48,7 @@ static int wil_ethtoolops_get_coalesce(struct net_device *ndev,
 	u32 tx_itr_en, tx_itr_val = 0;
 	u32 rx_itr_en, rx_itr_val = 0;
 
-	wil_dbg_misc(wil, "%s()\n", __func__);
+	wil_dbg_misc(wil, "ethtoolops_get_coalesce\n");
 
 	tx_itr_en = wil_r(wil, RGF_DMA_ITR_TX_CNT_CTL);
 	if (tx_itr_en & BIT_DMA_ITR_TX_CNT_CTL_EN)
@@ -68,7 +68,7 @@ static int wil_ethtoolops_set_coalesce(struct net_device *ndev,
 {
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
 
-	wil_dbg_misc(wil, "%s(rx %d usec, tx %d usec)\n", __func__,
+	wil_dbg_misc(wil, "ethtoolops_set_coalesce: rx %d usec, tx %d usec\n",
 		     cp->rx_coalesce_usecs, cp->tx_coalesce_usecs);
 
 	if (wil->wdev->iftype == NL80211_IFTYPE_MONITOR) {

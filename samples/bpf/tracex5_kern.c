@@ -8,6 +8,7 @@
 #include <linux/version.h>
 #include <uapi/linux/bpf.h>
 #include <uapi/linux/seccomp.h>
+#include <uapi/linux/unistd.h>
 #include "bpf_helpers.h"
 
 #define PROG(F) SEC("kprobe/"__stringify(F)) int bpf_func_##F

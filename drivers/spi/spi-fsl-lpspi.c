@@ -366,7 +366,7 @@ static int fsl_lpspi_transfer_one_msg(struct spi_master *master,
 	struct spi_transfer *xfer;
 	bool is_first_xfer = true;
 	u32 temp;
-	int ret;
+	int ret = 0;
 
 	msg->status = 0;
 	msg->actual_length = 0;
@@ -512,9 +512,9 @@ static int fsl_lpspi_remove(struct platform_device *pdev)
 
 static struct platform_driver fsl_lpspi_driver = {
 	.driver = {
-		   .name = DRIVER_NAME,
-		   .of_match_table = fsl_lpspi_dt_ids,
-		   },
+		.name = DRIVER_NAME,
+		.of_match_table = fsl_lpspi_dt_ids,
+	},
 	.probe = fsl_lpspi_probe,
 	.remove = fsl_lpspi_remove,
 };

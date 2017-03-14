@@ -108,6 +108,7 @@ static int parse_ofpart_partitions(struct mtd_info *master,
 
 		parts[i].offset = of_read_number(reg, a_cells);
 		parts[i].size = of_read_number(reg + a_cells, s_cells);
+		parts[i].of_node = pp;
 
 		partname = of_get_property(pp, "label", &len);
 		if (!partname)

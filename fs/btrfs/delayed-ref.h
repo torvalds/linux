@@ -250,8 +250,7 @@ int btrfs_add_delayed_data_ref(struct btrfs_fs_info *fs_info,
 			       struct btrfs_trans_handle *trans,
 			       u64 bytenr, u64 num_bytes,
 			       u64 parent, u64 ref_root,
-			       u64 owner, u64 offset, u64 reserved, int action,
-			       struct btrfs_delayed_extent_op *extent_op);
+			       u64 owner, u64 offset, u64 reserved, int action);
 int btrfs_add_delayed_extent_op(struct btrfs_fs_info *fs_info,
 				struct btrfs_trans_handle *trans,
 				u64 bytenr, u64 num_bytes,
@@ -262,7 +261,8 @@ void btrfs_merge_delayed_refs(struct btrfs_trans_handle *trans,
 			      struct btrfs_delayed_ref_head *head);
 
 struct btrfs_delayed_ref_head *
-btrfs_find_delayed_ref_head(struct btrfs_trans_handle *trans, u64 bytenr);
+btrfs_find_delayed_ref_head(struct btrfs_delayed_ref_root *delayed_refs,
+			    u64 bytenr);
 int btrfs_delayed_ref_lock(struct btrfs_trans_handle *trans,
 			   struct btrfs_delayed_ref_head *head);
 static inline void btrfs_delayed_ref_unlock(struct btrfs_delayed_ref_head *head)

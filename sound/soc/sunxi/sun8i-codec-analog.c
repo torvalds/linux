@@ -398,11 +398,37 @@ static const struct snd_kcontrol_new sun8i_codec_hp_src[] = {
 		      sun8i_codec_hp_src_enum),
 };
 
+static int sun8i_headphone_amp_event(struct snd_soc_dapm_widget *w,
+				     struct snd_kcontrol *k, int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+
+	if (SND_SOC_DAPM_EVENT_ON(event)) {
+		snd_soc_component_update_bits(component, SUN8I_ADDA_PAEN_HP_CTRL,
+					      BIT(SUN8I_ADDA_PAEN_HP_CTRL_HPPAEN),
+					      BIT(SUN8I_ADDA_PAEN_HP_CTRL_HPPAEN));
+		/*
+		 * Need a delay to have the amplifier up. 700ms seems the best
+		 * compromise between the time to let the amplifier up and the
+		 * time not to feel this delay while playing a sound.
+		 */
+		msleep(700);
+	} else if (SND_SOC_DAPM_EVENT_OFF(event)) {
+		snd_soc_component_update_bits(component, SUN8I_ADDA_PAEN_HP_CTRL,
+					      BIT(SUN8I_ADDA_PAEN_HP_CTRL_HPPAEN),
+					      0x0);
+	}
+
+	return 0;
+}
+
 static const struct snd_soc_dapm_widget sun8i_codec_headphone_widgets[] = {
 	SND_SOC_DAPM_MUX("Headphone Source Playback Route",
 			 SND_SOC_NOPM, 0, 0, sun8i_codec_hp_src),
-	SND_SOC_DAPM_OUT_DRV("Headphone Amp", SUN8I_ADDA_PAEN_HP_CTRL,
-			     SUN8I_ADDA_PAEN_HP_CTRL_HPPAEN, 0, NULL, 0),
+	SND_SOC_DAPM_OUT_DRV_E("Headphone Amp", SUN8I_ADDA_PAEN_HP_CTRL,
+			       SUN8I_ADDA_PAEN_HP_CTRL_HPPAEN, 0, NULL, 0,
+			       sun8i_headphone_amp_event,
+			       SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_SUPPLY("HPCOM Protection", SUN8I_ADDA_PAEN_HP_CTRL,
 			    SUN8I_ADDA_PAEN_HP_CTRL_COMPTEN, 0, NULL, 0),
 	SND_SOC_DAPM_REG(snd_soc_dapm_supply, "HPCOM", SUN8I_ADDA_PAEN_HP_CTRL,

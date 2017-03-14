@@ -87,3 +87,8 @@
 	power-domains = <&power RPI_POWER_DOMAIN_HDMI>;
 	status = "okay";
 };
+
+&vec {
+	power-domains = <&power RPI_POWER_DOMAIN_VEC>;
+	status = "okay";
+};

@@ -255,11 +255,12 @@ static void coda_evict_inode(struct inode *inode)
 	coda_cache_clear_inode(inode);
 }
 
-int coda_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
+int coda_getattr(const struct path *path, struct kstat *stat,
+		 u32 request_mask, unsigned int flags)
 {
-	int err = coda_revalidate_inode(d_inode(dentry));
+	int err = coda_revalidate_inode(d_inode(path->dentry));
 	if (!err)
-		generic_fillattr(d_inode(dentry), stat);
+		generic_fillattr(d_inode(path->dentry), stat);
 	return err;
 }
 

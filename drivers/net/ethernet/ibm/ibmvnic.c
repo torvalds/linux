@@ -189,9 +189,10 @@ static int alloc_long_term_buff(struct ibmvnic_adapter *adapter,
 	}
 	ltb->map_id = adapter->map_id;
 	adapter->map_id++;
+
+	init_completion(&adapter->fw_done);
 	send_request_map(adapter, ltb->addr,
 			 ltb->size, ltb->map_id);
-	init_completion(&adapter->fw_done);
 	wait_for_completion(&adapter->fw_done);
 	return 0;
 }
@@ -505,7 +506,7 @@ rx_pool_alloc_failed:
 	adapter->rx_pool = NULL;
 rx_pool_arr_alloc_failed:
 	for (i = 0; i < adapter->req_rx_queues; i++)
-		napi_enable(&adapter->napi[i]);
+		napi_disable(&adapter->napi[i]);
 alloc_napi_failed:
 	return -ENOMEM;
 }
@@ -987,7 +988,7 @@ restart_poll:
 
 	if (frames_processed < budget) {
 		enable_scrq_irq(adapter, adapter->rx_scrq[scrq_num]);
-		napi_complete(napi);
+		napi_complete_done(napi, frames_processed);
 		if (pending_scrq(adapter, adapter->rx_scrq[scrq_num]) &&
 		    napi_reschedule(napi)) {
 			disable_scrq_irq(adapter, adapter->rx_scrq[scrq_num]);
@@ -1025,21 +1026,26 @@ static const struct net_device_ops ibmvnic_netdev_ops = {
 
 /* ethtool functions */
 
-static int ibmvnic_get_settings(struct net_device *netdev,
-				struct ethtool_cmd *cmd)
+static int ibmvnic_get_link_ksettings(struct net_device *netdev,
+				      struct ethtool_link_ksettings *cmd)
 {
-	cmd->supported = (SUPPORTED_1000baseT_Full | SUPPORTED_Autoneg |
+	u32 supported, advertising;
+
+	supported = (SUPPORTED_1000baseT_Full | SUPPORTED_Autoneg |
 			  SUPPORTED_FIBRE);
-	cmd->advertising = (ADVERTISED_1000baseT_Full | ADVERTISED_Autoneg |
+	advertising = (ADVERTISED_1000baseT_Full | ADVERTISED_Autoneg |
 			    ADVERTISED_FIBRE);
-	ethtool_cmd_speed_set(cmd, SPEED_1000);
-	cmd->duplex = DUPLEX_FULL;
-	cmd->port = PORT_FIBRE;
-	cmd->phy_address = 0;
-	cmd->transceiver = XCVR_INTERNAL;
-	cmd->autoneg = AUTONEG_ENABLE;
-	cmd->maxtxpkt = 0;
-	cmd->maxrxpkt = 1;
+	cmd->base.speed = SPEED_1000;
+	cmd->base.duplex = DUPLEX_FULL;
+	cmd->base.port = PORT_FIBRE;
+	cmd->base.phy_address = 0;
+	cmd->base.autoneg = AUTONEG_ENABLE;
+
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						supported);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
+						advertising);
+
 	return 0;
 }
 
@@ -1121,10 +1127,10 @@ static void ibmvnic_get_ethtool_stats(struct net_device *dev,
 	crq.request_statistics.ioba = cpu_to_be32(adapter->stats_token);
 	crq.request_statistics.len =
 	    cpu_to_be32(sizeof(struct ibmvnic_statistics));
-	ibmvnic_send_crq(adapter, &crq);
 
 	/* Wait for data to be written */
 	init_completion(&adapter->stats_done);
+	ibmvnic_send_crq(adapter, &crq);
 	wait_for_completion(&adapter->stats_done);
 
 	for (i = 0; i < ARRAY_SIZE(ibmvnic_stats); i++)
@@ -1132,7 +1138,6 @@ static void ibmvnic_get_ethtool_stats(struct net_device *dev,
 }
 
 static const struct ethtool_ops ibmvnic_ethtool_ops = {
-	.get_settings		= ibmvnic_get_settings,
 	.get_drvinfo		= ibmvnic_get_drvinfo,
 	.get_msglevel		= ibmvnic_get_msglevel,
 	.set_msglevel		= ibmvnic_set_msglevel,
@@ -1141,6 +1146,7 @@ static const struct ethtool_ops ibmvnic_ethtool_ops = {
 	.get_strings            = ibmvnic_get_strings,
 	.get_sset_count         = ibmvnic_get_sset_count,
 	.get_ethtool_stats	= ibmvnic_get_ethtool_stats,
+	.get_link_ksettings	= ibmvnic_get_link_ksettings,
 };
 
 /* Routines for managing CRQs/sCRQs  */
@@ -1254,8 +1260,6 @@ static void release_sub_crqs(struct ibmvnic_adapter *adapter)
 			}
 		adapter->rx_scrq = NULL;
 	}
-
-	adapter->requested_caps = 0;
 }
 
 static void release_sub_crqs_no_irqs(struct ibmvnic_adapter *adapter)
@@ -1277,8 +1281,6 @@ static void release_sub_crqs_no_irqs(struct ibmvnic_adapter *adapter)
 						      adapter->rx_scrq[i]);
 		adapter->rx_scrq = NULL;
 	}
-
-	adapter->requested_caps = 0;
 }
 
 static int disable_scrq_irq(struct ibmvnic_adapter *adapter,
@@ -1496,7 +1498,7 @@ static void init_sub_crqs(struct ibmvnic_adapter *adapter, int retry)
 		adapter->req_rx_queues = adapter->opt_rx_comp_queues;
 		adapter->req_rx_add_queues = adapter->max_rx_add_queues;
 
-		adapter->req_mtu = adapter->max_mtu;
+		adapter->req_mtu = adapter->netdev->mtu + ETH_HLEN;
 	}
 
 	total_queues = adapter->req_tx_queues + adapter->req_rx_queues;
@@ -1566,30 +1568,36 @@ static void init_sub_crqs(struct ibmvnic_adapter *adapter, int retry)
 
 	crq.request_capability.capability = cpu_to_be16(REQ_TX_QUEUES);
 	crq.request_capability.number = cpu_to_be64(adapter->req_tx_queues);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.request_capability.capability = cpu_to_be16(REQ_RX_QUEUES);
 	crq.request_capability.number = cpu_to_be64(adapter->req_rx_queues);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.request_capability.capability = cpu_to_be16(REQ_RX_ADD_QUEUES);
 	crq.request_capability.number = cpu_to_be64(adapter->req_rx_add_queues);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.request_capability.capability =
 	    cpu_to_be16(REQ_TX_ENTRIES_PER_SUBCRQ);
 	crq.request_capability.number =
 	    cpu_to_be64(adapter->req_tx_entries_per_subcrq);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.request_capability.capability =
 	    cpu_to_be16(REQ_RX_ADD_ENTRIES_PER_SUBCRQ);
 	crq.request_capability.number =
 	    cpu_to_be64(adapter->req_rx_add_entries_per_subcrq);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.request_capability.capability = cpu_to_be16(REQ_MTU);
 	crq.request_capability.number = cpu_to_be64(adapter->req_mtu);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	if (adapter->netdev->flags & IFF_PROMISC) {
@@ -1597,12 +1605,14 @@ static void init_sub_crqs(struct ibmvnic_adapter *adapter, int retry)
 			crq.request_capability.capability =
 			    cpu_to_be16(PROMISC_REQUESTED);
 			crq.request_capability.number = cpu_to_be64(1);
+			atomic_inc(&adapter->running_cap_crqs);
 			ibmvnic_send_crq(adapter, &crq);
 		}
 	} else {
 		crq.request_capability.capability =
 		    cpu_to_be16(PROMISC_REQUESTED);
 		crq.request_capability.number = cpu_to_be64(0);
+		atomic_inc(&adapter->running_cap_crqs);
 		ibmvnic_send_crq(adapter, &crq);
 	}
 
@@ -1954,112 +1964,112 @@ static void send_cap_queries(struct ibmvnic_adapter *adapter)
 {
 	union ibmvnic_crq crq;
 
-	atomic_set(&adapter->running_cap_queries, 0);
+	atomic_set(&adapter->running_cap_crqs, 0);
 	memset(&crq, 0, sizeof(crq));
 	crq.query_capability.first = IBMVNIC_CRQ_CMD;
 	crq.query_capability.cmd = QUERY_CAPABILITY;
 
 	crq.query_capability.capability = cpu_to_be16(MIN_TX_QUEUES);
-	atomic_inc(&adapter->running_cap_queries);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.query_capability.capability = cpu_to_be16(MIN_RX_QUEUES);
-	atomic_inc(&adapter->running_cap_queries);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.query_capability.capability = cpu_to_be16(MIN_RX_ADD_QUEUES);
-	atomic_inc(&adapter->running_cap_queries);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.query_capability.capability = cpu_to_be16(MAX_TX_QUEUES);
-	atomic_inc(&adapter->running_cap_queries);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.query_capability.capability = cpu_to_be16(MAX_RX_QUEUES);
-	atomic_inc(&adapter->running_cap_queries);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.query_capability.capability = cpu_to_be16(MAX_RX_ADD_QUEUES);
-	atomic_inc(&adapter->running_cap_queries);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.query_capability.capability =
 	    cpu_to_be16(MIN_TX_ENTRIES_PER_SUBCRQ);
-	atomic_inc(&adapter->running_cap_queries);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.query_capability.capability =
 	    cpu_to_be16(MIN_RX_ADD_ENTRIES_PER_SUBCRQ);
-	atomic_inc(&adapter->running_cap_queries);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.query_capability.capability =
 	    cpu_to_be16(MAX_TX_ENTRIES_PER_SUBCRQ);
-	atomic_inc(&adapter->running_cap_queries);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.query_capability.capability =
 	    cpu_to_be16(MAX_RX_ADD_ENTRIES_PER_SUBCRQ);
-	atomic_inc(&adapter->running_cap_queries);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.query_capability.capability = cpu_to_be16(TCP_IP_OFFLOAD);
-	atomic_inc(&adapter->running_cap_queries);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.query_capability.capability = cpu_to_be16(PROMISC_SUPPORTED);
-	atomic_inc(&adapter->running_cap_queries);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.query_capability.capability = cpu_to_be16(MIN_MTU);
-	atomic_inc(&adapter->running_cap_queries);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.query_capability.capability = cpu_to_be16(MAX_MTU);
-	atomic_inc(&adapter->running_cap_queries);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.query_capability.capability = cpu_to_be16(MAX_MULTICAST_FILTERS);
-	atomic_inc(&adapter->running_cap_queries);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.query_capability.capability = cpu_to_be16(VLAN_HEADER_INSERTION);
-	atomic_inc(&adapter->running_cap_queries);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.query_capability.capability = cpu_to_be16(MAX_TX_SG_ENTRIES);
-	atomic_inc(&adapter->running_cap_queries);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.query_capability.capability = cpu_to_be16(RX_SG_SUPPORTED);
-	atomic_inc(&adapter->running_cap_queries);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.query_capability.capability = cpu_to_be16(OPT_TX_COMP_SUB_QUEUES);
-	atomic_inc(&adapter->running_cap_queries);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.query_capability.capability = cpu_to_be16(OPT_RX_COMP_QUEUES);
-	atomic_inc(&adapter->running_cap_queries);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.query_capability.capability =
 			cpu_to_be16(OPT_RX_BUFADD_Q_PER_RX_COMP_Q);
-	atomic_inc(&adapter->running_cap_queries);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.query_capability.capability =
 			cpu_to_be16(OPT_TX_ENTRIES_PER_SUBCRQ);
-	atomic_inc(&adapter->running_cap_queries);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.query_capability.capability =
 			cpu_to_be16(OPT_RXBA_ENTRIES_PER_SUBCRQ);
-	atomic_inc(&adapter->running_cap_queries);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
 	crq.query_capability.capability = cpu_to_be16(TX_RX_DESC_REQ);
-	atomic_inc(&adapter->running_cap_queries);
+	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 }
 
@@ -2185,12 +2195,12 @@ static void handle_error_info_rsp(union ibmvnic_crq *crq,
 
 	if (!found) {
 		dev_err(dev, "Couldn't find error id %x\n",
-			crq->request_error_rsp.error_id);
+			be32_to_cpu(crq->request_error_rsp.error_id));
 		return;
 	}
 
 	dev_err(dev, "Detailed info for error id %x:",
-		crq->request_error_rsp.error_id);
+		be32_to_cpu(crq->request_error_rsp.error_id));
 
 	for (i = 0; i < error_buff->len; i++) {
 		pr_cont("%02x", (int)error_buff->buff[i]);
@@ -2269,8 +2279,8 @@ static void handle_error_indication(union ibmvnic_crq *crq,
 	dev_err(dev, "Firmware reports %serror id %x, cause %d\n",
 		crq->error_indication.
 		    flags & IBMVNIC_FATAL_ERROR ? "FATAL " : "",
-		crq->error_indication.error_id,
-		crq->error_indication.error_cause);
+		be32_to_cpu(crq->error_indication.error_id),
+		be16_to_cpu(crq->error_indication.error_cause));
 
 	error_buff = kmalloc(sizeof(*error_buff), GFP_ATOMIC);
 	if (!error_buff)
@@ -2347,6 +2357,7 @@ static void handle_request_cap_rsp(union ibmvnic_crq *crq,
 	u64 *req_value;
 	char *name;
 
+	atomic_dec(&adapter->running_cap_crqs);
 	switch (be16_to_cpu(crq->request_capability_rsp.capability)) {
 	case REQ_TX_QUEUES:
 		req_value = &adapter->req_tx_queues;
@@ -2388,10 +2399,10 @@ static void handle_request_cap_rsp(union ibmvnic_crq *crq,
 	case PARTIALSUCCESS:
 		dev_info(dev, "req=%lld, rsp=%ld in %s queue, retrying.\n",
 			 *req_value,
-			 (long int)be32_to_cpu(crq->request_capability_rsp.
+			 (long int)be64_to_cpu(crq->request_capability_rsp.
 					       number), name);
 		release_sub_crqs_no_irqs(adapter);
-		*req_value = be32_to_cpu(crq->request_capability_rsp.number);
+		*req_value = be64_to_cpu(crq->request_capability_rsp.number);
 		init_sub_crqs(adapter, 1);
 		return;
 	default:
@@ -2401,12 +2412,13 @@ static void handle_request_cap_rsp(union ibmvnic_crq *crq,
 	}
 
 	/* Done receiving requested capabilities, query IP offload support */
-	if (++adapter->requested_caps == 7) {
+	if (atomic_read(&adapter->running_cap_crqs) == 0) {
 		union ibmvnic_crq newcrq;
 		int buf_sz = sizeof(struct ibmvnic_query_ip_offload_buffer);
 		struct ibmvnic_query_ip_offload_buffer *ip_offload_buf =
 		    &adapter->ip_offload_buf;
 
+		adapter->wait_capability = false;
 		adapter->ip_offload_tok = dma_map_single(dev, ip_offload_buf,
 							 buf_sz,
 							 DMA_FROM_DEVICE);
@@ -2542,9 +2554,9 @@ static void handle_query_cap_rsp(union ibmvnic_crq *crq,
 	struct device *dev = &adapter->vdev->dev;
 	long rc;
 
-	atomic_dec(&adapter->running_cap_queries);
+	atomic_dec(&adapter->running_cap_crqs);
 	netdev_dbg(netdev, "Outstanding queries: %d\n",
-		   atomic_read(&adapter->running_cap_queries));
+		   atomic_read(&adapter->running_cap_crqs));
 	rc = crq->query_capability.rc.code;
 	if (rc) {
 		dev_err(dev, "Error %ld in QUERY_CAP_RSP\n", rc);
@@ -2626,12 +2638,12 @@ static void handle_query_cap_rsp(union ibmvnic_crq *crq,
 		break;
 	case MIN_MTU:
 		adapter->min_mtu = be64_to_cpu(crq->query_capability.number);
-		netdev->min_mtu = adapter->min_mtu;
+		netdev->min_mtu = adapter->min_mtu - ETH_HLEN;
 		netdev_dbg(netdev, "min_mtu = %lld\n", adapter->min_mtu);
 		break;
 	case MAX_MTU:
 		adapter->max_mtu = be64_to_cpu(crq->query_capability.number);
-		netdev->max_mtu = adapter->max_mtu;
+		netdev->max_mtu = adapter->max_mtu - ETH_HLEN;
 		netdev_dbg(netdev, "max_mtu = %lld\n", adapter->max_mtu);
 		break;
 	case MAX_MULTICAST_FILTERS:
@@ -2702,9 +2714,11 @@ static void handle_query_cap_rsp(union ibmvnic_crq *crq,
 	}
 
 out:
-	if (atomic_read(&adapter->running_cap_queries) == 0)
+	if (atomic_read(&adapter->running_cap_crqs) == 0) {
+		adapter->wait_capability = false;
 		init_sub_crqs(adapter, 0);
 		/* We're done querying the capabilities, initialize sub-crqs */
+	}
 }
 
 static void handle_control_ras_rsp(union ibmvnic_crq *crq,
@@ -2799,9 +2813,9 @@ static ssize_t trace_read(struct file *file, char __user *user_buf, size_t len,
 	crq.collect_fw_trace.correlator = adapter->ras_comps[num].correlator;
 	crq.collect_fw_trace.ioba = cpu_to_be32(trace_tok);
 	crq.collect_fw_trace.len = adapter->ras_comps[num].trace_buff_size;
-	ibmvnic_send_crq(adapter, &crq);
 
 	init_completion(&adapter->fw_done);
+	ibmvnic_send_crq(adapter, &crq);
 	wait_for_completion(&adapter->fw_done);
 
 	if (*ppos + len > be32_to_cpu(adapter->ras_comps[num].trace_buff_size))
@@ -3414,6 +3428,18 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 static irqreturn_t ibmvnic_interrupt(int irq, void *instance)
 {
 	struct ibmvnic_adapter *adapter = instance;
+	unsigned long flags;
+
+	spin_lock_irqsave(&adapter->crq.lock, flags);
+	vio_disable_interrupts(adapter->vdev);
+	tasklet_schedule(&adapter->tasklet);
+	spin_unlock_irqrestore(&adapter->crq.lock, flags);
+	return IRQ_HANDLED;
+}
+
+static void ibmvnic_tasklet(void *data)
+{
+	struct ibmvnic_adapter *adapter = data;
 	struct ibmvnic_crq_queue *queue = &adapter->crq;
 	struct vio_dev *vdev = adapter->vdev;
 	union ibmvnic_crq *crq;
@@ -3435,11 +3461,19 @@ static irqreturn_t ibmvnic_interrupt(int irq, void *instance)
 			ibmvnic_handle_crq(crq, adapter);
 			crq->generic.first = 0;
 		} else {
-			done = true;
+			/* remain in tasklet until all
+			 * capabilities responses are received
+			 */
+			if (!adapter->wait_capability)
+				done = true;
 		}
 	}
+	/* if capabilities CRQ's were sent in this tasklet, the following
+	 * tasklet must wait until all responses are received
+	 */
+	if (atomic_read(&adapter->running_cap_crqs) != 0)
+		adapter->wait_capability = true;
 	spin_unlock_irqrestore(&queue->lock, flags);
-	return IRQ_HANDLED;
 }
 
 static int ibmvnic_reenable_crq_queue(struct ibmvnic_adapter *adapter)
@@ -3494,6 +3528,7 @@ static void ibmvnic_release_crq_queue(struct ibmvnic_adapter *adapter)
 
 	netdev_dbg(adapter->netdev, "Releasing CRQ\n");
 	free_irq(vdev->irq, adapter);
+	tasklet_kill(&adapter->tasklet);
 	do {
 		rc = plpar_hcall_norets(H_FREE_CRQ, vdev->unit_address);
 	} while (rc == H_BUSY || H_IS_LONG_BUSY(rc));
@@ -3539,6 +3574,9 @@ static int ibmvnic_init_crq_queue(struct ibmvnic_adapter *adapter)
 
 	retrc = 0;
 
+	tasklet_init(&adapter->tasklet, (void *)ibmvnic_tasklet,
+		     (unsigned long)adapter);
+
 	netdev_dbg(adapter->netdev, "registering irq 0x%x\n", vdev->irq);
 	rc = request_irq(vdev->irq, ibmvnic_interrupt, 0, IBMVNIC_NAME,
 			 adapter);
@@ -3560,6 +3598,7 @@ static int ibmvnic_init_crq_queue(struct ibmvnic_adapter *adapter)
 	return retrc;
 
 req_irq_failed:
+	tasklet_kill(&adapter->tasklet);
 	do {
 		rc = plpar_hcall_norets(H_FREE_CRQ, vdev->unit_address);
 	} while (rc == H_BUSY || H_IS_LONG_BUSY(rc));
@@ -3581,9 +3620,9 @@ static int ibmvnic_dump_show(struct seq_file *seq, void *v)
 	memset(&crq, 0, sizeof(crq));
 	crq.request_dump_size.first = IBMVNIC_CRQ_CMD;
 	crq.request_dump_size.cmd = REQUEST_DUMP_SIZE;
-	ibmvnic_send_crq(adapter, &crq);
 
 	init_completion(&adapter->fw_done);
+	ibmvnic_send_crq(adapter, &crq);
 	wait_for_completion(&adapter->fw_done);
 
 	seq_write(seq, adapter->dump_data, adapter->dump_data_size);
@@ -3629,8 +3668,8 @@ static void handle_crq_init_rsp(struct work_struct *work)
 		}
 	}
 
-	send_version_xchg(adapter);
 	reinit_completion(&adapter->init_done);
+	send_version_xchg(adapter);
 	if (!wait_for_completion_timeout(&adapter->init_done, timeout)) {
 		dev_err(dev, "Passive init timeout\n");
 		goto task_failed;
@@ -3640,9 +3679,9 @@ static void handle_crq_init_rsp(struct work_struct *work)
 		if (adapter->renegotiate) {
 			adapter->renegotiate = false;
 			release_sub_crqs_no_irqs(adapter);
-			send_cap_queries(adapter);
 
 			reinit_completion(&adapter->init_done);
+			send_cap_queries(adapter);
 			if (!wait_for_completion_timeout(&adapter->init_done,
 							 timeout)) {
 				dev_err(dev, "Passive init timeout\n");
@@ -3656,9 +3695,7 @@ static void handle_crq_init_rsp(struct work_struct *work)
 		goto task_failed;
 
 	netdev->real_num_tx_queues = adapter->req_tx_queues;
-	netdev->mtu = adapter->req_mtu;
-	netdev->min_mtu = adapter->min_mtu;
-	netdev->max_mtu = adapter->max_mtu;
+	netdev->mtu = adapter->req_mtu - ETH_HLEN;
 
 	if (adapter->failover) {
 		adapter->failover = false;
@@ -3772,9 +3809,9 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 			adapter->debugfs_dump = ent;
 		}
 	}
-	ibmvnic_send_crq_init(adapter);
 
 	init_completion(&adapter->init_done);
+	ibmvnic_send_crq_init(adapter);
 	if (!wait_for_completion_timeout(&adapter->init_done, timeout))
 		return 0;
 
@@ -3782,9 +3819,9 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 		if (adapter->renegotiate) {
 			adapter->renegotiate = false;
 			release_sub_crqs_no_irqs(adapter);
-			send_cap_queries(adapter);
 
 			reinit_completion(&adapter->init_done);
+			send_cap_queries(adapter);
 			if (!wait_for_completion_timeout(&adapter->init_done,
 							 timeout))
 				return 0;
@@ -3798,7 +3835,7 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	}
 
 	netdev->real_num_tx_queues = adapter->req_tx_queues;
-	netdev->mtu = adapter->req_mtu;
+	netdev->mtu = adapter->req_mtu - ETH_HLEN;
 
 	rc = register_netdev(netdev);
 	if (rc) {

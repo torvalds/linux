@@ -642,6 +642,9 @@ static int __init nf_conntrack_standalone_init(void)
 	if (ret < 0)
 		goto out_start;
 
+	BUILD_BUG_ON(SKB_NFCT_PTRMASK != NFCT_PTRMASK);
+	BUILD_BUG_ON(NFCT_INFOMASK <= IP_CT_NUMBER);
+
 #ifdef CONFIG_SYSCTL
 	nf_ct_netfilter_header =
 		register_net_sysctl(&init_net, "net", nf_ct_netfilter_table);

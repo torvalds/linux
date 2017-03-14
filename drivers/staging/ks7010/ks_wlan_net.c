@@ -285,7 +285,6 @@ static int ks_wlan_set_essid(struct net_device *dev,
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
 
-
 	/* for SLEEP MODE */
 	/* Check if we asked for `any' */
 	if (dwrq->flags == 0) {
@@ -341,7 +340,6 @@ static int ks_wlan_get_essid(struct net_device *dev,
 
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-
 
 	/* for SLEEP MODE */
 	/* Note : if dwrq->flags != 0, we should
@@ -2095,7 +2093,6 @@ static int ks_wlan_set_pmksa(struct net_device *dev,
 
 static struct iw_statistics *ks_get_wireless_stats(struct net_device *dev)
 {
-
 	struct ks_wlan_private *priv =
 	    (struct ks_wlan_private *)netdev_priv(dev);
 	struct iw_statistics *wstats = &priv->wstats;
@@ -2264,7 +2261,6 @@ static int ks_wlan_set_preamble(struct net_device *dev,
 
 	priv->need_commit |= SME_MODE_SET;
 	return -EINPROGRESS;	/* Call commit handler */
-
 }
 
 /*------------------------------------------------------------------*/
@@ -2455,7 +2451,7 @@ static int ks_wlan_data_read(struct net_device *dev,
 #if 0
 /*------------------------------------------------------------------*/
 /* Private handler : get wep string */
-#define WEP_ASCII_BUFF_SIZE (17+64*4+1)
+#define WEP_ASCII_BUFF_SIZE (17 + 64 * 4 + 1)
 static int ks_wlan_get_wep_ascii(struct net_device *dev,
 				 struct iw_request_info *info,
 				 struct iw_point *dwrq, char *extra)
@@ -2933,7 +2929,6 @@ static int ks_wlan_get_eeprom_cksum(struct net_device *dev,
 
 static void print_hif_event(struct net_device *dev, int event)
 {
-
 	switch (event) {
 	case HIF_DATA_REQ:
 		netdev_info(dev, "HIF_DATA_REQ\n");
@@ -3353,7 +3348,6 @@ void send_packet_complete(void *arg1, void *arg2)
 		dev_kfree_skb(packet);
 		packet = NULL;
 	}
-
 }
 
 /* Set or clear the multicast filter for this adaptor.
@@ -3388,7 +3382,6 @@ int ks_wlan_open(struct net_device *dev)
 static
 int ks_wlan_close(struct net_device *dev)
 {
-
 	netif_stop_queue(dev);
 
 	DPRINTK(4, "%s: Shutting down ethercard, status was 0x%4.4x.\n",
@@ -3399,9 +3392,10 @@ int ks_wlan_close(struct net_device *dev)
 
 /* Operational parameters that usually are not changed. */
 /* Time in jiffies before concluding the transmitter is hung. */
-#define TX_TIMEOUT  (3*HZ)
-static const unsigned char dummy_addr[] =
-    { 0x00, 0x0b, 0xe3, 0x00, 0x00, 0x00 };
+#define TX_TIMEOUT  (3 * HZ)
+static const unsigned char dummy_addr[] = {
+	0x00, 0x0b, 0xe3, 0x00, 0x00, 0x00
+};
 
 static const struct net_device_ops ks_wlan_netdev_ops = {
 	.ndo_start_xmit = ks_wlan_start_xmit,

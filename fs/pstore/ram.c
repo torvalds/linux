@@ -133,7 +133,8 @@ ramoops_get_next_prz(struct persistent_ram_zone *przs[], uint *c, uint max,
 	struct persistent_ram_zone *prz;
 	int i = (*c)++;
 
-	if (i >= max)
+	/* Give up if we never existed or have hit the end. */
+	if (!przs || i >= max)
 		return NULL;
 
 	prz = przs[i];
@@ -280,7 +281,7 @@ static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 					   1, id, type, PSTORE_TYPE_PMSG, 0);
 
 	/* ftrace is last since it may want to dynamically allocate memory. */
-	if (!prz_ok(prz) && cxt->fprzs) {
+	if (!prz_ok(prz)) {
 		if (!(cxt->flags & RAMOOPS_FLAG_FTRACE_PER_CPU)) {
 			prz = ramoops_get_next_prz(cxt->fprzs,
 					&cxt->ftrace_read_cnt, 1, id, type,

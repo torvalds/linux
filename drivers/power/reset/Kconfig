@@ -32,7 +32,7 @@ config POWER_RESET_AT91_RESET
 
 config POWER_RESET_AT91_SAMA5D2_SHDWC
 	tristate "Atmel AT91 SAMA5D2-Compatible shutdown controller driver"
-	depends on ARCH_AT91 || COMPILE_TEST
+	depends on ARCH_AT91
 	default SOC_SAMA5
 	help
 	  This driver supports the alternate shutdown controller for some Atmel

@@ -247,6 +247,17 @@ config ARM_TEGRA124_CPUFREQ
 	help
 	  This adds the CPUFreq driver support for Tegra124 SOCs.
 
+config ARM_TI_CPUFREQ
+	bool "Texas Instruments CPUFreq support"
+	depends on ARCH_OMAP2PLUS
+	help
+	  This driver enables valid OPPs on the running platform based on
+	  values contained within the SoC in use. Enable this in order to
+	  use the cpufreq-dt driver on all Texas Instruments platforms that
+	  provide dt based operating-points-v2 tables with opp-supported-hw
+	  data provided. Required for cpufreq support on AM335x, AM437x,
+	  DRA7x, and AM57x platforms.
+
 config ARM_PXA2xx_CPUFREQ
 	tristate "Intel PXA2xx CPUfreq driver"
 	depends on PXA27x || PXA25x
@@ -257,7 +268,7 @@ config ARM_PXA2xx_CPUFREQ
 
 config ACPI_CPPC_CPUFREQ
 	tristate "CPUFreq driver based on the ACPI CPPC spec"
-	depends on ACPI
+	depends on ACPI_PROCESSOR
 	select ACPI_CPPC_LIB
 	default n
 	help

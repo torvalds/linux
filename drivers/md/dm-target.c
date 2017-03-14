@@ -131,12 +131,6 @@ static int io_err_map(struct dm_target *tt, struct bio *bio)
 	return -EIO;
 }
 
-static int io_err_map_rq(struct dm_target *ti, struct request *clone,
-			 union map_info *map_context)
-{
-	return -EIO;
-}
-
 static int io_err_clone_and_map_rq(struct dm_target *ti, struct request *rq,
 				   union map_info *map_context,
 				   struct request **clone)
@@ -161,7 +155,6 @@ static struct target_type error_target = {
 	.ctr  = io_err_ctr,
 	.dtr  = io_err_dtr,
 	.map  = io_err_map,
-	.map_rq = io_err_map_rq,
 	.clone_and_map_rq = io_err_clone_and_map_rq,
 	.release_clone_rq = io_err_release_clone_rq,
 	.direct_access = io_err_direct_access,

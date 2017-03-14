@@ -284,9 +284,15 @@ static int mos7840_get_reg_sync(struct usb_serial_port *port, __u16 reg,
 	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0), MCS_RDREQ,
 			      MCS_RD_RTYPE, 0, reg, buf, VENDOR_READ_LENGTH,
 			      MOS_WDR_TIMEOUT);
+	if (ret < VENDOR_READ_LENGTH) {
+		if (ret >= 0)
+			ret = -EIO;
+		goto out;
+	}
+
 	*val = buf[0];
 	dev_dbg(&port->dev, "%s offset is %x, return val %x\n", __func__, reg, *val);
-
+out:
 	kfree(buf);
 	return ret;
 }
@@ -352,8 +358,13 @@ static int mos7840_get_uart_reg(struct usb_serial_port *port, __u16 reg,
 	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0), MCS_RDREQ,
 			      MCS_RD_RTYPE, Wval, reg, buf, VENDOR_READ_LENGTH,
 			      MOS_WDR_TIMEOUT);
+	if (ret < VENDOR_READ_LENGTH) {
+		if (ret >= 0)
+			ret = -EIO;
+		goto out;
+	}
 	*val = buf[0];
-
+out:
 	kfree(buf);
 	return ret;
 }
@@ -1023,6 +1034,7 @@ static int mos7840_open(struct tty_struct *tty, struct usb_serial_port *port)
 	 * (can't set it up in mos7840_startup as the structures *
 	 * were not set up at that time.)                        */
 	if (port0->open_ports == 1) {
+		/* FIXME: Buffer never NULL, so URB is not submitted. */
 		if (serial->port[0]->interrupt_in_buffer == NULL) {
 			/* set up interrupt urb */
 			usb_fill_int_urb(serial->port[0]->interrupt_in_urb,
@@ -1479,10 +1491,10 @@ static int mos7840_tiocmget(struct tty_struct *tty)
 		return -ENODEV;
 
 	status = mos7840_get_uart_reg(port, MODEM_STATUS_REGISTER, &msr);
-	if (status != 1)
+	if (status < 0)
 		return -EIO;
 	status = mos7840_get_uart_reg(port, MODEM_CONTROL_REGISTER, &mcr);
-	if (status != 1)
+	if (status < 0)
 		return -EIO;
 	result = ((mcr & MCR_DTR) ? TIOCM_DTR : 0)
 	    | ((mcr & MCR_RTS) ? TIOCM_RTS : 0)
@@ -1952,7 +1964,6 @@ static int mos7840_get_serial_info(struct moschip_port *mos7840_port,
 	tmp.line = mos7840_port->port->minor;
 	tmp.port = mos7840_port->port->port_number;
 	tmp.irq = 0;
-	tmp.flags = ASYNC_SKIP_TEST | ASYNC_AUTO_IRQ;
 	tmp.xmit_fifo_size = NUM_URBS * URB_TRANSFER_BUFFER_SIZE;
 	tmp.baud_base = 9600;
 	tmp.close_delay = 5 * HZ;
@@ -2106,7 +2117,8 @@ static int mos7840_calc_num_ports(struct usb_serial *serial)
 static int mos7840_attach(struct usb_serial *serial)
 {
 	if (serial->num_bulk_in < serial->num_ports ||
-			serial->num_bulk_out < serial->num_ports) {
+			serial->num_bulk_out < serial->num_ports ||
+			serial->num_interrupt_in < 1) {
 		dev_err(&serial->interface->dev, "missing endpoints\n");
 		return -ENODEV;
 	}

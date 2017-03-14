@@ -472,6 +472,13 @@ HYPERVISOR_xenpmu_op(unsigned int op, void *arg)
 	return _hypercall2(int, xenpmu_op, op, arg);
 }
 
+static inline int
+HYPERVISOR_dm_op(
+	domid_t dom, unsigned int nr_bufs, void *bufs)
+{
+	return _hypercall3(int, dm_op, dom, nr_bufs, bufs);
+}
+
 static inline void
 MULTI_fpu_taskswitch(struct multicall_entry *mcl, int set)
 {

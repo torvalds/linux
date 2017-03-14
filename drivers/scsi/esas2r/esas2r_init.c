@@ -237,7 +237,7 @@ static void esas2r_claim_interrupts(struct esas2r_adapter *a)
 		flags |= IRQF_SHARED;
 
 	esas2r_log(ESAS2R_LOG_INFO,
-		   "esas2r_claim_interrupts irq=%d (%p, %s, %x)",
+		   "esas2r_claim_interrupts irq=%d (%p, %s, %lx)",
 		   a->pcid->irq, a, a->name, flags);
 
 	if (request_irq(a->pcid->irq,

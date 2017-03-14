@@ -156,7 +156,7 @@ EXPORT_SYMBOL(drm_mode_object_find);
 void drm_mode_object_put(struct drm_mode_object *obj)
 {
 	if (obj->free_cb) {
-		DRM_DEBUG("OBJ ID: %d (%d)\n", obj->id, atomic_read(&obj->refcount.refcount));
+		DRM_DEBUG("OBJ ID: %d (%d)\n", obj->id, kref_read(&obj->refcount));
 		kref_put(&obj->refcount, obj->free_cb);
 	}
 }
@@ -173,7 +173,7 @@ EXPORT_SYMBOL(drm_mode_object_put);
 void drm_mode_object_get(struct drm_mode_object *obj)
 {
 	if (obj->free_cb) {
-		DRM_DEBUG("OBJ ID: %d (%d)\n", obj->id, atomic_read(&obj->refcount.refcount));
+		DRM_DEBUG("OBJ ID: %d (%d)\n", obj->id, kref_read(&obj->refcount));
 		kref_get(&obj->refcount);
 	}
 }

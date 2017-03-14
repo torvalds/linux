@@ -319,7 +319,7 @@ static void nf_log_ip_packet(struct net *net, u_int8_t pf,
 	struct nf_log_buf *m;
 
 	/* FIXME: Disabled from containers until syslog ns is supported */
-	if (!net_eq(net, &init_net))
+	if (!net_eq(net, &init_net) && !sysctl_nf_log_all_netns)
 		return;
 
 	m = nf_log_buf_open();

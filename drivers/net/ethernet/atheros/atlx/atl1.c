@@ -2457,7 +2457,7 @@ static int atl1_rings_clean(struct napi_struct *napi, int budget)
 	if (work_done >= budget)
 		return work_done;
 
-	napi_complete(napi);
+	napi_complete_done(napi, work_done);
 	/* re-enable Interrupt */
 	if (likely(adapter->int_enabled))
 		atlx_imr_set(adapter, IMR_NORMAL_MASK);

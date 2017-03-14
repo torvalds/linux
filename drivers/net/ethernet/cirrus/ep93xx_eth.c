@@ -228,9 +228,10 @@ static void ep93xx_mdio_write(struct net_device *dev, int phy_id, int reg, int d
 		pr_info("mdio write timed out\n");
 }
 
-static int ep93xx_rx(struct net_device *dev, int processed, int budget)
+static int ep93xx_rx(struct net_device *dev, int budget)
 {
 	struct ep93xx_priv *ep = netdev_priv(dev);
+	int processed = 0;
 
 	while (processed < budget) {
 		int entry;
@@ -294,7 +295,7 @@ static int ep93xx_rx(struct net_device *dev, int processed, int budget)
 			skb_put(skb, length);
 			skb->protocol = eth_type_trans(skb, dev);
 
-			netif_receive_skb(skb);
+			napi_gro_receive(&ep->napi, skb);
 
 			dev->stats.rx_packets++;
 			dev->stats.rx_bytes += length;
@@ -310,35 +311,17 @@ err:
 	return processed;
 }
 
-static int ep93xx_have_more_rx(struct ep93xx_priv *ep)
-{
-	struct ep93xx_rstat *rstat = ep->descs->rstat + ep->rx_pointer;
-	return !!((rstat->rstat0 & RSTAT0_RFP) && (rstat->rstat1 & RSTAT1_RFP));
-}
-
 static int ep93xx_poll(struct napi_struct *napi, int budget)
 {
 	struct ep93xx_priv *ep = container_of(napi, struct ep93xx_priv, napi);
 	struct net_device *dev = ep->dev;
-	int rx = 0;
+	int rx;
 
-poll_some_more:
-	rx = ep93xx_rx(dev, rx, budget);
-	if (rx < budget) {
-		int more = 0;
-
+	rx = ep93xx_rx(dev, budget);
+	if (rx < budget && napi_complete_done(napi, rx)) {
 		spin_lock_irq(&ep->rx_lock);
-		__napi_complete(napi);
 		wrl(ep, REG_INTEN, REG_INTEN_TX | REG_INTEN_RX);
-		if (ep93xx_have_more_rx(ep)) {
-			wrl(ep, REG_INTEN, REG_INTEN_TX);
-			wrl(ep, REG_INTSTSP, REG_INTSTS_RX);
-			more = 1;
-		}
 		spin_unlock_irq(&ep->rx_lock);
-
-		if (more && napi_reschedule(napi))
-			goto poll_some_more;
 	}
 
 	if (rx) {

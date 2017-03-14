@@ -54,6 +54,7 @@
 #include <linux/list.h>
 #include "../../include/linux/libcfs/libcfs_hash.h"	/* for cfs_hash stuff */
 #include "../include/cl_object.h"
+#include "../include/lu_object.h"
 #include "cl_internal.h"
 
 static struct kmem_cache *cl_env_kmem;
@@ -61,8 +62,6 @@ static struct kmem_cache *cl_env_kmem;
 /** Lock class of cl_object_header::coh_attr_guard */
 static struct lock_class_key cl_attr_guard_class;
 
-extern __u32 lu_context_tags_default;
-extern __u32 lu_session_tags_default;
 /**
  * Initialize cl_object_header.
  */

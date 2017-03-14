@@ -25,10 +25,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/device.h>
@@ -291,7 +287,7 @@ static struct rc_dev *streamzap_init_rc_dev(struct streamzap_ir *sz)
 	struct device *dev = sz->dev;
 	int ret;
 
-	rdev = rc_allocate_device();
+	rdev = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!rdev) {
 		dev_err(dev, "remote dev allocation failed\n");
 		goto out;
@@ -308,8 +304,7 @@ static struct rc_dev *streamzap_init_rc_dev(struct streamzap_ir *sz)
 	usb_to_input_id(sz->usbdev, &rdev->input_id);
 	rdev->dev.parent = dev;
 	rdev->priv = sz;
-	rdev->driver_type = RC_DRIVER_IR_RAW;
-	rdev->allowed_protocols = RC_BIT_ALL;
+	rdev->allowed_protocols = RC_BIT_ALL_IR_DECODER;
 	rdev->driver_name = DRIVER_NAME;
 	rdev->map_name = RC_MAP_STREAMZAP;
 

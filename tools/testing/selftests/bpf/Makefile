@@ -1,13 +1,20 @@
-CFLAGS += -Wall -O2 -I../../../../usr/include
+LIBDIR := ../../../lib
+BPFOBJ := $(LIBDIR)/bpf/bpf.o
 
-test_objs = test_verifier test_maps test_lru_map
+CFLAGS += -Wall -O2 -lcap -I../../../include/uapi -I$(LIBDIR)
 
-TEST_PROGS := test_verifier test_maps test_lru_map test_kmod.sh
-TEST_FILES := $(test_objs)
+TEST_GEN_PROGS = test_verifier test_tag test_maps test_lru_map test_lpm_map
 
-all: $(test_objs)
+TEST_PROGS := test_kmod.sh
+
+.PHONY: all clean force
+
+# force a rebuild of BPFOBJ when its dependencies are updated
+force:
+
+$(BPFOBJ): force
+	$(MAKE) -C $(dir $(BPFOBJ))
+
+$(test_objs): $(BPFOBJ)
 
 include ../lib.mk
-
-clean:
-	$(RM) $(test_objs)

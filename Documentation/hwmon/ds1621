@@ -117,10 +117,10 @@ support, which is achieved via the R0 and R1 config register bits, where:
 
 R0..R1
 ------
- 0  0 => 9 bits, 0.5 degrees Celcius
- 1  0 => 10 bits, 0.25 degrees Celcius
- 0  1 => 11 bits, 0.125 degrees Celcius
- 1  1 => 12 bits, 0.0625 degrees Celcius
+ 0  0 => 9 bits, 0.5 degrees Celsius
+ 1  0 => 10 bits, 0.25 degrees Celsius
+ 0  1 => 11 bits, 0.125 degrees Celsius
+ 1  1 => 12 bits, 0.0625 degrees Celsius
 
 Note:
 At initial device power-on, the default resolution is set to 12-bits.

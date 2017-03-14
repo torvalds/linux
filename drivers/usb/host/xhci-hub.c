@@ -389,6 +389,8 @@ static int xhci_stop_device(struct xhci_hcd *xhci, int slot_id, int suspend)
 	if (!virt_dev)
 		return -ENODEV;
 
+	trace_xhci_stop_device(virt_dev);
+
 	cmd = xhci_alloc_command(xhci, false, true, GFP_NOIO);
 	if (!cmd) {
 		xhci_dbg(xhci, "Couldn't allocate command structure.\n");
@@ -418,7 +420,8 @@ static int xhci_stop_device(struct xhci_hcd *xhci, int slot_id, int suspend)
 	/* Wait for last stop endpoint command to finish */
 	wait_for_completion(cmd->completion);
 
-	if (cmd->status == COMP_CMD_ABORT || cmd->status == COMP_CMD_STOP) {
+	if (cmd->status == COMP_COMMAND_ABORTED ||
+			cmd->status == COMP_STOPPED) {
 		xhci_warn(xhci, "Timeout while waiting for stop endpoint command\n");
 		ret = -ETIME;
 	}
@@ -455,6 +458,12 @@ static void xhci_disable_port(struct usb_hcd *hcd, struct xhci_hcd *xhci,
 	if (hcd->speed >= HCD_USB3) {
 		xhci_dbg(xhci, "Ignoring request to disable "
 				"SuperSpeed port.\n");
+		return;
+	}
+
+	if (xhci->quirks & XHCI_BROKEN_PORT_PED) {
+		xhci_dbg(xhci,
+			 "Broken Port Enabled/Disabled, ignoring port disable request.\n");
 		return;
 	}
 
@@ -990,8 +999,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			temp = readl(port_array[wIndex]);
 			if ((temp & PORT_PE) == 0 || (temp & PORT_RESET)
 				|| (temp & PORT_PLS_MASK) >= XDEV_U3) {
-				xhci_warn(xhci, "USB core suspending device "
-					  "not in U0/U1/U2.\n");
+				xhci_warn(xhci, "USB core suspending device not in U0/U1/U2.\n");
 				goto error;
 			}
 

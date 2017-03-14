@@ -1,7 +1,6 @@
 #ifndef _LINUX_KASAN_H
 #define _LINUX_KASAN_H
 
-#include <linux/sched.h>
 #include <linux/types.h>
 
 struct kmem_cache;
@@ -30,16 +29,10 @@ static inline void *kasan_mem_to_shadow(const void *addr)
 }
 
 /* Enable reporting bugs after kasan_disable_current() */
-static inline void kasan_enable_current(void)
-{
-	current->kasan_depth++;
-}
+extern void kasan_enable_current(void);
 
 /* Disable reporting bugs for current task */
-static inline void kasan_disable_current(void)
-{
-	current->kasan_depth--;
-}
+extern void kasan_disable_current(void);
 
 void kasan_unpoison_shadow(const void *address, size_t size);
 
@@ -52,7 +45,7 @@ void kasan_free_pages(struct page *page, unsigned int order);
 void kasan_cache_create(struct kmem_cache *cache, size_t *size,
 			unsigned long *flags);
 void kasan_cache_shrink(struct kmem_cache *cache);
-void kasan_cache_destroy(struct kmem_cache *cache);
+void kasan_cache_shutdown(struct kmem_cache *cache);
 
 void kasan_poison_slab(struct page *page);
 void kasan_unpoison_object_data(struct kmem_cache *cache, void *object);
@@ -98,7 +91,7 @@ static inline void kasan_cache_create(struct kmem_cache *cache,
 				      size_t *size,
 				      unsigned long *flags) {}
 static inline void kasan_cache_shrink(struct kmem_cache *cache) {}
-static inline void kasan_cache_destroy(struct kmem_cache *cache) {}
+static inline void kasan_cache_shutdown(struct kmem_cache *cache) {}
 
 static inline void kasan_poison_slab(struct page *page) {}
 static inline void kasan_unpoison_object_data(struct kmem_cache *cache,

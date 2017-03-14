@@ -874,16 +874,18 @@ static void w90p910_get_drvinfo(struct net_device *dev,
 	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 }
 
-static int w90p910_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int w90p910_get_link_ksettings(struct net_device *dev,
+				      struct ethtool_link_ksettings *cmd)
 {
 	struct w90p910_ether *ether = netdev_priv(dev);
-	return mii_ethtool_gset(&ether->mii, cmd);
+	return mii_ethtool_get_link_ksettings(&ether->mii, cmd);
 }
 
-static int w90p910_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int w90p910_set_link_ksettings(struct net_device *dev,
+				      const struct ethtool_link_ksettings *cmd)
 {
 	struct w90p910_ether *ether = netdev_priv(dev);
-	return mii_ethtool_sset(&ether->mii, cmd);
+	return mii_ethtool_set_link_ksettings(&ether->mii, cmd);
 }
 
 static int w90p910_nway_reset(struct net_device *dev)
@@ -899,11 +901,11 @@ static u32 w90p910_get_link(struct net_device *dev)
 }
 
 static const struct ethtool_ops w90p910_ether_ethtool_ops = {
-	.get_settings	= w90p910_get_settings,
-	.set_settings	= w90p910_set_settings,
 	.get_drvinfo	= w90p910_get_drvinfo,
 	.nway_reset	= w90p910_nway_reset,
 	.get_link	= w90p910_get_link,
+	.get_link_ksettings = w90p910_get_link_ksettings,
+	.set_link_ksettings = w90p910_set_link_ksettings,
 };
 
 static const struct net_device_ops w90p910_ether_netdev_ops = {

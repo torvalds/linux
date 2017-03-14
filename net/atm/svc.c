@@ -10,7 +10,7 @@
 #include <linux/kernel.h>	/* printk */
 #include <linux/skbuff.h>
 #include <linux/wait.h>
-#include <linux/sched.h>	/* jiffies and HZ */
+#include <linux/sched/signal.h>
 #include <linux/fcntl.h>	/* O_NONBLOCK */
 #include <linux/init.h>
 #include <linux/atm.h>		/* ATM stuff */

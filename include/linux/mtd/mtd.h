@@ -24,6 +24,7 @@
 #include <linux/uio.h>
 #include <linux/notifier.h>
 #include <linux/device.h>
+#include <linux/of.h>
 
 #include <mtd/mtd-abi.h>
 
@@ -322,6 +323,7 @@ struct mtd_info {
 	int (*_block_isreserved) (struct mtd_info *mtd, loff_t ofs);
 	int (*_block_isbad) (struct mtd_info *mtd, loff_t ofs);
 	int (*_block_markbad) (struct mtd_info *mtd, loff_t ofs);
+	int (*_max_bad_blocks) (struct mtd_info *mtd, loff_t ofs, size_t len);
 	int (*_suspend) (struct mtd_info *mtd);
 	void (*_resume) (struct mtd_info *mtd);
 	void (*_reboot) (struct mtd_info *mtd);
@@ -385,6 +387,8 @@ static inline void mtd_set_of_node(struct mtd_info *mtd,
 				   struct device_node *np)
 {
 	mtd->dev.of_node = np;
+	if (!mtd->name)
+		of_property_read_string(np, "label", &mtd->name);
 }
 
 static inline struct device_node *mtd_get_of_node(struct mtd_info *mtd)
@@ -395,6 +399,18 @@ static inline struct device_node *mtd_get_of_node(struct mtd_info *mtd)
 static inline int mtd_oobavail(struct mtd_info *mtd, struct mtd_oob_ops *ops)
 {
 	return ops->mode == MTD_OPS_AUTO_OOB ? mtd->oobavail : mtd->oobsize;
+}
+
+static inline int mtd_max_bad_blocks(struct mtd_info *mtd,
+				     loff_t ofs, size_t len)
+{
+	if (!mtd->_max_bad_blocks)
+		return -ENOTSUPP;
+
+	if (mtd->size < (len + ofs) || ofs < 0)
+		return -EINVAL;
+
+	return mtd->_max_bad_blocks(mtd, ofs, len);
 }
 
 int mtd_wunit_to_pairing_info(struct mtd_info *mtd, int wunit,

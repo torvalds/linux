@@ -626,30 +626,29 @@ repeat:
 		req_data_dir(req) == READ ? "read" : "writ",
 		cyl, head, sec, nsect, bio_data(req->bio));
 #endif
-	if (req->cmd_type == REQ_TYPE_FS) {
-		switch (rq_data_dir(req)) {
-		case READ:
-			hd_out(disk, nsect, sec, head, cyl, ATA_CMD_PIO_READ,
-				&read_intr);
-			if (reset)
-				goto repeat;
-			break;
-		case WRITE:
-			hd_out(disk, nsect, sec, head, cyl, ATA_CMD_PIO_WRITE,
-				&write_intr);
-			if (reset)
-				goto repeat;
-			if (wait_DRQ()) {
-				bad_rw_intr();
-				goto repeat;
-			}
-			outsw(HD_DATA, bio_data(req->bio), 256);
-			break;
-		default:
-			printk("unknown hd-command\n");
-			hd_end_request_cur(-EIO);
-			break;
+
+	switch (req_op(req)) {
+	case REQ_OP_READ:
+		hd_out(disk, nsect, sec, head, cyl, ATA_CMD_PIO_READ,
+			&read_intr);
+		if (reset)
+			goto repeat;
+		break;
+	case REQ_OP_WRITE:
+		hd_out(disk, nsect, sec, head, cyl, ATA_CMD_PIO_WRITE,
+			&write_intr);
+		if (reset)
+			goto repeat;
+		if (wait_DRQ()) {
+			bad_rw_intr();
+			goto repeat;
 		}
+		outsw(HD_DATA, bio_data(req->bio), 256);
+		break;
+	default:
+		printk("unknown hd-command\n");
+		hd_end_request_cur(-EIO);
+		break;
 	}
 }
 

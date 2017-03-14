@@ -27,6 +27,8 @@
 #include <linux/kernel.h>
 #include <linux/net.h>
 #include <linux/poll.h>
+#include <linux/sched/signal.h>
+
 #include <net/sock.h>
 #include <net/tcp_states.h>
 

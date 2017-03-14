@@ -5,8 +5,9 @@
 
 #include <linux/irqreturn.h>
 #include <linux/kd.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
+
 #include "chan.h"
 #include <irq_kern.h>
 #include <irq_user.h>

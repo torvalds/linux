@@ -131,7 +131,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 		return ir->irq;
 	}
 
-	ir->rc = rc_allocate_device();
+	ir->rc = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!ir->rc) {
 		dev_err(dev, "failed to allocate rc device\n");
 		return -ENOMEM;
@@ -144,8 +144,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 	map_name = of_get_property(node, "linux,rc-map-name", NULL);
 	ir->rc->map_name = map_name ? map_name : RC_MAP_EMPTY;
 	ir->rc->dev.parent = dev;
-	ir->rc->driver_type = RC_DRIVER_IR_RAW;
-	ir->rc->allowed_protocols = RC_BIT_ALL;
+	ir->rc->allowed_protocols = RC_BIT_ALL_IR_DECODER;
 	ir->rc->rx_resolution = US_TO_NS(MESON_TRATE);
 	ir->rc->timeout = MS_TO_NS(200);
 	ir->rc->driver_name = DRIVER_NAME;

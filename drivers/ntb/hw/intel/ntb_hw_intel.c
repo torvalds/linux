@@ -1629,6 +1629,28 @@ static void atom_deinit_dev(struct intel_ntb_dev *ndev)
 
 /* Skylake Xeon NTB */
 
+static int skx_poll_link(struct intel_ntb_dev *ndev)
+{
+	u16 reg_val;
+	int rc;
+
+	ndev->reg->db_iowrite(ndev->db_link_mask,
+			      ndev->self_mmio +
+			      ndev->self_reg->db_clear);
+
+	rc = pci_read_config_word(ndev->ntb.pdev,
+				  SKX_LINK_STATUS_OFFSET, &reg_val);
+	if (rc)
+		return 0;
+
+	if (reg_val == ndev->lnk_sta)
+		return 0;
+
+	ndev->lnk_sta = reg_val;
+
+	return 1;
+}
+
 static u64 skx_db_ioread(void __iomem *mmio)
 {
 	return ioread64(mmio);
@@ -2852,7 +2874,7 @@ static struct intel_b2b_addr xeon_b2b_dsd_addr = {
 };
 
 static const struct intel_ntb_reg skx_reg = {
-	.poll_link		= xeon_poll_link,
+	.poll_link		= skx_poll_link,
 	.link_is_up		= xeon_link_is_up,
 	.db_ioread		= skx_db_ioread,
 	.db_iowrite		= skx_db_iowrite,

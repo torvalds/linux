@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -770,7 +770,7 @@ union acpi_parse_value {
 	char                            *operator_symbol;/* Used for C-style operator name strings */\
 	char                            aml_op_name[16])	/* Op name (debug only) */
 
-/* Flags for disasm_flags field above */
+/* Internal opcodes for disasm_opcode field above */
 
 #define ACPI_DASM_BUFFER                0x00	/* Buffer is a simple data buffer */
 #define ACPI_DASM_RESOURCE              0x01	/* Buffer is a Resource Descriptor */
@@ -783,7 +783,10 @@ union acpi_parse_value {
 #define ACPI_DASM_LNOT_PREFIX           0x08	/* Start of a Lnot_equal (etc.) pair of opcodes */
 #define ACPI_DASM_LNOT_SUFFIX           0x09	/* End  of a Lnot_equal (etc.) pair of opcodes */
 #define ACPI_DASM_HID_STRING            0x0A	/* String is a _HID or _CID */
-#define ACPI_DASM_IGNORE                0x0B	/* Not used at this time */
+#define ACPI_DASM_IGNORE_SINGLE         0x0B	/* Ignore the opcode but not it's children */
+#define ACPI_DASM_SWITCH_PREDICATE      0x0C	/* Object is a predicate for a Switch or Case block */
+#define ACPI_DASM_CASE                  0x0D	/* If/Else is a Case in a Switch/Case block */
+#define ACPI_DASM_DEFAULT               0x0E	/* Else is a Default in a Switch/Case block */
 
 /*
  * Generic operation (for example:  If, While, Store)

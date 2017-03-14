@@ -447,8 +447,9 @@ int exynos_drm_gem_dumb_map_offset(struct drm_file *file_priv,
 	return ret;
 }
 
-int exynos_drm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+int exynos_drm_gem_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *obj = vma->vm_private_data;
 	struct exynos_drm_gem *exynos_gem = to_exynos_gem(obj);
 	unsigned long pfn;

@@ -486,11 +486,6 @@ drop:
 	return 0;
 }
 
-struct ipv6_tel_txoption {
-	struct ipv6_txoptions ops;
-	__u8 dst_opt[8];
-};
-
 static int gre_handle_offloads(struct sk_buff *skb, bool csum)
 {
 	return iptunnel_handle_offloads(skb,
@@ -1003,6 +998,9 @@ static void ip6gre_tunnel_setup(struct net_device *dev)
 	dev->flags |= IFF_NOARP;
 	dev->addr_len = sizeof(struct in6_addr);
 	netif_keep_dst(dev);
+	/* This perm addr will be used as interface identifier by IPv6 */
+	dev->addr_assign_type = NET_ADDR_RANDOM;
+	eth_random_addr(dev->perm_addr);
 }
 
 static int ip6gre_tunnel_init_common(struct net_device *dev)

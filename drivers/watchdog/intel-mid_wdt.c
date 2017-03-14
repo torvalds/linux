@@ -137,7 +137,6 @@ static int mid_wdt_probe(struct platform_device *pdev)
 	wdt_dev->parent = &pdev->dev;
 
 	watchdog_set_drvdata(wdt_dev, &pdev->dev);
-	platform_set_drvdata(pdev, wdt_dev);
 
 	ret = devm_request_irq(&pdev->dev, pdata->irq, mid_wdt_irq,
 			       IRQF_SHARED | IRQF_NO_SUSPEND, "watchdog",
@@ -151,7 +150,7 @@ static int mid_wdt_probe(struct platform_device *pdev)
 	/* Make sure the watchdog is not running */
 	wdt_stop(wdt_dev);
 
-	ret = watchdog_register_device(wdt_dev);
+	ret = devm_watchdog_register_device(&pdev->dev, wdt_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "error registering watchdog device\n");
 		return ret;
@@ -162,16 +161,8 @@ static int mid_wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mid_wdt_remove(struct platform_device *pdev)
-{
-	struct watchdog_device *wd = platform_get_drvdata(pdev);
-	watchdog_unregister_device(wd);
-	return 0;
-}
-
 static struct platform_driver mid_wdt_driver = {
 	.probe		= mid_wdt_probe,
-	.remove		= mid_wdt_remove,
 	.driver		= {
 		.name	= "intel_mid_wdt",
 	},

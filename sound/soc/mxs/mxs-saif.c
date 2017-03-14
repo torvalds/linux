@@ -119,23 +119,33 @@ static int mxs_saif_set_clk(struct mxs_saif *saif,
 	 * Set SAIF clock
 	 *
 	 * The SAIF clock should be either 384*fs or 512*fs.
-	 * If MCLK is used, the SAIF clk ratio need to match mclk ratio.
-	 *  For 32x mclk, set saif clk as 512*fs.
-	 *  For 48x mclk, set saif clk as 384*fs.
+	 * If MCLK is used, the SAIF clk ratio needs to match mclk ratio.
+	 *  For 256x, 128x, 64x, and 32x sub-rates, set saif clk as 512*fs.
+	 *  For 192x, 96x, and 48x sub-rates, set saif clk as 384*fs.
 	 *
 	 * If MCLK is not used, we just set saif clk to 512*fs.
 	 */
 	clk_prepare_enable(master_saif->clk);
 
 	if (master_saif->mclk_in_use) {
-		if (mclk % 32 == 0) {
+		switch (mclk / rate) {
+		case 32:
+		case 64:
+		case 128:
+		case 256:
+		case 512:
 			scr &= ~BM_SAIF_CTRL_BITCLK_BASE_RATE;
 			ret = clk_set_rate(master_saif->clk, 512 * rate);
-		} else if (mclk % 48 == 0) {
+			break;
+		case 48:
+		case 96:
+		case 192:
+		case 384:
 			scr |= BM_SAIF_CTRL_BITCLK_BASE_RATE;
 			ret = clk_set_rate(master_saif->clk, 384 * rate);
-		} else {
-			/* SAIF MCLK should be either 32x or 48x */
+			break;
+		default:
+			/* SAIF MCLK should be a sub-rate of 512x or 384x */
 			clk_disable_unprepare(master_saif->clk);
 			return -EINVAL;
 		}
@@ -297,6 +307,16 @@ static int mxs_saif_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 	if (stat & BM_SAIF_STAT_BUSY) {
 		dev_err(cpu_dai->dev, "error: busy\n");
 		return -EBUSY;
+	}
+
+	/* If SAIF1 is configured as slave, the clk gate needs to be cleared
+	 * before the register can be written.
+	 */
+	if (saif->id != saif->master_id) {
+		__raw_writel(BM_SAIF_CTRL_SFTRST,
+			saif->base + SAIF_CTRL + MXS_CLR_ADDR);
+		__raw_writel(BM_SAIF_CTRL_CLKGATE,
+			saif->base + SAIF_CTRL + MXS_CLR_ADDR);
 	}
 
 	scr0 = __raw_readl(saif->base + SAIF_CTRL);

@@ -32,6 +32,7 @@
 #undef VERBOSE_DEBUG
 
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -913,7 +914,6 @@ static int get_serial_info(struct acm *acm, struct serial_struct __user *info)
 	struct serial_struct tmp;
 
 	memset(&tmp, 0, sizeof(tmp));
-	tmp.flags = ASYNC_LOW_LATENCY;
 	tmp.xmit_fifo_size = acm->writesize;
 	tmp.baud_base = le32_to_cpu(acm->line.dwDTERate);
 	tmp.close_delay	= acm->port.close_delay / 10;

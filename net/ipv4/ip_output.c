@@ -222,7 +222,10 @@ static int ip_finish_output2(struct net *net, struct sock *sk, struct sk_buff *s
 	if (unlikely(!neigh))
 		neigh = __neigh_create(&arp_tbl, &nexthop, dev, false);
 	if (!IS_ERR(neigh)) {
-		int res = dst_neigh_output(dst, neigh, skb);
+		int res;
+
+		sock_confirm_neigh(skb, neigh);
+		res = neigh_output(neigh, skb);
 
 		rcu_read_unlock_bh();
 		return res;
@@ -886,6 +889,9 @@ static inline int ip_ufo_append_data(struct sock *sk,
 
 		skb->csum = 0;
 
+		if (flags & MSG_CONFIRM)
+			skb_set_dst_pending_confirm(skb, 1);
+
 		__skb_queue_tail(queue, skb);
 	} else if (skb_is_gso(skb)) {
 		goto append;
@@ -1085,6 +1091,9 @@ alloc_new_skb:
 			transhdrlen = 0;
 			exthdrlen = 0;
 			csummode = CHECKSUM_NONE;
+
+			if ((flags & MSG_CONFIRM) && !skb_prev)
+				skb_set_dst_pending_confirm(skb, 1);
 
 			/*
 			 * Put the packet on the pending queue.

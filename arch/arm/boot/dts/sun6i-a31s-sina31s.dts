@@ -136,17 +136,14 @@
 
 &pio {
 	led_pin_sina31s: led_pin@0 {
-		allwinner,pins = "PH13";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH13";
+		function = "gpio_out";
 	};
 
 	mmc0_cd_pin_sina31s: mmc0_cd_pin@0 {
-		allwinner,pins = "PA4";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PA4";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 };
 
@@ -154,6 +151,11 @@
 	regulator-min-microvolt = <3300000>;
 	regulator-max-microvolt = <3300000>;
 	regulator-name = "vcc-gmac-phy";
+};
+
+&usb_otg {
+	dr_mode = "peripheral";
+	status = "okay";
 };
 
 &usbphy {

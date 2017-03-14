@@ -108,7 +108,7 @@ struct hist_entry {
 		/*
 		 * Since perf diff only supports the stdio output, TUI
 		 * fields are only accessed from perf report (or perf
-		 * top).  So make it an union to reduce memory usage.
+		 * top).  So make it a union to reduce memory usage.
 		 */
 		struct hist_entry_diff	diff;
 		struct /* for TUI */ {

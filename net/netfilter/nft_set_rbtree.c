@@ -60,11 +60,10 @@ static bool nft_rbtree_lookup(const struct net *net, const struct nft_set *set,
 		d = memcmp(this, key, set->klen);
 		if (d < 0) {
 			parent = parent->rb_left;
-			/* In case of adjacent ranges, we always see the high
-			 * part of the range in first place, before the low one.
-			 * So don't update interval if the keys are equal.
-			 */
-			if (interval && nft_rbtree_equal(set, this, interval))
+			if (interval &&
+			    nft_rbtree_equal(set, this, interval) &&
+			    nft_rbtree_interval_end(this) &&
+			    !nft_rbtree_interval_end(interval))
 				continue;
 			interval = rbe;
 		} else if (d > 0)
@@ -151,7 +150,8 @@ static int nft_rbtree_insert(const struct net *net, const struct nft_set *set,
 	return err;
 }
 
-static void nft_rbtree_remove(const struct nft_set *set,
+static void nft_rbtree_remove(const struct net *net,
+			      const struct nft_set *set,
 			      const struct nft_set_elem *elem)
 {
 	struct nft_rbtree *priv = nft_set_priv(set);
@@ -171,8 +171,8 @@ static void nft_rbtree_activate(const struct net *net,
 	nft_set_elem_change_active(net, set, &rbe->ext);
 }
 
-static bool nft_rbtree_deactivate_one(const struct net *net,
-				      const struct nft_set *set, void *priv)
+static bool nft_rbtree_flush(const struct net *net,
+			     const struct nft_set *set, void *priv)
 {
 	struct nft_rbtree_elem *rbe = priv;
 
@@ -213,7 +213,7 @@ static void *nft_rbtree_deactivate(const struct net *net,
 				parent = parent->rb_right;
 				continue;
 			}
-			nft_rbtree_deactivate_one(net, set, rbe);
+			nft_rbtree_flush(net, set, rbe);
 			return rbe;
 		}
 	}
@@ -290,7 +290,8 @@ static bool nft_rbtree_estimate(const struct nft_set_desc *desc, u32 features,
 	else
 		est->size = nsize;
 
-	est->class = NFT_SET_CLASS_O_LOG_N;
+	est->lookup = NFT_SET_CLASS_O_LOG_N;
+	est->space  = NFT_SET_CLASS_O_N;
 
 	return true;
 }
@@ -304,11 +305,11 @@ static struct nft_set_ops nft_rbtree_ops __read_mostly = {
 	.insert		= nft_rbtree_insert,
 	.remove		= nft_rbtree_remove,
 	.deactivate	= nft_rbtree_deactivate,
-	.deactivate_one	= nft_rbtree_deactivate_one,
+	.flush		= nft_rbtree_flush,
 	.activate	= nft_rbtree_activate,
 	.lookup		= nft_rbtree_lookup,
 	.walk		= nft_rbtree_walk,
-	.features	= NFT_SET_INTERVAL | NFT_SET_MAP,
+	.features	= NFT_SET_INTERVAL | NFT_SET_MAP | NFT_SET_OBJECT,
 	.owner		= THIS_MODULE,
 };
 

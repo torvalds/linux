@@ -869,7 +869,6 @@ __secondary_start:
 
 	/* enable MMU and jump to start_secondary */
 	li	r4,MSR_KERNEL
-	FIX_SRR1(r4,r5)
 	lis	r3,start_secondary@h
 	ori	r3,r3,start_secondary@l
 	mtspr	SPRN_SRR0,r3
@@ -977,7 +976,6 @@ start_here:
 	ori	r4,r4,2f@l
 	tophys(r4,r4)
 	li	r3,MSR_KERNEL & ~(MSR_IR|MSR_DR)
-	FIX_SRR1(r3,r5)
 	mtspr	SPRN_SRR0,r4
 	mtspr	SPRN_SRR1,r3
 	SYNC
@@ -1001,7 +999,6 @@ start_here:
 
 /* Now turn on the MMU for real! */
 	li	r4,MSR_KERNEL
-	FIX_SRR1(r4,r5)
 	lis	r3,start_kernel@h
 	ori	r3,r3,start_kernel@l
 	mtspr	SPRN_SRR0,r3

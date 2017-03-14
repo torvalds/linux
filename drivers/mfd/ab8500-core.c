@@ -656,8 +656,8 @@ static const struct mfd_cell ab8500_devs[] = {
 		.of_compatible = "stericsson,ab8500-regulator",
 	},
 	{
-		.name = "abx500-clk",
-		.of_compatible = "stericsson,abx500-clk",
+		.name = "ab8500-clk",
+		.of_compatible = "stericsson,ab8500-clk",
 	},
 	{
 		.name = "ab8500-gpadc",

@@ -184,7 +184,7 @@ static int vt8500_pwm_set_polarity(struct pwm_chip *chip,
 	return 0;
 }
 
-static struct pwm_ops vt8500_pwm_ops = {
+static const struct pwm_ops vt8500_pwm_ops = {
 	.enable = vt8500_pwm_enable,
 	.disable = vt8500_pwm_disable,
 	.config = vt8500_pwm_config,

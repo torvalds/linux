@@ -300,7 +300,6 @@ void i40e_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
 	struct i40e_aq_desc *aq_desc = (struct i40e_aq_desc *)desc;
 	u16 len;
 	u8 *buf = (u8 *)buffer;
-	u16 i = 0;
 
 	if ((!(mask & hw->debug_mask)) || (desc == NULL))
 		return;
@@ -328,12 +327,18 @@ void i40e_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
 		if (buf_len < len)
 			len = buf_len;
 		/* write the full 16-byte chunks */
-		for (i = 0; i < (len - 16); i += 16)
-			i40e_debug(hw, mask, "\t0x%04X  %16ph\n", i, buf + i);
-		/* write whatever's left over without overrunning the buffer */
-		if (i < len)
-			i40e_debug(hw, mask, "\t0x%04X  %*ph\n",
-					     i, len - i, buf + i);
+		if (hw->debug_mask & mask) {
+			char prefix[20];
+
+			snprintf(prefix, 20,
+				 "i40e %02x:%02x.%x: \t0x",
+				 hw->bus.bus_id,
+				 hw->bus.device,
+				 hw->bus.func);
+
+			print_hex_dump(KERN_INFO, prefix, DUMP_PREFIX_OFFSET,
+				       16, 1, buf, len, false);
+		}
 	}
 }
 
@@ -1838,6 +1843,8 @@ i40e_status i40e_aq_get_link_info(struct i40e_hw *hw,
 	hw_link_info->link_speed = (enum i40e_aq_link_speed)resp->link_speed;
 	hw_link_info->link_info = resp->link_info;
 	hw_link_info->an_info = resp->an_info;
+	hw_link_info->fec_info = resp->config & (I40E_AQ_CONFIG_FEC_KR_ENA |
+						 I40E_AQ_CONFIG_FEC_RS_ENA);
 	hw_link_info->ext_info = resp->ext_info;
 	hw_link_info->loopback = resp->loopback;
 	hw_link_info->max_frame_size = le16_to_cpu(resp->max_frame_size);

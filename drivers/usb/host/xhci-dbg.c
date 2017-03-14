@@ -37,10 +37,8 @@ void xhci_dbg_regs(struct xhci_hcd *xhci)
 			&xhci->cap_regs->hc_capbase, temp);
 	xhci_dbg(xhci, "//   CAPLENGTH: 0x%x\n",
 			(unsigned int) HC_LENGTH(temp));
-#if 0
 	xhci_dbg(xhci, "//   HCIVERSION: 0x%x\n",
 			(unsigned int) HC_VERSION(temp));
-#endif
 
 	xhci_dbg(xhci, "// xHCI operational registers at %p:\n", xhci->op_regs);
 
@@ -177,7 +175,7 @@ static void xhci_print_ports(struct xhci_hcd *xhci)
 	ports = HCS_MAX_PORTS(xhci->hcs_params1);
 	addr = &xhci->op_regs->port_status_base;
 	for (i = 0; i < ports; i++) {
-		for (j = 0; j < NUM_PORT_REGS; ++j) {
+		for (j = 0; j < NUM_PORT_REGS; j++) {
 			xhci_dbg(xhci, "%p port %s reg = 0x%x\n",
 					addr, names[j],
 					(unsigned int) readl(addr));
@@ -240,7 +238,7 @@ void xhci_print_run_regs(struct xhci_hcd *xhci)
 	xhci_dbg(xhci, "  %p: Microframe index = 0x%x\n",
 			&xhci->run_regs->microframe_index,
 			(unsigned int) temp);
-	for (i = 0; i < 7; ++i) {
+	for (i = 0; i < 7; i++) {
 		temp = readl(&xhci->run_regs->rsvd[i]);
 		if (temp != XHCI_INIT_VALUE)
 			xhci_dbg(xhci, "  WARN: %p: Rsvd[%i] = 0x%x\n",
@@ -259,7 +257,7 @@ void xhci_print_registers(struct xhci_hcd *xhci)
 void xhci_print_trb_offsets(struct xhci_hcd *xhci, union xhci_trb *trb)
 {
 	int i;
-	for (i = 0; i < 4; ++i)
+	for (i = 0; i < 4; i++)
 		xhci_dbg(xhci, "Offset 0x%x = 0x%x\n",
 				i*4, trb->generic.field[i]);
 }
@@ -332,7 +330,7 @@ void xhci_debug_segment(struct xhci_hcd *xhci, struct xhci_segment *seg)
 	u64 addr = seg->dma;
 	union xhci_trb *trb = seg->trbs;
 
-	for (i = 0; i < TRBS_PER_SEGMENT; ++i) {
+	for (i = 0; i < TRBS_PER_SEGMENT; i++) {
 		trb = &seg->trbs[i];
 		xhci_dbg(xhci, "@%016llx %08x %08x %08x %08x\n", addr,
 			 lower_32_bits(le64_to_cpu(trb->link.segment_ptr)),
@@ -413,7 +411,7 @@ void xhci_dbg_erst(struct xhci_hcd *xhci, struct xhci_erst *erst)
 	int i;
 	struct xhci_erst_entry *entry;
 
-	for (i = 0; i < erst->num_entries; ++i) {
+	for (i = 0; i < erst->num_entries; i++) {
 		entry = &erst->entries[i];
 		xhci_dbg(xhci, "@%016llx %08x %08x %08x %08x\n",
 			 addr,
@@ -440,7 +438,7 @@ void xhci_dbg_cmd_ptrs(struct xhci_hcd *xhci)
 static void dbg_rsvd64(struct xhci_hcd *xhci, u64 *ctx, dma_addr_t dma)
 {
 	int i;
-	for (i = 0; i < 4; ++i) {
+	for (i = 0; i < 4; i++) {
 		xhci_dbg(xhci, "@%p (virt) @%08llx "
 			 "(dma) %#08llx - rsvd64[%d]\n",
 			 &ctx[4 + i], (unsigned long long)dma,
@@ -496,7 +494,7 @@ static void xhci_dbg_slot_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *
 			&slot_ctx->dev_state,
 			(unsigned long long)dma, slot_ctx->dev_state);
 	dma += field_size;
-	for (i = 0; i < 4; ++i) {
+	for (i = 0; i < 4; i++) {
 		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - rsvd[%d]\n",
 				&slot_ctx->reserved[i], (unsigned long long)dma,
 				slot_ctx->reserved[i], i);
@@ -519,7 +517,7 @@ static void xhci_dbg_ep_ctx(struct xhci_hcd *xhci,
 
 	if (last_ep < 31)
 		last_ep_ctx = last_ep + 1;
-	for (i = 0; i < last_ep_ctx; ++i) {
+	for (i = 0; i < last_ep_ctx; i++) {
 		unsigned int epaddr = xhci_get_endpoint_address(i);
 		struct xhci_ep_ctx *ep_ctx = xhci_get_ep_ctx(xhci, ctx, i);
 		dma_addr_t dma = ctx->dma +
@@ -544,7 +542,7 @@ static void xhci_dbg_ep_ctx(struct xhci_hcd *xhci,
 				&ep_ctx->tx_info,
 				(unsigned long long)dma, ep_ctx->tx_info);
 		dma += field_size;
-		for (j = 0; j < 3; ++j) {
+		for (j = 0; j < 3; j++) {
 			xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - rsvd[%d]\n",
 					&ep_ctx->reserved[j],
 					(unsigned long long)dma,
@@ -583,7 +581,7 @@ void xhci_dbg_ctx(struct xhci_hcd *xhci,
 			 &ctrl_ctx->add_flags, (unsigned long long)dma,
 			 ctrl_ctx->add_flags);
 		dma += field_size;
-		for (i = 0; i < 6; ++i) {
+		for (i = 0; i < 6; i++) {
 			xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - rsvd2[%d]\n",
 				 &ctrl_ctx->rsvd2[i], (unsigned long long)dma,
 				 ctrl_ctx->rsvd2[i], i);

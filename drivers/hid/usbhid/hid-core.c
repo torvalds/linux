@@ -43,7 +43,6 @@
  */
 
 #define DRIVER_DESC "USB HID core driver"
-#define DRIVER_LICENSE "GPL"
 
 /*
  * Module parameters.
@@ -1660,4 +1659,4 @@ MODULE_AUTHOR("Andreas Gal");
 MODULE_AUTHOR("Vojtech Pavlik");
 MODULE_AUTHOR("Jiri Kosina");
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE(DRIVER_LICENSE);
+MODULE_LICENSE("GPL");

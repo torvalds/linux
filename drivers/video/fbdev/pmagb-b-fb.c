@@ -133,7 +133,7 @@ static struct fb_ops pmagbbfb_ops = {
 /*
  * Turn the hardware cursor off.
  */
-static void __init pmagbbfb_erase_cursor(struct fb_info *info)
+static void pmagbbfb_erase_cursor(struct fb_info *info)
 {
 	struct pmagbbfb_par *par = info->par;
 

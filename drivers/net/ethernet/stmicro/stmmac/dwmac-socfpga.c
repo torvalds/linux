@@ -341,7 +341,7 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 	 * mode. Create a copy of the core reset handle so it can be used by
 	 * the driver later.
 	 */
-	dwmac->stmmac_rst = stpriv->stmmac_rst;
+	dwmac->stmmac_rst = stpriv->plat->stmmac_rst;
 
 	ret = socfpga_dwmac_set_phy_mode(dwmac);
 	if (ret)

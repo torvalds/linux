@@ -103,9 +103,9 @@ xfs_finish_page_writeback(
 	unsigned int		bsize;
 
 	ASSERT(bvec->bv_offset < PAGE_SIZE);
-	ASSERT((bvec->bv_offset & ((1 << inode->i_blkbits) - 1)) == 0);
+	ASSERT((bvec->bv_offset & (i_blocksize(inode) - 1)) == 0);
 	ASSERT(end < PAGE_SIZE);
-	ASSERT((bvec->bv_len & ((1 << inode->i_blkbits) - 1)) == 0);
+	ASSERT((bvec->bv_len & (i_blocksize(inode) - 1)) == 0);
 
 	bh = head = page_buffers(bvec->bv_page);
 
@@ -349,7 +349,7 @@ xfs_map_blocks(
 {
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
-	ssize_t			count = 1 << inode->i_blkbits;
+	ssize_t			count = i_blocksize(inode);
 	xfs_fileoff_t		offset_fsb, end_fsb;
 	int			error = 0;
 	int			bmapi_flags = XFS_BMAPI_ENTIRE;
@@ -481,6 +481,12 @@ xfs_submit_ioend(
 	struct xfs_ioend	*ioend,
 	int			status)
 {
+	/* Convert CoW extents to regular */
+	if (!status && ioend->io_type == XFS_IO_COW) {
+		status = xfs_reflink_convert_cow(XFS_I(ioend->io_inode),
+				ioend->io_offset, ioend->io_size);
+	}
+
 	/* Reserve log space if we might write beyond the on-disk inode size. */
 	if (!status &&
 	    ioend->io_type != XFS_IO_UNWRITTEN &&
@@ -752,7 +758,7 @@ xfs_aops_discard_page(
 			break;
 		}
 next_buffer:
-		offset += 1 << inode->i_blkbits;
+		offset += i_blocksize(inode);
 
 	} while ((bh = bh->b_this_page) != head);
 
@@ -840,7 +846,7 @@ xfs_writepage_map(
 	LIST_HEAD(submit_list);
 	struct xfs_ioend	*ioend, *next;
 	struct buffer_head	*bh, *head;
-	ssize_t			len = 1 << inode->i_blkbits;
+	ssize_t			len = i_blocksize(inode);
 	int			error = 0;
 	int			count = 0;
 	int			uptodate = 1;
@@ -1204,7 +1210,7 @@ xfs_map_trim_size(
 	    offset + mapping_size >= i_size_read(inode)) {
 		/* limit mapping to block that spans EOF */
 		mapping_size = roundup_64(i_size_read(inode) - offset,
-					  1 << inode->i_blkbits);
+					  i_blocksize(inode));
 	}
 	if (mapping_size > LONG_MAX)
 		mapping_size = LONG_MAX;
@@ -1235,7 +1241,7 @@ xfs_get_blocks(
 		return -EIO;
 
 	offset = (xfs_off_t)iblock << inode->i_blkbits;
-	ASSERT(bh_result->b_size >= (1 << inode->i_blkbits));
+	ASSERT(bh_result->b_size >= i_blocksize(inode));
 	size = bh_result->b_size;
 
 	if (offset >= i_size_read(inode))
@@ -1383,7 +1389,7 @@ xfs_vm_set_page_dirty(
 			if (offset < end_offset)
 				set_buffer_dirty(bh);
 			bh = bh->b_this_page;
-			offset += 1 << inode->i_blkbits;
+			offset += i_blocksize(inode);
 		} while (bh != head);
 	}
 	/*

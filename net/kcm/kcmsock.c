@@ -24,6 +24,8 @@
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
 #include <linux/syscalls.h>
+#include <linux/sched/signal.h>
+
 #include <net/kcm.h>
 #include <net/netns/generic.h>
 #include <net/sock.h>
@@ -1044,8 +1046,10 @@ wait_for_memory:
 	} else {
 		/* Message not complete, save state */
 partial_message:
-		kcm->seq_skb = head;
-		kcm_tx_msg(head)->last_skb = skb;
+		if (head) {
+			kcm->seq_skb = head;
+			kcm_tx_msg(head)->last_skb = skb;
+		}
 	}
 
 	KCM_STATS_ADD(kcm->stats.tx_bytes, copied);

@@ -42,6 +42,8 @@
 #include <linux/memblock.h>
 #include <linux/hugetlb.h>
 #include <linux/slab.h>
+#include <linux/of_fdt.h>
+#include <linux/libfdt.h>
 
 #include <asm/pgalloc.h>
 #include <asm/page.h>
@@ -344,11 +346,45 @@ static int __init parse_disable_radix(char *p)
 }
 early_param("disable_radix", parse_disable_radix);
 
+/*
+ * If we're running under a hypervisor, we need to check the contents of
+ * /chosen/ibm,architecture-vec-5 to see if the hypervisor is willing to do
+ * radix.  If not, we clear the radix feature bit so we fall back to hash.
+ */
+static void early_check_vec5(void)
+{
+	unsigned long root, chosen;
+	int size;
+	const u8 *vec5;
+
+	root = of_get_flat_dt_root();
+	chosen = of_get_flat_dt_subnode_by_name(root, "chosen");
+	if (chosen == -FDT_ERR_NOTFOUND)
+		return;
+	vec5 = of_get_flat_dt_prop(chosen, "ibm,architecture-vec-5", &size);
+	if (!vec5)
+		return;
+	if (size <= OV5_INDX(OV5_MMU_RADIX_300) ||
+	    !(vec5[OV5_INDX(OV5_MMU_RADIX_300)] & OV5_FEAT(OV5_MMU_RADIX_300)))
+		/* Hypervisor doesn't support radix */
+		cur_cpu_spec->mmu_features &= ~MMU_FTR_TYPE_RADIX;
+}
+
 void __init mmu_early_init_devtree(void)
 {
 	/* Disable radix mode based on kernel command line. */
-	if (disable_radix)
+	/* We don't yet have the machinery to do radix as a guest. */
+	if (disable_radix || !(mfmsr() & MSR_HV))
 		cur_cpu_spec->mmu_features &= ~MMU_FTR_TYPE_RADIX;
+
+	/*
+	 * Check /chosen/ibm,architecture-vec-5 if running as a guest.
+	 * When running bare-metal, we can use radix if we like
+	 * even though the ibm,architecture-vec-5 property created by
+	 * skiboot doesn't have the necessary bits set.
+	 */
+	if (early_radix_enabled() && !(mfmsr() & MSR_HV))
+		early_check_vec5();
 
 	if (early_radix_enabled())
 		radix__early_init_devtree();

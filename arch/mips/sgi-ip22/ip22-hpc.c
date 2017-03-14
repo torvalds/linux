@@ -5,8 +5,8 @@
  * Copyright (C) 1998 Ralf Baechle
  */
 
+#include <linux/export.h>
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/types.h>
 
 #include <asm/io.h>

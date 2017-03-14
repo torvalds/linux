@@ -147,6 +147,7 @@
 #define EM2884_BOARD_ELGATO_EYETV_HYBRID_2008     97
 #define EM28178_BOARD_PLEX_PX_BCUD                98
 #define EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_DVB  99
+#define EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_01595 100
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4

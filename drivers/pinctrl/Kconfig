@@ -8,8 +8,15 @@ config PINCTRL
 menu "Pin controllers"
 	depends on PINCTRL
 
+config GENERIC_PINCTRL_GROUPS
+	bool
+
 config PINMUX
 	bool "Support pin multiplexing controllers" if COMPILE_TEST
+
+config GENERIC_PINMUX_FUNCTIONS
+	bool
+	select PINMUX
 
 config PINCONF
 	bool "Support pin configuration controllers" if COMPILE_TEST
@@ -159,8 +166,8 @@ config PINCTRL_ROCKCHIP
 config PINCTRL_SINGLE
 	tristate "One-register-per-pin type device tree based pinctrl driver"
 	depends on OF
-	select PINMUX
-	select PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
 	select GENERIC_PINCONF
 	help
 	  This selects the device tree based generic pinctrl driver.
@@ -293,6 +300,7 @@ source "drivers/pinctrl/spear/Kconfig"
 source "drivers/pinctrl/stm32/Kconfig"
 source "drivers/pinctrl/sunxi/Kconfig"
 source "drivers/pinctrl/tegra/Kconfig"
+source "drivers/pinctrl/ti/Kconfig"
 source "drivers/pinctrl/uniphier/Kconfig"
 source "drivers/pinctrl/vt8500/Kconfig"
 source "drivers/pinctrl/mediatek/Kconfig"

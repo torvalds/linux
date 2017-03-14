@@ -11,6 +11,7 @@
 #define _ASM_FPU_H
 
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/thread_info.h>
 #include <linux/bitops.h>
 

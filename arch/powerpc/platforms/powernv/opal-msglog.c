@@ -123,6 +123,10 @@ void __init opal_msglog_init(void)
 		return;
 	}
 
+	/* Report maximum size */
+	opal_msglog_attr.size =  be32_to_cpu(mc->ibuf_size) +
+		be32_to_cpu(mc->obuf_size);
+
 	opal_memcons = mc;
 }
 

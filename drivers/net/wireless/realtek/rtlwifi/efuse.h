@@ -109,7 +109,12 @@ bool efuse_shadow_update_chk(struct ieee80211_hw *hw);
 void rtl_efuse_shadow_map_update(struct ieee80211_hw *hw);
 void efuse_force_write_vendor_Id(struct ieee80211_hw *hw);
 void efuse_re_pg_section(struct ieee80211_hw *hw, u8 section_idx);
+void efuse_power_switch(struct ieee80211_hw *hw, u8 write, u8 pwrstate);
 int rtl_get_hwinfo(struct ieee80211_hw *hw, struct rtl_priv *rtlpriv,
 		   int max_size, u8 *hwinfo, int *params);
+void rtl_fill_dummy(u8 *pfwbuf, u32 *pfwlen);
+void rtl_fw_page_write(struct ieee80211_hw *hw, u32 page, const u8 *buffer,
+		       u32 size);
+void rtl_fw_block_write(struct ieee80211_hw *hw, const u8 *buffer, u32 size);
 
 #endif

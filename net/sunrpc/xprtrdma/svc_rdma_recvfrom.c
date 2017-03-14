@@ -606,26 +606,24 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 
 	dprintk("svcrdma: rqstp=%p\n", rqstp);
 
-	spin_lock_bh(&rdma_xprt->sc_rq_dto_lock);
+	spin_lock(&rdma_xprt->sc_rq_dto_lock);
 	if (!list_empty(&rdma_xprt->sc_read_complete_q)) {
-		ctxt = list_entry(rdma_xprt->sc_read_complete_q.next,
-				  struct svc_rdma_op_ctxt,
-				  dto_q);
-		list_del_init(&ctxt->dto_q);
-		spin_unlock_bh(&rdma_xprt->sc_rq_dto_lock);
+		ctxt = list_first_entry(&rdma_xprt->sc_read_complete_q,
+					struct svc_rdma_op_ctxt, list);
+		list_del(&ctxt->list);
+		spin_unlock(&rdma_xprt->sc_rq_dto_lock);
 		rdma_read_complete(rqstp, ctxt);
 		goto complete;
 	} else if (!list_empty(&rdma_xprt->sc_rq_dto_q)) {
-		ctxt = list_entry(rdma_xprt->sc_rq_dto_q.next,
-				  struct svc_rdma_op_ctxt,
-				  dto_q);
-		list_del_init(&ctxt->dto_q);
+		ctxt = list_first_entry(&rdma_xprt->sc_rq_dto_q,
+					struct svc_rdma_op_ctxt, list);
+		list_del(&ctxt->list);
 	} else {
 		atomic_inc(&rdma_stat_rq_starve);
 		clear_bit(XPT_DATA, &xprt->xpt_flags);
 		ctxt = NULL;
 	}
-	spin_unlock_bh(&rdma_xprt->sc_rq_dto_lock);
+	spin_unlock(&rdma_xprt->sc_rq_dto_lock);
 	if (!ctxt) {
 		/* This is the EAGAIN path. The svc_recv routine will
 		 * return -EAGAIN, the nfsd thread will go to call into
