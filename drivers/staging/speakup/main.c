@@ -433,12 +433,12 @@ static void speak_char(u16 ch)
 	struct var_t *direct = spk_get_var(DIRECT);
 
 	if (ch >= 0x100 || (direct && direct->u.n.value)) {
-		if (IS_CHAR(ch, B_CAP)) {
+		if (ch < 0x100 && IS_CHAR(ch, B_CAP)) {
 			spk_pitch_shift++;
 			synth_printf("%s", spk_str_caps_start);
 		}
 		synth_putwc_s(ch);
-		if (IS_CHAR(ch, B_CAP))
+		if (ch < 0x100 && IS_CHAR(ch, B_CAP))
 			synth_printf("%s", spk_str_caps_stop);
 		return;
 	}
