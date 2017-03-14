@@ -202,7 +202,7 @@ enum iwl_device_power_flags {
  * struct iwl_device_power_cmd - device wide power command.
  * DEVICE_POWER_CMD = 0x77 (command, has simple generic response)
  *
- * @flags:	Power table command flags from DEVICE_POWER_FLAGS_*
+ * @flags:	Power table command flags from &enum iwl_device_power_flags
  */
 struct iwl_device_power_cmd {
 	/* PM_POWER_TABLE_CMD_API_S_VER_6 */
@@ -213,7 +213,7 @@ struct iwl_device_power_cmd {
 /**
  * struct iwl_mac_power_cmd - New power command containing uAPSD support
  * MAC_PM_POWER_TABLE = 0xA9 (command, has simple generic response)
- * @id_and_color:	MAC contex identifier
+ * @id_and_color:	MAC contex identifier, &enum iwl_mvm_id_and_color
  * @flags:		Power table command flags from POWER_FLAGS_*
  * @keep_alive_seconds:	Keep alive period in seconds. Default - 25 sec.
  *			Minimum allowed:- 3 * DTIM. Keep alive period must be

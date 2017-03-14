@@ -491,10 +491,10 @@ enum {
 };
 
 /**
- * struct iwl_nvm_access_cmd_ver2 - Request the device to send an NVM section
- * @op_code: 0 - read, 1 - write
- * @target: NVM_ACCESS_TARGET_*
- * @type: NVM_SECTION_TYPE_*
+ * struct iwl_nvm_access_cmd - Request the device to send an NVM section
+ * @op_code: &enum iwl_nvm_access_op
+ * @target: &enum iwl_nvm_access_target
+ * @type: &enum iwl_nvm_section_type
  * @offset: offset in bytes into the section
  * @length: in bytes, to read/write
  * @data: if write operation, the data to write. On read its empty
@@ -918,12 +918,13 @@ enum {
 };
 
 /**
- * struct iwl_time_event_cmd_api - configuring Time Events
+ * struct iwl_time_event_cmd - configuring Time Events
  * with struct MAC_TIME_EVENT_DATA_API_S_VER_2 (see also
  * with version 1. determined by IWL_UCODE_TLV_FLAGS)
  * ( TIME_EVENT_CMD = 0x29 )
- * @id_and_color: ID and color of the relevant MAC
- * @action: action to perform, one of FW_CTXT_ACTION_*
+ * @id_and_color: ID and color of the relevant MAC,
+ *	&enum iwl_mvm_id_and_color
+ * @action: action to perform, one of &enum iwl_phy_ctxt_action
  * @id: this field has two meanings, depending on the action:
  *	If the action is ADD, then it means the type of event to add.
  *	For all other actions it is the unique event ID assigned when the
@@ -939,7 +940,8 @@ enum {
  *	on event and/or fragment start and/or end
  *	using one of TE_INDEPENDENT, TE_DEP_OTHER, TE_DEP_TSF
  *	TE_EVENT_SOCIOPATHIC
- *	using TE_ABSENCE and using TE_NOTIF_*
+ *	using TE_ABSENCE and using TE_NOTIF_*,
+ *	&enum iwl_time_event_policy
  */
 struct iwl_time_event_cmd {
 	/* COMMON_INDEX_HDR_API_S_VER_1 */
@@ -962,7 +964,8 @@ struct iwl_time_event_cmd {
  * @status: bit 0 indicates success, all others specify errors
  * @id: the Time Event type
  * @unique_id: the unique ID assigned (in ADD) or given (others) to the TE
- * @id_and_color: ID and color of the relevant MAC
+ * @id_and_color: ID and color of the relevant MAC,
+ *	&enum iwl_mvm_id_and_color
  */
 struct iwl_time_event_resp {
 	__le32 status;
@@ -978,7 +981,7 @@ struct iwl_time_event_resp {
  * @session_id: session's unique id
  * @unique_id: unique id of the Time Event itself
  * @id_and_color: ID and color of the relevant MAC
- * @action: one of TE_NOTIF_START or TE_NOTIF_END
+ * @action: &enum iwl_time_event_policy
  * @status: true if scheduled, false otherwise (not executed)
  */
 struct iwl_time_event_notif {
@@ -996,10 +999,13 @@ struct iwl_time_event_notif {
 /**
  * struct iwl_binding_cmd - configuring bindings
  * ( BINDING_CONTEXT_CMD = 0x2b )
- * @id_and_color: ID and color of the relevant Binding
+ * @id_and_color: ID and color of the relevant Binding,
+ *	&enum iwl_mvm_id_and_color
  * @action: action to perform, one of FW_CTXT_ACTION_*
  * @macs: array of MAC id and colors which belong to the binding
+ *	&enum iwl_mvm_id_and_color
  * @phy: PHY id and color which belongs to the binding
+ *	&enum iwl_mvm_id_and_color
  * @lmac_id: the lmac id the binding belongs to
  */
 struct iwl_binding_cmd {
@@ -1022,7 +1028,8 @@ struct iwl_binding_cmd {
 
 /**
  * struct iwl_time_quota_data - configuration of time quota per binding
- * @id_and_color: ID and color of the relevant Binding
+ * @id_and_color: ID and color of the relevant Binding,
+ *	&enum iwl_mvm_id_and_color
  * @quota: absolute time quota in TU. The scheduler will try to divide the
  *	remainig quota (after Time Events) according to this quota.
  * @max_duration: max uninterrupted context duration in TU

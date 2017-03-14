@@ -329,17 +329,17 @@ struct iwl_ac_qos {
  * ( MAC_CONTEXT_CMD = 0x28 )
  * @id_and_color: ID and color of the MAC
  * @action: action to perform, one of FW_CTXT_ACTION_*
- * @mac_type: one of FW_MAC_TYPE_*
- * @tsd_id: TSF HW timer, one of TSF_ID_*
+ * @mac_type: one of &enum iwl_mac_types
+ * @tsd_id: TSF HW timer, one of &enum iwl_tsf_id
  * @node_addr: MAC address
  * @bssid_addr: BSSID
  * @cck_rates: basic rates available for CCK
  * @ofdm_rates: basic rates available for OFDM
- * @protection_flags: combination of MAC_PROT_FLG_FLAG_*
+ * @protection_flags: combination of &enum iwl_mac_protection_flags
  * @cck_short_preamble: 0x20 for enabling short preamble, 0 otherwise
  * @short_slot: 0x10 for enabling short slots, 0 otherwise
- * @filter_flags: combination of MAC_FILTER_*
- * @qos_flags: from MAC_QOS_FLG_*
+ * @filter_flags: combination of &enum iwl_mac_filter_flags
+ * @qos_flags: from &enum iwl_mac_qos_flags
  * @ac: one iwl_mac_qos configuration for each AC
  * @mac_specific: one of struct iwl_mac_data_*, according to mac_type
  */

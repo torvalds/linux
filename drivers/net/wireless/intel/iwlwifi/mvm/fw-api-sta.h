@@ -253,11 +253,12 @@ struct iwl_mvm_keyinfo {
 /**
  * struct iwl_mvm_add_sta_cmd_v7 - Add/modify a station in the fw's sta table.
  * ( REPLY_ADD_STA = 0x18 )
- * @add_modify: 1: modify existing, 0: add new station
+ * @add_modify: see &enum iwl_sta_mode
  * @awake_acs:
  * @tid_disable_tx: is tid BIT(tid) enabled for Tx. Clear BIT(x) to enable
  *	AMPDU for tid x. Set %STA_MODIFY_TID_DISABLE_TX to change this field.
- * @mac_id_n_color: the Mac context this station belongs to
+ * @mac_id_n_color: the Mac context this station belongs to,
+ *	see &enum iwl_mvm_id_and_color
  * @addr: station's MAC address
  * @sta_id: index of station in uCode's station table
  * @modify_mask: STA_MODIFY_*, selects which parameters to modify vs. leave
@@ -331,11 +332,12 @@ enum iwl_sta_type {
 /**
  * struct iwl_mvm_add_sta_cmd - Add/modify a station in the fw's sta table.
  * ( REPLY_ADD_STA = 0x18 )
- * @add_modify: 1: modify existing, 0: add new station
+ * @add_modify: see &enum iwl_sta_mode
  * @awake_acs:
  * @tid_disable_tx: is tid BIT(tid) enabled for Tx. Clear BIT(x) to enable
  *	AMPDU for tid x. Set %STA_MODIFY_TID_DISABLE_TX to change this field.
- * @mac_id_n_color: the Mac context this station belongs to
+ * @mac_id_n_color: the Mac context this station belongs to,
+ *	see &enum iwl_mvm_id_and_color
  * @addr: station's MAC address
  * @sta_id: index of station in uCode's station table
  * @modify_mask: STA_MODIFY_*, selects which parameters to modify vs. leave
@@ -470,7 +472,7 @@ struct iwl_mvm_rm_sta_cmd {
 /**
  * struct iwl_mvm_mgmt_mcast_key_cmd_v1
  * ( MGMT_MCAST_KEY = 0x1f )
- * @ctrl_flags: %iwl_sta_key_flag
+ * @ctrl_flags: &enum iwl_sta_key_flag
  * @igtk:
  * @k1: unused
  * @k2: unused
@@ -491,7 +493,7 @@ struct iwl_mvm_mgmt_mcast_key_cmd_v1 {
 /**
  * struct iwl_mvm_mgmt_mcast_key_cmd
  * ( MGMT_MCAST_KEY = 0x1f )
- * @ctrl_flags: %iwl_sta_key_flag
+ * @ctrl_flags: &enum iwl_sta_key_flag
  * @igtk: IGTK master key
  * @sta_id: station ID that support IGTK
  * @key_id:

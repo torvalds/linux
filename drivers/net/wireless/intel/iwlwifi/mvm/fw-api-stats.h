@@ -326,6 +326,10 @@ struct iwl_notif_statistics_cdb {
 #define IWL_STATISTICS_FLG_CLEAR		0x1
 #define IWL_STATISTICS_FLG_DISABLE_NOTIF	0x2
 
+/**
+ * struct iwl_statistics_cmd - statistics config command
+ * @flags: flags from &enum iwl_statistics_flags
+ */
 struct iwl_statistics_cmd {
 	__le32 flags;
 } __packed; /* STATISTICS_CMD_API_S_VER_1 */
