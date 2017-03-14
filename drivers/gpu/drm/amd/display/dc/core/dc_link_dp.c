@@ -2081,9 +2081,6 @@ static void retrieve_link_cap(struct core_link *link)
 		dpcd_data,
 		sizeof(dpcd_data));
 
-	link->dpcd_caps.dpcd_rev.raw =
-		dpcd_data[DP_DPCD_REV - DP_DPCD_REV];
-
 	{
 		union training_aux_rd_interval aux_rd_interval;
 
@@ -2098,6 +2095,9 @@ static void retrieve_link_cap(struct core_link *link)
 				sizeof(dpcd_data));
 		}
 	}
+
+	link->dpcd_caps.dpcd_rev.raw =
+		dpcd_data[DP_DPCD_REV - DP_DPCD_REV];
 
 	ds_port.byte = dpcd_data[DP_DOWNSTREAMPORT_PRESENT -
 				 DP_DPCD_REV];
