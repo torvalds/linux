@@ -900,106 +900,7 @@ bool dc_pre_update_surfaces_to_stream(
 		uint8_t new_surface_count,
 		const struct dc_stream *dc_stream)
 {
-	int i, j;
-	struct core_dc *core_dc = DC_TO_CORE(dc);
-	struct dc_stream_status *stream_status = NULL;
-	struct validate_context *context;
-	bool ret = true;
-
-	pre_surface_trace(dc, new_surfaces, new_surface_count);
-
-	if (core_dc->current_context->stream_count == 0)
-		return false;
-
-	/* Cannot commit surface to a stream that is not commited */
-	for (i = 0; i < core_dc->current_context->stream_count; i++)
-		if (dc_stream == &core_dc->current_context->streams[i]->public)
-			break;
-
-	if (i == core_dc->current_context->stream_count)
-		return false;
-
-	stream_status = &core_dc->current_context->stream_status[i];
-
-	if (new_surface_count == stream_status->surface_count) {
-		bool skip_pre = true;
-
-		for (i = 0; i < stream_status->surface_count; i++) {
-			struct dc_surface temp_surf = { 0 };
-
-			temp_surf = *stream_status->surfaces[i];
-			temp_surf.clip_rect = new_surfaces[i]->clip_rect;
-			temp_surf.dst_rect.x = new_surfaces[i]->dst_rect.x;
-			temp_surf.dst_rect.y = new_surfaces[i]->dst_rect.y;
-
-			if (memcmp(&temp_surf, new_surfaces[i], sizeof(temp_surf)) != 0) {
-				skip_pre = false;
-				break;
-			}
-		}
-
-		if (skip_pre)
-			return true;
-	}
-
-	context = dm_alloc(sizeof(struct validate_context));
-
-	if (!context) {
-		dm_error("%s: failed to create validate ctx\n", __func__);
-		ret = false;
-		goto val_ctx_fail;
-	}
-
-	resource_validate_ctx_copy_construct(core_dc->current_context, context);
-
-	dm_logger_write(core_dc->ctx->logger, LOG_DC,
-				"%s: commit %d surfaces to stream 0x%x\n",
-				__func__,
-				new_surface_count,
-				dc_stream);
-
-	if (!resource_attach_surfaces_to_context(
-			new_surfaces, new_surface_count, dc_stream, context)) {
-		BREAK_TO_DEBUGGER();
-		ret = false;
-		goto unexpected_fail;
-	}
-
-	for (i = 0; i < new_surface_count; i++)
-		for (j = 0; j < context->res_ctx.pool->pipe_count; j++) {
-			if (context->res_ctx.pipe_ctx[j].surface !=
-					DC_SURFACE_TO_CORE(new_surfaces[i]))
-				continue;
-
-			resource_build_scaling_params(&context->res_ctx.pipe_ctx[j]);
-		}
-
-	if (!core_dc->res_pool->funcs->validate_bandwidth(core_dc, context)) {
-		BREAK_TO_DEBUGGER();
-		ret = false;
-		goto unexpected_fail;
-	}
-
-	core_dc->hwss.set_bandwidth(core_dc, context, false);
-
-	for (i = 0; i < new_surface_count; i++)
-		for (j = 0; j < context->res_ctx.pool->pipe_count; j++) {
-			if (context->res_ctx.pipe_ctx[j].surface !=
-					DC_SURFACE_TO_CORE(new_surfaces[i]))
-				continue;
-
-			core_dc->hwss.prepare_pipe_for_context(
-					core_dc,
-					&context->res_ctx.pipe_ctx[j],
-					context);
-		}
-
-unexpected_fail:
-	resource_validate_ctx_destruct(context);
-	dm_free(context);
-val_ctx_fail:
-
-	return ret;
+	return true;
 }
 
 bool dc_post_update_surfaces_to_stream(struct dc *dc)
@@ -1049,10 +950,6 @@ bool dc_commit_surfaces_to_stream(
 	struct dc_plane_info plane_info[MAX_SURFACES];
 	struct dc_scaling_info scaling_info[MAX_SURFACES];
 	int i;
-
-	if (!dc_pre_update_surfaces_to_stream(
-			dc, new_surfaces, new_surface_count, dc_stream))
-		return false;
 
 	memset(updates, 0, sizeof(updates));
 	memset(flip_addr, 0, sizeof(flip_addr));
@@ -1423,10 +1320,12 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 				*(srf_updates[i].hdr_static_metadata);
 	}
 
-	if (update_type == UPDATE_TYPE_FULL &&
-			!core_dc->res_pool->funcs->validate_bandwidth(core_dc, context)) {
-		BREAK_TO_DEBUGGER();
-		return;
+	if (update_type == UPDATE_TYPE_FULL) {
+		if (!core_dc->res_pool->funcs->validate_bandwidth(core_dc, context)) {
+			BREAK_TO_DEBUGGER();
+			return;
+		} else
+			core_dc->hwss.set_bandwidth(core_dc, context, false);
 	}
 
 	if (!surface_count)  /* reset */

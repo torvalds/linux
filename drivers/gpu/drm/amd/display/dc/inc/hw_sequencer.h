@@ -57,11 +57,6 @@ struct hw_sequencer_funcs {
 	void (*reset_hw_ctx_wrap)(
 			struct core_dc *dc, struct validate_context *context);
 
-	void (*prepare_pipe_for_context)(
-			struct core_dc *dc,
-			struct pipe_ctx *pipe_ctx,
-			struct validate_context *context);
-
 	void (*apply_ctx_for_surface)(
 			struct core_dc *dc,
 			struct core_surface *surface,

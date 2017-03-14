@@ -900,10 +900,11 @@ struct pipe_ctx *resource_get_head_pipe_for_stream(
  * that has no surface attached yet
  */
 static struct pipe_ctx *acquire_free_pipe_for_stream(
-		struct resource_context *res_ctx,
+		struct validate_context *context,
 		const struct dc_stream *dc_stream)
 {
 	int i;
+	struct resource_context *res_ctx = &context->res_ctx;
 	struct core_stream *stream = DC_STREAM_TO_CORE(dc_stream);
 
 	struct pipe_ctx *head_pipe = NULL;
@@ -934,7 +935,7 @@ static struct pipe_ctx *acquire_free_pipe_for_stream(
 	if(!res_ctx->pool->funcs->acquire_idle_pipe_for_layer)
 		return NULL;
 
-	return res_ctx->pool->funcs->acquire_idle_pipe_for_layer(res_ctx, stream);
+	return res_ctx->pool->funcs->acquire_idle_pipe_for_layer(context, stream);
 
 }
 
@@ -1001,8 +1002,7 @@ bool resource_attach_surfaces_to_context(
 	tail_pipe = NULL;
 	for (i = 0; i < surface_count; i++) {
 		struct core_surface *surface = DC_SURFACE_TO_CORE(surfaces[i]);
-		struct pipe_ctx *free_pipe = acquire_free_pipe_for_stream(
-				&context->res_ctx, dc_stream);
+		struct pipe_ctx *free_pipe = acquire_free_pipe_for_stream(context, dc_stream);
 
 		if (!free_pipe) {
 			stream_status->surfaces[i] = NULL;

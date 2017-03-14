@@ -1111,16 +1111,17 @@ enum dc_status dce110_validate_guaranteed(
 	return result;
 }
 
-static struct pipe_ctx *dce110_acquire_idle_pipe_for_layer(
-		struct resource_context *res_ctx,
+static struct pipe_ctx *dce110_acquire_underlay(
+		struct validate_context *context,
 		struct core_stream *stream)
 {
+	struct core_dc *dc = DC_TO_CORE(stream->ctx->dc);
+	struct resource_context *res_ctx = &context->res_ctx;
 	unsigned int underlay_idx = res_ctx->pool->underlay_pipe_index;
 	struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[underlay_idx];
 
-	if (res_ctx->pipe_ctx[underlay_idx].stream) {
+	if (res_ctx->pipe_ctx[underlay_idx].stream)
 		return NULL;
-	}
 
 	pipe_ctx->tg = res_ctx->pool->timing_generators[underlay_idx];
 	pipe_ctx->mi = res_ctx->pool->mis[underlay_idx];
@@ -1132,8 +1133,43 @@ static struct pipe_ctx *dce110_acquire_idle_pipe_for_layer(
 
 	pipe_ctx->stream = stream;
 
-	return pipe_ctx;
+	if (!dc->current_context->res_ctx.pipe_ctx[underlay_idx].stream) {
+		struct tg_color black_color = {0};
+		struct dc_bios *dcb = dc->ctx->dc_bios;
 
+		dc->hwss.enable_display_power_gating(
+				dc,
+				pipe_ctx->pipe_idx,
+				dcb, PIPE_GATING_CONTROL_DISABLE);
+
+		/*
+		 * This is for powering on underlay, so crtc does not
+		 * need to be enabled
+		 */
+
+		pipe_ctx->tg->funcs->program_timing(pipe_ctx->tg,
+				&stream->public.timing,
+				false);
+
+		pipe_ctx->tg->funcs->enable_advanced_request(
+				pipe_ctx->tg,
+				true,
+				&stream->public.timing);
+
+		pipe_ctx->mi->funcs->allocate_mem_input(pipe_ctx->mi,
+				stream->public.timing.h_total,
+				stream->public.timing.v_total,
+				stream->public.timing.pix_clk_khz,
+				context->stream_count);
+
+		color_space_to_black_color(dc,
+				COLOR_SPACE_YCBCR601, &black_color);
+		pipe_ctx->tg->funcs->set_blank_color(
+				pipe_ctx->tg,
+				&black_color);
+	}
+
+	return pipe_ctx;
 }
 
 static void dce110_destroy_resource_pool(struct resource_pool **pool)
@@ -1152,7 +1188,7 @@ static const struct resource_funcs dce110_res_pool_funcs = {
 	.validate_with_context = dce110_validate_with_context,
 	.validate_guaranteed = dce110_validate_guaranteed,
 	.validate_bandwidth = dce110_validate_bandwidth,
-	.acquire_idle_pipe_for_layer = dce110_acquire_idle_pipe_for_layer,
+	.acquire_idle_pipe_for_layer = dce110_acquire_underlay,
 	.build_bit_depth_reduction_params =
 			dce110_resource_build_bit_depth_reduction_params
 };

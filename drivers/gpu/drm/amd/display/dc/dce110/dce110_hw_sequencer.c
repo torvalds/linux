@@ -2094,50 +2094,6 @@ static void init_hw(struct core_dc *dc)
 	}
 }
 
-static void dce110_power_on_pipe_if_needed(
-		struct core_dc *dc,
-		struct pipe_ctx *pipe_ctx,
-		struct validate_context *context)
-{
-	struct pipe_ctx *old_pipe_ctx = &dc->current_context->res_ctx.pipe_ctx[pipe_ctx->pipe_idx];
-	struct dc_bios *dcb = dc->ctx->dc_bios;
-	struct tg_color black_color = {0};
-
-	if (!old_pipe_ctx->stream && pipe_ctx->stream) {
-		dc->hwss.enable_display_power_gating(
-				dc,
-				pipe_ctx->pipe_idx,
-				dcb, PIPE_GATING_CONTROL_DISABLE);
-
-		/*
-		 * This is for powering on underlay, so crtc does not
-		 * need to be enabled
-		 */
-
-		pipe_ctx->tg->funcs->program_timing(pipe_ctx->tg,
-				&pipe_ctx->stream->public.timing,
-				false);
-
-		pipe_ctx->tg->funcs->enable_advanced_request(
-				pipe_ctx->tg,
-				true,
-				&pipe_ctx->stream->public.timing);
-
-		pipe_ctx->mi->funcs->allocate_mem_input(pipe_ctx->mi,
-				pipe_ctx->stream->public.timing.h_total,
-				pipe_ctx->stream->public.timing.v_total,
-				pipe_ctx->stream->public.timing.pix_clk_khz,
-				context->stream_count);
-
-		/* TODO unhardcode*/
-		color_space_to_black_color(dc,
-				COLOR_SPACE_YCBCR601, &black_color);
-		pipe_ctx->tg->funcs->set_blank_color(
-				pipe_ctx->tg,
-				&black_color);
-	}
-}
-
 static void fill_display_configs(
 	const struct validate_context *context,
 	struct dm_pp_display_configuration *pp_display_cfg)
@@ -2481,7 +2437,6 @@ static void dce110_power_down_fe(struct core_dc *dc, struct pipe_ctx *pipe)
 static const struct hw_sequencer_funcs dce110_funcs = {
 	.init_hw = init_hw,
 	.apply_ctx_to_hw = dce110_apply_ctx_to_hw,
-	.prepare_pipe_for_context = dce110_power_on_pipe_if_needed,
 	.apply_ctx_for_surface = dce110_apply_ctx_for_surface,
 	.set_plane_config = set_plane_config,
 	.update_plane_addr = update_plane_addr,
