@@ -1665,6 +1665,7 @@ enum emulation_result kvm_mips_emulate_load(union mips_instruction inst,
 	return EMULATE_DO_MMIO;
 }
 
+#ifndef CONFIG_KVM_MIPS_VZ
 static enum emulation_result kvm_mips_guest_cache_op(int (*fn)(unsigned long),
 						     unsigned long curr_pc,
 						     unsigned long addr,
@@ -1872,6 +1873,7 @@ unknown:
 
 	return er;
 }
+#endif /* CONFIG_KVM_MIPS_VZ */
 
 /**
  * kvm_mips_guest_exception_base() - Find guest exception vector base address.
