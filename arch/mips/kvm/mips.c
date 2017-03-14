@@ -1527,16 +1527,18 @@ void kvm_drop_fpu(struct kvm_vcpu *vcpu)
 void kvm_lose_fpu(struct kvm_vcpu *vcpu)
 {
 	/*
-	 * FPU & MSA get disabled in root context (hardware) when it is disabled
-	 * in guest context (software), but the register state in the hardware
-	 * may still be in use. This is why we explicitly re-enable the hardware
-	 * before saving.
+	 * With T&E, FPU & MSA get disabled in root context (hardware) when it
+	 * is disabled in guest context (software), but the register state in
+	 * the hardware may still be in use.
+	 * This is why we explicitly re-enable the hardware before saving.
 	 */
 
 	preempt_disable();
 	if (cpu_has_msa && vcpu->arch.aux_inuse & KVM_MIPS_AUX_MSA) {
-		set_c0_config5(MIPS_CONF5_MSAEN);
-		enable_fpu_hazard();
+		if (!IS_ENABLED(CONFIG_KVM_MIPS_VZ)) {
+			set_c0_config5(MIPS_CONF5_MSAEN);
+			enable_fpu_hazard();
+		}
 
 		__kvm_save_msa(&vcpu->arch);
 		trace_kvm_aux(vcpu, KVM_TRACE_AUX_SAVE, KVM_TRACE_AUX_FPU_MSA);
@@ -1549,8 +1551,10 @@ void kvm_lose_fpu(struct kvm_vcpu *vcpu)
 		}
 		vcpu->arch.aux_inuse &= ~(KVM_MIPS_AUX_FPU | KVM_MIPS_AUX_MSA);
 	} else if (vcpu->arch.aux_inuse & KVM_MIPS_AUX_FPU) {
-		set_c0_status(ST0_CU1);
-		enable_fpu_hazard();
+		if (!IS_ENABLED(CONFIG_KVM_MIPS_VZ)) {
+			set_c0_status(ST0_CU1);
+			enable_fpu_hazard();
+		}
 
 		__kvm_save_fpu(&vcpu->arch);
 		vcpu->arch.aux_inuse &= ~KVM_MIPS_AUX_FPU;
