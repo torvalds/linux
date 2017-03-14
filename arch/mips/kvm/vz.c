@@ -1938,7 +1938,15 @@ static int kvm_vz_get_one_reg(struct kvm_vcpu *vcpu,
 		*v = (long)read_gc0_epc();
 		break;
 	case KVM_REG_MIPS_CP0_PRID:
-		*v = (long)kvm_read_c0_guest_prid(cop0);
+		switch (boot_cpu_type()) {
+		case CPU_CAVIUM_OCTEON3:
+			/* Octeon III has a read-only guest.PRid */
+			*v = read_gc0_prid();
+			break;
+		default:
+			*v = (long)kvm_read_c0_guest_prid(cop0);
+			break;
+		};
 		break;
 	case KVM_REG_MIPS_CP0_EBASE:
 		*v = kvm_vz_read_gc0_ebase();
@@ -2170,7 +2178,14 @@ static int kvm_vz_set_one_reg(struct kvm_vcpu *vcpu,
 		write_gc0_epc(v);
 		break;
 	case KVM_REG_MIPS_CP0_PRID:
-		kvm_write_c0_guest_prid(cop0, v);
+		switch (boot_cpu_type()) {
+		case CPU_CAVIUM_OCTEON3:
+			/* Octeon III has a guest.PRid, but its read-only */
+			break;
+		default:
+			kvm_write_c0_guest_prid(cop0, v);
+			break;
+		};
 		break;
 	case KVM_REG_MIPS_CP0_EBASE:
 		kvm_vz_write_gc0_ebase(v);

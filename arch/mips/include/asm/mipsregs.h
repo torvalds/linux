@@ -2025,6 +2025,8 @@ do {									\
 #define read_gc0_epc()			__read_ulong_gc0_register(14, 0)
 #define write_gc0_epc(val)		__write_ulong_gc0_register(14, 0, val)
 
+#define read_gc0_prid()			__read_32bit_gc0_register(15, 0)
+
 #define read_gc0_ebase()		__read_32bit_gc0_register(15, 1)
 #define write_gc0_ebase(val)		__write_32bit_gc0_register(15, 1, val)
 
