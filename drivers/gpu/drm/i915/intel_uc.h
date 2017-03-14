@@ -187,6 +187,7 @@ struct intel_huc {
 void intel_uc_sanitize_options(struct drm_i915_private *dev_priv);
 void intel_uc_init_early(struct drm_i915_private *dev_priv);
 void intel_uc_init_fw(struct drm_i915_private *dev_priv);
+int intel_uc_init_hw(struct drm_i915_private *dev_priv);
 void intel_uc_prepare_fw(struct drm_i915_private *dev_priv,
 			 struct intel_uc_fw *uc_fw);
 int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 len);

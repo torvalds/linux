@@ -344,24 +344,6 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 	return ret;
 }
 
-static int guc_hw_reset(struct drm_i915_private *dev_priv)
-{
-	int ret;
-	u32 guc_status;
-
-	ret = intel_guc_reset(dev_priv);
-	if (ret) {
-		DRM_ERROR("GuC reset failed, ret = %d\n", ret);
-		return ret;
-	}
-
-	guc_status = I915_READ(GUC_STATUS);
-	WARN(!(guc_status & GS_MIA_IN_RESET),
-	     "GuC status: 0x%x, MIA core expected to be in reset\n", guc_status);
-
-	return ret;
-}
-
 /**
  * intel_guc_init_hw() - finish preparing the GuC for activity
  * @guc: intel_guc structure
@@ -379,41 +361,22 @@ int intel_guc_init_hw(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	const char *fw_path = guc->fw.path;
-	int retries, ret, err;
+	int ret;
 
 	DRM_DEBUG_DRIVER("GuC fw status: path %s, fetch %s, load %s\n",
 		fw_path,
 		intel_uc_fw_status_repr(guc->fw.fetch_status),
 		intel_uc_fw_status_repr(guc->fw.load_status));
 
-	/* Loading forbidden, or no firmware to load? */
-	if (!i915.enable_guc_loading) {
-		err = 0;
-		goto fail;
-	} else if (fw_path == NULL) {
-		/* Device is known to have no uCode (e.g. no GuC) */
-		err = -ENXIO;
-		goto fail;
+	if (!fw_path) {
+		return -ENXIO;
 	} else if (*fw_path == '\0') {
-		/* Device has a GuC but we don't know what f/w to load? */
 		WARN(1, "No GuC firmware known for this platform!\n");
-		err = -ENODEV;
-		goto fail;
+		return -ENODEV;
 	}
 
-	/* Fetch failed, or already fetched but failed to load? */
-	if (guc->fw.fetch_status != INTEL_UC_FIRMWARE_SUCCESS) {
-		err = -EIO;
-		goto fail;
-	} else if (guc->fw.load_status == INTEL_UC_FIRMWARE_FAIL) {
-		err = -ENOEXEC;
-		goto fail;
-	}
-
-	gen9_reset_guc_interrupts(dev_priv);
-
-	/* We need to notify the guc whenever we change the GGTT */
-	i915_ggtt_enable_guc(dev_priv);
+	if (guc->fw.fetch_status != INTEL_UC_FIRMWARE_SUCCESS)
+		return -EIO;
 
 	guc->fw.load_status = INTEL_UC_FIRMWARE_PENDING;
 
@@ -421,49 +384,12 @@ int intel_guc_init_hw(struct intel_guc *guc)
 		intel_uc_fw_status_repr(guc->fw.fetch_status),
 		intel_uc_fw_status_repr(guc->fw.load_status));
 
-	err = i915_guc_submission_init(dev_priv);
-	if (err)
-		goto fail;
+	ret = guc_ucode_xfer(dev_priv);
 
-	/*
-	 * WaEnableuKernelHeaderValidFix:skl,bxt
-	 * For BXT, this is only upto B0 but below WA is required for later
-	 * steppings also so this is extended as well.
-	 */
-	/* WaEnableGuCBootHashCheckNotSet:skl,bxt */
-	for (retries = 3; ; ) {
-		/*
-		 * Always reset the GuC just before (re)loading, so
-		 * that the state and timing are fairly predictable
-		 */
-		err = guc_hw_reset(dev_priv);
-		if (err)
-			goto fail;
-
-		intel_huc_init_hw(&dev_priv->huc);
-		err = guc_ucode_xfer(dev_priv);
-		if (!err)
-			break;
-
-		if (--retries == 0)
-			goto fail;
-
-		DRM_INFO("GuC fw load failed: %d; will reset and "
-			 "retry %d more time(s)\n", err, retries);
-	}
+	if (ret)
+		return -EAGAIN;
 
 	guc->fw.load_status = INTEL_UC_FIRMWARE_SUCCESS;
-
-	intel_guc_auth_huc(dev_priv);
-
-	if (i915.enable_guc_submission) {
-		if (i915.guc_log_level >= 0)
-			gen9_enable_guc_interrupts(dev_priv);
-
-		err = i915_guc_submission_enable(dev_priv);
-		if (err)
-			goto fail;
-	}
 
 	DRM_INFO("GuC %s (firmware %s [version %u.%u])\n",
 		 i915.enable_guc_submission ? "submission enabled" : "loaded",
@@ -471,52 +397,6 @@ int intel_guc_init_hw(struct intel_guc *guc)
 		 guc->fw.major_ver_found, guc->fw.minor_ver_found);
 
 	return 0;
-
-fail:
-	if (guc->fw.load_status == INTEL_UC_FIRMWARE_PENDING)
-		guc->fw.load_status = INTEL_UC_FIRMWARE_FAIL;
-
-	i915_guc_submission_disable(dev_priv);
-	i915_guc_submission_fini(dev_priv);
-	i915_ggtt_disable_guc(dev_priv);
-
-	/*
-	 * We've failed to load the firmware :(
-	 *
-	 * Decide whether to disable GuC submission and fall back to
-	 * execlist mode, and whether to hide the error by returning
-	 * zero or to return -EIO, which the caller will treat as a
-	 * nonfatal error (i.e. it doesn't prevent driver load, but
-	 * marks the GPU as wedged until reset).
-	 */
-	if (i915.enable_guc_loading > 1) {
-		ret = -EIO;
-	} else if (i915.enable_guc_submission > 1) {
-		ret = -EIO;
-	} else {
-		ret = 0;
-	}
-
-	if (err == 0 && !HAS_GUC_UCODE(dev_priv))
-		;	/* Don't mention the GuC! */
-	else if (err == 0)
-		DRM_INFO("GuC firmware load skipped\n");
-	else if (ret != -EIO)
-		DRM_NOTE("GuC firmware load failed: %d\n", err);
-	else
-		DRM_WARN("GuC firmware load failed: %d\n", err);
-
-	if (i915.enable_guc_submission) {
-		if (fw_path == NULL)
-			DRM_INFO("GuC submission without firmware not supported\n");
-		if (ret == 0)
-			DRM_NOTE("Falling back from GuC submission to execlist mode\n");
-		else
-			DRM_ERROR("GuC init failed: %d\n", ret);
-	}
-	i915.enable_guc_submission = 0;
-
-	return ret;
 }
 
 

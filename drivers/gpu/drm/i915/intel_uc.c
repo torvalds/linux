@@ -26,6 +26,27 @@
 #include "intel_uc.h"
 #include <linux/firmware.h>
 
+/* Reset GuC providing us with fresh state for both GuC and HuC.
+ */
+static int __intel_uc_reset_hw(struct drm_i915_private *dev_priv)
+{
+	int ret;
+	u32 guc_status;
+
+	ret = intel_guc_reset(dev_priv);
+	if (ret) {
+		DRM_ERROR("GuC reset failed, ret = %d\n", ret);
+		return ret;
+	}
+
+	guc_status = I915_READ(GUC_STATUS);
+	WARN(!(guc_status & GS_MIA_IN_RESET),
+	     "GuC status: 0x%x, MIA core expected to be in reset\n",
+	     guc_status);
+
+	return ret;
+}
+
 void intel_uc_sanitize_options(struct drm_i915_private *dev_priv)
 {
 	if (!HAS_GUC(dev_priv)) {
@@ -61,6 +82,96 @@ void intel_uc_init_fw(struct drm_i915_private *dev_priv)
 		intel_huc_init_fw(&dev_priv->huc);
 
 	intel_guc_init_fw(&dev_priv->guc);
+}
+
+int intel_uc_init_hw(struct drm_i915_private *dev_priv)
+{
+	int ret, attempts;
+
+	/* GuC not enabled, nothing to do */
+	if (!i915.enable_guc_loading)
+		return 0;
+
+	gen9_reset_guc_interrupts(dev_priv);
+
+	/* We need to notify the guc whenever we change the GGTT */
+	i915_ggtt_enable_guc(dev_priv);
+
+	if (i915.enable_guc_submission) {
+		ret = i915_guc_submission_init(dev_priv);
+		if (ret)
+			goto err;
+	}
+
+	/* WaEnableuKernelHeaderValidFix:skl */
+	/* WaEnableGuCBootHashCheckNotSet:skl,bxt,kbl */
+	if (IS_GEN9(dev_priv))
+		attempts = 3;
+	else
+		attempts = 1;
+
+	while (attempts--) {
+		/*
+		 * Always reset the GuC just before (re)loading, so
+		 * that the state and timing are fairly predictable
+		 */
+		ret = __intel_uc_reset_hw(dev_priv);
+		if (ret)
+			goto err_submission;
+
+		intel_huc_init_hw(&dev_priv->huc);
+		ret = intel_guc_init_hw(&dev_priv->guc);
+		if (ret == 0 || ret != -EAGAIN)
+			break;
+
+		DRM_DEBUG_DRIVER("GuC fw load failed: %d; will reset and "
+				 "retry %d more time(s)\n", ret, attempts);
+	}
+
+	/* Did we succeded or run out of retries? */
+	if (ret)
+		goto err_submission;
+
+	intel_guc_auth_huc(dev_priv);
+	if (i915.enable_guc_submission) {
+		if (i915.guc_log_level >= 0)
+			gen9_enable_guc_interrupts(dev_priv);
+
+		ret = i915_guc_submission_enable(dev_priv);
+		if (ret)
+			goto err_submission;
+	}
+
+	return 0;
+
+	/*
+	 * We've failed to load the firmware :(
+	 *
+	 * Decide whether to disable GuC submission and fall back to
+	 * execlist mode, and whether to hide the error by returning
+	 * zero or to return -EIO, which the caller will treat as a
+	 * nonfatal error (i.e. it doesn't prevent driver load, but
+	 * marks the GPU as wedged until reset).
+	 */
+err_submission:
+	if (i915.enable_guc_submission)
+		i915_guc_submission_fini(dev_priv);
+
+err:
+	i915_ggtt_disable_guc(dev_priv);
+
+	DRM_ERROR("GuC init failed\n");
+	if (i915.enable_guc_loading > 1 || i915.enable_guc_submission > 1)
+		ret = -EIO;
+	else
+		ret = 0;
+
+	if (i915.enable_guc_submission) {
+		i915.enable_guc_submission = 0;
+		DRM_NOTE("Falling back from GuC submission to execlist mode\n");
+	}
+
+	return ret;
 }
 
 /*

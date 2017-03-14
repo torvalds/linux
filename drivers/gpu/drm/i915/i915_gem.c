@@ -4541,7 +4541,7 @@ int i915_gem_init_hw(struct drm_i915_private *dev_priv)
 	intel_mocs_init_l3cc_table(dev_priv);
 
 	/* We can't enable contexts until all firmware is loaded */
-	ret = intel_guc_init_hw(&dev_priv->guc);
+	ret = intel_uc_init_hw(dev_priv);
 	if (ret)
 		goto out;
 
