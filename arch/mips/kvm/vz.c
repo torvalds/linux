@@ -1221,6 +1221,10 @@ static unsigned long kvm_vz_num_regs(struct kvm_vcpu *vcpu)
 	ret = ARRAY_SIZE(kvm_vz_get_one_regs);
 	if (cpu_guest_has_userlocal)
 		++ret;
+	if (cpu_guest_has_badinstr)
+		++ret;
+	if (cpu_guest_has_badinstrp)
+		++ret;
 	ret += __arch_hweight8(cpu_data[0].guest.kscratch_mask);
 
 	return ret;
@@ -1238,6 +1242,18 @@ static int kvm_vz_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *indices)
 
 	if (cpu_guest_has_userlocal) {
 		index = KVM_REG_MIPS_CP0_USERLOCAL;
+		if (copy_to_user(indices, &index, sizeof(index)))
+			return -EFAULT;
+		++indices;
+	}
+	if (cpu_guest_has_badinstr) {
+		index = KVM_REG_MIPS_CP0_BADINSTR;
+		if (copy_to_user(indices, &index, sizeof(index)))
+			return -EFAULT;
+		++indices;
+	}
+	if (cpu_guest_has_badinstrp) {
+		index = KVM_REG_MIPS_CP0_BADINSTRP;
 		if (copy_to_user(indices, &index, sizeof(index)))
 			return -EFAULT;
 		++indices;
@@ -1326,6 +1342,16 @@ static int kvm_vz_get_one_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_CP0_BADVADDR:
 		*v = (long)read_gc0_badvaddr();
+		break;
+	case KVM_REG_MIPS_CP0_BADINSTR:
+		if (!cpu_guest_has_badinstr)
+			return -EINVAL;
+		*v = read_gc0_badinstr();
+		break;
+	case KVM_REG_MIPS_CP0_BADINSTRP:
+		if (!cpu_guest_has_badinstrp)
+			return -EINVAL;
+		*v = read_gc0_badinstrp();
 		break;
 	case KVM_REG_MIPS_CP0_COUNT:
 		*v = kvm_mips_read_count(vcpu);
@@ -1471,6 +1497,16 @@ static int kvm_vz_set_one_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_CP0_BADVADDR:
 		write_gc0_badvaddr(v);
+		break;
+	case KVM_REG_MIPS_CP0_BADINSTR:
+		if (!cpu_guest_has_badinstr)
+			return -EINVAL;
+		write_gc0_badinstr(v);
+		break;
+	case KVM_REG_MIPS_CP0_BADINSTRP:
+		if (!cpu_guest_has_badinstrp)
+			return -EINVAL;
+		write_gc0_badinstrp(v);
 		break;
 	case KVM_REG_MIPS_CP0_COUNT:
 		kvm_mips_write_count(vcpu, v);
@@ -1871,6 +1907,11 @@ static int kvm_vz_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 			kvm_restore_gc0_kscratch6(cop0);
 	}
 
+	if (cpu_guest_has_badinstr)
+		kvm_restore_gc0_badinstr(cop0);
+	if (cpu_guest_has_badinstrp)
+		kvm_restore_gc0_badinstrp(cop0);
+
 	/* restore Root.GuestCtl2 from unused Guest guestctl2 register */
 	if (cpu_has_guestctl2)
 		write_c0_guestctl2(
@@ -1944,6 +1985,11 @@ static int kvm_vz_vcpu_put(struct kvm_vcpu *vcpu, int cpu)
 		if (cpu_guest_has_kscr(7))
 			kvm_save_gc0_kscratch6(cop0);
 	}
+
+	if (cpu_guest_has_badinstr)
+		kvm_save_gc0_badinstr(cop0);
+	if (cpu_guest_has_badinstrp)
+		kvm_save_gc0_badinstrp(cop0);
 
 	kvm_vz_save_timer(vcpu);
 
