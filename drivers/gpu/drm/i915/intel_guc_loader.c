@@ -393,15 +393,12 @@ int intel_guc_init_hw(struct intel_guc *guc)
 }
 
 /**
- * intel_guc_init_fw() - select and prepare firmware for loading
+ * intel_guc_select_fw() - selects GuC firmware for loading
  * @guc:	intel_guc struct
  *
- * Called early during driver load, but after GEM is initialised.
- *
- * The firmware will be transferred to the GuC's memory later,
- * when intel_guc_init_hw() is called.
+ * Return: zero when we know firmware, non-zero in other case
  */
-void intel_guc_init_fw(struct intel_guc *guc)
+int intel_guc_select_fw(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 
@@ -424,11 +421,10 @@ void intel_guc_init_fw(struct intel_guc *guc)
 		guc->fw.minor_ver_wanted = KBL_FW_MINOR;
 	} else {
 		DRM_ERROR("No GuC firmware known for platform with GuC!\n");
-		i915.enable_guc_loading = 0;
-		return;
+		return -ENOENT;
 	}
 
-	intel_uc_prepare_fw(dev_priv, &guc->fw);
+	return 0;
 }
 
 /**

@@ -66,6 +66,14 @@ void intel_uc_sanitize_options(struct drm_i915_private *dev_priv)
 		if (!i915.enable_guc_loading)
 			i915.enable_guc_submission = 0;
 	}
+
+	if (i915.enable_guc_loading) {
+		if (HAS_HUC_UCODE(dev_priv))
+			intel_huc_select_fw(&dev_priv->huc);
+
+		if (intel_guc_select_fw(&dev_priv->guc))
+			i915.enable_guc_loading = 0;
+	}
 }
 
 void intel_uc_init_early(struct drm_i915_private *dev_priv)
@@ -75,13 +83,11 @@ void intel_uc_init_early(struct drm_i915_private *dev_priv)
 
 void intel_uc_init_fw(struct drm_i915_private *dev_priv)
 {
-	if (!i915.enable_guc_loading)
-		return;
+	if (dev_priv->huc.fw.path)
+		intel_uc_prepare_fw(dev_priv, &dev_priv->huc.fw);
 
-	if (HAS_HUC_UCODE(dev_priv))
-		intel_huc_init_fw(&dev_priv->huc);
-
-	intel_guc_init_fw(&dev_priv->guc);
+	if (dev_priv->guc.fw.path)
+		intel_uc_prepare_fw(dev_priv, &dev_priv->guc.fw);
 }
 
 int intel_uc_init_hw(struct drm_i915_private *dev_priv)

@@ -141,18 +141,10 @@ static int huc_ucode_xfer(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_huc_init_fw() - select and prepare firmware for loading
+ * intel_huc_select_fw() - selects HuC firmware for loading
  * @huc:	intel_huc struct
- *
- * Called early during driver load, but after GEM is initialised. The loading
- * will continue only when driver explicitly specify firmware name and version.
- * All other cases are considered as INTEL_UC_FIRMWARE_NONE either because HW
- * is not capable or driver yet support it. And there will be no error message
- * for INTEL_UC_FIRMWARE_NONE cases.
- *
- * The DMA-copying to HW is done later when intel_huc_init_hw() is called.
  */
-void intel_huc_init_fw(struct intel_huc *huc)
+void intel_huc_select_fw(struct intel_huc *huc)
 {
 	struct drm_i915_private *dev_priv = huc_to_i915(huc);
 
@@ -177,8 +169,6 @@ void intel_huc_init_fw(struct intel_huc *huc)
 		DRM_ERROR("No HuC firmware known for platform with HuC!\n");
 		return;
 	}
-
-	intel_uc_prepare_fw(dev_priv, &huc->fw);
 }
 
 /**
