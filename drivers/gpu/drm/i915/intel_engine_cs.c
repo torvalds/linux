@@ -248,8 +248,7 @@ void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno)
 	}
 
 	intel_write_status_page(engine, I915_GEM_HWS_INDEX, seqno);
-	if (engine->irq_seqno_barrier)
-		engine->irq_seqno_barrier(engine);
+	clear_bit(ENGINE_IRQ_BREADCRUMB, &engine->irq_posted);
 
 	GEM_BUG_ON(i915_gem_active_isset(&engine->timeline->last_request));
 	engine->hangcheck.seqno = seqno;
