@@ -542,6 +542,7 @@ struct kvm_mips_callbacks {
 	int (*handle_msa_fpe)(struct kvm_vcpu *vcpu);
 	int (*handle_fpe)(struct kvm_vcpu *vcpu);
 	int (*handle_msa_disabled)(struct kvm_vcpu *vcpu);
+	int (*handle_guest_exit)(struct kvm_vcpu *vcpu);
 	int (*hardware_enable)(void);
 	void (*hardware_disable)(void);
 	int (*check_extension)(struct kvm *kvm, long ext);

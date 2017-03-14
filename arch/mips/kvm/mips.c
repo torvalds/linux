@@ -1348,6 +1348,11 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		ret = kvm_mips_callbacks->handle_msa_disabled(vcpu);
 		break;
 
+	case EXCCODE_GE:
+		/* defer exit accounting to handler */
+		ret = kvm_mips_callbacks->handle_guest_exit(vcpu);
+		break;
+
 	default:
 		if (cause & CAUSEF_BD)
 			opc += 1;

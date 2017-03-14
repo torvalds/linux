@@ -40,6 +40,29 @@ static gpa_t kvm_trap_emul_gva_to_gpa_cb(gva_t gva)
 	return gpa;
 }
 
+static int kvm_trap_emul_no_handler(struct kvm_vcpu *vcpu)
+{
+	u32 __user *opc = (u32 __user *) vcpu->arch.pc;
+	u32 cause = vcpu->arch.host_cp0_cause;
+	u32 exccode = (cause & CAUSEF_EXCCODE) >> CAUSEB_EXCCODE;
+	unsigned long badvaddr = vcpu->arch.host_cp0_badvaddr;
+	u32 inst = 0;
+
+	/*
+	 *  Fetch the instruction.
+	 */
+	if (cause & CAUSEF_BD)
+		opc += 1;
+	kvm_get_badinstr(opc, vcpu, &inst);
+
+	kvm_err("Exception Code: %d not handled @ PC: %p, inst: 0x%08x BadVaddr: %#lx Status: %#lx\n",
+		exccode, opc, inst, badvaddr,
+		kvm_read_c0_guest_status(vcpu->arch.cop0));
+	kvm_arch_vcpu_dump_regs(vcpu);
+	vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+	return RESUME_HOST;
+}
+
 static int kvm_trap_emul_handle_cop_unusable(struct kvm_vcpu *vcpu)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
@@ -1262,6 +1285,7 @@ static struct kvm_mips_callbacks kvm_trap_emul_callbacks = {
 	.handle_msa_fpe = kvm_trap_emul_handle_msa_fpe,
 	.handle_fpe = kvm_trap_emul_handle_fpe,
 	.handle_msa_disabled = kvm_trap_emul_handle_msa_disabled,
+	.handle_guest_exit = kvm_trap_emul_no_handler,
 
 	.hardware_enable = kvm_trap_emul_hardware_enable,
 	.hardware_disable = kvm_trap_emul_hardware_disable,
