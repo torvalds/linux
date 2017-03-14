@@ -514,10 +514,10 @@ static int xen_cpu_disable(void)
 	return 0;
 }
 
-static void xen_cpu_die(unsigned int cpu)
+static void xen_pv_cpu_die(unsigned int cpu)
 {
-	while (xen_pv_domain() && HYPERVISOR_vcpu_op(VCPUOP_is_up,
-						     xen_vcpu_nr(cpu), NULL)) {
+	while (HYPERVISOR_vcpu_op(VCPUOP_is_up,
+				  xen_vcpu_nr(cpu), NULL)) {
 		__set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(HZ/10);
 	}
@@ -527,6 +527,15 @@ static void xen_cpu_die(unsigned int cpu)
 		xen_uninit_lock_cpu(cpu);
 		xen_teardown_timer(cpu);
 		xen_pmu_finish(cpu);
+	}
+}
+
+static void xen_hvm_cpu_die(unsigned int cpu)
+{
+	if (common_cpu_die(cpu) == 0) {
+		xen_smp_intr_free(cpu);
+		xen_uninit_lock_cpu(cpu);
+		xen_teardown_timer(cpu);
 	}
 }
 
@@ -552,7 +561,12 @@ static int xen_cpu_disable(void)
 	return -ENOSYS;
 }
 
-static void xen_cpu_die(unsigned int cpu)
+static void xen_pv_cpu_die(unsigned int cpu)
+{
+	BUG();
+}
+
+static void xen_hvm_cpu_die(unsigned int cpu)
 {
 	BUG();
 }
@@ -733,7 +747,7 @@ static const struct smp_ops xen_smp_ops __initconst = {
 	.smp_cpus_done = xen_smp_cpus_done,
 
 	.cpu_up = xen_cpu_up,
-	.cpu_die = xen_cpu_die,
+	.cpu_die = xen_pv_cpu_die,
 	.cpu_disable = xen_cpu_disable,
 	.play_dead = xen_play_dead,
 
@@ -762,7 +776,7 @@ void __init xen_hvm_smp_init(void)
 {
 	smp_ops.smp_prepare_cpus = xen_hvm_smp_prepare_cpus;
 	smp_ops.smp_send_reschedule = xen_smp_send_reschedule;
-	smp_ops.cpu_die = xen_cpu_die;
+	smp_ops.cpu_die = xen_hvm_cpu_die;
 	smp_ops.send_call_func_ipi = xen_smp_send_call_function_ipi;
 	smp_ops.send_call_func_single_ipi = xen_smp_send_call_function_single_ipi;
 	smp_ops.smp_prepare_boot_cpu = xen_hvm_smp_prepare_boot_cpu;
