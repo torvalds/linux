@@ -1057,7 +1057,7 @@ static inline unsigned int decode_guest_config5(struct cpuinfo_mips *c)
 	unsigned int config5, config5_dyn;
 
 	probe_gc0_config_dyn(config5, config5, config5_dyn,
-			 MIPS_CONF_M | MIPS_CONF5_MRP);
+			 MIPS_CONF_M | MIPS_CONF5_MVH | MIPS_CONF5_MRP);
 
 	if (config5 & MIPS_CONF5_MRP)
 		c->guest.options |= MIPS_CPU_MAAR;
@@ -1066,6 +1066,9 @@ static inline unsigned int decode_guest_config5(struct cpuinfo_mips *c)
 
 	if (config5 & MIPS_CONF5_LLB)
 		c->guest.options |= MIPS_CPU_RW_LLB;
+
+	if (config5 & MIPS_CONF5_MVH)
+		c->guest.options |= MIPS_CPU_MVH;
 
 	if (config5 & MIPS_CONF_M)
 		c->guest.conf |= BIT(6);

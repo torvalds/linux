@@ -532,6 +532,9 @@
 #ifndef cpu_guest_has_htw
 #define cpu_guest_has_htw	(cpu_data[0].guest.options & MIPS_CPU_HTW)
 #endif
+#ifndef cpu_guest_has_mvh
+#define cpu_guest_has_mvh	(cpu_data[0].guest.options & MIPS_CPU_MVH)
+#endif
 #ifndef cpu_guest_has_msa
 #define cpu_guest_has_msa	(cpu_data[0].guest.ases & MIPS_ASE_MSA)
 #endif
