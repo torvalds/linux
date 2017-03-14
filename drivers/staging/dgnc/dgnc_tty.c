@@ -1756,7 +1756,7 @@ static int dgnc_tty_tiocmset(struct tty_struct *tty,
 	if (clear & TIOCM_DTR)
 		ch->ch_mostat &= ~(UART_MCR_DTR);
 
-	ch->ch_bd->bd_ops->assert_modem_signals(ch);
+	bd->bd_ops->assert_modem_signals(ch);
 
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 
@@ -1803,7 +1803,7 @@ static int dgnc_tty_send_break(struct tty_struct *tty, int msec)
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
 
-	ch->ch_bd->bd_ops->send_break(ch, msec);
+	bd->bd_ops->send_break(ch, msec);
 
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 
@@ -2095,7 +2095,7 @@ static int dgnc_tty_digiseta(struct tty_struct *tty,
 	if (ch->ch_digi.digi_offlen > DIGI_PLEN)
 		ch->ch_digi.digi_offlen = DIGI_PLEN;
 
-	ch->ch_bd->bd_ops->param(tty);
+	bd->bd_ops->param(tty);
 
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 
@@ -2136,7 +2136,7 @@ static void dgnc_tty_set_termios(struct tty_struct *tty,
 	ch->ch_startc = tty->termios.c_cc[VSTART];
 	ch->ch_stopc  = tty->termios.c_cc[VSTOP];
 
-	ch->ch_bd->bd_ops->param(tty);
+	bd->bd_ops->param(tty);
 	dgnc_carrier(ch);
 
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
