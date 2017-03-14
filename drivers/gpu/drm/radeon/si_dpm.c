@@ -3029,6 +3029,12 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 			max_sclk = 75000;
 			max_mclk = 80000;
 		}
+	} else if (rdev->family == CHIP_OLAND) {
+		if ((rdev->pdev->device == 0x6604) &&
+		    (rdev->pdev->subsystem_vendor == 0x1028) &&
+		    (rdev->pdev->subsystem_device == 0x066F)) {
+			max_sclk = 75000;
+		}
 	}
 	/* Apply dpm quirks */
 	while (p && p->chip_device != 0) {
