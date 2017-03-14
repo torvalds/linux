@@ -2394,7 +2394,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		rc = tty_check_change(tty);
 		spin_unlock_irqrestore(&ch->ch_lock, flags);
 		if (rc)
-			return -ENODEV;
+			return rc;
 
 		rc = ch_bd_ops->drain(tty, 0);
 		if (rc)
@@ -2419,7 +2419,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		rc = tty_check_change(tty);
 		spin_unlock_irqrestore(&ch->ch_lock, flags);
 		if (rc)
-			return -ENODEV;
+			return rc;
 
 		rc = ch_bd_ops->drain(tty, 0);
 		if (rc)
@@ -2437,7 +2437,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		rc = tty_check_change(tty);
 		spin_unlock_irqrestore(&ch->ch_lock, flags);
 		if (rc)
-			return -ENODEV;
+			return rc;
 
 		rc = ch_bd_ops->drain(tty, 0);
 		if (rc)
