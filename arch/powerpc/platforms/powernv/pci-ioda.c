@@ -1774,17 +1774,20 @@ static u64 pnv_pci_ioda_dma_get_required_mask(struct pci_dev *pdev)
 }
 
 static void pnv_ioda_setup_bus_dma(struct pnv_ioda_pe *pe,
-				   struct pci_bus *bus)
+				   struct pci_bus *bus,
+				   bool add_to_group)
 {
 	struct pci_dev *dev;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		set_iommu_table_base(&dev->dev, pe->table_group.tables[0]);
 		set_dma_offset(&dev->dev, pe->tce_bypass_base);
-		iommu_add_device(&dev->dev);
+		if (add_to_group)
+			iommu_add_device(&dev->dev);
 
 		if ((pe->flags & PNV_IODA_PE_BUS_ALL) && dev->subordinate)
-			pnv_ioda_setup_bus_dma(pe, dev->subordinate);
+			pnv_ioda_setup_bus_dma(pe, dev->subordinate,
+					add_to_group);
 	}
 }
 
@@ -2190,7 +2193,7 @@ found:
 		set_iommu_table_base(&pe->pdev->dev, tbl);
 		iommu_add_device(&pe->pdev->dev);
 	} else if (pe->flags & (PNV_IODA_PE_BUS | PNV_IODA_PE_BUS_ALL))
-		pnv_ioda_setup_bus_dma(pe, pe->pbus);
+		pnv_ioda_setup_bus_dma(pe, pe->pbus, true);
 
 	return;
  fail:
@@ -2425,6 +2428,8 @@ static void pnv_ioda2_take_ownership(struct iommu_table_group *table_group)
 
 	pnv_pci_ioda2_set_bypass(pe, false);
 	pnv_pci_ioda2_unset_window(&pe->table_group, 0);
+	if (pe->pbus)
+		pnv_ioda_setup_bus_dma(pe, pe->pbus, false);
 	pnv_ioda2_table_free(tbl);
 }
 
@@ -2434,6 +2439,8 @@ static void pnv_ioda2_release_ownership(struct iommu_table_group *table_group)
 						table_group);
 
 	pnv_pci_ioda2_setup_default_config(pe);
+	if (pe->pbus)
+		pnv_ioda_setup_bus_dma(pe, pe->pbus, false);
 }
 
 static struct iommu_table_group_ops pnv_pci_ioda2_ops = {
@@ -2728,7 +2735,7 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 	if (pe->flags & PNV_IODA_PE_DEV)
 		iommu_add_device(&pe->pdev->dev);
 	else if (pe->flags & (PNV_IODA_PE_BUS | PNV_IODA_PE_BUS_ALL))
-		pnv_ioda_setup_bus_dma(pe, pe->pbus);
+		pnv_ioda_setup_bus_dma(pe, pe->pbus, true);
 }
 
 #ifdef CONFIG_PCI_MSI
