@@ -480,16 +480,8 @@ static const struct backlight_ops fujitsu_bl_ops = {
 	.update_status = bl_update_status,
 };
 
-static ssize_t
-ignore_store(struct device *dev,
-	     struct device_attribute *attr, const char *buf, size_t count)
-{
-	return count;
-}
-
-static ssize_t
-show_lid_state(struct device *dev,
-			struct device_attribute *attr, char *buf)
+static ssize_t lid_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
 {
 	if (!(fujitsu_laptop->flags_supported & FLAG_LID))
 		return sprintf(buf, "unknown\n");
@@ -499,9 +491,8 @@ show_lid_state(struct device *dev,
 		return sprintf(buf, "closed\n");
 }
 
-static ssize_t
-show_dock_state(struct device *dev,
-			struct device_attribute *attr, char *buf)
+static ssize_t dock_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	if (!(fujitsu_laptop->flags_supported & FLAG_DOCK))
 		return sprintf(buf, "unknown\n");
@@ -511,9 +502,8 @@ show_dock_state(struct device *dev,
 		return sprintf(buf, "undocked\n");
 }
 
-static ssize_t
-show_radios_state(struct device *dev,
-			struct device_attribute *attr, char *buf)
+static ssize_t radios_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
 	if (!(fujitsu_laptop->flags_supported & FLAG_RFKILL))
 		return sprintf(buf, "unknown\n");
@@ -523,9 +513,9 @@ show_radios_state(struct device *dev,
 		return sprintf(buf, "killed\n");
 }
 
-static DEVICE_ATTR(lid, 0444, show_lid_state, ignore_store);
-static DEVICE_ATTR(dock, 0444, show_dock_state, ignore_store);
-static DEVICE_ATTR(radios, 0444, show_radios_state, ignore_store);
+static DEVICE_ATTR_RO(lid);
+static DEVICE_ATTR_RO(dock);
+static DEVICE_ATTR_RO(radios);
 
 static struct attribute *fujitsu_pf_attributes[] = {
 	&dev_attr_lid.attr,
