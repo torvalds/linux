@@ -65,6 +65,7 @@ static const char *const hwcap_str[] = {
 	"asimdhp",
 	"cpuid",
 	"asimdrdm",
+	"jscvt",
 	NULL
 };
 

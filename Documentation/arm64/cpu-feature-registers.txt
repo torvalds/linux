@@ -169,6 +169,14 @@ infrastructure:
    as available on the CPU where it is fetched and is not a system
    wide safe value.
 
+  4) ID_AA64ISAR1_EL1 - Instruction set attribute register 1
+
+     x--------------------------------------------------x
+     | Name                         |  bits   | visible |
+     |--------------------------------------------------|
+     | JSCVT                        | [15-12] |    y    |
+     x--------------------------------------------------x
+
 Appendix I: Example
 ---------------------------
 
