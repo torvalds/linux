@@ -271,6 +271,7 @@ struct bitmap *get_bitmap_from_slot(struct mddev *mddev, int slot);
 int bitmap_copy_from_slot(struct mddev *mddev, int slot,
 				sector_t *lo, sector_t *hi, bool clear_bits);
 void bitmap_free(struct bitmap *bitmap);
+void bitmap_wait_behind_writes(struct mddev *mddev);
 #endif
 
 #endif
