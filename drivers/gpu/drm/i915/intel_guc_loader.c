@@ -368,13 +368,6 @@ int intel_guc_init_hw(struct intel_guc *guc)
 		intel_uc_fw_status_repr(guc->fw.fetch_status),
 		intel_uc_fw_status_repr(guc->fw.load_status));
 
-	if (!fw_path) {
-		return -ENXIO;
-	} else if (*fw_path == '\0') {
-		WARN(1, "No GuC firmware known for this platform!\n");
-		return -ENODEV;
-	}
-
 	if (guc->fw.fetch_status != INTEL_UC_FIRMWARE_SUCCESS)
 		return -EIO;
 
@@ -399,7 +392,6 @@ int intel_guc_init_hw(struct intel_guc *guc)
 	return 0;
 }
 
-
 /**
  * intel_guc_init_fw() - select and prepare firmware for loading
  * @guc:	intel_guc struct
@@ -412,37 +404,31 @@ int intel_guc_init_hw(struct intel_guc *guc)
 void intel_guc_init_fw(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	const char *fw_path;
+
+	guc->fw.path = NULL;
+	guc->fw.fetch_status = INTEL_UC_FIRMWARE_NONE;
+	guc->fw.load_status = INTEL_UC_FIRMWARE_NONE;
+	guc->fw.fw = INTEL_UC_FW_TYPE_GUC;
 
 	if (IS_SKYLAKE(dev_priv)) {
-		fw_path = I915_SKL_GUC_UCODE;
+		guc->fw.path = I915_SKL_GUC_UCODE;
 		guc->fw.major_ver_wanted = SKL_FW_MAJOR;
 		guc->fw.minor_ver_wanted = SKL_FW_MINOR;
 	} else if (IS_BROXTON(dev_priv)) {
-		fw_path = I915_BXT_GUC_UCODE;
+		guc->fw.path = I915_BXT_GUC_UCODE;
 		guc->fw.major_ver_wanted = BXT_FW_MAJOR;
 		guc->fw.minor_ver_wanted = BXT_FW_MINOR;
 	} else if (IS_KABYLAKE(dev_priv)) {
-		fw_path = I915_KBL_GUC_UCODE;
+		guc->fw.path = I915_KBL_GUC_UCODE;
 		guc->fw.major_ver_wanted = KBL_FW_MAJOR;
 		guc->fw.minor_ver_wanted = KBL_FW_MINOR;
 	} else {
-		fw_path = "";	/* unknown device */
+		DRM_ERROR("No GuC firmware known for platform with GuC!\n");
+		i915.enable_guc_loading = 0;
+		return;
 	}
 
-	guc->fw.path = fw_path;
-	guc->fw.fetch_status = INTEL_UC_FIRMWARE_NONE;
-	guc->fw.load_status = INTEL_UC_FIRMWARE_NONE;
-
-	if (fw_path == NULL)
-		return;
-	if (*fw_path == '\0')
-		return;
-
-	guc->fw.fetch_status = INTEL_UC_FIRMWARE_PENDING;
-	DRM_DEBUG_DRIVER("GuC firmware pending, path %s\n", fw_path);
 	intel_uc_prepare_fw(dev_priv, &guc->fw);
-	/* status must now be FAIL or SUCCESS */
 }
 
 /**

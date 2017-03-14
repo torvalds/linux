@@ -155,7 +155,6 @@ static int huc_ucode_xfer(struct drm_i915_private *dev_priv)
 void intel_huc_init_fw(struct intel_huc *huc)
 {
 	struct drm_i915_private *dev_priv = huc_to_i915(huc);
-	const char *fw_path = NULL;
 
 	huc->fw.path = NULL;
 	huc->fw.fetch_status = INTEL_UC_FIRMWARE_NONE;
@@ -163,29 +162,21 @@ void intel_huc_init_fw(struct intel_huc *huc)
 	huc->fw.fw = INTEL_UC_FW_TYPE_HUC;
 
 	if (IS_SKYLAKE(dev_priv)) {
-		fw_path = I915_SKL_HUC_UCODE;
+		huc->fw.path = I915_SKL_HUC_UCODE;
 		huc->fw.major_ver_wanted = SKL_HUC_FW_MAJOR;
 		huc->fw.minor_ver_wanted = SKL_HUC_FW_MINOR;
 	} else if (IS_BROXTON(dev_priv)) {
-		fw_path = I915_BXT_HUC_UCODE;
+		huc->fw.path = I915_BXT_HUC_UCODE;
 		huc->fw.major_ver_wanted = BXT_HUC_FW_MAJOR;
 		huc->fw.minor_ver_wanted = BXT_HUC_FW_MINOR;
 	} else if (IS_KABYLAKE(dev_priv)) {
-		fw_path = I915_KBL_HUC_UCODE;
+		huc->fw.path = I915_KBL_HUC_UCODE;
 		huc->fw.major_ver_wanted = KBL_HUC_FW_MAJOR;
 		huc->fw.minor_ver_wanted = KBL_HUC_FW_MINOR;
-	}
-
-	huc->fw.path = fw_path;
-
-	if (fw_path == NULL)
+	} else {
+		DRM_ERROR("No HuC firmware known for platform with HuC!\n");
 		return;
-
-	huc->fw.fetch_status = INTEL_UC_FIRMWARE_PENDING;
-
-	DRM_DEBUG_DRIVER("HuC firmware pending, path %s\n", fw_path);
-
-	WARN(huc->fw.path == NULL, "HuC present but no fw path\n");
+	}
 
 	intel_uc_prepare_fw(dev_priv, &huc->fw);
 }

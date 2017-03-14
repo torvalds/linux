@@ -268,8 +268,10 @@ void intel_uc_prepare_fw(struct drm_i915_private *dev_priv,
 	size_t size;
 	int err;
 
+	uc_fw->fetch_status = INTEL_UC_FIRMWARE_PENDING;
+
 	DRM_DEBUG_DRIVER("before requesting firmware: uC fw fetch status %s\n",
-		intel_uc_fw_status_repr(uc_fw->fetch_status));
+			 intel_uc_fw_status_repr(uc_fw->fetch_status));
 
 	err = request_firmware(&fw, uc_fw->path, &pdev->dev);
 	if (err)
