@@ -1343,6 +1343,7 @@ config SERIAL_ALTERA_JTAGUART_CONSOLE
 	bool "Altera JTAG UART console support"
 	depends on SERIAL_ALTERA_JTAGUART=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Enable a Altera JTAG UART port to be the system console.
 
