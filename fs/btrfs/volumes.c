@@ -5627,6 +5627,11 @@ static void handle_ops_on_dev_replace(enum btrfs_map_op op,
 	*bbio_ret = bbio;
 }
 
+static bool need_full_stripe(enum btrfs_map_op op)
+{
+	return (op == BTRFS_MAP_WRITE || op == BTRFS_MAP_GET_READ_MIRRORS);
+}
+
 static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 			     enum btrfs_map_op op,
 			     u64 logical, u64 *length,
@@ -5729,8 +5734,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 		btrfs_dev_replace_set_lock_blocking(dev_replace);
 
 	if (dev_replace_is_ongoing && mirror_num == map->num_stripes + 1 &&
-	    op != BTRFS_MAP_WRITE && op != BTRFS_MAP_GET_READ_MIRRORS &&
-	    dev_replace->tgtdev != NULL) {
+	    !need_full_stripe(op) && dev_replace->tgtdev != NULL) {
 		ret = get_extra_mirror_from_replace(fs_info, logical, *length,
 						    dev_replace->srcdev->devid,
 						    &mirror_num,
@@ -5863,10 +5867,8 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 		bbio->tgtdev_map = (int *)(bbio->stripes + num_alloc_stripes);
 
 	/* build raid_map */
-	if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK &&
-	    need_raid_map &&
-	    ((op == BTRFS_MAP_WRITE || op == BTRFS_MAP_GET_READ_MIRRORS) ||
-	    mirror_num > 1)) {
+	if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK && need_raid_map &&
+	    (need_full_stripe(op) || mirror_num > 1)) {
 		u64 tmp;
 		unsigned rot;
 
@@ -5901,14 +5903,14 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 		stripe_index++;
 	}
 
-	if (op == BTRFS_MAP_WRITE || op == BTRFS_MAP_GET_READ_MIRRORS)
+	if (need_full_stripe(op))
 		max_errors = btrfs_chunk_max_errors(map);
 
 	if (bbio->raid_map)
 		sort_parity_stripes(bbio, num_stripes);
 
 	if (dev_replace_is_ongoing && dev_replace->tgtdev != NULL &&
-	    (op == BTRFS_MAP_WRITE || op == BTRFS_MAP_GET_READ_MIRRORS)) {
+	    need_full_stripe(op)) {
 		handle_ops_on_dev_replace(op, &bbio, dev_replace, &num_stripes,
 					  &max_errors);
 	}
