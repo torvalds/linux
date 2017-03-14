@@ -115,11 +115,16 @@ will access the virtual machine's physical address space; offset zero
 corresponds to guest physical address zero.  Use of mmap() on a VM fd
 is discouraged if userspace memory allocation (KVM_CAP_USER_MEMORY) is
 available.
-You most certainly want to use 0 as machine type.
+You probably want to use 0 as machine type.
 
 In order to create user controlled virtual machines on S390, check
 KVM_CAP_S390_UCONTROL and use the flag KVM_VM_S390_UCONTROL as
 privileged user (CAP_SYS_ADMIN).
+
+To use hardware assisted virtualization on MIPS (VZ ASE) rather than
+the default trap & emulate implementation (which changes the virtual
+memory layout to fit in user mode), check KVM_CAP_MIPS_VZ and use the
+flag KVM_VM_MIPS_VZ.
 
 
 4.3 KVM_GET_MSR_INDEX_LIST
@@ -4147,3 +4152,43 @@ This capability, if KVM_CHECK_EXTENSION indicates that it is
 available, means that that the kernel can support guests using the
 hashed page table MMU defined in Power ISA V3.00 (as implemented in
 the POWER9 processor), including in-memory segment tables.
+
+8.5 KVM_CAP_MIPS_VZ
+
+Architectures: mips
+
+This capability, if KVM_CHECK_EXTENSION on the main kvm handle indicates that
+it is available, means that full hardware assisted virtualization capabilities
+of the hardware are available for use through KVM. An appropriate
+KVM_VM_MIPS_* type must be passed to KVM_CREATE_VM to create a VM which
+utilises it.
+
+If KVM_CHECK_EXTENSION on a kvm VM handle indicates that this capability is
+available, it means that the VM is using full hardware assisted virtualization
+capabilities of the hardware. This is useful to check after creating a VM with
+KVM_VM_MIPS_DEFAULT.
+
+The value returned by KVM_CHECK_EXTENSION should be compared against known
+values (see below). All other values are reserved. This is to allow for the
+possibility of other hardware assisted virtualization implementations which
+may be incompatible with the MIPS VZ ASE.
+
+ 0: The trap & emulate implementation is in use to run guest code in user
+    mode. Guest virtual memory segments are rearranged to fit the guest in the
+    user mode address space.
+
+ 1: The MIPS VZ ASE is in use, providing full hardware assisted
+    virtualization, including standard guest virtual memory segments.
+
+8.6 KVM_CAP_MIPS_TE
+
+Architectures: mips
+
+This capability, if KVM_CHECK_EXTENSION on the main kvm handle indicates that
+it is available, means that the trap & emulate implementation is available to
+run guest code in user mode, even if KVM_CAP_MIPS_VZ indicates that hardware
+assisted virtualisation is also available. KVM_VM_MIPS_TE (0) must be passed
+to KVM_CREATE_VM to create a VM which utilises it.
+
+If KVM_CHECK_EXTENSION on a kvm VM handle indicates that this capability is
+available, it means that the VM is using trap & emulate.

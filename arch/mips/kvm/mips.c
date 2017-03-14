@@ -107,6 +107,14 @@ void kvm_arch_check_processor_compat(void *rtn)
 
 int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
+	switch (type) {
+	case KVM_VM_MIPS_TE:
+		break;
+	default:
+		/* Unsupported KVM type */
+		return -EINVAL;
+	};
+
 	/* Allocate page table to map GPA -> RPA */
 	kvm->arch.gpa_mm.pgd = kvm_pgd_alloc();
 	if (!kvm->arch.gpa_mm.pgd)
@@ -1038,6 +1046,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_READONLY_MEM:
 	case KVM_CAP_SYNC_MMU:
 	case KVM_CAP_IMMEDIATE_EXIT:
+	case KVM_CAP_MIPS_TE:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
