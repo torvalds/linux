@@ -990,17 +990,62 @@ enum emulation_result kvm_mips_emul_wait(struct kvm_vcpu *vcpu)
 	return EMULATE_DONE;
 }
 
-/*
- * XXXKYMA: Linux doesn't seem to use TLBR, return EMULATE_FAIL for now so that
- * we can catch this, if things ever change
- */
+static void kvm_mips_change_entryhi(struct kvm_vcpu *vcpu,
+				    unsigned long entryhi)
+{
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	struct mm_struct *kern_mm = &vcpu->arch.guest_kernel_mm;
+	int cpu, i;
+	u32 nasid = entryhi & KVM_ENTRYHI_ASID;
+
+	if (((kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID) != nasid)) {
+		trace_kvm_asid_change(vcpu, kvm_read_c0_guest_entryhi(cop0) &
+				      KVM_ENTRYHI_ASID, nasid);
+
+		/*
+		 * Flush entries from the GVA page tables.
+		 * Guest user page table will get flushed lazily on re-entry to
+		 * guest user if the guest ASID actually changes.
+		 */
+		kvm_mips_flush_gva_pt(kern_mm->pgd, KMF_KERN);
+
+		/*
+		 * Regenerate/invalidate kernel MMU context.
+		 * The user MMU context will be regenerated lazily on re-entry
+		 * to guest user if the guest ASID actually changes.
+		 */
+		preempt_disable();
+		cpu = smp_processor_id();
+		get_new_mmu_context(kern_mm, cpu);
+		for_each_possible_cpu(i)
+			if (i != cpu)
+				cpu_context(i, kern_mm) = 0;
+		preempt_enable();
+	}
+	kvm_write_c0_guest_entryhi(cop0, entryhi);
+}
+
 enum emulation_result kvm_mips_emul_tlbr(struct kvm_vcpu *vcpu)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	struct kvm_mips_tlb *tlb;
 	unsigned long pc = vcpu->arch.pc;
+	int index;
 
-	kvm_err("[%#lx] COP0_TLBR [%d]\n", pc, kvm_read_c0_guest_index(cop0));
-	return EMULATE_FAIL;
+	index = kvm_read_c0_guest_index(cop0);
+	if (index < 0 || index >= KVM_MIPS_GUEST_TLB_SIZE) {
+		/* UNDEFINED */
+		kvm_debug("[%#lx] TLBR Index %#x out of range\n", pc, index);
+		index &= KVM_MIPS_GUEST_TLB_SIZE - 1;
+	}
+
+	tlb = &vcpu->arch.guest_tlb[index];
+	kvm_write_c0_guest_pagemask(cop0, tlb->tlb_mask);
+	kvm_write_c0_guest_entrylo0(cop0, tlb->tlb_lo[0]);
+	kvm_write_c0_guest_entrylo1(cop0, tlb->tlb_lo[1]);
+	kvm_mips_change_entryhi(vcpu, tlb->tlb_hi);
+
+	return EMULATE_DONE;
 }
 
 /**
@@ -1222,11 +1267,9 @@ enum emulation_result kvm_mips_emulate_CP0(union mips_instruction inst,
 					   struct kvm_vcpu *vcpu)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
-	struct mm_struct *kern_mm = &vcpu->arch.guest_kernel_mm;
 	enum emulation_result er = EMULATE_DONE;
 	u32 rt, rd, sel;
 	unsigned long curr_pc;
-	int cpu, i;
 
 	/*
 	 * Update PC and hold onto current PC in case there is
@@ -1328,44 +1371,8 @@ enum emulation_result kvm_mips_emulate_CP0(union mips_instruction inst,
 				kvm_change_c0_guest_ebase(cop0, 0x1ffff000,
 							  vcpu->arch.gprs[rt]);
 			} else if (rd == MIPS_CP0_TLB_HI && sel == 0) {
-				u32 nasid =
-					vcpu->arch.gprs[rt] & KVM_ENTRYHI_ASID;
-				if (((kvm_read_c0_guest_entryhi(cop0) &
-				      KVM_ENTRYHI_ASID) != nasid)) {
-					trace_kvm_asid_change(vcpu,
-						kvm_read_c0_guest_entryhi(cop0)
-							& KVM_ENTRYHI_ASID,
-						nasid);
-
-					/*
-					 * Flush entries from the GVA page
-					 * tables.
-					 * Guest user page table will get
-					 * flushed lazily on re-entry to guest
-					 * user if the guest ASID actually
-					 * changes.
-					 */
-					kvm_mips_flush_gva_pt(kern_mm->pgd,
-							      KMF_KERN);
-
-					/*
-					 * Regenerate/invalidate kernel MMU
-					 * context.
-					 * The user MMU context will be
-					 * regenerated lazily on re-entry to
-					 * guest user if the guest ASID actually
-					 * changes.
-					 */
-					preempt_disable();
-					cpu = smp_processor_id();
-					get_new_mmu_context(kern_mm, cpu);
-					for_each_possible_cpu(i)
-						if (i != cpu)
-							cpu_context(i, kern_mm) = 0;
-					preempt_enable();
-				}
-				kvm_write_c0_guest_entryhi(cop0,
-							   vcpu->arch.gprs[rt]);
+				kvm_mips_change_entryhi(vcpu,
+							vcpu->arch.gprs[rt]);
 			}
 			/* Are we writing to COUNT */
 			else if ((rd == MIPS_CP0_COUNT) && (sel == 0)) {
