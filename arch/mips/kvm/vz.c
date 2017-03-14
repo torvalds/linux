@@ -1105,6 +1105,17 @@ static enum emulation_result kvm_vz_gpsi_cache(union mips_instruction inst,
 	case Index_Writeback_Inv_D:
 		flush_dcache_line_indexed(va);
 		return EMULATE_DONE;
+	case Hit_Invalidate_I:
+	case Hit_Invalidate_D:
+	case Hit_Writeback_Inv_D:
+		if (boot_cpu_type() == CPU_CAVIUM_OCTEON3) {
+			/* We can just flush entire icache */
+			local_flush_icache_range(0, 0);
+			return EMULATE_DONE;
+		}
+
+		/* So far, other platforms support guest hit cache ops */
+		break;
 	default:
 		break;
 	};
