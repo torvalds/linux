@@ -810,22 +810,21 @@ static void guc_addon_create(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct i915_vma *vma;
-	struct guc_ads *ads;
-	struct guc_policies *policies;
-	struct guc_mmio_reg_state *reg_state;
+	struct page *page;
+	/* The ads obj includes the struct itself and buffers passed to GuC */
+	struct {
+		struct guc_ads ads;
+		struct guc_policies policies;
+		struct guc_mmio_reg_state reg_state;
+		u8 reg_state_buffer[GUC_S3_SAVE_SPACE_PAGES * PAGE_SIZE];
+	} __packed *blob;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	struct page *page;
-	u32 size;
-
-	/* The ads obj includes the struct itself and buffers passed to GuC */
-	size = sizeof(struct guc_ads) + sizeof(struct guc_policies) +
-			sizeof(struct guc_mmio_reg_state) +
-			GUC_S3_SAVE_SPACE_PAGES * PAGE_SIZE;
+	u32 base;
 
 	vma = guc->ads_vma;
 	if (!vma) {
-		vma = intel_guc_allocate_vma(guc, PAGE_ALIGN(size));
+		vma = intel_guc_allocate_vma(guc, PAGE_ALIGN(sizeof(*blob)));
 		if (IS_ERR(vma))
 			return;
 
@@ -833,7 +832,19 @@ static void guc_addon_create(struct intel_guc *guc)
 	}
 
 	page = i915_vma_first_page(vma);
-	ads = kmap(page);
+	blob = kmap(page);
+
+	/* GuC scheduling policies */
+	guc_policies_init(&blob->policies);
+
+	/* MMIO reg state */
+	for_each_engine(engine, dev_priv, id) {
+		blob->reg_state.mmio_white_list[engine->guc_id].mmio_start =
+			engine->mmio_base + GUC_MMIO_WHITE_LIST_START;
+
+		/* Nothing to be saved or restored for now. */
+		blob->reg_state.mmio_white_list[engine->guc_id].count = 0;
+	}
 
 	/*
 	 * The GuC requires a "Golden Context" when it reinitialises
@@ -842,35 +853,17 @@ static void guc_addon_create(struct intel_guc *guc)
 	 * so its address won't change after we've told the GuC where
 	 * to find it.
 	 */
-	engine = dev_priv->engine[RCS];
-	ads->golden_context_lrca = engine->status_page.ggtt_offset;
+	blob->ads.golden_context_lrca =
+		dev_priv->engine[RCS]->status_page.ggtt_offset;
 
 	for_each_engine(engine, dev_priv, id)
-		ads->eng_state_size[engine->guc_id] = intel_lr_context_size(engine);
+		blob->ads.eng_state_size[engine->guc_id] =
+			intel_lr_context_size(engine);
 
-	/* GuC scheduling policies */
-	policies = (void *)ads + sizeof(struct guc_ads);
-	guc_policies_init(policies);
-
-	ads->scheduler_policies =
-		guc_ggtt_offset(vma) + sizeof(struct guc_ads);
-
-	/* MMIO reg state */
-	reg_state = (void *)policies + sizeof(struct guc_policies);
-
-	for_each_engine(engine, dev_priv, id) {
-		reg_state->mmio_white_list[engine->guc_id].mmio_start =
-			engine->mmio_base + GUC_MMIO_WHITE_LIST_START;
-
-		/* Nothing to be saved or restored for now. */
-		reg_state->mmio_white_list[engine->guc_id].count = 0;
-	}
-
-	ads->reg_state_addr = ads->scheduler_policies +
-			sizeof(struct guc_policies);
-
-	ads->reg_state_buffer = ads->reg_state_addr +
-			sizeof(struct guc_mmio_reg_state);
+	base = guc_ggtt_offset(vma);
+	blob->ads.scheduler_policies = base + ptr_offset(blob, policies);
+	blob->ads.reg_state_buffer = base + ptr_offset(blob, reg_state_buffer);
+	blob->ads.reg_state_addr = base + ptr_offset(blob, reg_state);
 
 	kunmap(page);
 }
