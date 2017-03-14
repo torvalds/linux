@@ -1599,19 +1599,25 @@ static void dp_test_send_phy_test_pattern(struct core_link *link)
 	switch (dpcd_test_pattern.bits.PATTERN) {
 	case PHY_TEST_PATTERN_D10_2:
 		test_pattern = DP_TEST_PATTERN_D102;
-	break;
+		break;
 	case PHY_TEST_PATTERN_SYMBOL_ERROR:
 		test_pattern = DP_TEST_PATTERN_SYMBOL_ERROR;
-	break;
+		break;
 	case PHY_TEST_PATTERN_PRBS7:
 		test_pattern = DP_TEST_PATTERN_PRBS7;
-	break;
+		break;
 	case PHY_TEST_PATTERN_80BIT_CUSTOM:
 		test_pattern = DP_TEST_PATTERN_80BIT_CUSTOM;
-	break;
-	case PHY_TEST_PATTERN_HBR2_COMPLIANCE_EYE:
-		test_pattern = DP_TEST_PATTERN_HBR2_COMPLIANCE_EYE;
-	break;
+		break;
+	case PHY_TEST_PATTERN_CP2520_1:
+		test_pattern = DP_TEST_PATTERN_CP2520_1;
+		break;
+	case PHY_TEST_PATTERN_CP2520_2:
+		test_pattern = DP_TEST_PATTERN_CP2520_2;
+		break;
+	case PHY_TEST_PATTERN_CP2520_3:
+		test_pattern = DP_TEST_PATTERN_CP2520_3;
+		break;
 	default:
 		test_pattern = DP_TEST_PATTERN_VIDEO_MODE;
 	break;
@@ -2202,16 +2208,9 @@ void dc_link_dp_disable_hpd(const struct dc_link *link)
 
 static bool is_dp_phy_pattern(enum dp_test_pattern test_pattern)
 {
-	if (test_pattern == DP_TEST_PATTERN_D102 ||
-	test_pattern == DP_TEST_PATTERN_SYMBOL_ERROR ||
-	test_pattern == DP_TEST_PATTERN_PRBS7 ||
-	test_pattern == DP_TEST_PATTERN_80BIT_CUSTOM ||
-	test_pattern == DP_TEST_PATTERN_HBR2_COMPLIANCE_EYE ||
-	test_pattern == DP_TEST_PATTERN_TRAINING_PATTERN1 ||
-	test_pattern == DP_TEST_PATTERN_TRAINING_PATTERN2 ||
-	test_pattern == DP_TEST_PATTERN_TRAINING_PATTERN3 ||
-	test_pattern == DP_TEST_PATTERN_TRAINING_PATTERN4 ||
-	test_pattern == DP_TEST_PATTERN_VIDEO_MODE)
+	if ((DP_TEST_PATTERN_PHY_PATTERN_BEGIN <= test_pattern &&
+			test_pattern <= DP_TEST_PATTERN_PHY_PATTERN_END) ||
+			test_pattern == DP_TEST_PATTERN_VIDEO_MODE)
 		return true;
 	else
 		return false;
@@ -2377,22 +2376,28 @@ bool dc_link_dp_set_test_pattern(
 		switch (test_pattern) {
 		case DP_TEST_PATTERN_VIDEO_MODE:
 			pattern = PHY_TEST_PATTERN_NONE;
-		break;
+			break;
 		case DP_TEST_PATTERN_D102:
 			pattern = PHY_TEST_PATTERN_D10_2;
-		break;
+			break;
 		case DP_TEST_PATTERN_SYMBOL_ERROR:
 			pattern = PHY_TEST_PATTERN_SYMBOL_ERROR;
-		break;
+			break;
 		case DP_TEST_PATTERN_PRBS7:
 			pattern = PHY_TEST_PATTERN_PRBS7;
-		break;
+			break;
 		case DP_TEST_PATTERN_80BIT_CUSTOM:
 			pattern = PHY_TEST_PATTERN_80BIT_CUSTOM;
-		break;
-		case DP_TEST_PATTERN_HBR2_COMPLIANCE_EYE:
-			pattern = PHY_TEST_PATTERN_HBR2_COMPLIANCE_EYE;
-		break;
+			break;
+		case DP_TEST_PATTERN_CP2520_1:
+			pattern = PHY_TEST_PATTERN_CP2520_1;
+			break;
+		case DP_TEST_PATTERN_CP2520_2:
+			pattern = PHY_TEST_PATTERN_CP2520_2;
+			break;
+		case DP_TEST_PATTERN_CP2520_3:
+			pattern = PHY_TEST_PATTERN_CP2520_3;
+			break;
 		default:
 			return false;
 		}

@@ -376,7 +376,8 @@ static void set_dp_phy_pattern_80bit_custom(
 }
 
 static void set_dp_phy_pattern_hbr2_compliance_cp2520_2(
-	struct dce110_link_encoder *enc110)
+	struct dce110_link_encoder *enc110,
+	unsigned int cp2520_pattern)
 {
 
 	/* previously there is a register DP_HBR2_EYE_PATTERN
@@ -408,10 +409,13 @@ static void set_dp_phy_pattern_hbr2_compliance_cp2520_2(
 	/* swap every BS with SR */
 	REG_UPDATE(DP_DPHY_SCRAM_CNTL, DPHY_SCRAMBLER_BS_COUNT, 0);
 
-	/* select cp2520 pattern 2 */
+	/* select cp2520 patterns */
 	if (REG(DP_DPHY_HBR2_PATTERN_CONTROL))
 		REG_UPDATE(DP_DPHY_HBR2_PATTERN_CONTROL,
-				DP_DPHY_HBR2_PATTERN_CONTROL, 0x2);
+				DP_DPHY_HBR2_PATTERN_CONTROL, cp2520_pattern);
+	else
+		/* pre-DCE11 can only generate CP2520 pattern 2 */
+		ASSERT(cp2520_pattern == 2);
 
 	/* set link training complete */
 	set_link_training_complete(enc110, true);
@@ -1395,8 +1399,11 @@ void dce110_link_encoder_dp_set_phy_pattern(
 		set_dp_phy_pattern_80bit_custom(
 			enc110, param->custom_pattern);
 		break;
-	case DP_TEST_PATTERN_HBR2_COMPLIANCE_EYE:
-		set_dp_phy_pattern_hbr2_compliance_cp2520_2(enc110);
+	case DP_TEST_PATTERN_CP2520_1:
+		set_dp_phy_pattern_hbr2_compliance_cp2520_2(enc110, 1);
+		break;
+	case DP_TEST_PATTERN_CP2520_2:
+		set_dp_phy_pattern_hbr2_compliance_cp2520_2(enc110, 2);
 		break;
 	case DP_TEST_PATTERN_VIDEO_MODE: {
 		set_dp_phy_pattern_passthrough_mode(
