@@ -709,6 +709,8 @@ static void fimd_atomic_flush(struct exynos_drm_crtc *crtc)
 
 	for (i = 0; i < WINDOWS_NR; i++)
 		fimd_shadow_protect_win(ctx, i, false);
+
+	exynos_crtc_handle_event(crtc);
 }
 
 static void fimd_update_plane(struct exynos_drm_crtc *crtc,

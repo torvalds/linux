@@ -378,6 +378,7 @@ static void decon_atomic_flush(struct exynos_drm_crtc *crtc)
 
 	if (ctx->out_type & IFTYPE_I80)
 		set_bit(BIT_WIN_UPDATED, &ctx->flags);
+	exynos_crtc_handle_event(crtc);
 }
 
 static void decon_swreset(struct decon_context *ctx)
