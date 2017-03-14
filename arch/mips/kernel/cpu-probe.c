@@ -289,6 +289,8 @@ static void cpu_set_fpu_opts(struct cpuinfo_mips *c)
 			    MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R6)) {
 		if (c->fpu_id & MIPS_FPIR_3D)
 			c->ases |= MIPS_ASE_MIPS3D;
+		if (c->fpu_id & MIPS_FPIR_UFRP)
+			c->options |= MIPS_CPU_UFR;
 		if (c->fpu_id & MIPS_FPIR_FREP)
 			c->options |= MIPS_CPU_FRE;
 	}
