@@ -155,5 +155,18 @@ void xen_pin_vcpu(int cpu);
 
 void xen_reboot(int reason);
 void xen_emergency_restart(void);
+#ifdef CONFIG_XEN_PV
+void xen_pv_pre_suspend(void);
+void xen_pv_post_suspend(int suspend_cancelled);
+#else
+static inline void xen_pv_pre_suspend(void) {}
+static inline void xen_pv_post_suspend(int suspend_cancelled) {}
+#endif
+
+#ifdef CONFIG_XEN_PVHVM
+void xen_hvm_post_suspend(int suspend_cancelled);
+#else
+static inline void xen_hvm_post_suspend(int suspend_cancelled) {}
+#endif
 
 #endif /* XEN_OPS_H */
