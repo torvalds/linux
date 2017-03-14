@@ -172,8 +172,8 @@ static void decon_setup_trigger(struct decon_context *ctx)
 		return;
 
 	if (!(ctx->out_type & I80_HW_TRG)) {
-		writel(TRIGCON_TE_AUTO_MASK | TRIGCON_SWTRIGEN
-		       | TRIGCON_TE_AUTO_MASK | TRIGCON_SWTRIGEN,
+		writel(TRIGCON_TRIGEN_PER_F | TRIGCON_TRIGEN_F |
+		       TRIGCON_TE_AUTO_MASK | TRIGCON_SWTRIGEN,
 		       ctx->addr + DECON_TRIGCON);
 		return;
 	}
