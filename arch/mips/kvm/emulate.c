@@ -1499,6 +1499,17 @@ enum emulation_result kvm_mips_emulate_store(union mips_instruction inst,
 		goto out_fail;
 
 	switch (inst.i_format.opcode) {
+#if defined(CONFIG_64BIT) && defined(CONFIG_KVM_MIPS_VZ)
+	case sd_op:
+		run->mmio.len = 8;
+		*(u64 *)data = vcpu->arch.gprs[rt];
+
+		kvm_debug("[%#lx] OP_SD: eaddr: %#lx, gpr: %#lx, data: %#llx\n",
+			  vcpu->arch.pc, vcpu->arch.host_cp0_badvaddr,
+			  vcpu->arch.gprs[rt], *(u64 *)data);
+		break;
+#endif
+
 	case sw_op:
 		run->mmio.len = 4;
 		*(u32 *)data = vcpu->arch.gprs[rt];
@@ -1575,6 +1586,15 @@ enum emulation_result kvm_mips_emulate_load(union mips_instruction inst,
 
 	vcpu->mmio_needed = 2;	/* signed */
 	switch (op) {
+#if defined(CONFIG_64BIT) && defined(CONFIG_KVM_MIPS_VZ)
+	case ld_op:
+		run->mmio.len = 8;
+		break;
+
+	case lwu_op:
+		vcpu->mmio_needed = 1;	/* unsigned */
+		/* fall through */
+#endif
 	case lw_op:
 		run->mmio.len = 4;
 		break;
@@ -2421,8 +2441,15 @@ enum emulation_result kvm_mips_complete_mmio_load(struct kvm_vcpu *vcpu,
 	vcpu->arch.pc = vcpu->arch.io_pc;
 
 	switch (run->mmio.len) {
+	case 8:
+		*gpr = *(s64 *)run->mmio.data;
+		break;
+
 	case 4:
-		*gpr = *(s32 *) run->mmio.data;
+		if (vcpu->mmio_needed == 2)
+			*gpr = *(s32 *)run->mmio.data;
+		else
+			*gpr = *(u32 *)run->mmio.data;
 		break;
 
 	case 2:
