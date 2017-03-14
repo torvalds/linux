@@ -887,7 +887,7 @@ struct pipe_ctx *resource_get_head_pipe_for_stream(
 	int i;
 	for (i = 0; i < res_ctx->pool->pipe_count; i++) {
 		if (res_ctx->pipe_ctx[i].stream == stream &&
-				!res_ctx->pipe_ctx[i].top_pipe) {
+				res_ctx->pipe_ctx[i].stream_enc) {
 			return &res_ctx->pipe_ctx[i];
 			break;
 		}
