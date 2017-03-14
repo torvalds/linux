@@ -179,3 +179,7 @@
 	pinctrl-0 = <&usb1_pins>;
 	mentor,multipoint = <0>;
 };
+
+&sata {
+	clocks = <&sysclk5_ck>, <&sata_refclk>;
+};
