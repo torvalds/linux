@@ -472,10 +472,8 @@ int atomisp_acc_load_extensions(struct atomisp_sub_device *asd)
 					acc_fw->fw,
 					acc_flag_to_pipe[i].pipe_id,
 					acc_fw->type);
-				if (ret) {
-					i--;
+				if (ret)
 					goto error;
-				}
 
 				ext_loaded = true;
 			}
@@ -499,7 +497,7 @@ int atomisp_acc_load_extensions(struct atomisp_sub_device *asd)
 	return 0;
 
 error:
-	for (; i >= 0; i--) {
+	while (--i >= 0) {
 		if (acc_fw->flags & acc_flag_to_pipe[i].flag) {
 			atomisp_css_unload_acc_extension(asd, acc_fw->fw,
 					acc_flag_to_pipe[i].pipe_id);
