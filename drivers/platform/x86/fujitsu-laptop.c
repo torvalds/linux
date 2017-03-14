@@ -903,6 +903,10 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 			fujitsu_bl->bl_device->props.power = FB_BLANK_UNBLANK;
 	}
 
+	error = fujitsu_laptop_platform_add();
+	if (error)
+		goto err_unregister_input_dev;
+
 #if IS_ENABLED(CONFIG_LEDS_CLASS)
 	if (call_fext_func(FUNC_LEDS, 0x0, 0x0, 0x0) & LOGOLAMP_POWERON) {
 		result = led_classdev_register(&fujitsu_bl->pf_device->dev,
@@ -993,6 +997,8 @@ static int acpi_fujitsu_laptop_remove(struct acpi_device *device)
 	if (fujitsu_laptop->eco_led_registered)
 		led_classdev_unregister(&eco_led);
 #endif
+
+	fujitsu_laptop_platform_remove();
 
 	input_unregister_device(input);
 
@@ -1180,13 +1186,9 @@ static int __init fujitsu_init(void)
 
 	/* Register platform stuff */
 
-	ret = fujitsu_laptop_platform_add();
-	if (ret)
-		goto err_unregister_acpi;
-
 	ret = platform_driver_register(&fujitsu_pf_driver);
 	if (ret)
-		goto err_remove_platform_device;
+		goto err_unregister_acpi;
 
 	/* Register laptop driver */
 
@@ -1208,8 +1210,6 @@ err_free_fujitsu_laptop:
 	kfree(fujitsu_laptop);
 err_unregister_platform_driver:
 	platform_driver_unregister(&fujitsu_pf_driver);
-err_remove_platform_device:
-	fujitsu_laptop_platform_remove();
 err_unregister_acpi:
 	acpi_bus_unregister_driver(&acpi_fujitsu_bl_driver);
 err_free_fujitsu_bl:
@@ -1225,8 +1225,6 @@ static void __exit fujitsu_cleanup(void)
 	kfree(fujitsu_laptop);
 
 	platform_driver_unregister(&fujitsu_pf_driver);
-
-	fujitsu_laptop_platform_remove();
 
 	acpi_bus_unregister_driver(&acpi_fujitsu_bl_driver);
 
