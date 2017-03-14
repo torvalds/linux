@@ -17,6 +17,11 @@ void xen_smp_intr_free_pv(unsigned int cpu);
 void xen_smp_send_reschedule(int cpu);
 void xen_smp_send_call_function_ipi(const struct cpumask *mask);
 void xen_smp_send_call_function_single_ipi(int cpu);
+
+struct xen_common_irq {
+	int irq;
+	char *name;
+};
 #else /* CONFIG_SMP */
 
 static inline int xen_smp_intr_init(unsigned int cpu)
