@@ -812,6 +812,18 @@ extern int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long entryhi,
 extern int kvm_mips_guest_tlb_lookup(struct kvm_vcpu *vcpu,
 				     unsigned long entryhi);
 
+#ifdef CONFIG_KVM_MIPS_VZ
+int kvm_vz_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long entryhi);
+int kvm_vz_guest_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long gva,
+			    unsigned long *gpa);
+void kvm_vz_local_flush_roottlb_all_guests(void);
+void kvm_vz_local_flush_guesttlb_all(void);
+void kvm_vz_save_guesttlb(struct kvm_mips_tlb *buf, unsigned int index,
+			  unsigned int count);
+void kvm_vz_load_guesttlb(const struct kvm_mips_tlb *buf, unsigned int index,
+			  unsigned int count);
+#endif
+
 void kvm_mips_suspend_mm(int cpu);
 void kvm_mips_resume_mm(int cpu);
 

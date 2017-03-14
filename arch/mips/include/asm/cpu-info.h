@@ -33,6 +33,7 @@ struct guest_info {
 	unsigned long		ases_dyn;
 	unsigned long long	options;
 	unsigned long long	options_dyn;
+	int			tlbsize;
 	u8			conf;
 	u8			kscratch_mask;
 };
