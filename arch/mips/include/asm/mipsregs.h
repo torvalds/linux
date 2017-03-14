@@ -974,6 +974,22 @@
 /* Flush FTLB */
 #define LOONGSON_DIAG_FTLB	(_ULCAST_(1) << 13)
 
+/* CvmCtl register field definitions */
+#define CVMCTL_IPPCI_SHIFT	7
+#define CVMCTL_IPPCI		(_U64CAST_(0x7) << CVMCTL_IPPCI_SHIFT)
+#define CVMCTL_IPTI_SHIFT	4
+#define CVMCTL_IPTI		(_U64CAST_(0x7) << CVMCTL_IPTI_SHIFT)
+
+/* CvmMemCtl2 register field definitions */
+#define CVMMEMCTL2_INHIBITTS	(_U64CAST_(1) << 17)
+
+/* CvmVMConfig register field definitions */
+#define CVMVMCONF_DGHT		(_U64CAST_(1) << 60)
+#define CVMVMCONF_MMUSIZEM1_S	12
+#define CVMVMCONF_MMUSIZEM1	(_U64CAST_(0xff) << CVMVMCONF_MMUSIZEM1_S)
+#define CVMVMCONF_RMMUSIZEM1_S	0
+#define CVMVMCONF_RMMUSIZEM1	(_U64CAST_(0xff) << CVMVMCONF_RMMUSIZEM1_S)
+
 /*
  * Coprocessor 1 (FPU) register names
  */
@@ -1733,6 +1749,13 @@ do {									\
 
 #define read_c0_cvmmemctl()	__read_64bit_c0_register($11, 7)
 #define write_c0_cvmmemctl(val) __write_64bit_c0_register($11, 7, val)
+
+#define read_c0_cvmmemctl2()	__read_64bit_c0_register($16, 6)
+#define write_c0_cvmmemctl2(val) __write_64bit_c0_register($16, 6, val)
+
+#define read_c0_cvmvmconfig()	__read_64bit_c0_register($16, 7)
+#define write_c0_cvmvmconfig(val) __write_64bit_c0_register($16, 7, val)
+
 /*
  * The cacheerr registers are not standardized.	 On OCTEON, they are
  * 64 bits wide.
@@ -2105,6 +2128,19 @@ do {									\
 #define write_gc0_kscratch4(val)	__write_ulong_gc0_register(31, 5, val)
 #define write_gc0_kscratch5(val)	__write_ulong_gc0_register(31, 6, val)
 #define write_gc0_kscratch6(val)	__write_ulong_gc0_register(31, 7, val)
+
+/* Cavium OCTEON (cnMIPS) */
+#define read_gc0_cvmcount()		__read_ulong_gc0_register(9, 6)
+#define write_gc0_cvmcount(val)		__write_ulong_gc0_register(9, 6, val)
+
+#define read_gc0_cvmctl()		__read_64bit_gc0_register(9, 7)
+#define write_gc0_cvmctl(val)		__write_64bit_gc0_register(9, 7, val)
+
+#define read_gc0_cvmmemctl()		__read_64bit_gc0_register(11, 7)
+#define write_gc0_cvmmemctl(val)	__write_64bit_gc0_register(11, 7, val)
+
+#define read_gc0_cvmmemctl2()		__read_64bit_gc0_register(16, 6)
+#define write_gc0_cvmmemctl2(val)	__write_64bit_gc0_register(16, 6, val)
 
 /*
  * Macros to access the floating point coprocessor control registers
