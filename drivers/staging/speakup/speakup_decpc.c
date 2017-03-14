@@ -481,6 +481,7 @@ static int synth_probe(struct spk_synth *synth)
 
 static void dtpc_release(void)
 {
+	spk_stop_serial_interrupt();
 	if (speakup_info.port_tts)
 		synth_release_region(speakup_info.port_tts, SYNTH_IO_EXTENT);
 	speakup_info.port_tts = 0;

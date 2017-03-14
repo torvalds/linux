@@ -462,7 +462,6 @@ void synth_release(void)
 		sysfs_remove_group(speakup_kobj, &synth->attributes);
 	for (var = synth->vars; var->var_id != MAXVARS; var++)
 		speakup_unregister_var(var->var_id);
-	spk_stop_serial_interrupt();
 	synth->release();
 	synth = NULL;
 }

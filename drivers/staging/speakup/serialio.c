@@ -148,6 +148,7 @@ void spk_stop_serial_interrupt(void)
 	/* Free IRQ */
 	free_irq(serstate->irq, (void *)synth_readbuf_handler);
 }
+EXPORT_SYMBOL_GPL(spk_stop_serial_interrupt);
 
 int spk_wait_for_xmitr(struct spk_synth *in_synth)
 {
@@ -223,6 +224,7 @@ int spk_serial_out(struct spk_synth *in_synth, const char ch)
 
 void spk_serial_release(void)
 {
+	spk_stop_serial_interrupt();
 	if (speakup_info.port_tts == 0)
 		return;
 	synth_release_region(speakup_info.port_tts, 8);
