@@ -42,10 +42,10 @@
 
 const struct old_serial_port *spk_serial_init(int index);
 void spk_stop_serial_interrupt(void);
-int spk_wait_for_xmitr(void);
+int spk_wait_for_xmitr(struct spk_synth *in_synth);
 unsigned char spk_serial_in(void);
 unsigned char spk_serial_in_nowait(void);
-int spk_serial_out(const char ch);
+int spk_serial_out(struct spk_synth *in_synth, const char ch);
 void spk_serial_release(void);
 
 void synth_buffer_skip_nonlatin1(void);

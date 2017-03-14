@@ -120,7 +120,7 @@ void spk_do_catch_up(struct spk_synth *synth)
 		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 		if (ch == '\n')
 			ch = synth->procspeech;
-		if (!spk_serial_out(ch)) {
+		if (!spk_serial_out(synth, ch)) {
 			schedule_timeout(msecs_to_jiffies(full_time_val));
 			continue;
 		}
@@ -130,7 +130,7 @@ void spk_do_catch_up(struct spk_synth *synth)
 			delay_time_val = delay_time->u.n.value;
 			full_time_val = full_time->u.n.value;
 			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
-			if (spk_serial_out(synth->procspeech))
+			if (spk_serial_out(synth, synth->procspeech))
 				schedule_timeout(
 					msecs_to_jiffies(delay_time_val));
 			else
@@ -143,7 +143,7 @@ void spk_do_catch_up(struct spk_synth *synth)
 		synth_buffer_getc();
 		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 	}
-	spk_serial_out(synth->procspeech);
+	spk_serial_out(synth, synth->procspeech);
 }
 EXPORT_SYMBOL_GPL(spk_do_catch_up);
 
@@ -154,7 +154,7 @@ const char *spk_synth_immediate(struct spk_synth *synth, const char *buff)
 	while ((ch = *buff)) {
 		if (ch == '\n')
 			ch = synth->procspeech;
-		if (spk_wait_for_xmitr())
+		if (spk_wait_for_xmitr(synth))
 			outb(ch, speakup_info.port_tts);
 		else
 			return buff;
@@ -166,7 +166,7 @@ EXPORT_SYMBOL_GPL(spk_synth_immediate);
 
 void spk_synth_flush(struct spk_synth *synth)
 {
-	spk_serial_out(synth->clear);
+	spk_serial_out(synth, synth->clear);
 }
 EXPORT_SYMBOL_GPL(spk_synth_flush);
 
@@ -181,7 +181,7 @@ int spk_synth_is_alive_restart(struct spk_synth *synth)
 {
 	if (synth->alive)
 		return 1;
-	if (spk_wait_for_xmitr() > 0) {
+	if (spk_wait_for_xmitr(synth) > 0) {
 		/* restart */
 		synth->alive = 1;
 		synth_printf("%s", synth->init);

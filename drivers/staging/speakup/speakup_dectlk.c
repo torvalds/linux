@@ -251,7 +251,7 @@ static void do_catch_up(struct spk_synth *synth)
 		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 		if (ch == '\n')
 			ch = 0x0D;
-		if (synth_full_val || !spk_serial_out(ch)) {
+		if (synth_full_val || !spk_serial_out(synth, ch)) {
 			schedule_timeout(msecs_to_jiffies(delay_time_val));
 			continue;
 		}
@@ -265,10 +265,10 @@ static void do_catch_up(struct spk_synth *synth)
 			in_escape = 0;
 		else if (ch <= SPACE) {
 			if (!in_escape && strchr(",.!?;:", last))
-				spk_serial_out(PROCSPEECH);
+				spk_serial_out(synth, PROCSPEECH);
 			if (time_after_eq(jiffies, jiff_max)) {
 				if (!in_escape)
-					spk_serial_out(PROCSPEECH);
+					spk_serial_out(synth, PROCSPEECH);
 				spin_lock_irqsave(&speakup_info.spinlock,
 						flags);
 				jiffy_delta_val = jiffy_delta->u.n.value;
@@ -283,17 +283,17 @@ static void do_catch_up(struct spk_synth *synth)
 		last = ch;
 	}
 	if (!in_escape)
-		spk_serial_out(PROCSPEECH);
+		spk_serial_out(synth, PROCSPEECH);
 }
 
 static void synth_flush(struct spk_synth *synth)
 {
 	if (in_escape)
 		/* if in command output ']' so we don't get an error */
-		spk_serial_out(']');
+		spk_serial_out(synth, ']');
 	in_escape = 0;
 	is_flushing = 1;
-	spk_serial_out(SYNTH_CLEAR);
+	spk_serial_out(synth, SYNTH_CLEAR);
 }
 
 module_param_named(ser, synth_dectlk.ser, int, 0444);
