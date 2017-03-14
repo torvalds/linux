@@ -927,14 +927,16 @@ static int wilc_spi_read_int(struct wilc *wilc, u32 *int_status)
 {
 	struct spi_device *spi = to_spi_device(wilc->dev);
 	int ret;
+	u32 tmp;
+	u32 byte_cnt;
+	int happended, j;
+	u32 unknown_mask;
+	u32 irq_flags;
 
 	if (g_spi.has_thrpt_enh) {
 		ret = spi_internal_read(wilc, 0xe840 - WILC_SPI_REG_BASE,
 					int_status);
 	} else {
-		u32 tmp;
-		u32 byte_cnt;
-
 		ret = wilc_spi_read_reg(wilc, WILC_VMM_TO_HOST_SIZE,
 					&byte_cnt);
 		if (!ret) {
@@ -945,12 +947,8 @@ static int wilc_spi_read_int(struct wilc *wilc, u32 *int_status)
 		tmp = (byte_cnt >> 2) & IRQ_DMA_WD_CNT_MASK;
 
 		{
-			int happended, j;
-
 			j = 0;
 			do {
-				u32 irq_flags;
-
 				happended = 0;
 
 				wilc_spi_read_reg(wilc, 0x1a90, &irq_flags);
@@ -963,8 +961,6 @@ static int wilc_spi_read_int(struct wilc *wilc, u32 *int_status)
 				}
 
 				{
-					u32 unknown_mask;
-
 					unknown_mask = ~((1ul << g_spi.nint) - 1);
 
 					if ((tmp >> IRG_FLAGS_OFFSET) & unknown_mask) {
