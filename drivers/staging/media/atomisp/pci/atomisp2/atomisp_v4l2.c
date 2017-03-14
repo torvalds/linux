@@ -411,7 +411,7 @@ void punit_ddr_dvfs_enable(bool enable)
 		}
 	}
 
-	if (max_wait == 0)
+	if (max_wait == -1)
 		pr_info("DDR DVFS, door bell is not cleared within 3ms\n");
 }
 
