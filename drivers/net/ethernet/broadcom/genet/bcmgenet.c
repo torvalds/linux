@@ -1174,6 +1174,14 @@ static unsigned int __bcmgenet_tx_reclaim(struct net_device *dev,
 	unsigned int txbds_ready;
 	unsigned int txbds_processed = 0;
 
+	/* Clear status before servicing to reduce spurious interrupts */
+	if (ring->index == DESC_INDEX)
+		bcmgenet_intrl2_0_writel(priv, UMAC_IRQ_TXDMA_DONE,
+					 INTRL2_CPU_CLEAR);
+	else
+		bcmgenet_intrl2_1_writel(priv, (1 << ring->index),
+					 INTRL2_CPU_CLEAR);
+
 	/* Compute how many buffers are transmitted since last xmit call */
 	c_index = bcmgenet_tdma_ring_readl(priv, ring->index, TDMA_CONS_INDEX)
 		& DMA_C_INDEX_MASK;
@@ -1584,9 +1592,20 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_rx_ring *ring,
 	unsigned long dma_flag;
 	int len;
 	unsigned int rxpktprocessed = 0, rxpkttoprocess;
-	unsigned int p_index;
+	unsigned int p_index, mask;
 	unsigned int discards;
 	unsigned int chksum_ok = 0;
+
+	/* Clear status before servicing to reduce spurious interrupts */
+	if (ring->index == DESC_INDEX) {
+		bcmgenet_intrl2_0_writel(priv, UMAC_IRQ_RXDMA_DONE,
+					 INTRL2_CPU_CLEAR);
+	} else {
+		mask = 1 << (UMAC_IRQ1_RX_INTR_SHIFT + ring->index);
+		bcmgenet_intrl2_1_writel(priv,
+					 mask,
+					 INTRL2_CPU_CLEAR);
+	}
 
 	p_index = bcmgenet_rdma_ring_readl(priv, ring->index, RDMA_PROD_INDEX);
 
