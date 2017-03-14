@@ -929,7 +929,7 @@ static int wilc_spi_read_int(struct wilc *wilc, u32 *int_status)
 	int ret;
 	u32 tmp;
 	u32 byte_cnt;
-	int happended, j;
+	int happened, j;
 	u32 unknown_mask;
 	u32 irq_flags;
 
@@ -949,7 +949,7 @@ static int wilc_spi_read_int(struct wilc *wilc, u32 *int_status)
 		{
 			j = 0;
 			do {
-				happended = 0;
+				happened = 0;
 
 				wilc_spi_read_reg(wilc, 0x1a90, &irq_flags);
 				tmp |= ((irq_flags >> 27) << IRG_FLAGS_OFFSET);
@@ -965,11 +965,11 @@ static int wilc_spi_read_int(struct wilc *wilc, u32 *int_status)
 
 					if ((tmp >> IRG_FLAGS_OFFSET) & unknown_mask) {
 						dev_err(&spi->dev, "Unexpected interrupt (2): j=%d, tmp=%x, mask=%x\n", j, tmp, unknown_mask);
-						happended = 1;
+						happened = 1;
 					}
 				}
 				j++;
-			} while (happended);
+			} while (happened);
 		}
 
 		*int_status = tmp;
