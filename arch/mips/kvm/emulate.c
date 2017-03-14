@@ -308,7 +308,7 @@ int kvm_get_badinstrp(u32 *opc, struct kvm_vcpu *vcpu, u32 *out)
  *		CP0_Cause.DC bit or the count_ctl.DC bit.
  *		0 otherwise (in which case CP0_Count timer is running).
  */
-static inline int kvm_mips_count_disabled(struct kvm_vcpu *vcpu)
+int kvm_mips_count_disabled(struct kvm_vcpu *vcpu)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 
@@ -467,7 +467,7 @@ u32 kvm_mips_read_count(struct kvm_vcpu *vcpu)
  *
  * Returns:	The ktime at the point of freeze.
  */
-static ktime_t kvm_mips_freeze_hrtimer(struct kvm_vcpu *vcpu, u32 *count)
+ktime_t kvm_mips_freeze_hrtimer(struct kvm_vcpu *vcpu, u32 *count)
 {
 	ktime_t now;
 
@@ -514,6 +514,82 @@ static void kvm_mips_resume_hrtimer(struct kvm_vcpu *vcpu,
 	/* Update hrtimer to use new timeout */
 	hrtimer_cancel(&vcpu->arch.comparecount_timer);
 	hrtimer_start(&vcpu->arch.comparecount_timer, expire, HRTIMER_MODE_ABS);
+}
+
+/**
+ * kvm_mips_restore_hrtimer() - Restore hrtimer after a gap, updating expiry.
+ * @vcpu:	Virtual CPU.
+ * @before:	Time before Count was saved, lower bound of drift calculation.
+ * @count:	CP0_Count at point of restore.
+ * @min_drift:	Minimum amount of drift permitted before correction.
+ *		Must be <= 0.
+ *
+ * Restores the timer from a particular @count, accounting for drift. This can
+ * be used in conjunction with kvm_mips_freeze_timer() when a hardware timer is
+ * to be used for a period of time, but the exact ktime corresponding to the
+ * final Count that must be restored is not known.
+ *
+ * It is gauranteed that a timer interrupt immediately after restore will be
+ * handled, but not if CP0_Compare is exactly at @count. That case should
+ * already be handled when the hardware timer state is saved.
+ *
+ * Assumes !kvm_mips_count_disabled(@vcpu) (guest CP0_Count timer is not
+ * stopped).
+ *
+ * Returns:	Amount of correction to count_bias due to drift.
+ */
+int kvm_mips_restore_hrtimer(struct kvm_vcpu *vcpu, ktime_t before,
+			     u32 count, int min_drift)
+{
+	ktime_t now, count_time;
+	u32 now_count, before_count;
+	u64 delta;
+	int drift, ret = 0;
+
+	/* Calculate expected count at before */
+	before_count = vcpu->arch.count_bias +
+			kvm_mips_ktime_to_count(vcpu, before);
+
+	/*
+	 * Detect significantly negative drift, where count is lower than
+	 * expected. Some negative drift is expected when hardware counter is
+	 * set after kvm_mips_freeze_timer(), and it is harmless to allow the
+	 * time to jump forwards a little, within reason. If the drift is too
+	 * significant, adjust the bias to avoid a big Guest.CP0_Count jump.
+	 */
+	drift = count - before_count;
+	if (drift < min_drift) {
+		count_time = before;
+		vcpu->arch.count_bias += drift;
+		ret = drift;
+		goto resume;
+	}
+
+	/* Calculate expected count right now */
+	now = ktime_get();
+	now_count = vcpu->arch.count_bias + kvm_mips_ktime_to_count(vcpu, now);
+
+	/*
+	 * Detect positive drift, where count is higher than expected, and
+	 * adjust the bias to avoid guest time going backwards.
+	 */
+	drift = count - now_count;
+	if (drift > 0) {
+		count_time = now;
+		vcpu->arch.count_bias += drift;
+		ret = drift;
+		goto resume;
+	}
+
+	/* Subtract nanosecond delta to find ktime when count was read */
+	delta = (u64)(u32)(now_count - count);
+	delta = div_u64(delta * NSEC_PER_SEC, vcpu->arch.count_hz);
+	count_time = ktime_sub_ns(now, delta);
+
+resume:
+	/* Resume using the calculated ktime */
+	kvm_mips_resume_hrtimer(vcpu, count_time, count);
+	return ret;
 }
 
 /**
@@ -897,6 +973,7 @@ enum emulation_result kvm_mips_emul_wait(struct kvm_vcpu *vcpu)
 	++vcpu->stat.wait_exits;
 	trace_kvm_exit(vcpu, KVM_TRACE_EXIT_WAIT);
 	if (!vcpu->arch.pending_exceptions) {
+		kvm_vz_lose_htimer(vcpu);
 		vcpu->arch.wait = 1;
 		kvm_vcpu_block(vcpu);
 

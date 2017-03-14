@@ -1094,7 +1094,8 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 {
-	return kvm_mips_pending_timer(vcpu);
+	return kvm_mips_pending_timer(vcpu) ||
+		kvm_read_c0_guest_cause(vcpu->arch.cop0) & C_TI;
 }
 
 int kvm_arch_vcpu_dump_regs(struct kvm_vcpu *vcpu)
@@ -1381,6 +1382,9 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 skip_emul:
 	local_irq_disable();
+
+	if (ret == RESUME_GUEST)
+		kvm_vz_acquire_htimer(vcpu);
 
 	if (er == EMULATE_DONE && !(ret & RESUME_HOST))
 		kvm_mips_deliver_interrupts(vcpu, cause);

@@ -1068,6 +1068,20 @@ void kvm_mips_count_enable_cause(struct kvm_vcpu *vcpu);
 void kvm_mips_count_disable_cause(struct kvm_vcpu *vcpu);
 enum hrtimer_restart kvm_mips_count_timeout(struct kvm_vcpu *vcpu);
 
+/* fairly internal functions requiring some care to use */
+int kvm_mips_count_disabled(struct kvm_vcpu *vcpu);
+ktime_t kvm_mips_freeze_hrtimer(struct kvm_vcpu *vcpu, u32 *count);
+int kvm_mips_restore_hrtimer(struct kvm_vcpu *vcpu, ktime_t before,
+			     u32 count, int min_drift);
+
+#ifdef CONFIG_KVM_MIPS_VZ
+void kvm_vz_acquire_htimer(struct kvm_vcpu *vcpu);
+void kvm_vz_lose_htimer(struct kvm_vcpu *vcpu);
+#else
+static inline void kvm_vz_acquire_htimer(struct kvm_vcpu *vcpu) {}
+static inline void kvm_vz_lose_htimer(struct kvm_vcpu *vcpu) {}
+#endif
+
 enum emulation_result kvm_mips_check_privilege(u32 cause,
 					       u32 *opc,
 					       struct kvm_run *run,

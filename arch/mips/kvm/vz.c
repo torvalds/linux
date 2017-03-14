@@ -354,12 +354,37 @@ static int kvm_vz_irq_clear_cb(struct kvm_vcpu *vcpu, unsigned int priority,
  */
 
 /**
+ * kvm_vz_should_use_htimer() - Find whether to use the VZ hard guest timer.
+ * @vcpu:	Virtual CPU.
+ *
+ * Returns:	true if the VZ GTOffset & real guest CP0_Count should be used
+ *		instead of software emulation of guest timer.
+ *		false otherwise.
+ */
+static bool kvm_vz_should_use_htimer(struct kvm_vcpu *vcpu)
+{
+	if (kvm_mips_count_disabled(vcpu))
+		return false;
+
+	/* Chosen frequency must match real frequency */
+	if (mips_hpt_frequency != vcpu->arch.count_hz)
+		return false;
+
+	/* We don't support a CP0_GTOffset with fewer bits than CP0_Count */
+	if (current_cpu_data.gtoffset_mask != 0xffffffff)
+		return false;
+
+	return true;
+}
+
+/**
  * _kvm_vz_restore_stimer() - Restore soft timer state.
  * @vcpu:	Virtual CPU.
  * @compare:	CP0_Compare register value, restored by caller.
  * @cause:	CP0_Cause register to restore.
  *
- * Restore VZ state relating to the soft timer.
+ * Restore VZ state relating to the soft timer. The hard timer can be enabled
+ * later.
  */
 static void _kvm_vz_restore_stimer(struct kvm_vcpu *vcpu, u32 compare,
 				   u32 cause)
@@ -375,7 +400,47 @@ static void _kvm_vz_restore_stimer(struct kvm_vcpu *vcpu, u32 compare,
 }
 
 /**
- * kvm_vz_restore_timer() - Restore guest timer state.
+ * _kvm_vz_restore_htimer() - Restore hard timer state.
+ * @vcpu:	Virtual CPU.
+ * @compare:	CP0_Compare register value, restored by caller.
+ * @cause:	CP0_Cause register to restore.
+ *
+ * Restore hard timer Guest.Count & Guest.Cause taking care to preserve the
+ * value of Guest.CP0_Cause.TI while restoring Guest.CP0_Cause.
+ */
+static void _kvm_vz_restore_htimer(struct kvm_vcpu *vcpu,
+				   u32 compare, u32 cause)
+{
+	u32 start_count, after_count;
+	ktime_t freeze_time;
+	unsigned long flags;
+
+	/*
+	 * Freeze the soft-timer and sync the guest CP0_Count with it. We do
+	 * this with interrupts disabled to avoid latency.
+	 */
+	local_irq_save(flags);
+	freeze_time = kvm_mips_freeze_hrtimer(vcpu, &start_count);
+	write_c0_gtoffset(start_count - read_c0_count());
+	local_irq_restore(flags);
+
+	/* restore guest CP0_Cause, as TI may already be set */
+	back_to_back_c0_hazard();
+	write_gc0_cause(cause);
+
+	/*
+	 * The above sequence isn't atomic and would result in lost timer
+	 * interrupts if we're not careful. Detect if a timer interrupt is due
+	 * and assert it.
+	 */
+	back_to_back_c0_hazard();
+	after_count = read_gc0_count();
+	if (after_count - start_count > compare - start_count - 1)
+		kvm_vz_queue_irq(vcpu, MIPS_EXC_INT_TIMER);
+}
+
+/**
+ * kvm_vz_restore_timer() - Restore timer state.
  * @vcpu:	Virtual CPU.
  *
  * Restore soft timer state from saved context.
@@ -393,22 +458,134 @@ static void kvm_vz_restore_timer(struct kvm_vcpu *vcpu)
 }
 
 /**
+ * kvm_vz_acquire_htimer() - Switch to hard timer state.
+ * @vcpu:	Virtual CPU.
+ *
+ * Restore hard timer state on top of existing soft timer state if possible.
+ *
+ * Since hard timer won't remain active over preemption, preemption should be
+ * disabled by the caller.
+ */
+void kvm_vz_acquire_htimer(struct kvm_vcpu *vcpu)
+{
+	u32 gctl0;
+
+	gctl0 = read_c0_guestctl0();
+	if (!(gctl0 & MIPS_GCTL0_GT) && kvm_vz_should_use_htimer(vcpu)) {
+		/* enable guest access to hard timer */
+		write_c0_guestctl0(gctl0 | MIPS_GCTL0_GT);
+
+		_kvm_vz_restore_htimer(vcpu, read_gc0_compare(),
+				       read_gc0_cause());
+	}
+}
+
+/**
+ * _kvm_vz_save_htimer() - Switch to software emulation of guest timer.
+ * @vcpu:	Virtual CPU.
+ * @compare:	Pointer to write compare value to.
+ * @cause:	Pointer to write cause value to.
+ *
+ * Save VZ guest timer state and switch to software emulation of guest CP0
+ * timer. The hard timer must already be in use, so preemption should be
+ * disabled.
+ */
+static void _kvm_vz_save_htimer(struct kvm_vcpu *vcpu,
+				u32 *out_compare, u32 *out_cause)
+{
+	u32 cause, compare, before_count, end_count;
+	ktime_t before_time;
+
+	compare = read_gc0_compare();
+	*out_compare = compare;
+
+	before_time = ktime_get();
+
+	/*
+	 * Record the CP0_Count *prior* to saving CP0_Cause, so we have a time
+	 * at which no pending timer interrupt is missing.
+	 */
+	before_count = read_gc0_count();
+	back_to_back_c0_hazard();
+	cause = read_gc0_cause();
+	*out_cause = cause;
+
+	/*
+	 * Record a final CP0_Count which we will transfer to the soft-timer.
+	 * This is recorded *after* saving CP0_Cause, so we don't get any timer
+	 * interrupts from just after the final CP0_Count point.
+	 */
+	back_to_back_c0_hazard();
+	end_count = read_gc0_count();
+
+	/*
+	 * The above sequence isn't atomic, so we could miss a timer interrupt
+	 * between reading CP0_Cause and end_count. Detect and record any timer
+	 * interrupt due between before_count and end_count.
+	 */
+	if (end_count - before_count > compare - before_count - 1)
+		kvm_vz_queue_irq(vcpu, MIPS_EXC_INT_TIMER);
+
+	/*
+	 * Restore soft-timer, ignoring a small amount of negative drift due to
+	 * delay between freeze_hrtimer and setting CP0_GTOffset.
+	 */
+	kvm_mips_restore_hrtimer(vcpu, before_time, end_count, -0x10000);
+}
+
+/**
  * kvm_vz_save_timer() - Save guest timer state.
  * @vcpu:	Virtual CPU.
  *
- * Save VZ guest timer state.
+ * Save VZ guest timer state and switch to soft guest timer if hard timer was in
+ * use.
  */
 static void kvm_vz_save_timer(struct kvm_vcpu *vcpu)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
-	u32 compare, cause;
+	u32 gctl0, compare, cause;
 
-	compare = read_gc0_compare();
-	cause = read_gc0_cause();
+	gctl0 = read_c0_guestctl0();
+	if (gctl0 & MIPS_GCTL0_GT) {
+		/* disable guest use of hard timer */
+		write_c0_guestctl0(gctl0 & ~MIPS_GCTL0_GT);
+
+		/* save hard timer state */
+		_kvm_vz_save_htimer(vcpu, &compare, &cause);
+	} else {
+		compare = read_gc0_compare();
+		cause = read_gc0_cause();
+	}
 
 	/* save timer-related state to VCPU context */
 	kvm_write_sw_gc0_cause(cop0, cause);
 	kvm_write_sw_gc0_compare(cop0, compare);
+}
+
+/**
+ * kvm_vz_lose_htimer() - Ensure hard guest timer is not in use.
+ * @vcpu:	Virtual CPU.
+ *
+ * Transfers the state of the hard guest timer to the soft guest timer, leaving
+ * guest state intact so it can continue to be used with the soft timer.
+ */
+void kvm_vz_lose_htimer(struct kvm_vcpu *vcpu)
+{
+	u32 gctl0, compare, cause;
+
+	preempt_disable();
+	gctl0 = read_c0_guestctl0();
+	if (gctl0 & MIPS_GCTL0_GT) {
+		/* disable guest use of timer */
+		write_c0_guestctl0(gctl0 & ~MIPS_GCTL0_GT);
+
+		/* switch to soft timer */
+		_kvm_vz_save_htimer(vcpu, &compare, &cause);
+
+		/* leave soft timer in usable state */
+		_kvm_vz_restore_stimer(vcpu, compare, cause);
+	}
+	preempt_enable();
 }
 
 /**
@@ -826,6 +1003,7 @@ static enum emulation_result kvm_vz_gpsi_cop0(union mips_instruction inst,
 
 			if (rd == MIPS_CP0_COUNT &&
 			    sel == 0) {			/* Count */
+				kvm_vz_lose_htimer(vcpu);
 				kvm_mips_write_count(vcpu, vcpu->arch.gprs[rt]);
 			} else if (rd == MIPS_CP0_COMPARE &&
 				   sel == 0) {		/* Compare */
@@ -1090,10 +1268,12 @@ static enum emulation_result kvm_trap_vz_handle_gsfc(u32 cause, u32 *opc,
 
 			/* DC bit enabling/disabling timer? */
 			if (change & CAUSEF_DC) {
-				if (val & CAUSEF_DC)
+				if (val & CAUSEF_DC) {
+					kvm_vz_lose_htimer(vcpu);
 					kvm_mips_count_disable_cause(vcpu);
-				else
+				} else {
 					kvm_mips_count_enable_cause(vcpu);
+				}
 			}
 
 			/* Only certain bits are RW to the guest */
@@ -2863,6 +3043,7 @@ static int kvm_vz_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	int cpu = smp_processor_id();
 	int r;
 
+	kvm_vz_acquire_htimer(vcpu);
 	/* Check if we have any exceptions/interrupts pending */
 	kvm_mips_deliver_interrupts(vcpu, read_gc0_cause());
 
