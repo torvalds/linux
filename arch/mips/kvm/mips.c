@@ -1230,7 +1230,8 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	vcpu->mode = OUTSIDE_GUEST_MODE;
 
 	/* re-enable HTW before enabling interrupts */
-	htw_start();
+	if (!IS_ENABLED(CONFIG_KVM_MIPS_VZ))
+		htw_start();
 
 	/* Set a default exit reason */
 	run->exit_reason = KVM_EXIT_UNKNOWN;
@@ -1248,17 +1249,20 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			cause, opc, run, vcpu);
 	trace_kvm_exit(vcpu, exccode);
 
-	/*
-	 * Do a privilege check, if in UM most of these exit conditions end up
-	 * causing an exception to be delivered to the Guest Kernel
-	 */
-	er = kvm_mips_check_privilege(cause, opc, run, vcpu);
-	if (er == EMULATE_PRIV_FAIL) {
-		goto skip_emul;
-	} else if (er == EMULATE_FAIL) {
-		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-		ret = RESUME_HOST;
-		goto skip_emul;
+	if (!IS_ENABLED(CONFIG_KVM_MIPS_VZ)) {
+		/*
+		 * Do a privilege check, if in UM most of these exit conditions
+		 * end up causing an exception to be delivered to the Guest
+		 * Kernel
+		 */
+		er = kvm_mips_check_privilege(cause, opc, run, vcpu);
+		if (er == EMULATE_PRIV_FAIL) {
+			goto skip_emul;
+		} else if (er == EMULATE_FAIL) {
+			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+			ret = RESUME_HOST;
+			goto skip_emul;
+		}
 	}
 
 	switch (exccode) {
@@ -1418,7 +1422,8 @@ skip_emul:
 	}
 
 	/* Disable HTW before returning to guest or host */
-	htw_stop();
+	if (!IS_ENABLED(CONFIG_KVM_MIPS_VZ))
+		htw_stop();
 
 	return ret;
 }
