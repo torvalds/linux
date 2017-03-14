@@ -104,10 +104,8 @@ enum i40e_dyn_idx_t {
 
 /* Supported Rx Buffer Sizes (a multiple of 128) */
 #define I40E_RXBUFFER_256   256
+#define I40E_RXBUFFER_1536  1536  /* 128B aligned standard Ethernet frame */
 #define I40E_RXBUFFER_2048  2048
-#define I40E_RXBUFFER_3072  3072   /* For FCoE MTU of 2158 */
-#define I40E_RXBUFFER_4096  4096
-#define I40E_RXBUFFER_8192  8192
 #define I40E_MAX_RXBUFFER   9728  /* largest size for single descriptor */
 
 /* NOTE: netdev_alloc_skb reserves up to 64 bytes, NET_IP_ALIGN means we

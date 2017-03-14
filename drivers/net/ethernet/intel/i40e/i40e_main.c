@@ -2995,7 +2995,8 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 
 	ring->rx_buf_len = vsi->rx_buf_len;
 
-	rx_ctx.dbuff = ring->rx_buf_len >> I40E_RXQ_CTX_DBUFF_SHIFT;
+	rx_ctx.dbuff = DIV_ROUND_UP(ring->rx_buf_len,
+				    BIT_ULL(I40E_RXQ_CTX_DBUFF_SHIFT));
 
 	rx_ctx.base = (ring->dma / 128);
 	rx_ctx.qlen = ring->count;
@@ -3075,17 +3076,18 @@ static int i40e_vsi_configure_rx(struct i40e_vsi *vsi)
 	int err = 0;
 	u16 i;
 
-	if (vsi->netdev && (vsi->netdev->mtu > ETH_DATA_LEN))
-		vsi->max_frame = vsi->netdev->mtu + ETH_HLEN
-			       + ETH_FCS_LEN + VLAN_HLEN;
-	else
-		vsi->max_frame = I40E_RXBUFFER_2048;
-
-	vsi->rx_buf_len = I40E_RXBUFFER_2048;
-
-	/* round up for the chip's needs */
-	vsi->rx_buf_len = ALIGN(vsi->rx_buf_len,
-				BIT_ULL(I40E_RXQ_CTX_DBUFF_SHIFT));
+	if (!vsi->netdev || (vsi->back->flags & I40E_FLAG_LEGACY_RX)) {
+		vsi->max_frame = I40E_MAX_RXBUFFER;
+		vsi->rx_buf_len = I40E_RXBUFFER_2048;
+#if (PAGE_SIZE < 8192)
+	} else if (vsi->netdev->mtu <= ETH_DATA_LEN) {
+		vsi->max_frame = I40E_RXBUFFER_1536 - NET_IP_ALIGN;
+		vsi->rx_buf_len = I40E_RXBUFFER_1536 - NET_IP_ALIGN;
+#endif
+	} else {
+		vsi->max_frame = I40E_MAX_RXBUFFER;
+		vsi->rx_buf_len = I40E_RXBUFFER_2048;
+	}
 
 	/* set up individual rings */
 	for (i = 0; i < vsi->num_queue_pairs && !err; i++)

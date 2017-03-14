@@ -686,12 +686,26 @@ static void i40evf_configure_tx(struct i40evf_adapter *adapter)
  **/
 static void i40evf_configure_rx(struct i40evf_adapter *adapter)
 {
+	unsigned int rx_buf_len = I40E_RXBUFFER_2048;
+	struct net_device *netdev = adapter->netdev;
 	struct i40e_hw *hw = &adapter->hw;
 	int i;
 
+	/* Legacy Rx will always default to a 2048 buffer size. */
+#if (PAGE_SIZE < 8192)
+	if (!(adapter->flags & I40EVF_FLAG_LEGACY_RX)) {
+		/* We use a 1536 buffer size for configurations with
+		 * standard Ethernet mtu.  On x86 this gives us enough room
+		 * for shared info and 192 bytes of padding.
+		 */
+		if (netdev->mtu <= ETH_DATA_LEN)
+			rx_buf_len = I40E_RXBUFFER_1536 - NET_IP_ALIGN;
+	}
+#endif
+
 	for (i = 0; i < adapter->num_active_queues; i++) {
 		adapter->rx_rings[i].tail = hw->hw_addr + I40E_QRX_TAIL1(i);
-		adapter->rx_rings[i].rx_buf_len = I40EVF_RXBUFFER_2048;
+		adapter->rx_rings[i].rx_buf_len = rx_buf_len;
 	}
 }
 

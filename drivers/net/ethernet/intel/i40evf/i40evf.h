@@ -72,10 +72,6 @@ struct i40e_vsi {
 #define I40EVF_MAX_RXD		4096
 #define I40EVF_MIN_RXD		64
 #define I40EVF_REQ_DESCRIPTOR_MULTIPLE	32
-
-/* Supported Rx Buffer Sizes */
-#define I40EVF_RXBUFFER_2048	2048
-#define I40EVF_MAX_RXBUFFER	16384  /* largest size for single descriptor */
 #define I40EVF_MAX_AQ_BUF_SIZE	4096
 #define I40EVF_AQ_LEN		32
 #define I40EVF_AQ_MAX_ERR	20 /* times to try before resetting AQ */

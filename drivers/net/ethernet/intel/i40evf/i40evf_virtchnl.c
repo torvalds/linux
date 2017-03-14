@@ -234,7 +234,7 @@ void i40evf_configure_queues(struct i40evf_adapter *adapter)
 	struct i40e_virtchnl_vsi_queue_config_info *vqci;
 	struct i40e_virtchnl_queue_pair_info *vqpi;
 	int pairs = adapter->num_active_queues;
-	int i, len;
+	int i, len, max_frame = I40E_MAX_RXBUFFER;
 
 	if (adapter->current_op != I40E_VIRTCHNL_OP_UNKNOWN) {
 		/* bail because we already have a command pending */
@@ -248,6 +248,11 @@ void i40evf_configure_queues(struct i40evf_adapter *adapter)
 	vqci = kzalloc(len, GFP_KERNEL);
 	if (!vqci)
 		return;
+
+	/* Limit maximum frame size when jumbo frames is not enabled */
+	if (!(adapter->flags & I40EVF_FLAG_LEGACY_RX) &&
+	    (adapter->netdev->mtu <= ETH_DATA_LEN))
+		max_frame = I40E_RXBUFFER_1536 - NET_IP_ALIGN;
 
 	vqci->vsi_id = adapter->vsi_res->vsi_id;
 	vqci->num_queue_pairs = pairs;
@@ -264,9 +269,10 @@ void i40evf_configure_queues(struct i40evf_adapter *adapter)
 		vqpi->rxq.queue_id = i;
 		vqpi->rxq.ring_len = adapter->rx_rings[i].count;
 		vqpi->rxq.dma_ring_addr = adapter->rx_rings[i].dma;
-		vqpi->rxq.max_pkt_size = adapter->netdev->mtu
-					+ ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN;
-		vqpi->rxq.databuffer_size = adapter->rx_rings[i].rx_buf_len;
+		vqpi->rxq.max_pkt_size = max_frame;
+		vqpi->rxq.databuffer_size =
+			ALIGN(adapter->rx_rings[i].rx_buf_len,
+			      BIT_ULL(I40E_RXQ_CTX_DBUFF_SHIFT));
 		vqpi++;
 	}
 
