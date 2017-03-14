@@ -558,7 +558,7 @@
 			};
 
 			src: src@30390000 {
-				compatible = "fsl,imx7d-src", "fsl,imx51-src", "syscon";
+				compatible = "fsl,imx7d-src", "syscon";
 				reg = <0x30390000 0x10000>;
 				interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
 				#reset-cells = <1>;
