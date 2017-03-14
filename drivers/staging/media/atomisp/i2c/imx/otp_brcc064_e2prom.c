@@ -69,7 +69,6 @@ void *brcc064_otp_read(struct v4l2_subdev *sd, u8 dev_addr,
 
 		r = i2c_transfer(client->adapter, msg, ARRAY_SIZE(msg));
 		if (r != ARRAY_SIZE(msg)) {
-			kfree(buffer);
 			dev_err(&client->dev, "read failed at 0x%03x\n", addr);
 			return NULL;
 		}
