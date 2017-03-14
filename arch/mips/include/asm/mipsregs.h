@@ -34,8 +34,10 @@
  */
 #ifdef __ASSEMBLY__
 #define _ULCAST_
+#define _U64CAST_
 #else
 #define _ULCAST_ (unsigned long)
+#define _U64CAST_ (u64)
 #endif
 
 /*
@@ -719,10 +721,14 @@
 #define XLR_PERFCTRL_ALLTHREADS	(_ULCAST_(1) << 13)
 
 /* MAAR bit definitions */
+#define MIPS_MAAR_VH		(_U64CAST_(1) << 63)
 #define MIPS_MAAR_ADDR		((BIT_ULL(BITS_PER_LONG - 12) - 1) << 12)
 #define MIPS_MAAR_ADDR_SHIFT	12
 #define MIPS_MAAR_S		(_ULCAST_(1) << 1)
-#define MIPS_MAAR_V		(_ULCAST_(1) << 0)
+#define MIPS_MAAR_VL		(_ULCAST_(1) << 0)
+
+/* MAARI bit definitions */
+#define MIPS_MAARI_INDEX	(_ULCAST_(0x3f) << 0)
 
 /* EBase bit definitions */
 #define MIPS_EBASE_CPUNUM_SHIFT	0
