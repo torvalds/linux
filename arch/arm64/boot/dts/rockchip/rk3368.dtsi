@@ -1105,15 +1105,31 @@
 			"sclk_gpu_core",
 			"aclk_gpu_mem",
 			"aclk_gpu_cfg";
-		operating-points = <
-			/* KHz uV */
-			200000 1100000
-			288000 1100000
-			400000 1150000
-			576000 1200000
-		>;
 		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "rogue-g6110-irq";
+		operating-points-v2 = <&gpu_opp_table>;
+	};
+
+	gpu_opp_table: gpu_opp_table {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp@200000000 {
+			opp-hz = /bits/ 64 <200000000>;
+			opp-microvolt = <950000>;
+		};
+		opp@288000000 {
+			opp-hz = /bits/ 64 <288000000>;
+			opp-microvolt = <1025000>;
+		};
+		opp@400000000 {
+			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <1050000>;
+		};
+		opp@576000000 {
+			opp-hz = /bits/ 64 <576000000>;
+			opp-microvolt = <1200000>;
+		};
 	};
 
 	efuse: efuse@ffb00000 {
