@@ -32,6 +32,7 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <net/addrconf.h>
 #include "rxe.h"
 #include "rxe_loc.h"
 #include "rxe_queue.h"
@@ -1238,7 +1239,8 @@ int rxe_register_device(struct rxe_dev *rxe)
 	dev->num_comp_vectors = RXE_NUM_COMP_VECTORS;
 	dev->dev.parent = rxe_dma_device(rxe);
 	dev->local_dma_lkey = 0;
-	dev->node_guid = rxe_node_guid(rxe);
+	addrconf_addr_eui48((unsigned char *)&dev->node_guid,
+			    rxe->ndev->dev_addr);
 	dev->dev.dma_ops = &dma_virt_ops;
 
 	dev->uverbs_abi_ver = RXE_UVERBS_ABI_VERSION;

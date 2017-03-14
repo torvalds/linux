@@ -34,6 +34,8 @@
 #ifndef USNIC_CMN_UTIL_H
 #define USNIC_CMN_UTIL_H
 
+#include <net/addrconf.h>
+
 static inline void
 usnic_mac_ip_to_gid(const char *const mac, const __be32 inaddr, char *raw_gid)
 {
@@ -41,14 +43,7 @@ usnic_mac_ip_to_gid(const char *const mac, const __be32 inaddr, char *raw_gid)
 	raw_gid[1] = 0x80;
 	memset(&raw_gid[2], 0, 2);
 	memcpy(&raw_gid[4], &inaddr, 4);
-	raw_gid[8] = mac[0]^2;
-	raw_gid[9] = mac[1];
-	raw_gid[10] = mac[2];
-	raw_gid[11] = 0xff;
-	raw_gid[12] = 0xfe;
-	raw_gid[13] = mac[3];
-	raw_gid[14] = mac[4];
-	raw_gid[15] = mac[5];
+	addrconf_addr_eui48(&raw_gid[8], mac);
 }
 
 #endif /* USNIC_COMMON_UTIL_H */

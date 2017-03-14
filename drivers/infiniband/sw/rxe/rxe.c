@@ -31,6 +31,7 @@
  * SOFTWARE.
  */
 
+#include <net/addrconf.h>
 #include "rxe.h"
 #include "rxe_loc.h"
 
@@ -180,7 +181,8 @@ static int rxe_init_ports(struct rxe_dev *rxe)
 		return -ENOMEM;
 
 	port->pkey_tbl[0] = 0xffff;
-	port->port_guid = rxe_port_guid(rxe);
+	addrconf_addr_eui48((unsigned char *)&port->port_guid,
+			    rxe->ndev->dev_addr);
 
 	spin_lock_init(&port->port_lock);
 

@@ -84,34 +84,6 @@ struct rxe_dev *get_rxe_by_name(const char *name)
 
 struct rxe_recv_sockets recv_sockets;
 
-static __be64 rxe_mac_to_eui64(struct net_device *ndev)
-{
-	unsigned char *mac_addr = ndev->dev_addr;
-	__be64 eui64;
-	unsigned char *dst = (unsigned char *)&eui64;
-
-	dst[0] = mac_addr[0] ^ 2;
-	dst[1] = mac_addr[1];
-	dst[2] = mac_addr[2];
-	dst[3] = 0xff;
-	dst[4] = 0xfe;
-	dst[5] = mac_addr[3];
-	dst[6] = mac_addr[4];
-	dst[7] = mac_addr[5];
-
-	return eui64;
-}
-
-__be64 rxe_node_guid(struct rxe_dev *rxe)
-{
-	return rxe_mac_to_eui64(rxe->ndev);
-}
-
-__be64 rxe_port_guid(struct rxe_dev *rxe)
-{
-	return rxe_mac_to_eui64(rxe->ndev);
-}
-
 struct device *rxe_dma_device(struct rxe_dev *rxe)
 {
 	struct net_device *ndev;
