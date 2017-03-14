@@ -286,6 +286,21 @@ TRACE_EVENT(kvm_asid_change,
 		      __entry->new_asid)
 );
 
+TRACE_EVENT(kvm_guestid_change,
+	    TP_PROTO(struct kvm_vcpu *vcpu, unsigned int guestid),
+	    TP_ARGS(vcpu, guestid),
+	    TP_STRUCT__entry(
+			__field(unsigned int, guestid)
+	    ),
+
+	    TP_fast_assign(
+			__entry->guestid = guestid;
+	    ),
+
+	    TP_printk("GuestID: 0x%02x",
+		      __entry->guestid)
+);
+
 #endif /* _TRACE_KVM_H */
 
 /* This part must be outside protection */

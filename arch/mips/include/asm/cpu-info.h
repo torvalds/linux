@@ -110,6 +110,7 @@ struct cpuinfo_mips {
 	struct guest_info	guest;
 	unsigned int		gtoffset_mask;
 	unsigned int		guestid_mask;
+	unsigned int		guestid_cache;
 } __attribute__((aligned(SMP_CACHE_BYTES)));
 
 extern struct cpuinfo_mips cpu_data[];

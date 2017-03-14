@@ -113,7 +113,11 @@ void kvm_arch_check_processor_compat(void *rtn)
 int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
 	switch (type) {
+#ifdef CONFIG_KVM_MIPS_VZ
+	case KVM_VM_MIPS_VZ:
+#else
 	case KVM_VM_MIPS_TE:
+#endif
 		break;
 	default:
 		/* Unsupported KVM type */
@@ -378,6 +382,7 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 
 	/* Init */
 	vcpu->arch.last_sched_cpu = -1;
+	vcpu->arch.last_exec_cpu = -1;
 
 	return vcpu;
 

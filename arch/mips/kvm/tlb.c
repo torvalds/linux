@@ -34,6 +34,13 @@
 #define KVM_GUEST_SP_TLB    1
 
 #ifdef CONFIG_KVM_MIPS_VZ
+unsigned long GUESTID_MASK;
+EXPORT_SYMBOL_GPL(GUESTID_MASK);
+unsigned long GUESTID_FIRST_VERSION;
+EXPORT_SYMBOL_GPL(GUESTID_FIRST_VERSION);
+unsigned long GUESTID_VERSION_MASK;
+EXPORT_SYMBOL_GPL(GUESTID_VERSION_MASK);
+
 static u32 kvm_mips_get_root_asid(struct kvm_vcpu *vcpu)
 {
 	struct mm_struct *gpa_mm = &vcpu->kvm->arch.gpa_mm;

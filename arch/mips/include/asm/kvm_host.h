@@ -10,6 +10,7 @@
 #ifndef __MIPS_KVM_HOST_H__
 #define __MIPS_KVM_HOST_H__
 
+#include <linux/cpumask.h>
 #include <linux/mutex.h>
 #include <linux/hrtimer.h>
 #include <linux/interrupt.h>
@@ -73,6 +74,11 @@
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 #define KVM_HALT_POLL_NS_DEFAULT 500000
 
+#ifdef CONFIG_KVM_MIPS_VZ
+extern unsigned long GUESTID_MASK;
+extern unsigned long GUESTID_FIRST_VERSION;
+extern unsigned long GUESTID_VERSION_MASK;
+#endif
 
 
 /*
@@ -167,6 +173,8 @@ struct kvm_arch_memory_slot {
 struct kvm_arch {
 	/* Guest physical mm */
 	struct mm_struct gpa_mm;
+	/* Mask of CPUs needing GPA ASID flush */
+	cpumask_t asid_flush_mask;
 };
 
 #define N_MIPS_COPROC_REGS	32
@@ -223,6 +231,11 @@ struct mips_coproc {
 #define MIPS_CP0_CONFIG3_SEL	3
 #define MIPS_CP0_CONFIG4_SEL	4
 #define MIPS_CP0_CONFIG5_SEL	5
+
+#define MIPS_CP0_GUESTCTL2	10
+#define MIPS_CP0_GUESTCTL2_SEL	5
+#define MIPS_CP0_GTOFFSET	12
+#define MIPS_CP0_GTOFFSET_SEL	7
 
 /* Resume Flags */
 #define RESUME_FLAG_DR		(1<<0)	/* Reload guest nonvolatile state? */
@@ -356,7 +369,20 @@ struct kvm_vcpu_arch {
 	/* Cache some mmu pages needed inside spinlock regions */
 	struct kvm_mmu_memory_cache mmu_page_cache;
 
+#ifdef CONFIG_KVM_MIPS_VZ
+	/* vcpu's vzguestid is different on each host cpu in an smp system */
+	u32 vzguestid[NR_CPUS];
+
+	/* wired guest TLB entries */
+	struct kvm_mips_tlb *wired_tlb;
+	unsigned int wired_tlb_limit;
+	unsigned int wired_tlb_used;
+#endif
+
+	/* Last CPU the VCPU state was loaded on */
 	int last_sched_cpu;
+	/* Last CPU the VCPU actually executed guest code on */
+	int last_exec_cpu;
 
 	/* WAIT executed */
 	int wait;
@@ -660,6 +686,7 @@ __BUILD_KVM_RW_HW(config4,        32, MIPS_CP0_CONFIG,       4)
 __BUILD_KVM_RW_HW(config5,        32, MIPS_CP0_CONFIG,       5)
 __BUILD_KVM_RW_HW(config6,        32, MIPS_CP0_CONFIG,       6)
 __BUILD_KVM_RW_HW(config7,        32, MIPS_CP0_CONFIG,       7)
+__BUILD_KVM_RW_HW(xcontext,       l,  MIPS_CP0_TLB_XCONTEXT, 0)
 __BUILD_KVM_RW_HW(errorepc,       l,  MIPS_CP0_ERROR_PC,     0)
 __BUILD_KVM_RW_HW(kscratch1,      l,  MIPS_CP0_DESAVE,       2)
 __BUILD_KVM_RW_HW(kscratch2,      l,  MIPS_CP0_DESAVE,       3)
@@ -673,6 +700,14 @@ __BUILD_KVM_SET_HW(status,        32, MIPS_CP0_STATUS,       0)
 /* Cause can be modified asynchronously from hardirq hrtimer callback */
 __BUILD_KVM_ATOMIC_HW(cause,      32, MIPS_CP0_CAUSE,        0)
 __BUILD_KVM_SET_HW(ebase,         l,  MIPS_CP0_PRID,         1)
+
+/* Bitwise operations (on saved state) */
+__BUILD_KVM_SET_SAVED(config,     32, MIPS_CP0_CONFIG,       0)
+__BUILD_KVM_SET_SAVED(config1,    32, MIPS_CP0_CONFIG,       1)
+__BUILD_KVM_SET_SAVED(config2,    32, MIPS_CP0_CONFIG,       2)
+__BUILD_KVM_SET_SAVED(config3,    32, MIPS_CP0_CONFIG,       3)
+__BUILD_KVM_SET_SAVED(config4,    32, MIPS_CP0_CONFIG,       4)
+__BUILD_KVM_SET_SAVED(config5,    32, MIPS_CP0_CONFIG,       5)
 
 /* Helpers */
 
@@ -786,6 +821,10 @@ u32 kvm_get_user_asid(struct kvm_vcpu *vcpu);
 
 u32 kvm_get_commpage_asid (struct kvm_vcpu *vcpu);
 
+#ifdef CONFIG_KVM_MIPS_VZ
+int kvm_mips_handle_vz_root_tlb_fault(unsigned long badvaddr,
+				      struct kvm_vcpu *vcpu, bool write_fault);
+#endif
 extern int kvm_mips_handle_kseg0_tlb_fault(unsigned long badbaddr,
 					   struct kvm_vcpu *vcpu,
 					   bool write_fault);
@@ -1025,6 +1064,9 @@ enum emulation_result kvm_mips_emulate_load(union mips_instruction inst,
 					    u32 cause,
 					    struct kvm_run *run,
 					    struct kvm_vcpu *vcpu);
+
+/* COP0 */
+enum emulation_result kvm_mips_emul_wait(struct kvm_vcpu *vcpu);
 
 unsigned int kvm_mips_config1_wrmask(struct kvm_vcpu *vcpu);
 unsigned int kvm_mips_config3_wrmask(struct kvm_vcpu *vcpu);
