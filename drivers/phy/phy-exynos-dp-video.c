@@ -20,6 +20,7 @@
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+#include <linux/soc/samsung/exynos-regs-pmu.h>
 
 struct exynos_dp_video_phy_drvdata {
 	u32 phy_ctrl_offset;
