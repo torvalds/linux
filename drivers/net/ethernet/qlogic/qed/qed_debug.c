@@ -1557,7 +1557,7 @@ static enum dbg_status qed_dbg_dev_init(struct qed_hwfn *p_hwfn,
 		dev_data->mode_enable[MODE_K2] = 1;
 	} else if (QED_IS_BB_B0(p_hwfn->cdev)) {
 		dev_data->chip_id = CHIP_BB_B0;
-		dev_data->mode_enable[MODE_BB_B0] = 1;
+		dev_data->mode_enable[MODE_BB] = 1;
 	} else {
 		return DBG_STATUS_UNKNOWN_CHIP;
 	}

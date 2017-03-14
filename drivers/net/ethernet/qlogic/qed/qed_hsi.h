@@ -2502,7 +2502,7 @@ struct fw_info_location {
 
 enum init_modes {
 	MODE_RESERVED,
-	MODE_BB_B0,
+	MODE_BB,
 	MODE_K2,
 	MODE_ASIC,
 	MODE_RESERVED2,
@@ -9431,11 +9431,24 @@ struct eth_stats {
 	u64 r511;
 	u64 r1023;
 	u64 r1518;
-	u64 r1522;
-	u64 r2047;
-	u64 r4095;
-	u64 r9216;
-	u64 r16383;
+
+	union {
+		struct {
+			u64 r1522;
+			u64 r2047;
+			u64 r4095;
+			u64 r9216;
+			u64 r16383;
+		} bb0;
+		struct {
+			u64 unused1;
+			u64 r1519_to_max;
+			u64 unused2;
+			u64 unused3;
+			u64 unused4;
+		} ah0;
+	} u0;
+
 	u64 rfcs;
 	u64 rxcf;
 	u64 rxpf;
@@ -9452,14 +9465,36 @@ struct eth_stats {
 	u64 t511;
 	u64 t1023;
 	u64 t1518;
-	u64 t2047;
-	u64 t4095;
-	u64 t9216;
-	u64 t16383;
+
+	union {
+		struct {
+			u64 t2047;
+			u64 t4095;
+			u64 t9216;
+			u64 t16383;
+		} bb1;
+		struct {
+			u64 t1519_to_max;
+			u64 unused6;
+			u64 unused7;
+			u64 unused8;
+		} ah1;
+	} u1;
+
 	u64 txpf;
 	u64 txpp;
-	u64 tlpiec;
-	u64 tncl;
+
+	union {
+		struct {
+			u64 tlpiec;
+			u64 tncl;
+		} bb2;
+		struct {
+			u64 unused9;
+			u64 unused10;
+		} ah2;
+	} u2;
+
 	u64 rbyte;
 	u64 rxuca;
 	u64 rxmca;
@@ -10263,6 +10298,8 @@ struct nvm_cfg1_glob {
 #define NVM_CFG1_GLOB_NETWORK_PORT_MODE_2X25G		0xC
 #define NVM_CFG1_GLOB_NETWORK_PORT_MODE_1X25G		0xD
 #define NVM_CFG1_GLOB_NETWORK_PORT_MODE_4X25G		0xE
+#define NVM_CFG1_GLOB_NETWORK_PORT_MODE_2X10G		0xF
+
 	u32 e_lane_cfg1;
 	u32 e_lane_cfg2;
 	u32 f_lane_cfg1;

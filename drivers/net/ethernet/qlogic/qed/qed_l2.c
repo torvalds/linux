@@ -1470,13 +1470,20 @@ static void __qed_get_vport_pstats(struct qed_hwfn *p_hwfn,
 	memset(&pstats, 0, sizeof(pstats));
 	qed_memcpy_from(p_hwfn, p_ptt, &pstats, pstats_addr, pstats_len);
 
-	p_stats->tx_ucast_bytes += HILO_64_REGPAIR(pstats.sent_ucast_bytes);
-	p_stats->tx_mcast_bytes += HILO_64_REGPAIR(pstats.sent_mcast_bytes);
-	p_stats->tx_bcast_bytes += HILO_64_REGPAIR(pstats.sent_bcast_bytes);
-	p_stats->tx_ucast_pkts += HILO_64_REGPAIR(pstats.sent_ucast_pkts);
-	p_stats->tx_mcast_pkts += HILO_64_REGPAIR(pstats.sent_mcast_pkts);
-	p_stats->tx_bcast_pkts += HILO_64_REGPAIR(pstats.sent_bcast_pkts);
-	p_stats->tx_err_drop_pkts += HILO_64_REGPAIR(pstats.error_drop_pkts);
+	p_stats->common.tx_ucast_bytes +=
+	    HILO_64_REGPAIR(pstats.sent_ucast_bytes);
+	p_stats->common.tx_mcast_bytes +=
+	    HILO_64_REGPAIR(pstats.sent_mcast_bytes);
+	p_stats->common.tx_bcast_bytes +=
+	    HILO_64_REGPAIR(pstats.sent_bcast_bytes);
+	p_stats->common.tx_ucast_pkts +=
+	    HILO_64_REGPAIR(pstats.sent_ucast_pkts);
+	p_stats->common.tx_mcast_pkts +=
+	    HILO_64_REGPAIR(pstats.sent_mcast_pkts);
+	p_stats->common.tx_bcast_pkts +=
+	    HILO_64_REGPAIR(pstats.sent_bcast_pkts);
+	p_stats->common.tx_err_drop_pkts +=
+	    HILO_64_REGPAIR(pstats.error_drop_pkts);
 }
 
 static void __qed_get_vport_tstats(struct qed_hwfn *p_hwfn,
@@ -1502,10 +1509,10 @@ static void __qed_get_vport_tstats(struct qed_hwfn *p_hwfn,
 	memset(&tstats, 0, sizeof(tstats));
 	qed_memcpy_from(p_hwfn, p_ptt, &tstats, tstats_addr, tstats_len);
 
-	p_stats->mftag_filter_discards +=
-		HILO_64_REGPAIR(tstats.mftag_filter_discard);
-	p_stats->mac_filter_discards +=
-		HILO_64_REGPAIR(tstats.eth_mac_filter_discard);
+	p_stats->common.mftag_filter_discards +=
+	    HILO_64_REGPAIR(tstats.mftag_filter_discard);
+	p_stats->common.mac_filter_discards +=
+	    HILO_64_REGPAIR(tstats.eth_mac_filter_discard);
 }
 
 static void __qed_get_vport_ustats_addrlen(struct qed_hwfn *p_hwfn,
@@ -1539,12 +1546,15 @@ static void __qed_get_vport_ustats(struct qed_hwfn *p_hwfn,
 	memset(&ustats, 0, sizeof(ustats));
 	qed_memcpy_from(p_hwfn, p_ptt, &ustats, ustats_addr, ustats_len);
 
-	p_stats->rx_ucast_bytes += HILO_64_REGPAIR(ustats.rcv_ucast_bytes);
-	p_stats->rx_mcast_bytes += HILO_64_REGPAIR(ustats.rcv_mcast_bytes);
-	p_stats->rx_bcast_bytes += HILO_64_REGPAIR(ustats.rcv_bcast_bytes);
-	p_stats->rx_ucast_pkts += HILO_64_REGPAIR(ustats.rcv_ucast_pkts);
-	p_stats->rx_mcast_pkts += HILO_64_REGPAIR(ustats.rcv_mcast_pkts);
-	p_stats->rx_bcast_pkts += HILO_64_REGPAIR(ustats.rcv_bcast_pkts);
+	p_stats->common.rx_ucast_bytes +=
+	    HILO_64_REGPAIR(ustats.rcv_ucast_bytes);
+	p_stats->common.rx_mcast_bytes +=
+	    HILO_64_REGPAIR(ustats.rcv_mcast_bytes);
+	p_stats->common.rx_bcast_bytes +=
+	    HILO_64_REGPAIR(ustats.rcv_bcast_bytes);
+	p_stats->common.rx_ucast_pkts += HILO_64_REGPAIR(ustats.rcv_ucast_pkts);
+	p_stats->common.rx_mcast_pkts += HILO_64_REGPAIR(ustats.rcv_mcast_pkts);
+	p_stats->common.rx_bcast_pkts += HILO_64_REGPAIR(ustats.rcv_bcast_pkts);
 }
 
 static void __qed_get_vport_mstats_addrlen(struct qed_hwfn *p_hwfn,
@@ -1578,23 +1588,26 @@ static void __qed_get_vport_mstats(struct qed_hwfn *p_hwfn,
 	memset(&mstats, 0, sizeof(mstats));
 	qed_memcpy_from(p_hwfn, p_ptt, &mstats, mstats_addr, mstats_len);
 
-	p_stats->no_buff_discards += HILO_64_REGPAIR(mstats.no_buff_discard);
-	p_stats->packet_too_big_discard +=
-		HILO_64_REGPAIR(mstats.packet_too_big_discard);
-	p_stats->ttl0_discard += HILO_64_REGPAIR(mstats.ttl0_discard);
-	p_stats->tpa_coalesced_pkts +=
-		HILO_64_REGPAIR(mstats.tpa_coalesced_pkts);
-	p_stats->tpa_coalesced_events +=
-		HILO_64_REGPAIR(mstats.tpa_coalesced_events);
-	p_stats->tpa_aborts_num += HILO_64_REGPAIR(mstats.tpa_aborts_num);
-	p_stats->tpa_coalesced_bytes +=
-		HILO_64_REGPAIR(mstats.tpa_coalesced_bytes);
+	p_stats->common.no_buff_discards +=
+	    HILO_64_REGPAIR(mstats.no_buff_discard);
+	p_stats->common.packet_too_big_discard +=
+	    HILO_64_REGPAIR(mstats.packet_too_big_discard);
+	p_stats->common.ttl0_discard += HILO_64_REGPAIR(mstats.ttl0_discard);
+	p_stats->common.tpa_coalesced_pkts +=
+	    HILO_64_REGPAIR(mstats.tpa_coalesced_pkts);
+	p_stats->common.tpa_coalesced_events +=
+	    HILO_64_REGPAIR(mstats.tpa_coalesced_events);
+	p_stats->common.tpa_aborts_num +=
+	    HILO_64_REGPAIR(mstats.tpa_aborts_num);
+	p_stats->common.tpa_coalesced_bytes +=
+	    HILO_64_REGPAIR(mstats.tpa_coalesced_bytes);
 }
 
 static void __qed_get_vport_port_stats(struct qed_hwfn *p_hwfn,
 				       struct qed_ptt *p_ptt,
 				       struct qed_eth_stats *p_stats)
 {
+	struct qed_eth_stats_common *p_common = &p_stats->common;
 	struct port_stats port_stats;
 	int j;
 
@@ -1605,54 +1618,75 @@ static void __qed_get_vport_port_stats(struct qed_hwfn *p_hwfn,
 			offsetof(struct public_port, stats),
 			sizeof(port_stats));
 
-	p_stats->rx_64_byte_packets		+= port_stats.eth.r64;
-	p_stats->rx_65_to_127_byte_packets	+= port_stats.eth.r127;
-	p_stats->rx_128_to_255_byte_packets	+= port_stats.eth.r255;
-	p_stats->rx_256_to_511_byte_packets	+= port_stats.eth.r511;
-	p_stats->rx_512_to_1023_byte_packets	+= port_stats.eth.r1023;
-	p_stats->rx_1024_to_1518_byte_packets	+= port_stats.eth.r1518;
-	p_stats->rx_1519_to_1522_byte_packets	+= port_stats.eth.r1522;
-	p_stats->rx_1519_to_2047_byte_packets	+= port_stats.eth.r2047;
-	p_stats->rx_2048_to_4095_byte_packets	+= port_stats.eth.r4095;
-	p_stats->rx_4096_to_9216_byte_packets	+= port_stats.eth.r9216;
-	p_stats->rx_9217_to_16383_byte_packets	+= port_stats.eth.r16383;
-	p_stats->rx_crc_errors			+= port_stats.eth.rfcs;
-	p_stats->rx_mac_crtl_frames		+= port_stats.eth.rxcf;
-	p_stats->rx_pause_frames		+= port_stats.eth.rxpf;
-	p_stats->rx_pfc_frames			+= port_stats.eth.rxpp;
-	p_stats->rx_align_errors		+= port_stats.eth.raln;
-	p_stats->rx_carrier_errors		+= port_stats.eth.rfcr;
-	p_stats->rx_oversize_packets		+= port_stats.eth.rovr;
-	p_stats->rx_jabbers			+= port_stats.eth.rjbr;
-	p_stats->rx_undersize_packets		+= port_stats.eth.rund;
-	p_stats->rx_fragments			+= port_stats.eth.rfrg;
-	p_stats->tx_64_byte_packets		+= port_stats.eth.t64;
-	p_stats->tx_65_to_127_byte_packets	+= port_stats.eth.t127;
-	p_stats->tx_128_to_255_byte_packets	+= port_stats.eth.t255;
-	p_stats->tx_256_to_511_byte_packets	+= port_stats.eth.t511;
-	p_stats->tx_512_to_1023_byte_packets	+= port_stats.eth.t1023;
-	p_stats->tx_1024_to_1518_byte_packets	+= port_stats.eth.t1518;
-	p_stats->tx_1519_to_2047_byte_packets	+= port_stats.eth.t2047;
-	p_stats->tx_2048_to_4095_byte_packets	+= port_stats.eth.t4095;
-	p_stats->tx_4096_to_9216_byte_packets	+= port_stats.eth.t9216;
-	p_stats->tx_9217_to_16383_byte_packets	+= port_stats.eth.t16383;
-	p_stats->tx_pause_frames		+= port_stats.eth.txpf;
-	p_stats->tx_pfc_frames			+= port_stats.eth.txpp;
-	p_stats->tx_lpi_entry_count		+= port_stats.eth.tlpiec;
-	p_stats->tx_total_collisions		+= port_stats.eth.tncl;
-	p_stats->rx_mac_bytes			+= port_stats.eth.rbyte;
-	p_stats->rx_mac_uc_packets		+= port_stats.eth.rxuca;
-	p_stats->rx_mac_mc_packets		+= port_stats.eth.rxmca;
-	p_stats->rx_mac_bc_packets		+= port_stats.eth.rxbca;
-	p_stats->rx_mac_frames_ok		+= port_stats.eth.rxpok;
-	p_stats->tx_mac_bytes			+= port_stats.eth.tbyte;
-	p_stats->tx_mac_uc_packets		+= port_stats.eth.txuca;
-	p_stats->tx_mac_mc_packets		+= port_stats.eth.txmca;
-	p_stats->tx_mac_bc_packets		+= port_stats.eth.txbca;
-	p_stats->tx_mac_ctrl_frames		+= port_stats.eth.txcf;
+	p_common->rx_64_byte_packets += port_stats.eth.r64;
+	p_common->rx_65_to_127_byte_packets += port_stats.eth.r127;
+	p_common->rx_128_to_255_byte_packets += port_stats.eth.r255;
+	p_common->rx_256_to_511_byte_packets += port_stats.eth.r511;
+	p_common->rx_512_to_1023_byte_packets += port_stats.eth.r1023;
+	p_common->rx_1024_to_1518_byte_packets += port_stats.eth.r1518;
+	p_common->rx_crc_errors += port_stats.eth.rfcs;
+	p_common->rx_mac_crtl_frames += port_stats.eth.rxcf;
+	p_common->rx_pause_frames += port_stats.eth.rxpf;
+	p_common->rx_pfc_frames += port_stats.eth.rxpp;
+	p_common->rx_align_errors += port_stats.eth.raln;
+	p_common->rx_carrier_errors += port_stats.eth.rfcr;
+	p_common->rx_oversize_packets += port_stats.eth.rovr;
+	p_common->rx_jabbers += port_stats.eth.rjbr;
+	p_common->rx_undersize_packets += port_stats.eth.rund;
+	p_common->rx_fragments += port_stats.eth.rfrg;
+	p_common->tx_64_byte_packets += port_stats.eth.t64;
+	p_common->tx_65_to_127_byte_packets += port_stats.eth.t127;
+	p_common->tx_128_to_255_byte_packets += port_stats.eth.t255;
+	p_common->tx_256_to_511_byte_packets += port_stats.eth.t511;
+	p_common->tx_512_to_1023_byte_packets += port_stats.eth.t1023;
+	p_common->tx_1024_to_1518_byte_packets += port_stats.eth.t1518;
+	p_common->tx_pause_frames += port_stats.eth.txpf;
+	p_common->tx_pfc_frames += port_stats.eth.txpp;
+	p_common->rx_mac_bytes += port_stats.eth.rbyte;
+	p_common->rx_mac_uc_packets += port_stats.eth.rxuca;
+	p_common->rx_mac_mc_packets += port_stats.eth.rxmca;
+	p_common->rx_mac_bc_packets += port_stats.eth.rxbca;
+	p_common->rx_mac_frames_ok += port_stats.eth.rxpok;
+	p_common->tx_mac_bytes += port_stats.eth.tbyte;
+	p_common->tx_mac_uc_packets += port_stats.eth.txuca;
+	p_common->tx_mac_mc_packets += port_stats.eth.txmca;
+	p_common->tx_mac_bc_packets += port_stats.eth.txbca;
+	p_common->tx_mac_ctrl_frames += port_stats.eth.txcf;
 	for (j = 0; j < 8; j++) {
-		p_stats->brb_truncates	+= port_stats.brb.brb_truncate[j];
-		p_stats->brb_discards	+= port_stats.brb.brb_discard[j];
+		p_common->brb_truncates += port_stats.brb.brb_truncate[j];
+		p_common->brb_discards += port_stats.brb.brb_discard[j];
+	}
+
+	if (QED_IS_BB(p_hwfn->cdev)) {
+		struct qed_eth_stats_bb *p_bb = &p_stats->bb;
+
+		p_bb->rx_1519_to_1522_byte_packets +=
+		    port_stats.eth.u0.bb0.r1522;
+		p_bb->rx_1519_to_2047_byte_packets +=
+		    port_stats.eth.u0.bb0.r2047;
+		p_bb->rx_2048_to_4095_byte_packets +=
+		    port_stats.eth.u0.bb0.r4095;
+		p_bb->rx_4096_to_9216_byte_packets +=
+		    port_stats.eth.u0.bb0.r9216;
+		p_bb->rx_9217_to_16383_byte_packets +=
+		    port_stats.eth.u0.bb0.r16383;
+		p_bb->tx_1519_to_2047_byte_packets +=
+		    port_stats.eth.u1.bb1.t2047;
+		p_bb->tx_2048_to_4095_byte_packets +=
+		    port_stats.eth.u1.bb1.t4095;
+		p_bb->tx_4096_to_9216_byte_packets +=
+		    port_stats.eth.u1.bb1.t9216;
+		p_bb->tx_9217_to_16383_byte_packets +=
+		    port_stats.eth.u1.bb1.t16383;
+		p_bb->tx_lpi_entry_count += port_stats.eth.u2.bb2.tlpiec;
+		p_bb->tx_total_collisions += port_stats.eth.u2.bb2.tncl;
+	} else {
+		struct qed_eth_stats_ah *p_ah = &p_stats->ah;
+
+		p_ah->rx_1519_to_max_byte_packets +=
+		    port_stats.eth.u0.ah0.r1519_to_max;
+		p_ah->tx_1519_to_max_byte_packets =
+		    port_stats.eth.u1.ah1.t1519_to_max;
 	}
 }
 

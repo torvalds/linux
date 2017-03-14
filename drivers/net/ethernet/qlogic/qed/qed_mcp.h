@@ -479,11 +479,10 @@ int qed_mcp_bist_nvm_test_get_image_att(struct qed_hwfn *p_hwfn,
 					    rel_pfid)
 #define MCP_PF_ID(p_hwfn) MCP_PF_ID_BY_REL(p_hwfn, (p_hwfn)->rel_pf_id)
 
-/* TODO - this is only correct as long as only BB is supported, and
- * no port-swapping is implemented; Afterwards we'll need to fix it.
- */
-#define MFW_PORT(_p_hwfn)       ((_p_hwfn)->abs_pf_id %	\
-				 ((_p_hwfn)->cdev->num_ports_in_engines * 2))
+#define MFW_PORT(_p_hwfn)       ((_p_hwfn)->abs_pf_id %			  \
+				 ((_p_hwfn)->cdev->num_ports_in_engines * \
+				  qed_device_num_engines((_p_hwfn)->cdev)))
+
 struct qed_mcp_info {
 	/* Spinlock used for protecting the access to the MFW mailbox */
 	spinlock_t				lock;
