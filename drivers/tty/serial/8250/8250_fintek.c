@@ -61,6 +61,12 @@
  * The IRQ setting mode of F81866 is not the same with F81216 series.
  *	Level/Low: IRQ_MODE0:0, IRQ_MODE1:0
  *	Edge/High: IRQ_MODE0:1, IRQ_MODE1:0
+ *
+ * Clock speeds for UART (register F2h)
+ * 00: 1.8432MHz.
+ * 01: 18.432MHz.
+ * 10: 24MHz.
+ * 11: 14.769MHz.
  */
 #define F81866_IRQ_MODE		0xf0
 #define F81866_IRQ_SHARE	BIT(0)
@@ -71,6 +77,13 @@
 
 #define F81866_LDN_LOW		0x10
 #define F81866_LDN_HIGH		0x16
+
+#define F81866_UART_CLK 0xF2
+#define F81866_UART_CLK_MASK (BIT(1) | BIT(0))
+#define F81866_UART_CLK_1_8432MHZ 0
+#define F81866_UART_CLK_14_769MHZ (BIT(1) | BIT(0))
+#define F81866_UART_CLK_18_432MHZ BIT(0)
+#define F81866_UART_CLK_24MHZ BIT(1)
 
 struct fintek_8250 {
 	u16 pid;
@@ -256,8 +269,26 @@ static void fintek_8250_set_max_fifo(struct fintek_8250 *pdata)
 	}
 }
 
-static int probe_setup_port(struct fintek_8250 *pdata, u16 io_address,
-			  unsigned int irq)
+static void fintek_8250_goto_highspeed(struct uart_8250_port *uart,
+			      struct fintek_8250 *pdata)
+{
+	sio_write_reg(pdata, LDN, pdata->index);
+
+	switch (pdata->pid) {
+	case CHIP_ID_F81866: /* set uart clock for high speed serial mode */
+		sio_write_mask_reg(pdata, F81866_UART_CLK,
+			F81866_UART_CLK_MASK,
+			F81866_UART_CLK_14_769MHZ);
+
+			uart->port.uartclk = 921600 * 16;
+		break;
+	default: /* leave clock speed untouched */
+		break;
+	}
+}
+
+static int probe_setup_port(struct fintek_8250 *pdata,
+					struct uart_8250_port *uart)
 {
 	static const u16 addr[] = {0x4e, 0x2e};
 	static const u8 keys[] = {0x77, 0xa0, 0x87, 0x67};
@@ -284,18 +315,20 @@ static int probe_setup_port(struct fintek_8250 *pdata, u16 io_address,
 				sio_write_reg(pdata, LDN, k);
 				aux = sio_read_reg(pdata, IO_ADDR1);
 				aux |= sio_read_reg(pdata, IO_ADDR2) << 8;
-				if (aux != io_address)
+				if (aux != uart->port.iobase)
 					continue;
 
 				pdata->index = k;
 
-				irq_data = irq_get_irq_data(irq);
+				irq_data = irq_get_irq_data(uart->port.irq);
 				if (irq_data)
 					level_mode =
 						irqd_is_level_type(irq_data);
 
 				fintek_8250_set_irq_mode(pdata, level_mode);
 				fintek_8250_set_max_fifo(pdata);
+				fintek_8250_goto_highspeed(uart, pdata);
+
 				fintek_8250_exit_key(addr[i]);
 
 				return 0;
@@ -330,7 +363,7 @@ int fintek_8250_probe(struct uart_8250_port *uart)
 	struct fintek_8250 *pdata;
 	struct fintek_8250 probe_data;
 
-	if (probe_setup_port(&probe_data, uart->port.iobase, uart->port.irq))
+	if (probe_setup_port(&probe_data, uart))
 		return -ENODEV;
 
 	pdata = devm_kzalloc(uart->port.dev, sizeof(*pdata), GFP_KERNEL);
