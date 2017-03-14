@@ -331,6 +331,7 @@
 };
 
 &usb_otg {
+	status = "okay";
 	clocks = <&cru SCLK_OTGPHY0>, <&cru HCLK_OTG0>;
 	clock-names = "sclk_otgphy0", "otg";
 	resets = <&cru SRST_USBOTG_AHB>,
