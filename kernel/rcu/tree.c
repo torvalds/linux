@@ -3952,31 +3952,6 @@ void rcu_scheduler_starting(void)
 }
 
 /*
- * Compute the per-level fanout, either using the exact fanout specified
- * or balancing the tree, depending on the rcu_fanout_exact boot parameter.
- */
-static void __init rcu_init_levelspread(int *levelspread, const int *levelcnt)
-{
-	int i;
-
-	if (rcu_fanout_exact) {
-		levelspread[rcu_num_lvls - 1] = rcu_fanout_leaf;
-		for (i = rcu_num_lvls - 2; i >= 0; i--)
-			levelspread[i] = RCU_FANOUT;
-	} else {
-		int ccur;
-		int cprv;
-
-		cprv = nr_cpu_ids;
-		for (i = rcu_num_lvls - 1; i >= 0; i--) {
-			ccur = levelcnt[i];
-			levelspread[i] = (cprv + ccur - 1) / ccur;
-			cprv = ccur;
-		}
-	}
-}
-
-/*
  * Helper function for rcu_init() that initializes one rcu_state structure.
  */
 static void __init rcu_init_one(struct rcu_state *rsp)

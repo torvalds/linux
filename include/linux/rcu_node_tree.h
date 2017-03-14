@@ -96,7 +96,4 @@
 # error "CONFIG_RCU_FANOUT insufficient for NR_CPUS"
 #endif /* #if (NR_CPUS) <= RCU_FANOUT_1 */
 
-extern int rcu_num_lvls;
-extern int rcu_num_nodes;
-
 #endif /* __LINUX_RCU_NODE_TREE_H */

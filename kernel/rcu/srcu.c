@@ -36,6 +36,7 @@
 #include <linux/delay.h>
 #include <linux/srcu.h>
 
+#include <linux/rcu_node_tree.h>
 #include "rcu.h"
 
 static int init_srcu_struct_fields(struct srcu_struct *sp)
