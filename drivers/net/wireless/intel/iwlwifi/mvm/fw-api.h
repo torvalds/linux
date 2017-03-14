@@ -997,6 +997,26 @@ struct iwl_time_event_notif {
 /* Bindings and Time Quota */
 
 /**
+ * struct iwl_binding_cmd_v1 - configuring bindings
+ * ( BINDING_CONTEXT_CMD = 0x2b )
+ * @id_and_color: ID and color of the relevant Binding,
+ *	&enum iwl_mvm_id_and_color
+ * @action: action to perform, one of FW_CTXT_ACTION_*
+ * @macs: array of MAC id and colors which belong to the binding,
+ *	&enum iwl_mvm_id_and_color
+ * @phy: PHY id and color which belongs to the binding,
+ *	&enum iwl_mvm_id_and_color
+ */
+struct iwl_binding_cmd_v1 {
+	/* COMMON_INDEX_HDR_API_S_VER_1 */
+	__le32 id_and_color;
+	__le32 action;
+	/* BINDING_DATA_API_S_VER_1 */
+	__le32 macs[MAX_MACS_IN_BINDING];
+	__le32 phy;
+} __packed; /* BINDING_CMD_API_S_VER_1 */
+
+/**
  * struct iwl_binding_cmd - configuring bindings
  * ( BINDING_CONTEXT_CMD = 0x2b )
  * @id_and_color: ID and color of the relevant Binding,
@@ -1015,11 +1035,10 @@ struct iwl_binding_cmd {
 	/* BINDING_DATA_API_S_VER_1 */
 	__le32 macs[MAX_MACS_IN_BINDING];
 	__le32 phy;
-	/* BINDING_CMD_API_S_VER_1 */
 	__le32 lmac_id;
 } __packed; /* BINDING_CMD_API_S_VER_2 */
 
-#define IWL_BINDING_CMD_SIZE_V1	offsetof(struct iwl_binding_cmd, lmac_id)
+#define IWL_BINDING_CMD_SIZE_V1	sizeof(struct iwl_binding_cmd_v1)
 #define IWL_LMAC_24G_INDEX		0
 #define IWL_LMAC_5G_INDEX		1
 
