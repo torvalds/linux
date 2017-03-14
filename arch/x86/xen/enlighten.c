@@ -140,9 +140,11 @@ void *xen_initial_gdt;
 
 RESERVE_BRK(shared_info_page_brk, PAGE_SIZE);
 
-static int xen_cpu_up_prepare(unsigned int cpu);
+static int xen_cpu_up_prepare_pv(unsigned int cpu);
+static int xen_cpu_up_prepare_hvm(unsigned int cpu);
 static int xen_cpu_up_online(unsigned int cpu);
-static int xen_cpu_dead(unsigned int cpu);
+static int xen_cpu_dead_pv(unsigned int cpu);
+static int xen_cpu_dead_hvm(unsigned int cpu);
 
 /*
  * Point at some empty memory to start with. We map the real shared_info
@@ -1448,13 +1450,14 @@ static void __init xen_dom0_set_legacy_features(void)
 	x86_platform.legacy.rtc = 1;
 }
 
-static int xen_cpuhp_setup(void)
+static int xen_cpuhp_setup(int (*cpu_up_prepare_cb)(unsigned int),
+			   int (*cpu_dead_cb)(unsigned int))
 {
 	int rc;
 
 	rc = cpuhp_setup_state_nocalls(CPUHP_XEN_PREPARE,
 				       "x86/xen/hvm_guest:prepare",
-				       xen_cpu_up_prepare, xen_cpu_dead);
+				       cpu_up_prepare_cb, cpu_dead_cb);
 	if (rc >= 0) {
 		rc = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
 					       "x86/xen/hvm_guest:online",
@@ -1560,7 +1563,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	   possible map and a non-dummy shared_info. */
 	per_cpu(xen_vcpu, 0) = &HYPERVISOR_shared_info->vcpu_info[0];
 
-	WARN_ON(xen_cpuhp_setup());
+	WARN_ON(xen_cpuhp_setup(xen_cpu_up_prepare_pv, xen_cpu_dead_pv));
 
 	local_irq_disable();
 	early_boot_irqs_disabled = true;
@@ -1838,28 +1841,41 @@ static void __init init_hvm_pv_info(void)
 }
 #endif
 
-static int xen_cpu_up_prepare(unsigned int cpu)
+static int xen_cpu_up_prepare_pv(unsigned int cpu)
 {
 	int rc;
 
-	if (xen_hvm_domain()) {
-		/*
-		 * This can happen if CPU was offlined earlier and
-		 * offlining timed out in common_cpu_die().
-		 */
-		if (cpu_report_state(cpu) == CPU_DEAD_FROZEN) {
-			xen_smp_intr_free(cpu);
-			xen_uninit_lock_cpu(cpu);
-		}
+	xen_setup_timer(cpu);
 
-		if (cpu_acpi_id(cpu) != U32_MAX)
-			per_cpu(xen_vcpu_id, cpu) = cpu_acpi_id(cpu);
-		else
-			per_cpu(xen_vcpu_id, cpu) = cpu;
-		xen_vcpu_setup(cpu);
+	rc = xen_smp_intr_init(cpu);
+	if (rc) {
+		WARN(1, "xen_smp_intr_init() for CPU %d failed: %d\n",
+		     cpu, rc);
+		return rc;
+	}
+	return 0;
+}
+
+static int xen_cpu_up_prepare_hvm(unsigned int cpu)
+{
+	int rc;
+
+	/*
+	 * This can happen if CPU was offlined earlier and
+	 * offlining timed out in common_cpu_die().
+	 */
+	if (cpu_report_state(cpu) == CPU_DEAD_FROZEN) {
+		xen_smp_intr_free(cpu);
+		xen_uninit_lock_cpu(cpu);
 	}
 
-	if (xen_pv_domain() || xen_feature(XENFEAT_hvm_safe_pvclock))
+	if (cpu_acpi_id(cpu) != U32_MAX)
+		per_cpu(xen_vcpu_id, cpu) = cpu_acpi_id(cpu);
+	else
+		per_cpu(xen_vcpu_id, cpu) = cpu;
+	xen_vcpu_setup(cpu);
+
+	if (xen_feature(XENFEAT_hvm_safe_pvclock))
 		xen_setup_timer(cpu);
 
 	rc = xen_smp_intr_init(cpu);
@@ -1871,14 +1887,23 @@ static int xen_cpu_up_prepare(unsigned int cpu)
 	return 0;
 }
 
-static int xen_cpu_dead(unsigned int cpu)
+static int xen_cpu_dead_pv(unsigned int cpu)
 {
 	xen_smp_intr_free(cpu);
 
-	if (xen_pv_domain() || xen_feature(XENFEAT_hvm_safe_pvclock))
-		xen_teardown_timer(cpu);
+	xen_teardown_timer(cpu);
 
 	return 0;
+}
+
+static int xen_cpu_dead_hvm(unsigned int cpu)
+{
+	xen_smp_intr_free(cpu);
+
+	if (xen_feature(XENFEAT_hvm_safe_pvclock))
+		xen_teardown_timer(cpu);
+
+       return 0;
 }
 
 static int xen_cpu_up_online(unsigned int cpu)
@@ -1917,7 +1942,7 @@ static void __init xen_hvm_guest_init(void)
 	BUG_ON(!xen_feature(XENFEAT_hvm_callback_vector));
 
 	xen_hvm_smp_init();
-	WARN_ON(xen_cpuhp_setup());
+	WARN_ON(xen_cpuhp_setup(xen_cpu_up_prepare_hvm, xen_cpu_dead_hvm));
 	xen_unplug_emulated_devices();
 	x86_init.irqs.intr_init = xen_init_IRQ;
 	xen_hvm_init_time_ops();
@@ -1940,9 +1965,17 @@ static __init int xen_parse_nopv(char *arg)
 }
 early_param("xen_nopv", xen_parse_nopv);
 
-static uint32_t __init xen_platform(void)
+static uint32_t __init xen_platform_pv(void)
 {
-	if (xen_nopv)
+	if (xen_pv_domain())
+		return xen_cpuid_base();
+
+	return 0;
+}
+
+static uint32_t __init xen_platform_hvm(void)
+{
+	if (xen_pv_domain() || xen_nopv)
 		return 0;
 
 	return xen_cpuid_base();
@@ -1964,10 +1997,8 @@ EXPORT_SYMBOL_GPL(xen_hvm_need_lapic);
 
 static void xen_set_cpu_features(struct cpuinfo_x86 *c)
 {
-	if (xen_pv_domain()) {
-		clear_cpu_bug(c, X86_BUG_SYSRET_SS_ATTRS);
-		set_cpu_cap(c, X86_FEATURE_XENPV);
-	}
+	clear_cpu_bug(c, X86_BUG_SYSRET_SS_ATTRS);
+	set_cpu_cap(c, X86_FEATURE_XENPV);
 }
 
 static void xen_pin_vcpu(int cpu)
@@ -2009,17 +2040,22 @@ static void xen_pin_vcpu(int cpu)
 	}
 }
 
-const struct hypervisor_x86 x86_hyper_xen = {
-	.name			= "Xen",
-	.detect			= xen_platform,
-#ifdef CONFIG_XEN_PVHVM
-	.init_platform		= xen_hvm_guest_init,
-#endif
-	.x2apic_available	= xen_x2apic_para_available,
+const struct hypervisor_x86 x86_hyper_xen_pv = {
+	.name                   = "Xen PV",
+	.detect                 = xen_platform_pv,
 	.set_cpu_features       = xen_set_cpu_features,
 	.pin_vcpu               = xen_pin_vcpu,
 };
-EXPORT_SYMBOL(x86_hyper_xen);
+EXPORT_SYMBOL(x86_hyper_xen_pv);
+
+const struct hypervisor_x86 x86_hyper_xen_hvm = {
+	.name                   = "Xen HVM",
+	.detect                 = xen_platform_hvm,
+	.init_platform          = xen_hvm_guest_init,
+	.pin_vcpu               = xen_pin_vcpu,
+	.x2apic_available       = xen_x2apic_para_available,
+};
+EXPORT_SYMBOL(x86_hyper_xen_hvm);
 
 #ifdef CONFIG_HOTPLUG_CPU
 void xen_arch_register_cpu(int num)
