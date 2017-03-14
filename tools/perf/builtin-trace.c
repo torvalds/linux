@@ -31,6 +31,7 @@
 #include "util/intlist.h"
 #include "util/thread_map.h"
 #include "util/stat.h"
+#include "trace/beauty/beauty.h"
 #include "trace-event.h"
 #include "util/parse-events.h"
 #include "util/bpf-loader.h"
@@ -266,15 +267,6 @@ out_delete:
 #define perf_evsel__sc_tp_ptr(evsel, name, sample) \
 	({ struct syscall_tp *fields = evsel->priv; \
 	   fields->name.pointer(&fields->name, sample); })
-
-struct syscall_arg {
-	unsigned long val;
-	struct thread *thread;
-	struct trace  *trace;
-	void	      *parm;
-	u8	      idx;
-	u8	      mask;
-};
 
 struct strarray {
 	int	    offset;
@@ -771,6 +763,10 @@ static struct syscall_fmt {
 	  .arg_parm	 = { [0] = &strarray__socket_families, /* family */ }, },
 	{ .name	    = "stat",	    .errmsg = true, .alias = "newstat", },
 	{ .name	    = "statfs",	    .errmsg = true, },
+	{ .name	    = "statx",	    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* flags */
+			     [2] = SCA_STATX_FLAGS, /* flags */
+			     [3] = SCA_STATX_MASK, /* mask */ }, },
 	{ .name	    = "swapoff",    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FILENAME, /* specialfile */ }, },
 	{ .name	    = "swapon",	    .errmsg = true,
