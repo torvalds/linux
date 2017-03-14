@@ -165,7 +165,7 @@ struct shared_info *HYPERVISOR_shared_info = &xen_dummy_shared_info;
  *
  * 0: not available, 1: available
  */
-static int have_vcpu_info_placement = 1;
+int xen_have_vcpu_info_placement = 1;
 
 struct tls_descs {
 	struct desc_struct desc[3];
@@ -229,7 +229,7 @@ void xen_vcpu_setup(int cpu)
 		per_cpu(xen_vcpu, cpu) =
 			&HYPERVISOR_shared_info->vcpu_info[xen_vcpu_nr(cpu)];
 
-	if (!have_vcpu_info_placement) {
+	if (!xen_have_vcpu_info_placement) {
 		if (cpu >= MAX_VIRT_CPUS)
 			clamp_max_cpus();
 		return;
@@ -252,7 +252,7 @@ void xen_vcpu_setup(int cpu)
 
 	if (err) {
 		printk(KERN_DEBUG "register_vcpu_info failed: err=%d\n", err);
-		have_vcpu_info_placement = 0;
+		xen_have_vcpu_info_placement = 0;
 		clamp_max_cpus();
 	} else {
 		/* This cpu is using the registered vcpu info, even if
@@ -281,7 +281,7 @@ void xen_vcpu_restore(void)
 
 		xen_setup_runstate_info(cpu);
 
-		if (have_vcpu_info_placement)
+		if (xen_have_vcpu_info_placement)
 			xen_vcpu_setup(cpu);
 
 		if (other_cpu && is_up &&
@@ -1160,7 +1160,7 @@ void xen_setup_vcpu_info_placement(void)
 	 * xen_vcpu_setup managed to place the vcpu_info within the
 	 * percpu area for all cpus, so make use of it.
 	 */
-	if (have_vcpu_info_placement) {
+	if (xen_have_vcpu_info_placement) {
 		pv_irq_ops.save_fl = __PV_IS_CALLEE_SAVE(xen_save_fl_direct);
 		pv_irq_ops.restore_fl = __PV_IS_CALLEE_SAVE(xen_restore_fl_direct);
 		pv_irq_ops.irq_disable = __PV_IS_CALLEE_SAVE(xen_irq_disable_direct);
@@ -1179,7 +1179,7 @@ static unsigned xen_patch(u8 type, u16 clobbers, void *insnbuf,
 
 #define SITE(op, x)							\
 	case PARAVIRT_PATCH(op.x):					\
-	if (have_vcpu_info_placement) {					\
+	if (xen_have_vcpu_info_placement) {				\
 		start = (char *)xen_##x##_direct;			\
 		end = xen_##x##_direct_end;				\
 		reloc = xen_##x##_direct_reloc;				\
