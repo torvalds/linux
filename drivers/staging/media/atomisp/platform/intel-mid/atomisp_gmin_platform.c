@@ -669,7 +669,7 @@ int gmin_get_config_var(struct device *dev, const char *var, char *out, size_t *
 	/* Our variable names are ASCII by construction, but EFI names
 	 * are wide chars.  Convert and zero-pad. */
 	memset(var16, 0, sizeof(var16));
-	for (i=0; var8[i] && i < sizeof(var8); i++)
+	for (i = 0; i < sizeof(var8) && var8[i]; i++)
 		var16[i] = var8[i];
 
 	/* To avoid owerflows when calling the efivar API */
