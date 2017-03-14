@@ -197,7 +197,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 Finally, the [KMG] suffix is commonly described after a number of kernel
 parameter values. These 'K', 'M', and 'G' letters represent the _binary_
-multipliers 'Kilo', 'Mega', and 'Giga', equalling 2^10, 2^20, and 2^30
+multipliers 'Kilo', 'Mega', and 'Giga', equaling 2^10, 2^20, and 2^30
 bytes respectively. Such letter suffixes can also be entirely omitted:
 
 .. include:: kernel-parameters.txt
