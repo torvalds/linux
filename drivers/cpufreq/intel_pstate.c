@@ -845,7 +845,7 @@ static struct freq_attr *hwp_cpufreq_attrs[] = {
 
 static void intel_pstate_hwp_set(struct cpufreq_policy *policy)
 {
-	int min, hw_min, max, hw_max, cpu, range, adj_range;
+	int min, hw_min, max, hw_max, cpu;
 	struct perf_limits *perf_limits = limits;
 	u64 value, cap;
 
@@ -863,20 +863,17 @@ static void intel_pstate_hwp_set(struct cpufreq_policy *policy)
 			hw_max = HWP_GUARANTEED_PERF(cap);
 		else
 			hw_max = HWP_HIGHEST_PERF(cap);
-		range = hw_max - hw_min;
 
 		max_perf_pct = perf_limits->max_perf_pct;
 		min_perf_pct = perf_limits->min_perf_pct;
+		min = hw_max * min_perf_pct / 100;
 
 		rdmsrl_on_cpu(cpu, MSR_HWP_REQUEST, &value);
-		adj_range = min_perf_pct * range / 100;
-		min = hw_min + adj_range;
+
 		value &= ~HWP_MIN_PERF(~0L);
 		value |= HWP_MIN_PERF(min);
 
-		adj_range = max_perf_pct * range / 100;
-		max = hw_min + adj_range;
-
+		max = hw_max * max_perf_pct / 100;
 		value &= ~HWP_MAX_PERF(~0L);
 		value |= HWP_MAX_PERF(max);
 
