@@ -786,6 +786,23 @@ static void qed_iscsi_release_connection(struct qed_hwfn *p_hwfn,
 	spin_unlock_bh(&p_hwfn->p_iscsi_info->lock);
 }
 
+void qed_iscsi_free_connection(struct qed_hwfn *p_hwfn,
+			       struct qed_iscsi_conn *p_conn)
+{
+	qed_chain_free(p_hwfn->cdev, &p_conn->xhq);
+	qed_chain_free(p_hwfn->cdev, &p_conn->uhq);
+	qed_chain_free(p_hwfn->cdev, &p_conn->r2tq);
+	dma_free_coherent(&p_hwfn->cdev->pdev->dev,
+			  sizeof(struct tcp_upload_params),
+			  p_conn->tcp_upload_params_virt_addr,
+			  p_conn->tcp_upload_params_phys_addr);
+	dma_free_coherent(&p_hwfn->cdev->pdev->dev,
+			  sizeof(struct scsi_terminate_extra_params),
+			  p_conn->queue_cnts_virt_addr,
+			  p_conn->queue_cnts_phys_addr);
+	kfree(p_conn);
+}
+
 struct qed_iscsi_info *qed_iscsi_alloc(struct qed_hwfn *p_hwfn)
 {
 	struct qed_iscsi_info *p_iscsi_info;
@@ -807,6 +824,17 @@ void qed_iscsi_setup(struct qed_hwfn *p_hwfn,
 void qed_iscsi_free(struct qed_hwfn *p_hwfn,
 		    struct qed_iscsi_info *p_iscsi_info)
 {
+	struct qed_iscsi_conn *p_conn = NULL;
+
+	while (!list_empty(&p_hwfn->p_iscsi_info->free_list)) {
+		p_conn = list_first_entry(&p_hwfn->p_iscsi_info->free_list,
+					  struct qed_iscsi_conn, list_entry);
+		if (p_conn) {
+			list_del(&p_conn->list_entry);
+			qed_iscsi_free_connection(p_hwfn, p_conn);
+		}
+	}
+
 	kfree(p_iscsi_info);
 }
 
