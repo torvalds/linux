@@ -1328,7 +1328,7 @@ static void _enable_sysc(struct omap_hwmod *oh)
 	 */
 	if ((oh->flags & HWMOD_SET_DEFAULT_CLOCKACT) &&
 	    (sf & SYSC_HAS_CLOCKACTIVITY))
-		_set_clockactivity(oh, oh->class->sysc->clockact, &v);
+		_set_clockactivity(oh, CLOCKACT_TEST_ICLK, &v);
 
 	_write_sysconfig(v, oh);
 

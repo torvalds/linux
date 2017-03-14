@@ -411,7 +411,6 @@ struct omap_hwmod_class_sysconfig {
 	struct omap_hwmod_sysc_fields *sysc_fields;
 	u8 srst_udelay;
 	u8 idlemodes;
-	u8 clockact;
 };
 
 /**
