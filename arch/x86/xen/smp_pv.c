@@ -221,7 +221,7 @@ static void __init xen_pv_smp_prepare_boot_cpu(void)
 	xen_init_spinlocks();
 }
 
-static void __init xen_smp_prepare_cpus(unsigned int max_cpus)
+static void __init xen_pv_smp_prepare_cpus(unsigned int max_cpus)
 {
 	unsigned cpu;
 	unsigned int i;
@@ -337,7 +337,7 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	return 0;
 }
 
-static int xen_cpu_up(unsigned int cpu, struct task_struct *idle)
+static int xen_pv_cpu_up(unsigned int cpu, struct task_struct *idle)
 {
 	int rc;
 
@@ -371,12 +371,12 @@ static int xen_cpu_up(unsigned int cpu, struct task_struct *idle)
 	return 0;
 }
 
-static void xen_smp_cpus_done(unsigned int max_cpus)
+static void xen_pv_smp_cpus_done(unsigned int max_cpus)
 {
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static int xen_cpu_disable(void)
+static int xen_pv_cpu_disable(void)
 {
 	unsigned int cpu = smp_processor_id();
 	if (cpu == 0)
@@ -404,7 +404,7 @@ static void xen_pv_cpu_die(unsigned int cpu)
 	}
 }
 
-static void xen_play_dead(void) /* used only with HOTPLUG_CPU */
+static void xen_pv_play_dead(void) /* used only with HOTPLUG_CPU */
 {
 	play_dead_common();
 	HYPERVISOR_vcpu_op(VCPUOP_down, xen_vcpu_nr(smp_processor_id()), NULL);
@@ -421,7 +421,7 @@ static void xen_play_dead(void) /* used only with HOTPLUG_CPU */
 }
 
 #else /* !CONFIG_HOTPLUG_CPU */
-static int xen_cpu_disable(void)
+static int xen_pv_cpu_disable(void)
 {
 	return -ENOSYS;
 }
@@ -431,7 +431,7 @@ static void xen_pv_cpu_die(unsigned int cpu)
 	BUG();
 }
 
-static void xen_play_dead(void)
+static void xen_pv_play_dead(void)
 {
 	BUG();
 }
@@ -451,7 +451,7 @@ static void stop_self(void *v)
 	BUG();
 }
 
-static void xen_stop_other_cpus(int wait)
+static void xen_pv_stop_other_cpus(int wait)
 {
 	smp_call_function(stop_self, NULL, wait);
 }
@@ -478,15 +478,15 @@ static irqreturn_t xen_irq_work_interrupt(int irq, void *dev_id)
 
 static const struct smp_ops xen_smp_ops __initconst = {
 	.smp_prepare_boot_cpu = xen_pv_smp_prepare_boot_cpu,
-	.smp_prepare_cpus = xen_smp_prepare_cpus,
-	.smp_cpus_done = xen_smp_cpus_done,
+	.smp_prepare_cpus = xen_pv_smp_prepare_cpus,
+	.smp_cpus_done = xen_pv_smp_cpus_done,
 
-	.cpu_up = xen_cpu_up,
+	.cpu_up = xen_pv_cpu_up,
 	.cpu_die = xen_pv_cpu_die,
-	.cpu_disable = xen_cpu_disable,
-	.play_dead = xen_play_dead,
+	.cpu_disable = xen_pv_cpu_disable,
+	.play_dead = xen_pv_play_dead,
 
-	.stop_other_cpus = xen_stop_other_cpus,
+	.stop_other_cpus = xen_pv_stop_other_cpus,
 	.smp_send_reschedule = xen_smp_send_reschedule,
 
 	.send_call_func_ipi = xen_smp_send_call_function_ipi,
