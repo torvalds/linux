@@ -219,8 +219,10 @@
 /*
  * Wired register bits
  */
-#define MIPSR6_WIRED_LIMIT	(_ULCAST_(0xffff) << 16)
-#define MIPSR6_WIRED_WIRED	(_ULCAST_(0xffff) << 0)
+#define MIPSR6_WIRED_LIMIT_SHIFT 16
+#define MIPSR6_WIRED_LIMIT	(_ULCAST_(0xffff) << MIPSR6_WIRED_LIMIT_SHIFT)
+#define MIPSR6_WIRED_WIRED_SHIFT 0
+#define MIPSR6_WIRED_WIRED	(_ULCAST_(0xffff) << MIPSR6_WIRED_WIRED_SHIFT)
 
 /*
  * Values used for computation of new tlb entries
@@ -647,6 +649,7 @@
 #define MIPS_CONF5_LLB		(_ULCAST_(1) << 4)
 #define MIPS_CONF5_MVH		(_ULCAST_(1) << 5)
 #define MIPS_CONF5_VP		(_ULCAST_(1) << 7)
+#define MIPS_CONF5_SBRI		(_ULCAST_(1) << 6)
 #define MIPS_CONF5_FRE		(_ULCAST_(1) << 8)
 #define MIPS_CONF5_UFE		(_ULCAST_(1) << 9)
 #define MIPS_CONF5_MSAEN	(_ULCAST_(1) << 27)
@@ -741,6 +744,10 @@
 /* CMGCRBase bit definitions */
 #define MIPS_CMGCRB_BASE	11
 #define MIPS_CMGCRF_BASE	(~_ULCAST_((1 << MIPS_CMGCRB_BASE) - 1))
+
+/* LLAddr bit definitions */
+#define MIPS_LLADDR_LLB_SHIFT	0
+#define MIPS_LLADDR_LLB		(_ULCAST_(1) << MIPS_LLADDR_LLB_SHIFT)
 
 /*
  * Bits in the MIPS32 Memory Segmentation registers.
@@ -2018,6 +2025,9 @@ do {									\
 #define write_gc0_config6(val)		__write_32bit_gc0_register(16, 6, val)
 #define write_gc0_config7(val)		__write_32bit_gc0_register(16, 7, val)
 
+#define read_gc0_lladdr()		__read_ulong_gc0_register(17, 0)
+#define write_gc0_lladdr(val)		__write_ulong_gc0_register(17, 0, val)
+
 #define read_gc0_watchlo0()		__read_ulong_gc0_register(18, 0)
 #define read_gc0_watchlo1()		__read_ulong_gc0_register(18, 1)
 #define read_gc0_watchlo2()		__read_ulong_gc0_register(18, 2)
@@ -2702,9 +2712,11 @@ __BUILD_SET_C0(brcm_mode)
  */
 #define __BUILD_SET_GC0(name)	__BUILD_SET_COMMON(gc0_##name)
 
+__BUILD_SET_GC0(wired)
 __BUILD_SET_GC0(status)
 __BUILD_SET_GC0(cause)
 __BUILD_SET_GC0(ebase)
+__BUILD_SET_GC0(config1)
 
 /*
  * Return low 10 bits of ebase.
