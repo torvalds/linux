@@ -1833,11 +1833,35 @@ enum emulation_result kvm_mips_emulate_cache(union mips_instruction inst,
 			  vcpu->arch.pc, vcpu->arch.gprs[31], cache, op, base,
 			  arch->gprs[base], offset);
 
-		if (cache == Cache_D)
+		if (cache == Cache_D) {
+#ifdef CONFIG_CPU_R4K_CACHE_TLB
 			r4k_blast_dcache();
-		else if (cache == Cache_I)
+#else
+			switch (boot_cpu_type()) {
+			case CPU_CAVIUM_OCTEON3:
+				/* locally flush icache */
+				local_flush_icache_range(0, 0);
+				break;
+			default:
+				__flush_cache_all();
+				break;
+			}
+#endif
+		} else if (cache == Cache_I) {
+#ifdef CONFIG_CPU_R4K_CACHE_TLB
 			r4k_blast_icache();
-		else {
+#else
+			switch (boot_cpu_type()) {
+			case CPU_CAVIUM_OCTEON3:
+				/* locally flush icache */
+				local_flush_icache_range(0, 0);
+				break;
+			default:
+				flush_icache_all();
+				break;
+			}
+#endif
+		} else {
 			kvm_err("%s: unsupported CACHE INDEX operation\n",
 				__func__);
 			return EMULATE_FAIL;
