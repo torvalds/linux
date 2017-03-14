@@ -2795,10 +2795,38 @@ static int btrfs_del_sys_chunk(struct btrfs_fs_info *fs_info,
 	return ret;
 }
 
+static struct extent_map *get_chunk_map(struct btrfs_fs_info *fs_info,
+					u64 logical, u64 length)
+{
+	struct extent_map_tree *em_tree;
+	struct extent_map *em;
+
+	em_tree = &fs_info->mapping_tree.map_tree;
+	read_lock(&em_tree->lock);
+	em = lookup_extent_mapping(em_tree, logical, length);
+	read_unlock(&em_tree->lock);
+
+	if (!em) {
+		btrfs_crit(fs_info, "unable to find logical %llu length %llu",
+			   logical, length);
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (em->start > logical || em->start + em->len < logical) {
+		btrfs_crit(fs_info,
+			   "found a bad mapping, wanted %llu-%llu, found %llu-%llu",
+			   logical, length, em->start, em->start + em->len);
+		free_extent_map(em);
+		return ERR_PTR(-EINVAL);
+	}
+
+	/* callers are responsible for dropping em's ref. */
+	return em;
+}
+
 int btrfs_remove_chunk(struct btrfs_trans_handle *trans,
 		       struct btrfs_fs_info *fs_info, u64 chunk_offset)
 {
-	struct extent_map_tree *em_tree;
 	struct extent_map *em;
 	struct map_lookup *map;
 	u64 dev_extent_len = 0;
@@ -2806,23 +2834,15 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans,
 	int i, ret = 0;
 	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 
-	em_tree = &fs_info->mapping_tree.map_tree;
-
-	read_lock(&em_tree->lock);
-	em = lookup_extent_mapping(em_tree, chunk_offset, 1);
-	read_unlock(&em_tree->lock);
-
-	if (!em || em->start > chunk_offset ||
-	    em->start + em->len < chunk_offset) {
+	em = get_chunk_map(fs_info, chunk_offset, 1);
+	if (IS_ERR(em)) {
 		/*
 		 * This is a logic error, but we don't want to just rely on the
 		 * user having built with ASSERT enabled, so if ASSERT doesn't
 		 * do anything we still error out.
 		 */
 		ASSERT(0);
-		if (em)
-			free_extent_map(em);
-		return -EINVAL;
+		return PTR_ERR(em);
 	}
 	map = em->map_lookup;
 	mutex_lock(&fs_info->chunk_mutex);
@@ -4894,7 +4914,6 @@ int btrfs_finish_chunk_alloc(struct btrfs_trans_handle *trans,
 	struct btrfs_device *device;
 	struct btrfs_chunk *chunk;
 	struct btrfs_stripe *stripe;
-	struct extent_map_tree *em_tree;
 	struct extent_map *em;
 	struct map_lookup *map;
 	size_t item_size;
@@ -4903,24 +4922,9 @@ int btrfs_finish_chunk_alloc(struct btrfs_trans_handle *trans,
 	int i = 0;
 	int ret = 0;
 
-	em_tree = &fs_info->mapping_tree.map_tree;
-	read_lock(&em_tree->lock);
-	em = lookup_extent_mapping(em_tree, chunk_offset, chunk_size);
-	read_unlock(&em_tree->lock);
-
-	if (!em) {
-		btrfs_crit(fs_info, "unable to find logical %Lu len %Lu",
-			   chunk_offset, chunk_size);
-		return -EINVAL;
-	}
-
-	if (em->start != chunk_offset || em->len != chunk_size) {
-		btrfs_crit(fs_info,
-			   "found a bad mapping, wanted %Lu-%Lu, found %Lu-%Lu",
-			    chunk_offset, chunk_size, em->start, em->len);
-		free_extent_map(em);
-		return -EINVAL;
-	}
+	em = get_chunk_map(fs_info, chunk_offset, chunk_size);
+	if (IS_ERR(em))
+		return PTR_ERR(em);
 
 	map = em->map_lookup;
 	item_size = btrfs_chunk_item_size(map->num_stripes);
@@ -5061,15 +5065,12 @@ int btrfs_chunk_readonly(struct btrfs_fs_info *fs_info, u64 chunk_offset)
 {
 	struct extent_map *em;
 	struct map_lookup *map;
-	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
 	int readonly = 0;
 	int miss_ndevs = 0;
 	int i;
 
-	read_lock(&map_tree->map_tree.lock);
-	em = lookup_extent_mapping(&map_tree->map_tree, chunk_offset, 1);
-	read_unlock(&map_tree->map_tree.lock);
-	if (!em)
+	em = get_chunk_map(fs_info, chunk_offset, 1);
+	if (IS_ERR(em))
 		return 1;
 
 	map = em->map_lookup;
@@ -5123,34 +5124,19 @@ void btrfs_mapping_tree_free(struct btrfs_mapping_tree *tree)
 
 int btrfs_num_copies(struct btrfs_fs_info *fs_info, u64 logical, u64 len)
 {
-	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
 	struct extent_map *em;
 	struct map_lookup *map;
-	struct extent_map_tree *em_tree = &map_tree->map_tree;
 	int ret;
 
-	read_lock(&em_tree->lock);
-	em = lookup_extent_mapping(em_tree, logical, len);
-	read_unlock(&em_tree->lock);
-
-	/*
-	 * We could return errors for these cases, but that could get ugly and
-	 * we'd probably do the same thing which is just not do anything else
-	 * and exit, so return 1 so the callers don't try to use other copies.
-	 */
-	if (!em) {
-		btrfs_crit(fs_info, "No mapping for %Lu-%Lu", logical,
-			    logical+len);
+	em = get_chunk_map(fs_info, logical, len);
+	if (IS_ERR(em))
+		/*
+		 * We could return errors for these cases, but that could get
+		 * ugly and we'd probably do the same thing which is just not do
+		 * anything else and exit, so return 1 so the callers don't try
+		 * to use other copies.
+		 */
 		return 1;
-	}
-
-	if (em->start > logical || em->start + em->len < logical) {
-		btrfs_crit(fs_info, "Invalid mapping for %Lu-%Lu, got %Lu-%Lu",
-			   logical, logical+len, em->start,
-			   em->start + em->len);
-		free_extent_map(em);
-		return 1;
-	}
 
 	map = em->map_lookup;
 	if (map->type & (BTRFS_BLOCK_GROUP_DUP | BTRFS_BLOCK_GROUP_RAID1))
@@ -5179,15 +5165,11 @@ unsigned long btrfs_full_stripe_len(struct btrfs_fs_info *fs_info,
 {
 	struct extent_map *em;
 	struct map_lookup *map;
-	struct extent_map_tree *em_tree = &map_tree->map_tree;
 	unsigned long len = fs_info->sectorsize;
 
-	read_lock(&em_tree->lock);
-	em = lookup_extent_mapping(em_tree, logical, len);
-	read_unlock(&em_tree->lock);
-	BUG_ON(!em);
+	em = get_chunk_map(fs_info, logical, len);
+	BUG_ON(IS_ERR(em));
 
-	BUG_ON(em->start > logical || em->start + em->len < logical);
 	map = em->map_lookup;
 	if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK)
 		len = map->stripe_len * nr_data_stripes(map);
@@ -5195,20 +5177,16 @@ unsigned long btrfs_full_stripe_len(struct btrfs_fs_info *fs_info,
 	return len;
 }
 
-int btrfs_is_parity_mirror(struct btrfs_mapping_tree *map_tree,
+int btrfs_is_parity_mirror(struct btrfs_fs_info *fs_info,
 			   u64 logical, u64 len, int mirror_num)
 {
 	struct extent_map *em;
 	struct map_lookup *map;
-	struct extent_map_tree *em_tree = &map_tree->map_tree;
 	int ret = 0;
 
-	read_lock(&em_tree->lock);
-	em = lookup_extent_mapping(em_tree, logical, len);
-	read_unlock(&em_tree->lock);
-	BUG_ON(!em);
+	em = get_chunk_map(fs_info, logical, len);
+	BUG_ON(IS_ERR(em));
 
-	BUG_ON(em->start > logical || em->start + em->len < logical);
 	map = em->map_lookup;
 	if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK)
 		ret = 1;
@@ -5328,8 +5306,6 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 {
 	struct extent_map *em;
 	struct map_lookup *map;
-	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
-	struct extent_map_tree *em_tree = &map_tree->map_tree;
 	u64 offset;
 	u64 stripe_offset;
 	u64 stripe_end_offset;
@@ -5351,23 +5327,9 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 	u64 physical_to_patch_in_first_stripe = 0;
 	u64 raid56_full_stripe_start = (u64)-1;
 
-	read_lock(&em_tree->lock);
-	em = lookup_extent_mapping(em_tree, logical, *length);
-	read_unlock(&em_tree->lock);
-
-	if (!em) {
-		btrfs_crit(fs_info, "unable to find logical %llu len %llu",
-			logical, *length);
-		return -EINVAL;
-	}
-
-	if (em->start > logical || em->start + em->len < logical) {
-		btrfs_crit(fs_info,
-			   "found a bad mapping, wanted %Lu, found %Lu-%Lu",
-			   logical, em->start, em->start + em->len);
-		free_extent_map(em);
-		return -EINVAL;
-	}
+	em = get_chunk_map(fs_info, logical, *length);
+	if (IS_ERR(em))
+		return PTR_ERR(em);
 
 	map = em->map_lookup;
 	offset = logical - em->start;
@@ -5903,8 +5865,6 @@ int btrfs_rmap_block(struct btrfs_fs_info *fs_info,
 		     u64 chunk_start, u64 physical, u64 devid,
 		     u64 **logical, int *naddrs, int *stripe_len)
 {
-	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
-	struct extent_map_tree *em_tree = &map_tree->map_tree;
 	struct extent_map *em;
 	struct map_lookup *map;
 	u64 *buf;
@@ -5914,24 +5874,11 @@ int btrfs_rmap_block(struct btrfs_fs_info *fs_info,
 	u64 rmap_len;
 	int i, j, nr = 0;
 
-	read_lock(&em_tree->lock);
-	em = lookup_extent_mapping(em_tree, chunk_start, 1);
-	read_unlock(&em_tree->lock);
-
-	if (!em) {
-		btrfs_err(fs_info, "couldn't find em for chunk %Lu",
-			chunk_start);
+	em = get_chunk_map(fs_info, chunk_start, 1);
+	if (IS_ERR(em))
 		return -EIO;
-	}
 
-	if (em->start != chunk_start) {
-		btrfs_err(fs_info, "bad chunk start, em=%Lu, wanted=%Lu",
-		       em->start, chunk_start);
-		free_extent_map(em);
-		return -EIO;
-	}
 	map = em->map_lookup;
-
 	length = em->len;
 	rmap_len = map->stripe_len;
 

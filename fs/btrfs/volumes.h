@@ -475,7 +475,7 @@ void btrfs_destroy_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 void btrfs_init_dev_replace_tgtdev_for_resume(struct btrfs_fs_info *fs_info,
 					      struct btrfs_device *tgtdev);
 void btrfs_scratch_superblocks(struct block_device *bdev, const char *device_path);
-int btrfs_is_parity_mirror(struct btrfs_mapping_tree *map_tree,
+int btrfs_is_parity_mirror(struct btrfs_fs_info *fs_info,
 			   u64 logical, u64 len, int mirror_num);
 unsigned long btrfs_full_stripe_len(struct btrfs_fs_info *fs_info,
 				    struct btrfs_mapping_tree *map_tree,

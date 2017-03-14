@@ -2004,14 +2004,13 @@ int repair_io_failure(struct btrfs_inode *inode, u64 start, u64 length,
 	u64 map_length = 0;
 	u64 sector;
 	struct btrfs_bio *bbio = NULL;
-	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
 	int ret;
 
 	ASSERT(!(fs_info->sb->s_flags & MS_RDONLY));
 	BUG_ON(!mirror_num);
 
 	/* we can't repair anything in raid56 yet */
-	if (btrfs_is_parity_mirror(map_tree, logical, length, mirror_num))
+	if (btrfs_is_parity_mirror(fs_info, logical, length, mirror_num))
 		return 0;
 
 	bio = btrfs_io_bio_alloc(GFP_NOFS, 1);
