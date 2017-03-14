@@ -2123,6 +2123,7 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 		return -ENOMEM;
 
 	hdmi->connector.interlace_allowed = 1;
+	hdmi->connector.stereo_allowed = 1;
 
 	hdmi->plat_data = plat_data;
 	hdmi->dev = dev;
