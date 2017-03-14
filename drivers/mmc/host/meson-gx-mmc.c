@@ -743,7 +743,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 
 	ret = meson_mmc_clk_init(host);
 	if (ret)
-		goto free_host;
+		goto err_core_clk;
 
 	/* Stop execution */
 	writel(0, host->regs + SD_EMMC_START);
@@ -783,8 +783,9 @@ static int meson_mmc_probe(struct platform_device *pdev)
 
 err_div_clk:
 	clk_disable_unprepare(host->cfg_div_clk);
-free_host:
+err_core_clk:
 	clk_disable_unprepare(host->core_clk);
+free_host:
 	mmc_free_host(mmc);
 	return ret;
 }
