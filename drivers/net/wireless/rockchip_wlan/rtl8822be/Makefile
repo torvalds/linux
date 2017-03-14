@@ -848,6 +848,28 @@ _HAL_INTFS_FILES +=	hal/rtl8822b/$(HCI_NAME)/rtl$(MODULE_NAME)_halinit.o \
 			hal/rtl8822b/$(HCI_NAME)/rtl$(MODULE_NAME)_led.o \
 			hal/rtl8822b/$(HCI_NAME)/rtl$(MODULE_NAME)_ops.o
 
+ifeq ($(CONFIG_USB_HCI), y)
+_HAL_INTFS_FILES +=hal/efuse/$(RTL871X)/HalEfuseMask8822B_USB.o
+endif
+ifeq ($(CONFIG_PCI_HCI), y)
+_HAL_INTFS_FILES +=hal/efuse/$(RTL871X)/HalEfuseMask8822B_PCIE.o
+endif
+ifeq ($(CONFIG_SDIO_HCI), y)
+#_HAL_INTFS_FILES +=hal/efuse/$(RTL871X)/HalEfuseMask8822B_SDIO.o
+endif
+
+_OUTSRC_FILES +=	hal/phydm/rtl8822b/halhwimg8822b_bb.o \
+			hal/phydm/rtl8822b/halhwimg8822b_fw.o \
+			hal/phydm/rtl8822b/halhwimg8822b_mac.o \
+			hal/phydm/rtl8822b/halhwimg8822b_rf.o \
+			hal/phydm/rtl8822b/halphyrf_8822b.o \
+			hal/phydm/rtl8822b/phydm_hal_api8822b.o \
+			hal/phydm/rtl8822b/phydm_iqk_8822b.o \
+			hal/phydm/rtl8822b/phydm_regconfig8822b.o \
+			hal/phydm/rtl8822b/phydm_rtl8822b.o
+
+_HAL_INTFS_FILES += $(_HAL_HALMAC_FILES)
+
 endif
 
 ########### HAL_RTL8821C #################################
