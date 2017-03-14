@@ -30,7 +30,6 @@ void init_mlme_ap_info(struct adapter *padapter)
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct wlan_acl_pool *pacl_list = &pstapriv->acl_list;
 
-
 	spin_lock_init(&pmlmepriv->bcn_update_lock);
 
 	/* for ACL */
