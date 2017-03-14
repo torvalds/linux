@@ -1062,27 +1062,14 @@ static void bcmgenet_power_up(struct bcmgenet_priv *priv,
 static int bcmgenet_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
-	int val = 0;
 
 	if (!netif_running(dev))
 		return -EINVAL;
 
-	switch (cmd) {
-	case SIOCGMIIPHY:
-	case SIOCGMIIREG:
-	case SIOCSMIIREG:
-		if (!priv->phydev)
-			val = -ENODEV;
-		else
-			val = phy_mii_ioctl(priv->phydev, rq, cmd);
-		break;
+	if (!priv->phydev)
+		return -ENODEV;
 
-	default:
-		val = -EINVAL;
-		break;
-	}
-
-	return val;
+	return phy_mii_ioctl(priv->phydev, rq, cmd);
 }
 
 static struct enet_cb *bcmgenet_get_txcb(struct bcmgenet_priv *priv,
