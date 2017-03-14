@@ -67,6 +67,7 @@
 #define KVM_REG_MIPS_CP0_CONFIG4	MIPS_CP0_32(16, 4)
 #define KVM_REG_MIPS_CP0_CONFIG5	MIPS_CP0_32(16, 5)
 #define KVM_REG_MIPS_CP0_CONFIG7	MIPS_CP0_32(16, 7)
+#define KVM_REG_MIPS_CP0_MAARI		MIPS_CP0_64(17, 2)
 #define KVM_REG_MIPS_CP0_XCONTEXT	MIPS_CP0_64(20, 0)
 #define KVM_REG_MIPS_CP0_ERROREPC	MIPS_CP0_64(30, 0)
 #define KVM_REG_MIPS_CP0_KSCRATCH1	MIPS_CP0_64(31, 2)
@@ -388,6 +389,9 @@ struct kvm_vcpu_arch {
 	struct kvm_mips_tlb *wired_tlb;
 	unsigned int wired_tlb_limit;
 	unsigned int wired_tlb_used;
+
+	/* emulated guest MAAR registers */
+	unsigned long maar[6];
 #endif
 
 	/* Last CPU the VCPU state was loaded on */
@@ -708,6 +712,7 @@ __BUILD_KVM_RW_HW(config4,        32, MIPS_CP0_CONFIG,       4)
 __BUILD_KVM_RW_HW(config5,        32, MIPS_CP0_CONFIG,       5)
 __BUILD_KVM_RW_HW(config6,        32, MIPS_CP0_CONFIG,       6)
 __BUILD_KVM_RW_HW(config7,        32, MIPS_CP0_CONFIG,       7)
+__BUILD_KVM_RW_SW(maari,          l,  MIPS_CP0_LLADDR,       2)
 __BUILD_KVM_RW_HW(xcontext,       l,  MIPS_CP0_TLB_XCONTEXT, 0)
 __BUILD_KVM_RW_HW(errorepc,       l,  MIPS_CP0_ERROR_PC,     0)
 __BUILD_KVM_RW_HW(kscratch1,      l,  MIPS_CP0_DESAVE,       2)

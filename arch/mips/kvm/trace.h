@@ -176,6 +176,8 @@ TRACE_EVENT(kvm_exit,
 	{ KVM_TRACE_COP0(16, 4),	"Config4" },		\
 	{ KVM_TRACE_COP0(16, 5),	"Config5" },		\
 	{ KVM_TRACE_COP0(16, 7),	"Config7" },		\
+	{ KVM_TRACE_COP0(17, 1),	"MAAR" },		\
+	{ KVM_TRACE_COP0(17, 2),	"MAARI" },		\
 	{ KVM_TRACE_COP0(26, 0),	"ECC" },		\
 	{ KVM_TRACE_COP0(30, 0),	"ErrorEPC" },		\
 	{ KVM_TRACE_COP0(31, 2),	"KScratch1" },		\

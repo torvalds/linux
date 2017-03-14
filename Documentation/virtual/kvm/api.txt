@@ -2114,6 +2114,7 @@ registers, find a list below:
   MIPS  | KVM_REG_MIPS_CP0_KSCRATCH4    | 64
   MIPS  | KVM_REG_MIPS_CP0_KSCRATCH5    | 64
   MIPS  | KVM_REG_MIPS_CP0_KSCRATCH6    | 64
+  MIPS  | KVM_REG_MIPS_CP0_MAAR(0..63)  | 64
   MIPS  | KVM_REG_MIPS_COUNT_CTL        | 64
   MIPS  | KVM_REG_MIPS_COUNT_RESUME     | 64
   MIPS  | KVM_REG_MIPS_COUNT_HZ         | 64
@@ -2179,6 +2180,10 @@ versions of the EntryLo registers regardless of the word size of the host
 hardware, host kernel, guest, and whether XPA is present in the guest, i.e.
 with the RI and XI bits (if they exist) in bits 63 and 62 respectively, and
 the PFNX field starting at bit 30.
+
+MIPS MAARs (see KVM_REG_MIPS_CP0_MAAR(*) above) have the following id bit
+patterns:
+  0x7030 0000 0001 01 <reg:8>
 
 MIPS KVM control registers (see above) have the following id bit patterns:
   0x7030 0000 0002 <reg:16>

@@ -134,7 +134,7 @@ static inline unsigned int kvm_vz_config5_guest_wrmask(struct kvm_vcpu *vcpu)
  * Config3:	M, MSAP, [BPG], ULRI, [DSP2P, DSPP], CTXTC, [ITL, LPA, VEIC,
  *		VInt, SP, CDMM, MT, SM, TL]
  * Config4:	M, [VTLBSizeExt, MMUSizeExt]
- * Config5:	[MRP]
+ * Config5:	MRP
  */
 
 static inline unsigned int kvm_vz_config_user_wrmask(struct kvm_vcpu *vcpu)
@@ -177,7 +177,7 @@ static inline unsigned int kvm_vz_config4_user_wrmask(struct kvm_vcpu *vcpu)
 
 static inline unsigned int kvm_vz_config5_user_wrmask(struct kvm_vcpu *vcpu)
 {
-	return kvm_vz_config5_guest_wrmask(vcpu);
+	return kvm_vz_config5_guest_wrmask(vcpu) | MIPS_CONF5_MRP;
 }
 
 static gpa_t kvm_vz_gva_to_gpa_cb(gva_t gva)
@@ -685,6 +685,41 @@ static int kvm_trap_vz_no_handler(struct kvm_vcpu *vcpu)
 	return RESUME_HOST;
 }
 
+static unsigned long mips_process_maar(unsigned int op, unsigned long val)
+{
+	/* Mask off unused bits */
+	unsigned long mask = 0xfffff000 | MIPS_MAAR_S | MIPS_MAAR_VL;
+
+	if (read_gc0_pagegrain() & PG_ELPA)
+		mask |= 0x00ffffff00000000ull;
+	if (cpu_guest_has_mvh)
+		mask |= MIPS_MAAR_VH;
+
+	/* Set or clear VH */
+	if (op == mtc_op) {
+		/* clear VH */
+		val &= ~MIPS_MAAR_VH;
+	} else if (op == dmtc_op) {
+		/* set VH to match VL */
+		val &= ~MIPS_MAAR_VH;
+		if (val & MIPS_MAAR_VL)
+			val |= MIPS_MAAR_VH;
+	}
+
+	return val & mask;
+}
+
+static void kvm_write_maari(struct kvm_vcpu *vcpu, unsigned long val)
+{
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+
+	val &= MIPS_MAARI_INDEX;
+	if (val == MIPS_MAARI_INDEX)
+		kvm_write_sw_gc0_maari(cop0, ARRAY_SIZE(vcpu->arch.maar) - 1);
+	else if (val < ARRAY_SIZE(vcpu->arch.maar))
+		kvm_write_sw_gc0_maari(cop0, val);
+}
+
 static enum emulation_result kvm_vz_gpsi_cop0(union mips_instruction inst,
 					      u32 *opc, u32 cause,
 					      struct kvm_run *run,
@@ -737,6 +772,15 @@ static enum emulation_result kvm_vz_gpsi_cop0(union mips_instruction inst,
 						MIPS_LLADDR_LLB;
 				else
 					val = 0;
+			} else if (rd == MIPS_CP0_LLADDR &&
+				   sel == 1 &&		/* MAAR */
+				   cpu_guest_has_maar &&
+				   !cpu_guest_has_dyn_maar) {
+				/* MAARI must be in range */
+				BUG_ON(kvm_read_sw_gc0_maari(cop0) >=
+						ARRAY_SIZE(vcpu->arch.maar));
+				val = vcpu->arch.maar[
+					kvm_read_sw_gc0_maari(cop0)];
 			} else if ((rd == MIPS_CP0_PRID &&
 				    (sel == 0 ||	/* PRid */
 				     sel == 2 ||	/* CDMMBase */
@@ -746,6 +790,10 @@ static enum emulation_result kvm_vz_gpsi_cop0(union mips_instruction inst,
 				     sel == 3)) ||	/* SRSMap */
 				   (rd == MIPS_CP0_CONFIG &&
 				    (sel == 7)) ||	/* Config7 */
+				   (rd == MIPS_CP0_LLADDR &&
+				    (sel == 2) &&	/* MAARI */
+				    cpu_guest_has_maar &&
+				    !cpu_guest_has_dyn_maar) ||
 				   (rd == MIPS_CP0_ERRCTL &&
 				    (sel == 0))) {	/* ErrCtl */
 				val = cop0->reg[rd][sel];
@@ -793,6 +841,23 @@ static enum emulation_result kvm_vz_gpsi_cop0(union mips_instruction inst,
 				if (cpu_guest_has_rw_llb &&
 				    !(val & MIPS_LLADDR_LLB))
 					write_gc0_lladdr(0);
+			} else if (rd == MIPS_CP0_LLADDR &&
+				   sel == 1 &&		/* MAAR */
+				   cpu_guest_has_maar &&
+				   !cpu_guest_has_dyn_maar) {
+				val = mips_process_maar(inst.c0r_format.rs,
+							val);
+
+				/* MAARI must be in range */
+				BUG_ON(kvm_read_sw_gc0_maari(cop0) >=
+						ARRAY_SIZE(vcpu->arch.maar));
+				vcpu->arch.maar[kvm_read_sw_gc0_maari(cop0)] =
+									val;
+			} else if (rd == MIPS_CP0_LLADDR &&
+				   (sel == 2) &&	/* MAARI */
+				   cpu_guest_has_maar &&
+				   !cpu_guest_has_dyn_maar) {
+				kvm_write_maari(vcpu, val);
 			} else if (rd == MIPS_CP0_ERRCTL &&
 				   (sel == 0)) {	/* ErrCtl */
 				/* ignore the written value */
@@ -1441,6 +1506,8 @@ static unsigned long kvm_vz_num_regs(struct kvm_vcpu *vcpu)
 		ret += ARRAY_SIZE(kvm_vz_get_one_regs_segments);
 	if (cpu_guest_has_htw)
 		ret += ARRAY_SIZE(kvm_vz_get_one_regs_htw);
+	if (cpu_guest_has_maar && !cpu_guest_has_dyn_maar)
+		ret += 1 + ARRAY_SIZE(vcpu->arch.maar);
 	ret += __arch_hweight8(cpu_data[0].guest.kscratch_mask);
 
 	return ret;
@@ -1491,6 +1558,19 @@ static int kvm_vz_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *indices)
 				 sizeof(kvm_vz_get_one_regs_htw)))
 			return -EFAULT;
 		indices += ARRAY_SIZE(kvm_vz_get_one_regs_htw);
+	}
+	if (cpu_guest_has_maar && !cpu_guest_has_dyn_maar) {
+		for (i = 0; i < ARRAY_SIZE(vcpu->arch.maar); ++i) {
+			index = KVM_REG_MIPS_CP0_MAAR(i);
+			if (copy_to_user(indices, &index, sizeof(index)))
+				return -EFAULT;
+			++indices;
+		}
+
+		index = KVM_REG_MIPS_CP0_MAARI;
+		if (copy_to_user(indices, &index, sizeof(index)))
+			return -EFAULT;
+		++indices;
 	}
 	for (i = 0; i < 6; ++i) {
 		if (!cpu_guest_has_kscr(i + 2))
@@ -1688,6 +1768,19 @@ static int kvm_vz_get_one_reg(struct kvm_vcpu *vcpu,
 		if (!cpu_guest_has_conf5)
 			return -EINVAL;
 		*v = read_gc0_config5();
+		break;
+	case KVM_REG_MIPS_CP0_MAAR(0) ... KVM_REG_MIPS_CP0_MAAR(0x3f):
+		if (!cpu_guest_has_maar || cpu_guest_has_dyn_maar)
+			return -EINVAL;
+		idx = reg->id - KVM_REG_MIPS_CP0_MAAR(0);
+		if (idx >= ARRAY_SIZE(vcpu->arch.maar))
+			return -EINVAL;
+		*v = vcpu->arch.maar[idx];
+		break;
+	case KVM_REG_MIPS_CP0_MAARI:
+		if (!cpu_guest_has_maar || cpu_guest_has_dyn_maar)
+			return -EINVAL;
+		*v = kvm_read_sw_gc0_maari(vcpu->arch.cop0);
 		break;
 #ifdef CONFIG_64BIT
 	case KVM_REG_MIPS_CP0_XCONTEXT:
@@ -1937,6 +2030,19 @@ static int kvm_vz_set_one_reg(struct kvm_vcpu *vcpu,
 			v = cur ^ change;
 			write_gc0_config5(v);
 		}
+		break;
+	case KVM_REG_MIPS_CP0_MAAR(0) ... KVM_REG_MIPS_CP0_MAAR(0x3f):
+		if (!cpu_guest_has_maar || cpu_guest_has_dyn_maar)
+			return -EINVAL;
+		idx = reg->id - KVM_REG_MIPS_CP0_MAAR(0);
+		if (idx >= ARRAY_SIZE(vcpu->arch.maar))
+			return -EINVAL;
+		vcpu->arch.maar[idx] = mips_process_maar(dmtc_op, v);
+		break;
+	case KVM_REG_MIPS_CP0_MAARI:
+		if (!cpu_guest_has_maar || cpu_guest_has_dyn_maar)
+			return -EINVAL;
+		kvm_write_maari(vcpu, v);
 		break;
 #ifdef CONFIG_64BIT
 	case KVM_REG_MIPS_CP0_XCONTEXT:
