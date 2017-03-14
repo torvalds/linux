@@ -66,6 +66,15 @@ DEFINE_EVENT(kvm_transition, kvm_out,
 #define KVM_TRACE_EXIT_WAIT		32
 #define KVM_TRACE_EXIT_CACHE		33
 #define KVM_TRACE_EXIT_SIGNAL		34
+/* 32 exit reasons correspond to GuestCtl0.GExcCode (VZ) */
+#define KVM_TRACE_EXIT_GEXCCODE_BASE	64
+#define KVM_TRACE_EXIT_GPSI		64	/*  0 */
+#define KVM_TRACE_EXIT_GSFC		65	/*  1 */
+#define KVM_TRACE_EXIT_HC		66	/*  2 */
+#define KVM_TRACE_EXIT_GRR		67	/*  3 */
+#define KVM_TRACE_EXIT_GVA		72	/*  8 */
+#define KVM_TRACE_EXIT_GHFC		73	/*  9 */
+#define KVM_TRACE_EXIT_GPA		74	/* 10 */
 
 /* Tracepoints for VM exits */
 #define kvm_trace_symbol_exit_types				\
@@ -85,7 +94,14 @@ DEFINE_EVENT(kvm_transition, kvm_out,
 	{ KVM_TRACE_EXIT_MSA_DISABLED,	"MSA Disabled" },	\
 	{ KVM_TRACE_EXIT_WAIT,		"WAIT" },		\
 	{ KVM_TRACE_EXIT_CACHE,		"CACHE" },		\
-	{ KVM_TRACE_EXIT_SIGNAL,	"Signal" }
+	{ KVM_TRACE_EXIT_SIGNAL,	"Signal" },		\
+	{ KVM_TRACE_EXIT_GPSI,		"GPSI" },		\
+	{ KVM_TRACE_EXIT_GSFC,		"GSFC" },		\
+	{ KVM_TRACE_EXIT_HC,		"HC" },			\
+	{ KVM_TRACE_EXIT_GRR,		"GRR" },		\
+	{ KVM_TRACE_EXIT_GVA,		"GVA" },		\
+	{ KVM_TRACE_EXIT_GHFC,		"GHFC" },		\
+	{ KVM_TRACE_EXIT_GPA,		"GPA" }
 
 TRACE_EVENT(kvm_exit,
 	    TP_PROTO(struct kvm_vcpu *vcpu, unsigned int reason),

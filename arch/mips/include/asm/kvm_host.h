@@ -145,6 +145,16 @@ struct kvm_vcpu_stat {
 	u64 fpe_exits;
 	u64 msa_disabled_exits;
 	u64 flush_dcache_exits;
+#ifdef CONFIG_KVM_MIPS_VZ
+	u64 vz_gpsi_exits;
+	u64 vz_gsfc_exits;
+	u64 vz_hc_exits;
+	u64 vz_grr_exits;
+	u64 vz_gva_exits;
+	u64 vz_ghfc_exits;
+	u64 vz_gpa_exits;
+	u64 vz_resvd_exits;
+#endif
 	u64 halt_successful_poll;
 	u64 halt_attempted_poll;
 	u64 halt_poll_invalid;
