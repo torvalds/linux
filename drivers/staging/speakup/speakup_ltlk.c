@@ -111,6 +111,7 @@ static struct spk_synth synth_ltlk = {
 	.startup = SYNTH_START,
 	.checkval = SYNTH_CHECK,
 	.vars = vars,
+	.io_ops = &spk_serial_io_ops,
 	.probe = synth_probe,
 	.release = spk_serial_release,
 	.synth_immediate = spk_synth_immediate,

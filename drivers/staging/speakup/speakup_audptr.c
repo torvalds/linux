@@ -104,6 +104,7 @@ static struct spk_synth synth_audptr = {
 	.startup = SYNTH_START,
 	.checkval = SYNTH_CHECK,
 	.vars = vars,
+	.io_ops = &spk_serial_io_ops,
 	.probe = synth_probe,
 	.release = spk_serial_release,
 	.synth_immediate = spk_synth_immediate,
@@ -135,7 +136,7 @@ static void synth_flush(struct spk_synth *synth)
 		udelay(1);
 	}
 	outb(SYNTH_CLEAR, speakup_info.port_tts);
-	spk_serial_out(synth, PROCSPEECH);
+	synth->io_ops->synth_out(synth, PROCSPEECH);
 }
 
 static void synth_version(struct spk_synth *synth)

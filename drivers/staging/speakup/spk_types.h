@@ -146,6 +146,12 @@ struct synth_indexing {
 	unsigned char currindex;
 };
 
+struct spk_synth;
+
+struct spk_io_ops {
+	int (*synth_out)(struct spk_synth *synth, const char ch);
+};
+
 struct spk_synth {
 	const char *name;
 	const char *version;
@@ -164,6 +170,7 @@ struct spk_synth {
 	struct var_t *vars;
 	int *default_pitch;
 	int *default_vol;
+	struct spk_io_ops *io_ops;
 	int (*probe)(struct spk_synth *synth);
 	void (*release)(void);
 	const char *(*synth_immediate)(struct spk_synth *synth,

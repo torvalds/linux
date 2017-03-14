@@ -108,6 +108,7 @@ static struct spk_synth synth_apollo = {
 	.startup = SYNTH_START,
 	.checkval = SYNTH_CHECK,
 	.vars = vars,
+	.io_ops = &spk_serial_io_ops,
 	.probe = spk_serial_synth_probe,
 	.release = spk_serial_release,
 	.synth_immediate = spk_synth_immediate,
@@ -169,7 +170,7 @@ static void do_catch_up(struct spk_synth *synth)
 		set_current_state(TASK_INTERRUPTIBLE);
 		full_time_val = full_time->u.n.value;
 		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
-		if (!spk_serial_out(synth, ch)) {
+		if (!synth->io_ops->synth_out(synth, ch)) {
 			outb(UART_MCR_DTR, speakup_info.port_tts + UART_MCR);
 			outb(UART_MCR_DTR | UART_MCR_RTS,
 					speakup_info.port_tts + UART_MCR);
@@ -182,7 +183,7 @@ static void do_catch_up(struct spk_synth *synth)
 			full_time_val = full_time->u.n.value;
 			delay_time_val = delay_time->u.n.value;
 			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
-			if (spk_serial_out(synth, synth->procspeech))
+			if (synth->io_ops->synth_out(synth, synth->procspeech))
 				schedule_timeout(msecs_to_jiffies
 						 (delay_time_val));
 			else
@@ -195,7 +196,7 @@ static void do_catch_up(struct spk_synth *synth)
 		synth_buffer_getc();
 		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 	}
-	spk_serial_out(synth, PROCSPEECH);
+	synth->io_ops->synth_out(synth, PROCSPEECH);
 }
 
 module_param_named(ser, synth_apollo.ser, int, 0444);

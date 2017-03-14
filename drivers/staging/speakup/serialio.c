@@ -24,6 +24,12 @@ static const struct old_serial_port rs_table[] = {
 static const struct old_serial_port *serstate;
 static int timeouts;
 
+static int spk_serial_out(struct spk_synth *in_synth, const char ch);
+struct spk_io_ops spk_serial_io_ops = {
+	.synth_out = spk_serial_out,
+};
+EXPORT_SYMBOL_GPL(spk_serial_io_ops);
+
 const struct old_serial_port *spk_serial_init(int index)
 {
 	int baud = 9600, quot = 0;
@@ -214,7 +220,6 @@ int spk_serial_out(struct spk_synth *in_synth, const char ch)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(spk_serial_out);
 
 void spk_serial_release(void)
 {

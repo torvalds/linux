@@ -120,7 +120,7 @@ void spk_do_catch_up(struct spk_synth *synth)
 		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 		if (ch == '\n')
 			ch = synth->procspeech;
-		if (!spk_serial_out(synth, ch)) {
+		if (!synth->io_ops->synth_out(synth, ch)) {
 			schedule_timeout(msecs_to_jiffies(full_time_val));
 			continue;
 		}
@@ -130,7 +130,7 @@ void spk_do_catch_up(struct spk_synth *synth)
 			delay_time_val = delay_time->u.n.value;
 			full_time_val = full_time->u.n.value;
 			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
-			if (spk_serial_out(synth, synth->procspeech))
+			if (synth->io_ops->synth_out(synth, synth->procspeech))
 				schedule_timeout(
 					msecs_to_jiffies(delay_time_val));
 			else
@@ -143,7 +143,7 @@ void spk_do_catch_up(struct spk_synth *synth)
 		synth_buffer_getc();
 		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 	}
-	spk_serial_out(synth, synth->procspeech);
+	synth->io_ops->synth_out(synth, synth->procspeech);
 }
 EXPORT_SYMBOL_GPL(spk_do_catch_up);
 
@@ -166,7 +166,7 @@ EXPORT_SYMBOL_GPL(spk_synth_immediate);
 
 void spk_synth_flush(struct spk_synth *synth)
 {
-	spk_serial_out(synth, synth->clear);
+	synth->io_ops->synth_out(synth, synth->clear);
 }
 EXPORT_SYMBOL_GPL(spk_synth_flush);
 

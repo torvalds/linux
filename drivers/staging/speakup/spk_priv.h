@@ -45,7 +45,6 @@ void spk_stop_serial_interrupt(void);
 int spk_wait_for_xmitr(struct spk_synth *in_synth);
 unsigned char spk_serial_in(void);
 unsigned char spk_serial_in_nowait(void);
-int spk_serial_out(struct spk_synth *in_synth, const char ch);
 void spk_serial_release(void);
 
 void synth_buffer_skip_nonlatin1(void);
@@ -78,5 +77,7 @@ void synth_remove(struct spk_synth *in_synth);
 extern struct speakup_info_t speakup_info;
 
 extern struct var_t synth_time_vars[];
+
+extern struct spk_io_ops spk_serial_io_ops;
 
 #endif
