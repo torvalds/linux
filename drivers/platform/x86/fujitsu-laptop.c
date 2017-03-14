@@ -32,18 +32,9 @@
  * features made available on a range of Fujitsu laptops including the
  * P2xxx/P5xxx/S6xxx/S7xxx series.
  *
- * This driver exports a few files in /sys/devices/platform/fujitsu-laptop/;
- * others may be added at a later date.
- *
- *   lcd_level - Screen brightness: contains a single integer in the
- *   range 0..7. (rw)
- *
- * In addition to these platform device attributes the driver
- * registers itself in the Linux backlight control subsystem and is
- * available to userspace under /sys/class/backlight/fujitsu-laptop/.
- *
- * Hotkeys present on certain Fujitsu laptops (eg: the S6xxx series) are
- * also supported by this driver.
+ * This driver implements a vendor-specific backlight control interface for
+ * Fujitsu laptops and provides support for hotkeys present on certain Fujitsu
+ * laptops.
  *
  * This driver has been tested on a Fujitsu Lifebook S6410, S7020 and
  * P8010.  It should work on most P-series and S-series Lifebooks, but
@@ -489,74 +480,6 @@ static const struct backlight_ops fujitsu_bl_ops = {
 	.update_status = bl_update_status,
 };
 
-/* Platform LCD brightness device */
-
-static ssize_t
-show_max_brightness(struct device *dev,
-		    struct device_attribute *attr, char *buf)
-{
-
-	int ret;
-
-	ret = get_max_brightness();
-	if (ret < 0)
-		return ret;
-
-	return sprintf(buf, "%i\n", ret);
-}
-
-static ssize_t
-show_brightness_changed(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-
-	int ret;
-
-	ret = fujitsu_bl->brightness_changed;
-	if (ret < 0)
-		return ret;
-
-	return sprintf(buf, "%i\n", ret);
-}
-
-static ssize_t show_lcd_level(struct device *dev,
-			      struct device_attribute *attr, char *buf)
-{
-
-	int ret;
-
-	ret = get_lcd_level();
-	if (ret < 0)
-		return ret;
-
-	return sprintf(buf, "%i\n", ret);
-}
-
-static ssize_t store_lcd_level(struct device *dev,
-			       struct device_attribute *attr, const char *buf,
-			       size_t count)
-{
-
-	int level, ret;
-
-	if (sscanf(buf, "%i", &level) != 1
-	    || (level < 0 || level >= fujitsu_bl->max_brightness))
-		return -EINVAL;
-
-	if (use_alt_lcd_levels)
-		ret = set_lcd_level_alt(level);
-	else
-		ret = set_lcd_level(level);
-	if (ret < 0)
-		return ret;
-
-	ret = get_lcd_level();
-	if (ret < 0)
-		return ret;
-
-	return count;
-}
-
 static ssize_t
 ignore_store(struct device *dev,
 	     struct device_attribute *attr, const char *buf, size_t count)
@@ -600,18 +523,11 @@ show_radios_state(struct device *dev,
 		return sprintf(buf, "killed\n");
 }
 
-static DEVICE_ATTR(max_brightness, 0444, show_max_brightness, ignore_store);
-static DEVICE_ATTR(brightness_changed, 0444, show_brightness_changed,
-		   ignore_store);
-static DEVICE_ATTR(lcd_level, 0644, show_lcd_level, store_lcd_level);
 static DEVICE_ATTR(lid, 0444, show_lid_state, ignore_store);
 static DEVICE_ATTR(dock, 0444, show_dock_state, ignore_store);
 static DEVICE_ATTR(radios, 0444, show_radios_state, ignore_store);
 
 static struct attribute *fujitsu_pf_attributes[] = {
-	&dev_attr_brightness_changed.attr,
-	&dev_attr_max_brightness.attr,
-	&dev_attr_lcd_level.attr,
 	&dev_attr_lid.attr,
 	&dev_attr_dock.attr,
 	&dev_attr_radios.attr,
