@@ -1458,6 +1458,18 @@ static int bdw_adjust_min_pipe_pixel_rate(struct intel_crtc_state *crtc_state,
 			pixel_rate = max(432000, pixel_rate);
 	}
 
+	/* According to BSpec, "The CD clock frequency must be at least twice
+	 * the frequency of the Azalia BCLK." and BCLK is 96 MHz by default.
+	 * The check for GLK has to be adjusted as the platform can output
+	 * two pixels per clock.
+	 */
+	if (crtc_state->has_audio && INTEL_GEN(dev_priv) >= 9) {
+		if (IS_GEMINILAKE(dev_priv))
+			pixel_rate = max(2 * 2 * 96000, pixel_rate);
+		else
+			pixel_rate = max(2 * 96000, pixel_rate);
+	}
+
 	return pixel_rate;
 }
 
