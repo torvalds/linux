@@ -55,7 +55,7 @@ static int kvm_trap_emul_no_handler(struct kvm_vcpu *vcpu)
 		opc += 1;
 	kvm_get_badinstr(opc, vcpu, &inst);
 
-	kvm_err("Exception Code: %d not handled @ PC: %p, inst: 0x%08x BadVaddr: %#lx Status: %#lx\n",
+	kvm_err("Exception Code: %d not handled @ PC: %p, inst: 0x%08x BadVaddr: %#lx Status: %#x\n",
 		exccode, opc, inst, badvaddr,
 		kvm_read_c0_guest_status(vcpu->arch.cop0));
 	kvm_arch_vcpu_dump_regs(vcpu);
@@ -947,10 +947,12 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 			if (v & CAUSEF_DC) {
 				/* disable timer first */
 				kvm_mips_count_disable_cause(vcpu);
-				kvm_change_c0_guest_cause(cop0, ~CAUSEF_DC, v);
+				kvm_change_c0_guest_cause(cop0, (u32)~CAUSEF_DC,
+							  v);
 			} else {
 				/* enable timer last */
-				kvm_change_c0_guest_cause(cop0, ~CAUSEF_DC, v);
+				kvm_change_c0_guest_cause(cop0, (u32)~CAUSEF_DC,
+							  v);
 				kvm_mips_count_enable_cause(vcpu);
 			}
 		} else {

@@ -881,7 +881,7 @@ enum emulation_result kvm_mips_emul_tlbr(struct kvm_vcpu *vcpu)
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	unsigned long pc = vcpu->arch.pc;
 
-	kvm_err("[%#lx] COP0_TLBR [%ld]\n", pc, kvm_read_c0_guest_index(cop0));
+	kvm_err("[%#lx] COP0_TLBR [%d]\n", pc, kvm_read_c0_guest_index(cop0));
 	return EMULATE_FAIL;
 }
 
