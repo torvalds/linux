@@ -578,3 +578,9 @@ int __qcom_scm_set_remote_state(struct device *dev, u32 state, u32 id)
 
 	return ret ? : le32_to_cpu(scm_ret);
 }
+
+int __qcom_scm_restore_sec_cfg(struct device *dev, u32 device_id,
+			       u32 spare)
+{
+	return -ENODEV;
+}

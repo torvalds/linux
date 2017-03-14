@@ -85,4 +85,9 @@ static inline int qcom_scm_remap_error(int err)
 	return -EINVAL;
 }
 
+#define QCOM_SCM_SVC_MP			0xc
+#define QCOM_SCM_RESTORE_SEC_CFG	2
+extern int __qcom_scm_restore_sec_cfg(struct device *dev, u32 device_id,
+				      u32 spare);
+
 #endif
