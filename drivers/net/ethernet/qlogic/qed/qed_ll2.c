@@ -476,7 +476,7 @@ qed_ll2_rxq_completion_gsi(struct qed_hwfn *p_hwfn,
 static int qed_ll2_rxq_completion_reg(struct qed_hwfn *p_hwfn,
 				      struct qed_ll2_info *p_ll2_conn,
 				      union core_rx_cqe_union *p_cqe,
-				      unsigned long lock_flags,
+				      unsigned long *p_lock_flags,
 				      bool b_last_cqe)
 {
 	struct qed_ll2_rx_queue *p_rx = &p_ll2_conn->rx_queue;
@@ -497,10 +497,10 @@ static int qed_ll2_rxq_completion_reg(struct qed_hwfn *p_hwfn,
 			  "Mismatch between active_descq and the LL2 Rx chain\n");
 	list_add_tail(&p_pkt->list_entry, &p_rx->free_descq);
 
-	spin_unlock_irqrestore(&p_rx->lock, lock_flags);
+	spin_unlock_irqrestore(&p_rx->lock, *p_lock_flags);
 	qed_ll2b_complete_rx_packet(p_hwfn, p_ll2_conn->my_id,
 				    p_pkt, &p_cqe->rx_cqe_fp, b_last_cqe);
-	spin_lock_irqsave(&p_rx->lock, lock_flags);
+	spin_lock_irqsave(&p_rx->lock, *p_lock_flags);
 
 	return 0;
 }
@@ -540,7 +540,8 @@ static int qed_ll2_rxq_completion(struct qed_hwfn *p_hwfn, void *cookie)
 			break;
 		case CORE_RX_CQE_TYPE_REGULAR:
 			rc = qed_ll2_rxq_completion_reg(p_hwfn, p_ll2_conn,
-							cqe, flags, b_last_cqe);
+							cqe, &flags,
+							b_last_cqe);
 			break;
 		default:
 			rc = -EIO;
