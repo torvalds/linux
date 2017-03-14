@@ -184,6 +184,7 @@ struct intel_huc {
 };
 
 /* intel_uc.c */
+void intel_uc_sanitize_options(struct drm_i915_private *dev_priv);
 void intel_uc_init_early(struct drm_i915_private *dev_priv);
 void intel_uc_init_fw(struct drm_i915_private *dev_priv);
 void intel_uc_prepare_fw(struct drm_i915_private *dev_priv,

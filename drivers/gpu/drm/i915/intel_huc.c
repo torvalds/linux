@@ -162,9 +162,6 @@ void intel_huc_init_fw(struct intel_huc *huc)
 	huc->fw.load_status = INTEL_UC_FIRMWARE_NONE;
 	huc->fw.fw = INTEL_UC_FW_TYPE_HUC;
 
-	if (!HAS_HUC_UCODE(dev_priv))
-		return;
-
 	if (IS_SKYLAKE(dev_priv)) {
 		fw_path = I915_SKL_HUC_UCODE;
 		huc->fw.major_ver_wanted = SKL_HUC_FW_MAJOR;

@@ -534,20 +534,7 @@ void intel_guc_init_fw(struct intel_guc *guc)
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	const char *fw_path;
 
-	if (!HAS_GUC(dev_priv)) {
-		i915.enable_guc_loading = 0;
-		i915.enable_guc_submission = 0;
-	} else {
-		/* A negative value means "use platform default" */
-		if (i915.enable_guc_loading < 0)
-			i915.enable_guc_loading = HAS_GUC_UCODE(dev_priv);
-		if (i915.enable_guc_submission < 0)
-			i915.enable_guc_submission = HAS_GUC_SCHED(dev_priv);
-	}
-
-	if (!HAS_GUC_UCODE(dev_priv)) {
-		fw_path = NULL;
-	} else if (IS_SKYLAKE(dev_priv)) {
+	if (IS_SKYLAKE(dev_priv)) {
 		fw_path = I915_SKL_GUC_UCODE;
 		guc->fw.major_ver_wanted = SKL_FW_MAJOR;
 		guc->fw.minor_ver_wanted = SKL_FW_MINOR;
@@ -567,9 +554,6 @@ void intel_guc_init_fw(struct intel_guc *guc)
 	guc->fw.fetch_status = INTEL_UC_FIRMWARE_NONE;
 	guc->fw.load_status = INTEL_UC_FIRMWARE_NONE;
 
-	/* Early (and silent) return if GuC loading is disabled */
-	if (!i915.enable_guc_loading)
-		return;
 	if (fw_path == NULL)
 		return;
 	if (*fw_path == '\0')
