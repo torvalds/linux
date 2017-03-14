@@ -356,8 +356,10 @@ void intel_uc_prepare_fw(struct drm_i915_private *dev_priv,
 		goto fail;
 	}
 
-	if (uc_fw->major_ver_found != uc_fw->major_ver_wanted ||
-	    uc_fw->minor_ver_found < uc_fw->minor_ver_wanted) {
+	if (uc_fw->major_ver_wanted == 0 && uc_fw->minor_ver_wanted == 0) {
+		DRM_NOTE("Skipping uC firmware version check\n");
+	} else if (uc_fw->major_ver_found != uc_fw->major_ver_wanted ||
+		   uc_fw->minor_ver_found < uc_fw->minor_ver_wanted) {
 		DRM_NOTE("uC firmware version %d.%d, required %d.%d\n",
 			uc_fw->major_ver_found, uc_fw->minor_ver_found,
 			uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted);

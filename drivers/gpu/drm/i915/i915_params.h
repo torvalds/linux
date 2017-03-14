@@ -46,6 +46,8 @@
 	func(int, enable_guc_loading); \
 	func(int, enable_guc_submission); \
 	func(int, guc_log_level); \
+	func(char *, guc_firmware_path); \
+	func(char *, huc_firmware_path); \
 	func(int, use_mmio_flip); \
 	func(int, mmio_debug); \
 	func(int, edp_vswing); \

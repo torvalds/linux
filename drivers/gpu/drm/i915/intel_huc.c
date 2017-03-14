@@ -153,7 +153,11 @@ void intel_huc_select_fw(struct intel_huc *huc)
 	huc->fw.load_status = INTEL_UC_FIRMWARE_NONE;
 	huc->fw.fw = INTEL_UC_FW_TYPE_HUC;
 
-	if (IS_SKYLAKE(dev_priv)) {
+	if (i915.huc_firmware_path) {
+		huc->fw.path = i915.huc_firmware_path;
+		huc->fw.major_ver_wanted = 0;
+		huc->fw.minor_ver_wanted = 0;
+	} else if (IS_SKYLAKE(dev_priv)) {
 		huc->fw.path = I915_SKL_HUC_UCODE;
 		huc->fw.major_ver_wanted = SKL_HUC_FW_MAJOR;
 		huc->fw.minor_ver_wanted = SKL_HUC_FW_MINOR;

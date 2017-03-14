@@ -407,7 +407,11 @@ int intel_guc_select_fw(struct intel_guc *guc)
 	guc->fw.load_status = INTEL_UC_FIRMWARE_NONE;
 	guc->fw.fw = INTEL_UC_FW_TYPE_GUC;
 
-	if (IS_SKYLAKE(dev_priv)) {
+	if (i915.guc_firmware_path) {
+		guc->fw.path = i915.guc_firmware_path;
+		guc->fw.major_ver_wanted = 0;
+		guc->fw.minor_ver_wanted = 0;
+	} else if (IS_SKYLAKE(dev_priv)) {
 		guc->fw.path = I915_SKL_GUC_UCODE;
 		guc->fw.major_ver_wanted = SKL_FW_MAJOR;
 		guc->fw.minor_ver_wanted = SKL_FW_MINOR;

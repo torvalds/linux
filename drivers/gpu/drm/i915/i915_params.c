@@ -59,6 +59,8 @@ struct i915_params i915 __read_mostly = {
 	.enable_guc_loading = 0,
 	.enable_guc_submission = 0,
 	.guc_log_level = -1,
+	.guc_firmware_path = NULL,
+	.huc_firmware_path = NULL,
 	.enable_dp_mst = true,
 	.inject_load_failure = 0,
 	.enable_dpcd_backlight = false,
@@ -229,6 +231,14 @@ MODULE_PARM_DESC(enable_guc_submission,
 module_param_named(guc_log_level, i915.guc_log_level, int, 0400);
 MODULE_PARM_DESC(guc_log_level,
 	"GuC firmware logging level (-1:disabled (default), 0-3:enabled)");
+
+module_param_named_unsafe(guc_firmware_path, i915.guc_firmware_path, charp, 0400);
+MODULE_PARM_DESC(guc_firmware_path,
+	"GuC firmware path to use instead of the default one");
+
+module_param_named_unsafe(huc_firmware_path, i915.huc_firmware_path, charp, 0400);
+MODULE_PARM_DESC(huc_firmware_path,
+	"HuC firmware path to use instead of the default one");
 
 module_param_named_unsafe(enable_dp_mst, i915.enable_dp_mst, bool, 0600);
 MODULE_PARM_DESC(enable_dp_mst,
