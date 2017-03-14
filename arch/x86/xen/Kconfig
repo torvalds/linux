@@ -37,6 +37,10 @@ config XEN_PVHVM
 	help
 	  Support running as a Xen PVHVM guest.
 
+config XEN_PVHVM_SMP
+	def_bool y
+	depends on XEN_PVHVM && SMP
+
 config XEN_512GB
 	bool "Limit Xen pv-domain memory to 512GB"
 	depends on XEN_PV && X86_64
