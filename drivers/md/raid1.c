@@ -1027,7 +1027,7 @@ static int get_unqueued_pending(struct r1conf *conf)
 static void freeze_array(struct r1conf *conf, int extra)
 {
 	/* Stop sync I/O and normal I/O and wait for everything to
-	 * go quite.
+	 * go quiet.
 	 * This is called in two situations:
 	 * 1) management command handlers (reshape, remove disk, quiesce).
 	 * 2) one normal I/O request failed.
