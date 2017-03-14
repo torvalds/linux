@@ -1,0 +1,38 @@
+ROCKCHIP MIPI DPHY WITH INNO IP BLOCK
+
+Required properties:
+ - compatible : should be "rockchip,rk3368-mipi-dphy";
+ - reg : the address offset of register for mipi-dphy configuration.
+ - #phy-cells : must be 0. See ./phy-bindings.txt for details.
+ - clocks and clock-names:
+	- the "pclk" clock is required by the phy module, used to register
+	  configuration
+	- the "ref" clock is used to get the rate of the reference clock
+	  provided to the PHY module
+ - rockchip,dsi-panel : phandle to MIPI DSI panel node, used to get the display
+			timing of the panel provided to the PHY module.
+
+Example:
+
+For Rockchip RK3368
+
+mipi_dphy: mipi-dphy@ff968000 {
+	compatible = "rockchip,rk3368-mipi-dphy";
+	reg = <0x0 0xff968000 0x0 0x4000>;
+	#phy-cells = <0>;
+	clocks = <&cru SCLK_MIPIDSI_24M>, <&cru PCLK_DPHYTX0>;
+	clock-names = "ref", "pclk";
+	rockchip,dsi-panel = <&dsi_panel>;
+};
+
+Then the PHY can be used in other nodes such as:
+
+mipi-dsi-host@ff960000 {
+	phys = <&mipi_dphy>;
+	phy-names = "mipi_dphy";
+
+	dsi_panel: panel {
+		dsi,lanes = 4;
+		...
+	};
+};

@@ -352,6 +352,13 @@ config PHY_ROCKCHIP_DP
 	help
 	  Enable this to support the Rockchip Display Port PHY.
 
+config PHY_ROCKCHIP_INNO_MIPI_DPHY
+	tristate "Rockchip INNO MIPI D-PHY Driver"
+	depends on ARCH_ROCKCHIP && OF
+	select GENERIC_PHY
+	help
+	  Enable this to support the Rockchip MIPI D-PHY with Innosilicon IP block.
+
 config PHY_ROCKCHIP_TYPEC
 	tristate "Rockchip TYPEC PHY Driver"
 	depends on ARCH_ROCKCHIP && OF
