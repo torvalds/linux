@@ -12,6 +12,7 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
+#include <linux/log2.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <asm/mmu_context.h>
@@ -643,6 +644,13 @@ static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 
 	/* Read the cache characteristics from the host Config1 Register */
 	config1 = (read_c0_config1() & ~0x7f);
+
+	/* DCache line size not correctly reported in Config1 on Octeon CPUs */
+	if (cpu_dcache_line_size()) {
+		config1 &= ~MIPS_CONF1_DL;
+		config1 |= ((ilog2(cpu_dcache_line_size()) - 1) <<
+			    MIPS_CONF1_DL_SHF) & MIPS_CONF1_DL;
+	}
 
 	/* Set up MMU size */
 	config1 &= ~(0x3f << 25);
