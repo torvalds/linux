@@ -1728,11 +1728,25 @@ EXPORT_SYMBOL_GPL(sunvnet_poll_controller_common);
 void sunvnet_port_add_txq_common(struct vnet_port *port)
 {
 	struct vnet *vp = port->vp;
-	int n;
+	int smallest = 0;
+	int i;
 
-	n = vp->nports++;
-	n = n & (VNET_MAX_TXQS - 1);
-	port->q_index = n;
+	/* find the first least-used q
+	 * When there are more ldoms than q's, we start to
+	 * double up on ports per queue.
+	 */
+	for (i = 0; i < VNET_MAX_TXQS; i++) {
+		if (vp->q_used[i] == 0) {
+			smallest = i;
+			break;
+		}
+		if (vp->q_used[i] < vp->q_used[smallest])
+			smallest = i;
+	}
+
+	vp->nports++;
+	vp->q_used[smallest]++;
+	port->q_index = smallest;
 	netif_tx_wake_queue(netdev_get_tx_queue(VNET_PORT_TO_NET_DEVICE(port),
 						port->q_index));
 }
@@ -1743,5 +1757,7 @@ void sunvnet_port_rm_txq_common(struct vnet_port *port)
 	port->vp->nports--;
 	netif_tx_stop_queue(netdev_get_tx_queue(VNET_PORT_TO_NET_DEVICE(port),
 						port->q_index));
+	port->vp->q_used[port->q_index]--;
+	port->q_index = 0;
 }
 EXPORT_SYMBOL_GPL(sunvnet_port_rm_txq_common);

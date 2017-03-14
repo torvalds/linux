@@ -112,22 +112,15 @@ struct vnet_mcast_entry {
 };
 
 struct vnet {
-	/* Protects port_list and port_hash.  */
-	spinlock_t		lock;
-
+	spinlock_t		lock; /* Protects port_list and port_hash.  */
 	struct net_device	*dev;
-
 	u32			msg_enable;
-
+	u8			q_used[VNET_MAX_TXQS];
 	struct list_head	port_list;
-
 	struct hlist_head	port_hash[VNET_PORT_HASH_SIZE];
-
 	struct vnet_mcast_entry	*mcast_list;
-
 	struct list_head	list;
 	u64			local_mac;
-
 	int			nports;
 };
 
