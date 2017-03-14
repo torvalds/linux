@@ -89,10 +89,10 @@ int ks_wlan_update_phy_information(struct ks_wlan_private *priv)
 	DPRINTK(4, "in_interrupt = %ld\n", in_interrupt());
 
 	if (priv->dev_state < DEVICE_STATE_READY)
-		return -1;	/* not finished initialize */
+		return -EBUSY;	/* not finished initialize */
 
 	if (atomic_read(&update_phyinfo))
-		return 1;
+		return -EPERM;
 
 	/* The status */
 	wstats->status = priv->reg.operation_mode;	/* Operation mode */

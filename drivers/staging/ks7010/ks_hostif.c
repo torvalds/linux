@@ -110,14 +110,13 @@ int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info_t *ap_info)
 	struct local_ap_t *ap;
 	union iwreq_data wrqu;
 	struct net_device *netdev = priv->net_dev;
-	int rc = 0;
 
 	DPRINTK(3, "\n");
 	ap = &priv->current_ap;
 
 	if ((priv->connect_status & CONNECT_STATUS_MASK) == DISCONNECT_STATUS) {
 		memset(ap, 0, sizeof(struct local_ap_t));
-		return 1;
+		return -EPERM;
 	}
 
 	/* bssid */
@@ -198,7 +197,7 @@ int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info_t *ap_info)
 	DPRINTK(4, "\n    ext_rate_set_size=%d\n    rate_set_size=%d\n",
 		ap_info->ext_rate_set.size, ap_info->rate_set.size);
 
-	return rc;
+	return 0;
 }
 
 static
@@ -1125,12 +1124,13 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
 	struct ieee802_1x_hdr *aa1x_hdr;
 	struct wpa_eapol_key *eap_key;
 	struct ethhdr *eth;
+	int rc;
 
 	packet_len = packet->len;
 	if (packet_len > ETH_FRAME_LEN) {
 		DPRINTK(1, "bad length packet_len=%d\n", packet_len);
-		dev_kfree_skb(packet);
-		return -1;
+		rc = -EOVERFLOW;
+		goto err_kfree_skb;
 	}
 
 	if (((priv->connect_status & CONNECT_STATUS_MASK) == DISCONNECT_STATUS)
@@ -1157,8 +1157,8 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
 
 	if (!pp) {
 		DPRINTK(3, "allocate memory failed..\n");
-		dev_kfree_skb(packet);
-		return -2;
+		rc = -ENOMEM;
+		goto err_kfree_skb;
 	}
 
 	p = (unsigned char *)pp->data;
@@ -1171,9 +1171,8 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
 	if (memcmp(&priv->eth_addr[0], eth->h_source, ETH_ALEN)) {
 		DPRINTK(1, "invalid mac address !!\n");
 		DPRINTK(1, "ethernet->h_source=%pM\n", eth->h_source);
-		dev_kfree_skb(packet);
-		kfree(pp);
-		return -3;
+		rc = -ENXIO;
+		goto err_kfree;
 	}
 
 	/* MAC address copy */
@@ -1276,6 +1275,13 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
 	}
 
 	return result;
+
+err_kfree:
+	kfree(pp);
+err_kfree_skb:
+	dev_kfree_skb(packet);
+
+	return rc;
 }
 
 #define ps_confirm_wait_inc(priv) do { \
