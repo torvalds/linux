@@ -189,12 +189,12 @@ int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 len);
 int intel_guc_sample_forcewake(struct intel_guc *guc);
 
 /* intel_guc_loader.c */
-extern void intel_guc_init(struct drm_i915_private *dev_priv);
-extern int intel_guc_setup(struct drm_i915_private *dev_priv);
-extern void intel_guc_fini(struct drm_i915_private *dev_priv);
-extern const char *intel_uc_fw_status_repr(enum intel_uc_fw_status status);
-extern int intel_guc_suspend(struct drm_i915_private *dev_priv);
-extern int intel_guc_resume(struct drm_i915_private *dev_priv);
+void intel_guc_init(struct drm_i915_private *dev_priv);
+int intel_guc_setup(struct drm_i915_private *dev_priv);
+void intel_guc_fini(struct drm_i915_private *dev_priv);
+const char *intel_uc_fw_status_repr(enum intel_uc_fw_status status);
+int intel_guc_suspend(struct drm_i915_private *dev_priv);
+int intel_guc_resume(struct drm_i915_private *dev_priv);
 void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 	struct intel_uc_fw *uc_fw);
 u32 intel_guc_wopcm_size(struct drm_i915_private *dev_priv);
