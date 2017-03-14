@@ -1,7 +1,7 @@
 /* sunvnet.c: Sun LDOM Virtual Network Driver.
  *
  * Copyright (C) 2007, 2008 David S. Miller <davem@davemloft.net>
- * Copyright (C) 2016 Oracle. All rights reserved.
+ * Copyright (C) 2016-2017 Oracle. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -43,7 +43,6 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION("1.1");
 
 static int __vnet_tx_trigger(struct vnet_port *port, u32 start);
-static void vnet_port_reset(struct vnet_port *port);
 
 static inline u32 vnet_tx_dring_avail(struct vio_dring_state *dr)
 {
@@ -747,6 +746,13 @@ static int vnet_event_napi(struct vnet_port *port, int budget)
 
 	/* RESET takes precedent over any other event */
 	if (port->rx_event & LDC_EVENT_RESET) {
+		/* a link went down */
+
+		if (port->vsw == 1) {
+			netif_tx_stop_all_queues(dev);
+			netif_carrier_off(dev);
+		}
+
 		vio_link_state_change(vio, LDC_EVENT_RESET);
 		vnet_port_reset(port);
 		vio_port_up(vio);
@@ -766,6 +772,13 @@ static int vnet_event_napi(struct vnet_port *port, int budget)
 	}
 
 	if (port->rx_event & LDC_EVENT_UP) {
+		/* a link came up */
+
+		if (port->vsw == 1) {
+			netif_carrier_on(port->dev);
+			netif_tx_start_all_queues(port->dev);
+		}
+
 		vio_link_state_change(vio, LDC_EVENT_UP);
 		port->rx_event = 0;
 		return 0;
@@ -1631,7 +1644,7 @@ void sunvnet_port_free_tx_bufs_common(struct vnet_port *port)
 }
 EXPORT_SYMBOL_GPL(sunvnet_port_free_tx_bufs_common);
 
-static void vnet_port_reset(struct vnet_port *port)
+void vnet_port_reset(struct vnet_port *port)
 {
 	del_timer(&port->clean_timer);
 	sunvnet_port_free_tx_bufs_common(port);
@@ -1639,6 +1652,7 @@ static void vnet_port_reset(struct vnet_port *port)
 	port->tso = (port->vsw == 0);  /* no tso in vsw, misbehaves in bridge */
 	port->tsolen = 0;
 }
+EXPORT_SYMBOL_GPL(vnet_port_reset);
 
 static int vnet_port_alloc_tx_ring(struct vnet_port *port)
 {

@@ -139,6 +139,7 @@ int sunvnet_handle_attr_common(struct vio_driver_state *vio, void *arg);
 void sunvnet_handshake_complete_common(struct vio_driver_state *vio);
 int sunvnet_poll_common(struct napi_struct *napi, int budget);
 void sunvnet_port_free_tx_bufs_common(struct vnet_port *port);
+void vnet_port_reset(struct vnet_port *port);
 bool sunvnet_port_is_up_common(struct vnet_port *vnet);
 void sunvnet_port_add_txq_common(struct vnet_port *port);
 void sunvnet_port_rm_txq_common(struct vnet_port *port);
