@@ -472,15 +472,39 @@ struct iwl_phy_cfg_cmd {
 #define PHY_CFG_RX_CHAIN_C	BIT(14)
 
 
-/* Target of the NVM_ACCESS_CMD */
-enum {
+/**
+ * enum iwl_nvm_access_op - NVM access opcode
+ * @IWL_NVM_READ: read NVM
+ * @IWL_NVM_WRITE: write NVM
+ */
+enum iwl_nvm_access_op {
+	IWL_NVM_READ	= 0,
+	IWL_NVM_WRITE	= 1,
+};
+
+/**
+ * enum iwl_nvm_access_target - target of the NVM_ACCESS_CMD
+ * @NVM_ACCESS_TARGET_CACHE: access the cache
+ * @NVM_ACCESS_TARGET_OTP: access the OTP
+ * @NVM_ACCESS_TARGET_EEPROM: access the EEPROM
+ */
+enum iwl_nvm_access_target {
 	NVM_ACCESS_TARGET_CACHE = 0,
 	NVM_ACCESS_TARGET_OTP = 1,
 	NVM_ACCESS_TARGET_EEPROM = 2,
 };
 
-/* Section types for NVM_ACCESS_CMD */
-enum {
+/**
+ * enum iwl_nvm_section_type - section types for NVM_ACCESS_CMD
+ * @NVM_SECTION_TYPE_SW: software section
+ * @NVM_SECTION_TYPE_REGULATORY: regulatory section
+ * @NVM_SECTION_TYPE_CALIBRATION: calibration section
+ * @NVM_SECTION_TYPE_PRODUCTION: production section
+ * @NVM_SECTION_TYPE_MAC_OVERRIDE: MAC override section
+ * @NVM_SECTION_TYPE_PHY_SKU: PHY SKU section
+ * @NVM_MAX_NUM_SECTIONS: number of sections
+ */
+enum iwl_nvm_section_type {
 	NVM_SECTION_TYPE_SW = 1,
 	NVM_SECTION_TYPE_REGULATORY = 3,
 	NVM_SECTION_TYPE_CALIBRATION = 4,
@@ -718,12 +742,21 @@ struct iwl_error_resp {
 #define MAX_MACS_IN_BINDING	(3)
 #define MAX_BINDINGS		(4)
 
-/* Used to extract ID and color from the context dword */
-#define FW_CTXT_ID_POS	  (0)
-#define FW_CTXT_ID_MSK	  (0xff << FW_CTXT_ID_POS)
-#define FW_CTXT_COLOR_POS (8)
-#define FW_CTXT_COLOR_MSK (0xff << FW_CTXT_COLOR_POS)
-#define FW_CTXT_INVALID	  (0xffffffff)
+/**
+ * enum iwl_mvm_id_and_color - ID and color fields in context dword
+ * @FW_CTXT_ID_POS: position of the ID
+ * @FW_CTXT_ID_MSK: mask of the ID
+ * @FW_CTXT_COLOR_POS: position of the color
+ * @FW_CTXT_COLOR_MSK: mask of the color
+ * @FW_CTXT_INVALID: value used to indicate unused/invalid
+ */
+enum iwl_mvm_id_and_color {
+	FW_CTXT_ID_POS		= 0,
+	FW_CTXT_ID_MSK		= 0xff << FW_CTXT_ID_POS,
+	FW_CTXT_COLOR_POS	= 8,
+	FW_CTXT_COLOR_MSK	= 0xff << FW_CTXT_COLOR_POS,
+	FW_CTXT_INVALID		= 0xffffffff,
+};
 
 #define FW_CMD_ID_AND_COLOR(_id, _color) ((_id << FW_CTXT_ID_POS) |\
 					  (_color << FW_CTXT_COLOR_POS))
@@ -871,7 +904,8 @@ enum {
 #define TE_V2_PLACEMENT_POS	12
 #define TE_V2_ABSENCE_POS	15
 
-/* Time event policy values
+/**
+ * enum iwl_time_event_policy - Time event policy values
  * A notification (both event and fragment) includes a status indicating weather
  * the FW was able to schedule the event or not. For fragment start/end
  * notification the status is always success. There is no start/end fragment
@@ -886,12 +920,13 @@ enum {
  * @TE_V2_NOTIF_HOST_FRAG_END:request/receive notification on frag end
  * @TE_V2_NOTIF_INTERNAL_FRAG_START: internal FW use.
  * @TE_V2_NOTIF_INTERNAL_FRAG_END: internal FW use.
+ * @T2_V2_START_IMMEDIATELY: start time event immediately
  * @TE_V2_DEP_OTHER: depends on another time event
  * @TE_V2_DEP_TSF: depends on a specific time
  * @TE_V2_EVENT_SOCIOPATHIC: can't co-exist with other events of tha same MAC
  * @TE_V2_ABSENCE: are we present or absent during the Time Event.
  */
-enum {
+enum iwl_time_event_policy {
 	TE_V2_DEFAULT_POLICY = 0x0,
 
 	/* notifications (event start/stop, fragment start/stop) */
@@ -905,8 +940,6 @@ enum {
 	TE_V2_NOTIF_INTERNAL_FRAG_START = BIT(6),
 	TE_V2_NOTIF_INTERNAL_FRAG_END = BIT(7),
 	T2_V2_START_IMMEDIATELY = BIT(11),
-
-	TE_V2_NOTIF_MSK = 0xff,
 
 	/* placement characteristics */
 	TE_V2_DEP_OTHER = BIT(TE_V2_PLACEMENT_POS),

@@ -197,7 +197,15 @@ enum iwl_sta_modify_flag {
 	STA_MODIFY_QUEUES			= BIT(7),
 };
 
-#define STA_MODE_MODIFY	1
+/**
+ * enum iwl_sta_mode - station command mode
+ * @STA_MODE_ADD: add new station
+ * @STA_MODE_MODIFY: modify the station
+ */
+enum iwl_sta_mode {
+	STA_MODE_ADD	= 0,
+	STA_MODE_MODIFY	= 1,
+};
 
 /**
  * enum iwl_sta_sleep_flag - type of sleep of the station
