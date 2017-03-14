@@ -548,7 +548,7 @@ static int __destroy_stream(struct atomisp_sub_device *asd,
 			}
 
 			usleep_range(100, 200);
-		};
+		}
 	}
 
 	stream_env->stream_state = CSS_STREAM_STOPPED;
