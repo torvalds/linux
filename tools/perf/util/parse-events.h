@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <linux/types.h>
 #include <linux/perf_event.h>
+#include <string.h>
 
 struct list_head;
 struct perf_evsel;
@@ -195,5 +196,24 @@ int is_valid_tracepoint(const char *event_string);
 
 int valid_event_mount(const char *eventfs);
 char *parse_events_formats_error_string(char *additional_terms);
+
+#ifdef HAVE_LIBELF_SUPPORT
+/*
+ * If the probe point starts with '%',
+ * or starts with "sdt_" and has a ':' but no '=',
+ * then it should be a SDT/cached probe point.
+ */
+static inline bool is_sdt_event(char *str)
+{
+	return (str[0] == '%' ||
+		(!strncmp(str, "sdt_", 4) &&
+		 !!strchr(str, ':') && !strchr(str, '=')));
+}
+#else
+static inline bool is_sdt_event(char *str __maybe_unused)
+{
+	return false;
+}
+#endif /* HAVE_LIBELF_SUPPORT */
 
 #endif /* __PERF_PARSE_EVENTS_H */
