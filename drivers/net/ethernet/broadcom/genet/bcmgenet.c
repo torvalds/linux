@@ -1011,8 +1011,17 @@ static int bcmgenet_power_down(struct bcmgenet_priv *priv,
 		/* Power down LED */
 		if (priv->hw_params->flags & GENET_HAS_EXT) {
 			reg = bcmgenet_ext_readl(priv, EXT_EXT_PWR_MGMT);
-			reg |= (EXT_PWR_DOWN_PHY |
-				EXT_PWR_DOWN_DLL | EXT_PWR_DOWN_BIAS);
+			if (GENET_IS_V5(priv))
+				reg |= EXT_PWR_DOWN_PHY_EN |
+				       EXT_PWR_DOWN_PHY_RD |
+				       EXT_PWR_DOWN_PHY_SD |
+				       EXT_PWR_DOWN_PHY_RX |
+				       EXT_PWR_DOWN_PHY_TX |
+				       EXT_IDDQ_GLBL_PWR;
+			else
+				reg |= EXT_PWR_DOWN_PHY;
+
+			reg |= (EXT_PWR_DOWN_DLL | EXT_PWR_DOWN_BIAS);
 			bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
 
 			bcmgenet_phy_power_set(priv->dev, false);
@@ -1037,24 +1046,40 @@ static void bcmgenet_power_up(struct bcmgenet_priv *priv,
 
 	switch (mode) {
 	case GENET_POWER_PASSIVE:
-		reg &= ~(EXT_PWR_DOWN_DLL | EXT_PWR_DOWN_PHY |
-				EXT_PWR_DOWN_BIAS);
-		/* fallthrough */
+		reg &= ~(EXT_PWR_DOWN_DLL | EXT_PWR_DOWN_BIAS);
+		if (GENET_IS_V5(priv)) {
+			reg &= ~(EXT_PWR_DOWN_PHY_EN |
+				 EXT_PWR_DOWN_PHY_RD |
+				 EXT_PWR_DOWN_PHY_SD |
+				 EXT_PWR_DOWN_PHY_RX |
+				 EXT_PWR_DOWN_PHY_TX |
+				 EXT_IDDQ_GLBL_PWR);
+			reg |=   EXT_PHY_RESET;
+			bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
+			mdelay(1);
+
+			reg &=  ~EXT_PHY_RESET;
+		} else {
+			reg &= ~EXT_PWR_DOWN_PHY;
+			reg |= EXT_PWR_DN_EN_LD;
+		}
+		bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
+		bcmgenet_phy_power_set(priv->dev, true);
+		bcmgenet_mii_reset(priv->dev);
+		break;
+
 	case GENET_POWER_CABLE_SENSE:
 		/* enable APD */
-		reg |= EXT_PWR_DN_EN_LD;
+		if (!GENET_IS_V5(priv)) {
+			reg |= EXT_PWR_DN_EN_LD;
+			bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
+		}
 		break;
 	case GENET_POWER_WOL_MAGIC:
 		bcmgenet_wol_power_up_cfg(priv, mode);
 		return;
 	default:
 		break;
-	}
-
-	bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
-	if (mode == GENET_POWER_PASSIVE) {
-		bcmgenet_phy_power_set(priv->dev, true);
-		bcmgenet_mii_reset(priv->dev);
 	}
 }
 
@@ -3101,6 +3126,25 @@ static struct bcmgenet_hw_params bcmgenet_hw_params[] = {
 		.flags = GENET_HAS_40BITS | GENET_HAS_EXT |
 			 GENET_HAS_MDIO_INTR | GENET_HAS_MOCA_LINK_DET,
 	},
+	[GENET_V5] = {
+		.tx_queues = 4,
+		.tx_bds_per_q = 32,
+		.rx_queues = 0,
+		.rx_bds_per_q = 0,
+		.bp_in_en_shift = 17,
+		.bp_in_mask = 0x1ffff,
+		.hfb_filter_cnt = 48,
+		.hfb_filter_size = 128,
+		.qtag_mask = 0x3F,
+		.tbuf_offset = 0x0600,
+		.hfb_offset = 0x8000,
+		.hfb_reg_offset = 0xfc00,
+		.rdma_offset = 0x2000,
+		.tdma_offset = 0x4000,
+		.words_per_bd = 3,
+		.flags = GENET_HAS_40BITS | GENET_HAS_EXT |
+			 GENET_HAS_MDIO_INTR | GENET_HAS_MOCA_LINK_DET,
+	},
 };
 
 /* Infer hardware parameters from the detected GENET version */
@@ -3111,7 +3155,7 @@ static void bcmgenet_set_hw_params(struct bcmgenet_priv *priv)
 	u8 major;
 	u16 gphy_rev;
 
-	if (GENET_IS_V4(priv)) {
+	if (GENET_IS_V5(priv) || GENET_IS_V4(priv)) {
 		bcmgenet_dma_regs = bcmgenet_dma_regs_v3plus;
 		genet_dma_ring_regs = genet_dma_ring_regs_v4;
 		priv->dma_rx_chk_bit = DMA_RX_CHK_V3PLUS;
@@ -3136,7 +3180,9 @@ static void bcmgenet_set_hw_params(struct bcmgenet_priv *priv)
 	/* Read GENET HW version */
 	reg = bcmgenet_sys_readl(priv, SYS_REV_CTRL);
 	major = (reg >> 24 & 0x0f);
-	if (major == 5)
+	if (major == 6)
+		major = 5;
+	else if (major == 5)
 		major = 4;
 	else if (major == 0)
 		major = 1;
@@ -3164,16 +3210,22 @@ static void bcmgenet_set_hw_params(struct bcmgenet_priv *priv)
 	 */
 	gphy_rev = reg & 0xffff;
 
+	if (GENET_IS_V5(priv)) {
+		/* The EPHY revision should come from the MDIO registers of
+		 * the PHY not from GENET.
+		 */
+		if (gphy_rev != 0) {
+			pr_warn("GENET is reporting EPHY revision: 0x%04x\n",
+				gphy_rev);
+		}
 	/* This is the good old scheme, just GPHY major, no minor nor patch */
-	if ((gphy_rev & 0xf0) != 0)
+	} else if ((gphy_rev & 0xf0) != 0) {
 		priv->gphy_rev = gphy_rev << 8;
-
 	/* This is the new scheme, GPHY major rolls over with 0x10 = rev G0 */
-	else if ((gphy_rev & 0xff00) != 0)
+	} else if ((gphy_rev & 0xff00) != 0) {
 		priv->gphy_rev = gphy_rev;
-
 	/* This is reserved so should require special treatment */
-	else if (gphy_rev == 0 || gphy_rev == 0x01ff) {
+	} else if (gphy_rev == 0 || gphy_rev == 0x01ff) {
 		pr_warn("Invalid GPHY revision detected: 0x%04x\n", gphy_rev);
 		return;
 	}
@@ -3206,6 +3258,7 @@ static const struct of_device_id bcmgenet_match[] = {
 	{ .compatible = "brcm,genet-v2", .data = (void *)GENET_V2 },
 	{ .compatible = "brcm,genet-v3", .data = (void *)GENET_V3 },
 	{ .compatible = "brcm,genet-v4", .data = (void *)GENET_V4 },
+	{ .compatible = "brcm,genet-v5", .data = (void *)GENET_V5 },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, bcmgenet_match);
