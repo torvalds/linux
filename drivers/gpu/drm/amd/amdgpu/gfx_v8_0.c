@@ -6107,6 +6107,8 @@ static void gfx_v8_0_update_coarse_grain_clock_gating(struct amdgpu_device *adev
 			  RLC_CGCG_CGLS_CTRL__CGLS_EN_MASK);
 		if (temp != data)
 			WREG32(mmRLC_CGCG_CGLS_CTRL, data);
+		/* enable interrupts again for PG */
+		gfx_v8_0_enable_gui_idle_interrupt(adev, true);
 	}
 
 	gfx_v8_0_wait_for_rlc_serdes(adev);
