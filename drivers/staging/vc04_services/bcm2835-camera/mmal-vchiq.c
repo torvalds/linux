@@ -1445,7 +1445,12 @@ static int port_parameter_get(struct vchiq_mmal_instance *instance,
 	}
 
 	ret = -rmsg->u.port_parameter_get_reply.status;
-	if (ret || (rmsg->u.port_parameter_get_reply.size > *value_size)) {
+	/* port_parameter_get_reply.size includes the header,
+	 * whilst *value_size doesn't.
+	 */
+	rmsg->u.port_parameter_get_reply.size -= (2 * sizeof(u32));
+
+	if (ret || rmsg->u.port_parameter_get_reply.size > *value_size) {
 		/* Copy only as much as we have space for
 		 * but report true size of parameter
 		 */
