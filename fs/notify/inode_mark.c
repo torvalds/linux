@@ -37,7 +37,7 @@
 void fsnotify_recalc_inode_mask(struct inode *inode)
 {
 	spin_lock(&inode->i_lock);
-	inode->i_fsnotify_mask = fsnotify_recalc_mask(&inode->i_fsnotify_marks);
+	inode->i_fsnotify_mask = fsnotify_recalc_mask(inode->i_fsnotify_marks);
 	spin_unlock(&inode->i_lock);
 
 	__fsnotify_update_child_dentry_flags(inode);
@@ -60,7 +60,7 @@ void fsnotify_destroy_inode_mark(struct fsnotify_mark *mark)
 	 * hold the inode->i_lock, so this is the perfect time to update the
 	 * inode->i_fsnotify_mask
 	 */
-	inode->i_fsnotify_mask = fsnotify_recalc_mask(&inode->i_fsnotify_marks);
+	inode->i_fsnotify_mask = fsnotify_recalc_mask(inode->i_fsnotify_marks);
 	spin_unlock(&inode->i_lock);
 }
 
@@ -82,7 +82,7 @@ struct fsnotify_mark *fsnotify_find_inode_mark(struct fsnotify_group *group,
 	struct fsnotify_mark *mark;
 
 	spin_lock(&inode->i_lock);
-	mark = fsnotify_find_mark(&inode->i_fsnotify_marks, group);
+	mark = fsnotify_find_mark(inode->i_fsnotify_marks, group);
 	spin_unlock(&inode->i_lock);
 
 	return mark;
@@ -135,7 +135,7 @@ int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 	mark->inode = inode;
 	ret = fsnotify_add_mark_list(&inode->i_fsnotify_marks, mark,
 				     allow_dups);
-	inode->i_fsnotify_mask = fsnotify_recalc_mask(&inode->i_fsnotify_marks);
+	inode->i_fsnotify_mask = fsnotify_recalc_mask(inode->i_fsnotify_marks);
 	spin_unlock(&inode->i_lock);
 
 	return ret;

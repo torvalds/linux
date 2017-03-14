@@ -83,6 +83,8 @@
 #define FSNOTIFY_REAPER_DELAY	(1)	/* 1 jiffy */
 
 struct srcu_struct fsnotify_mark_srcu;
+struct kmem_cache *fsnotify_mark_connector_cachep;
+
 static DEFINE_SPINLOCK(destroy_lock);
 static LIST_HEAD(destroy_list);
 
@@ -104,12 +106,15 @@ void fsnotify_put_mark(struct fsnotify_mark *mark)
 }
 
 /* Calculate mask of events for a list of marks */
-u32 fsnotify_recalc_mask(struct hlist_head *head)
+u32 fsnotify_recalc_mask(struct fsnotify_mark_connector *conn)
 {
 	u32 new_mask = 0;
 	struct fsnotify_mark *mark;
 
-	hlist_for_each_entry(mark, head, obj_list)
+	if (!conn)
+		return 0;
+
+	hlist_for_each_entry(mark, &conn->list, obj_list)
 		new_mask |= mark->mask;
 	return new_mask;
 }
@@ -220,9 +225,13 @@ void fsnotify_destroy_mark(struct fsnotify_mark *mark,
 	fsnotify_free_mark(mark);
 }
 
-void fsnotify_destroy_marks(struct hlist_head *head, spinlock_t *lock)
+void fsnotify_destroy_marks(struct fsnotify_mark_connector *conn,
+			    spinlock_t *lock)
 {
 	struct fsnotify_mark *mark;
+
+	if (!conn)
+		return;
 
 	while (1) {
 		/*
@@ -233,11 +242,12 @@ void fsnotify_destroy_marks(struct hlist_head *head, spinlock_t *lock)
 		 * calling fsnotify_destroy_mark() more than once is fine.
 		 */
 		spin_lock(lock);
-		if (hlist_empty(head)) {
+		if (hlist_empty(&conn->list)) {
 			spin_unlock(lock);
 			break;
 		}
-		mark = hlist_entry(head->first, struct fsnotify_mark, obj_list);
+		mark = hlist_entry(conn->list.first, struct fsnotify_mark,
+				   obj_list);
 		/*
 		 * We don't update i_fsnotify_mask / mnt_fsnotify_mask here
 		 * since inode / mount is going away anyway. So just remove
@@ -248,6 +258,14 @@ void fsnotify_destroy_marks(struct hlist_head *head, spinlock_t *lock)
 		spin_unlock(lock);
 		fsnotify_destroy_mark(mark, mark->group);
 		fsnotify_put_mark(mark);
+	}
+}
+
+void fsnotify_connector_free(struct fsnotify_mark_connector **connp)
+{
+	if (*connp) {
+		kmem_cache_free(fsnotify_mark_connector_cachep, *connp);
+		*connp = NULL;
 	}
 }
 
@@ -304,21 +322,54 @@ int fsnotify_compare_groups(struct fsnotify_group *a, struct fsnotify_group *b)
 	return -1;
 }
 
-/* Add mark into proper place in given list of marks */
-int fsnotify_add_mark_list(struct hlist_head *head, struct fsnotify_mark *mark,
-			   int allow_dups)
+static int fsnotify_attach_connector_to_object(
+					struct fsnotify_mark_connector **connp)
+{
+	struct fsnotify_mark_connector *conn;
+
+	conn = kmem_cache_alloc(fsnotify_mark_connector_cachep, GFP_ATOMIC);
+	if (!conn)
+		return -ENOMEM;
+	INIT_HLIST_HEAD(&conn->list);
+	/*
+	 * Make sure 'conn' initialization is visible. Matches
+	 * lockless_dereference() in fsnotify().
+	 */
+	smp_wmb();
+	*connp = conn;
+
+	return 0;
+}
+
+/*
+ * Add mark into proper place in given list of marks. These marks may be used
+ * for the fsnotify backend to determine which event types should be delivered
+ * to which group and for which inodes. These marks are ordered according to
+ * priority, highest number first, and then by the group's location in memory.
+ */
+int fsnotify_add_mark_list(struct fsnotify_mark_connector **connp,
+			   struct fsnotify_mark *mark, int allow_dups)
 {
 	struct fsnotify_mark *lmark, *last = NULL;
+	struct fsnotify_mark_connector *conn;
 	int cmp;
+	int err;
+
+	if (!*connp) {
+		err = fsnotify_attach_connector_to_object(connp);
+		if (err)
+			return err;
+	}
+	conn = *connp;
 
 	/* is mark the first mark? */
-	if (hlist_empty(head)) {
-		hlist_add_head_rcu(&mark->obj_list, head);
+	if (hlist_empty(&conn->list)) {
+		hlist_add_head_rcu(&mark->obj_list, &conn->list);
 		return 0;
 	}
 
 	/* should mark be in the middle of the current list? */
-	hlist_for_each_entry(lmark, head, obj_list) {
+	hlist_for_each_entry(lmark, &conn->list, obj_list) {
 		last = lmark;
 
 		if ((lmark->group == mark->group) && !allow_dups)
@@ -419,12 +470,15 @@ int fsnotify_add_mark(struct fsnotify_mark *mark, struct fsnotify_group *group,
  * Given a list of marks, find the mark associated with given group. If found
  * take a reference to that mark and return it, else return NULL.
  */
-struct fsnotify_mark *fsnotify_find_mark(struct hlist_head *head,
+struct fsnotify_mark *fsnotify_find_mark(struct fsnotify_mark_connector *conn,
 					 struct fsnotify_group *group)
 {
 	struct fsnotify_mark *mark;
 
-	hlist_for_each_entry(mark, head, obj_list) {
+	if (!conn)
+		return NULL;
+
+	hlist_for_each_entry(mark, &conn->list, obj_list) {
 		if (mark->group == group) {
 			fsnotify_get_mark(mark);
 			return mark;

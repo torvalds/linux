@@ -234,6 +234,9 @@ void __destroy_inode(struct inode *inode)
 	inode_detach_wb(inode);
 	security_inode_free(inode);
 	fsnotify_inode_delete(inode);
+#ifdef CONFIG_FSNOTIFY
+	fsnotify_connector_free(&inode->i_fsnotify_marks);
+#endif
 	locks_free_lock_context(inode);
 	if (!inode->i_nlink) {
 		WARN_ON(atomic_long_read(&inode->i_sb->s_remove_count) == 0);
@@ -371,9 +374,6 @@ void inode_init_once(struct inode *inode)
 	INIT_LIST_HEAD(&inode->i_lru);
 	address_space_init_once(&inode->i_data);
 	i_size_ordered_init(inode);
-#ifdef CONFIG_FSNOTIFY
-	INIT_HLIST_HEAD(&inode->i_fsnotify_marks);
-#endif
 }
 EXPORT_SYMBOL(inode_init_once);
 

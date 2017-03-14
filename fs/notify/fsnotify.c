@@ -193,6 +193,7 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 	struct hlist_node *inode_node = NULL, *vfsmount_node = NULL;
 	struct fsnotify_mark *inode_mark = NULL, *vfsmount_mark = NULL;
 	struct fsnotify_group *inode_group, *vfsmount_group;
+	struct fsnotify_mark_connector *inode_conn, *vfsmount_conn;
 	struct mount *mnt;
 	int idx, ret = 0;
 	/* global tests shouldn't care about events on child only the specific event */
@@ -210,8 +211,8 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 	 * SRCU because we have no references to any objects and do not
 	 * need SRCU to keep them "alive".
 	 */
-	if (hlist_empty(&to_tell->i_fsnotify_marks) &&
-	    (!mnt || hlist_empty(&mnt->mnt_fsnotify_marks)))
+	if (!to_tell->i_fsnotify_marks &&
+	    (!mnt || !mnt->mnt_fsnotify_marks))
 		return 0;
 	/*
 	 * if this is a modify event we may need to clear the ignored masks
@@ -226,16 +227,24 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 	idx = srcu_read_lock(&fsnotify_mark_srcu);
 
 	if ((mask & FS_MODIFY) ||
-	    (test_mask & to_tell->i_fsnotify_mask))
-		inode_node = srcu_dereference(to_tell->i_fsnotify_marks.first,
-					      &fsnotify_mark_srcu);
+	    (test_mask & to_tell->i_fsnotify_mask)) {
+		inode_conn = lockless_dereference(to_tell->i_fsnotify_marks);
+		if (inode_conn)
+			inode_node = srcu_dereference(inode_conn->list.first,
+						      &fsnotify_mark_srcu);
+	}
 
 	if (mnt && ((mask & FS_MODIFY) ||
 		    (test_mask & mnt->mnt_fsnotify_mask))) {
-		vfsmount_node = srcu_dereference(mnt->mnt_fsnotify_marks.first,
-						 &fsnotify_mark_srcu);
-		inode_node = srcu_dereference(to_tell->i_fsnotify_marks.first,
-					      &fsnotify_mark_srcu);
+		inode_conn = lockless_dereference(to_tell->i_fsnotify_marks);
+		if (inode_conn)
+			inode_node = srcu_dereference(inode_conn->list.first,
+						      &fsnotify_mark_srcu);
+		vfsmount_conn = lockless_dereference(mnt->mnt_fsnotify_marks);
+		if (vfsmount_conn)
+			vfsmount_node = srcu_dereference(
+						vfsmount_conn->list.first,
+						&fsnotify_mark_srcu);
 	}
 
 	/*
@@ -293,6 +302,8 @@ out:
 }
 EXPORT_SYMBOL_GPL(fsnotify);
 
+extern struct kmem_cache *fsnotify_mark_connector_cachep;
+
 static __init int fsnotify_init(void)
 {
 	int ret;
@@ -302,6 +313,9 @@ static __init int fsnotify_init(void)
 	ret = init_srcu_struct(&fsnotify_mark_srcu);
 	if (ret)
 		panic("initializing fsnotify_mark_srcu");
+
+	fsnotify_mark_connector_cachep = KMEM_CACHE(fsnotify_mark_connector,
+						    SLAB_PANIC);
 
 	return 0;
 }
