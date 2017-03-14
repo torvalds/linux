@@ -84,6 +84,11 @@ static inline u64 div_ext_fp(u64 x, u64 y)
 	return div64_u64(x << EXT_FRAC_BITS, y);
 }
 
+static inline int32_t percent_ext_fp(int percent)
+{
+	return div_ext_fp(percent, 100);
+}
+
 /**
  * struct sample -	Store performance sample
  * @core_avg_perf:	Ratio of APERF/MPERF which is the actual average
@@ -850,7 +855,6 @@ static void intel_pstate_hwp_set(struct cpufreq_policy *policy)
 	u64 value, cap;
 
 	for_each_cpu(cpu, policy->cpus) {
-		int max_perf_pct, min_perf_pct;
 		struct cpudata *cpu_data = all_cpu_data[cpu];
 		s16 epp;
 
@@ -864,16 +868,14 @@ static void intel_pstate_hwp_set(struct cpufreq_policy *policy)
 		else
 			hw_max = HWP_HIGHEST_PERF(cap);
 
-		max_perf_pct = perf_limits->max_perf_pct;
-		min_perf_pct = perf_limits->min_perf_pct;
-		min = hw_max * min_perf_pct / 100;
+		min = fp_ext_toint(hw_max * perf_limits->min_perf);
 
 		rdmsrl_on_cpu(cpu, MSR_HWP_REQUEST, &value);
 
 		value &= ~HWP_MIN_PERF(~0L);
 		value |= HWP_MIN_PERF(min);
 
-		max = hw_max * max_perf_pct / 100;
+		max = fp_ext_toint(hw_max * perf_limits->max_perf);
 		value &= ~HWP_MAX_PERF(~0L);
 		value |= HWP_MAX_PERF(max);
 
@@ -1223,7 +1225,7 @@ static ssize_t store_max_perf_pct(struct kobject *a, struct attribute *b,
 				   limits->max_perf_pct);
 	limits->max_perf_pct = max(limits->min_perf_pct,
 				   limits->max_perf_pct);
-	limits->max_perf = div_ext_fp(limits->max_perf_pct, 100);
+	limits->max_perf = percent_ext_fp(limits->max_perf_pct);
 
 	intel_pstate_update_policies();
 
@@ -1260,7 +1262,7 @@ static ssize_t store_min_perf_pct(struct kobject *a, struct attribute *b,
 				   limits->min_perf_pct);
 	limits->min_perf_pct = min(limits->max_perf_pct,
 				   limits->min_perf_pct);
-	limits->min_perf = div_ext_fp(limits->min_perf_pct, 100);
+	limits->min_perf = percent_ext_fp(limits->min_perf_pct);
 
 	intel_pstate_update_policies();
 
@@ -2078,36 +2080,34 @@ static void intel_pstate_clear_update_util_hook(unsigned int cpu)
 static void intel_pstate_update_perf_limits(struct cpufreq_policy *policy,
 					    struct perf_limits *limits)
 {
+	int32_t max_policy_perf, min_policy_perf;
 
-	limits->max_policy_pct = DIV_ROUND_UP(policy->max * 100,
-					      policy->cpuinfo.max_freq);
-	limits->max_policy_pct = clamp_t(int, limits->max_policy_pct, 0, 100);
+	max_policy_perf = div_ext_fp(policy->max, policy->cpuinfo.max_freq);
+	max_policy_perf = clamp_t(int32_t, max_policy_perf, 0, int_ext_tofp(1));
 	if (policy->max == policy->min) {
-		limits->min_policy_pct = limits->max_policy_pct;
+		min_policy_perf = max_policy_perf;
 	} else {
-		limits->min_policy_pct = DIV_ROUND_UP(policy->min * 100,
-						      policy->cpuinfo.max_freq);
-		limits->min_policy_pct = clamp_t(int, limits->min_policy_pct,
-						 0, 100);
+		min_policy_perf = div_ext_fp(policy->min,
+					     policy->cpuinfo.max_freq);
+		min_policy_perf = clamp_t(int32_t, min_policy_perf,
+					  0, max_policy_perf);
 	}
 
-	/* Normalize user input to [min_policy_pct, max_policy_pct] */
-	limits->min_perf_pct = max(limits->min_policy_pct,
-				   limits->min_sysfs_pct);
-	limits->min_perf_pct = min(limits->max_policy_pct,
-				   limits->min_perf_pct);
-	limits->max_perf_pct = min(limits->max_policy_pct,
-				   limits->max_sysfs_pct);
-	limits->max_perf_pct = max(limits->min_policy_pct,
-				   limits->max_perf_pct);
+	/* Normalize user input to [min_perf, max_perf] */
+	limits->min_perf = max(min_policy_perf,
+			       percent_ext_fp(limits->min_sysfs_pct));
+	limits->min_perf = min(limits->min_perf, max_policy_perf);
+	limits->max_perf = min(max_policy_perf,
+			       percent_ext_fp(limits->max_sysfs_pct));
+	limits->max_perf = max(min_policy_perf, limits->max_perf);
 
-	/* Make sure min_perf_pct <= max_perf_pct */
-	limits->min_perf_pct = min(limits->max_perf_pct, limits->min_perf_pct);
+	/* Make sure min_perf <= max_perf */
+	limits->min_perf = min(limits->min_perf, limits->max_perf);
 
-	limits->min_perf = div_ext_fp(limits->min_perf_pct, 100);
-	limits->max_perf = div_ext_fp(limits->max_perf_pct, 100);
 	limits->max_perf = round_up(limits->max_perf, EXT_FRAC_BITS);
 	limits->min_perf = round_up(limits->min_perf, EXT_FRAC_BITS);
+	limits->max_perf_pct = fp_ext_toint(limits->max_perf * 100);
+	limits->min_perf_pct = fp_ext_toint(limits->min_perf * 100);
 
 	pr_debug("cpu:%d max_perf_pct:%d min_perf_pct:%d\n", policy->cpu,
 		 limits->max_perf_pct, limits->min_perf_pct);
