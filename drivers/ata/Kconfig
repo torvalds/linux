@@ -117,6 +117,15 @@ config AHCI_DA850
 
 	  If unsure, say N.
 
+config AHCI_DM816
+	tristate "DaVinci DM816 AHCI SATA support"
+	depends on ARCH_OMAP2PLUS
+	help
+	  This option enables support for the DaVinci DM816 SoC's
+	  onboard AHCI SATA controller.
+
+	  If unsure, say N.
+
 config AHCI_ST
 	tristate "ST AHCI SATA support"
 	depends on ARCH_STI
