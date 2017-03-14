@@ -190,7 +190,7 @@ int intel_guc_sample_forcewake(struct intel_guc *guc);
 
 /* intel_guc_loader.c */
 void intel_guc_init(struct drm_i915_private *dev_priv);
-int intel_guc_setup(struct drm_i915_private *dev_priv);
+int intel_guc_init_hw(struct intel_guc *guc);
 void intel_guc_fini(struct drm_i915_private *dev_priv);
 const char *intel_uc_fw_status_repr(enum intel_uc_fw_status status);
 int intel_guc_suspend(struct drm_i915_private *dev_priv);
@@ -225,7 +225,7 @@ static inline u32 guc_ggtt_offset(struct i915_vma *vma)
 /* intel_huc.c */
 void intel_huc_init(struct drm_i915_private *dev_priv);
 void intel_huc_fini(struct drm_i915_private  *dev_priv);
-int intel_huc_load(struct drm_i915_private *dev_priv);
+int intel_huc_init_hw(struct intel_huc *huc);
 void intel_guc_auth_huc(struct drm_i915_private *dev_priv);
 
 #endif

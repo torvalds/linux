@@ -150,7 +150,7 @@ static int huc_ucode_xfer(struct drm_i915_private *dev_priv)
  * is not capable or driver yet support it. And there will be no error message
  * for INTEL_UC_FIRMWARE_NONE cases.
  *
- * The DMA-copying to HW is done later when intel_huc_load() is called.
+ * The DMA-copying to HW is done later when intel_huc_init_hw() is called.
  */
 void intel_huc_init(struct drm_i915_private *dev_priv)
 {
@@ -193,8 +193,8 @@ void intel_huc_init(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_huc_load() - load HuC uCode to device
- * @dev_priv: the drm_i915_private device
+ * intel_huc_init_hw() - load HuC uCode to device
+ * @huc: intel_huc structure
  *
  * Called from guc_setup() during driver loading and also after a GPU reset.
  * Be note that HuC loading must be done before GuC loading.
@@ -205,26 +205,26 @@ void intel_huc_init(struct drm_i915_private *dev_priv)
  *
  * Return:	non-zero code on error
  */
-int intel_huc_load(struct drm_i915_private *dev_priv)
+int intel_huc_init_hw(struct intel_huc *huc)
 {
-	struct intel_uc_fw *huc_fw = &dev_priv->huc.fw;
+	struct drm_i915_private *dev_priv = huc_to_i915(huc);
 	int err;
 
-	if (huc_fw->fetch_status == INTEL_UC_FIRMWARE_NONE)
+	if (huc->fw.fetch_status == INTEL_UC_FIRMWARE_NONE)
 		return 0;
 
 	DRM_DEBUG_DRIVER("%s fw status: fetch %s, load %s\n",
-		huc_fw->path,
-		intel_uc_fw_status_repr(huc_fw->fetch_status),
-		intel_uc_fw_status_repr(huc_fw->load_status));
+		huc->fw.path,
+		intel_uc_fw_status_repr(huc->fw.fetch_status),
+		intel_uc_fw_status_repr(huc->fw.load_status));
 
-	if (huc_fw->fetch_status == INTEL_UC_FIRMWARE_SUCCESS &&
-	    huc_fw->load_status == INTEL_UC_FIRMWARE_FAIL)
+	if (huc->fw.fetch_status == INTEL_UC_FIRMWARE_SUCCESS &&
+	    huc->fw.load_status == INTEL_UC_FIRMWARE_FAIL)
 		return -ENOEXEC;
 
-	huc_fw->load_status = INTEL_UC_FIRMWARE_PENDING;
+	huc->fw.load_status = INTEL_UC_FIRMWARE_PENDING;
 
-	switch (huc_fw->fetch_status) {
+	switch (huc->fw.fetch_status) {
 	case INTEL_UC_FIRMWARE_FAIL:
 		/* something went wrong :( */
 		err = -EIO;
@@ -235,9 +235,9 @@ int intel_huc_load(struct drm_i915_private *dev_priv)
 	default:
 		/* "can't happen" */
 		WARN_ONCE(1, "HuC fw %s invalid fetch_status %s [%d]\n",
-			huc_fw->path,
-			intel_uc_fw_status_repr(huc_fw->fetch_status),
-			huc_fw->fetch_status);
+			huc->fw.path,
+			intel_uc_fw_status_repr(huc->fw.fetch_status),
+			huc->fw.fetch_status);
 		err = -ENXIO;
 		goto fail;
 
@@ -249,18 +249,18 @@ int intel_huc_load(struct drm_i915_private *dev_priv)
 	if (err)
 		goto fail;
 
-	huc_fw->load_status = INTEL_UC_FIRMWARE_SUCCESS;
+	huc->fw.load_status = INTEL_UC_FIRMWARE_SUCCESS;
 
 	DRM_DEBUG_DRIVER("%s fw status: fetch %s, load %s\n",
-		huc_fw->path,
-		intel_uc_fw_status_repr(huc_fw->fetch_status),
-		intel_uc_fw_status_repr(huc_fw->load_status));
+		huc->fw.path,
+		intel_uc_fw_status_repr(huc->fw.fetch_status),
+		intel_uc_fw_status_repr(huc->fw.load_status));
 
 	return 0;
 
 fail:
-	if (huc_fw->load_status == INTEL_UC_FIRMWARE_PENDING)
-		huc_fw->load_status = INTEL_UC_FIRMWARE_FAIL;
+	if (huc->fw.load_status == INTEL_UC_FIRMWARE_PENDING)
+		huc->fw.load_status = INTEL_UC_FIRMWARE_FAIL;
 
 	DRM_ERROR("Failed to complete HuC uCode load with ret %d\n", err);
 

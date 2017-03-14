@@ -364,28 +364,28 @@ static int guc_hw_reset(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_guc_setup() - finish preparing the GuC for activity
- * @dev_priv:	i915 device private
+ * intel_guc_init_hw() - finish preparing the GuC for activity
+ * @guc: intel_guc structure
  *
- * Called from gem_init_hw() during driver loading and also after a GPU reset.
+ * Called during driver loading and also after a GPU reset.
  *
  * The main action required here it to load the GuC uCode into the device.
  * The firmware image should have already been fetched into memory by the
- * earlier call to intel_guc_init(), so here we need only check that worked,
- * and then transfer the image to the h/w.
+ * earlier call to intel_guc_init(), so here we need only check that
+ * worked, and then transfer the image to the h/w.
  *
  * Return:	non-zero code on error
  */
-int intel_guc_setup(struct drm_i915_private *dev_priv)
+int intel_guc_init_hw(struct intel_guc *guc)
 {
-	struct intel_uc_fw *guc_fw = &dev_priv->guc.fw;
-	const char *fw_path = guc_fw->path;
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	const char *fw_path = guc->fw.path;
 	int retries, ret, err;
 
 	DRM_DEBUG_DRIVER("GuC fw status: path %s, fetch %s, load %s\n",
 		fw_path,
-		intel_uc_fw_status_repr(guc_fw->fetch_status),
-		intel_uc_fw_status_repr(guc_fw->load_status));
+		intel_uc_fw_status_repr(guc->fw.fetch_status),
+		intel_uc_fw_status_repr(guc->fw.load_status));
 
 	/* Loading forbidden, or no firmware to load? */
 	if (!i915.enable_guc_loading) {
@@ -403,10 +403,10 @@ int intel_guc_setup(struct drm_i915_private *dev_priv)
 	}
 
 	/* Fetch failed, or already fetched but failed to load? */
-	if (guc_fw->fetch_status != INTEL_UC_FIRMWARE_SUCCESS) {
+	if (guc->fw.fetch_status != INTEL_UC_FIRMWARE_SUCCESS) {
 		err = -EIO;
 		goto fail;
-	} else if (guc_fw->load_status == INTEL_UC_FIRMWARE_FAIL) {
+	} else if (guc->fw.load_status == INTEL_UC_FIRMWARE_FAIL) {
 		err = -ENOEXEC;
 		goto fail;
 	}
@@ -416,11 +416,11 @@ int intel_guc_setup(struct drm_i915_private *dev_priv)
 	/* We need to notify the guc whenever we change the GGTT */
 	i915_ggtt_enable_guc(dev_priv);
 
-	guc_fw->load_status = INTEL_UC_FIRMWARE_PENDING;
+	guc->fw.load_status = INTEL_UC_FIRMWARE_PENDING;
 
 	DRM_DEBUG_DRIVER("GuC fw status: fetch %s, load %s\n",
-		intel_uc_fw_status_repr(guc_fw->fetch_status),
-		intel_uc_fw_status_repr(guc_fw->load_status));
+		intel_uc_fw_status_repr(guc->fw.fetch_status),
+		intel_uc_fw_status_repr(guc->fw.load_status));
 
 	err = i915_guc_submission_init(dev_priv);
 	if (err)
@@ -441,7 +441,7 @@ int intel_guc_setup(struct drm_i915_private *dev_priv)
 		if (err)
 			goto fail;
 
-		intel_huc_load(dev_priv);
+		intel_huc_init_hw(&dev_priv->huc);
 		err = guc_ucode_xfer(dev_priv);
 		if (!err)
 			break;
@@ -453,7 +453,7 @@ int intel_guc_setup(struct drm_i915_private *dev_priv)
 			 "retry %d more time(s)\n", err, retries);
 	}
 
-	guc_fw->load_status = INTEL_UC_FIRMWARE_SUCCESS;
+	guc->fw.load_status = INTEL_UC_FIRMWARE_SUCCESS;
 
 	intel_guc_auth_huc(dev_priv);
 
@@ -468,14 +468,14 @@ int intel_guc_setup(struct drm_i915_private *dev_priv)
 
 	DRM_INFO("GuC %s (firmware %s [version %u.%u])\n",
 		 i915.enable_guc_submission ? "submission enabled" : "loaded",
-		 guc_fw->path,
-		 guc_fw->major_ver_found, guc_fw->minor_ver_found);
+		 guc->fw.path,
+		 guc->fw.major_ver_found, guc->fw.minor_ver_found);
 
 	return 0;
 
 fail:
-	if (guc_fw->load_status == INTEL_UC_FIRMWARE_PENDING)
-		guc_fw->load_status = INTEL_UC_FIRMWARE_FAIL;
+	if (guc->fw.load_status == INTEL_UC_FIRMWARE_PENDING)
+		guc->fw.load_status = INTEL_UC_FIRMWARE_FAIL;
 
 	i915_guc_submission_disable(dev_priv);
 	i915_guc_submission_fini(dev_priv);
@@ -662,7 +662,7 @@ fail:
  * Called early during driver load, but after GEM is initialised.
  *
  * The firmware will be transferred to the GuC's memory later,
- * when intel_guc_setup() is called.
+ * when intel_guc_init_hw() is called.
  */
 void intel_guc_init(struct drm_i915_private *dev_priv)
 {
