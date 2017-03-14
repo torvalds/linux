@@ -1,7 +1,7 @@
 /*
  * Broadcom GENET (Gigabit Ethernet) controller driver
  *
- * Copyright (c) 2014 Broadcom Corporation
+ * Copyright (c) 2014-2017 Broadcom
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1175,13 +1175,9 @@ static unsigned int __bcmgenet_tx_reclaim(struct net_device *dev,
 	unsigned int txbds_processed = 0;
 
 	/* Compute how many buffers are transmitted since last xmit call */
-	c_index = bcmgenet_tdma_ring_readl(priv, ring->index, TDMA_CONS_INDEX);
-	c_index &= DMA_C_INDEX_MASK;
-
-	if (likely(c_index >= ring->c_index))
-		txbds_ready = c_index - ring->c_index;
-	else
-		txbds_ready = (DMA_C_INDEX_MASK + 1) - ring->c_index + c_index;
+	c_index = bcmgenet_tdma_ring_readl(priv, ring->index, TDMA_CONS_INDEX)
+		& DMA_C_INDEX_MASK;
+	txbds_ready = (c_index - ring->c_index) & DMA_C_INDEX_MASK;
 
 	netif_dbg(priv, tx_done, dev,
 		  "%s ring=%d old_c_index=%u c_index=%u txbds_ready=%u\n",
@@ -1611,12 +1607,7 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_rx_ring *ring,
 	}
 
 	p_index &= DMA_P_INDEX_MASK;
-
-	if (likely(p_index >= ring->c_index))
-		rxpkttoprocess = p_index - ring->c_index;
-	else
-		rxpkttoprocess = (DMA_C_INDEX_MASK + 1) - ring->c_index +
-				 p_index;
+	rxpkttoprocess = (p_index - ring->c_index) & DMA_C_INDEX_MASK;
 
 	netif_dbg(priv, rx_status, dev,
 		  "RDMA: rxpkttoprocess=%d\n", rxpkttoprocess);
