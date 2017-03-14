@@ -185,6 +185,13 @@ int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long va,
 
 	local_irq_restore(flags);
 
+	/*
+	 * We don't want to get reserved instruction exceptions for missing tlb
+	 * entries.
+	 */
+	if (cpu_has_vtag_icache)
+		flush_icache_all();
+
 	if (user && idx_user >= 0)
 		kvm_debug("%s: Invalidated guest user entryhi %#lx @ idx %d\n",
 			  __func__, (va & VPN2_MASK) |
@@ -259,6 +266,13 @@ int kvm_vz_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long va)
 
 	htw_start();
 	local_irq_restore(flags);
+
+	/*
+	 * We don't want to get reserved instruction exceptions for missing tlb
+	 * entries.
+	 */
+	if (cpu_has_vtag_icache)
+		flush_icache_all();
 
 	if (idx > 0)
 		kvm_debug("%s: Invalidated root entryhi %#lx @ idx %d\n",
