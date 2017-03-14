@@ -18,6 +18,13 @@
 #define TRACE_INCLUDE_FILE trace
 
 /*
+ * arch/mips/kvm/mips.c
+ */
+extern bool kvm_trace_guest_mode_change;
+int kvm_guest_mode_change_trace_reg(void);
+void kvm_guest_mode_change_trace_unreg(void);
+
+/*
  * Tracepoints for VM enters
  */
 DECLARE_EVENT_CLASS(kvm_transition,
@@ -301,6 +308,36 @@ TRACE_EVENT(kvm_guestid_change,
 
 	    TP_printk("GuestID: 0x%02x",
 		      __entry->guestid)
+);
+
+TRACE_EVENT_FN(kvm_guest_mode_change,
+	    TP_PROTO(struct kvm_vcpu *vcpu),
+	    TP_ARGS(vcpu),
+	    TP_STRUCT__entry(
+			__field(unsigned long, epc)
+			__field(unsigned long, pc)
+			__field(unsigned long, badvaddr)
+			__field(unsigned int, status)
+			__field(unsigned int, cause)
+	    ),
+
+	    TP_fast_assign(
+			__entry->epc = kvm_read_c0_guest_epc(vcpu->arch.cop0);
+			__entry->pc = vcpu->arch.pc;
+			__entry->badvaddr = kvm_read_c0_guest_badvaddr(vcpu->arch.cop0);
+			__entry->status = kvm_read_c0_guest_status(vcpu->arch.cop0);
+			__entry->cause = kvm_read_c0_guest_cause(vcpu->arch.cop0);
+	    ),
+
+	    TP_printk("EPC: 0x%08lx PC: 0x%08lx Status: 0x%08x Cause: 0x%08x BadVAddr: 0x%08lx",
+		      __entry->epc,
+		      __entry->pc,
+		      __entry->status,
+		      __entry->cause,
+		      __entry->badvaddr),
+
+	    kvm_guest_mode_change_trace_reg,
+	    kvm_guest_mode_change_trace_unreg
 );
 
 #endif /* _TRACE_KVM_H */

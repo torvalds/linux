@@ -1322,6 +1322,18 @@ static enum emulation_result kvm_trap_vz_handle_gsfc(u32 cause, u32 *opc,
 	return er;
 }
 
+static enum emulation_result kvm_trap_vz_handle_ghfc(u32 cause, u32 *opc,
+						     struct kvm_vcpu *vcpu)
+{
+	/*
+	 * Presumably this is due to MC (guest mode change), so lets trace some
+	 * relevant info.
+	 */
+	trace_kvm_guest_mode_change(vcpu);
+
+	return EMULATE_DONE;
+}
+
 static enum emulation_result kvm_trap_vz_handle_hc(u32 cause, u32 *opc,
 						   struct kvm_vcpu *vcpu)
 {
@@ -1407,8 +1419,7 @@ static int kvm_trap_vz_handle_guest_exit(struct kvm_vcpu *vcpu)
 		break;
 	case MIPS_GCTL0_GEXC_GHFC:
 		++vcpu->stat.vz_ghfc_exits;
-		er = kvm_trap_vz_no_handler_guest_exit(gexccode, cause, opc,
-						       vcpu);
+		er = kvm_trap_vz_handle_ghfc(cause, opc, vcpu);
 		break;
 	case MIPS_GCTL0_GEXC_GPA:
 		++vcpu->stat.vz_gpa_exits;
@@ -2458,6 +2469,12 @@ static int kvm_vz_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	 * if left unmaintained.
 	 */
 	kvm_vz_restore_timer(vcpu);
+
+	/* Set MC bit if we want to trace guest mode changes */
+	if (kvm_trace_guest_mode_change)
+		set_c0_guestctl0(MIPS_GCTL0_MC);
+	else
+		clear_c0_guestctl0(MIPS_GCTL0_MC);
 
 	/* Don't bother restoring registers multiple times unless necessary */
 	if (!all)

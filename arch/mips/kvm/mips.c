@@ -76,6 +76,19 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{NULL}
 };
 
+bool kvm_trace_guest_mode_change;
+
+int kvm_guest_mode_change_trace_reg(void)
+{
+	kvm_trace_guest_mode_change = 1;
+	return 0;
+}
+
+void kvm_guest_mode_change_trace_unreg(void)
+{
+	kvm_trace_guest_mode_change = 0;
+}
+
 /*
  * XXXKYMA: We are simulatoring a processor that has the WII bit set in
  * Config7, so we are "runnable" if interrupts are pending
