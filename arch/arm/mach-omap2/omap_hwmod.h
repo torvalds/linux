@@ -313,6 +313,7 @@ struct omap_hwmod_ocp_if {
 	struct omap_hwmod_addr_space	*addr;
 	const char			*clk;
 	struct clk			*_clk;
+	struct list_head		node;
 	union {
 		struct omap_hwmod_omap2_firewall omap2;
 	}				fw;
@@ -617,16 +618,6 @@ struct omap_hwmod_class {
 };
 
 /**
- * struct omap_hwmod_link - internal structure linking hwmods with ocp_ifs
- * @ocp_if: OCP interface structure record pointer
- * @node: list_head pointing to next struct omap_hwmod_link in a list
- */
-struct omap_hwmod_link {
-	struct omap_hwmod_ocp_if	*ocp_if;
-	struct list_head		node;
-};
-
-/**
  * struct omap_hwmod - integration data for OMAP hardware "modules" (IP blocks)
  * @name: name of the hwmod
  * @class: struct omap_hwmod_class * to the class of this hwmod
@@ -688,7 +679,6 @@ struct omap_hwmod {
 	struct omap_hwmod_opt_clk	*opt_clks;
 	char				*clkdm_name;
 	struct clockdomain		*clkdm;
-	struct list_head		master_ports; /* connect to *_IA */
 	struct list_head		slave_ports; /* connect to *_TA */
 	void				*dev_attr;
 	u32				_sysc_cache;
@@ -703,7 +693,6 @@ struct omap_hwmod {
 	u8				response_lat;
 	u8				rst_lines_cnt;
 	u8				opt_clks_cnt;
-	u8				masters_cnt;
 	u8				slaves_cnt;
 	u8				hwmods_cnt;
 	u8				_int_flags;
