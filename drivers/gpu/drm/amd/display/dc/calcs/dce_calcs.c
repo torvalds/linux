@@ -1341,12 +1341,12 @@ static void calculate_bandwidth(
 	/*initialize variables*/
 	number_of_displays_enabled = 0;
 	number_of_displays_enabled_with_margin = 0;
-	for (k = 0; k < maximum_number_of_surfaces; k++) {
+	for (k = 0; k <= maximum_number_of_surfaces - 1; k++) {
 		if (data->enable[k]) {
 			number_of_displays_enabled = number_of_displays_enabled + 1;
 		}
+		data->display_pstate_change_enable[k] = 0;
 	}
-	data->display_pstate_change_enable[maximum_number_of_surfaces - 1] = 0;
 	for (i = 0; i <= 2; i++) {
 		for (j = 0; j <= 7; j++) {
 			data->min_dram_speed_change_margin[i][j] = bw_int_to_fixed(9999);
