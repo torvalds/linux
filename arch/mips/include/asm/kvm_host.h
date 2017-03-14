@@ -287,13 +287,18 @@ struct kvm_mmu_memory_cache {
 struct kvm_vcpu_arch {
 	void *guest_ebase;
 	int (*vcpu_run)(struct kvm_run *run, struct kvm_vcpu *vcpu);
+
+	/* Host registers preserved across guest mode execution */
 	unsigned long host_stack;
 	unsigned long host_gp;
+	unsigned long host_pgd;
+	unsigned long host_entryhi;
 
 	/* Host CP0 registers used when handling exits from guest */
 	unsigned long host_cp0_badvaddr;
 	unsigned long host_cp0_epc;
 	u32 host_cp0_cause;
+	u32 host_cp0_guestctl0;
 	u32 host_cp0_badinstr;
 	u32 host_cp0_badinstrp;
 
