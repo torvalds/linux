@@ -2258,6 +2258,10 @@ static bool set_in_sync(struct mddev *mddev)
 	if (atomic_read(&mddev->writes_pending) == 0) {
 		if (mddev->in_sync == 0) {
 			mddev->in_sync = 1;
+			smp_mb();
+			if (atomic_read(&mddev->writes_pending))
+				/* lost a race with md_write_start() */
+				mddev->in_sync = 0;
 			set_bit(MD_SB_CHANGE_CLEAN, &mddev->sb_flags);
 			sysfs_notify_dirent_safe(mddev->sysfs_state);
 		}
@@ -4011,6 +4015,7 @@ array_state_show(struct mddev *mddev, char *page)
 			st = read_auto;
 			break;
 		case 0:
+			spin_lock(&mddev->lock);
 			if (test_bit(MD_SB_CHANGE_PENDING, &mddev->sb_flags))
 				st = write_pending;
 			else if (mddev->in_sync)
@@ -4019,6 +4024,7 @@ array_state_show(struct mddev *mddev, char *page)
 				st = active_idle;
 			else
 				st = active;
+			spin_unlock(&mddev->lock);
 		}
 	else {
 		if (list_empty(&mddev->disks) &&
@@ -7885,6 +7891,7 @@ void md_write_start(struct mddev *mddev, struct bio *bi)
 		did_change = 1;
 	}
 	atomic_inc(&mddev->writes_pending);
+	smp_mb(); /* Match smp_mb in set_in_sync() */
 	if (mddev->safemode == 1)
 		mddev->safemode = 0;
 	if (mddev->in_sync) {
