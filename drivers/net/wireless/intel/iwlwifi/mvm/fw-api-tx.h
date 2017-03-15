@@ -177,29 +177,6 @@ enum iwl_tx_cmd_sec_ctrl {
 	TX_CMD_SEC_KEY_FROM_TABLE	= 0x10,
 };
 
-/* TODO: how does these values are OK with only 16 bit variable??? */
-/*
- * TX command next frame info
- *
- * bits 0:2 - security control (TX_CMD_SEC_*)
- * bit 3 - immediate ACK required
- * bit 4 - rate is taken from STA table
- * bit 5 - frame belongs to BA stream
- * bit 6 - immediate BA response expected
- * bit 7 - unused
- * bits 8:15 - Station ID
- * bits 16:31 - rate
- */
-#define TX_CMD_NEXT_FRAME_ACK_MSK		(0x8)
-#define TX_CMD_NEXT_FRAME_STA_RATE_MSK		(0x10)
-#define TX_CMD_NEXT_FRAME_BA_MSK		(0x20)
-#define TX_CMD_NEXT_FRAME_IMM_BA_RSP_MSK	(0x40)
-#define TX_CMD_NEXT_FRAME_FLAGS_MSK		(0xf8)
-#define TX_CMD_NEXT_FRAME_STA_ID_MSK		(0xff00)
-#define TX_CMD_NEXT_FRAME_STA_ID_POS		(8)
-#define TX_CMD_NEXT_FRAME_RATE_MSK		(0xffff0000)
-#define TX_CMD_NEXT_FRAME_RATE_POS		(16)
-
 /*
  * TX command Frame life time in us - to be written in pm_frame_timeout
  */
@@ -265,7 +242,7 @@ enum iwl_tx_offload_assist_flags_pos {
  * @initial_rate_index: index into the the rate table for initial TX attempt.
  *	Applied if TX_CMD_FLG_STA_RATE_MSK is set, normally 0 for data frames.
  * @key: security key
- * @next_frame_flags: TX_CMD_SEC_* and TX_CMD_NEXT_FRAME_*
+ * @reserved3: reserved
  * @life_time: frame life time (usecs??)
  * @dram_lsb_ptr: Physical address of scratch area in the command (try_cnt +
  *	btkill_cnd + reserved), first 32 bits. "0" disables usage.
