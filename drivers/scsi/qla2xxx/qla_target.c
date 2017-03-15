@@ -5727,30 +5727,23 @@ static void qlt_abort_work(struct qla_tgt *tgt,
 		}
 	}
 
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-
-	if (tgt->tgt_stop)
-		goto out_term;
-
 	rc = __qlt_24xx_handle_abts(vha, &prm->abts, sess);
+	ha->tgt.tgt_ops->put_sess(sess);
+	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags2);
+
 	if (rc != 0)
 		goto out_term;
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-	if (sess)
-		ha->tgt.tgt_ops->put_sess(sess);
-	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags2);
 	return;
 
 out_term2:
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-
-out_term:
-	qlt_24xx_send_abts_resp(vha, &prm->abts, FCP_TMF_REJECTED, false);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-
 	if (sess)
 		ha->tgt.tgt_ops->put_sess(sess);
 	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags2);
+
+out_term:
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+	qlt_24xx_send_abts_resp(vha, &prm->abts, FCP_TMF_REJECTED, false);
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
 
 static void qlt_tmr_work(struct qla_tgt *tgt,
@@ -5770,7 +5763,7 @@ static void qlt_tmr_work(struct qla_tgt *tgt,
 	spin_lock_irqsave(&ha->tgt.sess_lock, flags);
 
 	if (tgt->tgt_stop)
-		goto out_term;
+		goto out_term2;
 
 	s_id = prm->tm_iocb2.u.isp24.fcp_hdr.s_id;
 	sess = ha->tgt.tgt_ops->find_sess_by_s_id(vha, s_id);
@@ -5782,11 +5775,11 @@ static void qlt_tmr_work(struct qla_tgt *tgt,
 
 		spin_lock_irqsave(&ha->tgt.sess_lock, flags);
 		if (!sess)
-			goto out_term;
+			goto out_term2;
 	} else {
 		if (sess->deleted) {
 			sess = NULL;
-			goto out_term;
+			goto out_term2;
 		}
 
 		if (!kref_get_unless_zero(&sess->sess_kref)) {
@@ -5794,7 +5787,7 @@ static void qlt_tmr_work(struct qla_tgt *tgt,
 			    "%s: kref_get fail %8phC\n",
 			     __func__, sess->port_name);
 			sess = NULL;
-			goto out_term;
+			goto out_term2;
 		}
 	}
 
@@ -5804,17 +5797,19 @@ static void qlt_tmr_work(struct qla_tgt *tgt,
 	unpacked_lun = scsilun_to_int((struct scsi_lun *)&lun);
 
 	rc = qlt_issue_task_mgmt(sess, unpacked_lun, fn, iocb, 0);
+	ha->tgt.tgt_ops->put_sess(sess);
+	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
+
 	if (rc != 0)
 		goto out_term;
-
-	ha->tgt.tgt_ops->put_sess(sess);
-	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
 	return;
 
+out_term2:
+	if (sess)
+		ha->tgt.tgt_ops->put_sess(sess);
+	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
 out_term:
 	qlt_send_term_exchange(vha, NULL, &prm->tm_iocb2, 1, 0);
-	ha->tgt.tgt_ops->put_sess(sess);
-	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
 }
 
 static void qlt_sess_work_fn(struct work_struct *work)
