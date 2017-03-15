@@ -1436,18 +1436,9 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio)
 		goto retry_write;
 	}
 
-	if (max_sectors < r1_bio->sectors) {
-		/* We are splitting this write into multiple parts, so
-		 * we need to prepare for allocating another r1_bio.
-		 */
+	if (max_sectors < r1_bio->sectors)
 		r1_bio->sectors = max_sectors;
-		spin_lock_irq(&conf->device_lock);
-		if (bio->bi_phys_segments == 0)
-			bio->bi_phys_segments = 2;
-		else
-			bio->bi_phys_segments++;
-		spin_unlock_irq(&conf->device_lock);
-	}
+
 	sectors_handled = r1_bio->sector + max_sectors - bio->bi_iter.bi_sector;
 
 	atomic_set(&r1_bio->remaining, 1);
@@ -1553,10 +1544,17 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio)
 	 * as it could result in the bio being freed.
 	 */
 	if (sectors_handled < bio_sectors(bio)) {
-		r1_bio_write_done(r1_bio);
-		/* We need another r1_bio.  It has already been counted
+		/* We need another r1_bio, which must be accounted
 		 * in bio->bi_phys_segments
 		 */
+		spin_lock_irq(&conf->device_lock);
+		if (bio->bi_phys_segments == 0)
+			bio->bi_phys_segments = 2;
+		else
+			bio->bi_phys_segments++;
+		spin_unlock_irq(&conf->device_lock);
+
+		r1_bio_write_done(r1_bio);
 		r1_bio = alloc_r1bio(mddev, bio, sectors_handled);
 		goto retry_write;
 	}
