@@ -373,7 +373,15 @@ enum iwl_legacy_cmds {
 	 */
 	RSS_CONFIG_CMD = 0xb3,
 
+	/**
+	 * @REPLY_RX_PHY_CMD: &struct iwl_rx_phy_info
+	 */
 	REPLY_RX_PHY_CMD = 0xc0,
+
+	/**
+	 * @REPLY_RX_MPDU_CMD:
+	 * &struct iwl_rx_mpdu_res_start or &struct iwl_rx_mpdu_desc
+	 */
 	REPLY_RX_MPDU_CMD = 0xc1,
 	FRAME_RELEASE = 0xc3,
 	BA_NOTIF = 0xc5,
