@@ -494,7 +494,7 @@ static void xgene_gmac_set_speed(struct xgene_enet_pdata *pdata)
 		break;
 	}
 
-	mc2 |= FULL_DUPLEX2 | PAD_CRC;
+	mc2 |= FULL_DUPLEX2 | PAD_CRC | LENGTH_CHK;
 	xgene_enet_wr_mcx_mac(pdata, MAC_CONFIG_2_ADDR, mc2);
 	xgene_enet_wr_mcx_mac(pdata, INTERFACE_CONTROL_ADDR, intf_ctl);
 	xgene_enet_wr_csr(pdata, RGMII_REG_0_ADDR, rgmii);

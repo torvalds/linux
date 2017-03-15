@@ -658,12 +658,24 @@ static void xgene_enet_free_pagepool(struct xgene_enet_desc_ring *buf_pool,
 	buf_pool->head = head;
 }
 
+/* Errata 10GE_8 and ENET_11 - allow packet with length <=64B */
+static bool xgene_enet_errata_10GE_8(struct sk_buff *skb, u32 len, u8 status)
+{
+	if (status == INGRESS_PKT_LEN && len == ETHER_MIN_PACKET) {
+		if (ntohs(eth_hdr(skb)->h_proto) < 46)
+			return true;
+	}
+
+	return false;
+}
+
 static int xgene_enet_rx_frame(struct xgene_enet_desc_ring *rx_ring,
 			       struct xgene_enet_raw_desc *raw_desc,
 			       struct xgene_enet_raw_desc *exp_desc)
 {
 	struct xgene_enet_desc_ring *buf_pool, *page_pool;
 	u32 datalen, frag_size, skb_index;
+	struct xgene_enet_pdata *pdata;
 	struct net_device *ndev;
 	dma_addr_t dma_addr;
 	struct sk_buff *skb;
@@ -676,6 +688,7 @@ static int xgene_enet_rx_frame(struct xgene_enet_desc_ring *rx_ring,
 	bool nv;
 
 	ndev = rx_ring->ndev;
+	pdata = netdev_priv(ndev);
 	dev = ndev_to_dev(rx_ring->ndev);
 	buf_pool = rx_ring->buf_pool;
 	page_pool = rx_ring->page_pool;
@@ -686,30 +699,29 @@ static int xgene_enet_rx_frame(struct xgene_enet_desc_ring *rx_ring,
 	skb = buf_pool->rx_skb[skb_index];
 	buf_pool->rx_skb[skb_index] = NULL;
 
+	datalen = xgene_enet_get_data_len(le64_to_cpu(raw_desc->m1));
+	skb_put(skb, datalen);
+	prefetch(skb->data - NET_IP_ALIGN);
+	skb->protocol = eth_type_trans(skb, ndev);
+
 	/* checking for error */
 	status = (GET_VAL(ELERR, le64_to_cpu(raw_desc->m0)) << LERR_LEN) |
 		  GET_VAL(LERR, le64_to_cpu(raw_desc->m0));
 	if (unlikely(status)) {
-		dev_kfree_skb_any(skb);
-		xgene_enet_free_pagepool(page_pool, raw_desc, exp_desc);
-		xgene_enet_parse_error(rx_ring, netdev_priv(rx_ring->ndev),
-				       status);
-		ret = -EIO;
-		goto out;
+		if (!xgene_enet_errata_10GE_8(skb, datalen, status)) {
+			dev_kfree_skb_any(skb);
+			xgene_enet_free_pagepool(page_pool, raw_desc, exp_desc);
+			xgene_enet_parse_error(rx_ring, pdata, status);
+			goto out;
+		}
 	}
 
-	/* strip off CRC as HW isn't doing this */
-	datalen = xgene_enet_get_data_len(le64_to_cpu(raw_desc->m1));
-
 	nv = GET_VAL(NV, le64_to_cpu(raw_desc->m0));
-	if (!nv)
+	if (!nv) {
+		/* strip off CRC as HW isn't doing this */
 		datalen -= 4;
-
-	skb_put(skb, datalen);
-	prefetch(skb->data - NET_IP_ALIGN);
-
-	if (!nv)
 		goto skip_jumbo;
+	}
 
 	slots = page_pool->slots - 1;
 	head = page_pool->head;
@@ -738,7 +750,6 @@ static int xgene_enet_rx_frame(struct xgene_enet_desc_ring *rx_ring,
 
 skip_jumbo:
 	skb_checksum_none_assert(skb);
-	skb->protocol = eth_type_trans(skb, ndev);
 	xgene_enet_rx_csum(skb);
 
 	rx_ring->rx_packets++;
