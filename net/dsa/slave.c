@@ -419,8 +419,8 @@ static int dsa_slave_vlan_filtering(struct net_device *dev,
 	return 0;
 }
 
-static int dsa_fastest_ageing_time(struct dsa_switch *ds,
-				   unsigned int ageing_time)
+static unsigned int dsa_fastest_ageing_time(struct dsa_switch *ds,
+					    unsigned int ageing_time)
 {
 	int i;
 
