@@ -303,6 +303,7 @@ static inline void __intel_breadcrumbs_next(struct intel_engine_cs *engine,
 
 	spin_lock(&b->irq_lock);
 	GEM_BUG_ON(!b->irq_armed);
+	GEM_BUG_ON(!b->irq_wait);
 	b->irq_wait = to_wait(next);
 	spin_unlock(&b->irq_lock);
 
@@ -378,25 +379,8 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 	rb_link_node(&wait->node, parent, p);
 	rb_insert_color(&wait->node, &b->waiters);
 
-	if (completed) {
-		struct rb_node *next = rb_next(completed);
-
-		GEM_BUG_ON(!next && !first);
-		if (next && next != &wait->node) {
-			GEM_BUG_ON(first);
-			__intel_breadcrumbs_next(engine, next);
-		}
-
-		do {
-			struct intel_wait *crumb = to_wait(completed);
-			completed = rb_prev(completed);
-			__intel_breadcrumbs_finish(b, crumb);
-		} while (completed);
-	}
-
 	if (first) {
 		spin_lock(&b->irq_lock);
-		GEM_BUG_ON(rb_first(&b->waiters) != &wait->node);
 		b->irq_wait = wait;
 		/* After assigning ourselves as the new bottom-half, we must
 		 * perform a cursory check to prevent a missed interrupt.
@@ -409,7 +393,23 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 		__intel_breadcrumbs_enable_irq(b);
 		spin_unlock(&b->irq_lock);
 	}
+
+	if (completed) {
+		if (!first) {
+			struct rb_node *next = rb_next(completed);
+			GEM_BUG_ON(next == &wait->node);
+			__intel_breadcrumbs_next(engine, next);
+		}
+
+		do {
+			struct intel_wait *crumb = to_wait(completed);
+			completed = rb_prev(completed);
+			__intel_breadcrumbs_finish(b, crumb);
+		} while (completed);
+	}
+
 	GEM_BUG_ON(!b->irq_wait);
+	GEM_BUG_ON(!b->irq_armed);
 	GEM_BUG_ON(rb_first(&b->waiters) != &b->irq_wait->node);
 
 	return first;
