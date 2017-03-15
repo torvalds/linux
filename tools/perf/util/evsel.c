@@ -932,6 +932,9 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts,
 	attr->mmap2 = track && !perf_missing_features.mmap2;
 	attr->comm  = track;
 
+	if (opts->record_namespaces)
+		attr->namespaces  = track;
+
 	if (opts->record_switch_events)
 		attr->context_switch = track;
 

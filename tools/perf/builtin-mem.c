@@ -342,6 +342,7 @@ int cmd_mem(int argc, const char **argv, const char *prefix __maybe_unused)
 			.lost		= perf_event__process_lost,
 			.fork		= perf_event__process_fork,
 			.build_id	= perf_event__process_build_id,
+			.namespaces	= perf_event__process_namespaces,
 			.ordered_events	= true,
 		},
 		.input_name		 = "perf.data",

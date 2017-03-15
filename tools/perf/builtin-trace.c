@@ -2415,8 +2415,9 @@ static int trace__replay(struct trace *trace)
 	trace->tool.exit	  = perf_event__process_exit;
 	trace->tool.fork	  = perf_event__process_fork;
 	trace->tool.attr	  = perf_event__process_attr;
-	trace->tool.tracing_data = perf_event__process_tracing_data;
+	trace->tool.tracing_data  = perf_event__process_tracing_data;
 	trace->tool.build_id	  = perf_event__process_build_id;
+	trace->tool.namespaces	  = perf_event__process_namespaces;
 
 	trace->tool.ordered_events = true;
 	trace->tool.ordering_requires_timestamps = true;

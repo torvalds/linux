@@ -72,7 +72,8 @@ OPTIONS
 --sort=::
 	Sort histogram entries by given key(s) - multiple keys can be specified
 	in CSV format.  Following sort keys are available:
-	pid, comm, dso, symbol, parent, cpu, socket, srcline, weight, local_weight.
+	pid, comm, dso, symbol, parent, cpu, socket, srcline, weight,
+	local_weight, cgroup_id.
 
 	Each key has following meaning:
 
@@ -92,6 +93,7 @@ OPTIONS
 	- weight: Event specific weight, e.g. memory latency or transaction
 	abort cost. This is the global weight.
 	- local_weight: Local weight version of the weight above.
+	- cgroup_id: ID derived from cgroup namespace device and inode numbers.
 	- transaction: Transaction abort flags.
 	- overhead: Overhead percentage of sample
 	- overhead_sys: Overhead percentage of sample running in system mode
@@ -172,6 +174,9 @@ OPTIONS
 
 	By default, every sort keys not specified in -F will be appended
 	automatically.
+
+	If the keys starts with a prefix '+', then it will append the specified
+        field(s) to the default field order. For example: perf report -F +period,sample.
 
 -p::
 --parent=<regex>::

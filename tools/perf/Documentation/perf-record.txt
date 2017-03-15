@@ -347,6 +347,9 @@ Enable weightened sampling. An additional weight is recorded per sample and can 
 displayed with the weight and local_weight sort keys.  This currently works for TSX
 abort events and some memory events in precise mode on modern Intel CPUs.
 
+--namespaces::
+Record events of type PERF_RECORD_NAMESPACES.
+
 --transaction::
 Record transaction flags for transaction related events.
 
