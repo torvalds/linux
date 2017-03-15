@@ -2007,6 +2007,7 @@ static void qedi_remove(struct pci_dev *pdev)
 
 static struct pci_device_id qedi_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, 0x165E) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, 0x8084) },
 	{ 0 },
 };
 MODULE_DEVICE_TABLE(pci, qedi_pci_tbl);
