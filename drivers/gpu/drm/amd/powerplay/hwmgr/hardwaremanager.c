@@ -113,7 +113,7 @@ int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 				NULL, NULL);
 	}
 
-	enabled = ret == 0 ? true : false;
+	enabled = ret == 0;
 
 	cgs_notify_dpm_enabled(hwmgr->device, enabled);
 

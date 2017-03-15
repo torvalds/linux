@@ -239,7 +239,7 @@ static int pp_set_powergating_state(void *handle,
 
 	/* Enable/disable GFX per cu powergating through SMU */
 	return hwmgr->hwmgr_func->enable_per_cu_power_gating(hwmgr,
-			state == AMD_PG_STATE_GATE ? true : false);
+			state == AMD_PG_STATE_GATE);
 }
 
 static int pp_suspend(void *handle)
