@@ -606,8 +606,8 @@ static int ubifs_readdir(struct file *file, struct dir_context *ctx)
 	}
 
 	while (1) {
-		dbg_gen("feed '%s', ino %llu, new f_pos %#x",
-			dent->name, (unsigned long long)le64_to_cpu(dent->inum),
+		dbg_gen("ino %llu, new f_pos %#x",
+			(unsigned long long)le64_to_cpu(dent->inum),
 			key_hash_flash(c, &dent->key));
 		ubifs_assert(le64_to_cpu(dent->ch.sqnum) >
 			     ubifs_inode(dir)->creat_sqnum);
