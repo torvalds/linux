@@ -245,7 +245,7 @@ static int arizona_poll_reg(struct arizona *arizona,
 	for (i = 0; i < timeout; i++) {
 		ret = regmap_read(arizona->regmap, reg, &val);
 		if (ret != 0) {
-			dev_err(arizona->dev, "Failed to read reg %u: %d\n",
+			dev_err(arizona->dev, "Failed to read reg 0x%x: %d\n",
 				reg, ret);
 			continue;
 		}
@@ -256,7 +256,7 @@ static int arizona_poll_reg(struct arizona *arizona,
 		usleep_range(1000, 5000);
 	}
 
-	dev_err(arizona->dev, "Polling reg %u timed out: %x\n", reg, val);
+	dev_err(arizona->dev, "Polling reg 0x%x timed out: %x\n", reg, val);
 	return -ETIMEDOUT;
 }
 
