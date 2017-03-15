@@ -95,17 +95,17 @@
 					     function = "sdc1";
 				};
 				clk {
-					pins = "gpio167"; /* SDC5 CLK */
+					pins = "gpio167"; /* SDC1 CLK */
 					drive-strength = <16>;
 					bias-disable;
 				};
 				cmd {
-					pins = "gpio168"; /* SDC5 CMD */
+					pins = "gpio168"; /* SDC1 CMD */
 					drive-strength = <10>;
 					bias-pull-up;
 				};
 				data {
-					/* SDC5 D0 to D7 */
+					/* SDC1 D0 to D7 */
 					pins = "gpio159", "gpio160", "gpio161", "gpio162",
 					     "gpio163", "gpio164", "gpio165", "gpio166";
 					drive-strength = <10>;
