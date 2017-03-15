@@ -342,10 +342,8 @@ static int arizona_enable_freerun_sysclk(struct arizona *arizona,
 	ret = arizona_poll_reg(arizona, 25, ARIZONA_INTERRUPT_RAW_STATUS_5,
 			       ARIZONA_FLL1_CLOCK_OK_STS,
 			       ARIZONA_FLL1_CLOCK_OK_STS);
-	if (ret) {
-		ret = -ETIMEDOUT;
+	if (ret)
 		goto err_fll;
-	}
 
 	ret = regmap_write(arizona->regmap, ARIZONA_SYSTEM_CLOCK_1, 0x0144);
 	if (ret) {
@@ -407,11 +405,9 @@ static int wm5102_apply_hardware_patch(struct arizona *arizona)
 
 	ret = arizona_poll_reg(arizona, 5, ARIZONA_WRITE_SEQUENCER_CTRL_1,
 			       ARIZONA_WSEQ_BUSY, 0);
-	if (ret) {
+	if (ret)
 		regmap_write(arizona->regmap, ARIZONA_WRITE_SEQUENCER_CTRL_0,
 			     ARIZONA_WSEQ_ABORT);
-		ret = -ETIMEDOUT;
-	}
 
 err:
 	err = arizona_disable_freerun_sysclk(arizona, &state);
