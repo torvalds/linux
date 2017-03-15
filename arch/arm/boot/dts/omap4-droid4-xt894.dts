@@ -71,6 +71,11 @@
 		regulator-always-on;
 	};
 
+	/* HS USB Host PHY on PORT 1 */
+	hsusb1_phy: hsusb1_phy {
+		compatible = "usb-nop-xceiv";
+	};
+
 	/* LCD regulator from sw5 source */
 	lcd_regulator: regulator-lcd {
 		compatible = "regulator-fixed";
@@ -473,6 +478,15 @@
 &uart3 {
 	interrupts-extended = <&wakeupgen GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH
 			       &omap4_pmx_core 0x17c>;
+};
+
+&usbhsehci {
+	phys = <&hsusb1_phy>;
+};
+
+&usbhshost {
+	port1-mode = "ohci-phy-4pin-dpdm";
+	port2-mode = "ehci-tll";
 };
 
 /* Internal UTMI+ PHY used for OTG, CPCAP ULPI PHY for detection and charger */
