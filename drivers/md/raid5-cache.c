@@ -318,8 +318,7 @@ r5c_return_dev_pending_writes(struct r5conf *conf, struct r5dev *dev)
 	       dev->sector + STRIPE_SECTORS) {
 		wbi2 = r5_next_bio(wbi, dev->sector);
 		md_write_end(conf->mddev);
-		if (!raid5_dec_bi_active_stripes(wbi))
-			bio_endio(wbi);
+		bio_endio(wbi);
 		wbi = wbi2;
 	}
 }

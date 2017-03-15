@@ -488,28 +488,13 @@ static inline struct bio *r5_next_bio(struct bio *bio, sector_t sector)
 }
 
 /*
- * We maintain a biased count of active stripes in the bottom 16 bits of
- * bi_phys_segments, and a count of processed stripes in the upper 16 bits
+ * We maintain a count of processed stripes in the upper 16 bits
  */
 static inline int raid5_bi_processed_stripes(struct bio *bio)
 {
 	atomic_t *segments = (atomic_t *)&bio->bi_phys_segments;
 
 	return (atomic_read(segments) >> 16) & 0xffff;
-}
-
-static inline int raid5_dec_bi_active_stripes(struct bio *bio)
-{
-	atomic_t *segments = (atomic_t *)&bio->bi_phys_segments;
-
-	return atomic_sub_return(1, segments) & 0xffff;
-}
-
-static inline void raid5_inc_bi_active_stripes(struct bio *bio)
-{
-	atomic_t *segments = (atomic_t *)&bio->bi_phys_segments;
-
-	atomic_inc(segments);
 }
 
 static inline void raid5_set_bi_processed_stripes(struct bio *bio,
