@@ -7907,6 +7907,23 @@ void md_write_start(struct mddev *mddev, struct bio *bi)
 }
 EXPORT_SYMBOL(md_write_start);
 
+/* md_write_inc can only be called when md_write_start() has
+ * already been called at least once of the current request.
+ * It increments the counter and is useful when a single request
+ * is split into several parts.  Each part causes an increment and
+ * so needs a matching md_write_end().
+ * Unlike md_write_start(), it is safe to call md_write_inc() inside
+ * a spinlocked region.
+ */
+void md_write_inc(struct mddev *mddev, struct bio *bi)
+{
+	if (bio_data_dir(bi) != WRITE)
+		return;
+	WARN_ON_ONCE(mddev->in_sync || mddev->ro);
+	atomic_inc(&mddev->writes_pending);
+}
+EXPORT_SYMBOL(md_write_inc);
+
 void md_write_end(struct mddev *mddev)
 {
 	if (atomic_dec_and_test(&mddev->writes_pending)) {

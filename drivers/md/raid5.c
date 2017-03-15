@@ -3274,6 +3274,7 @@ static int add_stripe_bio(struct stripe_head *sh, struct bio *bi, int dd_idx,
 		bi->bi_next = *bip;
 	*bip = bi;
 	raid5_inc_bi_active_stripes(bi);
+	md_write_inc(conf->mddev, bi);
 
 	if (forwrite) {
 		/* check if page is covered */
@@ -3397,10 +3398,9 @@ handle_failed_stripe(struct r5conf *conf, struct stripe_head *sh,
 			struct bio *nextbi = r5_next_bio(bi, sh->dev[i].sector);
 
 			bi->bi_error = -EIO;
-			if (!raid5_dec_bi_active_stripes(bi)) {
-				md_write_end(conf->mddev);
+			md_write_end(conf->mddev);
+			if (!raid5_dec_bi_active_stripes(bi))
 				bio_list_add(return_bi, bi);
-			}
 			bi = nextbi;
 		}
 		if (bitmap_end)
@@ -3421,10 +3421,9 @@ handle_failed_stripe(struct r5conf *conf, struct stripe_head *sh,
 			struct bio *bi2 = r5_next_bio(bi, sh->dev[i].sector);
 
 			bi->bi_error = -EIO;
-			if (!raid5_dec_bi_active_stripes(bi)) {
-				md_write_end(conf->mddev);
+			md_write_end(conf->mddev);
+			if (!raid5_dec_bi_active_stripes(bi))
 				bio_list_add(return_bi, bi);
-			}
 			bi = bi2;
 		}
 
@@ -3781,10 +3780,9 @@ returnbi:
 				while (wbi && wbi->bi_iter.bi_sector <
 					dev->sector + STRIPE_SECTORS) {
 					wbi2 = r5_next_bio(wbi, dev->sector);
-					if (!raid5_dec_bi_active_stripes(wbi)) {
-						md_write_end(conf->mddev);
+					md_write_end(conf->mddev);
+					if (!raid5_dec_bi_active_stripes(wbi))
 						bio_list_add(return_bi, wbi);
-					}
 					wbi = wbi2;
 				}
 				bitmap_endwrite(conf->mddev->bitmap, sh->sector,
@@ -5487,6 +5485,7 @@ static void make_discard_request(struct mddev *mddev, struct bio *bi)
 
 	bi->bi_next = NULL;
 	bi->bi_phys_segments = 1; /* over-loaded to count active stripes */
+	md_write_start(mddev, bi);
 
 	stripe_sectors = conf->chunk_sectors *
 		(conf->raid_disks - conf->max_degraded);
@@ -5533,6 +5532,7 @@ static void make_discard_request(struct mddev *mddev, struct bio *bi)
 			sh->dev[d].towrite = bi;
 			set_bit(R5_OVERWRITE, &sh->dev[d].flags);
 			raid5_inc_bi_active_stripes(bi);
+			md_write_inc(mddev, bi);
 			sh->overwrite_disks++;
 		}
 		spin_unlock_irq(&sh->stripe_lock);
@@ -5555,9 +5555,9 @@ static void make_discard_request(struct mddev *mddev, struct bio *bi)
 		release_stripe_plug(mddev, sh);
 	}
 
+	md_write_end(mddev);
 	remaining = raid5_dec_bi_active_stripes(bi);
 	if (remaining == 0) {
-		md_write_end(mddev);
 		bio_endio(bi);
 	}
 }
@@ -5592,8 +5592,6 @@ static void raid5_make_request(struct mddev *mddev, struct bio * bi)
 		do_flush = bi->bi_opf & REQ_PREFLUSH;
 	}
 
-	md_write_start(mddev, bi);
-
 	/*
 	 * If array is degraded, better not do chunk aligned read because
 	 * later we might have to read it again in order to reconstruct
@@ -5615,6 +5613,7 @@ static void raid5_make_request(struct mddev *mddev, struct bio * bi)
 	last_sector = bio_end_sector(bi);
 	bi->bi_next = NULL;
 	bi->bi_phys_segments = 1;	/* over-loaded to count active stripes */
+	md_write_start(mddev, bi);
 
 	prepare_to_wait(&conf->wait_for_overlap, &w, TASK_UNINTERRUPTIBLE);
 	for (;logical_sector < last_sector; logical_sector += STRIPE_SECTORS) {
@@ -5749,11 +5748,11 @@ static void raid5_make_request(struct mddev *mddev, struct bio * bi)
 	}
 	finish_wait(&conf->wait_for_overlap, &w);
 
+	if (rw == WRITE)
+		md_write_end(mddev);
 	remaining = raid5_dec_bi_active_stripes(bi);
 	if (remaining == 0) {
 
-		if ( rw == WRITE )
-			md_write_end(mddev);
 
 		trace_block_bio_complete(bdev_get_queue(bi->bi_bdev),
 					 bi, 0);
