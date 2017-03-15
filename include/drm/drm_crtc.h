@@ -204,6 +204,12 @@ struct drm_crtc_state {
 	 * drm_crtc_arm_vblank_event(). See the documentation of that function
 	 * for a detailed discussion of the constraints it needs to be used
 	 * safely.
+	 *
+	 * If the device can't notify of flip completion in a race-free way
+	 * at all, then the event should be armed just after the page flip is
+	 * committed. In the worst case the driver will send the event to
+	 * userspace one frame too late. This doesn't allow for a real atomic
+	 * update, but it should avoid tearing.
 	 */
 	struct drm_pending_vblank_event *event;
 
@@ -776,6 +782,7 @@ struct drm_crtc {
 	 * Debugfs directory for this CRTC.
 	 */
 	struct dentry *debugfs_entry;
+#endif
 
 	/**
 	 * @crc:
@@ -783,7 +790,6 @@ struct drm_crtc {
 	 * Configuration settings of CRC capture.
 	 */
 	struct drm_crtc_crc crc;
-#endif
 
 	/**
 	 * @fence_context:

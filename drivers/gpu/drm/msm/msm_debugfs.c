@@ -164,20 +164,5 @@ int msm_debugfs_init(struct drm_minor *minor)
 
 	return ret;
 }
-
-void msm_debugfs_cleanup(struct drm_minor *minor)
-{
-	struct drm_device *dev = minor->dev;
-	struct msm_drm_private *priv = dev->dev_private;
-
-	if (!priv)
-		return;
-
-	if (priv->kms->funcs->debugfs_cleanup)
-		priv->kms->funcs->debugfs_cleanup(priv->kms, minor);
-
-	msm_rd_debugfs_cleanup(minor);
-	msm_perf_debugfs_cleanup(minor);
-}
 #endif
 

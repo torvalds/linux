@@ -34,6 +34,10 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/kref.h>
+
+#include <drm/drm_vma_manager.h>
+
 /**
  * struct drm_gem_object - GEM buffer object
  *

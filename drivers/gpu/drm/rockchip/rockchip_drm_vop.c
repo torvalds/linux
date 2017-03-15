@@ -19,6 +19,9 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_flip_work.h>
 #include <drm/drm_plane_helper.h>
+#ifdef CONFIG_DRM_ANALOGIX_DP
+#include <drm/bridge/analogix_dp.h>
+#endif
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -1111,6 +1114,53 @@ static void vop_crtc_destroy_state(struct drm_crtc *crtc,
 	kfree(s);
 }
 
+#ifdef CONFIG_DRM_ANALOGIX_DP
+static struct drm_connector *vop_get_edp_connector(struct vop *vop)
+{
+	struct drm_crtc *crtc = &vop->crtc;
+	struct drm_connector *connector;
+
+	mutex_lock(&crtc->dev->mode_config.mutex);
+	drm_for_each_connector(connector, crtc->dev)
+		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
+			mutex_unlock(&crtc->dev->mode_config.mutex);
+			return connector;
+		}
+	mutex_unlock(&crtc->dev->mode_config.mutex);
+
+	return NULL;
+}
+
+static int vop_crtc_set_crc_source(struct drm_crtc *crtc,
+				   const char *source_name, size_t *values_cnt)
+{
+	struct vop *vop = to_vop(crtc);
+	struct drm_connector *connector;
+	int ret;
+
+	connector = vop_get_edp_connector(vop);
+	if (!connector)
+		return -EINVAL;
+
+	*values_cnt = 3;
+
+	if (source_name && strcmp(source_name, "auto") == 0)
+		ret = analogix_dp_start_crc(connector);
+	else if (!source_name)
+		ret = analogix_dp_stop_crc(connector);
+	else
+		ret = -EINVAL;
+
+	return ret;
+}
+#else
+static int vop_crtc_set_crc_source(struct drm_crtc *crtc,
+				   const char *source_name, size_t *values_cnt)
+{
+	return -ENODEV;
+}
+#endif
+
 static const struct drm_crtc_funcs vop_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
@@ -1120,6 +1170,7 @@ static const struct drm_crtc_funcs vop_crtc_funcs = {
 	.atomic_destroy_state = vop_crtc_destroy_state,
 	.enable_vblank = vop_crtc_enable_vblank,
 	.disable_vblank = vop_crtc_disable_vblank,
+	.set_crc_source = vop_crtc_set_crc_source,
 };
 
 static void vop_fb_unref_worker(struct drm_flip_work *work, void *val)

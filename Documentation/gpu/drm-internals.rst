@@ -240,9 +240,6 @@ drivers.
 .. kernel-doc:: drivers/gpu/drm/drm_pci.c
    :export:
 
-.. kernel-doc:: drivers/gpu/drm/drm_platform.c
-   :export:
-
 Open/Close, File Operations and IOCTLs
 ======================================
 
@@ -298,10 +295,10 @@ over.
 File Operations
 ---------------
 
-.. kernel-doc:: drivers/gpu/drm/drm_fops.c
+.. kernel-doc:: drivers/gpu/drm/drm_file.c
    :doc: file operations
 
-.. kernel-doc:: drivers/gpu/drm/drm_fops.c
+.. kernel-doc:: drivers/gpu/drm/drm_file.c
    :export:
 
 IOCTLs

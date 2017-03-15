@@ -449,6 +449,9 @@ PRIME Helper Functions
 PRIME Function References
 -------------------------
 
+.. kernel-doc:: include/drm/drm_prime.h
+   :internal:
+
 .. kernel-doc:: drivers/gpu/drm/drm_prime.c
    :export:
 

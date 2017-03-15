@@ -101,7 +101,6 @@ static int exynos_dp_bridge_attach(struct analogix_dp_plat_data *plat_data,
 	struct exynos_dp_device *dp = to_dp(plat_data);
 	int ret;
 
-	drm_connector_register(connector);
 	dp->connector = connector;
 
 	/* Pre-empt DP connector creation if there's a bridge */
