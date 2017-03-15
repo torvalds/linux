@@ -1168,7 +1168,7 @@ static int dspio_write_multiple(struct hda_codec *codec,
 	int status = 0;
 	unsigned int count;
 
-	if ((buffer == NULL))
+	if (buffer == NULL)
 		return -EINVAL;
 
 	count = 0;
@@ -1210,7 +1210,7 @@ static int dspio_read_multiple(struct hda_codec *codec, unsigned int *buffer,
 	unsigned int skip_count;
 	unsigned int dummy;
 
-	if ((buffer == NULL))
+	if (buffer == NULL)
 		return -1;
 
 	count = 0;
