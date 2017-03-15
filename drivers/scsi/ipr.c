@@ -5243,12 +5243,11 @@ static int __ipr_eh_dev_reset(struct scsi_cmnd *scsi_cmd)
 		spin_lock(&hrrq->_lock);
 		list_for_each_entry(ipr_cmd, &hrrq->hrrq_pending_q, queue) {
 			if (ipr_cmd->ioarcb.res_handle == res->res_handle) {
-				if (ipr_cmd->scsi_cmd)
-					ipr_cmd->done = ipr_scsi_eh_done;
-				if (ipr_cmd->qc)
-					ipr_cmd->done = ipr_sata_eh_done;
-				if (ipr_cmd->qc &&
-				    !(ipr_cmd->qc->flags & ATA_QCFLAG_FAILED)) {
+				if (!ipr_cmd->qc)
+					continue;
+
+				ipr_cmd->done = ipr_sata_eh_done;
+				if (!(ipr_cmd->qc->flags & ATA_QCFLAG_FAILED)) {
 					ipr_cmd->qc->err_mask |= AC_ERR_TIMEOUT;
 					ipr_cmd->qc->flags |= ATA_QCFLAG_FAILED;
 				}
