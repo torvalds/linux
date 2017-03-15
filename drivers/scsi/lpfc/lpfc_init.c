@@ -3555,6 +3555,44 @@ out_free_mem:
 	return rc;
 }
 
+static uint64_t
+lpfc_get_wwpn(struct lpfc_hba *phba)
+{
+	uint64_t wwn;
+	int rc;
+	LPFC_MBOXQ_t *mboxq;
+	MAILBOX_t *mb;
+
+
+	mboxq = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool,
+						GFP_KERNEL);
+	if (!mboxq)
+		return (uint64_t)-1;
+
+	/* First get WWN of HBA instance */
+	lpfc_read_nv(phba, mboxq);
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+	if (rc != MBX_SUCCESS) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"6019 Mailbox failed , mbxCmd x%x "
+				"READ_NV, mbxStatus x%x\n",
+				bf_get(lpfc_mqe_command, &mboxq->u.mqe),
+				bf_get(lpfc_mqe_status, &mboxq->u.mqe));
+		mempool_free(mboxq, phba->mbox_mem_pool);
+		return (uint64_t) -1;
+	}
+	mb = &mboxq->u.mb;
+	memcpy(&wwn, (char *)mb->un.varRDnvp.portname, sizeof(uint64_t));
+	/* wwn is WWPN of HBA instance */
+	mempool_free(mboxq, phba->mbox_mem_pool);
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		return be64_to_cpu(wwn);
+	else
+		return (((wwn & 0xffffffff00000000) >> 32) |
+			((wwn & 0x00000000ffffffff) << 32));
+
+}
+
 /**
  * lpfc_sli4_nvme_sgl_update - update xri-sgl sizing and mapping
  * @phba: pointer to lpfc hba data structure.
@@ -3676,17 +3714,32 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	struct lpfc_vport *vport;
 	struct Scsi_Host  *shost = NULL;
 	int error = 0;
+	int i;
+	uint64_t wwn;
+	bool use_no_reset_hba = false;
+
+	wwn = lpfc_get_wwpn(phba);
+
+	for (i = 0; i < lpfc_no_hba_reset_cnt; i++) {
+		if (wwn == lpfc_no_hba_reset[i]) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+					"6020 Setting use_no_reset port=%llx\n",
+					wwn);
+			use_no_reset_hba = true;
+			break;
+		}
+	}
 
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP) {
 		if (dev != &phba->pcidev->dev) {
 			shost = scsi_host_alloc(&lpfc_vport_template,
 						sizeof(struct lpfc_vport));
 		} else {
-			if (phba->sli_rev == LPFC_SLI_REV4)
+			if (!use_no_reset_hba)
 				shost = scsi_host_alloc(&lpfc_template,
 						sizeof(struct lpfc_vport));
 			else
-				shost = scsi_host_alloc(&lpfc_template_s3,
+				shost = scsi_host_alloc(&lpfc_template_no_hr,
 						sizeof(struct lpfc_vport));
 		}
 	} else if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
@@ -3734,17 +3787,14 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	INIT_LIST_HEAD(&vport->rcv_buffer_list);
 	spin_lock_init(&vport->work_port_lock);
 
-	init_timer(&vport->fc_disctmo);
-	vport->fc_disctmo.function = lpfc_disc_timeout;
-	vport->fc_disctmo.data = (unsigned long)vport;
+	setup_timer(&vport->fc_disctmo, lpfc_disc_timeout,
+			(unsigned long)vport);
 
-	init_timer(&vport->els_tmofunc);
-	vport->els_tmofunc.function = lpfc_els_timeout;
-	vport->els_tmofunc.data = (unsigned long)vport;
+	setup_timer(&vport->els_tmofunc, lpfc_els_timeout,
+			(unsigned long)vport);
 
-	init_timer(&vport->delayed_disc_tmo);
-	vport->delayed_disc_tmo.function = lpfc_delayed_disc_tmo;
-	vport->delayed_disc_tmo.data = (unsigned long)vport;
+	setup_timer(&vport->delayed_disc_tmo, lpfc_delayed_disc_tmo,
+			(unsigned long)vport);
 
 	error = scsi_add_host_with_dma(shost, dev, &phba->pcidev->dev);
 	if (error)
@@ -5406,21 +5456,15 @@ lpfc_setup_driver_resource_phase1(struct lpfc_hba *phba)
 	INIT_LIST_HEAD(&phba->luns);
 
 	/* MBOX heartbeat timer */
-	init_timer(&psli->mbox_tmo);
-	psli->mbox_tmo.function = lpfc_mbox_timeout;
-	psli->mbox_tmo.data = (unsigned long) phba;
+	setup_timer(&psli->mbox_tmo, lpfc_mbox_timeout, (unsigned long)phba);
 	/* Fabric block timer */
-	init_timer(&phba->fabric_block_timer);
-	phba->fabric_block_timer.function = lpfc_fabric_block_timeout;
-	phba->fabric_block_timer.data = (unsigned long) phba;
+	setup_timer(&phba->fabric_block_timer, lpfc_fabric_block_timeout,
+			(unsigned long)phba);
 	/* EA polling mode timer */
-	init_timer(&phba->eratt_poll);
-	phba->eratt_poll.function = lpfc_poll_eratt;
-	phba->eratt_poll.data = (unsigned long) phba;
+	setup_timer(&phba->eratt_poll, lpfc_poll_eratt,
+			(unsigned long)phba);
 	/* Heartbeat timer */
-	init_timer(&phba->hb_tmofunc);
-	phba->hb_tmofunc.function = lpfc_hb_timeout;
-	phba->hb_tmofunc.data = (unsigned long)phba;
+	setup_timer(&phba->hb_tmofunc, lpfc_hb_timeout, (unsigned long)phba);
 
 	return 0;
 }
@@ -5446,9 +5490,8 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 	 */
 
 	/* FCP polling mode timer */
-	init_timer(&phba->fcp_poll_timer);
-	phba->fcp_poll_timer.function = lpfc_poll_timeout;
-	phba->fcp_poll_timer.data = (unsigned long) phba;
+	setup_timer(&phba->fcp_poll_timer, lpfc_poll_timeout,
+			(unsigned long)phba);
 
 	/* Host attention work mask setup */
 	phba->work_ha_mask = (HA_ERATT | HA_MBATT | HA_LATT);
@@ -5482,7 +5525,8 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 
 	/* Initialize the host templates the configured values. */
 	lpfc_vport_template.sg_tablesize = phba->cfg_sg_seg_cnt;
-	lpfc_template_s3.sg_tablesize = phba->cfg_sg_seg_cnt;
+	lpfc_template_no_hr.sg_tablesize = phba->cfg_sg_seg_cnt;
+	lpfc_template.sg_tablesize = phba->cfg_sg_seg_cnt;
 
 	/* There are going to be 2 reserved BDEs: 1 FCP cmnd + 1 FCP rsp */
 	if (phba->cfg_enable_bg) {
@@ -5617,14 +5661,11 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	 * Initialize timers used by driver
 	 */
 
-	init_timer(&phba->rrq_tmr);
-	phba->rrq_tmr.function = lpfc_rrq_timeout;
-	phba->rrq_tmr.data = (unsigned long)phba;
+	setup_timer(&phba->rrq_tmr, lpfc_rrq_timeout, (unsigned long)phba);
 
 	/* FCF rediscover timer */
-	init_timer(&phba->fcf.redisc_wait);
-	phba->fcf.redisc_wait.function = lpfc_sli4_fcf_redisc_wait_tmo;
-	phba->fcf.redisc_wait.data = (unsigned long)phba;
+	setup_timer(&phba->fcf.redisc_wait, lpfc_sli4_fcf_redisc_wait_tmo,
+			(unsigned long)phba);
 
 	/*
 	 * Control structure for handling external multi-buffer mailbox
@@ -5706,6 +5747,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	/* Initialize the host templates with the updated values. */
 	lpfc_vport_template.sg_tablesize = phba->cfg_sg_seg_cnt;
 	lpfc_template.sg_tablesize = phba->cfg_sg_seg_cnt;
+	lpfc_template_no_hr.sg_tablesize = phba->cfg_sg_seg_cnt;
 
 	if (phba->cfg_sg_dma_buf_size  <= LPFC_MIN_SG_SLI4_BUF_SZ)
 		phba->cfg_sg_dma_buf_size = LPFC_MIN_SG_SLI4_BUF_SZ;
@@ -5736,6 +5778,8 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		/* Initialize the Abort nvme buffer list used by driver */
 		spin_lock_init(&phba->sli4_hba.abts_nvme_buf_list_lock);
 		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_abts_nvme_buf_list);
+		/* Fast-path XRI aborted CQ Event work queue list */
+		INIT_LIST_HEAD(&phba->sli4_hba.sp_nvme_xri_aborted_work_queue);
 	}
 
 	/* This abort list used by worker thread */
@@ -8712,12 +8756,9 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 		}
 	}
 
-	/*
-	 * Configure EQ delay multipier for interrupt coalescing using
-	 * MODIFY_EQ_DELAY for all EQs created, LPFC_MAX_EQ_DELAY at a time.
-	 */
-	for (qidx = 0; qidx < io_channel; qidx += LPFC_MAX_EQ_DELAY)
+	for (qidx = 0; qidx < io_channel; qidx += LPFC_MAX_EQ_DELAY_EQID_CNT)
 		lpfc_modify_hba_eq_delay(phba, qidx);
+
 	return 0;
 
 out_destroy:
@@ -8973,6 +9014,11 @@ lpfc_sli4_cq_event_release_all(struct lpfc_hba *phba)
 	/* Pending ELS XRI abort events */
 	list_splice_init(&phba->sli4_hba.sp_els_xri_aborted_work_queue,
 			 &cqelist);
+	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+		/* Pending NVME XRI abort events */
+		list_splice_init(&phba->sli4_hba.sp_nvme_xri_aborted_work_queue,
+				 &cqelist);
+	}
 	/* Pending asynnc events */
 	list_splice_init(&phba->sli4_hba.sp_asynce_work_queue,
 			 &cqelist);
@@ -10400,12 +10446,7 @@ lpfc_pci_remove_one_s3(struct pci_dev *pdev)
 	fc_remove_host(shost);
 	scsi_remove_host(shost);
 
-	/* Perform ndlp cleanup on the physical port.  The nvme and nvmet
-	 * localports are destroyed after to cleanup all transport memory.
-	 */
 	lpfc_cleanup(vport);
-	lpfc_nvmet_destroy_targetport(phba);
-	lpfc_nvme_destroy_localport(vport);
 
 	/*
 	 * Bring down the SLI Layer. This step disable all interrupts,
@@ -12018,6 +12059,7 @@ static struct pci_driver lpfc_driver = {
 	.id_table	= lpfc_id_table,
 	.probe		= lpfc_pci_probe_one,
 	.remove		= lpfc_pci_remove_one,
+	.shutdown	= lpfc_pci_remove_one,
 	.suspend        = lpfc_pci_suspend_one,
 	.resume		= lpfc_pci_resume_one,
 	.err_handler    = &lpfc_err_handler,
