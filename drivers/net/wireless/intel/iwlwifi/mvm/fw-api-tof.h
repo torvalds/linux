@@ -118,11 +118,17 @@ struct iwl_tof_config_cmd {
  * @bandwidth: current AP Bandwidth: 0  20MHz, 1  40MHz, 2  80MHz
  * @rate: current AP rate
  * @ctrl_ch_position: coding of the control channel position relative to
- *	     the center frequency.
- *	     40MHz  0 below center, 1 above center
- *	     80MHz  bits [0..1]: 0  the near 20MHz to the center,
- *				 1  the far  20MHz to the center
- *		    bit[2]  as above 40MHz
+ *	the center frequency:
+ *
+ *	40 MHz
+ *		0 below center, 1 above center
+ *
+ *	80 MHz
+ *		bits [0..1]
+ *		 * 0  the near 20MHz to the center,
+ *		 * 1  the far  20MHz to the center
+ *		bit[2]
+ *		 as above 40MHz
  * @ftm_per_burst: FTMs per Burst
  * @ftm_resp_ts_avail: '0' - we don't measure over the Initial FTM Response,
  *		  '1' - we measure over the Initial FTM Response

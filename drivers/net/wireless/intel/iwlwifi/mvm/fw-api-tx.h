@@ -74,6 +74,7 @@
  *	Otherwise, use rate_n_flags from the TX command
  * @TX_CMD_FLG_BAR: this frame is a BA request, immediate BAR is expected
  *	Must set TX_CMD_FLG_ACK with this flag.
+ * @TX_CMD_FLG_TXOP_PROT: TXOP protection requested
  * @TX_CMD_FLG_VHT_NDPA: mark frame is NDPA for VHT beamformer sequence
  * @TX_CMD_FLG_HT_NDPA: mark frame is NDPA for HT beamformer sequence
  * @TX_CMD_FLG_CSI_FDBK2HOST: mark to send feedback to host (only if good CRC)
@@ -201,7 +202,7 @@ enum iwl_tx_cmd_sec_ctrl {
 
 /**
  * enum iwl_tx_offload_assist_flags_pos -  set %iwl_tx_cmd offload_assist values
- * @TX_CMD_OFFLD_IP_HDR_OFFSET: offset to start of IP header (in words)
+ * @TX_CMD_OFFLD_IP_HDR: offset to start of IP header (in words)
  *	from mac header end. For normal case it is 4 words for SNAP.
  *	note: tx_cmd, mac header and pad are not counted in the offset.
  *	This is used to help the offload in case there is tunneling such as
@@ -235,12 +236,14 @@ enum iwl_tx_offload_assist_flags_pos {
  * @len: in bytes of the payload, see below for details
  * @offload_assist: TX offload configuration
  * @tx_flags: combination of TX_CMD_FLG_*
+ * @scratch: scratch buffer used by the device
  * @rate_n_flags: rate for *all* Tx attempts, if TX_CMD_FLG_STA_RATE_MSK is
  *	cleared. Combination of RATE_MCS_*
  * @sta_id: index of destination station in FW station table
  * @sec_ctl: security control, TX_CMD_SEC_*
  * @initial_rate_index: index into the the rate table for initial TX attempt.
  *	Applied if TX_CMD_FLG_STA_RATE_MSK is set, normally 0 for data frames.
+ * @reserved2: reserved
  * @key: security key
  * @reserved3: reserved
  * @life_time: frame life time (usecs??)
@@ -249,8 +252,11 @@ enum iwl_tx_offload_assist_flags_pos {
  * @dram_msb_ptr: upper bits of the scratch physical address
  * @rts_retry_limit: max attempts for RTS
  * @data_retry_limit: max attempts to send the data packet
- * @tid_spec: TID/tspec
+ * @tid_tspec: TID/tspec
  * @pm_frame_timeout: PM TX frame timeout
+ * @reserved4: reserved
+ * @payload: payload (same as @hdr)
+ * @hdr: 802.11 header (same as @payload)
  *
  * The byte count (both len and next_frame_len) includes MAC header
  * (24/26/30/32 bytes)
@@ -304,10 +310,11 @@ struct iwl_dram_sec_info {
  * ( TX_CMD = 0x1c )
  * @len: in bytes of the payload, see below for details
  * @offload_assist: TX offload configuration
- * @tx_flags: combination of &iwl_tx_cmd_flags
+ * @flags: combination of &enum iwl_tx_cmd_flags
  * @dram_info: FW internal DRAM storage
  * @rate_n_flags: rate for *all* Tx attempts, if TX_CMD_FLG_STA_RATE_MSK is
  *	cleared. Combination of RATE_MCS_*
+ * @hdr: 802.11 header
  */
 struct iwl_tx_cmd_gen2 {
 	__le16 len;
@@ -519,6 +526,8 @@ struct agg_tx_status {
  * @pa_integ_res_b: tx power info
  * @pa_integ_res_c: tx power info
  * @measurement_req_id: tx power info
+ * @reduced_tpc: transmit power reduction used
+ * @reserved: reserved
  * @tfd_info: TFD information set by the FH
  * @seq_ctl: sequence control from the Tx cmd
  * @byte_cnt: byte count from the Tx cmd
