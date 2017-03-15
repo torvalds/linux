@@ -2296,7 +2296,7 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 	 *    pages have been transferred over, and the old kmem_cache is
 	 *    freed when all stripes are done.
 	 * 3/ reallocate conf->disks to be suitable bigger.  If this fails,
-	 *    we simple return a failre status - no need to clean anything up.
+	 *    we simple return a failure status - no need to clean anything up.
 	 * 4/ allocate new pages for the new slots in the new stripe_heads.
 	 *    If this fails, we don't bother trying the shrink the
 	 *    stripe_heads down again, we just leave them as they are.
@@ -3558,7 +3558,7 @@ static int need_this_block(struct stripe_head *sh, struct stripe_head_state *s,
 	    !test_bit(STRIPE_PREREAD_ACTIVE, &sh->state))
 		/* Pre-reads at not permitted until after short delay
 		 * to gather multiple requests.  However if this
-		 * device is no Insync, the block could only be be computed
+		 * device is no Insync, the block could only be computed
 		 * and there is no need to delay that.
 		 */
 		return 0;
@@ -3577,7 +3577,7 @@ static int need_this_block(struct stripe_head *sh, struct stripe_head_state *s,
 
 	/* If we are forced to do a reconstruct-write, either because
 	 * the current RAID6 implementation only supports that, or
-	 * or because parity cannot be trusted and we are currently
+	 * because parity cannot be trusted and we are currently
 	 * recovering it, there is extra need to be careful.
 	 * If one of the devices that we would need to read, because
 	 * it is not being overwritten (and maybe not written at all)

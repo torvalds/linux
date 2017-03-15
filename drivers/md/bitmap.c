@@ -697,7 +697,7 @@ re_read:
 
 out:
 	kunmap_atomic(sb);
-	/* Assiging chunksize is required for "re_read" */
+	/* Assigning chunksize is required for "re_read" */
 	bitmap->mddev->bitmap_info.chunksize = chunksize;
 	if (err == 0 && nodes && (bitmap->cluster_slot < 0)) {
 		err = md_setup_cluster(bitmap->mddev, nodes);
