@@ -88,7 +88,7 @@ int ia_css_queue_enqueue(
 			uint32_t item)
 {
 	int error = 0;
-	if (0 == qhandle)
+	if (NULL == qhandle)
 		return EINVAL;
 
 	/* 1. Load the required queue object */
