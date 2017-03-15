@@ -179,7 +179,7 @@ void __intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine)
 void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine)
 {
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
-	struct intel_wait *wait, *n;
+	struct intel_wait *wait, *n, *first;
 
 	if (!b->irq_armed)
 		return;
@@ -190,17 +190,18 @@ void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine)
 	 */
 
 	spin_lock_irq(&b->rb_lock);
+
+	spin_lock(&b->irq_lock);
+	first = fetch_and_zero(&b->irq_wait);
+	__intel_engine_disarm_breadcrumbs(engine);
+	spin_unlock(&b->irq_lock);
+
 	rbtree_postorder_for_each_entry_safe(wait, n, &b->waiters, node) {
 		RB_CLEAR_NODE(&wait->node);
-		if (wake_up_process(wait->tsk) && wait == b->irq_wait)
+		if (wake_up_process(wait->tsk) && wait == first)
 			missed_breadcrumb(engine);
 	}
 	b->waiters = RB_ROOT;
-
-	spin_lock(&b->irq_lock);
-	b->irq_wait = NULL;
-	__intel_engine_disarm_breadcrumbs(engine);
-	spin_unlock(&b->irq_lock);
 
 	spin_unlock_irq(&b->rb_lock);
 }
