@@ -65,11 +65,6 @@ struct fsnotify_mark *fsnotify_find_vfsmount_mark(struct fsnotify_group *group,
 						  struct vfsmount *mnt)
 {
 	struct mount *m = real_mount(mnt);
-	struct fsnotify_mark *mark;
 
-	spin_lock(&mnt->mnt_root->d_lock);
-	mark = fsnotify_find_mark(m->mnt_fsnotify_marks, group);
-	spin_unlock(&mnt->mnt_root->d_lock);
-
-	return mark;
+	return fsnotify_find_mark(m->mnt_fsnotify_marks, group);
 }

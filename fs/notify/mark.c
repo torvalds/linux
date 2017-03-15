@@ -485,16 +485,24 @@ struct fsnotify_mark *fsnotify_find_mark(struct fsnotify_mark_connector *conn,
 					 struct fsnotify_group *group)
 {
 	struct fsnotify_mark *mark;
+	spinlock_t *lock;
 
 	if (!conn)
 		return NULL;
 
+	if (conn->flags & FSNOTIFY_OBJ_TYPE_INODE)
+		lock = &conn->inode->i_lock;
+	else
+		lock = &conn->mnt->mnt_root->d_lock;
+	spin_lock(lock);
 	hlist_for_each_entry(mark, &conn->list, obj_list) {
 		if (mark->group == group) {
 			fsnotify_get_mark(mark);
+			spin_unlock(lock);
 			return mark;
 		}
 	}
+	spin_unlock(lock);
 	return NULL;
 }
 
