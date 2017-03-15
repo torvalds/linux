@@ -331,7 +331,7 @@ void intel_uc_prepare_fw(struct drm_i915_private *dev_priv,
 	 * version are TWO bytes each (i.e. u16), although all pointers and
 	 * offsets are defined in terms of bytes (u8).
 	 */
-	switch (uc_fw->fw) {
+	switch (uc_fw->type) {
 	case INTEL_UC_FW_TYPE_GUC:
 		/* Header and uCode will be loaded to WOPCM. Size of the two. */
 		size = uc_fw->header_size + uc_fw->ucode_size;
@@ -351,7 +351,7 @@ void intel_uc_prepare_fw(struct drm_i915_private *dev_priv,
 		break;
 
 	default:
-		DRM_ERROR("Unknown firmware type %d\n", uc_fw->fw);
+		DRM_ERROR("Unknown firmware type %d\n", uc_fw->type);
 		err = -ENOEXEC;
 		goto fail;
 	}

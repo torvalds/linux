@@ -121,7 +121,7 @@ struct intel_uc_fw {
 	uint16_t major_ver_found;
 	uint16_t minor_ver_found;
 
-	enum intel_uc_fw_type fw;
+	enum intel_uc_fw_type type;
 	uint32_t header_size;
 	uint32_t header_offset;
 	uint32_t rsa_size;

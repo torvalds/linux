@@ -151,7 +151,7 @@ void intel_huc_select_fw(struct intel_huc *huc)
 	huc->fw.path = NULL;
 	huc->fw.fetch_status = INTEL_UC_FIRMWARE_NONE;
 	huc->fw.load_status = INTEL_UC_FIRMWARE_NONE;
-	huc->fw.fw = INTEL_UC_FW_TYPE_HUC;
+	huc->fw.type = INTEL_UC_FW_TYPE_HUC;
 
 	if (i915.huc_firmware_path) {
 		huc->fw.path = i915.huc_firmware_path;

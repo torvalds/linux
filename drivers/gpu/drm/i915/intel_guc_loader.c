@@ -405,7 +405,7 @@ int intel_guc_select_fw(struct intel_guc *guc)
 	guc->fw.path = NULL;
 	guc->fw.fetch_status = INTEL_UC_FIRMWARE_NONE;
 	guc->fw.load_status = INTEL_UC_FIRMWARE_NONE;
-	guc->fw.fw = INTEL_UC_FW_TYPE_GUC;
+	guc->fw.type = INTEL_UC_FW_TYPE_GUC;
 
 	if (i915.guc_firmware_path) {
 		guc->fw.path = i915.guc_firmware_path;
