@@ -41,6 +41,20 @@ static const __be32 ccp_sha256_init[SHA256_DIGEST_SIZE / sizeof(__be32)] = {
 	cpu_to_be32(SHA256_H6), cpu_to_be32(SHA256_H7),
 };
 
+static const __be64 ccp_sha384_init[SHA512_DIGEST_SIZE / sizeof(__be64)] = {
+	cpu_to_be64(SHA384_H0), cpu_to_be64(SHA384_H1),
+	cpu_to_be64(SHA384_H2), cpu_to_be64(SHA384_H3),
+	cpu_to_be64(SHA384_H4), cpu_to_be64(SHA384_H5),
+	cpu_to_be64(SHA384_H6), cpu_to_be64(SHA384_H7),
+};
+
+static const __be64 ccp_sha512_init[SHA512_DIGEST_SIZE / sizeof(__be64)] = {
+	cpu_to_be64(SHA512_H0), cpu_to_be64(SHA512_H1),
+	cpu_to_be64(SHA512_H2), cpu_to_be64(SHA512_H3),
+	cpu_to_be64(SHA512_H4), cpu_to_be64(SHA512_H5),
+	cpu_to_be64(SHA512_H6), cpu_to_be64(SHA512_H7),
+};
+
 #define	CCP_NEW_JOBID(ccp)	((ccp->vdata->version == CCP_VERSION(3, 0)) ? \
 					ccp_gen_jobid(ccp) : 0)
 
@@ -955,6 +969,18 @@ static int ccp_run_sha_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 			return -EINVAL;
 		block_size = SHA256_BLOCK_SIZE;
 		break;
+	case CCP_SHA_TYPE_384:
+		if (cmd_q->ccp->vdata->version < CCP_VERSION(4, 0)
+		    || sha->ctx_len < SHA384_DIGEST_SIZE)
+			return -EINVAL;
+		block_size = SHA384_BLOCK_SIZE;
+		break;
+	case CCP_SHA_TYPE_512:
+		if (cmd_q->ccp->vdata->version < CCP_VERSION(4, 0)
+		    || sha->ctx_len < SHA512_DIGEST_SIZE)
+			return -EINVAL;
+		block_size = SHA512_BLOCK_SIZE;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1042,6 +1068,21 @@ static int ccp_run_sha_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 		sb_count = 1;
 		ooffset = ioffset = 0;
 		break;
+	case CCP_SHA_TYPE_384:
+		digest_size = SHA384_DIGEST_SIZE;
+		init = (void *) ccp_sha384_init;
+		ctx_size = SHA512_DIGEST_SIZE;
+		sb_count = 2;
+		ioffset = 0;
+		ooffset = 2 * CCP_SB_BYTES - SHA384_DIGEST_SIZE;
+		break;
+	case CCP_SHA_TYPE_512:
+		digest_size = SHA512_DIGEST_SIZE;
+		init = (void *) ccp_sha512_init;
+		ctx_size = SHA512_DIGEST_SIZE;
+		sb_count = 2;
+		ooffset = ioffset = 0;
+		break;
 	default:
 		ret = -EINVAL;
 		goto e_data;
@@ -1060,6 +1101,11 @@ static int ccp_run_sha_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	op.u.sha.type = sha->type;
 	op.u.sha.msg_bits = sha->msg_bits;
 
+	/* For SHA1/224/256 the context fits in a single (32-byte) SB entry;
+	 * SHA384/512 require 2 adjacent SB slots, with the right half in the
+	 * first slot, and the left half in the second. Each portion must then
+	 * be in little endian format: use the 256-bit byte swap option.
+	 */
 	ret = ccp_init_dm_workarea(&ctx, cmd_q, sb_count * CCP_SB_BYTES,
 				   DMA_BIDIRECTIONAL);
 	if (ret)
@@ -1070,6 +1116,13 @@ static int ccp_run_sha_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 		case CCP_SHA_TYPE_224:
 		case CCP_SHA_TYPE_256:
 			memcpy(ctx.address + ioffset, init, ctx_size);
+			break;
+		case CCP_SHA_TYPE_384:
+		case CCP_SHA_TYPE_512:
+			memcpy(ctx.address + ctx_size / 2, init,
+			       ctx_size / 2);
+			memcpy(ctx.address, init + ctx_size / 2,
+			       ctx_size / 2);
 			break;
 		default:
 			ret = -EINVAL;
@@ -1137,6 +1190,15 @@ static int ccp_run_sha_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 					sha->ctx, 0,
 					digest_size);
 			break;
+		case CCP_SHA_TYPE_384:
+		case CCP_SHA_TYPE_512:
+			ccp_get_dm_area(&ctx, 0,
+					sha->ctx, LSB_ITEM_SIZE - ooffset,
+					LSB_ITEM_SIZE);
+			ccp_get_dm_area(&ctx, LSB_ITEM_SIZE + ooffset,
+					sha->ctx, 0,
+					LSB_ITEM_SIZE - ooffset);
+			break;
 		default:
 			ret = -EINVAL;
 			goto e_ctx;
@@ -1173,6 +1235,16 @@ static int ccp_run_sha_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 			memcpy(hmac_buf + block_size,
 			       ctx.address + ooffset,
 			       digest_size);
+			break;
+		case CCP_SHA_TYPE_384:
+		case CCP_SHA_TYPE_512:
+			memcpy(hmac_buf + block_size,
+			       ctx.address + LSB_ITEM_SIZE + ooffset,
+			       LSB_ITEM_SIZE);
+			memcpy(hmac_buf + block_size +
+			       (LSB_ITEM_SIZE - ooffset),
+			       ctx.address,
+			       LSB_ITEM_SIZE);
 			break;
 		default:
 			ret = -EINVAL;

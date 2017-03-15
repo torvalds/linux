@@ -137,9 +137,11 @@ struct ccp_aes_cmac_exp_ctx {
 	u8 buf[AES_BLOCK_SIZE];
 };
 
-/***** SHA related defines *****/
-#define MAX_SHA_CONTEXT_SIZE	SHA256_DIGEST_SIZE
-#define MAX_SHA_BLOCK_SIZE	SHA256_BLOCK_SIZE
+/* SHA-related defines
+ * These values must be large enough to accommodate any variant
+ */
+#define MAX_SHA_CONTEXT_SIZE	SHA512_DIGEST_SIZE
+#define MAX_SHA_BLOCK_SIZE	SHA512_BLOCK_SIZE
 
 struct ccp_sha_ctx {
 	struct scatterlist opad_sg;
