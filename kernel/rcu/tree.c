@@ -3961,7 +3961,6 @@ static void __init rcu_init_one(struct rcu_state *rsp)
 	static struct lock_class_key rcu_node_class[RCU_NUM_LVLS];
 	static struct lock_class_key rcu_fqs_class[RCU_NUM_LVLS];
 
-	int levelcnt[RCU_NUM_LVLS];		/* # nodes in each level. */
 	int levelspread[RCU_NUM_LVLS];		/* kids/node in each level. */
 	int cpustride = 1;
 	int i;
@@ -3976,18 +3975,16 @@ static void __init rcu_init_one(struct rcu_state *rsp)
 
 	/* Initialize the level-tracking arrays. */
 
-	for (i = 0; i < rcu_num_lvls; i++)
-		levelcnt[i] = num_rcu_lvl[i];
 	for (i = 1; i < rcu_num_lvls; i++)
-		rsp->level[i] = rsp->level[i - 1] + levelcnt[i - 1];
-	rcu_init_levelspread(levelspread, levelcnt);
+		rsp->level[i] = rsp->level[i - 1] + num_rcu_lvl[i - 1];
+	rcu_init_levelspread(levelspread, num_rcu_lvl);
 
 	/* Initialize the elements themselves, starting from the leaves. */
 
 	for (i = rcu_num_lvls - 1; i >= 0; i--) {
 		cpustride *= levelspread[i];
 		rnp = rsp->level[i];
-		for (j = 0; j < levelcnt[i]; j++, rnp++) {
+		for (j = 0; j < num_rcu_lvl[i]; j++, rnp++) {
 			raw_spin_lock_init(&ACCESS_PRIVATE(rnp, lock));
 			lockdep_set_class_and_name(&ACCESS_PRIVATE(rnp, lock),
 						   &rcu_node_class[i], buf[i]);
