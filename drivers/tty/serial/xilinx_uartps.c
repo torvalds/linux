@@ -1352,12 +1352,7 @@ static int cdns_uart_suspend(struct device *device)
 	 * the suspend.
 	 */
 	uart_suspend_port(&cdns_uart_uart_driver, port);
-	if (console_suspend_enabled && !may_wake) {
-		struct cdns_uart *cdns_uart = port->private_data;
-
-		clk_disable(cdns_uart->uartclk);
-		clk_disable(cdns_uart->pclk);
-	} else {
+	if (!(console_suspend_enabled && !may_wake)) {
 		unsigned long flags = 0;
 
 		spin_lock_irqsave(&port->lock, flags);
@@ -1422,6 +1417,8 @@ static int cdns_uart_resume(struct device *device)
 		ctrl_reg |= CDNS_UART_CR_TX_EN | CDNS_UART_CR_RX_EN;
 		writel(ctrl_reg, port->membase + CDNS_UART_CR);
 
+		clk_disable(cdns_uart->uartclk);
+		clk_disable(cdns_uart->pclk);
 		spin_unlock_irqrestore(&port->lock, flags);
 	} else {
 		spin_lock_irqsave(&port->lock, flags);
