@@ -66,13 +66,18 @@ static void cancel_userptr(struct work_struct *work)
 {
 	struct i915_mmu_object *mo = container_of(work, typeof(*mo), work);
 	struct drm_i915_gem_object *obj = mo->obj;
-	struct drm_device *dev = obj->base.dev;
+	struct work_struct *active;
+
+	/* Cancel any active worker and force us to re-evaluate gup */
+	mutex_lock(&obj->mm.lock);
+	active = fetch_and_zero(&obj->userptr.work);
+	mutex_unlock(&obj->mm.lock);
+	if (active)
+		goto out;
 
 	i915_gem_object_wait(obj, I915_WAIT_ALL, MAX_SCHEDULE_TIMEOUT, NULL);
 
-	mutex_lock(&dev->struct_mutex);
-	/* Cancel any active worker and force us to re-evaluate gup */
-	obj->userptr.work = NULL;
+	mutex_lock(&obj->base.dev->struct_mutex);
 
 	/* We are inside a kthread context and can't be interrupted */
 	if (i915_gem_object_unbind(obj) == 0)
@@ -83,8 +88,10 @@ static void cancel_userptr(struct work_struct *work)
 		  atomic_read(&obj->mm.pages_pin_count),
 		  obj->pin_display);
 
+	mutex_unlock(&obj->base.dev->struct_mutex);
+
+out:
 	i915_gem_object_put(obj);
-	mutex_unlock(&dev->struct_mutex);
 }
 
 static void add_object(struct i915_mmu_object *mo)
@@ -488,37 +495,6 @@ __i915_gem_userptr_set_active(struct drm_i915_gem_object *obj,
 	return ret;
 }
 
-static bool noncontiguous_or_overlaps_ggtt(struct drm_i915_gem_object *obj,
-					   struct mm_struct *mm)
-{
-	const struct vm_operations_struct *gem_vm_ops =
-		obj->base.dev->driver->gem_vm_ops;
-	unsigned long addr = obj->userptr.ptr;
-	const unsigned long end = addr + obj->base.size;
-	struct vm_area_struct *vma;
-
-	/* Check for a contiguous set of vma covering the userptr, if any
-	 * are absent, they will EFAULT. More importantly if any point back
-	 * to a drm_i915_gem_object GTT mmaping, we may trigger a deadlock
-	 * between the deferred gup of this userptr and the object being
-	 * unbound calling invalidate_range -> cancel_userptr.
-	 */
-	for (vma = find_vma(mm, addr); vma; vma = vma->vm_next) {
-		if (vma->vm_start > addr) /* gap */
-			break;
-
-		if (vma->vm_ops == gem_vm_ops) /* GTT mmapping */
-			break;
-
-		if (vma->vm_end >= end)
-			return false;
-
-		addr = vma->vm_end;
-	}
-
-	return true;
-}
-
 static void
 __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 {
@@ -665,10 +641,7 @@ i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 	pvec = NULL;
 	pinned = 0;
 
-	down_read(&mm->mmap_sem);
-	if (unlikely(noncontiguous_or_overlaps_ggtt(obj, mm))) {
-		pinned = -EFAULT;
-	} else if (mm == current->mm) {
+	if (mm == current->mm) {
 		pvec = drm_malloc_gfp(num_pages, sizeof(struct page *),
 				      GFP_TEMPORARY |
 				      __GFP_NORETRY |
@@ -693,7 +666,6 @@ i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 	}
 	if (active)
 		__i915_gem_userptr_set_active(obj, true);
-	up_read(&mm->mmap_sem);
 
 	if (IS_ERR(pages))
 		release_pages(pvec, pinned, 0);
