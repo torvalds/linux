@@ -1154,7 +1154,7 @@ static int mixer_bind(struct device *dev, struct device *manager, void *data)
 			continue;
 
 		ret = exynos_plane_init(drm_dev, &ctx->planes[i], i,
-					1 << ctx->pipe, &plane_configs[i]);
+					&plane_configs[i]);
 		if (ret)
 			return ret;
 	}
