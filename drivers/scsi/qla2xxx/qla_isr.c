@@ -2692,7 +2692,7 @@ qla24xx_abort_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 		return;
 
 	abt = &sp->u.iocb_cmd;
-	abt->u.abt.comp_status = le32_to_cpu(pkt->nport_handle);
+	abt->u.abt.comp_status = le16_to_cpu(pkt->nport_handle);
 	sp->done(sp, 0);
 }
 
