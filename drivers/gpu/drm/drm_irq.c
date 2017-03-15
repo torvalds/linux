@@ -1610,7 +1610,7 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 
 	ret = drm_vblank_get(dev, pipe);
 	if (ret) {
-		DRM_DEBUG("failed to acquire vblank counter, %d\n", ret);
+		DRM_DEBUG("crtc %d failed to acquire vblank counter, %d\n", pipe, ret);
 		return ret;
 	}
 	seq = drm_vblank_count(dev, pipe);
@@ -1638,13 +1638,15 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 		return drm_queue_vblank_event(dev, pipe, vblwait, file_priv);
 	}
 
-	DRM_DEBUG("waiting on vblank count %u, crtc %u\n",
-		  vblwait->request.sequence, pipe);
-	DRM_WAIT_ON(ret, vblank->queue, 3 * HZ,
-		    (((drm_vblank_count(dev, pipe) -
-		       vblwait->request.sequence) <= (1 << 23)) ||
-		     !vblank->enabled ||
-		     !dev->irq_enabled));
+	if (vblwait->request.sequence != seq) {
+		DRM_DEBUG("waiting on vblank count %u, crtc %u\n",
+			  vblwait->request.sequence, pipe);
+		DRM_WAIT_ON(ret, vblank->queue, 3 * HZ,
+			    (((drm_vblank_count(dev, pipe) -
+			       vblwait->request.sequence) <= (1 << 23)) ||
+			     !vblank->enabled ||
+			     !dev->irq_enabled));
+	}
 
 	if (ret != -EINTR) {
 		struct timeval now;
@@ -1653,10 +1655,10 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 		vblwait->reply.tval_sec = now.tv_sec;
 		vblwait->reply.tval_usec = now.tv_usec;
 
-		DRM_DEBUG("returning %u to client\n",
-			  vblwait->reply.sequence);
+		DRM_DEBUG("crtc %d returning %u to client\n",
+			  pipe, vblwait->reply.sequence);
 	} else {
-		DRM_DEBUG("vblank wait interrupted by signal\n");
+		DRM_DEBUG("crtc %d vblank wait interrupted by signal\n", pipe);
 	}
 
 done:
