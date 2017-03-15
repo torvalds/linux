@@ -4253,6 +4253,8 @@ static int mv88e6xxx_register_switch(struct mv88e6xxx_chip *chip)
 
 	ds->priv = chip;
 	ds->ops = &mv88e6xxx_switch_ops;
+	ds->ageing_time_min = chip->info->age_time_coeff;
+	ds->ageing_time_max = chip->info->age_time_coeff * U8_MAX;
 
 	dev_set_drvdata(dev, ds);
 
