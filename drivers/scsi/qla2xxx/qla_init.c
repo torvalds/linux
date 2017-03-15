@@ -3340,8 +3340,8 @@ qla2x00_configure_hba(scsi_qla_host_t *vha)
 	uint8_t       domain;
 	char		connect_type[22];
 	struct qla_hw_data *ha = vha->hw;
-	unsigned long flags;
 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
+	port_id_t id;
 
 	/* Get host addresses. */
 	rval = qla2x00_get_adapter_id(vha,
@@ -3419,13 +3419,11 @@ qla2x00_configure_hba(scsi_qla_host_t *vha)
 
 	/* Save Host port and loop ID. */
 	/* byte order - Big Endian */
-	vha->d_id.b.domain = domain;
-	vha->d_id.b.area = area;
-	vha->d_id.b.al_pa = al_pa;
-
-	spin_lock_irqsave(&ha->vport_slock, flags);
-	qlt_update_vp_map(vha, SET_AL_PA);
-	spin_unlock_irqrestore(&ha->vport_slock, flags);
+	id.b.domain = domain;
+	id.b.area = area;
+	id.b.al_pa = al_pa;
+	id.b.rsvd_1 = 0;
+	qlt_update_host_map(vha, id);
 
 	if (!vha->flags.init_done)
 		ql_log(ql_log_info, vha, 0x2010,

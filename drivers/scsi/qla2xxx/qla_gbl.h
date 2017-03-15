@@ -854,5 +854,7 @@ extern struct fc_port *qlt_find_sess_invalidate_other(scsi_qla_host_t *,
 	uint64_t wwn, port_id_t port_id, uint16_t loop_id, struct fc_port **);
 void qla24xx_delete_sess_fn(struct work_struct *);
 void qlt_unknown_atio_work_fn(struct work_struct *);
+void qlt_update_host_map(struct scsi_qla_host *, port_id_t);
+void qlt_remove_target_resources(struct qla_hw_data *);
 
 #endif /* _QLA_GBL_H */

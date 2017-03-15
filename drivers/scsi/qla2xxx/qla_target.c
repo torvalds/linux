@@ -187,21 +187,23 @@ static inline
 struct scsi_qla_host *qlt_find_host_by_d_id(struct scsi_qla_host *vha,
 	uint8_t *d_id)
 {
-	struct qla_hw_data *ha = vha->hw;
-	uint8_t vp_idx;
+	struct scsi_qla_host *host;
+	uint32_t key = 0;
 
-	if ((vha->d_id.b.area != d_id[1]) || (vha->d_id.b.domain != d_id[0]))
-		return NULL;
-
-	if (vha->d_id.b.al_pa == d_id[2])
+	if ((vha->d_id.b.area == d_id[1]) && (vha->d_id.b.domain == d_id[0]) &&
+	    (vha->d_id.b.al_pa == d_id[2]))
 		return vha;
 
-	BUG_ON(ha->tgt.tgt_vp_map == NULL);
-	vp_idx = ha->tgt.tgt_vp_map[d_id[2]].idx;
-	if (likely(test_bit(vp_idx, ha->vp_idx_map)))
-		return ha->tgt.tgt_vp_map[vp_idx].vha;
+	key  = (uint32_t)d_id[0] << 16;
+	key |= (uint32_t)d_id[1] <<  8;
+	key |= (uint32_t)d_id[2];
 
-	return NULL;
+	host = btree_lookup32(&vha->hw->tgt.host_map, key);
+	if (!host)
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0xffff,
+			   "Unable to find host %06x\n", key);
+
+	return host;
 }
 
 static inline
@@ -6040,6 +6042,17 @@ int qlt_remove_target(struct qla_hw_data *ha, struct scsi_qla_host *vha)
 	return 0;
 }
 
+void qlt_remove_target_resources(struct qla_hw_data *ha)
+{
+	struct scsi_qla_host *node;
+	u32 key = 0;
+
+	btree_for_each_safe32(&ha->tgt.host_map, key, node)
+		btree_remove32(&ha->tgt.host_map, key);
+
+	btree_destroy32(&ha->tgt.host_map);
+}
+
 static void qlt_lport_dump(struct scsi_qla_host *vha, u64 wwpn,
 	unsigned char *b)
 {
@@ -6693,6 +6706,8 @@ qlt_modify_vp_config(struct scsi_qla_host *vha,
 void
 qlt_probe_one_stage1(struct scsi_qla_host *base_vha, struct qla_hw_data *ha)
 {
+	int rc;
+
 	if (!QLA_TGT_MODE_ENABLED())
 		return;
 
@@ -6712,6 +6727,13 @@ qlt_probe_one_stage1(struct scsi_qla_host *base_vha, struct qla_hw_data *ha)
 	    qlt_unknown_atio_work_fn);
 
 	qlt_clear_mode(base_vha);
+
+	rc = btree_init32(&ha->tgt.host_map);
+	if (rc)
+		ql_log(ql_log_info, base_vha, 0xffff,
+		    "Unable to initialize ha->host_map btree\n");
+
+	qlt_update_vp_map(base_vha, SET_VP_IDX);
 }
 
 irqreturn_t
@@ -6820,22 +6842,66 @@ qlt_mem_free(struct qla_hw_data *ha)
 void
 qlt_update_vp_map(struct scsi_qla_host *vha, int cmd)
 {
+	void *slot;
+	u32 key;
+	int rc;
+
 	if (!QLA_TGT_MODE_ENABLED())
 		return;
+
+	key = vha->d_id.b24;
 
 	switch (cmd) {
 	case SET_VP_IDX:
 		vha->hw->tgt.tgt_vp_map[vha->vp_idx].vha = vha;
 		break;
 	case SET_AL_PA:
-		vha->hw->tgt.tgt_vp_map[vha->d_id.b.al_pa].idx = vha->vp_idx;
+		slot = btree_lookup32(&vha->hw->tgt.host_map, key);
+		if (!slot) {
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0xffff,
+			    "Save vha in host_map %p %06x\n", vha, key);
+			rc = btree_insert32(&vha->hw->tgt.host_map,
+				key, vha, GFP_ATOMIC);
+			if (rc)
+				ql_log(ql_log_info, vha, 0xffff,
+				    "Unable to insert s_id into host_map: %06x\n",
+				    key);
+			return;
+		}
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0xffff,
+			"replace existing vha in host_map %p %06x\n", vha, key);
+		btree_update32(&vha->hw->tgt.host_map, key, vha);
 		break;
 	case RESET_VP_IDX:
 		vha->hw->tgt.tgt_vp_map[vha->vp_idx].vha = NULL;
 		break;
 	case RESET_AL_PA:
-		vha->hw->tgt.tgt_vp_map[vha->d_id.b.al_pa].idx = 0;
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0xffff,
+		   "clear vha in host_map %p %06x\n", vha, key);
+		slot = btree_lookup32(&vha->hw->tgt.host_map, key);
+		if (slot)
+			btree_remove32(&vha->hw->tgt.host_map, key);
+		vha->d_id.b24 = 0;
 		break;
+	}
+}
+
+void qlt_update_host_map(struct scsi_qla_host *vha, port_id_t id)
+{
+	unsigned long flags;
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!vha->d_id.b24) {
+		spin_lock_irqsave(&ha->vport_slock, flags);
+		vha->d_id = id;
+		qlt_update_vp_map(vha, SET_AL_PA);
+		spin_unlock_irqrestore(&ha->vport_slock, flags);
+	} else if (vha->d_id.b24 != id.b24) {
+		spin_lock_irqsave(&ha->vport_slock, flags);
+		qlt_update_vp_map(vha, RESET_AL_PA);
+		vha->d_id = id;
+		qlt_update_vp_map(vha, SET_AL_PA);
+		spin_unlock_irqrestore(&ha->vport_slock, flags);
 	}
 }
 

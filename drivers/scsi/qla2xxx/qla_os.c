@@ -3469,6 +3469,7 @@ qla2x00_remove_one(struct pci_dev *pdev)
 	qla2x00_free_sysfs_attr(base_vha, true);
 
 	fc_remove_host(base_vha->host);
+	qlt_remove_target_resources(ha);
 
 	scsi_remove_host(base_vha->host);
 
