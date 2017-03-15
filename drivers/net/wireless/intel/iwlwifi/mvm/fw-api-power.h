@@ -95,7 +95,7 @@ enum iwl_ltr_config_flags {
 
 /**
  * struct iwl_ltr_config_cmd_v1 - configures the LTR
- * @flags: See %enum iwl_ltr_config_flags
+ * @flags: See &enum iwl_ltr_config_flags
  */
 struct iwl_ltr_config_cmd_v1 {
 	__le32 flags;
@@ -107,7 +107,7 @@ struct iwl_ltr_config_cmd_v1 {
 
 /**
  * struct iwl_ltr_config_cmd - configures the LTR
- * @flags: See %enum iwl_ltr_config_flags
+ * @flags: See &enum iwl_ltr_config_flags
  * @static_long:
  * @static_short:
  * @ltr_cfg_values:

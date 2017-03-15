@@ -468,7 +468,7 @@ enum iwl_fw_dbg_reg_operator {
 /**
  * struct iwl_fw_dbg_reg_op - an operation on a register
  *
- * @op: %enum iwl_fw_dbg_reg_operator
+ * @op: &enum iwl_fw_dbg_reg_operator
  * @addr: offset of the register
  * @val: value
  */
@@ -526,7 +526,7 @@ struct iwl_fw_dbg_mem_seg_tlv {
  * struct iwl_fw_dbg_dest_tlv - configures the destination of the debug data
  *
  * @version: version of the TLV - currently 0
- * @monitor_mode: %enum iwl_fw_dbg_monitor_mode
+ * @monitor_mode: &enum iwl_fw_dbg_monitor_mode
  * @size_power: buffer size will be 2^(size_power + 11)
  * @base_reg: addr of the base addr register (PRPH)
  * @end_reg:  addr of the end addr register (PRPH)
@@ -595,15 +595,15 @@ enum iwl_fw_dbg_trigger_vif_type {
 
 /**
  * struct iwl_fw_dbg_trigger_tlv - a TLV that describes the trigger
- * @id: %enum iwl_fw_dbg_trigger
- * @vif_type: %enum iwl_fw_dbg_trigger_vif_type
+ * @id: &enum iwl_fw_dbg_trigger
+ * @vif_type: &enum iwl_fw_dbg_trigger_vif_type
  * @stop_conf_ids: bitmap of configurations this trigger relates to.
  *	if the mode is %IWL_FW_DBG_TRIGGER_STOP, then if the bit corresponding
  *	to the currently running configuration is set, the data should be
  *	collected.
  * @stop_delay: how many milliseconds to wait before collecting the data
  *	after the STOP trigger fires.
- * @mode: %enum iwl_fw_dbg_trigger_mode - can be stop / start of both
+ * @mode: &enum iwl_fw_dbg_trigger_mode - can be stop / start of both
  * @start_conf_id: if mode is %IWL_FW_DBG_TRIGGER_START, this defines what
  *	configuration should be applied when the triggers kicks in.
  * @occurrences: number of occurrences. 0 means the trigger will never fire.
