@@ -114,6 +114,21 @@ qla_dfs_tgt_counters_show(struct seq_file *s, void *unused)
 	seq_printf(s, "num Q full sent = %lld\n",
 		vha->tgt_counters.num_q_full_sent);
 
+	/* DIF stats */
+	seq_printf(s, "DIF Inp Bytes = %lld\n",
+		vha->qla_stats.qla_dif_stats.dif_input_bytes);
+	seq_printf(s, "DIF Outp Bytes = %lld\n",
+		vha->qla_stats.qla_dif_stats.dif_output_bytes);
+	seq_printf(s, "DIF Inp Req = %lld\n",
+		vha->qla_stats.qla_dif_stats.dif_input_requests);
+	seq_printf(s, "DIF Outp Req = %lld\n",
+		vha->qla_stats.qla_dif_stats.dif_output_requests);
+	seq_printf(s, "DIF Guard err = %d\n",
+		vha->qla_stats.qla_dif_stats.dif_guard_err);
+	seq_printf(s, "DIF Ref tag err = %d\n",
+		vha->qla_stats.qla_dif_stats.dif_ref_tag_err);
+	seq_printf(s, "DIF App tag err = %d\n",
+		vha->qla_stats.qla_dif_stats.dif_app_tag_err);
 	return 0;
 }
 
