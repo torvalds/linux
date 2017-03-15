@@ -24,6 +24,7 @@
 #define __DRM_MODESET_H__
 
 #include <linux/kref.h>
+#include <drm/drm_lease.h>
 struct drm_object_properties;
 struct drm_property;
 struct drm_device;
