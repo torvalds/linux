@@ -21,7 +21,7 @@ extern void r5c_release_extra_page(struct stripe_head *sh);
 extern void r5c_use_extra_page(struct stripe_head *sh);
 extern void r5l_wake_reclaim(struct r5l_log *log, sector_t space);
 extern void r5c_handle_cached_data_endio(struct r5conf *conf,
-	struct stripe_head *sh, int disks, struct bio_list *return_bi);
+	struct stripe_head *sh, int disks);
 extern int r5c_cache_data(struct r5l_log *log, struct stripe_head *sh);
 extern void r5c_make_stripe_write_out(struct stripe_head *sh);
 extern void r5c_flush_cache(struct r5conf *conf, int num);

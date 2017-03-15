@@ -308,8 +308,7 @@ static void __r5l_set_io_unit_state(struct r5l_io_unit *io,
 }
 
 static void
-r5c_return_dev_pending_writes(struct r5conf *conf, struct r5dev *dev,
-			      struct bio_list *return_bi)
+r5c_return_dev_pending_writes(struct r5conf *conf, struct r5dev *dev)
 {
 	struct bio *wbi, *wbi2;
 
@@ -319,23 +318,21 @@ r5c_return_dev_pending_writes(struct r5conf *conf, struct r5dev *dev,
 	       dev->sector + STRIPE_SECTORS) {
 		wbi2 = r5_next_bio(wbi, dev->sector);
 		md_write_end(conf->mddev);
-		if (!raid5_dec_bi_active_stripes(wbi)) {
-			bio_list_add(return_bi, wbi);
-		}
+		if (!raid5_dec_bi_active_stripes(wbi))
+			bio_endio(wbi);
 		wbi = wbi2;
 	}
 }
 
 void r5c_handle_cached_data_endio(struct r5conf *conf,
-	  struct stripe_head *sh, int disks, struct bio_list *return_bi)
+				  struct stripe_head *sh, int disks)
 {
 	int i;
 
 	for (i = sh->disks; i--; ) {
 		if (sh->dev[i].written) {
 			set_bit(R5_UPTODATE, &sh->dev[i].flags);
-			r5c_return_dev_pending_writes(conf, &sh->dev[i],
-						      return_bi);
+			r5c_return_dev_pending_writes(conf, &sh->dev[i]);
 			bitmap_endwrite(conf->mddev->bitmap, sh->sector,
 					STRIPE_SECTORS,
 					!test_bit(STRIPE_DEGRADED, &sh->state),

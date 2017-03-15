@@ -278,7 +278,6 @@ struct stripe_head_state {
 	int dec_preread_active;
 	unsigned long ops_request;
 
-	struct bio_list return_bi;
 	struct md_rdev *blocked_rdev;
 	int handle_bad_blocks;
 	int log_failed;
