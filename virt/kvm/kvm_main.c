@@ -654,8 +654,10 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	list_del(&kvm->vm_list);
 	spin_unlock(&kvm_lock);
 	kvm_free_irq_routing(kvm);
-	for (i = 0; i < KVM_NR_BUSES; i++)
+	for (i = 0; i < KVM_NR_BUSES; i++) {
 		kvm_io_bus_destroy(kvm->buses[i]);
+		kvm->buses[i] = NULL;
+	}
 	kvm_coalesced_mmio_free(kvm);
 #if defined(CONFIG_MMU_NOTIFIER) && defined(KVM_ARCH_WANT_MMU_NOTIFIER)
 	mmu_notifier_unregister(&kvm->mmu_notifier, kvm->mm);
@@ -3376,6 +3378,14 @@ int kvm_io_bus_unregister_dev(struct kvm *kvm, enum kvm_bus bus_idx,
 	struct kvm_io_bus *new_bus, *bus;
 
 	bus = kvm->buses[bus_idx];
+
+	/*
+	 * It's possible the bus being released before hand. If so,
+	 * we're done here.
+	 */
+	if (!bus)
+		return 0;
+
 	r = -ENOENT;
 	for (i = 0; i < bus->dev_count; i++)
 		if (bus->range[i].dev == dev) {
