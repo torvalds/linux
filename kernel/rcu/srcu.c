@@ -260,10 +260,9 @@ static void srcu_gp_start(struct srcu_struct *sp)
 }
 
 /*
- * @@@ Wait until all pre-existing readers complete.  Such readers
- * will have used the index specified by "idx".
- * the caller should ensures the ->completed is not changed while checking
- * and idx = (->completed & 1) ^ 1
+ * Wait until all readers counted by array index idx complete, but loop
+ * a maximum of trycount times.  The caller must ensure that ->completed
+ * is not changed while checking.
  */
 static bool try_check_zero(struct srcu_struct *sp, int idx, int trycount)
 {
