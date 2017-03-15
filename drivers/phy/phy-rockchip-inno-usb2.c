@@ -916,6 +916,12 @@ static void rockchip_usb2phy_sm_work(struct work_struct *work)
 	unsigned int ul_mask, uhd_mask;
 	int ret;
 
+	if (!rport->port_cfg->utmi_ls.offset ||
+	    !rport->port_cfg->utmi_hstdet.offset) {
+		dev_dbg(&rport->phy->dev, "some property may not be specified\n");
+		return;
+	}
+
 	mutex_lock(&rport->mutex);
 
 	ret = regmap_read(rphy->grf, rport->port_cfg->utmi_ls.offset, &ul);
