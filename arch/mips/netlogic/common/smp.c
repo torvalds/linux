@@ -35,6 +35,7 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/sched/task_stack.h>
 #include <linux/smp.h>
 #include <linux/irq.h>
 

@@ -2072,6 +2072,7 @@ static int team_dev_type_check_change(struct net_device *dev,
 static void team_setup(struct net_device *dev)
 {
 	ether_setup(dev);
+	dev->max_mtu = ETH_MAX_MTU;
 
 	dev->netdev_ops = &team_netdev_ops;
 	dev->ethtool_ops = &team_ethtool_ops;

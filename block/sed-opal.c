@@ -1023,7 +1023,6 @@ static int finalize_and_send(struct opal_dev *dev, cont_fn cont)
 
 static int gen_key(struct opal_dev *dev, void *data)
 {
-	const u8 *method;
 	u8 uid[OPAL_UID_LENGTH];
 	int err = 0;
 
@@ -1031,7 +1030,6 @@ static int gen_key(struct opal_dev *dev, void *data)
 	set_comid(dev, dev->comid);
 
 	memcpy(uid, dev->prev_data, min(sizeof(uid), dev->prev_d_len));
-	method = opalmethod[OPAL_GENKEY];
 	kfree(dev->prev_data);
 	dev->prev_data = NULL;
 
@@ -1669,7 +1667,6 @@ static int add_user_to_lr(struct opal_dev *dev, void *data)
 static int lock_unlock_locking_range(struct opal_dev *dev, void *data)
 {
 	u8 lr_buffer[OPAL_UID_LENGTH];
-	const u8 *method;
 	struct opal_lock_unlock *lkul = data;
 	u8 read_locked = 1, write_locked = 1;
 	int err = 0;
@@ -1677,7 +1674,6 @@ static int lock_unlock_locking_range(struct opal_dev *dev, void *data)
 	clear_opal_cmd(dev);
 	set_comid(dev, dev->comid);
 
-	method = opalmethod[OPAL_SET];
 	if (build_locking_range(lr_buffer, sizeof(lr_buffer),
 				lkul->session.opal_key.lr) < 0)
 		return -ERANGE;
@@ -1733,14 +1729,12 @@ static int lock_unlock_locking_range_sum(struct opal_dev *dev, void *data)
 {
 	u8 lr_buffer[OPAL_UID_LENGTH];
 	u8 read_locked = 1, write_locked = 1;
-	const u8 *method;
 	struct opal_lock_unlock *lkul = data;
 	int ret;
 
 	clear_opal_cmd(dev);
 	set_comid(dev, dev->comid);
 
-	method = opalmethod[OPAL_SET];
 	if (build_locking_range(lr_buffer, sizeof(lr_buffer),
 				lkul->session.opal_key.lr) < 0)
 		return -ERANGE;
@@ -2133,7 +2127,7 @@ static int opal_add_user_to_lr(struct opal_dev *dev,
 		pr_err("Locking state was not RO or RW\n");
 		return -EINVAL;
 	}
-	if (lk_unlk->session.who < OPAL_USER1 &&
+	if (lk_unlk->session.who < OPAL_USER1 ||
 	    lk_unlk->session.who > OPAL_USER9) {
 		pr_err("Authority was not within the range of users: %d\n",
 		       lk_unlk->session.who);
@@ -2316,7 +2310,7 @@ static int opal_activate_user(struct opal_dev *dev,
 	int ret;
 
 	/* We can't activate Admin1 it's active as manufactured */
-	if (opal_session->who < OPAL_USER1 &&
+	if (opal_session->who < OPAL_USER1 ||
 	    opal_session->who > OPAL_USER9) {
 		pr_err("Who was not a valid user: %d\n", opal_session->who);
 		return -EINVAL;

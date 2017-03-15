@@ -2976,6 +2976,44 @@ static int vxlan_dev_configure(struct net *src_net, struct net_device *dev,
 	return 0;
 }
 
+static int __vxlan_dev_create(struct net *net, struct net_device *dev,
+			      struct vxlan_config *conf)
+{
+	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
+	struct vxlan_dev *vxlan = netdev_priv(dev);
+	int err;
+
+	err = vxlan_dev_configure(net, dev, conf, false);
+	if (err)
+		return err;
+
+	dev->ethtool_ops = &vxlan_ethtool_ops;
+
+	/* create an fdb entry for a valid default destination */
+	if (!vxlan_addr_any(&vxlan->default_dst.remote_ip)) {
+		err = vxlan_fdb_create(vxlan, all_zeros_mac,
+				       &vxlan->default_dst.remote_ip,
+				       NUD_REACHABLE | NUD_PERMANENT,
+				       NLM_F_EXCL | NLM_F_CREATE,
+				       vxlan->cfg.dst_port,
+				       vxlan->default_dst.remote_vni,
+				       vxlan->default_dst.remote_vni,
+				       vxlan->default_dst.remote_ifindex,
+				       NTF_SELF);
+		if (err)
+			return err;
+	}
+
+	err = register_netdevice(dev);
+	if (err) {
+		vxlan_fdb_delete_default(vxlan, vxlan->default_dst.remote_vni);
+		return err;
+	}
+
+	list_add(&vxlan->next, &vn->vxlan_list);
+	return 0;
+}
+
 static int vxlan_nl2conf(struct nlattr *tb[], struct nlattr *data[],
 			 struct net_device *dev, struct vxlan_config *conf,
 			 bool changelink)
@@ -3172,8 +3210,6 @@ static int vxlan_nl2conf(struct nlattr *tb[], struct nlattr *data[],
 static int vxlan_newlink(struct net *src_net, struct net_device *dev,
 			 struct nlattr *tb[], struct nlattr *data[])
 {
-	struct vxlan_net *vn = net_generic(src_net, vxlan_net_id);
-	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct vxlan_config conf;
 	int err;
 
@@ -3181,36 +3217,7 @@ static int vxlan_newlink(struct net *src_net, struct net_device *dev,
 	if (err)
 		return err;
 
-	err = vxlan_dev_configure(src_net, dev, &conf, false);
-	if (err)
-		return err;
-
-	dev->ethtool_ops = &vxlan_ethtool_ops;
-
-	/* create an fdb entry for a valid default destination */
-	if (!vxlan_addr_any(&vxlan->default_dst.remote_ip)) {
-		err = vxlan_fdb_create(vxlan, all_zeros_mac,
-				       &vxlan->default_dst.remote_ip,
-				       NUD_REACHABLE | NUD_PERMANENT,
-				       NLM_F_EXCL | NLM_F_CREATE,
-				       vxlan->cfg.dst_port,
-				       vxlan->default_dst.remote_vni,
-				       vxlan->default_dst.remote_vni,
-				       vxlan->default_dst.remote_ifindex,
-				       NTF_SELF);
-		if (err)
-			return err;
-	}
-
-	err = register_netdevice(dev);
-	if (err) {
-		vxlan_fdb_delete_default(vxlan, vxlan->default_dst.remote_vni);
-		return err;
-	}
-
-	list_add(&vxlan->next, &vn->vxlan_list);
-
-	return 0;
+	return __vxlan_dev_create(src_net, dev, &conf);
 }
 
 static int vxlan_changelink(struct net_device *dev, struct nlattr *tb[],
@@ -3440,7 +3447,7 @@ struct net_device *vxlan_dev_create(struct net *net, const char *name,
 	if (IS_ERR(dev))
 		return dev;
 
-	err = vxlan_dev_configure(net, dev, conf, false);
+	err = __vxlan_dev_create(net, dev, conf);
 	if (err < 0) {
 		free_netdev(dev);
 		return ERR_PTR(err);

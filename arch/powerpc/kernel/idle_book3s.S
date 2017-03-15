@@ -276,19 +276,21 @@ power_enter_stop:
  */
 	andis.   r4,r3,PSSCR_EC_ESL_MASK_SHIFTED
 	clrldi   r3,r3,60 /* r3 = Bits[60:63] = Requested Level (RL) */
-	bne	 1f
+	bne	 .Lhandle_esl_ec_set
 	IDLE_STATE_ENTER_SEQ(PPC_STOP)
 	li	r3,0  /* Since we didn't lose state, return 0 */
 	b 	pnv_wakeup_noloss
+
+.Lhandle_esl_ec_set:
 /*
  * Check if the requested state is a deep idle state.
  */
-1:	LOAD_REG_ADDRBASE(r5,pnv_first_deep_stop_state)
+	LOAD_REG_ADDRBASE(r5,pnv_first_deep_stop_state)
 	ld	r4,ADDROFF(pnv_first_deep_stop_state)(r5)
 	cmpd	r3,r4
-	bge	2f
+	bge	.Lhandle_deep_stop
 	IDLE_STATE_ENTER_SEQ_NORET(PPC_STOP)
-2:
+.Lhandle_deep_stop:
 /*
  * Entering deep idle state.
  * Clear thread bit in PACA_CORE_IDLE_STATE, save SPRs to
