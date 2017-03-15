@@ -146,7 +146,7 @@ int ia_css_queue_dequeue(
 			uint32_t *item)
 {
 	int error = 0;
-	if (qhandle == 0 || NULL == item)
+	if (qhandle == NULL || NULL == item)
 		return EINVAL;
 
 	/* 1. Load the required queue object */
