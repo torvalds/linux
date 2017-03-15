@@ -256,10 +256,10 @@ static int vce_v4_0_sriov_start(struct amdgpu_device *adev)
 	struct amdgpu_ring *ring;
 	uint32_t offset, size;
 	uint32_t table_size = 0;
-	struct mmsch_v1_0_cmd_direct_write direct_wt = {0};
-	struct mmsch_v1_0_cmd_direct_read_modify_write direct_rd_mod_wt = {0};
-	struct mmsch_v1_0_cmd_direct_polling direct_poll = {0};
-	struct mmsch_v1_0_cmd_end end = {0};
+	struct mmsch_v1_0_cmd_direct_write direct_wt = { { 0 } };
+	struct mmsch_v1_0_cmd_direct_read_modify_write direct_rd_mod_wt = { { 0 } };
+	struct mmsch_v1_0_cmd_direct_polling direct_poll = { { 0 } };
+	struct mmsch_v1_0_cmd_end end = { { 0 } };
 	uint32_t *init_table = adev->virt.mm_table.cpu_addr;
 	struct mmsch_v1_0_init_header *header = (struct mmsch_v1_0_init_header *)init_table;
 
