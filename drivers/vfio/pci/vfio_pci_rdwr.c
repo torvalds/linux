@@ -164,8 +164,7 @@ ssize_t vfio_pci_bar_rw(struct vfio_pci_device *vdev, char __user *buf,
 	} else
 		io = vdev->barmap[bar];
 
-	if (bar == vdev->msix_bar &&
-		!(pdev->bus->bus_flags & PCI_BUS_FLAGS_MSI_REMAP)) {
+	if (bar == vdev->msix_bar) {
 		x_start = vdev->msix_offset;
 		x_end = vdev->msix_offset + vdev->msix_size;
 	}
