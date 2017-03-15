@@ -8350,12 +8350,51 @@ void intel_pm_setup(struct drm_i915_private *dev_priv)
 	atomic_set(&dev_priv->pm.wakeref_count, 0);
 }
 
+static u64 vlv_residency_raw(struct drm_i915_private *dev_priv,
+			     const i915_reg_t reg)
+{
+	u32 lower, upper, tmp, saved_ctl;
+
+	/* The register accessed do not need forcewake. We borrow
+	 * uncore lock to prevent concurrent access to range reg.
+	 */
+	spin_lock_irq(&dev_priv->uncore.lock);
+	saved_ctl = I915_READ_FW(VLV_COUNTER_CONTROL);
+
+	if (!(saved_ctl & VLV_COUNT_RANGE_HIGH))
+		I915_WRITE_FW(VLV_COUNTER_CONTROL,
+			      _MASKED_BIT_ENABLE(VLV_COUNT_RANGE_HIGH));
+
+	/* vlv and chv residency counters are 40 bits in width.
+	 * With a control bit, we can choose between upper or lower
+	 * 32bit window into this counter.
+	 */
+	upper = I915_READ_FW(reg);
+	do {
+		tmp = upper;
+
+		I915_WRITE_FW(VLV_COUNTER_CONTROL,
+			      _MASKED_BIT_DISABLE(VLV_COUNT_RANGE_HIGH));
+		lower = I915_READ_FW(reg);
+
+		I915_WRITE_FW(VLV_COUNTER_CONTROL,
+			      _MASKED_BIT_ENABLE(VLV_COUNT_RANGE_HIGH));
+		upper = I915_READ_FW(reg);
+	} while (upper != tmp);
+
+	if (!(saved_ctl & VLV_COUNT_RANGE_HIGH))
+		I915_WRITE_FW(VLV_COUNTER_CONTROL,
+			      _MASKED_BIT_DISABLE(VLV_COUNT_RANGE_HIGH));
+
+	spin_unlock_irq(&dev_priv->uncore.lock);
+
+	return lower | (u64)upper << 8;
+}
+
 u64 intel_rc6_residency_us(struct drm_i915_private *dev_priv,
 			   const i915_reg_t reg)
 {
-	u64 raw_time; /* 32b value may overflow during fixed point math */
-	u64 units = 128000ULL, div = 100000ULL;
-	u64 ret;
+	u64 time_hw, units, div;
 
 	if (!intel_enable_rc6())
 		return 0;
@@ -8367,16 +8406,19 @@ u64 intel_rc6_residency_us(struct drm_i915_private *dev_priv,
 		units = 1000;
 		div = dev_priv->czclk_freq;
 
-		if (I915_READ(VLV_COUNTER_CONTROL) & VLV_COUNT_RANGE_HIGH)
-			units <<= 8;
+		time_hw = vlv_residency_raw(dev_priv, reg);
 	} else if (IS_GEN9_LP(dev_priv)) {
 		units = 1000;
 		div = 1200;		/* 833.33ns */
+
+		time_hw = I915_READ(reg);
+	} else {
+		units = 128000; /* 1.28us */
+		div = 100000;
+
+		time_hw = I915_READ(reg);
 	}
 
-	raw_time = I915_READ(reg) * units;
-	ret = DIV_ROUND_UP_ULL(raw_time, div);
-
 	intel_runtime_pm_put(dev_priv);
-	return ret;
+	return DIV_ROUND_UP_ULL(time_hw * units, div);
 }
