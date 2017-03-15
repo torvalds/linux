@@ -195,6 +195,7 @@ extern void resched_cpu(int cpu);
 #include <linux/rcu_node_tree.h>
 
 extern int rcu_num_lvls;
+extern int num_rcu_lvl[];
 extern int rcu_num_nodes;
 static bool rcu_fanout_exact;
 static int rcu_fanout_leaf;
