@@ -181,6 +181,11 @@
 #define SATA_PLL_CFG0				0x490
 #define SATA_PLL_CFG0_PADPLL_RESET_SWCTL	BIT(0)
 #define SATA_PLL_CFG0_PADPLL_USE_LOCKDET	BIT(2)
+#define SATA_PLL_CFG0_SATA_SEQ_IN_SWCTL		BIT(4)
+#define SATA_PLL_CFG0_SATA_SEQ_RESET_INPUT_VALUE	BIT(5)
+#define SATA_PLL_CFG0_SATA_SEQ_LANE_PD_INPUT_VALUE	BIT(6)
+#define SATA_PLL_CFG0_SATA_SEQ_PADPLL_PD_INPUT_VALUE	BIT(7)
+
 #define SATA_PLL_CFG0_PADPLL_SLEEP_IDDQ		BIT(13)
 #define SATA_PLL_CFG0_SEQ_ENABLE		BIT(24)
 
@@ -482,6 +487,26 @@ void tegra210_sata_pll_hw_sequence_start(void)
 	writel_relaxed(val, clk_base + SATA_PLL_CFG0);
 }
 EXPORT_SYMBOL_GPL(tegra210_sata_pll_hw_sequence_start);
+
+void tegra210_set_sata_pll_seq_sw(bool state)
+{
+	u32 val;
+
+	val = readl_relaxed(clk_base + SATA_PLL_CFG0);
+	if (state) {
+		val |= SATA_PLL_CFG0_SATA_SEQ_IN_SWCTL;
+		val |= SATA_PLL_CFG0_SATA_SEQ_RESET_INPUT_VALUE;
+		val |= SATA_PLL_CFG0_SATA_SEQ_LANE_PD_INPUT_VALUE;
+		val |= SATA_PLL_CFG0_SATA_SEQ_PADPLL_PD_INPUT_VALUE;
+	} else {
+		val &= ~SATA_PLL_CFG0_SATA_SEQ_IN_SWCTL;
+		val &= ~SATA_PLL_CFG0_SATA_SEQ_RESET_INPUT_VALUE;
+		val &= ~SATA_PLL_CFG0_SATA_SEQ_LANE_PD_INPUT_VALUE;
+		val &= ~SATA_PLL_CFG0_SATA_SEQ_PADPLL_PD_INPUT_VALUE;
+	}
+	writel_relaxed(val, clk_base + SATA_PLL_CFG0);
+}
+EXPORT_SYMBOL_GPL(tegra210_set_sata_pll_seq_sw);
 
 static inline void _pll_misc_chk_default(void __iomem *base,
 					struct tegra_clk_pll_params *params,
