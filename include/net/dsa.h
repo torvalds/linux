@@ -233,6 +233,10 @@ struct dsa_switch {
 	u32			phys_mii_mask;
 	struct mii_bus		*slave_mii_bus;
 
+	/* Ageing Time limits in msecs */
+	unsigned int ageing_time_min;
+	unsigned int ageing_time_max;
+
 	/* Dynamically allocated ports, keep last */
 	size_t num_ports;
 	struct dsa_port ports[];
