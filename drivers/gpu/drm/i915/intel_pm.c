@@ -8350,12 +8350,12 @@ void intel_pm_setup(struct drm_i915_private *dev_priv)
 	atomic_set(&dev_priv->pm.wakeref_count, 0);
 }
 
-u32 intel_rc6_residency(struct drm_i915_private *dev_priv,
-			i915_reg_t reg)
+u64 intel_rc6_residency_us(struct drm_i915_private *dev_priv,
+			   const i915_reg_t reg)
 {
 	u64 raw_time; /* 32b value may overflow during fixed point math */
-	u64 units = 128ULL, div = 100000ULL;
-	u32 ret;
+	u64 units = 128000ULL, div = 100000ULL;
+	u64 ret;
 
 	if (!intel_enable_rc6())
 		return 0;
@@ -8364,13 +8364,13 @@ u32 intel_rc6_residency(struct drm_i915_private *dev_priv,
 
 	/* On VLV and CHV, residency time is in CZ units rather than 1.28us */
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		units = 1;
+		units = 1000;
 		div = dev_priv->czclk_freq;
 
 		if (I915_READ(VLV_COUNTER_CONTROL) & VLV_COUNT_RANGE_HIGH)
 			units <<= 8;
 	} else if (IS_GEN9_LP(dev_priv)) {
-		units = 1;
+		units = 1000;
 		div = 1200;		/* 833.33ns */
 	}
 
