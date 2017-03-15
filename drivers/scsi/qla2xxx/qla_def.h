@@ -3300,6 +3300,8 @@ struct qlt_hw_data {
 	uint8_t tgt_node_name[WWN_SIZE];
 
 	struct dentry *dfs_tgt_sess;
+	struct dentry *dfs_tgt_port_database;
+
 	struct list_head q_full_list;
 	uint32_t num_pend_cmds;
 	uint32_t num_qfull_cmds_alloc;
