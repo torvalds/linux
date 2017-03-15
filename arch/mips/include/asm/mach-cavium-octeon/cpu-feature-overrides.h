@@ -46,9 +46,9 @@
 #define cpu_has_64bits		1
 #define cpu_has_octeon_cache	1
 #define cpu_has_saa		octeon_has_saa()
-#define cpu_has_mips32r1	0
-#define cpu_has_mips32r2	0
-#define cpu_has_mips64r1	0
+#define cpu_has_mips32r1	1
+#define cpu_has_mips32r2	1
+#define cpu_has_mips64r1	1
 #define cpu_has_mips64r2	1
 #define cpu_has_dsp		0
 #define cpu_has_dsp2		0
