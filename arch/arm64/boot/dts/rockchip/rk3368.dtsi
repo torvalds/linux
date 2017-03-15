@@ -48,6 +48,9 @@
 #include <dt-bindings/power/rk3368-power.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
 #include <dt-bindings/thermal/thermal.h>
+#include <dt-bindings/display/mipi_dsi.h>
+#include <dt-bindings/display/drm_mipi_dsi.h>
+#include <dt-bindings/display/media-bus-format.h>
 
 / {
 	compatible = "rockchip,rk3368";
@@ -1148,6 +1151,11 @@
 		vop_out: port {
 			#address-cells = <1>;
 			#size-cells = <0>;
+
+			vop_out_mipi: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi_in_vop>;
+			};
 		};
 	};
 
@@ -1166,6 +1174,46 @@
 		clock-names = "aclk", "hclk";
 		power-domains = <&power RK3368_PD_VIO>;
 		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	mipi_dsi_host: mipi-dsi-host@ff960000 {
+		compatible = "rockchip,rk3368-mipi-dsi";
+		reg = <0x0 0xff960000 0x0 0x4000>;
+		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_MIPI_DSI0>;
+		clock-names = "pclk";
+		phys = <&mipi_dphy>;
+		phy-names = "mipi_dphy";
+		rockchip,grf = <&grf>;
+		power-domains = <&power RK3368_PD_VIO>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+
+		ports@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			mipi_in: port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				mipi_in_vop: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vop_out_mipi>;
+				};
+			};
+		};
+	};
+
+	mipi_dphy: mipi-dphy@ff968000 {
+		compatible = "rockchip,rk3368-mipi-dphy";
+		reg = <0x0 0xff968000 0x0 0x4000>;
+		#phy-cells = <0>;
+		clocks = <&cru SCLK_MIPIDSI_24M>, <&cru PCLK_DPHYTX0>;
+		clock-names = "ref", "pclk";
 		status = "disabled";
 	};
 
