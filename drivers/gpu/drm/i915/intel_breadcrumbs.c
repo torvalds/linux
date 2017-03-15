@@ -828,12 +828,12 @@ bool intel_breadcrumbs_busy(struct intel_engine_cs *engine)
 
 	if (b->irq_wait) {
 		wake_up_process(b->irq_wait->tsk);
-		busy |= intel_engine_flag(engine);
+		busy = true;
 	}
 
 	if (rcu_access_pointer(b->first_signal)) {
 		wake_up_process(b->signaler);
-		busy |= intel_engine_flag(engine);
+		busy = true;
 	}
 
 	spin_unlock_irq(&b->rb_lock);
