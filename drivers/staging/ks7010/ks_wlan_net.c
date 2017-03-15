@@ -2044,7 +2044,7 @@ static int ks_wlan_set_pmksa(struct net_device *dev,
 		if (ptr != &priv->pmklist.head)	/* not find address. */
 			break;	/* case */
 
-		if (priv->pmklist.size <= PMK_LIST_MAX) {	/* new cache data */
+		if (priv->pmklist.size < PMK_LIST_MAX) {	/* new cache data */
 			for (i = 0; i < PMK_LIST_MAX; i++) {
 				pmk = &priv->pmklist.pmk[i];
 				if (!memcmp("\x00\x00\x00\x00\x00\x00",
