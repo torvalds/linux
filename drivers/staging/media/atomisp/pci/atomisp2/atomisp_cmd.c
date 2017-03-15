@@ -5693,7 +5693,7 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev,
 	/* Disable dvs if resolution can't be supported by sensor */
 	if (asd->params.video_dis_en &&
 	    source_pad == ATOMISP_SUBDEV_PAD_SOURCE_VIDEO) {
-	    vformat.which = V4L2_SUBDEV_FORMAT_TRY;
+		vformat.which = V4L2_SUBDEV_FORMAT_TRY;
 		ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
 			pad, set_fmt, &pad_cfg, &vformat);
 		if (ret)
@@ -5710,7 +5710,7 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev,
 	}
 	dev_dbg(isp->dev, "sensor width: %d, height: %d\n",
 		ffmt->width, ffmt->height);
-    vformat.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	vformat.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera, pad,
 			       set_fmt, NULL, &vformat);
 	if (ret)
