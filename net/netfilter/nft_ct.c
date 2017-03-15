@@ -544,7 +544,8 @@ static int nft_ct_set_init(const struct nft_ctx *ctx,
 		case IP_CT_DIR_REPLY:
 			break;
 		default:
-			return -EINVAL;
+			err = -EINVAL;
+			goto err1;
 		}
 	}
 
